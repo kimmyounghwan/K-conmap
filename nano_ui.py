@@ -12,7 +12,7 @@ KST = timezone(timedelta(hours=9))
 
 
 # ==========================================
-# 🟢 1. 데이터 엔진 (오전의 완벽함 + 고속도로 장착!)
+# 🟢 1. 데이터 엔진 (명환이의 원본 100% 복구!)
 # ==========================================
 @st.cache_data(ttl=600)
 def fetch_monster_announcements():
@@ -23,11 +23,8 @@ def fetch_monster_announcements():
     delta = end_date - start_date
     dates = [(start_date + timedelta(days=i)).strftime('%Y%m%d') for i in range(delta.days + 1)]
 
-    # 🚨 명환이 지시: 국토부 등 전체 마스터 주소
+    # 🚨 명환이 원본: 국토부 등 전체 마스터 주소
     url = 'http://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoCnstwk'
-
-    # 🚨 [나노의 고속도로] 문 한 번 열고 계속 통신해서 속도 업!
-    session = requests.Session()
 
     def fetch_per_day(dt):
         params = {
@@ -37,18 +34,18 @@ def fetch_monster_announcements():
         }
         for _ in range(3):
             try:
-                res = session.get(url, params=params, verify=False, timeout=10)
+                # 🚨 명환이 원본: requests.get 사용
+                res = requests.get(url, params=params, verify=False, timeout=10)
                 if res.status_code == 200:
-                    data = res.json()
-                    items = data.get('response', {}).get('body', {}).get('items', [])
+                    items = res.json().get('response', {}).get('body', {}).get('items', [])
                     return items if items else []
             except:
                 time.sleep(0.5)
                 continue
         return []
 
-    # 🚨 [핵심!] 차단당하지 않는 안전한 일꾼 5명이 '하루씩' 꼼꼼하게 가져옴!
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+    # 🚨 명환이 원본: 일꾼 15명 유지! (가장 확실한 방법)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
         results = list(executor.map(fetch_per_day, dates))
         for res in results:
             if res: all_raw.extend(res)
@@ -57,7 +54,7 @@ def fetch_monster_announcements():
 
 
 # ==========================================
-# 🟢 2. UI 및 화면 구성 (명환이 원본 100% 유지)
+# 🟢 2. UI 및 화면 구성
 # ==========================================
 st.set_page_config(page_title="k_건설맵", layout="wide", initial_sidebar_state="expanded")
 
@@ -83,14 +80,15 @@ with st.sidebar:
     st.markdown("### 🏛️ k_건설맵 메뉴")
     menu = st.radio("이동할 페이지를 선택하세요:", ["📊 실시간 공고 (홈)", "📝 자유 게시판", "👤 로그인 / 회원가입"])
     st.write("---")
-    st.info("💡 최초 1회 로딩 시 조달청 데이터를 가져오느라 시간이 걸립니다. (새로고침 시 0.1초!)")
+    st.info("💡 최초 1회 로딩 시 조달청 데이터를 가져오느라 약간 느릴 수 있습니다. 이후에는 0.1초 만에 열립니다!")
 
 # ==========================================
 # 🟢 메뉴 1: 실시간 공고 (홈)
 # ==========================================
 if menu == "📊 실시간 공고 (홈)":
     if 'master_data' not in st.session_state:
-        with st.spinner("조달청에서 60일치 공고를 하루씩 꼼꼼하게 모아오는 중입니다... (1~2분 소요)"):
+        # 🚨 안내 문구 수정: 명환이가 안심할 수 있게 1~2분 걸린다고 적어둘게!
+        with st.spinner("조달청에서 60일치 전국 공고를 하루씩 꼼꼼하게 모아오고 있습니다. 데이터가 방대하여 약 1~2분 정도 소요됩니다. 팽이가 돌아도 정상입니다! ⏳"):
             st.session_state['master_data'] = fetch_monster_announcements()
 
     st.markdown('<div class="blue-bar"><p>🏛️ k_건설맵 실시간 현황판</p></div>', unsafe_allow_html=True)
@@ -145,7 +143,7 @@ if menu == "📊 실시간 공고 (홈)":
             }
         )
     else:
-        st.warning("🚨 조달청 서버 응답이 지연되고 있습니다. 잠시 후 '최신 데이터 갱신' 버튼을 눌러주세요.")
+        st.warning("🚨 조달청 서버 응답이 지연되고 있습니다. '최신 데이터 갱신' 버튼을 눌러주세요.")
 
 # ==========================================
 # 🟢 메뉴 2: 자유 게시판
