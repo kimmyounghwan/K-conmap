@@ -7,7 +7,7 @@ import concurrent.futures
 import time
 
 # ==========================================
-# 🟢 1. 엔진 설정 (메모장 원본 그대로)
+# 🟢 1. 엔진 설정 (명환이 원본 60일치 그대로!)
 # ==========================================
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 API_KEY = "13610863df3680cc4e7c70a64d752b37485535929bfa514f4ad4d71ea56e4ccb"
@@ -53,7 +53,7 @@ def fetch_monster_announcements():
 
 
 # ==========================================
-# 🟢 2. UI 디자인 & 화면 구성 (메모장 원본 그대로)
+# 🟢 2. UI 디자인 & 화면 구성 (명환이 원본 그대로!)
 # ==========================================
 st.set_page_config(page_title="k_건설맵", layout="wide", initial_sidebar_state="expanded")
 
