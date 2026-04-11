@@ -12,20 +12,21 @@ KST = timezone(timedelta(hours=9))
 
 
 # ==========================================
-# 🟢 1. 데이터 가져오는 엔진 (명환이 원본 60일치!)
+# 🟢 1. 데이터 엔진 (속도 터보 모드 장착!)
 # ==========================================
 @st.cache_data(ttl=600)
 def fetch_monster_announcements():
     all_raw = []
 
-    # 📅 딱 2개월(60일) 전부터 오늘까지!
     end_date = datetime.now(KST).date()
     start_date = end_date - timedelta(days=60)
     delta = end_date - start_date
     dates = [(start_date + timedelta(days=i)).strftime('%Y%m%d') for i in range(delta.days + 1)]
 
-    # 🚨 통합 마스터 주소 (국토부 등 전체)
     url = 'http://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoCnstwk'
+
+    # 🚨 [속도 업그레이드] 세션을 유지해서 매번 접속하는 시간을 확 줄임!
+    session = requests.Session()
 
     def fetch_per_day(dt):
         params = {
@@ -33,12 +34,15 @@ def fetch_monster_announcements():
             'pageNo': '1', 'numOfRows': '999', 'bidNtceNm': '공사',
             'type': 'json', 'serviceKey': API_KEY
         }
-
-        # 🚨 [끈기 모드] 3번 재도전!
         for _ in range(3):
             try:
-                res = requests.get(url, params=params, verify=False, timeout=10)
+                # session.get을 사용하여 속도 대폭 향상
+                res = session.get(url, params=params, verify=False, timeout=7)
                 if res.status_code == 200:
+                    if "OpenAPI_ServiceResponse" in res.text:
+                        time.sleep(0.5)
+                        continue
+
                     items = res.json().get('response', {}).get('body', {}).get('items', [])
                     return items if items else []
             except:
@@ -46,8 +50,8 @@ def fetch_monster_announcements():
                 continue
         return []
 
-    # 🚨 일꾼 15명 유지
-    with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
+    # 🚨 [속도 업그레이드] 차단 안 당하는 선에서 가장 빠른 10명으로 세팅!
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
         results = list(executor.map(fetch_per_day, dates))
         for res in results:
             if res: all_raw.extend(res)
@@ -56,12 +60,10 @@ def fetch_monster_announcements():
 
 
 # ==========================================
-# 🟢 2. UI 및 화면 구성
+# 🟢 2. UI 및 화면 구성 (명환이 원본 100% 유지)
 # ==========================================
-# 1. 페이지 설정
 st.set_page_config(page_title="k_건설맵", layout="wide", initial_sidebar_state="expanded")
 
-# 2. 디자인 설정
 st.markdown("""
     <style>
     .block-container { padding-top: 1.5rem !important; padding-bottom: 1rem !important; }
@@ -80,29 +82,25 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. 사이드바 메뉴
 with st.sidebar:
     st.markdown("### 🏛️ k_건설맵 메뉴")
     menu = st.radio("이동할 페이지를 선택하세요:", ["📊 실시간 공고 (홈)", "📝 자유 게시판", "👤 로그인 / 회원가입"])
     st.write("---")
-    st.info("💡 최초 1회 로딩 시 조달청 데이터를 가져오느라 약간 느릴 수 있습니다. 이후에는 0.1초 만에 짱 빠르게 열립니다!")
-
-# 🚀 캐시(기억 장치) 사용
-if 'master_data' not in st.session_state:
-    with st.spinner("조달청에서 안전하게 2개월치 최신 공고를 싹 쓸어오는 중입니다... (조금만 기다려주세요!)"):
-        # 🚨 [버그 수정 완료] 이제 엉뚱한 nano_const를 찾지 않고, 바로 위에 있는 진짜 엔진을 씁니다!
-        st.session_state['master_data'] = fetch_monster_announcements()
+    st.info("💡 실시간 공고를 처음 열 때만 조달청 데이터를 가져오느라 시간이 걸립니다.")
 
 # ==========================================
-# 🟢 메뉴 1: 메인 화면
+# 🟢 메뉴 1: 실시간 공고 (홈)
 # ==========================================
 if menu == "📊 실시간 공고 (홈)":
+    if 'master_data' not in st.session_state:
+        with st.spinner("조달청에서 2개월치 최신 공고를 고속으로 쓸어오는 중입니다... 잠시만요!"):
+            st.session_state['master_data'] = fetch_monster_announcements()
+
     st.markdown('<div class="blue-bar"><p>🏛️ k_건설맵 실시간 현황판</p></div>', unsafe_allow_html=True)
 
     df = st.session_state['master_data'].copy()
 
     if not df.empty:
-        # 🚨 [명환이 지시사항] 4월 최신 날짜 무조건 1등으로 올리기
         df['정렬용시간'] = pd.to_datetime(df['bidNtceDt'], errors='coerce')
         df = df.sort_values(by='정렬용시간', ascending=False, na_position='last').reset_index(drop=True)
 
@@ -110,7 +108,6 @@ if menu == "📊 실시간 공고 (홈)":
         df['예산금액'] = pd.to_numeric(df['bdgtAmt'], errors='coerce').fillna(0)
 
 
-        # 링크 생성 로직
         def get_safe_link(row):
             if 'bidNtceDtlUrl' in row and pd.notna(row['bidNtceDtlUrl']) and str(row['bidNtceDtlUrl']).strip() != "":
                 return str(row['bidNtceDtlUrl']).replace(":8081", "").replace(":8101", "")
@@ -120,7 +117,6 @@ if menu == "📊 실시간 공고 (홈)":
 
         df['🔗 상세내용'] = df.apply(get_safe_link, axis=1)
 
-        # 📊 상단 요약 대시보드
         today_str = datetime.now(KST).strftime('%Y-%m-%d')
         today_count = len(df[df['공고일자'] == today_str])
 
@@ -140,15 +136,12 @@ if menu == "📊 실시간 공고 (홈)":
 
         st.write("---")
 
-        # 📋 표 출력
         view_df = df[['bidNtceNo', '공고일자', 'bidNtceNm', 'ntceInsttNm', '예산금액', '🔗 상세내용']]
         view_df.columns = ['공고번호', '공고일자', '공고명', '발주기관', '예산금액', '상세내용']
 
         st.dataframe(
             view_df,
-            use_container_width=True,
-            hide_index=True,
-            height=750,
+            use_container_width=True, hide_index=True, height=750,
             column_config={
                 "상세내용": st.column_config.LinkColumn("상세보기", display_text="공고문 열기"),
                 "예산금액": st.column_config.NumberColumn("예산금액(원)", format="%,d")
