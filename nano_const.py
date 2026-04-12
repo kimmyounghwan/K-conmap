@@ -2,6 +2,7 @@ import requests
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 import urllib3
+import time
 import streamlit as st
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -10,38 +11,44 @@ KST = timezone(timedelta(hours=9))
 
 
 def fetch_monster_announcements():
-    # 🚩 명환이의 백업 원본: 조달청 전용 무적 주소
+    all_raw = []
+
+    # 🚩 안전한 조달청 전용 무적 주소
     url = 'http://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoCnstwkPPSSrch'
 
-    # 1. 날짜 범위 (안전하게 30일치만 가져오기)
-    end_dt = datetime.now(KST).strftime('%Y%m%d2359')
-    start_dt = (datetime.now(KST) - timedelta(days=30)).strftime('%Y%m%d0000')
+    # 30일치 날짜를 하루씩 쪼개기
+    end_date = datetime.now(KST).date()
+    start_date = end_date - timedelta(days=30)
+    delta = end_date - start_date
+    dates = [(start_date + timedelta(days=i)).strftime('%Y%m%d') for i in range(delta.days + 1)]
 
-    # 2. 파라미터
-    params = {
-        'inqryDiv': '1',
-        'inqryBgnDt': start_dt,
-        'inqryEndDt': end_dt,
-        'pageNo': '1',
-        'numOfRows': '500',
-        'bidNtceNm': '공사',
-        'type': 'json',
-        'serviceKey': API_KEY
-    }
+    # 🚨 [나노의 반성] 로봇 15명 전면 폐기!
+    # 하루씩 순서대로 똑똑 두드리고, 조달청이 해킹으로 오해하지 않게 천천히 가져옵니다.
+    for dt in dates:
+        params = {
+            'inqryDiv': '1',
+            'inqryBgnDt': f'{dt}0000',
+            'inqryEndDt': f'{dt}2359',
+            'pageNo': '1',
+            'numOfRows': '999',
+            'bidNtceNm': '공사',
+            'type': 'json',
+            'serviceKey': API_KEY
+        }
 
-    try:
-        # 🚨 [나노의 핵심 조치] 타임아웃 100초! 조달청이 늦게 찾아와도 절대 안 끊고 끝까지 기다림!
-        res = requests.get(url, params=params, verify=False, timeout=100)
+        try:
+            # 15초 타임아웃, 예의 바르게 대기
+            res = requests.get(url, params=params, verify=False, timeout=15)
+            if res.status_code == 200:
+                items = res.json().get('response', {}).get('body', {}).get('items', [])
+                if items:
+                    all_raw.extend(items)
+        except Exception as e:
+            # 에러가 나도 화면을 멈추지 않고, 엑스레이 기능에 이유만 남김
+            st.session_state['debug_text'] = f"{dt} 통신 에러: {str(e)}"
+            pass
 
-        # 명환이가 원문 확인할 수 있게 세션에 저장
-        st.session_state['debug_text'] = res.text
+        # 🚨 [가장 중요한 핵심] 0.5초 휴식. (보안 시스템에 걸리지 않기 위한 필수 장치)
+        time.sleep(0.5)
 
-        if res.status_code == 200:
-            data = res.json()
-            items = data.get('response', {}).get('body', {}).get('items', [])
-            return pd.DataFrame(items) if items else pd.DataFrame()
-    except Exception as e:
-        # 에러가 나면 에러 내용까지 투명하게 저장
-        st.session_state['debug_text'] = f"통신 에러: {str(e)}"
-
-    return pd.DataFrame()
+    return pd.DataFrame(all_raw)
