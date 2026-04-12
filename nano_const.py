@@ -2,27 +2,25 @@ import requests
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 import urllib3
-import streamlit as st
 import concurrent.futures
 import time
 
+# 경고 무시 및 기본 설정
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 API_KEY = "13610863df3680cc4e7c70a64d752b37485535929bfa514f4ad4d71ea56e4ccb"
 KST = timezone(timedelta(hours=9))
 
 
-@st.cache_data(ttl=600)
 def fetch_monster_announcements():
     all_raw = []
 
-    # 📅 딱 2개월(60일) 전부터 오늘까지!
+    # 📅 딱 2개월(60일) 전부터 오늘까지 범위 설정
     end_date = datetime.now(KST).date()
     start_date = end_date - timedelta(days=60)
     delta = end_date - start_date
     dates = [(start_date + timedelta(days=i)).strftime('%Y%m%d') for i in range(delta.days + 1)]
 
-    # 🚨 [엔진 업그레이드] 조달청 전용(PPSSrch) 꼬리표를 떼고,
-    # 국토부 등 모든 국가/공공기관의 건설 공고를 가져오는 '통합 마스터 주소'로 변경!
+    # 🚨 국토부 등 모든 국가/공공기관 통합 마스터 주소
     url = 'http://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoCnstwk'
 
     def fetch_per_day(dt):
@@ -32,7 +30,7 @@ def fetch_monster_announcements():
             'type': 'json', 'serviceKey': API_KEY
         }
 
-        # 🚨 [끈기 모드] 데이터가 많아져서 서버가 튕겨내면 0.5초 쉬고 재도전!
+        # 🚨 서버가 바쁠 때를 대비해 3번까지 재시도하는 로직
         for _ in range(3):
             try:
                 res = requests.get(url, params=params, verify=False, timeout=10)
@@ -44,11 +42,10 @@ def fetch_monster_announcements():
                 continue
         return []
 
-    # 🚨 일꾼 15명 유지 (안전 주행)
+    # 🚨 일꾼 15명으로 병렬 처리 (속도 향상)
     with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
         results = list(executor.map(fetch_per_day, dates))
         for res in results:
             if res: all_raw.extend(res)
 
     return pd.DataFrame(all_raw)
-
