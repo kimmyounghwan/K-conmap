@@ -1,14 +1,13 @@
+
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta, timezone
-import nano_const  # 위에서 만든 엔진 파일을 불러옴
-
-KST = timezone(timedelta(hours=9))
+import nano_const
 
 # 1. 페이지 설정
 st.set_page_config(page_title="k_건설맵", layout="wide", initial_sidebar_state="expanded")
 
-# 2. 디자인 설정 (명환이의 파란색 바 디자인)
+# 2. 디자인 설정 (명환이에게 OK 받은 파란색 바 아래로 꾹 누르기!)
 st.markdown("""
     <style>
     .block-container { padding-top: 1.5rem !important; padding-bottom: 1rem !important; }
@@ -34,12 +33,12 @@ with st.sidebar:
     st.write("---")
     st.info("💡 최초 1회 로딩 시 조달청 데이터를 가져오느라 약간 느릴 수 있습니다. 이후에는 0.1초 만에 짱 빠르게 열립니다!")
 
-# 🚀 데이터 로드 (nano_const의 함수 사용)
+# 🚀 캐시(기억 장치) 사용
 if 'master_data' not in st.session_state:
     with st.spinner("조달청에서 안전하게 2개월치 최신 공고를 싹 쓸어오는 중입니다... (조금만 기다려주세요!)"):
         st.session_state['master_data'] = nano_const.fetch_monster_announcements()
 
-# ==========================================
+# =========================================
 # 🟢 메뉴 1: 메인 화면
 # ==========================================
 if menu == "📊 실시간 공고 (홈)":
@@ -48,25 +47,24 @@ if menu == "📊 실시간 공고 (홈)":
     df = st.session_state['master_data'].copy()
 
     if not df.empty:
-        # 최신 날짜순 정렬
+        # 🚨 [명환이 지시사항] 4월 최신 날짜 무조건 1등으로 올리기 (에러값은 맨 밑으로!)
         df['정렬용시간'] = pd.to_datetime(df['bidNtceDt'], errors='coerce')
         df = df.sort_values(by='정렬용시간', ascending=False, na_position='last').reset_index(drop=True)
 
         df['공고일자'] = df['정렬용시간'].dt.strftime('%Y-%m-%d').fillna('날짜미상')
         df['예산금액'] = pd.to_numeric(df['bdgtAmt'], errors='coerce').fillna(0)
 
-
-        # 상세링크 생성
+        # 링크 생성 로직
         def get_safe_link(row):
             if 'bidNtceDtlUrl' in row and pd.notna(row['bidNtceDtlUrl']) and str(row['bidNtceDtlUrl']).strip() != "":
                 return str(row['bidNtceDtlUrl']).replace(":8081", "").replace(":8101", "")
             else:
                 return f"https://www.g2b.go.kr/ep/invitation/publish/bidInfoDtl.do?bidno={row['bidNtceNo']}&bidseq={row['bidNtceOrd']}"
 
-
         df['🔗 상세내용'] = df.apply(get_safe_link, axis=1)
 
-        # 상단 대시보드
+        # 📊 상단 요약 대시보드
+        KST = timezone(timedelta(hours=9))
         today_str = datetime.now(KST).strftime('%Y-%m-%d')
         today_count = len(df[df['공고일자'] == today_str])
 
@@ -78,6 +76,7 @@ if menu == "📊 실시간 공고 (홈)":
         with col3:
             st.metric(label="데이터 기준일", value=today_str)
         with col4:
+            # 🚨 조달청에서 진짜로 다시 가져오는 강력 새로고침 버튼
             if st.button("🔄 최신 데이터 갱신", use_container_width=True):
                 st.cache_data.clear()
                 if 'master_data' in st.session_state:
@@ -86,13 +85,15 @@ if menu == "📊 실시간 공고 (홈)":
 
         st.write("---")
 
-        # 테이블 출력
+        # 📋 표 출력
         view_df = df[['bidNtceNo', '공고일자', 'bidNtceNm', 'ntceInsttNm', '예산금액', '🔗 상세내용']]
         view_df.columns = ['공고번호', '공고일자', '공고명', '발주기관', '예산금액', '상세내용']
 
         st.dataframe(
             view_df,
-            use_container_width=True, hide_index=True, height=750,
+            use_container_width=True,
+            hide_index=True,
+            height=750,
             column_config={
                 "상세내용": st.column_config.LinkColumn("상세보기", display_text="공고문 열기"),
                 "예산금액": st.column_config.NumberColumn("예산금액(원)", format="%,d")
