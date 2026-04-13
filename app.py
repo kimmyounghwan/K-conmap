@@ -89,11 +89,11 @@ def get_integrated_data():
         if not api_df.empty:
             save_to_db_fast(api_df)
             combined_df = pd.concat([api_df, db_df]).drop_duplicates(subset=['bidNtceNo'], keep='first')
-            return combined_df, "주간"
+            return combined_df
         else:
-            return db_df, "주간지연"
+            return db_df
     else:
-        return db_df, "야간"
+        return db_df
 
 
 # ==========================================
@@ -137,14 +137,7 @@ if menu == "📊 실시간 공고 (홈)":
     st.markdown('<div class="blue-bar">🏛️ K-건설맵 자동 현황판</div>', unsafe_allow_html=True)
 
     with st.spinner("데이터 동기화 중..."):
-        df, mode = get_integrated_data()
-
-    if mode == "야간":
-        st.info("🌙 **야간/주말 모드:** 조달청 휴식 시간입니다. 보관된 최신 데이터를 표시합니다.", icon="⚡")
-    elif mode == "주간지연":
-        st.warning("⚠️ **주간 모드:** 조달청 지연으로 보관된 데이터를 표시합니다.", icon="⏳")
-    elif mode == "주간":
-        st.success("☀️ **주간 모드:** 실시간 동기화 완료!", icon="🔄")
+        df = get_integrated_data()
 
     if not df.empty:
         df['정렬시간'] = pd.to_datetime(df.get('bidNtceDt', ''), errors='coerce')
@@ -152,6 +145,28 @@ if menu == "📊 실시간 공고 (홈)":
         df['공고일자'] = df['정렬시간'].dt.strftime('%Y-%m-%d').fillna('미상')
         df['예산금액'] = pd.to_numeric(df.get('bdgtAmt', 0), errors='coerce').fillna(0)
 
+        # 📊 명환이표 '공고 현황 대시보드' 시작!
+        now_time = datetime.now(KST)
+        today_str = now_time.strftime('%Y-%m-%d')
+        month_str = now_time.strftime('%Y-%m')
+
+        today_cnt = len(df[df['공고일자'] == today_str])
+        month_cnt = len(df[df['공고일자'].str.startswith(month_str)])
+        total_cnt = len(df)
+
+        # 예쁘게 3칸으로 쪼개서 보여주기
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric(label=f"📅 {now_time.month}월 누적 공고", value=f"{month_cnt}건")
+        with col2:
+            st.metric(label="🚨 오늘 신규 공고", value=f"{today_cnt}건", delta="NEW", delta_color="normal")
+        with col3:
+            st.metric(label="📦 DB 보관 데이터", value=f"{total_cnt}건")
+
+        st.write("---")  # 깔끔하게 구분선 찍어주기
+
+
+        # 📊 대시보드 끝!
 
         def make_link(row):
             url = str(row.get('bidNtceDtlUrl', ''))
@@ -164,7 +179,6 @@ if menu == "📊 실시간 공고 (홈)":
         view_df = df[['bidNtceNo', '공고일자', 'bidNtceNm', 'ntceInsttNm', '예산금액', '상세보기']].copy()
         view_df.columns = ['공고번호', '공고일자', '공고명', '발주기관', '예산금액', '상세보기']
 
-        # 🚨 여기서 LinkColumn 설정을 수정해서 주소 대신 '공고보기' 텍스트가 나오게 함!
         col_cfg = {
             "상세보기": st.column_config.LinkColumn("공고보기", display_text="공고보기"),
             "예산금액": st.column_config.NumberColumn("예산(원)", format="%,d")
@@ -186,19 +200,21 @@ if menu == "📊 실시간 공고 (홈)":
                 if "조경" in user_lic: keywords.extend(["조경", "식재", "공원", "수목"])
 
                 matched_df = view_df[view_df['공고명'].str.contains('|'.join(keywords), na=False)] if keywords else view_df
-                st.success(f"🎯 소장님의 면허를 분석하여 **{len(matched_df)}건**의 맞춤 공고를 찾았습니다!")
                 st.dataframe(matched_df, use_container_width=True, hide_index=True, height=700, column_config=col_cfg)
         else:
-            st.info("💡 로그인하시면 소장님 면허에 딱 맞는 공고만 모아서 보실 수 있습니다.")
             st.dataframe(view_df, use_container_width=True, hide_index=True, height=700, column_config=col_cfg)
     else:
         st.error("보관된 데이터가 없습니다. 평일 주간에 최초 데이터 수집이 필요합니다.")
 
 # ==========================================
-# 🟢 메뉴 2 & 3: 게시판 및 회원가입 (ID 중복 에러 해결)
+# 🟢 메뉴 2 & 3: 게시판 및 회원가입
 # ==========================================
 elif menu == "📝 자유 게시판":
     st.markdown('<div class="blue-bar">📝 K-건설맵 정보 공유판</div>', unsafe_allow_html=True)
+
+    if not st.session_state['logged_in']:
+        st.info("💡 게시판에 글을 작성하시려면 회원가입 후 로그인해 주세요.")
+
     if st.session_state['logged_in']:
         with st.expander("✏️ 글쓰기"):
             t = st.text_input("제목", key="post_title")
