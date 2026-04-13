@@ -5,7 +5,6 @@ import pyrebase
 import urllib3
 import time
 from datetime import datetime, timedelta, timezone
-import concurrent.futures
 
 # 1. 보안 및 페이지 설정
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -13,7 +12,7 @@ st.set_page_config(page_title="K-건설맵", layout="wide", initial_sidebar_stat
 KST = timezone(timedelta(hours=9))
 
 # ==========================================
-# 🔑 2. 파이어베이스 설정 (명환's DB)
+# 🔑 2. 파이어베이스 설정
 # ==========================================
 firebaseConfig = {
     "apiKey": "AIzaSyB5uvAzUIbEDTTbxwflTQk3wdzOufc4SE0",
@@ -27,78 +26,74 @@ firebaseConfig = {
 
 G2B_API_KEY = "13610863df3680cc4e7c70a64d752b37485535929bfa514f4ad4d71ea56e4ccb"
 
+
 @st.cache_resource
 def init_firebase():
     firebase = pyrebase.initialize_app(firebaseConfig)
     return firebase.auth(), firebase.database()
 
+
 auth, db = init_firebase()
 
+
 # ==========================================
-# 🧠 3. 무적의 자동 동기화 엔진 (속도 개선 & 버그 수정)
+# 🧠 3. 절대 멈추지 않는 동기화 엔진 (안전 모드)
 # ==========================================
 
 def load_from_db():
     try:
         data = db.child("announcements").get().val()
         if data: return pd.DataFrame(list(data.values()))
-    except:
-        pass
+    except Exception as e:
+        print(f"DB 불러오기 에러: {e}")
     return pd.DataFrame()
+
 
 def save_to_db_fast(new_df):
     if new_df.empty: return
     try:
         data_dict = {}
-        # 🚨 무한 로딩 방지: 최신 데이터 1000개까지만 DB에 넣도록 안전장치 추가
-        safe_df = new_df.head(1000)
+        safe_df = new_df.head(500)  # 안전하게 최대 500개만 저장
         for _, row in safe_df.iterrows():
             key = f"{row['bidNtceNo']}-{row.get('bidNtceOrd', '01')}"
             data_dict[key] = row.dropna().to_dict()
         db.child("announcements").update(data_dict)
     except Exception as e:
-        print(f"DB 저장 에러 (무시됨): {e}")
+        print(f"DB 저장 에러: {e}")
 
-@st.cache_data(ttl=600)
+
+@st.cache_data(ttl=300)
 def get_integrated_data():
-    all_raw = []
-    end_date = datetime.now(KST).date()
-    # 🚨 핵심 수정: 30일 -> 5일로 대폭 축소! (빙빙 도는 현상 100% 해결)
-    start_date = end_date - timedelta(days=5)
-    delta = end_date - start_date
-    dates = [(start_date + timedelta(days=i)).strftime('%Y%m%d') for i in range(delta.days + 1)]
+    api_df = pd.DataFrame()
 
-    url = 'http://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoCnstwk'
-    headers = {"User-Agent": "Mozilla/5.0"}
+    # 🚨 극약 처방: 딱 '오늘 하루치'만 요청하고, 3초 안에 응답 안 주면 즉시 무시!
+    try:
+        today = datetime.now(KST).strftime('%Y%m%d')
+        url = 'http://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoCnstwk'
+        headers = {"User-Agent": "Mozilla/5.0"}
+        params = {'inqryDiv': '1', 'inqryBgnDt': f'{today}0000', 'inqryEndDt': f'{today}2359',
+                  'pageNo': '1', 'numOfRows': '100', 'bidNtceNm': '공사', 'type': 'json', 'serviceKey': G2B_API_KEY}
 
-    def fetch(dt):
-        params = {'inqryDiv': '1', 'inqryBgnDt': f'{dt}0000', 'inqryEndDt': f'{dt}2359',
-                  'pageNo': '1', 'numOfRows': '999', 'bidNtceNm': '공사', 'type': 'json', 'serviceKey': G2B_API_KEY}
-        try:
-            # 타임아웃을 10초로 줄여서 응답 없는 서버에 끌려다니지 않게 만듦
-            res = requests.get(url, params=params, verify=False, timeout=10, headers=headers)
-            if res.status_code == 200:
-                return res.json().get('response', {}).get('body', {}).get('items', [])
-        except:
-            return []
-        return []
+        # timeout=3 설정으로 서버가 멈추는 현상 완벽 차단
+        res = requests.get(url, params=params, verify=False, timeout=3, headers=headers)
+        if res.status_code == 200:
+            raw_data = res.json().get('response', {}).get('body', {}).get('items', [])
+            if raw_data:
+                api_df = pd.DataFrame(raw_data)
+    except Exception as e:
+        print(f"조달청 서버 응답 없음 (무시됨): {e}")
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        results = list(executor.map(fetch, dates))
-        for r in results:
-            if r: all_raw.extend(r)
-
-    api_df = pd.DataFrame(all_raw)
     db_df = load_from_db()
 
+    # 결과 합치기
     if not api_df.empty:
         save_to_db_fast(api_df)
-        st.toast("✅ 조달청 데이터 자동 동기화 완료!", icon="🔄")
         combined_df = pd.concat([api_df, db_df]).drop_duplicates(subset=['bidNtceNo'], keep='first')
         return combined_df
     else:
-        st.toast("⚠️ 조달청 서버 지연. 비상 DB 데이터를 불러옵니다.", icon="🚨")
+        st.toast("⚠️ 조달청 서버 연결 지연. 기존 보관된 데이터를 표시합니다.", icon="🚨")
         return db_df
+
 
 # ==========================================
 # 📋 4. 면허 리스트 및 UI 세팅
@@ -130,29 +125,31 @@ with st.sidebar:
             st.rerun()
     st.write("---")
     menu = st.radio("메뉴 이동:", ["📊 실시간 공고 (홈)", "📝 자유 게시판", "👤 로그인 / 회원가입"])
-    if st.button("🔄 수동 강제 새로고침"):
+    if st.button("🔄 데이터 새로고침"):
         st.cache_data.clear()
         st.rerun()
 
 # ==========================================
-# 🟢 메뉴 1: 메인 화면 (자동화 & 매칭 시스템)
+# 🟢 메뉴 1: 메인 화면
 # ==========================================
 if menu == "📊 실시간 공고 (홈)":
     st.markdown('<div class="blue-bar">🏛️ K-건설맵 무한 자동 현황판</div>', unsafe_allow_html=True)
 
-    with st.spinner("데이터 동기화 엔진 가동 중... (최대 10초 소요)"):
+    with st.spinner("데이터 동기화 중... (최대 3초 소요)"):
         df = get_integrated_data()
 
     if not df.empty:
-        df['정렬시간'] = pd.to_datetime(df['bidNtceDt'], errors='coerce')
+        df['정렬시간'] = pd.to_datetime(df.get('bidNtceDt', ''), errors='coerce')
         df = df.sort_values(by='정렬시간', ascending=False).reset_index(drop=True)
         df['공고일자'] = df['정렬시간'].dt.strftime('%Y-%m-%d').fillna('미상')
         df['예산금액'] = pd.to_numeric(df.get('bdgtAmt', 0), errors='coerce').fillna(0)
 
+
         def make_link(row):
             url = str(row.get('bidNtceDtlUrl', ''))
             if url and url.lower() != 'nan': return url.replace(":8081", "").replace(":8101", "")
-            return f"https://www.g2b.go.kr/ep/invitation/publish/bidInfoDtl.do?bidno={row['bidNtceNo']}&bidseq={row.get('bidNtceOrd', '01')}"
+            return f"https://www.g2b.go.kr/ep/invitation/publish/bidInfoDtl.do?bidno={row.get('bidNtceNo', '')}&bidseq={row.get('bidNtceOrd', '01')}"
+
 
         df['🔗 상세보기'] = df.apply(make_link, axis=1)
 
@@ -184,19 +181,18 @@ if menu == "📊 실시간 공고 (홈)":
                 else:
                     matched_df = view_df
 
-                st.success(f"🎯 시스템이 소장님의 면허({user_lic})를 분석하여 **{len(matched_df)}건**의 맞춤 공고를 찾아냈습니다!")
+                st.success(f"🎯 소장님의 면허({user_lic})를 분석하여 **{len(matched_df)}건**의 맞춤 공고를 찾아냈습니다!")
                 st.dataframe(matched_df, use_container_width=True, hide_index=True, height=700,
                              column_config={"상세보기": st.column_config.LinkColumn("공고문 열기"),
                                             "예산금액": st.column_config.NumberColumn("예산(원)", format="%,d")})
-
         else:
-            st.info("💡 회원가입 후 로그인하시면 소장님 면허에 딱 맞는 공고만 자동으로 찾아주는 '맞춤 공고' 기능을 사용할 수 있습니다.")
+            st.info("💡 회원가입 후 로그인하시면 소장님 면허에 딱 맞는 공고만 찾아주는 '맞춤 공고' 기능을 사용할 수 있습니다.")
             st.dataframe(view_df, use_container_width=True, hide_index=True, height=700,
                          column_config={"상세보기": st.column_config.LinkColumn("공고문 열기"),
                                         "예산금액": st.column_config.NumberColumn("예산(원)", format="%,d")})
-
     else:
-        st.error("데이터를 불러올 수 없습니다. 조달청 서버가 혼잡합니다. 잠시 후 새로고침 해주세요.")
+        # 데이터가 아예 없을 때 (파이어베이스도 비어있고 API도 실패) 무한 로딩 대신 에러 메시지 표출
+        st.error("현재 조달청 서버 접속이 원활하지 않으며, 보관된 데이터가 없습니다. 잠시 후 [데이터 새로고침]을 눌러주세요.")
 
 # ==========================================
 # 🟢 메뉴 2 & 3: 게시판 및 회원가입
