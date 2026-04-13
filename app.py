@@ -36,7 +36,7 @@ auth, db = init_firebase()
 
 
 # ==========================================
-# 🧠 3. 명환표 '스마트 주/야간 모드' 동기화 엔진
+# 🧠 3. 스마트 주/야간 모드 동기화 엔진
 # ==========================================
 
 def load_from_db():
@@ -52,7 +52,7 @@ def save_to_db_fast(new_df):
     if new_df.empty: return
     try:
         data_dict = {}
-        safe_df = new_df.head(500)  # 평일에 최대 500개씩 안전하게 누적 저장
+        safe_df = new_df.head(500)
         for _, row in safe_df.iterrows():
             key = f"{row['bidNtceNo']}-{row.get('bidNtceOrd', '01')}"
             data_dict[key] = row.dropna().to_dict()
@@ -64,12 +64,11 @@ def save_to_db_fast(new_df):
 @st.cache_data(ttl=300)
 def get_integrated_data():
     now = datetime.now(KST)
-    is_weekday = now.weekday() < 5  # 월(0) ~ 금(4)
-    is_working_hour = 8 <= now.hour < 18  # 오전 8시 ~ 오후 5시 59분
+    is_weekday = now.weekday() < 5
+    is_working_hour = 8 <= now.hour < 18
 
     db_df = load_from_db()
 
-    # ☀️ 평일 주간 모드 (조달청 접속 시도)
     if is_weekday and is_working_hour:
         api_df = pd.DataFrame()
         try:
@@ -79,7 +78,6 @@ def get_integrated_data():
             params = {'inqryDiv': '1', 'inqryBgnDt': f'{today}0000', 'inqryEndDt': f'{today}2359',
                       'pageNo': '1', 'numOfRows': '100', 'bidNtceNm': '공사', 'type': 'json', 'serviceKey': G2B_API_KEY}
 
-            # 주간이라도 3초 이상 안 주면 쿨하게 끊음
             res = requests.get(url, params=params, verify=False, timeout=3, headers=headers)
             if res.status_code == 200:
                 raw_data = res.json().get('response', {}).get('body', {}).get('items', [])
@@ -94,8 +92,6 @@ def get_integrated_data():
             return combined_df, "주간"
         else:
             return db_df, "주간지연"
-
-    # 🌙 야간/주말 모드 (조달청 접속 안 함, 무조건 DB 로딩)
     else:
         return db_df, "야간"
 
@@ -143,13 +139,12 @@ if menu == "📊 실시간 공고 (홈)":
     with st.spinner("데이터 동기화 중..."):
         df, mode = get_integrated_data()
 
-    # 상태 알림창 표시
     if mode == "야간":
-        st.info("🌙 **야간/주말 모드 작동 중:** 현재 조달청 서버 휴식 시간입니다. 평일 주간에 수집된 최신 데이터를 아주 빠르게 표시합니다.", icon="⚡")
+        st.info("🌙 **야간/주말 모드:** 조달청 휴식 시간입니다. 보관된 최신 데이터를 표시합니다.", icon="⚡")
     elif mode == "주간지연":
-        st.warning("⚠️ **주간 모드:** 조달청 서버 응답이 늦어, 보관된 데이터를 우선 표시합니다.", icon="⏳")
+        st.warning("⚠️ **주간 모드:** 조달청 지연으로 보관된 데이터를 표시합니다.", icon="⏳")
     elif mode == "주간":
-        st.success("☀️ **주간 모드:** 조달청과 실시간 동기화 완료!", icon="🔄")
+        st.success("☀️ **주간 모드:** 실시간 동기화 완료!", icon="🔄")
 
     if not df.empty:
         df['정렬시간'] = pd.to_datetime(df.get('bidNtceDt', ''), errors='coerce')
@@ -164,19 +159,21 @@ if menu == "📊 실시간 공고 (홈)":
             return f"https://www.g2b.go.kr/ep/invitation/publish/bidInfoDtl.do?bidno={row.get('bidNtceNo', '')}&bidseq={row.get('bidNtceOrd', '01')}"
 
 
-        df['🔗 상세보기'] = df.apply(make_link, axis=1)
+        df['상세보기'] = df.apply(make_link, axis=1)
 
-        view_df = df[['bidNtceNo', '공고일자', 'bidNtceNm', 'ntceInsttNm', '예산금액', '🔗 상세보기']].copy()
+        view_df = df[['bidNtceNo', '공고일자', 'bidNtceNm', 'ntceInsttNm', '예산금액', '상세보기']].copy()
         view_df.columns = ['공고번호', '공고일자', '공고명', '발주기관', '예산금액', '상세보기']
+
+        # 🚨 여기서 LinkColumn 설정을 수정해서 주소 대신 '공고보기' 텍스트가 나오게 함!
+        col_cfg = {
+            "상세보기": st.column_config.LinkColumn("공고보기", display_text="공고보기"),
+            "예산금액": st.column_config.NumberColumn("예산(원)", format="%,d")
+        }
 
         if st.session_state['logged_in'] and st.session_state['user_license']:
             tab1, tab2 = st.tabs(["🌐 전체 공고 보기", "✨ 내 면허 맞춤 공고"])
-
             with tab1:
-                st.dataframe(view_df, use_container_width=True, hide_index=True, height=700,
-                             column_config={"상세보기": st.column_config.LinkColumn("공고문 열기"),
-                                            "예산금액": st.column_config.NumberColumn("예산(원)", format="%,d")})
-
+                st.dataframe(view_df, use_container_width=True, hide_index=True, height=700, column_config=col_cfg)
             with tab2:
                 user_lic = st.session_state['user_license']
                 keywords = []
@@ -188,34 +185,25 @@ if menu == "📊 실시간 공고 (홈)":
                 if "상·하수도" in user_lic: keywords.extend(["상수도", "하수도", "관로", "배수"])
                 if "조경" in user_lic: keywords.extend(["조경", "식재", "공원", "수목"])
 
-                if keywords:
-                    pattern = '|'.join(keywords)
-                    matched_df = view_df[view_df['공고명'].str.contains(pattern, na=False)]
-                else:
-                    matched_df = view_df
-
-                st.success(f"🎯 소장님의 면허({user_lic})를 분석하여 **{len(matched_df)}건**의 맞춤 공고를 찾아냈습니다!")
-                st.dataframe(matched_df, use_container_width=True, hide_index=True, height=700,
-                             column_config={"상세보기": st.column_config.LinkColumn("공고문 열기"),
-                                            "예산금액": st.column_config.NumberColumn("예산(원)", format="%,d")})
+                matched_df = view_df[view_df['공고명'].str.contains('|'.join(keywords), na=False)] if keywords else view_df
+                st.success(f"🎯 소장님의 면허를 분석하여 **{len(matched_df)}건**의 맞춤 공고를 찾았습니다!")
+                st.dataframe(matched_df, use_container_width=True, hide_index=True, height=700, column_config=col_cfg)
         else:
-            st.info("💡 회원가입 후 로그인하시면 소장님 면허에 딱 맞는 공고만 찾아주는 '맞춤 공고' 기능을 사용할 수 있습니다.")
-            st.dataframe(view_df, use_container_width=True, hide_index=True, height=700,
-                         column_config={"상세보기": st.column_config.LinkColumn("공고문 열기"),
-                                        "예산금액": st.column_config.NumberColumn("예산(원)", format="%,d")})
+            st.info("💡 로그인하시면 소장님 면허에 딱 맞는 공고만 모아서 보실 수 있습니다.")
+            st.dataframe(view_df, use_container_width=True, hide_index=True, height=700, column_config=col_cfg)
     else:
-        st.error("보관된 데이터가 없습니다. 평일 주간에 최초 1회 데이터 수집이 필요합니다.")
+        st.error("보관된 데이터가 없습니다. 평일 주간에 최초 데이터 수집이 필요합니다.")
 
 # ==========================================
-# 🟢 메뉴 2 & 3: 게시판 및 회원가입
+# 🟢 메뉴 2 & 3: 게시판 및 회원가입 (ID 중복 에러 해결)
 # ==========================================
 elif menu == "📝 자유 게시판":
     st.markdown('<div class="blue-bar">📝 K-건설맵 정보 공유판</div>', unsafe_allow_html=True)
     if st.session_state['logged_in']:
         with st.expander("✏️ 글쓰기"):
-            t = st.text_input("제목")
-            c = st.text_area("내용")
-            if st.button("등록"):
+            t = st.text_input("제목", key="post_title")
+            c = st.text_area("내용", key="post_content")
+            if st.button("등록", key="post_btn"):
                 db.child("posts").push({"author": st.session_state['user_name'], "title": t, "content": c,
                                         "time": datetime.now(KST).strftime("%Y-%m-%d %H:%M")})
                 st.success("등록 완료!");
@@ -236,30 +224,29 @@ elif menu == "👤 로그인 / 회원가입":
     if not st.session_state['logged_in']:
         t1, t2 = st.tabs(["🔑 로그인", "📝 회원가입"])
         with t2:
-            re = st.text_input("이메일")
-            rp = st.text_input("비밀번호", type="password")
-            rn = st.text_input("대표자 성함")
-            rc = st.text_input("회사명")
-            rl = st.multiselect("🏗️ 보유 면허 (전체 리스트)", ALL_LICENSES)
-            if st.button("가입하기"):
+            re = st.text_input("이메일", key="reg_email")
+            rp = st.text_input("비밀번호", type="password", key="reg_pw")
+            rn = st.text_input("대표자 성함", key="reg_name")
+            rc = st.text_input("회사명", key="reg_company")
+            rl = st.multiselect("🏗️ 보유 면허 (전체 리스트)", ALL_LICENSES, key="reg_lic")
+            if st.button("가입하기", key="reg_btn"):
                 try:
                     user = auth.create_user_with_email_and_password(re, rp)
                     db.child("users").child(user['localId']).set(
                         {"name": rn, "company": rc, "license": ", ".join(rl), "email": re})
-                    st.success("축하합니다! 회원가입 완료.");
+                    st.success("회원가입 완료!");
                     st.rerun()
                 except:
-                    st.error("이미 가입된 아이디이거나 형식이 틀립니다.")
+                    st.error("가입 정보 형식이 틀리거나 이미 존재하는 이메일입니다.")
         with t1:
-            le = st.text_input("아이디(이메일)")
-            lp = st.text_input("비밀번호", type="password")
-            if st.button("로그인"):
+            le = st.text_input("아이디(이메일)", key="log_email")
+            lp = st.text_input("비밀번호", type="password", key="log_pw")
+            if st.button("로그인", key="log_btn"):
                 try:
                     user = auth.sign_in_with_email_and_password(le, lp)
                     info = db.child("users").child(user['localId']).get().val()
-                    st.session_state['logged_in'] = True
-                    st.session_state['user_name'] = info['name']
-                    st.session_state['user_license'] = info.get('license', '')
+                    st.session_state['logged_in'], st.session_state['user_name'], st.session_state[
+                        'user_license'] = True, info['name'], info.get('license', '')
                     st.rerun()
                 except:
                     st.error("정보가 일치하지 않습니다.")
