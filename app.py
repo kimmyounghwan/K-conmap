@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 # 1. 보안 및 페이지 기본 설정
 # ==========================================
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-st.set_page_config(page_title="K-건설맵 V7.3 Master", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="K-건설맵 V7.4 Master", layout="wide", initial_sidebar_state="expanded")
 KST = timezone(timedelta(hours=9))
 
 # ==========================================
@@ -38,7 +38,7 @@ def init_firebase():
 
 auth, db = init_firebase()
 
-# 💡 세션 상태 초기화
+# 💡 세션 상태 초기화 (로그인 유지용)
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if 'user_name' not in st.session_state: st.session_state['user_name'] = ""
 if 'user_license' not in st.session_state: st.session_state['user_license'] = ""
@@ -70,9 +70,10 @@ def get_stats():
 
 
 def fetch_api_fast(url, params):
+    """조달청 API 호출기 (속도 최적화)"""
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
-        res = requests.get(url, params=params, verify=False, timeout=10, headers=headers)
+        res = requests.get(url, params=params, verify=False, timeout=8, headers=headers)
         if res.status_code == 200: return res.json().get('response', {}).get('body', {}).get('items', [])
     except:
         pass
@@ -80,13 +81,15 @@ def fetch_api_fast(url, params):
 
 
 # ==========================================
-# ⚡ 4. 하이브리드 엔진
+# ⚡ 4. 하이브리드 엔진 (API + DB)
 # ==========================================
 
+# 👉 [엔진 A] 1순위 개찰 결과
 @st.cache_data(ttl=300, show_spinner=False)
 def get_hybrid_1st_bids():
     now = datetime.now(KST)
     cutoff_dt = (now - timedelta(days=30)).replace(tzinfo=None)
+
     url = 'http://apis.data.go.kr/1230000/as/ScsbidInfoService/getOpengResultListInfoCnstwk'
 
     s_dt = (now - timedelta(days=7)).strftime('%Y%m%d')
@@ -103,9 +106,23 @@ def get_hybrid_1st_bids():
             bid_no = item.get('bidNtceNo', '')
             corp = str(item.get('opengCorpInfo', '')).split('^')
             if len(corp) > 1:
-                new_rows[bid_no] = {'1순위업체': corp[0].strip(), '공고번호': bid_no, '날짜': item.get('opengDt', ''),
-                                    '공고명': item.get('bidNtceNm', ''), '발주기관': item.get('ntceInsttNm', ''),
-                                    '투찰률': f"{corp[4].strip()}%" if len(corp) >= 5 else '-'}
+                # 💡 [투찰금액 콤마 세팅] 숫자로 변환해서 콤마 찍기
+                try:
+                    raw_price = corp[3].strip()
+                    formatted_price = f"{int(raw_price):,}원"
+                except:
+                    # 만약 숫자가 아닌 이상한 값이 들어있으면 그냥 원본 출력
+                    formatted_price = corp[3].strip() if len(corp) > 3 else '-'
+
+                new_rows[bid_no] = {
+                    '1순위업체': corp[0].strip(),
+                    '공고번호': bid_no,
+                    '날짜': item.get('opengDt', ''),
+                    '공고명': item.get('bidNtceNm', ''),
+                    '발주기관': item.get('ntceInsttNm', ''),
+                    '투찰금액': formatted_price,  # 👈 투찰금액 탑재!
+                    '투찰률': f"{corp[4].strip()}%" if len(corp) >= 5 else '-'
+                }
         except:
             continue
 
@@ -126,6 +143,7 @@ def get_hybrid_1st_bids():
     return df
 
 
+# 👉 [엔진 B] 실시간 공고
 def make_link(row):
     url = str(row.get('bidNtceDtlUrl', ''))
     if url and url.lower() != 'nan': return url.replace(":8081", "").replace(":8101", "")
@@ -136,6 +154,7 @@ def make_link(row):
 def get_hybrid_live_bids():
     now = datetime.now(KST)
     cutoff_dt = (now - timedelta(days=30)).replace(tzinfo=None)
+
     url = 'http://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoCnstwk'
 
     # 💡 오늘(당일) 공고만 집중 조회
@@ -183,7 +202,7 @@ def get_hybrid_live_bids():
 
 
 # ==========================================
-# 🎨 5. UI 및 메뉴
+# 🎨 5. UI 레이아웃 및 메뉴 구성
 # ==========================================
 ALL_LICENSES = [
     "[종합] 건축공사업", "[종합] 토목공사업", "[종합] 토목건축공사업", "[종합] 조경공사업", "[종합] 산업·환경설비공사업",
@@ -196,8 +215,11 @@ ALL_LICENSES = [
 st.markdown(
     """<style>.main-title { background-color: #1e3a8a; color: white; border-radius: 10px; font-weight: 900; font-size: 28px; text-align: center; padding: 20px; margin-bottom: 25px; } .stat-card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; text-align: center; } .stat-val { font-size: 20px; font-weight: 700; color: #1e3a8a; }</style>""",
     unsafe_allow_html=True)
+
 update_stats()
 m_visit, t_user = get_stats()
+
+# 상단 배너 문구 'K-건설맵' 유지
 st.markdown('<div class="main-title">🏛️ K-건설맵</div>', unsafe_allow_html=True)
 
 c1, c2, c3, c4 = st.columns(4)
@@ -225,6 +247,7 @@ with st.sidebar:
     else:
         st.info("로그인 후 맞춤 공고와 게시판을 이용하세요.")
         menu_list = ["🏆 1순위 현황판", "📊 실시간 공고 (홈)", "📝 자유 게시판", "👤 로그인 / 회원가입"]
+
     menu = st.radio("업무 선택", menu_list)
     st.write("---")
     if st.button("🔄 만능 데이터 새로고침"):
@@ -232,38 +255,53 @@ with st.sidebar:
         st.success("캐시를 비웠습니다!");
         st.rerun()
 
+# --- 메인 라우팅 ---
+
 if menu == "🏆 1순위 현황판":
     st.subheader("🏆 실시간 1순위 현황판")
+
     col_t, col_b = st.columns([3, 1])
     with col_t:
         st.write("👉 **공사명 복사(Ctrl+C) 후 검색창에 붙여넣기하세요.**")
     with col_b:
         st.link_button("🚀 나라장터 검색창 바로가기", "https://www.g2b.go.kr/index.jsp", use_container_width=True)
+
     with st.spinner("하이브리드 엔진 가동 중..."):
         df_w = get_hybrid_1st_bids()
     if not df_w.empty:
-        st.dataframe(df_w[['1순위업체', '날짜', '공고명', '발주기관', '투찰률']], use_container_width=True, hide_index=True, height=650)
+        # 💡 [표 출력 화면에 투찰금액 열 추가]
+        st.dataframe(df_w[['1순위업체', '날짜', '공고명', '발주기관', '투찰금액', '투찰률']], use_container_width=True, hide_index=True,
+                     height=650)
     else:
         st.warning("데이터가 없습니다. 잠시 후 왼쪽 아래 [새로고침]을 눌러주세요.")
 
 elif menu == "📊 실시간 공고 (홈)":
     st.subheader("📊 실시간 입찰 공고 현황")
+
     _, col_b2 = st.columns([3, 1])
     with col_b2:
         st.link_button("🚀 나라장터 검색창 바로가기", "https://www.g2b.go.kr/index.jsp", use_container_width=True)
+
     with st.spinner("초고속 하이브리드 동기화 중..."):
         df_live = get_hybrid_live_bids()
+
     if not df_live.empty:
-        col_cfg = {"상세보기": st.column_config.LinkColumn("상세보기", display_text="공고보기"),
-                   "예산금액": st.column_config.NumberColumn("예산(원)", format="%,d")}
+        col_cfg = {
+            "상세보기": st.column_config.LinkColumn("상세보기", display_text="공고보기"),
+            "예산금액": st.column_config.NumberColumn("예산(원)", format="%,d")
+        }
+
         if st.session_state['logged_in'] and st.session_state['user_license']:
             tab1, tab2 = st.tabs(["🌐 전체 공고 보기", "✨ 내 면허 맞춤 공고 (매칭시스템)"])
+
             with tab1:
                 st.dataframe(df_live[['공고번호', '공고일자', '공고명', '발주기관', '예산금액', '상세보기']], use_container_width=True,
                              hide_index=True, height=650, column_config=col_cfg)
+
             with tab2:
                 user_lic = st.session_state['user_license']
                 keywords = []
+                # 매칭 키워드 유지
                 if "토목" in user_lic: keywords.extend(["토목", "도로", "포장", "하천", "교량", "정비", "관로", "상수도", "하수도", "부대시설"])
                 if "건축" in user_lic: keywords.extend(["건축", "신축", "증축", "보수", "인테리어", "환경개선", "방수", "도장"])
                 if "철근" in user_lic or "콘크리트" in user_lic: keywords.extend(
