@@ -7,7 +7,7 @@ import urllib.parse
 from datetime import datetime, timedelta, timezone
 
 # ==========================================
-# 1. 보안 및 페이지 설정 (네이버 SEO + 강력한 화면 흐림 방지)
+# 1. 보안 및 페이지 설정 (네이버 SEO + 예전 버전의 안전한 흐림 방지 복구!)
 # ==========================================
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 st.set_page_config(page_title="K-건설맵 Master", layout="wide", initial_sidebar_state="expanded")
@@ -18,16 +18,21 @@ st.markdown("""
         <meta name="description" content="K-건설맵: 전국 건설 공사 입찰 및 실시간 1순위 개찰 결과를 즉시 확인하세요.">
     </head>
     <style>
-        .stApp, .main, [data-testid="stAppViewContainer"], [data-testid="stAppViewBlockContainer"] {
-            transition: none !important;
+        /* [핵심] V9.9 시절의 안전한 화면 흐림 방지 복구 (화살표 정상 작동) */
+        .stApp[data-teststate="running"] .stAppViewBlockContainer {
             filter: none !important;
-            -webkit-filter: none !important;
             opacity: 1 !important;
         }
-        [data-testid="stStatusWidget"], [data-testid="stToolbar"] {
+        [data-testid="stStatusWidget"] {
             visibility: hidden !important;
             display: none !important;
         }
+        /* 화면 전환 시 깜빡임 방지 */
+        .stApp {
+            transition: none !important;
+        }
+
+        /* 메인 디자인 */
         .main-title { background-color: #1e3a8a; color: white; border-radius: 10px; font-weight: 900; font-size: 28px; text-align: center; padding: 20px; margin-bottom: 25px; } 
         .stat-card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; text-align: center; } 
         .stat-val { font-size: 20px; font-weight: 700; color: #1e3a8a; }
@@ -52,12 +57,10 @@ firebaseConfig = {
 G2B_API_KEY = "13610863df3680cc4e7c70a64d752b37485535929bfa514f4ad4d71ea56e4ccb"
 SAFE_API_KEY = urllib.parse.unquote(G2B_API_KEY)
 
-
 @st.cache_resource
 def init_firebase():
     firebase = pyrebase.initialize_app(firebaseConfig)
     return firebase.auth(), firebase.database()
-
 
 auth, db = init_firebase()
 
@@ -68,14 +71,12 @@ if 'user_license' not in st.session_state: st.session_state['user_license'] = ""
 # ==========================================
 # 🚨 3. 절대 안전지대 (상수 데이터 맨 위로 고정!)
 # ==========================================
-REGION_LIST = ["전국(전체)", "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남",
-               "제주"]
+REGION_LIST = ["전국(전체)", "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"]
 
 ALL_LICENSES = ["[종합] 건축공사업", "[종합] 토목공사업", "[종합] 토목건축공사업", "[종합] 조경공사업", "[종합] 산업·환경설비공사업", "[전문] 지반조성·포장공사업",
                 "[전문] 실내건축공사업", "[전문] 금속창호·지붕건축물조립공사업", "[전문] 도장·습식·방수·석공사업", "[전문] 조경식재·시설물공사업", "[전문] 구조물해체·비계공사업",
                 "[전문] 상·하수도설비공사업", "[전문] 철도·궤도공사업", "[전문] 철근·콘크리트공사업", "[전문] 수중·준설공사업", "[전문] 승강기설치공사업", "[전문] 기계설비공사업",
                 "[전문] 철강구조물공사업", "[기타] 전기공사업", "[기타] 정보통신공사업", "[기타] 소방시설공사업"]
-
 
 # ==========================================
 # 📈 4. 통계 및 데이터 엔진
@@ -93,7 +94,6 @@ def update_stats():
     except:
         pass
 
-
 def get_stats():
     try:
         month_key = datetime.now(KST).strftime('%Y-%m')
@@ -105,7 +105,6 @@ def get_stats():
     except:
         return 802, 802, 0
 
-
 def fetch_api_fast(url, params):
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
@@ -114,7 +113,6 @@ def fetch_api_fast(url, params):
     except:
         pass
     return []
-
 
 @st.cache_data(ttl=300, show_spinner=False)
 def get_hybrid_1st_bids():
@@ -150,7 +148,6 @@ def get_hybrid_1st_bids():
         df['날짜'] = df['dt'].dt.strftime('%m-%d %H:%M')
     return df
 
-
 @st.cache_data(ttl=300, show_spinner=False)
 def get_hybrid_live_bids():
     now = datetime.now(KST)
@@ -179,7 +176,6 @@ def get_hybrid_live_bids():
         df['공고일자'] = df['dt'].dt.strftime('%m-%d %H:%M')
     return df
 
-
 def filter_by_region(df, selected_region):
     if selected_region == "전국(전체)": return df
     region_keywords = {"서울": ["서울"], "부산": ["부산"], "대구": ["대구"], "인천": ["인천"], "광주": ["광주"], "대전": ["대전"], "울산": ["울산"],
@@ -189,7 +185,6 @@ def filter_by_region(df, selected_region):
     keywords = region_keywords.get(selected_region, [selected_region])
     pattern = '|'.join(keywords)
     return df[df['발주기관'].str.contains(pattern, na=False) | df['공고명'].str.contains(pattern, na=False)]
-
 
 # ==========================================
 # 🎨 5. 메인 UI 대시보드
@@ -309,7 +304,7 @@ elif menu == "📊 실시간 공고 (홈)":
             st.dataframe(df_live_f[['공고번호', '공고일자', '공고명', '발주기관', '예산금액', '상세보기']], use_container_width=True,
                          hide_index=True, height=600, column_config=col_cfg)
 
-# --- 📁 K-건설 자료실 섹션 (🚨 아코디언 리스트 + 삭제 권한 완벽 적용!) ---
+# --- 📁 K-건설 자료실 섹션 ---
 elif menu == "📁 K-건설 자료실":
     st.subheader("📁 K-건설 자료실")
     if st.session_state['logged_in']:
@@ -329,14 +324,12 @@ elif menu == "📁 K-건설 자료실":
 
     posts = db.child("posts").get().val()
     if posts:
-        # 가로 바 형태로 깔끔하게 리스트 정렬
         for post_id, p in reversed(list(posts.items())):
             expander_title = f"📢 {p.get('title', '제목 없음')} (작성자: {p.get('author', '알수없음')} | {p.get('time', '')[:10]})"
 
             with st.expander(expander_title):
                 st.write(p.get('content', '내용이 없습니다.'))
 
-                # 삭제 권한: 본인 글이거나 관리자(명환)일 때만 활성화
                 if st.session_state['user_name'] == p.get('author') or st.session_state['user_name'] == "명환":
                     st.write("---")
                     if st.button("🗑️ 이 글 삭제하기", key=f"del_{post_id}"):
