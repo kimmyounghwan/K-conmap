@@ -1,0 +1,28 @@
+name: Daily Construction Bid Mailer
+
+on:
+  schedule:
+    # 한국 시간 기준 매일 아침 8시 (UTC 기준 전날 23시)
+    - cron: '0 23 * * *'
+  workflow_dispatch: # 수동으로도 실행해볼 수 있게 버튼 만들기
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install requests pyrebase4
+
+      - name: Run send_mail.py
+        env:
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: python send_mail.py
