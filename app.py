@@ -57,10 +57,12 @@ firebaseConfig = {
 G2B_API_KEY = "13610863df3680cc4e7c70a64d752b37485535929bfa514f4ad4d71ea56e4ccb"
 SAFE_API_KEY = urllib.parse.unquote(G2B_API_KEY)
 
+
 @st.cache_resource
 def init_firebase():
     firebase = pyrebase.initialize_app(firebaseConfig)
     return firebase.auth(), firebase.database()
+
 
 auth, db = init_firebase()
 
@@ -71,12 +73,14 @@ if 'user_license' not in st.session_state: st.session_state['user_license'] = ""
 # ==========================================
 # 🚨 3. 절대 안전지대 (상수 데이터 맨 위로 고정!)
 # ==========================================
-REGION_LIST = ["전국(전체)", "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"]
+REGION_LIST = ["전국(전체)", "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남",
+               "제주"]
 
 ALL_LICENSES = ["[종합] 건축공사업", "[종합] 토목공사업", "[종합] 토목건축공사업", "[종합] 조경공사업", "[종합] 산업·환경설비공사업", "[전문] 지반조성·포장공사업",
                 "[전문] 실내건축공사업", "[전문] 금속창호·지붕건축물조립공사업", "[전문] 도장·습식·방수·석공사업", "[전문] 조경식재·시설물공사업", "[전문] 구조물해체·비계공사업",
                 "[전문] 상·하수도설비공사업", "[전문] 철도·궤도공사업", "[전문] 철근·콘크리트공사업", "[전문] 수중·준설공사업", "[전문] 승강기설치공사업", "[전문] 기계설비공사업",
                 "[전문] 철강구조물공사업", "[기타] 전기공사업", "[기타] 정보통신공사업", "[기타] 소방시설공사업"]
+
 
 # ==========================================
 # 📈 4. 통계 및 데이터 엔진
@@ -94,6 +98,7 @@ def update_stats():
     except:
         pass
 
+
 def get_stats():
     try:
         month_key = datetime.now(KST).strftime('%Y-%m')
@@ -105,6 +110,7 @@ def get_stats():
     except:
         return 802, 802, 0
 
+
 def fetch_api_fast(url, params):
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
@@ -113,6 +119,7 @@ def fetch_api_fast(url, params):
     except:
         pass
     return []
+
 
 @st.cache_data(ttl=300, show_spinner=False)
 def get_hybrid_1st_bids():
@@ -148,6 +155,7 @@ def get_hybrid_1st_bids():
         df['날짜'] = df['dt'].dt.strftime('%m-%d %H:%M')
     return df
 
+
 @st.cache_data(ttl=300, show_spinner=False)
 def get_hybrid_live_bids():
     now = datetime.now(KST)
@@ -165,7 +173,8 @@ def get_hybrid_live_bids():
         new_rows[bid_no] = {
             '공고번호': bid_no, '공고일자': item.get('bidNtceDt', ''), '공고명': item.get('bidNtceNm', ''),
             '발주기관': item.get('ntceInsttNm', ''), '예산금액': int(float(item.get('bdgtAmt', 0))),
-            '상세보기': "https://www.g2b.go.kr/index.jsp"
+            # 🔥 나노 수정: 다이렉트 공고 링크로 변경 완료!
+            '상세보기': item.get('bidNtceDtlUrl', "https://www.g2b.go.kr/index.jsp")
         }
     if new_rows: db.child("archive_live").update(new_rows)
     df = pd.DataFrame(list(new_rows.values()) + db_items)
@@ -176,6 +185,7 @@ def get_hybrid_live_bids():
         df['공고일자'] = df['dt'].dt.strftime('%m-%d %H:%M')
     return df
 
+
 def filter_by_region(df, selected_region):
     if selected_region == "전국(전체)": return df
     region_keywords = {"서울": ["서울"], "부산": ["부산"], "대구": ["대구"], "인천": ["인천"], "광주": ["광주"], "대전": ["대전"], "울산": ["울산"],
@@ -185,6 +195,7 @@ def filter_by_region(df, selected_region):
     keywords = region_keywords.get(selected_region, [selected_region])
     pattern = '|'.join(keywords)
     return df[df['발주기관'].str.contains(pattern, na=False) | df['공고명'].str.contains(pattern, na=False)]
+
 
 # ==========================================
 # 🎨 5. 메인 UI 대시보드
@@ -276,7 +287,9 @@ elif menu == "📊 실시간 공고 (홈)":
     if not df_live.empty:
         selected_region_live = st.selectbox("🌍 지역 필터링", REGION_LIST)
         df_live_f = filter_by_region(df_live, selected_region_live)
-        col_cfg = {"상세보기": st.column_config.LinkColumn("상세보기", display_text="나라장터 이동"),
+
+        # 🔥 나노 수정: "나라장터 이동" -> "공고보기" 로 텍스트 변경 완료!
+        col_cfg = {"상세보기": st.column_config.LinkColumn("상세보기", display_text="공고보기"),
                    "예산금액": st.column_config.NumberColumn("예산(원)", format="%,d")}
 
         if st.session_state['logged_in'] and st.session_state['user_license']:
