@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 # 1. 보안 및 페이지 설정 (네이버 SEO + 강력한 화면 흐림 방지)
 # ==========================================
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-st.set_page_config(page_title="K-건설맵 V10.9 Master", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="K-건설맵 Master", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
     <head>
@@ -309,24 +309,44 @@ elif menu == "📊 실시간 공고 (홈)":
             st.dataframe(df_live_f[['공고번호', '공고일자', '공고명', '발주기관', '예산금액', '상세보기']], use_container_width=True,
                          hide_index=True, height=600, column_config=col_cfg)
 
+# --- 📁 K-건설 자료실 섹션 (🚨 아코디언 리스트 + 삭제 권한 완벽 적용!) ---
 elif menu == "📁 K-건설 자료실":
     st.subheader("📁 K-건설 자료실")
     if st.session_state['logged_in']:
-        with st.expander("✏️ 자료 등록"):
-            t, c = st.text_input("제목"), st.text_area("내용")
+        with st.expander("✏️ 새 글 작성하기"):
+            t = st.text_input("제목")
+            c = st.text_area("내용")
             if st.button("등록"):
-                db.child("posts").push({"author": st.session_state['user_name'], "title": t, "content": c,
-                                        "time": datetime.now(KST).strftime("%Y-%m-%d %H:%M")})
-                st.rerun()
+                if t and c:
+                    db.child("posts").push({"author": st.session_state['user_name'], "title": t, "content": c,
+                                            "time": datetime.now(KST).strftime("%Y-%m-%d %H:%M")})
+                    st.success("등록 완료!")
+                    st.rerun()
+                else:
+                    st.warning("제목과 내용을 모두 입력해주세요.")
+    else:
+        st.info("💡 글을 작성하시려면 로그인해 주세요.")
+
     posts = db.child("posts").get().val()
     if posts:
-        for p in reversed(list(posts.values())):
-            with st.container(border=True):
-                st.markdown(f"**{p['title']}**")
-                st.caption(f"작성: {p['author']} | {p['time']}")
-                st.write(p['content'])
+        # 가로 바 형태로 깔끔하게 리스트 정렬
+        for post_id, p in reversed(list(posts.items())):
+            expander_title = f"📢 {p.get('title', '제목 없음')} (작성자: {p.get('author', '알수없음')} | {p.get('time', '')[:10]})"
 
-# --- 💬 K건설챗 섹션 (🚨 우회 정렬 적용 완료!) ---
+            with st.expander(expander_title):
+                st.write(p.get('content', '내용이 없습니다.'))
+
+                # 삭제 권한: 본인 글이거나 관리자(명환)일 때만 활성화
+                if st.session_state['user_name'] == p.get('author') or st.session_state['user_name'] == "명환":
+                    st.write("---")
+                    if st.button("🗑️ 이 글 삭제하기", key=f"del_{post_id}"):
+                        db.child("posts").child(post_id).remove()
+                        st.success("글이 깔끔하게 삭제되었습니다!")
+                        st.rerun()
+    else:
+        st.info("등록된 자료가 없습니다. 첫 글의 주인공이 되어보세요!")
+
+# --- 💬 K건설챗 섹션 ---
 elif menu == "💬 K건설챗":
     st.subheader("💬 K건설챗")
     if not st.session_state['logged_in']:
@@ -337,12 +357,10 @@ elif menu == "💬 K건설챗":
             if st.button("🔄 대화 새로고침", use_container_width=True): st.rerun()
         chat_box = st.container(height=500)
 
-        # 🔥 에러 해결: 파이어베이스에 정렬 요구 안 함! 그냥 50개만 가져오라고 함!
         try:
             chats = db.child("k_chat").limit_to_last(50).get().val()
             with chat_box:
                 if chats:
-                    # 파이썬이 직접 시간순으로 정렬!
                     chat_list = list(chats.values())
                     chat_list.sort(key=lambda x: x.get('timestamp', 0))
 
@@ -367,7 +385,7 @@ elif menu == "💬 K건설챗":
             st.write("---")
             if st.button("🧹 [관리자] K건설챗 대화방 싹 비우기"): db.child("k_chat").remove(); st.rerun()
 
-# --- 👤 로그인 / 회원가입 섹션 (🚨 완벽 무결점 코드) ---
+# --- 👤 로그인 / 회원가입 섹션 ---
 elif menu == "👤 로그인 / 회원가입":
     st.subheader("👤 회원 정보 관리")
     t1, t2 = st.tabs(["🔑 로그인", "📝 회원가입"])
