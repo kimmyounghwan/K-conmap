@@ -126,17 +126,24 @@ def get_hybrid_1st_bids():
     now = datetime.now(KST)
     cutoff_dt = (now - timedelta(days=180)).replace(tzinfo=None)
     url = 'http://apis.data.go.kr/1230000/as/ScsbidInfoService/getOpengResultListInfoCnstwk'
-    s_dt = (now - timedelta(days=15)).strftime('%Y%m%d')
+
+    # 🔥🔥🔥 나노 단독 수술 파트: 15일치 -> 2일치로 변경하여 999개 한도 뚫음! 🔥🔥🔥
+    s_dt = (now - timedelta(days=2)).strftime('%Y%m%d')
     e_dt = now.strftime('%Y%m%d')
+
     api_items = fetch_api_fast(url, {'serviceKey': SAFE_API_KEY, 'numOfRows': '999', 'pageNo': '1', 'inqryDiv': '1',
                                      'inqryBgnDt': s_dt + '0000', 'inqryEndDt': e_dt + '2359', 'type': 'json'})
     db_data = db.child("archive_1st").get().val() or {}
     db_items = list(db_data.values()) if db_data else []
     new_rows = {}
+
     for item in api_items:
         try:
             bid_no = item.get('bidNtceNo', '')
-            corp = str(item.get('opengCorpInfo', '')).split('^')
+            # 🔥🔥🔥 파싱 에러 방어: 여러 업체가 섞여 있어도 1순위(첫번째)만 안전하게 추출 🔥🔥🔥
+            first_corp = str(item.get('opengCorpInfo', '')).split('|')[0]
+            corp = first_corp.split('^')
+
             if len(corp) > 1:
                 new_rows[bid_no] = {
                     '1순위업체': corp[0].strip(), '공고번호': bid_no, '날짜': item.get('opengDt', ''),
@@ -146,13 +153,16 @@ def get_hybrid_1st_bids():
                 }
         except:
             continue
+
     if new_rows: db.child("archive_1st").update(new_rows)
     df = pd.DataFrame(list(new_rows.values()) + db_items)
+
     if not df.empty:
         df = df.drop_duplicates(subset=['공고번호']).copy()
         df['dt'] = pd.to_datetime(df['날짜'], errors='coerce')
         df = df[df['dt'] >= cutoff_dt].sort_values(by='dt', ascending=False)
         df['날짜'] = df['dt'].dt.strftime('%m-%d %H:%M')
+
     return df
 
 
@@ -173,7 +183,6 @@ def get_hybrid_live_bids():
         new_rows[bid_no] = {
             '공고번호': bid_no, '공고일자': item.get('bidNtceDt', ''), '공고명': item.get('bidNtceNm', ''),
             '발주기관': item.get('ntceInsttNm', ''), '예산금액': int(float(item.get('bdgtAmt', 0))),
-            # 🔥 나노 수정: 다이렉트 공고 링크로 변경 완료!
             '상세보기': item.get('bidNtceDtlUrl', "https://www.g2b.go.kr/index.jsp")
         }
     if new_rows: db.child("archive_live").update(new_rows)
@@ -288,7 +297,6 @@ elif menu == "📊 실시간 공고 (홈)":
         selected_region_live = st.selectbox("🌍 지역 필터링", REGION_LIST)
         df_live_f = filter_by_region(df_live, selected_region_live)
 
-        # 🔥 나노 수정: "나라장터 이동" -> "공고보기" 로 텍스트 변경 완료!
         col_cfg = {"상세보기": st.column_config.LinkColumn("상세보기", display_text="공고보기"),
                    "예산금액": st.column_config.NumberColumn("예산(원)", format="%,d")}
 
