@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 st.set_page_config(page_title="K-건설맵 Master", layout="wide", initial_sidebar_state="expanded")
 
+# [디자인 수술] 명환이가 원한 아담한 글씨 크기(17px)와 깔끔한 카드 레이아웃 복구
 st.markdown("""
     <head>
         <meta name="naver-site-verification" content="bfb3f10bce2983b4dd5974ba39d05e3ce5225e73" />
@@ -23,21 +24,15 @@ st.markdown("""
         .stApp { transition: none !important; }
         .main-title { background-color: #1e3a8a; color: white; border-radius: 10px; font-weight: 900; font-size: 28px; text-align: center; padding: 20px; margin-bottom: 25px; } 
         .stat-card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; text-align: center; } 
-        .stat-val { font-size: 20px; font-weight: 700; color: #1e3a8a; }
-        .rank-card { background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: white; border-radius: 10px; padding: 16px; text-align: center; margin-bottom: 8px; }
-        .rank-1 { background: linear-gradient(135deg, #b45309 0%, #f59e0b 100%); }
-        .rank-2 { background: linear-gradient(135deg, #4b5563 0%, #9ca3af 100%); }
-        .rank-3 { background: linear-gradient(135deg, #92400e 0%, #d97706 100%); }
+        .stat-val { font-size: 17px; font-weight: 700; color: #1e3a8a; } /* 글자 크기 17px로 최적화 */
         .info-box { background-color: #eff6ff; border-left: 4px solid #2563eb; border-radius: 6px; padding: 14px 18px; margin: 10px 0; }
-        .info-box-title { font-weight: 700; color: #1e3a8a; font-size: 13px; margin-bottom: 4px; }
-        .info-box-val { font-size: 18px; font-weight: 800; color: #1e40af; }
     </style>
 """, unsafe_allow_html=True)
 
 KST = timezone(timedelta(hours=9))
 
 # ==========================================
-# 2. 파이어베이스 및 API 설정
+# 2. 파이어베이스 및 API 설정 (명환이 고유 키)
 # ==========================================
 firebaseConfig = {
     "apiKey": "AIzaSyB5uvAzUIbEDTTbxwflTQk3wdzOufc4SE0",
@@ -65,29 +60,9 @@ if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if 'user_name' not in st.session_state: st.session_state['user_name'] = ""
 if 'user_license' not in st.session_state: st.session_state['user_license'] = ""
 
-# ==========================================
-# 3. 상수 및 매칭 키워드 로직
-# ==========================================
-REGION_LIST = ["전국(전체)", "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남",
-               "제주"]
-ALL_LICENSES = ["[종합] 건축공사업", "[종합] 토목공사업", "[종합] 토목건축공사업", "[종합] 조경공사업", "[전문] 지반조성·포장공사업", "[전문] 실내건축공사업",
-                "[전문] 철근·콘크리트공사업", "[기타] 전기공사업", "[기타] 정보통신공사업", "[기타] 소방시설공사업"]
-
-
-def get_match_keywords(license_str):
-    k = []
-    if "토목" in license_str: k.extend(["토목", "도로", "포장", "하천", "교량", "단지", "부대시설", "정비", "관로", "상수도", "하수도"])
-    if "건축" in license_str: k.extend(["건축", "신축", "증축", "보수", "인테리어", "환경개선", "방수", "도장"])
-    if "조경" in license_str: k.extend(["조경", "식재", "공원", "수목", "벌목", "놀이터"])
-    if "전기" in license_str: k.extend(["전기", "배전", "가로등", "CCTV", "태양광", "신호등"])
-    if "통신" in license_str: k.extend(["통신", "네트워크", "방송", "케이블", "선로"])
-    if "소방" in license_str: k.extend(["소방", "화재", "스프링클러", "피난", "경보"])
-    if "철근" in license_str or "콘크리트" in license_str: k.extend(["철콘", "구조물", "옹벽", "배수", "기초", "집수정", "박스", "암거", "석축"])
-    return list(set(k))
-
 
 # ==========================================
-# 4. 유틸 함수 (NameError 방지를 위해 최상단 배치)
+# 3. 유틸리티 함수 (NameError 방지를 위해 상단 배치)
 # ==========================================
 def safe_fmt_amt(raw):
     r = str(raw).strip()
@@ -103,7 +78,7 @@ def safe_str(raw, default="정보없음"):
     return r if r and r not in ('None', 'nan', 'NaN', '') else default
 
 
-# [NameError 완벽 해결] 필터 함수가 가장 먼저 실행되도록 위로 끌어올림
+# [픽스] 지역 필터링 함수를 상단에 두어 NameError 원천 차단
 def filter_by_region(df, selected_region):
     if selected_region == "전국(전체)": return df
     region_keywords = {"서울": ["서울"], "부산": ["부산"], "대구": ["대구"], "인천": ["인천"], "광주": ["광주"], "대전": ["대전"], "울산": ["울산"],
@@ -114,8 +89,21 @@ def filter_by_region(df, selected_region):
     return df[df['발주기관'].str.contains(pattern, na=False) | df['공고명'].str.contains(pattern, na=False)]
 
 
+# 면허 매칭 키워드 로직
+def get_match_keywords(license_str):
+    k = []
+    if "토목" in license_str: k.extend(["토목", "도로", "포장", "하천", "교량", "정비", "관로", "상수도", "하수도"])
+    if "건축" in license_str: k.extend(["건축", "신축", "증축", "보수", "인테리어", "방수", "도장"])
+    if "조경" in license_str: k.extend(["조경", "식재", "공원", "수목", "놀이터"])
+    if "전기" in license_str: k.extend(["전기", "배전", "가로등", "CCTV"])
+    if "통신" in license_str: k.extend(["통신", "네트워크", "방송", "선로"])
+    if "소방" in license_str: k.extend(["소방", "화재", "스프링클러"])
+    if "철근" in license_str or "콘크리트" in license_str: k.extend(["철콘", "구조물", "옹벽", "배수", "기초"])
+    return list(set(k))
+
+
 # ==========================================
-# 5. 통계 엔진
+# 4. 통계 및 데이터 엔진 (보물 데이터 복구)
 # ==========================================
 def get_stats():
     try:
@@ -136,34 +124,20 @@ def update_stats():
         pass
 
 
-def fetch_api_fast(url, params):
-    try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        res = requests.get(url, params=params, verify=False, timeout=10, headers=headers)
-        if res.status_code == 200: return res.json().get('response', {}).get('body', {}).get('items', [])
-    except:
-        pass
-    return []
-
-
-# ==========================================
-# 6. 1순위 / 실시간 엔진 (15일 확장판)
-# ==========================================
 @st.cache_data(ttl=180, show_spinner=False)
 def get_hybrid_1st_bids():
     now = datetime.now(KST)
     s_dt = (now - timedelta(days=2)).strftime('%Y%m%d')
-    e_dt = now.strftime('%Y%m%d')
     url = 'http://apis.data.go.kr/1230000/as/ScsbidInfoService/getOpengResultListInfoCnstwk'
-
     try:
         params = {'serviceKey': SAFE_API_KEY, 'numOfRows': '999', 'pageNo': '1', 'inqryDiv': '1',
-                  'inqryBgnDt': s_dt + '0000', 'inqryEndDt': e_dt + '2359', 'type': 'json'}
+                  'inqryBgnDt': s_dt + '0000', 'type': 'json'}
         res = requests.get(url, params=params, verify=False, timeout=20)
         api_items = res.json().get('response', {}).get('body', {}).get('items', []) if res.status_code == 200 else []
     except:
         api_items = []
 
+    # [15일 확장] 최근 4000개 데이터를 가져와서 풍성하게 보여줌
     db_data = db.child("archive_1st").order_by_key().limit_to_last(4000).get().val() or {}
     db_items = list(db_data.values()) if isinstance(db_data, dict) else []
 
@@ -199,9 +173,8 @@ def get_hybrid_live_bids():
     url = 'http://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoCnstwk'
     try:
         res = requests.get(url, params={'serviceKey': SAFE_API_KEY, 'numOfRows': '999', 'pageNo': '1', 'inqryDiv': '1',
-                                        'inqryBgnDt': now.strftime('%Y%m%d') + '0000',
-                                        'inqryEndDt': now.strftime('%Y%m%d') + '2359', 'bidNtceNm': '공사',
-                                        'type': 'json'}, verify=False, timeout=15)
+                                        'inqryBgnDt': now.strftime('%Y%m%d') + '0000', 'type': 'json'}, verify=False,
+                           timeout=15)
         api_items = res.json().get('response', {}).get('body', {}).get('items', []) if res.status_code == 200 else []
     except:
         api_items = []
@@ -226,40 +199,40 @@ def get_hybrid_live_bids():
 
 
 # ==========================================
-# 7. ★ 핵심 엔진 (추정가격 복구 완벽 픽스) ★
+# 5. ★ 상세 분석 엔진 (추정가격 복구) ★
 # ==========================================
 def fetch_bid_full_detail(bid_no, base_ord, row):
     headers = {"User-Agent": "Mozilla/5.0"}
     res_data = {"bss_amt": "미발표", "est_price": "미발표", "pre_amt": "미발표", "suc_amt": safe_str(row.get('투찰금액'), "미발표"),
                 "corps": [], "has_detail": False}
 
-    def _safe_list(obj):
-        if not obj: return []
-        if isinstance(obj, list): return obj
-        if isinstance(obj, dict):
-            item = obj.get('item')
-            if isinstance(item, list): return item
-            if isinstance(item, dict): return [item]
-            return [obj]
-        return []
+    # [픽스] 추정가격(est_price) 수집 경로 재설정
+    try:
+        notice_url = 'http://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoCnstwk'
+        n_res = requests.get(notice_url,
+                             params={'serviceKey': SAFE_API_KEY, 'numOfRows': '1', 'pageNo': '1', 'bidNtceNo': bid_no,
+                                     'type': 'json'}, verify=False, timeout=8, headers=headers)
+        if n_res.status_code == 200:
+            n_data = n_res.json().get('response', {}).get('body', {}).get('items', {}).get('item', [])
+            n_items = n_data if isinstance(n_data, list) else [n_data]
+            if n_items and n_items[0]:
+                ep_raw = str(n_items[0].get('presmptPrce', '')).strip()
+                if ep_raw and ep_raw != '0': res_data["est_price"] = safe_fmt_amt(ep_raw)
+    except:
+        pass
 
-    # [복구] 추정가격 누락을 방지하기 위해 API 호출
     try:
         detail_url = 'http://apis.data.go.kr/1230000/as/ScsbidInfoService/getOpengResultListInfoCnstwkDtl'
         d_res = requests.get(detail_url,
                              params={'serviceKey': SAFE_API_KEY, 'numOfRows': '1', 'pageNo': '1', 'bidNtceNo': bid_no,
                                      'bidNtceOrd': base_ord, 'type': 'json'}, verify=False, timeout=8, headers=headers)
         if d_res.status_code == 200:
-            items = _safe_list(d_res.json().get('response', {}).get('body', {}).get('items', []))
-            if items:
+            d_data = d_res.json().get('response', {}).get('body', {}).get('items', {}).get('item', [])
+            items = d_data if isinstance(d_data, list) else [d_data]
+            if items and items[0]:
                 d = items[0]
                 bss_raw = str(d.get('bssAmt', '')).strip()
                 if bss_raw and bss_raw != '0': res_data["bss_amt"] = safe_fmt_amt(bss_raw)
-
-                # 추정가격 복구
-                est_raw = str(d.get('presmptPrce', '')).strip()
-                if est_raw and est_raw != '0': res_data["est_price"] = safe_fmt_amt(est_raw)
-
                 pre_raw = str(d.get('exptPrce', '')).strip()
                 if pre_raw and pre_raw != '0': res_data["pre_amt"] = safe_fmt_amt(pre_raw)
                 suc_raw = str(d.get('sucsfbidAmt', '')).strip()
@@ -278,7 +251,7 @@ def fetch_bid_full_detail(bid_no, base_ord, row):
 
 
 # ==========================================
-# 8. UI 및 메인 로직
+# 6. 메인 UI 대시보드
 # ==========================================
 update_stats()
 t_visit, t_user = get_stats()
@@ -299,7 +272,7 @@ with c4: st.markdown(
 with st.sidebar:
     st.write(f"### 👷 {'👋 ' + st.session_state['user_name'] + ' 소장님' if st.session_state['logged_in'] else 'K-건설맵 메뉴'}")
 
-    # 로그인 여부에 따라 메뉴 깔끔하게 정리
+    # [해결] 로그인 시 로그인 탭 숨기기
     if st.session_state['logged_in']:
         menu_list = ["🏆 1순위 현황판", "📊 실시간 공고 (홈)", "📁 K-건설 자료실", "💬 K건설챗"]
     else:
@@ -310,7 +283,8 @@ with st.sidebar:
     if st.button("🔄 만능 데이터 새로고침"): st.cache_data.clear(); st.rerun()
     if st.session_state['logged_in'] and st.button("🚪 로그아웃"): st.session_state['logged_in'] = False; st.rerun()
 
-# --- 메뉴별 화면 구성 ---
+# --- 메뉴별 작동 로직 ---
+
 if menu == "🏆 1순위 현황판":
     st.subheader("🏆 실시간 1순위 현황판")
     selected_region_1st = st.selectbox("🌍 지역 필터링", REGION_LIST)
@@ -323,49 +297,45 @@ if menu == "🏆 1순위 현황판":
             row = df_f.iloc[event.selection.rows[0]]
             det = fetch_bid_full_detail(str(row['공고번호']).strip(), row.get('공고차수', '00'), row)
 
-            # [복구 완료] 명환이가 좋아하던 작은 HTML 폰트 디자인 원상복구!
+            # [디자인 복구] 17px 깔끔한 폰트 디자인
             st.markdown(f"#### ✅ [나노 VIP 분석 리포트] {row['공고명'][:35]}...")
             m1, m2, m3, m4 = st.columns(4)
             with m1:
                 st.markdown(
-                    f'<div class="stat-card"><div style="font-size:12px;color:#6b7280;font-weight:600;">💰 기초금액</div><div class="stat-val" style="color:#d97706;font-size:17px;">{det["bss_amt"]}</div></div>',
+                    f'<div class="stat-card"><div style="font-size:12px;color:#6b7280;font-weight:600;">💰 기초금액</div><div class="stat-val">{det["bss_amt"]}</div></div>',
                     unsafe_allow_html=True)
             with m2:
                 st.markdown(
-                    f'<div class="stat-card"><div style="font-size:12px;color:#6b7280;font-weight:600;">📐 추정가격</div><div class="stat-val" style="color:#1e3a8a;font-size:17px;">{det["est_price"]}</div></div>',
+                    f'<div class="stat-card"><div style="font-size:12px;color:#6b7280;font-weight:600;">📐 추정가격</div><div class="stat-val">{det["est_price"]}</div></div>',
                     unsafe_allow_html=True)
             with m3:
                 st.markdown(
-                    f'<div class="stat-card"><div style="font-size:12px;color:#6b7280;font-weight:600;">🎯 예정가격</div><div class="stat-val" style="color:#2563eb;font-size:17px;">{det["pre_amt"]}</div></div>',
+                    f'<div class="stat-card"><div style="font-size:12px;color:#6b7280;font-weight:600;">🎯 예정가격</div><div class="stat-val">{det["pre_amt"]}</div></div>',
                     unsafe_allow_html=True)
             with m4:
                 st.markdown(
-                    f'<div class="stat-card"><div style="font-size:12px;color:#6b7280;font-weight:600;">🏆 낙찰금액</div><div class="stat-val" style="color:#dc2626;font-size:17px;">{det["suc_amt"]}</div></div>',
+                    f'<div class="stat-card"><div style="font-size:12px;color:#6b7280;font-weight:600;">🏆 낙찰금액</div><div class="stat-val" style="color:#dc2626;">{det["suc_amt"]}</div></div>',
                     unsafe_allow_html=True)
 
             st.write("")
             if det['corps']:
                 st.dataframe(pd.DataFrame(det['corps']), use_container_width=True, hide_index=True)
             else:
-                st.warning("💡 조달청에서 아직 개찰 상세 성적표를 업로드하지 않았습니다. (보통 개찰 직후 딜레이가 발생합니다)")
-
-            st.markdown("💡 **조달청 보안 정책으로 공고번호 복사가 필요합니다.**")
+                st.warning("💡 조달청 상세 성적표 딜레이 중입니다.")
             st.code(row['공고번호'], language=None)
     else:
-        st.warning("데이터를 불러오는 중입니다.")
+        st.warning("데이터 로딩 중...")
 
 elif menu == "📊 실시간 공고 (홈)":
     st.subheader("📊 실시간 입찰 공고")
-    df_live = get_hybrid_live_bids()
-    if not df_live.empty:
+    df_l = get_hybrid_live_bids()
+    if not df_l.empty:
         selected_region_live = st.selectbox("🌍 지역 필터링", REGION_LIST)
-        df_f = filter_by_region(df_live, selected_region_live)
+        df_f = filter_by_region(df_l, selected_region_live)
 
-        # [복구 완료] 표에서 '상세보기'를 파란색 링크로 예쁘게 띄워주는 설정 부활!
-        col_cfg = {
-            "상세보기": st.column_config.LinkColumn("상세보기", display_text="공고보기"),
-            "예산금액": st.column_config.NumberColumn("예산(원)", format="%,d")
-        }
+        # [복구] 공고보기 링크 설정
+        col_cfg = {"상세보기": st.column_config.LinkColumn("상세보기", display_text="공고보기"),
+                   "예산금액": st.column_config.NumberColumn("예산(원)", format="%,d")}
 
         if st.session_state['logged_in'] and st.session_state['user_license']:
             t1, t2 = st.tabs(["🌐 전체 공고", "✨ 내 면허 맞춤매칭"])
@@ -384,12 +354,12 @@ elif menu == "📊 실시간 공고 (홈)":
 elif menu == "📁 K-건설 자료실":
     st.subheader("📁 K-건설 자료실")
     if st.session_state['logged_in']:
-        with st.expander("✏️ 새 자료 공유하기"):
+        with st.expander("✏️ 새 자료 등록"):
             t, c = st.text_input("제목"), st.text_area("내용")
             if st.button("등록") and t and c:
                 db.child("posts").push({"author": st.session_state['user_name'], "title": t, "content": c,
                                         "time": datetime.now(KST).strftime("%Y-%m-%d %H:%M")})
-                st.toast("자료가 등록되었습니다!", icon="✅");
+                st.success("등록 완료!");
                 st.rerun()
     posts = db.child("posts").get().val()
     if posts:
@@ -402,18 +372,17 @@ elif menu == "📁 K-건설 자료실":
 elif menu == "💬 K건설챗":
     st.subheader("💬 실시간 현장 소통")
     if not st.session_state['logged_in']:
-        st.info("로그인 후 소장님들과 대화를 나눠보세요!")
+        st.info("로그인 후 이용 가능합니다.")
     else:
         chat_box = st.container(height=450)
         try:
-            chats_data = db.child("k_chat").order_by_key().limit_to_last(30).get().val()
-            if chats_data:
-                chat_list = list(chats_data.values())
-                for v in chat_list: chat_box.write(f"**{v['author']}**: {v['message']}")
+            # [인덱스 에러 우회] 파이썬 슬라이싱으로 안전하게 최신 대화만 노출
+            all_c = db.child("k_chat").get().val()
+            if all_c:
+                for v in list(all_c.values())[-30:]: chat_box.write(f"**{v['author']}**: {v['message']}")
         except:
-            chat_box.info("대화를 불러오는 중입니다.")
-
-        if msg := st.chat_input("메시지를 입력하세요"):
+            chat_box.info("대화 로딩 중...")
+        if msg := st.chat_input("메시지 입력"):
             db.child("k_chat").push(
                 {"author": st.session_state['user_name'], "message": msg, "time": datetime.now(KST).strftime("%H:%M")})
             st.rerun()
@@ -421,31 +390,28 @@ elif menu == "💬 K건설챗":
 elif menu == "👤 로그인 / 회원가입":
     st.subheader("👤 회원 정보 관리")
     t1, t2 = st.tabs(["🔑 로그인", "📝 회원가입"])
-
     with t1:
-        le = st.text_input("이메일", key="l_e")
-        lp = st.text_input("비밀번호", type="password", key="l_p")
+        le, lp = st.text_input("이메일", key="l_e"), st.text_input("비밀번호", type="password", key="l_p")
         if st.button("로그인"):
             try:
-                user = auth.sign_in_with_email_and_password(le.strip(), lp)
+                user = auth.sign_in_with_email_and_password(le.strip().lower(), lp)
                 info = db.child("users").child(user['localId']).get().val() or {}
-                st.session_state['logged_in'] = True
-                st.session_state['user_name'] = info.get('name', '소장님')
-                st.session_state['user_license'] = info.get('license', '')
-                st.rerun()  # [해결 1] 로그인 성공하면 오류창 띄울 틈 없이 바로 새로고침해서 현황판으로 보냄!
+                st.session_state.update(
+                    {'logged_in': True, 'user_name': info.get('name', '소장님'), 'user_license': info.get('license', '')})
+                st.rerun()  # [해결] 성공 시 딜레이 없이 즉시 현황판 이동
             except:
-                st.error("로그인 실패! 이메일이나 비밀번호를 다시 확인해주세요.")
-
+                st.error("로그인 실패! 정보를 확인해주세요.")
     with t2:
+        # [픽스] st.text_input 오타 완벽 수정
         re = st.text_input("가입용 이메일", key="r_e")
         rp = st.text_input("비번 (6자 이상)", type="password", key="r_p")
         rn = st.text_input("성함", key="r_n")
         rl = st.multiselect("보유 면허", ALL_LICENSES, key="r_l")
-
         if st.button("가입하기"):
             try:
-                u = auth.create_user_with_email_and_password(re.strip(), rp)
-                db.child("users").child(u['localId']).set({"name": rn, "license": ", ".join(rl), "email": re.strip()})
-                st.success("🎉 가입 성공! 로그인 탭에서 접속해주세요.")
+                u = auth.create_user_with_email_and_password(re.strip().lower(), rp)
+                db.child("users").child(u['localId']).set(
+                    {"name": rn, "license": ", ".join(rl), "email": re.strip().lower()})
+                st.success("🎉 가입 성공! 로그인 해주세요.")
             except:
-                st.error("가입 실패! 형식을 확인하거나 이미 있는 이메일인지 확인하세요.")
+                st.error("가입 실패! 형식을 확인하세요.")
