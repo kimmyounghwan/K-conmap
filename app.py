@@ -128,7 +128,7 @@ def fetch_api_fast(url, params):
 
 
 # ==========================================
-# 6. 1순위 현황판 (15일치 4000개 확장 버전)
+# 6. 1순위 현황판 (안전한 정렬 버전)
 # ==========================================
 @st.cache_data(ttl=180, show_spinner=False)
 def get_hybrid_1st_bids():
@@ -147,7 +147,7 @@ def get_hybrid_1st_bids():
     except:
         api_items = []
 
-    db_data = db.child("archive_1st").order_by_key().limit_to_last(4000).get().val() or {}
+    db_data = db.child("archive_1st").order_by_key().limit_to_last(2000).get().val() or {}
     db_items = list(db_data.values()) if isinstance(db_data, dict) else []
     new_rows = {}
 
@@ -178,7 +178,7 @@ def get_hybrid_1st_bids():
 
 
 # ==========================================
-# 7. 실시간 공고 (15일치 4000개 확장 버전)
+# 7. 실시간 공고 데이터 엔진
 # ==========================================
 @st.cache_data(ttl=300, show_spinner=False)
 def get_hybrid_live_bids():
@@ -194,7 +194,7 @@ def get_hybrid_live_bids():
         api_items = api_items.get('item', [api_items])
         if isinstance(api_items, dict): api_items = [api_items]
 
-    db_data = db.child("archive_live").order_by_key().limit_to_last(4000).get().val() or {}
+    db_data = db.child("archive_live").order_by_key().limit_to_last(2000).get().val() or {}
     db_items = list(db_data.values()) if isinstance(db_data, dict) else []
     new_rows = {}
     for item in (api_items if isinstance(api_items, list) else []):
@@ -202,7 +202,7 @@ def get_hybrid_live_bids():
         new_rows[bid_no] = {
             '공고번호': bid_no, '공고일자': item.get('bidNtceDt', ''), '공고명': item.get('bidNtceNm', ''),
             '발주기관': item.get('ntceInsttNm', ''), '예산금액': int(float(item.get('bdgtAmt', 0))),
-            '상세보기': item.get('bidNtceDtlUrl', "")
+            '상세보기': item.get('bidNtceDtlUrl', "https://www.g2b.go.kr/index.jsp")
         }
     if new_rows: db.child("archive_live").update(new_rows)
 
@@ -314,20 +314,37 @@ elif menu == "📊 실시간 공고 (홈)":
     if not df_l.empty:
         selected_region_live = st.selectbox("🌍 지역 필터링", REGION_LIST)
         df_f = filter_by_region(df_l, selected_region_live)
+
+        # [복구] 공고보기 링크 살림!
+        col_cfg = {
+            "상세보기": st.column_config.LinkColumn("상세보기", display_text="공고보기"),
+            "예산금액": st.column_config.NumberColumn("예산(원)", format="%,d")
+        }
+
         if st.session_state['logged_in'] and st.session_state['user_license']:
             t1, t2 = st.tabs(["🌐 전체 공고", "✨ 내 면허 맞춤매칭"])
             with t1:
-                st.dataframe(df_f[['공고번호', '공고일자', '공고명', '발주기관', '예산금액']], use_container_width=True, hide_index=True,
-                             height=600)
+                st.dataframe(df_f[['공고번호', '공고일자', '공고명', '발주기관', '예산금액', '상세보기']], use_container_width=True,
+                             hide_index=True, height=600, column_config=col_cfg)
             with t2:
                 lic = st.session_state['user_license']
-                kw = ["토목", "도로", "포장"] if "토목" in lic else ["건축", "인테리어"] if "건축" in lic else ["전기", "통신", "소방"]
-                matched = df_f[df_f['공고명'].str.contains('|'.join(kw), na=False)]
-                st.dataframe(matched[['공고번호', '공고일자', '공고명', '발주기관', '예산금액']], use_container_width=True,
-                             hide_index=True, height=600)
+                kw = []
+                if "토목" in lic: kw.extend(["토목", "도로", "포장", "하천", "교량", "정비", "관로", "상수도", "하수도", "부대시설"])
+                if "건축" in lic: kw.extend(["건축", "신축", "증축", "보수", "인테리어", "환경개선", "방수", "도장"])
+                if "철근" in lic or "콘크리트" in lic: kw.extend(
+                    ["철근", "콘크리트", "철콘", "구조물", "옹벽", "포장", "배수", "기초", "집수정", "박스", "암거", "석축"])
+                if "전기" in lic: kw.extend(["전기", "배전", "가로등", "CCTV", "태양광", "신호등"])
+                if "통신" in lic: kw.extend(["통신", "네트워크", "방송", "CCTV", "케이블", "선로"])
+                if "소방" in lic: kw.extend(["소방", "화재", "스프링클러", "피난", "경보"])
+                if "상·하수도" in lic: kw.extend(["상수도", "하수도", "관로", "배수"])
+                if "조경" in lic: kw.extend(["조경", "식재", "공원", "수목", "벌목", "놀이터"])
+
+                matched = df_f[df_f['공고명'].str.contains('|'.join(kw), na=False)] if kw else df_f
+                st.dataframe(matched[['공고번호', '공고일자', '공고명', '발주기관', '예산금액', '상세보기']], use_container_width=True,
+                             hide_index=True, height=600, column_config=col_cfg)
         else:
-            st.dataframe(df_f[['공고번호', '공고일자', '공고명', '발주기관', '예산금액']], use_container_width=True, hide_index=True,
-                         height=600)
+            st.dataframe(df_f[['공고번호', '공고일자', '공고명', '발주기관', '예산금액', '상세보기']], use_container_width=True,
+                         hide_index=True, height=600, column_config=col_cfg)
 
 elif menu == "📁 K-건설 자료실":
     st.subheader("📁 K-건설 자료실")
@@ -337,7 +354,7 @@ elif menu == "📁 K-건설 자료실":
             if st.button("등록") and t and c:
                 db.child("posts").push({"author": st.session_state['user_name'], "title": t, "content": c,
                                         "time": datetime.now(KST).strftime("%Y-%m-%d %H:%M")})
-                st.toast("자료가 등록되었습니다!", icon="✅");
+                st.success("자료가 등록되었습니다!");
                 st.rerun()
     posts = db.child("posts").get().val()
     if posts:
@@ -354,10 +371,10 @@ elif menu == "💬 K건설챗":
     else:
         chat_box = st.container(height=450)
         try:
-            # [수정 1] 인덱스 에러 방지를 위해 전체를 가져와서 최신 30개 자르기!
-            all_chats = db.child("k_chat").get().val()
-            if all_chats:
-                chat_list = list(all_chats.values())[-30:]
+            # [수정] 채팅 인덱스 에러 방지용 안전 로직
+            chats_data = db.child("k_chat").order_by_key().limit_to_last(30).get().val()
+            if chats_data:
+                chat_list = list(chats_data.values())
                 for v in chat_list: chat_box.write(f"**{v['author']}**: {v['message']}")
         except:
             chat_box.info("대화를 불러오는 중입니다.")
@@ -370,23 +387,32 @@ elif menu == "💬 K건설챗":
 elif menu == "👤 로그인 / 회원가입":
     st.subheader("👤 회원 정보 관리")
     t1, t2 = st.tabs(["🔑 로그인", "📝 회원가입"])
+
     with t1:
-        le, lp = st.text_input("이메일", key="l_e"), st.text_input("비밀번호", type="password", key="l_p")
+        le = st.text_input("이메일", key="l_e")
+        lp = st.text_input("비밀번호", type="password", key="l_p")
         if st.button("로그인"):
-            login_success = False
-            try:
-                user = auth.sign_in_with_email_and_password(le.strip(), lp)
-                info = db.child("users").child(user['localId']).get().val() or {}
-                st.session_state.update(
-                    {'logged_in': True, 'user_name': info.get('name', '소장님'), 'user_license': info.get('license', '')})
-                login_success = True
-            except:
-                st.toast("이메일 또는 비밀번호를 확인해주세요.", icon="🚨")
-            if login_success: st.rerun()
+            le_clean = le.strip()
+            if not le_clean or not lp:
+                st.warning("이메일과 비밀번호를 모두 입력해주세요.")
+            else:
+                try:
+                    user = auth.sign_in_with_email_and_password(le_clean, lp)
+                    info = db.child("users").child(user['localId']).get().val() or {}
+                    st.session_state['logged_in'] = True
+                    st.session_state['user_name'] = info.get('name', '소장님')
+                    st.session_state['user_license'] = info.get('license', '')
+                    st.rerun()  # [수정] 에러 없이 즉시 넘어가도록 깔끔하게 분리
+                except Exception as e:
+                    st.error("로그인 실패! 이메일이나 비밀번호를 다시 확인해주세요.")
+
     with t2:
-        # [수정 2] 오타(st. 빠진 부분) 완벽하게 수정!
-        re, rp, rn, rl = st.text_input("가입용 이메일"), st.text_input("비번 (6자 이상)", type="password"), st.text_input(
-            "성함"), st.multiselect("보유 면허", ALL_LICENSES)
+        # [수정] NameError 오타 완전 박멸 (st.text_input)
+        re = st.text_input("가입용 이메일", key="r_e")
+        rp = st.text_input("비번 (6자 이상)", type="password", key="r_p")
+        rn = st.text_input("성함", key="r_n")
+        rl = st.multiselect("보유 면허", ALL_LICENSES, key="r_l")
+
         if st.button("가입하기"):
             try:
                 u = auth.create_user_with_email_and_password(re.strip(), rp)
