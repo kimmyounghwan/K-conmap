@@ -62,7 +62,7 @@ for k, v in [('logged_in', False), ('user_name', ""), ('user_license', ""), ('us
     if k not in st.session_state: st.session_state[k] = v
 
 # ==========================================
-# 3. 유틸리티 함수 (에러 났던 함수 완벽 복구!)
+# 3. 유틸리티 함수
 # ==========================================
 REGION_LIST = ["전국(전체)", "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남",
                "제주"]
@@ -86,14 +86,12 @@ API_TABLE = {
 }
 
 
-# 에러 원인 1: 삭제됐던 get_bid_type 복구
 def get_bid_type(bid_no: str) -> str:
     code = bid_no.strip().upper()
     if len(code) < 5: return 'cnstwk'
     return {'CW': 'cnstwk', 'BK': 'etcwk', 'EW': 'etcwk', 'SV': 'servc', 'GD': 'goods'}.get(code[3:5], 'cnstwk')
 
 
-# 에러 원인 2: 삭제됐던 filter_by_region 복구
 def filter_by_region(df, sel):
     if sel == "전국(전체)": return df
     rk = {"서울": ["서울"], "부산": ["부산"], "대구": ["대구"], "인천": ["인천"], "광주": ["광주"], "대전": ["대전"], "울산": ["울산"],
@@ -137,7 +135,8 @@ def _safe_list(obj):
     return []
 
 
-def _api_get(url: str, params: dict, timeout: int = 3) -> list:
+# 기본 타임아웃을 15초로 늘려서 안전성 확보
+def _api_get(url: str, params: dict, timeout: int = 15) -> list:
     try:
         r = requests.get(url, params={**params, 'serviceKey': SAFE_API_KEY, 'type': 'json'}, verify=False,
                          timeout=timeout)
@@ -203,7 +202,6 @@ def show_analysis_dialog(row, det, mode="1st"):
         with sc2:
             st.write("")
             st.link_button("🚀 나라장터 홈페이지", "https://www.g2b.go.kr/index.jsp", use_container_width=True)
-            # 업체 네이버 검색 완벽 부활!
             st.link_button("🏢 업체 네이버 검색", f"https://search.naver.com/search.naver?query={row['1순위업체']} 건설",
                            use_container_width=True)
 
@@ -252,19 +250,21 @@ def show_analysis_dialog(row, det, mode="1st"):
 
 
 # ==========================================
-# 5. 데이터 수집 엔진
+# 5. 데이터 수집 엔진 (타임아웃 대폭 증가!)
 # ==========================================
 @st.cache_data(ttl=60, show_spinner=False)
 def get_hybrid_1st_bids():
     now = datetime.now(KST)
     s_dt = (now - timedelta(days=5)).strftime('%Y%m%d')
     e_dt = now.strftime('%Y%m%d')
+
+    # 5일 치 999건 대규모 데이터 수집 시 튕기지 않도록 timeout=20으로 넉넉하게 세팅
     api_items = _api_get(f'{BASE}/as/ScsbidInfoService/getOpengResultListInfoCnstwk',
                          {'numOfRows': '999', 'pageNo': '1', 'inqryDiv': '1', 'inqryBgnDt': s_dt + '0000',
-                          'inqryEndDt': e_dt + '2359'})
+                          'inqryEndDt': e_dt + '2359'}, timeout=20)
     api_items.extend(_api_get(f'{BASE}/as/ScsbidInfoService/getOpengResultListInfoEtcwk',
                               {'numOfRows': '999', 'pageNo': '1', 'inqryDiv': '1', 'inqryBgnDt': s_dt + '0000',
-                               'inqryEndDt': e_dt + '2359'}))
+                               'inqryEndDt': e_dt + '2359'}, timeout=20))
 
     db_data = db.child("archive_1st").order_by_key().limit_to_last(4000).get().val() or {}
     db_items = list(db_data.values()) if isinstance(db_data, dict) else []
@@ -292,12 +292,13 @@ def get_hybrid_1st_bids():
 def get_hybrid_live_bids():
     now = datetime.now(KST)
     s_dt = now.strftime('%Y%m%d')
+    # 공고 수집도 안정적으로 timeout=15 세팅
     api_items = _api_get(f'{BASE}/ad/BidPublicInfoService/getBidPblancListInfoCnstwk',
                          {'numOfRows': '999', 'pageNo': '1', 'inqryDiv': '1', 'inqryBgnDt': s_dt + '0000',
-                          'inqryEndDt': s_dt + '2359', 'bidNtceNm': '공사'})
+                          'inqryEndDt': s_dt + '2359', 'bidNtceNm': '공사'}, timeout=15)
     api_items.extend(_api_get(f'{BASE}/ad/BidPublicInfoService/getBidPblancListInfoEtcwk',
                               {'numOfRows': '999', 'pageNo': '1', 'inqryDiv': '1', 'inqryBgnDt': s_dt + '0000',
-                               'inqryEndDt': s_dt + '2359', 'bidNtceNm': '공사'}))
+                               'inqryEndDt': s_dt + '2359', 'bidNtceNm': '공사'}, timeout=15))
 
     db_data = db.child("archive_live").order_by_key().limit_to_last(4000).get().val() or {}
     db_items = list(db_data.values()) if isinstance(db_data, dict) else []
@@ -418,7 +419,6 @@ if menu == "🏆 1순위 현황판":
 
     df_w = get_hybrid_1st_bids()
     if not df_w.empty:
-        # 업체 검색 부활!
         col_filter1, col_filter2 = st.columns([1, 2])
         with col_filter1:
             selected_region_1st = st.selectbox("🌍 지역 필터링", REGION_LIST, key="reg1")
