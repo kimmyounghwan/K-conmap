@@ -61,8 +61,33 @@ for k, v in [('logged_in', False), ('user_name', ""), ('user_license', ""), ('us
              ('idToken', "")]:
     if k not in st.session_state: st.session_state[k] = v
 
+
 # ==========================================
-# 3. 유틸리티 함수
+# 3. 방문 누적 카운팅 로직
+# ==========================================
+def update_stats():
+    # 방문자가 처음 접속했을 때만 장부에 +1 기록 (새로고침 중복 카운트 방지)
+    if 'visited' not in st.session_state:
+        try:
+            curr = db.child("stats").child("total_visits").get().val()
+            if curr is None: curr = 1828
+            db.child("stats").update({"total_visits": curr + 1})
+            st.session_state['visited'] = True
+        except:
+            pass
+
+
+def get_stats():
+    try:
+        t_v = db.child("stats").child("total_visits").get().val() or 1828
+        u_v = db.child("users").get().val()
+        return t_v, len(u_v) if u_v else 0
+    except:
+        return 1828, 0
+
+
+# ==========================================
+# 4. 유틸리티 함수
 # ==========================================
 REGION_LIST = ["전국(전체)", "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남",
                "제주"]
@@ -77,12 +102,6 @@ API_TABLE = {
     'etcwk': {'notice': f'{BASE}/ad/BidPublicInfoService/getBidPblancListInfoEtcwk',
               'result': f'{BASE}/as/ScsbidInfoService/getOpengResultListInfoEtcwk',
               'detail': f'{BASE}/as/ScsbidInfoService/getOpengResultListInfoEtcwkDtl'},
-    'servc': {'notice': f'{BASE}/ad/BidPublicInfoService/getBidPblancListInfoServc',
-              'result': f'{BASE}/as/ScsbidInfoService/getOpengResultListInfoServc',
-              'detail': f'{BASE}/as/ScsbidInfoService/getOpengResultListInfoServcDtl'},
-    'goods': {'notice': f'{BASE}/ad/BidPublicInfoService/getBidPblancListInfoThng',
-              'result': f'{BASE}/as/ScsbidInfoService/getOpengResultListInfoThng',
-              'detail': f'{BASE}/as/ScsbidInfoService/getOpengResultListInfoThngDtl'},
 }
 
 
@@ -135,7 +154,6 @@ def _safe_list(obj):
     return []
 
 
-# 기본 타임아웃을 15초로 늘려서 안전성 확보
 def _api_get(url: str, params: dict, timeout: int = 15) -> list:
     try:
         r = requests.get(url, params={**params, 'serviceKey': SAFE_API_KEY, 'type': 'json'}, verify=False,
@@ -149,27 +167,8 @@ def _api_get(url: str, params: dict, timeout: int = 15) -> list:
     return []
 
 
-def get_stats():
-    try:
-        t_v = db.child("stats").child("total_visits").get().val() or 1828
-        u_v = db.child("users").get().val()
-        return t_v, len(u_v) if u_v else 0
-    except:
-        return 1828, 0
-
-
-def update_stats():
-    try:
-        if 'visited' not in st.session_state:
-            t_v = (db.child("stats").child("total_visits").get().val() or 1828) + 1
-            db.child("stats").update({"total_visits": t_v})
-            st.session_state['visited'] = True
-    except:
-        pass
-
-
 # ==========================================
-# 4. 데이터 팝업창 (Modal Dialog) 함수
+# 5. 데이터 팝업창 (Modal Dialog) 함수
 # ==========================================
 @st.dialog("📋 K-건설맵 정밀 리포트", width="large")
 def show_analysis_dialog(row, det, mode="1st"):
@@ -205,7 +204,7 @@ def show_analysis_dialog(row, det, mode="1st"):
             st.link_button("🏢 업체 네이버 검색", f"https://search.naver.com/search.naver?query={row['1순위업체']} 건설",
                            use_container_width=True)
 
-    else:  # 실시간 공고 시뮬레이터
+    elif mode == "live":
         st.markdown(f"### 🎯 입찰 시뮬레이터")
         st.write(f"**공고명:** {row['공고명']}")
         budget = int(row['예산금액'])
@@ -248,17 +247,22 @@ def show_analysis_dialog(row, det, mode="1st"):
                 st.info(f"**{labels[i]}**\n\n**{price:,}원**")
         st.caption("⚠️ A값(공제비용) 미반영 순수 산술식입니다. 실제 투찰 시 공고문 확인 필수!")
 
+    elif mode == "job":
+        st.markdown(f"### 🤝 구인/구직 상세내용")
+        st.write(f"**제목:** {row['title']} | **지역:** {row['region']}")
+        st.write(f"**작성자:** {row['author']} | **연락처:** {row['phone']}")
+        st.markdown("---")
+        st.write(row['content'])
+
 
 # ==========================================
-# 5. 데이터 수집 엔진 (타임아웃 대폭 증가!)
+# 6. 데이터 수집 엔진
 # ==========================================
 @st.cache_data(ttl=60, show_spinner=False)
 def get_hybrid_1st_bids():
     now = datetime.now(KST)
     s_dt = (now - timedelta(days=5)).strftime('%Y%m%d')
     e_dt = now.strftime('%Y%m%d')
-
-    # 5일 치 999건 대규모 데이터 수집 시 튕기지 않도록 timeout=20으로 넉넉하게 세팅
     api_items = _api_get(f'{BASE}/as/ScsbidInfoService/getOpengResultListInfoCnstwk',
                          {'numOfRows': '999', 'pageNo': '1', 'inqryDiv': '1', 'inqryBgnDt': s_dt + '0000',
                           'inqryEndDt': e_dt + '2359'}, timeout=20)
@@ -292,14 +296,12 @@ def get_hybrid_1st_bids():
 def get_hybrid_live_bids():
     now = datetime.now(KST)
     s_dt = now.strftime('%Y%m%d')
-    # 공고 수집도 안정적으로 timeout=15 세팅
     api_items = _api_get(f'{BASE}/ad/BidPublicInfoService/getBidPblancListInfoCnstwk',
                          {'numOfRows': '999', 'pageNo': '1', 'inqryDiv': '1', 'inqryBgnDt': s_dt + '0000',
                           'inqryEndDt': s_dt + '2359', 'bidNtceNm': '공사'}, timeout=15)
     api_items.extend(_api_get(f'{BASE}/ad/BidPublicInfoService/getBidPblancListInfoEtcwk',
                               {'numOfRows': '999', 'pageNo': '1', 'inqryDiv': '1', 'inqryBgnDt': s_dt + '0000',
                                'inqryEndDt': s_dt + '2359', 'bidNtceNm': '공사'}, timeout=15))
-
     db_data = db.child("archive_live").order_by_key().limit_to_last(4000).get().val() or {}
     db_items = list(db_data.values()) if isinstance(db_data, dict) else []
     new_rows = {
@@ -320,7 +322,6 @@ def get_hybrid_live_bids():
 def fetch_detail(row):
     bid_no = str(row['공고번호']).strip()
     res = {'bss_amt': '', 'est_price': '', 'pre_amt': '', 'sources': {}}
-
     bid_type = get_bid_type(bid_no)
     urls = API_TABLE.get(bid_type, API_TABLE['cnstwk'])
 
@@ -340,25 +341,18 @@ def fetch_detail(row):
         res['pre_amt'] = fmt_amt(int(round(suc_v / (rate_v / 100.0))))
         res['sources']['pre'] = 'CALC'
         if not res['bss_amt']:
-            if raw_to_int(res['est_price']) > 0:
-                res['bss_amt'] = fmt_amt(int(round(raw_to_int(res['est_price']) * 1.1)))
-            else:
-                res['bss_amt'] = res['pre_amt']
+            res['bss_amt'] = fmt_amt(int(round(raw_to_int(res['est_price']) * 1.1))) if raw_to_int(
+                res['est_price']) > 0 else res['pre_amt']
             res['sources']['bss'] = 'CALC'
 
+    # [추정가격 역산 기입 로직]
     if not res['est_price'] and res['bss_amt']:
         res['est_price'] = fmt_amt(int(round(raw_to_int(res['bss_amt']) / 1.1)))
         res['sources']['est'] = 'CALC'
 
     res['suc_amt'] = row.get('투찰금액', '-')
-
     corps = []
     corp_raw = row.get('전체업체', '')
-    if not corp_raw:
-        result_items = _api_get(urls['result'], {'numOfRows': '1', 'pageNo': '1', 'inqryDiv': '1', 'bidNtceNo': bid_no})
-        if result_items:
-            corp_raw = result_items[0].get('opengCorpInfo', '')
-
     if corp_raw:
         for idx, c in enumerate(str(corp_raw).split('|')[:10]):
             p = c.split('^')
@@ -369,45 +363,46 @@ def fetch_detail(row):
 
 
 # ==========================================
-# 6. UI 대시보드
+# 7. UI 대시보드
 # ==========================================
-try:
-    t_v = db.child("stats").child("total_visits").get().val() or 1828
-except:
-    t_v = 1828
-try:
-    u_v = len(db.child("users").get().val() or {})
-except:
-    u_v = 0
+# 📌 방문자 누적 업데이트 함수 호출
+update_stats()
+t_visit, u_total = get_stats()
+
 st.markdown('<div class="main-title">🏛️ K-건설맵 Master</div>', unsafe_allow_html=True)
 
 c1, c2, c3, c4 = st.columns(4)
-with c1: st.markdown(
-    f'<div class="stat-card"><div class="stat-label">📅 오늘 날짜</div><div class="stat-val">{datetime.now(KST).strftime("%Y-%m-%d")}</div></div>',
-    unsafe_allow_html=True)
-with c2: st.markdown(
-    f'<div class="stat-card"><div class="stat-label">📈 누적 방문</div><div class="stat-val">{t_v:,}명</div></div>',
-    unsafe_allow_html=True)
-with c3: st.markdown(
-    f'<div class="stat-card"><div class="stat-label">👥 전체 회원수</div><div class="stat-val">{u_v:,}명</div></div>',
-    unsafe_allow_html=True)
-with c4: st.markdown(
-    f'<div class="stat-card"><div class="stat-label">🔔 가동 상태</div><div class="stat-val" style="color:green;">정상 가동 중</div></div>',
-    unsafe_allow_html=True)
+with c1:
+    st.markdown(
+        f'<div class="stat-card"><div class="stat-label">📅 오늘 날짜</div><div class="stat-val">{datetime.now(KST).strftime("%Y-%m-%d")}</div></div>',
+        unsafe_allow_html=True)
+with c2:
+    st.markdown(
+        f'<div class="stat-card"><div class="stat-label">📈 누적 방문</div><div class="stat-val">{t_visit:,}명</div></div>',
+        unsafe_allow_html=True)
+with c3:
+    st.markdown(
+        f'<div class="stat-card"><div class="stat-label">👥 전체 회원수</div><div class="stat-val">{u_total:,}명</div></div>',
+        unsafe_allow_html=True)
+with c4:
+    st.markdown(
+        f'<div class="stat-card"><div class="stat-label">🔔 가동 상태</div><div class="stat-val" style="color:green;">정상 가동 중</div></div>',
+        unsafe_allow_html=True)
 
 with st.sidebar:
     st.write(f"### 👷 {'👋 ' + st.session_state['user_name'] + ' 소장님' if st.session_state['logged_in'] else 'K-건설맵 메뉴'}")
-    menu = st.radio("업무 선택", ["🏆 1순위 현황판", "📊 실시간 공고 (홈)", "📁 K-건설 자료실", "💬 K건설챗", "👤 내 정보/로그인"])
+    menu = st.radio("업무 선택",
+                    ["🏆 1순위 현황판", "📊 실시간 공고 (홈)", "🤝 K-구인구직", "📁 K-건설 자료실", "💬 K건설챗", "📲 앱처럼 설치하기", "👤 내 정보/로그인"])
     st.write("---")
-    if st.button("🔄 만능 데이터 새로고침"): st.cache_data.clear(); st.rerun()
+    if st.button("🔄 만능 데이터 새로고침"):
+        st.cache_data.clear()
+        st.rerun()
     if st.session_state['logged_in'] and st.button("🚪 로그아웃"):
-        for k in ['logged_in', 'user_name', 'user_license', 'user_phone', 'localId', 'idToken']: st.session_state[
-            k] = ""
-        st.session_state['logged_in'] = False;
+        st.session_state.clear()
         st.rerun()
 
 # ==========================================
-# 7. 메인 라우팅
+# 8. 메뉴 라우팅
 # ==========================================
 ROWS_PER_PAGE = 20
 
@@ -419,33 +414,28 @@ if menu == "🏆 1순위 현황판":
 
     df_w = get_hybrid_1st_bids()
     if not df_w.empty:
-        col_filter1, col_filter2 = st.columns([1, 2])
-        with col_filter1:
-            selected_region_1st = st.selectbox("🌍 지역 필터링", REGION_LIST, key="reg1")
-        with col_filter2:
-            search_co = st.text_input("🏢 업체명 검색", placeholder="낙찰된 업체명을 입력하세요 (예: 신광건설)")
+        col_f1, col_f2 = st.columns([1, 2])
+        with col_f1:
+            sel_reg = st.selectbox("🌍 지역 필터링", REGION_LIST, key="reg1")
+        with col_f2:
+            search_co = st.text_input("🏢 업체명 검색", placeholder="낙찰 업체명을 입력하세요", key="search_main")
 
-        df_f = filter_by_region(df_w, selected_region_1st)
-        if search_co: df_f = df_f[df_f['1순위업체'].str.contains(search_co, na=False)]
+        df_f = filter_by_region(df_w, sel_reg)
+        if search_co:
+            df_f = df_f[df_f['1순위업체'].str.contains(search_co, na=False)]
 
         num_pages = max(1, (len(df_f) // ROWS_PER_PAGE) + (1 if len(df_f) % ROWS_PER_PAGE > 0 else 0))
         if "p1" not in st.session_state: st.session_state["p1"] = 1
-        if st.session_state["p1"] > num_pages: st.session_state["p1"] = 1
 
         start_idx = (st.session_state["p1"] - 1) * ROWS_PER_PAGE
         df_page = df_f.iloc[start_idx: start_idx + ROWS_PER_PAGE]
-
         event = st.dataframe(df_page[['1순위업체', '날짜', '공고명', '발주기관', '투찰금액', '투찰률']], use_container_width=True,
-                             hide_index=True, height=750, selection_mode="single-row", on_select="rerun")
+                             hide_index=True, height=700, selection_mode="single-row", on_select="rerun")
 
         st.write("")
         c_p1, c_p2, c_p3 = st.columns([3, 4, 3])
         with c_p2:
-            in1, in2 = st.columns([1.5, 1])
-            with in1: st.markdown(
-                f"<div style='text-align:right; font-size:14px; color:#475569; padding-top:5px;'>페이지 이동 (총 {num_pages}쪽)</div>",
-                unsafe_allow_html=True)
-            with in2: st.selectbox("p1", range(1, num_pages + 1), key="p1", label_visibility="collapsed")
+            st.selectbox(f"📄 페이지 이동 (총 {num_pages}쪽)", range(1, num_pages + 1), key="p1")
 
         if len(event.selection.rows) > 0:
             selected_row = df_page.iloc[event.selection.rows[0]]
@@ -455,10 +445,6 @@ if menu == "🏆 1순위 현황판":
 
 elif menu == "📊 실시간 공고 (홈)":
     st.markdown("#### 📊 실시간 입찰 공고")
-    st.markdown(
-        "<div style='color:#475569; font-size:13px; margin-bottom:12px;'>💡 <b>이용 안내:</b> 리스트 왼쪽의 사각형을 클릭하면 입찰 시뮬레이터가 <b>팝업창</b>으로 열립니다.</div>",
-        unsafe_allow_html=True)
-
     df_live = get_hybrid_live_bids()
     if not df_live.empty:
         df_f = filter_by_region(df_live, st.selectbox("🌍 지역 필터링", REGION_LIST, key="reg2"))
@@ -468,93 +454,100 @@ elif menu == "📊 실시간 공고 (홈)":
         if st.session_state['logged_in']:
             t1, t2 = st.tabs(["🌐 전체 공고", "✨ 내 면허 맞춤매칭"])
             with t1:
-                num_pages_all = max(1, (len(df_f) // ROWS_PER_PAGE) + (1 if len(df_f) % ROWS_PER_PAGE > 0 else 0))
-                if "p_live_all" not in st.session_state: st.session_state["p_live_all"] = 1
-                if st.session_state["p_live_all"] > num_pages_all: st.session_state["p_live_all"] = 1
+                n_all = max(1, (len(df_f) // ROWS_PER_PAGE) + 1)
+                if "p_all" not in st.session_state: st.session_state["p_all"] = 1
+                df_p_all = df_f.iloc[
+                    (st.session_state["p_all"] - 1) * ROWS_PER_PAGE: st.session_state["p_all"] * ROWS_PER_PAGE]
+                event = st.dataframe(df_p_all[['공고번호', '공고일자', '공고명', '발주기관', '예산금액', '상세보기']],
+                                     use_container_width=True, hide_index=True, height=700, column_config=col_cfg,
+                                     selection_mode="single-row", on_select="rerun", key="live_all")
 
-                start_idx_all = (st.session_state["p_live_all"] - 1) * ROWS_PER_PAGE
-                df_page_all = df_f.iloc[start_idx_all: start_idx_all + ROWS_PER_PAGE]
-
-                event_all = st.dataframe(df_page_all[['공고번호', '공고일자', '공고명', '발주기관', '예산금액', '상세보기']],
-                                         use_container_width=True, hide_index=True, height=750, column_config=col_cfg,
-                                         selection_mode="single-row", on_select="rerun", key="live_all")
-
-                st.write("")
-                c_p1, c_p2, c_p3 = st.columns([3, 4, 3])
-                with c_p2:
-                    in1, in2 = st.columns([1.5, 1])
-                    with in1: st.markdown(
-                        f"<div style='text-align:right; font-size:14px; color:#475569; padding-top:5px;'>페이지 이동 (총 {num_pages_all}쪽)</div>",
-                        unsafe_allow_html=True)
-                    with in2: st.selectbox("p_live_all", range(1, num_pages_all + 1), key="p_live_all",
-                                           label_visibility="collapsed")
-
+                c1, c2, c3 = st.columns([3, 4, 3])
+                with c2:
+                    st.selectbox(f"📄 페이지 이동 (총 {n_all}쪽)", range(1, n_all + 1), key="p_all")
             with t2:
                 kw = get_match_keywords(st.session_state.get('user_license', ''))
-                matched_full = df_f[df_f['공고명'].str.contains('|'.join(kw), na=False)] if kw else df_f
-
-                num_pages_m = max(1, (len(matched_full) // ROWS_PER_PAGE) + (
-                    1 if len(matched_full) % ROWS_PER_PAGE > 0 else 0))
-                if "p_live_m" not in st.session_state: st.session_state["p_live_m"] = 1
-                if st.session_state["p_live_m"] > num_pages_m: st.session_state["p_live_m"] = 1
-
-                start_idx_m = (st.session_state["p_live_m"] - 1) * ROWS_PER_PAGE
-                df_page_m = matched_full.iloc[start_idx_m: start_idx_m + ROWS_PER_PAGE]
-
-                event_m = st.dataframe(df_page_m[['공고번호', '공고일자', '공고명', '발주기관', '예산금액', '상세보기']],
-                                       use_container_width=True, hide_index=True, height=750, column_config=col_cfg,
+                m_full = df_f[df_f['공고명'].str.contains('|'.join(kw), na=False)] if kw else df_f
+                n_m = max(1, (len(m_full) // ROWS_PER_PAGE) + 1)
+                if "p_m" not in st.session_state: st.session_state["p_m"] = 1
+                df_p_m = m_full.iloc[
+                    (st.session_state["p_m"] - 1) * ROWS_PER_PAGE: st.session_state["p_m"] * ROWS_PER_PAGE]
+                event_m = st.dataframe(df_p_m[['공고번호', '공고일자', '공고명', '발주기관', '예산금액', '상세보기']],
+                                       use_container_width=True, hide_index=True, height=700, column_config=col_cfg,
                                        selection_mode="single-row", on_select="rerun", key="live_match")
 
-                st.write("")
-                c_p1, c_p2, c_p3 = st.columns([3, 4, 3])
-                with c_p2:
-                    in1, in2 = st.columns([1.5, 1])
-                    with in1: st.markdown(
-                        f"<div style='text-align:right; font-size:14px; color:#475569; padding-top:5px;'>페이지 이동 (총 {num_pages_m}쪽)</div>",
-                        unsafe_allow_html=True)
-                    with in2: st.selectbox("p_live_m", range(1, num_pages_m + 1), key="p_live_m",
-                                           label_visibility="collapsed")
+                c1, c2, c3 = st.columns([3, 4, 3])
+                with c2:
+                    st.selectbox(f"📄 페이지 이동 (총 {n_m}쪽)", range(1, n_m + 1), key="p_m")
 
-            if len(event_m.selection.rows) > 0:
-                selected_row_l = df_page_m.iloc[event_m.selection.rows[0]]
-                show_analysis_dialog(selected_row_l, None, mode="live")
-            elif len(event_all.selection.rows) > 0:
-                selected_row_l = df_page_all.iloc[event_all.selection.rows[0]]
-                show_analysis_dialog(selected_row_l, None, mode="live")
-
+                if len(event_m.selection.rows) > 0:
+                    event, df_p_all = event_m, df_p_m
         else:
-            num_pages_g = max(1, (len(df_f) // ROWS_PER_PAGE) + (1 if len(df_f) % ROWS_PER_PAGE > 0 else 0))
-            if "p_live_g" not in st.session_state: st.session_state["p_live_g"] = 1
-            if st.session_state["p_live_g"] > num_pages_g: st.session_state["p_live_g"] = 1
+            n_g = max(1, (len(df_f) // ROWS_PER_PAGE) + 1)
+            if "p_g" not in st.session_state: st.session_state["p_g"] = 1
+            df_p_g = df_f.iloc[(st.session_state["p_g"] - 1) * ROWS_PER_PAGE: st.session_state["p_g"] * ROWS_PER_PAGE]
+            event = st.dataframe(df_p_g[['공고번호', '공고일자', '공고명', '발주기관', '예산금액', '상세보기']], use_container_width=True,
+                                 hide_index=True, height=700, column_config=col_cfg, selection_mode="single-row",
+                                 on_select="rerun")
 
-            start_idx_g = (st.session_state["p_live_g"] - 1) * ROWS_PER_PAGE
-            df_page_g = df_f.iloc[start_idx_g: start_idx_g + ROWS_PER_PAGE]
+            c1, c2, c3 = st.columns([3, 4, 3])
+            with c2:
+                st.selectbox(f"📄 페이지 이동 (총 {n_g}쪽)", range(1, n_g + 1), key="p_g")
+            df_p_all = df_p_g
 
-            selected_event = st.dataframe(df_page_g[['공고번호', '공고일자', '공고명', '발주기관', '예산금액', '상세보기']],
-                                          use_container_width=True, hide_index=True, height=750, column_config=col_cfg,
-                                          selection_mode="single-row", on_select="rerun", key="live_guest")
+        if len(event.selection.rows) > 0:
+            show_analysis_dialog(df_p_all.iloc[event.selection.rows[0]], None, mode="live")
 
-            st.write("")
-            c_p1, c_p2, c_p3 = st.columns([3, 4, 3])
-            with c_p2:
-                in1, in2 = st.columns([1.5, 1])
-                with in1: st.markdown(
-                    f"<div style='text-align:right; font-size:14px; color:#475569; padding-top:5px;'>페이지 이동 (총 {num_pages_g}쪽)</div>",
-                    unsafe_allow_html=True)
-                with in2: st.selectbox("p_live_g", range(1, num_pages_g + 1), key="p_live_g",
-                                       label_visibility="collapsed")
+elif menu == "🤝 K-구인구직":
+    st.markdown("#### 🤝 건설현장 구인구직")
+    if st.session_state['logged_in']:
+        with st.expander("📝 새 구인/구직 등록하기"):
+            c1, c2 = st.columns(2)
+            cat = c1.selectbox("분류", ["👷 사람 구합니다", "🚜 일자리 찾습니다"])
+            reg = c2.selectbox("지역", REGION_LIST)
+            jt = st.text_input("직종 (예: 철근공, 포크레인)")
+            ph = st.text_input("연락처", value=st.session_state.get('user_phone', ''))
+            ttl = st.text_input("제목")
+            con = st.text_area("상세내용")
+            if st.button("등록하기"):
+                db.child("jobs").push(
+                    {"category": cat, "region": reg, "job_type": jt, "phone": ph, "title": ttl, "content": con,
+                     "author": st.session_state['user_name'], "time": datetime.now(KST).strftime("%m-%d %H:%M")})
+                st.toast("등록 완료!")
+                time.sleep(1)
+                st.rerun()
+    jobs_data = db.child("jobs").get().val()
+    if jobs_data:
+        df_j = pd.DataFrame(list(jobs_data.values())).iloc[::-1]
+        t1, t2 = st.tabs(["👷 사람 구함", "🚜 일자리 찾음"])
+        with t1:
+            h = df_j[df_j['category'] == "👷 사람 구합니다"]
+            ev_h = st.dataframe(h[['time', 'region', 'job_type', 'title', 'author']], use_container_width=True,
+                                hide_index=True, selection_mode="single-row", on_select="rerun", key="h_job")
+            if len(ev_h.selection.rows) > 0:
+                show_analysis_dialog(h.iloc[ev_h.selection.rows[0]], None, mode="job")
+        with t2:
+            s = df_j[df_j['category'] == "🚜 일자리 찾습니다"]
+            ev_s = st.dataframe(s[['time', 'region', 'job_type', 'title', 'author']], use_container_width=True,
+                                hide_index=True, selection_mode="single-row", on_select="rerun", key="s_job")
+            if len(ev_s.selection.rows) > 0:
+                show_analysis_dialog(s.iloc[ev_s.selection.rows[0]], None, mode="job")
 
-            if len(selected_event.selection.rows) > 0:
-                selected_row_l = df_page_g.iloc[selected_event.selection.rows[0]]
-                show_analysis_dialog(selected_row_l, None, mode="live")
+elif menu == "📲 앱처럼 설치하기":
+    st.markdown("### 📲 스마트폰 바탕화면에 앱으로 추가하기")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.info("🍎 **아이폰 (Safari)**\n\n1. 하단 **[공유 버튼(□↑)]** 클릭\n2. **[홈 화면에 추가]** 클릭\n3. **[추가]** 클릭")
+    with col2:
+        st.success("🤖 **안드로이드 (Chrome)**\n\n1. 상단 **[점 3개(⋮)]** 클릭\n2. **[홈 화면에 추가]** 또는 **[앱 설치]** 클릭\n3. **[추가]** 클릭")
 
 elif menu == "👤 내 정보/로그인":
     st.subheader("👤 회원 정보 관리")
     if not st.session_state['logged_in']:
         t1, t2 = st.tabs(["🔑 로그인", "📝 회원가입"])
         with t1:
-            le = st.text_input("이메일", key="log_e")
-            lp = st.text_input("비밀번호", type="password", key="log_p")
+            le = st.text_input("이메일")
+            lp = st.text_input("비밀번호", type="password")
             if st.button("로그인"):
                 try:
                     user = auth.sign_in_with_email_and_password(le.strip().lower(), lp)
@@ -567,30 +560,21 @@ elif menu == "👤 내 정보/로그인":
                 except:
                     pass
         with t2:
-            re = st.text_input("가입용 이메일", key="reg_e")
-            rp = st.text_input("비번 (6자 이상)", type="password", key="reg_p")
-            rn = st.text_input("성함", key="reg_n")
-            rph = st.text_input("전화번호", key="reg_ph")
-            rl = st.multiselect("보유 면허 (매칭용)", ALL_LICENSES, key="reg_l")
+            re = st.text_input("이메일 가입")
+            rp = st.text_input("비번 (6자 이상)", type="password")
+            rn = st.text_input("성함")
+            rl = st.multiselect("보유 면허 (매칭용)", ALL_LICENSES)
             if st.button("가입하기"):
                 try:
                     u = auth.create_user_with_email_and_password(re.strip().lower(), rp)
-                    db.child("users").child(u['localId']).set(
-                        {"name": rn, "phone": rph, "license": ", ".join(rl), "email": re.strip().lower()})
-                    st.success("🎉 가입 성공! 로그인해 주세요.")
+                    db.child("users").child(u['localId']).set({"name": rn, "license": ", ".join(rl), "email": re})
+                    st.success("🎉 가입 성공!")
                 except:
-                    st.error("가입 실패! 형식을 확인하세요.")
+                    st.error("가입 실패!")
     else:
-        st.write(f"### {st.session_state['user_name']} 소장님, 반갑습니다!")
+        st.write(f"### {st.session_state['user_name']} 소장님 반갑습니다!")
         if st.button("🚪 로그아웃"):
-            for k in ['logged_in', 'user_name', 'user_license', 'user_phone', 'localId', 'idToken']: st.session_state[
-                k] = ""
-            st.session_state['logged_in'] = False;
-            st.rerun()
-        if st.button("⚠️ 회원 탈퇴"):
-            db.child("users").child(st.session_state['localId']).remove()
-            auth.delete_user_account(st.session_state['idToken'])
-            st.session_state.clear();
+            st.session_state.clear()
             st.rerun()
 
 elif menu == "📁 K-건설 자료실":
@@ -604,8 +588,9 @@ elif menu == "📁 K-건설 자료실":
                 st.rerun()
     posts = db.child("posts").get().val()
     if posts:
-        for k, p in reversed(list(posts.items())):
-            with st.expander(f"📢 {p['title']} (작성자: {p['author']})"): st.write(p['content'])
+        for k, v in reversed(list(posts.items())):
+            with st.expander(f"📢 {v['title']} (작성자: {v['author']})"):
+                st.write(v['content'])
 
 elif menu == "💬 K건설챗":
     st.subheader("💬 실시간 현장 소통")
@@ -613,7 +598,8 @@ elif menu == "💬 K건설챗":
         chat_box = st.container(height=400)
         chats_data = db.child("k_chat").get().val()
         if chats_data:
-            for v in list(chats_data.values())[-20:]: chat_box.write(f"**{v['author']}**: {v['message']}")
+            for v in list(chats_data.values())[-20:]:
+                chat_box.write(f"**{v['author']}**: {v['message']}")
         if msg := st.chat_input("메시지 입력"):
             db.child("k_chat").push(
                 {"author": st.session_state['user_name'], "message": msg, "time": datetime.now(KST).strftime("%H:%M")})
