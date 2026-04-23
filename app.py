@@ -154,10 +154,14 @@ def _safe_list(obj):
     return []
 
 
-def _api_get(url: str, params: dict, timeout: int = 15) -> list:
+def _api_get(url: str, params: dict, timeout: int = 30) -> list:
+    # 📌 조달청 서버가 파이썬 봇 접근을 차단하지 못하도록 크롬 브라우저 헤더 추가
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
     try:
-        r = requests.get(url, params={**params, 'serviceKey': SAFE_API_KEY, 'type': 'json'}, verify=False,
-                         timeout=timeout)
+        r = requests.get(url, params={**params, 'serviceKey': SAFE_API_KEY, 'type': 'json'}, headers=headers,
+                         verify=False, timeout=timeout)
         if r.status_code == 200:
             body = r.json().get('response', {}).get('body', {}).get('items', [])
             if isinstance(body, dict): return [body.get('item', {})]
@@ -216,7 +220,7 @@ def show_analysis_dialog(row, det, mode="1st"):
             bid_no_live = str(row['공고번호']).split('-')[0].strip()
             r = requests.get(f'{BASE}/ad/BidPublicInfoService/getBidPblancListInfoCnstwk',
                              params={'serviceKey': SAFE_API_KEY, 'numOfRows': '1', 'pageNo': '1', 'inqryDiv': '2',
-                                     'bidNtceNo': bid_no_live, 'type': 'json'}, verify=False, timeout=3)
+                                     'bidNtceNo': bid_no_live, 'type': 'json'}, verify=False, timeout=10)
             if r.status_code == 200:
                 items = _safe_list(r.json().get('response', {}).get('body', {}).get('items', []))
                 if items:
@@ -261,14 +265,17 @@ def show_analysis_dialog(row, det, mode="1st"):
 @st.cache_data(ttl=60, show_spinner=False)
 def get_hybrid_1st_bids():
     now = datetime.now(KST)
-    s_dt = (now - timedelta(days=5)).strftime('%Y%m%d')
+    # 📌 과도한 검색 범위(5일)로 인한 조달청 서버 튕김 현상 방지를 위해 2일로 축소 (과거 데이터는 DB에 이미 저장됨)
+    s_dt = (now - timedelta(days=2)).strftime('%Y%m%d')
     e_dt = now.strftime('%Y%m%d')
+
+    # 📌 타임아웃 30초로 증가
     api_items = _api_get(f'{BASE}/as/ScsbidInfoService/getOpengResultListInfoCnstwk',
                          {'numOfRows': '999', 'pageNo': '1', 'inqryDiv': '1', 'inqryBgnDt': s_dt + '0000',
-                          'inqryEndDt': e_dt + '2359'}, timeout=20)
+                          'inqryEndDt': e_dt + '2359'}, timeout=30)
     api_items.extend(_api_get(f'{BASE}/as/ScsbidInfoService/getOpengResultListInfoEtcwk',
                               {'numOfRows': '999', 'pageNo': '1', 'inqryDiv': '1', 'inqryBgnDt': s_dt + '0000',
-                               'inqryEndDt': e_dt + '2359'}, timeout=20))
+                               'inqryEndDt': e_dt + '2359'}, timeout=30))
 
     db_data = db.child("archive_1st").order_by_key().limit_to_last(4000).get().val() or {}
     db_items = list(db_data.values()) if isinstance(db_data, dict) else []
@@ -296,12 +303,13 @@ def get_hybrid_1st_bids():
 def get_hybrid_live_bids():
     now = datetime.now(KST)
     s_dt = now.strftime('%Y%m%d')
+    # 📌 타임아웃 30초로 증가
     api_items = _api_get(f'{BASE}/ad/BidPublicInfoService/getBidPblancListInfoCnstwk',
                          {'numOfRows': '999', 'pageNo': '1', 'inqryDiv': '1', 'inqryBgnDt': s_dt + '0000',
-                          'inqryEndDt': s_dt + '2359', 'bidNtceNm': '공사'}, timeout=15)
+                          'inqryEndDt': s_dt + '2359', 'bidNtceNm': '공사'}, timeout=30)
     api_items.extend(_api_get(f'{BASE}/ad/BidPublicInfoService/getBidPblancListInfoEtcwk',
                               {'numOfRows': '999', 'pageNo': '1', 'inqryDiv': '1', 'inqryBgnDt': s_dt + '0000',
-                               'inqryEndDt': s_dt + '2359', 'bidNtceNm': '공사'}, timeout=15))
+                               'inqryEndDt': s_dt + '2359', 'bidNtceNm': '공사'}, timeout=30))
     db_data = db.child("archive_live").order_by_key().limit_to_last(4000).get().val() or {}
     db_items = list(db_data.values()) if isinstance(db_data, dict) else []
     new_rows = {
