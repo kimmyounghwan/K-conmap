@@ -7,6 +7,7 @@ import urllib.parse
 from datetime import datetime, timedelta, timezone
 import time
 import re
+import os
 
 # ==========================================
 # 1. 보안 및 페이지 설정
@@ -39,7 +40,7 @@ st.markdown("""
 KST = timezone(timedelta(hours=9))
 
 # ==========================================
-# 2. 파이어베이스
+# 2. 파이어베이스 & G드라이브 보물창고 셋팅
 # ==========================================
 firebaseConfig = {
     "apiKey": "AIzaSyB5uvAzUIbEDTTbxwflTQk3wdzOufc4SE0",
@@ -65,6 +66,22 @@ auth, db = init_firebase()
 for k, v in [('logged_in', False), ('user_name', ""), ('user_license', ""), ('user_phone', ""), ('localId', ""),
              ('idToken', "")]:
     if k not in st.session_state: st.session_state[k] = v
+
+# [핵심] 노트북 G드라이브 마스터 데이터 로드 (분석용)
+MASTER_DATA_PATH = r"G:\내 드라이브\K-건설맵_데이터\bid_data_3years.csv"
+
+
+@st.cache_data(show_spinner=False)
+def load_master_data():
+    try:
+        if os.path.exists(MASTER_DATA_PATH):
+            return pd.read_csv(MASTER_DATA_PATH, encoding='utf-8-sig')
+        return None
+    except Exception as e:
+        return None
+
+
+big_data = load_master_data()
 
 
 # ==========================================
@@ -98,21 +115,6 @@ REGION_LIST = ["전국(전체)", "서울", "부산", "대구", "인천", "광주
 ALL_LICENSES = ["[종합] 건축공사업", "[종합] 토목공사업", "[종합] 토목건축공사업", "[종합] 조경공사업", "[전문] 지반조성·포장공사업", "[전문] 실내건축공사업",
                 "[전문] 철근·콘크리트공사업", "[기타] 전기공사업", "[기타] 정보통신공사업", "[기타] 소방시설공사업"]
 BASE = 'http://apis.data.go.kr/1230000'
-
-API_TABLE = {
-    'cnstwk': {'notice': f'{BASE}/ad/BidPublicInfoService/getBidPblancListInfoCnstwk',
-               'result': f'{BASE}/as/ScsbidInfoService/getOpengResultListInfoCnstwk',
-               'detail': f'{BASE}/as/ScsbidInfoService/getOpengResultListInfoCnstwkDtl'},
-    'etcwk': {'notice': f'{BASE}/ad/BidPublicInfoService/getBidPblancListInfoEtcwk',
-              'result': f'{BASE}/as/ScsbidInfoService/getOpengResultListInfoEtcwk',
-              'detail': f'{BASE}/as/ScsbidInfoService/getOpengResultListInfoEtcwkDtl'},
-}
-
-
-def get_bid_type(bid_no: str) -> str:
-    code = bid_no.strip().upper()
-    if len(code) < 5: return 'cnstwk'
-    return {'CW': 'cnstwk', 'BK': 'etcwk', 'EW': 'etcwk', 'SV': 'servc', 'GD': 'goods'}.get(code[3:5], 'cnstwk')
 
 
 def filter_by_region(df, sel):
@@ -149,33 +151,8 @@ def get_match_keywords(lic):
     return list(set(k))
 
 
-def _safe_list(obj):
-    if not obj: return []
-    if isinstance(obj, list): return obj
-    if isinstance(obj, dict):
-        item = obj.get('item')
-        return item if isinstance(item, list) else [item] if isinstance(item, dict) else [obj]
-    return []
-
-
-def _api_get(url: str, params: dict, timeout: int = 30) -> list:
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-    try:
-        r = requests.get(url, params={**params, 'serviceKey': SAFE_API_KEY, 'type': 'json'}, headers=headers,
-                         verify=False, timeout=timeout)
-        if r.status_code == 200:
-            body = r.json().get('response', {}).get('body', {}).get('items', [])
-            if isinstance(body, dict): return [body.get('item', {})]
-            return body if isinstance(body, list) else []
-    except:
-        pass
-    return []
-
-
 # ==========================================
-# 5. 데이터 팝업창 (Modal Dialog) 함수
+# 5. 데이터 팝업창 (조달청 삭제 -> 100% 역산 & 팩트 분석 탑재)
 # ==========================================
 @st.dialog("📋 K-건설맵 정밀 리포트", width="large")
 def show_analysis_dialog(row, det, mode="1st"):
@@ -184,23 +161,56 @@ def show_analysis_dialog(row, det, mode="1st"):
         m1, m2, m3, m4 = st.columns(4)
 
         def _card(col, icon, label, val, key, val_color="#1e3a8a"):
-            badge = {'API': '✓ 공식', 'CALC': '🧮 추정'}.get(det['sources'].get(key, ''), '')
+            badge = {'CALC': '🧮 역산추정'}.get(det['sources'].get(key, ''), '')
             col.markdown(
                 f'<div class="stat-card"><div class="stat-label">{icon} {label}</div><div class="stat-val" style="color:{val_color};">{val if val else "-"}</div><div class="calc-badge">{badge}</div></div>',
                 unsafe_allow_html=True)
 
-        _card(m1, "💰", "기초금액", det['bss_amt'], 'bss')
-        _card(m2, "📐", "추정가격", det['est_price'], 'est')
+        _card(m1, "💰", "기초금액(추정)", det['bss_amt'], 'bss')
+        _card(m2, "📐", "추정가격(추정)", det['est_price'], 'est')
         _card(m3, "🎯", "예정가격", det['pre_amt'], 'pre')
         _card(m4, "🏆", "낙찰금액", det['suc_amt'], 'suc', "#dc2626")
 
-        if 'CALC' in det['sources'].values():
-            st.caption("* 🧮 표시는 수학 공식(기초금액≈추정가격×1.1 또는 예정가격 역산)에 의한 참고용 추정치입니다.")
+        st.caption("* 🧮 표시는 조달청 데이터가 아닌 1순위 투찰금액과 투찰률을 바탕으로 역산한 '나노 AI 추정치'입니다. (예정가격 = 투찰금액 ÷ 투찰률)")
 
         if det['corps']:
             st.write("**[개찰 결과 성적표]**")
             st.dataframe(pd.DataFrame(det['corps']), use_container_width=True, hide_index=True)
 
+        if 'big_data' in globals() and big_data is not None and not big_data.empty:
+            st.markdown("---")
+            st.markdown(f"#### 📊 [팩트 통계] 3년 누적 데이터 분석 리포트")
+
+            col_ana1, col_ana2 = st.columns(2)
+
+            with col_ana1:
+                st.markdown(f"**🏢 '{row['1순위업체']}' 낙찰 이력**")
+                corp_data = big_data[big_data['1순위업체'] == row['1순위업체']]
+                if not corp_data.empty:
+                    st.write(f"- **최근 3년 누적 1순위:** `{len(corp_data)}회`")
+                    # 사정률이 있으면 사정률, 없으면 투찰률로 분석
+                    rate_col = '사정률' if '사정률' in corp_data.columns else '투찰률'
+                    if rate_col in corp_data.columns:
+                        rates = corp_data[rate_col].value_counts()
+                        if not rates.empty:
+                            st.write(f"- **최다 낙찰 {rate_col}:** `{rates.index[0]}` (총 {rates.iloc[0]}회 낙찰)")
+                else:
+                    st.write("- 검색된 과거 1순위 이력 없음")
+
+            with col_ana2:
+                st.markdown(f"**🏛️ '{row['발주기관']}' 발주 통계**")
+                inst_data = big_data[big_data['발주기관'] == row['발주기관']]
+                if not inst_data.empty:
+                    st.write(f"- **최근 3년 누적 공고수:** `{len(inst_data)}건`")
+                    rate_col = '사정률' if '사정률' in inst_data.columns else '투찰률'
+                    if rate_col in inst_data.columns:
+                        i_rates = inst_data[rate_col].value_counts()
+                        if not i_rates.empty:
+                            st.write(f"- **가장 많이 1순위가 나온 {rate_col}:** `{i_rates.index[0]}` (총 {i_rates.iloc[0]}회 발생)")
+                else:
+                    st.write("- 검색된 과거 발주 이력 없음")
+
+        st.markdown("---")
         sc1, sc2 = st.columns(2)
         with sc1:
             st.markdown("💡 **나라장터 정책상 번호 복사가 필요합니다.**")
@@ -212,46 +222,41 @@ def show_analysis_dialog(row, det, mode="1st"):
                            use_container_width=True)
 
     elif mode == "live":
-        st.markdown(f"### 🎯 입찰 시뮬레이터")
+        # 실시간 공고 팝업: 오직 팩트 데이터(업체 TOP 5, 사정률 TOP 5)만 남김
+        st.markdown(f"### 🎯 실시간 공고 발주처 팩트 분석")
         st.write(f"**공고명:** {row['공고명']}")
-        budget = int(row['예산금액'])
-        sim_base_val = budget
-        base_label = "예산금액"
 
-        try:
-            bid_no_live = str(row['공고번호']).split('-')[0].strip()
-            r = requests.get(f'{BASE}/ad/BidPublicInfoService/getBidPblancListInfoCnstwk',
-                             params={'serviceKey': SAFE_API_KEY, 'numOfRows': '1', 'pageNo': '1', 'inqryDiv': '2',
-                                     'bidNtceNo': bid_no_live, 'type': 'json'}, verify=False, timeout=10)
-            if r.status_code == 200:
-                items = _safe_list(r.json().get('response', {}).get('body', {}).get('items', []))
-                if items:
-                    d = items[0]
-                    b_val = raw_to_int(d.get('bssAmt', 0))
-                    e_val = raw_to_int(d.get('presmptPrce', 0))
-                    if b_val > 0:
-                        sim_base_val, base_label = b_val, "기초금액 (조달청 발표)"
-                    elif e_val > 0:
-                        sim_base_val, base_label = int(e_val * 1.1), "기초금액 (추정가격×1.1 역산)"
-        except:
-            pass
+        if 'big_data' in globals() and big_data is not None and not big_data.empty:
+            st.markdown("---")
+            st.markdown(f"#### 📊 [입찰 준비] '{row['발주기관']}' 최근 3년 낙찰 팩트 리포트")
 
-        c1, c2 = st.columns(2)
-        with c1:
-            sim_base = st.number_input(base_label, value=sim_base_val, step=1000000)
-        with c2:
-            sim_rate = st.selectbox("투찰 하한율 (%)", ["87.745", "86.745", "87.995", "89.995"])
+            inst_data = big_data[big_data['발주기관'] == row['발주기관']]
+            if not inst_data.empty:
+                st.write(f"최근 3년간 **{row['발주기관']}**에서 발주한 총 **{len(inst_data)}건**의 1순위 데이터를 분석한 팩트 결과입니다.")
 
-        st.write("---")
-        st.write("💡 **나노 AI 추천 투찰금액 (사정률 5구간)**")
-        tr_cols = st.columns(5)
-        rates, labels = [99.0, 99.5, 100.0, 100.5, 101.0], ["❄️ 99.0%", "🌬️ 99.5%", "🌤️ 100.0%", "☀️ 100.5%",
-                                                            "🔥 101.0%"]
-        for i, r in enumerate(rates):
-            with tr_cols[i]:
-                price = int(sim_base * (r / 100.0) * (float(sim_rate) / 100.0))
-                st.info(f"**{labels[i]}**\n\n**{price:,}원**")
-        st.caption("⚠️ A값(공제비용) 미반영 순수 산술식입니다. 실제 투찰 시 공고문 확인 필수!")
+                col_f1, col_f2 = st.columns(2)
+
+                # 1. 팩트: 최다 낙찰 업체 TOP 5
+                with col_f1:
+                    st.markdown("**🏆 최다 낙찰 업체 TOP 5**")
+                    if '1순위업체' in inst_data.columns:
+                        top_corps = inst_data['1순위업체'].value_counts().head(5)
+                        for i, (corp, count) in enumerate(top_corps.items()):
+                            st.info(f"**{i + 1}위:** {corp} (`{count}회`)")
+
+                # 2. 팩트: 최다 발생 사정률(투찰률) TOP 5
+                with col_f2:
+                    st.markdown("**🎯 최다 발생 사정률(투찰률) TOP 5**")
+                    rate_col = '사정률' if '사정률' in inst_data.columns else '투찰률'
+                    if rate_col in inst_data.columns:
+                        valid_rates = inst_data[inst_data[rate_col].astype(str).str.contains(r'\d', na=False)]
+                        top_rates = valid_rates[rate_col].value_counts().head(5)
+                        for i, (rate, count) in enumerate(top_rates.items()):
+                            st.success(f"**{i + 1}위:** {rate} (`{count}회`)")
+
+                st.caption("* 위 통계는 3년 치 팩트 데이터입니다. 사정률 데이터가 없을 경우 투찰률 기준으로 표시됩니다. 입찰 전략 수립 시 참고하세요.")
+            else:
+                st.info(f"'{row['발주기관']}'의 최근 3년 개찰 이력 데이터가 없습니다. (신규 발주처이거나 이력이 부족합니다.)")
 
     elif mode == "job":
         st.markdown(f"### 🤝 구인/구직 상세내용")
@@ -262,48 +267,14 @@ def show_analysis_dialog(row, det, mode="1st"):
 
 
 # ==========================================
-# 6. 데이터 수집 엔진 (1순위 에러 방어 로직 강화)
+# 6. 데이터 수집 엔진 (조달청 API 제거 -> 100% 파이어베이스)
 # ==========================================
 @st.cache_data(ttl=60, show_spinner=False)
 def get_hybrid_1st_bids():
-    now = datetime.now(KST)
-    s_dt = (now - timedelta(days=2)).strftime('%Y%m%d')
-    e_dt = now.strftime('%Y%m%d')
-
-    api_items = _api_get(f'{BASE}/as/ScsbidInfoService/getOpengResultListInfoCnstwk',
-                         {'numOfRows': '999', 'pageNo': '1', 'inqryDiv': '1', 'inqryBgnDt': s_dt + '0000',
-                          'inqryEndDt': e_dt + '2359'}, timeout=30)
-    api_items.extend(_api_get(f'{BASE}/as/ScsbidInfoService/getOpengResultListInfoEtcwk',
-                              {'numOfRows': '999', 'pageNo': '1', 'inqryDiv': '1', 'inqryBgnDt': s_dt + '0000',
-                               'inqryEndDt': e_dt + '2359'}, timeout=30))
-
     db_data = db.child("archive_1st").order_by_key().limit_to_last(4000).get().val() or {}
     db_items = list(db_data.values()) if isinstance(db_data, dict) else []
-    new_rows = {}
 
-    for it in api_items:
-        bid_no = it.get('bidNtceNo', '')
-        corp_info_raw = it.get('opengCorpInfo', '')
-
-        # 🛡️ 나노의 방어벽: 조달청이 불량(빈) 데이터를 주면 에러 없이 조용히 패스함!
-        if corp_info_raw:
-            info = str(corp_info_raw).split('|')[0].split('^')
-            if len(info) > 3 and info[0].strip():
-                new_rows[bid_no] = {
-                    '1순위업체': info[0].strip(),
-                    '공고번호': bid_no,
-                    '공고차수': it.get('bidNtceOrd', '00'),
-                    '날짜': it.get('opengDt', ''),
-                    '공고명': it.get('bidNtceNm', ''),
-                    '발주기관': it.get('ntceInsttNm', ''),
-                    '투찰금액': f"{int(float(info[3])):,}원" if len(info) > 3 else '-',
-                    '투찰률': f"{info[4]}%" if len(info) > 4 else '-',
-                    '전체업체': corp_info_raw
-                }
-
-    if new_rows: db.child("archive_1st").update(new_rows)
-    df = pd.DataFrame(list(new_rows.values()) + db_items)
-
+    df = pd.DataFrame(db_items)
     if not df.empty:
         df = df.drop_duplicates(subset=['공고번호']).copy()
         df['dt'] = pd.to_datetime(df['날짜'], errors='coerce')
@@ -314,23 +285,10 @@ def get_hybrid_1st_bids():
 
 @st.cache_data(ttl=180, show_spinner=False)
 def get_hybrid_live_bids():
-    now = datetime.now(KST)
-    s_dt = now.strftime('%Y%m%d')
-    api_items = _api_get(f'{BASE}/ad/BidPublicInfoService/getBidPblancListInfoCnstwk',
-                         {'numOfRows': '999', 'pageNo': '1', 'inqryDiv': '1', 'inqryBgnDt': s_dt + '0000',
-                          'inqryEndDt': s_dt + '2359', 'bidNtceNm': '공사'}, timeout=30)
-    api_items.extend(_api_get(f'{BASE}/ad/BidPublicInfoService/getBidPblancListInfoEtcwk',
-                              {'numOfRows': '999', 'pageNo': '1', 'inqryDiv': '1', 'inqryBgnDt': s_dt + '0000',
-                               'inqryEndDt': s_dt + '2359', 'bidNtceNm': '공사'}, timeout=30))
     db_data = db.child("archive_live").order_by_key().limit_to_last(4000).get().val() or {}
     db_items = list(db_data.values()) if isinstance(db_data, dict) else []
-    new_rows = {
-        it.get('bidNtceNo'): {'공고번호': it.get('bidNtceNo'), '공고일자': it.get('bidNtceDt'), '공고명': it.get('bidNtceNm'),
-                              '발주기관': it.get('ntceInsttNm'), '예산금액': int(float(it.get('bdgtAmt', 0))),
-                              '상세보기': it.get('bidNtceDtlUrl', "https://www.g2b.go.kr/index.jsp")} for it in api_items if
-        it.get('bidNtceNo')}
-    if new_rows: db.child("archive_live").update(new_rows)
-    df = pd.DataFrame(list(new_rows.values()) + db_items)
+
+    df = pd.DataFrame(db_items)
     if not df.empty:
         df = df.drop_duplicates(subset=['공고번호']).copy()
         df['dt'] = pd.to_datetime(df['공고일자'], errors='coerce')
@@ -340,32 +298,22 @@ def get_hybrid_live_bids():
 
 
 def fetch_detail(row):
-    bid_no = str(row['공고번호']).strip()
+    # 명환이의 수학 공식: 투찰금액 / 투찰률 = 예정가격. 조달청 API 일절 안 씀!
     res = {'bss_amt': '', 'est_price': '', 'pre_amt': '', 'sources': {}}
-    bid_type = get_bid_type(bid_no)
-    urls = API_TABLE.get(bid_type, API_TABLE['cnstwk'])
-    items = _api_get(urls['notice'], {'numOfRows': '5', 'pageNo': '1', 'inqryDiv': '2', 'bidNtceNo': bid_no})
-    if items:
-        d = items[0]
-        res['bss_amt'] = fmt_amt(raw_to_int(d.get('bssAmt')))
-        res['est_price'] = fmt_amt(raw_to_int(d.get('presmptPrce')))
-        if res['bss_amt']: res['sources']['bss'] = 'API'
-        if res['est_price']: res['sources']['est'] = 'API'
 
     suc_v = raw_to_int(row.get('투찰금액', ''))
     rate_s = str(row.get('투찰률', '')).replace('%', '').strip()
     rate_v = float(rate_s) if rate_s and rate_s != '-' else 0
 
     if suc_v > 0 and rate_v > 0:
-        res['pre_amt'] = fmt_amt(int(round(suc_v / (rate_v / 100.0))))
+        pre_calc = int(round(suc_v / (rate_v / 100.0)))
+        res['pre_amt'] = fmt_amt(pre_calc)
         res['sources']['pre'] = 'CALC'
-        if not res['bss_amt']:
-            res['bss_amt'] = fmt_amt(int(round(raw_to_int(res['est_price']) * 1.1))) if raw_to_int(
-                res['est_price']) > 0 else res['pre_amt']
-            res['sources']['bss'] = 'CALC'
 
-    if not res['est_price'] and res['bss_amt']:
-        res['est_price'] = fmt_amt(int(round(raw_to_int(res['bss_amt']) / 1.1)))
+        res['bss_amt'] = fmt_amt(pre_calc)
+        res['sources']['bss'] = 'CALC'
+
+        res['est_price'] = fmt_amt(int(round(pre_calc / 1.1)))
         res['sources']['est'] = 'CALC'
 
     res['suc_amt'] = row.get('투찰금액', '-')
@@ -404,12 +352,11 @@ with c4: st.markdown(
 
 with st.sidebar:
     st.write(f"### 👷 {'👋 ' + st.session_state['user_name'] + ' 소장님' if st.session_state['logged_in'] else 'K-건설맵 메뉴'}")
+
     menu = st.radio("업무 선택",
                     ["🏆 1순위 현황판", "📊 실시간 공고 (홈)", "🤝 K-구인구직", "📁 K-건설 자료실", "💬 K건설챗", "📲 앱처럼 설치하기", "👤 내 정보/로그인"])
     st.write("---")
-    if st.button("🔄 만능 데이터 새로고침"):
-        st.cache_data.clear()
-        st.rerun()
+
     if st.session_state['logged_in'] and st.button("🚪 로그아웃"):
         st.session_state.clear()
         st.rerun()
@@ -425,7 +372,7 @@ if menu == "🏆 1순위 현황판":
     st.markdown("""
         <div class="guide-box">
             💡 <b>터치 한 번으로 정밀 분석!</b><br>
-            아래 리스트 맨 왼쪽의 <b>[체크박스(ㅁ)]</b>를 터치해 보세요. 상세 리포트가 팝업창으로 즉시 열립니다.
+            아래 리스트 맨 왼쪽의 <b>[체크박스(ㅁ)]</b>를 터치해 보세요. 역산된 상세 리포트가 즉시 열립니다.
         </div>
     """, unsafe_allow_html=True)
 
@@ -455,7 +402,7 @@ if menu == "🏆 1순위 현황판":
 
         if len(event.selection.rows) > 0:
             selected_row = df_page.iloc[event.selection.rows[0]]
-            with st.spinner("📡 분석 중..."): det = fetch_detail(selected_row)
+            det = fetch_detail(selected_row)
             show_analysis_dialog(selected_row, det, mode="1st")
 
 elif menu == "📊 실시간 공고 (홈)":
@@ -463,8 +410,8 @@ elif menu == "📊 실시간 공고 (홈)":
 
     st.markdown("""
         <div class="guide-box">
-            💡 <b>입찰 시뮬레이터 가동!</b><br>
-            아래 리스트 맨 왼쪽의 <b>[체크박스(ㅁ)]</b>를 터치해 보세요. AI 추천 투찰금액이 팝업창으로 열립니다.
+            💡 <b>입찰 팩트 리포트 확인!</b><br>
+            아래 리스트 맨 왼쪽의 <b>[체크박스(ㅁ)]</b>를 터치해 보세요. 해당 발주기관의 과거 3년 낙찰 팩트가 열립니다.
         </div>
     """, unsafe_allow_html=True)
 
