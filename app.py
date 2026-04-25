@@ -71,7 +71,7 @@ for k, v in [('logged_in', False), ('user_name', ""), ('user_license', ""), ('us
 # [핵심] 리눅스 서버(스트림릿) 환경을 완벽하게 뚫어버리는 무적 로딩 장갑차!
 @st.cache_data(show_spinner=False)
 def load_master_data():
-    file_path = "bid_data_3years.csv"
+    file_path = "bid_data_3years.zip"
 
     # 1. 서버에 파일이 잘 올라왔는지 검사
     if not os.path.exists(file_path):
