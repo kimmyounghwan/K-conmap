@@ -188,19 +188,15 @@ def get_match_keywords(lic):
 # ==========================================
 
 def engine_heatmap(inst_name, bd):
-    """[엔진1] 발주기관 투찰률 구간 히트맵"""
     if bd is None or bd.empty: return None
     df = bd[bd['발주기관'] == inst_name].copy()
     if df.empty: return None
-
     rate_col = get_rate_col(df)
     df['rate_f'] = df[rate_col].apply(to_float_rate)
     df = df.dropna(subset=['rate_f'])
     if df.empty: return None
-
     df['구간'] = (df['rate_f'] // 0.5 * 0.5).apply(lambda x: f"{x:.1f}~{x+0.5:.1f}%")
     zone_counts = df['구간'].value_counts().sort_values(ascending=False)
-
     return {
         'zone_counts': zone_counts,
         'avg': round(df['rate_f'].mean(), 2),
@@ -215,17 +211,14 @@ def engine_heatmap(inst_name, bd):
 
 
 def engine_dominant(inst_name, bd):
-    """[엔진2] 독식 업체 분석"""
     if bd is None or bd.empty: return None
     df = bd[bd['발주기관'] == inst_name].copy()
     if df.empty or '1순위업체' not in df.columns: return None
-
     total = len(df)
     corp_counts = df['1순위업체'].value_counts()
     top_corp = corp_counts.index[0]
     top_count = int(corp_counts.iloc[0])
     monopoly_rate = round(top_count / total * 100, 1)
-
     recent_top = pd.Series(dtype=int)
     if '날짜' in df.columns:
         df['dt'] = pd.to_datetime(df['날짜'], errors='coerce')
@@ -233,7 +226,6 @@ def engine_dominant(inst_name, bd):
         recent = df[df['dt'] >= cutoff]
         if not recent.empty:
             recent_top = recent['1순위업체'].value_counts().head(5)
-
     return {
         'corp_counts': corp_counts.head(7),
         'top_corp': top_corp,
@@ -245,15 +237,12 @@ def engine_dominant(inst_name, bd):
 
 
 def engine_pattern(inst_name, bd):
-    """[엔진3] 발주 패턴 & 실제 금액 분포"""
     if bd is None or bd.empty: return None
     df = bd[bd['발주기관'] == inst_name].copy()
     if df.empty: return None
-
     monthly = pd.Series(dtype=int)
     yearly = pd.Series(dtype=int)
     peak_month = None
-
     if '날짜' in df.columns:
         df['dt'] = pd.to_datetime(df['날짜'], errors='coerce')
         df2 = df.dropna(subset=['dt'])
@@ -261,9 +250,7 @@ def engine_pattern(inst_name, bd):
             monthly = df2['dt'].dt.month.value_counts().sort_index()
             yearly = df2['dt'].dt.year.value_counts().sort_index()
             peak_month = int(monthly.idxmax())
-
     avg_per_year = round(len(df) / max(len(yearly), 1), 1)
-
     amt_stats = {}
     for c in ['투찰금액', '예산금액']:
         if c in df.columns:
@@ -278,65 +265,46 @@ def engine_pattern(inst_name, bd):
                     'median': int(df_a['amt_v'].median()),
                 }
             break
-
     return {
-        'total': len(df),
-        'monthly': monthly,
-        'yearly': yearly,
-        'peak_month': peak_month,
-        'avg_per_year': avg_per_year,
-        'amt_stats': amt_stats
+        'total': len(df), 'monthly': monthly, 'yearly': yearly,
+        'peak_month': peak_month, 'avg_per_year': avg_per_year, 'amt_stats': amt_stats
     }
 
 
 def engine_similar(notice_name, inst_name, bd, top_n=7):
-    """[엔진4] 유사 공고 낙찰 사례 매칭"""
     if bd is None or bd.empty or not notice_name: return None
-
     stopwords = {'공사', '설치', '사업', '시공', '및', '기타', '위한', '에', '의', '을', '를'}
     keywords = [w for w in re.findall(r'[가-힣]{2,}', notice_name) if w not in stopwords]
     if not keywords: return None
-
     pattern = '|'.join(keywords[:5])
     matched = bd[bd['공고명'].str.contains(pattern, na=False)].copy()
     if matched.empty: return None
-
     matched['same_inst'] = 0
     if '발주기관' in matched.columns and inst_name:
         matched['same_inst'] = (matched['발주기관'] == inst_name).astype(int)
-
     if '날짜' in matched.columns:
         matched['dt'] = pd.to_datetime(matched['날짜'], errors='coerce')
         matched = matched.sort_values(['same_inst', 'dt'], ascending=[False, False])
-
     result = matched.head(top_n).copy()
     rate_col = get_rate_col(result)
     result['rate_f'] = result[rate_col].apply(to_float_rate)
     valid = result.dropna(subset=['rate_f'])
-
     rate_dist = None
     if not valid.empty:
         valid2 = valid.copy()
         valid2['구간'] = (valid2['rate_f'] // 0.5 * 0.5).apply(lambda x: f"{x:.1f}~{x+0.5:.1f}%")
         rate_dist = valid2['구간'].value_counts()
-
     return {
-        'cases': result,
-        'rate_col': rate_col,
-        'keywords': keywords[:5],
-        'rate_dist': rate_dist,
-        'valid_count': len(valid)
+        'cases': result, 'rate_col': rate_col,
+        'keywords': keywords[:5], 'rate_dist': rate_dist, 'valid_count': len(valid)
     }
 
 
 def engine_self_diagnosis(corp_name, bd):
-    """[엔진5] 업체 자가진단"""
     if bd is None or bd.empty or not corp_name: return None
     df = bd[bd['1순위업체'].str.contains(corp_name, na=False)].copy()
     if df.empty: return None
-
     total_wins = len(df)
-
     region_wins = {}
     for reg in ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종",
                 "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"]:
@@ -345,7 +313,6 @@ def engine_self_diagnosis(corp_name, bd):
         if cnt > 0:
             region_wins[reg] = cnt
     region_wins = dict(sorted(region_wins.items(), key=lambda x: x[1], reverse=True))
-
     best_month = None
     monthly = pd.Series(dtype=int)
     yearly = pd.Series(dtype=int)
@@ -356,7 +323,6 @@ def engine_self_diagnosis(corp_name, bd):
             monthly = df2['dt'].dt.month.value_counts().sort_index()
             yearly = df2['dt'].dt.year.value_counts().sort_index()
             best_month = int(monthly.idxmax())
-
     rate_col = get_rate_col(df)
     df['rate_f'] = df[rate_col].apply(to_float_rate)
     df_r = df.dropna(subset=['rate_f'])
@@ -367,20 +333,13 @@ def engine_self_diagnosis(corp_name, bd):
         df_r2 = df_r.copy()
         df_r2['구간'] = (df_r2['rate_f'] // 0.5 * 0.5).apply(lambda x: f"{x:.1f}~{x+0.5:.1f}%")
         rate_dist = df_r2['구간'].value_counts()
-
     top_inst = df['발주기관'].value_counts().head(5) if '발주기관' in df.columns else pd.Series()
-
     return {
-        'corp_name': corp_name,
-        'total_wins': total_wins,
-        'region_wins': region_wins,
-        'best_month': best_month,
-        'monthly': monthly,
-        'yearly': yearly,
-        'avg_rate': avg_rate,
-        'rate_dist': rate_dist,
-        'top_inst': top_inst,
-        'rate_col': rate_col
+        'corp_name': corp_name, 'total_wins': total_wins,
+        'region_wins': region_wins, 'best_month': best_month,
+        'monthly': monthly, 'yearly': yearly,
+        'avg_rate': avg_rate, 'rate_dist': rate_dist,
+        'top_inst': top_inst, 'rate_col': rate_col
     }
 
 
@@ -393,21 +352,16 @@ def render_heatmap(inst_name):
     if r is None:
         st.info(f"'{inst_name}'의 투찰률 데이터가 없습니다.")
         return
-
     st.markdown(f"**'{inst_name}' 최근 3년 {r['rate_col']} 구간 분포** (총 {r['total']}건 실제 데이터)")
-
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("평균", f"{r['avg']}%")
     c2.metric("표준편차", f"±{r['std']}%")
     c3.metric("최솟값", f"{r['min']}%")
     c4.metric("최댓값", f"{r['max']}%")
-
     st.markdown("---")
     st.markdown("**📊 구간별 낙찰 집중도** (0.5% 단위, 상위 12개)")
-
     top12 = r['zone_counts'].head(12)
     max_cnt = int(top12.iloc[0]) if not top12.empty else 1
-
     for zone, cnt in top12.items():
         bar_w = int(cnt / max_cnt * 100)
         is_top = (zone == r['top_zone'])
@@ -419,7 +373,6 @@ def render_heatmap(inst_name):
                 <div style="background:{color};width:{bar_w}%;height:18px;border-radius:3px;min-width:3px;"></div>
                 <span style="font-size:13px;font-weight:700;">{cnt}회 ({round(cnt/r['total']*100,1)}%)</span>
             </div>""", unsafe_allow_html=True)
-
     st.markdown("---")
     st.markdown(
         f'<div class="hit-zone">📌 {r["rate_col"]} 최다 발생 구간: <b>{r["top_zone"]}</b>'
@@ -433,22 +386,14 @@ def render_dominant(inst_name):
     if r is None:
         st.info(f"'{inst_name}'의 낙찰 데이터가 없습니다.")
         return
-
     st.markdown(f"**'{inst_name}' 최근 3년 낙찰 업체 분포** (총 {r['total']}건 실제 데이터)")
-
     monopoly = r['monopoly_rate']
     if monopoly >= 40:
-        st.markdown(
-            f'<div class="warn-box">⚠️ 독식 경보! <b>{r["top_corp"]}</b>이 전체의 <b>{monopoly}%</b> 독식 중</div>',
-            unsafe_allow_html=True)
+        st.markdown(f'<div class="warn-box">⚠️ 독식 경보! <b>{r["top_corp"]}</b>이 전체의 <b>{monopoly}%</b> 독식 중</div>', unsafe_allow_html=True)
     elif monopoly >= 20:
         st.warning(f"🔶 `{r['top_corp']}`이 **{monopoly}%** 점유 중 — 강한 고정 경쟁자 존재")
     else:
-        st.markdown(
-            f'<div class="ok-box">✅ 특정 독식 업체 없음 — 비교적 열린 경쟁 구도 ({r["top_corp"]} {monopoly}% 점유)</div>',
-            unsafe_allow_html=True)
-
-    st.markdown("**🏆 3년 낙찰 업체 순위**")
+        st.markdown(f'<div class="ok-box">✅ 특정 독식 업체 없음 — 비교적 열린 경쟁 구도 ({r["top_corp"]} {monopoly}% 점유)</div>', unsafe_allow_html=True)
     medals = ["🥇", "🥈", "🥉", "4위", "5위", "6위", "7위"]
     for i, (corp, cnt) in enumerate(r['corp_counts'].items()):
         pct = round(cnt / r['total'] * 100, 1)
@@ -457,7 +402,6 @@ def render_dominant(inst_name):
         else:
             m = medals[i] if i < 7 else f"{i+1}위"
             st.markdown(f'<div class="corp-rank-other">{m} {corp} — {cnt}회 ({pct}%)</div>', unsafe_allow_html=True)
-
     if not r['recent_top'].empty:
         st.markdown("---")
         st.markdown("**📅 최근 1년 낙찰 TOP 5**")
@@ -470,20 +414,13 @@ def render_pattern(inst_name):
     if r is None:
         st.info(f"'{inst_name}'의 발주 패턴 데이터가 없습니다.")
         return
-
     st.markdown(f"**'{inst_name}' 발주 패턴** (총 {r['total']}건 실제 데이터)")
-
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown(
-            f'<div class="insight-box"><div class="insight-title">📅 연평균 발주 건수</div><div class="insight-val">{r["avg_per_year"]}건/년</div></div>',
-            unsafe_allow_html=True)
+        st.markdown(f'<div class="insight-box"><div class="insight-title">📅 연평균 발주 건수</div><div class="insight-val">{r["avg_per_year"]}건/년</div></div>', unsafe_allow_html=True)
     with c2:
         peak = f"{r['peak_month']}월" if r['peak_month'] else "-"
-        st.markdown(
-            f'<div class="insight-box"><div class="insight-title">🔥 발주 집중 월</div><div class="insight-val">{peak}</div></div>',
-            unsafe_allow_html=True)
-
+        st.markdown(f'<div class="insight-box"><div class="insight-title">🔥 발주 집중 월</div><div class="insight-val">{peak}</div></div>', unsafe_allow_html=True)
     if not r['monthly'].empty:
         st.markdown("**📊 월별 발주 건수 (3년 합산)**")
         month_labels = {1:"1월",2:"2월",3:"3월",4:"4월",5:"5월",6:"6월",
@@ -501,14 +438,12 @@ def render_pattern(inst_name):
                     <div style="background:{color};width:{bar_w}%;height:14px;border-radius:3px;min-width:2px;"></div>
                     <span style="font-size:12px;font-weight:700;">{cnt}건</span>
                 </div>""", unsafe_allow_html=True)
-
     if not r['yearly'].empty:
         st.markdown("---")
         st.markdown("**📈 연도별 발주 건수**")
         cols = st.columns(len(r['yearly']))
         for i, (yr, cnt) in enumerate(r['yearly'].items()):
             cols[i].metric(f"{yr}년", f"{cnt}건")
-
     if r['amt_stats']:
         a = r['amt_stats']
         st.markdown("---")
@@ -526,10 +461,8 @@ def render_similar(notice_name, inst_name):
     if r is None:
         st.info("유사한 과거 공고를 찾을 수 없습니다.")
         return
-
     st.markdown(f"**검색 키워드:** `{'`, `'.join(r['keywords'])}`")
     st.markdown(f"유사 과거 사례 **{len(r['cases'])}건** 검색됨")
-
     rate_col = r['rate_col']
     for _, row in r['cases'].iterrows():
         same_tag = " 🏛️ 동일기관" if str(row.get('발주기관', '')) == inst_name else ""
@@ -537,9 +470,8 @@ def render_similar(notice_name, inst_name):
         date_val = str(row.get('날짜', '-'))[:10]
         corp_val = row.get('1순위업체', '-')
         name_val = str(row.get('공고명', ''))[:50]
-        amt_val = row.get('투찰금액', '')
-        amt_str = f"{raw_to_int(amt_val):,}원" if amt_val and raw_to_int(amt_val) > 0 else '-'
-
+        amt_val  = row.get('투찰금액', '')
+        amt_str  = f"{raw_to_int(amt_val):,}원" if amt_val and raw_to_int(amt_val) > 0 else '-'
         st.markdown(
             f'<div class="similar-card">'
             f'<div style="font-size:11px;color:#6b7280;">{date_val} | {row.get("발주기관","")}{same_tag}</div>'
@@ -548,7 +480,6 @@ def render_similar(notice_name, inst_name):
             f' &nbsp;|&nbsp; <span style="color:#1e3a8a;font-weight:800;">{rate_col}: {rate_val}</span>'
             f' &nbsp;|&nbsp; <span style="color:#374151;">낙찰금액: {amt_str}</span>'
             f'</div>', unsafe_allow_html=True)
-
     if r['rate_dist'] is not None and not r['rate_dist'].empty:
         st.markdown("---")
         st.markdown(f"**📊 유사 공고 {rate_col} 분포**")
@@ -565,7 +496,6 @@ def render_similar(notice_name, inst_name):
         st.markdown(
             f'<div class="hit-zone">📌 유사 공고 {rate_col} 최다 발생 구간: <b>{top_zone}</b> ({r["valid_count"]}건 실제 데이터 기준)</div>',
             unsafe_allow_html=True)
-
     st.caption("* 공고명 키워드 기반 실제 낙찰 사례. 추정 없음.")
 
 
@@ -574,18 +504,14 @@ def render_self_diagnosis(corp_name):
     if r is None:
         st.warning(f"'{corp_name}' 업체의 3년 낙찰 이력이 없습니다.")
         return
-
     st.markdown(f"**'{r['corp_name']}' 3년 낙찰 팩트 리포트**")
-
     c1, c2, c3 = st.columns(3)
     best_reg = list(r['region_wins'].keys())[0] if r['region_wins'] else "-"
     best_cnt = list(r['region_wins'].values())[0] if r['region_wins'] else 0
-    avg_r = f"{r['avg_rate']}%" if r['avg_rate'] else "-"
-
+    avg_r    = f"{r['avg_rate']}%" if r['avg_rate'] else "-"
     c1.markdown(f'<div class="diag-box"><div class="diag-title">🏆 3년 총 낙찰 건수</div><div class="diag-val">{r["total_wins"]}건</div></div>', unsafe_allow_html=True)
     c2.markdown(f'<div class="diag-box"><div class="diag-title">📍 최강 지역</div><div class="diag-val">{best_reg} ({best_cnt}건)</div></div>', unsafe_allow_html=True)
     c3.markdown(f'<div class="diag-box"><div class="diag-title">🎯 평균 낙찰 {r["rate_col"]}</div><div class="diag-val">{avg_r}</div></div>', unsafe_allow_html=True)
-
     if r['region_wins']:
         st.markdown("---")
         st.markdown("**📍 지역별 낙찰 건수**")
@@ -598,7 +524,6 @@ def render_self_diagnosis(corp_name):
                     <div style="background:#3b82f6;width:{bar_w}%;height:16px;border-radius:3px;min-width:3px;"></div>
                     <span style="font-size:13px;font-weight:700;">{cnt}건</span>
                 </div>""", unsafe_allow_html=True)
-
     if not r['rate_dist'].empty:
         st.markdown("---")
         st.markdown(f"**🎯 낙찰 {r['rate_col']} 구간 분포**")
@@ -611,20 +536,17 @@ def render_self_diagnosis(corp_name):
                     <div style="background:#8b5cf6;width:{bar_w}%;height:14px;border-radius:3px;min-width:2px;"></div>
                     <span style="font-size:12px;font-weight:700;">{cnt}건</span>
                 </div>""", unsafe_allow_html=True)
-
     if not r['top_inst'].empty:
         st.markdown("---")
         st.markdown("**🏛️ 주요 낙찰 발주기관 TOP 5**")
         for inst, cnt in r['top_inst'].items():
             st.info(f"**{inst}**: {cnt}건")
-
     if not r['yearly'].empty:
         st.markdown("---")
         st.markdown("**📈 연도별 낙찰 추이**")
         cols = st.columns(len(r['yearly']))
         for i, (yr, cnt) in enumerate(r['yearly'].items()):
             cols[i].metric(f"{yr}년", f"{cnt}건")
-
     if r['best_month'] and not r['monthly'].empty:
         st.markdown("---")
         st.markdown(f"**📅 월별 낙찰 건수** (집중 월: {r['best_month']}월)")
@@ -632,7 +554,7 @@ def render_self_diagnosis(corp_name):
                         7:"7월",8:"8월",9:"9월",10:"10월",11:"11월",12:"12월"}
         max_m = int(r['monthly'].max())
         for m in range(1, 13):
-            cnt = int(r['monthly'].get(m, 0))
+            cnt   = int(r['monthly'].get(m, 0))
             bar_w = int(cnt / max_m * 100) if max_m > 0 else 0
             is_best = (m == r['best_month'])
             color = "#f59e0b" if is_best else "#94a3b8"
@@ -642,38 +564,95 @@ def render_self_diagnosis(corp_name):
                     <div style="background:{color};width:{bar_w}%;height:14px;border-radius:3px;min-width:2px;"></div>
                     <span style="font-size:12px;font-weight:700;">{cnt}건</span>
                 </div>""", unsafe_allow_html=True)
-
     st.caption("* 3년 실제 낙찰 데이터 기준. 추정 없음.")
 
 
 # ==========================================
-# 8. Firebase 데이터 로딩
+# 8. Firebase 데이터 로딩 [트래픽 다이어트 + 만능 날짜 번역기 적용]
+# 날짜 기준 최근 30일치만 읽어서 요금 절감 및 날짜 빈칸 현상 해결
 # ==========================================
+DISPLAY_DAYS = 15  # 표시할 최근 일수
+
+
+def _parse_dt(val):
+    """날짜 문자열 → pandas Timestamp (만능 번역기)"""
+    if not val or str(val).strip() in ('', 'nan', 'None', '-'):
+        return pd.NaT
+    s = str(val).strip()
+    # 기호 싹 지우고 숫자만 남김
+    s = s.replace('-', '').replace(':', '').replace(' ', '').replace('.', '')
+    try:
+        if len(s) >= 12:
+            return pd.to_datetime(s[:12], format='%Y%m%d%H%M')
+        elif len(s) == 8:
+            return pd.to_datetime(s, format='%Y%m%d')
+        else:
+            return pd.NaT
+    except:
+        return pd.NaT
+
+
 @st.cache_data(ttl=60, show_spinner=False)
 def get_hybrid_1st_bids():
-    db_data = db.child("archive_1st").order_by_key().limit_to_last(4000).get().val() or {}
-    db_items = list(db_data.values()) if isinstance(db_data, dict) else []
+    """1순위: 날짜 기준 최근 30일치만 읽기 (요금 절감)"""
+    try:
+        cutoff_str = (datetime.now(KST).replace(tzinfo=None)
+                      - timedelta(days=DISPLAY_DAYS)).strftime('%Y-%m-%d')
+        db_data = (db.child("archive_1st")
+                     .order_by_child("날짜")
+                     .start_at(cutoff_str)
+                     .get().val()) or {}
+        db_items = list(db_data.values()) if isinstance(db_data, dict) else []
+    except Exception:
+        # 인덱스 미설정 시 fallback
+        try:
+            db_data  = db.child("archive_1st").order_by_key().limit_to_last(2000).get().val() or {}
+            db_items = list(db_data.values()) if isinstance(db_data, dict) else []
+        except Exception:
+            db_items = []
+
+    if not db_items:
+        return pd.DataFrame()
     df = pd.DataFrame(db_items)
-    if not df.empty:
-        df = df.drop_duplicates(subset=['공고번호']).copy()
-        df['dt'] = pd.to_datetime(df['날짜'], errors='coerce')
-        df = df.sort_values(by='dt', ascending=False)
-        df['날짜'] = df['dt'].dt.strftime('%m-%d %H:%M')
-        df = df.drop(columns=['dt'])
+    if df.empty or '공고번호' not in df.columns:
+        return pd.DataFrame()
+    df = df.drop_duplicates(subset=['공고번호']).copy()
+    df['dt'] = df['날짜'].apply(_parse_dt) if '날짜' in df.columns else pd.NaT
+    df = df.sort_values(by='dt', ascending=False, na_position='last')
+    df['날짜'] = df['dt'].apply(lambda x: x.strftime('%m-%d %H:%M') if pd.notna(x) else '-')
+    df = df.drop(columns=['dt'])
     return df
 
 
 @st.cache_data(ttl=180, show_spinner=False)
 def get_hybrid_live_bids():
-    db_data = db.child("archive_live").order_by_key().limit_to_last(4000).get().val() or {}
-    db_items = list(db_data.values()) if isinstance(db_data, dict) else []
+    """실시간 공고: 날짜 기준 최근 30일치만 읽기 (요금 절감)"""
+    try:
+        cutoff_str = (datetime.now(KST).replace(tzinfo=None)
+                      - timedelta(days=DISPLAY_DAYS)).strftime('%Y-%m-%d')
+        db_data = (db.child("archive_live")
+                     .order_by_child("공고일자")
+                     .start_at(cutoff_str)
+                     .get().val()) or {}
+        db_items = list(db_data.values()) if isinstance(db_data, dict) else []
+    except Exception:
+        # 인덱스 미설정 시 fallback
+        try:
+            db_data  = db.child("archive_live").order_by_key().limit_to_last(2000).get().val() or {}
+            db_items = list(db_data.values()) if isinstance(db_data, dict) else []
+        except Exception:
+            db_items = []
+
+    if not db_items:
+        return pd.DataFrame()
     df = pd.DataFrame(db_items)
-    if not df.empty:
-        df = df.drop_duplicates(subset=['공고번호']).copy()
-        df['dt'] = pd.to_datetime(df['공고일자'], errors='coerce')
-        df = df.sort_values(by='dt', ascending=False)
-        df['공고일자'] = df['dt'].dt.strftime('%m-%d %H:%M')
-        df = df.drop(columns=['dt'])
+    if df.empty or '공고번호' not in df.columns:
+        return pd.DataFrame()
+    df = df.drop_duplicates(subset=['공고번호']).copy()
+    df['dt'] = df['공고일자'].apply(_parse_dt) if '공고일자' in df.columns else pd.NaT
+    df = df.sort_values(by='dt', ascending=False, na_position='last')
+    df['공고일자'] = df['dt'].apply(lambda x: x.strftime('%m-%d %H:%M') if pd.notna(x) else '-')
+    df = df.drop(columns=['dt'])
     return df
 
 
@@ -697,7 +676,41 @@ def fetch_detail(row):
 
 
 # ==========================================
-# 9. 팝업 다이얼로그
+# 9. 공지사항 팝업 (접속 시 1회)
+# ==========================================
+def show_notice_popup():
+    if 'notice_shown' not in st.session_state:
+        st.session_state['notice_shown'] = False
+
+    if not st.session_state['notice_shown']:
+        @st.dialog("📢 K-건설맵 Master 공지사항", width="large")
+        def _popup():
+            st.markdown("""
+                <div style="background:#1e3a8a;color:white;border-radius:12px;padding:24px;">
+                    <h3 style="color:#93c5fd;margin-top:0;">🏛️ K-건설맵 Master에 오신 것을 환영합니다!</h3>
+                    <hr style="border-color:#3b82f6;"/>
+                    <p style="font-size:15px;line-height:2.0;color:white;">
+                    📌 <b>서비스 안내</b><br>
+                    &nbsp;&nbsp;• 전국 건설공사 실시간 입찰 공고를 제공합니다.<br>
+                    &nbsp;&nbsp;• 실시간 1순위 개찰 결과를 즉시 확인하실 수 있습니다.<br>
+                    &nbsp;&nbsp;• 3년치 낙찰 데이터 기반 팩트 분석 서비스를 이용하실 수 있습니다.<br><br>
+                    📌 <b>이용 안내</b><br>
+                    &nbsp;&nbsp;• 회원가입 후 모든 기능을 무료로 이용하실 수 있습니다.<br>
+                    &nbsp;&nbsp;• 면허 등록 시 맞춤 공고 매칭 서비스를 이용하실 수 있습니다.<br><br>
+                    📌 <b>문의</b><br>
+                    &nbsp;&nbsp;• 서비스 관련 문의는 K건설챗을 이용해 주세요.
+                    </p>
+                </div>
+            """, unsafe_allow_html=True)
+            st.markdown("")
+            if st.button("✅ 확인했습니다", use_container_width=True, type="primary"):
+                st.session_state['notice_shown'] = True
+                st.rerun()
+        _popup()
+
+
+# ==========================================
+# 10. 팝업 다이얼로그
 # ==========================================
 @st.dialog("📋 K-건설맵 팩트 리포트", width="large")
 def show_analysis_dialog(row, det, mode="1st"):
@@ -778,8 +791,9 @@ def show_analysis_dialog(row, det, mode="1st"):
 
 
 # ==========================================
-# 10. UI 대시보드
+# 11. UI 대시보드
 # ==========================================
+show_notice_popup()  # 공지사항 팝업 (접속 시 1회)
 update_stats()
 t_visit, u_total = get_stats()
 
@@ -805,7 +819,7 @@ with st.sidebar:
         st.rerun()
 
 # ==========================================
-# 11. 메뉴 라우팅
+# 12. 메뉴 라우팅
 # ==========================================
 ROWS_PER_PAGE = 20
 
@@ -860,8 +874,8 @@ elif menu == "📊 실시간 공고 (홈)":
 
         if st.session_state.get("prev_filter_live") != sel_reg2:
             st.session_state["p_all"] = 1
-            st.session_state["p_m"] = 1
-            st.session_state["p_g"] = 1
+            st.session_state["p_m"]   = 1
+            st.session_state["p_g"]   = 1
             st.session_state["prev_filter_live"] = sel_reg2
 
         df_f = filter_by_region(df_live, sel_reg2)
@@ -889,9 +903,9 @@ elif menu == "📊 실시간 공고 (홈)":
                     selected_row_live = df_p_all.iloc[event_all.selection.rows[0]]
 
             with t2:
-                kw = get_match_keywords(st.session_state.get('user_license', ''))
+                kw     = get_match_keywords(st.session_state.get('user_license', ''))
                 m_full = df_f[df_f['공고명'].str.contains('|'.join(kw), na=False)] if kw else df_f
-                n_m = max(1, math.ceil(len(m_full) / ROWS_PER_PAGE))
+                n_m    = max(1, math.ceil(len(m_full) / ROWS_PER_PAGE))
                 if "p_m" not in st.session_state: st.session_state["p_m"] = 1
                 df_p_m = m_full.iloc[(st.session_state["p_m"]-1)*ROWS_PER_PAGE: st.session_state["p_m"]*ROWS_PER_PAGE]
                 event_m = st.dataframe(
@@ -906,7 +920,7 @@ elif menu == "📊 실시간 공고 (홈)":
         else:
             n_g = max(1, math.ceil(len(df_f) / ROWS_PER_PAGE))
             if "p_g" not in st.session_state: st.session_state["p_g"] = 1
-            df_p_g = df_f.iloc[(st.session_state["p_g"]-1)*ROWS_PER_PAGE: st.session_state["p_g"]*ROWS_PER_PAGE]
+            df_p_g  = df_f.iloc[(st.session_state["p_g"]-1)*ROWS_PER_PAGE: st.session_state["p_g"]*ROWS_PER_PAGE]
             event_g = st.dataframe(
                 df_p_g[['공고번호', '공고일자', '공고명', '발주기관', '예산금액', '상세보기']],
                 use_container_width=True, hide_index=True, height=700,
@@ -922,10 +936,8 @@ elif menu == "📊 실시간 공고 (홈)":
 elif menu == "🔍 발주기관 분석":
     st.markdown("#### 🔍 발주기관 심층 분석")
     st.markdown('<div class="guide-box">발주기관명을 입력하면 3년 실제 데이터 기반으로 투찰률 히트맵, 독식업체, 발주패턴을 분석합니다. 추정 없음.</div>', unsafe_allow_html=True)
-
     if big_data is not None and not big_data.empty:
         inst_input = st.text_input("🏛️ 발주기관명 입력 (일부만 입력해도 됩니다)", placeholder="예: 여수시, 전남도청, 한국도로공사")
-
         if inst_input:
             matching = big_data[big_data['발주기관'].str.contains(inst_input, na=False)]['발주기관'].value_counts()
             if matching.empty:
@@ -948,7 +960,6 @@ elif menu == "🔍 발주기관 분석":
 elif menu == "🏢 업체 자가진단":
     st.markdown("#### 🏢 업체 자가진단 리포트")
     st.markdown('<div class="guide-box">업체명을 입력하면 3년간 실제 낙찰 이력을 분석합니다. 지역별 강점, 낙찰 투찰률 분포, 주요 발주처를 확인하세요. 추정 없음.</div>', unsafe_allow_html=True)
-
     if big_data is not None and not big_data.empty:
         corp_input = st.text_input("🏢 업체명 입력 (일부만 입력해도 됩니다)", placeholder="예: 한국건설, 대우건설")
         if corp_input:
@@ -963,8 +974,8 @@ elif menu == "🤝 K-구인구직":
             c1, c2 = st.columns(2)
             cat = c1.selectbox("분류", ["👷 사람 구합니다", "🚜 일자리 찾습니다"])
             reg = c2.selectbox("지역", REGION_LIST)
-            jt = st.text_input("직종 (예: 철근공, 포크레인)")
-            ph = st.text_input("연락처", value=st.session_state.get('user_phone', ''))
+            jt  = st.text_input("직종 (예: 철근공, 포크레인)")
+            ph  = st.text_input("연락처", value=st.session_state.get('user_phone', ''))
             ttl = st.text_input("제목")
             con = st.text_area("상세내용")
             if st.button("등록하기"):
@@ -977,20 +988,19 @@ elif menu == "🤝 K-구인구직":
                 st.toast("등록 완료!")
                 time.sleep(1)
                 st.rerun()
-
     jobs_data = db.child("jobs").get().val()
     if jobs_data:
         df_j = pd.DataFrame(list(jobs_data.values())).iloc[::-1]
         t1, t2 = st.tabs(["👷 사람 구함", "🚜 일자리 찾음"])
         with t1:
-            h = df_j[df_j['category'] == "👷 사람 구합니다"]
+            h    = df_j[df_j['category'] == "👷 사람 구합니다"]
             ev_h = st.dataframe(h[['time', 'region', 'job_type', 'title', 'author']],
                                 use_container_width=True, hide_index=True,
                                 selection_mode="single-row", on_select="rerun", key="h_job")
             if len(ev_h.selection.rows) > 0:
                 show_analysis_dialog(h.iloc[ev_h.selection.rows[0]], None, mode="job")
         with t2:
-            s = df_j[df_j['category'] == "🚜 일자리 찾습니다"]
+            s    = df_j[df_j['category'] == "🚜 일자리 찾습니다"]
             ev_s = st.dataframe(s[['time', 'region', 'job_type', 'title', 'author']],
                                 use_container_width=True, hide_index=True,
                                 selection_mode="single-row", on_select="rerun", key="s_job")
@@ -1017,21 +1027,21 @@ elif menu == "👤 내 정보/로그인":
                     user = auth.sign_in_with_email_and_password(le.strip().lower(), lp)
                     info = db.child("users").child(user['localId']).get().val() or {}
                     st.session_state.update({
-                        'logged_in': True,
-                        'user_name': info.get('name', '소장님'),
-                        'user_license': info.get('license', ''),
-                        'user_phone': info.get('phone', ''),
-                        'localId': user['localId'],
-                        'idToken': user['idToken']
+                        'logged_in'    : True,
+                        'user_name'    : info.get('name', '소장님'),
+                        'user_license' : info.get('license', ''),
+                        'user_phone'   : info.get('phone', ''),
+                        'localId'      : user['localId'],
+                        'idToken'      : user['idToken']
                     })
                     st.rerun()
                 except Exception:
                     st.error("로그인 실패! 이메일 또는 비밀번호를 확인해주세요.")
         with t2:
             re_email = st.text_input("이메일 가입")
-            re_pw = st.text_input("비번 (6자 이상)", type="password")
-            re_name = st.text_input("성함")
-            re_lic = st.multiselect("보유 면허 (맞춤 매칭용)", ALL_LICENSES)
+            re_pw    = st.text_input("비번 (6자 이상)", type="password")
+            re_name  = st.text_input("성함")
+            re_lic   = st.multiselect("보유 면허 (맞춤 매칭용)", ALL_LICENSES)
             if st.button("가입하기"):
                 try:
                     u = auth.create_user_with_email_and_password(re_email.strip().lower(), re_pw)
@@ -1051,13 +1061,13 @@ elif menu == "📁 K-건설 자료실":
     st.subheader("📁 K-건설 자료실")
     if st.session_state['logged_in']:
         with st.expander("✏️ 새 자료 등록"):
-            t_title = st.text_input("제목")
+            t_title   = st.text_input("제목")
             t_content = st.text_area("내용")
             if st.button("등록") and t_title and t_content:
                 db.child("posts").push({
-                    "author": st.session_state['user_name'],
-                    "title": t_title, "content": t_content,
-                    "time": datetime.now(KST).strftime("%Y-%m-%d %H:%M")
+                    "author" : st.session_state['user_name'],
+                    "title"  : t_title, "content": t_content,
+                    "time"   : datetime.now(KST).strftime("%Y-%m-%d %H:%M")
                 })
                 st.rerun()
     posts = db.child("posts").get().val()
@@ -1069,16 +1079,16 @@ elif menu == "📁 K-건설 자료실":
 elif menu == "💬 K건설챗":
     st.subheader("💬 실시간 현장 소통")
     if st.session_state['logged_in']:
-        chat_box = st.container(height=400)
+        chat_box   = st.container(height=400)
         chats_data = db.child("k_chat").get().val()
         if chats_data:
             for v in list(chats_data.values())[-20:]:
                 chat_box.write(f"**{v['author']}**: {v['message']}")
         if msg := st.chat_input("메시지 입력"):
             db.child("k_chat").push({
-                "author": st.session_state['user_name'],
+                "author" : st.session_state['user_name'],
                 "message": msg,
-                "time": datetime.now(KST).strftime("%H:%M")
+                "time"   : datetime.now(KST).strftime("%H:%M")
             })
             st.rerun()
     else:
