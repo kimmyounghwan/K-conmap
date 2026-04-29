@@ -27,6 +27,21 @@ st.markdown("""
         [data-testid="stStatusWidget"] { visibility: hidden !important; display: none !important; }
         .stApp { transition: none !important; }
 
+        /* ── 사이드바 메뉴 간격 넓히기 ── */
+        [data-testid="stSidebar"] .stRadio > div { gap: 0px !important; }
+        [data-testid="stSidebar"] .stRadio label {
+            padding: 11px 10px 11px 6px !important;
+            font-size: 15px !important;
+            font-weight: 600 !important;
+            border-radius: 8px !important;
+            margin-bottom: 3px !important;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        [data-testid="stSidebar"] .stRadio label:hover {
+            background: rgba(59,130,246,0.08) !important;
+        }
+
         .main-title { background-color: #1e3a8a; color: white; border-radius: 10px; font-weight: 900; font-size: 28px; text-align: center; padding: 20px; margin-bottom: 25px; }
         .stat-card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center; margin-bottom: 10px; }
         .stat-label { font-size: 13px; color: #64748b; font-weight: 600; margin-bottom: 4px; }
@@ -49,6 +64,115 @@ st.markdown("""
         .calc-price { font-size: 26px; font-weight: 900; color: #fde68a; }
         .calc-label { font-size: 13px; color: #93c5fd; margin-bottom: 6px; }
         .zoom-card { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 2px solid #f59e0b; border-radius: 8px; padding: 10px; margin: 4px 0; text-align: center; font-weight: 800; font-size: 14px; color: #92400e; }
+
+        /* ── 투찰가 계산기 히어로 배너 ── */
+        .calc-hero {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 40%, #1e40af 70%, #0f172a 100%);
+            border-radius: 20px;
+            padding: 40px 30px 36px 30px;
+            margin-bottom: 28px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 40px rgba(30,58,138,0.45);
+        }
+        .calc-hero::before {
+            content: '';
+            position: absolute;
+            top: -60px; left: -60px;
+            width: 200px; height: 200px;
+            background: radial-gradient(circle, rgba(253,230,138,0.18) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+        .calc-hero::after {
+            content: '';
+            position: absolute;
+            bottom: -40px; right: -40px;
+            width: 160px; height: 160px;
+            background: radial-gradient(circle, rgba(96,165,250,0.15) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+        .calc-hero-badge {
+            display: inline-block;
+            background: rgba(253,230,138,0.18);
+            border: 1px solid rgba(253,230,138,0.4);
+            color: #fde68a;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            padding: 4px 14px;
+            border-radius: 20px;
+            margin-bottom: 16px;
+        }
+        .calc-hero-title {
+            font-size: 34px;
+            font-weight: 900;
+            color: #ffffff;
+            line-height: 1.2;
+            margin-bottom: 10px;
+        }
+        .calc-hero-title span { color: #fde68a; }
+        .calc-hero-sub {
+            font-size: 15px;
+            color: #93c5fd;
+            margin-bottom: 22px;
+            line-height: 1.7;
+        }
+        .calc-hero-chips {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 26px;
+        }
+        .calc-hero-chip {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 6px 16px;
+            border-radius: 20px;
+        }
+        .calc-hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+        .calc-hero-stat {
+            text-align: center;
+        }
+        .calc-hero-stat-num {
+            font-size: 26px;
+            font-weight: 900;
+            color: #fde68a;
+        }
+        .calc-hero-stat-label {
+            font-size: 11px;
+            color: #93c5fd;
+            margin-top: 2px;
+        }
+        .calc-hero-divider {
+            width: 1px;
+            background: rgba(255,255,255,0.2);
+            align-self: stretch;
+        }
+        /* 계산기 입력 섹션 */
+        .calc-input-section {
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border: 2px solid #38bdf8;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .calc-input-title {
+            font-size: 18px;
+            font-weight: 900;
+            color: #0c4a6e;
+            margin-bottom: 16px;
+            text-align: center;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -348,9 +472,10 @@ def engine_self_diagnosis(corp_name, bd):
 
 
 # ==========================================
-# ★ 추가 1: 투찰가 계산기 엔진
+# ★ 투찰가 계산기 엔진
 #   - 1단계: 0.1% 단위 큰 그림 (핫존 표시)
 #   - 2단계: 핫존 클릭 시 0.01% 단위 돋보기 모드
+#   ★ 수정: 공고명으로 발주기관을 자동 추출
 # ==========================================
 def engine_bid_calculator(inst_name, base_price, bd):
     """0.1% 단위 투찰률 분포 + 추천가 계산"""
@@ -364,7 +489,6 @@ def engine_bid_calculator(inst_name, base_price, bd):
     df = df.dropna(subset=['rate_f'])
     if df.empty:
         return None
-    # 0.1% 단위 구간 (1단계: 큰 그림)
     df['구간_01'] = (df['rate_f'] // 0.1 * 0.1).round(1)
     zone_01 = df['구간_01'].value_counts().sort_values(ascending=False)
     top5     = zone_01.head(5)
@@ -390,7 +514,7 @@ def engine_bid_calculator(inst_name, base_price, bd):
 
 
 def engine_zoom(df, hot_rate, base_price):
-    """2단계: 0.01% 돋보기 — hot_rate 구간 내 세분화"""
+    """2단계: 0.01% 돋보기"""
     lower = round(hot_rate, 1)
     upper = round(lower + 0.1, 1)
     mask  = (df['rate_f'] >= lower) & (df['rate_f'] < upper)
@@ -411,26 +535,96 @@ def engine_zoom(df, hot_rate, base_price):
 
 
 def render_bid_calculator():
-    """★ 투찰가 계산기 화면 ★"""
-    st.markdown("#### 🧮 실제 데이터 기반 투찰가 계산기")
-    st.markdown(
-        '<div class="guide-box">'
-        '📌 <b>1단계</b>: 0.1% 단위로 발주기관의 낙찰 핫존을 찾습니다.<br>'
-        '📌 <b>2단계</b>: 핫존을 선택하면 0.01% 단위 돋보기 분석 + 차트 + 추천 투찰가가 표시됩니다.<br>'
-        '추정 없음. 3년 실제 낙찰 데이터만 사용합니다.'
-        '</div>', unsafe_allow_html=True)
+    """★ 투찰가 계산기 화면 — 히어로 배너 + 공고명 입력 방식 ★"""
+
+    # ── 히어로 배너 ──
+    st.markdown("""
+    <div class="calc-hero">
+        <div class="calc-hero-badge">⭐ AI 데이터 분석 · 3년 실제 낙찰 데이터</div>
+        <div class="calc-hero-title">🧮 <span>투찰가 계산기</span></div>
+        <div class="calc-hero-sub">
+            공고명만 입력하면<br>
+            <b style="color:white;">발주기관 자동 탐지 → 핫존 분석 → 추천 투찰가</b> 즉시 산출
+        </div>
+        <div class="calc-hero-chips">
+            <div class="calc-hero-chip">📊 0.01% 단위 정밀 분석</div>
+            <div class="calc-hero-chip">🎯 핫존 자동 탐지</div>
+            <div class="calc-hero-chip">💰 원단위 추천가 산출</div>
+            <div class="calc-hero-chip">🏛️ 전국 발주기관 지원</div>
+        </div>
+        <div class="calc-hero-stats">
+            <div class="calc-hero-stat">
+                <div class="calc-hero-stat-num">3년</div>
+                <div class="calc-hero-stat-label">실제 낙찰 데이터</div>
+            </div>
+            <div class="calc-hero-divider"></div>
+            <div class="calc-hero-stat">
+                <div class="calc-hero-stat-num">0.01%</div>
+                <div class="calc-hero-stat-label">분석 정밀도</div>
+            </div>
+            <div class="calc-hero-divider"></div>
+            <div class="calc-hero-stat">
+                <div class="calc-hero-stat-num">100%</div>
+                <div class="calc-hero-stat-label">추정 없는 팩트</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     if big_data is None or big_data.empty:
         st.info("3년 마스터 데이터가 없습니다.")
         return
 
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        inst_input = st.text_input("🏛️ 발주기관명 입력", placeholder="예: 여수시, 전남도청", key="calc_inst")
-    with col2:
-        base_input = st.text_input("💰 기초금액 입력 (원)", placeholder="예: 150000000", key="calc_base")
+    # ── 입력 섹션 ──
+    st.markdown("""
+    <div class="calc-input-section">
+        <div class="calc-input-title">📝 공고 정보 입력</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    if not (inst_input and base_input):
+    # ★ 실시간 공고 목록 불러와서 선택 가능하게
+    df_live_calc = get_hybrid_live_bids()
+    notice_input = ""
+
+    if not df_live_calc.empty and '공고명' in df_live_calc.columns:
+        live_notices = df_live_calc['공고명'].dropna().tolist()
+        # 선택 옵션: 맨 위에 "직접 입력" 추가
+        select_options = ["✏️ 직접 입력 (공고명 타이핑)"] + live_notices
+        selected_notice = st.selectbox(
+            "📋 공고 선택 또는 직접 입력",
+            select_options,
+            key="calc_notice_select",
+            help="실시간 공고 목록에서 바로 선택하거나, '직접 입력'을 선택해 공고명을 입력하세요."
+        )
+        if selected_notice == "✏️ 직접 입력 (공고명 타이핑)":
+            notice_input = st.text_input(
+                "📋 공고명 직접 입력",
+                placeholder="예: 장성군관광문화재단 사무실 리모델링 건축공사",
+                key="calc_notice_manual"
+            )
+        else:
+            notice_input = selected_notice
+            st.markdown(
+                f'<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;'
+                f'padding:8px 14px;margin:4px 0;font-size:13px;color:#166534;">'
+                f'✅ 선택된 공고: <b>{selected_notice}</b>'
+                f'</div>', unsafe_allow_html=True)
+    else:
+        notice_input = st.text_input(
+            "📋 공고명 입력",
+            placeholder="예: 장성군관광문화재단 사무실 리모델링 건축공사",
+            key="calc_notice_manual"
+        )
+
+    base_input = st.text_input("💰 기초금액 입력 (원)", placeholder="예: 150000000", key="calc_base")
+
+    if not (notice_input and base_input):
+        st.markdown(
+            '<div class="guide-box">'
+            '📌 <b>1단계</b>: 입찰할 공고명을 입력하세요 (발주기관이 자동으로 탐지됩니다)<br>'
+            '📌 <b>2단계</b>: 기초금액을 입력하면 핫존 분석이 시작됩니다<br>'
+            '📌 <b>3단계</b>: 핫존을 선택하면 0.01% 단위 정밀 추천 투찰가가 즉시 산출됩니다'
+            '</div>', unsafe_allow_html=True)
         return
 
     base_clean = base_input.replace(',', '').replace('원', '').strip()
@@ -440,15 +634,30 @@ def render_bid_calculator():
         st.error("기초금액을 숫자로 입력해주세요. 예: 150000000")
         return
 
-    matching = big_data[big_data['발주기관'].str.contains(inst_input, na=False)]['발주기관'].value_counts()
-    if matching.empty:
-        st.warning(f"'{inst_input}' 발주기관 데이터가 없습니다.")
+    # ★ 공고명으로 매칭되는 발주기관 자동 탐지
+    stopwords = {'공사', '설치', '사업', '시공', '및', '기타', '위한', '에', '의', '을', '를', '위', '에서'}
+    keywords = [w for w in re.findall(r'[가-힣]{2,}', notice_input) if w not in stopwords]
+
+    if not keywords:
+        st.warning("공고명에서 검색 키워드를 추출할 수 없습니다. 더 구체적인 공고명을 입력해주세요.")
         return
 
+    pattern = '|'.join(keywords[:5])
+    matched_notices = big_data[big_data['공고명'].str.contains(pattern, na=False)]
+
+    if matched_notices.empty:
+        st.warning(f"'{notice_input}' 와 유사한 공고 데이터가 없습니다.")
+        return
+
+    # 유사 공고에서 발주기관 빈도 추출
+    inst_candidates = matched_notices['발주기관'].value_counts()
+
+    st.success(f"🔍 공고명 키워드 `{'`, `'.join(keywords[:5])}`로 **{len(matched_notices)}건** 유사 공고 탐지 — 발주기관 **{len(inst_candidates)}곳** 확인")
+
     inst_select = st.selectbox(
-        f"검색된 기관 {len(matching)}개",
-        matching.index.tolist(),
-        format_func=lambda x: f"{x} ({matching[x]}건)",
+        f"🏛️ 분석할 발주기관 선택 ({len(inst_candidates)}곳 탐지됨)",
+        inst_candidates.index.tolist(),
+        format_func=lambda x: f"{x} ({inst_candidates[x]}건 유사공고)",
         key="calc_inst_select"
     )
 
@@ -515,7 +724,6 @@ def render_bid_calculator():
         if zr is None:
             st.info("해당 구간의 데이터가 없습니다.")
         else:
-            # ★ 추천 투찰가 강조 박스
             st.markdown(
                 f'<div style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;border-radius:12px;'
                 f'padding:18px;margin:10px 0;text-align:center;">'
@@ -526,7 +734,6 @@ def render_bid_calculator():
                 f'<div style="font-size:12px;margin-top:6px;opacity:0.9;">투찰률 {zr["best_001"]}% × 기초금액 {base_price:,}원</div>'
                 f'</div>', unsafe_allow_html=True)
 
-            # ★ 0.01% 단위 차트
             st.markdown(f"**📊 0.01% 단위 상세 분포** (상위 10개) — 원단위 금액 표시")
             max_z = int(zr['zone_001'].iloc[0]) if not zr['zone_001'].empty else 1
             for rate_val, cnt in zr['zone_001'].head(10).items():
@@ -543,7 +750,6 @@ def render_bid_calculator():
                         <span style="font-size:12px;font-weight:700;">{cnt}회({pct_of_total}%) | <b>{price:,}원</b></span>
                     </div>""", unsafe_allow_html=True)
 
-            # ★ 전체 추천가 정리 테이블
             st.markdown("---")
             st.markdown("**📋 투찰가 추천 정리**")
             tbl_data = []
@@ -788,18 +994,15 @@ def render_self_diagnosis(corp_name):
 
 
 # ==========================================
-# 8. Firebase 데이터 로딩 [트래픽 다이어트 + 만능 날짜 번역기 적용]
-# 날짜 기준 최근 30일치만 읽어서 요금 절감 및 날짜 빈칸 현상 해결
+# 8. Firebase 데이터 로딩
 # ==========================================
-DISPLAY_DAYS = 15  # 표시할 최근 일수
+DISPLAY_DAYS = 15
 
 
 def _parse_dt(val):
-    """날짜 문자열 → pandas Timestamp (만능 번역기)"""
     if not val or str(val).strip() in ('', 'nan', 'None', '-'):
         return pd.NaT
     s = str(val).strip()
-    # 기호 싹 지우고 숫자만 남김
     s = s.replace('-', '').replace(':', '').replace(' ', '').replace('.', '')
     try:
         if len(s) >= 12:
@@ -814,7 +1017,6 @@ def _parse_dt(val):
 
 @st.cache_data(ttl=60, show_spinner=False)
 def get_hybrid_1st_bids():
-    """1순위: 날짜 기준 최근 30일치만 읽기 (요금 절감)"""
     try:
         cutoff_str = (datetime.now(KST).replace(tzinfo=None)
                       - timedelta(days=DISPLAY_DAYS)).strftime('%Y-%m-%d')
@@ -824,7 +1026,6 @@ def get_hybrid_1st_bids():
                      .get().val()) or {}
         db_items = list(db_data.values()) if isinstance(db_data, dict) else []
     except Exception:
-        # 인덱스 미설정 시 fallback
         try:
             db_data  = db.child("archive_1st").order_by_key().limit_to_last(2000).get().val() or {}
             db_items = list(db_data.values()) if isinstance(db_data, dict) else []
@@ -846,7 +1047,6 @@ def get_hybrid_1st_bids():
 
 @st.cache_data(ttl=180, show_spinner=False)
 def get_hybrid_live_bids():
-    """실시간 공고: 날짜 기준 최근 30일치만 읽기 (요금 절감)"""
     try:
         cutoff_str = (datetime.now(KST).replace(tzinfo=None)
                       - timedelta(days=DISPLAY_DAYS)).strftime('%Y-%m-%d')
@@ -856,7 +1056,6 @@ def get_hybrid_live_bids():
                      .get().val()) or {}
         db_items = list(db_data.values()) if isinstance(db_data, dict) else []
     except Exception:
-        # 인덱스 미설정 시 fallback
         try:
             db_data  = db.child("archive_live").order_by_key().limit_to_last(2000).get().val() or {}
             db_items = list(db_data.values()) if isinstance(db_data, dict) else []
@@ -877,7 +1076,6 @@ def get_hybrid_live_bids():
 
 
 def fetch_detail(row):
-    """1순위 팝업 — 실제 데이터만"""
     suc_amt = row.get('투찰금액', '-')
     rate = row.get('투찰률', '-')
     corps = []
@@ -896,7 +1094,7 @@ def fetch_detail(row):
 
 
 # ==========================================
-# 9. 공지사항 팝업 (접속 시 1회)
+# 9. 공지사항 팝업
 # ==========================================
 def show_notice_popup():
     if 'notice_shown' not in st.session_state:
@@ -1020,7 +1218,7 @@ def show_analysis_dialog(row, det, mode="1st"):
 # ==========================================
 # 11. UI 대시보드
 # ==========================================
-show_notice_popup()  # 공지사항 팝업 (접속 시 1회)
+show_notice_popup()
 update_stats()
 t_visit, u_total = get_stats()
 
@@ -1283,7 +1481,6 @@ elif menu == "👤 내 정보/로그인":
                 except Exception:
                     st.error("가입 실패! 이미 사용 중인 이메일이거나 비밀번호가 6자 미만입니다.")
     else:
-        # ★ 추가 2: 회원 정보 수정 + 탈퇴 기능 ★
         st.write(f"### {st.session_state['user_name']} 소장님 반갑습니다!")
         my_tab1, my_tab2 = st.tabs(["✏️ 정보 수정", "🗑️ 회원 탈퇴"])
 
@@ -1335,7 +1532,6 @@ elif menu == "👤 내 정보/로그인":
             st.rerun()
 
 elif menu == "📁 K-건설 자료실":
-    # ★ 추가 3: 게시판 수정/삭제 기능 ★
     st.subheader("📁 K-건설 자료실")
     if st.session_state['logged_in']:
         with st.expander("✏️ 새 자료 등록"):
@@ -1355,7 +1551,6 @@ elif menu == "📁 K-건설 자료실":
             with st.expander(f"📢 {v['title']} (작성자: {v['author']})"):
                 st.write(v['content'])
                 st.caption(f"작성: {v.get('time', '')}")
-                # 본인 글만 수정/삭제 가능
                 if st.session_state['logged_in'] and v['author'] == st.session_state['user_name']:
                     col_e, col_d = st.columns([1, 1])
                     with col_e:
