@@ -1053,7 +1053,7 @@ def _parse_dt(val):
         return pd.NaT
 
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=600, show_spinner=False)
 def get_hybrid_1st_bids():
     try:
         cutoff_str = (datetime.now(KST).replace(tzinfo=None)
@@ -1065,7 +1065,7 @@ def get_hybrid_1st_bids():
         db_items = list(db_data.values()) if isinstance(db_data, dict) else []
     except Exception:
         try:
-            db_data  = db.child("archive_1st").order_by_key().limit_to_last(2000).get().val() or {}
+            db_data  = db.child("archive_1st").order_by_key().limit_to_last(500).get().val() or {}
             db_items = list(db_data.values()) if isinstance(db_data, dict) else []
         except Exception:
             db_items = []
@@ -1083,7 +1083,7 @@ def get_hybrid_1st_bids():
     return df
 
 
-@st.cache_data(ttl=180, show_spinner=False)
+@st.cache_data(ttl=600, show_spinner=False)
 def get_hybrid_live_bids():
     try:
         cutoff_str = (datetime.now(KST).replace(tzinfo=None)
@@ -1095,7 +1095,7 @@ def get_hybrid_live_bids():
         db_items = list(db_data.values()) if isinstance(db_data, dict) else []
     except Exception:
         try:
-            db_data  = db.child("archive_live").order_by_key().limit_to_last(2000).get().val() or {}
+            db_data  = db.child("archive_live").order_by_key().limit_to_last(500).get().val() or {}
             db_items = list(db_data.values()) if isinstance(db_data, dict) else []
         except Exception:
             db_items = []
@@ -1555,7 +1555,7 @@ elif menu == "👤 내 정보/로그인":
                     st.error(f"저장 실패: {e}")
 
         with my_tab2:
-            st.warning("⚠️ 탈퇴하면 모든 정보가 삭제되며 복구할 수 없습니다.")
+            st.warning("⚠️ 탈퇴하면 모든 정보가 삭제되며 복구할 수 복구할 수 없습니다.")
             confirm_pw = st.text_input("탈퇴 확인용 비밀번호 입력", type="password", key="del_pw")
             if st.button("🗑️ 회원 탈퇴 확인", type="primary"):
                 if not confirm_pw:
