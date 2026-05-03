@@ -128,6 +128,9 @@ st.markdown("""
             color: #93c5fd;
             margin-bottom: 20px;
             line-height: 1.7;
+            max-width: 640px;
+            margin-left: auto;
+            margin-right: auto;
         }
         .calc-hero-chips {
             display: flex;
@@ -194,30 +197,6 @@ st.markdown("""
             animation: hero-blink 2s infinite;
         }
         @keyframes hero-blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
-        .hero-main-title {
-            font-size: 3.2rem;
-            font-weight: 900;
-            line-height: 1.2;
-            margin-bottom: 18px;
-            letter-spacing: -1px;
-        }
-        .hero-sub-title {
-            font-size: 1.15rem;
-            opacity: 0.85;
-            margin-bottom: 12px;
-            font-weight: 400;
-            line-height: 1.8;
-            max-width: 640px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        .hero-desc {
-            font-size: 0.95rem;
-            opacity: 0.65;
-            line-height: 1.9;
-            max-width: 560px;
-            margin: 0 auto;
-        }
         .stat-card-landing {
             background: white;
             padding: 36px 16px;
@@ -386,10 +365,9 @@ def load_master_data():
 
 @st.cache_data(show_spinner=False)
 def load_service_master_data():
-    """용역 3년 마스터 데이터 로딩"""
     file_path = "service_data_3years.zip"
     if not os.path.exists(file_path):
-        return None  # 파일 없으면 None 반환 (에러 미표시 — 선택적 파일)
+        return None
     try:
         return pd.read_csv(file_path, compression='zip', encoding='utf-8-sig', low_memory=False)
     except Exception:
@@ -404,50 +382,43 @@ service_big_data = load_service_master_data()
 
 
 # ==========================================
-# 4. 방문 카운팅
+# 4. 방문 및 가입자 카운팅 (강력한 2중 안전장치)
 # ==========================================
 def update_stats():
-    """
-    [비용 최적화 ①] 방문 카운트 세션 캐싱
-    - 세션당 1회만 Firebase 쓰기 → 동일 사용자의 중복 쓰기 방지
-    - 5분(300초) 간격 캐싱: 같은 세션에서 페이지를 여러 번 리렌더링해도
-      마지막 업데이트로부터 5분이 지나야 다시 Firebase에 씀
-      (Streamlit은 위젯 조작마다 전체 스크립트를 재실행하므로 캐싱 필수)
-    """
     now_ts = time.time()
     last_ts = st.session_state.get('visit_last_ts', 0)
 
-    # 세션 내 최초 방문이거나 5분(300초) 이상 경과한 경우에만 Firebase 업데이트
     if now_ts - last_ts >= 300:
         try:
             curr = db.child("stats").child("total_visits").get().val()
             if curr is None:
                 curr = 1828
             db.child("stats").update({"total_visits": int(curr) + 1})
-            st.session_state['visit_last_ts'] = now_ts  # 타임스탬프 갱신
+            st.session_state['visit_last_ts'] = now_ts
             st.session_state['visited'] = True
         except Exception:
             pass
 
 
 def get_stats():
-    """
-    [비용 최적화 ①] 가입자 수 집계 방식 변경
-    - 기존: db.child("users").get().val() → users 전체 트리 다운로드 (매우 비쌈)
-    - 변경: stats/total_users 숫자 하나만 읽기 → 읽기 비용 수백 배 절감
-    - total_visits도 숫자 하나만 읽음
-    - 실시간성 보장: 캐시 없음, 매 렌더링마다 최신값 반환
-    """
+    """방문자 수와 회원 수를 더 정확하게 가져오는 로직"""
     try:
         t_v = db.child("stats").child("total_visits").get().val() or 1828
-        u_v = db.child("stats").child("total_users").get().val() or 0
+
+        # [수정] 1차 시도: stats 노드의 total_users 숫자 가져오기
+        u_v = db.child("stats").child("total_users").get().val()
+
+        # [수정] 2차 시도 (안전장치): 만약 stats에 숫자가 없거나 0이면, 실제 users 방의 회원 수를 셉니다.
+        if not u_v or int(u_v) == 0:
+            actual_users = db.child("users").get().val()
+            u_v = len(actual_users) if actual_users else 0
+
         return int(t_v), int(u_v)
     except Exception:
         return 1828, 0
 
 
 def get_total_data_count():
-    """공사 + 용역 마스터 데이터 합산 건수 실시간 반환"""
     count = 0
     if big_data is not None and not big_data.empty:
         count += len(big_data)
@@ -517,7 +488,7 @@ def get_match_keywords(lic):
 
 
 # ==========================================
-# 6. 5대 팩트 분석 엔진 (master_df 동적 바인딩)
+# 6. 5대 팩트 분석 엔진
 # ==========================================
 
 def engine_heatmap(inst_name, master_df):
@@ -689,7 +660,7 @@ def engine_self_diagnosis(corp_name, master_df):
 
 
 # ==========================================
-# 투찰가 계산기 엔진 (master_df 동적 바인딩)
+# 투찰가 계산기 엔진
 # ==========================================
 def engine_bid_calculator(inst_name, base_price, master_df):
     if master_df is None or master_df.empty or not inst_name or not base_price:
@@ -747,7 +718,7 @@ def engine_zoom(df, hot_rate, base_price):
 
 
 # ==========================================
-# 7. 분석 렌더 함수 (master_df 파라미터로 받음)
+# 7. 분석 렌더 함수
 # ==========================================
 
 def render_heatmap(inst_name, master_df):
@@ -983,7 +954,7 @@ def render_self_diagnosis(corp_name, master_df):
 
 
 # ==========================================
-# 투찰가 계산기 렌더 (master_df, live_df_func, tab_prefix)
+# 투찰가 계산기 렌더
 # ==========================================
 def render_bid_calculator(master_df, live_df_func, tab_prefix):
     st.markdown("""
@@ -1857,14 +1828,14 @@ def render_live_board(df_live, master_df, tab_prefix, prev_key, reg_key, p_all_k
 
 
 # ==========================================
-# 12. UI 메인 (사이드바 라우팅 및 디자인 추가)
+# 12. UI 메인 (사이드바 라우팅 수정)
 # ==========================================
 show_notice_popup()
 update_stats()
 t_visit, u_total = get_stats()
 
 with st.sidebar:
-    # --- 사이트 이름 고정 노출 (새로 추가된 부분) ---
+    # 1. 고정 간판
     st.markdown("""
         <div style="text-align: center; padding: 15px 0; margin-bottom: 20px; background: linear-gradient(135deg, #1e3a8a, #1e40af); border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
             <h2 style="color: #fde68a; margin: 0; font-weight: 900; font-size: 26px; letter-spacing: -1px;">🏛️ K-건설맵</h2>
@@ -1875,7 +1846,16 @@ with st.sidebar:
     user_greeting = f"👋 {st.session_state['user_name']} 소장님" if st.session_state['logged_in'] else "🧭 환영합니다!"
     st.write(f"### 👷 {user_greeting}")
 
-    # 대문에서 버튼 클릭 시 사이드바 메뉴가 즉시 동기화되도록 index 강제 지정
+    # 2. 관리자 로그인 시 회원수 표시
+    if is_admin():
+        st.markdown(f"""
+            <div style="background:#fef3c7; border:1px solid #f59e0b; padding:10px; border-radius:8px; margin-bottom:15px; text-align:center;">
+                <div style="font-size:12px; color:#92400e; font-weight:800;">👑 관리자 대시보드</div>
+                <div style="font-size:16px; color:#b45309; font-weight:900; margin-top:4px;">현재 가입자: {u_total}명</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    # 3. 사이드바 라우팅 동기화
     cat_list = ["🏠 홈 대문", "🏗️ 건설·공사", "💼 용역·서비스", "🌍 커뮤니티·설정"]
     current_idx = cat_list.index(st.session_state['main_cat']) if st.session_state['main_cat'] in cat_list else 0
 
