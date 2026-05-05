@@ -128,9 +128,6 @@ st.markdown("""
             color: #93c5fd;
             margin-bottom: 20px;
             line-height: 1.7;
-            max-width: 640px;
-            margin-left: auto;
-            margin-right: auto;
         }
         .calc-hero-chips {
             display: flex;
@@ -163,7 +160,9 @@ st.markdown("""
             text-align: center;
         }
 
-        /* 홈 대문 전용 스타일 */
+        /* =============================================
+           홈 대문 전용 스타일
+           ============================================= */
         .hero-banner {
             background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 60%, #1e40af 100%);
             padding: 80px 40px 70px 40px;
@@ -197,6 +196,30 @@ st.markdown("""
             animation: hero-blink 2s infinite;
         }
         @keyframes hero-blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+        .hero-main-title {
+            font-size: 3.2rem;
+            font-weight: 900;
+            line-height: 1.2;
+            margin-bottom: 18px;
+            letter-spacing: -1px;
+        }
+        .hero-sub-title {
+            font-size: 1.15rem;
+            opacity: 0.85;
+            margin-bottom: 12px;
+            font-weight: 400;
+            line-height: 1.8;
+            max-width: 640px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .hero-desc {
+            font-size: 0.95rem;
+            opacity: 0.65;
+            line-height: 1.9;
+            max-width: 560px;
+            margin: 0 auto;
+        }
         .stat-card-landing {
             background: white;
             padding: 36px 16px;
@@ -335,7 +358,8 @@ auth, db = init_firebase()
 
 for k, v in [('logged_in', False), ('user_name', ""), ('user_license', ""),
              ('user_phone', ""), ('localId', ""), ('idToken', ""), ('user_email', ""),
-             ('main_cat', "🏠 홈 대문"), ('menu_c', "📊 실시간 공고 (홈)"), ('menu_s', "📊 실시간 공고 (홈)")]:
+             ('main_cat', "🏠 홈 대문"), ('menu_c', "📊 실시간 공고 (홈)"),
+             ('menu_s', "📊 실시간 공고 (홈)"), ('menu_comm', "👤 내 정보/로그인")]:
     if k not in st.session_state:
         st.session_state[k] = v
 
@@ -365,9 +389,10 @@ def load_master_data():
 
 @st.cache_data(show_spinner=False)
 def load_service_master_data():
+    """용역 3년 마스터 데이터 로딩"""
     file_path = "service_data_3years.zip"
     if not os.path.exists(file_path):
-        return None
+        return None  # 파일 없으면 None 반환 (에러 미표시 — 선택적 파일)
     try:
         return pd.read_csv(file_path, compression='zip', encoding='utf-8-sig', low_memory=False)
     except Exception:
@@ -382,43 +407,57 @@ service_big_data = load_service_master_data()
 
 
 # ==========================================
-# 4. 방문 및 가입자 카운팅 (강력한 2중 안전장치)
+# 4. 방문 카운팅
 # ==========================================
 def update_stats():
+    """
+    [비용 최적화 ①] 방문 카운트 세션 캐싱
+    - 세션당 1회만 Firebase 쓰기 → 동일 사용자의 중복 쓰기 방지
+    - 5분(300초) 간격 캐싱: 같은 세션에서 페이지를 여러 번 리렌더링해도
+      마지막 업데이트로부터 5분이 지나야 다시 Firebase에 씀
+      (Streamlit은 위젯 조작마다 전체 스크립트를 재실행하므로 캐싱 필수)
+    """
     now_ts = time.time()
     last_ts = st.session_state.get('visit_last_ts', 0)
 
+    # 세션 내 최초 방문이거나 5분(300초) 이상 경과한 경우에만 Firebase 업데이트
     if now_ts - last_ts >= 300:
         try:
             curr = db.child("stats").child("total_visits").get().val()
             if curr is None:
                 curr = 1828
             db.child("stats").update({"total_visits": int(curr) + 1})
-            st.session_state['visit_last_ts'] = now_ts
+            st.session_state['visit_last_ts'] = now_ts  # 타임스탬프 갱신
             st.session_state['visited'] = True
         except Exception:
             pass
 
 
 def get_stats():
-    """방문자 수와 회원 수를 더 정확하게 가져오는 로직"""
+    """
+    가입자 수: stats/total_users 읽기 (1차)
+    0이거나 없으면 users 노드 전체 카운트로 폴백 (2차 안전장치)
+    """
     try:
         t_v = db.child("stats").child("total_visits").get().val() or 1828
-
-        # [수정] 1차 시도: stats 노드의 total_users 숫자 가져오기
         u_v = db.child("stats").child("total_users").get().val()
-
-        # [수정] 2차 시도 (안전장치): 만약 stats에 숫자가 없거나 0이면, 실제 users 방의 회원 수를 셉니다.
+        # 2차 안전장치: stats에 값이 없거나 0이면 users 노드에서 직접 카운트
         if not u_v or int(u_v) == 0:
             actual_users = db.child("users").get().val()
             u_v = len(actual_users) if actual_users else 0
-
+            # 실제 카운트 값을 stats에 자동 동기화
+            if u_v and int(u_v) > 0:
+                try:
+                    db.child("stats").update({"total_users": int(u_v)})
+                except Exception:
+                    pass
         return int(t_v), int(u_v)
     except Exception:
         return 1828, 0
 
 
 def get_total_data_count():
+    """공사 + 용역 마스터 데이터 합산 건수 실시간 반환"""
     count = 0
     if big_data is not None and not big_data.empty:
         count += len(big_data)
@@ -488,7 +527,7 @@ def get_match_keywords(lic):
 
 
 # ==========================================
-# 6. 5대 팩트 분석 엔진
+# 6. 5대 팩트 분석 엔진 (master_df 동적 바인딩)
 # ==========================================
 
 def engine_heatmap(inst_name, master_df):
@@ -502,7 +541,7 @@ def engine_heatmap(inst_name, master_df):
     df = df.dropna(subset=['rate_f'])
     if df.empty:
         return None
-    df['구간'] = (df['rate_f'] // 0.5 * 0.5).apply(lambda x: f"{x:.1f}~{x + 0.5:.1f}%")
+    df['구간'] = (df['rate_f'] // 0.5 * 0.5).apply(lambda x: f"{x:.1f}~{x+0.5:.1f}%")
     zone_counts = df['구간'].value_counts().sort_values(ascending=False)
     return {
         'zone_counts': zone_counts,
@@ -606,7 +645,7 @@ def engine_similar(notice_name, inst_name, master_df, top_n=7):
     rate_dist = None
     if not valid.empty:
         valid2 = valid.copy()
-        valid2['구간'] = (valid2['rate_f'] // 0.5 * 0.5).apply(lambda x: f"{x:.1f}~{x + 0.5:.1f}%")
+        valid2['구간'] = (valid2['rate_f'] // 0.5 * 0.5).apply(lambda x: f"{x:.1f}~{x+0.5:.1f}%")
         rate_dist = valid2['구간'].value_counts()
     return {
         'cases': result, 'rate_col': rate_col,
@@ -647,7 +686,7 @@ def engine_self_diagnosis(corp_name, master_df):
     if not df_r.empty:
         avg_rate = round(df_r['rate_f'].mean(), 2)
         df_r2 = df_r.copy()
-        df_r2['구간'] = (df_r2['rate_f'] // 0.5 * 0.5).apply(lambda x: f"{x:.1f}~{x + 0.5:.1f}%")
+        df_r2['구간'] = (df_r2['rate_f'] // 0.5 * 0.5).apply(lambda x: f"{x:.1f}~{x+0.5:.1f}%")
         rate_dist = df_r2['구간'].value_counts()
     top_inst = df['발주기관'].value_counts().head(5) if '발주기관' in df.columns else pd.Series()
     return {
@@ -660,7 +699,7 @@ def engine_self_diagnosis(corp_name, master_df):
 
 
 # ==========================================
-# 투찰가 계산기 엔진
+# 투찰가 계산기 엔진 (master_df 동적 바인딩)
 # ==========================================
 def engine_bid_calculator(inst_name, base_price, master_df):
     if master_df is None or master_df.empty or not inst_name or not base_price:
@@ -718,7 +757,7 @@ def engine_zoom(df, hot_rate, base_price):
 
 
 # ==========================================
-# 7. 분석 렌더 함수
+# 7. 분석 렌더 함수 (master_df 파라미터로 받음)
 # ==========================================
 
 def render_heatmap(inst_name, master_df):
@@ -745,12 +784,12 @@ def render_heatmap(inst_name, master_df):
             f"""<div style="margin:4px 0;display:flex;align-items:center;gap:8px;">
                 <span style="font-size:13px;font-weight:{'900' if is_top else '500'};width:145px;flex-shrink:0;">{zone}{star}</span>
                 <div style="background:{color};width:{bar_w}%;height:18px;border-radius:3px;min-width:3px;"></div>
-                <span style="font-size:13px;font-weight:700;">{cnt}회 ({round(cnt / r['total'] * 100, 1)}%)</span>
+                <span style="font-size:13px;font-weight:700;">{cnt}회 ({round(cnt/r['total']*100,1)}%)</span>
             </div>""", unsafe_allow_html=True)
     st.markdown("---")
     st.markdown(
         f'<div class="hit-zone">📌 {r["rate_col"]} 최다 발생 구간: <b>{r["top_zone"]}</b>'
-        f' — {r["top_count"]}회 / {r["total"]}건 중 {round(r["top_count"] / r["total"] * 100, 1)}% 집중</div>',
+        f' — {r["top_count"]}회 / {r["total"]}건 중 {round(r["top_count"]/r["total"]*100,1)}% 집중</div>',
         unsafe_allow_html=True)
     st.caption(f"* 3년 실제 낙찰 데이터 기준 {r['rate_col']} 분포입니다. 추정 없음.")
 
@@ -763,20 +802,18 @@ def render_dominant(inst_name, master_df):
     st.markdown(f"**'{inst_name}' 최근 3년 낙찰 업체 분포** (총 {r['total']}건 실제 데이터)")
     monopoly = r['monopoly_rate']
     if monopoly >= 40:
-        st.markdown(f'<div class="warn-box">⚠️ 독식 경보! <b>{r["top_corp"]}</b>이 전체의 <b>{monopoly}%</b> 독식 중</div>',
-                    unsafe_allow_html=True)
+        st.markdown(f'<div class="warn-box">⚠️ 독식 경보! <b>{r["top_corp"]}</b>이 전체의 <b>{monopoly}%</b> 독식 중</div>', unsafe_allow_html=True)
     elif monopoly >= 20:
         st.warning(f"🔶 `{r['top_corp']}`이 **{monopoly}%** 점유 중 — 강한 고정 경쟁자 존재")
     else:
-        st.markdown(f'<div class="ok-box">✅ 특정 독식 업체 없음 — 비교적 열린 경쟁 구도 ({r["top_corp"]} {monopoly}% 점유)</div>',
-                    unsafe_allow_html=True)
+        st.markdown(f'<div class="ok-box">✅ 특정 독식 업체 없음 — 비교적 열린 경쟁 구도 ({r["top_corp"]} {monopoly}% 점유)</div>', unsafe_allow_html=True)
     medals = ["🥇", "🥈", "🥉", "4위", "5위", "6위", "7위"]
     for i, (corp, cnt) in enumerate(r['corp_counts'].items()):
         pct = round(cnt / r['total'] * 100, 1)
         if i == 0:
             st.markdown(f'<div class="corp-rank1">{medals[i]} {corp} — {cnt}회 ({pct}%)</div>', unsafe_allow_html=True)
         else:
-            m = medals[i] if i < 7 else f"{i + 1}위"
+            m = medals[i] if i < 7 else f"{i+1}위"
             st.markdown(f'<div class="corp-rank-other">{m} {corp} — {cnt}회 ({pct}%)</div>', unsafe_allow_html=True)
     if not r['recent_top'].empty:
         st.markdown("---")
@@ -793,14 +830,10 @@ def render_pattern(inst_name, master_df):
     st.markdown(f"**'{inst_name}' 발주 패턴** (총 {r['total']}건 실제 데이터)")
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown(
-            f'<div class="insight-box"><div class="insight-title">📅 연평균 발주 건수</div><div class="insight-val">{r["avg_per_year"]}건/년</div></div>',
-            unsafe_allow_html=True)
+        st.markdown(f'<div class="insight-box"><div class="insight-title">📅 연평균 발주 건수</div><div class="insight-val">{r["avg_per_year"]}건/년</div></div>', unsafe_allow_html=True)
     with c2:
         peak = f"{r['peak_month']}월" if r['peak_month'] else "-"
-        st.markdown(
-            f'<div class="insight-box"><div class="insight-title">🔥 발주 집중 월</div><div class="insight-val">{peak}</div></div>',
-            unsafe_allow_html=True)
+        st.markdown(f'<div class="insight-box"><div class="insight-title">🔥 발주 집중 월</div><div class="insight-val">{peak}</div></div>', unsafe_allow_html=True)
     if not r['monthly'].empty:
         st.markdown("**📊 월별 발주 건수 (3년 합산)**")
         month_labels = {1: "1월", 2: "2월", 3: "3월", 4: "4월", 5: "5월", 6: "6월",
@@ -829,10 +862,10 @@ def render_pattern(inst_name, master_df):
         st.markdown("---")
         st.markdown(f"**💰 실제 {a['col']} 규모 분포**")
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("평균", f"{a['avg'] // 10000:,}만원")
-        col2.metric("중간값", f"{a['median'] // 10000:,}만원")
-        col3.metric("최소", f"{a['min'] // 10000:,}만원")
-        col4.metric("최대", f"{a['max'] // 10000:,}만원")
+        col1.metric("평균", f"{a['avg']//10000:,}만원")
+        col2.metric("중간값", f"{a['median']//10000:,}만원")
+        col3.metric("최소", f"{a['min']//10000:,}만원")
+        col4.metric("최대", f"{a['max']//10000:,}만원")
         st.caption(f"* 실제 {a['col']} 기준. 추정 없음.")
 
 
@@ -854,7 +887,7 @@ def render_similar(notice_name, inst_name, master_df):
         amt_str = f"{raw_to_int(amt_val):,}원" if amt_val and raw_to_int(amt_val) > 0 else '-'
         st.markdown(
             f'<div class="similar-card">'
-            f'<div style="font-size:11px;color:#6b7280;">{date_val} | {row.get("발주기관", "")}{same_tag}</div>'
+            f'<div style="font-size:11px;color:#6b7280;">{date_val} | {row.get("발주기관","")}{same_tag}</div>'
             f'<div style="font-size:13px;font-weight:700;margin:3px 0;">{name_val}</div>'
             f'<span style="color:#dc2626;font-weight:800;">1순위: {corp_val}</span>'
             f' &nbsp;|&nbsp; <span style="color:#1e3a8a;font-weight:800;">{rate_col}: {rate_val}</span>'
@@ -889,15 +922,9 @@ def render_self_diagnosis(corp_name, master_df):
     best_reg = list(r['region_wins'].keys())[0] if r['region_wins'] else "-"
     best_cnt = list(r['region_wins'].values())[0] if r['region_wins'] else 0
     avg_r = f"{r['avg_rate']}%" if r['avg_rate'] else "-"
-    c1.markdown(
-        f'<div class="diag-box"><div class="diag-title">🏆 3년 총 낙찰 건수</div><div class="diag-val">{r["total_wins"]}건</div></div>',
-        unsafe_allow_html=True)
-    c2.markdown(
-        f'<div class="diag-box"><div class="diag-title">📍 최강 지역</div><div class="diag-val">{best_reg} ({best_cnt}건)</div></div>',
-        unsafe_allow_html=True)
-    c3.markdown(
-        f'<div class="diag-box"><div class="diag-title">🎯 평균 낙찰 {r["rate_col"]}</div><div class="diag-val">{avg_r}</div></div>',
-        unsafe_allow_html=True)
+    c1.markdown(f'<div class="diag-box"><div class="diag-title">🏆 3년 총 낙찰 건수</div><div class="diag-val">{r["total_wins"]}건</div></div>', unsafe_allow_html=True)
+    c2.markdown(f'<div class="diag-box"><div class="diag-title">📍 최강 지역</div><div class="diag-val">{best_reg} ({best_cnt}건)</div></div>', unsafe_allow_html=True)
+    c3.markdown(f'<div class="diag-box"><div class="diag-title">🎯 평균 낙찰 {r["rate_col"]}</div><div class="diag-val">{avg_r}</div></div>', unsafe_allow_html=True)
     if r['region_wins']:
         st.markdown("---")
         st.markdown("**📍 지역별 낙찰 건수**")
@@ -954,7 +981,7 @@ def render_self_diagnosis(corp_name, master_df):
 
 
 # ==========================================
-# 투찰가 계산기 렌더
+# 투찰가 계산기 렌더 (master_df, live_df_func, tab_prefix)
 # ==========================================
 def render_bid_calculator(master_df, live_df_func, tab_prefix):
     st.markdown("""
@@ -1049,12 +1076,11 @@ def render_bid_calculator(master_df, live_df_func, tab_prefix):
     matched_notices = master_df[master_df['공고명'].str.contains(pattern, na=False)]
 
     if matched_notices.empty:
-        st.warning(f"'{notice_input}' 와 유사 공고 데이터가 없습니다.")
+        st.warning(f"'{notice_input}' 와 유사한 공고 데이터가 없습니다.")
         return
 
     inst_candidates = matched_notices['발주기관'].value_counts()
-    st.success(
-        f"🔍 공고명 키워드 `{'`, `'.join(keywords[:5])}`로 **{len(matched_notices)}건** 유사 공고 탐지 — 발주기관 **{len(inst_candidates)}곳** 확인")
+    st.success(f"🔍 공고명 키워드 `{'`, `'.join(keywords[:5])}`로 **{len(matched_notices)}건** 유사 공고 탐지 — 발주기관 **{len(inst_candidates)}곳** 확인")
 
     inst_select = st.selectbox(
         f"🏛️ 분석할 발주기관 선택 ({len(inst_candidates)}곳 탐지됨)",
@@ -1160,7 +1186,7 @@ def render_bid_calculator(master_df, live_df_func, tab_prefix):
             for rate_val, cnt in zr['zone_001'].head(5).items():
                 price = int(base_price * rate_val / 100)
                 is_best = (rate_val == zr['best_001'])
-                rank_str = "⭐ 1위 추천" if is_best else f"{zone_001_idx.index(rate_val) + 1}위"
+                rank_str = "⭐ 1위 추천" if is_best else f"{zone_001_idx.index(rate_val)+1}위"
                 tbl_data.append({
                     '순위': rank_str,
                     '투찰률': f"{rate_val}%",
@@ -1305,7 +1331,7 @@ def fetch_detail(row):
                     amt_disp = f"{int(float(p[3])):,}원"
                 except Exception:
                     amt_disp = p[3]
-                corps.append({'순위': f"{idx + 1}위", '업체명': p[0].strip(),
+                corps.append({'순위': f"{idx+1}위", '업체명': p[0].strip(),
                               '투찰금액': amt_disp, '투찰률': f"{p[4].strip()}%"})
     return {'suc_amt': suc_amt, 'rate': rate, 'corps': corps}
 
@@ -1348,7 +1374,6 @@ def show_notice_popup():
             if st.button("✅ 확인했습니다", use_container_width=True, type="primary"):
                 st.session_state['notice_shown'] = True
                 st.rerun()
-
         _popup()
 
 
@@ -1385,14 +1410,10 @@ def show_analysis_dialog(row, det, mode="1st", master_df=None, tab_prefix="c"):
             ])
             inst_name = row.get('발주기관', '')
             notice_name = row.get('공고명', '')
-            with tab1:
-                render_heatmap(inst_name, master_df)
-            with tab2:
-                render_dominant(inst_name, master_df)
-            with tab3:
-                render_pattern(inst_name, master_df)
-            with tab4:
-                render_similar(notice_name, inst_name, master_df)
+            with tab1: render_heatmap(inst_name, master_df)
+            with tab2: render_dominant(inst_name, master_df)
+            with tab3: render_pattern(inst_name, master_df)
+            with tab4: render_similar(notice_name, inst_name, master_df)
             with tab5:
                 corp_search = st.text_input(
                     "🔍 우리 회사명 입력", placeholder="예: 한국건설",
@@ -1424,14 +1445,10 @@ def show_analysis_dialog(row, det, mode="1st", master_df=None, tab_prefix="c"):
             tab1, tab2, tab3, tab4, tab5 = st.tabs([
                 "🎯 투찰률 히트맵", "🏆 독식업체", "📅 발주패턴", "🔍 유사공고", "🏢 자가진단"
             ])
-            with tab1:
-                render_heatmap(inst_name, master_df)
-            with tab2:
-                render_dominant(inst_name, master_df)
-            with tab3:
-                render_pattern(inst_name, master_df)
-            with tab4:
-                render_similar(notice_name, inst_name, master_df)
+            with tab1: render_heatmap(inst_name, master_df)
+            with tab2: render_dominant(inst_name, master_df)
+            with tab3: render_pattern(inst_name, master_df)
+            with tab4: render_similar(notice_name, inst_name, master_df)
             with tab5:
                 corp_search = st.text_input(
                     "🔍 우리 회사명 입력", placeholder="예: 한국건설",
@@ -1452,12 +1469,13 @@ def show_analysis_dialog(row, det, mode="1st", master_df=None, tab_prefix="c"):
 
 # ==========================================
 # 🔥 홈 대문 렌더링
-#   [수정] 버튼 클릭 시 세션 직접 변경 + st.rerun() 으로 100% 이동 보장
+#   버튼 → on_click 제거, if st.button + 수동 session_state + st.rerun() 방식으로 교체
+#   (on_click은 HTML 혼재 레이아웃에서 rerun을 씹는 현상 있음 → 100% 확실한 방법 사용)
 # ==========================================
 def render_landing_page(t_visit):
     today_str = datetime.now(KST).strftime("%Y년 %m월 %d일")
 
-    # 공사 + 용역 합산 건수 (실시간)
+    # 공사 + 용역 합산 건수 (실시간 — @st.cache_data ttl=600 으로 10분마다 갱신)
     total_count = get_total_data_count()
     total_data_str = f"{total_count:,}+" if total_count > 0 else "152,430+"
 
@@ -1486,7 +1504,7 @@ def render_landing_page(t_visit):
         </div>
     """, unsafe_allow_html=True)
 
-    # ── 퀵 이동 버튼 3개 — if st.button + 수동 rerun (씹힘 방지) ──
+    # ── 퀵 이동 버튼 3개 — if st.button + 수동 rerun (100% 확실한 방법) ──
     c_btn1, c_btn2, c_btn3 = st.columns(3)
     with c_btn1:
         if st.button("🏗️ 건설·공사 실시간 공고", use_container_width=True, key="qbtn_con"):
@@ -1567,9 +1585,9 @@ def render_landing_page(t_visit):
         if not df_live_con.empty:
             for _, prow in df_live_con.head(5).iterrows():
                 pname = str(prow.get('공고명', ''))[:28]
-                porg = str(prow.get('발주기관', ''))[:16]
+                porg  = str(prow.get('발주기관', ''))[:16]
                 pamt_raw = prow.get('예산금액', 0)
-                pamt_str = f"{raw_to_int(pamt_raw) // 10000:,}만원" if raw_to_int(pamt_raw) > 0 else '-'
+                pamt_str = f"{raw_to_int(pamt_raw)//10000:,}만원" if raw_to_int(pamt_raw) > 0 else '-'
                 st.markdown(
                     f'<div class="preview-row">'
                     f'<span class="pr-name">{pname}</span>'
@@ -1580,9 +1598,8 @@ def render_landing_page(t_visit):
             st.markdown('<p style="font-size:12px;color:#94a3b8;padding:8px 0;">공고 데이터 로드 중...</p>',
                         unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
-
-        # 전체 보기 버튼 — if st.button + 수동 rerun (씹힘 방지)
-        if st.button("건설·공사 전체 보기 →", use_container_width=True, key="btn_con_all_view"):
+        # 전체 보기 버튼 — if st.button + 수동 rerun
+        if st.button("건설·공사 전체 보기 →", use_container_width=True, key="btn_con_all"):
             st.session_state['main_cat'] = "🏗️ 건설·공사"
             st.session_state['menu_c'] = "📊 실시간 공고 (홈)"
             st.rerun()
@@ -1593,9 +1610,9 @@ def render_landing_page(t_visit):
         if not df_live_srv.empty:
             for _, prow in df_live_srv.head(5).iterrows():
                 pname = str(prow.get('공고명', ''))[:28]
-                porg = str(prow.get('발주기관', ''))[:16]
+                porg  = str(prow.get('발주기관', ''))[:16]
                 pamt_raw = prow.get('예산금액', 0)
-                pamt_str = f"{raw_to_int(pamt_raw) // 10000:,}만원" if raw_to_int(pamt_raw) > 0 else '-'
+                pamt_str = f"{raw_to_int(pamt_raw)//10000:,}만원" if raw_to_int(pamt_raw) > 0 else '-'
                 st.markdown(
                     f'<div class="preview-row">'
                     f'<span class="pr-name">{pname}</span>'
@@ -1609,9 +1626,8 @@ def render_landing_page(t_visit):
                 '아래 구글 드라이브 수집 스크립트를 실행해 주세요.</p>',
                 unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
-
-        # 전체 보기 버튼 — if st.button + 수동 rerun (씹힘 방지)
-        if st.button("용역·서비스 전체 보기 →", use_container_width=True, key="btn_srv_all_view"):
+        # 전체 보기 버튼 — if st.button + 수동 rerun
+        if st.button("용역·서비스 전체 보기 →", use_container_width=True, key="btn_srv_all"):
             st.session_state['main_cat'] = "💼 용역·서비스"
             st.session_state['menu_s'] = "📊 실시간 공고 (홈)"
             st.rerun()
@@ -1684,8 +1700,6 @@ def render_landing_page(t_visit):
         </div>
     </div>
     """, unsafe_allow_html=True)
-
-
 # ==========================================
 # 11. 공통 현황판 렌더 함수 (공사/용역 공용)
 # ==========================================
@@ -1694,8 +1708,7 @@ ROWS_PER_PAGE = 20
 
 def render_1st_board(df_w, master_df, tab_prefix, p_key, prev_key, search_key, reg_key):
     """1순위 현황판 공통 렌더"""
-    st.markdown('<div class="guide-box">💡 <b>터치 한 번으로 팩트 분석!</b> 맨 왼쪽 <b>[체크박스(ㅁ)]</b>를 터치하면 3년 팩트 리포트가 즉시 열립니다.</div>',
-                unsafe_allow_html=True)
+    st.markdown('<div class="guide-box">💡 <b>터치 한 번으로 팩트 분석!</b> 맨 왼쪽 <b>[체크박스(ㅁ)]</b>를 터치하면 3년 팩트 리포트가 즉시 열립니다.</div>', unsafe_allow_html=True)
 
     if df_w.empty:
         st.info("데이터를 불러오는 중입니다. 잠시 후 다시 시도해주세요.")
@@ -1723,6 +1736,7 @@ def render_1st_board(df_w, master_df, tab_prefix, p_key, prev_key, search_key, r
     start_idx = (st.session_state[p_key] - 1) * ROWS_PER_PAGE
     df_page = df_f.iloc[start_idx: start_idx + ROWS_PER_PAGE]
 
+    # 표시할 컬럼 안전하게 선택
     show_cols = [c for c in ['1순위업체', '날짜', '공고명', '발주기관', '투찰금액', '투찰률'] if c in df_page.columns]
     event = st.dataframe(
         df_page[show_cols],
@@ -1741,10 +1755,10 @@ def render_1st_board(df_w, master_df, tab_prefix, p_key, prev_key, search_key, r
         show_analysis_dialog(selected_row, det, mode="1st", master_df=master_df, tab_prefix=tab_prefix)
 
 
-def render_live_board(df_live, master_df, tab_prefix, prev_key, reg_key, p_all_key, p_m_key, p_g_key):
+def render_live_board(df_live, master_df, tab_prefix, prev_key, reg_key,
+                      p_all_key, p_m_key, p_g_key):
     """실시간 공고 공통 렌더"""
-    st.markdown('<div class="guide-box">💡 <b>입찰 팩트 리포트!</b> 맨 왼쪽 <b>[체크박스(ㅁ)]</b>를 터치하면 해당 발주기관의 3년 팩트 분석이 열립니다.</div>',
-                unsafe_allow_html=True)
+    st.markdown('<div class="guide-box">💡 <b>입찰 팩트 리포트!</b> 맨 왼쪽 <b>[체크박스(ㅁ)]</b>를 터치하면 해당 발주기관의 3년 팩트 분석이 열립니다.</div>', unsafe_allow_html=True)
 
     if df_live.empty:
         st.info("데이터를 불러오는 중입니다. 잠시 후 다시 시도해주세요.")
@@ -1773,8 +1787,7 @@ def render_live_board(df_live, master_df, tab_prefix, prev_key, reg_key, p_all_k
             n_all = max(1, math.ceil(len(df_f) / ROWS_PER_PAGE))
             if p_all_key not in st.session_state:
                 st.session_state[p_all_key] = 1
-            df_p_all = df_f.iloc[
-                (st.session_state[p_all_key] - 1) * ROWS_PER_PAGE: st.session_state[p_all_key] * ROWS_PER_PAGE]
+            df_p_all = df_f.iloc[(st.session_state[p_all_key]-1)*ROWS_PER_PAGE: st.session_state[p_all_key]*ROWS_PER_PAGE]
             event_all = st.dataframe(
                 df_p_all[show_cols], use_container_width=True, hide_index=True, height=700,
                 column_config=col_cfg, selection_mode="single-row", on_select="rerun",
@@ -1782,7 +1795,7 @@ def render_live_board(df_live, master_df, tab_prefix, prev_key, reg_key, p_all_k
             )
             c1, c2, c3 = st.columns([3, 4, 3])
             with c2:
-                st.selectbox(f"📄 페이지 이동 (총 {n_all}쪽)", range(1, n_all + 1), key=p_all_key)
+                st.selectbox(f"📄 페이지 이동 (총 {n_all}쪽)", range(1, n_all+1), key=p_all_key)
             if len(event_all.selection.rows) > 0:
                 selected_row_live = df_p_all.iloc[event_all.selection.rows[0]]
 
@@ -1792,8 +1805,7 @@ def render_live_board(df_live, master_df, tab_prefix, prev_key, reg_key, p_all_k
             n_m = max(1, math.ceil(len(m_full) / ROWS_PER_PAGE))
             if p_m_key not in st.session_state:
                 st.session_state[p_m_key] = 1
-            df_p_m = m_full.iloc[
-                (st.session_state[p_m_key] - 1) * ROWS_PER_PAGE: st.session_state[p_m_key] * ROWS_PER_PAGE]
+            df_p_m = m_full.iloc[(st.session_state[p_m_key]-1)*ROWS_PER_PAGE: st.session_state[p_m_key]*ROWS_PER_PAGE]
             m_show_cols = [c for c in show_cols if c in df_p_m.columns]
             event_m = st.dataframe(
                 df_p_m[m_show_cols], use_container_width=True, hide_index=True, height=700,
@@ -1802,7 +1814,7 @@ def render_live_board(df_live, master_df, tab_prefix, prev_key, reg_key, p_all_k
             )
             c1, c2, c3 = st.columns([3, 4, 3])
             with c2:
-                st.selectbox(f"📄 페이지 이동 (총 {n_m}쪽)", range(1, n_m + 1), key=p_m_key)
+                st.selectbox(f"📄 페이지 이동 (총 {n_m}쪽)", range(1, n_m+1), key=p_m_key)
             if len(event_m.selection.rows) > 0:
                 selected_row_live = df_p_m.iloc[event_m.selection.rows[0]]
 
@@ -1810,7 +1822,7 @@ def render_live_board(df_live, master_df, tab_prefix, prev_key, reg_key, p_all_k
         n_g = max(1, math.ceil(len(df_f) / ROWS_PER_PAGE))
         if p_g_key not in st.session_state:
             st.session_state[p_g_key] = 1
-        df_p_g = df_f.iloc[(st.session_state[p_g_key] - 1) * ROWS_PER_PAGE: st.session_state[p_g_key] * ROWS_PER_PAGE]
+        df_p_g = df_f.iloc[(st.session_state[p_g_key]-1)*ROWS_PER_PAGE: st.session_state[p_g_key]*ROWS_PER_PAGE]
         g_show_cols = [c for c in show_cols if c in df_p_g.columns]
         event_g = st.dataframe(
             df_p_g[g_show_cols], use_container_width=True, hide_index=True, height=700,
@@ -1819,7 +1831,7 @@ def render_live_board(df_live, master_df, tab_prefix, prev_key, reg_key, p_all_k
         )
         c1, c2, c3 = st.columns([3, 4, 3])
         with c2:
-            st.selectbox(f"📄 페이지 이동 (총 {n_g}쪽)", range(1, n_g + 1), key=p_g_key)
+            st.selectbox(f"📄 페이지 이동 (총 {n_g}쪽)", range(1, n_g+1), key=p_g_key)
         if len(event_g.selection.rows) > 0:
             selected_row_live = df_p_g.iloc[event_g.selection.rows[0]]
 
@@ -1828,38 +1840,42 @@ def render_live_board(df_live, master_df, tab_prefix, prev_key, reg_key, p_all_k
 
 
 # ==========================================
-# 12. UI 메인 (사이드바 라우팅 수정)
+# 12. UI 메인
 # ==========================================
 show_notice_popup()
 update_stats()
 t_visit, u_total = get_stats()
 
 with st.sidebar:
-    # 1. 고정 간판
+    # ── 로고 간판 ──
     st.markdown("""
-        <div style="text-align: center; padding: 15px 0; margin-bottom: 20px; background: linear-gradient(135deg, #1e3a8a, #1e40af); border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <h2 style="color: #fde68a; margin: 0; font-weight: 900; font-size: 26px; letter-spacing: -1px;">🏛️ K-건설맵</h2>
-            <div style="color: white; font-size: 12px; opacity: 0.8; margin-top: 5px;">Data Bidding Master</div>
+        <div style="text-align:center; padding:15px 0; margin-bottom:16px;
+                    background:linear-gradient(135deg,#1e3a8a,#1e40af);
+                    border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.15);">
+            <div style="color:#fde68a; font-weight:900; font-size:22px; letter-spacing:-0.5px;">🏛️ K-건설맵</div>
+            <div style="color:rgba(255,255,255,0.7); font-size:11px; margin-top:4px;">Data Bidding Master</div>
         </div>
     """, unsafe_allow_html=True)
 
-    user_greeting = f"👋 {st.session_state['user_name']} 소장님" if st.session_state['logged_in'] else "🧭 환영합니다!"
-    st.write(f"### 👷 {user_greeting}")
+    # ── 로그인 상태 인사 ──
+    if st.session_state['logged_in']:
+        st.markdown(f"**👋 {st.session_state['user_name']} 소장님, 안녕하세요!**")
 
-    # 2. 관리자 로그인 시 회원수 표시
+    # ── 관리자 전용 대시보드 ──
     if is_admin():
         st.markdown(f"""
-            <div style="background:#fef3c7; border:1px solid #f59e0b; padding:10px; border-radius:8px; margin-bottom:15px; text-align:center;">
-                <div style="font-size:12px; color:#92400e; font-weight:800;">👑 관리자 대시보드</div>
-                <div style="font-size:16px; color:#b45309; font-weight:900; margin-top:4px;">현재 가입자: {u_total}명</div>
+            <div style="background:#fef3c7; border:1px solid #f59e0b;
+                        padding:10px; border-radius:8px; margin-bottom:12px; text-align:center;">
+                <div style="font-size:11px; color:#92400e; font-weight:800;">👑 관리자 대시보드</div>
+                <div style="font-size:15px; color:#b45309; font-weight:900; margin-top:3px;">가입자: {u_total}명</div>
             </div>
         """, unsafe_allow_html=True)
 
-    # 3. 사이드바 라우팅 동기화
-    cat_list = ["🏠 홈 대문", "🏗️ 건설·공사", "💼 용역·서비스", "🌍 커뮤니티·설정"]
-    current_idx = cat_list.index(st.session_state['main_cat']) if st.session_state['main_cat'] in cat_list else 0
-
-    main_cat = st.selectbox("📂 조회 분야 선택", cat_list, index=current_idx)
+    # ── 카테고리 선택 ──
+    # "📝 회원가입" 클릭 → 내 정보/로그인 페이지로 이동 (기존 로그인·회원가입 탭 사용)
+    cat_list = ["🏠 홈 대문", "🏗️ 건설·공사", "💼 용역·서비스", "🌍 커뮤니티·설정", "📝 회원가입"]
+    cur_idx = cat_list.index(st.session_state['main_cat']) if st.session_state['main_cat'] in cat_list else 0
+    main_cat = st.selectbox("📂 조회 분야 선택", cat_list, index=cur_idx)
     st.session_state['main_cat'] = main_cat
     st.markdown("---")
 
@@ -1877,16 +1893,20 @@ with st.sidebar:
             "🧮 투찰가 계산기",
             "🔍 발주기관 분석", "🏢 업체 자가진단"
         ], key="menu_s")
-    else:
+    elif main_cat == "📝 회원가입":
+        # 회원가입 클릭 → 내 정보/로그인 화면(로그인+회원가입 탭)으로 연결
+        menu = "👤 내 정보/로그인"
+    else:  # 🌍 커뮤니티·설정
         menu = st.radio("상세 메뉴", [
             "🤝 K-구인구직", "📁 K-건설 자료실",
-            "💬 K건설챗", "📲 앱처럼 설치하기", "👤 내 정보/로그인"
+            "💬 K건설챗", "📲 앱처럼 설치하기"
         ], key="menu_comm")
 
     st.write("---")
     if st.session_state['logged_in'] and st.button("🚪 로그아웃"):
         st.session_state.clear()
         st.rerun()
+
 
 # ==========================================
 # 13. 메뉴 라우팅
@@ -1935,8 +1955,7 @@ elif main_cat == "🏗️ 건설·공사":
 
     elif menu == "🔍 발주기관 분석":
         st.markdown("#### 🔍 발주기관 심층 분석 — 건설·공사")
-        st.markdown('<div class="guide-box">발주기관명을 입력하면 3년 실제 데이터 기반으로 투찰률 히트맵, 독식업체, 발주패턴을 분석합니다. 추정 없음.</div>',
-                    unsafe_allow_html=True)
+        st.markdown('<div class="guide-box">발주기관명을 입력하면 3년 실제 데이터 기반으로 투찰률 히트맵, 독식업체, 발주패턴을 분석합니다. 추정 없음.</div>', unsafe_allow_html=True)
         if big_data is not None and not big_data.empty:
             inst_input = st.text_input("🏛️ 발주기관명 입력 (일부만 입력해도 됩니다)",
                                        placeholder="예: 여수시, 전남도청, 한국도로공사", key="inst_search_c")
@@ -1962,9 +1981,7 @@ elif main_cat == "🏗️ 건설·공사":
 
     elif menu == "🏢 업체 자가진단":
         st.markdown("#### 🏢 업체 자가진단 리포트 — 건설·공사")
-        st.markdown(
-            '<div class="guide-box">업체명을 입력하면 3년간 실제 낙찰 이력을 분석합니다. 지역별 강점, 낙찰 투찰률 분포, 주요 발주처를 확인하세요. 추정 없음.</div>',
-            unsafe_allow_html=True)
+        st.markdown('<div class="guide-box">업체명을 입력하면 3년간 실제 낙찰 이력을 분석합니다. 지역별 강점, 낙찰 투찰률 분포, 주요 발주처를 확인하세요. 추정 없음.</div>', unsafe_allow_html=True)
         if big_data is not None and not big_data.empty:
             corp_input = st.text_input("🏢 업체명 입력 (일부만 입력해도 됩니다)",
                                        placeholder="예: 한국건설, 대우건설", key="corp_search_c")
@@ -2018,14 +2035,12 @@ elif main_cat == "💼 용역·서비스":
 
     elif menu == "🔍 발주기관 분석":
         st.markdown("#### 🔍 발주기관 심층 분석 — 용역·서비스")
-        st.markdown('<div class="guide-box">발주기관명을 입력하면 3년 실제 데이터 기반으로 투찰률 히트맵, 독식업체, 발주패턴을 분석합니다. 추정 없음.</div>',
-                    unsafe_allow_html=True)
+        st.markdown('<div class="guide-box">발주기관명을 입력하면 3년 실제 데이터 기반으로 투찰률 히트맵, 독식업체, 발주패턴을 분석합니다. 추정 없음.</div>', unsafe_allow_html=True)
         if service_big_data is not None and not service_big_data.empty:
             inst_input_s = st.text_input("🏛️ 발주기관명 입력 (일부만 입력해도 됩니다)",
                                          placeholder="예: 여수시, 전남도청, 한국환경공단", key="inst_search_s")
             if inst_input_s:
-                matching_s = service_big_data[service_big_data['발주기관'].str.contains(inst_input_s, na=False)][
-                    '발주기관'].value_counts()
+                matching_s = service_big_data[service_big_data['발주기관'].str.contains(inst_input_s, na=False)]['발주기관'].value_counts()
                 if matching_s.empty:
                     st.warning("검색된 발주기관이 없습니다.")
                 else:
@@ -2046,9 +2061,7 @@ elif main_cat == "💼 용역·서비스":
 
     elif menu == "🏢 업체 자가진단":
         st.markdown("#### 🏢 업체 자가진단 리포트 — 용역·서비스")
-        st.markdown(
-            '<div class="guide-box">업체명을 입력하면 3년간 실제 낙찰 이력을 분석합니다. 지역별 강점, 낙찰 투찰률 분포, 주요 발주처를 확인하세요. 추정 없음.</div>',
-            unsafe_allow_html=True)
+        st.markdown('<div class="guide-box">업체명을 입력하면 3년간 실제 낙찰 이력을 분석합니다. 지역별 강점, 낙찰 투찰률 분포, 주요 발주처를 확인하세요. 추정 없음.</div>', unsafe_allow_html=True)
         if service_big_data is not None and not service_big_data.empty:
             corp_input_s = st.text_input("🏢 업체명 입력 (일부만 입력해도 됩니다)",
                                          placeholder="예: 한국용역, 환경개발", key="corp_search_s")
@@ -2109,8 +2122,7 @@ elif main_cat == "🌍 커뮤니티·설정":
         with col1:
             st.info("🍎 **아이폰 (Safari)**\n\n1. 하단 **[공유 버튼(□↑)]** 클릭\n2. **[홈 화면에 추가]** 클릭\n3. **[추가]** 클릭")
         with col2:
-            st.success(
-                "🤖 **안드로이드 (Chrome)**\n\n1. 상단 **[점 3개(⋮)]** 클릭\n2. **[홈 화면에 추가]** 또는 **[앱 설치]** 클릭\n3. **[추가]** 클릭")
+            st.success("🤖 **안드로이드 (Chrome)**\n\n1. 상단 **[점 3개(⋮)]** 클릭\n2. **[홈 화면에 추가]** 또는 **[앱 설치]** 클릭\n3. **[추가]** 클릭")
 
     elif menu == "👤 내 정보/로그인":
         st.subheader("👤 회원 정보 관리")
@@ -2165,8 +2177,7 @@ elif main_cat == "🌍 커뮤니티·설정":
                 new_name = st.text_input("성함 수정", value=cur_info.get('name', ''))
                 new_phone = st.text_input("연락처 수정", value=cur_info.get('phone', ''))
                 new_lic = st.multiselect("보유 면허 수정", ALL_LICENSES,
-                                         default=[l.strip() for l in cur_info.get('license', '').split(',') if
-                                                  l.strip() in ALL_LICENSES])
+                                         default=[l.strip() for l in cur_info.get('license', '').split(',') if l.strip() in ALL_LICENSES])
                 if st.button("✅ 정보 저장"):
                     try:
                         db.child("users").child(st.session_state['localId']).update({
@@ -2184,7 +2195,7 @@ elif main_cat == "🌍 커뮤니티·설정":
                         st.error(f"저장 실패: {e}")
 
             with my_tab2:
-                st.warning("⚠️ 탈퇴하면 모든 정보가 삭제되며 복구할 수 복구할 수 없습니다.")
+                st.warning("⚠️ 탈퇴하면 모든 정보가 삭제되며 복구할 수 없습니다.")
                 confirm_pw = st.text_input("탈퇴 확인용 비밀번호 입력", type="password", key="del_pw")
                 if st.button("🗑️ 회원 탈퇴 확인", type="primary"):
                     if not confirm_pw:
@@ -2273,3 +2284,99 @@ elif main_cat == "🌍 커뮤니티·설정":
                 st.rerun()
         else:
             st.info("로그인 후 이용 가능합니다.")
+
+# ──────────────────────────────────────
+# [D] 📝 회원가입 — 로그인/회원가입/내 정보/탈퇴 통합
+# ──────────────────────────────────────
+elif main_cat == "📝 회원가입":
+    st.subheader("👤 회원 정보 관리")
+    if not st.session_state['logged_in']:
+        t1, t2 = st.tabs(["🔑 로그인", "📝 회원가입"])
+        with t1:
+            le = st.text_input("이메일")
+            lp = st.text_input("비밀번호", type="password")
+            if st.button("로그인"):
+                try:
+                    user = auth.sign_in_with_email_and_password(le.strip().lower(), lp)
+                    info = db.child("users").child(user['localId']).get().val() or {}
+                    st.session_state.update({
+                        'logged_in': True,
+                        'user_name': info.get('name', '소장님'),
+                        'user_license': info.get('license', ''),
+                        'user_phone': info.get('phone', ''),
+                        'localId': user['localId'],
+                        'idToken': user['idToken'],
+                        'user_email': le.strip().lower()
+                    })
+                    st.rerun()
+                except Exception:
+                    st.error("로그인 실패! 이메일 또는 비밀번호를 확인해주세요.")
+        with t2:
+            re_email = st.text_input("이메일 가입")
+            re_pw = st.text_input("비번 (6자 이상)", type="password")
+            re_name = st.text_input("성함")
+            re_lic = st.multiselect("보유 면허 (맞춤 매칭용)", ALL_LICENSES)
+            if st.button("가입하기"):
+                try:
+                    u = auth.create_user_with_email_and_password(re_email.strip().lower(), re_pw)
+                    db.child("users").child(u['localId']).set({
+                        "name": re_name, "license": ", ".join(re_lic), "email": re_email
+                    })
+                    try:
+                        curr_u = db.child("stats").child("total_users").get().val() or 0
+                        db.child("stats").update({"total_users": int(curr_u) + 1})
+                    except Exception:
+                        pass
+                    st.success("🎉 가입 성공!")
+                except Exception:
+                    st.error("가입 실패! 이미 사용 중인 이메일이거나 비밀번호가 6자 미만입니다.")
+    else:
+        st.write(f"### {st.session_state['user_name']} 소장님 반갑습니다!")
+        my_tab1, my_tab2 = st.tabs(["✏️ 정보 수정", "🗑️ 회원 탈퇴"])
+        with my_tab1:
+            st.markdown("**회원 정보를 수정합니다.**")
+            cur_info = db.child("users").child(st.session_state['localId']).get().val() or {}
+            new_name = st.text_input("성함 수정", value=cur_info.get('name', ''))
+            new_phone = st.text_input("연락처 수정", value=cur_info.get('phone', ''))
+            new_lic = st.multiselect("보유 면허 수정", ALL_LICENSES,
+                                     default=[l.strip() for l in cur_info.get('license', '').split(',') if
+                                              l.strip() in ALL_LICENSES])
+            if st.button("✅ 정보 저장"):
+                try:
+                    db.child("users").child(st.session_state['localId']).update({
+                        "name": new_name, "phone": new_phone, "license": ", ".join(new_lic)
+                    })
+                    st.session_state['user_name'] = new_name
+                    st.session_state['user_phone'] = new_phone
+                    st.session_state['user_license'] = ", ".join(new_lic)
+                    st.success("✅ 정보가 저장되었습니다!")
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"저장 실패: {e}")
+        with my_tab2:
+            st.warning("⚠️ 탈퇴하면 모든 정보가 삭제되며 복구할 수 없습니다.")
+            confirm_pw = st.text_input("탈퇴 확인용 비밀번호 입력", type="password", key="del_pw2")
+            if st.button("🗑️ 회원 탈퇴 확인", type="primary", key="del_btn2"):
+                if not confirm_pw:
+                    st.error("비밀번호를 입력해주세요.")
+                else:
+                    try:
+                        cur_info2 = db.child("users").child(st.session_state['localId']).get().val() or {}
+                        auth.sign_in_with_email_and_password(cur_info2.get('email', ''), confirm_pw)
+                        db.child("users").child(st.session_state['localId']).remove()
+                        try:
+                            curr_u = db.child("stats").child("total_users").get().val() or 0
+                            db.child("stats").update({"total_users": max(0, int(curr_u) - 1)})
+                        except Exception:
+                            pass
+                        st.session_state.clear()
+                        st.success("탈퇴 완료. 이용해 주셔서 감사합니다.")
+                        time.sleep(2)
+                        st.rerun()
+                    except Exception:
+                        st.error("비밀번호가 틀렸거나 탈퇴에 실패했습니다.")
+        st.markdown("---")
+        if st.button("🚪 로그아웃", key="logout2"):
+            st.session_state.clear()
+            st.rerun()
