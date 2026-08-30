@@ -40,3 +40,7 @@ desktop.ini
 logs/
 *.log
 .firebase/
+
+# 클로드가 만든 백업·임시 폴더
+_임시/
+gitwork/

@@ -6,10 +6,26 @@
       "detail": "평소 이걸 쓰세요. 2~5분. 집계는 건너뜁니다.",
       "type": "shell",
       "command": "python",
-      "args": ["run_all.py", "--quick"],
-      "options": { "cwd": "${workspaceFolder}", "env": { "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8" } },
-      "group": { "kind": "build", "isDefault": true },
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "args": [
+        "run_all.py",
+        "--quick"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONUTF8": "1",
+          "PYTHONIOENCODING": "utf-8"
+        }
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
       "problemMatcher": []
     },
     {
@@ -17,9 +33,21 @@
       "detail": "3년치를 새로 집계합니다. 8~12분. 새 자료를 넣었을 때만.",
       "type": "shell",
       "command": "python",
-      "args": ["run_all.py"],
-      "options": { "cwd": "${workspaceFolder}", "env": { "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8" } },
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "args": [
+        "run_all.py"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONUTF8": "1",
+          "PYTHONIOENCODING": "utf-8"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
       "problemMatcher": []
     },
     {
@@ -27,10 +55,18 @@
       "detail": "코드를 저장하면 브라우저가 바로 바뀝니다. 끌 때는 휴지통 아이콘.",
       "type": "shell",
       "command": "npm",
-      "args": ["run", "dev"],
-      "options": { "cwd": "${workspaceFolder}/web" },
+      "args": [
+        "run",
+        "dev"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/web"
+      },
       "isBackground": true,
-      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
       "problemMatcher": []
     },
     {
@@ -38,9 +74,18 @@
       "detail": "이미 빌드해둔 것을 올리기만 합니다.",
       "type": "shell",
       "command": "npm",
-      "args": ["run", "deploy"],
-      "options": { "cwd": "${workspaceFolder}/web" },
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "args": [
+        "run",
+        "deploy"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/web"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
       "problemMatcher": []
     },
     {
@@ -48,27 +93,65 @@
       "detail": "inbox 폴더에 넣은 CSV·엑셀을 읽어 정리합니다.",
       "type": "shell",
       "command": "python",
-      "args": ["inbox.py"],
-      "options": { "cwd": "${workspaceFolder}", "env": { "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8" } },
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "args": [
+        "inbox.py"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONUTF8": "1",
+          "PYTHONIOENCODING": "utf-8"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
       "problemMatcher": []
     },
     {
       "label": "⑥ 조달청 수집만",
       "type": "shell",
       "command": "python",
-      "args": ["collect.py", "--days", "3"],
-      "options": { "cwd": "${workspaceFolder}", "env": { "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8" } },
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "args": [
+        "collect.py",
+        "--days",
+        "3"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONUTF8": "1",
+          "PYTHONIOENCODING": "utf-8"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
       "problemMatcher": []
     },
     {
       "label": "⑦ 집계만 (build_json)",
       "type": "shell",
       "command": "python",
-      "args": ["build_json.py"],
-      "options": { "cwd": "${workspaceFolder}", "env": { "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8" } },
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "args": [
+        "build_json.py"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONUTF8": "1",
+          "PYTHONIOENCODING": "utf-8"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
       "problemMatcher": []
     },
     {
@@ -76,17 +159,48 @@
       "detail": "pip + npm 설치를 한 번에. 처음 한 번만 실행하세요.",
       "type": "shell",
       "command": "pip install -r requirements.txt; cd web; npm install",
-      "options": { "cwd": "${workspaceFolder}" },
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
       "problemMatcher": []
     },
     {
       "label": "⑧ 구인구직 보안규칙 배포 (최초 1회)",
       "type": "shell",
       "command": "firebase",
-      "args": ["deploy", "--only", "database"],
-      "options": { "cwd": "${workspaceFolder}/web" },
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "args": [
+        "deploy",
+        "--only",
+        "database"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/web"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "⑨ GitHub 에 올리기 (git push)",
+      "detail": "v2 브랜치로 올립니다. main(기존 Streamlit)은 건드리지 않습니다.",
+      "type": "shell",
+      "command": "git add -A; git commit -m \"업데이트\"; git push -u origin v2",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
       "problemMatcher": []
     }
   ]
