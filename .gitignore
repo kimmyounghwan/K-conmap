@@ -1,0 +1,42 @@
+# ⚠️ 이 파일이 없으면 API 키와 인증서가 그대로 GitHub 에 올라갑니다.
+# 절대 지우지 마세요.
+
+# 비밀 (가장 중요)
+.env
+.env.*
+!.env.example
+*serviceAccount*.json
+*firebase-key*.json
+k-map-*.json
+k-conmap-*.json
+구글*.txt
+*비밀번호*
+*.pem
+*.key
+
+# 큰 원본 데이터 (GitHub 에 올리면 저장소가 무거워집니다)
+data/*.csv
+data/*.zip
+data/store/
+inbox/
+!inbox/.gitkeep
+
+# 빌드 산출물 — 배포할 때 다시 만들어집니다
+web/dist/
+web/node_modules/
+web/public/data/
+web/public/sitemap.xml
+
+# 도구·OS
+# .vscode 는 일부러 올립니다 — 작업 메뉴(Tasks)를 공유하기 위해
+.idea/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store
+Thumbs.db
+desktop.ini
+logs/
+*.log
+.firebase/

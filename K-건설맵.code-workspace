@@ -1,0 +1,17 @@
+{
+  "folders": [
+    { "name": "K-건설맵 (전체)", "path": "." },
+    { "name": "  └ web (npm·firebase 는 여기)", "path": "web" }
+  ],
+  "settings": {
+    "window.title": "K-건설맵 v2 — ${activeEditorShort}"
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-python.python",
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode",
+      "dsznajder.es7-react-js-snippets"
+    ]
+  }
+}

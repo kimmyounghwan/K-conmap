@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "ms-python.python",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "dsznajder.es7-react-js-snippets",
+    "christian-kohler.path-intellisense",
+    "toba.vsfire"
+  ]
+}

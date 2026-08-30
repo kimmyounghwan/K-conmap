@@ -1,0 +1,37 @@
+{
+  "files.encoding": "utf8",
+  "files.eol": "\r\n",
+  "terminal.integrated.env.windows": {
+    "PYTHONUTF8": "1",
+    "PYTHONIOENCODING": "utf-8"
+  },
+  "terminal.integrated.cwd": "${workspaceFolder}",
+  "[python]": { "editor.tabSize": 4 },
+  "[javascript]": { "editor.tabSize": 2 },
+  "[javascriptreact]": { "editor.tabSize": 2 },
+  "[json]": { "editor.tabSize": 2 },
+  "[css]": { "editor.tabSize": 2 },
+  "emmet.includeLanguages": { "javascript": "javascriptreact" },
+  "javascript.preferences.importModuleSpecifierEnding": "js",
+  "editor.wordWrap": "on",
+  "editor.renderWhitespace": "none",
+  "search.exclude": {
+    "**/node_modules": true,
+    "web/dist": true,
+    "web/public/data": true,
+    "data": true,
+    "inbox/_처리완료": true,
+    "_임시": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/web/public/data/**": true,
+    "**/web/dist/**": true,
+    "**/data/**": true
+  },
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "**/.firebase": true
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "① 빠른 갱신 (공고만 새로 받아 배포)",
+      "detail": "평소 이걸 쓰세요. 2~5분. 집계는 건너뜁니다.",
+      "type": "shell",
+      "command": "python",
+      "args": ["run_all.py", "--quick"],
+      "options": { "cwd": "${workspaceFolder}", "env": { "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8" } },
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "② 전체 실행 (집계까지 다시)",
+      "detail": "3년치를 새로 집계합니다. 8~12분. 새 자료를 넣었을 때만.",
+      "type": "shell",
+      "command": "python",
+      "args": ["run_all.py"],
+      "options": { "cwd": "${workspaceFolder}", "env": { "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8" } },
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "③ 미리보기 서버 (npm run dev)",
+      "detail": "코드를 저장하면 브라우저가 바로 바뀝니다. 끌 때는 휴지통 아이콘.",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "dev"],
+      "options": { "cwd": "${workspaceFolder}/web" },
+      "isBackground": true,
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": []
+    },
+    {
+      "label": "④ 배포만 (firebase deploy)",
+      "detail": "이미 빌드해둔 것을 올리기만 합니다.",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "deploy"],
+      "options": { "cwd": "${workspaceFolder}/web" },
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "⑤ inbox 자료만 반영",
+      "detail": "inbox 폴더에 넣은 CSV·엑셀을 읽어 정리합니다.",
+      "type": "shell",
+      "command": "python",
+      "args": ["inbox.py"],
+      "options": { "cwd": "${workspaceFolder}", "env": { "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8" } },
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "⑥ 조달청 수집만",
+      "type": "shell",
+      "command": "python",
+      "args": ["collect.py", "--days", "3"],
+      "options": { "cwd": "${workspaceFolder}", "env": { "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8" } },
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "⑦ 집계만 (build_json)",
+      "type": "shell",
+      "command": "python",
+      "args": ["build_json.py"],
+      "options": { "cwd": "${workspaceFolder}", "env": { "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8" } },
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "⓪ 최초 1회 — 패키지 설치",
+      "detail": "pip + npm 설치를 한 번에. 처음 한 번만 실행하세요.",
+      "type": "shell",
+      "command": "pip install -r requirements.txt; cd web; npm install",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "⑧ 구인구직 보안규칙 배포 (최초 1회)",
+      "type": "shell",
+      "command": "firebase",
+      "args": ["deploy", "--only", "database"],
+      "options": { "cwd": "${workspaceFolder}/web" },
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    }
+  ]
+}

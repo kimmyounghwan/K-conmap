@@ -1,0 +1,61 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "run_all.py (전체)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_all.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "env": { "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8" }
+    },
+    {
+      "name": "run_all.py --quick",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_all.py",
+      "args": ["--quick"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "env": { "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8" }
+    },
+    {
+      "name": "collect.py",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/collect.py",
+      "args": ["--days", "3"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "env": { "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8" }
+    },
+    {
+      "name": "build_json.py",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/build_json.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "env": { "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8" }
+    },
+    {
+      "name": "inbox.py",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/inbox.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "env": { "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8" }
+    },
+    {
+      "name": "현재 열어둔 파이썬 파일",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "env": { "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8" }
+    }
+  ]
+}

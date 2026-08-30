@@ -1,0 +1,48 @@
+{
+  "database": {
+    "rules": "database.rules.json"
+  },
+  "hosting": {
+    "public": "dist",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "cleanUrls": true,
+    "rewrites": [
+      { "source": "**", "destination": "/index.html" }
+    ],
+    "headers": [
+      {
+        "//": "빌드 산출물은 파일명에 해시가 붙으므로 1년 캐시. 재방문 전송량이 거의 0이 된다.",
+        "source": "/assets/**",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        ]
+      },
+      {
+        "//": "집계 JSON은 배치 때만 바뀐다. 6시간 캐시 + 그 뒤 하루는 낡은 값 먼저 보여주고 뒤에서 갱신.",
+        "source": "/data/**",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=21600, stale-while-revalidate=86400" }
+        ]
+      },
+      {
+        "//": "index.html 은 절대 캐시하지 않는다. 캐시되면 배포해도 옛 화면이 계속 뜬다.",
+        "source": "/index.html",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        ]
+      },
+      {
+        "source": "/",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        ]
+      },
+      {
+        "source": "**/*.@(xml|txt|webmanifest|json)",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=3600, must-revalidate" }
+        ]
+      }
+    ]
+  }
+}
