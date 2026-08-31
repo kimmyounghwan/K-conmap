@@ -17,7 +17,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(ROOT, "web", "public")
 DATA = os.path.join(OUT, "data")
 
-SITE = os.environ.get("SITE_URL", "https://k-conmap.web.app").rstrip("/")
+SITE = os.environ.get("SITE_URL", "https://k-conmap.com").rstrip("/")
 LIMIT = int(os.environ.get("SITEMAP_AGENCIES", "800"))   # 색인 상황 보며 올릴 것
 MIN_ROWS = 15                                            # 얄팍한 페이지는 아예 넣지 않음
 

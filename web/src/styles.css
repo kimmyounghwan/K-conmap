@@ -4,8 +4,12 @@
    ========================================================== */
 
 :root {
-  --bg: #f4f6f9;
+  --bg: #eef1f6;
   --surface: #ffffff;
+  --bar: #0f1e3d;
+  --bar-2: #16294f;
+  --bar-line: #24365c;
+  --bar-text: #dbe4f5;
   --surface-2: #f8fafc;
   --line: #e5e7eb;
   --line-soft: #f1f3f6;
@@ -24,13 +28,18 @@
   --shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 4px 16px rgba(16, 24, 40, .06);
   --radius: 14px;
   --nav-h: 58px;
-  --maxw: 720px;
+  --maxw: 1180px;
+  --rail: 208px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #0e1116;
     --surface: #161a21;
+    --bar: #0a0f17;
+    --bar-2: #121822;
+    --bar-line: #222b39;
+    --bar-text: #c7d0de;
     --surface-2: #1c212a;
     --line: #262c36;
     --line-soft: #1f242d;
@@ -77,39 +86,141 @@ button { font: inherit; color: inherit; }
   padding: 0 14px calc(var(--nav-h) + env(safe-area-inset-bottom) + 24px);
 }
 
+/* 넓은 화면에서는 하단 탭 대신 상단 가로 메뉴를 쓴다 */
+.railnav { display: none; }
+@media (min-width: 900px) {
+  .tabbar { display: none; }
+  .shell { padding-bottom: 40px; }
+  .railnav {
+    display: flex;
+    gap: 2px;
+    max-width: var(--maxw);
+    margin: 0 auto;
+    padding: 0 8px;
+  }
+  .railnav a {
+    padding: 9px 14px 11px;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--bar-text);
+    opacity: .72;
+    border-bottom: 2px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .railnav a:hover { opacity: 1; }
+  .railnav a.on { opacity: 1; color: #fff; border-bottom-color: #7fb0ff; }
+  .railnav .ic { font-size: 15px; }
+}
+.railwrap { background: var(--bar); border-bottom: 1px solid var(--bar-line); }
+@media (max-width: 899px) { .railwrap { display: none; } }
+
 .topbar {
   position: sticky;
   top: 0;
   z-index: 40;
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
-  backdrop-filter: saturate(160%) blur(12px);
-  border-bottom: 1px solid var(--line-soft);
+  background: var(--bar);
+  border-bottom: 1px solid var(--bar-line);
 }
 .topbar-in {
   max-width: var(--maxw);
   margin: 0 auto;
-  padding: 12px 14px;
+  padding: 9px 14px;
   display: flex;
   align-items: center;
   gap: 10px;
 }
 .brand {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 800;
   letter-spacing: -.4px;
+  color: #fff;
   display: flex;
   align-items: center;
   gap: 7px;
+  white-space: nowrap;
 }
-.brand b { color: var(--accent); }
+.brand b { color: #7fb0ff; }
 .brand-sub {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
-  color: var(--muted);
-  letter-spacing: 0;
+  color: var(--bar-text);
+  opacity: .75;
   padding: 2px 6px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border: 1px solid var(--bar-line);
+  border-radius: 5px;
+  white-space: nowrap;
+}
+@media (max-width: 520px) { .brand-sub { display: none; } }
+
+/* ── 기초금액 상시 입력 ───────────────────── */
+.basebtn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border: 1px dashed var(--bar-line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--bar-text);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.basebtn:hover { border-color: #7fb0ff; color: #fff; }
+.basebtn-ic { font-weight: 800; color: #7fb0ff; }
+
+.basefield {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--bar-2);
+  border: 1px solid var(--bar-line);
+  border-radius: 8px;
+  padding: 4px 6px 4px 10px;
+}
+.basefield label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--bar-text);
+  opacity: .8;
+  white-space: nowrap;
+}
+.basefield input {
+  width: 132px;
+  padding: 3px 6px;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  outline: none;
+}
+.basefield input::placeholder { color: #6b7f9f; font-weight: 500; }
+.basefield input:focus { box-shadow: none; }
+.baseclear {
+  border: 0; background: transparent; cursor: pointer;
+  color: #7b8fae; font-size: 12px; padding: 2px 4px;
+}
+.baseclear:hover { color: #fff; }
+
+/* 목록에서 투찰률 옆에 붙는 환산 금액 */
+.conv {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: 5px;
+  padding: 1px 5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .spacer { flex: 1; }
 
@@ -220,8 +331,29 @@ button { font: inherit; color: inherit; }
 .badge.r { background: var(--bad-soft); color: var(--bad); }
 .badge.n { background: var(--surface-2); color: var(--muted); border-color: var(--line); }
 
-.chips { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 8px; scrollbar-width: none; }
+/* 좁은 화면에서는 가로 스크롤, 넓은 화면에서는 줄바꿈.
+   가로 스크롤일 때 오른쪽 끝을 흐리게 해서 «더 있다»는 걸 보이게 한다.
+   (안 그러면 칩이 그냥 잘린 것처럼 보임) */
+.chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 0 8px;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent 100%);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent 100%);
+}
 .chips::-webkit-scrollbar { display: none; }
+
+@media (min-width: 620px) {
+  .chips {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .chip { flex: 0 0 auto; }
+}
 .chip {
   flex: 0 0 auto;
   padding: 6px 12px;
@@ -478,3 +610,83 @@ input[type=number] { font-variant-numeric: tabular-nums; }
   body { font-size: 15.5px; }
   .tiles { gap: 10px; }
 }
+
+/* ==========================================================
+   넓은 화면 마무리
+   (앞쪽 미디어쿼리보다 .tabbar 규칙이 뒤에 있어 덮어써지므로
+    파일 맨 끝에서 다시 한 번 확정한다 — 순서가 곧 우선순위)
+   ========================================================== */
+@media (min-width: 900px) {
+  .tabbar { display: none !important; }
+  .shell { padding-bottom: 40px; }
+
+  /* 데스크톱에서는 목록이 너무 옆으로 늘어지지 않게 */
+  .notice h3 { font-size: 15.5px; }
+  .notice { padding: 15px 18px; }
+
+  /* 통계 타일과 세그먼트는 폭을 제한해 시선이 흩어지지 않게 */
+  .seg { max-width: 420px; }
+}
+
+@media (min-width: 1100px) {
+  /* 검색·필터를 한 줄로 묶어 «작업대» 느낌을 준다 */
+  .toolrow { display: flex; align-items: center; gap: 10px; }
+  .toolrow input { flex: 1; margin-bottom: 0 !important; }
+}
+
+/* ==========================================================
+   공고 / 1순위 카드를 펼쳤을 때 — 기초금액·낙찰가 표
+   («그래서 얼마냐»를 한눈에. 이 사이트가 다른 입찰 사이트와
+    다르게 가져가는 지점이라 카드 안에서 바로 보여준다)
+   ========================================================== */
+.notice { cursor: pointer; }
+.notice .caret {
+  font-size: 10px; color: var(--muted);
+  margin-left: 8px; flex: 0 0 auto;
+}
+
+.detail {
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.detail-h {
+  font-size: 12px; font-weight: 700;
+  color: var(--text-2); margin: 4px 0 6px;
+}
+
+.kv {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 1px; background: var(--line);
+  border: 1px solid var(--line); border-radius: 10px;
+  overflow: hidden; margin-bottom: 10px;
+}
+.kv > div {
+  background: var(--surface);
+  padding: 9px 11px;
+  display: flex; flex-direction: column; gap: 3px;
+  min-width: 0;
+}
+.kv span {
+  font-size: 11px; color: var(--text-2);
+  letter-spacing: -0.2px;
+}
+.kv b {
+  font-size: 14px; font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.kv b.hi { color: var(--accent); }
+
+@media (min-width: 620px) {
+  .kv { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* 지금 몇 건을 보고 있는지 알려주는 띠 (7주 전체 불러오기 버튼) */
+.rangebar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: 10px; padding: 8px 12px; margin: 0 0 10px;
+}
+.rangebar .rb-t { flex: 1; min-width: 190px; font-size: 12px; color: var(--text-2); }
+.rangebar .rb-t b { color: var(--text); font-weight: 800; }

@@ -1,3 +1,8 @@
 User-agent: *
 Allow: /
-Sitemap: https://k-conmap.web.app/sitemap.xml
+
+# 집계 JSON 은 사람이 읽을 페이지가 아닙니다.
+# (없는 경로도 SPA 규칙 때문에 200 으로 응답해서, 크롤러가 헛돌 수 있습니다)
+Disallow: /data/
+
+Sitemap: https://k-conmap.com/sitemap.xml

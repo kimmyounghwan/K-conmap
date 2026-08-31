@@ -1,0 +1,112 @@
+# ============================================================
+#  K-건설맵 자동 갱신
+#
+#  이 파일이 하는 일: 소장님 컴퓨터가 꺼져 있어도
+#  GitHub 서버가 대신 조달청 자료를 받아 사이트에 올립니다.
+#
+#  하루 세 번 (한국시간 오전 8시 / 오후 2시 / 오후 8시) 돌고,
+#  «Actions» 탭에서 손으로 즉시 돌릴 수도 있습니다.
+#  실패하면 GitHub 이 소장님 메일로 알려줍니다.
+# ============================================================
+name: 사이트 자동 갱신
+
+on:
+  schedule:
+    # GitHub 은 UTC 기준입니다. 한국시간 = UTC + 9시간
+    - cron: '0 23 * * *'   # 한국 08:00
+    - cron: '0 5 * * *'    # 한국 14:00
+    - cron: '0 11 * * *'   # 한국 20:00
+  workflow_dispatch:        # «Actions» 탭에서 손으로 돌리는 버튼
+
+# 같은 작업이 겹쳐 돌지 않게 (중복 배포 방지)
+concurrency:
+  group: update
+  cancel-in-progress: false
+
+permissions:
+  contents: write           # 누적 자료를 저장소에 다시 올리기 위해
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: 코드 받기
+        uses: actions/checkout@v4
+
+      - name: 파이썬 준비
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Node 준비
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: 파이썬 패키지 설치
+        run: pip install -r requirements.txt
+
+      # 수집 기록(data/store)은 저장소에 넣지 않고 여기에 보관합니다.
+      # 매일 쓰므로 사라지지 않지만, 혹시 사라지면 아래에서 스스로 복구합니다.
+      - name: 지난 수집 기록 가져오기
+        uses: actions/cache@v4
+        with:
+          path: data/store
+          key: store-${{ github.run_id }}
+          restore-keys: store-
+
+      - name: 조달청 수집
+        env:
+          G2B_API_KEY: ${{ secrets.G2B_API_KEY }}
+          PYTHONUTF8: '1'
+        run: |
+          # 기록이 비어 있으면(캐시 유실) 60일치를 다시 받아 스스로 복구합니다
+          if [ ! -s data/store/first.json ]; then
+            echo "▶ 수집 기록이 없습니다 — 60일치를 다시 받습니다 (10분쯤)"
+            python collect.py --backfill 60
+          else
+            python collect.py --days 3
+          fi
+
+      - name: 3년치 집계
+        env:
+          PYTHONUTF8: '1'
+        run: python build_json.py
+
+      - name: 검색엔진 주소 목록
+        env:
+          PYTHONUTF8: '1'
+        run: python sitemap.py
+
+      - name: 사이트 빌드
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: 사이트 배포
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: k-conmap
+          channelId: live
+          entryPoint: web
+
+      - name: 누적 자료 저장소에 반영
+        run: |
+          git config user.name  "k-conmap-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/extra_*.csv
+          if git diff --staged --quiet; then
+            echo "새로 쌓인 자료 없음 — 커밋 생략"
+          else
+            git commit -m "자동 수집 $(date -u -d '+9 hours' '+%Y-%m-%d %H:%M') KST"
+            git pull --rebase --autostash origin ${{ github.ref_name }} || true
+            git push
+          fi

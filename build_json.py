@@ -29,9 +29,18 @@ OUT = os.path.join(ROOT, "web", "public", "data")
 SOURCES = [
     ("공사", ["data/bid_data_3years.zip", "bid_data_3years.zip",
               "data/bid_data_3years.csv", "bid_data_3years.csv"]),
-    ("용역", ["data/service_data_3years.zip", "service_data_3years.zip",
-              "data/service_data_3years.csv", "service_data_3years.csv"]),
+    # 2026-08-31 — 용역 제외. 3년치 482,630건 중 363,783건(75%)이 용역이라
+    #   빼면 집계 파일이 크게 줄고 사이트가 가벼워집니다.
+    #   되돌리려면 아래 두 줄의 주석을 풀면 됩니다. 원본 zip 은 지우지 않았습니다.
+    # ("용역", ["data/service_data_3years.zip", "service_data_3years.zip",
+    #           "data/service_data_3years.csv", "service_data_3years.csv"]),
 ]
+
+# 최근 몇 년치만 쓸지. «3년 창»이 굴러가게 하는 값입니다.
+#   오래된 자료를 계속 안고 가면 4년·5년치가 되면서
+#   지금과 다른 옛날 투찰 관행이 평균을 끌어당깁니다.
+#   집계할 때마다 이 창 밖의 자료는 자동으로 빠집니다.
+WINDOW_YEARS = int(os.environ.get("WINDOW_YEARS", "3"))
 
 CHUNK = 200          # 한 묶음에 담을 기관/업체 수
 MIN_ROWS = 2         # 이보다 적으면 통계가 무의미해서 상세를 만들지 않음
@@ -173,12 +182,54 @@ def load_all():
         raise SystemExit("❌ 원본 데이터가 하나도 없습니다. data/ 폴더에 zip 또는 csv를 넣어주세요.")
     df = pd.concat(frames, ignore_index=True)
 
+    # ⚠️ 중복 제거 — 없으면 계산이 틀어집니다.
+    #   3년치 원본과 매일 수집분(extra_collected.csv)은 구간이 겹칩니다.
+    #   같은 공고가 두 번 세어지면 발주기관 평균·최다구간이 그쪽으로 쏠립니다.
+    #   먼저 들어온 것(3년치 원본)을 남깁니다.
+    before = len(df)
+    if "공고번호" in df.columns:
+        key = df["공고번호"].fillna("").astype(str).str.strip()
+        has = key != ""
+        # 공고번호가 있는 줄은 번호로, 없는 줄은 내용으로 중복을 판단
+        df = pd.concat([
+            df[has].loc[~key[has].duplicated(keep="first")],
+            df[~has],
+        ], ignore_index=True)
+    df = df.drop_duplicates(
+        subset=[c for c in ("발주기관", "공고명", "날짜", "1순위업체", "투찰금액")
+                if c in df.columns],
+        keep="first").reset_index(drop=True)
+    if before != len(df):
+        log(f"중복 {before - len(df):,}건 제거 → {len(df):,}건")
+
     for c in ("발주기관", "1순위업체", "공고명", "투찰률", "투찰금액", "날짜"):
         if c not in df.columns:
             df[c] = ""
     df["rate"] = df["투찰률"].map(to_rate)
     df["amt"] = df["투찰금액"].map(to_amt)
-    df["dt"] = pd.to_datetime(df["날짜"], errors="coerce")
+    # ⚠️ 날짜 형식이 두 가지로 섞여 있습니다.
+    #    3년치 원본은 '2022-11-14 15:00:00', 매일 수집분은 '2026-08-31' 입니다.
+    #    pd.to_datetime 에 그냥 넘기면 첫 줄 형식으로 고정해버려서
+    #    뒤에 오는 수집분 날짜가 전부 버려집니다(NaT).
+    #    → 실제로 2026-05 이후 78,064건의 날짜가 통째로 날아가 있었습니다.
+    #    그래서 앞 10자리로 잘라 맞춰보고, 안 되면 숫자만 남겨 다시 시도합니다.
+    _d = df["날짜"].astype(str).str.strip()
+    df["dt"] = pd.to_datetime(
+        _d.str.slice(0, 10), format="%Y-%m-%d", errors="coerce"
+    ).fillna(pd.to_datetime(
+        _d.str.replace(r"[^0-9]", "", regex=True).str.slice(0, 8),
+        format="%Y%m%d", errors="coerce"))
+    # ── 최근 WINDOW_YEARS 년만 남긴다 (창이 굴러간다) ──
+    if WINDOW_YEARS > 0:
+        cut = pd.Timestamp.now().normalize() - pd.DateOffset(years=WINDOW_YEARS)
+        n0 = len(df)
+        bad = int(df["dt"].isna().sum())
+        df = df[df["dt"].notna() & (df["dt"] >= cut)].reset_index(drop=True)
+        log(f"최근 {WINDOW_YEARS}년만 사용 ({cut.date()} 이후) — "
+            f"{n0 - len(df):,}건 제외 → {len(df):,}건")
+        if bad:
+            log(f"⚠️  날짜를 못 읽은 {bad:,}건도 함께 빠졌습니다 (형식 확인 필요)")
+
     df["발주기관"] = df["발주기관"].fillna("").astype(str).str.strip()
     df["1순위업체"] = df["1순위업체"].fillna("").astype(str).str.strip()
     df["공고명"] = df["공고명"].fillna("").astype(str).str.strip()
@@ -195,11 +246,11 @@ def build_agency(df):
     cur, cur_n = {}, 0
     written = 0
 
-    groups = df[df["발주기관"] != ""].groupby("발주기관", sort=False)
-    order = sorted(groups.groups.keys(), key=lambda k: (first_key(k), k))
-
-    for name in order:
-        g = groups.get_group(name)
+    # groupby 결과를 한 번만 훑는다.
+    # (예전에는 get_group 을 1만 번 넘게 불렀는데, 그때마다 전체를 다시 훑어
+    #  기관 수가 늘수록 급격히 느려지고 중간에 멈추기도 했다)
+    agg = {}
+    for name, g in df[df["발주기관"] != ""].groupby("발주기관", sort=False):
         n = len(g)
         rates = [r for r in g["rate"].tolist() if r is not None and not pd.isna(r)]
         if n < MIN_ROWS or not rates:
@@ -247,13 +298,18 @@ def build_agency(df):
             "amt": amt,
             "cases": cases,
         }
-        idx[first_key(name)][name] = [n, len(chunks)]
+        agg[name] = cur.pop(name)
+
+    for name in sorted(agg, key=lambda k: (first_key(k), k)):
+        cur[name] = agg[name]
+        idx[first_key(name)][name] = [n_ := agg[name]["n"], len(chunks)]
         cur_n += 1
         if cur_n >= CHUNK:
             chunks.append(cur)
             cur, cur_n = {}, 0
     if cur:
         chunks.append(cur)
+    agg.clear()
 
     for i, ch in enumerate(chunks):
         written += write_json(f"agency/dat/{i}.json", ch)
@@ -284,11 +340,8 @@ def build_corp(df):
     d2["ckey"] = d2["1순위업체"].map(norm_corp)
     d2 = d2[d2["ckey"] != ""]
 
-    groups = d2.groupby("ckey", sort=False)
-    order = sorted(groups.groups.keys(), key=lambda k: (first_key(k), k))
-
-    for key in order:
-        g = groups.get_group(key)
+    agg = {}
+    for key, g in d2.groupby("ckey", sort=False):
         n = len(g)
         rates = [r for r in g["rate"].tolist() if r is not None and not pd.isna(r)]
 
@@ -329,13 +382,18 @@ def build_corp(df):
                 int(r["amt"] or 0),
             ] for _, r in recent.iterrows()],
         }
-        idx[first_key(key)][key] = [n, len(chunks)]
+        agg[key] = cur.pop(key)
+
+    for key in sorted(agg, key=lambda k: (first_key(k), k)):
+        cur[key] = agg[key]
+        idx[first_key(key)][key] = [agg[key]["n"], len(chunks)]
         cur_n += 1
         if cur_n >= CHUNK:
             chunks.append(cur)
             cur, cur_n = {}, 0
     if cur:
         chunks.append(cur)
+    agg.clear()
 
     for i, ch in enumerate(chunks):
         written += write_json(f"corp/dat/{i}.json", ch)

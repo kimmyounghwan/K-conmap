@@ -1,18 +1,35 @@
-{
-  "//": "K-건설맵 — 구인구직 한 곳만 씁니다. 그 외 경로는 전부 잠겨 있습니다.",
-  "rules": {
-    ".read": false,
-    ".write": false,
+// K-건설맵 RTDB 규칙
+//
+// ⚠️ 이 파일은 기존 Streamlit(k-conmap) 규칙에 구인구직을 더한 "병합본"입니다.
+//    stats / sarasa / archive_* / service_* 를 지우면 돌아가는 사이트가 깨집니다.
+//
+// ⚠️ 루트를 "auth != null" 로만 두면, 익명 로그인을 켜는 순간
+//    누구나 DB 전체를 읽고 쓸 수 있게 됩니다. 익명은 반드시 제외합니다.
+//
+// 원래 규칙 백업: _임시/rtdb_rules_백업_20260830.json
 
+{
+  "rules": {
+    ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
+    ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
+
+    // ───── 기존 Streamlit 이 쓰는 노드 (건드리지 말 것) ─────
+    "stats": { ".read": true, ".write": true },
+    "sarasa": { ".read": true, ".write": true },
+    "archive_1st": { ".indexOn": ["날짜"] },
+    "archive_live": { ".indexOn": ["공고일자"] },
+    "service_1st": { ".indexOn": ["날짜"] },
+    "service_live": { ".indexOn": ["공고일자"] },
+
+    // ───── 새 사이트의 구인구직 ─────
+    // 목록은 누구나 읽고, 글쓰기는 익명 로그인한 사람만.
+    // 수정·숨김은 글쓴이 브라우저(uid)만 가능합니다.
     "jobs": {
-      "//": "글 목록. 누구나 읽습니다. 새 글은 익명 로그인한 사람만 쓸 수 있고, 수정·숨김은 글쓴이 브라우저(uid)만 가능합니다.",
       ".read": true,
       ".indexOn": ["at"],
-
       "$id": {
         ".write": "auth != null && newData.exists() && ( !data.exists() || data.child('uid').val() === auth.uid )",
         ".validate": "newData.hasChildren(['type','title','contact','uid','at'])",
-
         "type":    { ".validate": "newData.isString() && (newData.val() === '구인' || newData.val() === '구직')" },
         "title":   { ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 60" },
         "trade":   { ".validate": "newData.isString() && newData.val().length <= 20" },
@@ -23,13 +40,12 @@
         "uid":     { ".validate": "newData.isString() && newData.val().length <= 64" },
         "at":      { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
         "deleted": { ".validate": "newData.isBoolean()" },
-
         "$other":  { ".validate": false }
       }
     },
 
+    // 삭제용 비밀번호의 해시. 아무도 읽을 수 없고, 글 만들 때 한 번만 쓸 수 있습니다.
     "job_pins": {
-      "//": "삭제용 비밀번호의 해시. 아무도 읽을 수 없고, 글을 만들 때 딱 한 번만 쓸 수 있습니다.",
       ".read": false,
       "$id": {
         ".write": "auth != null && !data.exists()",
@@ -37,8 +53,8 @@
       }
     },
 
+    // 삭제 요청. 제출한 해시가 job_pins 값과 같을 때만 서버가 받아줍니다.
     "job_del": {
-      "//": "삭제 요청. 제출한 해시가 job_pins 의 값과 정확히 같을 때만 서버가 받아줍니다. 비밀번호를 모르면 남의 글을 지울 수 없습니다.",
       ".read": true,
       "$id": {
         ".write": "auth != null && !data.exists() && newData.isString() && newData.val() === root.child('job_pins').child($id).val()"

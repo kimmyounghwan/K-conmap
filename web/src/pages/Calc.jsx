@@ -4,6 +4,7 @@ import { getAgency, similarZone } from '../lib/data.js'
 import { bidCalculator, bidScore } from '../lib/engines.js'
 import { AgencyPicker, MoneyInput, Bars, Tile, Empty } from '../components.jsx'
 import { won, pct, num } from '../lib/fmt.js'
+import { useBasePrice } from '../BasePrice.jsx'
 
 export default function Calc() {
   const [sp, setSp] = useSearchParams()
@@ -13,7 +14,8 @@ export default function Calc() {
   const [agencyName, setAgencyName] = useState('')
   const [agency, setAgency] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [base, setBase] = useState(0)
+  // 상단 바에 넣어둔 기초금액을 그대로 씁니다 (두 번 입력하지 않도록)
+  const { base, setBase } = useBasePrice()
   const [notice, setNotice] = useState('')
   const [myRate, setMyRate] = useState('')
   const [similar, setSimilar] = useState(null)

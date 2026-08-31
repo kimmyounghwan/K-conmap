@@ -1,34 +1,42 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getFirst, getOverview } from '../lib/data.js'
+import { getOverview } from '../lib/data.js'
+import { useBoard } from '../lib/useBoard.js'
 import { Skeleton, Empty, Tile } from '../components.jsx'
-import { won, wonShort, pct, num, dateTime, REGIONS, inRegion } from '../lib/fmt.js'
+import { ConvertedPrice, useBasePrice } from '../BasePrice.jsx'
+import { won, wonShort, pct, num, dateTime, dateShort, REGIONS, inRegion } from '../lib/fmt.js'
 
 const PAGE = 20
+const KIND = 'con'   // 공사만 다룹니다 (용역 제외)
+
+/** 기초금액 대비 몇 %인지 — 공고서에 기초금액이 실려 있을 때만 */
+const rateOf = (amt, base) =>
+  base > 0 && amt > 0 ? Math.round((amt / base) * 100000) / 1000 : null
 
 export default function FirstBoard() {
-  const [data, setData] = useState(null)
+  const { info, rows: all, loading, loadingAll, done, loadAll } = useBoard('first', KIND)
   const [ov, setOv] = useState(null)
-  const [kind, setKind] = useState('con')
   const [region, setRegion] = useState('전국')
   const [q, setQ] = useState('')
   const [page, setPage] = useState(1)
   const [open, setOpen] = useState(null)
+  const { setBase } = useBasePrice()
 
+  useEffect(() => { getOverview().then(setOv) }, [])
+  useEffect(() => { setPage(1) }, [region, q])
+
+  // 검색하거나 지역을 고르면 7주 전체를 뒤에서 받아온다
   useEffect(() => {
-    getFirst().then((d) => setData(d || { built: '', con: [], serv: [] }))
-    getOverview().then(setOv)
-  }, [])
-  useEffect(() => { setPage(1) }, [kind, region, q])
+    if (!done && (q.trim().length > 0 || region !== '전국')) loadAll()
+  }, [q, region, done, loadAll])
 
   const rows = useMemo(() => {
-    const src = (data && data[kind]) || []
     const s = q.trim()
-    return src.filter((r) =>
+    return all.filter((r) =>
       inRegion(r, region) &&
       (!s || (r.name || '').includes(s) || (r.inst || '').includes(s) || (r.win || '').includes(s))
     )
-  }, [data, kind, region, q])
+  }, [all, region, q])
 
   const pages = Math.max(1, Math.ceil(rows.length / PAGE))
   const view = rows.slice((page - 1) * PAGE, page * PAGE)
@@ -37,7 +45,7 @@ export default function FirstBoard() {
     <>
       <div className="sec-title" style={{ marginTop: 14 }}>
         🏆 1순위 현황판
-        <span className="count">· 최근 개찰 결과</span>
+        <span className="count">· 공사 개찰 결과 · 카드를 누르면 기초금액·낙찰가</span>
       </div>
 
       {ov && (
@@ -45,14 +53,9 @@ export default function FirstBoard() {
           <Tile k="누적 데이터" v={num(ov.rows)} small />
           <Tile k="발주기관" v={num(ov.agencies)} small />
           <Tile k="업체" v={num(ov.corps)} small />
-          <Tile k="최근 개찰" v={num((data?.con?.length || 0) + (data?.serv?.length || 0))} small />
+          <Tile k="최근 개찰" v={num(info?.n)} small />
         </div>
       )}
-
-      <div className="seg">
-        <button className={kind === 'con' ? 'on' : ''} onClick={() => setKind('con')}>공사</button>
-        <button className={kind === 'serv' ? 'on' : ''} onClick={() => setKind('serv')}>용역</button>
-      </div>
 
       <input
         value={q}
@@ -67,7 +70,10 @@ export default function FirstBoard() {
         ))}
       </div>
 
-      {!data ? <Skeleton /> : rows.length === 0 ? (
+      <RangeBar info={info} loaded={all.length} done={done}
+        loadingAll={loadingAll} onLoadAll={loadAll} />
+
+      {loading ? <Skeleton /> : rows.length === 0 ? (
         <Empty icon="🔎">
           조건에 맞는 개찰 결과가 없습니다.<br />지역을 넓히거나 검색어를 지워보세요.
         </Empty>
@@ -80,6 +86,7 @@ export default function FirstBoard() {
           {view.map((r, i) => {
             const id = `${r.no}-${i}`
             const isOpen = open === id
+            const winAmt = r.sAmt || r.amt
             return (
               <div className="notice" key={id} onClick={() => setOpen(isOpen ? null : id)}>
                 <h3>{r.name}</h3>
@@ -88,29 +95,65 @@ export default function FirstBoard() {
                   <span>·</span>
                   <span>{dateTime(r.dt)}</span>
                   {r.rate != null && <span className="badge b">{pct(r.rate, 3)}</span>}
+                  {r.base > 0 && <span className="badge n">기초 {wonShort(r.base)}</span>}
+                  {r.rate != null && <ConvertedPrice rate={r.rate} />}
                 </div>
                 <div className="foot">
                   <span className="badge g">1순위</span>
                   <span className="win">{r.win}</span>
                   <span className="spacer" style={{ flex: 1 }} />
-                  <span className="amt">{wonShort(r.amt)}</span>
+                  <span className="amt">{wonShort(winAmt)}</span>
+                  <span className="caret">{isOpen ? '▲' : '▼'}</span>
                 </div>
 
                 {isOpen && (
-                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--line)' }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', marginBottom: 6 }}>
-                      참여업체 (상위 {(r.corps || []).length}곳)
-                    </div>
-                    {(r.corps || []).map((c, j) => (
-                      <div className="row" key={j}>
-                        <span className="badge n">{j + 1}위</span>
-                        <div className="grow">
-                          <div className="t">{c[0]}</div>
-                          <div className="d">{won(c[1])}</div>
-                        </div>
-                        <span className="r">{c[2] != null ? pct(c[2], 3) : '-'}</span>
+                  <div className="detail">
+                    <div className="kv">
+                      <div>
+                        <span>기초금액</span>
+                        <b>{r.base > 0 ? won(r.base) : '공개 안 됨'}</b>
                       </div>
-                    ))}
+                      <div>
+                        <span>낙찰가 (1순위)</span>
+                        <b className="hi">{won(winAmt)}</b>
+                      </div>
+                      <div>
+                        <span>투찰률</span>
+                        <b>{r.rate != null ? pct(r.rate, 3) : pct(rateOf(winAmt, r.base), 3)}</b>
+                      </div>
+                      <div>
+                        <span>예가범위</span>
+                        <b>{r.lo != null && r.hi != null ? `${r.lo}% ~ ${r.hi}%` : '-'}</b>
+                      </div>
+                    </div>
+
+                    {r.base > 0 && (
+                      <button
+                        className="btn sm"
+                        style={{ width: '100%', marginBottom: 10 }}
+                        onClick={(e) => { e.stopPropagation(); setBase(r.base) }}>
+                        이 공고의 기초금액({wonShort(r.base)})으로 사이트 전체 계산하기
+                      </button>
+                    )}
+
+                    <div className="detail-h">참여업체 (상위 {(r.corps || []).length}곳)</div>
+                    {(r.corps || []).map((c, j) => {
+                      const cr = c[2] != null ? c[2] : rateOf(c[1], r.base)
+                      return (
+                        <div className="row" key={j}>
+                          <span className={'badge ' + (j === 0 ? 'g' : 'n')}>{j + 1}위</span>
+                          <div className="grow">
+                            <div className="t">{c[0]}</div>
+                            <div className="d">{won(c[1])}</div>
+                          </div>
+                          <span className="r">
+                            {cr != null ? pct(cr, 3) : '-'}
+                            {c[2] != null && <><br /><ConvertedPrice rate={c[2]} /></>}
+                          </span>
+                        </div>
+                      )
+                    })}
+
                     <div className="btn-row" style={{ marginTop: 10 }}>
                       <Link className="btn ghost sm" style={{ flex: 1 }}
                         to={`/agency/${encodeURIComponent(r.inst)}`}
@@ -137,12 +180,27 @@ export default function FirstBoard() {
           )}
         </>
       )}
-
-      {data?.built && (
-        <div className="note" style={{ marginTop: 14 }}>
-          마지막 수집: {data.built} · 조달청 나라장터 개찰 결과를 하루 여러 차례 모아 정리합니다.
-        </div>
-      )}
     </>
+  )
+}
+
+/** 지금 몇 건을 보고 있는지 + 7주 전체 불러오기 */
+export function RangeBar({ info, loaded, done, loadingAll, onLoadAll }) {
+  if (!info) return null
+  const range = info.from && info.to
+    ? `${dateShort(info.from)} ~ ${dateShort(info.to)}` : ''
+  return (
+    <div className="rangebar">
+      <span className="rb-t">
+        {done
+          ? <>전체 <b>{num(info.n)}건</b>{range && <> · {range}</>}</>
+          : <>최신 <b>{num(loaded)}건</b> 표시 중 · 보관 {num(info.n)}건{range && <> ({range})</>}</>}
+      </span>
+      {!done && (
+        <button className="btn ghost sm" disabled={loadingAll} onClick={onLoadAll}>
+          {loadingAll ? '불러오는 중…' : '7주 전체 불러오기'}
+        </button>
+      )}
+    </div>
   )
 }

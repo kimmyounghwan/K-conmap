@@ -121,6 +121,16 @@ export async function similarZone(noticeName) {
 }
 
 /* ── 수집 데이터 (1순위 / 공고) ──────── */
+// first.json / live.json 은 «최신 300건» 요약본입니다.
+// 옛 Streamlit 사이트도 이 두 파일을 읽으므로 형식을 바꾸지 마세요.
 export const getFirst = () => getJSON('/data/first.json')
 export const getLive = () => getJSON('/data/live.json')
-export const getBoard = () => getJSON('/data/board.json')
+
+/* ── 7주치 목록 (묶음으로 나눠 받음) ───
+   하루에 1순위 570건·공고 600건이 나옵니다. 7주면 2만~3만 건이라
+   한 파일에 담으면 휴대폰에서 너무 무겁습니다.
+   그래서 500건씩 나눠두고, 첫 화면은 0번 묶음만 받습니다.
+   검색하거나 지역을 고를 때 나머지를 뒤에서 받아옵니다. */
+export const getBoardMeta = (name) => getJSON(`/data/board/${name}.json`)
+export const getBoardPart = (name, kind, i) =>
+  getJSON(`/data/board/${name}-${kind}-${i}.json`)

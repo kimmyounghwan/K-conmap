@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { getLive } from '../lib/data.js'
+import { useBoard } from '../lib/useBoard.js'
 import { Skeleton, Empty } from '../components.jsx'
-import { wonShort, num, dateTime, dday, REGIONS, inRegion, LICENSES, licenseKeywords } from '../lib/fmt.js'
+import { useBasePrice } from '../BasePrice.jsx'
+import { RangeBar } from './FirstBoard.jsx'
+import { won, wonShort, num, dateTime, dday, REGIONS, inRegion, LICENSES, licenseKeywords } from '../lib/fmt.js'
 
 const PAGE = 20
+const KIND = 'con'   // 공사만 다룹니다 (용역 제외)
 const LS_KEY = 'kcm_licenses'
 
 /** 회원가입 없이도 '내 면허 맞춤매칭'이 되도록 브라우저에만 저장한다 */
@@ -16,35 +18,38 @@ function saveLicenses(v) {
 }
 
 export default function LiveBoard() {
-  const [data, setData] = useState(null)
-  const [kind, setKind] = useState('con')
+  const { info, rows: all, loading, loadingAll, done, loadAll } = useBoard('live', KIND)
   const [region, setRegion] = useState('전국')
   const [q, setQ] = useState('')
   const [page, setPage] = useState(1)
   const [mine, setMine] = useState(false)
   const [lics, setLics] = useState(loadLicenses)
   const [editLic, setEditLic] = useState(false)
+  const [open, setOpen] = useState(null)
+  const { setBase } = useBasePrice()
 
-  useEffect(() => { getLive().then((d) => setData(d || { built: '', con: [], serv: [] })) }, [])
-  useEffect(() => { setPage(1) }, [kind, region, q, mine, lics])
+  useEffect(() => { setPage(1) }, [region, q, mine, lics])
   useEffect(() => { saveLicenses(lics) }, [lics])
 
   const keywords = useMemo(
     () => [...new Set(lics.flatMap(licenseKeywords))], [lics])
 
+  // 검색·지역·면허 맞춤을 쓰면 7주 전체를 뒤에서 받아온다
+  useEffect(() => {
+    if (!done && (q.trim().length > 0 || region !== '전국' || mine)) loadAll()
+  }, [q, region, mine, done, loadAll])
+
   const rows = useMemo(() => {
-    const src = (data && data[kind]) || []
     const s = q.trim()
-    return src.filter((r) => {
+    return all.filter((r) => {
       if (!inRegion(r, region)) return false
       if (s && !((r.name || '').includes(s) || (r.inst || '').includes(s))) return false
       if (mine && keywords.length) {
-        const blob = r.name || ''
-        if (!keywords.some((k) => blob.includes(k))) return false
+        if (!keywords.some((k) => (r.name || '').includes(k))) return false
       }
       return true
     })
-  }, [data, kind, region, q, mine, keywords])
+  }, [all, region, q, mine, keywords])
 
   const pages = Math.max(1, Math.ceil(rows.length / PAGE))
   const view = rows.slice((page - 1) * PAGE, page * PAGE)
@@ -55,12 +60,7 @@ export default function LiveBoard() {
   return (
     <>
       <div className="sec-title" style={{ marginTop: 14 }}>
-        📋 실시간 공고 <span className="count">· 나라장터 입찰공고</span>
-      </div>
-
-      <div className="seg">
-        <button className={kind === 'con' ? 'on' : ''} onClick={() => setKind('con')}>공사</button>
-        <button className={kind === 'serv' ? 'on' : ''} onClick={() => setKind('serv')}>용역</button>
+        📋 공사 입찰공고 <span className="count">· 나라장터 · 카드를 누르면 기초금액</span>
       </div>
 
       <input value={q} onChange={(e) => setQ(e.target.value)}
@@ -101,7 +101,10 @@ export default function LiveBoard() {
         </button>
       )}
 
-      {!data ? <Skeleton /> : rows.length === 0 ? (
+      <RangeBar info={info} loaded={all.length} done={done}
+        loadingAll={loadingAll} onLoadAll={loadAll} />
+
+      {loading ? <Skeleton /> : rows.length === 0 ? (
         <Empty icon="📭">
           조건에 맞는 공고가 없습니다.<br />
           {mine ? '면허 맞춤을 끄거나 면허를 추가해보세요.' : '지역을 넓히거나 검색어를 지워보세요.'}
@@ -110,24 +113,68 @@ export default function LiveBoard() {
         <>
           <div className="sec-title">공고 <span className="count">{num(rows.length)}건</span></div>
           {view.map((r, i) => {
+            const id = `${r.no}-${i}`
+            const isOpen = open === id
             const dd = dday(r.close)
             return (
-              <a className="notice" key={`${r.no}-${i}`}
-                href={r.url || 'https://www.g2b.go.kr'} target="_blank" rel="noreferrer">
+              <div className="notice" key={id} onClick={() => setOpen(isOpen ? null : id)}>
                 <h3>{r.name}</h3>
                 <div className="meta">
                   <span className="inst">{r.inst}</span>
                   <span>·</span>
                   <span>{dateTime(r.dt)}</span>
                   {dd && <span className={'badge ' + dd.tone}>{dd.text}</span>}
+                  {r.base > 0 && <span className="badge n">기초 {wonShort(r.base)}</span>}
                 </div>
                 <div className="foot">
                   <span className="badge n">추정가격</span>
                   <span className="amt">{wonShort(r.budget)}</span>
                   <span style={{ flex: 1 }} />
-                  <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 700 }}>나라장터 열기 →</span>
+                  <span className="caret">{isOpen ? '▲' : '▼'}</span>
                 </div>
-              </a>
+
+                {isOpen && (
+                  <div className="detail">
+                    <div className="kv">
+                      <div>
+                        <span>기초금액</span>
+                        <b className="hi">{r.base > 0 ? won(r.base) : '아직 공개 안 됨'}</b>
+                      </div>
+                      <div>
+                        <span>추정가격</span>
+                        <b>{won(r.budget)}</b>
+                      </div>
+                      <div>
+                        <span>예가범위</span>
+                        <b>{r.lo != null && r.hi != null ? `${r.lo}% ~ ${r.hi}%` : '-'}</b>
+                      </div>
+                      <div>
+                        <span>입찰마감</span>
+                        <b>{dateTime(r.close)}</b>
+                      </div>
+                    </div>
+
+                    {r.base > 0 && (
+                      <button className="btn sm" style={{ width: '100%', marginBottom: 10 }}
+                        onClick={(e) => { e.stopPropagation(); setBase(r.base) }}>
+                        이 공고의 기초금액({wonShort(r.base)})으로 사이트 전체 계산하기
+                      </button>
+                    )}
+
+                    <div className="btn-row">
+                      <a className="btn ghost sm" style={{ flex: 1 }}
+                        href={r.url || 'https://www.g2b.go.kr'} target="_blank" rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}>
+                        나라장터 원문 열기
+                      </a>
+                      <button className="btn ghost sm" style={{ flex: 1 }}
+                        onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(r.no || '') }}>
+                        공고번호 복사
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )
           })}
           {pages > 1 && (
@@ -142,7 +189,7 @@ export default function LiveBoard() {
 
       <div className="note" style={{ marginTop: 14 }}>
         공고 상세는 나라장터 원문으로 연결됩니다. 투찰 전 반드시 원문 공고서를 확인하세요.
-        {data?.built && <> · 마지막 수집 {data.built}</>}
+        기초금액은 발주기관이 공개한 뒤부터 표시됩니다.
       </div>
     </>
   )

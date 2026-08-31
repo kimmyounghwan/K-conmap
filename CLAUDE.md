@@ -1,0 +1,200 @@
+# CLAUDE.md — K-건설맵 v2
+
+이 파일은 이 저장소에서 작업하는 Claude 를 위한 안내입니다.
+사용자는 본인을 초보라고 표현합니다. **설계와 의견을 먼저 이야기하고,
+"코드 줘"라고 할 때만 코드를 제시하세요.** 코드를 줄 때는 부분 수정보다
+전체 파일을 통째로 주는 방식을 선호합니다(파일이 1,000행을 넘으면 부분 수정 동의).
+
+---
+
+## 1. 이 프로젝트가 뭔가
+
+조달청 나라장터 공공 입찰 데이터를 분석해 무료로 보여주는 사이트입니다.
+기존 Streamlit 판(`나노_건설시스템/app.py`, 3,074행)을 **React + Firebase Hosting +
+정적 JSON** 으로 다시 지은 것이 이 저장소입니다.
+
+- 회원제 없음, 로그인 없음, 대문(랜딩) 없음
+- 수익은 애드센스 광고 (유료 구독 아님)
+- 하단 탭 5개: 1순위 / 공고 / 계산 / 분석 / 구인구직
+
+---
+
+## 2. 절대 지켜야 할 원칙
+
+### 비용 (이게 이 구조의 존재 이유입니다)
+
+1. **모든 분석 데이터는 정적 JSON.** Firebase 읽기 과금 0.
+   DB 를 새로 끌어들이자는 제안은 하지 마세요.
+2. **큰 파일을 브라우저로 보내지 않는다.**
+   기관·업체는 이름 첫 글자로 색인(`idx`)을 나누고, 집계는 200개씩
+   묶음(`dat`)으로 쪼갭니다. 사용자는 검색한 것이 든 묶음 하나만 받습니다.
+3. **Realtime DB 는 `onValue` 금지.** 화면 열 때 `get()` 한 번만.
+   (사라사에서 24시간 폴링이 돌아 요금이 샌 전례가 있습니다)
+4. **항상 `limitToLast`.** 노드 전체를 읽는 코드는 리뷰에서 막으세요.
+5. `first.json` / `live.json` 은 **300건 상한**. 첫 화면에서 받는 파일입니다.
+6. `/assets/**` 1년 캐시, `index.html` 캐시 금지 — `web/firebase.json`.
+
+### 보안
+
+1. **`web/database.rules.json` 은 기존 Streamlit 규칙과의 병합본입니다.**
+   `stats` / `sarasa` / `archive_1st` / `archive_live` / `service_1st` /
+   `service_live` 를 지우면 **돌아가는 Streamlit 사이트가 깨집니다.**
+   규칙은 교체가 아니라 병합. (2026-08 사라사에서 규칙 교체로 소실 사고 있었음)
+2. **루트 규칙에서 익명을 반드시 제외**해야 합니다.
+   원래 루트가 `".read": "auth != null"` 이라, 익명 로그인을 켜면
+   **누구나 DB 전체를 읽고 쓸 수 있게 됩니다.** Firebase 설정값이 공개
+   저장소에 있어 실제로 악용 가능합니다.
+   현재 규칙: `auth != null && auth.token.firebase.sign_in_provider != 'anonymous'`
+3. **순서: ① 규칙 배포 → ② 익명 로그인 켜기.** 절대 반대로 하지 마세요.
+4. **API 키·비밀번호를 코드에 넣지 마세요.** 전부 `.env` (gitignore 됨).
+5. 원래 규칙 백업: `_임시/rtdb_rules_백업_20260830.json`
+
+---
+
+## 3. 구조
+
+```
+[내 PC 파이썬]                                  [Firebase Hosting]
+ collect.py    조달청 수집   ─┐
+ inbox.py      받은 자료     ─┼→ web/public/data/*.json ─→ npm run build ─→ deploy
+ build_json.py 3년치 집계    ─┤                                              │
+ seed_first.py 수집 전 임시   ─┤                                              ▼
+ sitemap.py    주소 목록     ─┘                          방문자는 정적 파일만 받음
+```
+
+핵심: **사용자 접속 시 계산하지 않습니다.** 미리 구운 JSON 을 그냥 내려받습니다.
+
+---
+
+## 4. 명령
+
+파이썬은 **루트**에서, `npm`·`firebase` 는 **`web`** 안에서 돕니다.
+`.vscode/tasks.json` 의 작업 메뉴를 쓰면 폴더를 알아서 맞춰줍니다.
+
+```
+python run_all.py              전체 (수집+집계+빌드+배포)
+python run_all.py --quick      집계 생략 (평소 이것)
+python run_all.py --no-deploy  배포 없이
+python collect.py --days 3     수집만
+python build_json.py           집계만 (3~5분)
+python inbox.py                inbox 폴더 자료 반영
+python seed_first.py           수집 전 1순위 화면 임시 채우기
+
+cd web && npm run dev          개발 서버
+cd web && npm run build        빌드
+cd web && firebase deploy --only hosting
+cd web && firebase deploy --only database   # 규칙
+```
+
+---
+
+## 5. 데이터 구조 (JSON 스키마)
+
+`web/public/data/` — `build_json.py` 산출물. **gitignore 됨** (71MB, 2,220 파일).
+
+| 경로 | 내용 |
+|---|---|
+| `overview.json` | 전체 요약 (건수·기간·평균 투찰률) |
+| `agency/idx/{첫글자코드}.json` | `{기관명: [건수, 묶음번호]}` — 검색용 |
+| `agency/dat/{n}.json` | `{기관명: 집계}` — 200곳씩 |
+| `agency/top.json` | 건수 상위 300곳 (추천·사이트맵용) |
+| `corp/idx/*` · `corp/dat/*` | 업체도 같은 구조. 키는 정규화된 업체명 |
+| `kw/{첫글자코드}.json` | `{키워드: [건수, 최빈구간, 평균, 비율]}` — 유사공고용 |
+| `first.json` / `live.json` | `{built, con:[...], serv:[...]}` — 수집 결과 |
+
+기관 집계 한 건:
+```
+{ n, kind, s:{avg,std,min,max,med}, h1:[[구간,건수]], h01:[...],
+  corps:[[업체,건수]], mono, m:[12개], y:{연도:건수}, amt:{...}, cases:[...] }
+```
+
+**업체명 정규화 규칙은 `build_json.py`의 `norm_corp` 과
+`web/src/lib/fmt.js`의 `normCorp` 이 반드시 같아야 합니다.**
+한쪽만 고치면 검색이 조용히 안 맞습니다.
+
+---
+
+## 6. 파일 지도
+
+| 고칠 것 | 파일 |
+|---|---|
+| 색·간격·다크모드 | `web/src/styles.css` |
+| 하단 탭 | `web/src/App.jsx` 의 `TABS` |
+| 1순위 / 공고 화면 | `web/src/pages/FirstBoard.jsx` · `LiveBoard.jsx` |
+| 계산기·낙찰스코어 화면 | `web/src/pages/Calc.jsx` |
+| **점수 배점·등급 기준** | `web/src/lib/engines.js` |
+| 분석 화면 | `web/src/pages/Analysis.jsx` · `AgencyReport.jsx` |
+| 구인구직 | `web/src/pages/Jobs.jsx` |
+| 정적 JSON 로더 | `web/src/lib/data.js` |
+| 면허 키워드·표시 형식 | `web/src/lib/fmt.js` |
+
+`engines.js` 의 점수 기준은 **기존 `app.py`의 `engine_bid_score` 를 그대로
+옮긴 것입니다.** 숫자를 임의로 바꾸지 마세요 — 사용자가 쌓아온 감각과 어긋납니다.
+(핫존 30 / 경쟁 20 / 유사공고 20 / 안정성 15 / 데이터량 15)
+
+---
+
+## 7. 함정 모음 (실제로 겪은 것)
+
+- **한글 입력 깨짐(`ㄱ가강`)** — 입력창 `value` 를 URL·외부 상태에 직접 묶으면
+  매 키 입력마다 리렌더가 나서 조합이 끊깁니다. 로컬 `useState` + 디바운스로
+  짜여 있으니 그대로 두세요.
+- **SPA 뒤로가기** — `←` 를 `navigate("/경로")` 로 만들면 «뒤로»가 아니라
+  히스토리를 쌓는 앞으로 이동입니다. 무한 왕복이 생깁니다.
+- **soft 404** — `path="*"` 를 홈으로 폴백시키면 없는 URL 이 전부 색인됩니다.
+  `NotFound.jsx` 가 `noindex` 를 걸고, **언마운트 시 반드시 제거**합니다.
+  (안 지우면 다음 정상 페이지까지 noindex)
+- **사이트맵 과다 제출** — 신생 사이트에 URL 수천 개를 던지면
+  «발견됨-색인 안 됨»만 쌓입니다. `SITEMAP_AGENCIES` 를 천천히 올리세요.
+- **`build_json.py` 성능** — `groupby` 후 `get_group()` 을 8만 번 부르면
+  매번 전체를 재스캔해 멈춥니다. 단일 순회로 집계 후 정렬하도록 고쳐져 있습니다.
+- **PowerShell 폴더 혼동** — 루트와 `web` 를 헷갈리기 쉽습니다. 항상 절대경로로 안내.
+- **긴 코드 붙여넣기** — 채팅에서 메모장으로 옮길 때 320행 부근에서 잘린 적 있습니다.
+  파일은 250행 이내로 쪼개 주고, 저장 후 `python -c "import ast;ast.parse(...)"` 로 검증시키세요.
+
+### 원격 작업 환경 제약 (Claude 가 직접 돌릴 때)
+
+- `apis.data.go.kr` 은 **네트워크 allowlist 에 막혀 있습니다.** 수집은 사용자 PC 에서만 가능.
+- 마운트된 폴더는 **삭제(unlink) 불가** → 그 안에서 `git commit`·`npm install` 이 실패합니다.
+  스크래치(`$HOME`)에서 작업 후 결과만 복사하세요.
+- **백그라운드 프로세스는 호출이 끝나면 죽습니다.** 45초 넘는 작업은 분할하거나
+  클라우드에서 만들어 tar 로 옮기세요.
+- `npm install` 을 리눅스에서 돌려 윈도우 폴더에 넣으면 **플랫폼 바이너리가 어긋납니다.**
+  반드시 사용자가 윈도우에서 실행해야 합니다.
+
+---
+
+## 8. 진행 상황 (2026-08-31)
+
+**완료**
+- https://k-conmap.com 운영 중 (Firebase Hosting · Cloudflare DNS A 199.36.158.100 DNS only)
+- 서치콘솔 소유권 확인 · 사이트맵 308주소 제출 · 색인 요청 완료
+- GA4 `G-YFGFLYKBCQ` 작동 확인
+- 기초금액 수집 성공 (BSIS 엔드포인트 + 필드 대소문자 흡수 + 실패원인 출력)
+- 공고/1순위 카드 펼치면 기초금액·낙찰가·예가범위 표
+- **용역 제외, 공사 전용** — 3년치 482,630건 중 75%가 용역이었음. 되돌리려면
+  collect.py 의 KINDS 와 build_json.py 의 SOURCES 주석만 풀면 됨 (원본 zip 보존)
+- **7주치 목록** — 500건씩 묶어 나눠 담고, 검색·지역선택 시 전체를 뒤에서 로드
+  (collect.py export_board / web/src/lib/useBoard.js / RangeBar)
+- 누적 자료를 **달별 CSV**(data/extra_YYYY-MM.csv)로 분리 — 자동화 커밋을 가볍게
+- **GitHub Actions 자동화 작성 완료** (.github/workflows/update.yml)
+
+**고친 버그 (둘 다 계산 결과를 틀어지게 하던 것)**
+1. 3년치와 매일 수집분이 8,330건 겹치는데 중복 제거가 없었음 → 공고번호로 제거
+2. 날짜 형식이 두 가지('2022-11-14 15:00:00' / '2026-08-31')로 섞여
+   pandas 가 첫 형식으로 고정, 수집분 78,064건의 날짜가 전부 NaT 였음
+   → 앞 10자리 파싱 + 숫자만 남긴 재시도로 교체. 기간 2026-04-24 → 2026-08-31 로 정상화
+3. firebase.json 헤더는 겹치면 **뒤엣것이 이김**(실측). 맨 아래 `*.json` 규칙이
+   `/data/**` 를 덮어써 캐시가 죽어 있었음 → 넓은 규칙 위, 좁은 규칙 아래로 재정렬
+
+**남은 것**
+1. `자동화_설정하기.md` 대로 새 비공개 저장소 만들고 push (사용자)
+2. GitHub Secrets 2개 등록 (사용자만 가능): `G2B_API_KEY`, `FIREBASE_SERVICE_ACCOUNT`
+3. 옛 Streamlit(나노_건설시스템)의 배너·비용절감 커밋 push — .git/index.lock 먼저 삭제
+4. 9월 말: 색인 확인 후 옛 사이트 종료
+5. 조달청 키 재발급 · GitHub Secrets `GMAIL_APP_PASSWORD` 갱신
+6. 다음 주제: **입찰가격 집중** (기초금액이 모이기 시작했으므로 재료 확보됨)
+
+**⚠️ 마운트된 폴더에서 하지 말 것**
+- `git status` 등 git 명령 — .git/index.lock 을 만들고 지우지 못해 윈도우에서 git 이 막힘
+- 파이썬으로 파일 재작성 후 CRLF 복원 안 하기 — diff 가 «전체 변경»으로 보임

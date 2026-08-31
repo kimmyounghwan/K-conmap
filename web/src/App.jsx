@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
+import { BasePriceProvider, BasePriceField } from './BasePrice.jsx'
 
 const TABS = [
   { to: '/', ic: '🏆', label: '1순위' },
@@ -11,21 +12,32 @@ const TABS = [
 
 export default function App() {
   const { pathname } = useLocation()
-
-  // 탭을 옮기면 항상 맨 위에서 시작 (모바일에서 스크롤이 남아 있으면 혼란스러움)
   useEffect(() => { window.scrollTo(0, 0) }, [pathname])
 
   return (
-    <>
+    <BasePriceProvider>
       <header className="topbar">
         <div className="topbar-in">
           <NavLink to="/" className="brand">
             <span>🏗️</span><span>K-<b>건설맵</b></span>
           </NavLink>
           <span className="brand-sub">조달청 공공입찰</span>
-          <span className="spacer" />
+          {/* 기초금액을 한 번 넣어두면 모든 화면의 투찰률이 금액으로 환산됩니다 */}
+          <BasePriceField />
         </div>
       </header>
+
+      {/* 넓은 화면에서는 하단 탭 대신 상단 가로 메뉴 */}
+      <div className="railwrap">
+        <nav className="railnav">
+          {TABS.map((t) => (
+            <NavLink key={t.to} to={t.to} end={t.to === '/'}
+              className={({ isActive }) => (isActive ? 'on' : '')}>
+              <span className="ic">{t.ic}</span><span>{t.label}</span>
+            </NavLink>
+          ))}
+        </nav>
+      </div>
 
       <main className="shell">
         <Outlet />
@@ -51,6 +63,6 @@ export default function App() {
           </NavLink>
         ))}
       </nav>
-    </>
+    </BasePriceProvider>
   )
 }

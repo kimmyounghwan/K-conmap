@@ -1,6 +1,74 @@
 {
   "version": "2.0.0",
+  "//": "명령을 세미콜론으로 잇지 않습니다. cmd.exe 에서는 ; 가 구분자가 아니라 그냥 인자로 넘어가 실패합니다. 여러 단계는 dependsOn 으로 이어붙입니다.",
   "tasks": [
+    {
+      "label": "🔎 환경 점검 (안 될 때 이것부터)",
+      "detail": "node / npm / python / firebase 가 깔려 있는지 한 번에 확인합니다.",
+      "type": "shell",
+      "command": "node -v; npm -v; python --version; firebase --version",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "shell": {
+          "executable": "powershell.exe",
+          "args": [
+            "-NoProfile",
+            "-Command"
+          ]
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "⓪ 최초 1회 — 패키지 설치",
+      "detail": "pip 와 npm 을 순서대로 설치합니다. 처음 한 번만.",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "⓪-1 파이썬 패키지",
+        "⓪-2 npm 패키지"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "⓪-1 파이썬 패키지",
+      "type": "shell",
+      "command": "pip",
+      "args": [
+        "install",
+        "-r",
+        "requirements.txt"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "⓪-2 npm 패키지",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "install"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/web"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
     {
       "label": "① 빠른 갱신 (공고만 새로 받아 배포)",
       "detail": "평소 이걸 쓰세요. 2~5분. 집계는 건너뜁니다.",
@@ -52,7 +120,7 @@
     },
     {
       "label": "③ 미리보기 서버 (npm run dev)",
-      "detail": "코드를 저장하면 브라우저가 바로 바뀝니다. 끌 때는 휴지통 아이콘.",
+      "detail": "저장하면 브라우저가 바로 바뀝니다. 끌 때는 터미널의 휴지통 아이콘.",
       "type": "shell",
       "command": "npm",
       "args": [
@@ -70,8 +138,8 @@
       "problemMatcher": []
     },
     {
-      "label": "④ 배포만 (firebase deploy)",
-      "detail": "이미 빌드해둔 것을 올리기만 합니다.",
+      "label": "④ 배포만 (빌드 + firebase)",
+      "detail": "빌드하고 사이트에 올립니다.",
       "type": "shell",
       "command": "npm",
       "args": [
@@ -89,8 +157,26 @@
       "problemMatcher": []
     },
     {
+      "label": "④-1 빌드만 (오류 확인용)",
+      "detail": "배포 없이 빌드만 돌려 오류를 봅니다.",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "run",
+        "build"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/web"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "⑤ inbox 자료만 반영",
-      "detail": "inbox 폴더에 넣은 CSV·엑셀을 읽어 정리합니다.",
       "type": "shell",
       "command": "python",
       "args": [
@@ -155,22 +241,7 @@
       "problemMatcher": []
     },
     {
-      "label": "⓪ 최초 1회 — 패키지 설치",
-      "detail": "pip + npm 설치를 한 번에. 처음 한 번만 실행하세요.",
-      "type": "shell",
-      "command": "pip install -r requirements.txt; cd web; npm install",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated",
-        "clear": true
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "⑧ 구인구직 보안규칙 배포 (최초 1회)",
+      "label": "⑧ 구인구직 보안규칙 배포 (익명 로그인 켜기 전에!)",
       "type": "shell",
       "command": "firebase",
       "args": [
@@ -189,12 +260,109 @@
       "problemMatcher": []
     },
     {
-      "label": "⑨ GitHub 에 올리기 (git push)",
-      "detail": "v2 브랜치로 올립니다. main(기존 Streamlit)은 건드리지 않습니다.",
+      "label": "⑨ GitHub 에 올리기",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "⑨-1 변경분 담기",
+        "⑨-2 커밋",
+        "⑨-3 푸시"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "⑨-1 변경분 담기",
       "type": "shell",
-      "command": "git add -A; git commit -m \"업데이트\"; git push -u origin v2",
+      "command": "git",
+      "args": [
+        "add",
+        "-A"
+      ],
       "options": {
         "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "⑨-2 커밋",
+      "type": "shell",
+      "command": "git",
+      "args": [
+        "commit",
+        "-m",
+        "업데이트",
+        "--allow-empty"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "⑨-3 푸시",
+      "type": "shell",
+      "command": "git",
+      "args": [
+        "push",
+        "-u",
+        "origin",
+        "v2"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "⑥-B 자료 공백 메우기 (최초 1회, 20분)",
+      "detail": "3년치 CSV가 끊긴 2026-05 이후를 조달청에서 받아 data/extra_collected.csv 로 쌓습니다. 끝나면 ⑦ 집계만 을 돌리세요.",
+      "type": "shell",
+      "command": "python",
+      "args": [
+        "collect.py",
+        "--backfill",
+        "130"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONUTF8": "1",
+          "PYTHONIOENCODING": "utf-8"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "🔬 기초금액 진단 (안 나올 때)",
+      "detail": "조달청 기초금액 API 를 여러 방식으로 찔러보고 어떤 게 되는지 알려줍니다.",
+      "type": "shell",
+      "command": "python",
+      "args": [
+        "probe_api.py"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONUTF8": "1",
+          "PYTHONIOENCODING": "utf-8"
+        }
       },
       "presentation": {
         "reveal": "always",
