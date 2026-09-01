@@ -100,10 +100,23 @@ def api_key():
     return urllib.parse.unquote(k)
 
 
+# 조달청이 통째로 먹통일 때를 대비한 «차단기».
+#   2026-09-01 에 조달청 API 가 전부 ConnectTimeout 이 났는데,
+#   한 건당 25초씩 150건을 계속 기다리느라 배치가 40분 넘게 늘어졌다.
+#   연달아 실패하면 이번 회차는 통신을 포기하고 넘어간다 — 자료는 누적분이 지킨다.
+NET_FAILS = 0            # 연속 통신 실패 횟수
+NET_DOWN = False         # 차단기가 내려갔는지
+NET_LIMIT = 8            # 이만큼 연달아 실패하면 포기
+NET_TIMEOUT = 15         # 한 건당 기다리는 시간(초)
+
+
 def fetch(url, key, day=None, extra=None, label=""):
     """조달청 공통 호출.
     예전에 기초금액이 '계속 실패'했던 건 대부분 조용히 삼켜서 원인이 안 보였기 때문이다.
     그래서 여기서는 HTTP 코드 / resultCode / 본문 앞머리를 반드시 찍는다."""
+    global NET_FAILS, NET_DOWN
+    if NET_DOWN:
+        return []
     params = {
         "serviceKey": key, "numOfRows": "999", "pageNo": "1",
         "inqryDiv": "1", "type": "json",
@@ -116,11 +129,17 @@ def fetch(url, key, day=None, extra=None, label=""):
         params.update(extra)
     tag = label or url.rsplit("/", 1)[-1]
     try:
-        r = requests.get(url, params=params, timeout=25, verify=False,
+        r = requests.get(url, params=params, timeout=NET_TIMEOUT, verify=False,
                          headers={"User-Agent": "Mozilla/5.0"})
     except Exception as e:
+        NET_FAILS += 1
         print(f"    ! {tag} 통신 실패 ({type(e).__name__})")
+        if NET_FAILS >= NET_LIMIT:
+            NET_DOWN = True
+            print(f"    ⛔ 조달청 통신이 {NET_LIMIT}번 연달아 실패했습니다. "
+                  f"이번 회차는 수집을 건너뜁니다 — 사이트는 누적 자료로 그대로 올라갑니다.")
         return []
+    NET_FAILS = 0
     if r.status_code != 200:
         print(f"    ! {tag} HTTP {r.status_code}")
         return []
