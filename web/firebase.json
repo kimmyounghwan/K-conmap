@@ -63,6 +63,33 @@
         ]
       },
       {
+        "source": "/data/overview.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=900, stale-while-revalidate=86400"
+          }
+        ]
+      },
+      {
+        "source": "/data/bidindex.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=900, stale-while-revalidate=86400"
+          }
+        ]
+      },
+      {
+        "source": "/data/board/*.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=1800, stale-while-revalidate=86400"
+          }
+        ]
+      },
+      {
         "source": "/index.html",
         "headers": [
           {

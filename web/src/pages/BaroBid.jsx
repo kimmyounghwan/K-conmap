@@ -97,6 +97,7 @@ export default function BaroBid() {
       no: a[0], name: a[1], inst: a[2], base: a[3],
       budget: a[4], close: a[5], lo: a[6], hi: a[7],
       llr: a[8] || null, est: a[9] || 0, lic: a[10] || [],
+      aval: a[11] || 0, gmtrl: a[12] || 0,
     }))
   }, [idx])
 
@@ -127,6 +128,8 @@ export default function BaroBid() {
   const pick = (r) => {
     setPicked(r); setQ(r.name); setInst(r.inst)
     setBase(r.base || 0); setBudgetIn(''); setPickRate('rec'); setCopied(false)
+    // 공고에 A값이 실려 오면 그대로 채웁니다 (손으로 옮겨 적을 일을 없애는 게 이 화면의 목적)
+    setAIn(r.aval ? String(r.aval) : '')
   }
   const clear = () => {
     setPicked(null); setQ(''); setInst(''); setBase(0)
@@ -339,17 +342,58 @@ export default function BaroBid() {
         <>
           {/* ── 3. 결과 ── */}
           <div className={'hero ' + (pass === false ? 'bad' : '')}>
+            <div className="sjline">
+              <span className="lab">분석 사정률</span>
+              <span className="val">{sjMid.toFixed(4)}%</span>
+            </div>
             <div className="tag">{chosen?.label === '권장' ? '권장 투찰금액' : '투찰금액'}</div>
-            <div className="amt">{won(main)}</div>
+            <div className="amt">
+              {String(main).replace(/\B(?=(\d{3})+(?!\d))/g, ',').split('').map((ch, i) => (
+                <span key={i} className={ch === ',' ? 'sep' : 'dg'}>{ch}</span>
+              ))}
+              <span className="won">원</span>
+            </div>
             <div className="sub">
-              투찰률 {pct(myRate, 3)} · 예정가격 {wonShort(base * (sjMid / 100))}
-              {' '}(사정률 {pct(sjMid, 3)} 가정)
+              투찰률 {pct(myRate, 3)} · 예정가격 {won(Math.round(base * (sjMid / 100)))}
             </div>
             <div className="range">사정률에 따라 {wonShort(bandLo)} ~ {wonShort(bandHi)}</div>
-            <button className="cbtn" onClick={copy}>
-              {copied ? '✓ 복사했습니다' : '이 금액 복사하기'}
-            </button>
+            <div className="hbtns">
+              <button className="cbtn" onClick={copy}>
+                {copied ? '✓ 복사했습니다' : '금액 복사'}
+              </button>
+              <a className="cbtn ghost" target="_blank" rel="noreferrer"
+                href={picked?.no
+                  ? `https://www.g2b.go.kr/link/PNPE027_01/single/?bidPbancNo=${encodeURIComponent(picked.no)}&bidPbancOrd=000`
+                  : 'https://www.g2b.go.kr'}>
+                나라장터 투찰 →
+              </a>
+            </div>
           </div>
+
+          {/* ── 분석 정보 ── */}
+          {picked && (
+            <div className="card">
+              <div className="detail-h">분석 정보</div>
+              <div className="kv2">
+                <div><span>공고명</span><b>{picked.name}</b></div>
+                <div><span>발주처</span><b>{picked.inst}</b></div>
+                <div><span>기초금액</span><b>{won(base)}</b></div>
+                <div><span>추정가격</span><b>{won(estimate)}</b></div>
+                <div><span>예가범위</span><b>+{hi}% ~ {lo}%</b></div>
+                <div><span>낙찰하한율</span><b>{ll?.rate ? pct(ll.rate, 3) : '별도 기준'}</b></div>
+                {ll?.rate > 0 && (
+                  <div><span>하한 금액</span><b>{won(bidAmount(base, sjMid, ll.rate, a))}</b></div>
+                )}
+                <div><span>A값</span>
+                  <b>{a > 0 ? won(a) : (picked.aval ? won(picked.aval) : '공고서 확인')}</b></div>
+                {picked.gmtrl > 0 && (
+                  <div><span>관급자재</span><b>{won(picked.gmtrl)}</b></div>
+                )}
+                <div><span>입찰마감</span><b>{dateTime(picked.close)}</b></div>
+                {ag && <div><span>이 발주처 3년</span><b>{num(ag.n)}건 · 평균 {pct(ag.s?.avg, 3)}</b></div>}
+              </div>
+            </div>
+          )}
 
           {/* 투찰률 고르기 */}
           <div className="ratepick">

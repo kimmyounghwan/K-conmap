@@ -115,7 +115,7 @@ def api_key():
 #   2026-09-01 에 조달청 API 가 전부 ConnectTimeout 이 났는데,
 #   한 건당 25초씩 150건을 계속 기다리느라 배치가 40분 넘게 늘어졌다.
 #   연달아 실패하면 이번 회차는 통신을 포기하고 넘어간다 — 자료는 누적분이 지킨다.
-FIELDS_SHOWN = False     # 응답 항목 이름을 한 번만 찍기 위한 표시
+FIELDS_SEEN = set()      # 오퍼레이션별로 응답 항목 이름을 한 번씩만 찍기 위한 표시
 NET_FAILS = 0            # 연속 통신 실패 횟수
 NET_DOWN = False         # 차단기가 내려갔는지
 NET_LIMIT = 8            # 이만큼 연달아 실패하면 포기
@@ -167,16 +167,25 @@ def fetch(url, key, day=None, extra=None, label=""):
     if code and code not in ("00", "0"):
         print(f"    ! {tag} 응답코드 {code} · {head.get('resultMsg', '')}")
         return []
-    global FIELDS_SHOWN
     items = (resp.get("body", {}) or {}).get("items", [])
-    # 응답에 어떤 항목이 오는지 한 번만 찍어봅니다.
-    # A값(사회보험료 등 법정경비)이 들어 있으면 자동으로 채울 수 있습니다.
-    if not FIELDS_SHOWN and isinstance(items, (list, dict)):
+    # 오퍼레이션마다 어떤 항목이 오는지 한 번씩 찍어봅니다.
+    #   아이건설넷은 A값(사회보험료 등 법정경비)과 관급자재금액을 자동으로 채웁니다.
+    #   그렇다면 조달청 응답 어딘가에 들어 있다는 뜻입니다. 그걸 찾으려는 것입니다.
+    op = url.rsplit("/", 1)[-1]
+    if op not in FIELDS_SEEN and isinstance(items, (list, dict)):
         one = items[0] if isinstance(items, list) and items else (
             items if isinstance(items, dict) else None)
         if isinstance(one, dict) and one:
-            FIELDS_SHOWN = True
-            print(f"    · [진단] {tag} 응답 항목 이름: {', '.join(sorted(one.keys()))}")
+            FIELDS_SEEN.add(op)
+            print(f"    · [진단] {op} 항목: {', '.join(sorted(one.keys()))}")
+            # A값·관급자재로 보이는 항목이 있으면 값까지 보여줍니다
+            hint = {k: v for k, v in one.items()
+                    if any(w in str(k).lower() for w in
+                           ("insrnc", "sfty", "safe", "retire", "govsply", "gov",
+                            "mtrl", "amt", "prce", "rate"))}
+            if hint:
+                print(f"    · [진단] {op} 금액·비율 항목: "
+                      + ", ".join(f"{k}={v}" for k, v in list(hint.items())[:24]))
     if isinstance(items, dict):
         items = items.get("item", [items])
     if isinstance(items, str):
@@ -232,6 +241,24 @@ def bsis_row(it):
     }
 
 
+def extra_amounts(item):
+    """A값(법정경비)·관급자재금액을 응답에서 찾아본다.
+
+    아이건설넷 화면에는 이 둘이 자동으로 채워져 있습니다.
+    조달청 항목 이름을 확실히 몰라 후보를 여러 개 두고 찾습니다.
+    못 찾으면 그냥 비워 두고, 화면에서 직접 넣게 합니다."""
+    out = {}
+    a = to_int(pick(item, "sfcsrvAmt", "insrncAmt", "lwltAmt", "aVal", "aAmt",
+                    "sftyMngcst", "sfetyMngcst", "rtrfundNon", "nonPrceAmt") or 0)
+    g = to_int(pick(item, "govsplyMtrlAmt", "govsplyAmt", "gvsplyMtrlAmt",
+                    "mtrlAmt") or 0)
+    if a > 0:
+        out["aval"] = a
+    if g > 0:
+        out["gmtrl"] = g
+    return out
+
+
 def bsis_by_day(key, day, kind):
     """하루치 기초금액을 통째로 받아 {공고번호: {...}} 로."""
     out = {}
@@ -240,6 +267,7 @@ def bsis_by_day(key, day, kind):
         no = str(pick(it, "bidNtceNo") or "").strip()
         r = bsis_row(it)
         if no and r:
+            r.update(extra_amounts(it))
             out[no] = r
     return out
 
@@ -269,6 +297,7 @@ def bsis_one(key, no, kind):
                     {"inqryDiv": "2", "bidNtceNo": no}, label=f"기초금액 {no}"):
         r = bsis_row(it)
         if r:
+            r.update(extra_amounts(it))
             return r
     return None
 
@@ -540,7 +569,7 @@ def main():
                 if r:
                     prev = first[kind].get(r["no"]) or {}
                     # 이미 받아둔 기초금액을 덮어쓰지 않는다
-                    for f in ("base", "lo", "hi", "lic"):
+                    for f in ("base", "lo", "hi", "lic", "aval", "gmtrl"):
                         if prev.get(f) is not None:
                             r[f] = prev[f]
                     first[kind][r["no"]] = r
@@ -716,11 +745,13 @@ def main():
                 r.get("llr"),                      # 공고가 알려준 낙찰하한율
                 int(r.get("est") or 0),            # 공고가 알려준 추정가격
                 r.get("lic") or [],                # 면허·업종 제한
+                int(r.get("aval") or 0),           # A값 (법정경비)
+                int(r.get("gmtrl") or 0),          # 관급자재금액
             ])
         rows.sort(key=lambda x: re.sub(r"[^0-9]", "", str(x[5])))
         out = {"built": built,
                "f": ["no", "name", "inst", "base", "budget", "close", "lo", "hi",
-                     "llr", "est", "lic"],
+                     "llr", "est", "lic", "aval", "gmtrl"],
                "r": rows}
         path = os.path.join(OUT, "bidindex.json")
         with open(path, "w", encoding="utf-8") as f:
