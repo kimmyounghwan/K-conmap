@@ -988,3 +988,22 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
   background: var(--accent-soft);
 }
 .licbox .h { font-size: 11px; font-weight: 800; color: var(--accent); }
+
+/* A값을 비워둔 채 하한 가까이 넣을 때의 경고 */
+.warnbox {
+  margin-bottom: 12px; padding: 13px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(180, 83, 9, .32);
+  background: var(--warn-soft);
+}
+.warnbox .h { font-size: 13.5px; font-weight: 800; color: var(--warn); }
+.warnbox p {
+  font-size: 12.5px; line-height: 1.65; color: var(--text-2);
+  margin: 6px 0 9px; word-break: keep-all;
+}
+.warnbox p.last { margin: 9px 0 0; }
+.warnbox code {
+  font-size: 11.5px; padding: 1px 5px; border-radius: 5px;
+  background: var(--surface); border: 1px solid var(--line);
+}
+.warnbox .kv { background: var(--surface); border-radius: 9px; padding: 4px 10px; }

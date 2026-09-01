@@ -315,9 +315,10 @@ export default function BaroBid() {
             onChange={(e) => { setAIn(digits(e.target.value)); setCopied(false) }}
             placeholder="0" />
           <div className="note sm">
-            A값은 투찰률을 곱하지 않고 그대로 더하는 금액입니다.
-            <b> 공고서 산출내역서에 A값이 있는데 비워두면 금액이 틀어집니다.</b>
-            {' '}조달청 API로는 안 나와서 자동으로 채우지 못합니다.
+            A값은 투찰률을 곱하지 않고 <b>그대로 더하는</b> 금액입니다.
+            사회보험료 · 산업안전보건관리비 · 퇴직공제부금 같은 법정경비가 여기 들어갑니다.
+            공고서 산출내역서에 있고, 조달청 API로는 안 나와서 자동으로 채우지 못합니다.<br />
+            <b>A값이 없는 공고면 비워두시면 됩니다</b> — 그때는 이 칸이 계산에 영향을 주지 않습니다.
           </div>
         </div>
       </div>
@@ -415,6 +416,32 @@ export default function BaroBid() {
                   나라장터 원문에서 «참가자격»을 꼭 확인하세요.
                 </div>
               )}
+            </div>
+          )}
+
+          {/* A값을 비워둔 채 하한 가까이 넣으면 실격합니다 — 가장 흔한 사고 */}
+          {a === 0 && ll?.rate && margin != null && margin < 0.5 && (
+            <div className="warnbox">
+              <div className="h">⚠️ A값을 비워두셨습니다</div>
+              <p>
+                이 공고에 A값이 <b>있다면</b> 지금 금액은 <b>하한 미달로 실격</b>입니다.
+                적격심사 하한은 <code>(예정가격 − A) × 하한율 + A</code> 로 판정하는데,
+                A값이 커질수록 하한 금액이 올라가기 때문입니다.
+              </p>
+              <div className="kv">
+                <div>
+                  <span>A값 0원일 때 하한</span>
+                  <b>{won(bidAmount(base, sjMid, ll.rate, 0))}</b>
+                </div>
+                <div>
+                  <span>A값이 기초의 10%라면</span>
+                  <b className="hi">{won(bidAmount(base, sjMid, ll.rate, Math.round(base * 0.1)))}</b>
+                </div>
+              </div>
+              <p className="last">
+                공고서 산출내역서의 «사회보험료 등» 합계를 위 A값 칸에 넣어주세요.
+                A값이 없는 공고라면 지금 이대로가 맞습니다.
+              </p>
             </div>
           )}
 
