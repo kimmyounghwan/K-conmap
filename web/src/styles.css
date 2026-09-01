@@ -1162,3 +1162,8 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .docs .doc:hover { border-color: var(--accent-line); background: var(--accent-soft); }
+
+/* 고른 공고 아래 링크 줄 */
+.picklinks { display: flex; gap: 7px; margin-top: 8px; }
+.picklinks > * { flex: 1; text-align: center; }
+.picklinks a { text-decoration: none; }

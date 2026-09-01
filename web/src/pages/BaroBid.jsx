@@ -292,6 +292,20 @@ export default function BaroBid() {
             {dd && <span className={'badge ' + dd.tone}>{dd.text}</span>}
           </div>
         )}
+
+        {/* 나라장터 링크는 기초금액이 없어도 늘 보이게 둡니다.
+            결과 카드 안에만 넣었더니 «버튼이 없어졌다» 는 이야기가 나왔습니다.
+            주소는 조달청이 준 것(bidNtceDtlUrl)을 그대로 씁니다 — 차수를 손으로
+            만들면 001·002 공고에서 엉뚱한 곳으로 갑니다. */}
+        {picked && (
+          <div className="picklinks">
+            <a className="btn ghost sm" target="_blank" rel="noreferrer"
+              href={picked.url || 'https://www.g2b.go.kr'}>
+              나라장터에서 이 공고 열기 ↗
+            </a>
+            <button className="btn ghost sm" onClick={clear}>지우기</button>
+          </div>
+        )}
       </div>
 
       {/* ── 2. 숫자 ── */}
