@@ -54,3 +54,19 @@ logs/
 # 클로드가 만든 백업·임시 폴더
 _임시/
 gitwork/
+
+# 계정 정보로 보이는 파일은 무조건 제외합니다.
+# 한 번 GitHub 에 올라가면 지워도 기록에 남습니다.
+*아이디*
+*비번*
+*계정*
+*로그인*
+*패스워드*
+*password*
+*passwd*
+*credential*
+*secret*
+*token*
+*.txt
+!README*.txt
+!*설명*.txt

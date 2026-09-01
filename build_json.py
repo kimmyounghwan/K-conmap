@@ -46,6 +46,7 @@ CHUNK = 200          # 한 묶음에 담을 기관/업체 수
 MIN_ROWS = 2         # 이보다 적으면 통계가 무의미해서 상세를 만들지 않음
 HIST_TOP = 30        # 히스토그램은 상위 구간만 (파일 크기 방어)
 CASES = 3            # 최근 사례 보관 건수
+CORP_MIN_SPLIT = 2   # 법인 단위로 따로 만들 최소 표본
 NAME_CUT = 34        # 공고명 자르기
 
 # ── 권장 투찰률의 근거가 되는 값들 (역검증 106,534건으로 정한 숫자) ──
@@ -392,8 +393,32 @@ def build_corp(df):
     written = 0
 
     d2 = df[df["1순위업체"] != ""].copy()
-    d2["ckey"] = d2["1순위업체"].map(norm_corp)
-    d2 = d2[d2["ckey"] != ""]
+    d2["cname"] = d2["1순위업체"].map(norm_corp)
+    d2 = d2[d2["cname"] != ""]
+
+    # ── 같은 이름의 다른 법인을 갈라 놓습니다 ─────────────────
+    #   «대영건설» 한 이름에 서로 다른 법인이 40곳 있습니다.
+    #   합계만 보여주면 남의 실적을 자기 실적으로 착각합니다.
+    #   그래서 이름 단위 기록 «대영건설» 과
+    #   법인 단위 기록 «대영건설#5048113189» 을 둘 다 만듭니다.
+    #   샤드 키는 «이름 첫 글자» 라서 검색은 그대로 됩니다.
+    #
+    #   번호가 없는 줄(수집분 일부)은 이름 단위에만 들어갑니다.
+    #   오늘부터 쌓이는 자료에는 번호가 들어가므로 시간이 지나면 저절로 좋아집니다.
+    d2["ckey"] = d2["cname"]
+    sub = d2[d2["bizno"] != ""].copy()
+    if len(sub):
+        sub["ckey"] = sub["cname"] + "#" + sub["bizno"]
+        # 표본이 너무 적은 법인까지 만들면 파일만 무거워집니다
+        keep = sub.groupby("ckey")["ckey"].transform("size") >= CORP_MIN_SPLIT
+        sub = sub[keep]
+        # 이름 안에 법인이 하나뿐이면 굳이 나눌 이유가 없습니다
+        multi = d2[d2["bizno"] != ""].groupby("cname")["bizno"].nunique()
+        multi = set(multi[multi > 1].index)
+        sub = sub[sub["cname"].isin(multi)]
+    if len(sub):
+        d2 = pd.concat([d2, sub], ignore_index=True)
+        log(f"  동명 법인 분리 {sub['ckey'].nunique():,}곳 (표본 {CORP_MIN_SPLIT}건 이상)")
 
     agg = {}
     for key, g in d2.groupby("ckey", sort=False):
@@ -430,8 +455,13 @@ def build_corp(df):
                     bceo[bz] = ce
         firms = [[bz, bceo.get(bz, ""), c] for bz, c in bzc.most_common(8)]
 
+        is_sub = "#" in key
         cur[key] = {
             "name": str(g["1순위업체"].mode().iat[0])[:40],
+            # 법인 단위 기록이면 사업자번호·대표자를 함께 싣습니다
+            "biz": key.split("#", 1)[1] if is_sub else "",
+            "ceo": (str(g["ceo"].mode().iat[0])[:12]
+                    if is_sub and not g["ceo"].mode().empty else ""),
             "n": n,
             # bzn: 이 이름에 섞여 있는 법인 수 · bzk: 번호가 확인된 건수 · bz: 법인 목록
             "bzn": len(bzc),
@@ -459,7 +489,8 @@ def build_corp(df):
         _r = agg[key].get("reg") or {}
         idx[first_key(key)][key] = [agg[key]["n"], len(chunks),
                                     agg[key].get("bzn", 0),
-                                    next(iter(_r), "")]
+                                    next(iter(_r), ""),
+                                    agg[key].get("ceo", "")]
         cur_n += 1
         if cur_n >= CHUNK:
             chunks.append(cur)
@@ -595,6 +626,117 @@ def build_hot(df):
 
 
 # ─────────────────────────────────────────────
+# 3.7 가상 시뮬레이션 — 지난 개찰에 우리 방식을 대보기
+#
+#     «우리가 그때 이렇게 넣었으면 어땠을까» 를 실제 개찰로 확인합니다.
+#     후보 사정률 10개를 각각 대입해, 그 금액이 실제 1순위보다 낮으면서
+#     낙찰하한을 넘겼는지 봅니다. 넘겼으면 «낙찰» 로 표시합니다.
+#
+#     ⚠️ 한계를 분명히 해둡니다.
+#       조달청이 1순위(낙찰자)만 줍니다. 2위 이하 투찰 내역이 없습니다.
+#       그래서 «실제 1순위보다 낮았다» 까지만 알 수 있고,
+#       적격심사의 비가격 요소(경영상태·시공경험)는 반영하지 못합니다.
+#       실제 승률은 여기 숫자보다 낮습니다. 화면에도 그렇게 적습니다.
+# ─────────────────────────────────────────────
+SIM_DAYS = 30        # 최근 며칠치 개찰로 시험할지
+SIM_CASES = 24       # 화면에 보여줄 사례 수
+
+
+def sj_candidates(sjs, k=10):
+    """실측 사정률 분포를 10등분한 지점 — 이게 후보입니다.
+    지어낸 값이 아니라 «실제로 이만큼 나왔다» 는 자리입니다."""
+    if len(sjs) < 50:
+        return []
+    a = sorted(sjs)
+    out = []
+    for i in range(k):
+        q = (i + 0.5) / k                     # 5%, 15%, ... 95%
+        v = round(a[min(int(len(a) * q), len(a) - 1)], 4)
+        if v not in out:
+            out.append(v)
+    return out
+
+
+def build_sim(df, cands, rec_rate):
+    if not cands or not rec_rate:
+        return None
+
+    cut = pd.Timestamp.now().normalize() - pd.Timedelta(days=SIM_DAYS)
+    g = df[df["dt"].notna() & (df["dt"] >= cut)]
+    if "기초금액" not in df.columns:
+        return None
+    base = g["기초금액"].map(to_amt)
+    ok = (base > 0) & g["rate"].notna() & (g["rate"] > 0) & (g["amt"] > 0)
+    g = g[ok].copy()
+    g["base"] = base[ok]
+    if not len(g):
+        return None
+    g = g.sort_values("dt", ascending=False)
+
+    def limit_of(est):
+        eok = est / 1e8
+        if eok >= 100:
+            return None
+        if eok >= 50:
+            return 87.495
+        if eok >= 10:
+            return 88.745
+        return 89.745
+
+    cases, hit_all, tried = [], 0, 0
+    for _, r in g.iterrows():
+        b = float(r["base"])
+        win_amt = float(r["amt"])
+        real_sj = (win_amt / (r["rate"] / 100.0)) / b * 100.0
+        if not (95 <= real_sj <= 105):
+            continue
+        ll = limit_of(b / 1.1)
+        marks = []
+        for c in cands:
+            yeje = b * (c / 100.0)
+            amt = math.ceil(yeje * (rec_rate / 100.0))
+            # 실제 예정가격(= 실제 사정률로 정해진 값) 기준으로 판정합니다
+            real_yeje = b * (real_sj / 100.0)
+            my_rate = (amt / real_yeje * 100.0) if real_yeje else 0
+            passed = (ll is None or my_rate >= ll) and amt < win_amt
+            marks.append([c, int(amt), bool(passed)])
+        hits = sum(1 for m in marks if m[2])
+        hit_all += hits
+        tried += len(marks)
+        if len(cases) < SIM_CASES:
+            cases.append({
+                "no": str(r.get("공고번호") or "")[:20],
+                "name": str(r["공고명"])[:NAME_CUT],
+                "inst": str(r["발주기관"])[:22],
+                "dt": r["dt"].strftime("%Y-%m-%d"),
+                "base": int(b),
+                "win": int(win_amt),
+                "rate": round(float(r["rate"]), 3),
+                "sj": round(real_sj, 4),
+                "ll": ll,
+                "marks": marks,
+                "hit": hits,
+            })
+
+    if not cases:
+        return None
+    won_any = sum(1 for c in cases if c["hit"] > 0)
+    out = {
+        "days": SIM_DAYS,
+        "rate": rec_rate,
+        "cands": cands,
+        "n": len(cases),
+        "hitRate": round(hit_all / tried * 100, 1) if tried else 0,
+        "anyRate": round(won_any / len(cases) * 100, 1),
+        "cases": cases,
+    }
+    write_json("sim.json", out)
+    log(f"시뮬레이션 {len(cases)}건 · 후보 {len(cands)}개 중 평균 "
+        f"{out['hitRate']}% 적중 · 한 개라도 맞은 공고 {out['anyRate']}%")
+    return out
+
+
+# ─────────────────────────────────────────────
 # 4. 전체 시장 요약 (홈 상단 띠)
 # ─────────────────────────────────────────────
 def build_overview(df, n_agency, n_corp, n_kw):
@@ -624,6 +766,8 @@ def build_overview(df, n_agency, n_corp, n_kw):
         "hot14": hot["hot14"],
         "regime": hot["regime"],
         "hotOffset": hot["offset"],
+        # 사정률 후보 10개 — 지어낸 값이 아니라 실측 분포를 10등분한 지점
+        "sjc": sj_candidates(sjs, 10),
         "kwDays": KW_DAYS,
         "rate": stat(rates),
         "hist": hist_top(rates, 0.5, 30),
@@ -632,6 +776,7 @@ def build_overview(df, n_agency, n_corp, n_kw):
         "byKind": {k: int(v) for k, v in df["__kind"].value_counts().items()},
     }
     write_json("overview.json", ov)
+    build_sim(df, ov["sjc"], (hot["hot"] or {}).get("rec"))
     log(f"기간 {ov['from']} ~ {ov['to']} / 총 {ov['rows']:,}건")
     return ov
 

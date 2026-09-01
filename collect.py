@@ -116,6 +116,7 @@ def api_key():
 #   한 건당 25초씩 150건을 계속 기다리느라 배치가 40분 넘게 늘어졌다.
 #   연달아 실패하면 이번 회차는 통신을 포기하고 넘어간다 — 자료는 누적분이 지킨다.
 FIELDS_SEEN = set()      # 오퍼레이션별로 응답 항목 이름을 한 번씩만 찍기 위한 표시
+DIAG = {}                # 진단 결과 — 사이트에 파일로 남겨 나중에 읽습니다
 NET_FAILS = 0            # 연속 통신 실패 횟수
 NET_DOWN = False         # 차단기가 내려갔는지
 NET_LIMIT = 8            # 이만큼 연달아 실패하면 포기
@@ -177,6 +178,8 @@ def fetch(url, key, day=None, extra=None, label=""):
             items if isinstance(items, dict) else None)
         if isinstance(one, dict) and one:
             FIELDS_SEEN.add(op)
+            DIAG[op] = {"fields": sorted(one.keys()),
+                        "sample": {k: str(v)[:40] for k, v in list(one.items())[:60]}}
             print(f"    · [진단] {op} 항목: {', '.join(sorted(one.keys()))}")
             # A값·관급자재로 보이는 항목이 있으면 값까지 보여줍니다
             hint = {k: v for k, v in one.items()
@@ -402,6 +405,38 @@ PROBE_OPS = [
 ]
 
 
+def save_diag():
+    """진단 결과를 사이트에 파일로 남깁니다.
+    GitHub 기록 화면은 무거워서 읽기 어렵습니다. 파일이면 언제든 볼 수 있습니다."""
+    if not DIAG:
+        return
+    try:
+        os.makedirs(OUT, exist_ok=True)
+        path = os.path.join(OUT, "diag.json")
+        # 수집 단계와 진단 단계가 따로 돌기 때문에 서로 지우지 않도록 합칩니다
+        old = {}
+        if os.path.exists(path):
+            try:
+                with open(path, encoding="utf-8") as f:
+                    old = (json.load(f) or {}).get("ops", {}) or {}
+            except Exception:
+                old = {}
+        merged = dict(old)
+        for k, v in DIAG.items():
+            if k == "_probe" and isinstance(old.get(k), dict):
+                m = dict(old[k])
+                m.update(v)
+                merged[k] = m
+            else:
+                merged[k] = v
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"built": datetime.now(KST).strftime("%Y-%m-%d %H:%M"),
+                       "ops": merged}, f, ensure_ascii=False, indent=1)
+        print(f"  · 진단 결과를 data/diag.json 에 남겼습니다 ({len(merged)}개)")
+    except Exception as e:
+        print(f"  ! 진단 저장 실패 ({type(e).__name__})")
+
+
 def probe_ops(key, day):
     print("-" * 52)
     print("진단 — 투찰업체 전체를 주는 오퍼레이션이 있는지 확인")
@@ -410,11 +445,17 @@ def probe_ops(key, day):
             print("  · 통신이 막혀 진단을 건너뜁니다")
             return
         items = fetch(url, key, day=day, label=f"[진단]{label}")
+        op = url.rsplit("/", 1)[-1]
         if not items:
+            DIAG.setdefault("_probe", {})[label] = {"op": op, "rows": 0}
             print(f"  · {label}: 응답 없음")
             continue
         one = items[0] if isinstance(items, list) else items
         keys = sorted(one.keys()) if isinstance(one, dict) else []
+        DIAG.setdefault("_probe", {})[label] = {
+            "op": op, "rows": len(items), "fields": keys,
+            "sample": {k: str(v)[:60] for k, v in list(one.items())[:60]}
+            if isinstance(one, dict) else {}}
         print(f"  ✓ {label}: {len(items)}건 · 항목 {', '.join(keys)[:400]}")
     print("-" * 52)
 
@@ -540,6 +581,7 @@ def main():
 
     if args.probe:
         probe_ops(key, today - timedelta(days=1))
+        save_diag()
         return
 
     print("=" * 52)
@@ -767,6 +809,7 @@ def main():
     export_board("first", first, "dt")
     export_board("live", live, "dt")
     export_bidindex(live)
+    save_diag()
     print("✅ 수집 완료")
 
 

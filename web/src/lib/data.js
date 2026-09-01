@@ -10,6 +10,11 @@
 const cache = new Map()
 const inflight = new Map()
 
+/* 배포마다 바뀌는 도장. 자주 바뀌는 파일에만 붙입니다.
+   (묶음 파일 수천 개에까지 붙이면 배포 때마다 전부 다시 받게 되어 전송량이 늘어납니다) */
+const V = typeof __BUILD__ === 'string' ? __BUILD__ : '0'
+const fresh = (p) => `${p}?v=${V}`
+
 export async function getJSON(path) {
   if (cache.has(path)) return cache.get(path)
   if (inflight.has(path)) return inflight.get(path)
@@ -32,7 +37,10 @@ const key = (name) => {
 }
 
 /* ── 전체 요약 ───────────────────────── */
-export const getOverview = () => getJSON('/data/overview.json')
+export const getOverview = () => getJSON(fresh('/data/overview.json'))
+
+/* 가상 시뮬레이션 — 지난 개찰에 우리 방식을 대본 결과 */
+export const getSim = () => getJSON(fresh('/data/sim.json'))
 
 /* ── 발주기관 ────────────────────────── */
 export const getAgencyTop = () => getJSON('/data/agency/top.json')
@@ -71,7 +79,12 @@ export async function searchCorp(qNorm) {
     .sort((a, b) => b[1][0] - a[1][0])
     .slice(0, 40)
     // bzn: 이 이름에 섞여 있는 «서로 다른 법인» 수 · reg: 주력 지역
-    .map(([k2, [n, chunk, bzn, reg]]) => ({ key: k2, n, chunk, bzn: bzn || 0, reg: reg || '' }))
+    .map(([k2, [n, chunk, bzn, reg, ceo]]) => ({
+      key: k2, n, chunk, bzn: bzn || 0, reg: reg || '', ceo: ceo || '',
+      // '이름#사업자번호' 는 법인 단위 기록입니다
+      biz: k2.includes('#') ? k2.split('#')[1] : '',
+      label: k2.split('#')[0],
+    }))
 }
 
 export async function getCorp(ckey, chunk) {

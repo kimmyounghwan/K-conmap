@@ -88,9 +88,14 @@ function CorpTab() {
             <div className="suggest">
               {list.map((it) => (
                 <button key={it.key} onClick={() => pick(it)}>
-                  <span className="c">{num(it.n)}건</span>{it.key}
-                  {it.reg && <span className="sub2"> · {it.reg}</span>}
-                  {it.bzn > 1 && <span className="mix">법인 {it.bzn}곳</span>}
+                  <span className="c">{num(it.n)}건</span>{it.label}
+                  {it.biz
+                    ? <span className="sub2"> · {it.reg} · {it.ceo || '대표 미상'}
+                        {' '}({it.biz.slice(0, 3)}-{it.biz.slice(3, 5)}-•••)</span>
+                    : <>
+                        {it.reg && <span className="sub2"> · {it.reg}</span>}
+                        {it.bzn > 1 && <span className="mix">합계 · 법인 {it.bzn}곳</span>}
+                      </>}
                 </button>
               ))}
             </div>
@@ -114,8 +119,14 @@ function CorpTab() {
           <div className="card">
             <div style={{ fontSize: 16, fontWeight: 800 }}>{c.name}</div>
             <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 3 }}>
-              누적 1순위 {num(c.n)}건
+              {c.biz
+                ? <>사업자 {c.biz.slice(0, 3)}-{c.biz.slice(3, 5)}-•••
+                    {c.ceo ? ` · 대표 ${c.ceo}` : ''} · 누적 1순위 {num(c.n)}건</>
+                : <>누적 1순위 {num(c.n)}건</>}
             </div>
+            {c.biz && (
+              <div className="onefirm">이 법인 하나만의 기록입니다 — 동명 업체와 섞이지 않았습니다</div>
+            )}
             <p style={{ fontSize: 13.5, lineHeight: 1.7, marginTop: 10, marginBottom: 0, wordBreak: 'keep-all' }}>
               평균 투찰률은 <b>{pct(c.s?.avg, 2)}</b>입니다.
               {regions.length > 0 && <> 주력 지역은 <b>{regions[0][0]}</b>({regions[0][1]}건)이고,</>}
@@ -133,11 +144,13 @@ function CorpTab() {
               </p>
               <div className="firms">
                 {(c.bz || []).map(([bz, ceo, cnt]) => (
-                  <div key={bz} className="firm">
+                  <button key={bz} className="firm"
+                    onClick={() => pick({ key: `${normCorp(c.name)}#${bz}` })}>
                     <span className="no">{bz.slice(0, 3)}-{bz.slice(3, 5)}-•••</span>
                     <span className="ceo">{ceo || '대표 미상'}</span>
                     <span className="cnt">{num(cnt)}건</span>
-                  </div>
+                    <span className="go">이 법인만 보기 →</span>
+                  </button>
                 ))}
               </div>
             </div>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { getJSON, getOverview, getAgency, similarZone } from '../lib/data.js'
+import { getJSON, getOverview, getAgency, similarZone, getSim } from '../lib/data.js'
 import { won, wonShort, pct, num, dateTime, dday } from '../lib/fmt.js'
 
 /* ============================================================
@@ -21,7 +21,9 @@ import { won, wonShort, pct, num, dateTime, dday } from '../lib/fmt.js'
        투찰금액 = (예정가격 − A값) × 투찰률 + A값        ← 원 단위 절상
    ============================================================ */
 
-const getIndex = () => getJSON('/data/bidindex.json')
+/* 배포 도장을 붙여 옛 목록을 붙잡고 있지 않게 합니다 */
+const getIndex = () => getJSON(
+  `/data/bidindex.json?v=${typeof __BUILD__ === 'string' ? __BUILD__ : '0'}`)
 
 /** 일반공사 적격심사 낙찰하한율 (조달청 기준, 참고용) */
 function lowerLimit(estimate) {
@@ -48,6 +50,8 @@ export default function BaroBid() {
   const [ov, setOv] = useState(null)
   const [ag, setAg] = useState(null)
   const [sim, setSim] = useState(null)
+  const [bt, setBt] = useState(null)      // 가상 시뮬레이션 결과
+  const [btOpen, setBtOpen] = useState(false)
 
   const [q, setQ] = useState('')
   const [picked, setPicked] = useState(null)
@@ -59,9 +63,14 @@ export default function BaroBid() {
   const [pickRate, setPickRate] = useState('rec')   // rec | limit | safe | own
   const [ownRate, setOwnRate] = useState('')
   const [copied, setCopied] = useState(false)
+  const [sjPick, setSjPick] = useState(null)   // 사정률 후보를 직접 고른 경우
   const seeded = useRef(false)
 
-  useEffect(() => { getOverview().then(setOv); getIndex().then((v) => setIdx(v || null)) }, [])
+  useEffect(() => {
+    getOverview().then(setOv)
+    getIndex().then((v) => setIdx(v || null))
+    getSim().then(setBt)
+  }, [])
 
   /* 개찰 상세의 «바로투찰 열기» 로 넘어온 값 */
   useEffect(() => {
@@ -130,6 +139,7 @@ export default function BaroBid() {
     setBase(r.base || 0); setBudgetIn(''); setPickRate('rec'); setCopied(false)
     // 공고에 A값이 실려 오면 그대로 채웁니다 (손으로 옮겨 적을 일을 없애는 게 이 화면의 목적)
     setAIn(r.aval ? String(r.aval) : '')
+    setSjPick(null)
   }
   const clear = () => {
     setPicked(null); setQ(''); setInst(''); setBase(0)
@@ -158,7 +168,7 @@ export default function BaroBid() {
   const rec = hot?.rec ?? null
   const regime = ov?.regime || null
 
-  const sjMid = ov?.sjq?.p50 ?? 100
+  const sjMid = sjPick ?? ov?.sjq?.p50 ?? 100
   const sjLo = ov?.sjq?.p10 ?? sjMid
   const sjHi = ov?.sjq?.p90 ?? sjMid
 
@@ -326,6 +336,9 @@ export default function BaroBid() {
         </div>
       </div>
 
+      {/* ── 가상 시뮬레이션 — 지난 개찰에 우리 방식을 대본 결과 ── */}
+      {bt && base <= 0 && <SimBlock bt={bt} open={btOpen} setOpen={setBtOpen} />}
+
       {base <= 0 ? (
         <div className="hintbox">
           {picked ? (
@@ -489,6 +502,38 @@ export default function BaroBid() {
             </div>
           )}
 
+          {/* ── 사정률 후보 10개 ── */}
+          {(ov?.sjc || []).length > 0 && (
+            <div className="card">
+              <div className="detail-h">
+                사정률 후보 <span className="count">· 실제 개찰 {num(ov.sjn)}건에서 나온 자리</span>
+              </div>
+              <div className="note sm" style={{ marginTop: 0, marginBottom: 9 }}>
+                사정률은 개찰 때 추첨으로 정해져 아무도 미리 알 수 없습니다.
+                그래서 <b>실제로 이만큼 나왔다</b>는 열 지점을 그대로 드립니다.
+                누르면 그 사정률로 다시 계산합니다.
+              </div>
+              <div className="sjgrid">
+                {ov.sjc.map((v) => {
+                  const on = Math.abs(v - sjMid) < 0.0005
+                  return (
+                    <button key={v} className={'sjc' + (on ? ' on' : '')}
+                      onClick={() => { setSjPick(v); setCopied(false) }}>
+                      <span className="r">{v.toFixed(4)}</span>
+                      <span className="a">{wonShort(bidAmount(base, v, myRate, a))}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              {sjPick != null && (
+                <button className="btn ghost sm" style={{ width: '100%', marginTop: 9 }}
+                  onClick={() => setSjPick(null)}>가운데값으로 되돌리기</button>
+              )}
+            </div>
+          )}
+
+          {bt && <SimBlock bt={bt} open={btOpen} setOpen={setBtOpen} />}
+
           {/* ── 4. 사정률 시나리오 ── */}
           <div className="card">
             <div className="detail-h">
@@ -588,5 +633,75 @@ export default function BaroBid() {
         </>
       )}
     </>
+  )
+}
+
+/* ============================================================
+   가상 시뮬레이션
+
+   «그때 우리 방식으로 넣었으면 어땠을까» 를 실제 개찰로 대봅니다.
+   사정률 후보 10개를 각각 넣어 보고, 그 금액이 실제 1순위보다 낮으면서
+   낙찰하한을 넘겼으면 «낙찰» 로 표시합니다.
+
+   한계를 숨기지 않습니다 — 조달청이 1순위만 주기 때문에
+   2위 이하와의 경쟁, 적격심사의 비가격 요소는 반영하지 못합니다.
+   ============================================================ */
+function SimBlock({ bt, open, setOpen }) {
+  const cases = open ? bt.cases : bt.cases.slice(0, 3)
+  return (
+    <div className="card">
+      <div className="detail-h">
+        가상 시뮬레이션
+        <span className="count">· 최근 {bt.days}일 개찰 {num(bt.n)}건에 대봤습니다</span>
+      </div>
+
+      <div className="simsum">
+        <div>
+          <span>한 개라도 맞은 공고</span>
+          <b className="hi">{bt.anyRate}%</b>
+        </div>
+        <div>
+          <span>후보 10개 중 평균 적중</span>
+          <b>{bt.hitRate}%</b>
+        </div>
+        <div>
+          <span>적용한 투찰률</span>
+          <b>{pct(bt.rate, 3)}</b>
+        </div>
+      </div>
+
+      {cases.map((c, i) => (
+        <div className="simcase" key={i}>
+          <div className="h">
+            <span className="d">{c.dt}</span>
+            <span className="t">{c.name}</span>
+          </div>
+          <div className="m">
+            실제 낙찰 <b>{won(c.win)}</b> · 투찰률 {pct(c.rate, 3)} ·
+            {' '}실제 사정률 <b>{c.sj.toFixed(4)}</b>
+          </div>
+          <div className="marks">
+            {c.marks.map(([v, amt, ok]) => (
+              <div key={v} className={'mk' + (ok ? ' win' : '')} title={won(amt)}>
+                {ok && <span className="badge2">낙찰</span>}
+                <span className="v">{v.toFixed(4)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      <button className="btn ghost sm" style={{ width: '100%', marginTop: 8 }}
+        onClick={() => setOpen(!open)}>
+        {open ? '접기' : `나머지 ${bt.cases.length - 3}건 더 보기`}
+      </button>
+
+      <div className="note sm">
+        <b>이 숫자를 그대로 믿지 마세요.</b> 조달청이 1순위(낙찰자)만 알려주기 때문에,
+        «실제 1순위보다 낮았다»까지만 확인한 것입니다.
+        2위 이하 업체와의 경쟁, 적격심사의 경영상태·시공경험 같은 비가격 요소는
+        반영하지 못했습니다. <b>실제 승률은 위 숫자보다 낮습니다.</b>
+      </div>
+    </div>
   )
 }
