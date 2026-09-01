@@ -351,16 +351,16 @@ export default function BaroBid() {
           </div>
 
           {/* 투찰률 고르기 */}
-          <div className="chips">
+          <div className="ratepick">
             {choices.map((c) => (
               <button key={c.k}
-                className={'chip' + (pickRate === c.k ? ' on' : '')
+                className={(pickRate === c.k ? 'on' : '')
                   + (ll?.rate && c.rate < ll.rate ? ' warn' : '')}
                 onClick={() => { setPickRate(c.k); setCopied(false) }}>
                 <b>{c.label}</b><span>{c.rate.toFixed(3)}%</span>
               </button>
             ))}
-            <button className={'chip' + (pickRate === 'own' ? ' on' : '')}
+            <button className={pickRate === 'own' ? 'on' : ''}
               onClick={() => setPickRate('own')}>
               <b>직접</b><span>입력</span>
             </button>
