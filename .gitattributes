@@ -1,0 +1,5 @@
+# 누적 자료 CSV 는 «끝에 줄을 덧붙이기만» 하는 파일입니다.
+# 내 컴퓨터와 GitHub 배치가 각각 덧붙이면 git 이 충돌로 봅니다.
+# union = 양쪽 줄을 다 살립니다. 중복은 build_json.py 가 공고번호로 걸러냅니다.
+data/extra_*.csv merge=union
+data/store/*.json merge=ours
