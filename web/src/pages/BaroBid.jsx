@@ -109,6 +109,7 @@ export default function BaroBid() {
       aval: a[11] || 0, gmtrl: a[12] || 0,
       ayn: a[13] || '', aparts: a[14] || [],
       ptot: a[15] || 0, pdrw: a[16] || 0,
+      url: a[17] || '',
     }))
   }, [idx])
 
@@ -390,11 +391,14 @@ export default function BaroBid() {
               <button className="cbtn" onClick={copy}>
                 {copied ? '✓ 복사했습니다' : '금액 복사'}
               </button>
+              {/* ⚠️ 주소를 손으로 만들지 않습니다.
+                  차수(000/001/002)를 틀리면 엉뚱한 공고로 갑니다 — 실제로 틀렸었습니다.
+                  조달청이 준 주소(bidNtceDtlUrl)를 그대로 씁니다.
+                  그리고 이 링크는 «투찰» 화면이 아니라 «공고 상세» 입니다.
+                  진짜 투찰은 나라장터 로그인과 보안토큰이 있어야 해서 링크로 못 갑니다. */}
               <a className="cbtn ghost" target="_blank" rel="noreferrer"
-                href={picked?.no
-                  ? `https://www.g2b.go.kr/link/PNPE027_01/single/?bidPbancNo=${encodeURIComponent(picked.no)}&bidPbancOrd=000`
-                  : 'https://www.g2b.go.kr'}>
-                나라장터 투찰 →
+                href={picked?.url || 'https://www.g2b.go.kr'}>
+                나라장터 공고 →
               </a>
             </div>
           </div>

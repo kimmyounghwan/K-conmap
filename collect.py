@@ -843,12 +843,15 @@ def main():
                 r.get("aparts") or [],             # A값 내역
                 r.get("ptot") or 0,                # 예비가격 개수
                 r.get("pdrw") or 0,                # 추첨 개수
+                # 나라장터 공고 주소 — 조달청이 준 것을 그대로 씁니다.
+                # 손으로 만들면 차수(000/001/002)를 틀립니다. 실제로 틀렸습니다.
+                r.get("url") or "",
             ])
         rows.sort(key=lambda x: re.sub(r"[^0-9]", "", str(x[5])))
         out = {"built": built,
                "f": ["no", "name", "inst", "base", "budget", "close", "lo", "hi",
                      "llr", "est", "lic", "aval", "gmtrl",
-                     "ayn", "aparts", "ptot", "pdrw"],
+                     "ayn", "aparts", "ptot", "pdrw", "url"],
                "r": rows}
         path = os.path.join(OUT, "bidindex.json")
         with open(path, "w", encoding="utf-8") as f:
