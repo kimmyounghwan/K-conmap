@@ -107,6 +107,8 @@ export default function BaroBid() {
       budget: a[4], close: a[5], lo: a[6], hi: a[7],
       llr: a[8] || null, est: a[9] || 0, lic: a[10] || [],
       aval: a[11] || 0, gmtrl: a[12] || 0,
+      ayn: a[13] || '', aparts: a[14] || [],
+      ptot: a[15] || 0, pdrw: a[16] || 0,
     }))
   }, [idx])
 
@@ -327,12 +329,26 @@ export default function BaroBid() {
             value={aIn ? Number(aIn).toLocaleString('ko-KR') : ''}
             onChange={(e) => { setAIn(digits(e.target.value)); setCopied(false) }}
             placeholder="0" />
-          <div className="note sm">
-            A값은 투찰률을 곱하지 않고 <b>그대로 더하는</b> 금액입니다.
-            사회보험료 · 산업안전보건관리비 · 퇴직공제부금 같은 법정경비가 여기 들어갑니다.
-            공고서 산출내역서에 있고, 조달청 API로는 안 나와서 자동으로 채우지 못합니다.<br />
-            <b>A값이 없는 공고면 비워두시면 됩니다</b> — 그때는 이 칸이 계산에 영향을 주지 않습니다.
-          </div>
+          {(picked?.aparts || []).length > 0 ? (
+            <div className="aparts">
+              <div className="h">
+                공고에서 자동으로 가져온 A값 내역
+                {picked.ayn === 'N' && <span className="no"> · 이 공고는 A값 미적용</span>}
+              </div>
+              {picked.aparts.map(([nm, v]) => (
+                <div className="ap" key={nm}><span>{nm}</span><b>{won(v)}</b></div>
+              ))}
+              <div className="ap sum"><span>합계</span><b>{won(picked.aval)}</b></div>
+            </div>
+          ) : (
+            <div className="note sm">
+              A값은 투찰률을 곱하지 않고 <b>그대로 더하는</b> 금액입니다.
+              산업안전보건관리비 · 국민건강보험료 · 국민연금 · 노인장기요양보험료 ·
+              퇴직공제부금 같은 법정경비가 여기 들어갑니다.<br />
+              <b>공고에 A값이 실려 오면 자동으로 채워집니다.</b>
+              아직 안 채워졌다면 기초금액이 공개되기 전이거나 A값이 없는 공고입니다.
+            </div>
+          )}
         </div>
       </div>
 
@@ -401,6 +417,10 @@ export default function BaroBid() {
                   <b>{a > 0 ? won(a) : (picked.aval ? won(picked.aval) : '공고서 확인')}</b></div>
                 {picked.gmtrl > 0 && (
                   <div><span>관급자재</span><b>{won(picked.gmtrl)}</b></div>
+                )}
+                {picked.ptot > 0 && (
+                  <div><span>예비가격</span>
+                    <b>{picked.ptot}개 중 {picked.pdrw}개 추첨 (복수예가)</b></div>
                 )}
                 <div><span>입찰마감</span><b>{dateTime(picked.close)}</b></div>
                 {ag && <div><span>이 발주처 3년</span><b>{num(ag.n)}건 · 평균 {pct(ag.s?.avg, 3)}</b></div>}

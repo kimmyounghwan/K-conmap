@@ -185,6 +185,10 @@ export default function LiveBoard() {
                     )}
 
                     <div className="kv2">
+                      {r.main && <div><span>주공종</span><b>{r.main}</b></div>}
+                      {r.site && <div><span>공사지역</span><b>{r.site}</b></div>}
+                      {r.pmth && <div><span>예정가격</span>
+                        <b>{r.pmth}{r.ptot ? ` · ${r.ptot}개 중 ${r.pdrw}개 추첨` : ''}</b></div>}
                       {r.kind && <div><span>공고종류</span><b>{r.kind}</b></div>}
                       {r.mthd && <div><span>계약방법</span><b>{r.mthd}</b></div>}
                       {r.swin && <div><span>낙찰방법</span><b>{r.swin}</b></div>}
@@ -199,9 +203,20 @@ export default function LiveBoard() {
                       <div><span>공고번호</span><b>{r.no}{r.ord ? `-${r.ord}` : ''}</b></div>
                     </div>
 
+                    {(r.docs || []).length > 0 && (
+                      <div className="docs">
+                        <div className="h">공고문 첨부</div>
+                        {r.docs.map(([nm, u]) => (
+                          <a key={u} href={u} target="_blank" rel="noreferrer" className="doc">
+                            📄 {nm}
+                          </a>
+                        ))}
+                      </div>
+                    )}
+
                     <a className="btn ghost sm" style={{ width: '100%', marginTop: 10 }}
                       href={r.url || 'https://www.g2b.go.kr'} target="_blank" rel="noreferrer">
-                      나라장터 원문 · 공고서 내려받기 ↗
+                      나라장터 원문 열기 ↗
                     </a>
 
                     <div className="note sm">

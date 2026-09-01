@@ -83,6 +83,9 @@ function BidTab({ r }) {
           <span>낙찰하한율 (참고)</span>
           <b>{ll ? (ll.rate ? pct(ll.rate, 3) : '별도') : '-'}</b>
         </div>
+        {r.np > 0 && (
+          <div><span>참가업체</span><b className="hi">{num(r.np)}곳</b></div>
+        )}
       </div>
 
       {ll && (

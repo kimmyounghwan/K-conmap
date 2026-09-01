@@ -244,19 +244,51 @@ def bsis_row(it):
     }
 
 
-def extra_amounts(item):
-    """A값(법정경비)·관급자재금액을 응답에서 찾아본다.
+# ── A값(법정경비) 항목들 ────────────────────────
+#   2026-09-01 진단으로 확인했습니다. 조달청 기초금액 응답에 항목별로 다 들어 있습니다.
+#   그동안 이걸 안 뒤져봐서 «API 로는 못 가져온다» 고 잘못 말했습니다.
+#
+#   A값은 투찰률을 곱하지 않고 그대로 더하는 금액입니다.
+#       투찰금액 = (예정가격 − A값) × 투찰률 + A값
+#   그래서 A값을 빼먹으면 낙찰하한을 잘못 계산해 실격합니다.
+A_PARTS = [
+    ("sftyMngcst", "산업안전보건관리비"),
+    ("sftyChckMngcst", "안전관리비"),
+    ("rtrfundNon", "퇴직공제부금비"),
+    ("envCnsrvcst", "환경보전비"),
+    ("scontrctPayprcePayGrntyFee", "하도급대금지급보증수수료"),
+    ("mrfnHealthInsrprm", "국민건강보험료"),
+    ("npnInsrprm", "국민연금보험료"),
+    ("odsnLngtrmrcprInsrprm", "노인장기요양보험료"),
+    ("qltyMngcst", "품질관리비"),
+]
 
-    아이건설넷 화면에는 이 둘이 자동으로 채워져 있습니다.
-    조달청 항목 이름을 확실히 몰라 후보를 여러 개 두고 찾습니다.
-    못 찾으면 그냥 비워 두고, 화면에서 직접 넣게 합니다."""
+
+def extra_amounts(item):
+    """A값을 항목별로 모으고 합계를 냅니다.
+
+    bidPrceCalclAYn 이 «Y» 면 이 공고가 A값을 적용한다는 뜻입니다.
+    품질관리비는 qltyMngcstAObjYn 이 «Y» 일 때만 A값에 넣습니다.
+    """
     out = {}
-    a = to_int(pick(item, "sfcsrvAmt", "insrncAmt", "lwltAmt", "aVal", "aAmt",
-                    "sftyMngcst", "sfetyMngcst", "rtrfundNon", "nonPrceAmt") or 0)
-    g = to_int(pick(item, "govsplyMtrlAmt", "govsplyAmt", "gvsplyMtrlAmt",
-                    "mtrlAmt") or 0)
-    if a > 0:
-        out["aval"] = a
+    parts, total = [], 0
+    qobj = str(pick(item, "qltyMngcstAObjYn") or "").upper() == "Y"
+    for k, label in A_PARTS:
+        v = to_int(pick(item, k) or 0)
+        if v <= 0:
+            continue
+        if k == "qltyMngcst" and not qobj:
+            continue
+        parts.append([label, v])
+        total += v
+    if total > 0:
+        out["aval"] = total
+        out["aparts"] = parts
+    yn = str(pick(item, "bidPrceCalclAYn") or "").upper()
+    if yn in ("Y", "N"):
+        out["ayn"] = yn        # 이 공고가 A값을 적용하는지
+    g = to_int(pick(item, "govsplyAmt", "govcnstrtnGovsplyMtrlAmt",
+                    "contrctrcnstrtnGovsplyMtrlAmt", "govsplyMtrlAmt") or 0)
     if g > 0:
         out["gmtrl"] = g
     return out
@@ -283,6 +315,10 @@ def lic_by_day(key, day, kind):
     out = {}
     for it in fetch(LIC[kind], key, day, None, label=f"면허제한 {kind} {day:%m-%d}"):
         no = str(pick(it, "bidNtceNo") or "").strip()
+        # bsnsDivNm 이 «물품»·«용역» 인 줄이 섞여 옵니다. 공사만 씁니다.
+        div = str(pick(it, "bsnsDivNm") or "").strip()
+        if div and div != "공사":
+            continue
         nm = pick(it, "lcnsLmtNm", "licenseLmtNm", "indstrytyNm",
                   "bidprcPsblIndstrytyNm", "lmtNm", "prmsnCorpNm")
         if not no or not nm:
@@ -333,6 +369,8 @@ def row_first(item):
         "no": no,
         # 공고차수 — 나라장터 원문 주소를 정확히 만들려면 필요합니다
         "ord": str(item.get("bidNtceOrd", "") or "").strip(),
+        # 참가업체수 — 그 공고에 몇 곳이 들어왔는지. 경쟁 강도 그 자체입니다.
+        "np": to_int(pick(item, "prtcptCnum") or 0),
         "name": str(item.get("bidNtceNm", "")).strip(),
         "inst": str(item.get("ntceInsttNm", "")).strip(),
         "dt": str(item.get("opengDt", "")).strip(),
@@ -382,6 +420,17 @@ def row_live(item):
         "rebid": txt("rbidPermsnYn"),                   # 재입찰 허용
         "ofcl": txt("ntceInsttOfclNm"),                 # 담당자
         "tel": txt("ntceInsttOfclTelNo"),               # 연락처
+        # 복수예비가격 — 사정률이 어떻게 정해지는지의 핵심입니다
+        "pmth": txt("prearngPrceDcsnMthdNm"),           # 예정가격 결정방법
+        "ptot": to_int(pick(item, "totPrdprcNum") or 0),   # 예비가격 개수 (보통 15)
+        "pdrw": to_int(pick(item, "drwtPrdprcNum") or 0),  # 추첨 개수 (보통 4)
+        "site": txt("cnstrtsiteRgnNm"),                 # 공사 현장 지역
+        "rgnb": txt("rgnLmtBidLocplcJdgmBssNm"),        # 지역제한 판단기준
+        "main": txt("mainCnsttyNm"),                    # 주공종
+        # 공고문 첨부파일 — 나라장터에 안 가고 여기서 바로 받게 합니다
+        "docs": [[n, u] for n, u in (
+            (txt(f"ntceSpecFileNm{i}"), txt(f"ntceSpecDocUrl{i}"))
+            for i in range(1, 11)) if n and u][:6],
         "url": url or "https://www.g2b.go.kr/index.jsp",
     }
 
@@ -611,7 +660,8 @@ def main():
                 if r:
                     prev = first[kind].get(r["no"]) or {}
                     # 이미 받아둔 기초금액을 덮어쓰지 않는다
-                    for f in ("base", "lo", "hi", "lic", "aval", "gmtrl"):
+                    for f in ("base", "lo", "hi", "lic",
+                              "aval", "aparts", "ayn", "gmtrl"):
                         if prev.get(f) is not None:
                             r[f] = prev[f]
                     first[kind][r["no"]] = r
@@ -787,13 +837,18 @@ def main():
                 r.get("llr"),                      # 공고가 알려준 낙찰하한율
                 int(r.get("est") or 0),            # 공고가 알려준 추정가격
                 r.get("lic") or [],                # 면허·업종 제한
-                int(r.get("aval") or 0),           # A값 (법정경비)
+                int(r.get("aval") or 0),           # A값 합계 (법정경비)
                 int(r.get("gmtrl") or 0),          # 관급자재금액
+                r.get("ayn") or "",                # A값 적용 공고인지 (Y/N)
+                r.get("aparts") or [],             # A값 내역
+                r.get("ptot") or 0,                # 예비가격 개수
+                r.get("pdrw") or 0,                # 추첨 개수
             ])
         rows.sort(key=lambda x: re.sub(r"[^0-9]", "", str(x[5])))
         out = {"built": built,
                "f": ["no", "name", "inst", "base", "budget", "close", "lo", "hi",
-                     "llr", "est", "lic", "aval", "gmtrl"],
+                     "llr", "est", "lic", "aval", "gmtrl",
+                     "ayn", "aparts", "ptot", "pdrw"],
                "r": rows}
         path = os.path.join(OUT, "bidindex.json")
         with open(path, "w", encoding="utf-8") as f:
