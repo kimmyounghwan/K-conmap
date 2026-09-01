@@ -18,7 +18,7 @@ function saveLicenses(v) {
 }
 
 export default function LiveBoard() {
-  const { info, rows: all, loading, loadingAll, done, loadAll } = useBoard('live', KIND)
+  const { info, rows: all, loading, busy, done, loadMore, loadAll } = useBoard('live', KIND)
   const [region, setRegion] = useState('전국')
   const [q, setQ] = useState('')
   const [page, setPage] = useState(1)
@@ -39,6 +39,7 @@ export default function LiveBoard() {
     if (!done && (q.trim().length > 0 || region !== '전국' || mine)) loadAll()
   }, [q, region, mine, done, loadAll])
 
+
   const rows = useMemo(() => {
     const s = q.trim()
     return all.filter((r) => {
@@ -53,6 +54,12 @@ export default function LiveBoard() {
 
   const pages = Math.max(1, Math.ceil(rows.length / PAGE))
   const view = rows.slice((page - 1) * PAGE, page * PAGE)
+
+  // 마지막 쪽 근처까지 넘겨보면 알아서 더 받아온다 (7주 끝까지 이어짐)
+  //  ⚠️ rows / pages 가 만들어진 뒤에 와야 합니다. 위에 두면 참조 오류가 납니다.
+  useEffect(() => {
+    if (!done && page >= pages - 1) loadMore()
+  }, [page, pages, done, loadMore])
 
   const toggleLic = (l) =>
     setLics((v) => (v.includes(l) ? v.filter((x) => x !== l) : [...v, l]))
@@ -101,8 +108,7 @@ export default function LiveBoard() {
         </button>
       )}
 
-      <RangeBar info={info} loaded={all.length} done={done}
-        loadingAll={loadingAll} onLoadAll={loadAll} />
+      <RangeBar info={info} loaded={all.length} done={done} busy={busy} />
 
       {loading ? <Skeleton /> : rows.length === 0 ? (
         <Empty icon="📭">

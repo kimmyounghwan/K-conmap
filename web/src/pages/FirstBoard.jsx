@@ -14,7 +14,7 @@ const rateOf = (amt, base) =>
   base > 0 && amt > 0 ? Math.round((amt / base) * 100000) / 1000 : null
 
 export default function FirstBoard() {
-  const { info, rows: all, loading, loadingAll, done, loadAll } = useBoard('first', KIND)
+  const { info, rows: all, loading, busy, done, loadMore, loadAll } = useBoard('first', KIND)
   const [ov, setOv] = useState(null)
   const [region, setRegion] = useState('전국')
   const [q, setQ] = useState('')
@@ -30,6 +30,7 @@ export default function FirstBoard() {
     if (!done && (q.trim().length > 0 || region !== '전국')) loadAll()
   }, [q, region, done, loadAll])
 
+
   const rows = useMemo(() => {
     const s = q.trim()
     return all.filter((r) =>
@@ -40,6 +41,12 @@ export default function FirstBoard() {
 
   const pages = Math.max(1, Math.ceil(rows.length / PAGE))
   const view = rows.slice((page - 1) * PAGE, page * PAGE)
+
+  // 마지막 쪽 근처까지 넘겨보면 알아서 더 받아온다 (7주 끝까지 이어짐)
+  //  ⚠️ rows / pages 가 만들어진 뒤에 와야 합니다. 위에 두면 참조 오류가 납니다.
+  useEffect(() => {
+    if (!done && page >= pages - 1) loadMore()
+  }, [page, pages, done, loadMore])
 
   return (
     <>
@@ -70,8 +77,7 @@ export default function FirstBoard() {
         ))}
       </div>
 
-      <RangeBar info={info} loaded={all.length} done={done}
-        loadingAll={loadingAll} onLoadAll={loadAll} />
+      <RangeBar info={info} loaded={all.length} done={done} busy={busy} />
 
       {loading ? <Skeleton /> : rows.length === 0 ? (
         <Empty icon="🔎">
@@ -185,7 +191,7 @@ export default function FirstBoard() {
 }
 
 /** 지금 몇 건을 보고 있는지 + 7주 전체 불러오기 */
-export function RangeBar({ info, loaded, done, loadingAll, onLoadAll }) {
+export function RangeBar({ info, loaded, done, busy }) {
   if (!info) return null
   const range = info.from && info.to
     ? `${dateShort(info.from)} ~ ${dateShort(info.to)}` : ''
@@ -193,14 +199,9 @@ export function RangeBar({ info, loaded, done, loadingAll, onLoadAll }) {
     <div className="rangebar">
       <span className="rb-t">
         {done
-          ? <>전체 <b>{num(info.n)}건</b>{range && <> · {range}</>}</>
-          : <>최신 <b>{num(loaded)}건</b> 표시 중 · 보관 {num(info.n)}건{range && <> ({range})</>}</>}
+          ? <>7주 전체 <b>{num(info.n)}건</b>{range && <> · {range}</>}</>
+          : <>불러오는 중 <b>{num(loaded)}</b> / {num(info.n)}건{range && <> · {range}</>}</>}
       </span>
-      {!done && (
-        <button className="btn ghost sm" disabled={loadingAll} onClick={onLoadAll}>
-          {loadingAll ? '불러오는 중…' : '7주 전체 불러오기'}
-        </button>
-      )}
     </div>
   )
 }
