@@ -89,6 +89,8 @@ function CorpTab() {
               {list.map((it) => (
                 <button key={it.key} onClick={() => pick(it)}>
                   <span className="c">{num(it.n)}건</span>{it.key}
+                  {it.reg && <span className="sub2"> · {it.reg}</span>}
+                  {it.bzn > 1 && <span className="mix">법인 {it.bzn}곳</span>}
                 </button>
               ))}
             </div>
@@ -120,6 +122,26 @@ function CorpTab() {
               {c.m && <> 낙찰이 가장 많았던 달은 <b>{c.m.indexOf(Math.max(...c.m)) + 1}월</b>입니다.</>}
             </p>
           </div>
+
+          {c.bzn > 1 && (
+            <div className="mixbox">
+              <div className="h">⚠️ 이 이름으로 등록된 법인이 {num(c.bzn)}곳입니다</div>
+              <p>
+                아래 숫자는 <b>{num(c.bzn)}개 법인의 실적이 합쳐진 값</b>입니다.
+                내 회사만의 기록이 아닙니다. 조달청 자료가 업체를 이름으로만 주는 구간이 있어
+                아직 완전히 갈라내지 못했습니다 — 확인된 {num(c.bzk)}건의 내역은 아래와 같습니다.
+              </p>
+              <div className="firms">
+                {(c.bz || []).map(([bz, ceo, cnt]) => (
+                  <div key={bz} className="firm">
+                    <span className="no">{bz.slice(0, 3)}-{bz.slice(3, 5)}-•••</span>
+                    <span className="ceo">{ceo || '대표 미상'}</span>
+                    <span className="cnt">{num(cnt)}건</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="tiles c4" style={{ marginBottom: 10 }}>
             <Tile k="총 낙찰" v={num(c.n)} small />

@@ -21,7 +21,7 @@ export default function NotFound() {
     <div className="empty" style={{ paddingTop: 80 }}>
       <div className="big">🚧</div>
       찾으시는 페이지가 없습니다.<br />
-      <Link to="/" style={{ color: 'var(--accent)', fontWeight: 700 }}>1순위 현황판으로 →</Link>
+      <Link to="/" style={{ color: 'var(--accent)', fontWeight: 700 }}>바로투찰로 →</Link>
     </div>
   )
 }

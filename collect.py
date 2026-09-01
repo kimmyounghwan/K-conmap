@@ -57,8 +57,12 @@ ARCHIVE_DIR = os.path.join(ROOT, "data")
 
 def archive_path(ym):
     return os.path.join(ARCHIVE_DIR, f"extra_{ym}.csv")
+# 사업자번호를 반드시 남깁니다.
+#   같은 이름의 다른 법인이 아주 많습니다 — «대영건설» 한 이름에 법인 40곳.
+#   3년치의 46%가 그런 이름이라, 번호가 없으면 업체 화면 절반이 남의 실적입니다.
+#   조달청 응답에 이미 들어 있는데(업체명^사업자번호^대표^금액^투찰률) 그동안 버리고 있었습니다.
 ARCH_COLS = ["공고번호", "날짜", "발주기관", "공고명",
-             "1순위업체", "투찰금액", "투찰률", "기초금액"]
+             "1순위업체", "사업자번호", "대표자", "투찰금액", "투찰률", "기초금액"]
 
 BASE = "http://apis.data.go.kr/1230000"
 ENDPOINTS = {
@@ -74,6 +78,13 @@ BSIS = {
     "serv": f"{BASE}/ad/BidPublicInfoService/getBidPblancListInfoServcBsisAmount",
 }
 BSIS_ONE_CAP = 150   # 목록조회로 못 채운 건은 공고번호로 개별조회 (하루 호출량 방어)
+
+# 면허·업종 제한. 입찰에서 이게 제일 먼저 걸리는 조건인데
+# 공고 목록에는 안 들어 있고 별도 오퍼레이션으로 옵니다.
+LIC = {
+    "con":  f"{BASE}/ad/BidPublicInfoService/getBidPblancListInfoLicenseLimit",
+    "serv": f"{BASE}/ad/BidPublicInfoService/getBidPblancListInfoLicenseLimit",
+}
 
 
 def load_env():
@@ -104,6 +115,7 @@ def api_key():
 #   2026-09-01 에 조달청 API 가 전부 ConnectTimeout 이 났는데,
 #   한 건당 25초씩 150건을 계속 기다리느라 배치가 40분 넘게 늘어졌다.
 #   연달아 실패하면 이번 회차는 통신을 포기하고 넘어간다 — 자료는 누적분이 지킨다.
+FIELDS_SHOWN = False     # 응답 항목 이름을 한 번만 찍기 위한 표시
 NET_FAILS = 0            # 연속 통신 실패 횟수
 NET_DOWN = False         # 차단기가 내려갔는지
 NET_LIMIT = 8            # 이만큼 연달아 실패하면 포기
@@ -155,7 +167,16 @@ def fetch(url, key, day=None, extra=None, label=""):
     if code and code not in ("00", "0"):
         print(f"    ! {tag} 응답코드 {code} · {head.get('resultMsg', '')}")
         return []
+    global FIELDS_SHOWN
     items = (resp.get("body", {}) or {}).get("items", [])
+    # 응답에 어떤 항목이 오는지 한 번만 찍어봅니다.
+    # A값(사회보험료 등 법정경비)이 들어 있으면 자동으로 채울 수 있습니다.
+    if not FIELDS_SHOWN and isinstance(items, (list, dict)):
+        one = items[0] if isinstance(items, list) and items else (
+            items if isinstance(items, dict) else None)
+        if isinstance(one, dict) and one:
+            FIELDS_SHOWN = True
+            print(f"    · [진단] {tag} 응답 항목 이름: {', '.join(sorted(one.keys()))}")
     if isinstance(items, dict):
         items = items.get("item", [items])
     if isinstance(items, str):
@@ -223,6 +244,25 @@ def bsis_by_day(key, day, kind):
     return out
 
 
+def lic_by_day(key, day, kind):
+    """하루치 면허·업종 제한을 통째로 받아 {공고번호: [제한명, ...]} 로.
+
+    한 공고에 여러 줄이 올 수 있습니다 (토목 + 건축 처럼).
+    항목 이름이 문서와 다를 때가 있어 후보를 여러 개 두고 찾습니다."""
+    out = {}
+    for it in fetch(LIC[kind], key, day, None, label=f"면허제한 {kind} {day:%m-%d}"):
+        no = str(pick(it, "bidNtceNo") or "").strip()
+        nm = pick(it, "lcnsLmtNm", "licenseLmtNm", "indstrytyNm",
+                  "bidprcPsblIndstrytyNm", "lmtNm", "prmsnCorpNm")
+        if not no or not nm:
+            continue
+        nm = str(nm).strip()
+        cur = out.setdefault(no, [])
+        if nm not in cur:
+            cur.append(nm)
+    return out
+
+
 def bsis_one(key, no, kind):
     """공고번호로 한 건만. 목록조회에서 빠진 건을 메운다 (inqryDiv=2)."""
     for it in fetch(BSIS[kind], key, None,
@@ -234,12 +274,18 @@ def bsis_one(key, no, kind):
 
 
 def parse_corps(raw, limit=6):
-    """'업체명^사업자번호^대표^금액^투찰률|업체명^...' → [[이름, 금액, 투찰률], ...]"""
+    """'업체명^사업자번호^대표^금액^투찰률|업체명^...'
+       → [[이름, 금액, 투찰률, 사업자번호, 대표자], ...]
+
+    앞의 세 자리는 예전과 같은 자리에 둡니다 (화면 코드가 [0][1][2] 로 읽습니다).
+    번호·대표는 뒤에 덧붙여서, 옛 자료와 섞여도 깨지지 않게 합니다."""
     out = []
     for chunk in str(raw or "").split("|")[:limit]:
         p = chunk.split("^")
         if len(p) >= 5 and p[0].strip():
-            out.append([p[0].strip(), to_int(p[3]), to_rate(p[4])])
+            bno = re.sub(r"[^0-9]", "", p[1])
+            out.append([p[0].strip(), to_int(p[3]), to_rate(p[4]),
+                        bno if len(bno) == 10 else "", p[2].strip()[:12]])
     return out
 
 
@@ -250,7 +296,7 @@ def row_first(item):
     corps = parse_corps(item.get("opengCorpInfo", ""), limit=10)
     if not corps:
         return None
-    win, amt, rate = corps[0]
+    win, amt, rate = corps[0][0], corps[0][1], corps[0][2]
     return {
         "no": no,
         # 공고차수 — 나라장터 원문 주소를 정확히 만들려면 필요합니다
@@ -259,6 +305,9 @@ def row_first(item):
         "inst": str(item.get("ntceInsttNm", "")).strip(),
         "dt": str(item.get("opengDt", "")).strip(),
         "win": win, "amt": amt, "rate": rate,
+        # 업체를 이름이 아니라 «사업자번호» 로 가리기 위한 값
+        "bno": corps[0][3] if len(corps[0]) > 3 else "",
+        "ceo": corps[0][4] if len(corps[0]) > 4 else "",
         # 낙찰금액·낙찰률은 응답에 있을 때만 채워진다 (없으면 1순위 투찰금액이 곧 낙찰가)
         "sAmt": to_int(pick(item, "sucsfbidAmt", "sucsfbidPrce")) or 0,
         "sRate": to_rate(pick(item, "sucsfbidRate")),
@@ -271,15 +320,74 @@ def row_live(item):
     if not no:
         return None
     url = str(item.get("bidNtceDtlUrl", "") or "").replace(":8081", "").replace(":8101", "")
+
+    def txt(*names):
+        v = pick(item, *names)
+        return str(v).strip() if v is not None else ""
+
+    # 공고서에 있는 내용을 되도록 사이트 안에서 볼 수 있게 담아 옵니다.
+    # 항목 이름이 문서와 다를 때가 있어 후보를 여러 개 적어 pick() 으로 찾습니다.
+    # 비어 오면 화면에서 그 줄만 빠집니다.
     return {
         "no": no,
+        "ord": txt("bidNtceOrd"),
         "name": str(item.get("bidNtceNm", "")).strip(),
         "inst": str(item.get("ntceInsttNm", "")).strip(),
+        "dmnd": txt("dminsttNm"),                       # 수요기관
         "dt": str(item.get("bidNtceDt", "")).strip(),
         "budget": to_int(item.get("bdgtAmt", 0) or item.get("presmptPrce", 0)),
+        "est": to_int(pick(item, "presmptPrce", "presmptPrceAmt") or 0),   # 추정가격
         "close": str(item.get("bidClseDt", "") or "").strip(),
+        "openg": txt("opengDt"),                        # 개찰 일시
+        "kind": txt("ntceKindNm"),                      # 공고종류(일반/긴급/재공고)
+        "mthd": txt("cntrctCnclsMthdNm", "bidMethdNm"), # 계약방법
+        "swin": txt("sucsfbidMthdNm"),                  # 낙찰자 결정방법
+        # ★ 낙찰하한율 — 공고가 직접 알려주면 우리가 추정할 필요가 없습니다
+        "llr": to_rate(pick(item, "sucsfbidLwltRate")),
+        "rgn": txt("prtcptPsblRgnNm"),                  # 참가가능 지역
+        "ind": txt("bidprcPsblIndstrytyNm", "indstrytyNm"),   # 참가가능 업종
+        "joint": txt("cmmnSpldmdMethdNm"),              # 공동수급 방식
+        "rebid": txt("rbidPermsnYn"),                   # 재입찰 허용
+        "ofcl": txt("ntceInsttOfclNm"),                 # 담당자
+        "tel": txt("ntceInsttOfclTelNo"),               # 연락처
         "url": url or "https://www.g2b.go.kr/index.jsp",
     }
+
+
+
+# ─────────────────────────────────────────────
+#  진단 — 투찰업체 «전체» 를 주는 오퍼레이션 찾기
+#
+#  지금 쓰는 개찰결과 오퍼레이션은 1순위(낙찰자) 한 곳만 돌려줍니다.
+#  (3년치 118,847건 전수 확인 — 전부 1곳)
+#  그래서 사이트에 «1위~10위» 를 못 띄웁니다.
+#  조달청에 투찰업체 목록을 주는 다른 오퍼레이션이 있는지
+#  하루 한 번만 두드려 보고 결과를 기록에 남깁니다. (자료는 건드리지 않습니다)
+# ─────────────────────────────────────────────
+PROBE_OPS = [
+    ("개찰결과 투찰업체", f"{BASE}/as/ScsbidInfoService/getOpengResultListInfoCnstwkPPSSrch"),
+    ("개찰 참가업체",     f"{BASE}/as/ScsbidInfoService/getBidPblancListInfoCnstwkBidPrceList"),
+    ("투찰 목록",         f"{BASE}/as/ScsbidInfoService/getOpengResultListInfoBidPrceList"),
+    ("낙찰자 목록",       f"{BASE}/as/ScsbidInfoService/getScsbidListSttusCnstwk"),
+    ("면허·업종 제한",    f"{BASE}/ad/BidPublicInfoService/getBidPblancListInfoLicenseLimit"),
+]
+
+
+def probe_ops(key, day):
+    print("-" * 52)
+    print("진단 — 투찰업체 전체를 주는 오퍼레이션이 있는지 확인")
+    for label, url in PROBE_OPS:
+        if NET_DOWN:
+            print("  · 통신이 막혀 진단을 건너뜁니다")
+            return
+        items = fetch(url, key, day=day, label=f"[진단]{label}")
+        if not items:
+            print(f"  · {label}: 응답 없음")
+            continue
+        one = items[0] if isinstance(items, list) else items
+        keys = sorted(one.keys()) if isinstance(one, dict) else []
+        print(f"  ✓ {label}: {len(items)}건 · 항목 {', '.join(keys)[:400]}")
+    print("-" * 52)
 
 
 def load_store(name):
@@ -331,6 +439,8 @@ def archive(first):
                 "발주기관": r.get("inst", ""),
                 "공고명": r.get("name", ""),
                 "1순위업체": r.get("win", ""),
+                "사업자번호": r.get("bno", "") or "",
+                "대표자": r.get("ceo", "") or "",
                 "투찰금액": r.get("amt", 0),
                 "투찰률": "" if r.get("rate") is None else r.get("rate"),
                 "기초금액": r.get("base", "") or "",
@@ -344,8 +454,29 @@ def archive(first):
     for ym, rows in sorted(buckets.items()):
         p = archive_path(ym)
         fresh = not os.path.exists(p)
+
+        # 칸이 늘어났을 때(사업자번호·대표자 추가) 옛 파일을 한 번 갈아끼웁니다.
+        # 그냥 덧붙이면 머리글은 8칸인데 줄은 10칸이 되어 자료가 어긋납니다.
+        if not fresh:
+            try:
+                with io.open(p, encoding="utf-8-sig", newline="") as f:
+                    rd = csv.DictReader(f)
+                    head = rd.fieldnames or []
+                    if head != ARCH_COLS:
+                        keep = [dict(x) for x in rd]
+                        with io.open(p, "w", encoding="utf-8-sig", newline="") as g:
+                            w = csv.DictWriter(g, fieldnames=ARCH_COLS,
+                                               extrasaction="ignore")
+                            w.writeheader()
+                            for x in keep:
+                                w.writerow({c: x.get(c, "") for c in ARCH_COLS})
+                        print(f"  · {os.path.basename(p)} 칸 맞춤 "
+                              f"({len(head)} → {len(ARCH_COLS)}칸, {len(keep):,}줄)")
+            except Exception as e:
+                print(f"  ! 누적 CSV 칸 맞춤 실패 {os.path.basename(p)} ({type(e).__name__})")
+
         with io.open(p, "a", encoding="utf-8-sig", newline="") as f:
-            w = csv.DictWriter(f, fieldnames=ARCH_COLS)
+            w = csv.DictWriter(f, fieldnames=ARCH_COLS, extrasaction="ignore")
             if fresh:
                 w.writeheader()
             w.writerows(rows)
@@ -369,12 +500,18 @@ def main():
     ap.add_argument("--days", type=int, default=3)
     ap.add_argument("--backfill", type=int, default=0)
     ap.add_argument("--sleep", type=float, default=0.6)
+    ap.add_argument("--probe", action="store_true",
+                    help="투찰업체 전체를 주는 오퍼레이션이 있는지 한 번 확인만 합니다")
     args = ap.parse_args()
 
     load_env()
     key = api_key()
     days = args.backfill or args.days
     today = datetime.now(KST)
+
+    if args.probe:
+        probe_ops(key, today - timedelta(days=1))
+        return
 
     print("=" * 52)
     print(f"  조달청 수집 — 최근 {days}일")
@@ -392,6 +529,7 @@ def main():
     added = {"first": 0, "live": 0}
 
     n_base = 0
+    n_lic = 0
     for i in range(days - 1, -1, -1):
         day = today - timedelta(days=i)
         ds = day.strftime("%m-%d")
@@ -402,7 +540,7 @@ def main():
                 if r:
                     prev = first[kind].get(r["no"]) or {}
                     # 이미 받아둔 기초금액을 덮어쓰지 않는다
-                    for f in ("base", "lo", "hi"):
+                    for f in ("base", "lo", "hi", "lic"):
                         if prev.get(f) is not None:
                             r[f] = prev[f]
                     first[kind][r["no"]] = r
@@ -430,9 +568,18 @@ def main():
                         n_base += 1
             time.sleep(args.sleep)
 
+            # ── 면허·업종 제한 ──────────────────────
+            lm = lic_by_day(key, day, kind)
+            for no, names in lm.items():
+                row = live[kind].get(no)
+                if row is not None:
+                    row["lic"] = names[:6]
+                    n_lic += 1
+            time.sleep(args.sleep)
+
         print(f"  {ds}  1순위 {len(first['con']) + len(first['serv']):,}건 "
               f"/ 공고 {len(live['con']) + len(live['serv']):,}건 "
-              f"/ 기초금액 {n_base:,}건 누적")
+              f"/ 기초금액 {n_base:,}건 / 면허 {n_lic:,}건 누적")
 
     # ── 화면에 실릴 최근 건 중 기초금액이 빈 것만 공고번호로 개별 보충 ──
     todo = []
@@ -566,10 +713,14 @@ def main():
                 r.get("close") or "",
                 r.get("lo") if r.get("lo") is not None else -3,
                 r.get("hi") if r.get("hi") is not None else 3,
+                r.get("llr"),                      # 공고가 알려준 낙찰하한율
+                int(r.get("est") or 0),            # 공고가 알려준 추정가격
+                r.get("lic") or [],                # 면허·업종 제한
             ])
         rows.sort(key=lambda x: re.sub(r"[^0-9]", "", str(x[5])))
         out = {"built": built,
-               "f": ["no", "name", "inst", "base", "budget", "close", "lo", "hi"],
+               "f": ["no", "name", "inst", "base", "budget", "close", "lo", "hi",
+                     "llr", "est", "lic"],
                "r": rows}
         path = os.path.join(OUT, "bidindex.json")
         with open(path, "w", encoding="utf-8") as f:

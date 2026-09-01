@@ -70,7 +70,8 @@ export async function searchCorp(qNorm) {
     .filter(([k2]) => k2.includes(s))
     .sort((a, b) => b[1][0] - a[1][0])
     .slice(0, 40)
-    .map(([k2, [n, chunk]]) => ({ key: k2, n, chunk }))
+    // bzn: 이 이름에 섞여 있는 «서로 다른 법인» 수 · reg: 주력 지역
+    .map(([k2, [n, chunk, bzn, reg]]) => ({ key: k2, n, chunk, bzn: bzn || 0, reg: reg || '' }))
 }
 
 export async function getCorp(ckey, chunk) {
@@ -85,8 +86,14 @@ export async function getCorp(ckey, chunk) {
 }
 
 /* ── 유사공고 키워드 ─────────────────── */
+/* build_json.py 의 STOPWORDS 와 같아야 합니다.
+   «입찰»·«공고» 처럼 아무 공고에나 들어가는 말은 근거가 못 됩니다. */
 const KW_STOP = new Set(['공사', '용역', '설치', '사업', '시공', '및', '기타', '위한',
-  '구입', '제작', '납품', '관리', '운영', '외', '년도', '정기'])
+  '구입', '제작', '납품', '관리', '운영', '외', '년도', '정기',
+  '입찰', '공고', '재공고', '긴급', '일반', '제한', '지명경쟁',
+  '수의시담', '견적', '제출', '총괄분', '분리발주', '관급',
+  '구매', '임차', '위탁', '본공사', '추가', '변경', '신규',
+  '사업소', '지사', '본부', '관리소', '센터', '확정', '낙찰'])
 
 export function extractKeywords(noticeName, limit = 5) {
   const words = String(noticeName || '').match(/[가-힣]{2,8}/g) || []

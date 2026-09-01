@@ -4,15 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#1d4ed8" />
-    <title>K-건설맵 — 공공 입찰 1순위·투찰가 분석</title>
-    <meta name="description" content="조달청 공공 입찰 1순위 개찰 결과와 발주기관별 투찰률 패턴을 무료로 확인하세요. 투찰가 계산기, 낙찰스코어, 업체 자가진단 제공." />
+    <title>K-건설맵 — 바로투찰 · 공공 입찰 투찰금액 계산</title>
+    <meta name="description" content="공고를 고르면 기초금액·추정가격·낙찰하한율이 자동으로 채워지고 투찰금액이 바로 나옵니다. 조달청 개찰 18만 건으로 검증한 권장 투찰률. 무료." />
     <meta name="naver-site-verification" content="bfb3f10bce2983b4dd5974ba39d05e3ce5225e73" />
     <link rel="canonical" href="https://k-conmap.com/" />
     <meta property="og:url" content="https://k-conmap.com/" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="K-건설맵" />
-    <meta property="og:title" content="K-건설맵 — 공공 입찰 1순위·투찰가 분석" />
-    <meta property="og:description" content="발주기관별 투찰률 패턴을 3년치 데이터로 분석합니다." />
+    <meta property="og:title" content="K-건설맵 — 바로투찰 · 공공 입찰 투찰금액 계산" />
+    <meta property="og:description" content="공고만 고르면 투찰금액이 바로 나옵니다. 조달청 3년치 개찰 자료로 검증한 권장 투찰률. 무료로 씁니다." />
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
@@ -24,28 +24,6 @@
         if (h.indexOf('.web.app') > -1 || h.indexOf('.firebaseapp.com') > -1) {
           location.replace('https://k-conmap.com' + location.pathname + location.search + location.hash);
         }
-      })();
-    </script>
-    <!-- 옛 사이트 찌꺼기 청소 —
-         이 주소는 예전에 Streamlit 사이트를 가리켰습니다. 그때 «앱처럼 설치하기» 로
-         브라우저에 심어진 서비스워커가 남아 있으면, 새 사이트를 열어도 옛 화면이
-         계속 보입니다. 남아 있으면 지우고 한 번만 새로 고칩니다.
-         (새 사이트는 서비스워커를 쓰지 않으므로 전부 지워도 안전합니다) -->
-    <script>
-      (function () {
-        if (!('serviceWorker' in navigator)) return;
-        navigator.serviceWorker.getRegistrations().then(function (rs) {
-          if (!rs.length) return;
-          Promise.all(rs.map(function (r) { return r.unregister(); }))
-            .then(function () {
-              if (!window.caches) return null;
-              return caches.keys().then(function (ks) {
-                return Promise.all(ks.map(function (k) { return caches.delete(k); }));
-              });
-            })
-            .then(function () { location.reload(); })
-            .catch(function () {});
-        }).catch(function () {});
       })();
     </script>
     <!-- Google 애널리틱스 (GA4) — 속성 K-conmap / 스트림 «K-건설맵 웹» -->

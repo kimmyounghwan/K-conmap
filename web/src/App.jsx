@@ -1,11 +1,11 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
-import { BasePriceProvider, BasePriceField } from './BasePrice.jsx'
+import { BasePriceProvider } from './BasePrice.jsx'
 
 const TABS = [
-  { to: '/', ic: '🏆', label: '1순위' },
+  { to: '/', ic: '💰', label: '바로투찰' },
+  { to: '/first', ic: '🏆', label: '1순위' },
   { to: '/live', ic: '📋', label: '공고' },
-  { to: '/calc', ic: '💰', label: '바로투찰' },
   { to: '/analysis', ic: '🔍', label: '분석' },
   { to: '/jobs', ic: '🤝', label: '구인구직' },
 ]
@@ -22,8 +22,6 @@ export default function App() {
             <span>🏗️</span><span>K-<b>건설맵</b></span>
           </NavLink>
           <span className="brand-sub">조달청 공공입찰</span>
-          {/* 기초금액을 한 번 넣어두면 모든 화면의 투찰률이 금액으로 환산됩니다 */}
-          <BasePriceField />
         </div>
       </header>
 

@@ -92,7 +92,9 @@ function BidTab({ r }) {
         </div>
       )}
 
-      <div className="detail-h">참여업체 ({(r.corps || []).length}곳)</div>
+      <div className="detail-h">
+        투찰 순위 <span className="count">· {(r.corps || []).length}곳</span>
+      </div>
       {(r.corps || []).length === 0 && <div className="hintbox">참여업체 정보가 없습니다.</div>}
       {(r.corps || []).map((c, j) => {
         const cr = c[2] != null ? c[2] : rateOf(c[1], r.base)
@@ -107,13 +109,16 @@ function BidTab({ r }) {
           </div>
         )
       })}
-
-      {r.base > 0 && (
-        <Link className="btn" style={{ width: '100%', marginTop: 10 }}
-          to={`/calc?base=${r.base}&inst=${encodeURIComponent(r.inst)}&name=${encodeURIComponent(r.name || '')}`}>
-          💰 이 기초금액({wonShort(r.base)})으로 바로투찰 열기
-        </Link>
+      {(r.corps || []).length === 1 && (
+        <div className="hintbox">
+          조달청 개찰결과 자료가 <b>1순위(낙찰자)만</b> 알려줍니다.
+          2위 이하 투찰 내역은 제공되지 않아 표시하지 못합니다.
+          나라장터 원문에서는 전체 투찰 순위를 볼 수 있습니다.
+        </div>
       )}
+
+      {/* 여기는 이미 개찰이 끝난 공고입니다. 투찰금액을 계산할 이유가 없어
+          «바로투찰» 버튼은 두지 않습니다. 그 버튼은 마감 전 «공고» 화면에 있습니다. */}
     </>
   )
 }

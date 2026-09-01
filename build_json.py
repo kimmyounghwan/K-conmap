@@ -48,8 +48,22 @@ HIST_TOP = 30        # 히스토그램은 상위 구간만 (파일 크기 방어
 CASES = 3            # 최근 사례 보관 건수
 NAME_CUT = 34        # 공고명 자르기
 
+# ── 권장 투찰률의 근거가 되는 값들 (역검증 106,534건으로 정한 숫자) ──
+HOT_DAYS = 30        # 전국 최빈 낙찰률을 볼 창. 90일은 제도 바뀔 때 실격추천 43%까지 뜀
+HOT_DAYS_FAST = 14   # 제도 변동이 감지되면 이 창으로 좁힌다
+HOT_OFFSET = 0.20    # 권장 = 최빈 − 0.20%p. 최빈에 딱 맞추면 승률 50.7%, 여기선 67.0%
+KW_DAYS = 90         # 유사공고 창
+REGIME_GAP = 0.3     # 최빈값이 이만큼(%p) 움직이면 제도 변동 경보
+REGIME_MIN_N = 150   # 표본이 이보다 적으면 경보를 울리지 않는다 (연휴 오탐 방지)
+
+# 어느 공고에나 들어가는 말은 «비슷한 공고»의 근거가 되지 못합니다.
+# «입찰» 하나로 681건이 묶여서 아무 의미 없는 최빈값이 나오던 것을 막습니다.
 STOPWORDS = {"공사", "용역", "설치", "사업", "시공", "및", "기타", "위한",
-             "구입", "제작", "납품", "관리", "운영", "외", "년도", "정기"}
+             "구입", "제작", "납품", "관리", "운영", "외", "년도", "정기",
+             "입찰", "공고", "재공고", "긴급", "일반", "제한", "지명경쟁",
+             "수의시담", "견적", "제출", "총괄분", "분리발주", "관급",
+             "구매", "임차", "위탁", "본공사", "추가", "변경", "신규",
+             "사업소", "지사", "본부", "관리소", "센터", "확정", "낙찰"}
 
 CORP_NOISE = ["주식회사", "(주)", "㈜", "유한회사", "합자회사", "(유)", "(합)", "주)", "유)"]
 
@@ -234,6 +248,29 @@ def load_all():
     df["1순위업체"] = df["1순위업체"].fillna("").astype(str).str.strip()
     df["공고명"] = df["공고명"].fillna("").astype(str).str.strip()
 
+    # ── 업체 사업자번호 ──────────────────────────
+    #   같은 이름의 다른 법인이 아주 많습니다.
+    #   «대영건설» 이라는 이름 하나에 서로 다른 법인이 40곳 있습니다.
+    #   3년치 이름 37,301개 중 6,756개(18%)가 여러 법인이 섞인 이름이고,
+    #   그 이름들이 낙찰 55,115건(46%)을 차지합니다.
+    #   원자료 «전체업체» 가 '업체명^사업자번호^대표^금액^투찰률' 이라 번호를 꺼낼 수 있습니다.
+    if "전체업체" in df.columns:
+        head = df["전체업체"].fillna("").astype(str).str.split("|").str[0]
+        part = head.str.split("^")
+        df["bizno"] = (part.str[1].fillna("").astype(str)
+                       .str.replace(r"[^0-9]", "", regex=True))
+        df["ceo"] = part.str[2].fillna("").astype(str).str.strip().str.slice(0, 12)
+    else:
+        df["bizno"] = ""
+        df["ceo"] = ""
+    if "사업자번호" in df.columns:   # 수집분에 실려 오기 시작한 경우
+        b2 = (df["사업자번호"].fillna("").astype(str)
+              .str.replace(r"[^0-9]", "", regex=True))
+        df["bizno"] = df["bizno"].where(df["bizno"].astype(str) != "", b2)
+    df["bizno"] = df["bizno"].fillna("").astype(str)
+    df["bizno"] = df["bizno"].where(df["bizno"].str.len() == 10, "")
+    df["ceo"] = df["ceo"].fillna("").astype(str)
+
     # ── 사정률 역산 ──────────────────────────────
     #   예정가격 = 낙찰금액 ÷ 투찰률,  사정률 = 예정가격 ÷ 기초금액
     #   기초금액이 실린 줄(매일 수집분)에서만 구할 수 있습니다.
@@ -382,9 +419,24 @@ def build_corp(df):
         amts = [a for a in g["amt"].tolist() if a > 0]
         recent = g.sort_values("dt", ascending=False).head(CASES)
 
+        # 같은 이름으로 묶인 «서로 다른 법인» 들을 낱낱이 적어둔다.
+        # 합쳐진 숫자를 그냥 보여주면 남의 실적을 자기 실적으로 착각합니다.
+        bzc = Counter()
+        bceo = {}
+        for bz, ce in zip(g["bizno"], g["ceo"]):
+            if bz:
+                bzc[bz] += 1
+                if ce and bz not in bceo:
+                    bceo[bz] = ce
+        firms = [[bz, bceo.get(bz, ""), c] for bz, c in bzc.most_common(8)]
+
         cur[key] = {
             "name": str(g["1순위업체"].mode().iat[0])[:40],
             "n": n,
+            # bzn: 이 이름에 섞여 있는 법인 수 · bzk: 번호가 확인된 건수 · bz: 법인 목록
+            "bzn": len(bzc),
+            "bzk": int(sum(bzc.values())),
+            "bz": firms,
             "s": stat(rates),
             "h": hist_top(rates, 0.5, 12) if rates else [],
             "reg": dict(region.most_common(8)),
@@ -404,7 +456,10 @@ def build_corp(df):
 
     for key in sorted(agg, key=lambda k: (first_key(k), k)):
         cur[key] = agg[key]
-        idx[first_key(key)][key] = [agg[key]["n"], len(chunks)]
+        _r = agg[key].get("reg") or {}
+        idx[first_key(key)][key] = [agg[key]["n"], len(chunks),
+                                    agg[key].get("bzn", 0),
+                                    next(iter(_r), "")]
         cur_n += 1
         if cur_n >= CHUNK:
             chunks.append(cur)
@@ -427,9 +482,17 @@ def build_corp(df):
 #    (낙찰스코어 3번 항목 재료)
 # ─────────────────────────────────────────────
 def build_keyword(df):
-    log("유사공고 키워드 집계 중...")
+    # ⚠️ 반드시 최근 자료만 씁니다.
+    #   2025년에 낙찰하한율 체제가 바뀌면서 낙찰률 대역이 통째로 이동했습니다.
+    #   과거 전체로 최빈값을 잡으면 2025Q3 오차가 1.763%p 까지 벌어졌고,
+    #   최근 90일로 자르면 0.278%p 로 줄었습니다 (역검증 106,534건).
+    kcut = pd.Timestamp.now().normalize() - pd.Timedelta(days=KW_DAYS)
+    dk = df[df["dt"].notna() & (df["dt"] >= kcut)]
+    if len(dk) < 500:      # 자료가 너무 적으면 창을 넓힌다
+        dk = df[df["dt"].notna() & (df["dt"] >= kcut - pd.Timedelta(days=KW_DAYS))]
+    log(f"유사공고 키워드 집계 중... (최근 {KW_DAYS}일 {len(dk):,}건)")
     bag = defaultdict(list)
-    for nm, rate in zip(df["공고명"], df["rate"]):
+    for nm, rate in zip(dk["공고명"], dk["rate"]):
         if rate is None or pd.isna(rate):
             continue
         for w in set(re.findall(r"[가-힣]{2,}", str(nm))):
@@ -456,9 +519,86 @@ def build_keyword(df):
 
 
 # ─────────────────────────────────────────────
+# 3.5 전국 최근창 최빈 낙찰률 + 제도 변동 감시
+#
+#     이 사이트에서 제일 중요한 숫자입니다.
+#     역검증 106,534건 결과:
+#       · 발주기관별 핫존은 쓰면 안 됩니다.
+#         표본 80건 쌓인 기관에서도 전국값이 4.6%p 이겼습니다.
+#       · 창은 30일. 90일은 제도가 바뀔 때 실격추천이 43%까지 뜁니다.
+#       · 최빈값에 딱 맞추면 안 됩니다. 최빈값은 낙찰하한율보다
+#         중앙값 0.30%p 위에 있어서, 맞추면 낙찰자보다 높아 집니다.
+#         0.20%p 낮추면 승률 50.7% → 67.0% 로 올라갑니다.
+# ─────────────────────────────────────────────
+def mode_rate(rates, unit=0.1):
+    if not rates:
+        return None, 0
+    c = Counter(round(math.floor(r / unit) * unit, 2) for r in rates)
+    best, cnt = c.most_common(1)[0]
+    return best, cnt
+
+
+def rates_within(df, days, offset=0):
+    """오늘로부터 offset일 전을 끝으로, 그 앞 days일치 낙찰률."""
+    end = pd.Timestamp.now().normalize() - pd.Timedelta(days=offset)
+    beg = end - pd.Timedelta(days=days)
+    g = df[df["dt"].notna() & (df["dt"] >= beg) & (df["dt"] < end)]
+    return [r for r in g["rate"].tolist() if r is not None and not pd.isna(r)]
+
+
+def build_hot(df):
+    def win(days):
+        rs = rates_within(df, days)
+        m1, c1 = mode_rate(rs, 0.1)
+        m01, _ = mode_rate([r for r in rs if m1 is not None and m1 <= r < m1 + 0.1], 0.01)
+        return {
+            "win": days,
+            "n": len(rs),
+            "mode": m1,
+            "mode01": m01,
+            "rec": round(m1 - HOT_OFFSET, 2) if m1 is not None else None,
+            "top": hist_top(rs, 0.1, 8),
+        }
+
+    hot30 = win(HOT_DAYS)
+    hot14 = win(HOT_DAYS_FAST)
+
+    # 제도 변동 감시 — 3년치에 돌려보니 3년간 정확히 2번 울렸고 오탐 0건이었습니다.
+    r7 = rates_within(df, 7)
+    m7, _ = mode_rate(r7, 0.1)
+    m30 = hot30["mode"]
+    mPrev, _ = mode_rate(rates_within(df, 90, offset=30), 0.1)
+
+    early = bool(m7 is not None and m30 is not None
+                 and len(r7) >= REGIME_MIN_N
+                 and abs(m7 - m30) >= REGIME_GAP)
+    confirmed = bool(m30 is not None and mPrev is not None
+                     and abs(m30 - mPrev) >= REGIME_GAP)
+
+    regime = {
+        "m7": m7, "n7": len(r7),
+        "m30": m30, "mPrev90": mPrev,
+        "shift7": round(abs(m7 - m30), 2) if (m7 is not None and m30 is not None) else None,
+        "shift30": round(abs(m30 - mPrev), 2) if (m30 is not None and mPrev is not None) else None,
+        "early": early,
+        "confirmed": confirmed,
+    }
+    # 경보가 울리면 좁은 창을 쓴다 (제도 전환기에는 14일이 훨씬 정확)
+    use = hot14 if (early or confirmed) else hot30
+    if early or confirmed:
+        log(f"⚠️  제도 변동 감지 — 최근7일 최빈 {m7} / 최근30일 {m30} / 직전90일 {mPrev}")
+        log(f"    권장 투찰률 산출 창을 {HOT_DAYS}일 → {HOT_DAYS_FAST}일 로 좁힙니다")
+    log(f"권장 투찰률 {use['rec']}% "
+        f"(최근 {use['win']}일 최빈 {use['mode']}% − {HOT_OFFSET} / 표본 {use['n']:,}건)")
+    return {"hot": use, "hot30": hot30, "hot14": hot14, "regime": regime,
+            "offset": HOT_OFFSET}
+
+
+# ─────────────────────────────────────────────
 # 4. 전체 시장 요약 (홈 상단 띠)
 # ─────────────────────────────────────────────
 def build_overview(df, n_agency, n_corp, n_kw):
+    hot = build_hot(df)
     rates = [r for r in df["rate"].tolist() if r is not None and not pd.isna(r)]
     dts = df["dt"].dropna()
     sjs = [v for v in df["sj"].tolist() if v is not None and not pd.isna(v)]
@@ -478,6 +618,13 @@ def build_overview(df, n_agency, n_corp, n_kw):
         "sjn": len(sjs),
         "sjq": {"p10": _q(0.10), "p25": _q(0.25), "p50": _q(0.50),
                 "p75": _q(0.75), "p90": _q(0.90)} if sjs_sorted else None,
+        # 권장 투찰률 — 바로투찰 화면의 기본값
+        "hot": hot["hot"],
+        "hot30": hot["hot30"],
+        "hot14": hot["hot14"],
+        "regime": hot["regime"],
+        "hotOffset": hot["offset"],
+        "kwDays": KW_DAYS,
         "rate": stat(rates),
         "hist": hist_top(rates, 0.5, 30),
         "from": dts.min().strftime("%Y-%m-%d") if len(dts) else "",

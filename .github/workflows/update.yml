@@ -83,6 +83,15 @@ jobs:
             python collect.py --days 3
           fi
 
+      # 진단 — 투찰업체 «전체»(1~10위)를 주는 오퍼레이션이 있는지 한 번 두드려 봅니다.
+      # 지금 쓰는 개찰결과는 1순위만 돌려줍니다. 결과를 보고 되는 게 있으면 본수집에 붙입니다.
+      # 자료를 바꾸지 않으므로 실패해도 그냥 넘어갑니다.
+      - name: 진단 (투찰업체 목록 오퍼레이션 탐색)
+        continue-on-error: true
+        env:
+          G2B_API_KEY: ${{ secrets.G2B_API_KEY }}
+        run: python collect.py --probe
+
       - name: 3년치 집계
         env:
           PYTHONUTF8: '1'

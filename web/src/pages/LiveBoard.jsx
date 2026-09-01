@@ -1,7 +1,7 @@
+import { Link } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import { useBoard } from '../lib/useBoard.js'
 import { Skeleton, Empty } from '../components.jsx'
-import { useBasePrice } from '../BasePrice.jsx'
 import { RangeBar } from './FirstBoard.jsx'
 import { won, wonShort, num, dateTime, dday, REGIONS, inRegion, LICENSES, licenseKeywords } from '../lib/fmt.js'
 
@@ -26,7 +26,6 @@ export default function LiveBoard() {
   const [lics, setLics] = useState(loadLicenses)
   const [editLic, setEditLic] = useState(false)
   const [open, setOpen] = useState(null)
-  const { setBase } = useBasePrice()
 
   useEffect(() => { setPage(1) }, [region, q, mine, lics])
   useEffect(() => { saveLicenses(lics) }, [lics])
@@ -140,7 +139,17 @@ export default function LiveBoard() {
                 </div>
 
                 {isOpen && (
-                  <div className="detail">
+                  <div className="detail" onClick={(e) => e.stopPropagation()}>
+                    {/* 면허·업종 제한이 입찰 가능 여부를 가장 먼저 가릅니다 — 맨 위에 둡니다 */}
+                    {(r.lic || []).length > 0 && (
+                      <div className="licbox">
+                        <div className="h">참가 가능 면허 · 업종</div>
+                        <div className="lics big">
+                          {r.lic.map((L) => <span key={L} className="lic on">{L}</span>)}
+                        </div>
+                      </div>
+                    )}
+                    {/* 공고서에 있는 내용을 되도록 여기서 다 보이게 합니다 */}
                     <div className="kv">
                       <div>
                         <span>기초금액</span>
@@ -148,35 +157,56 @@ export default function LiveBoard() {
                       </div>
                       <div>
                         <span>추정가격</span>
-                        <b>{won(r.budget)}</b>
+                        <b>{won(r.est || r.budget)}</b>
                       </div>
                       <div>
                         <span>예가범위</span>
                         <b>{r.lo != null && r.hi != null ? `${r.lo}% ~ ${r.hi}%` : '-'}</b>
                       </div>
                       <div>
+                        <span>낙찰하한율</span>
+                        <b className={r.llr ? 'hi' : ''}>{r.llr ? `${r.llr}%` : '공고서 확인'}</b>
+                      </div>
+                      <div>
                         <span>입찰마감</span>
                         <b>{dateTime(r.close)}</b>
+                      </div>
+                      <div>
+                        <span>개찰일시</span>
+                        <b>{r.openg ? dateTime(r.openg) : '-'}</b>
                       </div>
                     </div>
 
                     {r.base > 0 && (
-                      <button className="btn sm" style={{ width: '100%', marginBottom: 10 }}
-                        onClick={(e) => { e.stopPropagation(); setBase(r.base) }}>
-                        이 공고의 기초금액({wonShort(r.base)})으로 사이트 전체 계산하기
-                      </button>
+                      <Link className="btn" style={{ width: '100%', margin: '10px 0' }}
+                        to={`/?base=${r.base}&inst=${encodeURIComponent(r.inst || '')}&name=${encodeURIComponent(r.name || '')}${r.llr ? `&llr=${r.llr}` : ''}`}>
+                        💰 이 공고 투찰금액 계산하기 ({wonShort(r.base)})
+                      </Link>
                     )}
 
-                    <div className="btn-row">
-                      <a className="btn ghost sm" style={{ flex: 1 }}
-                        href={r.url || 'https://www.g2b.go.kr'} target="_blank" rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}>
-                        나라장터 원문 열기
-                      </a>
-                      <button className="btn ghost sm" style={{ flex: 1 }}
-                        onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(r.no || '') }}>
-                        공고번호 복사
-                      </button>
+                    <div className="kv2">
+                      {r.kind && <div><span>공고종류</span><b>{r.kind}</b></div>}
+                      {r.mthd && <div><span>계약방법</span><b>{r.mthd}</b></div>}
+                      {r.swin && <div><span>낙찰방법</span><b>{r.swin}</b></div>}
+                      {r.rgn && <div><span>참가지역</span><b>{r.rgn}</b></div>}
+                      {r.ind && <div><span>참가업종</span><b>{r.ind}</b></div>}
+                      {r.joint && <div><span>공동수급</span><b>{r.joint}</b></div>}
+                      {r.rebid && <div><span>재입찰</span><b>{r.rebid === 'Y' ? '허용' : '불허'}</b></div>}
+                      {r.dmnd && <div><span>수요기관</span><b>{r.dmnd}</b></div>}
+                      {(r.ofcl || r.tel) && (
+                        <div><span>담당</span><b>{[r.ofcl, r.tel].filter(Boolean).join(' · ')}</b></div>
+                      )}
+                      <div><span>공고번호</span><b>{r.no}{r.ord ? `-${r.ord}` : ''}</b></div>
+                    </div>
+
+                    <a className="btn ghost sm" style={{ width: '100%', marginTop: 10 }}
+                      href={r.url || 'https://www.g2b.go.kr'} target="_blank" rel="noreferrer">
+                      나라장터 원문 · 공고서 내려받기 ↗
+                    </a>
+
+                    <div className="note sm">
+                      산출내역서·설계도서 같은 첨부파일은 나라장터에서만 받을 수 있습니다.
+                      A값은 그 내역서에 있습니다.
                     </div>
                   </div>
                 )}

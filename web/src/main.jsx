@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import App from './App.jsx'
 import FirstBoard from './pages/FirstBoard.jsx'
 import LiveBoard from './pages/LiveBoard.jsx'
-import Calc from './pages/Calc.jsx'
+import BaroBid from './pages/BaroBid.jsx'
 import Analysis from './pages/Analysis.jsx'
 import AgencyPage from './pages/AgencyPage.jsx'
 import NotFound from './pages/NotFound.jsx'
@@ -25,9 +25,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <BrowserRouter>
       <Routes>
         <Route element={<App />}>
-          <Route path="/" element={<FirstBoard />} />
+          {/* 바로투찰이 이 사이트의 첫 화면입니다 */}
+          <Route path="/" element={<BaroBid />} />
+          <Route path="/calc" element={<BaroBid />} />
+          <Route path="/first" element={<FirstBoard />} />
           <Route path="/live" element={<LiveBoard />} />
-          <Route path="/calc" element={<Calc />} />
           <Route path="/analysis" element={<Analysis />} />
           <Route path="/jobs" element={<Suspense fallback={<Loading />}><Jobs /></Suspense>} />
           <Route path="/agency/:name" element={<AgencyPage />} />

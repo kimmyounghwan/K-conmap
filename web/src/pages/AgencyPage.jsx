@@ -57,7 +57,7 @@ export default function AgencyPage() {
       </div>
       <AgencyReport name={decoded} a={a} />
       <div className="btn-row" style={{ marginTop: 10 }}>
-        <Link className="btn" to="/calc" style={{ flex: 1 }}>이 기관 투찰가 계산 →</Link>
+        <Link className="btn" to="/calc" style={{ flex: 1 }}>💰 바로투찰 열기 →</Link>
       </div>
     </>
   )
