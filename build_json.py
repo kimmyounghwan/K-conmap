@@ -233,6 +233,19 @@ def load_all():
     df["발주기관"] = df["발주기관"].fillna("").astype(str).str.strip()
     df["1순위업체"] = df["1순위업체"].fillna("").astype(str).str.strip()
     df["공고명"] = df["공고명"].fillna("").astype(str).str.strip()
+
+    # ── 사정률 역산 ──────────────────────────────
+    #   예정가격 = 낙찰금액 ÷ 투찰률,  사정률 = 예정가격 ÷ 기초금액
+    #   기초금액이 실린 줄(매일 수집분)에서만 구할 수 있습니다.
+    #   이 값이 «내가 얼마를 써야 하나»의 핵심 재료입니다.
+    if "기초금액" in df.columns:
+        base = df["기초금액"].map(to_amt)
+        ok = (base > 0) & df["rate"].notna() & (df["rate"] > 0) & (df["amt"] > 0)
+        sj = (df["amt"] / (df["rate"] / 100.0)) / base * 100.0
+        # 예가범위는 보통 ±3% 입니다. 그 밖은 자료 오류로 보고 버립니다.
+        df["sj"] = sj.where(ok & sj.between(95, 105))
+    else:
+        df["sj"] = None
     return df
 
 
@@ -257,6 +270,8 @@ def build_agency(df):
             continue
 
         st = stat(rates)
+        sjs = [v for v in g["sj"].tolist() if v is not None and not pd.isna(v)]
+        sj_stat = stat(sjs) if len(sjs) >= 3 else None
         corp_counts = Counter(g["1순위업체"])
         corp_counts.pop("", None)
         top_corps = corp_counts.most_common(7)
@@ -289,6 +304,9 @@ def build_agency(df):
             "n": n,
             "kind": g["__kind"].mode().iat[0] if not g["__kind"].mode().empty else "공사",
             "s": st,
+            # 사정률 — 이 기관이 실제로 예정가격을 어디쯤에서 뽑았는지
+            "sj": sj_stat,
+            "sjn": len(sjs),
             "h1": hist_top(rates, 0.1, HIST_TOP),
             "h01": hist_top(rates, 0.01, HIST_TOP + 20),
             "corps": [[c[:26], v] for c, v in top_corps],
@@ -443,12 +461,23 @@ def build_keyword(df):
 def build_overview(df, n_agency, n_corp, n_kw):
     rates = [r for r in df["rate"].tolist() if r is not None and not pd.isna(r)]
     dts = df["dt"].dropna()
+    sjs = [v for v in df["sj"].tolist() if v is not None and not pd.isna(v)]
+    sj = stat(sjs) if len(sjs) >= 10 else None
+    sjs_sorted = sorted(sjs)
+    def _q(p):
+        return round(sjs_sorted[int(len(sjs_sorted) * p)], 3) if sjs_sorted else None
+
     ov = {
         "built": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "rows": int(len(df)),
         "agencies": n_agency,
         "corps": n_corp,
         "keywords": n_kw,
+        # 사정률 분포 — 투찰가 계산기의 «예정가격이 어디쯤 나올까» 재료
+        "sj": sj,
+        "sjn": len(sjs),
+        "sjq": {"p10": _q(0.10), "p25": _q(0.25), "p50": _q(0.50),
+                "p75": _q(0.75), "p90": _q(0.90)} if sjs_sorted else None,
         "rate": stat(rates),
         "hist": hist_top(rates, 0.5, 30),
         "from": dts.min().strftime("%Y-%m-%d") if len(dts) else "",

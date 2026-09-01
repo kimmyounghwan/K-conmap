@@ -18,6 +18,15 @@ on:
     - cron: '0 11 * * *'   # 한국 20:00
   workflow_dispatch:        # «Actions» 탭에서 손으로 돌리는 버튼
 
+  # 화면(코드)을 고쳐서 올리면 그것도 바로 사이트에 반영되게 합니다.
+  # 이게 없으면 «자료는 자동으로 바뀌는데 화면은 그대로» 인 상태가 됩니다.
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - '*.py'
+      - '.github/workflows/update.yml'
+
 # 같은 작업이 겹쳐 돌지 않게 (중복 배포 방지)
 concurrency:
   group: update

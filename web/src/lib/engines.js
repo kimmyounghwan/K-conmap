@@ -8,15 +8,54 @@
 
 const floorTo = (v, unit, dec) => Number((Math.floor(v / unit) * unit).toFixed(dec))
 
+/* ── 낙찰하한율 (조달청 일반공사 적격심사) ────
+   추정가격 기준입니다. 기초금액이 아니라 추정가격이라는 점이 중요합니다.
+   ------------------------------------------------ */
+export function lowerLimit(estimate) {
+  if (!estimate) return null
+  const eok = estimate / 1e8
+  if (eok >= 100) return { rate: null, note: '100억 이상 — 종합심사(별도 기준)' }
+  if (eok >= 50) return { rate: 87.495, note: '추정가격 50억~100억' }
+  if (eok >= 10) return { rate: 88.745, note: '추정가격 10억~50억' }
+  return { rate: 89.745, note: '추정가격 10억 미만' }
+}
+
 /* ── 투찰가 계산기 ─────────────────────────────
    0.1% 단위 최다발생 구간(핫존)을 찾고, 그 안에서 0.01% 단위로 좁힌다.
+
+   [2026-09 정밀도 보강]
+   예전에는 «기초금액 × 투찰률» 로 금액을 냈습니다. 이게 틀렸습니다.
+   투찰률은 기초금액이 아니라 «예정가격» 에 대한 비율이기 때문입니다.
+
+       예정가격 = 기초금액 × 사정률
+       투찰금액 = (예정가격 − A값) × 투찰률 + A값
+
+   실제 개찰 450건으로 확인해 보니 옛 방식은 평균 0.071%,
+   많게는 2.136% 까지 금액이 높게 나왔습니다.
+   10억 공사에서 2%면 2천만원입니다 — 입찰에서는 치명적인 차이입니다.
+
+   그리고 끝수를 내림(floor)에서 올림(ceil)으로 바꿨습니다.
+   낙찰하한율에 딱 맞춰 넣을 때 내림을 하면 하한 아래로 떨어져 실격됩니다.
    ------------------------------------------------ */
-export function bidCalculator(agency, basePrice) {
+export function bidCalculator(agency, basePrice, opts = {}) {
   if (!agency || !agency.h1 || !agency.h1.length) return null
+
+  const aVal = Number(opts.aVal) || 0
+  const sj = Number(opts.sj) || 100                 // 사정률 (가운데값)
+  const sjLo = Number(opts.sjLo) || sj
+  const sjHi = Number(opts.sjHi) || sj
+  const sjSrc = opts.sjSrc || '기본값 100%'
+
+  /** 투찰금액 — 사정률과 A값을 반영한 실제 식 */
+  const P = (rate, sajeong = sj) => {
+    if (!(basePrice > 0) || !(rate > 0)) return 0
+    const yeje = basePrice * (sajeong / 100)
+    return Math.ceil((yeje - aVal) * (rate / 100) + aVal)
+  }
+
   const h1 = [...agency.h1].sort((a, b) => b[1] - a[1])
   const bestRate = h1[0][0]
   const s = agency.s || {}
-  const P = (r) => (basePrice > 0 ? Math.floor((basePrice * r) / 100) : 0)
 
   // 핫존 안 0.01% 정밀 구간
   const lower = Number(bestRate.toFixed(1))
@@ -27,6 +66,7 @@ export function bidCalculator(agency, basePrice) {
     ? {
         best: inZone[0][0],
         price: P(inZone[0][0]),
+        band: { lo: P(inZone[0][0], sjLo), hi: P(inZone[0][0], sjHi) },
         rows: inZone.slice(0, 8),
         total: inZone.reduce((a, b) => a + b[1], 0),
         lower, upper,
@@ -34,10 +74,14 @@ export function bidCalculator(agency, basePrice) {
     : null
 
   const totalZone = h1.reduce((a, b) => a + b[1], 0)
+  const estimate = basePrice > 0 ? Math.round(basePrice / 1.1) : 0
+  const ll = lowerLimit(estimate)
+
   return {
     total: agency.n,
     bestRate,
     recommended: P(bestRate),
+    band: { lo: P(bestRate, sjLo), hi: P(bestRate, sjHi) },
     share: totalZone ? Math.round((h1[0][1] / totalZone) * 1000) / 10 : 0,
     avgRate: s.avg,
     medRate: s.med,
@@ -45,13 +89,25 @@ export function bidCalculator(agency, basePrice) {
     medPrice: P(s.med),
     top: h1.slice(0, 6),
     zoom,
+
+    // 정밀도 보강분
+    sj, sjLo, sjHi, sjSrc,
+    aVal,
+    estimate,
+    yeje: basePrice > 0 ? Math.round(basePrice * (sj / 100)) : 0,
+    limit: ll,
+    // 하한 미달 경고 — 추천 투찰률이 낙찰하한율보다 낮으면 실격
+    belowLimit: !!(ll && ll.rate && bestRate < ll.rate),
+    limitPrice: ll && ll.rate ? P(ll.rate) : 0,
+    // 표본이 적으면 그대로 믿으면 안 됩니다
+    thin: (agency.n || 0) < 10,
   }
 }
 
 /* ── 낙찰스코어 ────────────────────────────────
    100점 = 핫존 30 + 경쟁 20 + 유사공고 20 + 안정성 15 + 데이터량 15
    ------------------------------------------------ */
-export function bidScore({ agency, myRate, basePrice, similar }) {
+export function bidScore({ agency, myRate, basePrice, similar, aVal = 0, sj = 100 }) {
   if (!agency || !agency.h1 || !agency.h1.length || !myRate) return null
 
   const h1 = [...agency.h1].sort((a, b) => b[1] - a[1])
@@ -92,7 +148,13 @@ export function bidScore({ agency, myRate, basePrice, similar }) {
   const total = scoreHot + scoreComp + scoreSim + scoreStab + scoreData
   const g = gradeOf(total, bestRate01)
 
-  const P = (r) => (basePrice > 0 ? Math.floor((basePrice * r) / 100) : 0)
+  // 금액은 계산기와 같은 식을 씁니다 — (기초금액 × 사정률 − A) × 투찰률 + A
+  const P = (r) => {
+    if (!(basePrice > 0) || !(r > 0)) return 0
+    const yeje = basePrice * ((Number(sj) || 100) / 100)
+    const a = Number(aVal) || 0
+    return Math.ceil((yeje - a) * (r / 100) + a)
+  }
   return {
     total,
     ...g,

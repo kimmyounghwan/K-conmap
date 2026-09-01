@@ -109,9 +109,9 @@ function BidTab({ r }) {
       })}
 
       {r.base > 0 && (
-        <Link className="btn ghost sm" style={{ width: '100%', marginTop: 10 }}
-          to={`/calc?base=${r.base}&inst=${encodeURIComponent(r.inst)}`}>
-          이 기초금액({wonShort(r.base)})으로 투찰가 계산기 열기
+        <Link className="btn" style={{ width: '100%', marginTop: 10 }}
+          to={`/calc?base=${r.base}&inst=${encodeURIComponent(r.inst)}&name=${encodeURIComponent(r.name || '')}`}>
+          💰 이 기초금액({wonShort(r.base)})으로 바로투찰 열기
         </Link>
       )}
     </>

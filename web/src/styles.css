@@ -715,3 +715,99 @@ input[type=number] { font-variant-numeric: tabular-nums; }
   font-size: 12px; line-height: 1.6; color: var(--text-2);
 }
 .hintbox b { color: var(--text); }
+
+/* ── 바로투찰 ──────────────────────────── */
+.seg.seg3 button { font-size: 12.5px; padding: 8px 2px; }
+
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 420px) { .two { grid-template-columns: 1fr; gap: 0; } }
+
+input.big {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -.2px;
+}
+
+/* 검색 결과 — 누르면 숫자가 저절로 채워지는 줄 */
+.picklist {
+  border-top: 1px solid var(--line-soft);
+  margin-top: 4px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+.pickrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  background: transparent;
+  padding: 10px 2px;
+  cursor: pointer;
+}
+.pickrow:hover { background: var(--surface-2); }
+.pickrow .grow { min-width: 0; flex: 1; }
+.pickrow .t {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.pickrow .d { font-size: 11.5px; color: var(--text-2); margin-top: 3px; }
+
+/* 고른 공고를 위에 붙여둔 띠 */
+.pickedbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--accent-line);
+  background: var(--accent-soft);
+  border-radius: 10px;
+}
+.pickedbar .grow { min-width: 0; flex: 1; }
+.pickedbar .t { font-size: 13px; font-weight: 800; color: var(--text); }
+.pickedbar .d { font-size: 11.5px; color: var(--text-2); margin-top: 2px; }
+
+/* 사정률 시나리오 표 */
+table.mini {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  margin-top: 8px;
+}
+table.mini th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 6px 6px;
+  border-bottom: 1px solid var(--line);
+}
+table.mini td { padding: 6px 6px; border-bottom: 1px solid var(--line-soft); }
+table.mini td:nth-child(2), table.mini th:nth-child(2) { text-align: right; }
+table.mini td:nth-child(3), table.mini th:nth-child(3) { text-align: right; }
+table.mini tr.on { background: var(--accent-soft); font-weight: 800; }
+table.mini td.ok { color: var(--good); font-weight: 700; }
+table.mini td.no { color: var(--bad); font-weight: 700; }
+
+/* 목표 투찰률 빠른 선택 */
+.quick { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.quick button {
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.quick button:hover { border-color: var(--accent-line); color: var(--accent); background: var(--accent-soft); }

@@ -1,15 +1,22 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { getAgency, similarZone } from '../lib/data.js'
+import { getAgency, similarZone, getOverview } from '../lib/data.js'
 import { bidCalculator, bidScore } from '../lib/engines.js'
 import { AgencyPicker, MoneyInput, Bars, Tile, Empty } from '../components.jsx'
 import { won, pct, num } from '../lib/fmt.js'
 import { useBasePrice } from '../BasePrice.jsx'
+import BaroBid from './BaroBid.jsx'
 
 export default function Calc() {
   const [sp, setSp] = useSearchParams()
-  const mode = sp.get('m') === 'score' ? 'score' : 'calc'
-  const setMode = (m) => setSp(m === 'score' ? { m: 'score' } : {}, { replace: true })
+  // 기본 화면은 «바로투찰» 입니다 — 이 사이트에서 제일 많이 쓰는 기능이라서.
+  const m = sp.get('m')
+  const mode = m === 'score' ? 'score' : m === 'calc' ? 'calc' : 'baro'
+  const setMode = (v) => {
+    const keep = {}
+    for (const k of ['base', 'inst', 'name']) if (sp.get(k)) keep[k] = sp.get(k)
+    setSp(v === 'baro' ? keep : { ...keep, m: v }, { replace: true })
+  }
 
   // 개찰 카드에서 «이 기초금액으로 계산기 열기» 로 넘어온 경우
   const linkBase = Number(sp.get('base') || 0)
@@ -23,6 +30,10 @@ export default function Calc() {
   const [notice, setNotice] = useState('')
   const [myRate, setMyRate] = useState('')
   const [similar, setSimilar] = useState(null)
+  const [aIn, setAIn] = useState('')          // A값 (사회보험료 등)
+  const [ov, setOv] = useState(null)          // 전체 사정률 분포
+
+  useEffect(() => { getOverview().then(setOv) }, [])
 
   const pick = async ({ name, chunk }) => {
     setAgencyName(name); setLoading(true); setAgency(null)
@@ -47,28 +58,56 @@ export default function Calc() {
     return () => clearTimeout(t)
   }, [notice])
 
-  const calc = mode === 'calc' && agency && base > 0 ? bidCalculator(agency, base) : null
+  /* 사정률 — 그 기관 실측 → 없으면 전체 실측 → 없으면 100%
+     예정가격 = 기초금액 × 사정률 이라서, 이 값이 금액 정밀도를 좌우합니다. */
+  const aVal = Number(String(aIn).replace(/[^0-9]/g, '')) || 0
+  const spread = ov?.sjq
+    ? { lo: ov.sjq.p10 - ov.sjq.p50, hi: ov.sjq.p90 - ov.sjq.p50 }
+    : { lo: 0, hi: 0 }
+  const sjOpt = agency?.sj
+    ? { sj: agency.sj.med,
+        sjLo: agency.sj.med + spread.lo, sjHi: agency.sj.med + spread.hi,
+        sjSrc: `${agencyName} 실제 ${num(agency.sjn)}건` }
+    : ov?.sjq
+      ? { sj: ov.sjq.p50, sjLo: ov.sjq.p10, sjHi: ov.sjq.p90,
+          sjSrc: `전체 실제 ${num(ov.sjn)}건` }
+      : { sj: 100, sjLo: 100, sjHi: 100, sjSrc: '기본값 100% — 사정률 통계는 다음 갱신 때 채워집니다' }
+
+  const calc = mode === 'calc' && agency && base > 0
+    ? bidCalculator(agency, base, { ...sjOpt, aVal }) : null
   const score = mode === 'score' && agency && myRate
-    ? bidScore({ agency, myRate: Number(myRate), basePrice: base, similar })
+    ? bidScore({ agency, myRate: Number(myRate), basePrice: base, similar, aVal, sj: sjOpt.sj })
     : null
 
   return (
     <>
       <div className="sec-title" style={{ marginTop: 14 }}>
-        🧮 투찰 계산 <span className="count">· 발주기관 3년 패턴 기반</span>
+        💰 투찰 <span className="count">· 발주기관 3년 패턴 기반</span>
       </div>
 
-      <div className="seg">
+      <div className="seg seg3">
+        <button className={mode === 'baro' ? 'on' : ''} onClick={() => setMode('baro')}>바로투찰</button>
         <button className={mode === 'calc' ? 'on' : ''} onClick={() => setMode('calc')}>투찰가 계산기</button>
         <button className={mode === 'score' ? 'on' : ''} onClick={() => setMode('score')}>낙찰스코어</button>
       </div>
 
+      {mode === 'baro' && <BaroBid />}
+
+      {mode !== 'baro' && <>
       <div className="card">
         <AgencyPicker value={agencyName} onPick={pick} />
 
         <div className="field">
           <label>기초금액 <span className="hint">— 공고서의 기초금액</span></label>
           <MoneyInput value={base} onChange={setBase} />
+        </div>
+
+        <div className="field">
+          <label>A값 (원) <span className="hint">— 사회보험료 등. 공고서에 없으면 비워두세요</span></label>
+          <input inputMode="numeric"
+            value={aIn ? Number(aIn).toLocaleString('ko-KR') : ''}
+            onChange={(e) => setAIn(e.target.value.replace(/[^0-9]/g, ''))}
+            placeholder="0" />
         </div>
 
         {mode === 'score' && (
@@ -113,9 +152,35 @@ export default function Calc() {
               <div className="k">추천 투찰가 · 최다발생 구간 {calc.bestRate}%</div>
               <div className="v">{won(calc.recommended)}</div>
               <div className="sub">
-                표본 {num(calc.total)}건 중 이 구간이 {pct(calc.share, 1)} 차지
+                예정가격 {won(calc.yeje)} (사정률 {pct(calc.sj, 3)}) · {calc.sjSrc}
               </div>
             </div>
+
+            <div className="hintbox">
+              사정률은 개찰 때 추첨으로 정해집니다. 실제로는{' '}
+              <b>{won(calc.band.lo)} ~ {won(calc.band.hi)}</b> 사이에서 나올 가능성이 큽니다.<br />
+              표본 {num(calc.total)}건 중 이 구간이 {pct(calc.share, 1)} 를 차지합니다.
+              {calc.aVal > 0 && <> A값 {won(calc.aVal)} 을 반영했습니다.</>}
+            </div>
+
+            {calc.limit && (
+              <div className="hintbox">
+                <b>낙찰하한율 {calc.limit.rate ? pct(calc.limit.rate, 3) : '별도 기준'}</b>
+                {' '}· {calc.limit.note}
+                {calc.limit.rate ? <> · 하한 금액 {won(calc.limitPrice)}</> : null}
+                {calc.belowLimit && (
+                  <><br /><b style={{ color: 'var(--bad)' }}>
+                    추천 구간({calc.bestRate}%)이 낙찰하한율보다 낮습니다 — 그대로 넣으면 실격입니다.
+                  </b></>
+                )}
+              </div>
+            )}
+
+            {calc.thin && (
+              <div className="hintbox">
+                이 기관은 3년치 표본이 {num(calc.total)}건뿐입니다. 최다 구간을 그대로 믿기에는 적습니다.
+              </div>
+            )}
 
             <div className="tiles c2" style={{ marginBottom: 10 }}>
               <Tile k={`평균 투찰률 ${pct(calc.avgRate, 2)}`} v={won(calc.avgPrice)} small />
@@ -135,13 +200,18 @@ export default function Calc() {
                 <div className="result" style={{ margin: '8px 0 12px' }}>
                   <div className="k">정밀 추천 {calc.zoom.best}%</div>
                   <div className="v">{won(calc.zoom.price)}</div>
-                  <div className="sub">이 구간 표본 {num(calc.zoom.total)}건</div>
+                  <div className="sub">
+                    이 구간 표본 {num(calc.zoom.total)}건 · 사정률에 따라{' '}
+                    {won(calc.zoom.band.lo)} ~ {won(calc.zoom.band.hi)}
+                  </div>
                 </div>
                 <Bars rows={calc.zoom.rows} />
               </div>
             )}
 
             <div className="note">
+              금액은 <b>(기초금액 × 사정률 − A값) × 투찰률 + A값</b> 으로 계산하고 원 단위에서 올립니다.
+              내림하면 낙찰하한율에 딱 맞춰 넣을 때 하한 아래로 떨어져 실격되기 때문입니다.<br />
               추천값은 과거 낙찰 데이터의 최빈 구간일 뿐 낙찰을 보장하지 않습니다.
               표본이 적은 기관일수록 편차가 큽니다.
             </div>
@@ -237,6 +307,7 @@ export default function Calc() {
           </>
         )
       )}
+      </>}
     </>
   )
 }

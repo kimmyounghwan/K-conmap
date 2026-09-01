@@ -520,11 +520,52 @@ def main():
               f"(공사 {meta['con']['parts']}묶음 / 용역 {meta['serv']['parts']}묶음, "
               f"{size/1024/1024:.1f}MB)")
 
+
+    def export_bidindex(store):
+        """«바로투찰» 전용 — 아직 마감되지 않은 공고만 담은 가벼운 목록.
+
+        투찰가를 계산하는 사람은 «앞으로 넣을 공고» 만 찾습니다.
+        그런데 board/live-* 를 전부 받으면 4MB 가까이 됩니다.
+        그래서 마감 전 공고만, 계산에 꼭 필요한 값만 골라
+        배열 형태로 담습니다. (이름표를 빼면 크기가 절반쯤 됩니다)
+        """
+        # GitHub 서버는 세계표준시로 돕니다. 마감시각은 한국시간이라 KST 로 비교해야 합니다.
+        now = datetime.now(KST).strftime("%Y%m%d%H%M%S")
+        rows = []
+        for r in store["con"].values():
+            c = re.sub(r"[^0-9]", "", str(r.get("close") or ""))
+            if not c:
+                continue
+            if c.ljust(14, "0") < now:      # 이미 마감된 공고는 뺀다
+                continue
+            rows.append([
+                r.get("no") or "",
+                r.get("name") or "",
+                r.get("inst") or "",
+                int(r.get("base") or 0),
+                int(r.get("budget") or 0),
+                r.get("close") or "",
+                r.get("lo") if r.get("lo") is not None else -3,
+                r.get("hi") if r.get("hi") is not None else 3,
+            ])
+        rows.sort(key=lambda x: re.sub(r"[^0-9]", "", str(x[5])))
+        out = {"built": built,
+               "f": ["no", "name", "inst", "base", "budget", "close", "lo", "hi"],
+               "r": rows}
+        path = os.path.join(OUT, "bidindex.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
+        have = sum(1 for x in rows if x[3] > 0)
+        print(f"  \u2192 bidindex  \ub9c8\uac10\uc804 {len(rows):,}\uac74 "
+              f"(\uae30\ucd08\uae08\uc561 \uc788\ub294 \uac83 {have:,}\uac74, "
+              f"{os.path.getsize(path)/1024:.0f}KB)")
+
     print("-" * 52)
     export("first", first, "dt")
     export("live", live, "dt")
     export_board("first", first, "dt")
     export_board("live", live, "dt")
+    export_bidindex(live)
     print("✅ 수집 완료")
 
 

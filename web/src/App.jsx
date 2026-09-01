@@ -5,7 +5,7 @@ import { BasePriceProvider, BasePriceField } from './BasePrice.jsx'
 const TABS = [
   { to: '/', ic: '🏆', label: '1순위' },
   { to: '/live', ic: '📋', label: '공고' },
-  { to: '/calc', ic: '🧮', label: '계산' },
+  { to: '/calc', ic: '💰', label: '바로투찰' },
   { to: '/analysis', ic: '🔍', label: '분석' },
   { to: '/jobs', ic: '🤝', label: '구인구직' },
 ]
