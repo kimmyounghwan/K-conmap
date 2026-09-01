@@ -77,7 +77,11 @@ BSIS = {
     "con":  f"{BASE}/ad/BidPublicInfoService/getBidPblancListInfoCnstwkBsisAmount",
     "serv": f"{BASE}/ad/BidPublicInfoService/getBidPblancListInfoServcBsisAmount",
 }
-BSIS_ONE_CAP = 150   # 목록조회로 못 채운 건은 공고번호로 개별조회 (하루 호출량 방어)
+# 목록조회로 못 채운 건은 공고번호로 하나씩 조회합니다.
+#   A값까지 채우게 되면서 대상이 늘었습니다 (마감 전 공고 1,500건쯤).
+#   한 번에 250건이면 하루 세 번 돌아 이틀이면 다 찹니다.
+#   조달청이 먹통이면 차단기가 8번 만에 끊으므로 오래 붙잡히지 않습니다.
+BSIS_ONE_CAP = 250
 
 # 면허·업종 제한. 입찰에서 이게 제일 먼저 걸리는 조건인데
 # 공고 목록에는 안 들어 있고 별도 오퍼레이션으로 옵니다.
@@ -650,6 +654,7 @@ def main():
 
     n_base = 0
     n_lic = 0
+    n_aval = 0
     for i in range(days - 1, -1, -1):
         day = today - timedelta(days=i)
         ds = day.strftime("%m-%d")
@@ -684,33 +689,53 @@ def main():
             for store in (first, live):
                 for no, b in bm.items():
                     row = store[kind].get(no)
-                    if row is not None and not row.get("base"):
+                    if row is None:
+                        continue
+                    if not row.get("base"):
                         row.update(b)
                         n_base += 1
+                    elif not row.get("aval") and b.get("aval"):
+                        # 기초금액은 이미 있는데 A값만 없는 경우.
+                        # «기초금액 있으면 건너뛰기» 로 두면 A값이 영영 안 채워집니다.
+                        for f in ("aval", "aparts", "ayn", "gmtrl"):
+                            if b.get(f):
+                                row[f] = b[f]
+                        n_aval += 1
             time.sleep(args.sleep)
 
             # ── 면허·업종 제한 ──────────────────────
+            # 면허제한은 «등록일» 기준으로 옵니다.
+            # 그날 공고만 붙이면 대부분 비어 있게 됩니다 — 저장소 전체에 맞춰봅니다.
             lm = lic_by_day(key, day, kind)
             for no, names in lm.items():
-                row = live[kind].get(no)
-                if row is not None:
-                    row["lic"] = names[:6]
-                    n_lic += 1
+                for store in (live, first):
+                    row = store[kind].get(no)
+                    if row is not None and not row.get("lic"):
+                        row["lic"] = names[:6]
+                        n_lic += 1
             time.sleep(args.sleep)
 
         print(f"  {ds}  1순위 {len(first['con']) + len(first['serv']):,}건 "
               f"/ 공고 {len(live['con']) + len(live['serv']):,}건 "
-              f"/ 기초금액 {n_base:,}건 / 면허 {n_lic:,}건 누적")
+              f"/ 기초금액 {n_base:,}건 / A값 {n_aval:,}건 / 면허 {n_lic:,}건 누적")
 
     # ── 화면에 실릴 최근 건 중 기초금액이 빈 것만 공고번호로 개별 보충 ──
     todo = []
     for kind in KINDS:
-        for store, fld in ((first, "dt"), (live, "dt")):
-            rows = sorted(trim(store[kind], SHOW_DAYS, fld).values(),
-                          key=lambda r: dt_digits(r.get(fld)), reverse=True)
-            for r in rows[:MAX_ROWS]:
-                if not r.get("base"):
-                    todo.append((kind, r))
+        # 마감 전 공고를 마감 임박 순으로 — 사람들이 실제로 계산하는 순서입니다
+        live_rows = [r for r in live[kind].values()
+                     if dt_digits(r.get("close")).ljust(14, "0")
+                     >= datetime.now(KST).strftime("%Y%m%d%H%M%S")]
+        live_rows.sort(key=lambda r: dt_digits(r.get("close")))
+        for r in live_rows:
+            if not r.get("base") or not r.get("aval"):
+                todo.append((kind, r))
+        # 그다음 개찰 목록에서 기초금액이 빈 것
+        rows = sorted(trim(first[kind], SHOW_DAYS, "dt").values(),
+                      key=lambda r: dt_digits(r.get("dt")), reverse=True)
+        for r in rows[:MAX_ROWS]:
+            if not r.get("base"):
+                todo.append((kind, r))
     seen = set()
     uniq = []
     for kind, r in todo:
@@ -724,8 +749,12 @@ def main():
         for kind, r in uniq[:BSIS_ONE_CAP]:
             b = bsis_one(key, r["no"], kind)
             if b:
+                had = bool(r.get("base"))
                 r.update(b)
-                n_base += 1
+                if had:
+                    n_aval += 1
+                else:
+                    n_base += 1
             time.sleep(args.sleep / 2)
     print(f"  · 기초금액 확보 {n_base:,}건")
 
