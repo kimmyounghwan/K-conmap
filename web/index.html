@@ -26,6 +26,28 @@
         }
       })();
     </script>
+    <!-- 옛 사이트 찌꺼기 청소 —
+         이 주소는 예전에 Streamlit 사이트를 가리켰습니다. 그때 «앱처럼 설치하기» 로
+         브라우저에 심어진 서비스워커가 남아 있으면, 새 사이트를 열어도 옛 화면이
+         계속 보입니다. 남아 있으면 지우고 한 번만 새로 고칩니다.
+         (새 사이트는 서비스워커를 쓰지 않으므로 전부 지워도 안전합니다) -->
+    <script>
+      (function () {
+        if (!('serviceWorker' in navigator)) return;
+        navigator.serviceWorker.getRegistrations().then(function (rs) {
+          if (!rs.length) return;
+          Promise.all(rs.map(function (r) { return r.unregister(); }))
+            .then(function () {
+              if (!window.caches) return null;
+              return caches.keys().then(function (ks) {
+                return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+              });
+            })
+            .then(function () { location.reload(); })
+            .catch(function () {});
+        }).catch(function () {});
+      })();
+    </script>
     <!-- Google 애널리틱스 (GA4) — 속성 K-conmap / 스트림 «K-건설맵 웹» -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-YFGFLYKBCQ"></script>
     <script>

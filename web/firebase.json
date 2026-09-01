@@ -4,59 +4,80 @@
   },
   "hosting": {
     "public": "dist",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
     "cleanUrls": true,
     "rewrites": [
-      { "source": "**", "destination": "/index.html" }
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
     ],
     "headers": [
       {
-        "//": "⚠️ 규칙이 여러 개 걸리면 «뒤에 있는 것»이 이깁니다 (실측 확인).",
-        "//2": "그래서 넓은 규칙을 위에, 좁은 규칙을 아래에 둡니다. 순서를 바꾸지 마세요.",
         "source": "**/*.@(xml|txt|webmanifest)",
         "headers": [
-          { "key": "Cache-Control", "value": "public, max-age=3600, must-revalidate" }
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=3600, must-revalidate"
+          }
         ]
       },
       {
-        "//": "빌드 산출물은 파일명에 해시가 붙으므로 1년 캐시. 재방문 전송량이 거의 0이 된다.",
         "source": "/assets/**",
         "headers": [
-          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000, immutable"
+          }
         ]
       },
       {
-        "//": "3년치 집계(기관·업체·키워드)는 전체 재집계 때만 바뀐다 → 하루 캐시 + 일주일 stale.",
-        "//2": "재방문자가 기관 분석을 뒤져도 전송량이 다시 들지 않는다.",
         "source": "/data/**",
         "headers": [
-          { "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=86400, stale-while-revalidate=604800"
+          }
         ]
       },
       {
-        "//": "이 둘만 수집할 때마다 바뀐다 → 15분 캐시. 위 /data/** 를 덮어쓰려고 아래에 둔다.",
         "source": "/data/first.json",
         "headers": [
-          { "key": "Cache-Control", "value": "public, max-age=900, stale-while-revalidate=86400" }
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=900, stale-while-revalidate=86400"
+          }
         ]
       },
       {
         "source": "/data/live.json",
         "headers": [
-          { "key": "Cache-Control", "value": "public, max-age=900, stale-while-revalidate=86400" }
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=900, stale-while-revalidate=86400"
+          }
         ]
       },
       {
-        "//": "index.html 은 절대 캐시하지 않는다. 캐시되면 배포해도 옛 화면이 계속 뜬다.",
         "source": "/index.html",
         "headers": [
-          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
         ]
       },
       {
         "source": "/",
         "headers": [
-          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
         ]
       }
     ]

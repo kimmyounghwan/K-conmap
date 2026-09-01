@@ -228,12 +228,14 @@ def row_first(item):
     no = str(item.get("bidNtceNo", "")).strip()
     if not no:
         return None
-    corps = parse_corps(item.get("opengCorpInfo", ""))
+    corps = parse_corps(item.get("opengCorpInfo", ""), limit=10)
     if not corps:
         return None
     win, amt, rate = corps[0]
     return {
         "no": no,
+        # 공고차수 — 나라장터 원문 주소를 정확히 만들려면 필요합니다
+        "ord": str(item.get("bidNtceOrd", "") or "").strip(),
         "name": str(item.get("bidNtceNm", "")).strip(),
         "inst": str(item.get("ntceInsttNm", "")).strip(),
         "dt": str(item.get("opengDt", "")).strip(),

@@ -11,6 +11,10 @@ export default function Calc() {
   const mode = sp.get('m') === 'score' ? 'score' : 'calc'
   const setMode = (m) => setSp(m === 'score' ? { m: 'score' } : {}, { replace: true })
 
+  // 개찰 카드에서 «이 기초금액으로 계산기 열기» 로 넘어온 경우
+  const linkBase = Number(sp.get('base') || 0)
+  const linkInst = sp.get('inst') || ''
+
   const [agencyName, setAgencyName] = useState('')
   const [agency, setAgency] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -25,6 +29,13 @@ export default function Calc() {
     const a = await getAgency(name, chunk)
     setAgency(a); setLoading(false)
   }
+
+  // 주소로 기초금액·기관이 넘어왔으면 한 번만 채워준다
+  useEffect(() => {
+    if (linkBase > 0) setBase(linkBase)
+    if (linkInst) pick({ name: linkInst })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 공고명이 바뀌면 유사공고 구간을 다시 찾는다 (낙찰스코어 3번 항목)
   useEffect(() => {

@@ -1,17 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { getOverview } from '../lib/data.js'
+import NoticeDetail from '../NoticeDetail.jsx'
 import { useBoard } from '../lib/useBoard.js'
 import { Skeleton, Empty, Tile } from '../components.jsx'
-import { ConvertedPrice, useBasePrice } from '../BasePrice.jsx'
+import { ConvertedPrice } from '../BasePrice.jsx'
 import { won, wonShort, pct, num, dateTime, dateShort, REGIONS, inRegion } from '../lib/fmt.js'
 
 const PAGE = 20
 const KIND = 'con'   // 공사만 다룹니다 (용역 제외)
-
-/** 기초금액 대비 몇 %인지 — 공고서에 기초금액이 실려 있을 때만 */
-const rateOf = (amt, base) =>
-  base > 0 && amt > 0 ? Math.round((amt / base) * 100000) / 1000 : null
 
 export default function FirstBoard() {
   const { info, rows: all, loading, busy, done, loadMore, loadAll } = useBoard('first', KIND)
@@ -20,7 +16,6 @@ export default function FirstBoard() {
   const [q, setQ] = useState('')
   const [page, setPage] = useState(1)
   const [open, setOpen] = useState(null)
-  const { setBase } = useBasePrice()
 
   useEffect(() => { getOverview().then(setOv) }, [])
   useEffect(() => { setPage(1) }, [region, q])
@@ -112,67 +107,7 @@ export default function FirstBoard() {
                   <span className="caret">{isOpen ? '▲' : '▼'}</span>
                 </div>
 
-                {isOpen && (
-                  <div className="detail">
-                    <div className="kv">
-                      <div>
-                        <span>기초금액</span>
-                        <b>{r.base > 0 ? won(r.base) : '공개 안 됨'}</b>
-                      </div>
-                      <div>
-                        <span>낙찰가 (1순위)</span>
-                        <b className="hi">{won(winAmt)}</b>
-                      </div>
-                      <div>
-                        <span>투찰률</span>
-                        <b>{r.rate != null ? pct(r.rate, 3) : pct(rateOf(winAmt, r.base), 3)}</b>
-                      </div>
-                      <div>
-                        <span>예가범위</span>
-                        <b>{r.lo != null && r.hi != null ? `${r.lo}% ~ ${r.hi}%` : '-'}</b>
-                      </div>
-                    </div>
-
-                    {r.base > 0 && (
-                      <button
-                        className="btn sm"
-                        style={{ width: '100%', marginBottom: 10 }}
-                        onClick={(e) => { e.stopPropagation(); setBase(r.base) }}>
-                        이 공고의 기초금액({wonShort(r.base)})으로 사이트 전체 계산하기
-                      </button>
-                    )}
-
-                    <div className="detail-h">참여업체 (상위 {(r.corps || []).length}곳)</div>
-                    {(r.corps || []).map((c, j) => {
-                      const cr = c[2] != null ? c[2] : rateOf(c[1], r.base)
-                      return (
-                        <div className="row" key={j}>
-                          <span className={'badge ' + (j === 0 ? 'g' : 'n')}>{j + 1}위</span>
-                          <div className="grow">
-                            <div className="t">{c[0]}</div>
-                            <div className="d">{won(c[1])}</div>
-                          </div>
-                          <span className="r">
-                            {cr != null ? pct(cr, 3) : '-'}
-                            {c[2] != null && <><br /><ConvertedPrice rate={c[2]} /></>}
-                          </span>
-                        </div>
-                      )
-                    })}
-
-                    <div className="btn-row" style={{ marginTop: 10 }}>
-                      <Link className="btn ghost sm" style={{ flex: 1 }}
-                        to={`/agency/${encodeURIComponent(r.inst)}`}
-                        onClick={(e) => e.stopPropagation()}>
-                        이 기관 분석 보기
-                      </Link>
-                      <button className="btn ghost sm" style={{ flex: 1 }}
-                        onClick={(e) => { e.stopPropagation(); navigator.clipboard?.writeText(r.no || '') }}>
-                        공고번호 복사
-                      </button>
-                    </div>
-                  </div>
-                )}
+                {isOpen && <NoticeDetail r={r} />}
               </div>
             )
           })}
