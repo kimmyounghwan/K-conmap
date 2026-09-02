@@ -115,6 +115,14 @@ function BidTab({ r }) {
         </div>
       )}
 
+      {/* 개찰이 끝난 공고는 «채점»이 됩니다 —
+          우리 권장 투찰률로 넣었으면 이 자리를 가져갔을지 바로 봅니다.
+          (투찰이 아니라 되돌아보기라서, 끝난 공고에도 붙일 이유가 있습니다) */}
+      <Link className="btn ghost sm" style={{ width: '100%', marginTop: 10 }}
+        to={`/?no=${encodeURIComponent(r.no || '')}${r.base ? `&base=${r.base}` : ''}`}>
+        📊 바로투찰에서 채점하기 — 우리 권장으로 넣었으면?
+      </Link>
+
       <div className="detail-h">
         투찰 순위 <span className="count">· {(r.corps || []).length}곳</span>
       </div>

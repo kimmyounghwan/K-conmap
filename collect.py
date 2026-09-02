@@ -916,7 +916,7 @@ def main():
               f"{size/1024/1024:.1f}MB)")
 
 
-    def export_bidindex(store):
+    def export_bidindex(store, fstore):
         """«바로투찰» 전용 — 아직 마감되지 않은 공고만 담은 가벼운 목록.
 
         투찰가를 계산하는 사람은 «앞으로 넣을 공고» 만 찾습니다.
@@ -954,12 +954,19 @@ def main():
                 # 나라장터 공고 주소 — 조달청이 준 것을 그대로 씁니다.
                 # 손으로 만들면 차수(000/001/002)를 틀립니다. 실제로 틀렸습니다.
                 r.get("url") or "",
+                r.get("site") or "",               # 공사 현장 지역 (500/500 채워짐)
+                r.get("rgnb") or "",               # 지역제한 판단기준 — 있으면 지역제한 공고
+                r.get("joint") or "",              # 공동수급 방식
+                r.get("mthd") or "",               # 계약방법 (제한경쟁/일반경쟁…)
+                r.get("swin") or "",               # 낙찰방법 상세 (적격심사 기준까지 들어옵니다)
+                r.get("rebid") or "",              # 재입찰 여부
             ])
         rows.sort(key=lambda x: re.sub(r"[^0-9]", "", str(x[5])))
         out = {"built": built,
                "f": ["no", "name", "inst", "base", "budget", "close", "lo", "hi",
                      "llr", "est", "lic", "aval", "gmtrl",
-                     "ayn", "aparts", "ptot", "pdrw", "url"],
+                     "ayn", "aparts", "ptot", "pdrw", "url",
+                     "site", "rgnb", "joint", "mthd", "swin", "rebid"],
                "r": rows}
         path = os.path.join(OUT, "bidindex.json")
         with open(path, "w", encoding="utf-8") as f:
@@ -969,12 +976,107 @@ def main():
               f"(\uae30\ucd08\uae08\uc561 \uc788\ub294 \uac83 {have:,}\uac74, "
               f"{os.path.getsize(path)/1024:.0f}KB)")
 
+    def export_bidresult(fstore):
+        """«내 계산이 맞았나»를 확인하기 위한 최근 개찰 결과 색인.
+
+        바로투찰 첫 화면에 얹으면 전송량이 두 배가 되므로 별도 파일로 두고
+        필요할 때만 받아갑니다. 공고번호 하나로 바로 찾을 수 있게 «지도» 모양입니다.
+        """
+        cut = (datetime.now(KST) - timedelta(days=7)).strftime("%Y%m%d%H%M")
+        out = {}
+        for r in (fstore.get("con") or {}).values():
+            if (dt_digits(r.get("dt")) or "0") < cut:
+                continue
+            no = r.get("no")
+            if not no:
+                continue
+            out[no] = [r.get("win") or "", int(r.get("amt") or 0),
+                       r.get("rate"), int(r.get("np") or 0),
+                       int(r.get("base") or 0), r.get("dt") or ""]
+        path = os.path.join(OUT, "bidresult.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"built": built, "f": ["win", "amt", "rate", "np", "base", "dt"],
+                       "r": out}, f, ensure_ascii=False, separators=(",", ":"))
+        print(f"  → bidresult 최근 7일 개찰 {len(out):,}건 "
+              f"({os.path.getsize(path)/1024:.0f}KB)")
+
+    def export_bandstat(fstore, lstore):
+        """규모(추정가격)별 «경쟁 강도»와 «A값 비율».
+
+        - 참가업체수(np): 개찰결과에 조달청이 실어 줍니다. 몇 개사와 붙는지 알면
+          투찰률을 얼마나 공격적으로 잡을지 감이 잡힙니다.
+        - A값 비율: A값이 아직 공개되지 않은 공고에서 «대략 이만큼»을 보여주기 위한 값입니다.
+          추정치라고 화면에 분명히 적습니다.
+        """
+        BND = [("s", 0, 10e8), ("m", 10e8, 50e8), ("l", 50e8, 100e8), ("xl", 100e8, None)]
+
+        def band_of(est):
+            for k, lo, hi in BND:
+                if est >= lo and (hi is None or est < hi):
+                    return k
+            return None
+
+        def med(v):
+            if not v:
+                return None
+            v = sorted(v)
+            n = len(v)
+            return v[n // 2] if n % 2 else (v[n // 2 - 1] + v[n // 2]) / 2
+
+        cut = (datetime.now(KST) - timedelta(days=60)).strftime("%Y%m%d%H%M")
+        nps, ars = {k: [] for k, _, _ in BND}, {k: [] for k, _, _ in BND}
+
+        for r in (fstore.get("con") or {}).values():
+            if (dt_digits(r.get("dt")) or "0") < cut:
+                continue
+            base = int(r.get("base") or 0)
+            np_ = int(r.get("np") or 0)
+            if base <= 0 or np_ <= 0:
+                continue
+            b = band_of(base / 1.1)
+            if b:
+                nps[b].append(np_)
+
+        for r in (lstore.get("con") or {}).values():
+            base = int(r.get("base") or 0)
+            av = int(r.get("aval") or 0)
+            if base <= 0 or av <= 0 or r.get("ayn") == "N":
+                continue
+            b = band_of(int(r.get("est") or 0) or base / 1.1)
+            if b:
+                ars[b].append(av / base)
+
+        out = {"built": built, "bands": {}}
+        for k, _, _ in BND:
+            v = sorted(nps[k])
+            out["bands"][k] = {
+                "n": len(v),
+                "npMed": med(v),
+                "npLo": v[int(len(v) * 0.25)] if v else None,
+                "npHi": v[int(len(v) * 0.75)] if v else None,
+                "arN": len(ars[k]),
+                "ar": round(med(ars[k]), 5) if ars[k] else None,
+            }
+        path = os.path.join(OUT, "bandstat.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
+        line = " / ".join(
+            f"{k}:{out['bands'][k]['n']}건·중앙{out['bands'][k]['npMed']}개사"
+            for k, _, _ in BND)
+        print(f"  → bandstat  {line}")
+
     print("-" * 52)
     export("first", first, "dt")
     export("live", live, "dt")
     export_board("first", first, "dt")
     export_board("live", live, "dt")
-    export_bidindex(live)
+    export_bidindex(live, first)
+    # 새로 붙인 통계라 혹시 터져도 배치 전체를 멈추지 않게 감쌉니다.
+    try:
+        export_bidresult(first)
+        export_bandstat(first, live)
+    except Exception as e:
+        print(f"  ! bandstat 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
     save_diag()
     print("✅ 수집 완료")
 

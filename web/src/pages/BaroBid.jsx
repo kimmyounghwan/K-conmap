@@ -23,6 +23,10 @@ import { won, wonShort, pct, num, dateTime, dday } from '../lib/fmt.js'
 
 /* 도장은 getJSON 이 /data 전체에 알아서 붙입니다 */
 const getIndex = () => getJSON('/data/bidindex.json')
+/* 규모별 «참가업체수»와 «A값 비율» — 1KB 남짓입니다 */
+const getBandStat = () => getJSON('/data/bandstat.json')
+/* 최근 7일 개찰 결과 — 채점할 때만 받아옵니다 */
+const getResults = () => getJSON('/data/bidresult.json')
 
 /** 일반공사 적격심사 낙찰하한율 (조달청 기준, 참고용) */
 function lowerLimit(estimate) {
@@ -51,6 +55,8 @@ export default function BaroBid() {
   const [sim, setSim] = useState(null)
   const [bt, setBt] = useState(null)      // 가상 시뮬레이션 결과
   const [btOpen, setBtOpen] = useState(false)
+  const [bs, setBs] = useState(null)      // 규모별 참가업체수·A값 비율
+  const [res, setRes] = useState(null)    // 개찰 결과 (채점용)
 
   const [q, setQ] = useState('')
   const [picked, setPicked] = useState(null)
@@ -69,6 +75,7 @@ export default function BaroBid() {
     getOverview().then(setOv)
     getIndex().then((v) => setIdx(v || null))
     getSim().then(setBt)
+    getBandStat().then(setBs)
   }, [])
 
   /* 개찰 상세의 «바로투찰 열기» 로 넘어온 값 */
@@ -109,8 +116,26 @@ export default function BaroBid() {
       ayn: a[13] || '', aparts: a[14] || [],
       ptot: a[15] || 0, pdrw: a[16] || 0,
       url: a[17] || '',
+      site: a[18] || '', rgnb: a[19] || '', joint: a[20] || '',
+      mthd: a[21] || '', swin: a[22] || '', rebid: a[23] || '',
     }))
   }, [idx])
+
+  /* 공고번호를 넣거나 공고를 고르면, 그 공고가 이미 개찰됐는지 찾아봅니다.
+     첫 화면을 무겁게 하지 않으려고 «필요할 때만» 받아옵니다. */
+  useEffect(() => {
+    const raw = (picked?.no || sp.get('no') || q).trim().toUpperCase()
+    const no = /^[A-Z]?\d{0,2}[A-Z]{0,4}\d{6,}$/.test(raw) ? raw : (picked?.no || '')
+    if (!no || no.length < 8) { setRes(null); return }
+    let ok = true
+    getResults().then((m) => {
+      if (!ok) return
+      const a = m?.r?.[no]
+      setRes(a ? { no, win: a[0], amt: a[1], rate: a[2], np: a[3], base: a[4], dt: a[5] } : null)
+    })
+    return () => { ok = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [picked, q])
 
   const qDigits = digits(q)
   const qIsAmount = q.trim().length > 0 && qDigits.length >= 7
@@ -212,6 +237,26 @@ export default function BaroBid() {
     navigator.clipboard?.writeText(String(main))
     setCopied(true); setTimeout(() => setCopied(false), 1600)
   }
+  /* 개찰이 끝난 공고면 «우리 권장으로 넣었으면 어땠나»를 채점합니다.
+     순위는 투찰률로 갈립니다(예정가격 대비 비율이라 사정률과 무관).
+     그래서 우리 권장 투찰률과 실제 1순위 투찰률을 그대로 견줍니다. */
+  const scored = (() => {
+    if (!res || !res.rate) return null
+    const our = rec != null ? rec : myRate
+    if (!our) return null
+    const lim = ll?.rate || 0
+    const b = res.base || base
+    return {
+      our,
+      ourAmt: b ? bidAmount(b, sjMid, our, a) : 0,
+      gap: r3(our - res.rate),
+      beat: our < res.rate,
+      dq: lim > 0 && our < lim,
+    }
+  })()
+
+  const bstat = bs && band ? (bs.bands?.[band.key] || null) : null
+
   const dd = picked ? dday(picked.close) : null
   const topMax = hot?.top?.length ? Math.max(...hot.top.map((t) => t[1])) : 1
 
@@ -395,10 +440,67 @@ export default function BaroBid() {
               퇴직공제부금 같은 법정경비가 여기 들어갑니다.<br />
               <b>공고에 A값이 실려 오면 자동으로 채워집니다.</b>
               아직 안 채워졌다면 기초금액이 공개되기 전이거나 A값이 없는 공고입니다.
+              {bstat?.ar > 0 && base > 0 && (
+                <div className="aguess">
+                  <div className="g1">
+                    같은 규모 공고 {num(bstat.arN)}건의 A값은 기초금액의
+                    {' '}<b>{(bstat.ar * 100).toFixed(1)}%</b> 언저리였습니다.
+                  </div>
+                  <button className="btn ghost sm"
+                    onClick={() => setAIn(String(Math.round(base * bstat.ar)))}>
+                    추정 A값 {won(Math.round(base * bstat.ar))} 넣어보기
+                  </button>
+                  <div className="g2">
+                    <b>추정치입니다.</b> 실제 투찰 전에는 공고서 산출내역서의 값을 꼭 확인하세요.
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
+
+      {/* ── 개찰 결과 채점 — 우리 말이 맞았는지 그 자리에서 봅니다 ── */}
+      {res && (
+        <div className={'scored ' + (scored?.dq ? 'dq' : scored?.beat ? 'win' : 'lose')}>
+          <div className="sh">
+            <span className="ic">{scored?.dq ? '⛔' : scored?.beat ? '🏆' : '📉'}</span>
+            <span>개찰 끝난 공고입니다 — 채점해 드립니다</span>
+            <span className="dt">{String(res.dt).slice(0, 16)}</span>
+          </div>
+          <div className="srow">
+            <div className="s1">
+              <span className="k">실제 1순위</span>
+              <b className="nm">{res.win || '—'}</b>
+              <span className="v">{res.rate != null ? pct(res.rate, 3) : '—'} · {won(res.amt)}</span>
+            </div>
+            <div className="s1">
+              <span className="k">우리 권장</span>
+              <b className="nm">{scored ? pct(scored.our, 3) : '—'}</b>
+              <span className="v">{scored?.ourAmt ? won(scored.ourAmt) : '기초금액을 넣으면 금액까지'}</span>
+            </div>
+            <div className="s1">
+              <span className="k">참가업체</span>
+              <b className="nm">{res.np ? num(res.np) + '개사' : '—'}</b>
+              <span className="v">경쟁 강도</span>
+            </div>
+          </div>
+          {scored && (
+            <div className="sv">
+              {scored.dq ? (
+                <>우리 권장({pct(scored.our, 3)})이 이 공고의 낙찰하한({pct(ll.rate, 3)})보다 낮습니다.
+                  <b> 그대로 넣었으면 실격이었습니다.</b> 규모별 하한을 다시 봐야 합니다.</>
+              ) : scored.beat ? (
+                <>우리 권장이 1순위보다 <b>{Math.abs(scored.gap).toFixed(3)}%p 낮습니다</b> —
+                  하한을 넘기면서 더 낮으니, <b>이 공고는 가져갔을 자리입니다.</b></>
+              ) : (
+                <>우리 권장이 1순위보다 <b>{Math.abs(scored.gap).toFixed(3)}%p 높습니다</b> — 밀렸을 자리입니다.
+                  이런 날은 최빈값이 평소보다 아래로 몰린 날입니다.</>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── 가상 시뮬레이션 — 지난 개찰에 우리 방식을 대본 결과 ── */}
       {bt && base <= 0 && <SimBlock bt={bt} open={btOpen} setOpen={setBtOpen} />}
@@ -560,9 +662,65 @@ export default function BaroBid() {
             </div>
           )}
 
+          {bstat?.npMed > 0 && (
+            <div className="compet">
+              <div className="ch">
+                이 규모는 보통 <b>{num(bstat.npMed)}개사</b>가 들어옵니다
+              </div>
+              <div className="cscale">
+                <span>{num(bstat.npLo)}</span>
+                <div className="ctrack">
+                  <i style={{ left: '25%', width: '50%' }} />
+                  <em style={{ left: '50%' }} />
+                  {res?.np > 0 && (
+                    <u style={{
+                      left: `${Math.max(2, Math.min(98,
+                        (res.np / Math.max(bstat.npHi * 1.6, res.np)) * 100))}%`,
+                    }} />
+                  )}
+                </div>
+                <span>{num(bstat.npHi)}</span>
+              </div>
+              <div className="csub">
+                {band?.label} · 최근 60일 개찰 {num(bstat.n)}건 기준 · 가운데 절반이
+                {' '}{num(bstat.npLo)}~{num(bstat.npHi)}개사
+                {res?.np > 0 && <> · <b>이 공고는 실제 {num(res.np)}개사</b></>}
+              </div>
+            </div>
+          )}
+
           {picked && (
             <div className="card">
               <div className="detail-h">이 공고에 넣으려면</div>
+              <div className="cond">
+                <div className={'c' + (picked.rgnb ? ' warn' : '')}>
+                  <span>지역</span>
+                  <b>{picked.site || '—'}</b>
+                  <i>{picked.rgnb ? `지역제한 · ${picked.rgnb} 기준` : '지역제한 없음'}</i>
+                </div>
+                <div className="c">
+                  <span>계약방법</span>
+                  <b>{picked.mthd || '—'}</b>
+                  <i>{picked.mthd === '제한경쟁' ? '자격을 갖춘 곳만' : ' '}</i>
+                </div>
+                <div className="c">
+                  <span>공동수급</span>
+                  <b>{(picked.joint || '—').replace(/^\(전자\)/, '').replace(/^\(없음\)/, '')}</b>
+                  <i>{/불허/.test(picked.joint || '') ? '단독으로만' : ' '}</i>
+                </div>
+                <div className={'c' + (picked.rebid === 'Y' ? ' warn' : '')}>
+                  <span>재입찰</span>
+                  <b>{picked.rebid === 'Y' ? '재입찰 공고' : '아니오'}</b>
+                  <i>{picked.rebid === 'Y' ? '앞 회차가 유찰됐습니다' : ' '}</i>
+                </div>
+                {picked.swin && (
+                  <div className="c wide">
+                    <span>낙찰방법</span>
+                    <b>{picked.swin.split('-')[0]}</b>
+                    <i>{picked.swin.split('-').slice(1).join('-')}</i>
+                  </div>
+                )}
+              </div>
               {(picked.lic || []).length > 0 ? (
                 <>
                   <div className="lics big">

@@ -65,7 +65,7 @@ export default function FirstBoard() {
       {newest && (
         <div className="freshbar">
           <b>최근 개찰 {newest}</b>
-          <span>개찰의 69%는 오전 11시에 열립니다 · 결과는 조달청에 올라오는 대로 하루 5번 받아옵니다{ov?.built ? ` · 마지막 집계 ${ov.built}` : ''}</span>
+          <span>개찰의 69%는 오전 11시에 열립니다 · 결과는 조달청에 올라오는 대로 30분마다 받아옵니다{ov?.built ? ` · 마지막 집계 ${ov.built}` : ''}</span>
         </div>
       )}
 
