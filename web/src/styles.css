@@ -1671,3 +1671,11 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
   color: rgba(255, 255, 255, .82);
 }
 .todaybar.verify .r .sub { text-align: right; }
+/* 채점 — «우리 금액이면 몇 위였나» */
+.scored .myrank {
+  margin-top: 9px; padding: 10px 12px; border-radius: 10px;
+  background: var(--accent-soft); border: 1px solid var(--accent-line);
+  color: var(--text); font-size: 13.5px; font-weight: 700; line-height: 1.6;
+}
+.scored .myrank b { color: var(--accent); font-size: 15px; }
+.scored .myrank .sub { font-weight: 500; color: var(--text-2); font-size: 12px; }

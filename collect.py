@@ -78,6 +78,22 @@ ENDPOINTS = {
     ("live",  "serv"): f"{BASE}/ad/BidPublicInfoService/getBidPblancListInfoServc",
 }
 
+# ══════════════════════════════════════════════════════════════
+#  ★ 개찰 순위 (1위 ~ 꼴찌) — 2026-09-02 발견
+#
+#  «조달청은 1순위만 준다» 고 제가 두 번 말했습니다. **둘 다 틀렸습니다.**
+#  아래 오퍼레이션이 투찰업체를 **전부** 줍니다. 다만 조건이 있습니다:
+#     · 날짜로 부르면 아무것도 안 옵니다
+#     · **공고번호(bidNtceNo + bidNtceOrd)로 불러야** 옵니다
+#  예전 진단은 날짜로만 두드렸고, 저는 그 빈 응답을 «없다» 로 읽었습니다.
+#
+#  실제 응답 항목:
+#     opengRank(개찰순위) · prcbdrNm(투찰업체) · prcbdrBizno · prcbdrCeoNm
+#     bidprcAmt(투찰금액) · bidprcrt(투찰률) · bidprcDt(투찰일시)
+#     drwtNo1 · drwtNo2 (그 업체가 뽑은 예비가격 추첨번호)
+# ══════════════════════════════════════════════════════════════
+OPENG_RANK = f"{BASE}/as/ScsbidInfoService/getOpengResultListInfoOpengCompt"
+
 # 기초금액(예정가격 산정의 기준이 되는 금액). 공고 목록에는 안 들어있고 별도 오퍼레이션이다.
 BSIS = {
     "con":  f"{BASE}/ad/BidPublicInfoService/getBidPblancListInfoCnstwkBsisAmount",
@@ -142,7 +158,9 @@ NET_LIMIT = 8            # 이만큼 연달아 실패하면 포기
 NET_TIMEOUT = 15         # 한 건당 기다리는 시간(초)
 
 
-def fetch(url, key, day=None, extra=None, label=""):
+def fetch(url, key, day=None, extra=None, label="", why=None):
+    """why 에 dict 를 넘기면 실패 이유(HTTP·resultCode·resultMsg)를 담아 줍니다.
+       진단에서 «응답 없음» 과 «필수값이 달라서 안 됨» 을 구별하기 위한 것입니다."""
     """조달청 공통 호출.
     예전에 기초금액이 '계속 실패'했던 건 대부분 조용히 삼켜서 원인이 안 보였기 때문이다.
     그래서 여기서는 HTTP 코드 / resultCode / 본문 앞머리를 반드시 찍는다."""
@@ -174,18 +192,25 @@ def fetch(url, key, day=None, extra=None, label=""):
     NET_FAILS = 0
     if r.status_code != 200:
         print(f"    ! {tag} HTTP {r.status_code}")
+        if why is not None:
+            why.update({"http": r.status_code, "body": " ".join(r.text.split())[:200]})
         return []
     try:
         j = r.json()
     except Exception:
         head = " ".join(r.text.split())[:180]
         print(f"    ! {tag} JSON 아님 → {head}")
+        if why is not None:
+            why.update({"http": r.status_code, "json": False, "body": head})
         return []
     resp = j.get("response", {}) if isinstance(j, dict) else {}
     head = resp.get("header", {}) or {}
     code = str(head.get("resultCode", "")).strip()
     if code and code not in ("00", "0"):
         print(f"    ! {tag} 응답코드 {code} · {head.get('resultMsg', '')}")
+        if why is not None:
+            why.update({"http": r.status_code, "code": code,
+                        "msg": str(head.get("resultMsg", ""))[:160]})
         return []
     items = (resp.get("body", {}) or {}).get("items", [])
     # 오퍼레이션마다 어떤 항목이 오는지 한 번씩 찍어봅니다.
@@ -444,6 +469,32 @@ def bsis_one(key, no, kind):
     return None
 
 
+def openg_ranks(key, no, ord_="000"):
+    """공고 하나의 투찰업체를 순위대로 전부 가져온다.
+
+    돌려주는 모양은 parse_corps 와 **똑같이** 맞춥니다:
+        [[업체명, 투찰금액, 투찰률, 사업자번호, 대표자], ...]
+    화면 코드가 corps[i][0..2] 로 읽고 있어서, 자리를 바꾸면 화면이 깨집니다.
+    """
+    items = fetch(OPENG_RANK, key,
+                  extra={"bidNtceNo": no, "bidNtceOrd": str(ord_ or "000") or "000"},
+                  label=f"개찰순위 {no}")
+    out = []
+    for it in items:
+        nm = str(pick(it, "prcbdrNm") or "").strip()
+        amt = to_int(pick(it, "bidprcAmt"))
+        if not nm or amt <= 0:
+            continue
+        rank = to_int(pick(it, "opengRank")) or 9999
+        bno = re.sub(r"[^0-9]", "", str(pick(it, "prcbdrBizno") or ""))
+        ceo = str(pick(it, "prcbdrCeoNm") or "").strip()[:12]
+        out.append((rank, amt, [nm, amt, to_rate(pick(it, "bidprcrt")),
+                                bno if len(bno) == 10 else "", ceo]))
+    # 순위가 비어 오는 경우가 있어 «금액이 낮은 순»을 보조 기준으로 둡니다
+    out.sort(key=lambda x: (x[0], x[1]))
+    return [c for _, _, c in out]
+
+
 def parse_corps(raw, limit=6):
     """'업체명^사업자번호^대표^금액^투찰률|업체명^...'
        → [[이름, 금액, 투찰률, 사업자번호, 대표자], ...]
@@ -565,17 +616,20 @@ def row_live(item):
 #  하루 한 번 두드려 응답이 오는지만 봅니다 (자료는 건드리지 않습니다).
 #  결과는 data/diag.json 에 남으므로 다음 날 확인할 수 있습니다.
 PROBE_OPS = [
+    # ── 지금 쓰는 것 (1순위만 옵니다 — 위에 증거) ──
+    ("낙찰자 목록",       f"{BASE}/as/ScsbidInfoService/getScsbidListSttusCnstwk"),
+    ("면허·업종 제한",    f"{BASE}/ad/BidPublicInfoService/getBidPblancListInfoLicenseLimit"),
+    # ── «전체 투찰내역» 후보 ──
     ("개찰결과 투찰업체", f"{BASE}/as/ScsbidInfoService/getOpengResultListInfoCnstwkPPSSrch"),
     ("개찰 참가업체",     f"{BASE}/as/ScsbidInfoService/getBidPblancListInfoCnstwkBidPrceList"),
     ("투찰 목록",         f"{BASE}/as/ScsbidInfoService/getOpengResultListInfoBidPrceList"),
-    ("낙찰자 목록",       f"{BASE}/as/ScsbidInfoService/getScsbidListSttusCnstwk"),
-    ("면허·업종 제한",    f"{BASE}/ad/BidPublicInfoService/getBidPblancListInfoLicenseLimit"),
-    # ── 2026-09-02 추가 후보 — «전체 투찰내역» 을 주는 곳이 있는지 찾습니다 ──
     ("예비가격 상세",     f"{BASE}/as/ScsbidInfoService/getOpengResultListInfoCnstwkPreparPcDetail"),
     ("개찰결과 상세",     f"{BASE}/as/ScsbidInfoService/getOpengResultListInfoCnstwkDetail"),
     ("투찰가 상세",       f"{BASE}/as/ScsbidInfoService/getOpengResultListInfoCnstwkBidPrceDetail"),
     ("개찰 순위",         f"{BASE}/as/ScsbidInfoService/getOpengResultListInfoOpengCompt"),
-    ("입찰참가 목록",     f"{BASE}/ad/BidPublicInfoService/getBidPblancListInfoPrtcptPsblRgn"),
+    ("낙찰자 현황(용역)", f"{BASE}/as/ScsbidInfoService/getScsbidListSttusServc"),
+    ("개찰결과(물품)",    f"{BASE}/as/ScsbidInfoService/getOpengResultListInfoThng"),
+    ("입찰가격산식A",     f"{BASE}/ad/BidPublicInfoService/getBidPblancListInfoBidPrceCalclA"),
 ]
 
 
@@ -611,26 +665,48 @@ def save_diag():
         print(f"  ! 진단 저장 실패 ({type(e).__name__})")
 
 
-def probe_ops(key, day):
+def probe_ops(key, day, sample_no="", sample_ord="000"):
+    """«투찰업체 전체»를 주는 오퍼레이션이 있는지 확인합니다.
+
+    ⚠️ 2026-09-02 — 예전 진단은 **날짜로만** 두드렸습니다.
+       공고번호를 받아야 하는 오퍼레이션은 그때 «응답 없음» 으로 나왔고,
+       저는 그걸 «그런 오퍼레이션이 없다» 로 잘못 읽었습니다.
+       그래서 이제 두 가지 방식으로 다 두드리고, **실패 이유(resultMsg)** 까지 적습니다.
+         ① 날짜 범위 (inqryBgnDt~inqryEndDt)
+         ② 공고번호 (bidNtceNo + bidNtceOrd)
+       «응답 없음» 과 «필수값 누락» 과 «없는 서비스» 는 완전히 다른 이야기입니다.
+    """
     print("-" * 52)
-    print("진단 — 투찰업체 전체를 주는 오퍼레이션이 있는지 확인")
+    print(f"진단 — 투찰업체 전체를 주는 오퍼레이션 찾기 (표본 공고 {sample_no or '없음'})")
     for label, url in PROBE_OPS:
         if NET_DOWN:
             print("  · 통신이 막혀 진단을 건너뜁니다")
             return
-        items = fetch(url, key, day=day, label=f"[진단]{label}")
         op = url.rsplit("/", 1)[-1]
-        if not items:
-            DIAG.setdefault("_probe", {})[label] = {"op": op, "rows": 0}
-            print(f"  · {label}: 응답 없음")
-            continue
-        one = items[0] if isinstance(items, list) else items
-        keys = sorted(one.keys()) if isinstance(one, dict) else []
-        DIAG.setdefault("_probe", {})[label] = {
-            "op": op, "rows": len(items), "fields": keys,
-            "sample": {k: str(v)[:60] for k, v in list(one.items())[:60]}
-            if isinstance(one, dict) else {}}
-        print(f"  ✓ {label}: {len(items)}건 · 항목 {', '.join(keys)[:400]}")
+        rec = {"op": op, "tries": {}}
+        modes = [("날짜", dict(day=day, extra=None))]
+        if sample_no:
+            modes.append(("공고번호", dict(
+                day=None,
+                extra={"bidNtceNo": sample_no, "bidNtceOrd": sample_ord})))
+        for mname, kw in modes:
+            why = {}
+            items = fetch(url, key, label=f"[진단]{label}/{mname}", why=why, **kw)
+            if items:
+                one = items[0] if isinstance(items, list) else items
+                keys = sorted(one.keys()) if isinstance(one, dict) else []
+                rec["tries"][mname] = {
+                    "rows": len(items), "fields": keys,
+                    "sample": {k: str(v)[:80] for k, v in list(one.items())[:60]}
+                    if isinstance(one, dict) else {}}
+                print(f"  \u2713 {label}/{mname}: {len(items)}건 · "
+                      f"항목 {', '.join(keys)[:300]}")
+            else:
+                rec["tries"][mname] = {"rows": 0, **why}
+                print(f"  · {label}/{mname}: 응답 없음 "
+                      f"({why.get('code', '')} {why.get('msg', '')})".rstrip())
+            time.sleep(0.4)
+        DIAG.setdefault("_probe", {})[label] = rec
     print("-" * 52)
 
 
@@ -831,6 +907,9 @@ def main():
     ap.add_argument("--days", type=int, default=3)
     ap.add_argument("--backfill", type=int, default=0)
     ap.add_argument("--sleep", type=float, default=0.6)
+    ap.add_argument("--ranks", type=int, default=-1,
+                    help="개찰 순위(1위~꼴찌)를 이번 회차에 몇 건까지 채울지. "
+                         "안 주면 시각을 보고 알아서 정합니다(정밀 회차 250 / 그 외 60). 0이면 안 함")
     ap.add_argument("--fillbsis", type=int, default=0,
                     help="지난 N일치 기초금액·A값을 소급해서 채웁니다 (하루 한 번이면 충분)")
     ap.add_argument("--probe", action="store_true",
@@ -839,11 +918,31 @@ def main():
 
     load_env()
     key = api_key()
+
+    # ── 순위 조회 건수를 «시각을 보고» 스스로 정합니다 ──────────────
+    #   워크플로 파일(.github/workflows/update.yml)은 보안상 원격에서 못 고칩니다.
+    #   그래서 명령에 --ranks 를 안 붙여도 알아서 배분하도록 여기에 둡니다.
+    #     · 한국시간 08시·13시 (정밀 회차) → 250건
+    #     · 그 밖의 회차                   → 60건
+    #   하루 2×250 + 19×60 = 1,640건. 새 개찰이 하루 약 570건이라 밀린 물량을 따라잡습니다.
+    #   ⚠️ 손으로 --ranks 를 주면 그 값이 이깁니다 (0 을 주면 순위 조회를 건너뜁니다).
+    if args.ranks < 0:
+        _h = datetime.now(KST).hour
+        args.ranks = 250 if _h in (8, 13) else 60
+        print(f"  · 개찰 순위 조회: 이번 회차 {args.ranks}건 "
+              f"(한국시간 {_h}시 — 자동 배분)")
     days = args.backfill or args.days
     today = datetime.now(KST)
 
     if args.probe:
-        probe_ops(key, today - timedelta(days=1))
+        # 이미 받아 둔 개찰 중 가장 최근 것을 표본 공고로 씁니다.
+        # 공고번호를 받아야 하는 오퍼레이션을 «없다» 고 오판하지 않기 위해서입니다.
+        _f = load_store("first")
+        _rows = sorted((_f.get("con") or {}).values(),
+                       key=lambda r: dt_digits(r.get("dt")), reverse=True)
+        _no = _rows[0]["no"] if _rows else ""
+        _ord = str((_rows[0].get("ord") if _rows else "") or "000") or "000"
+        probe_ops(key, today - timedelta(days=1), _no, _ord)
         save_diag()
         return
 
@@ -966,11 +1065,22 @@ def main():
         if k not in seen:
             seen.add(k)
             uniq.append((kind, r))
+    # ⚠️ 2026-09-02 — 여기가 조달청 호출의 85% 를 먹고 있었습니다.
+    #   빈 건이 1,931건인데 회차마다 «목록 앞에서 250건» 만 물어봤습니다.
+    #   목록 순서가 매번 같으니 **같은 250건을 하루 21번 다시 물었고**,
+    #   뒤쪽 1,681건은 영영 차례가 오지 않았습니다.
+    #   고침: «마지막으로 물어본 시각»을 적어 두고 **오래된 것부터** 돌아가며 묻습니다.
+    #   250건씩 돌아가면 1,931건을 8회차(약 4시간)면 한 바퀴 다 돕니다.
+    #   ⚠️ 횟수 제한은 두지 않습니다 — 기초금액은 마감 직전에 공개되는 공고가 있어서,
+    #      한 번 없다고 끊으면 영영 못 받습니다.
+    now_ts = datetime.now(KST).strftime("%Y%m%d%H%M%S")
+    uniq.sort(key=lambda kr: str(kr[1].get("bask") or ""))
     if uniq:
         print(f"  · 기초금액 개별조회 {min(len(uniq), BSIS_ONE_CAP):,}건 "
-              f"(빈 건 {len(uniq):,})")
+              f"(빈 건 {len(uniq):,} — 오래 안 물어본 것부터)")
         for kind, r in uniq[:BSIS_ONE_CAP]:
             b = bsis_one(key, r["no"], kind)
+            r["bask"] = now_ts          # 물어본 시각 (다음 회차에서 뒤로 밀립니다)
             if b:
                 had = bool(r.get("base"))
                 r.update(b)
@@ -1024,7 +1134,62 @@ def main():
         except Exception as e:
             print(f"  ! 소급 보충 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
 
-    # 사람이 넣어 둔 전체 투찰내역이 있으면 여기서 붙입니다 (1~10위)
+    # ── ★ 개찰 순위 (1위~꼴찌) — 공고번호로 하나씩 받아 채웁니다 ──
+    #   날짜로 부르면 안 옵니다. 공고번호로만 옵니다.
+    #   한 회차에 args.ranks 건만 채웁니다 (하루 21회차 × 40건 = 840건,
+    #   하루 개찰이 약 570건이므로 하루면 다 따라잡습니다).
+    #   최근 개찰부터, 아직 1곳뿐인 것만 채웁니다.
+    if args.ranks > 0 and not NET_DOWN:
+        todo_rank = []
+        for kind in KINDS:
+            rows = sorted(trim(first[kind], SHOW_DAYS, "dt").values(),
+                          key=lambda r: dt_digits(r.get("dt")), reverse=True)
+            for r in rows:
+                if len(r.get("corps") or []) > 1:
+                    continue            # 이미 순위가 붙은 공고는 건너뜁니다
+                if r.get("nrank") == 1:
+                    continue            # 참가업체가 정말 1곳인 공고 (다시 안 물어봅니다)
+                todo_rank.append(r)
+        # ⚠️ 기초금액 개별조회에서 겪은 것과 같은 함정을 피합니다.
+        #   «앞에서 N건» 만 집으면 응답이 안 오는 공고를 매 회차 다시 묻고,
+        #   뒤쪽은 영영 차례가 안 옵니다.
+        #   ① 아직 한 번도 안 물어본 것 — 최근 개찰부터
+        #   ② 물어봤는데 못 받은 것 — 오래된 것부터 돌아가며
+        def _rank_key(r):
+            asked = str(r.get("rask") or "")
+            dt = (dt_digits(r.get("dt")) or "0")[:14].ljust(14, "0")
+            #   ① 안 물어본 것(0) 먼저, ② 물어본 것은 오래된 순,
+            #   ③ 같은 조건이면 최근 개찰부터 (문자열을 뒤집어 내림차순)
+            return (1 if asked else 0, asked, "".join(chr(9 - int(c)) for c in dt))
+        todo_rank.sort(key=_rank_key)
+        got = ranked = 0
+        for r in todo_rank[:args.ranks]:
+            if NET_DOWN:
+                break
+            cs = openg_ranks(key, r["no"], r.get("ord"))
+            r["rask"] = datetime.now(KST).strftime("%Y%m%d%H%M%S")
+            time.sleep(args.sleep)
+            if not cs:
+                continue
+            got += 1
+            r["corps"] = cs
+            r["nrank"] = len(cs)
+            if len(cs) > 1:
+                ranked += 1
+                # 1순위 정보도 조달청 순위 자료로 맞춰 둡니다 (더 정확합니다)
+                r["win"], r["amt"] = cs[0][0], cs[0][1]
+                if cs[0][2]:
+                    r["rate"] = cs[0][2]
+                if len(cs[0]) > 3 and cs[0][3]:
+                    r["bno"] = cs[0][3]
+                if len(cs[0]) > 4 and cs[0][4]:
+                    r["ceo"] = cs[0][4]
+        if todo_rank:
+            print(f"  → 개찰 순위 조회 {min(len(todo_rank), args.ranks):,}건 시도 · "
+                  f"응답 {got:,}건 · 2곳 이상 {ranked:,}건 "
+                  f"(남은 대상 {max(0, len(todo_rank) - args.ranks):,}건)")
+
+    # 사람이 넣어 둔 전체 투찰내역이 있으면 여기서도 붙입니다 (파일로 받은 경우)
     merge_ranks(first)
 
     archive(first)
@@ -1193,6 +1358,9 @@ def main():
                        # 채점의 실격 판정에 필요합니다. A값을 모르면 하한을 낮게 잡아
                        # «가져갔을 자리»가 남발됩니다.
                        int(r.get("aval") or 0), r.get("ayn") or "",
+                       # ★ 투찰금액 목록(낮은 순, 최대 12개) — «우리 금액이면 몇 위였나» 를
+                       #   채점 화면에서 바로 셀 수 있게 합니다. 이름은 넣지 않습니다(용량).
+                       [int(c[1]) for c in (r.get("corps") or [])[:12] if c and c[1]],
                        # ⚠️ 예가범위 — 채점이 그 공고의 사정률 분포를 재현하려면 꼭 필요합니다.
                        #    없어서 ±2% 공고를 ±3% 로 채점했고, 5억 공고 기준 115만원이
                        #    어긋났습니다(실측 106건 중앙값).
@@ -1201,7 +1369,7 @@ def main():
         with open(path, "w", encoding="utf-8") as f:
             json.dump({"built": built, "f": ["win", "amt", "rate", "np", "base", "dt",
                              "tel", "ceo", "bno", "adr", "tsrc", "name", "inst",
-                             "aval", "ayn", "lo", "hi"],
+                             "aval", "ayn", "amts", "lo", "hi"],
                        "r": out}, f, ensure_ascii=False, separators=(",", ":"))
         print(f"  → bidresult 최근 7일 개찰 {len(out):,}건 "
               f"({os.path.getsize(path)/1024:.0f}KB)")

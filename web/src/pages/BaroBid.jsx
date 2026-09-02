@@ -396,7 +396,8 @@ export default function BaroBid() {
         tel: a[6] || '', ceo: a[7] || '', bno: a[8] || '', adr: a[9] || '',
         tsrc: a[10] || 0, name: a[11] || '', inst: a[12] || '',
         aval: a[13] || 0, ayn: a[14] || '',
-        lo: a[15] != null ? a[15] : null, hi: a[16] != null ? a[16] : null,
+        amts: Array.isArray(a[15]) ? a[15] : [],
+        lo: a[16] != null ? a[16] : null, hi: a[17] != null ? a[17] : null,
       } : fromUrl)
     })
     return () => { ok = false }
@@ -714,6 +715,13 @@ export default function BaroBid() {
        통과·실격은 실력이 아니라 그날 추첨이 정합니다. 그걸 숨기지 않습니다. */
     /* 이번 개찰에서 실제로 나온 사정률도 같은 표에 끼워 넣습니다 —
        «비슷한 줄»을 가리키게 두면 숫자가 미묘하게 어긋나 사람을 헷갈리게 합니다. */
+    /* ★ «우리 금액이면 몇 위였나» — 2026-09-02부터 조달청 개찰 순위를 받아옵니다.
+       공고번호로 물어야 나오는 오퍼레이션이라(getOpengResultListInfoOpengCompt)
+       그동안 1순위만 있었습니다. 이제 유효 투찰 중 우리보다 낮은 금액을 셉니다.
+       ⚠️ 하한 미만으로 쓴 업체는 실격이라 순위 경쟁 상대가 아닙니다. 빼고 셉니다. */
+    const amts = Array.isArray(res.amts) ? res.amts.filter((v) => v > 0) : []
+    const valid = amts.filter((v) => v >= L).sort((x, y) => x - y)
+    const myRank = (!dq && valid.length) ? valid.filter((v) => v < M).length + 1 : null
     const realSj = hasBase ? r3(yeje / b * 100) : null
     const sc = buildScen({ base: b, llRate: h, aVal: A, p50: ov?.sjq?.p50 ?? 99.894,
                            sd: rSd, myAmt: M, realSj, realLimit: L })
@@ -727,6 +735,7 @@ export default function BaroBid() {
       lim: c3(L / yeje * 100),            // 실효 낙찰하한 투찰률
       gapWon: res.amt - M,                // 1순위와의 금액 차이
       dq, beat, scen, realSj, passN, sd: rSd, lo: rLo, hi: rHi,
+      myRank, nBid: valid.length, nAll: amts.length,
       pctile: ro.pctile, margin: ro.margin,
     }
   })()
@@ -1076,6 +1085,17 @@ export default function BaroBid() {
               <span className="v">이 밑으로 쓰면 실격</span>
             </div>
           </div>
+
+          {/* ★ 실제 투찰 순위와 견줍니다 — 조달청 개찰 순위를 받아온 공고만 나옵니다 */}
+          {scored?.myRank != null && (
+            <div className="myrank">
+              바로투찰 금액으로 넣었으면 <b>{scored.myRank}위</b>였습니다
+              <span className="sub">
+                {' '}· 하한을 넘긴 유효 투찰 {num(scored.nBid)}곳 중
+                {res.np > scored.nAll ? ` (전체 참가 ${num(res.np)}곳 중 ${scored.nAll}곳 확인)` : ''}
+              </span>
+            </div>
+          )}
 
           {(res.tel || res.ceo || res.bno || res.adr) ? (
             <div className="wcard">

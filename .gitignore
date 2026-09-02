@@ -24,6 +24,9 @@ data/*.zip
 #   용역 원본(service_data_3years.zip)은 쓰지 않으므로 계속 제외합니다.
 !data/bid_data_3years.zip
 !data/extra_*.csv
+# 전체 투찰내역(1~10위) — 사람이 inbox 에 넣어 만든 파일.
+# ⚠️ 이게 저장소에 있어야 GitHub 자동 갱신(Actions)도 순위를 붙일 수 있습니다.
+!data/ranks.csv
 
 # 수집 기록(7주치)도 넣어둡니다. GitHub 이 처음 돌 때 이걸 씨앗으로 삼아
 # 조달청에서 60일치를 새로 받지 않아도 되게 하려는 것입니다.
