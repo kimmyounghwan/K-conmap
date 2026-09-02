@@ -21,9 +21,8 @@ import { won, wonShort, pct, num, dateTime, dday } from '../lib/fmt.js'
        투찰금액 = (예정가격 − A값) × 투찰률 + A값        ← 원 단위 절상
    ============================================================ */
 
-/* 배포 도장을 붙여 옛 목록을 붙잡고 있지 않게 합니다 */
-const getIndex = () => getJSON(
-  `/data/bidindex.json?v=${typeof __BUILD__ === 'string' ? __BUILD__ : '0'}`)
+/* 도장은 getJSON 이 /data 전체에 알아서 붙입니다 */
+const getIndex = () => getJSON('/data/bidindex.json')
 
 /** 일반공사 적격심사 낙찰하한율 (조달청 기준, 참고용) */
 function lowerLimit(estimate) {

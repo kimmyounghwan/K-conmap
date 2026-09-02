@@ -18,9 +18,13 @@ import json
 import math
 import shutil
 from collections import Counter, defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
+
+# GitHub 서버는 세계표준시로 돕니다. 시각을 그대로 찍으면 9시간 전으로 보여
+# «어제 것이네, 갱신이 멈췄나» 하고 오해하게 됩니다. (실제로 오해했습니다)
+KST = timezone(timedelta(hours=9))
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(ROOT, "web", "public", "data")
@@ -249,6 +253,32 @@ def load_all():
             f"{n0 - len(df):,}건 제외 → {len(df):,}건")
         if bad:
             log(f"⚠️  날짜를 못 읽은 {bad:,}건도 함께 빠졌습니다 (형식 확인 필요)")
+
+    # ── ⚠️ 용역 걸러내기 ────────────────────────
+    #   2026-08-31 에 «공사만» 으로 바꾸기 전까지 쌓인 누적 자료
+    #   (extra_2026-04 ~ 08, 약 59,000건)에 용역이 35%씩 섞여 있습니다.
+    #   실제로 들어와 있던 것: «구절초 꽃축제 행사대행 용역»,
+    #   «유학생 summer School 운영 위탁용역», «사전타당성 검토 연구용역» …
+    #
+    #   공사와 용역은 낙찰 대역이 다릅니다 — 중앙 투찰률 90.32% vs 88.39%.
+    #   섞어두면 발주기관·업체 통계와 사정률이 전부 틀어집니다.
+    #
+    #   공고명으로 거릅니다. 조달청 자료에 종류 칸이 따로 없어서입니다.
+    #   «점검»·«조사» 같은 말은 공사 공고명에도 흔해서 쓰지 않습니다
+    #   (예: «정밀안전점검 결과에 따른 도로시설물 보수보강공사»).
+    n0 = len(df)
+    _nm = df["공고명"].fillna("").astype(str)
+    _serv = (
+        _nm.str.contains("용역", regex=False)
+        | _nm.str.contains(r"설계공모|연구과제|위탁\s*운영|행사\s*대행|기획\s*및\s*운영", regex=True)
+    )
+    # 공사인데 이름에 «용역» 이 든 것은 살립니다 (예: «○○공사 계측관리용역» 은 용역이 맞지만
+    # «공사» 로 끝나는 이름은 공사입니다)
+    _serv = _serv & ~_nm.str.strip().str.endswith(("공사", "공사)", "공사(긴급)"))
+    if _serv.any():
+        df = df[~_serv].reset_index(drop=True)
+        log(f"용역 {n0 - len(df):,}건 제외 → {len(df):,}건 "
+            f"(2026-08 이전 누적 자료에 섞여 있던 것)")
 
     df["발주기관"] = df["발주기관"].fillna("").astype(str).str.strip()
     df["1순위업체"] = df["1순위업체"].fillna("").astype(str).str.strip()
@@ -755,7 +785,8 @@ def build_overview(df, n_agency, n_corp, n_kw):
         return round(sjs_sorted[int(len(sjs_sorted) * p)], 3) if sjs_sorted else None
 
     ov = {
-        "built": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "built": datetime.now(KST).strftime("%Y-%m-%d %H:%M"),
+        "tz": "KST",
         "rows": int(len(df)),
         "agencies": n_agency,
         "corps": n_corp,

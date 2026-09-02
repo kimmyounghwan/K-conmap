@@ -10,24 +10,30 @@
 const cache = new Map()
 const inflight = new Map()
 
-/* 배포마다 바뀌는 도장. 자주 바뀌는 파일에만 붙입니다.
-   (묶음 파일 수천 개에까지 붙이면 배포 때마다 전부 다시 받게 되어 전송량이 늘어납니다) */
+/* 배포마다 바뀌는 도장.
+   ⚠️ /data 아래 **모든** 파일에 붙입니다. 일부에만 붙였다가 사고가 났습니다.
+      2026-09-02: overview·bidindex 에만 붙여뒀더니, 화면 코드는 새것인데
+      업체 자료(corp/)는 어제 것이 24시간 캐시로 남아 «법인 분리가 사라졌다»,
+      «어제 오후 이후 갱신이 멈췄다» 로 보였습니다.
+      코드와 자료는 반드시 같이 움직여야 합니다.
+   전송량 걱정은 없습니다 — 사용자는 자기가 연 묶음 하나(압축 10KB)만 받습니다. */
 const V = typeof __BUILD__ === 'string' ? __BUILD__ : '0'
-const fresh = (p) => `${p}?v=${V}`
+const fresh = (p) => (p.includes('?') ? p : `${p}?v=${V}`)
 
 export async function getJSON(path) {
-  if (cache.has(path)) return cache.get(path)
-  if (inflight.has(path)) return inflight.get(path)
+  const url = path.startsWith('/data/') ? fresh(path) : path
+  if (cache.has(url)) return cache.get(url)
+  if (inflight.has(url)) return inflight.get(url)
 
-  const p = fetch(path)
+  const p = fetch(url)
     .then((r) => (r.ok ? r.json() : null))
     .catch(() => null)
     .then((v) => {
-      cache.set(path, v)
-      inflight.delete(path)
+      cache.set(url, v)
+      inflight.delete(url)
       return v
     })
-  inflight.set(path, p)
+  inflight.set(url, p)
   return p
 }
 
@@ -37,10 +43,10 @@ const key = (name) => {
 }
 
 /* ── 전체 요약 ───────────────────────── */
-export const getOverview = () => getJSON(fresh('/data/overview.json'))
+export const getOverview = () => getJSON('/data/overview.json')
 
 /* 가상 시뮬레이션 — 지난 개찰에 우리 방식을 대본 결과 */
-export const getSim = () => getJSON(fresh('/data/sim.json'))
+export const getSim = () => getJSON('/data/sim.json')
 
 /* ── 발주기관 ────────────────────────── */
 export const getAgencyTop = () => getJSON('/data/agency/top.json')
