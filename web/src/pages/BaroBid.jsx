@@ -131,7 +131,10 @@ export default function BaroBid() {
     getResults().then((m) => {
       if (!ok) return
       const a = m?.r?.[no]
-      setRes(a ? { no, win: a[0], amt: a[1], rate: a[2], np: a[3], base: a[4], dt: a[5] } : null)
+      setRes(a ? {
+        no, win: a[0], amt: a[1], rate: a[2], np: a[3], base: a[4], dt: a[5],
+        tel: a[6] || '', ceo: a[7] || '', bno: a[8] || '', adr: a[9] || '',
+      } : null)
     })
     return () => { ok = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -485,6 +488,35 @@ export default function BaroBid() {
               <span className="v">경쟁 강도</span>
             </div>
           </div>
+          {(res.tel || res.ceo || res.bno || res.adr) ? (
+            <div className="wcard">
+              <div className="wh">🏢 1순위 업체</div>
+              <div className="wn">{res.win}</div>
+              <div className="wk">
+                {res.ceo && <div><span>대표자</span><b>{res.ceo}</b></div>}
+                {res.bno && (
+                  <div><span>사업자</span>
+                    <b>{res.bno.slice(0, 3)}-{res.bno.slice(3, 5)}-{res.bno.slice(5)}</b></div>
+                )}
+                {res.adr && <div className="wide"><span>주소</span><b>{res.adr}</b></div>}
+              </div>
+              {res.tel ? (
+                <a className="wtel" href={`tel:${res.tel.replace(/[^0-9+]/g, '')}`}>
+                  <span className="ic">📞</span>
+                  <span className="t">{res.tel}</span>
+                  <span className="d">눌러서 바로 걸기</span>
+                </a>
+              ) : (
+                <div className="wno">이 공고에는 전화번호가 실려 오지 않았습니다.</div>
+              )}
+            </div>
+          ) : (
+            <div className="wno solo">
+              이 공고는 조달청이 낙찰업체 연락처를 함께 주지 않았습니다.
+              (연락처가 실려 오는 공고는 대략 셋 중 하나입니다)
+            </div>
+          )}
+
           {scored && (
             <div className="sv">
               {scored.dq ? (
@@ -662,7 +694,7 @@ export default function BaroBid() {
             </div>
           )}
 
-          {bstat?.npMed > 0 && (
+          {bstat?.npMed > 0 && bstat.n >= 30 && (
             <div className="compet">
               <div className="ch">
                 이 규모는 보통 <b>{num(bstat.npMed)}개사</b>가 들어옵니다
@@ -684,6 +716,7 @@ export default function BaroBid() {
               <div className="csub">
                 {band?.label} · 최근 60일 개찰 {num(bstat.n)}건 기준 · 가운데 절반이
                 {' '}{num(bstat.npLo)}~{num(bstat.npHi)}개사
+                {bstat.n < 100 && <> · <b>표본이 얇으니 참고만</b></>}
                 {res?.np > 0 && <> · <b>이 공고는 실제 {num(res.np)}개사</b></>}
               </div>
             </div>

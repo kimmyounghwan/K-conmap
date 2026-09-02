@@ -1355,3 +1355,49 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
 .aguess .g1 b { color: var(--accent); font-weight: 900; }
 .aguess .g2 { margin-top: 7px; font-size: 11.5px; color: var(--muted); }
 .aguess .g2 b { color: var(--warn); }
+
+/* ── 채점 카드 안의 «1순위 업체» ──
+   전화·주소·대표자는 조달청이 실어 줄 때만 옵니다(대략 셋 중 하나).
+   없는 걸 «-» 로 채우지 않고 줄 자체를 감춥니다. */
+.scored .wcard {
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.scored .wh {
+  font-size: 11px; font-weight: 800; color: var(--muted); letter-spacing: .3px;
+}
+.scored .wn {
+  margin: 4px 0 8px;
+  font-size: 16px; font-weight: 900; color: var(--text); letter-spacing: -.3px;
+}
+.scored .wk { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+.scored .wk .wide { grid-column: 1 / -1; }
+.scored .wk span {
+  display: block; font-size: 10.5px; font-weight: 800; color: var(--muted);
+}
+.scored .wk b {
+  display: block; font-size: 12.5px; font-weight: 700; color: var(--text-2);
+  line-height: 1.4; word-break: keep-all;
+}
+.scored .wtel {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 10px; padding: 11px 13px;
+  border-radius: 12px; text-decoration: none;
+  color: #ecfdf5;
+  background: linear-gradient(100deg, #065f46, #10b981);
+  box-shadow: 0 6px 16px rgba(5, 150, 105, .28);
+}
+.scored .wtel .ic { font-size: 17px; }
+.scored .wtel .t {
+  font-size: 16px; font-weight: 900; letter-spacing: .2px;
+  font-variant-numeric: tabular-nums;
+}
+.scored .wtel .d { margin-left: auto; font-size: 11px; font-weight: 700; opacity: .85; }
+.scored .wno {
+  margin-top: 10px; padding: 9px 12px;
+  border: 1px dashed var(--line); border-radius: 10px;
+  font-size: 11.5px; color: var(--muted); background: var(--surface-2);
+}
+.scored .wno.solo { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; }
+@media (max-width: 420px) { .scored .wk { grid-template-columns: 1fr; } }

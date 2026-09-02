@@ -990,12 +990,17 @@ def main():
             no = r.get("no")
             if not no:
                 continue
+            # 전화·주소·대표자는 «있는 공고만» 옵니다(조달청 낙찰자 상세에 실릴 때만).
+            # 없으면 빈 문자열로 두고, 화면에서는 아예 감춥니다.
             out[no] = [r.get("win") or "", int(r.get("amt") or 0),
                        r.get("rate"), int(r.get("np") or 0),
-                       int(r.get("base") or 0), r.get("dt") or ""]
+                       int(r.get("base") or 0), r.get("dt") or "",
+                       r.get("tel") or "", r.get("ceo") or "",
+                       r.get("bno") or "", r.get("adr") or ""]
         path = os.path.join(OUT, "bidresult.json")
         with open(path, "w", encoding="utf-8") as f:
-            json.dump({"built": built, "f": ["win", "amt", "rate", "np", "base", "dt"],
+            json.dump({"built": built, "f": ["win", "amt", "rate", "np", "base", "dt",
+                             "tel", "ceo", "bno", "adr"],
                        "r": out}, f, ensure_ascii=False, separators=(",", ":"))
         print(f"  → bidresult 최근 7일 개찰 {len(out):,}건 "
               f"({os.path.getsize(path)/1024:.0f}KB)")
