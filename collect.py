@@ -311,13 +311,27 @@ def bsis_by_day(key, day, kind):
     return out
 
 
+LIC_PAGES = 12       # 면허제한은 물품·용역까지 섞여 와서 한 쪽(999건)으로는 턱없이 모자람
+
+
 def lic_by_day(key, day, kind):
     """하루치 면허·업종 제한을 통째로 받아 {공고번호: [제한명, ...]} 로.
 
     한 공고에 여러 줄이 올 수 있습니다 (토목 + 건축 처럼).
-    항목 이름이 문서와 다를 때가 있어 후보를 여러 개 두고 찾습니다."""
+
+    ⚠️ 쪽넘김을 반드시 해야 합니다.
+       이 오퍼레이션은 공사·용역·물품을 다 섞어서 줍니다.
+       한 쪽(999건)만 받으면 대부분 물품이라 공사는 거의 안 걸립니다.
+       실제로 1,946건 중 3건만 채워졌습니다."""
     out = {}
-    for it in fetch(LIC[kind], key, day, None, label=f"면허제한 {kind} {day:%m-%d}"):
+    rows = []
+    for pg in range(1, LIC_PAGES + 1):
+        got = fetch(LIC[kind], key, day, {"pageNo": str(pg)},
+                    label=f"면허제한 {kind} {day:%m-%d} {pg}쪽")
+        rows.extend(got)
+        if len(got) < 999:          # 마지막 쪽
+            break
+    for it in rows:
         no = str(pick(it, "bidNtceNo") or "").strip()
         # bsnsDivNm 이 «물품»·«용역» 인 줄이 섞여 옵니다. 공사만 씁니다.
         div = str(pick(it, "bsnsDivNm") or "").strip()
@@ -436,6 +450,11 @@ def row_live(item):
             (txt(f"ntceSpecFileNm{i}"), txt(f"ntceSpecDocUrl{i}"))
             for i in range(1, 11)) if n and u][:6],
         "url": url or "https://www.g2b.go.kr/index.jsp",
+        # 조달청이 주는 또 다른 주소. 공고상세(bidNtceDtlUrl)와 다른 것인지,
+        # 혹시 투찰 입구인지 확인하려고 담아둡니다.
+        # 나라장터는 화면이 바뀌어도 주소가 안 바뀌는 구조라 투찰 딥링크가
+        # 없을 가능성이 큽니다 — 추측하지 않고 실제 값을 보고 정합니다.
+        "url2": txt("bidNtceUrl"),
     }
 
 

@@ -416,6 +416,28 @@ export default function BaroBid() {
             </div>
           </div>
 
+          {/* 투찰까지 가는 순서.
+              나라장터는 화면이 바뀌어도 주소가 안 바뀌는 구조라
+              «투찰 화면» 만 콕 집어 여는 주소가 없습니다.
+              로그인만 돼 있으면 공고 화면이 곧 투찰 입구입니다. */}
+          <div className="steps">
+            <div className="h">나라장터에서 투찰하는 순서</div>
+            <ol>
+              <li>
+                <a href="https://www.g2b.go.kr" target="_blank" rel="noreferrer">
+                  나라장터 로그인 ↗
+                </a>
+                <span> — 지문보안토큰이나 인증서가 필요합니다</span>
+              </li>
+              <li>로그인한 채로 위 <b>「나라장터 공고 →」</b>를 누릅니다</li>
+              <li>그 공고 화면에서 <b>「입찰서 제출」</b>로 투찰합니다</li>
+            </ol>
+            <div className="note sm" style={{ marginTop: 6 }}>
+              투찰 화면으로 곧장 가는 주소는 나라장터가 제공하지 않습니다.
+              로그인과 보안토큰은 어떤 사이트에서도 대신 해줄 수 없습니다.
+            </div>
+          </div>
+
           {/* ── 분석 정보 ── */}
           {picked && (
             <div className="card">
