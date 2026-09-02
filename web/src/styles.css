@@ -1514,3 +1514,117 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
 /* 낙찰하한율 미확인 경고 */
 .warnbox.llrbox { border-color:#f0c98a; }
 .warnbox.llrbox .kv b.hi { color: var(--bad); }
+.scored .sv .base .unk { color: var(--warn); font-weight: 700; }
+
+/* 계산 가능한 공고만 — 감춘 것 안내 */
+.hidenote {
+  margin:-2px 0 8px; padding:8px 12px; border-radius:10px;
+  background:var(--surface-2); border:1px solid var(--line);
+  font-size:12px; color:var(--text-2);
+}
+.hidenote b { color:var(--text); }
+.hidenote .lnk {
+  border:0; background:none; padding:0; cursor:pointer;
+  color:var(--accent); font-weight:800; font-size:12px; text-decoration:underline;
+}
+.pickrow .nogo { color:var(--bad); font-weight:700; }
+
+/* 계산 불가 공고 안내 */
+.warnbox.nogobox { border-color:#f3b4b4; background:var(--bad-soft); }
+.warnbox.nogobox .h { color:var(--bad); }
+.needlist { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; }
+.needlist span {
+  padding:4px 10px; border-radius:999px; font-size:11.5px; font-weight:800;
+  border:1px solid var(--line); background:var(--surface);
+}
+.needlist .yes { color:var(--good); border-color:#b7e4cd; }
+.needlist .no { color:var(--bad); border-color:#f3b4b4; background:#fff5f5; }
+
+/* 계산이 안 되는 공고 — 버튼 대신 «왜 안 되는지» 를 적습니다.
+   버튼을 눌러 «계산할 수 없습니다» 를 보게 하는 것보다 낫습니다. */
+.notice .nocalc {
+  margin: 10px 0;
+  padding: 11px 13px;
+  border: 1px dashed var(--line, #d8dee7);
+  border-radius: 10px;
+  background: #fbfbfd;
+  color: #666e7a;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.notice .nocalc b { color: #444b55; }
+
+/* ── 채점: 「사정률이 이 값이었다면」 표 ──────────────────────
+   하나의 금액만 실제 낙찰가와 대보면 «운»을 «실력»으로 오해합니다.
+   추첨이 다르게 나왔을 때 어떻게 됐을지 열 줄로 다 보여줍니다. */
+.scen {
+  margin-top: 12px;
+  padding: 12px 12px 10px;
+  border: 1px solid rgba(0, 0, 0, .08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .62);
+}
+.scen .sch {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  font-weight: 800; font-size: 14px; margin-bottom: 6px;
+}
+.scen .sch .cnt { font-weight: 600; font-size: 12px; color: #6b7280; }
+.scen .sch .cnt b { color: #111827; }
+.scrow {
+  display: grid;
+  grid-template-columns: 1.45fr 1.3fr .85fr .55fr;
+  gap: 5px; align-items: center;
+  padding: 7px 8px; border-radius: 8px;
+  font-size: 12.5px; font-variant-numeric: tabular-nums;
+}
+/* «100.190% 65분위» 가 두 줄로 접히면 표가 흔들립니다 — 한 줄로 붙입니다. */
+.scrow .sj, .scrow .lo, .scrow .gp, .scrow .rs { white-space: nowrap; }
+.scrow.shd {
+  font-size: 11px; font-weight: 700; color: #8b93a1;
+  padding-bottom: 3px; padding-top: 2px;
+}
+.scrow.ok  { background: rgba(16, 150, 90, .07); }
+.scrow.no  { background: rgba(200, 60, 60, .07); }
+.scrow.real { outline: 2px solid #2563eb; outline-offset: -2px; }
+.scrow .sj { font-weight: 700; }
+.scrow .sj .tag {
+  font-style: normal; font-size: 10.5px; font-weight: 700;
+  color: #2563eb; margin-left: 4px; white-space: nowrap;
+}
+.scrow .lo { color: #374151; }
+.scrow .gp.p { color: #10695a; }
+.scrow .gp.m { color: #b02a2a; }
+.scrow .rs { text-align: right; font-weight: 800; }
+.scrow.ok .rs { color: #10695a; }
+.scrow.no .rs { color: #b02a2a; }
+@media (max-width: 380px) {
+  .scrow { grid-template-columns: 1.4fr 1.25fr .8fr .5fr; font-size: 11px; gap: 3px; padding: 6px 5px; }
+  .scrow .sj .q { font-size: 9px; }
+}
+.scrow .sj .q {
+  font-style: normal; font-size: 10px; font-weight: 600;
+  color: #97a0ad; margin-left: 3px;
+}
+
+/* ── 「왜 이 금액인가」 성적표 ───────────────────────────── */
+.card.c-grade { background: linear-gradient(180deg, #fbfaff 0%, #f7f7fc 100%); }
+.c-grade .grow {
+  display: grid; grid-template-columns: 1.5fr .8fr .8fr 1fr;
+  gap: 6px; align-items: center; padding: 7px 8px;
+  border-radius: 8px; font-size: 12.5px; font-variant-numeric: tabular-nums;
+}
+.c-grade .grow.ghd { font-size: 11px; font-weight: 700; color: #8b93a1; padding-bottom: 2px; }
+.c-grade .grow.ghd span:not(:first-child),
+.c-grade .grow .d, .c-grade .grow .w, .c-grade .grow .g { text-align: right; }
+.c-grade .grow.on { background: #e9f2ff; font-weight: 800; outline: 2px solid #2563eb; outline-offset: -2px; }
+.c-grade .grow .n { font-weight: 600; }
+.c-grade .grow .d { color: #b02a2a; }
+.c-grade .grow .w { color: #10695a; }
+.c-grade .grow .g { color: #4b5563; }
+
+/* 채점 — «바로투찰과 같은 계산» 임을 밝히는 줄 */
+.scored .same {
+  display: block; margin-top: 7px; padding: 8px 10px;
+  border-radius: 8px; background: rgba(37, 99, 235, .07);
+  color: #1f3a68; font-size: 12px; line-height: 1.65;
+}

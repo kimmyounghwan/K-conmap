@@ -3,7 +3,27 @@ import { useEffect, useMemo, useState } from 'react'
 import { useBoard } from '../lib/useBoard.js'
 import { Skeleton, Empty } from '../components.jsx'
 import { RangeBar } from './FirstBoard.jsx'
+import { isReady, missingOf } from './BaroBid.jsx'
 import { won, wonShort, num, dateTime, dday, REGIONS, inRegion, LICENSES, licenseKeywords } from '../lib/fmt.js'
+
+/* ══════════════════════════════════════════════════════════════
+   «바로투찰» 버튼은 계산이 되는 공고에만 답니다.
+
+   버튼을 눌렀는데 «아직 계산할 수 없습니다» 가 뜨면,
+   그건 도와준 게 아니라 헛걸음을 시킨 겁니다.
+   그래서 여기서 미리 거릅니다 —
+     ① 아직 마감 전일 것 (마감된 공고는 투찰 자체가 안 됩니다)
+     ② 기초금액·낙찰하한율·A값·예비가격 정보가 다 있을 것 (isReady)
+   판정 기준은 바로투찰과 «같은 함수»를 씁니다. 따로 두면 반드시 어긋납니다.
+   ══════════════════════════════════════════════════════════════ */
+const stamp14 = (v) => String(v || '').replace(/[^0-9]/g, '').padEnd(14, '0')
+function nowStamp() {
+  const d = new Date()
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}` +
+         `${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
+}
+const canBid = (r, now) => !!r && stamp14(r.close) >= now && isReady(r)
 
 const PAGE = 20
 const KIND = 'con'   // 공사만 다룹니다 (용역 제외)
@@ -26,6 +46,7 @@ export default function LiveBoard() {
   const [lics, setLics] = useState(loadLicenses)
   const [editLic, setEditLic] = useState(false)
   const [open, setOpen] = useState(null)
+  const now = useMemo(() => nowStamp(), [])
 
   useEffect(() => { setPage(1) }, [region, q, mine, lics])
   useEffect(() => { saveLicenses(lics) }, [lics])
@@ -129,8 +150,10 @@ export default function LiveBoard() {
                   <span>·</span>
                   <span>{dateTime(r.dt)}</span>
                   {dd && <span className={'badge ' + dd.tone}>{dd.text}</span>}
-                  <Link className="gocalc" onClick={(e) => e.stopPropagation()}
-                    to={`/?no=${encodeURIComponent(r.no || '')}`}>💰 바로투찰</Link>
+                  {canBid(r, now) && (
+                    <Link className="gocalc" onClick={(e) => e.stopPropagation()}
+                      to={`/?no=${encodeURIComponent(r.no || '')}`}>💰 바로투찰</Link>
+                  )}
                   {r.base > 0 && <span className="badge n">기초 {wonShort(r.base)}</span>}
                 </div>
                 <div className="foot">
@@ -183,11 +206,22 @@ export default function LiveBoard() {
                         기초금액·A값·면허·지역·낙찰하한율을 «스스로» 채웁니다.
                         예전에는 기초금액이 있는 공고에만 버튼이 떠서,
                         기초금액이 아직 안 나온 공고는 손으로 옮겨 적어야 했습니다. */}
-                    <Link className="btn" style={{ width: '100%', margin: '10px 0' }}
-                      to={`/?no=${encodeURIComponent(r.no || '')}`}>
-                      💰 이 공고로 바로투찰 계산하기
-                      {r.base > 0 ? ` (기초 ${wonShort(r.base)})` : ' (기초금액 공개 전)'}
-                    </Link>
+                    {canBid(r, now) ? (
+                      <Link className="btn" style={{ width: '100%', margin: '10px 0' }}
+                        to={`/?no=${encodeURIComponent(r.no || '')}`}>
+                        💰 이 공고로 바로투찰 계산하기 (기초 {wonShort(r.base)})
+                      </Link>
+                    ) : (
+                      <div className="nocalc">
+                        {stamp14(r.close) < now ? (
+                          <>이미 <b>마감된 공고</b>라 투찰 계산은 하지 않습니다.</>
+                        ) : (
+                          <>아직 <b>바로투찰 계산이 안 됩니다</b> — 조달청 자료에
+                            «{missingOf(r).join(' · ')}» 이 아직 안 실려 왔습니다.
+                            30분마다 다시 받아오니 조금 뒤에 열어보세요.</>
+                        )}
+                      </div>
+                    )}
 
                     <div className="kv2">
                       {r.main && <div><span>주공종</span><b>{r.main}</b></div>}

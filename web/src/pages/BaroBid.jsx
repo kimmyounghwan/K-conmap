@@ -75,10 +75,202 @@ function limitRate(base, sajeong, llRate, aVal) {
 
 const digits = (s) => String(s || '').replace(/[^0-9]/g, '')
 const toNum = (s) => Number(digits(s)) || 0
+/* ══════════════════════════════════════════════════════════════
+   «계산할 수 있는 공고» 판정 — 하나라도 없으면 답을 내지 않습니다.
+
+   금액을 내려면 네 가지가 다 있어야 합니다:
+     ① 기초금액   — 없으면 아무것도 못 함
+     ② 낙찰하한율 — 공고에 실린 값. 규모로 추측하면 2%p 틀려 수천만원이 어긋납니다
+     ③ A값        — 실린 값이거나 «A값 미적용(N)». 추정하면 하한이 흔들립니다
+     ④ 예가범위·예비가격 개수 — 사정률 분포를 그 공고 기준으로 계산하려면 필요합니다
+
+   실측(2026-09-02): 마감 전 공고 1,939건 중 860건(44.4%)이 완비.
+   나머지는 «아직 계산할 수 없습니다» 라고 말하고 무엇이 빠졌는지 알려줍니다.
+   반쯤 아는 걸로 금액을 내미는 것보다, 모른다고 하는 편이 낫습니다.
+   ══════════════════════════════════════════════════════════════ */
+export function missingOf(r) {
+  if (!r) return []
+  const m = []
+  const llr = Number(r.llr)
+  if (!(r.base > 0)) m.push('기초금액')
+  if (!(llr >= 60 && llr <= 100)) m.push('낙찰하한율')
+  if (!(r.aval > 0 || r.ayn === 'N')) m.push('A값')
+  if (!(r.ptot > 0 && r.pdrw > 0)) m.push('예비가격 정보')
+  return m
+}
+export const isReady = (r) => missingOf(r).length === 0
+
 const r3 = (n) => Math.round(n * 1000) / 1000
 /* 하한 관련 비율은 반올림하면 실제 하한금액 아래로 내려갑니다.
    «✅ 통과 · 여유 0.000%p» 를 띄운 채 몇백 원이 모자라 실격합니다. 그래서 올립니다. */
 const c3 = (n) => Math.ceil(n * 1000) / 1000
+
+/* ══════════════════════════════════════════════════════════════
+   ⚠️ 여기 두 함수는 «추천 화면»과 «채점»이 **같이** 씁니다. 나누지 마세요.
+
+   2026-09-02 팀 검증에서 드러난 사고:
+     추천은 A값을 아는 공고에 «75분위 + 0.3%» 를 쓰는데,
+     채점은 옛 방식 «95분위, 여유 없음, 예가범위 항상 ±3%» 로 채점하고 있었습니다.
+     958건 전부 금액이 달랐고(중앙 +39만원), 판정이 119건(12.4%) 뒤집혔습니다.
+     실격률을 3.24% 로 보고했지만 실제 추천의 실격률은 11.59% 였습니다.
+     «바로투찰이 실제로 내는 금액» 이 아닌 것으로 채점하면 그건 채점이 아닙니다.
+   ══════════════════════════════════════════════════════════════ */
+
+/** 그 공고의 사정률 표준편차 — 예가범위와 예비가격 개수로 정해집니다 */
+export function sjSigma(lo, hi, ptot, pdrw) {
+  const w = (Number(hi) || 0) - (Number(lo) || 0)
+  const nTot = Number(ptot) || 15
+  const nDrw = Number(pdrw) || 4
+  if (!(w > 0) || nDrw < 1 || nTot <= nDrw) return null
+  return Math.sqrt((w * w / 12) * (1 / nDrw) * ((nTot - nDrw) / (nTot - 1)))
+}
+
+/* 정규분포 분위 — 5분위부터 95분위까지 열 자리 */
+const SCEN_Z = [[5, -1.6449], [15, -1.0364], [25, -0.6745], [35, -0.3853], [45, -0.1257],
+                [55, 0.1257], [65, 0.3853], [75, 0.6745], [85, 1.0364], [95, 1.6449]]
+
+/** 「사정률이 이 값이었다면」 — 추천 화면과 채점이 **같은 함수**를 씁니다.
+ *  투찰금액(myAmt)은 하나로 고정하고, 사정률만 바꿔가며 그때의 하한을 구합니다.
+ *  ⚠️ 전국 사정률 10분위(ov.sjc)를 쓰면 안 됩니다 — ±2%와 ±3% 공고가 섞여 있어
+ *     ±2% 공고에 있지도 않은 넓은 흔들림을 보여주게 됩니다. 그 공고의 σ 로 만듭니다. */
+export function buildScen({ base, llRate, aVal, p50, sd, myAmt, realSj, realLimit }) {
+  if (!(base > 0) || !llRate || sd == null || !(myAmt > 0)) return null
+  const lowOf = (v) => Math.ceil((base * (v / 100) - aVal) * (llRate / 100) + aVal)
+  const rows = SCEN_Z.map(([q, z]) => {
+    const sj = Math.round((p50 + z * sd) * 1000) / 1000
+    const low = lowOf(sj)
+    return { q, sj, low, pass: myAmt >= low, gap: myAmt - low }
+  })
+  const passN = rows.filter((x) => x.pass).length
+  if (realSj != null) {
+    const low = realLimit != null ? realLimit : lowOf(realSj)
+    rows.push({ q: null, sj: realSj, low, pass: myAmt >= low, gap: myAmt - low, real: true })
+    rows.sort((x, y) => x.sj - y.sj)
+  }
+  return { rows, passN }
+}
+
+/** 바로투찰이 실제로 내는 금액. 추천 화면과 채점이 이 하나만 씁니다. */
+export function recommend({ base, llRate, aVal, aKnown, p50, sd }) {
+  if (!(base > 0) || !llRate || sd == null || !p50) return null
+  const K = aKnown ? 0.674 : 1.63        // 75분위 : 95분위
+  const margin = aKnown ? 1.003 : 1.0    // 75분위에는 0.3% 여유
+  const sj = Math.round((p50 + K * sd) * 1000) / 1000
+  const yeje = base * (sj / 100)
+  return { sj, K, margin, pctile: aKnown ? 75 : 95,
+           amt: Math.ceil(Math.ceil((yeje - aVal) * (llRate / 100) + aVal) * margin) }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   「사정률이 이 값이었다면」 표 — **바로투찰과 채점이 같은 표를 씁니다.**
+
+   여기가 신뢰의 핵심입니다.
+   앞으로 넣을 공고에서 보여주는 표와, 끝난 공고를 채점할 때 보여주는 표가
+   같은 함수(buildScen)·같은 금액(recommend)으로 그려집니다.
+   그래서 «채점에서 잘 나오던데 실제로는 다르더라» 가 생길 수 없습니다.
+   ══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   「왜 이 금액인가」 — 실제 개찰 958건으로 잰 성적표.
+
+   표본: 2026-08~09 개찰 중 기초금액·A값이 실측으로 다 있고,
+        낙찰자 금액에서 낙찰하한율을 되짚어 **확정된** 958건.
+        (되짚은 값이 89.745 에 916건, 88.745 에 33건으로 또렷하게 뭉칩니다)
+
+   ⚠️ 숫자를 손으로 고치지 마세요. 고치려면 다시 재고 나서 고치세요.
+      재는 법은 docs/2026-09-02_완비공고만_검증.md §5 에 적어 두었습니다.
+   ══════════════════════════════════════════════════════════════ */
+const GRADE = [
+  ['50분위', 48.0, 3.13, 0.42],
+  ['69분위', 29.0, 3.13, 0.59],
+  ['75분위', 23.8, 2.82, 0.67],
+  ['75분위 + 0.3% 여유', 11.6, 4.07, 0.87],
+  ['84분위', 14.6, 3.24, 0.83],
+  ['90분위', 8.2, 2.51, 0.99],
+  ['95분위', 3.7, 1.88, 1.19],
+]
+function GradeCard() {
+  return (
+    <div className="card c-grade">
+      <div className="detail-h">
+        왜 이 금액인가 <span className="count">· 실제 개찰 958건에 대본 성적</span>
+      </div>
+      <div className="note sm" style={{ marginTop: 0 }}>
+        사정률을 어디에 맞출지는 <b>취향이 아니라 실측으로</b> 정했습니다.
+        기초금액·A값·낙찰하한율이 전부 확인된 개찰 958건에 각 방식을 그대로 대봤습니다.
+      </div>
+      <div className="grow ghd">
+        <span>사정률 기준</span><span>실격</span><span>1순위</span><span>낙찰가차이</span>
+      </div>
+      {GRADE.map((g) => (
+        <div key={g[0]} className={'grow' + (g[0].includes('여유') ? ' on' : '')}>
+          <span className="n">{g[0]}</span>
+          <span className="d">{g[1].toFixed(1)}%</span>
+          <span className="w">{g[2].toFixed(2)}%</span>
+          <span className="g">{g[3].toFixed(2)}%</span>
+        </div>
+      ))}
+      <div className="cav">
+        <b>낙찰가와의 차이를 줄이는 것 자체는 목표가 아닙니다.</b>
+        50분위로 내리면 차이는 0.42% 까지 줄지만 <b>둘에 하나가 실격</b>이고,
+        1순위가 되는 비율은 오히려 떨어집니다(3.13% ↔ 4.07%).
+        실격한 투찰은 «싸게 쓴 것»이 아니라 <b>버린 것</b>입니다.
+        그래서 1순위가 되는 비율이 가장 높은 «75분위 + 0.3% 여유»에 맞춰 두었습니다.
+        <br /><br />
+        <b>한 가지 솔직히 말씀드립니다.</b> 1순위가 되는 비율은 어느 기준으로 잡아도
+        2.5~4.1% 사이입니다(오차 ±0.5%p). 공사 하나에 보통 수십 곳이 붙기 때문에,
+        누가 계산을 잘해서 이기는 게 아니라 <b>그날 추첨이 정합니다.</b>
+        바로투찰이 하는 일은 «실격을 피하면서 가능한 한 낮게» 넣어 주는 것까지입니다.
+        그 이상을 약속하는 곳이 있다면 믿지 마세요.
+      </div>
+      <div className="cav" style={{ marginTop: 6, opacity: .75 }}>
+        표본 2026-08~09 개찰 958건 · 낙찰가차이는 실격이 아닌 건의 중앙값 ·
+        검증 방법은 저장소 docs 폴더에 적어 두었습니다.
+      </div>
+    </div>
+  )
+}
+
+function ScenTable({ sc, amtLabel, pctile, realNote }) {
+  if (!sc || !sc.rows?.length) return null
+  return (
+    <div className="scen">
+      <div className="sch">
+        사정률이 이 값이었다면
+        <span className="cnt">10개 자리 중 <b>{sc.passN}개</b>에서 통과</span>
+      </div>
+      <div className="note sm" style={{ margin: '0 0 8px' }}>
+        투찰금액은 <b>하나만</b> 넣고, 사정률은 그 뒤에 추첨으로 정해집니다.
+        그래서 «{amtLabel}»은 모든 줄이 같고,
+        <b> 낼 수 있었던 최저가(낙찰하한)만 움직입니다.</b>
+        {' '}통과냐 실격이냐는 그날 추첨이 정합니다 — 실력이 아닙니다.
+      </div>
+      <div className="scrow shd">
+        <span>사정률</span><span>그때의 최저가</span><span>{amtLabel}과</span><span>결과</span>
+      </div>
+      {sc.rows.map((x, i) => (
+        <div key={i} className={'scrow' + (x.pass ? ' ok' : ' no') + (x.real ? ' real' : '')}>
+          <span className="sj">
+            {x.sj.toFixed(3)}%
+            {x.real ? <i className="tag">← {realNote || '이번 개찰'}</i>
+                    : <i className="q">{x.q}분위</i>}
+          </span>
+          <span className="lo">{won(x.low)}</span>
+          <span className={'gp ' + (x.gap >= 0 ? 'p' : 'm')}>
+            {x.gap >= 0 ? `+${wonShort(x.gap)}` : `−${wonShort(-x.gap)}`}
+          </span>
+          <span className="rs">{x.pass ? '통과' : '실격'}</span>
+        </div>
+      ))}
+      <div className="cav" style={{ marginTop: 8 }}>
+        바로투찰은 사정률 <b>{pctile}분위</b>를 기준으로 금액을 잡습니다.
+        실제 개찰 958건으로 확인한 결과 통과·실격이 갈리는 자리는
+        <b> 85분위 언저리</b>(중앙 85.7분위)였고, 실격은 <b>958건 중 111건(11.6%)</b>이었습니다.
+        더 낮추면 싸게 따지만 실격이 늘고, 더 올리면 안전하지만 낙찰가와 멀어집니다.
+        공짜 점심은 없습니다.
+      </div>
+    </div>
+  )
+}
 
 export default function BaroBid() {
   const [sp] = useSearchParams()
@@ -93,6 +285,8 @@ export default function BaroBid() {
   /* «검증하러 온 화면»에서 계산기 입력칸까지 펼쳐 보이면
      검증하러 왔는데 또 뭘 쓰라는 화면이 됩니다. 기본은 접어 둡니다. */
   const [showCalc, setShowCalc] = useState(false)
+  /* 기본은 «계산할 수 있는 공고»만 보여줍니다. 덜 갖춰진 걸 섞으면 신뢰가 무너집니다. */
+  const [onlyReady, setOnlyReady] = useState(true)
 
   const [q, setQ] = useState('')
   const [picked, setPicked] = useState(null)
@@ -159,6 +353,32 @@ export default function BaroBid() {
     }))
   }, [idx])
 
+  /* ══════════════════════════════════════════════════════════
+     채점용 개찰결과 색인(bidresult.json)은 최근 7일치만 담습니다.
+     그런데 1순위 목록은 7주치를 보여줍니다 —
+     그대로 두면 6주치는 «채점»을 눌러도 아무 일이 안 일어납니다.
+
+     그래서 1순위 카드가 채점에 필요한 값을 주소에 실어 보냅니다.
+     자료를 더 받지 않고도 7주 전체가 채점됩니다.
+     (연락처·대표자는 색인에만 있어, 지난 개찰에서는 안 보입니다)
+     ══════════════════════════════════════════════════════════ */
+  const fromUrl = useMemo(() => {
+    if (sp.get('sc') !== '1') return null
+    const n = (k) => { const v = Number(sp.get(k)); return Number.isFinite(v) ? v : 0 }
+    const amt = n('amt'), rate = n('rate')
+    if (!(amt > 0 && rate > 0)) return null
+    return {
+      no: (sp.get('no') || '').toUpperCase(),
+      win: sp.get('win') || '', amt, rate, np: n('np'), base: n('base'),
+      dt: sp.get('dt') || '', tel: '', ceo: '', bno: '', adr: '', tsrc: 0,
+      name: sp.get('nm') || '', inst: sp.get('it') || '',
+      aval: n('aval'), ayn: sp.get('ayn') || '',
+      lo: sp.has('lo') ? n('lo') : null, hi: sp.has('hi') ? n('hi') : null,
+      old: true,
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sp])
+
   /* 공고번호를 넣거나 공고를 고르면, 그 공고가 이미 개찰됐는지 찾아봅니다.
      첫 화면을 무겁게 하지 않으려고 «필요할 때만» 받아옵니다. */
   useEffect(() => {
@@ -174,11 +394,12 @@ export default function BaroBid() {
         tel: a[6] || '', ceo: a[7] || '', bno: a[8] || '', adr: a[9] || '',
         tsrc: a[10] || 0, name: a[11] || '', inst: a[12] || '',
         aval: a[13] || 0, ayn: a[14] || '',
-      } : null)
+        lo: a[15] != null ? a[15] : null, hi: a[16] != null ? a[16] : null,
+      } : fromUrl)
     })
     return () => { ok = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [picked, q])
+  }, [picked, q, fromUrl])
 
   /* 공고 화면에서 «💰 바로투찰» 로 넘어오면 공고번호 하나만 옵니다.
      그 번호로 목록에서 찾아 자동으로 골라 줍니다 —
@@ -211,6 +432,7 @@ export default function BaroBid() {
     const up = s.toUpperCase()
     const out = []
     for (const r of rows) {
+      if (onlyReady && !isReady(r)) continue      // 계산할 수 없는 공고는 감춥니다
       if ((r.name || '').includes(s) || (r.inst || '').includes(s)
         || (r.no || '').toUpperCase().includes(up)) {
         out.push(r)
@@ -218,7 +440,17 @@ export default function BaroBid() {
       }
     }
     return out
-  }, [rows, q, qIsAmount])
+  }, [rows, q, qIsAmount, onlyReady])
+
+  /* 감춘 게 몇 건인지 알려줘야 «왜 안 나오지» 가 안 됩니다 */
+  const hiddenCount = useMemo(() => {
+    const t = q.trim()
+    if (!onlyReady || qIsAmount || t.length < 2 || !rows.length) return 0
+    const up = t.toUpperCase()
+    return rows.filter((r) => !isReady(r) &&
+      ((r.name || '').includes(t) || (r.inst || '').includes(t)
+       || (r.no || '').toUpperCase().includes(up))).length
+  }, [rows, q, qIsAmount, onlyReady])
 
   const pick = (r) => {
     setPicked(r); setQ(r.name); setInst(r.inst)
@@ -291,14 +523,7 @@ export default function BaroBid() {
      ⚠️ 지금 공고의 14.5% 가 예가범위 ±2% 입니다.
         여기에 ±3% 분포를 쓰면 5억 공고 기준 약 200만원을 더 쓰게 됩니다.
      ══════════════════════════════════════════════════════════ */
-  const sjSd = (() => {
-    const w = (hi - lo)                       // 예가범위 폭 (%)
-    const nTot = picked?.ptot || 15
-    const nDrw = picked?.pdrw || 4
-    if (!(w > 0) || nDrw < 1 || nTot <= nDrw) return null
-    const v = (w * w / 12) * (1 / nDrw) * ((nTot - nDrw) / (nTot - 1))
-    return Math.sqrt(v)
-  })()
+  const sjSd = sjSigma(lo, hi, picked?.ptot, picked?.pdrw)
   /* ── 사정률을 어디로 잡을 것인가 (역검증 2,532건) ─────────────
      A값을 «아는» 공고와 «모르는» 공고는 답이 다릅니다.
 
@@ -312,7 +537,13 @@ export default function BaroBid() {
         그래서 사정률 분위수를 50~95 어디로 잡아도 승률이 12% 안팎으로 평평합니다.
         그렇다면 금액이 낮고 승률이 높은 쪽이 답입니다.
 
-     ⚠️ 예전에는 95분위 하나로 고정했습니다. 그때 5억 공고 기준 차이가 561만원이었습니다. */
+     ⚠️ 예전에는 95분위 하나로 고정했습니다. 그때 5억 공고 기준 차이가 561만원이었습니다.
+     ⚠️ 2026-09-02 재검증(개찰 958건, 하한율·A값 모두 실측 확정):
+          50분위 실격 48.0% 승률 3.13% 차이 0.42%
+          75분위+0.3%여유 실격 11.6% 승률 4.07% 차이 0.87%  ← 지금
+          95분위 실격 3.7% 승률 1.88% 차이 1.19%
+        승률은 어디로 잡아도 2.5~4.1%(±0.5%p) 로 평평합니다. 지금 자리가 그중 최고입니다.
+        예가범위별 P50 보정도 시험했으나 검증구간에서 승률이 4.47%→1.63% 로 **떨어져** 쓰지 않습니다. */
   const aKnown = !!picked && (picked.ayn === 'N' || picked.aval > 0)
   const SJ_K = aKnown ? 0.674 : 1.63          // 75분위 : 95분위
   const SJ_MARGIN = aKnown ? 1.003 : 1.0      // 75분위에는 0.3% 여유를 붙입니다
@@ -341,12 +572,14 @@ export default function BaroBid() {
      3년치 역검증에서 1순위 획득률은 어디로 잡든 12% 안팎으로 같았고
      갈리는 건 실격률뿐이었습니다(50분위 48% ↔ 95분위 5.3%).
      승률이 같다면 실격이 적은 쪽이 답입니다. 그래서 95분위 하나로 고정합니다. */
-  const sj95 = sjSd != null
-    ? r3((ov?.sjq?.p50 ?? 99.9) + SJ_K * sjSd)                    // 그 공고의 분포
+  const recOut = recommend({
+    base, llRate: ll?.rate, aVal: a, aKnown,
+    p50: ov?.sjq?.p50 ?? 99.9, sd: sjSd,
+  })
+  const sj95 = recOut ? recOut.sj
     : (aKnown ? (ov?.sjq?.p75 ?? null) : (ov?.sjq?.p95 ?? null))  // 없으면 전국값
-  const recAmt = (base > 0 && ll?.rate && sj95)
-    ? Math.ceil(limitAmount(base, sj95, ll.rate, a) * SJ_MARGIN)
-    : 0
+  const recAmt = recOut ? recOut.amt
+    : ((base > 0 && ll?.rate && sj95) ? Math.ceil(limitAmount(base, sj95, ll.rate, a) * SJ_MARGIN) : 0)
   const rec95 = recAmt ? c3(recAmt / (base * (sjMid / 100)) * 100) : null
 
   const choices = []
@@ -378,6 +611,14 @@ export default function BaroBid() {
     ? main >= limitAmount(base, sjMid, ll.rate, a)
     : (llEff ? myRate >= llEff : null)
   const margin = llEff ? r3(myRate - llEff) : null
+
+  /* ★ 앞으로 넣을 공고에도 «채점과 같은 표» 를 그립니다.
+     내가 넣을 금액(main)이 사정률 추첨에 따라 어떻게 갈리는지 미리 봅니다.
+     채점이 쓰는 buildScen 을 그대로 부릅니다 — 두 화면이 어긋날 수 없습니다. */
+  const scLive = buildScen({
+    base, llRate: ll?.rate, aVal: a,
+    p50: ov?.sjq?.p50 ?? 99.894, sd: sjSd, myAmt: main,
+  })
 
   /* ⚠️ A값이 있는 공고에서는 전국 권장값이 실효 하한 아래일 수 있습니다.
      그때 «권장» 을 기본으로 띄우면 실격 금액을 기본값으로 내미는 셈입니다.
@@ -424,14 +665,18 @@ export default function BaroBid() {
        ══════════════════════════════════════════════════════════ */
     const yeje = Math.round(res.amt / (res.rate / 100))
     const sjmid = ov?.sjq?.p50 ?? 100
-    /* 채점도 그 공고의 사정률 분포로 재현합니다 (전국값을 쓰면 ±2% 공고가 어긋납니다) */
-    const sj95v = (() => {
-      const w = 6, nTot = 15, nDrw = 4      // 개찰 자료엔 예가범위가 없어 기본값
-      const sd = Math.sqrt((w * w / 12) * (1 / nDrw) * ((nTot - nDrw) / (nTot - 1)))
-      return r3((ov?.sjq?.p50 ?? 99.9) + 1.63 * sd)
-    })()
+    /* ⚠️ 채점은 «추천이 그날 실제로 냈을 금액» 을 그대로 다시 계산해야 합니다.
+       예가범위도 그 공고의 것을 씁니다 — ±2% 공고에 ±3% 를 쓰면
+       5억 공고 기준 115만원이 어긋납니다(실측 106건 중앙값). */
+    const rLo = res.lo != null ? res.lo : -3
+    const rHi = res.hi != null ? res.hi : 3
+    const rSd = sjSigma(rLo, rHi, res.ptot, res.pdrw)
     // 기초금액: 실려 있으면 그걸, 없으면 예정가격에서 중앙 사정률로 되짚습니다
-    const b = res.base > 0 ? res.base : Math.round(yeje / (sjmid / 100))
+    /* ⚠️ 기초금액이 안 실려 온 공고에서는 사정률을 되짚을 수 없습니다.
+       예전에는 중앙값으로 기초금액을 만들어 놓고 «사정률 99.896% 로 정해졌습니다» 라고
+       화면에 단정했습니다. 그건 거짓입니다. 모르면 모른다고 해야 합니다. */
+    const hasBase = res.base > 0
+    const b = hasBase ? res.base : Math.round(yeje / (sjmid / 100))
     const est = Math.round(b / 1.1)
     const bd = (ov?.bands || []).find(
       (x) => est >= x.min && (x.max == null || est < x.max)) || null
@@ -443,17 +688,44 @@ export default function BaroBid() {
     const st = bstatOf(bd)
     const A = realA || (guess && st ? Math.round(b * st.ar) : 0)
 
-    const M = Math.ceil((b * (sj95v / 100) - A) * (h / 100) + A)   // 바로투찰이 준 금액
+    /* ★ 추천 화면과 «같은 함수» 로 금액을 만듭니다 */
+    const ro = recommend({ base: b, llRate: h, aVal: A,
+                           aKnown: res.ayn === 'N' || (res.aval || 0) > 0,
+                           p50: ov?.sjq?.p50 ?? 99.9, sd: rSd })
+    if (!ro) return { yeje, est, band: bd, skip: true }
+    const sj95v = ro.sj
+    const M = ro.amt                                               // 바로투찰이 준 금액
     const L = Math.ceil((yeje - A) * (h / 100) + A)                // 실제 낙찰하한금액
     const dq = M < L
     const beat = !dq && M < res.amt
+
+    /* ── 「사정률이 이 값이었다면」 ─────────────────────────────
+       투찰금액은 **하나만** 넣고, 사정률은 그 뒤에 추첨됩니다.
+       그래서 우리 금액은 모든 줄이 같고, 하한(=낼 수 있었던 최저가)만 움직입니다.
+
+       ⚠️ 후보를 «전국 사정률 10분위»로 쓰면 안 됩니다.
+          전국 값에는 ±2% 공고와 ±3% 공고가 섞여 있어, ±2% 공고에서는
+          있지도 않은 넓은 흔들림을 보여주게 됩니다.
+          그래서 **그 공고 자신의 분포**(P50 + z×σ)로 만듭니다 — 추천이 쓰는 것과 같은 분포입니다.
+
+       실측 958건에서 이 표는 «75분위까지 통과 · 90분위에서 실격» 로 갈립니다 —
+       통과·실격은 실력이 아니라 그날 추첨이 정합니다. 그걸 숨기지 않습니다. */
+    /* 이번 개찰에서 실제로 나온 사정률도 같은 표에 끼워 넣습니다 —
+       «비슷한 줄»을 가리키게 두면 숫자가 미묘하게 어긋나 사람을 헷갈리게 합니다. */
+    const realSj = hasBase ? r3(yeje / b * 100) : null
+    const sc = buildScen({ base: b, llRate: h, aVal: A, p50: ov?.sjq?.p50 ?? 99.894,
+                           sd: rSd, myAmt: M, realSj, realLimit: L })
+    const scen = sc ? sc.rows : []
+    const passN = sc ? sc.passN : 0
+
     return {
-      yeje, est, band: bd, base: b, A, guess: guess && A > 0, h, sj95: sj95v,
+      yeje, est, band: bd, base: b, hasBase, A, guess: guess && A > 0, h, sj95: sj95v,
       ourAmt: M, limitAmt: L,
       our: c3(M / yeje * 100),            // 우리 금액을 투찰률로 환산
       lim: c3(L / yeje * 100),            // 실효 낙찰하한 투찰률
       gapWon: res.amt - M,                // 1순위와의 금액 차이
-      dq, beat,
+      dq, beat, scen, realSj, passN, sd: rSd, lo: rLo, hi: rHi,
+      pctile: ro.pctile, margin: ro.margin,
     }
   })()
 
@@ -570,6 +842,19 @@ export default function BaroBid() {
           </div>
         </div>
 
+        {!picked && !qIsAmount && hiddenCount > 0 && (
+          <div className="hidenote">
+            계산에 필요한 값이 빠진 공고 <b>{hiddenCount}건</b>은 감췄습니다.
+            {' '}<button className="lnk" onClick={() => setOnlyReady(false)}>그래도 보기</button>
+          </div>
+        )}
+        {!picked && !qIsAmount && !onlyReady && (
+          <div className="hidenote">
+            지금 <b>전부</b> 보고 있습니다.
+            {' '}<button className="lnk" onClick={() => setOnlyReady(true)}>계산 가능한 것만 보기</button>
+          </div>
+        )}
+
         {!picked && !qIsAmount && hits.length > 0 && (
           <div className="picklist">
             {hits.map((r) => {
@@ -583,6 +868,9 @@ export default function BaroBid() {
                       {r.base > 0
                         ? <> · <b className="money">기초 {wonShort(r.base)}</b></>
                         : <> · <span className="muted">기초금액 미공개</span></>}
+                      {!isReady(r) && (
+                        <> · <span className="nogo">계산 불가 — {missingOf(r).join('·')} 없음</span></>
+                      )}
                     </div>
                     {(r.lic || []).length > 0 && (
                       <div className="lics">
@@ -633,6 +921,35 @@ export default function BaroBid() {
           </div>
         )}
       </div>
+
+      {/* 완비가 아닌 공고를 (링크 등으로) 고른 경우 — 금액을 내지 않습니다.
+          반쯤 아는 값으로 금액을 내미는 것보다 «모른다» 가 낫습니다. */}
+      {picked && !isReady(picked) && (
+        <div className="warnbox nogobox">
+          <div className="h">⛔ 이 공고는 아직 계산할 수 없습니다</div>
+          <p>
+            금액을 내려면 아래가 다 있어야 하는데, <b>{missingOf(picked).join(' · ')}</b> 이(가)
+            조달청 자료에 아직 안 실려 왔습니다. 없는 값을 추측해서 금액을 내면
+            <b> 수천만원이 어긋납니다.</b> 그래서 답을 내지 않겠습니다.
+          </p>
+          <div className="needlist">
+            {[['기초금액', picked.base > 0],
+              ['낙찰하한율', Number(picked.llr) >= 60 && Number(picked.llr) <= 100],
+              ['A값', picked.aval > 0 || picked.ayn === 'N'],
+              ['예비가격 정보', picked.ptot > 0 && picked.pdrw > 0]].map(([nm, ok]) => (
+              <span key={nm} className={ok ? 'yes' : 'no'}>{ok ? '✓' : '✕'} {nm}</span>
+            ))}
+          </div>
+          <p className="last">
+            보통 <b>기초금액이 공개되면</b> 나머지도 같이 들어옵니다. 30분마다 다시 받아오니
+            조금 뒤에 열어보시거나, 아래 «나라장터 공고» 에서 직접 확인하세요.
+          </p>
+          {picked.url && (
+            <a className="btn ghost sm" style={{ width: '100%', marginTop: 8 }}
+              href={picked.url} target="_blank" rel="noreferrer">나라장터에서 이 공고 열기 ↗</a>
+          )}
+        </div>
+      )}
 
       {/* ── 2. 숫자 ── */}
       <div className="card">
@@ -780,39 +1097,60 @@ export default function BaroBid() {
             </div>
           ) : (
             <div className="wno solo">
-              이 공고는 조달청이 낙찰업체 연락처를 함께 주지 않았습니다.
-              (연락처가 실려 오는 공고는 대략 셋 중 하나입니다)
+              {res.old
+                ? '7일이 지난 개찰이라 연락처·대표자는 들고 있지 않습니다. 채점은 그대로 됩니다.'
+                : '이 공고는 조달청이 낙찰업체 연락처를 함께 주지 않았습니다. (연락처가 실려 오는 공고는 대략 셋 중 하나입니다)'}
             </div>
           )}
 
           {scored && !scored.skip && (
             <div className="sv">
               <div className="base">
-                확정 예정가격 <b>{won(scored.yeje)}</b> · 사정률 {(scored.yeje / scored.base * 100).toFixed(3)}%
+                확정 예정가격 <b>{won(scored.yeje)}</b>
+                {scored.hasBase
+                  ? <> · 사정률 {(scored.yeje / scored.base * 100).toFixed(3)}%</>
+                  : <> · <span className="unk">기초금액이 안 실려 와 사정률은 알 수 없습니다</span></>}
                 <span className="how">
-                  바로투찰은 사정률 {scored.sj95.toFixed(2)}%(100번 중 95번은 이보다 낮음)를 기준으로
-                  금액을 잡습니다. 사정률이 낮게 나온 날은 하한도 같이 내려가서,
-                  우리 금액이 그만큼 높아 보입니다.
+                  바로투찰은 사정률 {scored.sj95.toFixed(2)}%
+                  (100번 중 {scored.pctile}번은 이보다 낮음)를 기준으로 금액을 잡습니다.
+                  사정률이 낮게 나온 날은 하한도 같이 내려가서, 우리 금액이 그만큼 높아 보입니다.
                 </span>
                 <br />
                 규모 {scored.band ? scored.band.label : '—'} · 하한율 {pct(scored.h, 3)}
                 {scored.A > 0 && <> · A값 {won(scored.A)}{scored.guess ? '(추정)' : ''}</>}
+                <span className="same">
+                  ✅ 이 금액은 «바로투찰» 화면이 그날 내놨을 금액과 <b>같은 함수</b>로
+                  계산했습니다 — 사정률 {scored.pctile}분위 · 예가범위 {scored.lo}%~{scored.hi}% ·
+                  여유 {((scored.margin - 1) * 100).toFixed(1)}%.
+                  채점만 후하게 매기는 일이 없도록, 두 화면이 같은 코드를 씁니다.
+                </span>
               </div>
               {scored.dq ? (
                 <>⛔ <b>실격이었습니다.</b> 우리 금액 {won(scored.ourAmt)}이
                   실제 낙찰하한 {won(scored.limitAmt)}보다 {wonShort(scored.limitAmt - scored.ourAmt)} 모자랍니다.</>
               ) : scored.beat ? (
-                <>🏆 <b>1순위였을 자리입니다.</b> 하한을 넘기면서 실제 1순위보다
-                  {' '}{wonShort(scored.gapWon)} 낮습니다.</>
+                <>🏆 <b>1순위였을 자리입니다.</b> 낙찰하한을 넘기면서 실제 1순위보다
+                  {' '}<b>{wonShort(scored.gapWon)} 낮게</b> 들어갔습니다 —
+                  {' '}그만큼 싸게 따는 자리였습니다.</>
               ) : (
                 <>📉 1순위보다 <b>{wonShort(-scored.gapWon)} 높아</b> 밀렸을 자리입니다.
                   {' '}실격은 아니었습니다 — 하한({won(scored.limitAmt)})은 넘겼습니다.</>
               )}
               <div className="cav">
-                이 공고는 사정률이 {(scored.yeje / scored.base * 100).toFixed(2)}% 로 정해졌습니다.
-                이 값은 개찰 때 추첨으로 정해져 투찰 시점에는 아무도 알 수 없습니다.
+                {scored.hasBase
+                  ? <>이 공고는 사정률이 {(scored.yeje / scored.base * 100).toFixed(2)}% 로 정해졌습니다. </>
+                  : <>이 공고는 기초금액이 안 실려 와 사정률을 되짚지 못했습니다.
+                      {scored.guess && ' A값도 추정치라 하한 판정에 오차가 있습니다.'} </>}
+                사정률은 개찰 때 추첨으로 정해져 투찰 시점에는 아무도 알 수 없습니다.
                 사정률이 높게 나오는 날에는 낮게 쓴 업체가 모두 실격하고, 우리 금액만 살아남습니다.
               </div>
+
+              {/* ── 「사정률이 이 값이었다면」 ────────────────────
+                  하나의 금액만 실제 낙찰가와 대보면 «운»을 «실력»으로 오해합니다.
+                  ★ 이 표는 앞으로 넣을 공고(추천 화면)에서 쓰는 것과 **같은 표**입니다. */}
+              <ScenTable sc={{ rows: scored.scen, passN: scored.passN }}
+                amtLabel="우리 금액" pctile={scored.pctile} realNote="이번 개찰" />
+
             </div>
           )}
         </div>
@@ -822,7 +1160,7 @@ export default function BaroBid() {
       {bt && base <= 0 && <SimBlock bt={bt} open={btOpen} setOpen={setBtOpen} />}
 
       {/* 종합심사 대상이면 계산을 아예 하지 않습니다. 0원을 보여주는 건 사고입니다. */}
-      {base > 0 && band && band.rec == null ? (
+      {picked && !isReady(picked) ? null : base > 0 && band && band.rec == null ? (
         <div className="card c-stop">
           <div className="detail-h">이 공고는 계산기를 쓰면 안 됩니다</div>
           <div className="kv2">
@@ -1185,28 +1523,41 @@ export default function BaroBid() {
                 열에 여덟이 들어왔습니다. 가운데값 {pct(sjMid, 3)}.
               </div>
             ) : null}
-            <table className="mini">
-              <thead><tr><th>사정률</th><th>예정가격</th><th>내 투찰률</th></tr></thead>
-              <tbody>
-                {steps.map((s) => {
-                  const yeje = base * (s / 100)
-                  /* 내가 정한 금액(main)을 그 사정률의 예정가격으로 나눈 «실제 투찰률» */
-                  const r2 = yeje > 0 ? (main / yeje) * 100 : 0
-                  const ok = ll?.rate ? main >= limitAmount(base, s, ll.rate, a) : true
-                  const near = Math.abs(s - sjMid) < 0.26
-                  return (
-                    <tr key={s} className={near ? 'on' : ''}>
-                      <td>{s.toFixed(1)}%</td>
-                      <td>{wonShort(yeje)}</td>
-                      <td className={ok ? 'ok' : 'no'}>
-                        {r2.toFixed(3)}% {ll?.rate ? (ok ? '통과' : '미달') : ''}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            {/* ★ 개찰 끝난 공고를 «채점»할 때 쓰는 표와 **같은 표**입니다.
+                같은 함수(buildScen)로 그리니 두 화면이 어긋날 수 없습니다. */}
+            {scLive ? (
+              <ScenTable sc={scLive} amtLabel="내 금액"
+                pctile={aKnown ? 75 : 95} />
+            ) : (
+              <table className="mini">
+                <thead><tr><th>사정률</th><th>예정가격</th><th>내 투찰률</th></tr></thead>
+                <tbody>
+                  {steps.map((sv) => {
+                    const yeje = base * (sv / 100)
+                    const r2 = yeje > 0 ? (main / yeje) * 100 : 0
+                    const ok = ll?.rate ? main >= limitAmount(base, sv, ll.rate, a) : true
+                    return (
+                      <tr key={sv} className={Math.abs(sv - sjMid) < 0.26 ? 'on' : ''}>
+                        <td>{sv.toFixed(1)}%</td>
+                        <td>{wonShort(yeje)}</td>
+                        <td className={ok ? 'ok' : 'no'}>
+                          {r2.toFixed(3)}% {ll?.rate ? (ok ? '통과' : '미달') : ''}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+            <div className="note sm">
+              이 표는 <b>개찰이 끝난 공고를 «채점»할 때 보여드리는 표와 똑같습니다.</b>
+              금액도 같은 함수로 냅니다. 그래서 «채점에서는 잘 나오던데 실제로는 다르더라»
+              가 생기지 않습니다. 1순위 화면에서 아무 개찰이나 «📊 채점하기»를 눌러
+              직접 맞춰 보세요.
+            </div>
           </div>
+
+          <GradeCard />
 
           {/* ── 5. 지금 시장 ── */}
           {hot?.top?.length > 0 && (
@@ -1226,7 +1577,8 @@ export default function BaroBid() {
               <div className="note sm">
                 참고용 분포입니다. <b>권장 금액은 이 최빈값에서 뽑지 않습니다.</b>
                 최빈값에서 빼는 방식은 3년치 역검증에서 2,532건 중 <b>58%가 낙찰하한 미달</b>이었습니다.
-                지금은 사정률을 95분위로 높게 잡고 그 예정가격의 낙찰하한금액을 씁니다 — 실격 5.3%.
+                지금은 그 공고의 사정률 분포에서 <b>75분위 + 0.3% 여유</b> 지점의 낙찰하한금액을
+                씁니다 — 실측 958건 기준 실격 11.6%, 1순위 4.07%. 위 «왜 이 금액인가»를 보세요.
               </div>
             </div>
           )}

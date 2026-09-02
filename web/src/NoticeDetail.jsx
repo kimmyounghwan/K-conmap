@@ -17,6 +17,41 @@ import { won, wonShort, pct, num, dateFull, dateTime, normCorp } from './lib/fmt
 /** 기초금액에는 부가세가 들어 있습니다. 추정가격은 대략 ÷1.1 입니다. */
 const estPrice = (base) => (base > 0 ? Math.round(base / 1.1) : 0)
 
+/* ══════════════════════════════════════════════════════════════
+   «채점» 버튼은 채점이 되는 개찰에만 답니다.
+
+   채점에 쓰는 개찰결과 색인(bidresult.json)은 **최근 7일치**만 담습니다.
+   그런데 1순위 목록은 7주치를 보여줍니다.
+   그래서 아무 카드에나 버튼을 달면 6주치는 눌러도 채점이 안 됩니다 —
+   버튼을 눌렀는데 아무 일도 안 일어나는 게 가장 나쁩니다.
+   기간이 지난 개찰은 버튼 대신 «왜 안 되는지»를 적습니다.
+   ⚠️ 아래 숫자는 collect.py 의 export_bidresult 기간과 **같아야** 합니다.
+   ══════════════════════════════════════════════════════════════ */
+/* 채점에 필요한 값을 «주소에 실어» 보냅니다.
+   채점용 색인(bidresult.json)은 최근 7일치만 담는데 이 목록은 7주치를 보여줍니다.
+   값을 실어 보내면 자료를 더 받지 않고도 7주 전체가 채점됩니다. */
+function scoreLink(r) {
+  const amt = Number(r?.amt) || 0
+  const rate = Number(r?.rate) || 0
+  if (!(amt > 0 && rate > 0)) return null      // 되짚을 수 없으면 버튼을 달지 않습니다
+  const q = new URLSearchParams()
+  q.set('no', String(r.no || ''))
+  q.set('sc', '1')
+  q.set('amt', String(amt))
+  q.set('rate', String(rate))
+  if (r.base > 0) q.set('base', String(r.base))
+  if (r.aval) q.set('aval', String(r.aval))
+  if (r.ayn) q.set('ayn', String(r.ayn))
+  if (r.lo != null) q.set('lo', String(r.lo))
+  if (r.hi != null) q.set('hi', String(r.hi))
+  if (r.np) q.set('np', String(r.np))
+  if (r.win) q.set('win', String(r.win).slice(0, 40))
+  if (r.name) q.set('nm', String(r.name).slice(0, 60))
+  if (r.inst) q.set('it', String(r.inst).slice(0, 30))
+  if (r.dt) q.set('dt', String(r.dt))
+  return `/?${q.toString()}`
+}
+
 /**
  * 일반공사 적격심사 낙찰하한율 (조달청 기준, 참고용)
  *   50억~100억 87.495 / 10억~50억 88.745 / 10억 미만 89.745
@@ -130,10 +165,16 @@ function BidTab({ r }) {
       {/* 개찰이 끝난 공고는 «채점»이 됩니다 —
           우리 권장 투찰률로 넣었으면 이 자리를 가져갔을지 바로 봅니다.
           (투찰이 아니라 되돌아보기라서, 끝난 공고에도 붙일 이유가 있습니다) */}
-      <Link className="btn ghost sm" style={{ width: '100%', marginTop: 10 }}
-        to={`/?no=${encodeURIComponent(r.no || '')}${r.base ? `&base=${r.base}` : ''}`}>
-        📊 바로투찰에서 채점하기 — 우리 권장으로 넣었으면?
-      </Link>
+      {scoreLink(r) ? (
+        <Link className="btn ghost sm" style={{ width: '100%', marginTop: 10 }} to={scoreLink(r)}>
+          📊 바로투찰에서 채점하기 — 우리 권장으로 넣었으면?
+        </Link>
+      ) : (
+        <div className="nocalc">
+          이 개찰은 <b>채점에 필요한 값이 모자랍니다</b> — 낙찰금액·투찰률이 있어야
+          그날의 예정가격을 되짚을 수 있습니다.
+        </div>
+      )}
 
       <div className="detail-h">
         투찰 순위 <span className="count">· {(r.corps || []).length}곳</span>
