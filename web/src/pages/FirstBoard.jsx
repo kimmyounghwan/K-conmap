@@ -34,6 +34,9 @@ export default function FirstBoard() {
     )
   }, [all, region, q])
 
+  // 가장 최근 개찰일 + 마지막 집계 시각
+  const newest = all.length ? String(all[0].dt || '').slice(0, 10) : ''
+
   const pages = Math.max(1, Math.ceil(rows.length / PAGE))
   const view = rows.slice((page - 1) * PAGE, page * PAGE)
 
@@ -56,6 +59,13 @@ export default function FirstBoard() {
           <Tile k="발주기관" v={num(ov.agencies)} small />
           <Tile k="업체" v={num(ov.corps)} small />
           <Tile k="최근 개찰" v={num(info?.n)} small />
+        </div>
+      )}
+
+      {newest && (
+        <div className="freshbar">
+          <b>최근 개찰 {newest}</b>
+          <span>개찰의 69%는 오전 11시에 열립니다 · 결과는 조달청에 올라오는 대로 하루 5번 받아옵니다{ov?.built ? ` · 마지막 집계 ${ov.built}` : ''}</span>
         </div>
       )}
 
