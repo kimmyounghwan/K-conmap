@@ -156,19 +156,32 @@ export default function BaroBid() {
      추정가격은 기초금액에서 부가세를 뺀 값(÷1.1)이 맞습니다. */
   const estimate = toNum(budgetIn) || picked?.est || (base ? Math.round(base / 1.1) : 0)
 
+  const hot = ov?.hot || null
+  const regime = ov?.regime || null
+
+  /* ⚠️ 공사 규모마다 낙찰하한율이 다르고, 최빈 낙찰률과의 간격도 다릅니다.
+     모든 규모에 «전국 최빈 − 0.20» 을 쓰면 50억 공사에서 7%p 손해를 봅니다.
+       10억 미만  최빈 90.30 · 하한 89.745 · 권장 90.10
+       10~50억    최빈 89.40 · 하한 88.745 · 권장 89.10
+       50~100억   최빈 88.70 · 하한 87.495 · 권장 88.15
+       100억 이상 종합심사 — 이 계산기를 쓰면 안 됩니다
+     경계는 실측으로 확인했습니다(추정가격 10.00억·50.00억에서 계단이 보임). */
+  const band = (ov?.bands || []).find(
+    (b) => estimate >= b.min && (b.max == null || estimate < b.max)) || null
+  const rec = band ? band.rec : (hot?.rec ?? null)
+
   /* 낙찰하한율은 «추정» 보다 «공고가 알려준 값» 이 언제나 정확합니다.
      공고에 실려 있으면 그걸 쓰고, 없을 때만 규모로 추정합니다. */
   const givenLL = Number(picked?.llr || sp.get('llr')) || 0
   const ll = givenLL > 0
     ? { rate: givenLL, note: '공고서에 적힌 낙찰하한율', given: true }
-    : lowerLimit(estimate)
+    : band
+      ? { rate: band.llr, note: `추정가격 ${band.label}` }
+      : lowerLimit(estimate)
   const a = toNum(aIn)
   const lo = picked?.lo ?? -3
   const hi = picked?.hi ?? 3
 
-  const hot = ov?.hot || null
-  const rec = hot?.rec ?? null
-  const regime = ov?.regime || null
 
   const sjMid = sjPick ?? ov?.sjq?.p50 ?? 100
   const sjLo = ov?.sjq?.p10 ?? sjMid
@@ -208,13 +221,34 @@ export default function BaroBid() {
       {hot?.mode != null && (
         <div className="todaybar">
           <div>
-            <div className="k">오늘의 기준 · 전국 최근 {hot.win}일</div>
-            <div className="v">최빈 낙찰률 {pct(hot.mode, 1)}</div>
+            <div className="k">
+              오늘의 기준 · {band ? `추정가격 ${band.label}` : '전국'}
+              {' '}최근 {band ? band.win : hot.win}일
+            </div>
+            <div className="v">
+              최빈 낙찰률 {pct(band ? band.mode : hot.mode, 1)}
+              {band && <span className="n"> · {num(band.n)}건</span>}
+            </div>
           </div>
           <div className="r">
             <div className="k">권장 투찰률</div>
-            <div className="v big">{pct(rec, 2)}</div>
+            <div className="v big">{rec != null ? pct(rec, 2) : '—'}</div>
           </div>
+        </div>
+      )}
+
+      {/* 100억 이상은 종합심사라 이 계산기가 통하지 않습니다 */}
+      {band && band.rec == null && (
+        <div className="alertbar">
+          ⛔ <b>이 공고는 추정가격 100억 이상 — 종합심사 대상입니다.</b><br />
+          낙찰하한율이 아니라 가격·공사수행능력·사회적책임을 함께 점수로 매기는 방식이라
+          이 계산기가 통하지 않습니다. 공고서의 심사기준을 직접 보셔야 합니다.
+        </div>
+      )}
+      {band && band.thin && band.rec != null && (
+        <div className="alertbar">
+          ⚠️ 이 규모({band.label})는 최근 {band.win}일 표본이 <b>{num(band.n)}건</b>뿐입니다.
+          10억 미만 공사(수천 건)보다 근거가 얇으니 참고만 하세요.
         </div>
       )}
 
@@ -369,7 +403,31 @@ export default function BaroBid() {
       {/* ── 가상 시뮬레이션 — 지난 개찰에 우리 방식을 대본 결과 ── */}
       {bt && base <= 0 && <SimBlock bt={bt} open={btOpen} setOpen={setBtOpen} />}
 
-      {base <= 0 ? (
+      {/* 종합심사 대상이면 계산을 아예 하지 않습니다. 0원을 보여주는 건 사고입니다. */}
+      {base > 0 && band && band.rec == null ? (
+        <div className="card">
+          <div className="detail-h">이 공고는 계산기를 쓰면 안 됩니다</div>
+          <div className="kv2">
+            <div><span>기초금액</span><b>{won(base)}</b></div>
+            <div><span>추정가격</span><b>{won(estimate)}</b></div>
+            <div><span>낙찰방법</span><b>종합심사낙찰제 (추정가격 100억 이상)</b></div>
+          </div>
+          <div className="note sm">
+            종합심사는 가격만으로 낙찰자를 정하지 않습니다.
+            공사수행능력·사회적책임·가격을 함께 점수로 매기고, 발주기관마다 세부 기준이 다릅니다.
+            <b> 공고서의 심사기준을 직접 보셔야 합니다.</b>
+            {picked?.url && (
+              <>
+                <br />
+                <a href={picked.url} target="_blank" rel="noreferrer"
+                  style={{ color: 'var(--accent)', fontWeight: 800 }}>
+                  나라장터에서 공고서 열기 ↗
+                </a>
+              </>
+            )}
+          </div>
+        </div>
+      ) : base <= 0 ? (
         <div className="hintbox">
           {picked ? (
             <>
@@ -416,27 +474,14 @@ export default function BaroBid() {
             </div>
           </div>
 
-          {/* 투찰까지 가는 순서.
-              나라장터는 화면이 바뀌어도 주소가 안 바뀌는 구조라
-              «투찰 화면» 만 콕 집어 여는 주소가 없습니다.
-              로그인만 돼 있으면 공고 화면이 곧 투찰 입구입니다. */}
-          <div className="steps">
-            <div className="h">나라장터에서 투찰하는 순서</div>
-            <ol>
-              <li>
-                <a href="https://www.g2b.go.kr" target="_blank" rel="noreferrer">
-                  나라장터 로그인 ↗
-                </a>
-                <span> — 지문보안토큰이나 인증서가 필요합니다</span>
-              </li>
-              <li>로그인한 채로 위 <b>「나라장터 공고 →」</b>를 누릅니다</li>
-              <li>그 공고 화면에서 <b>「입찰서 제출」</b>로 투찰합니다</li>
-            </ol>
-            <div className="note sm" style={{ marginTop: 6 }}>
-              투찰 화면으로 곧장 가는 주소는 나라장터가 제공하지 않습니다.
-              로그인과 보안토큰은 어떤 사이트에서도 대신 해줄 수 없습니다.
-            </div>
-          </div>
+          {/* 투찰 바로가기.
+              나라장터는 화면이 바뀌어도 주소가 안 바뀌는 구조라 «투찰 화면» 딥링크가 없습니다.
+              그래서 나라장터 입구로 보냅니다 — 로그인하면 거기가 곧 투찰 화면입니다.
+              설명을 길게 늘어놓지 않습니다. 버튼 하나면 됩니다. */}
+          <a className="gobid" href="https://www.g2b.go.kr" target="_blank" rel="noreferrer">
+            <span className="t">🔐 나라장터 투찰 바로가기</span>
+            <span className="d">로그인 후 이 공고에서 입찰서를 제출하세요</span>
+          </a>
 
           {/* ── 분석 정보 ── */}
           {picked && (
@@ -448,6 +493,8 @@ export default function BaroBid() {
                 <div><span>기초금액</span><b>{won(base)}</b></div>
                 <div><span>추정가격</span><b>{won(estimate)}</b></div>
                 <div><span>예가범위</span><b>+{hi}% ~ {lo}%</b></div>
+                <div><span>공사 규모</span>
+                  <b>{band ? band.label : '-'}{band?.rec == null ? ' · 종합심사' : ''}</b></div>
                 <div><span>낙찰하한율</span><b>{ll?.rate ? pct(ll.rate, 3) : '별도 기준'}</b></div>
                 {ll?.rate > 0 && (
                   <div><span>하한 금액</span><b>{won(bidAmount(base, sjMid, ll.rate, a))}</b></div>

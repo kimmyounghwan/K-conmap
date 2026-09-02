@@ -62,6 +62,27 @@ NAME_CUT = 34        # 공고명 자르기
 HOT_DAYS = 30        # 전국 최빈 낙찰률을 볼 창. 90일은 제도 바뀔 때 실격추천 43%까지 뜀
 HOT_DAYS_FAST = 14   # 제도 변동이 감지되면 이 창으로 좁힌다
 HOT_OFFSET = 0.20    # 권장 = 최빈 − 0.20%p. 최빈에 딱 맞추면 승률 50.7%, 여기선 67.0%
+
+# ── 공사 규모별 대역 ──────────────────────────────
+#   낙찰하한율이 «추정가격» 으로 갈립니다. 실측으로 경계를 확인했습니다:
+#     추정 9.5~10.0억 → 낙찰률 90.354  |  10.0~10.5억 → 89.416   (경계 정확히 10억)
+#     추정 49~50억    → 89.362         |  50~51억     → 88.610   (경계 정확히 50억)
+#
+#   ⚠️ 규모마다 최빈값과 하한율의 간격이 달라서 «−0.20» 을 그대로 쓰면 안 됩니다.
+#       10억 미만  90.30 − 89.745 = 0.555  → −0.20 이 적정
+#       10~50억    89.40 − 88.745 = 0.655  → −0.30
+#       50~100억   88.70 − 87.495 = 1.205  → −0.55 (−0.20 이면 7%p 손해)
+#   100억 이상은 종합심사라 낙찰하한율 자체가 없습니다 — 계산기를 적용하면 안 됩니다.
+BANDS = [
+    {"key": "s",  "label": "10억 미만",   "min": 0,      "max": 10e8,
+     "llr": 89.745, "off": 0.20, "win": 30},
+    {"key": "m",  "label": "10억~50억",  "min": 10e8,   "max": 50e8,
+     "llr": 88.745, "off": 0.30, "win": 30},
+    {"key": "l",  "label": "50억~100억", "min": 50e8,   "max": 100e8,
+     "llr": 87.495, "off": 0.55, "win": 90},   # 30일 표본이 60건뿐이라 90일 창
+    {"key": "xl", "label": "100억 이상",  "min": 100e8,  "max": None,
+     "llr": None,   "off": None, "win": 90},   # 종합심사 — 적용 불가
+]
 KW_DAYS = 90         # 유사공고 창
 REGIME_GAP = 0.3     # 최빈값이 이만큼(%p) 움직이면 제도 변동 경보
 REGIME_MIN_N = 150   # 표본이 이보다 적으면 경보를 울리지 않는다 (연휴 오탐 방지)
@@ -612,6 +633,43 @@ def rates_within(df, days, offset=0):
     return [r for r in g["rate"].tolist() if r is not None and not pd.isna(r)]
 
 
+def band_of(est):
+    for b in BANDS:
+        if est >= b["min"] and (b["max"] is None or est < b["max"]):
+            return b
+    return BANDS[0]
+
+
+def build_bands(df):
+    """공사 규모별 최빈 낙찰률. 추정가격 = (낙찰금액 ÷ 투찰률) ÷ 1.1 로 되돌립니다.
+    (예정가격 = 낙찰금액 ÷ 투찰률, 기초금액 ≈ 예정가격, 추정가격 = 기초금액 ÷ 1.1)"""
+    out = []
+    for b in BANDS:
+        rs = rates_within(df, b["win"])
+        g = df[df["dt"].notna()
+               & (df["dt"] >= pd.Timestamp.now().normalize()
+                  - pd.Timedelta(days=b["win"]))]
+        ok = g["rate"].notna() & (g["rate"] > 0) & (g["amt"] > 0)
+        g = g[ok]
+        est = (g["amt"] / (g["rate"] / 100.0)) / 1.1
+        sel = (est >= b["min"]) & ((est < b["max"]) if b["max"] else True)
+        rr = [r for r in g["rate"][sel].tolist() if r is not None and not pd.isna(r)]
+        m1, _ = mode_rate(rr, 0.1)
+        rec = (round(m1 - b["off"], 2)
+               if (m1 is not None and b["off"] is not None) else None)
+        out.append({
+            "key": b["key"], "label": b["label"],
+            "min": int(b["min"]), "max": int(b["max"]) if b["max"] else None,
+            "llr": b["llr"], "off": b["off"], "win": b["win"],
+            "n": len(rr), "mode": m1, "rec": rec,
+            # 표본이 얇으면 화면에서 «표본 부족» 이라고 밝힙니다
+            "thin": len(rr) < 150,
+        })
+        log(f"  규모 {b['label']:<10s} 표본 {len(rr):>6,}건 · 최빈 "
+            f"{m1 if m1 is not None else '-'} · 권장 {rec if rec else '적용 불가'}")
+    return out
+
+
 def build_hot(df):
     def win(days):
         rs = rates_within(df, days)
@@ -657,7 +715,7 @@ def build_hot(df):
     log(f"권장 투찰률 {use['rec']}% "
         f"(최근 {use['win']}일 최빈 {use['mode']}% − {HOT_OFFSET} / 표본 {use['n']:,}건)")
     return {"hot": use, "hot30": hot30, "hot14": hot14, "regime": regime,
-            "offset": HOT_OFFSET}
+            "offset": HOT_OFFSET, "bands": build_bands(df)}
 
 
 # ─────────────────────────────────────────────
@@ -802,6 +860,8 @@ def build_overview(df, n_agency, n_corp, n_kw):
         "hot14": hot["hot14"],
         "regime": hot["regime"],
         "hotOffset": hot["offset"],
+        # 공사 규모별 권장 투찰률 — 50억 공사에 10억 미만 기준을 쓰면 안 됩니다
+        "bands": hot["bands"],
         # 사정률 후보 10개 — 지어낸 값이 아니라 실측 분포를 10등분한 지점
         "sjc": sj_candidates(sjs, 10),
         "kwDays": KW_DAYS,
