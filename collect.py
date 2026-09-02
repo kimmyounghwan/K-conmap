@@ -469,6 +469,14 @@ def bsis_one(key, no, kind):
     return None
 
 
+# 화면에 싣는 순위 개수. 전부 실으면 파일이 터집니다 —
+# 실측(2026-09-02): 한 공고에 999곳까지 옵니다. 60건만 채웠는데 목록 파일이
+# 310KB → 743KB 로 뛰었습니다. 전부 채우면 80MB 가 됩니다.
+# 우리에게 필요한 것은 «가장 낮게 쓴 쪽»입니다 — 낙찰하한 근처가 승부처이기 때문입니다.
+# 그래서 낮은 금액 순으로 30곳만 싣고, 전체 참가업체수는 np 로 따로 보여줍니다.
+RANK_KEEP = 30
+
+
 def openg_ranks(key, no, ord_="000"):
     """공고 하나의 투찰업체를 순위대로 전부 가져온다.
 
@@ -492,7 +500,7 @@ def openg_ranks(key, no, ord_="000"):
                                 bno if len(bno) == 10 else "", ceo]))
     # 순위가 비어 오는 경우가 있어 «금액이 낮은 순»을 보조 기준으로 둡니다
     out.sort(key=lambda x: (x[0], x[1]))
-    return [c for _, _, c in out]
+    return [c for _, _, c in out[:RANK_KEEP]], len(out)
 
 
 def parse_corps(raw, limit=6):
@@ -1166,14 +1174,14 @@ def main():
         for r in todo_rank[:args.ranks]:
             if NET_DOWN:
                 break
-            cs = openg_ranks(key, r["no"], r.get("ord"))
+            cs, total = openg_ranks(key, r["no"], r.get("ord"))
             r["rask"] = datetime.now(KST).strftime("%Y%m%d%H%M%S")
             time.sleep(args.sleep)
             if not cs:
                 continue
             got += 1
-            r["corps"] = cs
-            r["nrank"] = len(cs)
+            r["corps"] = cs          # 낮은 금액 순 30곳까지
+            r["nrank"] = total       # 실제로 받은 전체 투찰 건수
             if len(cs) > 1:
                 ranked += 1
                 # 1순위 정보도 조달청 순위 자료로 맞춰 둡니다 (더 정확합니다)

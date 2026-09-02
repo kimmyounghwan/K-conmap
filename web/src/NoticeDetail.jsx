@@ -191,7 +191,15 @@ function BidTab({ r }) {
 
       <div className="detail-h">
         투찰 순위 <span className="count">
-          · {(r.corps || []).length}곳{r.np > (r.corps || []).length ? ` (참가 ${r.np}곳)` : ''}
+          {(() => {
+            const shown = (r.corps || []).length
+            const all = Math.max(Number(r.nrank) || 0, Number(r.np) || 0, shown)
+            /* 낮게 쓴 30곳만 싣습니다 — 전부 실으면 목록 파일이 80MB 가 됩니다.
+               승부는 낙찰하한 근처에서 갈리므로 «가장 낮게 쓴 쪽»만 있으면 됩니다. */
+            return all > shown
+              ? `· 참가 ${num(all)}곳 중 낮게 쓴 ${shown}곳`
+              : `· ${shown}곳`
+          })()}
         </span>
       </div>
       {(r.corps || []).length === 0 && <div className="hintbox">참여업체 정보가 없습니다.</div>}

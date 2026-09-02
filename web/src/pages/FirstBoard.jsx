@@ -106,6 +106,16 @@ export default function FirstBoard() {
                   <span>{dateTime(r.dt)}</span>
                   {r.rate != null && <span className="badge b">{pct(r.rate, 3)}</span>}
                   {r.base > 0 && <span className="badge n">기초 {wonShort(r.base)}</span>}
+                  {/* 몇 곳이 붙었는지 목록에서 바로 보이게 합니다 —
+                      «펼쳤더니 1곳뿐» 을 미리 알 수 있습니다. */}
+                  {(r.np > 1 || r.nrank > 1) && (
+                    <span className="badge c">
+                      🏅 {num(Math.max(r.np || 0, r.nrank || 0))}곳 경쟁
+                    </span>
+                  )}
+                  {(r.np === 1 || r.nrank === 1) && (
+                    <span className="badge n">단독 1곳</span>
+                  )}
                 </div>
                 <div className="foot">
                   <span className="badge g">1순위</span>

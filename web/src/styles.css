@@ -1679,3 +1679,8 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
 }
 .scored .myrank b { color: var(--accent); font-size: 15px; }
 .scored .myrank .sub { font-weight: 500; color: var(--text-2); font-size: 12px; }
+/* 1순위 목록 — 경쟁 업체 수 배지 */
+.badge.c {
+  background: var(--accent-soft); color: var(--accent);
+  border: 1px solid var(--accent-line); font-weight: 800;
+}
