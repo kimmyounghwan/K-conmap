@@ -811,10 +811,13 @@ export default function BaroBid() {
             <div className="v">
               이 공고의 확정 예정가격 {won(scored.yeje)}
             </div>
+            {/* «확정 예정가격»이 무엇인지 묻는 분이 계셨습니다 — 띠에서 바로 밝힙니다 */}
+            <div className="sub">개찰 때 추첨으로 정해진 예정가격입니다. 투찰률의 분모입니다.</div>
           </div>
           <div className="r">
             <div className="k">그때 권장했을 값</div>
             <div className="v big">{pct(scored.our, 2)}</div>
+            <div className="sub">바로투찰 금액 ÷ 확정 예정가격</div>
           </div>
         </div>
       )}
@@ -1050,23 +1053,25 @@ export default function BaroBid() {
           )}
           <div className="srow">
             <div className="s1">
-              <span className="k">실제 1순위</span>
+              <span className="k">① 실제 1순위가 쓴 금액</span>
               <b className="nm">{won(res.amt)}</b>
               <span className="v">{res.win || '—'} · {res.rate != null ? pct(res.rate, 3) : '—'}</span>
             </div>
             <div className="s1">
-              <span className="k">바로투찰 금액</span>
+              <span className="k">② 바로투찰이 냈을 금액</span>
               <b className="nm">{scored?.ourAmt ? won(scored.ourAmt) : '—'}</b>
+              {/* «170만 높음» 이 무엇과 무엇의 차이인지 묻는 분이 계셨습니다.
+                  그래서 «②−①» 이라고 식을 그대로 적습니다. */}
               <span className="v">
                 {scored?.gapWon != null
                   ? (scored.gapWon >= 0
-                      ? `1순위보다 ${wonShort(scored.gapWon)} 낮음`
-                      : `1순위보다 ${wonShort(-scored.gapWon)} 높음`)
+                      ? `②−① = ${won(-scored.gapWon)} (①보다 쌈)`
+                      : `②−① = +${won(-scored.gapWon)} (①보다 비쌈)`)
                   : ''}
               </span>
             </div>
             <div className="s1">
-              <span className="k">실제 낙찰하한</span>
+              <span className="k">③ 실제 낙찰하한</span>
               <b className="nm">{scored?.limitAmt ? won(scored.limitAmt) : '—'}</b>
               <span className="v">이 밑으로 쓰면 실격</span>
             </div>
@@ -1113,6 +1118,15 @@ export default function BaroBid() {
                   ? <> · 사정률 {(scored.yeje / scored.base * 100).toFixed(3)}%</>
                   : <> · <span className="unk">기초금액이 안 실려 와 사정률은 알 수 없습니다</span></>}
                 <span className="how">
+                  <b>«확정 예정가격»이란</b> — 개찰 때 <b>추첨으로 정해진 예정가격</b>입니다.
+                  {scored.hasBase
+                    ? <> 기초금액 {won(scored.base)} × 사정률
+                        {' '}{(scored.yeje / scored.base * 100).toFixed(3)}% 로 정해졌습니다.</>
+                    : null}
+                  {' '}투찰률도, 낙찰하한금액도 <b>전부 이 금액을 기준</b>으로 계산합니다.
+                  투찰할 때는 아직 정해지지 않아 아무도 모릅니다.
+                </span>
+                <span className="how">
                   바로투찰은 사정률 {scored.sj95.toFixed(2)}%
                   (100번 중 {scored.pctile}번은 이보다 낮음)를 기준으로 금액을 잡습니다.
                   사정률이 낮게 나온 날은 하한도 같이 내려가서, 우리 금액이 그만큼 높아 보입니다.
@@ -1131,11 +1145,12 @@ export default function BaroBid() {
                 <>⛔ <b>실격이었습니다.</b> 우리 금액 {won(scored.ourAmt)}이
                   실제 낙찰하한 {won(scored.limitAmt)}보다 {wonShort(scored.limitAmt - scored.ourAmt)} 모자랍니다.</>
               ) : scored.beat ? (
-                <>🏆 <b>1순위였을 자리입니다.</b> 낙찰하한을 넘기면서 실제 1순위보다
-                  {' '}<b>{wonShort(scored.gapWon)} 낮게</b> 들어갔습니다 —
-                  {' '}그만큼 싸게 따는 자리였습니다.</>
+                <>🏆 <b>1순위였을 자리입니다.</b> 바로투찰 금액({won(scored.ourAmt)})이
+                  {' '}낙찰하한({won(scored.limitAmt)})을 넘기면서 실제 1순위({won(res.amt)})보다
+                  {' '}<b>{won(scored.gapWon)} 낮게</b> 들어갔습니다 — 그만큼 싸게 따는 자리였습니다.</>
               ) : (
-                <>📉 1순위보다 <b>{wonShort(-scored.gapWon)} 높아</b> 밀렸을 자리입니다.
+                <>📉 바로투찰 금액({won(scored.ourAmt)})이 실제 1순위({won(res.amt)})보다
+                  {' '}<b>{won(-scored.gapWon)} 비싸서</b> 밀렸을 자리입니다.
                   {' '}실격은 아니었습니다 — 하한({won(scored.limitAmt)})은 넘겼습니다.</>
               )}
               <div className="cav">

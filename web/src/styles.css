@@ -1665,3 +1665,9 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
 .simcase .simv.dq .lb   { color: var(--bad); }
 .simcase .simv .am b { color: var(--text); font-weight: 800; }
 .simcase .mk .v { color: var(--text-2); }
+/* 검증 띠 — 숫자가 무엇인지 한 줄로 밝힙니다 */
+.todaybar.verify .sub {
+  margin-top: 3px; font-size: 11px; line-height: 1.5;
+  color: rgba(255, 255, 255, .82);
+}
+.todaybar.verify .r .sub { text-align: right; }
