@@ -43,6 +43,91 @@ ALIAS = {
 
 REQUIRED = ["공고명", "발주기관", "투찰률"]
 
+# ══════════════════════════════════════════════════════════════
+#  «전체 투찰내역» 파일 — 1순위뿐 아니라 2~10위까지 들어 있는 자료
+#
+#  ⚠️ 조달청 **공개 API 로는 2순위 이하를 못 받습니다.** 실측으로 확인했습니다:
+#     개찰결과(getOpengResultListInfoCnstwk)의 opengCorpInfo 에는
+#     업체가 «한 곳만» 들어옵니다. 같은 공고 참가업체수가 23곳이어도 1곳입니다.
+#     저장소에 쌓인 개찰 10,913건 전부 1곳이었습니다.
+#
+#  대신 조달청은 **파일 데이터**로 전체 투찰내역을 공개합니다:
+#     공공데이터포털 «조달청_입찰공고 기업별 투찰 및 계약내역» (15050832)
+#     → 조달데이터허브(data.g2b.go.kr) 보고서에서 CSV 로 내려받습니다.
+#     항목에 «개찰순위 · 투찰금액 · 투찰율 · 업체명» 이 들어 있습니다.
+#
+#  ⚠️ 그 화면은 robots.txt 로 자동 수집이 막혀 있습니다. 크롤링하지 마세요.
+#     사람이 내려받아 inbox 폴더에 넣으면 이 코드가 읽어 사이트에 태웁니다.
+# ══════════════════════════════════════════════════════════════
+RANK_ALIAS = {
+    "공고번호": ["공고번호", "입찰공고번호", "bidNtceNo"],
+    "순위":     ["개찰순위", "순위", "투찰순위", "opengRank", "rank"],
+    "업체명":   ["업체명", "상호", "투찰업체", "기업명", "prcbdrNm", "업체"],
+    "사업자번호": ["사업자등록번호", "사업자번호", "bizno", "prcbdrBizno"],
+    "투찰금액": ["투찰금액", "투찰가", "bidprcAmt", "금액"],
+    "투찰률":   ["투찰률", "투찰율", "bidprcrt", "투찰비율"],
+}
+
+
+def pick_col(df, names):
+    lower = {re.sub(r"\s+", "", str(c)).lower(): c for c in df.columns}
+    for n in names:
+        k = re.sub(r"\s+", "", n).lower()
+        if k in lower:
+            return lower[k]
+    return None
+
+
+def as_rank_table(raw):
+    """«순위»가 들어 있는 투찰내역 파일이면 표준 모양으로 바꿔 돌려준다.
+       아니면 None (그러면 지금까지 하던 개찰 누적 처리로 갑니다)."""
+    cols = {k: pick_col(raw, v) for k, v in RANK_ALIAS.items()}
+    if not cols["순위"] or not cols["공고번호"] or not cols["투찰금액"]:
+        return None
+    out = pd.DataFrame()
+    for k, c in cols.items():
+        out[k] = raw[c] if c is not None else ""
+    out["공고번호"] = out["공고번호"].astype(str).str.strip()
+    out["업체명"] = out["업체명"].astype(str).str.strip()
+    out["사업자번호"] = (out["사업자번호"].astype(str)
+                       .str.replace(r"[^0-9]", "", regex=True))
+    out["순위"] = pd.to_numeric(out["순위"], errors="coerce")
+    out["투찰금액"] = pd.to_numeric(
+        out["투찰금액"].astype(str).str.replace(r"[^0-9.]", "", regex=True),
+        errors="coerce")
+    out["투찰률"] = pd.to_numeric(
+        out["투찰률"].astype(str).str.replace(r"[^0-9.]", "", regex=True),
+        errors="coerce")
+    out = out[out["순위"].notna() & (out["순위"] >= 1) & (out["순위"] <= 10)]
+    out = out[out["투찰금액"].notna() & (out["투찰금액"] > 0)]
+    out = out[out["공고번호"] != ""]
+    if out.empty:
+        return None
+    out["순위"] = out["순위"].astype(int)
+    out["투찰금액"] = out["투찰금액"].astype("int64")
+    return out
+
+
+def save_ranks(frames):
+    """투찰내역을 data/ranks_YYYY-MM.csv 에 쌓는다 (공고번호+순위로 중복 제거)"""
+    if not frames:
+        return 0
+    df = pd.concat(frames, ignore_index=True)
+    df = df.drop_duplicates(subset=["공고번호", "순위"], keep="last")
+    path = os.path.join(DATA, "ranks.csv")
+    if os.path.exists(path):
+        try:
+            old = pd.read_csv(path, dtype={"공고번호": str, "사업자번호": str},
+                              encoding="utf-8-sig")
+            df = pd.concat([old, df], ignore_index=True)
+            df = df.drop_duplicates(subset=["공고번호", "순위"], keep="last")
+        except Exception as e:
+            log(f"기존 ranks.csv 읽기 실패 ({type(e).__name__}) — 새로 씁니다")
+    df = df.sort_values(["공고번호", "순위"])
+    df.to_csv(path, index=False, encoding="utf-8-sig")
+    return len(df)
+
+
 
 def log(m):
     print(f"  {m}", flush=True)
@@ -127,11 +212,20 @@ def main():
         return 0
 
     frames, handled = [], []
+    rank_frames = []
     for p in files:
         name = os.path.basename(p)
         raw = read_table(p)
         if raw is None or raw.empty:
             log(f"⏭  {name} — 내용이 없습니다")
+            continue
+        # ★ «개찰순위»가 있는 파일이면 전체 투찰내역으로 처리합니다 (1~10위)
+        rk = as_rank_table(raw)
+        if rk is not None:
+            nno = rk["공고번호"].nunique()
+            log(f"🏅 {name} — 투찰내역 {len(rk):,}행 · 공고 {nno:,}건 (1~10위)")
+            rank_frames.append(rk)
+            handled.append(p)
             continue
         norm, found = normalize(raw)
         missing = [c for c in REQUIRED if c not in found]
@@ -147,7 +241,20 @@ def main():
         frames.append(cleaned)
         handled.append(p)
 
+    if rank_frames:
+        n = save_ranks(rank_frames)
+        log(f"저장: data/ranks.csv  (누적 {n:,}행 — 공고별 1~10위)")
+
     if not frames:
+        if rank_frames:
+            for p in handled:
+                try:
+                    shutil.move(p, os.path.join(DONE, os.path.basename(p)))
+                except Exception:
+                    pass
+            log(f"원본 {len(handled)}개는 inbox/_처리완료/ 로 옮겼습니다")
+            log("다음 단계: python collect.py 를 돌리면 화면에 순위가 붙습니다")
+            return n
         log("반영할 자료가 없습니다.")
         return 0
 

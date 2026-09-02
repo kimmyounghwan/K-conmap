@@ -553,12 +553,29 @@ def row_live(item):
 #  조달청에 투찰업체 목록을 주는 다른 오퍼레이션이 있는지
 #  하루 한 번만 두드려 보고 결과를 기록에 남깁니다. (자료는 건드리지 않습니다)
 # ─────────────────────────────────────────────
+#  ⚠️ 2026-09-02 실측으로 확인된 것 (추측이 아닙니다):
+#     지금 쓰는 «개찰결과»(getOpengResultListInfoCnstwk) 는
+#     opengCorpInfo 에 **업체 한 곳만** 담아 줍니다.
+#       예: "주식회사 와이티건설^1528601041^홍주호^6383600^90.341"
+#       같은 공고의 prtcptCnum(참가업체수) 은 23 이었습니다.
+#     저장소에 쌓인 개찰 10,913건 **전부** corps 가 1곳이었습니다.
+#     → 이 오퍼레이션으로는 2~10위를 절대 못 가져옵니다.
+#
+#  그래서 아래에 «투찰내역을 줄 만한» 오퍼레이션 후보를 더 넣어 두고,
+#  하루 한 번 두드려 응답이 오는지만 봅니다 (자료는 건드리지 않습니다).
+#  결과는 data/diag.json 에 남으므로 다음 날 확인할 수 있습니다.
 PROBE_OPS = [
     ("개찰결과 투찰업체", f"{BASE}/as/ScsbidInfoService/getOpengResultListInfoCnstwkPPSSrch"),
     ("개찰 참가업체",     f"{BASE}/as/ScsbidInfoService/getBidPblancListInfoCnstwkBidPrceList"),
     ("투찰 목록",         f"{BASE}/as/ScsbidInfoService/getOpengResultListInfoBidPrceList"),
     ("낙찰자 목록",       f"{BASE}/as/ScsbidInfoService/getScsbidListSttusCnstwk"),
     ("면허·업종 제한",    f"{BASE}/ad/BidPublicInfoService/getBidPblancListInfoLicenseLimit"),
+    # ── 2026-09-02 추가 후보 — «전체 투찰내역» 을 주는 곳이 있는지 찾습니다 ──
+    ("예비가격 상세",     f"{BASE}/as/ScsbidInfoService/getOpengResultListInfoCnstwkPreparPcDetail"),
+    ("개찰결과 상세",     f"{BASE}/as/ScsbidInfoService/getOpengResultListInfoCnstwkDetail"),
+    ("투찰가 상세",       f"{BASE}/as/ScsbidInfoService/getOpengResultListInfoCnstwkBidPrceDetail"),
+    ("개찰 순위",         f"{BASE}/as/ScsbidInfoService/getOpengResultListInfoOpengCompt"),
+    ("입찰참가 목록",     f"{BASE}/ad/BidPublicInfoService/getBidPblancListInfoPrtcptPsblRgn"),
 ]
 
 
@@ -615,6 +632,54 @@ def probe_ops(key, day):
             if isinstance(one, dict) else {}}
         print(f"  ✓ {label}: {len(items)}건 · 항목 {', '.join(keys)[:400]}")
     print("-" * 52)
+
+
+def merge_ranks(first):
+    """data/ranks.csv (사람이 조달데이터허브에서 받아 inbox 에 넣은 전체 투찰내역)를
+       개찰 자료의 corps 에 붙인다 — 화면의 «투찰 순위»가 1위부터 10위까지 나옵니다.
+
+    ⚠️ 조달청 공개 API 는 1순위만 줍니다(실측 10,913건 전부 1곳).
+       그래서 순위는 이 파일이 있을 때만 채워집니다. 없으면 조용히 넘어갑니다.
+    """
+    path = os.path.join(ARCHIVE_DIR, "ranks.csv")
+    if not os.path.exists(path):
+        return 0
+    by_no = {}
+    try:
+        with io.open(path, encoding="utf-8-sig", newline="") as f:
+            for row in csv.DictReader(f):
+                no = (row.get("공고번호") or "").strip()
+                if not no:
+                    continue
+                try:
+                    rank = int(float(row.get("순위") or 0))
+                    amt = int(float(re.sub(r"[^0-9.]", "", str(row.get("투찰금액") or "0")) or 0))
+                except Exception:
+                    continue
+                if not (1 <= rank <= 10) or amt <= 0:
+                    continue
+                rt = to_rate(row.get("투찰률"))
+                bno = re.sub(r"[^0-9]", "", str(row.get("사업자번호") or ""))
+                by_no.setdefault(no, []).append(
+                    (rank, [str(row.get("업체명") or "").strip(), amt, rt,
+                            bno if len(bno) == 10 else "", ""]))
+    except Exception as e:
+        print(f"  ! ranks.csv 읽기 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
+        return 0
+
+    n = 0
+    for kind in KINDS:
+        for no, row in first[kind].items():
+            got = by_no.get(no)
+            if not got or len(got) < 2:
+                continue          # 1위 하나뿐이면 지금 것과 같습니다
+            got.sort(key=lambda x: x[0])
+            row["corps"] = [c for _, c in got][:10]
+            row["nrank"] = len(row["corps"])
+            n += 1
+    if n:
+        print(f"  \u2192 투찰 순위 붙임 {n:,}건 (ranks.csv {len(by_no):,}공고)")
+    return n
 
 
 def load_store(name):
@@ -958,6 +1023,9 @@ def main():
             save_store("live", live)
         except Exception as e:
             print(f"  ! 소급 보충 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
+
+    # 사람이 넣어 둔 전체 투찰내역이 있으면 여기서 붙입니다 (1~10위)
+    merge_ranks(first)
 
     archive(first)
 
