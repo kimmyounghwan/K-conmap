@@ -917,6 +917,48 @@ def main():
     print(f"  · 기초금액 확보 {n_base:,}건")
 
     # ⚠️ 순서 중요: 잘라내기 전에 누적 CSV 로 먼저 옮긴다
+    # ── 소급 보충 ────────────────────────────────────────────────
+    #  A값이 비어 있으면 시뮬레이션이 «가정» 으로 돌아갑니다.
+    #  그래서 «시켜야 하는» 일로 두지 않고, **모자라면 스스로 채우게** 합니다.
+    #    · 최근 45일 개찰 중 A값(또는 A값미적용 표시)을 아는 비율이 60% 미만이면 자동 실행
+    #    · 하루 한 번만 (data/store/.fill 에 날짜를 적어 둡니다)
+    #    · --fillbsis N 을 주면 조건 없이 N일치 실행
+    auto_days = 0
+    try:
+        cut45 = (datetime.now(KST) - timedelta(days=45)).strftime("%Y%m%d%H%M")
+        recent = [r for r in first.get("con", {}).values()
+                  if (dt_digits(r.get("dt")) or "0") >= cut45]
+        if recent:
+            known = sum(1 for r in recent if r.get("aval") or r.get("ayn"))
+            cov = known / len(recent)
+            mark = os.path.join(STORE, ".fill")
+            today = datetime.now(KST).strftime("%Y-%m-%d")
+            done_today = os.path.exists(mark) and open(mark).read().strip() == today
+            print(f"  · 최근 45일 개찰 {len(recent):,}건 중 A값 아는 것 "
+                  f"{known:,}건 ({cov*100:.1f}%)")
+            if cov < 0.60 and not done_today:
+                auto_days = 45
+                print("  · A값이 모자랍니다 — 소급 보충을 스스로 돌립니다")
+            elif cov < 0.60:
+                print("  · 오늘 이미 소급 보충을 했습니다 — 건너뜁니다")
+    except Exception as e:
+        print(f"  ! 커버리지 확인 실패 ({type(e).__name__}) — 넘어갑니다")
+
+    fill_days = args.fillbsis or auto_days
+    if fill_days > 0 and not NET_DOWN:
+        print("-" * 52)
+        try:
+            backfill_bsis(key, first, live, fill_days, args.sleep)
+            try:
+                with open(os.path.join(STORE, ".fill"), "w") as f:
+                    f.write(datetime.now(KST).strftime("%Y-%m-%d"))
+            except Exception:
+                pass
+            save_store("first", first)
+            save_store("live", live)
+        except Exception as e:
+            print(f"  ! 소급 보충 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
+
     archive(first)
 
     for kind in ("con", "serv"):
@@ -1198,47 +1240,6 @@ def main():
     except Exception as e:
         print(f"  ! 연락처 잇기 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
 
-    # ── 소급 보충 ────────────────────────────────────────────────
-    #  A값이 비어 있으면 시뮬레이션이 «가정» 으로 돌아갑니다.
-    #  그래서 «시켜야 하는» 일로 두지 않고, **모자라면 스스로 채우게** 합니다.
-    #    · 최근 45일 개찰 중 A값(또는 A값미적용 표시)을 아는 비율이 60% 미만이면 자동 실행
-    #    · 하루 한 번만 (data/store/.fill 에 날짜를 적어 둡니다)
-    #    · --fillbsis N 을 주면 조건 없이 N일치 실행
-    auto_days = 0
-    try:
-        cut45 = (datetime.now(KST) - timedelta(days=45)).strftime("%Y%m%d%H%M")
-        recent = [r for r in first.get("con", {}).values()
-                  if (dt_digits(r.get("dt")) or "0") >= cut45]
-        if recent:
-            known = sum(1 for r in recent if r.get("aval") or r.get("ayn"))
-            cov = known / len(recent)
-            mark = os.path.join(STORE, ".fill")
-            today = datetime.now(KST).strftime("%Y-%m-%d")
-            done_today = os.path.exists(mark) and open(mark).read().strip() == today
-            print(f"  · 최근 45일 개찰 {len(recent):,}건 중 A값 아는 것 "
-                  f"{known:,}건 ({cov*100:.1f}%)")
-            if cov < 0.60 and not done_today:
-                auto_days = 45
-                print("  · A값이 모자랍니다 — 소급 보충을 스스로 돌립니다")
-            elif cov < 0.60:
-                print("  · 오늘 이미 소급 보충을 했습니다 — 건너뜁니다")
-    except Exception as e:
-        print(f"  ! 커버리지 확인 실패 ({type(e).__name__}) — 넘어갑니다")
-
-    fill_days = args.fillbsis or auto_days
-    if fill_days > 0 and not NET_DOWN:
-        print("-" * 52)
-        try:
-            backfill_bsis(key, first, live, fill_days, args.sleep)
-            try:
-                with open(os.path.join(STORE, ".fill"), "w") as f:
-                    f.write(datetime.now(KST).strftime("%Y-%m-%d"))
-            except Exception:
-                pass
-            save_store("first", first)
-            save_store("live", live)
-        except Exception as e:
-            print(f"  ! 소급 보충 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
 
     print("-" * 52)
     export("first", first, "dt")

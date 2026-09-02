@@ -1490,3 +1490,27 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
   border-top: 1px solid rgba(255,255,255,.18);
   font-size: 11.5px; opacity: .85; line-height: 1.5;
 }
+
+/* 안전도 고르기 */
+.card.c-risk { background:#fbfaff; border-left:4px solid #8b5cf6; }
+.riskpick { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:9px; }
+.riskpick button {
+  padding:10px 6px; border:1px solid var(--line); border-radius:12px;
+  background:var(--surface); cursor:pointer; text-align:center; line-height:1.35;
+}
+.riskpick button.on {
+  border-color:#8b5cf6; background:#f5f3ff;
+  box-shadow:0 0 0 2px rgba(139,92,246,.18);
+}
+.riskpick b { display:block; font-size:14px; font-weight:900; color:var(--text); }
+.riskpick .q { display:block; font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; }
+.riskpick .d { display:block; margin-top:2px; font-size:11px; font-weight:800; color:var(--warn); }
+.riskpick button.on .d { color:#7c3aed; }
+@media (prefers-color-scheme: dark) {
+  .card.c-risk { background:#17141f; }
+  .riskpick button.on { background:#1e1a2e; }
+}
+
+/* 낙찰하한율 미확인 경고 */
+.warnbox.llrbox { border-color:#f0c98a; }
+.warnbox.llrbox .kv b.hi { color: var(--bad); }
