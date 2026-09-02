@@ -3,7 +3,6 @@ import { getOverview } from '../lib/data.js'
 import NoticeDetail from '../NoticeDetail.jsx'
 import { useBoard } from '../lib/useBoard.js'
 import { Skeleton, Empty, Tile } from '../components.jsx'
-import { ConvertedPrice } from '../BasePrice.jsx'
 import { won, wonShort, pct, num, dateTime, dateShort, REGIONS, inRegion } from '../lib/fmt.js'
 
 const PAGE = 20
@@ -107,7 +106,6 @@ export default function FirstBoard() {
                   <span>{dateTime(r.dt)}</span>
                   {r.rate != null && <span className="badge b">{pct(r.rate, 3)}</span>}
                   {r.base > 0 && <span className="badge n">기초 {wonShort(r.base)}</span>}
-                  {r.rate != null && <ConvertedPrice rate={r.rate} />}
                 </div>
                 <div className="foot">
                   <span className="badge g">1순위</span>

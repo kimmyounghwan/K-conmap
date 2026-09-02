@@ -245,17 +245,27 @@ export default function BaroBid() {
      순위는 투찰률로 갈립니다(예정가격 대비 비율이라 사정률과 무관).
      그래서 우리 권장 투찰률과 실제 1순위 투찰률을 그대로 견줍니다. */
   const scored = (() => {
-    if (!res || !res.rate) return null
-    const our = rec != null ? rec : myRate
-    if (!our) return null
-    const lim = ll?.rate || 0
-    const b = res.base || base
+    if (!res || !res.rate || !res.amt) return null
+    /* ⚠️ 채점은 «추정»으로 하면 안 됩니다.
+       이 공고의 예정가격은 개찰로 이미 확정됐습니다:
+           예정가격 = 1순위 투찰금액 ÷ 1순위 투찰률
+       사정률 중앙값을 끌어다 쓰면 몇만 원씩 어긋납니다. 실제로 어긋났습니다. */
+    const yeje = Math.round(res.amt / (res.rate / 100))
+    /* 규모(추정가격)로 권장 투찰률과 낙찰하한율이 갈립니다.
+       오늘 개찰분은 기초금액이 아직 안 들어온 게 많아, 예정가격에서 되짚습니다.
+           기초금액 ≈ 추정가격 × 1.1, 예정가격 ≈ 기초금액 × 사정률(≈1.0) */
+    const est = Math.round((res.base > 0 ? res.base : yeje) / 1.1)
+    const bd = (ov?.bands || []).find(
+      (x) => est >= x.min && (x.max == null || est < x.max)) || null
+    const our = bd ? bd.rec : (ov?.hot?.rec ?? null)
+    if (our == null) return { yeje, est, band: bd, skip: true }
+    const lim = bd ? bd.llr : null
     return {
-      our,
-      ourAmt: b ? bidAmount(b, sjMid, our, a) : 0,
+      yeje, est, band: bd, our, lim,
+      ourAmt: Math.ceil(yeje * (our / 100)),
       gap: r3(our - res.rate),
       beat: our < res.rate,
-      dq: lim > 0 && our < lim,
+      dq: lim != null && our < lim,
     }
   })()
 
@@ -480,8 +490,11 @@ export default function BaroBid() {
             </div>
             <div className="s1">
               <span className="k">우리 권장</span>
-              <b className="nm">{scored ? pct(scored.our, 3) : '—'}</b>
-              <span className="v">{scored?.ourAmt ? won(scored.ourAmt) : '기초금액을 넣으면 금액까지'}</span>
+              <b className="nm">{scored?.our ? pct(scored.our, 3) : '적용 불가'}</b>
+              <span className="v">
+                {scored?.ourAmt ? won(scored.ourAmt)
+                  : '100억 이상은 종합심사라 계산하지 않습니다'}
+              </span>
             </div>
             <div className="s1">
               <span className="k">참가업체</span>
@@ -521,18 +534,30 @@ export default function BaroBid() {
             </div>
           )}
 
-          {scored && (
+          {scored && !scored.skip && (
             <div className="sv">
+              <div className="base">
+                확정 예정가격 <b>{won(scored.yeje)}</b>
+                <span className="how">1순위 투찰금액 ÷ 투찰률로 되짚은 값입니다 — 추정이 아닙니다</span>
+                <br />
+                규모 {scored.band ? scored.band.label : '—'}
+                {scored.lim != null && <> · 낙찰하한 {pct(scored.lim, 3)}</>}
+              </div>
               {scored.dq ? (
-                <>우리 권장({pct(scored.our, 3)})이 이 공고의 낙찰하한({pct(ll.rate, 3)})보다 낮습니다.
-                  <b> 그대로 넣었으면 실격이었습니다.</b> 규모별 하한을 다시 봐야 합니다.</>
+                <>우리 권장({pct(scored.our, 3)})이 이 규모의 낙찰하한({pct(scored.lim, 3)})보다 낮습니다.
+                  <b> 그대로 넣었으면 실격이었습니다.</b></>
               ) : scored.beat ? (
-                <>우리 권장이 1순위보다 <b>{Math.abs(scored.gap).toFixed(3)}%p 낮습니다</b> —
-                  하한을 넘기면서 더 낮으니, <b>이 공고는 가져갔을 자리입니다.</b></>
+                <>우리 권장이 1순위보다 <b>{Math.abs(scored.gap).toFixed(3)}%p 낮고</b>
+                  {scored.lim != null ? <> 낙찰하한({pct(scored.lim, 3)})도 넘깁니다</> : null} —
+                  <b> 이 공고는 가져갔을 자리입니다.</b>
+                  {Math.abs(scored.gap) < 0.05 && <> 다만 차이가 거의 없어 운에 가깝습니다.</>}</>
               ) : (
-                <>우리 권장이 1순위보다 <b>{Math.abs(scored.gap).toFixed(3)}%p 높습니다</b> — 밀렸을 자리입니다.
-                  이런 날은 최빈값이 평소보다 아래로 몰린 날입니다.</>
+                <>우리 권장이 1순위보다 <b>{Math.abs(scored.gap).toFixed(3)}%p 높습니다</b> — 밀렸을 자리입니다.</>
               )}
+              <div className="cav">
+                A값이 있는 공고라면 실제 투찰금액은 이보다 조금 달라집니다.
+                순위를 가르는 건 투찰률이라 판정은 그대로입니다.
+              </div>
             </div>
           )}
         </div>

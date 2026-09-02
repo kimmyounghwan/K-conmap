@@ -19,8 +19,12 @@ const KEY = 'kcm_base_price'
 const Ctx = createContext({ base: 0, setBase: () => {} })
 
 export function BasePriceProvider({ children }) {
+  /* ⚠️ 2026-09-02 — 상단 «기초금액 넣기»를 없앤 뒤로 예전에 저장된 값이
+     브라우저에 남아, 1순위 목록의 모든 카드에 같은 금액(6.3억)이 붙어 보였습니다.
+     지울 입력칸도 없어졌으니 여기서 한 번 비웁니다. */
   const [base, setBase] = useState(() => {
-    try { return Number(localStorage.getItem(KEY)) || 0 } catch { return 0 }
+    try { localStorage.removeItem(KEY) } catch { /* 시크릿 모드 등 */ }
+    return 0
   })
   useEffect(() => {
     try {

@@ -16,6 +16,9 @@ export default function App() {
 
   return (
     <BasePriceProvider>
+      {/* 2026-09-02 — «기초금액 넣기»를 상단에서 뺐는데, 예전에 넣어둔 값이
+          브라우저에 남아 1순위 목록마다 «6.3억» 같은 유령 금액을 띄웠습니다.
+          입력칸이 없으니 지울 방법도 없었습니다. 한 번 비웁니다. */}
       <header className="topbar">
         <div className="topbar-in">
           <NavLink to="/" className="brand">
