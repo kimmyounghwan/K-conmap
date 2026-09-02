@@ -30,10 +30,22 @@ const estPrice = (base) => (base > 0 ? Math.round(base / 1.1) : 0)
 /* 채점에 필요한 값을 «주소에 실어» 보냅니다.
    채점용 색인(bidresult.json)은 최근 7일치만 담는데 이 목록은 7주치를 보여줍니다.
    값을 실어 보내면 자료를 더 받지 않고도 7주 전체가 채점됩니다. */
+function scoreMissing(r) {
+  const m = []
+  if (!(Number(r?.amt) > 0 && Number(r?.rate) > 0)) m.push('낙찰금액·투찰률')
+  if (!(Number(r?.base) > 0)) m.push('기초금액')
+  if (!(Number(r?.aval) > 0 || r?.ayn === 'N')) m.push('A값')
+  if (r?.lo == null || r?.hi == null) m.push('예가범위')
+  return m
+}
 function scoreLink(r) {
-  const amt = Number(r?.amt) || 0
-  const rate = Number(r?.rate) || 0
-  if (!(amt > 0 && rate > 0)) return null      // 되짚을 수 없으면 버튼을 달지 않습니다
+  /* ⚠️ 값이 반쯤 있는 개찰에 버튼을 달면 «채점»을 눌렀는데
+     «기초금액이 안 실려 와 사정률은 알 수 없습니다» 가 뜹니다. 그건 채점이 아닙니다.
+     공고 쪽 «완비» 기준과 똑같이, 네 값이 다 있을 때만 답니다.
+     실측(2026-09-02): 개찰 11,257건 중 7,873건(69.9%)이 완비. */
+  if (scoreMissing(r).length) return null
+  const amt = Number(r.amt) || 0
+  const rate = Number(r.rate) || 0
   const q = new URLSearchParams()
   q.set('no', String(r.no || ''))
   q.set('sc', '1')
@@ -171,8 +183,9 @@ function BidTab({ r }) {
         </Link>
       ) : (
         <div className="nocalc">
-          이 개찰은 <b>채점에 필요한 값이 모자랍니다</b> — 낙찰금액·투찰률이 있어야
-          그날의 예정가격을 되짚을 수 있습니다.
+          이 개찰은 <b>채점에 필요한 값이 모자랍니다</b> — 조달청 자료에
+          «{scoreMissing(r).join(' · ')}» 이 안 실려 왔습니다.
+          반쯤 아는 값으로 채점하면 «가져갔을 자리»가 남발됩니다. 그래서 하지 않습니다.
         </div>
       )}
 

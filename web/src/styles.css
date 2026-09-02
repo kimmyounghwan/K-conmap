@@ -1540,91 +1540,128 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
 .needlist .yes { color:var(--good); border-color:#b7e4cd; }
 .needlist .no { color:var(--bad); border-color:#f3b4b4; background:#fff5f5; }
 
-/* 계산이 안 되는 공고 — 버튼 대신 «왜 안 되는지» 를 적습니다.
-   버튼을 눌러 «계산할 수 없습니다» 를 보게 하는 것보다 낫습니다. */
+/* ══════════════════════════════════════════════════════════════
+   ⚠️ 이 아래 색은 반드시 **토큰(--text, --good …)** 만 씁니다.
+      2026-09-02: #374151 같은 값을 직접 박았더니 어두운 화면(다크 모드)에서
+      숫자가 배경에 묻혀 안 보였습니다. 소장님 휴대폰에서 바로 드러났습니다.
+      색을 새로 넣을 일이 있으면 :root 의 토큰을 쓰세요.
+   ══════════════════════════════════════════════════════════════ */
+
+/* 계산이 안 되는 공고 — 버튼 대신 «왜 안 되는지» 를 적습니다. */
 .notice .nocalc {
   margin: 10px 0;
   padding: 11px 13px;
-  border: 1px dashed var(--line, #d8dee7);
+  border: 1px dashed var(--line);
   border-radius: 10px;
-  background: #fbfbfd;
-  color: #666e7a;
+  background: var(--surface-2);
+  color: var(--text-2);
   font-size: 13px;
   line-height: 1.6;
 }
-.notice .nocalc b { color: #444b55; }
+.notice .nocalc b { color: var(--text); }
 
-/* ── 채점: 「사정률이 이 값이었다면」 표 ──────────────────────
-   하나의 금액만 실제 낙찰가와 대보면 «운»을 «실력»으로 오해합니다.
-   추첨이 다르게 나왔을 때 어떻게 됐을지 열 줄로 다 보여줍니다. */
+/* ── 「사정률이 이 값이었다면」 표 (바로투찰·채점 공용) ───────── */
 .scen {
   margin-top: 12px;
   padding: 12px 12px 10px;
-  border: 1px solid rgba(0, 0, 0, .08);
+  border: 1px solid var(--line);
   border-radius: 12px;
-  background: rgba(255, 255, 255, .62);
+  background: var(--surface-2);
 }
 .scen .sch {
   display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
-  font-weight: 800; font-size: 14px; margin-bottom: 6px;
+  font-weight: 800; font-size: 14.5px; margin-bottom: 6px;
+  color: var(--text);
 }
-.scen .sch .cnt { font-weight: 600; font-size: 12px; color: #6b7280; }
-.scen .sch .cnt b { color: #111827; }
+.scen .sch .cnt { font-weight: 600; font-size: 12.5px; color: var(--text-2); }
+.scen .sch .cnt b { color: var(--text); font-weight: 800; }
+.scen > .note.sm { color: var(--text-2); }
+.scen > .note.sm b { color: var(--text); }
+
 .scrow {
   display: grid;
   grid-template-columns: 1.45fr 1.3fr .85fr .55fr;
   gap: 5px; align-items: center;
-  padding: 7px 8px; border-radius: 8px;
-  font-size: 12.5px; font-variant-numeric: tabular-nums;
+  padding: 8px; border-radius: 8px;
+  font-size: 13px; font-variant-numeric: tabular-nums;
+  color: var(--text);
 }
 /* «100.190% 65분위» 가 두 줄로 접히면 표가 흔들립니다 — 한 줄로 붙입니다. */
 .scrow .sj, .scrow .lo, .scrow .gp, .scrow .rs { white-space: nowrap; }
 .scrow.shd {
-  font-size: 11px; font-weight: 700; color: #8b93a1;
+  font-size: 11.5px; font-weight: 700; color: var(--muted);
   padding-bottom: 3px; padding-top: 2px;
 }
-.scrow.ok  { background: rgba(16, 150, 90, .07); }
-.scrow.no  { background: rgba(200, 60, 60, .07); }
-.scrow.real { outline: 2px solid #2563eb; outline-offset: -2px; }
-.scrow .sj { font-weight: 700; }
+.scrow.ok  { background: var(--good-soft); }
+.scrow.no  { background: var(--bad-soft); }
+.scrow.real { outline: 2px solid var(--accent); outline-offset: -2px; }
+.scrow .sj { font-weight: 700; color: var(--text); }
 .scrow .sj .tag {
-  font-style: normal; font-size: 10.5px; font-weight: 700;
-  color: #2563eb; margin-left: 4px; white-space: nowrap;
-}
-.scrow .lo { color: #374151; }
-.scrow .gp.p { color: #10695a; }
-.scrow .gp.m { color: #b02a2a; }
-.scrow .rs { text-align: right; font-weight: 800; }
-.scrow.ok .rs { color: #10695a; }
-.scrow.no .rs { color: #b02a2a; }
-@media (max-width: 380px) {
-  .scrow { grid-template-columns: 1.4fr 1.25fr .8fr .5fr; font-size: 11px; gap: 3px; padding: 6px 5px; }
-  .scrow .sj .q { font-size: 9px; }
+  font-style: normal; font-size: 11px; font-weight: 700;
+  color: var(--accent); margin-left: 4px;
 }
 .scrow .sj .q {
-  font-style: normal; font-size: 10px; font-weight: 600;
-  color: #97a0ad; margin-left: 3px;
+  font-style: normal; font-size: 11px; font-weight: 600;
+  color: var(--text-2); margin-left: 3px;
+}
+.scrow .lo { color: var(--text); }
+.scrow .gp.p { color: var(--good); font-weight: 700; }
+.scrow .gp.m { color: var(--bad); font-weight: 700; }
+.scrow .rs { text-align: right; font-weight: 800; }
+.scrow.ok .rs { color: var(--good); }
+.scrow.no .rs { color: var(--bad); }
+.scen .cav { color: var(--text-2); }
+.scen .cav b { color: var(--text); }
+@media (max-width: 380px) {
+  .scrow { grid-template-columns: 1.4fr 1.25fr .8fr .5fr; font-size: 11.5px; gap: 3px; padding: 7px 5px; }
+  .scrow .sj .q, .scrow .sj .tag { font-size: 9.5px; }
 }
 
 /* ── 「왜 이 금액인가」 성적표 ───────────────────────────── */
-.card.c-grade { background: linear-gradient(180deg, #fbfaff 0%, #f7f7fc 100%); }
+.card.c-grade { background: var(--surface); }
 .c-grade .grow {
-  display: grid; grid-template-columns: 1.5fr .8fr .8fr 1fr;
-  gap: 6px; align-items: center; padding: 7px 8px;
-  border-radius: 8px; font-size: 12.5px; font-variant-numeric: tabular-nums;
+  display: grid; grid-template-columns: 1.6fr .75fr .75fr .95fr;
+  gap: 6px; align-items: center; padding: 8px;
+  border-radius: 8px; font-size: 13px; font-variant-numeric: tabular-nums;
+  color: var(--text);
 }
-.c-grade .grow.ghd { font-size: 11px; font-weight: 700; color: #8b93a1; padding-bottom: 2px; }
+.c-grade .grow.ghd { font-size: 11.5px; font-weight: 700; color: var(--muted); padding-bottom: 2px; }
 .c-grade .grow.ghd span:not(:first-child),
 .c-grade .grow .d, .c-grade .grow .w, .c-grade .grow .g { text-align: right; }
-.c-grade .grow.on { background: #e9f2ff; font-weight: 800; outline: 2px solid #2563eb; outline-offset: -2px; }
-.c-grade .grow .n { font-weight: 600; }
-.c-grade .grow .d { color: #b02a2a; }
-.c-grade .grow .w { color: #10695a; }
-.c-grade .grow .g { color: #4b5563; }
+.c-grade .grow.on {
+  background: var(--accent-soft); font-weight: 800;
+  outline: 2px solid var(--accent); outline-offset: -2px;
+}
+.c-grade .grow .n { font-weight: 600; color: var(--text); }
+.c-grade .grow .d { color: var(--bad); font-weight: 700; }
+.c-grade .grow .w { color: var(--good); font-weight: 700; }
+.c-grade .grow .g { color: var(--text-2); }
+.c-grade .cav { color: var(--text-2); }
+.c-grade .cav b { color: var(--text); }
 
 /* 채점 — «바로투찰과 같은 계산» 임을 밝히는 줄 */
 .scored .same {
-  display: block; margin-top: 7px; padding: 8px 10px;
-  border-radius: 8px; background: rgba(37, 99, 235, .07);
-  color: #1f3a68; font-size: 12px; line-height: 1.65;
+  display: block; margin-top: 7px; padding: 9px 11px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  color: var(--text-2); font-size: 12.5px; line-height: 1.7;
 }
+.scored .same b { color: var(--text); }
+
+/* 시뮬레이션 — 한 건의 판정 줄 */
+.simsum b.bad { color: var(--bad); }
+.simcase .simv {
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  margin-top: 6px; padding: 7px 9px; border-radius: 8px;
+  font-size: 12px; color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.simcase .simv.win  { background: var(--good-soft); }
+.simcase .simv.lose { background: var(--surface-2); }
+.simcase .simv.dq   { background: var(--bad-soft); }
+.simcase .simv .lb { font-weight: 800; color: var(--text); }
+.simcase .simv.win .lb  { color: var(--good); }
+.simcase .simv.dq .lb   { color: var(--bad); }
+.simcase .simv .am b { color: var(--text); font-weight: 800; }
+.simcase .mk .v { color: var(--text-2); }

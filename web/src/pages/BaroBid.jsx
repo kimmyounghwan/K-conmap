@@ -222,9 +222,11 @@ function GradeCard() {
         바로투찰이 하는 일은 «실격을 피하면서 가능한 한 낮게» 넣어 주는 것까지입니다.
         그 이상을 약속하는 곳이 있다면 믿지 마세요.
       </div>
-      <div className="cav" style={{ marginTop: 6, opacity: .75 }}>
-        표본 2026-08~09 개찰 958건 · 낙찰가차이는 실격이 아닌 건의 중앙값 ·
-        검증 방법은 저장소 docs 폴더에 적어 두었습니다.
+      <div className="cav" style={{ marginTop: 6, opacity: .8 }}>
+        표본 2026-08~09 개찰 958건(낙찰하한율까지 실측으로 확정한 건) ·
+        낙찰가차이는 실격이 아닌 건의 중앙값 · 검증 방법은 저장소 docs 폴더에 있습니다.
+        <br />아래 «가상 시뮬레이션»은 <b>같은 규칙을 최근 30일에 자동으로 다시 대본 것</b>입니다 —
+        배치가 돌 때마다 갱신되므로, 이 표와 비슷하게 나오는지 직접 견줘 보실 수 있습니다.
       </div>
     </div>
   )
@@ -1642,13 +1644,13 @@ export default function BaroBid() {
    ============================================================ */
 function SimBlock({ bt, open, setOpen }) {
   const cases = open ? bt.cases : bt.cases.slice(0, 3)
+  const V = { dq: ['⛔', '실격'], win: ['🏆', '1순위'], lose: ['📉', '밀림'] }
   return (
     <div className="card c-sim">
       <div className="detail-h">
         가상 시뮬레이션
-        {/* ⚠️ bt.n 은 «화면에 보여주는 사례 수»(24건)입니다.
-            실제로 대본 건수는 bt.tested 입니다. 예전에 24건이라고 적어
-            «표본이 24건뿐»으로 읽혔습니다. */}
+        {/* ⚠️ bt.n 은 «화면에 보여주는 사례 수»입니다.
+            실제로 대본 건수는 bt.tested 입니다. */}
         <span className="count">
           · 최근 {bt.days}일 개찰 {num(bt.tested || bt.n)}건에 대봤습니다
         </span>
@@ -1656,35 +1658,35 @@ function SimBlock({ bt, open, setOpen }) {
       {bt.to && (
         <div className="simrange">
           {bt.from} ~ <b>{bt.to}</b> 개찰분 · 배치가 돌 때마다 다시 계산합니다
-          {bt.aAssumed ? (
+          {bt.aReal != null && (
             <><br />
-              합격 판정에 A값을 넣습니다.
-              {bt.aReal >= 99 ? (
-                <> <b>전부 그 공고의 실제 A값</b>입니다.</>
-              ) : bt.aReal > 0 ? (
-                <> <b>{bt.aReal}% 는 실제 A값</b>, 나머지는 같은 규모 중앙값
-                  {' '}{bt.aAssumed}% 로 가정합니다.</>
-              ) : (
-                <> 개찰 자료에는 A값이 없어 같은 규모 중앙값 <b>{bt.aAssumed}%</b> 로 가정합니다.</>
-              )}
-              {bt.aReal < 99 && ' 실제 A값이 쌓일수록 이 숫자는 정확해집니다.'}</>
-          ) : null}
+              <b>{bt.aReal}% 는 그 공고의 실제 A값</b>
+              {bt.aReal < 99 && <>, 나머지는 같은 규모 중앙값 {bt.aAssumed}% 로 가정합니다.
+                {' '}실제 A값이 쌓일수록 이 숫자는 정확해집니다.</>}
+            </>
+          )}
         </div>
       )}
 
+      {/* ★ 화면이 실제로 내는 금액 그대로 대봅니다 (2026-09-02 교체).
+          예전에는 «최빈 투찰률 하나»를 사정률 후보 10개에 대보는 다른 방식이었습니다. */}
       <div className="simsum">
         <div>
-          <span>후보 하나라도 1순위를 이긴 공고</span>
-          <b className="hi">{bt.anyRate}%</b>
+          <span>실격</span>
+          <b className="bad">{Number(bt.dq).toFixed(1)}%</b>
         </div>
         <div>
-          <span>후보 10개 중 평균 적중</span>
-          <b>{bt.hitRate}%</b>
+          <span>1순위였을 자리</span>
+          <b className="hi">{Number(bt.win).toFixed(1)}%</b>
         </div>
         <div>
-          <span>적용한 투찰률</span>
-          <b>{pct(bt.rate, 3)}</b>
+          <span>낙찰가와의 차이</span>
+          <b>{Number(bt.gap).toFixed(2)}%</b>
         </div>
+      </div>
+      <div className="note sm" style={{ marginTop: 0 }}>
+        바로투찰이 그날 내놨을 <b>바로 그 금액</b>으로 대본 것입니다 —
+        채점 화면과 같은 함수를 씁니다.
       </div>
 
       {cases.map((c, i) => (
@@ -1697,13 +1699,11 @@ function SimBlock({ bt, open, setOpen }) {
             실제 낙찰 <b>{won(c.win)}</b> · 투찰률 {pct(c.rate, 3)} ·
             {' '}실제 사정률 <b>{c.sj.toFixed(4)}</b>
           </div>
-          <div className="marks">
-            {c.marks.map(([v, amt, ok]) => (
-              <div key={v} className={'mk' + (ok ? ' win' : '')} title={won(amt)}>
-                {ok && <span className="badge2">낙찰</span>}
-                <span className="v">{v.toFixed(4)}</span>
-              </div>
-            ))}
+          <div className={'simv ' + c.v}>
+            <span className="ic">{(V[c.v] || ['', ''])[0]}</span>
+            <span className="lb">{(V[c.v] || ['', ''])[1]}</span>
+            <span className="am">우리 금액 <b>{won(c.our)}</b></span>
+            <span className="am">하한 {won(c.limit)}</span>
           </div>
         </div>
       ))}

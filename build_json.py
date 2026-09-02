@@ -750,8 +750,14 @@ def sj_candidates(sjs, k=10):
     return out
 
 
-def build_sim(df, cands, rec_rate):
-    if not cands or not rec_rate:
+def build_sim(df, p50):
+    """지난 개찰에 «화면과 같은 규칙»을 그대로 대본 성적.
+
+    ⚠️ 예전 서명은 (df, cands, rec_rate) 였습니다 — 최빈 투찰률 하나를
+       사정률 후보 10개에 대보는 옛 방식이었습니다. 화면이 내는 금액과 달라
+       «시뮬레이션은 잘 나오는데 실제는 다르다»가 됩니다. 바꿨습니다.
+    """
+    if not p50:
         return None
 
     cut = pd.Timestamp.now().normalize() - pd.Timedelta(days=SIM_DAYS)
@@ -802,9 +808,27 @@ def build_sim(df, cands, rec_rate):
             return 88.745
         return 89.745
 
-    cases, hit_all, tried = [], 0, 0
-    n_all, won_all, dts = 0, 0, []
-    a_real = 0        # 실제 A값을 쓴 건수 (나머지는 규모별 중앙 비율로 «가정»)
+    # ══════════════════════════════════════════════════════════
+    #  ⚠️ 2026-09-02 전면 교체.
+    #     예전에는 «전국 최빈 투찰률 하나»를 사정률 후보 10개에 대보고
+    #     «후보 10개 중 평균 적중 5.4%» 같은 숫자를 냈습니다.
+    #     그런데 바로투찰이 실제로 내는 금액은 그게 아닙니다 —
+    #     그 공고의 사정률 분포에서 75분위(A값을 알면) 지점의 낙찰하한금액입니다.
+    #     시뮬레이션이 «다른 방식»을 시험하면 시뮬레이션이 아닙니다.
+    #     그래서 화면과 **같은 규칙**으로 바꿉니다:
+    #
+    #         σ  = √((범위폭²/12) × (1/pdrw) × ((ptot−pdrw)/(ptot−1)))
+    #         sj = P50 + K·σ           (K = 0.674 A값 알면 / 1.63 모르면)
+    #         M  = ceil( ceil((기초×sj/100 − A)×하한율/100 + A) × 여유 )
+    #         L  = ceil((확정예정가격 − A)×하한율/100 + A)
+    #         실격 = M < L · 1순위 = M ≥ L 이고 M < 실제낙찰가
+    # ══════════════════════════════════════════════════════════
+    P50_SIM = float(p50)
+    cases = []
+    n_all = dq_all = win_all = 0
+    gaps, dts = [], []
+    a_real = 0
+
     for _, r in g.iterrows():
         b = float(r["base"])
         win_amt = float(r["amt"])
@@ -812,75 +836,85 @@ def build_sim(df, cands, rec_rate):
         if not (95 <= real_sj <= 105):
             continue
         ll = limit_of(b / 1.1)
-        # ⚠️ A값은 «가정» 이 아니라 «실제값» 이 있으면 그걸 씁니다.
-        #   개찰결과 API 는 A값을 주지 않아서, 공고 쪽에서 받아 누적 CSV 에 적어 둡니다.
-        #   아직 안 적힌 옛 자료만 규모별 중앙 비율로 가정합니다.
+        if ll is None:          # 종합심사 — 가격만으로 정해지지 않습니다
+            continue
         _av = to_amt(r.get("A값")) if "A값" in g.columns else 0
         _ayn = str(r.get("A값적용") or "").strip() if "A값적용" in g.columns else ""
         if _ayn == "N":
-            aR, is_real = 0.0, True
-        elif _av > 0 and b > 0:
-            aR, is_real = _av / b, True
+            A, a_known = 0.0, True
+        elif _av > 0:
+            A, a_known = float(_av), True
         else:
-            aR, is_real = a_ratio_of(b / 1.1), False
-        if is_real:
+            A, a_known = a_ratio_of(b / 1.1) * b, False
+        if a_known:
             a_real += 1
-        marks = []
-        for c in cands:
-            yeje = b * (c / 100.0)
-            amt = math.ceil(yeje * (rec_rate / 100.0))
-            # 실제 예정가격(= 실제 사정률로 정해진 값) 기준으로 판정합니다
-            real_yeje = b * (real_sj / 100.0)
-            my_rate = (amt / real_yeje * 100.0) if real_yeje else 0
-            # 실효 하한 = 하한율 + (A/예정) × (100 − 하한율)
-            eff = None if ll is None else ll + aR * (100.0 - ll)
-            passed = (eff is None or my_rate >= eff) and amt < win_amt
-            marks.append([c, int(amt), bool(passed)])
-        hits = sum(1 for m in marks if m[2])
-        hit_all += hits
-        tried += len(marks)
-        # ⚠️ 2026-09-02 바로잡음.
-        #   예전에는 «한 개라도 맞은 공고»를 화면에 보여주는 24건만으로 셌습니다.
-        #   그래서 늘 100% 로 나왔습니다 — 최근 24건만 보면 거의 다 맞으니까요.
-        #   시험한 전체(30일 수천 건)로 세야 정직한 숫자입니다.
+
+        # 예가범위 — 개찰 자료에 실려 있으면 그 공고 값, 없으면 ±3%
+        lo = r.get("lo") if "lo" in g.columns else None
+        hi = r.get("hi") if "hi" in g.columns else None
+        try:
+            w = float(hi) - float(lo)
+        except Exception:
+            w = 6.0
+        if not (w > 0):
+            w = 6.0
+        sd = math.sqrt((w * w / 12) * (1 / 4) * ((15 - 4) / (15 - 1)))
+        K = 0.674 if a_known else 1.63
+        margin = 1.003 if a_known else 1.0
+        sj_q = round((P50_SIM + K * sd) * 1000) / 1000
+
+        M = math.ceil(math.ceil((b * sj_q / 100 - A) * ll / 100 + A) * margin)
+        yeje = b * real_sj / 100
+        L = math.ceil((yeje - A) * ll / 100 + A)
+
         n_all += 1
-        if hits > 0:
-            won_all += 1
         dts.append(r["dt"])
+        if M < L:
+            verdict = "dq"
+            dq_all += 1
+        elif M < win_amt:
+            verdict = "win"
+            win_all += 1
+            gaps.append(abs(M - win_amt) / win_amt * 100)
+        else:
+            verdict = "lose"
+            gaps.append(abs(M - win_amt) / win_amt * 100)
+
         if len(cases) < SIM_CASES:
             cases.append({
                 "no": str(r.get("공고번호") or "")[:20],
                 "name": str(r["공고명"])[:NAME_CUT],
                 "inst": str(r["발주기관"])[:22],
                 "dt": r["dt"].strftime("%Y-%m-%d"),
-                "base": int(b),
-                "win": int(win_amt),
+                "base": int(b), "win": int(win_amt),
                 "rate": round(float(r["rate"]), 3),
                 "sj": round(real_sj, 4),
-                "ll": ll,
-                "marks": marks,
-                "hit": hits,
+                "sjq": sj_q, "ll": ll,
+                "our": int(M), "limit": int(L),
+                "v": verdict,
+                "ar": bool(a_known),
             })
 
     if not cases:
         return None
+    gaps.sort()
     out = {
         "days": SIM_DAYS,
-        "rate": rec_rate,
-        "cands": cands,
         "n": len(cases),              # 화면에 보여주는 사례 수
-        "tested": n_all,              # 실제로 시험한 개찰 건수 (30일 전체)
+        "tested": n_all,              # 실제로 시험한 개찰 건수
         "from": min(dts).strftime("%Y-%m-%d") if dts else "",
         "to": max(dts).strftime("%Y-%m-%d") if dts else "",
-        "aAssumed": round(A_DEFAULT * 100, 2),   # 실제값이 없을 때 쓰는 가정치
-        "aReal": n_all and round(a_real / n_all * 100, 1),   # 실제 A값을 쓴 비율
-        "hitRate": round(hit_all / tried * 100, 1) if tried else 0,
-        "anyRate": round(won_all / n_all * 100, 1) if n_all else 0,
+        "aAssumed": round(A_DEFAULT * 100, 2),
+        "aReal": n_all and round(a_real / n_all * 100, 1),
+        # ★ 화면과 같은 규칙으로 낸 성적
+        "dq": round(dq_all / n_all * 100, 2) if n_all else 0,
+        "win": round(win_all / n_all * 100, 2) if n_all else 0,
+        "gap": round(gaps[len(gaps) // 2], 2) if gaps else 0,
         "cases": cases,
     }
     write_json("sim.json", out)
-    log(f"시뮬레이션 시험 {n_all:,}건(보여주기 {len(cases)}건) · 후보 {len(cands)}개 중 평균 "
-        f"{out['hitRate']}% 적중 · 한 개라도 맞은 공고 {out['anyRate']}%")
+    log(f"시뮬레이션 {n_all:,}건(보여주기 {len(cases)}건) · "
+        f"실격 {out['dq']}% · 1순위 {out['win']}% · 낙찰가 차이 중앙 {out['gap']}%")
     return out
 
 
@@ -933,7 +967,7 @@ def build_overview(df, n_agency, n_corp, n_kw):
         "byKind": {k: int(v) for k, v in df["__kind"].value_counts().items()},
     }
     write_json("overview.json", ov)
-    build_sim(df, ov["sjc"], (hot["hot"] or {}).get("rec"))
+    build_sim(df, (ov.get("sjq") or {}).get("p50"))
     log(f"기간 {ov['from']} ~ {ov['to']} / 총 {ov['rows']:,}건")
     return ov
 
