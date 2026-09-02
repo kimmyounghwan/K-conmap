@@ -95,6 +95,26 @@ function BidTab({ r }) {
         </div>
       )}
 
+      {/* 낙찰 업체 상세 — 조달청 낙찰자 목록에서 옵니다 (나라장터에 공개되는 정보) */}
+      {(r.adr || r.tel || r.ceo || r.bno) && (
+        <div className="winbox">
+          <div className="h">🏆 낙찰 업체</div>
+          <div className="nm">{r.win}</div>
+          <div className="kv2">
+            {r.ceo && <div><span>대표자</span><b>{r.ceo}</b></div>}
+            {r.bno && (
+              <div><span>사업자</span>
+                <b>{r.bno.slice(0, 3)}-{r.bno.slice(3, 5)}-{r.bno.slice(5)}</b></div>
+            )}
+            {r.adr && <div><span>주소</span><b>{r.adr}</b></div>}
+            {r.tel && (
+              <div><span>전화</span>
+                <b><a href={`tel:${r.tel.replace(/[^0-9+]/g, '')}`}>{r.tel}</a></b></div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="detail-h">
         투찰 순위 <span className="count">· {(r.corps || []).length}곳</span>
       </div>

@@ -85,6 +85,15 @@ BSIS_ONE_CAP = 250
 
 # 면허·업종 제한. 입찰에서 이게 제일 먼저 걸리는 조건인데
 # 공고 목록에는 안 들어 있고 별도 오퍼레이션으로 옵니다.
+# 낙찰자 상세. 2026-09-02 진단으로 확인했습니다.
+#   bidwinnrNm / bidwinnrBizno / bidwinnrCeoNm / bidwinnrAdrs / bidwinnrTelNo
+#   sucsfbidAmt / sucsfbidRate / prtcptCnum(참가업체수) 까지 옵니다.
+#   개찰결과 오퍼레이션에는 주소·전화가 없어서 이걸 따로 받습니다.
+SCSBID = {
+    "con":  f"{BASE}/as/ScsbidInfoService/getScsbidListSttusCnstwk",
+    "serv": f"{BASE}/as/ScsbidInfoService/getScsbidListSttusServc",
+}
+
 LIC = {
     "con":  f"{BASE}/ad/BidPublicInfoService/getBidPblancListInfoLicenseLimit",
     "serv": f"{BASE}/ad/BidPublicInfoService/getBidPblancListInfoLicenseLimit",
@@ -295,6 +304,44 @@ def extra_amounts(item):
                     "contrctrcnstrtnGovsplyMtrlAmt", "govsplyMtrlAmt") or 0)
     if g > 0:
         out["gmtrl"] = g
+    return out
+
+
+def scsbid_by_day(key, day, kind):
+    """하루치 낙찰자 상세를 받아 {공고번호: {...}} 로.
+
+    사용자가 «1순위 업체 주소·전화를 보고 싶다» 고 해서 붙였습니다.
+    나라장터 개찰 결과에 공개되는 정보입니다."""
+    out = {}
+    for pg in range(1, 6):
+        got = fetch(SCSBID[kind], key, day, {"pageNo": str(pg)},
+                    label=f"낙찰자 {kind} {day:%m-%d} {pg}쪽")
+        for it in got:
+            no = str(pick(it, "bidNtceNo") or "").strip()
+            if not no:
+                continue
+            row = {}
+            nm = pick(it, "bidwinnrNm")
+            if nm:
+                row["win"] = str(nm).strip()[:40]
+            for src, dst in (("bidwinnrBizno", "bno"), ("bidwinnrCeoNm", "ceo"),
+                             ("bidwinnrAdrs", "adr"), ("bidwinnrTelNo", "tel")):
+                v = pick(it, src)
+                if v:
+                    row[dst] = str(v).strip()[:60]
+            np = to_int(pick(it, "prtcptCnum") or 0)
+            if np:
+                row["np"] = np
+            sa = to_int(pick(it, "sucsfbidAmt") or 0)
+            if sa:
+                row["sAmt"] = sa
+            sr = to_rate(pick(it, "sucsfbidRate"))
+            if sr is not None:
+                row["sRate"] = sr
+            if row:
+                out[no] = row
+        if len(got) < 999:
+            break
     return out
 
 
@@ -674,6 +721,7 @@ def main():
     n_base = 0
     n_lic = 0
     n_aval = 0
+    n_win = 0
     for i in range(days - 1, -1, -1):
         day = today - timedelta(days=i)
         ds = day.strftime("%m-%d")
@@ -722,6 +770,17 @@ def main():
                         n_aval += 1
             time.sleep(args.sleep)
 
+            # ── 낙찰자 상세 (주소·전화·참가업체수) ──
+            sm = scsbid_by_day(key, day, kind)
+            for no, v in sm.items():
+                row = first[kind].get(no)
+                if row is not None:
+                    for f, val in v.items():
+                        if not row.get(f):
+                            row[f] = val
+                    n_win += 1
+            time.sleep(args.sleep)
+
             # ── 면허·업종 제한 ──────────────────────
             # 면허제한은 «등록일» 기준으로 옵니다.
             # 그날 공고만 붙이면 대부분 비어 있게 됩니다 — 저장소 전체에 맞춰봅니다.
@@ -736,7 +795,8 @@ def main():
 
         print(f"  {ds}  1순위 {len(first['con']) + len(first['serv']):,}건 "
               f"/ 공고 {len(live['con']) + len(live['serv']):,}건 "
-              f"/ 기초금액 {n_base:,}건 / A값 {n_aval:,}건 / 면허 {n_lic:,}건 누적")
+              f"/ 기초금액 {n_base:,}건 / A값 {n_aval:,}건 "
+              f"/ 면허 {n_lic:,}건 / 낙찰자상세 {n_win:,}건 누적")
 
     # ── 화면에 실릴 최근 건 중 기초금액이 빈 것만 공고번호로 개별 보충 ──
     todo = []
