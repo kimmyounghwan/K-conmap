@@ -1429,3 +1429,47 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
 }
 .scored .sv .base .how { display: block; font-size: 11px; color: var(--muted); }
 .scored .sv .cav { margin-top: 8px; font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+/* 검증 화면 — 어떤 공고를 채점하는지 밝힙니다 */
+.scored .stitle {
+  padding: 10px 14px; border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.scored .stitle b {
+  display: block; font-size: 14.5px; font-weight: 800; color: var(--text);
+  line-height: 1.35; word-break: keep-all;
+}
+.scored .stitle span {
+  display: block; margin-top: 2px; font-size: 11.5px; color: var(--muted);
+}
+.calctoggle { width: 100%; margin-bottom: 10px; }
+
+/* 검증 화면 머리말 — 오늘 기준이 아니라 «그 공고» 기준입니다 */
+.todaybar.verify { background: linear-gradient(120deg, #134e4a 0%, #0f766e 60%, #14b8a6 100%); }
+
+/* ── 카드마다 아주 연한 색을 깔아 «어디 이야기인지» 눈으로 갈립니다 ──
+   진하게 하면 글자가 안 읽히므로 배경은 연하게, 구분은 왼쪽 띠로 냅니다. */
+.card.c-cond, .card.c-info, .card.c-sj,
+.card.c-step, .card.c-mkt, .card.c-sim, .card.c-stop {
+  border-left: 4px solid var(--line);
+}
+.card.c-cond { background: #fbfdff; border-left-color: #60a5fa; }   /* 입찰 조건 — 파랑 */
+.card.c-info { background: #fcfcfd; border-left-color: #94a3b8; }   /* 분석 정보 — 회색 */
+.card.c-sj   { background: #fdfbff; border-left-color: #a78bfa; }   /* 사정률 후보 — 보라 */
+.card.c-step { background: #fffdfa; border-left-color: #fbbf24; }   /* 시나리오 — 노랑 */
+.card.c-mkt  { background: #fafefb; border-left-color: #34d399; }   /* 지금 시장 — 초록 */
+.card.c-sim  { background: #fbfdfe; border-left-color: #22d3ee; }   /* 시뮬레이션 — 청록 */
+.card.c-stop { background: #fffafa; border-left-color: #ef4444; }   /* 계산 금지 — 빨강 */
+
+@media (prefers-color-scheme: dark) {
+  .card.c-cond { background: #131a24; }
+  .card.c-info { background: #14171c; }
+  .card.c-sj   { background: #17141f; }
+  .card.c-step { background: #1a1710; }
+  .card.c-mkt  { background: #101a15; }
+  .card.c-sim  { background: #101a1d; }
+  .card.c-stop { background: #1e1315; }
+}
+
+/* 낙찰하한율 옆의 «실효» 표기 */
+.kv2 b .sub2 { font-weight: 700; color: var(--warn); font-size: 11.5px; }

@@ -997,11 +997,14 @@ def main():
                        int(r.get("base") or 0), r.get("dt") or "",
                        r.get("tel") or "", r.get("ceo") or "",
                        r.get("bno") or "", r.get("adr") or "",
-                       1 if r.get("tsrc") else 0]
+                       1 if r.get("tsrc") else 0,
+                       # 어떤 공고를 채점하는지 화면에 밝혀야 합니다.
+                       # 이게 없어서 «무슨 공고인지 모르겠다» 는 화면이 나왔습니다.
+                       str(r.get("name") or "")[:60], str(r.get("inst") or "")[:30]]
         path = os.path.join(OUT, "bidresult.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump({"built": built, "f": ["win", "amt", "rate", "np", "base", "dt",
-                             "tel", "ceo", "bno", "adr", "tsrc"],
+                             "tel", "ceo", "bno", "adr", "tsrc", "name", "inst"],
                        "r": out}, f, ensure_ascii=False, separators=(",", ":"))
         print(f"  → bidresult 최근 7일 개찰 {len(out):,}건 "
               f"({os.path.getsize(path)/1024:.0f}KB)")

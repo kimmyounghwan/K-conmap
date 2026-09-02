@@ -38,9 +38,39 @@ function lowerLimit(estimate) {
   return { rate: 89.745, note: '추정가격 10억 미만' }
 }
 
-function bidAmount(base, sajeong, rate, aVal) {
+/* ⚠️ 2026-09-02 — 여기가 이 사이트에서 제일 중요한 두 줄입니다. 실제로 틀렸었습니다.
+
+   조달청이 개찰결과에 주는 «투찰률»은  투찰금액 ÷ 예정가격  입니다. A값을 빼지 않습니다.
+   실측으로 확인했습니다(A값이 실린 공고 30건):
+     · 투찰금액 ÷ 예정가격 으로 되짚은 사정률  중앙 99.88 (실측 기준선 99.852와 일치)
+     · A값을 뺀 식으로 되짚으면            중앙 99.55 (0.3%p 어긋남)
+     · 낙찰하한과의 여유도 앞 식에서만 0.002~0.08% 로 «하한에 딱 붙어» 나옵니다.
+
+   그런데 «낙찰하한금액»은 적격심사 규정대로 A값을 뺀 식입니다:
+       낙찰하한금액 = (예정가격 − A) × 낙찰하한율 + A
+
+   두 식을 섞으면 안 됩니다. 예전 코드는 우리 권장 투찰률(낙찰률 공간의 값)을
+   A값 식에 넣어, A가 기초의 5%인 공고에서 실효 투찰률을 0.49%p 밀어 올렸습니다.
+   권장 90.10% 로 알고 넣었는데 실제로는 90.59% 로 들어가 최빈값보다 위였습니다. */
+
+/** 투찰금액 = 예정가격 × 투찰률 (조달청 투찰률 정의 그대로) */
+function bidAmount(base, sajeong, rate) {
   if (!base || !rate) return 0
-  return Math.ceil((base * (sajeong / 100) - aVal) * (rate / 100) + aVal)
+  return Math.ceil(base * (sajeong / 100) * (rate / 100))
+}
+
+/** 낙찰하한금액 = (예정가격 − A) × 하한율 + A — 적격심사 규정 */
+function limitAmount(base, sajeong, llRate, aVal) {
+  if (!base || !llRate) return 0
+  const yeje = base * (sajeong / 100)
+  return Math.ceil((yeje - aVal) * (llRate / 100) + aVal)
+}
+
+/** 그 하한금액을 «투찰률»로 환산한 값. A가 있으면 명목 하한율보다 높습니다. */
+function limitRate(base, sajeong, llRate, aVal) {
+  const yeje = base * (sajeong / 100)
+  if (!yeje || !llRate) return 0
+  return (limitAmount(base, sajeong, llRate, aVal) / yeje) * 100
 }
 
 const digits = (s) => String(s || '').replace(/[^0-9]/g, '')
@@ -57,6 +87,9 @@ export default function BaroBid() {
   const [btOpen, setBtOpen] = useState(false)
   const [bs, setBs] = useState(null)      // 규모별 참가업체수·A값 비율
   const [res, setRes] = useState(null)    // 개찰 결과 (채점용)
+  /* «검증하러 온 화면»에서 계산기 입력칸까지 펼쳐 보이면
+     검증하러 왔는데 또 뭘 쓰라는 화면이 됩니다. 기본은 접어 둡니다. */
+  const [showCalc, setShowCalc] = useState(false)
 
   const [q, setQ] = useState('')
   const [picked, setPicked] = useState(null)
@@ -134,7 +167,7 @@ export default function BaroBid() {
       setRes(a ? {
         no, win: a[0], amt: a[1], rate: a[2], np: a[3], base: a[4], dt: a[5],
         tel: a[6] || '', ceo: a[7] || '', bno: a[8] || '', adr: a[9] || '',
-        tsrc: a[10] || 0,
+        tsrc: a[10] || 0, name: a[11] || '', inst: a[12] || '',
       } : null)
     })
     return () => { ok = false }
@@ -219,18 +252,23 @@ export default function BaroBid() {
   const choices = []
   if (rec != null) choices.push({ k: 'rec', label: '권장', rate: rec, why: `전국 최근 ${hot.win}일` })
   if (ll?.rate) {
-    choices.push({ k: 'limit', label: '하한', rate: ll.rate, why: '낙찰하한율' })
-    choices.push({ k: 'safe', label: '하한+0.3', rate: r3(ll.rate + 0.3), why: '여유' })
+    /* A값이 있으면 «명목 하한율»로 넣으면 실격입니다. 실효 하한으로 올려서 보여줍니다. */
+    const lr = base > 0 ? r3(limitRate(base, sjMid, ll.rate, a)) : ll.rate
+    choices.push({ k: 'limit', label: '하한', rate: lr, why: '낙찰하한(실효)' })
+    choices.push({ k: 'safe', label: '하한+0.3', rate: r3(lr + 0.3), why: '여유' })
   }
   const chosen = choices.find((c) => c.k === pickRate)
   const myRate = pickRate === 'own' ? (Number(ownRate) || 0) : (chosen?.rate ?? rec ?? 0)
 
-  const main = bidAmount(base, sjMid, myRate, a)
-  const bandLo = bidAmount(base, sjLo, myRate, a)
-  const bandHi = bidAmount(base, sjHi, myRate, a)
+  const main = bidAmount(base, sjMid, myRate)
+  const bandLo = bidAmount(base, sjLo, myRate)
+  const bandHi = bidAmount(base, sjHi, myRate)
 
-  const pass = ll?.rate ? myRate >= ll.rate : null
-  const margin = ll?.rate ? r3(myRate - ll.rate) : null
+  /* 하한 판정은 «명목 하한율»이 아니라 «A값을 반영한 실효 하한 투찰률»과 견줍니다.
+     A값이 있는 공고에서 명목 하한율만 보면 통과인 줄 알고 실격합니다. */
+  const llEff = ll?.rate ? r3(limitRate(base, sjMid, ll.rate, a)) : null
+  const pass = llEff ? myRate >= llEff : null
+  const margin = llEff ? r3(myRate - llEff) : null
 
   const steps = []
   for (let s = 100 + lo; s <= 100 + hi + 0.001; s += 0.5) steps.push(Math.round(s * 100) / 100)
@@ -270,14 +308,18 @@ export default function BaroBid() {
   })()
 
   const bstat = bs && band ? (bs.bands?.[band.key] || null) : null
+  /* 채점 결과가 있고 아직 직접 계산을 펼치지 않았으면 «검증 화면»입니다 */
+  const verifyMode = !!res && !showCalc
 
   const dd = picked ? dday(picked.close) : null
   const topMax = hot?.top?.length ? Math.max(...hot.top.map((t) => t[1])) : 1
 
   return (
     <>
-      {/* ── 오늘의 기준 ── */}
-      {hot?.mode != null && (
+      {/* ── 오늘의 기준 ──
+          검증 화면에서는 «그 공고의 규모»를 기준으로 보여줍니다.
+          위에서는 10억 미만이라 하고 아래 채점표는 10억~50억이라 하면 서로 어긋납니다. */}
+      {hot?.mode != null && !verifyMode && (
         <div className="todaybar">
           <div>
             <div className="k">
@@ -319,6 +361,33 @@ export default function BaroBid() {
         </div>
       )}
 
+      {/* 검증(채점)하러 들어온 화면에서는 입력칸을 접습니다.
+          1순위에서 넘어온 값만으로 판정이 끝나기 때문입니다. */}
+      {verifyMode && scored && !scored.skip && (
+        <div className="todaybar verify">
+          <div>
+            <div className="k">
+              검증 기준 · 추정가격 {scored.band ? scored.band.label : '—'}
+            </div>
+            <div className="v">
+              이 공고의 확정 예정가격 {won(scored.yeje)}
+            </div>
+          </div>
+          <div className="r">
+            <div className="k">그때 권장했을 값</div>
+            <div className="v big">{pct(scored.our, 2)}</div>
+          </div>
+        </div>
+      )}
+
+      {verifyMode && (
+        <button className="btn ghost sm calctoggle" onClick={() => setShowCalc(true)}>
+          ✏️ 이 공고로 직접 계산해 보기 (기초금액·A값 넣기)
+        </button>
+      )}
+
+      {!verifyMode && (
+      <>
       {/* ── 1. 공고 찾기 ── */}
       <div className="card">
         <div className="field">
@@ -474,6 +543,9 @@ export default function BaroBid() {
         </div>
       </div>
 
+      </>
+      )}
+
       {/* ── 개찰 결과 채점 — 우리 말이 맞았는지 그 자리에서 봅니다 ── */}
       {res && (
         <div className={'scored ' + (scored?.dq ? 'dq' : scored?.beat ? 'win' : 'lose')}>
@@ -482,6 +554,12 @@ export default function BaroBid() {
             <span>개찰 끝난 공고입니다 — 채점해 드립니다</span>
             <span className="dt">{String(res.dt).slice(0, 16)}</span>
           </div>
+          {(res.name || res.inst) && (
+            <div className="stitle">
+              <b>{res.name}</b>
+              <span>{res.inst}{res.no ? ` · ${res.no}` : ''}</span>
+            </div>
+          )}
           <div className="srow">
             <div className="s1">
               <span className="k">실제 1순위</span>
@@ -568,7 +646,7 @@ export default function BaroBid() {
 
       {/* 종합심사 대상이면 계산을 아예 하지 않습니다. 0원을 보여주는 건 사고입니다. */}
       {base > 0 && band && band.rec == null ? (
-        <div className="card">
+        <div className="card c-stop">
           <div className="detail-h">이 공고는 계산기를 쓰면 안 됩니다</div>
           <div className="kv2">
             <div><span>기초금액</span><b>{won(base)}</b></div>
@@ -591,6 +669,7 @@ export default function BaroBid() {
           </div>
         </div>
       ) : base <= 0 ? (
+        verifyMode ? null : (
         <div className="hintbox">
           {picked ? (
             <>
@@ -602,6 +681,7 @@ export default function BaroBid() {
             <>위에서 공고를 고르거나 기초금액을 넣으면 <b>투찰금액이 바로 나옵니다.</b></>
           )}
         </div>
+        )
       ) : (
         <>
           {/* ── 3. 결과 ── */}
@@ -648,7 +728,7 @@ export default function BaroBid() {
 
           {/* ── 분석 정보 ── */}
           {picked && (
-            <div className="card">
+            <div className="card c-info">
               <div className="detail-h">분석 정보</div>
               <div className="kv2">
                 <div><span>공고명</span><b>{picked.name}</b></div>
@@ -658,9 +738,11 @@ export default function BaroBid() {
                 <div><span>예가범위</span><b>+{hi}% ~ {lo}%</b></div>
                 <div><span>공사 규모</span>
                   <b>{band ? band.label : '-'}{band?.rec == null ? ' · 종합심사' : ''}</b></div>
-                <div><span>낙찰하한율</span><b>{ll?.rate ? pct(ll.rate, 3) : '별도 기준'}</b></div>
+                <div><span>낙찰하한율</span>
+                  <b>{ll?.rate ? pct(ll.rate, 3) : '별도 기준'}
+                    {a > 0 && llEff ? <span className="sub2"> · 실효 {pct(llEff, 3)}</span> : null}</b></div>
                 {ll?.rate > 0 && (
-                  <div><span>하한 금액</span><b>{won(bidAmount(base, sjMid, ll.rate, a))}</b></div>
+                  <div><span>하한 금액</span><b>{won(limitAmount(base, sjMid, ll.rate, a))}</b></div>
                 )}
                 <div><span>A값</span>
                   <b>{a > 0 ? won(a) : (picked.aval ? won(picked.aval) : '공고서 확인')}</b></div>
@@ -682,7 +764,7 @@ export default function BaroBid() {
             {choices.map((c) => (
               <button key={c.k}
                 className={(pickRate === c.k ? 'on' : '')
-                  + (ll?.rate && c.rate < ll.rate ? ' warn' : '')}
+                  + (llEff && c.rate < llEff ? ' warn' : '')}
                 onClick={() => { setPickRate(c.k); setCopied(false) }}>
                 <b>{c.label}</b><span>{c.rate.toFixed(3)}%</span>
               </button>
@@ -709,13 +791,17 @@ export default function BaroBid() {
               {ll.rate == null ? (
                 <>ℹ️ <b>100억 이상 종합심사</b> — 별도 기준이라 낙찰하한율을 적용하지 않습니다.</>
               ) : pass ? (
-                <>✅ <b>낙찰하한 {pct(ll.rate, 3)} 통과</b> · 여유 {margin.toFixed(3)}%p
+                <>✅ <b>낙찰하한 {pct(llEff ?? ll.rate, 3)} 통과</b> · 여유 {margin.toFixed(3)}%p
                   {margin < 0.1 && <><br />여유가 거의 없습니다. 사정률이 조금만 높게 나와도 미달이 됩니다.</>}</>
               ) : (
-                <>⛔ <b>낙찰하한 {pct(ll.rate, 3)} 미달 — 이대로 넣으면 실격입니다.</b><br />
+                <>⛔ <b>낙찰하한 {pct(llEff ?? ll.rate, 3)} 미달 — 이대로 넣으면 실격입니다.</b><br />
                   {Math.abs(margin).toFixed(3)}%p 부족합니다.</>
               )}
               <div className="sub">
+                {a > 0 && llEff && (
+                  <>공고 하한율 {pct(ll.rate, 3)} + A값 {won(a)} → 실효 하한 {pct(llEff, 3)}.
+                    {' '}A값이 있으면 명목 하한율보다 높아집니다. · </>
+                )}
                 {ll.note}
                 {ll.given ? ' · 이 공고에 실제로 적힌 값입니다.'
                   : ' · 일반공사 적격심사 기준으로 추정한 값입니다. 공고서를 꼭 확인하세요.'}
@@ -752,7 +838,7 @@ export default function BaroBid() {
           )}
 
           {picked && (
-            <div className="card">
+            <div className="card c-cond">
               <div className="detail-h">이 공고에 넣으려면</div>
               <div className="cond">
                 <div className={'c' + (picked.rgnb ? ' warn' : '')}>
@@ -814,11 +900,11 @@ export default function BaroBid() {
               <div className="kv">
                 <div>
                   <span>A값 0원일 때 하한</span>
-                  <b>{won(bidAmount(base, sjMid, ll.rate, 0))}</b>
+                  <b>{won(limitAmount(base, sjMid, ll.rate, 0))}</b>
                 </div>
                 <div>
                   <span>A값이 기초의 10%라면</span>
-                  <b className="hi">{won(bidAmount(base, sjMid, ll.rate, Math.round(base * 0.1)))}</b>
+                  <b className="hi">{won(limitAmount(base, sjMid, ll.rate, Math.round(base * 0.1)))}</b>
                 </div>
               </div>
               <p className="last">
@@ -830,7 +916,7 @@ export default function BaroBid() {
 
           {/* ── 사정률 후보 10개 ── */}
           {(ov?.sjc || []).length > 0 && (
-            <div className="card">
+            <div className="card c-sj">
               <div className="detail-h">
                 사정률 후보 <span className="count">· 실제 개찰 {num(ov.sjn)}건에서 나온 자리</span>
               </div>
@@ -846,7 +932,7 @@ export default function BaroBid() {
                     <button key={v} className={'sjc' + (on ? ' on' : '')}
                       onClick={() => { setSjPick(v); setCopied(false) }}>
                       <span className="r">{v.toFixed(4)}</span>
-                      <span className="a">{wonShort(bidAmount(base, v, myRate, a))}</span>
+                      <span className="a">{wonShort(bidAmount(base, v, myRate))}</span>
                     </button>
                   )
                 })}
@@ -861,7 +947,7 @@ export default function BaroBid() {
           {bt && <SimBlock bt={bt} open={btOpen} setOpen={setBtOpen} />}
 
           {/* ── 4. 사정률 시나리오 ── */}
-          <div className="card">
+          <div className="card c-step">
             <div className="detail-h">
               사정률이 이렇게 나오면 <span className="count">· 개찰 때 추첨으로 정해집니다</span>
             </div>
@@ -876,8 +962,9 @@ export default function BaroBid() {
               <tbody>
                 {steps.map((s) => {
                   const yeje = base * (s / 100)
-                  const r2 = yeje > a ? ((main - a) / (yeje - a)) * 100 : 0
-                  const ok = ll?.rate ? r2 >= ll.rate : true
+                  /* 내가 정한 금액(main)을 그 사정률의 예정가격으로 나눈 «실제 투찰률» */
+                  const r2 = yeje > 0 ? (main / yeje) * 100 : 0
+                  const ok = ll?.rate ? main >= limitAmount(base, s, ll.rate, a) : true
                   const near = Math.abs(s - sjMid) < 0.26
                   return (
                     <tr key={s} className={near ? 'on' : ''}>
@@ -895,7 +982,7 @@ export default function BaroBid() {
 
           {/* ── 5. 지금 시장 ── */}
           {hot?.top?.length > 0 && (
-            <div className="card">
+            <div className="card c-mkt">
               <div className="detail-h">
                 지금 시장 <span className="count">· 전국 최근 {hot.win}일 낙찰률 {num(hot.n)}건</span>
               </div>
@@ -975,7 +1062,7 @@ export default function BaroBid() {
 function SimBlock({ bt, open, setOpen }) {
   const cases = open ? bt.cases : bt.cases.slice(0, 3)
   return (
-    <div className="card">
+    <div className="card c-sim">
       <div className="detail-h">
         가상 시뮬레이션
         {/* ⚠️ bt.n 은 «화면에 보여주는 사례 수»(24건)입니다.
