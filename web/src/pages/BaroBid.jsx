@@ -134,6 +134,7 @@ export default function BaroBid() {
       setRes(a ? {
         no, win: a[0], amt: a[1], rate: a[2], np: a[3], base: a[4], dt: a[5],
         tel: a[6] || '', ceo: a[7] || '', bno: a[8] || '', adr: a[9] || '',
+        tsrc: a[10] || 0,
       } : null)
     })
     return () => { ok = false }
@@ -498,7 +499,10 @@ export default function BaroBid() {
                   <div><span>사업자</span>
                     <b>{res.bno.slice(0, 3)}-{res.bno.slice(3, 5)}-{res.bno.slice(5)}</b></div>
                 )}
-                {res.adr && <div className="wide"><span>주소</span><b>{res.adr}</b></div>}
+                {res.adr && (
+                  <div className="wide"><span>주소</span>
+                    <b>{res.adr}{res.tsrc ? <i className="tsrc">다른 공고에서 확인</i> : null}</b></div>
+                )}
               </div>
               {res.tel ? (
                 <a className="wtel" href={`tel:${res.tel.replace(/[^0-9+]/g, '')}`}>
@@ -949,12 +953,22 @@ function SimBlock({ bt, open, setOpen }) {
     <div className="card">
       <div className="detail-h">
         가상 시뮬레이션
-        <span className="count">· 최근 {bt.days}일 개찰 {num(bt.n)}건에 대봤습니다</span>
+        {/* ⚠️ bt.n 은 «화면에 보여주는 사례 수»(24건)입니다.
+            실제로 대본 건수는 bt.tested 입니다. 예전에 24건이라고 적어
+            «표본이 24건뿐»으로 읽혔습니다. */}
+        <span className="count">
+          · 최근 {bt.days}일 개찰 {num(bt.tested || bt.n)}건에 대봤습니다
+        </span>
       </div>
+      {bt.to && (
+        <div className="simrange">
+          {bt.from} ~ <b>{bt.to}</b> 개찰분 · 배치가 돌 때마다 다시 계산합니다
+        </div>
+      )}
 
       <div className="simsum">
         <div>
-          <span>한 개라도 맞은 공고</span>
+          <span>후보 하나라도 1순위를 이긴 공고</span>
           <b className="hi">{bt.anyRate}%</b>
         </div>
         <div>

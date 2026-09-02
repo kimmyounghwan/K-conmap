@@ -106,12 +106,24 @@ function BidTab({ r }) {
               <div><span>사업자</span>
                 <b>{r.bno.slice(0, 3)}-{r.bno.slice(3, 5)}-{r.bno.slice(5)}</b></div>
             )}
-            {r.adr && <div><span>주소</span><b>{r.adr}</b></div>}
+            {r.adr && (
+              <div><span>주소</span>
+                <b>{r.adr}{r.tsrc ? <i className="tsrc">다른 공고에서 확인</i> : null}</b></div>
+            )}
             {r.tel && (
               <div><span>전화</span>
-                <b><a href={`tel:${r.tel.replace(/[^0-9+]/g, '')}`}>{r.tel}</a></b></div>
+                <b><a href={`tel:${r.tel.replace(/[^0-9+]/g, '')}`}>{r.tel}</a>
+                  {r.tsrc ? <i className="tsrc">다른 공고에서 확인</i> : null}</b></div>
             )}
           </div>
+          {/* 조달청은 낙찰자 상세를 «주는 공고»에만 실어 줍니다.
+              없는 걸 «-» 로 채우지 않고, 왜 없는지 밝힙니다. */}
+          {!r.adr && !r.tel && (
+            <div className="wno solo" style={{ marginTop: 8, borderTop: 0 }}>
+              이 공고는 조달청이 주소·전화를 함께 주지 않았고, 이 업체의 다른 공고에서도
+              아직 확인되지 않았습니다.
+            </div>
+          )}
         </div>
       )}
 

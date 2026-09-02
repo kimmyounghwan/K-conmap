@@ -1401,3 +1401,18 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
 }
 .scored .wno.solo { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; }
 @media (max-width: 420px) { .scored .wk { grid-template-columns: 1fr; } }
+
+/* 가상 시뮬레이션 — 언제 것인지 밝힙니다 */
+.simrange {
+  margin: -4px 0 9px; font-size: 11.5px; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.simrange b { color: var(--text-2); font-weight: 800; }
+
+/* 낙찰업체 연락처를 다른 공고에서 빌려왔을 때 */
+.tsrc {
+  display: inline-block; margin-left: 6px;
+  padding: 1px 6px; border-radius: 999px;
+  font-size: 10px; font-weight: 800;
+  color: var(--warn); background: var(--warn-soft); border: 1px solid #f2d9a8;
+}

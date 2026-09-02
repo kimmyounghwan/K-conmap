@@ -996,11 +996,12 @@ def main():
                        r.get("rate"), int(r.get("np") or 0),
                        int(r.get("base") or 0), r.get("dt") or "",
                        r.get("tel") or "", r.get("ceo") or "",
-                       r.get("bno") or "", r.get("adr") or ""]
+                       r.get("bno") or "", r.get("adr") or "",
+                       1 if r.get("tsrc") else 0]
         path = os.path.join(OUT, "bidresult.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump({"built": built, "f": ["win", "amt", "rate", "np", "base", "dt",
-                             "tel", "ceo", "bno", "adr"],
+                             "tel", "ceo", "bno", "adr", "tsrc"],
                        "r": out}, f, ensure_ascii=False, separators=(",", ":"))
         print(f"  → bidresult 최근 7일 개찰 {len(out):,}건 "
               f"({os.path.getsize(path)/1024:.0f}KB)")
@@ -1069,6 +1070,47 @@ def main():
             f"{k}:{out['bands'][k]['n']}건·중앙{out['bands'][k]['npMed']}개사"
             for k, _, _ in BND)
         print(f"  → bandstat  {line}")
+
+    def fill_contacts(fstore):
+        """주소·전화 메우기.
+
+        조달청은 낙찰자 상세를 «주는 공고»에만 실어 줍니다 — 실측 31%.
+        그런데 같은 업체(사업자번호)가 다른 공고에서는 주소·전화와 함께 나옵니다.
+        그래서 사업자번호로 이어 붙입니다. 가장 최근에 확인된 값을 씁니다.
+        빌려온 값은 tsrc 로 표시해, 화면에서 «다른 공고에서 확인» 이라고 밝힙니다.
+        (없는 걸 지어내지 않습니다 — 조달청이 준 값을 옮겨 담을 뿐입니다)"""
+        book = {}
+        for r in (fstore.get("con") or {}).values():
+            bno = (r.get("bno") or "").strip()
+            if not bno or not (r.get("tel") or r.get("adr")):
+                continue
+            d = dt_digits(r.get("dt")) or ""
+            cur = book.get(bno)
+            if cur is None or d > cur[0]:
+                book[bno] = (d, r.get("tel") or "", r.get("adr") or "")
+        n = 0
+        for r in (fstore.get("con") or {}).values():
+            if r.get("tel") or r.get("adr"):
+                continue
+            got = book.get((r.get("bno") or "").strip())
+            if not got:
+                continue
+            _, tel, adr = got
+            if tel:
+                r["tel"] = tel
+            if adr:
+                r["adr"] = adr
+            r["tsrc"] = 1
+            n += 1
+        have = sum(1 for r in (fstore.get("con") or {}).values() if r.get("tel") or r.get("adr"))
+        tot = len(fstore.get("con") or {})
+        print(f"  → 연락처 {n:,}건을 다른 공고에서 이어붙임 "
+              f"(전체 {have:,}/{tot:,} = {have/max(tot,1)*100:.0f}%)")
+
+    try:
+        fill_contacts(first)
+    except Exception as e:
+        print(f"  ! 연락처 잇기 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
 
     print("-" * 52)
     export("first", first, "dt")

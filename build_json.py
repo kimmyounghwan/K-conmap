@@ -777,6 +777,7 @@ def build_sim(df, cands, rec_rate):
         return 89.745
 
     cases, hit_all, tried = [], 0, 0
+    n_all, won_all, dts = 0, 0, []
     for _, r in g.iterrows():
         b = float(r["base"])
         win_amt = float(r["amt"])
@@ -796,6 +797,14 @@ def build_sim(df, cands, rec_rate):
         hits = sum(1 for m in marks if m[2])
         hit_all += hits
         tried += len(marks)
+        # ⚠️ 2026-09-02 바로잡음.
+        #   예전에는 «한 개라도 맞은 공고»를 화면에 보여주는 24건만으로 셌습니다.
+        #   그래서 늘 100% 로 나왔습니다 — 최근 24건만 보면 거의 다 맞으니까요.
+        #   시험한 전체(30일 수천 건)로 세야 정직한 숫자입니다.
+        n_all += 1
+        if hits > 0:
+            won_all += 1
+        dts.append(r["dt"])
         if len(cases) < SIM_CASES:
             cases.append({
                 "no": str(r.get("공고번호") or "")[:20],
@@ -813,18 +822,20 @@ def build_sim(df, cands, rec_rate):
 
     if not cases:
         return None
-    won_any = sum(1 for c in cases if c["hit"] > 0)
     out = {
         "days": SIM_DAYS,
         "rate": rec_rate,
         "cands": cands,
-        "n": len(cases),
+        "n": len(cases),              # 화면에 보여주는 사례 수
+        "tested": n_all,              # 실제로 시험한 개찰 건수 (30일 전체)
+        "from": min(dts).strftime("%Y-%m-%d") if dts else "",
+        "to": max(dts).strftime("%Y-%m-%d") if dts else "",
         "hitRate": round(hit_all / tried * 100, 1) if tried else 0,
-        "anyRate": round(won_any / len(cases) * 100, 1),
+        "anyRate": round(won_all / n_all * 100, 1) if n_all else 0,
         "cases": cases,
     }
     write_json("sim.json", out)
-    log(f"시뮬레이션 {len(cases)}건 · 후보 {len(cands)}개 중 평균 "
+    log(f"시뮬레이션 시험 {n_all:,}건(보여주기 {len(cases)}건) · 후보 {len(cands)}개 중 평균 "
         f"{out['hitRate']}% 적중 · 한 개라도 맞은 공고 {out['anyRate']}%")
     return out
 
