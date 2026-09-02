@@ -76,6 +76,9 @@ function limitRate(base, sajeong, llRate, aVal) {
 const digits = (s) => String(s || '').replace(/[^0-9]/g, '')
 const toNum = (s) => Number(digits(s)) || 0
 const r3 = (n) => Math.round(n * 1000) / 1000
+/* 하한 관련 비율은 반올림하면 실제 하한금액 아래로 내려갑니다.
+   «✅ 통과 · 여유 0.000%p» 를 띄운 채 몇백 원이 모자라 실격합니다. 그래서 올립니다. */
+const c3 = (n) => Math.ceil(n * 1000) / 1000
 
 export default function BaroBid() {
   const [sp] = useSearchParams()
@@ -99,6 +102,8 @@ export default function BaroBid() {
   const [budgetIn, setBudgetIn] = useState('')
   const [aIn, setAIn] = useState('')
   const [pickRate, setPickRate] = useState('rec')   // rec | limit | safe | own
+  /* 사용자가 직접 고른 뒤에는 자동으로 바꾸지 않습니다 */
+  const rateTouched = useRef(false)
   const [ownRate, setOwnRate] = useState('')
   const [copied, setCopied] = useState(false)
   const [sjPick, setSjPick] = useState(null)   // 사정률 후보를 직접 고른 경우
@@ -168,11 +173,28 @@ export default function BaroBid() {
         no, win: a[0], amt: a[1], rate: a[2], np: a[3], base: a[4], dt: a[5],
         tel: a[6] || '', ceo: a[7] || '', bno: a[8] || '', adr: a[9] || '',
         tsrc: a[10] || 0, name: a[11] || '', inst: a[12] || '',
+        aval: a[13] || 0, ayn: a[14] || '',
       } : null)
     })
     return () => { ok = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [picked, q])
+
+  /* 공고 화면에서 «💰 바로투찰» 로 넘어오면 공고번호 하나만 옵니다.
+     그 번호로 목록에서 찾아 자동으로 골라 줍니다 —
+     기초금액·A값·면허·지역·낙찰하한율이 전부 따라옵니다.
+     (예전에는 사용자가 공고번호를 적어 와서 다시 검색해야 했습니다) */
+  const autoPicked = useRef(false)
+  useEffect(() => {
+    if (autoPicked.current || picked) return
+    const no = (sp.get('no') || '').trim().toUpperCase()
+    if (!no || !rows.length) return
+    const hit = rows.find((r) => String(r.no).toUpperCase() === no)
+    if (!hit) { autoPicked.current = true; return }   // 마감된 공고면 채점만 합니다
+    autoPicked.current = true
+    pick(hit)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows])
 
   const qDigits = digits(q)
   const qIsAmount = q.trim().length > 0 && qDigits.length >= 7
@@ -202,7 +224,10 @@ export default function BaroBid() {
     setPicked(r); setQ(r.name); setInst(r.inst)
     setBase(r.base || 0); setBudgetIn(''); setPickRate('rec'); setCopied(false)
     // 공고에 A값이 실려 오면 그대로 채웁니다 (손으로 옮겨 적을 일을 없애는 게 이 화면의 목적)
-    setAIn(r.aval ? String(r.aval) : '')
+    /* ⚠️ bidPrceCalclAYn='N' 은 «이 공고는 A값을 적용하지 않는다» 는 뜻입니다.
+       그런데 수집 쪽은 항목 합계를 그대로 담습니다. 화면에서 걸러야 합니다.
+       안 거르면 하한을 실제보다 높게 잡아 «통과인데 실격» 이라고 겁을 줍니다. */
+    setAIn(r.ayn === 'N' ? '' : (r.aval ? String(r.aval) : ''))
     setSjPick(null)
   }
   const clear = () => {
@@ -249,13 +274,42 @@ export default function BaroBid() {
   const sjLo = ov?.sjq?.p10 ?? sjMid
   const sjHi = ov?.sjq?.p90 ?? sjMid
 
+  /* ══════════════════════════════════════════════════════════════
+     권장 투찰금액 — 2026-09-02 전면 교체 (3년치 역검증 2,532건)
+
+     예전: 전국 최빈 낙찰률 − 0.20%p  →  **2,532건 중 58%가 낙찰하한 미달(실격)**
+     지금: 사정률을 «95분위로 높게» 잡고 그 예정가격에서의 낙찰하한금액
+
+         권장금액 = ceil( (기초금액 × 사정률95 ÷ 100 − A) × 낙찰하한율 ÷ 100 + A )
+
+     왜 사정률을 높게 잡나:
+       투찰할 때는 예정가격을 모릅니다. 사정률이 높게 나오면 낙찰하한금액도 올라가는데,
+       금액을 낮게 잡아 두면 바로 그때 실격합니다. 100번 중 95번은 이 금액이 하한을 넘습니다.
+
+     역검증 성적 (10억 미만 2,479건, 2026-05~09):
+       │ 방식            │ 1순위 획득 │ 실격   │
+       │ 예전(최빈−0.20) │ 10.4%     │ 58.1% │
+       │ 지금(사정률95)  │ 12.3%     │  5.3% │
+     승률은 사정률을 어디로 잡든 12% 안팎으로 비슷합니다. 갈리는 건 실격률입니다.
+     ══════════════════════════════════════════════════════════════ */
+  const sj95 = ov?.sjq?.p95 ?? null
+  const rec95 = (base > 0 && ll?.rate && sj95)
+    ? c3(limitAmount(base, sj95, ll.rate, a) / (base * (sjMid / 100)) * 100)
+    : null
+
   const choices = []
-  if (rec != null) choices.push({ k: 'rec', label: '권장', rate: rec, why: `전국 최근 ${hot.win}일` })
+  if (rec95 != null) {
+    choices.push({ k: 'rec', label: '권장', rate: rec95, why: '사정률이 높게 나와도 안전' })
+  } else if (rec != null) {
+    choices.push({ k: 'rec', label: '권장', rate: rec, why: `전국 최근 ${band?.win ?? hot?.win ?? 30}일` })
+  }
   if (ll?.rate) {
     /* A값이 있으면 «명목 하한율»로 넣으면 실격입니다. 실효 하한으로 올려서 보여줍니다. */
-    const lr = base > 0 ? r3(limitRate(base, sjMid, ll.rate, a)) : ll.rate
-    choices.push({ k: 'limit', label: '하한', rate: lr, why: '낙찰하한(실효)' })
-    choices.push({ k: 'safe', label: '하한+0.3', rate: r3(lr + 0.3), why: '여유' })
+    const lr = base > 0 ? c3(limitRate(base, sjMid, ll.rate, a)) : ll.rate
+    /* 중앙 사정률 기준 하한입니다. 사정률이 그보다 높게 나오면 실격입니다.
+       역검증에서 이 근처를 노리면 실격이 절반 가까이 났습니다. 이름으로 알려줍니다. */
+    choices.push({ k: 'limit', label: '최저', rate: lr, why: '사정률 높으면 실격' })
+    choices.push({ k: 'safe', label: '중간', rate: r3(lr + 0.3), why: '절충' })
   }
   const chosen = choices.find((c) => c.k === pickRate)
   const myRate = pickRate === 'own' ? (Number(ownRate) || 0) : (chosen?.rate ?? rec ?? 0)
@@ -266,9 +320,21 @@ export default function BaroBid() {
 
   /* 하한 판정은 «명목 하한율»이 아니라 «A값을 반영한 실효 하한 투찰률»과 견줍니다.
      A값이 있는 공고에서 명목 하한율만 보면 통과인 줄 알고 실격합니다. */
-  const llEff = ll?.rate ? r3(limitRate(base, sjMid, ll.rate, a)) : null
-  const pass = llEff ? myRate >= llEff : null
+  const llEff = ll?.rate ? c3(limitRate(base, sjMid, ll.rate, a)) : null
+  /* 최종 판정은 «금액» 으로 합니다. 비율 비교만 하면 소수점에서 새어 나갑니다. */
+  const pass = ll?.rate && base > 0
+    ? main >= limitAmount(base, sjMid, ll.rate, a)
+    : (llEff ? myRate >= llEff : null)
   const margin = llEff ? r3(myRate - llEff) : null
+
+  /* ⚠️ A값이 있는 공고에서는 전국 권장값이 실효 하한 아래일 수 있습니다.
+     그때 «권장» 을 기본으로 띄우면 실격 금액을 기본값으로 내미는 셈입니다.
+     그래서 자동으로 «하한» 으로 옮기고, 왜 옮겼는지 화면에 적습니다. */
+  const recBelow = llEff != null && rec95 == null && rec != null && rec < llEff
+  useEffect(() => {
+    if (rateTouched.current) return
+    if (recBelow) setPickRate('limit')
+  }, [recBelow])
 
   const steps = []
   for (let s = 100 + lo; s <= 100 + hi + 0.001; s += 0.5) steps.push(Math.round(s * 100) / 100)
@@ -282,6 +348,8 @@ export default function BaroBid() {
   /* 개찰이 끝난 공고면 «우리 권장으로 넣었으면 어땠나»를 채점합니다.
      순위는 투찰률로 갈립니다(예정가격 대비 비율이라 사정률과 무관).
      그래서 우리 권장 투찰률과 실제 1순위 투찰률을 그대로 견줍니다. */
+  const bstatOf = (bd) => (bd && bs?.bands?.[bd.key]?.ar) ? bs.bands[bd.key] : null
+
   const scored = (() => {
     if (!res || !res.rate || !res.amt) return null
     /* ⚠️ 채점은 «추정»으로 하면 안 됩니다.
@@ -297,13 +365,23 @@ export default function BaroBid() {
       (x) => est >= x.min && (x.max == null || est < x.max)) || null
     const our = bd ? bd.rec : (ov?.hot?.rec ?? null)
     if (our == null) return { yeje, est, band: bd, skip: true }
-    const lim = bd ? bd.llr : null
+    const nom = bd ? bd.llr : null            // 명목 낙찰하한율
+    /* ⚠️ 여기가 핵심입니다.
+       실격 여부는 «명목 하한율» 이 아니라 «A값을 반영한 실효 하한» 으로 갈립니다.
+           실효하한 = 하한율 + (A/예정가격) × (100 − 하한율)
+       예전에는 A를 0으로 놓아, A값이 있는 공고까지 전부 «가져갔을 자리» 로 나왔습니다.
+       그 공고의 A값이 실려 오면 그 값으로, 없으면 규모별 중앙 비율로 «가정» 하고 밝힙니다. */
+    const realA = res.ayn === 'N' ? 0 : (res.aval || 0)
+    const guess = !realA && res.ayn !== 'N'
+    const aUse = realA || (guess && bstatOf(bd) ? Math.round(yeje * bstatOf(bd).ar) : 0)
+    const lim = nom == null ? null
+      : c3(nom + (yeje > 0 ? (aUse / yeje) : 0) * (100 - nom))
     return {
-      yeje, est, band: bd, our, lim,
+      yeje, est, band: bd, our, lim, nom, aUse, guess: guess && aUse > 0,
       ourAmt: Math.ceil(yeje * (our / 100)),
       gap: r3(our - res.rate),
-      beat: our < res.rate,
       dq: lim != null && our < lim,
+      beat: our < res.rate && !(lim != null && our < lim),
     }
   })()
 
@@ -616,17 +694,24 @@ export default function BaroBid() {
             <div className="sv">
               <div className="base">
                 확정 예정가격 <b>{won(scored.yeje)}</b>
-                <span className="how">1순위 투찰금액 ÷ 투찰률로 되짚은 값입니다 — 추정이 아닙니다</span>
+                <span className="how">1순위 투찰금액 ÷ 투찰률로 되짚은 값입니다 (±수천원)</span>
                 <br />
                 규모 {scored.band ? scored.band.label : '—'}
-                {scored.lim != null && <> · 낙찰하한 {pct(scored.lim, 3)}</>}
+                {scored.nom != null && <> · 공고 하한율 {pct(scored.nom, 3)}</>}
+                {scored.lim != null && scored.aUse > 0 && (
+                  <> · A값 {won(scored.aUse)}{scored.guess ? '(추정)' : ''} →
+                    {' '}<b>실효 하한 {pct(scored.lim, 3)}</b></>
+                )}
               </div>
               {scored.dq ? (
-                <>우리 권장({pct(scored.our, 3)})이 이 규모의 낙찰하한({pct(scored.lim, 3)})보다 낮습니다.
-                  <b> 그대로 넣었으면 실격이었습니다.</b></>
+                <>우리 권장({pct(scored.our, 3)})이 <b>실효 낙찰하한 {pct(scored.lim, 3)}보다 낮습니다.</b>
+                  {' '}그대로 넣었으면 <b>실격</b>이었습니다.
+                  {scored.guess
+                    ? ' (이 공고의 A값이 안 실려 와, 같은 규모 중앙값으로 가정했습니다)'
+                    : ' A값 때문에 하한이 명목보다 올라갑니다.'}</>
               ) : scored.beat ? (
                 <>우리 권장이 1순위보다 <b>{Math.abs(scored.gap).toFixed(3)}%p 낮고</b>
-                  {scored.lim != null ? <> 낙찰하한({pct(scored.lim, 3)})도 넘깁니다</> : null} —
+                  {scored.lim != null ? <> 실효 하한({pct(scored.lim, 3)})도 넘깁니다</> : null} —
                   <b> 이 공고는 가져갔을 자리입니다.</b>
                   {Math.abs(scored.gap) < 0.05 && <> 다만 차이가 거의 없어 운에 가깝습니다.</>}</>
               ) : (
@@ -701,6 +786,12 @@ export default function BaroBid() {
               투찰률 {pct(myRate, 3)} · 예정가격 {won(Math.round(base * (sjMid / 100)))}
             </div>
             <div className="range">사정률에 따라 {wonShort(bandLo)} ~ {wonShort(bandHi)}</div>
+            {pickRate === 'rec' && rec95 != null && (
+              <div className="why95">
+                사정률 {sj95?.toFixed(2)}%(100번 중 95번은 이보다 낮음)에서도
+                낙찰하한을 넘도록 잡은 금액입니다
+              </div>
+            )}
             <div className="hbtns">
               <button className="cbtn" onClick={copy}>
                 {copied ? '✓ 복사했습니다' : '금액 복사'}
@@ -765,12 +856,12 @@ export default function BaroBid() {
               <button key={c.k}
                 className={(pickRate === c.k ? 'on' : '')
                   + (llEff && c.rate < llEff ? ' warn' : '')}
-                onClick={() => { setPickRate(c.k); setCopied(false) }}>
+                onClick={() => { rateTouched.current = true; setPickRate(c.k); setCopied(false) }}>
                 <b>{c.label}</b><span>{c.rate.toFixed(3)}%</span>
               </button>
             ))}
             <button className={pickRate === 'own' ? 'on' : ''}
-              onClick={() => setPickRate('own')}>
+              onClick={() => { rateTouched.current = true; setPickRate('own') }}>
               <b>직접</b><span>입력</span>
             </button>
           </div>
@@ -782,6 +873,17 @@ export default function BaroBid() {
                   onChange={(e) => { setOwnRate(e.target.value.replace(/[^0-9.]/g, '')); setCopied(false) }}
                   placeholder={rec ? String(rec) : '90.1'} />
               </div>
+            </div>
+          )}
+
+          {recBelow && (
+            <div className="warnbox">
+              <div className="h">⚠️ 이 공고는 전국 권장값으로 넣으면 실격입니다</div>
+              <p>
+                A값이 있어 <b>실효 낙찰하한이 {pct(llEff, 3)}</b> 인데,
+                전국 권장은 {pct(rec, 3)} 입니다. 그래서 기본값을 <b>«하한»</b> 으로 옮겨 뒀습니다.
+                낙찰자들은 이런 공고에서 하한 바로 위에 붙입니다.
+              </p>
             </div>
           )}
 
@@ -996,8 +1098,9 @@ export default function BaroBid() {
                 ))}
               </div>
               <div className="note sm">
-                권장 투찰률은 이 최빈값에서 {ov?.hotOffset ?? 0.2}%p 낮춘 값입니다.
-                최빈값은 낙찰하한율보다 대개 조금 위에 있어서, 그대로 맞추면 낙찰자보다 높아집니다.
+                참고용 분포입니다. <b>권장 금액은 이 최빈값에서 뽑지 않습니다.</b>
+                최빈값에서 빼는 방식은 3년치 역검증에서 2,532건 중 <b>58%가 낙찰하한 미달</b>이었습니다.
+                지금은 사정률을 95분위로 높게 잡고 그 예정가격의 낙찰하한금액을 씁니다 — 실격 5.3%.
               </div>
             </div>
           )}
@@ -1075,6 +1178,19 @@ function SimBlock({ bt, open, setOpen }) {
       {bt.to && (
         <div className="simrange">
           {bt.from} ~ <b>{bt.to}</b> 개찰분 · 배치가 돌 때마다 다시 계산합니다
+          {bt.aAssumed ? (
+            <><br />
+              합격 판정에 A값을 넣습니다.
+              {bt.aReal >= 99 ? (
+                <> <b>전부 그 공고의 실제 A값</b>입니다.</>
+              ) : bt.aReal > 0 ? (
+                <> <b>{bt.aReal}% 는 실제 A값</b>, 나머지는 같은 규모 중앙값
+                  {' '}{bt.aAssumed}% 로 가정합니다.</>
+              ) : (
+                <> 개찰 자료에는 A값이 없어 같은 규모 중앙값 <b>{bt.aAssumed}%</b> 로 가정합니다.</>
+              )}
+              {bt.aReal < 99 && ' 실제 A값이 쌓일수록 이 숫자는 정확해집니다.'}</>
+          ) : null}
         </div>
       )}
 

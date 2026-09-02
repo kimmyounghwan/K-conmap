@@ -1473,3 +1473,20 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
 
 /* 낙찰하한율 옆의 «실효» 표기 */
 .kv2 b .sub2 { font-weight: 700; color: var(--warn); font-size: 11.5px; }
+
+/* 공고 카드에서 곧장 바로투찰로 — 펼치지 않아도 갈 수 있게 */
+.gocalc {
+  margin-left: auto; flex-shrink: 0;
+  padding: 3px 9px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 800; text-decoration: none;
+  color: #fff; background: linear-gradient(100deg, #1d4ed8, #3b82f6);
+  box-shadow: 0 2px 8px rgba(29, 78, 216, .28);
+}
+.gocalc:hover { filter: brightness(1.08); }
+
+/* 권장 금액의 근거 한 줄 */
+.hero .why95 {
+  margin-top: 7px; padding-top: 7px;
+  border-top: 1px solid rgba(255,255,255,.18);
+  font-size: 11.5px; opacity: .85; line-height: 1.5;
+}

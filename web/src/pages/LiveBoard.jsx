@@ -129,6 +129,8 @@ export default function LiveBoard() {
                   <span>·</span>
                   <span>{dateTime(r.dt)}</span>
                   {dd && <span className={'badge ' + dd.tone}>{dd.text}</span>}
+                  <Link className="gocalc" onClick={(e) => e.stopPropagation()}
+                    to={`/?no=${encodeURIComponent(r.no || '')}`}>💰 바로투찰</Link>
                   {r.base > 0 && <span className="badge n">기초 {wonShort(r.base)}</span>}
                 </div>
                 <div className="foot">
@@ -177,12 +179,15 @@ export default function LiveBoard() {
                       </div>
                     </div>
 
-                    {r.base > 0 && (
-                      <Link className="btn" style={{ width: '100%', margin: '10px 0' }}
-                        to={`/?base=${r.base}&inst=${encodeURIComponent(r.inst || '')}&name=${encodeURIComponent(r.name || '')}${r.llr ? `&llr=${r.llr}` : ''}`}>
-                        💰 이 공고 투찰금액 계산하기 ({wonShort(r.base)})
-                      </Link>
-                    )}
+                    {/* 공고번호만 넘깁니다. 바로투찰이 그 번호로 공고를 찾아
+                        기초금액·A값·면허·지역·낙찰하한율을 «스스로» 채웁니다.
+                        예전에는 기초금액이 있는 공고에만 버튼이 떠서,
+                        기초금액이 아직 안 나온 공고는 손으로 옮겨 적어야 했습니다. */}
+                    <Link className="btn" style={{ width: '100%', margin: '10px 0' }}
+                      to={`/?no=${encodeURIComponent(r.no || '')}`}>
+                      💰 이 공고로 바로투찰 계산하기
+                      {r.base > 0 ? ` (기초 ${wonShort(r.base)})` : ' (기초금액 공개 전)'}
+                    </Link>
 
                     <div className="kv2">
                       {r.main && <div><span>주공종</span><b>{r.main}</b></div>}

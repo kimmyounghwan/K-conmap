@@ -766,6 +766,32 @@ def build_sim(df, cands, rec_rate):
         return None
     g = g.sort_values("dt", ascending=False)
 
+    # ⚠️ 2026-09-02 — 합격 판정에 A값을 넣습니다.
+    #   조달청 투찰률은 «투찰금액÷예정가격» 이고, 낙찰하한금액은 «(예정−A)×하한율+A» 라
+    #   A값이 있으면 실효 하한 투찰률이 명목보다 높습니다:
+    #       실효하한 = 하한율 + (A/예정) × (100 − 하한율)
+    #   예전에는 A=0 으로 판정해서 «한 개라도 맞은 공고» 가 80% 로 부풀려져 있었습니다.
+    #   개찰 자료에는 A값이 없으므로 규모별 중앙 비율(bandstat)을 씁니다.
+    #   **가정값이므로 화면에 «A값 N% 가정» 이라고 밝힙니다.**
+    A_RATIO = {}
+    try:
+        _bs = json.load(open(os.path.join(OUT, "bandstat.json"), encoding="utf-8"))
+        for _k, _v in (_bs.get("bands") or {}).items():
+            if _v.get("ar"):
+                A_RATIO[_k] = float(_v["ar"])
+    except Exception:
+        pass
+    A_DEFAULT = A_RATIO.get("s", 0.05)
+
+    def a_ratio_of(est):
+        if est < 10e8:
+            return A_RATIO.get("s", A_DEFAULT)
+        if est < 50e8:
+            return A_RATIO.get("m", A_DEFAULT)
+        if est < 100e8:
+            return A_RATIO.get("l", A_DEFAULT)
+        return A_RATIO.get("xl", A_DEFAULT)
+
     def limit_of(est):
         eok = est / 1e8
         if eok >= 100:
@@ -778,6 +804,7 @@ def build_sim(df, cands, rec_rate):
 
     cases, hit_all, tried = [], 0, 0
     n_all, won_all, dts = 0, 0, []
+    a_real = 0        # 실제 A값을 쓴 건수 (나머지는 규모별 중앙 비율로 «가정»)
     for _, r in g.iterrows():
         b = float(r["base"])
         win_amt = float(r["amt"])
@@ -785,6 +812,19 @@ def build_sim(df, cands, rec_rate):
         if not (95 <= real_sj <= 105):
             continue
         ll = limit_of(b / 1.1)
+        # ⚠️ A값은 «가정» 이 아니라 «실제값» 이 있으면 그걸 씁니다.
+        #   개찰결과 API 는 A값을 주지 않아서, 공고 쪽에서 받아 누적 CSV 에 적어 둡니다.
+        #   아직 안 적힌 옛 자료만 규모별 중앙 비율로 가정합니다.
+        _av = to_amt(r.get("A값")) if "A값" in g.columns else 0
+        _ayn = str(r.get("A값적용") or "").strip() if "A값적용" in g.columns else ""
+        if _ayn == "N":
+            aR, is_real = 0.0, True
+        elif _av > 0 and b > 0:
+            aR, is_real = _av / b, True
+        else:
+            aR, is_real = a_ratio_of(b / 1.1), False
+        if is_real:
+            a_real += 1
         marks = []
         for c in cands:
             yeje = b * (c / 100.0)
@@ -792,7 +832,9 @@ def build_sim(df, cands, rec_rate):
             # 실제 예정가격(= 실제 사정률로 정해진 값) 기준으로 판정합니다
             real_yeje = b * (real_sj / 100.0)
             my_rate = (amt / real_yeje * 100.0) if real_yeje else 0
-            passed = (ll is None or my_rate >= ll) and amt < win_amt
+            # 실효 하한 = 하한율 + (A/예정) × (100 − 하한율)
+            eff = None if ll is None else ll + aR * (100.0 - ll)
+            passed = (eff is None or my_rate >= eff) and amt < win_amt
             marks.append([c, int(amt), bool(passed)])
         hits = sum(1 for m in marks if m[2])
         hit_all += hits
@@ -830,6 +872,8 @@ def build_sim(df, cands, rec_rate):
         "tested": n_all,              # 실제로 시험한 개찰 건수 (30일 전체)
         "from": min(dts).strftime("%Y-%m-%d") if dts else "",
         "to": max(dts).strftime("%Y-%m-%d") if dts else "",
+        "aAssumed": round(A_DEFAULT * 100, 2),   # 실제값이 없을 때 쓰는 가정치
+        "aReal": n_all and round(a_real / n_all * 100, 1),   # 실제 A값을 쓴 비율
         "hitRate": round(hit_all / tried * 100, 1) if tried else 0,
         "anyRate": round(won_all / n_all * 100, 1) if n_all else 0,
         "cases": cases,
@@ -863,8 +907,14 @@ def build_overview(df, n_agency, n_corp, n_kw):
         # 사정률 분포 — 투찰가 계산기의 «예정가격이 어디쯤 나올까» 재료
         "sj": sj,
         "sjn": len(sjs),
+        # ⚠️ p95 는 «권장 투찰금액» 의 기준입니다. 지우지 마세요.
+        #   투찰 시점에 예정가격을 모르므로, 사정률을 «높게» 잡아야 안전합니다.
+        #   사정률이 높으면 낙찰하한금액도 높아지는데, 금액을 낮게 잡아 두면 그때 실격합니다.
+        #   3년치 역검증(2,532건): q50 기준이면 실격 48%, q95 기준이면 5.3%.
+        #   승률은 q50~q95 에서 11.9~13.2% 로 거의 같습니다. 낮게 잡을 이유가 없습니다.
         "sjq": {"p10": _q(0.10), "p25": _q(0.25), "p50": _q(0.50),
-                "p75": _q(0.75), "p90": _q(0.90)} if sjs_sorted else None,
+                "p75": _q(0.75), "p90": _q(0.90), "p95": _q(0.95),
+                "p98": _q(0.98)} if sjs_sorted else None,
         # 권장 투찰률 — 바로투찰 화면의 기본값
         "hot": hot["hot"],
         "hot30": hot["hot30"],

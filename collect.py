@@ -61,8 +61,14 @@ def archive_path(ym):
 #   같은 이름의 다른 법인이 아주 많습니다 — «대영건설» 한 이름에 법인 40곳.
 #   3년치의 46%가 그런 이름이라, 번호가 없으면 업체 화면 절반이 남의 실적입니다.
 #   조달청 응답에 이미 들어 있는데(업체명^사업자번호^대표^금액^투찰률) 그동안 버리고 있었습니다.
+# ⚠️ A값 칸을 넣은 이유 —
+#   가상 시뮬레이션의 «합격 판정»에 A값이 필요한데, 개찰결과 API 는 A값을 주지 않습니다.
+#   그래서 그동안 «A값 5% 가정» 으로 돌렸습니다. 가정은 결과를 흔듭니다.
+#   A값은 «공고» 쪽 오퍼레이션에만 있으므로, 받아 둘 때 누적 CSV 에도 같이 적어
+#   앞으로는 실제값으로 시뮬레이션합니다.
 ARCH_COLS = ["공고번호", "날짜", "발주기관", "공고명",
-             "1순위업체", "사업자번호", "대표자", "투찰금액", "투찰률", "기초금액"]
+             "1순위업체", "사업자번호", "대표자", "투찰금액", "투찰률", "기초금액",
+             "A값", "A값적용"]
 
 BASE = "http://apis.data.go.kr/1230000"
 ENDPOINTS = {
@@ -343,6 +349,38 @@ def scsbid_by_day(key, day, kind):
         if len(got) < 999:
             break
     return out
+
+
+def backfill_bsis(key, first, live, days, sleep=0.4):
+    """지난 N일치 기초금액·A값을 다시 훑어 빈 칸을 채웁니다.
+
+    왜 필요한가:
+      기초금액과 A값은 «공고» 오퍼레이션에서만 옵니다. 그런데 배치는 최근 2~3일만
+      훑기 때문에, 그 시점에 아직 공개되지 않은 기초금액·A값은 영영 못 받습니다.
+      실측: 개찰 500건 중 기초금액 167건(33%), A값 42건(8.4%) 뿐이었습니다.
+      그러면 시뮬레이션이 «A값 가정» 으로 돌아갑니다.
+    비용:
+      bsis_by_day 는 하루당 1~2회 호출입니다. 45일이면 50~90회 — 하루 한 번이면 부담 없습니다.
+    """
+    got = 0
+    for i in range(days, 0, -1):
+        day = datetime.now(KST) - timedelta(days=i)
+        for kind in KINDS:
+            bm = bsis_by_day(key, day, kind)
+            for store in (first, live):
+                for no, b in bm.items():
+                    row = store.get(kind, {}).get(no)
+                    if row is None:
+                        continue
+                    for f, v in b.items():
+                        if v not in (None, "", 0) and not row.get(f):
+                            row[f] = v
+                            if f == "aval":
+                                got += 1
+            time.sleep(sleep)
+        if NET_DOWN:
+            break
+    print(f"  → 소급 보충 {days}일치 — A값 {got:,}건 새로 채움")
 
 
 def bsis_by_day(key, day, kind):
@@ -633,7 +671,46 @@ def archive(first):
                 "투찰금액": r.get("amt", 0),
                 "투찰률": "" if r.get("rate") is None else r.get("rate"),
                 "기초금액": r.get("base", "") or "",
+                "A값": r.get("aval", "") or "",
+                "A값적용": r.get("ayn", "") or "",
             })
+
+    # 이미 적힌 줄이라도 A값이 비어 있고 이제 알게 됐으면 채웁니다.
+    # (이번 달·지난 달 파일만 — 오래된 건 어차피 조달청에서 더 못 받습니다)
+    try:
+        known = {}
+        for kind in ("con", "serv"):
+            for no, r in first[kind].items():
+                if r.get("aval") or r.get("ayn"):
+                    known[no] = (r.get("aval") or "", r.get("ayn") or "")
+        if known:
+            now = datetime.now(KST)
+            months = {now.strftime("%Y-%m"),
+                      (now.replace(day=1) - timedelta(days=1)).strftime("%Y-%m")}
+            fixed = 0
+            for ym in months:
+                path = os.path.join(ARCHIVE_DIR, f"extra_{ym}.csv")
+                if not os.path.exists(path):
+                    continue
+                with io.open(path, encoding="utf-8-sig", newline="") as f:
+                    rows = list(csv.DictReader(f))
+                ch = False
+                for row in rows:
+                    k = known.get((row.get("공고번호") or "").strip())
+                    if k and not (row.get("A값") or "").strip():
+                        row["A값"], row["A값적용"] = k[0], k[1]
+                        ch = True
+                        fixed += 1
+                if ch:
+                    with io.open(path, "w", encoding="utf-8-sig", newline="") as g:
+                        w = csv.DictWriter(g, fieldnames=ARCH_COLS, extrasaction="ignore")
+                        w.writeheader()
+                        for row in rows:
+                            w.writerow({c: row.get(c, "") for c in ARCH_COLS})
+            if fixed:
+                print(f"  → 누적 CSV 의 A값 {fixed:,}칸을 뒤늦게 채웠습니다")
+    except Exception as e:
+        print(f"  ! A값 소급 기록 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
 
     if not buckets:
         print("  · 누적 CSV — 새로 추가할 건 없음")
@@ -689,6 +766,8 @@ def main():
     ap.add_argument("--days", type=int, default=3)
     ap.add_argument("--backfill", type=int, default=0)
     ap.add_argument("--sleep", type=float, default=0.6)
+    ap.add_argument("--fillbsis", type=int, default=0,
+                    help="지난 N일치 기초금액·A값을 소급해서 채웁니다 (하루 한 번이면 충분)")
     ap.add_argument("--probe", action="store_true",
                     help="투찰업체 전체를 주는 오퍼레이션이 있는지 한 번 확인만 합니다")
     args = ap.parse_args()
@@ -1000,11 +1079,15 @@ def main():
                        1 if r.get("tsrc") else 0,
                        # 어떤 공고를 채점하는지 화면에 밝혀야 합니다.
                        # 이게 없어서 «무슨 공고인지 모르겠다» 는 화면이 나왔습니다.
-                       str(r.get("name") or "")[:60], str(r.get("inst") or "")[:30]]
+                       str(r.get("name") or "")[:60], str(r.get("inst") or "")[:30],
+                       # 채점의 실격 판정에 필요합니다. A값을 모르면 하한을 낮게 잡아
+                       # «가져갔을 자리»가 남발됩니다.
+                       int(r.get("aval") or 0), r.get("ayn") or ""]
         path = os.path.join(OUT, "bidresult.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump({"built": built, "f": ["win", "amt", "rate", "np", "base", "dt",
-                             "tel", "ceo", "bno", "adr", "tsrc", "name", "inst"],
+                             "tel", "ceo", "bno", "adr", "tsrc", "name", "inst",
+                             "aval", "ayn"],
                        "r": out}, f, ensure_ascii=False, separators=(",", ":"))
         print(f"  → bidresult 최근 7일 개찰 {len(out):,}건 "
               f"({os.path.getsize(path)/1024:.0f}KB)")
@@ -1114,6 +1197,48 @@ def main():
         fill_contacts(first)
     except Exception as e:
         print(f"  ! 연락처 잇기 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
+
+    # ── 소급 보충 ────────────────────────────────────────────────
+    #  A값이 비어 있으면 시뮬레이션이 «가정» 으로 돌아갑니다.
+    #  그래서 «시켜야 하는» 일로 두지 않고, **모자라면 스스로 채우게** 합니다.
+    #    · 최근 45일 개찰 중 A값(또는 A값미적용 표시)을 아는 비율이 60% 미만이면 자동 실행
+    #    · 하루 한 번만 (data/store/.fill 에 날짜를 적어 둡니다)
+    #    · --fillbsis N 을 주면 조건 없이 N일치 실행
+    auto_days = 0
+    try:
+        cut45 = (datetime.now(KST) - timedelta(days=45)).strftime("%Y%m%d%H%M")
+        recent = [r for r in first.get("con", {}).values()
+                  if (dt_digits(r.get("dt")) or "0") >= cut45]
+        if recent:
+            known = sum(1 for r in recent if r.get("aval") or r.get("ayn"))
+            cov = known / len(recent)
+            mark = os.path.join(STORE, ".fill")
+            today = datetime.now(KST).strftime("%Y-%m-%d")
+            done_today = os.path.exists(mark) and open(mark).read().strip() == today
+            print(f"  · 최근 45일 개찰 {len(recent):,}건 중 A값 아는 것 "
+                  f"{known:,}건 ({cov*100:.1f}%)")
+            if cov < 0.60 and not done_today:
+                auto_days = 45
+                print("  · A값이 모자랍니다 — 소급 보충을 스스로 돌립니다")
+            elif cov < 0.60:
+                print("  · 오늘 이미 소급 보충을 했습니다 — 건너뜁니다")
+    except Exception as e:
+        print(f"  ! 커버리지 확인 실패 ({type(e).__name__}) — 넘어갑니다")
+
+    fill_days = args.fillbsis or auto_days
+    if fill_days > 0 and not NET_DOWN:
+        print("-" * 52)
+        try:
+            backfill_bsis(key, first, live, fill_days, args.sleep)
+            try:
+                with open(os.path.join(STORE, ".fill"), "w") as f:
+                    f.write(datetime.now(KST).strftime("%Y-%m-%d"))
+            except Exception:
+                pass
+            save_store("first", first)
+            save_store("live", live)
+        except Exception as e:
+            print(f"  ! 소급 보충 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
 
     print("-" * 52)
     export("first", first, "dt")
