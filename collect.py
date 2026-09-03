@@ -992,9 +992,27 @@ def main():
                          "안 주면 시각을 보고 알아서 정합니다(정밀 회차 250 / 그 외 60). 0이면 안 함")
     ap.add_argument("--fillbsis", type=int, default=0,
                     help="지난 N일치 기초금액·A값을 소급해서 채웁니다 (하루 한 번이면 충분)")
+    ap.add_argument("--fillonly", action="store_true",
+                    help="조달청을 부르지 않고, 이미 받아 둔 자료로 "
+                         "누적 CSV 의 빈칸만 채웁니다 (호출 0번 · 몇 초)")
     ap.add_argument("--probe", action="store_true",
                     help="투찰업체 전체를 주는 오퍼레이션이 있는지 한 번 확인만 합니다")
     args = ap.parse_args()
+
+    # ── --fillonly : 조달청을 한 번도 부르지 않습니다 ────────────────
+    #   이미 data/store/ 에 받아 둔 것으로 누적 CSV 의 빈칸만 채웁니다.
+    #   API 키도 필요 없고, 몇 초면 끝납니다.
+    #   («--days 30 이 중간에 끊겼다» 같은 상황에서 그때까지 받은 것만이라도
+    #     바로 자료에 반영하려고 만들었습니다)
+    if args.fillonly:
+        print("=" * 52)
+        print("  이미 받아 둔 자료로 누적 CSV 빈칸 채우기 (조달청 호출 0번)")
+        print("=" * 52)
+        _first = load_store("first")
+        _live = load_store("live")
+        archive(_first, _live)
+        print("완료.")
+        return
 
     load_env()
     key = api_key()
@@ -1126,6 +1144,17 @@ def main():
               f"/ 공고 {len(live['con']) + len(live['serv']):,}건 "
               f"/ 기초금액 {n_base:,}건 / 빈칸메움 {n_aval:,}건 "
               f"/ 면허 {n_lic:,}건 / 낙찰자상세 {n_win:,}건 누적")
+
+        # ⚠️ 2026-09-03 — 하루가 끝날 때마다 저장합니다.
+        #   전에는 «맨 끝에 한 번»만 저장했습니다. 그래서 --days 30 을 돌리다
+        #   Ctrl+C 로 멈추면 16일치 조회가 통째로 날아갔습니다 (실제로 겪음).
+        #   조달청을 다시 부르는 건 시간도 호출한도도 쓰는 일입니다. 버리면 안 됩니다.
+        #   쓰는 비용은 7.8MB 두 번 — 0.3초쯤입니다. 날리는 쪽이 훨씬 비쌉니다.
+        try:
+            save_store("first", first)
+            save_store("live", live)
+        except Exception as e:
+            print(f"    ! 중간 저장 실패 ({type(e).__name__}) — 계속합니다")
 
     # ── 화면에 실릴 최근 건 중 기초금액이 빈 것만 공고번호로 개별 보충 ──
     todo = []
