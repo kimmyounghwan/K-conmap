@@ -1876,8 +1876,19 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
 .qdial .qh { font-size: 12.5px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
 .qdial .qh i { display: block; font-style: normal; font-weight: 500; font-size: 11px; color: var(--text-2); margin-top: 2px; }
 .qdial .ratepick { margin-bottom: 8px; }
-.qdial .ratepick button { min-width: 104px; padding: 8px 4px; }
-.qdial .ratepick button i { font-style: normal; font-size: 10px; color: var(--muted); margin-top: 2px; white-space: nowrap; }
+/* 칸은 «자리»를 정해 두고(넓은 화면 4칸씩, 휴대폰 2칸씩) 글자는 그 안에서 줄바꿈합니다.
+   nowrap + 좁은 칸이면 글자가 칸 밖으로 튀어나옵니다 — 소장님 휴대폰에서 실제로 겹쳤습니다. */
+.qdial .ratepick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+.qdial .ratepick button { min-width: 0; width: 100%; padding: 8px 4px; }
+.qdial .ratepick button i {
+  display: block; width: 100%; font-style: normal; font-size: 10.5px; line-height: 1.35;
+  color: var(--muted); text-align: center; white-space: normal; word-break: keep-all;
+}
+.qdial .ratepick button i:first-of-type { margin-top: 3px; }
+@media (max-width: 560px) {
+  .qdial .ratepick { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .qdial .ratepick button i { font-size: 11px; }
+}
 .qdial .ratepick button.on i { color: var(--accent); }
 .qdial .note a { color: var(--accent); cursor: pointer; text-decoration: underline; }
 .autobox { margin: -4px 0 12px; padding: 11px 13px; border-radius: 12px; border: 1px solid var(--accent-line); background: var(--accent-soft); }

@@ -1473,7 +1473,8 @@ export default function BaroBid() {
                       try { localStorage.setItem('kcm_qtile', String(c.q)) } catch { /* noop */ }
                     }}>
                     <b>{c.label}</b><span>{c.rate.toFixed(3)}%</span>
-                    <i>살아남을 확률 {Math.round(100 - c.dq)}% · 1순위 {c.win}%</i>
+                    <i>살아남을 확률 {Math.round(100 - c.dq)}%</i>
+                    <i>1순위 {c.win.toFixed(1)}%</i>
                   </button>
                 ))}
               </div>
