@@ -9,46 +9,44 @@ const PAGE = 20
 const KIND = 'con'   // 공사만 다룹니다 (용역 제외)
 
 export default function FirstBoard() {
-  const { info, rows: all, loading, busy, done, loadMore, loadAll } = useBoard('first', KIND)
   const [ov, setOv] = useState(null)
   const [region, setRegion] = useState('전국')
   const [q, setQ] = useState('')
   const [page, setPage] = useState(1)
   const [open, setOpen] = useState(null)
 
+  /* ── 검색·지역선택은 «색인»으로 합니다 — 2026-09-03 ──────────────
+     전에는 걸러내려고 7주치 묶음을 전부 받았습니다(1,528KB).
+     이제 걸러내기에 필요한 칸만 담은 색인(358KB)을 받아 정확히 세고,
+     **그 쪽에 나올 20건이 든 묶음만** 받습니다.
+     ⚠️ 색인 한 줄의 순서는 collect.py 가 정합니다: [공고명, 기관, 낙찰업체].
+        바꾸려면 두 곳을 같이 고치세요 — selfcheck 가 대조합니다. */
+  const filtering = q.trim().length > 0 || region !== '전국'
+  const match = useMemo(() => {
+    if (!filtering) return null
+    const s = q.trim()
+    return (a) => {
+      const [name, inst, win] = a
+      if (!inRegion({ name, inst }, region)) return false
+      if (!s) return true
+      return (name || '').includes(s) || (inst || '').includes(s) || (win || '').includes(s)
+    }
+  }, [filtering, q, region])
+
+  const { info, rows: all, pageRows, total, loading, busy } =
+    useBoard('first', KIND, { match, page, perPage: PAGE })
+
   useEffect(() => { getOverview().then(setOv) }, [])
   useEffect(() => { setPage(1) }, [region, q])
 
-  // 검색하거나 지역을 고르면 7주 전체를 뒤에서 받아온다
-  useEffect(() => {
-    if (!done && (q.trim().length > 0 || region !== '전국')) loadAll()
-  }, [q, region, done, loadAll])
-
-
-  const rows = useMemo(() => {
-    const s = q.trim()
-    return all.filter((r) =>
-      inRegion(r, region) &&
-      (!s || (r.name || '').includes(s) || (r.inst || '').includes(s) || (r.win || '').includes(s))
-    )
-  }, [all, region, q])
-
-  // 가장 최근 개찰일 + 마지막 집계 시각
+  /* 검색 중이면 색인이 센 «전체 건수»가 정확합니다.
+     검색이 아니면 받아 둔 것에서 셉니다(첫 묶음 500건). */
+  const count = total != null ? total : all.length
+  const pages = Math.max(1, Math.ceil(count / PAGE))
+  const view = pageRows != null ? pageRows : all.slice((page - 1) * PAGE, page * PAGE)
+  const rows = view
+  const done = total != null
   const newest = all.length ? String(all[0].dt || '').slice(0, 10) : ''
-
-  const pages = Math.max(1, Math.ceil(rows.length / PAGE))
-  const view = rows.slice((page - 1) * PAGE, page * PAGE)
-
-  // 마지막 쪽 근처까지 넘겨보면 알아서 더 받아온다 (7주 끝까지 이어짐)
-  //  ⚠️ rows / pages 가 만들어진 뒤에 와야 합니다. 위에 두면 참조 오류가 납니다.
-  //  ⚠️ 2026-09-03 — 조건에 `!loading && page > 1` 을 넣었습니다.
-  //     page 는 1에서 시작하는데 자료가 오기 전에는 pages 도 1 입니다.
-  //     그래서 «page(1) >= pages-1(0)» 이 **화면이 뜨자마자 참**이 되어,
-  //     아무도 넘겨보지 않았는데 다섯 묶음(약 400KB)을 더 받고 있었습니다.
-  //     실제로 브라우저로 재서 잡았습니다 (board 7묶음 → 2묶음).
-  useEffect(() => {
-    if (!loading && !done && page > 1 && page >= pages - 1) loadMore()
-  }, [loading, page, pages, done, loadMore])
 
   return (
     <>
@@ -86,16 +84,18 @@ export default function FirstBoard() {
         ))}
       </div>
 
-      <RangeBar info={info} loaded={all.length} done={done} busy={busy} />
+      <RangeBar info={info} loaded={all.length} done={done} busy={busy} filtering={filtering} count={count} />
 
-      {loading ? <Skeleton /> : rows.length === 0 ? (
+      {loading || (filtering && !done) ? <Skeleton /> : rows.length === 0 ? (
         <Empty icon="🔎">
           조건에 맞는 개찰 결과가 없습니다.<br />지역을 넓히거나 검색어를 지워보세요.
         </Empty>
       ) : (
         <>
           <div className="sec-title">
-            결과 <span className="count">{num(rows.length)}건</span>
+            {/* 검색 중엔 색인이 «7주 전체»에서 센 건수입니다 — 화면에 20건만 보여도 정확합니다.
+                (전에는 받아 둔 것만 세어서 «500건 중 몇 건» 이 되곤 했습니다) */}
+            결과 <span className="count">{num(count)}건{filtering && ' (7주 전체)'}</span>
           </div>
 
           {view.map((r, i) => {
@@ -149,16 +149,23 @@ export default function FirstBoard() {
 }
 
 /** 지금 몇 건을 보고 있는지 + 7주 전체 불러오기 */
-export function RangeBar({ info, loaded, done, busy }) {
+export function RangeBar({ info, loaded, done, busy, filtering, count }) {
   if (!info) return null
   const range = info.from && info.to
     ? `${dateShort(info.from)} ~ ${dateShort(info.to)}` : ''
+  /* 2026-09-03 — 이제 목록을 «전부» 받지 않습니다.
+     그래서 「불러오는 중 500 / 11,271건」 같은 문구는 사실과 다릅니다
+     (덜 받은 게 아니라, 안 받아도 되는 것을 안 받은 것입니다).
+     검색 중이면 색인이 7주 전체에서 센 건수를, 아니면 최근 몇 건인지를 보여줍니다. */
   return (
     <div className="rangebar">
       <span className="rb-t">
-        {done
-          ? <>7주 전체 <b>{num(info.n)}건</b>{range && <> · {range}</>}</>
-          : <>불러오는 중 <b>{num(loaded)}</b> / {num(info.n)}건{range && <> · {range}</>}</>}
+        {filtering
+          ? (done
+              ? <>7주 전체 <b>{num(info.n)}건</b>에서 찾음{range && <> · {range}</>}</>
+              : <>7주 전체를 뒤지는 중…{range && <> · {range}</>}</>)
+          : <>최근 <b>{num(loaded)}건</b> 표시 · 7주 전체 {num(info.n)}건{range && <> · {range}</>}
+              {busy && ' · 더 받는 중'}</>}
       </span>
     </div>
   )

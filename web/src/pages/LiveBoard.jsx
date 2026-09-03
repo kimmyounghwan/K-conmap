@@ -39,7 +39,6 @@ function saveLicenses(v) {
 }
 
 export default function LiveBoard() {
-  const { info, rows: all, loading, busy, done, loadMore, loadAll } = useBoard('live', KIND)
   const [region, setRegion] = useState('전국')
   const [q, setQ] = useState('')
   const [page, setPage] = useState(1)
@@ -56,41 +55,37 @@ export default function LiveBoard() {
   const keywords = useMemo(
     () => [...new Set(lics.flatMap(licenseKeywords))], [lics])
 
-  // 검색·지역·면허 맞춤을 쓰면 7주 전체를 뒤에서 받아온다
-  useEffect(() => {
-    if (!done && (q.trim().length > 0 || region !== '전국' || mine)) loadAll()
-  }, [q, region, mine, done, loadAll])
-
-
-  const rows = useMemo(() => {
+  /* ── 검색·지역·면허·등급은 «색인»으로 거릅니다 — 2026-09-03 ──────
+     전에는 7주치 묶음을 전부 받았습니다(1,767KB). 이제 색인(352KB)만 받고,
+     보고 있는 쪽에 나올 20건이 든 묶음만 받습니다.
+     ⚠️ 색인 한 줄: [공고명, 기관, 기초금액, 예가하한, 예가상한]
+        — collect.py 의 export_board 가 이 순서로 만듭니다.
+        base/lo/hi 를 넣은 이유는 「해볼 만한 공고만」 등급이 이 셋을 쓰기 때문입니다. */
+  const filtering = q.trim().length > 0 || region !== '전국' || mine || onlyGood
+  const match = useMemo(() => {
+    if (!filtering) return null
     const s = q.trim()
-    return all.filter((r) => {
-      if (!inRegion(r, region)) return false
-      if (s && !((r.name || '').includes(s) || (r.inst || '').includes(s))) return false
-      if (mine && keywords.length) {
-        if (!keywords.some((k) => (r.name || '').includes(k))) return false
-      }
+    return (a) => {
+      const [name, inst, base, lo, hi] = a
+      if (!inRegion({ name, inst }, region)) return false
+      if (s && !((name || '').includes(s) || (inst || '').includes(s))) return false
+      if (mine && keywords.length && !keywords.some((k) => (name || '').includes(k))) return false
       if (onlyGood) {
-        const g = winGrade(r)
+        const g = winGrade({ name, inst, base, lo, hi })
         if (!g || (g.key !== 'A' && g.key !== 'B')) return false
       }
       return true
-    })
-  }, [all, region, q, mine, keywords, onlyGood])
+    }
+  }, [filtering, q, region, mine, keywords, onlyGood])
 
-  const pages = Math.max(1, Math.ceil(rows.length / PAGE))
-  const view = rows.slice((page - 1) * PAGE, page * PAGE)
+  const { info, rows: all, pageRows, total, loading, busy } =
+    useBoard('live', KIND, { match, page, perPage: PAGE })
 
-  // 마지막 쪽 근처까지 넘겨보면 알아서 더 받아온다 (7주 끝까지 이어짐)
-  //  ⚠️ rows / pages 가 만들어진 뒤에 와야 합니다. 위에 두면 참조 오류가 납니다.
-  //  ⚠️ 2026-09-03 — 조건에 `!loading && page > 1` 을 넣었습니다.
-  //     page 는 1에서 시작하는데 자료가 오기 전에는 pages 도 1 입니다.
-  //     그래서 «page(1) >= pages-1(0)» 이 **화면이 뜨자마자 참**이 되어,
-  //     아무도 넘겨보지 않았는데 다섯 묶음(약 400KB)을 더 받고 있었습니다.
-  //     실제로 브라우저로 재서 잡았습니다 (board 7묶음 → 2묶음).
-  useEffect(() => {
-    if (!loading && !done && page > 1 && page >= pages - 1) loadMore()
-  }, [loading, page, pages, done, loadMore])
+  const count = total != null ? total : all.length
+  const pages = Math.max(1, Math.ceil(count / PAGE))
+  const view = pageRows != null ? pageRows : all.slice((page - 1) * PAGE, page * PAGE)
+  const rows = view
+  const done = total != null
 
   const toggleLic = (l) =>
     setLics((v) => (v.includes(l) ? v.filter((x) => x !== l) : [...v, l]))
@@ -141,21 +136,22 @@ export default function LiveBoard() {
 
       {/* 실측: C·D 등급 156건에서 한 건도 못 땄습니다. 걸러 볼 수 있게 합니다. */}
       <button className={'goodonly' + (onlyGood ? ' on' : '')}
-        onClick={() => { setOnlyGood(!onlyGood); if (!done) loadAll() }}>
+        onClick={() => setOnlyGood(!onlyGood)}>
         {onlyGood ? '✓ 해볼 만한 공고만 보는 중 (A·B)' : '🎯 해볼 만한 공고만 보기 (A·B)'}
         <i>승률을 가르는 건 금액이 아니라 공고의 성격입니다 — 실측 45배 차이</i>
       </button>
 
-      <RangeBar info={info} loaded={all.length} done={done} busy={busy} />
+      <RangeBar info={info} loaded={all.length} done={done} busy={busy} filtering={filtering} count={count} />
 
-      {loading ? <Skeleton /> : rows.length === 0 ? (
+      {loading || (filtering && !done) ? <Skeleton /> : rows.length === 0 ? (
         <Empty icon="📭">
           조건에 맞는 공고가 없습니다.<br />
           {mine ? '면허 맞춤을 끄거나 면허를 추가해보세요.' : '지역을 넓히거나 검색어를 지워보세요.'}
         </Empty>
       ) : (
         <>
-          <div className="sec-title">공고 <span className="count">{num(rows.length)}건</span></div>
+          <div className="sec-title">공고 <span className="count">
+            {num(count)}건{filtering && ' (7주 전체)'}</span></div>
           {view.map((r, i) => {
             const id = `${r.no}-${i}`
             const isOpen = open === id

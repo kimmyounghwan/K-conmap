@@ -160,3 +160,8 @@ export const getLive = () => getJSON('/data/live.json')
 export const getBoardMeta = (name) => getJSON(`/data/board/${name}.json`)
 export const getBoardPart = (name, kind, i) =>
   getJSON(`/data/board/${name}-${kind}-${i}.json`)
+/* 검색 색인 — «걸러내기»에 필요한 칸만 담은 가벼운 목록.
+   검색·지역선택을 실제로 할 때만 받습니다 (1순위 358KB · 공고 352KB).
+   전에는 검색하면 묶음을 전부 받아서 1,528KB 였습니다. */
+export const getBoardIndex = (name, kind) =>
+  getJSON(`/data/board/${name}-${kind}-idx.json`)

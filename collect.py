@@ -1369,6 +1369,42 @@ def main():
                         f.write("[]")
                 i += 1
 
+            # ══════════════════════════════════════════════════════════
+            #  ★ 검색 색인 — 2026-09-03
+            #
+            #  검색하면 7주치를 다 뒤져야 하니, 전에는 묶음을 **전부** 받았습니다.
+            #  실측 1순위 1,528KB · 공고 1,767KB. 한 번 검색이 안 하는 방문 16명분입니다.
+            #
+            #  그런데 사람이 실제로 보는 건 «첫 쪽 20건» 입니다. 실측:
+            #      「도로」 597건 · 전체를 그리려면 23묶음 · **첫 20건은 1묶음**
+            #      「경주시」 65건 · 19묶음      · **첫 20건은 5묶음**
+            #  그래서 «걸러내기»에 필요한 최소한만 담은 색인을 따로 만듭니다.
+            #  화면은 이 색인으로 몇 건인지·몇 쪽인지를 정확히 세고,
+            #  **보고 있는 쪽에 필요한 묶음만** 받아옵니다.
+            #
+            #  색인 크기: 1순위 358KB · 공고 352KB (전부 받기의 1/4~1/5)
+            #  ⚠️ 순서는 묶음을 이어붙인 것과 **정확히 같아야** 합니다.
+            #     n번째 항목이 (n÷500)묶음의 (n%500)번째 줄입니다. 이게 어긋나면
+            #     검색 결과가 엉뚱한 공고를 가리킵니다. 아래 IDX_F 를 바꿀 땐
+            #     useBoard.js 의 읽는 순서도 같이 고치세요.
+            # ══════════════════════════════════════════════════════════
+            if kind == "con":
+                if name == "first":
+                    # 1순위: 검색은 공고명·기관·낙찰업체, 지역은 기관·공고명
+                    idx = [[r.get("name") or "", r.get("inst") or "",
+                            r.get("win") or ""] for r in rows]
+                    fields = ["name", "inst", "win"]
+                else:
+                    # 공고: 검색은 공고명·기관. base/lo/hi 는 「해볼 만한 공고만」 등급 계산용
+                    idx = [[r.get("name") or "", r.get("inst") or "",
+                            int(r.get("base") or 0),
+                            r.get("lo"), r.get("hi")] for r in rows]
+                    fields = ["name", "inst", "base", "lo", "hi"]
+                with open(os.path.join(out_dir, f"{name}-{kind}-idx.json"),
+                          "w", encoding="utf-8") as f:
+                    json.dump({"f": fields, "chunk": BOARD_CHUNK, "r": idx},
+                              f, ensure_ascii=False, separators=(",", ":"))
+
             days = sorted({dt_digits(r.get(date_field))[:8] for r in rows if r.get(date_field)})
             meta[kind] = {
                 "n": len(rows),
@@ -1381,9 +1417,11 @@ def main():
             json.dump(meta, f, ensure_ascii=False, separators=(",", ":"))
         size = sum(os.path.getsize(os.path.join(out_dir, x))
                    for x in os.listdir(out_dir) if x.startswith(name + "-"))
+        _ix = os.path.join(out_dir, f"{name}-con-idx.json")
+        _ixs = os.path.getsize(_ix) / 1024 if os.path.exists(_ix) else 0
         print(f"  → board/{name}  {total:,}건 "
               f"(공사 {meta['con']['parts']}묶음 / 용역 {meta['serv']['parts']}묶음, "
-              f"{size/1024/1024:.1f}MB)")
+              f"{size/1024/1024:.1f}MB · 검색색인 {_ixs:.0f}KB)")
 
 
     def export_bidindex(store, fstore):

@@ -280,6 +280,47 @@ def check_bidindex():
     return bad
 
 
+
+# ══════════════════════════════════════════════════════════════
+#  ★ 검색 색인 칸 대조 — collect.py(만드는 쪽) vs 화면(읽는 쪽)
+#
+#  색인은 이름표 없이 배열로 담습니다. 칸 순서가 두 곳에 따로 적혀 있어서
+#  한쪽만 고치면 **검색이 엉뚱한 칸을 뒤집니다 — 에러 없이.**
+#  (기관을 검색했는데 낙찰업체를 뒤지는 식. 결과가 그럴듯해서 더 위험합니다)
+# ══════════════════════════════════════════════════════════════
+def check_boardidx():
+    import re
+    print("\n" + "=" * 64)
+    print("  검색 색인 칸 대조 — collect.py vs FirstBoard·LiveBoard")
+    print("=" * 64)
+    try:
+        c = io.open(os.path.join(ROOT, "collect.py"), encoding="utf-8").read()
+        made = {}
+        for key in ("first", "live"):
+            i = c.index('if name == "first":' if key == "first" else "else:\n                    # 공고:")
+            seg = c[i:i + 1200]
+            m = re.search(r'fields = \[([^\]]+)\]', seg)
+            made[key] = re.findall(r'"(\w+)"', m.group(1)) if m else []
+        read = {}
+        for key, path in (("first", "web/src/pages/FirstBoard.jsx"),
+                          ("live", "web/src/pages/LiveBoard.jsx")):
+            t = io.open(os.path.join(ROOT, *path.split("/")), encoding="utf-8").read()
+            m = re.search(r'const \[([^\]]+)\] = a\b', t)
+            read[key] = [x.strip() for x in m.group(1).split(",")] if m else []
+    except Exception as e:
+        print(f"(건너뜀 — 읽지 못했습니다: {type(e).__name__}: {e})")
+        return []
+    bad = []
+    for key in ("first", "live"):
+        nm = "1순위" if key == "first" else "공고"
+        if made[key] and made[key] == read[key]:
+            print(f"✅ {nm}  {len(made[key])}칸 같음 — {', '.join(made[key])}")
+        else:
+            bad.append(f"{nm}: 만드는 쪽 {made[key]} ≠ 읽는 쪽 {read[key]}")
+            print(f"❌ {nm}  만드는 쪽 {made[key]}\n         읽는 쪽 {read[key]}")
+    return bad
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--build", action="store_true", help="검사 전에 npm run build 를 돕니다")
@@ -367,6 +408,11 @@ def main():
     ibad = check_bidindex()
     if ibad:
         print(f"\n⛔ bidindex 칸이 어긋납니다 — 화면이 조용히 엉뚱한 값을 보여줍니다")
+        return 1
+
+    xbad = check_boardidx()
+    if xbad:
+        print(f"\n⛔ 검색 색인 칸이 어긋납니다 — 검색이 엉뚱한 칸을 뒤집니다")
         return 1
 
     if not args.browser:
