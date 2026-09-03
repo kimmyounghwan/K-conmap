@@ -1855,3 +1855,18 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
 .rankhist .rh-sum .s { font-size: 11px; color: var(--muted); }
 .rankhist .rh-verdict { padding: 9px 11px; border-radius: 10px; background: var(--accent-soft); border: 1px solid var(--accent-line); font-size: 12.5px; line-height: 1.6; color: var(--text); margin-bottom: 8px; }
 .rankhist .rh-list .row .r { text-align: right; line-height: 1.2; }
+
+/* 🎯 자리 찾기 — 공고 탭 (2026-09-03) */
+.pickbtn { margin-top: 2px; }
+.pickctl { margin: 0 0 10px; display: flex; flex-direction: column; gap: 8px; }
+.pickctl .seg { margin: 0; }
+.pickctl .chip { align-self: flex-start; }
+.pickline {
+  margin-top: 8px; padding: 9px 12px;
+  display: flex; flex-wrap: wrap; gap: 6px 18px;
+  border: 1px dashed var(--accent-line); border-radius: 12px; background: var(--surface);
+}
+.pickline .pk { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.pickline .pk b { font-size: 13px; color: var(--text); font-variant-numeric: tabular-nums; }
+.pickline .pk i { font-style: normal; font-size: 10.5px; color: var(--text-2); }
+.pickline .pk.ev b { color: var(--accent); }

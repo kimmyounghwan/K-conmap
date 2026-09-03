@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { getJSON, getOverview, getAgency, similarZone, getSim } from '../lib/data.js'
+import { getJSON, getOverview, getAgency, similarZone, getSim, getBidIndex, indexRows } from '../lib/data.js'
 import { won, wonShort, pct, num, dateTime, dday } from '../lib/fmt.js'
 import { winGrade } from '../lib/winodds.js'
 /* 계산은 전부 여기 있습니다 — 화면과 채점이 같은 함수를 씁니다 */
@@ -29,7 +29,7 @@ export { missingOf, isReady }
    ============================================================ */
 
 /* 도장은 getJSON 이 /data 전체에 알아서 붙입니다 */
-const getIndex = () => getJSON('/data/bidindex.json')
+const getIndex = () => getBidIndex()
 /* 규모별 «참가업체수»와 «A값 비율» — 1KB 남짓입니다 */
 const getBandStat = () => getJSON('/data/bandstat.json')
 /* 최근 7일 개찰 결과 — 채점할 때만 받아옵니다 */
@@ -256,21 +256,9 @@ export default function BaroBid() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [picked])
 
-  const rows = useMemo(() => {
-    if (!idx || !Array.isArray(idx.r)) return []
-    return idx.r.map((a) => ({
-      no: a[0], name: a[1], inst: a[2], base: a[3],
-      budget: a[4], close: a[5], lo: a[6], hi: a[7],
-      llr: a[8] || null, est: a[9] || 0, lic: a[10] || [],
-      aval: a[11] || 0, gmtrl: a[12] || 0,
-      ayn: a[13] || '',
-      /* aparts 는 여기 없습니다 — 고른 뒤 aparts.json 에서 따로 받습니다 */
-      ptot: a[14] || 0, pdrw: a[15] || 0,
-      url: a[16] || '',
-      site: a[17] || '', rgnb: a[18] || '', joint: a[19] || '',
-      mthd: a[20] || '', swin: a[21] || '', rebid: a[22] || '',
-    }))
-  }, [idx])
+  /* bidindex 는 이름표(f)로 읽습니다 — data.js 의 indexRows 하나를 세 화면이 같이 씁니다.
+     (aparts 는 여기 없습니다 — 고른 뒤 aparts.json 에서 따로 받습니다) */
+  const rows = useMemo(() => indexRows(idx), [idx])
 
   /* ══════════════════════════════════════════════════════════
      채점용 개찰결과 색인(bidresult.json)은 최근 7일치만 담습니다.

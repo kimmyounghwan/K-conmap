@@ -4,8 +4,8 @@ import { useBoard } from '../lib/useBoard.js'
 import { Skeleton, Empty } from '../components.jsx'
 import { RangeBar } from './FirstBoard.jsx'
 import { isReady, missingOf } from './BaroBid.jsx'
-import { quickBid, P50_FALLBACK } from '../lib/bidmath.js'
-import { getOverview } from '../lib/data.js'
+import { quickBid, P50_FALLBACK, pickOdds } from '../lib/bidmath.js'
+import { getOverview, getBidIndex, indexRows } from '../lib/data.js'
 import { winGrade } from '../lib/winodds.js'
 import { won, wonShort, num, dateTime, dday, REGIONS, inRegion, LICENSES, licenseKeywords } from '../lib/fmt.js'
 
@@ -57,6 +57,23 @@ export default function LiveBoard() {
   const [copiedNo, setCopiedNo] = useState(null)
   useEffect(() => { getOverview().then(setOv).catch(() => {}) }, [])
   const p50 = ov?.sjq?.p50 ?? P50_FALLBACK
+
+  /* ══════════════════════════════════════════════════════════════
+     🎯 자리 찾기 — 2026-09-03. 소장님: 「공고 도구 만들어 줘」
+     금액은 실측으로 꼭대기다(사정률 분위를 어떻게 잡아도 1순위율 3.5~4.4%). 움직이는 건 «참가업체수»
+     (2~9곳 18% · 100곳+ 1.6%). 그래서 «어느 공고에 넣느냐» 를 돕는다.
+     - 재료: bidindex.json (마감 전 공고 · 기관별 예상 참가 enp · 규모×참가 1순위율 표 pick)
+     - 이 모드에서는 7주치 묶음 대신 bidindex 로 목록을 만든다(마감 전 · 계산 가능 공고만).
+       검색·지역·면허·A·B 거르기는 그대로 적용된다.
+     - 없는 숫자는 만들지 않는다: 기관 개찰 6건 미만이면 «예상 참가 모름», 표 칸 15건 미만이면 «실측 부족».
+     ══════════════════════════════════════════════════════════════ */
+  const [pick, setPick] = useState(false)
+  const [sortBy, setSortBy] = useState('prob')      // 'prob' 확률 순 · 'ev' 기대액 순 · 'close' 마감 순
+  const [fewOnly, setFewOnly] = useState(false)     // 참가 적은(10곳 미만) 공고만
+  const [idx, setIdx] = useState(undefined)         // undefined=아직 · null=실패 · {f,r,pick}
+  useEffect(() => {
+    if (pick && idx === undefined) getBidIndex().then((d) => setIdx(d || null))
+  }, [pick, idx])
   const copyAmt = (e, r, amt) => {
     e.stopPropagation()
     try { navigator.clipboard?.writeText(String(amt)) } catch { /* 옛 브라우저 */ }
@@ -64,7 +81,7 @@ export default function LiveBoard() {
     setTimeout(() => setCopiedNo((v) => (v === r.no ? null : v)), 1600)
   }
 
-  useEffect(() => { setPage(1) }, [region, q, mine, lics, onlyGood])
+  useEffect(() => { setPage(1) }, [region, q, mine, lics, onlyGood, pick, sortBy, fewOnly])
   useEffect(() => { saveLicenses(lics) }, [lics])
 
   const keywords = useMemo(
@@ -94,15 +111,46 @@ export default function LiveBoard() {
   }, [filtering, q, region, mine, keywords, onlyGood])
 
   const { info, rows: all, pageRows, pageReady, total, indexReady, loading, busy } =
-    useBoard('live', KIND, { match, page, perPage: PAGE })
+    useBoard('live', KIND, { match: pick ? null : match, page, perPage: PAGE })
+
+  /* 🎯 자리 찾기 목록 — 마감 전·계산 가능 공고에 예상 참가·1순위율·기대액을 붙여 정렬합니다 */
+  const pickRows = useMemo(() => {
+    if (!pick || !idx) return null
+    const s = q.trim()
+    const out = []
+    for (const r of indexRows(idx)) {
+      if (!canBid(r, now)) continue
+      if (!inRegion(r, region)) continue
+      if (s && !((r.name || '').includes(s) || (r.inst || '').includes(s))) continue
+      if (mine && keywords.length && !keywords.some((k) => (r.name || '').includes(k))) continue
+      if (onlyGood) {
+        const g = winGrade(r)
+        if (!g || (g.key !== 'A' && g.key !== 'B')) continue
+      }
+      const qb = quickBid(r, p50)
+      if (!qb) continue
+      const od = pickOdds(r, idx.pick, qb.amt)
+      if (fewOnly && !(od && od.enp > 0 && od.enp < 10)) continue
+      out.push({ ...r, qb, od })
+    }
+    const rateOf = (x) => (x.od && x.od.rate != null ? x.od.rate : -1)
+    const evOf = (x) => (x.od && x.od.ev != null ? x.od.ev : -1)
+    if (sortBy === 'prob') out.sort((a, b) => rateOf(b) - rateOf(a) || evOf(b) - evOf(a))
+    else if (sortBy === 'ev') out.sort((a, b) => evOf(b) - evOf(a) || rateOf(b) - rateOf(a))
+    else out.sort((a, b) => stamp14(a.close).localeCompare(stamp14(b.close)))
+    return out
+  }, [pick, idx, q, region, mine, keywords, onlyGood, fewOnly, sortBy, p50, now])
 
   /* 전체 건수는 useBoard 가 «7주 전체»로 셉니다 — 검색 중이면 색인에서, 아니면 목록표(meta)에서.
      ⚠️ 받아 둔 것(all.length)으로 세면 25쪽(500건 ≈ 개찰 이틀치)에서 끝납니다 — 2026-09-03 실제 사고. */
-  const count = total != null ? total : all.length
+  const count = pick ? (pickRows ? pickRows.length : 0) : (total != null ? total : all.length)
   const pages = Math.max(1, Math.ceil(count / PAGE))
-  const view = pageRows != null ? pageRows : all.slice((page - 1) * PAGE, page * PAGE)
+  const view = pick
+    ? (pickRows ? pickRows.slice((page - 1) * PAGE, page * PAGE) : [])
+    : (pageRows != null ? pageRows : all.slice((page - 1) * PAGE, page * PAGE))
   const rows = view
-  const done = filtering ? indexReady : true     // 검색 중이면 색인이 와야 «다 셌다»
+  const done = pick ? pickRows != null : (filtering ? indexReady : true)     // 검색 중이면 색인이 와야 «다 셌다»
+  const pickBusy = pick && idx === undefined
 
   const toggleLic = (l) =>
     setLics((v) => (v.includes(l) ? v.filter((x) => x !== l) : [...v, l]))
@@ -158,17 +206,42 @@ export default function LiveBoard() {
         <i>승률을 가르는 건 금액이 아니라 공고의 성격입니다 — 실측 45배 차이</i>
       </button>
 
-      <RangeBar info={info} loaded={all.length} done={done} busy={busy} filtering={filtering} count={count} />
+      {/* 🎯 자리 찾기 — 마감 전 공고를 «예상 참가·1순위율·기대액» 으로 골라 줍니다 */}
+      <button className={'goodonly pickbtn' + (pick ? ' on' : '')} onClick={() => setPick(!pick)}>
+        {pick ? '✓ 자리 찾기 — 마감 전 공고를 확률·기대액 순으로 보는 중' : '🎯 자리 찾기 — 오늘 넣을 만한 공고를 골라 줍니다'}
+        <i>승률을 가르는 건 참가업체수입니다 — 실측 2~9곳 18% · 100곳 넘으면 1.6%. 기관의 과거 참가 수로 미리 짐작합니다.</i>
+      </button>
+      {pick && (
+        <div className="pickctl">
+          <div className="seg">
+            <button className={sortBy === 'prob' ? 'on' : ''} onClick={() => setSortBy('prob')}>확률 순</button>
+            <button className={sortBy === 'ev' ? 'on' : ''} onClick={() => setSortBy('ev')}>기대액 순</button>
+            <button className={sortBy === 'close' ? 'on' : ''} onClick={() => setSortBy('close')}>마감 순</button>
+          </div>
+          <button className={'chip' + (fewOnly ? ' on' : '')} onClick={() => setFewOnly(!fewOnly)}>
+            참가 적은 공고만 (예상 10곳 미만)
+          </button>
+          <div className="note sm">
+            <b>확률 순</b>은 «한 건이라도 빨리», <b>기대액 순</b>은 «금액×확률이 큰 것부터». 기대액 = 1순위율 × 권장 투찰금액 —
+            높을수록 좋습니다. 예상 참가는 그 기관의 최근 개찰 참가업체수 중앙(6건 이상일 때만)이고,
+            1순위율은 같은 규모·같은 참가 수 자리에 권장 금액을 넣었을 때의 실측입니다
+            {idx?.pick?.n ? <> (개찰 {num(idx.pick.n)}건)</> : null}.
+          </div>
+        </div>
+      )}
 
-      {loading || (filtering && !done) || !pageReady ? <Skeleton /> : rows.length === 0 ? (
+      {!pick && <RangeBar info={info} loaded={all.length} done={done} busy={busy} filtering={filtering} count={count} />}
+      {pick && idx === null && <div className="note">마감 전 공고 목록(bidindex.json)을 받지 못했습니다. 잠시 후 다시 열어보세요.</div>}
+
+      {(pick ? (pickBusy || !done) : (loading || (filtering && !done) || !pageReady)) ? <Skeleton /> : rows.length === 0 ? (
         <Empty icon="📭">
           조건에 맞는 공고가 없습니다.<br />
           {mine ? '면허 맞춤을 끄거나 면허를 추가해보세요.' : '지역을 넓히거나 검색어를 지워보세요.'}
         </Empty>
       ) : (
         <>
-          <div className="sec-title">공고 <span className="count">
-            {num(count)}건{filtering && ' (7주 전체)'}</span></div>
+          <div className="sec-title">{pick ? '넣을 만한 공고' : '공고'} <span className="count">
+            {num(count)}건{pick ? ' (마감 전 · 계산 가능)' : (filtering ? ' (7주 전체)' : '')}</span></div>
           {view.map((r, i) => {
             const id = `${r.no}-${i}`
             const isOpen = open === id
@@ -227,6 +300,30 @@ export default function LiveBoard() {
                     </div>
                   )
                 })()}
+
+                {/* 🎯 자리 정보 — 자리 찾기 모드에서만. 없는 숫자는 «모름»·«실측 부족» 으로 적습니다. */}
+                {pick && r.od && (
+                  <div className="pickline" onClick={(e) => e.stopPropagation()}>
+                    {r.od.enp > 0 ? (
+                      <>
+                        <span className="pk"><b>예상 참가 {num(r.od.enp)}곳</b>
+                          <i>이 기관 최근 개찰 {num(r.od.enpn)}건의 중앙</i></span>
+                        {r.od.rate != null ? (
+                          <>
+                            <span className="pk"><b>이런 자리 1순위 {r.od.rate}%</b>
+                              <i>같은 규모·참가 수 실측 {num(r.od.n)}건</i></span>
+                            <span className="pk ev"><b>기대 {wonShort(r.od.ev)}</b>
+                              <i>1순위율 × 권장 금액 · 높을수록 좋음</i></span>
+                          </>
+                        ) : (
+                          <span className="pk"><b>이런 자리 실측 부족</b><i>같은 규모·참가 수 개찰이 15건 미만</i></span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="pk"><b>예상 참가 모름</b><i>이 기관 최근 개찰이 6건 미만이라 짐작하지 않습니다</i></span>
+                    )}
+                  </div>
+                )}
 
                 {isOpen && (
                   <div className="detail" onClick={(e) => e.stopPropagation()}>

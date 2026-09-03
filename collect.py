@@ -1060,6 +1060,87 @@ def trim(bucket, days, date_field):
 
 
 
+
+# ══════════════════════════════════════════════════════════════
+#  🎯 공고 고르기 — «예상 참가 · 이런 자리 1순위율» 재료 (2026-09-03)
+#
+#  소장님: 「실격이 더 되더라도 1건이라도…」 → 실측 8,406건: 사정률 분위를 어떻게 잡아도 1순위율은
+#  3.5~4.4% 에서 안 움직였다. 움직이는 건 «참가업체수» 뿐이다 (2~9곳 18% · 100곳+ 1.6%).
+#  그래서 금액이 아니라 «어느 공고에 넣느냐» 를 돕는다. 재료 둘, 전부 개찰 저장소(70일)에서 센다:
+#   ① 기관별 참가업체수 중앙(enp) — 그 기관 개찰이 6건 이상일 때만. 실측: 중앙<10 이면 실제<10 이 72%.
+#   ② 규모(기초금액)×참가 칸별 «권장 금액의 1순위율» 표 — 화면이 «이런 자리 1순위 x%» 로 쓴다.
+#      15건 미만 칸은 null (없는 숫자를 만들지 않는다).
+#  ⚠️ 표의 금액 계산은 build_json._baro_amount / bidmath.js shownBid 와 같은 길(K 0.674·여유 0.3%·올림 한 번).
+# ══════════════════════════════════════════════════════════════
+PICK_P50 = 99.896
+PICK_SZ = [1e8, 3e8, 1e9]          # <1억 · 1~3억 · 3~10억 · 10억+
+PICK_NB = [10, 30, 100]            # 2~9 · 10~29 · 30~99 · 100+
+PICK_LLR = [(0, 1e9, 89.745), (1e9, 5e9, 88.745), (5e9, 1e10, 87.495)]
+
+
+def _pick_bucket(v, edges):
+    for i, e in enumerate(edges):
+        if v < e:
+            return i
+    return len(edges)
+
+
+def _pick_llr(r):
+    llr = r.get("llr")
+    if llr and 60 <= float(llr) <= 100:
+        return float(llr)
+    est = r.get("est") or (float(r.get("base") or 0) / 1.1)
+    for lo, hi, v in PICK_LLR:
+        if lo <= est < hi:
+            return v
+    return None
+
+
+def pick_stats(fstore):
+    """(기관별 예상 참가, 규모×참가 1순위율 표) — 개찰 저장소만으로."""
+    import math as _m
+    from statistics import median as _med
+    by_inst = {}
+    cells = {}
+    for r in (fstore.get("con") or {}).values():
+        np_ = int(r.get("np") or 0)
+        inst = str(r.get("inst") or "").strip()
+        if np_ > 0 and inst:
+            by_inst.setdefault(inst, []).append(np_)
+        b = float(r.get("base") or 0); amt = float(r.get("amt") or 0); rate = r.get("rate")
+        lo, hi = r.get("lo"), r.get("hi")
+        if not b or not amt or not rate or lo is None or hi is None or float(hi) <= float(lo) or np_ < 2:
+            continue
+        if r.get("ayn") == "N":
+            A = 0.0
+        elif (r.get("aval") or 0) > 0:
+            A = float(r["aval"])
+        else:
+            continue
+        llr = _pick_llr(r)
+        if not llr:
+            continue
+        yeje = amt / (float(rate) / 100)
+        sj = yeje / b * 100
+        if not (95 <= sj <= 105):
+            continue
+        w = float(hi) - float(lo)
+        sd = _m.sqrt((w * w / 12) / 4 * 11 / 14)
+        sjq = round((PICK_P50 + 0.674 * sd) * 1000) / 1000
+        M = _m.ceil(_m.ceil((b * sjq / 100 - A) * llr / 100 + A) * 1.003)
+        rt = _m.ceil(M / (b * PICK_P50 / 100) * 100 * 1000) / 1000
+        M = _m.ceil(b * PICK_P50 / 100 * rt / 100)
+        L = _m.ceil((yeje - A) * llr / 100 + A)
+        key = f"s{_pick_bucket(b, PICK_SZ)}n{_pick_bucket(np_, PICK_NB)}"
+        c = cells.setdefault(key, [0, 0])
+        c[0] += 1
+        if M >= L and M < amt:
+            c[1] += 1
+    enp = {k: [int(_med(v)), len(v)] for k, v in by_inst.items() if len(v) >= 6}
+    tbl = {k: ([n, round(w / n * 100, 1)] if n >= 15 else None) for k, (n, w) in cells.items()}
+    return enp, {"tbl": tbl, "sz": PICK_SZ, "nb": PICK_NB, "n": sum(n for n, _ in cells.values())}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=int, default=3)
@@ -1575,6 +1656,7 @@ def main():
         """
         # GitHub 서버는 세계표준시로 돕니다. 마감시각은 한국시간이라 KST 로 비교해야 합니다.
         now = datetime.now(KST).strftime("%Y%m%d%H%M%S")
+        enp_map, pick = pick_stats(fstore)
         rows = []
         for r in store["con"].values():
             c = re.sub(r"[^0-9]", "", str(r.get("close") or ""))
@@ -1610,13 +1692,19 @@ def main():
                 r.get("mthd") or "",               # 계약방법 (제한경쟁/일반경쟁…)
                 r.get("swin") or "",               # 낙찰방법 상세 (적격심사 기준까지 들어옵니다)
                 r.get("rebid") or "",              # 재입찰 여부
+                # ★ 공고 고르기 (2026-09-03) — 이 기관 개찰의 참가업체수 중앙과 그 근거 건수. 없으면 0.
+                (enp_map.get(str(r.get("inst") or "").strip()) or [0, 0])[0],
+                (enp_map.get(str(r.get("inst") or "").strip()) or [0, 0])[1],
+                r.get("dt") or "",                 # 공고일 (목록 카드가 보여줍니다)
             ])
         rows.sort(key=lambda x: re.sub(r"[^0-9]", "", str(x[5])))
         out = {"built": built,
                "f": ["no", "name", "inst", "base", "budget", "close", "lo", "hi",
                      "llr", "est", "lic", "aval", "gmtrl",
                      "ayn", "ptot", "pdrw", "url",
-                     "site", "rgnb", "joint", "mthd", "swin", "rebid"],
+                     "site", "rgnb", "joint", "mthd", "swin", "rebid",
+                     "enp", "enpn", "dt"],
+               "pick": pick,
                "r": rows}
         path = os.path.join(OUT, "bidindex.json")
         with open(path, "w", encoding="utf-8") as f:

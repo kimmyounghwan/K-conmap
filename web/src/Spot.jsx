@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getJSON, getOverview } from './lib/data.js'
+import { getJSON, getOverview, getBidIndex, indexRows } from './lib/data.js'
 import { quickBid, isReady, P50_FALLBACK } from './lib/bidmath.js'
 import { winGrade } from './lib/winodds.js'
 import { won, wonShort, num, dday, inRegion } from './lib/fmt.js'
@@ -106,8 +106,7 @@ export function SpotBlock({ spot, who = '이 기관' }) {
 /* ── 마감 전 공고 + 원클릭 금액 ────────────────────────────────
    분석에서 끝나면 안 됩니다. «그래서 지금 뭘 넣을까» 까지 이어야 씁니다.
    bidindex.json(마감 전 공고, 109KB gzip)을 이 블록이 열릴 때만 받습니다. */
-let _idxCache = null
-const getIndex = () => _idxCache || (_idxCache = getJSON('/data/bidindex.json').catch(() => null))
+const getIndex = () => getBidIndex()
 
 export function OpenNotices({ title, match, limit = 8, hint }) {
   const [idx, setIdx] = useState(undefined)
@@ -119,10 +118,7 @@ export function OpenNotices({ title, match, limit = 8, hint }) {
   const p50 = ov?.sjq?.p50 ?? P50_FALLBACK
   const rows = useMemo(() => {
     if (!idx || !Array.isArray(idx.r)) return []
-    const f = idx.f; const ix = Object.fromEntries(f.map((k, i) => [k, i]))
-    const now = Date.now()
-    return idx.r
-      .map((a) => Object.fromEntries(f.map((k, i) => [k, a[i]])))
+    return indexRows(idx)
       .filter((r) => match(r))
       .filter((r) => { const d = dday(r.close); return !d || d.text !== '마감' })
       .sort((a, b) => String(a.close).localeCompare(String(b.close)))

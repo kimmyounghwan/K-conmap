@@ -171,3 +171,32 @@ export function quickBid(r, p50) {
   const sh = shownBid(base, p50, out.amt)
   return { amt: sh.amt, rate: sh.rate, sj: out.sj, pctile: out.pctile, aKnown }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   🎯 공고 고르기 — «예상 참가 · 이런 자리 1순위율 · 기대액» (2026-09-03)
+
+   소장님: 「실격이 더 되더라도 1건이라도…」 → 실측 8,406건: 금액(사정률 분위)을 어떻게 잡아도
+   1순위율은 3.5~4.4% 에서 안 움직였다. 움직이는 건 «참가업체수» 뿐 (2~9곳 18% · 100곳+ 1.6%).
+   그래서 금액이 아니라 «어느 공고에 넣느냐» 를 돕는다.
+
+   재료는 bidindex.json 에 collect.py 가 붙여 준다:
+     r.enp   그 기관의 최근 개찰 참가업체수 중앙 (6건 이상일 때만, 아니면 0)   — «예상 참가»
+     r.enpn  그 근거 건수
+     idx.pick.tbl["s{규모}n{참가}"] = [건수, 1순위율%]  ← 개찰 저장소에서 권장 금액을 대본 실측
+   여기서는 «표에서 칸을 찾아 주는 것» 만 한다. 표에 없는 칸(15건 미만)은 null — 없는 숫자를 만들지 않는다.
+   ══════════════════════════════════════════════════════════════ */
+export function pickBucket(v, edges) {
+  for (let i = 0; i < edges.length; i++) if (v < edges[i]) return i
+  return edges.length
+}
+export function pickOdds(r, pick, qbAmt) {
+  if (!pick || !pick.tbl || !(r?.base > 0)) return null
+  const enp = Number(r.enp) || 0
+  if (!(enp > 0)) return { enp: 0, enpn: 0, rate: null, n: 0, ev: null, key: null }
+  const key = `s${pickBucket(Number(r.base), pick.sz || [1e8, 3e8, 1e9])}n${pickBucket(enp, pick.nb || [10, 30, 100])}`
+  const cell = pick.tbl[key]
+  if (!cell) return { enp, enpn: Number(r.enpn) || 0, rate: null, n: 0, ev: null, key }
+  const rate = cell[1]
+  return { enp, enpn: Number(r.enpn) || 0, rate, n: cell[0], key,
+           ev: qbAmt > 0 ? Math.round(qbAmt * rate / 100) : null }
+}

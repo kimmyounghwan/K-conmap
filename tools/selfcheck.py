@@ -292,34 +292,42 @@ def check_grades():
 #  (2026-09-03 aparts 를 빼면서 실제로 이 위험을 만들었습니다)
 # ══════════════════════════════════════════════════════════════
 def check_bidindex():
+    """bidindex 칸 대조 — 2026-09-03 부터는 세 화면이 «이름표(f)» 로 읽습니다(data.js indexRows).
+    그래서 자리 번호 대조 대신 ① 만드는 쪽 f 에 화면이 쓰는 이름이 다 있는지, ② 어디서도 자리 번호(a[8])로
+    읽지 않는지를 봅니다. 자리 번호 읽기가 다시 생기면 칸 하나 붙일 때 그쪽만 어긋납니다."""
     import re
     cp = os.path.join(ROOT, "collect.py")
-    bp = os.path.join(ROOT, "web", "src", "pages", "BaroBid.jsx")
     print("\n" + "=" * 64)
-    print("  bidindex 칸 대조 — collect.py(만드는 쪽) vs BaroBid.jsx(읽는 쪽)")
+    print("  bidindex 칸 대조 — collect.py(만드는 쪽) vs 화면(이름표로 읽는 쪽)")
     print("=" * 64)
+    need = ["no", "name", "inst", "base", "budget", "close", "lo", "hi", "llr", "est", "lic",
+            "aval", "gmtrl", "ayn", "ptot", "pdrw", "url", "site", "rgnb", "joint", "mthd",
+            "swin", "rebid", "enp", "enpn", "dt"]
     try:
         c = io.open(cp, encoding="utf-8").read()
         i = c.index('"f": ["no", "name"')
         i = c.index("[", i)
         f = re.findall(r'"([a-z]+)"', c[i:c.index("]", i)])
-        b = io.open(bp, encoding="utf-8").read()
-        j = b.index("return idx.r.map((a) => ({")
-        blk = b[j:b.index("}))", j)]
-        m = {int(n): k for k, n in re.findall(r"(\w+):\s*a\[(\d+)\]", blk)}
     except Exception as e:
         print(f"(건너뜀 — 읽지 못했습니다: {type(e).__name__})")
         return []
-    bad = [f"a[{k}] : 만드는 쪽 «{f[k]}» ≠ 읽는 쪽 «{m.get(k)}»"
-           for k in range(len(f)) if m.get(k) != f[k]]
-    if len(m) != len(f):
-        bad.append(f"칸 수가 다릅니다 — 만드는 쪽 {len(f)} · 읽는 쪽 {len(m)}")
+    bad = [f"만드는 쪽 f 에 «{k}» 가 없습니다" for k in need if k not in f]
+    readers = ["web/src/pages/BaroBid.jsx", "web/src/pages/LiveBoard.jsx", "web/src/Spot.jsx"]
+    for rp in readers:
+        try:
+            src = io.open(os.path.join(ROOT, rp), encoding="utf-8").read()
+        except Exception:
+            bad.append(f"{rp} 를 읽지 못했습니다"); continue
+        if "indexRows(" not in src:
+            bad.append(f"{rp} 가 indexRows 로 읽지 않습니다")
+        if re.search(r"idx\.r\.map\(\(a\) => \(\{", src):
+            bad.append(f"{rp} 에 자리 번호(a[n]) 읽기가 다시 생겼습니다")
     if bad:
-        print(f"❌ {len(bad)}군데가 어긋납니다 — 한쪽만 고쳤습니다")
+        print(f"❌ {len(bad)}군데가 어긋납니다")
         for x in bad[:8]:
             print("   ·", x)
     else:
-        print(f"✅ {len(f)}칸이 순서까지 같습니다 ({', '.join(f[:6])} …)")
+        print(f"✅ 만드는 쪽 {len(f)}칸에 화면이 쓰는 {len(need)}칸이 다 있고, 세 화면 모두 이름표로 읽습니다")
     return bad
 
 

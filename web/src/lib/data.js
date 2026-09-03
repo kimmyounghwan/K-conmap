@@ -165,3 +165,24 @@ export const getBoardPart = (name, kind, i) =>
    전에는 검색하면 묶음을 전부 받아서 1,528KB 였습니다. */
 export const getBoardIndex = (name, kind) =>
   getJSON(`/data/board/${name}-${kind}-idx.json`)
+
+/* ── 마감 전 공고 목록(bidindex.json) — 세 화면이 같은 읽기 함수를 씁니다 ──
+   ⚠️ 2026-09-03 전에는 BaroBid 가 a[8]·a[9] 처럼 «자리 번호»로 읽고, Spot 은 이름표(f)로 읽었습니다.
+   칸을 하나 붙이면 한쪽만 어긋납니다. 이제 셋(바로투찰·공고 자리찾기·분석) 다 여기 하나로 읽습니다.
+   collect.py 의 export_bidindex 가 "f" 에 칸 이름을 주므로, 자리 번호를 어디에도 적지 않습니다. */
+let _bidIndex = null
+export const getBidIndex = () =>
+  _bidIndex || (_bidIndex = getJSON('/data/bidindex.json').catch(() => { _bidIndex = null; return null }))
+
+/** {f:[...], r:[[...]]} → [{no, name, inst, base, …}] — 없는 칸은 undefined */
+export function indexRows(idx) {
+  if (!idx || !Array.isArray(idx.r) || !Array.isArray(idx.f)) return []
+  const f = idx.f
+  return idx.r.map((a) => {
+    const o = {}
+    for (let i = 0; i < f.length; i++) o[f[i]] = a[i]
+    if (o.llr == null || o.llr === 0) o.llr = null
+    o.lic = Array.isArray(o.lic) ? o.lic : []
+    return o
+  })
+}
