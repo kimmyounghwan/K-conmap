@@ -132,16 +132,27 @@ export function useBoard(name, kind, { match = null, page = 1, perPage = 20 } = 
     return out
   }, [chunks])
 
-  /** 검색 중이면 «그 쪽에 그릴 줄», 아니면 null */
-  const pageRows = useMemo(() => {
-    if (!hits) return null
+  /** 검색 중이면 «그 쪽에 그릴 줄», 아니면 null.
+   *
+   *  ⚠️ 2026-09-03 — 여기에 조용한 함정이 있었습니다.
+   *     이 쪽에 필요한 묶음 하나가 아직 안 왔거나 받기에 실패하면,
+   *     그 줄들이 **말없이 빠진 채** 17줄만 그려집니다.
+   *     사용자는 «자료가 원래 그만큼인가 보다» 라고 읽습니다 — 알 방법이 없습니다.
+   *     (실제로 시험 중 묶음 6번이 404 났는데 화면은 아무 말도 안 했습니다)
+   *     → 필요한 묶음이 다 있을 때만 그립니다. 아니면 pageReady=false 로
+   *       화면이 «불러오는 중» 을 보여주게 합니다. */
+  const { pageRows, pageReady } = useMemo(() => {
+    if (!hits) return { pageRows: null, pageReady: true }
+    const slice = hits.slice((page - 1) * perPage, page * perPage)
     const out = []
-    for (const pos of hits.slice((page - 1) * perPage, page * perPage)) {
+    let ready = true
+    for (const pos of slice) {
       const c = chunks[Math.floor(pos / CHUNK)]
-      const r = c && c[pos % CHUNK]
+      if (!c) { ready = false; continue }
+      const r = c[pos % CHUNK]
       if (r) out.push(r)
     }
-    return out
+    return { pageRows: out, pageReady: ready }
   }, [hits, chunks, page, perPage, CHUNK])
 
   return {
@@ -149,6 +160,7 @@ export function useBoard(name, kind, { match = null, page = 1, perPage = 20 } = 
     info: meta ? meta[kind] : null,
     rows,
     pageRows,
+    pageReady,      // 이 쪽에 필요한 묶음이 다 왔나 (아니면 «불러오는 중»)
     total: hits ? hits.length : null,
     indexReady: !!index,
     loading,

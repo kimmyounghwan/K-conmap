@@ -78,7 +78,7 @@ export default function LiveBoard() {
     }
   }, [filtering, q, region, mine, keywords, onlyGood])
 
-  const { info, rows: all, pageRows, total, loading, busy } =
+  const { info, rows: all, pageRows, pageReady, total, loading, busy } =
     useBoard('live', KIND, { match, page, perPage: PAGE })
 
   const count = total != null ? total : all.length
@@ -143,7 +143,7 @@ export default function LiveBoard() {
 
       <RangeBar info={info} loaded={all.length} done={done} busy={busy} filtering={filtering} count={count} />
 
-      {loading || (filtering && !done) ? <Skeleton /> : rows.length === 0 ? (
+      {loading || (filtering && (!done || !pageReady)) ? <Skeleton /> : rows.length === 0 ? (
         <Empty icon="📭">
           조건에 맞는 공고가 없습니다.<br />
           {mine ? '면허 맞춤을 끄거나 면허를 추가해보세요.' : '지역을 넓히거나 검색어를 지워보세요.'}

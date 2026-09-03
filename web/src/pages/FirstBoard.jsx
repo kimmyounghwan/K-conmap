@@ -33,7 +33,7 @@ export default function FirstBoard() {
     }
   }, [filtering, q, region])
 
-  const { info, rows: all, pageRows, total, loading, busy } =
+  const { info, rows: all, pageRows, pageReady, total, loading, busy } =
     useBoard('first', KIND, { match, page, perPage: PAGE })
 
   useEffect(() => { getOverview().then(setOv) }, [])
@@ -86,7 +86,7 @@ export default function FirstBoard() {
 
       <RangeBar info={info} loaded={all.length} done={done} busy={busy} filtering={filtering} count={count} />
 
-      {loading || (filtering && !done) ? <Skeleton /> : rows.length === 0 ? (
+      {loading || (filtering && (!done || !pageReady)) ? <Skeleton /> : rows.length === 0 ? (
         <Empty icon="🔎">
           조건에 맞는 개찰 결과가 없습니다.<br />지역을 넓히거나 검색어를 지워보세요.
         </Empty>
