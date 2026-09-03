@@ -1473,12 +1473,13 @@ export default function BaroBid() {
                       try { localStorage.setItem('kcm_qtile', String(c.q)) } catch { /* noop */ }
                     }}>
                     <b>{c.label}</b><span>{c.rate.toFixed(3)}%</span>
-                    <i>실격 {c.dq}% · 1순위 {c.win}%</i>
+                    <i>살아남을 확률 {Math.round(100 - c.dq)}% · 1순위 {c.win}%</i>
                   </button>
                 ))}
               </div>
               <div className="note sm">
-                칸 안의 실격·1순위는 실제 개찰 {num(QTILE_N)}건에 그 분위 금액을 넣어 본 실측입니다.
+                칸 안의 «살아남을 확률»(=100−실격률)·1순위는 실제 개찰 {num(QTILE_N)}건에 그 분위 금액을 넣어 본 실측입니다.
+                25분위는 넷 중 셋이 실격, 50분위는 반반입니다.
                 어느 분위든 1순위율은 3.6~4.4% — 분위는 «얼마나 자주 살아남나»를 정하지 «얼마나 자주 이기나»는 못 바꿉니다.
                 {pickRate.startsWith('q') && <> 고른 분위는 이 브라우저에 기억됩니다 · <a onClick={() => { try { localStorage.removeItem('kcm_qtile') } catch { /* noop */ } setPickRate('rec') }}>권장으로 되돌리기</a></>}
               </div>
