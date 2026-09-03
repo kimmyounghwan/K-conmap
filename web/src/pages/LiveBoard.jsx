@@ -93,14 +93,16 @@ export default function LiveBoard() {
     }
   }, [filtering, q, region, mine, keywords, onlyGood])
 
-  const { info, rows: all, pageRows, pageReady, total, loading, busy } =
+  const { info, rows: all, pageRows, pageReady, total, indexReady, loading, busy } =
     useBoard('live', KIND, { match, page, perPage: PAGE })
 
+  /* 전체 건수는 useBoard 가 «7주 전체»로 셉니다 — 검색 중이면 색인에서, 아니면 목록표(meta)에서.
+     ⚠️ 받아 둔 것(all.length)으로 세면 25쪽(500건 ≈ 개찰 이틀치)에서 끝납니다 — 2026-09-03 실제 사고. */
   const count = total != null ? total : all.length
   const pages = Math.max(1, Math.ceil(count / PAGE))
   const view = pageRows != null ? pageRows : all.slice((page - 1) * PAGE, page * PAGE)
   const rows = view
-  const done = total != null
+  const done = filtering ? indexReady : true     // 검색 중이면 색인이 와야 «다 셌다»
 
   const toggleLic = (l) =>
     setLics((v) => (v.includes(l) ? v.filter((x) => x !== l) : [...v, l]))
@@ -158,7 +160,7 @@ export default function LiveBoard() {
 
       <RangeBar info={info} loaded={all.length} done={done} busy={busy} filtering={filtering} count={count} />
 
-      {loading || (filtering && (!done || !pageReady)) ? <Skeleton /> : rows.length === 0 ? (
+      {loading || (filtering && !done) || !pageReady ? <Skeleton /> : rows.length === 0 ? (
         <Empty icon="📭">
           조건에 맞는 공고가 없습니다.<br />
           {mine ? '면허 맞춤을 끄거나 면허를 추가해보세요.' : '지역을 넓히거나 검색어를 지워보세요.'}

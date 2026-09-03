@@ -1846,3 +1846,12 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
 .spot-open .foot .amt { font-size: 15px; font-weight: 900; color: var(--text); margin-left: 6px; font-variant-numeric: tabular-nums; }
 @media (max-width: 380px) { .spot-tiles { grid-template-columns: 1fr; } }
 .spot-open .sec-title { flex-wrap: wrap; row-gap: 2px; }
+
+/* 최근 순위 기록 (업체 자가진단) — 2026-09-03 */
+.rankhist .rh-sum { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 6px 0 10px; }
+.rankhist .rh-sum .t { display: flex; flex-direction: column; gap: 1px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); }
+.rankhist .rh-sum .k { font-size: 11px; font-weight: 700; color: var(--text-2); }
+.rankhist .rh-sum b { font-size: 17px; font-weight: 900; color: var(--text); font-variant-numeric: tabular-nums; }
+.rankhist .rh-sum .s { font-size: 11px; color: var(--muted); }
+.rankhist .rh-verdict { padding: 9px 11px; border-radius: 10px; background: var(--accent-soft); border: 1px solid var(--accent-line); font-size: 12.5px; line-height: 1.6; color: var(--text); margin-bottom: 8px; }
+.rankhist .rh-list .row .r { text-align: right; line-height: 1.2; }

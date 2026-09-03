@@ -527,6 +527,98 @@ def build_agency(df):
 # ─────────────────────────────────────────────
 # 2. 업체 집계 (자가진단)
 # ─────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════
+#  업체 «순위 기록» — 2026-09-03
+#  소장님: 「업체 이름을 적으면 이제까지 투찰 기록이 나오면서 방향성을 제시. 30위 안에 있으면 있고
+#          없으면 없다라고 정확히 밝히면서. 그리고 바로투찰이었다면 이랬을 것이다, 이게 들어가야 해.」
+#
+#  3년치엔 «1순위»만 있다. 진 기록은 어제부터 받는 개찰 순위(corps 30곳)에만 있다.
+#  그래서 이건 store/first.json 의 순위 조회분에서만 나오고, 화면은 항상
+#  «우리가 순위를 받은 N개 개찰 중» 이라고 분모를 밝힌다. 30위 밖은 자료에 없으니 «없다» 고만 한다.
+#
+#  «바로투찰이었다면»: 그 개찰에 바로투찰 권장금액을 넣었으면 몇 위였을지.
+#    권장금액 = 화면·시뮬레이션과 같은 식. 실제 확정 예정가격으로 하한 L 을 구해
+#    M<L 이면 실격, 아니면 corps(낮은 순 30곳) 중 M 보다 낮게 쓴 유효 건수 + 1 = 등수.
+#    30곳을 다 넘으면 «30위 밖».
+# ══════════════════════════════════════════════════════════════
+def _baro_amount(base, A, a_known, lo, hi, llr, p50):
+    w = (hi - lo) if (lo is not None and hi is not None and hi > lo) else 6.0
+    sd = math.sqrt((w * w / 12) * (1 / 4) * ((15 - 4) / (15 - 1)))
+    K = 0.674 if a_known else 1.63
+    margin = 1.003 if a_known else 1.0
+    sjq = round((p50 + K * sd) * 1000) / 1000
+    M = math.ceil(math.ceil((base * sjq / 100 - A) * llr / 100 + A) * margin)
+    rate = math.ceil(M / (base * p50 / 100) * 100 * 1000) / 1000
+    return math.ceil(base * p50 / 100 * rate / 100)
+
+
+RANK_POOL = 0          # 순위를 받은 개찰 수 — overview.json 에 실어 화면이 분모로 쓴다
+
+def load_rank_history(p50):
+    p = os.path.join(ROOT, "data", "store", "first.json")
+    try:
+        with open(p, encoding="utf-8") as f:
+            st = json.load(f)
+    except Exception:
+        return {}, {}, 0
+    by_biz, by_name, pool = defaultdict(list), defaultdict(list), 0
+
+    def llr_of(est):
+        eok = est / 1e8
+        if eok >= 100: return None
+        if eok >= 50: return 87.495
+        if eok >= 10: return 88.745
+        return 89.745
+
+    for kind in ("con", "serv"):
+        for no, r in (st.get(kind) or {}).items():
+            corps = r.get("corps") or []
+            if len(corps) < 2:
+                continue                      # 순위를 실제로 받은 개찰만
+            pool += 1
+            total = int(r.get("nrank") or len(corps))
+            nm = str(r.get("name") or "")[:NAME_CUT]
+            dt = str(r.get("dt") or "")[:10]
+            inst = str(r.get("inst") or "")[:20]
+
+            # ── 바로투찰이었다면 ──
+            baro = None                       # [등수 or 0(실격) or -1(30위 밖), 금액]
+            b = float(r.get("base") or 0)
+            amt1 = float(corps[0][1] or 0) if len(corps[0]) > 1 else 0
+            rate1 = float(corps[0][2] or 0) if len(corps[0]) > 2 else 0
+            ayn = str(r.get("ayn") or "")
+            av = float(r.get("aval") or 0)
+            if b > 0 and amt1 > 0 and rate1 > 0 and (av > 0 or ayn == "N"):
+                A = 0.0 if ayn == "N" else av
+                ll = llr_of(b / 1.1)
+                if ll:
+                    lo = r.get("lo"); hi = r.get("hi")
+                    lo = float(lo) if lo is not None else -3.0
+                    hi = float(hi) if hi is not None else 3.0
+                    M = _baro_amount(b, A, True, lo, hi, ll, p50)
+                    yeje = amt1 / (rate1 / 100.0)
+                    L = math.ceil((yeje - A) * ll / 100.0 + A)
+                    if M < L:
+                        baro = [0, M]
+                    else:
+                        lower = sum(1 for c in corps if len(c) > 1 and c[1] and float(c[1]) >= L and float(c[1]) < M)
+                        rank = lower + 1
+                        baro = [rank if rank <= len(corps) else -1, M]
+
+            for rank, c in enumerate(corps, 1):
+                cname = c[0] if len(c) > 0 else ""
+                camt = int(c[1] or 0) if len(c) > 1 else 0
+                crate = (round(float(c[2]), 3) if len(c) > 2 and c[2] else None)
+                cbiz = str(c[3]) if len(c) > 3 and c[3] else ""
+                rec = [nm, dt, inst, rank, total, crate, camt, baro]
+                if len(cbiz) == 10:
+                    by_biz[cbiz].append(rec)
+                k = norm_corp(cname)
+                if k:
+                    by_name[k].append(rec)
+    return by_biz, by_name, pool
+
+
 def build_corp(df):
     log("업체 집계 중...")
     idx = defaultdict(dict)
@@ -536,6 +628,13 @@ def build_corp(df):
 
     d2 = df[df["1순위업체"] != ""].copy()
     d2["cname"] = d2["1순위업체"].map(norm_corp)
+
+    _sjs = sorted(v for v in df["sj"].tolist() if v is not None and not pd.isna(v))
+    _p50 = _sjs[len(_sjs) // 2] if len(_sjs) >= 10 else 99.896
+    rk_biz, rk_name, rk_pool = load_rank_history(_p50)
+    global RANK_POOL
+    RANK_POOL = rk_pool
+    log(f"순위 기록: 순위 받은 개찰 {rk_pool:,}건 · 업체(사업자번호) {len(rk_biz):,} · 업체(이름) {len(rk_name):,}")
     d2 = d2[d2["cname"] != ""]
 
     # ── 같은 이름의 다른 법인을 갈라 놓습니다 ─────────────────
@@ -627,9 +726,19 @@ def build_corp(df):
                 (None if r["mgn"] is None or pd.isna(r["mgn"]) else float(r["mgn"])),
                 (None if r["np"] is None or pd.isna(r["np"]) else int(r["np"])),
             ] for _, r in recent.iterrows()],
-            # ★ 자리 통계 — 내가 딴 공고의 등급 · 권장률 대비 (공격적/보수적) · 경쟁 강도
+            # ★ 자리 통계 — 내가 딴 공고의 등급 · 창 · 경쟁 강도
             "spot": spot_stats(g),
         }
+        # ★ 순위 기록 — 사업자번호로 맞추고, 없으면 이름으로. 분모(pool)를 같이 싣는다.
+        _recs = []
+        for _b in set(x for x in g["bizno"].tolist() if x):
+            _recs += rk_biz.get(_b, [])
+        if not _recs:
+            _recs = rk_name.get(key.split("#", 1)[0], [])
+        # 비용: 기록이 «있는» 업체에만 붙인다. 빈 값이라도 수만 업체면 1MB 다.
+        #       분모(순위 받은 개찰 수)는 overview.json 에 한 번만 (rankPool).
+        if _recs:
+            cur[key]["rank"] = sorted(_recs, key=lambda x: x[1], reverse=True)[:30]
         agg[key] = cur.pop(key)
 
     for key in sorted(agg, key=lambda k: (first_key(k), k)):
@@ -1024,6 +1133,11 @@ def build_sim(df, p50):
         sj_q = round((P50_SIM + K * sd) * 1000) / 1000
 
         M = math.ceil(math.ceil((b * sj_q / 100 - A) * ll / 100 + A) * margin)
+        # ★ 2026-09-03 — 화면이 실제로 내는 금액은 «투찰률(소수 3자리 올림) → 금액» 을 한 번 더
+        #   거친 값입니다(_baro_amount 와 같은 길). 채점·원클릭·시뮬레이션이 전부 같은 금액이어야
+        #   「바로투찰하고 채점 금액이 달라」가 다시 안 생깁니다.
+        _rt = math.ceil(M / (b * P50_SIM / 100) * 100 * 1000) / 1000
+        M = math.ceil(b * P50_SIM / 100 * _rt / 100)
         yeje = b * real_sj / 100
         L = math.ceil((yeje - A) * ll / 100 + A)
 
@@ -1112,6 +1226,7 @@ def build_overview(df, n_agency, n_corp, n_kw):
         "corps": n_corp,
         "keywords": n_kw,
         # 사정률 분포 — 투찰가 계산기의 «예정가격이 어디쯤 나올까» 재료
+        "rankPool": RANK_POOL,   # 순위 기록의 분모 — «순위 받은 개찰 N건 중»
         "sj": sj,
         "sjn": len(sjs),
         # ⚠️ p95 는 «권장 투찰금액» 의 기준입니다. 지우지 마세요.

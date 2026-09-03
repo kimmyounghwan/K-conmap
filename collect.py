@@ -488,13 +488,23 @@ def openg_ranks(key, no, ord_="000"):
     """공고 하나의 투찰업체를 순위대로 전부 가져온다.
 
     돌려주는 모양은 parse_corps 와 **똑같이** 맞춥니다:
-        [[업체명, 투찰금액, 투찰률, 사업자번호, 대표자], ...]
+        [[업체명, 투찰금액, 투찰률, 사업자번호, 대표자, 추첨번호1, 추첨번호2], ...]
     화면 코드가 corps[i][0..2] 로 읽고 있어서, 자리를 바꾸면 화면이 깨집니다.
+
+    ★ 2026-09-03 — 추첨번호(drwtNo1·drwtNo2)도 담습니다.
+      소장님: 「클릭하는 번호에 따라 달라지는 거 아닌가?」 — 처음 순위를 받을 때
+      이 두 칸을 버리고 있어서 «번호와 낙찰의 관계» 를 자료로 대볼 수 없었습니다.
+      낮은 30곳의 번호는 corps 에, **전체 투찰자의 번호 분포**(1~15 번이 각각 몇 번
+      찍혔나)는 15칸짜리 drw 로 돌려줍니다. 분포가 있어야 «가장 많이 찍힌 4개»
+      (= 사정률에 들어간 예비가격)를 알 수 있습니다.
+
+    돌려주는 것: (corps30, 전체건수, 사다리, drw15)
     """
     items = fetch(OPENG_RANK, key,
                   extra={"bidNtceNo": no, "bidNtceOrd": str(ord_ or "000") or "000"},
                   label=f"개찰순위 {no}")
     out = []
+    drw = [0] * 15
     for it in items:
         nm = str(pick(it, "prcbdrNm") or "").strip()
         amt = to_int(pick(it, "bidprcAmt"))
@@ -503,8 +513,15 @@ def openg_ranks(key, no, ord_="000"):
         rank = to_int(pick(it, "opengRank")) or 9999
         bno = re.sub(r"[^0-9]", "", str(pick(it, "prcbdrBizno") or ""))
         ceo = str(pick(it, "prcbdrCeoNm") or "").strip()[:12]
+        d1 = to_int(pick(it, "drwtNo1"))
+        d2 = to_int(pick(it, "drwtNo2"))
+        for d in (d1, d2):
+            if 1 <= d <= 15:
+                drw[d - 1] += 1
         out.append((rank, amt, [nm, amt, to_rate(pick(it, "bidprcrt")),
-                                bno if len(bno) == 10 else "", ceo]))
+                                bno if len(bno) == 10 else "", ceo,
+                                d1 if 1 <= d1 <= 15 else 0,
+                                d2 if 1 <= d2 <= 15 else 0]))
     # 순위가 비어 오는 경우가 있어 «금액이 낮은 순»을 보조 기준으로 둡니다
     out.sort(key=lambda x: (x[0], x[1]))
 
@@ -522,7 +539,7 @@ def openg_ranks(key, no, ord_="000"):
     if n and (not ladder or ladder[-1][0] != n):
         ladder.append([n, out[n - 1][1]])       # 꼴찌도 한 칸
 
-    return [c for _, _, c in out[:RANK_KEEP]], n, ladder
+    return [c for _, _, c in out[:RANK_KEEP]], n, ladder, drw
 
 
 def parse_corps(raw, limit=6):
@@ -983,350 +1000,6 @@ def trim(bucket, days, date_field):
 
 
 
-# ══════════════════════════════════════════════════════════════
-#  워크넷 건설 채용 — 2026-09-03
-#
-#  소장님: 「워크넷 구인구직 공고를 건설맵에 띄울 수 없어? 우리는 보여주기만 하고 나머지는 워크넷에서.」
-#
-#  ⚠️ 크롤링이 아닙니다. 한국고용정보원이 공공데이터포털/워크넷 OpenAPI 로 «쓰라고 내준» 자료입니다.
-#     전에 중지한 건 화면 긁기(잡코리아 v 사람인 판례)였고, 이건 그와 다릅니다.
-#  ⚠️ 키는 조달청 키와 별개입니다. openapi.work.go.kr 에서 받아 .env 에:
-#         WORKNET_API_KEY=…
-#     키가 없으면 이 단계는 조용히 건너뜁니다 (배치가 멈추면 안 됩니다).
-#  ⚠️ 본문은 안 가져옵니다. 제목·회사·지역·급여·조건·마감·링크만.
-#     지원·문의는 전부 워크넷에서. 조달청 공고와 같은 원칙입니다 — 우리는 «목록»입니다.
-#  ⚠️ 응답 항목 이름을 «짐작으로 박지 않습니다». 첫 응답의 항목을 diag.json 에 남기고,
-#     여러 이름 후보 중 실제로 온 것을 씁니다 (조달청 때 «없다»고 세 번 틀린 그 실수 방지).
-#
-#  건설만 고르는 법 (지금은 «말»로, 나중엔 «코드»로):
-#     · 워크넷 직종코드(occupation)로 거르는 게 정석인데, 어느 코드가 건설인지 실제 응답을
-#       보기 전엔 단정 못 합니다. 그래서 첫 응답의 jobsCd/jobsNm 분포를 diag 에 남깁니다.
-#     · 지금은 건설 낱말로 여러 번 조회 + 제목/직종명에 건설 낱말이 있는 것만 남깁니다.
-#  호출량: 낱말 15개 × 1~3쪽 ≈ 40회. 08시·13시 회차에만 (순위 조회와 같은 배분).
-# ══════════════════════════════════════════════════════════════
-# ⚠️ 2026-09-03 정정 — 옛 워크넷 주소(openapi.work.go.kr/…/wantedApi.do)로 불렀더니
-#    오류도 없이 «0건»이 왔다. 소장님 키는 **고용24(work24)** 에서 받은 것이고, 지금 주소는 이것이다:
-#    https://www.work24.go.kr/cm/e/a/0110/selectOpenApiSvcInfo.do (채용정보 목록 = 210L01, 상세 = 210D01)
-WORKNET_URL = "https://www.work24.go.kr/cm/openApi/call/wk/callOpenApiSvcInfo210L01.do"
-# 고용24 명세의 empTpCd — 이름은 안 오고 코드만 온다
-WN_EMPTP = {"4": "파견", "10": "정규직", "11": "정규직(시간선택)", "20": "계약직",
-            "21": "계약직(시간선택)", "Y": "대체인력"}
-# 건설 «업종»(indTpNm) — 명세를 보니 직종명은 안 오고 업종명이 온다. 이게 제목보다 정확하다.
-IND_RX = re.compile(r"건설|공사|토목|건축|설비|전기|조경|철강|철골|도장|방수|석공|미장|창호|"
-                    r"포장|준설|굴착|비계|해체|지붕|판금|시설물|엔지니어링|측량|감리")
-JOB_WORDS = ["건설", "토목", "건축", "시공", "현장소장", "현장관리", "공무", "견적",
-             "설비", "전기공사", "조경", "철근", "측량", "안전관리자", "감리", "배관", "중장비"]
-JOB_RX = re.compile(
-    r"건설|토목|건축|시공|현장|공무|견적|설비|전기공사|전기 공사|조경|철근|콘크리트|측량|"
-    r"안전관리|감리|배관|중장비|굴착|굴삭|덤프|타워크레인|비계|형틀|미장|방수|도장|"
-    r"창호|금속|지붕|포장|도로|상하수도|하수관|준설|철골|용접|플랜트|CM|PM|공사")
-JOB_KEEP_DAYS = 70
-
-def _wn_get(el, *names):
-    """XML 한 건에서 후보 이름 중 실제로 있는 값 (대소문자 무시)."""
-    if el is None:
-        return ""
-    low = {c.tag.lower(): (c.text or "").strip() for c in el}
-    for n in names:
-        v = low.get(n.lower())
-        if v:
-            return v
-    return ""
-
-def worknet_fetch(key, keyword, page, display=100):
-    import xml.etree.ElementTree as ET
-    q = {"authKey": key, "callTp": "L", "returnType": "XML",
-         "startPage": str(page), "display": str(display), "keyword": keyword,
-         "regDate": "M-1"}                      # 최근 한 달 등록분만 (명세: D-0/D-3/W-1/W-2/M-1)
-    try:
-        r = requests.get(WORKNET_URL, params=q, timeout=NET_TIMEOUT, verify=False,
-                         headers={"User-Agent": "k-conmap/1.0"})
-        r.raise_for_status()
-        raw = r.content
-        root = ET.fromstring(raw)
-    except Exception as e:
-        print(f"    ! 워크넷 «{keyword}» {page}쪽 실패 ({type(e).__name__}: {str(e)[:80]})")
-        return None, 0
-    items = root.findall(".//wanted")
-    total = 0
-    try:
-        total = int((root.findtext(".//total") or "0").strip() or 0)
-    except Exception:
-        pass
-    if not items and "worknet_raw" not in DIAG:
-        # ★ 0건이면 «왜»를 남긴다. 오류 XML 일 수도, 태그 이름이 다를 수도 있다.
-        #   (2026-09-03 옛 주소로 0건이 왔을 때 이 자리에 아무것도 없어서 원인을 몰랐다)
-        head = raw.decode("utf-8", "replace")[:600]
-        DIAG["worknet_raw"] = {"status": r.status_code, "root": root.tag,
-                               "children": [c.tag for c in root][:20], "head": head}
-        print(f"    · 워크넷 «{keyword}» 0건 — 응답 앞부분: {head[:200].replace(chr(10), ' ')}")
-    if items and "worknet_wantedApi" not in DIAG:
-        one = items[0]
-        DIAG["worknet_wantedApi"] = {
-            "fields": sorted(c.tag for c in one),
-            "sample": {c.tag: (c.text or "")[:40] for c in one},
-        }
-    return items, total
-
-def _wn_date(v):
-    """고용24 날짜를 YYYY-MM-DD 로. 형식이 명세에 없어 «YY-MM-DD» «YYYYMMDD» «YYYY-MM-DD» 다 받습니다.
-    ⚠️ 이걸 안 하면 «26-09-20» 이 «2026-09-03» 보다 작다고 판정돼 마감 전 공고가 전부 지워집니다."""
-    v = (v or "").strip()
-    d = re.sub(r"[^0-9]", "", v)
-    if len(d) == 8:
-        return f"{d[:4]}-{d[4:6]}-{d[6:8]}"
-    if len(d) == 6:
-        return f"20{d[:2]}-{d[2:4]}-{d[4:6]}"
-    return v[:10]
-
-def worknet_row(el):
-    """응답 한 건 → 우리 줄. 고용24 명세(2026-09-03 확인)의 태그 이름을 씁니다.
-    후보를 두 개씩 둔 건 옛 워크넷 응답과의 호환용입니다."""
-    g = lambda *n: _wn_get(el, *n)
-    no = g("wantedAuthNo")
-    if not no:
-        return None
-    emp = g("empTpCd")
-    return {
-        "id": no,
-        "title": g("title")[:80],
-        "co": g("company")[:40],
-        "bno": g("busino"),
-        "ind": g("indTpNm")[:30],                       # ★ 업종 — 건설 거르기의 주재료
-        "reg": g("region")[:30],
-        "addr": g("basicAddr")[:40],
-        "sal": g("sal")[:30],
-        "salTp": g("salTpNm")[:10],
-        "minSal": g("minSal"), "maxSal": g("maxSal"),
-        "career": g("career")[:12],
-        "edu": g("minEdubg")[:12],
-        "empTp": WN_EMPTP.get(emp, emp)[:12],
-        "holi": g("holidayTpNm")[:10],
-        "jobsCd": g("jobsCd"),                          # 직종코드 — 이름은 안 옵니다
-        "regDt": _wn_date(g("regDt")),
-        "closeDt": _wn_date(g("closeDt")),
-        "src": g("infoSvc")[:20],
-        # ★ 고용24가 주는 상세 주소 그대로. 손으로 만들지 않습니다.
-        "url": g("wantedInfoUrl"),
-        "murl": g("wantedMobileInfoUrl"),
-    }
-
-def is_construction(row):
-    """업종(indTpNm)이 건설이면 통과. 업종이 비었거나 애매하면 제목으로 봅니다.
-    회사명은 안 봅니다 — «OO건설» 의 경리 채용도 건설이긴 하지만 현장 사람이 찾는 건 아닙니다."""
-    if IND_RX.search(row.get("ind") or ""):
-        return True
-    return bool(JOB_RX.search(row.get("title") or ""))
-
-def load_jobs_store():
-    """load_store 는 {con, serv} 모양으로 강제하므로 채용 저장소는 따로 읽습니다."""
-    p = os.path.join(STORE, "jobs.json")
-    try:
-        with open(p, encoding="utf-8") as f:
-            d = json.load(f)
-        return d if isinstance(d, dict) and isinstance(d.get("r"), dict) else {"r": {}}
-    except Exception:
-        return {"r": {}}
-
-def collect_jobs(key, sleep=0.4, max_pages=3):
-    store = load_jobs_store()
-    rows = store["r"]
-    seen = set()
-    n_get = n_new = n_skip = 0
-    from collections import Counter
-    cd = Counter()
-    for w in JOB_WORDS:
-        for pg in range(1, max_pages + 1):
-            items, total = worknet_fetch(key, w, pg)
-            if items is None:
-                break
-            for el in items:
-                r = worknet_row(el)
-                if not r:
-                    continue
-                n_get += 1
-                cd[(r["jobsCd"], r["ind"])] += 1
-                if r["id"] in seen:
-                    continue
-                seen.add(r["id"])
-                if not is_construction(r):
-                    n_skip += 1
-                    continue
-                if r["id"] not in rows:
-                    n_new += 1
-                rows[r["id"]] = r
-            if len(items) < 100 or pg * 100 >= total:
-                break
-            time.sleep(sleep)
-        time.sleep(sleep)
-
-    # 오래된 건 버립니다 (안 버리면 파일이 해마다 조용히 무거워집니다)
-    cut = (datetime.now(KST) - timedelta(days=JOB_KEEP_DAYS)).strftime("%Y-%m-%d")
-    for k in [k for k, v in rows.items() if (v.get("regDt") or "9999") < cut]:
-        del rows[k]
-    store["r"] = rows
-    save_store("jobs", store)
-
-    # 직종코드 분포 — 다음에 «코드로 거르기» 로 바꿀 때 근거가 됩니다
-    DIAG["worknet_jobs"] = {
-        "got": n_get, "kept_new": n_new, "skipped_nonconstruction": n_skip,
-        # (직종코드, 업종) 분포 — 이걸 보고 occupation 코드로 거르는 방식으로 바꿉니다
-        "top_jobs": [[c, nm, n] for (c, nm), n in cd.most_common(40)],
-    }
-    print(f"  → 워크넷 채용 {n_get:,}건 받음 · 건설 아님 {n_skip:,}건 제외 · "
-          f"새로 {n_new:,}건 · 보관 {len(rows):,}건")
-    return store
-
-def export_jobs(store):
-    """마감 전 건설 채용만, 화면용으로 가볍게. 구인구직 탭에서만 받습니다."""
-    today = datetime.now(KST).strftime("%Y-%m-%d")
-    rows = [v for v in (store.get("r") or {}).values()
-            if not v.get("closeDt") or v["closeDt"] >= today]
-    rows.sort(key=lambda v: v.get("regDt") or "", reverse=True)
-    rows = rows[:1000]
-    f = ["id", "title", "co", "ind", "reg", "sal", "salTp", "career", "edu", "empTp",
-         "regDt", "closeDt", "url", "murl"]
-    out = {"built": datetime.now(KST).strftime("%Y-%m-%d %H:%M"), "src": "워크넷(한국고용정보원)",
-           "f": f, "r": [[v.get(k, "") for k in f] for v in rows]}
-    path = os.path.join(OUT, "jobs.json")
-    with open(path, "w", encoding="utf-8") as fh:
-        json.dump(out, fh, ensure_ascii=False, separators=(",", ":"))
-    print(f"  → jobs.json 마감 전 건설 채용 {len(rows):,}건 ({os.path.getsize(path)/1024:.0f}KB)")
-
-
-
-# ══════════════════════════════════════════════════════════════
-#  고용24 «건설 자격·훈련 과정» (국민내일배움카드 310L01) — 2026-09-03
-#
-#  채용정보 API 는 기업회원 전용이라 개인회원 키로 막혔다. 소장님이 받은 11개 키 중
-#  개인회원으로 되고 현장 사람에게 실제 쓸모 있는 게 이것이다:
-#  굴착기·지게차·타워크레인·건설안전·전기·용접·타일·방수 같은 자격·기능 훈련.
-#  NCS 대분류 14 = 건설. 지역·과정명·훈련기관·기간·훈련비·취업률·만족도 + 고용24 링크.
-#
-#  같은 원칙: 목록만. 신청·문의는 고용24에서. 링크는 TITLE_LINK 그대로. 출처 명기.
-#  같은 방어: 항목 이름은 후보를 두고 실제로 온 것을 쓴다. 0건이면 응답 원문을 남긴다.
-# ══════════════════════════════════════════════════════════════
-COURSE_URL = "https://www.work24.go.kr/cm/openApi/call/hr/callOpenApiSvcInfo310L01.do"
-COURSE_NCS = ["14"]              # 건설. 첫 응답을 보고 15(기계·용접)·19(전기) 를 붙일지 정한다
-COURSE_DAYS_AHEAD = 120
-
-def course_fetch(key, ncs1, page, size=100):
-    import xml.etree.ElementTree as ET
-    today = datetime.now(KST)
-    q = {"authKey": key, "returnType": "XML", "outType": "1",
-         "pageNum": str(page), "pageSize": str(size),
-         "srchTraStDt": today.strftime("%Y%m%d"),
-         "srchTraEndDt": (today + timedelta(days=COURSE_DAYS_AHEAD)).strftime("%Y%m%d"),
-         "sort": "ASC", "sortCol": "TRNG_BGDE",           # 훈련 시작일 순 (HRD-Net 계열 관례)
-         "srchNcs1": ncs1}
-    try:
-        r = requests.get(COURSE_URL, params=q, timeout=NET_TIMEOUT, verify=False,
-                         headers={"User-Agent": "k-conmap/1.0"})
-        r.raise_for_status()
-        raw = r.content
-        root = ET.fromstring(raw)
-    except Exception as e:
-        print(f"    ! 훈련과정 NCS{ncs1} {page}쪽 실패 ({type(e).__name__}: {str(e)[:80]})")
-        return None, 0
-    items = root.findall(".//scn_list") or root.findall(".//list") or \
-            [c for c in root.iter() if c.tag.lower() in ("scn_list", "item", "course")]
-    total = 0
-    for t in ("scn_cnt", "totalCount", "total"):
-        v = root.findtext(f".//{t}")
-        if v and v.strip().isdigit():
-            total = int(v.strip()); break
-    if items and "work24_course310L01" not in DIAG:
-        one = items[0]
-        DIAG["work24_course310L01"] = {"fields": sorted(c.tag for c in one),
-                                       "sample": {c.tag: (c.text or "")[:40] for c in one}}
-    if not items and "work24_course_raw" not in DIAG:
-        head = raw.decode("utf-8", "replace")[:600]
-        DIAG["work24_course_raw"] = {"status": r.status_code, "root": root.tag,
-                                     "children": [c.tag for c in root][:20], "head": head}
-        print(f"    · 훈련과정 NCS{ncs1} 0건 — 응답 앞부분: {head[:200].replace(chr(10), ' ')}")
-    return items, total
-
-def course_row(el):
-    g = lambda *n: _wn_get(el, *n)
-    tid = g("trprId", "TRPR_ID") ; deg = g("trprDegr", "TRPR_DEGR")
-    title = g("title", "TITLE")
-    if not title:
-        return None
-    return {
-        "id": f"{tid}-{deg}" if tid else title[:60],
-        "title": title[:80],
-        "org": g("subTitle", "SUB_TITLE", "trainstCstNm")[:40],       # 훈련기관
-        "addr": g("address", "ADDRESS")[:40],
-        "st": _wn_date(g("traStartDate", "TRA_START_DATE")),
-        "en": _wn_date(g("traEndDate", "TRA_END_DATE")),
-        "fee": g("courseMan", "COURSE_MAN"),                           # 수강비
-        "real": g("realMan", "REAL_MAN"),                              # 실제 부담(지원 후)
-        "cap": g("yardMan", "YARD_MAN"),                               # 정원
-        "emp3": g("eiEmplRate3", "EI_EMPL_RATE3"),                     # 취업률(3개월)
-        "emp6": g("eiEmplRate6", "EI_EMPL_RATE6"),
-        "score": g("stdgScor", "STDG_SCOR"),                           # 만족도
-        "ncs": g("ncsCd", "NCS_CD"),
-        "tel": g("telNo", "TELNO")[:20],
-        "type": g("trainTarget", "TRAIN_TARGET")[:20],
-        "url": g("titleLink", "TITLE_LINK"),                           # 고용24 상세 — 그대로
-    }
-
-def load_courses_store():
-    p = os.path.join(STORE, "courses.json")
-    try:
-        with open(p, encoding="utf-8") as f:
-            d = json.load(f)
-        return d if isinstance(d, dict) and isinstance(d.get("r"), dict) else {"r": {}}
-    except Exception:
-        return {"r": {}}
-
-def collect_courses(key, sleep=0.4, max_pages=10):
-    store = load_courses_store()
-    rows = store["r"]
-    n_get = n_new = 0
-    from collections import Counter
-    cd = Counter()
-    for ncs in COURSE_NCS:
-        for pg in range(1, max_pages + 1):
-            items, total = course_fetch(key, ncs, pg)
-            if items is None:
-                break
-            for el in items:
-                r = course_row(el)
-                if not r:
-                    continue
-                n_get += 1
-                cd[r["ncs"][:6]] += 1
-                if r["id"] not in rows:
-                    n_new += 1
-                rows[r["id"]] = r
-            if len(items) < 100 or pg * 100 >= total:
-                break
-            time.sleep(sleep)
-    today = datetime.now(KST).strftime("%Y-%m-%d")
-    for k in [k for k, v in rows.items() if (v.get("en") or "9999") < today]:
-        del rows[k]                                   # 끝난 과정은 버린다
-    store["r"] = rows
-    save_store("courses", store)
-    DIAG["work24_courses"] = {"got": n_get, "new": n_new, "kept": len(rows),
-                              "ncs_top": [[c, n] for c, n in cd.most_common(30)]}
-    print(f"  → 건설 훈련과정 {n_get:,}건 받음 · 새로 {n_new:,}건 · 보관 {len(rows):,}건")
-    return store
-
-def export_courses(store):
-    today = datetime.now(KST).strftime("%Y-%m-%d")
-    rows = [v for v in (store.get("r") or {}).values() if (v.get("st") or "") >= today]
-    rows.sort(key=lambda v: v.get("st") or "")
-    rows = rows[:1500]
-    f = ["id", "title", "org", "addr", "st", "en", "fee", "real", "cap", "emp3", "score", "ncs", "type", "url"]
-    out = {"built": datetime.now(KST).strftime("%Y-%m-%d %H:%M"), "src": "고용24(한국고용정보원) 국민내일배움카드",
-           "f": f, "r": [[v.get(k, "") for k in f] for v in rows]}
-    path = os.path.join(OUT, "courses.json")
-    with open(path, "w", encoding="utf-8") as fh:
-        json.dump(out, fh, ensure_ascii=False, separators=(",", ":"))
-    print(f"  → courses.json 앞으로 열리는 건설 훈련과정 {len(rows):,}건 ({os.path.getsize(path)/1024:.0f}KB)")
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=int, default=3)
@@ -1335,14 +1008,10 @@ def main():
     ap.add_argument("--ranks", type=int, default=-1,
                     help="개찰 순위(1위~꼴찌)를 이번 회차에 몇 건까지 채울지. "
                          "안 주면 시각을 보고 알아서 정합니다(정밀 회차 250 / 그 외 60). 0이면 안 함")
+    ap.add_argument("--reranks", type=int, default=0,
+                    help="순위는 있는데 추첨번호 분포(drw)가 없는 개찰을 N건 다시 받습니다 (한 번만)")
     ap.add_argument("--fillbsis", type=int, default=0,
                     help="지난 N일치 기초금액·A값을 소급해서 채웁니다 (하루 한 번이면 충분)")
-    ap.add_argument("--jobs", action="store_true",
-                    help="워크넷 건설 채용을 지금 당장 받습니다 (평소엔 08·13시 회차에만)")
-    ap.add_argument("--coursesonly", action="store_true",
-                    help="조달청은 건너뛰고 고용24 건설 훈련과정만 받습니다 (처음 확인할 때)")
-    ap.add_argument("--jobsonly", action="store_true",
-                    help="조달청은 건너뛰고 워크넷 건설 채용만 받습니다 (처음 확인할 때)")
     ap.add_argument("--fillonly", action="store_true",
                     help="조달청을 부르지 않고, 이미 받아 둔 자료로 "
                          "누적 CSV 의 빈칸만 채웁니다 (호출 0번 · 몇 초)")
@@ -1366,28 +1035,6 @@ def main():
         return
 
     load_env()
-
-    if args.coursesonly:
-        _wk = os.environ.get("WORKNET_API_KEY", "").strip()
-        if not _wk:
-            print("⛔ .env 에 WORKNET_API_KEY 가 없습니다."); return
-        print("=" * 52); print("  고용24 건설 훈련과정만 받기 (NCS 14 건설)"); print("=" * 52)
-        export_courses(collect_courses(_wk, args.sleep))
-        save_diag()
-        print("완료. 응답 항목은 diag.json 의 work24_course310L01 에 남겼습니다.")
-        return
-
-    # ── --jobsonly : 워크넷만. 조달청 키 없이도 돕니다 ──────────────
-    if args.jobsonly:
-        _wk = os.environ.get("WORKNET_API_KEY", "").strip()
-        if not _wk:
-            print("⛔ .env 에 WORKNET_API_KEY 가 없습니다.  예)  WORKNET_API_KEY=받은키")
-            return
-        print("=" * 52); print("  워크넷 건설 채용만 받기"); print("=" * 52)
-        export_jobs(collect_jobs(_wk, args.sleep))
-        save_diag()
-        print("완료. 응답 항목은 web/public/data/diag.json 의 worknet_wantedApi 에 남겼습니다.")
-        return
 
     key = api_key()
 
@@ -1448,9 +1095,21 @@ def main():
                     prev = first[kind].get(r["no"]) or {}
                     # 이미 받아둔 기초금액을 덮어쓰지 않는다
                     for f in ("base", "lo", "hi", "lic",
-                              "aval", "aparts", "ayn", "gmtrl"):
+                              "aval", "aparts", "ayn", "gmtrl", "np",
+                              "llr", "est", "ptot", "pdrw"):
                         if prev.get(f) is not None:
                             r[f] = prev[f]
+                    # ⚠️ 2026-09-03 — 순위 조회로 채운 것을 개찰목록 수집이 덮어쓰면 안 됩니다.
+                    #    개찰목록 API 의 corps 는 «1순위 한 곳»뿐이라, 그대로 두면 힘들게 받은
+                    #    30곳 순위(corps)·사다리(rq)·전체건수(nrank)가 통째로 날아갑니다.
+                    #    실제로 그래서 store 에 순위가 0건이었습니다 — bidresult 엔 46건 남아 있었는데도.
+                    #    (조회 직후 export 된 건 남고, 다음 회차 목록 수집이 원본을 지웠던 것)
+                    #    rask(순위 조회를 마친 표시)가 있으면 순위 관련 값을 지킵니다.
+                    if prev.get("rask"):
+                        for f in ("corps", "rq", "nrank", "rask", "drw",
+                                  "win", "amt", "rate", "bno", "ceo"):
+                            if prev.get(f) is not None:
+                                r[f] = prev[f]
                     first[kind][r["no"]] = r
                     added["first"] += 1
             time.sleep(args.sleep)
@@ -1628,7 +1287,7 @@ def main():
     #   한 회차에 args.ranks 건만 채웁니다 (하루 21회차 × 40건 = 840건,
     #   하루 개찰이 약 570건이므로 하루면 다 따라잡습니다).
     #   최근 개찰부터, 아직 1곳뿐인 것만 채웁니다.
-    if args.ranks > 0 and not NET_DOWN:
+    if (args.ranks > 0 or args.reranks > 0) and not NET_DOWN:
         todo_rank = []
         for kind in KINDS:
             rows = sorted(trim(first[kind], SHOW_DAYS, "dt").values(),
@@ -1639,6 +1298,19 @@ def main():
                 if r.get("nrank") == 1:
                     continue            # 참가업체가 정말 1곳인 공고 (다시 안 물어봅니다)
                 todo_rank.append(r)
+        # ── --reranks N : 순위는 받았지만 «추첨번호 분포(drw)» 가 없는 개찰을 다시 묻습니다.
+        #   추첨번호를 담기 전(2026-09-03 이전)에 받은 순위가 여기에 해당합니다.
+        #   한 번만 쓰는 옵션입니다 — 새로 받는 순위에는 처음부터 drw 가 들어갑니다.
+        if args.reranks > 0:
+            redo = []
+            for kind in KINDS:
+                for r in trim(first[kind], SHOW_DAYS, "dt").values():
+                    if len(r.get("corps") or []) > 1 and not r.get("drw"):
+                        redo.append(r)
+            redo.sort(key=lambda r: dt_digits(r.get("dt")), reverse=True)
+            print(f"  · 추첨번호 다시 받기 대상 {len(redo):,}건 중 {min(len(redo), args.reranks):,}건")
+        else:
+            redo = []
         # ⚠️ 기초금액 개별조회에서 겪은 것과 같은 함정을 피합니다.
         #   «앞에서 N건» 만 집으면 응답이 안 오는 공고를 매 회차 다시 묻고,
         #   뒤쪽은 영영 차례가 안 옵니다.
@@ -1651,11 +1323,13 @@ def main():
             #   ③ 같은 조건이면 최근 개찰부터 (문자열을 뒤집어 내림차순)
             return (1 if asked else 0, asked, "".join(chr(9 - int(c)) for c in dt))
         todo_rank.sort(key=_rank_key)
+        # 다시 받을 것(추첨번호 없음)을 맨 앞에 — 정렬에 섞이면 rask 가 있어 뒤로 밀립니다
+        todo_rank = redo[:args.reranks] + todo_rank[:args.ranks]
         got = ranked = 0
-        for r in todo_rank[:args.ranks]:
+        for r in todo_rank:
             if NET_DOWN:
                 break
-            cs, total, ladder = openg_ranks(key, r["no"], r.get("ord"))
+            cs, total, ladder, drw = openg_ranks(key, r["no"], r.get("ord"))
             r["rask"] = datetime.now(KST).strftime("%Y%m%d%H%M%S")
             time.sleep(args.sleep)
             if not cs:
@@ -1664,6 +1338,15 @@ def main():
             r["corps"] = cs          # 낮은 금액 순 30곳까지
             r["nrank"] = total       # 실제로 받은 전체 투찰 건수
             r["rq"] = ladder         # [[등수, 금액], ...] — 전 구간 사다리
+            if any(drw):
+                r["drw"] = drw       # 1~15번이 각각 몇 번 찍혔나 (전체 투찰자 기준)
+            # 100건마다 저장 — 한 번에 1,500건을 받다가 끊겨도 그때까지는 남습니다
+            if got % 100 == 0:
+                try:
+                    save_store("first", first)
+                    print(f"    · 순위 {got:,}건 받음 (중간 저장)")
+                except Exception:
+                    pass
             if len(cs) > 1:
                 ranked += 1
                 # 1순위 정보도 조달청 순위 자료로 맞춰 둡니다 (더 정확합니다)
@@ -1675,12 +1358,33 @@ def main():
                 if len(cs[0]) > 4 and cs[0][4]:
                     r["ceo"] = cs[0][4]
         if todo_rank:
-            print(f"  → 개찰 순위 조회 {min(len(todo_rank), args.ranks):,}건 시도 · "
-                  f"응답 {got:,}건 · 2곳 이상 {ranked:,}건 "
-                  f"(남은 대상 {max(0, len(todo_rank) - args.ranks):,}건)")
+            print(f"  → 개찰 순위 조회 {len(todo_rank):,}건 시도 · "
+                  f"응답 {got:,}건 · 2곳 이상 {ranked:,}건")
 
     # 사람이 넣어 둔 전체 투찰내역이 있으면 여기서도 붙입니다 (파일로 받은 경우)
     merge_ranks(first)
+
+    # ── 공고(live)에만 실려 오는 값을 개찰(first)에 이어 붙입니다 ──────────
+    #   ★ 2026-09-03 소장님: 「바로투찰하고 1순위 채점에서 권장투찰가 금액이 달라.」
+    #   원인 중 하나가 여기였습니다. 낙찰하한율(llr)·추정가격(est)은 «공고» 쪽에만 오고
+    #   개찰 저장소에는 0건이었습니다(실측 11,542건 중 0). 그래서 바로투찰은 공고서의
+    #   하한율(예: 87.675%)로 금액을 내고, 채점은 규모로 추정한 하한율(87.745%)로 다시
+    #   계산했습니다 — 같은 공고인데 두 화면의 «우리 금액»이 달랐습니다.
+    #   실측: 공고서 하한율이 규모 추정과 다른 공고가 6,212건 중 128건(2.1%), 최대 3.7% 차이.
+    #   조달청 호출 0번 — 이미 받아 둔 공고 저장소에서 같은 공고번호로 옮겨 적습니다.
+    joined = 0
+    for kind in KINDS:
+        lv = live.get(kind) or {}
+        for no, r in (first.get(kind) or {}).items():
+            src = lv.get(no)
+            if not isinstance(src, dict):
+                continue
+            for f in ("llr", "est", "ptot", "pdrw"):
+                if (r.get(f) in (None, "", 0)) and src.get(f) not in (None, "", 0):
+                    r[f] = src[f]
+                    joined += 1
+    if joined:
+        print(f"  · 공고→개찰 이어붙임: 낙찰하한율·추정가격 등 {joined:,}칸")
 
     archive(first, live)
 
@@ -1940,12 +1644,16 @@ def main():
                        #   일반 토목 공고는 같은 홍성군에서 323곳·377곳이 들어왔습니다.
                        #   **자료는 맞는데 화면이 «왜»를 안 알려줘서 의심을 샀습니다.**
                        #   조달청이 lcnsLmtNm 으로 주는 값이라 만들 필요도 없습니다.
-                       (r.get("lic") or [])[:3]]
+                       (r.get("lic") or [])[:3],
+                       # ★ 낙찰하한율·추정가격 — 2026-09-03 추가. 공고서에 적힌 하한율이 있으면
+                       #   채점도 그걸로 계산해야 바로투찰과 같은 금액이 나옵니다.
+                       r.get("llr"), int(r.get("est") or 0)]
         path = os.path.join(OUT, "bidresult.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump({"built": built, "f": ["win", "amt", "rate", "np", "base", "dt",
                              "tel", "ceo", "bno", "adr", "tsrc", "name", "inst",
-                             "aval", "ayn", "amts", "rq", "nrank", "lo", "hi", "lic"],
+                             "aval", "ayn", "amts", "rq", "nrank", "lo", "hi", "lic",
+                             "llr", "est"],
                        "r": out}, f, ensure_ascii=False, separators=(",", ":"))
         print(f"  → bidresult 최근 7일 개찰 {len(out):,}건 "
               f"({os.path.getsize(path)/1024:.0f}KB)")
@@ -2070,30 +1778,6 @@ def main():
         export_bandstat(first, live)
     except Exception as e:
         print(f"  ! bandstat 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
-    # ── 워크넷 건설 채용 (키가 있을 때만) ──────────────────────
-    try:
-        _wk = os.environ.get("WORKNET_API_KEY", "").strip()
-        _h = datetime.now(KST).hour
-        if _wk and (args.jobs or _h in (8, 13)):
-            print("-" * 52)
-            export_jobs(collect_jobs(_wk, args.sleep))
-        elif _wk:
-            export_jobs(load_jobs_store())
-        else:
-            print("  · 워크넷: WORKNET_API_KEY 없음 — 건너뜀 (.env 에 넣으면 돕니다)")
-    except Exception as e:
-        print(f"  ! 워크넷 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
-
-    # ── 고용24 건설 훈련과정 (키가 있을 때 · 08시 회차에만 — 하루 한 번이면 충분) ──
-    try:
-        _wk = os.environ.get("WORKNET_API_KEY", "").strip()
-        if _wk and (args.jobs or datetime.now(KST).hour == 8):
-            export_courses(collect_courses(_wk, args.sleep))
-        elif _wk:
-            export_courses(load_courses_store())
-    except Exception as e:
-        print(f"  ! 훈련과정 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
-
     save_diag()
     print("✅ 수집 완료")
 

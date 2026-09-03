@@ -84,7 +84,10 @@ def score(base, a, a_known, ll, win_amt, win_rate, p50=P50_DEFAULT,
     ro = recommend(base, ll, a, a_known, p50, lo, hi, ptot, pdrw)
     if ro is None:
         return None
-    m = ro["amt"]
+    # ★ 2026-09-03 — 채점의 «우리 금액» 은 화면이 실제로 띄우는 금액(shown) 이어야 합니다.
+    #   recommend 의 금액을 그대로 쓰면 바로투찰 화면과 몇 원~몇십만 원 어긋납니다
+    #   (소장님: 「바로투찰하고 1순위 채점에서 권장투찰가 금액이 달라」).
+    m = shown(base, ro["amt"], p50)["amt"]
     l = math.ceil((yeje - a) * (ll / 100.0) + a)
     return {"yeje": yeje, "our": m, "limit": l,
             "sj_real": r3(yeje / base * 100.0) if base else None,

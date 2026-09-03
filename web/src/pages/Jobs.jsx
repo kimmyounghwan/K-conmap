@@ -3,7 +3,6 @@ import { ref, get, set, push, update, query, orderByKey, limitToLast } from 'fir
 import { db, ensureAnon } from '../firebase.js'
 import { Empty, Skeleton } from '../components.jsx'
 import { num, REGIONS, inRegion } from '../lib/fmt.js'
-import { getJobs, getCourses } from '../lib/data.js'
 
 const TRADES = ['현장관리', '공무/견적', '토목', '건축', '철근·콘크리트', '설비', '전기',
   '조경', '중장비', '보통인부', '기타']
@@ -42,24 +41,9 @@ export default function Jobs() {
   const [writing, setWriting] = useState(false)
   const [err, setErr] = useState('')
   const [mine, setMine] = useState(loadMine)
-  /* ★ 워크넷 건설 채용 — 2026-09-03.
-     한국고용정보원 OpenAPI 로 받은 «목록»입니다(크롤링 아님). 제목·조건·링크만 보여주고
-     지원·문의는 워크넷에서 합니다. 이 탭을 열 때만 jobs.json 을 받습니다. */
-  const [src, setSrc] = useState('worknet')     // 'worknet' | 'ours'
-  const [wn, setWn] = useState(undefined)       // undefined=아직, null=없음, {f,r}=있음
-  const [cs, setCs] = useState(undefined)       // 건설 자격·훈련 과정
-  useEffect(() => {
-    getJobs().then((d) => setWn(d && Array.isArray(d.r) && d.r.length ? d : null))
-             .catch(() => setWn(null))
-    getCourses().then((d) => setCs(d && Array.isArray(d.r) && d.r.length ? d : null))
-                .catch(() => setCs(null))
-  }, [])
-  /* 자료가 있는 쪽을 먼저 보여줍니다: 채용 → 훈련 → 직접 올린 글.
-     (채용정보 API 는 기업회원 전용이라 개인회원 키로는 0건입니다 — 2026-09-03) */
-  useEffect(() => {
-    if (wn === null && cs) setSrc('courses')
-    else if (wn === null && cs === null) setSrc('ours')
-  }, [wn, cs])
+  /* ★ 2026-09-03 — 「워크넷 건설 채용」과 「자격·훈련」 갈래는 뺐습니다(소장님 결정).
+     채용정보 API 는 기업회원 전용이라 개인회원 키로는 0건이었고, 크롤링은 하지 않기로 했습니다.
+     이 탭은 «직접 올린 글» 하나입니다. */
 
   const load = async () => {
     setPosts(null); setErr('')
@@ -97,25 +81,6 @@ export default function Jobs() {
         🤝 K-구인구직 <span className="count">· 현장 사람 구하고 찾기</span>
       </div>
 
-      {/* 출처 고르기 — 워크넷(공공) 과 직접 올린 글은 신뢰 근거가 달라서 섞지 않고 나란히 둡니다 */}
-      <div className="seg" style={{ marginBottom: 10 }}>
-        <button className={src === 'worknet' ? 'on' : ''} onClick={() => setSrc('worknet')}>
-          🏛 워크넷 건설 채용{wn ? ` ${num(wn.r.length)}` : ''}
-        </button>
-        <button className={src === 'courses' ? 'on' : ''} onClick={() => setSrc('courses')}>
-          🎓 자격·훈련{cs ? ` ${num(cs.r.length)}` : ''}
-        </button>
-        <button className={src === 'ours' ? 'on' : ''} onClick={() => setSrc('ours')}>
-          ✏️ 직접 올린 글{posts ? ` ${num(posts.length)}` : ''}
-        </button>
-      </div>
-
-      {src === 'worknet' ? (
-        <WorknetList data={wn} region={region} setRegion={setRegion} />
-      ) : src === 'courses' ? (
-        <CourseList data={cs} region={region} setRegion={setRegion} />
-      ) : (
-      <>
       <div className="seg">
         {['전체', ...TYPES].map((t) => (
           <button key={t} className={type === t ? 'on' : ''} onClick={() => setType(t)}>{t}</button>
@@ -165,110 +130,9 @@ export default function Jobs() {
         </>
       )}
 
-      </>
-      )}
-
-      {src === 'ours' && (
       <div className="note" style={{ marginTop: 14 }}>
         로그인 없이 누구나 올릴 수 있습니다. 올릴 때 정한 <b>4자리 숫자</b>가 있어야 글을 지울 수 있으니 꼭 기억해두세요.<br />
         연락처는 그대로 공개되니 개인 휴대폰보다 업무용 번호를 권합니다. 허위·광고성 글은 예고 없이 삭제될 수 있습니다.
-      </div>
-      )}
-    </>
-  )
-}
-
-/* ── 워크넷 건설 채용 목록 ──────────────────────────────────────
-   ⚠️ 본문은 없습니다. 있어도 안 보여줍니다. 제목·회사·지역·급여·조건·마감 + 워크넷 링크.
-   ⚠️ 링크는 워크넷이 준 주소(wantedInfoUrl) 그대로. 손으로 만들지 않습니다.
-   ⚠️ 출처를 항상 적습니다 — «워크넷(한국고용정보원)». */
-const JPAGE = 20
-function WorknetList({ data, region, setRegion }) {
-  const [q, setQ] = useState('')
-  const [page, setPage] = useState(1)
-  useEffect(() => { setPage(1) }, [q, region])
-
-  const rows = useMemo(() => {
-    if (!data) return []
-    const f = data.f
-    const ix = Object.fromEntries(f.map((k, i) => [k, i]))
-    const s = q.trim()
-    return data.r
-      .map((a) => ({ id: a[ix.id], title: a[ix.title], co: a[ix.co], ind: a[ix.ind], reg: a[ix.reg],
-                     sal: a[ix.sal], salTp: a[ix.salTp], career: a[ix.career], edu: a[ix.edu],
-                     empTp: a[ix.empTp], regDt: a[ix.regDt], closeDt: a[ix.closeDt],
-                     url: a[ix.url], murl: a[ix.murl] }))
-      .filter((r) => inRegion({ inst: r.reg, name: '' }, region))   // 공고와 같은 지역 규칙(별칭 포함)
-      .filter((r) => !s || (r.title || '').includes(s) || (r.co || '').includes(s) || (r.ind || '').includes(s))
-  }, [data, q, region])
-
-  if (data === undefined) return <Skeleton n={4} />
-  if (data === null) {
-    return (
-      <Empty icon="🏛">
-        워크넷 채용 자료가 아직 없습니다.<br />
-        <span style={{ fontSize: 12 }}>수집이 돌면 여기에 건설 관련 채용이 올라옵니다.</span>
-      </Empty>
-    )
-  }
-  const pages = Math.max(1, Math.ceil(rows.length / JPAGE))
-  const view = rows.slice((page - 1) * JPAGE, page * JPAGE)
-  const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad/i.test(navigator.userAgent)
-
-  return (
-    <>
-      <input value={q} onChange={(e) => setQ(e.target.value)}
-        placeholder="채용 제목 · 회사 · 업종 검색" style={{ marginBottom: 10 }} />
-      <div className="chips">
-        {REGIONS.map((r) => (
-          <button key={r} className={'chip' + (region === r ? ' on' : '')} onClick={() => setRegion(r)}>{r}</button>
-        ))}
-      </div>
-
-      <div className="sec-title">
-        건설 채용 <span className="count">{num(rows.length)}건 · 출처 워크넷(한국고용정보원) · {data.built}</span>
-      </div>
-
-      {view.length === 0 ? (
-        <Empty icon="🔎">조건에 맞는 채용이 없습니다.<br />지역을 넓히거나 검색어를 지워보세요.</Empty>
-      ) : view.map((r) => {
-        const link = (isMobile && r.murl) ? r.murl : r.url
-        return (
-          <div className="notice" key={r.id}>
-            <h3>{r.title}</h3>
-            <div className="meta">
-              <span className="inst">{r.co}</span>
-              {r.reg && <><span>·</span><span>{r.reg}</span></>}
-              {r.ind && <span className="badge n">{r.ind}</span>}
-              {r.career && <span className="badge n">{r.career}</span>}
-              {r.empTp && <span className="badge n">{r.empTp}</span>}
-              {r.closeDt && <span className="badge b">마감 {r.closeDt.slice(5)}</span>}
-            </div>
-            <div className="foot">
-              <span className="badge g">{r.salTp || '급여'}</span>
-              <span className="amt">{r.sal || '워크넷에서 확인'}</span>
-              <span style={{ flex: 1 }} />
-              {link && (
-                <a className="btn ghost sm" href={link} target="_blank" rel="noreferrer">
-                  워크넷에서 보기 →
-                </a>
-              )}
-            </div>
-          </div>
-        )
-      })}
-
-      {pages > 1 && (
-        <div className="pager">
-          <button className="btn ghost sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>이전</button>
-          <span className="pg">{page} / {pages}</span>
-          <button className="btn ghost sm" disabled={page >= pages} onClick={() => setPage(page + 1)}>다음</button>
-        </div>
-      )}
-
-      <div className="note" style={{ marginTop: 14 }}>
-        이 목록은 <b>워크넷(한국고용정보원) 공개 API</b>로 받은 건설 관련 채용입니다. 여기서는 제목과 조건만 보여주며,
-        상세 내용·지원·문의는 <b>워크넷에서</b> 하시면 됩니다. 마감된 공고는 자동으로 빠집니다.
       </div>
     </>
   )
@@ -458,85 +322,5 @@ function WriteForm({ onClose, onDone }) {
         <button className="btn" disabled={busy} onClick={submit}>{busy ? '올리는 중…' : '올리기'}</button>
       </div>
     </div>
-  )
-}
-
-
-/* ── 고용24 건설 자격·훈련 과정 ────────────────────────────────
-   국민내일배움카드 훈련과정 API(310L01), NCS 14 건설. 개인회원 키로 됩니다.
-   굴착기·지게차·타워크레인·건설안전·전기·용접·타일·방수 — 현장 사람들이 실제로 찾는 것.
-   ⚠️ 목록만. 신청·상담은 고용24에서. 링크는 고용24가 준 TITLE_LINK 그대로. */
-const CPAGE = 20
-const wonK = (v) => { const n = Number(String(v || '').replace(/[^0-9]/g, '')); return n ? n.toLocaleString('ko-KR') + '원' : '' }
-function CourseList({ data, region, setRegion }) {
-  const [q, setQ] = useState('')
-  const [page, setPage] = useState(1)
-  useEffect(() => { setPage(1) }, [q, region])
-  const rows = useMemo(() => {
-    if (!data) return []
-    const ix = Object.fromEntries(data.f.map((k, i) => [k, i]))
-    const s = q.trim()
-    return data.r
-      .map((a) => ({ id: a[ix.id], title: a[ix.title], org: a[ix.org], addr: a[ix.addr], st: a[ix.st], en: a[ix.en],
-                     fee: a[ix.fee], real: a[ix.real], cap: a[ix.cap], emp3: a[ix.emp3], score: a[ix.score],
-                     type: a[ix.type], url: a[ix.url] }))
-      .filter((r) => inRegion({ inst: r.addr, name: '' }, region))
-      .filter((r) => !s || (r.title || '').includes(s) || (r.org || '').includes(s))
-  }, [data, q, region])
-  if (data === undefined) return <Skeleton n={4} />
-  if (data === null) {
-    return <Empty icon="🎓">건설 훈련과정 자료가 아직 없습니다.<br /><span style={{ fontSize: 12 }}>수집이 돌면 여기에 올라옵니다.</span></Empty>
-  }
-  const pages = Math.max(1, Math.ceil(rows.length / CPAGE))
-  const view = rows.slice((page - 1) * CPAGE, page * CPAGE)
-  return (
-    <>
-      <input value={q} onChange={(e) => setQ(e.target.value)}
-        placeholder="과정명 · 훈련기관 검색 (굴착기, 지게차, 타워크레인, 건설안전…)" style={{ marginBottom: 10 }} />
-      <div className="chips">
-        {REGIONS.map((r) => (
-          <button key={r} className={'chip' + (region === r ? ' on' : '')} onClick={() => setRegion(r)}>{r}</button>
-        ))}
-      </div>
-      <div className="sec-title">
-        건설 자격·훈련 <span className="count">{num(rows.length)}건 · 출처 고용24 국민내일배움카드 · {data.built}</span>
-      </div>
-      {view.length === 0 ? (
-        <Empty icon="🔎">조건에 맞는 과정이 없습니다.<br />지역을 넓히거나 검색어를 지워보세요.</Empty>
-      ) : view.map((r) => (
-        <div className="notice" key={r.id}>
-          <h3>{r.title}</h3>
-          <div className="meta">
-            <span className="inst">{r.org}</span>
-            {r.addr && <><span>·</span><span>{r.addr}</span></>}
-            {r.st && <span className="badge b">{r.st.slice(5)} 시작</span>}
-            {r.en && <span className="badge n">~{r.en.slice(5)}</span>}
-            {r.cap && <span className="badge n">정원 {r.cap}</span>}
-            {r.emp3 && Number(r.emp3) > 0 && <span className="badge g">취업률 {r.emp3}%</span>}
-            {r.score && Number(r.score) > 0 && <span className="badge n">만족도 {r.score}</span>}
-          </div>
-          <div className="foot">
-            <span className="badge n">훈련비</span>
-            <span className="amt">{wonK(r.fee) || '고용24에서 확인'}</span>
-            {r.real && wonK(r.real) && wonK(r.real) !== wonK(r.fee) && (
-              <span className="badge g">본인부담 {wonK(r.real)}</span>
-            )}
-            <span style={{ flex: 1 }} />
-            {r.url && <a className="btn ghost sm" href={r.url} target="_blank" rel="noreferrer">고용24에서 보기 →</a>}
-          </div>
-        </div>
-      ))}
-      {pages > 1 && (
-        <div className="pager">
-          <button className="btn ghost sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>이전</button>
-          <span className="pg">{page} / {pages}</span>
-          <button className="btn ghost sm" disabled={page >= pages} onClick={() => setPage(page + 1)}>다음</button>
-        </div>
-      )}
-      <div className="note" style={{ marginTop: 14 }}>
-        <b>고용24(한국고용정보원) 국민내일배움카드</b> 공개 API로 받은 건설(NCS 14) 분야 훈련과정입니다.
-        여기서는 목록만 보여주며, 신청·상담은 <b>고용24에서</b> 하시면 됩니다. 국민내일배움카드가 있으면 훈련비 대부분이 지원됩니다.
-      </div>
-    </>
   )
 }

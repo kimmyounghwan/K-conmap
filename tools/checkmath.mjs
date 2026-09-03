@@ -25,9 +25,9 @@ const out = cases.map((c) => {
   const r = { no: c.no, sd, ready: M.isReady(c.row || {}), missing: M.missingOf(c.row || {}) }
   if (ro) {
     r.sj = ro.sj; r.pctile = ro.pctile; r.recAmt = ro.amt
-    const yejeMid = c.base * (c.p50 / 100)
-    r.rate = M.c3(ro.amt / yejeMid * 100)
-    r.shownAmt = M.bidAmount(c.base, c.p50, r.rate)
+    const sh = M.shownBid(c.base, c.p50, ro.amt)
+    r.rate = sh.rate
+    r.shownAmt = sh.amt
     r.limitAtMid = M.limitAmount(c.base, c.p50, c.llr, c.a)
   }
   /* ★ 원클릭(공고 카드) 금액 — quickBid 가 같은 답을 내는지.
@@ -40,12 +40,14 @@ const out = cases.map((c) => {
   if (c.score) {                                  // 채점
     const yeje = Math.round(c.score.win / (c.score.rate / 100))
     const L = Math.ceil((yeje - c.a) * (c.llr / 100) + c.a)
-    r.score = { yeje, limit: L, our: ro ? ro.amt : 0,
-                dq: ro ? ro.amt < L : null,
-                beat: ro ? (ro.amt >= L && ro.amt < c.score.win) : null }
+    /* 채점의 «우리 금액» 도 화면이 띄우는 금액(shownBid) — 2026-09-03 */
+    const our = ro ? M.shownBid(c.base, c.p50, ro.amt).amt : 0
+    r.score = { yeje, limit: L, our,
+                dq: ro ? our < L : null,
+                beat: ro ? (our >= L && our < c.score.win) : null }
     if (c.score.ladder) {
       const sc = M.buildScen({ base: c.base, llRate: c.llr, aVal: c.a,
-                               p50: c.p50, sd, myAmt: ro.amt })
+                               p50: c.p50, sd, myAmt: our })
       r.score.passN = sc ? sc.passN : null
     }
   }

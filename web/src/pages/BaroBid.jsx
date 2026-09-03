@@ -6,7 +6,7 @@ import { winGrade } from '../lib/winodds.js'
 /* 계산은 전부 여기 있습니다 — 화면과 채점이 같은 함수를 씁니다 */
 import { bidAmount, limitAmount, limitRate, r3, c3,
          sjSigma, recommend, buildScen, missingOf, isReady,
-         digits, toNum, P50_FALLBACK } from '../lib/bidmath.js'
+         digits, toNum, P50_FALLBACK, shownBid } from '../lib/bidmath.js'
 /* 공고 화면(LiveBoard)이 예전부터 여기서 가져다 썼습니다 — 그대로 이어 줍니다 */
 export { missingOf, isReady }
 
@@ -319,6 +319,10 @@ export default function BaroBid() {
         rq: Array.isArray(a[16]) ? a[16] : [],      // [[등수, 금액], ...] 순위 사다리
         nrank: a[17] || 0,
         lo: a[18] != null ? a[18] : null, hi: a[19] != null ? a[19] : null,
+        lic: Array.isArray(a[20]) ? a[20] : [],
+        /* ★ 2026-09-03 — 공고서의 낙찰하한율·추정가격. 채점이 이걸 안 쓰면
+           바로투찰(공고 화면)과 다른 금액이 나옵니다. */
+        llr: a[21] != null ? Number(a[21]) : 0, est: Number(a[22]) || 0,
       } : fromUrl)
     })
     return () => { ok = false }
@@ -404,7 +408,7 @@ export default function BaroBid() {
      (예: 기초 397,111,000 인데 예산 485,852,000)
      낙찰하한율은 추정가격으로 갈리므로 여기서 틀리면 하한율 구간이 어긋납니다.
      추정가격은 기초금액에서 부가세를 뺀 값(÷1.1)이 맞습니다. */
-  const estimate = toNum(budgetIn) || picked?.est || (base ? Math.round(base / 1.1) : 0)
+  const estimate = toNum(budgetIn) || picked?.est || res?.est || (base ? Math.round(base / 1.1) : 0)
 
   const hot = ov?.hot || null
   const regime = ov?.regime || null
@@ -424,7 +428,7 @@ export default function BaroBid() {
      공고에 실려 있으면 그걸 쓰고, 없을 때만 규모로 추정합니다. */
   /* ⚠️ 공고가 준 낙찰하한율에 쓰레기값이 섞여 옵니다 — 실측: 1(4건), 90(2건).
      그대로 쓰면 금액이 통째로 틀립니다. 말이 되는 범위만 받습니다. */
-  const rawLL = Number(picked?.llr || sp.get('llr')) || 0
+  const rawLL = Number(picked?.llr || sp.get('llr') || res?.llr) || 0
   const givenLL = (rawLL >= 60 && rawLL <= 100) ? rawLL : 0
   const ll = givenLL > 0
     ? { rate: givenLL, note: '공고서에 적힌 낙찰하한율', given: true }
@@ -519,7 +523,7 @@ export default function BaroBid() {
     : (aKnown ? (ov?.sjq?.p75 ?? null) : (ov?.sjq?.p95 ?? null))  // 없으면 전국값
   const recAmt = recOut ? recOut.amt
     : ((base > 0 && ll?.rate && sj95) ? Math.ceil(limitAmount(base, sj95, ll.rate, a) * SJ_MARGIN) : 0)
-  const rec95 = recAmt ? c3(recAmt / (base * (sjMid / 100)) * 100) : null
+  const rec95 = recAmt ? shownBid(base, sjMid, recAmt).rate : null
 
   const choices = []
   if (rec95 != null) {
@@ -616,10 +620,17 @@ export default function BaroBid() {
        화면에 단정했습니다. 그건 거짓입니다. 모르면 모른다고 해야 합니다. */
     const hasBase = res.base > 0
     const b = hasBase ? res.base : Math.round(yeje / (sjmid / 100))
-    const est = Math.round(b / 1.1)
+    /* ★ 2026-09-03 소장님: 「바로투찰하고 1순위 채점에서 권장투찰가 금액이 달라.」
+       원인 ①: 채점은 낙찰하한율을 «규모로 추정»만 했고, 공고서에 적힌 하한율을 안 봤습니다.
+       공고 화면(바로투찰)은 공고서 값을 먼저 씁니다. 실측 6,212건 중 128건(2.1%)이
+       규모 추정과 다르고(87.675 · 87.995 · 86.245 …), 최대 3.7% 어긋납니다.
+       → 공고 화면과 같은 순서: 공고서 하한율(60~100 만 믿음) → 없으면 규모 추정.
+       추정가격도 공고가 준 값이 있으면 그걸로 규모를 정합니다. */
+    const est = res.est > 0 ? res.est : Math.round(b / 1.1)
     const bd = (ov?.bands || []).find(
       (x) => est >= x.min && (x.max == null || est < x.max)) || null
-    const h = bd ? bd.llr : null
+    const givenH = (res.llr >= 60 && res.llr <= 100) ? res.llr : 0
+    const h = givenH || (bd ? bd.llr : null)
     if (h == null) return { yeje, est, band: bd, skip: true }
 
     const realA = res.ayn === 'N' ? 0 : (res.aval || 0)
@@ -633,7 +644,13 @@ export default function BaroBid() {
                            p50: ov?.sjq?.p50 ?? P50_FALLBACK, sd: rSd })
     if (!ro) return { yeje, est, band: bd, skip: true }
     const sj95v = ro.sj
-    const M = ro.amt                                               // 바로투찰이 준 금액
+    /* 원인 ②: 채점은 recommend() 의 금액을 그대로 썼는데, 바로투찰 화면은 그 금액을
+       투찰률(소수 3자리 **올림**)로 바꿨다가 다시 금액으로 만듭니다 — 사용자가 복사해 가는
+       금액은 뒤엣것입니다. 실측 9,646건 전부 달랐고(중앙 475원, 최대 96만원).
+       원클릭(quickBid)에서 2,354원이 어긋났던 것과 같은 함정입니다.
+       → 채점도 같은 길을 갑니다: 금액 → c3(투찰률) → bidAmount. */
+    const pmid = ov?.sjq?.p50 ?? P50_FALLBACK
+    const M = shownBid(b, pmid, ro.amt).amt                       // 바로투찰이 준 금액
     const L = Math.ceil((yeje - A) * (h / 100) + A)                // 실제 낙찰하한금액
     const dq = M < L
     const beat = !dq && M < res.amt
@@ -648,7 +665,6 @@ export default function BaroBid() {
        정확히 반반. 실격한 날 낙찰가와의 거리는 0.4% 가 아니라 «그 자리에 없음» 입니다.
        그런데 채점 화면은 실격한 날에도 «가까웠다» 고 보여줘서 최저를 좋게 보이게 했습니다.
        그래서 세 금액의 «이 개찰에서의 운명»을 나란히 적습니다. */
-    const pmid = ov?.sjq?.p50 ?? P50_FALLBACK
     const lrMid = c3(limitRate(b, pmid, h, A))
     const three = [
       { k: '최저', amt: bidAmount(b, pmid, lrMid),            dq: 47.1, won: 29.7 },
@@ -1263,8 +1279,14 @@ export default function BaroBid() {
                 </span>
               </div>
               {scored.dq ? (
-                <>⛔ <b>실격이었습니다.</b> 우리 금액 {won(scored.ourAmt)}이
-                  실제 낙찰하한 {won(scored.limitAmt)}보다 {wonShort(scored.limitAmt - scored.ourAmt)} 모자랍니다.</>
+                /* ⚠️ 2026-09-03 — «실격이었습니다» 에 주어가 없어서 낙찰자가 실격된 것처럼 읽혔습니다.
+                   소장님: 「바로투찰에 의하면 실격인데 왜 낙찰된 거지?」
+                   실격은 «바로투찰 금액»이고, 낙찰자는 우리보다 높게 써서 살아남은 것입니다. 그걸 한 줄에 다 씁니다. */
+                <>⛔ <b>바로투찰 금액이었으면 실격이었습니다.</b> 우리 금액 {won(scored.ourAmt)}은
+                  실제 낙찰하한 {won(scored.limitAmt)}보다 {wonShort(scored.limitAmt - scored.ourAmt)} 모자랍니다.
+                  {' '}낙찰자({res.win || '1순위'})는 우리보다 <b>{won(res.amt - scored.ourAmt)} 높게</b> 써서
+                  {' '}하한을 {wonShort(res.amt - scored.limitAmt)} 차이로 넘겼습니다 — 이날은 낮게 쓴 쪽이 다 실격하고
+                  {' '}높게 쓴 쪽 중 가장 낮은 곳이 이긴 날입니다.</>
               ) : scored.beat ? (
                 <>🏆 <b>1순위였을 자리입니다.</b> 바로투찰 금액({won(scored.ourAmt)})이
                   {' '}낙찰하한({won(scored.limitAmt)})을 넘기면서 실제 1순위({won(res.amt)})보다

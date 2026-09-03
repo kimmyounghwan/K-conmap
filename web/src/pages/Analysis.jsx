@@ -1,4 +1,5 @@
 import { SpotBlock, OpenNotices, corpMatch } from '../Spot.jsx'
+import { getOverview } from '../lib/data.js'
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { getAgency, searchCorp, getCorp } from '../lib/data.js'
@@ -54,6 +55,8 @@ function AgencyTab() {
 /* ── 업체 자가진단 ────────────────────── */
 function CorpTab() {
   const [q, setQ] = useState('')
+  const [ov, setOv] = useState(null)
+  useEffect(() => { getOverview().then(setOv).catch(() => {}) }, [])
   const [list, setList] = useState([])
   const [open, setOpen] = useState(false)
   const [c, setC] = useState(null)
@@ -160,6 +163,10 @@ function CorpTab() {
           {/* ★ 2026-09-03 — 내가 이기는 자리인가 (창 · 등급 · 경쟁) */}
           <SpotBlock spot={c.spot} who="내가 딴 자리" />
 
+          {/* ★ 최근 순위 기록 — «진 투찰»이 처음으로 보이는 자리. 소장님:
+              「30위 안에 있으면 있고, 없으면 없다라고 정확히 밝히면서. 바로투찰이었다면 이랬을 것이다.」 */}
+          <RankHistory c={c} ov={ov} />
+
           <div className="tiles c4" style={{ marginBottom: 10 }}>
             <Tile k="총 낙찰" v={num(c.n)} small />
             <Tile k="평균 투찰률" v={pct(c.s?.avg, 2)} small />
@@ -228,5 +235,88 @@ function CorpTab() {
 </>
       )}
     </>
+  )
+}
+
+
+/* ── 최근 순위 기록 ────────────────────────────────────────────
+   3년치엔 1순위만 있습니다. «진 투찰»은 개찰 순위(낮은 순 30곳)를 받기 시작한 뒤의 것뿐입니다.
+   그래서 분모를 항상 밝힙니다 — «우리가 순위를 받은 N개 개찰 중». 30위 밖은 자료에 없으니 «없다»고만 합니다.
+   rec = [공고명, 날짜, 기관, 내등수, 총참가, 내투찰률, 내금액, baro]
+   baro = [등수 | 0(실격) | -1(30위 밖), 바로투찰금액] 또는 null(기초·A값 없어 계산 안 함) */
+function RankHistory({ c, ov }) {
+  const pool = ov?.rankPool || 0
+  const recs = Array.isArray(c?.rank) ? c.rank : []
+  if (!pool && !recs.length) return null
+  const ranks = recs.map((r) => r[3]).filter((v) => v > 0)
+  const wins = recs.filter((r) => r[3] === 1).length
+  const baroKnown = recs.filter((r) => r[7])
+  const baroWin = baroKnown.filter((r) => r[7][0] === 1).length
+  const baroDq = baroKnown.filter((r) => r[7][0] === 0).length
+  const better = baroKnown.filter((r) => r[7][0] > 0 && r[7][0] < r[3]).length
+  const worse = baroKnown.filter((r) => (r[7][0] > r[3] && r[7][0] > 0) || r[7][0] === -1 || r[7][0] === 0).length
+  const med = ranks.length ? [...ranks].sort((a, b) => a - b)[Math.floor(ranks.length / 2)] : null
+
+  return (
+    <div className="card rankhist">
+      <div className="sec-title" style={{ margin: '0 0 6px' }}>
+        🥇 최근 순위 기록 <span className="count">· 순위를 받은 개찰 {num(pool)}건 중</span>
+      </div>
+      {recs.length === 0 ? (
+        <div className="note">
+          우리가 순위(낮은 순 30곳)를 받은 최근 개찰 <b>{num(pool)}건</b>에 이 업체는 <b>30위 안에 없습니다.</b>
+          {' '}참여를 안 했거나, 했더라도 30위 밖이었습니다 — 어느 쪽인지는 자료가 말해주지 않습니다.
+          {' '}(순위는 2026-09-02부터 받기 시작했습니다. 며칠 지나면 더 쌓입니다)
+        </div>
+      ) : (
+        <>
+          <div className="rh-sum">
+            <div className="t"><span className="k">30위 안에 든 개찰</span><b>{num(recs.length)}건</b><span className="s">{num(pool)}건 중</span></div>
+            <div className="t"><span className="k">1순위</span><b>{num(wins)}건</b><span className="s">{recs.length ? Math.round(wins / recs.length * 100) : 0}%</span></div>
+            {med != null && <div className="t"><span className="k">등수 중앙</span><b>{num(med)}위</b><span className="s">30위 안에서</span></div>}
+            {baroKnown.length > 0 && (
+              <div className="t"><span className="k">바로투찰이었다면</span>
+                <b>{num(baroWin)}건 1순위</b>
+                <span className="s">{num(baroKnown.length)}건 계산 · 실격 {num(baroDq)}</span></div>
+            )}
+          </div>
+          {baroKnown.length > 0 && (
+            <div className="rh-verdict">
+              {better > worse
+                ? <>바로투찰 금액이 내 금액보다 <b>등수가 좋았던 개찰 {num(better)}건</b>, 나빴던 {num(worse)}건. 내 금액이 권장보다 높게 가는 편입니다 — 등급이 좋은 자리에서 권장을 써볼 만합니다.</>
+                : better < worse
+                ? <>내 금액이 바로투찰보다 <b>등수가 좋았던 개찰 {num(worse)}건</b>, 나빴던 {num(better)}건. 권장보다 낮게 쓰는 편입니다 — 이기면 크지만 실격도 늘어납니다. 바로투찰 실격 {num(baroDq)}건과 내 실격을 견줘 보세요.</>
+                : <>바로투찰과 내 금액의 등수가 비슷합니다({num(better)} : {num(worse)}). 금액보다 «어디에 넣느냐»(등급)가 남은 변수입니다.</>}
+            </div>
+          )}
+          <div className="rh-list">
+            {recs.map((r, i) => {
+              const b = r[7]
+              const bTxt = !b ? '계산 안 함' : b[0] === 0 ? '실격' : b[0] === -1 ? '30위 밖' : `${num(b[0])}위`
+              const bTone = !b ? 'n' : b[0] === 0 ? 'r' : b[0] === 1 ? 'g' : b[0] === -1 ? 'n' : 'b'
+              return (
+                <div className="row" key={i}>
+                  <div className="grow">
+                    <div className="t" style={{ whiteSpace: 'normal' }}>{r[0]}</div>
+                    <div className="d">{dateFull(r[1])} · {r[2]}{r[5] != null ? ` · ${pct(r[5], 3)}` : ''}</div>
+                  </div>
+                  <span className="r">
+                    <span className={'badge ' + (r[3] === 1 ? 'g' : 'b')}>{num(r[4])}곳 중 {num(r[3])}위</span>
+                    <br />
+                    <span className={'badge ' + bTone} style={{ marginTop: 3 }} title={b ? `바로투찰 ${wonShort(b[1])}` : '기초금액·A값이 없어 계산하지 않았습니다'}>
+                      바로투찰 {bTxt}
+                    </span>
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+          <div className="note" style={{ marginTop: 8 }}>
+            조달청 개찰 순위(낮은 금액 순 30곳)에서 이 업체를 찾은 것입니다. «바로투찰 등수»는 그 개찰의 확정 예정가격으로
+            하한을 구해, 권장금액이 30곳 중 몇 번째였을지 센 것입니다. 기초금액·A값이 없는 개찰은 계산하지 않습니다.
+          </div>
+        </>
+      )}
+    </div>
   )
 }

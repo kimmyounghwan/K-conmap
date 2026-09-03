@@ -141,6 +141,18 @@ export function recommend({ base, llRate, aVal, aKnown, p50, sd }) {
    입력은 공고 한 줄(r) 그대로입니다. 완비(isReady)가 아니면 null — 반쯤 아는 값으로
    금액을 내지 않습니다. 그건 «금액»이 아니라 «추측»입니다.
    ══════════════════════════════════════════════════════════════ */
+/** 화면이 «실제로 띄우는» 금액 — recommend() 의 금액을 투찰률(소수 3자리 올림)로 바꿨다가
+ *  다시 금액으로 만든 것. 사용자가 복사해 가는 금액은 이것입니다.
+ *
+ *  ★ 2026-09-03 — 이 «한 번 돌아가기» 가 세 곳(바로투찰 화면·원클릭·채점)에 따로 적혀 있다가
+ *    채점만 빠져서 「바로투찰하고 채점 금액이 달라」 가 났습니다(실측 9,646건 전부, 중앙 475원·최대 96만원).
+ *    이제 세 곳이 이 함수 하나를 부릅니다. 여기 말고 다른 데서 금액→투찰률→금액을 다시 쓰지 마세요. */
+export function shownBid(base, p50, recAmt) {
+  if (!(base > 0) || !(p50 > 0) || !(recAmt > 0)) return null
+  const rate = c3(recAmt / (base * (p50 / 100)) * 100)
+  return { rate, amt: bidAmount(base, p50, rate) }
+}
+
 export function quickBid(r, p50) {
   if (!r || !isReady(r) || !(p50 > 0)) return null
   const aKnown = r.ayn === 'N' || r.aval > 0
@@ -156,7 +168,6 @@ export function quickBid(r, p50) {
      카드 408,999,841 vs 화면 409,002,195 — 2,354원 차이.
      4억 공고에서 투찰률 0.001% 가 4,090원이라, 올림 한 번이 이만큼입니다.
      같은 공고를 두 화면이 다른 숫자로 보여주면 사용자는 둘 다 안 믿습니다. */
-  const yejeMid = base * (p50 / 100)
-  const rate = c3(out.amt / yejeMid * 100)
-  return { amt: bidAmount(base, p50, rate), rate, sj: out.sj, pctile: out.pctile, aKnown }
+  const sh = shownBid(base, p50, out.amt)
+  return { amt: sh.amt, rate: sh.rate, sj: out.sj, pctile: out.pctile, aKnown }
 }

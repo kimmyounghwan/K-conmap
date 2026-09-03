@@ -33,7 +33,7 @@ export default function FirstBoard() {
     }
   }, [filtering, q, region])
 
-  const { info, rows: all, pageRows, pageReady, total, loading, busy } =
+  const { info, rows: all, pageRows, pageReady, total, indexReady, loading, busy } =
     useBoard('first', KIND, { match, page, perPage: PAGE })
 
   useEffect(() => { getOverview().then(setOv) }, [])
@@ -41,11 +41,13 @@ export default function FirstBoard() {
 
   /* 검색 중이면 색인이 센 «전체 건수»가 정확합니다.
      검색이 아니면 받아 둔 것에서 셉니다(첫 묶음 500건). */
+  /* 전체 건수는 useBoard 가 «7주 전체»로 셉니다 — 검색 중이면 색인에서, 아니면 목록표(meta)에서.
+     ⚠️ 받아 둔 것(all.length)으로 세면 25쪽(500건 ≈ 개찰 이틀치)에서 끝납니다 — 2026-09-03 실제 사고. */
   const count = total != null ? total : all.length
   const pages = Math.max(1, Math.ceil(count / PAGE))
   const view = pageRows != null ? pageRows : all.slice((page - 1) * PAGE, page * PAGE)
   const rows = view
-  const done = total != null
+  const done = filtering ? indexReady : true     // 검색 중이면 색인이 와야 «다 셌다»
   const newest = all.length ? String(all[0].dt || '').slice(0, 10) : ''
 
   return (
@@ -86,7 +88,7 @@ export default function FirstBoard() {
 
       <RangeBar info={info} loaded={all.length} done={done} busy={busy} filtering={filtering} count={count} />
 
-      {loading || (filtering && (!done || !pageReady)) ? <Skeleton /> : rows.length === 0 ? (
+      {loading || (filtering && !done) || !pageReady ? <Skeleton /> : rows.length === 0 ? (
         <Empty icon="🔎">
           조건에 맞는 개찰 결과가 없습니다.<br />지역을 넓히거나 검색어를 지워보세요.
         </Empty>
@@ -184,8 +186,8 @@ export function RangeBar({ info, loaded, done, busy, filtering, count }) {
           ? (done
               ? <>7주 전체 <b>{num(info.n)}건</b>에서 찾음{range && <> · {range}</>}</>
               : <>7주 전체를 뒤지는 중…{range && <> · {range}</>}</>)
-          : <>최근 <b>{num(loaded)}건</b> 표시 · 7주 전체 {num(info.n)}건{range && <> · {range}</>}
-              {busy && ' · 더 받는 중'}</>}
+          : <>7주 전체 <b>{num(info.n)}건</b>{range && <> · {range}</>} · 쪽을 넘기면 이어서 받습니다
+              {busy && ' · 받는 중'}</>}
       </span>
     </div>
   )

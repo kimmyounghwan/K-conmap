@@ -141,27 +141,42 @@ export function useBoard(name, kind, { match = null, page = 1, perPage = 20 } = 
    *     (실제로 시험 중 묶음 6번이 404 났는데 화면은 아무 말도 안 했습니다)
    *     → 필요한 묶음이 다 있을 때만 그립니다. 아니면 pageReady=false 로
    *       화면이 «불러오는 중» 을 보여주게 합니다. */
+  /* ★ 2026-09-03 저녁 — 「공고하고 1순위가 갑자기 다 사라졌지? 이틀 정도만 있어」
+     «미리 다 받기» 를 끊고 나서, 검색을 안 할 때는 화면이 **받아 둔 500건**(≈ 개찰 이틀치)만
+     세어 25쪽에서 끝났습니다. 26쪽부터는 묶음 1을 받아야 하는데 쪽수 자체가 25까지라
+     갈 수가 없었습니다. 자료가 사라진 게 아니라 «쪽수를 받아 둔 것에서 센» 잘못입니다.
+     → 검색이 아닐 때도 전체 건수는 목록표(meta)의 n 으로 세고, 쪽마다 필요한 묶음을
+       번호로 찾아 그립니다. 묶음이 아직 없으면 pageReady=false(불러오는 중). */
+  const totalAll = (meta && meta[kind] && meta[kind].n) || 0
   const { pageRows, pageReady } = useMemo(() => {
-    if (!hits) return { pageRows: null, pageReady: true }
-    const slice = hits.slice((page - 1) * perPage, page * perPage)
     const out = []
     let ready = true
-    for (const pos of slice) {
-      const c = chunks[Math.floor(pos / CHUNK)]
-      if (!c) { ready = false; continue }
-      const r = c[pos % CHUNK]
-      if (r) out.push(r)
+    if (hits) {
+      for (const pos of hits.slice((page - 1) * perPage, page * perPage)) {
+        const c = chunks[Math.floor(pos / CHUNK)]
+        if (!c) { ready = false; continue }
+        const r = c[pos % CHUNK]
+        if (r) out.push(r)
+      }
+    } else {
+      const end = Math.min(totalAll, page * perPage)
+      for (let pos = (page - 1) * perPage; pos < end; pos++) {
+        const c = chunks[Math.floor(pos / CHUNK)]
+        if (!c) { ready = false; continue }
+        const r = c[pos % CHUNK]
+        if (r) out.push(r)
+      }
     }
     return { pageRows: out, pageReady: ready }
-  }, [hits, chunks, page, perPage, CHUNK])
+  }, [hits, chunks, page, perPage, CHUNK, totalAll])
 
   return {
     meta,
     info: meta ? meta[kind] : null,
     rows,
-    pageRows,
+    pageRows,       // 이 쪽에 그릴 줄 (검색 중이든 아니든)
     pageReady,      // 이 쪽에 필요한 묶음이 다 왔나 (아니면 «불러오는 중»)
-    total: hits ? hits.length : null,
+    total: hits ? hits.length : (meta ? totalAll : null),   // 7주 전체 건수
     indexReady: !!index,
     loading,
     busy,

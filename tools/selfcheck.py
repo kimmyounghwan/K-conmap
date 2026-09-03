@@ -159,6 +159,8 @@ def build_cases():
             "amts": [l[1] for l in (ladder or [])[:12]] or [win], "rq": ladder or [],
             "nrank": (ladder[-1][0] if ladder else 0), "lo": lo, "hi": hi,
             "lic": ["토목공사업"],
+            # ★ 공고서의 낙찰하한율 — 채점이 이걸 써야 바로투찰과 같은 금액이 됩니다 (2026-09-03)
+            "llr": llr, "est": 0,
         })
         w = {"no": no, "kind": "score", "name": nm,
              "our": sc["our"], "limit": sc["limit"], "win": win,
@@ -189,6 +191,10 @@ def build_cases():
            [851, 500_000_000]]
     add_score("R26CHK0000304", "순위 사다리", 450_000_000, 22_000_000, "Y",
               -3, 3, 89.745, 99.90, 130_000, ladder=lad)
+    # ★ 공고서 하한율이 규모 추정(89.745)과 다른 공고 — 실측 2.1% 가 이렇습니다(예: 86.245).
+    #   채점이 규모 추정으로 되돌아가면 «우리 금액» 이 3.7% 어긋나 여기서 잡힙니다.
+    add_score("R26CHK0000305", "공고서 하한율(86.245)", 450_000_000, 22_000_000, "Y",
+              -3, 3, 86.245, 99.90, 130_000)
     return idx, res, want
 
 
