@@ -58,14 +58,31 @@ function scoreGrade(r) {
   return winGrade({ base: r?.base, est: 0, lo: r?.lo, hi: r?.hi,
                     inst: r?.inst, name: r?.name })
 }
-function scoreLink(r) {
+/** 채점이 되는 자리인가 — «규칙을 한 곳에만» 둡니다.
+ *
+ *  ⚠️ 2026-09-03 — 소장님: 「1순위에서도 채점 가능·불가능을 표시하기로 했잖아.」
+ *     맞습니다. 그동안은 카드를 «펼쳐야만» 알 수 있었습니다.
+ *     목록에도 붙이려면 두 곳에서 같은 판단을 해야 하는데,
+ *     오늘만 «같은 규칙을 두 번 적어» 어긋난 걸 세 번 잡았습니다(등급·bidindex·검색색인).
+ *     그래서 판단은 여기 하나만 두고, 목록도 상세도 이 함수를 부릅니다.
+ *
+ *  ⚠️ 값이 반쯤 있는 개찰에 버튼을 달면 «채점»을 눌렀는데
+ *     «기초금액이 안 실려 와 사정률은 알 수 없습니다» 가 뜹니다. 그건 채점이 아닙니다.
+ *     공고 쪽 «완비» 기준과 똑같이, 네 값이 다 있을 때만 답니다.
+ *     실측(2026-09-02): 개찰 11,257건 중 7,873건(69.9%)이 완비.
+ */
+export function scoreState(r) {
   const g = scoreGrade(r)
-  if (g && (g.key === 'C' || g.key === 'D')) return null   // 성립하지 않는 채점은 안 합니다
-  /* ⚠️ 값이 반쯤 있는 개찰에 버튼을 달면 «채점»을 눌렀는데
-     «기초금액이 안 실려 와 사정률은 알 수 없습니다» 가 뜹니다. 그건 채점이 아닙니다.
-     공고 쪽 «완비» 기준과 똑같이, 네 값이 다 있을 때만 답니다.
-     실측(2026-09-02): 개찰 11,257건 중 7,873건(69.9%)이 완비. */
-  if (scoreMissing(r).length) return null
+  if (g && (g.key === 'C' || g.key === 'D')) {
+    return { ok: false, why: 'grade', grade: g }
+  }
+  const miss = scoreMissing(r)
+  if (miss.length) return { ok: false, why: 'missing', miss, grade: g }
+  return { ok: true, grade: g }
+}
+
+function scoreLink(r) {
+  if (!scoreState(r).ok) return null
   const amt = Number(r.amt) || 0
   const rate = Number(r.rate) || 0
   const q = new URLSearchParams()
@@ -204,8 +221,9 @@ function BidTab({ r }) {
           📊 바로투찰에서 채점하기 — 우리 권장으로 넣었으면?
         </Link>
       ) : (() => {
-        const g = scoreGrade(r)
-        const cd = g && (g.key === 'C' || g.key === 'D')
+        const st = scoreState(r)
+        const g = st.grade
+        const cd = st.why === 'grade'
         return (
           <div className="nocalc">
             {cd ? (
@@ -217,7 +235,7 @@ function BidTab({ r }) {
                 {' '}하지 않습니다.</>
             ) : (
               <>이 개찰은 <b>채점에 필요한 값이 모자랍니다</b> — 조달청 자료에
-                {' '}«{scoreMissing(r).join(' · ')}» 이 안 실려 왔습니다.
+                {' '}«{(st.miss || []).join(' · ')}» 이 안 실려 왔습니다.
                 {' '}반쯤 아는 값으로 채점하면 «가져갔을 자리»가 남발됩니다. 그래서 하지 않습니다.</>
             )}
           </div>

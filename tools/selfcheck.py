@@ -44,17 +44,47 @@ DIST = os.path.join(ROOT, "web", "dist")
 DATA = os.path.join(DIST, "data")
 PORT = 8899
 
-IDX_F = ["no", "name", "inst", "base", "budget", "close", "lo", "hi", "llr", "est",
-         "lic", "aval", "gmtrl", "ayn", "aparts", "ptot", "pdrw", "url", "site",
-         "rgnb", "joint", "mthd", "swin", "rebid"]
-RES_F = ["win", "amt", "rate", "np", "base", "dt", "tel", "ceo", "bno", "adr", "tsrc",
-         "name", "inst", "aval", "ayn", "amts", "rq", "nrank", "lo", "hi"]
+# ══════════════════════════════════════════════════════════════
+#  ⚠️ 칸 목록을 여기에 «적지» 않습니다 — collect.py 에서 «읽어» 옵니다.
+#
+#  2026-09-03 에 이 파일이 자기만의 IDX_F 를 들고 있다가, collect.py 에서
+#  aparts 를 빼자 검사 도구만 옛 24칸 형식으로 시험 자료를 만들었습니다.
+#  결과: 공고 5가지 검사가 «화면 금액 0» 으로 전부 빨갛게. 코드는 멀쩡했는데
+#  검사 도구가 틀렸습니다. 제일 나쁜 종류입니다 — 검사를 못 믿게 됩니다.
+#  (그날 잡은 «같은 규칙을 두 번 적은» 어긋남의 네 번째였습니다)
+#
+#  그래서 이제 시험 자료는 이름→값 사전으로 만들고, 칸 순서는 collect.py 의
+#  «만드는 쪽» 코드에서 그대로 읽어 배열로 바꿉니다. 사본이 없으면 어긋날 수도 없습니다.
+# ══════════════════════════════════════════════════════════════
+def _fields_from_collect(anchor):
+    """collect.py 에서 '"f": [...]' 칸 목록을 읽습니다. anchor 로 어느 것인지 고릅니다."""
+    import re as _re
+    c = io.open(os.path.join(ROOT, "collect.py"), encoding="utf-8").read()
+    i = c.index(anchor)
+    i = c.index("[", i)
+    return _re.findall(r'"([a-z]+)"', c[i:c.index("]", i)])
+
+
+IDX_F = _fields_from_collect('"f": ["no", "name"')       # bidindex.json
+RES_F = _fields_from_collect('"f": ["win", "amt"')       # bidresult.json
+
+
+def _row(fields, d):
+    """이름→값 사전을 collect.py 의 칸 순서대로 배열로. 모르는 칸은 빈값."""
+    return [d.get(k, "" if k in ("no", "name", "inst", "close", "ayn", "url", "site",
+                                  "rgnb", "joint", "mthd", "swin", "rebid", "win",
+                                  "dt", "tel", "ceo", "bno", "adr") else 0)
+            for k in fields]
 
 
 def notice(no, name, base, aval, ayn, lo, hi, llr, est, close):
-    return [no, name, "검사용 발주기관", base, int(est * 1.1), close, lo, hi, llr, est,
-            ["토목공사업"], aval, 0, ayn, [], 15, 4, "https://www.g2b.go.kr/",
-            "서울특별시", "", "", "제한경쟁", "적격심사", ""]
+    return _row(IDX_F, {
+        "no": no, "name": name, "inst": "검사용 발주기관", "base": base,
+        "budget": int(est * 1.1), "close": close, "lo": lo, "hi": hi, "llr": llr,
+        "est": est, "lic": ["토목공사업"], "aval": aval, "gmtrl": 0, "ayn": ayn,
+        "ptot": 15, "pdrw": 4, "url": "https://www.g2b.go.kr/", "site": "서울특별시",
+        "rgnb": "", "joint": "", "mthd": "제한경쟁", "swin": "적격심사", "rebid": "",
+    })
 
 
 def build_cases():
@@ -119,10 +149,17 @@ def build_cases():
         win = low + win_off
         rate = round(win / yeje * 100, 3)
         sc = B.score(base, a, (ayn == "N") or aval > 0, llr, win, rate, lo=lo, hi=hi)
-        res[no] = ["검사건설(주)", win, rate, (ladder[-1][0] if ladder else 0), base, past,
-                   "", "", "", "", 0, nm, "검사용 발주기관", aval, ayn,
-                   [l[1] for l in (ladder or [])[:12]], ladder or [],
-                   (ladder[-1][0] if ladder else 0), lo, hi]
+        res[no] = _row(RES_F, {
+            "win": "검사건설(주)", "amt": win, "rate": rate,
+            "np": (ladder[-1][0] if ladder else 0), "base": base, "dt": past,
+            "tel": "", "ceo": "", "bno": "", "adr": "", "tsrc": 0,
+            "name": nm, "inst": "검사용 발주기관", "aval": aval, "ayn": ayn,
+            # 실제 자료는 순위를 못 받았어도 1순위 금액 하나는 amts 에 있습니다.
+            # 이게 비어 있으면 「최소 2위」 가 뜨던 자리를 검사가 못 밟습니다.
+            "amts": [l[1] for l in (ladder or [])[:12]] or [win], "rq": ladder or [],
+            "nrank": (ladder[-1][0] if ladder else 0), "lo": lo, "hi": hi,
+            "lic": ["토목공사업"],
+        })
         w = {"no": no, "kind": "score", "name": nm,
              "our": sc["our"], "limit": sc["limit"], "win": win,
              "verdict": "dq" if sc["dq"] else ("win" if sc["beat"] else "lose")}
@@ -490,6 +527,19 @@ def main():
                 print(f'      순위  계산 {lo_r}~{hi_r} · 화면 "{txt[:70]}"')
                 if not ok_b:
                     bad.append(nm + " 순위")
+            elif w["verdict"] == "lose":
+                # ★ 2026-09-03 — 순위 자료가 없는 «밀림» 은 등수를 말하면 안 됩니다.
+                #   「최소 2위」 가 떴던 자리입니다 (소장님: «말이 돼?»).
+                #   1순위 한 곳만 알면서 «최소 2위» 는 산술적으로 맞아도 착시입니다.
+                import re as _re
+                txt = g.get("myrank", "")
+                # «우리 등수» 를 주장하는 꼴만 잡습니다: 「최소 N위」, 「넣었으면 N위」, 「N위 ~ M위」.
+                # 참고 문장의 「표본에서 20위였습니다」 는 우리 등수가 아니므로 통과입니다.
+                bad_words = _re.findall(r"최소\s*[\d,]+위|넣었으면[^.]*?[\d,]+위|[\d,]+위\s*~\s*[\d,]+위", txt)
+                ok_no_rank = (not bad_words) and ("등수는 알 수 없습니다" in txt)
+                print(f'      등수  {"말하지 않음 ✅" if ok_no_rank else "❌ 등수를 말함"} · 화면 "{txt[:60]}"')
+                if not ok_no_rank:
+                    bad.append(nm + f" 등수를 말함({bad_words})")
             if not (ok_our and ok_lim and ok_v):
                 bad.append(nm + " 채점")
     print("=" * 64)

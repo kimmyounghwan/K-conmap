@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getOverview } from '../lib/data.js'
-import NoticeDetail from '../NoticeDetail.jsx'
+import NoticeDetail, { scoreState } from '../NoticeDetail.jsx'
 import { useBoard } from '../lib/useBoard.js'
 import { Skeleton, Empty, Tile } from '../components.jsx'
 import { won, wonShort, pct, num, dateTime, dateShort, REGIONS, inRegion } from '../lib/fmt.js'
@@ -121,6 +121,26 @@ export default function FirstBoard() {
                   {(r.np === 1 || r.nrank === 1) && (
                     <span className="badge n">단독 1곳</span>
                   )}
+                  {/* ★ 채점이 되는 자리인지 «펼치기 전에» 보여줍니다 — 2026-09-03.
+                      판단은 NoticeDetail 의 scoreState 하나만 씁니다(규칙을 두 번 안 적습니다). */}
+                  {(() => {
+                    const st = scoreState(r)
+                    if (st.ok) return <span className="badge b">📊 채점 가능</span>
+                    if (st.why === 'grade') {
+                      return (
+                        <span className="badge n"
+                          title={`${st.grade.key}등급(${st.grade.label}) — 실측 958건에서 이 등급은 한 건도 못 땄습니다. 누가 계산해도 같은 자리라 채점이 성립하지 않습니다.`}>
+                          채점 안 함 · {st.grade.key}등급
+                        </span>
+                      )
+                    }
+                    return (
+                      <span className="badge n"
+                        title={`조달청 자료에 «${(st.miss || []).join(' · ')}» 이 안 실려 왔습니다. 반쯤 아는 값으로 채점하면 «가져갔을 자리»가 남발됩니다.`}>
+                        채점 불가 · 값 부족
+                      </span>
+                    )
+                  })()}
                 </div>
                 <div className="foot">
                   <span className="badge g">1순위</span>
