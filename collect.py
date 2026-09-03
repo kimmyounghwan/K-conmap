@@ -1194,6 +1194,139 @@ def export_jobs(store):
     print(f"  → jobs.json 마감 전 건설 채용 {len(rows):,}건 ({os.path.getsize(path)/1024:.0f}KB)")
 
 
+
+# ══════════════════════════════════════════════════════════════
+#  고용24 «건설 자격·훈련 과정» (국민내일배움카드 310L01) — 2026-09-03
+#
+#  채용정보 API 는 기업회원 전용이라 개인회원 키로 막혔다. 소장님이 받은 11개 키 중
+#  개인회원으로 되고 현장 사람에게 실제 쓸모 있는 게 이것이다:
+#  굴착기·지게차·타워크레인·건설안전·전기·용접·타일·방수 같은 자격·기능 훈련.
+#  NCS 대분류 14 = 건설. 지역·과정명·훈련기관·기간·훈련비·취업률·만족도 + 고용24 링크.
+#
+#  같은 원칙: 목록만. 신청·문의는 고용24에서. 링크는 TITLE_LINK 그대로. 출처 명기.
+#  같은 방어: 항목 이름은 후보를 두고 실제로 온 것을 쓴다. 0건이면 응답 원문을 남긴다.
+# ══════════════════════════════════════════════════════════════
+COURSE_URL = "https://www.work24.go.kr/cm/openApi/call/hr/callOpenApiSvcInfo310L01.do"
+COURSE_NCS = ["14"]              # 건설. 첫 응답을 보고 15(기계·용접)·19(전기) 를 붙일지 정한다
+COURSE_DAYS_AHEAD = 120
+
+def course_fetch(key, ncs1, page, size=100):
+    import xml.etree.ElementTree as ET
+    today = datetime.now(KST)
+    q = {"authKey": key, "returnType": "XML", "outType": "1",
+         "pageNum": str(page), "pageSize": str(size),
+         "srchTraStDt": today.strftime("%Y%m%d"),
+         "srchTraEndDt": (today + timedelta(days=COURSE_DAYS_AHEAD)).strftime("%Y%m%d"),
+         "sort": "ASC", "sortCol": "TRNG_BGDE",           # 훈련 시작일 순 (HRD-Net 계열 관례)
+         "srchNcs1": ncs1}
+    try:
+        r = requests.get(COURSE_URL, params=q, timeout=NET_TIMEOUT, verify=False,
+                         headers={"User-Agent": "k-conmap/1.0"})
+        r.raise_for_status()
+        raw = r.content
+        root = ET.fromstring(raw)
+    except Exception as e:
+        print(f"    ! 훈련과정 NCS{ncs1} {page}쪽 실패 ({type(e).__name__}: {str(e)[:80]})")
+        return None, 0
+    items = root.findall(".//scn_list") or root.findall(".//list") or \
+            [c for c in root.iter() if c.tag.lower() in ("scn_list", "item", "course")]
+    total = 0
+    for t in ("scn_cnt", "totalCount", "total"):
+        v = root.findtext(f".//{t}")
+        if v and v.strip().isdigit():
+            total = int(v.strip()); break
+    if items and "work24_course310L01" not in DIAG:
+        one = items[0]
+        DIAG["work24_course310L01"] = {"fields": sorted(c.tag for c in one),
+                                       "sample": {c.tag: (c.text or "")[:40] for c in one}}
+    if not items and "work24_course_raw" not in DIAG:
+        head = raw.decode("utf-8", "replace")[:600]
+        DIAG["work24_course_raw"] = {"status": r.status_code, "root": root.tag,
+                                     "children": [c.tag for c in root][:20], "head": head}
+        print(f"    · 훈련과정 NCS{ncs1} 0건 — 응답 앞부분: {head[:200].replace(chr(10), ' ')}")
+    return items, total
+
+def course_row(el):
+    g = lambda *n: _wn_get(el, *n)
+    tid = g("trprId", "TRPR_ID") ; deg = g("trprDegr", "TRPR_DEGR")
+    title = g("title", "TITLE")
+    if not title:
+        return None
+    return {
+        "id": f"{tid}-{deg}" if tid else title[:60],
+        "title": title[:80],
+        "org": g("subTitle", "SUB_TITLE", "trainstCstNm")[:40],       # 훈련기관
+        "addr": g("address", "ADDRESS")[:40],
+        "st": _wn_date(g("traStartDate", "TRA_START_DATE")),
+        "en": _wn_date(g("traEndDate", "TRA_END_DATE")),
+        "fee": g("courseMan", "COURSE_MAN"),                           # 수강비
+        "real": g("realMan", "REAL_MAN"),                              # 실제 부담(지원 후)
+        "cap": g("yardMan", "YARD_MAN"),                               # 정원
+        "emp3": g("eiEmplRate3", "EI_EMPL_RATE3"),                     # 취업률(3개월)
+        "emp6": g("eiEmplRate6", "EI_EMPL_RATE6"),
+        "score": g("stdgScor", "STDG_SCOR"),                           # 만족도
+        "ncs": g("ncsCd", "NCS_CD"),
+        "tel": g("telNo", "TELNO")[:20],
+        "type": g("trainTarget", "TRAIN_TARGET")[:20],
+        "url": g("titleLink", "TITLE_LINK"),                           # 고용24 상세 — 그대로
+    }
+
+def load_courses_store():
+    p = os.path.join(STORE, "courses.json")
+    try:
+        with open(p, encoding="utf-8") as f:
+            d = json.load(f)
+        return d if isinstance(d, dict) and isinstance(d.get("r"), dict) else {"r": {}}
+    except Exception:
+        return {"r": {}}
+
+def collect_courses(key, sleep=0.4, max_pages=10):
+    store = load_courses_store()
+    rows = store["r"]
+    n_get = n_new = 0
+    from collections import Counter
+    cd = Counter()
+    for ncs in COURSE_NCS:
+        for pg in range(1, max_pages + 1):
+            items, total = course_fetch(key, ncs, pg)
+            if items is None:
+                break
+            for el in items:
+                r = course_row(el)
+                if not r:
+                    continue
+                n_get += 1
+                cd[r["ncs"][:6]] += 1
+                if r["id"] not in rows:
+                    n_new += 1
+                rows[r["id"]] = r
+            if len(items) < 100 or pg * 100 >= total:
+                break
+            time.sleep(sleep)
+    today = datetime.now(KST).strftime("%Y-%m-%d")
+    for k in [k for k, v in rows.items() if (v.get("en") or "9999") < today]:
+        del rows[k]                                   # 끝난 과정은 버린다
+    store["r"] = rows
+    save_store("courses", store)
+    DIAG["work24_courses"] = {"got": n_get, "new": n_new, "kept": len(rows),
+                              "ncs_top": [[c, n] for c, n in cd.most_common(30)]}
+    print(f"  → 건설 훈련과정 {n_get:,}건 받음 · 새로 {n_new:,}건 · 보관 {len(rows):,}건")
+    return store
+
+def export_courses(store):
+    today = datetime.now(KST).strftime("%Y-%m-%d")
+    rows = [v for v in (store.get("r") or {}).values() if (v.get("st") or "") >= today]
+    rows.sort(key=lambda v: v.get("st") or "")
+    rows = rows[:1500]
+    f = ["id", "title", "org", "addr", "st", "en", "fee", "real", "cap", "emp3", "score", "ncs", "type", "url"]
+    out = {"built": datetime.now(KST).strftime("%Y-%m-%d %H:%M"), "src": "고용24(한국고용정보원) 국민내일배움카드",
+           "f": f, "r": [[v.get(k, "") for k in f] for v in rows]}
+    path = os.path.join(OUT, "courses.json")
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(out, fh, ensure_ascii=False, separators=(",", ":"))
+    print(f"  → courses.json 앞으로 열리는 건설 훈련과정 {len(rows):,}건 ({os.path.getsize(path)/1024:.0f}KB)")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=int, default=3)
@@ -1206,6 +1339,8 @@ def main():
                     help="지난 N일치 기초금액·A값을 소급해서 채웁니다 (하루 한 번이면 충분)")
     ap.add_argument("--jobs", action="store_true",
                     help="워크넷 건설 채용을 지금 당장 받습니다 (평소엔 08·13시 회차에만)")
+    ap.add_argument("--coursesonly", action="store_true",
+                    help="조달청은 건너뛰고 고용24 건설 훈련과정만 받습니다 (처음 확인할 때)")
     ap.add_argument("--jobsonly", action="store_true",
                     help="조달청은 건너뛰고 워크넷 건설 채용만 받습니다 (처음 확인할 때)")
     ap.add_argument("--fillonly", action="store_true",
@@ -1231,6 +1366,16 @@ def main():
         return
 
     load_env()
+
+    if args.coursesonly:
+        _wk = os.environ.get("WORKNET_API_KEY", "").strip()
+        if not _wk:
+            print("⛔ .env 에 WORKNET_API_KEY 가 없습니다."); return
+        print("=" * 52); print("  고용24 건설 훈련과정만 받기 (NCS 14 건설)"); print("=" * 52)
+        export_courses(collect_courses(_wk, args.sleep))
+        save_diag()
+        print("완료. 응답 항목은 diag.json 의 work24_course310L01 에 남겼습니다.")
+        return
 
     # ── --jobsonly : 워크넷만. 조달청 키 없이도 돕니다 ──────────────
     if args.jobsonly:
@@ -1938,6 +2083,16 @@ def main():
             print("  · 워크넷: WORKNET_API_KEY 없음 — 건너뜀 (.env 에 넣으면 돕니다)")
     except Exception as e:
         print(f"  ! 워크넷 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
+
+    # ── 고용24 건설 훈련과정 (키가 있을 때 · 08시 회차에만 — 하루 한 번이면 충분) ──
+    try:
+        _wk = os.environ.get("WORKNET_API_KEY", "").strip()
+        if _wk and (args.jobs or datetime.now(KST).hour == 8):
+            export_courses(collect_courses(_wk, args.sleep))
+        elif _wk:
+            export_courses(load_courses_store())
+    except Exception as e:
+        print(f"  ! 훈련과정 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
 
     save_diag()
     print("✅ 수집 완료")

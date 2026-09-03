@@ -915,3 +915,30 @@ K 를 최저 쪽으로 내리며 훑은 곡선 (앞 절 표 재인용): 0.25→1
 (안 하면 «26-09-20» < «2026-09-03» 으로 마감 전 공고가 전부 지워진다).
 **0건이면 응답 원문 앞 600자를 diag 에 남기고 화면에도 찍는다** — 이유 없는 0건은 다시 없다.
 직종코드 표(apiCdList.do?cdGbn=jobs)는 robots 로 자동수집 금지 → 첫 응답의 (jobsCd, 업종) 분포를 diag 에 남겨 그걸로 정한다.
+
+## 🎓 채용정보는 기업회원 전용 → 「건설 자격·훈련」으로 방향 전환 (2026-09-03)
+
+`--jobsonly` 재실행 → `<error>개인회원은 사용할 수 없는 OPEN-API입니다.</error>`
+채용정보 API 는 **사업자등록번호가 있는 기업회원**만 쓴다(개인사업자는 됨, 법인일 필요 없음).
+소장님: 「기업회원 키는 받을 수 없다. 크롤링하자. 공공기관이니.」
+
+### 크롤링은 안 한다 — 이유를 다시 적어 둔다
+그 기관이 «이 자료는 기업회원에게만» 이라고 **방금 답했다.** 그걸 화면 긁기로 우회해 광고 붙은 사이트에
+올리는 건 공개 자료 이용이 아니라 거절당한 것을 뒷문으로 가져오는 것. 잡코리아 v 사람인이 그 조합.
+고용24 는 robots 로 자동 수집을 막고 있다(apiCdList 에서 부딪힘). 위험은 소장님이 진다. 못 하는 게 아니라 안 하는 것.
+
+### 대신 — 받은 11개 키 중 개인회원으로 되고 쓸모 있는 것
+**국민내일배움카드 훈련과정(310L01)** — NCS 대분류 **14 = 건설**.
+굴착기·지게차·타워크레인·건설안전·전기·용접·타일·방수 — 현장 사람들이 실제로 찾는 자격·기능 훈련.
+    https://www.work24.go.kr/cm/openApi/call/hr/callOpenApiSvcInfo310L01.do
+    요청  authKey returnType outType(1목록) pageNum pageSize srchTraStDt/EndDt(YYYYMMDD) sort sortCol srchNcs1(14) srchTraArea1 …
+    응답  TITLE SUB_TITLE(기관) ADDRESS TRA_START_DATE TRA_END_DATE COURSE_MAN(수강비) REAL_MAN(본인부담) YARD_MAN(정원)
+          EI_EMPL_RATE3/6(취업률) STDG_SCOR(만족도) NCS_CD TITLE_LINK TRPR_ID TRPR_DEGR
+    ⚠️ 태그가 대문자인지 camelCase 인지 명세에 두 가지로 나온다 → course_row 는 둘 다 받는다. 첫 응답으로 확정.
+    ⚠️ sortCol=TRNG_BGDE 는 HRD-Net 계열 관례 — 틀리면 원문이 diag 에 남는다.
+
+`collect.py`: `collect_courses` / `export_courses` / `--coursesonly` · 평소 08시 회차에 하루 한 번.
+`Jobs.jsx`: 「🏛 워크넷 건설 채용」「🎓 자격·훈련」「✏️ 직접 올린 글」 세 갈래. 자료 있는 쪽을 먼저 보여준다.
+fixture 로 화면 확인: 3건 · 본인부담 뱃지 2 · 지역 필터 ✅ · 라이트/모바일 스크린샷.
+
+나머지 키: 사업주훈련·컨소시엄·일학습병행(사장님용, 보류) · 직업정보(건설 직종 임금·전망 사전 — 다음 후보) · 강소기업(보류).

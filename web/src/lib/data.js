@@ -167,3 +167,5 @@ export const getBoardIndex = (name, kind) =>
   getJSON(`/data/board/${name}-${kind}-idx.json`)
 /* 워크넷 건설 채용 — 구인구직 탭에서만 받습니다 (첫 화면 전송량에 안 얹습니다) */
 export const getJobs = () => getJSON('/data/jobs.json')
+/* 고용24 건설 자격·훈련 과정 — 구인구직 탭에서만 */
+export const getCourses = () => getJSON('/data/courses.json')
