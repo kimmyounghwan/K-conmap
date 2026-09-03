@@ -95,17 +95,24 @@ def score(base, a, a_known, ll, win_amt, win_rate, p50=P50_DEFAULT,
             "gap": m - win_amt, "sj_q": ro["sj"], "pctile": ro["pctile"]}
 
 
-def rank_bracket(ladder, my_amt):
+def rank_bracket(ladder, my_amt, limit=0, beat=False):
     """순위 사다리로 «몇 위쯤인지» 좁힙니다.
-       ladder = [[등수, 금액], ...] 낮은 금액 순."""
+       ladder = [[등수, 금액], ...] 낮은 금액 순.
+       ★ 2026-09-03 — 1순위(beat)면 사다리와 무관하게 1위. 사다리에는 하한 미만(실격) 투찰도
+         들어 있으므로, 하한 아래 칸 수만큼 등수에서 뺍니다 (화면 BaroBid.jsx 와 같은 규칙)."""
+    if beat:
+        return (1, 1)
     lad = sorted([x for x in (ladder or []) if x and x[0] > 0 and x[1] > 0])
     if not lad:
         return None
-    if my_amt < lad[0][1]:
-        return (1, 1)
+    dq_known = max([r for r, amt in lad if amt < limit] or [0])
     lo_r, hi_r = None, None
     for i, (r, amt) in enumerate(lad):
         if my_amt >= amt:
             lo_r = r
             hi_r = lad[i + 1][0] if i + 1 < len(lad) else None
+    if lo_r is None:
+        lo_r = 1
+    lo_r = max(2, lo_r - dq_known)
+    hi_r = None if hi_r is None else max(lo_r, hi_r - dq_known)
     return (lo_r, hi_r)

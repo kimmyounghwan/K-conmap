@@ -805,21 +805,81 @@ def merge_ranks(first):
     return n
 
 
-def load_store(name):
-    p = os.path.join(STORE, f"{name}.json")
+# ══════════════════════════════════════════════════════════════
+#  씨앗(seed) 저장소 — 2026-09-03 사고의 재발 방지
+#
+#  사이트의 1순위가 «35쪽(691건 · 이틀치)» 뿐이었다. 소장님 PC 에는 11,541건(70일)이 있는데.
+#  GitHub Actions 로그를 직접 열어 보니 「Cache Size: ~0 MB (532 B)」 —
+#  회차 사이에 넘겨주는 data/store 캐시가 **빈 저장소**였고, 그 뒤 회차마다 빈 것을
+#  이어받아 «2일치»만 새로 쌓고 있었다. 한 번 비면 영영 비는 구조.
+#
+#  두 가지 방어:
+#   ① 저장소가 비어 있거나 거의 비어 있으면(200건 미만) data/seed/{first,live}.json.gz 에서
+#      먼저 복구한다. 씨앗은 소장님 PC 의 70일치를 압축해 저장소(git)에 넣어 둔 것이다.
+#      (4.4MB — 한 번만 커밋. 워크플로 파일은 못 고치므로 collect.py 안에서 해결한다)
+#   ② 이미 1,000건 넘게 있는 저장소를 그 절반도 안 되는 것으로 덮어쓰려 하면 거부한다.
+#      (조달청 장애·파싱 실패로 빈 것이 만들어져도 좋은 저장소를 지우지 못하게)
+# ══════════════════════════════════════════════════════════════
+SEED = os.path.join(ROOT, "data", "seed")
+
+
+def _store_rows(d):
+    return sum(len(v) for v in d.values() if isinstance(v, dict))
+
+
+def _load_seed(name):
+    p = os.path.join(SEED, f"{name}.json.gz")
     if not os.path.exists(p):
-        return {"con": {}, "serv": {}}
+        return None
     try:
-        with open(p, encoding="utf-8") as f:
+        import gzip
+        with gzip.open(p, "rt", encoding="utf-8") as f:
             d = json.load(f)
         return {"con": d.get("con", {}), "serv": d.get("serv", {})}
-    except Exception:
-        return {"con": {}, "serv": {}}
+    except Exception as e:
+        print(f"  ! 씨앗 {name} 읽기 실패 ({type(e).__name__}: {e})")
+        return None
+
+
+def load_store(name):
+    p = os.path.join(STORE, f"{name}.json")
+    d = {"con": {}, "serv": {}}
+    if os.path.exists(p):
+        try:
+            with open(p, encoding="utf-8") as f:
+                raw = json.load(f)
+            d = {"con": raw.get("con", {}), "serv": raw.get("serv", {})}
+        except Exception as e:
+            print(f"  ! 저장소 {name} 읽기 실패 ({type(e).__name__}: {e}) — 빈 것으로 시작")
+    #   «거의 비었다» 의 기준은 씨앗의 절반 미만. 실제 사고 때 저장소가 691건이었다 —
+    #   200건 같은 고정 숫자로는 못 잡는다. 정상 저장소(70일치 ≈ 11,000건+)는 씨앗보다 크므로 안 건드린다.
+    if name in ("first", "live") and os.path.exists(os.path.join(SEED, f"{name}.json.gz")):
+        seed = _load_seed(name)
+        if seed and _store_rows(d) < _store_rows(seed) * 0.5:
+            for kind in ("con", "serv"):
+                merged = dict(seed.get(kind, {}))
+                merged.update(d.get(kind, {}))        # 지금 것이 씨앗보다 새것이면 그것이 이깁니다
+                d[kind] = merged
+            print(f"  ⚠ 저장소 {name} 이 거의 비어 있어 씨앗(data/seed)에서 복구: {_store_rows(d):,}건")
+    return d
 
 
 def save_store(name, data):
     os.makedirs(STORE, exist_ok=True)
-    with open(os.path.join(STORE, f"{name}.json"), "w", encoding="utf-8") as f:
+    p = os.path.join(STORE, f"{name}.json")
+    if name in ("first", "live") and os.path.exists(p):
+        try:
+            with open(p, encoding="utf-8") as f:
+                old = json.load(f)
+            n_old = _store_rows({k: v for k, v in old.items() if isinstance(v, dict)})
+            n_new = _store_rows(data)
+            if n_old >= 1000 and n_new < n_old * 0.5:
+                print(f"  ⛔ 저장소 {name} 를 {n_old:,}건 → {n_new:,}건 으로 줄이려 해서 저장을 거부합니다 "
+                      f"(수집 실패로 빈 것을 덮어쓰는 사고 방지)")
+                return
+        except Exception:
+            pass
+    with open(p, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
 
 

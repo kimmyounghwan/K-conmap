@@ -141,13 +141,15 @@ function ScenTable({ sc, amtLabel, pctile, realNote }) {
     <div className="scen">
       <div className="sch">
         사정률이 이 값이었다면
-        <span className="cnt">10개 자리 중 <b>{sc.passN}개</b>에서 통과</span>
+        <span className="cnt">
+          10개 자리 중 <b>{sc.passN}개</b>에서 통과
+          {sc.rows.some((x) => x.real) && (
+            <> · {realNote || '이번 개찰'}은 <b>{sc.rows.find((x) => x.real).pass ? '통과' : '실격'}</b></>
+          )}
+        </span>
       </div>
       <div className="note sm" style={{ margin: '0 0 8px' }}>
-        투찰금액은 <b>하나만</b> 넣고, 사정률은 그 뒤에 추첨으로 정해집니다.
-        그래서 «{amtLabel}»은 모든 줄이 같고,
-        <b> 낼 수 있었던 최저가(낙찰하한)만 움직입니다.</b>
-        {' '}통과냐 실격이냐는 그날 추첨이 정합니다 — 실력이 아닙니다.
+        사정률은 투찰 <b>뒤에</b> 추첨됩니다. «{amtLabel}»은 그대로고 하한만 움직입니다 — 통과·실격은 그날 추첨이 정합니다.
       </div>
       <div className="scrow shd">
         <span>사정률</span><span>그때의 최저가</span><span>{amtLabel}과</span><span>결과</span>
@@ -167,11 +169,7 @@ function ScenTable({ sc, amtLabel, pctile, realNote }) {
         </div>
       ))}
       <div className="cav" style={{ marginTop: 8 }}>
-        바로투찰은 사정률 <b>{pctile}분위</b>를 기준으로 금액을 잡습니다.
-        실제 개찰 958건으로 확인한 결과 통과·실격이 갈리는 자리는
-        <b> 85분위 언저리</b>(중앙 85.7분위)였고, 실격은 <b>958건 중 111건(11.6%)</b>이었습니다.
-        더 낮추면 싸게 따지만 실격이 늘고, 더 올리면 안전하지만 낙찰가와 멀어집니다.
-        공짜 점심은 없습니다.
+        바로투찰은 <b>{pctile}분위</b> 기준입니다. 실측 958건에서 실격 11.6% — 더 낮추면 실격이 늘고, 더 올리면 낙찰가와 멀어집니다.
       </div>
     </div>
   )
@@ -703,15 +701,28 @@ export default function BaroBid() {
     const rq = (Array.isArray(res.rq) ? res.rq : [])
       .filter((x) => Array.isArray(x) && x[0] > 0 && x[1] > 0)
       .sort((x, y) => x[0] - y[0])
+    /* ⚠️ 2026-09-03 — 사다리가 없는 «1순위» 개찰에서 아래 등수 칸이 「1순위가 아니었습니다 · 등수는
+       알 수 없습니다」 를 띄웠습니다. 위에는 🏆 1순위, 아래에는 «아니었습니다». 소장님이 잡았습니다.
+       원인: 등수 칸이 사다리(rq)가 있을 때만 1위를 말했고, 사다리가 없으면 «모른다» 로 떨어졌습니다.
+       그런데 1순위 판정(beat)은 사다리와 무관합니다 — 하한을 넘기고 실제 1순위보다 낮으면 정의상 1위입니다.
+       → beat 면 사다리가 있든 없든 1위.
+       ⚠️ 그리고 사다리에는 **실격(하한 미만) 투찰도 들어 있습니다.** 400M·400.1M… 이 하한 아래면
+       그건 등수 상대가 아닙니다. 사다리로 등수를 좁힐 때 하한 아래 칸 수(dqKnown)만큼 빼야 합니다.
+       (검사 304번이 정확히 이 모양입니다: 50위까지가 전부 하한 아래 → «50~100위» 가 아니라 «2~50위») */
     let rankLo = null, rankHi = null, rankNote = ''
-    if (!dq && rq.length) {
-      if (M < rq[0][1]) {
+    if (!dq) {
+      if (beat) {
         rankLo = 1; rankHi = 1
-      } else {
+      } else if (rq.length) {
+        const dqKnown = rq.filter((x) => x[1] < L).reduce((m, x) => Math.max(m, x[0]), 0)
+        let lo = null, hi = null
         for (let i = 0; i < rq.length; i++) {
-          if (M >= rq[i][1]) { rankLo = rq[i][0]; rankHi = rq[i + 1] ? rq[i + 1][0] : null }
+          if (M >= rq[i][1]) { lo = rq[i][0]; hi = rq[i + 1] ? rq[i + 1][0] : null }
         }
-        if (rankHi == null) rankNote = 'last'        // 사다리 끝보다도 높음 = 꼴찌권
+        if (lo == null) lo = 1
+        rankLo = Math.max(2, lo - dqKnown)
+        rankHi = hi == null ? null : Math.max(rankLo, hi - dqKnown)
+        if (hi == null) rankNote = 'last'        // 사다리 끝보다도 높음 = 꼴찌권
       }
     }
     /* 사다리가 없는 옛 자료용 — 가장 낮게 쓴 몇 곳만 들고 있을 때 */
@@ -859,10 +870,18 @@ export default function BaroBid() {
             {/* «확정 예정가격»이 무엇인지 묻는 분이 계셨습니다 — 띠에서 바로 밝힙니다 */}
             <div className="sub">개찰 때 추첨으로 정해진 예정가격입니다. 투찰률의 분모입니다.</div>
           </div>
+          {/* ★ 2026-09-03 — 여기에 «그때 권장했을 값 89.36%» 를 띄웠는데, 그 값은 «확정 예정가격»으로
+              나눈 사후 투찰률이라 «권장했을 값»이 아니었습니다(권장은 예정가격을 모를 때 냅니다).
+              그리고 아래 카드는 «실격»인데 위 띠는 숫자만 보여줘 «①보다 쌈»과 함께 읽혀 헷갈렸습니다.
+              소장님: 「옆에는 실격이라 쓰고 1순위라고 쓰고… 이상해」 → 띠에는 판정 하나만. */}
           <div className="r">
-            <div className="k">그때 권장했을 값</div>
-            <div className="v big">{pct(scored.our, 2)}</div>
-            <div className="sub">바로투찰 금액 ÷ 확정 예정가격</div>
+            <div className="k">바로투찰 채점</div>
+            <div className="v big">
+              {scored.dq ? '⛔ 실격' : scored.beat ? '🏆 1순위' : '📉 밀림'}
+            </div>
+            <div className="sub">
+              우리 투찰률 {pct(scored.our, 3)} · 1순위 {res.rate != null ? pct(res.rate, 3) : '—'}
+            </div>
           </div>
         </div>
       )}
@@ -1103,7 +1122,12 @@ export default function BaroBid() {
         <div className={'scored ' + (scored?.dq ? 'dq' : scored?.beat ? 'win' : 'lose')}>
           <div className="sh">
             <span className="ic">{scored?.dq ? '⛔' : scored?.beat ? '🏆' : '📉'}</span>
-            <span>개찰 끝난 공고입니다 — 채점해 드립니다</span>
+            <span>
+              {scored?.dq ? '바로투찰 금액이었으면 실격이었을 자리'
+                : scored?.beat ? '바로투찰 금액이었으면 1순위였을 자리'
+                : scored ? '바로투찰 금액이었으면 밀렸을 자리 (실격은 아님)'
+                : '개찰 끝난 공고입니다'}
+            </span>
             <span className="dt">{String(res.dt).slice(0, 16)}</span>
           </div>
           {(res.name || res.inst) && (
@@ -1121,20 +1145,21 @@ export default function BaroBid() {
             <div className="s1">
               <span className="k">② 바로투찰이 냈을 금액</span>
               <b className="nm">{scored?.ourAmt ? won(scored.ourAmt) : '—'}</b>
-              {/* «170만 높음» 이 무엇과 무엇의 차이인지 묻는 분이 계셨습니다.
-                  그래서 «②−①» 이라고 식을 그대로 적습니다. */}
+              {/* ⚠️ 전에는 «②−① = −781만 (①보다 쌈)» 만 적어서, 실격인 개찰에서도 «우리가 더 쌌다 = 이겼다»
+                  로 읽혔습니다. 싼 것과 이기는 것은 다릅니다 — 하한 아래면 싼 게 아니라 «없는 금액»입니다.
+                  그래서 이 칸은 판정과 그 이유를 같이 적습니다. */}
               <span className="v">
-                {scored?.gapWon != null
-                  ? (scored.gapWon >= 0
-                      ? `②−① = ${won(-scored.gapWon)} (①보다 쌈)`
-                      : `②−① = +${won(-scored.gapWon)} (①보다 비쌈)`)
-                  : ''}
+                {!scored ? '' : scored.dq
+                  ? `③보다 ${wonShort(scored.limitAmt - scored.ourAmt)} 모자람 → 실격`
+                  : scored.beat
+                    ? `③은 넘기고 ①보다 ${wonShort(scored.gapWon)} 낮음 → 1순위`
+                    : `③은 넘겼지만 ①보다 ${wonShort(-scored.gapWon)} 높음 → 밀림`}
               </span>
             </div>
             <div className="s1">
               <span className="k">③ 실제 낙찰하한</span>
               <b className="nm">{scored?.limitAmt ? won(scored.limitAmt) : '—'}</b>
-              <span className="v">이 밑으로 쓰면 실격</span>
+              <span className="v">이 밑이면 실격 · 사정률 {scored?.hasBase ? (scored.yeje / scored.base * 100).toFixed(3) + '%' : '—'}</span>
             </div>
           </div>
 
@@ -1143,7 +1168,7 @@ export default function BaroBid() {
             <div className="threebox">
               <div className="h">이 개찰에 세 금액을 넣었다면</div>
               <table className="threetbl">
-                <thead><tr><th>금액</th><th>넣었을 금액</th><th>1순위와</th><th>결과</th><th>실측 802건</th></tr></thead>
+                <thead><tr><th>금액</th><th>넣었을 금액</th><th>1순위와</th><th>결과</th></tr></thead>
                 <tbody>
                   {scored.three.map((t) => (
                     <tr key={t.k} className={t.k === '권장' ? 'rec' : ''}>
@@ -1153,17 +1178,13 @@ export default function BaroBid() {
                       <td className={t.isDq ? 'bad' : t.beat ? 'good' : 'mid'}>
                         {t.isDq ? '실격' : t.beat ? '1순위' : '밀림'}
                       </td>
-                      <td className="sub">실격 {t.dq}% · 딴 금액 {t.won}억</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <div className="why">
-                최저가 낙찰가에 더 <b>가깝습니다</b>. 살아남기만 하면 1순위도 더 자주 합니다(7.1% vs 5.6%).
-                그런데 사정률은 투찰 <b>뒤에</b> 추첨되고, 최저는 사정률이 중앙보다 높게 나온 날 하한 아래로
-                떨어집니다 — <b>절반이 실격</b>입니다. 실격한 날 낙찰가와의 거리는 0.4%가 아니라 «그 자리에 없음»입니다.
-                그래서 802건에서 딴 금액이 최저 29.7억, 권장 <b>101.8억</b>입니다. 가까운 것과 가져가는 것은 다릅니다.
-              </div>
+              {/* 소장님: 「802건에서 딴 금액이 최저 29.7억… 이런 말이 필요해?」 — 뺐습니다.
+                  실측 근거는 CLAUDE.md(⚖️ 절)에 있습니다. 화면엔 한 줄만. */}
+              <div className="why">최저·중간은 사정률이 높게 나온 날 하한 아래로 떨어집니다(실측 절반). 그래서 권장을 씁니다.</div>
             </div>
           )}
 
@@ -1249,34 +1270,17 @@ export default function BaroBid() {
 
           {scored && !scored.skip && (
             <div className="sv">
+              {/* 2026-09-03 «전체적으로 다시 검토» — 설명 문단 셋(«확정 예정가격이란», «바로투찰은 사정률…»,
+                  «✅ 같은 함수로 계산») 을 한 줄로 줄였습니다. 같은 말이 위 띠와 아래 표에 또 있었고,
+                  «같은 코드를 씁니다» 는 개발자 말이지 투찰하는 사람 말이 아닙니다. */}
               <div className="base">
-                확정 예정가격 <b>{won(scored.yeje)}</b>
                 {scored.hasBase
-                  ? <> · 사정률 {(scored.yeje / scored.base * 100).toFixed(3)}%</>
-                  : <> · <span className="unk">기초금액이 안 실려 와 사정률은 알 수 없습니다</span></>}
-                <span className="how">
-                  <b>«확정 예정가격»이란</b> — 개찰 때 <b>추첨으로 정해진 예정가격</b>입니다.
-                  {scored.hasBase
-                    ? <> 기초금액 {won(scored.base)} × 사정률
-                        {' '}{(scored.yeje / scored.base * 100).toFixed(3)}% 로 정해졌습니다.</>
-                    : null}
-                  {' '}투찰률도, 낙찰하한금액도 <b>전부 이 금액을 기준</b>으로 계산합니다.
-                  투찰할 때는 아직 정해지지 않아 아무도 모릅니다.
-                </span>
-                <span className="how">
-                  바로투찰은 사정률 {scored.sj95.toFixed(2)}%
-                  (100번 중 {scored.pctile}번은 이보다 낮음)를 기준으로 금액을 잡습니다.
-                  사정률이 낮게 나온 날은 하한도 같이 내려가서, 우리 금액이 그만큼 높아 보입니다.
-                </span>
+                  ? <>기초금액 {won(scored.base)} × 사정률 <b>{(scored.yeje / scored.base * 100).toFixed(3)}%</b> = 확정 예정가격 {won(scored.yeje)}</>
+                  : <>확정 예정가격 {won(scored.yeje)} · <span className="unk">기초금액이 안 실려 와 사정률은 알 수 없습니다</span></>}
                 <br />
                 규모 {scored.band ? scored.band.label : '—'} · 하한율 {pct(scored.h, 3)}
                 {scored.A > 0 && <> · A값 {won(scored.A)}{scored.guess ? '(추정)' : ''}</>}
-                <span className="same">
-                  ✅ 이 금액은 «바로투찰» 화면이 그날 내놨을 금액과 <b>같은 함수</b>로
-                  계산했습니다 — 사정률 {scored.pctile}분위 · 예가범위 {scored.lo}%~{scored.hi}% ·
-                  여유 {((scored.margin - 1) * 100).toFixed(1)}%.
-                  채점만 후하게 매기는 일이 없도록, 두 화면이 같은 코드를 씁니다.
-                </span>
+                {' '}· 바로투찰 기준 사정률 {scored.sj95.toFixed(2)}%({scored.pctile}분위) · 여유 {((scored.margin - 1) * 100).toFixed(1)}%
               </div>
               {scored.dq ? (
                 /* ⚠️ 2026-09-03 — «실격이었습니다» 에 주어가 없어서 낙찰자가 실격된 것처럼 읽혔습니다.
@@ -1296,14 +1300,20 @@ export default function BaroBid() {
                   {' '}<b>{won(-scored.gapWon)} 비싸서</b> 밀렸을 자리입니다.
                   {' '}실격은 아니었습니다 — 하한({won(scored.limitAmt)})은 넘겼습니다.</>
               )}
+              {/* ★ 소장님: 「몇 번을 찍어서 무슨 값이 나올지 모르는데… 바로투찰이었으면 이랬을 것이다도 틀린 거잖아」
+                  맞습니다. 이 채점은 «그날 나온 예정가격이 그대로였다면» 의 가정입니다. 그걸 화면에 적습니다. */}
               <div className="cav">
-                {scored.hasBase
-                  ? <>이 공고는 사정률이 {(scored.yeje / scored.base * 100).toFixed(2)}% 로 정해졌습니다. </>
-                  : <>이 공고는 기초금액이 안 실려 와 사정률을 되짚지 못했습니다.
-                      {scored.guess && ' A값도 추정치라 하한 판정에 오차가 있습니다.'} </>}
-                사정률은 개찰 때 추첨으로 정해져 투찰 시점에는 아무도 알 수 없습니다.
-                사정률이 높게 나오는 날에는 낮게 쓴 업체가 모두 실격하고, 우리 금액만 살아남습니다.
+                ⚠️ 이 채점은 <b>그날 나온 예정가격이 그대로였다면</b>의 가정입니다. 우리가 실제로 참가했다면 우리가 찍은
+                추첨번호 2개가 집계에 더해져 «가장 많이 찍힌 4개»가 바뀌고, 예정가격·하한이 달라졌을 수 있습니다
+                {scored.nTotal > 0 && <> (참가 {num(scored.nTotal)}곳이면 {num(scored.nTotal * 2)}표 중 2표)</>}.
+                번호에 어떤 예비가격이 붙는지는 무작위라 유리했을지 불리했을지는 아무도 모릅니다 — 참가가 적을수록 그 흔들림이 큽니다.
               </div>
+              {(!scored.hasBase || scored.guess) && (
+                <div className="cav">
+                  {!scored.hasBase && '기초금액이 안 실려 와 사정률을 되짚지 못했습니다. '}
+                  {scored.guess && 'A값이 추정치라 하한 판정에 오차가 있을 수 있습니다.'}
+                </div>
+              )}
 
               {/* ── 「사정률이 이 값이었다면」 ────────────────────
                   하나의 금액만 실제 낙찰가와 대보면 «운»을 «실력»으로 오해합니다.

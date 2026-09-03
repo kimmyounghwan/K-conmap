@@ -165,8 +165,8 @@ def build_cases():
         w = {"no": no, "kind": "score", "name": nm,
              "our": sc["our"], "limit": sc["limit"], "win": win,
              "verdict": "dq" if sc["dq"] else ("win" if sc["beat"] else "lose")}
-        if ladder:
-            w["bracket"] = B.rank_bracket(ladder, sc["our"])
+        if ladder or sc["beat"]:
+            w["bracket"] = B.rank_bracket(ladder, sc["our"], sc["limit"], sc["beat"])
         w["input"] = {"base": base, "llr": llr, "a": a,
                       "aKnown": (ayn == "N") or aval > 0,
                       "lo": lo, "hi": hi, "ptot": 15, "pdrw": 4,
@@ -535,7 +535,12 @@ def main():
             if w.get("bracket"):
                 lo_r, hi_r = w["bracket"]
                 txt = g.get("myrank", "")
-                ok_b = (str(lo_r) in txt and (hi_r is None or str(hi_r) in txt))
+                if (lo_r, hi_r) == (1, 1):
+                    # ★ 2026-09-03 — 위에는 🏆 1순위, 등수 칸에는 「1순위가 아니었습니다」 가 떴던 자리.
+                    #   1위면 «1위» 라고 말하고, «아니었습니다»·«알 수 없습니다» 가 있으면 안 됩니다.
+                    ok_b = ("1위" in txt) and ("아니었습니다" not in txt) and ("알 수 없습니다" not in txt)
+                else:
+                    ok_b = (str(lo_r) in txt and (hi_r is None or str(hi_r) in txt))
                 print(f'      순위  계산 {lo_r}~{hi_r} · 화면 "{txt[:70]}"')
                 if not ok_b:
                     bad.append(nm + " 순위")
