@@ -161,15 +161,10 @@ export function quickBid(r, p50) {
   const hi = r.hi != null ? Number(r.hi) : 3
   const sd = sjSigma(lo, hi, r.ptot, r.pdrw)
   const base = Number(r.base)
-  const out = recommend({ base, llRate: Number(r.llr), aVal, aKnown, p50, sd })
-  if (!out || !(out.amt > 0)) return null
-  /* ⚠️ 바로투찰 화면과 «같은 길»로 갑니다 — 금액 → 투찰률(소수 3자리, 올림) → 다시 금액.
-     처음엔 recommend().amt 를 그대로 냈다가 selfcheck 에 잡혔습니다:
-     카드 408,999,841 vs 화면 409,002,195 — 2,354원 차이.
-     4억 공고에서 투찰률 0.001% 가 4,090원이라, 올림 한 번이 이만큼입니다.
-     같은 공고를 두 화면이 다른 숫자로 보여주면 사용자는 둘 다 안 믿습니다. */
-  const sh = shownBid(base, p50, out.amt)
-  return { amt: sh.amt, rate: sh.rate, sj: out.sj, pctile: out.pctile, aKnown }
+  /* ⚠️ 바로투찰 화면과 «같은 길»로 갑니다 — 금액 → 투찰률(소수 3자리, 올림) → 다시 금액 (shownBid).
+     처음엔 recommend().amt 를 그대로 냈다가 selfcheck 에 잡혔습니다: 카드 408,999,841 vs 화면 409,002,195.
+     예상 참가(enp)를 알면 공고별 자동 분위, 모르면 권장 — smartBid 하나로 (2026-09-03). */
+  return smartBid({ base, llRate: Number(r.llr), aVal, aKnown, p50, sd, enp: Number(r.enp) || 0 })
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -224,4 +219,56 @@ export function passProb({ base, llRate, aVal, amt, p50, sd }) {
   const s = breakEvenSj(base, llRate, aVal, amt)
   if (s == null || !(sd > 0) || !(p50 > 0)) return null
   return { sj: Math.round(s * 1000) / 1000, p: normCdf((s - p50) / sd) }
+}
+
+/* ── 분위 다이얼 (2026-09-03) — 소장님: 「분위를 고정하지 말고, 공고마다 선택하게. 실격이다 아니다는 확률로.」
+   각 분위의 z 와, 8,406건 실측(권장과 같은 식, 여유 0%)의 실격률·1순위율.
+   ⚠️ 실격률이 분위와 정확히 맞아떨어진다(50→49.8 · 75→25.0 · 95→4.0) — 사정률 정규분포 가정이 맞다는 뜻.
+   1순위율은 어느 분위든 3.6~4.4% — 분위는 «얼마나 자주 살아남나» 를 정할 뿐, «얼마나 자주 이기나» 는 못 바꾼다.
+   이 숫자를 다시 재면 여기만 고치면 된다(화면은 이 표를 그대로 읽는다). */
+export const QTILES = [
+  { q: 50, z: 0,      dq: 49.8, win: 3.99 },
+  { q: 60, z: 0.2533, dq: 40.1, win: 4.40 },
+  { q: 70, z: 0.5244, dq: 29.8, win: 4.21 },
+  { q: 80, z: 0.8416, dq: 20.3, win: 4.09 },
+  { q: 90, z: 1.2816, dq: 9.8,  win: 3.70 },
+  { q: 95, z: 1.6449, dq: 4.0,  win: 3.56 },
+]
+export const QTILE_N = 8406
+/** 분위 q 로 낸 금액 (여유 0%) — 권장(75분위+0.3%)과 같은 길: 하한금액 → 투찰률 올림 → 금액 */
+export function quantileBid({ base, llRate, aVal, p50, sd, q }) {
+  const t = QTILES.find((x) => x.q === q)
+  if (!t || !(base > 0) || !llRate || !(sd > 0) || !(p50 > 0)) return null
+  const sj = Math.round((p50 + t.z * sd) * 1000) / 1000
+  const amt = Math.ceil(limitAmount(base, sj, llRate, aVal))
+  return { q, sj, amt, ...shownBid(base, p50, amt) }
+}
+
+/* ── 공고별 자동 분위 (2026-09-03) ──────────────────────────────────────────
+   소장님: 「하나로 고정하면 안 되잖아. 과거자료로 공고별로 분위를 다르게 해주고 설명도. 원클릭 가능하게.」
+   8,406건을 «예상 참가»(기관 최근 개찰 참가업체수 중앙) 묶음별로 분위를 훑었다:
+     참가 2~9곳   (638건)  80분위 22.1%(실격 13.3%)  vs 권장 18.2%(실격 7.8%)   ← 낮춰도 실격이 덜 늘고 더 이긴다
+     참가 10~29곳 (1,213건) 60분위 6.9%(실격 37.6%)  vs 권장 5.5%(실격 10.2%)  ← 이기긴 더 이기지만 실격이 4배
+     참가 30곳+   (5,016건) 권장이 최고 또는 동률
+   ⚠️ 차이는 2σ 안팎이다(638건에서 ±1.6%p). 확실한 우위가 아니라 «자료가 그쪽을 가리킨다» 수준.
+      그래서 화면은 «왜 이 분위인지» 와 실측 숫자를 같이 적고, 권장으로 돌아갈 길을 둔다.
+   예상 참가를 모르면(기관 6건 미만) 권장 그대로. */
+export const AUTO_RULE = [
+  { maxNp: 10, q: 80, n: 638,  win: 22.1, dq: 13.3, recWin: 18.2, recDq: 7.8 },
+  { maxNp: 30, q: 60, n: 1213, win: 6.9,  dq: 37.6, recWin: 5.5,  recDq: 10.2 },
+]
+export function autoRule(enp) {
+  if (!(enp > 0)) return null
+  return AUTO_RULE.find((r) => enp < r.maxNp) || null
+}
+/** 공고 한 줄이 «실제로 낼» 금액 — 예상 참가를 알면 자동 분위, 모르면 권장. 화면·원클릭·채점이 전부 이것 하나. */
+export function smartBid({ base, llRate, aVal, aKnown, p50, sd, enp }) {
+  const rule = autoRule(enp)
+  if (rule) {
+    const qb = quantileBid({ base, llRate, aVal, p50, sd, q: rule.q })
+    if (qb) return { ...qb, mode: 'auto', rule, pctile: rule.q, aKnown }
+  }
+  const out = recommend({ base, llRate, aVal, aKnown, p50, sd })
+  if (!out || !(out.amt > 0)) return null
+  return { ...shownBid(base, p50, out.amt), sj: out.sj, mode: 'rec', rule: null, pctile: out.pctile, aKnown }
 }

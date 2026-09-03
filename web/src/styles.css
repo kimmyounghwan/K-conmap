@@ -1870,3 +1870,18 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
 .pickline .pk b { font-size: 13px; color: var(--text); font-variant-numeric: tabular-nums; }
 .pickline .pk i { font-style: normal; font-size: 10.5px; color: var(--text-2); }
 .pickline .pk.ev b { color: var(--accent); }
+
+/* 분위 다이얼 — 바로투찰 (2026-09-03) */
+.qdial { margin: -4px 0 12px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 12px; background: var(--surface-2); }
+.qdial .qh { font-size: 12.5px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+.qdial .qh i { display: block; font-style: normal; font-weight: 500; font-size: 11px; color: var(--text-2); margin-top: 2px; }
+.qdial .ratepick { margin-bottom: 8px; }
+.qdial .ratepick button { min-width: 92px; padding: 8px 4px; }
+.qdial .ratepick button i { font-style: normal; font-size: 10px; color: var(--muted); margin-top: 2px; white-space: nowrap; }
+.qdial .ratepick button.on i { color: var(--accent); }
+.qdial .note a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+.autobox { margin: -4px 0 12px; padding: 11px 13px; border-radius: 12px; border: 1px solid var(--accent-line); background: var(--accent-soft); }
+.autobox .h { font-size: 13px; font-weight: 800; color: var(--text); }
+.autobox .h i { display: block; font-style: normal; font-weight: 500; font-size: 11px; color: var(--text-2); margin-top: 2px; }
+.autobox p { margin: 6px 0 0; font-size: 12px; line-height: 1.6; color: var(--text-2); }
+.autobox p b { color: var(--text); }

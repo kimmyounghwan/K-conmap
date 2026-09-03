@@ -285,7 +285,7 @@ export default function LiveBoard() {
                       <div className="oc-l">
                         <span className="oc-tag">권장 투찰금액</span>
                         <span className="oc-amt">{won(qb.amt)}</span>
-                        <span className="oc-sub">투찰률 {qb.rate.toFixed(3)}% · 사정률 {qb.pctile}분위{qb.aKnown ? '' : ' · A값 미확인'}</span>
+                        <span className="oc-sub">투찰률 {qb.rate.toFixed(3)}% · 사정률 {qb.pctile}분위{qb.mode === 'auto' ? ' (예상 참가로 자동)' : ''}{qb.aKnown ? '' : ' · A값 미확인'}</span>
                       </div>
                       <div className="oc-r">
                         <button className="cbtn" onClick={(e) => copyAmt(e, r, qb.amt)}>

@@ -6,7 +6,8 @@ import { winGrade } from '../lib/winodds.js'
 /* 계산은 전부 여기 있습니다 — 화면과 채점이 같은 함수를 씁니다 */
 import { bidAmount, limitAmount, limitRate, r3, c3,
          sjSigma, recommend, buildScen, missingOf, isReady,
-         digits, toNum, P50_FALLBACK, shownBid, passProb } from '../lib/bidmath.js'
+         digits, toNum, P50_FALLBACK, shownBid, passProb, QTILES, QTILE_N, quantileBid,
+         smartBid, autoRule } from '../lib/bidmath.js'
 /* 공고 화면(LiveBoard)이 예전부터 여기서 가져다 썼습니다 — 그대로 이어 줍니다 */
 export { missingOf, isReady }
 
@@ -213,7 +214,9 @@ export default function BaroBid() {
   /* A값이 «우리가 추정해 넣은 값»인지 «진짜 아는 값»인지 구별합니다.
      추정값으로 «A값을 안다» 고 판단하면 안 됩니다 — 사정률 분위가 달라집니다. */
   const [aAuto, setAAuto] = useState(false)
-  const [pickRate, setPickRate] = useState('rec')   // rec | limit | safe | own
+  const [pickRate, setPickRate] = useState(() => {
+    try { const q = localStorage.getItem('kcm_qtile'); return q ? `q${q}` : 'rec' } catch { return 'rec' }
+  })   // rec | limit | safe | own | q50..q95
   /* 사용자가 직접 고른 뒤에는 자동으로 바꾸지 않습니다 */
   const rateTouched = useRef(false)
   const [ownRate, setOwnRate] = useState('')
@@ -309,6 +312,7 @@ export default function BaroBid() {
         /* ★ 2026-09-03 — 공고서의 낙찰하한율·추정가격. 채점이 이걸 안 쓰면
            바로투찰(공고 화면)과 다른 금액이 나옵니다. */
         llr: a[21] != null ? Number(a[21]) : 0, est: Number(a[22]) || 0,
+        enp: Number(a[23]) || 0, enpn: Number(a[24]) || 0,
       } : fromUrl)
     })
     return () => { ok = false }
@@ -511,7 +515,16 @@ export default function BaroBid() {
     : ((base > 0 && ll?.rate && sj95) ? Math.ceil(limitAmount(base, sj95, ll.rate, a) * SJ_MARGIN) : 0)
   const rec95 = recAmt ? shownBid(base, sjMid, recAmt).rate : null
 
+  /* ★ 공고별 자동 분위 — 예상 참가(enp)를 알면 그 자리 실측에서 가장 많이 이긴 분위 (bidmath.autoRule) */
+  const enpHere = Number(picked?.enp || res?.enp) || 0
+  const enpN = Number(picked?.enpn || res?.enpn) || 0
+  const aRule = autoRule(enpHere)
+  const autoOut = (aRule && ll?.rate && base > 0 && sjSd > 0)
+    ? smartBid({ base, llRate: ll.rate, aVal: a, aKnown, p50: sjMid, sd: sjSd, enp: enpHere }) : null
   const choices = []
+  if (autoOut && autoOut.mode === 'auto') {
+    choices.push({ k: 'auto', label: `자동 ${aRule.q}분위`, rate: autoOut.rate, why: '이 공고 자리 실측' })
+  }
   if (rec95 != null) {
     choices.push({ k: 'rec', label: '권장', rate: rec95, why: '사정률이 높게 나와도 안전' })
   } else if (rec != null) {
@@ -525,7 +538,16 @@ export default function BaroBid() {
     choices.push({ k: 'limit', label: '최저', rate: lr, why: '사정률 높으면 실격' })
     choices.push({ k: 'safe', label: '중간', rate: r3(lr + 0.3), why: '절충' })
   }
-  const chosen = choices.find((c) => c.k === pickRate)
+  /* ★ 분위 다이얼 — 소장님: 「분위를 고정하지 말고 공고마다 선택하게. 실격이다 아니다는 확률로.」
+     50~95분위를 골라 넣을 수 있고, 판정 칸이 «이 금액이 살아남을 확률» 을 확률로 말합니다.
+     고른 분위는 브라우저에 기억합니다(다음 공고에서도 그 분위로 시작). */
+  const qchoices = (ll?.rate && base > 0 && sjSd > 0)
+    ? QTILES.map((t) => {
+        const qb = quantileBid({ base, llRate: ll.rate, aVal: a, p50: sjMid, sd: sjSd, q: t.q })
+        return qb ? { k: `q${t.q}`, q: t.q, label: `${t.q}분위`, rate: qb.rate, dq: t.dq, win: t.win } : null
+      }).filter(Boolean)
+    : []
+  const chosen = choices.find((c) => c.k === pickRate) || qchoices.find((c) => c.k === pickRate)
   const myRate = pickRate === 'own' ? (Number(ownRate) || 0) : (chosen?.rate ?? rec ?? 0)
 
   const main = bidAmount(base, sjMid, myRate)
@@ -560,6 +582,12 @@ export default function BaroBid() {
     if (rateTouched.current) return
     if (recBelow) setPickRate('limit')
   }, [recBelow])
+  /* 예상 참가를 아는 공고는 «자동 분위» 로 시작합니다 (손대지 않았고, 기억해 둔 분위도 없을 때) */
+  const hasAuto = !!(autoOut && autoOut.mode === 'auto')
+  useEffect(() => {
+    if (rateTouched.current) return
+    setPickRate(hasAuto ? 'auto' : 'rec')
+  }, [hasAuto, picked?.no])
 
   const steps = []
   for (let s = 100 + lo; s <= 100 + hi + 0.001; s += 0.5) steps.push(Math.round(s * 100) / 100)
@@ -639,7 +667,10 @@ export default function BaroBid() {
        원클릭(quickBid)에서 2,354원이 어긋났던 것과 같은 함정입니다.
        → 채점도 같은 길을 갑니다: 금액 → c3(투찰률) → bidAmount. */
     const pmid = ov?.sjq?.p50 ?? P50_FALLBACK
-    const M = shownBid(b, pmid, ro.amt).amt                       // 바로투찰이 준 금액
+    /* 예상 참가를 알던 공고면 그날 화면도 자동 분위였다 — 채점도 같은 금액(smartBid)으로 (2026-09-03) */
+    const sb = smartBid({ base: b, llRate: h, aVal: A, aKnown: res.ayn === 'N' || (res.aval || 0) > 0,
+                          p50: pmid, sd: rSd, enp: Number(res.enp) || 0 }) || { amt: shownBid(b, pmid, ro.amt).amt, mode: 'rec', rule: null }
+    const M = sb.amt                                              // 바로투찰이 준 금액
     const L = Math.ceil((yeje - A) * (h / 100) + A)                // 실제 낙찰하한금액
     const dq = M < L
     const beat = !dq && M < res.amt
@@ -658,7 +689,7 @@ export default function BaroBid() {
     const three = [
       { k: '최저', amt: bidAmount(b, pmid, lrMid),            dq: 47.1, won: 29.7 },
       { k: '중간', amt: bidAmount(b, pmid, r3(lrMid + 0.3)),  dq: 31.3, won: 21.9 },
-      { k: '권장', amt: M,                                    dq: 10.5, won: 101.8 },
+      { k: sb.mode === 'auto' ? `자동 ${sb.rule.q}분위` : '권장', amt: M, dq: 10.5, won: 101.8 },
     ].map((t) => {
       const isDq = t.amt < L
       return { ...t, isDq, beat: !isDq && t.amt < res.amt,
@@ -740,7 +771,7 @@ export default function BaroBid() {
       rankLo, rankHi, rankNote, minRank,
       nBid: valid.length, nAll: amts.length,
       nTotal: res.nrank || res.np || 0,
-      pctile: ro.pctile, margin: ro.margin,
+      pctile: sb.mode === 'auto' ? sb.rule.q : ro.pctile, margin: sb.mode === 'auto' ? 1 : ro.margin, autoRule: sb.mode === 'auto' ? sb.rule : null,
     }
   })()
 
@@ -1162,7 +1193,7 @@ export default function BaroBid() {
                 <thead><tr><th>금액</th><th>넣었을 금액</th><th>1순위와</th><th>결과</th></tr></thead>
                 <tbody>
                   {scored.three.map((t) => (
-                    <tr key={t.k} className={t.k === '권장' ? 'rec' : ''}>
+                    <tr key={t.k} className={t.k !== '최저' && t.k !== '중간' ? 'rec' : ''}>
                       <td><b>{t.k}</b></td>
                       <td className="n">{won(t.amt)}</td>
                       <td className="n">{t.gap >= 0 ? '+' : ''}{t.gap.toFixed(3)}%</td>
@@ -1427,6 +1458,32 @@ export default function BaroBid() {
               <b>직접</b><span>입력</span>
             </button>
           </div>
+          {qchoices.length > 0 && (
+            <div className="qdial">
+              <div className="qh">
+                사정률 분위를 직접 고르기
+                <i>낮을수록 싸게 넣지만 실격이 잦고, 높을수록 안전하지만 낙찰가와 멀어집니다. 권장 = 75분위 + 여유 0.3%.</i>
+              </div>
+              <div className="ratepick q">
+                {qchoices.map((c) => (
+                  <button key={c.k}
+                    className={(pickRate === c.k ? 'on' : '') + (llEff && c.rate < llEff ? ' warn' : '')}
+                    onClick={() => {
+                      rateTouched.current = true; setPickRate(c.k); setCopied(false)
+                      try { localStorage.setItem('kcm_qtile', String(c.q)) } catch { /* noop */ }
+                    }}>
+                    <b>{c.label}</b><span>{c.rate.toFixed(3)}%</span>
+                    <i>실격 {c.dq}% · 1순위 {c.win}%</i>
+                  </button>
+                ))}
+              </div>
+              <div className="note sm">
+                칸 안의 실격·1순위는 실제 개찰 {num(QTILE_N)}건에 그 분위 금액을 넣어 본 실측입니다.
+                어느 분위든 1순위율은 3.6~4.4% — 분위는 «얼마나 자주 살아남나»를 정하지 «얼마나 자주 이기나»는 못 바꿉니다.
+                {pickRate.startsWith('q') && <> 고른 분위는 이 브라우저에 기억됩니다 · <a onClick={() => { try { localStorage.removeItem('kcm_qtile') } catch { /* noop */ } setPickRate('rec') }}>권장으로 되돌리기</a></>}
+              </div>
+            </div>
+          )}
           {pickRate === 'own' && (
             <div className="card" style={{ marginTop: 0 }}>
               <div className="field" style={{ marginBottom: 0 }}>
@@ -1438,6 +1495,19 @@ export default function BaroBid() {
             </div>
           )}
 
+          {pickRate === 'auto' && aRule && (
+            <div className="autobox">
+              <div className="h">🎯 이 공고는 <b>{aRule.q}분위</b>로 넣습니다 — 예상 참가 <b>{num(enpHere)}곳</b>
+                <i>이 기관 최근 개찰 {num(enpN)}건의 참가업체수 중앙</i></div>
+              <p>
+                같은 자리(참가 {aRule.maxNp === 10 ? '2~9' : '10~29'}곳, 실측 {num(aRule.n)}건)에서 {aRule.q}분위 금액이
+                <b> 1순위 {aRule.win}%</b>(실격 {aRule.dq}%)로, 권장 {aRule.recWin}%(실격 {aRule.recDq}%)보다 더 이겼습니다.
+                {aRule.maxNp === 30 && <> 대신 실격이 네 번 중 한 번 더 납니다 — 한 건이 급하면 이쪽, 실격이 싫으면 권장.</>}
+                {' '}차이는 오차 범위 안팎이라 «확실한 우위»가 아니라 «자료가 이쪽을 가리킨다» 정도입니다.
+                참가가 30곳을 넘는 자리에서는 권장이 가장 좋았습니다.
+              </p>
+            </div>
+          )}
           {recBelow && (
             <div className="warnbox">
               <div className="h">⚠️ 이 공고는 전국 권장값으로 넣으면 실격입니다</div>
@@ -1733,7 +1803,8 @@ export default function BaroBid() {
             {ov?.sjn ? (
               <div className="hintbox">
                 실제 개찰 {num(ov.sjn)}건에서 사정률은 <b>{pct(sjLo, 2)} ~ {pct(sjHi, 2)}</b> 사이에
-                열에 여덟이 들어왔습니다. 가운데값 {pct(sjMid, 3)}.
+                열에 여덟이 들어왔습니다. 가운데값 {pct(ov?.sjq?.p50 ?? P50_FALLBACK, 3)}.
+                {sjPick != null && <> 지금은 <b>{pct(sjPick, 3)}</b> 로 골라서 계산 중입니다.</>}
               </div>
             ) : null}
             {/* ★ 개찰 끝난 공고를 «채점»할 때 쓰는 표와 **같은 표**입니다.

@@ -1076,6 +1076,7 @@ PICK_P50 = 99.896
 PICK_SZ = [1e8, 3e8, 1e9]          # <1억 · 1~3억 · 3~10억 · 10억+
 PICK_NB = [10, 30, 100]            # 2~9 · 10~29 · 30~99 · 100+
 PICK_LLR = [(0, 1e9, 89.745), (1e9, 5e9, 88.745), (5e9, 1e10, 87.495)]
+PICK_AUTO = {0: (0.8416, 1.0), 1: (0.2533, 1.0)}   # 참가묶음 → (z, 여유). bidmath.js AUTO_RULE 와 같이 고칠 것
 
 
 def _pick_bucket(v, edges):
@@ -1126,12 +1127,16 @@ def pick_stats(fstore):
             continue
         w = float(hi) - float(lo)
         sd = _m.sqrt((w * w / 12) / 4 * 11 / 14)
-        sjq = round((PICK_P50 + 0.674 * sd) * 1000) / 1000
-        M = _m.ceil(_m.ceil((b * sjq / 100 - A) * llr / 100 + A) * 1.003)
+        nb = _pick_bucket(np_, PICK_NB)
+        # ★ 공고별 자동 분위(bidmath.js AUTO_RULE 와 같은 규칙): 참가 2~9곳 → 80분위, 10~29곳 → 60분위, 그 밖 → 권장(75+0.3%)
+        #   표의 1순위율은 «화면이 실제로 내는 금액» 으로 재야 하므로 여기서도 같은 규칙을 씁니다.
+        z, mg = PICK_AUTO.get(nb, (0.674, 1.003))
+        sjq = round((PICK_P50 + z * sd) * 1000) / 1000
+        M = _m.ceil(_m.ceil((b * sjq / 100 - A) * llr / 100 + A) * mg)
         rt = _m.ceil(M / (b * PICK_P50 / 100) * 100 * 1000) / 1000
         M = _m.ceil(b * PICK_P50 / 100 * rt / 100)
         L = _m.ceil((yeje - A) * llr / 100 + A)
-        key = f"s{_pick_bucket(b, PICK_SZ)}n{_pick_bucket(np_, PICK_NB)}"
+        key = f"s{_pick_bucket(b, PICK_SZ)}n{nb}"
         c = cells.setdefault(key, [0, 0])
         c[0] += 1
         if M >= L and M < amt:
@@ -1556,7 +1561,7 @@ def main():
         print(f"  → {name}.json  공사 {len(out['con']):,} / 용역 {len(out['serv']):,}"
               f"  ({os.path.getsize(p)/1024:.0f}KB)")
 
-    def export_board(name, store, date_field):
+    def export_board(name, store, date_field, enp_map=None):
         """한 달치를 500건씩 나눠 담는다.
 
         하루에 1순위 570건·공고 600건이 나오므로 300건만 실으면 반나절치도 안 된다.
@@ -1571,6 +1576,13 @@ def main():
         for kind in ("con", "serv"):   # serv 는 비어 있음 (형식 유지용)
             rows = list(trim(store[kind], SHOW_DAYS, date_field).values())
             rows.sort(key=lambda r: dt_digits(r.get(date_field)), reverse=True)
+            # ★ 공고 묶음에도 예상 참가(enp)를 붙입니다 — 원클릭 카드가 «자리 찾기» 를 안 켜도 같은 금액을 내도록.
+            #   bidindex·bidresult 와 같은 enp_map 이라 세 화면이 같은 분위로 같은 금액을 냅니다 (2026-09-03).
+            if enp_map:
+                for r in rows:
+                    e = enp_map.get(str(r.get("inst") or "").strip())
+                    if e:
+                        r["enp"], r["enpn"] = e[0], e[1]
             parts = [rows[i:i + BOARD_CHUNK]
                      for i in range(0, len(rows), BOARD_CHUNK)] or [[]]
             for i, part in enumerate(parts):
@@ -1757,6 +1769,7 @@ def main():
         필요할 때만 받아갑니다. 공고번호 하나로 바로 찾을 수 있게 «지도» 모양입니다.
         """
         cut = (datetime.now(KST) - timedelta(days=7)).strftime("%Y%m%d%H%M")
+        enp_map, _ = pick_stats(fstore)      # 기관별 예상 참가 — 채점이 «그날 자동 분위였나» 를 알기 위해
         out = {}
         for r in (fstore.get("con") or {}).values():
             if (dt_digits(r.get("dt")) or "0") < cut:
@@ -1798,13 +1811,16 @@ def main():
                        (r.get("lic") or [])[:3],
                        # ★ 낙찰하한율·추정가격 — 2026-09-03 추가. 공고서에 적힌 하한율이 있으면
                        #   채점도 그걸로 계산해야 바로투찰과 같은 금액이 나옵니다.
-                       r.get("llr"), int(r.get("est") or 0)]
+                       r.get("llr"), int(r.get("est") or 0),
+                       # ★ 예상 참가 — 그날 바로투찰이 «자동 분위» 였는지 채점이 알아야 같은 금액이 나옵니다 (2026-09-03)
+                       (enp_map.get(str(r.get("inst") or "").strip()) or [0, 0])[0],
+                       (enp_map.get(str(r.get("inst") or "").strip()) or [0, 0])[1]]
         path = os.path.join(OUT, "bidresult.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump({"built": built, "f": ["win", "amt", "rate", "np", "base", "dt",
                              "tel", "ceo", "bno", "adr", "tsrc", "name", "inst",
                              "aval", "ayn", "amts", "rq", "nrank", "lo", "hi", "lic",
-                             "llr", "est"],
+                             "llr", "est", "enp", "enpn"],
                        "r": out}, f, ensure_ascii=False, separators=(",", ":"))
         print(f"  → bidresult 최근 7일 개찰 {len(out):,}건 "
               f"({os.path.getsize(path)/1024:.0f}KB)")
@@ -1920,7 +1936,7 @@ def main():
     export("first", first, "dt")
     export("live", live, "dt")
     export_board("first", first, "dt")
-    export_board("live", live, "dt")
+    export_board("live", live, "dt", enp_map=pick_stats(first)[0])
     export_bidindex(live, first)
     export_aparts(live)
     # 새로 붙인 통계라 혹시 터져도 배치 전체를 멈추지 않게 감쌉니다.
