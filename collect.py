@@ -1418,7 +1418,8 @@ def main():
                 int(r.get("aval") or 0),           # A값 합계 (법정경비)
                 int(r.get("gmtrl") or 0),          # 관급자재금액
                 r.get("ayn") or "",                # A값 적용 공고인지 (Y/N)
-                r.get("aparts") or [],             # A값 내역
+                # ⚠️ aparts(A값 내역)는 여기 없습니다 — aparts.json 으로 뺐습니다.
+                #    이유는 아래 export_aparts 주석 참고. 첫 화면 전송량 −29%.
                 r.get("ptot") or 0,                # 예비가격 개수
                 r.get("pdrw") or 0,                # 추첨 개수
                 # 나라장터 공고 주소 — 조달청이 준 것을 그대로 씁니다.
@@ -1435,7 +1436,7 @@ def main():
         out = {"built": built,
                "f": ["no", "name", "inst", "base", "budget", "close", "lo", "hi",
                      "llr", "est", "lic", "aval", "gmtrl",
-                     "ayn", "aparts", "ptot", "pdrw", "url",
+                     "ayn", "ptot", "pdrw", "url",
                      "site", "rgnb", "joint", "mthd", "swin", "rebid"],
                "r": rows}
         path = os.path.join(OUT, "bidindex.json")
@@ -1445,6 +1446,42 @@ def main():
         print(f"  \u2192 bidindex  \ub9c8\uac10\uc804 {len(rows):,}\uac74 "
               f"(\uae30\ucd08\uae08\uc561 \uc788\ub294 \uac83 {have:,}\uac74, "
               f"{os.path.getsize(path)/1024:.0f}KB)")
+
+    def export_aparts(store):
+        """A값 내역(법정경비 항목별)만 따로 담습니다 — 2026-09-03.
+
+        ══════════════════════════════════════════════════════════════
+        왜 뺐나 — 실측하고 나서 답이 바뀐 사례입니다.
+
+        bidindex.json 927KB 중 이 항목이 244KB 였습니다. 두 가지를 만들어 재봤습니다:
+
+            ① 이름표(「산업안전보건관리비」…)를 번호로 + 범례
+               → raw 927 → 766KB 인데 **gzip 153.7 → 148.1KB. 겨우 5.6KB.**
+                 gzip 이 이미 반복 문자열을 지우고 있었습니다. 헛수고였습니다.
+            ② 이 파일로 분리
+               → **gzip 153.7 → 109.2KB (−29%)**. 이 파일은 37KB.
+
+        ②가 이긴 이유는 «작아서»가 아니라 **첫 화면에서 아예 안 받아서** 입니다.
+        A값 내역은 공고 하나를 «고른 뒤»에만 보여주는 것이라, 목록에 실을 이유가 없습니다.
+
+        ⚠️ 교훈: 전송량을 논할 때 raw 크기를 보면 틀립니다. 반드시 gzip 후로 재세요.
+        ══════════════════════════════════════════════════════════════
+        """
+        now = datetime.now(KST).strftime("%Y%m%d%H%M%S")
+        ap = {}
+        for r in store["con"].values():
+            c = re.sub(r"[^0-9]", "", str(r.get("close") or ""))
+            if not c or c.ljust(14, "0") < now:
+                continue
+            v = r.get("aparts")
+            if v:
+                ap[r.get("no") or ""] = v
+        out = {"built": built, "a": ap}
+        path = os.path.join(OUT, "aparts.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
+        print(f"  \u2192 aparts    A값 내역 {len(ap):,}건 "
+              f"({os.path.getsize(path)/1024:.0f}KB · 바로투찰 열 때만 받음)")
 
     def export_bidresult(fstore):
         """«내 계산이 맞았나»를 확인하기 위한 최근 개찰 결과 색인.
@@ -1483,12 +1520,20 @@ def main():
                        # ⚠️ 예가범위 — 채점이 그 공고의 사정률 분포를 재현하려면 꼭 필요합니다.
                        #    없어서 ±2% 공고를 ±3% 로 채점했고, 5억 공고 기준 115만원이
                        #    어긋났습니다(실측 106건 중앙값).
-                       r.get("lo"), r.get("hi")]
+                       r.get("lo"), r.get("hi"),
+                       # ★ 면허·업종 제한 — 2026-09-03 추가.
+                       #   소장님: 「투찰 업체가 1곳이라는 게 말이 돼?」
+                       #   말이 됩니다. 그 공고는 면허를 「산림조합(지역조합)」으로 묶어
+                       #   자격 되는 곳이 사실상 하나였습니다. 같은 «가곡지구» 사업의
+                       #   일반 토목 공고는 같은 홍성군에서 323곳·377곳이 들어왔습니다.
+                       #   **자료는 맞는데 화면이 «왜»를 안 알려줘서 의심을 샀습니다.**
+                       #   조달청이 lcnsLmtNm 으로 주는 값이라 만들 필요도 없습니다.
+                       (r.get("lic") or [])[:3]]
         path = os.path.join(OUT, "bidresult.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump({"built": built, "f": ["win", "amt", "rate", "np", "base", "dt",
                              "tel", "ceo", "bno", "adr", "tsrc", "name", "inst",
-                             "aval", "ayn", "amts", "rq", "nrank", "lo", "hi"],
+                             "aval", "ayn", "amts", "rq", "nrank", "lo", "hi", "lic"],
                        "r": out}, f, ensure_ascii=False, separators=(",", ":"))
         print(f"  → bidresult 최근 7일 개찰 {len(out):,}건 "
               f"({os.path.getsize(path)/1024:.0f}KB)")
@@ -1606,6 +1651,7 @@ def main():
     export_board("first", first, "dt")
     export_board("live", live, "dt")
     export_bidindex(live, first)
+    export_aparts(live)
     # 새로 붙인 통계라 혹시 터져도 배치 전체를 멈추지 않게 감쌉니다.
     try:
         export_bidresult(first)

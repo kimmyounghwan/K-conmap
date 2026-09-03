@@ -34,6 +34,10 @@ const getIndex = () => getJSON('/data/bidindex.json')
 const getBandStat = () => getJSON('/data/bandstat.json')
 /* 최근 7일 개찰 결과 — 채점할 때만 받아옵니다 */
 const getResults = () => getJSON('/data/bidresult.json')
+/* A값 내역(법정경비 항목별) — 공고를 «고른 뒤»에만 받습니다.
+   목록에 같이 실었더니 첫 화면 전송량의 29% 를 이것이 먹고 있었습니다
+   (gzip 153.7 → 109.2KB). 고르기 전에는 볼 일이 없는 값입니다. */
+const getAparts = () => getJSON('/data/aparts.json')
 
 /** 일반공사 적격심사 낙찰하한율 (조달청 기준, 참고용) */
 function lowerLimit(estimate) {
@@ -201,6 +205,8 @@ export default function BaroBid() {
 
   const [q, setQ] = useState('')
   const [picked, setPicked] = useState(null)
+  /* A값 내역 — 공고를 고르면 그때 한 번만 받아 옵니다 (한 화면에 한 번) */
+  const [apMap, setApMap] = useState(null)
   const [inst, setInst] = useState('')
 
   const [base, setBase] = useState(0)
@@ -259,11 +265,12 @@ export default function BaroBid() {
       budget: a[4], close: a[5], lo: a[6], hi: a[7],
       llr: a[8] || null, est: a[9] || 0, lic: a[10] || [],
       aval: a[11] || 0, gmtrl: a[12] || 0,
-      ayn: a[13] || '', aparts: a[14] || [],
-      ptot: a[15] || 0, pdrw: a[16] || 0,
-      url: a[17] || '',
-      site: a[18] || '', rgnb: a[19] || '', joint: a[20] || '',
-      mthd: a[21] || '', swin: a[22] || '', rebid: a[23] || '',
+      ayn: a[13] || '',
+      /* aparts 는 여기 없습니다 — 고른 뒤 aparts.json 에서 따로 받습니다 */
+      ptot: a[14] || 0, pdrw: a[15] || 0,
+      url: a[16] || '',
+      site: a[17] || '', rgnb: a[18] || '', joint: a[19] || '',
+      mthd: a[20] || '', swin: a[21] || '', rebid: a[22] || '',
     }))
   }, [idx])
 
@@ -370,6 +377,12 @@ export default function BaroBid() {
   }, [rows, q, qIsAmount, onlyReady])
 
   const pick = (r) => {
+    /* A값 내역은 고른 뒤에만 필요합니다. 한 화면에 한 번만 받고, 실패해도 그냥 넘어갑니다
+       (내역은 «보여주는 것»일 뿐 계산에 쓰이지 않습니다 — 계산은 aval 합계로 합니다) */
+    if (apMap === null) {
+      setApMap({})
+      getAparts().then((d) => setApMap((d && d.a) || {})).catch(() => {})
+    }
     setPicked(r); setQ(r.name); setInst(r.inst)
     setBase(r.base || 0); setBudgetIn(''); setPickRate('rec'); setCopied(false)
     // 공고에 A값이 실려 오면 그대로 채웁니다 (손으로 옮겨 적을 일을 없애는 게 이 화면의 목적)
@@ -1003,13 +1016,13 @@ export default function BaroBid() {
             value={aIn ? Number(aIn).toLocaleString('ko-KR') : ''}
             onChange={(e) => { setAIn(digits(e.target.value)); setAAuto(false); setCopied(false) }}
             placeholder="0" />
-          {(picked?.aparts || []).length > 0 ? (
+          {((picked && apMap && apMap[picked.no]) || []).length > 0 ? (
             <div className="aparts">
               <div className="h">
                 공고에서 자동으로 가져온 A값 내역
                 {picked.ayn === 'N' && <span className="no"> · 이 공고는 A값 미적용</span>}
               </div>
-              {picked.aparts.map(([nm, v]) => (
+              {apMap[picked.no].map(([nm, v]) => (
                 <div className="ap" key={nm}><span>{nm}</span><b>{won(v)}</b></div>
               ))}
               <div className="ap sum"><span>합계</span><b>{won(picked.aval)}</b></div>

@@ -27,6 +27,7 @@ selfcheck.py — 화면이 내는 숫자를 «따로 쓴 계산기»와 맞춰 �
 ⚠️ 끝나면 시험 자료를 지웁니다. 진짜 자료를 덮어쓰지 않도록 web/dist 에서만 씁니다.
 """
 import argparse
+import io
 import json
 import math
 import os
@@ -238,6 +239,47 @@ def check_grades():
     return bad
 
 
+# ══════════════════════════════════════════════════════════════
+#  ★ bidindex 칸 순서 대조 — collect.py(만드는 쪽) vs BaroBid.jsx(읽는 쪽)
+#
+#  bidindex.json 은 이름표 없이 «배열»로 담습니다(그래야 절반 크기).
+#  대신 칸 순서가 두 파일에 따로 적혀 있어서, 한쪽에서 칸을 하나 빼면
+#  그 뒤가 전부 한 칸씩 밀립니다. 화면은 «에러 없이» 엉뚱한 값을 보여줍니다
+#  — 기초금액 자리에 예산이 들어가도 그냥 숫자로 보입니다. 제일 무서운 종류입니다.
+#  (2026-09-03 aparts 를 빼면서 실제로 이 위험을 만들었습니다)
+# ══════════════════════════════════════════════════════════════
+def check_bidindex():
+    import re
+    cp = os.path.join(ROOT, "collect.py")
+    bp = os.path.join(ROOT, "web", "src", "pages", "BaroBid.jsx")
+    print("\n" + "=" * 64)
+    print("  bidindex 칸 대조 — collect.py(만드는 쪽) vs BaroBid.jsx(읽는 쪽)")
+    print("=" * 64)
+    try:
+        c = io.open(cp, encoding="utf-8").read()
+        i = c.index('"f": ["no", "name"')
+        i = c.index("[", i)
+        f = re.findall(r'"([a-z]+)"', c[i:c.index("]", i)])
+        b = io.open(bp, encoding="utf-8").read()
+        j = b.index("return idx.r.map((a) => ({")
+        blk = b[j:b.index("}))", j)]
+        m = {int(n): k for k, n in re.findall(r"(\w+):\s*a\[(\d+)\]", blk)}
+    except Exception as e:
+        print(f"(건너뜀 — 읽지 못했습니다: {type(e).__name__})")
+        return []
+    bad = [f"a[{k}] : 만드는 쪽 «{f[k]}» ≠ 읽는 쪽 «{m.get(k)}»"
+           for k in range(len(f)) if m.get(k) != f[k]]
+    if len(m) != len(f):
+        bad.append(f"칸 수가 다릅니다 — 만드는 쪽 {len(f)} · 읽는 쪽 {len(m)}")
+    if bad:
+        print(f"❌ {len(bad)}군데가 어긋납니다 — 한쪽만 고쳤습니다")
+        for x in bad[:8]:
+            print("   ·", x)
+    else:
+        print(f"✅ {len(f)}칸이 순서까지 같습니다 ({', '.join(f[:6])} …)")
+    return bad
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--build", action="store_true", help="검사 전에 npm run build 를 돕니다")
@@ -320,6 +362,11 @@ def main():
     gbad = check_grades()
     if gbad:
         print(f"\n⛔ 등급 규칙이 두 곳에서 어긋납니다 {len(gbad)}가지")
+        return 1
+
+    ibad = check_bidindex()
+    if ibad:
+        print(f"\n⛔ bidindex 칸이 어긋납니다 — 화면이 조용히 엉뚱한 값을 보여줍니다")
         return 1
 
     if not args.browser:

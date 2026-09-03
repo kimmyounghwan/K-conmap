@@ -80,6 +80,15 @@
           }
         ]
       },
+    {
+        "source": "/data/aparts.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=900, stale-while-revalidate=86400"
+          }
+        ]
+      },
       {
         "source": "/data/board/*.json",
         "headers": [

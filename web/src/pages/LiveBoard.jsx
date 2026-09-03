@@ -83,9 +83,14 @@ export default function LiveBoard() {
 
   // 마지막 쪽 근처까지 넘겨보면 알아서 더 받아온다 (7주 끝까지 이어짐)
   //  ⚠️ rows / pages 가 만들어진 뒤에 와야 합니다. 위에 두면 참조 오류가 납니다.
+  //  ⚠️ 2026-09-03 — 조건에 `!loading && page > 1` 을 넣었습니다.
+  //     page 는 1에서 시작하는데 자료가 오기 전에는 pages 도 1 입니다.
+  //     그래서 «page(1) >= pages-1(0)» 이 **화면이 뜨자마자 참**이 되어,
+  //     아무도 넘겨보지 않았는데 다섯 묶음(약 400KB)을 더 받고 있었습니다.
+  //     실제로 브라우저로 재서 잡았습니다 (board 7묶음 → 2묶음).
   useEffect(() => {
-    if (!done && page >= pages - 1) loadMore()
-  }, [page, pages, done, loadMore])
+    if (!loading && !done && page > 1 && page >= pages - 1) loadMore()
+  }, [loading, page, pages, done, loadMore])
 
   const toggleLic = (l) =>
     setLics((v) => (v.includes(l) ? v.filter((x) => x !== l) : [...v, l]))
