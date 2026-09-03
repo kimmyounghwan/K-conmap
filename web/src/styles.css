@@ -1823,3 +1823,26 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
 @media (max-width: 480px) {
   .threetbl th:nth-child(5), .threetbl td:nth-child(5) { display: none; }
 }
+
+/* ══ 자리 블록 (발주기관 분석 · 업체 자가진단 공용) — 2026-09-03 ══ */
+.spot { margin: 0 0 12px; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--surface); }
+.spot-v { padding: 10px 12px; border-radius: 10px; margin-bottom: 10px; font-size: 13.5px; }
+.spot-v.good { background: var(--good-soft); color: var(--good); }
+.spot-v.mid  { background: var(--surface-2); color: var(--text); }
+.spot-v.bad  { background: var(--bad-soft); color: var(--bad); }
+.spot-v .n { font-weight: 600; font-size: 12px; opacity: .85; }
+.spot-v .say { margin-top: 4px; font-size: 12.5px; font-weight: 500; color: var(--text); line-height: 1.55; }
+.spot-tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.spot-tiles .t { display: flex; flex-direction: column; gap: 2px; padding: 9px 10px; border-radius: 10px; background: var(--surface-2); }
+.spot-tiles .k { font-size: 11px; font-weight: 700; color: var(--text-2); }
+.spot-tiles b { font-size: 19px; font-weight: 900; color: var(--text); font-variant-numeric: tabular-nums; }
+.spot-tiles .s { font-size: 11px; color: var(--muted); }
+.spot-bar { display: flex; height: 22px; border-radius: 8px; overflow: hidden; margin-top: 10px; font-size: 11px; font-weight: 800; }
+.spot-bar span { display: flex; align-items: center; justify-content: center; color: #fff; min-width: 0; white-space: nowrap; overflow: hidden; }
+.spot-bar .gA { background: var(--good); } .spot-bar .gB { background: var(--accent); }
+.spot-bar .gC { background: var(--warn); } .spot-bar .gD { background: var(--bad); }
+.spot-open .notice.slim { padding: 10px 12px; }
+.spot-open .notice.slim h3 { font-size: 14px; }
+.spot-open .foot .amt { font-size: 15px; font-weight: 900; color: var(--text); margin-left: 6px; font-variant-numeric: tabular-nums; }
+@media (max-width: 380px) { .spot-tiles { grid-template-columns: 1fr; } }
+.spot-open .sec-title { flex-wrap: wrap; row-gap: 2px; }

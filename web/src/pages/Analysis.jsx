@@ -1,3 +1,4 @@
+import { SpotBlock, OpenNotices, corpMatch } from '../Spot.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { getAgency, searchCorp, getCorp } from '../lib/data.js'
@@ -156,6 +157,9 @@ function CorpTab() {
             </div>
           )}
 
+          {/* ★ 2026-09-03 — 내가 이기는 자리인가 (창 · 등급 · 경쟁) */}
+          <SpotBlock spot={c.spot} who="내가 딴 자리" />
+
           <div className="tiles c4" style={{ marginBottom: 10 }}>
             <Tile k="총 낙찰" v={num(c.n)} small />
             <Tile k="평균 투찰률" v={pct(c.s?.avg, 2)} small />
@@ -204,7 +208,12 @@ function CorpTab() {
                 <div className="row" key={i}>
                   <div className="grow">
                     <div className="t" style={{ whiteSpace: 'normal' }}>{x[0]}</div>
-                    <div className="d">{dateFull(x[1])} · {x[2]}</div>
+                    <div className="d">{dateFull(x[1])} · {x[2]}
+                      {/* [5] 등급 · [6] 창(하한 위 %p) · [7] 참가업체수 — 기초금액 있는 최근 건만 */}
+                      {x[5] && <span className={'gbadge ' + (x[5] === 'A' ? 'good' : x[5] === 'B' ? 'mid' : 'bad')} style={{ marginLeft: 6 }}>{x[5]}</span>}
+                      {x[6] != null && <span className="badge n" style={{ marginLeft: 4 }}>창 {x[6] >= 0 ? '+' : ''}{x[6].toFixed(3)}%p</span>}
+                      {x[7] > 0 && <span className="badge n" style={{ marginLeft: 4 }}>{num(x[7])}곳</span>}
+                    </div>
                   </div>
                   <span className="r">{x[3] != null ? pct(x[3], 3) : '-'}<br />
                     <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>{wonShort(x[4])}</span>
@@ -213,7 +222,10 @@ function CorpTab() {
               ))}
             </div>
           )}
-        </>
+          {/* ★ 내 자리에 맞는 마감 전 공고 — 자주 딴 지역·기관으로 걸러서 원클릭 금액까지 */}
+          <OpenNotices title="내 자리에 맞는 마감 전 공고" match={corpMatch(c)}
+            hint={`${Object.keys(c.reg || {}).slice(0, 2).join('·') || '전국'} · 자주 딴 기관`} />
+</>
       )}
     </>
   )

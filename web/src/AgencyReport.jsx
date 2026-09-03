@@ -3,6 +3,8 @@ import { agencySummary } from './lib/engines.js'
 import { won, wonShort, pct, num, dateFull } from './lib/fmt.js'
 
 /** 발주기관 한 곳의 분석 리포트 — 분석 탭과 /agency/:name 상세에서 함께 씀 */
+import { SpotBlock, OpenNotices, instMatch } from './Spot.jsx'
+
 export default function AgencyReport({ name, a }) {
   if (!a) return null
   const sum = agencySummary(a)
@@ -11,6 +13,9 @@ export default function AgencyReport({ name, a }) {
 
   return (
     <>
+      {/* ★ 2026-09-03 — «통계» 앞에 «자리» 부터. 이 기관에서 이길 수 있나. */}
+      <SpotBlock spot={a.spot} who="이 기관" />
+
       <div className="card">
         <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: '-.3px', wordBreak: 'keep-all' }}>{name}</div>
         <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 3 }}>
@@ -97,6 +102,8 @@ export default function AgencyReport({ name, a }) {
           ))}
         </div>
       )}
-    </>
+          {/* ★ 분석에서 끝내지 않습니다 — 이 기관의 마감 전 공고와 원클릭 금액 */}
+      <OpenNotices title={`${name} 마감 전 공고`} match={instMatch(name)} />
+</>
   )
 }

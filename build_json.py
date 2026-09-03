@@ -340,12 +340,96 @@ def load_all():
         df["sj"] = sj.where(ok & sj.between(95, 105))
     else:
         df["sj"] = None
+
+    # ══════════════════════════════════════════════════════════════
+    #  ★ 줄마다 «자리» 정보를 붙입니다 — 2026-09-03 (발주기관 분석·업체 자가진단 업그레이드)
+    #
+    #  소장님: 「분석에서 발주기관과 업체 자가진단도 업그레이드 해줘. 입찰 사이트 보고 클로드가 판단해줘.」
+    #  판단: 통계를 더 보여주는 게 아니라 «이 기관·이 업체가 이길 수 있는 자리인가» 로 바꾼다.
+    #  근거: 실측 958건 — 승률을 가르는 건 금액이 아니라 «어디에 넣느냐»(등급) 였다 (45배).
+    #
+    #  붙이는 것 (기초금액이 있는 최근 줄에서만 — 없는 줄은 None):
+    #    grade  A/B/C/D  — 화면(winodds.js)·시뮬레이션과 같은 규칙 (win_grade)
+    #    np     참가업체수
+    #    mgn    «창» — 1순위 투찰률 − 그 개찰의 실효 낙찰하한율 (%p). 확정 사정률 기준.
+    #           ⚠️ 처음엔 «내 투찰률 − 권장률» 을 넣었다가 버렸다. 1순위 기록만 있는 자료에서
+    #              그 값은 95% 가 음수다 — 1순위는 정의상 가장 낮게 쓴 곳이니 당연하다. 생존 편향.
+    #              «창» 은 다르다: 하한 위 얼마나 떴는지는 그 자리의 경쟁 성격을 재는 값이다.
+    #              실측 958건에서 창의 폭이 승률을 45배 갈랐다 (0.02% 미만 0.3% ↔ 0.3% 이상 13.6%).
+    #              기관 → 「이 기관은 창이 넓은가(해볼 만한가)」 · 업체 → 「나는 창이 넓은 자리를 고르나」
+    # ══════════════════════════════════════════════════════════════
+    _sjs = sorted(v for v in df["sj"].tolist() if v is not None and not pd.isna(v))
+    _p50 = _sjs[len(_sjs) // 2] if len(_sjs) >= 10 else 99.896
+    _base = df["기초금액"].map(to_amt) if "기초금액" in df.columns else pd.Series([0] * len(df))
+    _aval = df["A값"].map(to_amt) if "A값" in df.columns else pd.Series([0] * len(df))
+    _ayn = df["A값적용"].fillna("").astype(str).str.strip() if "A값적용" in df.columns else pd.Series([""] * len(df))
+    _lo = pd.to_numeric(df["예가하한"], errors="coerce") if "예가하한" in df.columns else pd.Series([None] * len(df))
+    _hi = pd.to_numeric(df["예가상한"], errors="coerce") if "예가상한" in df.columns else pd.Series([None] * len(df))
+    _np = pd.to_numeric(df["참가업체수"], errors="coerce") if "참가업체수" in df.columns else pd.Series([None] * len(df))
+
+    def _llr_of(est):
+        eok = est / 1e8
+        if eok >= 100: return None
+        if eok >= 50: return 87.495
+        if eok >= 10: return 88.745
+        return 89.745
+
+    grades, nps, mgns = [], [], []
+    for i in range(len(df)):
+        b = float(_base.iat[i] or 0)
+        lo = _lo.iat[i]; hi = _hi.iat[i]
+        lo = None if (lo is None or pd.isna(lo)) else float(lo)
+        hi = None if (hi is None or pd.isna(hi)) else float(hi)
+        npv = _np.iat[i]
+        nps.append(int(npv) if (npv is not None and not pd.isna(npv) and npv > 0) else None)
+        if b <= 0:
+            grades.append(None); mgns.append(None); continue
+        grades.append(win_grade(b, b / 1.1, lo if lo is not None else -3.0,
+                                hi if hi is not None else 3.0,
+                                df["발주기관"].iat[i], df["공고명"].iat[i]))
+        # 창 — A값을 «아는» 줄에서만 (모르면 실효 하한을 못 구하므로 안 붙임)
+        av = float(_aval.iat[i] or 0); ayn = _ayn.iat[i]
+        rate = df["rate"].iat[i]; amt = df["amt"].iat[i]
+        if not ((av > 0 or ayn == "N") and rate is not None and not pd.isna(rate) and rate > 0 and amt > 0):
+            mgns.append(None); continue
+        A = 0.0 if ayn == "N" else av
+        ll = _llr_of(b / 1.1)
+        if ll is None:
+            mgns.append(None); continue
+        yeje = float(amt) / (float(rate) / 100.0)                       # 확정 예정가격
+        lim_rate = ((yeje - A) * ll / 100.0 + A) / yeje * 100.0           # 실효 하한 투찰률
+        m = round(float(rate) - lim_rate, 3)
+        mgns.append(m if -0.5 <= m <= 5 else None)                        # 그 밖은 자료 오류로 봄
+    df["grade"] = grades
+    df["np"] = nps
+    df["mgn"] = mgns
+    _ng = sum(1 for g in grades if g); _nm = sum(1 for r in mgns if r is not None)
+    log(f"자리 정보: 등급 {_ng:,}줄 · 참가업체수 {sum(1 for v in nps if v):,}줄 · 창 {_nm:,}줄 (P50 {_p50:.3f})")
     return df
 
 
 # ─────────────────────────────────────────────
 # 1. 발주기관 집계
 # ─────────────────────────────────────────────
+def spot_stats(g):
+    """한 기관/업체의 «자리» 통계. 등급 분포 · 참가업체수 · 권장률 대비.
+    기초금액이 있는 최근 줄에서만 나오므로 n 을 같이 적어 화면이 «표본 적음»을 말하게 한다."""
+    # ⚠️ NaN 은 참(truthy)이라 `if x` 로 거르면 세어진다. 실제로 gn 이 11 인데 gr 합이 1 인 걸 보고 잡았다.
+    gr = Counter(x for x in g["grade"].tolist() if isinstance(x, str) and x)
+    nps = sorted(int(v) for v in g["np"].tolist() if v is not None and not pd.isna(v) and v > 0)
+    mg = sorted(float(v) for v in g["mgn"].tolist() if v is not None and not pd.isna(v))
+    out = {"gr": {k: gr.get(k, 0) for k in "ABCD"}, "gn": sum(gr.values())}
+    if nps:
+        out["np"] = {"n": len(nps), "med": nps[len(nps) // 2],
+                     "solo": sum(1 for v in nps if v == 1), "few": sum(1 for v in nps if v <= 3)}
+    if mg:
+        # 창 — 중앙값과, «넓은 창»(0.3%p 이상 = 실측 승률 13.6% 구간) 비율
+        out["mg"] = {"n": len(mg), "med": round(mg[len(mg) // 2], 3),
+                     "wide": sum(1 for v in mg if v >= 0.3),
+                     "tight": sum(1 for v in mg if v < 0.02)}
+    return out
+
+
 def build_agency(df):
     log("발주기관 집계 중...")
     idx = defaultdict(dict)      # 첫글자 → {기관명: [건수, 묶음번호]}
@@ -409,6 +493,8 @@ def build_agency(df):
             "y": dict(sorted(yearly.items())),
             "amt": amt,
             "cases": cases,
+            # ★ 자리 통계 — 해볼 만한 기관인가 (등급) · 경쟁 강도 (참가업체수)
+            "spot": spot_stats(g),
         }
         agg[name] = cur.pop(name)
 
@@ -536,7 +622,13 @@ def build_corp(df):
                 str(r["발주기관"])[:24],
                 (round(r["rate"], 3) if r["rate"] is not None and not pd.isna(r["rate"]) else None),
                 int(r["amt"] or 0),
+                # ★ 2026-09-03 추가: [5] 등급  [6] 창(하한 위 %p)  [7] 참가업체수
+                (r["grade"] if isinstance(r["grade"], str) else ""),
+                (None if r["mgn"] is None or pd.isna(r["mgn"]) else float(r["mgn"])),
+                (None if r["np"] is None or pd.isna(r["np"]) else int(r["np"])),
             ] for _, r in recent.iterrows()],
+            # ★ 자리 통계 — 내가 딴 공고의 등급 · 권장률 대비 (공격적/보수적) · 경쟁 강도
+            "spot": spot_stats(g),
         }
         agg[key] = cur.pop(key)
 
