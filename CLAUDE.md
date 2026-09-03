@@ -902,3 +902,16 @@ K 를 최저 쪽으로 내리며 훑은 곡선 (앞 절 표 재인용): 0.25→1
 바로 그런 날만 보면 최저가 맞아 보인다. 높게 나온 날은 화면에 «실격» 으로 남고, 그날은 최저가 «없다».
 
 **교훈: 사후에 «가까웠던» 금액은 사전에 «넣을» 금액이 아니다. 생존 편향.**
+
+### 첫 실행 결과 — 옛 주소로 불러 «0건» (2026-09-03)
+`python collect.py --jobsonly` → 오류 없이 0건. 원인: 옛 워크넷 주소(openapi.work.go.kr/…/wantedApi.do)를 불렀다.
+소장님 키는 **고용24(work24.go.kr)** 키다. 지금 주소:
+    https://www.work24.go.kr/cm/openApi/call/wk/callOpenApiSvcInfo210L01.do   (목록 210L01 · 상세 210D01)
+명세를 받아 항목을 확정했다(짐작 아님):
+    요청  authKey callTp returnType startPage display · region occupation salTp keyword regDate(D-0/D-3/W-1/W-2/M-1) empTpGb(1상용/2일용) career(N/E/Z) education(00~07) …
+    응답  wantedAuthNo company busino **indTpNm(업종)** title salTpNm sal minSal maxSal region holidayTpNm minEdubg maxEdubg career regDt closeDt infoSvc wantedInfoUrl wantedMobileInfoUrl basicAddr **empTpCd(코드만)** **jobsCd(코드만)** smodifyDtm
+짐작과 달랐던 것: `jobsNm` 없음(직종명 안 옴) → 업종 `indTpNm` 으로 거른다. `empTpCd` 는 코드 → 이름표 WN_EMPTP.
+날짜 형식이 명세에 없다 → `_wn_date` 가 YY-MM-DD / YYYYMMDD / YYYY-MM-DD 를 다 받는다
+(안 하면 «26-09-20» < «2026-09-03» 으로 마감 전 공고가 전부 지워진다).
+**0건이면 응답 원문 앞 600자를 diag 에 남기고 화면에도 찍는다** — 이유 없는 0건은 다시 없다.
+직종코드 표(apiCdList.do?cdGbn=jobs)는 robots 로 자동수집 금지 → 첫 응답의 (jobsCd, 업종) 분포를 diag 에 남겨 그걸로 정한다.

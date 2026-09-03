@@ -1004,7 +1004,16 @@ def trim(bucket, days, date_field):
 #     · 지금은 건설 낱말로 여러 번 조회 + 제목/직종명에 건설 낱말이 있는 것만 남깁니다.
 #  호출량: 낱말 15개 × 1~3쪽 ≈ 40회. 08시·13시 회차에만 (순위 조회와 같은 배분).
 # ══════════════════════════════════════════════════════════════
-WORKNET_URL = "http://openapi.work.go.kr/opi/opi/opia/wantedApi.do"
+# ⚠️ 2026-09-03 정정 — 옛 워크넷 주소(openapi.work.go.kr/…/wantedApi.do)로 불렀더니
+#    오류도 없이 «0건»이 왔다. 소장님 키는 **고용24(work24)** 에서 받은 것이고, 지금 주소는 이것이다:
+#    https://www.work24.go.kr/cm/e/a/0110/selectOpenApiSvcInfo.do (채용정보 목록 = 210L01, 상세 = 210D01)
+WORKNET_URL = "https://www.work24.go.kr/cm/openApi/call/wk/callOpenApiSvcInfo210L01.do"
+# 고용24 명세의 empTpCd — 이름은 안 오고 코드만 온다
+WN_EMPTP = {"4": "파견", "10": "정규직", "11": "정규직(시간선택)", "20": "계약직",
+            "21": "계약직(시간선택)", "Y": "대체인력"}
+# 건설 «업종»(indTpNm) — 명세를 보니 직종명은 안 오고 업종명이 온다. 이게 제목보다 정확하다.
+IND_RX = re.compile(r"건설|공사|토목|건축|설비|전기|조경|철강|철골|도장|방수|석공|미장|창호|"
+                    r"포장|준설|굴착|비계|해체|지붕|판금|시설물|엔지니어링|측량|감리")
 JOB_WORDS = ["건설", "토목", "건축", "시공", "현장소장", "현장관리", "공무", "견적",
              "설비", "전기공사", "조경", "철근", "측량", "안전관리자", "감리", "배관", "중장비"]
 JOB_RX = re.compile(
@@ -1027,12 +1036,14 @@ def _wn_get(el, *names):
 def worknet_fetch(key, keyword, page, display=100):
     import xml.etree.ElementTree as ET
     q = {"authKey": key, "callTp": "L", "returnType": "XML",
-         "startPage": str(page), "display": str(display), "keyword": keyword}
+         "startPage": str(page), "display": str(display), "keyword": keyword,
+         "regDate": "M-1"}                      # 최근 한 달 등록분만 (명세: D-0/D-3/W-1/W-2/M-1)
     try:
         r = requests.get(WORKNET_URL, params=q, timeout=NET_TIMEOUT, verify=False,
                          headers={"User-Agent": "k-conmap/1.0"})
         r.raise_for_status()
-        root = ET.fromstring(r.content)
+        raw = r.content
+        root = ET.fromstring(raw)
     except Exception as e:
         print(f"    ! 워크넷 «{keyword}» {page}쪽 실패 ({type(e).__name__}: {str(e)[:80]})")
         return None, 0
@@ -1042,6 +1053,13 @@ def worknet_fetch(key, keyword, page, display=100):
         total = int((root.findtext(".//total") or "0").strip() or 0)
     except Exception:
         pass
+    if not items and "worknet_raw" not in DIAG:
+        # ★ 0건이면 «왜»를 남긴다. 오류 XML 일 수도, 태그 이름이 다를 수도 있다.
+        #   (2026-09-03 옛 주소로 0건이 왔을 때 이 자리에 아무것도 없어서 원인을 몰랐다)
+        head = raw.decode("utf-8", "replace")[:600]
+        DIAG["worknet_raw"] = {"status": r.status_code, "root": root.tag,
+                               "children": [c.tag for c in root][:20], "head": head}
+        print(f"    · 워크넷 «{keyword}» 0건 — 응답 앞부분: {head[:200].replace(chr(10), ' ')}")
     if items and "worknet_wantedApi" not in DIAG:
         one = items[0]
         DIAG["worknet_wantedApi"] = {
@@ -1050,35 +1068,55 @@ def worknet_fetch(key, keyword, page, display=100):
         }
     return items, total
 
+def _wn_date(v):
+    """고용24 날짜를 YYYY-MM-DD 로. 형식이 명세에 없어 «YY-MM-DD» «YYYYMMDD» «YYYY-MM-DD» 다 받습니다.
+    ⚠️ 이걸 안 하면 «26-09-20» 이 «2026-09-03» 보다 작다고 판정돼 마감 전 공고가 전부 지워집니다."""
+    v = (v or "").strip()
+    d = re.sub(r"[^0-9]", "", v)
+    if len(d) == 8:
+        return f"{d[:4]}-{d[4:6]}-{d[6:8]}"
+    if len(d) == 6:
+        return f"20{d[:2]}-{d[2:4]}-{d[4:6]}"
+    return v[:10]
+
 def worknet_row(el):
-    """응답 한 건 → 우리 줄. 이름 후보를 여러 개 두고 실제로 온 것을 씁니다."""
+    """응답 한 건 → 우리 줄. 고용24 명세(2026-09-03 확인)의 태그 이름을 씁니다.
+    후보를 두 개씩 둔 건 옛 워크넷 응답과의 호환용입니다."""
     g = lambda *n: _wn_get(el, *n)
-    no = g("wantedAuthNo", "wantedauthno", "authNo")
+    no = g("wantedAuthNo")
     if not no:
         return None
+    emp = g("empTpCd")
     return {
         "id": no,
-        "title": g("title", "wantedTitle")[:80],
-        "co": g("company", "companyNm", "corpNm")[:40],
-        "bno": g("busino", "bizNo"),
-        "reg": g("region", "regionNm", "workRegion")[:30],
-        "sal": g("sal", "salary", "salAmt")[:30],
-        "salTp": g("salTpNm", "salTp")[:10],
-        "career": g("career", "careerNm")[:12],
-        "edu": g("minEdubg", "edubg", "education")[:12],
-        "empTp": g("empTpNm", "empTp", "holidayTpNm")[:12],
-        "jobsCd": g("jobsCd", "occupationCd"),
-        "jobsNm": g("jobsNm", "occupationNm")[:30],
-        "regDt": g("regDt", "regDate")[:10],
-        "closeDt": g("closeDt", "closeDate", "endDt")[:10],
-        # ★ 워크넷이 주는 상세 주소 그대로. 손으로 만들지 않습니다.
-        "url": g("wantedInfoUrl", "infoUrl", "url"),
-        "murl": g("wantedMobileInfoUrl", "mobileUrl"),
+        "title": g("title")[:80],
+        "co": g("company")[:40],
+        "bno": g("busino"),
+        "ind": g("indTpNm")[:30],                       # ★ 업종 — 건설 거르기의 주재료
+        "reg": g("region")[:30],
+        "addr": g("basicAddr")[:40],
+        "sal": g("sal")[:30],
+        "salTp": g("salTpNm")[:10],
+        "minSal": g("minSal"), "maxSal": g("maxSal"),
+        "career": g("career")[:12],
+        "edu": g("minEdubg")[:12],
+        "empTp": WN_EMPTP.get(emp, emp)[:12],
+        "holi": g("holidayTpNm")[:10],
+        "jobsCd": g("jobsCd"),                          # 직종코드 — 이름은 안 옵니다
+        "regDt": _wn_date(g("regDt")),
+        "closeDt": _wn_date(g("closeDt")),
+        "src": g("infoSvc")[:20],
+        # ★ 고용24가 주는 상세 주소 그대로. 손으로 만들지 않습니다.
+        "url": g("wantedInfoUrl"),
+        "murl": g("wantedMobileInfoUrl"),
     }
 
 def is_construction(row):
-    blob = " ".join([row.get("title", ""), row.get("jobsNm", ""), row.get("co", "")])
-    return bool(JOB_RX.search(blob))
+    """업종(indTpNm)이 건설이면 통과. 업종이 비었거나 애매하면 제목으로 봅니다.
+    회사명은 안 봅니다 — «OO건설» 의 경리 채용도 건설이긴 하지만 현장 사람이 찾는 건 아닙니다."""
+    if IND_RX.search(row.get("ind") or ""):
+        return True
+    return bool(JOB_RX.search(row.get("title") or ""))
 
 def load_jobs_store():
     """load_store 는 {con, serv} 모양으로 강제하므로 채용 저장소는 따로 읽습니다."""
@@ -1107,7 +1145,7 @@ def collect_jobs(key, sleep=0.4, max_pages=3):
                 if not r:
                     continue
                 n_get += 1
-                cd[(r["jobsCd"], r["jobsNm"])] += 1
+                cd[(r["jobsCd"], r["ind"])] += 1
                 if r["id"] in seen:
                     continue
                 seen.add(r["id"])
@@ -1132,7 +1170,8 @@ def collect_jobs(key, sleep=0.4, max_pages=3):
     # 직종코드 분포 — 다음에 «코드로 거르기» 로 바꿀 때 근거가 됩니다
     DIAG["worknet_jobs"] = {
         "got": n_get, "kept_new": n_new, "skipped_nonconstruction": n_skip,
-        "top_jobs": [[c, nm, n] for (c, nm), n in cd.most_common(25)],
+        # (직종코드, 업종) 분포 — 이걸 보고 occupation 코드로 거르는 방식으로 바꿉니다
+        "top_jobs": [[c, nm, n] for (c, nm), n in cd.most_common(40)],
     }
     print(f"  → 워크넷 채용 {n_get:,}건 받음 · 건설 아님 {n_skip:,}건 제외 · "
           f"새로 {n_new:,}건 · 보관 {len(rows):,}건")
@@ -1145,8 +1184,8 @@ def export_jobs(store):
             if not v.get("closeDt") or v["closeDt"] >= today]
     rows.sort(key=lambda v: v.get("regDt") or "", reverse=True)
     rows = rows[:1000]
-    f = ["id", "title", "co", "reg", "sal", "salTp", "career", "edu", "empTp",
-         "jobsNm", "regDt", "closeDt", "url", "murl"]
+    f = ["id", "title", "co", "ind", "reg", "sal", "salTp", "career", "edu", "empTp",
+         "regDt", "closeDt", "url", "murl"]
     out = {"built": datetime.now(KST).strftime("%Y-%m-%d %H:%M"), "src": "워크넷(한국고용정보원)",
            "f": f, "r": [[v.get(k, "") for k in f] for v in rows]}
     path = os.path.join(OUT, "jobs.json")

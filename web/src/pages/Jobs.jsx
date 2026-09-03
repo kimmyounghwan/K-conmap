@@ -182,12 +182,12 @@ function WorknetList({ data, region, setRegion }) {
     const ix = Object.fromEntries(f.map((k, i) => [k, i]))
     const s = q.trim()
     return data.r
-      .map((a) => ({ id: a[ix.id], title: a[ix.title], co: a[ix.co], reg: a[ix.reg], sal: a[ix.sal],
-                     salTp: a[ix.salTp], career: a[ix.career], edu: a[ix.edu], empTp: a[ix.empTp],
-                     jobsNm: a[ix.jobsNm], regDt: a[ix.regDt], closeDt: a[ix.closeDt],
+      .map((a) => ({ id: a[ix.id], title: a[ix.title], co: a[ix.co], ind: a[ix.ind], reg: a[ix.reg],
+                     sal: a[ix.sal], salTp: a[ix.salTp], career: a[ix.career], edu: a[ix.edu],
+                     empTp: a[ix.empTp], regDt: a[ix.regDt], closeDt: a[ix.closeDt],
                      url: a[ix.url], murl: a[ix.murl] }))
       .filter((r) => inRegion({ inst: r.reg, name: '' }, region))   // 공고와 같은 지역 규칙(별칭 포함)
-      .filter((r) => !s || (r.title || '').includes(s) || (r.co || '').includes(s) || (r.jobsNm || '').includes(s))
+      .filter((r) => !s || (r.title || '').includes(s) || (r.co || '').includes(s) || (r.ind || '').includes(s))
   }, [data, q, region])
 
   if (data === undefined) return <Skeleton n={4} />
@@ -206,7 +206,7 @@ function WorknetList({ data, region, setRegion }) {
   return (
     <>
       <input value={q} onChange={(e) => setQ(e.target.value)}
-        placeholder="채용 제목 · 회사 · 직종 검색" style={{ marginBottom: 10 }} />
+        placeholder="채용 제목 · 회사 · 업종 검색" style={{ marginBottom: 10 }} />
       <div className="chips">
         {REGIONS.map((r) => (
           <button key={r} className={'chip' + (region === r ? ' on' : '')} onClick={() => setRegion(r)}>{r}</button>
@@ -227,7 +227,7 @@ function WorknetList({ data, region, setRegion }) {
             <div className="meta">
               <span className="inst">{r.co}</span>
               {r.reg && <><span>·</span><span>{r.reg}</span></>}
-              {r.jobsNm && <span className="badge n">{r.jobsNm}</span>}
+              {r.ind && <span className="badge n">{r.ind}</span>}
               {r.career && <span className="badge n">{r.career}</span>}
               {r.empTp && <span className="badge n">{r.empTp}</span>}
               {r.closeDt && <span className="badge b">마감 {r.closeDt.slice(5)}</span>}
