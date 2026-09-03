@@ -1439,8 +1439,11 @@ def main():
             src = lv.get(no)
             if not isinstance(src, dict):
                 continue
-            for f in ("llr", "est", "ptot", "pdrw"):
-                if (r.get(f) in (None, "", 0)) and src.get(f) not in (None, "", 0):
+            #   기초금액·예가범위·A값도 «공고엔 있는데 개찰엔 없는» 줄이 있다(실측 9,703건 중 77건).
+            #   같은 공고번호면 같은 값이다. 채점이 «값 부족» 으로 빠질 이유가 없다.
+            for f in ("llr", "est", "ptot", "pdrw",
+                      "base", "lo", "hi", "aval", "ayn", "aparts", "gmtrl", "lic"):
+                if (r.get(f) in (None, "", 0, [])) and src.get(f) not in (None, "", 0, []):
                     r[f] = src[f]
                     joined += 1
     if joined:
