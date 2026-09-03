@@ -83,6 +83,19 @@ function lowerLimit(estimate) {
    ⚠️ 숫자를 손으로 고치지 마세요. 고치려면 다시 재고 나서 고치세요.
       재는 법은 docs/2026-09-02_완비공고만_검증.md §5 에 적어 두었습니다.
    ══════════════════════════════════════════════════════════════ */
+/* ★ 색은 «위험도» 를 말합니다 — 2026-09-03, 소장님: 「색을 넣으면 어때? 좀 튀게. 단, 잘 보여야 해」
+   장식이 아니라 뜻입니다. 실격이 잦은 쪽이 붉고, 안전한 쪽이 초록입니다.
+   ⚠️ 색만으로 말하지 않습니다 — 적록색맹(남성 약 5%)이 있어 확률을 글자로 항상 같이 적습니다.
+   ⚠️ 애드센스가 붙는 화면이라 진한 배경은 쓰지 않습니다. 옅은 바탕 + 칸 위 4px 띠까지만.
+
+   ⚠️ 기준은 «살아남을 확률(passProb)» 하나뿐입니다. 처음에는 칩은 이름으로, 분위 칸은 실측
+   실격률로 따로 칠했다가 「최저 90.297%」 와 「50분위 90.297%」 가 **같은 값인데 색이 달라졌습니다**
+   (소장님 PC 스크린샷에서 발견). 같은 규칙을 두 번 적으면 반드시 어긋납니다 — riskTone 하나만 씁니다.
+   경계값도 판정 상자와 똑같이 55% · 80% 를 씁니다. */
+/* 칩 색과 판정 상자 색은 같은 경계를 씁니다 — 칸이 붉은데 상자가 초록이면 서로 반대말이 됩니다. */
+const TONE = { 'r-hot': 'no', 'r-warm': 'mid', 'r-cool': 'ok', 'r-none': '' }
+const riskTone = (p) => (p == null ? 'r-none' : p < 0.55 ? 'r-hot' : p < 0.8 ? 'r-warm' : 'r-cool')
+
 const GRADE = [
   ['50분위', 48.0, 3.13, 0.42],
   ['69분위', 29.0, 3.13, 0.59],
@@ -548,6 +561,11 @@ export default function BaroBid() {
       }).filter(Boolean)
     : []
   const chosen = choices.find((c) => c.k === pickRate) || qchoices.find((c) => c.k === pickRate)
+  const qpick = qchoices.find((c) => c.k === pickRate) || null
+  /* 어떤 투찰률이든 «이 공고에서 살아남을 확률» 로 색을 정합니다. 칩·분위 칸 모두 이 함수 하나. */
+  const rateTone = (rate) => riskTone(
+    passProb({ base, llRate: ll?.rate, aVal: a, amt: bidAmount(base, sjMid, rate), p50: sjMid, sd: sjSd })?.p
+  )
   const myRate = pickRate === 'own' ? (Number(ownRate) || 0) : (chosen?.rate ?? rec ?? 0)
 
   const main = bidAmount(base, sjMid, myRate)
@@ -1447,13 +1465,13 @@ export default function BaroBid() {
           <div className="ratepick">
             {choices.map((c) => (
               <button key={c.k}
-                className={(pickRate === c.k ? 'on' : '')
+                className={rateTone(c.rate) + (pickRate === c.k ? ' on' : '')
                   + (llEff && c.rate < llEff ? ' warn' : '')}
                 onClick={() => { rateTouched.current = true; setPickRate(c.k); setCopied(false) }}>
                 <b>{c.label}</b><span>{c.rate.toFixed(3)}%</span>
               </button>
             ))}
-            <button className={pickRate === 'own' ? 'on' : ''}
+            <button className={'r-none' + (pickRate === 'own' ? ' on' : '')}
               onClick={() => { rateTouched.current = true; setPickRate('own') }}>
               <b>직접</b><span>입력</span>
             </button>
@@ -1462,26 +1480,43 @@ export default function BaroBid() {
             <div className="qdial">
               <div className="qh">
                 사정률 분위를 직접 고르기
-                <i>낮을수록 싸게 넣지만 실격이 잦고, 높을수록 안전하지만 낙찰가와 멀어집니다. 권장 = 75분위 + 여유 0.3%.</i>
+                <i>낮을수록 싸게 넣지만 실격이 잦고, 높을수록 안전하지만 낙찰가와 멀어집니다.</i>
               </div>
+              {/* ★ 칸에는 «분위 + 투찰률» 만 둡니다. 설명은 전부 칸 아래에 적습니다.
+                  칸 안에 설명을 넣었더니 글자가 칸 밖으로 나와 서로 겹쳤습니다(소장님 지적 3회). */}
               <div className="ratepick q">
                 {qchoices.map((c) => (
                   <button key={c.k}
-                    className={(pickRate === c.k ? 'on' : '') + (llEff && c.rate < llEff ? ' warn' : '')}
+                    className={rateTone(c.rate) + (pickRate === c.k ? ' on' : '') + (llEff && c.rate < llEff ? ' warn' : '')}
                     onClick={() => {
                       rateTouched.current = true; setPickRate(c.k); setCopied(false)
                       try { localStorage.setItem('kcm_qtile', String(c.q)) } catch { /* noop */ }
                     }}>
                     <b>{c.label}</b><span>{c.rate.toFixed(3)}%</span>
-                    <i>살아남을 확률 {Math.round(100 - c.dq)}%</i>
-                    <i>1순위 {c.win.toFixed(1)}%</i>
                   </button>
                 ))}
               </div>
+              {qpick ? (
+                <div className="qnow">
+                  <div className="qn1"><b>{qpick.q}분위</b> — 투찰률 {qpick.rate.toFixed(3)}%</div>
+                  <div className="qn2">
+                    <span>실측 살아남은 비율 <b>{Math.round(100 - qpick.dq)}%</b></span>
+                    <span>실격 <b>{qpick.dq.toFixed(1)}%</b></span>
+                    <span>1순위 <b>{qpick.win.toFixed(1)}%</b></span>
+                  </div>
+                  {/* ⚠️ 위 상자의 «살아남을 확률» 은 이 공고의 A값·하한율로 계산한 값이고,
+                      여기 숫자는 지난 개찰 8,406건에서 실제로 살아남은 비율입니다. 1~2%p 다를 수 있어
+                      이름을 다르게 적습니다 — 같은 이름을 붙이면 «왜 숫자가 다르냐» 가 됩니다. */}
+                  <div className="qn3">실제 개찰 {num(QTILE_N)}건에 이 분위 금액을 넣어 본 실측입니다.
+                    {' '}이 공고의 확률은 아래 판정 상자에 있습니다.</div>
+                </div>
+              ) : (
+                <div className="qnow off">칸을 누르면 그 분위의 실측 성적을 여기에 적어 드립니다.</div>
+              )}
               <div className="note sm">
-                칸 안의 «살아남을 확률»(=100−실격률)·1순위는 실제 개찰 {num(QTILE_N)}건에 그 분위 금액을 넣어 본 실측입니다.
-                25분위는 넷 중 셋이 실격, 50분위는 반반입니다.
-                어느 분위든 1순위율은 3.6~4.4% — 분위는 «얼마나 자주 살아남나»를 정하지 «얼마나 자주 이기나»는 못 바꿉니다.
+                25분위는 넷 중 셋이 실격, 50분위는 반반, 95분위는 스물다섯 중 하나만 실격입니다.
+                그런데 어느 분위든 1순위율은 3.6~4.4% 입니다 —
+                분위는 «얼마나 자주 살아남나»를 정하지 «얼마나 자주 이기나»는 못 바꿉니다.
                 {pickRate.startsWith('q') && <> 고른 분위는 이 브라우저에 기억됩니다 · <a onClick={() => { try { localStorage.removeItem('kcm_qtile') } catch { /* noop */ } setPickRate('rec') }}>권장으로 되돌리기</a></>}
               </div>
             </div>
@@ -1553,21 +1588,34 @@ export default function BaroBid() {
             </div>
           )}
 
-          {/* 판정 */}
+          {/* 판정 — ★ 2026-09-03: 판정을 «한 번만, 맨 위에» 적습니다.
+              전에는 상자 색이 «중앙 사정률 기준 통과/미달» 로만 갈려서, 살아남을 확률이 51% 인 금액도
+              초록으로 보였습니다. 이제 색과 큰 숫자가 둘 다 «살아남을 확률» 하나를 말합니다.
+              (CLAUDE.md — 「칸마다 따로 계산해 따로 말하면 언젠가 서로 반대말을 한다」) */}
           {ll && (
-            <div className={'verdict ' + (pass === false ? 'no' : pass ? 'ok' : '')}>
+            <div className={'verdict ' + (pp ? TONE[riskTone(pp.p)]
+              : (pass === false ? 'no' : pass ? 'ok' : ''))}>
+              {pp && (
+                <div className="vtop">
+                  <div className="vnum"><b>{Math.round(pp.p * 100)}%</b><i>살아남을 확률</i></div>
+                  <div className="vsay">
+                    사정률이 <b>{pp.sj.toFixed(3)}%</b> {pass ? '를 넘게' : '아래로'} 나오면 {pass ? '실격' : '통과'}입니다.
+                    <br />실격 확률 약 {100 - Math.round(pp.p * 100)}% · 결과는 개찰 때 추첨이 정합니다.
+                  </div>
+                </div>
+              )}
+              {/* ⚠️ 아래 줄은 «판정» 이 아니라 «기준선» 입니다. 전에는 ✅ 를 달아 놓아,
+                  살아남을 확률 50%(빨간 상자) 인데 바로 밑에 「✅ 통과」 가 함께 떴습니다.
+                  한 상자가 서로 반대말을 하면 안 됩니다 — CLAUDE.md 「채점 화면 전체 재검토」와 같은 잘못입니다.
+                  판정은 위의 큰 숫자 하나뿐이고, 이 줄은 그 숫자가 어디서 나왔는지만 적습니다. */}
               {ll.rate == null ? (
                 <>ℹ️ <b>100억 이상 종합심사</b> — 별도 기준이라 낙찰하한율을 적용하지 않습니다.</>
-              ) : pass ? (
-                <>✅ <b>사정률 중앙({sjMid.toFixed(3)}%) 기준 하한 {pct(llEff ?? ll.rate, 3)} 통과</b> · 여유 {margin.toFixed(3)}%p
-                  {pp && <><br />사정률이 <b>{pp.sj.toFixed(3)}%</b> 를 넘게 나오면 실격 → 이 금액이 살아남을 확률 <b>약 {Math.round(pp.p * 100)}%</b></>}
-                  {margin < 0.1 && <><br />여유가 거의 없습니다. 사정률이 조금만 높게 나와도 미달이 됩니다.</>}</>
               ) : (
-                /* ⚠️ 2026-09-03 — 「이대로 넣으면 실격입니다」 라고 단정했었습니다. 소장님: 「실제로 실격인지는
-                   결과를 봐야 알지」 — 맞습니다. 사정률이 중앙보다 낮게 나오면 이 금액도 통과합니다. 확률로 말합니다. */
-                <>⚠️ <b>사정률 중앙({sjMid.toFixed(3)}%) 기준으로는 하한 {pct(llEff ?? ll.rate, 3)} 아래</b> · {Math.abs(margin).toFixed(3)}%p 부족
-                  {pp && <><br />사정률이 <b>{pp.sj.toFixed(3)}%</b> 아래로 나오면 통과 → 이 금액이 살아남을 확률 <b>약 {Math.round(pp.p * 100)}%</b>
-                    {' '}(실격 확률 약 {100 - Math.round(pp.p * 100)}%). 결과는 개찰 때 추첨이 정합니다.</>}</>
+                <div className="vbase">
+                  기준선 — 사정률이 중앙({sjMid.toFixed(3)}%)으로 나오면 하한은 <b>{pct(llEff ?? ll.rate, 3)}</b>,
+                  {' '}이 금액은 {pass ? <>그보다 <b>{margin.toFixed(3)}%p 위</b></> : <>그보다 <b>{Math.abs(margin).toFixed(3)}%p 아래</b></>}입니다.
+                  {pass && margin < 0.1 && <><br />여유가 거의 없습니다. 사정률이 조금만 높게 나와도 미달이 됩니다.</>}
+                </div>
               )}
               <div className="sub">
                 {a > 0 && llEff && (
@@ -1582,7 +1630,7 @@ export default function BaroBid() {
           )}
 
           {grade && (
-            <div className={'odds ' + grade.tone}>
+            <div className={'odds ' + grade.tone + ' g' + grade.key}>
               <div className="oh">
                 <span className="g">{grade.key}</span>
                 <span className="l">이 공고는 <b>{grade.label}</b></span>

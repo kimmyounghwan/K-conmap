@@ -936,8 +936,33 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
 }
 .ratepick button b { font-size: 12px; font-weight: 800; color: var(--text-2); }
 .ratepick button span { font-size: 12.5px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
-.ratepick button.on { border-color: var(--accent); background: var(--accent-soft); }
-.ratepick button.on b, .ratepick button.on span { color: var(--accent); }
+
+/* ★ 위험 색 — 2026-09-03. 색이 곧 뜻입니다: 붉을수록 실격이 잦고, 초록일수록 안전합니다.
+   진한 배경은 쓰지 않습니다(애드센스와 섞여 안 읽힙니다). 안 고른 칸은 «위 3px 띠» 로만,
+   고른 칸만 옅은 바탕까지 칠합니다. 색은 전부 토큰이라 다크모드가 따라옵니다.
+   ⚠️ 색만으로 말하지 않습니다 — 칸 아래 .qnow 에 「실격 74.3%」 를 글자로 항상 적습니다. */
+.ratepick button { position: relative; overflow: hidden; --ink: var(--muted); --tint: var(--surface-2); }
+.ratepick button.r-hot  { --ink: var(--bad);    --tint: var(--bad-soft); }
+.ratepick button.r-warm { --ink: var(--warn);   --tint: var(--warn-soft); }
+.ratepick button.r-cool { --ink: var(--good);   --tint: var(--good-soft); }
+.ratepick button::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px;
+  background: var(--ink); opacity: .75;
+}
+/* 안 고른 칸도 옅게 물들입니다 — 스크롤만 해도 «어느 쪽이 위험한지» 가 보이게.
+   바탕은 --*-soft 라 아주 옅고, 글자는 --text-2 로 두어 대비를 지킵니다. */
+.ratepick button { background: color-mix(in srgb, var(--tint) 55%, var(--surface)); }
+.ratepick button.r-none { background: var(--surface); }
+.ratepick button.r-none::before { opacity: 0; }
+.ratepick button span { color: var(--text-2); }
+/* 고른 칸: 바탕을 진하게 + 테두리를 그 색으로 + 바깥에 고리 하나. 색이 겹쳐도 «고른 것»이 먼저 보입니다. */
+.ratepick button.on {
+  border-color: var(--ink); background: var(--tint);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 18%, transparent);
+}
+.ratepick button.on::before { opacity: 1; height: 5px; }
+.ratepick button.on b, .ratepick button.on span { color: var(--ink); }
+/* 이 공고의 «실효 하한» 아래인 칸 — 위험 색과 별개로 숫자를 붉게 적습니다. */
 .ratepick button.warn span { color: var(--bad); }
 
 /* 판정 */
@@ -946,9 +971,24 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
   border-radius: 12px; font-size: 13.5px; line-height: 1.6;
   border: 1px solid var(--line); background: var(--surface-2);
 }
-.verdict.ok { border-color: rgba(4, 120, 87, .3); background: var(--good-soft); color: var(--good); }
-.verdict.no { border-color: rgba(185, 28, 28, .3); background: var(--bad-soft); color: var(--bad); }
+.verdict.ok  { border-color: rgba(4, 120, 87, .3);  background: var(--good-soft); color: var(--good); }
+.verdict.mid { border-color: rgba(180, 83, 9, .3);  background: var(--warn-soft); color: var(--warn); }
+.verdict.no  { border-color: rgba(185, 28, 28, .3); background: var(--bad-soft);  color: var(--bad); }
 .verdict .sub { font-size: 11.5px; opacity: .8; margin-top: 5px; font-weight: 500; }
+/* ★ 판정은 «살아남을 확률» 하나로 말합니다. 큰 숫자 + 상자 색이 같은 말을 합니다. */
+.verdict .vtop {
+  display: flex; align-items: center; gap: 13px;
+  padding-bottom: 10px; margin-bottom: 9px; border-bottom: 1px solid currentcolor;
+}
+.verdict .vtop { border-bottom-color: color-mix(in srgb, currentcolor 25%, transparent); }
+.verdict .vnum { text-align: center; line-height: 1; flex: none; }
+.verdict .vnum b { display: block; font-size: 34px; font-weight: 800; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+.verdict .vnum i { display: block; font-style: normal; font-size: 10.5px; font-weight: 700; margin-top: 4px; opacity: .85; }
+.verdict .vsay { font-size: 12.5px; line-height: 1.6; font-weight: 500; opacity: .95; }
+/* «기준선» 줄 — 판정이 아니라 근거입니다. 판정문처럼 보이지 않게 한 단계 눌러 둡니다. */
+.verdict .vbase { font-size: 12.5px; line-height: 1.65; font-weight: 500; opacity: .9; }
+.verdict .vbase b { font-weight: 800; }
+@media (max-width: 380px) { .verdict .vnum b { font-size: 29px; } }
 
 /* 시장 분포 막대 */
 .hbars { margin-top: 4px; }
@@ -1720,6 +1760,16 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
 }
 .odds.good .oh .g { background: var(--good); }
 .odds.bad  .oh .g { background: var(--bad); }
+/* ★ 등급 색 — A 초록 · B 파랑 · C 주황 · D 빨강. tone(good/mid/bad)보다 뒤에 두어 이깁니다.
+   전에는 B 가 회색이라 «보통» 인지 «자료 없음» 인지 구별이 안 됐습니다. */
+.odds.gA { border-color: var(--good);   background: var(--good-soft); }
+.odds.gB { border-color: var(--accent); background: var(--accent-soft); }
+.odds.gC { border-color: var(--warn);   background: var(--warn-soft); }
+.odds.gD { border-color: var(--bad);    background: var(--bad-soft); }
+.odds.gA .oh .g { background: var(--good); }
+.odds.gB .oh .g { background: var(--accent); }
+.odds.gC .oh .g { background: var(--warn); }
+.odds.gD .oh .g { background: var(--bad); }
 .odds .oh .l { font-size: 15px; font-weight: 700; }
 .odds .oh .w { margin-left: auto; font-size: 12px; color: var(--text-2); }
 .odds .oh .w b { color: var(--text); font-weight: 800; }
@@ -1875,21 +1925,24 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
 .qdial { margin: -4px 0 12px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 12px; background: var(--surface-2); }
 .qdial .qh { font-size: 12.5px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
 .qdial .qh i { display: block; font-style: normal; font-weight: 500; font-size: 11px; color: var(--text-2); margin-top: 2px; }
-.qdial .ratepick { margin-bottom: 8px; }
-/* 칸은 «자리»를 정해 두고(넓은 화면 4칸씩, 휴대폰 2칸씩) 글자는 그 안에서 줄바꿈합니다.
-   nowrap + 좁은 칸이면 글자가 칸 밖으로 튀어나옵니다 — 소장님 휴대폰에서 실제로 겹쳤습니다. */
-.qdial .ratepick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
-.qdial .ratepick button { min-width: 0; width: 100%; padding: 8px 4px; }
-.qdial .ratepick button i {
-  display: block; width: 100%; font-style: normal; font-size: 10.5px; line-height: 1.35;
-  color: var(--muted); text-align: center; white-space: normal; word-break: keep-all;
-}
-.qdial .ratepick button i:first-of-type { margin-top: 3px; }
-@media (max-width: 560px) {
-  .qdial .ratepick { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .qdial .ratepick button i { font-size: 11px; }
-}
-.qdial .ratepick button.on i { color: var(--accent); }
+/* ★ 칸에는 «분위 + 투찰률» 만 둡니다 (2026-09-03, 소장님 지적 3회).
+   칸마다 설명 두 줄을 넣었더니 칸이 좁아 글자가 밖으로 나와 서로 겹쳤습니다.
+   설명은 «고른 칸 하나»에 대해서만 칸 아래(.qnow)에 적습니다. */
+.qdial .ratepick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-bottom: 9px; }
+.qdial .ratepick button { min-width: 0; width: 100%; padding: 7px 4px; gap: 1px; }
+@media (max-width: 420px) { .qdial .ratepick { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* 고른 분위의 실측 성적 — «판정»이 아니라 «자료»입니다. 위험 색(빨강/주황/초록)과 섞이지 않게
+   일부러 중립색으로 둡니다. 옆 칸은 초록인데 이 상자만 파랗면 다른 말을 하는 것처럼 읽힙니다. */
+.qnow { padding: 9px 11px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); }
+.qnow.off { border-style: dashed; border-color: var(--line); background: transparent; font-size: 11.5px; color: var(--text-2); }
+.qnow .qn1 { font-size: 13px; font-weight: 700; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.qnow .qn1 b { font-size: 14.5px; font-weight: 800; color: var(--text); }
+.qnow .qn2 { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 5px; }
+.qnow .qn2 span { font-size: 11.5px; color: var(--text-2); white-space: nowrap; }
+.qnow .qn2 b { font-size: 13px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+.qnow .qn3 { margin-top: 5px; font-size: 10.5px; color: var(--muted); }
+.qdial .note { margin-top: 8px; }
 .qdial .note a { color: var(--accent); cursor: pointer; text-decoration: underline; }
 .autobox { margin: -4px 0 12px; padding: 11px 13px; border-radius: 12px; border: 1px solid var(--accent-line); background: var(--accent-soft); }
 .autobox .h { font-size: 13px; font-weight: 800; color: var(--text); }
