@@ -806,8 +806,12 @@ def save_store(name, data):
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
 
 
-def archive(first):
-    """이번에 받은 개찰 결과를 달별 누적 CSV 에 덧붙인다. 지우지 않는다."""
+def archive(first, live=None):
+    """이번에 받은 개찰 결과를 달별 누적 CSV 에 덧붙이고, 빈칸을 소급해 채운다.
+
+    live 를 함께 받는 이유: 예가범위가 «공고» 쪽에만 실려 오기 때문입니다.
+    """
+    live = live or {"con": {}, "serv": {}}
     import glob as _glob
 
     have = set()
@@ -849,55 +853,85 @@ def archive(first):
                 "참가업체수": r.get("np", "") or "",
             })
 
-    # 이미 적힌 줄이라도 A값이 비어 있고 이제 알게 됐으면 채웁니다.
-    # (이번 달·지난 달 파일만 — 오래된 건 어차피 조달청에서 더 못 받습니다)
+    # ══════════════════════════════════════════════════════════════
+    #  이미 적힌 줄의 빈칸을, «지금 가진 것»으로 뒤늦게 채웁니다.
+    #
+    #  ⚠️ 2026-09-03 소장님 지적: 「오늘부터 쌓이는 게 아니라,
+    #     조달청에서 가져와 지금 사이트에 있는 건 다 채워야 맞지 않아?」 — 맞습니다.
+    #
+    #  채우는 것: A값 · A값적용 · 예가하한 · 예가상한 · 참가업체수
+    #  채우는 재료: data/store/{first,live}.json — **이미 받아 둔 것**입니다.
+    #     → 조달청 호출 0번. 돈도 시간도 안 듭니다.
+    #
+    #  왜 live 까지 보나: 예가범위는 «공고» 쪽에만 실려 옵니다.
+    #     개찰 저장소에는 12.6% 뿐인데 공고 저장소에는 77.8% 가 있습니다.
+    #     같은 공고번호로 이어 붙이면 그만큼이 살아납니다.
+    #
+    #  ⚠️ 옛 달(4~6월)은 공고 저장소가 45일치라 재료가 없습니다.
+    #     그건 이 함수로 못 채웁니다 — 애초에 가진 적이 없는 값입니다.
+    #     시뮬레이션이 보는 창은 최근 30일이라 실질 손해는 없습니다.
+    # ══════════════════════════════════════════════════════════════
     try:
         known = {}
-        for kind in ("con", "serv"):
-            for no, r in first[kind].items():
-                if r.get("aval") or r.get("ayn") or r.get("lo") is not None or r.get("np"):
-                    known[no] = (r.get("aval") or "", r.get("ayn") or "",
-                                 "" if r.get("lo") is None else r.get("lo"),
-                                 "" if r.get("hi") is None else r.get("hi"),
-                                 r.get("np") or "")
+        # 뒤에 넣는 쪽이 이깁니다 — 개찰(first)이 공고(live)보다 확정값입니다.
+        for st in (live, first):
+            for kind in ("con", "serv"):
+                for no, r in (st.get(kind) or {}).items():
+                    if not isinstance(r, dict):
+                        continue
+                    cur = known.setdefault(no, {})
+                    for src, dst in (("aval", "A값"), ("ayn", "A값적용"),
+                                     ("lo", "예가하한"), ("hi", "예가상한"),
+                                     ("np", "참가업체수")):
+                        v = r.get(src)
+                        if v is not None and v != "" and v != 0:
+                            cur[dst] = v
+        known = {k: v for k, v in known.items() if v}
+
         if known:
-            now = datetime.now(KST)
-            months = {now.strftime("%Y-%m"),
-                      (now.replace(day=1) - timedelta(days=1)).strftime("%Y-%m")}
-            fixed = 0
-            for ym in months:
-                path = os.path.join(ARCHIVE_DIR, f"extra_{ym}.csv")
-                if not os.path.exists(path):
-                    continue
+            filled = {c: 0 for c in ("A값", "예가하한", "참가업체수")}
+            n_files = 0
+            for path in sorted(_glob.glob(os.path.join(ARCHIVE_DIR, "extra_*.csv"))):
                 with io.open(path, encoding="utf-8-sig", newline="") as f:
                     rows = list(csv.DictReader(f))
+                if not rows:
+                    continue
                 ch = False
                 for row in rows:
                     k = known.get((row.get("공고번호") or "").strip())
                     if not k:
                         continue
-                    if k[0] and not (row.get("A값") or "").strip():
-                        row["A값"], row["A값적용"] = k[0], k[1]
+                    # A값 — 적용여부(N)도 값이므로 둘을 한 쌍으로 봅니다
+                    if k.get("A값") and not str(row.get("A값") or "").strip():
+                        row["A값"] = k["A값"]
+                        row["A값적용"] = k.get("A값적용", "")
+                        filled["A값"] += 1
                         ch = True
-                        fixed += 1
-                    if k[2] != "" and not str(row.get("예가하한") or "").strip():
-                        row["예가하한"], row["예가상한"] = k[2], k[3]
+                    # 예가범위 — 하한만 있고 상한이 없는 일은 없습니다. 쌍으로 채웁니다.
+                    if k.get("예가하한") is not None and not str(row.get("예가하한") or "").strip():
+                        row["예가하한"] = k["예가하한"]
+                        row["예가상한"] = k.get("예가상한", "")
+                        filled["예가하한"] += 1
                         ch = True
-                        fixed += 1
-                    if k[4] and not str(row.get("참가업체수") or "").strip():
-                        row["참가업체수"] = k[4]
+                    if k.get("참가업체수") and not str(row.get("참가업체수") or "").strip():
+                        row["참가업체수"] = k["참가업체수"]
+                        filled["참가업체수"] += 1
                         ch = True
-                        fixed += 1
+                # 바뀐 파일만 다시 씁니다.
+                # (안 바뀐 파일까지 쓰면 하루 21번 커밋이 통째로 부풀어 오릅니다)
                 if ch:
+                    n_files += 1
                     with io.open(path, "w", encoding="utf-8-sig", newline="") as g:
                         w = csv.DictWriter(g, fieldnames=ARCH_COLS, extrasaction="ignore")
                         w.writeheader()
                         for row in rows:
                             w.writerow({c: row.get(c, "") for c in ARCH_COLS})
-            if fixed:
-                print(f"  → 누적 CSV 의 A값 {fixed:,}칸을 뒤늦게 채웠습니다")
+            if any(filled.values()):
+                print(f"  → 누적 CSV 소급 기록 ({n_files}개 파일) — "
+                      f"A값 {filled['A값']:,} · 예가범위 {filled['예가하한']:,} · "
+                      f"참가업체수 {filled['참가업체수']:,}칸 (조달청 호출 0번)")
     except Exception as e:
-        print(f"  ! A값 소급 기록 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
+        print(f"  ! 소급 기록 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
 
     if not buckets:
         print("  · 누적 CSV — 새로 추가할 건 없음")
@@ -1050,13 +1084,19 @@ def main():
                     if not row.get("base"):
                         row.update(b)
                         n_base += 1
-                    elif not row.get("aval") and b.get("aval"):
-                        # 기초금액은 이미 있는데 A값만 없는 경우.
-                        # «기초금액 있으면 건너뛰기» 로 두면 A값이 영영 안 채워집니다.
-                        for f in ("aval", "aparts", "ayn", "gmtrl"):
-                            if b.get(f):
+                    else:
+                        # ⚠️ 기초금액은 이미 있는데 «다른 칸»이 빈 경우.
+                        #    2026-09-03 이전에는 A값만 채우고 예가범위는 안 채웠습니다.
+                        #    그래서 base 를 먼저 받아 둔 공고는 lo/hi 를 영영 못 받았습니다.
+                        #    응답에 이미 실려 온 값인데 버리고 있었던 것입니다.
+                        #    («조달청이 주는 값은 그대로 쓴다» — 버리는 것도 안 쓰는 것입니다)
+                        hit = False
+                        for f in ("lo", "hi", "aval", "aparts", "ayn", "gmtrl", "lic"):
+                            if row.get(f) is None and b.get(f) is not None:
                                 row[f] = b[f]
-                        n_aval += 1
+                                hit = True
+                        if hit:
+                            n_aval += 1
             time.sleep(args.sleep)
 
             # ── 낙찰자 상세 (주소·전화·참가업체수) ──
@@ -1084,7 +1124,7 @@ def main():
 
         print(f"  {ds}  1순위 {len(first['con']) + len(first['serv']):,}건 "
               f"/ 공고 {len(live['con']) + len(live['serv']):,}건 "
-              f"/ 기초금액 {n_base:,}건 / A값 {n_aval:,}건 "
+              f"/ 기초금액 {n_base:,}건 / 빈칸메움 {n_aval:,}건 "
               f"/ 면허 {n_lic:,}건 / 낙찰자상세 {n_win:,}건 누적")
 
     # ── 화면에 실릴 최근 건 중 기초금액이 빈 것만 공고번호로 개별 보충 ──
@@ -1239,7 +1279,7 @@ def main():
     # 사람이 넣어 둔 전체 투찰내역이 있으면 여기서도 붙입니다 (파일로 받은 경우)
     merge_ranks(first)
 
-    archive(first)
+    archive(first, live)
 
     for kind in ("con", "serv"):
         first[kind] = trim(first[kind], KEEP_DAYS, "dt")
