@@ -14,6 +14,12 @@
    ══════════════════════════════════════════════════════════════ */
 
 /** 투찰금액 = 예정가격 × 투찰률 (조달청 투찰률 정의 그대로) */
+/* 전국 사정률 중앙값의 «대체값» — overview.json 의 sjq.p50 이 없을 때만 씁니다.
+   ⚠️ 2026-09-03 전에는 이 값이 화면 안에 100 · 99.9 · 99.894 로 세 가지가 흩어져 있었습니다.
+      sjq 가 빠지면 같은 공고의 금액이 자리마다 달라지는 구조였습니다. 하나로 모읍니다.
+      실측(3년치 개찰) 중앙값 99.896 — build_json.py 가 sjq.p50 으로 매번 다시 잽니다. */
+export const P50_FALLBACK = 99.896
+
 export function bidAmount(base, sajeong, rate) {
   if (!base || !rate) return 0
   return Math.ceil(base * (sajeong / 100) * (rate / 100))
@@ -119,4 +125,38 @@ export function recommend({ base, llRate, aVal, aKnown, p50, sd }) {
   const yeje = base * (sj / 100)
   return { sj, K, margin, pctile: aKnown ? 75 : 95,
            amt: Math.ceil(Math.ceil((yeje - aVal) * (llRate / 100) + aVal) * margin) }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   quickBid — «공고 한 줄»에서 권장 투찰금액을 바로 냅니다. 2026-09-03
+
+   소장님: 「아이건설넷 원클릭처럼. 입찰가를 원클릭으로 구해서 입찰할 때.」
+   바로투찰 화면 자체는 이미 한 화면에 금액·복사·나라장터가 있습니다.
+   문제는 거기까지 가는 길이었습니다 — 공고 탭 → 알약 → 화면 이동 → 그제야 금액.
+   원클릭이 되려면 **공고 카드에 금액이 이미 떠 있어야** 합니다.
+
+   그래서 계산을 여기 한 함수로 뽑았습니다. 공고 카드도, 바로투찰 화면도 이걸 씁니다.
+   (같은 계산을 두 곳에 적으면 반드시 어긋납니다 — 오늘 네 번 겪었습니다)
+
+   입력은 공고 한 줄(r) 그대로입니다. 완비(isReady)가 아니면 null — 반쯤 아는 값으로
+   금액을 내지 않습니다. 그건 «금액»이 아니라 «추측»입니다.
+   ══════════════════════════════════════════════════════════════ */
+export function quickBid(r, p50) {
+  if (!r || !isReady(r) || !(p50 > 0)) return null
+  const aKnown = r.ayn === 'N' || r.aval > 0
+  const aVal = r.ayn === 'N' ? 0 : (Number(r.aval) || 0)
+  const lo = r.lo != null ? Number(r.lo) : -3
+  const hi = r.hi != null ? Number(r.hi) : 3
+  const sd = sjSigma(lo, hi, r.ptot, r.pdrw)
+  const base = Number(r.base)
+  const out = recommend({ base, llRate: Number(r.llr), aVal, aKnown, p50, sd })
+  if (!out || !(out.amt > 0)) return null
+  /* ⚠️ 바로투찰 화면과 «같은 길»로 갑니다 — 금액 → 투찰률(소수 3자리, 올림) → 다시 금액.
+     처음엔 recommend().amt 를 그대로 냈다가 selfcheck 에 잡혔습니다:
+     카드 408,999,841 vs 화면 409,002,195 — 2,354원 차이.
+     4억 공고에서 투찰률 0.001% 가 4,090원이라, 올림 한 번이 이만큼입니다.
+     같은 공고를 두 화면이 다른 숫자로 보여주면 사용자는 둘 다 안 믿습니다. */
+  const yejeMid = base * (p50 / 100)
+  const rate = c3(out.amt / yejeMid * 100)
+  return { amt: bidAmount(base, p50, rate), rate, sj: out.sj, pctile: out.pctile, aKnown }
 }

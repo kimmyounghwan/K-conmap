@@ -407,6 +407,12 @@ def main():
                   f'   분위 {w["pctile"]} / {g.get("pctile")}')
             if abs((g.get("shownAmt") or 0) - w["amt"]) == 1:
                 print("      (1원 차 — 소수점 처리 차이. 봐줍니다)")
+            # ★ 원클릭(공고 카드) 금액 = 바로투찰 권장금액 — 두 화면이 같은 수를 내야 합니다
+            if g.get("quick") is not None:
+                ok_q = abs(g["quick"] - w["amt"]) <= 1
+                print(f'      원클릭 카드 {g["quick"]:>15,}  {"✅ 같음" if ok_q else "❌ 다름"}')
+                if not ok_q:
+                    bad.append(nm + " 원클릭")
             if not ok:
                 bad.append(nm)
         elif w["kind"] == "nogo":

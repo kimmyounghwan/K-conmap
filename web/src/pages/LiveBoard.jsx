@@ -4,6 +4,8 @@ import { useBoard } from '../lib/useBoard.js'
 import { Skeleton, Empty } from '../components.jsx'
 import { RangeBar } from './FirstBoard.jsx'
 import { isReady, missingOf } from './BaroBid.jsx'
+import { quickBid, P50_FALLBACK } from '../lib/bidmath.js'
+import { getOverview } from '../lib/data.js'
 import { winGrade } from '../lib/winodds.js'
 import { won, wonShort, num, dateTime, dday, REGIONS, inRegion, LICENSES, licenseKeywords } from '../lib/fmt.js'
 
@@ -48,6 +50,19 @@ export default function LiveBoard() {
   const [editLic, setEditLic] = useState(false)
   const [open, setOpen] = useState(null)
   const now = useMemo(() => nowStamp(), [])
+  /* ★ 원클릭 — 2026-09-03. 소장님: 「입찰가를 원클릭으로 구해서 입찰할 때.」
+     전국 사정률 중앙(p50)만 있으면 공고 한 줄로 권장 금액이 나옵니다(quickBid).
+     overview.json 은 0.4KB — 이미 첫 화면이 받는 파일이라 추가 전송량이 없습니다. */
+  const [ov, setOv] = useState(null)
+  const [copiedNo, setCopiedNo] = useState(null)
+  useEffect(() => { getOverview().then(setOv).catch(() => {}) }, [])
+  const p50 = ov?.sjq?.p50 ?? P50_FALLBACK
+  const copyAmt = (e, r, amt) => {
+    e.stopPropagation()
+    try { navigator.clipboard?.writeText(String(amt)) } catch { /* 옛 브라우저 */ }
+    setCopiedNo(r.no)
+    setTimeout(() => setCopiedNo((v) => (v === r.no ? null : v)), 1600)
+  }
 
   useEffect(() => { setPage(1) }, [region, q, mine, lics, onlyGood])
   useEffect(() => { saveLicenses(lics) }, [lics])
@@ -183,6 +198,33 @@ export default function LiveBoard() {
                   <span style={{ flex: 1 }} />
                   <span className="caret">{isOpen ? '▲' : '▼'}</span>
                 </div>
+
+                {/* ★ 원클릭 줄 — 완비 공고에만. 바로투찰 화면과 «같은 함수»(quickBid)로 낸 금액입니다.
+                    여기서 복사하고 나라장터로 가면 끝입니다. 화면을 옮기지 않아도 됩니다.
+                    더 알고 싶으면(시나리오·근거) 「💰 바로투찰」 알약으로 갑니다. */}
+                {canBid(r, now) && (() => {
+                  const qb = quickBid(r, p50)
+                  if (!qb) return null
+                  return (
+                    <div className="oneclick" onClick={(e) => e.stopPropagation()}>
+                      <div className="oc-l">
+                        <span className="oc-tag">권장 투찰금액</span>
+                        <span className="oc-amt">{won(qb.amt)}</span>
+                        <span className="oc-sub">투찰률 {qb.rate.toFixed(3)}% · 사정률 {qb.pctile}분위{qb.aKnown ? '' : ' · A값 미확인'}</span>
+                      </div>
+                      <div className="oc-r">
+                        <button className="cbtn" onClick={(e) => copyAmt(e, r, qb.amt)}>
+                          {copiedNo === r.no ? '✓ 복사했습니다' : '금액 복사'}
+                        </button>
+                        {/* 조달청이 준 주소 그대로. 손으로 만들면 차수를 틀립니다(실제로 틀렸음). */}
+                        {r.url && (
+                          <a className="cbtn ghost" href={r.url} target="_blank" rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}>나라장터 →</a>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 {isOpen && (
                   <div className="detail" onClick={(e) => e.stopPropagation()}>

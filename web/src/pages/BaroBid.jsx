@@ -6,7 +6,7 @@ import { winGrade } from '../lib/winodds.js'
 /* 계산은 전부 여기 있습니다 — 화면과 채점이 같은 함수를 씁니다 */
 import { bidAmount, limitAmount, limitRate, r3, c3,
          sjSigma, recommend, buildScen, missingOf, isReady,
-         digits, toNum } from '../lib/bidmath.js'
+         digits, toNum, P50_FALLBACK } from '../lib/bidmath.js'
 /* 공고 화면(LiveBoard)이 예전부터 여기서 가져다 썼습니다 — 그대로 이어 줍니다 */
 export { missingOf, isReady }
 
@@ -436,7 +436,7 @@ export default function BaroBid() {
   const hi = picked?.hi ?? 3
 
 
-  const sjMid = sjPick ?? ov?.sjq?.p50 ?? 100
+  const sjMid = sjPick ?? ov?.sjq?.p50 ?? P50_FALLBACK
 
   /* ══════════════════════════════════════════════════════════
      사정률 분포는 공고마다 다릅니다. 전국 하나로 쓰면 안 됩니다.
@@ -513,7 +513,7 @@ export default function BaroBid() {
      승률이 같다면 실격이 적은 쪽이 답입니다. 그래서 95분위 하나로 고정합니다. */
   const recOut = recommend({
     base, llRate: ll?.rate, aVal: a, aKnown,
-    p50: ov?.sjq?.p50 ?? 99.9, sd: sjSd,
+    p50: ov?.sjq?.p50 ?? P50_FALLBACK, sd: sjSd,
   })
   const sj95 = recOut ? recOut.sj
     : (aKnown ? (ov?.sjq?.p75 ?? null) : (ov?.sjq?.p95 ?? null))  // 없으면 전국값
@@ -556,7 +556,7 @@ export default function BaroBid() {
      채점이 쓰는 buildScen 을 그대로 부릅니다 — 두 화면이 어긋날 수 없습니다. */
   const scLive = buildScen({
     base, llRate: ll?.rate, aVal: a,
-    p50: ov?.sjq?.p50 ?? 99.894, sd: sjSd, myAmt: main,
+    p50: ov?.sjq?.p50 ?? P50_FALLBACK, sd: sjSd, myAmt: main,
   })
 
   /* ⚠️ A값이 있는 공고에서는 전국 권장값이 실효 하한 아래일 수 있습니다.
@@ -603,7 +603,7 @@ export default function BaroBid() {
           바로투찰이 실제로 내는 금액과 다른 것으로 채점하면 채점이 아닙니다.
        ══════════════════════════════════════════════════════════ */
     const yeje = Math.round(res.amt / (res.rate / 100))
-    const sjmid = ov?.sjq?.p50 ?? 100
+    const sjmid = ov?.sjq?.p50 ?? P50_FALLBACK
     /* ⚠️ 채점은 «추천이 그날 실제로 냈을 금액» 을 그대로 다시 계산해야 합니다.
        예가범위도 그 공고의 것을 씁니다 — ±2% 공고에 ±3% 를 쓰면
        5억 공고 기준 115만원이 어긋납니다(실측 106건 중앙값). */
@@ -630,7 +630,7 @@ export default function BaroBid() {
     /* ★ 추천 화면과 «같은 함수» 로 금액을 만듭니다 */
     const ro = recommend({ base: b, llRate: h, aVal: A,
                            aKnown: res.ayn === 'N' || (res.aval || 0) > 0,
-                           p50: ov?.sjq?.p50 ?? 99.9, sd: rSd })
+                           p50: ov?.sjq?.p50 ?? P50_FALLBACK, sd: rSd })
     if (!ro) return { yeje, est, band: bd, skip: true }
     const sj95v = ro.sj
     const M = ro.amt                                               // 바로투찰이 준 금액
@@ -683,7 +683,7 @@ export default function BaroBid() {
       ? valid.filter((v) => v < M).length + 1 : null
 
     const realSj = hasBase ? r3(yeje / b * 100) : null
-    const sc = buildScen({ base: b, llRate: h, aVal: A, p50: ov?.sjq?.p50 ?? 99.894,
+    const sc = buildScen({ base: b, llRate: h, aVal: A, p50: ov?.sjq?.p50 ?? P50_FALLBACK,
                            sd: rSd, myAmt: M, realSj, realLimit: L })
     const scen = sc ? sc.rows : []
     const passN = sc ? sc.passN : 0

@@ -1764,3 +1764,41 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
   border: 1px solid var(--line); background: var(--surface-2);
   color: var(--text-2); font-size: 11px; font-weight: 700; cursor: pointer;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   원클릭 줄 — 공고 카드 안에서 권장 금액 · 복사 · 나라장터 (2026-09-03)
+   ⚠️ 색은 전부 토큰으로. 하드코딩하면 다크 모드에서 숫자가 안 보입니다 (실제로 겪음).
+   ⚠️ .hero .cbtn 과 이름이 같지만 여기 것은 .oneclick 아래로만 잡힙니다.
+   ══════════════════════════════════════════════════════════════ */
+.oneclick {
+  margin-top: 10px;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1.5px solid var(--accent-line);
+  background: var(--accent-soft);
+  border-radius: 12px;
+}
+.oneclick .oc-l { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 200px; }
+.oneclick .oc-tag { font-size: 11px; font-weight: 800; color: var(--accent); letter-spacing: .02em; }
+.oneclick .oc-amt {
+  font-size: 20px; font-weight: 900; color: var(--text);
+  font-variant-numeric: tabular-nums; line-height: 1.15; white-space: nowrap;
+}
+.oneclick .oc-sub { font-size: 11.5px; color: var(--text-2); }
+.oneclick .oc-r { display: flex; gap: 6px; flex: 0 0 auto; }
+.oneclick .cbtn {
+  border: 0; border-radius: 10px; padding: 9px 12px;
+  font-size: 13px; font-weight: 800; cursor: pointer;
+  color: #ffffff; background: var(--accent);
+  text-decoration: none; display: inline-block; text-align: center; white-space: nowrap;
+}
+.oneclick .cbtn:hover { filter: brightness(1.08); }
+.oneclick .cbtn.ghost {
+  color: var(--accent); background: var(--surface);
+  border: 1.5px solid var(--accent-line);
+}
+@media (max-width: 480px) {
+  .oneclick .oc-amt { font-size: 18px; }
+  .oneclick .oc-r { width: 100%; }
+  .oneclick .cbtn { flex: 1; }
+}

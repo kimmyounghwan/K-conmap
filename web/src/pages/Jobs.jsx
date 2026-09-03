@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { ref, get, set, push, update, query, orderByKey, limitToLast } from 'firebase/database'
 import { db, ensureAnon } from '../firebase.js'
 import { Empty, Skeleton } from '../components.jsx'
-import { num, REGIONS } from '../lib/fmt.js'
+import { num, REGIONS, inRegion } from '../lib/fmt.js'
+import { getJobs } from '../lib/data.js'
 
 const TRADES = ['현장관리', '공무/견적', '토목', '건축', '철근·콘크리트', '설비', '전기',
   '조경', '중장비', '보통인부', '기타']
@@ -41,6 +42,17 @@ export default function Jobs() {
   const [writing, setWriting] = useState(false)
   const [err, setErr] = useState('')
   const [mine, setMine] = useState(loadMine)
+  /* ★ 워크넷 건설 채용 — 2026-09-03.
+     한국고용정보원 OpenAPI 로 받은 «목록»입니다(크롤링 아님). 제목·조건·링크만 보여주고
+     지원·문의는 워크넷에서 합니다. 이 탭을 열 때만 jobs.json 을 받습니다. */
+  const [src, setSrc] = useState('worknet')     // 'worknet' | 'ours'
+  const [wn, setWn] = useState(undefined)       // undefined=아직, null=없음, {f,r}=있음
+  useEffect(() => {
+    getJobs().then((d) => setWn(d && Array.isArray(d.r) && d.r.length ? d : null))
+             .catch(() => setWn(null))
+  }, [])
+  // 워크넷 자료가 없으면 직접 올린 글을 먼저 보여줍니다
+  useEffect(() => { if (wn === null) setSrc('ours') }, [wn])
 
   const load = async () => {
     setPosts(null); setErr('')
@@ -78,6 +90,20 @@ export default function Jobs() {
         🤝 K-구인구직 <span className="count">· 현장 사람 구하고 찾기</span>
       </div>
 
+      {/* 출처 고르기 — 워크넷(공공) 과 직접 올린 글은 신뢰 근거가 달라서 섞지 않고 나란히 둡니다 */}
+      <div className="seg" style={{ marginBottom: 10 }}>
+        <button className={src === 'worknet' ? 'on' : ''} onClick={() => setSrc('worknet')}>
+          🏛 워크넷 건설 채용{wn ? ` ${num(wn.r.length)}` : ''}
+        </button>
+        <button className={src === 'ours' ? 'on' : ''} onClick={() => setSrc('ours')}>
+          ✏️ 직접 올린 글{posts ? ` ${num(posts.length)}` : ''}
+        </button>
+      </div>
+
+      {src === 'worknet' ? (
+        <WorknetList data={wn} region={region} setRegion={setRegion} />
+      ) : (
+      <>
       <div className="seg">
         {['전체', ...TYPES].map((t) => (
           <button key={t} className={type === t ? 'on' : ''} onClick={() => setType(t)}>{t}</button>
@@ -127,9 +153,110 @@ export default function Jobs() {
         </>
       )}
 
+      </>
+      )}
+
+      {src === 'ours' && (
       <div className="note" style={{ marginTop: 14 }}>
         로그인 없이 누구나 올릴 수 있습니다. 올릴 때 정한 <b>4자리 숫자</b>가 있어야 글을 지울 수 있으니 꼭 기억해두세요.<br />
         연락처는 그대로 공개되니 개인 휴대폰보다 업무용 번호를 권합니다. 허위·광고성 글은 예고 없이 삭제될 수 있습니다.
+      </div>
+      )}
+    </>
+  )
+}
+
+/* ── 워크넷 건설 채용 목록 ──────────────────────────────────────
+   ⚠️ 본문은 없습니다. 있어도 안 보여줍니다. 제목·회사·지역·급여·조건·마감 + 워크넷 링크.
+   ⚠️ 링크는 워크넷이 준 주소(wantedInfoUrl) 그대로. 손으로 만들지 않습니다.
+   ⚠️ 출처를 항상 적습니다 — «워크넷(한국고용정보원)». */
+const JPAGE = 20
+function WorknetList({ data, region, setRegion }) {
+  const [q, setQ] = useState('')
+  const [page, setPage] = useState(1)
+  useEffect(() => { setPage(1) }, [q, region])
+
+  const rows = useMemo(() => {
+    if (!data) return []
+    const f = data.f
+    const ix = Object.fromEntries(f.map((k, i) => [k, i]))
+    const s = q.trim()
+    return data.r
+      .map((a) => ({ id: a[ix.id], title: a[ix.title], co: a[ix.co], reg: a[ix.reg], sal: a[ix.sal],
+                     salTp: a[ix.salTp], career: a[ix.career], edu: a[ix.edu], empTp: a[ix.empTp],
+                     jobsNm: a[ix.jobsNm], regDt: a[ix.regDt], closeDt: a[ix.closeDt],
+                     url: a[ix.url], murl: a[ix.murl] }))
+      .filter((r) => inRegion({ inst: r.reg, name: '' }, region))   // 공고와 같은 지역 규칙(별칭 포함)
+      .filter((r) => !s || (r.title || '').includes(s) || (r.co || '').includes(s) || (r.jobsNm || '').includes(s))
+  }, [data, q, region])
+
+  if (data === undefined) return <Skeleton n={4} />
+  if (data === null) {
+    return (
+      <Empty icon="🏛">
+        워크넷 채용 자료가 아직 없습니다.<br />
+        <span style={{ fontSize: 12 }}>수집이 돌면 여기에 건설 관련 채용이 올라옵니다.</span>
+      </Empty>
+    )
+  }
+  const pages = Math.max(1, Math.ceil(rows.length / JPAGE))
+  const view = rows.slice((page - 1) * JPAGE, page * JPAGE)
+  const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad/i.test(navigator.userAgent)
+
+  return (
+    <>
+      <input value={q} onChange={(e) => setQ(e.target.value)}
+        placeholder="채용 제목 · 회사 · 직종 검색" style={{ marginBottom: 10 }} />
+      <div className="chips">
+        {REGIONS.map((r) => (
+          <button key={r} className={'chip' + (region === r ? ' on' : '')} onClick={() => setRegion(r)}>{r}</button>
+        ))}
+      </div>
+
+      <div className="sec-title">
+        건설 채용 <span className="count">{num(rows.length)}건 · 출처 워크넷(한국고용정보원) · {data.built}</span>
+      </div>
+
+      {view.length === 0 ? (
+        <Empty icon="🔎">조건에 맞는 채용이 없습니다.<br />지역을 넓히거나 검색어를 지워보세요.</Empty>
+      ) : view.map((r) => {
+        const link = (isMobile && r.murl) ? r.murl : r.url
+        return (
+          <div className="notice" key={r.id}>
+            <h3>{r.title}</h3>
+            <div className="meta">
+              <span className="inst">{r.co}</span>
+              {r.reg && <><span>·</span><span>{r.reg}</span></>}
+              {r.jobsNm && <span className="badge n">{r.jobsNm}</span>}
+              {r.career && <span className="badge n">{r.career}</span>}
+              {r.empTp && <span className="badge n">{r.empTp}</span>}
+              {r.closeDt && <span className="badge b">마감 {r.closeDt.slice(5)}</span>}
+            </div>
+            <div className="foot">
+              <span className="badge g">{r.salTp || '급여'}</span>
+              <span className="amt">{r.sal || '워크넷에서 확인'}</span>
+              <span style={{ flex: 1 }} />
+              {link && (
+                <a className="btn ghost sm" href={link} target="_blank" rel="noreferrer">
+                  워크넷에서 보기 →
+                </a>
+              )}
+            </div>
+          </div>
+        )
+      })}
+
+      {pages > 1 && (
+        <div className="pager">
+          <button className="btn ghost sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>이전</button>
+          <span className="pg">{page} / {pages}</span>
+          <button className="btn ghost sm" disabled={page >= pages} onClick={() => setPage(page + 1)}>다음</button>
+        </div>
+      )}
+
+      <div className="note" style={{ marginTop: 14 }}>
+        이 목록은 <b>워크넷(한국고용정보원) 공개 API</b>로 받은 건설 관련 채용입니다. 여기서는 제목과 조건만 보여주며,
+        상세 내용·지원·문의는 <b>워크넷에서</b> 하시면 됩니다. 마감된 공고는 자동으로 빠집니다.
       </div>
     </>
   )

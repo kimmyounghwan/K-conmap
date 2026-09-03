@@ -982,6 +982,179 @@ def trim(bucket, days, date_field):
     return {k: v for k, v in bucket.items() if (dt_digits(v.get(date_field)) or "999") >= cut}
 
 
+
+# ══════════════════════════════════════════════════════════════
+#  워크넷 건설 채용 — 2026-09-03
+#
+#  소장님: 「워크넷 구인구직 공고를 건설맵에 띄울 수 없어? 우리는 보여주기만 하고 나머지는 워크넷에서.」
+#
+#  ⚠️ 크롤링이 아닙니다. 한국고용정보원이 공공데이터포털/워크넷 OpenAPI 로 «쓰라고 내준» 자료입니다.
+#     전에 중지한 건 화면 긁기(잡코리아 v 사람인 판례)였고, 이건 그와 다릅니다.
+#  ⚠️ 키는 조달청 키와 별개입니다. openapi.work.go.kr 에서 받아 .env 에:
+#         WORKNET_API_KEY=…
+#     키가 없으면 이 단계는 조용히 건너뜁니다 (배치가 멈추면 안 됩니다).
+#  ⚠️ 본문은 안 가져옵니다. 제목·회사·지역·급여·조건·마감·링크만.
+#     지원·문의는 전부 워크넷에서. 조달청 공고와 같은 원칙입니다 — 우리는 «목록»입니다.
+#  ⚠️ 응답 항목 이름을 «짐작으로 박지 않습니다». 첫 응답의 항목을 diag.json 에 남기고,
+#     여러 이름 후보 중 실제로 온 것을 씁니다 (조달청 때 «없다»고 세 번 틀린 그 실수 방지).
+#
+#  건설만 고르는 법 (지금은 «말»로, 나중엔 «코드»로):
+#     · 워크넷 직종코드(occupation)로 거르는 게 정석인데, 어느 코드가 건설인지 실제 응답을
+#       보기 전엔 단정 못 합니다. 그래서 첫 응답의 jobsCd/jobsNm 분포를 diag 에 남깁니다.
+#     · 지금은 건설 낱말로 여러 번 조회 + 제목/직종명에 건설 낱말이 있는 것만 남깁니다.
+#  호출량: 낱말 15개 × 1~3쪽 ≈ 40회. 08시·13시 회차에만 (순위 조회와 같은 배분).
+# ══════════════════════════════════════════════════════════════
+WORKNET_URL = "http://openapi.work.go.kr/opi/opi/opia/wantedApi.do"
+JOB_WORDS = ["건설", "토목", "건축", "시공", "현장소장", "현장관리", "공무", "견적",
+             "설비", "전기공사", "조경", "철근", "측량", "안전관리자", "감리", "배관", "중장비"]
+JOB_RX = re.compile(
+    r"건설|토목|건축|시공|현장|공무|견적|설비|전기공사|전기 공사|조경|철근|콘크리트|측량|"
+    r"안전관리|감리|배관|중장비|굴착|굴삭|덤프|타워크레인|비계|형틀|미장|방수|도장|"
+    r"창호|금속|지붕|포장|도로|상하수도|하수관|준설|철골|용접|플랜트|CM|PM|공사")
+JOB_KEEP_DAYS = 70
+
+def _wn_get(el, *names):
+    """XML 한 건에서 후보 이름 중 실제로 있는 값 (대소문자 무시)."""
+    if el is None:
+        return ""
+    low = {c.tag.lower(): (c.text or "").strip() for c in el}
+    for n in names:
+        v = low.get(n.lower())
+        if v:
+            return v
+    return ""
+
+def worknet_fetch(key, keyword, page, display=100):
+    import xml.etree.ElementTree as ET
+    q = {"authKey": key, "callTp": "L", "returnType": "XML",
+         "startPage": str(page), "display": str(display), "keyword": keyword}
+    try:
+        r = requests.get(WORKNET_URL, params=q, timeout=NET_TIMEOUT, verify=False,
+                         headers={"User-Agent": "k-conmap/1.0"})
+        r.raise_for_status()
+        root = ET.fromstring(r.content)
+    except Exception as e:
+        print(f"    ! 워크넷 «{keyword}» {page}쪽 실패 ({type(e).__name__}: {str(e)[:80]})")
+        return None, 0
+    items = root.findall(".//wanted")
+    total = 0
+    try:
+        total = int((root.findtext(".//total") or "0").strip() or 0)
+    except Exception:
+        pass
+    if items and "worknet_wantedApi" not in DIAG:
+        one = items[0]
+        DIAG["worknet_wantedApi"] = {
+            "fields": sorted(c.tag for c in one),
+            "sample": {c.tag: (c.text or "")[:40] for c in one},
+        }
+    return items, total
+
+def worknet_row(el):
+    """응답 한 건 → 우리 줄. 이름 후보를 여러 개 두고 실제로 온 것을 씁니다."""
+    g = lambda *n: _wn_get(el, *n)
+    no = g("wantedAuthNo", "wantedauthno", "authNo")
+    if not no:
+        return None
+    return {
+        "id": no,
+        "title": g("title", "wantedTitle")[:80],
+        "co": g("company", "companyNm", "corpNm")[:40],
+        "bno": g("busino", "bizNo"),
+        "reg": g("region", "regionNm", "workRegion")[:30],
+        "sal": g("sal", "salary", "salAmt")[:30],
+        "salTp": g("salTpNm", "salTp")[:10],
+        "career": g("career", "careerNm")[:12],
+        "edu": g("minEdubg", "edubg", "education")[:12],
+        "empTp": g("empTpNm", "empTp", "holidayTpNm")[:12],
+        "jobsCd": g("jobsCd", "occupationCd"),
+        "jobsNm": g("jobsNm", "occupationNm")[:30],
+        "regDt": g("regDt", "regDate")[:10],
+        "closeDt": g("closeDt", "closeDate", "endDt")[:10],
+        # ★ 워크넷이 주는 상세 주소 그대로. 손으로 만들지 않습니다.
+        "url": g("wantedInfoUrl", "infoUrl", "url"),
+        "murl": g("wantedMobileInfoUrl", "mobileUrl"),
+    }
+
+def is_construction(row):
+    blob = " ".join([row.get("title", ""), row.get("jobsNm", ""), row.get("co", "")])
+    return bool(JOB_RX.search(blob))
+
+def load_jobs_store():
+    """load_store 는 {con, serv} 모양으로 강제하므로 채용 저장소는 따로 읽습니다."""
+    p = os.path.join(STORE, "jobs.json")
+    try:
+        with open(p, encoding="utf-8") as f:
+            d = json.load(f)
+        return d if isinstance(d, dict) and isinstance(d.get("r"), dict) else {"r": {}}
+    except Exception:
+        return {"r": {}}
+
+def collect_jobs(key, sleep=0.4, max_pages=3):
+    store = load_jobs_store()
+    rows = store["r"]
+    seen = set()
+    n_get = n_new = n_skip = 0
+    from collections import Counter
+    cd = Counter()
+    for w in JOB_WORDS:
+        for pg in range(1, max_pages + 1):
+            items, total = worknet_fetch(key, w, pg)
+            if items is None:
+                break
+            for el in items:
+                r = worknet_row(el)
+                if not r:
+                    continue
+                n_get += 1
+                cd[(r["jobsCd"], r["jobsNm"])] += 1
+                if r["id"] in seen:
+                    continue
+                seen.add(r["id"])
+                if not is_construction(r):
+                    n_skip += 1
+                    continue
+                if r["id"] not in rows:
+                    n_new += 1
+                rows[r["id"]] = r
+            if len(items) < 100 or pg * 100 >= total:
+                break
+            time.sleep(sleep)
+        time.sleep(sleep)
+
+    # 오래된 건 버립니다 (안 버리면 파일이 해마다 조용히 무거워집니다)
+    cut = (datetime.now(KST) - timedelta(days=JOB_KEEP_DAYS)).strftime("%Y-%m-%d")
+    for k in [k for k, v in rows.items() if (v.get("regDt") or "9999") < cut]:
+        del rows[k]
+    store["r"] = rows
+    save_store("jobs", store)
+
+    # 직종코드 분포 — 다음에 «코드로 거르기» 로 바꿀 때 근거가 됩니다
+    DIAG["worknet_jobs"] = {
+        "got": n_get, "kept_new": n_new, "skipped_nonconstruction": n_skip,
+        "top_jobs": [[c, nm, n] for (c, nm), n in cd.most_common(25)],
+    }
+    print(f"  → 워크넷 채용 {n_get:,}건 받음 · 건설 아님 {n_skip:,}건 제외 · "
+          f"새로 {n_new:,}건 · 보관 {len(rows):,}건")
+    return store
+
+def export_jobs(store):
+    """마감 전 건설 채용만, 화면용으로 가볍게. 구인구직 탭에서만 받습니다."""
+    today = datetime.now(KST).strftime("%Y-%m-%d")
+    rows = [v for v in (store.get("r") or {}).values()
+            if not v.get("closeDt") or v["closeDt"] >= today]
+    rows.sort(key=lambda v: v.get("regDt") or "", reverse=True)
+    rows = rows[:1000]
+    f = ["id", "title", "co", "reg", "sal", "salTp", "career", "edu", "empTp",
+         "jobsNm", "regDt", "closeDt", "url", "murl"]
+    out = {"built": datetime.now(KST).strftime("%Y-%m-%d %H:%M"), "src": "워크넷(한국고용정보원)",
+           "f": f, "r": [[v.get(k, "") for k in f] for v in rows]}
+    path = os.path.join(OUT, "jobs.json")
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(out, fh, ensure_ascii=False, separators=(",", ":"))
+    print(f"  → jobs.json 마감 전 건설 채용 {len(rows):,}건 ({os.path.getsize(path)/1024:.0f}KB)")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=int, default=3)
@@ -992,6 +1165,10 @@ def main():
                          "안 주면 시각을 보고 알아서 정합니다(정밀 회차 250 / 그 외 60). 0이면 안 함")
     ap.add_argument("--fillbsis", type=int, default=0,
                     help="지난 N일치 기초금액·A값을 소급해서 채웁니다 (하루 한 번이면 충분)")
+    ap.add_argument("--jobs", action="store_true",
+                    help="워크넷 건설 채용을 지금 당장 받습니다 (평소엔 08·13시 회차에만)")
+    ap.add_argument("--jobsonly", action="store_true",
+                    help="조달청은 건너뛰고 워크넷 건설 채용만 받습니다 (처음 확인할 때)")
     ap.add_argument("--fillonly", action="store_true",
                     help="조달청을 부르지 않고, 이미 받아 둔 자료로 "
                          "누적 CSV 의 빈칸만 채웁니다 (호출 0번 · 몇 초)")
@@ -1015,6 +1192,19 @@ def main():
         return
 
     load_env()
+
+    # ── --jobsonly : 워크넷만. 조달청 키 없이도 돕니다 ──────────────
+    if args.jobsonly:
+        _wk = os.environ.get("WORKNET_API_KEY", "").strip()
+        if not _wk:
+            print("⛔ .env 에 WORKNET_API_KEY 가 없습니다.  예)  WORKNET_API_KEY=받은키")
+            return
+        print("=" * 52); print("  워크넷 건설 채용만 받기"); print("=" * 52)
+        export_jobs(collect_jobs(_wk, args.sleep))
+        save_diag()
+        print("완료. 응답 항목은 web/public/data/diag.json 의 worknet_wantedApi 에 남겼습니다.")
+        return
+
     key = api_key()
 
     # ── 순위 조회 건수를 «시각을 보고» 스스로 정합니다 ──────────────
@@ -1696,6 +1886,20 @@ def main():
         export_bandstat(first, live)
     except Exception as e:
         print(f"  ! bandstat 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
+    # ── 워크넷 건설 채용 (키가 있을 때만) ──────────────────────
+    try:
+        _wk = os.environ.get("WORKNET_API_KEY", "").strip()
+        _h = datetime.now(KST).hour
+        if _wk and (args.jobs or _h in (8, 13)):
+            print("-" * 52)
+            export_jobs(collect_jobs(_wk, args.sleep))
+        elif _wk:
+            export_jobs(load_jobs_store())
+        else:
+            print("  · 워크넷: WORKNET_API_KEY 없음 — 건너뜀 (.env 에 넣으면 돕니다)")
+    except Exception as e:
+        print(f"  ! 워크넷 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
+
     save_diag()
     print("✅ 수집 완료")
 

@@ -30,6 +30,13 @@ const out = cases.map((c) => {
     r.shownAmt = M.bidAmount(c.base, c.p50, r.rate)
     r.limitAtMid = M.limitAmount(c.base, c.p50, c.llr, c.a)
   }
+  /* ★ 원클릭(공고 카드) 금액 — quickBid 가 같은 답을 내는지.
+     카드는 «공고 한 줄»만 받으므로 입력을 그 모양으로 만들어 넣습니다. */
+  if (c.row && c.row.base > 0) {
+    const q = M.quickBid({ ...c.row, llr: c.llr, aval: c.a, ayn: c.aKnown && !(c.a > 0) ? 'N' : (c.a > 0 ? 'Y' : ''),
+                           lo: c.lo, hi: c.hi, ptot: c.ptot, pdrw: c.pdrw }, c.p50)
+    r.quick = q ? q.amt : null
+  }
   if (c.score) {                                  // 채점
     const yeje = Math.round(c.score.win / (c.score.rate / 100))
     const L = Math.ceil((yeje - c.a) * (c.llr / 100) + c.a)
