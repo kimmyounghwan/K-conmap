@@ -750,6 +750,56 @@ def sj_candidates(sjs, k=10):
     return out
 
 
+# ══════════════════════════════════════════════════════════════
+#  ★ 등급 (web/src/lib/winodds.js 의 winScore 를 그대로 옮긴 것)
+#     ⚠️ 한쪽만 고치면 «화면은 채점하는데 시뮬레이션은 안 하는» 어긋남이 납니다.
+#        고칠 일이 있으면 반드시 두 파일을 같이 고치세요.
+# ══════════════════════════════════════════════════════════════
+_NARROW_INST = re.compile(r"공사|공단|공제|진흥원|연구원")
+_MED_INST    = re.compile(r"대학|병원|의료원")
+_PUBLIC_INST = re.compile(r"청$|부$|처$|국$|사업소|관리단|교육|학교")
+_NARROW_WORK = re.compile(r"전기|통신|소방|정보")
+_WIDE_WORK   = re.compile(r"조림|산림|숲|임도|농로|수리|배수|포장|도로")
+
+
+def win_score(base, est, lo, hi, inst, name):
+    if not base or base <= 0:
+        return None
+    s = 0
+    e = est if (est and est > 0) else base / 1.1
+    s += 2 if e < 1e8 else (1 if e < 3e8 else -1)
+    try:
+        w = float(hi) - float(lo)
+    except Exception:
+        w = 6.0
+    if not (w > 0):
+        w = 6.0
+    s += 1 if w >= 6 else -2
+    inst = str(inst or "")
+    if _NARROW_INST.search(inst):
+        s -= 2
+    elif _MED_INST.search(inst):
+        s -= 1
+    elif not _PUBLIC_INST.search(inst):
+        s += 1
+    name = str(name or "")
+    if _NARROW_WORK.search(name):
+        s -= 2
+    elif _WIDE_WORK.search(name):
+        s += 1
+    return s
+
+
+def win_grade(base, est, lo, hi, inst, name):
+    s = win_score(base, est, lo, hi, inst, name)
+    if s is None:
+        return None
+    for key, mn in (("A", 3), ("B", 1), ("C", -1), ("D", -99)):
+        if s >= mn:
+            return key
+    return "D"
+
+
 def build_sim(df, p50):
     """지난 개찰에 «화면과 같은 규칙»을 그대로 대본 성적.
 
@@ -826,8 +876,10 @@ def build_sim(df, p50):
     P50_SIM = float(p50)
     cases = []
     n_all = dq_all = win_all = 0
+    n_skip = 0                    # C·D 라서 채점하지 않은 건수
     gaps, dts = [], []
     a_real = 0
+    nps = []                      # 참가업체수 — 「무작위였다면 몇 %」 를 내기 위한 것
 
     for _, r in g.iterrows():
         b = float(r["base"])
@@ -849,15 +901,31 @@ def build_sim(df, p50):
         if a_known:
             a_real += 1
 
-        # 예가범위 — 개찰 자료에 실려 있으면 그 공고 값, 없으면 ±3%
-        lo = r.get("lo") if "lo" in g.columns else None
-        hi = r.get("hi") if "hi" in g.columns else None
+        # 예가범위 — 누적 CSV 에 실려 있으면 그 공고 값, 없으면 ±3%
+        #   ⚠️ 2026-09-03 이전 줄에는 이 칸이 없습니다. 그때는 전부 ±3% 로 봅니다.
+        #      (실측 88.9% 가 ±3% 이므로 큰 왜곡은 아니지만, 나머지 11.1% 는 틀립니다.
+        #       오늘부터 쌓이는 줄에는 실제값이 들어갑니다)
+        lo = r.get("예가하한") if "예가하한" in g.columns else None
+        hi = r.get("예가상한") if "예가상한" in g.columns else None
+        if lo is None or (isinstance(lo, float) and pd.isna(lo)) or lo == "":
+            lo, hi = None, None
         try:
             w = float(hi) - float(lo)
         except Exception:
             w = 6.0
         if not (w > 0):
             w = 6.0
+            lo, hi = -3.0, 3.0
+
+        # ★ 2026-09-03 — 화면과 같이 «채점이 성립하는 자리»만 셉니다.
+        #   C·D 등급은 실측 156건에서 누가 계산해도 한 건도 못 땄습니다.
+        #   그 자리를 성적에 섞으면 «우리 오차»가 아니라 «그 공고의 성질»을
+        #   우리 탓으로 적게 됩니다. 화면이 채점하지 않는 자리는 여기서도 셈에서 뺍니다.
+        gkey = win_grade(b, b / 1.1, lo, hi, r.get("발주기관"), r.get("공고명"))
+        if gkey in ("C", "D"):
+            n_skip += 1
+            continue
+
         sd = math.sqrt((w * w / 12) * (1 / 4) * ((15 - 4) / (15 - 1)))
         K = 0.674 if a_known else 1.63
         margin = 1.003 if a_known else 1.0
@@ -869,6 +937,12 @@ def build_sim(df, p50):
 
         n_all += 1
         dts.append(r["dt"])
+        try:
+            _np = int(float(r.get("참가업체수") or 0))
+            if _np > 1:
+                nps.append(_np)
+        except Exception:
+            pass
         if M < L:
             verdict = "dq"
             dq_all += 1
@@ -910,11 +984,18 @@ def build_sim(df, p50):
         "dq": round(dq_all / n_all * 100, 2) if n_all else 0,
         "win": round(win_all / n_all * 100, 2) if n_all else 0,
         "gap": round(gaps[len(gaps) // 2], 2) if gaps else 0,
+        "skip": n_skip,               # C·D 라 채점하지 않은 건수
+        # ★ 「무작위로 넣었으면 몇 %」 — 신뢰의 근거는 «오차»가 아니라 «배수» 입니다.
+        #   참가 N곳이면 아무렇게나 넣어 1순위가 될 확률은 1/N 입니다.
+        "rnd": round(sum(1.0 / x for x in nps) / len(nps) * 100, 2) if nps else 0,
+        "np": int(sorted(nps)[len(nps) // 2]) if nps else 0,
         "cases": cases,
     }
     write_json("sim.json", out)
-    log(f"시뮬레이션 {n_all:,}건(보여주기 {len(cases)}건) · "
-        f"실격 {out['dq']}% · 1순위 {out['win']}% · 낙찰가 차이 중앙 {out['gap']}%")
+    _x = (out["win"] / out["rnd"]) if out["rnd"] else 0
+    log(f"시뮬레이션 {n_all:,}건(C·D 제외 {n_skip:,}건 · 보여주기 {len(cases)}건) · "
+        f"실격 {out['dq']}% · 1순위 {out['win']}% · 무작위 {out['rnd']}% "
+        f"({_x:.1f}배) · 낙찰가 차이 중앙 {out['gap']}%")
     return out
 
 

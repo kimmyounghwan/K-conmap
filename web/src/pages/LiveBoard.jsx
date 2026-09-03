@@ -4,6 +4,7 @@ import { useBoard } from '../lib/useBoard.js'
 import { Skeleton, Empty } from '../components.jsx'
 import { RangeBar } from './FirstBoard.jsx'
 import { isReady, missingOf } from './BaroBid.jsx'
+import { winGrade } from '../lib/winodds.js'
 import { won, wonShort, num, dateTime, dday, REGIONS, inRegion, LICENSES, licenseKeywords } from '../lib/fmt.js'
 
 /* ══════════════════════════════════════════════════════════════
@@ -43,12 +44,13 @@ export default function LiveBoard() {
   const [q, setQ] = useState('')
   const [page, setPage] = useState(1)
   const [mine, setMine] = useState(false)
+  const [onlyGood, setOnlyGood] = useState(false)   // A·B 등급만 보기
   const [lics, setLics] = useState(loadLicenses)
   const [editLic, setEditLic] = useState(false)
   const [open, setOpen] = useState(null)
   const now = useMemo(() => nowStamp(), [])
 
-  useEffect(() => { setPage(1) }, [region, q, mine, lics])
+  useEffect(() => { setPage(1) }, [region, q, mine, lics, onlyGood])
   useEffect(() => { saveLicenses(lics) }, [lics])
 
   const keywords = useMemo(
@@ -68,9 +70,13 @@ export default function LiveBoard() {
       if (mine && keywords.length) {
         if (!keywords.some((k) => (r.name || '').includes(k))) return false
       }
+      if (onlyGood) {
+        const g = winGrade(r)
+        if (!g || (g.key !== 'A' && g.key !== 'B')) return false
+      }
       return true
     })
-  }, [all, region, q, mine, keywords])
+  }, [all, region, q, mine, keywords, onlyGood])
 
   const pages = Math.max(1, Math.ceil(rows.length / PAGE))
   const view = rows.slice((page - 1) * PAGE, page * PAGE)
@@ -128,6 +134,13 @@ export default function LiveBoard() {
         </button>
       )}
 
+      {/* 실측: C·D 등급 156건에서 한 건도 못 땄습니다. 걸러 볼 수 있게 합니다. */}
+      <button className={'goodonly' + (onlyGood ? ' on' : '')}
+        onClick={() => { setOnlyGood(!onlyGood); if (!done) loadAll() }}>
+        {onlyGood ? '✓ 해볼 만한 공고만 보는 중 (A·B)' : '🎯 해볼 만한 공고만 보기 (A·B)'}
+        <i>승률을 가르는 건 금액이 아니라 공고의 성격입니다 — 실측 45배 차이</i>
+      </button>
+
       <RangeBar info={info} loaded={all.length} done={done} busy={busy} />
 
       {loading ? <Skeleton /> : rows.length === 0 ? (
@@ -150,6 +163,13 @@ export default function LiveBoard() {
                   <span>·</span>
                   <span>{dateTime(r.dt)}</span>
                   {dd && <span className={'badge ' + dd.tone}>{dd.text}</span>}
+                  {/* ★ 「해볼 만한가」 등급 — 목록에서 바로 보이게.
+                      승률을 가르는 건 우리 계산이 아니라 그 공고의 성격입니다(실측 45배 차이).
+                      아침에 A 등급만 훑어보실 수 있게 하려는 것입니다. */}
+                  {(() => {
+                    const g = winGrade(r)
+                    return g ? <span className={'gbadge ' + g.tone}>{g.key} {g.label}</span> : null
+                  })()}
                   {canBid(r, now) && (
                     <Link className="gocalc" onClick={(e) => e.stopPropagation()}
                       to={`/?no=${encodeURIComponent(r.no || '')}`}>💰 바로투찰</Link>

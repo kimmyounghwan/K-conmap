@@ -1684,3 +1684,83 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
   background: var(--accent-soft); color: var(--accent);
   border: 1px solid var(--accent-line); font-weight: 800;
 }
+.compet .ch .cmed {
+  display: block; margin-top: 3px; font-style: normal;
+  font-size: 12px; font-weight: 600; color: var(--text-2);
+}
+
+/* «근거 보기» 접기 버튼 — 답 하나만 남기고 나머지는 한 번 눌러서 봅니다 */
+.whytoggle {
+  width: 100%; margin: 10px 0 4px; padding: 13px 14px;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface); color: var(--text);
+  font-size: 14px; font-weight: 800; text-align: left; cursor: pointer;
+  line-height: 1.5;
+}
+.whytoggle i {
+  display: block; margin-top: 3px; font-style: normal;
+  font-size: 11.5px; font-weight: 500; color: var(--text-2);
+}
+.whytoggle.on { background: var(--surface-2); }
+
+/* ── 「이 공고, 해볼 만한가」 등급 ─────────────────────────── */
+.odds {
+  margin: 10px 0; padding: 13px 14px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--surface-2);
+  color: var(--text); line-height: 1.6;
+}
+.odds.good { border-color: var(--good); background: var(--good-soft); }
+.odds.mid  { border-color: var(--line); }
+.odds.bad  { border-color: var(--bad); background: var(--bad-soft); }
+.odds .oh { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.odds .oh .g {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 9px; flex: none;
+  font-size: 16px; font-weight: 900; color: #fff; background: var(--muted);
+}
+.odds.good .oh .g { background: var(--good); }
+.odds.bad  .oh .g { background: var(--bad); }
+.odds .oh .l { font-size: 15px; font-weight: 700; }
+.odds .oh .w { margin-left: auto; font-size: 12px; color: var(--text-2); }
+.odds .oh .w b { color: var(--text); font-weight: 800; }
+.odds p { margin: 7px 0 0; font-size: 13.5px; font-weight: 600; }
+.odds .ox { margin-top: 8px; font-size: 11.5px; color: var(--text-2); line-height: 1.65; }
+.odds .ox b { color: var(--text); }
+
+/* 목록의 등급 배지 + «해볼 만한 공고만» 거르기 */
+.badge.gbadge, .gbadge {
+  padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 800;
+  border: 1px solid var(--line); color: var(--text-2); background: var(--surface-2);
+}
+.gbadge.good { color: var(--good); border-color: var(--good); background: var(--good-soft); }
+.gbadge.bad  { color: var(--bad);  border-color: var(--bad);  background: var(--bad-soft); }
+.goodonly {
+  width: 100%; margin-bottom: 8px; padding: 11px 13px; text-align: left;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface); color: var(--text);
+  font-size: 13.5px; font-weight: 800; cursor: pointer; line-height: 1.5;
+}
+.goodonly.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.goodonly i {
+  display: block; margin-top: 3px; font-style: normal;
+  font-size: 11px; font-weight: 500; color: var(--text-2);
+}
+
+/* 자동으로 채워진 투찰 조건 — 한 줄 요약 (누르면 펼쳐서 고칠 수 있습니다) */
+.inbrief {
+  width: 100%; margin: 8px 0; padding: 12px 14px; text-align: left;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface); color: var(--text); cursor: pointer;
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center;
+}
+.inbrief .k { font-size: 11.5px; color: var(--text-2); font-weight: 600; }
+.inbrief .v { font-size: 14px; font-weight: 800; grid-column: 1; }
+.inbrief .e {
+  grid-row: 1 / span 2; grid-column: 2; align-self: center;
+  font-size: 12px; font-weight: 700; color: var(--accent); white-space: nowrap;
+}
+.detail-h .minish {
+  margin-left: auto; padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface-2);
+  color: var(--text-2); font-size: 11px; font-weight: 700; cursor: pointer;
+}

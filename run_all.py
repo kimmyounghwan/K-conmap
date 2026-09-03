@@ -96,6 +96,21 @@ def main():
     if want("deploy"):
         result["⑤ 빌드"] = step(5, "npm run build", [npm_cmd(), "run", "build"],
                               cwd=WEB, timeout=1800, shell=os.name == "nt")[0]
+
+        # ⚠️ 2026-09-03 추가 — 배포 «전»에 계산이 맞는지 기계가 먼저 확인합니다.
+        #   하루에 계산 오류가 셋 나왔고 전부 소장님이 화면을 보고 찾았습니다.
+        #   selfcheck 는 화면이 쓰는 계산(web/src/lib/bidmath.js)을
+        #   «따로 쓴 계산기»(tools/bidmath.py)와 맞춰 봅니다.
+        #   브라우저가 없어도 돕니다 — node 만 있으면 됩니다.
+        #   어긋나면 배포하지 않습니다.
+        if result["⑤ 빌드"] == "성공":
+            result["⑤-1 계산 검사"] = step(
+                5, "selfcheck — 화면 숫자 대조", [PY, "tools/selfcheck.py"],
+                timeout=900)[0]
+            if result["⑤-1 계산 검사"] != "성공":
+                print("\n  ⛔ 계산이 어긋납니다 — 배포를 멈춥니다.")
+                args.no_deploy = True
+
         if not args.no_deploy and result["⑤ 빌드"] == "성공":
             result["⑥ 배포"] = step(6, "firebase deploy",
                                   [firebase_cmd(), "deploy", "--only", "hosting"],

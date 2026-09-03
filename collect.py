@@ -66,9 +66,16 @@ def archive_path(ym):
 #   그래서 그동안 «A값 5% 가정» 으로 돌렸습니다. 가정은 결과를 흔듭니다.
 #   A값은 «공고» 쪽 오퍼레이션에만 있으므로, 받아 둘 때 누적 CSV 에도 같이 적어
 #   앞으로는 실제값으로 시뮬레이션합니다.
+# ⚠️ 예가범위·참가업체수 칸을 뒤늦게 넣은 이유 (2026-09-03) —
+#   가상 시뮬레이션이 이 CSV 만 읽는데, 여기에 예가범위가 없어서
+#   **모든 공고를 ±3% 로 가정**하고 있었습니다. 실제로는 11.1%가 ±2% 입니다.
+#   ±2% 는 사정률 폭이 좁아 σ 가 0.7676 → 0.5118 로 달라지고,
+#   등급도 +1 이 아니라 −2 를 받아야 합니다. 즉 화면과 시뮬레이션이 어긋나 있었습니다.
+#   참가업체수는 «무작위로 넣었으면 1/N» 이라는 비교 기준을 내기 위한 것입니다.
+#   옛 줄에는 이 칸이 비어 있습니다 — 오늘부터 쌓입니다.
 ARCH_COLS = ["공고번호", "날짜", "발주기관", "공고명",
              "1순위업체", "사업자번호", "대표자", "투찰금액", "투찰률", "기초금액",
-             "A값", "A값적용"]
+             "A값", "A값적용", "예가하한", "예가상한", "참가업체수"]
 
 BASE = "http://apis.data.go.kr/1230000"
 ENDPOINTS = {
@@ -500,7 +507,22 @@ def openg_ranks(key, no, ord_="000"):
                                 bno if len(bno) == 10 else "", ceo]))
     # 순위가 비어 오는 경우가 있어 «금액이 낮은 순»을 보조 기준으로 둡니다
     out.sort(key=lambda x: (x[0], x[1]))
-    return [c for _, _, c in out[:RANK_KEEP]], len(out)
+
+    # ── 순위 사다리 ────────────────────────────────────────────
+    #  화면에 «우리 금액이면 몇 위» 를 말하려면 낮은 30곳만으론 부족합니다.
+    #  851곳이 붙은 공고에서 우리 금액은 30위권 밖이라 «최소 31위» 밖에 못 합니다.
+    #  그렇다고 851개 금액을 다 실으면 파일이 터집니다.
+    #  그래서 **몇 등이 얼마였는지 사다리만** 담습니다 — 10칸이면 전 구간을 덮습니다.
+    #  화면은 우리 금액이 어느 칸 사이에 떨어지는지 보고 등수를 좁힙니다.
+    ladder = []
+    n = len(out)
+    for pos in (1, 2, 3, 5, 10, 20, 50, 100, 200, 500, 1000):
+        if pos <= n:
+            ladder.append([pos, out[pos - 1][1]])
+    if n and (not ladder or ladder[-1][0] != n):
+        ladder.append([n, out[n - 1][1]])       # 꼴찌도 한 칸
+
+    return [c for _, _, c in out[:RANK_KEEP]], n, ladder
 
 
 def parse_corps(raw, limit=6):
@@ -822,6 +844,9 @@ def archive(first):
                 "기초금액": r.get("base", "") or "",
                 "A값": r.get("aval", "") or "",
                 "A값적용": r.get("ayn", "") or "",
+                "예가하한": "" if r.get("lo") is None else r.get("lo"),
+                "예가상한": "" if r.get("hi") is None else r.get("hi"),
+                "참가업체수": r.get("np", "") or "",
             })
 
     # 이미 적힌 줄이라도 A값이 비어 있고 이제 알게 됐으면 채웁니다.
@@ -830,8 +855,11 @@ def archive(first):
         known = {}
         for kind in ("con", "serv"):
             for no, r in first[kind].items():
-                if r.get("aval") or r.get("ayn"):
-                    known[no] = (r.get("aval") or "", r.get("ayn") or "")
+                if r.get("aval") or r.get("ayn") or r.get("lo") is not None or r.get("np"):
+                    known[no] = (r.get("aval") or "", r.get("ayn") or "",
+                                 "" if r.get("lo") is None else r.get("lo"),
+                                 "" if r.get("hi") is None else r.get("hi"),
+                                 r.get("np") or "")
         if known:
             now = datetime.now(KST)
             months = {now.strftime("%Y-%m"),
@@ -846,8 +874,18 @@ def archive(first):
                 ch = False
                 for row in rows:
                     k = known.get((row.get("공고번호") or "").strip())
-                    if k and not (row.get("A값") or "").strip():
+                    if not k:
+                        continue
+                    if k[0] and not (row.get("A값") or "").strip():
                         row["A값"], row["A값적용"] = k[0], k[1]
+                        ch = True
+                        fixed += 1
+                    if k[2] != "" and not str(row.get("예가하한") or "").strip():
+                        row["예가하한"], row["예가상한"] = k[2], k[3]
+                        ch = True
+                        fixed += 1
+                    if k[4] and not str(row.get("참가업체수") or "").strip():
+                        row["참가업체수"] = k[4]
                         ch = True
                         fixed += 1
                 if ch:
@@ -1174,7 +1212,7 @@ def main():
         for r in todo_rank[:args.ranks]:
             if NET_DOWN:
                 break
-            cs, total = openg_ranks(key, r["no"], r.get("ord"))
+            cs, total, ladder = openg_ranks(key, r["no"], r.get("ord"))
             r["rask"] = datetime.now(KST).strftime("%Y%m%d%H%M%S")
             time.sleep(args.sleep)
             if not cs:
@@ -1182,6 +1220,7 @@ def main():
             got += 1
             r["corps"] = cs          # 낮은 금액 순 30곳까지
             r["nrank"] = total       # 실제로 받은 전체 투찰 건수
+            r["rq"] = ladder         # [[등수, 금액], ...] — 전 구간 사다리
             if len(cs) > 1:
                 ranked += 1
                 # 1순위 정보도 조달청 순위 자료로 맞춰 둡니다 (더 정확합니다)
@@ -1369,6 +1408,9 @@ def main():
                        # ★ 투찰금액 목록(낮은 순, 최대 12개) — «우리 금액이면 몇 위였나» 를
                        #   채점 화면에서 바로 셀 수 있게 합니다. 이름은 넣지 않습니다(용량).
                        [int(c[1]) for c in (r.get("corps") or [])[:12] if c and c[1]],
+                       # 순위 사다리 [[등수, 금액], ...] — 우리 금액이 몇 등쯤인지 좁힙니다
+                       r.get("rq") or [],
+                       int(r.get("nrank") or 0),
                        # ⚠️ 예가범위 — 채점이 그 공고의 사정률 분포를 재현하려면 꼭 필요합니다.
                        #    없어서 ±2% 공고를 ±3% 로 채점했고, 5억 공고 기준 115만원이
                        #    어긋났습니다(실측 106건 중앙값).
@@ -1377,7 +1419,7 @@ def main():
         with open(path, "w", encoding="utf-8") as f:
             json.dump({"built": built, "f": ["win", "amt", "rate", "np", "base", "dt",
                              "tel", "ceo", "bno", "adr", "tsrc", "name", "inst",
-                             "aval", "ayn", "amts", "lo", "hi"],
+                             "aval", "ayn", "amts", "rq", "nrank", "lo", "hi"],
                        "r": out}, f, ensure_ascii=False, separators=(",", ":"))
         print(f"  → bidresult 최근 7일 개찰 {len(out):,}건 "
               f"({os.path.getsize(path)/1024:.0f}KB)")

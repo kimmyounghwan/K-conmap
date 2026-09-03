@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getCorp, getAgency } from './lib/data.js'
 import { won, wonShort, pct, num, dateFull, dateTime, normCorp } from './lib/fmt.js'
+import { winGrade } from './lib/winodds.js'
 
 /* ============================================================
    개찰 카드를 펼쳤을 때 나오는 상세 화면
@@ -38,7 +39,28 @@ function scoreMissing(r) {
   if (r?.lo == null || r?.hi == null) m.push('예가범위')
   return m
 }
+
+/* ══════════════════════════════════════════════════════════════
+   채점은 «바로투찰이 다루는 자리»에서만 성립합니다 — 2026-09-03
+
+   소장님: 「낙찰가와 바로투찰 차이가 너무 커. 신뢰도만 떨어진다.」
+   맞는 지적인데, 원인이 «계산이 나쁘다» 가 아니었습니다.
+
+   실측 958건: 1순위가 낙찰하한 위에 뜬 폭(창)이 승률을 45배 가릅니다.
+   C·D 등급 156건에서는 **누가 계산해도 한 건도 못 땄습니다.**
+   그런 자리에 우리 금액을 대보고 «1,387만원 비쌌다» 고 적는 건
+   우리 성적이 아니라 그 공고의 성질을 우리 탓으로 적는 것입니다. 틀린 채점입니다.
+
+   그래서 **A·B 등급만 채점합니다.** C·D 는 채점 대신 «왜 안 하는지» 를 적습니다.
+   가리는 게 아니라, 성립하지 않는 채점을 하지 않는 것입니다.
+   ══════════════════════════════════════════════════════════════ */
+function scoreGrade(r) {
+  return winGrade({ base: r?.base, est: 0, lo: r?.lo, hi: r?.hi,
+                    inst: r?.inst, name: r?.name })
+}
 function scoreLink(r) {
+  const g = scoreGrade(r)
+  if (g && (g.key === 'C' || g.key === 'D')) return null   // 성립하지 않는 채점은 안 합니다
   /* ⚠️ 값이 반쯤 있는 개찰에 버튼을 달면 «채점»을 눌렀는데
      «기초금액이 안 실려 와 사정률은 알 수 없습니다» 가 뜹니다. 그건 채점이 아닙니다.
      공고 쪽 «완비» 기준과 똑같이, 네 값이 다 있을 때만 답니다.
@@ -181,13 +203,26 @@ function BidTab({ r }) {
         <Link className="btn ghost sm" style={{ width: '100%', marginTop: 10 }} to={scoreLink(r)}>
           📊 바로투찰에서 채점하기 — 우리 권장으로 넣었으면?
         </Link>
-      ) : (
-        <div className="nocalc">
-          이 개찰은 <b>채점에 필요한 값이 모자랍니다</b> — 조달청 자료에
-          «{scoreMissing(r).join(' · ')}» 이 안 실려 왔습니다.
-          반쯤 아는 값으로 채점하면 «가져갔을 자리»가 남발됩니다. 그래서 하지 않습니다.
-        </div>
-      )}
+      ) : (() => {
+        const g = scoreGrade(r)
+        const cd = g && (g.key === 'C' || g.key === 'D')
+        return (
+          <div className="nocalc">
+            {cd ? (
+              <>이 공고는 <b>{g.key}등급 ({g.label})</b>이라 채점하지 않습니다.
+                {' '}실제 개찰 958건에서 이 등급은 <b>한 건도 못 땄습니다.</b>
+                {' '}1순위가 낙찰하한 바로 위(0.005% 안)에 붙는 자리라,
+                {' '}누가 어떻게 계산해도 결과가 같습니다.
+                {' '}여기에 금액을 대보는 건 계산 실력이 아니라 공고의 성질을 재는 일이라
+                {' '}하지 않습니다.</>
+            ) : (
+              <>이 개찰은 <b>채점에 필요한 값이 모자랍니다</b> — 조달청 자료에
+                {' '}«{scoreMissing(r).join(' · ')}» 이 안 실려 왔습니다.
+                {' '}반쯤 아는 값으로 채점하면 «가져갔을 자리»가 남발됩니다. 그래서 하지 않습니다.</>
+            )}
+          </div>
+        )
+      })()}
 
       <div className="detail-h">
         투찰 순위 <span className="count">
