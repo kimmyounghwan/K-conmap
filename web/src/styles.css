@@ -1802,3 +1802,24 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
   .oneclick .oc-r { width: 100%; }
   .oneclick .cbtn { flex: 1; }
 }
+
+/* 채점 — 세 금액 나란히 (최저·중간·권장의 «이 개찰에서의 운명») 2026-09-03 */
+.threebox {
+  margin: 12px 0; padding: 12px 14px;
+  border: 1.5px solid var(--line); border-radius: 12px; background: var(--surface);
+}
+.threebox .h { font-size: 12px; font-weight: 800; color: var(--accent); margin-bottom: 8px; }
+.threetbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.threetbl th { text-align: left; font-weight: 700; color: var(--text-2); padding: 4px 6px; border-bottom: 1px solid var(--line); font-size: 11px; }
+.threetbl td { padding: 6px 6px; border-bottom: 1px solid var(--line); color: var(--text); vertical-align: middle; }
+.threetbl td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.threetbl td.sub { font-size: 11px; color: var(--text-2); white-space: nowrap; }
+.threetbl td.good { color: var(--good); font-weight: 800; }
+.threetbl td.mid  { color: var(--text-2); font-weight: 700; }
+.threetbl td.bad  { color: var(--bad); font-weight: 800; }
+.threetbl tr.rec td { background: var(--accent-soft); }
+.threebox .why { margin-top: 10px; font-size: 12px; line-height: 1.6; color: var(--text-2); }
+.threebox .why b { color: var(--text); }
+@media (max-width: 480px) {
+  .threetbl th:nth-child(5), .threetbl td:nth-child(5) { display: none; }
+}

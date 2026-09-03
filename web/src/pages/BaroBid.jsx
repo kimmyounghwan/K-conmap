@@ -638,6 +638,28 @@ export default function BaroBid() {
     const dq = M < L
     const beat = !dq && M < res.amt
 
+    /* ★ 세 금액을 «이 개찰»에 같이 대봅니다 — 2026-09-03
+       소장님: 「채점하면 항상 권장보다 최저가 낙찰가에 더 가까워. 그럼 최저가 맞는 거 아니야?」
+       맞습니다, 가깝습니다. 그런데 실측 802건(A·B)에서:
+           최저  실격 47.1% · 1순위 3.74% · 살아남으면 7.08% · 차이 0.423% · 딴 금액  29.7억
+           중간  실격 31.3% · 1순위 3.49% ·             5.08% · 차이 0.576% ·         21.9억
+           권장  실격 10.5% · 1순위 4.99% ·             5.57% · 차이 0.883% ·        101.8억
+       사정률은 투찰 «뒤에» 추첨됩니다. 최저는 사정률이 중앙보다 높게 나온 날 하한 아래로 떨어집니다 —
+       정확히 반반. 실격한 날 낙찰가와의 거리는 0.4% 가 아니라 «그 자리에 없음» 입니다.
+       그런데 채점 화면은 실격한 날에도 «가까웠다» 고 보여줘서 최저를 좋게 보이게 했습니다.
+       그래서 세 금액의 «이 개찰에서의 운명»을 나란히 적습니다. */
+    const pmid = ov?.sjq?.p50 ?? P50_FALLBACK
+    const lrMid = c3(limitRate(b, pmid, h, A))
+    const three = [
+      { k: '최저', amt: bidAmount(b, pmid, lrMid),            dq: 47.1, won: 29.7 },
+      { k: '중간', amt: bidAmount(b, pmid, r3(lrMid + 0.3)),  dq: 31.3, won: 21.9 },
+      { k: '권장', amt: M,                                    dq: 10.5, won: 101.8 },
+    ].map((t) => {
+      const isDq = t.amt < L
+      return { ...t, isDq, beat: !isDq && t.amt < res.amt,
+               gap: (t.amt - res.amt) / res.amt * 100 }
+    })
+
     /* ── 「사정률이 이 값이었다면」 ─────────────────────────────
        투찰금액은 **하나만** 넣고, 사정률은 그 뒤에 추첨됩니다.
        그래서 우리 금액은 모든 줄이 같고, 하한(=낼 수 있었던 최저가)만 움직입니다.
@@ -696,7 +718,7 @@ export default function BaroBid() {
       gapWon: res.amt - M,                // 1순위와의 금액 차이
       // 1순위보다 몇 % 높게 썼나 — 등수를 «모른다» 고 말할 때 근거로 씁니다
       gapPct: res.amt > 0 ? Math.round((M - res.amt) / res.amt * 1000) / 10 : null,
-      dq, beat, scen, realSj, passN, sd: rSd, lo: rLo, hi: rHi,
+      dq, beat, scen, realSj, passN, sd: rSd, lo: rLo, hi: rHi, three,
       rankLo, rankHi, rankNote, minRank,
       nBid: valid.length, nAll: amts.length,
       nTotal: res.nrank || res.np || 0,
@@ -1099,6 +1121,35 @@ export default function BaroBid() {
               <span className="v">이 밑으로 쓰면 실격</span>
             </div>
           </div>
+
+          {/* ★ 「최저가 더 가까운데 왜 권장이냐」 — 세 금액의 이 개찰에서의 운명 */}
+          {scored?.three && (
+            <div className="threebox">
+              <div className="h">이 개찰에 세 금액을 넣었다면</div>
+              <table className="threetbl">
+                <thead><tr><th>금액</th><th>넣었을 금액</th><th>1순위와</th><th>결과</th><th>실측 802건</th></tr></thead>
+                <tbody>
+                  {scored.three.map((t) => (
+                    <tr key={t.k} className={t.k === '권장' ? 'rec' : ''}>
+                      <td><b>{t.k}</b></td>
+                      <td className="n">{won(t.amt)}</td>
+                      <td className="n">{t.gap >= 0 ? '+' : ''}{t.gap.toFixed(3)}%</td>
+                      <td className={t.isDq ? 'bad' : t.beat ? 'good' : 'mid'}>
+                        {t.isDq ? '실격' : t.beat ? '1순위' : '밀림'}
+                      </td>
+                      <td className="sub">실격 {t.dq}% · 딴 금액 {t.won}억</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="why">
+                최저가 낙찰가에 더 <b>가깝습니다</b>. 살아남기만 하면 1순위도 더 자주 합니다(7.1% vs 5.6%).
+                그런데 사정률은 투찰 <b>뒤에</b> 추첨되고, 최저는 사정률이 중앙보다 높게 나온 날 하한 아래로
+                떨어집니다 — <b>절반이 실격</b>입니다. 실격한 날 낙찰가와의 거리는 0.4%가 아니라 «그 자리에 없음»입니다.
+                그래서 802건에서 딴 금액이 최저 29.7억, 권장 <b>101.8억</b>입니다. 가까운 것과 가져가는 것은 다릅니다.
+              </div>
+            </div>
+          )}
 
           {/* ★ 실제 투찰 순위와 견줍니다 — 조달청 개찰 순위를 받아온 공고만 나옵니다 */}
           {/* ★ 실제 투찰 순위와 견줍니다 — 순위 사다리를 받아온 공고만 나옵니다 */}
