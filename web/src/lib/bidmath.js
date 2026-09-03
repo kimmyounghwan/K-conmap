@@ -200,3 +200,28 @@ export function pickOdds(r, pick, qbAmt) {
   return { enp, enpn: Number(r.enpn) || 0, rate, n: cell[0], key,
            ev: qbAmt > 0 ? Math.round(qbAmt * rate / 100) : null }
 }
+
+/* ── «이 금액이면 실격이냐» 는 사정률이 나와 봐야 안다 (2026-09-03) ────────
+   소장님: 「실제로 실격인지 아닌지는 모르는 거잖아? 결과를 봐야 알지.」 맞습니다.
+   화면이 «이대로 넣으면 실격입니다» 라고 단정했는데, 그건 «사정률이 중앙값이면» 의 얘기였습니다.
+   금액 M 은 고정이고 하한 L(s) 은 사정률 s 로 움직입니다. M ≥ L(s) ⇔ s ≤ s*.
+   그래서 «통과가 되는 사정률 경계 s*» 와 «그 아래로 나올 확률» 을 같이 말합니다. */
+export function breakEvenSj(base, llRate, aVal, amt) {
+  if (!(base > 0) || !llRate || !(amt > 0)) return null
+  const A = Number(aVal) || 0
+  // (base·s/100 − A)·llr/100 + A ≤ M  →  s ≤ ((M − A)·100/llr + A) / base · 100
+  return ((amt - A) * 100 / llRate + A) / base * 100
+}
+/** 표준정규 누적분포 — Abramowitz-Stegun 7.1.26 (오차 1.5e-7) */
+export function normCdf(z) {
+  const t = 1 / (1 + 0.2316419 * Math.abs(z))
+  const d = 0.3989423 * Math.exp(-z * z / 2)
+  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))))
+  return z >= 0 ? 1 - p : p
+}
+/** 이 금액이 하한을 넘길 확률 (사정률이 s* 아래로 나올 확률) — 0~1, 계산 불가면 null */
+export function passProb({ base, llRate, aVal, amt, p50, sd }) {
+  const s = breakEvenSj(base, llRate, aVal, amt)
+  if (s == null || !(sd > 0) || !(p50 > 0)) return null
+  return { sj: Math.round(s * 1000) / 1000, p: normCdf((s - p50) / sd) }
+}

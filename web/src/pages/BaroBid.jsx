@@ -6,7 +6,7 @@ import { winGrade } from '../lib/winodds.js'
 /* 계산은 전부 여기 있습니다 — 화면과 채점이 같은 함수를 씁니다 */
 import { bidAmount, limitAmount, limitRate, r3, c3,
          sjSigma, recommend, buildScen, missingOf, isReady,
-         digits, toNum, P50_FALLBACK, shownBid } from '../lib/bidmath.js'
+         digits, toNum, P50_FALLBACK, shownBid, passProb } from '../lib/bidmath.js'
 /* 공고 화면(LiveBoard)이 예전부터 여기서 가져다 썼습니다 — 그대로 이어 줍니다 */
 export { missingOf, isReady }
 
@@ -540,6 +540,9 @@ export default function BaroBid() {
     ? main >= limitAmount(base, sjMid, ll.rate, a)
     : (llEff ? myRate >= llEff : null)
   const margin = llEff ? r3(myRate - llEff) : null
+  /* ★ «실격» 은 사정률이 나와 봐야 압니다 — 이 금액이 하한을 넘길 확률과 그 경계 사정률 */
+  const pp = (ll?.rate && base > 0 && main > 0)
+    ? passProb({ base, llRate: ll.rate, aVal: a, amt: main, p50: sjMid, sd: sjSd }) : null
 
   /* ★ 앞으로 넣을 공고에도 «채점과 같은 표» 를 그립니다.
      내가 넣을 금액(main)이 사정률 추첨에 따라 어떻게 갈리는지 미리 봅니다.
@@ -1484,11 +1487,15 @@ export default function BaroBid() {
               {ll.rate == null ? (
                 <>ℹ️ <b>100억 이상 종합심사</b> — 별도 기준이라 낙찰하한율을 적용하지 않습니다.</>
               ) : pass ? (
-                <>✅ <b>낙찰하한 {pct(llEff ?? ll.rate, 3)} 통과</b> · 여유 {margin.toFixed(3)}%p
+                <>✅ <b>사정률 중앙({sjMid.toFixed(3)}%) 기준 하한 {pct(llEff ?? ll.rate, 3)} 통과</b> · 여유 {margin.toFixed(3)}%p
+                  {pp && <><br />사정률이 <b>{pp.sj.toFixed(3)}%</b> 를 넘게 나오면 실격 → 이 금액이 살아남을 확률 <b>약 {Math.round(pp.p * 100)}%</b></>}
                   {margin < 0.1 && <><br />여유가 거의 없습니다. 사정률이 조금만 높게 나와도 미달이 됩니다.</>}</>
               ) : (
-                <>⛔ <b>낙찰하한 {pct(llEff ?? ll.rate, 3)} 미달 — 이대로 넣으면 실격입니다.</b><br />
-                  {Math.abs(margin).toFixed(3)}%p 부족합니다.</>
+                /* ⚠️ 2026-09-03 — 「이대로 넣으면 실격입니다」 라고 단정했었습니다. 소장님: 「실제로 실격인지는
+                   결과를 봐야 알지」 — 맞습니다. 사정률이 중앙보다 낮게 나오면 이 금액도 통과합니다. 확률로 말합니다. */
+                <>⚠️ <b>사정률 중앙({sjMid.toFixed(3)}%) 기준으로는 하한 {pct(llEff ?? ll.rate, 3)} 아래</b> · {Math.abs(margin).toFixed(3)}%p 부족
+                  {pp && <><br />사정률이 <b>{pp.sj.toFixed(3)}%</b> 아래로 나오면 통과 → 이 금액이 살아남을 확률 <b>약 {Math.round(pp.p * 100)}%</b>
+                    {' '}(실격 확률 약 {100 - Math.round(pp.p * 100)}%). 결과는 개찰 때 추첨이 정합니다.</>}</>
               )}
               <div className="sub">
                 {a > 0 && llEff && (
