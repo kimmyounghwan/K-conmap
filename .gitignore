@@ -75,3 +75,6 @@ _to_delete/
 *.txt
 !README*.txt
 !*설명*.txt
+# IndexNow 키 파일 — 비밀이 아니라 «이 사이트 주인이 맞다» 를 증명하는 공개 파일입니다.
+# ⚠️ .gitignore 는 «같은 줄 뒤에 붙인 주석» 을 주석으로 안 봅니다. 반드시 따로 줄로.
+!web/public/*.txt

@@ -48,18 +48,26 @@ MAX_URLS = 2000          # 규약 상한은 10,000. 한 회차에 그만큼 새�
 ALWAYS = ["/", "/first", "/live", "/daily"]   # 내용이 계속 바뀌는 자리
 
 
-def ensure_key_file():
-    """`web/public/{키}.txt` 를 만들어 둡니다. 빌드가 web/public 을 dist 로 옮깁니다."""
-    try:
-        os.makedirs(PUBLIC, exist_ok=True)
-        p = os.path.join(PUBLIC, f"{KEY}.txt")
-        if not os.path.exists(p):
+def ensure_key_file(dist=None):
+    """`{키}.txt` 를 만들어 둡니다.
+
+    ⚠️ **dist 에 직접 쓰는 것이 본체입니다.** prerender 는 `npm run build` «뒤»에 도는데,
+       빌드는 그 전에 web/public 을 dist 로 옮깁니다. 그래서 web/public 에만 쓰면
+       그 회차 배포에는 안 실립니다 (2026-09-04 에 실제로 그랬습니다).
+    ⚠️ 그리고 `.gitignore` 에 `*.txt` 가 있어 이 파일은 git 에 안 올라갑니다.
+       (`!web/public/*.txt` 예외를 넣어 뒀지만, 여기서 dist 에 직접 쓰므로 그것에 기대지 않습니다.)
+    """
+    made = []
+    for base in [PUBLIC] + ([dist] if dist else []):
+        try:
+            os.makedirs(base, exist_ok=True)
+            p = os.path.join(base, f"{KEY}.txt")
             with open(p, "w", encoding="utf-8") as f:
                 f.write(KEY)
-        return p
-    except Exception as e:
-        print(f"  · IndexNow 키 파일을 못 만들었습니다 ({type(e).__name__}: {e})")
-        return None
+            made.append(p)
+        except Exception as e:
+            print(f"  · IndexNow 키 파일을 못 만들었습니다 ({base} · {type(e).__name__}: {e})")
+    return made
 
 
 def _load():

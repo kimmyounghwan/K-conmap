@@ -524,7 +524,7 @@ def main():
     # ── IndexNow ── 지난 회차에 구워서 «이미 배포된» 주소를 검색엔진에 알립니다.
     #   ⚠️ 이번에 굽는 것을 지금 보내면 아직 배포 전이라 크롤러가 404 를 봅니다.
     #      그래서 «한 회차 뒤에» 보냅니다 (워크플로를 안 고치려는 설계이기도 합니다).
-    indexnow.ensure_key_file()
+    indexnow.ensure_key_file(DIST)
     try:
         indexnow.send(quiet=True)
     except Exception as e:
