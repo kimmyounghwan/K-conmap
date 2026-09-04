@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { getBidIndex, indexRows, getResults, getOverview } from '../lib/data.js'
 import NoticeDetail from '../NoticeDetail.jsx'
 import { ShareBtn } from './CorpPage.jsx'
@@ -110,8 +110,14 @@ export default function NoticePage() {
    금액은 공고 카드·바로투찰과 **같은 함수**(quickBid)를 씁니다 — 두 벌로 안 적습니다. */
 function OpenNotice({ r }) {
   const [ov, setOv] = useState(null)
+  const [sp] = useSearchParams()
   useEffect(() => { getOverview().then(setOv).catch(() => {}) }, [])
-  const qb = quickBid(r, ov?.sjq?.p50 ?? P50_FALLBACK)
+  /* ★ `?q=80` — 바로투찰에서 «주소 복사»를 눌렀을 때 붙습니다 (2026-09-04).
+     소장님: 「바로투찰 금액이 나오는 화면을 공유할 수 있게 해줘야지」
+     ⚠️ 이게 없으면 다이얼로 분위를 바꾼 사람이 보낸 주소가 «다른 금액»을 보여줍니다.
+        같은 공고를 두 화면이 다른 숫자로 보여주면 사용자는 둘 다 안 믿습니다 (CLAUDE.md). */
+  const qFix = Number(sp.get('q')) || 0
+  const qb = quickBid(r, ov?.sjq?.p50 ?? P50_FALLBACK, qFix || undefined)
   return (
     <>
       <div className="verdict" style={{ marginTop: 10 }}>
@@ -125,6 +131,7 @@ function OpenNotice({ r }) {
           <div style={{ fontSize: 12.5, color: 'var(--text-2)', marginTop: 3 }}>
             투찰률 {pct(qb.rate, 3)}
             {qb.mode === 'auto' && qb.rule && <> · 이 공고 자리 실측으로 {qb.rule.q}분위</>}
+            {qb.mode === 'pick' && <> · 보낸 사람이 고른 <b>{qb.pctile}분위</b></>}
           </div>
         </div>
       )}

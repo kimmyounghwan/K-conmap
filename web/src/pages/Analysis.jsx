@@ -53,18 +53,23 @@ function CorpTab() {
   const [q, setQ] = useState('')
   const [list, setList] = useState([])
   const [open, setOpen] = useState(false)
+  const [deep, setDeep] = useState(false)     // 이름 가운데도 찾기
   const timer = useRef(null)
   const navigate = useNavigate()
 
+  /* ⚠️ 기본은 «이름 앞»으로만 찾습니다 — 업체 이름 목록이 gzip 348KB 라 늘 받을 수 없습니다.
+     실측: 「대영」은 앞으로 찾아도 119곳 전부 나옵니다. 그런데 「종합건설」은 9곳(실제 2,867곳),
+     「개발」은 0곳(실제 2,420곳)입니다. 그래서 «가운데로도 찾기» 는 버튼으로 둡니다.
+     한 번 누르면 그 브라우저에서는 계속 켜져 있습니다(파일을 기억하므로 두 번 안 받습니다). */
   useEffect(() => {
     clearTimeout(timer.current)
     const s = normCorp(q)
     if (s.length < 1) { setList([]); return }
     timer.current = setTimeout(() => {
-      searchCorp(s).then((r) => { setList(r); setOpen(true) })
+      searchCorp(s, deep).then((r) => { setList(r); setOpen(true) })
     }, 250)
     return () => clearTimeout(timer.current)
-  }, [q])
+  }, [q, deep])
 
   /* ★ 고르면 «전용 주소»로 갑니다 (/corp/{업체}).
      ⚠️ 사업자번호로 갈라 놓은 키(«이름#번호»)는 주소에 넣지 않습니다 —
@@ -85,8 +90,15 @@ function CorpTab() {
           <label>업체명 <span className="hint">— «주식회사» 는 빼고 입력해도 됩니다</span></label>
           <input value={q} onChange={(e) => setQ(e.target.value)} onFocus={() => setOpen(true)}
             placeholder="예: 대한건설, ○○종합건설" autoFocus />
-          {open && list.length > 0 && (
+          {/* ⚠️ 전에는 `list.length > 0` 일 때만 이 상자를 그렸습니다. 그래서
+              「개발」처럼 **0곳** 인 검색에서는 «이름 가운데로도 찾기» 버튼조차 안 보였습니다 —
+              정작 그 버튼이 필요한 자리에서 사라진 것입니다 (2026-09-04에 실제로 그랬습니다).
+              → 검색어가 있으면 결과가 0곳이어도 상자를 띄웁니다. */}
+          {open && normCorp(q).length > 0 && (list.length > 0 || !deep) && (
             <div className="suggest">
+              {list.length === 0 && (
+                <div className="nohit">앞에서부터 찾은 결과가 없습니다</div>
+              )}
               {list.map((it) => (
                 <button key={it.key} onClick={() => pick(it)}>
                   <span className="c">{num(it.n)}건</span>{it.label}
@@ -99,6 +111,12 @@ function CorpTab() {
                       </>}
                 </button>
               ))}
+              {!deep && (
+                <button className="deepmore" onClick={(e) => { e.preventDefault(); setDeep(true) }}>
+                  🔎 찾는 업체가 없나요? <b>이름 가운데로도 찾기</b>
+                  <span className="sub2"> · 「종합건설」·「개발」처럼 뒷말로 찾을 때 (한 번만 받습니다)</span>
+                </button>
+              )}
             </div>
           )}
         </div>

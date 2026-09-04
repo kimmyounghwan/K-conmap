@@ -1990,3 +1990,20 @@ a.row.rowlink { cursor: pointer; }
 a.row.rowlink:hover { background: var(--accent-soft); }
 a.row.rowlink .t { color: var(--accent); font-weight: 700; }
 a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
+
+/* 「이름 가운데로도 찾기」 — 업체 이름 목록(gzip 348KB)은 이 버튼을 눌렀을 때만 받습니다 */
+.suggest .deepmore {
+  border-top: 1px dashed var(--accent-line);
+  background: var(--accent-soft); color: var(--accent);
+  font-size: 12.5px; font-weight: 700;
+}
+.suggest .deepmore .sub2 { color: var(--text-2); font-weight: 500; }
+.suggest .nohit { padding: 10px 12px; font-size: 12.5px; color: var(--muted); }
+
+/* 「이 금액 공유」 — 주소로 옮길 수 없는 금액일 때의 안내 */
+.sharenote {
+  margin-top: 8px; padding: 8px 10px; border-radius: 8px;
+  background: var(--accent-soft); border: 1px dashed var(--accent-line);
+  font-size: 12px; line-height: 1.6; color: var(--text-2);
+}
+.sharenote b { color: var(--text); }

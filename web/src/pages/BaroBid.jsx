@@ -233,6 +233,7 @@ export default function BaroBid() {
   const rateTouched = useRef(false)
   const [ownRate, setOwnRate] = useState('')
   const [copied, setCopied] = useState(false)
+  const [linked, setLinked] = useState(false)      // 「주소 복사」 눌렀나
   const [sjPick, setSjPick] = useState(null)   // 사정률 후보를 직접 고른 경우
   const seeded = useRef(false)
 
@@ -614,6 +615,16 @@ export default function BaroBid() {
   const copy = () => {
     navigator.clipboard?.writeText(String(main))
     setCopied(true); setTimeout(() => setCopied(false), 1600)
+  }
+  /* 「이 금액 공유」 — 공고 페이지 주소를 복사합니다(카톡 카드 + 권장금액이 같이 보이는 자리).
+     분위를 손으로 고른 경우에만 ?q= 를 붙입니다 — 안 붙이면 받는 쪽이 다른 금액을 봅니다. */
+  const shareQ = (pickRate || '').startsWith('q') ? Number(pickRate.slice(1)) : 0
+  const shareLink = () => {
+    const no = String(picked?.no || '').trim()
+    if (!no) return
+    const u = `${location.origin}/notice/${encodeURIComponent(no)}` + (shareQ ? `?q=${shareQ}` : '')
+    navigator.clipboard?.writeText(u)
+    setLinked(true); setTimeout(() => setLinked(false), 1800)
   }
   /* 개찰이 끝난 공고면 «우리 권장으로 넣었으면 어땠나»를 채점합니다.
      순위는 투찰률로 갈립니다(예정가격 대비 비율이라 사정률과 무관).
@@ -1437,6 +1448,18 @@ export default function BaroBid() {
               <button className="cbtn" onClick={copy}>
                 {copied ? '✓ 복사했습니다' : '금액 복사'}
               </button>
+              {/* ★ 「이 금액 공유」 — 소장님: 「바로투찰 금액이 나오는 화면을 공유할 수 있게 해줘야지」
+                  ⚠️ /calc 가 아니라 「/notice/공고번호」 주소를 복사합니다. 이유가 둘입니다:
+                     ① /calc 는 미리 구운 페이지가 아니라 카톡에 «기본 카드»가 뜹니다.
+                        /notice 는 공고명·기초금액이 박힌 카드가 뜹니다(오늘 만든 것).
+                     ② /notice 는 권장 투찰금액을 큰 글씨로 보여줍니다 — 받은 사람이 바로 봅니다.
+                  ⚠️ 분위를 손으로 고르면 `?q=` 를 붙여 **같은 금액**이 열리게 합니다.
+                     최저·중간·직접 입력은 주소로 옮길 수 없어 아래에 그렇게 적습니다. */}
+              {picked?.no && (
+                <button className="cbtn ghost" onClick={shareLink}>
+                  {linked ? '✓ 주소 복사했습니다' : '🔗 이 금액 공유'}
+                </button>
+              )}
               {/* ⚠️ 주소를 손으로 만들지 않습니다.
                   차수(000/001/002)를 틀리면 엉뚱한 공고로 갑니다 — 실제로 틀렸었습니다.
                   조달청이 준 주소(bidNtceDtlUrl)를 그대로 씁니다.
@@ -1447,6 +1470,16 @@ export default function BaroBid() {
                 나라장터 공고 →
               </a>
             </div>
+            {/* ⚠️ 옮길 수 없는 것은 «옮길 수 없다» 고 적습니다.
+                최저·중간·직접 입력한 금액은 주소에 담을 수 없어, 받는 쪽은 권장(자동) 금액을 봅니다.
+                말 안 하면 «같은 공고인데 금액이 다르다» 가 됩니다 (CLAUDE.md). */}
+            {picked?.no && ['limit', 'safe', 'own'].includes(pickRate) && (
+              <div className="sharenote">
+                🔗 공유 주소에는 <b>권장(자동) 금액</b>이 열립니다 — 지금 고르신
+                «{pickRate === 'limit' ? '최저' : pickRate === 'safe' ? '중간' : '직접 입력'}» 은
+                주소로 옮길 수 없습니다. 이 금액 그대로 보내시려면 위 <b>「금액 복사」</b>를 쓰세요.
+              </div>
+            )}
           </div>
 
           {/* 투찰 바로가기.

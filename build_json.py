@@ -516,6 +516,17 @@ def build_agency(df):
     for k, v in idx.items():
         written += write_json(f"agency/idx/{k}.json", v)
 
+    # ★ 이름 목록 한 파일 — «첫 글자 칸» 만으로는 못 찾는 것을 위해 (2026-09-04)
+    #   소장님: 「광양시라고 하면 발주기관에 안떠. 전라남도를 앞에 붙여야 되더라고」
+    #   실측: 「광양」이 이름에 든 기관 12곳 중 「광」 으로 시작하는 건 1곳뿐이었습니다
+    #   (경주는 35곳 중 1곳). 나머지는 「전」·「농」·「여」 칸에 있어 영영 안 나왔습니다.
+    #   ⚠️ 기관은 4,923곳이라 통째로 담아도 raw 243KB / **gzip 42KB** 입니다(실측).
+    #      업체는 57,555곳 · gzip 348KB 라 이렇게 하면 안 됩니다 — 지금 방식을 유지합니다.
+    #   검색을 눌렀을 때만 받습니다. 첫 화면 전송량에 안 얹습니다.
+    names = sorted(([nm] + list(v[:2]) for k in idx for nm, v in idx[k].items()),
+                   key=lambda r: -r[1])
+    written += write_json("agency/names.json", names)
+
     # 건수 상위 300개는 첫 화면 추천용으로 따로
     top = sorted(
         ((nm, meta[0], meta[1]) for d in idx.values() for nm, meta in d.items()),
@@ -764,6 +775,15 @@ def build_corp(df):
         written += write_json(f"corp/dat/{i}.json", ch)
     for k, v in idx.items():
         written += write_json(f"corp/idx/{k}.json", v)
+
+    # ★ 업체 이름 목록 — 이름 «가운데» 로 찾을 때만 씁니다 (2026-09-04)
+    #   실측: 「종합건설」 로 치면 첫 글자 칸에서 9곳만 나오는데 실제로는 2,867곳,
+    #        「개발」 은 0곳인데 실제로는 2,420곳입니다.
+    #   ⚠️ 업체는 57,555곳이라 **gzip 348KB** 입니다(실측). 기관(42KB)처럼 늘 받으면 안 됩니다.
+    #      화면이 「이름 가운데로도 찾기」 버튼을 눌렀을 때만 받습니다.
+    cnames = sorted(([k] + list(v[:2]) for kk in idx for k, v in idx[kk].items()),
+                    key=lambda r: -r[1])
+    written += write_json("corp/names.json", cnames)
 
     # ★ 2026-09-04 — 업체 상위 목록. /corp/{키} 페이지를 미리 구울 때와 사이트맵에 씁니다.
     #   · 사업자번호로 갈라 놓은 키(«이름#번호»)는 뺍니다 — 주소에 사업자번호를 노출하지 않습니다.

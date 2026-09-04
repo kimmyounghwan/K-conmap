@@ -51,9 +51,39 @@ export const getSim = () => getJSON('/data/sim.json')
 /* ── 발주기관 ────────────────────────── */
 export const getAgencyTop = () => getJSON('/data/agency/top.json')
 
+/* ★ 발주기관 검색 — 이름 «어디에» 들어 있어도 찾습니다 (2026-09-04)
+   소장님: 「광양시라고 하면 발주기관에 안떠. 전라남도를 앞에 붙여야 되더라고」
+   전에는 «검색어 첫 글자» 칸 하나만 열었습니다. 「광양」 → 「광」 칸.
+   그런데 실제 이름은 「전남광주통합특별시 광양시」 라 「전」 칸에 있었습니다.
+   실측: 「광양」이 든 기관 12곳 중 나오던 건 1곳, 「경주」는 35곳 중 1곳.
+   → 이름 목록 한 파일(agency/names.json · 4,923곳 · gzip 42KB)을 받아 전부 뒤집니다.
+     검색을 누를 때 한 번만 받고 기억합니다. 첫 화면 전송량에 안 얹습니다.
+   ⚠️ 업체(57,555곳 · gzip 348KB)에는 이 방법을 쓰지 않습니다 — 너무 큽니다. */
+let _agNames = null
+const getAgencyNames = () =>
+  _agNames || (_agNames = getJSON('/data/agency/names.json')
+    .catch(() => { _agNames = null; return null }))
+
 export async function searchAgency(q) {
   const s = String(q || '').trim()
   if (s.length < 1) return []
+  const all = await getAgencyNames()
+  if (!Array.isArray(all)) return searchAgencyOld(s)   // 옛 자료면 예전 방식으로
+  const hit = []
+  for (const [name, n, chunk] of all) {
+    const i = name.indexOf(s)
+    if (i < 0) continue
+    // 순위: 마지막 낱말이 검색어로 시작(「… 순천시」) > 아무 낱말이나 시작 > 그냥 포함
+    const words = name.split(/\s+/)
+    const rank = words[words.length - 1].startsWith(s) ? 3
+      : words.some((w) => w.startsWith(s)) ? 2 : 1
+    hit.push({ name, n, chunk, rank })
+  }
+  return hit.sort((a, b) => (b.rank - a.rank) || (b.n - a.n)).slice(0, 40)
+}
+
+/* 예전 방식(첫 글자 칸) — names.json 이 아직 없는 자료에서만 씁니다 */
+async function searchAgencyOld(s) {
   const idx = await getJSON(`/data/agency/idx/${key(s)}.json`)
   if (!idx) return []
   return Object.entries(idx)
@@ -75,13 +105,34 @@ export async function getAgency(name, chunk) {
 }
 
 /* ── 업체 ────────────────────────────── */
-export async function searchCorp(qNorm) {
+/* 업체 이름 목록 — 「이름 가운데로도 찾기」를 눌렀을 때만 받습니다.
+   ⚠️ 기관(4,923곳 · gzip 42KB)과 달리 업체는 57,555곳 · **gzip 348KB** 입니다(실측).
+      늘 받으면 하루 1,000번 검색에 348MB — Firebase 무료 한도(360MB/일)를 혼자 씁니다.
+      그래서 «버튼» 입니다. 한 번 받으면 그 브라우저에서는 기억합니다. */
+let _coNames = null
+const getCorpNames = () =>
+  _coNames || (_coNames = getJSON('/data/corp/names.json')
+    .catch(() => { _coNames = null; return null }))
+
+/* deep=true 면 이름 가운데도 찾습니다.
+   실측(2026-09-04): 「종합건설」 첫 글자 칸 9곳 → 전부 2,867곳 · 「개발」 0곳 → 2,420곳.
+   앞에서부터 친 이름은 첫 글자 칸으로 충분합니다 — 「대영」 119곳 = 전부 119곳. */
+export async function searchCorp(qNorm, deep = false) {
   const s = String(qNorm || '').trim()
   if (s.length < 1) return []
   const idx = await getJSON(`/data/corp/idx/${key(s)}.json`)
-  if (!idx) return []
-  return Object.entries(idx)
-    .filter(([k2]) => k2.includes(s))
+  const ent = idx ? Object.entries(idx).filter(([k2]) => k2.includes(s)) : []
+  if (deep) {
+    const all = await getCorpNames()
+    if (Array.isArray(all)) {
+      const seen = new Set(ent.map(([k2]) => k2))
+      for (const [k2, n, chunk] of all) {
+        if (!seen.has(k2) && k2.includes(s)) ent.push([k2, [n, chunk]])
+      }
+    }
+  }
+  if (!ent.length) return []
+  return ent
     .sort((a, b) => b[1][0] - a[1][0])
     .slice(0, 40)
     // bzn: 이 이름에 섞여 있는 «서로 다른 법인» 수 · reg: 주력 지역

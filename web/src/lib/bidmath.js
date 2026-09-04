@@ -153,7 +153,9 @@ export function shownBid(base, p50, recAmt) {
   return { rate, amt: bidAmount(base, p50, rate) }
 }
 
-export function quickBid(r, p50) {
+/* q 를 주면 그 분위로 «고정»해 계산합니다 (공유 주소 `?q=80` 용).
+   ⚠️ 규칙은 quantileBid 하나만 씁니다 — 여기서 다시 적으면 바로투찰 화면과 어긋납니다. */
+export function quickBid(r, p50, q) {
   if (!r || !isReady(r) || !(p50 > 0)) return null
   const aKnown = r.ayn === 'N' || r.aval > 0
   const aVal = r.ayn === 'N' ? 0 : (Number(r.aval) || 0)
@@ -164,6 +166,10 @@ export function quickBid(r, p50) {
   /* ⚠️ 바로투찰 화면과 «같은 길»로 갑니다 — 금액 → 투찰률(소수 3자리, 올림) → 다시 금액 (shownBid).
      처음엔 recommend().amt 를 그대로 냈다가 selfcheck 에 잡혔습니다: 카드 408,999,841 vs 화면 409,002,195.
      예상 참가(enp)를 알면 공고별 자동 분위, 모르면 권장 — smartBid 하나로 (2026-09-03). */
+  if (q) {
+    const qb = quantileBid({ base, llRate: Number(r.llr), aVal, p50, sd, q: Number(q) })
+    if (qb) return { ...qb, mode: 'pick', rule: null, pctile: Number(q), aKnown }
+  }
   return smartBid({ base, llRate: Number(r.llr), aVal, aKnown, p50, sd, enp: Number(r.enp) || 0 })
 }
 
