@@ -635,7 +635,8 @@ def main():
         paths += [f"/notice/{quote(str(r.get('no')), safe='')}" for r in fresh]
         n_q = indexnow.queue(paths, mark=mark)
         print(f"  · IndexNow 다음 회차에 알릴 주소 {n_q:,}개 (새 개찰 {len(fresh):,}건)")
-        # 로그를 못 볼 때를 대비해 결과를 사이트에 남깁니다 → /data/indexnow.json
+        # 로그를 못 볼 때를 대비해 결과를 사이트에 남깁니다 → /indexnow-status.json
+        # (robots.txt 가 /data/ 를 막고 있어 뿌리에 둡니다 — 확인 도구가 못 읽었습니다)
         indexnow.write_report(DIST, sent, {"n": n_q, "새개찰": len(fresh),
                                            "예": paths[:5]})
     except Exception as e:

@@ -1476,8 +1476,8 @@ export default function BaroBid() {
             {picked?.no && ['limit', 'safe', 'own'].includes(pickRate) && (
               <div className="sharenote">
                 🔗 공유 주소에는 <b>권장(자동) 금액</b>이 열립니다 — 지금 고르신
-                «{pickRate === 'limit' ? '최저' : pickRate === 'safe' ? '중간' : '직접 입력'}» 은
-                주소로 옮길 수 없습니다. 이 금액 그대로 보내시려면 위 <b>「금액 복사」</b>를 쓰세요.
+                «{pickRate === 'limit' ? '최저' : pickRate === 'safe' ? '중간' : '직접 입력'}»
+                {pickRate === 'limit' ? '는' : '은'} 주소로 옮길 수 없습니다. 이 금액 그대로 보내시려면 위 <b>「금액 복사」</b>를 쓰세요.
               </div>
             )}
           </div>

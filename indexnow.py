@@ -6,10 +6,10 @@ indexnow.py — 새로 생긴 주소를 검색엔진에 «직접 찔러 넣습�
 우리한테 맞는 이유: 개찰이 **하루 570건씩** 새 주소로 늘어납니다.
 지금은 크롤러가 스스로 찾아올 때까지 기다립니다.
 
-받는 곳
-  · 네이버  https://api.searchadvisor.naver.com/indexnow   ← 2023-07 부터 지원
-  · 공용    https://api.indexnow.org/indexnow              ← 빙·얀덱스 등으로 퍼짐
-  구글은 IndexNow 를 안 씁니다(사이트맵으로 갑니다).
+받는 곳 — **한 곳뿐입니다**
+  https://api.indexnow.org/indexnow
+  규약이 «한 곳에 보내면 참여 검색엔진끼리 나누어 갖는» 방식입니다.
+  네이버는 2023-07 부터 참여합니다. 구글은 IndexNow 를 안 씁니다(사이트맵으로 갑니다).
 
 ⚠️ 키는 «비밀»이 아닙니다. 규약이 그렇게 생겼습니다 —
    `https://k-conmap.com/{키}.txt` 를 누구나 열 수 있어야 «이 사이트 주인이 맞다» 가 증명됩니다.
@@ -39,9 +39,14 @@ HOST = "k-conmap.com"
 KEY = "0b8718557eddbae7950c312ccc231c6a"
 KEY_URL = f"{SITE}/{KEY}.txt"
 
+# ⚠️ 2026-09-04 정정 — 「네이버 전용 주소」는 **없습니다.**
+#   처음에 블로그의 curl 예제에서 본 `api.searchadvisor.naver.com` 을 넣었는데,
+#   GitHub 러너에서 **DNS 가 안 풀렸습니다**(Name or service not known). 없는 호스트였습니다.
+#   IndexNow 는 «한 곳에 보내면 참여 검색엔진끼리 나누어 갖는» 규약이고, 네이버는 2023-07 부터 참여합니다.
+#   실측: 공용 주소는 **HTTP 200** 으로 주소 69개를 받았습니다.
+#   → 있지도 않은 주소를 «만들어» 넣은 것이 잘못이었습니다 (CLAUDE.md 1번).
 ENDPOINTS = [
-    ("네이버", "https://api.searchadvisor.naver.com/indexnow"),
-    ("공용(빙 등)", "https://api.indexnow.org/indexnow"),
+    ("공용(네이버·빙 등)", "https://api.indexnow.org/indexnow"),
 ]
 
 MAX_URLS = 2000          # 규약 상한은 10,000. 한 회차에 그만큼 새로 생기지 않습니다.
@@ -123,7 +128,7 @@ def send(quiet=False):
     """지난 회차에 적어 둔 주소를 보냅니다. 실패해도 배치를 멈추지 않습니다.
 
     돌려주는 것: {"at", "n", "results":[[받는곳, 코드]], "ok"}
-    ⚠️ 이 결과는 **사이트에 남깁니다**(`/data/indexnow.json`). Actions 로그는 로그인해야 보이고
+    ⚠️ 이 결과는 **사이트에 남깁니다**(`/indexnow-status.json`). Actions 로그는 로그인해야 보이고
        화면도 잘 안 열립니다(2026-09-04에 실제로 못 봤습니다). diag.json 과 같은 방식으로,
        «지난 회차에 실제로 몇 개를 보냈고 어떤 답이 왔는지» 를 누구나 열어볼 수 있게 둡니다.
     """
@@ -172,11 +177,15 @@ def send(quiet=False):
 
 
 def write_report(dist, sent, queued):
-    """`/data/indexnow.json` — 로그 없이 결과를 확인하는 자리."""
+    """`/indexnow-status.json` — 로그 없이 결과를 확인하는 자리.
+
+    ⚠️ 처음엔 `/data/` 안에 뒀는데 **robots.txt 가 /data/ 를 막고 있어** 확인 도구가 못 읽었습니다.
+       진단은 «내가 열어볼 수 있는 자리» 에 둬야 진단입니다. 그래서 뿌리로 옮겼습니다.
+    """
     try:
-        d = os.path.join(dist, "data")
+        d = dist
         os.makedirs(d, exist_ok=True)
-        with open(os.path.join(d, "indexnow.json"), "w", encoding="utf-8") as f:
+        with open(os.path.join(d, "indexnow-status.json"), "w", encoding="utf-8") as f:
             json.dump({"보낸것": sent, "다음회차에알릴주소": queued,
                        "키": KEY_URL}, f, ensure_ascii=False, indent=1)
     except Exception as e:
