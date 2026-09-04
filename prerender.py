@@ -396,7 +396,10 @@ def notice_page(shell, r, image=None, L=None):
             ("투찰률", pct(rate, 3)),
             ("참가업체수", (f"{num(r.get('np'))}곳" if r.get("np") else None)),
         ], href=(lambda a: (L.corp(won) if (L and a == won) else None)))
-    if L and inst:
+    # ⚠️ 링크가 걸리는 기관(우리가 구운 300곳)일 때만 이 칸을 답니다.
+    #    안 그러면 「낙찰 분석 보기 →」 라고 써 놓고 눌리지 않는 칸이 됩니다 —
+    #    버튼 이름이 실제 동작과 다르면 안 됩니다 (CLAUDE.md 3번).
+    if L and inst and L.agency(inst):
         body += rows_html("🏛 발주기관", [(inst, "낙찰 분석 보기 →")], href=L.agency)
 
     h = page(shell, f"/notice/{no}", title, desc, body, image)
