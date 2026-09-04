@@ -79,7 +79,6 @@ function CorpTab() {
     setC(d); setLoading(false)
   }
 
-  const regions = c ? Object.entries(c.reg || {}) : []
 
   return (
     <>
@@ -118,8 +117,21 @@ function CorpTab() {
         </Empty>
       )}
 
-      {c && (
-        <>
+      {c && <CorpReport c={c} ov={ov} onPickFirm={(k) => pick({ key: k })} />}
+    </>
+  )
+}
+
+
+
+/* ── 업체 성적표 본문 ───────────────────────────────────────────
+   ★ 2026-09-04 — 검색 상자와 갈라냈습니다.
+   같은 내용을 «분석 탭»(검색해서 보기) 과 «/corp/{업체} 페이지»(주소로 바로 보기)
+   두 곳이 씁니다. 두 벌로 적으면 언젠가 어긋납니다 — 여기 하나만 고칩니다. */
+export function CorpReport({ c, ov, onPickFirm }) {
+  const regions = c ? Object.entries(c.reg || {}) : []
+  return (
+    <>
           <div className="card">
             <div style={{ fontSize: 16, fontWeight: 800 }}>{c.name}</div>
             <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 3 }}>
@@ -149,7 +161,7 @@ function CorpTab() {
               <div className="firms">
                 {(c.bz || []).map(([bz, ceo, cnt]) => (
                   <button key={bz} className="firm"
-                    onClick={() => pick({ key: `${normCorp(c.name)}#${bz}` })}>
+                    onClick={() => onPickFirm && onPickFirm(`${normCorp(c.name)}#${bz}`)}>
                     <span className="no">{bz.slice(0, 3)}-{bz.slice(3, 5)}-•••</span>
                     <span className="ceo">{ceo || '대표 미상'}</span>
                     <span className="cnt">{num(cnt)}건</span>
@@ -232,12 +244,9 @@ function CorpTab() {
           {/* ★ 내 자리에 맞는 마감 전 공고 — 자주 딴 지역·기관으로 걸러서 원클릭 금액까지 */}
           <OpenNotices title="내 자리에 맞는 마감 전 공고" match={corpMatch(c)}
             hint={`${Object.keys(c.reg || {}).slice(0, 2).join('·') || '전국'} · 자주 딴 기관`} />
-</>
-      )}
     </>
   )
 }
-
 
 /* ── 최근 순위 기록 ────────────────────────────────────────────
    3년치엔 1순위만 있습니다. «진 투찰»은 개찰 순위(낮은 순 30곳)를 받기 시작한 뒤의 것뿐입니다.

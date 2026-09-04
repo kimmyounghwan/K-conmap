@@ -6,7 +6,7 @@ run_all.py — 이거 하나만 돌리면 됩니다.
   ② collect.py    조달청 최신 공고·개찰 결과 수집
   ③ build_json.py 3년치 + 추가자료를 사이트용 JSON 으로 집계
   ④ sitemap.py    검색엔진용 주소 목록
-  ⑤ npm run build + firebase deploy   배포
+  ⑤ npm run build + prerender.py + firebase deploy   배포
 
 옵션
   python run_all.py                   전체 (배포까지)
@@ -110,6 +110,14 @@ def main():
             if result["⑤-1 계산 검사"] != "성공":
                 print("\n  ⛔ 계산이 어긋납니다 — 배포를 멈춥니다.")
                 args.no_deploy = True
+
+        # ★ 2026-09-04 — 주소마다 «진짜 HTML» 을 굽습니다.
+        #   빌드가 만든 dist 안에 넣는 것이므로 반드시 빌드 «뒤», 배포 «앞» 입니다.
+        #   (npm run build 가 dist 를 비우므로 순서를 바꾸면 통째로 사라집니다)
+        #   실패해도 배포는 계속합니다 — 사이트가 안 뜨는 것보다는 낫습니다.
+        if result["⑤ 빌드"] == "성공":
+            result["⑤-2 페이지 굽기"] = step(
+                5, "prerender — 주소별 HTML", [PY, "prerender.py"], timeout=900)[0]
 
         if not args.no_deploy and result["⑤ 빌드"] == "성공":
             result["⑥ 배포"] = step(6, "firebase deploy",

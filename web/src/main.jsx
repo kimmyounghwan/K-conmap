@@ -5,6 +5,7 @@ import App from './App.jsx'
 import FirstBoard from './pages/FirstBoard.jsx'
 import LiveBoard from './pages/LiveBoard.jsx'
 import BaroBid from './pages/BaroBid.jsx'
+import CorpPage from './pages/CorpPage.jsx'
 import Analysis from './pages/Analysis.jsx'
 import AgencyPage from './pages/AgencyPage.jsx'
 import NotFound from './pages/NotFound.jsx'
@@ -33,6 +34,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/analysis" element={<Analysis />} />
           <Route path="/jobs" element={<Suspense fallback={<Loading />}><Jobs /></Suspense>} />
           <Route path="/agency/:name" element={<AgencyPage />} />
+          {/* ★ 업체 성적표 — 분석 탭 안에 갇혀 있던 화면에 주소를 준 것 (2026-09-04) */}
+          <Route path="/corp/:name" element={<CorpPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

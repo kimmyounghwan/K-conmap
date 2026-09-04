@@ -51,6 +51,8 @@ WINDOW_YEARS = int(os.environ.get("WINDOW_YEARS", "3"))
 #   200개씩 담으면 한 번에 139KB(압축 30KB), 50개씩이면 그 1/4 입니다.
 #   파일 수는 늘지만 Firebase 저장 한도(10GB)에 견주면 아무것도 아니고,
 #   전송량(월 10GB)이 실제 비용이 걸리는 곳이라 이쪽을 아낍니다.
+CORP_TOP = 6000        # 페이지를 굽고 사이트맵에 낼 업체 수 (건수 상위부터)
+CORP_TOP_MIN = 3      # 낙찰 3건 미만은 페이지를 만들지 않습니다 — 빈 페이지는 색인에 해롭습니다
 CHUNK = 50
 MIN_ROWS = 2         # 이보다 적으면 통계가 무의미해서 상세를 만들지 않음
 HIST_TOP = 30        # 히스토그램은 상위 구간만 (파일 크기 방어)
@@ -741,8 +743,10 @@ def build_corp(df):
             cur[key]["rank"] = sorted(_recs, key=lambda x: x[1], reverse=True)[:30]
         agg[key] = cur.pop(key)
 
+    disp = {}          # 색인용 이름표 (URL 은 정규화된 key, 화면 제목은 원래 이름)
     for key in sorted(agg, key=lambda k: (first_key(k), k)):
         cur[key] = agg[key]
+        disp[key] = agg[key].get("name") or key
         _r = agg[key].get("reg") or {}
         idx[first_key(key)][key] = [agg[key]["n"], len(chunks),
                                     agg[key].get("bzn", 0),
@@ -760,6 +764,16 @@ def build_corp(df):
         written += write_json(f"corp/dat/{i}.json", ch)
     for k, v in idx.items():
         written += write_json(f"corp/idx/{k}.json", v)
+
+    # ★ 2026-09-04 — 업체 상위 목록. /corp/{키} 페이지를 미리 구울 때와 사이트맵에 씁니다.
+    #   · 사업자번호로 갈라 놓은 키(«이름#번호»)는 뺍니다 — 주소에 사업자번호를 노출하지 않습니다.
+    #   · 한 건짜리 업체까지 페이지를 만들면 «내용 없는 페이지» 가 수만 개 생겨 색인에 해롭습니다.
+    #     그래서 건수 상위부터 CORP_TOP 곳만 냅니다.
+    ctop = sorted(((nm, meta[0], meta[1]) for d in idx.values() for nm, meta in d.items()
+                   if "#" not in nm and meta[0] >= CORP_TOP_MIN),
+                  key=lambda x: -x[1])[:CORP_TOP]
+    write_json("corp/top.json", [[t[0], t[1], t[2], disp.get(t[0], t[0])] for t in ctop])
+    log(f"업체 상위 {len(ctop):,}곳 → corp/top.json")
 
     log(f"업체 {sum(len(c) for c in chunks):,}곳 / 묶음 {len(chunks)}개 / {written/1024/1024:.1f}MB")
     return sum(len(c) for c in chunks)

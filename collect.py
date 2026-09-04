@@ -1184,18 +1184,6 @@ def main():
 
     key = api_key()
 
-    # ── 순위 조회 건수를 «시각을 보고» 스스로 정합니다 ──────────────
-    #   워크플로 파일(.github/workflows/update.yml)은 보안상 원격에서 못 고칩니다.
-    #   그래서 명령에 --ranks 를 안 붙여도 알아서 배분하도록 여기에 둡니다.
-    #     · 한국시간 08시·13시 (정밀 회차) → 250건
-    #     · 그 밖의 회차                   → 60건
-    #   하루 2×250 + 19×60 = 1,640건. 새 개찰이 하루 약 570건이라 밀린 물량을 따라잡습니다.
-    #   ⚠️ 손으로 --ranks 를 주면 그 값이 이깁니다 (0 을 주면 순위 조회를 건너뜁니다).
-    if args.ranks < 0:
-        _h = datetime.now(KST).hour
-        args.ranks = 250 if _h in (8, 13) else 60
-        print(f"  · 개찰 순위 조회: 이번 회차 {args.ranks}건 "
-              f"(한국시간 {_h}시 — 자동 배분)")
     days = args.backfill or args.days
     today = datetime.now(KST)
 
@@ -1218,11 +1206,39 @@ def main():
     first = load_store("first")
     live = load_store("live")
 
+    # ── 순위 조회 건수를 «지난 회차로부터 얼마나 지났나» 로 정합니다 ──
+    #   워크플로 파일(.github/workflows/update.yml)은 보안상 원격에서 못 고칩니다.
+    #   그래서 명령에 --ranks 를 안 붙여도 알아서 배분하도록 여기에 둡니다.
+    #
+    #   ⚠️ 2026-09-04 — 전에는 «한국시간 08시·13시면 250건» 이었습니다. **틀린 설계였습니다.**
+    #      GitHub 예약 실행은 정시에 안 옵니다(실측: 예약 21회 중 하루 4회, 10:03·14:40·20:04·22:29).
+    #      시각이 08 이나 13 에 딱 걸릴 확률이 낮아, 사실상 매번 60건만 돌고 있었습니다.
+    #      → 시각(hour)을 조건으로 쓰지 않습니다. **지난 회차와의 간격**으로 정합니다.
+    #        · 3시간 넘게 비었으면(= 그날 첫 회차이거나 오래 밀렸으면) 250건
+    #        · 그보다 촘촘하면                                        60건
+    #      회차가 몇 번 오든 하루 1,000~1,500건 언저리로 스스로 맞춰집니다.
+    #   ⚠️ 손으로 --ranks 를 주면 그 값이 이깁니다 (0 을 주면 순위 조회를 건너뜁니다).
+    if args.ranks < 0:
+        _now = datetime.now(timezone.utc)
+        _prev = first.get("_lastrun") if isinstance(first, dict) else None
+        _gap = None
+        if _prev:
+            try:
+                _gap = (_now - datetime.fromisoformat(_prev)).total_seconds() / 3600.0
+            except Exception:
+                _gap = None
+        args.ranks = 60 if (_gap is not None and _gap < 3) else 250
+        print(f"  · 개찰 순위 조회: 이번 회차 {args.ranks:,}건 "
+              f"(지난 회차와 {'%.1f시간' % _gap if _gap is not None else '기록 없음'} 간격)")
+        first["_lastrun"] = _now.isoformat(timespec="seconds")
+
     # 다루지 않기로 한 종류(용역)는 저장소에서도 비웁니다.
     # 안 그러면 안 쓰는 자료가 70일 동안 남아 파일만 무거워집니다.
     for _st in (first, live):
         for _k in list(_st.keys()):
-            if _k not in KINDS:
+            # ⚠️ 사전(dict)인 칸만 비웁니다. 그냥 «KINDS 에 없으면 비우기» 로 두면
+            #    _lastrun 같은 기록용 값까지 {} 로 지워집니다(2026-09-04에 실제로 그랬습니다).
+            if _k not in KINDS and isinstance(_st[_k], dict):
                 _st[_k] = {}
     added = {"first": 0, "live": 0}
 
