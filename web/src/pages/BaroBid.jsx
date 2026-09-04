@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { getJSON, getOverview, getAgency, similarZone, getSim, getBidIndex, indexRows } from '../lib/data.js'
+import { getJSON, getOverview, getAgency, similarZone, getSim, getBidIndex, indexRows, getResults } from '../lib/data.js'
 import { won, wonShort, pct, num, dateTime, dday } from '../lib/fmt.js'
 import { winGrade } from '../lib/winodds.js'
 /* 계산은 전부 여기 있습니다 — 화면과 채점이 같은 함수를 씁니다 */
@@ -34,7 +34,6 @@ const getIndex = () => getBidIndex()
 /* 규모별 «참가업체수»와 «A값 비율» — 1KB 남짓입니다 */
 const getBandStat = () => getJSON('/data/bandstat.json')
 /* 최근 7일 개찰 결과 — 채점할 때만 받아옵니다 */
-const getResults = () => getJSON('/data/bidresult.json')
 /* A값 내역(법정경비 항목별) — 공고를 «고른 뒤»에만 받습니다.
    목록에 같이 실었더니 첫 화면 전송량의 29% 를 이것이 먹고 있었습니다
    (gzip 153.7 → 109.2KB). 고르기 전에는 볼 일이 없는 값입니다. */

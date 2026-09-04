@@ -148,7 +148,23 @@ export default function NoticeDetail({ r }) {
       {tab === 'corp' && <CorpTab name={r.win} />}
       {tab === 'inst' && <InstTab name={r.inst} />}
       {tab === 'doc' && <DocTab r={r} />}
+      <NoticeLink no={r.no} />
     </div>
+  )
+}
+
+/* ★ 이 공고만 있는 페이지로 가는 길 (2026-09-04).
+   ⚠️ 일부러 <Link> 가 아니라 <a href> 입니다 — 미리 구운 정적 HTML 을 통째로 받아야
+      그 안에 같이 넣어 둔 «공고 한 줄»(<script id="ndata">)로 화면이 그려집니다.
+      7주 지난 개찰은 브라우저가 받을 수 있는 파일에 없으므로 이 길이 본체입니다.
+   여기 있으면 1순위 목록·공고 목록 두 곳이 같이 얻습니다(두 벌로 안 적습니다). */
+export function NoticeLink({ no }) {
+  if (!no) return null
+  return (
+    <a className="noticelink" href={`/notice/${encodeURIComponent(String(no))}`}
+       onClick={(e) => e.stopPropagation()}>
+      🔗 이 공고만 보기 · 주소로 공유하기 →
+    </a>
   )
 }
 

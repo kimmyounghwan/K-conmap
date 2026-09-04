@@ -4,6 +4,7 @@ import { useBoard } from '../lib/useBoard.js'
 import { Skeleton, Empty } from '../components.jsx'
 import { RangeBar } from './FirstBoard.jsx'
 import { isReady, missingOf } from './BaroBid.jsx'
+import { NoticeLink } from '../NoticeDetail.jsx'
 import { quickBid, P50_FALLBACK, pickOdds } from '../lib/bidmath.js'
 import { getOverview, getBidIndex, indexRows } from '../lib/data.js'
 import { winGrade } from '../lib/winodds.js'
@@ -424,6 +425,7 @@ export default function LiveBoard() {
                       산출내역서·설계도서 같은 첨부파일은 나라장터에서만 받을 수 있습니다.
                       A값은 그 내역서에 있습니다.
                     </div>
+                    <NoticeLink no={r.no} />
                   </div>
                 )}
               </div>

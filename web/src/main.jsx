@@ -6,6 +6,7 @@ import FirstBoard from './pages/FirstBoard.jsx'
 import LiveBoard from './pages/LiveBoard.jsx'
 import BaroBid from './pages/BaroBid.jsx'
 import CorpPage from './pages/CorpPage.jsx'
+import NoticePage from './pages/NoticePage.jsx'
 import Analysis from './pages/Analysis.jsx'
 import AgencyPage from './pages/AgencyPage.jsx'
 import NotFound from './pages/NotFound.jsx'
@@ -36,6 +37,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/agency/:name" element={<AgencyPage />} />
           {/* ★ 업체 성적표 — 분석 탭 안에 갇혀 있던 화면에 주소를 준 것 (2026-09-04) */}
           <Route path="/corp/:name" element={<CorpPage />} />
+          {/* ★ 공고·개찰 한 건 — 검색 수요가 가장 큰 자리 (2026-09-04) */}
+          <Route path="/notice/:no" element={<NoticePage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

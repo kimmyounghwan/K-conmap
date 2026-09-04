@@ -20,6 +20,7 @@ DATA = os.path.join(OUT, "data")
 SITE = os.environ.get("SITE_URL", "https://k-conmap.web.app").rstrip("/")
 LIMIT = int(os.environ.get("SITEMAP_AGENCIES", "800"))   # 색인 상황 보며 올릴 것
 CORP = int(os.environ.get("SITEMAP_CORPS", "300"))       # 업체도 천천히 — 처음엔 300곳만
+NOTICE = int(os.environ.get("SITEMAP_NOTICES", "500"))   # 공고·개찰. 매일 570건씩 느니 천천히
 MIN_ROWS = 15                                            # 얄팍한 페이지는 아예 넣지 않음
 MIN_CORP = 8                                             # 낙찰 8건 미만 업체는 넣지 않음
 
@@ -74,6 +75,38 @@ def main():
     else:
         print("  ⚠️  corp/top.json 이 없습니다 — build_json.py 를 먼저 돌리세요")
 
+    # ── 공고·개찰 ────────────────────────────────────────────────────
+    #  ★ 2026-09-04 — 검색 수요가 가장 큰 자리. 그 공고에 투찰한 60~300개 업체가
+    #     「결과 어떻게 됐지」를 찾습니다. 개찰이 하루 570건씩 늘어납니다.
+    #     ⚠️ prerender.py 가 구운 것만 냅니다(PRERENDER_NOTICE). 최신부터 같은 순서입니다.
+    n_no = 0
+    store = os.path.join(ROOT, "data", "store")
+    rows = {}
+    for nm in ("live", "first"):
+        p2 = os.path.join(store, f"{nm}.json")
+        if os.path.exists(p2):
+            try:
+                with open(p2, encoding="utf-8") as f:
+                    for v in json.load(f).values():
+                        if isinstance(v, dict):
+                            rows.update(v)
+            except Exception as e:
+                print(f"  ⚠️  store/{nm}.json 읽기 실패 ({type(e).__name__})")
+    for r in sorted(rows.values(), key=lambda r: str(r.get("dt") or r.get("close") or ""),
+                    reverse=True):
+        if n_no >= NOTICE:
+            break
+        no = str(r.get("no") or "")
+        if not no or not all(c.isalnum() or c == "-" for c in no):
+            continue
+        urls.append(
+            f"  <url><loc>{SITE}/notice/{quote(no, safe='')}</loc>"
+            f"<lastmod>{today}</lastmod><changefreq>weekly</changefreq>"
+            f"<priority>0.5</priority></url>")
+        n_no += 1
+    if not rows:
+        print("  ⚠️  data/store 가 없어 공고 주소는 넣지 않았습니다")
+
     xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
            + "\n".join(urls) + "\n</urlset>\n")
@@ -81,7 +114,7 @@ def main():
     p = os.path.join(OUT, "sitemap.xml")
     with open(p, "w", encoding="utf-8") as f:
         f.write(xml)
-    print(f"  ✅ sitemap.xml — 고정 {len(STATIC)} + 기관 {n_ag} + 업체 {n_co} = {len(urls)}개")
+    print(f"  ✅ sitemap.xml — 고정 {len(STATIC)} + 기관 {n_ag} + 업체 {n_co} + 공고 {n_no} = {len(urls)}개")
     print(f"     {p}")
 
 

@@ -175,6 +175,9 @@ export const getBidIndex = () =>
   _bidIndex || (_bidIndex = getJSON('/data/bidindex.json').catch(() => { _bidIndex = null; return null }))
 
 /** {f:[...], r:[[...]]} → [{no, name, inst, base, …}] — 없는 칸은 undefined */
+/* 개찰 결과 색인(최근 7일) — 채점 화면과 공고 페이지가 같은 것을 씁니다. */
+export const getResults = () => getJSON('/data/bidresult.json')
+
 export function indexRows(idx) {
   if (!idx || !Array.isArray(idx.r) || !Array.isArray(idx.f)) return []
   const f = idx.f
