@@ -272,6 +272,7 @@ export default function LiveBoard() {
                   <span className="badge n">추정가격</span>
                   <span className="amt">{wonShort(r.budget)}</span>
                   <span style={{ flex: 1 }} />
+                  <NoticeLink no={r.no} compact />
                   <span className="caret">{isOpen ? '▲' : '▼'}</span>
                 </div>
 
@@ -425,7 +426,6 @@ export default function LiveBoard() {
                       산출내역서·설계도서 같은 첨부파일은 나라장터에서만 받을 수 있습니다.
                       A값은 그 내역서에 있습니다.
                     </div>
-                    <NoticeLink no={r.no} />
                   </div>
                 )}
               </div>

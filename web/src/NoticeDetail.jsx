@@ -148,7 +148,6 @@ export default function NoticeDetail({ r }) {
       {tab === 'corp' && <CorpTab name={r.win} />}
       {tab === 'inst' && <InstTab name={r.inst} />}
       {tab === 'doc' && <DocTab r={r} />}
-      <NoticeLink no={r.no} />
     </div>
   )
 }
@@ -158,12 +157,14 @@ export default function NoticeDetail({ r }) {
       그 안에 같이 넣어 둔 «공고 한 줄»(<script id="ndata">)로 화면이 그려집니다.
       7주 지난 개찰은 브라우저가 받을 수 있는 파일에 없으므로 이 길이 본체입니다.
    여기 있으면 1순위 목록·공고 목록 두 곳이 같이 얻습니다(두 벌로 안 적습니다). */
-export function NoticeLink({ no }) {
+export function NoticeLink({ no, compact }) {
   if (!no) return null
   return (
-    <a className="noticelink" href={`/notice/${encodeURIComponent(String(no))}`}
+    <a className={'noticelink' + (compact ? ' compact' : '')}
+       href={`/notice/${encodeURIComponent(String(no))}`}
+       title="이 공고만 있는 주소로 갑니다 — 카톡으로 보낼 수 있습니다"
        onClick={(e) => e.stopPropagation()}>
-      🔗 이 공고만 보기 · 주소로 공유하기 →
+      {compact ? '🔗 공유' : '🔗 이 공고만 보기 · 주소로 공유하기 →'}
     </a>
   )
 }

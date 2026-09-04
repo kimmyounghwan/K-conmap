@@ -40,6 +40,8 @@ import os
 import sys
 from urllib.parse import quote
 
+from ogcard import OgMaker
+
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DIST = os.path.join(ROOT, "web", "dist")
 DATA = os.path.join(ROOT, "web", "public", "data")
@@ -54,6 +56,15 @@ N_CORP = int(os.environ.get("PRERENDER_CORP", "3000"))
 # ⚠️ 배포 1벌이 그만큼 무거워집니다(장당 4~5KB). Firebase «출시 저장용량»(보관 10개)을
 #    확인하면서 올릴 것. 8,000장이면 약 +35MB 입니다.
 N_NOTICE = int(os.environ.get("PRERENDER_NOTICE", "8000"))
+
+# ── 카톡·네이버 미리보기 그림 (og:image) ───────────────────────────
+# 장당 16ms 라 «몇 장을 굽느냐» 가 그대로 배포 시간이 됩니다 (하루 21번 돕니다).
+# 그래서 «실제로 공유되는 것» 만 굽습니다 — 7주 지난 개찰을 카톡에 붙이는 사람은 없습니다.
+# 안 구운 페이지는 기본 카드(/og/default.png)를 씁니다.
+OG_NOTICE = int(os.environ.get("OG_NOTICE", "2000"))    # 최신부터. 2,000 ≈ 32초 · 32MB
+OG_AGENCY = int(os.environ.get("OG_AGENCY", "300"))
+OG_CORP = int(os.environ.get("OG_CORP", "600"))
+FONT = os.path.join(ROOT, "assets", "KcmKR-Bold.otf")
 
 # 파일 이름으로 쓸 수 없는 글자가 든 이름은 건너뜁니다.
 # (윈도우에서도 빌드가 돌아야 합니다 — 소장님 PC 의 run_all.py)
@@ -116,7 +127,7 @@ def read_shell():
         return f.read()
 
 
-def page(shell, path, title, desc, body):
+def page(shell, path, title, desc, body, image=None):
     """껍데기에서 제목·설명·canonical·og 를 갈아 끼우고 본문 요약을 넣습니다."""
     h = shell
     url = enc_path(path)
@@ -150,8 +161,21 @@ def page(shell, path, title, desc, body):
             h = h[:st] + esc(val) + h[en:]
         else:
             h = h.replace("</head>", f'  <meta property="{prop}" content="{esc(val)}" />\n  </head>', 1)
+    # og:image — 카톡 미리보기의 «그림». 껍데기(web/index.html)에 기본 카드가 박혀 있고,
+    # 그림을 따로 구운 페이지만 여기서 자기 것으로 갈아 끼웁니다.
+    if image:
+        mark = '<meta property="og:image" content="'
+        k = h.find(mark)
+        if k >= 0:
+            st = k + len(mark)
+            en = h.find('"', st)
+            h = h[:st] + esc(SITE + enc_path(image)) + h[en:]
+        else:
+            h = h.replace("</head>",
+                          f'  <meta property="og:image" content="{esc(SITE + enc_path(image))}" />\n  </head>', 1)
     if "twitter:card" not in h:
-        h = h.replace("</head>", '  <meta name="twitter:card" content="summary" />\n  </head>', 1)
+        h = h.replace("</head>",
+                      '  <meta name="twitter:card" content="summary_large_image" />\n  </head>', 1)
     # 본문 — React 가 마운트되면 이 자리를 통째로 덮어씁니다
     h = h.replace('<div id="root"></div>',
                   '<div id="root">' + body + "</div>", 1)
@@ -190,7 +214,7 @@ def rows_html(title, rows):
     return "".join(out)
 
 
-def agency_page(shell, name, a):
+def agency_page(shell, name, a, image=None):
     n = num(a.get("n"))
     avg = pct((a.get("s") or {}).get("avg"))
     corps = a.get("corps") or []
@@ -220,10 +244,10 @@ def agency_page(shell, name, a):
     body += rows_html("🗂 최근 낙찰 사례",
                       [(c[0], pct(c[3], 3) or "-") for c in cases[:5]
                        if len(c) >= 4 and c[0]])
-    return page(shell, f"/agency/{name}", title, desc, body)
+    return page(shell, f"/agency/{name}", title, desc, body, image)
 
 
-def corp_page(shell, key, c):
+def corp_page(shell, key, c, image=None):
     name = c.get("name") or key
     n = num(c.get("n"))
     avg = pct((c.get("s") or {}).get("avg"))
@@ -254,7 +278,7 @@ def corp_page(shell, key, c):
     body += rows_html("🗂 최근 낙찰",
                       [(x[0], date_full(x[1]) or "-") for x in cases[:5]
                        if len(x) >= 2 and x[0]])
-    return page(shell, f"/corp/{key}", title, desc, body)
+    return page(shell, f"/corp/{key}", title, desc, body, image)
 
 
 
@@ -285,7 +309,7 @@ def load_store(name):
         return {}
 
 
-def notice_page(shell, r):
+def notice_page(shell, r, image=None):
     no = r.get("no")
     nm = str(r.get("name") or no)
     inst = str(r.get("inst") or "")
@@ -332,7 +356,7 @@ def notice_page(shell, r):
             ("참가업체수", (f"{num(r.get('np'))}곳" if r.get("np") else None)),
         ])
 
-    h = page(shell, f"/notice/{no}", title, desc, body)
+    h = page(shell, f"/notice/{no}", title, desc, body, image)
     # 화면이 다시 그릴 때 쓸 원본 한 줄 — 파일을 더 받지 않아도 되도록 같이 넣습니다.
     data = json.dumps(r, ensure_ascii=False).replace("</", "<\\/")
     h = h.replace("</body>",
@@ -342,22 +366,34 @@ def notice_page(shell, r):
 # 탭 페이지 — 지금은 전부 홈과 같은 제목이라 색인에서 서로 잡아먹습니다
 TABS = [
     ("/first", "오늘의 1순위 개찰 결과 — 낙찰업체·투찰률 | K-건설맵",
-     "조달청 나라장터 개찰 결과를 매일 모아 보여드립니다. 공고별 1순위 낙찰업체, 투찰률, 기초금액, 예정가격을 무료로 확인하세요."),
+     "조달청 나라장터 개찰 결과를 매일 모아 보여드립니다. 공고별 1순위 낙찰업체, 투찰률, 기초금액, 예정가격을 무료로 확인하세요.",
+     ("오늘의 1순위 개찰 결과", "누가 얼마에 땄나 · 매일 갱신", "낙찰업체·투찰률",
+      "조달청 나라장터 개찰 결과 · 회원가입 없이 무료")),
     ("/live", "마감 전 공공 입찰 공고 — 기초금액·권장 투찰금액 | K-건설맵",
-     "마감 전 나라장터 공사 공고를 지역·면허로 걸러 봅니다. 기초금액이 실린 공고는 카드에서 바로 권장 투찰금액이 나옵니다."),
+     "마감 전 나라장터 공사 공고를 지역·면허로 걸러 봅니다. 기초금액이 실린 공고는 카드에서 바로 권장 투찰금액이 나옵니다.",
+     ("마감 전 공공 입찰 공고", "지역·면허로 걸러 봅니다", "권장 투찰금액",
+      "기초금액이 실린 공고는 카드에서 바로 금액이 나옵니다")),
     ("/analysis", "발주기관·업체 낙찰 분석 — 3년치 개찰 기록 | K-건설맵",
-     "발주기관의 낙찰률 성향과 업체별 낙찰 실적을 3년치 개찰 기록으로 분석합니다. 회원가입 없이 무료."),
+     "발주기관의 낙찰률 성향과 업체별 낙찰 실적을 3년치 개찰 기록으로 분석합니다. 회원가입 없이 무료.",
+     ("발주기관·업체 낙찰 분석", "3년치 개찰 기록으로 봅니다", "자가진단",
+      "우리 회사가 어디에 강한지 · 그 기관은 어떤 자리인지")),
     ("/jobs", "건설 구인구직 — 현장 인력·장비 | K-건설맵",
-     "건설 현장 구인구직 글을 올리고 봅니다. 로그인 없이 무료."),
+     "건설 현장 구인구직 글을 올리고 봅니다. 로그인 없이 무료.",
+     ("건설 구인구직", "현장 인력·장비", "무료",
+      "로그인 없이 올리고 봅니다")),
 ]
 
 
 def main():
     shell = read_shell()
     made = 0
+    og = OgMaker(DIST, FONT, {"won_short": won_short, "pct": pct,
+                              "num": num, "date_full": date_full})
+    og.default()
 
-    for path, title, desc in TABS:
-        write(path.lstrip("/") + ".html", page(shell, path, title, desc, ""))
+    for path, title, desc, card in TABS:
+        img = og.tab(path.strip("/"), *card)
+        write(path.lstrip("/") + ".html", page(shell, path, title, desc, "", img))
         made += 1
 
     # ── 발주기관 ──
@@ -366,12 +402,15 @@ def main():
     for row in top[:N_AGENCY]:
         if len(row) >= 3 and safe(row[0]):
             by_chunk.setdefault(row[2], []).append(row[0])
+    n_ag = 0
     for ch, names in sorted(by_chunk.items()):
         dat = load(f"agency/dat/{ch}.json") or {}
         for nm in names:
             a = dat.get(nm)
             if a:
-                write(f"agency/{nm}.html", agency_page(shell, nm, a))
+                img = og.agency(nm, a) if n_ag < OG_AGENCY else None
+                n_ag += img is not None
+                write(f"agency/{nm}.html", agency_page(shell, nm, a, img))
                 made += 1
 
     # ── 업체 ──
@@ -382,12 +421,15 @@ def main():
     for row in ctop[:N_CORP]:
         if len(row) >= 3 and safe(row[0]):
             by_chunk.setdefault(row[2], []).append(row[0])
+    n_co = 0
     for ch, keys in sorted(by_chunk.items()):
         dat = load(f"corp/dat/{ch}.json") or {}
         for k in keys:
             c = dat.get(k)
             if c:
-                write(f"corp/{k}.html", corp_page(shell, k, c))
+                img = og.corp(k, c) if n_co < OG_CORP else None
+                n_co += img is not None
+                write(f"corp/{k}.html", corp_page(shell, k, c, img))
                 made += 1
 
     # ── 공고·개찰 ──
@@ -404,7 +446,8 @@ def main():
         no = safe_no(r.get("no"))
         if not no:
             continue
-        write(f"notice/{no}.html", notice_page(shell, r))
+        img = og.notice(r) if n_no < OG_NOTICE else None
+        write(f"notice/{no}.html", notice_page(shell, r, img))
         n_no += 1
         made += 1
     if not order:
@@ -412,6 +455,12 @@ def main():
 
     print(f"  · 공고·개찰 페이지 {n_no:,}개 (저장소 {len(merged):,}건 중)")
     print(f"  · 미리 구운 페이지 {made:,}개 (기관 {len(top[:N_AGENCY]):,} · 업체 {len(ctop[:N_CORP]):,} 대상)")
+    if og.available:
+        print(f"  · 카톡 미리보기 그림 {og.made:,}장 "
+              f"(공고 {min(n_no, OG_NOTICE):,} · 기관 {n_ag:,} · 업체 {n_co:,} · 기본 1)")
+        print("    나머지 페이지는 기본 카드(/og/default.png)를 씁니다 — 늘리려면 OG_NOTICE 를 올리세요.")
+        if og.bad:
+            print(f"  ⚠️ 그 중 {og.bad:,}장은 글자가 칸을 벗어났습니다 — ogcard.py 의 자리를 고쳐야 합니다.")
 
 
 if __name__ == "__main__":

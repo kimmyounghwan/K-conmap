@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getOverview } from '../lib/data.js'
-import NoticeDetail, { scoreState } from '../NoticeDetail.jsx'
+import NoticeDetail, { scoreState, NoticeLink } from '../NoticeDetail.jsx'
 import { useBoard } from '../lib/useBoard.js'
 import { Skeleton, Empty, Tile } from '../components.jsx'
 import { won, wonShort, pct, num, dateTime, dateShort, REGIONS, inRegion } from '../lib/fmt.js'
@@ -149,6 +149,7 @@ export default function FirstBoard() {
                   <span className="win">{r.win}</span>
                   <span className="spacer" style={{ flex: 1 }} />
                   <span className="amt">{wonShort(winAmt)}</span>
+                  <NoticeLink no={r.no} compact />
                   <span className="caret">{isOpen ? '▲' : '▼'}</span>
                 </div>
 

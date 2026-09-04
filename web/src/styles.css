@@ -1958,3 +1958,12 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
   font-size: 12.5px; font-weight: 700; text-align: center; text-decoration: none;
 }
 .noticelink:hover { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+
+/* ★ 접힌 카드에서도 보이는 자리 (2026-09-04).
+   전에는 펼친 상세의 «맨 아래» 에만 있어서, 카드 위에서 2,170px 를 내려야 나왔습니다.
+   공유 버튼이 안 보이면 페이지를 아무리 만들어도 퍼지지 않습니다. */
+.noticelink.compact {
+  display: inline-block; margin: 0 6px 0 0; padding: 3px 8px;
+  border-radius: 999px; border: 1px solid var(--accent-line);
+  font-size: 11.5px; font-weight: 700; line-height: 1.5; white-space: nowrap;
+}
