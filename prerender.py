@@ -42,6 +42,16 @@ from urllib.parse import quote
 
 from ogcard import OgMaker
 import daily as dailymod
+import indexnow
+
+# ⚠️ 업체명 정규화는 build_json.norm_corp «하나»만 씁니다.
+#    여기에 다시 적으면 /corp/ 주소가 조용히 어긋납니다 (CLAUDE.md 5장).
+try:
+    from build_json import norm_corp
+except Exception:                      # pandas 가 없는 환경에서도 HTML 은 구워져야 합니다
+    def norm_corp(s):
+        import re as _re
+        return _re.sub(r"\s+", "", str(s)).strip()
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DIST = os.path.join(ROOT, "web", "dist")
@@ -203,20 +213,45 @@ def safe_no(no):
 
 
 # ── 본문 요약 만들기 ────────────────────────────────────────────────
-def rows_html(title, rows):
-    """rows = [(왼쪽, 오른쪽)] — 값이 없는 줄은 아예 넣지 않습니다."""
+def rows_html(title, rows, href=None):
+    """rows = [(왼쪽, 오른쪽)] — 값이 없는 줄은 아예 넣지 않습니다.
+
+    href(왼쪽) 이 주소를 돌려주면 그 줄을 링크로 만듭니다.
+    ★ 왜 링크가 중요한가 (2026-09-04): 크롤러는 사이트맵보다 «링크를 타고» 다니는 것을
+      더 신뢰합니다. 구워 둔 11,000장이 서로 이어져 있어야 안쪽까지 들어옵니다.
+    ⚠️ **우리가 실제로 구운 주소에만** 겁니다. 없는 주소로 링크를 걸면
+       크롤러가 빈 껍데기를 보고, 그건 색인에 해롭습니다.
+    """
     rows = [(a, b) for a, b in rows if a and b]
     if not rows:
         return ""
     out = [f'<div class="card"><div class="sec-title" style="margin:0 0 6px">{esc(title)}</div>']
     for a, b in rows:
-        out.append(f'<div class="row"><div class="grow"><div class="t">{esc(a)}</div></div>'
+        u = href(a) if href else None
+        left = (f'<a class="t" href="{esc(u)}">{esc(a)}</a>' if u
+                else f'<div class="t">{esc(a)}</div>')
+        out.append(f'<div class="row"><div class="grow">{left}</div>'
                    f'<span class="r">{esc(b)}</span></div>')
     out.append("</div>")
     return "".join(out)
 
 
-def agency_page(shell, name, a, image=None):
+class Links:
+    """«우리가 구운 주소» 목록. 여기 있는 것에만 링크를 겁니다."""
+
+    def __init__(self):
+        self.ag, self.co = set(), set()
+
+    def agency(self, name):
+        n = str(name or "").strip()
+        return f"/agency/{quote(n, safe='')}" if n in self.ag else None
+
+    def corp(self, name):
+        k = norm_corp(str(name or ""))
+        return f"/corp/{quote(k, safe='')}" if k in self.co else None
+
+
+def agency_page(shell, name, a, image=None, L=None):
     n = num(a.get("n"))
     avg = pct((a.get("s") or {}).get("avg"))
     corps = a.get("corps") or []
@@ -242,14 +277,15 @@ def agency_page(shell, name, a, image=None):
                     + " · ".join(facts) + "</p>")
     body = '<div class="card">' + "".join(lead) + "</div>"
     body += rows_html("🏆 자주 낙찰받은 업체",
-                      [(c[0], f"{num(c[1])}건") for c in corps[:5] if len(c) >= 2])
+                      [(c[0], f"{num(c[1])}건") for c in corps[:5] if len(c) >= 2],
+                      href=(L.corp if L else None))
     body += rows_html("🗂 최근 낙찰 사례",
                       [(c[0], pct(c[3], 3) or "-") for c in cases[:5]
                        if len(c) >= 4 and c[0]])
     return page(shell, f"/agency/{name}", title, desc, body, image)
 
 
-def corp_page(shell, key, c, image=None):
+def corp_page(shell, key, c, image=None, L=None):
     name = c.get("name") or key
     n = num(c.get("n"))
     avg = pct((c.get("s") or {}).get("avg"))
@@ -276,7 +312,8 @@ def corp_page(shell, key, c, image=None):
     body = '<div class="card">' + "".join(lead) + "</div>"
     body += rows_html("📍 지역별 낙찰", [(r[0], f"{num(r[1])}건") for r in reg[:5]])
     body += rows_html("🏛 자주 낙찰받은 기관",
-                      [(i[0], f"{num(i[1])}건") for i in inst[:5] if len(i) >= 2])
+                      [(i[0], f"{num(i[1])}건") for i in inst[:5] if len(i) >= 2],
+                      href=(L.agency if L else None))
     body += rows_html("🗂 최근 낙찰",
                       [(x[0], date_full(x[1]) or "-") for x in cases[:5]
                        if len(x) >= 2 and x[0]])
@@ -311,7 +348,7 @@ def load_store(name):
         return {}
 
 
-def notice_page(shell, r, image=None):
+def notice_page(shell, r, image=None, L=None):
     no = r.get("no")
     nm = str(r.get("name") or no)
     inst = str(r.get("inst") or "")
@@ -351,12 +388,16 @@ def notice_page(shell, r, image=None):
                        if r.get("lo") is not None and r.get("hi") is not None else None))]
     body += rows_html("📋 공고 조건", rows)
     if won:
+        # ★ 낙찰업체·발주기관을 «각자의 페이지»로 잇습니다 (2026-09-04).
+        #   개찰 페이지가 11,000장이라, 여기 링크 두 개가 사이트 안쪽으로 가는 길이 됩니다.
         body += rows_html("🏆 개찰 결과", [
             ("낙찰업체", won),
             ("낙찰금액", won_short(r.get("amt"))),
             ("투찰률", pct(rate, 3)),
             ("참가업체수", (f"{num(r.get('np'))}곳" if r.get("np") else None)),
-        ])
+        ], href=(lambda a: (L.corp(won) if (L and a == won) else None)))
+    if L and inst:
+        body += rows_html("🏛 발주기관", [(inst, "낙찰 분석 보기 →")], href=L.agency)
 
     h = page(shell, f"/notice/{no}", title, desc, body, image)
     # 화면이 다시 그릴 때 쓸 원본 한 줄 — 파일을 더 받지 않아도 되도록 같이 넣습니다.
@@ -385,7 +426,12 @@ def _dtable(title, note, rows, cols):
     return "".join(out)
 
 
-def daily_page(shell, dd, image=None):
+def daily_page(shell, dd, image=None, L=None):
+    # ⚠️ 「두 건 이상 가져간 곳」의 업체 링크는 **우리가 구운 주소일 때만** 겁니다.
+    #    5만 곳 전부에 링크를 걸면 크롤러가 «자바스크립트로만 그려지는 빈 페이지» 를 수만 장 봅니다
+    #    (네이버는 자바스크립트를 거의 안 돌립니다). 그래서 여기서 미리 판정해 ddata 에 실어 둡니다.
+    dd = dict(dd)
+    dd["multi"] = [[w, c, (L.corp(w) if L else None)] for w, c in (dd.get("multi") or [])]
     d = dd["d"]
     ymd = d.replace("-", ".")
     r, np_ = dd.get("r") or {}, dd.get("np") or {}
@@ -423,8 +469,10 @@ def daily_page(shell, dd, image=None):
                     "참가 자격(면허·지역)이 좁게 묶인 공고가 대부분입니다. 경쟁이 없으면 하한까지 내릴 이유가 없어 투찰률이 높게 나옵니다.",
                     dd.get("solos"), [("rate", lambda a: f"{a[4]:.3f}%" if a[4] is not None else "")])
     if dd.get("multi"):
+        _u = {w: u for w, c, u in dd["multi"] if u}
         body += rows_html("🥇 그날 두 건 이상 가져간 곳",
-                          [(w, f"{c}건") for w, c in dd["multi"]])
+                          [(w, f"{c}건") for w, c, _ in dd["multi"]],
+                          href=lambda a: _u.get(a))
 
     h = page(shell, f"/daily/{d}", title, desc, body, image)
     data = json.dumps(dd, ensure_ascii=False).replace("</", "<\\/")
@@ -472,6 +520,15 @@ TABS = [
 def main():
     shell = read_shell()
     made = 0
+
+    # ── IndexNow ── 지난 회차에 구워서 «이미 배포된» 주소를 검색엔진에 알립니다.
+    #   ⚠️ 이번에 굽는 것을 지금 보내면 아직 배포 전이라 크롤러가 404 를 봅니다.
+    #      그래서 «한 회차 뒤에» 보냅니다 (워크플로를 안 고치려는 설계이기도 합니다).
+    indexnow.ensure_key_file()
+    try:
+        indexnow.send(quiet=True)
+    except Exception as e:
+        print(f"  · IndexNow 건너뜀 ({type(e).__name__}: {e})")
     og = OgMaker(DIST, FONT, {"won_short": won_short, "pct": pct,
                               "num": num, "date_full": date_full})
     og.default()
@@ -481,12 +538,16 @@ def main():
         write(path.lstrip("/") + ".html", page(shell, path, title, desc, "", img))
         made += 1
 
+    # ★ 링크 목록을 «굽기 전에» 만듭니다 — 없는 주소로 링크를 걸지 않기 위해서입니다.
+    L = Links()
+
     # ── 발주기관 ──
     top = load("agency/top.json") or []
     by_chunk = {}
     for row in top[:N_AGENCY]:
         if len(row) >= 3 and safe(row[0]):
             by_chunk.setdefault(row[2], []).append(row[0])
+            L.ag.add(row[0])
     n_ag = 0
     for ch, names in sorted(by_chunk.items()):
         dat = load(f"agency/dat/{ch}.json") or {}
@@ -495,7 +556,7 @@ def main():
             if a:
                 img = og.agency(nm, a) if n_ag < OG_AGENCY else None
                 n_ag += img is not None
-                write(f"agency/{nm}.html", agency_page(shell, nm, a, img))
+                write(f"agency/{nm}.html", agency_page(shell, nm, a, img, L))
                 made += 1
 
     # ── 업체 ──
@@ -506,6 +567,7 @@ def main():
     for row in ctop[:N_CORP]:
         if len(row) >= 3 and safe(row[0]):
             by_chunk.setdefault(row[2], []).append(row[0])
+            L.co.add(row[0])
     n_co = 0
     for ch, keys in sorted(by_chunk.items()):
         dat = load(f"corp/dat/{ch}.json") or {}
@@ -514,7 +576,7 @@ def main():
             if c:
                 img = og.corp(k, c) if n_co < OG_CORP else None
                 n_co += img is not None
-                write(f"corp/{k}.html", corp_page(shell, k, c, img))
+                write(f"corp/{k}.html", corp_page(shell, k, c, img, L))
                 made += 1
 
     # ── 「어제의 개찰 성적표」 ── (공고 페이지보다 먼저: first 를 여기서 한 번 읽습니다)
@@ -528,7 +590,7 @@ def main():
             continue
         days.append((d, dd["n"]))
         img = og.daily(dd) if og.available else None
-        write(f"daily/{d}.html", daily_page(shell, dd, img))
+        write(f"daily/{d}.html", daily_page(shell, dd, img, L))
         n_dy += 1
         made += 1
     if days:
@@ -545,6 +607,7 @@ def main():
     order = sorted(merged.values(),
                    key=lambda r: str(r.get("dt") or r.get("close") or ""), reverse=True)
     n_no = 0
+    baked = []
     for r in order:
         if n_no >= N_NOTICE:
             break
@@ -552,11 +615,23 @@ def main():
         if not no:
             continue
         img = og.notice(r) if n_no < OG_NOTICE else None
-        write(f"notice/{no}.html", notice_page(shell, r, img))
+        write(f"notice/{no}.html", notice_page(shell, r, img, L))
+        baked.append(r)
         n_no += 1
         made += 1
     if not order:
         print("  · data/store 가 없어 공고 페이지는 건너뜁니다 (collect.py 를 한 번 돌리면 생깁니다)")
+
+    # 새로 생긴 주소만 다음 회차에 알립니다 (같은 주소를 하루에도 몇 번씩 찌르면 스팸입니다).
+    try:
+        _st = indexnow._load()
+        fresh, mark = indexnow.new_since(baked, _st.get("mark"))
+        paths = [f"/daily/{d}" for d, _ in days[:2]]
+        paths += [f"/notice/{quote(str(r.get('no')), safe='')}" for r in fresh]
+        n_q = indexnow.queue(paths, mark=mark)
+        print(f"  · IndexNow 다음 회차에 알릴 주소 {n_q:,}개 (새 개찰 {len(fresh):,}건)")
+    except Exception as e:
+        print(f"  · IndexNow 목록 만들기 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
 
     print(f"  · 공고·개찰 페이지 {n_no:,}개 (저장소 {len(merged):,}건 중)")
     print(f"  · 개찰 성적표 {n_dy:,}일치 (/daily/)")

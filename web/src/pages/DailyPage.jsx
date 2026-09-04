@@ -112,10 +112,12 @@ export default function DailyPage() {
       {(dd.multi || []).length > 0 && (
         <div className="card">
           <div className="sec-title" style={{ margin: '0 0 6px' }}>🥇 그날 두 건 이상 가져간 곳</div>
-          {dd.multi.map(([w, c]) => (
+          {/* ⚠️ 세 번째 칸(u)은 «미리 구운 업체 페이지 주소» 입니다. prerender 가 판정해 넣습니다 —
+              구운 것이 아니면 링크를 걸지 않습니다(크롤러가 빈 페이지를 보지 않게). */}
+          {dd.multi.map(([w, c, u]) => (
             <div className="row" key={w}>
               <div className="grow">
-                <a className="t" href={`/corp/${encodeURIComponent(w)}`}>{w}</a>
+                {u ? <a className="t" href={u}>{w}</a> : <div className="t">{w}</div>}
               </div>
               <span className="r">{c}건</span>
             </div>
