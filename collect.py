@@ -191,6 +191,8 @@ def fetch(url, key, day=None, extra=None, label="", why=None):
     except Exception as e:
         NET_FAILS += 1
         print(f"    ! {tag} 통신 실패 ({type(e).__name__})")
+        if why is not None:
+            why.update({"net": type(e).__name__})
         if NET_FAILS >= NET_LIMIT:
             NET_DOWN = True
             print(f"    ⛔ 조달청 통신이 {NET_LIMIT}번 연달아 실패했습니다. "
@@ -343,6 +345,96 @@ def extra_amounts(item):
     if g > 0:
         out["gmtrl"] = g
     return out
+
+
+# ─────────────────────────────────────────────────────────────
+#  누락 방지 두 가지 — 2026-09-04 (소장님: 「누락이 있으면 절대 안돼」)
+#
+#  ① 쪽 넘기기
+#     목록을 «1쪽(999건)» 만 받고 있었습니다. 하루 1,000건이 넘으면 나머지가
+#     **에러 없이** 사라집니다. 실측으로는 하루 최다 개찰 575건 · 공고 502건이라
+#     아직 잘린 적은 없지만, 공고가 몰리는 시기에는 넘을 수 있고 넘어도 아무도 모릅니다.
+#     → 999건이 꽉 차서 오면 다음 쪽을 이어 받습니다. 999건 미만이면 호출은 그대로 1번입니다.
+#
+#  ② 받은 날짜 적어 두기
+#     매 회차가 «최근 3일» 만 훑습니다. 조달청이 3일 넘게 먹통이면 그 날짜가
+#     창 밖으로 밀려나 영영 안 들어옵니다. 받은 날을 적어 두고,
+#     빠진 날이 있으면 다음 회차가 그날을 다시 훑습니다.
+#     ⚠️ 한 회차에 덧붙이는 «빠진 날» 은 BACK_MAX 개로 막습니다 —
+#        기록이 통째로 날아갔을 때 조달청을 한꺼번에 두드리지 않기 위해서입니다.
+# ─────────────────────────────────────────────────────────────
+
+PAGE_ROWS = 999          # 조달청 한 쪽 최대
+PAGE_CAP = 8             # 하루 최대 8쪽(7,992건). 여기까지 차면 진단(diag)에 남깁니다
+DAYS_LOG = os.path.join(STORE, "days.json")
+BACK_DAYS = 14           # 빠진 날을 얼마나 거슬러 올라가 찾을지
+BACK_MAX = 4             # 한 회차에 덧붙일 «빠진 날» 최대 개수
+
+
+def fetch_paged(url, key, day, extra=None, label=""):
+    """999건이 꽉 차서 오면 다음 쪽을 이어 받습니다.
+
+    돌려주는 것: (줄들, 실패이유). 실패이유가 비어 있으면 «제대로 받았다» 는 뜻입니다.
+    이 값으로 «그날을 받았다» 를 기록하므로, 빈 날(주말)과 실패한 날이 구별됩니다.
+    """
+    if NET_DOWN:
+        return [], {"net": "down"}
+    out, why = [], {}
+    for pg in range(1, PAGE_CAP + 1):
+        ex = dict(extra or {})
+        ex["pageNo"] = str(pg)
+        w = {}
+        got = fetch(url, key, day, ex,
+                    label=(f"{label} {pg}쪽" if pg > 1 else label), why=w)
+        if w:
+            why = w
+            break
+        out.extend(got)
+        if len(got) < PAGE_ROWS:
+            break
+        print(f"    · {label} {pg}쪽이 가득 찼습니다 — 다음 쪽을 이어 받습니다")
+    else:
+        msg = f"{label}: {PAGE_CAP}쪽({PAGE_CAP * PAGE_ROWS:,}건)을 다 채웠습니다 — 더 있을 수 있습니다"
+        print(f"    ⚠️ {msg}")
+        DIAG.setdefault("_page_cap", []).append(msg)
+    return out, why
+
+
+def load_days():
+    try:
+        with io.open(DAYS_LOG, encoding="utf-8") as f:
+            v = json.load(f)
+        return v if isinstance(v, dict) else {}
+    except Exception:
+        return {}
+
+
+def save_days(v):
+    try:
+        if len(v) > 120:                      # 넉 달치만 둡니다
+            for k in sorted(v)[:len(v) - 120]:
+                v.pop(k, None)
+        os.makedirs(STORE, exist_ok=True)
+        with io.open(DAYS_LOG, "w", encoding="utf-8") as f:
+            json.dump(v, f, ensure_ascii=False)
+    except Exception as e:
+        print(f"    ! 받은 날짜 기록 실패 ({type(e).__name__})")
+
+
+def days_to_scan(today, days):
+    """이번 회차에 훑을 날짜. 기본 창(최근 days일) + 기록에 빠져 있는 날."""
+    base = [today - timedelta(days=i) for i in range(days - 1, -1, -1)]
+    have = load_days()
+    miss = []
+    for i in range(days, BACK_DAYS + 1):
+        d = today - timedelta(days=i)
+        if d.weekday() >= 5:                  # 토·일은 개찰이 없습니다
+            continue
+        rec = have.get(d.strftime("%Y-%m-%d"))
+        if not (isinstance(rec, dict) and rec.get("ok")):
+            miss.append(d)
+    miss.sort()                               # 오래된 날부터 — 기본 창과 같은 순서
+    return miss[:BACK_MAX] + base
 
 
 def scsbid_by_day(key, day, kind):
@@ -1246,12 +1338,21 @@ def main():
     n_lic = 0
     n_aval = 0
     n_win = 0
-    for i in range(days - 1, -1, -1):
-        day = today - timedelta(days=i)
+    scan = days_to_scan(today, days)
+    _extra = len(scan) - days
+    if _extra > 0:
+        print("  · 기록에 빠져 있는 날을 다시 훑습니다: "
+              + ", ".join(d.strftime("%m-%d") for d in scan[:_extra]))
+    daylog = load_days()
+    for day in scan:
         ds = day.strftime("%m-%d")
+        day_ok = True
         for kind in KINDS:
-            for item in fetch(ENDPOINTS[("first", kind)], key, day,
-                              label=f"개찰 {kind} {ds}"):
+            _rows, _why = fetch_paged(ENDPOINTS[("first", kind)], key, day,
+                                      label=f"개찰 {kind} {ds}")
+            if _why:
+                day_ok = False
+            for item in _rows:
                 r = row_first(item)
                 if r:
                     prev = first[kind].get(r["no"]) or {}
@@ -1275,8 +1376,11 @@ def main():
                     first[kind][r["no"]] = r
                     added["first"] += 1
             time.sleep(args.sleep)
-            for item in fetch(ENDPOINTS[("live", kind)], key, day,
-                              label=f"공고 {kind} {ds}"):
+            _rows, _why = fetch_paged(ENDPOINTS[("live", kind)], key, day,
+                                      label=f"공고 {kind} {ds}")
+            if _why:
+                day_ok = False
+            for item in _rows:
                 r = row_live(item)
                 if r:
                     prev = live[kind].get(r["no"]) or {}
@@ -1350,6 +1454,14 @@ def main():
             save_store("live", live)
         except Exception as e:
             print(f"    ! 중간 저장 실패 ({type(e).__name__}) — 계속합니다")
+
+        # 이 날짜를 «받았다» 고 적어 둡니다. 실패한 날은 적지 않으므로
+        # 다음 회차가 «빠진 날» 로 보고 다시 훑습니다.
+        daylog[day.strftime("%Y-%m-%d")] = {
+            "ok": bool(day_ok),
+            "at": datetime.now(KST).strftime("%Y-%m-%d %H:%M"),
+        }
+        save_days(daylog)
 
     # ── 화면에 실릴 최근 건 중 기초금액이 빈 것만 공고번호로 개별 보충 ──
     todo = []
