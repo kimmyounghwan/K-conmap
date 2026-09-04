@@ -190,6 +190,23 @@ class OgMaker:
             return None
         return self._card(f"og/tab/{slug}.png", title, sub, big, "green", foot)
 
+    def daily(self, dd):
+        """날짜별 개찰 성적표 카드 — 매일 한 장 생기는 «퍼갈 거리» 입니다."""
+        if not self.available:
+            return None
+        nu = self.fmt["num"]
+        r, np_ = dd.get("r") or {}, dd.get("np") or {}
+        med = f"{r['med']:.3f}%" if r.get("med") is not None else None
+        foot = " · ".join(x for x in (
+            (f"참가 중앙 {nu(np_.get('med'))}곳" if np_.get("med") else ""),
+            (f"100곳 넘은 공고 {nu(dd['hot'])}건" if dd.get("hot") else ""),
+            (f"참가 1곳 {nu(dd['solo'])}건" if dd.get("solo") else "")) if x)
+        return self._card(f"og/daily/{dd['d']}.png",
+                          f"{dd['d'].replace('-', '.')} 개찰 성적표",
+                          f"조달청 나라장터 공사 개찰 {nu(dd['n'])}건",
+                          med or f"{nu(dd['n'])}건", "green",
+                          foot or "낙찰률·경쟁·금액을 한 장으로", "어제의 개찰")
+
     def notice(self, r):
         if not self.available:
             return None

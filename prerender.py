@@ -41,6 +41,7 @@ import sys
 from urllib.parse import quote
 
 from ogcard import OgMaker
+import daily as dailymod
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DIST = os.path.join(ROOT, "web", "dist")
@@ -56,6 +57,7 @@ N_CORP = int(os.environ.get("PRERENDER_CORP", "3000"))
 # ⚠️ 배포 1벌이 그만큼 무거워집니다(장당 4~5KB). Firebase «출시 저장용량»(보관 10개)을
 #    확인하면서 올릴 것. 8,000장이면 약 +35MB 입니다.
 N_NOTICE = int(os.environ.get("PRERENDER_NOTICE", "8000"))
+N_DAILY = int(os.environ.get("PRERENDER_DAILY", "45"))    # 「어제의 개찰 성적표」 며칠치
 
 # ── 카톡·네이버 미리보기 그림 (og:image) ───────────────────────────
 # 장당 16ms 라 «몇 장을 굽느냐» 가 그대로 배포 시간이 됩니다 (하루 21번 돕니다).
@@ -363,6 +365,89 @@ def notice_page(shell, r, image=None):
                   '<script type="application/json" id="ndata">' + data + "</script>\n  </body>", 1)
     return h
 
+# ── 「어제의 개찰 성적표」 ────────────────────────────────────────
+def _dtable(title, note, rows, cols):
+    """rows = daily.py 의 _row() 배열. cols 는 (이름표, 뽑는 함수) 목록."""
+    if not rows:
+        return ""
+    out = [f'<div class="card"><div class="sec-title" style="margin:0 0 6px">{esc(title)}</div>']
+    if note:
+        out.append(f'<div class="note sm" style="margin:0 0 8px">{esc(note)}</div>')
+    for a in rows:
+        no, nm, inst = a[0], a[1], a[2]
+        right = " · ".join(x for x in (f(a) for _, f in cols) if x)
+        out.append(
+            f'<div class="row"><div class="grow">'
+            f'<a class="t" href="/notice/{quote(str(no), safe="")}">{esc(nm)}</a>'
+            f'<div class="d">{esc(inst)}</div></div>'
+            f'<span class="r">{esc(right)}</span></div>')
+    out.append("</div>")
+    return "".join(out)
+
+
+def daily_page(shell, dd, image=None):
+    d = dd["d"]
+    ymd = d.replace("-", ".")
+    r, np_ = dd.get("r") or {}, dd.get("np") or {}
+    med = f"{r['med']:.3f}%" if r.get("med") is not None else ""
+    title = (f"{ymd} 개찰 결과 — 공사 {num(dd['n'])}건"
+             + (f" · 낙찰률 중앙 {med}" if med else "") + " | K-건설맵")
+    desc = (f"{ymd} 조달청 나라장터 공사 개찰 {num(dd['n'])}건 요약."
+            + (f" 낙찰률 중앙 {med}" if med else "")
+            + (f", 참가업체수 중앙 {num(np_.get('med'))}곳" if np_.get("med") else "")
+            + f". 가장 치열했던 공고, 참가 1곳 공고, 금액이 큰 공고를 무료로 봅니다.")
+
+    head = [f'<h1 style="font-size:18px;font-weight:800;margin:0">{esc(ymd)} 개찰 성적표</h1>',
+            f'<div style="font-size:12.5px;color:var(--muted);margin-top:4px">'
+            f'공사 {num(dd["n"])}건'
+            + (f" · 낙찰률 중앙 {med}" if med else "")
+            + (f" · 참가 중앙 {num(np_.get('med'))}곳" if np_.get("med") else "")
+            + "</div>"]
+    body = '<div class="card">' + "".join(head) + "</div>"
+    body += rows_html("📊 그날 한눈에", [
+        ("개찰 건수", f"{num(dd['n'])}건"),
+        ("낙찰률 중앙", med or None),
+        ("가장 낮게 / 높게", (f"{r['min']:.3f}% / {r['max']:.3f}%" if r.get("min") is not None else None)),
+        ("참가업체수 중앙 / 최다", (f"{num(np_.get('med'))}곳 / {num(np_.get('max'))}곳" if np_.get("med") else None)),
+        ("100곳 넘게 붙은 공고", (f"{num(dd['hot'])}건" if dd.get("hot") else None)),
+        ("참가 1곳 공고", (f"{num(dd['solo'])}건" if dd.get("solo") else None)),
+        ("낙찰금액 합계", won_short(dd.get("sum")) if dd.get("sum") else None),
+    ])
+    body += _dtable("🔥 가장 치열했던 공고", "참가업체수가 많을수록 1순위는 낙찰하한에 바짝 붙습니다.",
+                    dd.get("byNp"), [("np", lambda a: f"{num(a[3])}곳" if a[3] else ""),
+                                     ("rate", lambda a: f"{a[4]:.3f}%" if a[4] is not None else "")])
+    body += _dtable("💰 금액이 큰 공고", None, dd.get("byAmt"),
+                    [("amt", lambda a: won_short(a[6]) or ""),
+                     ("rate", lambda a: f"{a[4]:.3f}%" if a[4] is not None else "")])
+    body += _dtable("🌲 참가 1곳 — 아무도 안 붙은 자리",
+                    "참가 자격(면허·지역)이 좁게 묶인 공고가 대부분입니다. 경쟁이 없으면 하한까지 내릴 이유가 없어 투찰률이 높게 나옵니다.",
+                    dd.get("solos"), [("rate", lambda a: f"{a[4]:.3f}%" if a[4] is not None else "")])
+    if dd.get("multi"):
+        body += rows_html("🥇 그날 두 건 이상 가져간 곳",
+                          [(w, f"{c}건") for w, c in dd["multi"]])
+
+    h = page(shell, f"/daily/{d}", title, desc, body, image)
+    data = json.dumps(dd, ensure_ascii=False).replace("</", "<\\/")
+    return h.replace("</body>",
+                     '<script type="application/json" id="ddata">' + data + "</script>\n  </body>", 1)
+
+
+def daily_index(shell, days, image=None):
+    title = "날짜별 개찰 성적표 — 매일 갱신 | K-건설맵"
+    desc = "조달청 나라장터 공사 개찰을 날짜별로 한 장씩 정리합니다. 그날 낙찰률, 가장 치열했던 공고, 참가 1곳 공고를 무료로 봅니다."
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">날짜별 개찰 성적표</h1>'
+           '<div style="font-size:12.5px;color:var(--muted);margin-top:4px">하루 한 장 · 개찰이 올라오는 대로 갱신됩니다</div></div>'
+           '<div class="card">']
+    for d, n in days:
+        out.append(f'<div class="row"><div class="grow"><a class="t" href="/daily/{d}">{esc(d.replace("-", "."))}</a></div>'
+                   f'<span class="r">{esc(num(n))}건</span></div>')
+    out.append("</div>")
+    h = page(shell, "/daily", title, desc, "".join(out), image)
+    data = json.dumps([[d, n] for d, n in days], ensure_ascii=False)
+    return h.replace("</body>",
+                     '<script type="application/json" id="dlist">' + data + "</script>\n  </body>", 1)
+
+
 # 탭 페이지 — 지금은 전부 홈과 같은 제목이라 색인에서 서로 잡아먹습니다
 TABS = [
     ("/first", "오늘의 1순위 개찰 결과 — 낙찰업체·투찰률 | K-건설맵",
@@ -432,9 +517,29 @@ def main():
                 write(f"corp/{k}.html", corp_page(shell, k, c, img))
                 made += 1
 
-    # ── 공고·개찰 ──
+    # ── 「어제의 개찰 성적표」 ── (공고 페이지보다 먼저: first 를 여기서 한 번 읽습니다)
     live = load_store("live")
     first = load_store("first")
+    n_dy = 0
+    days = []
+    for d in dailymod.dates_of(first, N_DAILY):
+        dd = dailymod.daily_data(first, d)
+        if not dd:
+            continue
+        days.append((d, dd["n"]))
+        img = og.daily(dd) if og.available else None
+        write(f"daily/{d}.html", daily_page(shell, dd, img))
+        n_dy += 1
+        made += 1
+    if days:
+        write("daily.html", daily_index(shell, days,
+                                        og.tab("daily", "날짜별 개찰 성적표",
+                                               "하루 한 장 · 개찰이 올라오는 대로",
+                                               f"{days[0][0].replace('-', '.')}",
+                                               f"가장 최근 개찰 {num(days[0][1])}건") if og.available else None))
+        made += 1
+
+    # ── 공고·개찰 ──
     merged = dict(live)
     merged.update(first)          # 개찰이 이겼습니다(결과가 더 풍부)
     order = sorted(merged.values(),
@@ -454,6 +559,7 @@ def main():
         print("  · data/store 가 없어 공고 페이지는 건너뜁니다 (collect.py 를 한 번 돌리면 생깁니다)")
 
     print(f"  · 공고·개찰 페이지 {n_no:,}개 (저장소 {len(merged):,}건 중)")
+    print(f"  · 개찰 성적표 {n_dy:,}일치 (/daily/)")
     print(f"  · 미리 구운 페이지 {made:,}개 (기관 {len(top[:N_AGENCY]):,} · 업체 {len(ctop[:N_CORP]):,} 대상)")
     if og.available:
         print(f"  · 카톡 미리보기 그림 {og.made:,}장 "

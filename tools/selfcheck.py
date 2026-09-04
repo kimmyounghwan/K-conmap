@@ -87,8 +87,12 @@ def notice(no, name, base, aval, ayn, lo, hi, llr, est, close):
     })
 
 
-def build_cases():
-    """(마감 전 공고, 개찰 공고, 기대값) 을 만듭니다."""
+def build_cases(p50=None):
+    """(마감 전 공고, 개찰 공고, 기대값) 을 만듭니다.
+
+    p50 을 주면 그 값으로 기대값을 냅니다 — 화면은 overview.json 의 sjq.p50 을 쓰므로,
+    dist 에 다른 값이 놓여 있으면 «코드는 멀쩡한데» 검사가 틀립니다."""
+    p50 = B.P50_DEFAULT if p50 is None else p50
     from datetime import datetime, timedelta
     now = datetime.now()
     fut = (now + timedelta(days=5)).strftime("%Y-%m-%d %H:%M:%S")
@@ -107,8 +111,8 @@ def build_cases():
         est = round(base / 1.1)
         idx.append(notice(no, nm, base, aval, ayn, lo, hi, llr, est, fut))
         a_known = (ayn == "N") or aval > 0
-        r = B.recommend(base, llr, aval if ayn != "N" else 0, a_known, lo=lo, hi=hi)
-        sh = B.shown(base, r["amt"])
+        r = B.recommend(base, llr, aval if ayn != "N" else 0, a_known, p50, lo=lo, hi=hi)
+        sh = B.shown(base, r["amt"], p50)
         want.append({"no": no, "kind": "live", "name": nm,
                      "amt": sh["amt"], "rate": sh["rate"], "sj": r["sj"],
                      "pctile": r["pctile"], "yeje": sh["yeje"],
@@ -148,7 +152,7 @@ def build_cases():
         low = math.ceil((yeje - a) * llr / 100 + a)
         win = low + win_off
         rate = round(win / yeje * 100, 3)
-        sc = B.score(base, a, (ayn == "N") or aval > 0, llr, win, rate, lo=lo, hi=hi)
+        sc = B.score(base, a, (ayn == "N") or aval > 0, llr, win, rate, p50, lo=lo, hi=hi)
         res[no] = _row(RES_F, {
             "win": "검사건설(주)", "amt": win, "rate": rate,
             "np": (ladder[-1][0] if ladder else 0), "base": base, "dt": past,
@@ -339,6 +343,32 @@ def check_bidindex():
 #  한쪽만 고치면 **검색이 엉뚱한 칸을 뒤집니다 — 에러 없이.**
 #  (기관을 검색했는데 낙찰업체를 뒤지는 식. 결과가 그럴듯해서 더 위험합니다)
 # ══════════════════════════════════════════════════════════════
+def check_daily():
+    """「어제의 개찰 성적표」 칸 대조 — daily.py 가 만드는 순서 vs DailyPage 가 읽는 순서.
+
+    자리를 아끼려고 표 한 줄을 배열로 담았습니다. 순서가 어긋나면
+    **에러 없이** 기관 자리에 낙찰업체가 그려집니다 — 그럴듯해서 아무도 못 알아챕니다.
+    """
+    import re
+    print("\n" + "=" * 64)
+    print("  성적표 칸 대조 — daily.py vs DailyPage.jsx")
+    print("=" * 64)
+    try:
+        d = io.open(os.path.join(ROOT, "daily.py"), encoding="utf-8").read()
+        made = re.findall(r'"(\w+)"', re.search(r'^FIELDS = \[([^\]]+)\]', d, re.M).group(1))
+        t = io.open(os.path.join(ROOT, "web", "src", "pages", "DailyPage.jsx"),
+                    encoding="utf-8").read()
+        read = re.findall(r"'(\w+)'", re.search(r'^const F = \[([^\]]+)\]', t, re.M).group(1))
+    except Exception as e:
+        print(f"(건너뜀 — 읽지 못했습니다: {type(e).__name__}: {e})")
+        return []
+    if made and made == read:
+        print(f"✅ {len(made)}칸 같음 — {', '.join(made)}")
+        return []
+    print(f"❌ 만드는 쪽 {made}\n         읽는 쪽 {read}")
+    return [f"성적표: {made} ≠ {read}"]
+
+
 def check_boardidx():
     import re
     print("\n" + "=" * 64)
@@ -382,14 +412,29 @@ def main():
     if args.build:
         print("▶ 빌드 중...")
         subprocess.run(["npm", "run", "build"], cwd=os.path.join(ROOT, "web"), check=True)
-    idx, res, want = build_cases()
+    # ⚠️ 화면은 overview.json 의 sjq.p50 을 쓰고, 검사기는 P50_DEFAULT 를 씁니다.
+    #    dist 에 놓인 overview.json 이 다르면 «코드는 멀쩡한데 검사가 틀렸다» 고 나옵니다
+    #    (2026-09-04 에 실제로 겪었습니다 — 99.893 vs 99.896, 금액이 12,282원 어긋났습니다).
+    #    그래서 dist 에 있는 값을 그대로 씁니다. 같은 값을 두 번 적지 않습니다.
+    p50 = B.P50_DEFAULT
+    _ov = os.path.join(DATA, "overview.json")
+    if os.path.exists(_ov):
+        try:
+            v = (json.load(open(_ov, encoding="utf-8")).get("sjq") or {}).get("p50")
+            if isinstance(v, (int, float)) and 95 < v < 105:
+                if abs(v - p50) > 1e-9:
+                    print(f"  · overview.json 의 sjq.p50 = {v} 를 씁니다 (기본값 {p50})")
+                p50 = v
+        except Exception:
+            pass
+    idx, res, want = build_cases(p50)
 
     # ── ① 계산 검사 (기본) — 브라우저 없이 node 로 바로 돕니다 ──────────
     cf = os.path.join(ROOT, "tools", "_cases.json")
     of = os.path.join(ROOT, "tools", "_math.json")
     cases = []
     for w in want:
-        c = {"no": w["no"], "p50": B.P50_DEFAULT}
+        c = {"no": w["no"], "p50": p50}
         c.update(w.get("input", {}))
         cases.append(c)
     json.dump(cases, open(cf, "w", encoding="utf-8"), ensure_ascii=False)
@@ -472,6 +517,11 @@ def main():
         print(f"\n⛔ 검색 색인 칸이 어긋납니다 — 검색이 엉뚱한 칸을 뒤집니다")
         return 1
 
+    dbad = check_daily()
+    if dbad:
+        print(f"\n⛔ 성적표 칸이 어긋납니다 — 기관 자리에 낙찰업체가 그려집니다")
+        return 1
+
     if not args.browser:
         print("   (화면까지 열어 보려면 --browser 를 붙이세요 · Playwright 필요)")
         return 0
@@ -481,7 +531,7 @@ def main():
         print("⛔ web/dist 가 없습니다. --build 를 붙이거나 먼저 빌드하세요.")
         return 2
 
-    idx, res, want = build_cases()
+    idx, res, want = build_cases(p50)
     saved = write_fixtures(idx, res)
     srv = subprocess.Popen([sys.executable, "-m", "http.server", str(PORT)],
                            cwd=DIST, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

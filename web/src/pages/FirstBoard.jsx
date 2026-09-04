@@ -98,6 +98,8 @@ export default function FirstBoard() {
             {/* 검색 중엔 색인이 «7주 전체»에서 센 건수입니다 — 화면에 20건만 보여도 정확합니다.
                 (전에는 받아 둔 것만 세어서 «500건 중 몇 건» 이 되곤 했습니다) */}
             결과 <span className="count">{num(count)}건{filtering && ' (7주 전체)'}</span>
+            {/* ★ 날짜별 성적표로 가는 길 — <a href> 여야 정적 HTML 의 ddata 가 옵니다 */}
+            <a className="daylink" href="/daily">📅 날짜별 성적표 →</a>
           </div>
 
           {view.map((r, i) => {

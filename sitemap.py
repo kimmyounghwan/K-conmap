@@ -27,7 +27,13 @@ MIN_CORP = 8                                             # 낙찰 8건 미만 �
 STATIC = [("/", "1.0", "hourly"), ("/first", "0.9", "hourly"), ("/live", "0.9", "hourly"),
           ("/calc", "0.8", "weekly"), ("/analysis", "0.8", "weekly"),
           ("/jobs", "0.7", "daily"), ("/about", "0.3", "monthly"),
-          ("/privacy", "0.2", "yearly"), ("/contact", "0.3", "yearly")]
+          ("/privacy", "0.2", "yearly"), ("/contact", "0.3", "yearly"),
+          ("/daily", "0.8", "daily")]
+
+# 「어제의 개찰 성적표」 — 날짜마다 한 장. 지나가면 안 변하므로 changefreq 는 monthly.
+# ⚠️ prerender.py 의 PRERENDER_DAILY 보다 크면 안 됩니다 — 안 구운 주소를 내면
+#    크롤러가 다시 빈 껍데기를 봅니다 (업체·공고에서 겪은 것과 같은 함정).
+DAILY = int(os.environ.get("SITEMAP_DAILY", "45"))
 
 
 def main():
@@ -82,6 +88,7 @@ def main():
     n_no = 0
     store = os.path.join(ROOT, "data", "store")
     rows = {}
+    fonly = {}          # 개찰만 — 「성적표」 날짜는 여기서만 셉니다
     for nm in ("live", "first"):
         p2 = os.path.join(store, f"{nm}.json")
         if os.path.exists(p2):
@@ -90,6 +97,8 @@ def main():
                     for v in json.load(f).values():
                         if isinstance(v, dict):
                             rows.update(v)
+                            if nm == "first":
+                                fonly.update(v)
             except Exception as e:
                 print(f"  ⚠️  store/{nm}.json 읽기 실패 ({type(e).__name__})")
     for r in sorted(rows.values(), key=lambda r: str(r.get("dt") or r.get("close") or ""),
@@ -107,6 +116,20 @@ def main():
     if not rows:
         print("  ⚠️  data/store 가 없어 공고 주소는 넣지 않았습니다")
 
+    # ── 날짜별 개찰 성적표 ──
+    # ⚠️ prerender.py 는 «개찰(first)» 의 날짜만 굽습니다. 여기서 live 까지 세면
+    #    안 구운 주소를 사이트맵에 내게 됩니다 — 크롤러가 다시 빈 껍데기를 봅니다.
+    seen = {}
+    for r in fonly.values():
+        d = str(r.get("dt") or "")[:10]
+        if len(d) == 10 and d[4] == "-":
+            seen[d] = seen.get(d, 0) + 1
+    n_dy = 0
+    for d in sorted(seen, reverse=True)[:DAILY]:
+        urls.append(f"  <url><loc>{SITE}/daily/{d}</loc><lastmod>{today}</lastmod>"
+                    f"<changefreq>monthly</changefreq><priority>0.6</priority></url>")
+        n_dy += 1
+
     xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
            + "\n".join(urls) + "\n</urlset>\n")
@@ -114,7 +137,8 @@ def main():
     p = os.path.join(OUT, "sitemap.xml")
     with open(p, "w", encoding="utf-8") as f:
         f.write(xml)
-    print(f"  ✅ sitemap.xml — 고정 {len(STATIC)} + 기관 {n_ag} + 업체 {n_co} + 공고 {n_no} = {len(urls)}개")
+    print(f"  ✅ sitemap.xml — 고정 {len(STATIC)} + 기관 {n_ag} + 업체 {n_co}"
+          f" + 공고 {n_no} + 성적표 {n_dy} = {len(urls)}개")
     print(f"     {p}")
 
 
