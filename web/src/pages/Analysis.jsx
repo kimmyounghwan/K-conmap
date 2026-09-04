@@ -1,10 +1,8 @@
 import { SpotBlock, OpenNotices, corpMatch } from '../Spot.jsx'
-import { getOverview } from '../lib/data.js'
 import { useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { getAgency, searchCorp, getCorp } from '../lib/data.js'
-import AgencyReport from '../AgencyReport.jsx'
-import { AgencyPicker, Bars, Months, Tile, Empty, Skeleton } from '../components.jsx'
+import { useSearchParams, useNavigate } from 'react-router-dom'
+import { searchCorp } from '../lib/data.js'
+import { AgencyPicker, Bars, Months, Tile, Empty } from '../components.jsx'
 import { wonShort, pct, num, dateFull, normCorp } from '../lib/fmt.js'
 
 export default function Analysis() {
@@ -27,27 +25,25 @@ export default function Analysis() {
 }
 
 /* ── 발주기관 ─────────────────────────── */
+/* ★ 2026-09-04 — 고르면 «전용 주소»로 갑니다 (/agency/{기관}).
+   전에는 이 탭 안에서 화면만 바뀌고 주소는 /analysis 그대로였습니다.
+   그래서 그 화면을 카톡으로 보낼 수가 없었습니다 — 받은 사람은 빈 검색창만 봤습니다.
+   이제 주소가 바뀌므로 복사·공유·즐겨찾기·뒤로가기가 전부 제대로 됩니다.
+   화면을 두 벌로 그리지 않습니다 — 결과는 전용 페이지 한 곳에서만 그립니다. */
 function AgencyTab() {
   const [name, setName] = useState('')
-  const [a, setA] = useState(null)
-  const [loading, setLoading] = useState(false)
-
-  const pick = async ({ name: n, chunk }) => {
-    setName(n); setLoading(true); setA(null)
-    setA(await getAgency(n, chunk)); setLoading(false)
-  }
+  const navigate = useNavigate()
 
   return (
     <>
-      <div className="card"><AgencyPicker value={name} onPick={pick} autoFocus /></div>
-      {loading && <Skeleton n={3} />}
-      {!loading && !a && (
-        <Empty icon="🏛️">
-          발주기관을 검색해보세요.<br />
-          투찰률 히트맵 · 독식 업체 · 발주 시기 · 금액대를 한 번에 봅니다.
-        </Empty>
-      )}
-      {a && <AgencyReport name={name} a={a} />}
+      <div className="card">
+        <AgencyPicker value={name} autoFocus
+          onPick={({ name: n }) => { setName(n); navigate('/agency/' + encodeURIComponent(n)) }} />
+      </div>
+      <Empty icon="🏛️">
+        발주기관을 검색해보세요.<br />
+        투찰률 히트맵 · 독식 업체 · 발주 시기 · 금액대를 한 번에 봅니다.
+      </Empty>
     </>
   )
 }
@@ -55,13 +51,10 @@ function AgencyTab() {
 /* ── 업체 자가진단 ────────────────────── */
 function CorpTab() {
   const [q, setQ] = useState('')
-  const [ov, setOv] = useState(null)
-  useEffect(() => { getOverview().then(setOv).catch(() => {}) }, [])
   const [list, setList] = useState([])
   const [open, setOpen] = useState(false)
-  const [c, setC] = useState(null)
-  const [loading, setLoading] = useState(false)
   const timer = useRef(null)
+  const navigate = useNavigate()
 
   useEffect(() => {
     clearTimeout(timer.current)
@@ -73,10 +66,15 @@ function CorpTab() {
     return () => clearTimeout(timer.current)
   }, [q])
 
-  const pick = async (item) => {
-    setOpen(false); setLoading(true); setC(null)
-    const d = await getCorp(item.key, item.chunk)
-    setC(d); setLoading(false)
+  /* ★ 고르면 «전용 주소»로 갑니다 (/corp/{업체}).
+     ⚠️ 사업자번호로 갈라 놓은 키(«이름#번호»)는 주소에 넣지 않습니다 —
+        남의 사업자번호가 URL 과 검색결과에 남습니다. 그 갈래는 화면 안에서만
+        고르도록 라우터 state 로 넘깁니다(주소에는 안 남습니다). */
+  const pick = (item) => {
+    setOpen(false)
+    const base = String(item.key).split('#')[0]
+    navigate('/corp/' + encodeURIComponent(base),
+             item.key.includes('#') ? { state: { firm: item.key } } : undefined)
   }
 
 
@@ -109,15 +107,10 @@ function CorpTab() {
         </div>
       </div>
 
-      {loading && <Skeleton n={3} />}
-      {!loading && !c && (
-        <Empty icon="🏢">
-          내 회사 이름을 넣어보세요.<br />
-          어느 지역 · 어느 기관에서 강한지, 평균 투찰률이 얼마인지 보여드립니다.
-        </Empty>
-      )}
-
-      {c && <CorpReport c={c} ov={ov} onPickFirm={(k) => pick({ key: k })} />}
+      <Empty icon="🏢">
+        내 회사 이름을 넣어보세요.<br />
+        어느 지역 · 어느 기관에서 강한지, 평균 투찰률이 얼마인지 보여드립니다.
+      </Empty>
     </>
   )
 }

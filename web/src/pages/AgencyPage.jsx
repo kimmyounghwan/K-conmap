@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { getAgency } from '../lib/data.js'
 import AgencyReport from '../AgencyReport.jsx'
 import { Skeleton, Empty } from '../components.jsx'
+import { ShareBtn } from './CorpPage.jsx'
 import { pct, num } from '../lib/fmt.js'
 
 /**
@@ -52,8 +53,9 @@ export default function AgencyPage() {
 
   return (
     <>
-      <div style={{ paddingTop: 14 }}>
-        <Link to="/analysis" className="btn ghost sm" style={{ marginBottom: 10 }}>← 분석으로</Link>
+      <div className="btn-row" style={{ paddingTop: 14, marginBottom: 10 }}>
+        <Link to="/analysis" className="btn ghost sm">← 다른 기관 찾기</Link>
+        <ShareBtn />
       </div>
       <AgencyReport name={decoded} a={a} />
       <div className="btn-row" style={{ marginTop: 10 }}>

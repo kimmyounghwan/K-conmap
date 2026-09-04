@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useLocation } from 'react-router-dom'
 import { getCorp, getOverview } from '../lib/data.js'
 import { CorpReport } from './Analysis.jsx'
 import { Skeleton, Empty } from '../components.jsx'
@@ -20,18 +20,24 @@ import { pct, num } from '../lib/fmt.js'
  */
 export default function CorpPage() {
   const { name } = useParams()
+  const loc = useLocation()
   const decoded = decodeURIComponent(name || '')
+  /* 같은 이름의 법인이 여럿일 때 «이 법인만 보기» 로 좁혀 보는 갈래.
+     주소에는 넣지 않습니다(사업자번호 노출). 분석 탭에서 넘어올 때는 라우터 state 로 옵니다. */
+  const [firm, setFirm] = useState(loc.state?.firm || null)
+  const key = firm || decoded
   const [c, setC] = useState(undefined)
   const [ov, setOv] = useState(null)
 
   useEffect(() => { getOverview().then(setOv).catch(() => {}) }, [])
+  useEffect(() => { setFirm(loc.state?.firm || null) }, [decoded])   // 다른 업체로 가면 초기화
 
   useEffect(() => {
     let alive = true
     setC(undefined)
-    getCorp(decoded).then((v) => { if (alive) setC(v) }).catch(() => { if (alive) setC(null) })
+    getCorp(key).then((v) => { if (alive) setC(v) }).catch(() => { if (alive) setC(null) })
     return () => { alive = false }
-  }, [decoded])
+  }, [key])
 
   /* 메타태그 — 주소마다 제목·설명이 달라야 색인이 붙습니다.
      빌드할 때 prerender.py 가 같은 문구를 정적 HTML 에도 박아 둡니다
@@ -70,10 +76,19 @@ export default function CorpPage() {
 
   return (
     <>
-      <div style={{ paddingTop: 14 }}>
-        <Link to="/analysis?m=corp" className="btn ghost sm" style={{ marginBottom: 10 }}>← 다른 업체 찾기</Link>
+      <div className="btn-row" style={{ paddingTop: 14, marginBottom: 10 }}>
+        <Link to="/analysis?m=corp" className="btn ghost sm">← 다른 업체 찾기</Link>
+        <ShareBtn />
       </div>
-      <CorpReport c={c} ov={ov} />
+      {firm && (
+        <div className="note" style={{ marginBottom: 10 }}>
+          이 법인 하나만 보고 있습니다 ·{' '}
+          <a onClick={() => setFirm(null)} style={{ color: 'var(--accent)', cursor: 'pointer', fontWeight: 700 }}>
+            같은 이름 전체 보기 →
+          </a>
+        </div>
+      )}
+      <CorpReport c={c} ov={ov} onPickFirm={(k) => setFirm(k)} />
       <div className="btn-row" style={{ marginTop: 10 }}>
         <Link className="btn" to="/calc" style={{ flex: 1 }}>💰 바로투찰 열기 →</Link>
       </div>
@@ -82,6 +97,22 @@ export default function CorpPage() {
         투찰했지만 떨어진 건은 집계되지 않습니다.
       </div>
     </>
+  )
+}
+
+/* 「주소 복사」 — 이 화면을 카톡으로 보낼 수 있게 하는 버튼.
+   주소가 페이지마다 다르므로 받는 사람이 바로 그 업체 화면을 봅니다. */
+export function ShareBtn() {
+  const [done, setDone] = useState(false)
+  return (
+    <button className="btn ghost sm"
+      onClick={() => {
+        const u = decodeURIComponent(location.href)
+        navigator.clipboard?.writeText(u).then(() => { setDone(true); setTimeout(() => setDone(false), 1600) })
+          .catch(() => { setDone(false) })
+      }}>
+      {done ? '✓ 복사했습니다' : '🔗 주소 복사'}
+    </button>
   )
 }
 
