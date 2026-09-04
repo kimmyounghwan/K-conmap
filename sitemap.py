@@ -8,6 +8,7 @@ sitemap.py — 검색엔진에 넘길 주소 목록을 만든다.
   그래서 처음에는 데이터가 많은 기관 위주로 LIMIT 개만 싣고,
   색인이 붙는 것을 보면서 LIMIT 을 천천히 올리는 방식을 씁니다.
 """
+import io
 import os
 import json
 from datetime import datetime
@@ -17,7 +18,32 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(ROOT, "web", "public")
 DATA = os.path.join(OUT, "data")
 
-SITE = os.environ.get("SITE_URL", "https://k-conmap.web.app").rstrip("/")
+# ⚠️ 2026-09-04 — 여기가 **k-conmap.web.app** 이었습니다. 사이트맵은 k-conmap.com 에
+#   올라가는데 안의 주소는 web.app 이라, 구글이 «이 위치의 Sitemap 에 쓸 수 없는 URL»
+#   이라며 **1,146개를 전부 거부**했습니다(서치콘솔 실측). 사이트맵이 처음부터 한 건도
+#   일을 안 하고 있었던 것입니다. 사이트맵 안의 주소는 사이트맵이 놓인 호스트와 같아야 합니다.
+#   canonical·og:url(prerender.py)·robots.txt 는 처음부터 k-conmap.com 이었는데
+#   **여기 한 줄만** 달랐습니다.
+#   → 이제 **robots.txt 의 «Sitemap:» 줄**을 대표 주소의 «한 벌»로 삼습니다.
+#     사이트맵을 알리는 자리와 사이트맵 안의 주소가 어긋날 수 없게 됩니다.
+def _site_from_robots():
+    try:
+        with io.open(os.path.join(OUT, "robots.txt"), encoding="utf-8") as f:
+            for line in f:
+                if line.lower().startswith("sitemap:"):
+                    u = line.split(":", 1)[1].strip()
+                    return u.rsplit("/", 1)[0]
+    except Exception:
+        pass
+    return ""
+
+
+_ROBOTS = _site_from_robots()
+SITE = (os.environ.get("SITE_URL") or _ROBOTS or "https://k-conmap.com").rstrip("/")
+if _ROBOTS and SITE != _ROBOTS:
+    print(f"  ⚠️ 사이트맵 주소({SITE})가 robots.txt 가 알리는 주소({_ROBOTS})와 다릅니다 "
+          f"— robots.txt 쪽으로 맞춥니다")
+    SITE = _ROBOTS
 LIMIT = int(os.environ.get("SITEMAP_AGENCIES", "800"))   # 색인 상황 보며 올릴 것
 CORP = int(os.environ.get("SITEMAP_CORPS", "300"))       # 업체도 천천히 — 처음엔 300곳만
 NOTICE = int(os.environ.get("SITEMAP_NOTICES", "500"))   # 공고·개찰. 매일 570건씩 느니 천천히
@@ -133,6 +159,14 @@ def main():
     xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
            + "\n".join(urls) + "\n</urlset>\n")
+
+    # ⚠️ 마지막 관문 — 주소가 하나라도 대표 호스트를 벗어나면 **쓰지 않고 멈춥니다.**
+    #   2026-09-04 에 web.app 주소가 실려 나가 구글이 1,146개를 전부 거부했는데,
+    #   «조용히» 거부돼서 서치콘솔을 열어 보기 전까지 아무도 몰랐습니다.
+    bad = [u for u in urls if f"<loc>{SITE}/" not in u and f"<loc>{SITE}<" not in u]
+    if bad:
+        raise SystemExit(f"  ⛔ 사이트맵에 대표 주소({SITE}) 밖의 주소가 {len(bad)}개 "
+                         f"있습니다 — 쓰지 않고 멈춥니다.\n     예: {bad[0].strip()[:120]}")
 
     p = os.path.join(OUT, "sitemap.xml")
     with open(p, "w", encoding="utf-8") as f:
