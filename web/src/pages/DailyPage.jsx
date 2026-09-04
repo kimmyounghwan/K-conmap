@@ -222,11 +222,15 @@ export function DailyIndex() {
         </div>
       </div>
       <div className="card">
+        {/* ⚠️ 줄 «전체»를 링크로 둡니다. 전에는 날짜 글자(70px)만 눌렸습니다 —
+            줄 너비가 1,123px 였으니 6%만 누를 수 있었습니다 (2026-09-04 실측).
+            <a href> 여야 합니다(<Link> 아님) — 정적 HTML 을 받아야 그 안의 ddata 로 그려집니다. */}
         {days.map(([d, n]) => (
-          <div className="row" key={d}>
-            <div className="grow"><a className="t" href={`/daily/${d}`}>{d.replace(/-/g, '.')}</a></div>
+          <a className="row rowlink" href={`/daily/${d}`} key={d}>
+            <div className="grow"><div className="t">{d.replace(/-/g, '.')} 개찰 성적표</div></div>
             <span className="r">{num(n)}건</span>
-          </div>
+            <span className="go">→</span>
+          </a>
         ))}
       </div>
     </>

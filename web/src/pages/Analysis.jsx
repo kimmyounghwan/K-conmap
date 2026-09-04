@@ -258,6 +258,15 @@ function RankHistory({ c, ov }) {
   const better = baroKnown.filter((r) => r[7][0] > 0 && r[7][0] < r[3]).length
   const worse = baroKnown.filter((r) => (r[7][0] > r[3] && r[7][0] > 0) || r[7][0] === -1 || r[7][0] === 0).length
   const med = ranks.length ? [...ranks].sort((a, b) => a - b)[Math.floor(ranks.length / 2)] : null
+  /* ⚠️ 「바로투찰이었다면 0건 1순위」 는 맞는 값인데 **쓸모가 없었습니다** — 바로 위 「1순위 0건」과
+     똑같은 0 을 두 번 보여주면서, 정작 중요한 «24위 → 2위» 는 아래 줄에 묻혀 있었습니다
+     (소장님: 「0건 1순위라고 나와」). 그래서 **등수 중앙**을 앞세웁니다.
+     30위 밖(-1)·실격(0)은 «더 나쁜 쪽»으로 정렬해야 중앙값이 낙관적으로 안 나옵니다. */
+  const baroVals = baroKnown
+    .map((r) => (r[7][0] === 0 ? 9999 : r[7][0] === -1 ? 999 : r[7][0]))
+    .sort((a, b) => a - b)
+  const bMedRaw = baroVals.length ? baroVals[Math.floor(baroVals.length / 2)] : null
+  const bMed = bMedRaw != null && bMedRaw > 0 && bMedRaw < 999 ? bMedRaw : null
 
   return (
     <div className="card rankhist">
@@ -278,8 +287,11 @@ function RankHistory({ c, ov }) {
             {med != null && <div className="t"><span className="k">등수 중앙</span><b>{num(med)}위</b><span className="s">30위 안에서</span></div>}
             {baroKnown.length > 0 && (
               <div className="t"><span className="k">바로투찰이었다면</span>
-                <b>{num(baroWin)}건 1순위</b>
-                <span className="s">{num(baroKnown.length)}건 계산 · 실격 {num(baroDq)}</span></div>
+                <b>{bMed != null ? `등수 중앙 ${num(bMed)}위` : `1순위 ${num(baroWin)}건`}</b>
+                <span className="s">
+                  {med != null && bMed != null ? `내 ${num(med)}위 · ` : ''}
+                  {num(baroKnown.length)}건 계산 · 1순위 {num(baroWin)} · 실격 {num(baroDq)}
+                </span></div>
             )}
           </div>
           {baroKnown.length > 0 && (

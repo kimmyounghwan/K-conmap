@@ -1975,3 +1975,18 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
   border: 1px solid var(--accent-line); background: var(--accent-soft); white-space: nowrap;
 }
 .daylink:hover { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+
+/* ── 목록 줄 안의 링크 ─────────────────────────────────────────
+   ⚠️ 맨 위에 `a { color: inherit; text-decoration: none }` 이 있어서
+      목록 안의 링크가 **그냥 글자로 보였습니다.** 게다가 인라인이라
+      누를 수 있는 자리가 글자 폭뿐이었습니다.
+      2026-09-04 실측: 줄 너비 1,123px 인데 링크는 **70px** — 6%만 눌렸습니다.
+      소장님: 「클릭이 안되던데」 — 맞는 말이었습니다. */
+.row .t[href] { display: block; color: var(--accent); }
+.row .t[href]:hover { text-decoration: underline; }
+
+/* 줄 전체가 링크인 곳 (날짜별 성적표 목록) — 어디를 눌러도 갑니다 */
+a.row.rowlink { cursor: pointer; }
+a.row.rowlink:hover { background: var(--accent-soft); }
+a.row.rowlink .t { color: var(--accent); font-weight: 700; }
+a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }

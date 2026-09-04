@@ -490,8 +490,9 @@ def daily_index(shell, days, image=None):
            '<div style="font-size:12.5px;color:var(--muted);margin-top:4px">하루 한 장 · 개찰이 올라오는 대로 갱신됩니다</div></div>'
            '<div class="card">']
     for d, n in days:
-        out.append(f'<div class="row"><div class="grow"><a class="t" href="/daily/{d}">{esc(d.replace("-", "."))}</a></div>'
-                   f'<span class="r">{esc(num(n))}건</span></div>')
+        out.append(f'<a class="row rowlink" href="/daily/{d}">'
+                   f'<div class="grow"><div class="t">{esc(d.replace("-", "."))} 개찰 성적표</div></div>'
+                   f'<span class="r">{esc(num(n))}건</span><span class="go">→</span></a>')
     out.append("</div>")
     h = page(shell, "/daily", title, desc, "".join(out), image)
     data = json.dumps([[d, n] for d, n in days], ensure_ascii=False)
@@ -528,8 +529,9 @@ def main():
     #   ⚠️ 이번에 굽는 것을 지금 보내면 아직 배포 전이라 크롤러가 404 를 봅니다.
     #      그래서 «한 회차 뒤에» 보냅니다 (워크플로를 안 고치려는 설계이기도 합니다).
     indexnow.ensure_key_file(DIST)
+    sent = None
     try:
-        indexnow.send(quiet=True)
+        sent = indexnow.send(quiet=True)
     except Exception as e:
         print(f"  · IndexNow 건너뜀 ({type(e).__name__}: {e})")
     og = OgMaker(DIST, FONT, {"won_short": won_short, "pct": pct,
@@ -633,6 +635,9 @@ def main():
         paths += [f"/notice/{quote(str(r.get('no')), safe='')}" for r in fresh]
         n_q = indexnow.queue(paths, mark=mark)
         print(f"  · IndexNow 다음 회차에 알릴 주소 {n_q:,}개 (새 개찰 {len(fresh):,}건)")
+        # 로그를 못 볼 때를 대비해 결과를 사이트에 남깁니다 → /data/indexnow.json
+        indexnow.write_report(DIST, sent, {"n": n_q, "새개찰": len(fresh),
+                                           "예": paths[:5]})
     except Exception as e:
         print(f"  · IndexNow 목록 만들기 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
 

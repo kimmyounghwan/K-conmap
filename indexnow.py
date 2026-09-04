@@ -120,17 +120,24 @@ def new_since(rows, mark, key="dt"):
 
 
 def send(quiet=False):
-    """지난 회차에 적어 둔 주소를 보냅니다. 실패해도 배치를 멈추지 않습니다."""
+    """지난 회차에 적어 둔 주소를 보냅니다. 실패해도 배치를 멈추지 않습니다.
+
+    돌려주는 것: {"at", "n", "results":[[받는곳, 코드]], "ok"}
+    ⚠️ 이 결과는 **사이트에 남깁니다**(`/data/indexnow.json`). Actions 로그는 로그인해야 보이고
+       화면도 잘 안 열립니다(2026-09-04에 실제로 못 봤습니다). diag.json 과 같은 방식으로,
+       «지난 회차에 실제로 몇 개를 보냈고 어떤 답이 왔는지» 를 누구나 열어볼 수 있게 둡니다.
+    """
     st = _load()
     urls = [u for u in (st.get("pending") or []) if isinstance(u, str)]
+    at = time.strftime("%Y-%m-%d %H:%M:%S")
     if not urls:
-        return 0
+        return {"at": at, "n": 0, "results": [], "ok": 0, "why": "보낼 주소 없음"}
     body = json.dumps({
         "host": HOST, "key": KEY, "keyLocation": KEY_URL,
         "urlList": [SITE + u if u.startswith("/") else u for u in urls],
     }).encode("utf-8")
 
-    ok = 0
+    ok, results = 0, []
     for name, url in ENDPOINTS:
         try:
             req = urllib.request.Request(
@@ -140,31 +147,47 @@ def send(quiet=False):
             with urllib.request.urlopen(req, timeout=20) as resp:
                 code = resp.status
             print(f"  · IndexNow {name}: HTTP {code} · 주소 {len(urls):,}개")
+            results.append([name, code])
             if 200 <= code < 300:
                 ok += 1
         except urllib.error.HTTPError as e:
             # 202=받음, 200=OK, 400=형식오류, 403=키 확인 실패, 422=주소가 host 와 안 맞음, 429=너무 잦음
             print(f"  · IndexNow {name}: HTTP {e.code} — {e.reason}")
+            results.append([name, e.code, str(e.reason)[:80]])
             if e.code in (200, 202):
                 ok += 1
         except Exception as e:
             print(f"  · IndexNow {name}: 못 보냈습니다 ({type(e).__name__}: {e})")
+            results.append([name, 0, f"{type(e).__name__}: {e}"[:120]])
         time.sleep(0.3)
 
     if ok:
         st["pending"] = []
-        st["sent_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+        st["sent_at"] = at
         _save(st)
     elif not quiet:
         print("  · 이번엔 아무 곳도 못 받았습니다 — 목록은 그대로 두고 다음 회차에 다시 보냅니다.")
-    return ok
+    return {"at": at, "n": len(urls), "results": results, "ok": ok,
+            "sample": urls[:5]}
+
+
+def write_report(dist, sent, queued):
+    """`/data/indexnow.json` — 로그 없이 결과를 확인하는 자리."""
+    try:
+        d = os.path.join(dist, "data")
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, "indexnow.json"), "w", encoding="utf-8") as f:
+            json.dump({"보낸것": sent, "다음회차에알릴주소": queued,
+                       "키": KEY_URL}, f, ensure_ascii=False, indent=1)
+    except Exception as e:
+        print(f"  · IndexNow 결과 남기기 실패 ({type(e).__name__}: {e})")
 
 
 if __name__ == "__main__":
     import sys
     ensure_key_file()
     if "--send" in sys.argv:
-        send()
+        print(json.dumps(send(), ensure_ascii=False, indent=1))
     else:
         st = _load()
         print(f"키 파일 {KEY_URL}")
