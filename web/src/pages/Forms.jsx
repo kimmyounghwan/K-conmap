@@ -121,6 +121,18 @@ export default function Forms() {
         </div>
       </div>
 
+      <Link className="card fbook" to="/change/excel">
+        <span className="fic">📊</span>
+        <div className="grow">
+          <div className="t">설계변경 자동계산 엑셀 <em>· 시트 11장</em></div>
+          <div className="d">
+            빈 표가 아니라 <b>계산기</b>입니다. 단가 하나를 고치면 내역 · 증감대비표 ·
+            원가계산서까지 다시 계산됩니다.
+          </div>
+        </div>
+        <span className="go">→</span>
+      </Link>
+
       <div className="card fwarn">
         <b>⚠️ 먼저 확인하세요</b>
         <div>

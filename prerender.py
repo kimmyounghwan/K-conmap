@@ -582,6 +582,11 @@ def forms_index(shell, forms, image=None):
     out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">건설 서식</h1>'
            f'<div style="font-size:12.5px;color:var(--muted);margin-top:4px">'
            f'현장에서 자주 쓰는 서류 {len(forms)}가지 · 엑셀로 바로 내려받기 · 회원가입 없음</div></div>'
+           '<a class="card fbook" href="/change/excel"><span class="fic">📊</span><div class="grow">'
+           '<div class="t">설계변경 자동계산 엑셀 <em>· 시트 11장</em></div>'
+           '<div class="d">빈 표가 아니라 <b>계산기</b>입니다. 단가 하나를 고치면 내역 · '
+           '증감대비표 · 원가계산서까지 다시 계산됩니다.</div></div>'
+           '<span class="go">→</span></a>'
            '<div class="card"><div class="fwarn2">발주기관이 정한 서식이 있으면 그 서식을 씁니다. '
            '여기 있는 것은 정해진 서식이 없을 때 쓰는 일반 양식입니다.</div></div>']
     group = {}
@@ -708,17 +713,18 @@ def _blocks_html(blocks):
     return "".join(out)
 
 
-def change_book_html(bk):
+def change_book_html(bk, in_page=False):
     """설계변경 통합 엑셀 카드 — 화면(Change.jsx 의 MainBook)과 같은 change.json 을 씁니다."""
     if not bk:
         return ""
     out = ['<div class="card mbook"><div class="mb-top"><span class="mb-ic">📊</span>'
            '<div class="grow"><div class="mb-t">%s</div><div class="mb-s">%s</div></div></div>'
-           '<p class="cp" style="margin-top:8px">%s</p>'
+           '%s'
            '<a class="btn primary mb-dl" href="/forms/%s.xlsx">⬇ 엑셀 내려받기 (시트 11장)</a>'
            '<div class="mb-grid">'
            % (esc(bk.get("title") or ""), esc(bk.get("sub") or ""),
-              _bold(bk.get("lead") or ""), esc(bk.get("file") or ""))]
+              ("" if in_page else '<p class="cp" style="margin-top:8px">%s</p>'
+               % _bold(bk.get("lead") or "")), esc(bk.get("file") or ""))]
     for i, pair in enumerate(bk.get("sheets") or [], start=1):
         n, d = (pair + ["", ""])[:2]
         out.append('<div class="mb-cell"><b><span class="mb-no">%d</span>%s</b>'
@@ -729,6 +735,80 @@ def change_book_html(bk):
         out.append("<li>%s</li>" % _bold(r))
     out.append('</ul></div><div class="mb-ok">✔ %s</div></div>' % _bold(bk.get("checked") or ""))
     return "".join(out)
+
+
+def change_book_page(shell, bk, forms, image=None):
+    """/change/excel — 통합 엑셀 «전용 페이지». (2026-09-05)
+
+    왜 따로 굽나: 「설계변경 내역서 엑셀」·「공사원가계산서 양식」 은 실제로 검색되는 말인데,
+    그 파일이 설계변경 탭 «안»에만 있으면 검색에서 찾아올 주소가 없었습니다.
+    네이버는 자바스크립트를 거의 안 돌리므로, 이 글자가 HTML 에 있어야 읽힙니다.
+    """
+    if not bk:
+        return None
+    by = {f["slug"]: f for f in forms}
+    title = bk.get("seo_title") or f'{bk["title"]} 무료 내려받기 | K-건설맵'
+    desc = (bk.get("seo_desc") or bk.get("lead") or "")[:160]
+    xlsx = f'/forms/{bk.get("file")}.xlsx'
+    out = [f'<div class="card"><h1 style="font-size:19px;font-weight:800;margin:0">'
+           f'{esc(bk.get("h1") or bk["title"])}</h1>'
+           f'<p class="cp" style="margin-top:8px">{_bold(bk.get("lead") or "")}</p>'
+           f'<div class="btn-row" style="margin-top:10px">'
+           f'<a class="btn primary" href="{esc(xlsx)}">⬇ 엑셀 내려받기 (시트 11장)</a>'
+           f'<a class="btn ghost" href="/change">설계변경 자료 보기</a></div></div>']
+    out.append(change_book_html(bk, in_page=True))
+
+    if bk.get("use"):
+        out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">이럴 때 씁니다</div>')
+        for pair in bk["use"]:
+            h, d = (list(pair) + ["", ""])[:2]
+            out.append('<div class="frow"><span class="fic">▸</span><div class="grow">'
+                       '<div class="t" style="font-weight:700;font-size:13.5px">%s</div>'
+                       '<div style="font-size:12px;color:var(--muted);margin-top:2px;line-height:1.6">%s</div>'
+                       '</div></div>' % (esc(h), _bold(d)))
+        out.append("</div>")
+
+    if bk.get("faq"):
+        out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">자주 묻는 것</div>')
+        for pair in bk["faq"]:
+            q, a = (list(pair) + ["", ""])[:2]
+            out.append('<details class="cfaq" open><summary>%s</summary><div>%s</div></details>'
+                       % (esc(q), _bold(a)))
+        out.append("</div>")
+
+    if bk.get("related"):
+        out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">함께 쓰는 서식</div>')
+        for slug in bk["related"]:
+            f = by.get(slug)
+            if not f:
+                continue
+            out.append('<div class="frow"><span class="fic">%s</span><div class="grow">'
+                       '<a class="ft" href="/forms/%s">%s</a><div class="d">%s</div></div>'
+                       '<a class="fdl" href="/forms/%s.xlsx">⬇ 엑셀</a></div>'
+                       % (esc(f.get("icon") or "📄"), esc(slug), esc(f["title"]),
+                          esc(f.get("short") or ""), esc(slug)))
+        out.append('<div style="margin-top:10px"><a class="btn ghost sm" href="/forms">'
+                   '건설 서식 105가지 전부 보기 →</a></div></div>')
+
+    ld = {"@context": "https://schema.org", "@graph": [
+        {"@type": "CreativeWork", "name": bk["title"],
+         "description": desc, "url": f"{SITE}/change/excel",
+         "encodingFormat": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+         "fileFormat": "xlsx", "isAccessibleForFree": True,
+         "inLanguage": "ko",
+         "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}},
+        {"@type": "BreadcrumbList", "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": "설계변경", "item": f"{SITE}/change"},
+            {"@type": "ListItem", "position": 2, "name": bk["title"],
+             "item": f"{SITE}/change/excel"}]},
+    ]}
+    if bk.get("faq"):
+        ld["@graph"].append({"@type": "FAQPage", "mainEntity": [
+            {"@type": "Question", "name": q,
+             "acceptedAnswer": {"@type": "Answer", "text": a.replace("**", "")}}
+            for q, a in [(list(x) + ["", ""])[:2] for x in bk["faq"]]]})
+    return page(shell, "/change/excel", title, desc,
+                "".join(out) + nav_html("/change"), image, ld)
 
 
 def change_forms_html(sets, forms):
@@ -900,6 +980,12 @@ def main():
               og.tab("change", "설계변경", "절차 · 단가 기준 · 물가변동",
                      f"{len(topics)}가지", "증감 계산기 · 서식까지 무료")
               if og.available else None))
+        bp = change_book_page(shell, book, load_forms(),
+                              og.tab("change-excel", "설계변경 자동계산 엑셀",
+                                     "시트 11장 · 수식 전부 연결", "무료",
+                                     "단가 하나 바꾸면 조정금액까지 다시 계산") if og.available else None)
+        if bp:
+            write("change/excel.html", bp)
         write("change/calc.html", change_calc(shell,
               og.tab("change-calc", "설계변경 증감 계산기", "증가·감소·신규비목",
                      "무료", "신규비목은 설계변경 당시 단가 × 낙찰률")

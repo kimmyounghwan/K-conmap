@@ -77,7 +77,7 @@ function md(s) {
 
 /* ── 설계변경 자동계산 통합 엑셀 — 이 탭의 «본체» ──
    빈 표 105가지와 성격이 다릅니다. 이건 수식이 연결된 계산기입니다. */
-export function MainBook() {
+export function MainBook({ inPage }) {
   if (!BOOK) return null
   return (
     <div className="card mbook">
@@ -88,10 +88,14 @@ export function MainBook() {
           <div className="mb-s">{BOOK.sub}</div>
         </div>
       </div>
-      <p className="cp" style={{ marginTop: 8 }}>{md(BOOK.lead)}</p>
+      {/* 전용 페이지(/change/excel)에서는 위에 이미 같은 문장이 있어 빼줍니다 */}
+      {!inPage && <p className="cp" style={{ marginTop: 8 }}>{md(BOOK.lead)}</p>}
 
-      <a className="btn primary mb-dl" href={`/forms/${BOOK.file}.xlsx`}
-         download={`${BOOK.title}.xlsx`}>⬇ 엑셀 내려받기 (시트 11장)</a>
+      <div className="btn-row" style={{ marginTop: 10, marginBottom: 4 }}>
+        <a className="btn primary" href={`/forms/${BOOK.file}.xlsx`}
+           download={`${BOOK.title}.xlsx`}>⬇ 엑셀 내려받기 (시트 11장)</a>
+        {!inPage && <Link className="btn ghost" to="/change/excel">쓰는 법 · 자주 묻는 것</Link>}
+      </div>
 
       <div className="mb-grid">
         {BOOK.sheets.map(([n, d], i) => (
@@ -151,6 +155,85 @@ export function ChangeForms({ compact }) {
         발주기관이 공고 붙임으로 준 서식이 있으면 <b>그 서식을 쓰세요.</b> 이건 없을 때 쓰는 것입니다.
       </div>
     </div>
+  )
+}
+
+
+/* ── /change/excel — 통합 엑셀 «전용 페이지» (2026-09-05) ──
+   왜 따로 두나: 「설계변경 내역서 엑셀」·「공사원가계산서 양식」 은 실제로 검색되는 말인데,
+   그 파일이 설계변경 탭 «안»에만 있으면 검색에서 찾아올 주소가 없습니다.
+   미리 굽는 HTML 이 있으므로 네이버(자바스크립트를 안 돌림)도 이 글자를 읽습니다. */
+export function ChangeBook() {
+  if (!BOOK) return <Empty icon="📊">자료를 찾지 못했습니다.</Empty>
+  return (
+    <>
+      <div className="btn-row" style={{ paddingTop: 14, marginBottom: 10 }}>
+        <Link className="btn ghost sm" to="/change">← 설계변경</Link>
+        <ShareBtn />
+      </div>
+
+      <div className="card">
+        <h1 style={{ fontSize: 19, fontWeight: 800, margin: 0 }}>{BOOK.h1}</h1>
+        <p className="cp" style={{ marginTop: 8 }}>{md(BOOK.lead)}</p>
+      </div>
+
+      <MainBook inPage />
+
+      <div className="card">
+        <div className="sec-title" style={{ margin: '0 0 6px' }}>이럴 때 씁니다</div>
+        {(BOOK.use || []).map(([h, d], i) => (
+          <div className="frow" key={i}>
+            <span className="fic">▸</span>
+            <div className="grow">
+              <div className="t" style={{ fontWeight: 700, fontSize: 13.5 }}>{h}</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2, lineHeight: 1.6 }}>{md(d)}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="card">
+        <div className="sec-title" style={{ margin: '0 0 6px' }}>자주 묻는 것</div>
+        {(BOOK.faq || []).map(([q, a], i) => (
+          <details className="cfaq" key={i}>
+            <summary>{q}</summary>
+            <div>{md(a)}</div>
+          </details>
+        ))}
+      </div>
+
+      <div className="card">
+        <div className="sec-title" style={{ margin: '0 0 6px' }}>
+          함께 쓰는 서식 <span className="count">· 낱장으로도 받을 수 있습니다</span>
+        </div>
+        {(BOOK.related || []).map((slug) => {
+          const m = FMIN[slug]
+          if (!m) return null
+          const [title, icon, short] = m
+          return (
+            <div className="frow" key={slug}>
+              <span className="fic">{icon || '📄'}</span>
+              <div className="grow">
+                <Link className="ft" to={`/forms/${slug}`}>{title}</Link>
+                <div className="d">{short}</div>
+              </div>
+              <a className="fdl" href={`/forms/${slug}.xlsx`} download={`${title}_양식.xlsx`}>⬇ 엑셀</a>
+            </div>
+          )
+        })}
+        <div style={{ marginTop: 10 }}>
+          <Link className="btn ghost sm" to="/forms">건설 서식 105가지 전부 보기 →</Link>
+        </div>
+      </div>
+
+      <div className="card fwarn">
+        <b>⚠️ 참고 자료입니다</b>
+        <div>
+          국가계약법 시행령 등을 바탕으로 만들었지만 계약서의 특수조건과 발주기관의 판단이
+          우선합니다. 금액이 큰 건은 전문가 검토를 받으세요.
+        </div>
+      </div>
+    </>
   )
 }
 
