@@ -2137,6 +2137,21 @@ def main():
 
         book = load_json(NAEYEOK_BOOK, {})                # 이미 받은 것 기록
         got = new = 0
+        errs, firsts = {}, []                             # 왜 못 받았는지 — diag 로 나갑니다
+
+        def _fail(key, b0, why, url="", head=""):
+            """실패를 «다시 해 볼 수 있게» 적습니다.
+
+            ⚠️ 전에는 실패를 skip 으로 못박아 다시는 안 물어봤습니다.
+               조달청이 한 시간 먹통이면 그 40건은 영영 못 받습니다
+               (CLAUDE.md 4번 — 한 번의 실패로 «안 된다» 고 단정하지 않는다).
+            """
+            errs[why] = errs.get(why, 0) + 1
+            if len(firsts) < 3:
+                firsts.append({"why": why, "url": url[:120], "head": head[:200]})
+            book[key] = {"why": why, "try": int(b0.get("try") or 0) + 1, "at": built}
+            return book[key]
+
         for dt, r, fname, furl, i in want:
             key = "%s_%d" % (str(r.get("no") or ""), i)
             ext = os.path.splitext(fname)[1].lower() or ".xlsx"
@@ -2144,29 +2159,45 @@ def main():
                 continue                                   # zip·pdf 는 열어 볼 수 없어 건너뜁니다
             local = key + ext
             path = os.path.join(NAEYEOK_DIR, local)
-            if key in book and (os.path.exists(path) or not book[key].get("file")):
-                got += 1 if book[key].get("file") else 0
+            b0 = book.get(key) or {}
+            if b0.get("file") and os.path.exists(path):
+                got += 1
                 continue
+            if b0.get("perm") or int(b0.get("try") or 0) >= 5:
+                continue                                   # 다섯 번 해 보고 그만둡니다
             if new >= NAEYEOK_FETCH:
                 break
+            new += 1
             try:
-                resp = requests.get(furl, timeout=60, verify=False,
-                                    headers={"User-Agent": "Mozilla/5.0"})
-                if resp.status_code != 200 or len(resp.content) > NAEYEOK_MAXBYTES:
-                    book[key] = {"skip": "http %d / %d bytes"
-                                 % (resp.status_code, len(resp.content))}
-                    new += 1
-                    continue
-                with open(path, "wb") as f:
-                    f.write(resp.content)
+                resp = requests.get(furl, timeout=60, verify=False, headers={
+                    "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                                   "AppleWebKit/537.36 (KHTML, like Gecko) "
+                                   "Chrome/126.0 Safari/537.36"),
+                    "Referer": "https://www.g2b.go.kr/",
+                    "Accept": "*/*",
+                })
             except Exception as e:
-                book[key] = {"skip": "%s" % type(e).__name__}
-                new += 1
+                _fail(key, b0, "연결 실패: %s" % type(e).__name__, furl)
                 continue
-            book[key] = {"file": local, "n": len(resp.content), "dt": dt,
+            body = resp.content
+            if resp.status_code != 200:
+                _fail(key, b0, "HTTP %d" % resp.status_code, furl,
+                      body[:200].decode("utf-8", "replace"))
+                continue
+            if len(body) > NAEYEOK_MAXBYTES:
+                _fail(key, b0, "너무 큼 %.1fMB" % (len(body) / 1024 / 1024), furl)["perm"] = True
+                continue
+            # ⚠️ 200 이라고 엑셀이 아닙니다 — 로그인 안내 HTML 이 200 으로 올 수 있습니다.
+            #    확장자만 믿고 저장하면 «열리지 않는 xlsx» 를 사용자에게 내밀게 됩니다.
+            if not (body[:4] == b"PK\x03\x04" or body[:4] == b"\xd0\xcf\x11\xe0"):
+                _fail(key, b0, "엑셀이 아님(%d바이트)" % len(body), furl,
+                      body[:200].decode("utf-8", "replace"))
+                continue
+            with open(path, "wb") as f:
+                f.write(body)
+            book[key] = {"file": local, "n": len(body), "dt": dt,
                          "priced": xlsx_has_price(path), "at": built}
             got += 1
-            new += 1
             time.sleep(0.3)
 
         # ── 상한을 넘으면 오래된 것부터 버립니다 ──────────────────
@@ -2190,7 +2221,18 @@ def main():
 
         have = sum(1 for v in book.values() if v.get("file"))
         pr = sum(1 for v in book.values() if v.get("priced"))
-        print("  → naeyeok 파일  보관 %s개 (이번 %d개 받음 · "
+        # 「0건」 을 이유 없이 남기지 않습니다 — data/diag.json 을 열면 까닭이 있습니다.
+        DIAG["naeyeok_fetch"] = {
+            "대상(단가 든 갈래)": len(want), "보관": have, "단가 확인됨": pr,
+            "이번에 두드린 것": new, "실패 이유": errs, "첫 실패 3건": firsts,
+            "상한MB": NAEYEOK_KEEP_MB, "쓴MB": round(used / 1024 / 1024, 1),
+        }
+        if errs:
+            print("    실패 이유: " + " · ".join("%s %d건" % (k, v) for k, v in errs.items()))
+            for x in firsts:
+                print("      %s ← %s%s" % (x["why"], x["url"],
+                                           ("  |  " + x["head"].replace("\n", " ")) if x["head"] else ""))
+        print("  → naeyeok 파일  보관 %s개 (이번 %d개 두드림 · "
               "단가 확인됨 %s개 · %.0fMB / 상한 %dMB"
               "%s)" % (f"{have:,}", new, f"{pr:,}", used / 1024 / 1024, NAEYEOK_KEEP_MB,
                        (" · 오래된 것 %d개 내림" % dropped) if dropped else ""))
