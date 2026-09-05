@@ -1409,7 +1409,14 @@ NAEYEOK_SHOW = int(os.environ.get("NAEYEOK_SHOW", "2000"))            # 나머�
 #   (자세한 까닭은 fetch_naeyeok_files 의 설명)
 NAEYEOK_DIR = os.path.join(STORE, "naeyeok")
 # 보관 상한. 넘으면 오래된 것부터 내립니다 (공고는 날마다 새로 나옵니다).
-NAEYEOK_KEEP_MB = int(os.environ.get("NAEYEOK_KEEP_MB", "300"))
+# ⚠️ 300 → 150 으로 내렸습니다 (2026-09-06 실측).
+#    배포 1벌이 93MB 인 줄 알았는데 **183MB** 였습니다(공고 8,000장 + 카톡 카드 2,509장).
+#    Firebase Hosting 은 «출시 보관 10개» 라, 1벌에 얹히는 것이 10배로 곱해집니다:
+#      지금            183MB × 10 = 1.8GB  (무료 10GB 의 18%)
+#      + 내역서 300MB              = 4.7GB  (47%)  ← 절반
+#      + 내역서 150MB              = 3.3GB  (33%)  ← 이걸로 정함
+#    150MB 면 설계내역서 약 750개(다섯 달치)입니다. 그보다 오래된 것은 링크로 남습니다.
+NAEYEOK_KEEP_MB = int(os.environ.get("NAEYEOK_KEEP_MB", "150"))
 NAEYEOK_FETCH = int(os.environ.get("NAEYEOK_FETCH", "40"))      # 한 회차에 새로 받는 개수
 NAEYEOK_MAXBYTES = int(os.environ.get("NAEYEOK_MAXBYTES", str(8 * 1024 * 1024)))
 # ⚠️ 시간 상한. 40개 × 60초 타임아웃 = 40분이라 그것만으로 회차(45분)가 터집니다.
