@@ -278,9 +278,13 @@ function PriceTag({ r }) {
 }
 
 export function ChangeNaeyeok() {
+  /* /change/naeyeok/{갈래} 로 들어오면 그 갈래를 펴 놓습니다.
+     ⚠️ 미리 구운 HTML 과 «같은 것» 을 보여줘야 합니다 — 검색으로 들어온 사람이
+        글자가 바뀌는 걸 보면 안 됩니다. */
+  const { kind: kindParam } = useParams()
   const [priced, setPriced] = useState(null)   // 단가가 든 갈래
   const [all, setAll] = useState(null)         // 나머지 (누를 때만 받습니다)
-  const [kind, setKind] = useState('설계내역서')
+  const [kind, setKind] = useState(kindParam ? decodeURIComponent(kindParam) : '설계내역서')
   const [q, setQ] = useState('')
   const [here, setHere] = useState(false)      // 바로 받을 수 있는 것만
   const [page, setPage] = useState(1)
@@ -434,14 +438,13 @@ export function ChangeNaeyeok() {
       )}
 
       <div className="card fwarn">
-        <b>⚠️ 쓰기 전에 · 출처와 삭제 요청</b>
+        <b>ℹ️ 출처</b>
         <div>
           모두 <b>발주기관이 나라장터 공고에 붙여 공개한 문서</b>이고, 줄마다 발주기관과 공고번호를 함께 적었습니다.
-          그래도 <b>설계도서의 저작권은 설계사에 있을 수 있습니다.</b> 참고용으로 보시고,
-          그대로 옮겨 쓰거나 다시 배포하지 마세요.
-          발주기관·설계사께서 <b>내려 달라</b>고 알려 주시면 바로 지웁니다(구인구직 탭의 문의 창구).
-          단가는 <Link to="/change/unit" style={{ color: 'var(--accent)', fontWeight: 700 }}>2026년 품셈·시장단가</Link>로
+          단가는 <b>그 공고 시점의 값</b>이니, 지금 쓰실 때는{' '}
+          <Link to="/change/unit" style={{ color: 'var(--accent)', fontWeight: 700 }}>2026년 품셈·시장단가</Link>로
           한 번 더 확인하시는 편이 안전합니다.
+          발주기관에서 <b>내려 달라</b>고 알려 주시면 바로 지웁니다(구인구직 탭의 문의 창구).
         </div>
       </div>
     </>

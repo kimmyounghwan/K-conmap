@@ -98,10 +98,51 @@ export default function NoticePage() {
           마감 전 공고에 그걸 그리면 「낙찰가 −, 투찰률 −」 이 떠서
           «개찰했는데 아무도 안 됐다» 로 읽힙니다 (CLAUDE.md — 한 화면이 서로 반대말 하지 않기). */}
       {r.win ? <NoticeDetail r={r} /> : <OpenNotice r={r} />}
+      <NoticeDocs r={r} />
       <div className="note" style={{ marginTop: 10 }}>
         공공데이터포털 나라장터 입찰정보를 가공해 보여드립니다. 분석 결과는 참고용이며 낙찰을 보장하지 않습니다.
       </div>
     </>
+  )
+}
+
+/* 📎 이 공고에 붙은 내역서 (2026-09-06)
+   미리 구운 HTML 안의 ndata.ndocs 로 그립니다 — 파일을 더 받지 않습니다.
+   ⚠️ 갈래(설계내역서·공내역서…)와 「단가 확인됨」은 collect.py 가 정한 값을 그대로 씁니다.
+      화면에서 이름으로 다시 짐작하면 목록 화면과 다른 말을 하게 됩니다. */
+function NoticeDocs({ r }) {
+  const list = r.ndocs || []
+  if (!list.length) return null
+  const rank = (x) => (x.priced === 1 ? 0 : (x.kind === '설계내역서' || x.kind === '단가산출서' ? 1 : 2))
+  const rows = [...list].sort((a, b) => rank(a) - rank(b)).slice(0, 12)
+  return (
+    <div className="card">
+      <div className="sec-title" style={{ margin: '0 0 6px' }}>📎 이 공고에 붙은 내역서</div>
+      {rows.map((x, i) => (
+        <div className="frow nyrow" key={i}>
+          <span className="fic">{x.priced === 1 ? '💰' : '📑'}</span>
+          <div className="grow">
+            <div className="ft">
+              {x.file}{' '}
+              {x.priced === 1 && <em className="dtag ok">단가 확인됨</em>}
+              {x.priced === 0 && <em className="dtag no">열어 보니 단가 없음</em>}
+            </div>
+            <div className="d">{x.kind}</div>
+          </div>
+          <div className="nybtn">
+            {x.local
+              ? <a className="fdl" href={x.local} download>⬇ 바로 받기</a>
+              : <a className="fdl" href={x.url} target="_blank" rel="noopener nofollow">⬇ 나라장터에서 받기</a>}
+          </div>
+        </div>
+      ))}
+      <div className="note sm" style={{ marginTop: 6 }}>
+        발주기관이 나라장터 공고에 붙여 공개한 파일입니다.{' '}
+        <Link to="/change/naeyeok" style={{ color: 'var(--accent)', fontWeight: 700 }}>
+          내역서 모음 전체 보기 →
+        </Link>
+      </div>
+    </div>
   )
 }
 

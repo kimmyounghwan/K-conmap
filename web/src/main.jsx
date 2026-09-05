@@ -61,6 +61,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/change/calc" element={<Suspense fallback={<Loading />}><ChangeCalc /></Suspense>} />
           <Route path="/change/excel" element={<Suspense fallback={<Loading />}><ChangeBook /></Suspense>} />
           <Route path="/change/naeyeok" element={<Suspense fallback={<Loading />}><ChangeNaeyeok /></Suspense>} />
+          {/* 갈래별 주소 — prerender.py 가 이 주소로 HTML 을 굽습니다.
+              ⚠️ 여기에 길이 없으면, 검색으로 들어온 사람에게 React 가 NotFound 를 씌우고
+                 NotFound 는 noindex 를 겁니다 (CLAUDE.md soft 404). 반드시 짝을 맞춥니다. */}
+          <Route path="/change/naeyeok/:kind" element={<Suspense fallback={<Loading />}><ChangeNaeyeok /></Suspense>} />
           <Route path="/change/:slug" element={<Suspense fallback={<Loading />}><ChangeTopic /></Suspense>} />
           <Route path="/forms/:slug" element={<Suspense fallback={<Loading />}><FormPage /></Suspense>} />
           <Route path="/daily" element={<DailyIndex />} />

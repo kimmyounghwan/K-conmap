@@ -374,7 +374,100 @@ def load_store(name):
         return {}
 
 
-def notice_page(shell, r, image=None, L=None):
+# ── 공고에 붙은 내역서 (2026-09-06) ─────────────────────────────
+#  소장님: 「검색에 떠야해, 각종 서식 및 내역서, 설계변경 자료 등」
+#
+#  ★ 왜 여기(공고 페이지)가 가장 큰 자리인가
+#     /change/naeyeok 은 한 장입니다. 그런데 공고 페이지는 이미 8,000장을 굽습니다.
+#     거기에 붙임 파일을 적으면 「○○공사 설계내역서」 로 찾는 사람이 그 장에 닿습니다.
+#     새 페이지를 만들지 않고 이미 있는 8,000장을 쓰는 것이라 비용이 0입니다.
+#
+#  ⚠️ 갈래(설계내역서·공내역서…)는 collect.py 의 naeyeok_kind 가 정합니다.
+#     여기서 다시 가르지 않습니다 — 같은 규칙을 두 번 적으면 반드시 어긋납니다.
+#     collect.py 가 이미 갈래를 매겨 낸 naeyeok*.json 을 그대로 읽습니다.
+def load_naeyeok_by_notice():
+    """{공고번호: [{kind,file,url,local,priced}, ...]} — 없으면 빈 dict."""
+    out = {}
+    for fn in ("naeyeok.json", "naeyeok-all.json"):
+        p = os.path.join(ROOT, "web", "public", "data", fn)
+        if not os.path.exists(p):
+            continue
+        try:
+            with open(p, encoding="utf-8") as f:
+                d = json.load(f) or {}
+        except Exception:
+            continue
+        f_ = d.get("f") or []
+        try:
+            gi = {k: f_.index(k) for k in ("kind", "file", "url", "no", "local", "priced")}
+        except ValueError:
+            continue
+        for row in d.get("r") or []:
+            no = str(row[gi["no"]] or "")
+            if not no:
+                continue
+            out.setdefault(no, []).append({
+                "kind": row[gi["kind"]], "file": row[gi["file"]], "url": row[gi["url"]],
+                "local": row[gi["local"]], "priced": row[gi["priced"]]})
+    return out
+
+
+def load_naeyeok_meta():
+    """(meta, {갈래: [줄, ...]}) — collect.py 가 낸 naeyeok*.json 을 그대로 읽습니다."""
+    meta, by = {}, {}
+    for fn in ("naeyeok.json", "naeyeok-all.json"):
+        p = os.path.join(ROOT, "web", "public", "data", fn)
+        if not os.path.exists(p):
+            continue
+        try:
+            with open(p, encoding="utf-8") as f:
+                d = json.load(f) or {}
+        except Exception:
+            continue
+        meta = meta or {k: d.get(k) for k in ("all", "kinds", "show", "days", "total")}
+        if d.get("all"):
+            meta["all"] = dict(meta.get("all") or {}, **d["all"])
+        f_ = d.get("f") or []
+        try:
+            gi = {k: f_.index(k) for k in
+                  ("kind", "file", "url", "name", "inst", "dt", "no", "local", "priced")}
+        except ValueError:
+            continue
+        for row in d.get("r") or []:
+            by.setdefault(row[gi["kind"]], []).append({k: row[i] for k, i in gi.items()})
+    return meta, by
+
+
+def docs_html(items):
+    """공고 페이지의 「📎 붙임 내역서」 칸. 없으면 빈 문자열."""
+    if not items:
+        return ""
+    # 단가가 확인된 것 → 단가 든 갈래 → 나머지 순서
+    def rank(x):
+        return (0 if x["priced"] == 1 else (1 if x["kind"] in ("설계내역서", "단가산출서") else 2))
+    out = ['<div class="card"><div class="sec-title" style="margin:0 0 6px">'
+           '📎 이 공고에 붙은 내역서</div>']
+    for x in sorted(items, key=rank)[:12]:
+        tag = ("<em class=\"dtag ok\">단가 확인됨</em>" if x["priced"] == 1
+               else ("<em class=\"dtag no\">열어 보니 단가 없음</em>" if x["priced"] == 0 else ""))
+        # 우리가 받아 둔 것은 바로, 아니면 조달청이 준 주소로 (손으로 만들지 않습니다)
+        href = x["local"] or x["url"]
+        btn = "⬇ 바로 받기" if x["local"] else "⬇ 나라장터에서 받기"
+        rel = "" if x["local"] else ' target="_blank" rel="noopener nofollow"'
+        out.append('<div class="frow nyrow"><span class="fic">%s</span>'
+                   '<div class="grow"><div class="ft">%s %s</div>'
+                   '<div class="d">%s</div></div>'
+                   '<div class="nybtn"><a class="fdl" href="%s"%s>%s</a></div></div>'
+                   % ("💰" if x["priced"] == 1 else "📑", esc(x["file"]), tag,
+                      esc(x["kind"]), esc(href), rel, btn))
+    out.append('<div class="note sm" style="margin-top:6px">'
+               '발주기관이 나라장터 공고에 붙여 공개한 파일입니다. '
+               '<a href="/change/naeyeok" style="color:var(--accent);font-weight:700">'
+               '내역서 모음 전체 보기 →</a></div></div>')
+    return "".join(out)
+
+
+def notice_page(shell, r, image=None, L=None, docs=None):
     no = r.get("no")
     nm = str(r.get("name") or no)
     inst = str(r.get("inst") or "")
@@ -399,6 +492,16 @@ def notice_page(shell, r, image=None, L=None):
                 + (f" 기초금액 {won_short(base)}" if base else "")
                 + (f", 마감 {date_full(r.get('close'))}" if r.get("close") else "")
                 + ". 권장 투찰금액을 바로 계산해 드립니다.")
+    # ★ 붙임 내역서를 제목·설명에 적습니다 (2026-09-06)
+    #   「○○공사 설계내역서」 는 실제 검색어입니다. 본문에만 있으면 약합니다.
+    dk = []
+    for x in (docs or []):
+        if x["kind"] not in dk:
+            dk.append(x["kind"])
+    if dk:
+        title += " · " + "·".join(dk[:2])
+        desc += (" 이 공고의 " + "·".join(dk[:3]) + " 붙임 파일을 함께 봅니다"
+                 + ("(단가 확인됨)." if any(x["priced"] == 1 for x in docs) else "."))
     title += " | K-건설맵"
 
     lead = [f'<h1 style="font-size:18px;font-weight:800;margin:0;line-height:1.45">{esc(nm)}</h1>']
@@ -427,9 +530,15 @@ def notice_page(shell, r, image=None, L=None):
     #    버튼 이름이 실제 동작과 다르면 안 됩니다 (CLAUDE.md 3번).
     if L and inst and L.agency(inst):
         body += rows_html("🏛 발주기관", [(inst, "낙찰 분석 보기 →")], href=L.agency)
+    body += docs_html(docs)
 
     h = page(shell, f"/notice/{no}", title, desc, body, image)
     # 화면이 다시 그릴 때 쓸 원본 한 줄 — 파일을 더 받지 않아도 되도록 같이 넣습니다.
+    # ⚠️ 갈래를 매긴 붙임 목록(ndocs)도 같이 넣습니다.
+    #    안 넣으면 «크롤러는 내역서를 보는데 사람은 못 보는» 화면이 됩니다.
+    #    갈래는 collect.py 가 정한 것을 그대로 옮깁니다 — 여기서 다시 가르지 않습니다.
+    if docs:
+        r = dict(r, ndocs=docs)
     data = json.dumps(r, ensure_ascii=False).replace("</", "<\\/")
     h = h.replace("</body>",
                   '<script type="application/json" id="ndata">' + data + "</script>\n  </body>", 1)
@@ -787,16 +896,92 @@ def change_naeyeok_page(shell, image=None):
                '<div class="grow"><div class="t">설계변경 자동계산 엑셀</div>'
                '<div class="d">내역서를 넣으면 증감이 규정 단가로 자동 계산됩니다</div></div>'
                '<span class="go">→</span></a></div>')
-    out.append('<div class="card fwarn"><b>⚠️ 쓰기 전에 · 출처와 삭제 요청</b><div>'
+    out.append('<div class="card fwarn"><b>ℹ️ 출처</b><div>'
                '모두 <b>발주기관이 나라장터 공고에 붙여 공개한 문서</b>이고, 줄마다 발주기관과 '
-               '공고번호를 함께 적었습니다. 그래도 <b>설계도서의 저작권은 설계사에 있을 수 '
-               '있습니다.</b> 참고용으로 보시고, 그대로 옮겨 쓰거나 다시 배포하지 마세요. '
-               '발주기관·설계사께서 <b>내려 달라</b>고 알려 주시면 바로 지웁니다.</div></div>')
+               '공고번호를 함께 적었습니다. 단가는 그 공고 시점의 값이니 '
+               '<a href="/change/unit" style="color:var(--accent);font-weight:700">'
+               '2026년 품셈·시장단가</a>로 한 번 더 확인하시는 편이 안전합니다. '
+               '발주기관에서 <b>내려 달라</b>고 알려 주시면 바로 지웁니다.</div></div>')
     ld = {"@context": "https://schema.org", "@type": "CollectionPage",
           "name": "공사 내역서 모음 2026", "url": f"{SITE}/change/naeyeok",
           "description": desc, "inLanguage": "ko",
           "isPartOf": {"@type": "WebSite", "name": "K-건설맵", "url": SITE}}
     return page(shell, "/change/naeyeok", title, desc,
+                "".join(out) + nav_html("/change"), image, ld)
+
+
+NY_KINDS = [
+    ("설계내역서", "발주처가 잡은 **설계 단가**가 들어 있습니다. 설계변경 단가를 세울 때 견줍니다."),
+    ("단가산출서", "단가를 어떻게 만들었는지 근거가 붙어 있습니다. 일위대가도 여기 들어갑니다."),
+    ("공내역서", "**단가가 비어 있습니다** — 낙찰자가 채워 넣는 서식입니다. 공종과 수량을 봅니다."),
+    ("물량내역서", "수량만 적힌 표입니다."),
+    ("수량산출서", "수량을 어떻게 뽑았는지 산출식이 있습니다."),
+    ("그 밖의 내역서", "위 갈래에 안 들어가는 내역 파일입니다."),
+]
+
+
+def change_naeyeok_kind_page(shell, kind, rows, meta, image=None):
+    """/change/naeyeok/{갈래} — 갈래마다 한 장. (2026-09-06)
+
+    소장님: 「검색에 떠야해, 각종 서식 및 내역서, 설계변경 자료 등」
+    「공내역서 양식」 「단가산출서 예시」 는 실제 검색어인데, 지금은 목록 한 장뿐이라
+    그 낱말로 들어올 자리가 없었습니다.
+
+    ⚠️ 여기에 수천 줄을 박지 않습니다 — 내용이 얇은 페이지를 수만 장 만드는 것과 같은
+       잘못이 됩니다(CLAUDE.md). 최신 30개만 «진짜 파일 이름» 으로 적고 나머지는 목록으로 보냅니다.
+    ⚠️ React 에도 같은 주소의 길이 있어야 합니다. 없으면 사람이 눌러 들어왔을 때
+       NotFound 가 noindex 를 걸어 버립니다 (CLAUDE.md soft 404).
+    """
+    d = dict(NY_KINDS).get(kind, "")
+    tot = (meta.get("all") or {}).get(kind, 0)
+    title = f"{kind} 모음 — 2026년 공공공사 실제 자료 {num(tot)}건 | K-건설맵"
+    desc = (f"조달청 나라장터 공고에 붙어 공개된 {kind} {num(tot)}건을 모았습니다. "
+            f"{d.replace('**', '')} 무료로 바로 내려받습니다.")
+    out = [f'<div class="card"><h1 style="font-size:19px;font-weight:800;margin:0">'
+           f'{esc(kind)} 모음 — 2026년</h1>'
+           f'<p class="cp" style="margin-top:8px">{_bold(d)} '
+           f'조달청 나라장터 공고에 붙어 공개된 것으로, 지금 <b>{num(tot)}건</b> 있습니다'
+           f'(최근 3년치를 보관합니다).</p>'
+           f'<div class="btn-row" style="margin-top:10px">'
+           f'<a class="btn primary" href="/change/naeyeok">📑 내역서 모음 전체 보기</a>'
+           f'<a class="btn ghost" href="/change/excel">📊 설계변경 자동계산 엑셀</a></div></div>']
+    if rows:
+        out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">'
+                   '최근에 올라온 것</div>')
+        for x in rows[:30]:
+            href = x["local"] or x["url"]
+            btn = "⬇ 바로 받기" if x["local"] else "⬇ 나라장터"
+            rel = "" if x["local"] else ' target="_blank" rel="noopener nofollow"'
+            tag = ('<em class="dtag ok">단가 확인됨</em>' if x["priced"] == 1 else "")
+            out.append('<div class="frow nyrow"><span class="fic">%s</span>'
+                       '<div class="grow"><div class="ft">%s %s</div>'
+                       '<div class="d">%s</div>'
+                       '<div class="nymeta">%s%s</div></div>'
+                       '<div class="nybtn"><a class="fdl" href="%s"%s>%s</a>'
+                       '<a class="fdl ghost" href="/notice/%s">공고 →</a></div></div>'
+                       % ("💰" if x["priced"] == 1 else "📑", esc(x["file"]), tag,
+                          esc(x["name"]), esc(x["inst"]),
+                          (" · " + esc(x["dt"])) if x.get("dt") else "",
+                          esc(href), rel, btn, quote(str(x["no"]), safe="")))
+        out.append('</div>')
+    out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">다른 갈래</div>')
+    for nm, dd in NY_KINDS:
+        if nm == kind:
+            continue
+        n = (meta.get("all") or {}).get(nm, 0)
+        if not n:
+            continue
+        out.append('<a class="row rowlink" href="/change/naeyeok/%s"><span class="fic">%s</span>'
+                   '<div class="grow"><div class="t">%s <em>· %s건</em></div>'
+                   '<div class="d">%s</div></div><span class="go">→</span></a>'
+                   % (quote(nm, safe=""), "💰" if nm in ("설계내역서", "단가산출서") else "📑",
+                      esc(nm), num(n), _bold(dd)))
+    out.append('</div>')
+    ld = {"@context": "https://schema.org", "@type": "CollectionPage",
+          "name": f"{kind} 모음 2026", "url": f"{SITE}/change/naeyeok/{quote(kind, safe='')}",
+          "description": desc, "inLanguage": "ko",
+          "isPartOf": {"@type": "WebSite", "name": "K-건설맵", "url": SITE}}
+    return page(shell, f"/change/naeyeok/{quote(kind, safe='')}", title, desc,
                 "".join(out) + nav_html("/change"), image, ld)
 
 
@@ -1061,6 +1246,18 @@ def main():
               og.tab("change-naeyeok", "공사 내역서 모음", "설계내역서 · 공내역서 · 2026년",
                      "무료", "조달청 공개 자료 · 나라장터 원문으로 연결")
               if og.available else None))
+        # 갈래마다 한 장 — 「공내역서 양식」 같은 낱말로 들어올 자리 (2026-09-06)
+        _nym, _nyr = load_naeyeok_meta()
+        for _k, _ in NY_KINDS:
+            if not (_nym.get("all") or {}).get(_k):
+                continue
+            write("change/naeyeok/%s.html" % _k,
+                  change_naeyeok_kind_page(shell, _k, _nyr.get(_k) or [], _nym,
+                                           og.tab("ny-" + _k, _k + " 모음",
+                                                  "2026년 · 조달청 공개", "무료",
+                                                  "공공공사 실제 자료")
+                                           if og.available else None))
+            made += 1
         write("change/calc.html", change_calc(shell,
               og.tab("change-calc", "설계변경 증감 계산기", "증가·감소·신규비목",
                      "무료", "신규비목은 설계변경 당시 단가 × 낙찰률")
@@ -1144,6 +1341,9 @@ def main():
                    key=lambda r: str(r.get("dt") or r.get("close") or ""), reverse=True)
     n_no = 0
     baked = []
+    nydocs = load_naeyeok_by_notice()      # 공고번호 → 붙임 내역서 (collect.py 가 갈래를 매긴 것)
+    if nydocs:
+        print(f"  · 붙임 내역서가 있는 공고 {len(nydocs):,}건 — 공고 페이지에 함께 적습니다")
     for r in order:
         if n_no >= N_NOTICE:
             break
@@ -1151,7 +1351,8 @@ def main():
         if not no:
             continue
         img = og.notice(r) if n_no < OG_NOTICE else None
-        write(f"notice/{no}.html", notice_page(shell, r, img, L))
+        write(f"notice/{no}.html",
+              notice_page(shell, r, img, L, nydocs.get(str(r.get("no") or ""))))
         baked.append(r)
         n_no += 1
         made += 1

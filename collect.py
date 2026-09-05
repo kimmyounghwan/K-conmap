@@ -1392,6 +1392,18 @@ def naeyeok_kind(name):
 #   4,290개를 다 받으면 1GB 가 넘어 Firebase 무료 10GB 에 부담이 됩니다.
 #   그래서 «단가가 든 갈래» 만, 한 회차에 조금씩, 크기 상한을 두고 받습니다.
 NAEYEOK_BOOK = os.path.join(STORE, "naeyeok_files.json")
+# ── 내역서 목록을 «쌓아» 둡니다 — 3년치. (2026-09-06, 소장님: 「딱 3년 치만 저장」)
+#   ⚠️ store(first/live)는 70일치라, 여기에만 기대면 목록도 70일치입니다.
+#      그래서 목록만 따로 쌓습니다. 파일 자체가 아니라 «줄» 이라 가볍습니다.
+#   ⚠️ 3년치를 화면에 통째로 내면 안 됩니다 — 실측 gzip 3.4MB.
+#      저장은 3년, 화면에 내는 것은 갈래별 상한(NAEYEOK_SHOW)까지입니다.
+NAEYEOK_INDEX = os.path.join(STORE, "naeyeok_index.json")
+NAEYEOK_KEEP_DAYS = int(os.environ.get("NAEYEOK_KEEP_DAYS", "1095"))   # 3년
+# 화면 상한은 «언제 받는 파일인가» 로 갈립니다 — 같은 숫자를 쓰면 한쪽이 반드시 틀립니다.
+#   naeyeok.json     : 화면을 열자마자 받습니다 → 작게
+#   naeyeok-all.json : 그 갈래를 눌렀을 때만 받습니다 → 크게 잡아도 됩니다
+NAEYEOK_SHOW_TOP = int(os.environ.get("NAEYEOK_SHOW_TOP", "800"))     # 단가 든 갈래(첫 화면)
+NAEYEOK_SHOW = int(os.environ.get("NAEYEOK_SHOW", "2000"))            # 나머지 갈래(누를 때)
 # 받은 파일이 사는 곳. ★ web/public 이 아니라 data/store 입니다 —
 #   GitHub Actions 가 회차 사이에 넘겨주는 것이 data/store 하나뿐이기 때문입니다.
 #   (자세한 까닭은 fetch_naeyeok_files 의 설명)
@@ -2227,7 +2239,23 @@ def main():
             nonlocal_streak[0] = 0
             time.sleep(0.3)
 
-        # ── 상한을 넘으면 오래된 것부터 버립니다 ──────────────────
+        # ── 3년이 지난 파일은 버립니다 (목록과 같은 상한) ──────────
+        old_cut = (datetime.now(KST) - timedelta(days=NAEYEOK_KEEP_DAYS)).strftime("%Y-%m-%d")
+        aged = 0
+        for k, v in list(book.items()):
+            if v.get("file") and (v.get("dt") or "") and v["dt"] < old_cut:
+                try:
+                    p_ = os.path.join(NAEYEOK_DIR, v["file"])
+                    if os.path.exists(p_):
+                        os.remove(p_)
+                except Exception:
+                    continue
+                book[k] = {"skip": "3년 지남", "perm": True}
+                aged += 1
+
+        # ── 크기 상한을 넘으면 오래된 것부터 버립니다 ────────────────
+        #   ⚠️ 3년치를 다 두면 실측 추정 810MB 입니다. 배포 1벌에 얹혀 ×10 보관이면
+        #      Firebase 무료 10GB 에 닿습니다. 그래서 날짜 상한과 «별도로» 크기 상한을 둡니다.
         keep = [(v.get("dt") or "", k, v) for k, v in book.items() if v.get("file")]
         keep.sort(reverse=True)                            # 최신이 앞
         budget, used, dropped = NAEYEOK_KEEP_MB * 1024 * 1024, 0, 0
@@ -2256,7 +2284,10 @@ def main():
             "시간 상한에 걸림": ran_out,
             "일찍 접음(연달아 5번 실패)": gave_up,
             "상한MB": NAEYEOK_KEEP_MB, "쓴MB": round(used / 1024 / 1024, 1),
+            "보관일수": NAEYEOK_KEEP_DAYS, "3년 지나 내린 것": aged,
         }
+        if aged:
+            print("    3년 지난 파일 %d개를 내렸습니다" % aged)
         if errs:
             print("    실패 이유: " + " · ".join("%s %d건" % (k, v) for k, v in errs.items()))
             for x in firsts:
@@ -2301,20 +2332,30 @@ def main():
         return live
 
     def export_naeyeok(store, live=None):
-        """내역서 모음 — 조달청 붙임 파일을 갈래별로 모아 «링크»로 냅니다. (2026-09-05)
+        """내역서 모음 — 조달청 붙임 파일을 갈래별로 모읍니다. (2026-09-06 3년 보관)
 
-        두 파일로 나눕니다:
+        ■ 저장은 3년, 화면은 상한 — 여기가 이 함수의 핵심입니다
+          소장님: 「공사내역서 누적하지 말고. 딱 3년 치만 저장」
+          store(first/live)는 70일치라 목록도 70일치였습니다. 그래서 목록만 따로
+          data/store/naeyeok_index.json 에 쌓고, 3년이 지난 줄은 버립니다.
+          ⚠️ 그런데 3년치를 화면에 통째로 내면 **gzip 3.4MB** 입니다(실측).
+             목록 한 번 여는 데 방문자 10명분 전송량입니다.
+             → 화면에는 갈래별 최신 NAEYEOK_SHOW 개까지만 냅니다.
+             화면에도 「저장은 3년치 · 목록은 최신 N개」 라고 적습니다.
+
+        ■ 두 파일로 나눕니다
           naeyeok.json      단가가 «들어 있는» 갈래(설계내역서·단가산출서) — 첫 화면에서 받습니다
           naeyeok-all.json  나머지(공내역서·물량내역서 등) — 그 갈래를 눌렀을 때만 받습니다
-        나누는 이유는 CLAUDE.md 의 전송량 원칙입니다 — 안 보는 것은 안 받습니다.
         """
         book = load_json(NAEYEOK_BOOK, {})     # 실제로 받아 «열어 본» 결과
         # live = 실제로 web/public/naeyeok 에 올라간 파일 이름들.
         # 기록에만 있고 파일이 없으면 «바로 받기» 를 내지 않습니다 (404 방지).
         if live is None:
             live = publish_naeyeok_files()
-        rows_p, rows_a = [], []
-        seen = set()
+
+        # ── 1) 이번 회차에 보이는 것을 누적 색인에 합칩니다 ──────────
+        idx = load_json(NAEYEOK_INDEX, {})
+        before = len(idx)
         for r in store["con"].values():
             docs = r.get("docs") or []
             if not docs:
@@ -2323,41 +2364,78 @@ def main():
             inst = str(r.get("inst") or "")
             dt = str(r.get("dt") or "")[:10]
             no = str(r.get("no") or "")
-            purl = str(r.get("url") or "")          # 조달청이 준 공고 주소 (손으로 만들지 않습니다)
+            purl = str(r.get("url") or "")      # 조달청이 준 공고 주소 (손으로 만들지 않습니다)
             for i, y in enumerate(docs):
                 fname = str(y[0] if isinstance(y, (list, tuple)) else y)
                 furl = str(y[1]) if isinstance(y, (list, tuple)) and len(y) > 1 else ""
                 kind = naeyeok_kind(fname)
                 if not kind or not furl:
                     continue
-                key = (fname, furl)
-                if key in seen:
+                # 갈래는 «지금 규칙» 으로 다시 매깁니다 — 규칙을 고치면 옛 줄도 따라옵니다.
+                idx["%s_%d" % (no, i)] = [kind, fname, furl, nm, inst, dt, no, purl]
+
+        # ── 2) 3년이 지난 줄은 버립니다 (누적하지 않습니다) ──────────
+        cut = (datetime.now(KST) - timedelta(days=NAEYEOK_KEEP_DAYS)).strftime("%Y-%m-%d")
+        dropped = 0
+        for k in [k for k, v in idx.items() if (v[5] or "") and v[5] < cut]:
+            del idx[k]
+            dropped += 1
+        save_json(NAEYEOK_INDEX, idx)
+
+        # ── 3) 화면에 낼 것만 골라 냅니다 ────────────────────────────
+        rows_p, rows_a = [], []
+        seen = set()
+        # 최신 공고가 위로 (dt 내림차순)
+        for key, v in sorted(idx.items(), key=lambda kv: kv[1][5] or "", reverse=True):
+            kind, fname, furl, nm, inst, dt, no, purl = v
+            if (fname, furl) in seen:
+                continue
+            seen.add((fname, furl))
+            # 우리가 받아 둔 파일이 있으면 그 주소와 «열어 본 결과» 를 함께 싣습니다.
+            #   priced  1 단가 확인됨 · 0 열어 보니 단가 없음 · -1 아직 안 열어 봄
+            b = book.get(key) or {}
+            local = ("/naeyeok/" + b["file"]) if (b.get("file") in live) else ""
+            priced = 1 if b.get("priced") is True else (0 if b.get("priced") is False else -1)
+            (rows_p if kind in NAEYEOK_PRICED else rows_a).append(
+                [kind, fname, furl, nm, inst, dt, no, purl, local, priced])
+
+        # 갈래마다 상한 — 전송량을 지키는 자리입니다
+        kept, cap = {}, []
+        for v, lim in ((rows_p, NAEYEOK_SHOW_TOP), (rows_a, NAEYEOK_SHOW)):
+            out = []
+            for row in v:                       # 이미 최신 순입니다
+                k = row[0]
+                if kept.get(k, 0) >= lim:
                     continue
-                seen.add(key)
-                # 우리가 받아 둔 파일이 있으면 그 주소와 «열어 본 결과» 를 함께 싣습니다.
-                #   priced  1 단가 확인됨 · 0 열어 보니 단가 없음 · -1 아직 안 열어 봄
-                b = book.get("%s_%d" % (no, i)) or {}
-                local = ("/naeyeok/" + b["file"]) if (b.get("file") in live) else ""
-                priced = 1 if b.get("priced") is True else (0 if b.get("priced") is False else -1)
-                row = [kind, fname, furl, nm, inst, dt, no, purl, local, priced]
-                (rows_p if kind in NAEYEOK_PRICED else rows_a).append(row)
-        # 최신 공고가 위로
-        for v in (rows_p, rows_a):
-            v.sort(key=lambda x: x[5], reverse=True)
+                kept[k] = kept.get(k, 0) + 1
+                out.append(row)
+            cap.append(out)
+        rows_p, rows_a = cap
+
+        # 「전부」와 「보여주는 것」 을 갈래마다 함께 냅니다 — 화면이 정직하게 적을 수 있도록
+        allcnt = {}
+        for v in idx.values():
+            allcnt[v[0]] = allcnt.get(v[0], 0) + 1
         cnt = {}
         for x in rows_p + rows_a:
             cnt[x[0]] = cnt.get(x[0], 0) + 1
+
         fields = ["kind", "file", "url", "name", "inst", "dt", "no", "purl", "local", "priced"]
-        meta = {"built": built, "f": fields, "n": len(rows_p) + len(rows_a), "kinds": cnt}
+        meta = {"built": built, "f": fields, "n": len(rows_p) + len(rows_a),
+                "kinds": cnt, "all": allcnt,
+                "show": NAEYEOK_SHOW, "showTop": NAEYEOK_SHOW_TOP,
+                "days": NAEYEOK_KEEP_DAYS, "total": len(idx)}
         for fn_, rows in (("naeyeok.json", rows_p), ("naeyeok-all.json", rows_a)):
             path = os.path.join(OUT, fn_)
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(dict(meta, r=rows), f, ensure_ascii=False, separators=(",", ":"))
         a = os.path.getsize(os.path.join(OUT, "naeyeok.json")) / 1024
-        b = os.path.getsize(os.path.join(OUT, "naeyeok-all.json")) / 1024
-        print(f"  \u2192 naeyeok  \ub0b4\uc5ed\uc11c {len(rows_p) + len(rows_a):,}\uac1c "
-              f"(\ub2e8\uac00 \uc788\ub294 \uac83 {len(rows_p):,}\uac1c {a:.0f}KB / "
-              f"\ub098\uba38\uc9c0 {len(rows_a):,}\uac1c {b:.0f}KB)")
+        b2 = os.path.getsize(os.path.join(OUT, "naeyeok-all.json")) / 1024
+        print("  → naeyeok  쌓아 둔 것 %s개(3년치, 이번에 +%s%s) · "
+              "화면에 내는 것 %s개 (단가 있는 것 %s개 %.0fKB / 나머지 %s개 %.0fKB)"
+              % (f"{len(idx):,}", f"{len(idx) - before + dropped:,}",
+                 (" · 3년 지나 버림 %d" % dropped) if dropped else "",
+                 f"{len(rows_p) + len(rows_a):,}", f"{len(rows_p):,}", a, f"{len(rows_a):,}", b2))
 
     def export_bidindex(store, fstore):
         """«바로투찰» 전용 — 아직 마감되지 않은 공고만 담은 가벼운 목록.

@@ -175,7 +175,19 @@ def main():
         with io.open(CHANGE_JSON, encoding="utf-8") as f:
             tops = (json.load(f) or {}).get("topics") or []
         # /change/excel — 통합 엑셀 전용 페이지. 「설계변경 내역서 엑셀」 검색을 받는 자리입니다.
-        for u in ["/change", "/change/excel", "/change/naeyeok", "/change/calc"] + [f'/change/{t["slug"]}' for t in tops]:
+        # 내역서 갈래마다 한 장 — 「공내역서 양식」 같은 낱말로 들어올 자리 (2026-09-06)
+        # ⚠️ prerender.py 가 «자료가 있는 갈래만» 굽습니다. 여기서도 자료를 보고 냅니다 —
+        #    안 구운 주소를 사이트맵에 내면 크롤러가 빈 껍데기를 봅니다 (실제 사고).
+        ny = []
+        try:
+            with open(os.path.join(ROOT, "web", "public", "data", "naeyeok.json"),
+                      encoding="utf-8") as f:
+                ny = [k for k, n in ((json.load(f) or {}).get("all") or {}).items() if n]
+        except Exception:
+            ny = []
+        for u in (["/change", "/change/excel", "/change/naeyeok", "/change/calc"]
+                  + [f"/change/naeyeok/{quote(k, safe='')}" for k in ny]
+                  + [f'/change/{t["slug"]}' for t in tops]):
             urls.append(f'  <url><loc>{SITE}{u}</loc><lastmod>{today}</lastmod>'
                         f'<changefreq>monthly</changefreq><priority>0.7</priority></url>')
             n_cg += 1
