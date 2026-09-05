@@ -37,6 +37,20 @@ function Blocks({ blocks }) {
   return blocks.map((b, i) => {
     if (b.t === 'p') return <p className="cp" key={i}>{md(b.text)}</p>
     if (b.t === 'warn') return <div className="cwarn" key={i}>⚠️ {md(b.text)}</div>
+    if (b.t === 'links') {
+      /* 공식 자료는 «링크»로만 연결합니다 — 파일을 우리가 퍼오지 않습니다. */
+      return (
+        <div className="clinks" key={i}>
+          {b.items.map(([nm, url, note], j) => (
+            <a className="clink" key={j} href={url} target="_blank" rel="noopener nofollow">
+              <span className="ct">{nm}</span>
+              <span className="cd">{note}</span>
+              <span className="go">↗</span>
+            </a>
+          ))}
+        </div>
+      )
+    }
     if (b.t === 'ul') {
       return <ul className="flist" key={i}>{b.items.map((x, j) => <li key={j}>{md(x)}</li>)}</ul>
     }

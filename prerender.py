@@ -710,6 +710,15 @@ def _blocks_html(blocks):
             for r in b["rows"]:
                 out.append("<tr>" + "".join(f"<td>{_bold(c)}</td>" for c in r) + "</tr>")
             out.append("</tbody></table></div>")
+        elif t == "links":
+            # 공식 자료는 «링크»로만 연결합니다 — 파일을 우리가 퍼오지 않습니다.
+            out.append('<div class="clinks">')
+            for it in b["items"]:
+                nm, url, note = (list(it) + ["", "", ""])[:3]
+                out.append('<a class="clink" href="%s" target="_blank" rel="noopener nofollow">'
+                           '<span class="ct">%s</span><span class="cd">%s</span>'
+                           '<span class="go">↗</span></a>' % (esc(url), esc(nm), esc(note)))
+            out.append("</div>")
     return "".join(out)
 
 
