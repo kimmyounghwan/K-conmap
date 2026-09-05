@@ -84,8 +84,22 @@ const REGION_ALIAS = {
   경북: ['경북', '경상북도'], 경남: ['경남', '경상남도'],
 }
 
+/**
+ * 지역 거르기. — 2026-09-05 고침
+ *
+ * ⚠️ 전에는 «기관명+공고명에 그 글자가 들어 있나» 로 봤습니다.
+ *    전남과 광주가 통합되어 기관명이 「전남광주통합특별시 장흥군」 이 되면서
+ *    **「광주」 를 고르면 962건 중 833건(87%)이 전남 시·군 공고**였습니다.
+ *    → 이제 collect.py 가 조달청 «공사 현장 지역(site)» 으로 정해 준 rgn 을 씁니다.
+ *      화면에서 짐작하지 않습니다 (CLAUDE.md 1번).
+ *    아래 낱말 방식은 rgn 이 없는 옛 자료에서만 씁니다.
+ */
 export function inRegion(row, region) {
   if (!region || region === '전국') return true
+  if (row && row.rgn != null && row.rgn !== '') {
+    return String(row.rgn).split(',').includes(region)
+  }
+  if (row && row.rgn === '') return false     // 지역을 못 정한 공고 — 전국에서만 보입니다
   const pats = REGION_ALIAS[region] || [region]
   const blob = `${row.inst || ''} ${row.name || ''}`
   return pats.some((p) => blob.includes(p))
@@ -99,24 +113,12 @@ export function normCorp(s) {
   return v.replace(/\s+/g, '').trim()
 }
 
-/** 면허별 매칭 키워드 — 기존 K-건설맵 규칙 그대로 */
-export const LICENSES = [
-  '[종합] 건축공사업', '[종합] 토목공사업', '[종합] 토목건축공사업', '[종합] 조경공사업',
-  '[전문] 지반조성·포장공사업', '[전문] 실내건축공사업', '[전문] 철근·콘크리트공사업',
-  '[기타] 전기공사업', '[기타] 정보통신공사업', '[기타] 소방시설공사업',
-]
-
-export function licenseKeywords(lic) {
-  const k = new Set()
-  const add = (...xs) => xs.forEach((x) => k.add(x))
-  if (lic.includes('토목')) add('토목', '도로', '포장', '하천', '교량', '정비', '관로', '상수도', '하수도')
-  if (lic.includes('건축')) add('건축', '신축', '증축', '보수', '인테리어', '방수', '도장')
-  if (lic.includes('조경')) add('조경', '식재', '공원', '수목')
-  if (lic.includes('전기')) add('전기', '배전', '가로등', 'CCTV')
-  if (lic.includes('통신')) add('통신', '네트워크', '방송')
-  if (lic.includes('소방')) add('소방', '화재', '스프링클러')
-  if (lic.includes('철근') || lic.includes('콘크리트')) add('철콘', '구조물', '옹벽', '배수', '기초')
-  if (lic.includes('지반') || lic.includes('포장')) add('지반', '포장', '아스팔트', '토공')
-  if (lic.includes('실내건축')) add('실내건축', '인테리어', '내장', '칸막이')
-  return [...k]
-}
+/* ⚠️ 면허 목록·키워드는 여기서 지웠습니다 — 2026-09-05
+ *
+ * 공고명 낱말로 면허를 «추측» 하고 있었습니다
+ * (철근·콘크리트 → «철콘, 구조물, 옹벽, 배수, 기초»).
+ * 실제 공고 12,735건으로 재보니 정확도 15.7%, 놓친 것 82% 였습니다.
+ * 조달청이 lic 로 정확히 주고 있었습니다.
+ * → 면허 거르기는 web/src/lib/lic.js 가 «조달청 코드»로만 합니다.
+ *   여기에 낱말 목록을 다시 만들지 마세요 — 두 벌이 되면 어긋납니다.
+ */

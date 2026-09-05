@@ -8,7 +8,9 @@ import { NoticeLink } from '../NoticeDetail.jsx'
 import { quickBid, P50_FALLBACK, pickOdds } from '../lib/bidmath.js'
 import { getOverview, getBidIndex, indexRows } from '../lib/data.js'
 import { winGrade } from '../lib/winodds.js'
-import { won, wonShort, num, dateTime, dday, REGIONS, inRegion, LICENSES, licenseKeywords } from '../lib/fmt.js'
+import { won, wonShort, num, dateTime, dday, REGIONS, inRegion } from '../lib/fmt.js'
+import { loadLicCodes, saveLicCodes, loadLicNone, saveLicNone,
+         licList, licNoneCount, licHit, licShort } from '../lib/lic.js'
 
 /* ══════════════════════════════════════════════════════════════
    «바로투찰» 버튼은 계산이 되는 공고에만 답니다.
@@ -31,23 +33,14 @@ const canBid = (r, now) => !!r && stamp14(r.close) >= now && isReady(r)
 
 const PAGE = 20
 const KIND = 'con'   // 공사만 다룹니다 (용역 제외)
-const LS_KEY = 'kcm_licenses'
-
-/** 회원가입 없이도 '내 면허 맞춤매칭'이 되도록 브라우저에만 저장한다 */
-function loadLicenses() {
-  try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]') } catch { return [] }
-}
-function saveLicenses(v) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(v)) } catch { /* 사파리 시크릿 모드 등 */ }
-}
-
 export default function LiveBoard() {
   const [region, setRegion] = useState('전국')
   const [q, setQ] = useState('')
   const [page, setPage] = useState(1)
   const [mine, setMine] = useState(false)
   const [onlyGood, setOnlyGood] = useState(false)   // A·B 등급만 보기
-  const [lics, setLics] = useState(loadLicenses)
+  const [lics, setLics] = useState(loadLicCodes)
+  const [licNone, setLicNone] = useState(loadLicNone)
   const [editLic, setEditLic] = useState(false)
   const [open, setOpen] = useState(null)
   const now = useMemo(() => nowStamp(), [])
@@ -82,37 +75,43 @@ export default function LiveBoard() {
     setTimeout(() => setCopiedNo((v) => (v === r.no ? null : v)), 1600)
   }
 
-  useEffect(() => { setPage(1) }, [region, q, mine, lics, onlyGood, pick, sortBy, fewOnly])
-  useEffect(() => { saveLicenses(lics) }, [lics])
+  useEffect(() => { setPage(1) }, [region, q, mine, lics, licNone, onlyGood, pick, sortBy, fewOnly])
+  useEffect(() => { saveLicCodes(lics) }, [lics])
+  useEffect(() => { saveLicNone(licNone) }, [licNone])
 
-  const keywords = useMemo(
-    () => [...new Set(lics.flatMap(licenseKeywords))], [lics])
+
 
   /* ── 검색·지역·면허·등급은 «색인»으로 거릅니다 — 2026-09-03 ──────
      전에는 7주치 묶음을 전부 받았습니다(1,767KB). 이제 색인(352KB)만 받고,
      보고 있는 쪽에 나올 20건이 든 묶음만 받습니다.
-     ⚠️ 색인 한 줄: [공고명, 기관, 기초금액, 예가하한, 예가상한]
-        — collect.py 의 export_board 가 이 순서로 만듭니다.
-        base/lo/hi 를 넣은 이유는 「해볼 만한 공고만」 등급이 이 셋을 쓰기 때문입니다. */
+     ⚠️ 색인 한 줄: [공고명, 기관, 기초금액, 예가하한, 예가상한, 면허코드, 시도]
+        — collect.py 의 export_board 가 이 순서로 만듭니다. selfcheck 가 대조합니다.
+        base/lo/hi 는 「해볼 만한 공고만」 등급이 쓰고, lic 은 면허 거르기가 씁니다
+        (2026-09-05 — 전에는 공고명 낱말로 «추측» 해서 정확도가 15.7% 였습니다). */
   const filtering = q.trim().length > 0 || region !== '전국' || mine || onlyGood
   const match = useMemo(() => {
     if (!filtering) return null
     const s = q.trim()
     return (a) => {
-      const [name, inst, base, lo, hi] = a
-      if (!inRegion({ name, inst }, region)) return false
+      const [name, inst, base, lo, hi, lic, rgn] = a
+      if (!inRegion({ name, inst, rgn }, region)) return false
       if (s && !((name || '').includes(s) || (inst || '').includes(s))) return false
-      if (mine && keywords.length && !keywords.some((k) => (name || '').includes(k))) return false
+      if (mine && lics.length && !licHit(lic, lics, licNone)) return false
       if (onlyGood) {
         const g = winGrade({ name, inst, base, lo, hi })
         if (!g || (g.key !== 'A' && g.key !== 'B')) return false
       }
       return true
     }
-  }, [filtering, q, region, mine, keywords, onlyGood])
+  }, [filtering, q, region, mine, lics, licNone, onlyGood])
 
   const { info, rows: all, pageRows, pageReady, total, indexReady, loading, busy } =
     useBoard('live', KIND, { match: pick ? null : match, page, perPage: PAGE })
+
+  /* 면허 칩 목록은 «자료에서» 옵니다 — collect.py 가 board meta 에 구워 둡니다.
+     화면에 손으로 적어 두면 조달청이 이름을 바꿨을 때 조용히 안 맞습니다. */
+  const licOptions = useMemo(() => licList(info), [info])
+  const noLic = useMemo(() => licNoneCount(info), [info])
 
   /* 🎯 자리 찾기 목록 — 마감 전·계산 가능 공고에 예상 참가·1순위율·기대액을 붙여 정렬합니다 */
   const pickRows = useMemo(() => {
@@ -123,7 +122,7 @@ export default function LiveBoard() {
       if (!canBid(r, now)) continue
       if (!inRegion(r, region)) continue
       if (s && !((r.name || '').includes(s) || (r.inst || '').includes(s))) continue
-      if (mine && keywords.length && !keywords.some((k) => (r.name || '').includes(k))) continue
+      if (mine && lics.length && !licHit(r.lic, lics, licNone)) continue
       if (onlyGood) {
         const g = winGrade(r)
         if (!g || (g.key !== 'A' && g.key !== 'B')) continue
@@ -140,7 +139,7 @@ export default function LiveBoard() {
     else if (sortBy === 'ev') out.sort((a, b) => evOf(b) - evOf(a) || rateOf(b) - rateOf(a))
     else out.sort((a, b) => stamp14(a.close).localeCompare(stamp14(b.close)))
     return out
-  }, [pick, idx, q, region, mine, keywords, onlyGood, fewOnly, sortBy, p50, now])
+  }, [pick, idx, q, region, mine, lics, licNone, onlyGood, fewOnly, sortBy, p50, now])
 
   /* 전체 건수는 useBoard 가 «7주 전체»로 셉니다 — 검색 중이면 색인에서, 아니면 목록표(meta)에서.
      ⚠️ 받아 둔 것(all.length)으로 세면 25쪽(500건 ≈ 개찰 이틀치)에서 끝납니다 — 2026-09-03 실제 사고. */
@@ -177,15 +176,28 @@ export default function LiveBoard() {
 
       {(editLic || (mine && !lics.length)) && (
         <div className="card">
-          <div className="sec-title" style={{ margin: '0 0 8px' }}>보유 면허 선택</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {LICENSES.map((l) => (
-              <button key={l} className={'chip' + (lics.includes(l) ? ' on' : '')}
-                onClick={() => toggleLic(l)}>{l}</button>
-            ))}
+          <div className="sec-title" style={{ margin: '0 0 4px' }}>
+            보유 면허 선택
+            <span className="count">· 조달청이 공고에 적은 면허 그대로입니다</span>
           </div>
-          <div className="note" style={{ marginTop: 10 }}>
-            선택한 면허는 이 브라우저에만 저장됩니다. 서버로 보내지 않고, 회원가입도 필요 없습니다.
+          {licOptions.length === 0 ? (
+            <div className="note">면허 목록을 불러오는 중입니다…</div>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+              {licOptions.map(([code, nm, n]) => (
+                <button key={code} className={'chip' + (lics.includes(code) ? ' on' : '')}
+                  onClick={() => toggleLic(code)}>{licShort(nm)}<em className="licn"> {n}</em></button>
+              ))}
+            </div>
+          )}
+          <label className="licnone">
+            <input type="checkbox" checked={licNone}
+              onChange={(e) => setLicNone(e.target.checked)} />
+            <span>면허가 안 적힌 공고도 보기{noLic != null ? ` (${num(noLic)}건)` : ''}</span>
+          </label>
+          <div className="note" style={{ marginTop: 8 }}>
+            조달청이 공고마다 적어 준 <b>면허 제한</b>으로 거릅니다 — 공고명으로 짐작하지 않습니다.
+            선택한 면허는 이 브라우저에만 저장됩니다. 회원가입은 없습니다.
           </div>
           <button className="btn" style={{ marginTop: 10 }}
             onClick={() => { setEditLic(false); if (lics.length) setMine(true) }}>

@@ -1238,6 +1238,125 @@ def pick_stats(fstore):
     return enp, {"tbl": tbl, "sz": PICK_SZ, "nb": PICK_NB, "n": sum(n for n, _ in cells.values())}
 
 
+# ══════════════════════════════════════════════════════════════════
+#  지역 판정 — 2026-09-05
+#
+#  ⚠️ 왜 새로 만들었나 (소장님: 「철콘·전남·고흥 하면 아무것도 안 나와」)
+#     지역을 «기관명+공고명에 그 글자가 들어 있나» 로 판정하고 있었습니다.
+#     그런데 전남과 광주가 통합되어 기관명이 「전남광주통합특별시 장흥군」 이 됐습니다.
+#     → 「광주」 를 고르면 962건이 나오는데 그 중 833건(87%)이 전남 시·군이었습니다.
+#     조달청은 cnstrtsiteRgnNm(공사 현장 지역, store 의 site)을 8,164건에 주고 있었습니다.
+#     (CLAUDE.md 1번 「조달청이 주는 값이 있으면 그대로 쓴다」)
+#
+#  순서: ① 현장지역(site) 앞부분 → ② 기관명 앞부분 → ③ 기관명 안의 시도 낱말
+#        → ④ 기관명·공고명 안의 시·군 이름 (표는 «자료에서» 만듭니다)
+#  실측: 못 정하는 것 5.8%. 광주 962 → 137건, 전남 1,015 → 964건.
+# ══════════════════════════════════════════════════════════════════
+SIDO_FULL = [("서울특별시", "서울"), ("부산광역시", "부산"), ("대구광역시", "대구"),
+             ("인천광역시", "인천"), ("광주광역시", "광주"), ("대전광역시", "대전"),
+             ("울산광역시", "울산"), ("세종특별자치시", "세종"), ("경기도", "경기"),
+             ("강원특별자치도", "강원"), ("강원도", "강원"), ("충청북도", "충북"),
+             ("충청남도", "충남"), ("전북특별자치도", "전북"), ("전라북도", "전북"),
+             ("전라남도", "전남"), ("경상북도", "경북"), ("경상남도", "경남"),
+             ("제주특별자치도", "제주"), ("제주도", "제주")]
+SIDO_SCAN = [("서울", "서울"), ("부산", "부산"), ("대구", "대구"), ("인천", "인천"),
+             ("대전", "대전"), ("울산", "울산"), ("세종", "세종"), ("경기", "경기"),
+             ("강원", "강원"), ("충청북도", "충북"), ("충북", "충북"),
+             ("충청남도", "충남"), ("충남", "충남"), ("전라북도", "전북"), ("전북", "전북"),
+             ("전라남도", "전남"), ("전남", "전남"), ("경상북도", "경북"), ("경북", "경북"),
+             ("경상남도", "경남"), ("경남", "경남"), ("제주", "제주"), ("광주", "광주")]
+MERGED = "전남광주통합특별시"          # 전남·광주 통합 (2026)
+GWANGJU_GU = {"동구", "서구", "남구", "북구", "광산구", "광주청사"}
+
+
+def _head_sido(s):
+    """문자열 «앞부분» 으로만 판정합니다. 안에 든 글자로 짐작하지 않습니다."""
+    s = (s or "").strip()
+    if not s:
+        return ""
+    if s.startswith(MERGED):
+        t = s[len(MERGED):].strip()
+        head = t.split()[0] if t else ""
+        if head in GWANGJU_GU:
+            return "광주"
+        if head and (head[-1] in "시군" or head == "무안청사"):
+            return "전남"
+        return "전남,광주"        # 교육청·소방본부처럼 광역 기관은 둘 다에 걸립니다
+    for full, ab in SIDO_FULL:
+        if s.startswith(full):
+            return ab
+    return ""
+
+
+def region_book(rows):
+    """시·군 → 시도 표를 «자료에서» 만듭니다. 손으로 226개를 적어 두면 언젠가 어긋납니다."""
+    book = {}
+    for r in rows:
+        for src in (str(r.get("site") or ""), str(r.get("inst") or "")):
+            ab = _head_sido(src)
+            if not ab or "," in ab:
+                continue
+            parts = src.split()
+            if len(parts) >= 2 and parts[1] and parts[1][-1] in "시군구" and len(parts[1]) >= 3:
+                book.setdefault(parts[1], {})
+                book[parts[1]][ab] = book[parts[1]].get(ab, 0) + 1
+    out = {}
+    for gun, c in book.items():
+        ab, n = max(c.items(), key=lambda kv: kv[1])
+        if n >= 2:                       # 한 번만 나온 것은 오타일 수 있어 뺍니다
+            out[gun] = ab
+    return out
+
+
+def sido_of(r, book=None):
+    """이 공고가 어느 시도인가. 여럿이면 «전남,광주» 처럼 쉼표로 잇습니다."""
+    for src in (str(r.get("site") or ""), str(r.get("inst") or "")):
+        ab = _head_sido(src)
+        if ab:
+            return ab
+    inst = str(r.get("inst") or "")
+    for tok, ab in SIDO_SCAN:
+        if tok in inst:
+            return ab
+    if book:
+        for gun, ab in book.items():
+            if gun in inst:
+                return ab
+        nm = str(r.get("name") or "")
+        for gun, ab in book.items():
+            if gun in nm:
+                return ab
+    return ""
+
+
+def lic_pairs(r):
+    """조달청 lic 값 «철근ㆍ콘크리트공사업/4994» 를 (코드, 이름) 으로 가릅니다.
+
+    ⚠️ 손으로 이름을 적지 않습니다. 조달청이 준 문자열을 그대로 가릅니다
+       (CLAUDE.md 1번). 코드가 없으면 이름 자체를 코드로 씁니다.
+    """
+    v = r.get("lic") or []
+    if not isinstance(v, list):
+        v = [v]
+    out = []
+    for x in v:
+        t = str(x).strip()
+        if not t:
+            continue
+        if "/" in t:
+            label, code = t.rsplit("/", 1)
+            label, code = label.strip(), code.strip()
+        else:
+            label, code = t, t
+        if code:
+            out.append((code, label or code))
+    return out
+
+
+def lic_codes(r):
+    return [c for c, _ in lic_pairs(r)]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=int, default=3)
@@ -1253,9 +1372,17 @@ def main():
     ap.add_argument("--fillonly", action="store_true",
                     help="조달청을 부르지 않고, 이미 받아 둔 자료로 "
                          "누적 CSV 의 빈칸만 채웁니다 (호출 0번 · 몇 초)")
+    ap.add_argument("--exportonly", action="store_true",
+                    help="조달청을 부르지 않고 저장소만으로 화면 파일을 다시 굽습니다 "
+                         "(색인·면허·지역을 고친 뒤 확인할 때)")
     ap.add_argument("--probe", action="store_true",
                     help="투찰업체 전체를 주는 오퍼레이션이 있는지 한 번 확인만 합니다")
     args = ap.parse_args()
+    if args.exportonly:
+        # 조달청을 아예 부르지 않습니다. fetch 가 차단기(NET_DOWN)를 보고 바로 []를 냅니다.
+        global NET_DOWN
+        NET_DOWN = True
+        print('  · --exportonly : 조달청을 부르지 않고 저장소로만 다시 굽습니다')
 
     # ── --fillonly : 조달청을 한 번도 부르지 않습니다 ────────────────
     #   이미 data/store/ 에 받아 둔 것으로 누적 CSV 의 빈칸만 채웁니다.
@@ -1751,17 +1878,29 @@ def main():
             #     useBoard.js 의 읽는 순서도 같이 고치세요.
             # ══════════════════════════════════════════════════════════
             if kind == "con":
+                # ★ 면허(lic)를 색인에 넣습니다 — 2026-09-05
+                #   전에는 공고명 낱말(«배수»·«기초»…)로 면허를 «추측» 했습니다.
+                #   실측: 철근·콘크리트를 고르면 580건이 나오는데 진짜는 91건(15.7%)이고,
+                #   반대로 진짜 514건 중 423건(82%)을 놓쳤습니다.
+                #   조달청이 lic 로 정확히 주고 있었는데 안 쓰고 있었던 것입니다
+                #   (CLAUDE.md 1번 「조달청이 주는 값이 있으면 그대로 쓴다」).
+                #   색인에는 «코드만» 넣습니다(4994 등) — 이름까지 넣으면 168KB, 코드만이면 72KB.
+                # 지역(rgn)도 색인에 넣습니다 — 화면이 «기관명에 그 글자가 있나» 로
+                # 짐작하면 「전남광주통합특별시 장흥군」 이 광주로 잡힙니다(실측 833건).
+                rbook = region_book(rows)
                 if name == "first":
-                    # 1순위: 검색은 공고명·기관·낙찰업체, 지역은 기관·공고명
+                    # 1순위: 검색은 공고명·기관·낙찰업체
                     idx = [[r.get("name") or "", r.get("inst") or "",
-                            r.get("win") or ""] for r in rows]
-                    fields = ["name", "inst", "win"]
+                            r.get("win") or "", lic_codes(r), sido_of(r, rbook)]
+                           for r in rows]
+                    fields = ["name", "inst", "win", "lic", "rgn"]
                 else:
                     # 공고: 검색은 공고명·기관. base/lo/hi 는 「해볼 만한 공고만」 등급 계산용
                     idx = [[r.get("name") or "", r.get("inst") or "",
                             int(r.get("base") or 0),
-                            r.get("lo"), r.get("hi")] for r in rows]
-                    fields = ["name", "inst", "base", "lo", "hi"]
+                            r.get("lo"), r.get("hi"), lic_codes(r), sido_of(r, rbook)]
+                           for r in rows]
+                    fields = ["name", "inst", "base", "lo", "hi", "lic", "rgn"]
                 with open(os.path.join(out_dir, f"{name}-{kind}-idx.json"),
                           "w", encoding="utf-8") as f:
                     json.dump({"f": fields, "chunk": BOARD_CHUNK, "r": idx},
@@ -1774,6 +1913,24 @@ def main():
                 "from": days[0] if days else "",
                 "to": days[-1] if days else "",
             }
+            if kind == "con":
+                # 면허 칩 목록을 «자료에서» 만듭니다. 손으로 적어 두면 조달청이 이름을
+                # 바꿨을 때 조용히 안 맞습니다. [코드, 이름, 건수] · 건수 순 상위 40가지.
+                cnt, nm = {}, {}
+                for r in rows:
+                    for code, label in lic_pairs(r):
+                        cnt[code] = cnt.get(code, 0) + 1
+                        nm[code] = label
+                top = sorted(cnt.items(), key=lambda kv: -kv[1])[:40]
+                meta[kind]["lics"] = [[c, nm[c], n] for c, n in top]
+                meta[kind]["nolic"] = sum(1 for r in rows if not lic_codes(r))
+                rc = {}
+                for r in rows:
+                    for g in (sido_of(r, rbook) or "").split(","):
+                        if g:
+                            rc[g] = rc.get(g, 0) + 1
+                meta[kind]["rgns"] = rc
+                meta[kind]["norgn"] = sum(1 for r in rows if not sido_of(r, rbook))
             total += len(rows)
         with open(os.path.join(out_dir, f"{name}.json"), "w", encoding="utf-8") as f:
             json.dump(meta, f, ensure_ascii=False, separators=(",", ":"))
@@ -1797,6 +1954,7 @@ def main():
         # GitHub 서버는 세계표준시로 돕니다. 마감시각은 한국시간이라 KST 로 비교해야 합니다.
         now = datetime.now(KST).strftime("%Y%m%d%H%M%S")
         enp_map, pick = pick_stats(fstore)
+        _rbook = region_book(list(store["con"].values()))
         rows = []
         for r in store["con"].values():
             c = re.sub(r"[^0-9]", "", str(r.get("close") or ""))
@@ -1836,6 +1994,7 @@ def main():
                 (enp_map.get(str(r.get("inst") or "").strip()) or [0, 0])[0],
                 (enp_map.get(str(r.get("inst") or "").strip()) or [0, 0])[1],
                 r.get("dt") or "",                 # 공고일 (목록 카드가 보여줍니다)
+                sido_of(r, _rbook),                # 시도 (지역 거르기 — 짐작하지 않습니다)
             ])
         rows.sort(key=lambda x: re.sub(r"[^0-9]", "", str(x[5])))
         out = {"built": built,
@@ -1843,7 +2002,7 @@ def main():
                      "llr", "est", "lic", "aval", "gmtrl",
                      "ayn", "ptot", "pdrw", "url",
                      "site", "rgnb", "joint", "mthd", "swin", "rebid",
-                     "enp", "enpn", "dt"],
+                     "enp", "enpn", "dt", "rgn"],
                "pick": pick,
                "r": rows}
         path = os.path.join(OUT, "bidindex.json")

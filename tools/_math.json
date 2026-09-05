@@ -1,0 +1,201 @@
+[
+ {
+  "no": "R26CHK0000101",
+  "sd": 0.7676494735787385,
+  "ready": true,
+  "missing": [],
+  "sj": 100.41,
+  "pctile": 75,
+  "recAmt": 408987690,
+  "rate": 90.984,
+  "shownAmt": 408989913,
+  "limitAtMid": 405676478,
+  "quick": 408989913
+ },
+ {
+  "no": "R26CHK0000102",
+  "sd": 0.511766315719159,
+  "ready": true,
+  "missing": [],
+  "sj": 100.238,
+  "pctile": 75,
+  "recAmt": 408290979,
+  "rate": 90.829,
+  "shownAmt": 408293159,
+  "limitAtMid": 405676478,
+  "quick": 408293159
+ },
+ {
+  "no": "R26CHK0000103",
+  "sd": 0.7676494735787385,
+  "ready": true,
+  "missing": [],
+  "sj": 100.41,
+  "pctile": 75,
+  "recAmt": 406724821,
+  "rate": 90.481,
+  "shownAmt": 406728834,
+  "limitAtMid": 403420378,
+  "quick": 406728834
+ },
+ {
+  "no": "R26CHK0000104",
+  "sd": 0.7676494735787385,
+  "ready": true,
+  "missing": [],
+  "sj": 100.41,
+  "pctile": 75,
+  "recAmt": 1801070141,
+  "rate": 90.15,
+  "shownAmt": 1801070791,
+  "limitAtMid": 1786506858,
+  "quick": 1801070791
+ },
+ {
+  "no": "R26CHK0000105",
+  "sd": 0.7676494735787385,
+  "ready": true,
+  "missing": [],
+  "sj": 100.41,
+  "pctile": 75,
+  "recAmt": 6218380409,
+  "rate": 88.93,
+  "shownAmt": 6218439144,
+  "limitAtMid": 6168116625,
+  "quick": 6218439144
+ },
+ {
+  "no": "R26CHK0000201",
+  "sd": 0.7676494735787385,
+  "ready": false,
+  "missing": [
+   "낙찰하한율"
+  ],
+  "quick": null
+ },
+ {
+  "no": "R26CHK0000202",
+  "sd": 0.7676494735787385,
+  "ready": false,
+  "missing": [
+   "A값"
+  ],
+  "sj": 101.144,
+  "pctile": 95,
+  "recAmt": 408472573,
+  "rate": 90.869,
+  "shownAmt": 408472966,
+  "limitAtMid": 403420378,
+  "quick": null
+ },
+ {
+  "no": "R26CHK0000203",
+  "sd": 0.7676494735787385,
+  "ready": false,
+  "missing": [
+   "기초금액",
+   "A값"
+  ]
+ },
+ {
+  "no": "R26CHK0000301",
+  "sd": 0.7676494735787385,
+  "ready": true,
+  "missing": [],
+  "sj": 100.41,
+  "pctile": 75,
+  "recAmt": 408987690,
+  "rate": 90.984,
+  "shownAmt": 408989913,
+  "limitAtMid": 405676478,
+  "quick": 408989913,
+  "score": {
+   "yeje": 446849913,
+   "limit": 403281555,
+   "our": 408989913,
+   "dq": false,
+   "beat": false
+  }
+ },
+ {
+  "no": "R26CHK0000302",
+  "sd": 0.7676494735787385,
+  "ready": true,
+  "missing": [],
+  "sj": 100.41,
+  "pctile": 75,
+  "recAmt": 408987690,
+  "rate": 90.984,
+  "shownAmt": 408989913,
+  "limitAtMid": 405676478,
+  "quick": 408989913,
+  "score": {
+   "yeje": 455852221,
+   "limit": 411360676,
+   "our": 408989913,
+   "dq": true,
+   "beat": false
+  }
+ },
+ {
+  "no": "R26CHK0000303",
+  "sd": 0.7676494735787385,
+  "ready": true,
+  "missing": [],
+  "sj": 100.41,
+  "pctile": 75,
+  "recAmt": 408987690,
+  "rate": 90.984,
+  "shownAmt": 408989913,
+  "limitAtMid": 405676478,
+  "quick": 408989913,
+  "score": {
+   "yeje": 449548387,
+   "limit": 405703300,
+   "our": 408989913,
+   "dq": false,
+   "beat": true
+  }
+ },
+ {
+  "no": "R26CHK0000304",
+  "sd": 0.7676494735787385,
+  "ready": true,
+  "missing": [],
+  "sj": 100.41,
+  "pctile": 75,
+  "recAmt": 408987690,
+  "rate": 90.984,
+  "shownAmt": 408989913,
+  "limitAtMid": 405676478,
+  "quick": 408989913,
+  "score": {
+   "yeje": 449548881,
+   "limit": 405703744,
+   "our": 408989913,
+   "dq": false,
+   "beat": false,
+   "passN": 9
+  }
+ },
+ {
+  "no": "R26CHK0000305",
+  "sd": 0.7676494735787385,
+  "ready": true,
+  "missing": [],
+  "sj": 100.41,
+  "pctile": 75,
+  "recAmt": 393897981,
+  "rate": 87.627,
+  "shownAmt": 393899576,
+  "limitAtMid": 390713331,
+  "quick": 393899576,
+  "score": {
+   "yeje": 449550298,
+   "limit": 390740755,
+   "our": 393899576,
+   "dq": false,
+   "beat": false
+  }
+ }
+]

@@ -4,6 +4,8 @@ import NoticeDetail, { scoreState, NoticeLink } from '../NoticeDetail.jsx'
 import { useBoard } from '../lib/useBoard.js'
 import { Skeleton, Empty, Tile } from '../components.jsx'
 import { won, wonShort, pct, num, dateTime, dateShort, REGIONS, inRegion } from '../lib/fmt.js'
+import { loadLicCodes, saveLicCodes, loadLicNone, saveLicNone,
+         licList, licNoneCount, licHit, licShort } from '../lib/lic.js'
 
 const PAGE = 20
 const KIND = 'con'   // 공사만 다룹니다 (용역 제외)
@@ -14,30 +16,37 @@ export default function FirstBoard() {
   const [q, setQ] = useState('')
   const [page, setPage] = useState(1)
   const [open, setOpen] = useState(null)
+  const [mine, setMine] = useState(false)
+  const [editLic, setEditLic] = useState(false)
+  const [lics, setLics] = useState(loadLicCodes)
+  const [licNone, setLicNone] = useState(loadLicNone)
 
   /* ── 검색·지역선택은 «색인»으로 합니다 — 2026-09-03 ──────────────
      전에는 걸러내려고 7주치 묶음을 전부 받았습니다(1,528KB).
      이제 걸러내기에 필요한 칸만 담은 색인(358KB)을 받아 정확히 세고,
      **그 쪽에 나올 20건이 든 묶음만** 받습니다.
-     ⚠️ 색인 한 줄의 순서는 collect.py 가 정합니다: [공고명, 기관, 낙찰업체].
+     ⚠️ 색인 한 줄의 순서는 collect.py 가 정합니다: [공고명, 기관, 낙찰업체, 면허코드, 시도].
         바꾸려면 두 곳을 같이 고치세요 — selfcheck 가 대조합니다. */
-  const filtering = q.trim().length > 0 || region !== '전국'
+  const filtering = q.trim().length > 0 || region !== '전국' || (mine && lics.length > 0)
   const match = useMemo(() => {
     if (!filtering) return null
     const s = q.trim()
     return (a) => {
-      const [name, inst, win] = a
-      if (!inRegion({ name, inst }, region)) return false
+      const [name, inst, win, lic, rgn] = a
+      if (!inRegion({ name, inst, rgn }, region)) return false
+      if (mine && lics.length && !licHit(lic, lics, licNone)) return false
       if (!s) return true
       return (name || '').includes(s) || (inst || '').includes(s) || (win || '').includes(s)
     }
-  }, [filtering, q, region])
+  }, [filtering, q, region, mine, lics, licNone])
 
   const { info, rows: all, pageRows, pageReady, total, indexReady, loading, busy } =
     useBoard('first', KIND, { match, page, perPage: PAGE })
 
   useEffect(() => { getOverview().then(setOv) }, [])
-  useEffect(() => { setPage(1) }, [region, q])
+  useEffect(() => { setPage(1) }, [region, q, mine, lics, licNone])
+  useEffect(() => { saveLicCodes(lics) }, [lics])
+  useEffect(() => { saveLicNone(licNone) }, [licNone])
 
   /* 검색 중이면 색인이 센 «전체 건수»가 정확합니다.
      검색이 아니면 받아 둔 것에서 셉니다(첫 묶음 500건). */
@@ -48,6 +57,9 @@ export default function FirstBoard() {
   const view = pageRows != null ? pageRows : all.slice((page - 1) * PAGE, page * PAGE)
   const rows = view
   const done = filtering ? indexReady : true     // 검색 중이면 색인이 와야 «다 셌다»
+  const licOptions = useMemo(() => licList(info), [info])
+  const noLic = useMemo(() => licNoneCount(info), [info])
+  const toggleLic = (c) => setLics((v) => (v.includes(c) ? v.filter((x) => x !== c) : [...v, c]))
   const newest = all.length ? String(all[0].dt || '').slice(0, 10) : ''
 
   return (
@@ -81,10 +93,49 @@ export default function FirstBoard() {
       />
 
       <div className="chips">
+        <button className={'chip' + (mine ? ' on' : '')}
+          onClick={() => (lics.length ? setMine(!mine) : setEditLic(true))}>
+          ✨ 내 면허 맞춤{lics.length ? ` (${lics.length})` : ''}
+        </button>
         {REGIONS.map((r) => (
           <button key={r} className={'chip' + (region === r ? ' on' : '')} onClick={() => setRegion(r)}>{r}</button>
         ))}
       </div>
+
+      {(editLic || (mine && !lics.length)) && (
+        <div className="card">
+          <div className="sec-title" style={{ margin: '0 0 4px' }}>
+            보유 면허 선택
+            <span className="count">· 조달청이 공고에 적은 면허 그대로입니다</span>
+          </div>
+          {licOptions.length === 0 ? (
+            <div className="note">면허 목록을 불러오는 중입니다…</div>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+              {licOptions.map(([code, nm, n]) => (
+                <button key={code} className={'chip' + (lics.includes(code) ? ' on' : '')}
+                  onClick={() => toggleLic(code)}>{licShort(nm)}<em className="licn"> {n}</em></button>
+              ))}
+            </div>
+          )}
+          <label className="licnone">
+            <input type="checkbox" checked={licNone}
+              onChange={(e) => setLicNone(e.target.checked)} />
+            <span>면허가 안 적힌 개찰도 보기{noLic != null ? ` (${num(noLic)}건)` : ''}</span>
+          </label>
+          <div className="note" style={{ marginTop: 8 }}>
+            조달청이 공고마다 적어 준 <b>면허 제한</b>으로 거릅니다 — 공고명으로 짐작하지 않습니다.
+          </div>
+          <button className="btn" style={{ marginTop: 10 }}
+            onClick={() => { setEditLic(false); if (lics.length) setMine(true) }}>완료</button>
+        </div>
+      )}
+
+      {!editLic && lics.length > 0 && (
+        <button className="btn ghost sm" style={{ marginBottom: 8 }} onClick={() => setEditLic(true)}>
+          면허 다시 고르기
+        </button>
+      )}
 
       <RangeBar info={info} loaded={all.length} done={done} busy={busy} filtering={filtering} count={count} />
 
