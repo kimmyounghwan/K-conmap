@@ -2264,3 +2264,39 @@ git 은 커밋할 때 `.git/index.lock` 을 만들었다가 지운다. 삭제가
     python tools\chgprobe.py
 
 ⚠️ 결과를 보기 전에는 «있다/없다» 를 말하지 말 것 — 이미 세 번 틀렸다.
+
+
+## 🔧 마운트 폴더에서 git 을 돌리는 «맞는 방법» — 2026-09-05
+
+「클로드가 마운트 폴더에서 git 을 못 쓴다」는 규칙을 다시 재봤다. **두 가지만 지키면 쓸 수 있다.**
+
+### ① core.fileMode=false — 안 주면 «전부 수정됨» 으로 보인다
+리눅스 VM 이 윈도우 파일을 0700 으로 읽는다. 그래서 git status 가
+글꼴 파일·zip·CSV 까지 전부 M 으로 찍는다. 내용은 하나도 안 바뀌었는데도.
+
+### ② core.autocrlf=true — 안 주면 «파일 통째로 바뀜» 으로 보인다
+**이 저장소의 blob 은 전부 LF 인데 디스크 파일은 CRLF 다** (윈도우 git 이 autocrlf=true 로 받아쓴다).
+리눅스 VM 에는 autocrlf 설정이 없어서(=false) CRLF 를 그대로 비교한다.
+→ CLAUDE.md 가 4,466줄, prerender.py 가 1,802줄 «바뀐» 것으로 나왔다. 실제 변경은 66줄·144줄이었다.
+→ 이 상태로 커밋하면 저장소 blob 이 CRLF 로 바뀌어 **앞으로 모든 diff 가 통째로 나온다.**
+
+    git -c core.fileMode=false -c core.autocrlf=true status --short
+    git -c core.fileMode=false -c core.autocrlf=true add -A
+    git -c core.fileMode=false -c core.autocrlf=true commit -F -
+
+이 두 개를 붙이면 윈도우 PowerShell 에서 보는 것과 **글자 하나까지 같은** 결과가 나온다.
+실측: 111개 파일 · +1,813 / −2 (설계변경 커밋 d1fcdb0).
+
+### ③ .git/index.lock — 지울 수는 없지만 «옮길» 수는 있다
+git 명령을 돌릴 때마다 lock 이 남고 unlink 가 막혀 있다. 그대로 두면 **윈도우 git 이 막힌다.**
+
+    mv "k-conmap-v2/.git/index.lock" "_kcm_찌꺼기/index.lock.$(date +%s)"
+
+**git 명령 뒤에는 반드시 이걸 돌린다.** 삭제 권한이 없어도 mv 는 된다.
+
+### ④ push 는 못 한다 — 리눅스 VM 에 GitHub 자격이 없다
+    fatal: could not read Username for 'https://github.com'
+비밀번호·토큰은 내가 다루지 않는다. **push 한 줄만 소장님이 PowerShell 에서** 돌린다.
+
+**교훈: 「못 한다」고 적어 둔 규칙도 다시 재본다. 이번엔 «못 한다» 가 아니라
+«설정 두 개를 안 줬다» 였다. CLAUDE.md 4번 「없다고 단정하지 않는다」의 또 한 사례.**
