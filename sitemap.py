@@ -175,7 +175,7 @@ def main():
         with io.open(CHANGE_JSON, encoding="utf-8") as f:
             tops = (json.load(f) or {}).get("topics") or []
         # /change/excel — 통합 엑셀 전용 페이지. 「설계변경 내역서 엑셀」 검색을 받는 자리입니다.
-        for u in ["/change", "/change/excel", "/change/calc"] + [f'/change/{t["slug"]}' for t in tops]:
+        for u in ["/change", "/change/excel", "/change/naeyeok", "/change/calc"] + [f'/change/{t["slug"]}' for t in tops]:
             urls.append(f'  <url><loc>{SITE}{u}</loc><lastmod>{today}</lastmod>'
                         f'<changefreq>monthly</changefreq><priority>0.7</priority></url>')
             n_cg += 1

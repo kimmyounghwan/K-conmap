@@ -26,6 +26,7 @@ const Change = lazy(() => import('./pages/Change.jsx'))
 const ChangeTopic = lazy(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeTopic })))
 const ChangeCalc = lazy(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeCalc })))
 const ChangeBook = lazy(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeBook })))
+const ChangeNaeyeok = lazy(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeNaeyeok })))
 const FormPage = lazy(() => import('./pages/Forms.jsx').then((m) => ({ default: m.FormPage })))
 
 const Loading = () => (
@@ -59,6 +60,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/change" element={<Suspense fallback={<Loading />}><Change /></Suspense>} />
           <Route path="/change/calc" element={<Suspense fallback={<Loading />}><ChangeCalc /></Suspense>} />
           <Route path="/change/excel" element={<Suspense fallback={<Loading />}><ChangeBook /></Suspense>} />
+          <Route path="/change/naeyeok" element={<Suspense fallback={<Loading />}><ChangeNaeyeok /></Suspense>} />
           <Route path="/change/:slug" element={<Suspense fallback={<Loading />}><ChangeTopic /></Suspense>} />
           <Route path="/forms/:slug" element={<Suspense fallback={<Loading />}><FormPage /></Suspense>} />
           <Route path="/daily" element={<DailyIndex />} />

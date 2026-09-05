@@ -31,6 +31,16 @@ function nowStamp() {
 }
 const canBid = (r, now) => !!r && stamp14(r.close) >= now && isReady(r)
 
+/* 붙임 파일 정렬·뱃지용 갈래.
+   ⚠️ collect.py 의 NAEYEOK_KIND 와 같은 낱말을 씁니다. 한쪽만 고치면
+      목록(/change/naeyeok)과 카드가 다른 말을 하게 됩니다. */
+function docRank(nm) {
+  const n = String(nm || '')
+  if (/설계내역|단가산출|일위대가/.test(n)) return 0   // 단가가 들어 있습니다
+  if (/내역|수량산출/.test(n)) return 1
+  return 2
+}
+
 const PAGE = 20
 const KIND = 'con'   // 공사만 다룹니다 (용역 제외)
 export default function LiveBoard() {
@@ -41,6 +51,7 @@ export default function LiveBoard() {
   const [onlyGood, setOnlyGood] = useState(false)   // A·B 등급만 보기
   const [lics, setLics] = useState(loadLicCodes)
   const [licNone, setLicNone] = useState(loadLicNone)
+  const [docOnly, setDocOnly] = useState(false)   // 단가 든 내역서가 붙은 공고만
   const [editLic, setEditLic] = useState(false)
   const [open, setOpen] = useState(null)
   const now = useMemo(() => nowStamp(), [])
@@ -75,7 +86,7 @@ export default function LiveBoard() {
     setTimeout(() => setCopiedNo((v) => (v === r.no ? null : v)), 1600)
   }
 
-  useEffect(() => { setPage(1) }, [region, q, mine, lics, licNone, onlyGood, pick, sortBy, fewOnly])
+  useEffect(() => { setPage(1) }, [region, q, mine, lics, licNone, onlyGood, docOnly, pick, sortBy, fewOnly])
   useEffect(() => { saveLicCodes(lics) }, [lics])
   useEffect(() => { saveLicNone(licNone) }, [licNone])
 
@@ -84,26 +95,27 @@ export default function LiveBoard() {
   /* ── 검색·지역·면허·등급은 «색인»으로 거릅니다 — 2026-09-03 ──────
      전에는 7주치 묶음을 전부 받았습니다(1,767KB). 이제 색인(352KB)만 받고,
      보고 있는 쪽에 나올 20건이 든 묶음만 받습니다.
-     ⚠️ 색인 한 줄: [공고명, 기관, 기초금액, 예가하한, 예가상한, 면허코드, 시도(sido)]
+     ⚠️ 색인 한 줄: [공고명, 기관, 기초금액, 예가하한, 예가상한, 면허코드, 시도(sido), 내역서(dsn)]
         — collect.py 의 export_board 가 이 순서로 만듭니다. selfcheck 가 대조합니다.
         base/lo/hi 는 「해볼 만한 공고만」 등급이 쓰고, lic 은 면허 거르기가 씁니다
         (2026-09-05 — 전에는 공고명 낱말로 «추측» 해서 정확도가 15.7% 였습니다). */
-  const filtering = q.trim().length > 0 || region !== '전국' || mine || onlyGood
+  const filtering = q.trim().length > 0 || region !== '전국' || mine || onlyGood || docOnly
   const match = useMemo(() => {
     if (!filtering) return null
     const s = q.trim()
     return (a) => {
-      const [name, inst, base, lo, hi, lic, sido] = a
+      const [name, inst, base, lo, hi, lic, sido, dsn] = a
       if (!inRegion({ name, inst, sido }, region)) return false
       if (s && !((name || '').includes(s) || (inst || '').includes(s))) return false
       if (mine && lics.length && !licHit(lic, lics, licNone)) return false
+      if (docOnly && !(dsn >= 2)) return false
       if (onlyGood) {
         const g = winGrade({ name, inst, base, lo, hi })
         if (!g || (g.key !== 'A' && g.key !== 'B')) return false
       }
       return true
     }
-  }, [filtering, q, region, mine, lics, licNone, onlyGood])
+  }, [filtering, q, region, mine, lics, licNone, onlyGood, docOnly])
 
   const { info, rows: all, pageRows, pageReady, total, indexReady, loading, busy } =
     useBoard('live', KIND, { match: pick ? null : match, page, perPage: PAGE })
@@ -123,6 +135,7 @@ export default function LiveBoard() {
       if (!inRegion(r, region)) continue
       if (s && !((r.name || '').includes(s) || (r.inst || '').includes(s))) continue
       if (mine && lics.length && !licHit(r.lic, lics, licNone)) continue
+      if (docOnly && !((r.dsn || 0) >= 2)) continue
       if (onlyGood) {
         const g = winGrade(r)
         if (!g || (g.key !== 'A' && g.key !== 'B')) continue
@@ -139,7 +152,7 @@ export default function LiveBoard() {
     else if (sortBy === 'ev') out.sort((a, b) => evOf(b) - evOf(a) || rateOf(b) - rateOf(a))
     else out.sort((a, b) => stamp14(a.close).localeCompare(stamp14(b.close)))
     return out
-  }, [pick, idx, q, region, mine, lics, licNone, onlyGood, fewOnly, sortBy, p50, now])
+  }, [pick, idx, q, region, mine, lics, licNone, onlyGood, docOnly, fewOnly, sortBy, p50, now])
 
   /* 전체 건수는 useBoard 가 «7주 전체»로 셉니다 — 검색 중이면 색인에서, 아니면 목록표(meta)에서.
      ⚠️ 받아 둔 것(all.length)으로 세면 25쪽(500건 ≈ 개찰 이틀치)에서 끝납니다 — 2026-09-03 실제 사고. */
@@ -220,6 +233,11 @@ export default function LiveBoard() {
       </button>
 
       {/* 🎯 자리 찾기 — 마감 전 공고를 «예상 참가·1순위율·기대액» 으로 골라 줍니다 */}
+      <button className={'goodonly docbtn' + (docOnly ? ' on' : '')} onClick={() => setDocOnly(!docOnly)}>
+        <b>📑 설계내역서가 붙은 공고만</b>
+        <span>발주처가 잡은 <b>설계 단가</b>를 그대로 볼 수 있는 공고입니다 — 내 단가와 견줘 보세요.</span>
+      </button>
+
       <button className={'goodonly pickbtn' + (pick ? ' on' : '')} onClick={() => setPick(!pick)}>
         {pick ? '✓ 자리 찾기 — 마감 전 공고를 확률·기대액 순으로 보는 중' : '🎯 자리 찾기 — 오늘 넣을 만한 공고를 골라 줍니다'}
         <i>승률을 가르는 건 참가업체수입니다 — 실측 2~9곳 18% · 100곳 넘으면 1.6%. 기관의 과거 참가 수로 미리 짐작합니다.</i>
@@ -415,17 +433,29 @@ export default function LiveBoard() {
                       {(r.ofcl || r.tel) && (
                         <div><span>담당</span><b>{[r.ofcl, r.tel].filter(Boolean).join(' · ')}</b></div>
                       )}
+
                       <div><span>공고번호</span><b>{r.no}{r.ord ? `-${r.ord}` : ''}</b></div>
                     </div>
 
+                    {/* 공고문 첨부 — 조달청이 준 이름·주소 그대로입니다.
+                        2026-09-05: 내역서를 갈래로 갈라 앞으로 올리고 뱃지를 붙였습니다.
+                        «설계내역서» 에는 발주처 설계 단가가 들어 있어 가장 값어치가 큽니다. */}
                     {(r.docs || []).length > 0 && (
                       <div className="docs">
-                        <div className="h">공고문 첨부</div>
-                        {r.docs.map(([nm, u]) => (
-                          <a key={u} href={u} target="_blank" rel="noreferrer" className="doc">
-                            📄 {nm}
-                          </a>
-                        ))}
+                        <div className="h">
+                          공고문 첨부 <em>{r.docs.length}개 · 나라장터에서 바로 받습니다</em>
+                        </div>
+                        {[...r.docs]
+                          .map((d, i) => [d, docRank(d[0]), i])
+                          .sort((a, b) => a[1] - b[1] || a[2] - b[2])
+                          .map(([[nm, u], rk]) => (
+                            <a key={u} href={u} target="_blank" rel="noreferrer"
+                              className={'doc' + (rk === 0 ? ' hot' : '')}>
+                              <span className="di">{rk === 0 ? '💰' : rk === 1 ? '📑' : '📄'}</span>
+                              <span className="dn">{nm}</span>
+                              {rk === 0 && <b className="dtag">단가 있음</b>}
+                            </a>
+                          ))}
                       </div>
                     )}
 

@@ -4,8 +4,9 @@ import DATA from '../data/change.json'
 // forms.json(217KB)이 아니라 formsgen.py 가 구운 «작은 목록»(6KB)을 씁니다.
 import FMIN from '../data/forms-min.json'
 import { ShareBtn } from './CorpPage.jsx'
-import { Empty } from '../components.jsx'
+import { Empty, Skeleton } from '../components.jsx'
 import { won, num } from '../lib/fmt.js'
+import { getNaeyeok, getNaeyeokAll, naeyeokRows } from '../lib/data.js'
 
 /**
  * /change · /change/{주제} · /change/calc — 「설계변경」 (2026-09-05)
@@ -251,6 +252,159 @@ export function ChangeBook() {
   )
 }
 
+
+/* ── /change/naeyeok — 내역서 모음 (2026-09-05) ──
+   소장님: 「모든 내역서는 참고할 수 있게 설계변경쪽에 분류해서 정리해서 다운받을 수 있게」
+
+   ⚠️ 파일은 우리가 퍼오지 않습니다. 조달청이 준 내려받기 주소로 «연결»만 합니다.
+      설계도서 저작권은 설계사에 있을 수 있고, 옮겨 두면 낡은 것을 보게 됩니다.
+      (CLAUDE.md 1번 — 조달청이 주는 값을 그대로 쓴다) */
+const NPAGE = 25
+const PRICED = ['설계내역서', '단가산출서']
+const ADKEY = 'kcm_nyad'
+
+export function ChangeNaeyeok() {
+  const [priced, setPriced] = useState(null)   // 단가가 든 갈래
+  const [all, setAll] = useState(null)         // 나머지 (누를 때만 받습니다)
+  const [kind, setKind] = useState('설계내역서')
+  const [q, setQ] = useState('')
+  const [page, setPage] = useState(1)
+  const [ad, setAd] = useState(() => {
+    try { return localStorage.getItem(ADKEY) !== '0' } catch { return true }
+  })
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => { getNaeyeok().then(setPriced).catch(() => setPriced(false)) }, [])
+  useEffect(() => { try { localStorage.setItem(ADKEY, ad ? '1' : '0') } catch { /* 사생활 모드 */ } }, [ad])
+  useEffect(() => { setPage(1) }, [kind, q])
+  /* 단가가 없는 갈래를 처음 누를 때만 큰 파일을 받습니다 — 안 보는 것은 안 받습니다 */
+  useEffect(() => {
+    if (PRICED.includes(kind) || all !== null) return
+    getNaeyeokAll().then(setAll).catch(() => setAll(false))
+  }, [kind, all])
+
+  const meta = priced || null
+  const kinds = useMemo(() => {
+    const c = (meta && meta.kinds) || {}
+    const order = ['설계내역서', '단가산출서', '공내역서', '물량내역서', '수량산출서', '그 밖의 내역서']
+    return order.filter((k) => c[k]).map((k) => [k, c[k]])
+  }, [meta])
+
+  const src = PRICED.includes(kind) ? priced : all
+  const rows = useMemo(() => {
+    if (!src) return null
+    const s = q.trim()
+    return naeyeokRows(src).filter((r) => r.kind === kind
+      && (!s || (r.file || '').includes(s) || (r.name || '').includes(s) || (r.inst || '').includes(s)))
+  }, [src, kind, q])
+
+  const total = rows ? rows.length : 0
+  const pages = Math.max(1, Math.ceil(total / NPAGE))
+  const view = rows ? rows.slice((page - 1) * NPAGE, page * NPAGE) : []
+
+  const copyList = () => {
+    const txt = view.map((r) => `${r.file}\n  ${r.inst} · ${r.dt}\n  ${r.url}`).join('\n\n')
+    const tail = ad ? '\n\n— K-건설맵 내역서 모음 · k-conmap.com/change/naeyeok' : ''
+    navigator.clipboard?.writeText(txt + tail).then(() => {
+      setCopied(true); setTimeout(() => setCopied(false), 1600)
+    })
+  }
+
+  if (priced === false) return <Empty icon="📑">내역서 목록을 불러오지 못했습니다.</Empty>
+
+  return (
+    <>
+      <div className="btn-row" style={{ paddingTop: 14, marginBottom: 10 }}>
+        <Link className="btn ghost sm" to="/change">← 설계변경</Link>
+        <ShareBtn />
+      </div>
+
+      <div className="card">
+        <h1 style={{ fontSize: 19, fontWeight: 800, margin: 0 }}>공사 내역서 모음 — 2026년</h1>
+        <p className="cp" style={{ marginTop: 8 }}>
+          조달청이 공고에 붙여 공개한 <b>내역서</b>를 갈래별로 모았습니다.
+          {meta ? <> 지금 <b>{num(meta.n)}개</b>.</> : null}{' '}
+          <b>설계내역서</b>에는 발주처가 잡은 <b>설계 단가</b>가 들어 있어 설계변경 단가를 세울 때 견줄 수 있습니다.
+        </p>
+        <div className="cwarn" style={{ marginTop: 8 }}>
+          내려받기는 <b>나라장터 원문</b>으로 연결됩니다 — K-건설맵이 파일을 보관하지 않습니다.
+          공고가 내려가면 그 파일도 함께 사라집니다.
+        </div>
+      </div>
+
+      <div className="card">
+        <input value={q} onChange={(e) => setQ(e.target.value)}
+          placeholder="파일명 · 공사명 · 발주기관 검색" style={{ marginBottom: 10 }} />
+        <div className="chips">
+          {kinds.map(([k, n]) => (
+            <button key={k} className={'chip' + (kind === k ? ' on' : '')} onClick={() => setKind(k)}>
+              {k}<em className="licn"> {num(n)}</em>
+            </button>
+          ))}
+        </div>
+        <div className="note" style={{ marginTop: 8 }}>
+          {PRICED.includes(kind)
+            ? '이 갈래에는 단가가 들어 있습니다.'
+            : '이 갈래는 단가가 비어 있습니다 — 수량과 공종만 봅니다(낙찰자가 단가를 채우는 서식).'}
+        </div>
+      </div>
+
+      <div className="sec-title">
+        {kind} <span className="count">· {rows ? `${num(total)}개` : '불러오는 중…'}</span>
+      </div>
+
+      {!rows ? <Skeleton /> : total === 0 ? (
+        <Empty icon="🔍">조건에 맞는 내역서가 없습니다.<br />검색어를 지우거나 다른 갈래를 눌러보세요.</Empty>
+      ) : (
+        <>
+          <div className="card">
+            {view.map((r, i) => (
+              <div className="frow nyrow" key={i}>
+                <span className="fic">{PRICED.includes(r.kind) ? '💰' : '📑'}</span>
+                <div className="grow">
+                  <div className="ft">{r.file}</div>
+                  <div className="d">{r.name}</div>
+                  <div className="nymeta">{r.inst}{r.dt ? ` · ${r.dt}` : ''}</div>
+                </div>
+                <div className="nybtn">
+                  <a className="fdl" href={r.url} target="_blank" rel="noopener nofollow">⬇ 받기</a>
+                  {r.purl && <a className="fdl ghost" href={r.purl} target="_blank" rel="noopener nofollow">공고 →</a>}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="pager">
+            <button disabled={page <= 1} onClick={() => setPage((v) => v - 1)}>이전</button>
+            <span>{page} / {pages}</span>
+            <button disabled={page >= pages} onClick={() => setPage((v) => v + 1)}>다음</button>
+          </div>
+
+          <div className="card">
+            <div className="btn-row">
+              <button className="btn" onClick={copyList}>{copied ? '✓ 복사했습니다' : '📋 이 쪽 목록 복사'}</button>
+            </div>
+            <label className="licnone">
+              <input type="checkbox" checked={ad} onChange={(e) => setAd(e.target.checked)} />
+              <span>복사할 때 «K-건설맵 · k-conmap.com» 한 줄 넣기</span>
+            </label>
+          </div>
+        </>
+      )}
+
+      <div className="card fwarn">
+        <b>⚠️ 쓰기 전에</b>
+        <div>
+          발주기관이 공개한 문서지만 <b>설계도서의 저작권은 설계사에 있을 수 있습니다.</b>
+          참고용으로 보시고, 그대로 옮겨 쓰거나 다시 배포하지 마세요.
+          단가는 <Link to="/change/unit" style={{ color: 'var(--accent)', fontWeight: 700 }}>2026년 품셈·시장단가</Link>로
+          한 번 더 확인하시는 편이 안전합니다.
+        </div>
+      </div>
+    </>
+  )
+}
+
 /* ── /change — 허브 ─────────────────────────── */
 export default function Change() {
   return (
@@ -272,6 +426,18 @@ export default function Change() {
       </div>
 
       <MainBook />
+
+      <Link className="card fbook" to="/change/naeyeok">
+        <span className="fic">📑</span>
+        <div className="grow">
+          <div className="t">공사 내역서 모음 <em>· 2026년 · 조달청 공개</em></div>
+          <div className="d">
+            발주처가 공고에 붙인 <b>설계내역서·공내역서</b>를 갈래별로 모았습니다.
+            설계내역서에는 <b>설계 단가</b>가 들어 있습니다.
+          </div>
+        </div>
+        <span className="go">→</span>
+      </Link>
 
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 6px' }}>무엇부터 보면 되나</div>

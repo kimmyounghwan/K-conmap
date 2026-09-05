@@ -746,6 +746,57 @@ def change_book_html(bk, in_page=False):
     return "".join(out)
 
 
+def change_naeyeok_page(shell, image=None):
+    """/change/naeyeok — 내역서 모음. (2026-09-05)
+
+    목록 자체는 화면이 JSON 으로 받아 그립니다(4,290개를 HTML 에 박으면 무겁습니다).
+    여기서는 «이 페이지가 무엇인지» 를 크롤러가 읽을 글자로 남깁니다.
+    """
+    title = "공사 내역서 모음 2026 — 설계내역서·공내역서 무료 보기 | K-건설맵"
+    desc = ("조달청이 공고에 붙여 공개한 2026년 공사 내역서를 갈래별로 모았습니다. "
+            "설계내역서에는 발주처 설계 단가가 들어 있습니다. "
+            "내려받기는 나라장터 원문으로 연결됩니다.")
+    kinds = [("설계내역서", "발주처가 잡은 **설계 단가**가 들어 있습니다. 설계변경 단가를 세울 때 견줍니다."),
+             ("단가산출서", "단가를 어떻게 만들었는지 근거가 붙어 있습니다."),
+             ("공내역서", "**단가가 비어 있습니다** — 낙찰자가 채워 넣는 서식입니다. 공종과 수량을 봅니다."),
+             ("물량내역서", "수량만 적힌 표입니다."),
+             ("수량산출서", "수량을 어떻게 뽑았는지 산출식이 있습니다."),
+             ("그 밖의 내역서", "위 갈래에 안 들어가는 내역 파일입니다.")]
+    out = ['<div class="card"><h1 style="font-size:19px;font-weight:800;margin:0">'
+           '공사 내역서 모음 — 2026년</h1>'
+           '<p class="cp" style="margin-top:8px">조달청이 공고에 붙여 공개한 <b>내역서</b>를 '
+           '갈래별로 모았습니다. <b>설계내역서</b>에는 발주처가 잡은 <b>설계 단가</b>가 들어 있어 '
+           '설계변경 단가를 세울 때 견줄 수 있습니다.</p>'
+           '<div class="cwarn">내려받기는 <b>나라장터 원문</b>으로 연결됩니다 — '
+           'K-건설맵이 파일을 보관하지 않습니다. 공고가 내려가면 그 파일도 함께 사라집니다.</div></div>'
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">갈래</div>']
+    for nm, d in kinds:
+        out.append('<div class="frow"><span class="fic">%s</span><div class="grow">'
+                   '<div class="t" style="font-weight:700;font-size:13.5px">%s</div>'
+                   '<div style="font-size:12px;color:var(--muted);margin-top:2px;line-height:1.6">%s</div>'
+                   '</div></div>' % ("💰" if nm in ("설계내역서", "단가산출서") else "📑",
+                                     esc(nm), _bold(d)))
+    out.append("</div>")
+    out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">함께 보기</div>'
+               '<a class="row rowlink" href="/change/unit"><span class="fic">📐</span>'
+               '<div class="grow"><div class="t">단가·품셈 기준 (2026년 적용)</div>'
+               '<div class="d">신규 비목 단가를 어디서 가져오나</div></div>'
+               '<span class="go">→</span></a>'
+               '<a class="row rowlink" href="/change/excel"><span class="fic">📊</span>'
+               '<div class="grow"><div class="t">설계변경 자동계산 엑셀</div>'
+               '<div class="d">내역서를 넣으면 증감이 규정 단가로 자동 계산됩니다</div></div>'
+               '<span class="go">→</span></a></div>')
+    out.append('<div class="card fwarn"><b>⚠️ 쓰기 전에</b><div>'
+               '발주기관이 공개한 문서지만 <b>설계도서의 저작권은 설계사에 있을 수 있습니다.</b> '
+               '참고용으로 보시고, 그대로 옮겨 쓰거나 다시 배포하지 마세요.</div></div>')
+    ld = {"@context": "https://schema.org", "@type": "CollectionPage",
+          "name": "공사 내역서 모음 2026", "url": f"{SITE}/change/naeyeok",
+          "description": desc, "inLanguage": "ko",
+          "isPartOf": {"@type": "WebSite", "name": "K-건설맵", "url": SITE}}
+    return page(shell, "/change/naeyeok", title, desc,
+                "".join(out) + nav_html("/change"), image, ld)
+
+
 def change_book_page(shell, bk, forms, image=None):
     """/change/excel — 통합 엑셀 «전용 페이지». (2026-09-05)
 
@@ -995,6 +1046,10 @@ def main():
                                      "단가 하나 바꾸면 조정금액까지 다시 계산") if og.available else None)
         if bp:
             write("change/excel.html", bp)
+        write("change/naeyeok.html", change_naeyeok_page(shell,
+              og.tab("change-naeyeok", "공사 내역서 모음", "설계내역서 · 공내역서 · 2026년",
+                     "무료", "조달청 공개 자료 · 나라장터 원문으로 연결")
+              if og.available else None))
         write("change/calc.html", change_calc(shell,
               og.tab("change-calc", "설계변경 증감 계산기", "증가·감소·신규비목",
                      "무료", "신규비목은 설계변경 당시 단가 × 낙찰률")

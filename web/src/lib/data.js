@@ -48,6 +48,26 @@ export const getOverview = () => getJSON('/data/overview.json')
 /* 가상 시뮬레이션 — 지난 개찰에 우리 방식을 대본 결과 */
 export const getSim = () => getJSON('/data/sim.json')
 
+/* ── 내역서 모음 (2026-09-05) ─────────────────────────────
+   조달청이 공고마다 준 붙임 파일 중 «내역서»만 갈래별로 모은 것입니다.
+   파일은 우리가 퍼오지 않고 조달청 주소로 연결만 합니다.
+   ⚠️ 두 파일로 나눠 둔 이유는 전송량입니다 —
+      단가가 든 갈래(258개·gzip 15KB)만 먼저 받고,
+      나머지(4,032개·gzip 208KB)는 그 갈래를 눌렀을 때만 받습니다. */
+export const getNaeyeok = () => getJSON('/data/naeyeok.json')
+export const getNaeyeokAll = () => getJSON('/data/naeyeok-all.json')
+
+/** {f:[칸이름], r:[[값]]} → [{칸이름:값}] — bidindex 와 같은 방식입니다 */
+export function naeyeokRows(d) {
+  if (!d || !Array.isArray(d.r) || !Array.isArray(d.f)) return []
+  const f = d.f
+  return d.r.map((a) => {
+    const o = {}
+    for (let i = 0; i < f.length; i++) o[f[i]] = a[i]
+    return o
+  })
+}
+
 /* ── 발주기관 ────────────────────────── */
 export const getAgencyTop = () => getJSON('/data/agency/top.json')
 

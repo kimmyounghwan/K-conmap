@@ -1329,6 +1329,51 @@ def sido_of(r, book=None):
     return ""
 
 
+
+# ══════════════════════════════════════════════════════════════════
+#  내역서 모음 — 2026-09-05
+#
+#  조달청은 공고마다 붙임 파일 이름과 «내려받기 주소»를 줍니다
+#  (ntceSpecFileNm1~10 / ntceSpecDocUrl1~10). 우리는 이미 store 의 docs 에
+#  받아 두고 있었는데 화면에서 한 번도 쓰지 않고 있었습니다.
+#  실측: 공고 12,625건 중 7,070건(56%)에 붙임 22,624개 · 그 중 «내역» 4,235개.
+#
+#  ⚠️ 파일은 우리가 퍼오지 않습니다. 조달청이 준 주소로 «연결»만 합니다.
+#     설계도서 저작권은 설계사에 있을 수 있고, 옮겨 두면 낡은 것을 보게 됩니다.
+#     (CLAUDE.md 1번 — 조달청이 주는 값을 그대로 쓴다)
+# ══════════════════════════════════════════════════════════════════
+NAEYEOK_KIND = [
+    ("설계내역", "설계내역서"),        # ★ 발주처 설계 단가가 들어 있습니다
+    ("단가산출", "단가산출서"),
+    ("일위대가", "단가산출서"),
+    ("공내역", "공내역서"),            # 단가가 비어 있습니다 (낙찰자가 채움)
+    ("물량내역", "물량내역서"),
+    ("수량산출", "수량산출서"),
+    ("내역", "그 밖의 내역서"),
+]
+# 단가가 «들어 있는» 갈래 — 첫 화면에서 이것만 받습니다 (가벼움)
+NAEYEOK_PRICED = ("설계내역서", "단가산출서")
+
+
+def naeyeok_kind(name):
+    n = str(name or "")
+    for key, label in NAEYEOK_KIND:
+        if key in n:
+            return label
+    return ""
+
+
+def doc_flag(r):
+    """붙임 파일에 내역서가 있는가. 2 = 단가가 든 것(설계내역서·단가산출서) · 1 = 내역서 · 0 = 없음."""
+    best = 0
+    for y in (r.get("docs") or []):
+        k = naeyeok_kind(str(y[0] if isinstance(y, (list, tuple)) else y))
+        if not k:
+            continue
+        best = max(best, 2 if k in NAEYEOK_PRICED else 1)
+    return best
+
+
 def lic_pairs(r):
     """조달청 lic 값 «철근ㆍ콘크리트공사업/4994» 를 (코드, 이름) 으로 가릅니다.
 
@@ -1899,11 +1944,15 @@ def main():
                     fields = ["name", "inst", "win", "lic", "sido"]
                 else:
                     # 공고: 검색은 공고명·기관. base/lo/hi 는 「해볼 만한 공고만」 등급 계산용
+                    # dsn — 붙임에 «설계내역서»(발주처 설계 단가가 든 것)가 있는가.
+                    #       0 없음 · 1 내역서 있음 · 2 설계내역서/단가산출서 있음
+                    #       공고 목록에서 「단가 든 내역서 있는 공고만」 을 거르는 데 씁니다.
                     idx = [[r.get("name") or "", r.get("inst") or "",
                             int(r.get("base") or 0),
-                            r.get("lo"), r.get("hi"), lic_codes(r), sido_of(r, rbook)]
+                            r.get("lo"), r.get("hi"), lic_codes(r), sido_of(r, rbook),
+                            doc_flag(r)]
                            for r in rows]
-                    fields = ["name", "inst", "base", "lo", "hi", "lic", "sido"]
+                    fields = ["name", "inst", "base", "lo", "hi", "lic", "sido", "dsn"]
                 with open(os.path.join(out_dir, f"{name}-{kind}-idx.json"),
                           "w", encoding="utf-8") as f:
                     json.dump({"f": fields, "chunk": BOARD_CHUNK, "r": idx},
@@ -1945,6 +1994,55 @@ def main():
               f"(공사 {meta['con']['parts']}묶음 / 용역 {meta['serv']['parts']}묶음, "
               f"{size/1024/1024:.1f}MB · 검색색인 {_ixs:.0f}KB)")
 
+
+    def export_naeyeok(store):
+        """내역서 모음 — 조달청 붙임 파일을 갈래별로 모아 «링크»로 냅니다. (2026-09-05)
+
+        두 파일로 나눕니다:
+          naeyeok.json      단가가 «들어 있는» 갈래(설계내역서·단가산출서) — 첫 화면에서 받습니다
+          naeyeok-all.json  나머지(공내역서·물량내역서 등) — 그 갈래를 눌렀을 때만 받습니다
+        나누는 이유는 CLAUDE.md 의 전송량 원칙입니다 — 안 보는 것은 안 받습니다.
+        """
+        rows_p, rows_a = [], []
+        seen = set()
+        for r in store["con"].values():
+            docs = r.get("docs") or []
+            if not docs:
+                continue
+            nm = str(r.get("name") or "")
+            inst = str(r.get("inst") or "")
+            dt = str(r.get("dt") or "")[:10]
+            no = str(r.get("no") or "")
+            purl = str(r.get("url") or "")          # 조달청이 준 공고 주소 (손으로 만들지 않습니다)
+            for y in docs:
+                fname = str(y[0] if isinstance(y, (list, tuple)) else y)
+                furl = str(y[1]) if isinstance(y, (list, tuple)) and len(y) > 1 else ""
+                kind = naeyeok_kind(fname)
+                if not kind or not furl:
+                    continue
+                key = (fname, furl)
+                if key in seen:
+                    continue
+                seen.add(key)
+                row = [kind, fname, furl, nm, inst, dt, no, purl]
+                (rows_p if kind in NAEYEOK_PRICED else rows_a).append(row)
+        # 최신 공고가 위로
+        for v in (rows_p, rows_a):
+            v.sort(key=lambda x: x[5], reverse=True)
+        cnt = {}
+        for x in rows_p + rows_a:
+            cnt[x[0]] = cnt.get(x[0], 0) + 1
+        fields = ["kind", "file", "url", "name", "inst", "dt", "no", "purl"]
+        meta = {"built": built, "f": fields, "n": len(rows_p) + len(rows_a), "kinds": cnt}
+        for fn_, rows in (("naeyeok.json", rows_p), ("naeyeok-all.json", rows_a)):
+            path = os.path.join(OUT, fn_)
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(dict(meta, r=rows), f, ensure_ascii=False, separators=(",", ":"))
+        a = os.path.getsize(os.path.join(OUT, "naeyeok.json")) / 1024
+        b = os.path.getsize(os.path.join(OUT, "naeyeok-all.json")) / 1024
+        print(f"  \u2192 naeyeok  \ub0b4\uc5ed\uc11c {len(rows_p) + len(rows_a):,}\uac1c "
+              f"(\ub2e8\uac00 \uc788\ub294 \uac83 {len(rows_p):,}\uac1c {a:.0f}KB / "
+              f"\ub098\uba38\uc9c0 {len(rows_a):,}\uac1c {b:.0f}KB)")
 
     def export_bidindex(store, fstore):
         """«바로투찰» 전용 — 아직 마감되지 않은 공고만 담은 가벼운 목록.
@@ -2000,6 +2098,7 @@ def main():
                 # ⚠️ 이름은 반드시 «sido» 입니다. 조달청 rgn(참가가능지역)이 이미 있어서
                 #    rgn 으로 두면 공고 카드가 「참가지역: 전남」 이라고 엉뚱하게 적습니다.
                 sido_of(r, _rbook),                # 시도 (지역 거르기 — 짐작하지 않습니다)
+                doc_flag(r),                       # 붙임 내역서: 2 단가 있음 · 1 있음 · 0 없음
             ])
         rows.sort(key=lambda x: re.sub(r"[^0-9]", "", str(x[5])))
         out = {"built": built,
@@ -2007,7 +2106,7 @@ def main():
                      "llr", "est", "lic", "aval", "gmtrl",
                      "ayn", "ptot", "pdrw", "url",
                      "site", "rgnb", "joint", "mthd", "swin", "rebid",
-                     "enp", "enpn", "dt", "sido"],
+                     "enp", "enpn", "dt", "sido", "dsn"],
                "pick": pick,
                "r": rows}
         path = os.path.join(OUT, "bidindex.json")
@@ -2231,6 +2330,7 @@ def main():
     export_board("live", live, "dt", enp_map=pick_stats(first)[0])
     export_bidindex(live, first)
     export_aparts(live)
+    export_naeyeok(live)
     # 새로 붙인 통계라 혹시 터져도 배치 전체를 멈추지 않게 감쌉니다.
     try:
         export_bidresult(first)
