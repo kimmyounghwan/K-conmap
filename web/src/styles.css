@@ -2135,3 +2135,39 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
 .ctotal span { font-size: 12.5px; color: var(--muted); }
 .ctotal b { font-size: 18px; font-weight: 800; }
 .adtoggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+
+/* ── 설계변경 서식 줄 (2026-09-05) ────────────────
+   설명만 있고 서식이 없어서 붙인 자리입니다. 누르면 바로 엑셀이 내려옵니다. */
+.fset { margin-bottom: 12px; }
+.fset:last-of-type { margin-bottom: 2px; }
+.fset-h {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  padding: 6px 2px 4px; border-bottom: 1px solid var(--line); margin-bottom: 2px;
+}
+.fset-h b { font-size: 13px; font-weight: 800; }
+.fset-h em { font-style: normal; font-size: 11.5px; color: var(--muted); }
+.frow {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 2px; border-bottom: 1px solid var(--line);
+}
+.frow:last-child { border-bottom: 0; }
+.frow .grow { min-width: 0; }
+.frow .ft {
+  font-size: 13.5px; font-weight: 700; color: var(--text);
+  text-decoration: none; display: block;
+}
+.frow .ft:hover { color: var(--accent); }
+.frow .d {
+  font-size: 11.5px; color: var(--muted); margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fdl {
+  flex: none; font-size: 12px; font-weight: 700; text-decoration: none;
+  color: var(--accent); border: 1px solid var(--line); border-radius: 8px;
+  padding: 5px 9px; background: var(--surface);
+}
+.fdl:hover { border-color: var(--accent); }
+@media (max-width: 380px) {
+  .frow .d { display: none; }
+  .fdl { padding: 5px 7px; }
+}

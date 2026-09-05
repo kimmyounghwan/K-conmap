@@ -664,12 +664,14 @@ CHANGE_JSON = os.path.join(ROOT, "web", "src", "data", "change.json")
 
 
 def load_change():
+    """{topics, forms} 를 통째로 돌려줍니다 — 서식 묶음도 함께 그려야 하기 때문입니다."""
     try:
         with open(CHANGE_JSON, encoding="utf-8") as f:
-            return (json.load(f) or {}).get("topics") or []
+            d = json.load(f) or {}
+        return d.get("topics") or [], d.get("forms") or []
     except Exception as e:
         print(f"  · 설계변경 자료를 못 읽었습니다 ({type(e).__name__}) — 건너뜁니다")
-        return []
+        return [], []
 
 
 def _bold(t):
@@ -706,7 +708,35 @@ def _blocks_html(blocks):
     return "".join(out)
 
 
-def change_index(shell, topics, image=None):
+def change_forms_html(sets, forms):
+    """설계변경 서식 묶음 — 화면(Change.jsx 의 ChangeForms)과 «같은 change.json» 을 씁니다.
+       크롤러가 이 링크를 따라가야 서식 105장이 발견됩니다."""
+    if not sets:
+        return ""
+    by = {f["slug"]: f for f in forms}
+    n = sum(len(g.get("slugs") or []) for g in sets)
+    out = ['<div class="card"><div class="sec-title" style="margin:0 0 2px">'
+           f'📄 설계변경 서식 <span class="count">{n}가지 · 엑셀 · 무료</span></div>'
+           '<div style="font-size:12px;color:var(--muted);margin:0 0 10px">'
+           '내려받아 바로 쓰는 엑셀입니다. 회원가입 없습니다.</div>']
+    for g in sets:
+        out.append('<div class="fset"><div class="fset-h"><b>%s</b><em>%s</em></div>'
+                   % (esc(g.get("h") or ""), esc(g.get("why") or "")))
+        for slug in (g.get("slugs") or []):
+            f = by.get(slug)
+            if not f:
+                continue
+            out.append('<div class="frow"><span class="fic">%s</span><div class="grow">'
+                       '<a class="ft" href="/forms/%s">%s</a><div class="d">%s</div></div>'
+                       '<a class="fdl" href="/forms/%s.xlsx">⬇ 엑셀</a></div>'
+                       % (esc(f.get("icon") or "📄"), esc(slug), esc(f["title"]),
+                          esc(f.get("short") or ""), esc(slug)))
+        out.append("</div>")
+    out.append("</div>")
+    return "".join(out)
+
+
+def change_index(shell, topics, fsets, image=None):
     title = "설계변경 — 절차·단가 기준·증감 계산기 | K-건설맵"
     desc = ("공공 공사 설계변경의 절차, 계약금액 조정 단가 기준(증가 물량·신규비목), "
             "물가변동 조정, 공기연장과 간접비를 정리했습니다. 증감 계산기와 서식도 무료입니다.")
@@ -725,6 +755,7 @@ def change_index(shell, topics, image=None):
                    f'<div class="d">{esc(t.get("short") or "")}</div></div>'
                    f'<span class="go">→</span></a>')
     out.append("</div>")
+    out.append(change_forms_html(fsets, load_forms()))
     ld = {"@context": "https://schema.org", "@type": "ItemList", "name": "설계변경 자료",
           "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": t["title"],
                                "url": f'{SITE}/change/{t["slug"]}'}
@@ -839,9 +870,9 @@ def main():
         print(f"  · 건설 서식 페이지 {len(forms) + 1:,}개 (/forms/)")
 
     # ── 설계변경 ──
-    topics = load_change()
+    topics, fsets = load_change()
     if topics:
-        write("change.html", change_index(shell, topics,
+        write("change.html", change_index(shell, topics, fsets,
               og.tab("change", "설계변경", "절차 · 단가 기준 · 물가변동",
                      f"{len(topics)}가지", "증감 계산기 · 서식까지 무료")
               if og.available else None))

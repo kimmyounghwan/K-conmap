@@ -230,6 +230,15 @@ def main():
         p = os.path.join(OUT, f"{form['slug']}.xlsx")
         wb.save(p)
         made.append((form["slug"], os.path.getsize(p)))
+    # 설계변경 탭이 쓰는 «작은 목록» — forms.json(217KB)을 통째로 보내지 않기 위해서입니다.
+    # 사본이 아니라 여기서 굽는 산출물입니다. 손으로 고치지 마세요.
+    mini = {f["slug"]: [f["title"], f.get("icon", ""), f.get("short", ""), f.get("group", "")]
+            for f in data["forms"]}
+    mp = os.path.join(ROOT, "web", "src", "data", "forms-min.json")
+    with open(mp, "w", encoding="utf-8", newline="\r\n") as f:
+        json.dump(mini, f, ensure_ascii=False, indent=0)
+    print(f"  ✅ 작은 목록 {len(mini)}가지 → {mp} ({os.path.getsize(mp)/1024:.0f} KB)")
+
     total = sum(n for _, n in made)
     print(f"  ✅ 서식 {len(made)}개 · 합계 {total/1024:.0f} KB → {OUT}")
     for slug, n in made:

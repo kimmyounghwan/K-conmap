@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import DATA from '../data/change.json'
+// forms.json(217KB)이 아니라 formsgen.py 가 구운 «작은 목록»(6KB)을 씁니다.
+import FMIN from '../data/forms-min.json'
 import { ShareBtn } from './CorpPage.jsx'
 import { Empty } from '../components.jsx'
 import { won, num } from '../lib/fmt.js'
@@ -23,6 +25,7 @@ import { won, num } from '../lib/fmt.js'
  */
 
 const TOPICS = DATA.topics || []
+const FORMSETS = DATA.forms || []
 const KEY = 'kcm_chgcalc'
 const P50 = 0
 
@@ -69,6 +72,49 @@ function md(s) {
   return parts.map((x, i) => (i % 2 ? <b key={i}>{x}</b> : x))
 }
 
+
+/* ── 설계변경 서식 — 설명만 있고 서식이 없으면 아무 소용이 없습니다 ──
+   소장님: 「설명만 있을뿐 정작 필요한 서식은 하나도 없어.」
+   그래서 이 자리에서 **바로 내려받게** 합니다. 서식 탭으로 보내지 않습니다. */
+export function ChangeForms({ compact }) {
+  return (
+    <div className="card">
+      <div className="sec-title" style={{ margin: '0 0 2px' }}>
+        📄 설계변경 서식 <span className="count">
+          {FORMSETS.reduce((n, g) => n + g.slugs.length, 0)}가지 · 엑셀 · 무료
+        </span>
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--muted)', margin: '0 0 10px' }}>
+        내려받아 바로 쓰는 엑셀입니다. 회원가입 없습니다. 1행의 표시는 지우고 쓰셔도 됩니다.
+      </div>
+      {FORMSETS.map((g) => (
+        <div className="fset" key={g.h}>
+          <div className="fset-h"><b>{g.h}</b><em>{g.why}</em></div>
+          {g.slugs.map((slug) => {
+            const m = FMIN[slug]
+            if (!m) return null
+            const [title, icon, short] = m
+            return (
+              <div className="frow" key={slug}>
+                <span className="fic">{icon || '📄'}</span>
+                <div className="grow">
+                  <Link className="ft" to={`/forms/${slug}`}>{title}</Link>
+                  {!compact && <div className="d">{short}</div>}
+                </div>
+                <a className="fdl" href={`/forms/${slug}.xlsx`}
+                   download={`${title}_양식.xlsx`}>⬇ 엑셀</a>
+              </div>
+            )
+          })}
+        </div>
+      ))}
+      <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 8 }}>
+        발주기관이 공고 붙임으로 준 서식이 있으면 <b>그 서식을 쓰세요.</b> 이건 없을 때 쓰는 것입니다.
+      </div>
+    </div>
+  )
+}
+
 /* ── /change — 허브 ─────────────────────────── */
 export default function Change() {
   return (
@@ -85,7 +131,7 @@ export default function Change() {
         </p>
         <div className="btn-row" style={{ marginTop: 10 }}>
           <Link className="btn primary" to="/change/calc">🧮 증감 계산기 열기</Link>
-          <Link className="btn ghost" to="/forms">📄 설계변경 서식</Link>
+          <a className="btn ghost" href="#seosik">📄 설계변경 서식 19가지</a>
         </div>
       </div>
 
@@ -102,6 +148,8 @@ export default function Change() {
           </Link>
         ))}
       </div>
+
+      <div id="seosik"><ChangeForms /></div>
 
       <div className="card fwarn">
         <b>⚠️ 참고 자료입니다</b>
@@ -147,6 +195,9 @@ export function ChangeTopic() {
           <Blocks blocks={s.blocks} />
         </div>
       ))}
+
+      {/* 「서류 묶음」 주제에서는 이름만 늘어놓지 않고 그 자리에서 받게 합니다 */}
+      {t.slug === 'docs' && <ChangeForms />}
 
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 6px' }}>이어서 볼 것</div>
