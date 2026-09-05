@@ -2171,3 +2171,40 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
   .frow .d { display: none; }
   .fdl { padding: 5px 7px; }
 }
+
+/* ── 설계변경 통합 엑셀 카드 (2026-09-05) ──────────
+   이 탭의 본체입니다. 서식 목록보다 눈에 먼저 들어와야 합니다. */
+.mbook { border: 2px solid var(--accent); }
+.mb-top { display: flex; align-items: center; gap: 10px; }
+.mb-ic { font-size: 28px; flex: none; }
+.mb-t { font-size: 16px; font-weight: 800; }
+.mb-s { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.mb-dl { display: inline-flex; margin: 10px 0 4px; }
+.mb-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px; margin: 10px 0 4px;
+}
+@media (max-width: 460px) { .mb-grid { grid-template-columns: 1fr; } }
+.mb-cell {
+  border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px;
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+  min-width: 0;
+}
+.mb-cell b { display: block; font-size: 12.5px; font-weight: 700; }
+.mb-cell > span { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+.mb-no {
+  display: inline-block; min-width: 17px; height: 17px; line-height: 17px;
+  text-align: center; border-radius: 5px; margin-right: 5px;
+  background: var(--accent); color: #fff; font-size: 10.5px; font-weight: 800;
+}
+.mb-rule {
+  margin-top: 10px; padding: 9px 11px; border-radius: 8px;
+  background: color-mix(in srgb, #c00000 6%, var(--surface));
+  border: 1px solid color-mix(in srgb, #c00000 22%, var(--line));
+}
+.mb-rule b { font-size: 12.5px; }
+.mb-rule ul { margin: 6px 0 0; padding-left: 17px; }
+.mb-rule li { font-size: 12px; margin: 3px 0; line-height: 1.55; }
+.mb-ok {
+  margin-top: 8px; font-size: 11.5px; color: var(--muted); line-height: 1.6;
+}

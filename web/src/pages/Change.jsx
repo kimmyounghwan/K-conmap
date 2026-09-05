@@ -26,6 +26,7 @@ import { won, num } from '../lib/fmt.js'
 
 const TOPICS = DATA.topics || []
 const FORMSETS = DATA.forms || []
+const BOOK = DATA.mainbook || null
 const KEY = 'kcm_chgcalc'
 const P50 = 0
 
@@ -72,6 +73,44 @@ function md(s) {
   return parts.map((x, i) => (i % 2 ? <b key={i}>{x}</b> : x))
 }
 
+
+
+/* ── 설계변경 자동계산 통합 엑셀 — 이 탭의 «본체» ──
+   빈 표 105가지와 성격이 다릅니다. 이건 수식이 연결된 계산기입니다. */
+export function MainBook() {
+  if (!BOOK) return null
+  return (
+    <div className="card mbook">
+      <div className="mb-top">
+        <span className="mb-ic">📊</span>
+        <div className="grow">
+          <div className="mb-t">{BOOK.title}</div>
+          <div className="mb-s">{BOOK.sub}</div>
+        </div>
+      </div>
+      <p className="cp" style={{ marginTop: 8 }}>{md(BOOK.lead)}</p>
+
+      <a className="btn primary mb-dl" href={`/forms/${BOOK.file}.xlsx`}
+         download={`${BOOK.title}.xlsx`}>⬇ 엑셀 내려받기 (시트 11장)</a>
+
+      <div className="mb-grid">
+        {BOOK.sheets.map(([n, d], i) => (
+          <div className="mb-cell" key={n}>
+            <b><span className="mb-no">{i + 1}</span>{n}</b>
+            <span>{d}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="mb-rule">
+        <b>이 파일이 쓰는 단가 기준 (국가계약법 시행령 제65조)</b>
+        <ul>{BOOK.rules.map((r, i) => <li key={i}>{md(r)}</li>)}</ul>
+      </div>
+
+      <div className="mb-ok">✔ {md(BOOK.checked)}</div>
+    </div>
+  )
+}
 
 /* ── 설계변경 서식 — 설명만 있고 서식이 없으면 아무 소용이 없습니다 ──
    소장님: 「설명만 있을뿐 정작 필요한 서식은 하나도 없어.」
@@ -131,9 +170,11 @@ export default function Change() {
         </p>
         <div className="btn-row" style={{ marginTop: 10 }}>
           <Link className="btn primary" to="/change/calc">🧮 증감 계산기 열기</Link>
-          <a className="btn ghost" href="#seosik">📄 설계변경 서식 19가지</a>
+          <a className="btn ghost" href="#seosik">📄 서식 19가지</a>
         </div>
       </div>
+
+      <MainBook />
 
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 6px' }}>무엇부터 보면 되나</div>
@@ -197,6 +238,7 @@ export function ChangeTopic() {
       ))}
 
       {/* 「서류 묶음」 주제에서는 이름만 늘어놓지 않고 그 자리에서 받게 합니다 */}
+      {t.slug === 'docs' && <MainBook />}
       {t.slug === 'docs' && <ChangeForms />}
 
       <div className="card">
