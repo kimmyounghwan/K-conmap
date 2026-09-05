@@ -161,7 +161,12 @@ def api_key():
 FIELDS_SEEN = set()      # 오퍼레이션별로 응답 항목 이름을 한 번씩만 찍기 위한 표시
 DIAG = {}                # 진단 결과 — 사이트에 파일로 남겨 나중에 읽습니다
 NET_FAILS = 0            # 연속 통신 실패 횟수
-NET_DOWN = False         # 차단기가 내려갔는지
+NET_DOWN = False         # 차단기가 내려갔는지 (apis.data.go.kr 전용)
+# ⚠️ NET_DOWN 은 «조달청 OpenAPI(apis.data.go.kr)» 의 차단기입니다.
+#    나라장터 첨부파일은 www.g2b.go.kr — 다른 서버입니다.
+#    한쪽 차단기로 다른 쪽을 막으면, 수집 막바지에 차단기가 내려간 회차마다
+#    내역서를 «조용히» 한 개도 안 받습니다(2026-09-05 에 실제로 겪었습니다).
+NO_NET = False           # --exportonly 처럼 «바깥을 아예 안 부른다» 는 뜻
 NET_LIMIT = 8            # 이만큼 연달아 실패하면 포기
 NET_TIMEOUT = 15         # 한 건당 기다리는 시간(초)
 
@@ -1395,6 +1400,10 @@ NAEYEOK_DIR = os.path.join(STORE, "naeyeok")
 NAEYEOK_KEEP_MB = int(os.environ.get("NAEYEOK_KEEP_MB", "300"))
 NAEYEOK_FETCH = int(os.environ.get("NAEYEOK_FETCH", "40"))      # 한 회차에 새로 받는 개수
 NAEYEOK_MAXBYTES = int(os.environ.get("NAEYEOK_MAXBYTES", str(8 * 1024 * 1024)))
+# ⚠️ 시간 상한. 40개 × 60초 타임아웃 = 40분이라 그것만으로 회차(45분)가 터집니다.
+#    내역서는 «있으면 좋은 것» 이지 배포를 막아도 되는 것이 아닙니다.
+NAEYEOK_BUDGET_S = int(os.environ.get("NAEYEOK_BUDGET_S", "240"))
+NAEYEOK_TIMEOUT_S = int(os.environ.get("NAEYEOK_TIMEOUT_S", "25"))
 
 
 def load_json(path, dflt):
@@ -1516,8 +1525,9 @@ def main():
     args = ap.parse_args()
     if args.exportonly:
         # 조달청을 아예 부르지 않습니다. fetch 가 차단기(NET_DOWN)를 보고 바로 []를 냅니다.
-        global NET_DOWN
+        global NET_DOWN, NO_NET
         NET_DOWN = True
+        NO_NET = True
         print('  · --exportonly : 조달청을 부르지 않고 저장소로만 다시 굽습니다')
 
     # ── --fillonly : 조달청을 한 번도 부르지 않습니다 ────────────────
@@ -2120,10 +2130,13 @@ def main():
           파일마다 발주기관·공고번호·공고주소를 목록에 함께 싣습니다.
         """
         os.makedirs(NAEYEOK_DIR, exist_ok=True)
-        if NET_DOWN:
-            # --exportonly / 조달청 차단기가 내려간 상태.
-            # 여기서 안 막으면 파일마다 60초 타임아웃을 기다립니다(실측: 한 번에 몇 분).
-            print("  → naeyeok 파일  받기 건너뜀 (조달청을 부르지 않는 상태)")
+        if NO_NET:
+            # --exportonly 처럼 «바깥을 아예 안 부른다» 고 정한 때만 건너뜁니다.
+            # ⚠️ NET_DOWN(조달청 OpenAPI 차단기)으로는 건너뛰지 않습니다 —
+            #    첨부파일은 www.g2b.go.kr 이라 다른 서버입니다. 여기서 막았더니
+            #    수집 막바지에 차단기가 내려간 회차마다 0건이 되었습니다.
+            DIAG["naeyeok_fetch"] = {"건너뜀": "--exportonly (바깥을 부르지 않는 회차)"}
+            print("  → naeyeok 파일  받기 건너뜀 (--exportonly)")
             return load_json(NAEYEOK_BOOK, {})
         want = []
         for r in store["con"].values():
@@ -2138,6 +2151,7 @@ def main():
         book = load_json(NAEYEOK_BOOK, {})                # 이미 받은 것 기록
         got = new = 0
         errs, firsts = {}, []                             # 왜 못 받았는지 — diag 로 나갑니다
+        t0, ran_out = time.time(), False
 
         def _fail(key, b0, why, url="", head=""):
             """실패를 «다시 해 볼 수 있게» 적습니다.
@@ -2167,9 +2181,12 @@ def main():
                 continue                                   # 다섯 번 해 보고 그만둡니다
             if new >= NAEYEOK_FETCH:
                 break
+            if time.time() - t0 > NAEYEOK_BUDGET_S:
+                ran_out = True                             # 시간을 다 썼습니다 — 다음 회차에 이어서
+                break
             new += 1
             try:
-                resp = requests.get(furl, timeout=60, verify=False, headers={
+                resp = requests.get(furl, timeout=NAEYEOK_TIMEOUT_S, verify=False, headers={
                     "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                                    "AppleWebKit/537.36 (KHTML, like Gecko) "
                                    "Chrome/126.0 Safari/537.36"),
@@ -2225,6 +2242,8 @@ def main():
         DIAG["naeyeok_fetch"] = {
             "대상(단가 든 갈래)": len(want), "보관": have, "단가 확인됨": pr,
             "이번에 두드린 것": new, "실패 이유": errs, "첫 실패 3건": firsts,
+            "걸린 초": round(time.time() - t0, 1),
+            "시간 상한에 걸림": ran_out,
             "상한MB": NAEYEOK_KEEP_MB, "쓴MB": round(used / 1024 / 1024, 1),
         }
         if errs:
