@@ -20,19 +20,14 @@ DATA = os.path.join(OUT, "data")
 
 # ⚠️ 2026-09-04 — 여기가 **k-conmap.web.app** 이었습니다. 사이트맵은 k-conmap.com 에
 #   올라가는데 안의 주소는 web.app 이라, 구글이 «이 위치의 Sitemap 에 쓸 수 없는 URL»
-#   이라며 **1,146개를 전부 거부**했습니다(서치콘솔 실측). 사이트맵이 처음부터 한 건도
-#   일을 안 하고 있었던 것입니다. 사이트맵 안의 주소는 사이트맵이 놓인 호스트와 같아야 합니다.
-#   canonical·og:url(prerender.py)·robots.txt 는 처음부터 k-conmap.com 이었는데
-#   **여기 한 줄만** 달랐습니다.
+#   이라며 **1,146개를 전부 거부**했습니다(서치콘솔 실측).
 #   → 이제 **robots.txt 의 «Sitemap:» 줄**을 대표 주소의 «한 벌»로 삼습니다.
-#     사이트맵을 알리는 자리와 사이트맵 안의 주소가 어긋날 수 없게 됩니다.
 def _site_from_robots():
     try:
         with io.open(os.path.join(OUT, "robots.txt"), encoding="utf-8") as f:
             for line in f:
                 if line.lower().startswith("sitemap:"):
-                    u = line.split(":", 1)[1].strip()
-                    return u.rsplit("/", 1)[0]
+                    return line.split(":", 1)[1].strip().rsplit("/", 1)[0]
     except Exception:
         pass
     return ""
@@ -54,7 +49,12 @@ STATIC = [("/", "1.0", "hourly"), ("/first", "0.9", "hourly"), ("/live", "0.9", 
           ("/calc", "0.8", "weekly"), ("/analysis", "0.8", "weekly"),
           ("/jobs", "0.7", "daily"), ("/about", "0.3", "monthly"),
           ("/privacy", "0.2", "yearly"), ("/contact", "0.3", "yearly"),
-          ("/daily", "0.8", "daily")]
+          ("/daily", "0.8", "daily"), ("/forms", "0.8", "monthly")]
+
+# 건설 서식 — 변하지 않는 자료라 changefreq 는 yearly.
+# ⚠️ prerender.py 가 forms.json 의 서식을 «전부» 굽습니다. 그래서 여기서도 전부 냅니다
+#    (사이트맵이 미리 구운 것보다 많으면 안 된다는 규칙을 지키려면 같은 파일을 봐야 합니다).
+FORMS_JSON = os.path.join(ROOT, "web", "src", "data", "forms.json")
 
 # 「어제의 개찰 성적표」 — 날짜마다 한 장. 지나가면 안 변하므로 changefreq 는 monthly.
 # ⚠️ prerender.py 의 PRERENDER_DAILY 보다 크면 안 됩니다 — 안 구운 주소를 내면
@@ -156,13 +156,23 @@ def main():
                     f"<changefreq>monthly</changefreq><priority>0.6</priority></url>")
         n_dy += 1
 
+    # ── 건설 서식 ─────────────────────────────────
+    n_fm = 0
+    try:
+        with io.open(FORMS_JSON, encoding="utf-8") as f:
+            for fm in (json.load(f) or {}).get("forms") or []:
+                urls.append(f'  <url><loc>{SITE}/forms/{quote(fm["slug"], safe="")}</loc>'
+                            f'<lastmod>{today}</lastmod>'
+                            f'<changefreq>yearly</changefreq><priority>0.6</priority></url>')
+                n_fm += 1
+    except Exception as e:
+        print(f"  · 서식 목록을 못 읽었습니다 ({type(e).__name__}) — 서식 주소는 건너뜁니다")
+
     xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
            + "\n".join(urls) + "\n</urlset>\n")
 
     # ⚠️ 마지막 관문 — 주소가 하나라도 대표 호스트를 벗어나면 **쓰지 않고 멈춥니다.**
-    #   2026-09-04 에 web.app 주소가 실려 나가 구글이 1,146개를 전부 거부했는데,
-    #   «조용히» 거부돼서 서치콘솔을 열어 보기 전까지 아무도 몰랐습니다.
     bad = [u for u in urls if f"<loc>{SITE}/" not in u and f"<loc>{SITE}<" not in u]
     if bad:
         raise SystemExit(f"  ⛔ 사이트맵에 대표 주소({SITE}) 밖의 주소가 {len(bad)}개 "
@@ -172,7 +182,7 @@ def main():
     with open(p, "w", encoding="utf-8") as f:
         f.write(xml)
     print(f"  ✅ sitemap.xml — 고정 {len(STATIC)} + 기관 {n_ag} + 업체 {n_co}"
-          f" + 공고 {n_no} + 성적표 {n_dy} = {len(urls)}개")
+          f" + 공고 {n_no} + 성적표 {n_dy} + 서식 {n_fm} = {len(urls)}개")
     print(f"     {p}")
 
 

@@ -139,7 +139,26 @@ def read_shell():
         return f.read()
 
 
-def page(shell, path, title, desc, body, image=None):
+# 크롤러가 «어디로 갈지» — 미리 구운 HTML 에는 하단 탭이 없습니다(React 가 그립니다).
+# 그래서 크롤러가 개찰 페이지에 내려앉으면 갈 곳이 한 곳도 없었습니다(실측: 링크 1개).
+# 사람에게는 React 가 마운트되면서 사라지고 진짜 탭바가 대신 그려집니다.
+SITENAV = [("/", "바로투찰"), ("/first", "1순위 개찰"), ("/live", "입찰 공고"),
+           ("/forms", "건설 서식"), ("/analysis", "낙찰 분석"), ("/daily", "개찰 성적표")]
+
+
+def nav_html(here=""):
+    out = ['<div class="card" style="margin-top:10px"><div class="sec-title" '
+           'style="margin:0 0 6px">K-건설맵 둘러보기</div><div class="navrow">']
+    for u, name in SITENAV:
+        if u == here:
+            out.append(f'<span class="navi on">{esc(name)}</span>')
+        else:
+            out.append(f'<a class="navi" href="{esc(u)}">{esc(name)}</a>')
+    out.append("</div></div>")
+    return "".join(out)
+
+
+def page(shell, path, title, desc, body, image=None, jsonld=None):
     """껍데기에서 제목·설명·canonical·og 를 갈아 끼우고 본문 요약을 넣습니다."""
     h = shell
     url = enc_path(path)
@@ -188,9 +207,15 @@ def page(shell, path, title, desc, body, image=None):
     if "twitter:card" not in h:
         h = h.replace("</head>",
                       '  <meta name="twitter:card" content="summary_large_image" />\n  </head>', 1)
+    # 구조화 데이터 — 구글이 «이 페이지가 무엇인지» 를 글자가 아니라 자료로 읽습니다.
+    if jsonld:
+        h = h.replace("</head>",
+                      '  <script type="application/ld+json">'
+                      + json.dumps(jsonld, ensure_ascii=False, separators=(",", ":"))
+                      + "</script>\n  </head>", 1)
     # 본문 — React 가 마운트되면 이 자리를 통째로 덮어씁니다
     h = h.replace('<div id="root"></div>',
-                  '<div id="root">' + body + "</div>", 1)
+                  '<div id="root">' + body + nav_html(path) + "</div>", 1)
     return h
 
 
@@ -500,6 +525,137 @@ def daily_index(shell, days, image=None):
                      '<script type="application/json" id="dlist">' + data + "</script>\n  </body>", 1)
 
 
+# ── 건설 서식 (2026-09-05) ─────────────────────────────────────────
+#  왜 굽나: 「착공계 양식」·「기성 청구서 양식」은 꾸준히 검색되는 말입니다.
+#  그리고 우리 자료와 달리 **변하지 않습니다** — 한 번 구워 두면 계속 일합니다.
+#  ⚠️ 내용은 web/src/data/forms.json 한 곳에만 있습니다(화면·엑셀·여기가 같이 읽습니다).
+FORMS_JSON = os.path.join(ROOT, "web", "src", "data", "forms.json")
+
+
+def load_forms():
+    try:
+        with open(FORMS_JSON, encoding="utf-8") as f:
+            return (json.load(f) or {}).get("forms") or []
+    except Exception as e:
+        print(f"  · 서식 목록을 못 읽었습니다 ({type(e).__name__}) — 서식 페이지는 건너뜁니다")
+        return []
+
+
+def _sheet_html(sheet):
+    """미리보기 — 화면(Forms.jsx)과 «같은 blocks» 를 글자로 폅니다.
+       크롤러는 표 안의 글자를 읽습니다. 그림으로 만들면 아무 말도 안 하는 것과 같습니다."""
+    out = [f'<div class="fpaper"><h3>{esc(sheet["heading"])}</h3>']
+    for b in sheet.get("blocks") or []:
+        t = b.get("t")
+        if t == "kv":
+            out.append("<table class=\"fkv\"><tbody>")
+            for row in b["rows"]:
+                out.append(f'<tr><th>{esc(row[0])}</th><td></td></tr>')
+            out.append("</tbody></table>")
+        elif t == "text":
+            out.append(f'<p class="ftext">{esc(b["text"])}</p>')
+        elif t == "table":
+            out.append('<table class="fgrid"><thead><tr>')
+            out.extend(f"<th>{esc(c)}</th>" for c in b["cols"])
+            out.append("</tr></thead><tbody>")
+            for _ in range(min(int(b.get("n") or 1), 3)):
+                out.append("<tr>" + "".join("<td></td>" for _ in b["cols"]) + "</tr>")
+            out.append("</tbody></table>")
+        elif t == "cl":
+            for head, body in b["items"]:
+                out.append(f'<div class="fcl"><b>{esc(head)}</b>'
+                           + (f"<p>{esc(body)}</p>" if body else "") + "</div>")
+        elif t == "sign":
+            who = " · ".join(b.get("who") or [])
+            out.append(f'<div class="fsign"><div class="fdate">년   월   일</div>'
+                       f'<div>{esc(who)} (서명 또는 인)</div></div>')
+    out.append("</div>")
+    return "".join(out)
+
+
+def forms_index(shell, forms, image=None):
+    title = "건설 서식 무료 내려받기 — 착공계·기성청구서·작업일보 | K-건설맵"
+    desc = ("현장에서 자주 쓰는 건설 서식 %d가지를 엑셀로 무료 제공합니다. "
+            "착공계·현장대리인계·기성검사원·기성금 청구서·준공계·노무비 지급확인서·"
+            "실정보고서·작업일보. 회원가입 없음." % len(forms))
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">건설 서식</h1>'
+           f'<div style="font-size:12.5px;color:var(--muted);margin-top:4px">'
+           f'현장에서 자주 쓰는 서류 {len(forms)}가지 · 엑셀로 바로 내려받기 · 회원가입 없음</div></div>'
+           '<div class="card"><div class="fwarn2">발주기관이 정한 서식이 있으면 그 서식을 씁니다. '
+           '여기 있는 것은 정해진 서식이 없을 때 쓰는 일반 양식입니다.</div></div>']
+    group = {}
+    for f in forms:
+        group.setdefault(f.get("group") or "기타", []).append(f)
+    for g, lst in group.items():
+        out.append(f'<div class="card"><div class="sec-title" style="margin:0 0 6px">{esc(g)}</div>')
+        for f in lst:
+            sub = f' · {esc(f["sub"])}' if f.get("sub") else ""
+            out.append(f'<a class="row rowlink" href="/forms/{esc(f["slug"])}">'
+                       f'<div class="grow"><div class="t">{esc(f["title"])}{sub}</div>'
+                       f'<div class="d">{esc(f.get("short") or "")}</div></div>'
+                       f'<span class="go">→</span></a>')
+        out.append("</div>")
+    ld = {"@context": "https://schema.org", "@type": "ItemList",
+          "name": "건설 서식", "numberOfItems": len(forms),
+          "itemListElement": [
+              {"@type": "ListItem", "position": i + 1, "name": f'{x["title"]} 양식',
+               "url": f'{SITE}/forms/{x["slug"]}'}
+              for i, x in enumerate(forms)]}
+    return page(shell, "/forms", title, desc, "".join(out), image, ld)
+
+
+def form_page(shell, f, others, image=None):
+    title = f'{f["title"]} 양식 무료 내려받기 (엑셀) | K-건설맵'
+    desc = f'{f.get("short") or ""} {f.get("when") or ""}'.strip()[:150]
+    # 검색하는 말 그대로 한 문장 — 억지로 낱말을 늘어놓지 않고 자연스럽게 씁니다.
+    lead = (f'{f["title"]} 양식을 엑셀 파일로 무료로 내려받을 수 있습니다. '
+            f'회원가입이 필요 없고, 인쇄해서 바로 쓸 수 있습니다.')
+    out = [f'<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">'
+           f'{esc(f["title"])} 양식</h1>'
+           f'<div style="font-size:12.5px;color:var(--muted);margin-top:4px">'
+           f'{esc(f.get("short") or "")}</div>'
+           f'<p style="font-size:12.5px;margin:8px 0 0">{esc(lead)}</p>'
+           f'<div class="btn-row" style="margin-top:12px">'
+           f'<a class="btn primary" href="/forms/{esc(f["slug"])}.xlsx" download>⬇ 엑셀 내려받기</a>'
+           f"</div></div>"]
+    if f.get("when"):
+        out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">언제 내나</div>'
+                   f'<div class="fwhen">{esc(f["when"])}</div></div>')
+    if f.get("notes"):
+        out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">놓치기 쉬운 것</div><ul class="flist">')
+        out.extend(f"<li>{esc(n)}</li>" for n in f["notes"])
+        out.append("</ul></div>")
+    if f.get("attach"):
+        out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">함께 내는 서류</div><ul class="flist tight">')
+        out.extend(f"<li>{esc(a)}</li>" for a in f["attach"])
+        out.append("</ul></div>")
+    out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">미리보기</div>'
+               + _sheet_html(f["sheet"]) + "</div>")
+    # 안쪽으로 가는 링크 — 같은 갈래의 다른 서식
+    same = [o for o in others if o.get("group") == f.get("group") and o["slug"] != f["slug"]][:5]
+    if same:
+        out.append(rows_html(f'{f.get("group")} 단계의 다른 서식',
+                             [(o["title"], "내려받기 →") for o in same],
+                             href=lambda t: next((f'/forms/{o["slug"]}' for o in same
+                                                  if o["title"] == t), None)))
+    out.append('<div class="card"><div class="fwarn2">이 서식은 K-건설맵이 만든 일반 양식입니다. '
+               '계약서·과업지시서에 정해진 서식이 있으면 그것을 쓰세요.</div></div>')
+    ld = {"@context": "https://schema.org", "@graph": [
+        {"@type": "BreadcrumbList", "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": "K-건설맵", "item": SITE},
+            {"@type": "ListItem", "position": 2, "name": "건설 서식", "item": SITE + "/forms"},
+            {"@type": "ListItem", "position": 3, "name": f'{f["title"]} 양식',
+             "item": f'{SITE}/forms/{f["slug"]}'}]},
+        {"@type": "CreativeWork", "name": f'{f["title"]} 양식',
+         "description": (f.get("short") or "")[:200],
+         "inLanguage": "ko", "isAccessibleForFree": True,
+         "genre": f.get("group") or "건설 서식",
+         "url": f'{SITE}/forms/{f["slug"]}',
+         "encodingFormat": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+         "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}}]}
+    return page(shell, f'/forms/{f["slug"]}', title, desc, "".join(out), image, ld)
+
+
 # 탭 페이지 — 지금은 전부 홈과 같은 제목이라 색인에서 서로 잡아먹습니다
 TABS = [
     ("/first", "오늘의 1순위 개찰 결과 — 낙찰업체·투찰률 | K-건설맵",
@@ -542,6 +698,23 @@ def main():
         img = og.tab(path.strip("/"), *card)
         write(path.lstrip("/") + ".html", page(shell, path, title, desc, "", img))
         made += 1
+
+    # ── 건설 서식 ── 변하지 않는 자료라 매 회차 다시 구워도 부담이 없습니다(13장).
+    forms = load_forms()
+    if forms:
+        write("forms.html", forms_index(shell, forms,
+              og.tab("forms", "건설 서식", "착공계·기성청구서·작업일보",
+                     f"{len(forms)}가지", "엑셀로 바로 내려받기 · 회원가입 없음")
+              if og.available else None))
+        made += 1
+        for f in forms:
+            img = (og.tab(f'forms-{f["slug"]}', f["title"],
+                          f.get("sub") or "건설 서식", "엑셀",
+                          (f.get("short") or "")[:44])
+                   if og.available else None)
+            write(f'forms/{f["slug"]}.html', form_page(shell, f, forms, img))
+            made += 1
+        print(f"  · 건설 서식 페이지 {len(forms) + 1:,}개 (/forms/)")
 
     # ★ 링크 목록을 «굽기 전에» 만듭니다 — 없는 주소로 링크를 걸지 않기 위해서입니다.
     L = Links()

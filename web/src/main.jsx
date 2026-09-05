@@ -17,6 +17,11 @@ import './styles.css'
    아예 내려받지 않도록 따로 떼어둡니다 — 전송량이 곧 요금이라서. */
 const Jobs = lazy(() => import('./pages/Jobs.jsx'))
 
+/* 서식은 목록 자료(약 24KB)를 안고 있습니다. 서식 탭을 열기 전에는
+   내려받지 않도록 따로 뗍니다 — 첫 화면 전송량에 얹지 않기 위해서입니다. */
+const Forms = lazy(() => import('./pages/Forms.jsx'))
+const FormPage = lazy(() => import('./pages/Forms.jsx').then((m) => ({ default: m.FormPage })))
+
 const Loading = () => (
   <div style={{ padding: '40px 0' }}>
     <div className="skel" /><div className="skel" /><div className="skel" />
@@ -42,6 +47,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/notice/:no" element={<NoticePage />} />
           {/* ★ 「어제의 개찰 성적표」 — 자료는 미리 구운 HTML 안의 ddata 하나뿐이라
               이 화면으로 오는 링크는 <Link> 가 아니라 <a href> 여야 합니다. */}
+          {/* ★ 건설 서식 — 변하지 않는 자료라 한 번 구워 두면 계속 일합니다 (2026-09-05) */}
+          <Route path="/forms" element={<Suspense fallback={<Loading />}><Forms /></Suspense>} />
+          <Route path="/forms/:slug" element={<Suspense fallback={<Loading />}><FormPage /></Suspense>} />
           <Route path="/daily" element={<DailyIndex />} />
           <Route path="/daily/:date" element={<DailyPage />} />
           <Route path="*" element={<NotFound />} />
