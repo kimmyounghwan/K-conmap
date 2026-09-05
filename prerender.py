@@ -143,7 +143,8 @@ def read_shell():
 # 그래서 크롤러가 개찰 페이지에 내려앉으면 갈 곳이 한 곳도 없었습니다(실측: 링크 1개).
 # 사람에게는 React 가 마운트되면서 사라지고 진짜 탭바가 대신 그려집니다.
 SITENAV = [("/", "바로투찰"), ("/first", "1순위 개찰"), ("/live", "입찰 공고"),
-           ("/forms", "건설 서식"), ("/analysis", "낙찰 분석"), ("/daily", "개찰 성적표")]
+           ("/forms", "건설 서식"), ("/change", "설계변경"),
+           ("/analysis", "낙찰 분석"), ("/daily", "개찰 성적표")]
 
 
 def nav_html(here=""):
@@ -656,6 +657,127 @@ def form_page(shell, f, others, image=None):
     return page(shell, f'/forms/{f["slug"]}', title, desc, "".join(out), image, ld)
 
 
+# ── 설계변경 (2026-09-05) ───────────────────────────────────────────
+#  「설계변경 절차」·「신규비목 단가」·「물가변동 조정」 은 꾸준히 검색되는 말입니다.
+#  ⚠️ 내용은 web/src/data/change.json 한 곳에만 있습니다(화면·여기가 같이 읽습니다).
+CHANGE_JSON = os.path.join(ROOT, "web", "src", "data", "change.json")
+
+
+def load_change():
+    try:
+        with open(CHANGE_JSON, encoding="utf-8") as f:
+            return (json.load(f) or {}).get("topics") or []
+    except Exception as e:
+        print(f"  · 설계변경 자료를 못 읽었습니다 ({type(e).__name__}) — 건너뜁니다")
+        return []
+
+
+def _bold(t):
+    """**굵게** 만 처리합니다(화면의 md() 와 같은 규칙)."""
+    out, parts = [], str(t).split("**")
+    for i, x in enumerate(parts):
+        out.append(f"<b>{esc(x)}</b>" if i % 2 else esc(x))
+    return "".join(out)
+
+
+def _blocks_html(blocks):
+    out = []
+    for b in blocks:
+        t = b.get("t")
+        if t == "p":
+            out.append(f'<p class="cp">{_bold(b["text"])}</p>')
+        elif t == "warn":
+            out.append(f'<div class="cwarn">⚠️ {_bold(b["text"])}</div>')
+        elif t == "ul":
+            out.append('<ul class="flist">'
+                       + "".join(f"<li>{_bold(x)}</li>" for x in b["items"]) + "</ul>")
+        elif t == "steps":
+            out.append('<div class="csteps">')
+            for h, d in b["items"]:
+                out.append(f'<div class="cstep"><b>{esc(h)}</b><span>{_bold(d)}</span></div>')
+            out.append("</div>")
+        elif t == "table":
+            out.append('<div class="fscroll"><table class="ctab"><thead><tr>')
+            out.extend(f"<th>{esc(c)}</th>" for c in b["cols"])
+            out.append("</tr></thead><tbody>")
+            for r in b["rows"]:
+                out.append("<tr>" + "".join(f"<td>{_bold(c)}</td>" for c in r) + "</tr>")
+            out.append("</tbody></table></div>")
+    return "".join(out)
+
+
+def change_index(shell, topics, image=None):
+    title = "설계변경 — 절차·단가 기준·증감 계산기 | K-건설맵"
+    desc = ("공공 공사 설계변경의 절차, 계약금액 조정 단가 기준(증가 물량·신규비목), "
+            "물가변동 조정, 공기연장과 간접비를 정리했습니다. 증감 계산기와 서식도 무료입니다.")
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">설계변경</h1>'
+           '<div style="font-size:12.5px;color:var(--muted);margin-top:4px">'
+           '절차 · 단가 기준 · 물가변동 · 공기연장 · 서식까지 한자리에</div>'
+           '<p class="cp" style="margin-top:8px">설계변경은 «공사를 바꾸는 일»이 아니라 '
+           '<b>계약을 바꾸는 일</b>입니다. 순서를 놓치면 시공을 다 해 놓고도 정산이 막힙니다.</p>'
+           '<div class="btn-row" style="margin-top:10px">'
+           '<a class="btn primary" href="/change/calc">🧮 증감 계산기 열기</a>'
+           '<a class="btn ghost" href="/forms">📄 설계변경 서식</a></div></div>'
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">무엇부터 보면 되나</div>']
+    for t in topics:
+        out.append(f'<a class="row rowlink" href="/change/{esc(t["slug"])}">'
+                   f'<div class="grow"><div class="t">{esc(t["title"])} · {esc(t.get("sub") or "")}</div>'
+                   f'<div class="d">{esc(t.get("short") or "")}</div></div>'
+                   f'<span class="go">→</span></a>')
+    out.append("</div>")
+    ld = {"@context": "https://schema.org", "@type": "ItemList", "name": "설계변경 자료",
+          "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": t["title"],
+                               "url": f'{SITE}/change/{t["slug"]}'}
+                              for i, t in enumerate(topics)]}
+    return page(shell, "/change", title, desc, "".join(out), image, ld)
+
+
+def change_topic(shell, t, others, image=None):
+    title = f'{t["title"]} — 공공공사 설계변경 | K-건설맵'
+    desc = f'{t.get("short") or ""} {t.get("lead") or ""}'.strip()[:150]
+    out = [f'<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">'
+           f'{esc(t["title"])}</h1>'
+           f'<div style="font-size:12.5px;color:var(--muted);margin-top:4px">{esc(t.get("sub") or "")}</div>'
+           f'<p class="cp" style="margin-top:8px">{_bold(t.get("lead") or "")}</p></div>']
+    for sec in t.get("secs") or []:
+        out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">'
+                   + esc(sec["h"]) + "</div>" + _blocks_html(sec["blocks"]) + "</div>")
+    out.append(rows_html("이어서 볼 것",
+                         [(o["title"], "보기 →") for o in others],
+                         href=lambda x: next((f'/change/{o["slug"]}' for o in others
+                                              if o["title"] == x), None)))
+    ld = {"@context": "https://schema.org", "@graph": [
+        {"@type": "BreadcrumbList", "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": "K-건설맵", "item": SITE},
+            {"@type": "ListItem", "position": 2, "name": "설계변경", "item": SITE + "/change"},
+            {"@type": "ListItem", "position": 3, "name": t["title"],
+             "item": f'{SITE}/change/{t["slug"]}'}]},
+        {"@type": "Article", "headline": t["title"],
+         "description": (t.get("short") or "")[:200], "inLanguage": "ko",
+         "url": f'{SITE}/change/{t["slug"]}',
+         "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}}]}
+    return page(shell, f'/change/{t["slug"]}', title, desc, "".join(out), image, ld)
+
+
+def change_calc(shell, image=None):
+    title = "설계변경 증감 계산기 — 신규비목·낙찰률 | K-건설맵"
+    desc = ("설계변경 계약금액 조정을 증가 물량·감소 물량·신규비목으로 나누어 계산합니다. "
+            "신규비목은 설계변경 당시 단가에 낙찰률을 곱합니다. 무료·회원가입 없음.")
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">'
+           '설계변경 증감 계산기</h1>'
+           '<p class="cp" style="margin-top:8px">계약금액과 예정가격을 넣으면 낙찰률이 나오고, '
+           '항목마다 <b>증가·감소·신규비목</b>을 골라 적으면 규정대로 조정액을 계산합니다. '
+           '증가 물량은 계약단가, 신규비목은 «설계변경 당시 단가 × 낙찰률»이 적용됩니다.</p></div>'
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">계산 기준</div>'
+           + _blocks_html([{"t": "table", "cols": ["구분", "적용 단가"], "rows": [
+               ["감소된 물량", "계약단가"],
+               ["증가된 물량", "**계약단가** (계약단가 > 예정가격단가면 예정가격단가)"],
+               ["신규 비목", "**설계변경 당시 단가 × 낙찰률**"],
+               ["발주기관 요구", "협의 · 불성립 시 두 값의 중간"]]}])
+           + "</div>"]
+    return page(shell, "/change/calc", title, desc, "".join(out), image)
+
+
 # 탭 페이지 — 지금은 전부 홈과 같은 제목이라 색인에서 서로 잡아먹습니다
 TABS = [
     ("/first", "오늘의 1순위 개찰 결과 — 낙찰업체·투찰률 | K-건설맵",
@@ -715,6 +837,26 @@ def main():
             write(f'forms/{f["slug"]}.html', form_page(shell, f, forms, img))
             made += 1
         print(f"  · 건설 서식 페이지 {len(forms) + 1:,}개 (/forms/)")
+
+    # ── 설계변경 ──
+    topics = load_change()
+    if topics:
+        write("change.html", change_index(shell, topics,
+              og.tab("change", "설계변경", "절차 · 단가 기준 · 물가변동",
+                     f"{len(topics)}가지", "증감 계산기 · 서식까지 무료")
+              if og.available else None))
+        write("change/calc.html", change_calc(shell,
+              og.tab("change-calc", "설계변경 증감 계산기", "증가·감소·신규비목",
+                     "무료", "신규비목은 설계변경 당시 단가 × 낙찰률")
+              if og.available else None))
+        made += 2
+        for t in topics:
+            others = [o for o in topics if o["slug"] != t["slug"]][:4]
+            img = (og.tab(f'change-{t["slug"]}', t["title"], t.get("sub") or "설계변경",
+                          "설계변경", (t.get("short") or "")[:44]) if og.available else None)
+            write(f'change/{t["slug"]}.html', change_topic(shell, t, others, img))
+            made += 1
+        print(f"  · 설계변경 페이지 {len(topics) + 2:,}개 (/change/)")
 
     # ★ 링크 목록을 «굽기 전에» 만듭니다 — 없는 주소로 링크를 걸지 않기 위해서입니다.
     L = Links()

@@ -1,0 +1,379 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useParams, Link } from 'react-router-dom'
+import DATA from '../data/change.json'
+import { ShareBtn } from './CorpPage.jsx'
+import { Empty } from '../components.jsx'
+import { won, num } from '../lib/fmt.js'
+
+/**
+ * /change · /change/{주제} · /change/calc — 「설계변경」 (2026-09-05)
+ *
+ * 소장님: 「설계변경 자료를 추가해 보자… 최대한 자세하게. 다른 사이트보다 좋아야 해.
+ *          탭도 만들고 각각의 페이지도 넣고, 홍보 문구도 넣되 삭제 가능하게」
+ *
+ * 다른 곳과 다르게 만든 지점
+ *   대부분의 사이트는 조문을 옮겨 적기만 합니다. 그건 읽어도 «내 공사에서 얼마»가 안 나옵니다.
+ *   그래서 ① 계산기(증가·감소·신규비목을 규정대로 계산) ② 실무 함정 ③ 서식 연결 을 붙였습니다.
+ *
+ * ⚠️ 단가 기준은 확인하고 적었습니다(국가계약법 시행령 제65조 · 찾기쉬운 생활법령정보).
+ *    - 증가 물량 → **계약단가**(계약단가가 예정가격단가보다 높으면 예정가격단가)
+ *    - 신규 비목 → **설계변경 당시 단가 × 낙찰률**
+ *    - 발주기관 요구 → 협의, 불성립 시 두 값의 중간(50%)
+ *    «증가 물량에 낙찰률을 곱하는» 흔한 오해를 코드가 따라가지 않게 할 것.
+ */
+
+const TOPICS = DATA.topics || []
+const KEY = 'kcm_chgcalc'
+const P50 = 0
+
+export function topicBySlug(s) { return TOPICS.find((t) => t.slug === s) || null }
+
+/* ── 본문 블록 — prerender.py 와 «같은 종류»를 그립니다 ── */
+function Blocks({ blocks }) {
+  return blocks.map((b, i) => {
+    if (b.t === 'p') return <p className="cp" key={i}>{md(b.text)}</p>
+    if (b.t === 'warn') return <div className="cwarn" key={i}>⚠️ {md(b.text)}</div>
+    if (b.t === 'ul') {
+      return <ul className="flist" key={i}>{b.items.map((x, j) => <li key={j}>{md(x)}</li>)}</ul>
+    }
+    if (b.t === 'steps') {
+      return (
+        <div className="csteps" key={i}>
+          {b.items.map(([h, d], j) => (
+            <div className="cstep" key={j}><b>{h}</b><span>{md(d)}</span></div>
+          ))}
+        </div>
+      )
+    }
+    if (b.t === 'table') {
+      return (
+        <div className="fscroll" key={i}>
+          <table className="ctab">
+            <thead><tr>{b.cols.map((c, j) => <th key={j}>{c}</th>)}</tr></thead>
+            <tbody>
+              {b.rows.map((r, j) => (
+                <tr key={j}>{r.map((c, k) => <td key={k}>{md(c)}</td>)}</tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
+    return null
+  })
+}
+
+/* **굵게** 만 처리합니다 — 마크다운 라이브러리를 브라우저로 보내지 않기 위해서입니다. */
+function md(s) {
+  const parts = String(s).split(/\*\*(.+?)\*\*/g)
+  return parts.map((x, i) => (i % 2 ? <b key={i}>{x}</b> : x))
+}
+
+/* ── /change — 허브 ─────────────────────────── */
+export default function Change() {
+  return (
+    <>
+      <div className="card" style={{ marginTop: 14 }}>
+        <div style={{ fontSize: 18, fontWeight: 800 }}>설계변경</div>
+        <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>
+          절차 · 단가 기준 · 물가변동 · 공기연장 · 서식까지 한자리에
+        </div>
+        <p className="cp" style={{ marginTop: 8 }}>
+          설계변경은 «공사를 바꾸는 일»이 아니라 <b>계약을 바꾸는 일</b>입니다.
+          순서를 놓치면 시공을 다 해 놓고도 정산이 막힙니다.
+          여기에 절차와 단가 기준을 정리하고, <b>실제로 얼마가 되는지 계산기</b>를 붙였습니다.
+        </p>
+        <div className="btn-row" style={{ marginTop: 10 }}>
+          <Link className="btn primary" to="/change/calc">🧮 증감 계산기 열기</Link>
+          <Link className="btn ghost" to="/forms">📄 설계변경 서식</Link>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="sec-title" style={{ margin: '0 0 6px' }}>무엇부터 보면 되나</div>
+        {TOPICS.map((t) => (
+          <Link className="row rowlink" to={`/change/${t.slug}`} key={t.slug}>
+            <span className="fic">{t.icon}</span>
+            <div className="grow">
+              <div className="t">{t.title}{t.sub && <em> · {t.sub}</em>}</div>
+              <div className="d">{t.short}</div>
+            </div>
+            <span className="go">→</span>
+          </Link>
+        ))}
+      </div>
+
+      <div className="card fwarn">
+        <b>⚠️ 참고 자료입니다</b>
+        <div>
+          국가계약법 시행령 등 관계 법령을 바탕으로 정리했지만, 계약서의 특수조건과
+          발주기관의 판단이 우선입니다. 금액이 큰 건은 전문가 검토를 받으세요.
+        </div>
+      </div>
+    </>
+  )
+}
+
+/* ── /change/{주제} ─────────────────────────── */
+export function ChangeTopic() {
+  const { slug } = useParams()
+  const t = topicBySlug(slug)
+  if (!t) {
+    return (
+      <Empty icon="🧭">
+        «{slug}» 자료를 찾지 못했습니다.<br />
+        <Link to="/change" style={{ color: 'var(--accent)', fontWeight: 700 }}>설계변경 목록 →</Link>
+      </Empty>
+    )
+  }
+  const others = TOPICS.filter((x) => x.slug !== t.slug).slice(0, 4)
+  return (
+    <>
+      <div className="btn-row" style={{ paddingTop: 14, marginBottom: 10 }}>
+        <Link className="btn ghost sm" to="/change">← 설계변경</Link>
+        <ShareBtn />
+      </div>
+      <div className="card">
+        <div style={{ fontSize: 18, fontWeight: 800 }}>
+          <span style={{ marginRight: 6 }}>{t.icon}</span>{t.title}
+        </div>
+        <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>{t.sub}</div>
+        <p className="cp" style={{ marginTop: 8 }}>{md(t.lead)}</p>
+      </div>
+
+      {t.secs.map((s, i) => (
+        <div className="card" key={i}>
+          <div className="sec-title" style={{ margin: '0 0 8px' }}>{s.h}</div>
+          <Blocks blocks={s.blocks} />
+        </div>
+      ))}
+
+      <div className="card">
+        <div className="sec-title" style={{ margin: '0 0 6px' }}>이어서 볼 것</div>
+        {others.map((o) => (
+          <Link className="row rowlink" to={`/change/${o.slug}`} key={o.slug}>
+            <span className="fic">{o.icon}</span>
+            <div className="grow"><div className="t">{o.title}</div></div>
+            <span className="go">→</span>
+          </Link>
+        ))}
+        <Link className="row rowlink" to="/change/calc">
+          <span className="fic">🧮</span>
+          <div className="grow"><div className="t">증감 계산기</div>
+            <div className="d">내 공사에서 얼마가 되는지 계산합니다</div></div>
+          <span className="go">→</span>
+        </Link>
+      </div>
+    </>
+  )
+}
+
+/* ── 계산 — 화면과 검사가 같이 쓰는 «한 벌» ──────
+   ⚠️ 규정을 코드로 옮긴 자리입니다. 바꾸려면 근거부터 다시 확인할 것.
+      증가 물량 = 계약단가(계약단가 > 예정가격단가면 예정가격단가)
+      신규 비목 = 설계변경 당시 단가 × 낙찰률
+      발주기관 요구 = 협의, 불성립 시 두 값의 중간 */
+export function calcRow(r, rate) {
+  const n = (v) => Number(String(v ?? '').replace(/[^0-9.-]/g, '')) || 0
+  const q0 = n(r.q0), q1 = n(r.q1)
+  const uc = n(r.upCtr), ue = n(r.upEst), un = n(r.upNow)
+  const owner = r.by === 'owner'
+  const mid = un * (1 + rate) / 2
+  if (r.kind === 'dec') {
+    const q = q1 - q0
+    return { qty: q, unit: uc, amt: q * uc, why: '감소분은 계약단가로 감액합니다.' }
+  }
+  if (r.kind === 'inc') {
+    const q = q1 - q0
+    if (owner) return { qty: q, unit: mid, amt: q * mid, owner: true,
+      why: '발주기관이 요구한 증가분 → 협의 대상입니다. 협의가 안 될 때의 기준(설계변경 당시 단가와 낙찰률 적용 단가의 중간)으로 계산했습니다.' }
+    const useEst = ue > 0 && uc > ue
+    const u = useEst ? ue : uc
+    return { qty: q, unit: u, amt: q * u,
+      why: useEst ? '계약단가가 예정가격단가보다 높아 예정가격단가를 적용했습니다.'
+                  : '증가분은 계약단가를 적용합니다. (낙찰률을 곱하지 않습니다)' }
+  }
+  const q = q1
+  if (owner) return { qty: q, unit: mid, amt: q * mid, owner: true,
+    why: '발주기관이 요구한 신규비목 → 협의 대상입니다. 협의 불성립 기준(중간값)으로 계산했습니다.' }
+  const u = un * rate
+  return { qty: q, unit: u, amt: q * u,
+    why: '신규비목은 «설계변경 당시 단가 × 낙찰률»입니다.' }
+}
+
+const BLANK = { name: '', kind: 'inc', unit: '', q0: '', q1: '',
+                upCtr: '', upEst: '', upNow: '', by: 'me' }
+const KINDS = [['inc', '증가'], ['dec', '감소'], ['new', '신규비목']]
+
+/* ── /change/calc — 증감 계산기 ────────────────── */
+export function ChangeCalc() {
+  const [ctr, setCtr] = useState('')
+  const [est, setEst] = useState('')
+  const [rows, setRows] = useState([{ ...BLANK }])
+  const [ad, setAd] = useState(true)          // 홍보 문구 — 끌 수 있습니다
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem(KEY) || 'null')
+      if (v && Array.isArray(v.rows)) { setCtr(v.ctr || ''); setEst(v.est || ''); setRows(v.rows) }
+    } catch { /* 저장된 게 없거나 못 읽어도 그냥 빈 화면으로 시작합니다 */ }
+  }, [])
+  useEffect(() => {
+    try { localStorage.setItem(KEY, JSON.stringify({ ctr, est, rows })) } catch { /* 무시 */ }
+  }, [ctr, est, rows])
+
+  const nn = (v) => Number(String(v ?? '').replace(/[^0-9.]/g, '')) || 0
+  const rate = nn(est) > 0 ? nn(ctr) / nn(est) : 0
+  const out = useMemo(() => rows.map((r) => calcRow(r, rate)), [rows, rate])
+  const sum = out.reduce((a, b) => a + (b.amt || 0), 0)
+  const hasOwner = out.some((x) => x.owner)
+
+  const set = (i, k, v) => setRows(rows.map((r, j) => (j === i ? { ...r, [k]: v } : r)))
+  const add = () => setRows([...rows, { ...BLANK }])
+  const del = (i) => setRows(rows.length > 1 ? rows.filter((_, j) => j !== i) : [{ ...BLANK }])
+
+  const text = () => {
+    const L = ['설계변경 계약금액 조정 계산',
+      `계약금액 ${won(nn(ctr))} · 예정가격 ${won(nn(est))} · 낙찰률 ${(rate * 100).toFixed(3)}%`, '']
+    rows.forEach((r, i) => {
+      const o = out[i]
+      if (!o.amt && !r.name) return
+      L.push(`${r.name || '(이름 없음)'} [${KINDS.find((k) => k[0] === r.kind)[1]}]`
+        + ` 수량 ${num(o.qty)}${r.unit || ''} × 단가 ${won(Math.round(o.unit))}`
+        + ` = ${won(Math.round(o.amt))}`)
+    })
+    L.push('', `조정 합계 ${won(Math.round(sum))}`)
+    if (ad) L.push('', 'K-건설맵 설계변경 계산기 · k-conmap.com')
+    return L.join('\n')
+  }
+  const copy = () => {
+    try { navigator.clipboard?.writeText(text()) } catch { /* 무시 */ }
+    setCopied(true); setTimeout(() => setCopied(false), 1800)
+  }
+
+  return (
+    <>
+      <div className="btn-row" style={{ paddingTop: 14, marginBottom: 10 }}>
+        <Link className="btn ghost sm" to="/change">← 설계변경</Link>
+        <ShareBtn />
+      </div>
+
+      <div className="card">
+        <div style={{ fontSize: 18, fontWeight: 800 }}>🧮 설계변경 증감 계산기</div>
+        <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>
+          증가·감소·신규비목을 규정대로 나누어 계산합니다
+        </div>
+        <div className="kv" style={{ marginTop: 10 }}>
+          <div><span>계약금액</span>
+            <input className="cin" inputMode="numeric" value={ctr} placeholder="예: 870000000"
+              onChange={(e) => setCtr(e.target.value)} /></div>
+          <div><span>예정가격</span>
+            <input className="cin" inputMode="numeric" value={est} placeholder="예: 1000000000"
+              onChange={(e) => setEst(e.target.value)} /></div>
+          <div><span>낙찰률</span>
+            <b className="hi">{rate > 0 ? `${(rate * 100).toFixed(3)}%` : '—'}</b></div>
+        </div>
+        <div className="note sm" style={{ marginTop: 6 }}>
+          낙찰률 = 계약금액 ÷ 예정가격. <b>신규비목</b>에만 곱합니다.
+        </div>
+      </div>
+
+      {rows.map((r, i) => {
+        const o = out[i]
+        return (
+          <div className="card" key={i}>
+            <div className="crow-top">
+              <input className="cin grow" value={r.name} placeholder={`항목 ${i + 1} · 품명·규격`}
+                onChange={(e) => set(i, 'name', e.target.value)} />
+              <button className="btn ghost sm" onClick={() => del(i)}>×</button>
+            </div>
+            <div className="chips" style={{ marginTop: 8 }}>
+              {KINDS.map(([k, label]) => (
+                <button key={k} className={'chip' + (r.kind === k ? ' on' : '')}
+                  onClick={() => set(i, 'kind', k)}>{label}</button>
+              ))}
+              <button className={'chip' + (r.by === 'owner' ? ' on' : '')}
+                onClick={() => set(i, 'by', r.by === 'owner' ? 'me' : 'owner')}>
+                발주기관 요구
+              </button>
+            </div>
+            <div className="cgrid">
+              <label><span>단위</span>
+                <input className="cin" value={r.unit} onChange={(e) => set(i, 'unit', e.target.value)} /></label>
+              {r.kind !== 'new' && (
+                <label><span>당초 수량</span>
+                  <input className="cin" inputMode="decimal" value={r.q0}
+                    onChange={(e) => set(i, 'q0', e.target.value)} /></label>
+              )}
+              <label><span>{r.kind === 'new' ? '수량' : '변경 수량'}</span>
+                <input className="cin" inputMode="decimal" value={r.q1}
+                  onChange={(e) => set(i, 'q1', e.target.value)} /></label>
+              {r.kind !== 'new' && (
+                <label><span>계약단가</span>
+                  <input className="cin" inputMode="numeric" value={r.upCtr}
+                    onChange={(e) => set(i, 'upCtr', e.target.value)} /></label>
+              )}
+              {r.kind === 'inc' && r.by !== 'owner' && (
+                <label><span>예정가격단가</span>
+                  <input className="cin" inputMode="numeric" value={r.upEst}
+                    onChange={(e) => set(i, 'upEst', e.target.value)} /></label>
+              )}
+              {(r.kind === 'new' || r.by === 'owner') && (
+                <label><span>변경 당시 단가</span>
+                  <input className="cin" inputMode="numeric" value={r.upNow}
+                    onChange={(e) => set(i, 'upNow', e.target.value)} /></label>
+              )}
+            </div>
+            <div className={'cres' + (o.amt < 0 ? ' minus' : '')}>
+              <div><span>적용 단가</span><b>{o.unit ? won(Math.round(o.unit)) : '—'}</b></div>
+              <div><span>수량</span><b>{num(o.qty)}{r.unit}</b></div>
+              <div><span>조정액</span><b className="big">{o.amt ? won(Math.round(o.amt)) : '—'}</b></div>
+            </div>
+            <div className="note sm" style={{ marginTop: 6 }}>{o.why}</div>
+          </div>
+        )
+      })}
+
+      <div className="btn-row" style={{ marginBottom: 10 }}>
+        <button className="btn ghost" onClick={add}>+ 항목 추가</button>
+      </div>
+
+      <div className="card ctotal">
+        <div><span>조정 합계</span><b>{won(Math.round(sum))}</b></div>
+        {nn(ctr) > 0 && (
+          <div><span>변경 후 계약금액(예상)</span><b>{won(Math.round(nn(ctr) + sum))}</b></div>
+        )}
+        <div className="btn-row" style={{ marginTop: 10 }}>
+          <button className="btn primary" onClick={copy}>
+            {copied ? '✓ 복사했습니다' : '📋 계산 결과 복사'}
+          </button>
+          <label className="adtoggle">
+            <input type="checkbox" checked={ad} onChange={(e) => setAd(e.target.checked)} />
+            <span>복사할 때 K-건설맵 표시 넣기</span>
+          </label>
+        </div>
+      </div>
+
+      {hasOwner && (
+        <div className="card fwarn">
+          <b>⚠️ 「발주기관 요구」로 표시한 항목이 있습니다</b>
+          <div>
+            이 경우 단가는 <b>협의로 정하는 것이 원칙</b>입니다. 여기 숫자는 협의가 안 될 때의
+            기준(설계변경 당시 단가와 낙찰률 적용 단가의 중간)으로 계산한 값이라,
+            협의 결과에 따라 달라집니다. 협의단가 산정서를 함께 내세요.
+          </div>
+        </div>
+      )}
+
+      <div className="card fwarn">
+        <b>⚠️ 참고용 계산입니다</b>
+        <div>
+          국가계약법 시행령 제65조의 단가 기준으로 계산했습니다. 계약서의 특수조건,
+          지방계약·민간공사 여부, 발주기관 판단에 따라 달라질 수 있습니다.
+          금액이 큰 건은 전문가 검토를 받으세요.
+        </div>
+      </div>
+    </>
+  )
+}

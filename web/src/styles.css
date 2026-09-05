@@ -2089,3 +2089,49 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
   color: var(--accent); background: var(--surface);
 }
 .navi.on { color: var(--muted); }
+
+/* ── 설계변경 (2026-09-05) ────────────────────── */
+.cp { font-size: 13.5px; line-height: 1.75; margin: 0 0 8px; }
+.cwarn {
+  font-size: 12.5px; line-height: 1.7; margin: 8px 0;
+  padding: 9px 11px; border-radius: 8px;
+  background: color-mix(in srgb, var(--warm, #d98324) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--warm, #d98324) 30%, var(--line));
+}
+.csteps { display: grid; gap: 6px; }
+.cstep {
+  display: grid; grid-template-columns: 96px 1fr; gap: 10px;
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+}
+.cstep b { font-size: 12.5px; color: var(--accent); }
+.cstep span { font-size: 12.5px; line-height: 1.65; }
+@media (max-width: 430px) { .cstep { grid-template-columns: 1fr; gap: 3px; } }
+.ctab { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 420px; }
+.ctab th, .ctab td { border: 1px solid var(--line); padding: 7px 9px; text-align: left; vertical-align: top; }
+.ctab th { background: color-mix(in srgb, var(--accent) 8%, var(--surface)); font-weight: 700; }
+
+/* 계산기 */
+.cin {
+  width: 100%; box-sizing: border-box; padding: 7px 9px; font-size: 13.5px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--surface); color: var(--fg);
+}
+.cin.grow { flex: 1; }
+.crow-top { display: flex; gap: 8px; align-items: center; }
+.cgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+@media (max-width: 430px) { .cgrid { grid-template-columns: repeat(2, 1fr); } }
+.cgrid label { display: block; }
+.cgrid label span { display: block; font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.cres {
+  display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px;
+  padding: 9px 11px; border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+}
+.cres.minus { background: color-mix(in srgb, #d94a4a 8%, var(--surface)); }
+.cres span { font-size: 11px; color: var(--muted); display: block; }
+.cres b { font-size: 13.5px; }
+.cres b.big { font-size: 16px; }
+.ctotal div { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 0; }
+.ctotal span { font-size: 12.5px; color: var(--muted); }
+.ctotal b { font-size: 18px; font-weight: 800; }
+.adtoggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }

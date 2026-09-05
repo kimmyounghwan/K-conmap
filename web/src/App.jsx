@@ -8,6 +8,7 @@ const TABS = [
   { to: '/live', ic: '📋', label: '공고' },
   { to: '/analysis', ic: '🔍', label: '분석' },
   { to: '/forms', ic: '📄', label: '서식' },
+  { to: '/change', ic: '🔁', label: '변경' },
   { to: '/jobs', ic: '🤝', label: '구인구직' },
 ]
 

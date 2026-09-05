@@ -61,6 +61,8 @@ MASTER = {
    ("준공계", "jungong"), ("준공대가 청구서", "jungong-daega"),
    ("준공 정산서", "jungong-jeongsan"),
    ("하자보수 완료확인서", "haja-wanryo"), ("인수인계서", "inssu-ingye"),
+   ("설계변경 산출내역서", "chg-naeyeok"), ("협의단가 산정서", "chg-hyeobui"),
+   ("공기연장 간접비 산출서", "chg-ganjeopbi"), ("물가변동 조정금액 산출서", "chg-mulga-san"),
    ("계약보증·하자보증 증권(보증기관 서식)", None),
  ],
  "공사": [

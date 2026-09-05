@@ -20,6 +20,11 @@ const Jobs = lazy(() => import('./pages/Jobs.jsx'))
 /* 서식은 목록 자료(약 24KB)를 안고 있습니다. 서식 탭을 열기 전에는
    내려받지 않도록 따로 뗍니다 — 첫 화면 전송량에 얹지 않기 위해서입니다. */
 const Forms = lazy(() => import('./pages/Forms.jsx'))
+
+/* 설계변경 자료도 목록을 안고 있어 따로 뗍니다 (2026-09-05) */
+const Change = lazy(() => import('./pages/Change.jsx'))
+const ChangeTopic = lazy(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeTopic })))
+const ChangeCalc = lazy(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeCalc })))
 const FormPage = lazy(() => import('./pages/Forms.jsx').then((m) => ({ default: m.FormPage })))
 
 const Loading = () => (
@@ -49,6 +54,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               이 화면으로 오는 링크는 <Link> 가 아니라 <a href> 여야 합니다. */}
           {/* ★ 건설 서식 — 변하지 않는 자료라 한 번 구워 두면 계속 일합니다 (2026-09-05) */}
           <Route path="/forms" element={<Suspense fallback={<Loading />}><Forms /></Suspense>} />
+          {/* ★ 설계변경 — 절차·단가기준·계산기 (2026-09-05) */}
+          <Route path="/change" element={<Suspense fallback={<Loading />}><Change /></Suspense>} />
+          <Route path="/change/calc" element={<Suspense fallback={<Loading />}><ChangeCalc /></Suspense>} />
+          <Route path="/change/:slug" element={<Suspense fallback={<Loading />}><ChangeTopic /></Suspense>} />
           <Route path="/forms/:slug" element={<Suspense fallback={<Loading />}><FormPage /></Suspense>} />
           <Route path="/daily" element={<DailyIndex />} />
           <Route path="/daily/:date" element={<DailyPage />} />
