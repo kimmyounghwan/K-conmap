@@ -2152,6 +2152,11 @@ def main():
         got = new = 0
         errs, firsts = {}, []                             # 왜 못 받았는지 — diag 로 나갑니다
         t0, ran_out = time.time(), False
+        # 나라장터가 아예 안 열리는 회차가 있습니다(2026-09-05 실측: ConnectTimeout 10건 251초).
+        # 그럴 때 40건을 끝까지 두드리면 4분을 버리고도 0건입니다.
+        # → 처음부터 연달아 실패하고 한 건도 못 받았으면 일찍 접습니다. 다음 회차에 다시 합니다.
+        gave_up = False
+        nonlocal_streak = [0]                              # _fail 이 안쪽 함수라 리스트로 셉니다
 
         def _fail(key, b0, why, url="", head=""):
             """실패를 «다시 해 볼 수 있게» 적습니다.
@@ -2161,6 +2166,7 @@ def main():
                (CLAUDE.md 4번 — 한 번의 실패로 «안 된다» 고 단정하지 않는다).
             """
             errs[why] = errs.get(why, 0) + 1
+            nonlocal_streak[0] += 1
             if len(firsts) < 3:
                 firsts.append({"why": why, "url": url[:120], "head": head[:200]})
             book[key] = {"why": why, "try": int(b0.get("try") or 0) + 1, "at": built}
@@ -2183,6 +2189,9 @@ def main():
                 break
             if time.time() - t0 > NAEYEOK_BUDGET_S:
                 ran_out = True                             # 시간을 다 썼습니다 — 다음 회차에 이어서
+                break
+            if got == 0 and nonlocal_streak[0] >= 5:
+                gave_up = True                             # 나라장터가 안 열리는 회차
                 break
             new += 1
             try:
@@ -2215,6 +2224,7 @@ def main():
             book[key] = {"file": local, "n": len(body), "dt": dt,
                          "priced": xlsx_has_price(path), "at": built}
             got += 1
+            nonlocal_streak[0] = 0
             time.sleep(0.3)
 
         # ── 상한을 넘으면 오래된 것부터 버립니다 ──────────────────
@@ -2244,6 +2254,7 @@ def main():
             "이번에 두드린 것": new, "실패 이유": errs, "첫 실패 3건": firsts,
             "걸린 초": round(time.time() - t0, 1),
             "시간 상한에 걸림": ran_out,
+            "일찍 접음(연달아 5번 실패)": gave_up,
             "상한MB": NAEYEOK_KEEP_MB, "쓴MB": round(used / 1024 / 1024, 1),
         }
         if errs:
