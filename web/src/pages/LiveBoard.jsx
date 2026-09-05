@@ -84,7 +84,7 @@ export default function LiveBoard() {
   /* ── 검색·지역·면허·등급은 «색인»으로 거릅니다 — 2026-09-03 ──────
      전에는 7주치 묶음을 전부 받았습니다(1,767KB). 이제 색인(352KB)만 받고,
      보고 있는 쪽에 나올 20건이 든 묶음만 받습니다.
-     ⚠️ 색인 한 줄: [공고명, 기관, 기초금액, 예가하한, 예가상한, 면허코드, 시도]
+     ⚠️ 색인 한 줄: [공고명, 기관, 기초금액, 예가하한, 예가상한, 면허코드, 시도(sido)]
         — collect.py 의 export_board 가 이 순서로 만듭니다. selfcheck 가 대조합니다.
         base/lo/hi 는 「해볼 만한 공고만」 등급이 쓰고, lic 은 면허 거르기가 씁니다
         (2026-09-05 — 전에는 공고명 낱말로 «추측» 해서 정확도가 15.7% 였습니다). */
@@ -93,8 +93,8 @@ export default function LiveBoard() {
     if (!filtering) return null
     const s = q.trim()
     return (a) => {
-      const [name, inst, base, lo, hi, lic, rgn] = a
-      if (!inRegion({ name, inst, rgn }, region)) return false
+      const [name, inst, base, lo, hi, lic, sido] = a
+      if (!inRegion({ name, inst, sido }, region)) return false
       if (s && !((name || '').includes(s) || (inst || '').includes(s))) return false
       if (mine && lics.length && !licHit(lic, lics, licNone)) return false
       if (onlyGood) {

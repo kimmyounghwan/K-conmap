@@ -184,6 +184,7 @@ export const corpMatch = (c) => {
   return (r) => {
     const i = String(r.inst || '').replace(/\s+/g, '')
     if (insts.some((x) => x && (i === x || i.includes(x)))) return true
-    return regions.some((rg) => inRegion({ inst: r.inst, name: r.name }, rg))
+    // ⚠️ r 을 통째로 넘깁니다 — sido 가 있으면 그걸 쓰고, 없을 때만 낱말로 봅니다
+    return regions.some((rg) => inRegion(r, rg))
   }
 }

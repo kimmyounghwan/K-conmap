@@ -25,15 +25,15 @@ export default function FirstBoard() {
      전에는 걸러내려고 7주치 묶음을 전부 받았습니다(1,528KB).
      이제 걸러내기에 필요한 칸만 담은 색인(358KB)을 받아 정확히 세고,
      **그 쪽에 나올 20건이 든 묶음만** 받습니다.
-     ⚠️ 색인 한 줄의 순서는 collect.py 가 정합니다: [공고명, 기관, 낙찰업체, 면허코드, 시도].
+     ⚠️ 색인 한 줄의 순서는 collect.py 가 정합니다: [공고명, 기관, 낙찰업체, 면허코드, 시도(sido)].
         바꾸려면 두 곳을 같이 고치세요 — selfcheck 가 대조합니다. */
   const filtering = q.trim().length > 0 || region !== '전국' || (mine && lics.length > 0)
   const match = useMemo(() => {
     if (!filtering) return null
     const s = q.trim()
     return (a) => {
-      const [name, inst, win, lic, rgn] = a
-      if (!inRegion({ name, inst, rgn }, region)) return false
+      const [name, inst, win, lic, sido] = a
+      if (!inRegion({ name, inst, sido }, region)) return false
       if (mine && lics.length && !licHit(lic, lics, licNone)) return false
       if (!s) return true
       return (name || '').includes(s) || (inst || '').includes(s) || (win || '').includes(s)

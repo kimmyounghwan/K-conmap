@@ -90,16 +90,18 @@ const REGION_ALIAS = {
  * ⚠️ 전에는 «기관명+공고명에 그 글자가 들어 있나» 로 봤습니다.
  *    전남과 광주가 통합되어 기관명이 「전남광주통합특별시 장흥군」 이 되면서
  *    **「광주」 를 고르면 962건 중 833건(87%)이 전남 시·군 공고**였습니다.
- *    → 이제 collect.py 가 조달청 «공사 현장 지역(site)» 으로 정해 준 rgn 을 씁니다.
+ *    → 이제 collect.py 가 조달청 «공사 현장 지역(site)» 으로 정해 준 sido 를 씁니다.
  *      화면에서 짐작하지 않습니다 (CLAUDE.md 1번).
- *    아래 낱말 방식은 rgn 이 없는 옛 자료에서만 씁니다.
+ *    ⚠️ 이름을 «rgn» 으로 두면 안 됩니다 — 조달청 rgn(참가가능지역)이 이미 있어서
+ *       공고 카드가 「참가지역: 전남」 이라고 엉뚱하게 적습니다. 그래서 sido 입니다.
+ *    아래 낱말 방식은 sido 가 없는 옛 자료에서만 씁니다.
  */
 export function inRegion(row, region) {
   if (!region || region === '전국') return true
-  if (row && row.rgn != null && row.rgn !== '') {
-    return String(row.rgn).split(',').includes(region)
+  if (row && row.sido != null && row.sido !== '') {
+    return String(row.sido).split(',').includes(region)
   }
-  if (row && row.rgn === '') return false     // 지역을 못 정한 공고 — 전국에서만 보입니다
+  if (row && row.sido === '') return false    // 지역을 못 정한 공고 — 전국에서만 보입니다
   const pats = REGION_ALIAS[region] || [region]
   const blob = `${row.inst || ''} ${row.name || ''}`
   return pats.some((p) => blob.includes(p))

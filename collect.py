@@ -1782,8 +1782,11 @@ def main():
                 continue
             #   기초금액·예가범위·A값도 «공고엔 있는데 개찰엔 없는» 줄이 있다(실측 9,703건 중 77건).
             #   같은 공고번호면 같은 값이다. 채점이 «값 부족» 으로 빠질 이유가 없다.
+            #   site(공사 현장 지역)도 개찰 쪽에는 0건입니다 — 공고에서 가져오면
+            #   개찰 화면의 «지역 못 정함» 이 13.0% → 7.0% 로 줄어듭니다 (실측 11,638건).
             for f in ("llr", "est", "ptot", "pdrw",
-                      "base", "lo", "hi", "aval", "ayn", "aparts", "gmtrl", "lic"):
+                      "base", "lo", "hi", "aval", "ayn", "aparts", "gmtrl", "lic",
+                      "site"):
                 if (r.get(f) in (None, "", 0, [])) and src.get(f) not in (None, "", 0, []):
                     r[f] = src[f]
                     joined += 1
@@ -1893,14 +1896,14 @@ def main():
                     idx = [[r.get("name") or "", r.get("inst") or "",
                             r.get("win") or "", lic_codes(r), sido_of(r, rbook)]
                            for r in rows]
-                    fields = ["name", "inst", "win", "lic", "rgn"]
+                    fields = ["name", "inst", "win", "lic", "sido"]
                 else:
                     # 공고: 검색은 공고명·기관. base/lo/hi 는 「해볼 만한 공고만」 등급 계산용
                     idx = [[r.get("name") or "", r.get("inst") or "",
                             int(r.get("base") or 0),
                             r.get("lo"), r.get("hi"), lic_codes(r), sido_of(r, rbook)]
                            for r in rows]
-                    fields = ["name", "inst", "base", "lo", "hi", "lic", "rgn"]
+                    fields = ["name", "inst", "base", "lo", "hi", "lic", "sido"]
                 with open(os.path.join(out_dir, f"{name}-{kind}-idx.json"),
                           "w", encoding="utf-8") as f:
                     json.dump({"f": fields, "chunk": BOARD_CHUNK, "r": idx},
@@ -1994,6 +1997,8 @@ def main():
                 (enp_map.get(str(r.get("inst") or "").strip()) or [0, 0])[0],
                 (enp_map.get(str(r.get("inst") or "").strip()) or [0, 0])[1],
                 r.get("dt") or "",                 # 공고일 (목록 카드가 보여줍니다)
+                # ⚠️ 이름은 반드시 «sido» 입니다. 조달청 rgn(참가가능지역)이 이미 있어서
+                #    rgn 으로 두면 공고 카드가 「참가지역: 전남」 이라고 엉뚱하게 적습니다.
                 sido_of(r, _rbook),                # 시도 (지역 거르기 — 짐작하지 않습니다)
             ])
         rows.sort(key=lambda x: re.sub(r"[^0-9]", "", str(x[5])))
@@ -2002,7 +2007,7 @@ def main():
                      "llr", "est", "lic", "aval", "gmtrl",
                      "ayn", "ptot", "pdrw", "url",
                      "site", "rgnb", "joint", "mthd", "swin", "rebid",
-                     "enp", "enpn", "dt", "rgn"],
+                     "enp", "enpn", "dt", "sido"],
                "pick": pick,
                "r": rows}
         path = os.path.join(OUT, "bidindex.json")
