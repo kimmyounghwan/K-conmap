@@ -755,7 +755,7 @@ def change_naeyeok_page(shell, image=None):
     title = "공사 내역서 모음 2026 — 설계내역서·공내역서 무료 보기 | K-건설맵"
     desc = ("조달청이 공고에 붙여 공개한 2026년 공사 내역서를 갈래별로 모았습니다. "
             "설계내역서에는 발주처 설계 단가가 들어 있습니다. "
-            "내려받기는 나라장터 원문으로 연결됩니다.")
+            "미리 받아 둔 것은 나라장터 로그인 없이 바로 내려받습니다.")
     kinds = [("설계내역서", "발주처가 잡은 **설계 단가**가 들어 있습니다. 설계변경 단가를 세울 때 견줍니다."),
              ("단가산출서", "단가를 어떻게 만들었는지 근거가 붙어 있습니다."),
              ("공내역서", "**단가가 비어 있습니다** — 낙찰자가 채워 넣는 서식입니다. 공종과 수량을 봅니다."),
@@ -767,8 +767,9 @@ def change_naeyeok_page(shell, image=None):
            '<p class="cp" style="margin-top:8px">조달청이 공고에 붙여 공개한 <b>내역서</b>를 '
            '갈래별로 모았습니다. <b>설계내역서</b>에는 발주처가 잡은 <b>설계 단가</b>가 들어 있어 '
            '설계변경 단가를 세울 때 견줄 수 있습니다.</p>'
-           '<div class="cwarn">내려받기는 <b>나라장터 원문</b>으로 연결됩니다 — '
-           'K-건설맵이 파일을 보관하지 않습니다. 공고가 내려가면 그 파일도 함께 사라집니다.</div></div>'
+           '<div class="cwarn"><b>⬇ 바로 받기</b>가 붙은 것은 K-건설맵이 미리 받아 둔 파일입니다 — '
+           '나라장터 로그인 없이 바로 열립니다. 붙어 있지 않은 것은 <b>나라장터 원문</b>으로 '
+           '연결되고, 공고가 내려가면 그 파일도 함께 사라집니다.</div></div>'
            '<div class="card"><div class="sec-title" style="margin:0 0 6px">갈래</div>']
     for nm, d in kinds:
         out.append('<div class="frow"><span class="fic">%s</span><div class="grow">'
@@ -786,9 +787,11 @@ def change_naeyeok_page(shell, image=None):
                '<div class="grow"><div class="t">설계변경 자동계산 엑셀</div>'
                '<div class="d">내역서를 넣으면 증감이 규정 단가로 자동 계산됩니다</div></div>'
                '<span class="go">→</span></a></div>')
-    out.append('<div class="card fwarn"><b>⚠️ 쓰기 전에</b><div>'
-               '발주기관이 공개한 문서지만 <b>설계도서의 저작권은 설계사에 있을 수 있습니다.</b> '
-               '참고용으로 보시고, 그대로 옮겨 쓰거나 다시 배포하지 마세요.</div></div>')
+    out.append('<div class="card fwarn"><b>⚠️ 쓰기 전에 · 출처와 삭제 요청</b><div>'
+               '모두 <b>발주기관이 나라장터 공고에 붙여 공개한 문서</b>이고, 줄마다 발주기관과 '
+               '공고번호를 함께 적었습니다. 그래도 <b>설계도서의 저작권은 설계사에 있을 수 '
+               '있습니다.</b> 참고용으로 보시고, 그대로 옮겨 쓰거나 다시 배포하지 마세요. '
+               '발주기관·설계사께서 <b>내려 달라</b>고 알려 주시면 바로 지웁니다.</div></div>')
     ld = {"@context": "https://schema.org", "@type": "CollectionPage",
           "name": "공사 내역서 모음 2026", "url": f"{SITE}/change/naeyeok",
           "description": desc, "inLanguage": "ko",
@@ -919,6 +922,14 @@ def change_index(shell, topics, fsets, book, image=None):
                    f'<span class="go">→</span></a>')
     out.append("</div>")
     out.append(change_book_html(book))
+    # ⚠️ 여기에 링크가 없으면 /change/naeyeok 은 사이트맵으로만 닿는 «외딴 페이지» 가 됩니다.
+    #    크롤러는 /change 를 먼저 읽습니다 — 거기서 가는 길이 있어야 합니다.
+    out.append('<a class="card fbook" href="/change/naeyeok"><span class="fic">📑</span>'
+               '<div class="grow"><div class="t">공사 내역서 모음 <em>· 2026년 · 조달청 공개</em></div>'
+               '<div class="d">발주처가 공고에 붙인 <b>설계내역서·공내역서</b>를 갈래별로 모았습니다. '
+               '설계내역서에는 <b>설계 단가</b>가 들어 있고, 미리 받아 둔 것은 '
+               '<b>나라장터 로그인 없이 바로</b> 받습니다.</div></div>'
+               '<span class="go">→</span></a>')
     out.append(change_forms_html(fsets, load_forms()))
     ld = {"@context": "https://schema.org", "@type": "ItemList", "name": "설계변경 자료",
           "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": t["title"],

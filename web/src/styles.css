@@ -2287,5 +2287,13 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
   flex: none; font-size: 10.5px; font-weight: 800; padding: 1px 6px; border-radius: 6px;
   background: color-mix(in srgb, var(--accent) 15%, var(--surface)); color: var(--accent);
 }
+/* 단가 뱃지 — 「열어서 확인함」과 「짐작」을 색으로도 가릅니다 (2026-09-05)
+   ⚠️ 색만으로 말하지 않습니다(적록색맹). 글자에 「확인됨」·「없음」을 함께 적습니다. */
+/* .nyrow .ft 는 word-break:break-all 이라 뱃지 글자도 «확인/됨» 으로 쪼개집니다.
+   뱃지는 한 덩어리로 둡니다. */
+.dtag.ok, .dtag.no { font-style: normal; display: inline-block; white-space: nowrap; }
+.dtag.ok { background: var(--good-soft); color: var(--good); }
+.dtag.no { background: var(--bad-soft); color: var(--bad); }
+
 /* 「설계내역서가 붙은 공고만」 버튼 */
 .docbtn.on { border-color: var(--accent); }

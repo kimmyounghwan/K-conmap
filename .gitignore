@@ -78,3 +78,11 @@ _to_delete/
 # IndexNow 키 파일 — 비밀이 아니라 «이 사이트 주인이 맞다» 를 증명하는 공개 파일입니다.
 # ⚠️ .gitignore 는 «같은 줄 뒤에 붙인 주석» 을 주석으로 안 봅니다. 반드시 따로 줄로.
 !web/public/*.txt
+
+# ── 내려받은 내역서 파일 (2026-09-05) ─────────────────────────
+# 저장소에는 절대 넣지 않습니다. 상한 300MB 짜리 엑셀 뭉치입니다.
+# 회차 사이 보관은 GitHub Actions 의 cache(data/store)가 맡고,
+# 사이트로는 collect.py 의 publish_naeyeok_files 가 복사해 냅니다.
+data/store/naeyeok/
+web/public/naeyeok/
+_kcm_찌꺼기/

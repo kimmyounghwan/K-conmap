@@ -255,19 +255,34 @@ export function ChangeBook() {
 
 /* ── /change/naeyeok — 내역서 모음 (2026-09-05) ──
    소장님: 「모든 내역서는 참고할 수 있게 설계변경쪽에 분류해서 정리해서 다운받을 수 있게」
+   그리고 「파일은 퍼 와도 돼, 사이트에서 사용자가 다운 받을수 있게 해줘. 그래야 홍보 문구를 넣지」
 
-   ⚠️ 파일은 우리가 퍼오지 않습니다. 조달청이 준 내려받기 주소로 «연결»만 합니다.
-      설계도서 저작권은 설계사에 있을 수 있고, 옮겨 두면 낡은 것을 보게 됩니다.
-      (CLAUDE.md 1번 — 조달청이 주는 값을 그대로 쓴다) */
+   ⚠️ 두 가지가 섞여 있습니다. 화면에서 반드시 갈라 보여야 합니다.
+      · local 이 있는 것 — K-건설맵이 실제로 받아 둔 파일. 바로 내려받습니다.
+      · local 이 없는 것 — 조달청이 준 주소로 «연결»만 합니다.
+      주소는 언제나 조달청이 준 것을 그대로 씁니다 (CLAUDE.md 1번).
+
+   ⚠️ 「단가 있음」 은 이름으로 짐작하지 않습니다.
+      priced  1 = 파일을 열어 단가 열에 숫자가 있는 것을 확인함
+              0 = 열어 봤더니 비어 있었음
+             -1 = 아직 안 열어 봄 (갈래 이름으로만 말합니다) */
 const NPAGE = 25
 const PRICED = ['설계내역서', '단가산출서']
 const ADKEY = 'kcm_nyad'
+
+/* 단가 뱃지 — 「확인함」 과 「짐작」 을 절대 같은 말로 적지 않습니다 */
+function PriceTag({ r }) {
+  if (r.priced === 1) return <em className="dtag ok">단가 확인됨</em>
+  if (r.priced === 0) return <em className="dtag no">열어 보니 단가 없음</em>
+  return null
+}
 
 export function ChangeNaeyeok() {
   const [priced, setPriced] = useState(null)   // 단가가 든 갈래
   const [all, setAll] = useState(null)         // 나머지 (누를 때만 받습니다)
   const [kind, setKind] = useState('설계내역서')
   const [q, setQ] = useState('')
+  const [here, setHere] = useState(false)      // 바로 받을 수 있는 것만
   const [page, setPage] = useState(1)
   const [ad, setAd] = useState(() => {
     try { return localStorage.getItem(ADKEY) !== '0' } catch { return true }
@@ -276,7 +291,7 @@ export function ChangeNaeyeok() {
 
   useEffect(() => { getNaeyeok().then(setPriced).catch(() => setPriced(false)) }, [])
   useEffect(() => { try { localStorage.setItem(ADKEY, ad ? '1' : '0') } catch { /* 사생활 모드 */ } }, [ad])
-  useEffect(() => { setPage(1) }, [kind, q])
+  useEffect(() => { setPage(1) }, [kind, q, here])
   /* 단가가 없는 갈래를 처음 누를 때만 큰 파일을 받습니다 — 안 보는 것은 안 받습니다 */
   useEffect(() => {
     if (PRICED.includes(kind) || all !== null) return
@@ -294,16 +309,29 @@ export function ChangeNaeyeok() {
   const rows = useMemo(() => {
     if (!src) return null
     const s = q.trim()
-    return naeyeokRows(src).filter((r) => r.kind === kind
+    const v = naeyeokRows(src).filter((r) => r.kind === kind
+      && (!here || r.local)
       && (!s || (r.file || '').includes(s) || (r.name || '').includes(s) || (r.inst || '').includes(s)))
-  }, [src, kind, q])
+    /* 앞으로 오는 차례: ① 받아 뒀고 단가 확인됨 ② 받아 둔 나머지 ③ 링크만
+       ⚠️ 「받아 둔 것」만으로 정렬하면 «열어 보니 단가 없음» 이 맨 위로 올라옵니다.
+          설계내역서 갈래를 열었는데 첫 줄이 «단가 없음» 이면 갈래 자체를 못 믿게 됩니다. */
+    const rank = (r) => (r.priced === 1 ? 2 : r.local ? 1 : 0)
+    return v.sort((a, b) => rank(b) - rank(a))
+  }, [src, kind, q, here])
+
+  /* 이 갈래에 «바로 받을 수 있는 것» 이 몇 개인가 — 토글에 숫자를 적기 위해 */
+  const nLocal = useMemo(() => {
+    if (!src) return 0
+    return naeyeokRows(src).filter((r) => r.kind === kind && r.local).length
+  }, [src, kind])
 
   const total = rows ? rows.length : 0
   const pages = Math.max(1, Math.ceil(total / NPAGE))
   const view = rows ? rows.slice((page - 1) * NPAGE, page * NPAGE) : []
 
   const copyList = () => {
-    const txt = view.map((r) => `${r.file}\n  ${r.inst} · ${r.dt}\n  ${r.url}`).join('\n\n')
+    const base = typeof location !== 'undefined' ? location.origin : 'https://k-conmap.com'
+    const txt = view.map((r) => `${r.file}\n  ${r.inst} · ${r.dt}\n  ${r.local ? base + r.local : r.url}`).join('\n\n')
     const tail = ad ? '\n\n— K-건설맵 내역서 모음 · k-conmap.com/change/naeyeok' : ''
     navigator.clipboard?.writeText(txt + tail).then(() => {
       setCopied(true); setTimeout(() => setCopied(false), 1600)
@@ -327,7 +355,8 @@ export function ChangeNaeyeok() {
           <b>설계내역서</b>에는 발주처가 잡은 <b>설계 단가</b>가 들어 있어 설계변경 단가를 세울 때 견줄 수 있습니다.
         </p>
         <div className="cwarn" style={{ marginTop: 8 }}>
-          내려받기는 <b>나라장터 원문</b>으로 연결됩니다 — K-건설맵이 파일을 보관하지 않습니다.
+          <b>⬇ 바로 받기</b>가 붙은 것은 K-건설맵이 미리 받아 둔 파일입니다 —
+          나라장터 로그인 없이 바로 열립니다. 붙어 있지 않은 것은 <b>나라장터 원문</b>으로 연결되고,
           공고가 내려가면 그 파일도 함께 사라집니다.
         </div>
       </div>
@@ -342,9 +371,14 @@ export function ChangeNaeyeok() {
             </button>
           ))}
         </div>
+        <div className="btn-row" style={{ marginTop: 10 }}>
+          <button className={'btn sm' + (here ? ' primary' : ' ghost')} onClick={() => setHere((v) => !v)}>
+            ⬇ 바로 받을 수 있는 것만{nLocal ? ` (${num(nLocal)})` : ''}
+          </button>
+        </div>
         <div className="note" style={{ marginTop: 8 }}>
           {PRICED.includes(kind)
-            ? '이 갈래에는 단가가 들어 있습니다.'
+            ? '이 갈래에는 단가가 들어 있습니다. 받아 둔 파일은 실제로 열어 «단가 열에 숫자가 있는지» 확인했습니다.'
             : '이 갈래는 단가가 비어 있습니다 — 수량과 공종만 봅니다(낙찰자가 단가를 채우는 서식).'}
         </div>
       </div>
@@ -354,20 +388,27 @@ export function ChangeNaeyeok() {
       </div>
 
       {!rows ? <Skeleton /> : total === 0 ? (
-        <Empty icon="🔍">조건에 맞는 내역서가 없습니다.<br />검색어를 지우거나 다른 갈래를 눌러보세요.</Empty>
+        <Empty icon="🔍">
+          {here ? <>이 갈래에는 아직 받아 둔 파일이 없습니다.<br />토글을 끄면 나라장터 원문 링크로 볼 수 있습니다.</>
+            : <>조건에 맞는 내역서가 없습니다.<br />검색어를 지우거나 다른 갈래를 눌러보세요.</>}
+        </Empty>
       ) : (
         <>
           <div className="card">
             {view.map((r, i) => (
               <div className="frow nyrow" key={i}>
-                <span className="fic">{PRICED.includes(r.kind) ? '💰' : '📑'}</span>
+                <span className="fic">{r.priced === 0 ? '📑' : PRICED.includes(r.kind) ? '💰' : '📑'}</span>
                 <div className="grow">
-                  <div className="ft">{r.file}</div>
+                  <div className="ft">{r.file} <PriceTag r={r} /></div>
                   <div className="d">{r.name}</div>
-                  <div className="nymeta">{r.inst}{r.dt ? ` · ${r.dt}` : ''}</div>
+                  <div className="nymeta">
+                    {r.inst}{r.dt ? ` · ${r.dt}` : ''}{r.no ? ` · 공고 ${r.no}` : ''}
+                  </div>
                 </div>
                 <div className="nybtn">
-                  <a className="fdl" href={r.url} target="_blank" rel="noopener nofollow">⬇ 받기</a>
+                  {r.local
+                    ? <a className="fdl" href={r.local} download>⬇ 바로 받기</a>
+                    : <a className="fdl" href={r.url} target="_blank" rel="noopener nofollow">⬇ 나라장터에서 받기</a>}
                   {r.purl && <a className="fdl ghost" href={r.purl} target="_blank" rel="noopener nofollow">공고 →</a>}
                 </div>
               </div>
@@ -393,10 +434,12 @@ export function ChangeNaeyeok() {
       )}
 
       <div className="card fwarn">
-        <b>⚠️ 쓰기 전에</b>
+        <b>⚠️ 쓰기 전에 · 출처와 삭제 요청</b>
         <div>
-          발주기관이 공개한 문서지만 <b>설계도서의 저작권은 설계사에 있을 수 있습니다.</b>
-          참고용으로 보시고, 그대로 옮겨 쓰거나 다시 배포하지 마세요.
+          모두 <b>발주기관이 나라장터 공고에 붙여 공개한 문서</b>이고, 줄마다 발주기관과 공고번호를 함께 적었습니다.
+          그래도 <b>설계도서의 저작권은 설계사에 있을 수 있습니다.</b> 참고용으로 보시고,
+          그대로 옮겨 쓰거나 다시 배포하지 마세요.
+          발주기관·설계사께서 <b>내려 달라</b>고 알려 주시면 바로 지웁니다(구인구직 탭의 문의 창구).
           단가는 <Link to="/change/unit" style={{ color: 'var(--accent)', fontWeight: 700 }}>2026년 품셈·시장단가</Link>로
           한 번 더 확인하시는 편이 안전합니다.
         </div>
@@ -433,7 +476,8 @@ export default function Change() {
           <div className="t">공사 내역서 모음 <em>· 2026년 · 조달청 공개</em></div>
           <div className="d">
             발주처가 공고에 붙인 <b>설계내역서·공내역서</b>를 갈래별로 모았습니다.
-            설계내역서에는 <b>설계 단가</b>가 들어 있습니다.
+            설계내역서에는 <b>설계 단가</b>가 들어 있고, 미리 받아 둔 것은
+            <b>나라장터 로그인 없이 바로</b> 받습니다.
           </div>
         </div>
         <span className="go">→</span>

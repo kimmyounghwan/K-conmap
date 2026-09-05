@@ -14,6 +14,7 @@ collect.py — 조달청 나라장터에서 최근 공고·개찰 결과를 받�
   python collect.py --backfill 90  90일치 몰아서 채우기 (최초 1회)
 """
 import io
+import shutil
 import os
 import re
 import csv
@@ -1338,9 +1339,10 @@ def sido_of(r, book=None):
 #  받아 두고 있었는데 화면에서 한 번도 쓰지 않고 있었습니다.
 #  실측: 공고 12,625건 중 7,070건(56%)에 붙임 22,624개 · 그 중 «내역» 4,235개.
 #
-#  ⚠️ 파일은 우리가 퍼오지 않습니다. 조달청이 준 주소로 «연결»만 합니다.
-#     설계도서 저작권은 설계사에 있을 수 있고, 옮겨 두면 낡은 것을 보게 됩니다.
-#     (CLAUDE.md 1번 — 조달청이 주는 값을 그대로 쓴다)
+#  ⚠️ 파일 «주소» 는 조달청이 준 것을 그대로 씁니다 (CLAUDE.md 1번).
+#     2026-09-05 부터, 단가가 든 갈래에 한해 파일 자체도 받아 둡니다
+#     (소장님: 「파일은 퍼 와도 돼, 사이트에서 사용자가 다운 받을수 있게 해줘」).
+#     받아 둔 것은 화면에 «출처(발주기관·공고번호)» 와 «삭제 요청 안내» 를 함께 답니다.
 # ══════════════════════════════════════════════════════════════════
 NAEYEOK_KIND = [
     ("설계내역", "설계내역서"),        # ★ 발주처 설계 단가가 들어 있습니다
@@ -1356,11 +1358,100 @@ NAEYEOK_PRICED = ("설계내역서", "단가산출서")
 
 
 def naeyeok_kind(name):
-    n = str(name or "")
+    """붙임 파일 이름으로 «어떤 내역서인가» 를 가릅니다.
+
+    ⚠️ 이름에 「무단가」 가 붙은 것이 실제로 16개 있습니다
+       (「(무단가)설계내역서.xlsx」). 조달청 파일 이름이 스스로 «단가 없음» 이라고
+       말하고 있으므로 짐작이 아닙니다 — 공내역서로 가릅니다.
+       이걸 설계내역서로 두면 화면이 «단가 있음» 이라고 거짓말을 합니다.
+    """
+    n = str(name or "").replace(" ", "")
+    # ── «단가가 없다» 는 표시를 먼저 봅니다 ──────────────────────
+    #    「설계내역서(공내역서).xlsx」 처럼 두 낱말이 다 든 이름이 실측 227개 중 18개.
+    #    설계내역서를 먼저 맞히면 화면이 «단가 있음» 이라고 거짓말을 합니다.
+    #    이름이 스스로 «비었다» 고 말하면 그 말을 믿습니다.
+    if "무단가" in n or "단가없" in n:
+        return "공내역서"
+    if "공내역" in n:
+        return "공내역서"
+    if "물량내역" in n:
+        return "물량내역서"
     for key, label in NAEYEOK_KIND:
         if key in n:
             return label
     return ""
+
+
+# ── 내역서 파일 받기 설정 (2026-09-05) ────────────────────────────
+#   실측: 설계내역서 5개를 실제로 받아 재보니 129KB · 96KB · 52KB · 5.4MB · 65KB.
+#   4,290개를 다 받으면 1GB 가 넘어 Firebase 무료 10GB 에 부담이 됩니다.
+#   그래서 «단가가 든 갈래» 만, 한 회차에 조금씩, 크기 상한을 두고 받습니다.
+NAEYEOK_BOOK = os.path.join(STORE, "naeyeok_files.json")
+# 받은 파일이 사는 곳. ★ web/public 이 아니라 data/store 입니다 —
+#   GitHub Actions 가 회차 사이에 넘겨주는 것이 data/store 하나뿐이기 때문입니다.
+#   (자세한 까닭은 fetch_naeyeok_files 의 설명)
+NAEYEOK_DIR = os.path.join(STORE, "naeyeok")
+# 보관 상한. 넘으면 오래된 것부터 내립니다 (공고는 날마다 새로 나옵니다).
+NAEYEOK_KEEP_MB = int(os.environ.get("NAEYEOK_KEEP_MB", "300"))
+NAEYEOK_FETCH = int(os.environ.get("NAEYEOK_FETCH", "40"))      # 한 회차에 새로 받는 개수
+NAEYEOK_MAXBYTES = int(os.environ.get("NAEYEOK_MAXBYTES", str(8 * 1024 * 1024)))
+
+
+def load_json(path, dflt):
+    try:
+        with io.open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return dflt
+
+
+def save_json(path, obj):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with io.open(tmp, "w", encoding="utf-8") as f:
+        json.dump(obj, f, ensure_ascii=False, separators=(",", ":"))
+    os.replace(tmp, path)
+
+
+def xlsx_has_price(path):
+    """엑셀을 열어 «단가에 값이 들어 있는지» 확인합니다.
+
+    ⚠️ 이름으로 짐작하지 않습니다 — 「(무단가) 설계내역서」처럼
+       이름은 설계내역서인데 단가가 빈 것이 실제로 16개 있었습니다.
+    머리글에 «단가» 가 든 열을 찾아, 그 열에 숫자가 몇 개나 있는지 셉니다.
+    """
+    try:
+        from openpyxl import load_workbook
+    except Exception:
+        return None
+    try:
+        wb = load_workbook(path, read_only=True, data_only=True)
+    except Exception:
+        return None
+    try:
+        for ws in wb.worksheets:
+            cols, n = [], 0
+            for row in ws.iter_rows(max_row=400, values_only=True):
+                if not row:
+                    continue
+                if not cols:
+                    for i, v in enumerate(row):
+                        if isinstance(v, str) and "단가" in v:
+                            cols.append(i)
+                    continue
+                for i in cols:
+                    if i < len(row) and isinstance(row[i], (int, float)) and row[i] > 0:
+                        n += 1
+                if n >= 5:
+                    return True
+        return False
+    except Exception:
+        return None
+    finally:
+        try:
+            wb.close()
+        except Exception:
+            pass
 
 
 def doc_flag(r):
@@ -1995,7 +2086,149 @@ def main():
               f"{size/1024/1024:.1f}MB · 검색색인 {_ixs:.0f}KB)")
 
 
-    def export_naeyeok(store):
+    def fetch_naeyeok_files(store):
+        """설계내역서를 실제로 «받아» 사이트에 올립니다. (2026-09-05)
+
+        소장님: 「파일은 퍼 와도 돼, 사이트에서 사용자가 다운 받을수 있게 해줘.
+                 그래야 홍보 문구를 넣지」
+
+        ■ 왜 설계내역서만 받나 — 실측하고 정했습니다
+          크롬으로 5개를 실제로 받아 재봤습니다: 129KB · 96KB · 52KB · **5.4MB** · 65KB.
+          4,290개를 다 받으면 1GB 가 넘습니다(Firebase 무료 10GB 에 부담).
+          단가가 든 «설계내역서»만 받으면 209개 · 약 30~60MB 입니다.
+          나머지(공내역서·물량내역서)는 단가가 없어 받아 둘 값어치가 적습니다 — 링크로 둡니다.
+
+        ■ 받아서 «열어 봅니다» — 이게 링크만 걸 때와 결정적으로 다른 점입니다
+          이름이 「설계내역서」인데 실제로는 단가가 빈 것이 섞여 있습니다
+          (「(무단가) 설계내역서」·「설계내역서(공내역)」 실측 18/227개).
+          받아서 열면 «단가 열에 값이 있는지» 를 진짜로 확인할 수 있습니다.
+
+        ■ ★ 받은 파일은 data/store 안에 둡니다 — 여기서 설계가 갈렸습니다
+          web/public/data 는 .gitignore 되어 있고, GitHub Actions 가 회차 사이에
+          넘겨주는 것은 **`data/store` 하나뿐**입니다(워크플로의 cache 경로).
+          web/public/naeyeok 에 바로 받으면 다음 회차에는 파일이 사라지는데
+          기록(book)만 «이미 받음» 으로 남아 **화면의 «바로 받기» 가 404** 가 됩니다.
+          → 받는 곳은 data/store/naeyeok, 배포 전에 web/public/naeyeok 로 복사합니다.
+          (워크플로는 보호 파일이라 못 고칩니다 — CLAUDE.md. 여기서 해결합니다.)
+
+        ■ 무한히 쌓이지 않게
+          공고는 날마다 새로 나옵니다. 상한(NAEYEOK_KEEP_MB)을 넘으면
+          **오래된 것부터** 지우고 기록에서도 뺍니다. 지운 것은 다시 안 받습니다
+          (기록에 skip 을 남깁니다 — 안 그러면 지우고 받기를 되풀이합니다).
+
+        ■ 출처를 반드시 남깁니다
+          파일마다 발주기관·공고번호·공고주소를 목록에 함께 싣습니다.
+        """
+        os.makedirs(NAEYEOK_DIR, exist_ok=True)
+        if NET_DOWN:
+            # --exportonly / 조달청 차단기가 내려간 상태.
+            # 여기서 안 막으면 파일마다 60초 타임아웃을 기다립니다(실측: 한 번에 몇 분).
+            print("  → naeyeok 파일  받기 건너뜀 (조달청을 부르지 않는 상태)")
+            return load_json(NAEYEOK_BOOK, {})
+        want = []
+        for r in store["con"].values():
+            for i, y in enumerate(r.get("docs") or []):
+                fname = str(y[0] if isinstance(y, (list, tuple)) else y)
+                furl = str(y[1]) if isinstance(y, (list, tuple)) and len(y) > 1 else ""
+                if not furl or naeyeok_kind(fname) not in NAEYEOK_PRICED:
+                    continue
+                want.append((str(r.get("dt") or "")[:10], r, fname, furl, i))
+        want.sort(key=lambda x: x[0], reverse=True)       # 최신부터
+
+        book = load_json(NAEYEOK_BOOK, {})                # 이미 받은 것 기록
+        got = new = 0
+        for dt, r, fname, furl, i in want:
+            key = "%s_%d" % (str(r.get("no") or ""), i)
+            ext = os.path.splitext(fname)[1].lower() or ".xlsx"
+            if ext not in (".xlsx", ".xls", ".xlsm"):
+                continue                                   # zip·pdf 는 열어 볼 수 없어 건너뜁니다
+            local = key + ext
+            path = os.path.join(NAEYEOK_DIR, local)
+            if key in book and (os.path.exists(path) or not book[key].get("file")):
+                got += 1 if book[key].get("file") else 0
+                continue
+            if new >= NAEYEOK_FETCH:
+                break
+            try:
+                resp = requests.get(furl, timeout=60, verify=False,
+                                    headers={"User-Agent": "Mozilla/5.0"})
+                if resp.status_code != 200 or len(resp.content) > NAEYEOK_MAXBYTES:
+                    book[key] = {"skip": "http %d / %d bytes"
+                                 % (resp.status_code, len(resp.content))}
+                    new += 1
+                    continue
+                with open(path, "wb") as f:
+                    f.write(resp.content)
+            except Exception as e:
+                book[key] = {"skip": "%s" % type(e).__name__}
+                new += 1
+                continue
+            book[key] = {"file": local, "n": len(resp.content), "dt": dt,
+                         "priced": xlsx_has_price(path), "at": built}
+            got += 1
+            new += 1
+            time.sleep(0.3)
+
+        # ── 상한을 넘으면 오래된 것부터 버립니다 ──────────────────
+        keep = [(v.get("dt") or "", k, v) for k, v in book.items() if v.get("file")]
+        keep.sort(reverse=True)                            # 최신이 앞
+        budget, used, dropped = NAEYEOK_KEEP_MB * 1024 * 1024, 0, 0
+        for _dt, k, v in keep:
+            p = os.path.join(NAEYEOK_DIR, v["file"])
+            n = os.path.getsize(p) if os.path.exists(p) else 0
+            if used + n <= budget:
+                used += n
+                continue
+            try:
+                if os.path.exists(p):
+                    os.remove(p)
+            except Exception:
+                continue
+            book[k] = {"skip": "보관 상한(%dMB) 초과로 내림" % NAEYEOK_KEEP_MB}
+            dropped += 1
+        save_json(NAEYEOK_BOOK, book)
+
+        have = sum(1 for v in book.values() if v.get("file"))
+        pr = sum(1 for v in book.values() if v.get("priced"))
+        print("  → naeyeok 파일  보관 %s개 (이번 %d개 받음 · "
+              "단가 확인됨 %s개 · %.0fMB / 상한 %dMB"
+              "%s)" % (f"{have:,}", new, f"{pr:,}", used / 1024 / 1024, NAEYEOK_KEEP_MB,
+                       (" · 오래된 것 %d개 내림" % dropped) if dropped else ""))
+        return book
+
+    def publish_naeyeok_files():
+        """data/store/naeyeok → web/public/naeyeok 로 옮겨 담습니다. (2026-09-05)
+
+        받는 곳과 내보내는 곳을 나눈 이유는 fetch_naeyeok_files 의 설명대로입니다.
+        빌드(npm run build)가 web/public 을 dist 로 복사하므로 여기 있으면 배포됩니다.
+        반환값은 «실제로 사이트에 올라간 파일 이름» 의 집합입니다 —
+        export_naeyeok 이 이 집합에 있는 것만 «바로 받기» 로 내보냅니다.
+        (없는 파일을 «바로 받기» 로 내면 사용자는 404 를 봅니다 —
+         CLAUDE.md 「없는 자료를 없는 채로 그리지 않는다」)
+        """
+        pub = os.path.join(ROOT, "web", "public", "naeyeok")
+        os.makedirs(pub, exist_ok=True)
+        live = set()
+        if os.path.isdir(NAEYEOK_DIR):
+            for fn_ in os.listdir(NAEYEOK_DIR):
+                src = os.path.join(NAEYEOK_DIR, fn_)
+                dst = os.path.join(pub, fn_)
+                try:
+                    if not os.path.exists(dst) or os.path.getsize(dst) != os.path.getsize(src):
+                        shutil.copyfile(src, dst)
+                    live.add(fn_)
+                except Exception:
+                    pass
+        # 저장소에서 내려간 것은 사이트에서도 내립니다
+        for fn_ in os.listdir(pub):
+            if fn_ not in live:
+                try:
+                    os.remove(os.path.join(pub, fn_))
+                except Exception:
+                    pass
+        return live
+
+    def export_naeyeok(store, live=None):
         """내역서 모음 — 조달청 붙임 파일을 갈래별로 모아 «링크»로 냅니다. (2026-09-05)
 
         두 파일로 나눕니다:
@@ -2003,6 +2236,11 @@ def main():
           naeyeok-all.json  나머지(공내역서·물량내역서 등) — 그 갈래를 눌렀을 때만 받습니다
         나누는 이유는 CLAUDE.md 의 전송량 원칙입니다 — 안 보는 것은 안 받습니다.
         """
+        book = load_json(NAEYEOK_BOOK, {})     # 실제로 받아 «열어 본» 결과
+        # live = 실제로 web/public/naeyeok 에 올라간 파일 이름들.
+        # 기록에만 있고 파일이 없으면 «바로 받기» 를 내지 않습니다 (404 방지).
+        if live is None:
+            live = publish_naeyeok_files()
         rows_p, rows_a = [], []
         seen = set()
         for r in store["con"].values():
@@ -2014,7 +2252,7 @@ def main():
             dt = str(r.get("dt") or "")[:10]
             no = str(r.get("no") or "")
             purl = str(r.get("url") or "")          # 조달청이 준 공고 주소 (손으로 만들지 않습니다)
-            for y in docs:
+            for i, y in enumerate(docs):
                 fname = str(y[0] if isinstance(y, (list, tuple)) else y)
                 furl = str(y[1]) if isinstance(y, (list, tuple)) and len(y) > 1 else ""
                 kind = naeyeok_kind(fname)
@@ -2024,7 +2262,12 @@ def main():
                 if key in seen:
                     continue
                 seen.add(key)
-                row = [kind, fname, furl, nm, inst, dt, no, purl]
+                # 우리가 받아 둔 파일이 있으면 그 주소와 «열어 본 결과» 를 함께 싣습니다.
+                #   priced  1 단가 확인됨 · 0 열어 보니 단가 없음 · -1 아직 안 열어 봄
+                b = book.get("%s_%d" % (no, i)) or {}
+                local = ("/naeyeok/" + b["file"]) if (b.get("file") in live) else ""
+                priced = 1 if b.get("priced") is True else (0 if b.get("priced") is False else -1)
+                row = [kind, fname, furl, nm, inst, dt, no, purl, local, priced]
                 (rows_p if kind in NAEYEOK_PRICED else rows_a).append(row)
         # 최신 공고가 위로
         for v in (rows_p, rows_a):
@@ -2032,7 +2275,7 @@ def main():
         cnt = {}
         for x in rows_p + rows_a:
             cnt[x[0]] = cnt.get(x[0], 0) + 1
-        fields = ["kind", "file", "url", "name", "inst", "dt", "no", "purl"]
+        fields = ["kind", "file", "url", "name", "inst", "dt", "no", "purl", "local", "priced"]
         meta = {"built": built, "f": fields, "n": len(rows_p) + len(rows_a), "kinds": cnt}
         for fn_, rows in (("naeyeok.json", rows_p), ("naeyeok-all.json", rows_a)):
             path = os.path.join(OUT, fn_)
@@ -2330,6 +2573,10 @@ def main():
     export_board("live", live, "dt", enp_map=pick_stats(first)[0])
     export_bidindex(live, first)
     export_aparts(live)
+    try:
+        fetch_naeyeok_files(live)
+    except Exception as e:
+        print(f"  ! \ub0b4\uc5ed\uc11c \ud30c\uc77c \ubc1b\uae30 \uc2e4\ud328 ({type(e).__name__}) \u2014 \ub118\uc5b4\uac11\ub2c8\ub2e4")
     export_naeyeok(live)
     # 새로 붙인 통계라 혹시 터져도 배치 전체를 멈추지 않게 감쌉니다.
     try:

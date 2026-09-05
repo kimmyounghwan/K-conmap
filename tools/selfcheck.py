@@ -402,6 +402,46 @@ def check_boardidx():
     return bad
 
 
+def check_naeyeok():
+    """내역서 목록의 칸 이름 대조 — collect.py(export_naeyeok) vs Change.jsx(ChangeNaeyeok).
+
+    ⚠️ 이 목록은 이름표(f)로 읽으므로 «자리»가 어긋날 일은 없습니다.
+       위험한 것은 **화면이 읽는 이름이 만드는 쪽에 아예 없는** 경우입니다.
+       그러면 undefined 가 되어 «단가 확인됨» 뱃지가 조용히 사라지거나
+       «바로 받기» 가 영원히 안 뜹니다 — 에러 없이, 화면은 그럴듯하게.
+       (2026-09-05 에 local·priced 두 칸을 새로 붙이면서 넣은 검사입니다)
+    """
+    import re
+    print("\n" + "=" * 64)
+    print("  내역서 ꪩ록 칸 대조 — collect.py vs Change.jsx")
+    print("=" * 64)
+    try:
+        c = io.open(os.path.join(ROOT, "collect.py"), encoding="utf-8").read()
+        i = c.index("def export_naeyeok(")
+        m = re.search(r'fields = \[([^\]]+)\]', c[i:i + 4000])
+        made = re.findall(r'"(\w+)"', m.group(1)) if m else []
+        t = io.open(os.path.join(ROOT, "web", "src", "pages", "Change.jsx"),
+                    encoding="utf-8").read()
+        j = t.index("export function ChangeNaeyeok()")
+        seg = t[j:t.index("\n/* ── /change — 허브", j)]
+        read = sorted(set(re.findall(r'\br\.(\w+)\b', seg)))
+    except Exception as e:
+        print(f"(건너뜀 — 읽지 못했습니다: {type(e).__name__}: {e})")
+        return []
+    miss = [x for x in read if x not in made]
+    if not made:
+        print("❌ collect.py 의 export_naeyeok 에서 fields 를 못 찾았습니다")
+        return ["naeyeok fields 못 찾음"]
+    if miss:
+        print(f"❌ 화면이 읽는데 만드는 쪽에 없는 칸: {', '.join(miss)}")
+        print(f"   만드는 쪽 {len(made)}칸 — {', '.join(made)}")
+        return [f"naeyeok 없는 칸 {miss}"]
+    print(f"✅ 만드는 쪽 {len(made)}칸에 화면이 읽는 {len(read)}칸이 다 있습니다")
+    print(f"   만드는 쪽 — {', '.join(made)}")
+    print(f"   읽는 쪽   — {', '.join(read)}")
+    return []
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--build", action="store_true", help="검사 전에 npm run build 를 돕니다")
@@ -513,6 +553,7 @@ def main():
         return 1
 
     xbad = check_boardidx()
+    xbad += check_naeyeok()
     if xbad:
         print(f"\n⛔ 검색 색인 칸이 어긋납니다 — 검색이 엉뚱한 칸을 뒤집니다")
         return 1
