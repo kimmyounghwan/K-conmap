@@ -2871,3 +2871,8 @@ Actions #109(5c0f91f)가 45분 상한에 걸려 **취소**됐다. 화면 수정�
 소장님: 「sarasa.kr 연결되게. 클릭하면 사라사로. 페이지마다 각각의 연결링크」.
 - 위 막대 오른쪽 `🌊 사라사` 알약(`.sisbtn`, 앱으로 알약과 `.topbar-r` 로 묶음) + 푸터 「🌊 자매 사이트 사라사 sarasa.kr」 — App.jsx 껍데기라 **모든 페이지**에 붙는다(prerender 정적 HTML 도 React 가 뜨면 같다).
 - 새 탭(`target=_blank rel=noopener`) — 건설맵을 떠나지 않게. Playwright 로 7개 주소 × 390/1280px 에서 링크 존재·막대 넘침 없음·JS 오류 0 확인.
+
+### 「연결링크는 항상 보여야 해」 → 위 막대가 sticky 인데 안 붙어 있었다 (같은 날)
+`html, body { overflow-x: hidden }` 이 body 를 스크롤 상자로 만들어 `.topbar` 의 `position: sticky` 가 **처음부터 죽어 있었다**
+(실측: 800px 내리면 막대 top=-791). 사라사 링크뿐 아니라 로고·앱으로 알약도 같이 사라지고 있었던 것.
+→ `overflow-x: hidden; overflow-x: clip;` — clip 은 스크롤 상자를 안 만든다. 실측: 3,680px 내려도 막대 top=9. 가로 넘침 5쪽×2폭 없음.

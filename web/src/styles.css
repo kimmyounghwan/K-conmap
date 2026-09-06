@@ -71,7 +71,11 @@ html, body {
   font-size: 15px;
   line-height: 1.55;
   -webkit-text-size-adjust: 100%;
+  /* ⚠️ 2026-09-06 — overflow-x: hidden 이 body 를 «스크롤 상자»로 만들어 .topbar 의 sticky 가 죽어 있었다.
+     (Playwright 실측: 800px 내리면 막대 top=-791). clip 은 스크롤 상자를 만들지 않아 sticky 가 산다.
+     옛 브라우저는 clip 을 몰라 hidden 으로 남는다(그때는 예전처럼 막대가 같이 올라간다). 소장님: 「연결링크는 항상 보여야 해」 */
   overflow-x: hidden;
+  overflow-x: clip;
 }
 
 #root { min-height: 100vh; }
