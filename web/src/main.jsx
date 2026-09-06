@@ -75,3 +75,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </BrowserRouter>
   </React.StrictMode>
 )
+
+/* 📲 앱으로 설치 — 서비스 워커는 «설치 조건» 용입니다. 아무것도 캐시하지 않습니다(public/sw.js). */
+if ('serviceWorker' in navigator && location.hostname !== 'localhost') {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}) })
+}

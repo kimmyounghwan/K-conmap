@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { BasePriceProvider } from './BasePrice.jsx'
+import { InstallPill, InstallBar } from './Install.jsx'
 
 const TABS = [
   { to: '/', ic: '💰', label: '바로투찰' },
@@ -9,7 +10,7 @@ const TABS = [
   { to: '/analysis', ic: '🔍', label: '분석' },
   { to: '/forms', ic: '📄', label: '서식' },
   { to: '/change', ic: '🔁', label: '설계변경' },
-  { to: '/jobs', ic: '🏗', label: '착공현장' },   // 2026-09-06 «구인구직» → «착공현장» (소장님). 주소는 /jobs 그대로
+  { to: '/jobs', ic: '🏗', label: '착공현장' },
 ]
 
 export default function App() {
@@ -27,6 +28,7 @@ export default function App() {
             <span>🏗️</span><span>K-<b>건설맵</b></span>
           </NavLink>
           <span className="brand-sub">조달청 공공입찰</span>
+          <InstallPill />
         </div>
       </header>
 
@@ -43,6 +45,8 @@ export default function App() {
       </div>
 
       <main className="shell">
+        {/* 📲 홈 화면에 추가 띠 — 모든 페이지 맨 위. 닫으면 7일 뒤에 다시 (Install.jsx) */}
+        <InstallBar />
         <Outlet />
         <footer className="footer">
           <div>

@@ -135,6 +135,13 @@
         ]
       },
       {
+        "//": "서비스 워커는 절대 캐시하지 않는다 — 캐시되면 새 sw.js 가 영영 안 내려간다 (2026-09-06, 앱 설치용)",
+        "source": "/sw.js",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        ]
+      },
+      {
         "source": "/index.html",
         "headers": [
           {

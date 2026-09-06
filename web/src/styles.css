@@ -2415,3 +2415,50 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
 .notice.site .site-more .row b { text-align: right; color: var(--text); }
 .notice.site .site-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .muted { color: var(--muted); }
+
+/* ══════════════════════════════════════════════════════════════
+   📲 앱으로 (홈 화면에 추가) — Install.jsx  2026-09-06
+   ══════════════════════════════════════════════════════════════ */
+.installbtn {
+  margin-left: auto; border: 1px solid rgba(255,255,255,.28); background: rgba(255,255,255,.10);
+  color: #fff; border-radius: 999px; padding: 5px 11px; font-size: 12px; font-weight: 800;
+  cursor: pointer; white-space: nowrap;
+}
+.installbtn:hover { background: rgba(255,255,255,.18); }
+.installguide {
+  position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,.55);
+  display: flex; align-items: flex-end; justify-content: center; padding: 12px;
+}
+.installguide .box {
+  width: 100%; max-width: 480px; background: var(--surface); color: var(--text);
+  border-radius: 16px; padding: 16px 16px 14px; box-shadow: 0 12px 40px rgba(0,0,0,.35);
+}
+.installguide .h { font-size: 16px; font-weight: 900; margin-bottom: 8px; }
+.installguide ol { margin: 0 0 8px 18px; padding: 0; font-size: 14px; line-height: 1.75; }
+.installguide .ic {
+  display: inline-block; border: 1.5px solid var(--accent); color: var(--accent);
+  border-radius: 6px; padding: 0 6px; font-weight: 900; line-height: 1.4;
+}
+.installguide .btn { margin-top: 8px; }
+@media (min-width: 700px) { .installguide { align-items: center; } }
+
+/* 메뉴 아래 «홈 화면에 추가» 띠 — 모든 페이지 */
+.installbar {
+  display: flex; align-items: center; gap: 10px;
+  margin: 12px 0 0; padding: 10px 12px 10px 14px;
+  border-radius: 12px; border: 1.5px solid var(--accent-line);
+  background: var(--accent-soft); color: var(--text); font-size: 13px; line-height: 1.5;
+}
+.installbar .t { flex: 1 1 auto; min-width: 0; }
+.installbar .go {
+  flex: 0 0 auto; border: 0; border-radius: 10px; padding: 8px 12px;
+  background: var(--accent); color: #fff; font-weight: 800; font-size: 13px; cursor: pointer; white-space: nowrap;
+}
+.installbar .x {
+  flex: 0 0 auto; border: 0; background: none; color: var(--text-2); font-size: 15px; cursor: pointer; padding: 4px 6px;
+}
+@media (max-width: 480px) {
+  .installbar { flex-wrap: wrap; font-size: 12.5px; }
+  .installbar .t { flex-basis: 100%; }
+  .installbar .go { flex: 1; }
+}
