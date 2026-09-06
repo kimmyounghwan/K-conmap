@@ -9,7 +9,7 @@ const TABS = [
   { to: '/analysis', ic: '🔍', label: '분석' },
   { to: '/forms', ic: '📄', label: '서식' },
   { to: '/change', ic: '🔁', label: '설계변경' },
-  { to: '/jobs', ic: '🤝', label: '구인구직' },
+  { to: '/jobs', ic: '🏗', label: '착공현장' },   // 2026-09-06 «구인구직» → «착공현장» (소장님). 주소는 /jobs 그대로
 ]
 
 export default function App() {

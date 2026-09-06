@@ -444,7 +444,7 @@ export function ChangeNaeyeok() {
           단가는 <b>그 공고 시점의 값</b>이니, 지금 쓰실 때는{' '}
           <Link to="/change/unit" style={{ color: 'var(--accent)', fontWeight: 700 }}>2026년 품셈·시장단가</Link>로
           한 번 더 확인하시는 편이 안전합니다.
-          발주기관에서 <b>내려 달라</b>고 알려 주시면 바로 지웁니다(구인구직 탭의 문의 창구).
+          발주기관에서 <b>내려 달라</b>고 알려 주시면 바로 지웁니다(착공현장 탭 「구인·구직 글」의 문의 창구).
         </div>
       </div>
     </>

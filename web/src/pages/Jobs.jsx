@@ -83,12 +83,12 @@ export default function Jobs() {
   return (
     <>
       <div className="sec-title" style={{ marginTop: 14 }}>
-        🤝 K-구인구직 <span className="count">· 현장 사람 구하고 찾기</span>
+        🏗 곧 착공하는 현장 <span className="count">· 최근 낙찰된 공사와 낙찰업체 연락처 · 사람·장비 구하고 찾기</span>
       </div>
 
       <div className="seg" style={{ marginBottom: 12 }}>
-        <button className={mode === 'sites' ? 'on' : ''} onClick={() => setMode('sites')}>🏗 곧 착공하는 현장</button>
-        <button className={mode === 'posts' ? 'on' : ''} onClick={() => setMode('posts')}>✏️ 직접 올린 글</button>
+        <button className={mode === 'sites' ? 'on' : ''} onClick={() => setMode('sites')}>🏗 낙찰 현장</button>
+        <button className={mode === 'posts' ? 'on' : ''} onClick={() => setMode('posts')}>✏️ 구인·구직 글</button>
       </div>
 
       {mode === 'sites' && <Sites />}
