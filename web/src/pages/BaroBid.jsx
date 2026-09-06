@@ -1220,14 +1220,27 @@ export default function BaroBid() {
               <b className="nm">{scored?.ourAmt ? won(scored.ourAmt) : '—'}</b>
               {/* ⚠️ 전에는 «②−① = −781만 (①보다 쌈)» 만 적어서, 실격인 개찰에서도 «우리가 더 쌌다 = 이겼다»
                   로 읽혔습니다. 싼 것과 이기는 것은 다릅니다 — 하한 아래면 싼 게 아니라 «없는 금액»입니다.
-                  그래서 이 칸은 판정과 그 이유를 같이 적습니다. */}
-              <span className="v">
-                {!scored ? '' : scored.dq
-                  ? `③보다 ${wonShort(scored.limitAmt - scored.ourAmt)} 모자람 → 실격`
-                  : scored.beat
-                    ? `③은 넘기고 ①보다 ${wonShort(scored.gapWon)} 낮음 → 1순위`
-                    : `③은 넘겼지만 ①보다 ${wonShort(-scored.gapWon)} 높음 → 밀림`}
-              </span>
+                  그래서 이 칸은 판정과 그 이유를 같이 적습니다.
+                  ⚠️ 2026-09-06 — 소장님: 「실제 낙찰하한보다 바로투찰이 높은데 왜 실격이지?」
+                  101,229,915 와 101,915,120 은 앞 세 자리가 같아서 «우리가 더 크다» 로 읽혔습니다.
+                  「③보다 69만 모자람」 만으로는 어느 쪽이 큰지 눈에 안 들어옵니다.
+                  → 견주는 상대 금액을 **부등호와 함께 그 자리에 그대로** 적습니다. 숫자 두 개를 나란히 놓으면
+                    읽는 사람이 자릿수를 셀 필요가 없습니다. (색도 판정과 같은 축으로 — .cmp.bad / .cmp.good) */}
+              {!scored ? <span className="v" /> : (
+                <span className={'v cmp ' + (scored.dq ? 'bad' : scored.beat ? 'good' : 'warn')}>
+                  <span className="cmpline">
+                    <b>{num(scored.ourAmt)}</b>
+                    <i>{scored.dq ? '<' : '>'}</i>
+                    <b>{num(scored.limitAmt)}</b>
+                    <em>(③ 하한)</em>
+                  </span>
+                  {scored.dq
+                    ? `하한보다 ${wonShort(scored.limitAmt - scored.ourAmt)} 낮음 → 실격`
+                    : scored.beat
+                      ? `하한은 넘기고 ①보다 ${wonShort(scored.gapWon)} 낮음 → 1순위`
+                      : `하한은 넘겼지만 ①보다 ${wonShort(-scored.gapWon)} 높음 → 밀림`}
+                </span>
+              )}
             </div>
             <div className="s1">
               <span className="k">③ 실제 낙찰하한</span>

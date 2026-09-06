@@ -1377,6 +1377,23 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
   font-variant-numeric: tabular-nums;
 }
 .scored .s1 .v { font-size: 11.5px; color: var(--text-2); }
+
+/* ② 칸의 «어느 쪽이 큰가» 를 부등호로 — 2026-09-06 소장님: 「하한보다 높은데 왜 실격이지?」
+   앞자리가 같은 두 금액(101,229,915 / 101,915,120)은 글로만 «69만 모자람» 이라 하면
+   어느 쪽이 큰지 안 보입니다. 숫자를 나란히 놓고 부등호를 가운데에 크게 둡니다. */
+.scored .s1 .cmp { display: block; margin-top: 2px; }
+.scored .s1 .cmpline {
+  display: flex; align-items: baseline; gap: 5px; flex-wrap: wrap;
+  margin-bottom: 2px; font-variant-numeric: tabular-nums;
+}
+.scored .s1 .cmpline b { font-size: 11.5px; font-weight: 800; color: var(--text-2); }
+.scored .s1 .cmpline i {
+  font-style: normal; font-size: 14px; font-weight: 900; line-height: 1;
+}
+.scored .s1 .cmpline em { font-style: normal; font-size: 10px; color: var(--muted); }
+.scored .s1 .cmp.bad .cmpline i,  .scored .s1 .cmp.bad  b:first-child { color: var(--bad); }
+.scored .s1 .cmp.good .cmpline i, .scored .s1 .cmp.good b:first-child { color: var(--good); }
+.scored .s1 .cmp.warn .cmpline i, .scored .s1 .cmp.warn b:first-child { color: var(--warn); }
 .scored .sv {
   padding: 11px 14px; font-size: 12.5px; line-height: 1.6;
   color: var(--text-2); background: var(--surface-2);
