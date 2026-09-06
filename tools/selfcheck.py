@@ -529,6 +529,42 @@ def check_naeyeok():
     return []
 
 
+def check_guidenav():
+    """「입찰 알아보기」 링크가 실제로 있는 글을 가리키나 — guidenav.js vs guide.json. (2026-09-06)
+
+    ⚠️ 왜 두 벌인가: guide.json 은 17KB 라 바로투찰 화면이 import 하면 글을 안 읽는 방문자도
+       그걸 받습니다. 그래서 «제목 한 줄» 만 web/src/lib/guidenav.js 에 따로 뒀습니다.
+       두 벌이면 어긋납니다 — slug 가 어긋나면 **죽은 링크**가 되는데, 화면은 NotFound 를
+       그리므로 «에러 없이» 조용합니다. 그래서 검사에 넣습니다 (CLAUDE.md 규칙).
+    """
+    import re
+    print("\n" + "=" * 64)
+    print("  입찰 알아보기 링크 대조 — guidenav.js vs guide.json")
+    print("=" * 64)
+    try:
+        j = json.loads(io.open(os.path.join(ROOT, "web", "src", "data", "guide.json"),
+                               encoding="utf-8").read())
+        real = [t["slug"] for t in (j.get("topics") or [])]
+        nav = io.open(os.path.join(ROOT, "web", "src", "lib", "guidenav.js"),
+                      encoding="utf-8").read()
+        used = re.findall(r"slug:\s*'([^']+)'", nav)
+    except Exception as e:
+        print(f"(건너뜀 — 읽지 못했습니다: {type(e).__name__}: {e})")
+        return []
+    dead = [x for x in used if x not in real]
+    missing = [x for x in real if x not in used]
+    if dead:
+        print(f"❌ 없는 글을 가리키는 링크: {', '.join(dead)}")
+        print(f"   guide.json 에 있는 글 — {', '.join(real)}")
+        return [f"guidenav 죽은 링크 {dead}"]
+    if missing:
+        print(f"⚠️ guide.json 에는 있는데 화면 목록에 없는 글: {', '.join(missing)}")
+        print("   (죽은 링크는 아니지만 사용자가 그 글로 갈 길이 없습니다)")
+        return [f"guidenav 빠진 글 {missing}"]
+    print(f"✅ {len(used)}편 전부 실제 글을 가리킵니다 — {', '.join(used)}")
+    return []
+
+
 def check_naeyeok_files():
     """naeyeok.json 이 «바로 받기» 로 내놓은 파일이 실제로 배포에 들어 있나. (2026-09-06)
 
@@ -746,6 +782,7 @@ def main():
     xbad += check_boardrank()
     xbad += check_naeyeok()
     xbad += check_naeyeok_files()
+    xbad += check_guidenav()
     xbad += check_canonical()
     if xbad:
         print(f"\n⛔ 검색 색인 칸이 어긋납니다 — 검색이 엉뚱한 칸을 뒤집니다")

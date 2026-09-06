@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { getJSON, getOverview, getAgency, similarZone, getSim, getBidIndex, indexRows, getResults } from '../lib/data.js'
 import { won, wonShort, pct, num, dateTime, dday } from '../lib/fmt.js'
 import { winGrade } from '../lib/winodds.js'
@@ -9,6 +9,7 @@ import { bidAmount, limitAmount, limitRate, r3, c3,
          digits, toNum, P50_FALLBACK, shownBid, passProb, QTILES, QTILE_N, quantileBid,
          smartBid, autoRule, canBid, nowStamp, stamp14 } from '../lib/bidmath.js'
 import MyToday from '../MyToday.jsx'
+import { GUIDE_NAV, guideOf } from '../lib/guidenav.js'
 /* 공고 화면(LiveBoard)이 예전부터 여기서 가져다 썼습니다 — 그대로 이어 줍니다 */
 export { missingOf, isReady }
 
@@ -41,6 +42,35 @@ const getBandStat = () => getJSON('/data/bandstat.json')
 const getAparts = () => getJSON('/data/aparts.json')
 
 /** 일반공사 적격심사 낙찰하한율 (조달청 기준, 참고용) */
+/* 📚 궁금해지는 «바로 그 자리»에 답을 놓습니다 (2026-09-06)
+   소장님: 「이건 사이트에 안 보이잖아. 사용자들도 볼 수 있어야 하는 거 아냐?」
+   푸터 한 줄로는 아무도 못 봅니다. 그래서 숫자 옆에 한 줄씩 답니다 —
+   분위 다이얼 옆에 「낮게 쓰면 더 딸까」, 예상 참가 옆에 「참가업체수가 승부를 가른다」 식으로. */
+function GuideLink({ slug }) {
+  const g = guideOf(slug)
+  if (!g) return null
+  return <Link className="glink" to={`/guide/${g.slug}`}>📚 {g.t} <i>→</i></Link>
+}
+
+function GuideBox() {
+  return (
+    <div className="card guidebox">
+      <div className="detail-h">📚 입찰 알아보기 <span className="count">· 개찰 1만여 건을 직접 재서 쓴 글</span></div>
+      {GUIDE_NAV.map((g) => (
+        <Link className="row rowlink" to={`/guide/${g.slug}`} key={g.slug}>
+          <span className="fic">{g.ic}</span>
+          <div className="grow"><div className="t">{g.t}</div><div className="d">{g.d}</div></div>
+          <span className="go">→</span>
+        </Link>
+      ))}
+      <div className="note sm" style={{ marginBottom: 0 }}>
+        여기 숫자는 옮겨 적은 것이 아니라 이 사이트가 모은 개찰 결과를 직접 센 것입니다.
+        표본이 적으면 적다고 적었습니다.
+      </div>
+    </div>
+  )
+}
+
 function lowerLimit(estimate) {
   if (!estimate) return null
   const eok = estimate / 1e8
@@ -1621,6 +1651,7 @@ export default function BaroBid() {
                 그런데 어느 분위든 1순위율은 3.6~4.4% 입니다 —
                 분위는 «얼마나 자주 살아남나»를 정하지 «얼마나 자주 이기나»는 못 바꿉니다.
                 {pickRate.startsWith('q') && <> 고른 분위는 이 브라우저에 기억됩니다 · <a onClick={() => { try { localStorage.removeItem('kcm_qtile') } catch { /* noop */ } setPickRate('rec') }}>권장으로 되돌리기</a></>}
+                <GuideLink slug="quantile" />
               </div>
             </div>
           )}
@@ -1646,6 +1677,7 @@ export default function BaroBid() {
                 {' '}차이는 오차 범위 안팎이라 «확실한 우위»가 아니라 «자료가 이쪽을 가리킨다» 정도입니다.
                 참가가 30곳을 넘는 자리에서는 권장이 가장 좋았습니다.
               </p>
+              <GuideLink slug="participants" />
             </div>
           )}
           {recBelow && (
@@ -2062,9 +2094,13 @@ export default function BaroBid() {
             권장 투찰률은 과거 개찰 106,534건을 되돌려 정한 값이며 낙찰을 보장하지 않습니다.
             경쟁업체 투찰 자료가 없어 실제 승률은 검증값보다 낮을 수 있습니다.
             나라장터에 넣기 전에 공고서의 기초금액 · A값 · 적격심사 기준을 반드시 확인하세요.
+            <GuideLink slug="bid-price" />
           </div>
         </>
       )}
+
+      {/* 📚 5편 전체 — 금액이 나오든 안 나오든 화면 맨 아래에 늘 있습니다. */}
+      <GuideBox />
     </>
   )
 }
