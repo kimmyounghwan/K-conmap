@@ -2865,3 +2865,9 @@ Actions #109(5c0f91f)가 45분 상한에 걸려 **취소**됐다. 화면 수정�
 `sed s/$/\r/` 는 끝에 개행이 없는 파일의 마지막 줄에 **CR 만** 붙인다(LF 없이). git 은 «홀로 있는 CR» 을 보면 파일을 **바이너리**로 본다
 (`git ls-files --eol` 에 `-text`). 그러면 autocrlf 정규화가 안 돼 firebase.json 이 «331줄 전부 바뀜» 으로 보였다.
 → 옮긴 뒤 `git ls-files --eol` 로 `-text`·`mixed` 가 없는지 본다. 있으면 `sed -i s/\r$//` + 끝 개행.
+
+## 🌊 사라사 링크 — 페이지마다 (2026-09-06)
+
+소장님: 「sarasa.kr 연결되게. 클릭하면 사라사로. 페이지마다 각각의 연결링크」.
+- 위 막대 오른쪽 `🌊 사라사` 알약(`.sisbtn`, 앱으로 알약과 `.topbar-r` 로 묶음) + 푸터 「🌊 자매 사이트 사라사 sarasa.kr」 — App.jsx 껍데기라 **모든 페이지**에 붙는다(prerender 정적 HTML 도 React 가 뜨면 같다).
+- 새 탭(`target=_blank rel=noopener`) — 건설맵을 떠나지 않게. Playwright 로 7개 주소 × 390/1280px 에서 링크 존재·막대 넘침 없음·JS 오류 0 확인.

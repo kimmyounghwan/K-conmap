@@ -2425,6 +2425,19 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
   cursor: pointer; white-space: nowrap;
 }
 .installbtn:hover { background: rgba(255,255,255,.18); }
+
+/* 🌊 자매 사이트 사라사 — 위 막대 오른쪽 묶음(사라사 + 앱으로). 2026-09-06 소장님 요청 */
+.topbar-r { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.topbar-r .installbtn { margin-left: 0; }
+.sisbtn {
+  border: 1px solid rgba(255,255,255,.28); background: rgba(255,255,255,.10);
+  color: #fff; border-radius: 999px; padding: 5px 11px; font-size: 12px; font-weight: 800;
+  white-space: nowrap; text-decoration: none;
+}
+.sisbtn:hover { background: rgba(255,255,255,.18); }
+.footer-sis { margin-top: 8px; }
+.footer-sis a { text-decoration: none; }
+.footer-sis a b { color: var(--text); }
 .installguide {
   position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,.55);
   display: flex; align-items: flex-end; justify-content: center; padding: 12px;

@@ -28,7 +28,13 @@ export default function App() {
             <span>🏗️</span><span>K-<b>건설맵</b></span>
           </NavLink>
           <span className="brand-sub">조달청 공공입찰</span>
-          <InstallPill />
+          {/* 🌊 자매 사이트 사라사 — 소장님(09-06): 「클릭하면 사라사 사이트로. 페이지마다」.
+              이 막대는 모든 페이지 위에 있으므로 여기 한 번이면 페이지마다 붙습니다. 새 탭으로 엽니다(건설맵을 떠나지 않게). */}
+          <div className="topbar-r">
+            <a className="sisbtn" href="https://sarasa.kr" target="_blank" rel="noopener"
+              title="자매 사이트 사라사 — 나노리치 실시간 신호판 · 경제 기사 · 여행">🌊 사라사</a>
+            <InstallPill />
+          </div>
         </div>
       </header>
 
@@ -53,6 +59,10 @@ export default function App() {
             <a href="/about">소개</a><span className="dot">·</span>
             <a href="/privacy">개인정보처리방침</a><span className="dot">·</span>
             <a href="/contact">문의</a>
+          </div>
+          <div className="footer-sis">
+            🌊 자매 사이트 <a href="https://sarasa.kr" target="_blank" rel="noopener"><b>사라사 sarasa.kr</b></a>
+            <span className="dot">·</span>나노리치 실시간 신호판 · 경제 기사 · 여행
           </div>
           <div style={{ marginTop: 6 }}>
             공공데이터포털 나라장터 입찰정보를 가공해 제공합니다.<br />
