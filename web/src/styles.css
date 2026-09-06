@@ -2544,3 +2544,8 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
 .cm-row input { flex: 1 1 0; min-width: 0; }
 .cm-row .btn.sm { flex: 0 0 auto; width: auto; }
 @media (max-width: 480px) { .cm-row { flex-wrap: wrap; } .cm-row .btn.sm { flex: 1 1 100%; } }
+
+/* «금액 복사하고 나라장터 열기» 를 누른 뒤 — 초록을 한 단계 진하게 해서 «눌렸다» 를 보여줍니다.
+   소장님(2026-09-06): 「금액복사하고 나라장터 열기로 가줘. 사용자가 로그인 후 바로 투찰 할 수 있게」
+   새 탭이 열리면 이 화면은 뒤로 가므로, 돌아왔을 때도 보이도록 2.6초 남깁니다. */
+.gobid.done { background: linear-gradient(135deg, #064e3b 0%, #059669 55%, #10b981 100%); }

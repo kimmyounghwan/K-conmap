@@ -234,6 +234,7 @@ export default function BaroBid() {
   const rateTouched = useRef(false)
   const [ownRate, setOwnRate] = useState('')
   const [copied, setCopied] = useState(false)
+  const [went, setWent] = useState(false)   // «복사하고 나라장터 열기» 를 눌렀나 (돌아왔을 때 보이라고 길게 둡니다)
   const [linked, setLinked] = useState(false)      // 「주소 복사」 눌렀나
   const [sjPick, setSjPick] = useState(null)   // 사정률 후보를 직접 고른 경우
   const seeded = useRef(false)
@@ -625,10 +626,36 @@ export default function BaroBid() {
   const sjRow = Math.round(sjMid * 100) / 100
   if (!steps.includes(sjRow)) { steps.push(sjRow); steps.sort((x, y) => x - y) }
 
+  /* 금액을 클립보드에 넣습니다.
+     ⚠️ navigator.clipboard 하나만 믿지 않습니다 — 새 탭이 열리며 초점이 옮겨 가면
+        «Document is not focused» 로 조용히 실패합니다(아래 «복사하고 나라장터 열기»가 그 경우).
+        그래서 숨긴 textarea + execCommand 를 항상 함께 걸어 둡니다. 하나라도 되면 들어갑니다. */
+  const putClip = (text) => {
+    let ok = false
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = text
+      ta.setAttribute('readonly', '')
+      ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0'
+      document.body.appendChild(ta)
+      ta.select(); ta.setSelectionRange(0, text.length)
+      ok = document.execCommand('copy')
+      document.body.removeChild(ta)
+    } catch { /* 아래 clipboard API 로 */ }
+    try { navigator.clipboard?.writeText(text) } catch { /* noop */ }
+    return ok
+  }
   const copy = () => {
-    navigator.clipboard?.writeText(String(main))
+    putClip(String(main))
     setCopied(true); setTimeout(() => setCopied(false), 1600)
   }
+  /* 💰 «금액 복사하고 나라장터 열기» — 소장님(2026-09-06):
+       「금액복사하고 나라장터 열기로 가줘. 사용자가 로그인 후 바로 투찰 할 수 있게」
+     복사와 이동을 한 번에 합니다. 나라장터에 도착했을 때 이미 붙여넣을 준비가 돼 있습니다.
+     ⚠️ 새 탭은 <a target="_blank"> 의 «기본 동작» 으로 엽니다 — window.open 을 쓰면
+        팝업 차단에 걸릴 수 있고, clipboard 를 await 한 뒤에 열면 사용자 제스처가 끊깁니다.
+        여기서는 onClick 에서 복사만 하고 이동은 브라우저가 합니다(차단 없음). */
+  const copyAndGo = () => { putClip(String(main)); setWent(true); setTimeout(() => setWent(false), 2600) }
   /* 「이 금액 공유」 — 공고 페이지 주소를 복사합니다(카톡 카드 + 권장금액이 같이 보이는 자리).
      분위를 손으로 고른 경우에만 ?q= 를 붙입니다 — 안 붙이면 받는 쪽이 다른 금액을 봅니다. */
   const shareQ = (pickRate || '').startsWith('q') ? Number(pickRate.slice(1)) : 0
@@ -1525,9 +1552,14 @@ export default function BaroBid() {
               ⚠️ 투찰 자체는 링크로 못 엽니다 — 로그인 + 인증서/지문 + 나라장터 전용 보안 프로그램이
                  필요한 회원 화면입니다. 조달청이 공고마다 주는 주소도 bidNtceDtlUrl·bidNtceUrl
                  둘 다 «공고» 화면뿐입니다(응답 항목으로 확인). */}
-          <a className="gobid" href="https://www.g2b.go.kr" target="_blank" rel="noreferrer">
-            <span className="t">🔐 나라장터 로그인 → 투찰</span>
-            <span className="d">위 「금액 복사」를 누른 뒤 여기로 — 로그인하면 그 자리가 투찰 화면입니다</span>
+          <a className={'gobid' + (went ? ' done' : '')} href="https://www.g2b.go.kr"
+            target="_blank" rel="noreferrer" onClick={copyAndGo}>
+            <span className="t">{went ? '✓ 금액을 복사했습니다 — 나라장터로 갑니다' : '💰 금액 복사하고 나라장터 열기'}</span>
+            <span className="d">
+              {went
+                ? `${won(main)} · 로그인 후 투찰 화면에서 붙여넣기(Ctrl+V) 하세요`
+                : '누르면 금액이 복사되고 나라장터가 새 탭으로 열립니다 — 로그인하면 바로 투찰'}
+            </span>
           </a>
 
           {/* ── 분석 정보 ── */}
