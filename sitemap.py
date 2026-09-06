@@ -128,8 +128,33 @@ def main():
                                 fonly.update(v)
             except Exception as e:
                 print(f"  ⚠️  store/{nm}.json 읽기 실패 ({type(e).__name__})")
-    for r in sorted(rows.values(), key=lambda r: str(r.get("dt") or r.get("close") or ""),
-                    reverse=True):
+    # ★ 2026-09-06 — 「내역서가 붙은 공고」를 앞세웁니다.
+    #   소장님: 「내역서 검색은 경쟁률이 별로 없잖아. 반드시 검색되게 만들어야 해」
+    #   「○○공사 설계내역서」 는 경쟁이 옅은 검색어인데, 그 말이 들어간 페이지는
+    #   붙임이 있는 공고뿐입니다. 최신순으로만 내면 그 페이지들이 뒤로 밀립니다.
+    #   ⚠️ 없는 것을 내면 안 되므로, collect.py 가 낸 목록에 실제로 있는 공고만 봅니다.
+    ny_no = set()
+    for fn_ in ("naeyeok.json", "naeyeok-all.json"):
+        p3 = os.path.join(DATA, fn_)
+        if not os.path.exists(p3):
+            continue
+        try:
+            with open(p3, encoding="utf-8") as f:
+                d3 = json.load(f) or {}
+            i3 = (d3.get("f") or []).index("no")
+            for row in d3.get("r") or []:
+                ny_no.add(str(row[i3]))
+        except Exception:
+            pass
+    if ny_no:
+        print(f"  · 내역서가 붙은 공고 {len(ny_no):,}건을 사이트맵 앞쪽에 둡니다")
+
+    def _rank(r):
+        # 내역서가 붙은 것 먼저, 그 안에서 최신부터
+        return (0 if str(r.get("no") or "") in ny_no else 1,
+                [-ord(c) for c in str(r.get("dt") or r.get("close") or "")])
+
+    for r in sorted(rows.values(), key=_rank):
         if n_no >= NOTICE:
             break
         no = str(r.get("no") or "")

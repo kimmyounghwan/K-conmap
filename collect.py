@@ -2182,7 +2182,21 @@ def main():
                              str(r.get("dt") or "")[:10], r, fname, furl, i))
         # 단가 든 갈래 먼저, 그 안에서 최신부터
         want.sort(key=lambda x: (x[0], [-ord(c) for c in x[1]]))
-        want = [(dt, r, fn, fu, i) for _p, dt, r, fn, fu, i in want]
+        # ⚠️ 그다음(단가 없는 갈래)은 **갈래를 돌아가며** 집습니다 (2026-09-06).
+        #    한 줄로 늘어놓으면 공내역서 2,000개가 앞을 다 막아, 27개뿐인 수량산출서는
+        #    영영 «바로 받기» 가 0개입니다. 실제로 그랬습니다 — 소장님이 바로 알아채셨습니다.
+        #    갈래마다 돌아가며 집으면 어느 갈래든 금방 «받아지는 예» 가 생깁니다.
+        head = [x for x in want if x[0] == 0]
+        tail = [x for x in want if x[0] != 0]
+        buckets = {}
+        for x in tail:
+            buckets.setdefault(naeyeok_kind(x[3]), []).append(x)
+        mixed = []
+        while any(buckets.values()):
+            for k in list(buckets):
+                if buckets[k]:
+                    mixed.append(buckets[k].pop(0))
+        want = [(dt, r, fn, fu, i) for _p, dt, r, fn, fu, i in head + mixed]
 
         book = load_json(NAEYEOK_BOOK, {})                # 이미 받은 것 기록
         got = new = 0
