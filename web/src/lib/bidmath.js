@@ -155,6 +155,19 @@ export function shownBid(base, p50, recAmt) {
 
 /* q 를 주면 그 분위로 «고정»해 계산합니다 (공유 주소 `?q=80` 용).
    ⚠️ 규칙은 quantileBid 하나만 씁니다 — 여기서 다시 적으면 바로투찰 화면과 어긋납니다. */
+/* ── 마감 판정 — 공고 탭(LiveBoard)과 바로투찰 첫 화면(MyToday)이 같이 씁니다 (2026-09-06)
+   전에는 LiveBoard 안에만 있었습니다. 두 화면이 «넣을 수 있는 공고» 를 따로 정하면
+   같은 공고가 한쪽엔 뜨고 한쪽엔 안 뜨는 일이 조용히 생깁니다. */
+export const stamp14 = (v) => String(v || '').replace(/[^0-9]/g, '').padEnd(14, '0')
+export function nowStamp() {
+  const d = new Date()
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}` +
+         `${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
+}
+/** 아직 마감 전이고, 계산에 필요한 값이 다 있는 공고만 «넣을 수 있는 공고» 입니다 */
+export const canBid = (r, now) => !!r && stamp14(r.close) >= now && isReady(r)
+
 export function quickBid(r, p50, q) {
   if (!r || !isReady(r) || !(p50 > 0)) return null
   const aKnown = r.ayn === 'N' || r.aval > 0

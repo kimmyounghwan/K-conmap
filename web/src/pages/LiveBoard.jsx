@@ -5,12 +5,12 @@ import { Skeleton, Empty } from '../components.jsx'
 import { RangeBar } from './FirstBoard.jsx'
 import { isReady, missingOf } from './BaroBid.jsx'
 import { NoticeLink } from '../NoticeDetail.jsx'
-import { quickBid, P50_FALLBACK, pickOdds } from '../lib/bidmath.js'
+import { quickBid, P50_FALLBACK, pickOdds, stamp14, nowStamp, canBid } from '../lib/bidmath.js'
 import { getOverview, getBidIndex, indexRows } from '../lib/data.js'
 import { winGrade } from '../lib/winodds.js'
 import { won, wonShort, num, dateTime, dday, REGIONS, inRegion } from '../lib/fmt.js'
 import { loadLicCodes, saveLicCodes, loadLicNone, saveLicNone,
-         licList, licNoneCount, licHit, licShort } from '../lib/lic.js'
+         licList, licNoneCount, licHit, licShort, loadRegion, saveRegion } from '../lib/lic.js'
 
 /* ══════════════════════════════════════════════════════════════
    «바로투찰» 버튼은 계산이 되는 공고에만 답니다.
@@ -22,14 +22,7 @@ import { loadLicCodes, saveLicCodes, loadLicNone, saveLicNone,
      ② 기초금액·낙찰하한율·A값·예비가격 정보가 다 있을 것 (isReady)
    판정 기준은 바로투찰과 «같은 함수»를 씁니다. 따로 두면 반드시 어긋납니다.
    ══════════════════════════════════════════════════════════════ */
-const stamp14 = (v) => String(v || '').replace(/[^0-9]/g, '').padEnd(14, '0')
-function nowStamp() {
-  const d = new Date()
-  const p = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}` +
-         `${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
-}
-const canBid = (r, now) => !!r && stamp14(r.close) >= now && isReady(r)
+/* stamp14 · nowStamp · canBid 는 bidmath.js 로 옮겼습니다 (바로투찰 첫 화면과 공유) */
 
 /* 붙임 파일 정렬·뱃지용 갈래.
    ⚠️ collect.py 의 NAEYEOK_KIND 와 같은 낱말을 씁니다. 한쪽만 고치면
@@ -44,7 +37,9 @@ function docRank(nm) {
 const PAGE = 20
 const KIND = 'con'   // 공사만 다룹니다 (용역 제외)
 export default function LiveBoard() {
-  const [region, setRegion] = useState('전국')
+  /* 지역도 기억합니다 — 바로투찰 첫 화면(«오늘 내 것»)과 같은 값을 씁니다 (2026-09-06) */
+  const [region, setRegionRaw] = useState(loadRegion)
+  const setRegion = (v) => { setRegionRaw(v); saveRegion(v) }
   const [q, setQ] = useState('')
   const [page, setPage] = useState(1)
   const [mine, setMine] = useState(false)

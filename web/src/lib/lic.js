@@ -33,6 +33,20 @@ export function loadLicCodes() {
 export function saveLicCodes(v) {
   try { localStorage.setItem(LS_CODES, JSON.stringify(v)) } catch { /* 사생활 모드 */ }
 }
+/* 지역 — 2026-09-06. 면허와 같은 이유로 브라우저에만 저장합니다(서버 0, 로그인 없음).
+   공고 탭과 바로투찰 첫 화면이 같은 값을 읽습니다. 한쪽에서 바꾸면 양쪽이 따라옵니다. */
+const LS_REGION = 'kcm_region'
+export function loadRegion() {
+  try { return localStorage.getItem(LS_REGION) || '전국' } catch { return '전국' }
+}
+export function saveRegion(v) {
+  try { localStorage.setItem(LS_REGION, v || '전국') } catch { /* 사생활 모드 */ }
+}
+/** 면허나 지역을 한 번이라도 골랐나 — 바로투찰 첫 화면이 «설정 안내» 와 «내 것» 을 가르는 기준 */
+export function hasMine() {
+  return loadLicCodes().length > 0 || loadRegion() !== '전국'
+}
+
 export function loadLicNone() {
   try { return localStorage.getItem(LS_NONE) === '1' } catch { return false }
 }

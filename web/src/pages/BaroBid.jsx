@@ -8,6 +8,7 @@ import { bidAmount, limitAmount, limitRate, r3, c3,
          sjSigma, recommend, buildScen, missingOf, isReady,
          digits, toNum, P50_FALLBACK, shownBid, passProb, QTILES, QTILE_N, quantileBid,
          smartBid, autoRule } from '../lib/bidmath.js'
+import MyToday from '../MyToday.jsx'
 /* 공고 화면(LiveBoard)이 예전부터 여기서 가져다 썼습니다 — 그대로 이어 줍니다 */
 export { missingOf, isReady }
 
@@ -881,6 +882,11 @@ export default function BaroBid() {
             <div className="v big">{rec != null ? pct(rec, 2) : '—'}</div>
           </div>
         </div>
+      )}
+
+      {/* ⚡ 오늘 넣을 것 — «내 면허·내 지역» 의 마감 전 공고 (MyToday.jsx 머리말 참고) */}
+      {!verifyMode && !picked && !q && (
+        <MyToday rows={rows} idx={idx} p50={ov?.sjq?.p50 ?? P50_FALLBACK} onPick={pick} />
       )}
 
       {/* 100억 이상은 종합심사라 이 계산기가 통하지 않습니다 */}
