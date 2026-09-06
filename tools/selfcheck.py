@@ -383,11 +383,23 @@ def check_boardidx():
             m = re.search(r'fields = \[([^\]]+)\]', seg)
             made[key] = re.findall(r'"(\w+)"', m.group(1)) if m else []
         read = {}
-        for key, path in (("first", "web/src/pages/FirstBoard.jsx"),
-                          ("live", "web/src/pages/LiveBoard.jsx")):
-            t = io.open(os.path.join(ROOT, *path.split("/")), encoding="utf-8").read()
-            m = re.search(r'const \[([^\]]+)\] = a\b', t)
-            read[key] = [x.strip() for x in m.group(1).split(",")] if m else []
+        # ★ 2026-09-06 — 1순위 색인을 읽는 화면이 둘이 됐습니다(1순위 탭 + 구인구직 «곧 착공하는 현장»).
+        #   둘 다 같은 순서로 읽어야 합니다. 한 파일이라도 어긋나면 잡습니다.
+        for key, paths in (("first", ["web/src/pages/FirstBoard.jsx", "web/src/Sites.jsx"]),
+                           ("live", ["web/src/pages/LiveBoard.jsx"])):
+            got = []
+            for path in paths:
+                fp = os.path.join(ROOT, *path.split("/"))
+                if not os.path.exists(fp):
+                    continue
+                t = io.open(fp, encoding="utf-8").read()
+                m = re.search(r'const \[([^\]]+)\] = a\b', t)
+                cols = [x.strip() for x in m.group(1).split(",")] if m else []
+                if got and cols != got:
+                    read[key] = cols + ["≠" + path]      # 두 화면이 서로 다르게 읽음 → 아래에서 ❌
+                    break
+                got = cols
+            read.setdefault(key, got)
     except Exception as e:
         print(f"(건너뜀 — 읽지 못했습니다: {type(e).__name__}: {e})")
         return []

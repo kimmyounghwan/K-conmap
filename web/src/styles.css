@@ -2339,7 +2339,7 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
   background: color-mix(in srgb, var(--tp-c) 12%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--tp-c) 32%, transparent);
 }
-.tp-dd { margin-left: auto; font-size: 11.5px; font-weight: 800; color: var(--text-2); }
+.tp-dd { margin-left: auto; font-size: 11.5px; font-weight: 800; }   /* 색은 .badge.{tone} 이 정합니다 */
 .tp-name {
   font-size: 14.5px; font-weight: 800; color: var(--text);
   line-height: 1.35; letter-spacing: -.2px;
@@ -2384,3 +2384,34 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
   background: var(--surface); font-size: 13px; line-height: 1.6; color: var(--text-2);
 }
 .mt-empty a { color: var(--accent); font-weight: 700; }
+
+/* ══════════════════════════════════════════════════════════════
+   🏗 곧 착공하는 현장 — 구인구직 탭 (Sites.jsx) 2026-09-06
+   1순위 카드(.notice)와 같은 틀을 쓰되, 낙찰업체·연락처 줄을 얹습니다.
+   ══════════════════════════════════════════════════════════════ */
+.sites-lead {
+  margin: 0 0 10px; padding: 10px 13px; border-radius: 12px;
+  font-size: 12.5px; line-height: 1.6; color: var(--text-2);
+  background: var(--accent-soft); border: 1px solid var(--accent-line);
+}
+.sites-lead b { color: var(--text); }
+.notice.site .site-win { margin-top: 6px; font-size: 13.5px; color: var(--text); }
+.notice.site .site-win .lab {
+  font-size: 11px; font-weight: 800; color: var(--accent); margin-right: 6px;
+}
+.notice.site .site-contact {
+  margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px;
+}
+.notice.site .site-contact .tel {
+  font-weight: 800; color: var(--accent); text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+.notice.site .site-contact .adr { color: var(--text-2); }
+.notice.site .site-more { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.notice.site .site-more .row {
+  display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; font-size: 12.5px;
+}
+.notice.site .site-more .row span { color: var(--text-2); flex: 0 0 auto; }
+.notice.site .site-more .row b { text-align: right; color: var(--text); }
+.notice.site .site-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.muted { color: var(--muted); }

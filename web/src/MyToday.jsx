@@ -146,7 +146,8 @@ export default function MyToday({ rows, idx, p50, onPick }) {
                     {rate != null
                       ? <span className="tp-odds">이런 자리 1순위 {rate.toFixed(1)}%</span>
                       : <span className="tp-odds muted">확률 실측 부족</span>}
-                    <span className={'tp-dd dd-' + (dd?.tone || 'n')}>{dd?.text || dateTime(r.close)}</span>
+                    {/* 마감 색은 공고 탭과 같은 규칙(.badge + dday 의 tone): 24시간 안 빨강 · D-3 안 주황 · 그 밖 파랑 */}
+                    <span className={'tp-dd badge ' + (dd?.tone || 'n')}>{dd?.text || dateTime(r.close)}</span>
                   </div>
                   <div className="tp-name">{r.name}</div>
                   <div className="tp-meta">

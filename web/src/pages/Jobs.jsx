@@ -3,6 +3,7 @@ import { ref, get, set, push, update, query, orderByKey, limitToLast } from 'fir
 import { db, ensureAnon } from '../firebase.js'
 import { Empty, Skeleton } from '../components.jsx'
 import { num, REGIONS, inRegion } from '../lib/fmt.js'
+import Sites from '../Sites.jsx'
 
 const TRADES = ['현장관리', '공무/견적', '토목', '건축', '철근·콘크리트', '설비', '전기',
   '조경', '중장비', '보통인부', '기타']
@@ -43,7 +44,10 @@ export default function Jobs() {
   const [mine, setMine] = useState(loadMine)
   /* ★ 2026-09-03 — 「워크넷 건설 채용」과 「자격·훈련」 갈래는 뺐습니다(소장님 결정).
      채용정보 API 는 기업회원 전용이라 개인회원 키로는 0건이었고, 크롤링은 하지 않기로 했습니다.
-     이 탭은 «직접 올린 글» 하나입니다. */
+     ★ 2026-09-06 — 「🏗 곧 착공하는 현장」 을 앞에 둡니다 (Sites.jsx 머리말 참고).
+       빈 게시판은 아무도 안 씁니다. 낙찰 자료는 글이 0건이어도 매일 570건씩 채워집니다.
+       «직접 올린 글» 은 두 번째 갈래로 남깁니다. */
+  const [mode, setMode] = useState('sites')
 
   const load = async () => {
     setPosts(null); setErr('')
@@ -65,7 +69,8 @@ export default function Jobs() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  /* 글 목록(Firebase 읽기 2번)은 «직접 올린 글» 을 실제로 열 때만 — 현장 목록만 보는 사람에게 과금 0 */
+  useEffect(() => { if (mode === 'posts' && posts === null) load() }, [mode])  // eslint-disable-line
 
   const view = useMemo(() => {
     if (!posts) return []
@@ -81,6 +86,14 @@ export default function Jobs() {
         🤝 K-구인구직 <span className="count">· 현장 사람 구하고 찾기</span>
       </div>
 
+      <div className="seg" style={{ marginBottom: 12 }}>
+        <button className={mode === 'sites' ? 'on' : ''} onClick={() => setMode('sites')}>🏗 곧 착공하는 현장</button>
+        <button className={mode === 'posts' ? 'on' : ''} onClick={() => setMode('posts')}>✏️ 직접 올린 글</button>
+      </div>
+
+      {mode === 'sites' && <Sites />}
+
+      {mode === 'posts' && (<>
       <div className="seg">
         {['전체', ...TYPES].map((t) => (
           <button key={t} className={type === t ? 'on' : ''} onClick={() => setType(t)}>{t}</button>
@@ -134,6 +147,7 @@ export default function Jobs() {
         로그인 없이 누구나 올릴 수 있습니다. 올릴 때 정한 <b>4자리 숫자</b>가 있어야 글을 지울 수 있으니 꼭 기억해두세요.<br />
         연락처는 그대로 공개되니 개인 휴대폰보다 업무용 번호를 권합니다. 허위·광고성 글은 예고 없이 삭제될 수 있습니다.
       </div>
+      </>)}
     </>
   )
 }
