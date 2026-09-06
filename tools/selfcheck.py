@@ -418,7 +418,10 @@ def check_naeyeok():
     try:
         c = io.open(os.path.join(ROOT, "collect.py"), encoding="utf-8").read()
         i = c.index("def export_naeyeok(")
-        m = re.search(r'fields = \[([^\]]+)\]', c[i:i + 4000])
+        # 주의: «앞에서 몇 글자» 로 자르면 함수가 길어질 때 조용히 못 찾습니다
+        #       (2026-09-06 에 실제로 그랬습니다). 다음 def 까지를 함수의 끝으로 봅니다.
+        j = c.find("\n    def ", i + 10)
+        m = re.search(r'fields = \[([^\]]+)\]', c[i:j if j > 0 else len(c)])
         made = re.findall(r'"(\w+)"', m.group(1)) if m else []
         t = io.open(os.path.join(ROOT, "web", "src", "pages", "Change.jsx"),
                     encoding="utf-8").read()
@@ -480,7 +483,9 @@ def check_naeyeok_files():
             if not loc:
                 continue
             n += 1
-            if not any(os.path.exists(os.path.join(r, loc.lstrip("/"))) for r in roots):
+            # 주소에는 «크기 도장»(?v=...)이 붙어 있습니다 - 파일을 찾을 땐 떼어냅니다
+            rel = loc.split("?", 1)[0].lstrip("/")
+            if not any(os.path.exists(os.path.join(r, rel)) for r in roots):
                 miss.append(loc)
     if not n:
         print("✅ «바로 받기» 로 내놓은 파일이 아직 없습니다 (받아 둔 것이 0개)")

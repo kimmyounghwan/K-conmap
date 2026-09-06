@@ -941,7 +941,7 @@ def change_naeyeok_kind_page(shell, kind, rows, meta, image=None):
            f'{esc(kind)} 모음 — 2026년</h1>'
            f'<p class="cp" style="margin-top:8px">{_bold(d)} '
            f'조달청 나라장터 공고에 붙어 공개된 것으로, 지금 <b>{num(tot)}건</b> 있습니다'
-           f'(최근 3년치를 보관합니다).</p>'
+           f'(최근 {meta.get("days") or 365}일치를 보관합니다).</p>'
            f'<div class="btn-row" style="margin-top:10px">'
            f'<a class="btn primary" href="/change/naeyeok">📑 내역서 모음 전체 보기</a>'
            f'<a class="btn ghost" href="/change/excel">📊 설계변경 자동계산 엑셀</a></div></div>']

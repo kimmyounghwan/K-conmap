@@ -1392,13 +1392,17 @@ def naeyeok_kind(name):
 #   4,290개를 다 받으면 1GB 가 넘어 Firebase 무료 10GB 에 부담이 됩니다.
 #   그래서 «단가가 든 갈래» 만, 한 회차에 조금씩, 크기 상한을 두고 받습니다.
 NAEYEOK_BOOK = os.path.join(STORE, "naeyeok_files.json")
-# ── 내역서 목록을 «쌓아» 둡니다 — 3년치. (2026-09-06, 소장님: 「딱 3년 치만 저장」)
+# ── 내역서 목록을 «쌓아» 둡니다. (2026-09-06)
+#   소장님: 「딱 3년 치만 저장」 → 비용을 재고 나서 「1년 치만 하자」 로 정정.
+#   ⚠️ 기간은 NAEYEOK_KEEP_DAYS 하나로만 정합니다. 화면에 찍는 말도 여기서 가져옵니다 —
+#      숫자를 글에 손으로 박아 두면 상한을 바꿨을 때 «말만 옛것» 이 됩니다(실제로 그랬습니다).
 #   ⚠️ store(first/live)는 70일치라, 여기에만 기대면 목록도 70일치입니다.
 #      그래서 목록만 따로 쌓습니다. 파일 자체가 아니라 «줄» 이라 가볍습니다.
-#   ⚠️ 3년치를 화면에 통째로 내면 안 됩니다 — 실측 gzip 3.4MB.
-#      저장은 3년, 화면에 내는 것은 갈래별 상한(NAEYEOK_SHOW)까지입니다.
+#   ⚠️ 오래 쌓인 것을 화면에 통째로 내면 안 됩니다 — 3년치 실측 gzip 3.4MB 였습니다.
+#      저장 기간과 별개로, 화면에 내는 것은 갈래별 상한(NAEYEOK_SHOW)까지입니다.
 NAEYEOK_INDEX = os.path.join(STORE, "naeyeok_index.json")
-NAEYEOK_KEEP_DAYS = int(os.environ.get("NAEYEOK_KEEP_DAYS", "1095"))   # 3년
+# 소장님 결정(2026-09-06): 「비용이 많이 들면 내역서는 1년 치만 하자」
+NAEYEOK_KEEP_DAYS = int(os.environ.get("NAEYEOK_KEEP_DAYS", "365"))    # 1년
 # 화면 상한은 «언제 받는 파일인가» 로 갈립니다 — 같은 숫자를 쓰면 한쪽이 반드시 틀립니다.
 #   naeyeok.json     : 화면을 열자마자 받습니다 → 작게
 #   naeyeok-all.json : 그 갈래를 눌렀을 때만 받습니다 → 크게 잡아도 됩니다
@@ -2259,7 +2263,7 @@ def main():
             nonlocal_streak[0] = 0
             time.sleep(0.15)
 
-        # ── 3년이 지난 파일은 버립니다 (목록과 같은 상한) ──────────
+        # ── 보관 기간이 지난 파일은 버립니다 (목록과 같은 상한) ──────────
         old_cut = (datetime.now(KST) - timedelta(days=NAEYEOK_KEEP_DAYS)).strftime("%Y-%m-%d")
         aged = 0
         for k, v in list(book.items()):
@@ -2270,7 +2274,7 @@ def main():
                         os.remove(p_)
                 except Exception:
                     continue
-                book[k] = {"skip": "3년 지남", "perm": True}
+                book[k] = {"skip": "%d일 지남" % NAEYEOK_KEEP_DAYS, "perm": True}
                 aged += 1
 
         # ── 크기 상한을 넘으면 오래된 것부터 버립니다 ────────────────
@@ -2307,7 +2311,8 @@ def main():
             "보관일수": NAEYEOK_KEEP_DAYS, "3년 지나 내린 것": aged,
         }
         if aged:
-            print("    3년 지난 파일 %d개를 내렸습니다" % aged)
+            print("    보관 기간(%d일)이 지난 파일 %d개를 내렸습니다"
+                  % (NAEYEOK_KEEP_DAYS, aged))
         if errs:
             print("    실패 이유: " + " · ".join("%s %d건" % (k, v) for k, v in errs.items()))
             for x in firsts:
@@ -2414,7 +2419,14 @@ def main():
             # 우리가 받아 둔 파일이 있으면 그 주소와 «열어 본 결과» 를 함께 싣습니다.
             #   priced  1 단가 확인됨 · 0 열어 보니 단가 없음 · -1 아직 안 열어 봄
             b = book.get(key) or {}
-            local = ("/naeyeok/" + b["file"]) if (b.get("file") in live) else ""
+            # ⚠️ 주소 뒤에 «크기 도장» 을 붙입니다 (2026-09-06).
+            #    firebase.json 이 /naeyeok/** 에 7일 immutable 을 겁니다. 그런데 그 경로는
+            #    **없는 파일에도 200 + index.html** 을 돌려줍니다(catch-all rewrite).
+            #    파일이 아직 없던 때 그 주소를 한 번이라도 두드린 브라우저는
+            #    **HTML 을 xlsx 로 알고 7일 동안 붙잡습니다** — 눌러도 «손상된 파일» 이 됩니다.
+            #    크기가 주소에 들어가면 그때의 주소와 지금의 주소가 달라, 낡은 것을 못 씁니다.
+            local = ("/naeyeok/%s?v=%d" % (b["file"], int(b.get("n") or 0))
+                     if (b.get("file") in live) else "")
             priced = 1 if b.get("priced") is True else (0 if b.get("priced") is False else -1)
             (rows_p if kind in NAEYEOK_PRICED else rows_a).append(
                 [kind, fname, furl, nm, inst, dt, no, purl, local, priced])
@@ -2451,10 +2463,10 @@ def main():
                 json.dump(dict(meta, r=rows), f, ensure_ascii=False, separators=(",", ":"))
         a = os.path.getsize(os.path.join(OUT, "naeyeok.json")) / 1024
         b2 = os.path.getsize(os.path.join(OUT, "naeyeok-all.json")) / 1024
-        print("  → naeyeok  쌓아 둔 것 %s개(3년치, 이번에 +%s%s) · "
+        print("  → naeyeok  쌓아 둔 것 %s개(%d일치, 이번에 +%s%s) · "
               "화면에 내는 것 %s개 (단가 있는 것 %s개 %.0fKB / 나머지 %s개 %.0fKB)"
-              % (f"{len(idx):,}", f"{len(idx) - before + dropped:,}",
-                 (" · 3년 지나 버림 %d" % dropped) if dropped else "",
+              % (f"{len(idx):,}", NAEYEOK_KEEP_DAYS, f"{len(idx) - before + dropped:,}",
+                 (" · 기간 지나 버림 %d" % dropped) if dropped else "",
                  f"{len(rows_p) + len(rows_a):,}", f"{len(rows_p):,}", a, f"{len(rows_a):,}", b2))
 
     def export_bidindex(store, fstore):

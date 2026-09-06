@@ -90,6 +90,24 @@
         ]
       },
       {
+        "source": "/data/naeyeok.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=900, stale-while-revalidate=86400"
+          }
+        ]
+      },
+      {
+        "source": "/data/naeyeok-all.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=900, stale-while-revalidate=86400"
+          }
+        ]
+      },
+      {
         "source": "/data/board/*.json",
         "headers": [
           {
