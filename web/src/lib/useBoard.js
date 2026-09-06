@@ -52,6 +52,24 @@ export function useBoard(name, kind, { match = null, page = 1, perPage = 20 } = 
   const asked = useRef(new Set())
   const idxAsked = useRef(false)
 
+  /* 줄마다 «전체에서 몇 번째»를 붙여 둡니다 — 카드를 펼쳤을 때
+     순위 파일(corps)을 찾아오는 열쇠입니다. 순위는 목록 묶음에서 빼놨습니다
+     (1순위 첫 화면 gzip 376KB → 73KB). _rk = [파일번호, 그 안에서 몇 번째].
+     ⚠️ 나누는 크기는 여기서 정하지 않습니다. 목록표(meta)의 rankChunk 를 씁니다 —
+        collect.py 의 BOARD_RANK_CHUNK 하나만 고치면 되도록. */
+  const tagPos = (arr, chunkNo, chunkSize, rankSize) => {
+    if (!Array.isArray(arr)) return arr
+    const b = chunkNo * chunkSize
+    for (let j = 0; j < arr.length; j++) {
+      const r = arr[j]
+      if (!r || r._rk) continue
+      const pos = b + j
+      r._b = name + '/' + kind
+      r._rk = [Math.floor(pos / rankSize), pos % rankSize]
+    }
+    return arr
+  }
+
   const parts = meta && meta[kind] ? meta[kind].parts : 0
   const CHUNK = (index && index.chunk) || (meta && meta.chunk) || 500
 
@@ -68,7 +86,8 @@ export function useBoard(name, kind, { match = null, page = 1, perPage = 20 } = 
       setMeta(m)
       const p0 = await getBoardPart(name, kind, 0)
       if (seq.current !== my) return
-      setChunks({ 0: p0 || [] })
+      setChunks({ 0: tagPos(p0 || [], 0, (m && m.chunk) || 500,
+                            (m && m.rankChunk) || 50) })
       setLoading(false)
     })()
   }, [name, kind])
@@ -116,7 +135,8 @@ export function useBoard(name, kind, { match = null, page = 1, perPage = 20 } = 
         if (seq.current !== my) return
         setChunks((c) => {
           const n = { ...c }
-          for (const [i, d] of got) n[i] = d
+          const RK = (meta && meta.rankChunk) || 50
+          for (const [i, d] of got) n[i] = tagPos(d, i, CHUNK, RK)
           return n
         })
       })

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getCorp, getAgency } from './lib/data.js'
+import { getCorp, getAgency, getBoardRank } from './lib/data.js'
 import { won, wonShort, pct, num, dateFull, dateTime, normCorp } from './lib/fmt.js'
 import { winGrade } from './lib/winodds.js'
 
@@ -170,7 +170,43 @@ export function NoticeLink({ no, compact }) {
 }
 
 /* ── ① 개찰 결과 ───────────────────────── */
+/* ══════════════════════════════════════════════════════════════
+   투찰 순위 30곳은 목록 묶음에서 빼놨습니다 — 2026-09-06
+
+   실측: 1순위 첫 묶음이 gzip 376KB 인데 그 중 303KB(80%)가 순위였습니다.
+   목록을 «보기만» 하는 사람은 순위를 한 줄도 안 봅니다. 그래서 카드를 펼친
+   **이 줄 것만** 50건짜리 작은 파일(약 5KB)로 받아옵니다. 묶음은 73KB 가 됐습니다.
+
+   세 가지 길이 다 여기로 들어옵니다:
+     · 목록에서 펼친 카드      → r._b · r._rk 가 있습니다 (useBoard 가 붙임)
+     · 미리 구운 /notice/{번호} → r.corps 가 이미 들어 있습니다 (ndata)
+     · 채점 화면(bidresult)     → r.corps 가 이미 들어 있습니다
+   ⚠️ 못 받았을 때 «없는 채로» 그리면 안 됩니다 — 참가 60곳인 개찰이 조용히
+      «정보 없음» 으로 보입니다. 그래서 받는 중에는 «불러오는 중» 을 보여줍니다.
+   ══════════════════════════════════════════════════════════════ */
+function useRanks(r) {
+  const [got, setGot] = useState(null)
+  const have = Array.isArray(r && r.corps) ? r.corps : null
+  const key = have || !r || !r._b || !r._rk ? '' : r._b + '|' + r._rk[0] + '|' + r._rk[1]
+  useEffect(() => {
+    if (!key) return
+    let live = true
+    const [b, f, o] = key.split('|')
+    const [name, kind] = b.split('/')
+    getBoardRank(name, kind, Number(f))
+      .then((a) => {
+        if (!live) return
+        const v = Array.isArray(a) ? a[Number(o)] : null
+        setGot(Array.isArray(v) ? v : [])
+      })
+      .catch(() => { if (live) setGot([]) })
+    return () => { live = false }
+  }, [key])
+  return { corps: have || got || [], waiting: !have && !!key && got === null }
+}
+
 function BidTab({ r }) {
+  const { corps, waiting: rankWait } = useRanks(r)
   const winAmt = r.sAmt || r.amt
   const ll = lowerLimit(r.base)
   const est = estPrice(r.base)
@@ -262,7 +298,7 @@ function BidTab({ r }) {
       <div className="detail-h">
         투찰 순위 <span className="count">
           {(() => {
-            const shown = (r.corps || []).length
+            const shown = corps.length
             const all = Math.max(Number(r.nrank) || 0, Number(r.np) || 0, shown)
             /* 낮게 쓴 30곳만 싣습니다 — 전부 실으면 목록 파일이 80MB 가 됩니다.
                승부는 낙찰하한 근처에서 갈리므로 «가장 낮게 쓴 쪽»만 있으면 됩니다. */
@@ -272,8 +308,9 @@ function BidTab({ r }) {
           })()}
         </span>
       </div>
-      {(r.corps || []).length === 0 && <div className="hintbox">참여업체 정보가 없습니다.</div>}
-      {(r.corps || []).map((c, j) => {
+      {rankWait && <div className="hintbox">투찰 순위를 불러오는 중입니다…</div>}
+      {!rankWait && corps.length === 0 && <div className="hintbox">참여업체 정보가 없습니다.</div>}
+      {corps.map((c, j) => {
         const cr = c[2] != null ? c[2] : rateOf(c[1], r.base)
         return (
           <div className="row" key={j}>
@@ -286,7 +323,7 @@ function BidTab({ r }) {
           </div>
         )
       })}
-      {(r.corps || []).length === 1 && (
+      {corps.length === 1 && (
         <div className="hintbox">
           {/* 2026-09-02: 조달청은 순위를 «줍니다». 다만 공고번호로 물어야 옵니다
               (getOpengResultListInfoOpengCompt). 날짜로 부르면 안 옵니다.

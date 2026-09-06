@@ -38,6 +38,9 @@ KEEP_DAYS = 70      # 파일로 보관하는 기간 (10주 — 여유를 두고 
 SHOW_DAYS = 49      # 사이트에 싣는 기간 (7주)
 MAX_ROWS = 300      # first.json / live.json 에 싣는 건수 (첫 화면·옛 사이트용)
 BOARD_CHUNK = 500   # 한 달치를 나눠 담는 묶음 크기
+# 순위 30곳(corps)만 따로 담는 작은 묶음. 목록에서 빼고 «펼칠 때만» 받습니다.
+BOARD_RANK_CHUNK = 50
+BOARD_RANK_KEYS = ("corps", "rq", "drw")
 
 # 2026-08-31 — 용역을 빼고 «공사»만 다룹니다.
 #   3년치 482,630건 중 용역이 363,783건(75%)이라, 빼면 사이트가 크게 가벼워집니다.
@@ -2000,7 +2003,10 @@ def main():
         """
         out_dir = os.path.join(OUT, "board")
         os.makedirs(out_dir, exist_ok=True)
-        meta = {"built": built, "chunk": BOARD_CHUNK}
+        # rankChunk 는 화면이 «몇 번째 순위 파일인지» 를 셀 때 씁니다.
+        # 여기서만 정합니다 — 화면에 같은 숫자를 두 번 적지 않습니다.
+        meta = {"built": built, "chunk": BOARD_CHUNK,
+                "rankChunk": BOARD_RANK_CHUNK}
         total = 0
         for kind in ("con", "serv"):   # serv 는 비어 있음 (형식 유지용)
             rows = list(trim(store[kind], SHOW_DAYS, date_field).values())
@@ -2012,12 +2018,43 @@ def main():
                     e = enp_map.get(str(r.get("inst") or "").strip())
                     if e:
                         r["enp"], r["enpn"] = e[0], e[1]
+            # ══════════════════════════════════════════════════════
+            #  ★ 순위 30곳(corps)은 «펼칠 때만» 받습니다 — 2026-09-06
+            #
+            #  실측: first-con-0.json 이 gzip 376KB 인데 그 중 **303KB(80%)** 가
+            #  corps·rq·drw 였습니다. 1순위 탭을 열기만 해도 이게 다 옵니다.
+            #  그런데 화면이 순위를 쓰는 곳은 **카드를 펼쳤을 때 한 곳뿐**이고,
+            #  rq·drw 는 목록 화면 어디서도 안 읽습니다(통째로 뺍니다).
+            #
+            #      묶음 376KB → 73KB · 순위는 50건씩 따로 (한 개 약 5KB)
+            #
+            #  ⚠️ rows 는 저장소의 줄을 **그대로 가리킵니다.** 여기서 corps 를 지우면
+            #     저장소에서도 지워집니다 — 힘들게 받은 30곳이 날아갑니다
+            #     (2026-09-03 에 row_first 보존 목록에서 실제로 겪은 사고입니다).
+            #     그래서 «지운 사본» 을 만들어 씁니다. rows 는 안 건드립니다.
+            #  ⚠️ 순위 파일의 자리는 **전체에서 몇 번째 줄인가(pos)** 입니다.
+            #     묶음 번호가 아닙니다. 화면은 useBoard 가 줄마다 붙여 주는 _rk 로 찾습니다.
+            # ══════════════════════════════════════════════════════
+            ranks = [r.get("corps") or 0 for r in rows]
+            n_rank = 0
+            if any(ranks):
+                for k in range(0, len(ranks), BOARD_RANK_CHUNK):
+                    with open(os.path.join(
+                            out_dir,
+                            f"{name}-{kind}-rank-{k // BOARD_RANK_CHUNK}.json"),
+                            "w", encoding="utf-8") as f:
+                        json.dump(ranks[k:k + BOARD_RANK_CHUNK], f,
+                                  ensure_ascii=False, separators=(",", ":"))
+                    n_rank += 1
+
             parts = [rows[i:i + BOARD_CHUNK]
                      for i in range(0, len(rows), BOARD_CHUNK)] or [[]]
             for i, part in enumerate(parts):
+                slim = [{k: v for k, v in r.items() if k not in BOARD_RANK_KEYS}
+                        for r in part]
                 with open(os.path.join(out_dir, f"{name}-{kind}-{i}.json"),
                           "w", encoding="utf-8") as f:
-                    json.dump(part, f, ensure_ascii=False, separators=(",", ":"))
+                    json.dump(slim, f, ensure_ascii=False, separators=(",", ":"))
             # 지난번보다 묶음 수가 줄었을 때 남는 옛 파일을 정리한다.
             # (마운트된 폴더는 삭제가 막힐 수 있어, 안 되면 빈 파일로 덮어쓴다)
             i = len(parts)
@@ -2031,6 +2068,18 @@ def main():
                     with open(stale, "w", encoding="utf-8") as f:
                         f.write("[]")
                 i += 1
+
+            j = n_rank
+            while True:
+                stale = os.path.join(out_dir, f"{name}-{kind}-rank-{j}.json")
+                if not os.path.exists(stale):
+                    break
+                try:
+                    os.remove(stale)
+                except Exception:
+                    with open(stale, "w", encoding="utf-8") as f:
+                        f.write("[]")
+                j += 1
 
             # ══════════════════════════════════════════════════════════
             #  ★ 검색 색인 — 2026-09-03
@@ -2088,6 +2137,7 @@ def main():
             meta[kind] = {
                 "n": len(rows),
                 "parts": len(parts),
+                "ranks": n_rank,
                 "from": days[0] if days else "",
                 "to": days[-1] if days else "",
             }

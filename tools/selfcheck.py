@@ -402,6 +402,78 @@ def check_boardidx():
     return bad
 
 
+def check_boardrank():
+    """순위 30곳(corps)을 목록 묶음에서 빼낸 것이 실제로 그렇게 됐는지. (2026-09-06)
+
+    두 가지가 조용히 틀어질 수 있습니다:
+      ① 묶음에 corps 가 그대로 남아 있으면 — 전송량이 5배로 돌아갑니다. 화면은 멀쩡합니다.
+      ② 순위 파일의 «자리»가 목록과 어긋나면 — **다른 공고의 순위**가 그려집니다.
+         에러도 안 나고 그럴듯해 보입니다. 그래서 건수와 나누는 크기를 대조합니다.
+    """
+    import re
+    print("\n" + "=" * 64)
+    print("  순위 파일 대조 — 묶음에서 빠졌나 · 자리가 맞나")
+    print("=" * 64)
+    d = os.path.join(ROOT, "web", "public", "data", "board")
+    if not os.path.isdir(d):
+        print("(건너뜀 — web/public/data/board 가 없습니다)")
+        return []
+    bad = []
+    try:
+        c = io.open(os.path.join(ROOT, "collect.py"), encoding="utf-8").read()
+        RK = int(re.search(r"BOARD_RANK_CHUNK = (\d+)", c).group(1))
+        KEYS = re.search(r"BOARD_RANK_KEYS = \(([^)]+)\)", c).group(1)
+        KEYS = re.findall(r'"(\w+)"', KEYS)
+    except Exception as e:
+        print(f"(건너뜀 — collect.py 를 못 읽었습니다: {type(e).__name__}: {e})")
+        return []
+    for name in ("first", "live"):
+        mp = os.path.join(d, name + ".json")
+        if not os.path.exists(mp):
+            continue
+        meta = json.load(io.open(mp, encoding="utf-8"))
+        if meta.get("rankChunk") != RK:
+            bad.append(f"{name}: 목록표 rankChunk={meta.get('rankChunk')} ≠ collect.py {RK}")
+            print(f"❌ {name}  목록표 rankChunk {meta.get('rankChunk')} ≠ collect.py {RK}")
+            continue
+        for kind in ("con", "serv"):
+            info = meta.get(kind) or {}
+            n = int(info.get("n") or 0)
+            # ① 묶음에 순위가 남아 있나
+            p0 = os.path.join(d, f"{name}-{kind}-0.json")
+            if os.path.exists(p0):
+                rows = json.load(io.open(p0, encoding="utf-8"))
+                left = sorted({k for r in rows if isinstance(r, dict) for k in KEYS if k in r})
+                if left:
+                    bad.append(f"{name}-{kind}: 묶음에 {left} 가 아직 들어 있습니다")
+                    print(f"❌ {name}-{kind}  묶음에 {left} 가 남아 있습니다 — 전송량이 5배로 돌아갑니다")
+                    continue
+            # ② 순위 파일의 자리
+            nr = int(info.get("ranks") or 0)
+            if not nr:
+                print(f"✅ {name}-{kind}  순위 파일 없음 (corps 가 아예 없는 목록)")
+                continue
+            tot, short = 0, []
+            for k in range(nr):
+                fp = os.path.join(d, f"{name}-{kind}-rank-{k}.json")
+                if not os.path.exists(fp):
+                    short.append(k)
+                    continue
+                a = json.load(io.open(fp, encoding="utf-8"))
+                tot += len(a)
+                if k < nr - 1 and len(a) != RK:
+                    short.append(k)
+            if short:
+                bad.append(f"{name}-{kind}: 순위 파일 {short[:5]} 가 없거나 크기가 다릅니다")
+                print(f"❌ {name}-{kind}  순위 파일 {short[:5]} 이상")
+            elif tot != n:
+                bad.append(f"{name}-{kind}: 순위 {tot:,}줄 ≠ 목록 {n:,}줄 — 자리가 밀립니다")
+                print(f"❌ {name}-{kind}  순위 {tot:,}줄 ≠ 목록 {n:,}줄")
+            else:
+                print(f"✅ {name}-{kind}  {n:,}줄 · 순위 파일 {nr}개 · {RK}건씩 — 자리 맞음")
+    return bad
+
+
 def check_naeyeok():
     """내역서 목록의 칸 이름 대조 — collect.py(export_naeyeok) vs Change.jsx(ChangeNaeyeok).
 
@@ -659,6 +731,7 @@ def main():
         return 1
 
     xbad = check_boardidx()
+    xbad += check_boardrank()
     xbad += check_naeyeok()
     xbad += check_naeyeok_files()
     xbad += check_canonical()

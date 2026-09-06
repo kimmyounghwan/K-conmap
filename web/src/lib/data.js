@@ -237,6 +237,14 @@ export const getBoardPart = (name, kind, i) =>
 export const getBoardIndex = (name, kind) =>
   getJSON(`/data/board/${name}-${kind}-idx.json`)
 
+/* 순위 30곳(corps) — **카드를 펼칠 때만** 받습니다. 50건씩이라 한 개 약 5KB.
+   전에는 목록 묶음 안에 들어 있어서, 1순위 탭을 열기만 해도 gzip 376KB 중
+   303KB(80%)가 이것이었습니다. 지금 묶음은 73KB 입니다.
+   ⚠️ 몇 번째 파일인지는 여기서 계산하지 않습니다 — useBoard 가 목록표(meta)의
+      rankChunk 로 줄마다 _rk 를 붙여 줍니다. 같은 숫자를 두 곳에 적지 않기 위해서입니다. */
+export const getBoardRank = (name, kind, k) =>
+  getJSON(`/data/board/${name}-${kind}-rank-${k}.json`)
+
 /* ── 마감 전 공고 목록(bidindex.json) — 세 화면이 같은 읽기 함수를 씁니다 ──
    ⚠️ 2026-09-03 전에는 BaroBid 가 a[8]·a[9] 처럼 «자리 번호»로 읽고, Spot 은 이름표(f)로 읽었습니다.
    칸을 하나 붙이면 한쪽만 어긋납니다. 이제 셋(바로투찰·공고 자리찾기·분석) 다 여기 하나로 읽습니다.
