@@ -7,7 +7,7 @@ import { winGrade } from '../lib/winodds.js'
 import { bidAmount, limitAmount, limitRate, r3, c3,
          sjSigma, recommend, buildScen, missingOf, isReady,
          digits, toNum, P50_FALLBACK, shownBid, passProb, QTILES, QTILE_N, quantileBid,
-         smartBid, autoRule } from '../lib/bidmath.js'
+         smartBid, autoRule, canBid, nowStamp, stamp14 } from '../lib/bidmath.js'
 import MyToday from '../MyToday.jsx'
 /* 공고 화면(LiveBoard)이 예전부터 여기서 가져다 썼습니다 — 그대로 이어 줍니다 */
 export { missingOf, isReady }
@@ -373,6 +373,18 @@ export default function BaroBid() {
     }
     return out
   }, [rows, q, qIsAmount, onlyReady])
+
+  /* ★ 2026-09-06 — 소장님: 「1순위·공고에서는 클릭만 하면 되는데 왜 바로투찰에서는 복사해서 넣으라고 하지?」
+     맞습니다. 검색어가 없으면 목록이 «비어» 있어서 공고명을 쳐 넣어야 했습니다.
+     이제 빈 검색창 아래에 «마감 임박 순 · 계산 가능» 공고를 바로 늘어놓습니다 — 누르면 그 자리에서 계산됩니다.
+     같은 목록(rows=bidindex)이고 같은 pick() 이라 검색해서 누른 것과 결과가 같습니다. */
+  const browse = useMemo(() => {
+    if (q.trim().length > 0 || !rows.length) return []
+    const now = nowStamp()
+    return rows.filter((r) => canBid(r, now))
+      .sort((a, b) => stamp14(a.close).localeCompare(stamp14(b.close)))
+      .slice(0, 15)
+  }, [rows, q])
 
   /* 감춘 게 몇 건인지 알려줘야 «왜 안 나오지» 가 안 됩니다 */
   const hiddenCount = useMemo(() => {
@@ -980,9 +992,14 @@ export default function BaroBid() {
           </div>
         )}
 
-        {!picked && !qIsAmount && hits.length > 0 && (
+        {!picked && !qIsAmount && q.trim().length === 0 && browse.length > 0 && (
+          <div className="hint" style={{ margin: '8px 2px 4px' }}>
+            <b>마감 임박 순</b> — 눌러서 바로 계산 · 검색하지 않아도 됩니다
+          </div>
+        )}
+        {!picked && !qIsAmount && (hits.length > 0 || (q.trim().length === 0 && browse.length > 0)) && (
           <div className="picklist">
-            {hits.map((r) => {
+            {(hits.length ? hits : browse).map((r) => {
               const d = dday(r.close)
               return (
                 <button key={r.no} className="pickrow" onClick={() => pick(r)}>

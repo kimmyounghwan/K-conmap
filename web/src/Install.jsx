@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react'
 
    두 자리에 둡니다 (둘 다 모든 페이지에):
      · 위 막대 오른쪽 «📲 앱으로» 알약 — 늘 있음
-     · 메뉴 아래 띠 «홈 화면에 추가하면 앱처럼 씁니다 [추가하기] ✕» — 닫으면 7일 뒤에 다시
+     · 메뉴 아래 띠 «홈 화면에 추가하면 앱처럼 씁니다 [추가하기] ✕» — ✕ 로 닫으면 하루 뒤에 다시. 설치했으면(앱으로 열린 적이 있거나 appinstalled) 둘 다 안 보임
 
    폰마다 되는 길이 다릅니다 — 정직하게 셋으로 나눕니다:
      · 안드로이드 크롬·삼성 인터넷·PC 크롬/엣지 → beforeinstallprompt. 버튼 한 번에 설치창. **진짜 원클릭.**
@@ -21,22 +21,25 @@ import { useEffect, useState } from 'react'
       그래서 모듈 하나가 들고, 두 자리가 같이 봅니다.
    ══════════════════════════════════════════════════════════════ */
 
-const DISMISS_KEY = 'kcm_install_hide'
-const DISMISS_DAYS = 7
+/* 소장님(09-06): 「x 버튼을 누르면 하루 동안 안 보이게, 설치했다면 안 보이게」 */
+const DISMISS_KEY = 'kcm_install_hide'     // 띠의 ✕ — 하루 뒤에 다시
+const DISMISS_DAYS = 1
+const INSTALLED_KEY = 'kcm_installed'       // 설치 사실 — 이 브라우저에서는 영영 안 보임
 
-let deferred = null
-const subs = new Set()
-const notify = () => subs.forEach((f) => f())
-if (typeof window !== 'undefined') {
-  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; notify() })
-  window.addEventListener('appinstalled', () => { deferred = null; notify() })
-}
-
+/* «설치했다» 를 아는 길은 둘뿐이고, 둘 다 브라우저에 적어 둡니다:
+     · appinstalled 이벤트 (안드로이드·PC 크롬)
+     · 앱으로 열린 상태(standalone) 를 한 번이라도 봤다 (아이폰은 이벤트가 없어 이 길뿐)
+   적어 두지 않으면 «설치한 뒤 브라우저로 다시 들어왔을 때» 또 설치하라고 조릅니다. */
 const isStandalone = () =>
   (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
   window.navigator.standalone === true
 const isIOS = () => /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+const markInstalled = () => { try { localStorage.setItem(INSTALLED_KEY, '1') } catch { /* noop */ } }
+const installed = () => {
+  if (isStandalone()) { markInstalled(); return true }
+  try { return localStorage.getItem(INSTALLED_KEY) === '1' } catch { return false }
+}
 const hidden = () => {
   try { return Number(localStorage.getItem(DISMISS_KEY) || 0) > Date.now() } catch { return false }
 }
@@ -44,12 +47,20 @@ const hideFor = () => {
   try { localStorage.setItem(DISMISS_KEY, String(Date.now() + DISMISS_DAYS * 864e5)) } catch { /* noop */ }
 }
 
+let deferred = null
+const subs = new Set()
+const notify = () => subs.forEach((f) => f())
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; notify() })
+  window.addEventListener('appinstalled', () => { deferred = null; markInstalled(); notify() })
+}
+
 function useInstall() {
   const [, tick] = useState(0)
-  const [done, setDone] = useState(() => isStandalone())
+  const [done, setDone] = useState(() => installed())
   const [guide, setGuide] = useState(false)
   useEffect(() => {
-    const f = () => { tick((n) => n + 1); if (isStandalone()) setDone(true) }
+    const f = () => { tick((n) => n + 1); if (installed()) setDone(true) }
     subs.add(f)
     return () => subs.delete(f)
   }, [])
@@ -60,7 +71,7 @@ function useInstall() {
       try {
         e.prompt()
         const r = await e.userChoice
-        if (r && r.outcome === 'accepted') setDone(true)
+        if (r && r.outcome === 'accepted') { markInstalled(); setDone(true) }
         notify()
         return
       } catch { /* 이미 쓴 이벤트 — 아래 안내로 */ }
@@ -111,7 +122,7 @@ export function InstallPill() {
   )
 }
 
-/** 메뉴 아래 띠 — 모든 페이지, 닫으면 7일 뒤에 다시 */
+/** 메뉴 아래 띠 — 모든 페이지, ✕ 로 닫으면 하루 뒤에 다시 · 설치했으면 안 보임 */
 export function InstallBar() {
   const { done, guide, setGuide, install } = useInstall()
   const [closed, setClosed] = useState(() => hidden())

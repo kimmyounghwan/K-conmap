@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { getCorp, getAgency, getBoardRank } from './lib/data.js'
 import { won, wonShort, pct, num, dateFull, dateTime, normCorp } from './lib/fmt.js'
 import { winGrade } from './lib/winodds.js'
+import Comments from './Comments.jsx'
 
 /* ============================================================
    개찰 카드를 펼쳤을 때 나오는 상세 화면
@@ -148,6 +149,8 @@ export default function NoticeDetail({ r }) {
       {tab === 'corp' && <CorpTab name={r.win} />}
       {tab === 'inst' && <InstTab name={r.inst} />}
       {tab === 'doc' && <DocTab r={r} />}
+      {/* 💬 댓글 — 접혀 있고, 누를 때만 Firebase 를 받습니다 (2026-09-06, 소장님: 대화 창구) */}
+      <Comments no={r.no} title={r.name} />
     </div>
   )
 }

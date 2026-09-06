@@ -2462,3 +2462,51 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
   .installbar .t { flex-basis: 100%; }
   .installbar .go { flex: 1; }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   📤 이용자가 올린 서식 (UserForms.jsx) · 💬 댓글 (Comments.jsx)  2026-09-06
+   둘 다 «접힌 버튼» 이 기본. 누르면 그때 Firebase 를 받습니다.
+   ══════════════════════════════════════════════════════════════ */
+.uf-toggle, .cm-toggle {
+  width: 100%; text-align: left; cursor: pointer;
+  border: 1.5px dashed var(--accent-line); background: var(--accent-soft); color: var(--text);
+  border-radius: 12px; padding: 10px 13px; font-size: 13.5px; font-weight: 800;
+}
+.uf-toggle.on, .cm-toggle.on { border-style: solid; }
+.uf-toggle .muted, .cm-toggle .muted { font-weight: 600; font-size: 12px; margin-left: 6px; }
+.uforms { margin: 12px 0; }
+.uf-body { margin-top: 8px; }
+.uf-card { border: 1.5px solid var(--line); border-radius: 12px; background: var(--surface); padding: 10px 12px; margin-bottom: 8px; }
+.uf-top { display: flex; gap: 10px; align-items: flex-start; }
+.uf-top .fx {
+  flex: 0 0 auto; font-size: 10.5px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em;
+  padding: 4px 7px; border-radius: 7px; color: #fff; background: var(--text-2);
+}
+.uf-top .fx-xlsx, .uf-top .fx-xls { background: #1d6f42; }
+.uf-top .fx-docx, .uf-top .fx-doc { background: #2b579a; }
+.uf-top .fx-hwp,  .uf-top .fx-hwpx { background: #2f7bd1; }
+.uf-top .fx-pdf { background: #c0392b; }
+.uf-top .fx-pptx { background: #d35400; }
+.uf-top .t { font-size: 14px; font-weight: 800; color: var(--text); line-height: 1.35; }
+.uf-top .d { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+.uf-top .d2 { font-size: 12.5px; color: var(--text); margin-top: 4px; line-height: 1.5; }
+.uf-act { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+.uf-act .btn.sm { width: auto; }
+.uf-act .lnk, .cm-h .lnk {
+  border: 0; background: none; padding: 0; cursor: pointer; color: var(--text-2); font-size: 12px; text-decoration: underline;
+}
+
+.cmts { margin-top: 12px; }
+.cm-box { margin-top: 8px; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--surface); }
+.cm-empty { font-size: 12.5px; color: var(--text-2); padding: 4px 0 8px; }
+.cm-item { padding: 8px 0; border-top: 1px solid var(--line); }
+.cm-item:first-of-type { border-top: 0; }
+.cm-h { font-size: 12px; color: var(--text); display: flex; gap: 8px; align-items: baseline; }
+.cm-h .lnk { margin-left: auto; }
+.cm-b { font-size: 13.5px; line-height: 1.55; color: var(--text); white-space: pre-wrap; margin-top: 3px; }
+.cm-form { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.cm-form textarea { width: 100%; box-sizing: border-box; }
+.cm-row { display: flex; gap: 6px; margin-top: 6px; }
+.cm-row input { flex: 1 1 0; min-width: 0; }
+.cm-row .btn.sm { flex: 0 0 auto; width: auto; }
+@media (max-width: 480px) { .cm-row { flex-wrap: wrap; } .cm-row .btn.sm { flex: 1 1 100%; } }

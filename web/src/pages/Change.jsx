@@ -6,6 +6,7 @@ import FMIN from '../data/forms-min.json'
 import { ShareBtn } from './CorpPage.jsx'
 import { Empty, Skeleton } from '../components.jsx'
 import { won, num } from '../lib/fmt.js'
+import UserForms from '../UserForms.jsx'
 import { getNaeyeok, getNaeyeokAll, naeyeokRows } from '../lib/data.js'
 
 /**
@@ -501,6 +502,9 @@ export default function Change() {
       </div>
 
       <div id="seosik"><ChangeForms /></div>
+
+      {/* 📤 이용자가 올린 설계변경 서식 (2026-09-06) */}
+      <UserForms cat="설계변경" />
 
       <div className="card fwarn">
         <b>⚠️ 참고 자료입니다</b>

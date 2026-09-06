@@ -1,0 +1,27 @@
+rules_version = '2';
+// K-건설맵 Storage 규칙 — 이용자가 올린 서식 (2026-09-06)
+//
+// 소장님 결정: 승인 없이 바로 공개. 그래서 «규칙» 이 유일한 문지기입니다.
+//   · 익명 로그인한 사람만 올립니다 (자기 uid 폴더에만).
+//   · 10MB 이하. 압축 저장한 크기 기준(브라우저가 gzip 해 올립니다).
+//   · 확장자 허용 목록: xlsx xls docx doc hwp hwpx pdf pptx. **xlsm·docm(매크로) · exe · zip 은 안 됩니다.**
+//   · 한 번 올린 파일은 덮어쓰기·삭제 불가 (목록에서 «내리기» 는 RTDB 쪽 표시로 합니다).
+//   · 읽기는 누구나 — 다운로드 링크가 공개되어야 하니까요.
+//
+// 배포: cd web && firebase deploy --only storage   (Actions 는 hosting 만 올립니다)
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /user_forms/{uid}/{file} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.size <= 10 * 1024 * 1024
+        && file.matches('^[^/]{1,120}\\.(xlsx|xls|docx|doc|hwp|hwpx|pdf|pptx)$')
+        && !file.matches('(?i).*\\.(xlsm|xlam|docm|pptm|exe|zip|js|html)$');
+      allow update, delete: if false;
+    }
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

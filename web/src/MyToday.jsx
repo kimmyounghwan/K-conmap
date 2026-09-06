@@ -174,7 +174,7 @@ export default function MyToday({ rows, idx, p50, onPick }) {
                       </button>
                       {/* 조달청이 준 주소 그대로 — 손으로 만들면 차수를 틀립니다(실제 사고) */}
                       {r.url && <a className="cbtn ghost" href={r.url} target="_blank" rel="noreferrer">나라장터 →</a>}
-                      <button className="cbtn ghost" onClick={() => onPick(r)}>자세히</button>
+                      <button className="cbtn ghost" onClick={() => onPick(r)}>🧮 바로 계산</button>
                     </div>
                   </div>
                 </div>

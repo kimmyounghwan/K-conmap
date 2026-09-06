@@ -5,6 +5,7 @@ import NoticeDetail from '../NoticeDetail.jsx'
 import { ShareBtn } from './CorpPage.jsx'
 import { Skeleton, Empty } from '../components.jsx'
 import { pct, won, wonShort, dateFull } from '../lib/fmt.js'
+import Comments from '../Comments.jsx'
 import { quickBid, P50_FALLBACK } from '../lib/bidmath.js'
 
 /**
@@ -198,6 +199,7 @@ function OpenNotice({ r }) {
           나라장터 공고 ↗
         </a>
       </div>
+      <Comments no={r.no} title={r.name} />
     </>
   )
 }

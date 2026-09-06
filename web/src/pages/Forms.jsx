@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import DATA from '../data/forms.json'
 import { ShareBtn } from './CorpPage.jsx'
+import UserForms from '../UserForms.jsx'
 import { Empty } from '../components.jsx'
 
 /**
@@ -157,6 +158,9 @@ export default function Forms() {
           ))}
         </div>
       ))}
+
+      {/* 📤 이용자가 올린 서식 — 승인 없이 바로 공개(소장님 결정). 열 때만 Firebase 를 받습니다 */}
+      <UserForms />
 
       <div className="note" style={{ marginTop: 10 }}>
         계약서는 K-건설맵이 만든 <b>일반 양식</b>입니다. 정부가 고시한 표준계약서가 있는

@@ -2786,3 +2786,62 @@ bidindex 는 바로투찰이 검색 상자용으로 **이미 받고 있었다**(
 
 브라우저 확인(Playwright): 6개 주소 전부 알약·띠 있음 · manifest 200(standalone, 아이콘 3) · sw.js 200 ·
 PC 안내창 3단계 · 아이폰(UA) 안내창 «공유 → 홈 화면에 추가» · ✕ 닫으면 다른 페이지에서도 안 뜸 · standalone 이면 둘 다 없음 · JS 오류 0.
+
+## 📤 이용자 서식 올리기 — 승인 없이, 큰 파일은 압축해서 (2026-09-06)
+
+소장님: 「이용자가 스스로 서식 올릴 수 있게. 서식탭하고 설계변경탭에서」 → 「블레이즈. 승인 없이」
+→ 「용량이 크면 압축하게 해서 저장공간을 절약」.
+
+### 어디에 저장하나
+- 파일 본체: **Firebase Storage** `user_forms/{익명uid}/{파일명}` (버킷 `k-conmap.firebasestorage.app`).
+- 목록: **Realtime DB** `user_forms/{id}` (제목·설명·갈래·올린이·크기·주소). 첫 화면에서는 안 읽는다 —
+  「📤 이용자가 올린 서식 열기」 를 **눌러야** `UserFormsPanel` 이 lazy 로 오고 그때 `get()` 한 번(`limitToLast 200`).
+- Firebase SDK(84KB gz)는 **별도 청크**다. 서식·설계변경 탭을 열기만 해서는 안 받는다(실측: 토글 전 firebase 청크 0).
+
+### 압축 — 브라우저에서, 서버 비용 0
+`CompressionStream('gzip')` 으로 올리기 전에 압축하고 `contentEncoding: 'gzip'` 을 달아 올린다.
+받을 때는 브라우저가 알아서 푼다(내려받는 사람은 압축인 줄 모른다). **압축해서 90% 미만이 될 때만** 압축한다 —
+xlsx·docx·hwpx 는 이미 zip 이라 다시 눌러도 안 줄고 시간만 든다. 그런 파일은 원본 그대로.
+`contentDisposition: attachment` 로 브라우저가 «열기» 대신 «내려받기» 를 하게 한다(html 위장 방지).
+
+### 승인 없음 → 대신 걸어 둔 것
+- **Storage 규칙**(`web/storage.rules`): 익명 로그인한 본인 uid 폴더에만 · 10MB 이하 · 확장자 흰 목록
+  (xlsx xls docx doc hwp hwpx pdf pptx) · 매크로/실행 파일 금지(xlsm docm exe zip js html …) · 수정·삭제 금지(덮어쓰기 방지).
+- **DB 규칙**: `user_forms` 는 `.validate` 로 칸·길이·url 앞머리(우리 버킷의 user_forms/ 만)를 본다.
+  삭제는 «올린 사람의 PIN» — `uf_pins/{id}` 에 해시를 두고, 맞으면 `uf_del/{id}=true`(목록에서 숨김. 파일은 남는다 — Storage 삭제 규칙이 false 라서. 청소는 콘솔에서).
+- **신고**: `uf_flag/{id}/{uid}` — 서로 다른 3곳이 신고하면 목록에서 사라진다. 사람 승인 없이 «이상한 것» 만 거르는 장치.
+
+### ⚠️ 소장님이 직접 해야 하는 것 (Actions 는 hosting 만 배포한다)
+    1. Firebase 콘솔 → Storage → 「시작하기」 (버킷 k-conmap.firebasestorage.app, 프로덕션 모드)
+    2. cd web && firebase deploy --only storage,database
+이걸 하기 전에는 올리기·댓글이 화면에 «지금은 저장할 수 없습니다» 로 조용히 실패한다(사이트는 안 죽는다).
+
+## 💬 공고·1순위 카드 아래 댓글 — 접혀 있고, 누르면 열린다 (2026-09-06)
+
+소장님: 「각 공고나 1순위 아래에 댓글을 쓸 수 있게. 대화창구로」 → 「댓글은 접히게 하고, 클릭하면 보이게」.
+
+- `Comments.jsx` 는 껍데기(버튼 하나) · `CommentsPanel.jsx` 가 lazy. **누르기 전에는 Firebase 를 안 받는다** —
+  1순위·공고 카드는 첫 화면이라, 여기서 firebase 를 정적으로 끌어오면 모든 방문자가 84KB 를 더 받는다.
+  실측(Playwright): 카드 펼침 → firebase 청크 0 · 「💬 댓글 보기」 누름 → 그때 받음.
+- 저장: RTDB `comments/{공고번호}/{id}` (본문 500자·이름 20자·uid·시각). 읽기 `limitToLast 50`.
+  삭제는 서식과 같은 PIN 방식(`comment_pins` / `comment_del`).
+- 붙인 자리: `NoticeDetail`(1순위 카드 펼침·/notice 개찰 페이지) · `LiveBoard` 공고 카드 펼침 · `OpenNotice`(/notice 마감 전).
+  카드 안이라 `stopPropagation` 으로 카드 접힘을 막는다.
+- 규칙: `comments/{no}` 아래만 익명 쓰기 허용. 루트 규칙(익명 제외)은 그대로 — **규칙은 병합**(Streamlit 노드 보존).
+
+## 🧮 바로투찰 — 「왜 복사해서 넣으라고 하지?」 (2026-09-06)
+
+소장님: 「1순위에서도 클릭만 하면 되고, 공고에서도 클릭만 하면 되는데, 왜 바로투찰에서는 복사해서 넣으라고 하지?」
+맞다. 검색 상자가 비어 있을 때 아무것도 안 보여줬다.
+→ 검색어가 없으면 **마감 임박 순 15건**(계산 가능한 것만, `canBid`)을 상자 아래 그대로 띄운다. 누르면 계산.
+  검색어가 있으면 예전처럼 검색 결과. `MyToday` 카드의 「자세히」 도 「🧮 바로 계산」 으로 — 같은 `onPick`.
+  실측: 목록 15줄 · 누르면 계산 화면 · 고른 공고 띠 1.
+
+## 📲 설치 띠 — ✕ 는 하루, 설치했으면 영영 (2026-09-06)
+
+소장님: 「설치버튼은 x 버튼을 누르면 하루 동안 안 보이게 하고, 설치했다면 안 보이게」.
+- ✕ → `kcm_install_hide` 에 «내일 이 시각» 을 적고 띠만 숨긴다(알약은 남는다). 7일 → **1일**.
+- 설치 사실은 `kcm_installed` — `appinstalled` 이벤트 또는 **앱으로 열린(standalone) 것을 한 번이라도 본** 순간 적는다.
+  적어 두지 않으면 설치한 뒤 브라우저로 다시 들어왔을 때 또 설치하라고 조른다(아이폰은 이벤트가 없어 standalone 길뿐).
+  적히면 알약·띠 **둘 다** 안 보인다.
+- Playwright 확인: ✕ → 띠 0·알약 1·시한 24.00시간 / `kcm_installed` → 둘 다 0 / appinstalled → 둘 다 0·flag 1 / standalone 흉내 → 둘 다 0·flag 1. JS 오류 0.

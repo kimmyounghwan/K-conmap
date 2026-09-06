@@ -4,6 +4,7 @@ import { db, ensureAnon } from '../firebase.js'
 import { Empty, Skeleton } from '../components.jsx'
 import { num, REGIONS, inRegion } from '../lib/fmt.js'
 import Sites from '../Sites.jsx'
+import { pinHash } from '../lib/pin.js'
 
 const TRADES = ['현장관리', '공무/견적', '토목', '건축', '철근·콘크리트', '설비', '전기',
   '조경', '중장비', '보통인부', '기타']
@@ -27,12 +28,7 @@ const ago = (t) => {
 const loadMine = () => { try { return JSON.parse(localStorage.getItem(MINE_KEY) || '[]') } catch { return [] } }
 const addMine = (id) => { try { localStorage.setItem(MINE_KEY, JSON.stringify([...loadMine(), id].slice(-50))) } catch { /* noop */ } }
 
-/** 비밀번호는 절대 그대로 저장하지 않는다. 글 아이디를 소금으로 섞어 해시만 남긴다. */
-async function pinHash(id, pin) {
-  const buf = new TextEncoder().encode(`${id}:${pin}`)
-  const d = await crypto.subtle.digest('SHA-256', buf)
-  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('')
-}
+/* pinHash 는 lib/pin.js 로 옮겼습니다 — 이용자 서식·댓글과 같이 씁니다 (2026-09-06) */
 
 export default function Jobs() {
   const [posts, setPosts] = useState(null)
