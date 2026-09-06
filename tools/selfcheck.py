@@ -442,6 +442,58 @@ def check_naeyeok():
     return []
 
 
+def check_naeyeok_files():
+    """naeyeok.json 이 «바로 받기» 로 내놓은 파일이 실제로 배포에 들어 있나. (2026-09-06)
+
+    ⚠️ 이 검사가 필요한 이유 — Firebase 는 **없는 파일에 404 를 주지 않습니다.**
+       firebase.json 의 catch-all rewrite(`** → /index.html`) 때문에
+       `/naeyeok/없는파일.xlsx` 가 **200 + index.html(3KB)** 로 옵니다(실측).
+       그러면 사용자는 「⬇ 바로 받기」를 눌러 **엑셀이 아닌 HTML 3KB** 를 저장하게 되고,
+       엑셀이 「파일이 손상되었습니다」라고만 말합니다. 아무도 원인을 못 찾습니다.
+       상태 코드로는 절대 못 잡으니, **만드는 쪽에서** 짝을 맞춰 두어야 합니다.
+    """
+    print("\n" + "=" * 64)
+    print("  «바로 받기» 파일이 실제로 있나 — naeyeok.json vs 배포 폴더")
+    print("=" * 64)
+    roots = [os.path.join(ROOT, "web", "dist"), os.path.join(ROOT, "web", "public")]
+    roots = [r for r in roots if os.path.isdir(r)]
+    if not roots:
+        print("(건너뜀 — web/dist 도 web/public 도 없습니다)")
+        return []
+    miss, n = [], 0
+    for fn_ in ("naeyeok.json", "naeyeok-all.json"):
+        p = os.path.join(ROOT, "web", "public", "data", fn_)
+        if not os.path.exists(p):
+            continue
+        try:
+            with io.open(p, encoding="utf-8") as f:
+                d = json.load(f) or {}
+        except Exception as e:
+            print(f"(건너뜀 — {fn_} 을 읽지 못했습니다: {type(e).__name__})")
+            continue
+        f_ = d.get("f") or []
+        if "local" not in f_:
+            continue
+        li = f_.index("local")
+        for row in d.get("r") or []:
+            loc = row[li]
+            if not loc:
+                continue
+            n += 1
+            if not any(os.path.exists(os.path.join(r, loc.lstrip("/"))) for r in roots):
+                miss.append(loc)
+    if not n:
+        print("✅ «바로 받기» 로 내놓은 파일이 아직 없습니다 (받아 둔 것이 0개)")
+        return []
+    if miss:
+        print(f"❌ {len(miss)}개가 목록에는 있는데 배포 폴더에 없습니다 — 누르면 HTML 이 받아집니다")
+        for x in miss[:5]:
+            print("     " + x)
+        return [f"naeyeok 파일 없음 {len(miss)}개"]
+    print(f"✅ «바로 받기» {n}개 전부 배포 폴더에 있습니다")
+    return []
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--build", action="store_true", help="검사 전에 npm run build 를 돕니다")
@@ -554,6 +606,7 @@ def main():
 
     xbad = check_boardidx()
     xbad += check_naeyeok()
+    xbad += check_naeyeok_files()
     if xbad:
         print(f"\n⛔ 검색 색인 칸이 어긋납니다 — 검색이 엉뚱한 칸을 뒤집니다")
         return 1

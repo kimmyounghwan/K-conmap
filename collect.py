@@ -1417,11 +1417,13 @@ NAEYEOK_DIR = os.path.join(STORE, "naeyeok")
 #      + 내역서 150MB              = 3.3GB  (33%)  ← 이걸로 정함
 #    150MB 면 설계내역서 약 750개(다섯 달치)입니다. 그보다 오래된 것은 링크로 남습니다.
 NAEYEOK_KEEP_MB = int(os.environ.get("NAEYEOK_KEEP_MB", "150"))
-NAEYEOK_FETCH = int(os.environ.get("NAEYEOK_FETCH", "40"))      # 한 회차에 새로 받는 개수
+NAEYEOK_FETCH = int(os.environ.get("NAEYEOK_FETCH", "100"))     # 한 회차에 새로 받는 개수
+#   40 → 100 (2026-09-06). 실측 40개에 155.7초였으니 100개면 약 390초.
+#   회차 전체가 14분이고 상한이 45분이라 여유가 있습니다.
 NAEYEOK_MAXBYTES = int(os.environ.get("NAEYEOK_MAXBYTES", str(8 * 1024 * 1024)))
 # ⚠️ 시간 상한. 40개 × 60초 타임아웃 = 40분이라 그것만으로 회차(45분)가 터집니다.
 #    내역서는 «있으면 좋은 것» 이지 배포를 막아도 되는 것이 아닙니다.
-NAEYEOK_BUDGET_S = int(os.environ.get("NAEYEOK_BUDGET_S", "240"))
+NAEYEOK_BUDGET_S = int(os.environ.get("NAEYEOK_BUDGET_S", "420"))
 NAEYEOK_TIMEOUT_S = int(os.environ.get("NAEYEOK_TIMEOUT_S", "25"))
 
 
@@ -2157,15 +2159,26 @@ def main():
             DIAG["naeyeok_fetch"] = {"건너뜀": "--exportonly (바깥을 부르지 않는 회차)"}
             print("  → naeyeok 파일  받기 건너뜀 (--exportonly)")
             return load_json(NAEYEOK_BOOK, {})
+        # ★ 2026-09-06 — 갈래를 가리지 않고 받습니다.
+        #   소장님: 「직접 다운 받을 수 있게 해줘」
+        #   전에는 «단가 든 갈래» 만 받아서, 4,294개 중 바로 받을 수 있는 것이 35개뿐이었습니다.
+        #   나머지는 「나라장터에서 받기」로 가는데 거긴 로그인을 요구합니다 — 사용자에겐 «안 되는» 것입니다.
+        #   ⚠️ 그래도 **순서**는 값어치 순입니다: 단가 든 갈래(설계내역서·단가산출서) 먼저,
+        #      그다음이 나머지. 보관 상한(NAEYEOK_KEEP_MB)에 걸리면 뒤엣것부터 못 받으니,
+        #      «먼저 받는 것» 이 곧 «남는 것» 입니다.
         want = []
         for r in store["con"].values():
             for i, y in enumerate(r.get("docs") or []):
                 fname = str(y[0] if isinstance(y, (list, tuple)) else y)
                 furl = str(y[1]) if isinstance(y, (list, tuple)) and len(y) > 1 else ""
-                if not furl or naeyeok_kind(fname) not in NAEYEOK_PRICED:
+                k = naeyeok_kind(fname)
+                if not furl or not k:
                     continue
-                want.append((str(r.get("dt") or "")[:10], r, fname, furl, i))
-        want.sort(key=lambda x: x[0], reverse=True)       # 최신부터
+                want.append((0 if k in NAEYEOK_PRICED else 1,
+                             str(r.get("dt") or "")[:10], r, fname, furl, i))
+        # 단가 든 갈래 먼저, 그 안에서 최신부터
+        want.sort(key=lambda x: (x[0], [-ord(c) for c in x[1]]))
+        want = [(dt, r, fn, fu, i) for _p, dt, r, fn, fu, i in want]
 
         book = load_json(NAEYEOK_BOOK, {})                # 이미 받은 것 기록
         got = new = 0
@@ -2244,7 +2257,7 @@ def main():
                          "priced": xlsx_has_price(path), "at": built}
             got += 1
             nonlocal_streak[0] = 0
-            time.sleep(0.3)
+            time.sleep(0.15)
 
         # ── 3년이 지난 파일은 버립니다 (목록과 같은 상한) ──────────
         old_cut = (datetime.now(KST) - timedelta(days=NAEYEOK_KEEP_DAYS)).strftime("%Y-%m-%d")
