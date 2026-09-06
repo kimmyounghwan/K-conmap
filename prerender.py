@@ -1475,7 +1475,13 @@ def main():
         #    new_since 는 «새 개찰» 만 봅니다. 새로 만든 정적 페이지와,
         #    이미 있던 공고인데 «내역서가 붙어 내용이 새로 생긴 것» 은 차례가 안 옵니다.
         #    실측 /indexnow-status.json: 한 회차에 보낸 주소가 6개뿐이었습니다.
-        st_new, _ = indexnow.take_once("static", STATIC_NEW, n=len(STATIC_NEW))
+        #    ⚠️ 2026-09-06 저녁 — 글 5편의 «각 글 주소» 가 빠져 있었습니다.
+        #       STATIC_NEW 에는 목록(/guide)만 있었습니다. 목록 한 장만 알리면
+        #       빙·네이버는 그 안의 글 5편을 «스스로 찾아올 때까지» 기다립니다.
+        #       사이트맵에는 있으니 언젠가 오지만, IndexNow 는 «지금 보라» 고 찌르는 것이라
+        #       알릴 주소에 안 넣으면 그 값어치를 못 씁니다. 글마다 넣습니다.
+        _static = STATIC_NEW + [f'/guide/{t["slug"]}' for t in load_guide()]
+        st_new, _ = indexnow.take_once("static", _static, n=len(_static))
         ny_paths = [f"/notice/{safe_no(r.get('no'))}" for r in baked
                     if str(r.get("no") or "") in nydocs and safe_no(r.get("no"))]
         ny_new, ny_left = indexnow.take_once("naeyeok", ny_paths)
