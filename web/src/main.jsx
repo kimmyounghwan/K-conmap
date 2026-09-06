@@ -24,6 +24,9 @@ const Forms = lazy(() => import('./pages/Forms.jsx'))
 /* 설계변경 자료도 목록을 안고 있어 따로 뗍니다 (2026-09-05) */
 const Change = lazy(() => import('./pages/Change.jsx'))
 const ChangeTopic = lazy(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeTopic })))
+/* 📚 입찰 알아보기 — 실측으로 쓴 원본 글 (2026-09-06). 하단 탭은 안 늘리고 푸터·바로투찰에서 들어갑니다. */
+const Guide = lazy(() => import('./pages/Guide.jsx'))
+const GuideTopic = lazy(() => import('./pages/Guide.jsx').then((m) => ({ default: m.GuideTopic })))
 const ChangeCalc = lazy(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeCalc })))
 const ChangeBook = lazy(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeBook })))
 const ChangeNaeyeok = lazy(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeNaeyeok })))
@@ -67,6 +70,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/change/naeyeok/:kind" element={<Suspense fallback={<Loading />}><ChangeNaeyeok /></Suspense>} />
           <Route path="/change/:slug" element={<Suspense fallback={<Loading />}><ChangeTopic /></Suspense>} />
           <Route path="/forms/:slug" element={<Suspense fallback={<Loading />}><FormPage /></Suspense>} />
+          <Route path="/guide" element={<Suspense fallback={<Loading />}><Guide /></Suspense>} />
+          <Route path="/guide/:slug" element={<Suspense fallback={<Loading />}><GuideTopic /></Suspense>} />
           <Route path="/daily" element={<DailyIndex />} />
           <Route path="/daily/:date" element={<DailyPage />} />
           <Route path="*" element={<NotFound />} />

@@ -60,6 +60,11 @@ export default function App() {
             <a href="/privacy">개인정보처리방침</a><span className="dot">·</span>
             <a href="/contact">문의</a>
           </div>
+          {/* 📚 실측으로 쓴 글 — 하단 탭을 늘리지 않고 여기서 들어갑니다 (2026-09-06) */}
+          <div style={{ marginTop: 6 }}>
+            <a href="/guide"><b>📚 입찰 알아보기</b></a>
+            <span className="dot">·</span>투찰금액 계산 · 사정률 · 참가업체수 — 개찰 1만여 건 실측
+          </div>
           <div className="footer-sis">
             🌊 자매 사이트 <a href="https://sarasa.kr" target="_blank" rel="noopener"><b>사라사 sarasa.kr</b></a>
             <span className="dot">·</span>나노리치 실시간 신호판 · 경제 기사 · 여행

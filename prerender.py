@@ -144,7 +144,8 @@ def read_shell():
 # 사람에게는 React 가 마운트되면서 사라지고 진짜 탭바가 대신 그려집니다.
 SITENAV = [("/", "바로투찰"), ("/first", "1순위 개찰"), ("/live", "입찰 공고"),
            ("/forms", "건설 서식"), ("/change", "설계변경"),
-           ("/analysis", "낙찰 분석"), ("/daily", "개찰 성적표")]
+           ("/analysis", "낙찰 분석"), ("/daily", "개찰 성적표"),
+           ("/guide", "입찰 알아보기")]
 
 
 def nav_html(here=""):
@@ -921,7 +922,7 @@ NY_KINDS = [
 
 # ── IndexNow 에 «한 번만» 알릴 정적 주소 ──────────────────────────
 #   새로 만든 화면들입니다. 사이트맵에도 있지만 크롤러가 스스로 올 때까지 기다리지 않습니다.
-STATIC_NEW = ["/change", "/change/naeyeok", "/change/excel", "/forms"] + [
+STATIC_NEW = ["/change", "/change/naeyeok", "/change/excel", "/forms", "/guide"] + [
     "/change/naeyeok/" + quote(_k, safe="") for _k, _d in NY_KINDS]
 
 
@@ -1179,6 +1180,85 @@ def change_calc(shell, image=None):
     return page(shell, "/change/calc", title, desc, "".join(out), image)
 
 
+
+# ── 입찰 알아보기 (2026-09-06) ──────────────────────────────────
+#  이 사이트가 «직접 재서» 쓴 글입니다 — 개찰 1만여 건 실측이 근거입니다.
+#  ⚠️ 내용은 web/src/data/guide.json 한 곳에만 있습니다(화면·여기가 같이 읽습니다).
+#     설계변경(change.json)과 «같은 스키마·같은 블록 종류» 라 _blocks_html 을 그대로 씁니다.
+GUIDE_JSON = os.path.join(ROOT, "web", "src", "data", "guide.json")
+
+
+def load_guide():
+    try:
+        with open(GUIDE_JSON, encoding="utf-8") as f:
+            return (json.load(f) or {}).get("topics") or []
+    except Exception as e:
+        print(f"  · 입찰 알아보기 자료를 못 읽었습니다 ({type(e).__name__}) — 건너뜁니다")
+        return []
+
+
+def guide_index(shell, topics, image=None):
+    title = "입찰 알아보기 — 투찰금액·사정률·참가업체수 | K-건설맵"
+    desc = ("공공 공사 입찰의 투찰금액이 어떻게 정해지는지, 사정률·낙찰하한율·A값이 무엇인지 "
+            "개찰 1만여 건을 직접 재서 정리했습니다. 회원가입 없이 무료입니다.")
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">'
+           '입찰 알아보기</h1>'
+           '<div style="font-size:12.5px;color:var(--muted);margin-top:4px">'
+           '투찰금액 계산 · 사정률 · 분위 · 참가업체수 · 추첨번호</div>'
+           '<p class="cp" style="margin-top:8px">여기 적힌 숫자는 어디서 옮겨 온 것이 아니라 '
+           '<b>조달청 나라장터 개찰 결과를 직접 모아 센 것</b>입니다. 표본 건수를 문단마다 '
+           '함께 적었습니다 — 표본이 적으면 적다고 씁니다.</p></div>'
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">무엇부터 보면 되나</div>']
+    for t in topics:
+        out.append(f'<a class="row rowlink" href="/guide/{esc(t["slug"])}">'
+                   f'<div class="grow"><div class="t">{esc(t["title"])}</div>'
+                   f'<div class="d">{esc(t.get("sub") or t.get("short") or "")}</div></div>'
+                   f'<span class="go">→</span></a>')
+    out.append("</div>")
+    out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">'
+               '읽고 나서 바로 써 보기</div>'
+               '<div class="btn-row"><a class="btn primary" href="/">💰 바로투찰 — 권장 금액 내보기</a>'
+               '<a class="btn ghost" href="/live">📋 마감 전 공고 보기</a></div></div>')
+    ld = {"@context": "https://schema.org", "@type": "ItemList", "name": "입찰 알아보기",
+          "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": t["title"],
+                               "url": f'{SITE}/guide/{t["slug"]}'}
+                              for i, t in enumerate(topics)]}
+    return page(shell, "/guide", title, desc, "".join(out) + nav_html("/guide"), image, ld)
+
+
+def guide_topic(shell, t, others, image=None):
+    # 제목에 이미 «—» 가 있으면 덧붙이지 않습니다 — 「… — 실측 8,424건 — 공공공사 입찰」 처럼
+    # 줄표가 두 번 나오면 검색결과에서 읽기 나빠집니다.
+    title = (f'{t["title"]} | K-건설맵' if "—" in t["title"]
+             else f'{t["title"]} — 공공공사 입찰 | K-건설맵')
+    desc = f'{t.get("short") or ""} {t.get("lead") or ""}'.strip()[:150]
+    out = [f'<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">'
+           f'{esc(t["title"])}</h1>'
+           f'<div style="font-size:12.5px;color:var(--muted);margin-top:4px">'
+           f'{esc(t.get("sub") or "")}</div>'
+           f'<p class="cp" style="margin-top:8px">{_bold(t.get("lead") or "")}</p></div>']
+    for sec in t.get("secs") or []:
+        out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">'
+                   + esc(sec["h"]) + "</div>" + _blocks_html(sec["blocks"]) + "</div>")
+    out.append(rows_html("이어서 볼 것",
+                         [(o["title"], "보기 →") for o in others],
+                         href=lambda x: next((f'/guide/{o["slug"]}' for o in others
+                                              if o["title"] == x), None)))
+    ld = {"@context": "https://schema.org", "@graph": [
+        {"@type": "BreadcrumbList", "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": "K-건설맵", "item": SITE},
+            {"@type": "ListItem", "position": 2, "name": "입찰 알아보기",
+             "item": SITE + "/guide"},
+            {"@type": "ListItem", "position": 3, "name": t["title"],
+             "item": f'{SITE}/guide/{t["slug"]}'}]},
+        {"@type": "Article", "headline": t["title"],
+         "description": (t.get("short") or "")[:200], "inLanguage": "ko",
+         "url": f'{SITE}/guide/{t["slug"]}',
+         "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}}]}
+    return page(shell, f'/guide/{t["slug"]}', title, desc,
+                "".join(out) + nav_html("/guide"), image, ld)
+
+
 # 탭 페이지 — 지금은 전부 홈과 같은 제목이라 색인에서 서로 잡아먹습니다
 TABS = [
     ("/first", "오늘의 1순위 개찰 결과 — 낙찰업체·투찰률 | K-건설맵",
@@ -1193,11 +1273,10 @@ TABS = [
      "발주기관의 낙찰률 성향과 업체별 낙찰 실적을 3년치 개찰 기록으로 분석합니다. 회원가입 없이 무료.",
      ("발주기관·업체 낙찰 분석", "3년치 개찰 기록으로 봅니다", "자가진단",
       "우리 회사가 어디에 강한지 · 그 기관은 어떤 자리인지")),
-    ("/jobs", "곧 착공하는 현장 — 최근 낙찰 공사·낙찰업체 연락처 | K-건설맵",
-     "최근 낙찰된 공공공사를 지역·공종으로 봅니다. 낙찰업체 전화·주소(조달청 나라장터 공개 낙찰자 정보) 포함. "
-     "건설 구인·구직 글도 로그인 없이 올립니다.",
-     ("곧 착공하는 현장", "최근 낙찰 공사 · 낙찰업체 연락처", "무료",
-      "지역·공종으로 골라 사람·장비를 구하고 찾습니다")),
+    ("/jobs", "건설 구인구직 — 현장 인력·장비 | K-건설맵",
+     "건설 현장 구인구직 글을 올리고 봅니다. 로그인 없이 무료.",
+     ("건설 구인구직", "현장 인력·장비", "무료",
+      "로그인 없이 올리고 봅니다")),
 ]
 
 
@@ -1281,6 +1360,22 @@ def main():
             write(f'change/{t["slug"]}.html', change_topic(shell, t, others, img))
             made += 1
         print(f"  · 설계변경 페이지 {len(topics) + 2:,}개 (/change/)")
+
+    # ── 입찰 알아보기 ──
+    gtopics = load_guide()
+    if gtopics:
+        write("guide.html", guide_index(shell, gtopics,
+              og.tab("guide", "입찰 알아보기", "투찰금액 · 사정률 · 참가업체수",
+                     f"{len(gtopics)}편", "개찰 1만여 건 실측")
+              if og.available else None))
+        made += 1
+        for t in gtopics:
+            others = [o for o in gtopics if o["slug"] != t["slug"]][:4]
+            img = (og.tab(f'guide-{t["slug"]}', t["title"], t.get("sub") or "입찰 알아보기",
+                          "실측", (t.get("short") or "")[:44]) if og.available else None)
+            write(f'guide/{t["slug"]}.html', guide_topic(shell, t, others, img))
+            made += 1
+        print(f"  · 입찰 알아보기 페이지 {len(gtopics) + 1:,}개 (/guide/)")
 
     # ★ 링크 목록을 «굽기 전에» 만듭니다 — 없는 주소로 링크를 걸지 않기 위해서입니다.
     L = Links()

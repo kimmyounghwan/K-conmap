@@ -56,6 +56,8 @@ STATIC = [("/", "1.0", "hourly"), ("/first", "0.9", "hourly"), ("/live", "0.9", 
 #    (사이트맵이 미리 구운 것보다 많으면 안 된다는 규칙을 지키려면 같은 파일을 봐야 합니다).
 FORMS_JSON = os.path.join(ROOT, "web", "src", "data", "forms.json")
 CHANGE_JSON = os.path.join(ROOT, "web", "src", "data", "change.json")
+# 입찰 알아보기 — 이 사이트가 직접 잰 실측으로 쓴 글 (2026-09-06)
+GUIDE_JSON = os.path.join(ROOT, "web", "src", "data", "guide.json")
 
 # 「어제의 개찰 성적표」 — 날짜마다 한 장. 지나가면 안 변하므로 changefreq 는 monthly.
 # ⚠️ prerender.py 의 PRERENDER_DAILY 보다 크면 안 됩니다 — 안 구운 주소를 내면
@@ -219,6 +221,19 @@ def main():
     except Exception as e:
         print(f"  · 설계변경 자료를 못 읽었습니다 ({type(e).__name__})")
 
+    # ── 입찰 알아보기 ────────────────────────────
+    #   ⚠️ prerender.py 가 guide.json 의 글을 «전부» 굽습니다 — 그래서 여기서도 같은 파일을 봅니다.
+    n_gd = 0
+    try:
+        with io.open(GUIDE_JSON, encoding="utf-8") as f:
+            gtops = (json.load(f) or {}).get("topics") or []
+        for u in ["/guide"] + [f'/guide/{t["slug"]}' for t in gtops]:
+            urls.append(f'  <url><loc>{SITE}{u}</loc><lastmod>{today}</lastmod>'
+                        f'<changefreq>monthly</changefreq><priority>0.7</priority></url>')
+            n_gd += 1
+    except Exception as e:
+        print(f"  · 입찰 알아보기 자료를 못 읽었습니다 ({type(e).__name__})")
+
     xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
            + "\n".join(urls) + "\n</urlset>\n")
@@ -233,7 +248,8 @@ def main():
     with open(p, "w", encoding="utf-8") as f:
         f.write(xml)
     print(f"  ✅ sitemap.xml — 고정 {len(STATIC)} + 기관 {n_ag} + 업체 {n_co}"
-          f" + 공고 {n_no} + 성적표 {n_dy} + 서식 {n_fm} + 설계변경 {n_cg} = {len(urls)}개")
+          f" + 공고 {n_no} + 성적표 {n_dy} + 서식 {n_fm} + 설계변경 {n_cg}"
+          f" + 알아보기 {n_gd} = {len(urls)}개")
     print(f"     {p}")
 
 

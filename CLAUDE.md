@@ -2986,3 +2986,78 @@ Actions #109(5c0f91f)가 45분 상한에 걸려 **취소**됐다. 화면 수정�
 **새 탭이 https://www.g2b.go.kr 로 열림** · 버튼이 ✓ 상태로 바뀜 · JS 오류 0. selfcheck 13+32 통과.
 
 「금액 복사」 버튼은 그대로 둔다 — 이미 나라장터를 띄워 둔 사람은 숫자만 필요하다.
+## 🚫 마운트된 폴더에서 rebase·merge 는 «절대» 안 된다 — git 을 통째로 멈춰 세웠다 (2026-09-06)
+
+푸시가 «non-fast-forward» 로 막혔다. 원격에 자동화 봇 커밋(`자동 수집 …`)이 하나 먼저 올라와 있었다.
+그래서 device_bash(리눅스 VM)에서 `git rebase origin/main` 을 돌렸다. **이게 잘못이었다.**
+
+    error: could not remove '.git/rebase-merge'
+    error: could not detach HEAD
+
+마운트된 폴더는 **unlink 가 안 된다.** git 은 rebase/merge 중에 `.git/rebase-merge`,
+`.git/index.lock`, `.git/MERGE_HEAD` 를 만들고 **지워야** 진행한다. 못 지우니 중간에 멈추고,
+**그 찌꺼기가 남아 윈도우 git 까지 막았다** — 그다음 .bat 도 「Another git process seems to be running」
+으로 실패했다. 내가 원격 도구로 소장님 PC 의 git 을 잠가 버린 것이다.
+
+### 규칙 (CLAUDE.md 「마운트된 폴더에서 하지 말 것」 확장)
+| device_bash 에서 | |
+|---|---|
+| `add` · `commit` · `log` · `status` · `fetch` · `show` | 돼도 **매번 index.lock 을 남기니 바로 치울 것** |
+| **`rebase` · `merge` · `pull` · `checkout`** | **금지.** 지워야 할 디렉터리를 못 지워 중간에 멈추고 윈도우 git 까지 막는다 |
+
+### 막혔을 때 푸는 법
+`.git` 밑의 `*.lock` · `rebase-merge` · `rebase-apply` · `MERGE_HEAD` · `MERGE_MSG` 를
+**전부** `../_kcm_찌꺼기/` 로 `mv`(같은 마운트 안이라 rename 은 된다). 그 뒤 윈도우 쪽에서 돌린다.
+
+### 그래서 만든 것 — `2_받고올리기.bat` (BOM + CRLF, 기존 1_푸시하기.bat 과 같은 꼴)
+`git pull --rebase origin main` → `git push origin main` 을 **윈도우 git 으로** 돌리고
+`_푸시결과.txt` 에 pull/push exit code 를 따로 남긴다.
+봇 커밋과 겹칠 때는 이제 이걸 누른다 (1_푸시하기.bat 은 push 만 한다).
+실측: `Successfully rebased and updated` → `bb66d45..7de11b8  main -> main` · pull 0 · push 0.
+
+**왜 리눅스 쪽에서 push 를 못 하나**: 자격증명이 윈도우 자격 증명 관리자에 있다.
+device_bash 에서는 `fatal: could not read Username for 'https://github.com'`. fetch(공개 저장소)만 된다.
+
+## 📚 「입찰 알아보기」 — 실측으로 쓴 원본 글 5편 (2026-09-06)
+
+소장님: 「애드센스 신청하면 어때?」 → 재보고 「2~3주 뒤」 라고 답했다. 그동안 할 일 중 가장 값어치 있는 것이
+**원본 콘텐츠**였다. 이 사이트가 직접 잰 숫자는 다른 데 없다 — 애드센스 심사에도, 검색에도 그게 재료다.
+
+### 무엇을 썼나 (`web/src/data/guide.json` · 5편 · 약 4,900자)
+| 주소 | 내용 | 근거 |
+|---|---|---|
+| `/guide/bid-price` | 투찰금액은 어떻게 정해지나 | 기초금액·A값·사정률·낙찰하한율 네 값이 하는 일 |
+| `/guide/sajeongryul` | 사정률이란 | 복수예가 15개 중 4개 추첨 · 실측 중앙 99.896% |
+| `/guide/quantile` | 낮게 쓰면 더 딸까 | **실측 8,424건** 분위 훑기 — 1순위율은 4% 언저리에서 안 움직임 |
+| `/guide/participants` | 참가업체수가 승부를 가른다 | 2~9곳 18.2% vs 100곳+ 1.6% — 11배 |
+| `/guide/drawnum` | 추첨번호를 잘 찍으면 유리할까 | 실측 1,451건 — 관계 없음 |
+
+전부 이 CLAUDE.md 에 이미 적힌 실측을 옮긴 것이다. **새로 지어낸 숫자는 하나도 없다.**
+표본 건수를 문단마다 함께 적었고, 표본이 적으면 적다고 썼다.
+
+### 구조 — 설계변경(change.json)과 «같은 틀»을 그대로 썼다
+자료 한 벌(`guide.json`)을 화면(`web/src/pages/Guide.jsx`)과 미리굽기(`prerender.py`)가 같이 읽는다.
+블록 종류(p / warn / ul / steps / table / links)도 같아서 `_blocks_html` 을 그대로 재사용했다.
+**글을 하나 더 쓰려면 guide.json 에 한 덩이만 넣으면 된다** — 화면·HTML·사이트맵이 다 따라온다.
+
+### 하단 탭은 안 늘렸다
+탭이 이미 7개다. 여덟 번째를 넣으면 좁은 화면에서 글자가 뭉갠다.
+→ 푸터 한 줄(`App.jsx`)과 미리 구운 페이지의 「K-건설맵 둘러보기」(`SITENAV`)로 들어간다.
+   `SITENAV` 에 넣었으므로 **미리 구운 8,500장 전부에서 /guide 로 가는 길**이 생겼다 — 크롤러에게 이게 크다.
+
+### 확인한 것 (브라우저 · Playwright)
+- 미리 구운 6장 제목 전부 다름 · canonical 정상 · 본문 1,181~1,841자
+- `/guide` → 글 클릭 → 뒤로가기 정상 · JS 오류 0
+- **없는 slug 는 `NotFound` 를 그린다** — noindex 를 걸고 다음 페이지로 가면 지운다(soft 404 방어)
+- 1400px·390px 둘 다 넘침 0 · 가로 스크롤 없음
+- `selfcheck.py --browser` 13+32 통과 · 한글 폴더에서도 통과
+
+⚠️ 제목에 이미 «—» 가 있는 글은 «— 공공공사 입찰» 을 덧붙이지 않는다.
+   「낮게 쓰면 더 딸까 — 실측 8,424건 — 공공공사 입찰」 처럼 줄표가 두 번 나오면 검색결과에서 읽기 나쁘다.
+
+### 애드센스 — 지금 상태 (실측, 2026-09-06)
+- 개인정보처리방침에 광고·쿠키 조항 **있음** · 소개 749자
+- 사이트맵 제출 2026.9.5 · 마지막 읽음 9.6 · 상태 «성공» · **발견된 페이지 1,270**
+- 그런데 **구글 색인은 아직 홈 한 장뿐** (/notice·/corp·/agency 는 0)
+→ 크롤은 돌기 시작했고 색인이 안 따라온 것. **2~3주 뒤에 신청**하는 게 낫다.
+   지금 신청해 떨어지면 재신청까지 더 기다린다.
