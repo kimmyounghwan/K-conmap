@@ -85,7 +85,12 @@ export default function CommentsPanel({ no, title }) {
   return (
     <div className="cm-box" onClick={(e) => e.stopPropagation()}>
       {title && <div className="hint" style={{ marginBottom: 6 }}>「{title}」 에 대한 이야기 — 로그인 없이 씁니다.</div>}
-      {list === null ? <Skeleton n={2} /> : list.length === 0 ? (
+      {/* ⚠️ 못 불러왔을 때 «아직 댓글이 없습니다» 를 같이 띄우면 안 됩니다 —
+          한 상자가 서로 반대말을 하게 됩니다(CLAUDE.md 채점 화면에서 겪은 것과 같은 잘못).
+          실측 2026-09-06: 규칙 배포 전이라 읽기가 막혀 두 문장이 함께 떴습니다. */}
+      {list === null ? <Skeleton n={2} /> : err && list.length === 0 ? (
+        <div className="cm-empty">댓글을 불러오지 못했습니다. 잠시 후 다시 열어 보세요.</div>
+      ) : list.length === 0 ? (
         <div className="cm-empty">아직 댓글이 없습니다. 첫 댓글을 남겨 보세요.</div>
       ) : list.map((c) => (
         <div className="cm-item" key={c.id}>
@@ -102,7 +107,7 @@ export default function CommentsPanel({ no, title }) {
           <input value={pin} onChange={(e) => setPin(e.target.value)} inputMode="numeric" maxLength={4} placeholder="지울 때 4자리" />
           <button className="btn sm" disabled={busy} onClick={submit}>{busy ? '올리는 중…' : '올리기'}</button>
         </div>
-        {err && <div className="note" style={{ color: 'var(--bad)' }}>{err}</div>}
+        {err && !(list && list.length === 0) && <div className="note" style={{ color: 'var(--bad)' }}>{err}</div>}
         <div className="hint">연락처·개인정보는 적지 마세요. 광고·비방은 예고 없이 지울 수 있습니다.</div>
       </div>
     </div>
