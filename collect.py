@@ -172,6 +172,16 @@ NET_DOWN = False         # 차단기가 내려갔는지 (apis.data.go.kr 전용)
 NO_NET = False           # --exportonly 처럼 «바깥을 아예 안 부른다» 는 뜻
 NET_LIMIT = 8            # 이만큼 연달아 실패하면 포기
 NET_TIMEOUT = 15         # 한 건당 기다리는 시간(초)
+# ⚠️ 2026-09-06 (일요일) — «연달아 8번» 만으로는 안 잡히는 날이 있었다.
+#    조달청이 «느리게» 아픈 날: 열에 여덟은 ReadTimeout, 둘은 성공. 성공 한 번이 NET_FAILS 를 0 으로
+#    되돌리니 차단기가 영영 안 내려갔고, 15초짜리 타임아웃 109번 = 27분을 기다리다
+#    Actions 45분 상한에 걸려 **배포 자체가 취소**됐다 (#109). 화면 수정이 사이트에 못 올라갔다.
+#    → 두 번째 차단기: «이 회차에서 조달청에 쓴 시간» 이 예산을 넘으면 그 뒤 호출은 전부 건너뛴다.
+#      뒤에 남은 단계(집계·빌드·굽기·배포)가 10분쯤 필요하므로 수집에는 20분만 준다.
+#      건너뛴 건은 bask/rask 가 «오래된 것부터» 규칙으로 다음 회차에 다시 묻는다 — 잃는 것이 없다.
+NET_BUDGET_S = int(os.environ.get("NET_BUDGET_S", "1200"))   # 조달청 호출에 쓸 수 있는 시간(초)
+NET_T0 = time.time()     # 이 회차 시작 시각
+NET_FAILS_ALL = 0        # 누적 실패(연속 아님) — 로그에 «몇 번 기다렸나» 를 남기기 위한 것
 
 
 def fetch(url, key, day=None, extra=None, label="", why=None):
@@ -180,8 +190,15 @@ def fetch(url, key, day=None, extra=None, label="", why=None):
     """조달청 공통 호출.
     예전에 기초금액이 '계속 실패'했던 건 대부분 조용히 삼켜서 원인이 안 보였기 때문이다.
     그래서 여기서는 HTTP 코드 / resultCode / 본문 앞머리를 반드시 찍는다."""
-    global NET_FAILS, NET_DOWN
+    global NET_FAILS, NET_DOWN, NET_FAILS_ALL
     if NET_DOWN:
+        return []
+    if time.time() - NET_T0 > NET_BUDGET_S:
+        NET_DOWN = True
+        print(f"    ⛔ 조달청 호출에 {NET_BUDGET_S // 60}분을 다 썼습니다 (실패 {NET_FAILS_ALL}번 기다림). "
+              f"남은 호출은 이번 회차에서 건너뜁니다 — 다음 회차가 오래된 것부터 다시 묻습니다.")
+        if why is not None:
+            why.update({"net": "budget"})
         return []
     params = {
         "serviceKey": key, "numOfRows": "999", "pageNo": "1",
@@ -199,6 +216,7 @@ def fetch(url, key, day=None, extra=None, label="", why=None):
                          headers={"User-Agent": "Mozilla/5.0"})
     except Exception as e:
         NET_FAILS += 1
+        NET_FAILS_ALL += 1
         print(f"    ! {tag} 통신 실패 ({type(e).__name__})")
         if why is not None:
             why.update({"net": type(e).__name__})
@@ -1588,6 +1606,10 @@ def main():
                        key=lambda r: dt_digits(r.get("dt")), reverse=True)
         _no = _rows[0]["no"] if _rows else ""
         _ord = str((_rows[0].get("ord") if _rows else "") or "000") or "000"
+        # 진단은 자료를 바꾸지 않습니다. 조달청이 느린 날 여기서 5분(20호출×15초)을 더 쓰면
+        # 뒤 단계(빌드·배포)가 45분 상한에 밀립니다 → 3분만 씁니다.
+        global NET_BUDGET_S
+        NET_BUDGET_S = min(NET_BUDGET_S, 180)
         probe_ops(key, today - timedelta(days=1), _no, _ord)
         save_diag()
         return
