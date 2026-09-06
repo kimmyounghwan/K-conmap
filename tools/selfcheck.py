@@ -499,6 +499,55 @@ def check_naeyeok_files():
     return []
 
 
+def check_canonical():
+    """미리 구운 모든 페이지의 canonical 이 «이중 인코딩» 되지 않았나. (2026-09-06)
+
+    ⚠️ 왜 이 검사가 필요한가 — 조용히 색인을 죽이는 잘못이기 때문입니다.
+       page() 는 안에서 enc_path() 로 주소를 «한 번» 인코딩합니다.
+       그런데 호출하는 쪽에서 quote() 를 걸어 넘기면 %EC → %25EC 로 **두 번** 됩니다.
+       그러면 canonical 이 «없는 주소» 를 가리키고, 크롤러는 canonical 을 따라가므로
+       **그 페이지는 사이트맵에 있어도 영영 색인되지 않습니다.**
+       화면은 멀쩡하고 오류도 없어서, 몇 달이 지나도 아무도 못 알아챕니다.
+       (2026-09-06 에 /change/naeyeok/{갈래} 6장이 실제로 그랬습니다.
+        CLAUDE.md 의 checkmath.mjs 한글 폴더 사고와 같은 잘못입니다)
+    """
+    import re as _re
+    print("\n" + "=" * 64)
+    print("  canonical 이중 인코딩 검사 — 미리 구운 페이지 전부")
+    print("=" * 64)
+    dist = os.path.join(ROOT, "web", "dist")
+    if not os.path.isdir(dist):
+        print("(건너뜀 — web/dist 가 없습니다. npm run build + prerender.py 를 먼저)")
+        return []
+    bad, n = [], 0
+    for r, _d, fs in os.walk(dist):
+        for f in fs:
+            if not f.endswith(".html"):
+                continue
+            p = os.path.join(r, f)
+            try:
+                with io.open(p, encoding="utf-8") as fh:
+                    h = fh.read(4000)
+            except Exception:
+                continue
+            n += 1
+            for tag, pat in (("canonical", r'<link rel="canonical" href="([^"]*)"'),
+                             ("og:url", r'<meta property="og:url" content="([^"]*)"')):
+                m = _re.search(pat, h)
+                if m and "%25" in m.group(1):
+                    bad.append(os.path.relpath(p, dist) + "  " + tag + "=" + m.group(1)[:90])
+    if not n:
+        print("(건너뜀 — 구운 페이지가 없습니다)")
+        return []
+    if bad:
+        print(f"❌ {len(bad)}곳이 두 번 인코딩됐습니다 — 그 페이지는 색인이 안 됩니다")
+        for x in bad[:6]:
+            print("     " + x)
+        return [f"canonical 이중 인코딩 {len(bad)}곳"]
+    print(f"✅ {n:,}장 전부 정상입니다 (%25 가 든 canonical·og:url 없음)")
+    return []
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--build", action="store_true", help="검사 전에 npm run build 를 돕니다")
@@ -612,6 +661,7 @@ def main():
     xbad = check_boardidx()
     xbad += check_naeyeok()
     xbad += check_naeyeok_files()
+    xbad += check_canonical()
     if xbad:
         print(f"\n⛔ 검색 색인 칸이 어긋납니다 — 검색이 엉뚱한 칸을 뒤집니다")
         return 1

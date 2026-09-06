@@ -981,7 +981,12 @@ def change_naeyeok_kind_page(shell, kind, rows, meta, image=None):
           "name": f"{kind} 모음 2026", "url": f"{SITE}/change/naeyeok/{quote(kind, safe='')}",
           "description": desc, "inLanguage": "ko",
           "isPartOf": {"@type": "WebSite", "name": "K-건설맵", "url": SITE}}
-    return page(shell, f"/change/naeyeok/{quote(kind, safe='')}", title, desc,
+    # ⚠️ page() 가 안에서 enc_path() 로 «한 번» 인코딩합니다.
+    #    여기서 quote 를 걸어 넘기면 %EC → %25EC 로 **두 번** 인코딩되어
+    #    canonical 이 «없는 주소» 를 가리킵니다 → 그 페이지는 영영 색인이 안 됩니다.
+    #    (CLAUDE.md 의 checkmath.mjs 한글 폴더 사고와 똑같은 잘못입니다)
+    #    기관·업체 페이지처럼 **원본 이름 그대로** 넘깁니다.
+    return page(shell, f"/change/naeyeok/{kind}", title, desc,
                 "".join(out) + nav_html("/change"), image, ld)
 
 
