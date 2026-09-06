@@ -566,6 +566,13 @@ def _baro_amount(base, A, a_known, lo, hi, llr, p50):
 
 
 RANK_POOL = 0          # 순위를 받은 개찰 수 — overview.json 에 실어 화면이 분모로 쓴다
+# ★ 「실제 1순위보다 싸면 정말 «가격 1순위» 인가」 — 실측 (2026-09-06)
+#   시뮬레이션은 «실제 1순위보다 낮았고 하한을 넘겼나» 까지만 봅니다.
+#   그게 곧 가격 1순위인지는, 1순위보다 싸면서 하한도 넘긴 투찰이 있었는지 세면 압니다.
+#   있으면 그 곳이 적격심사에서 밀린 것입니다 — 그때는 우리도 밀릴 수 있습니다.
+#   화면이 이 숫자를 그대로 씁니다. 상수로 박지 않습니다(자료가 쌓이면 바뀝니다).
+QUAL_N = 0             # 순위·A값이 다 있어 판정한 개찰 수
+QUAL_SKIP = 0          # 그 중 «1순위보다 싼데 하한도 넘긴 곳» 이 있던 개찰 수
 
 def load_rank_history(p50):
     p = os.path.join(ROOT, "data", "store", "first.json")
@@ -575,6 +582,7 @@ def load_rank_history(p50):
     except Exception:
         return {}, {}, 0
     by_biz, by_name, pool = defaultdict(list), defaultdict(list), 0
+    _q = [0, 0]                       # [판정한 개찰, 1순위보다 싼 유효 투찰이 있던 개찰]
 
     def llr_of(est):
         eok = est / 1e8
@@ -611,6 +619,10 @@ def load_rank_history(p50):
                     M = _baro_amount(b, A, True, lo, hi, ll, p50)
                     yeje = amt1 / (rate1 / 100.0)
                     L = math.ceil((yeje - A) * ll / 100.0 + A)
+                    _q[0] += 1
+                    if any(len(c) > 1 and c[1] and L <= float(c[1]) < amt1
+                           for c in corps[1:]):
+                        _q[1] += 1
                     if M < L:
                         baro = [0, M]
                     else:
@@ -629,6 +641,8 @@ def load_rank_history(p50):
                 k = norm_corp(cname)
                 if k:
                     by_name[k].append(rec)
+    global QUAL_N, QUAL_SKIP
+    QUAL_N, QUAL_SKIP = _q[0], _q[1]
     return by_biz, by_name, pool
 
 
@@ -960,11 +974,14 @@ def build_hot(df):
 #     후보 사정률 10개를 각각 대입해, 그 금액이 실제 1순위보다 낮으면서
 #     낙찰하한을 넘겼는지 봅니다. 넘겼으면 «낙찰» 로 표시합니다.
 #
-#     ⚠️ 한계를 분명히 해둡니다.
-#       조달청이 1순위(낙찰자)만 줍니다. 2위 이하 투찰 내역이 없습니다.
-#       그래서 «실제 1순위보다 낮았다» 까지만 알 수 있고,
-#       적격심사의 비가격 요소(경영상태·시공경험)는 반영하지 못합니다.
-#       실제 승률은 여기 숫자보다 낮습니다. 화면에도 그렇게 적습니다.
+#     ⚠️ 한계를 분명히 해둡니다. (2026-09-06 정정)
+#       예전 주석에는 «조달청이 1순위만 준다» 고 적혀 있었습니다. **틀렸습니다** —
+#       조달청은 개찰 순위를 줍니다(공고번호로 물으면 옵니다, CLAUDE.md 2026-09-02).
+#       이 시뮬레이션이 순위를 안 쓰는 이유는 다른 데 있습니다: 누적 CSV 에
+#       순위 칸이 없고, 순위는 최근 개찰부터 채워 넣는 중이라 30일 창을 다 덮지 못합니다.
+#       그래서 «실제 1순위보다 낮았고 하한을 넘겼나» 까지만 봅니다.
+#       그게 곧 «가격 1순위» 인지는 QUAL_N/QUAL_SKIP 으로 실제로 세어 화면에 적습니다.
+#       남는 한계는 **우리 회사의 적격심사 점수**(경영상태·시공경험)입니다.
 # ─────────────────────────────────────────────
 SIM_DAYS = 30        # 최근 며칠치 개찰로 시험할지
 SIM_CASES = 24       # 화면에 보여줄 사례 수
@@ -1133,8 +1150,6 @@ def build_sim(df, p50):
             A, a_known = float(_av), True
         else:
             A, a_known = a_ratio_of(b / 1.1) * b, False
-        if a_known:
-            a_real += 1
 
         # 예가범위 — 누적 CSV 에 실려 있으면 그 공고 값, 없으면 ±3%
         #   ⚠️ 2026-09-03 이전 줄에는 이 칸이 없습니다. 그때는 전부 ±3% 로 봅니다.
@@ -1176,6 +1191,10 @@ def build_sim(df, p50):
         L = math.ceil((yeje - A) * ll / 100 + A)
 
         n_all += 1
+        # ⚠️ 2026-09-06 — 여기서 셉니다. 예전에는 C·D 를 걸러내기 **전에** 세서
+        #    분모(n_all)보다 커졌고, 화면에 「112.5% 는 그 공고의 실제 A값」 이 떴습니다.
+        if a_known:
+            a_real += 1
         dts.append(r["dt"])
         try:
             _np = int(float(r.get("참가업체수") or 0))
@@ -1225,6 +1244,9 @@ def build_sim(df, p50):
         "win": round(win_all / n_all * 100, 2) if n_all else 0,
         "gap": round(gaps[len(gaps) // 2], 2) if gaps else 0,
         "skip": n_skip,               # C·D 라 채점하지 않은 건수
+        # ★ 「1순위보다 싸면 가격 1순위가 되나」 실측 (위 QUAL_N 설명 참고)
+        "qn": QUAL_N,
+        "qs": QUAL_SKIP,
         # ★ 「무작위로 넣었으면 몇 %」 — 신뢰의 근거는 «오차»가 아니라 «배수» 입니다.
         #   참가 N곳이면 아무렇게나 넣어 1순위가 될 확률은 1/N 입니다.
         "rnd": round(sum(1.0 / x for x in nps) / len(nps) * 100, 2) if nps else 0,
