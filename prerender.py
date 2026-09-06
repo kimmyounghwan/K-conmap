@@ -919,6 +919,11 @@ NY_KINDS = [
     ("그 밖의 내역서", "위 갈래에 안 들어가는 내역 파일입니다."),
 ]
 
+# ── IndexNow 에 «한 번만» 알릴 정적 주소 ──────────────────────────
+#   새로 만든 화면들입니다. 사이트맵에도 있지만 크롤러가 스스로 올 때까지 기다리지 않습니다.
+STATIC_NEW = ["/change", "/change/naeyeok", "/change/excel", "/forms"] + [
+    "/change/naeyeok/" + quote(_k, safe="") for _k, _d in NY_KINDS]
+
 
 def change_naeyeok_kind_page(shell, kind, rows, meta, image=None):
     """/change/naeyeok/{갈래} — 갈래마다 한 장. (2026-09-06)
@@ -1370,11 +1375,25 @@ def main():
         fresh, mark = indexnow.new_since(baked, _st.get("mark"))
         paths = [f"/daily/{d}" for d, _ in days[:2]]
         paths += [f"/notice/{quote(str(r.get('no')), safe='')}" for r in fresh]
+        # ⚠️ 2026-09-06 — 여기가 비어서 **내역서 페이지가 한 장도 안 나갔습니다.**
+        #    new_since 는 «새 개찰» 만 봅니다. 새로 만든 정적 페이지와,
+        #    이미 있던 공고인데 «내역서가 붙어 내용이 새로 생긴 것» 은 차례가 안 옵니다.
+        #    실측 /indexnow-status.json: 한 회차에 보낸 주소가 6개뿐이었습니다.
+        st_new, _ = indexnow.take_once("static", STATIC_NEW, n=len(STATIC_NEW))
+        ny_paths = [f"/notice/{safe_no(r.get('no'))}" for r in baked
+                    if str(r.get("no") or "") in nydocs and safe_no(r.get("no"))]
+        ny_new, ny_left = indexnow.take_once("naeyeok", ny_paths)
+        paths += st_new + ny_new
         n_q = indexnow.queue(paths, mark=mark)
-        print(f"  · IndexNow 다음 회차에 알릴 주소 {n_q:,}개 (새 개찰 {len(fresh):,}건)")
+        print(f"  · IndexNow 다음 회차에 알릴 주소 {n_q:,}개 "
+              f"(새 개찰 {len(fresh):,} · 처음 알리는 정적 {len(st_new):,} · "
+              f"내역서 {len(ny_new):,} · 내역서 남은 것 {ny_left:,})")
         # 로그를 못 볼 때를 대비해 결과를 사이트에 남깁니다 → /indexnow-status.json
         # (robots.txt 가 /data/ 를 막고 있어 뿌리에 둡니다 — 확인 도구가 못 읽었습니다)
         indexnow.write_report(DIST, sent, {"n": n_q, "새개찰": len(fresh),
+                                           "처음알리는정적": len(st_new),
+                                           "내역서": len(ny_new),
+                                           "내역서남은것": ny_left,
                                            "예": paths[:5]})
     except Exception as e:
         print(f"  · IndexNow 목록 만들기 실패 ({type(e).__name__}: {e}) — 넘어갑니다")

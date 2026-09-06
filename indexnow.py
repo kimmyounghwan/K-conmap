@@ -52,6 +52,11 @@ ENDPOINTS = [
 MAX_URLS = 2000          # 규약 상한은 10,000. 한 회차에 그만큼 새로 생기지 않습니다.
 ALWAYS = ["/", "/first", "/live", "/daily"]   # 내용이 계속 바뀌는 자리
 
+# 한 회차에 «처음 알리는» 주소를 몇 개까지 낼지.
+#   내역서가 붙은 공고가 4,100장인데 한꺼번에 찔러 넣으면 그게 스팸입니다.
+#   120개씩이면 하루(21회차)에 2,500장, 이틀이면 다 나갑니다.
+DRIP = int(os.environ.get("INDEXNOW_DRIP", "120"))
+
 
 def ensure_key_file(dist=None):
     """`{키}.txt` 를 만들어 둡니다.
@@ -108,6 +113,39 @@ def queue(paths, mark=None):
         st["mark"] = mark
     _save(st)
     return len(out)
+
+
+def take_once(kind, cands, n=None):
+    """**한 번도 안 알린 주소**만 앞에서부터 몇 개. 알린 것은 상태에 적어 다시 안 보냅니다.
+
+    왜 필요한가 (2026-09-06):
+      `new_since` 는 «새 개찰» 만 봅니다. 그래서
+        · 새로 만든 정적 페이지(/change/naeyeok/{갈래} 6장, /forms …)
+        · 이미 있던 공고인데 **내역서가 붙어 내용이 새로 생긴 것** 4,100장
+      은 영영 차례가 안 왔습니다. 실측: 한 회차에 보낸 주소가 6개뿐이었습니다.
+
+    돌려주는 것: (이번에 낼 것, 아직 안 낸 것 수)
+    """
+    st = _load()
+    once = st.get("once")
+    if not isinstance(once, dict):
+        once = {}
+    done = set(once.get(kind) or [])
+    cap = DRIP if n is None else n
+    out = []
+    for c in cands:
+        if not c or c in done:
+            continue
+        out.append(c)
+        done.add(c)
+        if len(out) >= cap:
+            break
+    left = sum(1 for c in cands if c and c not in done)
+    if out:
+        once[kind] = sorted(done)
+        st["once"] = once
+        _save(st)
+    return out, left
 
 
 def new_since(rows, mark, key="dt"):
