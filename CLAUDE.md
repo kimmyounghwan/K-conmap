@@ -3250,3 +3250,59 @@ CLAUDE.md 「추첨번호」 절에서 «기준선을 같은 조건에서 만들
 `/tmp/srv.py` 가 **퍼센트 인코딩을 안 풀어서** `/agency/강원특별자치도 강릉시 상하수도사업소` 를
 못 찾고 index.html 을 돌려주고 있었다. 미리 구운 페이지가 멀쩡한데 «❌» 로 보였다.
 파이어베이스는 인코딩을 풀어서 파일을 찾는다 → 시험 서버도 그렇게 맞췄다.
+
+## 🔐 DB 규칙 배포 완료 · Storage 는 «요금제» 벽에 막혔다 (2026-09-06)
+
+소장님: 「파이어베이스 로그인 했어. 클로드가 해줘」
+
+### 한 것 — 실시간 DB 규칙 배포 ✅ (댓글이 살아났다)
+콘솔 규칙 편집기에 5.5KB 를 붙여넣는 대신 **소장님 윈도우의 firebase CLI** 로 올렸다.
+`3_규칙올리기.bat` (BOM+CRLF, 1_푸시하기.bat 과 같은 꼴) 을 만들어 더블클릭:
+
+    firebase database:get / --shallow   ← 먼저 «지금 뭐가 들어 있나» 를 찍어 백업
+    firebase deploy --only database
+    → rules syntax ... is valid / released successfully / exit 0
+
+**왜 붙여넣기가 아니라 CLI 인가**: 저장소의 검증된 파일이 그대로 올라가고, 손으로 자르거나
+붙여넣다 실패할 여지가 없다. 콘솔 편집기는 Angular 커스텀 컴포넌트라 자동 입력도 잘 안 먹는다.
+
+### 배포 전에 확인한 것 — «병합본» 이 진짜 병합본인가
+`database:get / --shallow` 로 라이브 DB 의 최상위 노드를 찍어 봤다:
+
+    announcements · stats · bid_master · archive_live · archive_1st · users
+    service_1st · service_live · job_pins · jobs · backup_notices · archive_10m · sarasa
+
+우리 규칙 파일이 이름을 대는 것: stats · sarasa · archive_1st · archive_live · service_1st ·
+service_live · jobs · job_pins · job_del (+ 새로 user_forms · comments 계열).
+**이름이 없는 5개**(announcements · bid_master · users · backup_notices · archive_10m)는
+루트 규칙(`auth != null && 익명 아님`)을 그대로 따른다 — 전에도 그랬다. 그래서 잃는 것이 없다.
+배포 뒤 `stats.json?shallow=true` 가 그대로 읽히는 것으로 옛 Streamlit 쪽이 멀쩡함을 확인했다.
+
+### 확인 (라이브)
+| 본 것 | 결과 |
+|---|---|
+| `/comments.json` (통째로) | **Permission denied** ← 설계대로. 전체 덤프는 막아야 한다 |
+| `/comments/TEST123.json` (공고 하나) | `null` ✅ 읽힘 |
+| `/stats.json?shallow` | ✅ 읽힘 (옛 사이트 안 깨짐) |
+| 1순위 카드 → 「💬 댓글 보기·쓰기」 | ✅ 「아직 댓글이 없습니다. 첫 댓글을 남겨 보세요.」 — 오류 문구 사라짐 |
+
+### ⛔ Storage 는 못 켰다 — Blaze(종량제) 요금제가 있어야 한다
+「시작하기」 → 버킷 옵션(gs://k-conmap.firebasestorage.app · **무료 위치** US-EAST1 · Standard)
+→ 보안 규칙(**프로덕션 모드** 기본 선택) → 「만들기」 를 눌렀지만 만들어지지 않았고,
+페이지를 다시 여니 이렇게 떠 있었다:
+
+    「Storage 기능을 사용하려면 프로젝트의 요금제를 업그레이드하세요.」 [프로젝트 업그레이드]
+
+`firebasestorage.googleapis.com/v0/b/k-conmap.firebasestorage.app/o` → **404** (버킷 없음)로 재확인.
+**요금제 업그레이드는 결제 수단을 거는 일이라 내가 대신 누르지 않는다. 소장님 결정이다.**
+
+→ 그래서 배포도 `--only database` 만 했다(`--only storage` 를 넣었으면 버킷이 없어 실패했을 것).
+→ **댓글은 지금 된다. 「서식 올리기」만 Blaze 를 켠 뒤에 살아난다.**
+
+⚠️ 켜기로 하면 **예산 알림을 같이 걸 것.** 2026년에 Gemini API 로 ₩144,203 이 나온 전례가 있다.
+   Blaze 는 무료 한도(저장 5GB·다운로드 1GB/일)가 그대로 있고 그 안이면 0원이지만, 상한이 없다.
+
+### 곁들여 — CDP 로 오래 두드린 탭은 죽는다 (오늘 두 번째)
+같은 탭에서 계속 확인하다 보면 fetch 가 멈추고 지연 로딩 묶음을 안 받는다.
+스크린샷도 «script injection timed out» 이 난다. **사이트 문제가 아니다.**
+→ 확인이 이상하면 **새 탭을 열어 다시 해 본다.** 이번에도 새 탭에서는 한 번에 정상이었다.
