@@ -136,7 +136,14 @@ def read_shell():
         print("⛔ web/dist/index.html 이 없습니다 — 먼저 npm run build 를 하세요.")
         sys.exit(2)
     with open(p, encoding="utf-8") as f:
-        return f.read()
+        s = f.read()
+    # (2026-09-06) 홈(index.html)에도 본문을 굽게 되면서, prerender 를 두 번 돌리면
+    #    «이미 구운 것» 을 껍데기로 읽습니다. 그러면 <div id="root"></div> 가 없어
+    #    본문이 **조용히** 빠집니다. 조용히 틀리느니 멈춥니다.
+    if '<div id="root"></div>' not in s:
+        print("[STOP] web/dist/index.html 이 이미 구워진 것 같습니다 - npm run build 를 다시 하세요.")
+        sys.exit(2)
+    return s
 
 
 # 크롤러가 «어디로 갈지» — 미리 구운 HTML 에는 하단 탭이 없습니다(React 가 그립니다).
@@ -158,6 +165,60 @@ def nav_html(here=""):
             out.append(f'<a class="navi" href="{esc(u)}">{esc(name)}</a>')
     out.append("</div></div>")
     return "".join(out)
+
+
+def link_card(title, items, note=None):
+    """items = [(주소, 왼쪽글, 오른쪽글)] - 주소가 없는 줄은 아예 뺍니다.
+
+    ★ 왜 만들었나 (2026-09-06 실측)
+      서치콘솔: 색인 1장 · 「발견됨 - 현재 색인이 생성되지 않음」 1,145장.
+      «발견됨» 은 «크롤링됨» 이 아닙니다 - 구글이 사이트맵으로 주소를 알기만 하고
+      **한 번도 받아 가지 않았다** 는 뜻입니다. 크롤링 통계는 90일 동안 32회,
+      그나마 97%가 «새로고침»(=이미 아는 페이지 다시 받기) 이었습니다.
+      그런데 그 «이미 아는 페이지» 인 홈의 미리 구운 HTML 에는 **링크가 0개**였습니다.
+      구글이 유일하게 받아 가는 문서가 막다른 길이었던 것입니다.
+      -> 홈·탭에 «구워 둔 주소로 가는 링크» 를 답니다. 사이트맵은 «있다» 는 알림일 뿐,
+        크롤러는 링크를 타고 안쪽으로 들어갑니다.
+    """
+    items = [(u, a, b) for u, a, b in items if u and a]
+    if not items:
+        return ""
+    out = [f'<div class="card"><div class="sec-title" style="margin:0 0 6px">{esc(title)}</div>']
+    if note:
+        out.append('<div style="font-size:12px;color:var(--muted);margin:0 0 8px;'
+                   f'line-height:1.6">{esc(note)}</div>')
+    for u, a, b in items:
+        right = f'<span class="r">{esc(b)}</span>' if b else ""
+        out.append(f'<div class="row"><div class="grow">'
+                   f'<a class="t" href="{esc(u)}">{esc(a)}</a></div>{right}</div>')
+    out.append("</div>")
+    return "".join(out)
+
+
+def lead_card(h1, paras):
+    """제목 한 줄 + 문단 몇 개. 없는 것은 지어내지 않습니다."""
+    out = [f'<div class="card"><h1 style="font-size:19px;font-weight:800;'
+           f'margin:0;line-height:1.4">{h1}</h1>']
+    for t in paras:
+        if t:
+            out.append('<p style="font-size:13.5px;line-height:1.75;margin:10px 0 0">'
+                       + t + "</p>")
+    out.append("</div>")
+    return "".join(out)
+
+
+def shell_meta(shell):
+    """껍데기(web/index.html)에 적힌 제목·설명을 그대로 씁니다 - 두 벌로 적지 않으려고."""
+    t, d = "K-건설맵", ""
+    i, j = shell.find("<title>"), shell.find("</title>")
+    if i >= 0 and j > i:
+        t = shell[i + 7:j].strip()
+    mark = '<meta name="description" content="'
+    k = shell.find(mark)
+    if k >= 0:
+        s = k + len(mark)
+        d = shell[s:shell.find('"', s)].strip()
+    return t, d
 
 
 def page(shell, path, title, desc, body, image=None, jsonld=None):
@@ -1297,10 +1358,10 @@ def main():
                               "num": num, "date_full": date_full})
     og.default()
 
-    for path, title, desc, card in TABS:
-        img = og.tab(path.strip("/"), *card)
-        write(path.lstrip("/") + ".html", page(shell, path, title, desc, "", img))
-        made += 1
+    # 탭·홈은 **맨 끝** 에서 굽습니다 - 그 안에 걸 링크가 «실제로 구운 주소» 인지
+    #    알려면 기관·업체·공고를 다 구운 뒤여야 하기 때문입니다.
+    #    (그림은 여기서 미리 만들어 둡니다 - 자료와 상관없습니다)
+    tab_img = {path: og.tab(path.strip("/"), *card) for path, _t, _d, card in TABS}
 
     # ── 건설 서식 ── 변하지 않는 자료라 매 회차 다시 구워도 부담이 없습니다(13장).
     forms = load_forms()
@@ -1499,6 +1560,85 @@ def main():
                                            "예": paths[:5]})
     except Exception as e:
         print(f"  · IndexNow 목록 만들기 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
+
+    # -- 홈 · 탭 -- 여기서 거는 링크는 «방금 구운 주소» 뿐입니다.
+    ov = load("overview.json") or {}
+    ag_rows = [(L.agency(r[0]), r[0], f"{num(r[1])}건")
+               for r in (top or [])[:N_AGENCY] if len(r) >= 2 and safe(r[0])]
+    co_rows = [(L.corp(r[0]), (r[3] if len(r) >= 4 else r[0]), f"{num(r[1])}건")
+               for r in (ctop or [])[:N_CORP] if len(r) >= 2 and safe(r[0])]
+    done_rows, open_rows = [], []
+    for r in baked:
+        no = safe_no(r.get("no"))
+        if not no:
+            continue
+        u = "/notice/" + quote(no, safe="")
+        nm = str(r.get("name") or no)
+        if r.get("win"):
+            if len(done_rows) < 24:
+                done_rows.append((u, nm, pct(r.get("rate"), 3) or date_full(r.get("dt")) or ""))
+        elif len(open_rows) < 24:
+            open_rows.append((u, nm, won_short(r.get("base")) or date_full(r.get("close")) or ""))
+    day_rows = [(f"/daily/{d}", f"{d} 개찰 결과", f"{num(c)}건") for d, c in days[:12]]
+    gd_rows = [(f'/guide/{t["slug"]}', t["title"], "실측") for t in (gtopics or [])]
+    ch_rows = [(f'/change/{t["slug"]}', t["title"], "") for t in (topics or [])[:8]]
+    fm_rows = [(f'/forms/{f["slug"]}', f["title"], "엑셀") for f in (forms or [])[:10]]
+
+    c_done = link_card("🏆 최근 개찰 결과", done_rows[:12],
+                       "누가 얼마에 땄는지 - 낙찰업체·투찰률·기초금액을 공고마다 한 장으로 봅니다.")
+    c_open = link_card("📋 마감 전 입찰 공고", open_rows[:12],
+                       "기초금액이 실린 공고는 권장 투찰금액을 바로 냅니다.")
+    c_ag = link_card("🏛 낙찰 기록이 많은 발주기관", ag_rows[:20])
+    c_co = link_card("🏢 낙찰 실적이 많은 업체", co_rows[:20])
+    c_day = link_card("📅 날짜별 개찰 성적표", day_rows)
+    c_gd = link_card("📚 입찰 알아보기", gd_rows)
+    c_ch = link_card("🧾 설계변경", ch_rows)
+    c_fm = link_card("📄 건설 서식 내려받기", fm_rows)
+
+    span = ""
+    if ov.get("from") and ov.get("to"):
+        span = f'({esc(ov["from"])} ~ {esc(ov["to"])})'
+    p1 = []
+    if ov.get("rows"):
+        p1.append(f'조달청 나라장터 공사 개찰 <b>{num(ov["rows"])}건</b>{span}을 모았습니다.')
+    if ov.get("agencies") and ov.get("corps"):
+        p1.append(f'발주기관 <b>{num(ov["agencies"])}곳</b> · 업체 '
+                  f'<b>{num(ov["corps"])}곳</b> 의 낙찰 기록을 회원가입 없이 무료로 봅니다.')
+    home = lead_card("K-건설맵 - 공공공사 입찰 투찰금액 계산",
+                     [" ".join(p1) or None,
+                      "공고를 고르면 기초금액·추정가격·A값·낙찰하한율이 자동으로 채워지고, "
+                      "권장 투찰금액이 바로 나옵니다. 사정률은 투찰 뒤에 추첨으로 정해지므로 "
+                      "«실격이냐»는 미리 단정하지 않고 확률로 적습니다."])
+    home += c_done + c_open + c_ag + c_co + c_day + c_gd + c_ch + c_fm
+    h_title, h_desc = shell_meta(shell)
+    write("index.html", page(shell, "/", h_title, h_desc, home))
+    made += 1
+
+    tab_body = {
+        "/first": (lead_card("오늘의 1순위 개찰 결과",
+                             ["조달청이 공개한 개찰 결과를 모아 공고마다 한 장으로 정리합니다. "
+                              "낙찰업체·투찰률·기초금액·예정가격·참가업체수를 함께 봅니다."])
+                   + c_done + c_day + c_ag),
+        "/live": (lead_card("마감 전 공공 입찰 공고",
+                            ["마감 전 나라장터 공사 공고를 지역·면허로 걸러 봅니다. "
+                             "기초금액이 실린 공고는 카드에서 바로 권장 투찰금액이 나옵니다."])
+                  + c_open + c_ag),
+        "/analysis": (lead_card("발주기관 · 업체 낙찰 분석",
+                                ["발주기관이 어떤 자리인지(투찰률 분포·경쟁 강도)와 "
+                                 "업체가 어디에 강한지를 3년치 개찰 기록으로 봅니다."])
+                      + c_ag + c_co),
+        "/jobs": lead_card("건설 구인구직",
+                           ["건설 현장 인력·장비 구인구직 글을 로그인 없이 올리고 봅니다."]),
+    }
+    for path, title, desc, _card in TABS:
+        write(path.lstrip("/") + ".html",
+              page(shell, path, title, desc, tab_body.get(path, ""), tab_img.get(path)))
+        made += 1
+    _nl = home.count('<a class="t"')
+    print(f"  · 홈 본문 링크 {_nl:,}개 (기관 {len(ag_rows[:20])} · 업체 {len(co_rows[:20])} "
+          f"· 개찰 {len(done_rows[:12])} · 공고 {len(open_rows[:12])})")
+    if _nl < 20:
+        print("  [!] 홈 링크가 20개도 안 됩니다 - 크롤러가 안쪽으로 들어갈 길이 좁습니다.")
 
     print(f"  · 공고·개찰 페이지 {n_no:,}개 (저장소 {len(merged):,}건 중)")
     print(f"  · 개찰 성적표 {n_dy:,}일치 (/daily/)")

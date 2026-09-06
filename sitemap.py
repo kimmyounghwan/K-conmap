@@ -45,8 +45,11 @@ NOTICE = int(os.environ.get("SITEMAP_NOTICES", "500"))   # 공고·개찰. 매�
 MIN_ROWS = 15                                            # 얄팍한 페이지는 아예 넣지 않음
 MIN_CORP = 8                                             # 낙찰 8건 미만 업체는 넣지 않음
 
+# (2026-09-06) /calc 를 뺐습니다. 라우터에서 «/» 와 같은 화면(BaroBid)이라
+#    서버가 돌려주는 문서가 홈과 **바이트까지 같습니다**(실측 2,853B · canonical 도 «/»).
+#    사이트맵에 내면 구글이 «대표 페이지가 따로 있는 중복» 으로 세기만 합니다.
 STATIC = [("/", "1.0", "hourly"), ("/first", "0.9", "hourly"), ("/live", "0.9", "hourly"),
-          ("/calc", "0.8", "weekly"), ("/analysis", "0.8", "weekly"),
+          ("/analysis", "0.8", "weekly"),
           ("/jobs", "0.7", "daily"), ("/about", "0.3", "monthly"),
           ("/privacy", "0.2", "yearly"), ("/contact", "0.3", "yearly"),
           ("/daily", "0.8", "daily"), ("/forms", "0.8", "monthly")]
@@ -65,8 +68,33 @@ GUIDE_JSON = os.path.join(ROOT, "web", "src", "data", "guide.json")
 DAILY = int(os.environ.get("SITEMAP_DAILY", "45"))
 
 
+def _mtime(path, fallback):
+    """파일이 바뀐 날. 없으면 fallback."""
+    try:
+        return datetime.fromtimestamp(os.path.getmtime(path)).strftime("%Y-%m-%d")
+    except Exception:
+        return fallback
+
+
+def _day(v, fallback=None):
+    """'2026-09-04 15:00:00' · '20260904' -> '2026-09-04'"""
+    d = "".join(ch for ch in str(v or "") if ch.isdigit())
+    return f"{d[0:4]}-{d[4:6]}-{d[6:8]}" if len(d) >= 8 else fallback
+
+
 def main():
     today = datetime.now().strftime("%Y-%m-%d")
+    # ★ 2026-09-06 - lastmod 가 1,276개 **전부 오늘** 이었습니다(실측).
+    #   하루 21번 굽는 사이트라 모든 주소가 매번 «오늘 바뀌었다» 고 말합니다.
+    #   구글은 이런 lastmod 를 «믿을 수 없는 신호» 로 보고 통째로 무시합니다.
+    #   -> 실제로 바뀐 날을 씁니다. 기관·업체 페이지는 집계(build_json)를 다시 돌려야
+    #     내용이 바뀌므로 overview.json 의 built 날짜가 정확합니다.
+    _built = today
+    try:
+        with io.open(os.path.join(DATA, "overview.json"), encoding="utf-8") as f:
+            _built = _day(json.load(f).get("built"), today) or today
+    except Exception:
+        pass
     urls = [f"  <url><loc>{SITE}{p}</loc><lastmod>{today}</lastmod>"
             f"<changefreq>{cf}</changefreq><priority>{pr}</priority></url>"
             for p, pr, cf in STATIC]
@@ -81,7 +109,7 @@ def main():
                 continue
             urls.append(
                 f"  <url><loc>{SITE}/agency/{quote(name, safe='')}</loc>"
-                f"<lastmod>{today}</lastmod><changefreq>weekly</changefreq>"
+                f"<lastmod>{_built}</lastmod><changefreq>weekly</changefreq>"
                 f"<priority>0.6</priority></url>")
             n_ag += 1
     else:
@@ -104,7 +132,7 @@ def main():
                 continue
             urls.append(
                 f"  <url><loc>{SITE}/corp/{quote(key, safe='')}</loc>"
-                f"<lastmod>{today}</lastmod><changefreq>weekly</changefreq>"
+                f"<lastmod>{_built}</lastmod><changefreq>weekly</changefreq>"
                 f"<priority>0.5</priority></url>")
             n_co += 1
     else:
@@ -162,9 +190,13 @@ def main():
         no = str(r.get("no") or "")
         if not no or not all(c.isalnum() or c == "-" for c in no):
             continue
+        # 개찰이 끝난 공고는 그 뒤로 안 바뀝니다 - 개찰일을 그대로 씁니다.
+        # 마감 전 공고는 기초금액·A값이 늦게 채워지므로 오늘로 둡니다.
+        _lm = (_day(r.get("dt"), today) if r.get("win") else today)
         urls.append(
             f"  <url><loc>{SITE}/notice/{quote(no, safe='')}</loc>"
-            f"<lastmod>{today}</lastmod><changefreq>weekly</changefreq>"
+            f"<lastmod>{_lm}</lastmod>"
+            f"<changefreq>{'yearly' if r.get('win') else 'daily'}</changefreq>"
             f"<priority>0.5</priority></url>")
         n_no += 1
     if not rows:
@@ -180,8 +212,11 @@ def main():
             seen[d] = seen.get(d, 0) + 1
     n_dy = 0
     for d in sorted(seen, reverse=True)[:DAILY]:
-        urls.append(f"  <url><loc>{SITE}/daily/{d}</loc><lastmod>{today}</lastmod>"
-                    f"<changefreq>monthly</changefreq><priority>0.6</priority></url>")
+        # 그 날의 개찰만 담긴 장이라, 지나간 날짜는 다시 안 바뀝니다.
+        urls.append(f"  <url><loc>{SITE}/daily/{d}</loc>"
+                    f"<lastmod>{today if d >= today else d}</lastmod>"
+                    f"<changefreq>{'daily' if d >= today else 'yearly'}</changefreq>"
+                    f"<priority>0.6</priority></url>")
         n_dy += 1
 
     # ── 건설 서식 ─────────────────────────────────
@@ -190,7 +225,7 @@ def main():
         with io.open(FORMS_JSON, encoding="utf-8") as f:
             for fm in (json.load(f) or {}).get("forms") or []:
                 urls.append(f'  <url><loc>{SITE}/forms/{quote(fm["slug"], safe="")}</loc>'
-                            f'<lastmod>{today}</lastmod>'
+                            f'<lastmod>{_mtime(FORMS_JSON, today)}</lastmod>'
                             f'<changefreq>yearly</changefreq><priority>0.6</priority></url>')
                 n_fm += 1
     except Exception as e:
@@ -215,7 +250,8 @@ def main():
         for u in (["/change", "/change/excel", "/change/naeyeok", "/change/calc"]
                   + [f"/change/naeyeok/{quote(k, safe='')}" for k in ny]
                   + [f'/change/{t["slug"]}' for t in tops]):
-            urls.append(f'  <url><loc>{SITE}{u}</loc><lastmod>{today}</lastmod>'
+            urls.append(f'  <url><loc>{SITE}{u}</loc>'
+                        f'<lastmod>{_mtime(CHANGE_JSON, today)}</lastmod>'
                         f'<changefreq>monthly</changefreq><priority>0.7</priority></url>')
             n_cg += 1
     except Exception as e:
@@ -228,7 +264,8 @@ def main():
         with io.open(GUIDE_JSON, encoding="utf-8") as f:
             gtops = (json.load(f) or {}).get("topics") or []
         for u in ["/guide"] + [f'/guide/{t["slug"]}' for t in gtops]:
-            urls.append(f'  <url><loc>{SITE}{u}</loc><lastmod>{today}</lastmod>'
+            urls.append(f'  <url><loc>{SITE}{u}</loc>'
+                        f'<lastmod>{_mtime(GUIDE_JSON, today)}</lastmod>'
                         f'<changefreq>monthly</changefreq><priority>0.7</priority></url>')
             n_gd += 1
     except Exception as e:
