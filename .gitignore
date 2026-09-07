@@ -86,3 +86,10 @@ _to_delete/
 data/store/naeyeok/
 web/public/naeyeok/
 _kcm_찌꺼기/
+# ── 회차 기록 (2026-09-07) ────────────────────────────────
+# health.json : 회차마다 «조달청에서 실제로 받았는가» 를 적는 파일.
+#   저장소에 넣지 않습니다 — 회차 사이 보관은 Actions 의 cache(data/store)가 맡습니다.
+#   커밋하면 checkout 이 옛 기록을 덮어써 «연속 실패 횟수» 가 엉킵니다.
+# indexnow.json : 검색엔진에 이미 알린 주소 목록. 같은 이유로 넣지 않습니다.
+data/store/health.json
+data/store/indexnow.json

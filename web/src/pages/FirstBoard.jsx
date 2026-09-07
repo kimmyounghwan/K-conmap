@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getOverview } from '../lib/data.js'
+import FreshBar from '../Fresh.jsx'
 import NoticeDetail, { scoreState, NoticeLink } from '../NoticeDetail.jsx'
 import { useBoard } from '../lib/useBoard.js'
 import { Skeleton, Empty, Tile } from '../components.jsx'
@@ -60,7 +61,6 @@ export default function FirstBoard() {
   const licOptions = useMemo(() => licList(info), [info])
   const noLic = useMemo(() => licNoneCount(info), [info])
   const toggleLic = (c) => setLics((v) => (v.includes(c) ? v.filter((x) => x !== c) : [...v, c]))
-  const newest = all.length ? String(all[0].dt || '').slice(0, 10) : ''
 
   return (
     <>
@@ -78,12 +78,7 @@ export default function FirstBoard() {
         </div>
       )}
 
-      {newest && (
-        <div className="freshbar">
-          <b>최근 개찰 {newest}</b>
-          <span>개찰의 69%는 오전 11시에 열립니다 · 결과는 조달청에 올라오는 대로 30분마다 받아옵니다{ov?.built ? ` · 마지막 집계 ${ov.built}` : ''}</span>
-        </div>
-      )}
+      <FreshBar kind="first" extra="개찰의 69%는 오전 11시에 열립니다" />
 
       <input
         value={q}

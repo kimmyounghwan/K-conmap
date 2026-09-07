@@ -8,6 +8,7 @@ import { NoticeLink } from '../NoticeDetail.jsx'
 import Comments from '../Comments.jsx'
 import { quickBid, P50_FALLBACK, pickOdds, stamp14, nowStamp, canBid } from '../lib/bidmath.js'
 import { getOverview, getBidIndex, indexRows } from '../lib/data.js'
+import FreshBar from '../Fresh.jsx'
 import { winGrade } from '../lib/winodds.js'
 import { won, wonShort, num, dateTime, dday, REGIONS, inRegion } from '../lib/fmt.js'
 import { loadLicCodes, saveLicCodes, loadLicNone, saveLicNone,
@@ -169,6 +170,8 @@ export default function LiveBoard() {
       <div className="sec-title" style={{ marginTop: 14 }}>
         📋 공사 입찰공고 <span className="count">· 나라장터 · 카드를 누르면 기초금액</span>
       </div>
+
+      <FreshBar kind="live" />
 
       <input value={q} onChange={(e) => setQ(e.target.value)}
         placeholder="공고명 · 발주기관 검색" style={{ marginBottom: 10 }} />
@@ -408,7 +411,7 @@ export default function LiveBoard() {
                         ) : (
                           <>아직 <b>바로투찰 계산이 안 됩니다</b> — 조달청 자료에
                             «{missingOf(r).join(' · ')}» 이 아직 안 실려 왔습니다.
-                            30분마다 다시 받아오니 조금 뒤에 열어보세요.</>
+                            자동 갱신 때마다 다시 받아오니 조금 뒤에 열어보세요.</>
                         )}
                       </div>
                     )}

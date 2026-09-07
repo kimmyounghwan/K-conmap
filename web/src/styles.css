@@ -1240,11 +1240,17 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
 .todaybar .v .n { font-size: 11px; font-weight: 700; opacity: .7; }
 
 /* 1순위 현황판 - 최신 개찰일 안내 */
+/* 자료 기준 시각 줄. 색은 전부 토큰이라 다크모드가 따라옵니다
+   (전에는 #f0f7ff 같은 값이 박혀 있어 어두운 화면에서 혼자 하얗게 떴습니다). */
 .freshbar{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;
-  background:#f0f7ff;border:1px solid #cfe3ff;border-radius:10px;
-  padding:8px 12px;margin:0 0 10px;font-size:13px;color:#2f4a6b}
-.freshbar b{color:#0b4da2;font-weight:700}
-.freshbar span{color:#5b7495;font-size:12.5px}
+  background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:10px;
+  padding:8px 12px;margin:0 0 10px;font-size:13px;color:var(--text-2)}
+.freshbar b{color:var(--accent);font-weight:700}
+.freshbar span{color:var(--muted);font-size:12.5px}
+/* 자료가 멈췄을 때. 색만으로 말하지 않습니다 — «N분째»를 글자로 같이 적습니다. */
+.freshbar.warn{background:var(--warn-soft);border-color:var(--warn)}
+.freshbar.warn b{color:var(--warn)}
+.freshbar.warn span{color:var(--text-2)}
 
 /* ==========================================================
    바로투찰 2026-09-02 보강

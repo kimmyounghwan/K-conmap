@@ -166,6 +166,55 @@ jobs:
           fi
 
       # ══════════════════════════════════════════════════════════════
+      # 이번 회차가 «제 일을 했나» — collect.py 가 적어 둔 health.json 을 봅니다
+      #
+      #   2026-09-07 의 구멍: 조달청 연결이 안 돼 한 줄도 못 받았는데
+      #   collect.py 는 정상 종료하고, 집계·빌드·배포는 그대로 돌아서
+      #   **초록 체크가 뜨고 메일도 안 왔습니다.** 자료만 5시간 멈췄습니다.
+      #   → 이제 여기서 «받았는가» 를 직접 보고, 두 번 연속 비면 일부러 빨간불을 냅니다
+      #     (GitHub 이 실패한 워크플로를 메일로 알려줍니다 — 비밀키가 따로 필요 없습니다).
+      #   ⚠️ 배포 «뒤» 에 둡니다. 수집이 실패해도 사이트는 올려야 하니까요.
+      # ══════════════════════════════════════════════════════════════
+      - name: 수집 상태 확인
+        id: health
+        if: ${{ !cancelled() }}
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os, datetime
+          ok, fails, why = 0, 1, "수집 단계를 마치지 못했습니다"
+          try:
+              h = json.load(open("data/store/health.json", encoding="utf-8"))
+              at = datetime.datetime.strptime(h["at"], "%Y-%m-%d %H:%M")
+              now = datetime.datetime.utcnow() + datetime.timedelta(hours=9)
+              # 이번 회차가 쓴 게 맞는지 (collect.py 가 터지면 지난 회차 것이 남아 있습니다)
+              if (now - at).total_seconds() > 3600:
+                  fails = int(h.get("fails") or 0) + 1
+                  why = "이번 회차가 상태를 기록하지 못했습니다 (기록 시각 %s)" % h["at"]
+              else:
+                  ok = 1 if h.get("ok") else 0
+                  fails = int(h.get("fails") or 0)
+                  why = h.get("why") or ""
+          except Exception as e:
+              why = "상태 파일을 읽지 못했습니다 (%s)" % type(e).__name__
+          print("ok=%d" % ok)
+          print("fails=%d" % fails)
+          print("why=%s" % why.replace("\n", " "))
+          import sys
+          print("== 수집 상태: %s / 연속 실패 %d회 / %s" % ("정상" if ok else "실패", fails, why or "-"),
+                file=sys.stderr)
+          PY
+
+      - name: 연속 실패 알림 (빨간불 = 메일)
+        if: ${{ !cancelled() && steps.health.outputs.fails >= 2 }}
+        run: |
+          echo "::error::조달청 수집이 ${{ steps.health.outputs.fails }}회 연속 비었습니다 — ${{ steps.health.outputs.why }}"
+          echo ""
+          echo "  이 빨간불은 «사이트가 죽었다» 가 아닙니다."
+          echo "  사이트는 그대로 뜨지만, 새 공고·개찰이 안 들어오고 있다는 뜻입니다."
+          echo "  대부분 조달청 쪽 일시 장애입니다 — 다음 회차(5분 뒤)가 스스로 다시 시도합니다."
+          exit 1
+
+      # ══════════════════════════════════════════════════════════════
       # 다음 회차를 스스로 부른다 — GitHub 예약이 하루 3번밖에 안 돌아서 (2026-09-07)
       #
       #   예약(cron)을 몇 번 걸든 실제로는 하루 3번쯤만 돕니다 (실측, 예약 회차만):
@@ -209,6 +258,18 @@ jobs:
           if [ "${Q:-0}" -gt 0 ] || [ "${P:-1}" -gt 1 ]; then
             echo "이미 다른 회차가 잡혀 있습니다 — 부르지 않습니다"; exit 0
           fi
-          echo "25분 뒤 다음 회차를 부릅니다 (한국시간 $(TZ=Asia/Seoul date '+%H:%M') 기준)"
-          sleep 1500
+          # 조달청에서 한 줄도 못 받은 회차면 25분이 아니라 5분 뒤에 다시 부릅니다.
+          # ⚠️ 다만 3회까지만 서두릅니다. 조달청이 몇 시간 죽어 있을 때
+          #    5분마다 두드리면 호출 한도만 태웁니다 (실제 장애는 대개 한 시간짜리였습니다).
+          W=1500
+          if [ "${{ steps.health.outputs.ok }}" != "1" ]; then
+            if [ "${{ steps.health.outputs.fails }}" -le 3 ] 2>/dev/null; then
+              W=300
+              echo "이번 회차는 조달청에서 한 줄도 못 받았습니다 (연속 ${{ steps.health.outputs.fails }}회) — 5분 뒤에 다시 부릅니다"
+            else
+              echo "연속 ${{ steps.health.outputs.fails }}회째 비었습니다 — 조달청 쪽 장애로 보고 평소 간격(25분)으로 돌아갑니다"
+            fi
+          fi
+          echo "${W} 초 뒤 다음 회차를 부릅니다 (한국시간 $(TZ=Asia/Seoul date '+%H:%M') 기준)"
+          sleep "$W"
           gh workflow run update.yml --ref "${{ github.ref_name }}" && echo "▶ 다음 회차를 불렀습니다"

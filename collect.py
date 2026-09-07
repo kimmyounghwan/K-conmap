@@ -432,6 +432,8 @@ def extra_amounts(item):
 PAGE_ROWS = 999          # 조달청 한 쪽 최대
 PAGE_CAP = 8             # 하루 최대 8쪽(7,992건). 여기까지 차면 진단(diag)에 남깁니다
 DAYS_LOG = os.path.join(STORE, "days.json")
+# 회차마다 «제 일을 했는지» 를 적어 두는 곳 (Actions 사슬·알림·화면이 같이 읽습니다)
+HEALTH_LOG = os.path.join(STORE, "health.json")
 BACK_DAYS = 14           # 빠진 날을 얼마나 거슬러 올라가 찾을지
 BACK_MAX = 4             # 한 회차에 덧붙일 «빠진 날» 최대 개수
 
@@ -484,6 +486,79 @@ def save_days(v):
             json.dump(v, f, ensure_ascii=False)
     except Exception as e:
         print(f"    ! 받은 날짜 기록 실패 ({type(e).__name__})")
+
+
+def load_health():
+    try:
+        with io.open(HEALTH_LOG, encoding="utf-8") as f:
+            v = json.load(f)
+        return v if isinstance(v, dict) else {}
+    except Exception:
+        return {}
+
+
+def write_health(first, live, added):
+    """이번 회차가 «제 일을 했는지» 를 한 파일에 적습니다.
+
+    세 곳이 이 파일 하나만 봅니다 (같은 판단을 세 곳에 따로 적지 않으려고).
+      · Actions 사슬 — 실패한 회차면 25분이 아니라 5분 뒤에 다시 부릅니다
+      · Actions 알림 — 연속 2회 실패면 메일로 알립니다
+      · 사이트 화면 — 「자료 기준 시각」, 오래되면 경고
+
+    ⚠️ overview.json 의 built 를 «갱신 시각» 으로 쓰면 안 됩니다.
+       집계(build_json)와 빌드는 수집이 실패해도 그대로 돕니다. 그래서 조달청에서
+       한 줄도 못 받은 회차도 화면에는 «방금 갱신» 으로 보입니다.
+       2026-09-07 이 정확히 그랬습니다 — 사이트는 멀쩡한데 자료만 5시간 멈춰 있었습니다.
+       여기에는 «조달청에서 실제로 받았는가» 와 «자료의 가장 최근 날짜» 를 적습니다.
+    """
+    if NO_NET:                     # --exportonly 처럼 일부러 안 부른 회차는 성적에 넣지 않습니다
+        return
+    now = datetime.now(KST)
+    got_f = int((added or {}).get("first") or 0)
+    got_l = int((added or {}).get("live") or 0)
+    weekday = now.weekday() < 5    # 토·일은 한 줄도 안 와도 정상입니다
+
+    if NET_DOWN:
+        ok, why = False, "조달청에 연결하지 못했습니다"
+    elif got_f + got_l == 0 and weekday:
+        ok, why = False, "조달청이 한 줄도 주지 않았습니다"
+    else:
+        ok, why = True, ""
+
+    prev = load_health()
+    fails = 0 if ok else int(prev.get("fails") or 0) + 1
+
+    def newest(store):
+        best = ""
+        for r in (store.get("con") or {}).values():
+            d = dt_digits(r.get("dt"))
+            if d > best:
+                best = d
+        return "%s-%s-%s" % (best[0:4], best[4:6], best[6:8]) if len(best) >= 8 else ""
+
+    v = {
+        "at": now.strftime("%Y-%m-%d %H:%M"),
+        "ok": ok,
+        "why": why,
+        "fails": fails,
+        "got": {"first": got_f, "live": got_l},
+        "newest": {"first": newest(first), "live": newest(live)},
+        "n": {"first": len(first.get("con") or {}), "live": len(live.get("con") or {})},
+    }
+    # 두 곳에 적습니다. store 쪽은 회차 사이에 이어지는 기록(fails 를 세려면 필요),
+    # OUT 쪽은 사이트가 받아 가는 파일입니다.
+    for p in (HEALTH_LOG, os.path.join(OUT, "health.json")):
+        try:
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            with io.open(p, "w", encoding="utf-8") as f:
+                json.dump(v, f, ensure_ascii=False, separators=(",", ":"))
+        except Exception:
+            print("    ! 상태 기록 실패 - %s" % p)
+    mark = "정상" if ok else "실패 %d회째 - %s" % (fails, why)
+    print("  \u2192 health.json  %s / 받은 줄 개찰 %s \u00b7 공고 %s"
+          " / 최신 개찰 %s \u00b7 최신 공고 %s"
+          % (mark, format(got_f, ","), format(got_l, ","),
+             v["newest"]["first"] or "-", v["newest"]["live"] or "-"))
 
 
 def days_to_scan(today, days):
@@ -2890,6 +2965,10 @@ def main():
         export_bandstat(first, live)
     except Exception as e:
         print(f"  ! bandstat 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
+    try:
+        write_health(first, live, added)
+    except Exception as e:
+        print(f"  ! 상태 기록 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
     save_diag()
     print("✅ 수집 완료")
 

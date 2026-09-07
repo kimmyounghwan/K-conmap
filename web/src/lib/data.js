@@ -268,3 +268,13 @@ export function indexRows(idx) {
     return o
   })
 }
+
+/* ── 수집 상태(health.json) — 「지금 보고 있는 것이 언제 것인가」 ──────
+   collect.py 가 «조달청에서 실제로 받았는가» 를 적어 둡니다. 200바이트쯤입니다.
+   ⚠️ 위의 getJSON 캐시를 쓰면 안 됩니다. 캐시 열쇠가 배포 도장(?v=)이라
+      탭을 열어 둔 채로는 새 회차가 돌아도 영영 옛 값을 봅니다 —
+      그러면 화면이 «자료가 멈췄다» 고 거짓말을 합니다. */
+export const getHealth = () =>
+  fetch(`/data/health.json?t=${Date.now()}`)
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null)
