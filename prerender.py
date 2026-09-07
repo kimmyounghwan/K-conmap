@@ -314,6 +314,41 @@ def page(shell, path, title, desc, body, image=None, jsonld=None):
     return h
 
 
+def not_found_page(shell):
+    """진짜 404 를 돌려줄 때 Firebase 가 보여 줄 장. (2026-09-07)
+
+    ★ 왜 필요한가
+      firebase.json 의 rewrite 가 `**` 하나여서 **없는 주소도 200 으로 홈 문서**를 돌려줬습니다.
+      크롤러에게는 «내용이 같은 페이지가 무한히 있는 사이트»(소프트 404)로 보이고,
+      우리 시험에서도 «없는 파일이 200» 이라 진짜 오류가 숨었습니다(실제로 겪은 함정).
+      → rewrite 를 라우트별로 좁히고, 남는 주소는 이 장 + 404 상태로 보냅니다.
+
+    ⚠️ canonical 은 **지웁니다.** 없는 주소가 홈의 사본처럼 보이면 안 됩니다.
+    """
+    h = shell
+    i, j = h.find("<title>"), h.find("</title>")
+    if i >= 0 and j > i:
+        h = h[:i] + "<title>페이지를 찾을 수 없습니다 | K-건설맵" + h[j:]
+    mark = '<meta name="description" content="'
+    k = h.find(mark)
+    if k >= 0:
+        st = k + len(mark)
+        h = h[:st] + "요청하신 주소가 없습니다." + h[h.find('"', st):]
+    k = h.find('<link rel="canonical"')
+    if k >= 0:
+        e = h.find(">", k)
+        if e > k:
+            h = h[:k] + h[e + 1:]
+    h = h.replace("</head>", '  <meta name="robots" content="noindex" />\n  </head>', 1)
+    body = ('<div class="card"><h1 style="font-size:19px;font-weight:800;margin:0">'
+            '페이지를 찾을 수 없습니다</h1>'
+            '<p style="font-size:13.5px;line-height:1.75;margin:10px 0 0">'
+            '주소가 바뀌었거나, 7주가 지나 목록에서 빠진 공고일 수 있습니다. '
+            '아래에서 찾아보세요.</p></div>')
+    return h.replace('<div id="root"></div>',
+                     '<div id="root">' + body + nav_html("") + "</div>", 1)
+
+
 def write(rel_path, text):
     """rel_path 예: 'agency/경상북도 경주시.html' (cleanUrls 로 .html 없이 서비스됩니다)"""
     p = os.path.join(DIST, *rel_path.split("/"))
@@ -356,6 +391,62 @@ def rows_html(title, rows, href=None):
     return "".join(out)
 
 
+def cases_html(title, items, note=None):
+    """items = [(제목, 부제_HTML, 오른쪽글)].
+
+    ★ 2026-09-07 — 기관·업체 페이지 본문이 실측 344자·410자밖에 안 됐습니다.
+      rows_html 은 «왼쪽 한 줄 + 오른쪽» 뿐이라 날짜·상대방·금액을 같이 못 적었습니다.
+    ⚠️ 부제는 링크가 들어갈 수 있어 **HTML 그대로** 씁니다 — 만드는 쪽에서 반드시 esc() 를 거칠 것.
+    """
+    items = [x for x in items if x and x[0]]
+    if not items:
+        return ""
+    out = [f'<div class="card"><div class="sec-title" style="margin:0 0 6px">{esc(title)}</div>']
+    if note:
+        out.append('<div style="font-size:12px;color:var(--muted);margin:0 0 8px;'
+                   f'line-height:1.6">{esc(note)}</div>')
+    for t, sb, right in items:
+        out.append('<div class="row"><div class="grow">'
+                   f'<div class="t">{esc(t)}</div>'
+                   + (f'<div class="d">{sb}</div>' if sb else "")
+                   + "</div>"
+                   + (f'<span class="r">{esc(right)}</span>' if right else "")
+                   + "</div>")
+    out.append("</div>")
+    return "".join(out)
+
+
+def link_or_text(url, text):
+    """주소가 있으면 링크로, 없으면 그냥 글자로. 우리가 구운 주소에만 링크가 붙습니다."""
+    return f'<a href="{esc(url)}">{esc(text)}</a>' if url else esc(text)
+
+
+def year_rows(y):
+    """{'2024': 12, ...} -> [('2024년', '12건')] · 최근 연도부터"""
+    try:
+        items = sorted(((str(k), int(v)) for k, v in (y or {}).items()), reverse=True)
+    except Exception:
+        return []
+    return [(f"{k}년", f"{num(v)}건") for k, v in items]
+
+
+def amt_rows(amt):
+    a = amt or {}
+    return [(nm, won_short(a.get(k))) for nm, k in
+            (("평균", "avg"), ("중앙", "med"), ("가장 큰 건", "max"), ("가장 작은 건", "min"))]
+
+
+def band_rows(h1, top=6):
+    """h1 = [[구간, 건수]] (0.1%p 단위) -> [('89.9% ~ 90.0%', '123건')]"""
+    out = []
+    for row in (h1 or [])[:top]:
+        if len(row) < 2 or not isinstance(row[0], (int, float)):
+            continue
+        lo = float(row[0])
+        out.append((f"{lo:.1f}% ~ {lo + 0.1:.1f}%", f"{num(row[1])}건"))
+    return out
+
+
 class Links:
     """«우리가 구운 주소» 목록. 여기 있는 것에만 링크를 겁니다."""
 
@@ -396,12 +487,40 @@ def agency_page(shell, name, a, image=None, L=None):
         lead.append('<p style="font-size:13.5px;line-height:1.7;margin:10px 0 0">'
                     + " · ".join(facts) + "</p>")
     body = '<div class="card">' + "".join(lead) + "</div>"
+
+    # 한 문단 더 — 있는 값만 씁니다. 없는 것은 그 문장을 아예 안 씁니다.
+    st = a.get("s") or {}
+    sj = a.get("sj") or {}
+    ex = []
+    if st.get("min") is not None and st.get("max") is not None:
+        ex.append(f'투찰률은 <b>{pct(st["min"])}</b> 부터 <b>{pct(st["max"])}</b> 까지 있었고, '
+                  f'가운데 값은 <b>{pct(st.get("med"))}</b> 입니다.')
+    if a.get("sjn") and sj.get("med") is not None:
+        ex.append(f'사정률이 확인된 개찰 <b>{num(a["sjn"])}건</b> 의 가운데 사정률은 '
+                  f'<b>{pct(sj["med"], 3)}</b> 입니다.')
+    if corps and a.get("mono"):
+        ex.append(f'가장 많이 가져간 곳은 <b>{esc(corps[0][0])}</b> 이고, '
+                  f'그 한 곳이 전체의 <b>{a["mono"]}%</b> 를 차지했습니다.')
+    if ex:
+        body += ('<div class="card"><p style="font-size:13.5px;line-height:1.75;margin:0">'
+                 + " ".join(ex) + "</p></div>")
+
+    body += rows_html("📊 낙찰률이 몰린 구간", band_rows(a.get("h1")))
     body += rows_html("🏆 자주 낙찰받은 업체",
-                      [(c[0], f"{num(c[1])}건") for c in corps[:5] if len(c) >= 2],
+                      [(c[0], f"{num(c[1])}건") for c in corps[:12] if len(c) >= 2],
                       href=(L.corp if L else None))
-    body += rows_html("🗂 최근 낙찰 사례",
-                      [(c[0], pct(c[3], 3) or "-") for c in cases[:5]
-                       if len(c) >= 4 and c[0]])
+    body += rows_html("📅 연도별 낙찰", year_rows(a.get("y")))
+    body += rows_html("💰 낙찰금액", amt_rows(a.get("amt")))
+    body += cases_html(
+        "🗂 최근 낙찰 사례",
+        [(c[0],
+          " · ".join(x for x in (
+              date_full(c[1]) if len(c) > 1 else None,
+              (link_or_text(L.corp(c[2]) if L else None, c[2])
+               if len(c) > 2 and c[2] else None),
+              won_short(c[4]) if len(c) > 4 and c[4] else None) if x),
+          (pct(c[3], 3) if len(c) > 3 else None) or "")
+         for c in cases[:12] if c and c[0]])
     ld = ld_graph(ld_crumbs(("K-건설맵", None), ("낙찰 분석", "/analysis"),
                             (name, f"/agency/{name}")))
     return page(shell, f"/agency/{name}", title, desc, body, image, ld)
@@ -432,13 +551,37 @@ def corp_page(shell, key, c, image=None, L=None):
         lead.append('<p style="font-size:13.5px;line-height:1.7;margin:10px 0 0">'
                     + " · ".join(facts) + "</p>")
     body = '<div class="card">' + "".join(lead) + "</div>"
-    body += rows_html("📍 지역별 낙찰", [(r[0], f"{num(r[1])}건") for r in reg[:5]])
+
+    st = c.get("s") or {}
+    ex = []
+    if st.get("min") is not None and st.get("max") is not None:
+        ex.append(f'투찰률은 <b>{pct(st["min"])}</b> 부터 <b>{pct(st["max"])}</b> 까지, '
+                  f'가운데 값은 <b>{pct(st.get("med"))}</b> 입니다.')
+    if reg:
+        ex.append("지역은 " + ", ".join(f"{esc(k)} {v}건" for k, v in reg[:3]) + " 순입니다.")
+    if inst:
+        ex.append("발주기관은 " + ", ".join(f"{esc(i[0])} {i[1]}건"
+                                        for i in inst[:3] if len(i) >= 2) + " 순입니다.")
+    if ex:
+        body += ('<div class="card"><p style="font-size:13.5px;line-height:1.75;margin:0">'
+                 + " ".join(ex) + "</p></div>")
+
+    body += rows_html("📍 지역별 낙찰", [(r[0], f"{num(r[1])}건") for r in reg[:8]])
     body += rows_html("🏛 자주 낙찰받은 기관",
-                      [(i[0], f"{num(i[1])}건") for i in inst[:5] if len(i) >= 2],
+                      [(i[0], f"{num(i[1])}건") for i in inst[:8] if len(i) >= 2],
                       href=(L.agency if L else None))
-    body += rows_html("🗂 최근 낙찰",
-                      [(x[0], date_full(x[1]) or "-") for x in cases[:5]
-                       if len(x) >= 2 and x[0]])
+    body += rows_html("📅 연도별 낙찰", year_rows(c.get("y")))
+    body += rows_html("💰 낙찰금액", amt_rows(c.get("amt")))
+    body += cases_html(
+        "🗂 최근 낙찰",
+        [(x[0],
+          " · ".join(v for v in (
+              date_full(x[1]) if len(x) > 1 else None,
+              (link_or_text(L.agency(x[2]) if L else None, x[2])
+               if len(x) > 2 and x[2] else None),
+              won_short(x[4]) if len(x) > 4 and x[4] else None) if v),
+          (pct(x[3], 3) if len(x) > 3 else None) or "")
+         for x in cases[:12] if x and x[0]])
     ld = ld_graph(ld_crumbs(("K-건설맵", None), ("낙찰 분석", "/analysis"),
                             (name, f"/corp/{key}")))
     return page(shell, f"/corp/{key}", title, desc, body, image, ld)
@@ -607,6 +750,38 @@ def notice_page(shell, r, image=None, L=None, docs=None):
     if sub:
         lead.append(f'<div style="font-size:12.5px;color:var(--muted);margin-top:4px">{esc(sub)}</div>')
     body = '<div class="card">' + "".join(lead) + "</div>"
+
+    # 말로 된 요약 — 표만 있으면 크롤러가 읽을 글자가 거의 없습니다.
+    #   ⚠️ 있는 값만 씁니다. 없는 것은 그 문장을 아예 안 씁니다(지어내지 않습니다).
+    story = []
+    if inst:
+        story.append(f"<b>{esc(inst)}</b> 가 발주한 공사입니다.")
+    if base:
+        story.append(f"기초금액은 <b>{won_short(base)}</b> 입니다.")
+    if isinstance(r.get("llr"), (int, float)):
+        story.append(f"낙찰하한율은 <b>{pct(r['llr'], 3)}</b> 입니다.")
+    if r.get("lo") is not None and r.get("hi") is not None:
+        _hi = f"+{r['hi']}" if isinstance(r["hi"], (int, float)) and r["hi"] > 0 else f"{r['hi']}"
+        story.append(f"예정가격은 기초금액에서 <b>{r['lo']}% ~ {_hi}%</b> 범위 안에서 뽑습니다.")
+    if r.get("aval"):
+        story.append(f"A값(안전관리비·보험료 같은 법정경비)은 <b>{won_short(r['aval'])}</b> 입니다.")
+    if won:
+        _w = f"개찰 결과 1순위는 <b>{esc(won)}</b>"
+        if isinstance(rate, (int, float)):
+            _w += f", 투찰률 <b>{pct(rate, 3)}</b>"
+        if r.get("amt"):
+            _w += f", 낙찰금액 <b>{won_short(r['amt'])}</b>"
+        story.append(_w + " 입니다.")
+    if r.get("np"):
+        story.append(f"참가업체는 <b>{num(r['np'])}곳</b> 이었습니다.")
+    if r.get("close") and not won:
+        story.append(f"마감은 <b>{date_full(r['close'])}</b> 입니다.")
+    _lic = [str(x).split("/")[0] for x in (r.get("lic") or []) if x][:4]
+    if _lic:
+        story.append("참가 자격 면허는 " + ", ".join(f"<b>{esc(x)}</b>" for x in _lic) + " 입니다.")
+    if story:
+        body += ('<div class="card"><p style="font-size:13.5px;line-height:1.75;margin:0">'
+                 + " ".join(story) + "</p></div>")
 
     rows = [("기초금액", won_short(base)), ("추정가격", won_short(r.get("est"))),
             ("A값", won_short(r.get("aval"))),
@@ -1667,6 +1842,9 @@ def main():
         {"@type": "Organization", "@id": SITE + "/#org", "name": "K-건설맵",
          "url": SITE + "/", "logo": SITE + "/icon-512.png"})
     write("index.html", page(shell, "/", h_title, h_desc, home, None, home_ld))
+    made += 1
+    # 없는 주소는 이제 진짜 404 를 받습니다 (firebase.json rewrites 참고).
+    write("404.html", not_found_page(shell))
     made += 1
 
     tab_body = {

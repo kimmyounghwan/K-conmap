@@ -13,11 +13,24 @@
       "**/node_modules/**"
     ],
     "cleanUrls": true,
+    "//rewrites": "2026-09-07 - 여기가 `**` 하나였습니다. 그래서 «없는 주소» 도 200 으로 홈 문서를 돌려줬습니다(소프트 404). 크롤러에게는 내용이 같은 페이지가 무한히 있는 사이트로 보이고, 우리 시험에서도 «없는 파일이 200» 이라 진짜 오류가 숨었습니다. 이제 라우트에 있는 주소만 SPA 로 보내고, 나머지는 404.html 을 404 상태로 돌려줍니다. ⚠️ main.jsx 에 라우트를 새로 만들면 여기에도 넣어야 합니다 - 안 넣으면 그 화면이 404 가 됩니다.",
     "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
+      { "source": "/calc", "destination": "/index.html" },
+      { "source": "/first", "destination": "/index.html" },
+      { "source": "/live", "destination": "/index.html" },
+      { "source": "/analysis", "destination": "/index.html" },
+      { "source": "/jobs", "destination": "/index.html" },
+      { "source": "/daily", "destination": "/index.html" },
+      { "source": "/forms", "destination": "/index.html" },
+      { "source": "/change", "destination": "/index.html" },
+      { "source": "/guide", "destination": "/index.html" },
+      { "source": "/agency/**", "destination": "/index.html" },
+      { "source": "/corp/**", "destination": "/index.html" },
+      { "source": "/notice/**", "destination": "/index.html" },
+      { "source": "/daily/**", "destination": "/index.html" },
+      { "source": "/forms/**", "destination": "/index.html" },
+      { "source": "/change/**", "destination": "/index.html" },
+      { "source": "/guide/**", "destination": "/index.html" }
     ],
     "headers": [
       {
