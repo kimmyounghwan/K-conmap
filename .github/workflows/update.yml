@@ -43,11 +43,14 @@ concurrency:
 
 permissions:
   contents: write           # 누적 자료를 저장소에 다시 올리기 위해
+  actions: write            # 회차가 끝나면 «다음 회차» 를 스스로 부르기 위해 (2026-09-07)
 
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # 2026-09-07 — 맨 끝에 «다음 회차 부르기 전 25분 쉬기» 가 붙어서 45분으로는 모자랍니다.
+    #   실측 회차 길이 8~35분 + 25분 = 최대 60분. 여유를 두어 80분.
+    timeout-minutes: 80
 
     steps:
       - name: 코드 받기
@@ -161,3 +164,51 @@ jobs:
             git pull --rebase --autostash origin ${{ github.ref_name }} || true
             git push
           fi
+
+      # ══════════════════════════════════════════════════════════════
+      # 다음 회차를 스스로 부른다 — GitHub 예약이 하루 3번밖에 안 돌아서 (2026-09-07)
+      #
+      #   예약(cron)을 몇 번 걸든 실제로는 하루 3번쯤만 돕니다 (실측, 예약 회차만):
+      #     9/5  09:48 · 14:33 · 20:13
+      #     9/6  09:48 · 14:46 · 20:36
+      #     9/7  09:50 · 14:56 · (16:07 예약분은 17:50 까지 안 옴)
+      #   30분 간격(21회)으로 걸었을 때는 4번, 2시간 간격(6회)으로 걸어도 3번.
+      #   → 간격의 문제가 아니라 **무료 공개 저장소의 예약 실행을 GitHub 이 이만큼만 돌려 주는 것** 입니다.
+      #   그래서 오늘 14:56 회차가 조달청 연결 실패로 비자, 다음 회차(20시대)까지 5시간 넘게 멈췄습니다.
+      #
+      #   손으로 누르는 「Run workflow」(workflow_dispatch)는 예약과 달리 **바로** 돕니다.
+      #   그리고 GitHub 규칙상 GITHUB_TOKEN 이 일으킨 사건은 새 실행을 못 만들지만
+      #   workflow_dispatch 와 repository_dispatch 는 **예외** 입니다.
+      #   → 회차가 끝날 때 25분 쉬고 스스로 다음 회차를 부릅니다. 비밀키가 따로 필요 없습니다.
+      #
+      #   ■ 안전장치
+      #     · 한국시간 08~19시에만 잇습니다. 19시가 넘으면 사슬이 끊기고, 다음 아침 예약분이 다시 시작합니다.
+      #     · 이미 «기다리는 실행» 이 있거나 «나 말고 도는 실행» 이 있으면 부르지 않습니다 — 사슬이 두 갈래로
+      #       갈라지지 않게 (예약분·푸시분이 끼어들어도 한 줄로 유지됩니다).
+      #     · concurrency(group: update) 가 있어 어차피 동시에 두 개는 안 돕니다.
+      #     · 회차 길이 ~20분 + 25분 = 약 45분마다 한 번. 3일치 × 하루 13회 ≈ 예전 2일치 × 21회와 비슷한 호출량.
+      #   ■ 끄는 법
+      #     저장소 변수(Settings → Variables) 에 CHAIN_OFF=1 을 만들면 이 단계가 아무것도 안 합니다.
+      # ══════════════════════════════════════════════════════════════
+      - name: 다음 회차 예약 (25분 뒤)
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHAIN_OFF: ${{ vars.CHAIN_OFF }}
+        run: |
+          if [ "${CHAIN_OFF:-0}" = "1" ]; then
+            echo "CHAIN_OFF=1 — 다음 회차를 부르지 않습니다"; exit 0
+          fi
+          H=$((10#$(TZ=Asia/Seoul date +%H)))   # «08» 같은 앞자리 0 을 십진수로
+          if [ "$H" -lt 8 ] || [ "$H" -ge 19 ]; then
+            echo "한국시간 ${H}시 — 08~19시 밖이라 사슬을 잇지 않습니다"; exit 0
+          fi
+          Q=$(gh run list --workflow update.yml --status queued --json databaseId -q 'length')
+          P=$(gh run list --workflow update.yml --status in_progress --json databaseId -q 'length')
+          echo "기다리는 실행 ${Q}개 · 도는 실행 ${P}개(나 포함)"
+          if [ "${Q:-0}" -gt 0 ] || [ "${P:-1}" -gt 1 ]; then
+            echo "이미 다른 회차가 잡혀 있습니다 — 부르지 않습니다"; exit 0
+          fi
+          echo "25분 뒤 다음 회차를 부릅니다 (한국시간 $(TZ=Asia/Seoul date '+%H:%M') 기준)"
+          sleep 1500
+          gh workflow run update.yml --ref "${{ github.ref_name }}" && echo "▶ 다음 회차를 불렀습니다"
