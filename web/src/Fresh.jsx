@@ -31,14 +31,21 @@ export function readHealth(h, now = new Date()) {
   const { h: kh, day } = kst(now)
   // 갱신은 평일 08~19시에만 돕니다. 밤·주말에 «늦었다» 고 하면 거짓 경고입니다.
   const working = day >= 1 && day <= 5 && kh >= 8 && kh < 19
-  // 한 회차는 대략 45분 간격입니다(수집 ~20분 + 25분 쉬기).
+  // 한 회차는 대략 49분 간격입니다(실측: 수집 24분 + 25분 쉬기).
   // 90분이면 두 회차를 놓친 것이라 그때부터 말합니다.
-  const late = working && mins > 90
+  const failed = h.ok === false
+  // ⚠️ 2026-09-07 20:21 — 밤 회차가 조달청 연결에 실패하자 노란 경고가 떴습니다.
+  //    소장님: 「현재 건설맵사이트에 이렇게 되어 있어…맞는 거지? 그냥 두면 돼지?」
+  //    맞는 판정이지만 **놀랄 일이 아닌 것을 놀라게 했습니다.** 그 시간엔 개찰도 공고도
+  //    새로 안 나옵니다. 그래서 경고(노란색)는 «갱신이 도는 시간»에만 띄우고,
+  //    밤·주말에는 담담한 한 줄로만 알립니다.
+  const late = working && (failed || mins > 90)
   return {
     mins,
     working,
-    late: late || h.ok === false,
-    ok: h.ok !== false,
+    late,
+    failed,
+    ok: !failed,
     at: String(h.at),
     why: h.why || '',
     newestFirst: (h.newest && h.newest.first) || '',
@@ -91,6 +98,22 @@ export default function FreshBar({ kind = 'first', extra = '' }) {
           조달청에서 새 자료를 받지 못하고 있습니다{v.why ? ` (${v.why})` : ''}.
           대개 조달청 쪽 일시 장애이며, 자동으로 다시 받아옵니다.
           지금 보이는 것은 {v.at} 까지의 자료입니다.
+        </span>
+      </div>
+    )
+  }
+
+  // 밤·주말에 마지막 회차가 비었을 때 — 경고가 아니라 «사실 한 줄» 입니다.
+  //   「자동으로 다시 받아옵니다」라고 쓰면 안 됩니다. 사슬은 저녁 7시에 끊기므로
+  //   실제로 다시 받는 것은 **내일 아침**입니다.
+  if (v.failed) {
+    return (
+      <div className="freshbar">
+        <b>{label} {mdd(newest) || '-'}</b>
+        <span>
+          자료 기준 {hhmm(v.at)} · 마지막 회차에 조달청 자료를 받지 못했습니다
+          {v.why ? ` (${v.why})` : ''} — 다음 갱신은 평일 아침입니다.
+          그 시간에는 개찰·공고가 새로 나오지 않습니다.
         </span>
       </div>
     )
