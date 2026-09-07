@@ -252,10 +252,20 @@ jobs:
           if [ "$H" -lt 8 ] || [ "$H" -ge 19 ]; then
             echo "한국시간 ${H}시 — 08~19시 밖이라 사슬을 잇지 않습니다"; exit 0
           fi
-          Q=$(gh run list --workflow update.yml --status queued --json databaseId -q 'length')
-          P=$(gh run list --workflow update.yml --status in_progress --json databaseId -q 'length')
-          echo "기다리는 실행 ${Q}개 · 도는 실행 ${P}개(나 포함)"
-          if [ "${Q:-0}" -gt 0 ] || [ "${P:-1}" -gt 1 ]; then
+          # ⚠️ 2026-09-07 실측 — «--status queued» 만 보면 놓칩니다.
+          #    동시성(concurrency: update)에 막혀 차례를 기다리는 회차를 GitHub 은
+          #    «queued» 가 아니라 «pending» 으로 표시합니다. 그래서 실제로 대기 중이던
+          #    #132 를 「기다리는 실행 0개」로 읽고 한 번 더 불렀고, 새로 부른 #133 이
+          #    들어오면서 **#132 가 취소됐습니다.** (자료는 안 틀어집니다 — #133 이 같은
+          #    커밋을 돌립니다. 하지만 회차 하나를 헛되이 버린 것입니다)
+          busy() {
+            J=$(gh run list --workflow update.yml --limit 20 --json status)
+            Q=$(echo "$J" | jq '[.[]|select(.status=="queued" or .status=="pending" or .status=="waiting" or .status=="requested")]|length')
+            P=$(echo "$J" | jq '[.[]|select(.status=="in_progress")]|length')
+            echo "기다리는 실행 ${Q}개 · 도는 실행 ${P}개(나 포함)"
+            [ "${Q:-0}" -gt 0 ] || [ "${P:-1}" -gt 1 ]
+          }
+          if busy; then
             echo "이미 다른 회차가 잡혀 있습니다 — 부르지 않습니다"; exit 0
           fi
           # 조달청에서 한 줄도 못 받은 회차면 25분이 아니라 5분 뒤에 다시 부릅니다.
@@ -272,4 +282,9 @@ jobs:
           fi
           echo "${W} 초 뒤 다음 회차를 부릅니다 (한국시간 $(TZ=Asia/Seoul date '+%H:%M') 기준)"
           sleep "$W"
+          # 자는 25분 사이에 소장님이 코드를 올리셨을 수 있습니다. 그때 그냥 부르면
+          # 새로 들어온 회차가 «기다리던 그 회차»를 취소시킵니다. 그래서 한 번 더 봅니다.
+          if busy; then
+            echo "자는 동안 다른 회차가 잡혔습니다 — 부르지 않습니다"; exit 0
+          fi
           gh workflow run update.yml --ref "${{ github.ref_name }}" && echo "▶ 다음 회차를 불렀습니다"
