@@ -167,6 +167,35 @@ def nav_html(here=""):
     return "".join(out)
 
 
+def ld_crumbs(*pairs):
+    """(이름, 경로) 목록 -> BreadcrumbList.
+
+    ★ 2026-09-07 — 서식·설계변경·알아보기 페이지에는 이미 있었는데,
+      정작 장수가 많은 **기관 300 · 업체 300 · 공고 8,000 · 성적표 45** 에는 없었습니다.
+      경로는 반드시 enc_path 로 퍼센트 인코딩합니다(한글·공백이 그대로 들어가면 깨집니다).
+    """
+    return {"@type": "BreadcrumbList", "itemListElement": [
+        {"@type": "ListItem", "position": i, "name": nm,
+         "item": (SITE + enc_path(pth)) if pth else SITE}
+        for i, (nm, pth) in enumerate(pairs, 1)]}
+
+
+def ld_list(name, rows):
+    """rows = [(주소, 이름, 오른쪽글)] -> ItemList. 화면에 실제로 그린 목록만 넣습니다."""
+    rows = [(u, a) for u, a, _b in rows if u and a]
+    if not rows:
+        return None
+    return {"@type": "ItemList", "name": name, "numberOfItems": len(rows),
+            "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": a,
+                                 "url": SITE + enc_path(u)}
+                                for i, (u, a) in enumerate(rows)]}
+
+
+def ld_graph(*nodes):
+    ns = [n for n in nodes if n]
+    return {"@context": "https://schema.org", "@graph": ns} if ns else None
+
+
 def link_card(title, items, note=None):
     """items = [(주소, 왼쪽글, 오른쪽글)] - 주소가 없는 줄은 아예 뺍니다.
 
@@ -272,9 +301,12 @@ def page(shell, path, title, desc, body, image=None, jsonld=None):
                       '  <meta name="twitter:card" content="summary_large_image" />\n  </head>', 1)
     # 구조화 데이터 — 구글이 «이 페이지가 무엇인지» 를 글자가 아니라 자료로 읽습니다.
     if jsonld:
+        # ⚠️ 2026-09-07 — 이제 여기에 공고명·기관명·업체명이 들어갑니다(조달청이 준 글자).
+        #    그 안에 «</script» 가 있으면 스크립트가 거기서 끊겨 페이지가 깨집니다.
+        #    ndata·ddata 와 같은 방어를 겁니다 — JSON 문자열 안에서 «<\/» 는 같은 값입니다.
+        _ld = json.dumps(jsonld, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
         h = h.replace("</head>",
-                      '  <script type="application/ld+json">'
-                      + json.dumps(jsonld, ensure_ascii=False, separators=(",", ":"))
+                      '  <script type="application/ld+json">' + _ld
                       + "</script>\n  </head>", 1)
     # 본문 — React 가 마운트되면 이 자리를 통째로 덮어씁니다
     h = h.replace('<div id="root"></div>',
@@ -370,7 +402,9 @@ def agency_page(shell, name, a, image=None, L=None):
     body += rows_html("🗂 최근 낙찰 사례",
                       [(c[0], pct(c[3], 3) or "-") for c in cases[:5]
                        if len(c) >= 4 and c[0]])
-    return page(shell, f"/agency/{name}", title, desc, body, image)
+    ld = ld_graph(ld_crumbs(("K-건설맵", None), ("낙찰 분석", "/analysis"),
+                            (name, f"/agency/{name}")))
+    return page(shell, f"/agency/{name}", title, desc, body, image, ld)
 
 
 def corp_page(shell, key, c, image=None, L=None):
@@ -405,7 +439,9 @@ def corp_page(shell, key, c, image=None, L=None):
     body += rows_html("🗂 최근 낙찰",
                       [(x[0], date_full(x[1]) or "-") for x in cases[:5]
                        if len(x) >= 2 and x[0]])
-    return page(shell, f"/corp/{key}", title, desc, body, image)
+    ld = ld_graph(ld_crumbs(("K-건설맵", None), ("낙찰 분석", "/analysis"),
+                            (name, f"/corp/{key}")))
+    return page(shell, f"/corp/{key}", title, desc, body, image, ld)
 
 
 
@@ -594,7 +630,10 @@ def notice_page(shell, r, image=None, L=None, docs=None):
         body += rows_html("🏛 발주기관", [(inst, "낙찰 분석 보기 →")], href=L.agency)
     body += docs_html(docs)
 
-    h = page(shell, f"/notice/{no}", title, desc, body, image)
+    # 개찰이 끝난 건은 «1순위 개찰», 마감 전은 «입찰 공고» 밑에 답니다 — 화면과 같은 자리입니다.
+    _par = ("1순위 개찰", "/first") if won else ("입찰 공고", "/live")
+    ld = ld_graph(ld_crumbs(("K-건설맵", None), _par, (nm, f"/notice/{no}")))
+    h = page(shell, f"/notice/{no}", title, desc, body, image, ld)
     # 화면이 다시 그릴 때 쓸 원본 한 줄 — 파일을 더 받지 않아도 되도록 같이 넣습니다.
     # ⚠️ 갈래를 매긴 붙임 목록(ndocs)도 같이 넣습니다.
     #    안 넣으면 «크롤러는 내역서를 보는데 사람은 못 보는» 화면이 됩니다.
@@ -674,7 +713,9 @@ def daily_page(shell, dd, image=None, L=None):
                           [(w, f"{c}건") for w, c, _ in dd["multi"]],
                           href=lambda a: _u.get(a))
 
-    h = page(shell, f"/daily/{d}", title, desc, body, image)
+    ld = ld_graph(ld_crumbs(("K-건설맵", None), ("개찰 성적표", "/daily"),
+                            (f"{ymd} 개찰 결과", f"/daily/{d}")))
+    h = page(shell, f"/daily/{d}", title, desc, body, image, ld)
     data = json.dumps(dd, ensure_ascii=False).replace("</", "<\\/")
     return h.replace("</body>",
                      '<script type="application/json" id="ddata">' + data + "</script>\n  </body>", 1)
@@ -691,7 +732,11 @@ def daily_index(shell, days, image=None):
                    f'<div class="grow"><div class="t">{esc(d.replace("-", "."))} 개찰 성적표</div></div>'
                    f'<span class="r">{esc(num(n))}건</span><span class="go">→</span></a>')
     out.append("</div>")
-    h = page(shell, "/daily", title, desc, "".join(out), image)
+    ld = ld_graph(ld_crumbs(("K-건설맵", None), ("개찰 성적표", "/daily")),
+                  ld_list("날짜별 개찰 성적표",
+                          [(f"/daily/{d}", f"{d.replace('-', '.')} 개찰 성적표", "")
+                           for d, _n in days]))
+    h = page(shell, "/daily", title, desc, "".join(out), image, ld)
     data = json.dumps([[d, n] for d, n in days], ensure_ascii=False)
     return h.replace("</body>",
                      '<script type="application/json" id="dlist">' + data + "</script>\n  </body>", 1)
@@ -1238,7 +1283,9 @@ def change_calc(shell, image=None):
                ["신규 비목", "**설계변경 당시 단가 × 낙찰률**"],
                ["발주기관 요구", "협의 · 불성립 시 두 값의 중간"]]}])
            + "</div>"]
-    return page(shell, "/change/calc", title, desc, "".join(out), image)
+    ld = ld_graph(ld_crumbs(("K-건설맵", None), ("설계변경", "/change"),
+                            ("증감 계산기", "/change/calc")))
+    return page(shell, "/change/calc", title, desc, "".join(out), image, ld)
 
 
 
@@ -1334,8 +1381,8 @@ TABS = [
      "발주기관의 낙찰률 성향과 업체별 낙찰 실적을 3년치 개찰 기록으로 분석합니다. 회원가입 없이 무료.",
      ("발주기관·업체 낙찰 분석", "3년치 개찰 기록으로 봅니다", "자가진단",
       "우리 회사가 어디에 강한지 · 그 기관은 어떤 자리인지")),
-    ("/jobs", "건설 구인구직 — 현장 인력·장비 | K-건설맵",
-     "건설 현장 구인구직 글을 올리고 봅니다. 로그인 없이 무료.",
+    ("/jobs", "건설 구인구직 — 곧 착공하는 현장 · 인력·장비 | K-건설맵",
+     "최근 낙찰된 공사(=곧 착공하는 현장)를 지역·공종으로 골라 보고, 조달청이 공개하는 낙찰업체 연락처를 함께 봅니다. 구인·구직 글은 로그인 없이 올립니다.",
      ("건설 구인구직", "현장 인력·장비", "무료",
       "로그인 없이 올리고 봅니다")),
 ]
@@ -1594,6 +1641,9 @@ def main():
     c_gd = link_card("📚 입찰 알아보기", gd_rows)
     c_ch = link_card("🧾 설계변경", ch_rows)
     c_fm = link_card("📄 건설 서식 내려받기", fm_rows)
+    c_sites = link_card("🏗 곧 착공하는 현장", done_rows[:12],
+                        "낙찰 = 곧 착공 = 곧 사람·장비가 필요한 현장입니다. "
+                        "공고를 누르면 낙찰업체·낙찰금액·투찰률을 봅니다.")
 
     span = ""
     if ov.get("from") and ov.get("to"):
@@ -1611,7 +1661,12 @@ def main():
                       "«실격이냐»는 미리 단정하지 않고 확률로 적습니다."])
     home += c_done + c_open + c_ag + c_co + c_day + c_gd + c_ch + c_fm
     h_title, h_desc = shell_meta(shell)
-    write("index.html", page(shell, "/", h_title, h_desc, home))
+    home_ld = ld_graph(
+        {"@type": "WebSite", "@id": SITE + "/#website", "url": SITE + "/",
+         "name": "K-건설맵", "inLanguage": "ko", "publisher": {"@id": SITE + "/#org"}},
+        {"@type": "Organization", "@id": SITE + "/#org", "name": "K-건설맵",
+         "url": SITE + "/", "logo": SITE + "/icon-512.png"})
+    write("index.html", page(shell, "/", h_title, h_desc, home, None, home_ld))
     made += 1
 
     tab_body = {
@@ -1627,12 +1682,24 @@ def main():
                                 ["발주기관이 어떤 자리인지(투찰률 분포·경쟁 강도)와 "
                                  "업체가 어디에 강한지를 3년치 개찰 기록으로 봅니다."])
                       + c_ag + c_co),
-        "/jobs": lead_card("건설 구인구직",
-                           ["건설 현장 인력·장비 구인구직 글을 로그인 없이 올리고 봅니다."]),
+        "/jobs": (lead_card("건설 구인구직 — 곧 착공하는 현장",
+                            ["빈 게시판은 아무도 쓰지 않습니다. 그래서 이 탭은 «최근 낙찰된 공사» 를 "
+                             "먼저 보여줍니다. 낙찰업체 연락처는 조달청 나라장터가 공개하는 "
+                             "낙찰자 정보이며, 개찰 뒤 며칠에 걸쳐 채워집니다.",
+                             "구인·구직 글은 로그인 없이 올리고 볼 수 있습니다. "
+                             "지역·공종으로 걸러 봅니다."])
+                  + c_sites),
     }
+    _tabname = {"/first": "1순위 개찰", "/live": "입찰 공고",
+                "/analysis": "낙찰 분석", "/jobs": "구인구직"}
+    _tabrows = {"/first": done_rows[:12], "/live": open_rows[:12],
+                "/jobs": done_rows[:12]}
     for path, title, desc, _card in TABS:
+        _ld = ld_graph(ld_crumbs(("K-건설맵", None), (_tabname.get(path, path), path)),
+                       ld_list(_tabname.get(path, path), _tabrows.get(path) or []))
         write(path.lstrip("/") + ".html",
-              page(shell, path, title, desc, tab_body.get(path, ""), tab_img.get(path)))
+              page(shell, path, title, desc, tab_body.get(path, ""),
+                   tab_img.get(path), _ld))
         made += 1
     _nl = home.count('<a class="t"')
     print(f"  · 홈 본문 링크 {_nl:,}개 (기관 {len(ag_rows[:20])} · 업체 {len(co_rows[:20])} "
