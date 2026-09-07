@@ -1663,14 +1663,30 @@ def main():
     # ★ 링크 목록을 «굽기 전에» 만듭니다 — 없는 주소로 링크를 걸지 않기 위해서입니다.
     L = Links()
 
-    # ── 발주기관 ──
+    # ⚠️ 2026-09-07 — 여기가 **기관·업체 둘 다** 먼저 채워야 하는 자리입니다.
+    #   전에는 업체 목록(L.co)을 «업체 페이지를 굽는 블록» 에서 채웠는데,
+    #   그 블록이 기관 블록보다 **뒤** 라서 기관 페이지를 구울 때 L.co 가 항상 비어 있었습니다.
+    #   → 「🏆 자주 낙찰받은 업체」 12줄과 사례의 낙찰업체가 **한 번도 링크가 된 적이 없습니다**
+    #     (실측: 기관 6곳 전부 /corp/ 링크 0개. 반대로 업체→기관은 6~8개로 멀쩡했습니다).
+    #   조용히 틀리는 종류라 아래에 «0이면 경고» 도 답니다.
     top = load("agency/top.json") or []
+    ctop = load("corp/top.json") or []
+    if not ctop:
+        print("  · corp/top.json 이 없습니다 — build_json.py 를 한 번 돌리면 생깁니다")
+    for row in top[:N_AGENCY]:
+        if len(row) >= 3 and safe(row[0]):
+            L.ag.add(row[0])
+    for row in ctop[:N_CORP]:
+        if len(row) >= 3 and safe(row[0]):
+            L.co.add(row[0])
+
+    # ── 발주기관 ──
     by_chunk = {}
     for row in top[:N_AGENCY]:
         if len(row) >= 3 and safe(row[0]):
             by_chunk.setdefault(row[2], []).append(row[0])
-            L.ag.add(row[0])
     n_ag = 0
+    n_aglink = 0
     for ch, names in sorted(by_chunk.items()):
         dat = load(f"agency/dat/{ch}.json") or {}
         for nm in names:
@@ -1678,18 +1694,19 @@ def main():
             if a:
                 img = og.agency(nm, a) if n_ag < OG_AGENCY else None
                 n_ag += img is not None
-                write(f"agency/{nm}.html", agency_page(shell, nm, a, img, L))
+                _h = agency_page(shell, nm, a, img, L)
+                n_aglink += _h.count('href="/corp/')
+                write(f"agency/{nm}.html", _h)
                 made += 1
+    if top and not n_aglink:
+        print("  ⚠️ 기관 페이지에서 업체로 가는 링크가 **0개** 입니다 — "
+              "L.co 가 비었거나 이름 정규화(norm_corp)가 어긋났습니다.")
 
-    # ── 업체 ──
-    ctop = load("corp/top.json") or []
-    if not ctop:
-        print("  · corp/top.json 이 없습니다 — build_json.py 를 한 번 돌리면 생깁니다")
+    # ── 업체 ── (ctop 과 L.co 는 위에서 이미 채웠습니다)
     by_chunk = {}
     for row in ctop[:N_CORP]:
         if len(row) >= 3 and safe(row[0]):
             by_chunk.setdefault(row[2], []).append(row[0])
-            L.co.add(row[0])
     n_co = 0
     for ch, keys in sorted(by_chunk.items()):
         dat = load(f"corp/dat/{ch}.json") or {}
@@ -1888,6 +1905,7 @@ def main():
     print(f"  · 공고·개찰 페이지 {n_no:,}개 (저장소 {len(merged):,}건 중)")
     print(f"  · 개찰 성적표 {n_dy:,}일치 (/daily/)")
     print(f"  · 미리 구운 페이지 {made:,}개 (기관 {len(top[:N_AGENCY]):,} · 업체 {len(ctop[:N_CORP]):,} 대상)")
+    print(f"  · 기관 → 업체 링크 {n_aglink:,}개")
     if og.available:
         print(f"  · 카톡 미리보기 그림 {og.made:,}장 "
               f"(공고 {min(n_no, OG_NOTICE):,} · 기관 {n_ag:,} · 업체 {n_co:,} · 기본 1)")
