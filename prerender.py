@@ -790,14 +790,21 @@ def notice_page(shell, r, image=None, L=None, docs=None):
                        if r.get("lo") is not None and r.get("hi") is not None else None))]
     body += rows_html("📋 공고 조건", rows)
     if won:
-        # ★ 낙찰업체·발주기관을 «각자의 페이지»로 잇습니다 (2026-09-04).
-        #   개찰 페이지가 11,000장이라, 여기 링크 두 개가 사이트 안쪽으로 가는 길이 됩니다.
         body += rows_html("🏆 개찰 결과", [
             ("낙찰업체", won),
             ("낙찰금액", won_short(r.get("amt"))),
             ("투찰률", pct(rate, 3)),
             ("참가업체수", (f"{num(r.get('np'))}곳" if r.get("np") else None)),
-        ], href=(lambda a: (L.corp(won) if (L and a == won) else None)))
+        ])
+    # ★ 낙찰업체·발주기관을 «각자의 페이지»로 잇습니다 (2026-09-04).
+    #   개찰 페이지가 11,000장이라, 여기 링크 두 개가 사이트 안쪽으로 가는 길이 됩니다.
+    # ⚠️ 2026-09-07 — 여기 낙찰업체 링크가 **한 번도 걸린 적이 없었습니다.**
+    #    rows_html 의 href 는 «왼쪽 칸» 을 받는데, 그 칸은 이름표("낙찰업체")이고
+    #    업체 이름은 오른쪽 칸이었습니다. 그런데 조건이 `a == won` 이라 영원히 거짓이었습니다.
+    #    실측: 개찰 끝난 공고 14장 전부 /corp/ 링크 0개(기관 링크는 정상).
+    #    → 발주기관 칸과 **같은 모양**으로 따로 답니다. 그래야 링크 글자가 업체 이름이 됩니다.
+    if L and won and L.corp(won):
+        body += rows_html("🏢 낙찰업체", [(won, "낙찰 실적 보기 →")], href=L.corp)
     # ⚠️ 링크가 걸리는 기관(우리가 구운 300곳)일 때만 이 칸을 답니다.
     #    안 그러면 「낙찰 분석 보기 →」 라고 써 놓고 눌리지 않는 칸이 됩니다 —
     #    버튼 이름이 실제 동작과 다르면 안 됩니다 (CLAUDE.md 3번).
