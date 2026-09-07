@@ -55,6 +55,8 @@ function elapsed(m) {
   const r = m % 60
   return r ? `${h}시간 ${r}분째` : `${h}시간째`
 }
+/* 정상 줄에 붙이는 «몇 분 전». 0~1분을 「0분 전」이라 쓰면 어색해서 「방금」으로 둡니다. */
+const ago = (m) => (m < 2 ? '방금' : elapsed(m).replace('째', ' 전'))
 
 /** 목록 위에 놓는 한 줄. kind: 'first'(개찰) | 'live'(공고) */
 export default function FreshBar({ kind = 'first', extra = '' }) {
@@ -97,8 +99,10 @@ export default function FreshBar({ kind = 'first', extra = '' }) {
   return (
     <div className="freshbar">
       <b>{label} {mdd(newest) || '-'}</b>
+      {/* «자료 기준 18:07» 만 적으면 지금이 몇 시인지 알아야 뜻이 통합니다.
+          소장님이 시계를 보고 뺄셈하지 않으시게 «몇 분 전» 을 같이 적습니다. */}
       <span>
-        자료 기준 {hhmm(v.at)}
+        자료 기준 {hhmm(v.at)} ({ago(v.mins)})
         {v.working ? '' : ' · 갱신은 평일 08~19시에 돕니다'}
         {extra ? ` · ${extra}` : ''}
       </span>
