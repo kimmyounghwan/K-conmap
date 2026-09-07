@@ -39,11 +39,16 @@
         ]
       },
       {
+        "//": "크롤러가 화면을 그리려면 이 파일들을 받아야 합니다(robots.txt 에서 막지 않습니다). 다만 JSON 자체가 검색결과에 뜨면 안 되므로 색인만 막습니다 - 2026-09-07",
         "source": "/data/**",
         "headers": [
           {
             "key": "Cache-Control",
             "value": "public, max-age=86400, stale-while-revalidate=604800"
+          },
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex"
           }
         ]
       },

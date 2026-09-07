@@ -7,6 +7,7 @@ import { Skeleton, Empty } from '../components.jsx'
 import { pct, won, wonShort, dateFull } from '../lib/fmt.js'
 import Comments from '../Comments.jsx'
 import { quickBid, P50_FALLBACK } from '../lib/bidmath.js'
+import { wasBaked } from '../lib/baked.js'
 
 /**
  * /notice/{공고번호} — 공고 한 건 / 개찰 결과 한 건.
@@ -62,6 +63,8 @@ export default function NoticePage() {
      여기서 다시 넣는 건 SPA 안에서 이동해 왔을 때를 위한 것입니다. */
   useEffect(() => {
     if (r === undefined) return
+    // ⚠️ 구운 페이지면 «못 받았을 뿐» 일 수 있습니다 (AgencyPage 와 같은 이유).
+    if (!r && wasBaked(`/notice/${key}`)) return
     const nm = r?.name || key
     const t = r?.win
       ? `${nm} 낙찰 결과 — ${r.win}${typeof r.rate === 'number' ? ` ${pct(r.rate, 3)}` : ''} | K-건설맵`

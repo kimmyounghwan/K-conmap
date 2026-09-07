@@ -42,8 +42,12 @@ export default function CorpPage() {
   /* 메타태그 — 주소마다 제목·설명이 달라야 색인이 붙습니다.
      빌드할 때 prerender.py 가 같은 문구를 정적 HTML 에도 박아 둡니다
      (네이버·카톡은 자바스크립트를 안 돌리므로 그쪽이 본체입니다). */
+  const baked = wasBaked(`/corp/${decoded}`)
+
   useEffect(() => {
     if (c === undefined) return
+    // ⚠️ AgencyPage 와 같은 이유 — 구운 페이지면 «못 받았을 뿐» 일 수 있습니다.
+    if (!c && baked) return
     const nm = c?.name || decoded
     const title = c
       ? `${nm} 낙찰 실적 — 3년간 ${num(c.n)}건 · 평균 투찰률 ${pct(c.s?.avg, 2)} | K-건설맵`
@@ -61,13 +65,15 @@ export default function CorpPage() {
     // 자료 없는 업체 페이지는 색인에서 뺍니다 (soft 404 방지)
     setMeta('robots', c ? null : 'noindex')
     return () => setMeta('robots', null)
-  }, [c, decoded])
+  }, [c, decoded, baked])
 
   if (c === undefined) return <div style={{ paddingTop: 14 }}><Skeleton n={3} /></div>
   if (!c) {
     return (
-      <Empty icon="🏢">
-        «{decoded}» 의 낙찰 기록이 없습니다.<br />
+      <Empty icon={baked ? '📡' : '🏢'}>
+        {baked
+          ? <>자료를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.<br /></>
+          : <>«{decoded}» 의 낙찰 기록이 없습니다.<br /></>}
         3년치 개찰에서 <b>1순위(낙찰)</b> 기록만 모으므로, 투찰만 하고 떨어진 업체는 나오지 않습니다.<br />
         <Link to="/analysis?m=corp" style={{ color: 'var(--accent)', fontWeight: 700 }}>분석 탭에서 다시 찾아보기 →</Link>
       </Empty>

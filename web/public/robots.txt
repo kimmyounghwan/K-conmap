@@ -1,8 +1,15 @@
 User-agent: *
 Allow: /
 
-# 집계 JSON 은 사람이 읽을 페이지가 아닙니다.
-# (없는 경로도 SPA 규칙 때문에 200 으로 응답해서, 크롤러가 헛돌 수 있습니다)
-Disallow: /data/
+# 2026-09-07 - 여기 있던 «Disallow: /data/» 를 뺐습니다.
+#   화면(React)은 기관·업체 자료를 /data/ 에서 받아 그립니다. 그걸 막아 두니
+#   구글 렌더러가 자료를 못 받아 «자료 없음» 으로 그렸고, AgencyPage/CorpPage 가
+#   noindex 를 걸어 **기관 300 · 업체 300 페이지가 통째로 색인에서 빠지고 있었습니다.**
+#   서치콘솔 실시간 테스트 실측(2026-09-07 /agency/서울특별시):
+#     크롤링 허용 여부 예 · 페이지 가져오기 성공
+#     색인 생성 허용 여부 «아니요: 'robots' 메타태그에서 'noindex'가 감지됨»
+#     렌더된 제목이 «서울특별시 | K-건설맵»(자료 없음일 때의 대체 문구)이었습니다.
+#   JSON 자체가 검색결과에 뜨는 것은 robots.txt 가 아니라
+#   web/firebase.json 의 «X-Robots-Tag: noindex» 헤더로 막습니다 — 크롤은 되고 색인만 안 됩니다.
 
 Sitemap: https://k-conmap.com/sitemap.xml

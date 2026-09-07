@@ -5,6 +5,7 @@ import AgencyReport from '../AgencyReport.jsx'
 import { Skeleton, Empty } from '../components.jsx'
 import { ShareBtn } from './CorpPage.jsx'
 import { pct, num } from '../lib/fmt.js'
+import { wasBaked } from '../lib/baked.js'
 
 /**
  * /agency/{기관명} — 검색엔진에 색인되는 페이지.
@@ -23,8 +24,14 @@ export default function AgencyPage() {
   }, [decoded])
 
   // 메타태그 — 페이지마다 다른 제목/설명이 있어야 색인이 붙는다
+  const baked = wasBaked(`/agency/${decoded}`)
+
   useEffect(() => {
     if (a === undefined) return
+    // ⚠️ 미리 구운 페이지인데 자료를 못 받았다면(크롤러가 /data/ 를 못 읽는 경우 등)
+    //    이미 박혀 있는 제목·설명을 지우지 않고 noindex 도 걸지 않습니다.
+    //    «못 받은 것» 과 «없는 것» 은 다릅니다.
+    if (!a && baked) return
     const title = a
       ? `${decoded} 입찰 낙찰 분석 — 평균 투찰률 ${pct(a.s?.avg, 2)} | K-건설맵`
       : `${decoded} | K-건설맵`
@@ -39,13 +46,15 @@ export default function AgencyPage() {
     // 데이터가 없는 기관 페이지는 색인에서 빼서 soft 404 를 막는다
     setMeta('robots', a ? null : 'noindex')
     return () => setMeta('robots', null)
-  }, [a, decoded])
+  }, [a, decoded, baked])
 
   if (a === undefined) return <div style={{ paddingTop: 14 }}><Skeleton n={3} /></div>
   if (!a) {
     return (
-      <Empty icon="🔍">
-        «{decoded}» 의 분석 데이터가 없습니다.<br />
+      <Empty icon={baked ? '📡' : '🔍'}>
+        {baked
+          ? <>자료를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.<br /></>
+          : <>«{decoded}» 의 분석 데이터가 없습니다.<br /></>}
         <Link to="/analysis" style={{ color: 'var(--accent)', fontWeight: 700 }}>분석 탭에서 검색해보세요 →</Link>
       </Empty>
     )
