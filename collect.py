@@ -181,6 +181,18 @@ NET_TIMEOUT = 15         # 한 건당 기다리는 시간(초)
 #      건너뛴 건은 bask/rask 가 «오래된 것부터» 규칙으로 다음 회차에 다시 묻는다 — 잃는 것이 없다.
 NET_BUDGET_S = int(os.environ.get("NET_BUDGET_S", "1200"))   # 조달청 호출에 쓸 수 있는 시간(초)
 NET_T0 = time.time()     # 이 회차 시작 시각
+# ⚠️ 2026-09-07 — 14:56 회차가 «개찰·공고·기초금액» 전부 ConnectTimeout 으로 8번 연달아 실패해
+#    회차를 통째로 건너뛰었고, 사이트가 12:31 에 멈췄습니다(소장님이 «11시 30분에 멈췄다» 고 본 그것).
+#    회차가 하루 21번이던 때는 한 번 실패해도 30분 뒤에 메워졌지만, 9/4 에 2시간 간격(하루 6번)으로
+#    줄인 뒤로는 한 회차 실패가 그대로 **2~5시간 구멍**이 됩니다.
+#    → ConnectTimeout 은 «조달청이 잠깐 연결을 안 받는» 것이라 몇 초 뒤 살아나는 일이 많습니다.
+#      «연결이 안 되는» 경우에만 짧게 두 번 더 시도하고, 차단기가 내려가도 한 번은 쉬었다 다시 봅니다.
+#    ⚠️ ReadTimeout(느리게 «아픈» 날)은 재시도하지 않습니다 — #109 에서 27분을 기다리다
+#       배포가 통째로 취소된 적이 있습니다. 느린 것은 기다려 주지 않는 게 맞습니다.
+RETRY_CONNECT = 2            # 연결 자체가 안 될 때 더 시도할 횟수
+RETRY_WAIT_S = [3, 8]        # 그 사이에 쉬는 시간(초)
+RECOVER_WAIT_S = 60          # 차단기가 내려가려 할 때 한 번만 쉬어 보는 시간(초)
+NET_RECOVERED = False        # 그 «한 번» 을 이미 썼는지
 NET_FAILS_ALL = 0        # 누적 실패(연속 아님) — 로그에 «몇 번 기다렸나» 를 남기기 위한 것
 
 
@@ -190,7 +202,7 @@ def fetch(url, key, day=None, extra=None, label="", why=None):
     """조달청 공통 호출.
     예전에 기초금액이 '계속 실패'했던 건 대부분 조용히 삼켜서 원인이 안 보였기 때문이다.
     그래서 여기서는 HTTP 코드 / resultCode / 본문 앞머리를 반드시 찍는다."""
-    global NET_FAILS, NET_DOWN, NET_FAILS_ALL
+    global NET_FAILS, NET_DOWN, NET_FAILS_ALL, NET_RECOVERED
     if NET_DOWN:
         return []
     if time.time() - NET_T0 > NET_BUDGET_S:
@@ -211,18 +223,44 @@ def fetch(url, key, day=None, extra=None, label="", why=None):
     if extra:
         params.update(extra)
     tag = label or url.rsplit("/", 1)[-1]
-    try:
-        r = requests.get(url, params=params, timeout=NET_TIMEOUT, verify=False,
-                         headers={"User-Agent": "Mozilla/5.0"})
-    except Exception as e:
+    r, err = None, None
+    for attempt in range(RETRY_CONNECT + 1):
+        try:
+            r = requests.get(url, params=params, timeout=NET_TIMEOUT, verify=False,
+                             headers={"User-Agent": "Mozilla/5.0"})
+            break
+        except Exception as e:
+            err = e
+            # ConnectTimeout 은 ConnectionError 의 한 갈래입니다 — 연결이 아예 안 된 경우만 다시 봅니다.
+            if not isinstance(e, requests.exceptions.ConnectionError):
+                break
+            if attempt >= RETRY_CONNECT:
+                break
+            if time.time() - NET_T0 > NET_BUDGET_S - 60:
+                break                      # 시간 예산이 얼마 안 남았으면 재시도하지 않습니다
+            wait = RETRY_WAIT_S[attempt]
+            print(f"    · {tag} 연결 실패 ({type(e).__name__}) — {wait}초 뒤 다시 시도")
+            time.sleep(wait)
+    if r is None:
         NET_FAILS += 1
         NET_FAILS_ALL += 1
-        print(f"    ! {tag} 통신 실패 ({type(e).__name__})")
+        print(f"    ! {tag} 통신 실패 ({type(err).__name__})")
         if why is not None:
-            why.update({"net": type(e).__name__})
+            why.update({"net": type(err).__name__})
         if NET_FAILS >= NET_LIMIT:
+            # 차단기를 내리기 전에 «한 번만» 쉬었다 다시 봅니다.
+            # 오늘(9/7) 같은 일시 장애면 이 60초가 회차 하나를 살립니다.
+            if (not NET_RECOVERED
+                    and time.time() - NET_T0 < NET_BUDGET_S - RECOVER_WAIT_S - 120):
+                NET_RECOVERED = True
+                NET_FAILS = 0
+                print(f"    ⏸ 연달아 {NET_LIMIT}번 실패 — {RECOVER_WAIT_S}초 쉬었다가 "
+                      f"한 번만 더 봅니다(회차를 통째로 버리지 않기 위해서입니다).")
+                time.sleep(RECOVER_WAIT_S)
+                return []
             NET_DOWN = True
-            print(f"    ⛔ 조달청 통신이 {NET_LIMIT}번 연달아 실패했습니다. "
+            print(f"    ⛔ 조달청 통신이 {NET_LIMIT}번 연달아 실패했습니다"
+                  f"{' (쉬었다 다시 봐도 마찬가지였습니다)' if NET_RECOVERED else ''}. "
                   f"이번 회차는 수집을 건너뜁니다 — 사이트는 누적 자료로 그대로 올라갑니다.")
         return []
     NET_FAILS = 0
