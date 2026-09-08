@@ -193,6 +193,14 @@ RETRY_CONNECT = 2            # 연결 자체가 안 될 때 더 시도할 횟수
 RETRY_WAIT_S = [3, 8]        # 그 사이에 쉬는 시간(초)
 RECOVER_WAIT_S = 60          # 차단기가 내려가려 할 때 한 번만 쉬어 보는 시간(초)
 NET_RECOVERED = False        # 그 «한 번» 을 이미 썼는지
+# ⚠️ 2026-09-08 — 12:11 회차가 조달청 연결 실패로 통째로 비었고, 그날 11:30 개찰이
+#    32분 늦게 들어왔습니다. 실패한 회차 하나가 잡아먹는 시간을 재 보니:
+#      «죽었다» 고 판단하기까지 16분 (8번×56초 + 60초 쉼 + 8번×56초)
+#      + 집계·빌드·배포 10분 + 재시도 대기 5분  =  31분
+#    **«연결 자체가 안 되는» 것은 16분이나 볼 필요가 없습니다 — 서너 번이면 압니다.**
+#    (ReadTimeout «느리게 아픈 날» 은 다릅니다. 그건 성공이 섞이므로 8번 그대로 둡니다)
+NET_LIMIT_CONN = 4           # 연속 «연결 실패»가 이만큼이면 조달청이 죽은 것으로 봅니다
+NET_FAILS_CONN = 0           # 연속 «연결 실패»(ConnectionError) 횟수 — 성공하면 0 으로
 NET_FAILS_ALL = 0        # 누적 실패(연속 아님) — 로그에 «몇 번 기다렸나» 를 남기기 위한 것
 
 
@@ -202,7 +210,7 @@ def fetch(url, key, day=None, extra=None, label="", why=None):
     """조달청 공통 호출.
     예전에 기초금액이 '계속 실패'했던 건 대부분 조용히 삼켜서 원인이 안 보였기 때문이다.
     그래서 여기서는 HTTP 코드 / resultCode / 본문 앞머리를 반드시 찍는다."""
-    global NET_FAILS, NET_DOWN, NET_FAILS_ALL, NET_RECOVERED
+    global NET_FAILS, NET_DOWN, NET_FAILS_ALL, NET_RECOVERED, NET_FAILS_CONN
     if NET_DOWN:
         return []
     if time.time() - NET_T0 > NET_BUDGET_S:
@@ -234,6 +242,10 @@ def fetch(url, key, day=None, extra=None, label="", why=None):
             # ConnectTimeout 은 ConnectionError 의 한 갈래입니다 — 연결이 아예 안 된 경우만 다시 봅니다.
             if not isinstance(e, requests.exceptions.ConnectionError):
                 break
+            # 이미 연달아 연결이 안 되고 있거나 한 번 쉬어 봤으면, 더 시도해야 시간만 씁니다.
+            # (한 건당 재시도 2번 = 41초. 죽은 날엔 그게 그대로 구멍이 됩니다)
+            if NET_FAILS_CONN >= 2 or NET_RECOVERED:
+                break
             if attempt >= RETRY_CONNECT:
                 break
             if time.time() - NET_T0 > NET_BUDGET_S - 60:
@@ -244,26 +256,36 @@ def fetch(url, key, day=None, extra=None, label="", why=None):
     if r is None:
         NET_FAILS += 1
         NET_FAILS_ALL += 1
+        if isinstance(err, requests.exceptions.ConnectionError):
+            NET_FAILS_CONN += 1
+        else:
+            NET_FAILS_CONN = 0          # 느린 것(ReadTimeout)은 «연결 안 됨» 이 아닙니다
         print(f"    ! {tag} 통신 실패 ({type(err).__name__})")
         if why is not None:
             why.update({"net": type(err).__name__})
-        if NET_FAILS >= NET_LIMIT:
+        if NET_FAILS >= NET_LIMIT or NET_FAILS_CONN >= NET_LIMIT_CONN:
             # 차단기를 내리기 전에 «한 번만» 쉬었다 다시 봅니다.
             # 오늘(9/7) 같은 일시 장애면 이 60초가 회차 하나를 살립니다.
             if (not NET_RECOVERED
                     and time.time() - NET_T0 < NET_BUDGET_S - RECOVER_WAIT_S - 120):
+                _why_trip = ("연결 %d번" % NET_FAILS_CONN
+                             if NET_FAILS_CONN >= NET_LIMIT_CONN else "통신 %d번" % NET_FAILS)
                 NET_RECOVERED = True
                 NET_FAILS = 0
-                print(f"    ⏸ 연달아 {NET_LIMIT}번 실패 — {RECOVER_WAIT_S}초 쉬었다가 "
+                NET_FAILS_CONN = 0
+                print(f"    ⏸ 연달아 {_why_trip} 실패 — {RECOVER_WAIT_S}초 쉬었다가 "
                       f"한 번만 더 봅니다(회차를 통째로 버리지 않기 위해서입니다).")
                 time.sleep(RECOVER_WAIT_S)
                 return []
             NET_DOWN = True
-            print(f"    ⛔ 조달청 통신이 {NET_LIMIT}번 연달아 실패했습니다"
+            _n = NET_FAILS_CONN if NET_FAILS_CONN >= NET_LIMIT_CONN else NET_FAILS
+            _k = "연결이" if NET_FAILS_CONN >= NET_LIMIT_CONN else "통신이"
+            print(f"    ⛔ 조달청 {_k} {_n}번 연달아 실패했습니다"
                   f"{' (쉬었다 다시 봐도 마찬가지였습니다)' if NET_RECOVERED else ''}. "
                   f"이번 회차는 수집을 건너뜁니다 — 사이트는 누적 자료로 그대로 올라갑니다.")
         return []
     NET_FAILS = 0
+    NET_FAILS_CONN = 0
     if r.status_code != 200:
         print(f"    ! {tag} HTTP {r.status_code}")
         if why is not None:
