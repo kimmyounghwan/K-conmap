@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ref, get, set, push, update, query, orderByKey, limitToLast } from 'firebase/database'
-import { db, ensureAnon } from '../firebase.js'
+/* ⚠️ 2026-09-08 — firebase 를 «정적으로» 끌어오면 안 됩니다.
+   착공현장 탭을 열기만 해도 firebase 청크(390KB · gzip 84KB)를 받습니다.
+   실측: /first 는 js/css 4개, /jobs 는 7개 — 늘어난 것이 전부 firebase 였습니다.
+   그런데 이 탭에 들어온 사람 대부분은 «🏗 낙찰 현장» 만 봅니다. 그쪽은 firebase 를
+   한 줄도 안 씁니다. Comments.jsx 가 같은 이유로 이미 지연 로딩을 하고 있습니다.
+   → «✏️ 구인·구직 글» 을 실제로 누를 때만 받아옵니다. */
+let _fb = null
+const loadFb = async () => {
+  if (!_fb) {
+    const [d, f] = await Promise.all([import('firebase/database'), import('../firebase.js')])
+    _fb = { ...d, db: f.db, ensureAnon: f.ensureAnon }
+  }
+  return _fb
+}
 import { Empty, Skeleton } from '../components.jsx'
 import { num, REGIONS, inRegion } from '../lib/fmt.js'
 import Sites from '../Sites.jsx'
@@ -49,6 +61,7 @@ export default function Jobs() {
     setPosts(null); setErr('')
     try {
       // 화면을 열 때 딱 두 번만 읽는다. 실시간 구독은 쓰지 않는다(요금 방어).
+      const { ref, get, query, orderByKey, limitToLast, db } = await loadFb()
       const [snap, delSnap] = await Promise.all([
         get(query(ref(db, 'jobs'), orderByKey(), limitToLast(LIMIT))),
         get(query(ref(db, 'job_del'), orderByKey(), limitToLast(500))),
@@ -158,6 +171,7 @@ function Post({ p, isMine, onChanged }) {
   const removeByOwner = async () => {
     setBusy(true); setMsg('')
     try {
+      const { ref, update, db, ensureAnon } = await loadFb()
       await ensureAnon()
       await update(ref(db, `jobs/${p.id}`), { deleted: true })
       onChanged()
@@ -171,6 +185,7 @@ function Post({ p, isMine, onChanged }) {
     if (pin.length !== 4) { setMsg('4자리 숫자를 입력하세요.'); return }
     setBusy(true); setMsg('')
     try {
+      const { ref, set, db, ensureAnon } = await loadFb()
       await ensureAnon()
       // 해시가 서버에 저장된 값과 같아야만 규칙이 이 쓰기를 허용한다
       await set(ref(db, `job_del/${p.id}`), await pinHash(p.id, pin))
@@ -246,6 +261,7 @@ function WriteForm({ onClose, onDone }) {
     if (f.pin.length !== 4) return setMsg('삭제용 4자리 숫자를 정해주세요.')
     setBusy(true); setMsg('')
     try {
+      const { ref, set, push, db, ensureAnon } = await loadFb()
       const user = await ensureAnon()
       const slot = push(ref(db, 'jobs'))     // 키만 먼저 받는다 (해시의 소금으로 씀)
       const id = slot.key
