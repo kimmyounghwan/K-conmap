@@ -58,6 +58,7 @@ export default function App() {
           <div>
             <a href="/about">소개</a><span className="dot">·</span>
             <a href="/privacy">개인정보처리방침</a><span className="dot">·</span>
+            <a href="/terms">이용약관</a><span className="dot">·</span>
             <a href="/contact">문의</a>
           </div>
           {/* 📚 실측으로 쓴 글 — 하단 탭을 늘리지 않고 여기서 들어갑니다 (2026-09-06) */}
