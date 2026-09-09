@@ -26,6 +26,9 @@ SRC = os.path.join(ROOT, "web", "src", "data", "forms.json")
 # 갈래 → [(문서 이름, 우리 slug 또는 None(=원문을 써야 하는 것))]
 MASTER = {
  "일반": [
+   ("건설현장 현황판", "hyeonhwangpan"),
+   ("현장 조직도 · 비상 조직도", "hyeonjang-jojikdo"),
+   ("건설기술인 중복배치 여부 확인서", "gisulin-jungbok"),
    ("대외 공문", "gongmun"), ("문서 발송대장", "balsong"),
    ("공사 회의록", "jugan-hoeuirok"), ("민원 접수·처리대장", "minwon"),
    ("현장 개설 보고서", "hyeonjang-gaeseol"), ("위임장", "wiimjang"),
@@ -46,6 +49,12 @@ MASTER = {
    ("표준근로계약서(고용부)", None),
  ],
  "공무": [
+   ("하도급계획서", "hadogeup-gyehoek"),
+   ("기성대비표", "giseong-daebipyo"),
+   ("실행대비표", "silhaeng-daebipyo"),
+   ("지불계획서", "jibul-gyehoekseo"),
+   ("지불확인서", "jibul-hwaginseo"),
+   ("도서 표지 모음", "doseo-pyoji"),
    ("착공계", "chakgong"), ("현장대리인계", "daeriin"),
    ("현장대리인 변경신고서", "daeriin-byeongyeong"),
    ("공사예정공정표", "gongjeongpyo"), ("선금 신청서", "seongeum"),
@@ -69,6 +78,10 @@ MASTER = {
    ("계약보증·하자보증 증권(보증기관 서식)", None),
  ],
  "공사": [
+   ("주간·월간 공정계획표", "gongjeong-jugan-wolgan"),
+   ("주간 공정 현황보고", "jugan-hyeonhwang"),
+   ("월간 공사추진현황 보고서", "wolgan-bogoseo"),
+   ("직접시공계획서", "jikjeop-sigong-gyehoek"),
    ("작업일보", "jakeop-ilbo"), ("공정 보고서", "gongjeong-bogo"),
    ("공정 만회 대책서", "gongjeong-manhoe"),
    ("시공계획서 표지·목차", "sigong-gyehoek"),
@@ -83,6 +96,8 @@ MASTER = {
    ("도로점용·굴착 허가(관청 서식)", None),
  ],
  "안전": [
+   ("안전·환경보전비 사용계획서", "anjeon-hwangyeong-bi"),
+   ("설계안전보건대장 갑지", "seolgye-anjeon-daejang"),
    ("TBM 일지", "tbm"), ("위험성평가표", "wiheom-pyeongga"),
    ("안전보건교육일지", "anjeon-gyoyuk"),
    ("작업허가서", "jakeop-heoga"),
@@ -102,6 +117,9 @@ MASTER = {
    ("유해위험방지계획서(산안법 제출본)", None),
  ],
  "품질": [
+   ("품질관리계획서 표지·목차", "pumjil-gwanri-gyehoek"),
+   ("자재 수불부", "jajae-subulbu"),
+   ("자재 공급원 승인요청·결과통보", "jajae-gonggeupwon"),
    ("검측요청서 · 검측결과통보", "geomcheuk-yocheong"),
    ("토공 검측 체크리스트", "geomcheuk-togong"),
    ("구조물공 검측 체크리스트", "geomcheuk-gujomul"),
@@ -127,6 +145,10 @@ MASTER = {
    ("폐기물 전자인계서(올바로 시스템)", None),
  ],
  "노무·장비": [
+   ("공사참여자 실명부", "chamyeoja-silmyeongbu"),
+   ("콘크리트 타설 참여자 실명부", "taseol-silmyeongbu"),
+   ("계좌입금 의뢰서", "gyejwa-ipgeum"),
+   ("직접노무비 신청서", "jikjeop-nomubi"),
    ("근로자 명부", "geunroja-myeongbu"), ("임금대장", "imgeum-daejang"),
    ("출역일보", "chulyeok-ilbo"), ("노무비 지급확인서", "nomubi"),
    ("건설기계 반입·반출 확인서", "janggi-banip"),
