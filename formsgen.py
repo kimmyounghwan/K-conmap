@@ -166,12 +166,29 @@ def build(form):
                 s.merge(c, sp, name, bold=True, fill=HEAD_FILL, align="center", h=24)
                 c += sp
             s.r += 1
-            for _ in range(b["n"]):
-                c = 1
-                for sp in spans:
-                    s.merge(c, sp, "", h=22)
-                    c += sp
-                s.r += 1
+            # 2026-09-10 — 검측 체크리스트처럼 «항목이 미리 적힌» 표를 위해 rows 를 받습니다.
+            # rows 가 없으면 예전처럼 n 줄을 빈칸으로 냅니다(기존 서식 105개는 그대로).
+            pre = b.get("rows")
+            if pre:
+                wide_sp = spans[1] if len(spans) > 1 else spans[0]
+                per = max(16, int(wide_sp * COLW / 2.1))
+                for row in pre:
+                    vals = (list(row) + [""] * len(spans))[:len(spans)]
+                    longest = max((len(str(v)) for v in vals), default=0)
+                    hh = 22 if longest <= per else 14.5 * (math.ceil(longest / per) + 1)
+                    c = 1
+                    for val, sp in zip(vals, spans):
+                        s.merge(c, sp, str(val), h=hh, wrap=True,
+                                align=("left" if sp >= 6 else "center"))
+                        c += sp
+                    s.r += 1
+            else:
+                for _ in range(b["n"]):
+                    c = 1
+                    for sp in spans:
+                        s.merge(c, sp, "", h=22)
+                        c += sp
+                    s.r += 1
             s.blank()
         elif t == "cl":
             # 조문 — 계약서용. 「제1조(목적) …」 을 한 줄씩 폅니다.

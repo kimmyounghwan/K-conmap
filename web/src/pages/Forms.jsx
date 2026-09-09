@@ -65,9 +65,14 @@ function Preview({ sheet }) {
             <table className="fgrid" key={i}>
               <thead><tr>{b.cols.map((c) => <th key={c}>{c}</th>)}</tr></thead>
               <tbody>
-                {Array.from({ length: Math.min(b.n, 4) }).map((_, j) => (
-                  <tr key={j}>{b.cols.map((c) => <td key={c} />)}</tr>
-                ))}
+                {/* 항목이 미리 적힌 표(검측 체크리스트)면 그 줄을, 아니면 빈 줄을 */}
+                {(b.rows && b.rows.length
+                  ? b.rows.slice(0, 4).map((r, j) => (
+                    <tr key={j}>{b.cols.map((c, k) => <td key={c}>{r[k] || ''}</td>)}</tr>
+                  ))
+                  : Array.from({ length: Math.min(b.n, 4) }).map((_, j) => (
+                    <tr key={j}>{b.cols.map((c) => <td key={c} />)}</tr>
+                  )))}
               </tbody>
             </table>
           )

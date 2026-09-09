@@ -957,8 +957,14 @@ def _sheet_html(sheet):
             out.append('<table class="fgrid"><thead><tr>')
             out.extend(f"<th>{esc(c)}</th>" for c in b["cols"])
             out.append("</tr></thead><tbody>")
-            for _ in range(min(int(b.get("n") or 1), 3)):
-                out.append("<tr>" + "".join("<td></td>" for _ in b["cols"]) + "</tr>")
+            _pre = b.get("rows")
+            if _pre:
+                for _row in _pre[:3]:
+                    _cells = (list(_row) + [""] * len(b["cols"]))[:len(b["cols"])]
+                    out.append("<tr>" + "".join(f"<td>{esc(c)}</td>" for c in _cells) + "</tr>")
+            else:
+                for _ in range(min(int(b.get("n") or 1), 3)):
+                    out.append("<tr>" + "".join("<td></td>" for _ in b["cols"]) + "</tr>")
             out.append("</tbody></table>")
         elif t == "cl":
             for head, body in b["items"]:
