@@ -1103,6 +1103,15 @@ def load_store(name):
             with open(p, encoding="utf-8") as f:
                 raw = json.load(f)
             d = {"con": raw.get("con", {}), "serv": raw.get("serv", {})}
+            # ⚠️ 2026-09-09 — 여기서 con·serv 두 칸만 읽고 나머지를 버리고 있었습니다.
+            #    «지난 회차 시각»(_lastrun)이 저장은 되는데 되읽힐 수가 없어,
+            #    매 회차가 «처음 도는 회차»로 착각해 순위 조회를 250건씩 돌았습니다
+            #    (의도: 3시간 넘게 비었을 때만 250건, 촘촘하면 60건).
+            #    실측 — 수집 한 단계가 24분 48초로 회차 전체의 83%. 하루 5,250건.
+            #    어제 corps 를 다음 수집이 덮어쓰던 것과 같은 «보존 목록 누락» 입니다.
+            for _k, _v in raw.items():
+                if _k not in ("con", "serv") and not isinstance(_v, dict):
+                    d[_k] = _v
         except Exception as e:
             print(f"  ! 저장소 {name} 읽기 실패 ({type(e).__name__}: {e}) — 빈 것으로 시작")
     #   «거의 비었다» 의 기준은 씨앗의 절반 미만. 실제 사고 때 저장소가 691건이었다 —
