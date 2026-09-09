@@ -58,6 +58,8 @@ MIN_ROWS = 2         # 이보다 적으면 통계가 무의미해서 상세를 �
 HIST_TOP = 30        # 히스토그램은 상위 구간만 (파일 크기 방어)
 CASES = 3            # 최근 사례 보관 건수
 CORP_MIN_SPLIT = 2   # 법인 단위로 따로 만들 최소 표본
+RIVAL_MIN = 2        # «자주 만나는 상대» 로 실을 최소 만남 횟수 (1번은 우연입니다)
+RIVAL_TOP = 10       # 업체당 실을 상대 수 — 45만 쌍을 다 실으면 파일이 커집니다
 NAME_CUT = 34        # 공고명 자르기
 
 # ── 권장 투찰률의 근거가 되는 값들 (역검증 106,534건으로 정한 숫자) ──
@@ -583,6 +585,13 @@ def load_rank_history(p50):
         return {}, {}, 0
     by_biz, by_name, pool = defaultdict(list), defaultdict(list), 0
     _q = [0, 0]                       # [판정한 개찰, 1순위보다 싼 유효 투찰이 있던 개찰]
+    # ★ 맞대결 — 같은 개찰에 함께 «유효하게» 투찰한 두 업체를 셉니다 (2026-09-09)
+    #   ⚠️ corps 는 «낮은 금액 순 30곳» 이라 **하한 아래 실격 투찰이 섞여 있습니다.**
+    #      그냥 줄 순서로 «앞섰다» 를 판정하면 실격한 업체가 1위로 보입니다
+    #      (CLAUDE.md 「사다리에는 실격 투찰이 섞여 있다」 와 같은 함정).
+    #      그래서 하한 L 을 구한 개찰만 쓰고, L 아래는 아예 뺍니다.
+    met = defaultdict(lambda: [0, 0])   # (나, 상대) -> [만난 횟수, 내가 앞선 횟수]
+    rdisp = {}                          # 정규화 이름 -> 화면에 보여줄 원래 이름
 
     def llr_of(est):
         eok = est / 1e8
@@ -604,6 +613,7 @@ def load_rank_history(p50):
 
             # ── 바로투찰이었다면 ──
             baro = None                       # [등수 or 0(실격) or -1(30위 밖), 금액]
+            Lval = None                       # 실효 하한 — 맞대결에서도 씁니다
             b = float(r.get("base") or 0)
             amt1 = float(corps[0][1] or 0) if len(corps[0]) > 1 else 0
             rate1 = float(corps[0][2] or 0) if len(corps[0]) > 2 else 0
@@ -619,6 +629,7 @@ def load_rank_history(p50):
                     M = _baro_amount(b, A, True, lo, hi, ll, p50)
                     yeje = amt1 / (rate1 / 100.0)
                     L = math.ceil((yeje - A) * ll / 100.0 + A)
+                    Lval = L
                     _q[0] += 1
                     if any(len(c) > 1 and c[1] and L <= float(c[1]) < amt1
                            for c in corps[1:]):
@@ -641,9 +652,40 @@ def load_rank_history(p50):
                 k = norm_corp(cname)
                 if k:
                     by_name[k].append(rec)
+
+            # ── 맞대결 ──────────────────────────────────────────
+            if Lval is not None:
+                order = []                       # 낮은 금액 순 = 앞선 순
+                for c in corps:
+                    if len(c) < 2 or not c[1]:
+                        continue
+                    if float(c[1]) < Lval:       # 실격은 등수에서 뺍니다
+                        continue
+                    kk = norm_corp(c[0] or "")
+                    if not kk or kk in [x[0] for x in order]:
+                        continue
+                    rdisp.setdefault(kk, str(c[0] or ""))
+                    order.append((kk, str(c[0] or "")))
+                for a in range(len(order)):
+                    for bb in range(a + 1, len(order)):
+                        ka, kb = order[a][0], order[bb][0]
+                        met[(ka, kb)][0] += 1
+                        met[(ka, kb)][1] += 1     # a 가 앞섰다 (금액이 더 낮다)
+                        met[(kb, ka)][0] += 1
     global QUAL_N, QUAL_SKIP
     QUAL_N, QUAL_SKIP = _q[0], _q[1]
-    return by_biz, by_name, pool
+
+    # 만남이 한 번뿐인 쌍은 버립니다 — 우연이고, 파일만 무거워집니다
+    rivals = defaultdict(list)
+    for (ka, kb), (n_met, n_win) in met.items():
+        if n_met >= RIVAL_MIN:
+            rivals[ka].append([rdisp.get(kb, kb), n_met, n_win])
+    for ka in rivals:
+        rivals[ka].sort(key=lambda x: (-x[1], -x[2], x[0]))
+        del rivals[ka][RIVAL_TOP:]
+    log(f"맞대결: 2회 이상 만난 업체 {len(rivals):,}곳")
+
+    return by_biz, by_name, pool, rivals
 
 
 def build_corp(df):
@@ -658,7 +700,7 @@ def build_corp(df):
 
     _sjs = sorted(v for v in df["sj"].tolist() if v is not None and not pd.isna(v))
     _p50 = _sjs[len(_sjs) // 2] if len(_sjs) >= 10 else 99.896
-    rk_biz, rk_name, rk_pool = load_rank_history(_p50)
+    rk_biz, rk_name, rk_pool, rk_rival = load_rank_history(_p50)
     global RANK_POOL
     RANK_POOL = rk_pool
     log(f"순위 기록: 순위 받은 개찰 {rk_pool:,}건 · 업체(사업자번호) {len(rk_biz):,} · 업체(이름) {len(rk_name):,}")
@@ -766,6 +808,10 @@ def build_corp(df):
         #       분모(순위 받은 개찰 수)는 overview.json 에 한 번만 (rankPool).
         if _recs:
             cur[key]["rank"] = sorted(_recs, key=lambda x: x[1], reverse=True)[:30]
+        # ★ 자주 만나는 상대 — 이름 기준(사업자번호별로 갈라도 «만남»은 이름으로 셉니다)
+        _riv = rk_rival.get(key.split("#", 1)[0])
+        if _riv:
+            cur[key]["rival"] = _riv
         agg[key] = cur.pop(key)
 
     disp = {}          # 색인용 이름표 (URL 은 정규화된 key, 화면 제목은 원래 이름)

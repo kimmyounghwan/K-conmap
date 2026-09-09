@@ -190,6 +190,10 @@ export function CorpReport({ c, ov, onPickFirm }) {
               「30위 안에 있으면 있고, 없으면 없다라고 정확히 밝히면서. 바로투찰이었다면 이랬을 것이다.」 */}
           <RankHistory c={c} ov={ov} />
 
+          {/* ★ 2026-09-09 — 자주 만나는 상대. 순위(낮은 순 30곳)를 받은 개찰에서
+              같은 자리에 함께 있었던 업체를 셉니다. 평가는 하지 않습니다 — 사실만. */}
+          <Rivals c={c} ov={ov} />
+
           <div className="tiles c4" style={{ marginBottom: 10 }}>
             <Tile k="총 낙찰" v={num(c.n)} small />
             <Tile k="평균 투찰률" v={pct(c.s?.avg, 2)} small />
@@ -264,6 +268,58 @@ export function CorpReport({ c, ov, onPickFirm }) {
    그래서 분모를 항상 밝힙니다 — «우리가 순위를 받은 N개 개찰 중». 30위 밖은 자료에 없으니 «없다»고만 합니다.
    rec = [공고명, 날짜, 기관, 내등수, 총참가, 내투찰률, 내금액, baro]
    baro = [등수 | 0(실격) | -1(30위 밖), 바로투찰금액] 또는 null(기초·A값 없어 계산 안 함) */
+/* 🤝 자주 만나는 상대 (2026-09-09)
+ *
+ * 소장님: 「경쟁사 지도부터 만들어 볼까?」 — 지리적 «지도»가 아니라 «명단»으로 갔습니다.
+ *   알고 싶은 것은 위치가 아니라 «누가 내 앞을 막고 있나» 이기 때문입니다.
+ *
+ * ⚠️ 세 가지를 지킵니다 (실측하며 정한 것)
+ *   1. 평가하지 않습니다. 「이 회사는 늘 진다」 같은 말을 쓰지 않습니다 — 사실(횟수)만 적습니다.
+ *   2. 표본을 항상 앞에 적습니다. 순위를 받은 개찰은 아직 전체의 일부입니다.
+ *   3. 실격 투찰은 빼고 셌습니다. corps 는 «낮은 금액 순 30곳» 이라 하한 아래가 섞여 있어,
+ *      그냥 줄 순서로 «앞섰다» 를 판정하면 실격한 곳이 1위로 보입니다(build_json.py 참고).
+ */
+function Rivals({ c, ov }) {
+  const rows = Array.isArray(c?.rival) ? c.rival : []
+  if (!rows.length) return null
+  const pool = ov?.rankPool || 0
+  const most = rows[0]?.[1] || 1
+  return (
+    <div className="card rivals">
+      <div className="sec-title" style={{ margin: '0 0 6px' }}>
+        🤝 자주 만나는 상대
+        {pool > 0 && <span className="count">· 순위를 받은 개찰 {num(pool)}건에서</span>}
+      </div>
+      <div className="rv-list">
+        {rows.map(([nm, met, win], i) => {
+          const rate = met ? Math.round((win / met) * 100) : 0
+          return (
+            <div className="rv" key={i}>
+              <div className="rv-top">
+                <span className="rv-nm">{nm}</span>
+                <span className="rv-met"><b>{num(met)}</b>번 마주침</span>
+              </div>
+              <div className="rv-bar" aria-hidden="true">
+                <i style={{ width: `${Math.max(6, Math.round((met / most) * 100))}%` }} />
+              </div>
+              <div className="rv-sub">
+                <span className="w">내가 앞선 것 <b>{num(win)}번</b> · 상대가 앞선 것 {num(met - win)}번</span>
+                <span className={`rv-tag ${rate >= 60 ? 'up' : rate <= 40 ? 'dn' : ''}`}>{rate}%</span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <div className="note" style={{ marginTop: 8 }}>
+        같은 개찰에 <b>함께 투찰</b>한 횟수입니다. 낙찰하한 아래(실격) 투찰은 빼고 셌으므로,
+        «앞섰다»는 <b>살아남은 금액 중에서 더 낮게 썼다</b>는 뜻입니다.
+        순위는 낮은 금액 순 <b>30곳까지만</b> 받으므로 31위 밖에서 만난 것은 여기에 없습니다.
+        2번 이상 마주친 상대만 싣습니다.
+      </div>
+    </div>
+  )
+}
+
 function RankHistory({ c, ov }) {
   const pool = ov?.rankPool || 0
   const recs = Array.isArray(c?.rank) ? c.rank : []

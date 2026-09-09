@@ -2577,3 +2577,34 @@ a.glink:hover { text-decoration: underline; }
 .guidebox { margin-top: 12px; }
 .guidebox .row { padding: 9px 2px; }
 .guidebox .row .d { font-size: 11.5px; }
+
+/* 🤝 자주 만나는 상대 (2026-09-09) — 색은 토큰만 씁니다(다크모드가 따라오게)
+ * ⚠️ 첫 판에서 390px 에서 「13번 마주침」이 「1…」로 잘리고 % 뱃지가 사라졌습니다.
+ *    원인: flex 안에서 nowrap 인 이름표에 min-width:0 이 없으면 **줄어들지 않고**
+ *    옆 칸을 밖으로 밀어냅니다. 이름 칸에만 ellipsis 를 줘도 소용없습니다.
+ *    → 줄어들 칸(이름·설명)에 min-width:0 + flex:1, 고정될 칸(횟수·뱃지)에 flex:0 0 auto.
+ */
+.rivals .rv-list { display: grid; gap: 10px; }
+.rivals .rv { padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px;
+              background: var(--surface); overflow: hidden; }
+.rivals .rv-top { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.rivals .rv-nm { flex: 1 1 auto; min-width: 0; font-weight: 700; font-size: 13.5px;
+                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rivals .rv-met { flex: 0 0 auto; font-size: 12.5px; color: var(--text-2); white-space: nowrap; }
+.rivals .rv-met b { color: var(--accent); font-size: 14px; }
+.rivals .rv-bar { height: 5px; border-radius: 3px; background: var(--accent-soft);
+                  margin: 6px 0 5px; overflow: hidden; }
+.rivals .rv-bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.rivals .rv-sub { display: flex; align-items: center; gap: 6px; min-width: 0;
+                  font-size: 12px; color: var(--muted); }
+.rivals .rv-sub .w { flex: 1 1 auto; min-width: 0; overflow: hidden;
+                     text-overflow: ellipsis; white-space: nowrap; }
+.rivals .rv-sub b { color: var(--text-2); }
+.rivals .rv-tag { flex: 0 0 auto; font-size: 11.5px; font-weight: 700; padding: 1px 7px;
+                  border-radius: 999px; background: var(--accent-soft); color: var(--text-2); }
+.rivals .rv-tag.up { background: var(--good-soft); color: var(--good); }
+.rivals .rv-tag.dn { background: var(--warn-soft); color: var(--warn); }
+@media (max-width: 420px) {
+  .rivals .rv-nm { font-size: 13px; }
+  .rivals .rv-sub { font-size: 11.5px; }
+}
