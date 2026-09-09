@@ -4,6 +4,10 @@ import { getCorp, getOverview } from '../lib/data.js'
 import { CorpReport } from './Analysis.jsx'
 import { Skeleton, Empty } from '../components.jsx'
 import { pct, num } from '../lib/fmt.js'
+/* ⚠️ 2026-09-09 — 이 줄이 빠져 있어 /corp/… 가 «흰 화면» 이었습니다.
+   ReferenceError: wasBaked is not defined. AgencyPage·NoticePage 에는 있었는데
+   여기만 없었습니다. tools/checkimports.py 가 이제 이런 걸 잡습니다. */
+import { wasBaked } from '../lib/baked.js'
 
 /**
  * /corp/{업체키} — 업체 성적표. 분석 탭 안에 갇혀 있던 화면을 주소로 꺼낸 것입니다.

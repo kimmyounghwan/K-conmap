@@ -693,6 +693,21 @@ def main():
                 p50 = v
         except Exception:
             pass
+    # ── ⓪ 빠진 import 검사 — 빌드는 통과하는데 화면이 흰색이 되는 종류 ──────
+    #    2026-09-09: CorpPage.jsx 가 wasBaked 를 import 없이 써서 /corp/… 가 흰 화면이었다.
+    #    Vite 는 이걸 오류로 안 낸다. 그래서 여기서 먼저 막는다.
+    try:
+        import checkimports
+        _exp, _bad = checkimports.scan()
+        if _bad:
+            print(f"⛔ 쓰는데 import 안 한 것 {len(_bad)}건")
+            for _p, _nm, _src in _bad:
+                print(f"   {_p:<34} {_nm:<16} ← {_src}")
+            return 1
+        print(f"import 검사 통과 — 내보내는 이름 {len(_exp)}개")
+    except Exception as e:
+        print(f"  · import 검사를 못 돌렸습니다 ({type(e).__name__}) — 건너뜁니다")
+
     idx, res, want = build_cases(p50)
 
     # ── ① 계산 검사 (기본) — 브라우저 없이 node 로 바로 돕니다 ──────────
