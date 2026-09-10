@@ -121,8 +121,14 @@ export default function FirstBoard() {
           <div className="note" style={{ marginTop: 8 }}>
             조달청이 공고마다 적어 준 <b>면허 제한</b>으로 거릅니다 — 공고명으로 짐작하지 않습니다.
           </div>
+          {/* ⚠️ 2026-09-10 — 여기서 «면허를 하나도 안 골랐을 때» mine 을 그대로 두고 있었습니다.
+              패널이 보이는 조건이 (editLic || (mine && !lics.length)) 이라,
+              mine=true 인 채로 면허를 전부 해제하고 완료를 누르면 **패널이 안 접혔습니다.**
+              (핸드폰에서 이미 고른 칩을 다시 누르면 해제됩니다 — 잘못 눌러 0개가 되기 쉽습니다.)
+              면허가 없으면 «맞춤»은 꺼야 맞습니다 — filtering 조건도 mine && lics.length 입니다.
+              ⚠️ 이 줄은 LiveBoard.jsx 에도 똑같이 있습니다. 한쪽만 고치지 마세요. */}
           <button className="btn" style={{ marginTop: 10 }}
-            onClick={() => { setEditLic(false); if (lics.length) setMine(true) }}>완료</button>
+            onClick={() => { setEditLic(false); setMine(lics.length > 0) }}>완료</button>
         </div>
       )}
 
