@@ -558,9 +558,23 @@ def check_guidenav():
         print(f"   guide.json 에 있는 글 — {', '.join(real)}")
         return [f"guidenav 죽은 링크 {dead}"]
     if missing:
-        print(f"⚠️ guide.json 에는 있는데 화면 목록에 없는 글: {', '.join(missing)}")
-        print("   (죽은 링크는 아니지만 사용자가 그 글로 갈 길이 없습니다)")
-        return [f"guidenav 빠진 글 {missing}"]
+        # ⚠️ 2026-09-10 — 예전에는 이걸 «갈 길이 없다» 며 실패로 셌습니다. **틀린 말이었습니다.**
+        #    guidenav.js 는 바로투찰 화면에 붙는 «골라 놓은 짧은 목록» 일 뿐이고,
+        #    /guide 목록 화면(Guide.jsx)은 guide.json 의 글을 **통째로** 그립니다.
+        #    그러니 여기 없는 글도 /guide 로 갈 수 있습니다. 실패가 아니라 안내입니다.
+        #    단, /guide 가 통째로 그리기를 그만두면 그때는 진짜로 갈 길이 없어지므로 확인합니다.
+        try:
+            gi = io.open(os.path.join(ROOT, "web", "src", "pages", "Guide.jsx"),
+                         encoding="utf-8").read()
+        except Exception:
+            gi = ""
+        if "TOPICS.map(" in gi:
+            print(f"ℹ️ 바로투찰 인라인 목록(guidenav.js)에 없는 글: {', '.join(missing)}")
+            print("   /guide 목록에는 전부 나옵니다 — 죽은 링크도 아니고 갈 길도 있습니다.")
+        else:
+            print(f"❌ 화면 어디에서도 갈 수 없는 글: {', '.join(missing)}")
+            print("   (/guide 목록이 guide.json 을 통째로 그리지 않습니다)")
+            return [f"guidenav 갈 길 없는 글 {missing}"]
     print(f"✅ {len(used)}편 전부 실제 글을 가리킵니다 — {', '.join(used)}")
     return []
 
@@ -800,7 +814,14 @@ def main():
     xbad += check_guidenav()
     xbad += check_canonical()
     if xbad:
-        print(f"\n⛔ 검색 색인 칸이 어긋납니다 — 검색이 엉뚱한 칸을 뒤집니다")
+        # ⚠️ 2026-09-10 — 예전에는 여기서 «검색 색인 칸이 어긋납니다» 한 줄만 찍었습니다.
+        #    여섯 검사를 한 자루(xbad)에 담아 놓고 **첫 검사 이름**으로 말한 것이라,
+        #    guidenav 이 걸려도 「검색이 엉뚱한 칸을 뒤집니다」라고 거짓말했습니다.
+        #    검사가 틀린 이름을 대면 코드가 틀린 것보다 나쁩니다 — 검사를 못 믿게 됩니다.
+        #    xbad 에는 각 검사가 남긴 설명이 이미 들어 있습니다. 그걸 그대로 찍습니다.
+        print(f"\n⛔ 어긋난 곳 {len(xbad)}가지")
+        for x in xbad:
+            print("   ·", x)
         return 1
 
     dbad = check_daily()
