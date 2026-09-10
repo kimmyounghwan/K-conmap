@@ -387,6 +387,10 @@ def check_boardidx():
         #   둘 다 같은 순서로 읽어야 합니다. 한 파일이라도 어긋나면 잡습니다.
         for key, paths in (("first", ["web/src/pages/FirstBoard.jsx", "web/src/Sites.jsx"]),
                            ("live", ["web/src/pages/LiveBoard.jsx"])):
+            # ⚠️ 2026-09-10 — 예전에는 두 화면이 어긋나면 «나중 파일» 순서만 담고
+            #    뒤에 "≠파일이름" 을 붙였습니다. 그래서 화면에는 **맞는 쪽 순서**가 찍히고
+            #    틀린 쪽(FirstBoard)은 안 보였습니다 — 두 줄이 같아 보여 원인을 못 찾습니다.
+            #    → 파일마다 (경로, 읽는 순서) 를 그대로 들고 가서 아래에서 하나씩 대조합니다.
             got = []
             for path in paths:
                 fp = os.path.join(ROOT, *path.split("/"))
@@ -395,22 +399,40 @@ def check_boardidx():
                 t = io.open(fp, encoding="utf-8").read()
                 m = re.search(r'const \[([^\]]+)\] = a\b', t)
                 cols = [x.strip() for x in m.group(1).split(",")] if m else []
-                if got and cols != got:
-                    read[key] = cols + ["≠" + path]      # 두 화면이 서로 다르게 읽음 → 아래에서 ❌
-                    break
-                got = cols
-            read.setdefault(key, got)
+                got.append((path, cols))
+            read[key] = got
     except Exception as e:
         print(f"(건너뜀 — 읽지 못했습니다: {type(e).__name__}: {e})")
         return []
     bad = []
     for key in ("first", "live"):
         nm = "1순위" if key == "first" else "공고"
-        if made[key] and made[key] == read[key]:
-            print(f"✅ {nm}  {len(made[key])}칸 같음 — {', '.join(made[key])}")
-        else:
-            bad.append(f"{nm}: 만드는 쪽 {made[key]} ≠ 읽는 쪽 {read[key]}")
-            print(f"❌ {nm}  만드는 쪽 {made[key]}\n         읽는 쪽 {read[key]}")
+        want = made.get(key) or []
+        files = read.get(key) or []
+        if not want:
+            bad.append(f"{nm}: collect.py 에서 fields 를 못 찾았습니다")
+            print(f"❌ {nm}  collect.py 의 fields 를 못 읽었습니다")
+            continue
+        if not files:
+            bad.append(f"{nm}: 색인을 읽는 화면 파일을 못 찾았습니다")
+            print(f"❌ {nm}  색인을 읽는 화면 파일이 없습니다")
+            continue
+        wrong = [(pth, c) for pth, c in files if c != want]
+        if not wrong:
+            names = ", ".join(pth.split("/")[-1] for pth, _ in files)
+            print(f"✅ {nm}  {len(want)}칸 같음 — {', '.join(want)}   (읽는 화면: {names})")
+            continue
+        print(f"❌ {nm}  만드는 쪽(collect.py) {len(want)}칸 — {', '.join(want)}")
+        for pth, c in wrong:
+            bad.append(f"{nm}: {pth} 가 다르게 읽습니다 — {c}")
+            shown = ", ".join(c) if c else "(못 찾음)"
+            print(f"         ↳ {pth}")
+            print(f"           읽는 순서 {len(c)}칸 — {shown}")
+            if len(c) != len(want):
+                print(f"           칸 수가 다릅니다 — 화면 {len(c)} vs 만드는 쪽 {len(want)}")
+            for n, (a_, b_) in enumerate(zip(c, want)):
+                if a_ != b_:
+                    print(f"           {n}번째 칸: 화면 '{a_}' ≠ 만드는 쪽 '{b_}'")
     return bad
 
 
