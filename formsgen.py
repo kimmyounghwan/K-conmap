@@ -243,6 +243,10 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     made = []
     for form in data["forms"]:
+        # gen 이 붙은 서식은 «다른 프로그램»이 굽습니다(예: naeyeokgen.py 의 공내역서 한 벌).
+        # 여기서 만들면 그 파일을 빈 한 장짜리로 덮어씁니다.
+        if form.get("gen"):
+            continue
         wb = build(form)
         p = os.path.join(OUT, f"{form['slug']}.xlsx")
         wb.save(p)

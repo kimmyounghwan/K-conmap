@@ -49,6 +49,7 @@ MASTER = {
    ("표준근로계약서(고용부)", None),
  ],
  "공무": [
+   ("공내역서 한 벌 (수식 연동)", "gongnaeyeok-hanbeol"),
    ("하도급계획서", "hadogeup-gyehoek"),
    ("기성대비표", "giseong-daebipyo"),
    ("실행대비표", "silhaeng-daebipyo"),
