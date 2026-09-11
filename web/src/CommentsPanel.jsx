@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ref, get, set, push, query, orderByKey, limitToLast } from 'firebase/database'
 import { db, ensureAnon } from './firebase.js'
 import { pinHash } from './lib/pin.js'
+import { nickOf } from './lib/nickname.js'
 import { Skeleton } from './components.jsx'
 
 /* ══════════════════════════════════════════════════════════════
@@ -35,7 +36,10 @@ export default function CommentsPanel({ no, title }) {
   const [list, setList] = useState(null)
   const [err, setErr] = useState('')
   const [body, setBody] = useState('')
-  const [by, setBy] = useState(() => { try { return localStorage.getItem('kcm_comment_by') || '' } catch { return '' } })
+  /* 별명은 «적는 것» 이 아니라 «붙는 것» 입니다 (2026-09-11, 소장님: 「이름 별명을 쓰게 하지 말고」).
+     익명 로그인 uid 에서 만들므로 같은 브라우저면 늘 같은 별명입니다. */
+  const [nick, setNick] = useState('')
+  useEffect(() => { ensureAnon().then((u) => setNick(nickOf(u && u.uid))).catch(() => {}) }, [])
   const [pin, setPin] = useState('')
   const [busy, setBusy] = useState(false)
   const [mine, setMine] = useState(loadMine)
@@ -65,8 +69,10 @@ export default function CommentsPanel({ no, title }) {
       const u = await ensureAnon()
       const id = push(ref(db, `comments/${key}`)).key
       await set(ref(db, `comment_pins/${key}/${id}`), await pinHash(id, pin))
-      await set(ref(db, `comments/${key}/${id}`), { body: b.slice(0, 500), by: by.trim().slice(0, 20), uid: u.uid, at: Date.now() })
-      try { localStorage.setItem('kcm_comment_by', by.trim().slice(0, 20)) } catch { /* noop */ }
+      /* by 는 사용자가 적은 값이 아니라 uid 에서 만든 별명입니다. 규칙상 20자 이하라 잘라 둡니다. */
+      const myNick = nickOf(u.uid).slice(0, 20)
+      await set(ref(db, `comments/${key}/${id}`), { body: b.slice(0, 500), by: myNick, uid: u.uid, at: Date.now() })
+      setNick(myNick)
       addMine(id); setMine(loadMine()); setBody(''); setPin('')
       await load()
     } catch { setErr('댓글을 올리지 못했습니다. 잠시 후 다시 시도해주세요.') }
@@ -103,7 +109,9 @@ export default function CommentsPanel({ no, title }) {
         <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={2} maxLength={500}
           placeholder="이 공고에 대해 한마디 — 현장 사정, 질문, 정보 나눔" />
         <div className="cm-row">
-          <input value={by} onChange={(e) => setBy(e.target.value)} maxLength={20} placeholder="이름·별명 (선택)" />
+          <span className="cm-nick" title="이 브라우저에 붙은 별명입니다. 바꿀 수 없고, 이름·연락처는 남지 않습니다.">
+            {nick ? `🪪 ${nick}` : '🪪 별명 붙이는 중…'}
+          </span>
           <input value={pin} onChange={(e) => setPin(e.target.value)} inputMode="numeric" maxLength={4} placeholder="지울 때 4자리" />
           <button className="btn sm" disabled={busy} onClick={submit}>{busy ? '올리는 중…' : '올리기'}</button>
         </div>

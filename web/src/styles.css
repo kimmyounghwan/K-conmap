@@ -2608,3 +2608,13 @@ a.glink:hover { text-decoration: underline; }
   .rivals .rv-nm { font-size: 13px; }
   .rivals .rv-sub { font-size: 11.5px; }
 }
+
+/* 🪪 댓글 별명 — 적는 칸이 아니라 «붙은 것» 을 보여 주는 자리 (2026-09-11).
+   입력칸이 아니라는 게 한눈에 보이도록 테두리 없이 옅은 바탕으로 둡니다. */
+.cm-nick{
+  flex:1 1 auto; min-width:0; display:flex; align-items:center;
+  padding:0 10px; height:36px; border-radius:8px;
+  background:color-mix(in srgb, var(--fg) 6%, var(--surface));
+  color:var(--fg-dim); font-size:13px; font-weight:600;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
