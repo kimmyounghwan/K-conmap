@@ -10,6 +10,7 @@ import { quickBid, P50_FALLBACK, pickOdds, stamp14, nowStamp, canBid } from '../
 import { getOverview, getBidIndex, indexRows } from '../lib/data.js'
 import FreshBar from '../Fresh.jsx'
 import { winGrade } from '../lib/winodds.js'
+import { noteLive } from '../lib/mentor.js'
 import { won, wonShort, num, dateTime, dday, REGIONS, inRegion } from '../lib/fmt.js'
 import { loadLicCodes, saveLicCodes, loadLicNone, saveLicNone,
          licList, licNoneCount, licHit, licShort, loadRegion, saveRegion } from '../lib/lic.js'
@@ -310,6 +311,18 @@ export default function LiveBoard() {
                   <NoticeLink no={r.no} compact />
                   <span className="caret">{isOpen ? '▲' : '▼'}</span>
                 </div>
+
+                {/* 🤖 클로드 한마디 — 「그래서 넣을까 말까」 한 줄. 숫자는 이미 계산된 것만 씁니다. */}
+                {(() => {
+                  const qb = quickBid(r, p50)
+                  const nt = noteLive(r, {
+                    ready: !!qb,
+                    grade: winGrade(r),
+                    odds: qb && idx ? pickOdds(r, idx.pick, qb.amt) : null,
+                  })
+                  if (!nt) return null
+                  return <div className={'claudesay ' + nt.tone}><b>🤖 한마디</b><span>{nt.text}</span></div>
+                })()}
 
                 {/* ★ 원클릭 줄 — 완비 공고에만. 바로투찰 화면과 «같은 함수»(quickBid)로 낸 금액입니다.
                     여기서 복사하고 나라장터로 가면 끝입니다. 화면을 옮기지 않아도 됩니다.

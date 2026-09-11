@@ -3,6 +3,7 @@ import { getOverview } from '../lib/data.js'
 import FreshBar from '../Fresh.jsx'
 import NoticeDetail, { scoreState, NoticeLink } from '../NoticeDetail.jsx'
 import Comments from '../Comments.jsx'
+import { noteFirst } from '../lib/mentor.js'
 import { useBoard } from '../lib/useBoard.js'
 import { Skeleton, Empty, Tile } from '../components.jsx'
 import { won, wonShort, pct, num, dateTime, dateShort, REGIONS, inRegion } from '../lib/fmt.js'
@@ -209,6 +210,13 @@ export default function FirstBoard() {
                   <NoticeLink no={r.no} compact />
                   <span className="caret">{isOpen ? '▲' : '▼'}</span>
                 </div>
+
+                {/* 🤖 클로드 한마디 — 이 개찰이 «다음 투찰에» 무슨 뜻인지 한 줄 */}
+                {(() => {
+                  const nt = noteFirst(r)
+                  if (!nt) return null
+                  return <div className={'claudesay ' + nt.tone}><b>🤖 한마디</b><span>{nt.text}</span></div>
+                })()}
 
                 {isOpen && <NoticeDetail r={r} hideComments />}
                 {/* 💬 펼치지 않아도 보입니다 — 누르기 전에는 Firebase 를 한 줄도 안 받습니다.

@@ -2618,3 +2618,19 @@ a.glink:hover { text-decoration: underline; }
   color:var(--fg-dim); font-size:13px; font-weight:600;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
+
+/* 🤖 클로드 한마디 — 카드마다 한 줄. 뱃지·금액과 섞이지 않게 왼쪽에 색 띠만 둡니다 (2026-09-11).
+   진한 배경은 쓰지 않습니다 — 애드센스가 붙는 화면이라 카드마다 칠하면 광고와 섞여 안 읽힙니다. */
+.claudesay{
+  display:flex; gap:8px; align-items:flex-start;
+  margin-top:8px; padding:7px 10px; border-radius:8px;
+  border-left:3px solid var(--fg-dim);
+  background:color-mix(in srgb, var(--fg) 4%, var(--surface));
+  font-size:12.5px; line-height:1.5; color:var(--fg-dim);
+}
+.claudesay b{ flex:0 0 auto; font-size:11.5px; opacity:.85; white-space:nowrap; }
+.claudesay span{ min-width:0; }
+.claudesay.good{ border-left-color:var(--good); }
+.claudesay.mid { border-left-color:var(--warn, var(--fg-dim)); }
+.claudesay.bad { border-left-color:var(--bad); }
+.claudesay.info{ border-left-color:var(--fg-dim); }
