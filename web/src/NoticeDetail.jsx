@@ -134,7 +134,7 @@ const TABS = [
   ['doc', '공고문 · 내역서'],
 ]
 
-export default function NoticeDetail({ r }) {
+export default function NoticeDetail({ r, hideComments = false }) {
   const [tab, setTab] = useState('bid')
   return (
     <div className="detail" onClick={(e) => e.stopPropagation()}>
@@ -149,8 +149,11 @@ export default function NoticeDetail({ r }) {
       {tab === 'corp' && <CorpTab name={r.win} />}
       {tab === 'inst' && <InstTab name={r.inst} />}
       {tab === 'doc' && <DocTab r={r} />}
-      {/* 💬 댓글 — 접혀 있고, 누를 때만 Firebase 를 받습니다 (2026-09-06, 소장님: 대화 창구) */}
-      <Comments no={r.no} title={r.name} />
+      {/* 💬 댓글 — 접혀 있고, 누를 때만 Firebase 를 받습니다 (2026-09-06, 소장님: 대화 창구)
+          ⚠️ 2026-09-11 — 목록 카드는 «펼쳐야» 여기까지 왔습니다. 그래서 댓글이 없는 줄 아셨습니다.
+             이제 목록 쪽(FirstBoard·LiveBoard)이 카드 아래에 «항상» 댓글칸을 답니다.
+             그 화면은 hideComments 로 여기 것을 끕니다 — 한 카드에 두 개가 되지 않게. */}
+      {!hideComments && <Comments no={r.no} title={r.name} />}
     </div>
   )
 }

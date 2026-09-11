@@ -473,10 +473,10 @@ export default function LiveBoard() {
                       산출내역서·설계도서 같은 첨부파일은 나라장터에서만 받을 수 있습니다.
                       A값은 그 내역서에 있습니다.
                     </div>
-                    {/* 💬 댓글 — 접혀 있음, 누를 때만 (2026-09-06) */}
-                    <Comments no={r.no} title={r.name} />
                   </div>
                 )}
+                {/* 💬 펼치지 않아도 보입니다 (2026-09-11) — 누르기 전에는 Firebase 를 안 받습니다 */}
+                <Comments no={r.no} title={r.name} />
               </div>
             )
           })}

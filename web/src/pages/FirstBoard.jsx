@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { getOverview } from '../lib/data.js'
 import FreshBar from '../Fresh.jsx'
 import NoticeDetail, { scoreState, NoticeLink } from '../NoticeDetail.jsx'
+import Comments from '../Comments.jsx'
 import { useBoard } from '../lib/useBoard.js'
 import { Skeleton, Empty, Tile } from '../components.jsx'
 import { won, wonShort, pct, num, dateTime, dateShort, REGIONS, inRegion } from '../lib/fmt.js'
@@ -209,7 +210,10 @@ export default function FirstBoard() {
                   <span className="caret">{isOpen ? '▲' : '▼'}</span>
                 </div>
 
-                {isOpen && <NoticeDetail r={r} />}
+                {isOpen && <NoticeDetail r={r} hideComments />}
+                {/* 💬 펼치지 않아도 보입니다 — 누르기 전에는 Firebase 를 한 줄도 안 받습니다.
+                    (소장님: 「우린 대화 통로가 없잖아」 — 있었는데 카드를 펼쳐야만 보였습니다) */}
+                <Comments no={r.no} title={r.name} />
               </div>
             )
           })}

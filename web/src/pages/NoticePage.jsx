@@ -101,7 +101,8 @@ export default function NoticePage() {
       {/* ⚠️ 개찰이 끝난 건에만 «개찰 결과» 화면을 씁니다.
           마감 전 공고에 그걸 그리면 「낙찰가 −, 투찰률 −」 이 떠서
           «개찰했는데 아무도 안 됐다» 로 읽힙니다 (CLAUDE.md — 한 화면이 서로 반대말 하지 않기). */}
-      {r.win ? <NoticeDetail r={r} /> : <OpenNotice r={r} />}
+      {/* ⚠️ 아래에서 <Comments> 를 따로 그립니다 — hideComments 를 안 주면 댓글칸이 두 개 뜹니다 (2026-09-11 발견) */}
+      {r.win ? <NoticeDetail r={r} hideComments /> : <OpenNotice r={r} />}
       <NoticeDocs r={r} />
       <div className="note" style={{ marginTop: 10 }}>
         공공데이터포털 나라장터 입찰정보를 가공해 보여드립니다. 분석 결과는 참고용이며 낙찰을 보장하지 않습니다.
