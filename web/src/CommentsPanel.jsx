@@ -39,7 +39,15 @@ export default function CommentsPanel({ no, title }) {
   /* 별명은 «적는 것» 이 아니라 «붙는 것» 입니다 (2026-09-11, 소장님: 「이름 별명을 쓰게 하지 말고」).
      익명 로그인 uid 에서 만들므로 같은 브라우저면 늘 같은 별명입니다. */
   const [nick, setNick] = useState('')
-  useEffect(() => { ensureAnon().then((u) => setNick(nickOf(u && u.uid))).catch(() => {}) }, [])
+  /* ⚠️ 2026-09-11 — 처음엔 패널이 열리자마자 ensureAnon() 을 불렀습니다. **틀렸습니다.**
+     그러면 «읽기만 하는 사람»도 익명 로그인이 생기고 네트워크를 한 번 더 씁니다.
+     읽기는 공짜여야 합니다(CLAUDE.md 원칙). → **쓰기 시작할 때** 별명을 붙입니다. */
+  useEffect(() => {
+    if (nick || !body.trim()) return
+    let alive = true
+    ensureAnon().then((u) => { if (alive) setNick(nickOf(u && u.uid)) }).catch(() => {})
+    return () => { alive = false }
+  }, [body, nick])
   const [pin, setPin] = useState('')
   const [busy, setBusy] = useState(false)
   const [mine, setMine] = useState(loadMine)
@@ -110,7 +118,7 @@ export default function CommentsPanel({ no, title }) {
           placeholder="이 공고에 대해 한마디 — 현장 사정, 질문, 정보 나눔" />
         <div className="cm-row">
           <span className="cm-nick" title="이 브라우저에 붙은 별명입니다. 바꿀 수 없고, 이름·연락처는 남지 않습니다.">
-            {nick ? `🪪 ${nick}` : '🪪 별명 붙이는 중…'}
+            {nick ? `🪪 ${nick}` : '🪪 쓰기 시작하면 별명이 붙습니다'}
           </span>
           <input value={pin} onChange={(e) => setPin(e.target.value)} inputMode="numeric" maxLength={4} placeholder="지울 때 4자리" />
           <button className="btn sm" disabled={busy} onClick={submit}>{busy ? '올리는 중…' : '올리기'}</button>
