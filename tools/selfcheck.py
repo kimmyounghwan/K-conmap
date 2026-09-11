@@ -601,6 +601,94 @@ def check_guidenav():
     return []
 
 
+def check_openhour():
+    """화면이 말하는 «개찰 시각» 이 실제 자료와 맞나 — freshnote.js vs data/store/first.json.
+
+    왜 필요한가 (2026-09-11):
+      소장님이 아침마다 「1순위가 어제 날짜다 · 자동 이상 없나」를 물으셨습니다.
+      원인은 고장이 아니라 **개찰이 09시 전에 없다** 는 사실을 화면이 말하지 않은 것이었습니다.
+      그래서 web/src/lib/freshnote.js 가 「09시부터」·「11시에 65%」 라고 적습니다.
+      **이건 실측값입니다 — 자료가 쌓이면 달라질 수 있습니다.**
+      달라졌는데 화면만 옛 숫자를 말하면, 그게 다음 «조용한 거짓말» 이 됩니다.
+    """
+    import re
+    print("\n" + "=" * 64)
+    print("  개찰 시각 문구 대조 — freshnote.js vs 실제 개찰 자료")
+    print("=" * 64)
+    try:
+        js = io.open(os.path.join(ROOT, "web", "src", "lib", "freshnote.js"),
+                     encoding="utf-8").read()
+    except Exception as e:
+        print(f"(건너뜀 — freshnote.js 를 읽지 못했습니다: {type(e).__name__})")
+        return []
+    m = re.search(r"OPEN_FROM_HOUR\s*=\s*(\d+)", js)
+    if not m:
+        print("❌ freshnote.js 에서 OPEN_FROM_HOUR 를 찾지 못했습니다")
+        return ["freshnote OPEN_FROM_HOUR 없음"]
+    open_h = int(m.group(1))
+    m2 = re.search(r"개찰은\s*(\d+)\s*시에\s*(\d+)%", js)
+    peak_h, peak_pct = (int(m2.group(1)), int(m2.group(2))) if m2 else (None, None)
+
+    store = os.path.join(ROOT, "data", "store", "first.json")
+    if not os.path.exists(store):
+        print(f"(건너뜀 — {os.path.join('data','store','first.json')} 가 없습니다. 수집한 PC 에서만 됩니다)")
+        print(f"   지금 화면이 말하는 값 — 개찰 시작 {open_h}시 · 몰리는 때 {peak_h}시 {peak_pct}%")
+        return []
+    try:
+        d = json.loads(io.open(store, encoding="utf-8").read())
+    except Exception as e:
+        print(f"(건너뜀 — 읽지 못했습니다: {type(e).__name__})")
+        return []
+
+    hours = {}
+    for r in (d.get("con") or {}).values():
+        dig = "".join(ch for ch in str(r.get("dt") or "") if ch.isdigit())
+        if len(dig) >= 10:
+            hours[int(dig[8:10])] = hours.get(int(dig[8:10]), 0) + 1
+    tot = sum(hours.values())
+    if tot < 500:
+        print(f"(건너뜀 — 개찰 {tot}건뿐이라 시각 분포를 말할 수 없습니다)")
+        return []
+
+    early = sum(n for h, n in hours.items() if h < open_h)
+    real_peak = max(hours, key=lambda h: hours[h])
+    real_pct = round(hours[real_peak] / tot * 100)
+    bad = []
+    print(f"   개찰 {tot:,}건 — {open_h}시 이전 {early}건 · 가장 몰리는 때 {real_peak}시 {real_pct}%")
+
+    # 「실제로 개찰이 시작되는 시각」 — 눈에 띄지 않는 예외 한두 건(0.05% 미만)은 건너뜁니다.
+    # 그런 한 건 때문에 시작 시각을 06시로 당기면 아침 문구가 쓸모없어집니다.
+    run = 0
+    first_h = None
+    for h in sorted(hours):
+        run += hours[h]
+        if run / tot >= 0.0005:
+            first_h = h
+            break
+
+    if early:
+        # 너무 «늦게» 잡힌 경우 — 「N시부터」라고 했는데 그 전에 개찰이 있다. 거짓말이 된다.
+        print(f"❌ 화면은 「개찰은 {open_h}시부터」라고 말하는데 그보다 이른 개찰이 {early}건 있습니다")
+        bad.append(f"freshnote OPEN_FROM_HOUR={open_h} 인데 이른 개찰 {early}건")
+    elif first_h is not None and open_h != first_h:
+        # 너무 «이르게» 잡힌 경우 — 틀린 말은 아니지만 아침 문구가 안 나옵니다.
+        # 「07시부터」로 두면 08시에 「아직 시작 전」 대신 「11시에 65%」가 떠서
+        # 소장님이 또 «어제 날짜인데 이상 없나» 를 묻게 됩니다. 그게 이 검사의 이유입니다.
+        print(f"❌ 화면은 「개찰은 {open_h}시부터」인데 실제로 개찰이 시작되는 때는 {first_h}시입니다")
+        print(f"   ({open_h}~{first_h}시 사이에는 «아직 시작 전» 이라고 말해야 하는데 안 합니다)")
+        bad.append(f"freshnote OPEN_FROM_HOUR={open_h} ≠ 실제 시작 {first_h}시")
+    else:
+        print(f"✅ {open_h}시 이전 개찰 0건 · 실제 시작도 {first_h}시 — 「{open_h}시부터 열립니다」 가 맞습니다")
+
+    if peak_h is not None:
+        if peak_h != real_peak or abs(real_pct - peak_pct) > 5:
+            print(f"❌ 화면은 「{peak_h}시에 {peak_pct}%」인데 실제는 「{real_peak}시에 {real_pct}%」입니다")
+            bad.append(f"freshnote 몰리는 때 {peak_h}시 {peak_pct}% ≠ 실측 {real_peak}시 {real_pct}%")
+        else:
+            print(f"✅ 「{peak_h}시에 {peak_pct}%」 — 실측 {real_peak}시 {real_pct}% 와 맞습니다")
+    return bad
+
+
 def check_naeyeok_files():
     """naeyeok.json 이 «바로 받기» 로 내놓은 파일이 실제로 배포에 들어 있나. (2026-09-06)
 
@@ -835,6 +923,7 @@ def main():
     xbad += check_naeyeok_files()
     xbad += check_guidenav()
     xbad += check_canonical()
+    xbad += check_openhour()
     if xbad:
         # ⚠️ 2026-09-10 — 예전에는 여기서 «검색 색인 칸이 어긋납니다» 한 줄만 찍었습니다.
         #    여섯 검사를 한 자루(xbad)에 담아 놓고 **첫 검사 이름**으로 말한 것이라,

@@ -78,7 +78,9 @@ export default function FirstBoard() {
         </div>
       )}
 
-      <FreshBar kind="first" extra="개찰의 69%는 오전 11시에 열립니다" />
+      {/* ⚠️ 문구를 여기에 적지 않습니다 — 시각에 따라 달라지고, 숫자의 근거는
+          web/src/lib/freshnote.js 에 실측과 함께 한 곳에만 둡니다 (2026-09-11). */}
+      <FreshBar kind="first" />
 
       <input
         value={q}

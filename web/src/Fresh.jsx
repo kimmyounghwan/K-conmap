@@ -14,13 +14,10 @@
    ========================================================== */
 import { useEffect, useState } from 'react'
 import { getHealth } from './lib/data.js'
+import { kstParts, firstNote } from './lib/freshnote.js'
 
-/* 한국시간의 «시」와 «요일». 브라우저가 어느 시간대든 같은 답이 나오게
-   UTC 필드로 읽습니다 (getTimezoneOffset 을 쓰면 기기 설정에 흔들립니다). */
-function kst(now) {
-  const d = new Date(now.getTime() + 9 * 3600000)
-  return { h: d.getUTCHours(), day: d.getUTCDay() }   // day 0=일 6=토
-}
+/* 한국시간의 «시»와 «요일» 은 lib/freshnote.js 한 곳에서만 정합니다 (두 벌 금지). */
+const kst = kstParts
 
 /** health.json 을 사람 말로 옮깁니다. 화면 두 곳이 이 함수 하나만 씁니다. */
 export function readHealth(h, now = new Date()) {
@@ -86,6 +83,10 @@ export default function FreshBar({ kind = 'first', extra = '' }) {
 
   const newest = kind === 'live' ? v.newestLive : v.newestFirst
   const label = kind === 'live' ? '최신 공고' : '최신 개찰'
+  /* 1순위 줄에 붙는 말은 «시각에 따라» 달라집니다 — 아침에는 「아직 시작 전」,
+     낮에는 「11시에 65%」. 숫자와 판단은 lib/freshnote.js 한 곳에만 있습니다.
+     부르는 쪽에서 extra 를 주면 그게 이깁니다(다른 화면에서 쓸 여지). */
+  const note = extra || (kind === 'first' ? firstNote() : '')
 
   if (v.late) {
     return (
@@ -127,7 +128,7 @@ export default function FreshBar({ kind = 'first', extra = '' }) {
       <span>
         자료 기준 {hhmm(v.at)} ({ago(v.mins)})
         {v.working ? '' : ' · 갱신은 평일 08~19시에 돕니다'}
-        {extra ? ` · ${extra}` : ''}
+        {note ? ` · ${note}` : ''}
       </span>
     </div>
   )
