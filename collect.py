@@ -566,6 +566,10 @@ def write_health(first, live, added):
         "got": {"first": got_f, "live": got_l},
         "newest": {"first": newest(first), "live": newest(live)},
         "n": {"first": len(first.get("con") or {}), "live": len(live.get("con") or {})},
+        # 「누락이 있으면 안 돼」(소장님, 2026-09-12) — 회차가 아니라 «날짜» 로 봅니다.
+        #   live  : 주말·공휴일 포함 매일 있어야 합니다 (실측 토 45건 · 일 31건)
+        #   first : 평일만 봅니다 (실측 토 1건 · 일 0건), 공휴일은 뺍니다
+        "gaps": {"first": find_gaps(first, "first"), "live": find_gaps(live, "live")},
     }
     # 두 곳에 적습니다. store 쪽은 회차 사이에 이어지는 기록(fails 를 세려면 필요),
     # OUT 쪽은 사이트가 받아 가는 파일입니다.
@@ -576,6 +580,10 @@ def write_health(first, live, added):
                 json.dump(v, f, ensure_ascii=False, separators=(",", ":"))
         except Exception:
             print("    ! 상태 기록 실패 - %s" % p)
+    ng = len(v["gaps"]["first"]) + len(v["gaps"]["live"])
+    if ng:
+        print("  \u26d4 빠진 날 %d개 — 개찰 %s / 공고 %s"
+              % (ng, v["gaps"]["first"] or "없음", v["gaps"]["live"] or "없음"))
     mark = "정상" if ok else "실패 %d회째 - %s" % (fails, why)
     print("  \u2192 health.json  %s / 받은 줄 개찰 %s \u00b7 공고 %s"
           " / 최신 개찰 %s \u00b7 최신 공고 %s"
@@ -1125,6 +1133,91 @@ def load_store(name):
                 d[kind] = merged
             print(f"  ⚠ 저장소 {name} 이 거의 비어 있어 씨앗(data/seed)에서 복구: {_store_rows(d):,}건")
     return d
+
+
+# ══════════════════════════════════════════════════════════════════
+#  빠진 날 찾기 — 「누락이 있으면 안 돼」 (소장님, 2026-09-12)
+#
+#  ⚠️ 회차 단위(«이번에 몇 줄 받았나»)로는 못 잡습니다.
+#     주말 공고는 하루 1~15건뿐이라 한 회차에 0건인 것이 정상일 때가 많습니다.
+#     0건을 경고로 삼으면 거짓 경보가 쏟아지고, 봐주면 진짜 멈춤을 놓칩니다.
+#     → **날짜 연속성**을 봅니다. 「있어야 하는 날인데 한 건도 없다」를 찾습니다.
+#
+#  실측 근거 (2026-09-12, 저장소 7주치):
+#     공고  월 2,420 화 2,646 수 2,866 목 2,608 금 2,009 · **토 45 · 일 31**
+#     개찰  월 1,631 화 2,885 수 2,578 목 2,499 금 2,044 ·   토 1 ·  일 0
+#     → **공고는 주말에도 나옵니다.** 개찰은 주말엔 사실상 없습니다.
+#       (소장님이 「토·일도 공고는 나온다」고 바로잡아 주셔서 찾았습니다)
+# ══════════════════════════════════════════════════════════════════
+
+# 개찰이 없는 게 정상인 날. **개찰에만** 적용합니다 — 공고는 공휴일에도 올라옵니다.
+HOLIDAYS = {
+    "2026-01-01", "2026-02-16", "2026-02-17", "2026-02-18", "2026-03-01", "2026-03-02",
+    "2026-05-05", "2026-05-24", "2026-05-25", "2026-06-03", "2026-06-06", "2026-08-15",
+    "2026-08-17", "2026-09-24", "2026-09-25", "2026-09-26", "2026-10-03", "2026-10-05",
+    "2026-10-09", "2026-12-25",
+}
+GAP_DAYS = 30        # 얼마나 거슬러 볼까
+GAP_SKIP_LAST = 2    # 오늘·어제는 아직 채워지는 중이라 뺍니다(개찰은 11시에 65%가 몰립니다)
+
+
+def day_counts(store):
+    """{'YYYY-MM-DD': 건수} — 저장소 한 벌을 날짜별로 셉니다."""
+    out = {}
+    for r in (store.get("con") or {}).values():
+        dig = dt_digits(r.get("dt"))
+        if len(dig) >= 8:
+            k = "%s-%s-%s" % (dig[0:4], dig[4:6], dig[6:8])
+            out[k] = out.get(k, 0) + 1
+    return out
+
+
+def find_gaps(store, kind):
+    """있어야 하는데 한 건도 없는 날. kind: 'live'(주말 포함 매일) | 'first'(평일만)"""
+    counts = day_counts(store)
+    today = datetime.now(KST).date()
+    gaps = []
+    for i in range(GAP_SKIP_LAST, GAP_DAYS + 1):
+        d = today - timedelta(days=i)
+        s = d.isoformat()
+        if kind == "first" and (d.weekday() >= 5 or s in HOLIDAYS):
+            continue
+        if counts.get(s, 0) == 0:
+            gaps.append(s)
+    return sorted(gaps)
+
+
+# ── 씨앗 주 1회 갱신 ───────────────────────────────────────────────
+#  왜: 저장소(data/store)는 **Actions 캐시에만** 있고 워크플로는 CSV 만 커밋합니다.
+#      캐시가 비면 data/seed 로 되돌아가는데, 그 씨앗이 2026-09-03 에 멈춰 있었습니다.
+#      그대로 두면 캐시가 날아갈 때 그 뒤 자료가 통째로 사라집니다(9월 3일 「691건」 사고와 같은 길).
+#  주기: 소장님 결정 — **주 1회**. 매일이면 저장소가 월 135MB 늘어 감당이 안 됩니다(주 1회면 월 19MB).
+SEED_EVERY_DAYS = 7
+
+
+def refresh_seed(name, data):
+    """씨앗이 SEED_EVERY_DAYS 보다 오래됐으면 지금 저장소로 다시 굽습니다."""
+    import gzip          # _load_seed 와 같은 방식(함수 안에서 들여옴)
+    try:
+        os.makedirs(SEED, exist_ok=True)
+        p = os.path.join(SEED, f"{name}.json.gz")
+        if os.path.exists(p):
+            age = (time.time() - os.path.getmtime(p)) / 86400.0
+            if age < SEED_EVERY_DAYS:
+                return False
+        n = _store_rows(data)
+        if n < 1000:                      # 빈 것으로 씨앗을 덮으면 복구 수단이 사라집니다
+            print(f"  ! 씨앗 {name} 갱신 건너뜀 — 저장소가 {n:,}건뿐입니다")
+            return False
+        tmp = p + ".tmp"
+        with gzip.open(tmp, "wt", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
+        os.replace(tmp, p)
+        print(f"  → 씨앗 {name} 갱신 ({n:,}건 · {os.path.getsize(p)/1e6:.1f}MB) — 주 {SEED_EVERY_DAYS}일마다")
+        return True
+    except Exception as e:
+        print(f"  ! 씨앗 {name} 갱신 실패 ({type(e).__name__}: {e}) — 수집은 계속합니다")
+        return False
 
 
 def save_store(name, data):
@@ -1919,6 +2012,8 @@ def main():
         try:
             save_store("first", first)
             save_store("live", live)
+            refresh_seed("first", first)      # 주 1회 — 캐시가 날아가도 여기까지는 복구됩니다
+            refresh_seed("live", live)
         except Exception as e:
             print(f"    ! 중간 저장 실패 ({type(e).__name__}) — 계속합니다")
 
@@ -2020,6 +2115,8 @@ def main():
                 pass
             save_store("first", first)
             save_store("live", live)
+            refresh_seed("first", first)      # 주 1회 — 캐시가 날아가도 여기까지는 복구됩니다
+            refresh_seed("live", live)
         except Exception as e:
             print(f"  ! 소급 보충 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
 

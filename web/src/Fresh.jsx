@@ -25,9 +25,14 @@ export function readHealth(h, now = new Date()) {
   const at = Date.parse(String(h.at).replace(' ', 'T') + ':00+09:00')
   if (!at) return null
   const mins = Math.max(0, Math.round((now.getTime() - at) / 60000))
-  const { h: kh, day } = kst(now)
-  // 갱신은 평일 08~19시에만 돕니다. 밤·주말에 «늦었다» 고 하면 거짓 경고입니다.
-  const working = day >= 1 && day <= 5 && kh >= 8 && kh < 19
+  const { h: kh } = kst(now)
+  /* ⚠️ 2026-09-12 — 예전에는 «평일 08~19시» 였습니다. **두 군데가 틀렸습니다.**
+     ① 사슬은 요일을 안 가립니다 — update.yml 은 «06~19시» 면 주말에도 잇습니다.
+     ② 그리고 **공고는 주말에도 나옵니다** (실측 7주: 토 45건 · 일 31건).
+        소장님: 「토요일, 일요일도 공고는 나오거든」 — 맞는 말씀이었습니다.
+     그래서 주말에 수집이 멈추면 화면이 월요일까지 아무 말도 안 했습니다.
+     → 실제 도는 시간과 똑같이 «매일 06~19시» 로 맞춥니다. */
+  const working = kh >= 6 && kh < 19
   // 한 회차는 대략 49분 간격입니다(실측: 수집 24분 + 25분 쉬기).
   // 90분이면 두 회차를 놓친 것이라 그때부터 말합니다.
   const failed = h.ok === false
@@ -47,6 +52,10 @@ export function readHealth(h, now = new Date()) {
     why: h.why || '',
     newestFirst: (h.newest && h.newest.first) || '',
     newestLive: (h.newest && h.newest.live) || '',
+    /* 「누락이 있으면 안 돼」 — collect.py 가 날짜 연속성을 보고 적어 둔 것입니다.
+       회차가 «성공» 이어도 며칠이 비어 있을 수 있어, 성공/실패와 따로 봅니다. */
+    gapsFirst: (h.gaps && h.gaps.first) || [],
+    gapsLive: (h.gaps && h.gaps.live) || [],
   }
 }
 
@@ -83,10 +92,26 @@ export default function FreshBar({ kind = 'first', extra = '' }) {
 
   const newest = kind === 'live' ? v.newestLive : v.newestFirst
   const label = kind === 'live' ? '최신 공고' : '최신 개찰'
+  const gaps = kind === 'live' ? v.gapsLive : v.gapsFirst
   /* 1순위 줄에 붙는 말은 «시각에 따라» 달라집니다 — 아침에는 「아직 시작 전」,
      낮에는 「11시에 65%」. 숫자와 판단은 lib/freshnote.js 한 곳에만 있습니다.
      부르는 쪽에서 extra 를 주면 그게 이깁니다(다른 화면에서 쓸 여지). */
   const note = extra || (kind === 'first' ? firstNote() : '')
+
+  /* 빠진 날이 있으면 그것부터 말합니다 — 회차가 «성공» 이어도 며칠이 비어 있을 수 있습니다.
+     실제로 2026-09-03 에 캐시가 비어 목록이 이틀치만 남은 적이 있는데, 그때도 «정상» 으로 보였습니다. */
+  if (gaps && gaps.length) {
+    return (
+      <div className="freshbar warn">
+        <b>⚠️ 자료가 {gaps.length}일치 비어 있습니다</b>
+        <span>
+          {gaps.slice(0, 5).join(' · ')}{gaps.length > 5 ? ` 외 ${gaps.length - 5}일` : ''} —
+          그날 {kind === 'live' ? '공고' : '개찰'}가 한 건도 안 들어왔습니다.
+          자동으로 다시 받아오지만, 계속 비어 있으면 알려 주세요.
+        </span>
+      </div>
+    )
+  }
 
   if (v.late) {
     return (
@@ -127,7 +152,7 @@ export default function FreshBar({ kind = 'first', extra = '' }) {
           소장님이 시계를 보고 뺄셈하지 않으시게 «몇 분 전» 을 같이 적습니다. */}
       <span>
         자료 기준 {hhmm(v.at)} ({ago(v.mins)})
-        {v.working ? '' : ' · 갱신은 평일 08~19시에 돕니다'}
+        {v.working ? '' : ' · 갱신은 매일 06~19시에 돕니다'}
         {note ? ` · ${note}` : ''}
       </span>
     </div>
