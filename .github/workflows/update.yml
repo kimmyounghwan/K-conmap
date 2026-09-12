@@ -165,7 +165,10 @@ jobs:
         run: |
           git config user.name  "k-conmap-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add data/extra_*.csv
+          # data/seed 도 함께 — collect.py 가 주 1회 다시 구운 «복구용 씨앗» 입니다.
+          # 이걸 커밋하지 않으면 캐시가 날아갔을 때 옛 씨앗으로 되돌아가 며칠이 사라집니다
+          # (2026-09-12 확인: 씨앗이 09-03 에 9일째 멈춰 있었습니다).
+          git add data/extra_*.csv data/seed
           if git diff --staged --quiet; then
             echo "새로 쌓인 자료 없음 — 커밋 생략"
           else
@@ -216,14 +219,17 @@ jobs:
       - name: 연속 실패 알림 (빨간불 = 메일)
         if: ${{ !cancelled() && steps.health.outputs.fails >= 2 }}
         run: |
-          # ⚠️ 2026-09-07 밤 — 밤·주말에는 메일을 보내지 않습니다.
-          #    그 시간엔 개찰도 공고도 새로 안 나옵니다. 못 받은 것이 «없는 자료»인데
-          #    한밤중에 «실패» 메일이 가면 놀라기만 하고 할 수 있는 일이 없습니다.
-          #    (화면 경고도 같은 이유로 평일 08~19시에만 띄웁니다 — web/src/Fresh.jsx)
-          #    조달청이 밤새 죽어 있었다면 아침 회차가 그대로 이어받아 그때 알립니다.
+          # ⚠️ 2026-09-07 밤 — 밤에는 메일을 보내지 않습니다. 그 시간엔 새로 나오는 것이 없어
+          #    «실패» 메일이 가면 놀라기만 하고 할 수 있는 일이 없습니다.
+          #
+          # ⚠️ 2026-09-12 — **주말 제외를 뺐습니다.** 소장님: 「토·일도 공고는 나오거든.」
+          #    실측 7주치: 공고 토 45건 · 일 31건 (개찰만 주말에 사실상 없습니다 — 토 1 · 일 0).
+          #    그런데 사슬은 주말에도 06~19시에 돕니다. 그래서 토요일에 수집이 멈추면
+          #    **메일도 안 오고 화면도 조용해서 월요일까지 아무도 몰랐습니다.**
+          #    → 요일 조건을 없애고, 시작 시각도 사슬과 같은 06시로 맞춥니다.
+          #      (화면 경고도 같이 고쳤습니다 — web/src/Fresh.jsx 의 working)
           H=$((10#$(TZ=Asia/Seoul date +%H)))
-          D=$(TZ=Asia/Seoul date +%u)          # 1=월 … 7=일
-          if [ "$D" -gt 5 ] || [ "$H" -lt 8 ] || [ "$H" -ge 19 ]; then
+          if [ "$H" -lt 6 ] || [ "$H" -ge 19 ]; then
             echo "한국시간 $(TZ=Asia/Seoul date '+%m-%d(%a) %H:%M') — 갱신이 도는 시간이 아니라 메일은 보내지 않습니다."
             echo "연속 ${{ steps.health.outputs.fails }}회 비었습니다: ${{ steps.health.outputs.why }}"
             exit 0
