@@ -1173,8 +1173,17 @@ def day_counts(store):
 
 
 def find_gaps(store, kind):
-    """있어야 하는데 한 건도 없는 날. kind: 'live'(주말 포함 매일) | 'first'(평일만)"""
+    """있어야 하는데 한 건도 없는 날. kind: 'live'(주말 포함 매일) | 'first'(평일만)
+
+    ⚠️ 2026-09-14 — 「그 날 건수가 0이면 빠진 날」은 **틀립니다.**
+       09-12(토) 공고가 0건이라 누락으로 보였는데, 조달청에 그 날짜로 직접 물어보니
+       공사 공고가 **정말 0건**이었습니다 (totalCount=0 · resultCode=00 정상응답).
+       「물어봤는데 0건인 날」과 「못 물어본 날」은 완전히 다른 이야기입니다.
+       days.json 에 날짜마다 「정상응답을 받았다(ok)」가 이미 적혀 있으므로 그것을 봅니다.
+       ok 가 없는 날만 빠진 날입니다 — 그런 날은 days_to_scan 이 다시 훑습니다.
+    """
     counts = day_counts(store)
+    asked = load_days()
     today = datetime.now(KST).date()
     gaps = []
     for i in range(GAP_SKIP_LAST, GAP_DAYS + 1):
@@ -1182,8 +1191,12 @@ def find_gaps(store, kind):
         s = d.isoformat()
         if kind == "first" and (d.weekday() >= 5 or s in HOLIDAYS):
             continue
-        if counts.get(s, 0) == 0:
-            gaps.append(s)
+        if counts.get(s, 0):
+            continue
+        rec = asked.get(s)
+        if isinstance(rec, dict) and rec.get("ok"):
+            continue                     # 물어봤고 정상응답 — 그 날은 진짜로 0건입니다
+        gaps.append(s)
     return sorted(gaps)
 
 
@@ -1195,16 +1208,48 @@ def find_gaps(store, kind):
 SEED_EVERY_DAYS = 7
 
 
+SEED_STAMP = os.path.join(SEED, "built.json")
+
+
+def _seed_built():
+    """씨앗을 마지막으로 구운 날짜 {이름: 'YYYY-MM-DD'}."""
+    try:
+        with io.open(SEED_STAMP, encoding="utf-8") as f:
+            v = json.load(f)
+        return v if isinstance(v, dict) else {}
+    except Exception:
+        return {}
+
+
+def _seed_age_days(name):
+    """씨앗을 구운 지 며칠 됐나. 기록이 없으면 None(=갱신해야 함)."""
+    s = _seed_built().get(name)
+    if not s:
+        return None
+    try:
+        d = datetime.strptime(str(s)[:10], "%Y-%m-%d").date()
+    except Exception:
+        return None
+    return (datetime.now(KST).date() - d).days
+
+
 def refresh_seed(name, data):
-    """씨앗이 SEED_EVERY_DAYS 보다 오래됐으면 지금 저장소로 다시 굽습니다."""
+    """씨앗이 SEED_EVERY_DAYS 보다 오래됐으면 지금 저장소로 다시 굽습니다.
+
+    ⚠️ 2026-09-14 — 전에는 **파일 수정시각**(os.path.getmtime)으로 나이를 쟀습니다.
+       그런데 GitHub Actions 는 회차마다 저장소를 새로 내려받으므로 그 시각이
+       **언제나 «방금»** 입니다. 그래서 「7일 지났나」가 영원히 거짓이 되어
+       씨앗이 2026-09-03 에 11일째 멈춰 있었습니다 (캐시가 날아가면 그때로 되돌아갑니다).
+       → 나이는 씨앗 옆에 적어 둔 날짜(data/seed/built.json)로 잽니다.
+         이 파일도 워크플로가 data/seed 를 통째로 커밋하므로 함께 올라갑니다.
+    """
     import gzip          # _load_seed 와 같은 방식(함수 안에서 들여옴)
     try:
         os.makedirs(SEED, exist_ok=True)
         p = os.path.join(SEED, f"{name}.json.gz")
-        if os.path.exists(p):
-            age = (time.time() - os.path.getmtime(p)) / 86400.0
-            if age < SEED_EVERY_DAYS:
-                return False
+        age = _seed_age_days(name)
+        if os.path.exists(p) and age is not None and age < SEED_EVERY_DAYS:
+            return False
         n = _store_rows(data)
         if n < 1000:                      # 빈 것으로 씨앗을 덮으면 복구 수단이 사라집니다
             print(f"  ! 씨앗 {name} 갱신 건너뜀 — 저장소가 {n:,}건뿐입니다")
@@ -1213,6 +1258,10 @@ def refresh_seed(name, data):
         with gzip.open(tmp, "wt", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
         os.replace(tmp, p)
+        stamp = _seed_built()
+        stamp[name] = datetime.now(KST).strftime("%Y-%m-%d")
+        with io.open(SEED_STAMP, "w", encoding="utf-8") as f:
+            json.dump(stamp, f, ensure_ascii=False, indent=1, sort_keys=True)
         print(f"  → 씨앗 {name} 갱신 ({n:,}건 · {os.path.getsize(p)/1e6:.1f}MB) — 주 {SEED_EVERY_DAYS}일마다")
         return True
     except Exception as e:
