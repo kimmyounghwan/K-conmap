@@ -11,6 +11,9 @@ const TABS = [
   { to: '/forms', ic: '📄', label: '서식' },
   { to: '/change', ic: '🔁', label: '설계변경' },
   { to: '/jobs', ic: '🏗', label: '착공현장' },
+  /* 🧰 도구 — 소장님: 「탭을 따로 만들어야 하지 않아」 (2026-09-14).
+     주소는 /tools · /tools/{slug}. prerender.py 와 sitemap.py 가 같은 주소를 굽습니다. */
+  { to: '/tools', ic: '🧰', label: '도구' },
 ]
 
 export default function App() {

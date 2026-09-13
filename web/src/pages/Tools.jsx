@@ -1,0 +1,99 @@
+/* ==========================================================
+   🧰 도구 — 목록과 개별 도구 화면
+
+   소장님: 「탭을 따로 만들고, 페이지별 주소 달아서 검색할 수 있게」 (2026-09-14)
+
+   ■ 주소: /tools (목록) · /tools/{slug} (도구 한 개)
+     prerender.py 가 이 주소마다 HTML 을 구워서 검색엔진이 내용을 읽습니다.
+     ⚠️ 라우트와 prerender 와 sitemap 의 주소가 어긋나면 soft 404 가 됩니다
+        (CLAUDE.md — NotFound 가 noindex 를 겁니다). 셋을 반드시 같이 고칩니다.
+
+   ■ 내용(제목·설명·근거)은 web/src/data/tools.json 한 곳에만 있습니다.
+     계산기 코드는 web/src/tools/calcs.jsx. 둘의 slug 가 짝이 맞아야 합니다.
+   ========================================================== */
+import { useParams, Link } from 'react-router-dom'
+import DATA from '../data/tools.json'
+import { CALCS } from '../tools/calcs.jsx'
+import NotFound from './NotFound.jsx'
+
+const TOOLS = DATA.tools || []
+const CATS = DATA.cats || []
+export const toolBySlug = (s) => TOOLS.find((t) => t.slug === s) || null
+
+export default function ToolsIndex() {
+  return (
+    <div className="wrap">
+      <div className="card">
+        <div className="detail-h">🧰 건설 도구 <span className="count">· {TOOLS.length}가지</span></div>
+        <div className="note sm">
+          현장에서 자주 쓰는 계산을 한 자리에 모았습니다. 회원가입 없이 바로 쓰시고,
+          숫자는 브라우저에서 계산하니 아무것도 저장되지 않습니다.
+        </div>
+      </div>
+
+      {CATS.map((c) => {
+        const list = TOOLS.filter((t) => t.cat === c.key)
+        if (!list.length) return null
+        return (
+          <div className="card" key={c.key}>
+            <div className="detail-h">{c.icon} {c.name} <span className="count">· {list.length}가지</span></div>
+            {list.map((t) => (
+              <Link className="row rowlink" to={`/tools/${t.slug}`} key={t.slug}>
+                <span className="fic">{t.icon}</span>
+                <div className="grow"><div className="t">{t.title}</div><div className="d">{t.short}</div></div>
+                <span className="go">→</span>
+              </Link>
+            ))}
+          </div>
+        )
+      })}
+
+      <div className="card">
+        <div className="note sm">
+          ⚠️ 표준품셈·물가정보 단가·노임단가는 유료 자료라 싣지 않습니다.
+          도구는 <b>수량과 금액 구조만</b> 내고, 단가는 직접 넣으시면 됩니다.
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function ToolPage() {
+  const { slug } = useParams()
+  const t = toolBySlug(slug)
+  /* 없는 slug 는 soft 404 가 되지 않게 NotFound 로 — noindex 를 걸고 언마운트 때 지웁니다. */
+  if (!t) return <NotFound />
+  const Calc = CALCS[t.slug]
+
+  return (
+    <div className="wrap">
+      <div className="card">
+        <Link className="btn ghost sm" to="/tools">← 건설 도구</Link>
+        <h1 className="tl-h1">{t.icon} {t.title}</h1>
+        <div className="note">{t.lead}</div>
+      </div>
+
+      <div className="card">
+        {Calc ? <Calc /> : <div className="note">준비 중입니다.</div>}
+      </div>
+
+      {(t.secs || []).map((s, i) => (
+        <div className="card" key={i}>
+          <div className="detail-h">{s.h}</div>
+          {(s.p || []).map((x, j) => <p className="tl-p" key={j}>{x}</p>)}
+        </div>
+      ))}
+
+      <div className="card">
+        <div className="detail-h">다른 도구</div>
+        {TOOLS.filter((x) => x.slug !== t.slug).slice(0, 4).map((o) => (
+          <Link className="row rowlink" to={`/tools/${o.slug}`} key={o.slug}>
+            <span className="fic">{o.icon}</span>
+            <div className="grow"><div className="t">{o.title}</div><div className="d">{o.short}</div></div>
+            <span className="go">→</span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}

@@ -152,7 +152,7 @@ def read_shell():
 SITENAV = [("/", "바로투찰"), ("/first", "1순위 개찰"), ("/live", "입찰 공고"),
            ("/forms", "건설 서식"), ("/change", "설계변경"),
            ("/analysis", "낙찰 분석"), ("/daily", "개찰 성적표"),
-           ("/guide", "입찰 알아보기")]
+           ("/guide", "입찰 알아보기"), ("/tools", "건설 도구")]
 
 
 def nav_html(here=""):
@@ -1484,6 +1484,78 @@ def change_calc(shell, image=None):
 GUIDE_JSON = os.path.join(ROOT, "web", "src", "data", "guide.json")
 
 
+# 🧰 건설 도구 — 내용은 web/src/data/tools.json 한 곳에만 있습니다 (2026-09-14).
+#    화면(Tools.jsx)·여기·sitemap.py 가 같은 파일을 읽습니다. 두 벌로 적지 않습니다.
+TOOLS_JSON = os.path.join(ROOT, "web", "src", "data", "tools.json")
+
+
+def load_tools():
+    try:
+        with open(TOOLS_JSON, encoding="utf-8") as f:
+            d = json.load(f) or {}
+        return (d.get("tools") or []), (d.get("cats") or [])
+    except Exception as e:
+        print(f"  · 도구 자료를 못 읽었습니다 ({type(e).__name__}) — 건너뜁니다")
+        return [], []
+
+
+def tools_index(shell, tools, cats, image=None):
+    title = "건설 도구 — A값·투찰률·철근중량 계산기 | K-건설맵"
+    desc = ("공공공사 입찰과 현장 적산에 쓰는 계산기를 모았습니다. "
+            f"{len(tools)}가지 · 회원가입 없이 무료 · 브라우저에서 계산하므로 아무것도 저장되지 않습니다.")
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">건설 도구</h1>'
+           '<div style="font-size:12.5px;color:var(--muted);margin-top:4px">'
+           f'{len(tools)}가지 · 입찰·낙찰 · 적산·수량</div>'
+           '<p class="cp" style="margin-top:8px">현장에서 자주 쓰는 계산을 한 자리에 모았습니다. '
+           '숫자는 브라우저에서 계산하니 <b>아무것도 저장되지 않습니다.</b></p></div>']
+    for c in cats:
+        lst = [t for t in tools if t.get("cat") == c.get("key")]
+        if not lst:
+            continue
+        out.append(f'<div class="card"><div class="sec-title" style="margin:0 0 6px">'
+                   f'{esc(c.get("icon") or "")} {esc(c.get("name") or "")}</div>')
+        for t in lst:
+            out.append(f'<a class="row rowlink" href="/tools/{esc(t["slug"])}">'
+                       f'<div class="grow"><div class="t">{esc(t["title"])}</div>'
+                       f'<div class="d">{esc(t.get("short") or "")}</div></div>'
+                       f'<span class="go">→</span></a>')
+        out.append("</div>")
+    out.append('<div class="card"><div class="note sm">표준품셈·물가정보 단가·노임단가는 '
+               '유료 자료라 싣지 않습니다. 도구는 <b>수량과 금액 구조만</b> 냅니다.</div></div>')
+    ld = {"@context": "https://schema.org", "@type": "ItemList", "name": "건설 도구",
+          "numberOfItems": len(tools),
+          "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": t["title"],
+                               "url": f'{SITE}/tools/{t["slug"]}'}
+                              for i, t in enumerate(tools)]}
+    return page(shell, "/tools", title, desc, "".join(out) + nav_html("/tools"), image, ld)
+
+
+def tool_page(shell, t, others, image=None):
+    title = f'{t["title"]} — 무료 계산기 | K-건설맵'
+    desc = (t.get("short") or "")[:150]
+    out = [f'<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">'
+           f'{esc(t.get("icon") or "")} {esc(t["title"])}</h1>'
+           f'<p class="cp" style="margin-top:8px">{esc(t.get("lead") or "")}</p></div>']
+    # ⚠️ 계산기 자체는 React 가 그립니다. 크롤러에게는 «설명과 근거» 를 보여줍니다 —
+    #    입력칸만 있는 페이지는 「가치 없는 콘텐츠」로 읽힙니다(애드센스·검색 둘 다).
+    for sec in (t.get("secs") or []):
+        out.append(f'<div class="card"><div class="sec-title" style="margin:0 0 6px">'
+                   f'{esc(sec.get("h") or "")}</div>')
+        for x in (sec.get("p") or []):
+            out.append(f'<p class="cp">{esc(x)}</p>')
+        out.append("</div>")
+    if others:
+        out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">다른 도구</div>')
+        for o in others:
+            out.append(f'<a class="row rowlink" href="/tools/{esc(o["slug"])}">'
+                       f'<div class="grow"><div class="t">{esc(o["title"])}</div>'
+                       f'<div class="d">{esc(o.get("short") or "")}</div></div>'
+                       f'<span class="go">→</span></a>')
+        out.append("</div>")
+    return page(shell, f'/tools/{t["slug"]}', title, desc,
+                "".join(out) + nav_html(), image)
+
+
 def load_guide():
     try:
         with open(GUIDE_JSON, encoding="utf-8") as f:
@@ -1672,6 +1744,22 @@ def main():
             write(f'guide/{t["slug"]}.html', guide_topic(shell, t, others, img))
             made += 1
         print(f"  · 입찰 알아보기 페이지 {len(gtopics) + 1:,}개 (/guide/)")
+
+    # ── 🧰 건설 도구 ──
+    ttools, tcats = load_tools()
+    if ttools:
+        write("tools.html", tools_index(shell, ttools, tcats,
+              og.tab("tools", "건설 도구", "입찰·적산 계산기",
+                     f"{len(ttools)}가지", "회원가입 없이 무료")
+              if og.available else None))
+        made += 1
+        for t in ttools:
+            others = [o for o in ttools if o["slug"] != t["slug"]][:4]
+            img = (og.tab(f'tool-{t["slug"]}', t["title"], "건설 도구",
+                          "무료", (t.get("short") or "")[:44]) if og.available else None)
+            write(f'tools/{t["slug"]}.html', tool_page(shell, t, others, img))
+            made += 1
+        print(f"  · 건설 도구 페이지 {len(ttools) + 1:,}개 (/tools/)")
 
     # ★ 링크 목록을 «굽기 전에» 만듭니다 — 없는 주소로 링크를 걸지 않기 위해서입니다.
     L = Links()

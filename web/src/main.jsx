@@ -62,6 +62,10 @@ const ChangeTopic = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ d
 /* 📚 입찰 알아보기 — 실측으로 쓴 원본 글 (2026-09-06). 하단 탭은 안 늘리고 푸터·바로투찰에서 들어갑니다. */
 const Guide = lazyPage(() => import('./pages/Guide.jsx'))
 const GuideTopic = lazyPage(() => import('./pages/Guide.jsx').then((m) => ({ default: m.GuideTopic })))
+/* 🧰 도구 — lazy() 가 아니라 lazyPage() 입니다. 배포가 지나가면 옛 파일이 사라져
+   화면이 통째로 죽습니다 (2026-09-08 착공현장 사고). */
+const ToolsIndex = lazyPage(() => import('./pages/Tools.jsx'))
+const ToolPage = lazyPage(() => import('./pages/Tools.jsx').then((m) => ({ default: m.ToolPage })))
 const ChangeCalc = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeCalc })))
 const ChangeBook = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeBook })))
 const ChangeNaeyeok = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeNaeyeok })))
@@ -105,6 +109,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/change/naeyeok/:kind" element={<Suspense fallback={<Loading />}><ChangeNaeyeok /></Suspense>} />
           <Route path="/change/:slug" element={<Suspense fallback={<Loading />}><ChangeTopic /></Suspense>} />
           <Route path="/forms/:slug" element={<Suspense fallback={<Loading />}><FormPage /></Suspense>} />
+          {/* 🧰 도구 — 목록과 개별 주소. prerender.py 가 같은 주소로 HTML 을 굽습니다 (2026-09-14) */}
+          <Route path="/tools" element={<Suspense fallback={<Loading />}><ToolsIndex /></Suspense>} />
+          <Route path="/tools/:slug" element={<Suspense fallback={<Loading />}><ToolPage /></Suspense>} />
           <Route path="/guide" element={<Suspense fallback={<Loading />}><Guide /></Suspense>} />
           <Route path="/guide/:slug" element={<Suspense fallback={<Loading />}><GuideTopic /></Suspense>} />
           <Route path="/daily" element={<DailyIndex />} />
