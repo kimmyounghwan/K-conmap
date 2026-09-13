@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { lowerLimit as rateByEstimate } from './lib/engines.js'
 import { Link } from 'react-router-dom'
 import { getCorp, getAgency, getBoardRank } from './lib/data.js'
 import { won, wonShort, pct, num, dateFull, dateTime, normCorp } from './lib/fmt.js'
@@ -109,14 +110,10 @@ function scoreLink(r) {
  *   50억~100억 87.495 / 10억~50억 88.745 / 10억 미만 89.745
  *   100억 이상은 종합심사라 별도 기준입니다.
  */
+/* 하한율 규칙은 lib/engines.js 한 곳에만 있습니다 (2026-09-14).
+   여기서는 기초금액을 추정가격으로 바꾼 뒤 그 함수를 부르기만 합니다. */
 function lowerLimit(base) {
-  const p = estPrice(base)
-  if (!p) return null
-  const eok = p / 1e8
-  if (eok >= 100) return { rate: null, note: '100억 이상 — 종합심사(별도 기준)' }
-  if (eok >= 50) return { rate: 87.495, note: '추정가격 50억~100억' }
-  if (eok >= 10) return { rate: 88.745, note: '추정가격 10억~50억' }
-  return { rate: 89.745, note: '추정가격 10억 미만' }
+  return rateByEstimate(estPrice(base))
 }
 
 /** 기초금액 대비 몇 %인지 */

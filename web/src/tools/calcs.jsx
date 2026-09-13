@@ -9,6 +9,8 @@
       표를 그대로 실을 수 없습니다. 수량만 내고 단가는 사용자가 곱합니다.
    ========================================================== */
 import { useState } from 'react'
+/* ⚠️ 낙찰하한율 규칙은 lib/engines.js 한 곳에만 있습니다. 여기서 다시 적지 않습니다. */
+import { lowerLimit } from '../lib/bidmath.js'
 
 const won = (n) => (n > 0 ? Math.round(n).toLocaleString('ko-KR') + '원' : '—')
 const num = (v) => { const n = Number(String(v).replace(/[^0-9.]/g, '')); return isFinite(n) ? n : 0 }
@@ -157,9 +159,277 @@ export function RebarWeight() {
   )
 }
 
+/* ── 낙찰하한율 찾기 ─────────────────────────────────────────── */
+export function FloorRate() {
+  const [est, setEst] = useState('')
+  const e = num(est)
+  const r = e > 0 ? lowerLimit(e) : null
+  return (
+    <div className="tool">
+      <Row label="추정가격" hint="원 · 부가세 제외">
+        <input inputMode="numeric" value={est} onChange={(ev) => setEst(ev.target.value)} placeholder="630,000,000" />
+      </Row>
+      <Out items={[
+        { k: '구간', v: r ? r.note : '—' },
+        { k: '낙찰하한율', v: r && r.rate ? r.rate + '%' : (r ? '해당 없음' : '—'), big: true },
+      ]} />
+      <div className="hint"><b>공고서에 하한율이 적혀 있으면 그 값이 우선입니다.</b> 실측 6,212건 중 128건(2.1%)이 규모 기준과 달랐고, 최대 3.7%까지 차이 났습니다.</div>
+    </div>
+  )
+}
+
+/* ── 적격심사 점수 합산기 — 배점표는 내장하지 않습니다 ───────────── */
+const QITEMS = ['경영상태', '시공경험', '기술능력', '신인도', '자재·장비', '기타']
+export function QualifyScore() {
+  const [v, setV] = useState(() => Object.fromEntries(QITEMS.map((k) => [k, ''])))
+  const [pass, setPass] = useState('95')
+  const sum = QITEMS.reduce((a, k) => a + num(v[k]), 0)
+  const need = num(pass) - sum
+  return (
+    <div className="tool">
+      <div className="tl-grid">
+        {QITEMS.map((k) => (
+          <Row key={k} label={k} hint="점">
+            <input inputMode="decimal" value={v[k]} onChange={(e) => setV({ ...v, [k]: e.target.value })} />
+          </Row>
+        ))}
+        <Row label="통과 점수" hint="점 · 공고서 기준">
+          <input inputMode="decimal" value={pass} onChange={(e) => setPass(e.target.value)} />
+        </Row>
+      </div>
+      <Out items={[
+        { k: '합계', v: sum > 0 ? sum.toFixed(2) + '점' : '—', big: true },
+        { k: '통과선까지', v: sum > 0 ? (need <= 0 ? '통과 (+' + (-need).toFixed(2) + '점)' : need.toFixed(2) + '점 부족') : '—' },
+      ]} />
+      <div className="hint">배점은 <b>발주기관·연도·규모마다 다릅니다.</b> 공고서 배점표를 보고 넣으세요 — 이 도구는 더하기만 합니다.</div>
+    </div>
+  )
+}
+
+/* ── 물가변동 조정금액 ────────────────────────────────────────── */
+export function PriceAdjust() {
+  const [amt, setAmt] = useState('')
+  const [rate, setRate] = useState('')
+  const [days, setDays] = useState('')
+  const a = num(amt), r = num(rate), d = num(days)
+  const ok90 = d >= 90, ok3 = Math.abs(r) >= 3
+  const adj = (ok90 && ok3) ? a * r / 100 : 0
+  return (
+    <div className="tool">
+      <div className="tl-grid">
+        <Row label="조정대상금액" hint="원 · 아직 이행 안 한 부분">
+          <input inputMode="numeric" value={amt} onChange={(e) => setAmt(e.target.value)} placeholder="500,000,000" />
+        </Row>
+        <Row label="등락률" hint="% · 지수 또는 품목">
+          <input inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="4.2" />
+        </Row>
+        <Row label="경과일수" hint="일 · 계약·직전조정일부터">
+          <input inputMode="numeric" value={days} onChange={(e) => setDays(e.target.value)} placeholder="120" />
+        </Row>
+      </div>
+      <Out items={[
+        { k: '90일 요건', v: d > 0 ? (ok90 ? '충족' : '미달 (' + (90 - d) + '일 남음)') : '—' },
+        { k: '3% 요건', v: r !== 0 ? (ok3 ? '충족' : '미달') : '—' },
+        { k: '조정금액', v: adj ? won(adj) : (a > 0 ? '조정 불가' : '—'), big: true },
+      ]} />
+      <div className="hint">이미 기성검사를 받은 부분은 <b>조정대상에서 빠집니다.</b> 늦게 신청할수록 받을 금액이 줄어듭니다.</div>
+    </div>
+  )
+}
+
+/* ── 토량환산계수 L·C ─────────────────────────────────────────── */
+export function SoilVolume() {
+  const [from, setFrom] = useState('nat')
+  const [vol, setVol] = useState('')
+  const [L, setL] = useState('1.25')
+  const [C, setC] = useState('0.90')
+  const v = num(vol), l = num(L) || 1, c = num(C) || 1
+  const nat = from === 'nat' ? v : from === 'loose' ? v / l : v / c
+  return (
+    <div className="tool">
+      <div className="tl-grid">
+        <Row label="넣는 값의 상태">
+          <select value={from} onChange={(e) => setFrom(e.target.value)}>
+            <option value="nat">자연상태 (지반 그대로)</option>
+            <option value="loose">흐트러진 상태 (파낸 흙)</option>
+            <option value="comp">다짐상태 (성토 완료)</option>
+          </select>
+        </Row>
+        <Row label="토량" hint="㎥">
+          <input inputMode="decimal" value={vol} onChange={(e) => setVol(e.target.value)} placeholder="1000" />
+        </Row>
+        <Row label="L" hint="흐트러진÷자연">
+          <input inputMode="decimal" value={L} onChange={(e) => setL(e.target.value)} />
+        </Row>
+        <Row label="C" hint="다짐÷자연">
+          <input inputMode="decimal" value={C} onChange={(e) => setC(e.target.value)} />
+        </Row>
+      </div>
+      <Out items={[
+        { k: '자연상태', v: nat > 0 ? nat.toFixed(1) + ' ㎥' : '—' },
+        { k: '흐트러진 상태 (운반)', v: nat > 0 ? (nat * l).toFixed(1) + ' ㎥' : '—', big: true },
+        { k: '다짐상태 (성토)', v: nat > 0 ? (nat * c).toFixed(1) + ' ㎥' : '—' },
+      ]} />
+      <div className="hint">L·C 는 흙 종류마다 다릅니다. <b>설계도서나 토질조사 값이 있으면 그것을 넣으세요.</b></div>
+    </div>
+  )
+}
+
+/* ── 콘크리트 물량 ────────────────────────────────────────────── */
+export function ConcreteVolume() {
+  const [w, setW] = useState(''); const [h, setH] = useState('')
+  const [l, setL] = useState(''); const [n, setN] = useState('1')
+  const [loss, setLoss] = useState('2')
+  const v = num(w) * num(h) * num(l) * num(n)
+  const vl = v * (1 + num(loss) / 100)
+  return (
+    <div className="tool">
+      <div className="tl-grid">
+        <Row label="가로(폭)" hint="m"><input inputMode="decimal" value={w} onChange={(e) => setW(e.target.value)} placeholder="0.4" /></Row>
+        <Row label="세로(높이)" hint="m"><input inputMode="decimal" value={h} onChange={(e) => setH(e.target.value)} placeholder="0.6" /></Row>
+        <Row label="길이" hint="m"><input inputMode="decimal" value={l} onChange={(e) => setL(e.target.value)} placeholder="12" /></Row>
+        <Row label="개수" hint="개"><input inputMode="numeric" value={n} onChange={(e) => setN(e.target.value)} /></Row>
+        <Row label="손실" hint="% · 흘림·변형"><input inputMode="decimal" value={loss} onChange={(e) => setLoss(e.target.value)} /></Row>
+      </div>
+      <Out items={[
+        { k: '산출 체적', v: v > 0 ? v.toFixed(3) + ' ㎥' : '—' },
+        { k: '손실 포함', v: vl > 0 ? vl.toFixed(3) + ' ㎥' : '—', big: true },
+      ]} />
+      <div className="hint">개구부·다른 부재와 겹치는 부분은 <b>빼서 넣으셔야</b> 합니다.</div>
+    </div>
+  )
+}
+
+/* ── 거푸집 면적 ──────────────────────────────────────────────── */
+export function FormworkArea() {
+  const [kind, setKind] = useState('col')
+  const [a, setA] = useState(''); const [b, setB] = useState('')
+  const [h, setH] = useState(''); const [n, setN] = useState('1')
+  const A = num(a), B = num(b), H = num(h), N = num(n)
+  let area = 0, how = ''
+  if (kind === 'col') { area = 2 * (A + B) * H * N; how = '둘레 × 높이 (네 옆면)' }
+  else if (kind === 'wall') { area = A * H * 2 * N; how = '길이 × 높이 × 양면' }
+  else if (kind === 'beam') { area = (2 * H + B) * A * N; how = '(양 옆면 + 밑면) × 길이' }
+  else { area = A * B * N; how = '슬래브 밑면' }
+  return (
+    <div className="tool">
+      <div className="tl-grid">
+        <Row label="부재">
+          <select value={kind} onChange={(e) => setKind(e.target.value)}>
+            <option value="col">기둥</option><option value="wall">벽</option>
+            <option value="beam">보</option><option value="slab">슬래브</option>
+          </select>
+        </Row>
+        <Row label={kind === 'slab' ? '가로' : kind === 'col' ? '단면 가로' : '길이'} hint="m">
+          <input inputMode="decimal" value={a} onChange={(e) => setA(e.target.value)} />
+        </Row>
+        <Row label={kind === 'slab' ? '세로' : kind === 'col' ? '단면 세로' : '폭'} hint="m">
+          <input inputMode="decimal" value={b} onChange={(e) => setB(e.target.value)} />
+        </Row>
+        {kind !== 'slab' && (
+          <Row label="높이(춤)" hint="m"><input inputMode="decimal" value={h} onChange={(e) => setH(e.target.value)} /></Row>
+        )}
+        <Row label="개수" hint="개"><input inputMode="numeric" value={n} onChange={(e) => setN(e.target.value)} /></Row>
+      </div>
+      <Out items={[
+        { k: '계산 방식', v: how },
+        { k: '거푸집 면적', v: area > 0 ? area.toFixed(2) + ' ㎡' : '—', big: true },
+      ]} />
+      <div className="hint">바닥이나 다른 콘크리트에 닿는 면은 거푸집이 필요 없습니다. <b>개구부·접합부는 도면을 보고 조정</b>하세요.</div>
+    </div>
+  )
+}
+
+/* ── 레미콘 대수 ──────────────────────────────────────────────── */
+export function RemiconTruck() {
+  const [vol, setVol] = useState(''); const [cap, setCap] = useState('6'); const [loss, setLoss] = useState('2')
+  const v = num(vol) * (1 + num(loss) / 100)
+  const c = num(cap) || 6
+  const cars = v > 0 ? Math.ceil(v / c) : 0
+  const left = cars > 0 ? cars * c - v : 0
+  return (
+    <div className="tool">
+      <div className="tl-grid">
+        <Row label="콘크리트 물량" hint="㎥"><input inputMode="decimal" value={vol} onChange={(e) => setVol(e.target.value)} placeholder="45" /></Row>
+        <Row label="차량 용량" hint="㎥"><input inputMode="decimal" value={cap} onChange={(e) => setCap(e.target.value)} /></Row>
+        <Row label="손실" hint="%"><input inputMode="decimal" value={loss} onChange={(e) => setLoss(e.target.value)} /></Row>
+      </div>
+      <Out items={[
+        { k: '손실 포함 물량', v: v > 0 ? v.toFixed(2) + ' ㎥' : '—' },
+        { k: '필요 대수', v: cars > 0 ? cars + ' 대' : '—', big: true },
+        { k: '마지막 차 남는 양', v: cars > 0 ? left.toFixed(2) + ' ㎥' : '—' },
+      ]} />
+      <div className="hint">남는 양이 많으면 <b>소형 차량을 섞어 주문</b>하는 것이 낫습니다. 배차 간격도 함께 잡으세요(콜드조인트).</div>
+    </div>
+  )
+}
+
+/* ── 아스팔트 톤수 ────────────────────────────────────────────── */
+export function AsphaltTonnage() {
+  const [area, setArea] = useState(''); const [t, setT] = useState('5')
+  const [den, setDen] = useState('2.35'); const [loss, setLoss] = useState('3')
+  const v = num(area) * (num(t) / 100)
+  const ton = v * num(den) * (1 + num(loss) / 100)
+  return (
+    <div className="tool">
+      <div className="tl-grid">
+        <Row label="포장 면적" hint="㎡"><input inputMode="decimal" value={area} onChange={(e) => setArea(e.target.value)} placeholder="1200" /></Row>
+        <Row label="두께" hint="cm"><input inputMode="decimal" value={t} onChange={(e) => setT(e.target.value)} /></Row>
+        <Row label="밀도" hint="t/㎥"><input inputMode="decimal" value={den} onChange={(e) => setDen(e.target.value)} /></Row>
+        <Row label="손실" hint="%"><input inputMode="decimal" value={loss} onChange={(e) => setLoss(e.target.value)} /></Row>
+      </div>
+      <Out items={[
+        { k: '체적', v: v > 0 ? v.toFixed(2) + ' ㎥' : '—' },
+        { k: '아스콘 소요량', v: ton > 0 ? ton.toFixed(2) + ' 톤' : '—', big: true },
+      ]} />
+      <div className="hint">밀도는 혼합물 종류·다짐도에 따라 다릅니다. <b>시방서나 배합설계 값이 있으면 그것을 넣으세요.</b></div>
+    </div>
+  )
+}
+
+/* ── 벽돌·블록 수량 ───────────────────────────────────────────── */
+const BRICK = [
+  ['0.5B 쌓기', 75], ['1.0B 쌓기', 149], ['1.5B 쌓기', 224], ['2.0B 쌓기', 298],
+  ['콘크리트블록', 12.5],
+]
+export function BrickCount() {
+  const [area, setArea] = useState(''); const [kind, setKind] = useState('1.0B 쌓기')
+  const [per, setPer] = useState('149'); const [loss, setLoss] = useState('4')
+  const cnt = num(area) * num(per) * (1 + num(loss) / 100)
+  const pick = (k) => { setKind(k); const f = BRICK.find((x) => x[0] === k); if (f) setPer(String(f[1])) }
+  return (
+    <div className="tool">
+      <div className="tl-grid">
+        <Row label="벽 면적" hint="㎡"><input inputMode="decimal" value={area} onChange={(e) => setArea(e.target.value)} placeholder="85" /></Row>
+        <Row label="쌓기 방식">
+          <select value={kind} onChange={(e) => pick(e.target.value)}>
+            {BRICK.map(([k]) => <option key={k} value={k}>{k}</option>)}
+          </select>
+        </Row>
+        <Row label="㎡당 장수" hint="매"><input inputMode="decimal" value={per} onChange={(e) => setPer(e.target.value)} /></Row>
+        <Row label="할증" hint="% · 파손·절단"><input inputMode="decimal" value={loss} onChange={(e) => setLoss(e.target.value)} /></Row>
+      </div>
+      <Out items={[
+        { k: '산출 수량', v: num(area) > 0 ? Math.round(num(area) * num(per)).toLocaleString('ko-KR') + ' 매' : '—' },
+        { k: '할증 포함', v: cnt > 0 ? Math.ceil(cnt).toLocaleString('ko-KR') + ' 매' : '—', big: true },
+      ]} />
+      <div className="hint">표준형 시멘트벽돌(190×90×57, 줄눈 10mm) 기준입니다. <b>규격이나 줄눈이 다르면 ㎡당 장수를 고쳐 넣으세요.</b></div>
+    </div>
+  )
+}
+
 /* slug → 계산기. tools.json 의 slug 와 짝이 맞아야 합니다 (selfcheck 가 대조합니다). */
 export const CALCS = {
   'a-value': AValue,
   'effective-floor': EffectiveFloor,
   'rebar-weight': RebarWeight,
+  'floor-rate': FloorRate,
+  'qualify-score': QualifyScore,
+  'price-adjust': PriceAdjust,
+  'soil-volume': SoilVolume,
+  'concrete-volume': ConcreteVolume,
+  'formwork-area': FormworkArea,
+  'remicon-truck': RemiconTruck,
+  'asphalt-tonnage': AsphaltTonnage,
+  'brick-count': BrickCount,
 }

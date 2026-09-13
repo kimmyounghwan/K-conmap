@@ -7,7 +7,7 @@ import { winGrade } from '../lib/winodds.js'
 import { bidAmount, limitAmount, limitRate, r3, c3,
          sjSigma, recommend, buildScen, missingOf, isReady,
          digits, toNum, P50_FALLBACK, shownBid, passProb, QTILES, QTILE_N, quantileBid,
-         smartBid, autoRule, canBid, nowStamp, stamp14 } from '../lib/bidmath.js'
+         smartBid, autoRule, canBid, nowStamp, stamp14, lowerLimit } from '../lib/bidmath.js'
 import MyToday from '../MyToday.jsx'
 import { GUIDE_NAV, guideOf } from '../lib/guidenav.js'
 /* 공고 화면(LiveBoard)이 예전부터 여기서 가져다 썼습니다 — 그대로 이어 줍니다 */
@@ -71,14 +71,7 @@ function GuideBox() {
   )
 }
 
-function lowerLimit(estimate) {
-  if (!estimate) return null
-  const eok = estimate / 1e8
-  if (eok >= 100) return { rate: null, note: '100억 이상 — 종합심사(별도 기준)' }
-  if (eok >= 50) return { rate: 87.495, note: '추정가격 50억~100억' }
-  if (eok >= 10) return { rate: 88.745, note: '추정가격 10억~50억' }
-  return { rate: 89.745, note: '추정가격 10억 미만' }
-}
+/* lowerLimit 은 lib/bidmath.js 로 옮겼습니다 — 건설 도구가 같은 값을 씁니다 (2026-09-14) */
 
 /* ⚠️ 2026-09-02 — 여기가 이 사이트에서 제일 중요한 두 줄입니다. 실제로 틀렸었습니다.
 

@@ -294,3 +294,11 @@ export function smartBid({ base, llRate, aVal, aKnown, p50, sd, enp }) {
   if (!out || !(out.amt > 0)) return null
   return { ...shownBid(base, p50, out.amt), sj: out.sj, mode: 'rec', rule: null, pctile: out.pctile, aKnown }
 }
+
+/* 적격심사 낙찰하한율 — **정의는 lib/engines.js 한 곳에만** 있습니다 (2026-09-14).
+   여기서는 다시 내보내기만 합니다. 부르는 쪽(바로투찰·건설 도구)이 bidmath 를 쓰기 때문입니다.
+   ⚠️ 2026-09-14 확인 — 이 규칙이 engines.js · BaroBid.jsx · NoticeDetail.jsx **세 곳에**
+      따로 적혀 있었습니다. 값은 같았지만 한쪽만 고치면 조용히 어긋나는 자리였습니다.
+   ⚠️ 공고서에 하한율이 적혀 있으면 그 값이 우선입니다 — 실측 6,212건 중 128건(2.1%)이
+      규모 기준과 달랐고 최대 3.7%까지 차이 났습니다. */
+export { lowerLimit } from './engines.js'
