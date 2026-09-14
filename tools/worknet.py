@@ -1,19 +1,21 @@
 # -*- coding: utf-8 -*-
-"""워크넷 채용정보 API 가 되는지 «실제로» 두드려 보는 도구.
+"""고용24(워크넷) 채용정보 API 가 «지금» 되는지 실제로 두드려 보는 도구.
 
     python tools\worknet.py
 
 ⚠️ 이 파일은 «확인»만 합니다. 자료를 저장하지도, 화면에 붙이지도 않습니다.
-   먼저 되는지 보고, 응답 항목을 눈으로 확인한 다음에 collect.py 에 넣습니다.
-   (CLAUDE.md 1번 — 응답 필드를 한 번도 안 찍어보고 «없다»고 말한 적이 세 번 있습니다)
+   결과는 화면과 tools/_worknet결과.txt 에 같이 씁니다(클로드가 그 파일을 읽습니다).
 
-키를 어디서 받나
-  · 워크넷 API 키는 **공공데이터포털 키와 별개**입니다.
-    https://openapi.work.go.kr  에서 따로 받습니다.
-  · 받으면 .env 에 이렇게 한 줄 넣으세요:
-        WORKNET_API_KEY=받은키
-  · 키가 없으면 이 도구가 조달청 키(G2B_API_KEY)로도 한 번 시험합니다.
-    (같은 계정 키가 먹히는 경우가 있어서 확인차 해봅니다)
+⚠️ 키 값은 절대 찍지 않습니다. 길이만 찍습니다.
+
+2026-09-03 에 한 번 했고, 그때 답은 이랬습니다:
+    <error>개인회원은 사용할 수 없는 OPEN-API입니다.</error>
+채용정보 API 는 «사업자등록번호가 있는 기업회원» 만 씁니다.
+그 뒤 계정을 기업회원으로 바꾸셨다면 **같은 키 문자열 그대로** 통과합니다.
+그래서 다시 두드려 보는 것입니다.  (2026-09-14 다시 씀)
+
+주소가 바뀌었습니다 — 옛 openapi.work.go.kr/…/wantedApi.do 는 더 안 씁니다.
+    목록 210L01 : https://www.work24.go.kr/cm/openApi/call/wk/callOpenApiSvcInfo210L01.do
 """
 import io
 import os
@@ -22,10 +24,19 @@ import sys
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+from collections import Counter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-URL = "http://openapi.work.go.kr/opi/opi/opia/wantedApi.do"
+OUT = os.path.join(ROOT, "tools", "_worknet결과.txt")
+URL = "https://www.work24.go.kr/cm/openApi/call/wk/callOpenApiSvcInfo210L01.do"
 ssl._create_default_https_context = ssl._create_unverified_context
+
+_lines = []
+
+
+def say(s=""):
+    print(s)
+    _lines.append(s)
 
 
 def load_env():
@@ -42,94 +53,122 @@ def load_env():
 
 def call(key, **extra):
     q = {"authKey": key, "callTp": "L", "returnType": "XML",
-         "startPage": "1", "display": "10"}
+         "startPage": "1", "display": "100"}
     q.update(extra)
     try:
-        with urllib.request.urlopen(URL + "?" + urllib.parse.urlencode(q), timeout=20) as r:
+        with urllib.request.urlopen(URL + "?" + urllib.parse.urlencode(q), timeout=25) as r:
             return r.status, r.read()
     except Exception as e:
-        return None, f"{type(e).__name__}: {e}".encode()
+        return None, ("%s: %s" % (type(e).__name__, e)).encode()
 
 
 def show(label, key, **extra):
-    print(f"\n{'=' * 60}\n  {label}\n{'=' * 60}")
+    """(됐나, 받은 항목들) 을 돌려준다."""
+    say()
+    say("=" * 64)
+    say("  " + label)
+    say("=" * 64)
     st, body = call(key, **extra)
     if st is None:
-        print(f"  ❌ 통신 실패 — {body.decode('utf-8', 'replace')[:200]}")
-        return False
+        say("  [실패] 통신 자체가 안 됩니다 - " + body.decode("utf-8", "replace")[:200])
+        return False, []
     txt = body.decode("utf-8", "replace")
-    print(f"  HTTP {st} · {len(body):,}바이트")
+    say("  HTTP %s · %s바이트" % (st, format(len(body), ",")))
+
+    # ★ 0건이든 오류든, 원문 앞머리를 «항상» 남긴다 (이유 없는 0건은 다시 없다)
+    say("  [응답 원문 앞 500자]")
+    say("    " + txt[:500].replace("\n", " ").replace("\r", " "))
+
     try:
         root = ET.fromstring(txt)
-    except Exception:
-        print("  ❌ XML 이 아닙니다. 앞부분:")
-        print("     " + txt[:300].replace("\n", " "))
-        return False
+    except Exception as e:
+        say("  [실패] XML 로 안 읽힙니다 - %s" % e)
+        return False, []
 
-    # 오류 응답인지 먼저 본다
-    msg = root.findtext(".//message") or root.findtext(".//errMsg") or ""
-    total = root.findtext(".//total") or root.findtext(".//totalCount") or ""
+    err = (root.findtext(".//error") or root.findtext(".//message")
+           or root.findtext(".//errMsg") or "")
     items = root.findall(".//wanted")
     if not items:
         items = [e for e in root if len(e) > 2]
 
-    if msg and not items:
-        print(f"  ❌ 서버가 거절했습니다: {msg}")
-        print("     (키가 아직 승인 안 됐거나, 이 서비스에 신청이 안 된 키입니다)")
-        return False
+    if err and not items:
+        say("  [거절] 서버가 이렇게 답했습니다: " + err.strip())
+        return False, []
 
-    print(f"  ✅ 응답 옴 · 전체 {total or '?'}건 · 이번에 받은 것 {len(items)}건")
+    total = root.findtext(".//total") or root.findtext(".//totalCount") or "?"
+    say("  [성공] 전체 %s건 · 이번에 받은 것 %d건" % (total, len(items)))
+    return True, items
+
+
+def dump(items, n=3):
     if not items:
-        print("     (건수가 0입니다 — 조건을 바꿔 다시 보세요)")
-        return True
-
-    # ★ 응답 항목을 «전부» 찍는다. 없다고 말하기 전에 이걸 본다.
+        say("     (건수 0)")
+        return
     names = []
     for e in items[0]:
         if e.tag not in names:
             names.append(e.tag)
-    print(f"\n  [응답 항목 {len(names)}개]")
-    print("     " + ", ".join(names))
+    say()
+    say("  [응답 항목 %d개]" % len(names))
+    say("     " + ", ".join(names))
 
-    print("\n  [첫 3건]")
-    for it in items[:3]:
+    say()
+    say("  [업종(indTpNm) 분포 - 건설 거르기를 이걸로 정합니다]")
+    c = Counter((it.findtext("indTpNm") or "(없음)").strip() for it in items)
+    for k, v in c.most_common(30):
+        say("     %4d  %s" % (v, k))
+
+    say()
+    say("  [직종코드(jobsCd) 분포]")
+    c2 = Counter((it.findtext("jobsCd") or "(없음)").strip() for it in items)
+    for k, v in c2.most_common(15):
+        say("     %4d  %s" % (v, k))
+
+    say()
+    say("  [첫 %d건]" % n)
+    for it in items[:n]:
         g = lambda t: (it.findtext(t) or "").strip()
-        print(f"     · {g('title') or g('wantedTitle') or '(제목없음)'}")
-        print(f"       {g('company')}  |  {g('region')}  |  {g('sal') or g('salTpNm')}")
-        print(f"       마감 {g('closeDt')}  ·  {g('wantedInfoUrl') or g('wantedMobileInfoUrl') or '(상세주소 없음)'}")
-    return True
+        say("     · %s" % (g("title") or "(제목없음)"))
+        say("       %s | %s | %s | 업종 %s" % (g("company"), g("region"), g("sal") or g("salTpNm"), g("indTpNm")))
+        say("       등록 %s · 마감 %s" % (g("regDt"), g("closeDt")))
+        say("       %s" % (g("wantedInfoUrl") or g("wantedMobileInfoUrl") or "(상세주소 없음)"))
 
 
 def main():
     env = load_env()
-    wk = env.get("WORKNET_API_KEY") or os.environ.get("WORKNET_API_KEY")
-    g2b = env.get("G2B_API_KEY")
+    wk = env.get("WORKNET_API_KEY") or os.environ.get("WORKNET_API_KEY") or ""
 
-    print("워크넷 채용정보 API 확인")
-    print(f"  WORKNET_API_KEY : {'있음 (길이 %d)' % len(wk) if wk else '없음'}")
-    print(f"  G2B_API_KEY     : {'있음 (길이 %d)' % len(g2b) if g2b else '없음'}")
+    say("고용24(워크넷) 채용정보 API 확인  -  %s" % __import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M"))
+    say("  주소            : " + URL)
+    say("  WORKNET_API_KEY : %s" % ("있음 (길이 %d)" % len(wk) if wk else "없음"))
+    say("  (키 값은 찍지 않습니다)")
 
-    ok = False
-    if wk:
-        ok = show("① 워크넷 키로", wk)
-    if not ok and g2b:
-        ok = show("② 조달청 키로 (같은 계정 키가 먹히나 확인)", g2b)
+    if not wk:
+        say()
+        say("  [멈춤] .env 에 WORKNET_API_KEY 가 없습니다.")
+        return 1
 
+    ok, items = show("① 그냥 불러보기 (조건 없음)", wk)
     if ok:
-        # 건설 쪽만 걸러지는지도 본다
-        show("③ 「건설」 로 걸러보기", wk or g2b, keyword="건설")
-        print("\n" + "=" * 60)
-        print("  ✅ 됩니다. 이 화면을 그대로 클로드에게 보여주세요.")
-        print("     응답 항목을 보고 collect.py 에 붙이겠습니다.")
-        print("=" * 60)
+        dump(items)
+        ok2, items2 = show("② 「건설」 로 걸러보기 (keyword=건설)", wk, keyword="건설")
+        if ok2:
+            dump(items2)
+
+    say()
+    say("=" * 64)
+    if ok:
+        say("  결론: 됩니다. 업종 분포를 보고 건설만 거르면 됩니다.")
     else:
-        print("\n" + "=" * 60)
-        print("  ⛔ 아직 안 됩니다.")
-        print("     · 키를 아직 안 받으셨다면: https://openapi.work.go.kr 에서 신청")
-        print("     · 받으셨다면 .env 에 한 줄 추가:  WORKNET_API_KEY=받은키")
-        print("     · 신청 직후면 승인까지 시간이 걸릴 수 있습니다")
-        print("     이 화면을 그대로 클로드에게 보여주세요.")
-        print("=" * 60)
+        say("  결론: 아직 안 됩니다. 위 [거절] 줄이 이유입니다.")
+        say("        '개인회원은 사용할 수 없는' 이면 -> 고용24 기업회원 전환이 필요합니다.")
+    say("=" * 64)
+
+    try:
+        io.open(OUT, "w", encoding="utf-8").write("\n".join(_lines))
+        print("\n결과를 %s 에 썼습니다." % OUT)
+    except Exception as e:
+        print("결과 파일 쓰기 실패: %s" % e)
     return 0 if ok else 1
 
 

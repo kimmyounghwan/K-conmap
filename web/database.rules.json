@@ -32,6 +32,8 @@
         ".validate": "newData.hasChildren(['type','title','contact','uid','at'])",
         "type":    { ".validate": "newData.isString() && (newData.val() === '구인' || newData.val() === '구직')" },
         "title":   { ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 60" },
+        // 회사·현장 (구직이면 경력·자격). 2026-09-14 추가 - 없으면 $other 규칙이 글 전체를 막습니다
+        "co":      { ".validate": "newData.isString() && newData.val().length <= 40" },
         "trade":   { ".validate": "newData.isString() && newData.val().length <= 20" },
         "region":  { ".validate": "newData.isString() && newData.val().length <= 10" },
         "pay":     { ".validate": "newData.isString() && newData.val().length <= 30" },

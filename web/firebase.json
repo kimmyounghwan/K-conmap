@@ -24,13 +24,15 @@
       { "source": "/forms", "destination": "/index.html" },
       { "source": "/change", "destination": "/index.html" },
       { "source": "/guide", "destination": "/index.html" },
+      { "source": "/cad", "destination": "/index.html" },
       { "source": "/agency/**", "destination": "/index.html" },
       { "source": "/corp/**", "destination": "/index.html" },
       { "source": "/notice/**", "destination": "/index.html" },
       { "source": "/daily/**", "destination": "/index.html" },
       { "source": "/forms/**", "destination": "/index.html" },
       { "source": "/change/**", "destination": "/index.html" },
-      { "source": "/guide/**", "destination": "/index.html" }
+      { "source": "/guide/**", "destination": "/index.html" },
+      { "source": "/cad/**", "destination": "/index.html" }
     ],
     "headers": [
       {
@@ -40,6 +42,16 @@
             "key": "Cache-Control",
             "value": "public, max-age=3600, must-revalidate"
           }
+        ]
+      },
+      {
+        "//": "캐드 유틸은 «보는 파일» 이 아니라 «받는 파일» 입니다. 파이어베이스가 .lsp 를 text/html 로 내려주는 바람에 주소로 바로 열면 cp949 글자가 깨져 보였습니다. 받기로 고정합니다. 캐시는 짧게 - 배포 회차마다 유효기간을 새로 찍기 때문입니다 (2026-09-14)",
+        "source": "/lisp/**",
+        "headers": [
+          { "key": "Content-Type", "value": "application/octet-stream" },
+          { "key": "Content-Disposition", "value": "attachment" },
+          { "key": "Cache-Control", "value": "public, max-age=300, must-revalidate" },
+          { "key": "X-Robots-Tag", "value": "noindex" }
         ]
       },
       {

@@ -17,6 +17,7 @@ import { Empty, Skeleton } from '../components.jsx'
 import { num, REGIONS, inRegion } from '../lib/fmt.js'
 import Sites from '../Sites.jsx'
 import { pinHash } from '../lib/pin.js'
+import { wnUrl, WN_CITIES, WN_JOBS, WN_REGION_PAGE } from '../lib/worknet.js'
 
 const TRADES = ['현장관리', '공무/견적', '토목', '건축', '철근·콘크리트', '설비', '전기',
   '조경', '중장비', '보통인부', '기타']
@@ -54,7 +55,15 @@ export default function Jobs() {
      채용정보 API 는 기업회원 전용이라 개인회원 키로는 0건이었고, 크롤링은 하지 않기로 했습니다.
      ★ 2026-09-06 — 「🏗 곧 착공하는 현장」 을 앞에 둡니다 (Sites.jsx 머리말 참고).
        빈 게시판은 아무도 안 씁니다. 낙찰 자료는 글이 0건이어도 매일 570건씩 채워집니다.
-       «직접 올린 글» 은 두 번째 갈래로 남깁니다. */
+       «직접 올린 글» 은 두 번째 갈래로 남깁니다.
+     ★ 2026-09-14 — 워크넷을 「🔎 워크넷」 갈래로 **다시 넣었습니다. 단, 자료는 안 가져옵니다.**
+       소장님: 「워크넷 긁어 오고 … 건설맵에도 정확하게 나와야 해」 → 긁어오기는 안 했습니다.
+       워크넷 채용정보는 공공누리 «제4유형 - 상업적 이용금지, 변경금지» 이고, 애드센스가 붙는
+       우리 사이트에 회사명·직종·급여를 옮겨 싣는 건 그 두 조건에 다 걸립니다.
+       그래서 **주소만 만들어 워크넷으로 보냅니다**(링크는 제약이 없습니다). lib/worknet.js 참고.
+       ⚠️ 나중에 «자료를 직접 싣자» 는 이야기가 다시 나오면, 조건은 둘입니다 —
+          ① 고용24 기업회원 전환(사업자등록번호) ② 한국고용정보원 043-870-8556 에서
+          «광고가 있는 사이트에 게시해도 되느냐» 허락. 둘 다 없으면 링크까지가 끝입니다. */
   const [mode, setMode] = useState('sites')
 
   const load = async () => {
@@ -92,15 +101,22 @@ export default function Jobs() {
   return (
     <>
       <div className="sec-title" style={{ marginTop: 14 }}>
-        🏗 곧 착공하는 현장 <span className="count">· 최근 낙찰된 공사와 낙찰업체 연락처 · 사람·장비 구하고 찾기</span>
+        {mode === 'sites' ? '🏗 곧 착공하는 현장' : mode === 'posts' ? '✏️ 구인·구직' : '🔎 워크넷 건설 일자리'}
+        <span className="count">{mode === 'sites'
+          ? '· 최근 낙찰된 공사와 낙찰업체 연락처 · 사람·장비 구하고 찾기'
+          : mode === 'posts'
+            ? '· 회원가입 없이 바로 올립니다'
+            : '· 고용24에 올라온 건설 일자리로 바로 갑니다'}</span>
       </div>
 
-      <div className="seg" style={{ marginBottom: 12 }}>
+      <div className="seg seg3" style={{ marginBottom: 12 }}>
         <button className={mode === 'sites' ? 'on' : ''} onClick={() => setMode('sites')}>🏗 낙찰 현장</button>
-        <button className={mode === 'posts' ? 'on' : ''} onClick={() => setMode('posts')}>✏️ 구인·구직 글</button>
+        <button className={mode === 'posts' ? 'on' : ''} onClick={() => setMode('posts')}>✏️ 구인·구직</button>
+        <button className={mode === 'wn' ? 'on' : ''} onClick={() => setMode('wn')}>🔎 워크넷</button>
       </div>
 
       {mode === 'sites' && <Sites />}
+      {mode === 'wn' && <Worknet />}
 
       {mode === 'posts' && (<>
       <div className="seg">
@@ -205,7 +221,13 @@ function Post({ p, isMine, onChanged }) {
         <span style={{ fontSize: 11.5 }}>{ago(p.at)}</span>
       </div>
 
-      <h3 style={{ marginBottom: 6 }}>{p.title}</h3>
+      <h3 style={{ marginBottom: p.co ? 2 : 6 }}>{p.title}</h3>
+
+      {p.co && (
+        <div style={{ margin: '0 0 6px', fontSize: 12.5, fontWeight: 700, color: 'var(--text-2)' }}>
+          {p.co}
+        </div>
+      )}
 
       {p.body && (
         <p style={{
@@ -249,7 +271,7 @@ function Post({ p, isMine, onChanged }) {
 function WriteForm({ onClose, onDone }) {
   const [f, setF] = useState({
     type: '구인', trade: '현장관리', region: '전남',
-    title: '', pay: '', contact: '', body: '', pin: '',
+    title: '', co: '', pay: '', contact: '', body: '', pin: '',
   })
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
@@ -271,6 +293,7 @@ function WriteForm({ onClose, onDone }) {
         trade: f.trade,
         region: f.region,
         title: f.title.trim().slice(0, 60),
+        co: f.co.trim().slice(0, 40),
         pay: f.pay.trim().slice(0, 30),
         contact: f.contact.trim().slice(0, 40),
         body: f.body.trim().slice(0, 1000),
@@ -301,6 +324,14 @@ function WriteForm({ onClose, onDone }) {
           placeholder={f.type === '구인'
             ? '예: 여수 현장 철근공 3명 구합니다'
             : '예: 토목기사 10년, 전남권 구직합니다'} />
+      </div>
+
+      <div className="field">
+        <label>{f.type === '구인' ? '회사·현장' : '경력·자격'} <span className="hint">— 선택</span></label>
+        <input value={f.co} onChange={set_('co')} maxLength={40}
+          placeholder={f.type === '구인'
+            ? '예: (유)대유건설 · 여수 웅천 아파트 현장'
+            : '예: 토목기사·건설안전기사 보유'} />
       </div>
 
       <div style={{ display: 'flex', gap: 8 }}>
@@ -348,5 +379,77 @@ function WriteForm({ onClose, onDone }) {
         <button className="btn" disabled={busy} onClick={submit}>{busy ? '올리는 중…' : '올리기'}</button>
       </div>
     </div>
+  )
+}
+
+/* ── 🔎 워크넷 건설 일자리 — 「보내주기」 전용 ──────────────────
+   ⚠️ 워크넷 자료를 가져와 여기에 싣지 않습니다. 주소만 만들어 워크넷으로 보냅니다.
+      이유는 lib/worknet.js 머리말에 적어 뒀습니다(공공누리 제4유형 · 기업회원 전용 API).
+      나중에 허락을 받으면 그때 자료를 직접 실으면 됩니다. ────────────── */
+function Worknet() {
+  const [city, setCity] = useState('여수')
+  const code = (WN_CITIES.find((c) => c.name === city) || WN_CITIES[0]).code
+
+  const go = (kw) => {
+    try { if (window.gtag) window.gtag('event', 'worknet_open', { kw, city }) } catch (e) { /* noop */ }
+  }
+
+  return (
+    <>
+      <div className="note" style={{ marginBottom: 12 }}>
+        고용노동부 <b>고용24(워크넷)</b> 에 올라온 건설 일자리를 바로 열어 봅니다.
+        지역을 고르고 직종을 누르면 그 조건으로 걸러진 워크넷 화면이 새 창으로 열립니다.
+        지원·문의는 워크넷에서 하시면 됩니다.
+      </div>
+
+      <div className="chips">
+        {WN_CITIES.map((c) => (
+          <button key={c.name} className={'chip' + (city === c.name ? ' on' : '')}
+            onClick={() => setCity(c.name)}>{c.name}</button>
+        ))}
+      </div>
+
+      <div className="sec-title">
+        직종 <span className="count">{city} · 최근 등록순</span>
+      </div>
+
+      <div className="chips wrap">
+        {WN_JOBS.map((j) => (
+          <a key={j.name} className="chip" style={{ textDecoration: 'none' }}
+            href={wnUrl(j.kw, code)} target="_blank" rel="noopener noreferrer"
+            onClick={() => go(j.kw)}>{j.name} ↗</a>
+        ))}
+      </div>
+
+      <div className="card" style={{ marginTop: 14 }}>
+        <div className="sec-title" style={{ margin: '0 0 8px' }}>여기 없는 지역·조건은</div>
+        <div className="note" style={{ marginBottom: 10 }}>
+          위 지역 넷은 실제로 확인해 둔 것만 올렸습니다. 다른 시·군이나 급여·경력 조건까지 고르시려면
+          워크넷 화면에서 직접 고르는 편이 빠릅니다.
+        </div>
+        <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+          <a className="btn ghost sm" style={{ textDecoration: 'none' }}
+            href={WN_REGION_PAGE} target="_blank" rel="noopener noreferrer"
+            onClick={() => go('지역별')}>지역별로 고르기 ↗</a>
+          <a className="btn ghost sm" style={{ textDecoration: 'none' }}
+            href={wnUrl('건설', '')} target="_blank" rel="noopener noreferrer"
+            onClick={() => go('전국건설')}>전국 건설 일자리 ↗</a>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 12 }}>
+        <div className="sec-title" style={{ margin: '0 0 8px' }}>사람을 구하시는 거라면</div>
+        <div className="note">
+          워크넷에 공고를 올리려면 <b>사업자등록번호로 기업회원 가입</b>을 해야 하고 승인도 기다려야 합니다.
+          급하시면 옆의 <b>✏️ 구인·구직</b> 에 올리세요 — 회원가입 없이 바로 올라가고, 지우실 때 쓸
+          숫자 네 자리만 정하시면 됩니다.
+        </div>
+      </div>
+
+      <div className="note" style={{ marginTop: 12 }}>
+        자료 출처: <b>고용24(워크넷) · 한국고용정보원</b>.
+        K-건설맵은 채용 목록을 옮겨 싣지 않고 워크넷 화면으로 연결만 합니다.
+      </div>
+    </>
   )
 }
