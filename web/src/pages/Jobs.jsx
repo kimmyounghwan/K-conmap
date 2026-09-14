@@ -488,10 +488,12 @@ function Worknet() {
             title={`고용24 채용정보 — ${city} ${job.name}`}
             src={url}
             loading="lazy"
-            style={{ display: 'block', width: '100%', height: 700, border: 0, background: '#fff' }}
+            style={{ display: 'block', width: '100%', height: 860, border: 0, background: '#fff' }}
           />
 
           <div className="note" style={{ padding: '10px 12px', borderTop: '1px solid var(--line)' }}>
+            <b>칸 안에서 조금 내리시면 채용 목록이 나옵니다</b> — 고용24 화면이 「검색 조건」부터 열리기 때문입니다.
+            넓게 보시려면 위 「새 창으로 크게」 를 쓰세요.<br />
             이 칸은 <b>고용24(워크넷)</b> 화면을 그대로 불러온 것입니다. K-건설맵이 목록을 옮겨 적은 것이 아니며,
             누르시는 것은 모두 워크넷으로 이어집니다. 칸이 비어 보이면 워크넷이 바깥 화면에 싣는 것을 막은 것이니
             위 「새 창으로 크게」 로 여세요.
