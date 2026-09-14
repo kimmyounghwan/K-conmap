@@ -153,7 +153,8 @@ SITENAV = [("/", "바로투찰"), ("/first", "1순위 개찰"), ("/live", "입�
            ("/forms", "건설 서식"), ("/change", "설계변경"),
            ("/analysis", "낙찰 분석"), ("/daily", "개찰 성적표"),
            ("/guide", "입찰 알아보기"), ("/tools", "건설 도구"),
-           ("/lic", "면허별 경쟁도")]
+           ("/lic", "면허별 경쟁도"),
+           ("/cad", "캐드 유틸")]
 
 
 def nav_html(here=""):
@@ -979,6 +980,118 @@ def _sheet_html(sheet):
     return "".join(out)
 
 
+# ── 캐드 유틸 (/cad) ────────────────────────────────────────────
+#  소장님: 「무료 배포하자 . 따로 탭을 만들고, 설명서는 사이트에. 그래야 사람들이 더 들어오지」
+#  ⚠️ 내용은 web/src/data/cad.json 한 곳에만 있습니다(화면·여기가 같이 읽습니다).
+#  ⚠️ 리습에는 「받은 날 + 30일」 유효기간이 박힙니다 — tools/stamp_lisp.py 를
+#     빌드 전에 반드시 돌려야 합니다. 안 돌리면 2099 년이 박힌 채 나갑니다.
+CAD_JSON = os.path.join(ROOT, "web", "src", "data", "cad.json")
+
+
+def load_cad():
+    try:
+        with open(CAD_JSON, encoding="utf-8") as f:
+            return json.load(f) or {}
+    except Exception:
+        return {}
+
+
+def _cad_dl(where=""):
+    return ('<div class="btn-row" style="margin-top:10px">'
+            '<a class="btn primary" href="/lisp/k-conmap.lsp" download>'
+            '⬇ 캐드 유틸 받기 (무료)</a>'
+            '<a class="btn ghost" href="/lisp/k-conmap_utf8.lsp" download>UTF-8 판</a></div>'
+            '<div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.7">'
+            '받으신 판은 <b>30일</b> 쓰실 수 있습니다. 지나면 여기서 새로 받아 '
+            '<b>쓰시던 자리에 덮어쓰기</b>만 하면 됩니다. 설정도 그대로 남습니다.</div>')
+
+
+def cad_index(shell, d, image=None):
+    cmds = d.get("cmds") or []
+    title = "캐드 리습 무료 — 길이·면적·수량·좌표를 단추 한 번으로 | K-건설맵"
+    desc = ("현장에서 쓰는 캐드(AutoLISP) 유틸을 무료로 드립니다. 길이 합계·면적 합계·"
+            "숫자 합계·좌표 뽑기·좌표 적기·겹친 선 제거 등 %d가지. "
+            "AutoCAD·AutoCAD LT 2024 이상·캐디안·ZWCAD 에서 같은 파일로 됩니다. "
+            "회원가입 없음." % len(cmds))
+    out = ['<div class="card"><h1 style="font-size:19px;font-weight:800;margin:0">'
+           '캐드 유틸 — 무료</h1>'
+           '<p class="cp" style="margin-top:8px">파일 <b>하나</b>를 캐드에 올리면 '
+           '길이·면적·수량·좌표가 <b>단추 한 번</b>으로 끝납니다. 회원가입 없습니다.</p>'
+           + _cad_dl() + '</div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">어디서 되나</div>'
+           '<div class="navrow"><span class="navi on">AutoCAD</span>'
+           '<span class="navi on">AutoCAD LT 2024 이상</span>'
+           '<span class="navi on">캐디안</span><span class="navi on">ZWCAD</span>'
+           '<span class="navi on">GstarCAD</span></div>'
+           '<div style="font-size:12px;color:var(--muted);margin-top:6px">'
+           '순수 AutoLISP 으로만 만들어 제품을 가리지 않습니다. '
+           'AutoCAD LT 는 2024 버전부터 리습이 됩니다.</div></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">'
+           '3분이면 끝납니다</div><ol class="steps2">'
+           '<li>파일을 <code>C:\\CAD유틸\\</code> 같이 안 건드릴 자리에 둡니다</li>'
+           '<li>캐드 명령창에 <code>APPLOAD</code> → 그 파일을 고르고 <b>[로드]</b></li>'
+           '<li>명령창에 <code>K</code> 만 치십시오. <b>단추 창이 뜹니다</b></li></ol>'
+           '<div style="font-size:12.5px;margin-top:8px"><b>캐드를 껐다 켜면 사라집니다.</b> '
+           '<code>KINSTALL</code> 을 한 번 치면 그 뒤로는 저절로 올라옵니다.</div></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 4px">'
+           '쓰는 법은 하나입니다</div>'
+           '<div class="bigline">단추 누르기 → 마우스로 고르기 → Enter → 답</div>'
+           '<div style="font-size:12px;color:var(--muted);margin-top:6px">'
+           '고르고 나서 Enter 를 안 치면 계속 기다립니다. 여기서 제일 많이 막힙니다.</div></div>',
+           f'<div class="card"><div class="sec-title" style="margin:0 0 6px">'
+           f'명령 {len(cmds)}가지</div>']
+    for c in cmds:
+        out.append(f'<a class="row rowlink" href="/cad/{esc(c["slug"])}">'
+                   f'<div class="grow"><div class="t">{esc(c["name"])} · {esc(c["cmd"])}</div>'
+                   f'<div class="d">{esc(c["what"])}</div></div>'
+                   f'<span class="go">→</span></a>')
+    out.append("</div>")
+    ld = {"@context": "https://schema.org", "@type": "ItemList",
+          "name": "캐드 유틸 명령", "numberOfItems": len(cmds),
+          "itemListElement": [
+              {"@type": "ListItem", "position": i + 1, "name": x["name"],
+               "url": f'{SITE}/cad/{x["slug"]}'} for i, x in enumerate(cmds)]}
+    return page(shell, "/cad", title, desc, "".join(out), image, ld)
+
+
+def cad_page(shell, c, cmds, image=None):
+    title = f'{c["name"]} 리습 — 캐드에서 {c["cmd"]} | K-건설맵 캐드 유틸'
+    desc = f'{c["what"]} {c["when"]} 에 씁니다. 무료이고 회원가입이 없습니다.'
+    out = [f'<div class="card"><div style="font-size:12px;color:var(--muted)">'
+           f'<a href="/cad">캐드 유틸</a> · 명령 {esc(c["cmd"])}</div>'
+           f'<h1 style="font-size:19px;font-weight:800;margin:4px 0 0">{esc(c["name"])}</h1>'
+           f'<p class="cp" style="margin-top:8px">{esc(c["what"])}</p></div>',
+           f'<div class="card"><div class="sec-title" style="margin:0 0 6px">언제 쓰나</div>'
+           f'<div>{esc(c["when"])}</div></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">쓰는 순서</div>'
+           '<ol class="steps2">']
+    for h in c.get("how") or []:
+        out.append(f'<li>{esc(h)}</li>')
+    out.append(f'</ol><div style="font-size:12px;color:var(--muted);margin-top:6px">'
+               f'명령창에 <code>{esc(c["cmd"])}</code> 을(를) 쳐도 됩니다. '
+               f'<code>K</code> 를 치면 단추 창이 뜹니다.</div></div>')
+    if c.get("note"):
+        out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">'
+                   '알아 두실 것</div><ul class="plainlist">')
+        for n in c["note"]:
+            out.append(f'<li>{esc(n)}</li>')
+        out.append("</ul></div>")
+    out.append('<div class="card">' + _cad_dl() + '</div>')
+    out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">'
+               '다른 명령</div><div class="navrow">')
+    for x in cmds:
+        if x["slug"] != c["slug"]:
+            out.append(f'<a class="navi" href="/cad/{esc(x["slug"])}">{esc(x["name"])}</a>')
+    out.append("</div></div>")
+    ld = {"@context": "https://schema.org", "@type": "BreadcrumbList",
+          "itemListElement": [
+              {"@type": "ListItem", "position": 1, "name": "K-건설맵", "item": SITE},
+              {"@type": "ListItem", "position": 2, "name": "캐드 유틸", "item": SITE + "/cad"},
+              {"@type": "ListItem", "position": 3, "name": c["name"],
+               "item": f'{SITE}/cad/{c["slug"]}'}]}
+    return page(shell, f'/cad/{c["slug"]}', title, desc, "".join(out), image, ld)
+
+
 def forms_index(shell, forms, image=None):
     title = "건설 서식 무료 내려받기 — 착공계·기성청구서·작업일보 | K-건설맵"
     desc = ("현장에서 자주 쓰는 건설 서식 %d가지를 엑셀로 무료 제공합니다. "
@@ -1217,7 +1330,9 @@ NY_KINDS = [
 
 # ── IndexNow 에 «한 번만» 알릴 정적 주소 ──────────────────────────
 #   새로 만든 화면들입니다. 사이트맵에도 있지만 크롤러가 스스로 올 때까지 기다리지 않습니다.
-STATIC_NEW = ["/change", "/change/naeyeok", "/change/excel", "/forms", "/guide"] + [
+STATIC_NEW = ["/change", "/change/naeyeok", "/change/excel", "/forms", "/guide",
+              "/cad"] + [
+    "/cad/" + _c["slug"] for _c in (load_cad().get("cmds") or [])] + [
     "/change/naeyeok/" + quote(_k, safe="") for _k, _d in NY_KINDS]
 
 
@@ -1721,6 +1836,22 @@ def main():
     #    알려면 기관·업체·공고를 다 구운 뒤여야 하기 때문입니다.
     #    (그림은 여기서 미리 만들어 둡니다 - 자료와 상관없습니다)
     tab_img = {path: og.tab(path.strip("/"), *card) for path, _t, _d, card in TABS}
+
+    # ── 캐드 유틸 ── 변하지 않는 자료라 매 회차 다시 구워도 부담이 없습니다.
+    cadd = load_cad()
+    if cadd.get("cmds"):
+        write("cad.html", cad_index(shell, cadd,
+              og.tab("cad", "캐드 유틸", "길이·면적·수량·좌표",
+                     "무료", "단추 한 번이면 끝납니다 · 회원가입 없음")
+              if og.available else None))
+        made += 1
+        for c in cadd["cmds"]:
+            img = (og.tab(f'cad-{c["slug"]}', c["name"], "캐드 유틸",
+                          c["cmd"], (c.get("what") or "")[:44])
+                   if og.available else None)
+            write(f'cad/{c["slug"]}.html', cad_page(shell, c, cadd["cmds"], img))
+            made += 1
+        print(f"  · 캐드 유틸 페이지 {len(cadd['cmds']) + 1:,}개 (/cad/)")
 
     # ── 건설 서식 ── 변하지 않는 자료라 매 회차 다시 구워도 부담이 없습니다(13장).
     forms = load_forms()

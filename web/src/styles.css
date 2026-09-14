@@ -2732,3 +2732,26 @@ a.glink:hover { text-decoration: underline; }
 .tbl th, .tbl td { padding: 8px 6px; border-bottom: 1px solid var(--line-soft); text-align: right; }
 .tbl th:first-child, .tbl td:first-child { text-align: left; }
 .tbl th { color: var(--muted); font-size: 11.5px; font-weight: 700; }
+
+/* ── 캐드 유틸 (/cad) — 2026-09-14 ───────── */
+.rowmain { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.chipmini {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11px; font-weight: 700; color: var(--accent);
+  border: 1px solid var(--line); border-radius: 4px; padding: 0 5px;
+}
+ol.steps2 { margin: 0; padding-left: 20px; line-height: 1.85; }
+ol.steps2 li { margin-bottom: 5px; }
+ul.plainlist { margin: 0; padding-left: 18px; line-height: 1.8; }
+ul.plainlist li { margin-bottom: 5px; }
+.bigline {
+  font-size: 16px; font-weight: 700; line-height: 1.6;
+  word-break: keep-all; margin-top: 2px;
+}
+
+/* 하단 탭 9개 — 좁은 화면에서는 두 줄로 (2026-09-14, 소장님 요청) */
+@media (max-width: 560px) {
+  .tabbar { flex-wrap: wrap; height: auto; padding-top: 4px; }
+  .tabbar a { flex: 0 0 20%; padding: 4px 0 5px; }
+  .shell { padding-bottom: calc(var(--nav-h) * 2 + env(safe-area-inset-bottom) + 20px); }
+}

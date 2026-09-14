@@ -10,6 +10,7 @@ sitemap.py — 검색엔진에 넘길 주소 목록을 만든다.
 """
 import io
 import os
+import sys
 import json
 from datetime import datetime
 from urllib.parse import quote
@@ -52,12 +53,15 @@ STATIC = [("/", "1.0", "hourly"), ("/first", "0.9", "hourly"), ("/live", "0.9", 
           ("/analysis", "0.8", "weekly"),
           ("/jobs", "0.7", "daily"), ("/about", "0.3", "monthly"),
           ("/privacy", "0.2", "yearly"), ("/terms", "0.2", "yearly"), ("/contact", "0.3", "yearly"),
-          ("/daily", "0.8", "daily"), ("/forms", "0.8", "monthly")]
+          ("/daily", "0.8", "daily"), ("/forms", "0.8", "monthly"),
+          ("/cad", "0.8", "monthly")]
 
 # 건설 서식 — 변하지 않는 자료라 changefreq 는 yearly.
 # ⚠️ prerender.py 가 forms.json 의 서식을 «전부» 굽습니다. 그래서 여기서도 전부 냅니다
 #    (사이트맵이 미리 구운 것보다 많으면 안 된다는 규칙을 지키려면 같은 파일을 봐야 합니다).
 FORMS_JSON = os.path.join(ROOT, "web", "src", "data", "forms.json")
+# 캐드 유틸 — 서식과 같은 이유로 여기서도 prerender 와 「같은 파일」 을 봅니다.
+CAD_JSON = os.path.join(ROOT, "web", "src", "data", "cad.json")
 CHANGE_JSON = os.path.join(ROOT, "web", "src", "data", "change.json")
 # 입찰 알아보기 — 이 사이트가 직접 잰 실측으로 쓴 글 (2026-09-06)
 GUIDE_JSON = os.path.join(ROOT, "web", "src", "data", "guide.json")
@@ -222,6 +226,18 @@ def main():
                     f"<priority>0.6</priority></url>")
         n_dy += 1
 
+    # ── 캐드 유틸 ─────────────────────────────────
+    n_cd = 0
+    try:
+        with io.open(CAD_JSON, encoding="utf-8") as f:
+            for c in (json.load(f) or {}).get("cmds") or []:
+                urls.append(f'  <url><loc>{SITE}/cad/{quote(c["slug"], safe="")}</loc>'
+                            f'<lastmod>{_mtime(CAD_JSON, today)}</lastmod>'
+                            f'<changefreq>monthly</changefreq><priority>0.6</priority></url>')
+                n_cd += 1
+    except Exception as e:
+        print(f"  · 캐드 명령 목록을 못 읽었습니다 ({type(e).__name__}) — 건너뜁니다")
+
     # ── 건설 서식 ─────────────────────────────────
     n_fm = 0
     try:
@@ -313,9 +329,26 @@ def main():
         f.write(xml)
     print(f"  ✅ sitemap.xml — 고정 {len(STATIC)} + 면허 {n_lc} + 기관 {n_ag} + 업체 {n_co}"
           f" + 공고 {n_no} + 성적표 {n_dy} + 서식 {n_fm} + 설계변경 {n_cg}"
-          f" + 알아보기 {n_gd} + 도구 {n_tl} = {len(urls)}개")
+          f" + 알아보기 {n_gd} + 도구 {n_tl} + 캐드 {n_cd} = {len(urls)}개")
     print(f"     {p}")
+
+
+def stamp_cad_lisp():
+    """캐드 유틸 리습에 「오늘 + 30일」 유효기간을 찍습니다.
+
+    ⚠️ 왜 여기서 부르나 — npm run build 「바로 앞」에 도는 단계가 여기뿐입니다.
+       (워크플로는 원격 도구로 못 고치는 보호 파일이라 그쪽에 줄을 넣을 수 없습니다)
+       build 가 web/public 을 dist 로 옮기므로 반드시 그 전에 찍혀야 합니다.
+    ⚠️ 실패해도 사이트맵·빌드를 멈추지 않습니다. 기한이 안 걸릴 뿐입니다.
+    """
+    try:
+        sys.path.insert(0, os.path.join(ROOT, "tools"))
+        import stamp_lisp
+        stamp_lisp.main()
+    except Exception as e:
+        print(f"  · 캐드 유틸 유효기간을 못 찍었습니다 ({type(e).__name__}) — 그대로 갑니다")
 
 
 if __name__ == "__main__":
     main()
+    stamp_cad_lisp()

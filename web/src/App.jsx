@@ -14,6 +14,9 @@ const TABS = [
   /* 🧰 도구 — 소장님: 「탭을 따로 만들어야 하지 않아」 (2026-09-14).
      주소는 /tools · /tools/{slug}. prerender.py 와 sitemap.py 가 같은 주소를 굽습니다. */
   { to: '/tools', ic: '🧰', label: '도구' },
+  /* 📐 캐드 유틸 — 소장님: 「따로 탭을 만들고, 설명서는 사이트에」 (2026-09-14).
+     탭이 9개가 되어 좁은 화면에서는 두 줄로 감쌉니다(styles.css 의 .tabbar). */
+  { to: '/cad', ic: '📐', label: '캐드' },
 ]
 
 export default function App() {
