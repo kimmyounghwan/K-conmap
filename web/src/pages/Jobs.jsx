@@ -60,7 +60,11 @@ export default function Jobs() {
        소장님: 「워크넷 긁어 오고 … 건설맵에도 정확하게 나와야 해」 → 긁어오기는 안 했습니다.
        워크넷 채용정보는 공공누리 «제4유형 - 상업적 이용금지, 변경금지» 이고, 애드센스가 붙는
        우리 사이트에 회사명·직종·급여를 옮겨 싣는 건 그 두 조건에 다 걸립니다.
-       그래서 **주소만 만들어 워크넷으로 보냅니다**(링크는 제약이 없습니다). lib/worknet.js 참고.
+       대신 **워크넷 화면을 그대로 불러와 보여 주고(iframe), 누르면 워크넷으로 갑니다.**
+       소장님: 「워크넷 화면을 건설맵에 띄우고, 워크넷으로 연결되게 하면 되잖아」 → 맞는 말씀이었습니다.
+       자료를 받아 «우리 파일에 저장하고 우리 형식으로 다시 그리는» 것이 복제·변경이지,
+       보는 사람 브라우저가 워크넷 서버에서 직접 받아 워크넷 화면 그대로 보는 건 링크와 같습니다.
+       ✅ 고용24 는 X-Frame-Options 로 안 막습니다(2026-09-14 k-conmap.com 안에서 실제로 떠 보임).
        ⚠️ 나중에 «자료를 직접 싣자» 는 이야기가 다시 나오면, 조건은 둘입니다 —
           ① 고용24 기업회원 전환(사업자등록번호) ② 한국고용정보원 043-870-8556 에서
           «광고가 있는 사이트에 게시해도 되느냐» 허락. 둘 다 없으면 링크까지가 끝입니다. */
@@ -382,23 +386,56 @@ function WriteForm({ onClose, onDone }) {
   )
 }
 
-/* ── 🔎 워크넷 건설 일자리 — 「보내주기」 전용 ──────────────────
-   ⚠️ 워크넷 자료를 가져와 여기에 싣지 않습니다. 주소만 만들어 워크넷으로 보냅니다.
-      이유는 lib/worknet.js 머리말에 적어 뒀습니다(공공누리 제4유형 · 기업회원 전용 API).
-      나중에 허락을 받으면 그때 자료를 직접 실으면 됩니다. ────────────── */
+/* ── 🔎 워크넷 건설 일자리 ──────────────────────────────────
+   소장님(2026-09-14): 「워크넷 화면을 건설맵에 띄우고, 워크넷으로 연결되게 하면 되잖아」 → 맞습니다.
+
+   ■ 왜 이건 되고 «긁어오기» 는 안 되나 — 성격이 다릅니다.
+     긁어오기: 우리가 워크넷 자료를 받아서 **우리 파일에 저장하고 우리 화면 형식으로 다시 그림**.
+               → 공공누리 제4유형(상업적 이용금지·변경금지) 에 걸립니다.
+     이 칸  : 보는 사람의 브라우저가 **워크넷 서버에서 직접** 받아 워크넷 화면 그대로 보여줌.
+               우리는 자료를 갖지도, 고치지도, 저장하지도 않습니다. 워크넷 로고도 그대로 뜹니다.
+               → 링크와 같은 성격입니다.
+     ✅ 2026-09-14 실제로 확인: 고용24 는 X-Frame-Options 로 막고 있지 않습니다(k-conmap.com 안에서 떴습니다).
+
+   ■ 휴대폰에서는 안 싣습니다. 워크넷 화면이 PC 용이라 작은 화면에 우겨넣으면 못 씁니다 → 새 창으로 보냅니다.
+   ■ 애드센스 방어 — 이 칸은 **우리 내용 아래 별도 칸**에 둡니다. 광고와 붙여 놓지 않습니다.
+      「남의 화면을 끼워 넣은 페이지」가 «가치 없는 콘텐츠» 로 읽히면 심사에서 손해입니다.
+   ■ 언젠가 워크넷이 막으면 칸이 «비어» 보입니다(cross-origin 이라 우리가 감지할 수 없습니다).
+      그래서 칸 아래에 «비어 있으면 새 창으로 여세요» 를 항상 적어 둡니다. ────────────────── */
 function Worknet() {
   const [city, setCity] = useState('여수')
-  const code = (WN_CITIES.find((c) => c.name === city) || WN_CITIES[0]).code
+  const [job, setJob] = useState(null)          // 고른 직종 {name, kw}
+  const [wide, setWide] = useState(() => {
+    try { return window.matchMedia('(min-width: 760px)').matches } catch { return true }
+  })
 
-  const go = (kw) => {
-    try { if (window.gtag) window.gtag('event', 'worknet_open', { kw, city }) } catch (e) { /* noop */ }
+  useEffect(() => {
+    let mq, on
+    try {
+      mq = window.matchMedia('(min-width: 760px)')
+      on = (e) => setWide(e.matches)
+      mq.addEventListener('change', on)
+    } catch { /* 아주 옛 브라우저 - 처음 값 그대로 씁니다 */ }
+    return () => { try { if (mq && on) mq.removeEventListener('change', on) } catch { /* noop */ } }
+  }, [])
+
+  const code = (WN_CITIES.find((c) => c.name === city) || WN_CITIES[0]).code
+  const url = job ? wnUrl(job.kw, code) : ''
+
+  const log = (kw, how) => {
+    try { if (window.gtag) window.gtag('event', 'worknet_open', { kw, city, how }) } catch (e) { /* noop */ }
+  }
+
+  const pick = (j) => {
+    if (wide) { setJob(j); log(j.kw, 'embed') }
+    else { log(j.kw, 'newtab'); window.open(wnUrl(j.kw, code), '_blank', 'noopener') }
   }
 
   return (
     <>
       <div className="note" style={{ marginBottom: 12 }}>
-        고용노동부 <b>고용24(워크넷)</b> 에 올라온 건설 일자리를 바로 열어 봅니다.
-        지역을 고르고 직종을 누르면 그 조건으로 걸러진 워크넷 화면이 새 창으로 열립니다.
+        고용노동부 <b>고용24(워크넷)</b> 에 올라온 건설 일자리입니다.
+        지역을 고르고 직종을 누르면 {wide ? '아래에 워크넷 화면이 그대로 펼쳐집니다' : '워크넷이 새 창으로 열립니다'}.
         지원·문의는 워크넷에서 하시면 됩니다.
       </div>
 
@@ -415,27 +452,61 @@ function Worknet() {
 
       <div className="chips wrap">
         {WN_JOBS.map((j) => (
-          <a key={j.name} className="chip" style={{ textDecoration: 'none' }}
-            href={wnUrl(j.kw, code)} target="_blank" rel="noopener noreferrer"
-            onClick={() => go(j.kw)}>{j.name} ↗</a>
+          <button key={j.name}
+            className={'chip' + (job && job.name === j.name ? ' on' : '')}
+            onClick={() => pick(j)}>{j.name}{wide ? '' : ' ↗'}</button>
         ))}
       </div>
 
-      <div className="card" style={{ marginTop: 14 }}>
-        <div className="sec-title" style={{ margin: '0 0 8px' }}>여기 없는 지역·조건은</div>
-        <div className="note" style={{ marginBottom: 10 }}>
-          위 지역 넷은 실제로 확인해 둔 것만 올렸습니다. 다른 시·군이나 급여·경력 조건까지 고르시려면
-          워크넷 화면에서 직접 고르는 편이 빠릅니다.
+      {wide && job && (
+        <div className="card" style={{ marginTop: 12, padding: 0, overflow: 'hidden' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+            padding: '10px 12px', borderBottom: '1px solid var(--line)',
+          }}>
+            <b style={{ fontSize: 13.5 }}>고용24(워크넷) 화면</b>
+            <span className="badge n">{city}</span>
+            <span className="badge n">{job.name}</span>
+            <span style={{ flex: 1 }} />
+            <a className="btn ghost sm" style={{ textDecoration: 'none' }}
+              href={url} target="_blank" rel="noopener noreferrer"
+              onClick={() => log(job.kw, 'newtab')}>새 창으로 크게 ↗</a>
+            <button className="btn ghost sm" onClick={() => setJob(null)}>닫기</button>
+          </div>
+
+          <iframe
+            key={url}
+            title={`고용24 채용정보 — ${city} ${job.name}`}
+            src={url}
+            loading="lazy"
+            style={{ display: 'block', width: '100%', height: 700, border: 0, background: '#fff' }}
+          />
+
+          <div className="note" style={{ padding: '10px 12px', borderTop: '1px solid var(--line)' }}>
+            이 칸은 <b>고용24(워크넷)</b> 화면을 그대로 불러온 것입니다. K-건설맵이 목록을 옮겨 적은 것이 아니며,
+            누르시는 것은 모두 워크넷으로 이어집니다. 칸이 비어 보이면 워크넷이 바깥 화면에 싣는 것을 막은 것이니
+            위 「새 창으로 크게」 로 여세요.
+          </div>
         </div>
-        <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
-          <a className="btn ghost sm" style={{ textDecoration: 'none' }}
-            href={WN_REGION_PAGE} target="_blank" rel="noopener noreferrer"
-            onClick={() => go('지역별')}>지역별로 고르기 ↗</a>
-          <a className="btn ghost sm" style={{ textDecoration: 'none' }}
-            href={wnUrl('건설', '')} target="_blank" rel="noopener noreferrer"
-            onClick={() => go('전국건설')}>전국 건설 일자리 ↗</a>
+      )}
+
+      {!job && (
+        <div className="card" style={{ marginTop: 14 }}>
+          <div className="sec-title" style={{ margin: '0 0 8px' }}>여기 없는 지역·조건은</div>
+          <div className="note" style={{ marginBottom: 10 }}>
+            위 지역 넷은 실제로 확인해 둔 것만 올렸습니다. 다른 시·군이나 급여·경력 조건까지 고르시려면
+            워크넷 화면에서 직접 고르는 편이 빠릅니다.
+          </div>
+          <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+            <a className="btn ghost sm" style={{ textDecoration: 'none' }}
+              href={WN_REGION_PAGE} target="_blank" rel="noopener noreferrer"
+              onClick={() => log('지역별', 'newtab')}>지역별로 고르기 ↗</a>
+            <a className="btn ghost sm" style={{ textDecoration: 'none' }}
+              href={wnUrl('건설', '')} target="_blank" rel="noopener noreferrer"
+              onClick={() => log('전국건설', 'newtab')}>전국 건설 일자리 ↗</a>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="card" style={{ marginTop: 12 }}>
         <div className="sec-title" style={{ margin: '0 0 8px' }}>사람을 구하시는 거라면</div>
@@ -448,7 +519,6 @@ function Worknet() {
 
       <div className="note" style={{ marginTop: 12 }}>
         자료 출처: <b>고용24(워크넷) · 한국고용정보원</b>.
-        K-건설맵은 채용 목록을 옮겨 싣지 않고 워크넷 화면으로 연결만 합니다.
       </div>
     </>
   )
