@@ -10,7 +10,9 @@ const TABS = [
   { to: '/analysis', ic: '🔍', label: '분석' },
   { to: '/forms', ic: '📄', label: '서식' },
   { to: '/change', ic: '🔁', label: '설계변경' },
-  { to: '/jobs', ic: '🏗', label: '착공현장' },
+  /* 💼 2026-09-15 — 「착공현장」에서 이름을 바꿨습니다. 안쪽이 «낙찰 현장 + 구인·구직 + 워크넷»으로
+     합쳐졌는데 탭 이름만 옛것이라 안 맞았습니다. 사람들이 찾는 말도 «구인구직» 쪽입니다. */
+  { to: '/jobs', ic: '💼', label: '구인구직' },
   /* 🧰 도구 — 소장님: 「탭을 따로 만들어야 하지 않아」 (2026-09-14).
      주소는 /tools · /tools/{slug}. prerender.py 와 sitemap.py 가 같은 주소를 굽습니다. */
   { to: '/tools', ic: '🧰', label: '도구' },
