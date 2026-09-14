@@ -1284,8 +1284,16 @@ def save_store(name, data):
                 return
         except Exception:
             pass
-    with open(p, "w", encoding="utf-8") as f:
+    # ⚠️ 2026-09-14 — **반드시 임시 파일에 쓰고 갈아 끼웁니다.**
+    #    저장소에 직접 쓰면 쓰는 도중에 프로세스가 죽을 때 «반쪽 JSON» 이 남습니다.
+    #    실제로 겪었습니다: 15.6MB 짜리 live.json 이 6.5MB 에서 잘려 못 읽는 파일이 됐습니다.
+    #    Actions 회차가 80분 상한에 걸려 죽어도 같은 일이 납니다 —
+    #    그러면 다음 회차가 저장소를 못 읽고 씨앗으로 되돌아가 며칠이 사라집니다.
+    #    (save_json 은 처음부터 이 방식이었습니다. 저장소만 빠져 있었습니다.)
+    tmp = p + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
+    os.replace(tmp, p)
 
 
 def archive(first, live=None):
@@ -1481,7 +1489,62 @@ PICK_P50 = 99.896
 PICK_SZ = [1e8, 3e8, 1e9]          # <1억 · 1~3억 · 3~10억 · 10억+
 PICK_NB = [10, 30, 100]            # 2~9 · 10~29 · 30~99 · 100+
 PICK_LLR = [(0, 1e9, 89.745), (1e9, 5e9, 88.745), (5e9, 1e10, 87.495)]
-PICK_AUTO = {0: (0.8416, 1.0), 1: (0.2533, 1.0)}   # 참가묶음 → (z, 여유). bidmath.js AUTO_RULE 와 같이 고칠 것
+# ⚠️ 2026-09-14 — 「10~29곳 → 60분위」 를 **뺐습니다.**
+#    60분위는 실격률 40%짜리인데, 추정이 그 묶음을 제대로 맞히지도 못하면서 적용하고 있었습니다.
+#    개찰 2,061건 짝지어 비교(과거 4,806건으로만 추정 → 그 뒤 개찰로 채점):
+#        지금 (기관만 · 0·1묶음 자동)   실격 15.62% · 1순위  93건 · 1,296억
+#        추정 없이 늘 권장              실격 13.20% · 1순위 101건 · 1,313억   ← 지금 것이 이보다 나빴다
+#        새것 (면허+금액대 · 0묶음만)    실격 13.39% · 1순위 106건 · 1,317억
+#        완벽히 예언했다면              실격 18.92% · 1순위 114건 · 1,339억
+#    짝지어 세면 1순위 +13건(새것만 22 vs 지금만 9 · z=2.33), 실격 −46건(z=−6.38).
+#    ⚠️ bidmath.js 의 AUTO_RULE 과 같이 고칠 것 — selfcheck 가 두 벌을 대조합니다.
+PICK_AUTO = {0: (0.8416, 1.0)}                    # 참가묶음 → (z, 여유)
+
+# ── 예상 참가(enp) 사슬 — 2026-09-14 ──────────────────────────────
+#  전에는 «기관 하나»로만 짐작했습니다. 실측(시험 2,099건)으로 재보니:
+#      기관만        커버 54.9% · 묶음적중 52.5% · 「10곳 미만」 적중 25.0%
+#      면허+금액대 사슬 커버 85.3% · 묶음적중 55.2% · 「10곳 미만」 적중 45.8%
+#  면허가 «걸려 있느냐»가 아니라 «어느 면허냐»가 지렛대입니다 —
+#  산림사업법인(산림토목) 참가 중앙 7곳 vs 토목공사업 361곳 (52배).
+#  면허가 여럿이면 **가장 좁은 쪽**(중앙이 가장 작은 면허)을 씁니다.
+ENP_MIN_LS = 4      # 면허+금액대
+ENP_MIN_L = 6       # 면허
+ENP_MIN_IS = 3      # 기관+금액대
+ENP_MIN_I = 6       # 기관
+ENP_BASIS = {"ls": "이 면허·이 금액대", "l": "이 면허", "is": "이 기관·이 금액대", "i": "이 기관"}
+LICSTAT_MIN = 20    # 면허별 경쟁도를 화면에 낼 최소 개찰 건수
+
+# (면허 문자열 가르기는 아래 lic_pairs(r) 하나만 씁니다 — 같은 규칙을 두 번 적지 않습니다)
+
+
+def enp_of(r, m):
+    """이 공고의 예상 참가 → [중앙, 근거건수, 근거갈래]. 모르면 [0, 0, ""].
+
+    사슬: 면허+금액대 → 면허 → 기관+금액대 → 기관.
+    ⚠️ 건수(n)는 «그 근거의 표본 수» 입니다. 화면이 「무엇을 보고 짐작했는지」 를 적으려면 이게 있어야 합니다.
+    """
+    if not m:
+        return [0, 0, ""]
+    b = float(r.get("base") or 0)
+    s = _pick_bucket(b, PICK_SZ) if b > 0 else None
+    codes = [cd for cd, _ in lic_pairs(r)]
+    if s is not None:
+        got = [m["ls"][f"{cd}|{s}"] for cd in codes if f"{cd}|{s}" in m["ls"]]
+        if got:
+            e = min(got, key=lambda x: x[0])
+            return [e[0], e[1], "ls"]
+    got = [m["l"][cd] for cd in codes if cd in m["l"]]
+    if got:
+        e = min(got, key=lambda x: x[0])
+        return [e[0], e[1], "l"]
+    inst = str(r.get("inst") or "").strip()
+    if s is not None and f"{inst}|{s}" in m["is"]:
+        e = m["is"][f"{inst}|{s}"]
+        return [e[0], e[1], "is"]
+    if inst in m["i"]:
+        e = m["i"][inst]
+        return [e[0], e[1], "i"]
+    return [0, 0, ""]
 
 
 def _pick_bucket(v, edges):
@@ -1503,16 +1566,33 @@ def _pick_llr(r):
 
 
 def pick_stats(fstore):
-    """(기관별 예상 참가, 규모×참가 1순위율 표) — 개찰 저장소만으로."""
+    """(예상 참가 사슬, 규모×참가 1순위율 표, 면허 경쟁도) — 개찰 저장소만으로.
+
+    ⚠️ 2026-09-14 — enp 를 «기관 하나»에서 «면허+금액대 사슬» 로 바꿨습니다. 근거는 PICK_AUTO 위 주석.
+    """
     import math as _m
     from statistics import median as _med
     by_inst = {}
+    by_is = {}
+    by_lic = {}
+    by_ls = {}
+    lic_name = {}
     cells = {}
     for r in (fstore.get("con") or {}).values():
         np_ = int(r.get("np") or 0)
         inst = str(r.get("inst") or "").strip()
-        if np_ > 0 and inst:
-            by_inst.setdefault(inst, []).append(np_)
+        bb = float(r.get("base") or 0)
+        sb = _pick_bucket(bb, PICK_SZ) if bb > 0 else None
+        if np_ > 0:
+            if inst:
+                by_inst.setdefault(inst, []).append(np_)
+                if sb is not None:
+                    by_is.setdefault(f"{inst}|{sb}", []).append(np_)
+            for cd, nm in lic_pairs(r):
+                lic_name[cd] = nm
+                by_lic.setdefault(cd, []).append(np_)
+                if sb is not None:
+                    by_ls.setdefault(f"{cd}|{sb}", []).append(np_)
         b = float(r.get("base") or 0); amt = float(r.get("amt") or 0); rate = r.get("rate")
         lo, hi = r.get("lo"), r.get("hi")
         if not b or not amt or not rate or lo is None or hi is None or float(hi) <= float(lo) or np_ < 2:
@@ -1546,9 +1626,22 @@ def pick_stats(fstore):
         c[0] += 1
         if M >= L and M < amt:
             c[1] += 1
-    enp = {k: [int(_med(v)), len(v)] for k, v in by_inst.items() if len(v) >= 6}
+    def _pack(d, need):
+        return {k: [int(_med(v)), len(v)] for k, v in d.items() if len(v) >= need}
+    enp = {"ls": _pack(by_ls, ENP_MIN_LS), "l": _pack(by_lic, ENP_MIN_L),
+           "is": _pack(by_is, ENP_MIN_IS), "i": _pack(by_inst, ENP_MIN_I)}
+    # ── 면허별 경쟁도 (2026-09-14) — 소장님: 「내 면허 경쟁도 표」
+    #    면허가 «걸려 있느냐»는 지렛대가 아니었습니다(제한 74곳 vs 무제한 60곳).
+    #    «어느 면허냐»가 지렛대입니다 — 산림사업법인(산림토목) 7곳 vs 토목공사업 361곳.
+    #    [이름, 개찰건수, 참가중앙, 10곳미만%] — 20건 이상인 면허만.
+    licstat = {}
+    for cd, v in by_lic.items():
+        if len(v) < LICSTAT_MIN:
+            continue
+        licstat[cd] = [lic_name.get(cd, cd), len(v), int(_med(v)),
+                       round(sum(1 for x in v if x < 10) / len(v) * 100, 1)]
     tbl = {k: ([n, round(w / n * 100, 1)] if n >= 15 else None) for k, (n, w) in cells.items()}
-    return enp, {"tbl": tbl, "sz": PICK_SZ, "nb": PICK_NB, "n": sum(n for n, _ in cells.values())}
+    return enp, {"tbl": tbl, "sz": PICK_SZ, "nb": PICK_NB, "n": sum(n for n, _ in cells.values())}, licstat
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -2327,9 +2420,9 @@ def main():
             #   bidindex·bidresult 와 같은 enp_map 이라 세 화면이 같은 분위로 같은 금액을 냅니다 (2026-09-03).
             if enp_map:
                 for r in rows:
-                    e = enp_map.get(str(r.get("inst") or "").strip())
-                    if e:
-                        r["enp"], r["enpn"] = e[0], e[1]
+                    e = enp_of(r, enp_map)
+                    if e[0]:
+                        r["enp"], r["enpn"], r["enpb"] = e[0], e[1], e[2]
             # ══════════════════════════════════════════════════════
             #  ★ 순위 30곳(corps)은 «펼칠 때만» 받습니다 — 2026-09-06
             #
@@ -2855,7 +2948,7 @@ def main():
         """
         # GitHub 서버는 세계표준시로 돕니다. 마감시각은 한국시간이라 KST 로 비교해야 합니다.
         now = datetime.now(KST).strftime("%Y%m%d%H%M%S")
-        enp_map, pick = pick_stats(fstore)
+        enp_map, pick, _licstat = pick_stats(fstore)
         _rbook = region_book(list(store["con"].values()))
         rows = []
         for r in store["con"].values():
@@ -2893,13 +2986,14 @@ def main():
                 r.get("swin") or "",               # 낙찰방법 상세 (적격심사 기준까지 들어옵니다)
                 r.get("rebid") or "",              # 재입찰 여부
                 # ★ 공고 고르기 (2026-09-03) — 이 기관 개찰의 참가업체수 중앙과 그 근거 건수. 없으면 0.
-                (enp_map.get(str(r.get("inst") or "").strip()) or [0, 0])[0],
-                (enp_map.get(str(r.get("inst") or "").strip()) or [0, 0])[1],
+                enp_of(r, enp_map)[0],
+                enp_of(r, enp_map)[1],
                 r.get("dt") or "",                 # 공고일 (목록 카드가 보여줍니다)
                 # ⚠️ 이름은 반드시 «sido» 입니다. 조달청 rgn(참가가능지역)이 이미 있어서
                 #    rgn 으로 두면 공고 카드가 「참가지역: 전남」 이라고 엉뚱하게 적습니다.
                 sido_of(r, _rbook),                # 시도 (지역 거르기 — 짐작하지 않습니다)
                 doc_flag(r),                       # 붙임 내역서: 2 단가 있음 · 1 있음 · 0 없음
+                enp_of(r, enp_map)[2],             # 무엇을 보고 짐작했나 (ls/l/is/i) — 화면이 정직하게 적습니다
             ])
         rows.sort(key=lambda x: re.sub(r"[^0-9]", "", str(x[5])))
         out = {"built": built,
@@ -2907,13 +3001,22 @@ def main():
                      "llr", "est", "lic", "aval", "gmtrl",
                      "ayn", "ptot", "pdrw", "url",
                      "site", "rgnb", "joint", "mthd", "swin", "rebid",
-                     "enp", "enpn", "dt", "sido", "dsn"],
+                     "enp", "enpn", "dt", "sido", "dsn", "enpb"],
                "pick": pick,
                "r": rows}
         path = os.path.join(OUT, "bidindex.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
         have = sum(1 for x in rows if x[3] > 0)
+        # ── 면허별 경쟁도 (2026-09-14) — 작은 파일 하나로 따로 냅니다.
+        #    첫 화면에 안 얹습니다: 면허를 고를 때와 /lic 페이지에서만 받습니다.
+        #    [이름, 개찰건수, 참가중앙, 10곳미만%] · 20건 이상인 면허만.
+        lp = os.path.join(OUT, "licstat.json")
+        with open(lp, "w", encoding="utf-8") as f:
+            json.dump({"built": built, "min": LICSTAT_MIN, "r": _licstat},
+                      f, ensure_ascii=False, separators=(",", ":"))
+        print(f"  \u2192 licstat  \uba74\ud5c8 {len(_licstat)}\uc885 "
+              f"({os.path.getsize(lp)/1024:.1f}KB)")
         print(f"  \u2192 bidindex  \ub9c8\uac10\uc804 {len(rows):,}\uac74 "
               f"(\uae30\ucd08\uae08\uc561 \uc788\ub294 \uac83 {have:,}\uac74, "
               f"{os.path.getsize(path)/1024:.0f}KB)")
@@ -2961,7 +3064,7 @@ def main():
         필요할 때만 받아갑니다. 공고번호 하나로 바로 찾을 수 있게 «지도» 모양입니다.
         """
         cut = (datetime.now(KST) - timedelta(days=7)).strftime("%Y%m%d%H%M")
-        enp_map, _ = pick_stats(fstore)      # 기관별 예상 참가 — 채점이 «그날 자동 분위였나» 를 알기 위해
+        enp_map, _, _ls = pick_stats(fstore)   # 예상 참가 — 채점이 «그날 자동 분위였나» 를 알기 위해
         out = {}
         for r in (fstore.get("con") or {}).values():
             if (dt_digits(r.get("dt")) or "0") < cut:
@@ -3005,14 +3108,15 @@ def main():
                        #   채점도 그걸로 계산해야 바로투찰과 같은 금액이 나옵니다.
                        r.get("llr"), int(r.get("est") or 0),
                        # ★ 예상 참가 — 그날 바로투찰이 «자동 분위» 였는지 채점이 알아야 같은 금액이 나옵니다 (2026-09-03)
-                       (enp_map.get(str(r.get("inst") or "").strip()) or [0, 0])[0],
-                       (enp_map.get(str(r.get("inst") or "").strip()) or [0, 0])[1]]
+                       enp_of(r, enp_map)[0],
+                       enp_of(r, enp_map)[1],
+                       enp_of(r, enp_map)[2]]
         path = os.path.join(OUT, "bidresult.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump({"built": built, "f": ["win", "amt", "rate", "np", "base", "dt",
                              "tel", "ceo", "bno", "adr", "tsrc", "name", "inst",
                              "aval", "ayn", "amts", "rq", "nrank", "lo", "hi", "lic",
-                             "llr", "est", "enp", "enpn"],
+                             "llr", "est", "enp", "enpn", "enpb"],
                        "r": out}, f, ensure_ascii=False, separators=(",", ":"))
         print(f"  → bidresult 최근 7일 개찰 {len(out):,}건 "
               f"({os.path.getsize(path)/1024:.0f}KB)")

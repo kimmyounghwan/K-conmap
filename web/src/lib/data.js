@@ -254,6 +254,12 @@ export const getBidIndex = () =>
   _bidIndex || (_bidIndex = getJSON('/data/bidindex.json').catch(() => { _bidIndex = null; return null }))
 
 /** {f:[...], r:[[...]]} → [{no, name, inst, base, …}] — 없는 칸은 undefined */
+/* 면허별 경쟁도 (2026-09-14) — 면허를 고를 때와 /lic 페이지에서만 받습니다.
+   첫 화면에 안 얹습니다(2KB 남짓이지만 원칙은 원칙입니다). */
+let _licStat = null
+export const getLicStat = () =>
+  _licStat || (_licStat = getJSON('/data/licstat.json').catch(() => { _licStat = null; return null }))
+
 /* 개찰 결과 색인(최근 7일) — 채점 화면과 공고 페이지가 같은 것을 씁니다. */
 export const getResults = () => getJSON('/data/bidresult.json')
 

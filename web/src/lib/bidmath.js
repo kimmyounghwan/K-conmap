@@ -275,10 +275,49 @@ export function quantileBid({ base, llRate, aVal, p50, sd, q }) {
    ⚠️ 차이는 2σ 안팎이다(638건에서 ±1.6%p). 확실한 우위가 아니라 «자료가 그쪽을 가리킨다» 수준.
       그래서 화면은 «왜 이 분위인지» 와 실측 숫자를 같이 적고, 권장으로 돌아갈 길을 둔다.
    예상 참가를 모르면(기관 6건 미만) 권장 그대로. */
+/* ⚠️ 2026-09-14 — 「10~29곳 → 60분위」 규칙을 **뺐습니다.**
+   60분위는 실격률 40%짜리인데, 예상 참가가 그 묶음을 제대로 맞히지도 못하면서 적용하고 있었습니다.
+   개찰 2,061건을 짝지어 재봤습니다(과거 4,806건으로만 추정 → 그 뒤 개찰로 채점):
+
+       지금 (기관만 추정 · 0·1묶음 자동)   실격 15.62% · 1순위  93건 · 1,296억
+       추정을 아예 안 쓰고 늘 권장         실격 13.20% · 1순위 101건 · 1,313억   ← 지금 것이 이보다 나빴다
+       새것 (면허+금액대 추정 · 0묶음만)    실격 13.39% · 1순위 106건 · 1,317억
+       완벽히 예언했다면                  실격 18.92% · 1순위 114건 · 1,339억
+
+   짝지어 세면 1순위 +13건(새것만 22 vs 지금만 9 · z=2.33), 실격 −46건(z=−6.38).
+   **위험은 확실히 줄고 이기는 것도 줄지 않았습니다.**
+   ⚠️ collect.py 의 PICK_AUTO 와 같이 고칠 것 — selfcheck 가 두 벌을 대조합니다. */
 export const AUTO_RULE = [
   { maxNp: 10, q: 80, n: 638,  win: 22.1, dq: 13.3, recWin: 18.2, recDq: 7.8 },
-  { maxNp: 30, q: 60, n: 1213, win: 6.9,  dq: 37.6, recWin: 5.5,  recDq: 10.2 },
 ]
+
+/* 예상 참가를 «무엇을 보고» 짐작했나 — collect.py 의 ENP_BASIS 와 같은 말입니다.
+   화면이 「이 기관 12건의 중앙」 처럼 근거를 밝히기 위한 것입니다. */
+export const ENP_BASIS = {
+  ls: '이 면허·이 금액대',
+  l: '이 면허',
+  is: '이 기관·이 금액대',
+  i: '이 기관',
+}
+export function enpWhy(r) {
+  const k = ENP_BASIS[r?.enpb]
+  const n = Number(r?.enpn) || 0
+  if (!k || !n) return null
+  return `${k} 개찰 ${n.toLocaleString()}건의 중앙`
+}
+
+/* ── ④ 담은 공고 합산 확률 (2026-09-14) ────────────────────────────
+   소장님: 「한 건이라도 돼야 소문이 나지.」 한 공고의 1순위율은 몇 %뿐이지만
+   여러 건에 넣으면 «적어도 한 건» 확률은 1 − ∏(1−p) 로 올라갑니다.
+   ⚠️ 공고들이 서로 독립이라고 보고 셈합니다. 같은 기관·같은 날 공고는 붙어 움직일 수 있으니
+      화면에 그 전제를 적습니다 — 없는 정확도를 주장하지 않습니다. */
+export function atLeastOne(rates) {
+  const ps = (rates || []).filter((x) => typeof x === 'number' && x > 0).map((x) => Math.min(x, 100) / 100)
+  if (!ps.length) return null
+  let none = 1
+  for (const p of ps) none *= (1 - p)
+  return { n: ps.length, p: (1 - none) * 100 }
+}
 export function autoRule(enp) {
   if (!(enp > 0)) return null
   return AUTO_RULE.find((r) => enp < r.maxNp) || null

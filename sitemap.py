@@ -287,6 +287,17 @@ def main():
     except Exception as e:
         print(f"  · 도구 자료를 못 읽었습니다 ({type(e).__name__})")
 
+    # ── 🪪 면허별 경쟁도 ──────────────────────────
+    #    ⚠️ licstat.json 이 있을 때만 냅니다 — prerender.py 도 같은 파일이 있어야 굽습니다.
+    #       안 구운 주소를 사이트맵에 내면 크롤러가 빈 껍데기를 봅니다(2026-09-04 교훈).
+    n_lc = 0
+    _lp = os.path.join(ROOT, "web", "public", "data", "licstat.json")
+    if os.path.exists(_lp):
+        urls.append(f'  <url><loc>{SITE}/lic</loc>'
+                    f'<lastmod>{_mtime(_lp, today)}</lastmod>'
+                    f'<changefreq>weekly</changefreq><priority>0.7</priority></url>')
+        n_lc = 1
+
     xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
            + "\n".join(urls) + "\n</urlset>\n")
@@ -300,7 +311,7 @@ def main():
     p = os.path.join(OUT, "sitemap.xml")
     with open(p, "w", encoding="utf-8") as f:
         f.write(xml)
-    print(f"  ✅ sitemap.xml — 고정 {len(STATIC)} + 기관 {n_ag} + 업체 {n_co}"
+    print(f"  ✅ sitemap.xml — 고정 {len(STATIC)} + 면허 {n_lc} + 기관 {n_ag} + 업체 {n_co}"
           f" + 공고 {n_no} + 성적표 {n_dy} + 서식 {n_fm} + 설계변경 {n_cg}"
           f" + 알아보기 {n_gd} + 도구 {n_tl} = {len(urls)}개")
     print(f"     {p}")

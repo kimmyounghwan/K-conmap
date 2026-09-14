@@ -2655,3 +2655,80 @@ a.glink:hover { text-decoration: underline; }
 .tl-o b{ font-variant-numeric:tabular-nums; font-weight:700; }
 .tl-o.big{ padding:12px; background:color-mix(in srgb, var(--accent) 10%, var(--surface)); }
 .tl-o.big b{ font-size:19px; color:var(--accent); }
+
+
+/* ══════════════════════════════════════════════════════════════
+   2026-09-14 — 모드 탭 · 금액대 · ⭐ 담은 공고 · 면허 경쟁도
+   색은 전부 토큰입니다(다크모드가 따라옵니다). 적록색맹 때문에
+   색만으로 말하지 않고 숫자를 늘 글자로 같이 적습니다.
+   ══════════════════════════════════════════════════════════════ */
+.modetabs {
+  display: flex; gap: 6px; margin: 0 0 10px;
+  background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: 12px; padding: 4px;
+}
+.modetabs button {
+  flex: 1; border: 0; background: transparent; cursor: pointer;
+  font-size: 13px; font-weight: 700; color: var(--text-2);
+  padding: 9px 4px; border-radius: 9px; min-height: 40px;
+}
+.modetabs button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.bagn {
+  font-style: normal; font-size: 11px; font-weight: 800;
+  background: var(--accent); color: #fff; border-radius: 999px; padding: 1px 6px; margin-left: 3px;
+}
+.szchips { margin: 0; gap: 6px; }
+
+/* ⭐ 담은 공고 */
+.cbtn.star { min-width: 68px; }
+.cbtn.star.on { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); font-weight: 800; }
+.bagctl .bagbig {
+  display: flex; flex-direction: column; gap: 3px; align-items: flex-start;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 12px; padding: 12px 14px;
+}
+.bagbig .bl { font-size: 12px; color: var(--muted); }
+.bagbig .bp { font-size: 21px; font-weight: 800; line-height: 1.25; }
+.bagbig .bp.r-safe { color: var(--good); }
+.bagbig .bp.r-warm { color: var(--warn); }
+.bagbig .bp.r-hot  { color: var(--bad); }
+.notice.gone { opacity: .72; }
+.notice.gone h3 { font-size: 13.5px; font-weight: 600; }
+
+/* 🪪 면허 경쟁도 — 칩 옆 배지 */
+.licnp { font-style: normal; font-size: 10.5px; margin-left: 4px; font-weight: 700; opacity: .85; }
+.licnp.few { color: var(--good); }
+.licnp.mid { color: var(--warn); }
+.chip.on .licnp, .chip.on .licnp.few, .chip.on .licnp.mid { color: #fff; opacity: .9; }
+
+/* 🪪 /lic 표 */
+.licstat { padding: 4px 0; }
+.lsrow {
+  display: grid; grid-template-columns: 1fr 76px 68px 62px; align-items: center; gap: 4px;
+  width: 100%; text-align: left; background: transparent; border: 0;
+  border-bottom: 1px solid var(--line-soft); padding: 10px 14px; cursor: pointer;
+  font-size: 13px; color: var(--text); min-height: 44px;
+}
+.lsrow:last-child { border-bottom: 0; }
+.lsrow.head { font-size: 11.5px; color: var(--muted); font-weight: 700; cursor: default; }
+.lsrow.on { background: var(--accent-soft); }
+/* ⚠️ grid 에서 1fr 칸은 min-width:auto 라 «내용보다 좁아지지 않습니다» —
+   긴 면허 이름이 칸 밖으로 밀고 나갑니다(390px 실측). min-width:0 이 있어야 줄어듭니다. */
+.lsn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.lsv { text-align: right; font-variant-numeric: tabular-nums; }
+.lsv.big { font-weight: 800; }
+.lsv.big.few { color: var(--good); }
+.lsv.big.mid { color: var(--warn); }
+.lsv.big.many { color: var(--bad); }
+.lsv.dim { color: var(--muted); font-size: 12px; }
+.mymark { font-style: normal; font-size: 10.5px; color: var(--accent); font-weight: 800; margin-left: 4px; }
+@media (max-width: 420px) {
+  .lsrow { grid-template-columns: 1fr 64px 56px; font-size: 12.5px; padding: 10px; }
+  .lsrow .lsv.dim { display: none; }
+}
+
+/* 미리 구운 페이지의 표(크롤러와 자바스크립트 끄고 보는 사람용) */
+.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl th, .tbl td { padding: 8px 6px; border-bottom: 1px solid var(--line-soft); text-align: right; }
+.tbl th:first-child, .tbl td:first-child { text-align: left; }
+.tbl th { color: var(--muted); font-size: 11.5px; font-weight: 700; }

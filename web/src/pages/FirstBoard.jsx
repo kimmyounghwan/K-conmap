@@ -1,5 +1,6 @@
+import { Link } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
-import { getOverview } from '../lib/data.js'
+import { getOverview, getLicStat } from '../lib/data.js'
 import FreshBar from '../Fresh.jsx'
 import NoticeDetail, { scoreState, NoticeLink } from '../NoticeDetail.jsx'
 import Comments from '../Comments.jsx'
@@ -21,6 +22,9 @@ export default function FirstBoard() {
   const [open, setOpen] = useState(null)
   const [mine, setMine] = useState(false)
   const [editLic, setEditLic] = useState(false)
+  /* 면허 경쟁도 — 면허를 고를 때만 받습니다(첫 화면 전송량에 안 얹습니다) */
+  const [licst, setLicst] = useState(null)
+  useEffect(() => { if (editLic && !licst) getLicStat().then((d) => setLicst(d || null)) }, [editLic, licst])
   const [lics, setLics] = useState(loadLicCodes)
   const [licNone, setLicNone] = useState(loadLicNone)
 
@@ -111,10 +115,16 @@ export default function FirstBoard() {
             <div className="note">면허 목록을 불러오는 중입니다…</div>
           ) : (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-              {licOptions.map(([code, nm, n]) => (
-                <button key={code} className={'chip' + (lics.includes(code) ? ' on' : '')}
-                  onClick={() => toggleLic(code)}>{licShort(nm)}<em className="licn"> {n}</em></button>
-              ))}
+              {licOptions.map(([code, nm, n]) => {
+                /* ② 면허별 경쟁도 — LiveBoard 와 같은 배지입니다. 한쪽만 고치지 마세요. */
+                const st = licst?.r?.[code]
+                return (
+                  <button key={code} className={'chip' + (lics.includes(code) ? ' on' : '')}
+                    onClick={() => toggleLic(code)}>{licShort(nm)}<em className="licn"> {n}</em>
+                    {st ? <em className={'licnp' + (st[2] < 10 ? ' few' : st[2] < 30 ? ' mid' : '')}> 참가 {st[2]}곳</em> : null}
+                  </button>
+                )
+              })}
             </div>
           )}
           <label className="licnone">
@@ -124,6 +134,10 @@ export default function FirstBoard() {
           </label>
           <div className="note" style={{ marginTop: 8 }}>
             조달청이 공고마다 적어 준 <b>면허 제한</b>으로 거릅니다 — 공고명으로 짐작하지 않습니다.
+            {licst?.r ? (
+              <> <b>「참가 N곳」</b>은 그 면허 공고의 실제 개찰 참가업체수 중앙입니다 —
+                면허마다 <b>50배 넘게</b> 다릅니다. <Link to="/lic">면허별 경쟁도 전부 보기 →</Link></>
+            ) : null}
           </div>
           {/* ⚠️ 2026-09-10 — 여기서 «면허를 하나도 안 골랐을 때» mine 을 그대로 두고 있었습니다.
               패널이 보이는 조건이 (editLic || (mine && !lics.length)) 이라,

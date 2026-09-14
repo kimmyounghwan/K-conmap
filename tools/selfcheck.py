@@ -306,7 +306,7 @@ def check_bidindex():
     print("=" * 64)
     need = ["no", "name", "inst", "base", "budget", "close", "lo", "hi", "llr", "est", "lic",
             "aval", "gmtrl", "ayn", "ptot", "pdrw", "url", "site", "rgnb", "joint", "mthd",
-            "swin", "rebid", "enp", "enpn", "dt"]
+            "swin", "rebid", "enp", "enpn", "dt", "enpb"]
     try:
         c = io.open(cp, encoding="utf-8").read()
         i = c.index('"f": ["no", "name"')
@@ -549,6 +549,97 @@ def check_naeyeok():
     print(f"   만드는 쪽 — {', '.join(made)}")
     print(f"   읽는 쪽   — {', '.join(read)}")
     return []
+
+
+def check_autorule():
+    """자동 분위 규칙이 두 곳에 적혀 있습니다 — 대조합니다. (2026-09-14)
+
+    collect.py  PICK_AUTO   {참가묶음: (z, 여유)}   ← 1순위율 표를 «화면이 실제로 내는 금액» 으로 잽니다
+    bidmath.js  AUTO_RULE   [{maxNp, q, …}]        ← 화면이 금액을 냅니다
+
+    한쪽만 고치면 «표는 80분위로 쟀는데 화면은 권장을 낸다» 가 조용히 생깁니다.
+    숫자가 아니라 **금액이 달라지는** 어긋남이라 눈으로는 못 찾습니다.
+    """
+    import re
+    print("\n" + "=" * 64)
+    print("  자동 분위 규칙 대조 — collect.py PICK_AUTO vs bidmath.js AUTO_RULE")
+    print("=" * 64)
+    bad = []
+    try:
+        cs = io.open(os.path.join(ROOT, "collect.py"), encoding="utf-8").read()
+        js = io.open(os.path.join(ROOT, "web/src/lib/bidmath.js"), encoding="utf-8").read()
+    except Exception as e:
+        print(f"(건너뜀 — 읽지 못했습니다: {type(e).__name__})")
+        return []
+    m = re.search(r"^PICK_AUTO\s*=\s*\{([^}]*)\}", cs, re.M)
+    if not m:
+        return ["collect.py 에서 PICK_AUTO 를 못 찾았습니다"]
+    py = {}
+    for k, z, mg in re.findall(r"(\d+)\s*:\s*\(([\d.]+)\s*,\s*([\d.]+)\)", m.group(1)):
+        py[int(k)] = (float(z), float(mg))
+    m = re.search(r"export const AUTO_RULE\s*=\s*\[(.*?)\]", js, re.S)
+    if not m:
+        return ["bidmath.js 에서 AUTO_RULE 을 못 찾았습니다"]
+    rules = [(int(a), int(b)) for a, b in re.findall(r"maxNp:\s*(\d+),\s*q:\s*(\d+)", m.group(1))]
+    qz = {int(q): float(z) for q, z in re.findall(r"\{\s*q:\s*(\d+),\s*z:\s*(-?[\d.]+)", js)}
+    nb = [int(x) for x in re.findall(r"PICK_NB\s*=\s*\[([^\]]*)\]", cs)[0].split(",")]
+    want = {}
+    for maxnp, q in rules:
+        if maxnp not in nb:
+            bad.append(f"AUTO_RULE 의 maxNp {maxnp} 가 PICK_NB {nb} 의 경계가 아닙니다")
+            continue
+        want[nb.index(maxnp)] = (qz.get(q), 1.0)
+    if set(py) != set(want):
+        bad.append(f"묶음이 다릅니다 — collect.py {sorted(py)} vs bidmath.js {sorted(want)}")
+    for k in sorted(set(py) & set(want)):
+        if want[k][0] is None:
+            bad.append(f"묶음 {k}: bidmath.js QTILES 에 그 분위의 z 가 없습니다")
+        elif abs(py[k][0] - want[k][0]) > 1e-4 or abs(py[k][1] - want[k][1]) > 1e-9:
+            bad.append(f"묶음 {k}: collect.py {py[k]} vs bidmath.js {want[k]}")
+    if bad:
+        print(f"❌ {len(bad)}군데가 어긋납니다")
+        for x in bad:
+            print("   ·", x)
+    else:
+        print(f"✅ 자동 분위 규칙 {len(py)}가지가 두 곳에서 같습니다 "
+              f"({', '.join('참가<%d → %d분위' % (m_, q_) for m_, q_ in rules)})")
+    return bad
+
+
+def check_atleastone():
+    """⭐ 담은 공고 «적어도 한 건» 확률 — 화면(bidmath.js)과 파이썬이 같은 답을 내나. (2026-09-14)"""
+    import json as _json
+    import subprocess as _sp
+    print("\n" + "=" * 64)
+    print("  담은 공고 합산 확률 대조 — bidmath.js atLeastOne vs 파이썬")
+    print("=" * 64)
+    cases = [[26.0], [26.0, 26.0, 26.0], [18.2] * 5, [18.2] * 10, [1.6] * 10, [5.5, 2.9, 1.6, 26.0]]
+    code = (
+        "import('file://" + os.path.join(ROOT, "web/src/lib/bidmath.js").replace("\\", "/") + "')"
+        ".then(m => { const cs = " + _json.dumps(cases) + ";"
+        " console.log(JSON.stringify(cs.map(x => m.atLeastOne(x).p))) })"
+    )
+    try:
+        out = _sp.run(["node", "--input-type=module", "-e", code],
+                      capture_output=True, text=True, timeout=40)
+        got = _json.loads((out.stdout or "").strip().splitlines()[-1])
+    except Exception as e:
+        print(f"(건너뜀 — node 로 못 불렀습니다: {type(e).__name__}: {e})")
+        return []
+    bad = []
+    for cs, g in zip(cases, got):
+        none = 1.0
+        for p in cs:
+            none *= (1 - p / 100)
+        want = (1 - none) * 100
+        ok = abs(want - g) < 1e-9
+        print(f"  {'✅' if ok else '❌'} {len(cs)}건 × {cs[0]}%{'…' if len(set(cs)) > 1 else ''}"
+              f" → 화면 {g:.4f}% · 파이썬 {want:.4f}%")
+        if not ok:
+            bad.append(f"«적어도 한 건» {len(cs)}건: 화면 {g} vs 파이썬 {want}")
+    if not bad:
+        print(f"✅ {len(cases)}가지 전부 같았습니다")
+    return bad
 
 
 def check_guidenav():
@@ -924,6 +1015,8 @@ def main():
     xbad += check_guidenav()
     xbad += check_canonical()
     xbad += check_openhour()
+    xbad += check_autorule()
+    xbad += check_atleastone()
     if xbad:
         # ⚠️ 2026-09-10 — 예전에는 여기서 «검색 색인 칸이 어긋납니다» 한 줄만 찍었습니다.
         #    여섯 검사를 한 자루(xbad)에 담아 놓고 **첫 검사 이름**으로 말한 것이라,

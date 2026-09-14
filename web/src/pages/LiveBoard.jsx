@@ -6,8 +6,10 @@ import { RangeBar } from './FirstBoard.jsx'
 import { isReady, missingOf } from './BaroBid.jsx'
 import { NoticeLink } from '../NoticeDetail.jsx'
 import Comments from '../Comments.jsx'
-import { quickBid, P50_FALLBACK, pickOdds, stamp14, nowStamp, canBid } from '../lib/bidmath.js'
-import { getOverview, getBidIndex, indexRows } from '../lib/data.js'
+import { quickBid, P50_FALLBACK, pickOdds, stamp14, nowStamp, canBid,
+         atLeastOne, enpWhy } from '../lib/bidmath.js'
+import { getOverview, getBidIndex, indexRows, getLicStat } from '../lib/data.js'
+import { loadBasket, toggleBasket, clearBasket, BASKET_MAX } from '../lib/basket.js'
 import FreshBar from '../Fresh.jsx'
 import { winGrade } from '../lib/winodds.js'
 import { noteLive } from '../lib/mentor.js'
@@ -70,13 +72,28 @@ export default function LiveBoard() {
        검색·지역·면허·A·B 거르기는 그대로 적용된다.
      - 없는 숫자는 만들지 않는다: 기관 개찰 6건 미만이면 «예상 참가 모름», 표 칸 15건 미만이면 «실측 부족».
      ══════════════════════════════════════════════════════════════ */
-  const [pick, setPick] = useState(false)
+  /* 모드 — 「탭 잘 만들고」(소장님, 2026-09-14). 셋 다 같은 카드를 그리고, 목록을 만드는 법만 다릅니다.
+       list   7주치 공고 묶음 (검색·지역·면허)
+       pick   마감 전·계산 가능 공고를 확률·기대액 순으로
+       basket ⭐ 담은 공고 — 여기서만 «적어도 한 건» 합산 확률을 냅니다 */
+  const [mode, setMode] = useState('list')
+  const pick = mode === 'pick'
+  const bagMode = mode === 'basket'
   const [sortBy, setSortBy] = useState('prob')      // 'prob' 확률 순 · 'ev' 기대액 순 · 'close' 마감 순
   const [fewOnly, setFewOnly] = useState(false)     // 참가 적은(10곳 미만) 공고만
+  /* 금액대 거르기 (2026-09-14) — 실측: 1억 미만은 참가 중앙 32곳(10곳 미만 29.9%),
+     3~10억은 404곳(3.2%). 붐비지 않는 자리를 찾는 가장 굵은 손잡이입니다.
+     칸 경계는 손으로 적지 않고 bidindex 의 pick.sz 를 씁니다 — 표와 어긋날 자리를 안 만듭니다. */
+  const [szPick, setSzPick] = useState(-1)          // -1 = 전체
+  const [bag, setBag] = useState(loadBasket)
   const [idx, setIdx] = useState(undefined)         // undefined=아직 · null=실패 · {f,r,pick}
   useEffect(() => {
-    if (pick && idx === undefined) getBidIndex().then((d) => setIdx(d || null))
-  }, [pick, idx])
+    if ((pick || bagMode) && idx === undefined) getBidIndex().then((d) => setIdx(d || null))
+  }, [pick, bagMode, idx])
+  /* 면허 경쟁도 — 면허를 고를 때만 받습니다(첫 화면 전송량에 안 얹습니다) */
+  const [licst, setLicst] = useState(null)
+  useEffect(() => { if (editLic && !licst) getLicStat().then((d) => setLicst(d || null)) }, [editLic, licst])
+  const toggleBag = (e, no) => { e.stopPropagation(); setBag(toggleBasket(no)) }
   const copyAmt = (e, r, amt) => {
     e.stopPropagation()
     try { navigator.clipboard?.writeText(String(amt)) } catch { /* 옛 브라우저 */ }
@@ -84,7 +101,7 @@ export default function LiveBoard() {
     setTimeout(() => setCopiedNo((v) => (v === r.no ? null : v)), 1600)
   }
 
-  useEffect(() => { setPage(1) }, [region, q, mine, lics, licNone, onlyGood, docOnly, pick, sortBy, fewOnly])
+  useEffect(() => { setPage(1) }, [region, q, mine, lics, licNone, onlyGood, docOnly, mode, sortBy, fewOnly, szPick])
   useEffect(() => { saveLicCodes(lics) }, [lics])
   useEffect(() => { saveLicNone(licNone) }, [licNone])
 
@@ -123,6 +140,20 @@ export default function LiveBoard() {
   const licOptions = useMemo(() => licList(info), [info])
   const noLic = useMemo(() => licNoneCount(info), [info])
 
+  /* 금액대 칸 — bidindex 의 pick.sz 를 그대로 씁니다 (표·화면이 같은 경계를 보게) */
+  const szEdges = idx?.pick?.sz || [1e8, 3e8, 1e9]
+  const szLabels = useMemo(() => {
+    const f = (v) => (v >= 1e8 ? `${Math.round(v / 1e8)}억` : `${Math.round(v / 1e4)}만`)
+    const out = [`${f(szEdges[0])} 미만`]
+    for (let i = 1; i < szEdges.length; i++) out.push(`${f(szEdges[i - 1])}~${f(szEdges[i])}`)
+    out.push(`${f(szEdges[szEdges.length - 1])} 이상`)
+    return out
+  }, [idx])
+  const szOf = (b) => {
+    for (let i = 0; i < szEdges.length; i++) if (b < szEdges[i]) return i
+    return szEdges.length
+  }
+
   /* 🎯 자리 찾기 목록 — 마감 전·계산 가능 공고에 예상 참가·1순위율·기대액을 붙여 정렬합니다 */
   const pickRows = useMemo(() => {
     if (!pick || !idx) return null
@@ -142,6 +173,7 @@ export default function LiveBoard() {
       if (!qb) continue
       const od = pickOdds(r, idx.pick, qb.amt)
       if (fewOnly && !(od && od.enp > 0 && od.enp < 10)) continue
+      if (szPick >= 0 && szOf(Number(r.base) || 0) !== szPick) continue
       out.push({ ...r, qb, od })
     }
     const rateOf = (x) => (x.od && x.od.rate != null ? x.od.rate : -1)
@@ -150,18 +182,51 @@ export default function LiveBoard() {
     else if (sortBy === 'ev') out.sort((a, b) => evOf(b) - evOf(a) || rateOf(b) - rateOf(a))
     else out.sort((a, b) => stamp14(a.close).localeCompare(stamp14(b.close)))
     return out
-  }, [pick, idx, q, region, mine, lics, licNone, onlyGood, docOnly, fewOnly, sortBy, p50, now])
+  }, [pick, idx, q, region, mine, lics, licNone, onlyGood, docOnly, fewOnly, szPick, sortBy, p50, now])
+
+  /* ⭐ 담은 공고 — 담은 것은 공고번호뿐이라 여기서 bidindex 로 다시 찾습니다.
+     마감이 지난 것은 지우지 않고 «마감됨» 으로 남겨 둡니다 — 조용히 사라지면 사용자가 알 수 없습니다. */
+  const bagRows = useMemo(() => {
+    if (!bagMode || !idx) return null
+    const byNo = new Map()
+    for (const r of indexRows(idx)) byNo.set(String(r.no), r)
+    const out = []
+    for (const no of bag) {
+      const r = byNo.get(String(no))
+      if (!r) { out.push({ no, gone: true }); continue }
+      const open = canBid(r, now)
+      const qb = open ? quickBid(r, p50) : null
+      const od = qb ? pickOdds(r, idx.pick, qb.amt) : null
+      out.push({ ...r, qb, od, open })
+    }
+    out.sort((a, b) => (a.gone ? 1 : 0) - (b.gone ? 1 : 0)
+      || (b.open ? 1 : 0) - (a.open ? 1 : 0)
+      || stamp14(a.close).localeCompare(stamp14(b.close)))
+    return out
+  }, [bagMode, idx, bag, p50, now])
+
+  /* «적어도 한 건» — 마감 전이고 1순위율을 아는 것만 셈에 넣습니다. 모르는 것은 0으로 치지 않고 «뺍니다». */
+  const bagOdds = useMemo(() => {
+    if (!bagRows) return null
+    const usable = bagRows.filter((x) => x.open && x.od && x.od.rate != null)
+    return { ...(atLeastOne(usable.map((x) => x.od.rate)) || { n: 0, p: 0 }),
+             open: bagRows.filter((x) => x.open).length,
+             unknown: bagRows.filter((x) => x.open && !(x.od && x.od.rate != null)).length,
+             closed: bagRows.filter((x) => !x.open).length,
+             ev: usable.reduce((t, x) => t + (x.od.ev || 0), 0) }
+  }, [bagRows])
 
   /* 전체 건수는 useBoard 가 «7주 전체»로 셉니다 — 검색 중이면 색인에서, 아니면 목록표(meta)에서.
      ⚠️ 받아 둔 것(all.length)으로 세면 25쪽(500건 ≈ 개찰 이틀치)에서 끝납니다 — 2026-09-03 실제 사고. */
-  const count = pick ? (pickRows ? pickRows.length : 0) : (total != null ? total : all.length)
+  const listOf = pick ? pickRows : (bagMode ? bagRows : null)
+  const count = listOf ? listOf.length : (total != null ? total : all.length)
   const pages = Math.max(1, Math.ceil(count / PAGE))
-  const view = pick
-    ? (pickRows ? pickRows.slice((page - 1) * PAGE, page * PAGE) : [])
+  const view = listOf
+    ? listOf.slice((page - 1) * PAGE, page * PAGE)
     : (pageRows != null ? pageRows : all.slice((page - 1) * PAGE, page * PAGE))
   const rows = view
-  const done = pick ? pickRows != null : (filtering ? indexReady : true)     // 검색 중이면 색인이 와야 «다 셌다»
-  const pickBusy = pick && idx === undefined
+  const done = listOf ? true : (filtering ? indexReady : true)     // 검색 중이면 색인이 와야 «다 셌다»
+  const pickBusy = (pick || bagMode) && idx === undefined
 
   const toggleLic = (l) =>
     setLics((v) => (v.includes(l) ? v.filter((x) => x !== l) : [...v, l]))
@@ -174,10 +239,21 @@ export default function LiveBoard() {
 
       <FreshBar kind="live" />
 
-      <input value={q} onChange={(e) => setQ(e.target.value)}
-        placeholder="공고명 · 발주기관 검색" style={{ marginBottom: 10 }} />
+      {/* ── 모드 탭 (2026-09-14) — 셋 다 같은 카드를 그립니다. 목록을 만드는 법만 다릅니다. ── */}
+      <div className="modetabs">
+        <button className={mode === 'list' ? 'on' : ''} onClick={() => setMode('list')}>📋 공고 목록</button>
+        <button className={mode === 'pick' ? 'on' : ''} onClick={() => setMode('pick')}>🎯 자리 찾기</button>
+        <button className={mode === 'basket' ? 'on' : ''} onClick={() => setMode('basket')}>
+          ⭐ 담은 공고{bag.length ? <em className="bagn"> {bag.length}</em> : null}
+        </button>
+      </div>
 
-      <div className="chips">
+      {!bagMode && (
+        <input value={q} onChange={(e) => setQ(e.target.value)}
+          placeholder="공고명 · 발주기관 검색" style={{ marginBottom: 10 }} />
+      )}
+
+      <div className="chips" hidden={bagMode}>
         <button className={'chip' + (mine ? ' on' : '')}
           onClick={() => (lics.length ? setMine(!mine) : setEditLic(true))}>
           ✨ 내 면허 맞춤{lics.length ? ` (${lics.length})` : ''}
@@ -187,7 +263,7 @@ export default function LiveBoard() {
         ))}
       </div>
 
-      {(editLic || (mine && !lics.length)) && (
+      {!bagMode && (editLic || (mine && !lics.length)) && (
         <div className="card">
           <div className="sec-title" style={{ margin: '0 0 4px' }}>
             보유 면허 선택
@@ -197,10 +273,17 @@ export default function LiveBoard() {
             <div className="note">면허 목록을 불러오는 중입니다…</div>
           ) : (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-              {licOptions.map(([code, nm, n]) => (
-                <button key={code} className={'chip' + (lics.includes(code) ? ' on' : '')}
-                  onClick={() => toggleLic(code)}>{licShort(nm)}<em className="licn"> {n}</em></button>
-              ))}
+              {licOptions.map(([code, nm, n]) => {
+                /* ② 면허별 경쟁도 (2026-09-14) — 면허가 «걸려 있느냐»가 아니라 «어느 면허냐»가 지렛대입니다.
+                   실측: 산림사업법인(산림토목) 참가 중앙 7곳 vs 토목공사업 361곳 — 52배. */
+                const st = licst?.r?.[code]
+                return (
+                  <button key={code} className={'chip' + (lics.includes(code) ? ' on' : '')}
+                    onClick={() => toggleLic(code)}>{licShort(nm)}<em className="licn"> {n}</em>
+                    {st ? <em className={'licnp' + (st[2] < 10 ? ' few' : st[2] < 30 ? ' mid' : '')}> 참가 {st[2]}곳</em> : null}
+                  </button>
+                )
+              })}
             </div>
           )}
           <label className="licnone">
@@ -211,6 +294,10 @@ export default function LiveBoard() {
           <div className="note" style={{ marginTop: 8 }}>
             조달청이 공고마다 적어 준 <b>면허 제한</b>으로 거릅니다 — 공고명으로 짐작하지 않습니다.
             선택한 면허는 이 브라우저에만 저장됩니다. 회원가입은 없습니다.
+            {licst?.r ? (
+              <> <b>「참가 N곳」</b>은 그 면허 공고의 실제 개찰 참가업체수 중앙입니다 —
+                면허마다 <b>50배 넘게</b> 다릅니다. <Link to="/lic">면허별 경쟁도 전부 보기 →</Link></>
+            ) : null}
           </div>
           {/* ⚠️ 2026-09-10 — 여기서 «면허를 하나도 안 골랐을 때» mine 을 그대로 두고 있었습니다.
               패널이 보이는 조건이 (editLic || (mine && !lics.length)) 이라,
@@ -225,29 +312,25 @@ export default function LiveBoard() {
         </div>
       )}
 
-      {!editLic && lics.length > 0 && (
+      {!bagMode && !editLic && lics.length > 0 && (
         <button className="btn ghost sm" style={{ marginBottom: 8 }} onClick={() => setEditLic(true)}>
           면허 다시 고르기
         </button>
       )}
 
       {/* 실측: C·D 등급 156건에서 한 건도 못 땄습니다. 걸러 볼 수 있게 합니다. */}
-      <button className={'goodonly' + (onlyGood ? ' on' : '')}
+      <button className={'goodonly' + (onlyGood ? ' on' : '')} hidden={bagMode}
         onClick={() => setOnlyGood(!onlyGood)}>
         {onlyGood ? '✓ 해볼 만한 공고만 보는 중 (A·B)' : '🎯 해볼 만한 공고만 보기 (A·B)'}
         <i>승률을 가르는 건 금액이 아니라 공고의 성격입니다 — 실측 45배 차이</i>
       </button>
 
       {/* 🎯 자리 찾기 — 마감 전 공고를 «예상 참가·1순위율·기대액» 으로 골라 줍니다 */}
-      <button className={'goodonly docbtn' + (docOnly ? ' on' : '')} onClick={() => setDocOnly(!docOnly)}>
+      <button className={'goodonly docbtn' + (docOnly ? ' on' : '')} hidden={bagMode} onClick={() => setDocOnly(!docOnly)}>
         <b>📑 설계내역서가 붙은 공고만</b>
         <span>발주처가 잡은 <b>설계 단가</b>를 그대로 볼 수 있는 공고입니다 — 내 단가와 견줘 보세요.</span>
       </button>
 
-      <button className={'goodonly pickbtn' + (pick ? ' on' : '')} onClick={() => setPick(!pick)}>
-        {pick ? '✓ 자리 찾기 — 마감 전 공고를 확률·기대액 순으로 보는 중' : '🎯 자리 찾기 — 오늘 넣을 만한 공고를 골라 줍니다'}
-        <i>승률을 가르는 건 참가업체수입니다 — 실측 2~9곳 18% · 100곳 넘으면 1.6%. 기관의 과거 참가 수로 미리 짐작합니다.</i>
-      </button>
       {pick && (
         <div className="pickctl">
           <div className="seg">
@@ -255,34 +338,90 @@ export default function LiveBoard() {
             <button className={sortBy === 'ev' ? 'on' : ''} onClick={() => setSortBy('ev')}>기대액 순</button>
             <button className={sortBy === 'close' ? 'on' : ''} onClick={() => setSortBy('close')}>마감 순</button>
           </div>
+          {/* ③ 금액대 거르기 (2026-09-14) — 실측: 1억 미만 참가 중앙 32곳(10곳 미만 29.9%) vs 3~10억 404곳(3.2%) */}
+          <div className="chips szchips">
+            <button className={'chip' + (szPick < 0 ? ' on' : '')} onClick={() => setSzPick(-1)}>금액 전체</button>
+            {szLabels.map((lab, i) => (
+              <button key={lab} className={'chip' + (szPick === i ? ' on' : '')}
+                onClick={() => setSzPick(szPick === i ? -1 : i)}>{lab}</button>
+            ))}
+          </div>
           <button className={'chip' + (fewOnly ? ' on' : '')} onClick={() => setFewOnly(!fewOnly)}>
             참가 적은 공고만 (예상 10곳 미만)
           </button>
           <div className="note sm">
             <b>확률 순</b>은 «한 건이라도 빨리», <b>기대액 순</b>은 «금액×확률이 큰 것부터». 기대액 = 1순위율 × 권장 투찰금액 —
-            높을수록 좋습니다. 예상 참가는 그 기관의 최근 개찰 참가업체수 중앙(6건 이상일 때만)이고,
+            높을수록 좋습니다.
+            <br />
+            승률을 가르는 건 금액이 아니라 <b>참가업체수</b>입니다 — 실측 2~9곳 18% · 100곳 넘으면 1.6%.
+            예상 참가는 <b>같은 면허·같은 금액대</b>의 과거 개찰에서 짐작합니다(없으면 기관으로 내려갑니다) —
+            <Link to="/lic">면허별 경쟁도 보기 →</Link>.
             1순위율은 같은 규모·같은 참가 수 자리에 권장 금액을 넣었을 때의 실측입니다
             {idx?.pick?.n ? <> (개찰 {num(idx.pick.n)}건)</> : null}.
           </div>
         </div>
       )}
 
-      {!pick && <RangeBar info={info} loaded={all.length} done={done} busy={busy} filtering={filtering} count={count} />}
+      {/* ⭐ 담은 공고 — «적어도 한 건» 합산 확률. 소장님: 「한 건이라도 돼야 소문이 나지.」 */}
+      {bagMode && (
+        <div className="pickctl bagctl">
+          {bag.length === 0 ? (
+            <div className="note">
+              아직 담은 공고가 없습니다. <b>🎯 자리 찾기</b>나 공고 카드에서 <b>⭐</b> 를 누르면 여기 모입니다.
+              <br />한 공고의 1순위율은 몇 %뿐이지만, 여러 건에 넣으면 «적어도 한 건» 확률은 올라갑니다.
+            </div>
+          ) : bagOdds && bagOdds.n > 0 ? (
+            <>
+              <div className="bagbig">
+                <span className="bl">담은 {bag.length}건 중 계산 가능한 {bagOdds.n}건에 넣으면</span>
+                <b className={'bp ' + (bagOdds.p >= 40 ? 'r-safe' : bagOdds.p >= 15 ? 'r-warm' : 'r-hot')}>
+                  적어도 한 건 1순위 확률 약 {bagOdds.p.toFixed(0)}%
+                </b>
+                <span className="bl">기대액 합계 {wonShort(bagOdds.ev)}</span>
+              </div>
+              <div className="note sm">
+                1 − (모두 떨어질 확률) 로 셈합니다. <b>공고끼리 서로 영향이 없다고 보고</b> 곱한 값이라,
+                같은 기관·같은 날 공고가 섞이면 실제는 이보다 조금 낮을 수 있습니다.
+                {bagOdds.unknown > 0 && <> 1순위율을 모르는 {bagOdds.unknown}건은 셈에서 <b>뺐습니다</b> — 0으로 치지 않습니다.</>}
+                {bagOdds.closed > 0 && <> 마감된 {bagOdds.closed}건도 뺐습니다.</>}
+              </div>
+              <button className="btn ghost sm" onClick={() => { clearBasket(); setBag([]) }}>전부 비우기</button>
+            </>
+          ) : (
+            <div className="note">
+              담은 {bag.length}건 중 <b>확률을 셈할 수 있는 공고가 없습니다</b> — 마감됐거나, 예상 참가·실측이 모자랍니다.
+              <button className="btn ghost sm" style={{ marginTop: 8 }} onClick={() => { clearBasket(); setBag([]) }}>전부 비우기</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {mode === 'list' && <RangeBar info={info} loaded={all.length} done={done} busy={busy} filtering={filtering} count={count} />}
       {pick && idx === null && <div className="note">마감 전 공고 목록(bidindex.json)을 받지 못했습니다. 잠시 후 다시 열어보세요.</div>}
 
       {(pick ? (pickBusy || !done) : (loading || (filtering && !done) || !pageReady)) ? <Skeleton /> : rows.length === 0 ? (
-        <Empty icon="📭">
-          조건에 맞는 공고가 없습니다.<br />
-          {mine ? '면허 맞춤을 끄거나 면허를 추가해보세요.' : '지역을 넓히거나 검색어를 지워보세요.'}
+        <Empty icon={bagMode ? '⭐' : '📭'}>
+          {bagMode ? '담은 공고가 없습니다.' : '조건에 맞는 공고가 없습니다.'}<br />
+          {bagMode ? '공고 카드의 ⭐ 를 누르면 여기 모입니다.'
+            : (mine ? '면허 맞춤을 끄거나 면허를 추가해보세요.' : '지역을 넓히거나 검색어를 지워보세요.')}
         </Empty>
       ) : (
         <>
-          <div className="sec-title">{pick ? '넣을 만한 공고' : '공고'} <span className="count">
-            {num(count)}건{pick ? ' (마감 전 · 계산 가능)' : (filtering ? ' (7주 전체)' : '')}</span></div>
+          <div className="sec-title">{pick ? '넣을 만한 공고' : (bagMode ? '담은 공고' : '공고')} <span className="count">
+            {num(count)}건{pick ? ' (마감 전 · 계산 가능)' : (bagMode ? ` (최대 ${BASKET_MAX}건까지)` : (filtering ? ' (7주 전체)' : ''))}</span></div>
           {view.map((r, i) => {
             const id = `${r.no}-${i}`
             const isOpen = open === id
             const dd = dday(r.close)
+            if (r.gone) return (
+              <div className="notice gone" key={id}>
+                <h3>공고번호 {r.no}</h3>
+                <div className="meta">
+                  <span>마감 전 목록에 없습니다 — 마감됐거나 취소된 공고입니다</span>
+                  <button className="cbtn ghost" onClick={(e) => toggleBag(e, r.no)}>⭐ 빼기</button>
+                </div>
+              </div>
+            )
             return (
               <div className="notice" key={id} onClick={() => setOpen(isOpen ? null : id)}>
                 <h3>{r.name}</h3>
@@ -346,18 +485,23 @@ export default function LiveBoard() {
                           <a className="cbtn ghost" href={r.url} target="_blank" rel="noreferrer"
                             onClick={(e) => e.stopPropagation()}>나라장터 →</a>
                         )}
+                        {/* ④ 담기 — 담은 공고 탭에서 «적어도 한 건» 확률을 합산합니다 */}
+                        <button className={'cbtn star' + (bag.includes(String(r.no)) ? ' on' : '')}
+                          title="담은 공고에 넣기" onClick={(e) => toggleBag(e, r.no)}>
+                          {bag.includes(String(r.no)) ? '★ 담음' : '☆ 담기'}
+                        </button>
                       </div>
                     </div>
                   )
                 })()}
 
                 {/* 🎯 자리 정보 — 자리 찾기 모드에서만. 없는 숫자는 «모름»·«실측 부족» 으로 적습니다. */}
-                {pick && r.od && (
+                {(pick || bagMode) && r.od && (
                   <div className="pickline" onClick={(e) => e.stopPropagation()}>
                     {r.od.enp > 0 ? (
                       <>
                         <span className="pk"><b>예상 참가 {num(r.od.enp)}곳</b>
-                          <i>이 기관 최근 개찰 {num(r.od.enpn)}건의 중앙</i></span>
+                          <i>{enpWhy(r) || `개찰 ${num(r.od.enpn)}건의 중앙`}</i></span>
                         {r.od.rate != null ? (
                           <>
                             <span className="pk"><b>이런 자리 1순위 {r.od.rate}%</b>
@@ -370,7 +514,7 @@ export default function LiveBoard() {
                         )}
                       </>
                     ) : (
-                      <span className="pk"><b>예상 참가 모름</b><i>이 기관 최근 개찰이 6건 미만이라 짐작하지 않습니다</i></span>
+                      <span className="pk"><b>예상 참가 모름</b><i>이 면허·이 기관의 과거 개찰이 모자라 짐작하지 않습니다</i></span>
                     )}
                   </div>
                 )}

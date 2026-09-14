@@ -8,6 +8,7 @@ import { bidAmount, limitAmount, limitRate, r3, c3,
          sjSigma, recommend, buildScen, missingOf, isReady,
          digits, toNum, P50_FALLBACK, shownBid, passProb, QTILES, QTILE_N, quantileBid,
          smartBid, autoRule, canBid, nowStamp, stamp14, lowerLimit } from '../lib/bidmath.js'
+import { loadBasket, toggleBasket } from '../lib/basket.js'
 import MyToday from '../MyToday.jsx'
 import { GUIDE_NAV, guideOf } from '../lib/guidenav.js'
 /* 공고 화면(LiveBoard)이 예전부터 여기서 가져다 썼습니다 — 그대로 이어 줍니다 */
@@ -259,6 +260,7 @@ export default function BaroBid() {
   const [copied, setCopied] = useState(false)
   const [went, setWent] = useState(false)   // «복사하고 나라장터 열기» 를 눌렀나 (돌아왔을 때 보이라고 길게 둡니다)
   const [linked, setLinked] = useState(false)      // 「주소 복사」 눌렀나
+  const [bag, setBag] = useState(loadBasket)      // ⭐ 담은 공고 (브라우저 저장)
   const [sjPick, setSjPick] = useState(null)   // 사정률 후보를 직접 고른 경우
   const seeded = useRef(false)
 
@@ -1544,6 +1546,16 @@ export default function BaroBid() {
               {picked?.no && (
                 <button className="cbtn ghost" onClick={shareLink}>
                   {linked ? '✓ 주소 복사했습니다' : '🔗 이 금액 공유'}
+                </button>
+              )}
+              {/* ⭐ 담기 — 2026-09-14. 「연결 통로 잘 보고」(소장님).
+                  공고 탭에서만 담을 수 있으면, 바로투찰까지 와서 «넣자» 고 정한 사람이
+                  다시 공고 탭으로 돌아가야 합니다. 결정하는 자리에 담기 단추를 둡니다.
+                  담은 것은 공고 탭 「⭐ 담은 공고」에서 «적어도 한 건» 확률로 합산됩니다. */}
+              {picked?.no && (
+                <button className={'cbtn star' + (bag.includes(String(picked.no)) ? ' on' : '')}
+                  onClick={() => setBag(toggleBasket(picked.no))}>
+                  {bag.includes(String(picked.no)) ? '★ 담음' : '☆ 담기'}
                 </button>
               )}
               {/* ⚠️ 2026-09-06 — 여기 있던 「나라장터 공고 →」 를 뺐습니다.

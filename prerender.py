@@ -152,7 +152,8 @@ def read_shell():
 SITENAV = [("/", "바로투찰"), ("/first", "1순위 개찰"), ("/live", "입찰 공고"),
            ("/forms", "건설 서식"), ("/change", "설계변경"),
            ("/analysis", "낙찰 분석"), ("/daily", "개찰 성적표"),
-           ("/guide", "입찰 알아보기"), ("/tools", "건설 도구")]
+           ("/guide", "입찰 알아보기"), ("/tools", "건설 도구"),
+           ("/lic", "면허별 경쟁도")]
 
 
 def nav_html(here=""):
@@ -1499,6 +1500,57 @@ def load_tools():
         return [], []
 
 
+def load_licstat():
+    """면허별 경쟁도 — collect.py 가 구운 licstat.json. 없으면 빈 목록(페이지를 안 굽습니다)."""
+    try:
+        with open(os.path.join(DATA, "licstat.json"), encoding="utf-8") as f:
+            d = json.load(f) or {}
+        r = d.get("r") or {}
+        out = [{"code": k, "name": v[0], "n": v[1], "med": v[2], "few": v[3]}
+               for k, v in r.items() if isinstance(v, list) and len(v) >= 4]
+        out.sort(key=lambda x: x["med"])
+        return out, int(d.get("min") or 20)
+    except Exception as e:
+        print(f"  · 면허 경쟁도 자료를 못 읽었습니다 ({type(e).__name__}) — 건너뜁니다")
+        return [], 20
+
+
+def lic_page(shell, rows, minn, image=None):
+    """🪪 /lic — 면허별 경쟁도. 사람이 열면 React 가 덮어쓰고, 크롤러는 이 표를 읽습니다."""
+    lo, hi = rows[0], rows[-1]
+    title = "면허별 입찰 경쟁도 — 어느 면허가 덜 붐비나 | K-건설맵"
+    desc = (f"공공공사 개찰에 실제로 몇 곳이 붙었나를 면허별로 모았습니다. "
+            f"{lo['name']} 중앙 {lo['med']}곳 · {hi['name']} 중앙 {hi['med']}곳 — "
+            f"면허 {len(rows)}종.")
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">면허별 입찰 경쟁도</h1>'
+           '<div style="font-size:12.5px;color:var(--muted);margin-top:4px">'
+           f'면허 {len(rows)}종 · 개찰에 실제로 붙은 참가업체수</div>'
+           '<p class="cp" style="margin-top:8px">승률을 가르는 건 투찰금액이 아니라 '
+           '<b>몇 곳과 붙느냐</b>입니다 — 실측으로 참가 2~9곳 공고는 1순위 <b>18.2%</b>, '
+           '100곳이 넘으면 <b>1.6%</b>입니다.</p>'
+           '<p class="cp">그런데 <b>면허 제한이 걸려 있는지 여부는 지렛대가 아니었습니다</b> — '
+           '제한 공고 74곳 vs 무제한 60곳으로 오히려 제한 쪽이 더 붐볐습니다. '
+           f'지렛대는 <b>«어느 면허냐»</b> 입니다. 아래 표는 위아래가 '
+           f'<b>{max(1, round(hi["med"] / max(1, lo["med"])))}배</b> 넘게 벌어집니다.</p></div>']
+    out.append('<div class="card"><table class="tbl"><thead><tr>'
+               '<th>면허·업종</th><th>참가 중앙</th><th>10곳 미만</th><th>개찰</th>'
+               '</tr></thead><tbody>')
+    for x in rows:
+        out.append(f'<tr><td>{esc(x["name"])}</td><td><b>{x["med"]:,}곳</b></td>'
+                   f'<td>{x["few"]}%</td><td>{x["n"]:,}건</td></tr>')
+    out.append('</tbody></table></div>')
+    out.append('<div class="card"><div class="note sm">조달청이 개찰 결과에 실어 주는 '
+               f'<b>참가업체수</b>를 면허별로 모은 것입니다(개찰 {minn}건 이상인 면허만). '
+               '한 공고에 면허가 여럿 걸리면 그 공고는 각 면허에 모두 들어갑니다.<br>'
+               '이 표로 <b>「이 면허 공고는 대체로 몇 곳이 붙는다」</b>는 알 수 있지만 '
+               '<b>「이 면허를 따면 딴다」</b>는 알 수 없습니다 — 경쟁이 적은 면허는 그만큼 공고 수도 적습니다.'
+               '</div></div>')
+    ld = {"@context": "https://schema.org", "@type": "Dataset",
+          "name": "면허별 입찰 경쟁도", "description": desc,
+          "url": f"{SITE}/lic"}
+    return page(shell, "/lic", title, desc, "".join(out) + nav_html("/lic"), image, ld)
+
+
 def tools_index(shell, tools, cats, image=None):
     title = "건설 도구 — A값·투찰률·철근중량 계산기 | K-건설맵"
     desc = ("공공공사 입찰과 현장 적산에 쓰는 계산기를 모았습니다. "
@@ -1760,6 +1812,16 @@ def main():
             write(f'tools/{t["slug"]}.html', tool_page(shell, t, others, img))
             made += 1
         print(f"  · 건설 도구 페이지 {len(ttools) + 1:,}개 (/tools/)")
+
+    # ── 🪪 면허별 경쟁도 ──
+    lrows, lmin = load_licstat()
+    if lrows:
+        write("lic.html", lic_page(shell, lrows, lmin,
+              og.tab("lic", "면허별 입찰 경쟁도", "어느 면허가 덜 붐비나",
+                     f"{len(lrows)}종", f'{lrows[0]["med"]}곳 ~ {lrows[-1]["med"]}곳')
+              if og.available else None))
+        made += 1
+        print(f"  · 면허별 경쟁도 1개 (/lic · 면허 {len(lrows)}종)")
 
     # ★ 링크 목록을 «굽기 전에» 만듭니다 — 없는 주소로 링크를 걸지 않기 위해서입니다.
     L = Links()
