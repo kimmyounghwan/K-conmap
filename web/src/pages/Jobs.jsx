@@ -11,7 +11,8 @@ const loadFb = async () => {
   return _fb
 }
 import { Empty, Skeleton } from '../components.jsx'
-import { num, REGIONS } from '../lib/fmt.js'
+import { num, REGIONS, inRegion, wonShort, dateFull } from '../lib/fmt.js'
+import { useBoard } from '../lib/useBoard.js'
 import Sites from '../Sites.jsx'
 import { pinHash } from '../lib/pin.js'
 import { loadRegion } from '../lib/lic.js'
@@ -42,6 +43,18 @@ import { wnUrl, WN_TRADES, WN_REGION_PAGE } from '../lib/worknet.js'
    ══════════════════════════════════════════════════════════════ */
 
 const TRADES = WN_TRADES.map((t) => t.name)
+
+/* 🏗 사람 구할 현장 을 직종으로 거를 때 쓰는 낱말.
+   ⚠️ 여기 «없는» 직종(현장관리·철근·용접·중장비·보통인부·안전관리…)은 **일부러 안 거릅니다.**
+      면허는 «공사 종류» 이고, 그 사람들은 어느 현장에나 필요하기 때문입니다.
+      억지로 거르면 있는 현장을 숨기게 됩니다. */
+const TRADE_RX = {
+  토목: /토목|도로|하천|상하수|포장|교량|배수|지반|사면|옹벽|정비/,
+  건축: /건축|신축|증축|개축|리모델링|청사|건물|지붕|창호|방수/,
+  전기: /전기|조명|수배전|가로등|통신|계장|태양광/,
+  설비: /설비|기계|배관|냉난방|공조|소방|펌프|보일러/,
+  조경: /조경|녹지|공원|식재|화단|수목/,
+}
 const TYPES = ['구인', '구직']
 const LIMIT = 200          // 한 번에 읽는 최대 글 수 (비용 방어)
 const MINE_KEY = 'kcm_my_posts'
@@ -82,13 +95,13 @@ export default function Jobs() {
       </div>
 
       {mode === 'sites' && <Sites />}
-      {mode === 'work' && <WorkBoard />}
+      {mode === 'work' && <WorkBoard onSeeAll={() => setMode('sites')} />}
     </>
   )
 }
 
 /* ── 💼 구인·구직 — 우리 글 + 워크넷을 한 화면에 ──────────────── */
-function WorkBoard() {
+function WorkBoard({ onSeeAll }) {
   const [posts, setPosts] = useState(null)
   const [err, setErr] = useState('')
   const [mine, setMine] = useState(loadMine)
@@ -164,8 +177,11 @@ function WorkBoard() {
         ))}
       </div>
 
-      {/* ── ① 우리 게시판 ── */}
-      <div className="sec-title" style={{ marginTop: 16 }}>
+      {/* ── ① 사람 구할 현장 (낙찰 자료 · 하루 570건씩 저절로 찹니다) ── */}
+      <HireSites region={region} trade={trade} onSeeAll={onSeeAll} />
+
+      {/* ── ② 우리 게시판 ── */}
+      <div className="sec-title" style={{ marginTop: 18 }}>
         ✏️ K-건설맵 구인·구직
         <span className="count">{posts ? `${num(view.length)}건` : ''} · 회원가입 없이 바로 올립니다</span>
         <span style={{ flex: 1 }} />
@@ -206,7 +222,7 @@ function WorkBoard() {
         연락처는 그대로 공개되니 개인 휴대폰보다 업무용 번호를 권합니다. 허위·광고성 글은 예고 없이 삭제될 수 있습니다.
       </div>
 
-      {/* ── ② 워크넷 ── */}
+      {/* ── ③ 워크넷 ── */}
       <div className="sec-title" style={{ marginTop: 18 }}>
         🔎 고용24(워크넷) 채용정보
         <span className="count">{region} · {trade === '전체' ? '건설 전체' : trade}</span>
@@ -251,6 +267,94 @@ function WorkBoard() {
         워크넷에 공고를 올리려면 <b>사업자등록번호로 기업회원 가입</b>을 해야 하고 승인도 기다려야 합니다.
         급하시면 위 <b>✏️ K-건설맵 구인·구직</b> 에 올리세요 — 바로 올라갑니다.<br />
         자료 출처: <b>고용24(워크넷) · 한국고용정보원</b>.
+      </div>
+    </>
+  )
+}
+
+/* ── 🏗 사람 구할 현장 — 낙찰 자료를 «구인» 으로 읽는다 ────────────
+   소장님: 「건설맵에 구인 구직을 띄우는 거야. 한 개 한 개씩…」
+
+   워크넷 공고는 한 개씩 옮겨 그릴 수 없습니다(제4유형 · 기업회원 전용 API).
+   그런데 **한 개씩 그려도 되는 자료가 이미 있습니다** — 조달청 낙찰 자료입니다.
+   낙찰 = 곧 착공 = 곧 사람·장비가 필요하다. 하루 570건씩 저절로 찹니다.
+   그래서 여기서는 «공사» 가 아니라 **«사람 구할 회사»** 를 앞에 세웁니다
+   (같은 자료를 공사 중심으로 보는 화면은 🏗 낙찰 현장 갈래에 그대로 있습니다).
+
+   ⚠️ 연락처는 조달청 나라장터가 공개하는 낙찰자 정보입니다. 개찰 직후엔 44%,
+      2주 지나면 약 90% 가 찹니다. 없으면 «아직 없음» 이라고 적습니다 — 조용히 비우지 않습니다.
+   ⚠️ 착공 시기는 공사마다 다릅니다. «곧» 이라고만 적고 날짜를 지어내지 않습니다.
+   ────────────────────────────────────────────────────────── */
+function HireSites({ region, trade, onSeeAll }) {
+  const rx = TRADE_RX[trade] || null
+
+  const match = useMemo(() => {
+    if (region === '전국' && !rx) return null
+    return (a) => {
+      /* ⚠️ 칸 순서는 collect.py export_board 와 같아야 합니다 — 1순위·낙찰현장 탭과 동일 */
+      const [name, inst, win, lic, sido] = a
+      if (region !== '전국' && !inRegion({ name, inst, sido }, region)) return false
+      if (rx && !rx.test(String(name) + ' ' + String(lic || ''))) return false
+      return true
+    }
+  }, [region, rx])
+
+  const { rows: all, pageRows, pageReady, total, loading } =
+    useBoard('first', 'con', { match, page: 1, perPage: 24 })
+
+  /* 연락처 있는 곳을 앞으로 — 구인 관점에서는 «전화가 되는 곳» 이 먼저입니다 */
+  const view = useMemo(() => {
+    const src = (pageRows != null ? pageRows : all).slice(0, 24)
+    return [...src.filter((r) => r.tel), ...src.filter((r) => !r.tel)].slice(0, 6)
+  }, [pageRows, all])
+
+  const cnt = total != null ? total : all.length
+
+  return (
+    <>
+      <div className="sec-title" style={{ marginTop: 16 }}>
+        🏗 사람 구할 현장
+        <span className="count">
+          · {region}{rx ? ` · ${trade}` : ''} · 최근 낙찰 {cnt != null ? `${num(cnt)}건` : '세는 중…'}
+        </span>
+        <span style={{ flex: 1 }} />
+        {onSeeAll && <button className="btn ghost sm" onClick={onSeeAll}>전체 보기 →</button>}
+      </div>
+
+      <div className="note" style={{ marginBottom: 10 }}>
+        <b>낙찰 = 곧 착공 = 곧 사람·장비가 필요한 현장.</b> 방금 공사를 딴 회사와 연락처입니다.
+        {!rx && trade !== '전체' && <> 「{trade}」는 어느 현장에나 필요한 자리라 공사 종류로 거르지 않았습니다.</>}
+      </div>
+
+      {loading || !pageReady ? <Skeleton n={3} /> : view.length === 0 ? (
+        <Empty icon="🏗">이 조건에 맞는 최근 낙찰이 없습니다.<br />지역을 넓혀 보세요.</Empty>
+      ) : view.map((r) => (
+        <div className="notice site" key={r.no || r.name}>
+          <div className="meta" style={{ marginBottom: 6 }}>
+            <span className="badge b">구인 가능</span>
+            {r.amt > 0 && <span className="badge n">{wonShort(r.amt)}</span>}
+            <span style={{ flex: 1 }} />
+            <span style={{ fontSize: 11.5 }}>낙찰 {dateFull(r.dt)}</span>
+          </div>
+
+          <h3 style={{ marginBottom: 2 }}>{r.win || '낙찰업체 아직 없음'}</h3>
+          <div style={{ fontSize: 12.5, color: 'var(--text-2)', margin: '0 0 2px', wordBreak: 'keep-all' }}>
+            {r.name}
+          </div>
+          {r.ceo && <div style={{ fontSize: 12, color: 'var(--muted)' }}>대표 {r.ceo}</div>}
+
+          <div className="site-contact">
+            {r.tel
+              ? <a className="tel" href={'tel:' + String(r.tel).replace(/[^0-9+]/g, '')}>📞 {r.tel}</a>
+              : <span className="muted" title="조달청 낙찰자 정보는 개찰 뒤 며칠에 걸쳐 채워집니다">📞 연락처 아직 없음</span>}
+            {r.adr && <span className="adr">📍 {r.adr}</span>}
+          </div>
+        </div>
+      ))}
+
+      <div className="note" style={{ marginTop: 4 }}>
+        출처: 조달청 나라장터 낙찰자 정보(업체명·대표자·전화·주소). 연락처는 개찰 뒤 며칠에 걸쳐 채워집니다.
+        착공 시기는 공사마다 다르니 <b>연락 전에 확인</b>하세요.
       </div>
     </>
   )
