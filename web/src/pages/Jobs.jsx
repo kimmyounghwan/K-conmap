@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 /* ⚠️ 2026-09-08 — firebase 를 «정적으로» 끌어오면 안 됩니다.
    착공현장 탭을 열기만 해도 firebase 청크(390KB · gzip 84KB)를 받습니다.
-   실측: /first 는 js/css 4개, /jobs 는 7개 — 늘어난 것이 전부 firebase 였습니다.
-   그런데 이 탭에 들어온 사람 대부분은 «🏗 낙찰 현장» 만 봅니다. 그쪽은 firebase 를
-   한 줄도 안 씁니다. Comments.jsx 가 같은 이유로 이미 지연 로딩을 하고 있습니다.
-   → «✏️ 구인·구직 글» 을 실제로 누를 때만 받아옵니다. */
+   → 「💼 구인·구직」 을 실제로 누를 때만 받아옵니다. */
 let _fb = null
 const loadFb = async () => {
   if (!_fb) {
@@ -14,14 +11,37 @@ const loadFb = async () => {
   return _fb
 }
 import { Empty, Skeleton } from '../components.jsx'
-import { num, REGIONS, inRegion } from '../lib/fmt.js'
+import { num, REGIONS } from '../lib/fmt.js'
 import Sites from '../Sites.jsx'
 import { pinHash } from '../lib/pin.js'
 import { loadRegion } from '../lib/lic.js'
-import { wnUrl, WN_CITIES, WN_JOBS, WN_REGION_PAGE } from '../lib/worknet.js'
+import { wnUrl, WN_TRADES, WN_REGION_PAGE } from '../lib/worknet.js'
 
-const TRADES = ['현장관리', '공무/견적', '토목', '건축', '철근·콘크리트', '설비', '전기',
-  '조경', '중장비', '보통인부', '기타']
+/* ══════════════════════════════════════════════════════════════
+   💼 구인·구직 — 워크넷과 우리 게시판을 «한 화면»에 (2026-09-14)
+
+   소장님: 「구인구직하고 워크넷을 합쳐야지… 따로 두면 안 되지.
+            그리고 워크넷을 클릭하면 아무것도 없어… 구인 구직이 없어.
+            구인구직을 없애고 워크넷으로 통합해줘. 그 안에서 건설맵에서 구인 구직 할 수 있게.」
+
+   ■ 그래서 갈래를 **둘**로 줄였습니다: 🏗 낙찰 현장 · 💼 구인·구직
+     「💼 구인·구직」 한 화면 안에 —
+       ① 지역 칩 + 직종 칩 (하나로 **둘 다** 거릅니다)
+       ② K-건설맵 구인·구직 글 (회원가입 없이 바로 올림)
+       ③ 고용24(워크넷) 채용정보 화면
+
+   ■ ⚠️ 「눌렀는데 아무것도 없다」 를 만들지 말 것 —
+     전에는 직종을 고르기 전까지 워크넷 칸이 아예 안 떴습니다. 이제는 **처음부터 떠 있습니다**
+     (직종 기본값 「전체」 = 워크넷 검색어 «건설»).
+
+   ■ 직종 목록은 `lib/worknet.js` 의 `WN_TRADES` **하나뿐**입니다.
+     글에 저장되는 값이기도 하므로 이름을 바꾸면 옛 글이 안 걸립니다. 늘리는 건 괜찮습니다.
+
+   ■ 워크넷 자료는 **가져오지 않습니다.** 화면을 그대로 불러와 보여 줄 뿐이고,
+     누르는 것은 모두 워크넷으로 갑니다. 이유는 lib/worknet.js 머리말 참고.
+   ══════════════════════════════════════════════════════════════ */
+
+const TRADES = WN_TRADES.map((t) => t.name)
 const TYPES = ['구인', '구직']
 const LIMIT = 200          // 한 번에 읽는 최대 글 수 (비용 방어)
 const MINE_KEY = 'kcm_my_posts'
@@ -42,34 +62,56 @@ const ago = (t) => {
 const loadMine = () => { try { return JSON.parse(localStorage.getItem(MINE_KEY) || '[]') } catch { return [] } }
 const addMine = (id) => { try { localStorage.setItem(MINE_KEY, JSON.stringify([...loadMine(), id].slice(-50))) } catch { /* noop */ } }
 
-/* pinHash 는 lib/pin.js 로 옮겼습니다 — 이용자 서식·댓글과 같이 씁니다 (2026-09-06) */
-
 export default function Jobs() {
+  /* 🏗 낙찰 현장이 기본입니다 — 글이 0건이어도 매일 570건씩 채워지는 쪽이라
+     «빈 게시판» 을 첫 화면으로 보여주지 않기 위해서입니다. */
+  const [mode, setMode] = useState('sites')
+
+  return (
+    <>
+      <div className="sec-title" style={{ marginTop: 14 }}>
+        {mode === 'sites' ? '🏗 곧 착공하는 현장' : '💼 건설 구인·구직'}
+        <span className="count">{mode === 'sites'
+          ? '· 최근 낙찰된 공사와 낙찰업체 연락처 · 사람·장비 구하고 찾기'
+          : '· 워크넷 채용정보 + 회원가입 없는 우리 게시판, 한 화면에서'}</span>
+      </div>
+
+      <div className="seg" style={{ marginBottom: 12 }}>
+        <button className={mode === 'sites' ? 'on' : ''} onClick={() => setMode('sites')}>🏗 낙찰 현장</button>
+        <button className={mode === 'work' ? 'on' : ''} onClick={() => setMode('work')}>💼 구인·구직</button>
+      </div>
+
+      {mode === 'sites' && <Sites />}
+      {mode === 'work' && <WorkBoard />}
+    </>
+  )
+}
+
+/* ── 💼 구인·구직 — 우리 글 + 워크넷을 한 화면에 ──────────────── */
+function WorkBoard() {
   const [posts, setPosts] = useState(null)
-  const [type, setType] = useState('전체')
-  const [region, setRegion] = useState('전국')
-  const [trade, setTrade] = useState('전체')
-  const [writing, setWriting] = useState(false)
   const [err, setErr] = useState('')
   const [mine, setMine] = useState(loadMine)
-  /* ★ 2026-09-03 — 「워크넷 건설 채용」과 「자격·훈련」 갈래는 뺐습니다(소장님 결정).
-     채용정보 API 는 기업회원 전용이라 개인회원 키로는 0건이었고, 크롤링은 하지 않기로 했습니다.
-     ★ 2026-09-06 — 「🏗 곧 착공하는 현장」 을 앞에 둡니다 (Sites.jsx 머리말 참고).
-       빈 게시판은 아무도 안 씁니다. 낙찰 자료는 글이 0건이어도 매일 570건씩 채워집니다.
-       «직접 올린 글» 은 두 번째 갈래로 남깁니다.
-     ★ 2026-09-14 — 워크넷을 「🔎 워크넷」 갈래로 **다시 넣었습니다. 단, 자료는 안 가져옵니다.**
-       소장님: 「워크넷 긁어 오고 … 건설맵에도 정확하게 나와야 해」 → 긁어오기는 안 했습니다.
-       워크넷 채용정보는 공공누리 «제4유형 - 상업적 이용금지, 변경금지» 이고, 애드센스가 붙는
-       우리 사이트에 회사명·직종·급여를 옮겨 싣는 건 그 두 조건에 다 걸립니다.
-       대신 **워크넷 화면을 그대로 불러와 보여 주고(iframe), 누르면 워크넷으로 갑니다.**
-       소장님: 「워크넷 화면을 건설맵에 띄우고, 워크넷으로 연결되게 하면 되잖아」 → 맞는 말씀이었습니다.
-       자료를 받아 «우리 파일에 저장하고 우리 형식으로 다시 그리는» 것이 복제·변경이지,
-       보는 사람 브라우저가 워크넷 서버에서 직접 받아 워크넷 화면 그대로 보는 건 링크와 같습니다.
-       ✅ 고용24 는 X-Frame-Options 로 안 막습니다(2026-09-14 k-conmap.com 안에서 실제로 떠 보임).
-       ⚠️ 나중에 «자료를 직접 싣자» 는 이야기가 다시 나오면, 조건은 둘입니다 —
-          ① 고용24 기업회원 전환(사업자등록번호) ② 한국고용정보원 043-870-8556 에서
-          «광고가 있는 사이트에 게시해도 되느냐» 허락. 둘 다 없으면 링크까지가 끝입니다. */
-  const [mode, setMode] = useState('sites')
+  const [writing, setWriting] = useState(false)
+
+  const [region, setRegion] = useState(() => { try { return loadRegion() } catch { return '전국' } })
+  const [trade, setTrade] = useState('전체')
+  const [type, setType] = useState('전체')
+
+  /* 워크넷 화면은 PC 에서만 싣습니다 — 고용24 화면이 PC 용이라
+     작은 화면에 우겨넣으면 못 씁니다. 휴대폰은 새 창으로 보냅니다. */
+  const [wide, setWide] = useState(() => {
+    try { return window.matchMedia('(min-width: 760px)').matches } catch { return true }
+  })
+  useEffect(() => {
+    let mq, on
+    try {
+      mq = window.matchMedia('(min-width: 760px)')
+      on = (e) => setWide(e.matches)
+      mq.addEventListener('change', on)
+    } catch { /* 아주 옛 브라우저 - 처음 값 그대로 */ }
+    return () => { try { if (mq && on) mq.removeEventListener('change', on) } catch { /* noop */ } }
+  }, [])
 
   const load = async () => {
     setPosts(null); setErr('')
@@ -91,9 +133,7 @@ export default function Jobs() {
       setPosts([])
     }
   }
-
-  /* 글 목록(Firebase 읽기 2번)은 «직접 올린 글» 을 실제로 열 때만 — 현장 목록만 보는 사람에게 과금 0 */
-  useEffect(() => { if (mode === 'posts' && posts === null) load() }, [mode])  // eslint-disable-line
+  useEffect(() => { load() }, [])   // eslint-disable-line
 
   const view = useMemo(() => {
     if (!posts) return []
@@ -103,52 +143,45 @@ export default function Jobs() {
       (trade === '전체' || p.trade === trade))
   }, [posts, type, region, trade])
 
+  const url = wnUrl(trade, region)
+  const wnLog = () => {
+    try { if (window.gtag) window.gtag('event', 'worknet_open', { trade, region }) } catch (e) { /* noop */ }
+  }
+
   return (
     <>
-      <div className="sec-title" style={{ marginTop: 14 }}>
-        {mode === 'sites' ? '🏗 곧 착공하는 현장' : mode === 'posts' ? '✏️ 구인·구직' : '🔎 워크넷 건설 일자리'}
-        <span className="count">{mode === 'sites'
-          ? '· 최근 낙찰된 공사와 낙찰업체 연락처 · 사람·장비 구하고 찾기'
-          : mode === 'posts'
-            ? '· 회원가입 없이 바로 올립니다'
-            : '· 고용24에 올라온 건설 일자리로 바로 갑니다'}</span>
+      {/* ── 지역·직종: 이 둘이 우리 글과 워크넷을 «같이» 거릅니다 ── */}
+      <div className="chips">
+        {REGIONS.map((r) => (
+          <button key={r} className={'chip' + (region === r ? ' on' : '')}
+            onClick={() => setRegion(r)}>{r}</button>
+        ))}
+      </div>
+      <div className="chips wrap">
+        {['전체', ...TRADES].map((t) => (
+          <button key={t} className={'chip' + (trade === t ? ' on' : '')}
+            onClick={() => setTrade(t)}>{t}</button>
+        ))}
       </div>
 
-      <div className="seg seg3" style={{ marginBottom: 12 }}>
-        <button className={mode === 'sites' ? 'on' : ''} onClick={() => setMode('sites')}>🏗 낙찰 현장</button>
-        <button className={mode === 'posts' ? 'on' : ''} onClick={() => setMode('posts')}>✏️ 구인·구직</button>
-        <button className={mode === 'wn' ? 'on' : ''} onClick={() => setMode('wn')}>🔎 워크넷</button>
+      {/* ── ① 우리 게시판 ── */}
+      <div className="sec-title" style={{ marginTop: 16 }}>
+        ✏️ K-건설맵 구인·구직
+        <span className="count">{posts ? `${num(view.length)}건` : ''} · 회원가입 없이 바로 올립니다</span>
+        <span style={{ flex: 1 }} />
+        {!writing && <button className="btn sm" onClick={() => setWriting(true)}>글 올리기</button>}
       </div>
 
-      {mode === 'sites' && <Sites />}
-      {mode === 'wn' && <Worknet />}
-
-      {mode === 'posts' && (<>
-      <div className="seg">
+      <div className="seg" style={{ marginBottom: 10 }}>
         {['전체', ...TYPES].map((t) => (
           <button key={t} className={type === t ? 'on' : ''} onClick={() => setType(t)}>{t}</button>
         ))}
       </div>
 
-      <div className="chips">
-        {REGIONS.map((r) => (
-          <button key={r} className={'chip' + (region === r ? ' on' : '')} onClick={() => setRegion(r)}>{r}</button>
-        ))}
-      </div>
-      <div className="chips">
-        {['전체', ...TRADES].map((t) => (
-          <button key={t} className={'chip' + (trade === t ? ' on' : '')} onClick={() => setTrade(t)}>{t}</button>
-        ))}
-      </div>
-
-      {!writing && (
-        <button className="btn" style={{ marginBottom: 12 }} onClick={() => setWriting(true)}>
-          ✏️ 글 올리기
-        </button>
-      )}
-
       {writing && (
         <WriteForm
+          region0={region}
+          trade0={trade}
           onClose={() => setWriting(false)}
           onDone={(id) => { addMine(id); setMine(loadMine()); setWriting(false); load() }}
         />
@@ -156,28 +189,69 @@ export default function Jobs() {
 
       {err && <div className="note" style={{ color: 'var(--bad)', marginBottom: 10 }}>{err}</div>}
 
-      {posts === null ? <Skeleton n={4} /> : view.length === 0 ? (
+      {posts === null ? <Skeleton n={2} /> : view.length === 0 ? (
         <Empty icon="🪧">
-          아직 올라온 글이 없습니다.<br />첫 글을 올려보세요.
+          {region === '전국' && trade === '전체' && type === '전체'
+            ? <>아직 올라온 글이 없습니다.<br />첫 글을 올리시면 이 자리 맨 위에 뜹니다.</>
+            : <>이 조건에는 올라온 글이 없습니다.<br />아래 워크넷 채용정보를 보시거나, 직접 올려보세요.</>}
         </Empty>
       ) : (
-        <>
-          <div className="sec-title">
-            글 <span className="count">{num(view.length)}건</span>
-            <span style={{ flex: 1 }} />
-            <button className="btn ghost sm" onClick={load}>새로고침</button>
-          </div>
-          {view.map((p) => (
-            <Post key={p.id} p={p} isMine={mine.includes(p.id)} onChanged={load} />
-          ))}
-        </>
+        view.map((p) => (
+          <Post key={p.id} p={p} isMine={mine.includes(p.id)} onChanged={load} />
+        ))
       )}
 
-      <div className="note" style={{ marginTop: 14 }}>
-        로그인 없이 누구나 올릴 수 있습니다. 올릴 때 정한 <b>4자리 숫자</b>가 있어야 글을 지울 수 있으니 꼭 기억해두세요.<br />
+      <div className="note" style={{ margin: '8px 0 4px' }}>
+        로그인 없이 누구나 올릴 수 있습니다. 올릴 때 정한 <b>4자리 숫자</b>가 있어야 글을 지울 수 있으니 꼭 기억해두세요.
         연락처는 그대로 공개되니 개인 휴대폰보다 업무용 번호를 권합니다. 허위·광고성 글은 예고 없이 삭제될 수 있습니다.
       </div>
-      </>)}
+
+      {/* ── ② 워크넷 ── */}
+      <div className="sec-title" style={{ marginTop: 18 }}>
+        🔎 고용24(워크넷) 채용정보
+        <span className="count">{region} · {trade === '전체' ? '건설 전체' : trade}</span>
+        <span style={{ flex: 1 }} />
+        <a className="btn ghost sm" style={{ textDecoration: 'none' }}
+          href={url} target="_blank" rel="noopener noreferrer" onClick={wnLog}>새 창으로 크게 ↗</a>
+      </div>
+
+      {wide ? (
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <iframe
+            key={url}
+            title={`고용24 채용정보 — ${region} ${trade}`}
+            src={url}
+            loading="lazy"
+            style={{ display: 'block', width: '100%', height: 860, border: 0, background: '#fff' }}
+          />
+          <div className="note" style={{ padding: '10px 12px', borderTop: '1px solid var(--line)' }}>
+            <b>칸 안에서 조금 내리시면 채용 목록이 나옵니다</b> — 고용24 화면이 「검색 조건」부터 열리기 때문입니다.
+            시·군까지 좁히시려면 그 안에서 「지역별」을 누르시면 됩니다.<br />
+            이 칸은 고용24 화면을 그대로 불러온 것입니다. K-건설맵이 목록을 옮겨 적은 것이 아니며,
+            누르시는 것은 모두 워크넷으로 이어집니다. 칸이 비어 보이면 위 「새 창으로 크게」 로 여세요.
+          </div>
+        </div>
+      ) : (
+        <div className="card">
+          <div className="note" style={{ marginBottom: 10 }}>
+            워크넷 화면은 PC 용이라 휴대폰 안에 넣으면 보기 어렵습니다. 새 창으로 여세요.
+          </div>
+          <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+            <a className="btn" style={{ textDecoration: 'none' }}
+              href={url} target="_blank" rel="noopener noreferrer" onClick={wnLog}>
+              워크넷에서 {region} {trade === '전체' ? '건설' : trade} 일자리 보기 ↗
+            </a>
+            <a className="btn ghost" style={{ textDecoration: 'none' }}
+              href={WN_REGION_PAGE} target="_blank" rel="noopener noreferrer">지역별로 고르기 ↗</a>
+          </div>
+        </div>
+      )}
+
+      <div className="note" style={{ marginTop: 10 }}>
+        워크넷에 공고를 올리려면 <b>사업자등록번호로 기업회원 가입</b>을 해야 하고 승인도 기다려야 합니다.
+        급하시면 위 <b>✏️ K-건설맵 구인·구직</b> 에 올리세요 — 바로 올라갑니다.<br />
+        자료 출처: <b>고용24(워크넷) · 한국고용정보원</b>.
+      </div>
     </>
   )
 }
@@ -273,9 +347,12 @@ function Post({ p, isMine, onChanged }) {
 }
 
 /* ── 글쓰기 ──────────────────────────── */
-function WriteForm({ onClose, onDone }) {
+function WriteForm({ onClose, onDone, region0, trade0 }) {
+  /* 위에서 고른 지역·직종을 그대로 채워 둡니다 — 두 번 고르게 하지 않습니다 */
   const [f, setF] = useState({
-    type: '구인', trade: '현장관리', region: '전남',
+    type: '구인',
+    trade: trade0 && trade0 !== '전체' ? trade0 : '현장관리',
+    region: region0 && region0 !== '전국' ? region0 : '전남',
     title: '', co: '', pay: '', contact: '', body: '', pin: '',
   })
   const [busy, setBusy] = useState(false)
@@ -384,154 +461,5 @@ function WriteForm({ onClose, onDone }) {
         <button className="btn" disabled={busy} onClick={submit}>{busy ? '올리는 중…' : '올리기'}</button>
       </div>
     </div>
-  )
-}
-
-/* ── 🔎 워크넷 건설 일자리 ──────────────────────────────────
-   소장님(2026-09-14): 「워크넷 화면을 건설맵에 띄우고, 워크넷으로 연결되게 하면 되잖아」 → 맞습니다.
-
-   ■ 왜 이건 되고 «긁어오기» 는 안 되나 — 성격이 다릅니다.
-     긁어오기: 우리가 워크넷 자료를 받아서 **우리 파일에 저장하고 우리 화면 형식으로 다시 그림**.
-               → 공공누리 제4유형(상업적 이용금지·변경금지) 에 걸립니다.
-     이 칸  : 보는 사람의 브라우저가 **워크넷 서버에서 직접** 받아 워크넷 화면 그대로 보여줌.
-               우리는 자료를 갖지도, 고치지도, 저장하지도 않습니다. 워크넷 로고도 그대로 뜹니다.
-               → 링크와 같은 성격입니다.
-     ✅ 2026-09-14 실제로 확인: 고용24 는 X-Frame-Options 로 막고 있지 않습니다(k-conmap.com 안에서 떴습니다).
-
-   ■ 휴대폰에서는 안 싣습니다. 워크넷 화면이 PC 용이라 작은 화면에 우겨넣으면 못 씁니다 → 새 창으로 보냅니다.
-   ■ 애드센스 방어 — 이 칸은 **우리 내용 아래 별도 칸**에 둡니다. 광고와 붙여 놓지 않습니다.
-      「남의 화면을 끼워 넣은 페이지」가 «가치 없는 콘텐츠» 로 읽히면 심사에서 손해입니다.
-   ■ 언젠가 워크넷이 막으면 칸이 «비어» 보입니다(cross-origin 이라 우리가 감지할 수 없습니다).
-      그래서 칸 아래에 «비어 있으면 새 창으로 여세요» 를 항상 적어 둡니다. ────────────────── */
-function Worknet() {
-  /* 바로투찰·현장 목록에서 이미 고른 지역이 있으면 그것으로 시작합니다.
-     광주와 전남은 고용24 에서 하나(전남광주)라 둘 다 «광주·전남» 으로 갑니다. */
-  const [city, setCity] = useState(() => {
-    try {
-      const r = loadRegion()
-      if (r === '광주' || r === '전남') return '광주·전남'
-      return WN_CITIES.some((c) => c.name === r) ? r : '전국'
-    } catch { return '전국' }
-  })
-  const [job, setJob] = useState(null)          // 고른 직종 {name, kw}
-  const [wide, setWide] = useState(() => {
-    try { return window.matchMedia('(min-width: 760px)').matches } catch { return true }
-  })
-
-  useEffect(() => {
-    let mq, on
-    try {
-      mq = window.matchMedia('(min-width: 760px)')
-      on = (e) => setWide(e.matches)
-      mq.addEventListener('change', on)
-    } catch { /* 아주 옛 브라우저 - 처음 값 그대로 씁니다 */ }
-    return () => { try { if (mq && on) mq.removeEventListener('change', on) } catch { /* noop */ } }
-  }, [])
-
-  const code = (WN_CITIES.find((c) => c.name === city) || WN_CITIES[0]).code
-  const url = job ? wnUrl(job.kw, code) : ''
-
-  const log = (kw, how) => {
-    try { if (window.gtag) window.gtag('event', 'worknet_open', { kw, city, how }) } catch (e) { /* noop */ }
-  }
-
-  const pick = (j) => {
-    if (wide) { setJob(j); log(j.kw, 'embed') }
-    else { log(j.kw, 'newtab'); window.open(wnUrl(j.kw, code), '_blank', 'noopener') }
-  }
-
-  return (
-    <>
-      <div className="note" style={{ marginBottom: 12 }}>
-        고용노동부 <b>고용24(워크넷)</b> 에 올라온 건설 일자리입니다.
-        지역을 고르고 직종을 누르면 {wide ? '아래에 워크넷 화면이 그대로 펼쳐집니다' : '워크넷이 새 창으로 열립니다'}.
-        지원·문의는 워크넷에서 하시면 됩니다.
-      </div>
-
-      <div className="chips">
-        {WN_CITIES.map((c) => (
-          <button key={c.name} className={'chip' + (city === c.name ? ' on' : '')}
-            onClick={() => setCity(c.name)}>{c.name}</button>
-        ))}
-      </div>
-
-      <div className="sec-title">
-        직종 <span className="count">{city} · 최근 등록순</span>
-      </div>
-
-      <div className="chips wrap">
-        {WN_JOBS.map((j) => (
-          <button key={j.name}
-            className={'chip' + (job && job.name === j.name ? ' on' : '')}
-            onClick={() => pick(j)}>{j.name}{wide ? '' : ' ↗'}</button>
-        ))}
-      </div>
-
-      {wide && job && (
-        <div className="card" style={{ marginTop: 12, padding: 0, overflow: 'hidden' }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
-            padding: '10px 12px', borderBottom: '1px solid var(--line)',
-          }}>
-            <b style={{ fontSize: 13.5 }}>고용24(워크넷) 화면</b>
-            <span className="badge n">{city}</span>
-            <span className="badge n">{job.name}</span>
-            <span style={{ flex: 1 }} />
-            <a className="btn ghost sm" style={{ textDecoration: 'none' }}
-              href={url} target="_blank" rel="noopener noreferrer"
-              onClick={() => log(job.kw, 'newtab')}>새 창으로 크게 ↗</a>
-            <button className="btn ghost sm" onClick={() => setJob(null)}>닫기</button>
-          </div>
-
-          <iframe
-            key={url}
-            title={`고용24 채용정보 — ${city} ${job.name}`}
-            src={url}
-            loading="lazy"
-            style={{ display: 'block', width: '100%', height: 860, border: 0, background: '#fff' }}
-          />
-
-          <div className="note" style={{ padding: '10px 12px', borderTop: '1px solid var(--line)' }}>
-            <b>칸 안에서 조금 내리시면 채용 목록이 나옵니다</b> — 고용24 화면이 「검색 조건」부터 열리기 때문입니다.
-            넓게 보시려면 위 「새 창으로 크게」 를 쓰세요.<br />
-            이 칸은 <b>고용24(워크넷)</b> 화면을 그대로 불러온 것입니다. K-건설맵이 목록을 옮겨 적은 것이 아니며,
-            누르시는 것은 모두 워크넷으로 이어집니다. 칸이 비어 보이면 워크넷이 바깥 화면에 싣는 것을 막은 것이니
-            위 「새 창으로 크게」 로 여세요.
-          </div>
-        </div>
-      )}
-
-      {!job && (
-        <div className="card" style={{ marginTop: 14 }}>
-          <div className="sec-title" style={{ margin: '0 0 8px' }}>시·군까지 좁히시려면</div>
-          <div className="note" style={{ marginBottom: 10 }}>
-            위 칩은 <b>시·도</b> 단위입니다. 여수·순천처럼 시·군까지, 또는 급여·경력 조건까지 고르시려면
-            아래 화면 안에서 「지역별」을 눌러 고르시면 됩니다. 시·군은 250개가 넘고 코드가 바뀌면
-            엉뚱한 결과가 나와서 일부러 안 박아 뒀습니다.
-          </div>
-          <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
-            <a className="btn ghost sm" style={{ textDecoration: 'none' }}
-              href={WN_REGION_PAGE} target="_blank" rel="noopener noreferrer"
-              onClick={() => log('지역별', 'newtab')}>지역별로 고르기 ↗</a>
-            <a className="btn ghost sm" style={{ textDecoration: 'none' }}
-              href={wnUrl('건설', '')} target="_blank" rel="noopener noreferrer"
-              onClick={() => log('전국건설', 'newtab')}>전국 건설 일자리 ↗</a>
-          </div>
-        </div>
-      )}
-
-      <div className="card" style={{ marginTop: 12 }}>
-        <div className="sec-title" style={{ margin: '0 0 8px' }}>사람을 구하시는 거라면</div>
-        <div className="note">
-          워크넷에 공고를 올리려면 <b>사업자등록번호로 기업회원 가입</b>을 해야 하고 승인도 기다려야 합니다.
-          급하시면 옆의 <b>✏️ 구인·구직</b> 에 올리세요 — 회원가입 없이 바로 올라가고, 지우실 때 쓸
-          숫자 네 자리만 정하시면 됩니다.
-        </div>
-      </div>
-
-      <div className="note" style={{ marginTop: 12 }}>
-        자료 출처: <b>고용24(워크넷) · 한국고용정보원</b>.
-      </div>
-    </>
   )
 }
