@@ -17,6 +17,7 @@ import { Empty, Skeleton } from '../components.jsx'
 import { num, REGIONS, inRegion } from '../lib/fmt.js'
 import Sites from '../Sites.jsx'
 import { pinHash } from '../lib/pin.js'
+import { loadRegion } from '../lib/lic.js'
 import { wnUrl, WN_CITIES, WN_JOBS, WN_REGION_PAGE } from '../lib/worknet.js'
 
 const TRADES = ['현장관리', '공무/견적', '토목', '건축', '철근·콘크리트', '설비', '전기',
@@ -403,7 +404,15 @@ function WriteForm({ onClose, onDone }) {
    ■ 언젠가 워크넷이 막으면 칸이 «비어» 보입니다(cross-origin 이라 우리가 감지할 수 없습니다).
       그래서 칸 아래에 «비어 있으면 새 창으로 여세요» 를 항상 적어 둡니다. ────────────────── */
 function Worknet() {
-  const [city, setCity] = useState('여수')
+  /* 바로투찰·현장 목록에서 이미 고른 지역이 있으면 그것으로 시작합니다.
+     광주와 전남은 고용24 에서 하나(전남광주)라 둘 다 «광주·전남» 으로 갑니다. */
+  const [city, setCity] = useState(() => {
+    try {
+      const r = loadRegion()
+      if (r === '광주' || r === '전남') return '광주·전남'
+      return WN_CITIES.some((c) => c.name === r) ? r : '전국'
+    } catch { return '전국' }
+  })
   const [job, setJob] = useState(null)          // 고른 직종 {name, kw}
   const [wide, setWide] = useState(() => {
     try { return window.matchMedia('(min-width: 760px)').matches } catch { return true }
@@ -492,10 +501,11 @@ function Worknet() {
 
       {!job && (
         <div className="card" style={{ marginTop: 14 }}>
-          <div className="sec-title" style={{ margin: '0 0 8px' }}>여기 없는 지역·조건은</div>
+          <div className="sec-title" style={{ margin: '0 0 8px' }}>시·군까지 좁히시려면</div>
           <div className="note" style={{ marginBottom: 10 }}>
-            위 지역 넷은 실제로 확인해 둔 것만 올렸습니다. 다른 시·군이나 급여·경력 조건까지 고르시려면
-            워크넷 화면에서 직접 고르는 편이 빠릅니다.
+            위 칩은 <b>시·도</b> 단위입니다. 여수·순천처럼 시·군까지, 또는 급여·경력 조건까지 고르시려면
+            아래 화면 안에서 「지역별」을 눌러 고르시면 됩니다. 시·군은 250개가 넘고 코드가 바뀌면
+            엉뚱한 결과가 나와서 일부러 안 박아 뒀습니다.
           </div>
           <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
             <a className="btn ghost sm" style={{ textDecoration: 'none' }}
