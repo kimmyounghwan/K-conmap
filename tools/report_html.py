@@ -158,6 +158,67 @@ def build(d, mock=True):
               '이기면 크지만 하한선 아래로 떨어지는 날이 늘어납니다.</p>' % gap)
     A('</div>')
 
+    # ── 분위 ────────────────────────────────────────────
+    #  ⚠️ 여기서 «낙찰자가 앉았던 분위에 넣으라» 고 쓰면 안 됩니다.
+    #     그 자리는 개찰이 끝난 뒤에야 알 수 있습니다 (생존 편향 · CLAUDE.md 8-9).
+    #     사전에 고를 수 있는 것은 «실격을 얼마나 각오할 것인가» 하나뿐입니다.
+    qt = d.get("분위")
+    if qt:
+        A('<div class="page">')
+        A('<h2 class="hi">어느 «분위»에 걸고 있나</h2>')
+        A('<p>분위는 <b>그 금액이 실격을 면할 확률</b>입니다. 40분위에 걸었다는 말은 '
+          '«열 번 중 여섯 번은 하한선 아래로 떨어질 자리»에 냈다는 뜻입니다. '
+          '금액을 낮출수록 분위가 내려갑니다. 개찰 <b>%d건</b>을 되짚었습니다.</p>'
+          % qt["잰개찰"])
+        A('<table class="chart cmp2">')
+        A('<tr><th>귀사가 거는 자리</th><td class="v2"><b>%.0f분위</b></td>'
+          '<td class="d">가운데값 (%.0f ~ %.0f 사이에서 움직입니다)</td></tr>'
+          % (qt["중앙"], qt["최저"], qt["최고"]))
+        if qt.get("바로투찰중앙") is not None:
+            A('<tr><th>바로투찰 금액</th><td class="v2"><b>%.0f분위</b></td>'
+              '<td class="d">같은 개찰에서 K-건설맵이 권한 금액</td></tr>'
+              % qt["바로투찰중앙"])
+        if qt.get("낙찰자중앙") is not None:
+            A('<tr><th>그날 1순위</th><td class="v2"><b>%.0f분위</b></td>'
+              '<td class="d">개찰이 끝난 «뒤에» 보이는 자리입니다</td></tr>'
+              % qt["낙찰자중앙"])
+        A('<tr><th>실격</th><td class="v2"><b>%d건 · %.0f%%</b></td>'
+          '<td class="d">%.0f분위면 셈으로는 %.0f%% 입니다</td></tr>'
+          % (qt["실격"], qt["실제실격률"], qt["중앙"], qt["모형실격률"]))
+        A('</table>')
+
+        if qt["칸별"]:
+            A('<p class="lead">분위 칸마다 무슨 일이 있었나</p>')
+            A('<table class="tbl2 wide"><tr><th>건 자리</th><th>투찰</th><th>실격</th>'
+              '<th>낙찰</th><th>평균등수</th></tr>')
+            for r in qt["칸별"]:
+                A('<tr><td>%s</td><td>%d</td><td>%s</td><td>%s</td><td>%s</td></tr>'
+                  % (r["칸"], r["투찰"],
+                     ('<b class="q-bad">%d</b>' % r["실격"]) if r["실격"] else "0",
+                     ('<b class="q-good">%d</b>' % r["낙찰"]) if r["낙찰"] else "0",
+                     r["평균등수"]))
+            A('</table>')
+            low = [r for r in qt["칸별"] if r["칸"] in ("30분위 미만", "30~50분위")]
+            lo_n = sum(r["투찰"] for r in low)
+            lo_w = sum(r["낙찰"] for r in low)
+            lo_d = sum(r["실격"] for r in low)
+            if lo_n >= 3:
+                A('<p class="verdict">50분위 아래로 <b>%d건</b>을 넣어 '
+                  '<b class="q-bad">%d건이 실격</b>되고 <b>%d건 낙찰</b>했습니다. '
+                  '낮게 쓴 만큼 더 딴 것이 아니라, 낮게 쓴 만큼 <b>버린 것</b>입니다.</p>'
+                  % (lo_n, lo_d, lo_w))
+
+        A('<p class="note">3년치 개찰 8,406건을 분위별로 갈라 본 결과입니다 — '
+          '<b>분위를 어떻게 잡아도 1순위율은 3.5~4.4%에서 움직이지 않습니다.</b> '
+          '움직이는 것은 실격률뿐입니다(14% → 84%). '
+          '금액을 낮추는 것은 «딸 확률»을 사는 것이 아니라 «실격»을 사는 것입니다.</p>')
+        A('<p class="note">⚠️ 그렇다고 «1순위가 앉았던 분위에 넣으십시오»라는 말은 '
+          '아닙니다. 그 자리는 개찰이 끝난 뒤에야 보입니다. '
+          '넣기 전에 고를 수 있는 것은 <b>실격을 얼마나 각오할 것인가</b> 하나뿐입니다. '
+          '승부를 가르는 것은 금액이 아니라 <b>어느 공고에 넣느냐</b>입니다 — '
+          '참가 2~9곳이면 1순위율 18.2%, 100곳이 넘으면 1.6%입니다.</p>')
+        A('</div>')
+
     # ── 2장 ─────────────────────────────────────────────
     A('<div class="page">')
     A('<h2 class="hi">바로투찰 금액이었다면</h2>')
@@ -401,6 +462,8 @@ table { width:100%%; border-collapse:collapse; }
 .cmp2 th { width:118px; color:%(INK)s; font-weight:700; }
 .cmp2 .v2 { width:96px; text-align:right; font-size:13pt; padding-right:12px; }
 .cmp2 .d { color:%(DIM)s; font-size:9pt; }
+.q-bad { color:%(RUST)s; }
+.q-good { color:%(BLUE)s; }
 .verdict { background:#eff4ff; border-left:3px solid %(BLUE)s; padding:9px 11px;
            font-size:10.5pt; line-height:1.6; margin-top:10px; }
 .tbl2 th, .tbl2 td { border:1px solid %(LINE)s; padding:4px 14px; text-align:right; }

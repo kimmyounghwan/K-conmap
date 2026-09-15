@@ -96,6 +96,29 @@ def one(row, bno, p50):
             if sc["yeje"]:
                 out["over_pp"] = round((amt - sc["limit"]) / sc["yeje"] * 100, 3)
                 out["my_dq"] = amt < sc["limit"]
+            # ── 이 금액은 «몇 분위» 에 건 것인가 ─────────────────────
+            #  낙찰하한금액 식을 사정률(sj) 에 대해 거꾸로 풀면, 이 금액이 겨우
+            #  살아남는 사정률 sj* 가 나옵니다. 실제 사정률이 sj* 보다 «낮게»
+            #  나오면 하한선이 내려와 살고, 높게 나오면 죽습니다.
+            #    한도금액 = (기초 × sj/100 − A) × 낙찰하한율/100 + A
+            #    → sj* = 100 × [ (금액 − A) × 100/하한율 + A ] / 기초
+            #  그래서 «살아남을 확률» = 사정률이 sj* 이하로 나올 확률 = Φ((sj*−p50)/σ).
+            #  이것이 그대로 «분위» 입니다. 바로투찰은 A값을 알 때 75분위에 겁니다.
+            #  ⚠️ bidmath 의 «75분위» 는 «사정률을 몇 분위로 가정하나» 이지
+            #     «그 금액이 살아남을 확률» 이 아닙니다. A값을 아는 자리에서는
+            #     여유(1.003)가 더 붙어 실제 생존 분위가 86 쯤으로 올라갑니다.
+            #     그래서 바로투찰 금액도 «같은 잣대로 되짚어» 나란히 둡니다.
+            #     숫자를 손으로 적어 두면 반드시 어디선가 어긋납니다 (CLAUDE.md 8-4).
+            sd = B.sigma(row.get("lo") or -3, row.get("hi") or 3,
+                         row.get("ptot") or 15, row.get("pdrw") or 4)
+            if sd and base and llr:
+                def _pct(v):
+                    sj = ((v - a) * 100.0 / llr + a) * 100.0 / base
+                    return round(statistics.NormalDist(p50, sd).cdf(sj) * 100.0, 1)
+                out["my_pct"] = _pct(amt)
+                out["baro_pct"] = _pct(sc["our"])
+                if win_amt:
+                    out["win_pct"] = _pct(win_amt)
             out["baro"] = {
                 "amt": sc["our"], "dq": sc["dq"], "beat": sc["beat"],
                 "rank_lo": br[0] if br else None,
@@ -287,7 +310,54 @@ def build(bno, rows, p50):
         if hb2["낙찰선중앙"] is not None:
             hb2["어긋남"] = round(hb2["내자리중앙"] - hb2["낙찰선중앙"], 3)
 
-    # ── ③ 다음에 넣을 자리 ─────────────────────────────────────
+    # ── ③ 분위 버릇 ────────────────────────────────────────────
+    #  이 회사가 «평소 몇 분위에 거는가». 그리고 그 자리가 실제로 무엇을 낳았나.
+    #
+    #  ⚠️ 여기서 «분위를 올리세요» 라고만 적으면 반쪽입니다. 3년치 실측(8,406건)은
+    #     분위를 어떻게 잡아도 1순위율이 3.5~4.4% 에서 안 움직인다고 말합니다.
+    #     움직이는 것은 실격률뿐입니다(14% → 84%).
+    #     그래서 낮은 분위는 «더 딸 확률» 을 사는 것이 아니라 «실격» 만 사는 것입니다.
+    #     이 문장이 이 칸의 핵심이고, PDF 에도 그렇게 적습니다.
+    pcts = [x["my_pct"] for x in recs if x.get("my_pct") is not None]
+    band_def = [("30분위 미만", 0, 30), ("30~50분위", 30, 50), ("50~70분위", 50, 70),
+                ("70~85분위", 70, 85), ("85분위 이상", 85, 101)]
+    qt = None
+    if len(pcts) >= 3:
+        haves = [x for x in recs if x.get("my_pct") is not None]
+        rows_q = []
+        for nm_, lo_, hi_ in band_def:
+            g = [x for x in haves if lo_ <= x["my_pct"] < hi_]
+            if not g:
+                continue
+            rows_q.append({
+                "칸": nm_, "투찰": len(g),
+                "실격": sum(1 for x in g if x.get("my_dq")),
+                "낙찰": sum(1 for x in g if x["rank"] == 1),
+                "평균등수": round(statistics.mean([x["rank"] for x in g]), 1),
+            })
+        dq_n = sum(1 for x in haves if x.get("my_dq"))
+        qt = {
+            "잰개찰": len(pcts),
+            "중앙": round(statistics.median(pcts), 1),
+            "평균": round(statistics.mean(pcts), 1),
+            "흔들림": round(statistics.pstdev(pcts), 1) if len(pcts) > 1 else 0.0,
+            "최저": round(min(pcts), 1), "최고": round(max(pcts), 1),
+            # 모형이 말하는 실격률(100−중앙분위) 과 실제로 난 실격률을 나란히 둡니다.
+            # 둘이 크게 어긋나면 그 자체가 읽을거리입니다 (운이 좋았거나 나빴다는 뜻).
+            "모형실격률": round(100.0 - statistics.median(pcts), 1),
+            "실제실격률": round(dq_n / len(haves) * 100.0, 1),
+            "실격": dq_n,
+            # 같은 잣대로 되짚은 바로투찰·낙찰자의 자리 (손으로 적은 숫자가 아닙니다)
+            "바로투찰중앙": (round(statistics.median(
+                [x["baro_pct"] for x in haves if x.get("baro_pct") is not None]), 1)
+                if any(x.get("baro_pct") is not None for x in haves) else None),
+            "낙찰자중앙": (round(statistics.median(
+                [x["win_pct"] for x in haves if x.get("win_pct") is not None]), 1)
+                if any(x.get("win_pct") is not None for x in haves) else None),
+            "칸별": rows_q,
+        }
+
+    # ── ④ 다음에 넣을 자리 ─────────────────────────────────────
     nxt = next_five(recs, p50)
 
     return {
@@ -322,6 +392,7 @@ def build(bno, rows, p50):
         "기관": inst.most_common(8),
         "실격해부": dq_an,
         "습관": hb2 or None,
+        "분위": qt,
         "다음자리": nxt,
         "놓친자리": miss[:5],
         "금액대": band,
