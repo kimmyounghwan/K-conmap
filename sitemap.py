@@ -268,7 +268,8 @@ def main():
                 ny = [k for k, n in ((json.load(f) or {}).get("all") or {}).items() if n]
         except Exception:
             ny = []
-        for u in (["/change", "/change/excel", "/change/naeyeok", "/change/calc"]
+        for u in (["/change", "/change/excel", "/change/naeyeok", "/change/calc",
+                   "/change/twoline"]
                   + [f"/change/naeyeok/{quote(k, safe='')}" for k in ny]
                   + [f'/change/{t["slug"]}' for t in tops]):
             urls.append(f'  <url><loc>{SITE}{u}</loc>'

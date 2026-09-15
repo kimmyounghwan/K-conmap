@@ -1332,7 +1332,7 @@ NY_KINDS = [
 
 # ── IndexNow 에 «한 번만» 알릴 정적 주소 ──────────────────────────
 #   새로 만든 화면들입니다. 사이트맵에도 있지만 크롤러가 스스로 올 때까지 기다리지 않습니다.
-STATIC_NEW = ["/change", "/change/naeyeok", "/change/excel", "/forms", "/guide",
+STATIC_NEW = ["/change", "/change/naeyeok", "/change/excel", "/change/twoline", "/forms", "/guide",
               "/cad", "/naeyeok", "/qna", "/how"] + [
     "/cad/" + _c["slug"] for _c in (load_cad().get("cmds") or [])] + [
     "/change/naeyeok/" + quote(_k, safe="") for _k, _d in NY_KINDS]
@@ -1592,6 +1592,56 @@ def change_calc(shell, image=None):
     ld = ld_graph(ld_crumbs(("K-건설맵", None), ("설계변경", "/change"),
                             ("증감 계산기", "/change/calc")))
     return page(shell, "/change/calc", title, desc, "".join(out), image, ld)
+
+
+def change_twoline(shell, image=None):
+    """/change/twoline — 설계변경 2줄 자동변환 (2026-09-15)
+
+    소장님: 「이것도 만들 수 있어? 더 좋게, 더 많은 기능이 들어 가게」
+
+    ⚠️ 여기 적는 글은 화면(TwoLine.jsx)이 그리는 것과 «같은 내용»입니다.
+       잠깐 보였다가 React 가 덮어씁니다. 숨겨 넣는 글이 아닙니다.
+    """
+    title = "설계변경 2줄 자동변환 — 내역서 엑셀 당초·변경 한 번에 | K-건설맵"
+    desc = ("공사 내역서 엑셀을 올리면 당초·변경 두 줄로 벌려 드립니다. "
+            "합계를 SUMIF 로 갈라 당초 합계와 변경 합계를 따로 내고, 증감 줄까지 넣습니다. "
+            "파일은 브라우저에서만 처리하며 서버로 올라가지 않습니다. 무료.")
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">'
+           '설계변경 2줄 자동변환</h1>'
+           '<div style="font-size:12.5px;color:var(--muted);margin-top:4px">'
+           '내역서 엑셀 · 당초 검정 · 변경 적색 · 브라우저에서만 처리</div>'
+           '<p class="cp" style="margin-top:8px">설계변경이 승인되면 당초와 변경을 '
+           '<b>한 부의 내역서에 나란히</b> 적어 냅니다. 품목마다 행을 하나 더 만들고 옮겨 적는 '
+           '일인데, 줄이 수백이면 손으로 못 합니다. 여기서 <b>파일 단위로 한 번에</b> 끝냅니다.</p>'
+           '<p class="cp"><b>파일은 이 브라우저 안에서만 다룹니다.</b> 서버로 올라가지 않습니다.</p>'
+           '</div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">'
+           '다른 변환기와 다른 점</div><ul class="flist">'
+           '<li><b>합계를 갈라 줍니다.</b> 줄이 늘면 SUM 이 당초와 변경을 <b>두 번 더합니다.</b> '
+           '라벨 열을 두고 SUMIF 로 바꿔 당초 합계·변경 합계를 따로 냅니다</li>'
+           '<li><b>증감 줄(3줄)</b> — 「변경 − 당초」 수식을 넣어 드립니다</li>'
+           '<li><b>검산 목록</b> — 못 고친 수식을 숨기지 않고 알려 드립니다</li>'
+           '<li><b>서식이 그대로</b> — 파일을 다시 쓰지 않고 필요한 부분만 고칩니다. '
+           '인쇄영역·병합셀·조건부서식·그림·매크로가 남습니다</li></ul></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">이럴 때 씁니다</div>'
+           '<ul class="flist">'
+           '<li>설계변경 승인 뒤 <b>당초·변경 내역서를 한 부</b>로 만들 때</li>'
+           '<li>준공 서류의 내역서를 <b>2줄 형식</b>으로 정리할 때</li>'
+           '<li>변경 차수가 여러 번이라 매번 손으로 행을 나누기 번거로울 때</li>'
+           '<li>감독·발주처가 <b>당초는 검정, 변경은 적색</b> 표기를 요구할 때</li></ul></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">알아 두실 것</div>'
+           '<ul class="flist">'
+           '<li>구형 .xls(97-2003)는 아직 못 읽습니다 — 엑셀에서 xlsx 로 저장한 뒤 올려 주십시오</li>'
+           '<li>다른 시트에서 이 시트를 가리키는 수식은 따라 옮기지 못합니다</li>'
+           '<li>차트가 가리키는 범위는 손대지 않습니다</li></ul>'
+           '<div class="btn-row" style="margin-top:10px">'
+           '<a class="btn ghost" href="/change">← 설계변경</a>'
+           '<a class="btn ghost" href="/change/excel">📊 설계변경 통합 엑셀</a>'
+           '<a class="btn ghost" href="/qna">💬 묻고 답하기</a></div></div>']
+    ld = ld_graph(ld_crumbs(("K-건설맵", None), ("설계변경", "/change"),
+                            ("2줄 자동변환", "/change/twoline")))
+    return page(shell, "/change/twoline", title, desc,
+                "".join(out) + nav_html("/change"), image, ld)
 
 
 
@@ -1917,7 +1967,11 @@ def main():
               og.tab("change-calc", "설계변경 증감 계산기", "증가·감소·신규비목",
                      "무료", "신규비목은 설계변경 당시 단가 × 낙찰률")
               if og.available else None))
-        made += 2
+        write("change/twoline.html", change_twoline(shell,
+              og.tab("change-twoline", "설계변경 2줄 자동변환", "당초 검정 · 변경 적색",
+                     "무료", "합계를 SUMIF 로 갈라 줍니다 · 증감 줄까지")
+              if og.available else None))
+        made += 3
         for t in topics:
             others = [o for o in topics if o["slug"] != t["slug"]][:4]
             img = (og.tab(f'change-{t["slug"]}', t["title"], t.get("sub") or "설계변경",

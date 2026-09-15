@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+
 import { askAfter } from '../AskComment'
 import { useParams, Link } from 'react-router-dom'
 import DATA from '../data/change.json'
@@ -473,6 +474,20 @@ export default function Change() {
           <a className="btn ghost" href="#seosik">📄 서식 19가지</a>
         </div>
       </div>
+
+      {/* 🔁 2줄 자동변환 — 2026-09-15. 손으로 행을 나누던 일을 파일 단위로 끝냅니다. */}
+      <Link className="card fbook" to="/change/twoline">
+        <span className="fic">🔁</span>
+        <div className="grow">
+          <div className="t">설계변경 2줄 자동변환 <em>· 엑셀 · 브라우저에서만</em></div>
+          <div className="d">
+            공사 내역서 엑셀을 올리면 <b>당초 · 변경</b> 두 줄로 벌려 드립니다.
+            <b>합계를 SUMIF 로 갈라</b> 당초 합계와 변경 합계를 따로 내고,
+            <b>증감 줄</b>까지 넣을 수 있습니다. 파일은 서버로 올라가지 않습니다.
+          </div>
+        </div>
+        <span className="go">›</span>
+      </Link>
 
       <MainBook />
 

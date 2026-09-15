@@ -2843,14 +2843,16 @@ ul.plainlist li { margin-bottom: 5px; }
 .howtbl .d { display: block; color: var(--muted, #6b7280); font-size: 12.5px;
   margin-top: 2px; line-height: 1.55; }
 @media (max-width: 560px) { .howtbl .w { width: 42%; font-size: 13px; } }
-
+
+
 
 /* 🙋 만든 사람 — 바닥글 맨 아래 (2026-09-15) */
 .footer-me { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line, #e5e7eb);
   font-size: 12px; color: var(--muted, #6b7280); }
 .footer-me b { color: var(--ink, #1a1d24); font-size: 13px; }
 .footer-me .role { color: var(--muted, #6b7280); margin-right: 3px; }
-
+
+
 
 /* 🧭 «처음이세요?» 띠 (2026-09-15) — 처음 온 사람에게 한 번만.
    광고처럼 보이면 눈이 건너뜁니다. 옅은 파랑 바탕에 왼쪽만 굵은 선. */
@@ -2868,4 +2870,72 @@ ul.plainlist li { margin-bottom: 5px; }
   .firstbar { padding: 10px 11px; gap: 8px; }
   .firstbar .t { font-size: 13px; flex: 1 1 100%; }
   .firstbar .go { flex: 1 1 auto; text-align: center; }
+}
+
+/* ══ 🔁 설계변경 2줄 자동변환 (/change/twoline) — 2026-09-15 ══════════
+   소장님: 「더 좋게, 더 많은 기능이 들어 가게」
+   화면은 ①파일 ②시트·구간 ③방식 ④바꾸기 네 칸으로만 나눕니다.
+   현장에서 처음 보는 분도 위에서 아래로 한 번만 내려오면 끝나야 합니다. */
+.tldrop {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; min-height: 108px; padding: 18px 14px; cursor: pointer;
+  border: 2px dashed var(--line); border-radius: 12px;
+  background: var(--surface-2); text-align: center; transition: border-color .15s, background .15s;
+}
+.tldrop:hover { border-color: var(--accent); background: var(--surface); }
+.tldrop.on { border-style: solid; border-color: var(--accent); }
+.tldrop b { font-size: 14px; }
+.tldrop span { font-size: 12px; color: var(--muted); }
+
+.tlsheets { display: flex; flex-direction: column; gap: 6px; }
+.tlrow {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+  padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2);
+}
+.tlrow.on { border-color: var(--accent); background: var(--surface); }
+.tlchk {
+  display: flex; align-items: center; gap: 7px; font-size: 13.5px; cursor: pointer;
+  flex: 1 1 auto; min-width: 0;
+}
+.tlchk b { flex: 0 0 auto; white-space: nowrap; }
+/* ⚠️ 전역에 `input { width: 100% }` 가 있습니다 — 체크·라디오는 되돌려 놔야
+   글자를 밀어내지 않습니다 (2026-09-15 에 이걸로 화면이 깨졌습니다). */
+.tlchk input[type="checkbox"],
+.tlopts label input {
+  width: 15px; height: 15px; margin: 0; padding: 0;
+  flex: 0 0 auto; accent-color: var(--accent);
+}
+.tlfields { display: flex; flex-wrap: wrap; gap: 8px 10px; margin-left: auto; }
+.tlfields label { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--muted); }
+.tlfields input {
+  width: 72px; padding: 5px 7px; font-size: 13px; text-align: center;
+  border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--text);
+}
+.tlfields input[type="text"] { width: 48px; text-transform: uppercase; }
+
+.tlopts { display: flex; flex-wrap: wrap; gap: 14px 26px; }
+.tlopts > div { display: flex; flex-direction: column; gap: 5px; flex: 0 0 auto; }
+.tlopts b { font-size: 12.5px; color: var(--muted); }
+.tlopts label {
+  display: flex; align-items: center; gap: 7px; font-size: 13.5px; cursor: pointer;
+  white-space: nowrap;
+}
+
+
+.tlprev { overflow-x: auto; margin-bottom: 8px; }
+.tlprev table { font-size: 12px; white-space: nowrap; }
+.tlprev td { padding: 4px 8px; }
+.tlprev tr.tlchg td { color: #c00000; font-weight: 600; }
+.tlprev tr.tldif td { color: #0070c0; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tlprev tr.tlchg td { color: #ff8a80; }
+  :root:not([data-theme="light"]) .tlprev tr.tldif td { color: #7fc4ff; }
+}
+:root[data-theme="dark"] .tlprev tr.tlchg td { color: #ff8a80; }
+:root[data-theme="dark"] .tlprev tr.tldif td { color: #7fc4ff; }
+
+@media (max-width: 520px) {
+  .tlfields { margin-left: 0; width: 100%; }
+  .tlfields input { width: 60px; }
+  .tlopts { gap: 12px 16px; }
 }
