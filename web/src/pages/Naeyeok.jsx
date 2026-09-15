@@ -1,5 +1,5 @@
 /**
- * /naeyeok — 「내역서 작성해 드립니다」 (2026-09-15)
+ * /naeyeok — 「견적서 · 내역서 작성해 드립니다」 (2026-09-15)
  *
  * 소장님: 「우리의 주력은 내역서 판매로 하자. 다른 건 다 무료로 오픈하고.
  *          각종 내역서 작성 한다는 페이지를 만들자.」 · 「가격은 문의로 하자.」
@@ -38,7 +38,8 @@ function mailto(kind) {
     '2. 공고번호(있으면) :',
     '3. 발주처 :',
     '4. 공사금액(추정가격 또는 낙찰금액) :',
-    '5. 필요한 것 : (산출내역서 / 설계변경 내역 / 실행내역 / 그 밖)',
+    '5. 필요한 것 : (견적서 / 입찰 산출내역서 / 공내역서 단가 넣기 / 착공 산출내역서 /',
+    '              실행내역 / 하도급 내역 / 설계변경 내역 / 기성 내역 / 물가변동 / 그 밖)',
     '6. 언제까지 :',
     '7. 연락처 :',
     '',
@@ -70,7 +71,7 @@ function Ask({ kind, where, children, primary }) {
       문의에는 공사 정보와 연락처가 들어가니 목록으로 걸어 두면 안 됩니다.
    → 읽기가 없으니 내려받기가 0 이라 요금도 붙지 않습니다. */
 function QuoteForm() {
-  const [f, setF] = useState({ work: '', org: '', no: '', money: '', want: '산출내역서', due: '', phone: '', name: '', memo: '' })
+  const [f, setF] = useState({ work: '', org: '', no: '', money: '', want: '입찰 산출내역서', due: '', phone: '', name: '', memo: '' })
   const [state, setState] = useState('')      // '' | 'send' | 'done' | 오류글
   const set = (k) => (e) => setF((v) => ({ ...v, [k]: e.target.value }))
 
@@ -151,11 +152,31 @@ function QuoteForm() {
         <div style={R}>
           <label style={L}>무엇이 필요하십니까</label>
           <select style={I} value={f.want} onChange={set('want')}>
-            <option>산출내역서</option>
-            <option>설계변경 내역</option>
-            <option>실행내역</option>
-            <option>물량산출부터</option>
-            <option>아직 모르겠음 — 상의하고 싶음</option>
+            <optgroup label="입찰 전">
+              <option>입찰 산출내역서</option>
+              <option>공내역서 단가 넣기</option>
+              <option>물량내역서 검토</option>
+              <option>입찰 견적서</option>
+            </optgroup>
+            <optgroup label="낙찰 뒤">
+              <option>착공 산출내역서</option>
+              <option>실행내역서</option>
+              <option>하도급 내역서</option>
+            </optgroup>
+            <optgroup label="공사 중">
+              <option>설계변경 내역</option>
+              <option>기성 내역서</option>
+              <option>물가변동 조정내역</option>
+              <option>실정보고 첨부 내역</option>
+            </optgroup>
+            <optgroup label="그 밖">
+              <option>민간공사 견적서</option>
+              <option>관급자재 구입내역서</option>
+              <option>원가계산서</option>
+              <option>공사비 검토</option>
+              <option>물량산출부터</option>
+              <option>아직 모르겠음 — 상의하고 싶음</option>
+            </optgroup>
           </select>
         </div>
         <div className="grid2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -196,11 +217,11 @@ export default function Naeyeok() {
   return (
     <div className="wrap">
       <div className="card hero">
-        <h1 style={{ margin: 0, fontSize: 20 }}>📋 내역서 작성해 드립니다</h1>
+        <h1 style={{ margin: 0, fontSize: 20 }}>📋 견적서 · 내역서 작성해 드립니다</h1>
         {/* ⚠️ .hero 는 파란 바탕입니다. 여기에 .muted(회색)를 쓰면 글이 묻혀 안 읽힙니다. */}
         <div style={{ marginTop: 6, lineHeight: 1.75, color: 'rgba(255,255,255,.92)', fontSize: 13.5 }}>
-          산출내역서 · 설계변경 내역 · 실행내역 — 공공 공사 내역서를 대신 만들어 드립니다.
-          <b style={{ color: '#fff' }}> 이 화면 말고 K-건설맵의 나머지는 전부 무료입니다.</b>
+          견적서 · 입찰 산출내역서 · 실행내역 · 설계변경 · 기성 — <b style={{ color: '#fff' }}>내역 일이면 다 합니다.</b>
+          <span style={{ opacity: .9 }}> 이 화면 말고 K-건설맵의 나머지는 전부 무료입니다.</span>
         </div>
       </div>
 
@@ -283,24 +304,76 @@ export default function Naeyeok() {
       </div>
 
       {/* ── 무엇을 드리나 ─────────────────────────────────────── */}
+      {/* ⚠️ 2026-09-15 — 소장님: 「견적서 작업도 넣어줘. 입찰내역서 등... 내역 작업이 필요한 모든 곳」
+          처음엔 «산출내역서» 하나만 적어 뒀는데, 내역 일은 공사가 시작해서 끝날 때까지 계속 나옵니다.
+          손님은 「산출내역서」 라는 말을 모르고 「견적 좀」 「기성 쳐야 하는데」 라고 옵니다.
+          그래서 **일이 생기는 차례대로** 늘어놓습니다 — 자기 자리를 찾을 수 있게. */}
       <div className="card" id="what">
-        <div className="sec-title">무엇을 드리나</div>
+        <div className="sec-title">무엇을 드리나 — 내역 일이면 다 합니다</div>
+
+        <div style={{ overflowX: 'auto' }}>
+          <table className="tbl left">
+            <thead><tr><th style={{ width: 88 }}>언제</th><th>무엇을</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><b>입찰 전</b></td>
+                <td>
+                  <b>입찰 산출내역서</b> (100억 이상 내역입찰) ·
+                  <b> 공내역서 단가 넣기</b> (발주처가 준 빈 내역서 채우기) ·
+                  <b> 물량내역서 검토</b> (빠진 물량 찾기) ·
+                  <b> 입찰 견적서</b>
+                </td>
+              </tr>
+              <tr>
+                <td><b>낙찰 뒤</b></td>
+                <td>
+                  <b>착공 산출내역서</b> (착공신고 첨부) ·
+                  <b> 실행내역서</b> (도급 대비 실제 원가) ·
+                  <b> 하도급 내역서</b> (비율 적용 · 하도급법 맞춤)
+                </td>
+              </tr>
+              <tr>
+                <td><b>공사 중</b></td>
+                <td>
+                  <b>설계변경 내역</b> (당초·변경·증감 세 표) ·
+                  <b> 기성 내역서</b> (기성고 산출) ·
+                  <b> 물가변동 조정내역</b> (ESC) ·
+                  <b> 실정보고 첨부 내역</b>
+                </td>
+              </tr>
+              <tr>
+                <td><b>그 밖</b></td>
+                <td>
+                  <b>민간공사 견적서</b> ·
+                  <b> 관급자재 구입내역서</b> ·
+                  <b> 원가계산서</b> ·
+                  <b> 공사비 검토</b> (남이 준 내역이 맞는지)
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div className="sec-title" style={{ margin: '18px 0 8px' }}>한 벌로 드립니다</div>
         <div style={{ overflowX: 'auto' }}>
           <table className="tbl left">
             <thead><tr><th>드리는 것</th><th>무엇인가</th></tr></thead>
             <tbody>
-              <tr><td><b>산출내역서</b></td><td>공종별 내역 — 품명·규격·단위·수량·단가·금액</td></tr>
+              <tr><td><b>내역서</b></td><td>공종별 — 품명·규격·단위·수량·단가·금액</td></tr>
               <tr><td><b>일위대가</b></td><td>호표마다 자재·품·장비를 얼마씩 넣었는지</td></tr>
               <tr><td><b>원가계산서</b></td><td>재료비·노무비·경비·일반관리비·이윤·부가세</td></tr>
               <tr><td><b>단가대비표</b></td><td>어느 단가를 어디서 가져왔는지</td></tr>
               <tr><td>공종별 집계표 · 갑지</td><td>제출 서식 한 벌로</td></tr>
-              <tr><td>설계변경 내역</td><td>당초 · 변경 · 증감 — 세 표가 서로 물려 있게</td></tr>
             </tbody>
           </table>
         </div>
+
         <div className="muted" style={{ fontSize: 12.5, marginTop: 10, lineHeight: 1.75 }}>
           엑셀로 드립니다. 수식이 살아 있어 <b>물량이나 단가가 바뀌면 그 자리에서 다시 계산</b>됩니다.
-          발주처 서식이 따로 있으면 그 서식에 맞춰 드립니다.
+          발주처 서식이 따로 있으면 <b>그 서식에 맞춰</b> 드립니다.
+          <br />
+          <b>여기 없는 것도 물어보세요.</b> 내역이 들어가는 일이면 대개 됩니다 —
+          안 되는 것은 안 된다고 먼저 말씀드립니다.
         </div>
       </div>
 
