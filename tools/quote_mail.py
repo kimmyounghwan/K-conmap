@@ -128,8 +128,12 @@ def main():
     except Exception as e:
         print("문의함을 읽지 못했습니다: %s" % type(e).__name__)
         return 0
+    # ⚠️ 2026-09-15 — 「notified」 를 같이 봅니다.
+    #   메일을 못 보내면 「sent」 를 못 붙여서, 같은 문의로 **10분마다 영원히** 실패했습니다.
+    #   (소장님: 「계속 메일이 건설맵 자동이 실패한다는 메일」 — 하루 144통이었습니다)
+    #   → 거친 알림도 «한 번 알렸으면» notified 를 붙여 다음 회차부터는 조용히 넘어갑니다.
     new = {k: v for k, v in rows.items()
-           if isinstance(v, dict) and not v.get("sent")}
+           if isinstance(v, dict) and not v.get("sent") and not v.get("notified")}
     if not new:
         print("새 문의 없음 (전체 %d건)" % len(rows))
         return 0
@@ -160,8 +164,15 @@ def main():
         return 0
 
     # 메일 길이 없을 때 — GitHub 가 「실패」 메일을 보내도록 0 이 아닌 값으로 끝냅니다.
+    # 다만 «한 번만» 입니다. 알렸다는 표시를 남겨 다음 회차부터는 조용히 넘어갑니다.
+    for k in new:
+        try:
+            put("quotes/%s/notified" % k, tok, True)
+        except Exception:
+            pass
     print("")
     print("::error::새 내역서 문의 %d건이 들어왔습니다 — 위 내용을 확인하세요." % len(new))
+    print("  이 알림은 «이 문의에 대해 한 번만» 갑니다. 위 내용을 꼭 갈무리해 두세요.")
     print("  (MAIL_USER·MAIL_PASS 를 넣으시면 이 거친 알림 대신 제대로 된 메일이 갑니다)")
     return 1
 

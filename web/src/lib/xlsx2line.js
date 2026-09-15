@@ -61,14 +61,55 @@ const unesc = (s) => String(s)
 
 /* ══════════════════════════════════════════════════════════
    수식 — 행 번호 옮기기
-   문자열("..")과 시트이름('..')은 건너뜁니다. LOG10( 같은 함수 이름도 건드리지 않습니다.
+
+   ■ 시트 이름이 붙은 참조(=내역서!G9)도 다룹니다  ← 2026-09-15 에 고친 자리
+     소장님: 「원가계산서도 두 줄로 하면 해결되는 거잖아」
+     반은 맞습니다. 두 줄로 벌리기만 하면 두 줄 다 여전히 G9 를 봅니다.
+     **줄끼리 짝을 맞춰야** 합니다 —
+        원가계산서 당초 줄 → 내역서의 «당초» 합계
+        원가계산서 변경 줄 → 내역서의 «변경» 합계
+     그래서 mapRow 를 시트마다 따로 받습니다(sheetRow).
+     ⚠️ 전에는 «내역서!G9» 의 G9 를 제 시트 기준으로 옮겼습니다 — 조용히 틀린 값이 됐습니다.
+
+   문자열("..")은 건너뜁니다. LOG10( 같은 함수 이름도 건드리지 않습니다.
    ══════════════════════════════════════════════════════════ */
 const REF_RE = /^(\$?)([A-Za-z]{1,3})(\$?)(\d{1,7})(?![0-9A-Za-z_.(])/
+/* 시트이름! — 따옴표로 묶인 것('내 역서'!)과 안 묶인 것(내역서!) 둘 다 */
+const SHEET_RE = /^(?:'((?:[^']|'')*)'|([A-Za-z0-9_.\u3131-\uD79D]+))!/
 
-export function mapFormulaRows(f, mapRow) {
+export function mapFormulaRows(f, mapRow, sheetRow) {
   let out = ''
   let i = 0
   while (i < f.length) {
+    const prev = i > 0 ? f[i - 1] : ''
+    /* ① 시트이름! + 칸 (=내역서!G9 · ='내 역서'!G9) */
+    if (!/[A-Za-z0-9_.$!]/.test(prev)) {
+      const sm = SHEET_RE.exec(f.slice(i))
+      if (sm) {
+        const rest = f.slice(i + sm[0].length)
+        const rm = REF_RE.exec(rest)
+        if (rm) {
+          const name = (sm[1] !== undefined ? sm[1].replace(/''/g, "'") : sm[2])
+          const fn = sheetRow ? sheetRow(name) : null
+          const one = (mm) => {
+            const [whole, d1, col, d2, row] = mm
+            const nr = fn ? fn(+row) : null      /* 안 벌린 시트면 손대지 않습니다 */
+            return nr == null ? whole : `${d1}${col}${d2}${nr}`
+          }
+          let taken = sm[0].length + rm[0].length
+          let piece = sm[0] + one(rm)
+          /* 내역서!G3:G8 — 뒤쪽 끝도 «같은 시트» 입니다. 여기를 놓치면 끝만 엉뚱한 데를 봅니다. */
+          const after = f.slice(i + taken)
+          if (after[0] === ':') {
+            const rm2 = REF_RE.exec(after.slice(1))
+            if (rm2) { piece += ':' + one(rm2); taken += 1 + rm2[0].length }
+          }
+          out += piece
+          i += taken
+          continue
+        }
+      }
+    }
     const ch = f[i]
     if (ch === '"' || ch === "'") {
       const q = ch
@@ -78,8 +119,8 @@ export function mapFormulaRows(f, mapRow) {
       }
       out += f.slice(i, j); i = j; continue
     }
-    const prev = i > 0 ? f[i - 1] : ''
-    if (!/[A-Za-z0-9_.$]/.test(prev)) {
+    /* ② 그냥 칸 (=G9) — 앞에 ! 가 있으면 시트 참조의 꼬리라 건드리지 않습니다 */
+    if (!/[A-Za-z0-9_.$!]/.test(prev)) {
       const m = REF_RE.exec(f.slice(i))
       if (m) {
         const [whole, d1, col, d2, row] = m
@@ -268,6 +309,25 @@ export function convert(buf, opts) {
     ? sheetOpts
     : sheetPaths.map((path) => ({ path, startRow, endRow, labelCol }))
 
+  /* ① 먼저 «계획» 을 전부 세웁니다 — 시트를 넘나드는 수식의 짝을 맞추려면
+        내가 벌리기 전에 «상대 시트가 몇 행으로 가는지» 를 알아야 합니다.
+        (소장님: 「원가계산서도 두 줄로 하면 해결되는 거잖아」 — 짝을 맞춰야 해결됩니다) */
+  const nameOf = sheetNames(zip)
+  const plans = new Map()        /* 시트이름 → {dup, mapBase, labelCol} */
+  for (const job of jobs) {
+    if (!zip[job.path]) continue
+    const nm = nameOf[job.path]
+    if (!nm) continue
+    plans.set(nm, {
+      ...planSheet(strFromU8(zip[job.path]), {
+        startRow: job.startRow ?? startRow,
+        endRow: job.endRow ?? endRow,
+        gs, skipEmpty,
+      }),
+      labelCol: (job.labelCol ?? labelCol) || '',
+    })
+  }
+
   for (const job of jobs) {
     const path = job.path
     if (!zip[path]) continue
@@ -276,7 +336,7 @@ export function convert(buf, opts) {
       startRow: job.startRow ?? startRow,
       endRow: job.endRow ?? endRow,
       labelCol: job.labelCol ?? labelCol,
-      gs, labels, color, diffFormula, skipEmpty,
+      gs, labels, color, diffFormula, skipEmpty, plans, selfName: nameOf[path],
     }, styler)
     zip[path] = strToU8(res.xml)
     report.sheets.push({ path, ...res.stat })
@@ -335,9 +395,39 @@ export function convert(buf, opts) {
   return { data: out, report }
 }
 
+/* ── 시트 «계획» ─────────────────────────────────
+   바꾸기 전에 «어느 행을 벌리고, 그 행이 몇 행으로 가는지» 만 먼저 셉니다.
+   다른 시트의 수식이 이 시트를 가리킬 때 그 짝을 찾으려면 계획이 먼저 있어야 합니다. */
+function planSheet(xml, o) {
+  const { startRow, endRow, gs, skipEmpty } = o
+  const sdOpen = /<sheetData\b[^>]*>/.exec(xml)
+  if (!sdOpen) return { dup: new Set(), mapBase: (r) => r, maxRn: 0 }
+  const sdInnerStart = sdOpen.index + sdOpen[0].length
+  const sdEnd = xml.indexOf('</sheetData>', sdInnerStart)
+  const body = xml.slice(sdInnerStart, sdEnd)
+  const rows = body.match(/<row\b[^>]*\/>|<row\b[^>]*>[\s\S]*?<\/row>/g) || []
+  const info = rows.map((r) => {
+    const rn = +(attr(r, 'r') || 0)
+    const cells = r.match(/<c\b[^>]*\/>|<c\b[^>]*>[\s\S]*?<\/c>/g) || []
+    return { rn, filled: cells.filter((c) => /<v>|<is>|<f/.test(c)).length }
+  })
+  const maxRn = info.length ? Math.max(...info.map((x) => x.rn)) : 0
+  const last = endRow || maxRn
+  const dup = new Set()
+  for (const it of info) {
+    if (it.rn < startRow || it.rn > last) continue
+    if (skipEmpty && it.filled === 0) continue
+    dup.add(it.rn)
+  }
+  const newOf = new Map()
+  let cur = 0
+  for (let r = 1; r <= maxRn; r++) { cur += 1; newOf.set(r, cur); if (dup.has(r)) cur += gs - 1 }
+  return { dup, mapBase: (r) => (newOf.has(r) ? newOf.get(r) : r), maxRn }
+}
+
 /* ── 시트 한 장 ──────────────────────────────── */
 function convertSheet(xml, o, styler) {
-  const { startRow, endRow, gs, labels, labelCol, color, diffFormula, skipEmpty } = o
+  const { startRow, endRow, gs, labels, labelCol, color, diffFormula, skipEmpty, plans, selfName } = o
   const warns = []
 
   const sdOpen = /<sheetData\b[^>]*>/.exec(xml)
@@ -436,6 +526,7 @@ function convertSheet(xml, o, styler) {
         if (!cSelf && /<f[\s>]/.test(cInner)) {
           const r = rewriteFormula(cInner, {
             srcRow: it.rn, k, gs, dup, mapBase, labelCol, labels, col: sp.col, warns, ref,
+            plans, selfName,
           })
           cInner = r
         }
@@ -492,11 +583,13 @@ function convertSheet(xml, o, styler) {
 
 /* 수식 한 칸 */
 function rewriteFormula(cInner, ctx) {
-  const { srcRow, k, gs, dup, mapBase, labelCol, labels, col, warns, ref } = ctx
+  const { srcRow, k, gs, dup, mapBase, labelCol, labels, col, warns, ref, plans, selfName } = ctx
   const fm = /<f\b([^>]*)(?:\/>|>([\s\S]*?)<\/f>)/.exec(cInner)
   if (!fm) return cInner
   const fAttrs = fm[1] || ''
-  let ftext = fm[2] || ''
+  /* ⚠️ 엑셀은 수식 안의 한글을 «&#45236;&#50669;&#49436;!G9» 처럼 숫자 기호로 씁니다.
+     풀어서 다루고 쓸 때 다시 묶지 않으면 «내역서!» 라는 시트 이름을 못 알아봅니다. */
+  let ftext = unesc(fm[2] || '')
   const isShared = /\st="shared"/.test(fAttrs)
 
   if (isShared && !ftext) {
@@ -508,6 +601,16 @@ function rewriteFormula(cInner, ctx) {
   const mapRow = (r) => {
     if (!dup.has(r)) return mapBase(r)
     return mapBase(r) + k
+  }
+  /* 다른 시트를 가리키는 참조 — «같은 줄끼리» 짝을 맞춥니다.
+     당초 줄은 상대의 당초 줄을, 변경 줄은 상대의 변경 줄을 봅니다.
+     안 벌린 시트면 null 을 돌려 손대지 않습니다. */
+  const sheetRow = (name) => {
+    if (!plans || !name) return null
+    if (selfName && name === selfName) return mapRow
+    const pl = plans.get(name)
+    if (!pl) return null
+    return (r) => (pl.dup.has(r) ? pl.mapBase(r) + k : pl.mapBase(r))
   }
 
   /* 합계 SUM/SUBTOTAL(9, ...) — 라벨이 있으면 줄별로 갈라 줍니다 */
@@ -534,9 +637,9 @@ function rewriteFormula(cInner, ctx) {
     }
   }
 
-  const nf = mapFormulaRows(ftext, mapRow)
+  const nf = mapFormulaRows(ftext, mapRow, sheetRow)
   /* 공유수식은 풀어서 보통 수식으로 저장합니다 (원본 si/ref 를 버립니다) */
-  return cInner.replace(/<f\b[^>]*(?:\/>|>[\s\S]*?<\/f>)/, `<f>${nf}</f>`)
+  return cInner.replace(/<f\b[^>]*(?:\/>|>[\s\S]*?<\/f>)/, `<f>${esc(nf)}</f>`)
 }
 
 function mapRange(ref, dup, mapBase, gs) {
@@ -661,4 +764,24 @@ export function suggestLabelCol(zip, path, from, to, maxCol = 16) {
   /* 자료 구간 안에서 «전부 빈» 열이 있으면 거기, 없으면 마지막 열 다음 */
   for (let i = 0; i < lastUsed; i++) if (used[i] === 0) return numToCol(i + 1)
   return numToCol(lastUsed + 1)
+}
+
+
+/* 시트 파일경로 → 시트 이름 */
+function sheetNames(zip) {
+  const out = {}
+  if (!zip['xl/workbook.xml']) return out
+  const wb = strFromU8(zip['xl/workbook.xml'])
+  const rels = zip['xl/_rels/workbook.xml.rels'] ? strFromU8(zip['xl/_rels/workbook.xml.rels']) : ''
+  const relMap = {}
+  for (const m of rels.matchAll(/<Relationship\b[^>]*\/>/g)) {
+    const id = attr(m[0], 'Id'); let t = attr(m[0], 'Target') || ''
+    if (t.startsWith('/')) t = t.slice(1); else if (!t.startsWith('xl/')) t = 'xl/' + t
+    relMap[id] = t.replace(/^xl\/\.\.\//, '')
+  }
+  for (const m of wb.matchAll(/<sheet\b[^>]*\/>/g)) {
+    const path = relMap[attr(m[0], 'r:id') || attr(m[0], 'id')]
+    if (path) out[path] = unesc(attr(m[0], 'name') || '')
+  }
+  return out
 }
