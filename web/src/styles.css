@@ -161,6 +161,9 @@ button { font: inherit; color: inherit; }
 a.brand-sub { text-decoration: none; cursor: pointer; }
 a.brand-sub:hover { opacity: 1; }
 @media (max-width: 400px) { a.brand-sub { font-size: 11px; padding: 2px 6px; } }
+/* 📖 소장님(09-15): 「보는 방법을 K-건설맵 보는 방법으로」.
+   좁은 화면에서는 바로 왼쪽에 로고가 있어 «K-건설맵» 이 두 번이 됩니다 — 그때만 뗍니다. */
+@media (max-width: 560px) { .bs-long { display: none; } }
 
 /* ── 기초금액 상시 입력 ───────────────────── */
 .basebtn {
