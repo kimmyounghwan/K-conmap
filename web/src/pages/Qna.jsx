@@ -261,10 +261,10 @@ function AnswerForm({ qid, onDone }) {
         placeholder="아는 만큼 답해 주세요. 근거(조문·기관 이름)를 같이 적어 주시면 더 좋습니다."
         style={{ width: '100%', boxSizing: 'border-box', minHeight: 72 }} maxLength={2000} />
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-        <input className="inp" placeholder="닉네임(빈칸이면 익명)" value={nick}
-          onChange={(e) => setNick(e.target.value)} maxLength={20} style={{ width: 150 }} />
+        <input className="inp" placeholder="닉네임(없으면 익명)" value={nick}
+          onChange={(e) => setNick(e.target.value)} maxLength={20} style={{ width: 168 }} />
         <input className="inp" type="password" placeholder="운영자 열쇠(있으면)" value={key}
-          onChange={(e) => setKey(e.target.value)} maxLength={40} style={{ width: 150 }} />
+          onChange={(e) => setKey(e.target.value)} maxLength={40} style={{ width: 160 }} />
         <button className="btn primary" onClick={submit} disabled={busy}>
           {busy ? '올리는 중…' : '답변 올리기'}
         </button>
@@ -316,10 +316,10 @@ function WriteForm({ onDone }) {
         style={{ width: '100%', boxSizing: 'border-box', minHeight: 110, marginBottom: 8 }} />
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
         <input className="inp" value={f.nick} onChange={set_('nick')} maxLength={20}
-          placeholder="닉네임(빈칸이면 익명)" style={{ width: 160 }} />
+          placeholder="닉네임(없으면 익명)" style={{ width: 168 }} />
         <input className="inp" inputMode="numeric" maxLength={4} value={f.pin}
           onChange={(e) => setF((v) => ({ ...v, pin: e.target.value.replace(/\D/g, '') }))}
-          placeholder="지울 때 쓸 4자리" style={{ width: 130 }} />
+          placeholder="지울 4자리" style={{ width: 118 }} />
         <button className="btn primary" onClick={submit} disabled={busy}>
           {busy ? '올리는 중…' : '올리기'}
         </button>
