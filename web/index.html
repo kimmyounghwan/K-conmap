@@ -37,13 +37,18 @@
         }
       })();
     </script>
-    <!-- Google 애널리틱스 (GA4) — 속성 K-conmap / 스트림 «K-건설맵 웹» -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-YFGFLYKBCQ"></script>
+    <!-- Google 애널리틱스 (GA4) — 속성 K-conmap / 스트림 «K-건설맵 웹» (15527098112)
+         🐛 2026-09-15 — 측정 ID 가 «G-YFGFLYKBCQ» 로 박혀 있었습니다.
+            애널리틱스의 실제 ID 는 «G-YFGFLVKBCQ» 입니다 — 일곱 번째 글자가 V 인데 Y 로
+            잘못 들어가 있었습니다. 그래서 28일 동안 조회수가 0 이었습니다
+            (스트림 화면: 「최근 48시간 동안 수신한 데이터가 없습니다」).
+         ⚠️ 이 ID 는 눈으로 베끼지 말고 애널리틱스 화면에서 «복사» 해 넣으십시오. -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-YFGFLVKBCQ"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-YFGFLYKBCQ');
+      gtag('config', 'G-YFGFLVKBCQ');
     </script>
       <!-- Google 애드센스 — 게시자 pub-2267356729797930 (2026-09-08 사이트 추가)
          ⚠️ prerender.py 가 dist/index.html 을 «껍데기»로 읽어 모든 미리 구운 페이지에
