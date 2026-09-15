@@ -2761,14 +2761,18 @@ ul.plainlist li { margin-bottom: 5px; }
 .tbl.left th, .tbl.left td { text-align: left; }
 
 /* 📋 2026-09-15 — 하나뿐인 유료 화면(「내역서 작성」)은 탭에서 눈에 띄어야 합니다.
-   색을 바꾸는 대신 «옅은 배경 + 가는 테두리»로 — 광고처럼 보이면 오히려 안 누릅니다. */
-.tabbar a.pay, nav a.pay {
-  background: var(--accent-soft, rgba(26, 86, 219, .09));
-  border: 1px solid var(--line, rgba(26, 86, 219, .25));
-  border-radius: 8px;
-  font-weight: 700;
+   ⚠️ 처음엔 «옅은 배경 + 테두리» 상자를 씌웠습니다. 소장님: 「내역서 작성이 글자가 안보여 ㅎㅎ」
+      까닭 — 하단 탭은 한 칸이 화면의 20% 인데(.tabbar a { flex: 0 0 20% }),
+      거기에 테두리와 안여백까지 넣으니 **글 쓸 자리가 없어 눌렸습니다.**
+      게다가 글자는 nowrap 이라 줄을 못 바꾸고 잘립니다.
+   → 상자를 걷어냈습니다. **색과 굵기만**으로 띄웁니다. 회색 탭들 사이에서 혼자 파랗기만 해도
+     충분히 눈에 띕니다. 상자가 없으니 잘릴 것도 없습니다. */
+.tabbar a.pay, .topnav a.pay, .topbar nav a.pay {
+  color: var(--accent, #1a56db);
+  font-weight: 800;
 }
-.tabbar a.pay.on, nav a.pay.on { background: var(--accent, #1a56db); color: #fff; }
+.tabbar a.pay .ic, .topnav a.pay .ic, .topbar nav a.pay .ic { filter: none; }
+/* 그 화면에 들어와 있을 때는 원래 «켜진 탭» 모양 그대로 둡니다(따로 덮어쓰지 않습니다). */
 
 /* 📋 2026-09-15 — 내역서 띠. 튀는 색 대신 «가는 테두리 + 옅은 바탕»으로.
    광고처럼 보이면 눈이 건너뜁니다. 줄이 좁아지면 두 줄로 감쌉니다. */
