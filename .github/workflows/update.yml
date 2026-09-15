@@ -170,13 +170,65 @@ jobs:
           # (2026-09-12 확인: 씨앗이 09-03 에 9일째 멈춰 있었습니다).
           # 📋 회차 상태 한 장 — 밖에서 git 만으로 «어디까지 왔나» 를 볼 수 있게 (2026-09-15)
           #    Actions 로그는 저장소가 아니라서 인증 없이는 못 읽습니다.
+          BR="${{ github.ref_name }}"
           git add data/extra_*.csv data/seed "docs/수집상태.md"
           if git diff --staged --quiet; then
             echo "새로 쌓인 자료 없음 — 커밋 생략"
           else
             git commit -m "자동 수집 $(date -u -d '+9 hours' '+%Y-%m-%d %H:%M') KST"
-            git pull --rebase --autostash origin ${{ github.ref_name }} || true
-            git push
+            # ══════════════════════════════════════════════════════════
+            # 🐛 2026-09-15 — 여기서 하루 내내 빨간불이 났습니다 (exit 128).
+            #
+            #     CONFLICT (content): Merge conflict in docs/수집상태.md
+            #     error: could not apply fb48091... 자동 수집 …
+            #     fatal: You are not currently on a branch.
+            #
+            #   원인: 「git pull --rebase … || true」 였습니다. 충돌이 나도 «|| true» 가
+            #   실패를 삼켜 버려, 저장소가 **리베이스 중간(가지 밖)** 인 채로 남고
+            #   바로 다음 git push 가 「지금 가지 위에 있지 않습니다」로 죽었습니다.
+            #   부딪힌 파일은 docs/수집상태.md — 회차마다 «통째로 다시 쓰는» 파일이라
+            #   두 회차가 겹치거나 사람이 그 사이에 올리면 반드시 충돌합니다.
+            #
+            #   → ① 충돌하면 기계가 쓰는 파일은 «이번 회차 것» 으로 밀고 갑니다
+            #        (리베이스 중에는 --theirs 가 내가 방금 만든 커밋입니다)
+            #     ② 밀려나면(누가 먼저 올렸으면) 다시 받아서 세 번까지 시도합니다
+            #     ③ 그래도 안 되면 **리베이스를 되돌리고 경고만** 냅니다.
+            #        자료는 캐시에 남아 다음 회차가 다시 올립니다 —
+            #        이걸로 빨간불을 내면 «고칠 것도 없는 메일» 만 쌓입니다.
+            #        정말로 수집이 멈춘 것은 아래 「수집 상태 확인」 이 따로 봅니다.
+            # ══════════════════════════════════════════════════════════
+            pushed=0
+            for i in 1 2 3; do
+              git fetch origin "$BR" || true
+              if ! git rebase --autostash "origin/$BR"; then
+                # ⚠️ 여러 경로를 한 번에 주면 «충돌 안 한 파일» 하나 때문에 git 이 통째로 거부하고
+                #    아무것도 안 고칩니다 — 그러면 충돌 표시(<<<<<<<)가 그대로 커밋됩니다.
+                #    (2026-09-15 시험에서 실제로 그렇게 들어갔습니다)
+                #    → 충돌한 파일만 골라 «하나씩» 되돌립니다.
+                git diff --name-only --diff-filter=U -z | while IFS= read -r -d '' f; do
+                  git checkout --theirs -- "$f" 2>/dev/null || git checkout --ours -- "$f" 2>/dev/null || true
+                  git add -- "$f"
+                done
+                # 그래도 충돌 표시가 남았으면 올리지 않습니다 — 틀린 파일을 올리느니 거릅니다
+                if git grep -qI -e '^<<<<<<< ' -e '^>>>>>>> ' -- . 2>/dev/null; then
+                  git rebase --abort 2>/dev/null || true
+                  echo "::warning::충돌 표시가 남아 이번 회차는 올리지 않습니다 — 다음 회차가 이어받습니다"
+                  break
+                fi
+                if ! GIT_EDITOR=true git rebase --continue; then
+                  git rebase --abort 2>/dev/null || true
+                  echo "::warning::리베이스를 못 마쳤습니다 — 다음 회차가 이어받습니다"
+                  break
+                fi
+              fi
+              if git push origin "HEAD:$BR"; then pushed=1; break; fi
+              echo "밀려났습니다 — 다시 받아서 시도합니다 ($i/3)"
+              sleep $((10 * i))
+            done
+            if [ "$pushed" != 1 ]; then
+              git rebase --abort 2>/dev/null || true
+              echo "::warning::이번 회차 자료 커밋을 못 올렸습니다. 자료는 캐시에 남아 있고 다음 회차가 다시 올립니다."
+            fi
           fi
 
       # ══════════════════════════════════════════════════════════════
