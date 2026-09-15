@@ -13,11 +13,13 @@ chgbook.py — 설계변경 자동계산 통합 엑셀(11장)을 굽습니다. (
 ■ 시트 11장과 자료가 흐르는 방향
    설정 ─────────────┐ (낙찰률·요율은 여기 한 곳에만 적습니다)
    단가마스터 ─┬→ 일위대가 ─┐
-               │             ├→ 당초내역 ─┐
-   수량산출서 ─┴─────────────┤            ├→ 증감대비표 → 공종별집계
-                             └→ 변경내역 ─┘        │
-                                    └──────→ 원가계산서 → 제출서식
+               │             ├→ 내역서(당초·변경·증감 한 표) ─┬→ 증감대비표 → 공종별집계
+   수량산출서 ─┴─────────────┘                                │
+                                                              └→ 원가계산서 → 제출서식
                                                    검증시트가 전부를 훑습니다
+
+   ⚠️ 보이는 차례는 «읽는 순서» 입니다 (원가계산서가 맨 앞).
+      자료가 흐르는 차례와 반대라는 점을 기억하세요.
 
 ■ 계약금액 조정 단가 기준 (국가계약법 시행령 제65조 — 확인하고 넣었습니다)
    감소분        → 계약단가
@@ -324,60 +326,112 @@ def sheet_suryang(wb):
 # ═══════════════════════════════════════════════════════════════
 # 5·6. 당초내역 / 변경내역 — 구조가 같아야 증감이 줄끼리 맞습니다
 # ═══════════════════════════════════════════════════════════════
-def sheet_naeyeok(wb, name, gubun):
-    ws = wb.create_sheet(name)
+def sheet_naeyeok(wb):
+    """내역서 — **당초·변경·증감이 한 표 안에** 있습니다. (2026-09-15 전면 개작)
+
+    소장님: 「내역서 안에 당초, 변경이 있고… 증감이 줄끼리 보여야지」
+
+    ⚠️ 예전에는 «당초내역» 과 «변경내역» 을 **시트 둘로 쪼개** 놨습니다.
+       만드는 사람은 편하지만 쓰는 사람은 시트를 오가며 눈으로 대조해야 했습니다.
+       현장 서식은 한 줄에 당초와 변경이 나란히 있고 그 옆에 증감이 붙습니다.
+
+    ▣ 실측으로 확인 (2026-09-15)
+       받아 둔 설계내역서·단가산출서에서 설계변경용 표의 머리글을 세어 보니
+           호표 | 품명 | 규격 | 단위 | 합계 | 노무비 | 재료비 | 경비 | 비고
+                | **당초합계 | 당초노무비 | 당초재료비 | 당초경비**        (27장)
+       처럼 **당초가 같은 표에 붙어** 있었습니다. 내역서만 그런 게 아니라
+       일위대가·단가산출서도 마찬가지였습니다.
+
+    ▣ 칸 (22개)
+       번호 · 공종코드 · 품명 · 규격 · 단위
+       [당초] 수량 · 재료비 · 노무비 · 경비 · 합계단가 · 금액
+       [변경] 수량(산출서) · 수량(직접) · 적용수량 · 재료비 · 노무비 · 경비 · 합계단가 · 금액
+       [증감] 수량 · 금액 · 비고
+
+    ▣ 왜 당초 단가는 «사람이 넣는 칸» 인가
+       당초 단가는 **계약 내역서에 적힌 계약단가** 입니다 — 지금 시세가 아닙니다.
+       그래서 계약서에서 옮겨 적습니다. 변경 단가만 단가마스터·일위대가에서 끌어옵니다.
+       이 구분이 없으면 물가가 오른 만큼 당초 금액까지 같이 올라가 계약금액과 안 맞습니다.
+    """
+    ws = wb.create_sheet("내역서")
+    #  ⚠️ 2행은 제목이 이미 가로로 합쳐져 있어 «묶음 머리글» 을 한 줄 더 놓을 수 없습니다.
+    #     그래서 칸 이름에 당초/변경/증감을 그대로 붙입니다 — 인쇄해도 헷갈리지 않습니다.
     cols = ["번호", "공종코드", "품 명", "규 격", "단위",
-            "수량(산출서)", "수량(직접)", "적용수량",
-            "재료비단가", "노무비단가", "경비단가", "합계단가", "금 액", "비고"]
-    w = [6, 13, 26, 15, 7, 12, 11, 11, 12, 12, 12, 12, 15, 16]
+            "당초 수량", "당초 재료비", "당초 노무비", "당초 경비",
+            "당초 합계단가", "당초 금액",
+            "변경 수량(산출서)", "변경 수량(직접)", "변경 적용수량",
+            "변경 재료비", "변경 노무비", "변경 경비",
+            "변경 합계단가", "변경 금액",
+            "증감 수량", "증감 금액", "비고"]
+    w = [5, 12, 24, 14, 6,
+         10, 11, 11, 11, 11, 14,
+         11, 10, 10, 11, 11, 11, 11, 14,
+         10, 14, 14]
     brand(ws, len(cols))
-    title(ws, "%s 산 출 내 역 서" % ("당 초" if gubun == "당초" else "변 경"), len(cols))
+    title(ws, "산 출 내 역 서  (당초 · 변경 · 증감)", len(cols))
     header(ws, cols, w)
+    # 머리글에 색을 달리 입혀 세 묶음이 한눈에 갈리게 합니다
+    for s0, e0, color in ((6, 11, "7F7F7F"), (12, 19, "1F4E79"), (20, 21, "C00000")):
+        for cc in range(s0, e0 + 1):
+            ws.cell(3, cc).fill = PatternFill("solid", fgColor=color)
+            ws.cell(3, cc).font = Font(size=9, bold=True, color="FFFFFF")
     r1 = HEAD + N_ITEM - 1
     grid(ws, HEAD, r1, len(cols),
-         fills={1: YELLOW, 2: YELLOW, 3: GRAY, 4: GRAY, 5: GRAY, 6: GRAY,
-                7: YELLOW, 8: GRAY, 9: GRAY, 10: GRAY, 11: GRAY, 12: GRAY,
-                13: GRAY, 14: YELLOW})
+         fills={1: YELLOW, 2: YELLOW, 3: GRAY, 4: GRAY, 5: GRAY,
+                6: YELLOW, 7: YELLOW, 8: YELLOW, 9: YELLOW, 10: GRAY, 11: GRAY,
+                12: GRAY, 13: YELLOW, 14: GRAY, 15: GRAY, 16: GRAY, 17: GRAY,
+                18: GRAY, 19: GRAY, 20: GRAY, 21: GRAY, 22: YELLOW})
     M = "단가마스터!$A$%d:$H$%d" % (HEAD, HEAD + N_MASTER - 1)
     I = "일위대가!$N$%d:$T$%d" % (HEAD, HEAD + N_ILWI_SUM - 1)
     SG = "수량산출서!$A$%d:$A$%d" % (HEAD, HEAD + N_SURYANG - 1)
     SC = "수량산출서!$B$%d:$B$%d" % (HEAD, HEAD + N_SURYANG - 1)
     SQ = "수량산출서!$H$%d:$H$%d" % (HEAD, HEAD + N_SURYANG - 1)
     for r in range(HEAD, r1 + 1):
-        # 이름·규격·단위 — 단가마스터에 없으면 일위대가 요약에서 찾습니다
+        g = '=IF($B{r}="","",{x})'
+        # 이름·규격·단위 — 단가마스터에 없으면 일위대가 요약에서
         ws.cell(r, 3, '=IF($B{r}="","",IFERROR(VLOOKUP($B{r},{M},2,FALSE),'
                       'IFERROR(VLOOKUP($B{r},{I},2,FALSE),"⚠️단가 없음")))'.format(r=r, M=M, I=I))
         ws.cell(r, 4, '=IF($B{r}="","",IFERROR(VLOOKUP($B{r},{M},3,FALSE),""))'.format(r=r, M=M))
         ws.cell(r, 5, '=IF($B{r}="","",IFERROR(VLOOKUP($B{r},{M},4,FALSE),'
                       'IFERROR(VLOOKUP($B{r},{I},3,FALSE),"")))'.format(r=r, M=M, I=I))
-        ws.cell(r, 6, '=IF($B{r}="","",SUMIFS({SQ},{SG},"{g}",{SC},$B{r}))'
-                .format(r=r, SQ=SQ, SG=SG, SC=SC, g=gubun))
-        ws.cell(r, 8, '=IF($B{r}="","",IF($G{r}<>"",$G{r},N($F{r})))'.format(r=r))
-        for c, mi, ii in ((9, 5, 4), (10, 6, 5), (11, 7, 6)):
+        # ── 당초 : 수량·단가는 계약서에서 옮겨 적습니다 (노랑) ──
+        ws.cell(r, 10, g.format(r=r, x="N($G%d)+N($H%d)+N($I%d)" % (r, r, r)))
+        ws.cell(r, 11, g.format(r=r, x="ROUND(N($F%d)*N($J%d),0)" % (r, r)))
+        # ── 변경 : 수량은 산출서에서, 단가는 마스터/일위대가에서 ──
+        ws.cell(r, 12, '=IF($B{r}="","",SUMIFS({SQ},{SG},"변경",{SC},$B{r}))'
+                .format(r=r, SQ=SQ, SG=SG, SC=SC))
+        ws.cell(r, 14, g.format(r=r, x='IF($M%d<>"",$M%d,N($L%d))' % (r, r, r)))
+        for c, mi, ii in ((15, 5, 4), (16, 6, 5), (17, 7, 6)):
             ws.cell(r, c, '=IF($B{r}="","",IFERROR(VLOOKUP($B{r},{M},{mi},FALSE),'
                           'IFERROR(VLOOKUP($B{r},{I},{ii},FALSE),0)))'
                     .format(r=r, M=M, I=I, mi=mi, ii=ii))
-        ws.cell(r, 12, '=IF($B{r}="","",N($I{r})+N($J{r})+N($K{r}))'.format(r=r))
-        ws.cell(r, 13, '=IF($B{r}="","",ROUND(N($H{r})*N($L{r}),0))'.format(r=r))
-    money(ws, HEAD, r1, [9, 10, 11, 12, 13])
+        ws.cell(r, 18, g.format(r=r, x="N($O%d)+N($P%d)+N($Q%d)" % (r, r, r)))
+        ws.cell(r, 19, g.format(r=r, x="ROUND(N($N%d)*N($R%d),0)" % (r, r)))
+        # ── 증감 : 변경 − 당초 ──
+        ws.cell(r, 20, g.format(r=r, x="N($N%d)-N($F%d)" % (r, r)))
+        ws.cell(r, 21, g.format(r=r, x="N($S%d)-N($K%d)" % (r, r)))
+    money(ws, HEAD, r1, [7, 8, 9, 10, 11, 15, 16, 17, 18, 19, 21])
     for r in range(HEAD, r1 + 1):
-        ws.cell(r, 6).number_format = "#,##0.###"
-        ws.cell(r, 7).number_format = "#,##0.###"
-        ws.cell(r, 8).number_format = "#,##0.###"
-    # 합계
+        for c in (6, 12, 13, 14, 20):
+            ws.cell(r, c).number_format = "#,##0.###"
+    # ── 합계 ──
     t = r1 + 1
     ws.cell(t, 2, "합  계").font = Font(size=11, bold=True)
-    ws.cell(t, 13, "=SUM(M{a}:M{b})".format(a=HEAD, b=r1))
-    for c in (2, 13):
+    for c, letter in ((11, "K"), (19, "S"), (21, "U")):
+        ws.cell(t, c, "=SUM({L}{a}:{L}{b})".format(L=letter, a=HEAD, b=r1))
+        ws.cell(t, c).number_format = "#,##0"
+    for c in range(1, len(cols) + 1):
         ws.cell(t, c).fill = PatternFill("solid", fgColor=LITE)
         ws.cell(t, c).font = Font(size=11, bold=True)
         ws.cell(t, c).border = BOX
-    ws.cell(t, 13).number_format = "#,##0"
     note(ws, t + 2,
-         "공종코드만 넣으면 품명·규격·단위·단가가 단가마스터(없으면 일위대가)에서 따라옵니다. "
-         "수량은 수량산출서에서 자동으로 합쳐지고, 직접 넣고 싶으면 «수량(직접)» 칸에 적으세요 — 그 값이 이깁니다. "
-         "⚠️ 변경내역은 당초내역과 «같은 줄에 같은 코드» 를 두세요. 증감대비표가 줄끼리 맞춥니다 "
-         "(신규 비목은 당초내역의 그 줄을 비워 두면 됩니다).", len(cols))
+         "공종코드만 넣으면 품명·규격·단위가 단가마스터(없으면 일위대가)에서 따라옵니다. "
+         "⚠️ 당초 쪽 수량과 단가는 **계약 내역서에서 그대로 옮겨 적으십시오** — "
+         "계약단가는 지금 시세가 아니라 계약 당시 값입니다. "
+         "변경 쪽 단가만 단가마스터·일위대가에서 자동으로 옵니다. "
+         "변경 수량은 수량산출서에서 «변경» 으로 넣은 것이 합쳐지고, «수량(직접)» 에 적으면 그 값이 이깁니다. "
+         "당초 수량이 비어 있고 변경 수량만 있으면 **신규 비목**입니다 — 증감대비표가 그렇게 잡습니다.",
+         len(cols))
     return ws
 
 
@@ -403,18 +457,18 @@ def sheet_jeunggam(wb, C):
     for i, r in enumerate(range(HEAD, r1 + 1)):
         s = HEAD + i                      # 당초·변경 내역의 같은 줄
         ws.cell(r, 1, '=IF($B{r}="","",ROW()-{h}+1)'.format(r=r, h=HEAD))
-        ws.cell(r, 2, '=IF(변경내역!$B{s}<>"",변경내역!$B{s},당초내역!$B{s})'.format(s=s))
-        ws.cell(r, 3, '=IF($B{r}="","",IF(변경내역!$C{s}<>"",변경내역!$C{s},당초내역!$C{s}))'.format(r=r, s=s))
-        ws.cell(r, 4, '=IF($B{r}="","",IF(변경내역!$D{s}<>"",변경내역!$D{s},당초내역!$D{s}))'.format(r=r, s=s))
-        ws.cell(r, 5, '=IF($B{r}="","",IF(변경내역!$E{s}<>"",변경내역!$E{s},당초내역!$E{s}))'.format(r=r, s=s))
-        ws.cell(r, 6, '=IF($B{r}="","",N(당초내역!$H{s}))'.format(r=r, s=s))
-        ws.cell(r, 7, '=IF($B{r}="","",N(당초내역!$L{s}))'.format(r=r, s=s))
-        ws.cell(r, 8, '=IF($B{r}="","",N(당초내역!$M{s}))'.format(r=r, s=s))
-        ws.cell(r, 9, '=IF($B{r}="","",N(변경내역!$H{s}))'.format(r=r, s=s))
-        ws.cell(r, 10, '=IF($B{r}="","",N(변경내역!$L{s}))'.format(r=r, s=s))
+        ws.cell(r, 2, '=내역서!$B{s}'.format(s=s))
+        ws.cell(r, 3, '=IF($B{r}=\"\",\"\",내역서!$C{s})'.format(r=r, s=s))
+        ws.cell(r, 4, '=IF($B{r}=\"\",\"\",내역서!$D{s})'.format(r=r, s=s))
+        ws.cell(r, 5, '=IF($B{r}=\"\",\"\",내역서!$E{s})'.format(r=r, s=s))
+        ws.cell(r, 6, '=IF($B{r}="","",N(내역서!$F{s}))'.format(r=r, s=s))
+        ws.cell(r, 7, '=IF($B{r}="","",N(내역서!$J{s}))'.format(r=r, s=s))
+        ws.cell(r, 8, '=IF($B{r}="","",N(내역서!$K{s}))'.format(r=r, s=s))
+        ws.cell(r, 9, '=IF($B{r}="","",N(내역서!$N{s}))'.format(r=r, s=s))
+        ws.cell(r, 10, '=IF($B{r}="","",N(내역서!$R{s}))'.format(r=r, s=s))
         ws.cell(r, 11, '=IF($B{r}="","",N($I{r})-N($F{r}))'.format(r=r))
         # 구분 — 당초에 없던 것이면 신규
-        ws.cell(r, 12, '=IF($B{r}="","",IF(당초내역!$B{s}="","신규",'
+        ws.cell(r, 12, '=IF($B{r}="","",IF(N(내역서!$F{s})=0,"신규",'
                        'IF($K{r}<0,"감소",IF($K{r}>0,"증가","-"))))'.format(r=r, s=s))
         # 적용단가 — 국가계약법 시행령 제65조
         ws.cell(r, 15,
@@ -486,8 +540,8 @@ def sheet_group(wb):
          fills={1: YELLOW, 2: YELLOW, 3: GRAY, 4: GRAY, 5: GRAY, 6: GRAY})
     a, b = HEAD, HEAD + N_ITEM - 1
     for r in range(HEAD, r1 + 1):
-        ws.cell(r, 3, '=IF($A{r}="","",SUMPRODUCT((LEFT(당초내역!$B${a}:$B${b},LEN($A{r}))=$A{r})'
-                      '*N(당초내역!$M${a}:$M${b})))'.format(r=r, a=a, b=b))
+        ws.cell(r, 3, '=IF($A{r}="","",SUMPRODUCT((LEFT(내역서!$B${a}:$B${b},LEN($A{r}))=$A{r})'
+                      '*N(내역서!$K${a}:$K${b})))'.format(r=r, a=a, b=b))
         ws.cell(r, 4, '=IF($A{r}="","",SUMPRODUCT((LEFT(증감대비표!$B${a}:$B${b},LEN($A{r}))=$A{r})'
                       '*N(증감대비표!$P${a}:$P${b})))'.format(r=r, a=a, b=b))
         ws.cell(r, 5, '=IF($A{r}="","",N($C{r})+N($D{r}))'.format(r=r))
@@ -545,9 +599,16 @@ def sheet_wonga(wb, C):
     header(ws, cols, w)
     a, b = HEAD, HEAD + N_ITEM - 1
 
-    def sp(sheet, price_col):
-        return ("SUMPRODUCT(N({s}!$H${a}:$H${b}),N({s}!${p}${a}:${p}${b}))"
-                .format(s=sheet, p=price_col, a=a, b=b))
+    #  내역서 한 장에 당초·변경이 같이 있으므로 «시트» 가 아니라 «열» 로 가릅니다.
+    #      당초: 수량 F · 재료 G · 노무 H · 경비 I
+    #      변경: 수량 N · 재료 O · 노무 P · 경비 Q
+    QTY = {"당초": "F", "변경": "N"}
+    PRC = {"당초": {"재료": "G", "노무": "H", "경비": "I"},
+           "변경": {"재료": "O", "노무": "P", "경비": "Q"}}
+
+    def sp(side, kind):
+        return ("SUMPRODUCT(N(내역서!${q}${a}:${q}${b}),N(내역서!${p}${a}:${p}${b}))"
+                .format(q=QTY[side], p=PRC[side][kind], a=a, b=b))
 
     def rate(name):
         return "'설정'!$C$%d" % C[name]
@@ -561,21 +622,21 @@ def sheet_wonga(wb, C):
                       inp=inp, bold=bold, band=band))
 
     row("1", "직 접 재 료 비", None, "내역서 Σ(수량 × 재료비단가)",
-        lambda R, c, s: "=" + sp(s, "I"))
+        lambda R, c, s: "=" + sp(s, "재료"))
     row("2", "간 접 재 료 비", None, "사람이 넣습니다", inp=True)
     row("3", "작업설·부산물 등(△)", None, "사람이 넣습니다 (빼는 값이면 음수)", inp=True)
     row("A", "[ 재 료 비 ] 소 계", None, "( 1 + 2 + 3 )",
         lambda R, c, s: "={c}{a}+{c}{b}+{c}{d}".format(c=c, a=R["1"], b=R["2"], d=R["3"]),
         bold=True, band="재료비")
     row("4", "직 접 노 무 비", None, "내역서 Σ(수량 × 노무비단가)",
-        lambda R, c, s: "=" + sp(s, "J"))
+        lambda R, c, s: "=" + sp(s, "노무"))
     row("5", "간 접 노 무 비", "간접노무비율 (%)", "4 × 요율",
         lambda R, c, s: "=ROUND({c}{a}*{r}/100,0)".format(c=c, a=R["4"], r=rate("간접노무비율 (%)")))
     row("B", "[ 노 무 비 ] 소 계", None, "( 4 + 5 )",
         lambda R, c, s: "={c}{a}+{c}{b}".format(c=c, a=R["4"], b=R["5"]),
         bold=True, band="노무비")
     row("6", "산 출 경 비", None, "내역서 Σ(수량 × 경비단가)",
-        lambda R, c, s: "=" + sp(s, "K"))
+        lambda R, c, s: "=" + sp(s, "경비"))
     for sym, item, key, kind in [
             ("7", "산 재 보 험 료", "산재보험료율 (%)", "B"),
             ("8", "고 용 보 험 료", "고용보험료율 (%)", "B"),
@@ -661,7 +722,7 @@ def sheet_wonga(wb, C):
             ws.cell(rr, c).border = BOX
             if c >= 5:
                 ws.cell(rr, c).number_format = "#,##0"
-        for col, letter, sheet in ((5, "E", "당초내역"), (6, "F", "변경내역")):
+        for col, letter, sheet in ((5, "E", "당초"), (6, "F", "변경")):
             cell = ws.cell(rr, col)
             if d["f"]:
                 cell.value = d["f"](R, letter, sheet)
@@ -707,26 +768,29 @@ def sheet_check(wb, C, jg_total_row):
         ("낙찰률이 들어 있는가",
          "={R}".format(R=RATE), "=IF(N(C{r})>0,\"✅\",\"⚠️\")",
          "비어 있으면 신규 비목 단가가 0 이 됩니다. 조정금액이 통째로 틀립니다.", "0.000"),
-        ("당초내역에서 단가를 못 찾은 줄",
-         '=COUNTIF(당초내역!$C${a}:$C${b},"⚠️*")'.format(a=a, b=b),
+        ("내역서에서 단가를 못 찾은 줄",
+         '=COUNTIF(내역서!$C${a}:$C${b},"⚠️*")'.format(a=a, b=b),
          '=IF(N(C{r})=0,"✅","⚠️")',
          "단가마스터·일위대가 어디에도 없는 코드입니다. 그 줄 금액이 0 으로 잡힙니다.", "#,##0"),
-        ("변경내역에서 단가를 못 찾은 줄",
-         '=COUNTIF(변경내역!$C${a}:$C${b},"⚠️*")'.format(a=a, b=b),
+        ("신규 비목 (당초 수량이 없는 줄)",
+         '=SUMPRODUCT((내역서!$B${a}:$B${b}<>"")*(N(내역서!$F${a}:$F${b})=0)'
+         '*(N(내역서!$N${a}:$N${b})<>0))'.format(a=a, b=b),
+         '="—"',
+         "신규 비목은 «설계변경 당시 단가 × 낙찰률» 로 잡습니다(시행령 제65조). "
+         "증감대비표에서 «신규» 로 표시된 줄과 개수가 같은지 보세요.", "#,##0"),
+        ("당초 단가를 안 옮겨 적은 줄",
+         '=SUMPRODUCT((내역서!$B${a}:$B${b}<>"")*(N(내역서!$F${a}:$F${b})<>0)'
+         '*(N(내역서!$J${a}:$J${b})=0))'.format(a=a, b=b),
          '=IF(N(C{r})=0,"✅","⚠️")',
-         "위와 같습니다. 증감금액이 실제보다 적게 나옵니다.", "#,##0"),
-        ("당초·변경의 줄이 서로 어긋난 개수",
-         '=SUMPRODUCT((당초내역!$B${a}:$B${b}<>"")*(변경내역!$B${a}:$B${b}<>"")'
-         '*(당초내역!$B${a}:$B${b}<>변경내역!$B${a}:$B${b}))'.format(a=a, b=b),
-         '=IF(N(C{r})=0,"✅","⚠️")',
-         "같은 줄에 다른 공종이 놓였습니다. 증감이 엉뚱한 항목끼리 계산됩니다.", "#,##0"),
+         "당초 수량은 있는데 당초 단가가 0 입니다. 계약 내역서에서 단가를 옮겨 적으세요 — "
+         "그대로 두면 증감금액이 «변경금액 전부» 로 잡혀 크게 부풀려집니다.", "#,##0"),
         ("단가마스터에 코드가 겹치는 개수",
          '=SUMPRODUCT((단가마스터!$A${ma}:$A${mb}<>"")*'
          '(COUNTIF(단가마스터!$A${ma}:$A${mb},단가마스터!$A${ma}:$A${mb}&"")>1))'.format(ma=ma, mb=mb),
          '=IF(N(C{r})=0,"✅","⚠️")',
          "VLOOKUP 은 «맨 위 하나» 만 씁니다. 뒤에 적은 단가는 조용히 무시됩니다.", "#,##0"),
         ("적용수량이 음수인 줄 (당초+변경)",
-         '=SUMPRODUCT((당초내역!$H${a}:$H${b}<0)*1)+SUMPRODUCT((변경내역!$H${a}:$H${b}<0)*1)'
+         '=SUMPRODUCT((내역서!$F${a}:$F${b}<0)*1)+SUMPRODUCT((내역서!$N${a}:$N${b}<0)*1)'
          .format(a=a, b=b),
          '=IF(N(C{r})=0,"✅","⚠️")',
          "수량을 음수로 넣어 감소를 표현하면 안 됩니다. 변경수량을 줄여서 적으세요.", "#,##0"),
@@ -742,15 +806,15 @@ def sheet_check(wb, C, jg_total_row):
          '*(증감대비표!$O${a}:$O${b}=증감대비표!$J${a}:$J${b}))'.format(a=a, b=b),
          '=IF(N(C{r})=0,"✅","⚠️")',
          "신규 비목은 «당시단가 × 낙찰률» 입니다. 안 곱하면 발주기관이 깎습니다.", "#,##0"),
-        ("당초내역 합계와 설정의 계약금액 차이",
-         '=IF(N({K})=0,"",당초내역!$M${t}-{K})'.format(K=KUM, t=HEAD + N_ITEM),
+        ("내역서 당초 합계와 설정의 계약금액 차이",
+         '=IF(N({K})=0,"",내역서!$K${t}-{K})'.format(K=KUM, t=HEAD + N_ITEM),
          '=IF(OR(C{r}="",ABS(N(C{r}))<=1),"✅","⚠️")',
-         "당초내역이 계약금액과 안 맞습니다. 빠진 항목이나 부가세 처리를 확인하세요.", "#,##0"),
+         "내역서의 당초 합계가 계약금액과 안 맞습니다. 빠진 항목이나 부가세 처리를 확인하세요.", "#,##0"),
         ("증감 합계 (규정 단가 적용)",
          "={S}".format(S=SUM_JG), '="—"',
          "이 값이 발주기관에 내는 조정금액입니다.", "#,##0"),
-        ("변경내역 − 당초내역 (단순 차)",
-         '=당초내역!$M${t}*-1+변경내역!$M${t}'.format(t=HEAD + N_ITEM), '="—"',
+        ("변경 − 당초 (단순 차)",
+         '=내역서!$K${t}*-1+내역서!$S${t}'.format(t=HEAD + N_ITEM), '="—"',
          "위 «증감 합계» 와 다른 것이 정상입니다 — 규정 단가(증가는 계약단가, "
          "신규는 낙찰률 적용)를 쓰기 때문입니다.", "#,##0"),
         ("증감률 (%)",
@@ -869,8 +933,8 @@ def sheet_guide(wb):
         ("② 단가마스터", "쓸 단가를 코드와 함께 넣습니다. 여기 단가 한 칸을 고치면 끝까지 다시 계산됩니다."),
         ("③ 일위대가", "복합 공종은 여기서 쌓습니다. 오른쪽(N열~)의 일위별 단가를 내역서가 가져다 씁니다."),
         ("④ 수량산출서", "구분(당초/변경)과 공종코드를 넣고 가로·세로·높이·개소를 적으면 수량이 자동입니다."),
-        ("⑤ 당초내역", "공종코드만 넣으면 품명·규격·단가가 따라오고, 수량은 수량산출서에서 합쳐집니다."),
-        ("⑥ 변경내역", "당초내역과 «같은 줄에 같은 코드». 신규 비목은 당초 쪽 줄을 비워 두면 «신규» 로 잡힙니다."),
+        ("⑤ 내역서", "한 표에 당초·변경·증감이 같이 있습니다. 공종코드만 넣으면 품명·규격이 따라옵니다. 당초 수량·단가는 계약 내역서에서 옮겨 적고, 변경 단가는 단가마스터·일위대가에서 자동으로 옵니다."),
+        ("⑥ 신규 비목", "당초 수량을 비우고 변경 수량만 넣으면 «신규» 로 잡혀 «당시단가 × 낙찰률» 이 적용됩니다."),
         ("⑦ 증감대비표", "전부 자동입니다. 손댈 곳은 «협의(Y)» 와 «예정가격단가» 둘뿐입니다."),
         ("⑧ 공종별집계", "대공종 코드(예: 토공)를 적으면 그 글자로 시작하는 줄을 묶어 보여줍니다."),
         ("⑨ 원가계산서", "당초 / 변경 후를 나란히 냅니다. 요율은 설정에서 한 번만 고칩니다."),
@@ -926,8 +990,7 @@ def build():
     sheet_master(wb)
     sheet_ilwi(wb)
     sheet_suryang(wb)
-    sheet_naeyeok(wb, "당초내역", "당초")
-    sheet_naeyeok(wb, "변경내역", "변경")
+    sheet_naeyeok(wb)
     _, jg_total = sheet_jeunggam(wb, C)
     sheet_group(wb)
     sheet_wonga(wb, C)
@@ -942,7 +1005,7 @@ def build():
     #  였습니다. 예전에는 «계산이 흐르는 순서» (단가 → 일위대가 → 내역 → 원가)로
     #  늘어놨는데, 현장은 «읽는 순서» 로 놓습니다 — 결론이 먼저, 근거가 뒤입니다.
     #  심사자는 파일을 열면 앞에서부터 봅니다.
-    order = ["원가계산서", "증감대비표", "공종별집계", "당초내역", "변경내역",
+    order = ["원가계산서", "증감대비표", "공종별집계", "내역서",
              "일위대가", "단가마스터", "수량산출서", "제출서식", "검증시트",
              "설정", "사용법"]
     wb._sheets = [wb[n] for n in order]
