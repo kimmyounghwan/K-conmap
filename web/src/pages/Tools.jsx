@@ -60,6 +60,16 @@ export default function ToolsIndex() {
           </div>
           <span className="go">→</span>
         </Link>
+        {/* 🧮 2026-09-16 — 적산은 «준비 중» 입니다. 받는 단추를 달지 마십시오.
+            무엇을 만들고 있는지만 보여 주는 화면입니다. */}
+        <Link className="row rowlink" to="/jeoksan">
+          <span className="fic">🧮</span>
+          <div className="grow">
+            <div className="t">K-적산 — 도면에서 물량 뽑기 <em>· 준비 중</em></div>
+            <div className="d">캐드에서 찍고 PC 에서 셉니다. 산출식이 엑셀 표에 있어 토목·건축 둘 다. 값은 받습니다.</div>
+          </div>
+          <span className="go">→</span>
+        </Link>
       </div>
 
       <div className="card">

@@ -2951,7 +2951,10 @@ ul.plainlist li { margin-bottom: 5px; }
 
 /* 📊 업체 입찰 성적표 (/report) — 2026-09-15
    견주기 표에서 «작은 설명» 이 제목에 붙어 버려 「업체 자가진단사이트에서 바로」 로 읽혔습니다. */
-.reptbl .w { white-space: normal; }
+.reptbl .w { white-space: normal; min-width: 5.2em; }
+/* ⚠️ min-width 가 없으면 휴대폰(390px)에서 이름칸이 «한 글자씩» 끊깁니다
+   (산/출/근/거). 한글은 아무 데서나 줄이 바뀌어서, 표가 오른쪽 칸에 자리를
+   다 내주고 이름칸을 1글자까지 줄여 버립니다. 2026-09-16 /jeoksan 에서 겪음. */
 .reptbl .d {
   display: block; margin-top: 2px;
   font-size: 12px; font-weight: 500; color: var(--muted);

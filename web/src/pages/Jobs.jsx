@@ -243,7 +243,7 @@ function WorkBoard({ onSeeAll }) {
         marginBottom: 8, padding: '9px 11px', borderRadius: 8,
         background: 'var(--warn-soft)', border: '1px solid var(--line)', color: 'var(--text)',
       }}>
-        <b>보는 것은 로그인 없이 그냥 됩니다.</b> 지원하기·이력서까지 쓰시려면 위 <b>「워크넷에서 열기 ↗」</b>
+        <b>보는 것은 로그인 없이 그냥 됩니다.</b> 지원하기·이력서까지 쓰시려면 위 <b>「워크넷에서 열기 ↗」</b>{' '}
         로 워크넷에 <b>한 번만 로그인</b>해 두세요. 그 뒤로는 이 칸 안에서 그대로 쓰시면 됩니다.
         (로그인 창 자체만 이 칸 안에서 안 열립니다.)
       </div>

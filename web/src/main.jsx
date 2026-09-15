@@ -69,6 +69,7 @@ const GuideTopic = lazyPage(() => import('./pages/Guide.jsx').then((m) => ({ def
    화면이 통째로 죽습니다 (2026-09-08 착공현장 사고). */
 const ToolsIndex = lazyPage(() => import('./pages/Tools.jsx'))
 const Cad = lazyPage(() => import('./pages/Cad.jsx'))
+const Jeoksan = lazyPage(() => import('./pages/Jeoksan.jsx'))
 const CadPage = lazyPage(() => import('./pages/Cad.jsx').then((m) => ({ default: m.CadPage })))
 /* 🪪 면허별 경쟁도 — 2026-09-14. 주소를 주는 이유: 「토목공사업 입찰 경쟁률」 같은 건 실제 검색어입니다. */
 const LicStat = lazyPage(() => import('./pages/LicStat.jsx'))
@@ -125,6 +126,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           {/* 🧰 도구 — 목록과 개별 주소. prerender.py 가 같은 주소로 HTML 을 굽습니다 (2026-09-14) */}
           <Route path="/lic" element={<Suspense fallback={<Loading />}><LicStat /></Suspense>} />
           <Route path="/cad" element={<Suspense fallback={<Loading />}><Cad /></Suspense>} />
+          <Route path="/jeoksan" element={<Suspense fallback={<Loading />}><Jeoksan /></Suspense>} />
           <Route path="/cad/:slug" element={<Suspense fallback={<Loading />}><CadPage /></Suspense>} />
           <Route path="/tools" element={<Suspense fallback={<Loading />}><ToolsIndex /></Suspense>} />
           <Route path="/tools/:slug" element={<Suspense fallback={<Loading />}><ToolPage /></Suspense>} />

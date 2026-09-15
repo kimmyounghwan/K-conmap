@@ -2,6 +2,7 @@ import { useParams, Link } from 'react-router-dom'
 import { askAfter } from '../AskComment'
 import DATA from '../data/cad.json'
 import { Empty } from '../components.jsx'
+import { JeoksanStrip } from './Jeoksan.jsx'
 
 /**
  * /cad · /cad/{slug} — 「캐드 유틸」 (2026-09-14)
@@ -44,8 +45,8 @@ function Download() {
       <a className="btn primary" href="/lisp/k-conmap.lsp" download
          onClick={() => dl('lsp')}>⬇ k-conmap.lsp 받기 (무료)</a>
       <div className="muted" style={{ fontSize: 12, marginTop: 8, lineHeight: 1.7 }}>
-        받으신 판은 <b>30일</b> 쓰실 수 있습니다. 지나면 여기서 새로 받아
-        <b> 쓰시던 자리에 덮어쓰기</b>만 하면 됩니다. 설정도 자동 등록도 그대로 남습니다.
+        받으신 판은 <b>30일</b> 쓰실 수 있습니다. 지나면 여기서 새로 받아{' '}
+        <b>쓰시던 자리에 덮어쓰기</b>만 하면 됩니다. 설정도 자동 등록도 그대로 남습니다.
       </div>
       <div className="navrow" style={{ marginTop: 10 }}>
         <a className="navi" href="/lisp/k-conmap_utf8.lsp" download
@@ -119,6 +120,10 @@ export default function Cad() {
           </Link>
         ))}
       </div>
+
+      {/* 🧮 적산 — 캐드 유틸을 보러 온 분이 바로 다음에 궁금해할 것입니다 (2026-09-16).
+          아직 준비 중이라 «무엇을 만들고 있는지»만 보여 줍니다. 받는 단추는 없습니다. */}
+      <JeoksanStrip />
 
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 6px' }}>못 하는 것 — 미리 말씀드립니다</div>
