@@ -148,10 +148,24 @@ def sheet_config(wb):
         ("낙찰률 (%)", 0, "=계약금액÷예정가격×100. 아래 «자동» 값을 참고해 적으세요"),
         ("  (자동 계산)", "", "예정가격이 0이면 비어 있습니다"),
         ("", "", ""),
-        ("■ 원가 요율 (발주기관 기준을 그대로 넣으세요)", "", ""),
-        ("일반관리비율 (%)", 6.0, "순공사원가 × 요율"),
-        ("이윤율 (%)", 15.0, "(노무비+경비+일반관리비) × 요율 — 재료비는 뺍니다"),
-        ("부가가치세율 (%)", 10.0, ""),
+        ("■ 원가 요율 — ⚠️ 해마다·공사 규모마다 바뀝니다. 설계서 값을 넣으세요", "", ""),
+        ("간접노무비율 (%)", 19.1, "직접노무비(4) × 요율"),
+        ("산재보험료율 (%)", 3.56, "노무비 계(B) × 요율"),
+        ("고용보험료율 (%)", 1.01, "노무비 계(B) × 요율"),
+        ("건강보험료율 (%)", 3.595, "직접노무비(4) × 요율"),
+        ("연금보험료율 (%)", 4.75, "직접노무비(4) × 요율"),
+        ("노인장기요양보험료율 (%)", 13.14, "건강보험료(9) × 요율 — 노무비가 아닙니다"),
+        ("퇴직공제부금비율 (%)", 2.3, "직접노무비(4) × 요율"),
+        ("건설기계대여보증율 (%)", 0.4, "(A + 4 + 6) × 요율"),
+        ("산업안전보건관리비율 (%)", 3.15, "((A + 4) + 관급자재대÷1.1) × 요율"),
+        ("환경보전비율 (%)", 0.8, "(A + 4 + 6) × 요율"),
+        ("하도급대금보증수수료율 (%)", 0.081, "(A + 4 + 6) × 요율"),
+        ("석면분담금율 (%)", 0.006, "노무비 계(B) × 요율"),
+        ("임금채권부담금율 (%)", 0.09, "노무비 계(B) × 요율"),
+        ("기타경비율 (%)", 5.5, "(A + B) × 요율"),
+        ("일반관리비율 (%)", 8.0, "순공사원가(D) × 요율 — 규모에 따라 6%도 씁니다"),
+        ("이윤율 (%)", 15.0, "(B + C + E) × 요율 — 재료비는 뺍니다"),
+        ("부가가치세율 (%)", 10.0, "총원가(H) × 요율"),
     ]
     r = HEAD
     for label, val, hint in rows:
@@ -169,7 +183,9 @@ def sheet_config(wb):
             b.border = BOX
             b.font = Font(size=10)
             b.fill = PatternFill("solid", fgColor=YELLOW)
-            d = ws.cell(r, 4, hint)
+            # ⚠️ «=» 로 시작하는 글은 엑셀이 **수식으로 읽습니다** (실측: 설정!D15 이 #N/A).
+            #    안내 글이 «=계약금액÷…» 처럼 생겼으면 앞에 부호를 하나 붙여 막습니다.
+            d = ws.cell(r, 4, ("※ " + hint) if str(hint).startswith("=") else hint)
             d.font = Font(size=9, color="808080")
         r += 1
 
@@ -499,74 +515,175 @@ def sheet_group(wb):
 # 9. 원가계산서 — 당초 / 변경 후 두 열
 # ═══════════════════════════════════════════════════════════════
 def sheet_wonga(wb, C):
+    """원가계산서 — 조달청 설계내역서와 **같은 모양**으로 굽습니다. (2026-09-15 전면 개작)
+
+    소장님: 「원가계산서가 조달청에서 받아오는 내역서 형식이랑 같아야 하는데, 틀려」
+
+    ⚠️ 예전 것은 9줄짜리(재료비·노무비·경비·일반관리비·이윤·부가세)였습니다.
+       **법정경비가 통째로 빠져 있었습니다** — 산재·고용·건강·연금·노인장기요양·
+       퇴직공제·산업안전보건관리비·환경보전비·건설기계대여보증·하도급보증·석면·
+       임금채권·기타경비. 이게 곧 «A값» 이라 이게 없으면 현장에서 못 씁니다.
+
+    ▣ 어떻게 확인했나 — 짐작하지 않았습니다
+       조달청에서 받아 둔 **설계내역서 110장의 원가계산서를 열어** 줄 이름·요율·
+       산출근거를 세었습니다. 아래 차례와 기본 요율은 그 실측의 «최빈값» 입니다.
+
+           간접노무비 19.1%(27회) · 산재 3.56%(26) · 고용 1.01%(26)
+           건강 3.595%(21) · 연금 4.75%(21) · 노인장기요양 13.14%(24, 건강보험료 기준)
+           퇴직공제 2.3%(15) · 건설기계대여보증 0.4%(12) · 산업안전 3.15%(23)
+           환경보전 0.8%(17) · 하도급보증 0.081%(10) · 석면 0.006%(25)
+           임금채권 0.09%(24) · 기타경비 5.5%(20) · 일반관리비 8%(41) · 이윤 15%(20)
+
+    ⚠️ 요율은 **해마다·공사 규모마다 바뀝니다.** 위 값은 «보기» 일 뿐이니
+       발주처 설계서에 적힌 요율을 «설정» 시트에 넣고 쓰십시오.
+    """
     ws = wb.create_sheet("원가계산서")
-    cols = ["구 분", "비  목", "산출 근거", "당 초", "변경 후", "증 감"]
-    w = [12, 24, 34, 18, 18, 18]
+    cols = ["구분", "비            목", "요율(%)", "산  출  근  거", "당 초", "변경 후", "증 감"]
+    w = [7, 30, 9, 30, 17, 17, 17]
     brand(ws, len(cols))
     title(ws, "공 사 원 가 계 산 서", len(cols))
     header(ws, cols, w)
     a, b = HEAD, HEAD + N_ITEM - 1
-    GEN = "'설정'!$C$%d" % C["일반관리비율 (%)"]
-    PRF = "'설정'!$C$%d" % C["이윤율 (%)"]
-    VAT = "'설정'!$C$%d" % C["부가가치세율 (%)"]
 
-    def sp(sheet, qty, price):
-        return "SUMPRODUCT(N({s}!${q}${a}:${q}${b}),N({s}!${p}${a}:${p}${b}))".format(
-            s=sheet, q=qty, p=price, a=a, b=b)
+    def sp(sheet, price_col):
+        return ("SUMPRODUCT(N({s}!$H${a}:$H${b}),N({s}!${p}${a}:${p}${b}))"
+                .format(s=sheet, p=price_col, a=a, b=b))
 
-    rows = [
-        ("순공사원가", "재료비", "Σ(적용수량 × 재료비단가)", sp("당초내역", "H", "I"), sp("변경내역", "H", "I")),
-        ("", "노무비", "Σ(적용수량 × 노무비단가)", sp("당초내역", "H", "J"), sp("변경내역", "H", "J")),
-        ("", "경  비", "Σ(적용수량 × 경비단가)", sp("당초내역", "H", "K"), sp("변경내역", "H", "K")),
-        ("", "순공사원가 계", "재료비+노무비+경비", "SUM(D{0}:D{1})", "SUM(E{0}:E{1})"),
-        ("간접", "일반관리비", "순공사원가 × 요율", None, None),
-        ("", "이  윤", "(노무비+경비+일반관리비) × 요율 — 재료비 제외", None, None),
-        ("합계", "공급가액", "순공사원가+일반관리비+이윤", None, None),
-        ("", "부가가치세", "공급가액 × 세율", None, None),
-        ("", "총 공사비", "공급가액+부가세", None, None),
-    ]
+    def rate(name):
+        return "'설정'!$C$%d" % C[name]
+
+    # (기호, 비목, 요율키, 근거, 수식만드는 함수(행찾기, 열))
+    #   수식은 «당초» 열과 «변경 후» 열에 같은 모양으로 들어갑니다.
+    S = []          # 차례대로 쌓습니다
+
+    def row(sym, item, rkey, basis, f=None, inp=False, bold=False, band=None):
+        S.append(dict(sym=sym, item=item, rkey=rkey, basis=basis, f=f,
+                      inp=inp, bold=bold, band=band))
+
+    row("1", "직 접 재 료 비", None, "내역서 Σ(수량 × 재료비단가)",
+        lambda R, c, s: "=" + sp(s, "I"))
+    row("2", "간 접 재 료 비", None, "사람이 넣습니다", inp=True)
+    row("3", "작업설·부산물 등(△)", None, "사람이 넣습니다 (빼는 값이면 음수)", inp=True)
+    row("A", "[ 재 료 비 ] 소 계", None, "( 1 + 2 + 3 )",
+        lambda R, c, s: "={c}{a}+{c}{b}+{c}{d}".format(c=c, a=R["1"], b=R["2"], d=R["3"]),
+        bold=True, band="재료비")
+    row("4", "직 접 노 무 비", None, "내역서 Σ(수량 × 노무비단가)",
+        lambda R, c, s: "=" + sp(s, "J"))
+    row("5", "간 접 노 무 비", "간접노무비율 (%)", "4 × 요율",
+        lambda R, c, s: "=ROUND({c}{a}*{r}/100,0)".format(c=c, a=R["4"], r=rate("간접노무비율 (%)")))
+    row("B", "[ 노 무 비 ] 소 계", None, "( 4 + 5 )",
+        lambda R, c, s: "={c}{a}+{c}{b}".format(c=c, a=R["4"], b=R["5"]),
+        bold=True, band="노무비")
+    row("6", "산 출 경 비", None, "내역서 Σ(수량 × 경비단가)",
+        lambda R, c, s: "=" + sp(s, "K"))
+    for sym, item, key, kind in [
+            ("7", "산 재 보 험 료", "산재보험료율 (%)", "B"),
+            ("8", "고 용 보 험 료", "고용보험료율 (%)", "B"),
+            ("9", "건 강 보 험 료", "건강보험료율 (%)", "4"),
+            ("10", "연 금 보 험 료", "연금보험료율 (%)", "4"),
+            ("11", "노인장기요양보험료", "노인장기요양보험료율 (%)", "9"),
+            ("12", "퇴 직 공 제 부 금 비", "퇴직공제부금비율 (%)", "4"),
+            ("13", "건설기계대여금지급보증서발급액", "건설기계대여보증율 (%)", "A46"),
+            ("14", "산 업 안 전 보건관리비", "산업안전보건관리비율 (%)", "A4K"),
+            ("15", "환 경 보 전 비", "환경보전비율 (%)", "A46"),
+            ("16", "공 사 이 행 보증수수료", None, "사람이 넣습니다"),
+            ("17", "하도급대금지급보증수수료", "하도급대금보증수수료율 (%)", "A46"),
+            ("18", "석 면 분 담 금", "석면분담금율 (%)", "B"),
+            ("19", "임 금 채 권 부 담 금", "임금채권부담금율 (%)", "B"),
+            ("20", "기 타 경 비", "기타경비율 (%)", "AB")]:
+        if key is None:
+            row(sym, item, None, kind, inp=True)
+            continue
+        basis = {"B": "B × 요율", "4": "4 × 요율", "9": "9 × 요율",
+                 "A46": "( A + 4 + 6 ) × 요율",
+                 "A4K": "( ( A + 4 ) + K ÷ 1.1 ) × 요율",
+                 "AB": "( A + B ) × 요율"}[kind]
+
+        def mk(kind=kind, key=key):
+            def f(R, c, s):
+                r = rate(key)
+                if kind == "B":
+                    base = "{c}{b}".format(c=c, b=R["B"])
+                elif kind == "4":
+                    base = "{c}{b}".format(c=c, b=R["4"])
+                elif kind == "9":
+                    base = "{c}{b}".format(c=c, b=R["9"])
+                elif kind == "A46":
+                    base = "({c}{a}+{c}{d}+{c}{e})".format(c=c, a=R["A"], d=R["4"], e=R["6"])
+                elif kind == "A4K":
+                    base = "(({c}{a}+{c}{d})+{c}{k}/1.1)".format(c=c, a=R["A"], d=R["4"], k=R["K"])
+                else:
+                    base = "({c}{a}+{c}{b})".format(c=c, a=R["A"], b=R["B"])
+                return "=ROUND({base}*{r}/100,0)".format(base=base, r=r)
+            return f
+        row(sym, item, key, basis, mk())
+    row("C", "[ 경 비 ] 소 계", None, "( 6 ~ 20 )",
+        lambda R, c, s: "=SUM({c}{a}:{c}{b})".format(c=c, a=R["6"], b=R["20"]),
+        bold=True, band="경비")
+    row("D", "순 공 사 원 가", None, "( A + B + C )",
+        lambda R, c, s: "={c}{a}+{c}{b}+{c}{d}".format(c=c, a=R["A"], b=R["B"], d=R["C"]),
+        bold=True)
+    row("E", "일 반 관 리 비", "일반관리비율 (%)", "D × 요율",
+        lambda R, c, s: "=ROUND({c}{d}*{r}/100,0)".format(c=c, d=R["D"], r=rate("일반관리비율 (%)")))
+    row("F", "이            윤", "이윤율 (%)", "( B + C + E ) × 요율 — 재료비는 넣지 않습니다",
+        lambda R, c, s: "=ROUND(({c}{b}+{c}{cc}+{c}{e})*{r}/100,0)".format(
+            c=c, b=R["B"], cc=R["C"], e=R["E"], r=rate("이윤율 (%)")))
+    row("G", "폐 기 물 처 리 비", None, "사람이 넣습니다", inp=True)
+    row("H", "총        원        가", None, "( D + E + F + G )",
+        lambda R, c, s: "={c}{d}+{c}{e}+{c}{f}+{c}{g}".format(
+            c=c, d=R["D"], e=R["E"], f=R["F"], g=R["G"]), bold=True)
+    row("I", "부 가 가 치 세", "부가가치세율 (%)", "H × 요율",
+        lambda R, c, s: "=ROUND({c}{h}*{r}/100,0)".format(c=c, h=R["H"], r=rate("부가가치세율 (%)")))
+    row("J", "도        급        액", None, "( H + I )",
+        lambda R, c, s: "={c}{h}+{c}{i}".format(c=c, h=R["H"], i=R["I"]), bold=True)
+    row("K", "관 급 자 재 대", None, "사람이 넣습니다", inp=True)
+    row("L", "총   공   사   비", None, "( J + K )",
+        lambda R, c, s: "={c}{j}+{c}{k}".format(c=c, j=R["J"], k=R["K"]), bold=True)
+
+    # ── 자리부터 잡습니다 (수식이 서로를 가리키므로) ──
+    R = {}
     r = HEAD
-    idx = {}
-    for g, item, basis, d, e in rows:
-        ws.cell(r, 1, g).font = Font(size=10, bold=True)
-        ws.cell(r, 2, item).font = Font(size=10, bold=True)
-        ws.cell(r, 3, basis).font = Font(size=9, color="606060")
-        idx[item] = r
-        for c in range(1, 7):
-            ws.cell(r, c).border = BOX
-            if c in (4, 5, 6):
-                ws.cell(r, c).fill = PatternFill("solid", fgColor=GRAY)
-                ws.cell(r, c).number_format = "#,##0"
+    for d in S:
+        R[d["sym"]] = r
         r += 1
-    R = idx
-    ws.cell(R["재료비"], 4, "=" + rows[0][3]); ws.cell(R["재료비"], 5, "=" + rows[0][4])
-    ws.cell(R["노무비"], 4, "=" + rows[1][3]); ws.cell(R["노무비"], 5, "=" + rows[1][4])
-    ws.cell(R["경  비"], 4, "=" + rows[2][3]); ws.cell(R["경  비"], 5, "=" + rows[2][4])
-    for col in ("D", "E"):
-        ws.cell(R["순공사원가 계"], 4 if col == "D" else 5,
-                "=SUM({c}{a}:{c}{b})".format(c=col, a=R["재료비"], b=R["경  비"]))
-        ws.cell(R["일반관리비"], 4 if col == "D" else 5,
-                "=ROUND({c}{s}*{g}/100,0)".format(c=col, s=R["순공사원가 계"], g=GEN))
-        ws.cell(R["이  윤"], 4 if col == "D" else 5,
-                "=ROUND(({c}{n}+{c}{e}+{c}{g})*{p}/100,0)".format(
-                    c=col, n=R["노무비"], e=R["경  비"], g=R["일반관리비"], p=PRF))
-        ws.cell(R["공급가액"], 4 if col == "D" else 5,
-                "={c}{s}+{c}{g}+{c}{p}".format(c=col, s=R["순공사원가 계"],
-                                               g=R["일반관리비"], p=R["이  윤"]))
-        ws.cell(R["부가가치세"], 4 if col == "D" else 5,
-                "=ROUND({c}{s}*{v}/100,0)".format(c=col, s=R["공급가액"], v=VAT))
-        ws.cell(R["총 공사비"], 4 if col == "D" else 5,
-                "={c}{s}+{c}{v}".format(c=col, s=R["공급가액"], v=R["부가가치세"]))
-    for item, rr in R.items():
-        ws.cell(rr, 6, "=E{r}-D{r}".format(r=rr))
-    for c in range(1, 7):
-        ws.cell(R["총 공사비"], c).fill = PatternFill("solid", fgColor=GREEN)
-        ws.cell(R["총 공사비"], c).font = Font(size=11, bold=True, color=BLUE)
-    note(ws, r + 1,
-         "요율은 «설정» 시트에서 한 번만 고치면 여기가 따라옵니다. "
-         "이윤은 노무비+경비+일반관리비에만 곱합니다 — 재료비는 넣지 않습니다. "
-         "«변경 후» 열은 변경내역의 단가로 잡은 값입니다. 발주기관에 내는 조정금액은 "
-         "증감대비표의 «변경 후 계약금액» 을 쓰세요(규정 단가가 적용된 값입니다).", 6)
+    end = r - 1
+
+    for d in S:
+        rr = R[d["sym"]]
+        ws.cell(rr, 1, d["sym"]).font = Font(size=10, bold=True, color=BLUE)
+        ws.cell(rr, 1).alignment = Alignment(horizontal="center")
+        it = ws.cell(rr, 2, d["item"])
+        it.font = Font(size=10, bold=d["bold"])
+        if d["rkey"]:
+            ws.cell(rr, 3, "='설정'!C%d" % C[d["rkey"]]).number_format = "0.000"
+        ws.cell(rr, 4, d["basis"]).font = Font(size=9, color="606060")
+        for c in range(1, 8):
+            ws.cell(rr, c).border = BOX
+            if c >= 5:
+                ws.cell(rr, c).number_format = "#,##0"
+        for col, letter, sheet in ((5, "E", "당초내역"), (6, "F", "변경내역")):
+            cell = ws.cell(rr, col)
+            if d["f"]:
+                cell.value = d["f"](R, letter, sheet)
+                cell.fill = PatternFill("solid", fgColor=GRAY)
+            elif d["inp"]:
+                cell.value = 0
+                cell.fill = PatternFill("solid", fgColor=YELLOW)
+        ws.cell(rr, 7, "=F{r}-E{r}".format(r=rr)).fill = PatternFill("solid", fgColor=GRAY)
+        if d["bold"]:
+            for c in range(1, 8):
+                ws.cell(rr, c).fill = PatternFill("solid", fgColor=LITE)
+                ws.cell(rr, c).font = Font(size=10, bold=True)
+    for c in range(1, 8):
+        ws.cell(R["L"], c).fill = PatternFill("solid", fgColor=GREEN)
+        ws.cell(R["L"], c).font = Font(size=11, bold=True, color=BLUE)
+
+    note(ws, end + 2,
+         "조달청 설계내역서 110장을 열어 줄 차례·요율·산출근거를 세어 그대로 맞춘 것입니다. "
+         "노랑 칸만 사람이 넣습니다(간접재료비·작업설·공사이행보증·폐기물·관급자재대). "
+         "⚠️ 요율은 해마다·공사 규모마다 바뀝니다 — «설정» 시트에 발주처 설계서의 요율을 넣고 쓰십시오. "
+         "이윤은 (B+C+E)에만 곱합니다 — 재료비(A)는 넣지 않습니다. "
+         "산업안전보건관리비는 관급자재대(K)를 1.1로 나눠 더한 값에 곱합니다.", 7)
     return ws, R
 
 
@@ -817,8 +934,17 @@ def build():
     sheet_check(wb, C, jg_total)
     sheet_submit(wb, C, jg_total)
     sheet_guide(wb)          # 맨 앞으로
-    order = ["사용법", "설정", "단가마스터", "일위대가", "수량산출서", "당초내역",
-             "변경내역", "증감대비표", "공종별집계", "원가계산서", "검증시트", "제출서식"]
+    # ── 시트 차례 (2026-09-15 전면 개편) ────────────────────────
+    #  소장님: 「원가계산서가 제일 먼저 오고 증감 대비표가 오고… 그리고 내역서…
+    #           그리고 다음 시트에 일위대가… 단가산출」
+    #  조달청 설계내역서 120장 실측에서도 가장 흔한 차례가
+    #      원가계산서 › 내역서총괄표 › 내역서  ·  원가계산서 › 공종별집계표 › 공종별내역서
+    #  였습니다. 예전에는 «계산이 흐르는 순서» (단가 → 일위대가 → 내역 → 원가)로
+    #  늘어놨는데, 현장은 «읽는 순서» 로 놓습니다 — 결론이 먼저, 근거가 뒤입니다.
+    #  심사자는 파일을 열면 앞에서부터 봅니다.
+    order = ["원가계산서", "증감대비표", "공종별집계", "당초내역", "변경내역",
+             "일위대가", "단가마스터", "수량산출서", "제출서식", "검증시트",
+             "설정", "사용법"]
     wb._sheets = [wb[n] for n in order]
     wb.active = 0
     if not os.path.isdir(OUT):
