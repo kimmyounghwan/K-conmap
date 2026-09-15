@@ -5,6 +5,13 @@ import { InstallPill, InstallBar } from './Install.jsx'
 import AskStrip from './AskComment'
 import FirstBar from './FirstBar.jsx'
 
+/* 탭에 적힌 주소가 아니어도 «이 탭의 식구» 면 불을 켭니다.
+   예) /tools · /cad 에 있어도 「서식·도구」 탭이 켜집니다. */
+function alsoOn(t, path) {
+  if (!t.also) return false
+  return t.also.some((p) => path === p || path.startsWith(p + '/'))
+}
+
 const TABS = [
   /* ⚠️ 2026-09-15 — 탭이 11개가 되자 좁은 화면에서 **세 줄**이 됐습니다.
      그런데 styles.css 의 .shell 아래 여백은 «두 줄»(--nav-h * 2) 기준이라
@@ -22,13 +29,18 @@ const TABS = [
   { to: '/', ic: '💰', label: '바로투찰' },
   { to: '/first', ic: '🏆', label: '1순위' },
   { to: '/live', ic: '📋', label: '공고' },
-  { to: '/forms', ic: '📄', label: '서식' },
+  /* 📄🧰 2026-09-16 — 소장님: 「서식·도구를 하나의 탭으로 하고, 적산도 하나의 탭으로」
+     서식과 도구를 한 탭으로 묶어 자리를 비우고 그 자리에 적산을 넣었습니다. 탭은 10개 그대로.
+     ⚠️ /tools 와 /cad 주소는 살아 있습니다 — 서식 138장과 도구 13가지가
+        검색으로 사람을 데려오는 길입니다. 주소를 끊으면 그 길이 끊깁니다.
+        탭은 /forms 로 가지만 «also» 에 적힌 주소에서도 이 탭에 불이 들어옵니다. */
+  { to: '/forms', ic: '📄', label: '서식·도구', also: ['/tools', '/cad'] },
   { to: '/change', ic: '🔁', label: '설계변경' },
   { to: '/naeyeok', ic: '📋', label: '내역서 작성', pay: true },
+  { to: '/jeoksan', ic: '🧮', label: '적산', pay: true },
   { to: '/jobs', ic: '💼', label: '구인구직' },
   { to: '/qna', ic: '💬', label: '묻고답하기' },
   { to: '/analysis', ic: '🔍', label: '분석' },
-  { to: '/tools', ic: '🧰', label: '도구' },
 ]
 
 export default function App() {
@@ -67,7 +79,9 @@ export default function App() {
         <nav className="railnav">
           {TABS.map((t) => (
             <NavLink key={t.to} to={t.to} end={t.to === '/'}
-              className={({ isActive }) => [isActive ? 'on' : '', t.pay ? 'pay' : ''].join(' ').trim()}>
+              className={({ isActive }) =>
+                [(isActive || alsoOn(t, pathname)) ? 'on' : '',
+                 t.pay ? 'pay' : ''].join(' ').trim()}>
               <span className="ic">{t.ic}</span><span>{t.label}</span>
             </NavLink>
           ))}
@@ -118,7 +132,9 @@ export default function App() {
       <nav className="tabbar">
         {TABS.map((t) => (
           <NavLink key={t.to} to={t.to} end={t.to === '/'}
-            className={({ isActive }) => [isActive ? 'on' : '', t.pay ? 'pay' : ''].join(' ').trim()}>
+            className={({ isActive }) =>
+              [(isActive || alsoOn(t, pathname)) ? 'on' : '',
+               t.pay ? 'pay' : ''].join(' ').trim()}>
             <span className="ic">{t.ic}</span>
             <span>{t.label}</span>
           </NavLink>

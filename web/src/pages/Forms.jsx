@@ -126,6 +126,14 @@ export default function Forms() {
           현장에서 실제로 쓰는 서류 {FORMS.length}가지 · 엑셀로 바로 내려받기 · 회원가입 없음
           <div style={{ marginTop: 6 }}>일반 · <b>계약서</b> · 공무 · 공사 · 안전 · 품질 · 환경 · 노무·장비</div>
         </div>
+        {/* 🧰 2026-09-16 — 탭에서 「도구」를 「서식·도구」로 합쳤습니다.
+            도구가 묻히지 않게 여기 맨 위에서 바로 가게 둡니다.
+            ⚠️ /tools · /cad 주소는 그대로입니다 — 검색으로 들어오던 길입니다. */}
+        <div className="navrow" style={{ marginTop: 10 }}>
+          <Link className="navi" to="/tools">🧰 건설 도구</Link>
+          <Link className="navi" to="/cad">📐 캐드 유틸</Link>
+          <Link className="navi" to="/jeoksan">🧮 K-적산</Link>
+        </div>
       </div>
 
       <Link className="card fbook" to="/change/excel">

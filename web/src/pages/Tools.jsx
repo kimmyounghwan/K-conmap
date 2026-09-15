@@ -29,6 +29,12 @@ export default function ToolsIndex() {
           현장에서 자주 쓰는 계산을 한 자리에 모았습니다. 회원가입 없이 바로 쓰시고,
           숫자는 브라우저에서 계산하니 아무것도 저장되지 않습니다.
         </div>
+        {/* 📄 2026-09-16 — 탭이 「서식·도구」 하나로 합쳐졌습니다. 서로 오갈 길을 둡니다. */}
+        <div className="navrow" style={{ marginTop: 10 }}>
+          <Link className="navi" to="/forms">📄 건설 서식</Link>
+          <Link className="navi" to="/cad">📐 캐드 유틸</Link>
+          <Link className="navi" to="/jeoksan">🧮 K-적산</Link>
+        </div>
       </div>
 
       {CATS.map((c) => {
