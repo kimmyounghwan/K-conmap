@@ -42,8 +42,7 @@ export default function How() {
       <div className="card lead-card">
         <h1 style={{ margin: 0, fontSize: 20 }}>📖 K-건설맵 보는 방법</h1>
         <p className="why">
-          <b>토목 현장소장</b>입니다. 공공입찰로 공사를 따고, 그 서류를 만드는 일을
-          현장에서 해 왔습니다.
+          <b>토목 현장소장</b>입니다. 현장에서 일합니다.
           <br />
           다른 입찰 사이트는 <b>공고 보는 것도, 1순위 보는 것도 로그인</b>을 시킵니다.
           좀 더 들어가면 <b>돈을 내라</b>고 합니다.
