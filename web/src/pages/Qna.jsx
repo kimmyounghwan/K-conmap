@@ -10,6 +10,15 @@ const loadFb = async () => {
 }
 import { Empty, Skeleton } from '../components.jsx'
 import { pinHash } from '../lib/pin.js'
+/* 🏷️ 별명은 **자동** 입니다 — 댓글과 같은 얼개(lib/nickname.js).
+   소장님: 「글을 쓰면 별명이 붙게 해줘. 이름 별명을 쓰게 하지 말고.」
+   댓글은 이미 그렇게 돌고 있었는데 묻고답하기만 손으로 적게 돼 있었습니다.
+   ■ 왜 자동이 나은가
+     · 이름칸을 비우면 «익명» 이 줄줄이 쌓여 누가 누구인지 안 보입니다.
+     · 적으라고 하면 귀찮아서 안 씁니다.
+     · uid 로 만드니 **같은 브라우저면 늘 같은 별명** 이고, 남이 흉내 낼 수 없습니다.
+     · 그래서 **누가 자주 답해 주는지** 가 게시판에 그냥 보입니다 (기여도). */
+import { nickOf } from '../lib/nickname.js'
 
 /**
  * /qna — 「묻고 답하기」 (2026-09-15)
@@ -108,6 +117,8 @@ export default function Qna() {
 
       {/* ── 안내 ─────────────────────────────────────────────── */}
       <div className="note" style={{ marginBottom: 10, lineHeight: 1.85 }}>
+        <b>별명은 자동으로 붙습니다</b> — 이름을 적지 않으셔도 되고,
+        같은 기기에서 쓰시면 늘 같은 별명이라 «누가 자주 답해 주는지»가 보입니다.
         글 쓸 때 정한 <b>4자리 숫자</b>로 내 글만 지울 수 있습니다.
         답은 <b>하루 안에</b> 달아 드리는 것을 목표로 합니다.<br />
         <b>이렇게 적어 주시면 답이 정확합니다</b> — 공사 규모 · 발주처 · 지금 어디까지 진행됐는지.<br />
@@ -235,7 +246,6 @@ function Detail({ row, ans, mine, onChange }) {
 /* ── 답변 쓰기 — 누구나 ────────────────────────────────────────── */
 function AnswerForm({ qid, onDone }) {
   const [b, setB] = useState('')
-  const [nick, setNick] = useState('')
   const [key, setKey] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
@@ -250,12 +260,12 @@ function AnswerForm({ qid, onDone }) {
       const slot = push(ref(db, `qna_a/${qid}`))
       await set(slot, {
         b: b.trim().slice(0, 2000),
-        nick: (op ? 'K-건설맵' : (nick.trim() || '익명')).slice(0, 20),
+        nick: (op ? 'K-건설맵' : nickOf(user.uid)).slice(0, 20),
         op,
         uid: user.uid,
         at: Date.now(),
       })
-      setB(''); setNick(''); setKey('')
+      setB(''); setKey('')
       onDone()
     } catch (e) {
       setMsg('올리지 못했습니다. 잠시 뒤 다시 해 주세요.')
@@ -268,8 +278,6 @@ function AnswerForm({ qid, onDone }) {
         placeholder="아는 만큼 답해 주세요. 근거(조문·기관 이름)를 같이 적어 주시면 더 좋습니다."
         style={{ width: '100%', boxSizing: 'border-box', minHeight: 72 }} maxLength={2000} />
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-        <input className="inp" placeholder="닉네임(없으면 익명)" value={nick}
-          onChange={(e) => setNick(e.target.value)} maxLength={20} style={{ width: 168 }} />
         <input className="inp" type="password" placeholder="운영자 열쇠(있으면)" value={key}
           onChange={(e) => setKey(e.target.value)} maxLength={40} style={{ width: 160 }} />
         <button className="btn primary" onClick={submit} disabled={busy}>
@@ -283,7 +291,7 @@ function AnswerForm({ qid, onDone }) {
 
 /* ── 질문 쓰기 ─────────────────────────────────────────────────── */
 function WriteForm({ onDone, preset }) {
-  const [f, setF] = useState({ t: preset || '', b: '', nick: '', pin: '' })
+  const [f, setF] = useState({ t: preset || '', b: '', pin: '' })
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const set_ = (k) => (e) => setF((v) => ({ ...v, [k]: e.target.value }))
@@ -301,7 +309,7 @@ function WriteForm({ onDone, preset }) {
       await set(slot, {
         t: f.t.trim().slice(0, 80),
         b: f.b.trim().slice(0, 2000),
-        nick: (f.nick.trim() || '익명').slice(0, 20),
+        nick: nickOf(user.uid).slice(0, 20),
         uid: user.uid,
         at: Date.now(),
       })
@@ -322,8 +330,6 @@ function WriteForm({ onDone, preset }) {
         placeholder="공사 규모 · 발주처 · 지금 어디까지 진행됐는지를 적어 주시면 답이 정확합니다.&#10;전화번호·이메일은 적지 마세요."
         style={{ width: '100%', boxSizing: 'border-box', minHeight: 110, marginBottom: 8 }} />
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
-        <input className="inp" value={f.nick} onChange={set_('nick')} maxLength={20}
-          placeholder="닉네임(없으면 익명)" style={{ width: 168 }} />
         <input className="inp" inputMode="numeric" maxLength={4} value={f.pin}
           onChange={(e) => setF((v) => ({ ...v, pin: e.target.value.replace(/\D/g, '') }))}
           placeholder="지울 4자리" style={{ width: 118 }} />
