@@ -2795,6 +2795,31 @@ ul.plainlist li { margin-bottom: 5px; }
 .railnav a.pay { opacity: 1; color: #9ec5ff; font-weight: 800; }
 .railnav a.pay.on { color: #fff; }
 
+/* ⭐ 2026-09-16 — 소장님: 「적산과 내역서는 표시를 해줘 별표라든가.. 뭐든 유료니까」
+   색만으로는 «유료» 인 줄 모릅니다. 별을 답니다.
+   ⚠️ 칸을 넓히는 방식은 안 됩니다 — 탭 글자는 nowrap 이라 자리를 뺏으면 잘립니다
+      (2026-09-15 에 상자를 넣었다가 「내역서 작성」 글자가 눌린 적이 있습니다).
+   → position:absolute 로 «띄워서» 답니다. 자리를 한 픽셀도 안 먹습니다.
+      아이콘 오른쪽 위 구석입니다. */
+/* 눈으로는 안 보이고 «읽어 주는 기계» 에만 들리는 글 (별표가 무슨 뜻인지) */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.tabbar a.pay .ic, .railnav a.pay .ic { position: relative; }
+.tabbar a.pay .ic::after, .railnav a.pay .ic::after {
+  content: '\2605';                 /* ★ */
+  position: absolute; top: -3px; right: -7px;
+  font-size: 9px; line-height: 1; pointer-events: none;
+}
+.tabbar a.pay .ic::after { color: var(--accent, #1a56db); }
+.railnav a.pay .ic::after { color: #9ec5ff; }
+.railnav a.pay.on .ic::after { color: #fff; }
+@media (max-width: 360px) {
+  /* 아주 좁은 화면에서는 별이 옆 탭을 건드릴 수 있어 더 붙입니다 */
+  .tabbar a.pay .ic::after { right: -5px; font-size: 8px; }
+}
+
 /* 📋 2026-09-15 — 내역서 띠. 튀는 색 대신 «가는 테두리 + 옅은 바탕»으로.
    광고처럼 보이면 눈이 건너뜁니다. 줄이 좁아지면 두 줄로 감쌉니다. */
 .naeyeok-strip {

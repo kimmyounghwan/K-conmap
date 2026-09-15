@@ -78,11 +78,13 @@ export default function App() {
       <div className="railwrap">
         <nav className="railnav">
           {TABS.map((t) => (
-            <NavLink key={t.to} to={t.to} end={t.to === '/'}
+            <NavLink key={t.to} to={t.to} end={t.to === '/'} title={t.pay ? '유료' : undefined}
               className={({ isActive }) =>
                 [(isActive || alsoOn(t, pathname)) ? 'on' : '',
                  t.pay ? 'pay' : ''].join(' ').trim()}>
-              <span className="ic">{t.ic}</span><span>{t.label}</span>
+              <span className="ic">{t.ic}</span>
+              <span>{t.label}</span>
+              {t.pay && <span className="sr-only">유료</span>}
             </NavLink>
           ))}
         </nav>
@@ -131,12 +133,13 @@ export default function App() {
 
       <nav className="tabbar">
         {TABS.map((t) => (
-          <NavLink key={t.to} to={t.to} end={t.to === '/'}
+          <NavLink key={t.to} to={t.to} end={t.to === '/'} title={t.pay ? '유료' : undefined}
             className={({ isActive }) =>
               [(isActive || alsoOn(t, pathname)) ? 'on' : '',
                t.pay ? 'pay' : ''].join(' ').trim()}>
             <span className="ic">{t.ic}</span>
             <span>{t.label}</span>
+            {t.pay && <span className="sr-only">유료</span>}
           </NavLink>
         ))}
       </nav>
