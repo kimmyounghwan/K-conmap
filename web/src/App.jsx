@@ -44,7 +44,13 @@ export default function App() {
           <NavLink to="/" className="brand">
             <span>🏗️</span><span>K-<b>건설맵</b></span>
           </NavLink>
-          <span className="brand-sub">조달청 공공입찰</span>
+          {/* 📖 소장님(2026-09-15): 「건설맵 이용방법은 누구나 볼 수 있게 해줘야지」
+              하단 탭은 10개로 꽉 찼고(11개면 세 줄), 바닥글은 끝까지 내려야 보입니다.
+              여기 «조달청 공공입찰» 은 장식일 뿐이라 그 자리를 길로 바꿨습니다 —
+              모든 화면 왼쪽 위에 늘 보입니다. 좁은 화면에서도 숨기지 않습니다. */}
+          <NavLink to="/how" className="brand-sub" title="처음이시면 여기부터 — 어디서 뭘 하는지 한 장으로">
+            📖 보는 방법
+          </NavLink>
           {/* 🌊 자매 사이트 사라사 — 소장님(09-06): 「클릭하면 사라사 사이트로. 페이지마다」.
               이 막대는 모든 페이지 위에 있으므로 여기 한 번이면 페이지마다 붙습니다. 새 탭으로 엽니다(건설맵을 떠나지 않게). */}
           <div className="topbar-r">
@@ -96,6 +102,12 @@ export default function App() {
           <div style={{ marginTop: 6 }}>
             공공데이터포털 나라장터 입찰정보를 가공해 제공합니다.<br />
             분석 결과는 참고용이며 낙찰을 보장하지 않습니다.
+          </div>
+          {/* 🙋 만든 사람 — 소장님(2026-09-15): 「사이트 제일 아래에 개발자 김명환 이름을 넣어 줘」 */}
+          <div className="footer-me">
+            만든 사람 · <span className="role">토목 현장소장</span> <b>김명환</b>
+            <span className="dot">·</span>
+            <a href="/about">왜 만들었는지</a>
           </div>
         </footer>
       </main>

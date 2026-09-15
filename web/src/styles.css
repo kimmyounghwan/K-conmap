@@ -156,7 +156,11 @@ button { font: inherit; color: inherit; }
   border-radius: 5px;
   white-space: nowrap;
 }
-@media (max-width: 520px) { .brand-sub { display: none; } }
+/* 📖 2026-09-15 — 여기는 이제 «보는 방법» 으로 가는 길입니다. 좁은 화면에서도 숨기지 않습니다.
+   (전에는 «조달청 공공입찰» 이라는 장식이라 520px 아래에서 숨겼습니다) */
+a.brand-sub { text-decoration: none; cursor: pointer; }
+a.brand-sub:hover { opacity: 1; }
+@media (max-width: 400px) { a.brand-sub { font-size: 11px; padding: 2px 6px; } }
 
 /* ── 기초금액 상시 입력 ───────────────────── */
 .basebtn {
@@ -2836,3 +2840,10 @@ ul.plainlist li { margin-bottom: 5px; }
 .howtbl .d { display: block; color: var(--muted, #6b7280); font-size: 12.5px;
   margin-top: 2px; line-height: 1.55; }
 @media (max-width: 560px) { .howtbl .w { width: 42%; font-size: 13px; } }
+
+
+/* 🙋 만든 사람 — 바닥글 맨 아래 (2026-09-15) */
+.footer-me { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line, #e5e7eb);
+  font-size: 12px; color: var(--muted, #6b7280); }
+.footer-me b { color: var(--ink, #1a1d24); font-size: 13px; }
+.footer-me .role { color: var(--muted, #6b7280); margin-right: 3px; }
