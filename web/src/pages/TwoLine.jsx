@@ -61,8 +61,13 @@ export default function TwoLine() {
       const b = m.analyze(buf)
       setFile({ name: f.name, size: f.size, buf })
       setBook(b)
+      /* 실제 내역서 파일은 «원가계산서 · 내역서 · 일위대가 · 단가산출» 처럼 여러 장입니다.
+         2줄로 벌릴 것은 보통 «내역» 이 들어간 시트라, 그것부터 켜 둡니다.
+         (없으면 첫 시트) — 물론 손으로 다시 고르실 수 있습니다. */
+      const wanted = b.sheets.map((s) => /내\s*역|산출내역|공내역/.test(s.name))
+      const anyWanted = wanted.some(Boolean)
       setJobs(b.sheets.map((s, i) => ({
-        path: s.path, name: s.name, on: i === 0,
+        path: s.path, name: s.name, on: anyWanted ? wanted[i] : i === 0,
         startRow: s.guessStart, endRow: s.guessEnd,
         labelCol: m.suggestLabelCol(b.zip, s.path, s.guessStart, s.guessEnd, 16),
       })))
@@ -143,7 +148,7 @@ export default function TwoLine() {
         <h1 style={{ margin: 0, fontSize: 20 }}>🔁 설계변경 2줄 자동변환</h1>
         <p className="why2" style={{ marginBottom: 6 }}>
           공사 내역서 엑셀을 올리면 <b>당초 · 변경</b> 두 줄로 벌려 드립니다.
-          당초는 검정, 변경은 <b style={{ color: '#c00000' }}>적색</b>입니다.
+          당초는 검정, 변경은 <b className="tlred">적색</b>입니다.
         </p>
         <p className="muted" style={{ margin: 0 }}>
           <b>파일은 이 브라우저 안에서만 다룹니다.</b> 서버로 올라가지 않습니다.

@@ -15,7 +15,7 @@
   --line-soft: #f1f3f6;
   --text: #111827;
   --text-2: #4b5563;
-  --muted: #8b94a3;
+  --muted: #6b7280;   /* 2026-09-15 — #8b94a3 은 밝은 화면에서 대비 2.7 이라 밖에서 안 보였습니다 */
   --accent: #1d4ed8;
   --accent-soft: #eff4ff;
   --accent-line: #c7d7fe;
@@ -451,6 +451,7 @@ input[type=number] { font-variant-numeric: tabular-nums; }
   border: 1px solid var(--line);
 }
 .btn.sm { width: auto; padding: 7px 12px; font-size: 13px; border-radius: 9px; }
+
 .btn-row { display: flex; gap: 8px; }
 
 /* ── 통계 타일 ─────────────────────────── */
@@ -2056,7 +2057,7 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
 .fic { font-size: 20px; width: 28px; text-align: center; flex: none; }
 .row .t em { font-style: normal; color: var(--muted); font-weight: 500; }
 
-.fwarn { border-color: color-mix(in srgb, var(--warm, #d98324) 40%, var(--line)); }
+.fwarn { border-color: color-mix(in srgb, var(--warn) 40%, var(--line)); }
 .fwarn b { display: block; font-size: 13px; margin-bottom: 4px; }
 .fwarn div { font-size: 12.5px; color: var(--muted); line-height: 1.65; }
 
@@ -2129,8 +2130,8 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
 .cwarn {
   font-size: 12.5px; line-height: 1.7; margin: 8px 0;
   padding: 9px 11px; border-radius: 8px;
-  background: color-mix(in srgb, var(--warm, #d98324) 10%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--warm, #d98324) 30%, var(--line));
+  background: color-mix(in srgb, var(--warn) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--warn) 30%, var(--line));
 }
 .csteps { display: grid; gap: 6px; }
 .cstep {
@@ -2816,7 +2817,7 @@ ul.plainlist li { margin-bottom: 5px; }
    광고처럼 보이면 눈이 건너뜁니다. 옅은 바탕에 가는 테두리로. */
 .askstrip { margin: 10px 0; padding: 11px 13px; border: 1px solid var(--line, #e5e7eb);
   border-left: 3px solid var(--accent, #1a56db); border-radius: 8px;
-  background: var(--card, #fff); }
+  background: var(--surface); color: var(--text); }
 .askstrip .q { font-weight: 800; font-size: 14px; line-height: 1.5; }
 .askstrip .s { color: var(--muted, #6b7280); font-size: 12.5px; margin-top: 3px; line-height: 1.5; }
 .askstrip .b { display: flex; gap: 7px; margin-top: 9px; flex-wrap: wrap; }
@@ -2849,19 +2850,27 @@ ul.plainlist li { margin-bottom: 5px; }
 /* 🙋 만든 사람 — 바닥글 맨 아래 (2026-09-15) */
 .footer-me { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line, #e5e7eb);
   font-size: 12px; color: var(--muted, #6b7280); }
-.footer-me b { color: var(--ink, #1a1d24); font-size: 13px; }
+/* ⚠️ --ink 는 .ratepick 안에서만 정의된 변수라 여기선 늘 #1a1d24(거의 검정)이었고,
+   어두운 화면에서 「김명환」 이 바탕에 묻혔습니다(대비 1.12). 2026-09-15 */
+.footer-me b { color: var(--text); font-size: 13px; }
 .footer-me .role { color: var(--muted, #6b7280); margin-right: 3px; }
 
 
 
 /* 🧭 «처음이세요?» 띠 (2026-09-15) — 처음 온 사람에게 한 번만.
    광고처럼 보이면 눈이 건너뜁니다. 옅은 파랑 바탕에 왼쪽만 굵은 선. */
+/* ⚠️ 2026-09-15 — 어두운 화면에서 이 띄가 «보이지 않았습니다».
+   --tint 는 .ratepick 안에서만 정의된 변수라 여기서는 늘 대체값(#eff4ff, 밝은 하늘색)이
+   깔렸고, 글자는 --text(어두운 화면엔 흰색)라 흰 바탕에 흰 글씨가 됐습니다.
+   → 두 화면 모두에 값이 있는 --accent-soft / --accent-line 을 쓰고 글자색을 못박습니다.
+   교훈: 배경색에 «정의 안 된 변수 + 밝은 대체값» 을 쓰지 않는다. */
 .firstbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   margin: 0 0 10px; padding: 11px 13px; border-radius: 10px;
-  background: var(--tint, #eff4ff); border: 1px solid var(--line, #dbe4f5);
-  border-left: 4px solid var(--accent, #1a56db); }
-.firstbar .t { flex: 1 1 240px; min-width: 0; font-size: 13.5px; line-height: 1.6; }
-.firstbar .go { flex: 0 0 auto; background: var(--accent, #1a56db); color: #fff;
+  background: var(--accent-soft); border: 1px solid var(--accent-line);
+  border-left: 4px solid var(--accent); color: var(--text); }
+.firstbar .t { flex: 1 1 240px; min-width: 0; font-size: 13.5px; line-height: 1.6;
+  color: var(--text); }
+.firstbar .go { flex: 0 0 auto; background: var(--accent); color: var(--surface);
   border-radius: 8px; padding: 8px 15px; font-weight: 800; font-size: 13.5px;
   text-decoration: none; white-space: nowrap; }
 .firstbar .x { flex: 0 0 auto; background: none; border: 0; cursor: pointer;
@@ -2927,15 +2936,28 @@ ul.plainlist li { margin-bottom: 5px; }
 .tlprev td { padding: 4px 8px; }
 .tlprev tr.tlchg td { color: #c00000; font-weight: 600; }
 .tlprev tr.tldif td { color: #0070c0; }
+.tlred { color: #c00000; }
+@media (prefers-color-scheme: dark) { .tlred { color: #ff8a80; } }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .tlprev tr.tlchg td { color: #ff8a80; }
-  :root:not([data-theme="light"]) .tlprev tr.tldif td { color: #7fc4ff; }
+  .tlprev tr.tlchg td { color: #ff8a80; }
+  .tlprev tr.tldif td { color: #7fc4ff; }
 }
-:root[data-theme="dark"] .tlprev tr.tlchg td { color: #ff8a80; }
-:root[data-theme="dark"] .tlprev tr.tldif td { color: #7fc4ff; }
 
 @media (max-width: 520px) {
   .tlfields { margin-left: 0; width: 100%; }
   .tlfields input { width: 60px; }
   .tlopts { gap: 12px 16px; }
+}
+
+/* ══ 🌓 어두운 화면 — 밝은 파랑 바탕의 글씨색 (2026-09-15) ══════════════
+   어두운 화면에서 --accent 는 밝은 파랑(#6b9bff)입니다. 그 위에 흰 글씨를
+   얹으면 대비가 2.71 밖에 안 나옵니다 — 밖에서 폰으로 보면 글자가 물러집니다.
+   밝은 바탕에는 어두운 글씨가 맞습니다.
+   ⚠️ 반드시 파일 «맨 끝» 에 둡니다 — 같은 구체성이면 뒤에 오는 규칙이 이깁니다.
+      (앞에 둡다가 .installbar .go 에 져서 한 번 헛따리했습니다) */
+@media (prefers-color-scheme: dark) {
+  .btn, .chip.on, .mb-no, .bagn,
+  .oneclick .cbtn, .installbar .go, .firstbar .go { color: #0b1220; }
+  .btn.ghost { color: var(--text-2); background: var(--surface); }
+  .btn:disabled { color: #0b1220; }
 }
