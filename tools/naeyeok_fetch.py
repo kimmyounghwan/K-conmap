@@ -208,37 +208,54 @@ def _xshared(path):
 
 
 def _xrows(path, target, sst, maxrow=1400):
+    """시트 XML 을 훑어 [(줄번호, {칸번호: 값})] 을 돌려줍니다.
+       ⚠️ 정규식으로 <row>…</row> 를 짝지어 찾으면 733KB 짜리 시트에서 몇 분씩 걸립니다
+          (자기닫음 <row/> 때문에 뒤로 한없이 물러나며 찾습니다). 그래서 XML 훑개를 씁니다."""
+    import xml.etree.ElementTree as ET
     import zipfile
-    with zipfile.ZipFile(path) as z:
-        data = z.read(target)
     out = []
-    for i, m in enumerate(re.finditer(rb"<(?:\w+:)?row[^>]*>(.*?)</(?:\w+:)?row>", data, re.S)):
-        if i >= maxrow:
-            break
-        cells = {}
-        for cm in re.finditer(rb"<(?:\w+:)?c([^>]*)>(.*?)</(?:\w+:)?c>", m.group(1), re.S):
-            att = cm.group(1).decode("utf-8", "ignore")
-            body = cm.group(2).decode("utf-8", "ignore")
-            ref = re.search(r'r="([A-Z]+\d+)"', att)
-            typ = re.search(r't="(\w+)"', att)
-            vm = re.search(r"<(?:\w+:)?v>(.*?)</(?:\w+:)?v>", body, re.S)
-            if not ref:
-                continue
-            c = _xcol(ref.group(1))
-            if typ and typ.group(1) == "s" and vm:
-                try:
-                    cells[c] = sst[int(vm.group(1))]
-                except Exception:
-                    cells[c] = ""
-            elif typ and typ.group(1) == "inlineStr":
-                cells[c] = "".join(re.findall(r"<(?:\w+:)?t[^>]*>(.*?)</(?:\w+:)?t>", body, re.S))
-            elif vm:
-                try:
-                    cells[c] = float(vm.group(1))
-                except Exception:
-                    cells[c] = vm.group(1)
-        if cells:
-            out.append((i, cells))
+    with zipfile.ZipFile(path) as z:
+        with z.open(target) as fh:
+            ri = -1
+            for ev, el in ET.iterparse(fh, events=("end",)):
+                tag = el.tag.split("}")[-1]
+                if tag != "row":
+                    continue
+                ri += 1
+                if ri >= maxrow:
+                    el.clear()
+                    break
+                cells = {}
+                for c in el:
+                    if c.tag.split("}")[-1] != "c":
+                        continue
+                    ref = c.get("r") or ""
+                    typ = c.get("t")
+                    col = _xcol(ref)
+                    if typ == "inlineStr":
+                        cells[col] = "".join(t.text or "" for t in c.iter()
+                                             if t.tag.split("}")[-1] == "t")
+                        continue
+                    v = None
+                    for ch in c:
+                        if ch.tag.split("}")[-1] == "v":
+                            v = ch.text
+                            break
+                    if v is None:
+                        continue
+                    if typ == "s":
+                        try:
+                            cells[col] = sst[int(v)]
+                        except Exception:
+                            cells[col] = ""
+                    else:
+                        try:
+                            cells[col] = float(v)
+                        except Exception:
+                            cells[col] = v
+                if cells:
+                    out.append((ri, cells))
+                el.clear()
     return out
 
 
