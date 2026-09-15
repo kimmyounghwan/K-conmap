@@ -201,6 +201,26 @@ def main():
         print("  [%3d/%d] %-44s %d줄" % (i, len(todo), os.path.basename(p)[:44], len(got)))
         for g in got:
             rows.append(g + [v.get("inst", ""), v.get("dt", ""), v["path"], v.get("name", "")])
+    # 글자가 없는 «사진 PDF» 는 따로 목록으로 남깁니다 — 눈으로 보셔야 하는 것들입니다.
+    shots = []
+    for v in todo:
+        p2 = os.path.join(box, v["path"].replace("\\", os.sep))
+        if not os.path.exists(p2):
+            continue
+        try:
+            import pdfplumber as _pp
+            with _pp.open(p2) as d:
+                pages = len(d.pages)
+                txt = "".join((pg.extract_text() or "") for pg in d.pages[:3])
+        except Exception:
+            continue
+        if len(txt) < 50:
+            shots.append({"path": v["path"], "name": v.get("name"), "inst": v.get("inst"),
+                          "dt": v.get("dt"), "pages": pages})
+    json.dump(shots, io.open(os.path.join(box, "_사진PDF.json"), "w", encoding="utf-8"),
+              ensure_ascii=False, indent=1)
+    print("사진으로 된 PDF %d개 — _사진PDF.json 에 목록을 남겼습니다." % len(shots))
+
     out = os.path.join(box, "_뽑은단가_pdf.json")
     json.dump(rows, io.open(out, "w", encoding="utf-8"), ensure_ascii=False)
     print()

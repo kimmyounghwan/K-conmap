@@ -439,10 +439,41 @@ def rank(r):
     return 9
 
 
+# ⚠️ 2026-09-15 — 소장님: 「내역서 및 단가 산출, 수량산출 등 모든 것을 할 수 있게. 필요한 자료는 모두」
+#    그래서 «단가가 없는 자료도 받습니다». 까닭이 분명합니다.
+#      · 물량내역서·수량산출서 = 단가는 0% 지만 **수량**이 들어 있습니다. 우리에게 없던 반쪽입니다.
+#      · 공내역서도 단가만 비어 있을 뿐 **일위대가 시트에 품셈 수량**이 그대로 들어 있습니다.
+#    → mode=full 은 «값어치 있는 차례» 로 목록 전부를 받습니다.
+QTY_FILE = re.compile(r"물량|수량\s*산출|산출\s*근거|공량")
+
+
+def rank_full(r):
+    kind = r.get("kind") or ""
+    fn = str(r.get("file") or "")
+    if kind == "수량산출서" or re.search(r"수량\s*산출|산출\s*근거|공량", fn):
+        return 0                      # 산출 «과정» — 제일 귀합니다
+    if kind in GOLD_KIND:
+        return 1                      # 설계내역서·단가산출서
+    if GOLD_FILE.search(fn):
+        return 2                      # 산출내역서·일위대가
+    if kind == "물량내역서" or QTY_FILE.search(fn):
+        return 3                      # 물량
+    if GOLD_INST.search(str(r.get("inst") or "")):
+        return 4
+    if PRICE.search(fn + " " + str(r.get("name") or "")):
+        return 5
+    if kind == "공내역서":
+        return 7                      # 단가는 비었지만 일위대가가 들어 있습니다
+    return 6
+
+
 def pick(rows, n, mode):
-    """best = 수율 높은 차례대로(기본) · target = 이름 겨냥 · spread = 골고루 · all = 최신순"""
+    """full = 목록 전부(값어치 차례) · best = 단가 수율 차례 · target · spread · all"""
     rows = [r for r in rows if r.get("url")]
     rows.sort(key=lambda r: str(r.get("dt") or ""), reverse=True)
+    if mode == "full":
+        out = sorted(rows, key=rank_full)
+        return out[:n]
     if mode == "best":
         hit = [r for r in rows if rank(r) < 9 and not SKIP.search(str(r.get("file") or ""))]
         hit.sort(key=lambda r: (rank(r), -1 * 0))   # 차례는 rank, 그 안에서는 최신순 유지
@@ -473,10 +504,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=100, help="이번에 받을 최대 건수")
     ap.add_argument("--sleep", type=float, default=2.5, help="한 건 받고 쉬는 초 (줄이지 마세요)")
-    ap.add_argument("--mode", default="best",
-                    choices=["best", "price", "target", "spread", "all"],
-                    help="best=수율 높은 차례대로(기본) · price=단가계약·연간단가 · "
-                         "target=단가 낱말이 든 이름 · spread=종류별 골고루 · all=최신순 전부")
+    ap.add_argument("--mode", default="full",
+                    choices=["full", "best", "price", "target", "spread", "all"],
+                    help="full=목록 전부를 값어치 차례로(기본) · best=단가 수율 차례 · "
+                         "price=단가계약·연간단가 · target=이름 겨냥 · spread=골고루 · all=최신순")
     a = ap.parse_args()
 
     if not os.path.exists(SRC):
