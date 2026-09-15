@@ -19,7 +19,13 @@
     data/store/ranks3y/_진행.json       달마다 공고 몇 건·줄 몇 개를 받았나
 
 한 줄 (머리글 없음 — 달마다 같은 모양입니다)
-    공고번호, 개찰일(YYYYMMDD), 전체투찰수, 순위, 업체명, 투찰금액, 투찰률
+    공고번호, 개찰일(YYYYMMDD), 전체투찰수, 순위, 사업자번호, 업체명, 투찰금액, 투찰률
+
+⚠️ 업체를 **이름으로 묶으면 안 됩니다** (2026-09-15 실측).
+   투찰 47,485줄에서 «같은 이름인데 사업자번호가 다른» 업체가 **1,846가지** 였습니다
+   (「대성건설 주식회사」만 5곳). 반대로 «같은 사업자번호인데 이름이 다른» 경우는 0 —
+   조달청은 이름을 일관되게 줍니다. 그러니 **사업자번호가 곧 업체**입니다.
+   90%에 사업자번호가 옵니다. 나머지 10%는 이름밖에 없어 성적표에서 «확실하지 않음» 으로 둡니다.
 
 ⚠️ 이 폴더는 **저장소에 올리지 않습니다** (.gitignore).
    회차 사이 보관은 GitHub Actions 의 cache(data/store)가 맡습니다.
@@ -43,7 +49,7 @@ DIR = os.path.join(ROOT, "data", "store", "ranks3y")
 PROG = os.path.join(DIR, "_진행.json")
 
 KEEP_DAYS = 1095          # 3년. 이보다 오래된 달 파일은 버립니다.
-HEAD = ["공고번호", "개찰일", "전체투찰수", "순위", "업체명", "투찰금액", "투찰률"]
+HEAD = ["공고번호", "개찰일", "전체투찰수", "순위", "사업자번호", "업체명", "투찰금액", "투찰률"]
 
 _buf = {}                 # {"YYYY-MM": [줄, ...]} — flush() 때 한 번에 씁니다
 
@@ -71,8 +77,8 @@ def put(no, dt, total, corps):
         [[업체명, 투찰금액, 투찰률, 사업자번호, 대표자, 추첨1, 추첨2], ...]
     낮은 금액 순으로 정렬돼 있으므로 자리번호가 곧 순위입니다.
 
-    사업자번호·대표자·추첨번호는 **담지 않습니다.** 3년치로 불리면 그만큼 커지는데,
-    업체 성적표에 쓰는 것은 «몇 위·얼마·몇 %» 뿐입니다.
+    사업자번호는 **반드시 담습니다** — 이름만으로는 업체를 못 가립니다(위 ⚠️ 참고).
+    대표자·추첨번호는 담지 않습니다. 성적표에 쓰는 것은 «누가·몇 위·얼마·몇 %» 뿐입니다.
     """
     ymd = _ymd(dt)
     ym = _ym(ymd)
@@ -83,7 +89,9 @@ def put(no, dt, total, corps):
     for i, c in enumerate(corps, 1):
         if not c or not c[0]:
             continue
+        bno = re.sub(r"[^0-9]", "", str(c[3] if len(c) > 3 else ""))
         rows.append([str(no), ymd, int(total or len(corps)), i,
+                     bno if len(bno) == 10 else "",
                      str(c[0])[:60], int(c[1] or 0),
                      ("%.3f" % float(c[2])) if c[2] else ""])
         n += 1
@@ -120,7 +128,7 @@ def months():
 
 
 def read_month(ym):
-    """한 달을 {공고번호: {"d":개찰일, "n":전체수, "r":[[순위,업체명,금액,율],...]}} 로.
+    """한 달을 {공고번호: {"d":개찰일, "n":전체수, "r":[[순위,사업자번호,업체명,금액,율],...]}} 로.
 
     같은 공고가 두 번 있으면 **나중 것** 이 이깁니다 (덧붙이기라 뒤가 새 자료입니다).
     """
@@ -130,9 +138,9 @@ def read_month(ym):
         return out
     with gzip.open(p, "rt", encoding="utf-8", newline="") as f:
         for row in csv.reader(f):
-            if len(row) < 7 or row[0] == "공고번호":
+            if len(row) < 8 or row[0] == "공고번호":
                 continue
-            no, ymd, total, rank, nm, amt, rate = row[:7]
+            no, ymd, total, rank, bno, nm, amt, rate = row[:8]
             try:
                 rank_i = int(rank)
                 amt_i = int(amt or 0)
@@ -142,7 +150,7 @@ def read_month(ym):
             # «같은 공고를 새로 받아 덧붙인 것» 입니다 — 앞의 묶음을 버리고 새로 담습니다.
             if rank_i == 1 or no not in out:
                 out[no] = {"d": ymd, "n": int(total or 0), "r": []}
-            out[no]["r"].append([rank_i, nm, amt_i, rate])
+            out[no]["r"].append([rank_i, bno, nm, amt_i, rate])
     for v in out.values():
         v["r"].sort(key=lambda x: x[0])
     return out
@@ -191,8 +199,8 @@ def compact(ym):
     with gzip.open(tmp, "wt", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         for no, v in sorted(data.items()):
-            for rank, nm, amt, rate in v["r"]:
-                w.writerow([no, v["d"], v["n"], rank, nm, amt, rate])
+            for rank, bno, nm, amt, rate in v["r"]:
+                w.writerow([no, v["d"], v["n"], rank, bno, nm, amt, rate])
                 after += 1
     os.replace(tmp, p)
     _save_prog()
