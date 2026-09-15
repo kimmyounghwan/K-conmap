@@ -145,8 +145,19 @@ cd web && firebase deploy --only hosting        (또는 --only database)
 | `bidindex.json` | **마감 전** 공고 (계산에 필요한 칸만, 이름표 `f` 로 읽습니다) |
 | `bidresult.json` | 최근 7일 개찰 (채점 화면) |
 | `licstat.json` | 면허별 경쟁도 `{코드: [이름, 개찰건수, 참가중앙, 10곳미만%]}` |
-| `naeyeok.json` / `naeyeok-all.json` | 조달청 내역서 모음 (5,000여 건 · 단가 든 설계내역서 약 330건) |
+| `naeyeok.json` | **단가가 든 갈래만** — 설계내역서 227 · 단가산출서 31 (⚠️ `naeyeok-all.json` 에는 이 258건이 **없습니다**) |
+| `naeyeok-all.json` | 나머지 4,032건 — 공내역서 1,886 · 그 밖의 1,415 · 물량 705 · 수량 26 |
 | `health.json` | 이번 회차가 제 일을 했나 (위 0절) |
+
+**내역서를 다룰 때 두 번 데인 것 (2026-09-15).**
+
+1. **목록은 두 파일입니다.** `naeyeok-all.json` 만 읽으면 알짜 258건(설계내역서·단가산출서)을 통째로 놓칩니다.
+   `naeyeok-all.json` 의 `kinds` 에는 그 숫자가 적혀 있는데 `r` 에는 줄이 없습니다 — **메타를 믿지 말고 줄을 세십시오.**
+2. **엑셀은 시트를 끝까지 봐야 합니다.** 단가가 든 시트는 대개 뒤쪽(내역서·일위대가·자재단가)입니다.
+   앞 네 장만 보던 것을 끝까지(14장) 보게 고쳤더니 **같은 254건에서 29 → 74건**이 됐습니다.
+   「공사설정」·「INITIAL」 시트의 숫자는 단가가 아닙니다 — 걸러 내십시오.
+3. 조달청 xlsx 에는 **바깥 파일 연결(externalLinks)** 이 든 것이 흔해 `openpyxl` 이 TypeError 로 넘어집니다.
+   `tools/naeyeok_fetch.py` 의 `raw_price()` 가 시트 XML 을 직접 읽습니다(`<x:row>` 처럼 **앞가지**가 붙은 파일도 있습니다).
 
 **업체명 정규화는 `build_json.py` 의 `norm_corp` 과 `web/src/lib/fmt.js` 의 `normCorp` 이
 반드시 같아야 합니다.** 한쪽만 고치면 검색이 조용히 안 맞습니다.
