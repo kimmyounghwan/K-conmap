@@ -82,6 +82,10 @@ export default function App() {
           </div>
           {/* 📚 실측으로 쓴 글 — 하단 탭을 늘리지 않고 여기서 들어갑니다 (2026-09-06) */}
           <div style={{ marginTop: 6 }}>
+            <a href="/how"><b>📖 보는 방법</b></a>
+            <span className="dot">·</span>처음이시면 여기부터 — 어디서 뭘 하는지 한 장으로
+          </div>
+          <div style={{ marginTop: 6 }}>
             <a href="/guide"><b>📚 입찰 알아보기</b></a>
             <span className="dot">·</span>투찰금액 계산 · 사정률 · 참가업체수 — 개찰 1만여 건 실측
           </div>

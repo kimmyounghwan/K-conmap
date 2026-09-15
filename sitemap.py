@@ -55,7 +55,8 @@ STATIC = [("/", "1.0", "hourly"), ("/first", "0.9", "hourly"), ("/live", "0.9", 
           ("/privacy", "0.2", "yearly"), ("/terms", "0.2", "yearly"), ("/contact", "0.3", "yearly"),
           ("/daily", "0.8", "daily"), ("/forms", "0.8", "monthly"),
           ("/cad", "0.8", "monthly"),
-          ("/naeyeok", "0.9", "monthly"), ("/qna", "0.7", "daily")]
+          ("/naeyeok", "0.9", "monthly"), ("/qna", "0.7", "daily"),
+          ("/how", "0.8", "monthly")]
 
 # 건설 서식 — 변하지 않는 자료라 changefreq 는 yearly.
 # ⚠️ prerender.py 가 forms.json 의 서식을 «전부» 굽습니다. 그래서 여기서도 전부 냅니다

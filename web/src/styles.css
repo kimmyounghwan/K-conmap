@@ -2814,3 +2814,25 @@ ul.plainlist li { margin-bottom: 5px; }
 .askstrip .s { color: var(--muted, #6b7280); font-size: 12.5px; margin-top: 3px; line-height: 1.5; }
 .askstrip .b { display: flex; gap: 7px; margin-top: 9px; flex-wrap: wrap; }
 .askstrip .b .btn { padding: 6px 13px; font-size: 13px; }
+
+
+/* 📖 보는 방법 (/how) — 2026-09-15. 안내판이라 «읽기 쉬움» 이 전부입니다. */
+.lead-card .why { font-size: 15px; line-height: 1.75; margin: 10px 0 0; }
+.lead-card .why2 { color: var(--muted, #6b7280); margin: 8px 0 0; }
+.how3 { display: flex; gap: 8px; flex-wrap: wrap; }
+.how3 .h3 { flex: 1 1 190px; border: 1px solid var(--line, #e5e7eb); border-radius: 9px;
+  padding: 11px 13px; text-decoration: none; color: inherit; }
+.how3 .h3 b { display: block; font-size: 14.5px; color: var(--accent, #1a56db); }
+.how3 .h3 span { display: block; font-size: 12.5px; color: var(--muted, #6b7280); margin-top: 3px; }
+.steps { margin: 6px 0 10px; padding-left: 20px; line-height: 1.8; }
+.steps li { margin: 3px 0; }
+.two { display: flex; gap: 12px; flex-wrap: wrap; }
+.two > div { flex: 1 1 240px; }
+.two b { color: var(--accent, #1a56db); }
+.two p { margin: 5px 0 0; font-size: 13.5px; line-height: 1.65; }
+.howtbl td { vertical-align: top; padding: 9px 8px; }
+.howtbl .w { width: 45%; font-weight: 700; }
+.howtbl .ic { margin-right: 3px; }
+.howtbl .d { display: block; color: var(--muted, #6b7280); font-size: 12.5px;
+  margin-top: 2px; line-height: 1.55; }
+@media (max-width: 560px) { .howtbl .w { width: 42%; font-size: 13px; } }

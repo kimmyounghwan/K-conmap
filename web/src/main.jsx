@@ -63,6 +63,7 @@ const ChangeTopic = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ d
 const Guide = lazyPage(() => import('./pages/Guide.jsx'))
 const Naeyeok = lazyPage(() => import('./pages/Naeyeok.jsx'))
 const Qna = lazyPage(() => import('./pages/Qna.jsx'))
+const How = lazyPage(() => import('./pages/How.jsx'))
 const GuideTopic = lazyPage(() => import('./pages/Guide.jsx').then((m) => ({ default: m.GuideTopic })))
 /* 🧰 도구 — lazy() 가 아니라 lazyPage() 입니다. 배포가 지나가면 옛 파일이 사라져
    화면이 통째로 죽습니다 (2026-09-08 착공현장 사고). */
@@ -124,6 +125,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           {/* 📋 2026-09-15 — 내역서 작성 대행. 하나뿐인 유료 화면입니다. */}
           {/* 💬 2026-09-15 — 묻고 답하기 */}
           <Route path="/qna" element={<Suspense fallback={<Loading />}><Qna /></Suspense>} />
+          {/* 📖 보는 방법 — 처음 온 사람이 «어디로 가면 되는지» 아는 한 장 (2026-09-15) */}
+          <Route path="/how" element={<Suspense fallback={<Loading />}><How /></Suspense>} />
           <Route path="/naeyeok" element={<Suspense fallback={<Loading />}><Naeyeok /></Suspense>} />
           <Route path="/guide" element={<Suspense fallback={<Loading />}><Guide /></Suspense>} />
           <Route path="/guide/:slug" element={<Suspense fallback={<Loading />}><GuideTopic /></Suspense>} />
