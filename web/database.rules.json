@@ -21,6 +21,36 @@
     "service_1st": { ".indexOn": ["날짜"] },
     "service_live": { ".indexOn": ["공고일자"] },
 
+    // ───── 📋 내역서 작성 «문의함» (2026-09-15) ─────
+    // 소장님: 「게시판이 없다. 만들 수 있어? 글만 작성하게 해서... 비용문제도 없지 않아?」
+    //
+    // 맞습니다. 그리고 여기는 구인구직과 **정반대**로 잠급니다.
+    //   · 쓰기만 됩니다. 아무도 못 읽습니다(.read: false) — 문의에는 공사 정보와 연락처가 들어갑니다.
+    //     남이 읽으면 경쟁사가 남의 공사를 들여다보는 꼴이 됩니다.
+    //   · 한 번 쓰면 못 고치고 못 지웁니다(!data.exists()) — 장난으로 지우는 것을 막습니다.
+    //   · 읽기가 막혀 있으니 «내려받기» 가 0 입니다. 요금이 붙을 일이 없습니다.
+    //   · 소장님은 Firebase 콘솔(또는 관리자 키)로 보십니다.
+    "quotes": {
+      ".read": false,
+      ".write": false,
+      "$id": {
+        ".read": false,
+        ".write": "!data.exists()",
+        ".validate": "newData.hasChildren(['work', 'phone', 'at'])",
+        "work":  { ".validate": "newData.isString() && newData.val().length <= 120" },
+        "org":   { ".validate": "newData.isString() && newData.val().length <= 60" },
+        "no":    { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "money": { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "want":  { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "due":   { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "phone": { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "name":  { ".validate": "newData.isString() && newData.val().length <= 30" },
+        "memo":  { ".validate": "newData.isString() && newData.val().length <= 1000" },
+        "at":    { ".validate": "newData.isNumber()" },
+        "$other": { ".validate": false }
+      }
+    },
+
     // ───── 새 사이트의 구인구직 ─────
     // 목록은 누구나 읽고, 글쓰기는 익명 로그인한 사람만.
     // 수정·숨김은 글쓴이 브라우저(uid)만 가능합니다.

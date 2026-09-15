@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { NaeyeokStrip } from '../components.jsx'
 import { Link, useSearchParams } from 'react-router-dom'
 import { getJSON, getOverview, getAgency, similarZone, getSim, getBidIndex, indexRows, getResults } from '../lib/data.js'
 import { won, wonShort, pct, num, dateTime, dday } from '../lib/fmt.js'
@@ -926,6 +927,9 @@ export default function BaroBid() {
 
   return (
     <>
+      {/* 📋 투찰금액을 정하러 온 사람 = 곧 내역서가 필요해질 사람입니다. */}
+      <NaeyeokStrip tone="bid" />
+
       {/* ── 오늘의 기준 ──
           검증 화면에서는 «그 공고의 규모»를 기준으로 보여줍니다.
           위에서는 10억 미만이라 하고 아래 채점표는 10억~50억이라 하면 서로 어긋납니다. */}

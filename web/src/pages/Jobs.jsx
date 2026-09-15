@@ -346,6 +346,16 @@ function HireSites({ region, trade, onSeeAll }) {
         {!rx && trade !== '전체' && <> 「{trade}」는 어느 현장에나 필요한 자리라 공사 종류로 거르지 않았습니다.</>}
       </div>
 
+      {/* 📋 2026-09-15 — 이 목록에 뜨는 회사가 곧 «착공신고 때 산출내역서를 내야 하는» 사람들입니다.
+          목록을 보러 온 사람이 자기 이야기를 만나는 자리라 여기에 한 줄 둡니다. */}
+      <div className="note" style={{
+        marginBottom: 10, padding: '9px 11px', borderRadius: 8,
+        background: 'var(--accent-soft, rgba(26,86,219,.08))', border: '1px solid var(--line)',
+      }}>
+        <b>낙찰되셨습니까?</b> 착공신고 때 <b>산출내역서</b>를 내셔야 합니다.{' '}
+        <a href="/naeyeok" style={{ fontWeight: 700 }}>내역서 작성해 드립니다 →</a>
+      </div>
+
       {loading || !pageReady ? <Skeleton n={3} /> : view.length === 0 ? (
         <Empty icon="🏗">이 조건에 맞는 최근 낙찰이 없습니다.<br />지역을 넓혀 보세요.</Empty>
       ) : view.map((r) => (

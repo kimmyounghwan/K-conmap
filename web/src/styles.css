@@ -2755,3 +2755,34 @@ ul.plainlist li { margin-bottom: 5px; }
   .tabbar a { flex: 0 0 20%; padding: 4px 0 5px; }
   .shell { padding-bottom: calc(var(--nav-h) * 2 + env(safe-area-inset-bottom) + 20px); }
 }
+
+/* 📋 2026-09-15 — 내역서 화면의 설명 표는 «글자» 표라서 왼쪽에 붙여야 읽힙니다.
+   숫자 표(.tbl)는 오른쪽 정렬이 맞지만 이건 반대입니다. */
+.tbl.left th, .tbl.left td { text-align: left; }
+
+/* 📋 2026-09-15 — 하나뿐인 유료 화면(「내역서 작성」)은 탭에서 눈에 띄어야 합니다.
+   색을 바꾸는 대신 «옅은 배경 + 가는 테두리»로 — 광고처럼 보이면 오히려 안 누릅니다. */
+.tabbar a.pay, nav a.pay {
+  background: var(--accent-soft, rgba(26, 86, 219, .09));
+  border: 1px solid var(--line, rgba(26, 86, 219, .25));
+  border-radius: 8px;
+  font-weight: 700;
+}
+.tabbar a.pay.on, nav a.pay.on { background: var(--accent, #1a56db); color: #fff; }
+
+/* 📋 2026-09-15 — 내역서 띠. 튀는 색 대신 «가는 테두리 + 옅은 바탕»으로.
+   광고처럼 보이면 눈이 건너뜁니다. 줄이 좁아지면 두 줄로 감쌉니다. */
+.naeyeok-strip {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  margin: 0 0 12px; padding: 10px 13px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--accent-soft, rgba(26, 86, 219, .07));
+  color: var(--text); text-decoration: none;
+  font-size: 13.5px; line-height: 1.6;
+}
+.naeyeok-strip:hover { background: var(--accent-soft, rgba(26, 86, 219, .13)); }
+.naeyeok-strip .ns-ic { font-size: 17px; line-height: 1; }
+.naeyeok-strip .ns-txt { flex: 1 1 260px; }
+.naeyeok-strip .ns-go {
+  font-weight: 700; color: var(--accent, #1a56db); white-space: nowrap;
+}

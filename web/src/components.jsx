@@ -135,3 +135,26 @@ export function MoneyInput({ value, onChange, placeholder = '예: 350,000,000' }
 }
 
 export const RateText = ({ v }) => <span className="amt">{pct(v, 3)}</span>
+
+/* 📋 2026-09-15 — 「내역서 작성」 띠 (소장님: 「이게 메인이니까. 눈에 잘 띄게」)
+ *
+ * 유료 화면은 이것 하나뿐입니다. 그런데 사람들은 /naeyeok 을 찾아 들어오지 않습니다 —
+ * 공고를 보러, 투찰금액을 보러 옵니다. 그 길목에 한 줄 놓습니다.
+ *
+ * ⚠️ 광고처럼 만들면 눈이 알아서 건너뜁니다. 그래서 색을 튀기지 않고
+ *    «지금 화면에서 하던 일과 이어지는 한 문장»으로 씁니다.
+ *    바로투찰 → 「투찰금액을 정하셨습니까? 다음은 내역서입니다」
+ *    1순위·구인구직 → 「낙찰되셨습니까? 착공신고 때 산출내역서를 내셔야 합니다」
+ */
+export function NaeyeokStrip({ tone = 'win' }) {
+  const line = tone === 'bid'
+    ? <><b>투찰금액을 정하셨습니까?</b> 낙찰되면 <b>산출내역서</b>를 내셔야 합니다.</>
+    : <><b>낙찰되셨습니까?</b> 착공신고 때 <b>산출내역서</b>를 내셔야 합니다.</>
+  return (
+    <a href="/naeyeok" className="naeyeok-strip">
+      <span className="ns-ic">📋</span>
+      <span className="ns-txt">{line}</span>
+      <span className="ns-go">작성해 드립니다 →</span>
+    </a>
+  )
+}

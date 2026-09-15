@@ -6,7 +6,7 @@ import NoticeDetail, { scoreState, NoticeLink } from '../NoticeDetail.jsx'
 import Comments from '../Comments.jsx'
 import { noteFirst } from '../lib/mentor.js'
 import { useBoard } from '../lib/useBoard.js'
-import { Skeleton, Empty, Tile } from '../components.jsx'
+import { Skeleton, Empty, Tile, NaeyeokStrip } from '../components.jsx'
 import { won, wonShort, pct, num, dateTime, dateShort, REGIONS, inRegion } from '../lib/fmt.js'
 import { loadLicCodes, saveLicCodes, loadLicNone, saveLicNone,
          licList, licNoneCount, licHit, licShort } from '../lib/lic.js'
@@ -70,6 +70,9 @@ export default function FirstBoard() {
 
   return (
     <>
+      {/* 📋 개찰 결과를 보러 온 사람 = 방금 낙찰됐거나 곧 낙찰될 사람입니다. */}
+      <NaeyeokStrip tone="win" />
+
       <div className="sec-title" style={{ marginTop: 14 }}>
         🏆 1순위 현황판
         <span className="count">· 공사 개찰 결과 · 카드를 누르면 기초금액·낙찰가</span>

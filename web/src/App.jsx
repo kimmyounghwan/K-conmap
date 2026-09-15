@@ -19,6 +19,9 @@ const TABS = [
   /* 📐 캐드 유틸 — 소장님: 「따로 탭을 만들고, 설명서는 사이트에」 (2026-09-14).
      탭이 9개가 되어 좁은 화면에서는 두 줄로 감쌉니다(styles.css 의 .tabbar). */
   { to: '/cad', ic: '📐', label: '캐드' },
+  /* 📋 2026-09-15 — 소장님: 「주력은 내역서 판매. 건설맵에 눈에 띄게.」
+     하나뿐인 «유료» 화면이라 pay 표를 달아 탭에서 눈에 띄게 합니다(styles.css 의 .tab.pay). */
+  { to: '/naeyeok', ic: '📋', label: '내역서 작성', pay: true },
 ]
 
 export default function App() {
@@ -51,7 +54,7 @@ export default function App() {
         <nav className="railnav">
           {TABS.map((t) => (
             <NavLink key={t.to} to={t.to} end={t.to === '/'}
-              className={({ isActive }) => (isActive ? 'on' : '')}>
+              className={({ isActive }) => [isActive ? 'on' : '', t.pay ? 'pay' : ''].join(' ').trim()}>
               <span className="ic">{t.ic}</span><span>{t.label}</span>
             </NavLink>
           ))}
@@ -88,7 +91,7 @@ export default function App() {
       <nav className="tabbar">
         {TABS.map((t) => (
           <NavLink key={t.to} to={t.to} end={t.to === '/'}
-            className={({ isActive }) => (isActive ? 'on' : '')}>
+            className={({ isActive }) => [isActive ? 'on' : '', t.pay ? 'pay' : ''].join(' ').trim()}>
             <span className="ic">{t.ic}</span>
             <span>{t.label}</span>
           </NavLink>
