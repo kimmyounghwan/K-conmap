@@ -48,6 +48,20 @@ export default function ToolsIndex() {
         )
       })}
 
+      {/* 📐 2026-09-15 — 캐드 유틸을 탭에서 빼고 여기로 넣었습니다(리습도 도구입니다).
+          /cad 주소는 그대로입니다 — 검색으로 들어오던 길을 끊으면 안 됩니다. */}
+      <div className="card">
+        <div className="detail-h">📐 캐드 <span className="count">· 명령 7가지</span></div>
+        <Link className="row rowlink" to="/cad">
+          <span className="fic">📐</span>
+          <div className="grow">
+            <div className="t">캐드 유틸 — 길이·면적·수량·좌표</div>
+            <div className="d">파일 하나를 캐드에 올리면 명령 한 줄로 끝납니다. 무료.</div>
+          </div>
+          <span className="go">→</span>
+        </Link>
+      </div>
+
       <div className="card">
         <div className="note sm">
           ⚠️ 표준품셈·물가정보 단가·노임단가는 유료 자료라 싣지 않습니다.
