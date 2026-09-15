@@ -168,7 +168,9 @@ jobs:
           # data/seed 도 함께 — collect.py 가 주 1회 다시 구운 «복구용 씨앗» 입니다.
           # 이걸 커밋하지 않으면 캐시가 날아갔을 때 옛 씨앗으로 되돌아가 며칠이 사라집니다
           # (2026-09-12 확인: 씨앗이 09-03 에 9일째 멈춰 있었습니다).
-          git add data/extra_*.csv data/seed
+          # 📋 회차 상태 한 장 — 밖에서 git 만으로 «어디까지 왔나» 를 볼 수 있게 (2026-09-15)
+          #    Actions 로그는 저장소가 아니라서 인증 없이는 못 읽습니다.
+          git add data/extra_*.csv data/seed "docs/수집상태.md"
           if git diff --staged --quiet; then
             echo "새로 쌓인 자료 없음 — 커밋 생략"
           else

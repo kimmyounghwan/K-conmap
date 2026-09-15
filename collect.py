@@ -1973,6 +1973,64 @@ def lic_codes(r):
     return [c for c, _ in lic_pairs(r)]
 
 
+def write_status(first):
+    """📋 docs/수집상태.md — 회차마다 «어디까지 왔나» 를 **저장소에** 한 장으로 남깁니다.
+
+    왜 필요한가 (2026-09-15)
+      · 회차 기록은 GitHub Actions 로그에만 남습니다. 로그는 저장소가 아니라서
+        밖에서 API 없이는 못 읽습니다(내려받기는 인증이 필요합니다).
+      · 그래서 **git 으로 따라갈 수 있는 자리**에 한 장 남깁니다.
+        `git fetch` 만 되면 누구나(클로드 포함) 지금 상태를 볼 수 있습니다.
+      · ⚠️ 워크플로의 `git add` 에 이 파일이 들어가 있어야 합니다.
+
+    ⚠️ 이 파일은 **기계가 씁니다.** 손으로 고치면 다음 회차에 덮어씁니다.
+    """
+    rows = list((first.get("con") or {}).values())
+    asked = sum(1 for r in rows if r.get("rask"))
+    got = sum(1 for r in rows if (r.get("corps") or []) and len(r["corps"]) > 1)
+    try:
+        box = ranks3y.summary()
+    except Exception:
+        box = "(읽지 못했습니다)"
+    lines = [
+        "# 수집 상태",
+        "",
+        "> ⚠️ **기계가 씁니다.** 손으로 고치면 다음 회차에 덮어씁니다.",
+        "> 회차마다 collect.py 가 새로 적고 자동 갱신이 커밋합니다.",
+        "",
+        "| | |",
+        "|---|---|",
+        "| 마지막 회차 | %s KST |" % datetime.now(KST).strftime("%Y-%m-%d %H:%M"),
+        "| 조달청 호출 | %s |" % ("⛔ **일일 트래픽을 다 썼습니다**" if QUOTA_OUT
+                              else ("⚠️ 통신 차단기가 내려갔습니다" if NET_DOWN else "정상")),
+        "| 개찰 저장소 | %s건 |" % format(len(rows), ","),
+        "| 순위 물어본 개찰 | %s건 (%.1f%%) |" % (format(asked, ","),
+                                          asked / max(len(rows), 1) * 100),
+        "| 순위 받은 개찰 | %s건 |" % format(got, ","),
+        "| 아직 안 물어본 것 | %s건 |" % format(len(rows) - asked, ","),
+        "| 3년치 순위 보관함 | %s |" % box,
+        "",
+        "## 3년치 순위가 언제 다 차나",
+        "",
+        "하루 다섯 회차 × 회차당 상한만큼 받습니다. 한도에 닿으면 그 회차는 스스로 멈추고",
+        "다음 회차가 이어받습니다 — 그래서 «계정 한도가 얼마든» 있는 만큼만 받습니다.",
+        "",
+    ]
+    if QUOTA_OUT:
+        lines += [
+            "⛔ **이번 회차는 트래픽 한도에 닿아 멈췄습니다.**",
+            "지금 양으로도 개발계정 한도가 빠듯하다는 뜻입니다 —",
+            "회차당 건수를 올리기 전에 운영계정 전환을 먼저 생각해야 합니다.",
+            "",
+        ]
+    d = os.path.join(ROOT, "docs")
+    if not os.path.isdir(d):
+        os.makedirs(d)
+    with io.open(os.path.join(d, "수집상태.md"), "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+    print("  · docs/수집상태.md 갱신 — " + box)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=int, default=3)
@@ -3314,6 +3372,10 @@ def main():
         write_health(first, live, added)
     except Exception as e:
         print(f"  ! 상태 기록 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
+    try:
+        write_status(first)
+    except Exception as e:
+        print(f"  ! 수집상태.md 쓰기 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
     save_diag()
     print("✅ 수집 완료")
 
