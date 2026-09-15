@@ -2847,3 +2847,22 @@ ul.plainlist li { margin-bottom: 5px; }
   font-size: 12px; color: var(--muted, #6b7280); }
 .footer-me b { color: var(--ink, #1a1d24); font-size: 13px; }
 .footer-me .role { color: var(--muted, #6b7280); margin-right: 3px; }
+
+
+/* 🧭 «처음이세요?» 띠 (2026-09-15) — 처음 온 사람에게 한 번만.
+   광고처럼 보이면 눈이 건너뜁니다. 옅은 파랑 바탕에 왼쪽만 굵은 선. */
+.firstbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 0 0 10px; padding: 11px 13px; border-radius: 10px;
+  background: var(--tint, #eff4ff); border: 1px solid var(--line, #dbe4f5);
+  border-left: 4px solid var(--accent, #1a56db); }
+.firstbar .t { flex: 1 1 240px; min-width: 0; font-size: 13.5px; line-height: 1.6; }
+.firstbar .go { flex: 0 0 auto; background: var(--accent, #1a56db); color: #fff;
+  border-radius: 8px; padding: 8px 15px; font-weight: 800; font-size: 13.5px;
+  text-decoration: none; white-space: nowrap; }
+.firstbar .x { flex: 0 0 auto; background: none; border: 0; cursor: pointer;
+  color: var(--muted, #6b7280); font-size: 15px; padding: 4px 6px; }
+@media (max-width: 420px) {
+  .firstbar { padding: 10px 11px; gap: 8px; }
+  .firstbar .t { font-size: 13px; flex: 1 1 100%; }
+  .firstbar .go { flex: 1 1 auto; text-align: center; }
+}

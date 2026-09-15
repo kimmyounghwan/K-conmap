@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { BasePriceProvider } from './BasePrice.jsx'
 import { InstallPill, InstallBar } from './Install.jsx'
 import AskStrip from './AskComment'
+import FirstBar from './FirstBar.jsx'
 
 const TABS = [
   /* ⚠️ 2026-09-15 — 탭이 11개가 되자 좁은 화면에서 **세 줄**이 됐습니다.
@@ -76,6 +77,8 @@ export default function App() {
       <main className="shell">
         {/* 📲 홈 화면에 추가 띠 — 모든 페이지 맨 위. 닫으면 7일 뒤에 다시 (Install.jsx) */}
         <InstallBar />
+        {/* 🧭 처음 온 사람에게 딱 한 번 — «보는 방법» 으로 가는 길 (FirstBar.jsx) */}
+        <FirstBar />
         {/* 💬 서식·캐드를 받은 «직후» 에만, 이레에 한 번 (AskComment.jsx) */}
         <AskStrip />
         <Outlet />
