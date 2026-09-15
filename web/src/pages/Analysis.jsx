@@ -4,6 +4,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { searchCorp } from '../lib/data.js'
 import { AgencyPicker, Bars, Months, Tile, Empty } from '../components.jsx'
 import { wonShort, pct, num, dateFull, normCorp } from '../lib/fmt.js'
+import { ReportStrip } from './Report.jsx'
 
 export default function Analysis() {
   const [sp, setSp] = useSearchParams()
@@ -129,6 +130,9 @@ function CorpTab() {
         내 회사 이름을 넣어보세요.<br />
         어느 지역 · 어느 기관에서 강한지, 평균 투찰률이 얼마인지 보여드립니다.
       </Empty>
+
+      {/* 📊 성적표 — 여기 오신 분이 바로 그 손님입니다 (2026-09-15) */}
+      <ReportStrip />
     </>
   )
 }

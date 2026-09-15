@@ -2949,6 +2949,14 @@ ul.plainlist li { margin-bottom: 5px; }
   .tlopts { gap: 12px 16px; }
 }
 
+/* 📊 업체 입찰 성적표 (/report) — 2026-09-15
+   견주기 표에서 «작은 설명» 이 제목에 붙어 버려 「업체 자가진단사이트에서 바로」 로 읽혔습니다. */
+.reptbl .w { white-space: normal; }
+.reptbl .d {
+  display: block; margin-top: 2px;
+  font-size: 12px; font-weight: 500; color: var(--muted);
+}
+
 /* ══ 🌓 어두운 화면 — 밝은 파랑 바탕의 글씨색 (2026-09-15) ══════════════
    어두운 화면에서 --accent 는 밝은 파랑(#6b9bff)입니다. 그 위에 흰 글씨를
    얹으면 대비가 2.71 밖에 안 나옵니다 — 밖에서 폰으로 보면 글자가 물러집니다.

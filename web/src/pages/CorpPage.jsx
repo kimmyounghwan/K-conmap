@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import { getCorp, getOverview } from '../lib/data.js'
 import { CorpReport } from './Analysis.jsx'
+import { ReportStrip } from './Report.jsx'
 import { Skeleton, Empty } from '../components.jsx'
 import { pct, num } from '../lib/fmt.js'
 /* ⚠️ 2026-09-09 — 이 줄이 빠져 있어 /corp/… 가 «흰 화면» 이었습니다.
@@ -99,6 +100,9 @@ export default function CorpPage() {
         </div>
       )}
       <CorpReport c={c} ov={ov} onPickFirm={(k) => setFirm(k)} />
+      {/* 📊 성적표 — 자기 회사 숫자를 «막 본 직후» 가 가장 뜨거운 자리입니다 (2026-09-15).
+          이 화면은 업체마다 미리 구워져 있어 검색으로 바로 들어옵니다. */}
+      <ReportStrip name={decoded} />
       <div className="btn-row" style={{ marginTop: 10 }}>
         <Link className="btn" to="/calc" style={{ flex: 1 }}>💰 바로투찰 열기 →</Link>
       </div>

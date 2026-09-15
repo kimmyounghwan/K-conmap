@@ -78,6 +78,8 @@ const ChangeBook = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ de
 const ChangeNaeyeok = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeNaeyeok })))
 /* 🔁 설계변경 2줄 자동변환 — 2026-09-15. 엑셀을 다루느라 무거워서 반드시 lazyPage 입니다. */
 const TwoLine = lazyPage(() => import('./pages/TwoLine.jsx'))
+/* 📊 업체 입찰 성적표 — 2026-09-15 */
+const Report = lazyPage(() => import('./pages/Report.jsx'))
 const FormPage = lazyPage(() => import('./pages/Forms.jsx').then((m) => ({ default: m.FormPage })))
 
 const Loading = () => (
@@ -113,6 +115,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/change/excel" element={<Suspense fallback={<Loading />}><ChangeBook /></Suspense>} />
           <Route path="/change/naeyeok" element={<Suspense fallback={<Loading />}><ChangeNaeyeok /></Suspense>} />
           <Route path="/change/twoline" element={<Suspense fallback={<Loading />}><TwoLine /></Suspense>} />
+          <Route path="/report" element={<Suspense fallback={<Loading />}><Report /></Suspense>} />
           {/* 갈래별 주소 — prerender.py 가 이 주소로 HTML 을 굽습니다.
               ⚠️ 여기에 길이 없으면, 검색으로 들어온 사람에게 React 가 NotFound 를 씌우고
                  NotFound 는 noindex 를 겁니다 (CLAUDE.md soft 404). 반드시 짝을 맞춥니다. */}
