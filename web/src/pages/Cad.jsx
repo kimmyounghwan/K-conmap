@@ -1,4 +1,5 @@
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
+import { askAfter } from '../AskComment'
 import DATA from '../data/cad.json'
 import { Empty } from '../components.jsx'
 
@@ -32,6 +33,7 @@ export function bySlug(slug) {
 function dl(what) {
   try {
     if (window.gtag) window.gtag('event', 'cad_download', { what })
+    askAfter('cad')
   } catch (e) { /* 광고차단기 등 — 세는 것 때문에 받기가 막히면 안 됩니다 */ }
 }
 

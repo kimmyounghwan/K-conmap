@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useMemo } from 'react'
+import { askAfter } from '../AskComment'
 import { useParams, Link } from 'react-router-dom'
 import DATA from '../data/forms.json'
 import { ShareBtn } from './CorpPage.jsx'
@@ -206,7 +207,8 @@ export function FormPage() {
         <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>{f.short}</div>
         <div className="btn-row" style={{ marginTop: 12 }}>
           {/* 정적 파일이라 <a download> 하나면 됩니다 — 라이브러리도, 전송량도 없습니다 */}
-          <a className="btn primary" href={xlsx} download={`${f.title}_양식.xlsx`}>⬇ 엑셀 내려받기</a>
+          <a className="btn primary" href={xlsx} download={`${f.title}_양식.xlsx`}
+            onClick={() => askAfter('forms')}>⬇ 엑셀 내려받기</a>
           <button className="btn ghost" onClick={() => window.print()}>🖨 인쇄 · PDF</button>
         </div>
       </div>

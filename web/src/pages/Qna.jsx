@@ -53,6 +53,13 @@ export default function Qna() {
   const [del, setDel] = useState({})
   const [open, setOpen] = useState(null)    // 펼친 질문 id
   const [write, setWrite] = useState(false)
+  // 💬 서식·캐드를 받고 «한 줄 남기기» 로 들어오면 물음을 미리 채워 둡니다 (AskComment.jsx).
+  //    빈 칸을 마주하면 대부분 그냥 나갑니다 — 물음이 적혀 있으면 답을 씁니다.
+  const preset = (() => {
+    try { return new URLSearchParams(window.location.search).get('ask') || '' }
+    catch { return '' }
+  })()
+  useEffect(() => { if (preset) setWrite(true) }, [preset])
   const [mine, setMine] = useState(loadMine)
   const [onlyMine, setOnlyMine] = useState(false)
   const [q, setQ] = useState('')
@@ -124,7 +131,7 @@ export default function Qna() {
         )}
       </div>
 
-      {write && <WriteForm onDone={() => { setWrite(false); load(); setMine(loadMine()) }} />}
+      {write && <WriteForm preset={preset} onDone={() => { setWrite(false); load(); setMine(loadMine()) }} />}
 
       {list === null && <Skeleton n={4} />}
       {list && list.length === 0 && (
@@ -275,8 +282,8 @@ function AnswerForm({ qid, onDone }) {
 }
 
 /* ── 질문 쓰기 ─────────────────────────────────────────────────── */
-function WriteForm({ onDone }) {
-  const [f, setF] = useState({ t: '', b: '', nick: '', pin: '' })
+function WriteForm({ onDone, preset }) {
+  const [f, setF] = useState({ t: preset || '', b: '', nick: '', pin: '' })
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const set_ = (k) => (e) => setF((v) => ({ ...v, [k]: e.target.value }))

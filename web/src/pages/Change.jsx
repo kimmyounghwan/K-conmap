@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { askAfter } from '../AskComment'
 import { useParams, Link } from 'react-router-dom'
 import DATA from '../data/change.json'
 // forms.json(217KB)이 아니라 formsgen.py 가 구운 «작은 목록»(6KB)을 씁니다.
@@ -109,7 +110,8 @@ export function MainBook({ inPage }) {
 
       <div className="btn-row" style={{ marginTop: 10, marginBottom: 4 }}>
         <a className="btn primary" href={`/forms/${BOOK.file}.xlsx`}
-           download={`${BOOK.title}.xlsx`}>⬇ 엑셀 내려받기 (시트 11장)</a>
+           download={`${BOOK.title}.xlsx`}
+           onClick={() => askAfter('change')}>⬇ 엑셀 내려받기 (시트 11장)</a>
         {!inPage && <Link className="btn ghost" to="/change/excel">쓰는 법 · 자주 묻는 것</Link>}
       </div>
 

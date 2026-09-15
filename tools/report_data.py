@@ -19,6 +19,7 @@ import collections
 import io
 import json
 import os
+import datetime
 import statistics
 import sys
 
@@ -83,6 +84,14 @@ def one(row, bno, p50):
             br = B.rank_bracket(row.get("rq"), sc["our"], sc["limit"], sc["beat"])
             out["limit"] = sc["limit"]
             out["yeje"] = sc["yeje"]
+            out["llr"] = llr
+            out["a_known"] = a_known
+            out["aval"] = a
+            if sc["yeje"]:
+                # 조달청 투찰률과 같은 잣대 (A값을 빼지 않고 예정가격으로 나눕니다)
+                out["my_rate"] = round(amt / sc["yeje"] * 100, 3)
+                out["lim_rate"] = round(sc["limit"] / sc["yeje"] * 100, 3)
+                out["win_gap_pp"] = round((win_amt - sc["limit"]) / sc["yeje"] * 100, 3)
             # 내 금액이 낙찰선보다 몇 %p 위였나 — «습관» 을 보는 잣대
             if sc["yeje"]:
                 out["over_pp"] = round((amt - sc["limit"]) / sc["yeje"] * 100, 3)
@@ -93,6 +102,75 @@ def one(row, bno, p50):
                 "rank_hi": br[1] if br else None,
             }
     return out
+
+
+def load_live():
+    p = os.path.join(STORE, "live.json")
+    try:
+        with io.open(p, encoding="utf-8") as f:
+            return list(json.load(f).get("con", {}).values())
+    except Exception:
+        return []
+
+
+def sido(inst):
+    """«충청남도 서천군» → «충청남도». 기관 이름 앞머리가 곧 시·도입니다."""
+    t = str(inst or "").split()
+    return t[0] if t else ""
+
+
+def next_five(recs, p50, n=5):
+    """마감 전 공고에서 **이 업체가 넣을 만한 자리**를 골라 권장금액까지 붙입니다.
+
+    이것이 리포트를 «지난 일 정리» 에서 «내일 할 일» 로 바꿉니다.
+    화면에도 공고는 있지만, «이 회사에 맞는 다섯 건» 으로 좁혀 주지는 않습니다.
+    """
+    live = load_live()
+    if not live or not recs:
+        return []
+    insts = collections.Counter(x["inst"] for x in recs if x.get("inst"))
+    sidos = collections.Counter(sido(x["inst"]) for x in recs if x.get("inst"))
+    bases = sorted(x["base"] for x in recs if x.get("base"))
+    if not bases:
+        return []
+    lo_b, hi_b = bases[0] * 0.4, bases[-1] * 2.5
+    # ⚠️ 조달청 시각은 한국시간입니다. GitHub·클라우드는 UTC 로 돕니다 —
+    #    그냥 now() 를 쓰면 9시간 지난 공고가 «아직 마감 전» 으로 섞입니다(실측).
+    KST = datetime.timezone(datetime.timedelta(hours=9))
+    now = datetime.datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
+    out = []
+    for r in live:
+        base, llr = r.get("base") or 0, r.get("llr") or 0
+        close = str(r.get("close") or "")
+        if not base or not llr or close <= now:
+            continue
+        if not (lo_b <= base <= hi_b):
+            continue
+        inst = r.get("inst") or ""
+        sc = 0
+        if inst in insts:
+            sc += 100 + insts[inst]
+        elif sido(inst) in sidos:
+            sc += 40 + sidos[sido(inst)]
+        else:
+            continue                      # 연고 없는 자리는 권하지 않습니다
+        a = r.get("aval") or 0
+        a_known = str(r.get("ayn") or "").upper() == "Y"
+        ro = B.recommend(base, llr, a, a_known, p50,
+                         r.get("lo") or -3, r.get("hi") or 3,
+                         r.get("ptot") or 15, r.get("pdrw") or 4)
+        if not ro:
+            continue
+        sh = B.shown(base, ro["amt"], p50)
+        out.append({"no": r.get("no"), "name": r.get("name"), "inst": inst,
+                    "close": close, "base": base, "est": r.get("est"),
+                    "llr": llr, "a": a, "a_known": a_known,
+                    "권장금액": sh["amt"], "권장투찰률": sh["rate"],
+                    "url": r.get("url"), "점수": sc,
+                    "같은기관": insts.get(inst, 0),
+                    "같은지역": sidos.get(sido(inst), 0)})
+    out.sort(key=lambda z: (-z["점수"], z["close"]))
+    return out[:n]
 
 
 def build(bno, rows, p50):
@@ -113,7 +191,105 @@ def build(bno, rows, p50):
     better = sum(1 for x in cmp_ if x["baro"]["rank_lo"] < x["rank"])
     worse = sum(1 for x in cmp_ if x["baro"]["rank_lo"] > x["rank"])
     inst = collections.Counter(x["inst"] for x in recs if x["inst"])
-    rivals = collections.Counter()
+
+    # ── 놓친 자리 ──────────────────────────────────────────────
+    #  «조금만 낮췄으면 1순위였던» 자리. 하한선 아래로 쓴 건(실격)은 뺍니다 —
+    #  그건 «더 낮게» 가 아니라 «더 높게» 썼어야 하는 자리라 뜻이 반대입니다.
+    miss = []
+    for x in recs:
+        if x["rank"] == 1 or x.get("my_dq") or not x.get("win_amt"):
+            continue
+        gap = x["amt"] - x["win_amt"]
+        if gap <= 0:
+            continue
+        lim = x.get("limit") or 0
+        miss.append({
+            "dt": x["dt"], "name": x["name"], "inst": x["inst"], "rank": x["rank"],
+            "n": x["n"], "amt": x["amt"], "win": x["win_amt"], "gap": gap,
+            "gap_pp": (round(gap / x["yeje"] * 100, 3) if x.get("yeje") else None),
+            # 하한선까지 남아 있던 여유 — 이만큼은 더 낮출 수 있었습니다
+            "room": (x["amt"] - lim) if lim else None,
+            "enough": bool(lim and x["win_amt"] > lim),
+        })
+    miss.sort(key=lambda z: z["gap"])
+
+    # ── 금액대별 ───────────────────────────────────────────────
+    def band_of(v):
+        v = v or 0
+        return "3억 미만" if v < 3e8 else ("3~10억" if v < 10e8 else "10억 이상")
+    bd = collections.defaultdict(lambda: {"투찰": 0, "낙찰": 0, "등수합": 0})
+    for x in recs:
+        k = band_of(x.get("base") or x.get("amt"))
+        bd[k]["투찰"] += 1
+        bd[k]["등수합"] += x["rank"]
+        if x["rank"] == 1:
+            bd[k]["낙찰"] += 1
+    band = [{"칸": k, "투찰": v["투찰"], "낙찰": v["낙찰"],
+             "평균등수": round(v["등수합"] / v["투찰"], 1)}
+            for k, v in sorted(bd.items(), key=lambda z: -z[1]["투찰"])]
+
+    # ── 기관별 «낙찰선이 어디였나» ──────────────────────────────
+    #  1순위 금액이 하한선보다 몇 %p 위였는지. 그 기관에서 «얼마에 갈렸는가» 입니다.
+    ib = collections.defaultdict(list)
+    for x in recs:
+        if x.get("limit") and x.get("yeje") and x.get("win_amt"):
+            ib[x["inst"]].append(round((x["win_amt"] - x["limit"]) / x["yeje"] * 100, 3))
+    inst_band = []
+    for k, v in sorted(ib.items(), key=lambda z: -len(z[1])):
+        v = sorted(v)
+        inst_band.append({"기관": k, "건": len(v), "최저": v[0], "중앙": v[len(v) // 2],
+                          "최고": v[-1]})
+    inst_band = inst_band[:8]
+
+    # ── ① 실격 해부 ────────────────────────────────────────────
+    #  화면은 «실격» 이라고만 씁니다. 여기서는 **왜** 인지를 짚습니다.
+    #  하한선보다 얼마나 밑이었나 · 한쪽으로 쏠렸나 · A값이 있는 자리에서만 그런가.
+    dq = [x for x in recs if x.get("my_dq")]
+    dq_an = None
+    if dq:
+        short = [round((x["limit"] - x["amt"]) / x["yeje"] * 100, 3)
+                 for x in dq if x.get("yeje")]
+        a_dq = sum(1 for x in dq if x.get("a_known"))
+        a_all = sum(1 for x in recs if x.get("a_known"))
+        dq_an = {
+            "건": len(dq), "전체": len(recs),
+            "모자란pp중앙": statistics.median(short) if short else None,
+            "모자란pp최대": max(short) if short else None,
+            "A값있는자리": [a_dq, a_all],
+            "기관쏠림": collections.Counter(x["inst"] for x in dq).most_common(3),
+            "버린돈": sum(x["amt"] for x in dq),
+            "목록": [{"dt": x["dt"], "name": x["name"], "inst": x["inst"],
+                    "amt": x["amt"], "limit": x.get("limit"),
+                    "short": (x["limit"] - x["amt"]) if x.get("limit") else None,
+                    "short_pp": (round((x["limit"] - x["amt"]) / x["yeje"] * 100, 3)
+                                 if x.get("yeje") else None),
+                    "n": x["n"]} for x in dq][:8],
+        }
+
+    # ── ② 투찰 습관 역산 ───────────────────────────────────────
+    #  «이 회사는 어떤 규칙으로 금액을 정하는가» 를 되짚습니다.
+    #  화면은 개찰을 하나씩 보여 줄 뿐, 규칙이 무엇인지는 말해 주지 않습니다.
+    hb2 = None
+    ov = [x["over_pp"] for x in recs if x.get("over_pp") is not None]
+    wg = [x["win_gap_pp"] for x in recs if x.get("win_gap_pp") is not None]
+    if len(ov) >= 3:
+        hb2 = {
+            "잰개찰": len(ov),
+            "내자리중앙": round(statistics.median(ov), 3),
+            "내자리평균": round(statistics.mean(ov), 3),
+            "흔들림": round(statistics.pstdev(ov), 3),
+            "낙찰선중앙": round(statistics.median(wg), 3) if wg else None,
+            "내투찰률중앙": (round(statistics.median(
+                [x["my_rate"] for x in recs if x.get("my_rate")]), 3)
+                if any(x.get("my_rate") for x in recs) else None),
+            "최저": round(min(ov), 3), "최고": round(max(ov), 3),
+        }
+        if hb2["낙찰선중앙"] is not None:
+            hb2["어긋남"] = round(hb2["내자리중앙"] - hb2["낙찰선중앙"], 3)
+
+    # ── ③ 다음에 넣을 자리 ─────────────────────────────────────
+    nxt = next_five(recs, p50)
+
     return {
         "업체": {"이름": name, "사업자번호": bno},
         "요약": {
@@ -130,7 +306,7 @@ def build(bno, rows, p50):
                 (1 if r == 1 else 5 if r <= 5 else 10 if r <= 10 else 30)
                 for r in ranks).items())),
         },
-        "습관": {
+        "습관요약": {
             "잰개찰": len(over),
             "낙찰선위평균pp": round(statistics.mean(over), 3) if over else None,
             "낙찰선위중앙pp": round(statistics.median(over), 3) if over else None,
@@ -144,7 +320,13 @@ def build(bno, rows, p50):
             "내가나은건": worse, "바로투찰이나은건": better,
         },
         "기관": inst.most_common(8),
-        "기록": recs[:40],
+        "실격해부": dq_an,
+        "습관": hb2 or None,
+        "다음자리": nxt,
+        "놓친자리": miss[:5],
+        "금액대": band,
+        "기관낙찰선": inst_band,
+        "기록": recs[:60],
     }
 
 

@@ -2803,3 +2803,14 @@ ul.plainlist li { margin-bottom: 5px; }
 .naeyeok-strip .ns-go {
   font-weight: 700; color: var(--accent, #1a56db); white-space: nowrap;
 }
+
+
+/* 💬 «한 줄 남겨 주세요» 띠 (2026-09-15) — 받은 직후에만, 이레에 한 번.
+   광고처럼 보이면 눈이 건너뜁니다. 옅은 바탕에 가는 테두리로. */
+.askstrip { margin: 10px 0; padding: 11px 13px; border: 1px solid var(--line, #e5e7eb);
+  border-left: 3px solid var(--accent, #1a56db); border-radius: 8px;
+  background: var(--card, #fff); }
+.askstrip .q { font-weight: 800; font-size: 14px; line-height: 1.5; }
+.askstrip .s { color: var(--muted, #6b7280); font-size: 12.5px; margin-top: 3px; line-height: 1.5; }
+.askstrip .b { display: flex; gap: 7px; margin-top: 9px; flex-wrap: wrap; }
+.askstrip .b .btn { padding: 6px 13px; font-size: 13px; }
