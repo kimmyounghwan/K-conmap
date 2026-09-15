@@ -484,7 +484,10 @@ def main():
 
     rows = load_rows()
     log = load_log()
-    todo = [r for r in pick(rows, a.n * 4, a.mode) if r["url"] not in log][:a.n]
+    # ⚠️ 2026-09-15 — 앞서 «n*4 만 골라 놓고 그 안에서 안 받은 것을 고르게» 해 뒀더니,
+    #    514건을 받고 나니 위쪽이 다 채워져 「더 받을 것이 없습니다」 로 멈췄습니다.
+    #    차례는 전부 매기고, **안 받은 것만** 추린 뒤에 자릅니다.
+    todo = [r for r in pick(rows, 10 ** 6, a.mode) if r["url"] not in log][:a.n]
 
     print("내역서 모으기")
     print("  목록      %d건 · 이미 받음 %d건" % (len(rows), len(log)))
