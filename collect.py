@@ -27,6 +27,8 @@ from datetime import datetime, timedelta, timezone
 import requests
 import urllib3
 
+import ranks3y            # 3년치 투찰 순위 보관함 (2026-09-15)
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -170,6 +172,14 @@ NET_DOWN = False         # 차단기가 내려갔는지 (apis.data.go.kr 전용)
 #    한쪽 차단기로 다른 쪽을 막으면, 수집 막바지에 차단기가 내려간 회차마다
 #    내역서를 «조용히» 한 개도 안 받습니다(2026-09-05 에 실제로 겪었습니다).
 NO_NET = False           # --exportonly 처럼 «바깥을 아예 안 부른다» 는 뜻
+# ── 📊 일일 트래픽(호출 횟수) 한도 ──────────────────────────────
+#  공공데이터포털은 계정마다 «하루에 몇 번» 이 정해져 있습니다(개발계정은 적습니다).
+#  넘기면 오류가 아니라 **응답코드 22 (LIMITED_NUMBER_OF_SERVICE_REQUESTS_EXCEEDS_ERROR)**
+#  를 돌려줍니다. 예전에는 이걸 그냥 찍기만 하고 계속 두드렸습니다 —
+#  남은 호출을 전부 헛되이 쓰고, 그날 받아야 할 다른 자료까지 굶었습니다.
+#  → 한 번이라도 22 를 보면 **이번 회차는 조달청을 그만 부릅니다.** 다음 회차가 이어받습니다.
+#  이렇게 해 두면 계정 한도가 얼마든(개발이든 운영이든) 알아서 «있는 만큼» 받습니다.
+QUOTA_OUT = False        # 오늘 몫을 다 썼는지
 NET_LIMIT = 8            # 이만큼 연달아 실패하면 포기
 NET_TIMEOUT = 15         # 한 건당 기다리는 시간(초)
 # ⚠️ 2026-09-06 (일요일) — «연달아 8번» 만으로는 안 잡히는 날이 있었다.
@@ -204,6 +214,33 @@ NET_FAILS_CONN = 0           # 연속 «연결 실패»(ConnectionError) 횟수 
 NET_FAILS_ALL = 0        # 누적 실패(연속 아님) — 로그에 «몇 번 기다렸나» 를 남기기 위한 것
 
 
+# ── 일일 트래픽 한도를 알아보는 두 가지 ────────────────────────
+#  포털은 한도 초과를 여러 모양으로 알려 줍니다. 말로 걸러야 놓치지 않습니다.
+QUOTA_WORDS = ("LIMITED_NUMBER_OF_SERVICE_REQUESTS",
+               "SERVICE_ACCESS_DENIED_TRAFFIC",
+               "요청제한", "트래픽", "호출횟수", "이용횟수")
+
+
+def _quota_msg(text):
+    """이 응답이 «오늘 몫을 다 썼다» 는 뜻인가"""
+    t = str(text or "")
+    if "returnReasonCode>22<" in t.replace(" ", ""):
+        return True
+    return any(w in t for w in QUOTA_WORDS)
+
+
+def _quota_stop(tag, why_text):
+    """한도에 닿았으니 이번 회차는 조달청을 그만 부릅니다."""
+    global QUOTA_OUT
+    if not QUOTA_OUT:
+        QUOTA_OUT = True
+        print("    ⛔ 조달청 «일일 트래픽» 을 다 썼습니다 (%s · %s)." % (tag, str(why_text)[:120]))
+        print("       이번 회차는 여기서 멈추고, 다음 회차가 이어받습니다 —")
+        print("       남은 호출을 헛되이 쓰지 않으려는 것입니다. 자료는 누적분이 지킵니다.")
+        DIAG["트래픽초과"] = {"언제": datetime.now(KST).strftime("%Y-%m-%d %H:%M"),
+                          "어디": tag, "말": str(why_text)[:160]}
+
+
 def fetch(url, key, day=None, extra=None, label="", why=None):
     """why 에 dict 를 넘기면 실패 이유(HTTP·resultCode·resultMsg)를 담아 줍니다.
        진단에서 «응답 없음» 과 «필수값이 달라서 안 됨» 을 구별하기 위한 것입니다."""
@@ -211,7 +248,7 @@ def fetch(url, key, day=None, extra=None, label="", why=None):
     예전에 기초금액이 '계속 실패'했던 건 대부분 조용히 삼켜서 원인이 안 보였기 때문이다.
     그래서 여기서는 HTTP 코드 / resultCode / 본문 앞머리를 반드시 찍는다."""
     global NET_FAILS, NET_DOWN, NET_FAILS_ALL, NET_RECOVERED, NET_FAILS_CONN
-    if NET_DOWN:
+    if NET_DOWN or QUOTA_OUT:
         return []
     if time.time() - NET_T0 > NET_BUDGET_S:
         NET_DOWN = True
@@ -295,6 +332,11 @@ def fetch(url, key, day=None, extra=None, label="", why=None):
         j = r.json()
     except Exception:
         head = " ".join(r.text.split())[:180]
+        # ⚠️ 한도를 넘기면 포털이 JSON 이 아니라 XML 봉투로 돌려줄 때가 있습니다.
+        #    <OpenAPI_ServiceResponse><cmmMsgHeader><returnReasonCode>22</...>
+        if _quota_msg(head):
+            _quota_stop(tag, head)
+            return []
         print(f"    ! {tag} JSON 아님 → {head}")
         if why is not None:
             why.update({"http": r.status_code, "json": False, "body": head})
@@ -303,6 +345,10 @@ def fetch(url, key, day=None, extra=None, label="", why=None):
     head = resp.get("header", {}) or {}
     code = str(head.get("resultCode", "")).strip()
     if code and code not in ("00", "0"):
+        _msg = str(head.get("resultMsg", ""))
+        if code in ("22", "022") or _quota_msg(_msg):
+            _quota_stop(tag, "응답코드 %s · %s" % (code, _msg))
+            return []
         print(f"    ! {tag} 응답코드 {code} · {head.get('resultMsg', '')}")
         if why is not None:
             why.update({"http": r.status_code, "code": code,
@@ -2306,8 +2352,9 @@ def main():
         # 다시 받을 것(추첨번호 없음)을 맨 앞에 — 정렬에 섞이면 rask 가 있어 뒤로 밀립니다
         todo_rank = redo[:args.reranks] + todo_rank[:args.ranks]
         got = ranked = 0
+        kept3y = 0
         for r in todo_rank:
-            if NET_DOWN:
+            if NET_DOWN or QUOTA_OUT:
                 break
             cs, total, ladder, drw = openg_ranks(key, r["no"], r.get("ord"))
             r["rask"] = datetime.now(KST).strftime("%Y%m%d%H%M%S")
@@ -2318,6 +2365,10 @@ def main():
             r["corps"] = cs          # 낮은 금액 순 30곳까지
             r["nrank"] = total       # 실제로 받은 전체 투찰 건수
             r["rq"] = ladder         # [[등수, 금액], ...] — 전 구간 사다리
+            # 📊 3년치 보관함에도 담습니다 (2026-09-15).
+            #   first.json 은 «최근 개찰» 만 들고 있어 몇 주 지나면 이 순위가 사라집니다.
+            #   업체 성적표(낙찰을 못 해 본 업체 포함)는 3년치를 봐야 하므로 따로 쌓습니다.
+            kept3y += ranks3y.put(r["no"], r.get("dt"), total, cs)
             if any(drw):
                 r["drw"] = drw       # 1~15번이 각각 몇 번 찍혔나 (전체 투찰자 기준)
             # 100건마다 저장 — 한 번에 1,500건을 받다가 끊겨도 그때까지는 남습니다
@@ -2340,6 +2391,19 @@ def main():
         if todo_rank:
             print(f"  → 개찰 순위 조회 {len(todo_rank):,}건 시도 · "
                   f"응답 {got:,}건 · 2곳 이상 {ranked:,}건")
+        # ── 📊 3년치 보관함 갈무리 ──────────────────────────────
+        #   소장님(2026-09-15): 「이것도 3년치만 보관하는 걸로 하자. 순위」
+        #   3년이 지난 달은 통째로 버립니다 — 다 차면 크기가 더 늘지 않습니다.
+        try:
+            if kept3y:
+                _m, _l = ranks3y.flush()
+                print(f"  · 3년치 순위 보관함에 {_l:,}줄 담음 (달 {_m}장)")
+            _gone = ranks3y.trim()
+            if _gone:
+                print(f"  · 3년 지난 달 버림: {', '.join(_gone)}")
+            print("  · " + ranks3y.summary())
+        except Exception as e:
+            print(f"  ! 3년치 순위 보관함 처리 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
 
     # 사람이 넣어 둔 전체 투찰내역이 있으면 여기서도 붙입니다 (파일로 받은 경우)
     merge_ranks(first)
