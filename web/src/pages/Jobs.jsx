@@ -227,8 +227,22 @@ function WorkBoard({ onSeeAll }) {
         🔎 고용24(워크넷) 채용정보
         <span className="count">{region} · {trade === '전체' ? '건설 전체' : trade}</span>
         <span style={{ flex: 1 }} />
-        <a className="btn ghost sm" style={{ textDecoration: 'none' }}
-          href={url} target="_blank" rel="noopener noreferrer" onClick={wnLog}>새 창으로 크게 ↗</a>
+        <a className="btn sm" style={{ textDecoration: 'none' }}
+          href={url} target="_blank" rel="noopener noreferrer" onClick={wnLog}>워크넷에서 열기 ↗</a>
+      </div>
+
+      {/* ⚠️ 2026-09-15 — 소장님: 「구인구직에서 로그인이 안돼」
+          실제로 확인했습니다: 고용24 로그인 화면을 남의 화면 안에 실으면
+          «요청하신 페이지에 일시적인 문제가 발생했습니다» 가 뜹니다. 워크넷 쪽이 막아 둔 것이고
+          우리가 고칠 수 있는 것이 아닙니다(브라우저가 남의 칸 안의 로그인 쿠키를 막기도 합니다).
+          → 「여기서는 보기만, 로그인은 새 창에서」 를 **칸 위에** 크게 적습니다.
+             아래에만 적어 두면 못 보고 로그인부터 눌렀습니다. */}
+      <div className="note" style={{
+        marginBottom: 8, padding: '9px 11px', borderRadius: 8,
+        background: 'var(--warn-soft)', border: '1px solid var(--line)', color: 'var(--text)',
+      }}>
+        <b>여기서는 일자리를 «보기»만 됩니다.</b> 로그인·지원하기·이력서는 워크넷이 남의 화면 안에서는
+        막아 두어 안 됩니다. 지원하시려면 위 <b>「워크넷에서 열기 ↗」</b> 로 여세요.
       </div>
 
       {wide ? (
@@ -242,7 +256,8 @@ function WorkBoard({ onSeeAll }) {
           />
           <div className="note" style={{ padding: '10px 12px', borderTop: '1px solid var(--line)' }}>
             <b>칸 안에서 조금 내리시면 채용 목록이 나옵니다</b> — 고용24 화면이 「검색 조건」부터 열리기 때문입니다.
-            시·군까지 좁히시려면 그 안에서 「지역별」을 누르시면 됩니다.<br />
+            시·군까지 좁히시려면 그 안에서 「지역별」을 누르시면 됩니다.
+            <b>로그인·지원하기는 이 칸에서 안 됩니다</b> — 위 「워크넷에서 열기」 로 여세요.<br />
             이 칸은 고용24 화면을 그대로 불러온 것입니다. K-건설맵이 목록을 옮겨 적은 것이 아니며,
             누르시는 것은 모두 워크넷으로 이어집니다. 칸이 비어 보이면 위 「새 창으로 크게」 로 여세요.
           </div>
@@ -251,6 +266,7 @@ function WorkBoard({ onSeeAll }) {
         <div className="card">
           <div className="note" style={{ marginBottom: 10 }}>
             워크넷 화면은 PC 용이라 휴대폰 안에 넣으면 보기 어렵습니다. 새 창으로 여세요.
+            로그인·지원하기도 새 창에서만 됩니다.
           </div>
           <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
             <a className="btn" style={{ textDecoration: 'none' }}
