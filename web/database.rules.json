@@ -21,6 +21,63 @@
     "service_1st": { ".indexOn": ["날짜"] },
     "service_live": { ".indexOn": ["공고일자"] },
 
+    // ───── 💬 묻고 답하기 (2026-09-15) ─────
+    // 소장님: 「건설맵 이용자가 이용할 수 있는 게시판도 있어야 하지 않아」 · 「묻고 답하기 형식으로」
+    //
+    // 구인구직과 같은 얼개입니다 — 누구나 읽고, 익명 로그인한 사람만 쓰고,
+    // 지우는 건 글쓴이 브라우저(uid)만. 삭제 비밀번호는 해시로만 둡니다.
+    //
+    // ⚠️ 연락처 칸이 «없습니다». 공개 게시판에 전화번호를 적으면 광고 전화가 갑니다.
+    //    연락처가 필요한 이야기는 내역서 문의함(quotes)으로 갑니다.
+    "qna": {
+      ".read": true,
+      ".indexOn": ["at"],
+      "$id": {
+        ".write": "auth != null && newData.exists() && ( !data.exists() || data.child('uid').val() === auth.uid )",
+        ".validate": "newData.hasChildren(['t','nick','uid','at'])",
+        "t":       { ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 80" },
+        "b":       { ".validate": "newData.isString() && newData.val().length <= 2000" },
+        "nick":    { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "uid":     { ".validate": "newData.isString() && newData.val().length <= 64" },
+        "at":      { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
+        "deleted": { ".validate": "newData.isBoolean()" },
+        "$other":  { ".validate": false }
+      }
+    },
+
+    // 답변. 누구나 답니다. 「K-건설맵 답변」 표(op)는 운영자 열쇠를 맞춘 사람만 붙일 수 있습니다.
+    "qna_a": {
+      ".read": true,
+      "$qid": {
+        "$aid": {
+          ".write": "auth != null && newData.exists() && ( !data.exists() || data.child('uid').val() === auth.uid )",
+          ".validate": "newData.hasChildren(['b','nick','uid','at'])",
+          "b":       { ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 2000" },
+          "nick":    { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "op":      { ".validate": "newData.isBoolean()" },
+          "uid":     { ".validate": "newData.isString() && newData.val().length <= 64" },
+          "at":      { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
+          "deleted": { ".validate": "newData.isBoolean()" },
+          "$other":  { ".validate": false }
+        }
+      }
+    },
+
+    "qna_pins": {
+      ".read": false,
+      "$id": {
+        ".write": "auth != null && !data.exists()",
+        ".validate": "newData.isString() && newData.val().length === 64"
+      }
+    },
+
+    "qna_del": {
+      ".read": true,
+      "$id": {
+        ".write": "auth != null && !data.exists() && newData.isString() && newData.val() === root.child('qna_pins').child($id).val()"
+      }
+    },
+
     // ───── 📋 내역서 작성 «문의함» (2026-09-15) ─────
     // 소장님: 「게시판이 없다. 만들 수 있어? 글만 작성하게 해서... 비용문제도 없지 않아?」
     //

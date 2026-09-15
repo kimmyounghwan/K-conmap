@@ -62,6 +62,7 @@ const ChangeTopic = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ d
 /* 📚 입찰 알아보기 — 실측으로 쓴 원본 글 (2026-09-06). 하단 탭은 안 늘리고 푸터·바로투찰에서 들어갑니다. */
 const Guide = lazyPage(() => import('./pages/Guide.jsx'))
 const Naeyeok = lazyPage(() => import('./pages/Naeyeok.jsx'))
+const Qna = lazyPage(() => import('./pages/Qna.jsx'))
 const GuideTopic = lazyPage(() => import('./pages/Guide.jsx').then((m) => ({ default: m.GuideTopic })))
 /* 🧰 도구 — lazy() 가 아니라 lazyPage() 입니다. 배포가 지나가면 옛 파일이 사라져
    화면이 통째로 죽습니다 (2026-09-08 착공현장 사고). */
@@ -121,6 +122,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/tools" element={<Suspense fallback={<Loading />}><ToolsIndex /></Suspense>} />
           <Route path="/tools/:slug" element={<Suspense fallback={<Loading />}><ToolPage /></Suspense>} />
           {/* 📋 2026-09-15 — 내역서 작성 대행. 하나뿐인 유료 화면입니다. */}
+          {/* 💬 2026-09-15 — 묻고 답하기 */}
+          <Route path="/qna" element={<Suspense fallback={<Loading />}><Qna /></Suspense>} />
           <Route path="/naeyeok" element={<Suspense fallback={<Loading />}><Naeyeok /></Suspense>} />
           <Route path="/guide" element={<Suspense fallback={<Loading />}><Guide /></Suspense>} />
           <Route path="/guide/:slug" element={<Suspense fallback={<Loading />}><GuideTopic /></Suspense>} />
