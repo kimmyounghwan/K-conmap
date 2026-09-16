@@ -67,7 +67,12 @@ export default function TwoLine() {
       const wanted = b.sheets.map((s) => /내\s*역|산출내역|공내역/.test(s.name))
       const anyWanted = wanted.some(Boolean)
       setJobs(b.sheets.map((s, i) => ({
-        path: s.path, name: s.name, on: anyWanted ? wanted[i] : i === 0,
+        path: s.path, name: s.name,
+        /* ⚠️ «자기 합계 열쇠»(SUMIF)를 쓰는 시트는 줄을 벌릴 수 없습니다.
+              벌리면 합계가 두 번 세어져 총액이 틀립니다 — 켜지지 않게 막습니다.
+              2026-09-16: 실제로 총액이 1,034,244원 -> 0원이 된 적이 있습니다. */
+        keySum: s.keySum || 0,
+        on: s.keySum ? false : (anyWanted ? wanted[i] : i === 0),
         startRow: s.guessStart, endRow: s.guessEnd,
         labelCol: m.suggestLabelCol(b.zip, s.path, s.guessStart, s.guessEnd, 16),
       })))
@@ -80,7 +85,7 @@ export default function TwoLine() {
 
   const setJob = (i, patch) => setJobs((js) => js.map((j, k) => (k === i ? { ...j, ...patch } : j)))
 
-  const chosen = jobs.filter((j) => j.on)
+  const chosen = jobs.filter((j) => j.on && !j.keySum)
 
   /* ── 미리보기 — 실제로 바꾸기 전에 «이렇게 됩니다» 를 보여 줍니다 ── */
   const preview = useMemo(() => {
@@ -201,11 +206,21 @@ export default function TwoLine() {
           </p>
           <div className="tlsheets">
             {jobs.map((j, i) => (
-              <div className={`tlrow${j.on ? ' on' : ''}`} key={j.path}>
+              <div className={`tlrow${j.on && !j.keySum ? ' on' : ''}`} key={j.path}>
                 <label className="tlchk">
-                  <input type="checkbox" checked={j.on} onChange={(e) => setJob(i, { on: e.target.checked })} />
-                  <b>{j.name}</b>
+                  <input type="checkbox" checked={j.on && !j.keySum} disabled={!!j.keySum}
+                         onChange={(e) => setJob(i, { on: e.target.checked })} />
+                  <b style={j.keySum ? { color: '#c00000' } : undefined}>{j.name}</b>
                 </label>
+                {j.keySum ? (
+                  <span className="muted" style={{ fontSize: 12, lineHeight: 1.7 }}>
+                    <b style={{ color: '#c00000' }}>이 시트는 못 바꿉니다.</b>{' '}
+                    합계를 <b>자기 열쇠 칸</b>으로 찾아 더하고 있습니다(SUMIF {j.keySum}곳).
+                    줄을 벌리면 같은 열쇠가 두 벌이 되어 <b>합계가 두 번 세어집니다</b> —
+                    파일은 멀쩡히 열리는데 <b>총액만 틀립니다.</b>{' '}
+                    적산 프로그램이 만든 내역서에 흔한 모양입니다.
+                  </span>
+                ) : (
                 <span className="tlfields">
                   <label>시작 행 <input type="number" min="1" value={j.startRow}
                     onChange={(e) => setJob(i, { startRow: +e.target.value })} /></label>
@@ -214,6 +229,7 @@ export default function TwoLine() {
                   <label>라벨 열 <input type="text" size="2" maxLength="3" value={j.labelCol}
                     onChange={(e) => setJob(i, { labelCol: e.target.value.replace(/[^A-Za-z]/g, '').toUpperCase() })} /></label>
                 </span>
+                )}
               </div>
             ))}
           </div>

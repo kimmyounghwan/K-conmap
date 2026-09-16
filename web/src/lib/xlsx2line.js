@@ -271,9 +271,26 @@ export function analyze(buf) {
     let gs2 = first ? first + 1 : 2
     let ge2 = last || maxRow
     if (ge2 < gs2) { gs2 = Math.min(gs2, maxRow || 1); ge2 = maxRow || gs2 }
-    sheets.push({ name, path, maxRow, guessStart: gs2, guessEnd: ge2 })
+    /* «자기 합계 열쇠» 를 쓰는 시트는 줄을 벌릴 수 없습니다 — 화면에서 미리 막습니다.
+       (아래 keySumRanges 주석을 보십시오. 2026-09-16 에 총액이 0 원이 된 사고) */
+    let keySum = 0
+    try {
+      keySum = countKeySum(xml, gs2, ge2)
+    } catch (e) { keySum = 0 }
+    sheets.push({ name, path, maxRow, guessStart: gs2, guessEnd: ge2, keySum })
   }
   return { sheets, zip }
+}
+
+/* 시트 XML 하나에서 «벌릴 구간과 겹치는» SUMIF/SUMIFS 개수를 셉니다 */
+function countKeySum(xml, from, to) {
+  const re = /SUMIFS?\s*\(\s*\$?[A-Z]{1,3}\$?(\d+)\s*:\s*\$?[A-Z]{1,3}\$?(\d+)\s*,\s*\$?[A-Z]{1,3}\$?\d+/gi
+  let m, n = 0
+  while ((m = re.exec(xml))) {
+    if (Math.max(+m[1], from) <= Math.min(+m[2], to)) n++
+    if (n > 500) break
+  }
+  return n
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -297,6 +314,16 @@ export function convert(buf, opts) {
   } = opts || {}
 
   const zip = unzipSync(new Uint8Array(buf))
+  /* ⚠️ 마지막 빗장 — 화면을 거치지 않고 불러도 «틀린 총액» 을 내보내지 않게 합니다 */
+  for (const o of (sheetOpts || [])) {
+    if (!zip[o.path]) continue
+    const n = countKeySum(strFromU8(zip[o.path]),
+                          Math.max(1, +o.startRow || 1), +o.endRow || 0)
+    if (n) {
+      throw new Error('이 내역서는 «자기 합계 열쇠» 를 씁니다(SUMIF ' + n + '곳). ' +
+        '줄을 벌리면 합계가 두 번 세어져 총액이 틀립니다 — 바꾸지 않았습니다.')
+    }
+  }
   const gs = lines === 3 ? 3 : 2
   const report = { sheets: [], warns: [] }
   const order = sheetOrder(zip)          /* 경로 → 시트 차례(localSheetId) */
@@ -754,16 +781,58 @@ export function readGrid(zip, path, from, to, maxCol = 12) {
   return { rows }
 }
 
-/* 라벨을 넣을 만한 «빈 열» 을 찾아 줍니다 — 비고 칸이 있으면 거기 */
+/* 라벨을 넣을 만한 «빈 열» 을 찾아 줍니다 — 비고 칸이 있으면 거기
+ *
+ * ⚠️ 2026-09-16 고침 — 여기서 «총액이 0 원이 되는» 사고가 났습니다.
+ *    예전에는 A~P(16칸)만 보고 「마지막 칸 다음」을 골랐습니다. 그런데 적산 프로그램이
+ *    만든 설계내역서는 Q·R 열을 «자기 합계 열쇠» 로 씁니다 (=SUMIF(R6:R17,Q5,M6:M17)).
+ *    16칸까지만 보면 Q 가 비어 보여서 거기에 「당초/변경」 을 써 넣었고,
+ *    그 순간 내역서의 모든 SUMIF 가 못 찾게 되어 총액이 0 원이 되었습니다.
+ *    파일은 멀쩡히 열리고 인쇄도 됩니다 — 그래서 아무도 못 알아챕니다.
+ *    → 이제 시트 «전체» 를 보고, 어디에도 글자가 없는 칸만 고릅니다. */
+const WIDE_COL = 64          /* Q·R 를 놓치지 않을 만큼 넓게 */
+
 export function suggestLabelCol(zip, path, from, to, maxCol = 16) {
+  const all = readGrid(zip, path, 1, 1048576, WIDE_COL)
+  const everUsed = new Array(WIDE_COL).fill(0)
+  for (const row of all.rows) row.cells.forEach((v, i) => { if (String(v).trim()) everUsed[i]++ })
   const g = readGrid(zip, path, from, to, maxCol)
   const used = new Array(maxCol).fill(0)
   for (const row of g.rows) row.cells.forEach((v, i) => { if (String(v).trim()) used[i]++ })
   let lastUsed = 0
   used.forEach((n, i) => { if (n) lastUsed = i + 1 })
-  /* 자료 구간 안에서 «전부 빈» 열이 있으면 거기, 없으면 마지막 열 다음 */
-  for (let i = 0; i < lastUsed; i++) if (used[i] === 0) return numToCol(i + 1)
-  return numToCol(lastUsed + 1)
+  /* ① 자료 구간 안에서 비어 있고, «시트 어디에도» 안 쓰인 칸 */
+  for (let i = 0; i < lastUsed; i++) if (used[i] === 0 && everUsed[i] === 0) return numToCol(i + 1)
+  /* ② 없으면 시트 전체에서 처음으로 비어 있는 칸 */
+  for (let i = lastUsed; i < WIDE_COL; i++) if (!everUsed[i]) return numToCol(i + 1)
+  return numToCol(WIDE_COL)
+}
+
+/* 이 시트가 «자기 합계 열쇠» 를 쓰는가 — 쓰면 줄을 벌릴 수 없습니다.
+ *
+ *  =SUMIF(R6:R17, Q5, M6:M17)   <- R 열에 코드, Q 열에 찾을 코드
+ *  줄을 당초·변경으로 벌리면 같은 코드가 두 벌이 되어 합계가 «두 배» 가 됩니다.
+ *  라벨 열을 딴 데로 옮겨도 이건 안 고쳐집니다 — 구조 자체가 안 맞습니다.
+ *  그래서 «고쳐서 내놓지 않고» 못 한다고 알립니다. 틀린 총액을 내는 것보다 낫습니다.
+ *
+ *  실제로 잰 것(2026-09-16): 설계내역서 총액 1,034,244원 -> 0원.
+ *  모은 내역서 1,086부 가운데 43부(4.0%)가 이 모양입니다.
+ */
+export function keySumRanges(zip, path, from, to) {
+  if (!zip[path]) return []
+  const xml = strFromU8(zip[path])
+  const out = []
+  const re = /SUMIFS?\s*\(\s*\$?([A-Z]{1,3})\$?(\d+)\s*:\s*\$?([A-Z]{1,3})\$?(\d+)\s*,\s*\$?([A-Z]{1,3})\$?(\d+)/gi
+  let m
+  while ((m = re.exec(xml))) {
+    const r1 = +m[2], r2 = +m[4]
+    /* 벌릴 구간과 «겹치는» 것만 셉니다. 딴 시트·딴 구간을 보는 SUMIF 는 괜찮습니다 */
+    if (Math.max(r1, from) <= Math.min(r2, to)) {
+      out.push({ range: m[1] + r1 + ':' + m[3] + r2, crit: m[5] + m[6] })
+      if (out.length >= 200) break
+    }
+  }
+  return out
 }
 
 
