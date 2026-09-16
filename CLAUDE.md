@@ -218,7 +218,11 @@ cd web && firebase deploy --only hosting        (또는 --only database)
 | `/naeyeok` | 견적서·내역서 작성 대행 (파는 것) | `Naeyeok.jsx` |
 | `/report` | 업체 입찰 성적표 (만들어 드림) — 엔진은 `tools/report_data.py` · `report_html.py` · `report_pdf.mjs` | `Report.jsx` |
 | `/safety` | 안전관리계획서·유해위험방지계획서 (준비 중) | `Safety.jsx` |
-| `/jeoksan` | K-적산 소개 (준비 중) | `Jeoksan.jsx` |
+| `/jeoksan` | K-적산 소개. 도면 찍기(리습·PC)는 «준비 중» | `Jeoksan.jsx` |
+| `/jeoksan/run` | **수량산출서 만들기 — 브라우저에서 «실제로 돕니다»** (2026-09-16).
+재료표(xlsx)+치수표(csv) → 산출서·집계·태그별·검산·쓴표 5장.
+셈은 `lib/qto.js`·`lib/susik.js` — **PC 의 `K-적산/kqto.py`·`kq_susik.py` 와 같은 수량을 내야 합니다.**
+한쪽만 고치지 말 것. 맞는지는 `node tools/시험_적산.mjs` | `JeoksanRun.jsx` |
 | `/shareone` | 쉐어원 — 사무실 공유폴더 배포 | `ShareOne.jsx` |
 | `/cad` · `/cad/{slug}` | 캐드 유틸 (리습 내려받기) | `Cad.jsx` |
 | `/tools` · `/tools/{slug}` | 건설 도구 12가지 | `Tools.jsx` |
@@ -496,6 +500,43 @@ A값에서도 같은 함정(«기초금액 있으면 건너뛰기»)이 있었�
 2026-09-16 에 「빈 페이지로 가는 단추 37,789개」라고 적었는데, 화면(mixbox)은
 `bzn>1` 일 때만 뜨는 조건을 빼고 세서 틀렸습니다 — 맞는 숫자는 **20,055개 중 8,768개**였습니다.
 **세는 조건이 화면의 조건과 같은지** 먼저 맞춰 보십시오.
+
+
+### 16. 🚨 새 라우트를 만들면 `web/firebase.json` 에도 넣는다 (2026-09-16)
+
+`firebase.json` 의 `//rewrites` 메모에 **이미 적혀 있던 경고**입니다. 그런데 안 지켰습니다.
+
+2026-09-16 점검: main.jsx 라우트 35개 중 **9개가 규칙에 없어 404 상태로 나가고 있었습니다** —
+`/tools` `/naeyeok` `/qna` `/how` `/lic` `/report` `/jeoksan` `/safety` `/shareone`.
+**사람 눈에는 멀쩡히 보입니다**(404.html 이 SPA 를 띄웁니다). 그래서 아무도 못 알아챘습니다.
+크롤러에게만 「그 페이지 없습니다」라고 말하고 있었던 것입니다 —
+카페에 알린 `/shareone` 도 그 안에 있었습니다.
+
+    python - <<'EOF'
+    import json, io, re
+    routes = re.findall(r'<Route\s+path="([^"]+)"', io.open('web/src/main.jsx', encoding='utf-8').read())
+    rw = [r['source'] for r in json.load(io.open('web/firebase.json', encoding='utf-8'))['hosting']['rewrites']]
+    ...
+    EOF
+
+**라우트를 더하면 같은 커밋에서 `firebase.json` 을 고칩니다.**
+
+### 17. 🚨 도구가 «조용히» 값을 0 으로 만들 수 있다 — 2줄 변환 (2026-09-16)
+
+`/change/twoline` 이 **적산 프로그램이 만든 내역서에서 총액을 0 원으로 만듭니다.**
+
+무슨 일인가: 그런 내역서는 **자기 합계 열쇠 열**을 씁니다 — 예) `M5 =SUMIF(R6:R17, Q5, M6:M17)`
+(R 열에 코드, Q 열에 찾을 코드). 2줄 변환은 라벨 열을 고를 때 **A~P 16칸만** 보고
+「Q 는 비었네」 하고 거기에 「당초/변경」 을 써 넣습니다. 그 순간 SUMIF 가 못 찾습니다.
+
+    실제로 재 본 것 : 설계내역서 총액 **1,034,244원 → 0원**
+    얼마나 흔한가   : 모은 내역서 1,086부 중 **43부(4.0%)** 가 이 모양입니다
+    왜 무서운가     : **파일은 멀쩡히 열리고 인쇄도 됩니다.** 숫자만 0 입니다
+
+라벨 열을 넓게(16칸 말고 시트 전체) 보게 고치면 «0 원» 은 면합니다. 그래도
+**합계는 여전히 틀립니다** — 늘어난 줄 때문에 원래 SUMIF 가 당초·변경을 두 번 셉니다
+(1,034,244 → 4,136,976). 그러니 고칠 것은 **「이런 내역서는 못 바꿉니다」 라고 «멈추고 알리는» 것**이지,
+값을 내놓는 것이 아닙니다. 소장님 지시로 **지금은 손대지 않았습니다** — 고칠 때 이 기록부터 보십시오.
 
 ---
 
