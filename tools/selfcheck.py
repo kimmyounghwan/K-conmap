@@ -508,6 +508,89 @@ def check_boardrank():
     return bad
 
 
+def check_corp_rank():
+    """🏅 업체 칸이 «자기 기록» 만 싣고 있는지. (2026-09-16)
+
+    왜 검사가 필요한가 — 조용히 틀리고 있었습니다.
+      화면은 법인 칸에 「이 법인 하나만의 기록입니다 — 동명 업체와 섞이지 않았습니다」
+      라고 적어 놓고, 그 아래 순위 기록은 «같은 이름 전체» 것을 싣고 있었습니다.
+      실측: 갈라 놓은 11,735곳 중 5,053곳(43%)이 남의 기록. 에러는 안 났습니다.
+      (소장님: 「1순위 한번인데, 총낙찰은 2번이야. 뭐가 안맞지 않아?」)
+
+    네 가지를 봅니다:
+      ① 법인 칸(이름#번호)에 rkby=name 이 붙어 있으면 — 남의 순위입니다
+      ② 법인 칸에 rival(맞대결)이 있으면 — 맞대결 표는 이름 단위라 남의 것입니다
+      ③ 「이 법인만 보기」 가 가리키는 칸이 실제로 있는지 — 없으면 빈 페이지입니다
+      ④ corp/names.json 에 «이름#번호» 키가 섞여 있는지 — 파일만 무거워집니다
+    """
+    print("\n" + "=" * 64)
+    print("  업체 칸 대조 — 자기 기록만 싣고 있나")
+    print("=" * 64)
+    d = os.path.join(ROOT, "web", "public", "data", "corp")
+    if not os.path.isdir(d):
+        print("(건너뜀 — web/public/data/corp 이 없습니다)")
+        return []
+    import glob
+    bad = []
+    keys = set()
+    for p in glob.glob(os.path.join(d, "idx", "*.json")):
+        keys |= set(json.load(io.open(p, encoding="utf-8")).keys())
+    if not keys:
+        print("(건너뜀 — 업체 색인이 비어 있습니다)")
+        return []
+
+    by_name = riv = dead = 0
+    live = 0
+    ex = []
+    for p in glob.glob(os.path.join(d, "dat", "*.json")):
+        for k, c in json.load(io.open(p, encoding="utf-8")).items():
+            if "#" in k:
+                if c.get("rank") and c.get("rkby") != "biz":
+                    by_name += 1
+                    if len(ex) < 3:
+                        ex.append(k)
+                if c.get("rival"):
+                    riv += 1
+                continue
+            if (c.get("bzn") or 0) > 1:
+                for row in (c.get("bz") or []):
+                    tgt = k + "#" + row[0]
+                    if tgt in keys:
+                        live += 1
+                    else:
+                        dead += 1
+                        if len(ex) < 6:
+                            ex.append(tgt + " (없는 칸)")
+    if by_name:
+        bad.append("법인 칸 %s곳에 «이름으로 묶은» 순위가 붙어 있습니다 "
+                   "— 남의 법인 성적입니다 (보기: %s)" % (format(by_name, ","), ", ".join(ex[:3])))
+    else:
+        print("  ✅ ① 법인 칸은 전부 자기 사업자번호 기록만 (rkby=biz)")
+    if riv:
+        bad.append("법인 칸 %s곳에 맞대결(rival)이 붙어 있습니다 — 맞대결은 이름 단위입니다"
+                   % format(riv, ","))
+    else:
+        print("  ✅ ② 법인 칸에 맞대결 없음")
+    if dead:
+        bad.append("「이 법인만 보기」 %s개가 없는 칸을 가리킵니다(살아 있는 것 %s개) "
+                   "— 빈 페이지로 갑니다 (보기: %s)"
+                   % (format(dead, ","), format(live, ","),
+                      ", ".join(x for x in ex if "없는 칸" in x)[:120]))
+    else:
+        print("  ✅ ③ 「이 법인만 보기」 %s개 전부 살아 있음" % format(live, ","))
+
+    np_ = os.path.join(d, "names.json")
+    if os.path.exists(np_):
+        rows = json.load(io.open(np_, encoding="utf-8"))
+        mixed = sum(1 for r in rows if "#" in str(r[0]))
+        if mixed:
+            bad.append("corp/names.json 에 «이름#번호» 키가 %s개 섞여 있습니다 — 파일만 무거워집니다"
+                       % format(mixed, ","))
+        else:
+            print("  ✅ ④ names.json %s줄 — 법인 키 안 섞임" % format(len(rows), ","))
+    return bad
+
+
 def check_ranks3y():
     """📊 3년치 순위 보관함이 «정말로» 채워지는 구조인지. (2026-09-16)
 
@@ -1097,6 +1180,7 @@ def main():
 
     xbad = check_boardidx()
     xbad += check_boardrank()
+    xbad += check_corp_rank()
     xbad += check_ranks3y()
     xbad += check_naeyeok()
     xbad += check_naeyeok_files()

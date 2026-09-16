@@ -199,7 +199,7 @@ export function CorpReport({ c, ov, onPickFirm }) {
           <Rivals c={c} ov={ov} />
 
           <div className="tiles c4" style={{ marginBottom: 10 }}>
-            <Tile k="총 낙찰" v={num(c.n)} small />
+            <Tile k="총 낙찰 (3년)" v={num(c.n)} small />
             <Tile k="평균 투찰률" v={pct(c.s?.avg, 2)} small />
             <Tile k="평균 금액" v={c.amt ? wonShort(c.amt.avg) : '-'} small />
             <Tile k="최대 금액" v={c.amt ? wonShort(c.amt.max) : '-'} small />
@@ -285,7 +285,9 @@ export function CorpReport({ c, ov, onPickFirm }) {
  */
 function Rivals({ c, ov }) {
   const rows = Array.isArray(c?.rival) ? c.rival : []
-  if (!rows.length) return null
+  /* ⚠️ 2026-09-16 — 맞대결 표는 «이름» 단위입니다. 법인 칸(사업자번호)에 실으면
+     남의 맞대결이 됩니다. build_json 이 이제 안 싣지만, 옛 자료가 남아 있어도 막습니다. */
+  if (!rows.length || c?.biz) return null
   const pool = ov?.rankPool || 0
   const most = rows[0]?.[1] || 1
   return (
@@ -327,6 +329,8 @@ function Rivals({ c, ov }) {
 function RankHistory({ c, ov }) {
   const pool = ov?.rankPool || 0
   const recs = Array.isArray(c?.rank) ? c.rank : []
+  /* «이 법인 번호로 맞춘 기록» 인지 «이름으로 묶은 기록» 인지 (build_json 의 rkby) */
+  const byBiz = c?.rkby === 'biz' || !!c?.biz
   if (!pool && !recs.length) return null
   const ranks = recs.map((r) => r[3]).filter((v) => v > 0)
   const wins = recs.filter((r) => r[3] === 1).length
@@ -349,13 +353,20 @@ function RankHistory({ c, ov }) {
   return (
     <div className="card rankhist">
       <div className="sec-title" style={{ margin: '0 0 6px' }}>
-        🥇 최근 순위 기록 <span className="count">· 순위를 받은 개찰 {num(pool)}건 중</span>
+        🥇 최근 순위 기록 <span className="count">
+          · 순위를 받은 개찰 {num(pool)}건 중{byBiz ? ' · 이 법인(사업자번호)만' : ''}</span>
       </div>
       {recs.length === 0 ? (
         <div className="note">
-          우리가 순위(낮은 순 30곳)를 받은 최근 개찰 <b>{num(pool)}건</b>에 이 업체는 <b>30위 안에 없습니다.</b>
+          우리가 순위(낮은 순 30곳)를 받은 최근 개찰 <b>{num(pool)}건</b>에
+          {c?.biz ? <> <b>이 법인(사업자번호 기준)</b>은</> : <> 이 업체는</>} <b>30위 안에 없습니다.</b>
           {' '}참여를 안 했거나, 했더라도 30위 밖이었습니다 — 어느 쪽인지는 자료가 말해주지 않습니다.
           {' '}(순위는 2026-09-02부터 받기 시작했습니다. 며칠 지나면 더 쌓입니다)
+          {c?.biz && (
+            <><br /><b>※ 같은 이름의 다른 법인 기록은 여기에 싣지 않습니다.</b>{' '}
+            위의 「총 낙찰 {num(c?.n ?? 0)}건」은 <b>3년치</b>이고 이 칸은 <b>순위를 받은 최근 개찰</b>만 봅니다 —
+            기간이 달라서 두 숫자는 일치하지 않는 것이 정상입니다.</>
+          )}
         </div>
       ) : (
         <>
@@ -371,6 +382,14 @@ function RankHistory({ c, ov }) {
                   {num(baroKnown.length)}건 계산 · 1순위 {num(baroWin)} · 실격 {num(baroDq)}
                 </span></div>
             )}
+          </div>
+          {/* 🚨 2026-09-16 소장님: 「1순위 한번인데, 총낙찰은 2번이야. 뭐가 안맞지 않아?」
+              두 숫자는 «기간»이 다릅니다. 적어 두지 않으면 «틀린 화면» 으로 읽힙니다. */}
+          <div className="note" style={{ margin: '2px 0 8px' }}>
+            ⏱ 위 「총 낙찰 {num(c?.n ?? 0)}건」은 <b>3년치</b> 낙찰이고, 이 칸의 숫자는{' '}
+            <b>순위를 받은 최근 개찰 {num(pool)}건</b> 안에서만 센 것입니다.
+            기간이 달라서 두 숫자는 <b>일치하지 않는 것이 정상</b>입니다
+            {byBiz ? <> · 이 칸은 <b>이 법인의 사업자번호로만</b> 맞춘 기록입니다</> : null}.
           </div>
           {baroKnown.length > 0 && (
             <div className="rh-verdict">
