@@ -72,6 +72,7 @@ const Cad = lazyPage(() => import('./pages/Cad.jsx'))
 const Jeoksan = lazyPage(() => import('./pages/Jeoksan.jsx'))
 /* 🦺 안전관리계획서·유해위험방지계획서 소개 — 2026-09-16. 준비 중 */
 const Safety = lazyPage(() => import('./pages/Safety.jsx'))
+const ShareOne = lazyPage(() => import('./pages/ShareOne.jsx'))
 const CadPage = lazyPage(() => import('./pages/Cad.jsx').then((m) => ({ default: m.CadPage })))
 /* 🪪 면허별 경쟁도 — 2026-09-14. 주소를 주는 이유: 「토목공사업 입찰 경쟁률」 같은 건 실제 검색어입니다. */
 const LicStat = lazyPage(() => import('./pages/LicStat.jsx'))
@@ -130,6 +131,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/cad" element={<Suspense fallback={<Loading />}><Cad /></Suspense>} />
           <Route path="/jeoksan" element={<Suspense fallback={<Loading />}><Jeoksan /></Suspense>} />
           <Route path="/safety" element={<Suspense fallback={<Loading />}><Safety /></Suspense>} />
+          <Route path="/shareone" element={<Suspense fallback={<Loading />}><ShareOne /></Suspense>} />
           <Route path="/cad/:slug" element={<Suspense fallback={<Loading />}><CadPage /></Suspense>} />
           <Route path="/tools" element={<Suspense fallback={<Loading />}><ToolsIndex /></Suspense>} />
           <Route path="/tools/:slug" element={<Suspense fallback={<Loading />}><ToolPage /></Suspense>} />

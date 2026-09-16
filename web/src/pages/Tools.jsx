@@ -15,6 +15,7 @@ import { useParams, Link } from 'react-router-dom'
 import DATA from '../data/tools.json'
 import { CALCS } from '../tools/calcs.jsx'
 import NotFound from './NotFound.jsx'
+import { ShareOneStrip } from './ShareOne.jsx'
 
 const TOOLS = DATA.tools || []
 const CATS = DATA.cats || []
@@ -34,6 +35,7 @@ export default function ToolsIndex() {
           <Link className="navi" to="/forms">📄 건설 서식</Link>
           <Link className="navi" to="/cad">📐 캐드 유틸</Link>
           <Link className="navi" to="/jeoksan">🧮 K-적산</Link>
+          <Link className="navi" to="/shareone">🗂️ 쉐어원 공유폴더</Link>
         </div>
       </div>
 
@@ -77,6 +79,10 @@ export default function ToolsIndex() {
           <span className="go">→</span>
         </Link>
       </div>
+
+      {/* 🗂️ 2026-09-16 — 소장님: 「도구에 공유폴더 만든 거 다운받을 수 있게」
+          띄 문구는 ShareOne.jsx 한 곳에만 있습니다. */}
+      <ShareOneStrip />
 
       <div className="card">
         <div className="note sm">

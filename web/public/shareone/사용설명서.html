@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ShareOne 사용설명서</title>
+<style>
+:root{
+  --ink:#0f172a; --ink2:#334155; --ink3:#64748b; --line:#e2e8f0; --bg:#fff; --soft:#f8fafc;
+  --blue:#2563eb; --bluebg:#eff6ff; --amber:#b45309; --amberbg:#fffbeb;
+  --green:#047857; --greenbg:#ecfdf5;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#eef2f6;color:var(--ink);
+  font-family:"Pretendard Variable",Pretendard,-apple-system,"Segoe UI","맑은 고딕","Malgun Gothic",system-ui,sans-serif;
+  font-size:16px;line-height:1.9;-webkit-font-smoothing:antialiased}
+.page{max-width:840px;margin:0 auto;background:var(--bg);padding:56px 48px 72px}
+.brand{display:flex;align-items:center;gap:13px;margin-bottom:24px}
+.mark{width:46px;height:46px;border-radius:13px;background:var(--blue);display:grid;place-items:center;flex:none}
+.mark svg{width:25px;height:25px;stroke:#fff;fill:none;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round}
+h1{font-size:31px;margin:0;letter-spacing:-.8px;line-height:1.25}
+.tagline{color:var(--ink3);font-size:14.5px;margin-top:2px}
+h2{font-size:21px;margin:48px 0 14px;padding-top:24px;border-top:2px solid var(--ink);letter-spacing:-.4px}
+h2 .n{color:var(--blue)}
+h2 small{font-weight:400;font-size:14.5px;color:var(--ink3);letter-spacing:0}
+h3{font-size:16.5px;margin:28px 0 6px}
+h3 .s{display:inline-block;min-width:34px;color:var(--blue);font-weight:800}
+p,li{color:var(--ink2)}
+b{color:var(--ink)}
+ul,ol{padding-left:22px;margin:10px 0}
+li{margin:7px 0}
+.three{background:var(--bluebg);border-radius:16px;padding:26px 30px;margin:24px 0 8px}
+.three h4{margin:0 0 14px;font-size:17px;color:var(--ink)}
+.three ol{counter-reset:t;list-style:none;padding:0;margin:0}
+.three li{counter-increment:t;position:relative;padding-left:44px;margin:14px 0;color:var(--ink);font-size:16.5px}
+.three li::before{content:counter(t);position:absolute;left:0;top:2px;width:30px;height:30px;border-radius:50%;
+  background:var(--blue);color:#fff;font-size:15px;font-weight:800;display:grid;place-items:center}
+.three .end{margin:16px 0 0;font-size:15px;color:var(--ink2)}
+figure{margin:26px 0;text-align:center}
+figure svg{max-width:100%;height:auto}
+figcaption{color:var(--ink3);font-size:13.5px;margin-top:10px}
+.note{border-left:4px solid var(--blue);background:var(--soft);padding:14px 18px;border-radius:0 10px 10px 0;margin:18px 0}
+.warn{border-left:4px solid var(--amber);background:var(--amberbg);padding:14px 18px;border-radius:0 10px 10px 0;margin:18px 0}
+.warn b{color:var(--amber)}
+.ok{border-left:4px solid var(--green);background:var(--greenbg);padding:13px 18px;border-radius:0 10px 10px 0;margin:16px 0}
+.ok b{color:var(--green)}
+.ok::before{content:"확인  ";font-weight:800;color:var(--green);font-size:13px;letter-spacing:.5px}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:15px}
+th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+th{background:var(--soft);font-weight:700;color:var(--ink);white-space:nowrap;width:1%}
+code{background:#f1f5f9;padding:2px 7px;border-radius:5px;font-size:14.5px;
+  font-family:ui-monospace,Consolas,"D2Coding",monospace;color:var(--ink)}
+ol.step{counter-reset:s;list-style:none;padding:0}
+ol.step>li{counter-increment:s;position:relative;padding-left:40px;margin:14px 0}
+ol.step>li::before{content:counter(s);position:absolute;left:0;top:3px;width:26px;height:26px;
+  border-radius:50%;background:var(--blue);color:#fff;font-size:13.5px;font-weight:700;
+  display:grid;place-items:center}
+.foot{margin-top:52px;padding-top:22px;border-top:1px solid var(--line);
+  color:var(--ink3);font-size:14px;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center}
+.foot a{color:var(--blue);font-weight:700;text-decoration:none}
+@media (max-width:700px){ .page{padding:32px 18px 52px} h1{font-size:25px} th{white-space:normal;width:auto} .three{padding:20px} }
+@media print{ body{background:#fff} .page{max-width:none;padding:0} h2{page-break-after:avoid} .three,.note,.warn,.ok{break-inside:avoid} }
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="brand">
+  <span class="mark"><svg viewBox="0 0 24 24"><path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/><path d="M12 15V3"/><path d="m8 7 4-4 4 4"/></svg></span>
+  <div>
+    <h1>ShareOne 사용설명서</h1>
+    <div class="tagline">사무실 컴퓨터끼리 폴더를 저절로 맞춰 주는 프로그램 · 2.0</div>
+  </div>
+</div>
+
+<div class="three">
+<h4>하실 일은 이 셋뿐입니다</h4>
+<ol>
+<li><b>사무실 컴퓨터마다</b> <code>ShareOne2.exe</code> 를 <b>두 번 누릅니다.</b></li>
+<li>바탕화면에 생긴 <b>「ShareOne 공유」 폴더</b>에 파일을 <b>끌어다 놓습니다.</b></li>
+<li>다른 컴퓨터에서 그 파일을 <b>더블클릭</b>합니다. 한글·엑셀이 그냥 열립니다.</li>
+</ol>
+<p class="end">끝입니다. 설정도, 계정도, 암호도 없습니다.<br>
+아래는 이 세 줄을 <b>하나씩 자세히 푼 것</b>입니다. 처음 한 번만 읽어 보시면 됩니다.</p>
+</div>
+
+<figure>
+<svg viewBox="0 0 700 210" role="img" aria-label="컴퓨터 세 대가 같은 공유폴더를 나누어 쓰는 그림">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 10 5 0 10z" fill="#94a3b8"/></marker>
+  </defs>
+  <g font-family="inherit" font-size="13" fill="#334155" text-anchor="middle">
+    <rect x="285" y="70" width="130" height="64" rx="12" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+    <text x="350" y="96" font-size="14" font-weight="700" fill="#1e3a8a">ShareOne 공유</text>
+    <text x="350" y="116" font-size="12" fill="#2563eb">세 대가 같은 내용</text>
+    <g><rect x="30" y="32" width="112" height="68" rx="10" fill="#fff" stroke="#cbd5e1" stroke-width="2"/>
+       <rect x="46" y="48" width="80" height="36" rx="4" fill="#f1f5f9"/>
+       <text x="86" y="118" font-size="13">내 컴퓨터</text></g>
+    <g><rect x="30" y="130" width="112" height="58" rx="10" fill="#fff" stroke="#cbd5e1" stroke-width="2"/>
+       <rect x="46" y="142" width="80" height="30" rx="4" fill="#f1f5f9"/>
+       <text x="86" y="204" font-size="13">직원 컴퓨터</text></g>
+    <g><rect x="558" y="78" width="112" height="68" rx="10" fill="#fff" stroke="#cbd5e1" stroke-width="2"/>
+       <rect x="574" y="94" width="80" height="36" rx="4" fill="#f1f5f9"/>
+       <text x="614" y="164" font-size="13">직원 컴퓨터</text></g>
+    <g stroke="#94a3b8" stroke-width="2" fill="none" marker-start="url(#a)" marker-end="url(#a)">
+      <path d="M148 72 Q220 84 282 92"/><path d="M148 158 Q220 140 282 118"/><path d="M418 104 Q490 110 552 112"/>
+    </g>
+    <text x="350" y="24" font-size="12.5" fill="#64748b">인터넷을 거치지 않습니다 — 파일은 사무실 안에서만 오갑니다</text>
+  </g>
+</svg>
+<figcaption>컴퓨터마다 ShareOne 을 깔면, 그 컴퓨터들의 「ShareOne 공유」 폴더가 서로 같아집니다.</figcaption>
+</figure>
+
+<h2><span class="n">1.</span> 컴퓨터마다 깔기 <small>— 첫째 줄</small></h2>
+<p>쓰실 컴퓨터 <b>한 대 한 대에</b> 한 번씩 해 주십시오. 세 대면 세 번, 다섯 대면 다섯 번입니다.
+설치 과정이 없어서 한 대에 <b>1분</b>이면 끝납니다.</p>
+
+<h3><span class="s">1-1</span> 그 컴퓨터로 파일 옮기기</h3>
+<p><code>ShareOne2.exe</code> 를 그 컴퓨터로 옮기십시오. 편한 방법 아무거나 쓰시면 됩니다.</p>
+<ul>
+<li><b>USB</b> 에 담아 옮기기</li>
+<li><b>카톡</b> 이나 <b>메일</b> 로 보내기</li>
+<li>먼저 깐 컴퓨터가 있다면 — 그 컴퓨터 <b>공유폴더에 exe 를 넣어 두고</b>,
+    다른 컴퓨터 브라우저에 그 컴퓨터 주소를 쳐서 내려받기
+    <span style="color:var(--ink3)">(주소는 그 컴퓨터 ShareOne 화면 왼쪽 위에 적혀 있습니다)</span></li>
+</ul>
+
+<h3><span class="s">1-2</span> 두 번 누르기</h3>
+<p>옮긴 <code>ShareOne2.exe</code> 를 <b>두 번 누릅니다.</b> 아무 데 두셔도 됩니다 — 바탕화면이든 다운로드 폴더든.</p>
+
+<h3><span class="s">1-3</span> 파란 창이 뜨면</h3>
+<div class="warn">
+<p><b>「Windows의 PC 보호」 파란 창</b>이 뜹니다.<br>
+<b>「추가 정보」</b> 를 누르면 아래에 <b>「실행」</b> 단추가 나옵니다. 그걸 누르십시오.<br>
+<span style="font-size:14.5px">개인이 만든 프로그램이라 <b>코드 서명 인증서가 없어서</b> 뜨는 창입니다.
+서명은 해마다 돈을 내야 해서 아직 안 받았습니다. 한 번만 넘기면 다음부터는 안 뜹니다.</span></p>
+</div>
+
+<h3><span class="s">1-4</span> 방화벽을 물어보면</h3>
+<div class="warn">
+<p>이어서 <b>「Windows 방화벽에서 이 앱의 일부 기능을 차단했습니다」</b> 창이 뜹니다.<br>
+<b>「개인 네트워크」에 체크</b>하고 <b>「액세스 허용」</b> 을 누르십시오.<br>
+<span style="font-size:14.5px"><b>이걸 놓치면 그 컴퓨터만 다른 컴퓨터 눈에 안 보입니다.</b>
+실수로 「취소」를 누르셨으면 ShareOne 을 껐다 다시 켜십시오.</span></p>
+</div>
+
+<h3><span class="s">1-5</span> 「윈도우 켤 때 같이 시작할까요?」</h3>
+<p>처음 한 번만 물어봅니다. 사무실에서 쓰실 거면 <b>「예」</b> 가 편합니다 —
+컴퓨터를 켜면 저절로 돌아갑니다. 나중에 언제든 바꿀 수 있습니다.</p>
+
+<h3><span class="s">1-6</span> 다 됐는지 확인</h3>
+<div class="ok">
+<p><b>「ShareOne 공유」 폴더가 탐색기로 열리고</b>,
+<b>시계 옆에 파란 ShareOne 아이콘</b>이 생기면 다 된 것입니다.</p>
+</div>
+<p>검은 창은 안 뜹니다. 안 뜨는 게 정상입니다.
+아이콘이 안 보이면 시계 옆 <b>「∧」</b> 를 눌러 보십시오 — 숨어 있는 것입니다.
+끌어다 밖으로 꺼내 두시면 다음부터 바로 보입니다.</p>
+<p><b>이제 다음 컴퓨터에 똑같이 하십시오.</b> 두 대 이상 켜지면 서로 알아서 찾습니다.
+주소를 칠 일도, 연결을 맺을 일도 없습니다.</p>
+
+<h2><span class="n">2.</span> 파일 넣기 <small>— 둘째 줄</small></h2>
+<p>바탕화면의 <b>「ShareOne 공유」</b> 폴더를 열고, 거기에 <b>파일을 끌어다 놓으십시오.</b>
+복사해 넣으셔도 되고, 다른 프로그램에서 <b>「다른 이름으로 저장」</b> 할 때 그 폴더를 고르셔도 됩니다.</p>
+
+<h3>폴더를 만들어 정리해도 됩니다</h3>
+<p>「도면」·「계약서」·「사진」처럼 <b>폴더를 만드셔도 됩니다.</b>
+폴더째로 다른 컴퓨터에 똑같이 생깁니다. 폴더 안의 폴더도 됩니다.</p>
+
+<h3>얼마나 걸립니까</h3>
+<p>보통 <b>몇 초</b>입니다. 파일이 크면 더 걸립니다. 놓고 나서 잠깐 기다리십시오.</p>
+<div class="ok">
+<p>다른 컴퓨터의 「ShareOne 공유」 폴더를 열어 <b>그 파일이 보이면</b> 잘 간 것입니다.
+안 보이면 <b>F5</b> 를 눌러 새로 고쳐 보십시오.</p>
+</div>
+
+<h2><span class="n">3.</span> 더블클릭해서 열기 <small>— 셋째 줄</small></h2>
+<p>받는 쪽에서는 <b>아무것도 안 하셔도 됩니다.</b>
+「ShareOne 공유」 폴더를 열면 그 파일이 이미 와 있습니다.
+<b>더블클릭하면 한글·엑셀·PDF 가 그냥 열립니다.</b></p>
+<p><b>내려받기도, 되올리기도 없습니다.</b> 내 컴퓨터에 있는 파일이니까요.</p>
+<p>고쳐서 <b>저장하면</b> 그 내용이 다시 사무실 전체로 퍼집니다.</p>
+
+<div class="note">
+<p><b>두 가지만 기억하십시오.</b></p>
+<ul style="margin-bottom:0">
+<li><b>지우기는 안 퍼집니다.</b> 지우면 <b>내 컴퓨터에서만</b> 없어지고 남의 컴퓨터에는 그대로 있습니다.
+    <span style="color:var(--ink3)">— 한 사람이 지웠다고 사무실 전체에서 사라지면 사고이기 때문입니다.</span></li>
+<li><b>둘이 같은 파일을 동시에 고치면</b> 나중에 저장한 것이 남습니다.
+    앞의 것은 공유폴더 안 <b>「.이전판」</b> 폴더에 <b>열 벌까지</b> 보관되니 되살릴 수 있습니다.</li>
+</ul>
+</div>
+
+<h2><span class="n">4.</span> 켜고 끄기</h2>
+<p>ShareOne 은 <b>시계 옆(트레이)</b> 파란 아이콘으로 붙어 있습니다.</p>
+<table>
+<tr><th>왼쪽 클릭</th><td>공유폴더가 열립니다</td></tr>
+<tr><th>오른쪽 클릭</th><td>「폰에서 보기」 · 「윈도우 켤 때 같이 시작」 · <b>「끄기」</b></td></tr>
+</table>
+<p>다시 켜실 때는 <code>ShareOne2.exe</code> 를 두 번 누르시면 됩니다.
+「윈도우 켤 때 같이 시작」을 켜 두셨으면 컴퓨터를 켤 때 저절로 돌아갑니다.</p>
+
+<h2><span class="n">5.</span> 폰에서 보기 <small>사무실 안에서</small></h2>
+<ol class="step">
+<li>트레이 아이콘 <b>오른쪽 클릭 → 「폰에서 보기」</b></li>
+<li>화면 왼쪽 위 <b>「이 PC 주소」</b> 를 폰 브라우저에 그대로 칩니다
+    <span style="color:var(--ink3)">(앱을 깔 필요 없습니다 · 예 <code>http://192.168.0.7:9876/</code>)</span></li>
+<li>파일을 보고, 내려받고, 사진을 올릴 수 있습니다.</li>
+</ol>
+<p><b>「주소 복사」</b> 로 복사해 카톡에 보내 두시고, 폰 브라우저에서 <b>「홈 화면에 추가」</b> 를 해 두시면
+앱처럼 한 번에 열립니다. <b>같은 와이파이</b>여야 합니다.</p>
+
+<h2><span class="n">6.</span> 현장에서 찍은 사진 보내기</h2>
+<div class="warn">
+<p><b>현장(사무실 밖)에서 LTE 로 찍은 사진은 사무실 컴퓨터에 바로 못 갑니다.</b>
+이 프로그램은 인터넷을 거치지 않는 것이 설계라서, 밖에서는 사무실 안 주소에 닿지 않습니다.<br>
+<b>사무실 공유기를 인터넷에 여는 방법은 쓰지 마십시오.</b>
+ShareOne 은 로그인이 없어서, 그렇게 열면 아무나 사무실 파일을 보고 지울 수 있습니다.</p>
+</div>
+<p><b>클라우드 한 칸을 거치면 됩니다.</b> 사람이 할 일은 «현장에서 사진 올리기» 한 번뿐입니다.</p>
+<ol class="step">
+<li>폰에 <b>구글 드라이브</b>(또는 네이버 MYBOX·원드라이브)를 깔고, 현장에서 사진을 거기 올립니다.</li>
+<li>사무실 컴퓨터에도 <b>같은 클라우드의 PC용 프로그램</b>을 깔아 그 폴더가 내려오게 합니다.
+    <span style="color:var(--ink3)">— 이 단계를 빠뜨리기 쉽습니다.</span></li>
+<li>ShareOne 화면의 <b>「현장사진 받는 자리」</b> 에서 <b>+</b> 를 눌러 그 폴더를 등록합니다.</li>
+<li>끝입니다. 사진이 내려오는 즉시 공유폴더의 <b>「현장사진」 칸</b>으로 들어가 사무실 전체에 퍼집니다.</li>
+</ol>
+<p style="color:var(--ink3)">※ <b>복사</b>합니다 — 클라우드 쪽 원본은 그대로 남습니다.
+사무실 컴퓨터가 켜져 있어야 내려옵니다.
+구글 드라이브 앱의 「스캔」은 결과가 <b>PDF</b> 이고, 사진 그대로 올리시려면 「+ → 업로드」 를 쓰십시오.
+저장할 때 <b>등록한 그 폴더</b>를 고르셔야 합니다.</p>
+
+<h2><span class="n">7.</span> 복합기 스캔을 공유폴더로</h2>
+<p>스캔한 PDF 가 공유폴더의 <b>「스캔」 칸</b>으로 저절로 들어오게 할 수 있습니다. 길이 셋인데 되는 것 하나만 쓰시면 됩니다.</p>
+<h3>① 복합기 패널의 「컴퓨터로 스캔」 <small style="color:var(--green)">— 설정 필요 없음</small></h3>
+<p>복합기 화면에서 <b>「컴퓨터로 스캔」</b> · <b>「PC 스캔」</b> 을 누르고 이 컴퓨터를 고르십시오.
+윈도우가 받아 놓으면 ShareOne 이 공유폴더로 옮깁니다.</p>
+<h3>② ShareOne 화면에서 불러 스캔 <small style="color:var(--green)">— 설정 필요 없음</small></h3>
+<p>「복합기 스캔」 칸의 <b>다시 찾기</b> 를 누르면 «불러서 스캔» 되는 복합기를 찾습니다.
+나오면 종이를 올리고 <b>「스캔」</b> 한 번.
+<span style="color:var(--ink3)">에어프린트·모프리아를 지원하는 요즘 복합기만 됩니다.</span></p>
+<h3>③ 복합기에 한 번만 넣기 <small>— 거의 모든 복합기</small></h3>
+<ol class="step">
+<li>ShareOne 화면 <b>「복합기 스캔」</b> 칸 → <b>「설정값 복사」</b></li>
+<li>복합기 관리자 화면을 엽니다
+    <span style="color:var(--ink3)">(왼쪽 「프린터·복합기」 목록에서 주소를 누르면 열립니다)</span></li>
+<li><b>「스캔 to FTP」</b> · <b>「네트워크 스캔」</b> · <b>「Scan to Server」</b> 중 하나를 찾아 값을 넣습니다</li>
+<li>테스트로 한 장 스캔 → 공유폴더의 <b>「스캔」</b> 칸에 들어오면 끝</li>
+</ol>
+<table>
+<tr><th>서버 주소</th><td>ShareOne 화면에 뜨는 이 컴퓨터 주소 <span style="color:var(--ink3)">(예 <code>192.168.0.7</code>)</span></td></tr>
+<tr><th>포트</th><td><code>21</code></td></tr>
+<tr><th>아이디 / 비번</th><td><code>scan</code> / <code>scan</code></td></tr>
+<tr><th>경로</th><td><b>비워 두기</b> <span style="color:var(--ink3)">(꼭 넣어야 하면 <code>/</code>)</span></td></tr>
+</table>
+<div class="warn">
+<p><b>경로에 폴더 이름을 넣지 마십시오.</b> <code>/</code> 자체가 이미 「스캔」 칸입니다.<br>
+<code>\\컴퓨터이름\공유폴더</code> 같은 <b>네트워크 폴더(SMB) 방식</b>이 아닙니다. 반드시 <b>FTP</b> 쪽을 고르십시오.<br>
+<b>이 컴퓨터의 IP 가 바뀌면 설정이 깨집니다.</b> 공유기에서 «고정 IP» 를 주시는 것이 좋습니다.</p>
+</div>
+
+<h2><span class="n">8.</span> 안 될 때</h2>
+<table>
+<tr><th>다른 컴퓨터가<br>안 보인다</th><td>① 양쪽 다 켜져 있는지(시계 옆 아이콘) ② 그 컴퓨터에서 <b>방화벽을 허용</b>했는지
+③ 같은 공유기(와이파이)인지 — 이 셋을 보십시오.</td></tr>
+<tr><th>파일이<br>안 넘어간다</th><td>놓은 뒤 <b>몇 초</b> 기다리시고 <b>F5</b> 로 새로 고치십시오. 큰 파일은 더 걸립니다.</td></tr>
+<tr><th>파란 창에서<br>막혔다</th><td><b>「추가 정보」</b> 를 눌러야 <b>「실행」</b> 단추가 나옵니다.</td></tr>
+<tr><th>트레이 아이콘이<br>안 보인다</th><td>시계 옆 <b>「∧」</b> 를 눌러 보십시오. 숨어 있는 것입니다.</td></tr>
+<tr><th>화면 왼쪽 위가<br>빨간 「서버 꺼짐」</th><td>ShareOne 이 꺼진 것입니다. 다시 켜고 F5.</td></tr>
+<tr><th>무슨 일이<br>있었나</th><td>내 사용자 폴더의 <b>「ShareOne 기록.txt」</b> 에 적힙니다.
+<span style="color:var(--ink3)">(C:\Users\내이름\ShareOne 기록.txt)</span></td></tr>
+</table>
+
+<h2><span class="n">9.</span> 꼭 알아 두실 것</h2>
+<div class="warn">
+<p><b>로그인이 없습니다.</b> 같은 공유기(와이파이)에 붙은 사람은 <b>누구나</b> 공유폴더를 보고, 넣고, 지울 수 있습니다.<br>
+사무실·집처럼 <b>아는 사람만 있는 곳</b>에서 쓰시고,
+<b>카페·호텔·공항 같은 공용 와이파이에서는 켜지 마십시오.</b></p>
+</div>
+<ul>
+<li><b>공유폴더 밖은 안 보입니다.</b> 바탕화면도, 내 문서도, C드라이브도 남에게 보이지 않습니다.</li>
+<li><b>인터넷으로 나가지 않습니다.</b> 파일은 사무실 안에서만 오갑니다.</li>
+<li><b>지운 파일은 휴지통으로 가지 않습니다.</b> 덮어쓴 것만 「.이전판」 에서 되살아납니다.</li>
+<li>공유기에 <b>「AP 격리」</b> 가 켜져 있으면 컴퓨터끼리 안 보입니다. 공유기 설정에서 꺼 주십시오.</li>
+</ul>
+
+<div class="ok" style="margin-top:34px">
+<p><b>공짜입니다. 가입도 없고, 파일을 바깥으로 보내지도 않습니다.</b><br>
+현장에서 쓰려고 만든 것이라, 쓰시다가 불편한 점을 알려 주시면 고치겠습니다.</p>
+</div>
+
+<div class="foot">
+<span>만든 곳</span>
+<a href="https://k-conmap.com" target="_blank" rel="noopener">K-건설맵</a>
+<span>·</span>
+<a href="https://sarasa.kr" target="_blank" rel="noopener">sarasa.kr</a>
+<span style="margin-left:auto;opacity:.75">ShareOne 2.0</span>
+</div>
+
+</div>
+</body>
+</html>
