@@ -4,6 +4,7 @@ import { BasePriceProvider } from './BasePrice.jsx'
 import { InstallPill, InstallBar } from './Install.jsx'
 import AskStrip from './AskComment'
 import FirstBar from './FirstBar.jsx'
+import Crumbs from './Crumbs.jsx'
 
 /* 탭에 적힌 주소가 아니어도 «이 탭의 식구» 면 불을 켭니다.
    예) /tools · /cad 에 있어도 「서식·도구」 탭이 켜집니다. */
@@ -100,6 +101,11 @@ export default function App() {
         <FirstBar />
         {/* 💬 서식·캐드를 받은 «직후» 에만, 이레에 한 번 (AskComment.jsx) */}
         <AskStrip />
+        {/* 🧭 길 — 안쪽 화면에 「← 어디로 돌아가나」 를 붙입니다 (Crumbs.jsx).
+            큰 자리(탭에 있는 주소)에서는 아무것도 그리지 않습니다.
+            ⚠️ 화면을 하나하나 고치지 않습니다 — 새 화면을 만들 때마다 또 빠집니다.
+               주소 이름은 Crumbs.jsx 의 NAME·LEAF 표 한 곳에만 적습니다. */}
+        <Crumbs />
         <Outlet />
         <footer className="footer">
           <div>

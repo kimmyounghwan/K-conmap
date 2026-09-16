@@ -2997,3 +2997,28 @@ ul.plainlist li { margin-bottom: 5px; }
   .btn.ghost { color: var(--text-2); background: var(--surface); }
   .btn:disabled { color: #0b1220; }
 }
+
+/* 🧭 길 (Crumbs.jsx) — 안쪽 화면의 「뒤로」 ─────────────────────────────
+   ⚠️ 탭은 큰 자리만 보여 줍니다. 안쪽 화면에서 돌아 나올 길이 없었습니다.
+      검색으로 바로 들어오면 브라우저 뒤로가기는 검색 결과로 나가 버리고,
+      앱으로 깔아 쓰면 뒤로가기 단추 자체가 없습니다. */
+.crumbs {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 0 0 10px;
+}
+.crumbs .crumb-back {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 7px 13px; border-radius: 999px;
+  background: #eef2ff; color: #1d4ed8; border: 1px solid #c7d2fe;
+  font-weight: 700; font-size: 14px; text-decoration: none;
+  min-height: 34px;                      /* 손가락으로 누를 만한 크기 */
+}
+.crumbs .crumb-back:hover { background: #e0e7ff; }
+.crumbs .crumb-trail { font-size: 12px; color: #6b7280; }
+.crumbs .crumb-trail a { color: #6b7280; text-decoration: none; }
+.crumbs .crumb-trail a:hover { text-decoration: underline; }
+.crumbs .crumb-trail b { color: #374151; font-weight: 600; }
+.crumbs .crumb-sep { margin: 0 5px; color: #d1d5db; }
+@media (max-width: 480px) {
+  .crumbs .crumb-trail { display: none; }   /* 좁은 화면에서는 «뒤로» 만 */
+}

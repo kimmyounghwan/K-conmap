@@ -209,10 +209,11 @@ function sheetXml(head, rows, widths, hide, freeze) {
 
 const STYLES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
   '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-  '<numFmts count="3">' +
+  '<numFmts count="4">' +
   '<numFmt numFmtId="200" formatCode="#,##0.000"/>' +
   '<numFmt numFmtId="201" formatCode="#,##0"/>' +
   '<numFmt numFmtId="202" formatCode="#,##0.00"/>' +
+  '<numFmt numFmtId="203" formatCode="0.0000%"/>' +
   '</numFmts>' +
   '<fonts count="4">' +
   '<font><sz val="10"/><name val="맑은 고딕"/></font>' +
@@ -220,14 +221,15 @@ const STYLES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
   '<font><sz val="9"/><color rgb="FF808080"/><name val="맑은 고딕"/></font>' +
   '<font><sz val="10"/><color rgb="FFC00000"/><name val="맑은 고딕"/></font>' +
   '</fonts>' +
-  '<fills count="3"><fill><patternFill patternType="none"/></fill>' +
+  '<fills count="4"><fill><patternFill patternType="none"/></fill>' +
   '<fill><patternFill patternType="gray125"/></fill>' +
-  '<fill><patternFill patternType="solid"><fgColor rgb="FF1F3864"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+  '<fill><patternFill patternType="solid"><fgColor rgb="FF1F3864"/><bgColor indexed="64"/></patternFill></fill>' +
+  '<fill><patternFill patternType="solid"><fgColor rgb="FFFFF2CC"/><bgColor indexed="64"/></patternFill></fill></fills>' +
   '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>' +
   '<border><left style="thin"><color rgb="FFBFBFBF"/></left><right style="thin"><color rgb="FFBFBFBF"/></right>' +
   '<top style="thin"><color rgb="FFBFBFBF"/></top><bottom style="thin"><color rgb="FFBFBFBF"/></bottom><diagonal/></border></borders>' +
   '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-  '<cellXfs count="8">' +
+  '<cellXfs count="10">' +
   '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +                                    /* 0 민 것 */
   '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>' +                     /* 1 보통 */
   '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>' + /* 2 머리 */
@@ -236,9 +238,11 @@ const STYLES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
   '<xf numFmtId="0" fontId="3" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"/>' +        /* 5 붉은 글 */
   '<xf numFmtId="201" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>' + /* 6 정수 */
   '<xf numFmtId="202" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>' + /* 7 소수2 */
+  '<xf numFmtId="203" fontId="0" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"/>' + /* 8 요율 — 노란 칸(고치는 자리) */
+  '<xf numFmtId="201" fontId="0" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"/>' + /* 9 넣는 금액 — 노란 칸 */
   '</cellXfs><cellStyles count="1"><cellStyle name="표준" xfId="0" builtinId="0"/></cellStyles></styleSheet>'
 
-export const ST = { PLAIN: 0, BOX: 1, HEAD: 2, QTY: 3, GRAY: 4, RED: 5, INT: 6, DEC2: 7 }
+export const ST = { PLAIN: 0, BOX: 1, HEAD: 2, QTY: 3, GRAY: 4, RED: 5, INT: 6, DEC2: 7, PCT: 8, FILLIN: 9 }
 
 /** 시트 여러 장을 담은 .xlsx 바이트를 만듭니다.
  *  sheets: [{name, head, rows, widths, hide, freeze}] */

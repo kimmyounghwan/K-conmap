@@ -18,7 +18,8 @@ SKIP_NAME = ('소계', '소 계', '합계', '합 계', '계', '총계', '총 계
              '이윤', '일반관리비', '부가가치세', '도급액', '계약금액')
 
 def _is(t, names):  return t in names
-def NAME(t):  return _is(t, ('품명','공종','명칭','품목','자재명','규격및품명','공정','품명및규격'))
+def NAME(t):  return _is(t, ('품명','공종','공종명','명칭','품목','자재명','규격및품명',
+                             '공정','품명및규격','공종및규격','품명규격','세부공종'))
 def SPEC(t):  return _is(t, ('규격','형식','규격및단위'))
 def UNIT(t):  return _is(t, ('단위','수량단위'))
 def QTY(t):   return _is(t, ('수량','단위수량'))
@@ -46,10 +47,22 @@ def merge(ln, gap=14):
     return out
 
 
-def scan(ln):
+# ⚠️ 2026-09-16 — «한 가지 gap 값으로는 안 됩니다».
+#    PDF 마다 글자를 벌려 놓은 폭이 달라서, 한 값으로 맞추면 다른 문서가 깨집니다. 실측:
+#      가) ['공','종','명','규','격','수량','단위']  gap 8 이라야 «공종명·수량·단위» 가 나옵니다
+#      나) ['공','종','규','격','수','량','단위']    gap 20 이라야 «공종» 이 붙는데,
+#                                                  20 이면 «수량단위» 가 한 덩어리로 붙어 버립니다
+#      다) 같은 낱말 배열인데 gap 14 면 딱 맞습니다
+#    나) 는 «어떤 한 값으로도» 다 맞출 수 없습니다 — 두 간격이 서로 겹칩니다.
+#    그래서 여러 값으로 해 보고 «머리글 낱말이 가장 많이 잡힌 것» 을 씁니다.
+#    이 한 가지 때문에 PDF 104부가 통째로 안 뽑히고 있었습니다.
+GAPS = (6, 8, 10, 12, 14, 17, 20, 24)
+
+
+def scan(ln, gap=14):
     """한 줄에서 머리글 낱말을 찾아 {이름: [(x0,x1)…]} 로 돌려줍니다."""
     got = {}
-    for w in merge(ln):
+    for w in merge(ln, gap):
         t = w['text'].replace(' ', '')
         for key, test in (('name', NAME), ('spec', SPEC), ('unit', UNIT),
                           ('qty', QTY), ('price', PRICE), ('amt', AMT)):
@@ -59,14 +72,26 @@ def scan(ln):
     return got
 
 
+def best_scan(ln):
+    """여러 gap 으로 훑어 «가장 많이 잡힌» 것을 돌려줍니다 (위 GAPS 주석 참고)."""
+    best, score = {}, -1
+    for g in GAPS:
+        a = scan(ln, g)
+        # 이름이 잡힌 것을 크게 쳐 줍니다 — 이름이 없으면 어차피 표로 못 씁니다
+        s2 = len(a) * 10 + (5 if 'name' in a else 0) + sum(len(v) for v in a.values())
+        if s2 > score:
+            best, score = a, s2
+    return best
+
+
 def find_header(ls):
     """머리글을 찾습니다. 한 줄로 안 되면 다음 줄까지 합쳐 봅니다."""
     for i, ln in enumerate(ls):
-        a = scan(ln)
+        a = best_scan(ln)
         if 'name' in a and 'price' in a:
             return i, a
         if 'name' in a and i + 1 < len(ls):
-            b = scan(ls[i + 1])
+            b = best_scan(ls[i + 1])
             if 'price' in b:
                 out = {k: list(v) for k, v in a.items()}
                 for k, v in b.items():
