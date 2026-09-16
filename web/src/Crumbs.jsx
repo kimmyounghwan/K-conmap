@@ -52,6 +52,7 @@ const LEAF = {
   '/change/naeyeok': '설계변경 내역서',
   '/change/twoline': '2줄 자동변환',
   '/jeoksan/run': '수량산출서 만들기',
+  '/jeoksan/lab': '적산 실험실',
 }
 
 /* 탭(또는 큰 자리)에 이미 있는 주소 — 길을 안 그립니다. */
