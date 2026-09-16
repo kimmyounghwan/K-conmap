@@ -640,6 +640,35 @@ A값에서도 같은 함정(«기초금액 있으면 건너뛰기»)이 있었�
 
 ---
 
+### 23. 🚨 collect 가 어질러 놓은 채로 끝나서 «다음 번» pull 이 거절당한다 (2026-09-17)
+
+21·22 를 고치고 세 번째로 눌렀더니 이번엔 1단계에서 죽었습니다.
+
+    error: cannot pull with rebase: You have unstaged changes.
+    ---- pull exit: 128 ----
+    ! [rejected]  main -> main (fetch first)
+
+`0_올리고배포.bat` 의 차례가 **«올리기 → 사이트 갱신»** 이라 이렇게 됩니다.
+
+    이번 판:  pull·push (깨끗함)  →  collect 가 data/store 세 개를 고쳐 놓고 끝남
+    다음 판:  pull  ← 여기서 거절. 어제 자기가 어질러 놓은 것 때문에.
+
+게다가 `data/store/*.json` 은 **커밋하면 안 되는 것** 입니다 — 회차 사이 보관은
+GitHub Actions 의 cache 가 맡습니다(.gitignore 84줄). 그러니 「커밋해서 치우기」도 답이 아닙니다.
+`web/public/lisp/*.lsp` 의 `kcm*exp` 도 배포 때마다 다시 찍히므로 늘 더럽습니다.
+
+    ✕  git pull --rebase origin main
+    ○  git -c rebase.autoStash=true pull --rebase origin main
+
+`0_올리고배포.bat`·`2_받고올리기.bat` 둘 다 고쳤습니다. autoStash 가 넣었다 빼 주므로
+소장님이 손댈 것은 없습니다.
+
+⚠️ 다만 **Actions 가 맡는 파일**(`data/extra_*.csv`·`docs/수집상태.md`)까지 더러우면
+autoStash 가 되돌릴 때 부딪힙니다. 그 둘은 **원격 것을 따릅니다** — 이쪽 것을 버리십시오.
+`collect.py` 가 어차피 다음 판에 다시 채웁니다.
+
+---
+
 ## 9. 이미 정한 것 — 다시 제안하지 말 것
 
 | 결정 | 이유 |
