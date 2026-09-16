@@ -1973,6 +1973,49 @@ def lic_codes(r):
     return [c for c, _ in lic_pairs(r)]
 
 
+BACKFILL_3Y = 2000        # 한 번에 담을 개찰 수 (이만큼마다 파일에 붙입니다)
+
+
+def backfill_ranks3y(first, log=print):
+    """📊 이미 받아 둔 순위를 3년치 보관함에 부어 넣습니다 (2026-09-16).
+
+    왜 필요한가
+      · 순위 조회는 «corps 가 아직 1곳뿐인 공고»만 물어봅니다 — 같은 공고를
+        두 번 묻지 않으려는 것입니다(collect.py 의 todo_rank).
+        그래서 보관함이 생기기(2026-09-15) **전에** 이미 받아 둔 순위는
+        영영 보관함에 들어갈 차례가 오지 않았습니다.
+      · first.json 은 70일이 지나면 버립니다. 즉 **날마다 사라지고 있던** 자료입니다.
+      · 실측 2026-09-16 — 순위 받은 개찰 11,873건인데 보관함은 **76줄**뿐이었습니다.
+
+    조달청을 부르지 않습니다. 이미 가진 것을 옮겨 담을 뿐이라 호출 0번·비용 0입니다.
+
+    ⚠️ 한 번 담은 줄은 r["k3y"] 로 표시해 다음 회차에 다시 담지 않습니다.
+       이 표시는 row_first 보존 목록에도 들어가 있어야 합니다 — 안 그러면
+       다음 목록 수집이 지워서 매 회차 같은 줄을 다시 담습니다.
+    """
+    done = rows = 0
+    for kind in KINDS:
+        for r in (first.get(kind) or {}).values():
+            if r.get("k3y"):
+                continue
+            cs = r.get("corps") or []
+            if len(cs) < 2:
+                continue          # 순위가 없는 줄은 담을 것이 없습니다
+            n = ranks3y.put(r["no"], r.get("dt"), r.get("nrank") or len(cs), cs)
+            if not n:
+                continue          # 개찰일을 못 읽은 줄 — 표시하지 않고 다음에 다시 봅니다
+            r["k3y"] = 1
+            rows += n
+            done += 1
+            # 버퍼가 커지기 전에 끊어서 붙입니다 (중간에 죽어도 여기까지는 남습니다)
+            if done % BACKFILL_3Y == 0:
+                ranks3y.flush()
+                log(f"    · 보관함 소급 {done:,}건 담는 중...")
+    if done:
+        ranks3y.flush()
+    return done, rows
+
+
 def write_status(first):
     """📋 docs/수집상태.md — 회차마다 «어디까지 왔나» 를 **저장소에** 한 장으로 남깁니다.
 
@@ -2175,7 +2218,10 @@ def main():
                     #    (조회 직후 export 된 건 남고, 다음 회차 목록 수집이 원본을 지웠던 것)
                     #    rask(순위 조회를 마친 표시)가 있으면 순위 관련 값을 지킵니다.
                     if prev.get("rask"):
-                        for f in ("corps", "rq", "nrank", "rask", "drw",
+                        # ⚠️ 2026-09-16 — k3y(3년치 보관함에 담았다는 표시)도 지킵니다.
+                        #    안 지키면 다음 목록 수집이 지워서 매 회차 같은 줄을
+                        #    보관함에 다시 담습니다(파일만 몇 배로 불어납니다).
+                        for f in ("corps", "rq", "nrank", "rask", "drw", "k3y",
                                   "win", "amt", "rate", "bno", "ceo"):
                             if prev.get(f) is not None:
                                 r[f] = prev[f]
@@ -2427,6 +2473,7 @@ def main():
             #   first.json 은 «최근 개찰» 만 들고 있어 몇 주 지나면 이 순위가 사라집니다.
             #   업체 성적표(낙찰을 못 해 본 업체 포함)는 3년치를 봐야 하므로 따로 쌓습니다.
             kept3y += ranks3y.put(r["no"], r.get("dt"), total, cs)
+            r["k3y"] = 1             # 담았다는 표시 — 소급 채우기가 또 담지 않게
             if any(drw):
                 r["drw"] = drw       # 1~15번이 각각 몇 번 찍혔나 (전체 투찰자 기준)
             # 100건마다 저장 — 한 번에 1,500건을 받다가 끊겨도 그때까지는 남습니다
@@ -2449,22 +2496,24 @@ def main():
         if todo_rank:
             print(f"  → 개찰 순위 조회 {len(todo_rank):,}건 시도 · "
                   f"응답 {got:,}건 · 2곳 이상 {ranked:,}건")
-        # ── 📊 3년치 보관함 갈무리 ──────────────────────────────
-        #   소장님(2026-09-15): 「이것도 3년치만 보관하는 걸로 하자. 순위」
-        #   3년이 지난 달은 통째로 버립니다 — 다 차면 크기가 더 늘지 않습니다.
-        try:
-            if kept3y:
-                _m, _l = ranks3y.flush()
-                print(f"  · 3년치 순위 보관함에 {_l:,}줄 담음 (달 {_m}장)")
-            _gone = ranks3y.trim()
-            if _gone:
-                print(f"  · 3년 지난 달 버림: {', '.join(_gone)}")
-            print("  · " + ranks3y.summary())
-        except Exception as e:
-            print(f"  ! 3년치 순위 보관함 처리 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
-
     # 사람이 넣어 둔 전체 투찰내역이 있으면 여기서도 붙입니다 (파일로 받은 경우)
     merge_ranks(first)
+
+    # ── 📊 3년치 순위 보관함 ──────────────────────
+    #   소장님(2026-09-15): 「이것도 3년치만 보관하는 걸로 하자. 순위」
+    #   ⚠️ --ranks 0 인 회차에도 **반드시 돕니다.** 예전에는 순위를 새로 받은
+    #      회차에서만 갈무리해서, 이미 받아 둔 11,873건이 영영 안 담겼습니다.
+    #      조달청을 부르지 않으므로 호출 0번입니다.
+    try:
+        _d, _r = backfill_ranks3y(first)
+        if _d:
+            print(f"  · 3년치 순위 보관함에 소급 {_d:,}건 / {_r:,}줄 담음")
+        _gone = ranks3y.trim()
+        if _gone:
+            print(f"  · 3년 지난 달 버림: {', '.join(_gone)}")
+        print("  · " + ranks3y.summary())
+    except Exception as e:
+        print(f"  ! 3년치 순위 보관함 처리 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
 
     # ── 공고(live)에만 실려 오는 값을 개찰(first)에 이어 붙입니다 ──────────
     #   ★ 2026-09-03 소장님: 「바로투찰하고 1순위 채점에서 권장투찰가 금액이 달라.」

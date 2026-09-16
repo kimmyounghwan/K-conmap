@@ -508,6 +508,93 @@ def check_boardrank():
     return bad
 
 
+def check_ranks3y():
+    """📊 3년치 순위 보관함이 «정말로» 채워지는 구조인지. (2026-09-16)
+
+    왜 검사가 필요한가 — 실제로 조용히 안 채워지고 있었습니다.
+      순위 받은 개찰 11,873건인데 보관함은 **76줄**이었습니다. 에러는 한 줄도 안 났습니다.
+      갈무리가 「순위를 새로 받은 회차」 안에만 있었고, 순위 조회는 «corps 가 1곳뿐인 공고»만
+      물어보므로 이미 받아 둔 줄은 영영 차례가 안 왔습니다.
+
+    세 가지가 하나라도 풀리면 다시 조용히 멈춥니다:
+      ① row_first 보존 목록에 k3y 가 없으면 → 매 회차 같은 줄을 다시 담아 파일이 불어납니다
+      ② 소급 채우기가 «--ranks 가 있을 때만» 돌면 → 원래 사고가 그대로 재발합니다
+      ③ 순위를 새로 받고 k3y 표시를 안 하면 → 그 줄을 소급 채우기가 또 담습니다
+    """
+    import ast
+    import re
+    print("\n" + "=" * 64)
+    print("  3년치 순위 보관함 — 채워지는 구조인가")
+    print("=" * 64)
+    bad = []
+    try:
+        src = io.open(os.path.join(ROOT, "collect.py"), encoding="utf-8").read()
+    except Exception as e:
+        print(f"(건너뜀 — collect.py 를 못 읽었습니다: {type(e).__name__}: {e})")
+        return []
+
+    # ① 보존 목록에 k3y 가 있나
+    m = re.search(r'if prev\.get\("rask"\):.*?for f in \(([^)]*)\)', src, re.S)
+    if not m:
+        bad.append('순위 보존 목록(prev.get("rask")) 을 못 찾았습니다 — 검사를 고치세요')
+    elif "k3y" not in m.group(1):
+        bad.append("row_first 보존 목록에 k3y 가 없습니다 "
+                   "— 다음 목록 수집이 표시를 지워 매 회차 같은 줄을 다시 담습니다")
+    else:
+        print("  ✅ ① 보존 목록에 k3y 있음")
+
+    # ③ 담은 줄마다 k3y 표시를 하나
+    #   ⚠️ 2026-09-16 — 처음엔 re.search 로 «첫 번째» put 만 봤습니다.
+    #      그 첫 번째가 backfill_ranks3y() 안에 있는 자기 자신이라,
+    #      정작 검사해야 할 순위 조회 쪽이 깨져도 ✅ 가 떴습니다.
+    #      («검사 자신도 사본이다» — CLAUDE.md 8-5) → 모든 자리를 셉니다.
+    puts = list(re.finditer(r"ranks3y\.put\([^\n]*\n(?:[^\n]*\n){0,4}", src))
+    if not puts:
+        bad.append("ranks3y.put() 을 아무 데서도 안 부릅니다 — 보관함이 안 채워집니다")
+    else:
+        miss = [i + 1 for i, m in enumerate(puts) if "k3y" not in m.group(0)]
+        if miss:
+            bad.append('ranks3y.put() %d곳 중 %s번째 뒤에 r["k3y"] 표시가 없습니다 '
+                       "— 그 줄을 소급 채우기가 또 담습니다"
+                       % (len(puts), ", ".join(map(str, miss))))
+        else:
+            print(f"  ✅ ③ put {len(puts)}곳 모두 k3y 표시함")
+
+    # ② 소급 채우기가 «항상» 도나 — args.ranks 같은 조건 안에 들어 있으면 안 됩니다
+    GATE = ("args.ranks", "args.reranks", "NET_DOWN", "QUOTA_OUT")
+    try:
+        tree = ast.parse(src)
+    except SyntaxError as e:
+        return bad + [f"collect.py 문법 오류: {e}"]
+    parents = {}
+    for node in ast.walk(tree):
+        for kid in ast.iter_child_nodes(node):
+            parents[kid] = node
+    called = False
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id == "backfill_ranks3y"):
+            continue
+        called = True
+        cur, gates = parents.get(node), []
+        while cur is not None:
+            if isinstance(cur, ast.If):
+                t = ast.unparse(cur.test) if hasattr(ast, "unparse") else ""
+                for g in GATE:
+                    if g in t:
+                        gates.append(g)
+            cur = parents.get(cur)
+        if gates:
+            bad.append("소급 채우기가 %s 조건 안에 들어 있습니다 "
+                       "— 그 회차에만 돌아서 보관함이 다시 멈춥니다"
+                       % " · ".join(sorted(set(gates))))
+        else:
+            print("  ✅ ② 소급 채우기가 조건 없이 항상 돎")
+    if not called:
+        bad.append("backfill_ranks3y() 를 아무 데서도 안 부릅니다 — 보관함이 안 채워집니다")
+    return bad
+
+
 def check_naeyeok():
     """내역서 목록의 칸 이름 대조 — collect.py(export_naeyeok) vs Change.jsx(ChangeNaeyeok).
 
@@ -1010,6 +1097,7 @@ def main():
 
     xbad = check_boardidx()
     xbad += check_boardrank()
+    xbad += check_ranks3y()
     xbad += check_naeyeok()
     xbad += check_naeyeok_files()
     xbad += check_guidenav()
