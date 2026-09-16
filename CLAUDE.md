@@ -190,6 +190,49 @@ cd web && firebase deploy --only hosting        (또는 --only database)
 | 정적 JSON 로더 | `web/src/lib/data.js` (`indexRows` 로 **이름표**로 읽습니다) |
 | 면허 키워드·표시 형식 | `web/src/lib/fmt.js` · `lib/lic.js` |
 
+### 🗺️ 화면 목록 — **새 화면을 만들기 «전에» 여기부터 보십시오** (2026-09-16)
+
+🚨 소장님(2026-09-16): 「너가 만든 거잖아..왜 기억을 못 해?」
+   하루에 **두 번** 이미 있는 것을 또 만들자고 했습니다 — 업체 성적표 생성기(`tools/report_*`)와
+   설계변경 2줄 자동변환(`/change/twoline`). **둘 다 그날 라우트 목록에서 눈으로 보고도** 못 알아봤습니다.
+   위 «파일 지도» 는 요약이라 `Change.jsx` 한 줄 뒤에 화면 다섯 개가 숨어 있었습니다.
+   → **「없는 것 같다」는 확인이 아닙니다.** `web/src/main.jsx` 의 라우트와 아래 표를 먼저 보십시오.
+
+| 주소 | 무엇 | 파일 |
+|---|---|---|
+| `/` · `/calc` | 바로투찰 — 얼마 넣을까 | `BaroBid.jsx` |
+| `/first` | 1순위(개찰 결과) 목록 | `FirstBoard.jsx` |
+| `/live` | 마감 전 공고 목록 | `LiveBoard.jsx` |
+| `/analysis` | 발주기관 분석 · 업체 자가진단 (화면 안 칸 2개) | `Analysis.jsx` |
+| `/agency/{기관}` | 기관 한 곳 — 미리 구움 | `AgencyPage.jsx` |
+| `/corp/{업체키}` | 업체 성적표 — 미리 구움 | `CorpPage.jsx` |
+| `/notice/{공고번호}` | 공고 · 개찰 한 건 | `NoticePage.jsx` |
+| `/daily` · `/daily/{날짜}` | 그날 개찰 성적표 | `DailyPage.jsx` |
+| `/lic` | 면허별 경쟁도 | `LicStat.jsx` |
+| `/forms` · `/forms/{slug}` | 건설 서식 138장 | `Forms.jsx` |
+| `/change` · `/change/{주제}` | 설계변경 알아보기 | `Change.jsx` |
+| `/change/calc` | 설계변경 계산기 | `Change.jsx` |
+| `/change/excel` | 설계변경 자동계산 엑셀(시트 11장) | `Change.jsx` |
+| `/change/naeyeok` · `/{kind}` | 설계변경 내역서 | `Change.jsx` |
+| **`/change/twoline`** | **설계변경 2줄 자동변환** — 내역서 끌어놓으면 당초·변경·증감으로 벌려 내려받기. **브라우저 안에서만**, xlsx XML 만 고쳐 서식·인쇄영역·그림 보존 | **`TwoLine.jsx`** |
+| `/naeyeok` | 견적서·내역서 작성 대행 (파는 것) | `Naeyeok.jsx` |
+| `/report` | 업체 입찰 성적표 (만들어 드림) — 엔진은 `tools/report_data.py` · `report_html.py` · `report_pdf.mjs` | `Report.jsx` |
+| `/safety` | 안전관리계획서·유해위험방지계획서 (준비 중) | `Safety.jsx` |
+| `/jeoksan` | K-적산 소개 (준비 중) | `Jeoksan.jsx` |
+| `/shareone` | 쉐어원 — 사무실 공유폴더 배포 | `ShareOne.jsx` |
+| `/cad` · `/cad/{slug}` | 캐드 유틸 (리습 내려받기) | `Cad.jsx` |
+| `/tools` · `/tools/{slug}` | 건설 도구 12가지 | `Tools.jsx` |
+| `/guide` · `/guide/{slug}` | 입찰 알아보기 | `Guide.jsx` |
+| `/how` | 보는 방법 — 처음이시면 여기부터 | `How.jsx` |
+| `/qna` | 묻고 답하기 | `Qna.jsx` |
+| `/jobs` | 구인구직 (고용24 iframe) | `Jobs.jsx` |
+| `*` | 404 — noindex | `NotFound.jsx` |
+
+⚠️ **이 표는 손으로 적은 것이라 늙습니다.** 화면을 더하거나 지웠으면 **여기도 같이 고치십시오.**
+   진짜 목록은 언제나 `web/src/main.jsx` 입니다.
+
+---
+
 `engines.js` 의 점수 기준은 **기존 `app.py` 의 `engine_bid_score` 를 그대로 옮긴 것입니다.**
 숫자를 임의로 바꾸지 마세요 (핫존 30 / 경쟁 20 / 유사공고 20 / 안정성 15 / 데이터량 15).
 
