@@ -145,10 +145,18 @@ ws2.auto_filter.ref = 'A2:I%d' % (len(raw) + 2)
 NRAW = len(raw) + 2
 
 # ── 1) 단가 찾기 ─────────────────────────────────────────────────────
+# ⚠️ 2026-09-16 — 거르는 규칙을 «tools/단가규칙.py 한 곳» 으로 옮겼습니다.
+#    여기와 단가사전.py 가 따로 거르면 두 결과가 갈라집니다 (CLAUDE.md 9절 ⑤).
+#    옛 NOT_ITEM/CODE_ONLY 는 그물로 남겨 둡니다 — 규칙 쪽이 먼저 봅니다.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import 단가규칙 as _R
+
 agg = {}
 for r in raw:
     nmc = clean_name(r[0])
     if not nmc or NOT_ITEM.search(nmc) or CODE_ONLY.match(nmc):
+        continue
+    if _R.거를까(r[0], r[1], r[3], r[2]):
         continue
     k = key(r[0], r[1], r[2])
     a = agg.setdefault(k, {'nm': r[0], 'sp': r[1], 'un': r[2], 'n': 0,
