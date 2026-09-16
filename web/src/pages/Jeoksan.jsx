@@ -32,6 +32,22 @@ export default function Jeoksan() {
         </p>
       </div>
 
+      {/* ── 사이트에서 바로 ── */}
+      <div className="card">
+        <div className="sec-title">지금 바로 해 보실 수 있습니다 — 사이트에서</div>
+        <p style={{ marginTop: 0 }}>
+          도면에서 찍는 것은 캐드와 PC 가 해야 하지만,{' '}
+          <b>「잰 치수 → 수량산출서 엑셀」 은 이 사이트에서 바로 됩니다.</b>{' '}
+          깔 것도, 가입도 없습니다.
+        </p>
+        <p className="muted">
+          <b>재료표</b>와 <b>치수표</b> 두 장을 올리시면 산출서·집계·태그별·검산·쓴표{' '}
+          다섯 장짜리 엑셀이 나옵니다. 견본도 같이 두었으니 <b>빈손으로 오셔도</b> 됩니다.{' '}
+          파일은 <b>브라우저 안에서만</b> 다룹니다 — 올라가는 것이 없습니다.
+        </p>
+        <Link className="btn primary" to="/jeoksan/run">🧮 수량산출서 만들러 가기</Link>
+      </div>
+
       {/* ── 네 걸음 ── */}
       <div className="card">
         <div className="sec-title">어떻게 쓰나 — 네 걸음</div>
@@ -154,8 +170,10 @@ export default function Jeoksan() {
 
       {/* ── 준비 중 ── */}
       <div className="card">
-        <div className="sec-title">아직 열지 않았습니다</div>
+        <div className="sec-title">아직 열지 않은 것 — 「도면에서 찍기」</div>
         <p>
+          <b>사이트에서 도는 것</b>(잰 치수 → 산출서)은 위에서 지금 쓰실 수 있습니다.{' '}
+          아직 안 연 것은 <b>캐드에서 도면을 찍는 리습</b>과 그것을 돌리는 PC 프로그램입니다.{' '}
           지금은 <b>제 현장에서만 돌리고 있습니다.</b> 내려받는 단추가 없는 것은 감춘 것이 아니라{' '}
           <b>아직 올리지 않았기 때문</b>입니다.
         </p>
@@ -192,7 +210,8 @@ export default function Jeoksan() {
           적산이 열릴 때까지, 지금 바로 쓰실 수 있는 것들입니다. <b>전부 무료입니다.</b>
         </p>
         <div className="btn-row">
-          <Link className="btn primary" to="/cad">📐 캐드 유틸 — 길이·면적·개수 재기</Link>
+          <Link className="btn primary" to="/jeoksan/run">🧮 수량산출서 만들기</Link>
+          <Link className="btn ghost" to="/cad">📐 캐드 유틸 — 길이·면적·개수 재기</Link>
           <Link className="btn ghost" to="/change/twoline">🔁 설계변경 2줄 변환</Link>
           <Link className="btn ghost" to="/tools">🧰 건설 도구</Link>
         </div>
@@ -210,9 +229,9 @@ export function JeoksanStrip() {
       <div className="grow">
         <div className="t">K-적산 <em>· 도면에서 물량을 뽑습니다</em></div>
         <div className="d">
-          캐드에서 찍고 PC 에서 셉니다. <b>산출식이 엑셀 표에 있어</b> 토목·건축 둘 다 되고,
+          <b>잰 치수를 올리면 수량산출서 엑셀</b>이 바로 나옵니다. 깔 것도 가입도 없습니다.
           산출근거가 <b>살아 있는 엑셀 수식</b>이라 감리가 칸을 눌러 봅니다.{' '}
-          <b>준비 중입니다</b> — 무엇을 만들고 있는지 먼저 보십시오.
+          도면에서 찍는 캐드 리습은 아직 준비 중입니다.
         </div>
       </div>
       <span className="go">›</span>

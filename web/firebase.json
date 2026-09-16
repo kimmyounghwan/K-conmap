@@ -25,6 +25,15 @@
       { "source": "/change", "destination": "/index.html" },
       { "source": "/guide", "destination": "/index.html" },
       { "source": "/cad", "destination": "/index.html" },
+    { "source": "/tools", "destination": "/index.html" },
+    { "source": "/naeyeok", "destination": "/index.html" },
+    { "source": "/qna", "destination": "/index.html" },
+    { "source": "/how", "destination": "/index.html" },
+    { "source": "/lic", "destination": "/index.html" },
+    { "source": "/report", "destination": "/index.html" },
+    { "source": "/jeoksan", "destination": "/index.html" },
+    { "source": "/safety", "destination": "/index.html" },
+    { "source": "/shareone", "destination": "/index.html" },
       { "source": "/agency/**", "destination": "/index.html" },
       { "source": "/corp/**", "destination": "/index.html" },
       { "source": "/notice/**", "destination": "/index.html" },
@@ -32,7 +41,9 @@
       { "source": "/forms/**", "destination": "/index.html" },
       { "source": "/change/**", "destination": "/index.html" },
       { "source": "/guide/**", "destination": "/index.html" },
-      { "source": "/cad/**", "destination": "/index.html" }
+      { "source": "/tools/**", "destination": "/index.html" },
+    { "source": "/jeoksan/**", "destination": "/index.html" },
+    { "source": "/cad/**", "destination": "/index.html" }
     ],
     "headers": [
       {
