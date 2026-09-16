@@ -49,6 +49,18 @@ def scan(src=SRC):
         for m in re.finditer(r"\{\s*([A-Za-z_$][\w$]*(?:\s*,\s*[A-Za-z_$][\w$]*)*)\s*\}\s*=", s):
             for nm in m.group(1).split(","):
                 have.add(nm.strip())
+        # ⚠️ 2026-09-17 — «반 안에 든 이름(메서드)» 도 «이 파일이 가진 것» 으로 셉니다.
+        #   왜: lib/susik.js 의  num(a, what) {   ← 반(class) 안의 메서드 선언
+        #       lib/xlsx2line.js 의  build() {    ← 같은 것
+        #   이 두 줄을 «호출» 로 보고, 마침 lib/fmt.js 가 num 을, lib/qto.js 가 build 를
+        #   내보내고 있어서 «import 안 하고 쓴다» 고 잡았습니다. 둘 다 틀린 경보입니다.
+        #   (실제 호출은 언제나 this.num(...) · styler.build(...) 이라 앞의 «.» 로 이미 걸러집니다)
+        #   이것 때문에 배포가 통째로 멈췄습니다 — 진짜 잘못 하나를 놓치는 것보다
+        #   틀린 경보로 매번 멈추는 쪽이 더 위험합니다(경보를 안 믿게 됩니다).
+        for m in re.finditer(
+                r"(?m)^\s*(?:static\s+|async\s+|get\s+|set\s+|\*\s*)*"
+                r"([A-Za-z_$][\w$]*)\s*\([^)\n]*\)\s*\{", s):
+            have.add(m.group(1))
         body = re.sub(r"/\*.*?\*/", "", s, flags=re.S)
         body = re.sub(r"//[^\n]*", "", body)
         for nm, srcs in exports.items():
