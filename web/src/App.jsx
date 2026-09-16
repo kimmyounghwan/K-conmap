@@ -36,7 +36,10 @@ const TABS = [
         탭은 /forms 로 가지만 «also» 에 적힌 주소에서도 이 탭에 불이 들어옵니다. */
   { to: '/forms', ic: '📄', label: '서식·도구', also: ['/tools', '/cad'] },
   { to: '/change', ic: '🔁', label: '설계변경' },
-  { to: '/naeyeok', ic: '📋', label: '내역서 작성', pay: true },
+  /* 📋 2026-09-16 — 소장님: 「내역서 작성을 «작성 대행» 으로 넓히자」
+     탭은 10개 그대로 두고, 파는 것(내역서 · 안전서류)을 한 탭에 모았습니다.
+     /safety 에서도 이 탭에 불이 들어옵니다. 나중에 착공 서류 한 벌도 여기 붙습니다. */
+  { to: '/naeyeok', ic: '📋', label: '작성 대행', pay: true, also: ['/safety'] },
   { to: '/jeoksan', ic: '🧮', label: '적산', pay: true },
   { to: '/jobs', ic: '💼', label: '구인구직' },
   { to: '/qna', ic: '💬', label: '묻고답하기' },
