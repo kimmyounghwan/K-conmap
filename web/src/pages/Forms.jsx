@@ -5,6 +5,7 @@ import DATA from '../data/forms.json'
 import { ShareBtn } from './CorpPage.jsx'
 import UserForms from '../UserForms.jsx'
 import { Empty } from '../components.jsx'
+import { SafetyStrip } from './Safety.jsx'
 
 /**
  * /forms · /forms/{slug} — 「건설 서식」 (2026-09-05)
@@ -147,6 +148,12 @@ export default function Forms() {
         </div>
         <span className="go">→</span>
       </Link>
+
+      {/* 🦺 2026-09-16 — 착공 서류를 찾으러 오는 자리입니다.
+          안전관리계획서·유해위험방지계획서는 착공 전에 내는 것이라
+          여기서 «우리 현장이 대상인가» 를 바로 볼 수 있어야 합니다.
+          띄는 Safety.jsx 한 곳에만 있습니다 — 문구를 두 번 적지 않습니다. */}
+      <SafetyStrip />
 
       <div className="card fwarn">
         <b>⚠️ 먼저 확인하세요</b>

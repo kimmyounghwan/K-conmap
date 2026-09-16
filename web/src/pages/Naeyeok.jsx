@@ -228,6 +228,11 @@ export default function Naeyeok() {
         </div>
       </div>
 
+      {/* 🦺 2026-09-16 — 소장님: 「대상판정이 사이트 어디 있어?」
+          예전엔 이 띄가 «세 번째 칸» 이라 한 번 내려야 보였습니다.
+          「작성 대행」을 눌렀을 때 바로 보이는 자리로 올렸습니다. */}
+      <SafetyStrip />
+
       {/* ── 맨 위 ─────────────────────────────────────────────── */}
       <div className="card" style={{ borderLeft: '5px solid var(--accent, #1a56db)' }}>
         <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.5, marginBottom: 8 }}>
@@ -254,7 +259,6 @@ export default function Naeyeok() {
         </div>
       </div>
 
-      <SafetyStrip />
 
       {/* ── 언제 내나 ─────────────────────────────────────────── */}
       <div className="card">
