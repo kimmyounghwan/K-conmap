@@ -28,6 +28,7 @@
     { "source": "/tools", "destination": "/index.html" },
     { "source": "/naeyeok", "destination": "/index.html" },
     { "source": "/qna", "destination": "/index.html" },
+      { "//": "🛠 관리자 — 소장님만. sitemap·robots 에는 안 넣습니다 (2026-09-17)", "source": "/admin", "destination": "/index.html" },
     { "source": "/how", "destination": "/index.html" },
     { "source": "/lic", "destination": "/index.html" },
     { "source": "/report", "destination": "/index.html" },

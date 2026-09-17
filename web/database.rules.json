@@ -83,6 +83,12 @@
       }
     },
 
+    // 💬 «이 글은 메일로 알렸다» 표시. 기계(tools/qna_mail.py)만 씁니다 —
+    //    서비스 계정은 규칙을 지나쳐 쓰므로 여기는 둘 다 막아 둡니다.
+    //    ⚠️ 표시를 글(qna) «안에» 두지 않습니다 — $other: .validate false 와 부딪히고,
+    //       이용자 글을 기계가 고치는 것도 맞지 않습니다.
+    "qna_mail": { ".read": false, ".write": false },
+
     "qna_pins": {
       ".read": false,
       "$id": {

@@ -63,6 +63,8 @@ const ChangeTopic = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ d
 const Guide = lazyPage(() => import('./pages/Guide.jsx'))
 const Naeyeok = lazyPage(() => import('./pages/Naeyeok.jsx'))
 const Qna = lazyPage(() => import('./pages/Qna.jsx'))
+/* 🛠 관리자 — 소장님만. 검색엔진에 안 올립니다(Admin.jsx 가 noindex 를 겁니다). */
+const Admin = lazyPage(() => import('./pages/Admin.jsx'))
 const How = lazyPage(() => import('./pages/How.jsx'))
 const GuideTopic = lazyPage(() => import('./pages/Guide.jsx').then((m) => ({ default: m.GuideTopic })))
 /* 🧰 도구 — lazy() 가 아니라 lazyPage() 입니다. 배포가 지나가면 옛 파일이 사라져
@@ -146,6 +148,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           {/* 📋 2026-09-15 — 내역서 작성 대행. 하나뿐인 유료 화면입니다. */}
           {/* 💬 2026-09-15 — 묻고 답하기 */}
           <Route path="/qna" element={<Suspense fallback={<Loading />}><Qna /></Suspense>} />
+          {/* 🛠 2026-09-17 — 관리자. 운영자 브라우저가 아니면 빈 안내만 나옵니다.
+              ⚠️ 새 주소를 만들었으니 web/firebase.json 의 rewrites 에도 넣었습니다 (8절 16).
+              ⚠️ sitemap 에는 «넣지 않습니다» — 검색에 뜨면 안 됩니다. */}
+          <Route path="/admin" element={<Suspense fallback={<Loading />}><Admin /></Suspense>} />
           {/* 📖 보는 방법 — 처음 온 사람이 «어디로 가면 되는지» 아는 한 장 (2026-09-15) */}
           <Route path="/how" element={<Suspense fallback={<Loading />}><How /></Suspense>} />
           <Route path="/naeyeok" element={<Suspense fallback={<Loading />}><Naeyeok /></Suspense>} />
