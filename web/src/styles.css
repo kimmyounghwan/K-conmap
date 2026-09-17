@@ -3166,3 +3166,27 @@ ul.plainlist li { margin-bottom: 5px; }
 @media (max-width: 480px) {
   .crumbs .crumb-trail { display: none; }   /* 좁은 화면에서는 «뒤로» 만 */
 }
+
+/* ── 💰 금액 거르개 (2026-09-17) ────────────────────────────────
+   지역·면허 알약 바로 아래 한 줄. 평소엔 접혀 있고, 걸어 둔 것이 있으면
+   접힌 채로도 「💰 금액 · 4억~10억」 처럼 보입니다. */
+.amtbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; }
+.amtbox {
+  flex: 1 0 100%; margin-top: 8px; padding: 11px 12px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2, var(--surface));
+}
+.amtbox .chips { margin-bottom: 9px; }
+.amtin { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.amtin .inp { width: 92px; flex: 0 0 auto; text-align: right; }
+.amtin span { color: var(--muted); font-size: 13px; }
+.amtbox .note { margin-top: 9px; }
+/* 📱 손전화 — 글칸 16px 아래로 내려가면 아이폰이 화면을 확대합니다 (8절 29) */
+@media (max-width: 520px) {
+  .amtin .inp { font-size: 16px; width: 84px; }
+  .amtin .btn { flex: 1 1 auto; }
+}
+/* 「금액 조건 지우고 보기」 — 글 속 단추라 알약이 아니라 «밑줄 친 말» 이어야 합니다 */
+.lnk {
+  border: 0; background: none; padding: 0; font: inherit; cursor: pointer;
+  color: var(--accent); text-decoration: underline;
+}

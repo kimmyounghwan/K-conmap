@@ -379,7 +379,11 @@ def check_boardidx():
         made = {}
         for key in ("first", "live"):
             i = c.index('if name == "first":' if key == "first" else "else:\n                    # 공고:")
-            seg = c[i:i + 1200]
+            # ⚠️ 2026-09-17 — 1200 자였습니다. 색인에 칸을 하나 더하면서 그 «까닭» 을
+            #    주석으로 길게 적었더니 fields 가 창 밖으로 밀려나
+            #    「fields 를 못 찾았습니다」 가 났습니다. **검사가 주석 길이에 걸리면 안 됩니다.**
+            #    창을 넉넉히 넓힙니다. 다음 fields 까지 먹지 않게 idx 블록 하나 분량만.
+            seg = c[i:i + 5000]
             m = re.search(r'fields = \[([^\]]+)\]', seg)
             made[key] = re.findall(r'"(\w+)"', m.group(1)) if m else []
         read = {}

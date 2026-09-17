@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useBoard } from '../lib/useBoard.js'
 import { Skeleton, Empty } from '../components.jsx'
 import { RangeBar } from './FirstBoard.jsx'
@@ -46,6 +46,60 @@ function docRank(nm) {
 }
 
 const PAGE = 20
+
+/* ── 💰 금액 거르개 (2026-09-17) ────────────────────────────────
+   억 단위로 주고받습니다. 화면에 「200000000」 을 치게 하면 0 을 세다 틀립니다.
+   ⚠️ 경계는 «추정가격» 기준입니다 — 적격심사가 추정가격으로 갈리기 때문입니다.
+      국가·조달청 2·3·10·50·100억 / 지자체 2·4·10억 → 겹치는 마디를 알약으로. */
+const AMT_KEY = 'kcm_live_amt'
+const 억 = 1e8
+const AMT_CHIPS = [
+  { t: '2억 미만', lo: null, hi: 2 },
+  { t: '2~4억', lo: 2, hi: 4 },
+  { t: '4~10억', lo: 4, hi: 10 },
+  { t: '10~50억', lo: 10, hi: 50 },
+  { t: '50~100억', lo: 50, hi: 100 },
+  { t: '100억 이상', lo: 100, hi: null },
+]
+const loadAmt = () => {
+  try {
+    const v = JSON.parse(localStorage.getItem(AMT_KEY) || 'null')
+    if (!v || (v.lo == null && v.hi == null)) return null
+    return v
+  } catch { return null }                      /* 사생활 모드 */
+}
+const saveAmt = (v) => {
+  try {
+    if (v && (v.lo != null || v.hi != null)) localStorage.setItem(AMT_KEY, JSON.stringify(v))
+    else localStorage.removeItem(AMT_KEY)
+  } catch { /* 사생활 모드 */ }
+}
+/* 「이 공고의 추정가격」 — 한 곳에서만 정합니다.
+   ⚠️ 0 은 «0원» 이 아니라 «모름» 입니다. 부르는 쪽이 반드시 갈라서 다뤄야 합니다.
+   ⚠️ 배정예산(budget)은 **쓰지 않습니다.** 총사업비라 추정가격보다 큽니다
+      (실측 예: 기초 397,111,000 인데 예산 485,852,000 — 1.2억 차). */
+export const estOf = (r) => {
+  const e = Number(r && r.est) || 0
+  if (e > 0) return e
+  const b = Number(r && r.base) || 0
+  return b > 0 ? Math.round(b / 1.1) : 0
+}
+/* 걸러도 되나 — 셋 다 답이 다릅니다: 통과 / 걸러짐 / **모름** */
+const amtHit = (est, a) => {
+  if (!a || (a.lo == null && a.hi == null)) return true
+  if (!est) return null                        /* 모름 — 부르는 쪽이 따로 셉니다 */
+  if (a.lo != null && est < a.lo * 억) return false
+  if (a.hi != null && est >= a.hi * 억) return false
+  return true
+}
+const amtLabel = (a) => {
+  if (!a) return ''
+  const f = (v) => `${v}억`
+  if (a.lo != null && a.hi != null) return `${f(a.lo)}~${f(a.hi)}`
+  if (a.hi != null) return `${f(a.hi)} 미만`
+  return `${f(a.lo)} 이상`
+}
+
 const KIND = 'con'   // 공사만 다룹니다 (용역 제외)
 export default function LiveBoard() {
   /* 지역도 기억합니다 — 바로투찰 첫 화면(«오늘 내 것»)과 같은 값을 씁니다 (2026-09-06) */
@@ -90,7 +144,29 @@ export default function LiveBoard() {
   /* 금액대 거르기 (2026-09-14) — 실측: 1억 미만은 참가 중앙 32곳(10곳 미만 29.9%),
      3~10억은 404곳(3.2%). 붐비지 않는 자리를 찾는 가장 굵은 손잡이입니다.
      칸 경계는 손으로 적지 않고 bidindex 의 pick.sz 를 씁니다 — 표와 어긋날 자리를 안 만듭니다. */
-  const [szPick, setSzPick] = useState(-1)          // -1 = 전체
+    /* 💰 금액 거르개 (2026-09-17) — 이용자 의견:
+   *   「공고 페이지에서 금액에 맞추어 얼마부터 얼마 사이, 얼마 이상, 얼마 이하」
+   *
+   * ■ 왜 이 경계인가 — 취향이 아니라 «법» 입니다.
+   *   적격심사 기준이 추정가격으로 갈립니다 (2026-09-17 생활법령정보 원문 확인).
+   *     국가·조달청  2억 · 3억 · 10억 · 50억 · 100억(넘으면 종합심사낙찰제)
+   *     지자체        2억 · 4억 · 10억
+   *   소장님: 「**지자체, 국가 둘 다 가자**」
+   *   → 둘의 경계를 **합쳐서** 넣습니다. 알약은 겹치는 큰 마디(2·4·10·50·100)를 쓰고,
+   *     3억처럼 한쪽에만 있는 마디는 «직접 넣기» 로 갑니다.
+   *   ⚠️ 거르개는 «이 공고가 국가냐 지자체냐» 를 **알 필요가 없습니다.**
+   *      경계만 다 있으면 쓰는 사람이 자기 구간을 고릅니다. 판정은 나중 일(이름표 붙이기)입니다.
+   *
+   * ■ 무엇으로 거르나 — **추정가격** 입니다. 이게 전부입니다.
+   *   공고 하나에 금액이 셋이고(추정가격 < 기초금액 < 배정예산), 법정 경계는 추정가격에 걸립니다.
+   *   실측 예: 기초 397,111,000 인데 예산 485,852,000 — 1.2억이 벌어집니다.
+   *   배정예산으로 거르면 «추정가격 기준 대상» 공고가 소리 없이 사라집니다.
+   *
+   * ■ 모르는 것은 «모른다» 고 합니다
+   *   추정가격도 기초금액도 없는 공고가 6.1% 있습니다(실측 16,280건 중 986건).
+   *   조용히 빼면 「내 공고가 사라졌다」 가 됩니다 → 아래 «금액 모르는 공고 N건» 으로 셉니다.
+   */
+  const [amt, setAmt] = useState(loadAmt)        // {lo,hi} — 억 단위. null = 안 씀
   const [bag, setBag] = useState(loadBasket)
   const [idx, setIdx] = useState(undefined)         // undefined=아직 · null=실패 · {f,r,pick}
   useEffect(() => {
@@ -107,7 +183,7 @@ export default function LiveBoard() {
     setTimeout(() => setCopiedNo((v) => (v === r.no ? null : v)), 1600)
   }
 
-  useEffect(() => { setPage(1) }, [region, q, mine, lics, licNone, onlyGood, docOnly, mode, sortBy, fewOnly, szPick])
+  useEffect(() => { setPage(1) }, [region, q, mine, lics, licNone, onlyGood, docOnly, mode, sortBy, fewOnly, amt])
   useEffect(() => { saveLicCodes(lics) }, [lics])
   useEffect(() => { saveLicNone(licNone) }, [licNone])
 
@@ -120,12 +196,17 @@ export default function LiveBoard() {
         — collect.py 의 export_board 가 이 순서로 만듭니다. selfcheck 가 대조합니다.
         base/lo/hi 는 「해볼 만한 공고만」 등급이 쓰고, lic 은 면허 거르기가 씁니다
         (2026-09-05 — 전에는 공고명 낱말로 «추측» 해서 정확도가 15.7% 였습니다). */
-  const filtering = q.trim().length > 0 || region !== '전국' || mine || onlyGood || docOnly
+  const filtering = q.trim().length > 0 || region !== '전국' || mine || onlyGood || docOnly || !!amt
+  /* 💰 금액을 몰라서 못 거른 공고를 «셉니다». 화면이 정직하게 적습니다.
+     ⚠️ ref 인 까닭: match 는 useBoard 가 색인을 훑을 때 불립니다. 여기서 setState 를 하면
+        훑는 중에 다시 그리기가 돌아 무한히 돕니다. 세기만 하고, 다 센 뒤에 한 번 읽습니다. */
+  const 모름수 = useRef(0)
   const match = useMemo(() => {
     if (!filtering) return null
     const s = q.trim()
+    모름수.current = 0
     return (a) => {
-      const [name, inst, base, lo, hi, lic, sido, dsn] = a
+      const [name, inst, base, lo, hi, lic, sido, dsn, est] = a
       if (!inRegion({ name, inst, sido }, region)) return false
       if (s && !((name || '').includes(s) || (inst || '').includes(s))) return false
       if (mine && lics.length && !licHit(lic, lics, licNone)) return false
@@ -134,9 +215,13 @@ export default function LiveBoard() {
         const g = winGrade({ name, inst, base, lo, hi })
         if (!g || (g.key !== 'A' && g.key !== 'B')) return false
       }
-      return true
+      /* 금액은 «맨 마지막에» 봅니다 — 지역·면허까지 맞은 공고 중 몇 건이
+         금액을 몰라서 빠졌는지 세야 그 숫자가 뜻이 있습니다. */
+      const ok = amtHit(estOf({ est, base }), amt)
+      if (ok === null) { 모름수.current += 1; return false }
+      return ok
     }
-  }, [filtering, q, region, mine, lics, licNone, onlyGood, docOnly])
+  }, [filtering, q, region, mine, lics, licNone, onlyGood, docOnly, amt])
 
   const { info, rows: all, pageRows, pageReady, total, indexReady, loading, busy } =
     useBoard('live', KIND, { match: pick ? null : match, page, perPage: PAGE })
@@ -147,18 +232,11 @@ export default function LiveBoard() {
   const noLic = useMemo(() => licNoneCount(info), [info])
 
   /* 금액대 칸 — bidindex 의 pick.sz 를 그대로 씁니다 (표·화면이 같은 경계를 보게) */
-  const szEdges = idx?.pick?.sz || [1e8, 3e8, 1e9]
-  const szLabels = useMemo(() => {
-    const f = (v) => (v >= 1e8 ? `${Math.round(v / 1e8)}억` : `${Math.round(v / 1e4)}만`)
-    const out = [`${f(szEdges[0])} 미만`]
-    for (let i = 1; i < szEdges.length; i++) out.push(`${f(szEdges[i - 1])}~${f(szEdges[i])}`)
-    out.push(`${f(szEdges[szEdges.length - 1])} 이상`)
-    return out
-  }, [idx])
-  const szOf = (b) => {
-    for (let i = 0; i < szEdges.length; i++) if (b < szEdges[i]) return i
-    return szEdges.length
-  }
+  /* ⚠️ 2026-09-17 — 여기에 «자리 찾기» 전용 금액 알약(szPick)이 따로 있었습니다.
+     1억·3억·10억 세 마디였는데, 그건 **참가업체 수 통계**로 나눈 칸이라
+     법정 경계(2·3·4·10·50·100억)와 안 맞았고, 무엇보다 **기초금액**으로 걸렀습니다.
+     한 화면에 금액 거르개가 둘이면 어느 쪽이 먹은 건지 아무도 모릅니다.
+     → 없앴습니다. 위의 amt 하나가 두 모드를 다 거릅니다(추정가격 기준). */
 
   /* 🎯 자리 찾기 목록 — 마감 전·계산 가능 공고에 예상 참가·1순위율·기대액을 붙여 정렬합니다 */
   const pickRows = useMemo(() => {
@@ -179,7 +257,9 @@ export default function LiveBoard() {
       if (!qb) continue
       const od = pickOdds(r, idx.pick, qb.amt)
       if (fewOnly && !(od && od.enp > 0 && od.enp < 10)) continue
-      if (szPick >= 0 && szOf(Number(r.base) || 0) !== szPick) continue
+      /* 💰 금액 — 목록 모드와 «같은» 거르개입니다. 여기 rows 는 bidindex 라
+         est 가 비어 있을 수 있어 estOf 가 기초금액에서 메웁니다. */
+      if (amtHit(estOf(r), amt) !== true) continue
       out.push({ ...r, qb, od })
     }
     const rateOf = (x) => (x.od && x.od.rate != null ? x.od.rate : -1)
@@ -188,7 +268,7 @@ export default function LiveBoard() {
     else if (sortBy === 'ev') out.sort((a, b) => evOf(b) - evOf(a) || rateOf(b) - rateOf(a))
     else out.sort((a, b) => stamp14(a.close).localeCompare(stamp14(b.close)))
     return out
-  }, [pick, idx, q, region, mine, lics, licNone, onlyGood, docOnly, fewOnly, szPick, sortBy, p50, now])
+  }, [pick, idx, q, region, mine, lics, licNone, onlyGood, docOnly, fewOnly, amt, sortBy, p50, now])
 
   /* ⭐ 담은 공고 — 담은 것은 공고번호뿐이라 여기서 bidindex 로 다시 찾습니다.
      마감이 지난 것은 지우지 않고 «마감됨» 으로 남겨 둡니다 — 조용히 사라지면 사용자가 알 수 없습니다. */
@@ -269,6 +349,10 @@ export default function LiveBoard() {
         ))}
       </div>
 
+      {/* 💰 금액 (2026-09-17) — 지역·면허 바로 아래. 이 셋이 «내 조건» 입니다.
+          지역·면허처럼 브라우저가 기억합니다 — 매번 다시 넣게 하면 아무도 안 씁니다. */}
+      {!bagMode && <AmtBar amt={amt} setAmt={(v) => { setAmt(v); saveAmt(v) }} />}
+
       {!bagMode && (editLic || (mine && !lics.length)) && (
         <div className="card">
           <div className="sec-title" style={{ margin: '0 0 4px' }}>
@@ -344,14 +428,6 @@ export default function LiveBoard() {
             <button className={sortBy === 'ev' ? 'on' : ''} onClick={() => setSortBy('ev')}>기대액 순</button>
             <button className={sortBy === 'close' ? 'on' : ''} onClick={() => setSortBy('close')}>마감 순</button>
           </div>
-          {/* ③ 금액대 거르기 (2026-09-14) — 실측: 1억 미만 참가 중앙 32곳(10곳 미만 29.9%) vs 3~10억 404곳(3.2%) */}
-          <div className="chips szchips">
-            <button className={'chip' + (szPick < 0 ? ' on' : '')} onClick={() => setSzPick(-1)}>금액 전체</button>
-            {szLabels.map((lab, i) => (
-              <button key={lab} className={'chip' + (szPick === i ? ' on' : '')}
-                onClick={() => setSzPick(szPick === i ? -1 : i)}>{lab}</button>
-            ))}
-          </div>
           <button className={'chip' + (fewOnly ? ' on' : '')} onClick={() => setFewOnly(!fewOnly)}>
             참가 적은 공고만 (예상 10곳 미만)
           </button>
@@ -415,6 +491,17 @@ export default function LiveBoard() {
         <>
           <div className="sec-title">{pick ? '넣을 만한 공고' : (bagMode ? '담은 공고' : '공고')} <span className="count">
             {num(count)}건{pick ? ' (마감 전 · 계산 가능)' : (bagMode ? ` (최대 ${BASKET_MAX}건까지)` : (filtering ? ' (7주 전체)' : ''))}</span></div>
+          {/* 💰 2026-09-17 — 금액을 «몰라서» 빠진 공고를 정직하게 적습니다.
+              조달청이 추정가격도 기초금액도 안 준 공고가 실측 6.1% 있습니다.
+              ⚠️ 조용히 빼면 「내가 아는 그 공고가 왜 없지」 가 되고, 그때 사람은
+                 고장이라 생각하고 나갑니다. 숫자를 보여 주면 그냥 «아직 모르는 것» 이 됩니다. */}
+          {!pick && !bagMode && amt && 모름수.current > 0 && (
+            <div className="note sm" style={{ marginTop: -4, marginBottom: 8 }}>
+              금액을 아직 모르는 공고 <b>{num(모름수.current)}건</b>은 세지 않았습니다 —
+              조달청이 추정가격·기초금액을 아직 안 준 공고입니다.{' '}
+              <button className="lnk" onClick={() => { setAmt(null); saveAmt(null) }}>금액 조건 지우고 보기</button>
+            </div>
+          )}
           {view.map((r, i) => {
             const id = `${r.no}-${i}`
             const isOpen = open === id
@@ -450,8 +537,18 @@ export default function LiveBoard() {
                   {r.base > 0 && <span className="badge n">기초 {wonShort(r.base)}</span>}
                 </div>
                 <div className="foot">
-                  <span className="badge n">추정가격</span>
-                  <span className="amt">{wonShort(r.budget)}</span>
+                  {/* 🚨 2026-09-17 — 여기가 **「추정가격」 이라 적고 배정예산(r.budget)을 찍고** 있었습니다.
+                      배정예산은 총사업비라 추정가격보다 큽니다. 실측 예로 기초 397,111,000 ·
+                      예산 485,852,000 인 공고면 진짜 추정가격은 3.6억인데 화면에는 4.8억이 찍혔습니다.
+                      **1.2억이 틀립니다.** 적격심사 구간이 갈리는 숫자라 그냥 둘 수 없었습니다.
+                      → 알면 추정가격을, 모르면 «배정예산» 이라고 **이름을 바꿔서** 보여 줍니다.
+                         이름과 숫자가 어긋나는 것보다 「모른다」 가 낫습니다. */}
+                  {(() => {
+                    const e = estOf(r)
+                    return e > 0
+                      ? (<><span className="badge n">추정가격</span><span className="amt">{wonShort(e)}</span></>)
+                      : (<><span className="badge n">배정예산</span><span className="amt">{wonShort(r.budget)}</span></>)
+                  })()}
                   <span style={{ flex: 1 }} />
                   <NoticeLink no={r.no} compact />
                   <span className="caret">{isOpen ? '▲' : '▼'}</span>
@@ -656,5 +753,71 @@ export default function LiveBoard() {
         기초금액은 발주기관이 공개한 뒤부터 표시됩니다.
       </div>
     </>
+  )
+}
+
+/* ── 💰 금액 거르개 한 줄 ────────────────────────────────────────
+   알약은 «지름길» 이고, 진짜 답은 «직접 넣기» 입니다.
+   알약만 두면 3억(국가 별표3/4 경계)처럼 한쪽에만 있는 마디를 못 고릅니다.
+   ⚠️ 접어 둡니다 — 지역·면허 알약 아래 또 여섯 개를 늘어놓으면 화면이 무너집니다.
+      단, 걸어 둔 것이 있으면 «펼치지 않아도» 무엇이 걸렸는지 보입니다. */
+function AmtBar({ amt, setAmt }) {
+  const [open, setOpen] = useState(false)
+  const [lo, setLo] = useState(amt && amt.lo != null ? String(amt.lo) : '')
+  const [hi, setHi] = useState(amt && amt.hi != null ? String(amt.hi) : '')
+
+  const 넣기 = () => {
+    const a = lo.trim() === '' ? null : Number(lo)
+    const b = hi.trim() === '' ? null : Number(hi)
+    if (a == null && b == null) { setAmt(null); return }
+    if ((a != null && !(a >= 0)) || (b != null && !(b >= 0))) return
+    /* 거꾸로 넣으셨으면 바로잡습니다 — 「10억부터 2억까지」 는 0건이 나옵니다 */
+    if (a != null && b != null && a > b) { setLo(String(b)); setHi(String(a)); setAmt({ lo: b, hi: a }); return }
+    setAmt({ lo: a, hi: b })
+  }
+  const 알약 = (c) => {
+    const 같나 = amt && amt.lo === c.lo && amt.hi === c.hi
+    if (같나) { setAmt(null); setLo(''); setHi(''); return }
+    setAmt({ lo: c.lo, hi: c.hi })
+    setLo(c.lo == null ? '' : String(c.lo)); setHi(c.hi == null ? '' : String(c.hi))
+  }
+
+  return (
+    <div className="amtbar">
+      <button className={'chip' + (amt ? ' on' : '')} onClick={() => setOpen((v) => !v)}>
+        💰 금액{amt ? ` · ${amtLabel(amt)}` : ''} {open ? '▲' : '▼'}
+      </button>
+      {amt && (
+        <button className="chip" onClick={() => { setAmt(null); setLo(''); setHi('') }}>지우기 ✕</button>
+      )}
+      {open && (
+        <div className="amtbox">
+          <div className="chips wrap">
+            {AMT_CHIPS.map((c) => (
+              <button key={c.t} type="button"
+                className={'chip' + (amt && amt.lo === c.lo && amt.hi === c.hi ? ' on' : '')}
+                onClick={() => 알약(c)}>{c.t}</button>
+            ))}
+          </div>
+          <div className="amtin">
+            <input className="inp" inputMode="decimal" value={lo} placeholder="얼마부터"
+              onChange={(e) => setLo(e.target.value.replace(/[^0-9.]/g, ''))}
+              onKeyDown={(e) => { if (e.key === 'Enter') 넣기() }} aria-label="얼마부터 (억)" />
+            <span>억 ~</span>
+            <input className="inp" inputMode="decimal" value={hi} placeholder="얼마까지"
+              onChange={(e) => setHi(e.target.value.replace(/[^0-9.]/g, ''))}
+              onKeyDown={(e) => { if (e.key === 'Enter') 넣기() }} aria-label="얼마까지 (억)" />
+            <span>억</span>
+            <button className="btn sm primary" onClick={넣기}>걸기</button>
+          </div>
+          <div className="note sm">
+            <b>추정가격</b> 기준입니다 — 적격심사가 이 금액으로 갈립니다.
+            한쪽만 적으시면 「얼마 이상」·「얼마 미만」이 됩니다.<br />
+            법으로 갈리는 마디: 국가·조달청 <b>2 · 3 · 10 · 50 · 100억</b> ·
+            지자체 <b>2 · 4 · 10억</b> (100억을 넘으면 적격심사가 아니라 종합심사입니다).
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

@@ -2698,12 +2698,37 @@ def main():
                     # dsn — 붙임에 «설계내역서»(발주처 설계 단가가 든 것)가 있는가.
                     #       0 없음 · 1 내역서 있음 · 2 설계내역서/단가산출서 있음
                     #       공고 목록에서 「단가 든 내역서 있는 공고만」 을 거르는 데 씁니다.
+                    # ★ 추정가격(est) — 2026-09-17. 금액으로 거르려고 넣습니다.
+                    #
+                    #   ⚠️ «어느 금액이냐» 가 전부입니다. 공고 하나에 금액이 셋입니다.
+                    #        추정가격  법정 경계가 걸리는 금액 (적격심사 구간이 이걸로 갈립니다)
+                    #        기초금액  추정가격 + 부가세
+                    #        배정예산  총사업비. 셋 중 제일 큼
+                    #      실측 예: 기초 397,111,000 인데 예산 485,852,000 — 1.2억이 벌어집니다.
+                    #      배정예산으로 거르면 «추정가격 기준 대상» 공고가 목록에서 사라집니다.
+                    #
+                    #   ⚠️ 조달청이 추정가격을 늘 주지는 않습니다 (실측 16,280건 중 71.7%).
+                    #      그래서 없으면 기초금액에서 부가세를 뺍니다(÷1.1).
+                    #      둘 다 있는 9,106건으로 대조: **오차 1% 이내가 94.8%, 가운데값 0.00%.**
+                    #      이 메움까지 하면 거를 수 있는 공고가 71.7% → **93.9%** 가 됩니다.
+                    #      둘 다 없으면 0 입니다 — 화면이 «금액 모르는 공고» 로 따로 셉니다.
+                    #      ⚠️ 0 을 «0원» 으로 세면 안 됩니다. «모름» 입니다.
+                    #
+                    #   ⚠️ 새 칸은 반드시 **맨 뒤** 에 붙입니다. 화면이 자리로 읽습니다
+                    #      (LiveBoard 의 match, useBoard.js 주석 참고). 가운데 끼우면 전부 밀립니다.
+                    def _est(r):
+                        e = int(r.get("est") or 0)
+                        if e > 0:
+                            return e
+                        b = int(r.get("base") or 0)
+                        return round(b / 1.1) if b > 0 else 0
                     idx = [[r.get("name") or "", r.get("inst") or "",
                             int(r.get("base") or 0),
                             r.get("lo"), r.get("hi"), lic_codes(r), sido_of(r, rbook),
-                            doc_flag(r)]
+                            doc_flag(r),
+                            _est(r)]
                            for r in rows]
-                    fields = ["name", "inst", "base", "lo", "hi", "lic", "sido", "dsn"]
+                    fields = ["name", "inst", "base", "lo", "hi", "lic", "sido", "dsn", "est"]
                 with open(os.path.join(out_dir, f"{name}-{kind}-idx.json"),
                           "w", encoding="utf-8") as f:
                     json.dump({"f": fields, "chunk": BOARD_CHUNK, "r": idx},
