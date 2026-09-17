@@ -308,10 +308,14 @@ function 문의칸({ q, 답, onDone, 급함 }) {
     } finally { setBusy(false) }
   }
 
-  /* 연락처가 메일이면 바로 쓰게, 번호면 바로 걸게 — 밖에 계실 때가 많습니다 */
+  /* 연락처 — 번호면 «바로 걸기», 메일이면 «베끼기».
+     ⚠️ 메일에 mailto: 를 걸지 않습니다. 소장님: 「근데 윈도우가 뜨던데」 (8절 46).
+        소장님은 웹메일을 쓰시므로 누르면 낯선 메일 프로그램만 뜹니다.
+        번호는 다릅니다 — 폰에서 누르면 바로 걸립니다. 그건 그대로 둡니다. */
   const 연락 = String(q.phone || '').trim()
   const 메일인가 = /@/.test(연락)
   const 번호 = 연락.replace(/[^0-9+]/g, '')
+  const [베낌, set베낌] = useState(false)
 
   const 칸 = { fontSize: 13, lineHeight: 1.9 }
   return (
@@ -333,9 +337,17 @@ function 문의칸({ q, 답, onDone, 급함 }) {
         {(q.money || q.due) && <div><span className="muted">금액 · </span>{q.money || '-'}{q.due ? `  ·  언제까지 ${q.due}` : ''}</div>}
         <div>
           <span className="muted">연락처 · </span>
-          {연락 && 연락 !== '-'
-            ? <a href={메일인가 ? `mailto:${연락}` : `tel:${번호}`}><b>{연락}</b></a>
-            : <span className="muted">안 적으심</span>}
+          {연락 && 연락 !== '-' ? (
+            메일인가 ? (
+              <>
+                <b>{연락}</b>{' '}
+                <button className="lnk" onClick={() => {
+                  try { navigator.clipboard.writeText(연락); set베낌(true); setTimeout(() => set베낌(false), 1500) }
+                  catch { /* 안 되면 손으로 긁어 가시면 됩니다 */ }
+                }}>{베낌 ? '베꼈습니다' : '베끼기'}</button>
+              </>
+            ) : <a href={`tel:${번호}`}><b>{연락}</b></a>
+          ) : <span className="muted">안 적으심</span>}
           {q.name ? <span className="muted">  ({q.name})</span> : null}
         </div>
       </div>
