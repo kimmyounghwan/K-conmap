@@ -25,7 +25,7 @@ const TABS = [
        [입찰 3] 바로투찰·1순위·공고
        [서류 2] 서식·설계변경
        [파는 것] 내역서 작성      ← 둘째 줄 머리
-       [게시판 2] 구인구직·현장이야기
+       [게시판 2] 구인구직·사랑방
        [보조 2] 분석·도구 */
   { to: '/', ic: '💰', label: '바로투찰' },
   { to: '/first', ic: '🏆', label: '1순위' },
@@ -43,7 +43,7 @@ const TABS = [
   { to: '/naeyeok', ic: '📋', label: '작성 대행', pay: true, also: ['/safety'] },
   { to: '/jeoksan', ic: '🧮', label: '적산', pay: true },
   { to: '/jobs', ic: '💼', label: '구인구직' },
-  { to: '/qna', ic: '💬', label: '현장이야기' },
+  { to: '/qna', ic: '💬', label: '사랑방' },
   { to: '/analysis', ic: '🔍', label: '분석' },
 ]
 

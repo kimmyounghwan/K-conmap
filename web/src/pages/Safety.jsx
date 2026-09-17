@@ -278,7 +278,7 @@ export default function Safety() {
         <div className="btn-row">
           <Link className="btn primary" to="/forms">📄 건설 서식 — 착공계·안전점검표</Link>
           <Link className="btn ghost" to="/naeyeok">📋 내역서 작성</Link>
-          <Link className="btn ghost" to="/qna">💬 현장 이야기</Link>
+          <Link className="btn ghost" to="/qna">💬 사랑방</Link>
         </div>
       </div>
     </>
