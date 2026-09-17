@@ -167,7 +167,7 @@ export default function Qna() {
           <b>물어보시는 글이라면</b> 공사 규모 · 발주처 · 지금 어디까지 —
           이 셋만 있으면 답이 훨씬 정확합니다. 모르면 모르는 대로 적으셔도 됩니다.<br />
           연락처가 오가야 하는 일은 <a href="/naeyeok">내역서 문의</a>로 보내 주세요 — 그건 아무에게도 안 보입니다.<br />
-          <b>답글은 누구나 답니다</b> — 글 아래 <b>「💬 답글 쓰기」</b> 를 누르시면 칸이 열립니다.
+          <b>답글은 누구나 답니다</b> — 글을 누르면 본문과 함께 답글 칸이 열립니다.
           K-건설맵이 단 답에는 <b>「K-건설맵 답변」</b> 표가 붙습니다.
           표가 없는 답글은 이용자 의견이니 <b>중요한 건은 발주처에 확인하십시오.</b>{' '}
           광고·홍보 글은 예고 없이 지웁니다.
@@ -207,22 +207,18 @@ export default function Qna() {
                   {r.nick || '익명'} · {when(r.at)}
                   {mine.includes(r.id) && <b style={{ color: 'var(--accent, #1a56db)' }}> · 내 글</b>}
                 </span>
+                {/* 2026-09-17 — 소장님: 「답글을 클릭해서 쓸 버튼이 없어」 → 「어차피 글을 보려면
+                    클릭해야 하잖아.. 그대로 둬도 될 것 같은데」. 맞는 말씀이라 단추는 안 답니다.
+                    다만 «열린다» 는 것만 알려 줍니다 — 공고 카드가 쓰는 것과 같은 ▼ 하나.
+                    ⚠️ 카드를 누르면 글 전체와 «답글 칸» 이 같이 열립니다. 그게 안 보이면
+                       답글을 못 답니다(소장님이 실제로 못 찾으셨습니다). */}
+                <span className="caret">{isOpen ? '▲' : '▼'}</span>
               </div>
               {!isOpen && r.b && (
                 <div className="muted" style={{ fontSize: 13, marginTop: 6, lineHeight: 1.6 }}>
                   {String(r.b).slice(0, 90)}{String(r.b).length > 90 ? '…' : ''}
                 </div>
               )}
-            </div>
-            {/* 🚨 2026-09-17 — 소장님: 「이용자가 의견을 적었는데, 답글을 클릭해서 쓸 버튼이 없어」
-                맞는 말씀이었습니다. 카드를 «누르면» 답글칸이 나오게 해 두었는데,
-                **누르라는 표시가 어디에도 없었습니다.** 글이 0개일 때는 아무도 몰랐고,
-                첫 글이 올라오고 나서야 드러났습니다.
-                ⚠️ 「누르면 열린다」 는 만든 사람 머릿속에만 있습니다. 눈에 보이는 단추를 답니다. */}
-            <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 8 }}>
-              <button className="btn line sm" onClick={() => setOpen(isOpen ? null : r.id)}>
-                {isOpen ? '접기 ▲' : (n > 0 ? `💬 답글 ${n}개 보기 ▼` : '💬 답글 쓰기 ▼')}
-              </button>
             </div>
             {isOpen && (
               <Detail row={r} ans={ans[r.id] || {}} mine={mine.includes(r.id)}
