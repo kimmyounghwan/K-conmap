@@ -533,12 +533,11 @@ export default function LiveBoard() {
                       **1.2억이 틀립니다.** 적격심사 구간이 갈리는 숫자라 그냥 둘 수 없었습니다.
                       → 알면 추정가격을, 모르면 «배정예산» 이라고 **이름을 바꿔서** 보여 줍니다.
                          이름과 숫자가 어긋나는 것보다 「모른다」 가 낫습니다. */}
-                  {(() => {
-                    const e = estOf(r)
-                    return e > 0
-                      ? (<><span className="badge n">추정가격</span><span className="amt">{wonShort(e)}</span></>)
-                      : (<><span className="badge n">배정예산</span><span className="amt">{wonShort(r.budget)}</span></>)
-                  })()}
+                  {/* ⚠️ estOf(r) 를 «그대로» 씁니다 — const e = estOf(r) 로 한 번 거치면
+                      tools/checklabels.py 가 「이 값이 어디서 왔는지」 를 못 봅니다.
+                      기계가 확인할 수 있는 코드가 더 좋은 코드입니다. estOf 는 나눗셈 한 번입니다. */}
+                  <span className="badge n">{estOf(r) > 0 ? '추정가격' : '배정예산'}</span>
+                  <span className="amt">{wonShort(estOf(r) || r.budget)}</span>
                   <span style={{ flex: 1 }} />
                   <NoticeLink no={r.no} compact />
                   <span className="caret">{isOpen ? '▲' : '▼'}</span>

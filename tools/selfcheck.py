@@ -369,6 +369,29 @@ def check_daily():
     return [f"성적표: {made} ≠ {read}"]
 
 
+def check_labels():
+    """🏷️ 이름표 ↔ 숫자 대조 — tools/checklabels.py 를 그대로 부릅니다.
+
+    ⚠️ 2026-09-17 — 「추정가격」 이라 적고 «배정예산» 을 찍던 사고를 막는 검사입니다.
+       여기서도 돌리고 깃허브 «화면 검사» 단계에서도 돌립니다.
+       한 곳에만 두면 그 한 곳을 안 보는 날 뚫립니다.
+    """
+    import subprocess
+    print("\n" + "=" * 64)
+    print("  이름표 ↔ 숫자 대조 — 「추정가격」 이라 적고 다른 금액을 찍는가")
+    print("=" * 64)
+    try:
+        r = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "checklabels.py")],
+                           capture_output=True, text=True, encoding="utf-8", timeout=60)
+    except Exception as e:
+        print(f"(건너뜀 — 돌리지 못했습니다: {type(e).__name__}: {e})")
+        return []
+    꼬리 = [l for l in (r.stdout or "").split("\n") if l.strip()][-8:]
+    for l in 꼬리:
+        print("  " + l)
+    return [] if r.returncode == 0 else ["이름표↔숫자: checklabels.py 가 잘못을 찾았습니다"]
+
+
 def check_boardidx():
     import re
     print("\n" + "=" * 64)
@@ -1182,7 +1205,8 @@ def main():
         print(f"\n⛔ bidindex 칸이 어긋납니다 — 화면이 조용히 엉뚱한 값을 보여줍니다")
         return 1
 
-    xbad = check_boardidx()
+    xbad = check_labels()
+    xbad += check_boardidx()
     xbad += check_boardrank()
     xbad += check_corp_rank()
     xbad += check_ranks3y()
