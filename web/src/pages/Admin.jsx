@@ -4,10 +4,22 @@
  *          그 페이지에서 글을 쓰면 자동으로 답글이 달리면 더 좋고**」
  *         「메일 보고 내가 관리자 페이지에서 클로드랑 답글 달면 되지」
  *
- * ■ 무엇을 하나 — 딱 둘입니다
- *     ① 사랑방 글을 **답 안 단 것부터** 보여 줍니다
- *     ② 그 자리에서 답글을 답니다 — 「K-건설맵 답변」 으로 바로 붙습니다
+ * ■ 무엇을 하나
+ *     ① **문의함** — 사이트 어디에도 안 보이는 문의를 여기서 봅니다 (2026-09-18)
+ *     ② 사랑방 글을 **답 안 단 것부터** 보여 줍니다
+ *     ③ 그 자리에서 답글을 답니다 — 「K-건설맵 답변」 으로 바로 붙습니다
  *   사랑방에 들어가 글을 찾아 펼칠 필요가 없습니다.
+ *
+ * ■ 2026-09-18 — **문의함을 붙였습니다**
+ *   소장님: 「내가 관리자인데 못봐...ㅎㅎㅎ」 · 「답글 다는 형식으로 하자」
+ *   문의(quotes)는 «아무도 못 읽게» 잠가 둔 칸입니다 — 공사 정보와 연락처가 들어가서입니다.
+ *   그 «아무도» 에 소장님도 들어가 있었습니다. 사이트에 관리자 로그인이 없으니
+ *   화면 쪽에서는 소장님인지 알 길이 없었던 것입니다.
+ *   → 규칙에 **브라우저 번호 하나만** 읽을 수 있게 열었습니다(database.rules.json).
+ *   ⚠️ 메일이 스팸으로 갔든, 함수가 죽었든, 못 보고 지나쳤든 — **들어오면 다 있습니다.**
+ *      메일보다 이쪽이 더 튼튼한 그물입니다.
+ *   ⚠️ 여기 적는 답은 «나에게 남기는 기록» 입니다. 문의하신 분께 저절로 가지 않습니다.
+ *      그분께는 적어 주신 연락처로 답합니다.
  *
  * ■ 누가 여나 — **운영자 브라우저만** (Qna.jsx 의 OPS).
  *   ⚠️ 이건 «보안» 이 아니라 «문 앞 이름표» 입니다. 화면 안에서 판정하니까요.
@@ -54,6 +66,8 @@ export default function Admin() {
   const [rows, setRows] = useState(null)
   const [ans, setAns] = useState({})
   const [del, setDel] = useState({})
+  const [문의, set문의] = useState(null)      /* 문의함 (quotes) */
+  const [문의답, set문의답] = useState({})    /* 거기에 단 기록 (quote_a) */
 
   useEffect(() => {
     document.title = '관리자 · K-건설맵'
@@ -69,18 +83,25 @@ export default function Admin() {
       const u = await ensureAnon()
       setUid((u && u.uid) || '')
       if (!isOp(u && u.uid)) return
-      const [a, b, c] = await Promise.all([
+      const [a, b, c, d, e] = await Promise.all([
         get(query(ref(db, 'qna'), orderByKey(), limitToLast(300))),
         get(ref(db, 'qna_del')),
         get(ref(db, 'qna_a')),
+        /* ⚠️ 문의함은 규칙이 «이 브라우저 번호» 에만 열려 있습니다.
+              다른 기기에서는 여기서 막히므로, 사랑방까지 같이 죽지 않게 따로 받습니다. */
+        get(query(ref(db, 'quotes'), orderByKey(), limitToLast(200))).catch(() => null),
+        get(ref(db, 'quote_a')).catch(() => null),
       ])
       setDel(b.val() || {})
       setAns(c.val() || {})
+      set문의(d ? Object.entries(d.val() || {}).map(([id, x]) => ({ id, ...x })).reverse() : [])
+      set문의답((e && e.val()) || {})
       const v = a.val() || {}
       setRows(Object.entries(v).map(([id, x]) => ({ id, ...x })).reverse())
     } catch (e) {
       setUid('')
       setRows([])
+      set문의([])
     }
   }
   useEffect(() => { load() }, [])
@@ -140,6 +161,28 @@ export default function Admin() {
         </div>
       </div>
 
+      {/* ── 📝 문의함 — 사이트 어디에도 안 보이는 글입니다 ─────────── */}
+      {문의 === null && <Skeleton n={2} />}
+      {문의 && 문의.length > 0 && (() => {
+        const 답없음 = 문의.filter((q) => !문의답[q.id])
+        const 답함 = 문의.filter((q) => 문의답[q.id])
+        return (
+          <>
+            <div className="sec-title" style={{ marginTop: 16 }}>
+              📝 문의함 {답없음.length > 0 && <span className="count">답 기다림 {답없음.length}건</span>}
+            </div>
+            {답없음.map((q) => <문의칸 key={q.id} q={q} 답={문의답[q.id]} onDone={load} 급함 />)}
+            {답함.map((q) => <문의칸 key={q.id} q={q} 답={문의답[q.id]} onDone={load} />)}
+          </>
+        )
+      })()}
+      {문의 && 문의.length === 0 && (
+        <div className="note sm" style={{ marginTop: 14 }}>
+          문의함이 비어 있습니다. (안 보이면 이 브라우저 번호가 규칙에 없는 것입니다)
+        </div>
+      )}
+
+      <div className="sec-title" style={{ marginTop: 20 }}>💬 사랑방</div>
       {list === null && <Skeleton n={4} />}
       {list && list.전체 === 0 && <Empty>아직 글이 없습니다.</Empty>}
 
@@ -234,6 +277,85 @@ function 글({ r, ans, onDone, 급함 }) {
           {busy ? '올리는 중…' : '답글 올리기'}
         </button>
         <a className="btn line sm" href={`/qna`}>사랑방에서 보기 →</a>
+        {msg && <span className="muted" style={{ fontSize: 12 }}>{msg}</span>}
+      </div>
+    </div>
+  )
+}
+
+/* 📝 문의 한 건 — 사이트 어디에도 안 보이는 글입니다 (2026-09-18)
+ *
+ * ⚠️ 여기에는 **공사명·금액·연락처**가 들어 있습니다. 화면을 남에게 보이지 마십시오.
+ * ⚠️ 문의 자체는 «한 번 쓰면 못 고치는» 칸입니다(규칙). 그래서 답은 딴 칸(quote_a)에 적습니다.
+ *    그 답은 «나에게 남기는 기록» 입니다 — 문의하신 분께 저절로 가지 않습니다.
+ */
+function 문의칸({ q, 답, onDone, 급함 }) {
+  const [b, setB] = useState(답 ? 답.b : '')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  const 적기 = async () => {
+    if (b.trim().length < 2) return setMsg('적어 주세요.')
+    setBusy(true); setMsg('')
+    try {
+      const { ref, set, db, ensureAnon } = await loadFb()
+      const user = await ensureAnon()
+      if (!isOp(user.uid)) { setMsg('이 브라우저는 운영자가 아닙니다.'); setBusy(false); return }
+      await set(ref(db, `quote_a/${q.id}`), { b: b.trim().slice(0, 2000), at: Date.now() })
+      onDone()
+    } catch (e) {
+      setMsg('적지 못했습니다. 브라우저 번호가 규칙에 들어 있는지 보십시오.')
+    } finally { setBusy(false) }
+  }
+
+  /* 연락처가 메일이면 바로 쓰게, 번호면 바로 걸게 — 밖에 계실 때가 많습니다 */
+  const 연락 = String(q.phone || '').trim()
+  const 메일인가 = /@/.test(연락)
+  const 번호 = 연락.replace(/[^0-9+]/g, '')
+
+  const 칸 = { fontSize: 13, lineHeight: 1.9 }
+  return (
+    <div className="card" style={{ marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+        {급함 && (
+          <span className="chip" style={{
+            fontSize: 11.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999,
+            background: 'var(--warn-soft, rgba(217,119,6,.12))', color: 'var(--warn, #b45309)',
+          }}>답 없음 · {얼마전(q.at)}</span>
+        )}
+        <b style={{ flex: '1 1 200px', fontSize: 15 }}>{q.work || '(공사명 없음)'}</b>
+        <span className="muted" style={{ fontSize: 12 }}>{when(q.at)}</span>
+      </div>
+
+      <div style={{ ...칸, marginTop: 8 }}>
+        {q.want && <div><span className="muted">필요한 것 · </span><b>{q.want}</b></div>}
+        {(q.org || q.no) && <div><span className="muted">발주처 · </span>{q.org || '-'}{q.no ? `  ·  공고 ${q.no}` : ''}</div>}
+        {(q.money || q.due) && <div><span className="muted">금액 · </span>{q.money || '-'}{q.due ? `  ·  언제까지 ${q.due}` : ''}</div>}
+        <div>
+          <span className="muted">연락처 · </span>
+          {연락 && 연락 !== '-'
+            ? <a href={메일인가 ? `mailto:${연락}` : `tel:${번호}`}><b>{연락}</b></a>
+            : <span className="muted">안 적으심</span>}
+          {q.name ? <span className="muted">  ({q.name})</span> : null}
+        </div>
+      </div>
+
+      {q.memo && (
+        <div style={{
+          whiteSpace: 'pre-wrap', lineHeight: 1.85, fontSize: 13.5, marginTop: 8,
+          padding: '9px 11px', borderRadius: 9,
+          background: 'var(--bg-soft, rgba(0,0,0,.03))', border: '1px solid var(--line)',
+        }}>{q.memo}</div>
+      )}
+
+      <textarea className="inp" value={b} onChange={(e) => setB(e.target.value)}
+        placeholder={답 ? '' : '어떻게 답했는지 적어 두십시오 — 나중에 「무슨 얘기였더라」 를 막아 줍니다'}
+        style={{ width: '100%', boxSizing: 'border-box', minHeight: 70, marginTop: 10 }} maxLength={2000} />
+      <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+        <button className="btn line sm" onClick={적기} disabled={busy || !b.trim()}>
+          {busy ? '적는 중…' : 답 ? '고쳐 적기' : '적어 두기'}
+        </button>
+        {답 && <span className="muted" style={{ fontSize: 12 }}>적은 때 {when(답.at)}</span>}
         {msg && <span className="muted" style={{ fontSize: 12 }}>{msg}</span>}
       </div>
     </div>

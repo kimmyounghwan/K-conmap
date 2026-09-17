@@ -113,11 +113,18 @@
     //   · 한 번 쓰면 못 고치고 못 지웁니다(!data.exists()) — 장난으로 지우는 것을 막습니다.
     //   · 읽기가 막혀 있으니 «내려받기» 가 0 입니다. 요금이 붙을 일이 없습니다.
     //   · 소장님은 Firebase 콘솔(또는 관리자 키)로 보십니다.
+    // 🔑 2026-09-18 — 소장님 «한 대만» 읽을 수 있게 열었습니다.
+    //   소장님: 「내가 관리자인데 못봐...ㅎㅎㅎ」 — 맞는 말씀이었습니다.
+    //   사이트에는 «관리자 로그인» 이 없어서 들어오는 사람이 모두 «이름 없는 방문자» 입니다.
+    //   그래서 「아무도 못 읽음」 이 소장님까지 막고 있었습니다.
+    //   → 브라우저 번호(uid) 가 아래 하나와 같을 때만 읽힙니다. 나머지는 그대로 전부 막힙니다.
+    //   ⚠️ 이 번호는 «그 브라우저» 에 붙습니다. 기록을 지우거나 다른 PC 로 가면 바뀝니다.
+    //      그때는 /admin 의 「이 브라우저 번호 베끼기」 로 새 번호를 받아 여기에 넣습니다.
+    //   ⚠️ 쓰기는 «여전히» 한 번만 됩니다 — 고치지도 지우지도 못합니다.
     "quotes": {
-      ".read": false,
+      ".read": "auth.uid === 'ZglL1g3X5UZFBA2590LirDnEnil1'",
       ".write": false,
       "$id": {
-        ".read": false,
         ".write": "!data.exists()",
         ".validate": "newData.hasChildren(['work', 'phone', 'at'])",
         "work":  { ".validate": "newData.isString() && newData.val().length <= 120" },
@@ -130,6 +137,24 @@
         "name":  { ".validate": "newData.isString() && newData.val().length <= 30" },
         "memo":  { ".validate": "newData.isString() && newData.val().length <= 1000" },
         "at":    { ".validate": "newData.isNumber()" },
+        "$other": { ".validate": false }
+      }
+    },
+
+    // 📝 문의에 단 답 — 2026-09-18
+    //   소장님: 「답글 다는 형식으로 하자」
+    //   ⚠️ 문의(quotes)는 «한 번 쓰면 못 고치는» 칸입니다. 거기에 답을 끼워 넣으면
+    //      그 규칙을 흔들어야 합니다. 그래서 사랑방(qna_a)과 같이 **딴 칸**에 적습니다.
+    //   ⚠️ 이건 «나에게 남기는 기록» 입니다. 문의하신 분에게 저절로 가지 않습니다 —
+    //      그분께는 적어 주신 연락처로 답합니다. 여기는 「무엇을 어떻게 답했나」 를 남기는 자리입니다.
+    "quote_a": {
+      ".read": "auth.uid === 'ZglL1g3X5UZFBA2590LirDnEnil1'",
+      ".write": false,
+      "$id": {
+        ".write": "auth.uid === 'ZglL1g3X5UZFBA2590LirDnEnil1'",
+        ".validate": "newData.hasChildren(['b', 'at'])",
+        "b":  { ".validate": "newData.isString() && newData.val().length <= 2000" },
+        "at": { ".validate": "newData.isNumber()" },
         "$other": { ".validate": false }
       }
     },
