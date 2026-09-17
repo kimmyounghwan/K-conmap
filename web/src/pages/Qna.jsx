@@ -21,7 +21,7 @@ import { pinHash } from '../lib/pin.js'
 import { nickOf } from '../lib/nickname.js'
 
 /**
- * /qna — 「묻고 답하기」 (2026-09-15)
+ * /qna — 「현장 이야기」 (2026-09-15, 2026-09-17 게시판 말투로 고침)
  *
  * 소장님: 「건설맵 이용자가 이용할 수 있는 게시판도 있어야 하지 않아」 · 「묻고 답하기 형식으로」
  *         「답변은 누구나」 · 「이 주소를 저장해 두세요」 는 번거롭다 → 뺐습니다.
@@ -36,6 +36,23 @@ import { nickOf } from '../lib/nickname.js'
  * ⚠️ 「내가 쓴 글」은 브라우저가 알아서 기억합니다(구인구직과 같은 방식). 적을 것이 없습니다.
  */
 const LIMIT = 300
+
+/* 💬 2026-09-17 — 「이런 글이 올라옵니다」 보기.
+ *   소장님: 「이용자들이 부담스러워 하는거 아닐까?」
+ *          「게시판 처럼 누구나 자연스럽게 어떤 말이든 쓸 수 있게 해줘」
+ *   그래서 «묻고 답하기» 가 아니라 «현장 이야기» 입니다.
+ *   물음도 좋고, 겪은 일도 좋고, 그냥 하소연도 좋습니다.
+ *   빈 게시판 + 규칙 다섯 문단 = 아무도 첫 줄을 못 씁니다.
+ *   누르면 제목 칸이 채워진 채로 글쓰기가 열립니다 — 빈 칸을 마주하지 않게.
+ *   ⚠️ 지어낸 사람 이름으로 «가짜 글» 을 올려 두지는 않습니다. 이건 그냥 보기입니다. */
+const SEEDS = [
+  '낙찰됐는데 산출내역서를 언제까지 내야 하나요?',
+  '설계변경 신규 비목 단가, 이렇게 잡았습니다',
+  '적격심사 점수가 어디서 깎인 건지 모르겠습니다',
+  '오늘 개찰 들어갔다가 느낀 것',
+  '이 발주처는 이런 서류를 더 달라고 하더라',
+  '그냥 한마디',
+]
 const MINE_KEY = 'kcm_qna_mine'
 const loadMine = () => { try { return JSON.parse(localStorage.getItem(MINE_KEY) || '[]') } catch { return [] } }
 const addMine = (id) => { try { localStorage.setItem(MINE_KEY, JSON.stringify([...loadMine(), id].slice(-100))) } catch { /* noop */ } }
@@ -69,6 +86,7 @@ export default function Qna() {
     catch { return '' }
   })()
   useEffect(() => { if (preset) setWrite(true) }, [preset])
+  const [seed, setSeed] = useState('')   /* 예시를 눌러 미리 채운 물음 */
   const [mine, setMine] = useState(loadMine)
   const [onlyMine, setOnlyMine] = useState(false)
   const [q, setQ] = useState('')
@@ -108,30 +126,21 @@ export default function Qna() {
   return (
     <div className="wrap">
       <div className="card hero">
-        <h1 style={{ margin: 0, fontSize: 20 }}>💬 묻고 답하기</h1>
+        <h1 style={{ margin: 0, fontSize: 20 }}>💬 현장 이야기</h1>
         <div style={{ marginTop: 6, lineHeight: 1.75, color: 'rgba(255,255,255,.92)', fontSize: 13.5 }}>
-          입찰 · 내역서 · 설계변경 — 현장에서 막히는 것을 물어보세요.
-          <b style={{ color: '#fff' }}> 회원가입 없습니다.</b>
+          궁금한 것 · 겪은 것 · 알려 주고 싶은 것 — 아무 말이나 쓰셔도 됩니다.
+          <b style={{ color: '#fff' }}> 가입도 이름도 없습니다.</b>
         </div>
       </div>
 
-      {/* ── 안내 ─────────────────────────────────────────────── */}
-      <div className="note" style={{ marginBottom: 10, lineHeight: 1.85 }}>
-        <b>별명은 자동으로 붙습니다</b> — 이름을 적지 않으셔도 되고,
-        같은 기기에서 쓰시면 늘 같은 별명이라 «누가 자주 답해 주는지»가 보입니다.
-        글 쓸 때 정한 <b>4자리 숫자</b>로 내 글만 지울 수 있습니다.
-        답은 <b>하루 안에</b> 달아 드리는 것을 목표로 합니다.<br />
-        <b>이렇게 적어 주시면 답이 정확합니다</b> — 공사 규모 · 발주처 · 지금 어디까지 진행됐는지.<br />
-        <b style={{ color: 'var(--bad, #c0392b)' }}>전화번호·이메일은 적지 마세요.</b> 공개 게시판이라 광고 전화가 갑니다.
-        연락처가 필요한 일은 <a href="/naeyeok">내역서 문의</a>로 보내 주세요 — 그건 아무에게도 안 보입니다.<br />
-        답변은 누구나 달 수 있습니다. K-건설맵이 단 답에는 <b>「K-건설맵 답변」</b> 표가 붙습니다.
-        표가 없는 답은 이용자 의견이니 <b>중요한 건은 발주처에 확인하십시오.</b>{' '}
-        광고·홍보 글은 예고 없이 지웁니다.
-      </div>
-
+      {/* ── 단추부터. 규칙은 뒤로 ──────────────────────────────────
+          2026-09-17 — 예전에는 여기에 «하세요·하지 마세요» 가 다섯 문단 있었습니다.
+          글 한 줄 쓰기 전에 규칙부터 읽히면 대부분 그냥 나갑니다.
+          규칙은 아래 «이 게시판 쓰는 법» 으로 접고, 정말 필요한 한 줄
+          (전화번호 적지 마세요)만 글 쓰는 칸 옆에 둡니다. */}
       <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
         <button className="btn primary" onClick={() => setWrite((v) => !v)}>
-          {write ? '닫기' : '✏️ 질문하기'}
+          {write ? '닫기' : '✏️ 글쓰기'}
         </button>
         <input className="inp" placeholder="찾기 — 낱말" value={q} onChange={(e) => setQ(e.target.value)}
           style={{ flex: '1 1 160px', minWidth: 120 }} />
@@ -142,11 +151,45 @@ export default function Qna() {
         )}
       </div>
 
-      {write && <WriteForm preset={preset} onDone={() => { setWrite(false); load(); setMine(loadMine()) }} />}
+      {!write && (
+        <div style={{ marginBottom: 10 }}>
+          <div className="muted" style={{ fontSize: 12.5, marginBottom: 6 }}>
+            이런 글이 올라옵니다 — 누르면 그대로 적힙니다
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {SEEDS.map((t) => (
+              <button key={t} className="btn" style={{ fontSize: 12.5, padding: '5px 10px' }}
+                onClick={() => { setSeed(t); setWrite(true) }}>{t}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {write && (
+        <WriteForm key={seed || 'blank'} preset={seed || preset}
+          onDone={() => { setWrite(false); setSeed(''); load(); setMine(loadMine()) }} />
+      )}
+
+      <details className="note" style={{ marginBottom: 10, lineHeight: 1.85 }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 700 }}>이 게시판 쓰는 법 (눌러서 보기)</summary>
+        <div style={{ marginTop: 8 }}>
+          <b>이름을 안 적으셔도 됩니다</b> — 별명이 저절로 붙습니다.
+          같은 기기에서 쓰시면 늘 같은 별명이라 «누가 자주 답해 주는지»가 보입니다.
+          글 쓸 때 정한 <b>4자리 숫자</b>로 내 글만 지울 수 있습니다.
+          답은 <b>하루 안에</b> 달아 드리는 것을 목표로 합니다.<br />
+          <b>물어보시는 글이라면</b> 공사 규모 · 발주처 · 지금 어디까지 —
+          이 셋만 있으면 답이 훨씬 정확합니다. 모르면 모르는 대로 적으셔도 됩니다.<br />
+          <b style={{ color: 'var(--bad, #c0392b)' }}>전화번호·이메일은 적지 마세요.</b> 공개 게시판이라 광고 전화가 갑니다.
+          연락처가 필요한 일은 <a href="/naeyeok">내역서 문의</a>로 보내 주세요 — 그건 아무에게도 안 보입니다.<br />
+          답글은 누구나 달 수 있습니다. K-건설맵이 단 답에는 <b>「K-건설맵 답변」</b> 표가 붙습니다.
+          표가 없는 답글은 이용자 의견이니 <b>중요한 건은 발주처에 확인하십시오.</b>{' '}
+          광고·홍보 글은 예고 없이 지웁니다.
+        </div>
+      </details>
 
       {list === null && <Skeleton n={4} />}
       {list && list.length === 0 && (
-        <Empty>아직 글이 없습니다. 첫 질문을 남겨 주세요.</Empty>
+        <Empty>아직 글이 없습니다. 아무 말이나 먼저 남겨 주세요 — 한 줄이어도 됩니다.</Empty>
       )}
 
       {list && list.map((r) => {
@@ -156,11 +199,16 @@ export default function Qna() {
           <div className="card" key={r.id} style={{ marginBottom: 8 }}>
             <div onClick={() => setOpen(isOpen ? null : r.id)} style={{ cursor: 'pointer' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <span className={'chip ' + (n ? 'ok' : 'wait')} style={{
-                  fontSize: 11.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
-                  background: n ? 'var(--accent-soft, rgba(26,86,219,.12))' : 'var(--warn-soft, rgba(234,179,8,.15))',
-                  color: n ? 'var(--accent, #1a56db)' : 'var(--text)',
-                }}>{n ? `답변 ${n}` : '답변대기'}</span>
+                {/* 2026-09-17 — 예전엔 답글이 없으면 「답변대기」 라고 붙었습니다.
+                    물음이 아닌 글에도 붙어서 «아직 답을 못 받은 글» 처럼 보였습니다.
+                    답글이 있을 때만 셈을 보입니다. 없으면 아무 말도 안 붙입니다. */}
+                {n > 0 && (
+                  <span className="chip ok" style={{
+                    fontSize: 11.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
+                    background: 'var(--accent-soft, rgba(26,86,219,.12))',
+                    color: 'var(--accent, #1a56db)',
+                  }}>답글 {n}</span>
+                )}
                 <b style={{ flex: '1 1 200px', fontSize: 15 }}>{r.t}</b>
                 <span className="muted" style={{ fontSize: 12 }}>
                   {r.nick || '익명'} · {when(r.at)}
@@ -251,7 +299,7 @@ function AnswerForm({ qid, onDone }) {
   const [msg, setMsg] = useState('')
 
   const submit = async () => {
-    if (b.trim().length < 2) return setMsg('답변을 적어 주세요.')
+    if (b.trim().length < 2) return setMsg('답글을 적어 주세요.')
     setBusy(true); setMsg('')
     try {
       const { ref, set, push, db, ensureAnon } = await loadFb()
@@ -275,13 +323,13 @@ function AnswerForm({ qid, onDone }) {
   return (
     <div style={{ marginTop: 12 }}>
       <textarea className="inp" value={b} onChange={(e) => setB(e.target.value)}
-        placeholder="아는 만큼 답해 주세요. 근거(조문·기관 이름)를 같이 적어 주시면 더 좋습니다."
+        placeholder="아는 만큼 적어 주세요. 근거(조문·기관 이름)를 같이 적어 주시면 더 좋습니다."
         style={{ width: '100%', boxSizing: 'border-box', minHeight: 72 }} maxLength={2000} />
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
         <input className="inp" type="password" placeholder="운영자 열쇠(있으면)" value={key}
           onChange={(e) => setKey(e.target.value)} maxLength={40} style={{ width: 160 }} />
         <button className="btn primary" onClick={submit} disabled={busy}>
-          {busy ? '올리는 중…' : '답변 올리기'}
+          {busy ? '올리는 중…' : '답글 올리기'}
         </button>
         {msg && <span className="muted" style={{ fontSize: 12 }}>{msg}</span>}
       </div>
@@ -322,13 +370,17 @@ function WriteForm({ onDone, preset }) {
 
   return (
     <div className="card" style={{ marginBottom: 10 }}>
-      <div className="sec-title" style={{ margin: '0 0 10px' }}>질문하기</div>
+      <div className="sec-title" style={{ margin: '0 0 10px' }}>글쓰기</div>
       <input className="inp" value={f.t} onChange={set_('t')} maxLength={80}
-        placeholder="예) 낙찰됐는데 산출내역서를 언제까지 내야 하나요?"
+        placeholder="제목 — 예) 낙찰됐는데 산출내역서를 언제까지 내야 하나요?"
         style={{ width: '100%', boxSizing: 'border-box', marginBottom: 8 }} />
       <textarea className="inp" value={f.b} onChange={set_('b')} maxLength={2000}
-        placeholder="공사 규모 · 발주처 · 지금 어디까지 진행됐는지를 적어 주시면 답이 정확합니다.&#10;전화번호·이메일은 적지 마세요."
+        placeholder="무슨 이야기든 좋습니다. 물어보시는 것이라면 공사 규모 · 발주처 · 지금 어디까지를 적어 주시면 답이 정확합니다.&#10;전화번호·이메일은 적지 마세요."
         style={{ width: '100%', boxSizing: 'border-box', minHeight: 110, marginBottom: 8 }} />
+      <div className="muted" style={{ fontSize: 12, marginBottom: 8, lineHeight: 1.6 }}>
+        물어보시는 글이면 공사 규모 · 발주처 · 지금 어디까지를 같이 적어 주십시오.{' '}
+        <b style={{ color: 'var(--bad, #c0392b)' }}>전화번호·이메일은 적지 마세요</b> (공개 게시판입니다).
+      </div>
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
         <input className="inp" inputMode="numeric" maxLength={4} value={f.pin}
           onChange={(e) => setF((v) => ({ ...v, pin: e.target.value.replace(/\D/g, '') }))}

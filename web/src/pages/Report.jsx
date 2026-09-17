@@ -82,7 +82,7 @@ export default function Report() {
           그래서 <b>건설맵에 한 줄이라도 보태 주신 분부터</b> 만들어 드립니다.
         </p>
         <ul className="flist">
-          <li><Link to="/qna"><b>묻고 답하기</b></Link>에 답을 달아 주신 것</li>
+          <li><Link to="/qna"><b>현장 이야기</b></Link>에 답글을 달아 주신 것</li>
           <li>서식 · 엑셀에서 <b>틀린 데를 알려 주신 것</b></li>
           <li>바로투찰을 써 보고 <b>어땠는지 한 줄</b> 남겨 주신 것</li>
         </ul>
@@ -95,7 +95,7 @@ export default function Report() {
       <div className="card">
         <div className="sec-title">신청하는 법</div>
         <p>
-          <Link to="/qna"><b>묻고 답하기</b></Link>에 <b>「성적표 신청」</b>과 <b>업체명</b>을 한 줄 남겨 주십시오.
+          <Link to="/qna"><b>현장 이야기</b></Link>에 <b>「성적표 신청」</b>과 <b>업체명</b>을 한 줄 남겨 주십시오.
           회원가입도 로그인도 필요 없습니다.
         </p>
         <p className="muted">
