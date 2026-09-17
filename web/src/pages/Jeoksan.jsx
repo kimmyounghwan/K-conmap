@@ -23,7 +23,8 @@ export default function Jeoksan() {
       <div className="card lead-card">
         <h1 style={{ margin: 0, fontSize: 20 }}>🧮 K-적산</h1>
         <p className="why2" style={{ marginBottom: 6 }}>
-          도면에서 물량을 뽑아 <b>수량산출서 엑셀</b>을 만듭니다.
+          도면에서 물량을 뽑고, 단가를 채워{' '}
+          <b>산출내역서와 원가계산서까지</b> 만듭니다.
           캐드에서 찍고, PC 에서 셉니다.
         </p>
         <p className="muted" style={{ margin: 0 }}>
@@ -32,21 +33,77 @@ export default function Jeoksan() {
         </p>
       </div>
 
+      {/* ── 적산의 차례 ──
+          2026-09-17 — 소장님: 「적산은 원가계산서 부터. 내역서 등등이 들어가는 거야.
+          지금 설명해 놓은 거 보면 이런게 하나도 없어」
+          맞습니다. 수량산출 얘기만 적어 두었습니다. 차례를 통째로 적습니다.
+          ⚠️ 되는 것과 안 되는 것을 섞어 적지 않습니다. 표에 그대로 나눠 둡니다. */}
+      <div className="card">
+        <div className="sec-title">적산은 어디까지인가 — 수량만이 아닙니다</div>
+        <p style={{ marginTop: 0 }}>
+          「적산」은 <b>물량을 세는 것에서 끝나지 않습니다.</b> 물량에 단가를 붙여
+          내역서를 만들고, 거기에 법으로 정해진 비용을 얹어 <b>원가계산서</b>까지
+          가야 «공사비»가 됩니다. K-적산이 어디까지 와 있는지 그대로 적습니다.
+        </p>
+        <table className="tbl left reptbl">
+          <tbody>
+            <tr>
+              <td><b>① 물량</b><br /><span className="muted">수량산출서</span></td>
+              <td>무엇이 얼마나 들어가나. 산출근거가 살아 있는 수식으로 남습니다</td>
+              <td style={{ whiteSpace: 'nowrap' }}><b>됩니다</b></td>
+            </tr>
+            <tr>
+              <td><b>② 단가</b><br /><span className="muted">공내역서 채우기</span></td>
+              <td>빈 공내역서에 품명·규격으로 단가를 찾아 넣습니다. 못 찾은 줄은 못 찾았다고 표시합니다</td>
+              <td style={{ whiteSpace: 'nowrap' }}>시험 중</td>
+            </tr>
+            <tr>
+              <td><b>③ 내역서</b><br /><span className="muted">산출내역서</span></td>
+              <td>품목 × 단가 = 금액. 합계가 원가계산서로 그대로 이어집니다</td>
+              <td style={{ whiteSpace: 'nowrap' }}>시험 중</td>
+            </tr>
+            <tr>
+              <td><b>④ 원가계산서</b></td>
+              <td>
+                직접재료비·직접노무비·직접경비 위에 <b>간접노무비 · 산재 · 고용 · 건강 ·
+                연금 · 노인장기요양 · 퇴직공제 · 안전관리비 · 보증 · 환경 · 석면 ·
+                임금채권 · 기타경비 · 일반관리비 · 이윤 · 부가세</b> 를 차례로 얹어
+                총액을 냅니다
+              </td>
+              <td style={{ whiteSpace: 'nowrap' }}>시험 중</td>
+            </tr>
+            <tr>
+              <td><b>⑤ 일위대가</b></td>
+              <td>한 품목을 재료비·노무비·경비로 쪼개는 자리. 이것이 있어야
+                원가계산서의 «직접재료비 / 직접노무비» 가 저절로 갈립니다</td>
+              <td style={{ whiteSpace: 'nowrap' }}>아직</td>
+            </tr>
+          </tbody>
+        </table>
+        <p className="muted" style={{ marginBottom: 0 }}>
+          ②~④ 는 이미 돌아갑니다 — 실제 조달청 내역서의 요율로 맞춰 보고,
+          손으로 센 것과 <b>한 원도 틀리지 않는 것</b>까지 확인했습니다.
+          다만 <b>시세 단가 자료</b>가 아직 세상에 내놓을 만큼 모이지 않아,
+          지금은 «단가표를 주시면 채워 드리는» 꼴입니다. ⑤ 가 붙으면
+          재료비·노무비가 저절로 갈립니다.
+        </p>
+      </div>
+
       {/* ── 사이트에서 바로 ── */}
       {/* 🔒 2026-09-17 — 소장님: 「이용자 들이 사용하게 하면 안돼」
           쓰는 화면(/jeoksan/run)은 잠갔습니다. 여기서도 링크하지 않습니다. */}
       <div className="card">
-        <div className="sec-title">아직 열지 않았습니다</div>
+        <div className="sec-title">🔒 지금은 열쇠말이 있어야 씁니다</div>
         <p style={{ marginTop: 0 }}>
           <b>「잰 치수 → 수량산출서 엑셀」 은 이미 돌아갑니다.</b>{' '}
-          다만 아직 <b>시험 중</b>이라 열지 않았습니다 — 수량은 한 번 틀리면
-          그대로 돈이 되는 자리라, 제 손으로 충분히 돌려 본 뒤에 엽니다.
+          다만 아직 <b>여는 중</b>이라 열쇠말을 받으신 분만 쓰십니다 —
+          수량은 한 번 틀리면 그대로 돈이 되는 자리라서요.
         </p>
         <p className="muted">
-          열리면 <b>재료표</b>와 <b>치수표</b> 두 장을 올리시면 산출서·집계·태그별·검산·쓴표{' '}
-          다섯 장짜리 엑셀이 나옵니다. 파일은 <b>브라우저 안에서만</b> 다룹니다 —
-          올라가는 것이 없습니다.
+          <b>무엇이 나오는지는 열쇠말 없이도 보실 수 있습니다.</b>{' '}
+          보시고 써 보고 싶으시면 그 화면에서 한 줄 남겨 주십시오.
         </p>
+        <Link className="btn line" to="/jeoksan/run">🧮 무엇이 나오는지 보기</Link>
       </div>
 
       {/* ── 네 걸음 ── */}
@@ -210,10 +267,11 @@ export default function Jeoksan() {
         <p className="muted" style={{ marginTop: 0 }}>
           적산이 열릴 때까지, 지금 바로 쓰실 수 있는 것들입니다. <b>전부 무료입니다.</b>
         </p>
-        <div className="btn-row">
-          <Link className="btn primary" to="/cad">📐 캐드 유틸 — 길이·면적·개수 재기</Link>
+        <div className="btn-grid">
+          <Link className="btn ghost" to="/cad">📐 캐드 유틸 — 길이·면적·개수 재기</Link>
           <Link className="btn ghost" to="/change/twoline">🔁 설계변경 2줄 변환</Link>
-          <Link className="btn ghost" to="/tools">🧰 건설 도구</Link>
+          <Link className="btn ghost" to="/change/excel">📊 설계변경 통합 엑셀</Link>
+          <Link className="btn ghost" to="/tools">🧰 건설 도구 — A값·투찰률·철근중량</Link>
         </div>
       </div>
     </>

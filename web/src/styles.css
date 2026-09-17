@@ -474,6 +474,23 @@ input[type=number] { font-variant-numeric: tabular-nums; }
 
 .btn-row { display: flex; gap: 8px; }
 
+/* 📱 2026-09-17 — «가지런한 단추 칸»
+   소장님: 「핸드폰으로 하면 글자는 잘 나오는데… 정리된 느낌이 없어」
+   .btn-row 는 flex 라 글이 긴 단추만 줄이 접히고 폭이 제각각이 됩니다.
+   («캐드 유틸 — 길이·면적·개수 재 / 기» 처럼 낱말 가운데서 잘립니다)
+   칸(grid)으로 바꾸면 폭이 같아지고, 좁은 화면에서는 한 줄에 하나씩 쌓입니다.
+   글머리를 왼쪽으로 맞춰야 «목록» 으로 읽힙니다 — 가운데로 모으면 흩어져 보입니다. */
+.btn-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.btn-grid .btn {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  padding: 12px 14px;
+  line-height: 1.45;
+  word-break: keep-all;     /* 낱말 가운데서 자르지 않습니다 */
+}
+@media (min-width: 620px) { .btn-grid { grid-template-columns: 1fr 1fr; } }
+
 /* ── 통계 타일 ─────────────────────────── */
 .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .tiles.c2 { grid-template-columns: repeat(2, 1fr); }

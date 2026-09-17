@@ -57,8 +57,9 @@ STATIC = [("/", "1.0", "hourly"), ("/first", "0.9", "hourly"), ("/live", "0.9", 
           ("/cad", "0.8", "monthly"),
           ("/naeyeok", "0.9", "monthly"), ("/qna", "0.7", "daily"),
           ("/how", "0.8", "monthly"), ("/report", "0.8", "monthly"),
-          # ⚠️ 2026-09-17 — /jeoksan/run 은 잠갔습니다. 잠긴 화면은 사이트맵에 내지 않습니다.
-          ("/jeoksan", "0.8", "monthly"),
+          # 2026-09-17 — /jeoksan/run 은 잠겼지만 «무엇이 나오는지» 는 누구나 봅니다.
+          #   (소장님: 「보여는 주되, 비번을 사용하게 하면 돼지 않아?」) 그래서 다시 냅니다.
+          ("/jeoksan", "0.8", "monthly"), ("/jeoksan/run", "0.8", "monthly"),
           ("/safety", "0.9", "monthly"),
           ("/shareone", "0.8", "monthly")]
 
