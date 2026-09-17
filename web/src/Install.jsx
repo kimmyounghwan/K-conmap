@@ -116,7 +116,10 @@ export function InstallPill() {
   if (done) return null
   return (
     <>
-      <button className="installbtn" onClick={install} title="홈 화면에 아이콘을 만들어 앱처럼 씁니다">📲 앱으로</button>
+      {/* 📱 2026-09-17 — 좁은 화면에서 글자를 접습니다 (styles.css .instlong).
+          위 막대에 알약이 넷(보는 방법·새로고침·사라사·앱으로)이라 360px 에서 잘렸습니다. */}
+      <button className="installbtn" onClick={install} title="홈 화면에 아이콘을 만들어 앱처럼 씁니다">
+        📲<span className="instlong"> 앱으로</span></button>
       {guide && <Guide onClose={() => setGuide(false)} />}
     </>
   )

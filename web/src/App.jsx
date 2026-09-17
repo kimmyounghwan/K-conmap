@@ -78,7 +78,8 @@ export default function App() {
                 좁은 화면에서는 🔄 그림만 남고 글자는 숨습니다 (styles.css .rflong). */}
             <RefreshBtn />
             <a className="sisbtn" href="https://sarasa.kr" target="_blank" rel="noopener"
-              title="자매 사이트 사라사 — 나노리치 실시간 신호판 · 경제 기사 · 여행">🌊 사라사</a>
+              title="자매 사이트 사라사 — 나노리치 실시간 신호판 · 경제 기사 · 여행">
+              🌊<span className="sislong"> 사라사</span></a>
             <InstallPill />
           </div>
         </div>

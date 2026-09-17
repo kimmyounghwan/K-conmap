@@ -2533,11 +2533,22 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
 .rfbtn.on .rfic { animation: rfspin .9s linear infinite; }
 @keyframes rfspin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .rfbtn.on .rfic { animation: none; } }
-/* 📱 좁은 화면 — 맨 위 줄은 이미 [로고][보는 방법][🔄][사라사][설치] 로 빡빡합니다.
-   글자를 숨겨 그림만 남깁니다. aria-label 이 있으니 읽어 주는 기계에는 그대로 들립니다. */
+/* 📱 2026-09-17 — 맨 위 줄이 좁은 화면에서 «잘리고» 있었습니다.
+   ⚠️ 새로고침을 넣다가 찾았는데, **넣기 전에도 이미 잘려 있었습니다.**
+      실측(헤드리스 크롬, 알약 넷 기준):
+        360px → 44px 넘침 (새로고침 빼고도 ~17px 넘침) · 「📲 앱으로」가 화면 밖
+        390px → 14px 넘침
+      body 는 안 넘치니 가로 스크롤도 안 생기고, 그래서 **아무도 몰랐습니다.**
+      스크린샷을 찍어 보고서야 「앱으로」가 오른쪽에서 잘린 것을 봤습니다.
+   → 좁아질수록 글자부터 접습니다. 그림과 title/aria-label 은 그대로 남습니다.
+     ⚠️ 「📖 보는 방법」은 접지 않습니다 — 소장님(09-15): 「누구나 볼 수 있게 해줘야지」 */
 @media (max-width: 560px) {
   .rfbtn { padding: 5px 8px; }
   .rfbtn .rflong { display: none; }
+}
+@media (max-width: 460px) {
+  .sisbtn, .installbtn { padding: 5px 9px; }
+  .sislong, .instlong { display: none; }
 }
 .topbar-r .installbtn { margin-left: 0; }
 .sisbtn {
