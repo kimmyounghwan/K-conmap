@@ -187,7 +187,7 @@ function QuoteForm() {
             maxLength={1000} />
         </div>
         <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
-          <button className="btn primary" type="submit" disabled={state === 'send'}>
+          <button className="btn line" type="submit" disabled={state === 'send'}>
             {state === 'send' ? '보내는 중…' : '문의 보내기'}
           </button>
         </div>
@@ -231,7 +231,7 @@ export default function Naeyeok() {
           금액과 상관없이 <b>누군가는 반드시 만들어야 하는 서류</b>입니다.
         </p>
         <div className="btn-row" style={{ justifyContent: 'flex-start' }}>
-          <a className="btn primary" style={{ textDecoration: 'none' }} href="#ask"
+          <a className="btn line" style={{ textDecoration: 'none' }} href="#ask"
              onClick={() => ask('hero')}>📝 문의 남기기 — 1분이면 됩니다</a>
         </div>
         {/* 나머지 둘은 단추가 아니라 «가는 고리»로. 셋 다 파란 단추면 무엇을 누를지 모릅니다. */}
@@ -450,7 +450,7 @@ export default function Naeyeok() {
           <li>보내 주신 도면·물량·공사 정보는 <b>그 일에만 쓰고</b> 다른 데 보여 드리지 않습니다.</li>
         </ul>
         <div className="btn-row" style={{ justifyContent: 'flex-start', marginTop: 14 }}>
-          <a className="btn primary" style={{ textDecoration: 'none' }} href="#ask"
+          <a className="btn line" style={{ textDecoration: 'none' }} href="#ask"
              onClick={() => ask('foot')}>📝 문의 남기기</a>
         </div>
       </div>

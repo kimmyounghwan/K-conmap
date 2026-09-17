@@ -30,24 +30,28 @@
 -->
 <style>
 .f label{display:block;font-size:12.5px;font-weight:700;margin:0 0 4px}
-.f input,.f textarea{width:100%;box-sizing:border-box;font:inherit;padding:9px 10px;
-  border:1px solid #d1d5db;border-radius:9px;background:#fff;color:#111827}
+/* 📱 16px 아래로 내리지 마십시오 — 사파리(iOS)는 16px 미만 입력칸을 누르면
+   화면을 통째로 확대합니다. 그러면 단추가 화면 밖으로 밀려납니다 (8절 29) */
+.f input,.f textarea{width:100%;box-sizing:border-box;font-family:inherit;font-size:16px;
+  line-height:1.6;padding:9px 10px;border:1px solid #d1d5db;border-radius:9px;
+  background:#fff;color:#111827}
 .f textarea{min-height:120px;resize:vertical}
 .f .row{margin-bottom:12px}
 .f .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .f .req{color:#c0392b}
-.btn{font:inherit;font-weight:700;padding:10px 18px;border-radius:10px;border:1px solid #1d4ed8;
-  background:#1d4ed8;color:#fff;cursor:pointer}
+/* 단추는 «안을 채우지 않고 테두리만» — 소장님, 2026-09-17 (앱 쪽 .btn.line 과 같은 모양) */
+.btn{font:inherit;font-weight:700;padding:11px 20px;border-radius:10px;
+  border:1.5px solid #1d4ed8;background:#fff;color:#1d4ed8;cursor:pointer}
+.btn:hover{background:#eef3ff}
 .btn[disabled]{opacity:.55;cursor:default}
-.btn.ghost{background:transparent;color:#1d4ed8}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
 .note{margin-top:10px;font-size:13px;font-weight:700}
 .ok{color:#15803d}.err{color:#c0392b}
 @media(max-width:460px){.f .two{grid-template-columns:1fr}}
 @media(prefers-color-scheme:dark){
   .f input,.f textarea{background:#0e1116;border-color:#333b48;color:#e8eaed}
-  .btn{border-color:#3b82f6;background:#3b82f6}
-  .btn.ghost{background:transparent;color:#8ab0ff;border-color:#3b82f6}
+  .btn{border-color:#3b82f6;background:#161a21;color:#8ab0ff}
+  .btn:hover{background:#1b2230}
   .ok{color:#4ade80}
 }
 </style>
@@ -79,9 +83,11 @@
     </div>
   </div>
   <input class="hp" id="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
-  <button class="btn" id="go" type="submit">보내기</button>
-  <span id="msg" class="note"></span>
+  <button class="btn" id="go" type="submit">문의 보내기</button>
 </form>
+<!-- 🚨 알림칸은 «폼 밖» 에 둡니다. 안에 두면 보내고 나서 폼을 감출 때 알림까지 같이 사라집니다.
+     (2026-09-17 검증에서 잡음 — 화면에서는 「눌렀는데 아무 일도 안 일어남」 으로 보입니다) -->
+<p id="msg" class="note"></p>
 </div>
 
 <div class="card">
@@ -99,7 +105,6 @@
 <script>
 (function () {
   var DB = 'https://k-conmap-default-rtdb.firebaseio.com/quotes.json'
-  var 연 = Date.now()                       /* 언제 열었나 — 기계가 즉시 보내는 것을 거릅니다 */
   var f = document.getElementById('f')
   var msg = document.getElementById('msg')
   var go = document.getElementById('go')
@@ -110,8 +115,10 @@
     e.preventDefault()
     var work = V('work')
     if (work.length < 2) { 말('무슨 일인지 한 줄만 적어 주십시오.', 'err'); return }
-    /* 기계 거르개 — 숨은 칸이 채워졌거나 2초도 안 돼서 보내면 보낸 척만 합니다 */
-    if (V('hp') || Date.now() - 연 < 2000) { f.style.display = 'none'; 말('보냈습니다. 고맙습니다.', 'ok'); return }
+    /* 기계 거르개 — 사람 눈에 안 보이는 칸이 채워졌을 때만 걸러냅니다.
+       ⚠️ 「2초 안에 보내면 기계로 본다」 도 넣었다가 **뺐습니다.** 빨리 쓰는 분의 진짜 문의를
+          조용히 버리게 됩니다. 스팸 몇 통보다 문의 한 통을 잃는 것이 훨씬 큰 손해입니다. */
+    if (V('hp')) { f.style.display = 'none'; 말('보냈습니다. 고맙습니다.', 'ok'); return }
     go.disabled = true; 말('보내는 중…', '')
     fetch(DB, {
       method: 'POST',
