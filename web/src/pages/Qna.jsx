@@ -31,8 +31,10 @@ import { nickOf } from '../lib/nickname.js'
  *   답변이 곧 실력 증명입니다. 「낙찰하한율이 뭔가요」로 들어온 사람이 답을 읽고,
  *   옆에 있는 「내역서 작성해 드립니다」를 봅니다. 그게 이 화면의 일입니다.
  *
- * ⚠️ 연락처 칸이 «없습니다». 공개 게시판에 전화번호를 적으면 광고 전화가 갑니다.
- *    연락처가 필요한 이야기는 /naeyeok 의 문의함(아무도 못 읽는 곳)으로 보냅니다.
+ * ⚠️ 연락처 «칸» 은 여전히 없습니다 — 칸이 있으면 다들 적고, 그 번호로 전화가 갑니다.
+ *    다만 2026-09-17 부터 «적지 마세요» 라고 **말하지는 않습니다** (소장님: 「이것도 빼」).
+ *    쓰는 자리에 금지어를 붙여 두면, 규칙을 읽히려고 글쓰기를 막는 꼴이 됩니다.
+ *    연락처가 필요한 이야기는 /naeyeok 의 문의함(아무도 못 읽는 곳)으로 갑니다.
  * ⚠️ 「내가 쓴 글」은 브라우저가 알아서 기억합니다(구인구직과 같은 방식). 적을 것이 없습니다.
  */
 const LIMIT = 300
@@ -147,8 +149,7 @@ export default function Qna() {
           답은 <b>하루 안에</b> 달아 드리는 것을 목표로 합니다.<br />
           <b>물어보시는 글이라면</b> 공사 규모 · 발주처 · 지금 어디까지 —
           이 셋만 있으면 답이 훨씬 정확합니다. 모르면 모르는 대로 적으셔도 됩니다.<br />
-          <b style={{ color: 'var(--bad, #c0392b)' }}>전화번호·이메일은 적지 마세요.</b> 공개 게시판이라 광고 전화가 갑니다.
-          연락처가 필요한 일은 <a href="/naeyeok">내역서 문의</a>로 보내 주세요 — 그건 아무에게도 안 보입니다.<br />
+          연락처가 오가야 하는 일은 <a href="/naeyeok">내역서 문의</a>로 보내 주세요 — 그건 아무에게도 안 보입니다.<br />
           답글은 누구나 달 수 있습니다. K-건설맵이 단 답에는 <b>「K-건설맵 답변」</b> 표가 붙습니다.
           표가 없는 답글은 이용자 의견이니 <b>중요한 건은 발주처에 확인하십시오.</b>{' '}
           광고·홍보 글은 예고 없이 지웁니다.
@@ -347,9 +348,6 @@ function WriteForm({ onDone }) {
       <textarea className="inp" value={f.b} onChange={set_('b')} maxLength={2000}
         placeholder="더 적고 싶으시면 여기에 (안 적으셔도 됩니다)"
         style={{ width: '100%', boxSizing: 'border-box', minHeight: 110, marginBottom: 8 }} />
-      <div className="muted" style={{ fontSize: 12, marginBottom: 8, lineHeight: 1.6 }}>
-        <b style={{ color: 'var(--bad, #c0392b)' }}>전화번호·이메일은 적지 마세요</b> — 누구나 보는 곳이라 광고 전화가 갑니다.
-      </div>
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
         <input className="inp" inputMode="numeric" maxLength={4} value={f.pin}
           onChange={(e) => setF((v) => ({ ...v, pin: e.target.value.replace(/\D/g, '') }))}

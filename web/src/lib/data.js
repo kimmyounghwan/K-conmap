@@ -18,7 +18,35 @@ const inflight = new Map()
       코드와 자료는 반드시 같이 움직여야 합니다.
    전송량 걱정은 없습니다 — 사용자는 자기가 연 묶음 하나(압축 10KB)만 받습니다. */
 const V = typeof __BUILD__ === 'string' ? __BUILD__ : '0'
-const fresh = (p) => (p.includes('?') ? p : `${p}?v=${V}`)
+
+/* ── 🔄 «새로고침» 을 누르고 들어온 회차인가 (2026-09-17) ─────────────
+   소장님: 「건설맵 제일 위 쪽에 새로고침 만들어 줘」
+
+   왜 그냥 F5 로는 모자란가.
+     /data/first.json 은 firebase.json 에서 «max-age=900, stale-while-revalidate=86400»
+     입니다. 15분 안에 다시 오면 브라우저가 **묻지도 않고** 제 캐시를 내줍니다.
+     그리고 15분이 지나도 하루(86400초) 안이면 **일단 옛것을 보여 주고** 뒤에서
+     조용히 새로 받습니다 — 그래서 눌러도 «그대로» 인 것처럼 보입니다.
+     (그렇게 둔 것은 옳습니다. 평소에는 그게 빠르고 싸니까요.)
+
+   그래서 «이 한 번만» 캐시를 비켜 가게 합니다.
+     · Refresh.jsx 가 도장을 sessionStorage 에 찍고 화면을 다시 엽니다
+     · 여기서 그 도장을 **한 번 읽고 바로 지웁니다** — 다음 F5 는 다시 평소대로
+     · 도장이 있으면 모든 /data 주소에 &r=… 이 붙습니다 = 처음 보는 주소 = 새로 받음
+   ⚠️ 주소를 매번 바꾸면 CDN 이 계속 헛돕니다. 그래서 «손으로 누른 그 한 번» 만입니다. */
+export const RELOAD_KEY = 'kcm_reload'
+const R = (() => {
+  try {
+    const v = sessionStorage.getItem(RELOAD_KEY)
+    if (v) sessionStorage.removeItem(RELOAD_KEY)
+    return v || ''
+  } catch { return '' }          /* 사생활 모드 — 그냥 평소대로 */
+})()
+
+const fresh = (p) => {
+  if (p.includes('?')) return p
+  return R ? `${p}?v=${V}&r=${R}` : `${p}?v=${V}`
+}
 
 export async function getJSON(path) {
   const url = path.startsWith('/data/') ? fresh(path) : path

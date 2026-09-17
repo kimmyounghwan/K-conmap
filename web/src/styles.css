@@ -2517,6 +2517,28 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
 
 /* 🌊 자매 사이트 사라사 — 위 막대 오른쪽 묶음(사라사 + 앱으로). 2026-09-06 소장님 요청 */
 .topbar-r { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+
+/* 🔄 새로고침 (2026-09-17) — 사라사 알약(.sisbtn)과 같은 결이되, 조금 조용하게.
+   눈에 띄어야 하지만 «누르라» 고 밀어붙이면 안 됩니다. 평소에는 안 눌러도 되는 단추입니다. */
+.rfbtn {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 1px solid rgba(255,255,255,.28); background: rgba(255,255,255,.10);
+  color: #fff; border-radius: 999px; padding: 5px 11px;
+  font-size: 12px; font-weight: 800; font-family: inherit;
+  white-space: nowrap; cursor: pointer; line-height: 1.2;
+}
+.rfbtn:hover { background: rgba(255,255,255,.18); }
+.rfbtn .rfic { display: inline-block; font-size: 12.5px; }
+.rfbtn.on { opacity: .75; cursor: default; }
+.rfbtn.on .rfic { animation: rfspin .9s linear infinite; }
+@keyframes rfspin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .rfbtn.on .rfic { animation: none; } }
+/* 📱 좁은 화면 — 맨 위 줄은 이미 [로고][보는 방법][🔄][사라사][설치] 로 빡빡합니다.
+   글자를 숨겨 그림만 남깁니다. aria-label 이 있으니 읽어 주는 기계에는 그대로 들립니다. */
+@media (max-width: 560px) {
+  .rfbtn { padding: 5px 8px; }
+  .rfbtn .rflong { display: none; }
+}
 .topbar-r .installbtn { margin-left: 0; }
 .sisbtn {
   border: 1px solid rgba(255,255,255,.28); background: rgba(255,255,255,.10);

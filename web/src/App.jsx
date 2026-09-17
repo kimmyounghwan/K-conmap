@@ -4,6 +4,7 @@ import { BasePriceProvider } from './BasePrice.jsx'
 import { InstallPill, InstallBar } from './Install.jsx'
 import AskStrip from './AskComment'
 import FirstBar from './FirstBar.jsx'
+import RefreshBtn from './Refresh.jsx'
 import Crumbs from './Crumbs.jsx'
 
 /* 탭에 적힌 주소가 아니어도 «이 탭의 식구» 면 불을 켭니다.
@@ -71,6 +72,11 @@ export default function App() {
           {/* 🌊 자매 사이트 사라사 — 소장님(09-06): 「클릭하면 사라사 사이트로. 페이지마다」.
               이 막대는 모든 페이지 위에 있으므로 여기 한 번이면 페이지마다 붙습니다. 새 탭으로 엽니다(건설맵을 떠나지 않게). */}
           <div className="topbar-r">
+            {/* 🔄 2026-09-17 — 소장님: 「건설맵 제일 위 쪽에 새로고침 만들어 줘」
+                왜 여기인가: 「자료가 멈춘 것 같다」 는 생각이 드는 순간이 곧 «위를 보는» 순간입니다.
+                자료가 도는 화면(1순위·공고)에만 두면 정작 다른 화면에서는 손이 안 갑니다.
+                좁은 화면에서는 🔄 그림만 남고 글자는 숨습니다 (styles.css .rflong). */}
+            <RefreshBtn />
             <a className="sisbtn" href="https://sarasa.kr" target="_blank" rel="noopener"
               title="자매 사이트 사라사 — 나노리치 실시간 신호판 · 경제 기사 · 여행">🌊 사라사</a>
             <InstallPill />

@@ -256,10 +256,10 @@ export default function AskStrip() {
               <button className="btn ghost" onClick={닫기}>나중에</button>
             </div>
             {탈 && <div className="askerr">{탈}</div>}
-            <div className="askft">
-              가입도 이름도 없습니다 · 별명은 저절로 붙습니다 ·{' '}
-              <b>전화번호·이메일은 적지 마세요</b> (사랑방은 누구나 봅니다)
-            </div>
+            {/* ⚠️ 2026-09-17 — 여기에 「전화번호·이메일은 적지 마세요」 가 있었습니다.
+                소장님: 「이것도 빼」. 한 줄 적어 달라고 열어 놓은 창에 금지어를 붙이면
+                그 한 줄이 «규칙을 지켜야 하는 일» 이 됩니다. 남길 말만 남깁니다. */}
+            <div className="askft">가입도 이름도 없습니다 · 별명은 저절로 붙습니다</div>
           </>
         )}
       </div>
