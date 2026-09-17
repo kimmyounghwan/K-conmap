@@ -1,3 +1,4 @@
+import { askAfter } from '../AskComment'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { NaeyeokStrip } from '../components.jsx'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -681,7 +682,13 @@ export default function BaroBid() {
      ⚠️ 새 탭은 <a target="_blank"> 의 «기본 동작» 으로 엽니다 — window.open 을 쓰면
         팝업 차단에 걸릴 수 있고, clipboard 를 await 한 뒤에 열면 사용자 제스처가 끊깁니다.
         여기서는 onClick 에서 복사만 하고 이동은 브라우저가 합니다(차단 없음). */
-  const copyAndGo = () => { putClip(String(main)); setWent(true); setTimeout(() => setWent(false), 2600) }
+  const copyAndGo = () => {
+    putClip(String(main)); setWent(true); setTimeout(() => setWent(false), 2600)
+    /* 💬 2026-09-17 — 소장님: 「바로입찰 사용시 마다 사용후에 댓글을 달도록 해줘」
+       ⚠️ «쓴 뒤»에만 부릅니다. 복사·이동을 막지 않습니다.
+          나라장터로 갔다가 돌아오면 그때 창이 뜹니다(띠가 800ms 마다 깃발을 봅니다). */
+    try { askAfter('bid') } catch { /* 사생활 보호 모드 */ }
+  }
   /* 「이 금액 공유」 — 공고 페이지 주소를 복사합니다(카톡 카드 + 권장금액이 같이 보이는 자리).
      분위를 손으로 고른 경우에만 ?q= 를 붙입니다 — 안 붙이면 받는 쪽이 다른 금액을 봅니다. */
   const shareQ = (pickRate || '').startsWith('q') ? Number(pickRate.slice(1)) : 0
