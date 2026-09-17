@@ -29,33 +29,52 @@
  *   함수가 꺼내 씁니다. 넣는 것은 소장님이 직접 하십니다(`F1_비밀번호넣기.bat`).
  *   ⚠️ 클로드는 이 값을 읽지도 옮기지도 않습니다.
  *
- * ■ 지역
- *   RTDB 가 `k-conmap-default-rtdb.firebaseio.com`(지역 표시 없음) = **us-central1** 입니다.
- *   데이터베이스 방아쇠는 **그 데이터베이스와 같은 지역**에 있어야 합니다. 바꾸지 마세요.
  */
+/* 🚨 2026-09-18 — 처음 올릴 때 이렇게 죽었습니다:
+ *     Error: User code failed to load. Cannot determine backend specification. Timeout after 10000.
+ *   파이어베이스는 올리기 전에 이 파일을 «한 번 읽어» 무슨 함수가 있는지 봅니다.
+ *   그 읽기에 **10초**만 줍니다. 그런데 맨 윗줄에서 무거운 것들을 통째로 불러오느라
+ *   10초를 넘겼습니다. 특히 v2 «묶음» 을 통째로 부르면 https·firestore·storage·
+ *   pubsub·scheduler·alerts… 모든 갈래를 한꺼번에 끌고 옵니다.
+ *
+ *   📌 규칙: **맨 윗줄에서는 꼭 필요한 것만 불러옵니다.**
+ *      · firebase-admin·nodemailer 는 «메일을 보낼 때» 비로소 불러옵니다(게으른 불러오기)
+ *      · 묶음 설정 대신 함수마다 region·maxInstances 를 적습니다
+ *      · 맨 윗줄에서 그물망을 타거나 파일을 읽지 않습니다
+ *   (F2_함수올리기.bat 에 읽는 시간도 넉넉히 늘려 두었습니다) */
 const { onValueCreated } = require('firebase-functions/v2/database')
-const { defineSecret, defineString } = require('firebase-functions/params')
-const { setGlobalOptions } = require('firebase-functions/v2')
-const admin = require('firebase-admin')
-const nodemailer = require('nodemailer')
-
-admin.initializeApp()
-setGlobalOptions({ region: 'us-central1', maxInstances: 3 })
+const { defineSecret } = require('firebase-functions/params')
 
 /* 비밀값 — 지메일 «앱 비밀번호». 콘솔에도 로그에도 찍히지 않습니다 */
 const MAIL_PASS = defineSecret('MAIL_PASS')
-/* 비밀이 아닌 값 — 보내는 주소와 받는 주소 */
-const MAIL_USER = defineString('MAIL_USER', { default: 'kimmyounghwan259@gmail.com' })
-const MAIL_TO = defineString('MAIL_TO', { default: 'kimmyounghwan259@gmail.com' })
+
+/* 주소는 «비밀이 아닙니다» — 그냥 적습니다.
+   ⚠️ 2026-09-18 — 처음엔 defineString 으로 «설정값»으로 뒀는데, 올릴 때
+      「In non-interactive mode but have no value for MAIL_USER, MAIL_TO」 로 막혔습니다.
+      기본값을 적어 둬도 묻습니다. 비밀도 아닌 것을 설정값으로 만들 까닭이 없습니다. */
+const MAIL_USER = 'kimmyounghwan259@gmail.com'   /* 보내는 사람 (지메일 계정) */
+const MAIL_TO = 'kimmyounghwan259@gmail.com'     /* 받는 사람 */
+
+/* ⚠️ RTDB 가 `k-conmap-default-rtdb.firebaseio.com`(지역 표시 없음) = us-central1.
+   데이터베이스 방아쇠는 그 데이터베이스와 «같은 지역»이라야 합니다. 바꾸지 마세요.
+   maxInstances 3 — 종량제는 상한이 없으므로 무슨 일이 있어도 셋까지만 뜨게 묶습니다. */
+const 옵션 = { region: 'us-central1', maxInstances: 3, secrets: [MAIL_PASS] }
+
+/* ── 게으른 불러오기 — «쓸 때» 비로소 불러옵니다 ─────────────────── */
+let _admin = null
+const 자료 = () => {
+  if (!_admin) { _admin = require('firebase-admin'); _admin.initializeApp() }
+  return _admin.database()
+}
 
 const 보내기 = async (제목, 본문) => {
-  const 편지 = nodemailer.createTransport({
+  const 편지 = require('nodemailer').createTransport({
     host: 'smtp.gmail.com', port: 465, secure: true,
-    auth: { user: MAIL_USER.value(), pass: MAIL_PASS.value() },
+    auth: { user: MAIL_USER, pass: MAIL_PASS.value() },
   })
   await 편지.sendMail({
-    from: `"K-건설맵" <${MAIL_USER.value()}>`,
-    to: MAIL_TO.value(),
+    from: `"K-건설맵" <${MAIL_USER}>`,
+    to: MAIL_TO,
     subject: 제목,
     text: 본문,
   })
@@ -67,7 +86,7 @@ const 줄 = (이름, 값) => `  ${이름} : ${값 || '-'}`
    ⚠️ 이 노드는 «읽기 금지» 입니다. 공사 정보와 연락처가 들어갑니다.
       함수는 관리자 자격으로 돌기 때문에 규칙을 지나갑니다. */
 exports.quoteMail = onValueCreated(
-  { ref: '/quotes/{id}', secrets: [MAIL_PASS] },
+  { ...옵션, ref: '/quotes/{id}' },
   async (event) => {
     const q = event.data.val() || {}
     const id = event.params.id
@@ -102,14 +121,14 @@ exports.quoteMail = onValueCreated(
       console.error('메일 실패:', e && e.message)
       return
     }
-    await admin.database().ref(`/quotes/${id}/sent`).set(true)
+    await 자료().ref(`/quotes/${id}/sent`).set(true)
   }
 )
 
 /* ── ② 사랑방 (qna) ──────────────────────────────────────────────
    ⚠️ 우리가 단 답글(op)은 알리지 않습니다. 내가 쓴 글을 나에게 보낼 까닭이 없습니다. */
 exports.qnaMail = onValueCreated(
-  { ref: '/qna/{id}', secrets: [MAIL_PASS] },
+  { ...옵션, ref: '/qna/{id}' },
   async (event) => {
     const g = event.data.val() || {}
     const id = event.params.id
@@ -138,6 +157,6 @@ exports.qnaMail = onValueCreated(
       return
     }
     /* ⚠️ 표는 글이 아니라 «따로» 남깁니다 — qna 는 규칙이 딴 이름표를 막습니다 */
-    await admin.database().ref(`/qna_mail/${id}`).set({ at: Date.now(), by: 'fn' })
+    await 자료().ref(`/qna_mail/${id}`).set({ at: Date.now(), by: 'fn' })
   }
 )
