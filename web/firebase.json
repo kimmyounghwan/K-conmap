@@ -2,6 +2,14 @@
   "database": {
     "rules": "database.rules.json"
   },
+  "//functions": "📮 2026-09-18 — 문의·사랑방 메일을 «글이 들어오는 그 순간» 보냅니다. 깃허브 예약은 10분마다라고 적어 놓고 3~5시간에 한 번 돌았습니다(8절 47). 올리는 법: F2_함수올리기.bat. ⚠️ 앱 비밀번호는 여기 없습니다 — 파이어베이스 비밀값(MAIL_PASS)에 있고, 넣는 것은 소장님이 F1_비밀번호넣기.bat 으로 직접 하십니다.",
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": ["node_modules", ".git", "*.log", "firebase-debug.log"]
+    }
+  ],
   "storage": {
     "rules": "storage.rules"
   },
