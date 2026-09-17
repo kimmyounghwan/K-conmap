@@ -291,7 +291,7 @@ function AnswerForm({ qid, onDone }) {
   return (
     <div style={{ marginTop: 12 }}>
       <textarea className="inp" value={b} onChange={(e) => setB(e.target.value)}
-        placeholder="아는 만큼 적어 주세요. 근거(조문·기관 이름)를 같이 적어 주시면 더 좋습니다."
+        placeholder="답글 — 아무 말이나"
         style={{ width: '100%', boxSizing: 'border-box', minHeight: 72 }} maxLength={2000} />
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
         <input className="inp" type="password" placeholder="운영자 열쇠(있으면)" value={key}
