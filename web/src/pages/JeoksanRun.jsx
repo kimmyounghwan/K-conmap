@@ -21,6 +21,7 @@ import { useCallback, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { askAfter } from '../AskComment'
 import Locked from '../Locked.jsx'
+import JeoksanShow from './JeoksanShow.jsx'
 
 function kb(n) { return new Intl.NumberFormat('ko-KR').format(Math.round(n / 1024)) }
 
@@ -34,48 +35,7 @@ function kb(n) { return new Intl.NumberFormat('ko-KR').format(Math.round(n / 102
 
    ⚠️ 소장님은 열쇠말로 그대로 들어와 «전부» 쓰실 수 있습니다 — 시험하셔야 하니까요.
       한 번 열면 그 브라우저가 기억합니다(localStorage). 매번 넣지 않으셔도 됩니다. */
-const LEAD = (
-  <>
-    <div className="card">
-      <div className="sec-title">무엇이 나오나</div>
-      <p style={{ marginTop: 0 }}>
-        <b>재료표</b>와 <b>치수표</b> 두 장을 올리면, 엑셀 한 통에{' '}
-        <b>다섯 장</b>이 들어 나옵니다.
-      </p>
-      <table className="tbl left reptbl">
-        <tbody>
-          <tr><td><b>산출서</b></td><td>줄마다 «산출근거 → 수량». 규격·단위·태그가 같이 붙습니다</td></tr>
-          <tr><td><b>집계</b></td><td>같은 품목끼리 묶어 합칩니다</td></tr>
-          <tr><td><b>태그별</b></td><td>공구·구간·층 같은 태그로 갈라 봅니다</td></tr>
-          <tr><td><b>검산</b></td><td>밀리미터를 그대로 넣었거나, 번호가 겹치거나,{' '}
-            공제가 본체보다 크면 여기서 잡힙니다</td></tr>
-          <tr><td><b>쓴표</b></td><td>어느 재료를 어디에 몇 번 썼는지</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div className="card">
-      <div className="sec-title">왜 «살아 있는 엑셀» 인가</div>
-      <p style={{ marginTop: 0 }}>
-        수량 칸은 숫자가 아니라 <b><code>=ROUND(산출근거,3)</code></b> 수식입니다.{' '}
-        나중에 치수 하나를 고치면 <b>엑셀이 그 자리에서 다시 셉니다.</b>{' '}
-        다시 올릴 것도, 저에게 물을 것도 없습니다.
-      </p>
-      <p className="muted" style={{ marginBottom: 0 }}>
-        검산 시트는 «틀린 것» 을 찾아 주는 자리입니다. 사람이 손으로 셀 때 나는 잘못 —
-        단위 섞임, 번호 겹침, 공제가 본체보다 큰 것 — 을 기계가 먼저 봅니다.
-      </p>
-    </div>
-
-    <div className="card">
-      <div className="sec-title">파일은 올라가지 않습니다</div>
-      <p style={{ marginTop: 0, marginBottom: 0 }}>
-        재료표도 치수표도 <b>브라우저 안에서만</b> 다룹니다. 서버로 보내지 않고,
-        저희도 보지 않습니다. 인터넷을 끊고 쓰셔도 그대로 됩니다.
-      </p>
-    </div>
-  </>
-)
+const LEAD = <JeoksanShow />
 
 export default function JeoksanRun() {
   return (

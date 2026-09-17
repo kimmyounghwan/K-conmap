@@ -13,6 +13,7 @@
  *    그래서 «건설맵에 한 줄이라도 보태 주신 분» 부터 만들어 드립니다.
  *    ⚠️ 여기에 «언제까지 만들어 드린다» 는 말을 적지 않습니다 — 지킬 수 없는 약속입니다.
  */
+import { askAfter } from '../AskComment'
 import { Link } from 'react-router-dom'
 
 export default function Report() {
@@ -66,7 +67,8 @@ export default function Report() {
         </ul>
         <div className="btn-row" style={{ marginTop: 10 }}>
           <a className="btn primary" href="/report-sample.pdf" target="_blank" rel="noopener"
-             download="K-건설맵_입찰성적표_견본.pdf">📄 견본 보기 (PDF)</a>
+             download="K-건설맵_입찰성적표_견본.pdf"
+            onClick={() => askAfter('forms')}>📄 견본 보기 (PDF)</a>
         </div>
         <p className="muted" style={{ marginBottom: 0, marginTop: 8 }}>
           견본은 실제 개찰 기록으로 만든 것입니다. 업체 이름만 가렸습니다.

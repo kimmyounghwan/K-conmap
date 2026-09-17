@@ -164,7 +164,7 @@ export function ChangeForms({ compact }) {
                   {!compact && <div className="d">{short}</div>}
                 </div>
                 <a className="fdl" href={`/forms/${slug}.xlsx`}
-                   download={`${title}_양식.xlsx`}>⬇ 엑셀</a>
+                   download={`${title}_양식.xlsx`} onClick={() => askAfter('forms')}>⬇ 엑셀</a>
               </div>
             )
           })}
@@ -236,7 +236,7 @@ export function ChangeBook() {
                 <Link className="ft" to={`/forms/${slug}`}>{title}</Link>
                 <div className="d">{short}</div>
               </div>
-              <a className="fdl" href={`/forms/${slug}.xlsx`} download={`${title}_양식.xlsx`}>⬇ 엑셀</a>
+              <a className="fdl" href={`/forms/${slug}.xlsx`} download={`${title}_양식.xlsx`} onClick={() => askAfter('forms')}>⬇ 엑셀</a>
             </div>
           )
         })}

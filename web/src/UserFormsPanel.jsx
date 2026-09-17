@@ -1,3 +1,4 @@
+import { askAfter } from './AskComment'
 import { useEffect, useMemo, useState } from 'react'
 import { ref, get, set, push, update, query, orderByKey, limitToLast } from 'firebase/database'
 import { db, ensureAnon } from './firebase.js'
@@ -126,7 +127,7 @@ export default function UserFormsPanel({ cat, compact }) {
                 </div>
               </div>
               <div className="uf-act">
-                <a className="btn sm" href={f.url} download={f.name}>⬇ 받기</a>
+                <a className="btn sm" href={f.url} download={f.name} onClick={() => askAfter('forms')}>⬇ 받기</a>
                 <button className="lnk" onClick={() => flag(f.id)}>🚩 신고{flags[f.id] ? ` ${flags[f.id]}` : ''}</button>
                 {mine.includes(f.id) && <button className="lnk" onClick={() => remove(f)}>내가 올린 것 지우기</button>}
               </div>

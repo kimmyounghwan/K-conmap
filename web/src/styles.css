@@ -481,6 +481,23 @@ input[type=number] { font-variant-numeric: tabular-nums; }
    칸(grid)으로 바꾸면 폭이 같아지고, 좁은 화면에서는 한 줄에 하나씩 쌓입니다.
    글머리를 왼쪽으로 맞춰야 «목록» 으로 읽힙니다 — 가운데로 모으면 흩어져 보입니다. */
 .btn-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+
+/* 🖥️ 2026-09-17 — 적산 «보이는 화면». 소장님: 「프로그램이 보이게는 해줘야지」
+   실제 화면을 그대로 얼려 보여 줍니다. 누를 수는 없습니다.
+   ⚠️ 단가표는 여기 싣지 않습니다 — 실으면 들어오는 사람 모두가 내려받습니다. */
+.jshow { display: grid; grid-template-columns: 1fr; gap: 8px; }
+@media (min-width: 560px) { .jshow { grid-template-columns: 1fr 1fr; } }
+.jbox {
+  position: relative; border: 2px dashed var(--line); border-radius: 12px;
+  padding: 16px 14px; text-align: center; background: var(--surface-2);
+  opacity: .85;
+}
+.jbox b { display: block; font-size: 14.5px; }
+.jbox span { display: block; color: var(--muted); font-size: 12.5px; margin-top: 4px; line-height: 1.5; }
+.jbox em { display: block; margin-top: 8px; font-style: normal; font-size: 12px;
+  color: var(--accent); font-weight: 700; }
+.tblwrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.tblwrap table { min-width: 460px; }
 .btn-grid .btn {
   width: 100%;
   justify-content: flex-start;
