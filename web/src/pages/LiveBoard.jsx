@@ -5,7 +5,13 @@ import { Skeleton, Empty } from '../components.jsx'
 import { RangeBar } from './FirstBoard.jsx'
 import { isReady, missingOf } from './BaroBid.jsx'
 import { NoticeLink } from '../NoticeDetail.jsx'
-import Comments from '../Comments.jsx'
+/* ⚠️ 2026-09-17 — 공고·1순위 카드 아래 «댓글» 칸을 뗐습니다.
+   소장님: 「**공고나 1순위에 있는 댓글쓰기도 제거하자.**」
+   왜: 글이 공고 수만큼 흩어졌습니다. 공고 하나에 한 줄씩 달리면
+   그 줄은 그 공고를 연 사람 말고는 아무도 못 봅니다 — 대화가 안 됩니다.
+   이제 한 줄은 «한 줄 남기기» 창(AskComment.jsx)이 받아 **사랑방 한 곳으로** 모읍니다.
+   ⚠️ Comments.jsx / CommentsPanel.jsx 는 지우지 않았습니다 — 이미 달린 글이 DB(cmt)에 있고,
+      다시 붙일 자리가 생길 수 있어서입니다. 지금은 어디서도 부르지 않습니다. */
 import { quickBid, P50_FALLBACK, pickOdds, stamp14, nowStamp, canBid,
          atLeastOne, enpWhy } from '../lib/bidmath.js'
 import { getOverview, getBidIndex, indexRows, getLicStat } from '../lib/data.js'
@@ -632,8 +638,6 @@ export default function LiveBoard() {
                     </div>
                   </div>
                 )}
-                {/* 💬 펼치지 않아도 보입니다 (2026-09-11) — 누르기 전에는 Firebase 를 안 받습니다 */}
-                <Comments no={r.no} title={r.name} />
               </div>
             )
           })}

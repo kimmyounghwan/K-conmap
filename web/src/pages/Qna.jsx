@@ -37,25 +37,11 @@ import { nickOf } from '../lib/nickname.js'
  */
 const LIMIT = 300
 
-/* 💬 2026-09-17 — 「이런 글이 올라옵니다」 보기.
- *   소장님: 「이용자들이 부담스러워 하는거 아닐까?」
- *          「게시판 처럼 누구나 자연스럽게 어떤 말이든 쓸 수 있게 해줘」
- *          「통합 게시판 느낌으로 건설맵 얘기도 하수 있고, 뭐든지 의견 나누기」
- *   그래서 «묻고 답하기» 가 아니라 «사랑방» 입니다 —
- *   용건이 있어야 들어가는 곳이 아니라, 들렀다 가는 곳.
- *   물음도 좋고, 겪은 일도 좋고, 건설맵에 하고 싶은 말도, 그냥 하소연도 좋습니다.
- *   빈 게시판 + 규칙 다섯 문단 = 아무도 첫 줄을 못 씁니다.
- *   누르면 제목 칸이 채워진 채로 글쓰기가 열립니다 — 빈 칸을 마주하지 않게.
- *   ⚠️ 지어낸 사람 이름으로 «가짜 글» 을 올려 두지는 않습니다. 이건 그냥 보기입니다. */
-const SEEDS = [
-  '낙찰됐는데 산출내역서를 언제까지 내야 하나요?',
-  '설계변경 신규 비목 단가, 이렇게 잡았습니다',
-  '적격심사 점수가 어디서 깎인 건지 모르겠습니다',
-  '오늘 개찰 들어갔다가 느낀 것',
-  '이 발주처는 이런 서류를 더 달라고 하더라',
-  '건설맵에 이런 게 있으면 좋겠습니다',
-  '그냥 한마디',
-]
+/* ⚠️ 2026-09-17 — 여기에 «이런 글이 올라옵니다» 보기 일곱 줄이 있었습니다.
+ *   (「낙찰됐는데 산출내역서를 언제까지…」 「오늘 개찰 들어갔다가 느낀 것」 …)
+ *   소장님: 「**사랑방에도 문장들이 잇는데, 다 제거 해. 그냥 자유롭게 적도록...해줘**」
+ *   빈 칸이 무서울까 봐 예시를 깔아 두었는데, 예시를 깔면 «저 중에 골라야 하나» 가 됩니다.
+ *   골라 주는 것과 열어 두는 것은 다릅니다 — 열어 둡니다. */
 const MINE_KEY = 'kcm_qna_mine'
 const loadMine = () => { try { return JSON.parse(localStorage.getItem(MINE_KEY) || '[]') } catch { return [] } }
 const addMine = (id) => { try { localStorage.setItem(MINE_KEY, JSON.stringify([...loadMine(), id].slice(-100))) } catch { /* noop */ } }
@@ -82,14 +68,6 @@ export default function Qna() {
   const [del, setDel] = useState({})
   const [open, setOpen] = useState(null)    // 펼친 질문 id
   const [write, setWrite] = useState(false)
-  // 💬 서식·캐드를 받고 «한 줄 남기기» 로 들어오면 물음을 미리 채워 둡니다 (AskComment.jsx).
-  //    빈 칸을 마주하면 대부분 그냥 나갑니다 — 물음이 적혀 있으면 답을 씁니다.
-  const preset = (() => {
-    try { return new URLSearchParams(window.location.search).get('ask') || '' }
-    catch { return '' }
-  })()
-  useEffect(() => { if (preset) setWrite(true) }, [preset])
-  const [seed, setSeed] = useState('')   /* 예시를 눌러 미리 채운 물음 */
   const [mine, setMine] = useState(loadMine)
   const [onlyMine, setOnlyMine] = useState(false)
   const [q, setQ] = useState('')
@@ -156,26 +134,8 @@ export default function Qna() {
         )}
       </div>
 
-      {!write && (
-        <div style={{ marginBottom: 10 }}>
-          <div className="muted" style={{ fontSize: 12.5, marginBottom: 6 }}>
-            이런 글이 올라옵니다 — 누르면 그대로 적힙니다
-          </div>
-          {/* ⚠️ .btn 은 width:100% + 파란 바탕입니다 — 보기 여섯 개가 «파란 막대 여섯 줄» 이
-              되어 오히려 누르라고 밀어붙이는 꼴이 됐습니다(2026-09-17 실제 화면에서 봤습니다).
-              조용한 알약(.chip)으로 바꿉니다. 좁은 화면에서는 .chips 가 옆으로 굴러갑니다. */}
-          <div className="chips">
-            {SEEDS.map((t) => (
-              <button key={t} type="button" className="chip"
-                onClick={() => { setSeed(t); setWrite(true) }}>{t}</button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {write && (
-        <WriteForm key={seed || 'blank'} preset={seed || preset}
-          onDone={() => { setWrite(false); setSeed(''); load(); setMine(loadMine()) }} />
+        <WriteForm onDone={() => { setWrite(false); load(); setMine(loadMine()) }} />
       )}
 
       <details className="note" style={{ marginBottom: 10, lineHeight: 1.85 }}>
@@ -346,8 +306,8 @@ function AnswerForm({ qid, onDone }) {
 }
 
 /* ── 질문 쓰기 ─────────────────────────────────────────────────── */
-function WriteForm({ onDone, preset }) {
-  const [f, setF] = useState({ t: preset || '', b: '', pin: '' })
+function WriteForm({ onDone }) {
+  const [f, setF] = useState({ t: '', b: '', pin: '' })
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const set_ = (k) => (e) => setF((v) => ({ ...v, [k]: e.target.value }))
@@ -379,15 +339,16 @@ function WriteForm({ onDone, preset }) {
   return (
     <div className="card" style={{ marginBottom: 10 }}>
       <div className="sec-title" style={{ margin: '0 0 10px' }}>글쓰기</div>
+      {/* ⚠️ 2026-09-17 — 두 칸 다 «예) …» 로 보기를 깔아 두었습니다. 뺐습니다.
+          남은 한 줄(전화번호)은 취향이 아니라 안전입니다 — 그것만 둡니다. */}
       <input className="inp" value={f.t} onChange={set_('t')} maxLength={80}
-        placeholder="제목 — 예) 낙찰됐는데 산출내역서를 언제까지 내야 하나요?"
+        placeholder="한 줄로 — 무슨 이야기든"
         style={{ width: '100%', boxSizing: 'border-box', marginBottom: 8 }} />
       <textarea className="inp" value={f.b} onChange={set_('b')} maxLength={2000}
-        placeholder="무슨 이야기든 좋습니다. 물어보시는 것이라면 공사 규모 · 발주처 · 지금 어디까지를 적어 주시면 답이 정확합니다.&#10;전화번호·이메일은 적지 마세요."
+        placeholder="더 적고 싶으시면 여기에 (안 적으셔도 됩니다)"
         style={{ width: '100%', boxSizing: 'border-box', minHeight: 110, marginBottom: 8 }} />
       <div className="muted" style={{ fontSize: 12, marginBottom: 8, lineHeight: 1.6 }}>
-        물어보시는 글이면 공사 규모 · 발주처 · 지금 어디까지를 같이 적어 주십시오.{' '}
-        <b style={{ color: 'var(--bad, #c0392b)' }}>전화번호·이메일은 적지 마세요</b> (공개 게시판입니다).
+        <b style={{ color: 'var(--bad, #c0392b)' }}>전화번호·이메일은 적지 마세요</b> — 누구나 보는 곳이라 광고 전화가 갑니다.
       </div>
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
         <input className="inp" inputMode="numeric" maxLength={4} value={f.pin}

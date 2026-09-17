@@ -3,7 +3,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { getOverview, getLicStat } from '../lib/data.js'
 import FreshBar from '../Fresh.jsx'
 import NoticeDetail, { scoreState, NoticeLink } from '../NoticeDetail.jsx'
-import Comments from '../Comments.jsx'
+/* ⚠️ 2026-09-17 — 공고·1순위 카드 아래 «댓글» 칸을 뗐습니다.
+   소장님: 「**공고나 1순위에 있는 댓글쓰기도 제거하자.**」
+   왜: 글이 공고 수만큼 흩어졌습니다. 공고 하나에 한 줄씩 달리면
+   그 줄은 그 공고를 연 사람 말고는 아무도 못 봅니다 — 대화가 안 됩니다.
+   이제 한 줄은 «한 줄 남기기» 창(AskComment.jsx)이 받아 **사랑방 한 곳으로** 모읍니다.
+   ⚠️ Comments.jsx / CommentsPanel.jsx 는 지우지 않았습니다 — 이미 달린 글이 DB(cmt)에 있고,
+      다시 붙일 자리가 생길 수 있어서입니다. 지금은 어디서도 부르지 않습니다. */
 import { noteFirst } from '../lib/mentor.js'
 import { useBoard } from '../lib/useBoard.js'
 import { Skeleton, Empty, Tile, NaeyeokStrip } from '../components.jsx'
@@ -235,10 +241,7 @@ export default function FirstBoard() {
                   return <div className={'claudesay ' + nt.tone}><b>🤖 한마디</b><span>{nt.text}</span></div>
                 })()}
 
-                {isOpen && <NoticeDetail r={r} hideComments />}
-                {/* 💬 펼치지 않아도 보입니다 — 누르기 전에는 Firebase 를 한 줄도 안 받습니다.
-                    (소장님: 「우린 대화 통로가 없잖아」 — 있었는데 카드를 펼쳐야만 보였습니다) */}
-                <Comments no={r.no} title={r.name} />
+                {isOpen && <NoticeDetail r={r} />}
               </div>
             )
           })}
