@@ -3190,3 +3190,13 @@ ul.plainlist li { margin-bottom: 5px; }
   border: 0; background: none; padding: 0; font: inherit; cursor: pointer;
   color: var(--accent); text-decoration: underline;
 }
+
+/* 🧮 2026-09-17 — 적산 표의 숫자 칸. 소장님: 「단가하고 금액이 맞아야 하는데 금액이 중간에 있어」
+   까닭: 표 머리(th)는 왼쪽인데 숫자(td)만 오른쪽으로 붙여 뒀습니다. 그래서 여섯 칸짜리
+   내역서에서 «수량 · 단가 · 금액» 머리와 그 아래 숫자가 서로 어긋나 보였습니다.
+   ⚠️ 숫자 칸은 **머리도 숫자도 같이** 오른쪽이어야 합니다. 한쪽만 붙이면 어긋납니다.
+      내역서는 눈으로 세로줄을 따라 읽는 표라, 어긋나면 «금액이 중간에 있다» 고 보입니다. */
+.reptbl th.n, .reptbl td.n { text-align: right; white-space: nowrap; }
+.reptbl th.c, .reptbl td.c { text-align: center; }
+/* 합계·소계 줄 — 세로줄을 끊어 눈이 멈추게 */
+.reptbl tr.sum td { border-top: 2px solid var(--line); font-weight: 800; }
