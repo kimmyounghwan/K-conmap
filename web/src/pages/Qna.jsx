@@ -156,9 +156,12 @@ export default function Qna() {
           <div className="muted" style={{ fontSize: 12.5, marginBottom: 6 }}>
             이런 글이 올라옵니다 — 누르면 그대로 적힙니다
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {/* ⚠️ .btn 은 width:100% + 파란 바탕입니다 — 보기 여섯 개가 «파란 막대 여섯 줄» 이
+              되어 오히려 누르라고 밀어붙이는 꼴이 됐습니다(2026-09-17 실제 화면에서 봤습니다).
+              조용한 알약(.chip)으로 바꿉니다. 좁은 화면에서는 .chips 가 옆으로 굴러갑니다. */}
+          <div className="chips">
             {SEEDS.map((t) => (
-              <button key={t} className="btn" style={{ fontSize: 12.5, padding: '5px 10px' }}
+              <button key={t} type="button" className="chip"
                 onClick={() => { setSeed(t); setWrite(true) }}>{t}</button>
             ))}
           </div>
