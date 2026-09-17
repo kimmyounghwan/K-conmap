@@ -48,14 +48,31 @@ const MINE_KEY = 'kcm_qna_mine'
 const loadMine = () => { try { return JSON.parse(localStorage.getItem(MINE_KEY) || '[]') } catch { return [] } }
 const addMine = (id) => { try { localStorage.setItem(MINE_KEY, JSON.stringify([...loadMine(), id].slice(-100))) } catch { /* noop */ } }
 
-/* 운영자 열쇠 — 이 값과 맞으면 답변에 「K-건설맵 답변」 표가 붙습니다.
-   ⚠️ 완벽한 자물쇠가 아닙니다(화면 안에 해시가 있습니다). 지금 규모에는 충분하고,
-      사람이 늘면 진짜 로그인으로 바꿔야 합니다. 그래서 4자리가 아니라 «긴 말»을 씁니다. */
-const OP_HASH = 'd671f1a9b6573fc9ed93ef3842550c6dc6167795796f6a4869bb97563f9a2c02'
-async function isOp(key) {
-  if (!key || key.length < 8) return false
-  try { return (await pinHash('kcm-op', key)) === OP_HASH } catch { return false }
-}
+/* 🔑 운영자 브라우저 — 답글에 「K-건설맵 답변」 표가 붙는 곳. (2026-09-17)
+ *
+ * 소장님: 「**답글에 비번이 왜 필요해.. 유료만 필요하지**」 — 맞는 말씀이었습니다.
+ *         「**내가 다는 답변도 클로드가 다는 답변도 모두 K-건설맵 으로 하자**」
+ *
+ * ■ 전에는 어땠나 — 열쇠말을 «화면 안에서» 해시와 맞춰 봤습니다.
+ *   그런데 DB 규칙은 op 가 «참/거짓이기만 하면» 통과였습니다.
+ *   **개발자도구를 아는 사람은 열쇠말 없이 그냥 표를 달 수 있었습니다.**
+ *   즉 그 비번은 소장님만 불편하게 했지, 실제로 막은 것이 없었습니다.
+ *
+ * ■ 이제 — 비번이 없습니다. **서버(database.rules.json)가 uid 를 봅니다.**
+ *   여기 목록에 있는 브라우저면 답글에 표가 저절로 붙습니다. 칠 것이 없습니다.
+ *   ⚠️ **database.rules.json 의 op 규칙과 반드시 같아야 합니다.** 한쪽만 고치면
+ *      화면은 표를 붙이려 하는데 서버가 막아 「올리지 못했습니다」 가 납니다.
+ *   ⚠️ uid 를 여기 적어도 안전합니다 — 익명 로그인은 «원하는 uid 로» 로그인할 수 없습니다.
+ *   ⚠️ 브라우저 기록을 지우면 번호가 바뀝니다. 기기를 더하실 땐 아래 목록과 규칙 둘 다에
+ *      번호를 넣고 `3_규칙올리기.bat` 을 한 번 돌리면 됩니다.
+ *      그 브라우저의 번호는 「이 사랑방 쓰는 법」 맨 아래에 적혀 있습니다.
+ *
+ * ⚠️ **다른 분들이 글·답글 쓰는 것은 그대로입니다.** 가입도 로그인도 없습니다.
+ *    바뀐 것은 «표가 붙느냐» 하나뿐입니다. */
+const OPS = [
+  'ZglL1g3X5UZFBA2590LirDnEnil1',      // 소장님 (사무실 크롬, 2026-09-17 등록)
+]
+const isOp = (uid) => !!uid && OPS.includes(uid)
 
 const when = (ms) => {
   if (!ms) return ''
@@ -150,9 +167,16 @@ export default function Qna() {
           <b>물어보시는 글이라면</b> 공사 규모 · 발주처 · 지금 어디까지 —
           이 셋만 있으면 답이 훨씬 정확합니다. 모르면 모르는 대로 적으셔도 됩니다.<br />
           연락처가 오가야 하는 일은 <a href="/naeyeok">내역서 문의</a>로 보내 주세요 — 그건 아무에게도 안 보입니다.<br />
-          답글은 누구나 달 수 있습니다. K-건설맵이 단 답에는 <b>「K-건설맵 답변」</b> 표가 붙습니다.
+          <b>답글은 누구나 답니다</b> — 글 아래 <b>「💬 답글 쓰기」</b> 를 누르시면 칸이 열립니다.
+          K-건설맵이 단 답에는 <b>「K-건설맵 답변」</b> 표가 붙습니다.
           표가 없는 답글은 이용자 의견이니 <b>중요한 건은 발주처에 확인하십시오.</b>{' '}
           광고·홍보 글은 예고 없이 지웁니다.
+          {/* 🔑 2026-09-17 — 「이 브라우저 번호」. 소장님이 다른 기기에서도 「K-건설맵 답변」 으로
+              답하시려면 그 기기의 번호가 필요합니다. 비번이 없으니 이 번호가 그 자리를 대신합니다.
+              ⚠️ 비밀이 아닙니다 — 이 번호를 안다고 그 사람이 될 수 없습니다(익명 로그인은
+                 «원하는 uid 로» 로그인할 수 없습니다). 그래서 그냥 보여 줘도 됩니다.
+              ⚠️ 이용자에게도 보입니다. 별명이 왜 늘 같은지 설명해 주는 구실도 합니다. */}
+          <BrowserId />
         </div>
       </details>
 
@@ -189,6 +213,16 @@ export default function Qna() {
                   {String(r.b).slice(0, 90)}{String(r.b).length > 90 ? '…' : ''}
                 </div>
               )}
+            </div>
+            {/* 🚨 2026-09-17 — 소장님: 「이용자가 의견을 적었는데, 답글을 클릭해서 쓸 버튼이 없어」
+                맞는 말씀이었습니다. 카드를 «누르면» 답글칸이 나오게 해 두었는데,
+                **누르라는 표시가 어디에도 없었습니다.** 글이 0개일 때는 아무도 몰랐고,
+                첫 글이 올라오고 나서야 드러났습니다.
+                ⚠️ 「누르면 열린다」 는 만든 사람 머릿속에만 있습니다. 눈에 보이는 단추를 답니다. */}
+            <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 8 }}>
+              <button className="btn line sm" onClick={() => setOpen(isOpen ? null : r.id)}>
+                {isOpen ? '접기 ▲' : (n > 0 ? `💬 답글 ${n}개 보기 ▼` : '💬 답글 쓰기 ▼')}
+              </button>
             </div>
             {isOpen && (
               <Detail row={r} ans={ans[r.id] || {}} mine={mine.includes(r.id)}
@@ -263,9 +297,23 @@ function Detail({ row, ans, mine, onChange }) {
 /* ── 답변 쓰기 — 누구나 ────────────────────────────────────────── */
 function AnswerForm({ qid, onDone }) {
   const [b, setB] = useState('')
-  const [key, setKey] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
+  const [나운영자, set나운영자] = useState(false)
+
+  /* 이 브라우저가 운영자인지 미리 알아 둡니다 — 올리기 «전에» 화면에 알려 주려고.
+     쓰기 전에 「이 답에는 표가 붙습니다」 를 보여 줘야 무게를 알고 씁니다. */
+  useEffect(() => {
+    let 살아있음 = true
+    ;(async () => {
+      try {
+        const { ensureAnon } = await loadFb()
+        const u = await ensureAnon()
+        if (살아있음) set나운영자(isOp(u && u.uid))
+      } catch { /* 못 물어봐도 그냥 보통 답글입니다 */ }
+    })()
+    return () => { 살아있음 = false }
+  }, [])
 
   const submit = async () => {
     if (b.trim().length < 2) return setMsg('답글을 적어 주세요.')
@@ -273,7 +321,9 @@ function AnswerForm({ qid, onDone }) {
     try {
       const { ref, set, push, db, ensureAnon } = await loadFb()
       const user = await ensureAnon()
-      const op = await isOp(key)
+      /* ⚠️ 여기서 다시 봅니다 — 위의 나운영자는 «보여 주기» 용입니다.
+         실제로 올릴 때 쓰는 값은 그때 받은 uid 로 정합니다. */
+      const op = isOp(user.uid)
       const slot = push(ref(db, `qna_a/${qid}`))
       await set(slot, {
         b: b.trim().slice(0, 2000),
@@ -282,7 +332,7 @@ function AnswerForm({ qid, onDone }) {
         uid: user.uid,
         at: Date.now(),
       })
-      setB(''); setKey('')
+      setB('')
       onDone()
     } catch (e) {
       setMsg('올리지 못했습니다. 잠시 뒤 다시 해 주세요.')
@@ -295,11 +345,16 @@ function AnswerForm({ qid, onDone }) {
         placeholder="답글 — 아무 말이나"
         style={{ width: '100%', boxSizing: 'border-box', minHeight: 72 }} maxLength={2000} />
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-        <input className="inp" type="password" placeholder="운영자 열쇠(있으면)" value={key}
-          onChange={(e) => setKey(e.target.value)} maxLength={40} style={{ width: 160 }} />
         <button className="btn primary" onClick={submit} disabled={busy}>
           {busy ? '올리는 중…' : '답글 올리기'}
         </button>
+        {/* 🔑 운영자 브라우저일 때만 — 「이 답에는 표가 붙습니다」 를 미리 알려 줍니다.
+            ⚠️ 이용자에게는 아무것도 안 보입니다. 비번 칸이 있던 자리입니다. */}
+        {나운영자 && (
+          <span className="muted" style={{ fontSize: 12 }}>
+            이 답글에는 <b style={{ color: 'var(--accent, #1a56db)' }}>「K-건설맵 답변」</b> 표가 붙습니다
+          </span>
+        )}
         {msg && <span className="muted" style={{ fontSize: 12 }}>{msg}</span>}
       </div>
     </div>
@@ -357,6 +412,38 @@ function WriteForm({ onDone }) {
         </button>
         {msg && <span className="muted" style={{ fontSize: 12 }}>{msg}</span>}
       </div>
+    </div>
+  )
+}
+
+/* 🔑 이 브라우저 번호 — 「이 사랑방 쓰는 법」 맨 아래 한 줄. (2026-09-17)
+   별명이 왜 늘 같은지 설명해 주고, 소장님이 기기를 더하실 때 그 번호를 알려 줍니다.
+   ⚠️ 비밀이 아닙니다. 이 번호로는 누구도 그 사람이 될 수 없습니다. */
+function BrowserId() {
+  const [uid, setUid] = useState('')
+  const [베낌, set베낌] = useState(false)
+  useEffect(() => {
+    let 살아있음 = true
+    ;(async () => {
+      try {
+        const { ensureAnon } = await loadFb()
+        const u = await ensureAnon()
+        if (살아있음) setUid((u && u.uid) || '')
+      } catch { /* 못 물어보면 그냥 안 보입니다 */ }
+    })()
+    return () => { 살아있음 = false }
+  }, [])
+  if (!uid) return null
+  return (
+    <div className="muted" style={{ marginTop: 10, fontSize: 12, lineHeight: 1.7 }}>
+      이 브라우저 번호 · <code style={{ fontSize: 11.5 }}>{uid}</code>{' '}
+      <button className="lnk" onClick={() => {
+        try { navigator.clipboard.writeText(uid); set베낌(true); setTimeout(() => set베낌(false), 1500) }
+        catch { /* 안 되면 손으로 긁어 가시면 됩니다 */ }
+      }}>{베낌 ? '베꼈습니다' : '베끼기'}</button>
+      <br />
+      별명은 이 번호로 만듭니다 — 같은 브라우저면 늘 같은 별명입니다.
+      기록을 지우면 번호가 바뀌고 별명도 바뀝니다.
     </div>
   )
 }

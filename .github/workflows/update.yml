@@ -98,12 +98,13 @@ jobs:
       #   그래서 두 검사 모두 «자가시험»(일부러 틀린 것을 넣어 잡히는지)을 먼저 돌립니다.
       #   검사 자체가 깨지면 그 자리에서 알려 줍니다.
       # ══════════════════════════════════════════════════════════════
-      - name: 화면 검사 (import · 이름표↔숫자)
+      - name: 화면 검사 (import · 이름표↔숫자 · 운영자 목록)
         env:
           PYTHONUTF8: '1'
         run: |
           python tools/checkimports.py
           python tools/checklabels.py
+          python tools/checkops.py
 
       # 수집 기록(data/store)은 저장소에 넣지 않고 여기에 보관합니다.
       # 매일 쓰므로 사라지지 않지만, 혹시 사라지면 아래에서 스스로 복구합니다.

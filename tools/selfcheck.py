@@ -378,18 +378,21 @@ def check_labels():
     """
     import subprocess
     print("\n" + "=" * 64)
-    print("  이름표 ↔ 숫자 대조 — 「추정가격」 이라 적고 다른 금액을 찍는가")
+    print("  이름표↔숫자 · 운영자 목록 — 두 곳이 어긋나지 않았는가")
     print("=" * 64)
-    try:
-        r = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "checklabels.py")],
-                           capture_output=True, text=True, encoding="utf-8", timeout=60)
-    except Exception as e:
-        print(f"(건너뜀 — 돌리지 못했습니다: {type(e).__name__}: {e})")
-        return []
-    꼬리 = [l for l in (r.stdout or "").split("\n") if l.strip()][-8:]
-    for l in 꼬리:
-        print("  " + l)
-    return [] if r.returncode == 0 else ["이름표↔숫자: checklabels.py 가 잘못을 찾았습니다"]
+    나쁨 = []
+    for 이름, 파일 in (("이름표↔숫자", "checklabels.py"), ("운영자 목록", "checkops.py")):
+        try:
+            r = subprocess.run([sys.executable, os.path.join(ROOT, "tools", 파일)],
+                               capture_output=True, text=True, encoding="utf-8", timeout=60)
+        except Exception as e:
+            print(f"({이름} 건너뜀 — 돌리지 못했습니다: {type(e).__name__}: {e})")
+            continue
+        for l in [l for l in (r.stdout or "").split("\n") if l.strip()][-4:]:
+            print("  " + l)
+        if r.returncode != 0:
+            나쁨.append(f"{이름}: {파일} 가 잘못을 찾았습니다")
+    return 나쁨
 
 
 def check_boardidx():
