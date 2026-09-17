@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 /* ⚠️ firebase 는 «정적으로» 끌어오지 않습니다. 이 화면을 열 때만 받습니다. (Jobs.jsx 와 같은 방식) */
 let _fb = null
 const loadFb = async () => {
@@ -88,6 +89,11 @@ export default function Qna() {
   const [open, setOpen] = useState(null)    // 펼친 질문 id
   const [write, setWrite] = useState(false)
   const [mine, setMine] = useState(loadMine)
+  /* 🛠 2026-09-17 — 소장님: 「관리자 페이지 어디에 있지?」
+     주소는 /admin 인데 **어디에도 길이 없었습니다.** 외워서 치셔야 했습니다.
+     → 운영자 브라우저일 때만 여기에 단추를 답니다. 사랑방이 «답글 달러 오는 자리» 라 제자리입니다.
+     ⚠️ 이용자에게는 아무것도 안 보입니다. */
+  const [나운영자, set나운영자] = useState(false)
   const [onlyMine, setOnlyMine] = useState(false)
   const [q, setQ] = useState('')
 
@@ -109,6 +115,17 @@ export default function Qna() {
     }
   }
   useEffect(() => { load() }, [])
+  useEffect(() => {
+    let 살아있음 = true
+    ;(async () => {
+      try {
+        const { ensureAnon } = await loadFb()
+        const u = await ensureAnon()
+        if (살아있음) set나운영자(isOp(u && u.uid))
+      } catch { /* 못 물어봐도 그냥 안 보입니다 */ }
+    })()
+    return () => { 살아있음 = false }
+  }, [])
 
   const list = useMemo(() => {
     if (!rows) return null
@@ -151,6 +168,7 @@ export default function Qna() {
             내가 쓴 글 {mine.length}
           </button>
         )}
+        {나운영자 && <Link className="btn line" to="/admin">🛠 관리자</Link>}
       </div>
 
       {write && (
@@ -171,12 +189,6 @@ export default function Qna() {
           K-건설맵이 단 답에는 <b>「K-건설맵 답변」</b> 표가 붙습니다.
           표가 없는 답글은 이용자 의견이니 <b>중요한 건은 발주처에 확인하십시오.</b>{' '}
           광고·홍보 글은 예고 없이 지웁니다.
-          {/* 🔑 2026-09-17 — 「이 브라우저 번호」. 소장님이 다른 기기에서도 「K-건설맵 답변」 으로
-              답하시려면 그 기기의 번호가 필요합니다. 비번이 없으니 이 번호가 그 자리를 대신합니다.
-              ⚠️ 비밀이 아닙니다 — 이 번호를 안다고 그 사람이 될 수 없습니다(익명 로그인은
-                 «원하는 uid 로» 로그인할 수 없습니다). 그래서 그냥 보여 줘도 됩니다.
-              ⚠️ 이용자에게도 보입니다. 별명이 왜 늘 같은지 설명해 주는 구실도 합니다. */}
-          <BrowserId />
         </div>
       </details>
 
@@ -412,34 +424,13 @@ function WriteForm({ onDone }) {
   )
 }
 
-/* 🔑 이 브라우저 번호 — 「이 사랑방 쓰는 법」 맨 아래 한 줄. (2026-09-17)
-   별명이 왜 늘 같은지 설명해 주고, 소장님이 기기를 더하실 때 그 번호를 알려 줍니다.
-   ⚠️ 비밀이 아닙니다. 이 번호로는 누구도 그 사람이 될 수 없습니다. */
-function BrowserId() {
-  const [uid, setUid] = useState('')
-  const [베낌, set베낌] = useState(false)
-  useEffect(() => {
-    let 살아있음 = true
-    ;(async () => {
-      try {
-        const { ensureAnon } = await loadFb()
-        const u = await ensureAnon()
-        if (살아있음) setUid((u && u.uid) || '')
-      } catch { /* 못 물어보면 그냥 안 보입니다 */ }
-    })()
-    return () => { 살아있음 = false }
-  }, [])
-  if (!uid) return null
-  return (
-    <div className="muted" style={{ marginTop: 10, fontSize: 12, lineHeight: 1.7 }}>
-      이 브라우저 번호 · <code style={{ fontSize: 11.5 }}>{uid}</code>{' '}
-      <button className="lnk" onClick={() => {
-        try { navigator.clipboard.writeText(uid); set베낌(true); setTimeout(() => set베낌(false), 1500) }
-        catch { /* 안 되면 손으로 긁어 가시면 됩니다 */ }
-      }}>{베낌 ? '베꼈습니다' : '베끼기'}</button>
-      <br />
-      별명은 이 번호로 만듭니다 — 같은 브라우저면 늘 같은 별명입니다.
-      기록을 지우면 번호가 바뀌고 별명도 바뀝니다.
-    </div>
-  )
-}
+/* ⚠️ 2026-09-17 — 여기에 «이 브라우저 번호» 를 한 줄 달았다가 **뺐습니다.**
+   소장님: 「이게 왜 있는 거지?」 — 맞는 말씀이었습니다.
+   그 번호가 필요한 사람은 **소장님 한 분** 입니다(다른 기기를 운영자로 등록할 때).
+   그건 «운영자 사정» 이지, 사랑방에 들르는 분들이 알 바가 아닙니다.
+   하루 종일 사랑방에서 «부담되는 말» 을 걷어내 놓고 정작 제가 기계 번호를 끼워 넣었습니다.
+
+   ⚠️ 그리고 **이미 있을 자리에 있습니다** — 운영자가 아닌 브라우저로 /admin 을 열면
+      「이 브라우저 번호 · …」 가 그대로 나옵니다(Admin.jsx).
+      폰으로 k-conmap.com/admin 한 번 열면 끝입니다. 두 곳에 둘 이유가 없었습니다.
+   📌 «나한테 필요한 것» 을 «모두가 보는 자리» 에 두지 않습니다. */

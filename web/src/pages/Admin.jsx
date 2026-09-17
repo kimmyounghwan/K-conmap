@@ -50,6 +50,7 @@ const 얼마전 = (ms) => {
 
 export default function Admin() {
   const [uid, setUid] = useState(undefined)      // undefined=아직 · ''=못 물어봄
+  const [베낌, set베낌] = useState(false)
   const [rows, setRows] = useState(null)
   const [ans, setAns] = useState({})
   const [del, setDel] = useState({})
@@ -101,11 +102,26 @@ export default function Admin() {
         <div className="card">
           <div className="sec-title" style={{ margin: 0 }}>🛠 관리자</div>
           <div className="muted" style={{ marginTop: 8, lineHeight: 1.8, fontSize: 13.5 }}>
-            이 화면은 운영자 브라우저에서만 열립니다.<br />
-            {uid
-              ? (<>이 브라우저 번호 · <code style={{ fontSize: 11.5 }}>{uid}</code></>)
-              : '브라우저 번호를 확인하지 못했습니다.'}
+            이 화면은 운영자 브라우저에서만 열립니다.
           </div>
+          {/* 🔑 2026-09-17 — «이 브라우저 번호» 는 **여기가 제자리입니다.**
+              사랑방 「쓰는 법」 에도 한 줄 달았다가 뺐습니다 — 그 번호가 필요한 사람은
+              소장님 한 분이고, 그건 운영자 사정입니다 (8절 40).
+              ⚠️ 폰에서 긴 번호를 손으로 긁는 건 고역이라 «베끼기» 를 답니다.
+              ⚠️ 비밀이 아닙니다 — 익명 로그인은 «원하는 uid 로» 할 수 없으니
+                 이 번호를 안다고 그 사람이 될 수 없습니다. */}
+          {uid ? (
+            <div className="note sm" style={{ marginTop: 10 }}>
+              새 기기를 운영자로 넣으시려면 <b>이 번호</b>를 알려 주십시오.<br />
+              <code style={{ fontSize: 11.5, wordBreak: 'break-all' }}>{uid}</code>{' '}
+              <button className="lnk" onClick={() => {
+                try { navigator.clipboard.writeText(uid); set베낌(true); setTimeout(() => set베낌(false), 1500) }
+                catch { /* 안 되면 손으로 긁어 가시면 됩니다 */ }
+              }}>{베낌 ? '베꼈습니다' : '베끼기'}</button>
+            </div>
+          ) : (
+            <div className="note sm" style={{ marginTop: 10 }}>브라우저 번호를 확인하지 못했습니다.</div>
+          )}
           <div className="btn-row" style={{ justifyContent: 'flex-start', marginTop: 12 }}>
             <Link className="btn line" to="/qna">💬 사랑방으로</Link>
           </div>
