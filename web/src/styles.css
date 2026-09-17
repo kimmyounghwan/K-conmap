@@ -274,6 +274,19 @@ a.brand-sub:hover { opacity: 1; }
 .card.tight { padding: 12px; }
 .card.flat { box-shadow: none; }
 
+/* 💬 2026-09-17 — «테두리만 색» (소장님: 「색 채우기는 제거하는게 낫지 않아.
+   테두리만 색을 넣고… 파란색으로 꽉차 있어서 뭔가 이상해」)
+   현장 이야기 게시판에서 먼저 씁니다. 꽉 찬 파랑은 «누르라고 미는» 느낌을 줍니다. */
+.card.outline {
+  background: var(--surface);
+  color: var(--text);
+  border: 1.5px solid var(--accent-line);
+  box-shadow: none;
+  text-align: center;
+}
+.card.outline .sec-title,
+.card.outline h1 { color: var(--accent); }
+
 .sec-title {
   font-size: 13px;
   font-weight: 700;
@@ -451,6 +464,13 @@ input[type=number] { font-variant-numeric: tabular-nums; }
   border: 1px solid var(--line);
 }
 .btn.sm { width: auto; padding: 7px 12px; font-size: 13px; border-radius: 9px; }
+/* 테두리만 있는 단추 — 꽉 찬 파랑 대신 (2026-09-17) */
+.btn.line {
+  background: var(--surface);
+  color: var(--accent);
+  border: 1.5px solid var(--accent);
+}
+.btn.line:hover { background: var(--accent-soft); }
 
 .btn-row { display: flex; gap: 8px; }
 

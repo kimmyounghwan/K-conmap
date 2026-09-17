@@ -125,11 +125,13 @@ export default function Qna() {
 
   return (
     <div className="wrap">
-      <div className="card hero">
+      {/* 2026-09-17 — 꽉 찬 파랑(.hero) 을 테두리만 있는 칸(.card.outline)으로 바꿉니다.
+          게시판은 «어서 눌러라» 가 아니라 «편히 들어오시라» 여야 합니다. */}
+      <div className="card outline">
         <h1 style={{ margin: 0, fontSize: 20 }}>💬 현장 이야기</h1>
-        <div style={{ marginTop: 6, lineHeight: 1.75, color: 'rgba(255,255,255,.92)', fontSize: 13.5 }}>
+        <div className="muted" style={{ marginTop: 6, lineHeight: 1.75, fontSize: 13.5 }}>
           궁금한 것 · 겪은 것 · 알려 주고 싶은 것 — 아무 말이나 쓰셔도 됩니다.
-          <b style={{ color: '#fff' }}> 가입도 이름도 없습니다.</b>
+          <b style={{ color: 'var(--text)' }}> 가입도 이름도 없습니다.</b>
         </div>
       </div>
 
@@ -139,7 +141,7 @@ export default function Qna() {
           규칙은 아래 «이 게시판 쓰는 법» 으로 접고, 정말 필요한 한 줄
           (전화번호 적지 마세요)만 글 쓰는 칸 옆에 둡니다. */}
       <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-        <button className="btn primary" onClick={() => setWrite((v) => !v)}>
+        <button className="btn line" onClick={() => setWrite((v) => !v)}>
           {write ? '닫기' : '✏️ 글쓰기'}
         </button>
         <input className="inp" placeholder="찾기 — 낱말" value={q} onChange={(e) => setQ(e.target.value)}
