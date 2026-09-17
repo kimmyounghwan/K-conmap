@@ -67,8 +67,8 @@
 (defun kcm:digit ( c ) (and (= 1 (strlen c)) (>= (ascii c) 48) (<= (ascii c) 57)))
 (defun kcm:say ( s ) (princ (strcat "\n" s)))
 (setq kcm*ver "2.5")
-(setq kcm*exp  20261014)   ; [배포때찍음] 이 판을 쓸 수 있는 마지막 날
-(setq kcm*warn 20261007)   ; [배포때찍음] 이 날부터 미리 알려 줍니다
+(setq kcm*exp  20261017)   ; [배포때찍음] 이 판을 쓸 수 있는 마지막 날
+(setq kcm*warn 20261010)   ; [배포때찍음] 이 날부터 미리 알려 줍니다
 ;; 위 두 줄은 사이트에 올릴 때 「받는 날 + 30일」 로 자동으로 다시 찍힙니다.
 ;; 직접 받으신 판은 늘 30일이 남아 있습니다. k-conmap.com/cad 에서 받으십시오.
 
