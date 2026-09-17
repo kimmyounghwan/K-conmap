@@ -31,40 +31,24 @@ const loadFb = async () => {
 
 const MAIL = 'kimmyounghwan259@gmail.com'
 
-/* 제목·본문을 미리 채워 둡니다 — 빈 메일창을 보면 대부분 그냥 닫습니다. */
-function mailto(kind) {
-  const subject = `[내역서 작성 문의] ${kind}`
-  const body = [
-    '아래를 적어 보내 주시면 하루 안에 견적과 납기를 알려 드리겠습니다.',
-    '',
-    '1. 공사명 :',
-    '2. 공고번호(있으면) :',
-    '3. 발주처 :',
-    '4. 공사금액(추정가격 또는 낙찰금액) :',
-    '5. 필요한 것 : (견적서 / 입찰 산출내역서 / 공내역서 단가 넣기 / 착공 산출내역서 /',
-    '              실행내역 / 하도급 내역 / 설계변경 내역 / 기성 내역 / 물가변동 / 그 밖)',
-    '6. 언제까지 :',
-    '7. 연락처 :',
-    '',
-    '※ 물량내역서·수량산출서·설계서가 있으시면 함께 붙여 주십시오.',
-    '   물량이 있으면 훨씬 빠르고 값도 내려갑니다.',
-    '',
-  ].join('\n')
-  return `mailto:${MAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-}
+/* 🚨 2026-09-17 — 여기 메일창을 여는 단추가 둘 있었습니다.
+ *   소장님: 「문의 하기에서 메일 보내기… 근데 윈도우가 뜨던데」
+ *           「이용자가 클릭하면 **바로 내 메일로 바로 보낼 수 있게** 해줘」
+ *
+ *   그 단추는 «우리가 메일을 보내는 것» 이 아니었습니다. 누르는 분 컴퓨터에 깔린
+ *   메일 프로그램(윈도우 메일·아웃룩)을 여는 것이었습니다. 그래서
+ *     · 안 깔려 있으면 → 낯선 창이 뜨거나 아무 일도 안 일어납니다
+ *     · 웹메일(네이버·다음·지메일)만 쓰는 분은 → 여기서 끝입니다. 그냥 나갑니다
+ *   → 이제 그 단추는 없습니다. **아래 문의함이 곧 메일입니다.**
+ *     쓰신 글은 문의함(quotes)에 들어가고, 10분마다 도는 알림이
+ *     소장님 메일로 그대로 밀어 드립니다 (tools/quote_mail.py).
+ *   ⚠️ 메일 주소는 «글자로» 남겨 둡니다. 메일이 편한 분은 베껴 쓰시면 됩니다.
+ *      다만 눌러서 창이 뜨게는 하지 않습니다. */
 
 function ask(where) {
   try {
     if (window.gtag) window.gtag('event', 'naeyeok_ask', { where })
   } catch (e) { /* 광고차단기 — 세는 것 때문에 문의가 막히면 안 됩니다 */ }
-}
-
-function Ask({ kind, where, children, primary }) {
-  return (
-    <a className={'btn' + (primary ? ' primary' : '')}
-       style={{ textDecoration: 'none' }}
-       href={mailto(kind)} onClick={() => ask(where)}>{children}</a>
-  )
 }
 
 
@@ -202,7 +186,6 @@ function QuoteForm() {
           <button className="btn primary" type="submit" disabled={state === 'send'}>
             {state === 'send' ? '보내는 중…' : '문의 보내기'}
           </button>
-          <Ask kind="산출내역서" where="form-mail">메일로 보내기</Ask>
         </div>
         {state && state !== 'send' && (
           <div className="note" style={{ marginTop: 10 }}>{state}</div>
@@ -249,12 +232,13 @@ export default function Naeyeok() {
         </div>
         {/* 나머지 둘은 단추가 아니라 «가는 고리»로. 셋 다 파란 단추면 무엇을 누를지 모릅니다. */}
         <div className="navrow" style={{ marginTop: 8 }}>
-          <a className="navi" href={mailto('산출내역서')} onClick={() => ask('hero-mail')}>✉️ 메일로 문의</a>
+          <a className="navi" href="#ask" onClick={() => ask('hero-mail')}>✉️ 문의 남기기 ↓</a>
           <a className="navi" href="#what">무엇을 드리나 ↓</a>
           <a className="navi" href="#how">어떻게 되나 ↓</a>
         </div>
         <div className="muted" style={{ fontSize: 12.5, marginTop: 10 }}>
           회원가입도, 로그인도 없습니다. <b>남에게 보이지 않는 문의함</b>입니다.
+          <b>적어서 보내시면 그대로 제 메일로 옵니다</b> — 메일 프로그램이 뜨지 않습니다.
           메일이 편하시면 <b>{MAIL}</b> 으로 보내셔도 됩니다.
         </div>
       </div>
