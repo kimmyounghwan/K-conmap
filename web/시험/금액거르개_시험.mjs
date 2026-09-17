@@ -20,10 +20,15 @@ const 자르기 = (a, b) => {
   return src.slice(i, j)
 }
 const 토막 = 자르기('const AMT_KEY =', 'export default function')
+/* estOf 는 세 화면이 같이 쓰므로 lib/fmt.js 에 있습니다 (8절 36) */
+const fmt = fs.readFileSync(path.join(here, '..', 'src', 'lib', 'fmt.js'), 'utf8').replace(/\r\n/g, '\n')
+const i2 = fmt.indexOf('export const estOf =')
+if (i2 < 0) { console.log('✕ lib/fmt.js 에서 estOf 를 못 찾았습니다'); process.exit(1) }
+const 토막2 = fmt.slice(i2, fmt.indexOf('\n}', i2) + 2)
 
 const store = {}
 globalThis.localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v) }, removeItem: (k) => { delete store[k] } }
-const m = new Function(토막.replace(/export const/g, 'const')
+const m = new Function((토막2 + '\n' + 토막).replace(/export const/g, 'const')
   + '\n return { AMT_CHIPS, estOf, amtHit, amtLabel, loadAmt, saveAmt };')()
 const { AMT_CHIPS, estOf, amtHit, amtLabel, loadAmt, saveAmt } = m
 

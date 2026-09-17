@@ -19,7 +19,7 @@ import { loadBasket, toggleBasket, clearBasket, BASKET_MAX } from '../lib/basket
 import FreshBar from '../Fresh.jsx'
 import { winGrade } from '../lib/winodds.js'
 import { noteLive } from '../lib/mentor.js'
-import { won, wonShort, num, dateTime, dday, REGIONS, inRegion } from '../lib/fmt.js'
+import { won, wonShort, num, dateTime, dday, REGIONS, inRegion, estOf } from '../lib/fmt.js'
 import { loadLicCodes, saveLicCodes, loadLicNone, saveLicNone,
          licList, licNoneCount, licHit, licShort, loadRegion, saveRegion } from '../lib/lic.js'
 
@@ -73,16 +73,6 @@ const saveAmt = (v) => {
     if (v && (v.lo != null || v.hi != null)) localStorage.setItem(AMT_KEY, JSON.stringify(v))
     else localStorage.removeItem(AMT_KEY)
   } catch { /* 사생활 모드 */ }
-}
-/* 「이 공고의 추정가격」 — 한 곳에서만 정합니다.
-   ⚠️ 0 은 «0원» 이 아니라 «모름» 입니다. 부르는 쪽이 반드시 갈라서 다뤄야 합니다.
-   ⚠️ 배정예산(budget)은 **쓰지 않습니다.** 총사업비라 추정가격보다 큽니다
-      (실측 예: 기초 397,111,000 인데 예산 485,852,000 — 1.2억 차). */
-export const estOf = (r) => {
-  const e = Number(r && r.est) || 0
-  if (e > 0) return e
-  const b = Number(r && r.base) || 0
-  return b > 0 ? Math.round(b / 1.1) : 0
 }
 /* 걸러도 되나 — 셋 다 답이 다릅니다: 통과 / 걸러짐 / **모름** */
 const amtHit = (est, a) => {
@@ -640,8 +630,12 @@ export default function LiveBoard() {
                         <b className="hi">{r.base > 0 ? won(r.base) : '아직 공개 안 됨'}</b>
                       </div>
                       <div>
-                        <span>추정가격</span>
-                        <b>{won(r.est || r.budget)}</b>
+                        {/* 🚨 2026-09-17 — 「r.est || r.budget」 이었습니다. est 가 없으면
+                            배정예산으로 떨어지는데 이름표는 그대로 「추정가격」 이었습니다
+                            (실측 3,605건 · 22.1%). 이제 estOf 가 기초금액에서 메우고,
+                            그래도 모르면 이름표를 바꿉니다. */}
+                        <span>{estOf(r) > 0 ? '추정가격' : '배정예산'}</span>
+                        <b>{won(estOf(r) || r.budget)}</b>
                       </div>
                       <div>
                         <span>예가범위</span>

@@ -4,7 +4,7 @@ import { getBidIndex, indexRows, getResults, getOverview } from '../lib/data.js'
 import NoticeDetail from '../NoticeDetail.jsx'
 import { ShareBtn } from './CorpPage.jsx'
 import { Skeleton, Empty } from '../components.jsx'
-import { pct, won, wonShort, dateFull } from '../lib/fmt.js'
+import { pct, won, wonShort, dateFull, estOf } from '../lib/fmt.js'
 /* ⚠️ 2026-09-17 — 공고·1순위 카드 아래 «댓글» 칸을 뗐습니다.
    소장님: 「**공고나 1순위에 있는 댓글쓰기도 제거하자.**」
    왜: 글이 공고 수만큼 흩어졌습니다. 공고 하나에 한 줄씩 달리면
@@ -188,7 +188,10 @@ function OpenNotice({ r }) {
       )}
       <div className="kv">
         <div><span>기초금액</span><b className="hi">{r.base > 0 ? won(r.base) : '아직 공개 안 됨'}</b></div>
-        <div><span>추정가격</span><b>{won(r.est || r.budget)}</b></div>
+        {/* 🚨 2026-09-17 — 여기도 「r.est || r.budget」 이었습니다.
+            est 가 없으면 배정예산(총사업비)이 「추정가격」 이라는 이름으로 나갔습니다.
+            estOf 가 기초금액에서 메우고, 그래도 모르면 이름표를 바꿉니다. */}
+        <div><span>{estOf(r) > 0 ? '추정가격' : '배정예산'}</span><b>{won(estOf(r) || r.budget)}</b></div>
         {r.aval > 0 && <div><span>A값</span><b>{won(r.aval)}</b></div>}
         {r.llr > 0 && <div><span>낙찰하한율</span><b>{pct(r.llr, 3)}</b></div>}
         {r.lo != null && r.hi != null && <div><span>예가범위</span><b>{r.lo}% ~ {r.hi}%</b></div>}
