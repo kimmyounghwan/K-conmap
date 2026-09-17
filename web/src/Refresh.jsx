@@ -30,28 +30,30 @@ import { RELOAD_KEY } from './lib/data.js'
 export default function RefreshBtn() {
   const [도는중, set도는중] = useState(false)
 
-  const 누르면 = async () => {
+  const 누르면 = () => {
     if (도는중) return
     set도는중(true)
     try { sessionStorage.setItem(RELOAD_KEY, Date.now().toString(36)) } catch { /* 사생활 모드 */ }
     try { if (window.gtag) window.gtag('event', 'refresh_click') } catch { /* 광고차단기 */ }
-    /* 옛 서비스워커가 담아 둔 것이 있으면 비웁니다 (없으면 그냥 지나갑니다).
-       ⚠️ 여기서 «기다리기만» 하면 안 됩니다. caches / serviceWorker 는 워커가 자고 있으면
-          답을 영영 안 주는 일이 있습니다(sw.js v1 사고가 정확히 그것이었습니다).
-          그러면 단추가 도는 그림만 돌고 화면은 영원히 안 열립니다.
-       → 1.5초까지만 기다리고, 그 뒤에는 비우든 말든 **무조건** 다시 엽니다. */
-    const 비우기 = (async () => {
+    /* 🐛 2026-09-17, 진짜 사이트에서 잡은 것 — **아무것도 기다리지 않습니다.**
+       처음에는 캐시를 비우고 «1.5초까지만 기다렸다가» 열게 했습니다.
+       그런데 k-conmap.com 에서 재 보니 `caches.keys()` 가 **영영 안 끝나고**,
+       믿고 있던 그 1.5초 `setTimeout` 마저 **안 울렸습니다.**
+       화면이 안 보이는 상태(document.visibilityState === 'hidden')였기 때문입니다 —
+       크롬은 숨은 탭의 타이머를 재웁니다. 단추는 「받는 중」에서 멈춰 있었습니다.
+       ⚠️ 「기다리다 안 되면 시간초과로 빠져나온다」 는 **시간초과 자체가 타이머** 라서
+          타이머가 자는 곳에서는 아무 구실도 못 합니다. 이게 이번에 배운 것입니다.
+       → 다시 열기를 **맨 앞**에 둡니다. 비우기는 보내만 놓고 기다리지 않습니다.
+          어차피 sw.js 는 아무것도 담지 않고(파일 머리말 참조), 진짜 캐시는
+          브라우저의 HTTP 캐시인데 그건 위의 «도장» 이 비켜 갑니다. */
+    try {
       if (window.caches) {
-        const ks = await caches.keys()
-        await Promise.all(ks.map((k) => caches.delete(k)))
+        caches.keys().then((ks) => ks.forEach((k) => caches.delete(k))).catch(() => {})
       }
       if (navigator.serviceWorker) {
-        const rs = await navigator.serviceWorker.getRegistrations()
-        await Promise.all(rs.map((r) => r.update()))
+        navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.update())).catch(() => {})
       }
-    })().catch(() => { /* 안 되면 그냥 다시 엽니다 */ })
-    const 시간초과 = new Promise((done) => setTimeout(done, 1500))
-    await Promise.race([비우기, 시간초과])
+    } catch { /* 안 되면 그냥 다시 엽니다 */ }
     window.location.reload()
   }
 
