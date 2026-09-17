@@ -20,45 +20,17 @@
  *
  * ■ 파일은 브라우저 안에서만 다룹니다. 도면도 내역서도 올라가지 않습니다.
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { isOpen, tryOpen, close } from '../lib/gate.js'
+import Locked from '../Locked.jsx'
 
 function kb(n) { return new Intl.NumberFormat('ko-KR').format(Math.round(n / 1024)) }
 function won(n) { return new Intl.NumberFormat('ko-KR').format(Math.round(n)) }
 
+/* 🔒 2026-09-17 — 잠금 화면을 ../Locked.jsx 한 곳으로 모았습니다.
+   여기와 JeoksanRun 에 따로 두었더니 한쪽(run)만 안 잠긴 채로 올라갔습니다. */
 export default function JeoksanLab() {
-  const [open, setOpen] = useState(false)
-  const [word, setWord] = useState('')
-  const [bad, setBad] = useState(false)
-  useEffect(() => { setOpen(isOpen()) }, [])
-
-  if (!open) {
-    return (
-      <div className="card" style={{ maxWidth: 460, margin: '40px auto' }}>
-        <div className="sec-title">🔒 잠겨 있습니다</div>
-        <p className="muted" style={{ marginTop: 0 }}>
-          아직 시험 중인 화면입니다. 열쇠말이 있어야 들어옵니다.
-        </p>
-        <form onSubmit={async (e) => {
-          e.preventDefault()
-          const ok = await tryOpen(word)
-          setBad(!ok); setOpen(ok)
-        }}>
-          <input type="password" value={word} autoFocus
-            onChange={(e) => { setWord(e.target.value); setBad(false) }}
-            placeholder="열쇠말"
-            style={{ width: '100%', padding: '10px 12px', fontSize: 15, marginBottom: 10 }} />
-          <button className="btn primary" type="submit" style={{ width: '100%' }}>열기</button>
-        </form>
-        {bad && <div className="cwarn" style={{ marginTop: 10 }}>열쇠말이 다릅니다.</div>}
-        <div className="muted" style={{ fontSize: 12, marginTop: 12 }}>
-          <Link to="/jeoksan">← K-적산으로</Link>
-        </div>
-      </div>
-    )
-  }
-  return <Lab onLock={() => { close(); setOpen(false) }} />
+  return <Locked>{(onLock) => <Lab onLock={onLock} />}</Locked>
 }
 
 function Lab({ onLock }) {
@@ -330,7 +302,7 @@ function Lab({ onLock }) {
         </ul>
         <div className="btn-row" style={{ marginTop: 10 }}>
           <Link className="btn ghost" to="/jeoksan">🧮 K-적산</Link>
-          <Link className="btn ghost" to="/jeoksan/run">🧮 수량산출서 만들기(열린 화면)</Link>
+          <Link className="btn ghost" to="/jeoksan/run">🧮 수량산출서 만들기</Link>
         </div>
       </div>
     </>

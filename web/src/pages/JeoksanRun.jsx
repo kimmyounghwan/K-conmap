@@ -20,10 +20,18 @@
 import { useCallback, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { askAfter } from '../AskComment'
+import Locked from '../Locked.jsx'
 
 function kb(n) { return new Intl.NumberFormat('ko-KR').format(Math.round(n / 1024)) }
 
+/* 🔒 2026-09-17 — 소장님: 「이용자 들이 사용하게 하면 안돼」
+   실험실(/jeoksan/lab)만 잠가 두고 이 화면은 열어 두었던 것이 제 잘못입니다.
+   같은 열쇠말로 잠급니다. 사이트맵·굽기에서도 뺐습니다. */
 export default function JeoksanRun() {
+  return <Locked>{() => <Run />}</Locked>
+}
+
+function Run() {
   const [lib, setLib] = useState(null)      /* 무겁습니다 — 파일을 올릴 때 받아옵니다 */
   const [book, setBook] = useState(null)    /* {name, size, buf} 재료표 */
   const [unit, setUnit] = useState(null)    /* {name, size, text} 치수표 */

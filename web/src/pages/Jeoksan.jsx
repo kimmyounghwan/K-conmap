@@ -33,19 +33,20 @@ export default function Jeoksan() {
       </div>
 
       {/* ── 사이트에서 바로 ── */}
+      {/* 🔒 2026-09-17 — 소장님: 「이용자 들이 사용하게 하면 안돼」
+          쓰는 화면(/jeoksan/run)은 잠갔습니다. 여기서도 링크하지 않습니다. */}
       <div className="card">
-        <div className="sec-title">지금 바로 해 보실 수 있습니다 — 사이트에서</div>
+        <div className="sec-title">아직 열지 않았습니다</div>
         <p style={{ marginTop: 0 }}>
-          도면에서 찍는 것은 캐드와 PC 가 해야 하지만,{' '}
-          <b>「잰 치수 → 수량산출서 엑셀」 은 이 사이트에서 바로 됩니다.</b>{' '}
-          깔 것도, 가입도 없습니다.
+          <b>「잰 치수 → 수량산출서 엑셀」 은 이미 돌아갑니다.</b>{' '}
+          다만 아직 <b>시험 중</b>이라 열지 않았습니다 — 수량은 한 번 틀리면
+          그대로 돈이 되는 자리라, 제 손으로 충분히 돌려 본 뒤에 엽니다.
         </p>
         <p className="muted">
-          <b>재료표</b>와 <b>치수표</b> 두 장을 올리시면 산출서·집계·태그별·검산·쓴표{' '}
-          다섯 장짜리 엑셀이 나옵니다. 견본도 같이 두었으니 <b>빈손으로 오셔도</b> 됩니다.{' '}
-          파일은 <b>브라우저 안에서만</b> 다룹니다 — 올라가는 것이 없습니다.
+          열리면 <b>재료표</b>와 <b>치수표</b> 두 장을 올리시면 산출서·집계·태그별·검산·쓴표{' '}
+          다섯 장짜리 엑셀이 나옵니다. 파일은 <b>브라우저 안에서만</b> 다룹니다 —
+          올라가는 것이 없습니다.
         </p>
-        <Link className="btn primary" to="/jeoksan/run">🧮 수량산출서 만들러 가기</Link>
       </div>
 
       {/* ── 네 걸음 ── */}
@@ -210,8 +211,7 @@ export default function Jeoksan() {
           적산이 열릴 때까지, 지금 바로 쓰실 수 있는 것들입니다. <b>전부 무료입니다.</b>
         </p>
         <div className="btn-row">
-          <Link className="btn primary" to="/jeoksan/run">🧮 수량산출서 만들기</Link>
-          <Link className="btn ghost" to="/cad">📐 캐드 유틸 — 길이·면적·개수 재기</Link>
+          <Link className="btn primary" to="/cad">📐 캐드 유틸 — 길이·면적·개수 재기</Link>
           <Link className="btn ghost" to="/change/twoline">🔁 설계변경 2줄 변환</Link>
           <Link className="btn ghost" to="/tools">🧰 건설 도구</Link>
         </div>
