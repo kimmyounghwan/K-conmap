@@ -16,7 +16,7 @@
  * ■ 큰 자리(탭에 있는 주소)에서는 «아무것도 그리지 않습니다».
  *    탭에 이미 불이 들어와 있어서, 거기까지 길을 그리면 군더더기가 됩니다.
  */
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 /* 주소 -> 이름.  안쪽 화면은 :값 이 붙으므로 «앞자리» 로만 찾습니다. */
 const NAME = {
@@ -42,6 +42,8 @@ const NAME = {
   '/how': '보는 방법',
   '/agency': '발주기관',
   '/corp': '업체',
+  '/pdf': 'PDF 도구',
+  '/admin': '관리자',
   '/notice': '공고',
 }
 
@@ -53,15 +55,17 @@ const LEAF = {
   '/change/twoline': '2줄 자동변환',
   '/jeoksan/run': '수량산출서 만들기',
   '/jeoksan/lab': '적산 실험실',
+  '/report/make': '성적표 만들기',
 }
 
 /* 탭(또는 큰 자리)에 이미 있는 주소 — 길을 안 그립니다. */
 const TOP = new Set(['/', '/calc', '/first', '/live', '/analysis', '/jobs', '/forms',
   '/change', '/naeyeok', '/jeoksan', '/qna', '/how', '/guide', '/tools', '/cad',
-  '/daily', '/safety', '/shareone', '/report', '/lic'])
+  '/daily', '/safety', '/shareone', '/report', '/lic', '/pdf', '/admin'])
 
 export default function Crumbs() {
   const { pathname, state } = useLocation()
+  const navigate = useNavigate()
   const path = pathname.replace(/\/+$/, '') || '/'
 
   /* 🔖 2026-09-18 — 소장님: 「우리회사 것 신청하기 하면 사랑방으로 가는데,
@@ -84,14 +88,38 @@ export default function Crumbs() {
     )
   }
 
-  if (TOP.has(path)) return null
+  /* 🔖 2026-09-18 — 소장님: 「건설맵 사이트 전수조사 해서 뒤로가기 버튼 달아줘」
+
+     라우트 37개를 하나씩 대조했더니 «길이 아예 안 그려지는» 자리가 이렇게 있었습니다.
+       · 탭에 있는 큰 자리 20곳 — 다른 화면이 보내 놓고도 돌아갈 길이 없었습니다
+       · /pdf · /admin — 이름표(NAME)에 없어서 길을 못 그렸습니다 (지금 넣었습니다)
+       · /report/make — 이름이 없어 「업체 입찰 성적표 › make」 로 나왔습니다 (넣었습니다)
+       · 없는 주소(NotFound) — 들어오면 나갈 길이 없었습니다
+
+     그래서 «부모로 가는 길» 을 못 그리는 자리에는 **브라우저 기록으로 한 걸음 뒤로**
+     갑니다. 리액트 라우터가 기록마다 `idx` 를 매겨 두므로, 0 보다 크면 **우리 사이트
+     안에서 걸어 들어온 것**입니다 — 그때만 그립니다.
+     ⚠️ 검색·주소창으로 바로 들어온 사람(idx 0)에게는 그리지 않습니다.
+        누르면 사이트 밖으로 나가 버립니다.
+     ⚠️ sessionStorage 를 쓰므로 새로고침해도 번호는 남습니다. */
+  const 걸어들어왔나 = () => {
+    try { const i = window.history.state && window.history.state.idx; return typeof i === 'number' && i > 0 }
+    catch { return false }
+  }
+  const 한걸음뒤로 = () => (걸어들어왔나() ? (
+    <nav className="crumbs" aria-label="길">
+      <button type="button" className="crumb-back" onClick={() => navigate(-1)}>← 뒤로</button>
+    </nav>
+  ) : null)
+
+  if (TOP.has(path)) return 한걸음뒤로()
 
   const seg = path.split('/').filter(Boolean)
-  if (!seg.length) return null
+  if (seg.length <= 1) return 한걸음뒤로()   /* 한 칸짜리 주소 — 올라갈 부모가 없습니다 */
 
   const root = '/' + seg[0]
   const rootName = NAME[root]
-  if (!rootName) return null                 /* 모르는 주소 — 섣불리 그리지 않습니다 */
+  if (!rootName) return 한걸음뒤로()         /* 모르는 주소 — 길은 못 그려도 나갈 문은 냅니다 */
 
   /* 지금 화면의 이름 */
   let here = LEAF[path]

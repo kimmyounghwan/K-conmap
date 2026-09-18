@@ -23,7 +23,7 @@
    ══════════════════════════════════════════════════════════════ */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { isOp } from '../lib/운영자.js'
+import { isOp, 나운영자 } from '../lib/운영자.js'
 import { getOverview, getBidIndex, indexRows } from '../lib/data.js'
 import { 성적표, 업체목록, 업체찾기, P50_FALLBACK } from '../lib/성적표.js'
 import { 그리기, PDF만들기, 내려받기 } from '../lib/성적표종이.js'
@@ -38,6 +38,9 @@ const loadFb = async () => {
 }
 
 const 날 = (s) => String(s || '').slice(0, 10)
+
+/* 브라우저가 적어 둔 번호로 먼저 통과시켰을 때 쓰는 표식입니다 */
+const OP_LOCAL = '«브라우저가 적어 둔 번호»'
 
 export default function ReportMake() {
   const [uid, setUid] = useState(undefined)        // undefined=아직 · ''=못 물어봄
@@ -63,12 +66,19 @@ export default function ReportMake() {
   }, [])
 
   useEffect(() => {
-    (async () => {
+    /* 🔖 2026-09-18 — 브라우저가 이미 적어 둔 번호를 먼저 봅니다.
+       전에는 무조건 파이어베이스에 다시 물어봤습니다 — 현장에서 인터넷이
+       느리거나 막히면 「여는 중…」에서 멈췄습니다. 성적표는 받아 둔 자료로
+       혼자 만드는 화면이라 인터넷이 없어도 돌아가야 맞습니다.
+       ⚠️ 자물쇠를 느슨하게 하는 것이 아닙니다 — 진짜 자물쇠는 **자료** 입니다.
+          이 화면은 소장님 컴퓨터의 first.json 이 없으면 한 글자도 못 만듭니다. */
+    if (나운영자()) setUid(OP_LOCAL)
+    ;(async () => {
       try {
         const { ensureAnon } = await loadFb()
         const u = await ensureAnon()
         setUid((u && u.uid) || '')
-      } catch { setUid('') }
+      } catch { setUid((p) => (p === OP_LOCAL ? p : '')) }
     })()
     /* 사정률 중앙값은 사이트가 매번 다시 재 둡니다 — 손으로 적은 숫자를 쓰지 않습니다 */
     getOverview().then((ov) => { const v = ov?.sjq?.p50; if (v) setP50(Number(v)) }).catch(() => {})
@@ -137,7 +147,7 @@ export default function ReportMake() {
   }
 
   if (uid === undefined) return <div className="card"><div className="muted">여는 중…</div></div>
-  if (!isOp(uid)) {
+  if (uid !== OP_LOCAL && !isOp(uid)) {
     return (
       <div className="card">
         <div className="sec-title" style={{ margin: 0 }}>📊 업체 성적표 만들기</div>
