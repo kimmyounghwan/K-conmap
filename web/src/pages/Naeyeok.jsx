@@ -14,6 +14,7 @@
  * ⚠️ 낙찰을 약속하지 않습니다. 약속하는 것은 **서류의 정확성**뿐입니다.
  */
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 /* 🦺 2026-09-16 — 「작성 대행」 탭이 내역서와 안전서류 둘을 같이 품습니다.
    내역서를 보러 온 사람이 곧 착공계도 내야 하는 사람입니다 — 그 자리에 띠를 붙입니다. */
 import { SafetyStrip } from './Safety.jsx'
@@ -246,6 +247,26 @@ export default function Naeyeok() {
         </div>
       </div>
 
+
+      {/* 📉 2026-09-18 — 소장님: 「내역서를 올리면 80%로 자동으로 맞춰지는 도구」
+          맡기실 것이 아니라 «직접 하실 것» 이라 여기 위쪽에 답니다.
+          대행을 보러 온 분이 «이건 내가 하면 되겠다» 하는 일이면 그렇게 하시는 게 맞습니다. */}
+      <div className="card" style={{ borderLeft: '5px solid #2e7d32' }}>
+        <div className="sec-title" style={{ marginTop: 0 }}>직접 하실 수 있는 것 — 무료</div>
+        <p style={{ margin: '0 0 10px', lineHeight: 1.85 }}>
+          <b>이미 있는 내역서를 «비율»로만 맞추는 일</b>이라면 맡기지 않으셔도 됩니다.
+          내역서를 올리고 <b>80%</b> 같은 비율이나 맞출 금액만 넣으시면
+          단가가 그 비율로 바뀐 <b>내역서</b>와 <b>원가계산서</b>가 바로 나옵니다 —
+          하도급 · 실행 · 낙찰률 셋 다 같은 셈입니다.
+        </p>
+        <div className="navrow">
+          <Link className="navi" to="/naeyeok/ratio">📉 내역서 비율 맞추기 — 열기</Link>
+          <Link className="navi" to="/change/twoline">🔁 설계변경 2줄 자동변환</Link>
+        </div>
+        <div className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>
+          파일은 브라우저 안에서만 다룹니다 — 저희 쪽으로 올라가지 않습니다.
+        </div>
+      </div>
 
       {/* ── 언제 내나 ─────────────────────────────────────────── */}
       <div className="card">

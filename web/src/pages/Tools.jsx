@@ -76,6 +76,28 @@ export default function ToolsIndex() {
         </Link>
       </div>
 
+      {/* 📉 2026-09-18 — 소장님: 「내역서를 올리면 80%로 자동으로 맞춰지는 도구」
+          하도급률·실행률·낙찰률이 «같은 셈» 이라 한 화면입니다. 파일은 안 올라갑니다. */}
+      <div className="card">
+        <div className="detail-h">📉 내역서 <span className="count">· 값 안 받음</span></div>
+        <Link className="row rowlink" to="/naeyeok/ratio">
+          <span className="fic">📉</span>
+          <div className="grow">
+            <div className="t">내역서 비율 맞추기 — 하도급 80% · 실행률 · 낙찰률</div>
+            <div className="d">내역서를 올리고 비율이나 맞출 금액만 넣으시면 단가가 그 비율로 바뀐 내역서와 원가계산서가 나옵니다. 올린 엑셀 서식 그대로도 드립니다.</div>
+          </div>
+          <span className="go">→</span>
+        </Link>
+        <Link className="row rowlink" to="/change/twoline">
+          <span className="fic">🔁</span>
+          <div className="grow">
+            <div className="t">설계변경 2줄 자동변환 — 당초 · 변경 · 증감</div>
+            <div className="d">내역서 한 줄을 당초·변경 두 줄로 벌리고 합계를 갈라 줍니다. 서식은 그대로 남습니다.</div>
+          </div>
+          <span className="go">→</span>
+        </Link>
+      </div>
+
       {/* 📄 2026-09-18 — PDF 도구. 사이트 안에서 그대로 하고, 파일은 안 올라갑니다. */}
       <div className="card">
         <div className="detail-h">📄 PDF <span className="count">· 17가지</span></div>

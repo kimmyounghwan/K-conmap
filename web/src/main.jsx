@@ -62,6 +62,9 @@ const ChangeTopic = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ d
 /* 📚 입찰 알아보기 — 실측으로 쓴 원본 글 (2026-09-06). 하단 탭은 안 늘리고 푸터·바로투찰에서 들어갑니다. */
 const Guide = lazyPage(() => import('./pages/Guide.jsx'))
 const Naeyeok = lazyPage(() => import('./pages/Naeyeok.jsx'))
+/* 📉 내역서 비율 맞추기 — 2026-09-18. 하도급률·실행률·낙찰률이 같은 셈입니다.
+   브라우저에서 엑셀을 읽고 쓰느라 무거워서 반드시 lazyPage 입니다. */
+const Ratio = lazyPage(() => import('./pages/Ratio.jsx'))
 const Qna = lazyPage(() => import('./pages/Qna.jsx'))
 /* 🛠 관리자 — 소장님만. 검색엔진에 안 올립니다(Admin.jsx 가 noindex 를 겁니다). */
 const Admin = lazyPage(() => import('./pages/Admin.jsx'))
@@ -163,6 +166,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           {/* 📖 보는 방법 — 처음 온 사람이 «어디로 가면 되는지» 아는 한 장 (2026-09-15) */}
           <Route path="/how" element={<Suspense fallback={<Loading />}><How /></Suspense>} />
           <Route path="/naeyeok" element={<Suspense fallback={<Loading />}><Naeyeok /></Suspense>} />
+          <Route path="/naeyeok/ratio" element={<Suspense fallback={<Loading />}><Ratio /></Suspense>} />
           <Route path="/guide" element={<Suspense fallback={<Loading />}><Guide /></Suspense>} />
           <Route path="/guide/:slug" element={<Suspense fallback={<Loading />}><GuideTopic /></Suspense>} />
           <Route path="/daily" element={<DailyIndex />} />

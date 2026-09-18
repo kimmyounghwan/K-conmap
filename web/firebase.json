@@ -35,6 +35,7 @@
       { "source": "/cad", "destination": "/index.html" },
     { "source": "/tools", "destination": "/index.html" },
     { "source": "/naeyeok", "destination": "/index.html" },
+    { "//": "📉 내역서 비율 맞추기 — 2026-09-18. 라우트를 새로 만들면 여기에도 넣어야 합니다", "source": "/naeyeok/**", "destination": "/index.html" },
     { "source": "/qna", "destination": "/index.html" },
       { "//": "🛠 관리자 — 소장님만. sitemap·robots 에는 안 넣습니다 (2026-09-17)", "source": "/admin", "destination": "/index.html" },
     { "source": "/how", "destination": "/index.html" },

@@ -42,7 +42,7 @@ function siText(xml) {
 function sharedStrings(zip) {
   const f = zip['xl/sharedStrings.xml']
   if (!f) return []
-  const xml = strFromU8(f)
+  const xml = 이름표떼기(strFromU8(f))
   const out = []
   const re = /<si>([\s\S]*?)<\/si>/g
   let m
@@ -54,11 +54,11 @@ function sharedStrings(zip) {
 function sheetMap(zip) {
   const wb = zip['xl/workbook.xml']
   if (!wb) throw new Error('엑셀 파일이 아닌 것 같습니다 (xl/workbook.xml 이 없습니다).')
-  const wbx = strFromU8(wb)
+  const wbx = 이름표떼기(strFromU8(wb))
   const rels = {}
   const rf = zip['xl/_rels/workbook.xml.rels']
   if (rf) {
-    const rx = strFromU8(rf)
+    const rx = 이름표떼기(strFromU8(rf))
     const re = /<Relationship\b[^>]*\/?>/g
     let m
     while ((m = re.exec(rx))) {
@@ -123,6 +123,12 @@ function gridOf(xml, sst) {
 }
 
 /** .xlsx 바이트 -> { 시트이름: 표 } */
+/* 🇰🇷 2026-09-18 — 한셀(한글과컴퓨터)이 만든 xlsx 는 태그에 «이름표» 를 붙입니다.
+   <x:workbook> <x:sheet> <x:row> <x:c> <x:v> … 그래서 우리 정규식이 하나도 안 걸려
+   «시트가 0개» 로 나왔습니다 (내역서 20여 개가 통째로 안 읽혔습니다).
+   여는 태그·닫는 태그의 이름표만 떼어 냅니다 — 속성(r:id)은 그대로 둡니다. */
+const 이름표떼기 = (x) => x.replace(/<(\/?)[A-Za-z_][\w.-]*:/g, '<$1')
+
 export function readWorkbook(bytes) {
   let zip
   try {
@@ -136,7 +142,7 @@ export function readWorkbook(bytes) {
   const out = {}
   for (const [nm, path] of sheetMap(zip)) {
     const f = zip[path]
-    out[String(nm).trim()] = f ? gridOf(strFromU8(f), sst) : []
+    out[String(nm).trim()] = f ? gridOf(이름표떼기(strFromU8(f)), sst) : []
   }
   return out
 }
