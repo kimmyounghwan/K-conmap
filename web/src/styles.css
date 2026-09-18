@@ -1107,6 +1107,15 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
 .mixbox .firm .no { font-variant-numeric: tabular-nums; color: var(--muted); flex: none; }
 .mixbox .firm .ceo { flex: 1; font-weight: 700; color: var(--text-2); font-size: 11.5px; }
 .mixbox .firm .cnt { color: var(--text-2); font-weight: 700; }
+/* 지금 보고 있는 법인 — 누를 수 없고, 한눈에 구별되게 */
+.mixbox .firm.on {
+  border-color: var(--accent); background: var(--accent-soft); cursor: default;
+}
+.mixbox .firm .now {
+  margin-left: 6px; font-style: normal; font-size: 10.5px; font-weight: 800;
+  color: #fff; background: var(--accent); padding: 1px 7px; border-radius: 999px;
+  vertical-align: 2px;
+}
 .suggest .sub2 { color: var(--muted); font-size: 11.5px; }
 .suggest .mix {
   margin-left: 6px; font-size: 10.5px; font-weight: 800;

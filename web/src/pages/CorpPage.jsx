@@ -111,7 +111,7 @@ export default function CorpPage() {
           </a>
         </div>
       )}
-      <CorpReport c={c} ov={ov} onPickFirm={법인고르기} />
+      <CorpReport c={c} ov={ov} onPickFirm={법인고르기} onAll={전체보기} base={decoded} />
       {/* 📊 성적표 — 자기 회사 숫자를 «막 본 직후» 가 가장 뜨거운 자리입니다 (2026-09-15).
           이 화면은 업체마다 미리 구워져 있어 검색으로 바로 들어옵니다. */}
       <ReportStrip name={decoded} />

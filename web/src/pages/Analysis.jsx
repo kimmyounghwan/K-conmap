@@ -153,49 +153,75 @@ function CorpTab() {
    ★ 2026-09-04 — 검색 상자와 갈라냈습니다.
    같은 내용을 «분석 탭»(검색해서 보기) 과 «/corp/{업체} 페이지»(주소로 바로 보기)
    두 곳이 씁니다. 두 벌로 적으면 언젠가 어긋납니다 — 여기 하나만 고칩니다. */
-export function CorpReport({ c, ov, onPickFirm }) {
+export function CorpReport({ c, ov, onPickFirm, onAll, base: base0 }) {
   const regions = c ? Object.entries(c.reg || {}) : []
-  /* 🚨 2026-09-18 — 법인 고르는 칸이 «사업자번호 앞자리 + 대표 이름» 뿐이었습니다.
-     소장님: 「업체가 다 나와야 하는데, 그래서 선택하게 해야 하는데」 ·
-             「전남 3을 클릭하면 바로 회사분석이 나와. 어느회사인지 모르잖아」
-     → 검색 색인을 한 번 더 읽어 **상호·지역**을 붙입니다. 같은 칸(첫 글자 묶음)이라
-        검색으로 들어오셨으면 이미 받아 둔 파일이고, 아니면 10KB 남짓 한 번입니다. */
-  const 모음 = !!c && c.bzn > 1 && !c.biz
+  /* 🚨 2026-09-18 — 소장님: 「클릭하면 업체 하나만 나와. 그리고 뒤로가기 하면 뒷 화면이 안나와」
+     법인 하나를 고르면 **나머지 세 곳으로 가는 길이 화면에서 사라졌습니다.** 돌아가려면
+     브라우저 «뒤로» 뿐인데 그것도 안 먹었습니다(기록을 안 남겼습니다 — CorpPage.jsx 에서 고침).
+     → 이제 **고른 뒤에도 같은 자리에 네 곳이 다 보입니다.** 지금 보는 회사에는 표를 달고,
+       나머지는 눌러서 바로 갈아탈 수 있게 합니다. «합계로 돌아가기» 도 같은 칸에 둡니다.
+     ⚠️ 줄마다 **상호·지역·대표**를 찍습니다. 사업자번호 앞자리와 대표 이름만으로는
+        어느 회사인지 알 수 없습니다 (8절 55). 상호·지역은 검색 색인에서 가져옵니다 —
+        같은 첫 글자 묶음이라 검색으로 들어오셨으면 이미 받아 둔 파일입니다. */
+  const base = base0 || (c ? normCorp(c.name) : '')
+  const 여럿일까 = !!c && (c.bzn > 1 || !!c.biz)
   const [법인들, set법인들] = useState(null)
   useEffect(() => {
-    if (!모음) { set법인들(null); return }
+    if (!여럿일까 || !base) { set법인들(null); return }
     let alive = true
-    const base = normCorp(c.name)
     searchCorp(base)
-      .then((r) => { if (alive) set법인들((r || []).filter((x) => x.biz && x.key === `${base}#${x.biz}`)) })
+      .then((r) => {
+        if (!alive) return
+        set법인들((r || []).filter((x) => x.biz && x.key === `${base}#${x.biz}`)
+          .sort((a, b) => b.n - a.n))
+      })
       .catch(() => { if (alive) set법인들([]) })
     return () => { alive = false }
-  }, [모음, c && c.name])
-  /* 색인에서 찾은 것과 업체 자료의 bz 목록을 맞춰 둡니다 — 둘 중 아는 쪽을 씁니다 */
-  const 고를것 = (c && c.bz ? c.bz : []).map(([bz, ceo, cnt]) => {
-    const hit = (법인들 || []).find((x) => x.biz === bz)
-    return { bz, ceo: ceo || (hit && hit.ceo) || '', cnt, nm: (hit && hit.nm) || '', reg: (hit && hit.reg) || '' }
-  })
-  const 고르는칸 = 모음 ? (
+  }, [여럿일까, base])
+
+  /* 업체 자료의 bz 목록(합계 화면에만 있습니다)과 색인을 맞춰 둡니다 — 아는 쪽을 씁니다 */
+  const bzMap = new Map((c && c.bz ? c.bz : []).map(([bz, ceo, cnt]) => [bz, { ceo, cnt }]))
+  const 줄들 = (법인들 && 법인들.length
+    ? 법인들.map((x) => ({ bz: x.biz, nm: x.nm || c.name, reg: x.reg,
+                          ceo: x.ceo || (bzMap.get(x.biz) || {}).ceo || '',
+                          cnt: (bzMap.get(x.biz) || {}).cnt ?? x.n }))
+    : [...bzMap.entries()].map(([bz, v]) => ({ bz, nm: c.name, reg: '', ceo: v.ceo, cnt: v.cnt })))
+  const 곳수 = Math.max(줄들.length, c ? (c.bzn || 0) : 0)
+  const 고른자리 = !!(c && c.biz)
+  const 고르는칸 = (여럿일까 && 줄들.length > 1) ? (
     <div className="mixbox">
-      <div className="h">⚠️ 이 이름으로 등록된 법인이 {num(c.bzn)}곳입니다 — 어느 회사인지 고르십시오</div>
-      <p>
-        아래 숫자는 <b>{num(c.bzn)}개 법인의 실적이 합쳐진 값</b>입니다. 내 회사만의 기록이 아닙니다.
-        조달청 자료가 업체를 이름으로만 주는 구간이 있어 아직 완전히 갈라내지 못했습니다 —
-        확인된 {num(c.bzk)}건의 내역은 아래와 같습니다.
-      </p>
-      <div className="firms">
-        {고를것.map((x) => (
-          <button key={x.bz} className="firm"
-            onClick={() => onPickFirm && onPickFirm(`${normCorp(c.name)}#${x.bz}`)}>
-            <span className="nm2">{x.nm || c.name}</span>
-            <span className="no">{x.bz.slice(0, 3)}-{x.bz.slice(3, 5)}-•••</span>
-            <span className="ceo">{x.reg ? `${x.reg} · ` : ''}{x.ceo || '대표 미상'}</span>
-            <span className="cnt">{num(x.cnt)}건</span>
-            <span className="go">이 법인만 보기 →</span>
-          </button>
-        ))}
+      <div className="h">
+        {고른자리
+          ? `이 이름으로 등록된 법인이 ${num(곳수)}곳입니다 — 다른 회사로 바꿔 보십시오`
+          : `⚠️ 이 이름으로 등록된 법인이 ${num(곳수)}곳입니다 — 어느 회사인지 고르십시오`}
       </div>
+      {!고른자리 && (
+        <p>
+          아래 숫자는 <b>{num(c.bzn)}개 법인의 실적이 합쳐진 값</b>입니다. 내 회사만의 기록이 아닙니다.
+          조달청 자료가 업체를 이름으로만 주는 구간이 있어 아직 완전히 갈라내지 못했습니다 —
+          확인된 {num(c.bzk)}건의 내역은 아래와 같습니다.
+        </p>
+      )}
+      <div className="firms">
+        {줄들.map((x) => {
+          const 지금 = 고른자리 && x.bz === c.biz
+          return (
+            <button key={x.bz} className={'firm' + (지금 ? ' on' : '')} disabled={지금}
+              onClick={() => !지금 && onPickFirm && onPickFirm(`${base}#${x.bz}`)}>
+              <span className="nm2">{x.nm}{지금 && <em className="now">지금 보는 회사</em>}</span>
+              <span className="no">{x.bz.slice(0, 3)}-{x.bz.slice(3, 5)}-•••</span>
+              <span className="ceo">{x.reg ? `${x.reg} · ` : ''}{x.ceo || '대표 미상'}</span>
+              <span className="cnt">{num(x.cnt)}건</span>
+              <span className="go">{지금 ? '' : '이 법인만 보기 →'}</span>
+            </button>
+          )
+        })}
+      </div>
+      {고른자리 && onAll && (
+        <button className="btn ghost sm" style={{ marginTop: 8 }} onClick={onAll}>
+          ← {num(곳수)}곳 합계로 돌아가기
+        </button>
+      )}
     </div>
   ) : null
   return (
