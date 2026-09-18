@@ -3200,3 +3200,35 @@ ul.plainlist li { margin-bottom: 5px; }
 .reptbl th.c, .reptbl td.c { text-align: center; }
 /* 합계·소계 줄 — 세로줄을 끊어 눈이 멈추게 */
 .reptbl tr.sum td { border-top: 2px solid var(--line); font-weight: 800; }
+
+/* ── 📄 PDF 도구 (/pdf) ─────────────────────────────────
+   2026-09-18. 파일이 서버로 안 올라간다는 안내와 «기록» 칸입니다.
+   ⚠️ 일감 단추는 «가로로 밀지 않고» 줄을 바꿉니다 — 도구를 고르는 자리라
+      옆으로 숨으면 있는 줄도 모르십니다(폰에서 여섯째 단추가 잘렸습니다).
+   ⚠️ 입력칸은 16px 이라야 합니다 — 15px 면 아이폰이 화면을 확대합니다(8절 29). */
+.pdfgrp { margin-top: 12px; }
+.pdfgrp-h { font-size: 12.5px; font-weight: 800; color: var(--muted); margin-bottom: 6px; }
+.chips.pdfjobs {
+  flex-wrap: wrap; overflow-x: visible; padding-bottom: 0;
+  -webkit-mask-image: none; mask-image: none;
+}
+.chips.pdfjobs .chip { font-size: 13px; padding: 7px 13px; }
+.pdfsafe {
+  margin-top: 10px; padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  font-size: 13px; line-height: 1.7; color: var(--text-2);
+  word-break: keep-all;
+}
+.pdfsafe b { color: var(--text); }
+.pdflog {
+  margin: 0; padding: 12px 13px;
+  max-height: 340px; overflow: auto;
+  border-radius: 10px; border: 1px solid var(--line);
+  background: var(--surface-2); color: var(--text-2);
+  font-size: 12.5px; line-height: 1.75;
+  white-space: pre-wrap; word-break: break-all;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.wrap .pdfwork input, .wrap .pdfwork select { font-size: 16px; }

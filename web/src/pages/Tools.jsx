@@ -32,6 +32,7 @@ export default function ToolsIndex() {
         </div>
         {/* 📄 2026-09-16 — 탭이 「서식·도구」 하나로 합쳐졌습니다. 서로 오갈 길을 둡니다. */}
         <div className="navrow" style={{ marginTop: 10 }}>
+          <Link className="navi" to="/pdf">📄 PDF 도구</Link>
           <Link className="navi" to="/forms">📄 건설 서식</Link>
           <Link className="navi" to="/cad">📐 캐드 유틸</Link>
           <Link className="navi" to="/jeoksan">🧮 K-적산</Link>
@@ -58,6 +59,19 @@ export default function ToolsIndex() {
 
       {/* 📐 2026-09-15 — 캐드 유틸을 탭에서 빼고 여기로 넣었습니다(리습도 도구입니다).
           /cad 주소는 그대로입니다 — 검색으로 들어오던 길을 끊으면 안 됩니다. */}
+      {/* 📄 2026-09-18 — PDF 도구. 사이트 안에서 그대로 하고, 파일은 안 올라갑니다. */}
+      <div className="card">
+        <div className="detail-h">📄 PDF <span className="count">· 17가지</span></div>
+        <Link className="row rowlink" to="/pdf">
+          <span className="fic">📄</span>
+          <div className="grow">
+            <div className="t">PDF 도구 — 합치기·쪽 빼기·도장·점검·비교·사진대지</div>
+            <div className="d">사이트 안에서 그대로 합니다. 고르신 파일은 저희 쪽으로 올라가지 않습니다. 무료.</div>
+          </div>
+          <span className="go">→</span>
+        </Link>
+      </div>
+
       <div className="card">
         <div className="detail-h">📐 캐드 <span className="count">· 명령 7가지</span></div>
         <Link className="row rowlink" to="/cad">

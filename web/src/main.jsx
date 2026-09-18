@@ -81,6 +81,9 @@ const JeoksanLab = lazyPage(() => import('./pages/JeoksanLab.jsx'))
 /* 🦺 안전관리계획서·유해위험방지계획서 소개 — 2026-09-16. 준비 중 */
 const Safety = lazyPage(() => import('./pages/Safety.jsx'))
 const ShareOne = lazyPage(() => import('./pages/ShareOne.jsx'))
+/* 📄 PDF 도구 — 2026-09-18. pdf-lib·pdf.js 를 쓰느라 아주 무겁습니다.
+   반드시 lazyPage 라야 이 화면에 안 들어온 분이 2MB 를 안 받습니다. */
+const Pdf = lazyPage(() => import('./pages/Pdf.jsx'))
 const CadPage = lazyPage(() => import('./pages/Cad.jsx').then((m) => ({ default: m.CadPage })))
 /* 🪪 면허별 경쟁도 — 2026-09-14. 주소를 주는 이유: 「토목공사업 입찰 경쟁률」 같은 건 실제 검색어입니다. */
 const LicStat = lazyPage(() => import('./pages/LicStat.jsx'))
@@ -137,6 +140,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           {/* 🧰 도구 — 목록과 개별 주소. prerender.py 가 같은 주소로 HTML 을 굽습니다 (2026-09-14) */}
           <Route path="/lic" element={<Suspense fallback={<Loading />}><LicStat /></Suspense>} />
           <Route path="/cad" element={<Suspense fallback={<Loading />}><Cad /></Suspense>} />
+          <Route path="/pdf" element={<Suspense fallback={<Loading />}><Pdf /></Suspense>} />
           <Route path="/jeoksan" element={<Suspense fallback={<Loading />}><Jeoksan /></Suspense>} />
           <Route path="/jeoksan/run" element={<Suspense fallback={<Loading />}><JeoksanRun /></Suspense>} />
           <Route path="/jeoksan/lab" element={<Suspense fallback={<Loading />}><JeoksanLab /></Suspense>} />

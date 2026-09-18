@@ -153,7 +153,7 @@ function 나중에(kind, setKind) {
  * ⚠️ 유료는 여기 넣지 않습니다 (소장님: 「유료는 띄우지 말자」).
  *    적산(/jeoksan) · 안전관리계획서(/safety) · 내역서 작성 대행(/naeyeok)
  */
-const 무료 = ['forms', 'change', 'cad', 'bid', 'shareone']
+const 무료 = ['forms', 'change', 'cad', 'bid', 'shareone', 'pdf']
 
 /* 첫 줄을 제목으로 삼습니다.
    사랑방(qna)은 제목 t 를 «2~80자» 로 요구합니다(database.rules.json).

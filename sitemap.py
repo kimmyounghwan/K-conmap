@@ -55,6 +55,8 @@ STATIC = [("/", "1.0", "hourly"), ("/first", "0.9", "hourly"), ("/live", "0.9", 
           ("/privacy", "0.2", "yearly"), ("/terms", "0.2", "yearly"), ("/contact", "0.3", "yearly"),
           ("/daily", "0.8", "daily"), ("/forms", "0.8", "monthly"),
           ("/cad", "0.8", "monthly"),
+          # 📄 2026-09-18 — PDF 도구. 라우트·prerender 와 «셋이 같이» 있어야 soft 404 가 안 납니다.
+          ("/pdf", "0.9", "monthly"),
           ("/naeyeok", "0.9", "monthly"), ("/qna", "0.7", "daily"),
           ("/how", "0.8", "monthly"), ("/report", "0.8", "monthly"),
           # 2026-09-17 — /jeoksan/run 은 잠겼지만 «무엇이 나오는지» 는 누구나 봅니다.
