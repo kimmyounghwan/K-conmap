@@ -213,8 +213,15 @@ export function 원가계산서(초기) {
     return L[이름]
   }
   const D = (k) => 'D' + L[k]
-  /* 노란 칸 — 손으로 넣는 자리. 아는 값이 있으면 미리 적어 둡니다 (lib/비율.js) */
-  const FILL = (k) => ({ v: Math.round(처음[k] || 0), st: ST.FILLIN })
+  /* 노란 칸 — 손으로 넣는 자리.
+     아는 값이 있으면 미리 적어 둡니다. «수식» 으로 줄 수도 있습니다 — 그러면
+     내역서가 바뀔 때 원가계산서도 따라 바뀝니다 (lib/비율.js 의 「비율」 칸).
+     ⚠️ 2026-09-18 — 여기서 수식을 못 받아 원가계산서가 통째로 NaN 이었습니다. */
+  const FILL = (k) => {
+    const v = 처음[k]
+    if (v && typeof v === 'object' && v.f !== undefined) return { f: v.f, st: ST.FILLIN }
+    return { v: Math.round(v || 0), st: ST.FILLIN }
+  }
   const P = (v) => ({ v, st: ST.PCT })   /* 노란 칸 — 요율 */
 
   /* 값을 미리 채워 드린 칸에는 «넣으십시오» 가 아니라 «어디서 왔는지» 를 적습니다 */
