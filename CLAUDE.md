@@ -2069,6 +2069,57 @@ pdf-lib 에 한글을 넣으려면 5MB 짜리 글꼴을 통째로 받아야 합�
 | 성적표 실제 생성 → PDF | 6쪽 · 1,283,295바이트 · `%PDF-` · **그림으로 확인** |
 
 
+### 61. 🔧 «화면 검사» 가 배포를 막았습니다 — 파일을 옮기면 검사도 같이 옮기십시오 (2026-09-18)
+
+`OPS`(운영자 브라우저 목록)를 `pages/Qna.jsx` 에서 `lib/운영자.js` 로 옮겼습니다.
+그런데 **`tools/checkops.py` 가 아직 `Qna.jsx` 를 보고 있었습니다.**
+
+    #401  사이트 자동 갱신   failure   41초
+      └ 화면 검사 (import · 이름표↔숫자 · 운영자 목록)  ❌
+          「Qna.jsx 에서 const OPS = [ … ] 를 못 찾았습니다」
+      └ 그 뒤 «수집·집계·빌드·굽기·배포» 가 전부 skipped
+
+**검사가 제 할 일을 한 것입니다.** 잘못은 제게 있습니다 —
+**올리기 «전에» 세 검사를 돌려 보지 않았습니다.**
+
+> 🚨 **올리기 전에 반드시 이 셋을 돌립니다.** 1분도 안 걸립니다.
+>
+>     python tools/checkimports.py     # 빠진 import
+>     python tools/checklabels.py      # 이름표 ↔ 숫자
+>     python tools/checkops.py         # 운영자 목록 ↔ 서버 규칙
+>
+> ⚠️ `tools/selfcheck.py` 전체는 마운트에서 `os.remove` 때문에 죽습니다(45초도 넘깁니다).
+>    깃허브에서는 정상입니다. 그러니 **마운트에서는 위 셋만** 따로 돌리십시오.
+
+⚠️ **이름이 든 곳을 옮길 때는 «그 이름을 찾는 검사» 도 같이 찾아 고치십시오.**
+   `tools/` 안에서 옮긴 파일 이름을 `grep` 한 번만 하면 됩니다.
+
+---
+
+### 62. 🚀 배포는 Git CMD 로 «제가» 올립니다 — bat 을 눌러 달라고 하지 마십시오 (2026-09-18)
+
+소장님은 밖에 계실 때가 많습니다. 「bat 을 눌러 주십시오」 는 **일을 멈추는 말**입니다.
+
+**마운트(리눅스 VM)에서는 push 가 안 됩니다** — 깃허브 자격증명이 윈도우 쪽에 있어서
+`could not read Username for 'https://github.com'` 이 납니다. 대신 **컴퓨터 조작**으로:
+
+    computer_resolve_access(["Git CMD"]) → computer_request_access → computer_open_application
+    창 안을 한 번 클릭하고
+      cd /d "C:\Users\OS\Desktop\나노_건설맵 코드 등\k-conmap-v2" && git status -sb
+      git pull --rebase --autostash origin main      ← 원격에 딴 커밋이 있으면 «먼저»
+      git push origin main
+
+⚠️ `computer_type` 뒤에 **`computer_key("return")` 을 따로** 눌러야 합니다 (클립보드로 들어갑니다).
+⚠️ 잘 됐는지는 화면 글씨로 읽지 말고 **`device_bash` 로 `git status -sb`** 를 보십시오 —
+   `## main...origin/main` 에서 `[ahead N]` 이 사라지면 올라간 것입니다.
+⚠️ 배포 결과는 깃허브 API 로 봅니다(브라우저 화면의 「41s」 는 «걸린 시간» 이지 «남은 시간» 이 아닙니다):
+
+    fetch('https://api.github.com/repos/kimmyounghwan/K-conmap/actions/runs?per_page=4')
+      → run_number · conclusion · jobs_url → 실패한 «단계 이름» 까지
+
+⚠️ **파일 탐색기는 «click» 등급**이라 타이핑이 막힙니다. 캐드·Git CMD 같은 프로그램은 «full» 이라 됩니다.
+
+
 ## 9. 이미 정한 것 — 다시 제안하지 말 것
 
 | 결정 | 이유 |
