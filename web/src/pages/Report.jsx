@@ -32,11 +32,10 @@ export default function Report() {
     나운영자().then((v) => { if (살았나) set운영자(v) }).catch(() => {})
     return () => { 살았나 = false } }, [])
   return (
-    /* 🔤 2026-09-18 — 소장님: 「글자 포인트가 갑자기 커졌다가 작아져, 아랫글자 포인트로 맞춰 줘」
-       이 화면은 표·목록·작은 제목이 모두 13px 인데 «문단(<p>)만» 본문 15px 이었습니다.
-       그래서 한 화면 안에서 글자가 커졌다 작아졌다 했습니다.
-       크기는 styles.css 의 .repwrap 한 곳에서만 정합니다 — 문단마다 적지 않습니다. */
-    <div className="repwrap">
+    /* 🔤 2026-09-18 — 글자 크기는 styles.css 의 «.card p · .card li» 한 곳에서 정합니다.
+       처음엔 이 화면에만 .repwrap 을 씌웠는데, 소장님이 「모든 화면을 한 크기로」 하라고
+       하셔서 걷어냈습니다. 화면마다 크기를 적지 않습니다. */
+    <>
       <div className="card lead-card">
         <h1 style={{ margin: 0, fontSize: 20 }}>📊 업체 입찰 성적표</h1>
         <p className="why2" style={{ marginBottom: 6 }}>
@@ -165,7 +164,7 @@ export default function Report() {
           <li>성적표에 사업자번호는 <b>적지 않습니다.</b></li>
         </ul>
       </div>
-    </div>
+    </>
   )
 }
 
