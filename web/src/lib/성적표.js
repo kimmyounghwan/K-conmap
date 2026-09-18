@@ -92,6 +92,10 @@ export function 한건(row, bno, p50) {
   const out = {
     no: row.no, dt: row.dt, name: row.name, inst: row.inst,
     est: row.est, base: row.base, n: row.nrank || cs.length, rank, name_used: nm,
+    /* site: 조달청이 준 «공사 지역»(경상북도 경주시). 기관 이름으로는 시·도를 알 수 없는
+       발주처가 많습니다 — «김천시산림조합» 에는 도 이름이 없습니다.
+       ⚠️ tools/report_data.py 의 one() 에도 같이 넣습니다. 한쪽만 넣으면 대조가 어긋납니다. */
+    site: row.site,
     amt, rate, win_amt, win_rate, baro: null,
   }
   const base = row.base || 0
@@ -400,6 +404,11 @@ export function 성적표(bno, rows, p50, live) {
     금액대: band,
     기관낙찰선: inst_band,
     기록: recs.slice(0, 60),
+    /* ⚠️ «_» 로 시작하는 칸은 **종이(성적표종이.js)에서만** 씁니다.
+       파이썬(report_data.py)에는 없으므로 대조 시험에서 건너뜁니다.
+       종이는 여기서 «새로 계산하지 않고» 이미 채점해 둔 줄을 묶어 세기만 합니다 —
+       종이에 새 식을 적으면 이 파일과 조용히 어긋납니다. */
+    _전부: recs,
     기준: { 사정률중앙값: p50, 만든날 },
   }
 }

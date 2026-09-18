@@ -69,6 +69,10 @@ def one(row, bno, p50):
         "no": row.get("no"), "dt": row.get("dt"), "name": row.get("name"),
         "inst": row.get("inst"), "est": row.get("est"), "base": row.get("base"),
         "n": row.get("nrank") or len(cs), "rank": rank, "name_used": nm,
+        # site: 조달청이 준 «공사 지역»(경상북도 경주시). 기관 이름으로는 시·도를 알 수 없는
+        # 발주처가 많습니다 — «김천시산림조합» 에는 도 이름이 없습니다. (2026-09-18)
+        # ⚠️ web/src/lib/성적표.js 의 한건() 에도 같이 있습니다. 한쪽만 고치면 대조가 어긋납니다.
+        "site": row.get("site"),
         "amt": amt, "rate": rate, "win_amt": win_amt, "win_rate": win_rate,
         "baro": None,
     }
