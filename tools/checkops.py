@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""🔑 운영자 브라우저 목록 대조 — 화면(Qna.jsx) vs 서버(database.rules.json)
+"""🔑 운영자 브라우저 목록 대조 — 화면(lib/운영자.js) vs 서버(database.rules.json)
 
 ═══════════════════════════════════════════════════════════════════
 ■ 왜 이 검사가 있나 (2026-09-17)
@@ -7,7 +7,9 @@
   「K-건설맵 답변」 표는 이제 **비번이 아니라 브라우저 번호(uid)** 로 붙습니다.
   그런데 그 번호가 **두 곳에 적혀 있습니다.**
 
-      web/src/pages/Qna.jsx          const OPS = [ … ]   ← 화면이 표를 붙일지 정할 때
+      web/src/lib/운영자.js          const OPS = [ … ]   ← 화면이 표를 붙일지 정할 때
+      (2026-09-18 옮겼습니다 — 전에는 pages/Qna.jsx 안에 있었습니다. 운영자인지
+       보려는 화면이 사랑방 화면을 통째로 끌고 오던 것을 끊기 위해서입니다.)
       web/database.rules.json        op 의 .validate     ← 서버가 허락할지 정할 때
 
   한쪽만 고치면 **조용히 어긋납니다.**
@@ -29,7 +31,7 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-화면 = os.path.join(ROOT, "web", "src", "pages", "Qna.jsx")
+화면 = os.path.join(ROOT, "web", "src", "lib", "운영자.js")
 규칙 = os.path.join(ROOT, "web", "database.rules.json")
 
 UID = re.compile(r"[A-Za-z0-9]{20,64}")
@@ -67,7 +69,7 @@ def 재기(화면글, 규칙글):
     a, b = 화면목록(화면글), 규칙목록(규칙글)
     나쁨 = []
     if a is None:
-        나쁨.append("Qna.jsx 에서 const OPS = [ … ] 를 못 찾았습니다")
+        나쁨.append("lib/운영자.js 에서 OPS = [ … ] 를 못 찾았습니다")
     if b is None:
         나쁨.append("database.rules.json 에서 op 의 .validate 를 못 찾았습니다")
     if 나쁨:
@@ -132,7 +134,7 @@ def main():
         print(f"(건너뜀 — 읽지 못했습니다: {type(e).__name__}: {e})")
         sys.exit(0)
     나쁨, a, b = 재기(화면글, 규칙글)
-    print(f"화면 Qna.jsx            {len(a or [])}대")
+    print(f"화면 lib/운영자.js       {len(a or [])}대")
     print(f"서버 database.rules.json {len(b or [])}대")
     if 나쁜자가시험:
         print("❌ 자가시험이 깨졌습니다 — 검사 자체를 먼저 고치십시오.")
