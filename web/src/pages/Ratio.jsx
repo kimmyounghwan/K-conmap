@@ -24,6 +24,14 @@ const fmt = (n) => new Intl.NumberFormat('ko-KR').format(Math.round(n || 0))
 const pct = (r) => (Math.round(r * 1000000) / 10000).toLocaleString('ko-KR') + '%'
 const kb = (n) => new Intl.NumberFormat('ko-KR').format(Math.round(n / 1024))
 
+/* ⚠️ styles.css 의 «.tlopts label input { width:15px }» 는 라디오·체크상자용입니다.
+   글자 칸까지 15px 로 눌러 버려서 «44,000,000» 이 «44» 로 보였습니다 — 여기서 되돌립니다. */
+const 칸꼴 = (w) => ({
+  width: w, height: 'auto', padding: '5px 8px', fontSize: 13.5, textAlign: 'right',
+  border: '1px solid var(--line)', borderRadius: 7,
+  background: 'var(--surface)', color: 'var(--text)', flex: '0 0 auto',
+})
+
 export default function Ratio() {
   const [lib, setLib] = useState(null)
   const [busy, setBusy] = useState('')
@@ -235,12 +243,12 @@ export default function Ratio() {
               <b>{모드 === '비율' ? '비율' : '맞출 금액'}</b>
               {모드 === '비율' ? (
                 <label>
-                  <input type="text" inputMode="decimal" size="8" value={비율글}
+                  <input type="text" inputMode="decimal" style={칸꼴(78)} value={비율글}
                     onChange={(e) => set비율글(e.target.value.replace(/[^\d.]/g, ''))} /> %
                 </label>
               ) : (
                 <label>
-                  <input type="text" inputMode="numeric" size="16"
+                  <input type="text" inputMode="numeric" style={칸꼴(158)}
                     value={목표글 ? fmt(Number(String(목표글).replace(/[^\d.]/g, ''))) : ''}
                     placeholder="예) 480,000,000"
                     onChange={(e) => set목표글(e.target.value.replace(/[^\d.]/g, ''))} /> 원
