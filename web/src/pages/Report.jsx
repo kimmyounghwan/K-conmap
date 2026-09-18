@@ -32,11 +32,12 @@ export default function Report() {
     나운영자().then((v) => { if (살았나) set운영자(v) }).catch(() => {})
     return () => { 살았나 = false } }, [])
   return (
-    /* 🔤 2026-09-18 — 글자 크기는 styles.css 의 «.card p · .card li» 한 곳에서 정합니다.
-       처음엔 이 화면에만 .repwrap 을 씌웠는데, 소장님이 「모든 화면을 한 크기로」 하라고
-       하셔서 걷어냈습니다. 화면마다 크기를 적지 않습니다. */
+    /* 🔤 2026-09-18 — 소장님: 「위쪽 부분만 포인트 약간 줄이면 될 것 같아」
+       이 화면은 위 두 칸만 문단(15px)이고 아래는 표·목록(13px)이라 위쪽만 커 보였습니다.
+       그 두 칸에 .repfront 를 붙여 13.5px 로 «약간» 줄입니다 (styles.css).
+       ⚠️ 한때 사이트 전체를 13px 로 맞췄다가 걷어냈습니다 — 다 같게 하면 밋밋해집니다. */
     <>
-      <div className="card lead-card">
+      <div className="card lead-card repfront">
         <h1 style={{ margin: 0, fontSize: 20 }}>📊 업체 입찰 성적표</h1>
         <p className="why2" style={{ marginBottom: 6 }}>
           개찰 기록에서 <b>그 업체가 넣은 것을 전부 찾아</b> A4 한 벌로 만들어 드립니다.
@@ -52,7 +53,7 @@ export default function Report() {
           전날 「사이트 안에서 보이게 해줘」 라고 하셔서 견본 여섯 장을 통째로
           박았는데, 막상 보시니 A4 종이가 화면을 끝없이 흘러내렸습니다.
           **단추 하나로 돌립니다.** 그림 파일은 지우지 않았습니다. */}
-      <div className="card">
+      <div className="card repfront">
         <div className="sec-title">이런 종이를 받으십니다</div>
         <p className="muted" style={{ marginTop: 0 }}>
           <b>A4 여섯 쪽</b>입니다. <b>실제 조달청 개찰 기록</b>으로 만든 견본이고,
