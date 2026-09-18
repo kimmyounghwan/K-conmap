@@ -56,6 +56,9 @@ const 일감 = [
     ['살펴', '파일 살펴보기', '쪽수·크기·스캔본인지 봅니다.', '하나', []],
   ]],
 ]
+/* 일감마다 그림표 — 카드에 붙입니다 */
+const 그림표 = {"합치기": "🔗", "골라내기": "✂️", "쪽지우기": "🗑️", "순서": "🔀", "회전": "🔄", "나누기": "📑", "도장": "🔴", "워터마크": "💧", "쪽번호": "#️⃣", "글자": "📝", "쪽그림": "🖼️", "점검": "🔍", "비교": "⚖️", "폴더찾기": "🗂️", "사진대지": "📷", "찾기": "🔎", "살펴": "ℹ️"}
+
 const 찾기 = (코드) => {
   for (const [, 것들] of 일감) for (const t of 것들) if (t[0] === 코드) return t
   return null
@@ -72,6 +75,7 @@ export default function Pdf() {
   const [기록, 기록놓기] = useState([])
   const [결과, 결과놓기] = useState([])
   const [바쁨, 바쁨놓기] = useState(false)
+  const [끌림, set끌림] = useState(false)      /* 파일을 창 위로 끌고 온 동안 */
   const 파일칸 = useRef(null), 폴더칸 = useRef(null), 그림칸 = useRef(null)
 
   const 지금 = 찾기(코드)
@@ -93,6 +97,18 @@ export default function Pdf() {
   function 파일받기(e, 여럿) {
     const 목록 = [...(e.target.files || [])]
     e.target.value = ''
+    넣기(목록, 여럿)
+  }
+
+  /* 끌어다 놓기 — 「파일을 어디다 올려?」 소리가 안 나오게, 놓는 자리를 눈에 보이게 둡니다 */
+  function 놓기(e) {
+    e.preventDefault(); set끌림(false)
+    if (!지금) return
+    const 목록 = [...(e.dataTransfer?.files || [])]
+    넣기(목록, 방식 !== '하나')
+  }
+
+  function 넣기(목록, 여럿) {
     if (!목록.length) return
     if (방식 === '둘') {
       const 새 = [...파일들, ...목록].filter((f) => /\.pdf$/i.test(f.name)).slice(0, 2)
@@ -211,6 +227,22 @@ export default function Pdf() {
   const 준비됐나 = 지금 && (방식 === '둘' ? 파일들.length === 2 : 파일들.length > 0)
     && !(코드 === '도장' && !그림)
 
+  /* 일감마다 «무엇을 고르는지» 를 단추 글씨로 또렷하게 — iLovePDF 식 */
+  const 고르기글 = () => (
+    방식 === '둘' ? (파일들.length === 0 ? 'PDF 파일 선택 — ① 당초'
+      : 파일들.length === 1 ? 'PDF 파일 선택 — ② 변경' : '다시 고르기')
+      : 방식 === '여럿' ? '여러 PDF 파일 선택'
+        : 방식 === '폴더' ? 'PDF 파일 선택'
+          : 방식 === '사진폴더' ? '사진 선택' : 'PDF 파일 선택')
+
+  const 고른글 = () => (
+    파일들.length === 0 ? ''
+      : 방식 === '둘' ? (파일들.length === 1
+        ? `당초 : ${파일들[0].name} — 이제 변경본을 고르십시오`
+        : `당초 : ${파일들[0].name}   →   변경 : ${파일들[1].name}`)
+        : 파일들.length === 1 ? 파일들[0].name
+          : `${파일들.length}개 골랐습니다`)
+
   return (
     <div className="wrap">
       <div className="card">
@@ -220,7 +252,7 @@ export default function Pdf() {
           사진대지를 만듭니다. 회원가입도 설치도 없습니다.
         </div>
         <div className="pdfsafe">
-          🔒 <b>고르신 파일은 저희 쪽으로 올라가지 않습니다.</b> 전부 이 브라우저 안에서 처리하고
+          🔒 <b>올리신 파일은 저희 쪽으로 가지 않습니다.</b> 전부 보시는 분 브라우저 안에서 처리하고
           결과도 여기서 바로 만들어 드립니다. 설계도서·내역서를 올리셔도 됩니다.
         </div>
         <div className="navrow" style={{ marginTop: 10 }}>
@@ -230,60 +262,39 @@ export default function Pdf() {
         </div>
       </div>
 
-      <div className="card">
-        <div className="sec-title">무슨 일을 할까요</div>
-        {일감.map(([묶음, 것들]) => (
-          <div key={묶음} className="pdfgrp">
-            <div className="pdfgrp-h">{묶음}</div>
-            <div className="chips pdfjobs">
-              {것들.map(([c, 이름]) => (
-                <button key={c} type="button"
-                  className={'chip' + (코드 === c ? ' on' : '')}
-                  onClick={() => 고르기(c)}>{이름}</button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {지금 && (
+      {지금 ? (
+        /* ── 일감 하나를 고른 뒤 — 「파일 선택」 이 화면의 주인공입니다 ── */
         <div className="card pdfwork">
-          <div className="detail-h">{지금[1]}</div>
-          <div className="note sm">{지금[2]}</div>
+          <button type="button" className="pdfback" onClick={() => 고르기('')}>← 다른 일 고르기</button>
+          <h1 className="pdfh1">{지금[1]}</h1>
+          <p className="pdflead">{지금[2]}</p>
 
-          <div className="field" style={{ marginTop: 12 }}>
-            <label>{방식 === '둘' ? 'PDF 두 개 — 당초, 그다음 변경'
-              : 방식 === '여럿' ? 'PDF 여러 개'
-                : 방식 === '폴더' ? 'PDF 가 든 폴더 (또는 파일 여러 개)'
-                  : 방식 === '사진폴더' ? '사진이 든 폴더 (또는 사진 여러 장)' : 'PDF 파일'}</label>
-            <div className="btn-row">
-              <button type="button" className="btn line" onClick={() => 파일칸.current?.click()}>
-                {방식 === '둘' ? (파일들.length === 0 ? '① 당초 고르기' : 파일들.length === 1 ? '② 변경 고르기' : '다시 고르기')
-                  : 방식 === '하나' ? '파일 고르기' : '파일 고르기'}
-              </button>
-              {(방식 === '폴더' || 방식 === '사진폴더') && (
-                <button type="button" className="btn line" onClick={() => 폴더칸.current?.click()}>폴더 고르기</button>
-              )}
-            </div>
-            <input ref={파일칸} type="file" className="sr-only" tabIndex={-1}
-              accept={방식 === '사진폴더' ? 'image/*' : 'application/pdf,.pdf'}
-              multiple={방식 !== '하나'}
-              onChange={(e) => 파일받기(e, 방식 !== '하나')} />
-            <input ref={폴더칸} type="file" className="sr-only" tabIndex={-1} multiple
-              webkitdirectory="" directory=""
-              onChange={(e) => 파일받기(e, true)} />
-            <div className="note sm" style={{ marginTop: 6 }}>
-              {파일들.length === 0 ? '(아직 안 고르셨습니다)'
-                : 방식 === '둘' ? (파일들.length === 1
-                  ? `당초 : ${파일들[0].name} — 이제 변경본을 고르십시오`
-                  : `당초 : ${파일들[0].name}  →  변경 : ${파일들[1].name}`)
-                  : 파일들.length === 1 ? 파일들[0].name
-                    : `${파일들.length}개 골랐습니다`}
-            </div>
+          <div className={'pdfdrop' + (끌림 ? ' on' : '')}
+               onDragOver={(e) => { e.preventDefault(); set끌림(true) }}
+               onDragLeave={() => set끌림(false)}
+               onDrop={놓기}>
+            <button type="button" className="pdfpick" onClick={() => 파일칸.current?.click()}>
+              {고르기글()}
+            </button>
+            {(방식 === '폴더' || 방식 === '사진폴더') && (
+              <button type="button" className="btn line pdfpick2"
+                      onClick={() => 폴더칸.current?.click()}>폴더째 고르기</button>
+            )}
+            <div className="pdfdrop-d">또는 {방식 === '사진폴더' ? '사진' : 'PDF'}를 이곳에 끌어다 놓으세요</div>
           </div>
+
+          <input ref={파일칸} type="file" className="sr-only" tabIndex={-1}
+            accept={방식 === '사진폴더' ? 'image/*' : 'application/pdf,.pdf'}
+            multiple={방식 !== '하나'}
+            onChange={(e) => 파일받기(e, 방식 !== '하나')} />
+          <input ref={폴더칸} type="file" className="sr-only" tabIndex={-1} multiple
+            webkitdirectory="" directory=""
+            onChange={(e) => 파일받기(e, true)} />
+
+          {파일들.length > 0 && <div className="pdfgot">📎 {고른글()}</div>}
 
           {코드 === '도장' && (
-            <div className="field">
+            <div className="field" style={{ marginTop: 12 }}>
               <label>도장·서명 그림 (png 를 권합니다)</label>
               <button type="button" className="btn line" onClick={() => 그림칸.current?.click()}>
                 {그림 ? `바꾸기 — ${그림.name}` : '도장 그림 고르기'}
@@ -329,9 +340,27 @@ export default function Pdf() {
               </select></div>
           )}
 
-          <button type="button" className="btn" disabled={!준비됐나 || 바쁨} onClick={하기}>
-            {바쁨 ? '하는 중입니다…' : '하기'}
+          <button type="button" className="btn pdfgo" disabled={!준비됐나 || 바쁨} onClick={하기}>
+            {바쁨 ? '하는 중입니다…' : 지금[1]}
           </button>
+        </div>
+      ) : (
+        /* ── 아직 안 골랐을 때 — 일감을 카드로 늘어놓습니다 (PDF24 식) ── */
+        <div className="card">
+          <div className="sec-title">무슨 일을 할까요 <span className="count">· 고르면 파일 올리는 자리가 나옵니다</span></div>
+          {일감.map(([묶음, 것들]) => (
+            <div key={묶음} className="pdfgrp">
+              <div className="pdfgrp-h">{묶음}</div>
+              <div className="pdfcards">
+                {것들.map(([c, 이름, 도움]) => (
+                  <button key={c} type="button" className="pdfcard" onClick={() => 고르기(c)}>
+                    <span className="pdfcard-ic">{그림표[c] || '📄'}</span>
+                    <span className="pdfcard-t">{이름}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

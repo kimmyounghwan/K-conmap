@@ -3202,33 +3202,72 @@ ul.plainlist li { margin-bottom: 5px; }
 .reptbl tr.sum td { border-top: 2px solid var(--line); font-weight: 800; }
 
 /* ── 📄 PDF 도구 (/pdf) ─────────────────────────────────
-   2026-09-18. 파일이 서버로 안 올라간다는 안내와 «기록» 칸입니다.
-   ⚠️ 일감 단추는 «가로로 밀지 않고» 줄을 바꿉니다 — 도구를 고르는 자리라
-      옆으로 숨으면 있는 줄도 모르십니다(폰에서 여섯째 단추가 잘렸습니다).
-   ⚠️ 입력칸은 16px 이라야 합니다 — 15px 면 아이폰이 화면을 확대합니다(8절 29). */
-.pdfgrp { margin-top: 12px; }
-.pdfgrp-h { font-size: 12.5px; font-weight: 800; color: var(--muted); margin-bottom: 6px; }
-.chips.pdfjobs {
-  flex-wrap: wrap; overflow-x: visible; padding-bottom: 0;
-  -webkit-mask-image: none; mask-image: none;
+   2026-09-18. 「파일을 어디다 올려?」 «파일 고르기 만 있어» 라는 말씀을 듣고
+   iLovePDF·PDF24 처럼 다시 짰습니다 —
+     ① 일감을 «카드» 로 늘어놓고 ② 고르면 «큰 파일 선택 단추» 가 주인공이 됩니다.
+   ⚠️ 입력칸은 16px 이라야 합니다 — 15px 면 아이폰이 화면을 확대합니다 (8절 29). */
+.pdfgrp { margin-top: 14px; }
+.pdfgrp-h { font-size: 12.5px; font-weight: 800; color: var(--muted); margin-bottom: 7px; }
+.pdfcards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+@media (min-width: 560px) { .pdfcards { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 860px) { .pdfcards { grid-template-columns: repeat(4, 1fr); } }
+.pdfcard {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; padding: 14px 8px; min-height: 86px;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface); color: var(--text);
+  font-family: inherit; cursor: pointer; text-align: center;
+  transition: border-color .12s, background .12s, transform .08s;
 }
-.chips.pdfjobs .chip { font-size: 13px; padding: 7px 13px; }
+.pdfcard:hover { border-color: var(--accent); background: var(--accent-soft); }
+.pdfcard:active { transform: translateY(1px); }
+.pdfcard-ic { font-size: 22px; line-height: 1; }
+.pdfcard-t { font-size: 12.5px; font-weight: 700; line-height: 1.35; word-break: keep-all; }
+
+.pdfback {
+  border: 0; background: none; padding: 0; cursor: pointer; font-family: inherit;
+  font-size: 13px; font-weight: 600; color: var(--muted);
+}
+.pdfback:hover { color: var(--accent); }
+.pdfh1 { margin: 10px 0 4px; font-size: 22px; font-weight: 800; text-align: center; word-break: keep-all; }
+.pdflead { margin: 0 0 16px; font-size: 13.5px; color: var(--muted); text-align: center; word-break: keep-all; }
+
+.pdfdrop {
+  padding: 26px 14px 20px; text-align: center;
+  border: 2px dashed var(--line); border-radius: 16px;
+  background: var(--surface-2);
+  transition: border-color .12s, background .12s;
+}
+.pdfdrop.on { border-color: var(--accent); background: var(--accent-soft); }
+.pdfpick {
+  display: inline-block; padding: 16px 30px;
+  border: 0; border-radius: 12px; cursor: pointer; font-family: inherit;
+  background: var(--accent); color: #fff;
+  font-size: 17px; font-weight: 800; letter-spacing: -.2px;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, .28);
+  word-break: keep-all;
+}
+.pdfpick:hover { filter: brightness(1.06); }
+.pdfpick2 { width: auto; margin-left: 8px; }
+.pdfdrop-d { margin-top: 12px; font-size: 12.5px; color: var(--muted); }
+.pdfgot {
+  margin-top: 12px; padding: 11px 13px; border-radius: 10px;
+  background: var(--accent-soft); border: 1px solid var(--accent);
+  font-size: 13px; font-weight: 600; color: var(--text); word-break: break-all;
+}
+.pdfgo { margin-top: 16px; padding: 15px 16px; font-size: 16px; font-weight: 800; }
+
 .pdfsafe {
   margin-top: 10px; padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid var(--accent);
-  background: var(--accent-soft);
-  font-size: 13px; line-height: 1.7; color: var(--text-2);
-  word-break: keep-all;
+  border-radius: 12px; border: 1px solid var(--accent); background: var(--accent-soft);
+  font-size: 13px; line-height: 1.7; color: var(--text-2); word-break: keep-all;
 }
 .pdfsafe b { color: var(--text); }
 .pdflog {
-  margin: 0; padding: 12px 13px;
-  max-height: 340px; overflow: auto;
+  margin: 0; padding: 12px 13px; max-height: 340px; overflow: auto;
   border-radius: 10px; border: 1px solid var(--line);
   background: var(--surface-2); color: var(--text-2);
-  font-size: 12.5px; line-height: 1.75;
-  white-space: pre-wrap; word-break: break-all;
+  font-size: 12.5px; line-height: 1.75; white-space: pre-wrap; word-break: break-all;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
-.wrap .pdfwork input, .wrap .pdfwork select { font-size: 16px; }
+.wrap .pdfwork input[type=text], .wrap .pdfwork select { font-size: 16px; }
