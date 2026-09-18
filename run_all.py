@@ -62,6 +62,36 @@ def step(no, title, args, cwd=ROOT, timeout=3600, shell=False):
     return ("성공" if ok else "실패", dur)
 
 
+def _집계가_낡았나(하루=1):
+    """집계 결과(web/public/data)가 «원본보다 오래됐거나 너무 묵었으면» 까닭을 돌려준다.
+
+    ⚠️ 집계 결과는 저장소에 안 들어갑니다(.gitignore). 깃허브 쪽은 회차마다 새로 굽지만
+       이 컴퓨터는 여기서 돌린 날에 멈춰 있습니다. 그대로 배포하면 그 옛 자료가 올라갑니다.
+    돌려주는 값 — 낡았으면 «왜 낡았는지» 한 줄, 멀쩡하면 빈 글자.
+    """
+    import glob as _g
+    낸곳 = os.path.join(ROOT, "web", "public", "data", "corp", "idx")
+    if not os.path.isdir(낸곳):
+        return "집계 결과가 아예 없어서"
+    것들 = _g.glob(os.path.join(낸곳, "*.json"))
+    if not 것들:
+        return "집계 결과가 비어 있어서"
+    낸때 = max(os.path.getmtime(f) for f in 것들)
+
+    원본 = []
+    for 꼴 in ("data/bid_data_3years.*", "data/extra_*.csv", "data/store/*.json"):
+        원본 += _g.glob(os.path.join(ROOT, *꼴.split("/")))
+    if 원본:
+        원본때 = max(os.path.getmtime(f) for f in 원본)
+        if 원본때 > 낸때:
+            return "원본이 집계보다 새로워서"
+
+    묵은날 = (time.time() - 낸때) / 86400
+    if 묵은날 > 하루:
+        return "집계한 지 %.0f일 지나서" % 묵은날
+    return ""
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-deploy", action="store_true")
@@ -83,11 +113,23 @@ def main():
             2, "collect — 조달청 최신 데이터", [PY, "collect.py", "--days", str(args.days)],
             timeout=1800)[0]
 
-    if want("build") and not args.quick:
-        result["③ 집계"] = step(3, "build_json — 사이트용 JSON 집계",
-                              [PY, "build_json.py"], timeout=3600)[0]
-    elif want("build"):
-        print("\n  ③ 집계 — 건너뜀 (--quick)")
+    # 🚨 2026-09-18 — --quick 이라도 «집계 결과가 낡았으면» 반드시 다시 굽습니다.
+    #   왜 : web/public/data 는 저장소에 안 들어갑니다(.gitignore). 그래서 이 컴퓨터의
+    #        집계 결과는 «마지막으로 여기서 build_json 을 돌린 날» 그대로 멈춰 있습니다.
+    #        그걸 그대로 배포하면 보는 분들이 보름 전 자료를 봅니다 —
+    #        실제로 2026-09-16 에 고친 «법인 칸은 자기 기록만» 이 되돌아가고,
+    #        「이 법인만 보기」 8,785개가 빈 페이지로 갑니다(실측).
+    #   전에는 selfcheck 가 배포 직전에 막아 주기는 했지만, 20분을 돌리고 나서
+    #   ⛔ 로 끝났습니다. 막지 말고 «처음부터 제대로 굽는» 것이 맞습니다.
+    if want("build"):
+        낡음 = _집계가_낡았나()
+        if not args.quick or 낡음:
+            if args.quick and 낡음:
+                print("\n  ③ 집계 — --quick 이지만 %s 라서 새로 굽습니다" % 낡음)
+            result["③ 집계"] = step(3, "build_json — 사이트용 JSON 집계",
+                                  [PY, "build_json.py"], timeout=3600)[0]
+        else:
+            print("\n  ③ 집계 — 건너뜀 (--quick · 결과가 최신입니다)")
 
     if want("sitemap"):
         result["④ 사이트맵"] = step(4, "sitemap — 검색엔진 주소 목록",
