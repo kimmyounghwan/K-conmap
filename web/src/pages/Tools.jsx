@@ -32,6 +32,7 @@ export default function ToolsIndex() {
         </div>
         {/* 📄 2026-09-16 — 탭이 「서식·도구」 하나로 합쳐졌습니다. 서로 오갈 길을 둡니다. */}
         <div className="navrow" style={{ marginTop: 10 }}>
+          <Link className="navi" to="/report">📊 입찰 성적표</Link>
           <Link className="navi" to="/pdf">📄 PDF 도구</Link>
           <Link className="navi" to="/forms">📄 건설 서식</Link>
           <Link className="navi" to="/cad">📐 캐드 유틸</Link>
@@ -59,6 +60,22 @@ export default function ToolsIndex() {
 
       {/* 📐 2026-09-15 — 캐드 유틸을 탭에서 빼고 여기로 넣었습니다(리습도 도구입니다).
           /cad 주소는 그대로입니다 — 검색으로 들어오던 길을 끊으면 안 됩니다. */}
+      {/* 📊 2026-09-18 — 소장님: 「사이트 안에서 보이게 해줘야지. 그래야 이용자가
+          이런게 있네. 신청해 봐야겠다라고 생각하지」
+          성적표는 «분석» 화면 안에만 길이 있었습니다. 도구 목록에도 답니다 —
+          도구를 보러 온 사람이 «이런 것도 주는구나» 를 알아야 신청합니다. */}
+      <div className="card">
+        <div className="detail-h">📊 성적표 <span className="count">· 값 안 받음</span></div>
+        <Link className="row rowlink" to="/report">
+          <span className="fic">📊</span>
+          <div className="grow">
+            <div className="t">업체 입찰 성적표 — 우리 회사가 «넣은 것 전부»를 봅니다</div>
+            <div className="d">떨어진 것·실격된 것까지 A4 한 벌로 만들어 드립니다. 낙찰이 한 건도 없어도 나옵니다. 값은 받지 않습니다.</div>
+          </div>
+          <span className="go">→</span>
+        </Link>
+      </div>
+
       {/* 📄 2026-09-18 — PDF 도구. 사이트 안에서 그대로 하고, 파일은 안 올라갑니다. */}
       <div className="card">
         <div className="detail-h">📄 PDF <span className="count">· 17가지</span></div>

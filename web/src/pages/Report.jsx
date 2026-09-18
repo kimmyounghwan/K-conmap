@@ -13,6 +13,7 @@
  *    그래서 «건설맵에 한 줄이라도 보태 주신 분» 부터 만들어 드립니다.
  *    ⚠️ 여기에 «언제까지 만들어 드린다» 는 말을 적지 않습니다 — 지킬 수 없는 약속입니다.
  */
+import { useState } from 'react'
 import { askAfter } from '../AskComment'
 import { Link } from 'react-router-dom'
 
@@ -24,6 +25,9 @@ import { Link } from 'react-router-dom'
 const 나운영자 = () => { try { return localStorage.getItem('kcm_op') === '1' } catch { return false } }
 
 export default function Report() {
+  /* 여섯 쪽을 다 받으면 394KB 입니다. 두 쪽만 먼저 보이고 나머지는 눌렀을 때 폅니다. */
+  const [다보기, set다보기] = useState(false)
+  const 쪽들 = 다보기 ? [1, 2, 3, 4, 5, 6] : [1, 2]
   return (
     <>
       <div className="card lead-card">
@@ -35,6 +39,39 @@ export default function Report() {
           자가진단은 <b>딴 것만</b> 보입니다. 성적표는 <b>떨어진 것까지</b> 봅니다 —
           고칠 거리는 거기 있습니다.
         </p>
+      </div>
+
+      {/* 🚨 2026-09-18 — 소장님: 「사이트 안에서 보이게 해줘야지. 그래야 이용자가
+          이런게 있네. 신청해 봐야겠다라고 생각하지」
+          전에는 «견본 보기(PDF)» 단추뿐이었습니다. PDF 는 눌러서 내려받고 열어야 보입니다 —
+          그 세 걸음 사이에 사람이 다 떨어집니다. 그래서 **종이를 화면에 그대로 박습니다.**
+          ⚠️ 그림 여섯 장이 394KB 입니다. 첫 두 장만 받고 나머지는 눌렀을 때 받습니다
+             (loading=lazy + 접어 두기). 이 화면은 «설명» 이라 무겁게 만들면 안 됩니다.
+          ⚠️ 이 그림은 web/src/lib/성적표종이.js 가 뽑은 것입니다 — 화면에서 만드는 성적표와
+             **같은 코드, 같은 그림**입니다. 견본만 예쁘게 따로 만들지 마십시오. */}
+      <div className="card">
+        <div className="sec-title">이런 종이를 받으십니다</div>
+        <p className="muted" style={{ marginTop: 0 }}>
+          아래는 <b>실제 조달청 개찰 기록</b>으로 만든 견본입니다. 숫자는 손대지 않았고,
+          <b> 업체 이름과 공고명만 가렸습니다.</b>
+        </p>
+        <div className="repshot">
+          {쪽들.map((n) => (
+            <img key={n} src={`/report/report-${n}.webp`} width="900" height="1273"
+                 loading={n <= 2 ? 'eager' : 'lazy'} decoding="async"
+                 alt={`업체 입찰 성적표 견본 ${n}쪽`} />
+          ))}
+        </div>
+        {!다보기 && (
+          <button className="btn line" style={{ marginTop: 10 }}
+                  onClick={() => set다보기(true)}>나머지 네 쪽 마저 보기 ↓</button>
+        )}
+        <div className="btn-row" style={{ marginTop: 10 }}>
+          <a className="btn primary" href="/report-sample.pdf" target="_blank" rel="noopener"
+             download="K-건설맵_입찰성적표_견본.pdf"
+             onClick={() => askAfter('forms')}>📄 견본 PDF 로 받기 (6쪽)</a>
+          <Link className="btn ghost" to="/qna">💬 우리 회사 것 신청하기</Link>
+        </div>
       </div>
 
       {/* ── 무엇이 다른가 ── */}
@@ -72,13 +109,8 @@ export default function Report() {
           <li><b>기관별 낙찰선</b> — 자주 들어가는 기관이 어떤 자리인지</li>
           <li><b>「바로투찰 금액이었다면」</b> — 그때 우리 권장금액을 썼다면 <b>몇 위였을지</b> 되짚어 봅니다</li>
         </ul>
-        <div className="btn-row" style={{ marginTop: 10 }}>
-          <a className="btn primary" href="/report-sample.pdf" target="_blank" rel="noopener"
-             download="K-건설맵_입찰성적표_견본.pdf"
-            onClick={() => askAfter('forms')}>📄 견본 보기 (PDF)</a>
-        </div>
         <p className="muted" style={{ marginBottom: 0, marginTop: 8 }}>
-          견본은 실제 개찰 기록으로 만든 것입니다. 업체 이름만 가렸습니다.
+          위 견본에 이 칸들이 다 들어 있습니다 — <b>올려서 눈으로 보십시오.</b>
         </p>
       </div>
 
