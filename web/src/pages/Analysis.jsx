@@ -67,7 +67,16 @@ function CorpTab() {
     const s = normCorp(q)
     if (s.length < 1) { setList([]); return }
     timer.current = setTimeout(() => {
-      searchCorp(s, deep).then((r) => { setList(r); setOpen(true) })
+      searchCorp(s, deep).then((r) => {
+        setList(r)
+        setOpen(true)
+        /* 🚨 2026-09-18 — 앞글자로 못 찾았으면 «이름 가운데»까지 한 번 더 찾습니다.
+           그래야 「없습니다」가 사실이 됩니다. 앞글자로만 찾아 놓고 없다고 하면 거짓말입니다
+           (실측: 「종합건설」 앞글자 9곳 · 실제 2,867곳 · 「개발」 0곳 · 실제 2,420곳).
+           ⚠️ 이름 목록은 gzip 263KB 입니다. 그래서 «못 찾았을 때만», 세 글자 이상일 때만,
+              그리고 한 번 받으면 그 브라우저가 기억합니다. 늘 받으면 안 됩니다. */
+        if (!deep && r.length === 0 && s.length >= 3) setDeep(true)
+      })
     }, 250)
     return () => clearTimeout(timer.current)
   }, [q, deep])
@@ -76,6 +85,10 @@ function CorpTab() {
      ⚠️ 사업자번호로 갈라 놓은 키(«이름#번호»)는 주소에 넣지 않습니다 —
         남의 사업자번호가 URL 과 검색결과에 남습니다. 그 갈래는 화면 안에서만
         고르도록 라우터 state 로 넘깁니다(주소에는 안 남습니다). */
+  /* «못 찾음» 은 «이름 가운데까지 뒤지고도 0곳» 일 때만입니다. 앞글자로만 찾아 0곳인 것은
+     아직 못 찾은 것이지 없는 것이 아닙니다 — 그때 「없습니다」 라고 하면 거짓말이 됩니다. */
+  const 못찾음 = deep && normCorp(q).length >= 2 && list.length === 0
+
   const pick = (item) => {
     setOpen(false)
     const base = String(item.key).split('#')[0]
@@ -98,7 +111,10 @@ function CorpTab() {
           {open && normCorp(q).length > 0 && (list.length > 0 || !deep) && (
             <div className="suggest">
               {list.length === 0 && (
-                <div className="nohit">앞에서부터 찾은 결과가 없습니다</div>
+                <div className="nohit">
+                  앞에서부터 찾은 결과가 없습니다
+                  <span className="sub2"> · 3년 동안 «1순위(낙찰)»가 없으면 여기 안 나옵니다</span>
+                </div>
               )}
               {/* 🚨 2026-09-18 — 줄마다 «어느 회사인지» 를 적습니다.
                   소장님: 「전남 3을 클릭하면 바로 회사분석이 나와. 어느회사인지 모르잖아.」
@@ -136,10 +152,43 @@ function CorpTab() {
         </div>
       </div>
 
-      <Empty icon="🏢">
-        내 회사 이름을 넣어보세요.<br />
-        어느 지역 · 어느 기관에서 강한지, 평균 투찰률이 얼마인지 보여드립니다.
-      </Empty>
+      {/* 🚨 2026-09-18 — 소장님: 「태선종합건설은 왜 없지? 3년 동안 안된건가?」
+          실측: 3년치 개찰에 1순위가 한 건도 없어서 안 나온 것이었습니다. 그런데 넣기는
+          했습니다 — 877곳 중 8위, 1순위와 355,950원 차이(13.4억 공사)인 건도 있었습니다.
+          그때 화면이 한 말은 「찾은 결과가 없습니다」 한 줄뿐이었습니다.
+          **자기 회사 이름을 치고 아무것도 못 찾은 사람** 이 성적표가 가장 필요한 사람입니다.
+          그 자리에서 아무 말도 안 하면 그냥 나가 버립니다. 업체 35,865곳 중 26,645곳(74%)이
+          이 경우입니다. */}
+      {못찾음 ? (
+        <div className="card nofind">
+          <div className="sec-title" style={{ margin: 0 }}>
+            «{q.trim()}» 이(가) 안 나오십니까?
+          </div>
+          <p>
+            이 화면은 3년치 개찰에서 <b>«1순위(낙찰)» 기록만</b> 모읍니다.
+            그래서 <b>3년 동안 한 번도 못 따셨으면 여기엔 안 나옵니다.</b>
+            넣으신 적이 없어서가 아닙니다.
+          </p>
+          <p className="muted" style={{ marginBottom: 0 }}>
+            실제로 있었던 일입니다 — 어느 회사는 <b>877곳 가운데 8위</b>로 밀렸는데,
+            1순위와 차이가 <b>35만 5천원</b>이었습니다. 13억 4천짜리 공사에서요.
+            그 회사도 이 화면에서는 «기록 없음»입니다.
+          </p>
+          <div className="btn-row" style={{ marginTop: 10 }}>
+            <Link className="btn primary" to="/report">📊 넣은 것 전부 보기 — 입찰 성적표</Link>
+            <Link className="btn ghost" to="/qna">💬 성적표 신청하기</Link>
+          </div>
+          <p className="note sm" style={{ marginBottom: 0 }}>
+            성적표는 <b>떨어진 것·실격된 것까지</b> 찾아 A4 한 벌로 만들어 드립니다.
+            <b> 낙찰이 한 건도 없어도 나옵니다.</b> 값은 받지 않습니다.
+          </p>
+        </div>
+      ) : (
+        <Empty icon="🏢">
+          내 회사 이름을 넣어보세요.<br />
+          어느 지역 · 어느 기관에서 강한지, 평균 투찰률이 얼마인지 보여드립니다.
+        </Empty>
+      )}
 
       {/* 📊 성적표 — 여기 오신 분이 바로 그 손님입니다 (2026-09-15) */}
       <ReportStrip />

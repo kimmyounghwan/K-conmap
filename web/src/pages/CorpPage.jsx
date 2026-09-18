@@ -88,6 +88,11 @@ export default function CorpPage() {
           ? <>자료를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.<br /></>
           : <>«{decoded}» 의 낙찰 기록이 없습니다.<br /></>}
         3년치 개찰에서 <b>1순위(낙찰)</b> 기록만 모으므로, 투찰만 하고 떨어진 업체는 나오지 않습니다.<br />
+        {/* 🚨 2026-09-18 — 여기까지 온 사람이 성적표가 가장 필요한 사람입니다.
+            「없습니다」 로 끝내지 않습니다. */}
+        <b>넣으신 것까지 보시려면 성적표를 신청하십시오 — 낙찰이 한 건도 없어도 나옵니다.</b><br />
+        <Link to="/report" style={{ color: 'var(--accent)', fontWeight: 700 }}>📊 입찰 성적표 보기 →</Link>
+        {'   '}
         <Link to="/analysis?m=corp" style={{ color: 'var(--accent)', fontWeight: 700 }}>분석 탭에서 다시 찾아보기 →</Link>
       </Empty>
     )
