@@ -21,7 +21,7 @@
  *   ⚠️ 여기 적는 답은 «나에게 남기는 기록» 입니다. 문의하신 분께 저절로 가지 않습니다.
  *      그분께는 적어 주신 연락처로 답합니다.
  *
- * ■ 누가 여나 — **운영자 브라우저만** (Qna.jsx 의 OPS).
+ * ■ 누가 여나 — **운영자 브라우저만** (lib/운영자.js 의 OPS).
  *   ⚠️ 이건 «보안» 이 아니라 «문 앞 이름표» 입니다. 화면 안에서 판정하니까요.
  *      진짜로 막는 것은 서버입니다 — database.rules.json 이 op 를 uid 로 막고 있고,
  *      여기서 보이는 자료(qna·qna_a)는 **어차피 누구나 읽을 수 있는 공개 게시판** 입니다.
@@ -34,7 +34,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Skeleton, Empty } from '../components.jsx'
 import { nickOf } from '../lib/nickname.js'
-import { OPS, isOp } from './Qna.jsx'
+import { OPS, isOp } from '../lib/운영자.js'
 
 /* firebase 는 이 화면을 열 때만 받습니다 (사랑방과 같은 방식) */
 let _fb = null

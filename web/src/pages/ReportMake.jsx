@@ -8,7 +8,7 @@
             다운 받을 수 있게도 해주고, 다른 이용자는 못하게 하고...」
 
    ■ 어떻게 «다른 이용자는 못 쓰나»
-     ① 문 앞 이름표 — 운영자 브라우저(Qna.jsx 의 OPS)에서만 열립니다.
+     ① 문 앞 이름표 — 운영자 브라우저(lib/운영자.js 의 OPS)에서만 열립니다.
      ② **진짜 자물쇠는 자료입니다.** 성적표는 개찰마다 «투찰업체 30곳» 이 다 들어 있는
         data/store/first.json 이 있어야 만들어집니다. 그 파일은 사이트에 올라가 있지
         않습니다 (사이트의 /data/first.json 은 최근 300건 요약본입니다).
@@ -23,7 +23,7 @@
    ══════════════════════════════════════════════════════════════ */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { isOp } from './Qna.jsx'
+import { isOp } from '../lib/운영자.js'
 import { getOverview, getBidIndex, indexRows } from '../lib/data.js'
 import { 성적표, 업체목록, 업체찾기, P50_FALLBACK } from '../lib/성적표.js'
 import { 그리기, PDF만들기, 내려받기 } from '../lib/성적표종이.js'

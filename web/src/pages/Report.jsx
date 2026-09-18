@@ -13,21 +13,17 @@
  *    그래서 «건설맵에 한 줄이라도 보태 주신 분» 부터 만들어 드립니다.
  *    ⚠️ 여기에 «언제까지 만들어 드린다» 는 말을 적지 않습니다 — 지킬 수 없는 약속입니다.
  */
-import { useState } from 'react'
-import { askAfter } from '../AskComment'
 import { Link } from 'react-router-dom'
+import { askAfter } from '../AskComment'
+import { 나운영자 } from '../lib/운영자.js'
 
-/* 🔖 2026-09-18 — 운영자 브라우저에만 「성적표 만들기」 길을 답니다.
-   표는 /admin 이 남깁니다(그 화면은 이미 uid 로 확인합니다). 여기서 파이어베이스를
-   다시 부르지 않기 위해서입니다 — /report 는 설명만 있는 가벼운 화면입니다.
-   ⚠️ 이건 «문 앞 이름표» 입니다. 진짜 자물쇠는 자료입니다 — 성적표는 소장님 컴퓨터의
-      data/store/first.json 이 있어야 만들어지고, 그 파일은 사이트에 올라가 있지 않습니다. */
-const 나운영자 = () => { try { return localStorage.getItem('kcm_op') === '1' } catch { return false } }
+/* 🔖 2026-09-18 — 소장님: 「그냥 예전처럼 버튼으로 다운받게 해주면 될것 같아」
+   하루 전에 견본 종이 여섯 장을 화면에 통째로 박았다가 다시 떼냈습니다.
+   보시기에 «A4 종이가 화면을 끝없이 흘러내리는» 모양이 됐습니다.
+   ⚠️ 그림은 `web/public/report/report-1~6.webp` 에 그대로 두었습니다 —
+      다시 붙이자는 말이 나오면 그때 쓰면 됩니다. 지우지 마십시오. */
 
 export default function Report() {
-  /* 여섯 쪽을 다 받으면 394KB 입니다. 두 쪽만 먼저 보이고 나머지는 눌렀을 때 폅니다. */
-  const [다보기, set다보기] = useState(false)
-  const 쪽들 = 다보기 ? [1, 2, 3, 4, 5, 6] : [1, 2]
   return (
     <>
       <div className="card lead-card">
@@ -41,36 +37,22 @@ export default function Report() {
         </p>
       </div>
 
-      {/* 🚨 2026-09-18 — 소장님: 「사이트 안에서 보이게 해줘야지. 그래야 이용자가
-          이런게 있네. 신청해 봐야겠다라고 생각하지」
-          전에는 «견본 보기(PDF)» 단추뿐이었습니다. PDF 는 눌러서 내려받고 열어야 보입니다 —
-          그 세 걸음 사이에 사람이 다 떨어집니다. 그래서 **종이를 화면에 그대로 박습니다.**
-          ⚠️ 그림 여섯 장이 394KB 입니다. 첫 두 장만 받고 나머지는 눌렀을 때 받습니다
-             (loading=lazy + 접어 두기). 이 화면은 «설명» 이라 무겁게 만들면 안 됩니다.
-          ⚠️ 이 그림은 web/src/lib/성적표종이.js 가 뽑은 것입니다 — 화면에서 만드는 성적표와
-             **같은 코드, 같은 그림**입니다. 견본만 예쁘게 따로 만들지 마십시오. */}
+      {/* 🔖 2026-09-18 — 소장님: 「클로드가 봐봐. 이상하지? 그냥 예전처럼
+          버튼으로 다운받게 해주면 될것 같아」
+          전날 「사이트 안에서 보이게 해줘」 라고 하셔서 견본 여섯 장을 통째로
+          박았는데, 막상 보시니 A4 종이가 화면을 끝없이 흘러내렸습니다.
+          **단추 하나로 돌립니다.** 그림 파일은 지우지 않았습니다. */}
       <div className="card">
         <div className="sec-title">이런 종이를 받으십니다</div>
         <p className="muted" style={{ marginTop: 0 }}>
-          아래는 <b>실제 조달청 개찰 기록</b>으로 만든 견본입니다. 숫자는 손대지 않았고,
-          <b> 업체 이름과 공고명만 가렸습니다.</b>
+          <b>A4 여섯 쪽</b>입니다. <b>실제 조달청 개찰 기록</b>으로 만든 견본이고,
+          숫자는 손대지 않았습니다 — <b>업체 이름과 공고명만 가렸습니다.</b>
         </p>
-        <div className="repshot">
-          {쪽들.map((n) => (
-            <img key={n} src={`/report/report-${n}.webp`} width="900" height="1273"
-                 loading={n <= 2 ? 'eager' : 'lazy'} decoding="async"
-                 alt={`업체 입찰 성적표 견본 ${n}쪽`} />
-          ))}
-        </div>
-        {!다보기 && (
-          <button className="btn line" style={{ marginTop: 10 }}
-                  onClick={() => set다보기(true)}>나머지 네 쪽 마저 보기 ↓</button>
-        )}
-        <div className="btn-row" style={{ marginTop: 10 }}>
+        <div className="btn-row">
           <a className="btn primary" href="/report-sample.pdf" target="_blank" rel="noopener"
              download="K-건설맵_입찰성적표_견본.pdf"
-             onClick={() => askAfter('forms')}>📄 견본 PDF 로 받기 (6쪽)</a>
-          <Link className="btn ghost" to="/qna">💬 우리 회사 것 신청하기</Link>
+             onClick={() => askAfter('forms')}>📄 견본 PDF 받기 (6쪽)</a>
+          <Link className="btn ghost" to="/qna" state={{ from: { to: '/report', name: '업체 입찰 성적표' } }}>💬 우리 회사 것 신청하기</Link>
         </div>
       </div>
 
@@ -123,7 +105,7 @@ export default function Report() {
           그래서 <b>건설맵에 한 줄이라도 보태 주신 분부터</b> 만들어 드립니다.
         </p>
         <ul className="flist">
-          <li><Link to="/qna"><b>사랑방</b></Link>에 답글을 달아 주신 것</li>
+          <li><Link to="/qna" state={{ from: { to: '/report', name: '업체 입찰 성적표' } }}><b>사랑방</b></Link>에 답글을 달아 주신 것</li>
           <li>서식 · 엑셀에서 <b>틀린 데를 알려 주신 것</b></li>
           <li>바로투찰을 써 보고 <b>어땠는지 한 줄</b> 남겨 주신 것</li>
         </ul>
@@ -136,7 +118,7 @@ export default function Report() {
       <div className="card">
         <div className="sec-title">신청하는 법</div>
         <p>
-          <Link to="/qna"><b>사랑방</b></Link>에 <b>「성적표 신청」</b>과 <b>업체명</b>을 한 줄 남겨 주십시오.
+          <Link to="/qna" state={{ from: { to: '/report', name: '업체 입찰 성적표' } }}><b>사랑방</b></Link>에 <b>「성적표 신청」</b>과 <b>업체명</b>을 한 줄 남겨 주십시오.
           회원가입도 로그인도 필요 없습니다.
         </p>
         <p className="muted">
@@ -144,7 +126,7 @@ export default function Report() {
           지킬 수 없는 약속은 안 하는 편이 낫습니다.
         </p>
         <div className="btn-row">
-          <Link className="btn primary" to="/qna">💬 성적표 신청하기</Link>
+          <Link className="btn primary" to="/qna" state={{ from: { to: '/report', name: '업체 입찰 성적표' } }}>💬 성적표 신청하기</Link>
           <Link className="btn ghost" to="/analysis?m=corp">🔍 먼저 자가진단 해보기</Link>
         </div>
         {나운영자() && (

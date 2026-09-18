@@ -70,10 +70,12 @@ const addMine = (id) => { try { localStorage.setItem(MINE_KEY, JSON.stringify([.
  *
  * ⚠️ **다른 분들이 글·답글 쓰는 것은 그대로입니다.** 가입도 로그인도 없습니다.
  *    바뀐 것은 «표가 붙느냐» 하나뿐입니다. */
-export const OPS = [
-  'ZglL1g3X5UZFBA2590LirDnEnil1',      // 소장님 (사무실 크롬, 2026-09-17 등록)
-]
-export const isOp = (uid) => !!uid && OPS.includes(uid)
+/* 🔖 2026-09-18 — 번호 목록은 `lib/운영자.js` 로 옮겼습니다.
+   운영자인지 보려는 화면(Admin·ReportMake·Report)이 여기서 가져가면
+   **사랑방 화면을 통째로 끌고 갔기** 때문입니다.
+   여기서 다시 내보내는 것은 옛 길(`from './Qna.jsx'`)을 깨뜨리지 않기 위함입니다. */
+import { OPS, isOp } from '../lib/운영자.js'
+export { OPS, isOp }
 
 const when = (ms) => {
   if (!ms) return ''

@@ -61,8 +61,29 @@ const TOP = new Set(['/', '/calc', '/first', '/live', '/analysis', '/jobs', '/fo
   '/daily', '/safety', '/shareone', '/report', '/lic'])
 
 export default function Crumbs() {
-  const { pathname } = useLocation()
+  const { pathname, state } = useLocation()
   const path = pathname.replace(/\/+$/, '') || '/'
+
+  /* 🔖 2026-09-18 — 소장님: 「우리회사 것 신청하기 하면 사랑방으로 가는데,
+     뒤로가기가 없어」
+
+     사랑방·바로투찰 같은 «큰 자리» 는 원래 길을 안 그렸습니다 — 탭에 이미 불이
+     들어오니까요. 그런데 **다른 화면이 보낸 경우** 는 다릅니다. 성적표를 보다
+     「신청하기」를 눌렀는데 사랑방에 떨어지면, **성적표로 돌아갈 길이 화면에
+     없습니다.** 앱으로 깔아 쓰면 브라우저 뒤로가기 단추도 없습니다.
+
+     보내는 쪽에서 `state={{ from: { to, name } }}` 만 달아 주면 됩니다.
+     ⚠️ 화면을 하나하나 고치지 마십시오 — 길은 여기 한 곳에서만 그립니다. */
+  const 온곳 = state && state.from
+  if (온곳 && 온곳.to && 온곳.to !== path) {
+    const 이름 = 온곳.name || NAME[온곳.to] || '앞 화면'
+    return (
+      <nav className="crumbs" aria-label="길">
+        <Link className="crumb-back" to={온곳.to}>← {이름}</Link>
+      </nav>
+    )
+  }
+
   if (TOP.has(path)) return null
 
   const seg = path.split('/').filter(Boolean)
