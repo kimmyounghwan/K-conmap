@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link, useLocation } from 'react-router-dom'
+import { useParams, Link, useLocation, useNavigate } from 'react-router-dom'
 import { getCorp, getOverview } from '../lib/data.js'
 import { CorpReport } from './Analysis.jsx'
 import { ReportStrip } from './Report.jsx'
@@ -28,14 +28,22 @@ export default function CorpPage() {
   const loc = useLocation()
   const decoded = decodeURIComponent(name || '')
   /* 같은 이름의 법인이 여럿일 때 «이 법인만 보기» 로 좁혀 보는 갈래.
-     주소에는 넣지 않습니다(사업자번호 노출). 분석 탭에서 넘어올 때는 라우터 state 로 옵니다. */
-  const [firm, setFirm] = useState(loc.state?.firm || null)
+     주소에는 넣지 않습니다(사업자번호 노출). 분석 탭에서 넘어올 때는 라우터 state 로 옵니다.
+
+     🚨 2026-09-18 — 전에는 이걸 화면 안 상태(useState)로만 들고 있었습니다. 그래서
+        «이 법인만 보기» 를 눌러도 **브라우저 «뒤로» 가 안 먹었습니다** — 기록이 안 남으니까요.
+        소장님: 「업체를 선택하면 뒤로가기가 되어야 하는데, 없어」
+        → 이제 라우터 기록(state)에 남깁니다. 주소는 그대로라 사업자번호는 여전히 안 보이고,
+          뒤로 누르면 «같은 이름 전체» 로 돌아옵니다. */
+  const navigate = useNavigate()
+  const firm = loc.state?.firm || null
   const key = firm || decoded
   const [c, setC] = useState(undefined)
   const [ov, setOv] = useState(null)
 
   useEffect(() => { getOverview().then(setOv).catch(() => {}) }, [])
-  useEffect(() => { setFirm(loc.state?.firm || null) }, [decoded])   // 다른 업체로 가면 초기화
+  const 법인고르기 = (k) => navigate(loc.pathname + loc.search, { state: { firm: k } })
+  const 전체보기 = () => navigate(loc.pathname + loc.search, { state: {} })
 
   useEffect(() => {
     let alive = true
@@ -98,12 +106,12 @@ export default function CorpPage() {
           <b>{c.name}</b>{c.ceo ? ` · 대표 ${c.ceo}` : ''}
           {c.biz ? ` · ${c.biz.slice(0, 3)}-${c.biz.slice(3, 5)}-•••` : ''}
           {' '}— 이 법인 하나만 보고 있습니다 ·{' '}
-          <a onClick={() => setFirm(null)} style={{ color: 'var(--accent)', cursor: 'pointer', fontWeight: 700 }}>
+          <a onClick={전체보기} style={{ color: 'var(--accent)', cursor: 'pointer', fontWeight: 700 }}>
             같은 이름 전체 보기 →
           </a>
         </div>
       )}
-      <CorpReport c={c} ov={ov} onPickFirm={(k) => setFirm(k)} />
+      <CorpReport c={c} ov={ov} onPickFirm={법인고르기} />
       {/* 📊 성적표 — 자기 회사 숫자를 «막 본 직후» 가 가장 뜨거운 자리입니다 (2026-09-15).
           이 화면은 업체마다 미리 구워져 있어 검색으로 바로 들어옵니다. */}
       <ReportStrip name={decoded} />

@@ -155,8 +155,52 @@ function CorpTab() {
    두 곳이 씁니다. 두 벌로 적으면 언젠가 어긋납니다 — 여기 하나만 고칩니다. */
 export function CorpReport({ c, ov, onPickFirm }) {
   const regions = c ? Object.entries(c.reg || {}) : []
+  /* 🚨 2026-09-18 — 법인 고르는 칸이 «사업자번호 앞자리 + 대표 이름» 뿐이었습니다.
+     소장님: 「업체가 다 나와야 하는데, 그래서 선택하게 해야 하는데」 ·
+             「전남 3을 클릭하면 바로 회사분석이 나와. 어느회사인지 모르잖아」
+     → 검색 색인을 한 번 더 읽어 **상호·지역**을 붙입니다. 같은 칸(첫 글자 묶음)이라
+        검색으로 들어오셨으면 이미 받아 둔 파일이고, 아니면 10KB 남짓 한 번입니다. */
+  const 모음 = !!c && c.bzn > 1 && !c.biz
+  const [법인들, set법인들] = useState(null)
+  useEffect(() => {
+    if (!모음) { set법인들(null); return }
+    let alive = true
+    const base = normCorp(c.name)
+    searchCorp(base)
+      .then((r) => { if (alive) set법인들((r || []).filter((x) => x.biz && x.key === `${base}#${x.biz}`)) })
+      .catch(() => { if (alive) set법인들([]) })
+    return () => { alive = false }
+  }, [모음, c && c.name])
+  /* 색인에서 찾은 것과 업체 자료의 bz 목록을 맞춰 둡니다 — 둘 중 아는 쪽을 씁니다 */
+  const 고를것 = (c && c.bz ? c.bz : []).map(([bz, ceo, cnt]) => {
+    const hit = (법인들 || []).find((x) => x.biz === bz)
+    return { bz, ceo: ceo || (hit && hit.ceo) || '', cnt, nm: (hit && hit.nm) || '', reg: (hit && hit.reg) || '' }
+  })
+  const 고르는칸 = 모음 ? (
+    <div className="mixbox">
+      <div className="h">⚠️ 이 이름으로 등록된 법인이 {num(c.bzn)}곳입니다 — 어느 회사인지 고르십시오</div>
+      <p>
+        아래 숫자는 <b>{num(c.bzn)}개 법인의 실적이 합쳐진 값</b>입니다. 내 회사만의 기록이 아닙니다.
+        조달청 자료가 업체를 이름으로만 주는 구간이 있어 아직 완전히 갈라내지 못했습니다 —
+        확인된 {num(c.bzk)}건의 내역은 아래와 같습니다.
+      </p>
+      <div className="firms">
+        {고를것.map((x) => (
+          <button key={x.bz} className="firm"
+            onClick={() => onPickFirm && onPickFirm(`${normCorp(c.name)}#${x.bz}`)}>
+            <span className="nm2">{x.nm || c.name}</span>
+            <span className="no">{x.bz.slice(0, 3)}-{x.bz.slice(3, 5)}-•••</span>
+            <span className="ceo">{x.reg ? `${x.reg} · ` : ''}{x.ceo || '대표 미상'}</span>
+            <span className="cnt">{num(x.cnt)}건</span>
+            <span className="go">이 법인만 보기 →</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  ) : null
   return (
     <>
+          {고르는칸}
           <div className="card">
             <div style={{ fontSize: 16, fontWeight: 800 }}>{c.name}</div>
             <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 3 }}>
@@ -175,27 +219,6 @@ export function CorpReport({ c, ov, onPickFirm }) {
             </p>
           </div>
 
-          {c.bzn > 1 && (
-            <div className="mixbox">
-              <div className="h">⚠️ 이 이름으로 등록된 법인이 {num(c.bzn)}곳입니다</div>
-              <p>
-                아래 숫자는 <b>{num(c.bzn)}개 법인의 실적이 합쳐진 값</b>입니다.
-                내 회사만의 기록이 아닙니다. 조달청 자료가 업체를 이름으로만 주는 구간이 있어
-                아직 완전히 갈라내지 못했습니다 — 확인된 {num(c.bzk)}건의 내역은 아래와 같습니다.
-              </p>
-              <div className="firms">
-                {(c.bz || []).map(([bz, ceo, cnt]) => (
-                  <button key={bz} className="firm"
-                    onClick={() => onPickFirm && onPickFirm(`${normCorp(c.name)}#${bz}`)}>
-                    <span className="no">{bz.slice(0, 3)}-{bz.slice(3, 5)}-•••</span>
-                    <span className="ceo">{ceo || '대표 미상'}</span>
-                    <span className="cnt">{num(cnt)}건</span>
-                    <span className="go">이 법인만 보기 →</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* ★ 2026-09-03 — 내가 이기는 자리인가 (창 · 등급 · 경쟁) */}
           <SpotBlock spot={c.spot} who="내가 딴 자리" />

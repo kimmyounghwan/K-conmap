@@ -10,12 +10,36 @@
 
 {
   "rules": {
-    ".read": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
-    ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
+    // 🔒 2026-09-18 — 뿌리는 **아무도** 못 읽고 못 씁니다.
+    //    전에는 «익명이 아닌 로그인» 이면 DB 전체를 읽고 쓸 수 있었습니다. 지금은
+    //    그런 로그인을 쓰는 데가 한 곳도 없는데(사이트는 signInAnonymously 하나뿐,
+    //    tools/qna_mail.py·quote_mail.py 는 서비스 계정이라 규칙을 지나칩니다),
+    //    구글 로그인 같은 걸 한 번이라도 켜는 순간 «아무 구글 계정이나» DB 주인이 됩니다.
+    //    열어 둘 까닭이 없어 닫았습니다. 필요한 칸은 아래에서 하나씩 엽니다.
+    //    ⚠️ 옛 Streamlit 이 쓰던 users·bid_master·announcements·archive_*·service_*·
+    //       backup_notices 는 여기에 걸려 전부 잠깁니다. 그 사이트는 이미 없습니다.
+    //    ⚠️ 서비스 계정(함수·메일 도구)은 규칙과 상관없이 그대로 됩니다.
+    ".read": false,
+    ".write": false,
 
-    // ───── 기존 Streamlit 이 쓰는 노드 (건드리지 말 것) ─────
-    "stats": { ".read": true, ".write": true },
-    "sarasa": { ".read": true, ".write": true },
+    // ───── 옛 Streamlit 이 쓰던 노드 ─────
+    // 🚨 2026-09-18 — 파이어베이스가 「안전하지 않은 규칙」 메일을 보냈습니다. **여기였습니다.**
+    //    이 두 칸이 «.read: true, .write: true» 였습니다. 즉 **주소만 알면 누구나
+    //    아무 것이나 써 넣을 수 있었습니다.** DB 주소는 사이트 자바스크립트에 들어 있으니
+    //    사실상 공개된 주소입니다. 종량제(Blaze)라 남이 자료를 들이부으면 요금이 붙고,
+    //    있던 값을 지워 버릴 수도 있었습니다.
+    //
+    //    실측하고 닫았습니다:
+    //      · stats  — 방문 세는 값 네 개뿐. 마지막 기록이 **2026-04** 로 다섯 달째 멈춰 있었습니다.
+    //      · sarasa — sarasa/deals 에 쇼핑몰 링크 15개. sarasa.kr 은 파이어베이스를 아예 안 부릅니다(실측).
+    //      · 옛 사이트 k-conmap.streamlit.app 은 **이미 없습니다**(「앱이 없거나 권한이 없습니다」).
+    //    ⇒ 쓰기는 둘 다 막습니다. 읽기는 sarasa 만 열어 둡니다(공개 쇼핑 링크라 해가 없고,
+    //      혹시 읽는 데가 있어도 안 깨지게).
+    //    ⚠️ 값은 **지우지 않았습니다.** 지금 값은 CLAUDE.md 8절 56 에 적어 두었습니다.
+    //    ⚠️ 여기에 다시 쓸 일이 생기면 «.write: true» 로 열지 말고, 서비스 계정(규칙을 지나칩니다)을
+    //       쓰거나 모양·크기를 검사하는 .validate 를 붙여 여십시오.
+    "stats":  { ".read": false, ".write": false },
+    "sarasa": { ".read": true,  ".write": false },
     "archive_1st": { ".indexOn": ["날짜"] },
     "archive_live": { ".indexOn": ["공고일자"] },
     "service_1st": { ".indexOn": ["날짜"] },
