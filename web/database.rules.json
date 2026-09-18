@@ -125,7 +125,12 @@
       ".read": "auth.uid === 'ZglL1g3X5UZFBA2590LirDnEnil1'",
       ".write": false,
       "$id": {
-        ".write": "!data.exists()",
+        // 🗑️ 2026-09-18 — 소장님: 「삭제하는 난이 없어」
+        //   전에는 «만들기만» 되고 지우는 길이 아예 없었습니다.
+        //   그래서 시험으로 넣은 글도 영영 남았습니다.
+        //   → 운영자 브라우저는 «지우기» 만 됩니다. 고치기는 여전히 안 됩니다
+        //     (!newData.exists() — 지우는 것 말고는 손을 못 댑니다).
+        ".write": "!data.exists() || (auth.uid === 'ZglL1g3X5UZFBA2590LirDnEnil1' && !newData.exists())",
         ".validate": "newData.hasChildren(['work', 'phone', 'at'])",
         "work":  { ".validate": "newData.isString() && newData.val().length <= 120" },
         "org":   { ".validate": "newData.isString() && newData.val().length <= 60" },

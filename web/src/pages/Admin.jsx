@@ -308,6 +308,26 @@ function 문의칸({ q, 답, onDone, 급함 }) {
     } finally { setBusy(false) }
   }
 
+  /* 🗑️ 지우기 — 소장님: 「삭제하는 난이 없어」 (2026-09-18)
+     ⚠️ 되돌릴 수 없습니다. 그래서 두 번 눌러야 지워집니다.
+     ⚠️ 답(quote_a)도 같이 지웁니다 — 문의만 지우면 답이 떠돌게 됩니다. */
+  const [지울까, set지울까] = useState(false)
+  const 지우기 = async () => {
+    if (!지울까) { set지울까(true); setTimeout(() => set지울까(false), 4000); return }
+    setBusy(true); setMsg('')
+    try {
+      const { ref, remove, db, ensureAnon } = await loadFb()
+      const user = await ensureAnon()
+      if (!isOp(user.uid)) { setMsg('이 브라우저는 운영자가 아닙니다.'); setBusy(false); return }
+      await remove(ref(db, `quote_a/${q.id}`)).catch(() => {})   /* 답은 없을 수도 있습니다 */
+      await remove(ref(db, `quotes/${q.id}`))
+      onDone()
+    } catch (e) {
+      setMsg('지우지 못했습니다. 규칙이 올라갔는지 보십시오.')
+      setBusy(false)
+    }
+  }
+
   /* 연락처 — 번호면 «바로 걸기», 메일이면 «베끼기».
      ⚠️ 메일에 mailto: 를 걸지 않습니다. 소장님: 「근데 윈도우가 뜨던데」 (8절 46).
         소장님은 웹메일을 쓰시므로 누르면 낯선 메일 프로그램만 뜹니다.
@@ -368,6 +388,11 @@ function 문의칸({ q, 답, onDone, 급함 }) {
           {busy ? '적는 중…' : 답 ? '고쳐 적기' : '적어 두기'}
         </button>
         {답 && <span className="muted" style={{ fontSize: 12 }}>적은 때 {when(답.at)}</span>}
+        <button className="btn line sm" onClick={지우기} disabled={busy}
+          style={지울까 ? { marginLeft: 'auto', borderColor: 'var(--bad, #dc2626)', color: 'var(--bad, #dc2626)' }
+                        : { marginLeft: 'auto' }}>
+          {지울까 ? '정말 지웁니다 — 한 번 더' : '지우기'}
+        </button>
         {msg && <span className="muted" style={{ fontSize: 12 }}>{msg}</span>}
       </div>
     </div>
