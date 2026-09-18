@@ -13,6 +13,7 @@
  *    그래서 «건설맵에 한 줄이라도 보태 주신 분» 부터 만들어 드립니다.
  *    ⚠️ 여기에 «언제까지 만들어 드린다» 는 말을 적지 않습니다 — 지킬 수 없는 약속입니다.
  */
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { askAfter } from '../AskComment'
 import { 나운영자 } from '../lib/운영자.js'
@@ -24,6 +25,12 @@ import { 나운영자 } from '../lib/운영자.js'
       다시 붙이자는 말이 나오면 그때 쓰면 됩니다. 지우지 마십시오. */
 
 export default function Report() {
+  /* 🔖 2026-09-18 — 운영자인지 «물어보고» 답을 기다립니다.
+     파이어베이스가 번호를 IndexedDB 에 넣어 두는데 그건 비동기라, 그릴 때 바로 못 봅니다. */
+  const [운영자, set운영자] = useState(false)
+  useEffect(() => { let 살았나 = true
+    나운영자().then((v) => { if (살았나) set운영자(v) }).catch(() => {})
+    return () => { 살았나 = false } }, [])
   return (
     <>
       <div className="card lead-card">
@@ -129,7 +136,7 @@ export default function Report() {
           <Link className="btn primary" to="/qna" state={{ from: { to: '/report', name: '업체 입찰 성적표' } }}>💬 성적표 신청하기</Link>
           <Link className="btn ghost" to="/analysis?m=corp">🔍 먼저 자가진단 해보기</Link>
         </div>
-        {나운영자() && (
+        {운영자 && (
           <div className="btn-row" style={{ marginTop: 8 }}>
             <Link className="btn line" to="/report/make">📊 성적표 만들기 (운영자)</Link>
           </div>

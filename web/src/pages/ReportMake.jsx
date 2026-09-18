@@ -72,7 +72,7 @@ export default function ReportMake() {
        혼자 만드는 화면이라 인터넷이 없어도 돌아가야 맞습니다.
        ⚠️ 자물쇠를 느슨하게 하는 것이 아닙니다 — 진짜 자물쇠는 **자료** 입니다.
           이 화면은 소장님 컴퓨터의 first.json 이 없으면 한 글자도 못 만듭니다. */
-    if (나운영자()) setUid(OP_LOCAL)
+    나운영자().then((v) => { if (v) setUid((p) => (p === undefined ? OP_LOCAL : p)) }).catch(() => {})
     ;(async () => {
       try {
         const { ensureAnon } = await loadFb()
