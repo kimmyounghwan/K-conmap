@@ -240,6 +240,35 @@ export function passProb({ base, llRate, aVal, amt, p50, sd }) {
   return { sj: Math.round(s * 1000) / 1000, p: normCdf((s - p50) / sd) }
 }
 
+/* ══════════════════════════════════════════════════════════════
+   순위 사다리로 «몇 위쯤인지» 좁히기 (2026-09-18)
+
+   ⚠️ 이 규칙이 BaroBid.jsx 안에 적혀 있었습니다. 성적표(lib/성적표.js)도 같은 것이
+      필요해져서, 두 곳에 같은 식을 적는 대신 여기 하나로 모읍니다.
+      파이썬 쪽 짝은 tools/bidmath.py 의 rank_bracket 입니다 — 같은 답을 내야 합니다.
+
+   ladder(rq) = [[등수, 금액], …] 열한 칸. 우리 금액이 어느 칸 사이에 떨어지는지 봅니다.
+   ⚠️ 사다리에는 **하한 미만(실격) 투찰도 들어 있습니다.** 그건 등수 상대가 아니므로
+      하한 아래 칸 수만큼 등수에서 뺍니다.
+   ⚠️ 1순위(beat)면 사다리와 무관하게 1위입니다 — 하한을 넘기고 실제 1순위보다 낮으면
+      정의상 1위입니다(사다리가 없는 옛 개찰에서 «모른다» 로 떨어지던 자리).
+   돌려주는 것: [최소등수, 최대등수(모르면 null)] · 좁힐 수 없으면 null */
+export function rankBracket(ladder, myAmt, limit = 0, beat = false) {
+  if (beat) return [1, 1]
+  const lad = (Array.isArray(ladder) ? ladder : [])
+    .filter((x) => Array.isArray(x) && x[0] > 0 && x[1] > 0)
+    .sort((x, y) => (x[0] - y[0]) || (x[1] - y[1]))
+  if (!lad.length) return null
+  const dqKnown = lad.reduce((m, x) => (x[1] < limit ? Math.max(m, x[0]) : m), 0)
+  let lo = null, hi = null
+  for (let i = 0; i < lad.length; i++) {
+    if (myAmt >= lad[i][1]) { lo = lad[i][0]; hi = lad[i + 1] ? lad[i + 1][0] : null }
+  }
+  if (lo == null) lo = 1
+  const rankLo = Math.max(2, lo - dqKnown)
+  return [rankLo, hi == null ? null : Math.max(rankLo, hi - dqKnown)]
+}
+
 /* ── 분위 다이얼 (2026-09-03) — 소장님: 「분위를 고정하지 말고, 공고마다 선택하게. 실격이다 아니다는 확률로.」
    각 분위의 z 와, 8,406건 실측(권장과 같은 식, 여유 0%)의 실격률·1순위율.
    ⚠️ 실격률이 분위와 정확히 맞아떨어진다(50→49.8 · 75→25.0 · 95→4.0) — 사정률 정규분포 가정이 맞다는 뜻.

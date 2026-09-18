@@ -91,9 +91,13 @@ export default function CorpPage() {
         <Link to="/analysis?m=corp" className="btn ghost sm">← 다른 업체 찾기</Link>
         <ShareBtn />
       </div>
+      {/* 🚨 2026-09-18 — «어느 법인» 인지 여기에 적습니다. 같은 이름이 네 곳이면
+          「이 법인 하나만 보고 있습니다」 만으로는 어느 곳인지 알 수 없습니다. */}
       {firm && (
         <div className="note" style={{ marginBottom: 10 }}>
-          이 법인 하나만 보고 있습니다 ·{' '}
+          <b>{c.name}</b>{c.ceo ? ` · 대표 ${c.ceo}` : ''}
+          {c.biz ? ` · ${c.biz.slice(0, 3)}-${c.biz.slice(3, 5)}-•••` : ''}
+          {' '}— 이 법인 하나만 보고 있습니다 ·{' '}
           <a onClick={() => setFirm(null)} style={{ color: 'var(--accent)', cursor: 'pointer', fontWeight: 700 }}>
             같은 이름 전체 보기 →
           </a>

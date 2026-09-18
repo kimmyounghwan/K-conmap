@@ -95,6 +95,9 @@ const ChangeNaeyeok = lazyPage(() => import('./pages/Change.jsx').then((m) => ({
 const TwoLine = lazyPage(() => import('./pages/TwoLine.jsx'))
 /* 📊 업체 입찰 성적표 — 2026-09-15 */
 const Report = lazyPage(() => import('./pages/Report.jsx'))
+/* 📊 성적표 «만들기» — 2026-09-18. 소장님만. 검색엔진에 안 올립니다(ReportMake.jsx 가 noindex 를 겁니다).
+   ⚠️ 무거운 것(캔버스·pdf-lib)은 이 화면을 열 때만 받습니다 — 반드시 lazyPage 입니다. */
+const ReportMake = lazyPage(() => import('./pages/ReportMake.jsx'))
 const FormPage = lazyPage(() => import('./pages/Forms.jsx').then((m) => ({ default: m.FormPage })))
 
 const Loading = () => (
@@ -131,6 +134,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/change/naeyeok" element={<Suspense fallback={<Loading />}><ChangeNaeyeok /></Suspense>} />
           <Route path="/change/twoline" element={<Suspense fallback={<Loading />}><TwoLine /></Suspense>} />
           <Route path="/report" element={<Suspense fallback={<Loading />}><Report /></Suspense>} />
+          <Route path="/report/make" element={<Suspense fallback={<Loading />}><ReportMake /></Suspense>} />
           {/* 갈래별 주소 — prerender.py 가 이 주소로 HTML 을 굽습니다.
               ⚠️ 여기에 길이 없으면, 검색으로 들어온 사람에게 React 가 NotFound 를 씌우고
                  NotFound 는 noindex 를 겁니다 (CLAUDE.md soft 404). 반드시 짝을 맞춥니다. */}

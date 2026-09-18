@@ -846,10 +846,18 @@ def build_corp(df):
         cur[key] = agg[key]
         disp[key] = agg[key].get("name") or key
         _r = agg[key].get("reg") or {}
+        # 🚨 2026-09-18 — 여섯째 칸(상호)을 붙였습니다. 소장님: 「전남 3을 클릭하면 바로
+        #   회사분석이 나와. 어느회사인지 모르잖아.」
+        #   검색 목록이 «정규화된 이름»(국토건설)만 찍고 있었습니다. 같은 이름에 법인이 넷이면
+        #   네 줄이 전부 「국토건설」로 똑같이 보입니다 — 대표 이름과 가린 번호로만 구별하라는
+        #   화면이었습니다. 실제 상호는 (주)국토건설·국토건설(주)·국토건설 주식회사 로 다 다릅니다.
+        #   ⚠️ 화면(Analysis.jsx)은 «합계 줄» 에는 이 상호를 쓰지 않습니다 — 합계는 한 법인이
+        #      아니므로 그 줄에 상호를 찍으면 그게 더 큰 거짓말이 됩니다.
         idx[first_key(key)][key] = [agg[key]["n"], len(chunks),
                                     agg[key].get("bzn", 0),
                                     next(iter(_r), ""),
-                                    agg[key].get("ceo", "")]
+                                    agg[key].get("ceo", ""),
+                                    agg[key].get("name") or key]
         cur_n += 1
         if cur_n >= CHUNK:
             chunks.append(cur)

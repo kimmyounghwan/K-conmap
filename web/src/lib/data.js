@@ -184,11 +184,13 @@ export async function searchCorp(qNorm, deep = false) {
     .sort((a, b) => b[1][0] - a[1][0])
     .slice(0, 40)
     // bzn: 이 이름에 섞여 있는 «서로 다른 법인» 수 · reg: 주력 지역
-    .map(([k2, [n, chunk, bzn, reg, ceo]]) => ({
+    // nm: 그 법인의 «진짜 상호» — 2026-09-18. 없으면(옛 자료·이름 가운데 찾기) 정규화된 이름.
+    .map(([k2, [n, chunk, bzn, reg, ceo, nm]]) => ({
       key: k2, n, chunk, bzn: bzn || 0, reg: reg || '', ceo: ceo || '',
       // '이름#사업자번호' 는 법인 단위 기록입니다
       biz: k2.includes('#') ? k2.split('#')[1] : '',
       label: k2.split('#')[0],
+      nm: nm || '',
     }))
 }
 

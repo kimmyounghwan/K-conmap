@@ -100,18 +100,28 @@ function CorpTab() {
               {list.length === 0 && (
                 <div className="nohit">앞에서부터 찾은 결과가 없습니다</div>
               )}
-              {list.map((it) => (
-                <button key={it.key} onClick={() => pick(it)}>
-                  <span className="c">{num(it.n)}건</span>{it.label}
-                  {it.biz
-                    ? <span className="sub2"> · {it.reg} · {it.ceo || '대표 미상'}
-                        {' '}({it.biz.slice(0, 3)}-{it.biz.slice(3, 5)}-•••)</span>
-                    : <>
-                        {it.reg && <span className="sub2"> · {it.reg}</span>}
-                        {it.bzn > 1 && <span className="mix">합계 · 법인 {it.bzn}곳</span>}
-                      </>}
-                </button>
-              ))}
+              {/* 🚨 2026-09-18 — 줄마다 «어느 회사인지» 를 적습니다.
+                  소장님: 「전남 3을 클릭하면 바로 회사분석이 나와. 어느회사인지 모르잖아.」
+                  전에는 네 줄이 전부 「국토건설」 한 이름으로 찍혔습니다. 실제 상호는
+                  (주)국토건설 · 국토건설(주) · 국토건설 주식회사 로 다 다른데 목록에 안 실었습니다.
+                  그래서 «고르는 줄(합계)» 과 «법인 한 곳 줄» 이 구별되지 않았습니다.
+                  ⚠️ 합계 줄에는 상호를 찍지 않습니다 — 합계는 한 법인이 아닙니다.
+                     대신 「법인 N곳 — 골라 보기 →」 라고 무엇이 나올지 미리 적습니다. */}
+              {list.map((it) => {
+                const 모음 = !it.biz && it.bzn > 1
+                return (
+                  <button key={it.key} className={모음 ? 'grp' : undefined} onClick={() => pick(it)}>
+                    <span className="c">{num(it.n)}건</span>{모음 ? it.label : (it.nm || it.label)}
+                    {it.biz
+                      ? <span className="sub2"> · {it.reg} · {it.ceo || '대표 미상'}
+                          {' '}({it.biz.slice(0, 3)}-{it.biz.slice(3, 5)}-•••)</span>
+                      : <>
+                          {it.reg && <span className="sub2"> · {it.reg}</span>}
+                          {모음 && <span className="mix">법인 {it.bzn}곳 — 골라 보기 →</span>}
+                        </>}
+                  </button>
+                )
+              })}
               {!deep && (
                 <button className="deepmore" onClick={(e) => { e.preventDefault(); setDeep(true) }}>
                   🔎 찾는 업체가 없나요? <b>이름 가운데로도 찾기</b>

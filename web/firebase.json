@@ -40,6 +40,7 @@
     { "source": "/how", "destination": "/index.html" },
     { "source": "/lic", "destination": "/index.html" },
     { "source": "/report", "destination": "/index.html" },
+    { "//": "📊 성적표 만들기 — 소장님만. sitemap·robots 에는 안 넣습니다 (2026-09-18)", "source": "/report/make", "destination": "/index.html" },
     { "source": "/jeoksan", "destination": "/index.html" },
     { "source": "/safety", "destination": "/index.html" },
     { "source": "/shareone", "destination": "/index.html" },

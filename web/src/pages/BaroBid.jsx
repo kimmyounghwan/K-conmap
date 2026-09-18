@@ -9,7 +9,8 @@ import { winGrade } from '../lib/winodds.js'
 import { bidAmount, limitAmount, limitRate, r3, c3,
          sjSigma, recommend, buildScen, missingOf, isReady,
          digits, toNum, P50_FALLBACK, shownBid, passProb, QTILES, QTILE_N, quantileBid,
-         smartBid, autoRule, canBid, nowStamp, stamp14, lowerLimit } from '../lib/bidmath.js'
+         smartBid, autoRule, canBid, nowStamp, stamp14, lowerLimit,
+         rankBracket } from '../lib/bidmath.js'
 import { loadBasket, toggleBasket } from '../lib/basket.js'
 import MyToday from '../MyToday.jsx'
 import { GUIDE_NAV, guideOf } from '../lib/guidenav.js'
@@ -850,15 +851,15 @@ export default function BaroBid() {
       if (beat) {
         rankLo = 1; rankHi = 1
       } else if (rq.length) {
-        const dqKnown = rq.filter((x) => x[1] < L).reduce((m, x) => Math.max(m, x[0]), 0)
-        let lo = null, hi = null
-        for (let i = 0; i < rq.length; i++) {
-          if (M >= rq[i][1]) { lo = rq[i][0]; hi = rq[i + 1] ? rq[i + 1][0] : null }
+        /* ⚠️ 2026-09-18 — 이 규칙이 여기 안에만 적혀 있었습니다. 성적표(lib/성적표.js)도 같은 것이
+           필요해져서 bidmath.js 의 rankBracket 하나로 모았습니다. 여기서 다시 적지 마세요.
+           (파이썬 짝은 tools/bidmath.py 의 rank_bracket 입니다) */
+        const br = rankBracket(rq, M, L, false)
+        if (br) {
+          rankLo = br[0]
+          rankHi = br[1]
+          if (br[1] == null) rankNote = 'last'   // 사다리 끝보다도 높음 = 꼴찌권
         }
-        if (lo == null) lo = 1
-        rankLo = Math.max(2, lo - dqKnown)
-        rankHi = hi == null ? null : Math.max(rankLo, hi - dqKnown)
-        if (hi == null) rankNote = 'last'        // 사다리 끝보다도 높음 = 꼴찌권
       }
     }
     /* 사다리가 없는 옛 자료용 — 가장 낮게 쓴 몇 곳만 들고 있을 때 */

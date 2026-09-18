@@ -1106,6 +1106,10 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
   color: var(--warn); background: var(--warn-soft);
   padding: 1px 6px; border-radius: 999px;
 }
+/* 🚨 2026-09-18 — «고르는 줄(합계)» 과 «법인 한 곳 줄» 을 눈으로 갈라놓습니다.
+   전에는 둘이 똑같이 생겨서, 어느 줄을 누르면 무엇이 나오는지 알 수 없었습니다. */
+.suggest button.grp { background: var(--accent-soft); font-weight: 700; }
+.suggest button.grp:hover { filter: brightness(0.98); }
 
 /* 공고 상세 — 부가 정보 표 */
 .kv2 { display: flex; flex-direction: column; gap: 1px; margin-top: 4px; }
@@ -3271,3 +3275,18 @@ ul.plainlist li { margin-bottom: 5px; }
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 .wrap .pdfwork input[type=text], .wrap .pdfwork select { font-size: 16px; }
+
+/* ── 📊 /report/make — 업체 성적표 만들기 (2026-09-18, 소장님만) ─────────
+   ⚠️ 그린 종이(캔버스)를 그대로 보여 줍니다. 화면에 보이는 그 그림이 그대로 PDF 입니다 —
+      «화면과 받은 파일이 다르다» 가 생길 자리를 없애려고 이렇게 했습니다. */
+.repmk { margin-top: 10px; font-size: 13.5px; }
+.repmk th { font-size: 12px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.repmk td { vertical-align: middle; }
+.repmk td.r, .repmk th:nth-child(n+3) { text-align: right; }
+.repmk .mono { font-variant-numeric: tabular-nums; color: var(--text-2); font-size: 12.5px; }
+.repmk tr.on { background: var(--accent-soft); }
+.repdoc { margin-top: 12px; padding: 12px; border-radius: 10px; overflow-x: auto;
+          background: #5b6472; }
+.repdoc canvas { display: block; width: 100%; height: auto; margin: 0 auto 12px;
+                 background: #fff; box-shadow: 0 2px 10px rgba(0, 0, 0, .35); border-radius: 2px; }
+.repdoc canvas:last-child { margin-bottom: 0; }

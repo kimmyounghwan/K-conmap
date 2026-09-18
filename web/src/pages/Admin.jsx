@@ -83,6 +83,11 @@ export default function Admin() {
       const u = await ensureAnon()
       setUid((u && u.uid) || '')
       if (!isOp(u && u.uid)) return
+      /* 🔖 2026-09-18 — «이 브라우저는 운영자» 라는 표를 남깁니다.
+         /report 가 이걸 보고 「성적표 만들기」 길을 답니다. 파이어베이스를 다시 부르지 않으려고
+         이렇게 합니다 — /report 는 설명만 있는 가벼운 화면이라 로그인을 붙일 자리가 아닙니다.
+         ⚠️ 이건 «문 앞 이름표» 이지 자물쇠가 아닙니다. 자물쇠는 자료입니다 (ReportMake.jsx). */
+      try { localStorage.setItem('kcm_op', '1') } catch { /* 사생활 모드 */ }
       const [a, b, c, d, e] = await Promise.all([
         get(query(ref(db, 'qna'), orderByKey(), limitToLast(300))),
         get(ref(db, 'qna_del')),
@@ -158,6 +163,10 @@ export default function Admin() {
         <div className="muted" style={{ marginTop: 6, fontSize: 13.5, lineHeight: 1.75 }}>
           답 안 단 글부터 올려 둡니다. 여기서 단 답글에는{' '}
           <b style={{ color: 'var(--accent, #1a56db)' }}>「K-건설맵 답변」</b> 표가 붙습니다.
+        </div>
+        {/* 📊 2026-09-18 — 성적표를 «여기서» 만듭니다. 소장님: 「난 할 수 있게 해달라고 했잖아」 */}
+        <div className="btn-row" style={{ marginTop: 10 }}>
+          <Link className="btn primary" to="/report/make">📊 업체 성적표 만들기</Link>
         </div>
       </div>
 

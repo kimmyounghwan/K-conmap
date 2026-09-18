@@ -16,6 +16,13 @@
 import { askAfter } from '../AskComment'
 import { Link } from 'react-router-dom'
 
+/* 🔖 2026-09-18 — 운영자 브라우저에만 「성적표 만들기」 길을 답니다.
+   표는 /admin 이 남깁니다(그 화면은 이미 uid 로 확인합니다). 여기서 파이어베이스를
+   다시 부르지 않기 위해서입니다 — /report 는 설명만 있는 가벼운 화면입니다.
+   ⚠️ 이건 «문 앞 이름표» 입니다. 진짜 자물쇠는 자료입니다 — 성적표는 소장님 컴퓨터의
+      data/store/first.json 이 있어야 만들어지고, 그 파일은 사이트에 올라가 있지 않습니다. */
+const 나운영자 = () => { try { return localStorage.getItem('kcm_op') === '1' } catch { return false } }
+
 export default function Report() {
   return (
     <>
@@ -108,6 +115,11 @@ export default function Report() {
           <Link className="btn primary" to="/qna">💬 성적표 신청하기</Link>
           <Link className="btn ghost" to="/analysis?m=corp">🔍 먼저 자가진단 해보기</Link>
         </div>
+        {나운영자() && (
+          <div className="btn-row" style={{ marginTop: 8 }}>
+            <Link className="btn line" to="/report/make">📊 성적표 만들기 (운영자)</Link>
+          </div>
+        )}
       </div>
 
       {/* ── 알아 두실 것 ── */}
