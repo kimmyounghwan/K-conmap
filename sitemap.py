@@ -336,12 +336,63 @@ def main():
         raise SystemExit(f"  ⛔ 사이트맵에 대표 주소({SITE}) 밖의 주소가 {len(bad)}개 "
                          f"있습니다 — 쓰지 않고 멈춥니다.\n     예: {bad[0].strip()[:120]}")
 
+    # ══════════════════════════════════════════════════════════════
+    # 🚦 2026-09-19 — 사이트맵을 «셋으로» 나눕니다 (서치콘솔 실측)
+    #
+    #   낸 것 1,360장 · 색인된 것 77장(5.7%)
+    #   나머지 1,289장이 「발견됨 — 현재 색인이 생성되지 않음」 이었습니다.
+    #   = 구글이 주소는 아는데 **읽으러 오지도 않았다**는 뜻입니다.
+    #   새 도메인이 천 장 넘게 한 덩어리로 내밀면 구글이 «다 읽을 값어치가 있나» 하고 미룹니다.
+    #   공고 한 건·업체 한 곳짜리 자동 생성 페이지가 대부분이라 더 그렇습니다.
+    #
+    #   → 팔릴 페이지(서식·도구·설계변경·알아보기)를 «작은 한 벌» 로 따로 냅니다.
+    #     구글은 사이트맵 단위로 크롤 몫을 나누므로, 작은 쪽이 먼저 먹힙니다.
+    #     sitemap.xml 은 셋을 가리키는 «목차»(sitemapindex)로 바뀝니다 —
+    #     서치콘솔에 이미 낸 주소가 그대로라 다시 제출하지 않아도 자식들이 따라 들어갑니다.
+    #
+    #   ⚠️ 나누는 기준은 «주소» 하나로만 봅니다. 위쪽 모으는 코드는 건드리지 않습니다 —
+    #      손대면 셈이 어긋납니다(줄마다 어느 통에 넣을지 적으면 새 갈래가 늘 때 또 빠집니다).
+    # ══════════════════════════════════════════════════════════════
+    def _갈래(u):
+        if "/corp/" in u or "/agency/" in u:
+            return "corp"
+        if "/notice/" in u or "/daily" in u:
+            return "bid"
+        return "main"
+
+    통 = {"main": [], "bid": [], "corp": []}
+    for u in urls:
+        통[_갈래(u)].append(u)
+
+    def _쓰기(이름, 줄들):
+        x = ('<?xml version="1.0" encoding="UTF-8"?>\n'
+             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+             + "\n".join(줄들) + "\n</urlset>\n")
+        q = os.path.join(OUT, 이름)
+        with open(q, "w", encoding="utf-8") as f:
+            f.write(x)
+        return q
+
+    낸것 = []
+    for 이름, 열쇠 in [("sitemap-main.xml", "main"), ("sitemap-bid.xml", "bid"),
+                     ("sitemap-corp.xml", "corp")]:
+        if 통[열쇠]:                      # 빈 사이트맵은 내지 않습니다 (빈 urlset 은 오류로 잡힙니다)
+            _쓰기(이름, 통[열쇠])
+            낸것.append((이름, len(통[열쇠])))
+
+    목차 = ('<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+            + "\n".join(f"  <sitemap><loc>{SITE}/{이름}</loc>"
+                         f"<lastmod>{today}</lastmod></sitemap>" for 이름, _ in 낸것)
+            + "\n</sitemapindex>\n")
     p = os.path.join(OUT, "sitemap.xml")
     with open(p, "w", encoding="utf-8") as f:
-        f.write(xml)
-    print(f"  ✅ sitemap.xml — 고정 {len(STATIC)} + 면허 {n_lc} + 기관 {n_ag} + 업체 {n_co}"
+        f.write(목차)
+
+    print(f"  ✅ 사이트맵 — 고정 {len(STATIC)} + 면허 {n_lc} + 기관 {n_ag} + 업체 {n_co}"
           f" + 공고 {n_no} + 성적표 {n_dy} + 서식 {n_fm} + 설계변경 {n_cg}"
           f" + 알아보기 {n_gd} + 도구 {n_tl} + 캐드 {n_cd} = {len(urls)}개")
+    print("     sitemap.xml (목차) → " + " · ".join(f"{이름} {수:,}장" for 이름, 수 in 낸것))
     print(f"     {p}")
 
 

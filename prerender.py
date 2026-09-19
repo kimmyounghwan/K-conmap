@@ -540,7 +540,9 @@ def corp_page(shell, key, c, image=None, L=None):
     reg = list((c.get("reg") or {}).items())
     inst = c.get("inst") or []
     cases = c.get("cases") or []
-    title = f"{name} 낙찰 실적" + (f" — {n}건 · 평균 투찰률 {avg}" if n and avg else "") + " | K-건설맵"
+    # 🔎 2026-09-19 — 서치콘솔 실측: 「도원입찰」 로 8번 노출됐는데 클릭 0.
+    #    사람들은 «회사이름 + 입찰» 로 찾는데 제목에 「입찰」 이 없었습니다.
+    title = f"{name} 입찰·낙찰 실적" + (f" — {n}건 · 평균 투찰률 {avg}" if n and avg else "") + " | K-건설맵"
     desc = (f"{name}의 조달청 개찰 낙찰 기록" + (f" {n}건" if n else "")
             + (f". 평균 투찰률 {avg}" if avg else "")
             + (f", 주력 지역 {reg[0][0]}" if reg else "")
@@ -1134,16 +1136,26 @@ def forms_index(shell, forms, image=None):
 
 
 def form_page(shell, f, others, image=None):
-    title = f'{f["title"]} 양식 무료 내려받기 (엑셀) | K-건설맵'
-    desc = f'{f.get("short") or ""} {f.get("when") or ""}'.strip()[:150]
+    # 🔎 2026-09-19 — 서치콘솔 실측: 노출되는 검색어가 «전부 서식» 인데 우리 이름과 조금씩 다릅니다.
+    #    「일용직 근로계약서 엑셀」(우리는 «일용근로계약서») · 「중기 임대차계약서」(우리는 «건설기계 임대차계약서»)
+    #    → forms.json 의 also 에 «진짜로 같은 말» 만 적어 두고, 제목·설명·본문에 함께 씁니다.
+    #    ⚠️ 국토부 «표준계약서» 같은 공식 서류 이름은 넣지 않습니다 — 우리 서식은 그것이 아닙니다.
+    또 = [a for a in (f.get("also") or []) if a and a != f["title"]]
+    title = f'{f["title"]} 양식 엑셀 무료 내려받기 | K-건설맵'
+    desc = ((f'{f["title"]}(' + ' · '.join(또[:2]) + ') 양식 엑셀 무료 내려받기. ') if 또 else '') + \
+        f'{f.get("short") or ""} {f.get("when") or ""}'.strip()
+    desc = desc.strip()[:150]
     # 검색하는 말 그대로 한 문장 — 억지로 낱말을 늘어놓지 않고 자연스럽게 씁니다.
     lead = (f'{f["title"]} 양식을 엑셀 파일로 무료로 내려받을 수 있습니다. '
             f'회원가입이 필요 없고, 인쇄해서 바로 쓸 수 있습니다.')
+    또줄 = (f'<p style="font-size:12px;color:var(--muted);margin:6px 0 0">'
+            f'이렇게도 부릅니다 — {esc(" · ".join(또))}</p>') if 또 else ''
     out = [f'<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">'
            f'{esc(f["title"])} 양식</h1>'
            f'<div style="font-size:12.5px;color:var(--muted);margin-top:4px">'
            f'{esc(f.get("short") or "")}</div>'
            f'<p style="font-size:12.5px;margin:8px 0 0">{esc(lead)}</p>'
+           f'{또줄}'
            f'<div class="btn-row" style="margin-top:12px">'
            f'<a class="btn primary" href="/forms/{esc(f["slug"])}.xlsx" download>⬇ 엑셀 내려받기</a>'
            f"</div></div>"]

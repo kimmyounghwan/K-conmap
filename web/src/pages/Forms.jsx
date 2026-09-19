@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useMemo } from 'react'
+
 import { askAfter } from '../AskComment'
 import { useParams, Link } from 'react-router-dom'
 import DATA from '../data/forms.json'
@@ -220,6 +221,15 @@ export function FormPage() {
           <span style={{ marginRight: 6 }}>{f.icon}</span>{f.title}
         </div>
         <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>{f.short}</div>
+        {/* 🔎 2026-09-19 — 서치콘솔 실측: 사람들이 치는 말과 우리 서식 이름이 조금씩 다릅니다
+            (「일용직 근로계약서」 ↔ 우리는 «일용근로계약서»). 같은 말을 적어 둡니다.
+            ⚠️ 미리 굽는 쪽(prerender.py form_page)과 «같은 줄» 이어야 합니다 —
+               크롤러가 보는 글과 사람이 보는 글이 다르면 안 됩니다. */}
+        {Array.isArray(f.also) && f.also.length > 0 && (
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
+            이렇게도 부릅니다 — {f.also.join(' · ')}
+          </div>
+        )}
         <div className="btn-row" style={{ marginTop: 12 }}>
           {/* 정적 파일이라 <a download> 하나면 됩니다 — 라이브러리도, 전송량도 없습니다 */}
           <a className="btn primary" href={xlsx} download={`${f.title}_양식.xlsx`}

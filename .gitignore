@@ -39,6 +39,10 @@ web/dist/
 web/node_modules/
 web/public/data/
 web/public/sitemap.xml
+# 2026-09-19 — 사이트맵을 셋으로 나눴습니다(구운 결과라 저장소에 안 담습니다)
+web/public/sitemap-main.xml
+web/public/sitemap-bid.xml
+web/public/sitemap-corp.xml
 
 # 도구·OS
 # .vscode 는 일부러 올립니다 — 작업 메뉴(Tasks)를 공유하기 위해
