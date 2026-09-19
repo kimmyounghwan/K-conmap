@@ -84,6 +84,24 @@ const when = (ms) => {
   return `${d.getMonth() + 1}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
+import { 갈래들, 갈래빛, 갈래떼기, 갈래붙이기 } from '../lib/말머리.js'
+
+/* 상대시간 — 「9.18 18:41」 보다 「3시간 전」 이 살아 있어 보입니다. 이틀이 지나면 날짜로. */
+const 언제 = (ms) => {
+  if (!ms) return ''
+  const 초 = Math.floor((Date.now() - ms) / 1000)
+  if (초 < 60) return '방금'
+  if (초 < 3600) return `${Math.floor(초 / 60)}분 전`
+  if (초 < 86400) return `${Math.floor(초 / 3600)}시간 전`
+  if (초 < 172800) return '어제'
+  return when(ms)
+}
+
+/* 🔴 «내 글에 새 답글» — 가입이 없으니 브라우저가 «본 답글 수» 를 기억하는 수밖에 없습니다. */
+const SEEN_KEY = 'kcm_qna_seen'
+const loadSeen = () => { try { return JSON.parse(localStorage.getItem(SEEN_KEY) || '{}') } catch { return {} } }
+const saveSeen = (v) => { try { localStorage.setItem(SEEN_KEY, JSON.stringify(v)) } catch { /* 사생활 모드 */ } }
+
 export default function Qna() {
   const [rows, setRows] = useState(null)
   const [ans, setAns] = useState({})        // { 질문id: [답변…] }
@@ -98,20 +116,37 @@ export default function Qna() {
   const [나운영자, set나운영자] = useState(false)
   const [onlyMine, setOnlyMine] = useState(false)
   const [q, setQ] = useState('')
+  const [갈래, set갈래] = useState('전체')
+  const [jobs, setJobs] = useState([])
+  const [seen, setSeen] = useState(loadSeen)
 
   const load = async () => {
     try {
       const { ref, get, query, orderByKey, limitToLast, db, ensureAnon } = await loadFb()
       await ensureAnon()
-      const [a, b, c] = await Promise.all([
+      const [a, b, c, j, jd] = await Promise.all([
         get(query(ref(db, 'qna'), orderByKey(), limitToLast(LIMIT))),
         get(ref(db, 'qna_del')),
         get(ref(db, 'qna_a')),
+        /* 🤝 구인구직은 «옮기지 않습니다» — 있던 자리(jobs)에 그대로 두고 여기서 같이 읽습니다.
+           자료를 옮기면 되돌릴 수 없고, 연락처 칸이 있는 구인구직 화면도 그대로 살아 있어야 합니다.
+           그래서 목록에만 같이 보이고, 누르면 그 화면으로 보냅니다. */
+        get(query(ref(db, 'jobs'), orderByKey(), limitToLast(60))),
+        get(ref(db, 'job_del')),
       ])
       setDel(b.val() || {})
       setAns(c.val() || {})
       const v = a.val() || {}
       setRows(Object.entries(v).map(([id, x]) => ({ id, ...x })).reverse())
+      const jdv = jd.val() || {}
+      setJobs(Object.entries(j.val() || {})
+        .filter(([id, x]) => x && !x.deleted && !jdv[id])
+        .map(([id, x]) => ({
+          id: 'job:' + id, 구인구직: true, c: '구인구직',
+          t: String(x.title || ''), b: String(x.body || ''),
+          nick: String(x.co || x.type || '구인'), at: Number(x.at) || 0,
+          곁: [x.type, x.trade, x.region].filter(Boolean).join(' · '),
+        })).reverse())
     } catch (e) {
       setRows([])
     }
@@ -129,18 +164,61 @@ export default function Qna() {
     return () => { 살아있음 = false }
   }, [])
 
-  const list = useMemo(() => {
+  /* 사랑방 글 + 구인구직 글을 한 웅덩이로. 지운 것만 먼저 걸러 둡니다(셈에도 쓰니까). */
+  const 모두 = useMemo(() => {
     if (!rows) return null
+    return [...rows.filter((r) => !r.deleted && !del[r.id])
+      .map((r) => { const g = 갈래떼기(r.t); return { ...r, c: g.c, t: g.t } }), ...jobs]
+      .sort((a, b) => (b.at || 0) - (a.at || 0))
+  }, [rows, del, jobs])
+
+  const 셈 = useMemo(() => {
+    const m = { 전체: 0 }
+    갈래들.forEach((c) => { m[c] = 0 })
+    ;(모두 || []).forEach((r) => { m[r.c] = (m[r.c] || 0) + 1; m.전체 += 1 })
+    return m
+  }, [모두])
+
+  const list = useMemo(() => {
+    if (!모두) return null
     const s = q.trim()
-    return rows.filter((r) => {
-      if (r.deleted || del[r.id]) return false
+    return 모두.filter((r) => {
+      if (갈래 !== '전체' && r.c !== 갈래) return false
       if (onlyMine && !mine.includes(r.id)) return false
       if (s && !((r.t || '') + (r.b || '')).includes(s)) return false
       return true
     })
-  }, [rows, del, q, onlyMine, mine])
+  }, [모두, q, onlyMine, mine, 갈래])
 
   const nAns = (id) => Object.values(ans[id] || {}).filter((x) => x && !x.deleted).length
+
+  /* 📌 오늘의 K-건설맵 — 씨앗글은 여기 모읍니다. 이용자 글을 덮지 않게. (8절 69) */
+  const 오늘것 = useMemo(() => (모두 || [])
+    .filter((r) => r.c === 'K-건설맵' && (Date.now() - (r.at || 0)) < 3 * 86400000)
+    .slice(0, 3), [모두])
+
+  /* 🔴 내 글에 달린 «새» 답글 */
+  const 새답 = useMemo(() => {
+    let n = 0; let 첫 = null; let 이름 = ''
+    mine.forEach((id) => {
+      const 지금 = Object.values(ans[id] || {}).filter((x) => x && !x.deleted).length
+      const 본것 = Number(seen[id] || 0)
+      if (지금 > 본것) {
+        n += 지금 - 본것
+        if (!첫) { 첫 = id; const r = (모두 || []).find((x) => x.id === id); 이름 = (r && r.t) || '' }
+      }
+    })
+    return { n, 첫, 이름 }
+  }, [mine, ans, seen, 모두])
+
+  /* 글을 펼치면 «봤다» 고 적어 둡니다 — 빨간 띠가 사라지는 자리입니다. */
+  const 열기 = (id) => {
+    setOpen((v) => (v === id ? null : id))
+    if (mine.includes(id)) {
+      const v = { ...loadSeen(), [id]: nAns(id) }
+      saveSeen(v); setSeen(v)
+    }
+  }
 
   return (
     <div className="wrap">
@@ -154,6 +232,23 @@ export default function Qna() {
         </div>
       </div>
 
+      {/* 🔴 내 글에 새 답글 — 이것이 «다시 오게» 만듭니다. 가입도 메일도 없이. (8절 69) */}
+      {새답.n > 0 && (
+        <div onClick={() => { if (새답.첫) 열기(새답.첫) }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer',
+            background: 'var(--bad-soft)', border: '1px solid var(--bad)',
+            borderRadius: 12, padding: '11px 14px', marginBottom: 10, fontSize: 13.5,
+          }}>
+          <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--bad)', flex: 'none' }} />
+          <b style={{ color: 'var(--bad)' }}>내 글에 새 답글 {새답.n}개</b>
+          {새답.이름 && <span className="muted" style={{
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>「{새답.이름}」</span>}
+          <span className="muted" style={{ marginLeft: 'auto', fontSize: 12.5 }}>눌러서 보기 ▸</span>
+        </div>
+      )}
+
       {/* ── 단추부터. 규칙은 뒤로 ──────────────────────────────────
           2026-09-17 — 예전에는 여기에 «하세요·하지 마세요» 가 다섯 문단 있었습니다.
           글 한 줄 쓰기 전에 규칙부터 읽히면 대부분 그냥 나갑니다.
@@ -163,8 +258,6 @@ export default function Qna() {
         <button className="btn line" onClick={() => setWrite((v) => !v)}>
           {write ? '닫기' : '✏️ 글쓰기'}
         </button>
-        <input className="inp" placeholder="찾기 — 낱말" value={q} onChange={(e) => setQ(e.target.value)}
-          style={{ flex: '1 1 160px', minWidth: 120 }} />
         {mine.length > 0 && (
           <button className={'btn' + (onlyMine ? ' primary' : '')} onClick={() => setOnlyMine((v) => !v)}>
             내가 쓴 글 {mine.length}
@@ -174,8 +267,32 @@ export default function Qna() {
       </div>
 
       {write && (
-        <WriteForm onDone={() => { setWrite(false); load(); setMine(loadMine()) }} />
+        <WriteForm 첫갈래={갈래 === '전체' ? '' : 갈래} 나운영자={나운영자}
+          onDone={() => { setWrite(false); load(); setMine(loadMine()) }} />
       )}
+
+      {/* 🏷️ 말머리 — 글은 한 웅덩이, 문만 여럿. 숫자를 붙여 «빈 방» 으로 보이지 않게 합니다. */}
+      <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 7, marginBottom: 10 }}>
+        {['전체', ...갈래들].map((c) => {
+          const on = 갈래 === c
+          const [bg, fg, ln] = 갈래빛[c] || ['var(--surface)', 'var(--text-2)', 'var(--line)']
+          return (
+            <button key={c} onClick={() => { set갈래(c); setOpen(null) }}
+              style={{
+                border: '1px solid ' + (on ? 'var(--accent)' : ln), borderRadius: 999,
+                padding: '7px 13px', fontSize: 13, cursor: 'pointer',
+                background: on ? 'var(--accent)' : (c === '전체' ? 'var(--surface)' : bg),
+                color: on ? '#fff' : (c === '전체' ? 'var(--text-2)' : fg),
+                fontWeight: on ? 700 : 500,
+              }}>
+              {c} {셈[c] || 0}
+            </button>
+          )
+        })}
+      </div>
+
+      <input className="inp" placeholder="찾기 — 낱말" value={q} onChange={(e) => setQ(e.target.value)}
+        style={{ width: '100%', boxSizing: 'border-box', marginBottom: 10 }} />
 
       <details className="note" style={{ marginBottom: 10, lineHeight: 1.85 }}>
         <summary style={{ cursor: 'pointer', fontWeight: 700 }}>이 사랑방 쓰는 법 (눌러서 보기)</summary>
@@ -194,18 +311,72 @@ export default function Qna() {
         </div>
       </details>
 
+      {갈래 === '전체' && !onlyMine && !q.trim() && 오늘것.length > 0 && (
+        <div className="card" style={{
+          marginBottom: 10, background: 'var(--accent-soft)', borderColor: 'var(--accent-line)',
+        }}>
+          <div style={{
+            fontWeight: 800, color: 'var(--accent)', fontSize: 14, marginBottom: 9,
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}>
+            📌 오늘의 K-건설맵
+            <span className="muted" style={{ marginLeft: 'auto', fontWeight: 500, fontSize: 12 }}>{오늘것.length}개</span>
+          </div>
+          {오늘것.map((r) => (
+            <div key={r.id} onClick={() => 열기(r.id)}
+              style={{
+                background: 'var(--surface)', border: '1px solid var(--accent-line)',
+                borderRadius: 10, padding: '9px 12px', marginBottom: 7, cursor: 'pointer', fontSize: 13.5,
+              }}>
+              {r.t}
+              <div className="muted" style={{ fontSize: 12, marginTop: 3 }}>
+                K-건설맵 · {언제(r.at)} · 답글 {nAns(r.id)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {list === null && <Skeleton n={4} />}
       {list && list.length === 0 && (
         <Empty>아직 글이 없습니다. 아무 말이나 먼저 남겨 주세요 — 한 줄이어도 됩니다.</Empty>
       )}
 
       {list && list.map((r) => {
-        const n = nAns(r.id)
+        const n = r.구인구직 ? 0 : nAns(r.id)
         const isOpen = open === r.id
+        const [bg, fg, ln] = 갈래빛[r.c] || ['var(--surface-2)', 'var(--text-2)', 'var(--line)']
+        const 딱지 = (
+          <span style={{
+            background: bg, color: fg, border: '1px solid ' + ln, borderRadius: 6,
+            padding: '2px 8px', fontSize: 11.5, fontWeight: 700, flex: 'none',
+          }}>{r.c}</span>
+        )
+        /* 구인구직 글은 여기서 펼치지 않습니다 — 연락처·지원이 있는 제 화면으로 보냅니다.
+           목록만 한 곳에 모으고, 자료는 있던 자리 그대로 둡니다. */
+        if (r.구인구직) {
+          return (
+            <Link className="card" key={r.id} to="/jobs"
+              style={{ marginBottom: 8, display: 'block', textDecoration: 'none', color: 'inherit' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                {딱지}
+                <b style={{ flex: '1 1 200px', fontSize: 15 }}>{r.t}</b>
+                <span className="muted" style={{ fontSize: 12 }}>{r.곁 || r.nick} · {언제(r.at)}</span>
+                <span className="caret">›</span>
+              </div>
+              {r.b && (
+                <div className="muted" style={{ fontSize: 13, marginTop: 6, lineHeight: 1.6 }}>
+                  {String(r.b).slice(0, 90)}{String(r.b).length > 90 ? '…' : ''}
+                </div>
+              )}
+            </Link>
+          )
+        }
         return (
           <div className="card" key={r.id} style={{ marginBottom: 8 }}>
-            <div onClick={() => setOpen(isOpen ? null : r.id)} style={{ cursor: 'pointer' }}>
+            <div onClick={() => 열기(r.id)} style={{ cursor: 'pointer' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                {딱지}
                 {/* 2026-09-17 — 예전엔 답글이 없으면 「답변대기」 라고 붙었습니다.
                     물음이 아닌 글에도 붙어서 «아직 답을 못 받은 글» 처럼 보였습니다.
                     답글이 있을 때만 셈을 보입니다. 없으면 아무 말도 안 붙입니다. */}
@@ -218,7 +389,7 @@ export default function Qna() {
                 )}
                 <b style={{ flex: '1 1 200px', fontSize: 15 }}>{r.t}</b>
                 <span className="muted" style={{ fontSize: 12 }}>
-                  {r.nick || '익명'} · {when(r.at)}
+                  {r.nick || '익명'} · {언제(r.at)}
                   {mine.includes(r.id) && <b style={{ color: 'var(--accent, #1a56db)' }}> · 내 글</b>}
                 </span>
                 {/* 2026-09-17 — 소장님: 「답글을 클릭해서 쓸 버튼이 없어」 → 「어차피 글을 보려면
@@ -372,13 +543,15 @@ function AnswerForm({ qid, onDone }) {
 }
 
 /* ── 질문 쓰기 ─────────────────────────────────────────────────── */
-function WriteForm({ onDone }) {
+function WriteForm({ onDone, 첫갈래, 나운영자 }) {
   const [f, setF] = useState({ t: '', b: '', pin: '' })
+  const [c, setC] = useState(첫갈래 || '')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const set_ = (k) => (e) => setF((v) => ({ ...v, [k]: e.target.value }))
 
   const submit = async () => {
+    if (!c) return setMsg('어디에 쓸지 먼저 골라 주세요.')
     if (f.t.trim().length < 2) return setMsg('제목을 2자 이상 적어 주세요.')
     if (f.pin.length !== 4) return setMsg('지울 때 쓸 4자리 숫자를 정해 주세요.')
     setBusy(true); setMsg('')
@@ -389,9 +562,10 @@ function WriteForm({ onDone }) {
       const id = slot.key
       await set(ref(db, `qna_pins/${id}`), await pinHash(id, f.pin))
       await set(slot, {
-        t: f.t.trim().slice(0, 80),
+        /* 🏷️ 말머리는 제목 앞에 붙습니다 — 자료 칸을 늘리지 않으려고(규칙 $other:false). */
+        t: 갈래붙이기(c, f.t.trim()),
         b: f.b.trim().slice(0, 2000),
-        nick: nickOf(user.uid).slice(0, 20),
+        nick: (c === 'K-건설맵' ? 'K-건설맵' : nickOf(user.uid)).slice(0, 20),
         uid: user.uid,
         at: Date.now(),
       })
@@ -405,6 +579,31 @@ function WriteForm({ onDone }) {
   return (
     <div className="card" style={{ marginBottom: 10 }}>
       <div className="sec-title" style={{ margin: '0 0 10px' }}>글쓰기</div>
+
+      {/* 어디에 쓸지부터. 「전체」에서 들어오셨으면 고르셔야 글이 갈 곳이 생깁니다. */}
+      <div className="muted" style={{ fontSize: 12.5, marginBottom: 6 }}>어디에 쓸까요?</div>
+      <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 7, marginBottom: 10 }}>
+        {갈래들.filter((x) => x !== 'K-건설맵' || 나운영자).map((x) => {
+          const on = c === x
+          const [bg, fg, ln] = 갈래빛[x]
+          return (
+            <button key={x} onClick={() => setC(x)}
+              style={{
+                border: '1px solid ' + (on ? 'var(--accent)' : ln), borderRadius: 999,
+                padding: '7px 13px', fontSize: 13, cursor: 'pointer', fontWeight: on ? 700 : 500,
+                background: on ? 'var(--accent)' : bg, color: on ? '#fff' : fg,
+              }}>{x}</button>
+          )
+        })}
+      </div>
+
+      {/* 구인구직만 연락처 칸이 필요합니다 — 그 화면으로 보냅니다. 글은 거기 그대로 쌓입니다. */}
+      {c === '구인구직' && (
+        <div className="note" style={{ marginBottom: 10, fontSize: 13, lineHeight: 1.7 }}>
+          구인·구직 글은 <b>연락처 칸</b>이 있는 화면에서 씁니다.{' '}
+          <Link to="/jobs" style={{ fontWeight: 700 }}>구인구직에서 쓰기 →</Link>
+        </div>
+      )}
       {/* ⚠️ 2026-09-17 — 두 칸 다 «예) …» 로 보기를 깔아 두었습니다. 뺐습니다.
           남은 한 줄(전화번호)은 취향이 아니라 안전입니다 — 그것만 둡니다. */}
       <input className="inp" value={f.t} onChange={set_('t')} maxLength={80}
@@ -417,8 +616,8 @@ function WriteForm({ onDone }) {
         <input className="inp" inputMode="numeric" maxLength={4} value={f.pin}
           onChange={(e) => setF((v) => ({ ...v, pin: e.target.value.replace(/\D/g, '') }))}
           placeholder="지울 4자리" style={{ width: 118 }} />
-        <button className="btn primary" onClick={submit} disabled={busy}>
-          {busy ? '올리는 중…' : '올리기'}
+        <button className="btn primary" onClick={submit} disabled={busy || c === '구인구직'}>
+          {busy ? '올리는 중…' : (c ? c + '에 올리기' : '올리기')}
         </button>
         {msg && <span className="muted" style={{ fontSize: 12 }}>{msg}</span>}
       </div>
