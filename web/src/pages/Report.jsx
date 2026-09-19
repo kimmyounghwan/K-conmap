@@ -56,13 +56,13 @@ export default function Report() {
       <div className="card repfront">
         <div className="sec-title">이런 종이를 받으십니다</div>
         <p className="muted" style={{ marginTop: 0 }}>
-          <b>A4 여섯 쪽</b>입니다. <b>실제 조달청 개찰 기록</b>으로 만든 견본이고,
+          <b>A4 일곱 쪽</b>입니다. <b>실제 조달청 개찰 기록</b>으로 만든 견본이고,
           숫자는 손대지 않았습니다 — <b>업체 이름과 공고명만 가렸습니다.</b>
         </p>
         <div className="btn-row">
           <a className="btn primary" href="/report-sample.pdf" target="_blank" rel="noopener"
              download="K-건설맵_입찰성적표_견본.pdf"
-             onClick={() => askAfter('forms')}>📄 견본 PDF 받기 (6쪽)</a>
+             onClick={() => askAfter('forms')}>📄 견본 PDF 받기 (7쪽)</a>
           <Link className="btn ghost" to="/qna" state={{ from: { to: '/report', name: '업체 입찰 성적표' } }}>💬 우리 회사 것 신청하기</Link>
         </div>
       </div>
