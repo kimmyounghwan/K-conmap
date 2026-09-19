@@ -29,6 +29,10 @@ export default function Analysis() {
           이용자에게 안 보이게 하는 것과 소장님이 못 쓰게 하는 것은 다른 일입니다.
           ⚠️ 두 탭(발주기관·업체 자가진단) «어느 쪽에서든» 보이도록 맨 바깥에 답니다.
              안쪽 탭에 달았더니 발주기관 탭에서는 안 보였습니다(2026-09-19 실측). */}
+      {/* 📄 2026-09-19 — 소장님: 「견본 pdf는 이용자에게 보여야지」
+          견본은 «이용자에게 보여 주는 것»이 목적입니다 — 보고 신청하시라고 만든 종이입니다.
+          만드는 화면(/report/make)만 소장님 것입니다. 둘을 갈라 둡니다. */}
+      <견본줄 />
       <운영자줄 />
     </>
   )
@@ -204,8 +208,32 @@ function CorpTab() {
 
 
 
-/* ── 🔑 운영자에게만 보이는 줄 — 성적표 만들기 · 견본 PDF ─────────
-   ⚠️ 이용자 화면에는 «한 글자도» 나오지 않습니다(운영자 브라우저 번호로 가립니다). */
+/* ── 📄 업체 분석 견본 — «이용자 모두»에게 보입니다 ──────────────
+   2026-09-19 소장님: 「견본 pdf는 이용자에게 보여야지」
+   견본을 보여 주는 까닭은 «신청을 받기 위해서»입니다. 그래서 견본 옆에
+   사랑방(신청 받는 곳) 버튼을 같이 둡니다. 만드는 화면은 소장님 것입니다. */
+function 견본줄() {
+  return (
+    <div className="card" style={{ marginTop: 12 }}>
+      <div className="detail-h" style={{ marginBottom: 8 }}>
+        📄 업체 분석 견본 <span className="count">· 3년치 입찰 성적표</span>
+      </div>
+      <div className="muted" style={{ fontSize: 13, lineHeight: 1.65, marginBottom: 10 }}>
+        우리 회사가 3년 동안 어디에·얼마에·몇 번 넣었는지, 투찰률 버릇과 순위,
+        아깝게 놓친 건까지 한 벌로 묶은 종이입니다. 아래 견본을 먼저 보시고,
+        받아 보고 싶으시면 사랑방에 상호만 한 줄 남겨 주세요.
+      </div>
+      <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+        <a className="btn primary" href="/report-sample.pdf" target="_blank" rel="noopener">📄 견본 PDF 열기</a>
+        <Link className="btn line" to="/qna">💬 사랑방에 신청하기</Link>
+      </div>
+    </div>
+  )
+}
+
+/* ── 🔑 운영자에게만 보이는 줄 — «성적표 만드는 화면»으로 가는 길 ─────
+   ⚠️ 이용자 화면에는 «한 글자도» 나오지 않습니다(운영자 브라우저 번호로 가립니다).
+   견본 PDF 는 여기서 뺐습니다 — 위 견본줄에서 모두에게 보입니다. */
 function 운영자줄() {
   const [보임, set보임] = useState(false)
   useEffect(() => {
@@ -217,11 +245,10 @@ function 운영자줄() {
   return (
     <div className="card" style={{ marginTop: 12, borderColor: 'var(--accent-line)' }}>
       <div className="detail-h" style={{ marginBottom: 8 }}>
-        📊 성적표 <span className="count">· 소장님만 보입니다</span>
+        📊 성적표 만들기 <span className="count">· 소장님만 보입니다</span>
       </div>
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
         <Link className="btn primary" to="/report/make">📊 업체 성적표 만들기</Link>
-        <a className="btn line" href="/report-sample.pdf" target="_blank" rel="noopener">📄 견본 PDF 열기</a>
         <Link className="btn line" to="/qna">💬 사랑방(신청 받는 곳)</Link>
       </div>
     </div>
