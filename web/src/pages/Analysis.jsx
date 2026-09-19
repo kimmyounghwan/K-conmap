@@ -4,7 +4,6 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { searchCorp } from '../lib/data.js'
 import { AgencyPicker, Bars, Months, Tile, Empty } from '../components.jsx'
 import { wonShort, pct, num, dateFull, normCorp } from '../lib/fmt.js'
-import { ReportStrip } from './Report.jsx'
 
 export default function Analysis() {
   const [sp, setSp] = useSearchParams()
@@ -190,7 +189,6 @@ function CorpTab() {
       )}
 
       {/* 📊 성적표 — 여기 오신 분이 바로 그 손님입니다 (2026-09-15) */}
-      <ReportStrip />
     </>
   )
 }

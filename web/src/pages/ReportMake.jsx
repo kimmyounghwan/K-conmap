@@ -122,12 +122,14 @@ export default function ReportMake() {
       if (bno) 쓴.add(bno)
       out.push({
         bno, 이름: c.nm || c.label || c.key, 키: c.key, chunk: c.chunk,
+        대표: c.ceo || (t && t.대표) || '',
         세낙찰: c.n || 0, 건: t ? t.건 : 0, 낙찰: t ? t.낙찰 : 0, 마지막: t ? t.마지막 : '',
       })
     }
     for (const x of 두달찾음) {
       if (쓴.has(String(x.bno))) continue
       out.push({ bno: String(x.bno), 이름: x.이름, 키: '', chunk: null,
+        대표: x.대표 || '',
         세낙찰: 0, 건: x.건, 낙찰: x.낙찰, 마지막: x.마지막 })
     }
     return out.slice(0, 60)
@@ -242,7 +244,7 @@ export default function ReportMake() {
         set일('3년치 기록을 받는 중…')
         try { 세해 = await getCorp(업체.키, 업체.chunk) } catch { 세해 = null }
       }
-      const d = 성적표(업체.bno, (자료 && 자료.rows) || [], p50, 마감전, 세해)
+      const d = 성적표(업체.bno, (자료 && 자료.rows) || [], p50, 마감전, 세해, 업체.대표)
       if (!d) {
         set일(자료 ? '⛔ 그 업체의 기록이 없습니다'
                   : '⛔ 3년치 낙찰 기록이 없는 업체입니다 — 떨어진 것까지 보시려면 아래에서 개찰 자료를 여십시오.')
@@ -344,11 +346,12 @@ export default function ReportMake() {
             그래서 목록에 사업자번호를 같이 보여 주고, 고르는 것은 사업자번호로 합니다. */}
         {찾음.length > 0 && (
           <table className="tbl left repmk" style={{ marginTop: 10 }}>
-            <thead><tr><th>업체</th><th>사업자번호</th><th>3년 낙찰</th><th>두 달 투찰</th><th></th></tr></thead>
+            <thead><tr><th>업체</th><th>대표</th><th>사업자번호</th><th>3년 낙찰</th><th>두 달 투찰</th><th></th></tr></thead>
             <tbody>
               {찾음.map((x, i) => (
                 <tr key={(x.bno || x.키) + '_' + i} className={고른 && 고른.키 === x.키 && 고른.bno === x.bno ? 'on' : ''}>
                   <td><b>{x.이름}</b></td>
+                  <td>{x.대표 || '—'}</td>
                   <td className="mono">{x.bno || '—'}</td>
                   <td className="r">{x.세낙찰 ? `${x.세낙찰}건` : '—'}</td>
                   <td className="r">{x.건 ? `${x.건}건` : (자료 ? '—' : '자료 안 엶')}</td>

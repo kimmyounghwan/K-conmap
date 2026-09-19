@@ -243,7 +243,7 @@ export function 세해요약(c) {
   }
 }
 
-export function 성적표(bno, rows, p50, live, 세해) {
+export function 성적표(bno, rows, p50, live, 세해, 대표) {
   const 세 = 세해요약(세해)
   const recs = []
   for (const r of rows) {
@@ -255,7 +255,7 @@ export function 성적표(bno, rows, p50, live, 세해) {
   if (!recs.length) {
     if (!세) return null
     return {
-      업체: { 이름: 세.이름 || '', 사업자번호: bno },
+      업체: { 이름: 세.이름 || '', 사업자번호: bno, 대표: 대표 || '' },
       두달없음: true,
       세해: 세,
       기준: { 사정률중앙값: p50, 만든날: 지금한국().slice(0, 16) },
@@ -413,7 +413,7 @@ export function 성적표(bno, rows, p50, live, 세해) {
   })()
 
   return {
-    업체: { 이름: name, 사업자번호: bno },
+    업체: { 이름: name, 사업자번호: bno, 대표: 대표 || '' },
     요약: {
       투찰: recs.length, 낙찰: wins.length,
       낙찰률: r1(wins.length / recs.length * 100),
@@ -474,11 +474,13 @@ export function 업체목록(rows) {
       if (!c || c.length <= 3 || !c[3]) continue
       const k = String(c[3])
       let v = m.get(k)
-      if (!v) { v = { bno: k, 이름: c[0], 건: 0, 낙찰: 0, 마지막: '' }; m.set(k, v) }
+      /* 🔖 2026-09-19 — 소장님: 「업체에서 사업자번호만 나오잖아. 대표이름도 나오게 해줘」
+         개찰 자료의 투찰업체 칸은 [이름, 금액, 투찰률, 사업자번호, **대표**, …] 입니다. */
+      if (!v) { v = { bno: k, 이름: c[0], 대표: c[4] || '', 건: 0, 낙찰: 0, 마지막: '' }; m.set(k, v) }
       v.건 += 1
       if (c === cs[0]) v.낙찰 += 1
       const dt = String(r.dt || '')
-      if (dt > v.마지막) { v.마지막 = dt; v.이름 = c[0] }
+      if (dt > v.마지막) { v.마지막 = dt; v.이름 = c[0]; if (c[4]) v.대표 = c[4] }
     }
   }
   return [...m.values()]
