@@ -1,5 +1,7 @@
 import { SpotBlock, OpenNotices, corpMatch } from '../Spot.jsx'
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { 나운영자 } from '../lib/운영자.js'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { searchCorp } from '../lib/data.js'
 import { AgencyPicker, Bars, Months, Tile, Empty } from '../components.jsx'
@@ -20,6 +22,14 @@ export default function Analysis() {
         <button className={mode === 'corp' ? 'on' : ''} onClick={() => setMode('corp')}>업체 자가진단</button>
       </div>
       {mode === 'agency' ? <AgencyTab /> : <CorpTab />}
+
+      {/* 📊 2026-09-19 — 소장님: 「분석에서 업체 분석글 pdf 없어졌고, 내가 신청을 받아서
+          pdf만들 수 있는 탭도 사라졌어」
+          /report(이용자용 안내)를 내리면서 **소장님이 쓰시던 길까지 끊어 버렸습니다.**
+          이용자에게 안 보이게 하는 것과 소장님이 못 쓰게 하는 것은 다른 일입니다.
+          ⚠️ 두 탭(발주기관·업체 자가진단) «어느 쪽에서든» 보이도록 맨 바깥에 답니다.
+             안쪽 탭에 달았더니 발주기관 탭에서는 안 보였습니다(2026-09-19 실측). */}
+      <운영자줄 />
     </>
   )
 }
@@ -188,11 +198,35 @@ function CorpTab() {
         </Empty>
       )}
 
-      {/* 📊 성적표 — 여기 오신 분이 바로 그 손님입니다 (2026-09-15) */}
     </>
   )
 }
 
+
+
+/* ── 🔑 운영자에게만 보이는 줄 — 성적표 만들기 · 견본 PDF ─────────
+   ⚠️ 이용자 화면에는 «한 글자도» 나오지 않습니다(운영자 브라우저 번호로 가립니다). */
+function 운영자줄() {
+  const [보임, set보임] = useState(false)
+  useEffect(() => {
+    let 살았나 = true
+    나운영자().then((v) => { if (살았나) set보임(!!v) }).catch(() => {})
+    return () => { 살았나 = false }
+  }, [])
+  if (!보임) return null
+  return (
+    <div className="card" style={{ marginTop: 12, borderColor: 'var(--accent-line)' }}>
+      <div className="detail-h" style={{ marginBottom: 8 }}>
+        📊 성적표 <span className="count">· 소장님만 보입니다</span>
+      </div>
+      <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+        <Link className="btn primary" to="/report/make">📊 업체 성적표 만들기</Link>
+        <a className="btn line" href="/report-sample.pdf" target="_blank" rel="noopener">📄 견본 PDF 열기</a>
+        <Link className="btn line" to="/qna">💬 사랑방(신청 받는 곳)</Link>
+      </div>
+    </div>
+  )
+}
 
 
 /* ── 업체 성적표 본문 ───────────────────────────────────────────
