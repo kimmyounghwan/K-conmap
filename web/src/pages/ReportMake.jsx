@@ -24,7 +24,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { isOp, 나운영자 } from '../lib/운영자.js'
-import { getOverview, getBidIndex, indexRows } from '../lib/data.js'
+import { getOverview, getBidIndex, indexRows, searchCorp, getCorp } from '../lib/data.js'
+import { normCorp } from '../lib/fmt.js'
 import { 성적표, 업체목록, 업체찾기, P50_FALLBACK } from '../lib/성적표.js'
 import { 그리기, PDF만들기, 내려받기 } from '../lib/성적표종이.js'
 import { 기억됨, 꺼내기, 넣기, 바로되나, 허락받기, 골라서기억 } from '../lib/파일기억.js'
@@ -56,6 +57,11 @@ export default function ReportMake() {
   const [p50, setP50] = useState(P50_FALLBACK)
   const [마감전, set마감전] = useState([])
   const [손잡이, set손잡이] = useState(null)   // 기억해 둔 파일 — 단추 한 번이면 열립니다
+  /* 🗓 2026-09-19 — 소장님: 「자가진단처럼 성적표도 3년치로 해줘」
+     검색은 «3년치 업체 색인»(자가진단이 쓰는 것)으로 합니다. 두 달치 파일이 없어도 찾아집니다. */
+  const [세목록, set세목록] = useState([])
+  const [찾는중, set찾는중] = useState(false)
+  const 타이머 = useRef(null)
   const 파일칸 = useRef(null)
   const 종이칸 = useRef(null)
 
@@ -88,7 +94,44 @@ export default function ReportMake() {
     getBidIndex().then((idx) => set마감전(indexRows(idx) || [])).catch(() => {})
   }, [])
 
-  const 찾음 = useMemo(() => (자료 ? 업체찾기(자료.목록, q) : []), [자료, q])
+  const 두달찾음 = useMemo(() => (자료 ? 업체찾기(자료.목록, q) : []), [자료, q])
+
+  /* 3년치 색인에서 찾습니다 — 자가진단과 «같은 자료» 입니다 */
+  useEffect(() => {
+    clearTimeout(타이머.current)
+    const s2 = normCorp(q)
+    if (s2.length < 1) { set세목록([]); set찾는중(false); return undefined }
+    set찾는중(true)
+    타이머.current = setTimeout(() => {
+      searchCorp(s2, false)
+        .then((r) => searchCorp(s2, (r || []).length ? false : true).then((r2) => (r && r.length ? r : r2)))
+        .then((r) => { set세목록(r || []); set찾는중(false) })
+        .catch(() => { set세목록([]); set찾는중(false) })
+    }, 300)
+    return () => clearTimeout(타이머.current)
+  }, [q])
+
+  /* 두 자료를 «사업자번호» 로 겹칩니다 — 3년치가 먼저, 최근 두 달만 있는 곳은 뒤에 */
+  const 찾음 = useMemo(() => {
+    const 두 = new Map(두달찾음.map((x) => [String(x.bno), x]))
+    const out = []
+    const 쓴 = new Set()
+    for (const c of 세목록) {
+      const bno = String(c.biz || '')
+      const t = bno ? 두.get(bno) : null
+      if (bno) 쓴.add(bno)
+      out.push({
+        bno, 이름: c.nm || c.label || c.key, 키: c.key, chunk: c.chunk,
+        세낙찰: c.n || 0, 건: t ? t.건 : 0, 낙찰: t ? t.낙찰 : 0, 마지막: t ? t.마지막 : '',
+      })
+    }
+    for (const x of 두달찾음) {
+      if (쓴.has(String(x.bno))) continue
+      out.push({ bno: String(x.bno), 이름: x.이름, 키: '', chunk: null,
+        세낙찰: 0, 건: x.건, 낙찰: x.낙찰, 마지막: x.마지막 })
+    }
+    return out.slice(0, 60)
+  }, [세목록, 두달찾음])
 
   /* 그린 쪽을 화면에 답니다 — 이 그림이 그대로 PDF 가 됩니다(어긋날 자리가 없습니다) */
   useEffect(() => {
@@ -157,14 +200,24 @@ export default function ReportMake() {
   }
 
   const 만들기 = async (업체, 가림) => {
-    if (!자료) return
     set일('세는 중…')
     set쪽들(null)
     try {
       /* 브라우저가 화면을 한 번 그리게 둡니다 — 안 그러면 「세는 중」 이 안 보입니다 */
       await new Promise((r) => setTimeout(r, 20))
-      const d = 성적표(업체.bno, 자료.rows, p50, 마감전)
-      if (!d) { set일('⛔ 그 업체의 투찰 기록이 없습니다'); return }
+      /* 🗓 3년치 낙찰 기록 — 사이트에서 받습니다(자가진단과 같은 자료).
+         두 달치 파일이 아직 안 열렸어도 이것만으로 종이가 나옵니다. */
+      let 세해 = null
+      if (업체.키) {
+        set일('3년치 기록을 받는 중…')
+        try { 세해 = await getCorp(업체.키, 업체.chunk) } catch { 세해 = null }
+      }
+      const d = 성적표(업체.bno, (자료 && 자료.rows) || [], p50, 마감전, 세해)
+      if (!d) {
+        set일(자료 ? '⛔ 그 업체의 기록이 없습니다'
+                  : '⛔ 3년치 낙찰 기록이 없는 업체입니다 — 떨어진 것까지 보시려면 아래에서 개찰 자료를 여십시오.')
+        return
+      }
       set셈(d)
       set일('그리는 중…')
       await new Promise((r) => setTimeout(r, 20))
@@ -218,8 +271,8 @@ export default function ReportMake() {
         <div className="field" style={{ marginTop: 10 }}>
           <label>업체 이름이나 사업자번호 <span className="hint">예: 삼원산림 · 2218146863</span></label>
           <input type="text" value={q} onChange={(e) => setQ(e.target.value)}
-                 placeholder={자료 ? '두 글자 이상, 또는 사업자번호 세 자리 이상' : '개찰 자료를 여는 중입니다…'}
-                 disabled={!자료} autoFocus />
+                 placeholder="업체 이름 두 글자 이상 — 3년치에서 찾습니다"
+                 autoFocus />
         </div>
 
         {자료 ? (
@@ -253,22 +306,22 @@ export default function ReportMake() {
           </p>
         )}
 
-        {q && 자료 && !찾음.length && (
+        {q && !찾는중 && !찾음.length && (
           <div className="muted" style={{ fontSize: 13, marginTop: 8 }}>찾지 못했습니다.</div>
         )}
+        {찾는중 && <div className="muted" style={{ fontSize: 13, marginTop: 8 }}>찾는 중…</div>}
         {/* ⚠️ 이름이 같고 사업자번호가 다른 업체가 1,846가지 있습니다.
             그래서 목록에 사업자번호를 같이 보여 주고, 고르는 것은 사업자번호로 합니다. */}
         {찾음.length > 0 && (
           <table className="tbl left repmk" style={{ marginTop: 10 }}>
-            <thead><tr><th>업체</th><th>사업자번호</th><th>투찰</th><th>낙찰</th><th>마지막</th><th></th></tr></thead>
+            <thead><tr><th>업체</th><th>사업자번호</th><th>3년 낙찰</th><th>두 달 투찰</th><th></th></tr></thead>
             <tbody>
-              {찾음.map((x) => (
-                <tr key={x.bno} className={고른 && 고른.bno === x.bno ? 'on' : ''}>
+              {찾음.map((x, i) => (
+                <tr key={(x.bno || x.키) + '_' + i} className={고른 && 고른.키 === x.키 && 고른.bno === x.bno ? 'on' : ''}>
                   <td><b>{x.이름}</b></td>
-                  <td className="mono">{x.bno}</td>
-                  <td className="r">{x.건}건</td>
-                  <td className="r">{x.낙찰}건</td>
-                  <td className="r muted">{날(x.마지막)}</td>
+                  <td className="mono">{x.bno || '—'}</td>
+                  <td className="r">{x.세낙찰 ? `${x.세낙찰}건` : '—'}</td>
+                  <td className="r">{x.건 ? `${x.건}건` : (자료 ? '—' : '자료 안 엶')}</td>
                   <td className="r">
                     <button className="btn line sm" onClick={() => { set고른(x); 만들기(x) }}>성적표</button>
                   </td>
@@ -293,7 +346,11 @@ export default function ReportMake() {
       {(일 || 쪽들) && (
         <div className="card">
           <div className="sec-title" style={{ margin: 0 }}>
-            {셈 ? `${셈.업체.이름} — 투찰 ${셈.요약.투찰}건 · 낙찰 ${셈.요약.낙찰}건` : '성적표'}
+            {셈
+              ? (셈.요약
+                ? `${셈.업체.이름} — 투찰 ${셈.요약.투찰}건 · 낙찰 ${셈.요약.낙찰}건`
+                : `${셈.업체.이름} — 3년치 낙찰 ${(셈.세해 && 셈.세해.낙찰) || 0}건 (최근 두 달 투찰 기록 없음)`)
+              : '성적표'}
           </div>
           {일 && <div className="pdflog" style={{ marginTop: 8 }}>{일}</div>}
           {쪽들 && (
@@ -309,8 +366,12 @@ export default function ReportMake() {
                 </button>
               </div>
               <p className="note sm" style={{ marginTop: 8 }}>
-                아래 그림이 <b>그대로 PDF</b> 가 됩니다. 자료는 {날(자료.처음)} ~ {날(자료.끝)} 개찰이고,
-                개찰마다 <b>낮은 금액 순 30곳</b>까지만 담겨 있습니다.
+                아래 그림이 <b>그대로 PDF</b> 가 됩니다.{' '}
+                {자료
+                  ? <>떨어진 것까지 담긴 자료는 {날(자료.처음)} ~ {날(자료.끝)} 개찰이고,
+                     개찰마다 <b>낮은 금액 순 30곳</b>까지입니다. 그 앞은 <b>3년치 낙찰 기록</b>입니다.</>
+                  : <><b>3년치 낙찰 기록</b>만으로 만들었습니다 — 떨어진 것까지 보시려면
+                     위에서 <b>개찰 자료</b>를 여십시오.</>}
               </p>
               <div className="repdoc" ref={종이칸} />
             </>

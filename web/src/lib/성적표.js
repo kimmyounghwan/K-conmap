@@ -207,13 +207,53 @@ export function 다음자리(recs, live, p50, n = 5) {
 }
 
 /** 성적표 한 벌 — tools/report_data.py 의 build() */
-export function 성적표(bno, rows, p50, live) {
+/* ══════════════════════════════════════════════════════════════
+   🗓 3년치 낙찰 기록 — 2026-09-19 (소장님: 「자가진단처럼 성적표도 3년치로 해줘」)
+
+   자료가 둘입니다. 섞지 마십시오.
+     · 3년치(사이트 /data/corp/dat) — 업체별 «낙찰(1순위)» 기록. 어디서 땄나·기관·지역·연도
+     · 두 달치(소장님 first.json) — 개찰마다 «투찰업체 전부». 왜 떨어졌나·분위·놓친 자리
+   여기서는 3년치를 «묶어 세기만» 합니다. 새 식을 적지 않습니다.
+   ══════════════════════════════════════════════════════════════ */
+export function 세해요약(c) {
+  if (!c) return null
+  const s = c.s || {}, amt = c.amt || {}, y = c.y || {}
+  const 해 = Object.keys(y).sort()
+  return {
+    이름: c.name || '',
+    낙찰: c.n || 0,
+    해마다: 해.map((k) => ({ 해: k, 건: y[k] || 0 })),
+    기간: 해.length ? [해[0], 해[해.length - 1]] : null,
+    투찰률: {
+      평균: s.avg == null ? null : r3(s.avg), 중앙: s.med == null ? null : r3(s.med),
+      최저: s.min == null ? null : r3(s.min), 최고: s.max == null ? null : r3(s.max),
+      흩어짐: s.std == null ? null : r3(s.std),
+    },
+    금액: { 평균: amt.avg == null ? null : Math.round(amt.avg), 최고: amt.max == null ? null : Math.round(amt.max) },
+    지역: Object.entries(c.reg || {}).sort((a, b) => b[1] - a[1]).slice(0, 6),
+    기관: (c.inst || []).slice(0, 8),
+    사례: (c.cases || []).slice(0, 8),
+  }
+}
+
+export function 성적표(bno, rows, p50, live, 세해) {
+  const 세 = 세해요약(세해)
   const recs = []
   for (const r of rows) {
     const o = 한건(r, bno, p50)
     if (o) recs.push(o)
   }
-  if (!recs.length) return null
+  /* 🗓 최근 두 달에 넣은 것이 «한 건도» 없어도, 3년치 낙찰 기록이 있으면 종이를 냅니다.
+     소장님: 「자가진단처럼 성적표도 3년치로 해줘」 — 자료가 없다고 기능을 빼지 않습니다. */
+  if (!recs.length) {
+    if (!세) return null
+    return {
+      업체: { 이름: 세.이름 || '', 사업자번호: bno },
+      두달없음: true,
+      세해: 세,
+      기준: { 사정률중앙값: p50, 만든날: 지금한국().slice(0, 16) },
+    }
+  }
   recs.sort((x, y) => String(y.dt || '').localeCompare(String(x.dt || '')))
 
   const name = 많은순(세기(recs.map((x) => x.name_used)), 1)[0][0]
@@ -409,6 +449,7 @@ export function 성적표(bno, rows, p50, live) {
        종이는 여기서 «새로 계산하지 않고» 이미 채점해 둔 줄을 묶어 세기만 합니다 —
        종이에 새 식을 적으면 이 파일과 조용히 어긋납니다. */
     _전부: recs,
+    세해: 세,
     기준: { 사정률중앙값: p50, 만든날 },
   }
 }
