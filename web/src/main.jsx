@@ -1,6 +1,6 @@
 import React, { Suspense, lazy } from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import App from './App.jsx'
 import FirstBoard from './pages/FirstBoard.jsx'
 import LiveBoard from './pages/LiveBoard.jsx'
@@ -96,8 +96,8 @@ const ChangeBook = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ de
 const ChangeNaeyeok = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeNaeyeok })))
 /* 🔁 설계변경 2줄 자동변환 — 2026-09-15. 엑셀을 다루느라 무거워서 반드시 lazyPage 입니다. */
 const TwoLine = lazyPage(() => import('./pages/TwoLine.jsx'))
-/* 📊 업체 입찰 성적표 — 2026-09-15 */
-const Report = lazyPage(() => import('./pages/Report.jsx'))
+/* 📊 업체 입찰 성적표(이용자용 안내) — 2026-09-15 · 2026-09-19 내림.
+   화면 파일(pages/Report.jsx)은 두었지만 아무 데서도 부르지 않습니다 — 꾸러미에도 안 들어갑니다. */
 /* 📊 성적표 «만들기» — 2026-09-18. 소장님만. 검색엔진에 안 올립니다(ReportMake.jsx 가 noindex 를 겁니다).
    ⚠️ 무거운 것(캔버스·pdf-lib)은 이 화면을 열 때만 받습니다 — 반드시 lazyPage 입니다. */
 const ReportMake = lazyPage(() => import('./pages/ReportMake.jsx'))
@@ -136,7 +136,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/change/excel" element={<Suspense fallback={<Loading />}><ChangeBook /></Suspense>} />
           <Route path="/change/naeyeok" element={<Suspense fallback={<Loading />}><ChangeNaeyeok /></Suspense>} />
           <Route path="/change/twoline" element={<Suspense fallback={<Loading />}><TwoLine /></Suspense>} />
-          <Route path="/report" element={<Suspense fallback={<Loading />}><Report /></Suspense>} />
+          {/* 🗑 2026-09-19 — 소장님: 「사이트에 띄워놓은 입찰성적표는 제거…이상해」
+              화면은 내렸습니다. 옛 링크(소개메일·카페글)가 404 가 되지 않게 첫 화면으로 보냅니다.
+              ⚠️ pages/Report.jsx 는 지우지 않고 두었습니다 — 되살릴 일이 생기면 이 줄만 되돌리면 됩니다. */}
+          <Route path="/report" element={<Navigate to="/" replace />} />
           <Route path="/report/make" element={<Suspense fallback={<Loading />}><ReportMake /></Suspense>} />
           {/* 갈래별 주소 — prerender.py 가 이 주소로 HTML 을 굽습니다.
               ⚠️ 여기에 길이 없으면, 검색으로 들어온 사람에게 React 가 NotFound 를 씌우고

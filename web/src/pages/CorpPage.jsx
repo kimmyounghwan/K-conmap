@@ -91,7 +91,6 @@ export default function CorpPage() {
         {/* 🚨 2026-09-18 — 여기까지 온 사람이 성적표가 가장 필요한 사람입니다.
             「없습니다」 로 끝내지 않습니다. */}
         <b>넣으신 것까지 보시려면 성적표를 신청하십시오 — 낙찰이 한 건도 없어도 나옵니다.</b><br />
-        <Link to="/report" style={{ color: 'var(--accent)', fontWeight: 700 }}>📊 입찰 성적표 보기 →</Link>
         {'   '}
         <Link to="/analysis?m=corp" style={{ color: 'var(--accent)', fontWeight: 700 }}>분석 탭에서 다시 찾아보기 →</Link>
       </Empty>

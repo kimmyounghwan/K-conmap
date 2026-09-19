@@ -48,7 +48,10 @@ const TABS = [
   /* 📊 2026-09-18 — 성적표(/report)·업체(/corp)·기관(/agency) 화면에서도 이 탭에 불이
      들어오게 합니다. 탭은 10개가 한도라(위 설명) 성적표에 새 탭을 줄 수 없습니다 —
      대신 «어디에 속한 화면인지» 만이라도 알려 줍니다. */
-  { to: '/analysis', ic: '🔍', label: '분석', also: ['/report', '/corp', '/agency'] },
+  /* 🗑 2026-09-19 — 소장님: 「사이트에 띄워놓은 입찰성적표는 제거…이상해」
+     /report(이용자용 안내·신청)는 내렸습니다. 성적표는 소장님이 /report/make 에서 만들어
+     PDF 로 보내 드리는 것만 남습니다. 주소는 살려 둡니다(옛 링크가 404 가 되지 않게). */
+  { to: '/analysis', ic: '🔍', label: '분석', also: ['/corp', '/agency'] },
 ]
 
 export default function App() {

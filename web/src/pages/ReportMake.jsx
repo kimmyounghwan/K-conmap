@@ -168,16 +168,46 @@ export default function ReportMake() {
     await 읽기(f)
   }
 
-  /* 기억해 둔 파일을 스스로 엽니다 — 권한이 잠들었으면 단추 한 번만 받습니다 */
+  /* 🌐 2026-09-19 — 소장님: 「**내가 업체만 선택하면 나오게 해줘**」
+   *
+   * ■ 무엇이 잘못돼 있었나
+   *   자료를 «안 연 채로도» 성적표가 만들어졌습니다. 그러면 3년치 낙찰만 들어간
+   *   **3쪽짜리** 가 나옵니다 — 견본(7쪽)과 달라서 「왜 허접하냐」 가 됩니다.
+   *   작은 글씨로 「개찰 자료를 여십시오」 라고 적어 둔 것은 아무 소용이 없었습니다.
+   *
+   * ■ 이제
+   *   깃허브가 배포할 때 개찰 자료를 사이트에 같이 싣습니다(/data/first_full.json).
+   *   이 화면은 열자마자 그것을 받아 옵니다. **고르실 것이 없습니다.**
+   *   파일 고르기는 «손에 더 새 자료가 있을 때» 쓰는 뒷길로만 남겨 둡니다.
+   *   그래도 자료가 없으면 **PDF 내려받기를 막습니다** — 허접한 종이가 나가지 않게. */
   useEffect(() => {
-    if (!기억됨()) return undefined
     let 살았나 = true
     ;(async () => {
-      const h = await 꺼내기('first')
-      if (!h || !살았나) return
-      set손잡이(h)
-      if (await 바로되나(h)) {
-        try { await 읽기(await h.getFile()) } catch { set읽는중('') }
+      /* ① 먼저 기억해 둔 «내 컴퓨터 파일» — 사이트 것보다 새로울 수 있습니다 */
+      if (기억됨()) {
+        try {
+          const h = await 꺼내기('first')
+          if (h && 살았나) {
+            set손잡이(h)
+            if (await 바로되나(h)) { await 읽기(await h.getFile()); return }
+          }
+        } catch { /* 안 되면 ② 로 */ }
+      }
+      if (!살았나) return
+      /* ② 사이트에 실린 개찰 자료 — 아무것도 안 하셔도 됩니다 */
+      set읽는중('개찰 자료 받는 중…')
+      try {
+        const r = await fetch('/data/first_full.json', { cache: 'no-cache' })
+        if (!r.ok) throw new Error('HTTP ' + r.status)
+        const j = await r.json()
+        const rows = Object.values(j.con || {})
+        if (!rows.length) throw new Error('개찰이 없습니다')
+        if (!살았나) return
+        const dts = rows.map((x) => String(x.dt || '')).filter(Boolean).sort()
+        set자료({ rows, 목록: 업체목록(rows), 처음: dts[0], 끝: dts[dts.length - 1] })
+        set읽는중('')
+      } catch (e) {
+        if (살았나) set읽는중('⛔ 사이트에서 개찰 자료를 받지 못했습니다 — 아래에서 직접 골라 주십시오.')
       }
     })()
     return () => { 살았나 = false }
@@ -250,8 +280,7 @@ export default function ReportMake() {
           이 화면은 운영자 브라우저에서만 열립니다.
         </p>
         <div className="btn-row">
-          <Link className="btn primary" to="/report">📊 성적표 안내로</Link>
-          <Link className="btn ghost" to="/qna">💬 성적표 신청하기</Link>
+          <Link className="btn primary" to="/">🏠 첫 화면으로</Link>
         </div>
       </div>
     )
@@ -264,7 +293,8 @@ export default function ReportMake() {
           → 맨 위는 «업체 찾기» 입니다. 자료 고르는 일은 아래로 내렸습니다.
             자료는 대개 스스로 열리므로 그 칸은 눈에 안 띄어도 됩니다. */}
       <div className="card pdfwork">
-        <Link className="pdfback" to="/report">← 성적표 안내로</Link>
+        {/* 🗑 2026-09-19 — /report(이용자용 안내)는 내렸습니다. 돌아갈 곳은 관리자 화면입니다. */}
+        <Link className="pdfback" to="/admin">← 관리자</Link>
         <h1 className="pdfh1">📊 업체 성적표 만들기</h1>
         <p className="pdflead">업체를 찾아 성적표를 만들고 PDF 로 내려받습니다.</p>
 
@@ -334,7 +364,8 @@ export default function ReportMake() {
         <input ref={파일칸} type="file" className="sr-only" tabIndex={-1}
                accept=".json,application/json" onChange={파일받기} />
         <p className="pdfsafe" style={{ marginTop: 12 }}>
-          🔒 개찰 자료는 <b>서버로 올라가지 않습니다.</b> 이 브라우저 안에서만 읽습니다.
+          🔒 개찰 자료는 <b>이 브라우저 안에서만</b> 읽습니다 — 아무 데도 보내지 않습니다.
+          자료는 사이트에 실린 것을 스스로 받아 옵니다(고르실 것 없습니다).
           {자료 && (
             <> · <button type="button" className="navi"
                         style={{ border: 0, background: 'none', padding: 0, cursor: 'pointer' }}
@@ -356,7 +387,8 @@ export default function ReportMake() {
           {쪽들 && (
             <>
               <div className="btn-row" style={{ marginTop: 10 }}>
-                <button className="btn primary pdfgo" onClick={내려받기누름}>
+                <button className="btn primary pdfgo" onClick={내려받기누름} disabled={!자료}
+                  title={자료 ? '' : '개찰 자료가 없어 3년치 낙찰만 담깁니다'}>
                   ⬇ PDF 내려받기 ({쪽들.length}쪽)
                 </button>
                 <button className="btn ghost" onClick={() => {
@@ -370,8 +402,10 @@ export default function ReportMake() {
                 {자료
                   ? <>떨어진 것까지 담긴 자료는 {날(자료.처음)} ~ {날(자료.끝)} 개찰이고,
                      개찰마다 <b>낮은 금액 순 30곳</b>까지입니다. 그 앞은 <b>3년치 낙찰 기록</b>입니다.</>
-                  : <><b>3년치 낙찰 기록</b>만으로 만들었습니다 — 떨어진 것까지 보시려면
-                     위에서 <b>개찰 자료</b>를 여십시오.</>}
+                  : <span style={{ color: 'var(--bad)', fontWeight: 700 }}>
+                      ⛔ 개찰 자료가 없어 <b>3년치 낙찰 기록</b>만 담겼습니다(3쪽).
+                      이대로는 보내지 마십시오 — 위에서 <b>개찰 자료</b>를 열면 7쪽으로 나옵니다.
+                    </span>}
               </p>
               <div className="repdoc" ref={종이칸} />
             </>

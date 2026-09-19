@@ -175,7 +175,6 @@ function CorpTab() {
             그 회사도 이 화면에서는 «기록 없음»입니다.
           </p>
           <div className="btn-row" style={{ marginTop: 10 }}>
-            <Link className="btn primary" to="/report">📊 넣은 것 전부 보기 — 입찰 성적표</Link>
             <Link className="btn ghost" to="/qna">💬 성적표 신청하기</Link>
           </div>
           <p className="note sm" style={{ marginBottom: 0 }}>
