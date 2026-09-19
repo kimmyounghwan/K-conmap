@@ -27,6 +27,7 @@ import { isOp, 나운영자 } from '../lib/운영자.js'
 import { getOverview, getBidIndex, indexRows } from '../lib/data.js'
 import { 성적표, 업체목록, 업체찾기, P50_FALLBACK } from '../lib/성적표.js'
 import { 그리기, PDF만들기, 내려받기 } from '../lib/성적표종이.js'
+import { 기억됨, 꺼내기, 넣기, 바로되나, 허락받기, 골라서기억 } from '../lib/파일기억.js'
 
 let _fb = null
 const loadFb = async () => {
@@ -54,6 +55,7 @@ export default function ReportMake() {
   const [일, set일] = useState('')
   const [p50, setP50] = useState(P50_FALLBACK)
   const [마감전, set마감전] = useState([])
+  const [손잡이, set손잡이] = useState(null)   // 기억해 둔 파일 — 단추 한 번이면 열립니다
   const 파일칸 = useRef(null)
   const 종이칸 = useRef(null)
 
@@ -96,9 +98,12 @@ export default function ReportMake() {
     if (쪽들) for (const c of 쪽들) box.appendChild(c)
   }, [쪽들])
 
-  const 파일받기 = async (e) => {
-    const f = e.target.files?.[0]
-    e.target.value = ''
+  /* 🔖 2026-09-19 — 소장님: 「이걸 어떻게 내가 사용하라고」
+     열 때마다 파일 창을 띄워 폴더를 헤집게 했더니 쓸 수 없는 도구였습니다.
+     → 한 번 고르면 브라우저가 «어느 파일이었나» 를 기억합니다(lib/파일기억.js).
+       다음부터는 아무것도 안 물어보고 스스로 엽니다.
+     ⚠️ 파일 내용은 저장하지 않습니다. 자료는 여전히 이 컴퓨터에만 있습니다. */
+  const 읽기 = async (f) => {
     if (!f) return
     set자료(null); set쪽들(null); set고른(null); set셈(null)
     set읽는중(`${f.name} 읽는 중… (${(f.size / 1048576).toFixed(1)}MB)`)
@@ -111,6 +116,43 @@ export default function ReportMake() {
       set읽는중('')
     } catch (err) {
       set읽는중('⛔ 읽지 못했습니다 — ' + (err?.message || '알 수 없는 까닭'))
+    }
+  }
+
+  const 파일받기 = async (e) => {
+    const f = e.target.files?.[0]
+    e.target.value = ''
+    await 읽기(f)
+  }
+
+  /* 기억해 둔 파일을 스스로 엽니다 — 권한이 잠들었으면 단추 한 번만 받습니다 */
+  useEffect(() => {
+    if (!기억됨()) return undefined
+    let 살았나 = true
+    ;(async () => {
+      const h = await 꺼내기('first')
+      if (!h || !살았나) return
+      set손잡이(h)
+      if (await 바로되나(h)) {
+        try { await 읽기(await h.getFile()) } catch { set읽는중('') }
+      }
+    })()
+    return () => { 살았나 = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const 자료열기 = async () => {
+    try {
+      let h = 손잡이
+      if (h) {
+        if (!(await 바로되나(h)) && !(await 허락받기(h))) h = null
+      }
+      if (!h) { h = await 골라서기억('first', '개찰 자료 (first.json)'); set손잡이(h) }
+      await 넣기('first', h)
+      await 읽기(await h.getFile())
+    } catch (err) {
+      if (err && err.name === 'AbortError') return          // 창을 닫으신 것 — 탈이 아닙니다
+      set읽는중('⛔ 열지 못했습니다 — ' + (err?.message || '알 수 없는 까닭'))
     }
   }
 
@@ -164,28 +206,46 @@ export default function ReportMake() {
 
   return (
     <>
+      {/* 🔖 2026-09-19 — 소장님: 「자가진단처럼 검색으로 회사를 선택할 수 있게 하고
+          자료가 나오면 내가 pdf로 다운 받을 수 있고」
+          → 맨 위는 «업체 찾기» 입니다. 자료 고르는 일은 아래로 내렸습니다.
+            자료는 대개 스스로 열리므로 그 칸은 눈에 안 띄어도 됩니다. */}
       <div className="card pdfwork">
         <Link className="pdfback" to="/report">← 성적표 안내로</Link>
         <h1 className="pdfh1">📊 업체 성적표 만들기</h1>
-        <p className="pdflead">개찰 자료를 고르고, 업체를 찾아, PDF 로 내려받습니다.</p>
+        <p className="pdflead">업체를 찾아 성적표를 만들고 PDF 로 내려받습니다.</p>
 
-        <div className="pdfdrop">
-          <button type="button" className="pdfpick" onClick={() => 파일칸.current?.click()}>
-            {자료 ? '다른 자료 고르기' : '개찰 자료 고르기 (first.json)'}
-          </button>
-          <div className="pdfdrop-d">소장님 컴퓨터의 <b>data/store/first.json</b></div>
+        <div className="field" style={{ marginTop: 10 }}>
+          <label>업체 이름이나 사업자번호 <span className="hint">예: 삼원산림 · 2218146863</span></label>
+          <input type="text" value={q} onChange={(e) => setQ(e.target.value)}
+                 placeholder={자료 ? '두 글자 이상, 또는 사업자번호 세 자리 이상' : '개찰 자료를 여는 중입니다…'}
+                 disabled={!자료} autoFocus />
         </div>
-        <input ref={파일칸} type="file" className="sr-only" tabIndex={-1}
-               accept=".json,application/json" onChange={파일받기} />
 
-        {읽는중 && <div className="pdflog" style={{ marginTop: 10 }}>{읽는중}</div>}
-
-        {자료 && (
-          <div className="pdfgot" style={{ marginTop: 10 }}>
+        {자료 ? (
+          <div className="pdfgot">
             📎 개찰 {자료.rows.length.toLocaleString()}건 · 업체 {자료.목록.length.toLocaleString()}곳
             · {날(자료.처음)} ~ {날(자료.끝)}
           </div>
+        ) : (
+          <div className="pdfdrop" style={{ padding: '14px 12px' }}>
+            {읽는중 ? <div className="pdflog">{읽는중}</div> : (
+              <>
+                <button type="button" className="pdfpick"
+                        onClick={() => (기억됨() ? 자료열기() : 파일칸.current?.click())}>
+                  {손잡이 ? '개찰 자료 열기 (한 번만 누르시면 됩니다)' : '개찰 자료 고르기 (first.json)'}
+                </button>
+                <div className="pdfdrop-d">
+                  {손잡이
+                    ? '전에 고르신 파일을 기억하고 있습니다 — 폴더를 다시 헤집지 않습니다'
+                    : '소장님 컴퓨터의 data/store/first.json — 한 번만 고르시면 다음부터 저절로 열립니다'}
+                </div>
+              </>
+            )}
+          </div>
         )}
+        {읽는중 && 자료 && <div className="pdflog" style={{ marginTop: 8 }}>{읽는중}</div>}
+
         {자료 && 자료.rows.length < 1000 && (
           <p className="note sm" style={{ marginTop: 8 }}>
             ⚠️ 개찰이 {자료.rows.length}건뿐입니다 — 사이트에 실린 <b>요약본(최근 300건)</b>을 고르신 것 같습니다.
@@ -193,43 +253,42 @@ export default function ReportMake() {
           </p>
         )}
 
+        {q && 자료 && !찾음.length && (
+          <div className="muted" style={{ fontSize: 13, marginTop: 8 }}>찾지 못했습니다.</div>
+        )}
+        {/* ⚠️ 이름이 같고 사업자번호가 다른 업체가 1,846가지 있습니다.
+            그래서 목록에 사업자번호를 같이 보여 주고, 고르는 것은 사업자번호로 합니다. */}
+        {찾음.length > 0 && (
+          <table className="tbl left repmk" style={{ marginTop: 10 }}>
+            <thead><tr><th>업체</th><th>사업자번호</th><th>투찰</th><th>낙찰</th><th>마지막</th><th></th></tr></thead>
+            <tbody>
+              {찾음.map((x) => (
+                <tr key={x.bno} className={고른 && 고른.bno === x.bno ? 'on' : ''}>
+                  <td><b>{x.이름}</b></td>
+                  <td className="mono">{x.bno}</td>
+                  <td className="r">{x.건}건</td>
+                  <td className="r">{x.낙찰}건</td>
+                  <td className="r muted">{날(x.마지막)}</td>
+                  <td className="r">
+                    <button className="btn line sm" onClick={() => { set고른(x); 만들기(x) }}>성적표</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        <input ref={파일칸} type="file" className="sr-only" tabIndex={-1}
+               accept=".json,application/json" onChange={파일받기} />
         <p className="pdfsafe" style={{ marginTop: 12 }}>
-          🔒 고른 자료는 <b>서버로 올라가지 않습니다.</b> 이 브라우저 안에서만 읽습니다.
+          🔒 개찰 자료는 <b>서버로 올라가지 않습니다.</b> 이 브라우저 안에서만 읽습니다.
+          {자료 && (
+            <> · <button type="button" className="navi"
+                        style={{ border: 0, background: 'none', padding: 0, cursor: 'pointer' }}
+                        onClick={() => (기억됨() ? 자료열기() : 파일칸.current?.click())}>다른 자료 고르기</button></>
+          )}
         </p>
       </div>
-
-      {자료 && (
-        <div className="card">
-          <div className="sec-title">업체 찾기</div>
-          <div className="field" style={{ marginTop: 0 }}>
-            <label>업체 이름이나 사업자번호 <span className="hint">예: 삼원산림 · 2218146863</span></label>
-            <input type="text" value={q} onChange={(e) => setQ(e.target.value)}
-                   placeholder="두 글자 이상, 또는 사업자번호 세 자리 이상" />
-          </div>
-          {/* ⚠️ 이름이 같고 사업자번호가 다른 업체가 1,846가지 있습니다.
-              그래서 목록에 사업자번호를 같이 보여 주고, 고르는 것은 사업자번호로 합니다. */}
-          {q && !찾음.length && <div className="muted" style={{ fontSize: 13 }}>찾지 못했습니다.</div>}
-          {찾음.length > 0 && (
-            <table className="tbl left repmk">
-              <thead><tr><th>업체</th><th>사업자번호</th><th>투찰</th><th>낙찰</th><th>마지막</th><th></th></tr></thead>
-              <tbody>
-                {찾음.map((x) => (
-                  <tr key={x.bno} className={고른 && 고른.bno === x.bno ? 'on' : ''}>
-                    <td><b>{x.이름}</b></td>
-                    <td className="mono">{x.bno}</td>
-                    <td className="r">{x.건}건</td>
-                    <td className="r">{x.낙찰}건</td>
-                    <td className="r muted">{날(x.마지막)}</td>
-                    <td className="r">
-                      <button className="btn line sm" onClick={() => { set고른(x); 만들기(x) }}>성적표</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
 
       {(일 || 쪽들) && (
         <div className="card">
