@@ -50,9 +50,9 @@ const MAIL = 'kimmyounghwan259@gmail.com'
  *   ⚠️ 메일 주소는 «글자로» 남겨 둡니다. 메일이 편한 분은 베껴 쓰시면 됩니다.
  *      다만 눌러서 창이 뜨게는 하지 않습니다. */
 
-function ask(where) {
+function ask(where, 이름 = 'naeyeok_ask') {
   try {
-    if (window.gtag) window.gtag('event', 'naeyeok_ask', { where })
+    if (window.gtag) window.gtag('event', 이름, { where })
   } catch (e) { /* 광고차단기 — 세는 것 때문에 문의가 막히면 안 됩니다 */ }
 }
 
@@ -62,8 +62,10 @@ function ask(where) {
    → 쓰기 전용입니다. 올린 글은 **아무도 못 봅니다**(소장님만 관리자로 보십니다).
       문의에는 공사 정보와 연락처가 들어가니 목록으로 걸어 두면 안 됩니다.
    → 읽기가 없으니 내려받기가 0 이라 요금도 붙지 않습니다. */
-function QuoteForm() {
-  const [f, setF] = useState({ work: '', org: '', no: '', money: '', want: '입찰 산출내역서', due: '', phone: '', name: '', memo: '' })
+/* 🦺 2026-09-20 — /safety 도 이 문의함을 씁니다. 같은 창구를 두 벌로 만들지 않습니다.
+   «무엇이 필요하십니까» 목록만 갈아 끼웁니다(옵션). 안 주면 내역서 목록 그대로입니다. */
+export function QuoteForm({ 옵션 = null, 첫값 = '입찰 산출내역서', 쓰임 = 'naeyeok_ask' }) {
+  const [f, setF] = useState({ work: '', org: '', no: '', money: '', want: 첫값, due: '', phone: '', name: '', memo: '' })
   const [state, setState] = useState('')      // '' | 'send' | 'done' | 오류글
   const set = (k) => (e) => setF((v) => ({ ...v, [k]: e.target.value }))
 
@@ -88,7 +90,7 @@ function QuoteForm() {
         memo: f.memo.trim().slice(0, 1000),
         at: Date.now(),
       })
-      ask('form')
+      ask('form', 쓰임)
       setState('done')
     } catch (err) {
       setState('보내지 못했습니다. 메일(' + MAIL + ')로 보내 주시면 똑같이 처리해 드리겠습니다.')
@@ -144,6 +146,11 @@ function QuoteForm() {
         <div style={R}>
           <label style={L}>무엇이 필요하십니까</label>
           <select style={I} value={f.want} onChange={set('want')}>
+            {옵션 ? 옵션.map(([g, xs]) => (
+              <optgroup key={g} label={g}>
+                {xs.map((x) => <option key={x}>{x}</option>)}
+              </optgroup>
+            )) : (<>
             <optgroup label="입찰 전">
               <option>입찰 산출내역서</option>
               <option>공내역서 단가 넣기</option>
@@ -169,6 +176,7 @@ function QuoteForm() {
               <option>물량산출부터</option>
               <option>아직 모르겠음 — 상의하고 싶음</option>
             </optgroup>
+            </>)}
           </select>
         </div>
         <div className="grid2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
