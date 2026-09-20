@@ -89,6 +89,8 @@ _to_delete/
 # 사이트로는 collect.py 의 publish_naeyeok_files 가 복사해 냅니다.
 data/store/naeyeok/
 web/public/naeyeok/
+data/store/naeyeok_rows/
+web/public/naeyeok-rows/
 _kcm_찌꺼기/
 # ── 회차 기록 (2026-09-07) ────────────────────────────────
 # health.json : 회차마다 «조달청에서 실제로 받았는가» 를 적는 파일.

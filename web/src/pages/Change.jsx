@@ -275,6 +275,83 @@ const PRICED = ['설계내역서', '단가산출서']
 const ADKEY = 'kcm_nyad'
 
 /* 단가 뱃지 — 「확인함」 과 「짐작」 을 절대 같은 말로 적지 않습니다 */
+
+/* ── 💰 단가판 — 뽑아 둔 줄을 그 자리에서 펼쳐 봅니다 (2026-09-20) ──────
+   소장님: 「내역서 자동화… 일정량이 되면 오래된 순으로 삭제하고」
+
+   ■ 왜 원본이 아니라 «뽑은 줄» 인가
+     원본 엑셀은 한 부에 평균 595KB 라 보관함(50MB)에 90부밖에 안 들어갑니다.
+     뽑은 줄은 한 부에 수십 KB — 같은 자리에 스무 배 넘게 들어갑니다.
+     **원본이 상한에 밀려 빠져도 단가는 남습니다.** 원본은 조달청 링크로 받습니다.
+
+   ■ 누를 때만 받습니다
+     목록에는 «줄 수»만 싣고, 실제 줄은 /naeyeok-rows/{열쇠}.json 에서
+     그 줄을 누를 때만 받아옵니다. 전송량이 곧 요금이라 그렇게 했습니다. */
+function 단가판({ rk, n }) {
+  const [열림, set열림] = useState(false)
+  const [줄, set줄] = useState(null)      // null 받는 중 · false 실패
+  const [q, setQ] = useState('')
+
+  useEffect(() => {
+    if (!열림 || 줄 !== null) return
+    let 살았나 = true
+    fetch('/naeyeok-rows/' + rk + '.json')
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((v) => { if (살았나) set줄(Array.isArray(v) ? v : false) })
+      .catch(() => { if (살았나) set줄(false) })
+    return () => { 살았나 = false }
+  }, [열림, rk, 줄])
+
+  const 보임 = useMemo(() => {
+    if (!Array.isArray(줄)) return []
+    const t = q.trim()
+    const v = t ? 줄.filter((a) => (a[0] || '').includes(t) || (a[1] || '').includes(t)) : 줄
+    return v.slice(0, 300)
+  }, [줄, q])
+
+  if (!열림) {
+    return (
+      <button className="fdl ghost" onClick={() => set열림(true)}>
+        💰 단가 {num(n)}줄 보기
+      </button>
+    )
+  }
+  return (
+    <div className="nyprice">
+      <div className="btn-row" style={{ marginBottom: 8 }}>
+        <input value={q} onChange={(e) => setQ(e.target.value)}
+          placeholder="품명 · 규격으로 찾기" style={{ flex: 1, minWidth: 0 }} />
+        <button className="btn ghost sm" onClick={() => set열림(false)}>닫기</button>
+      </div>
+      {줄 === null ? <Skeleton n={3} />
+        : 줄 === false ? <div className="note">단가를 불러오지 못했습니다.</div>
+        : (
+          <>
+            <div className="nyscroll">
+              <table className="tbl left">
+                <thead><tr><th>품명</th><th>규격</th><th>단위</th><th style={{ textAlign: 'right' }}>단가</th></tr></thead>
+                <tbody>
+                  {보임.map((a, i) => (
+                    <tr key={i}>
+                      <td>{a[0]}</td><td>{a[1]}</td><td>{a[2]}</td>
+                      <td style={{ textAlign: 'right' }}>{won(a[3])}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="note" style={{ marginTop: 8 }}>
+              {보임.length < 줄.length
+                ? <>{num(줄.length)}줄 가운데 {num(보임.length)}줄만 보입니다 — 찾기 칸에 품명을 적어 보십시오.</>
+                : <>{num(줄.length)}줄 전부입니다.</>}{' '}
+              <b>그 공고 시점의 단가</b>입니다. 원본 엑셀은 위 링크에서 받으십시오.
+            </div>
+          </>
+        )}
+    </div>
+  )
+}
+
 function PriceTag({ r }) {
   if (r.priced === 1) return <em className="dtag ok">단가 확인됨</em>
   if (r.priced === 0) return <em className="dtag no">열어 보니 단가 없음</em>
@@ -418,6 +495,7 @@ export function ChangeNaeyeok() {
                     ? <a className="fdl" href={r.local} download>⬇ 바로 받기</a>
                     : <a className="fdl" href={r.url} target="_blank" rel="noopener nofollow">⬇ 나라장터에서 받기</a>}
                   {r.purl && <a className="fdl ghost" href={r.purl} target="_blank" rel="noopener nofollow">공고 →</a>}
+                  {r.rk ? <단가판 rk={r.rk} n={r.nrow} /> : null}
                 </div>
               </div>
             ))}

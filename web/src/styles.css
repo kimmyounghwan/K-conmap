@@ -3357,3 +3357,17 @@ ul.plainlist li { margin-bottom: 5px; }
   border: 1px solid var(--accent-line); color: var(--accent); background: var(--surface);
 }
 .opbar a:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ── 💰 단가판 — 내역서 줄 아래로 펼쳐지는 단가 표 (2026-09-20) ──────── */
+.nyprice {
+  width: 100%; margin-top: 10px; padding: 10px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2);
+}
+/* ⚠️ 219줄짜리가 그대로 펼쳐지면 화면이 통째로 밀립니다(실측).
+   칸 안에서만 구르게 합니다 — 목록 자리는 그대로 두고 단가만 훑습니다. */
+.nyprice .nyscroll { max-height: 420px; overflow: auto; border: 1px solid var(--line-soft); border-radius: 8px; }
+.nyprice table { font-size: 12.5px; }
+.nyprice thead th { position: sticky; top: 0; background: var(--surface); z-index: 1; }
+.nyprice td, .nyprice th { padding: 5px 8px; }
+.nyprice .note { font-size: 12px; }
+.nybtn .fdl.ghost { white-space: nowrap; }

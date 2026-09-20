@@ -1866,7 +1866,18 @@ NAEYEOK_DIR = os.path.join(STORE, "naeyeok")
 #      + 내역서 300MB              = 4.7GB  (47%)  ← 절반
 #      + 내역서 150MB              = 3.3GB  (33%)  ← 이걸로 정함
 #    150MB 면 설계내역서 약 750개(다섯 달치)입니다. 그보다 오래된 것은 링크로 남습니다.
-NAEYEOK_KEEP_MB = int(os.environ.get("NAEYEOK_KEEP_MB", "150"))
+NAEYEOK_KEEP_MB = int(os.environ.get("NAEYEOK_KEEP_MB", "50"))
+# 🧾 2026-09-20 — 소장님: 「일정량이 되면 오래된 순으로 삭제하고」 + 「클로드 의견대로」
+#    실측: 받아 둔 258부가 **150MB 로 꽉 찼습니다**(평균 595KB). 꽉 차 있으니
+#    새 것이 들어오면 옛 것이 빠져 **더 안 쌓입니다.** 파일을 키워 봐야 몇 부 더입니다.
+#    → 원본은 «최근 것만» 50MB(약 90부) 남기고, 그 대신 **뽑은 줄**을 100MB 쌓습니다.
+#      한 부에서 뽑은 줄은 수십 KB 라 같은 자리에 **스무 배 넘게** 들어갑니다.
+#      원본이 빠져도 단가는 남고, 원본은 목록의 조달청 링크로 받을 수 있습니다.
+#    ⚠️ 사이트에 실리는 총량은 그대로 150MB 입니다 — 배포·저장 요금이 안 늘어납니다.
+NAEYEOK_ROWS_DIR = os.path.join(STORE, "naeyeok_rows")
+NAEYEOK_ROWS_MB = int(os.environ.get("NAEYEOK_ROWS_MB", "100"))
+NAEYEOK_ROWS_BUDGET_S = int(os.environ.get("NAEYEOK_ROWS_BUDGET_S", "120"))
+NAEYEOK_ROWS_MAX = int(os.environ.get("NAEYEOK_ROWS_MAX", "4000"))   # 한 부에서 뽑는 줄 상한
 NAEYEOK_FETCH = int(os.environ.get("NAEYEOK_FETCH", "100"))     # 한 회차에 새로 받는 개수
 #   40 → 100 (2026-09-06). 실측 40개에 155.7초였으니 100개면 약 390초.
 #   회차 전체가 14분이고 상한이 45분이라 여유가 있습니다.
@@ -1932,6 +1943,141 @@ def xlsx_has_price(path):
             wb.close()
         except Exception:
             pass
+
+
+# ── 🧾 내역서에서 «품명·규격·단위·단가» 뽑기 (2026-09-20) ─────────────
+_칸이름 = ("품명", "공종", "명칭", "품목", "자재명", "품명및규격", "공정", "규격및품명", "품목명")
+_칸규격 = ("규격", "형식", "규격및단위")
+_칸단위 = ("단위", "수량단위")
+_버릴시트 = re.compile(r"표지|목차|안내|설명|일람표|제출|서식|입찰안내|공고문")
+
+
+def _naeyeok_head(row):
+    """한 줄이 머리글인가 — 맞으면 (품명칸, 규격칸, 단위칸, [단가칸…])."""
+    nm = sp = un = None
+    pc = []
+    for i, v in enumerate(row):
+        if not isinstance(v, str):
+            continue
+        t = re.sub(r"\s+", "", v)
+        if nm is None and t in _칸이름:
+            nm = i
+        elif sp is None and t in _칸규격:
+            sp = i
+        elif un is None and t in _칸단위:
+            un = i
+        elif "단가" in t and "산출" not in t and "대비" not in t:
+            pc.append(i)
+    if nm is None or not pc:
+        return None
+    return nm, sp, un, pc
+
+
+def _naeyeok_price(row, pc):
+    """단가 칸이 여럿일 때 «두 번 세지 않게» 고릅니다.
+
+    ⚠️ 「재료비단가 · 노무비단가 · 계단가」 꼴에서 다 더하면 두 배가 됩니다.
+       끝 값이 앞의 합과 거의 같으면 그것만 씁니다.
+    """
+    vals = []
+    for i in pc:
+        if i < len(row):
+            v = row[i]
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                vals.append(float(v))
+    if not vals:
+        return 0.0
+    if len(vals) >= 2:
+        head = sum(vals[:-1])
+        if head > 0 and abs(vals[-1] - head) <= max(1.0, 0.02 * abs(vals[-1])):
+            return vals[-1]
+        return sum(vals)
+    return vals[0]
+
+
+# 품명 칸에 들어앉은 «원가 구성» 은 품목이 아닙니다 — 빼야 목록이 더러워지지 않습니다
+_원가말 = ("재료비", "노무비", "경비", "합계", "소계", "계", "총계", "직접비", "간접비",
+          "재  료  비", "노  무  비")
+
+
+def _두줄머리(r1, r2):
+    """머리글이 «두 줄에 걸쳐» 있는 내역서가 많습니다.
+       위 줄에 「품명·규격·단위」, 아래 줄에 「단가·금액」 이 놓입니다(재료비/노무비/경비 아래로).
+       두 줄을 칸끼리 포개어 한 줄처럼 보고 다시 찾습니다. 이걸 안 하면 본문 내역서를
+       통째로 지나칩니다 — 실측에서 한 부 평균 63줄밖에 못 건졌습니다."""
+    n = max(len(r1 or ()), len(r2 or ()))
+    out = []
+    for i in range(n):
+        a_ = r1[i] if r1 and i < len(r1) else None
+        b_ = r2[i] if r2 and i < len(r2) else None
+        out.append(a_ if isinstance(a_, str) and a_.strip() else b_)
+    return out
+
+
+def _cell(row, i, n):
+    if i is None or i >= len(row) or row[i] is None:
+        return ""
+    return str(row[i]).strip()[:n]
+
+
+def xlsx_price_rows(path, cap=4000):
+    """받아 둔 내역서에서 단가 줄만 뽑습니다. 못 읽으면 None(다음 회차에 다시).
+
+    ⚠️ .xls(옛 엑셀)는 openpyxl 이 못 엽니다 — 부르는 쪽에서 거릅니다.
+    """
+    try:
+        from openpyxl import load_workbook
+    except Exception:
+        return None
+    try:
+        wb = load_workbook(path, read_only=True, data_only=True)
+    except Exception:
+        return None
+    got = []
+    try:
+        for ws in wb.worksheets[:16]:
+            if _버릴시트.search(str(ws.title or "")):
+                continue
+            buf = list(ws.iter_rows(max_row=1500, values_only=True))
+            h, hi = None, -1
+            for i in range(min(len(buf), 80)):
+                h = _naeyeok_head(buf[i])
+                if h:
+                    hi = i
+                    break
+                h = _naeyeok_head(_두줄머리(buf[i], buf[i + 1] if i + 1 < len(buf) else None))
+                if h:
+                    hi = i + 1          # 머리글이 두 줄이면 그 다음 줄부터가 본문입니다
+                    break
+            if not h:
+                continue
+            nm_i, sp_i, un_i, pc = h
+            for row in buf[hi + 1:]:
+                if not row or nm_i >= len(row):
+                    continue
+                nm = row[nm_i]
+                if not isinstance(nm, str):
+                    continue
+                nm = nm.strip()
+                if not nm or len(nm) > 60:
+                    continue
+                if re.sub(r"\s+", "", nm) in [re.sub(r"\s+", "", x) for x in _원가말]:
+                    continue
+                pr = _naeyeok_price(row, pc)
+                if pr <= 0 or pr > 5e9:
+                    continue
+                got.append([nm, _cell(row, sp_i, 40), _cell(row, un_i, 10),
+                            round(float(pr), 2), str(ws.title or "")[:16]])
+                if len(got) >= cap:
+                    return got
+    except Exception:
+        return got
+    finally:
+        try:
+            wb.close()
+        except Exception:
+            pass
+    return got
 
 
 def doc_flag(r):
@@ -2942,6 +3088,30 @@ def main():
                 book[k] = {"skip": "%d일 지남" % NAEYEOK_KEEP_DAYS, "perm": True}
                 aged += 1
 
+        # ── 🧾 «뽑은 줄» — 원본이 빠져도 단가는 남습니다 (2026-09-20) ──────
+        #    ⚠️ 반드시 «크기 상한으로 버리기 전에» 돕니다.
+        #       버린 뒤에 뽑으려 하면 파일이 이미 없습니다.
+        os.makedirs(NAEYEOK_ROWS_DIR, exist_ok=True)
+        t1, 뽑음, 줄계, 못뽑음 = time.time(), 0, 0, 0
+        for k, v in sorted(book.items(), key=lambda kv: (kv[1].get("dt") or ""), reverse=True):
+            if not v.get("file") or v.get("priced") is not True or v.get("rows") is not None:
+                continue
+            src_ = os.path.join(NAEYEOK_DIR, v["file"])
+            if not os.path.exists(src_) or not src_.lower().endswith((".xlsx", ".xlsm")):
+                v["rows"] = 0          # .xls 는 openpyxl 이 못 엽니다 — 다시 안 봅니다
+                continue
+            if time.time() - t1 > NAEYEOK_ROWS_BUDGET_S:
+                break                  # 다음 회차가 이어받습니다
+            got = xlsx_price_rows(src_, NAEYEOK_ROWS_MAX)
+            if got is None:
+                못뽑음 += 1
+                continue               # 열다 실패 — 다음 회차에 다시
+            v["rows"] = len(got)
+            if got:
+                save_json(os.path.join(NAEYEOK_ROWS_DIR, k + ".json"), got)
+                뽑음 += 1
+                줄계 += len(got)
+
         # ── 크기 상한을 넘으면 오래된 것부터 버립니다 ────────────────
         #   ⚠️ 3년치를 다 두면 실측 추정 810MB 입니다. 배포 1벌에 얹혀 ×10 보관이면
         #      Firebase 무료 10GB 에 닿습니다. 그래서 날짜 상한과 «별도로» 크기 상한을 둡니다.
@@ -2961,6 +3131,28 @@ def main():
                 continue
             book[k] = {"skip": "보관 상한(%dMB) 초과로 내림" % NAEYEOK_KEEP_MB}
             dropped += 1
+        # ── 뽑은 줄 상한 — 넘으면 오래된 것부터 (원본과 따로 셉니다) ──────
+        rkeep, rused, rdrop = [], 0, 0
+        if os.path.isdir(NAEYEOK_ROWS_DIR):
+            for fn_ in os.listdir(NAEYEOK_ROWS_DIR):
+                if fn_.endswith(".json"):
+                    rkeep.append(((book.get(fn_[:-5]) or {}).get("dt") or "", fn_))
+        rkeep.sort(reverse=True)
+        for _dt, fn_ in rkeep:
+            pth = os.path.join(NAEYEOK_ROWS_DIR, fn_)
+            n_ = os.path.getsize(pth) if os.path.exists(pth) else 0
+            if rused + n_ <= NAEYEOK_ROWS_MB * 1024 * 1024:
+                rused += n_
+                continue
+            try:
+                os.remove(pth)
+            except Exception:
+                continue
+            k_ = fn_[:-5]
+            if k_ in book:
+                book[k_]["rows"] = -1      # «내렸음» 표시 — 다시 뽑지 않습니다
+            rdrop += 1
+
         save_json(NAEYEOK_BOOK, book)
 
         have = sum(1 for v in book.values() if v.get("file"))
@@ -2974,6 +3166,10 @@ def main():
             "일찍 접음(연달아 5번 실패)": gave_up,
             "상한MB": NAEYEOK_KEEP_MB, "쓴MB": round(used / 1024 / 1024, 1),
             "보관일수": NAEYEOK_KEEP_DAYS, "3년 지나 내린 것": aged,
+            "줄 뽑은 부수": sum(1 for v in book.values() if (v.get("rows") or 0) > 0),
+            "이번에 뽑은 부수": 뽑음, "이번에 뽑은 줄": 줄계, "못 뽑은 것": 못뽑음,
+            "줄 쓴MB": round(rused / 1024 / 1024, 1), "줄 상한MB": NAEYEOK_ROWS_MB,
+            "줄 내린 것": rdrop,
         }
         if aged:
             print("    보관 기간(%d일)이 지난 파일 %d개를 내렸습니다"
@@ -3021,6 +3217,35 @@ def main():
                     pass
         return live
 
+    def publish_naeyeok_rows():
+        """data/store/naeyeok_rows → web/public/naeyeok-rows (2026-09-20)
+
+        ■ 왜 한 부에 한 파일인가
+          다 합쳐 한 덩이로 내면 «단가 한 줄» 보려고 수십 MB 를 받게 됩니다.
+          누른 것만 받아 가도록 부마다 파일을 나눕니다. 목록에는 줄 수만 싣습니다.
+        """
+        pub = os.path.join(ROOT, "web", "public", "naeyeok-rows")
+        os.makedirs(pub, exist_ok=True)
+        live_ = set()
+        if os.path.isdir(NAEYEOK_ROWS_DIR):
+            for fn_ in os.listdir(NAEYEOK_ROWS_DIR):
+                if not fn_.endswith(".json"):
+                    continue
+                src_, dst_ = os.path.join(NAEYEOK_ROWS_DIR, fn_), os.path.join(pub, fn_)
+                try:
+                    if not os.path.exists(dst_) or os.path.getsize(dst_) != os.path.getsize(src_):
+                        shutil.copyfile(src_, dst_)
+                    live_.add(fn_[:-5])
+                except Exception:
+                    pass
+        for fn_ in os.listdir(pub):                 # 저장소에서 내려간 것은 사이트에서도
+            if fn_.endswith(".json") and fn_[:-5] not in live_:
+                try:
+                    os.remove(os.path.join(pub, fn_))
+                except Exception:
+                    pass
+        return live_
+
     def export_naeyeok(store, live=None):
         """내역서 모음 — 조달청 붙임 파일을 갈래별로 모읍니다. (2026-09-06 3년 보관)
 
@@ -3042,6 +3267,7 @@ def main():
         # 기록에만 있고 파일이 없으면 «바로 받기» 를 내지 않습니다 (404 방지).
         if live is None:
             live = publish_naeyeok_files()
+        rows_live = publish_naeyeok_rows()
 
         # ── 1) 이번 회차에 보이는 것을 누적 색인에 합칩니다 ──────────
         idx = load_json(NAEYEOK_INDEX, {})
@@ -3093,8 +3319,11 @@ def main():
             local = ("/naeyeok/%s?v=%d" % (b["file"], int(b.get("n") or 0))
                      if (b.get("file") in live) else "")
             priced = 1 if b.get("priced") is True else (0 if b.get("priced") is False else -1)
+            # 🧾 뽑아 둔 단가 줄 — 원본이 빠져도 이것만은 남습니다
+            nrow = int(b.get("rows") or 0)
+            rk = key if (nrow > 0 and key in rows_live) else ""
             (rows_p if kind in NAEYEOK_PRICED else rows_a).append(
-                [kind, fname, furl, nm, inst, dt, no, purl, local, priced])
+                [kind, fname, furl, nm, inst, dt, no, purl, local, priced, nrow if rk else 0, rk])
 
         # 갈래마다 상한 — 전송량을 지키는 자리입니다
         kept, cap = {}, []
@@ -3117,7 +3346,8 @@ def main():
         for x in rows_p + rows_a:
             cnt[x[0]] = cnt.get(x[0], 0) + 1
 
-        fields = ["kind", "file", "url", "name", "inst", "dt", "no", "purl", "local", "priced"]
+        fields = ["kind", "file", "url", "name", "inst", "dt", "no", "purl", "local", "priced",
+                  "nrow", "rk"]
         meta = {"built": built, "f": fields, "n": len(rows_p) + len(rows_a),
                 "kinds": cnt, "all": allcnt,
                 "show": NAEYEOK_SHOW, "showTop": NAEYEOK_SHOW_TOP,
