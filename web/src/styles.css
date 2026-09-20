@@ -3340,3 +3340,20 @@ ul.plainlist li { margin-bottom: 5px; }
 .nofind { border-color: var(--accent); background: var(--accent-soft); }
 .nofind p { font-size: 13.5px; line-height: 1.75; word-break: keep-all; }
 .suggest .nohit .sub2 { display: block; margin-top: 3px; }
+
+/* ── 🔑 운영자 띠 — 소장님 기계에서만 보입니다 (2026-09-20) ──────────
+   아래 탭은 10개가 한도라(App.jsx TABS 설명) 성적표에 탭을 줄 수 없습니다.
+   대신 모든 화면 맨 위에 얇은 띠 하나. 휴대폰에서도 한 번에 닿습니다. */
+.opbar {
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  margin: 8px 0 2px; padding: 7px 10px; border-radius: 10px;
+  border: 1px solid var(--accent-line); background: var(--accent-soft);
+  font-size: 13px; line-height: 1.5;
+}
+.opbar .opbar-t { font-weight: 800; color: var(--accent); white-space: nowrap; }
+.opbar a {
+  font-weight: 700; text-decoration: none; white-space: nowrap;
+  padding: 4px 9px; border-radius: 8px;
+  border: 1px solid var(--accent-line); color: var(--accent); background: var(--surface);
+}
+.opbar a:hover { background: var(--accent); color: #fff; border-color: var(--accent); }

@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { 나운영자 } from './lib/운영자.js'
 import { BasePriceProvider } from './BasePrice.jsx'
 import { InstallPill, InstallBar } from './Install.jsx'
 import AskStrip from './AskComment'
@@ -53,6 +54,34 @@ const TABS = [
      PDF 로 보내 드리는 것만 남습니다. 주소는 살려 둡니다(옛 링크가 404 가 되지 않게). */
   { to: '/analysis', ic: '🔍', label: '분석', also: ['/corp', '/agency'] },
 ]
+
+/* ── 🔑 운영자 띠 — «소장님 기계에서만», 모든 화면 맨 위 ─────────────
+   2026-09-20 소장님: 「핸드폰으로 보니까 내가 보는 탭이 없다. 입찰성적표」
+
+   ⚠️ 왜 «탭»이 아니라 «띠»인가
+      아래 TABS 는 10개가 한도입니다. 11개가 되면 좁은 화면에서 세 줄이 되고,
+      styles.css 의 .shell 아래 여백은 두 줄(--nav-h * 2) 기준이라 **글이 가립니다.**
+      소장님 화면에서만 탭을 하나 더 늘리면 소장님 휴대폰만 그 꼴이 납니다.
+      그래서 탭을 건드리지 않고, 모든 화면 맨 위에 얇은 띠로 답니다.
+
+   ⚠️ 이용자 화면에는 «한 글자도» 나오지 않습니다.
+      휴대폰을 소장님 기계로 만드시려면 한 번만: k-conmap.com/?op=<비밀말>  (lib/열쇠.js) */
+function 운영자띠() {
+  const [보임, set보임] = useState(false)
+  useEffect(() => {
+    let 살았나 = true
+    나운영자().then((v) => { if (살았나) set보임(!!v) }).catch(() => {})
+    return () => { 살았나 = false }
+  }, [])
+  if (!보임) return null
+  return (
+    <div className="opbar">
+      <span className="opbar-t">📊 소장님만</span>
+      <NavLink to="/report/make">업체 성적표 만들기</NavLink>
+      <NavLink to="/admin">문의함</NavLink>
+    </div>
+  )
+}
 
 export default function App() {
   const { pathname } = useLocation()
@@ -110,6 +139,8 @@ export default function App() {
       <main className="shell">
         {/* 📲 홈 화면에 추가 띠 — 모든 페이지 맨 위. 닫으면 7일 뒤에 다시 (Install.jsx) */}
         <InstallBar />
+        {/* 🔑 소장님 기계에서만 — 성적표로 가는 길 (아래 운영자띠 설명) */}
+        <운영자띠 />
         {/* 🧭 처음 온 사람에게 딱 한 번 — «보는 방법» 으로 가는 길 (FirstBar.jsx) */}
         <FirstBar />
         {/* 💬 서식·캐드를 받은 «직후» 에만, 이레에 한 번 (AskComment.jsx) */}
