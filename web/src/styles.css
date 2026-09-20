@@ -2376,7 +2376,10 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
 }
 
 /* ── 내역서 모음 줄 (2026-09-05) ── */
-.nyrow { align-items: flex-start; padding: 10px 2px; }
+/* 🔑 단가판은 줄 «전체» 를 차지해야 합니다 — 단추들과 한 줄에 서면
+   좁은 화면에서 표가 오른쪽으로 잘리고, 넓은 화면에서는 왼쪽 제목이 눌립니다(실측 2026-09-21). */
+.nyrow { align-items: flex-start; padding: 10px 2px; flex-wrap: wrap; }
+.nyrow > .nyprice { flex: 1 0 100%; }
 .nyrow .ft { font-size: 13px; font-weight: 700; word-break: break-all; }
 .nyrow .d {
   font-size: 12px; color: var(--text-2); margin-top: 3px; white-space: normal;

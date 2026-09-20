@@ -287,20 +287,19 @@ const ADKEY = 'kcm_nyad'
    ■ 누를 때만 받습니다
      목록에는 «줄 수»만 싣고, 실제 줄은 /naeyeok-rows/{열쇠}.json 에서
      그 줄을 누를 때만 받아옵니다. 전송량이 곧 요금이라 그렇게 했습니다. */
-function 단가판({ rk, n }) {
-  const [열림, set열림] = useState(false)
+function 단가판({ rk, 닫기 }) {
   const [줄, set줄] = useState(null)      // null 받는 중 · false 실패
   const [q, setQ] = useState('')
 
   useEffect(() => {
-    if (!열림 || 줄 !== null) return
+    if (줄 !== null) return
     let 살았나 = true
     fetch('/naeyeok-rows/' + rk + '.json')
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((v) => { if (살았나) set줄(Array.isArray(v) ? v : false) })
       .catch(() => { if (살았나) set줄(false) })
     return () => { 살았나 = false }
-  }, [열림, rk, 줄])
+  }, [rk, 줄])
 
   const 보임 = useMemo(() => {
     if (!Array.isArray(줄)) return []
@@ -309,19 +308,12 @@ function 단가판({ rk, n }) {
     return v.slice(0, 300)
   }, [줄, q])
 
-  if (!열림) {
-    return (
-      <button className="fdl ghost" onClick={() => set열림(true)}>
-        💰 단가 {num(n)}줄 보기
-      </button>
-    )
-  }
   return (
     <div className="nyprice">
       <div className="btn-row" style={{ marginBottom: 8 }}>
         <input value={q} onChange={(e) => setQ(e.target.value)}
           placeholder="품명 · 규격으로 찾기" style={{ flex: 1, minWidth: 0 }} />
-        <button className="btn ghost sm" onClick={() => set열림(false)}>닫기</button>
+        <button className="btn ghost sm" onClick={닫기}>닫기</button>
       </div>
       {줄 === null ? <Skeleton n={3} />
         : 줄 === false ? <div className="note">단가를 불러오지 못했습니다.</div>
@@ -348,6 +340,37 @@ function 단가판({ rk, n }) {
             </div>
           </>
         )}
+    </div>
+  )
+}
+
+/* 내역서 한 줄. 단가판은 단추와 «같은 칸» 에 두면 안 됩니다 —
+   좁은 화면(390px)에서 단추들과 한 줄에 나란히 서느라 표가 오른쪽으로 잘립니다(실측).
+   그래서 단추만 .nybtn 에 두고, 표는 줄 맨 끝에 한 줄 통째로 폅니다. */
+function 내역서줄({ r }) {
+  const [열림, set열림] = useState(false)
+  return (
+    <div className="frow nyrow">
+      <span className="fic">{r.priced === 0 ? '📑' : PRICED.includes(r.kind) ? '💰' : '📑'}</span>
+      <div className="grow">
+        <div className="ft">{r.file} <PriceTag r={r} /></div>
+        <div className="d">{r.name}</div>
+        <div className="nymeta">
+          {r.inst}{r.dt ? ` · ${r.dt}` : ''}{r.no ? ` · 공고 ${r.no}` : ''}
+        </div>
+      </div>
+      <div className="nybtn">
+        {r.local
+          ? <a className="fdl" href={r.local} download>⬇ 바로 받기</a>
+          : <a className="fdl" href={r.url} target="_blank" rel="noopener nofollow">⬇ 나라장터에서 받기</a>}
+        {r.purl && <a className="fdl ghost" href={r.purl} target="_blank" rel="noopener nofollow">공고 →</a>}
+        {r.rk
+          ? <button className="fdl ghost" onClick={() => set열림((v) => !v)}>
+              💰 단가 {num(r.nrow)}줄 {열림 ? '닫기' : '보기'}
+            </button>
+          : null}
+      </div>
+      {열림 && r.rk ? <단가판 rk={r.rk} 닫기={() => set열림(false)} /> : null}
     </div>
   )
 }
@@ -480,25 +503,7 @@ export function ChangeNaeyeok() {
       ) : (
         <>
           <div className="card">
-            {view.map((r, i) => (
-              <div className="frow nyrow" key={i}>
-                <span className="fic">{r.priced === 0 ? '📑' : PRICED.includes(r.kind) ? '💰' : '📑'}</span>
-                <div className="grow">
-                  <div className="ft">{r.file} <PriceTag r={r} /></div>
-                  <div className="d">{r.name}</div>
-                  <div className="nymeta">
-                    {r.inst}{r.dt ? ` · ${r.dt}` : ''}{r.no ? ` · 공고 ${r.no}` : ''}
-                  </div>
-                </div>
-                <div className="nybtn">
-                  {r.local
-                    ? <a className="fdl" href={r.local} download>⬇ 바로 받기</a>
-                    : <a className="fdl" href={r.url} target="_blank" rel="noopener nofollow">⬇ 나라장터에서 받기</a>}
-                  {r.purl && <a className="fdl ghost" href={r.purl} target="_blank" rel="noopener nofollow">공고 →</a>}
-                  {r.rk ? <단가판 rk={r.rk} n={r.nrow} /> : null}
-                </div>
-              </div>
-            ))}
+            {view.map((r, i) => <내역서줄 r={r} key={i} />)}
           </div>
 
           <div className="pager">
