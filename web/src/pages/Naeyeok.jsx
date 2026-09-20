@@ -18,6 +18,7 @@ import { Link } from 'react-router-dom'
 /* 🦺 2026-09-16 — 「작성 대행」 탭이 내역서와 안전서류 둘을 같이 품습니다.
    내역서를 보러 온 사람이 곧 착공계도 내야 하는 사람입니다 — 그 자리에 띠를 붙입니다. */
 import { SafetyStrip } from './Safety.jsx'
+import { PriceStance } from '../components.jsx'
 
 /* ⚠️ firebase 를 «정적으로» 끌어오면 이 화면만 열어도 390KB 를 받습니다.
    「문의 남기기」 를 실제로 누를 때만 받아옵니다. (Jobs.jsx 와 같은 방식) */
@@ -434,6 +435,8 @@ export default function Naeyeok() {
           도면 상태에 따라 못 해 드릴 수도 있습니다. 못 할 일을 된다고 하지 않겠습니다.
         </div>
       </div>
+
+      <PriceStance />
 
       {/* ── 어떻게 ───────────────────────────────────────────── */}
       <div className="card" id="how">

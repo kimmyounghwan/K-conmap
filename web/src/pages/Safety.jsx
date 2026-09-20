@@ -14,6 +14,10 @@
  *    → 화면에는 «갈래 일곱 가지»만. 자세한 목록은 의뢰가 들어온 뒤 메일로 보냅니다.
  *    → 전체 목록과 뼈대는 docs/안전서류_만드는_법.md 에 있습니다(안쪽 자료).
  *
+ * ⚠️ 2026-09-20 소장님: 「총 몇 페이지가 된다는 것은 현장별로 다르잖아. 총 페이지는 삭제할 것」
+ *    → 쪽수(446·285)를 화면에서 뺐습니다. 한 현장 실측일 뿐인데 화면에 박아 두면
+ *      «우리는 이만큼 준다» 는 약속처럼 읽힙니다. 분량은 공법·규모·장비에 따라 벌어집니다.
+ *
  * ⚠️ 지하안전평가·재해영향평가·교통영향평가·정밀안전진단은 **등록업체만** 할 수 있습니다.
  *    이 화면에 「해 드립니다」 라고 적으면 무등록 영업이 됩니다.
  *    반드시 «대상인지 알려 드리고, 등록업체를 연결해 드립니다» 로만 적습니다.
@@ -31,6 +35,7 @@
  */
 import { Link } from 'react-router-dom'
 import { QuoteForm } from './Naeyeok.jsx'
+import { PriceStance } from '../components.jsx'
 
 /* 기준을 읽어 온 날. 화면 아래에 그대로 적습니다 — 「언제 것인가」 가 제일 중요합니다. */
 const 기준일 = '2026-09-16'
@@ -153,9 +158,9 @@ export default function Safety() {
                 <br /><span className="muted">착공일에서 <b>거꾸로 세어</b> 일정을 잡으셔야 합니다.</span></td>
             </tr>
             <tr>
-              <td className="w"><b>두께</b><span className="d">실제 제출본</span></td>
-              <td>안전관리계획서 <b>446쪽</b>, 유해·위험방지계획서 <b>285쪽</b>.
-                한 현장 실측입니다. 도면·계산서·점검표가 통째로 들어가서 이렇게 됩니다.</td>
+              <td className="w"><b>분량</b></td>
+              <td>현장마다 다릅니다. 공법·규모·투입 장비에 따라 크게 벌어집니다.
+                <br /><span className="muted">도면·계산서·점검표가 통째로 들어가서 생각보다 두꺼워집니다.</span></td>
             </tr>
           </tbody>
         </table>
@@ -237,6 +242,7 @@ export default function Safety() {
         </p>
       </div>
 
+      <PriceStance />
       {/* ── 어떤 모양으로 만드나 (차례) ──
           실제 승인·제출본 두 벌을 열어 보고 옮긴 차례입니다. 지어낸 것이 아닙니다.
           «우리가 뭘 아는지» 를 보여 주는 자리라 값 이야기보다 먼저 둡니다. */}
@@ -249,7 +255,7 @@ export default function Safety() {
         <table className="tbl left reptbl">
           <tbody>
             <tr>
-              <td className="w"><b>안전관리계획서</b><span className="d">446쪽</span></td>
+              <td className="w"><b>안전관리계획서</b></td>
               <td>
                 <b>제1장 총괄 안전관리계획</b><br />
                 　가. 건설공사의 개요 — 공사개요서 · 위치도 · 전체공정표 · 설계도면 · 기계설비 배치<br />
@@ -263,7 +269,7 @@ export default function Safety() {
               </td>
             </tr>
             <tr>
-              <td className="w"><b>유해·위험방지<br />계획서</b><span className="d">285쪽</span></td>
+              <td className="w"><b>유해·위험방지<br />계획서</b></td>
               <td>
                 <b>1장 공사개요</b> — 변경이력 관리표 · 공사개요서 ·
                 주변현황 도면(설계도면 · 위치도 · 주변현황도 · <b>지하매설물 현황도</b>) ·

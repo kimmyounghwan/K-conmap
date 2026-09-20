@@ -19,16 +19,23 @@ import { ShareOneStrip } from './ShareOne.jsx'
 
 const TOOLS = DATA.tools || []
 const CATS = DATA.cats || []
+/* 🧰 2026-09-20 소장님: 「우리가 만든 도구들은 한 곳에 다 모아 줘. 필요한 곳에 두더라도,
+   한 곳에 모아야 이용자들이 알지… 최대한 쉽게 접근할 수 있도록」
+   → 다른 화면에 흩어져 있는 도구들을 여기 목록에 «같이» 싣습니다.
+     원래 자리는 그대로 둡니다 — 옮기는 것이 아니라 «길을 하나 더» 내는 것입니다.
+   ⚠️ 목록은 web/src/data/tools.json 의 pages 한 곳에만 적습니다. */
+const PAGES = DATA.pages || []
+const 모두 = TOOLS.length + PAGES.reduce((n, g) => n + g.items.length, 0)
 export const toolBySlug = (s) => TOOLS.find((t) => t.slug === s) || null
 
 export default function ToolsIndex() {
   return (
     <div className="wrap">
       <div className="card">
-        <div className="detail-h">🧰 건설 도구 <span className="count">· {TOOLS.length}가지</span></div>
+        <div className="detail-h">🧰 건설 도구 <span className="count">· {모두}가지 전부</span></div>
         <div className="note sm">
-          현장에서 자주 쓰는 계산을 한 자리에 모았습니다. 회원가입 없이 바로 쓰시고,
-          숫자는 브라우저에서 계산하니 아무것도 저장되지 않습니다.
+          <b>K-건설맵이 만든 도구를 여기 다 모았습니다.</b> 내역서·설계변경·적산·입찰·문서까지
+          한 자리에서 찾으십시오. 회원가입 없이 바로 쓰시고, <b>전부 무료</b>입니다.
         </div>
         {/* 📄 2026-09-16 — 탭이 「서식·도구」 하나로 합쳐졌습니다. 서로 오갈 길을 둡니다. */}
         <div className="navrow" style={{ marginTop: 10 }}>
@@ -40,6 +47,23 @@ export default function ToolsIndex() {
         </div>
       </div>
 
+      {/* ── 다른 화면에 있는 도구들 — 여기서도 바로 갑니다 ── */}
+      {PAGES.map((g) => (
+        <div className="card" key={g.key}>
+          <div className="detail-h">{g.icon} {g.name} <span className="count">· {g.items.length}가지</span></div>
+          {g.items.map((x) => (
+            <Link className="row rowlink" to={x.to} key={x.to}>
+              <span className="fic">{x.icon}</span>
+              <div className="grow"><div className="t">{x.t}</div><div className="d">{x.d}</div></div>
+              <span className="go">→</span>
+            </Link>
+          ))}
+        </div>
+      ))}
+
+      <div className="sec-title" style={{ marginTop: 14 }}>
+        🧮 바로 셈하는 계산기 <span className="count">· {TOOLS.length}가지 · 이 화면 안에서 바로</span>
+      </div>
       {CATS.map((c) => {
         const list = TOOLS.filter((t) => t.cat === c.key)
         if (!list.length) return null

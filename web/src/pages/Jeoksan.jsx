@@ -16,6 +16,7 @@
  * ⚠️ 남의 프로그램을 이름 들어 깎지 않습니다. 「흔한 방식」 으로만 적습니다.
  */
 import { Link } from 'react-router-dom'
+import { PriceStance } from '../components.jsx'
 
 export default function Jeoksan() {
   return (
@@ -225,6 +226,8 @@ export default function Jeoksan() {
           <Link to="/naeyeok">내역서 작성</Link>도 같은 이유로 값을 안 적어 두었습니다.
         </p>
       </div>
+
+      <PriceStance />
 
       {/* ── 준비 중 ── */}
       <div className="card">

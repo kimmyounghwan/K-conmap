@@ -158,3 +158,31 @@ export function NaeyeokStrip({ tone = 'win' }) {
     </a>
   )
 }
+
+/* ── 💰 값 방침 — 값을 받는 화면 셋(/naeyeok · /jeoksan · /safety)에 같이 붙입니다 ──
+   2026-09-20 소장님: 「건설맵은 타 업체에 비해 최대한 저렴한 비용으로 모든 작업을 할 예정이다.
+   이걸 강조해줘. 유료로 하겠다는 데는… 왜냐하면, 같은 현장을 알기 때문에…
+   최대한 현장에 보탬이 될 수 있도록 운영할 예정」
+
+   ⚠️ 「제일 싸다」 처럼 재 볼 수 없는 말은 쓰지 않습니다 — 근거 없는 광고가 됩니다.
+      대신 «우리가 어떻게 하겠다» 는 약속과 «왜» 를 적습니다. 지킬 수 있는 말만 씁니다.
+   ⚠️ 세 화면이 다른 말을 하면 안 됩니다. 그래서 여기 한 곳에만 둡니다. */
+export function PriceStance() {
+  return (
+    <div className="card" style={{ borderColor: 'var(--accent-line)', background: 'var(--accent-soft)' }}>
+      <div className="detail-h" style={{ marginBottom: 8 }}>💰 값은 최대한 낮게 잡습니다</div>
+      <p style={{ margin: '0 0 10px', lineHeight: 1.85 }}>
+        <b>저도 현장에 있습니다.</b> 서류 하나 맡기는 데 얼마가 드는지,
+        그게 현장에 얼마나 부담인지 압니다.
+      </p>
+      <p style={{ margin: '0 0 10px', lineHeight: 1.85 }}>
+        그래서 이 일로 크게 남길 생각이 없습니다.{' '}
+        <b>현장에 보탬이 되는 쪽으로 운영하겠습니다.</b>{' '}
+        건설맵의 나머지를 계속 무료로 두는 것도 같은 까닭입니다.
+      </p>
+      <p className="muted" style={{ margin: 0, lineHeight: 1.85 }}>
+        맡기시던 곳이 있으시면 <b>그 값을 말씀해 주십시오.</b> 맞춰 드리겠습니다.
+      </p>
+    </div>
+  )
+}
