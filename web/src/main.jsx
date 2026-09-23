@@ -82,6 +82,8 @@ const JeoksanRun = lazyPage(() => import('./pages/JeoksanRun.jsx'))
    sitemap·prerender 에도 «넣지 않습니다» — 주소를 아는 사람만 들어옵니다.
    ⚠️ 잠금은 «보안이 아닙니다» (lib/gate.js 주석을 보십시오). */
 const JeoksanLab = lazyPage(() => import('./pages/JeoksanLab.jsx'))
+/* 🧮 2026-09-23 — 공내역서 단가 채우기(소장님만). 셈은 서버 함수(jeoksanfill)가 합니다. 검색엔진에 안 올립니다. */
+const JeoksanFill = lazyPage(() => import('./pages/JeoksanFill.jsx'))
 /* 🦺 안전관리계획서·유해위험방지계획서 소개 — 2026-09-16. 준비 중 */
 const Safety = lazyPage(() => import('./pages/Safety.jsx'))
 const ShareOne = lazyPage(() => import('./pages/ShareOne.jsx'))
@@ -155,6 +157,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/jeoksan" element={<Suspense fallback={<Loading />}><Jeoksan /></Suspense>} />
           <Route path="/jeoksan/run" element={<Suspense fallback={<Loading />}><JeoksanRun /></Suspense>} />
           <Route path="/jeoksan/lab" element={<Suspense fallback={<Loading />}><JeoksanLab /></Suspense>} />
+          <Route path="/jeoksan/fill" element={<Suspense fallback={<Loading />}><JeoksanFill /></Suspense>} />
           <Route path="/safety" element={<Suspense fallback={<Loading />}><Safety /></Suspense>} />
           <Route path="/shareone" element={<Suspense fallback={<Loading />}><ShareOne /></Suspense>} />
           <Route path="/cad/:slug" element={<Suspense fallback={<Loading />}><CadPage /></Suspense>} />
