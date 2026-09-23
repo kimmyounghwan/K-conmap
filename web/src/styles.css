@@ -3395,3 +3395,19 @@ ul.plainlist li { margin-bottom: 5px; }
 .fill-cand.no { color: var(--muted); }
 .fill-go { position: sticky; bottom: 10px; margin-top: 14px; }
 @media (max-width: 720px) { .fill-go { bottom: 104px; } }   /* 폰: 아래 메뉴줄 위에 뜨게 */
+/* 도면 같이 놓기 (2026-09-24) */
+.fill-note { margin-top: 10px; }
+.fill-note li { font-size: 12.5px; word-break: break-all; }
+.fill-note li.bad { color: var(--bad); }
+.fill-files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.fill-chip { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; font-size: 12.5px; padding: 4px 4px 4px 10px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); }
+.fill-chip b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+.fill-chip.off { opacity: .6; border-style: dashed; }
+.fill-chip button { border: 0; background: transparent; color: var(--muted); font-size: 16px; line-height: 1; padding: 2px 7px; cursor: pointer; border-radius: 999px; }
+.fill-chip button:hover { background: var(--line-soft); color: var(--text); }
+.fill-warn { font-size: 12.5px; line-height: 1.7; margin: 10px 0 0; }
+.fill-qto { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); font-size: 13.5px; }
+.fill-qto details { margin-top: 6px; }
+.fill-tag.t-맞음 { background: var(--good-soft); color: var(--good); }
+.fill-tag.t-다름 { background: var(--warn-soft); color: var(--warn); }
