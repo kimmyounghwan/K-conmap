@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import TitleSync from './TitleSync.jsx'
 import { useEffect, useState } from 'react'
 import { 나운영자 } from './lib/운영자.js'
 import { BasePriceProvider } from './BasePrice.jsx'
@@ -93,6 +94,8 @@ export default function App() {
 
   return (
     <BasePriceProvider>
+      {/* 🏷️ 탭 제목 맞추기 — 맨 위에 둡니다(쪽이 스스로 정한 제목이 늘 이기게). TitleSync.jsx */}
+      <TitleSync />
       {/* 2026-09-02 — «기초금액 넣기»를 상단에서 뺐는데, 예전에 넣어둔 값이
           브라우저에 남아 1순위 목록마다 «6.3억» 같은 유령 금액을 띄웠습니다.
           입력칸이 없으니 지울 방법도 없었습니다. 한 번 비웁니다. */}
