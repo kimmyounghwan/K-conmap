@@ -18,8 +18,11 @@
 
 const KEY = 'kcm_lab_ok'
 
-/* 열쇠말의 SHA-256. 열쇠말 자체는 코드에 두지 않습니다. */
-const HASH = 'e20556768cb839ee608f6acb88248ae9ece0fc71ee62a601841c01459f38d202'
+/* 열쇠말의 SHA-256. 열쇠말 자체는 코드에 두지 않습니다.
+   🔑 2026-09-24 새로 정함 — 옛 열쇠말은 어디에도 적혀 있지 않아 되살릴 수 없었습니다.
+      열쇠말은 저장소 «바깥» `_열쇠메모.md` 에만 적습니다(저장소는 공개입니다).
+      바꾸시려면: python -c "import hashlib;print(hashlib.sha256('새열쇠말'.encode()).hexdigest())" → 아래 값 교체 */
+const HASH = '198d0951f2337d02ab42668d11ae45be65998e0f0684bc18d070c302e40751ab'
 
 export async function sha256(s) {
   const buf = new TextEncoder().encode(String(s))

@@ -982,7 +982,7 @@ export default function BaroBid() {
         <button type="button" className="simstrip"
           onClick={() => {
             const el = document.getElementById('sim')
-            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            if (el) el.scrollIntoView({ block: 'start' })   /* 바로 갑니다 — 미끄러지게 하면 창이 가려진 탭에서 안 움직입니다 */
           }}>
           <span className="k">
             📊 바로투찰 성적 · 최근 {bt.days}일 개찰 <b>{num(bt.tested || bt.n)}건</b>에 우리 금액을 대 봤습니다

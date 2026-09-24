@@ -21,6 +21,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { isOpen, tryOpen, close } from './lib/gate.js'
+import { 나운영자 } from './lib/운영자.js'
 
 export default function Locked({
   children,
@@ -33,7 +34,16 @@ export default function Locked({
   const [open, setOpen] = useState(false)
   const [word, setWord] = useState('')
   const [bad, setBad] = useState(false)
-  useEffect(() => { setOpen(isOpen()) }, [])
+  /* 🔑 2026-09-24 — 소장님: 「난 기억이 없지? 그럼 적산을 시험해 볼 수가 없잖아」
+     열쇠말이 어디에도 적혀 있지 않았습니다(제 잘못 — _열쇠메모.md 에 적었어야 했습니다).
+     그래서 «소장님 브라우저» 면 열쇠말 없이 엽니다 — 공내역서 채우기(/jeoksan/fill)와 같은 운영자 확인입니다.
+     남(이용자)에게는 전처럼 열쇠말 칸이 나옵니다. */
+  useEffect(() => {
+    setOpen(isOpen())
+    let 살 = true
+    나운영자().then((v) => { if (살 && v) setOpen(true) }).catch(() => {})
+    return () => { 살 = false }
+  }, [])
 
   if (open) return children(() => { close(); setOpen(false) })
 
