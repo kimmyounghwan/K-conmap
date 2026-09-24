@@ -973,6 +973,29 @@ export default function BaroBid() {
         </div>
       )}
 
+      {/* 📊 바로투찰 성적 한 줄 (2026-09-24)
+          소장님: 「(성적) 공개 하잖아. 찾아봐. 너무 숨겨져 있나. 잘 보이게 해줘 봐」
+          → «가상 시뮬레이션» 이 공고 찾기·투찰 조건 밑, 화면 세 장 아래에 있어 안 보였습니다.
+            맨 위에 성적 한 줄을 두고, 누르면 그 자리로 내려갑니다.
+            숫자는 sim.json 그대로입니다 — 여기서 새로 셈하지 않습니다(아래 SimBlock 과 같은 값). */}
+      {bt && !verifyMode && !picked && base <= 0 && (
+        <button type="button" className="simstrip"
+          onClick={() => {
+            const el = document.getElementById('sim')
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }}>
+          <span className="k">
+            📊 바로투찰 성적 · 최근 {bt.days}일 개찰 <b>{num(bt.tested || bt.n)}건</b>에 우리 금액을 대 봤습니다
+          </span>
+          <span className="nums">
+            <span><em>1순위였을 자리</em><b className="hi">{Number(bt.win).toFixed(1)}%</b></span>
+            <span><em>실격</em><b>{Number(bt.dq).toFixed(1)}%</b></span>
+            <span><em>낙찰가와 차이</em><b>{Number(bt.gap).toFixed(2)}%</b></span>
+          </span>
+          <span className="go">자세히 보기 ↓</span>
+        </button>
+      )}
+
       {/* ⚡ 오늘 넣을 것 — «내 면허·내 지역» 의 마감 전 공고 (MyToday.jsx 머리말 참고) */}
       {!verifyMode && !picked && !q && (
         <MyToday rows={rows} idx={idx} p50={ov?.sjq?.p50 ?? P50_FALLBACK} onPick={pick} />
@@ -2150,7 +2173,7 @@ function SimBlock({ bt, open, setOpen }) {
   const cases = open ? bt.cases : bt.cases.slice(0, 3)
   const V = { dq: ['⛔', '실격'], win: ['🏆', '1순위'], lose: ['📉', '밀림'] }
   return (
-    <div className="card c-sim">
+    <div className="card c-sim" id="sim">
       <div className="detail-h">
         가상 시뮬레이션
         {/* ⚠️ bt.n 은 «화면에 보여주는 사례 수»입니다.

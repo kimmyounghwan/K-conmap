@@ -125,7 +125,7 @@ export function ToolPage() {
   return (
     <div className="wrap">
       <div className="card">
-        <Link className="btn ghost sm" to="/tools">← 건설 도구</Link>
+        <Link className="btn ghost sm" to="/tools">← 도구·서식</Link>
         <h1 className="tl-h1">{t.icon} {t.title}</h1>
         <div className="note">{t.lead}</div>
       </div>

@@ -1226,6 +1226,22 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
 @media (max-width: 400px) { .sjgrid { grid-template-columns: repeat(5, 1fr); gap: 3px; }
   .sjc .r { font-size: 10px; } .sjc .a { font-size: 9.5px; } }
 
+/* 바로투찰 성적 한 줄 (2026-09-24) — 맨 위에 두고, 누르면 «가상 시뮬레이션» 으로 내려갑니다 */
+.simstrip {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px;
+  width: 100%; margin: 0 0 12px; padding: 11px 14px;
+  border: 1px solid var(--accent-line); border-radius: 14px;
+  background: var(--accent-soft); text-align: left; cursor: pointer;
+}
+.simstrip:hover { border-color: var(--accent); }
+.simstrip .k { flex: 1 1 100%; font-size: 12.5px; font-weight: 700; color: var(--text-2); }
+.simstrip .nums { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.simstrip .nums em { font-style: normal; font-size: 11px; font-weight: 700; color: var(--muted); margin-right: 5px; }
+.simstrip .nums b { font-size: 17px; font-weight: 900; color: var(--text); }
+.simstrip .nums b.hi { color: var(--accent); }
+.simstrip .go { margin-left: auto; font-size: 12.5px; font-weight: 800; color: var(--accent); white-space: nowrap; }
+.c-sim { scroll-margin-top: 76px; }
+
 /* 가상 시뮬레이션 */
 .simsum {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
@@ -3319,7 +3335,8 @@ ul.plainlist li { margin-bottom: 5px; }
 .repmk { margin-top: 10px; font-size: 13.5px; }
 .repmk th { font-size: 12px; color: var(--muted); font-weight: 600; white-space: nowrap; }
 .repmk td { vertical-align: middle; }
-.repmk td.r, .repmk th:nth-child(n+3) { text-align: right; }
+/* 2026-09-24 — 사업자번호(3번째) 머리가 오른쪽, 값은 왼쪽이라 줄이 안 맞았습니다(소장님 캡처). 숫자 칸(4번째부터)만 오른쪽 */
+.repmk td.r, .repmk th:nth-child(n+4) { text-align: right; }
 .repmk .mono { font-variant-numeric: tabular-nums; color: var(--text-2); font-size: 12.5px; }
 .repmk tr.on { background: var(--accent-soft); }
 .repdoc { margin-top: 12px; padding: 12px; border-radius: 10px; overflow-x: auto;
