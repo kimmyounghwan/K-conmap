@@ -949,6 +949,118 @@ def load_forms():
         return []
 
 
+# ── 현장 실무 서식 (2026-09-24) ─────────────────────────────────────
+#  현장에서 실제로 쓰던 한글·엑셀·PPT·PDF 서식을 «원본 틀 그대로» 엑셀로 옮긴 것.
+#  ⚠️ 내용은 web/src/data/forms_orig.json 한 곳에만 있습니다 (화면 Forms.jsx 와 같이 읽습니다).
+#  ⚠️ 글은 Forms.jsx 의 OrigFormPage 와 같게 둡니다 — 크롤러와 사람이 보는 글이 같아야 합니다.
+FORMS_ORIG_JSON = os.path.join(ROOT, "web", "src", "data", "forms_orig.json")
+
+ORIG_FROM = {
+    "한글": "한글(HWP) 원본을 칸·선·글자 자리 그대로 엑셀로 옮겼습니다. 칸이 잘게 나뉘어 있지만, 글은 합쳐진 칸 안에 그대로 쓰시면 됩니다.",
+    "PPT": "PPT 원본을 옮겨 슬라이드 한 장이 인쇄 한 쪽입니다. 글은 도형을 눌러 그 안에서 고칩니다.",
+    "PDF": "PDF 원본을 칸·선·그림 자리 그대로 엑셀로 옮겼습니다. 글은 칸 안에서 고쳐 쓰시면 됩니다.",
+    "엑셀": "엑셀 원본 그대로입니다 (시트·수식·서식 유지). 남의 파일을 가리키던 외부 연결만 걷어냈습니다.",
+}
+
+
+def load_orig():
+    """{groups, forms} — 없거나 깨지면 빈 것 (서식 페이지는 그대로 굽습니다)"""
+    try:
+        with open(FORMS_ORIG_JSON, encoding="utf-8") as f:
+            d = json.load(f) or {}
+        return d.get("groups") or [], d.get("forms") or []
+    except Exception as e:
+        print(f"  · 현장 실무 서식 목록을 못 읽었습니다 ({type(e).__name__}) — 건너뜁니다")
+        return [], []
+
+
+def _orig_row(o):
+    return (f'<a class="row rowlink" href="/forms/{esc(o["slug"])}">'
+            f'<span class="fic">{esc(o.get("icon") or "")}</span>'
+            f'<div class="grow"><div class="t">{esc(o["title"])} <span class="obadge">원본 틀</span></div>'
+            f'<div class="d">{esc(o.get("short") or "")}</div></div><span class="go">→</span></a>')
+
+
+def orig_index_html(groups, orig):
+    """서식 목록(/forms) 위쪽 — 현장 실무 서식 갈래별"""
+    if not orig:
+        return ""
+    out = ['<div class="card ohead"><div class="detail-h">📂 현장 실무 서식 '
+           f'<span class="count">· {len(orig)}가지 · 원본 틀 그대로</span></div>'
+           '<div class="note sm">현장에서 실제로 쓰던 한글·엑셀·PPT 서식을 <b>칸과 선, 글자 자리까지 그대로</b> '
+           '엑셀로 옮겼습니다. 사람·회사 이름과 공사명은 ○○○로 지웠습니다. 인쇄하면 머리글에 작은 '
+           '<b>K-건설맵</b> 표시가 나오는데, 칸 복사에는 따라가지 않고 페이지 설정에서 지울 수 있습니다.</div></div>']
+    for g in list(groups) + sorted({o.get("group") for o in orig} - set(groups), key=str):
+        lst = [o for o in orig if o.get("group") == g]
+        if not lst:
+            continue
+        out.append(f'<div class="card" id="og-{esc(g)}"><div class="sec-title" style="margin:0 0 6px">'
+                   f'{esc(g)} <span class="count">· {len(lst)}</span></div>')
+        out.extend(_orig_row(o) for o in lst)
+        out.append("</div>")
+    return "".join(out)
+
+
+def orig_form_page(shell, f, orig, image=None):
+    또 = [a for a in (f.get("also") or []) if a and a != f["title"]]
+    title = f'{f["title"]} 양식 엑셀 무료 내려받기 | K-건설맵'
+    desc = ((f'{f["title"]}(' + ' · '.join(또[:2]) + ') 양식 엑셀 무료 내려받기. ') if 또 else
+            f'{f["title"]} 양식 엑셀 무료 내려받기. ') + (f.get("short") or "")
+    desc = desc.strip()[:150]
+    kb = f.get("kb") or 0
+    크기 = f'{kb / 1024:.1f}MB' if kb >= 1024 else f'{kb}KB'
+    chips = [f'📂 {f.get("group") or ""}', "원본 틀 그대로", f'{f.get("from") or "엑셀"} 원본 → 엑셀']
+    if f.get("pages"):
+        chips.append(f'인쇄 {f["pages"]}쪽')
+    if f.get("sheets"):
+        chips.append(f'시트 {f["sheets"]}장')
+    chips.append(크기)
+    또줄 = (f'<div style="font-size:12px;color:var(--muted);margin-top:6px">'
+            f'이렇게도 부릅니다 — {esc(" · ".join(또))}</div>') if 또 else ''
+    out = [f'<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">'
+           f'<span style="margin-right:6px">{esc(f.get("icon") or "")}</span>{esc(f["title"])}</h1>'
+           f'<div style="font-size:12.5px;color:var(--muted);margin-top:4px">{esc(f.get("short") or "")}</div>'
+           f'{또줄}'
+           '<div class="ometa">' + "".join(f'<span>{esc(c)}</span>' for c in chips) + '</div>'
+           f'<div class="btn-row" style="margin-top:12px">'
+           f'<a class="btn primary" href="{esc(f["file"])}" download="{esc(f["title"])}.xlsx">⬇ 엑셀 내려받기</a>'
+           '</div></div>']
+    prev = f.get("prev") or []
+    if prev:
+        out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">미리보기</div><div class="oprev">'
+                   + "".join(f'<img src="{esc(p)}" alt="{esc(f["title"])} {i + 1}쪽 미리보기" loading="lazy">'
+                             for i, p in enumerate(prev))
+                   + f'</div><div class="note sm" style="margin-top:8px">내려받은 엑셀을 인쇄하면 이 모양으로 나옵니다 (앞 {len(prev)}쪽).</div></div>')
+    notes = [esc(ORIG_FROM.get(f.get("from")) or ORIG_FROM["엑셀"]),
+             "받은 서식에 있던 사람·회사 이름, 공사명, 전화번호 같은 것은 ○○○로 지웠습니다. 나머지 칸·차례·결재란은 원본 그대로입니다."]
+    if f.get("note"):
+        notes.append(esc(f["note"]))
+    notes.append("<b>K-건설맵 표시</b>는 인쇄할 때 머리글 오른쪽에 작게 나옵니다. 칸에 들어 있지 않아서 복사해도 따라가지 않습니다. "
+                 "지우려면 엑셀에서 <b>페이지 레이아웃 → 페이지 설정 → 머리글/바닥글</b> 에서 머리글을 «(없음)» 으로 고르세요.")
+    out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">알아 두실 것</div><ul class="flist">'
+               + "".join(f"<li>{n}</li>" for n in notes) + "</ul></div>")
+    same = [o for o in orig if o.get("group") == f.get("group") and o["slug"] != f["slug"]]
+    if same:
+        out.append(f'<div class="card"><div class="sec-title" style="margin:0 0 6px">{esc(f.get("group") or "")} — 다른 서식</div>'
+                   + "".join(_orig_row(o) for o in same) + "</div>")
+    out.append('<div class="card fwarn"><b>⚠️ 발주기관 서식이 우선입니다</b><div>발주기관·감리단이 정한 서식이 있으면 '
+               '그것을 쓰세요. 이 서식은 현장에서 쓰던 것을 참고용으로 옮긴 것입니다.</div></div>')
+    ld = {"@context": "https://schema.org", "@graph": [
+        {"@type": "BreadcrumbList", "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": "K-건설맵", "item": SITE},
+            {"@type": "ListItem", "position": 2, "name": "건설 서식", "item": SITE + "/forms"},
+            {"@type": "ListItem", "position": 3, "name": f'{f["title"]} 양식',
+             "item": f'{SITE}/forms/{f["slug"]}'}]},
+        {"@type": "CreativeWork", "name": f'{f["title"]} 양식',
+         "description": (f.get("short") or "")[:200],
+         "inLanguage": "ko", "isAccessibleForFree": True,
+         "genre": f.get("group") or "건설 서식",
+         "url": f'{SITE}/forms/{f["slug"]}',
+         "encodingFormat": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+         "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}}]}
+    return page(shell, f'/forms/{f["slug"]}', title, desc, "".join(out), image, ld)
+
+
 def _sheet_html(sheet):
     """미리보기 — 화면(Forms.jsx)과 «같은 blocks» 를 글자로 폅니다.
        크롤러는 표 안의 글자를 읽습니다. 그림으로 만들면 아무 말도 안 하는 것과 같습니다."""
@@ -1099,15 +1211,22 @@ def cad_page(shell, c, cmds, image=None):
     return page(shell, f'/cad/{c["slug"]}', title, desc, "".join(out), image, ld)
 
 
-def forms_index(shell, forms, image=None):
+def forms_index(shell, forms, image=None, ogroups=(), orig=()):
     title = "건설 서식 무료 내려받기 — 착공계·기성청구서·작업일보 | K-건설맵"
     desc = ("현장에서 자주 쓰는 건설 서식 %d가지를 엑셀로 무료 제공합니다. "
+            + ("시공계획서·건설기계 점검표·검측 체크리스트 같은 현장 실무 서식 %d가지는 원본 틀 그대로. " % len(orig) if orig else "")
+            +
             "착공계·현장대리인계·기성검사원·기성금 청구서·준공계·노무비 지급확인서·"
-            "실정보고서·작업일보. 회원가입 없음." % len(forms))
+            "실정보고서·작업일보. 회원가입 없음.") % (len(forms) + len(orig))
     out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">건설 서식</h1>'
            f'<div style="font-size:12.5px;color:var(--muted);margin-top:4px">'
-           f'현장에서 자주 쓰는 서류 {len(forms)}가지 · 엑셀로 바로 내려받기 · 회원가입 없음</div></div>'
-           '<a class="card fbook" href="/change/excel"><span class="fic">📊</span><div class="grow">'
+           + (f'현장 실무 서식 {len(orig)}가지 + 일반 양식 {len(forms)}가지' if orig else f'현장에서 자주 쓰는 서류 {len(forms)}가지')
+           + ' · 엑셀로 바로 내려받기 · 회원가입 없음</div></div>'
+           + '<a class="card fbook" href="/tools/wonclick"><span class="fic">⚡</span><div class="grow"><div class="t">공사서류 원클릭 <em>· 서류 24가지 한 번에</em></div><div class="d">공사명·금액·날짜를 <b>한 번만</b> 넣으면 착공계·현장대리인계·기성·준공·하자 서류가 채워진 엑셀이 나옵니다. 매크로 없음 · 관급·민간 모두.</div></div><span class="go">→</span></a>'
+           + orig_index_html(ogroups, orig)
+           + (f'<div class="card ohead" id="fg-일반"><div class="detail-h">📄 일반 양식 <span class="count">· {len(forms)}가지 · K-건설맵이 만든 것</span></div>'
+              '<div class="note sm">정해진 서식이 없을 때 쓰는 기본 양식입니다. 착공부터 준공까지 갈래별로 모았습니다.</div></div>' if orig else '')
+           +            '<a class="card fbook" href="/change/excel"><span class="fic">📊</span><div class="grow">'
            '<div class="t">설계변경 자동계산 엑셀 <em>· 시트 11장</em></div>'
            '<div class="d">빈 표가 아니라 <b>계산기</b>입니다. 단가 하나를 고치면 내역 · '
            '증감대비표 · 원가계산서까지 다시 계산됩니다.</div></div>'
@@ -1127,11 +1246,11 @@ def forms_index(shell, forms, image=None):
                        f'<span class="go">→</span></a>')
         out.append("</div>")
     ld = {"@context": "https://schema.org", "@type": "ItemList",
-          "name": "건설 서식", "numberOfItems": len(forms),
+          "name": "건설 서식", "numberOfItems": len(forms) + len(orig),
           "itemListElement": [
               {"@type": "ListItem", "position": i + 1, "name": f'{x["title"]} 양식',
                "url": f'{SITE}/forms/{x["slug"]}'}
-              for i, x in enumerate(forms)]}
+              for i, x in enumerate(list(orig) + list(forms))]}
     return page(shell, "/forms", title, desc, "".join(out), image, ld)
 
 
@@ -1745,7 +1864,8 @@ def tools_index(shell, tools, cats, image=None):
            '<div style="font-size:12.5px;color:var(--muted);margin-top:4px">'
            f'{len(tools)}가지 · 입찰·낙찰 · 적산·수량</div>'
            '<p class="cp" style="margin-top:8px">현장에서 자주 쓰는 계산을 한 자리에 모았습니다. '
-           '숫자는 브라우저에서 계산하니 <b>아무것도 저장되지 않습니다.</b></p></div>']
+           '숫자는 브라우저에서 계산하니 <b>아무것도 저장되지 않습니다.</b></p></div>',
+           '<a class="card fbook" href="/tools/wonclick"><span class="fic">⚡</span><div class="grow"><div class="t">공사서류 원클릭 — 한 번 입력으로 서류 24가지</div><div class="d">공사명·금액·날짜를 <b>한 번만</b> 넣으면 착공계·현장대리인계·기성·준공·하자 서류가 채워진 엑셀이 나옵니다. 매크로 없음 · 관급·민간 모두.</div></div><span class="go">→</span></a>']
     for c in cats:
         lst = [t for t in tools if t.get("cat") == c.get("key")]
         if not lst:
@@ -1792,6 +1912,60 @@ def tool_page(shell, t, others, image=None):
         out.append("</div>")
     return page(shell, f'/tools/{t["slug"]}', title, desc,
                 "".join(out) + nav_html(), image)
+
+
+# ── ⚡ 공사서류 원클릭 (2026-09-24) ─────────────────────────────────
+#  /tools/wonclick — 한 번 입력 → 서류 24가지 엑셀. 화면은 WonClick.jsx, 칸 주소·서류 목록은 wonclick.json.
+#  ⚠️ 크롤러에게는 «무엇이 들어 있나·무엇이 나아졌나» 를 글로 보여 줍니다 (입력칸만 있으면 빈 페이지로 읽힘).
+WONCLICK_JSON = os.path.join(ROOT, "web", "src", "data", "wonclick.json")
+
+
+def load_wonclick():
+    try:
+        with open(WONCLICK_JSON, encoding="utf-8") as f:
+            return json.load(f) or None
+    except Exception as e:
+        print(f"  · 원클릭 자료를 못 읽었습니다 ({type(e).__name__}) — 건너뜁니다")
+        return None
+
+
+def wonclick_page(shell, m, image=None):
+    docs = m.get("docs") or []
+    title = f"공사서류 원클릭 — 착공계·준공계 등 서류 {len(docs)}가지 한 번에 엑셀로 | K-건설맵"
+    desc = (f"공사명·계약금액·날짜를 한 번만 넣으면 착공신고서·현장대리인계·기성·준공·하자 서류 {len(docs)}가지가 "
+            "채워진 엑셀이 나옵니다. 매크로 없음, 관급·민간 모든 현장, 회원가입 없이 무료.")[:150]
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">⚡ 공사서류 원클릭</h1>'
+           f'<p class="cp" style="margin-top:8px"><b>한 번 입력하면 착공부터 준공·하자까지 서류 {len(docs)}가지가 채워진 엑셀</b>이 나옵니다. '
+           '공사명·계약금액·날짜를 서류마다 옮겨 적지 않아도 됩니다. 관급·민간 <b>모든 현장</b>에 쓰고, 회원가입 없이 무료입니다.</p>'
+           '<ul class="flist"><li><b>매크로 없음</b> — 인터넷에서 받은 매크로 파일은 윈도우가 막습니다. 수식만 써서 엑셀·한셀·구글 시트에서 그냥 열립니다.</li>'
+           '<li><b>저절로 계산</b> — 일금 …원정 한글 금액, 공사기간 일수, 계약·하자보수보증금, 하자기간 끝나는 날, 지체일수·지체상금, 기성 누계·기성률, 준공금 청구액.</li>'
+           '<li><b>필요한 서류만</b> — 고른 서류만 보이게 해서 받습니다.</li></ul>'
+           f'<div class="btn-row" style="margin-top:10px"><a class="btn ghost sm" href="{esc(m.get("file") or "")}" download>'
+           '⬇ 빈 엑셀 프로그램만 받기</a></div></div>']
+    out.append(f'<div class="card"><div class="sec-title" style="margin:0 0 6px">들어 있는 서류 {len(docs)}가지</div><ul class="flist">')
+    for w in ["계약", "착공", "공사 중", "준공", "관리", "하자"]:
+        lst = [d for d in docs if d.get("when") == w]
+        if lst:
+            out.append(f'<li><b>{esc(w)}</b> — ' + " · ".join(esc(d.get("name") or "") for d in lst) + "</li>")
+    out.append("</ul></div>")
+    out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">서류마다 하는 일</div>')
+    for d in docs:
+        out.append(f'<div class="row"><div class="grow"><div class="t">{d.get("no")}. {esc(d.get("name") or "")}'
+                   f'{" · 관급" if d.get("pub") else ""}</div><div class="d">{esc(d.get("when") or "")} · '
+                   f'{esc(d.get("desc") or "")}</div></div></div>')
+    out.append("</div>")
+    out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">알아 두실 것</div><ul class="flist">'
+               '<li>발주기관이 정한 서식이 있으면 그 서식을 씁니다. 이 파일은 정해진 서식이 없을 때 쓰는 기본 양식입니다.</li>'
+               '<li>보증금률·지체상금률·하자담보책임기간은 공종과 계약마다 다릅니다. 계약서에 적힌 값을 넣으세요 — 여기서 정해 두지 않았습니다.</li>'
+               '<li>지체상금 자동 계산은 «최종 계약금액 × 요율 × 지체일수» 입니다. 면제·감면이나 기성 인수분 공제가 있으면 입력 칸에 그 금액을 넣으세요.</li>'
+               '<li>입력한 내용은 이 기기(브라우저)에만 저장됩니다. 서버로 보내지 않습니다.</li></ul></div>')
+    ld = {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "공사서류 원클릭",
+          "applicationCategory": "BusinessApplication", "operatingSystem": "Web, Excel",
+          "description": desc, "url": f"{SITE}/tools/wonclick", "isAccessibleForFree": True,
+          "offers": {"@type": "Offer", "price": "0", "priceCurrency": "KRW"},
+          "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}}
+    return page(shell, "/tools/wonclick", title, desc, "".join(out) + nav_html(), image, ld)
+
 
 
 def load_guide():
@@ -1996,11 +2170,12 @@ def main():
 
     # ── 건설 서식 ── 변하지 않는 자료라 매 회차 다시 구워도 부담이 없습니다(13장).
     forms = load_forms()
+    ogroups, orig = load_orig()
     if forms:
         write("forms.html", forms_index(shell, forms,
               og.tab("forms", "건설 서식", "착공계·기성청구서·작업일보",
-                     f"{len(forms)}가지", "엑셀로 바로 내려받기 · 회원가입 없음")
-              if og.available else None))
+                     f"{len(forms) + len(orig)}가지", "엑셀로 바로 내려받기 · 회원가입 없음")
+              if og.available else None, ogroups, orig))
         made += 1
         for f in forms:
             img = (og.tab(f'forms-{f["slug"]}', f["title"],
@@ -2010,6 +2185,13 @@ def main():
             write(f'forms/{f["slug"]}.html', form_page(shell, f, forms, img))
             made += 1
         print(f"  · 건설 서식 페이지 {len(forms) + 1:,}개 (/forms/)")
+        for f in orig:
+            img = (og.tab(f'forms-{f["slug"]}', f["title"], f.get("group") or "건설 서식", "엑셀",
+                          (f.get("short") or "")[:44])
+                   if og.available else None)
+            write(f'forms/{f["slug"]}.html', orig_form_page(shell, f, orig, img))
+            made += 1
+        print(f"  · 현장 실무 서식 페이지 {len(orig):,}개 (/forms/o-…)")
 
     # ── 설계변경 ──
     topics, fsets, book = load_change()
@@ -2088,6 +2270,13 @@ def main():
             write(f'tools/{t["slug"]}.html', tool_page(shell, t, others, img))
             made += 1
         print(f"  · 건설 도구 페이지 {len(ttools) + 1:,}개 (/tools/)")
+    wcm = load_wonclick()
+    if wcm:
+        write("tools/wonclick.html", wonclick_page(shell, wcm,
+              og.tab("tool-wonclick", "공사서류 원클릭", "건설 도구", f"서류 {len(wcm.get('docs') or [])}가지",
+                     "한 번 입력 → 엑셀") if og.available else None))
+        made += 1
+        print("  · 공사서류 원클릭 페이지 1개 (/tools/wonclick)")
 
     # ── 🪪 면허별 경쟁도 ──
     lrows, lmin = load_licstat()

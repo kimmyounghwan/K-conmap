@@ -65,6 +65,15 @@ export default function ToolsIndex() {
           </div>
           <span className="go">→</span>
         </Link>
+        {/* ⚡ 2026-09-24 — 공사서류 원클릭 (한 번 입력 → 서류 24가지) */}
+        <Link className="row rowlink" to="/tools/wonclick">
+          <span className="fic">⚡</span>
+          <div className="grow">
+            <div className="t">공사서류 원클릭 — 한 번 입력으로 서류 24가지</div>
+            <div className="d">공사명·금액·날짜를 한 번만 넣으면 착공부터 준공·하자까지 서류가 채워진 엑셀이 나옵니다. 매크로 없음.</div>
+          </div>
+          <span className="go">→</span>
+        </Link>
       </div>
 
       {/* ── 다른 화면에 있는 도구들 — 여기서도 바로 갑니다 ── */}

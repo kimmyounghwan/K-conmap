@@ -71,6 +71,7 @@ STATIC = [("/", "1.0", "hourly"), ("/first", "0.9", "hourly"), ("/live", "0.9", 
 # ⚠️ prerender.py 가 forms.json 의 서식을 «전부» 굽습니다. 그래서 여기서도 전부 냅니다
 #    (사이트맵이 미리 구운 것보다 많으면 안 된다는 규칙을 지키려면 같은 파일을 봐야 합니다).
 FORMS_JSON = os.path.join(ROOT, "web", "src", "data", "forms.json")
+FORMS_ORIG_JSON = os.path.join(ROOT, "web", "src", "data", "forms_orig.json")   # 현장 실무 서식 (2026-09-24)
 # 캐드 유틸 — 서식과 같은 이유로 여기서도 prerender 와 「같은 파일」 을 봅니다.
 CAD_JSON = os.path.join(ROOT, "web", "src", "data", "cad.json")
 CHANGE_JSON = os.path.join(ROOT, "web", "src", "data", "change.json")
@@ -79,6 +80,7 @@ GUIDE_JSON = os.path.join(ROOT, "web", "src", "data", "guide.json")
 # 🧰 건설 도구 — prerender.py 가 tools.json 의 도구를 «전부» 굽습니다 (2026-09-14).
 #    그래서 여기서도 같은 파일을 봅니다 — 사이트맵이 구운 것보다 많으면 안 됩니다.
 TOOLS_JSON = os.path.join(ROOT, "web", "src", "data", "tools.json")
+WONCLICK_JSON = os.path.join(ROOT, "web", "src", "data", "wonclick.json")   # ⚡ 공사서류 원클릭 (2026-09-24)
 
 # 「어제의 개찰 성적표」 — 날짜마다 한 장. 지나가면 안 변하므로 changefreq 는 monthly.
 # ⚠️ prerender.py 의 PRERENDER_DAILY 보다 크면 안 됩니다 — 안 구운 주소를 내면
@@ -260,6 +262,16 @@ def main():
                 n_fm += 1
     except Exception as e:
         print(f"  · 서식 목록을 못 읽었습니다 ({type(e).__name__}) — 서식 주소는 건너뜁니다")
+    # 현장 실무 서식 — prerender.py 가 전부 굽습니다
+    try:
+        with io.open(FORMS_ORIG_JSON, encoding="utf-8") as f:
+            for fm in (json.load(f) or {}).get("forms") or []:
+                urls.append(f'  <url><loc>{SITE}/forms/{quote(fm["slug"], safe="")}</loc>'
+                            f'<lastmod>{_mtime(FORMS_ORIG_JSON, today)}</lastmod>'
+                            f'<changefreq>yearly</changefreq><priority>0.6</priority></url>')
+                n_fm += 1
+    except Exception as e:
+        print(f"  · 현장 실무 서식 목록을 못 읽었습니다 ({type(e).__name__}) — 건너뜁니다")
 
     # ── 설계변경 ─────────────────────────────────
     n_cg = 0
@@ -307,7 +319,8 @@ def main():
     try:
         with io.open(TOOLS_JSON, encoding="utf-8") as f:
             ttools = (json.load(f) or {}).get("tools") or []
-        for u in ["/tools"] + [f'/tools/{t["slug"]}' for t in ttools]:
+        wc = ["/tools/wonclick"] if os.path.exists(WONCLICK_JSON) else []     # prerender.py 가 구울 때만
+        for u in ["/tools"] + [f'/tools/{t["slug"]}' for t in ttools] + wc:
             urls.append(f'  <url><loc>{SITE}{u}</loc>'
                         f'<lastmod>{_mtime(TOOLS_JSON, today)}</lastmod>'
                         f'<changefreq>monthly</changefreq><priority>0.7</priority></url>')

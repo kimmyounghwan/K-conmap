@@ -94,6 +94,9 @@ const CadPage = lazyPage(() => import('./pages/Cad.jsx').then((m) => ({ default:
 /* 🪪 면허별 경쟁도 — 2026-09-14. 주소를 주는 이유: 「토목공사업 입찰 경쟁률」 같은 건 실제 검색어입니다. */
 const LicStat = lazyPage(() => import('./pages/LicStat.jsx'))
 const ToolPage = lazyPage(() => import('./pages/Tools.jsx').then((m) => ({ default: m.ToolPage })))
+/* ⚡ 공사서류 원클릭 — 2026-09-24. 한 번 입력 → 서류 24가지 엑셀. 엑셀을 만드느라 lazyPage 입니다.
+   ⚠️ /tools/:slug 보다 «정확한 주소» 가 먼저 잡힙니다 (react-router v6 순위). prerender·sitemap 도 같이 고쳤습니다. */
+const WonClick = lazyPage(() => import('./pages/WonClick.jsx'))
 const ChangeCalc = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeCalc })))
 const ChangeBook = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeBook })))
 const ChangeNaeyeok = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeNaeyeok })))
@@ -162,6 +165,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/shareone" element={<Suspense fallback={<Loading />}><ShareOne /></Suspense>} />
           <Route path="/cad/:slug" element={<Suspense fallback={<Loading />}><CadPage /></Suspense>} />
           <Route path="/tools" element={<Suspense fallback={<Loading />}><ToolsIndex /></Suspense>} />
+          <Route path="/tools/wonclick" element={<Suspense fallback={<Loading />}><WonClick /></Suspense>} />
           <Route path="/tools/:slug" element={<Suspense fallback={<Loading />}><ToolPage /></Suspense>} />
           {/* 📋 2026-09-15 — 내역서 작성 대행. 하나뿐인 유료 화면입니다. */}
           {/* 💬 2026-09-15 — 묻고 답하기 */}

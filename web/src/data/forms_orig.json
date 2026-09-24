@@ -1,0 +1,908 @@
+{
+ "groups": [
+  "착공·공무",
+  "공정 관리",
+  "시공계획서",
+  "건설기계 점검표",
+  "품질·검측",
+  "안전·환경",
+  "계약"
+ ],
+ "forms": [
+  {
+   "slug": "o-chakgong-moeum",
+   "title": "착공계·현장인수증·선임계 서류 모음",
+   "group": "착공·공무",
+   "icon": "📁",
+   "short": "착공계, 현장인수증, 현장대리인·안전관리자 선임계, 안전관리계획서까지 시트 20여 장이 한 파일에 들어 있습니다.",
+   "also": [
+    "착공서류 양식",
+    "현장인수증 양식",
+    "현장대리인 선임계",
+    "안전관리자 선임계"
+   ],
+   "note": "받은 파일에 있던 자격증·수료증 사본 그림은 흰칸으로 바꿨습니다.",
+   "file": "/forms/orig/o-chakgong-moeum.xlsx",
+   "kb": 3354,
+   "pages": 39,
+   "from": "엑셀",
+   "sheets": 30,
+   "prev": [
+    "/forms/orig/o-chakgong-moeum-1.webp",
+    "/forms/orig/o-chakgong-moeum-2.webp"
+   ]
+  },
+  {
+   "slug": "o-chakgong-seoryu",
+   "title": "착공서류(착공계·직접시공계획서·안전관리)",
+   "group": "착공·공무",
+   "icon": "📁",
+   "short": "기본 사항을 한 번 넣으면 착공계, 직접시공계획서, 안전·품질·환경 서류에 이어 들어가는 엑셀입니다.",
+   "also": [
+    "착공계 양식",
+    "직접시공계획서 양식",
+    "안전관리비 정산"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-chakgong-seoryu.xlsx",
+   "kb": 1799,
+   "pages": 40,
+   "from": "엑셀",
+   "sheets": 13,
+   "prev": [
+    "/forms/orig/o-chakgong-seoryu-1.webp",
+    "/forms/orig/o-chakgong-seoryu-2.webp"
+   ]
+  },
+  {
+   "slug": "o-seongeum",
+   "title": "선금 신청서",
+   "group": "착공·공무",
+   "icon": "💰",
+   "short": "공문, 선금 신청서, 신청 사유서, 사용계획서, 청구서, 각서를 한 파일에 담은 선금 서류입니다.",
+   "also": [
+    "선급금 신청서",
+    "선금 사용계획서",
+    "선금 청구서"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-seongeum.xlsx",
+   "kb": 47,
+   "pages": 7,
+   "from": "엑셀",
+   "sheets": 6,
+   "prev": [
+    "/forms/orig/o-seongeum-1.webp",
+    "/forms/orig/o-seongeum-2.webp"
+   ]
+  },
+  {
+   "slug": "o-jajae-seungin",
+   "title": "자재 공급원 승인요청서(시공자용)",
+   "group": "착공·공무",
+   "icon": "🧱",
+   "short": "시공자가 감리(건설사업관리기술인)에게 자재 공급원 승인을 요청할 때 쓰는 양식입니다.",
+   "also": [
+    "자재승인요청서",
+    "공급원 승인 요청서",
+    "자재 승인 양식"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-jajae-seungin.xlsx",
+   "kb": 8,
+   "pages": 1,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-jajae-seungin-1.webp"
+   ]
+  },
+  {
+   "slug": "o-jajae-hyeonhwang",
+   "title": "자재 공급원 승인 현황",
+   "group": "착공·공무",
+   "icon": "🧱",
+   "short": "승인받은 자재 공급원을 한눈에 정리하는 현황표입니다.",
+   "also": [
+    "자재승인 현황",
+    "자재 공급원 대장"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-jajae-hyeonhwang.xlsx",
+   "kb": 6,
+   "pages": 1,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-jajae-hyeonhwang-1.webp"
+   ]
+  },
+  {
+   "slug": "o-sajindaeji",
+   "title": "사진대지",
+   "group": "착공·공무",
+   "icon": "📷",
+   "short": "사진 두 장과 내용·위치·일자를 적는 사진대지 양식입니다.",
+   "also": [
+    "사진대지 양식",
+    "공사사진 대지"
+   ],
+   "note": "원본에 있던 「사진 붙여넣기」 매크로 단추는 들어 있지 않습니다. 사진은 엑셀의 삽입 → 그림으로 넣으세요.",
+   "file": "/forms/orig/o-sajindaeji.xlsx",
+   "kb": 20,
+   "pages": 2,
+   "from": "엑셀",
+   "sheets": 1,
+   "prev": [
+    "/forms/orig/o-sajindaeji-1.webp",
+    "/forms/orig/o-sajindaeji-2.webp"
+   ]
+  },
+  {
+   "slug": "o-jangbi-gwanri",
+   "title": "장비관리 프로그램(임대료·수금)",
+   "group": "착공·공무",
+   "icon": "🚜",
+   "short": "장비 사용 내역, 거래처별 임대료, 수금·미수금, 청구서를 관리하는 엑셀입니다.",
+   "also": [
+    "장비 임대료 관리",
+    "장비대 청구서",
+    "중기 관리 엑셀"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-jangbi-gwanri.xlsx",
+   "kb": 508,
+   "pages": 113,
+   "from": "엑셀",
+   "sheets": 7,
+   "prev": [
+    "/forms/orig/o-jangbi-gwanri-1.webp",
+    "/forms/orig/o-jangbi-gwanri-2.webp"
+   ]
+  },
+  {
+   "slug": "o-jugan-gongjeong",
+   "title": "주간 공정회의록",
+   "group": "공정 관리",
+   "icon": "🗓",
+   "short": "주간 공정회의 자료 표지와 공정률·공사 추진 현황(전주·금주·내주)을 적는 양식입니다.",
+   "also": [
+    "주간공정회의 자료",
+    "공정회의록 양식"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-jugan-gongjeong.xlsx",
+   "kb": 7,
+   "pages": 2,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-jugan-gongjeong-1.webp",
+    "/forms/orig/o-jugan-gongjeong-2.webp"
+   ]
+  },
+  {
+   "slug": "o-hoeui-gongjeongpyo",
+   "title": "회의 공정표",
+   "group": "공정 관리",
+   "icon": "🗓",
+   "short": "회의 때 쓰는 간단한 예정 공정표입니다.",
+   "also": [
+    "공정표 양식"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-hoeui-gongjeongpyo.xlsx",
+   "kb": 13,
+   "pages": 1,
+   "from": "엑셀",
+   "sheets": 1,
+   "prev": [
+    "/forms/orig/o-hoeui-gongjeongpyo-1.webp"
+   ]
+  },
+  {
+   "slug": "o-yejeong-gongjeongpyo",
+   "title": "예정공정표",
+   "group": "공정 관리",
+   "icon": "🗓",
+   "short": "총괄 예정공정표와 월간 공정표가 들어 있는 소하천 정비공사 예정공정표 틀입니다.",
+   "also": [
+    "예정공정표 양식",
+    "막대 공정표",
+    "바차트 공정표"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-yejeong-gongjeongpyo.xlsx",
+   "kb": 132,
+   "pages": 4,
+   "from": "엑셀",
+   "sheets": 4,
+   "prev": [
+    "/forms/orig/o-yejeong-gongjeongpyo-1.webp",
+    "/forms/orig/o-yejeong-gongjeongpyo-2.webp"
+   ]
+  },
+  {
+   "slug": "o-konkeuriteu-taseol",
+   "title": "구조물별 콘크리트 타설현황",
+   "group": "공정 관리",
+   "icon": "🏗",
+   "short": "구조물·일자·위치별 설계량과 반입량, 슬럼프·공기량·염분량을 적는 타설 현황표입니다.",
+   "also": [
+    "레미콘 타설현황",
+    "콘크리트 타설 대장",
+    "레미콘 반입 대장"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-konkeuriteu-taseol.xlsx",
+   "kb": 125,
+   "pages": 11,
+   "from": "엑셀",
+   "sheets": 7,
+   "prev": [
+    "/forms/orig/o-konkeuriteu-taseol-1.webp",
+    "/forms/orig/o-konkeuriteu-taseol-2.webp"
+   ]
+  },
+  {
+   "slug": "o-gangu-taseol",
+   "title": "강우 시 콘크리트 타설 계획서",
+   "group": "공정 관리",
+   "icon": "🌧",
+   "short": "비 오는 날 콘크리트를 쳐야 할 때 내는 타설 계획서입니다.",
+   "also": [
+    "우천시 타설 계획서",
+    "강우시 콘크리트 타설"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-gangu-taseol.xlsx",
+   "kb": 10,
+   "pages": 2,
+   "from": "엑셀",
+   "sheets": 1,
+   "prev": [
+    "/forms/orig/o-gangu-taseol-1.webp",
+    "/forms/orig/o-gangu-taseol-2.webp"
+   ]
+  },
+  {
+   "slug": "o-bangsu-gyehoekseo",
+   "title": "방수공사 시공계획서",
+   "group": "시공계획서",
+   "icon": "📘",
+   "short": "공사 개요, 조직도, 인원·자재 계획, 시공 방법, 검측 흐름도, 품질·환경·안전 관리가 들어 있는 방수공사 시공계획서입니다.",
+   "also": [
+    "방수 시공계획서",
+    "액체방수 시공계획서"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-bangsu-gyehoekseo.xlsx",
+   "kb": 37,
+   "pages": 15,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-bangsu-gyehoekseo-1.webp",
+    "/forms/orig/o-bangsu-gyehoekseo-2.webp"
+   ]
+  },
+  {
+   "slug": "o-dojang-gyehoekseo",
+   "title": "도장공사 시공계획서",
+   "group": "시공계획서",
+   "icon": "📘",
+   "short": "도장공사 시공계획서 — 공사 개요부터 품질·환경·안전 관리 계획까지.",
+   "also": [
+    "도장 시공계획서",
+    "페인트 시공계획서"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-dojang-gyehoekseo.xlsx",
+   "kb": 84,
+   "pages": 21,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-dojang-gyehoekseo-1.webp",
+    "/forms/orig/o-dojang-gyehoekseo-2.webp"
+   ]
+  },
+  {
+   "slug": "o-mijang-gyehoekseo",
+   "title": "미장공사 시공계획서",
+   "group": "시공계획서",
+   "icon": "📘",
+   "short": "미장공사 시공계획서 — 공사 개요부터 품질·환경·안전 관리 계획까지.",
+   "also": [
+    "미장 시공계획서"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-mijang-gyehoekseo.xlsx",
+   "kb": 85,
+   "pages": 19,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-mijang-gyehoekseo-1.webp",
+    "/forms/orig/o-mijang-gyehoekseo-2.webp"
+   ]
+  },
+  {
+   "slug": "o-paengi-gyehoekseo",
+   "title": "팽이기초 시공계획서",
+   "group": "시공계획서",
+   "icon": "📘",
+   "short": "현장타설형 팽이기초 시공계획서입니다.",
+   "also": [
+    "팽이기초 공법",
+    "팽이기초 시공계획"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-paengi-gyehoekseo.xlsx",
+   "kb": 632,
+   "pages": 12,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-paengi-gyehoekseo-1.webp",
+    "/forms/orig/o-paengi-gyehoekseo-2.webp"
+   ]
+  },
+  {
+   "slug": "o-jiban-gyehoekseo",
+   "title": "지반개량공사 시공계획서",
+   "group": "시공계획서",
+   "icon": "📘",
+   "short": "맞춤배송주입 지반보강공 시공계획서입니다.",
+   "also": [
+    "지반보강 시공계획서",
+    "연약지반 개량 계획서"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-jiban-gyehoekseo.xlsx",
+   "kb": 2533,
+   "pages": 10,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-jiban-gyehoekseo-1.webp",
+    "/forms/orig/o-jiban-gyehoekseo-2.webp"
+   ]
+  },
+  {
+   "slug": "o-pojang-gyehoekseo",
+   "title": "포장 시공계획서",
+   "group": "시공계획서",
+   "icon": "📘",
+   "short": "반입토사와 아스콘 포장 주요 공종, 장비 제원까지 들어 있는 포장 시공계획서입니다.",
+   "also": [
+    "아스콘 포장 시공계획서",
+    "도로포장 시공계획서"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-pojang-gyehoekseo.xlsx",
+   "kb": 311,
+   "pages": 12,
+   "from": "엑셀",
+   "sheets": 7,
+   "prev": [
+    "/forms/orig/o-pojang-gyehoekseo-1.webp",
+    "/forms/orig/o-pojang-gyehoekseo-2.webp"
+   ]
+  },
+  {
+   "slug": "o-ascon-jageop",
+   "title": "아스콘 포장 작업계획서",
+   "group": "시공계획서",
+   "icon": "🛣",
+   "short": "아스콘 포장 작업계획서와 시공 순서도입니다.",
+   "also": [
+    "아스팔트 포장 작업계획서",
+    "포장 작업계획서"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-ascon-jageop.xlsx",
+   "kb": 436,
+   "pages": 6,
+   "from": "엑셀",
+   "sheets": 2,
+   "prev": [
+    "/forms/orig/o-ascon-jageop-1.webp",
+    "/forms/orig/o-ascon-jageop-2.webp"
+   ]
+  },
+  {
+   "slug": "o-dongbari-gyehoekseo",
+   "title": "시스템 동바리 시공계획서",
+   "group": "시공계획서",
+   "icon": "📙",
+   "short": "시스템 동바리 개요, 설치 도면, 비계·낙하물방지망, 조립·해체 순서가 들어 있는 시공계획서입니다. (PPT 원본을 엑셀로)",
+   "also": [
+    "시스템동바리 계획서",
+    "시스템 서포트 시공계획서"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-dongbari-gyehoekseo.xlsx",
+   "kb": 1599,
+   "pages": 20,
+   "from": "PPT",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-dongbari-gyehoekseo-1.webp",
+    "/forms/orig/o-dongbari-gyehoekseo-2.webp"
+   ]
+  },
+  {
+   "slug": "o-gaseol-gyehoekseo",
+   "title": "가시설(흙막이) 시공계획서",
+   "group": "시공계획서",
+   "icon": "📙",
+   "short": "흙막이 가시설 시공계획서와 계측관리계획이 들어 있습니다. (PPT 원본을 엑셀로)",
+   "also": [
+    "흙막이 시공계획서",
+    "가시설 시공계획서"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-gaseol-gyehoekseo.xlsx",
+   "kb": 2550,
+   "pages": 45,
+   "from": "PPT",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-gaseol-gyehoekseo-1.webp",
+    "/forms/orig/o-gaseol-gyehoekseo-2.webp"
+   ]
+  },
+  {
+   "slug": "o-gaseol-haeche",
+   "title": "가시설공사 해체계획서",
+   "group": "시공계획서",
+   "icon": "📙",
+   "short": "흙막이 가시설 해체 순서, 장비, 안전관리가 들어 있는 해체계획서입니다. (PPT 원본을 엑셀로)",
+   "also": [
+    "흙막이 해체계획서",
+    "가시설 해체 계획서"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-gaseol-haeche.xlsx",
+   "kb": 7325,
+   "pages": 28,
+   "from": "PPT",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-gaseol-haeche-1.webp",
+    "/forms/orig/o-gaseol-haeche-2.webp"
+   ]
+  },
+  {
+   "slug": "o-deck-gyehoekseo",
+   "title": "데크플레이트 시공계획서",
+   "group": "시공계획서",
+   "icon": "📙",
+   "short": "데크플레이트 자재, 반입·양중, 시공 순서, 품질·안전 관리가 들어 있는 시공계획서입니다. (PPT 원본을 엑셀로)",
+   "also": [
+    "데크플레이트 시공계획",
+    "데크 시공계획서"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-deck-gyehoekseo.xlsx",
+   "kb": 3360,
+   "pages": 25,
+   "from": "PPT",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-deck-gyehoekseo-1.webp",
+    "/forms/orig/o-deck-gyehoekseo-2.webp"
+   ]
+  },
+  {
+   "slug": "o-balpa-jageop",
+   "title": "발파 작업계획서",
+   "group": "시공계획서",
+   "icon": "💥",
+   "short": "발파 작업계획서 양식입니다.",
+   "also": [
+    "발파 계획서",
+    "발파작업 계획서"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-balpa-jageop.xlsx",
+   "kb": 376,
+   "pages": 6,
+   "from": "엑셀",
+   "sheets": 3,
+   "prev": [
+    "/forms/orig/o-balpa-jageop-1.webp",
+    "/forms/orig/o-balpa-jageop-2.webp"
+   ]
+  },
+  {
+   "slug": "o-geonseolgigye-check",
+   "title": "건설기계 점검표",
+   "group": "건설기계 점검표",
+   "icon": "🚧",
+   "short": "굴착기·덤프트럭 등 건설기계 32종 점검표를 한 파일에 모았습니다. 기계마다 예시 사진과 점검 항목이 들어 있습니다.",
+   "also": [
+    "건설기계 체크리스트",
+    "장비 점검표",
+    "건설장비 점검표"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-geonseolgigye-check.xlsx",
+   "kb": 6486,
+   "pages": 32,
+   "from": "PDF",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-geonseolgigye-check-1.webp",
+    "/forms/orig/o-geonseolgigye-check-2.webp"
+   ]
+  },
+  {
+   "slug": "o-towercrane-check",
+   "title": "타워크레인 점검표",
+   "group": "건설기계 점검표",
+   "icon": "🏗",
+   "short": "타워크레인 체크리스트 (예시 사진 포함).",
+   "also": [
+    "타워크레인 체크리스트"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-towercrane-check.xlsx",
+   "kb": 570,
+   "pages": 4,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-towercrane-check-1.webp",
+    "/forms/orig/o-towercrane-check-2.webp"
+   ]
+  },
+  {
+   "slug": "o-lift-check",
+   "title": "건설용리프트 점검표",
+   "group": "건설기계 점검표",
+   "icon": "🛗",
+   "short": "건설용 리프트 체크리스트 (예시 사진 포함).",
+   "also": [
+    "건설용 리프트 체크리스트",
+    "호이스트 점검표"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-lift-check.xlsx",
+   "kb": 632,
+   "pages": 4,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-lift-check-1.webp",
+    "/forms/orig/o-lift-check-2.webp"
+   ]
+  },
+  {
+   "slug": "o-gantry-check",
+   "title": "겐트리크레인 점검표",
+   "group": "건설기계 점검표",
+   "icon": "🏗",
+   "short": "겐트리크레인(갠트리) 체크리스트.",
+   "also": [
+    "갠트리크레인 점검표"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-gantry-check.xlsx",
+   "kb": 100,
+   "pages": 1,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-gantry-check-1.webp"
+   ]
+  },
+  {
+   "slug": "o-gosojageopdae-gul",
+   "title": "고소작업대(굴절형) 점검표",
+   "group": "건설기계 점검표",
+   "icon": "🧗",
+   "short": "굴절형 고소작업대 체크리스트.",
+   "also": [
+    "고소작업대 체크리스트"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-gosojageopdae-gul.xlsx",
+   "kb": 315,
+   "pages": 2,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-gosojageopdae-gul-1.webp",
+    "/forms/orig/o-gosojageopdae-gul-2.webp"
+   ]
+  },
+  {
+   "slug": "o-gosojageopdae-sj",
+   "title": "고소작업대(시저형) 점검표",
+   "group": "건설기계 점검표",
+   "icon": "🧗",
+   "short": "시저형 고소작업대 체크리스트.",
+   "also": [
+    "시저리프트 점검표"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-gosojageopdae-sj.xlsx",
+   "kb": 384,
+   "pages": 2,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-gosojageopdae-sj-1.webp",
+    "/forms/orig/o-gosojageopdae-sj-2.webp"
+   ]
+  },
+  {
+   "slug": "o-charging-check",
+   "title": "고소작업차(차징카) 점검표",
+   "group": "건설기계 점검표",
+   "icon": "🧗",
+   "short": "차징카(고소작업차) 체크리스트.",
+   "also": [
+    "차징카 점검표"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-charging-check.xlsx",
+   "kb": 312,
+   "pages": 2,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-charging-check-1.webp",
+    "/forms/orig/o-charging-check-2.webp"
+   ]
+  },
+  {
+   "slug": "o-gondola-check",
+   "title": "곤돌라 점검표",
+   "group": "건설기계 점검표",
+   "icon": "🚡",
+   "short": "곤돌라 체크리스트 (예시 사진 포함).",
+   "also": [
+    "곤돌라 체크리스트"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-gondola-check.xlsx",
+   "kb": 68,
+   "pages": 1,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-gondola-check-1.webp"
+   ]
+  },
+  {
+   "slug": "o-compressor-check",
+   "title": "공기압축기 점검표",
+   "group": "건설기계 점검표",
+   "icon": "🌀",
+   "short": "공기압축기 체크리스트.",
+   "also": [
+    "컴프레샤 점검표"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-compressor-check.xlsx",
+   "kb": 83,
+   "pages": 2,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-compressor-check-1.webp",
+    "/forms/orig/o-compressor-check-2.webp"
+   ]
+  },
+  {
+   "slug": "o-excavator-check",
+   "title": "굴삭기 점검표",
+   "group": "건설기계 점검표",
+   "icon": "🚜",
+   "short": "굴삭기(굴착기) 체크리스트 (예시 사진 포함).",
+   "also": [
+    "굴착기 점검표",
+    "포크레인 점검표"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-excavator-check.xlsx",
+   "kb": 370,
+   "pages": 2,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-excavator-check-1.webp",
+    "/forms/orig/o-excavator-check-2.webp"
+   ]
+  },
+  {
+   "slug": "o-dump-check",
+   "title": "덤프트럭 점검표",
+   "group": "건설기계 점검표",
+   "icon": "🚚",
+   "short": "덤프트럭 체크리스트 (예시 사진 포함).",
+   "also": [
+    "덤프 점검표"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-dump-check.xlsx",
+   "kb": 150,
+   "pages": 1,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-dump-check-1.webp"
+   ]
+  },
+  {
+   "slug": "o-geomcheuk-300",
+   "title": "검측체크리스트(300여 공종)",
+   "group": "품질·검측",
+   "icon": "✅",
+   "short": "토목·건축 300여 공종의 검측 체크리스트를 한 파일에 모았습니다.",
+   "also": [
+    "검측 체크리스트",
+    "공종별 검측표"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-geomcheuk-300.xlsx",
+   "kb": 1750,
+   "pages": 682,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-geomcheuk-300-1.webp",
+    "/forms/orig/o-geomcheuk-300-2.webp"
+   ]
+  },
+  {
+   "slug": "o-geomcheuk-sheetpile",
+   "title": "검측체크리스트(SHEET PILE)",
+   "group": "품질·검측",
+   "icon": "✅",
+   "short": "강널말뚝(SHEET PILE) 검측 체크리스트입니다.",
+   "also": [
+    "시트파일 검측",
+    "강널말뚝 검측"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-geomcheuk-sheetpile.xlsx",
+   "kb": 11,
+   "pages": 2,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-geomcheuk-sheetpile-1.webp",
+    "/forms/orig/o-geomcheuk-sheetpile-2.webp"
+   ]
+  },
+  {
+   "slug": "o-pumjil-siheom",
+   "title": "품질시험계획서",
+   "group": "품질·검측",
+   "icon": "🧪",
+   "short": "품질시험계획서 개요, 시험 항목·방법, 시험 시설·인력, 성과 관리까지 들어 있습니다.",
+   "also": [
+    "품질시험계획 양식",
+    "품질관리계획서"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-pumjil-siheom.xlsx",
+   "kb": 42,
+   "pages": 27,
+   "from": "엑셀",
+   "sheets": 8,
+   "prev": [
+    "/forms/orig/o-pumjil-siheom-1.webp",
+    "/forms/orig/o-pumjil-siheom-2.webp"
+   ]
+  },
+  {
+   "slug": "o-cheukryang-bogoseo",
+   "title": "시공측량 보고서",
+   "group": "품질·검측",
+   "icon": "📐",
+   "short": "현장조사, 기준점 확인, 측량 성과가 들어 있는 시공측량 보고서입니다.",
+   "also": [
+    "측량 보고서",
+    "착공측량 보고서"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-cheukryang-bogoseo.xlsx",
+   "kb": 44,
+   "pages": 16,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-cheukryang-bogoseo-1.webp",
+    "/forms/orig/o-cheukryang-bogoseo-2.webp"
+   ]
+  },
+  {
+   "slug": "o-anjeon-pumjil-bi",
+   "title": "안전·품질관리비 사용내역서",
+   "group": "안전·환경",
+   "icon": "🦺",
+   "short": "안전관리비·품질관리비 사용내역서, 세부 사용 내역, 사진대지, 노임명세서가 들어 있습니다.",
+   "also": [
+    "산업안전보건관리비 사용내역서",
+    "품질관리비 사용내역서"
+   ],
+   "note": "받은 파일에 있던 신분증·통장 사본, 인감, 주민번호는 지우거나 흰칸으로 바꿨습니다.",
+   "file": "/forms/orig/o-anjeon-pumjil-bi.xlsx",
+   "kb": 260,
+   "pages": 42,
+   "from": "엑셀",
+   "sheets": 14,
+   "prev": [
+    "/forms/orig/o-anjeon-pumjil-bi-1.webp",
+    "/forms/orig/o-anjeon-pumjil-bi-2.webp"
+   ]
+  },
+  {
+   "slug": "o-hwangyeong-lh",
+   "title": "환경관리계획서(LH 양식)",
+   "group": "안전·환경",
+   "icon": "🌿",
+   "short": "LH 양식의 환경관리계획서입니다.",
+   "also": [
+    "환경관리계획서 양식",
+    "LH 환경관리계획서"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-hwangyeong-lh.xlsx",
+   "kb": 86,
+   "pages": 38,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-hwangyeong-lh-1.webp",
+    "/forms/orig/o-hwangyeong-lh-2.webp"
+   ]
+  },
+  {
+   "slug": "o-hyuil-jageop",
+   "title": "일요일·공휴일작업 안전작업계획서",
+   "group": "안전·환경",
+   "icon": "🦺",
+   "short": "일요일·공휴일에 작업할 때 내는 안전작업계획서입니다.",
+   "also": [
+    "휴일작업 계획서",
+    "공휴일 작업 신고"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-hyuil-jageop.xlsx",
+   "kb": 7,
+   "pages": 1,
+   "from": "한글",
+   "sheets": null,
+   "prev": [
+    "/forms/orig/o-hyuil-jageop-1.webp"
+   ]
+  },
+  {
+   "slug": "o-mingan-dogeup",
+   "title": "민간건설공사 표준도급계약서(2026.1.16 개정)",
+   "group": "계약",
+   "icon": "📜",
+   "short": "민간건설공사 표준도급계약서와 일반조건입니다 (2026.1.16 개정판).",
+   "also": [
+    "표준도급계약서",
+    "민간공사 도급계약서"
+   ],
+   "note": "",
+   "file": "/forms/orig/o-mingan-dogeup.xlsx",
+   "kb": 257,
+   "pages": 11,
+   "from": "엑셀",
+   "sheets": 1,
+   "prev": [
+    "/forms/orig/o-mingan-dogeup-1.webp",
+    "/forms/orig/o-mingan-dogeup-2.webp"
+   ]
+  }
+ ]
+}
