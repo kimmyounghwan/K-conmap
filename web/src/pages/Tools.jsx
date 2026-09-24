@@ -28,28 +28,48 @@ const PAGES = DATA.pages || []
 const 모두 = TOOLS.length + PAGES.reduce((n, g) => n + g.items.length, 0)
 export const toolBySlug = (s) => TOOLS.find((t) => t.slug === s) || null
 
+/* 🧰 2026-09-24 — 소장님: 「건설맵 도구는 한 자리로 모으자고 했는데, 안 된 것 같아」 · 「시작해」
+   ■ 탭 「도구·서식」 이 이제 이 화면으로 옵니다(App.jsx). 서식은 맨 위 칸, 설계변경은 «내역서·설계변경» 칸 맨 앞.
+   ■ 맨 위 칩을 누르면 그 칸으로 내려갑니다 — 길어도 한 번에 찾게.
+   ■ 아래에 따로 있던 «내역서 · PDF · 캐드/K-적산(준비 중)» 카드 네 장은 뺐습니다.
+     위 칸들과 같은 것을 두 번 보여 줬고, K-적산 «준비 중» 은 옛 글이었습니다. */
+const 칸들 = [
+  ['t-forms', '📄 서식'],
+  ...PAGES.map((g) => [`t-${g.key}`, `${g.icon} ${g.name}`]),
+  ['t-calc', '🧮 계산기'],
+]
+const 내림 = { scrollMarginTop: 76 }
+
 export default function ToolsIndex() {
   return (
     <div className="wrap">
       <div className="card">
-        <div className="detail-h">🧰 건설 도구 <span className="count">· {모두}가지 전부</span></div>
+        <div className="detail-h">🧰 건설 도구·서식 <span className="count">· 도구 {모두}가지 + 서식</span></div>
         <div className="note sm">
-          <b>K-건설맵이 만든 도구를 여기 다 모았습니다.</b> 내역서·설계변경·적산·입찰·문서까지
+          <b>K-건설맵이 만든 도구와 서식을 여기 다 모았습니다.</b> 내역서·설계변경·적산·입찰·문서·서식까지
           한 자리에서 찾으십시오. 회원가입 없이 바로 쓰시고, <b>전부 무료</b>입니다.
         </div>
-        {/* 📄 2026-09-16 — 탭이 「서식·도구」 하나로 합쳐졌습니다. 서로 오갈 길을 둡니다. */}
         <div className="navrow" style={{ marginTop: 10 }}>
-          <Link className="navi" to="/pdf">📄 PDF 도구</Link>
-          <Link className="navi" to="/forms">📄 건설 서식</Link>
-          <Link className="navi" to="/cad">📐 캐드 유틸</Link>
-          <Link className="navi" to="/jeoksan">🧮 K-적산</Link>
-          <Link className="navi" to="/shareone">🗂️ 쉐어원 공유폴더</Link>
+          {칸들.map(([id, t]) => <a className="navi" href={`#${id}`} key={id}>{t}</a>)}
         </div>
+      </div>
+
+      {/* 📄 서식 — 탭 이름에 «서식» 이 있으니 맨 위에 둡니다 */}
+      <div className="card" id="t-forms" style={내림}>
+        <div className="detail-h">📄 건설 서식</div>
+        <Link className="row rowlink" to="/forms">
+          <span className="fic">📄</span>
+          <div className="grow">
+            <div className="t">현장 서식 모음 — 착공부터 준공까지</div>
+            <div className="d">계약·공무·공사·안전·품질·환경·노무·장비 서류를 엑셀로 바로 받습니다. 회원가입 없음.</div>
+          </div>
+          <span className="go">→</span>
+        </Link>
       </div>
 
       {/* ── 다른 화면에 있는 도구들 — 여기서도 바로 갑니다 ── */}
       {PAGES.map((g) => (
-        <div className="card" key={g.key}>
+        <div className="card" key={g.key} id={`t-${g.key}`} style={내림}>
           <div className="detail-h">{g.icon} {g.name} <span className="count">· {g.items.length}가지</span></div>
           {g.items.map((x) => (
             <Link className="row rowlink" to={x.to} key={x.to}>
@@ -61,7 +81,7 @@ export default function ToolsIndex() {
         </div>
       ))}
 
-      <div className="sec-title" style={{ marginTop: 14 }}>
+      <div className="sec-title" id="t-calc" style={{ marginTop: 14, ...내림 }}>
         🧮 바로 셈하는 계산기 <span className="count">· {TOOLS.length}가지 · 이 화면 안에서 바로</span>
       </div>
       {CATS.map((c) => {
@@ -80,69 +100,6 @@ export default function ToolsIndex() {
           </div>
         )
       })}
-
-      {/* 📐 2026-09-15 — 캐드 유틸을 탭에서 빼고 여기로 넣었습니다(리습도 도구입니다).
-          /cad 주소는 그대로입니다 — 검색으로 들어오던 길을 끊으면 안 됩니다. */}
-      {/* 🗑 2026-09-19 — 성적표 카드를 여기서 뺐습니다.
-          소장님: 「사이트에 띄워놓은 입찰성적표는 제거하고, 이상해」 (CLAUDE.md 8절 71)
-          성적표는 이제 소장님이 /report/make 에서 만들어 PDF 로 보내 드리는 것만 남습니다. */}
-
-      {/* 📉 2026-09-18 — 소장님: 「내역서를 올리면 80%로 자동으로 맞춰지는 도구」
-          하도급률·실행률·낙찰률이 «같은 셈» 이라 한 화면입니다. 파일은 안 올라갑니다. */}
-      <div className="card">
-        <div className="detail-h">📉 내역서 <span className="count">· 값 안 받음</span></div>
-        <Link className="row rowlink" to="/naeyeok/ratio">
-          <span className="fic">📉</span>
-          <div className="grow">
-            <div className="t">내역서 비율 맞추기 — 하도급 80% · 실행률 · 낙찰률</div>
-            <div className="d">내역서를 올리고 비율이나 맞출 금액만 넣으시면 단가가 그 비율로 바뀐 내역서와 원가계산서가 나옵니다. 올린 엑셀 서식 그대로도 드립니다.</div>
-          </div>
-          <span className="go">→</span>
-        </Link>
-        <Link className="row rowlink" to="/change/twoline">
-          <span className="fic">🔁</span>
-          <div className="grow">
-            <div className="t">설계변경 2줄 자동변환 — 당초 · 변경 · 증감</div>
-            <div className="d">내역서 한 줄을 당초·변경 두 줄로 벌리고 합계를 갈라 줍니다. 서식은 그대로 남습니다.</div>
-          </div>
-          <span className="go">→</span>
-        </Link>
-      </div>
-
-      {/* 📄 2026-09-18 — PDF 도구. 사이트 안에서 그대로 하고, 파일은 안 올라갑니다. */}
-      <div className="card">
-        <div className="detail-h">📄 PDF <span className="count">· 17가지</span></div>
-        <Link className="row rowlink" to="/pdf">
-          <span className="fic">📄</span>
-          <div className="grow">
-            <div className="t">PDF 도구 — 합치기·쪽 빼기·도장·점검·비교·사진대지</div>
-            <div className="d">사이트 안에서 그대로 합니다. 고르신 파일은 저희 쪽으로 올라가지 않습니다. 무료.</div>
-          </div>
-          <span className="go">→</span>
-        </Link>
-      </div>
-
-      <div className="card">
-        <div className="detail-h">📐 캐드 <span className="count">· 명령 7가지</span></div>
-        <Link className="row rowlink" to="/cad">
-          <span className="fic">📐</span>
-          <div className="grow">
-            <div className="t">캐드 유틸 — 길이·면적·수량·좌표</div>
-            <div className="d">파일 하나를 캐드에 올리면 명령 한 줄로 끝납니다. 무료.</div>
-          </div>
-          <span className="go">→</span>
-        </Link>
-        {/* 🧮 2026-09-16 — 적산은 «준비 중» 입니다. 받는 단추를 달지 마십시오.
-            무엇을 만들고 있는지만 보여 주는 화면입니다. */}
-        <Link className="row rowlink" to="/jeoksan">
-          <span className="fic">🧮</span>
-          <div className="grow">
-            <div className="t">K-적산 — 도면에서 물량 뽑기 <em>· 준비 중</em></div>
-            <div className="d">캐드에서 찍고 PC 에서 셉니다. 산출식이 엑셀 표에 있어 토목·건축 둘 다. 값은 받습니다.</div>
-          </div>
-          <span className="go">→</span>
-        </Link>
-      </div>
 
       {/* 🗂️ 2026-09-16 — 소장님: 「도구에 공유폴더 만든 거 다운받을 수 있게」
           띄 문구는 ShareOne.jsx 한 곳에만 있습니다. */}
