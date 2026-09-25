@@ -399,9 +399,11 @@ function csv칸(v) {
   const s = String(v ?? '')
   return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
 }
-/* 엑셀 치수표 → CSV 글 (첫 시트). qto.js 의 xlsx 읽기를 그대로 씁니다. */
-function 엑셀을글로(readWorkbook, buf) {
-  const 시트 = readWorkbook(buf)
+/* 엑셀 치수표 → CSV 글 (첫 시트). qto.js 의 xlsx 읽기를 그대로 씁니다.
+   ⚠️ 받는 이름을 readWorkbook 으로 두면 tools/checkimports.py 가 «import 안 하고 씀» 으로 봐서
+      배포가 통째로 멈춥니다 (2026-09-26 G15·G16 두 번 멈춤). 그래서 «읽기» 로 받습니다. */
+function 엑셀을글로(읽기, buf) {
+  const 시트 = 읽기(buf)
   const 첫 = Object.values(시트)[0] || []
   return 첫.map((r) => (r || []).map(csv칸).join(',')).join('\n')
 }
