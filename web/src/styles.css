@@ -3523,3 +3523,26 @@ ul.plainlist li { margin-bottom: 5px; }
 .tlx-w.lock { background: rgba(107, 114, 128, .14); color: var(--muted); }
 @media (prefers-color-scheme: dark) { .tlx-w.site { color: #34d399; } }
 @media (max-width: 560px) { .tlx-grid { grid-template-columns: 1fr; } }
+
+/* ── 🧮 수량산출서 — 화면에서 적는 치수표 (/jeoksan/run) — 2026-09-26 · 이름은 jrx- ── */
+.jrx-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+.jrx { border-collapse: collapse; font-size: 12.5px; min-width: 100%; }
+.jrx th { position: sticky; top: 0; background: var(--surface-2); font-weight: 700; padding: 6px 4px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.jrx td { padding: 2px; border-bottom: 1px solid var(--line); }
+.jrx input, .jrx select { width: 58px; min-width: 0; padding: 5px 5px; font-size: 12.5px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); font-family: inherit; box-sizing: border-box; }
+.jrx input.w, .jrx select { width: 96px; }
+.jrx td:first-child input { width: 40px; }
+.jrx-x { border: 0; background: none; color: var(--muted); font-size: 18px; cursor: pointer; padding: 0 6px; width: auto; }
+.jrx-x:hover { color: #dc2626; }
+/* 🏢 도면 3D — 건물 세우기 표 (2026-09-26) */
+.dx3-bld { margin-top: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--accent); background: var(--accent-soft); }
+.dx3-bh { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14px; }
+.dx3-bh .chip { font-size: 12px; margin-left: auto; }
+.dx3-bsub { font-size: 12px; color: var(--text-2); margin: 4px 0 8px; line-height: 1.6; }
+.dx3-btbl { overflow-x: auto; }
+.dx3-btbl .tbl { font-size: 12.5px; background: var(--surface); }
+.dx3-btbl tr.off { opacity: .5; }
+.dx3-btbl input { width: auto; margin: 0 4px 0 0; }
+.dx3-only { border: 1px solid var(--line); background: var(--surface-2); color: var(--text-2); border-radius: 6px; font-size: 11px; padding: 1px 6px; cursor: pointer; width: auto; }
+.dx3-btbl td:nth-child(4) { min-width: 170px; }
+@media (max-width: 560px) { .dx3-btbl th:nth-child(5), .dx3-btbl td:nth-child(5) { display: none; } }

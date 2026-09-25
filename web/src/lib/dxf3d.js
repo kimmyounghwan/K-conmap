@@ -62,7 +62,7 @@ const UNI = /\\U\+([0-9A-Fa-f]{4})/g
 const unesc = (s) => String(s).replace(UNI, (_, h) => String.fromCharCode(parseInt(h, 16)))
 
 /* ── 늘어나는 배열 ─────────────────────────────────────── */
-class F64 {
+export class F64 {
   constructor(n = 1024) { this.a = new Float64Array(n); this.n = 0 }
   push6(a, b, c, d, e, f) {
     if (this.n + 6 > this.a.length) { const b2 = new Float64Array(this.a.length * 2); b2.set(this.a); this.a = b2 }
@@ -77,7 +77,7 @@ class F64 {
     this.n = i + 3
   }
 }
-class U8 {
+export class U8 {
   constructor(n = 1024) { this.a = new Uint8Array(n); this.n = 0 }
   push3(a, b, c) {
     if (this.n + 3 > this.a.length) { const b2 = new Uint8Array(this.a.length * 2); b2.set(this.a); this.a = b2 }
@@ -165,6 +165,14 @@ export function parseDxf(text, onProgress, opt = {}) {
   const blocks = new Map()             // 이름 → {base:[x,y,z], ents:[]}
   const out = new Map()                // 층 → {pos:F64, col:U8, pts:F64, pcol:U8}
   const stats = { segs: 0, pts: 0, ents: 0, capped: false, skipped: {}, unknown: {}, ver: '', units: 0, depthCut: 0 }
+  /* 📝 2026-09-26 — 글자도 «자리와 함께» 모읍니다(그리지는 않음). 도면에서 높이(GL +5,200 · 지상 2층 · 평면도 제목)를
+     스스로 찾으려면 글자가 있어야 합니다 — lib/building3d.js 가 씁니다. 블록 안 글자·속성(ATTRIB)까지. */
+  const texts = []
+  const 글자 = (s, w, h, ly) => {
+    if (texts.length >= 300000) return
+    const t = 글자다듬기(s)
+    if (t && Number.isFinite(w[0] + w[1])) texts.push({ s: t, x: w[0], y: w[1], z: w[2], h, ly })
+  }
   const skip = (k) => { stats.skipped[k] = (stats.skipped[k] || 0) + 1 }
   let lastProg = 0
 
@@ -199,7 +207,8 @@ export function parseDxf(text, onProgress, opt = {}) {
     } else if (type === 'INSERT') {
       const has = e.g.some(([c, v]) => c === 66 && num(v) === 1)
       if (has) {
-        while (pair && pair[0] === 0 && pair[1].trim() === 'ATTRIB') readEnt('ATTRIB')
+        e.att = []
+        while (pair && pair[0] === 0 && pair[1].trim() === 'ATTRIB') e.att.push(readEnt('ATTRIB'))
         if (pair && pair[0] === 0 && pair[1].trim() === 'SEQEND') readEnt('SEQEND')
       }
     }
@@ -465,6 +474,7 @@ export function parseDxf(text, onProgress, opt = {}) {
         return
       }
       case 'INSERT': case 'DIMENSION': {
+        if (e.att) for (const a of e.att) draw(a, M, ly, rgb, depth + 1)   /* 속성 글자는 이미 제자리 좌표 */
         const name = gs(g, 2)
         const bl = blocks.get(name)
         if (!bl) { if (t === 'INSERT') skip('없는 블록'); return }
@@ -497,6 +507,14 @@ export function parseDxf(text, onProgress, opt = {}) {
           return
         }
         for (const s of bl.ents) { draw(s, X, ly, rgb, depth + 1); if (stats.capped) return }
+        return
+      }
+      case 'TEXT': case 'MTEXT': case 'ATTRIB': {
+        let str = ''
+        if (t === 'MTEXT') { for (const [k, v] of g) if (k === 3) str += v; str += gs(g, 1) } else str = gs(g, 1)
+        const sc = M === I3 ? 1 : Math.hypot(M[0], M[4], M[8])
+        글자(unesc(str), P(M, g1(g, 10), g1(g, 20), g1(g, 30)), g1(g, 40) * sc, ly)
+        skip('글자'); stats.ents--
         return
       }
       default: {
@@ -571,7 +589,23 @@ export function parseDxf(text, onProgress, opt = {}) {
     pair = R.next()
   }
 
-  return finish(out, layerInfo, stats)
+  if (opt.raw) return { out, layerInfo, stats, texts }
+  const r = finish(out, layerInfo, stats)
+  r.texts = texts
+  return r
+}
+
+/* MTEXT 서식 걷어내기 — \P(줄바꿈) · {\fArial|b0;…} · \H2.5x; · %%P(±) · %%D(°) */
+function 글자다듬기(s) {
+  return String(s || '')
+    .replace(/\\P/gi, ' ')
+    .replace(/\\[ACcFfHhQqTtWw][^;]*;/g, '')
+    .replace(/\\[LlOoKkXx]/g, '')
+    .replace(/\\S([^;]*)\^([^;]*);/g, '$1/$2')
+    .replace(/[{}]/g, '')
+    .replace(/%%[Pp]/g, '±').replace(/%%[Dd]/g, '°').replace(/%%[Cc]/g, 'Ø')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 /* 비균일 B-스플라인(드보어) — 가중치가 있으면 유리식 */
@@ -605,7 +639,7 @@ function bspline(p, P, U, W) {
 }
 
 /* 가운데를 빼고 float32 로 — 가운데는 «튀는 점» 에 끌리지 않게 가운데값(1~99%)으로 */
-function finish(out, layerInfo, stats) {
+export function finish(out, layerInfo, stats) {
   const sample = []
   let seen = 0
   for (const b of out.values()) {
@@ -641,9 +675,32 @@ function finish(out, layerInfo, stats) {
     for (let i = 0; i < b.pts.n; i += 3) {
       pts[i] = b.pts.a[i] - center[0]; pts[i + 1] = b.pts.a[i + 1] - center[1]; pts[i + 2] = b.pts.a[i + 2] - center[2]
     }
-    const info = layerInfo.get(name) || {}
-    layers.push({ name, rgb: info.rgb || ACI[7], off: !!info.off, pos, col: b.col.a.slice(0, b.col.n),
-      segs: b.pos.n / 6, pts, pcol: b.pcol.a.slice(0, b.pcol.n), box: layerBox(pos, pts), smp: layerSample(pos, pts) })
+    /* 🏢 건물로 세운 것은 버킷 이름이 «층\u0001레이어» 입니다 (building3d.js) */
+    const cut = name.indexOf('\u0001')
+    const floor = cut >= 0 ? name.slice(0, cut) : ''
+    const ly = cut >= 0 ? name.slice(cut + 1) : name
+    const info = layerInfo.get(ly) || {}
+    /* 세운 벽 면(세모) — 면마다 바깥쪽 방향(법선)을 붙여 빛을 받게 합니다 */
+    let tri = null, trn = null, trc = null
+    if (b.tri && b.tri.n) {
+      const n = b.tri.n
+      tri = new Float32Array(n); trn = new Float32Array(n); trc = b.trc.a.slice(0, b.trc.n)
+      const A = b.tri.a
+      for (let i = 0; i < n; i += 9) {
+        for (let k = 0; k < 9; k += 3) {
+          tri[i + k] = A[i + k] - center[0]; tri[i + k + 1] = A[i + k + 1] - center[1]; tri[i + k + 2] = A[i + k + 2] - center[2]
+        }
+        const ux = A[i + 3] - A[i], uy = A[i + 4] - A[i + 1], uz = A[i + 5] - A[i + 2]
+        const vx = A[i + 6] - A[i], vy = A[i + 7] - A[i + 1], vz = A[i + 8] - A[i + 2]
+        let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx
+        const L = Math.hypot(nx, ny, nz) || 1
+        nx /= L; ny /= L; nz /= L
+        for (let k = 0; k < 9; k += 3) { trn[i + k] = nx; trn[i + k + 1] = ny; trn[i + k + 2] = nz }
+      }
+    }
+    layers.push({ name, floor, ly, rgb: info.rgb || ACI[7], off: !!info.off, pos, col: b.col.a.slice(0, b.col.n),
+      segs: b.pos.n / 6, pts, pcol: b.pcol.a.slice(0, b.pcol.n), box: layerBox(pos, pts), smp: layerSample(pos, pts),
+      tri, trn, trc })
   }
   layers.sort((a, b) => (b.segs + b.pts.length / 3) - (a.segs + a.pts.length / 3))
   return { layers, center, box, zr: Number.isFinite(zmin) ? [zmin, zmax] : [0, 0], stats }

@@ -17,6 +17,18 @@ const FS = `
 precision mediump float; varying vec3 v;
 void main(){ gl_FragColor = vec4(v, 1.0); }`
 
+/* 🏢 2026-09-26 — 세운 벽 «면» 을 그리는 두 번째 붓. 빛(한 방향)을 받아 밝고 어두움이 생겨야 입체로 보입니다. */
+const VS2 = `
+attribute vec3 p; attribute vec3 n; attribute vec3 c;
+uniform mat4 M; uniform float zs; uniform vec3 L;
+varying vec3 v;
+void main(){ gl_Position = M * vec4(p.x, p.y, p.z * zs, 1.0);
+  float d = abs(dot(normalize(vec3(n.x, n.y, n.z / zs)), L));
+  v = c * (0.42 + 0.58 * d); }`
+const FS2 = `
+precision mediump float; varying vec3 v; uniform float a;
+void main(){ gl_FragColor = vec4(v, a); }`
+
 function sh(gl, t, src) {
   const s = gl.createShader(t)
   gl.shaderSource(s, src); gl.compileShader(s)
@@ -61,6 +73,15 @@ export class LineView {
     this.pr = pr
     this.aP = gl.getAttribLocation(pr, 'p'); this.aC = gl.getAttribLocation(pr, 'c')
     this.uM = gl.getUniformLocation(pr, 'M'); this.uZ = gl.getUniformLocation(pr, 'zs'); this.uS = gl.getUniformLocation(pr, 'ps')
+    const p2 = gl.createProgram()
+    gl.attachShader(p2, sh(gl, gl.VERTEX_SHADER, VS2))
+    gl.attachShader(p2, sh(gl, gl.FRAGMENT_SHADER, FS2))
+    gl.linkProgram(p2)
+    if (!gl.getProgramParameter(p2, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p2))
+    this.p2 = p2
+    this.bP = gl.getAttribLocation(p2, 'p'); this.bN = gl.getAttribLocation(p2, 'n'); this.bC = gl.getAttribLocation(p2, 'c')
+    this.vM = gl.getUniformLocation(p2, 'M'); this.vZ = gl.getUniformLocation(p2, 'zs'); this.vL = gl.getUniformLocation(p2, 'L'); this.vA = gl.getUniformLocation(p2, 'a')
+    this.면투명 = 0.55
     this.L = []
     this.zs = 1
     this.t = [0, 0, 0]; this.d = 100; this.yaw = -Math.PI / 3; this.pit = 0.55
@@ -73,9 +94,14 @@ export class LineView {
 
   setLayers(layers) {
     const gl = this.gl
-    for (const l of this.L) for (const b of [l.vb, l.cb, l.pb, l.pcb]) if (b) gl.deleteBuffer(b)
+    for (const l of this.L) for (const b of [l.vb, l.cb, l.pb, l.pcb, l.tb, l.tnb, l.tcb]) if (b) gl.deleteBuffer(b)
     this.L = layers.map((x) => {
-      const o = { name: x.name, on: !x.off, n: x.pos.length / 3, pn: x.pts.length / 3 }
+      const o = { name: x.name, on: !x.off, n: x.pos.length / 3, pn: x.pts.length / 3, tn: x.tri ? x.tri.length / 3 : 0 }
+      if (o.tn) {
+        o.tb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, o.tb); gl.bufferData(gl.ARRAY_BUFFER, x.tri, gl.STATIC_DRAW)
+        o.tnb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, o.tnb); gl.bufferData(gl.ARRAY_BUFFER, x.trn, gl.STATIC_DRAW)
+        o.tcb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, o.tcb); gl.bufferData(gl.ARRAY_BUFFER, x.trc, gl.STATIC_DRAW)
+      }
       if (o.n) {
         o.vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, o.vb); gl.bufferData(gl.ARRAY_BUFFER, x.pos, gl.STATIC_DRAW)
         o.cb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, o.cb); gl.bufferData(gl.ARRAY_BUFFER, x.col, gl.STATIC_DRAW)
@@ -90,6 +116,7 @@ export class LineView {
   }
   setOn(name, on) { for (const l of this.L) if (l.name === name) l.on = on; this.dirty() }
   setAll(fn) { for (const l of this.L) l.on = !!fn(l.name); this.dirty() }
+  set면(a) { this.면투명 = a; this.dirty() }
   setZ(z) { const k = z / this.zs; this.t[2] *= k; this.zs = z; this.dirty() }
 
   /** box = [x0,y0,z0,x1,y1,z1] (가운데를 뺀 좌표) */
@@ -97,7 +124,7 @@ export class LineView {
     if (!box) return
     this.t = [(box[0] + box[3]) / 2, (box[1] + box[4]) / 2, ((box[2] + box[5]) / 2) * this.zs]
     const r = Math.max(box[3] - box[0], box[4] - box[1], (box[5] - box[2]) * this.zs, 1e-3)
-    this.d = r * 1.25
+    this.d = r * (view === 'top' ? 1.25 : 1.75)
     if (view === 'top') { this.yaw = -Math.PI / 2; this.pit = Math.PI / 2 - 1e-3 }
     else if (view === 'side') { this.yaw = -Math.PI / 2; this.pit = 0.02 }
     else { this.yaw = -Math.PI / 3; this.pit = 0.55 }
@@ -141,6 +168,26 @@ export class LineView {
         gl.bindBuffer(gl.ARRAY_BUFFER, l.pcb); gl.vertexAttribPointer(this.aC, 3, gl.UNSIGNED_BYTE, true, 0, 0)
         gl.drawArrays(gl.POINTS, 0, l.pn)
       }
+    }
+    gl.disableVertexAttribArray(this.aP); gl.disableVertexAttribArray(this.aC)
+    /* 면 — 반투명으로 얹습니다 (속의 층 선이 비쳐 보이게). 깊이는 쓰지 않아 순서에 덜 탑니다 */
+    if (this.L.some((l) => l.on && l.tn)) {
+      gl.useProgram(this.p2)
+      gl.uniformMatrix4fv(this.vM, false, new Float32Array(mm(P, V)))
+      gl.uniform1f(this.vZ, this.zs)
+      gl.uniform3f(this.vL, 0.42, -0.55, 0.72)
+      gl.uniform1f(this.vA, this.면투명)
+      gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false)
+      gl.enableVertexAttribArray(this.bP); gl.enableVertexAttribArray(this.bN); gl.enableVertexAttribArray(this.bC)
+      for (const l of this.L) {
+        if (!l.on || !l.tn) continue
+        gl.bindBuffer(gl.ARRAY_BUFFER, l.tb); gl.vertexAttribPointer(this.bP, 3, gl.FLOAT, false, 0, 0)
+        gl.bindBuffer(gl.ARRAY_BUFFER, l.tnb); gl.vertexAttribPointer(this.bN, 3, gl.FLOAT, false, 0, 0)
+        gl.bindBuffer(gl.ARRAY_BUFFER, l.tcb); gl.vertexAttribPointer(this.bC, 3, gl.UNSIGNED_BYTE, true, 0, 0)
+        gl.drawArrays(gl.TRIANGLES, 0, l.tn)
+      }
+      gl.disableVertexAttribArray(this.bP); gl.disableVertexAttribArray(this.bN); gl.disableVertexAttribArray(this.bC)
+      gl.depthMask(true); gl.disable(gl.BLEND)
     }
   }
 
@@ -222,7 +269,7 @@ export class LineView {
     cancelAnimationFrame(this._raf)
     if (this._unbind) this._unbind()
     const gl = this.gl
-    for (const l of this.L) for (const b of [l.vb, l.cb, l.pb, l.pcb]) if (b) gl.deleteBuffer(b)
+    for (const l of this.L) for (const b of [l.vb, l.cb, l.pb, l.pcb, l.tb, l.tnb, l.tcb]) if (b) gl.deleteBuffer(b)
     this.L = []
   }
 }

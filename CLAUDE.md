@@ -219,14 +219,14 @@ cd web && firebase deploy --only hosting        (또는 --only database)
 | `/report` | 업체 입찰 성적표 (만들어 드림) — 엔진은 `tools/report_data.py` · `report_html.py` · `report_pdf.mjs` | `Report.jsx` |
 | `/safety` | 안전관리계획서·유해위험방지계획서 (준비 중) | `Safety.jsx` |
 | `/jeoksan` | K-적산 소개. 2026-09-25 부터 «시험 중 — 팔지 않음», 단가·내역서·원가계산서는 «안 됩니다» 로 적음 | `Jeoksan.jsx` |
-| `/jeoksan/run` | **수량산출서 만들기 — 브라우저에서 «실제로 돕니다»** (2026-09-16).
+| `/jeoksan/run` | **수량산출서 만들기 — 브라우저에서 «실제로 돕니다»** (2026-09-16). **2026-09-26 무료 개방** — 잠금(Locked) 풂 · 견본 재료표 «그대로 쓰기» · 치수는 화면 표에 바로 적기(CSV·엑셀도).
 재료표(xlsx)+치수표(csv) → 산출서·집계·태그별·검산·쓴표 5장.
 셈은 `lib/qto.js`·`lib/susik.js` — **PC 의 `K-적산/kqto.py`·`kq_susik.py` 와 같은 수량을 내야 합니다.**
 한쪽만 고치지 말 것. 맞는지는 `node tools/시험_적산.mjs` | `JeoksanRun.jsx` |
 | `/shareone` | 쉐어원 — 사무실 공유폴더 배포 | `ShareOne.jsx` |
 | `/cad` · `/cad/{slug}` | 캐드 유틸 (리습 내려받기) | `Cad.jsx` |
 | `/tools` · `/tools/{slug}` | 건설 도구 12가지 | `Tools.jsx` |
-| `/tools/dxf3d` | **도면 3D 보기** (2026-09-25) — DXF 를 브라우저 안에서만 읽어 선을 도면 높이(Z) 그대로 세움. 서버 없음. 읽기 `lib/dxf3d.js`(일꾼 `dxf3d.worker.js`) · 그리기 `lib/gl3d.js`(WebGL, three.js 없이) | `Dxf3d.jsx` |
+| `/tools/dxf3d` | **도면 3D 보기** (2026-09-25) — DXF 를 브라우저 안에서만 읽어 선을 도면 높이(Z) 그대로 세움. 서버 없음. 읽기 `lib/dxf3d.js`(일꾼 `dxf3d.worker.js`) · 그리기 `lib/gl3d.js`(WebGL, three.js 없이). **2026-09-26 건물 세우기** — 여러 장을 받아 평면도 제목으로 층을 나누고 도면 글자(GL/FL +5,200 · 입면도 층 이름 자리)에서 층 높이를 찾아 쌓고 벽·기둥을 세움 `lib/building3d.js` (시험: 여수 새마을금고 — 골구도 값과 입면도 값이 같음. ⚠️ 금동배수장 도면은 쓰지 말 것: 바뀌기 전 도면) | `Dxf3d.jsx` |
 | `/guide` · `/guide/{slug}` | 입찰 알아보기 | `Guide.jsx` |
 | `/how` | 보는 방법 — 처음이시면 여기부터 | `How.jsx` |
 | `/qna` | 묻고 답하기 | `Qna.jsx` |
