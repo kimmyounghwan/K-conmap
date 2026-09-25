@@ -5,7 +5,7 @@
  *          이용자가 선택」 · 「1차로 채워주고, 2차로 사람이 검증」 · 「나만 쓸 수 있게」
  *
  * ■ 하는 일
- *    ① 공내역서(.xlsx)를 올리면  ② 서버(jeoksanfill 함수)가 PC 의 K-적산 프로그램 «그대로» 단가를 채우고
+ *    ① 공내역서(.xlsx·.xls)를 올리면  ② 서버(jeoksanfill 함수)가 PC 의 K-적산 프로그램 «그대로» 단가를 채우고
  *    ③ 애매한 줄은 후보 1~5 를 보여 드립니다  ④ 고르시면 다시 채워 엑셀로 받습니다.
  * ■ 도면 (2026-09-24) — 소장님: 「캐드 파일은 지금 안되는 거야? 같이 드래그 해서 놓으면…」
  *    도면(.dxf)·재료표를 같이 놓으면 «브라우저 안에서» 물량을 세고(lib/도면물량.js = 실험실과 같은 셈),
@@ -17,6 +17,12 @@
  * ■ 공내역서와 채운 결과는 서버에 남지 않습니다. 남는 것은 고르신 «짝» 뿐입니다(다음에 자동으로 붙게).
  * ■ ⚠️ 셈·자료는 여기에 없습니다(공개 저장소에 올리지 않음). 이 화면은 올리고 받는 일만 합니다.
  * ⚠️ 검색엔진에 올리지 않습니다 — noindex, sitemap·prerender 에도 안 넣습니다.
+ * ■ 옛 엑셀(.xls)·매크로 엑셀(.xlsm) (2026-09-25) — 소장님: 「프로그램이 알아서 칸을 맞추게 안돼?」
+ *    서버가 칸 제목(품명·규격·수량·단위 …)을 읽어 자리를 잡습니다(K-적산 칸찾기.py). 나라장터 공내역서는
+ *    발주처마다 칸 차례가 다르고 .xls 도 많습니다. 브라우저는 .xls 를 열지 못하므로 «공내역서» 로 보고 그대로 보냅니다.
+ * ■ 튀는 줄 (2026-09-25) — 소장님: 「사람이 했다고 해서 맞는다는 보장은 없잖아」
+ *    서버가 채운 단가를 다른 발주처 설계내역서 값과 대 봅니다(K-적산 튐검사). 튀는 줄·금액 큰 줄은
+ *    «확실히 붙은» 줄이어도 목록에 올리고, 까닭을 줄 밑에 빨강(센 것)·주황(약한 것)으로 보입니다.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { isOp } from '../lib/운영자.js'
@@ -34,6 +40,8 @@ const 이름표 = {
   참고후보: ['참고', '닮은 것이 약합니다 — 참고만'],
   못찾음: ['못찾음', '자료에 없습니다 (견적 품목)'],
   직접넣을줄: ['직접', '1식 금액 — 직접 넣으십시오'],
+  자동: ['자동', '확실히 붙은 줄 — 아래 까닭으로 한 번 보십시오'],
+  장부: ['장부', '고르신 짝 — 아래 까닭으로 한 번 보십시오'],
 }
 
 let _fb = null
@@ -167,10 +175,18 @@ function Fill() {
           } else {
             말.push({ name: f.name, 갈래: '✕', 까닭: '단가표는 여기서 안 씁니다 — 단가는 적산자료로 채웁니다' })
           }
-        } else if (끝 === '.xlsx') {
+        } else if (끝 === '.xlsx' || 끝 === '.xlsm' || 끝 === '.xls') {
           if (f.size > 30 * 1024 * 1024) { 말.push({ name: f.name, 갈래: '✕', 까닭: '30MB 가 넘는 파일은 못 받습니다' }); continue }
           let r = { 갈래: '공내역서', 까닭: '' }
-          if (f.size <= 15 * 1024 * 1024) r = m.가리기.책가리기(new Uint8Array(await f.arrayBuffer()))
+          /* 이름은 .xlsx 인데 속은 옛 엑셀인 파일도 있습니다 — «파일 머리» 4바이트로 봅니다 */
+          const 머리 = new Uint8Array(await f.slice(0, 4).arrayBuffer())
+          const 옛엑셀 = 머리[0] === 0xd0 && 머리[1] === 0xcf && 머리[2] === 0x11 && 머리[3] === 0xe0
+          if (끝 === '.xls' || 옛엑셀) r = { 갈래: '공내역서', 까닭: '옛 엑셀(.xls) — 서버가 칸 제목을 읽어 자리를 잡습니다' }
+          else if (f.size <= 15 * 1024 * 1024) {
+            r = m.가리기.책가리기(new Uint8Array(await f.arrayBuffer()))
+            /* 이 화면의 미리보기는 칸 제목을 몇 가지만 압니다. 못 알아봐도 서버(칸 찾기)가 다시 읽습니다 */
+            if (r.갈래 === '모름') r = { 갈래: '공내역서', 까닭: '공내역서로 봅니다 — 칸 제목은 서버가 찾아 읽습니다' }
+          }
           if (r.갈래 === '재료표') {
             const buf = new Uint8Array(await f.arrayBuffer())
             새재료 = { name: f.name, buf, 기억: false }
@@ -183,7 +199,7 @@ function Fill() {
             말.push({ name: f.name, 갈래: '공내역서', 까닭: 새내역.까닭 })
           }
         } else {
-          말.push({ name: f.name, 갈래: '✕', 까닭: '다룰 수 있는 것은 공내역서·재료표(.xlsx) · 도면(.dxf) · 치수표(.csv) 입니다' })
+          말.push({ name: f.name, 갈래: '✕', 까닭: '다룰 수 있는 것은 공내역서(.xlsx·.xls) · 재료표(.xlsx) · 도면(.dxf) · 치수표(.csv) 입니다' })
         }
       } catch (e) {
         말.push({ name: f.name, 갈래: '✕', 까닭: `못 읽었습니다: ${e?.message || e}` })
@@ -246,7 +262,8 @@ function Fill() {
   const 목록 = useMemo(() => {
     if (!res) return []
     const a = res.고를것 || []
-    if (보기 === '확인') return a.filter((r) => r.왜 === '임시' || r.왜 === '장부확인')
+    if (보기 === '확인') return a.filter((r) => r.왜 === '임시' || r.왜 === '장부확인' || r.왜 === '자동' || r.왜 === '장부')
+    if (보기 === '튐') return a.filter((r) => r.튐)
     if (보기 === '골라') return a.filter((r) => r.왜 === '골라주십시오' || r.왜 === '참고후보')
     if (보기 === '없음') return a.filter((r) => r.왜 === '못찾음' || r.왜 === '직접넣을줄')
     return a
@@ -275,9 +292,9 @@ function Fill() {
              onDragOver={(e) => { e.preventDefault(); set끌림(true) }}
              onDragLeave={() => set끌림(false)}
              onDrop={(e) => { e.preventDefault(); set끌림(false); 놓기(e.dataTransfer.files) }}>
-          <b>공내역서(.xlsx) · 도면(.dxf) · 재료표(.xlsx) 를 여기에 떨어뜨리거나 눌러서 고르십시오</b>
+          <b>공내역서(.xlsx·.xls) · 도면(.dxf) · 재료표(.xlsx) 를 여기에 떨어뜨리거나 눌러서 고르십시오</b>
           <span>열어 보고 무엇인지 가립니다 · 공내역서 30MB 까지 · 재료표는 한 번 놓으면 기억</span>
-          <input ref={inRef} type="file" accept=".xlsx,.dxf,.dwg,.csv" multiple hidden
+          <input ref={inRef} type="file" accept=".xlsx,.xlsm,.xls,.dxf,.dwg,.csv" multiple hidden
                  onChange={(e) => { 놓기(e.target.files); e.target.value = '' }} />
         </div>
 
@@ -373,6 +390,9 @@ function Fill() {
               <tr><td>△ 골라 주실 것</td><td><b>{won(s.골라)}</b> (참고만 {won(s.참고)})</td></tr>
               <tr><td>✕ 못 찾음 · 직접 넣을 1식</td><td><b>{won(s.못찾음)}</b> · {won(s.직접)}</td></tr>
               <tr><td>채운 금액</td><td><b>{won(s.채운금액)}</b>원 (확인 필요 {won(s.확인금액)}원)</td></tr>
+              {s.튐 !== undefined && (
+                <tr><td>⚠ 단가가 튀는 줄</td><td><b>{won(s.튐)}</b> (센 것 {won(s.튐센)}) · {won(s.튐금액)}원</td></tr>
+              )}
               {도 && 도.방식 === '대조' && (
                 <tr><td>📐 도면 대조</td><td>맞음 <b>{won(도.맞음)}</b> · 다름 <b>{won(도.다름)}</b> · 내역서에 없음 {won(도.없음)}</td></tr>
               )}
@@ -380,7 +400,7 @@ function Fill() {
           </table>
           <a className="btn" style={{ marginTop: 12 }} href={url} download={res.파일이름}>⬇ {res.파일이름}</a>
           <p className="muted" style={{ fontSize: 12, marginTop: 8, lineHeight: 1.8 }}>
-            엑셀 탭: {도 && 도.방식 === '도면만' ? '수량산출서 · ' : ''}내역서{도 && 도.방식 === '대조' ? ' · 도면대조' : ''} · 일위대가 · 단가산출 · 원가계산서 · 짝짓기 · 검산. 주황색 줄이 «확인 필요» 입니다.
+            엑셀 탭: {도 && 도.방식 === '도면만' ? '수량산출서 · ' : ''}내역서{도 && 도.방식 === '대조' ? ' · 도면대조' : ''} · 일위대가 · 단가산출 · 원가계산서 · 짝짓기 · 검산. 주황색 줄이 «확인 필요» 입니다.{s.튐 !== undefined ? ' 맨 오른쪽 «검사» 칸에 튀는 까닭을 적었습니다.' : ''}
             {도 && 도.방식 === '도면만' ? ' 내역서 수량 칸이 수량산출서를 가리킵니다.' : ''}
             {res.새장부 ? ` 방금 고르신 ${res.새장부}개를 기억했습니다.` : ''}
           </p>
@@ -425,7 +445,7 @@ function Fill() {
         <div className="card">
           <div className="sec-title">④ 고르기 <span className="count">금액 큰 순 · 같은 품목은 한 줄</span></div>
           <div className="navrow" style={{ flexWrap: 'wrap', gap: 6 }}>
-            {[['확인', '🟧 확인 필요'], ['골라', '△ 골라 주실 것'], ['없음', '✕ 못 찾음·직접'], ['전체', '전체']].map(([k, t]) => (
+            {[['확인', '🟧 확인 필요'], ...(s && s.튐 ? [['튐', `⚠ 단가 튐 ${won(s.튐)}`]] : []), ['골라', '△ 골라 주실 것'], ['없음', '✕ 못 찾음·직접'], ['전체', '전체']].map(([k, t]) => (
               <button key={k} className={`btn sm${보기 === k ? '' : ' ghost'}`} onClick={() => { set보기(k); set몇(40) }}>{t}</button>
             ))}
           </div>
@@ -461,6 +481,9 @@ function Row({ r, v, set }) {
         <span className="fill-amt">{r.예상금액 ? `${won(r.예상금액)}원` : ''}</span>
       </div>
       <div className="muted" style={{ fontSize: 12 }}>{r.시트} {r.행}행 · {풀이}{r.지금 ? ` · 지금: ${r.지금}` : ''}</div>
+      {r.검사 && (
+        <div style={{ fontSize: 12.5, color: r.튐 === '센' ? '#c00000' : '#b45309', fontWeight: r.튐 === '센' ? 600 : 400 }}>{r.검사}</div>
+      )}
       {r.후보.length > 0 && (
         <div className="fill-cands">
           {r.후보.map((c) => (
