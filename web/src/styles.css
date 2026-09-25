@@ -3546,3 +3546,11 @@ ul.plainlist li { margin-bottom: 5px; }
 .dx3-only { border: 1px solid var(--line); background: var(--surface-2); color: var(--text-2); border-radius: 6px; font-size: 11px; padding: 1px 6px; cursor: pointer; width: auto; }
 .dx3-btbl td:nth-child(4) { min-width: 170px; }
 @media (max-width: 560px) { .dx3-btbl th:nth-child(5), .dx3-btbl td:nth-child(5) { display: none; } }
+/* 🧪 예시로 해 보기 (2026-09-26) — 도구마다 맨 위 한 줄 */
+.tlx-ex { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; padding: 9px 11px; border-radius: 10px; background: var(--accent-soft); border: 1px dashed var(--accent); }
+.tlx-exd { font-size: 12.5px; color: var(--text-2); }
+
+/* 🦺 /safety 준비 서류 체크 목록 (2026-09-26) — ☐ 를 글머리로 쓰므로 점을 뺍니다 */
+.flist.sf-chk { list-style: none; padding-left: 4px; }
+#sf-a, #sf-b, #sf-prep { scroll-margin-top: 64px; }
+@media (min-width: 620px) { .btn-grid.sf-jump { grid-template-columns: 1fr 1fr 1fr; } }

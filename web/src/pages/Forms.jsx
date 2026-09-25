@@ -55,6 +55,12 @@ function 맞나(f, q) {
 const GROUPS = ['일반', '계약·공사', '계약·임대구매', '계약·노무기타',
   '공무', '공사', '안전', '품질', '환경', '노무·장비']
 
+/* 서식 «놓치기 쉬운 것» 의 **굵게** 를 진짜 굵은 글씨로 (2026-09-26)
+ * forms.json 143줄이 ** 를 쓰는데 화면에 별표가 그대로 나오고 있었습니다. */
+function 굵게(s) {
+  return String(s).split(/\*\*(.+?)\*\*/g).map((x, i) => (i % 2 ? <b key={i}>{x}</b> : x))
+}
+
 export function bySlug(slug) {
   return FORMS.find((f) => f.slug === slug) || null
 }
@@ -431,13 +437,13 @@ export function FormPage() {
 
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 6px' }}>언제 내나</div>
-        <div className="fwhen">{f.when}</div>
+        <div className="fwhen">{굵게(f.when)}</div>
       </div>
 
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 6px' }}>놓치기 쉬운 것</div>
         <ul className="flist">
-          {f.notes.map((n, i) => <li key={i}>{n}</li>)}
+          {f.notes.map((n, i) => <li key={i}>{굵게(n)}</li>)}
         </ul>
       </div>
 

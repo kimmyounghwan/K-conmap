@@ -34,7 +34,7 @@ const NAME = {
   '/cad': '캐드 유틸',
   '/jeoksan': 'K-적산',
   '/naeyeok': '산출내역서',
-  '/safety': '안전관리계획서',
+  '/safety': '안전·유해위험방지 계획서',
   '/shareone': '쉐어원 공유폴더',
   '/report': '업체 입찰 성적표',
   '/lic': '면허별 경쟁도',

@@ -45,8 +45,8 @@ const A_PARTS = [
   { k: 'reti', n: '퇴직공제부금비', r: 2.30 },
   { k: 'qual', n: '품질관리비', r: 0.70 },
 ]
-export function AValue() {
-  const [base, setBase] = useState('')
+export function AValue({ ex = {} }) {
+  const [base, setBase] = useState(ex.base ?? '')
   const [rate, setRate] = useState(() => Object.fromEntries(A_PARTS.map((p) => [p.k, String(p.r)])))
   const b = num(base)
   const parts = A_PARTS.map((p) => ({ ...p, amt: b * num(rate[p.k]) / 100 }))
@@ -79,9 +79,9 @@ export function AValue() {
    낙찰하한금액 = (예정가격 − A) × 하한율 + A
    실효 투찰률  = 낙찰하한금액 ÷ 예정가격
    예정가격은 개찰 때 추첨이라, 여기서는 기초금액 × 사정률로 추정합니다. */
-export function EffectiveFloor() {
-  const [base, setBase] = useState('')
-  const [aval, setAval] = useState('')
+export function EffectiveFloor({ ex = {} }) {
+  const [base, setBase] = useState(ex.base ?? '')
+  const [aval, setAval] = useState(ex.aval ?? '')
   const [llr, setLlr] = useState('89.745')
   const [sj, setSj] = useState('99.896')
   const b = num(base), a = num(aval), r = num(llr) / 100, s = num(sj) / 100
@@ -122,10 +122,10 @@ const REBAR = [
   ['D10', 0.560], ['D13', 0.995], ['D16', 1.560], ['D19', 2.250], ['D22', 3.040],
   ['D25', 3.980], ['D29', 5.040], ['D32', 6.230], ['D35', 7.510], ['D38', 8.950], ['D41', 10.230],
 ]
-export function RebarWeight() {
-  const [d, setD] = useState('D16')
-  const [len, setLen] = useState('')
-  const [cnt, setCnt] = useState('')
+export function RebarWeight({ ex = {} }) {
+  const [d, setD] = useState(ex.d ?? 'D16')
+  const [len, setLen] = useState(ex.len ?? '')
+  const [cnt, setCnt] = useState(ex.cnt ?? '')
   const [add, setAdd] = useState('3')
   const u = (REBAR.find((x) => x[0] === d) || [, 0])[1]
   const kg = u * num(len) * num(cnt)
@@ -160,8 +160,8 @@ export function RebarWeight() {
 }
 
 /* ── 낙찰하한율 찾기 ─────────────────────────────────────────── */
-export function FloorRate() {
-  const [est, setEst] = useState('')
+export function FloorRate({ ex = {} }) {
+  const [est, setEst] = useState(ex.est ?? '')
   const e = num(est)
   const r = e > 0 ? lowerLimit(e) : null
   return (
@@ -180,8 +180,8 @@ export function FloorRate() {
 
 /* ── 적격심사 점수 합산기 — 배점표는 내장하지 않습니다 ───────────── */
 const QITEMS = ['경영상태', '시공경험', '기술능력', '신인도', '자재·장비', '기타']
-export function QualifyScore() {
-  const [v, setV] = useState(() => Object.fromEntries(QITEMS.map((k) => [k, ''])))
+export function QualifyScore({ ex = {} }) {
+  const [v, setV] = useState(() => Object.fromEntries(QITEMS.map((k) => [k, (ex.v && ex.v[k]) ?? ''])))
   const [pass, setPass] = useState('95')
   const sum = QITEMS.reduce((a, k) => a + num(v[k]), 0)
   const need = num(pass) - sum
@@ -207,10 +207,10 @@ export function QualifyScore() {
 }
 
 /* ── 물가변동 조정금액 ────────────────────────────────────────── */
-export function PriceAdjust() {
-  const [amt, setAmt] = useState('')
-  const [rate, setRate] = useState('')
-  const [days, setDays] = useState('')
+export function PriceAdjust({ ex = {} }) {
+  const [amt, setAmt] = useState(ex.amt ?? '')
+  const [rate, setRate] = useState(ex.rate ?? '')
+  const [days, setDays] = useState(ex.days ?? '')
   const a = num(amt), r = num(rate), d = num(days)
   const ok90 = d >= 90, ok3 = Math.abs(r) >= 3
   const adj = (ok90 && ok3) ? a * r / 100 : 0
@@ -238,9 +238,9 @@ export function PriceAdjust() {
 }
 
 /* ── 토량환산계수 L·C ─────────────────────────────────────────── */
-export function SoilVolume() {
-  const [from, setFrom] = useState('nat')
-  const [vol, setVol] = useState('')
+export function SoilVolume({ ex = {} }) {
+  const [from, setFrom] = useState(ex.from ?? 'nat')
+  const [vol, setVol] = useState(ex.vol ?? '')
   const [L, setL] = useState('1.25')
   const [C, setC] = useState('0.90')
   const v = num(vol), l = num(L) || 1, c = num(C) || 1
@@ -276,9 +276,9 @@ export function SoilVolume() {
 }
 
 /* ── 콘크리트 물량 ────────────────────────────────────────────── */
-export function ConcreteVolume() {
-  const [w, setW] = useState(''); const [h, setH] = useState('')
-  const [l, setL] = useState(''); const [n, setN] = useState('1')
+export function ConcreteVolume({ ex = {} }) {
+  const [w, setW] = useState(ex.w ?? ''); const [h, setH] = useState(ex.h ?? '')
+  const [l, setL] = useState(ex.l ?? ''); const [n, setN] = useState(ex.n ?? '1')
   const [loss, setLoss] = useState('2')
   const v = num(w) * num(h) * num(l) * num(n)
   const vl = v * (1 + num(loss) / 100)
@@ -301,10 +301,10 @@ export function ConcreteVolume() {
 }
 
 /* ── 거푸집 면적 ──────────────────────────────────────────────── */
-export function FormworkArea() {
-  const [kind, setKind] = useState('col')
-  const [a, setA] = useState(''); const [b, setB] = useState('')
-  const [h, setH] = useState(''); const [n, setN] = useState('1')
+export function FormworkArea({ ex = {} }) {
+  const [kind, setKind] = useState(ex.kind ?? 'col')
+  const [a, setA] = useState(ex.a ?? ''); const [b, setB] = useState(ex.b ?? '')
+  const [h, setH] = useState(ex.h ?? ''); const [n, setN] = useState(ex.n ?? '1')
   const A = num(a), B = num(b), H = num(h), N = num(n)
   let area = 0, how = ''
   if (kind === 'col') { area = 2 * (A + B) * H * N; how = '둘레 × 높이 (네 옆면)' }
@@ -341,8 +341,8 @@ export function FormworkArea() {
 }
 
 /* ── 레미콘 대수 ──────────────────────────────────────────────── */
-export function RemiconTruck() {
-  const [vol, setVol] = useState(''); const [cap, setCap] = useState('6'); const [loss, setLoss] = useState('2')
+export function RemiconTruck({ ex = {} }) {
+  const [vol, setVol] = useState(ex.vol ?? ''); const [cap, setCap] = useState('6'); const [loss, setLoss] = useState('2')
   const v = num(vol) * (1 + num(loss) / 100)
   const c = num(cap) || 6
   const cars = v > 0 ? Math.ceil(v / c) : 0
@@ -365,8 +365,8 @@ export function RemiconTruck() {
 }
 
 /* ── 아스팔트 톤수 ────────────────────────────────────────────── */
-export function AsphaltTonnage() {
-  const [area, setArea] = useState(''); const [t, setT] = useState('5')
+export function AsphaltTonnage({ ex = {} }) {
+  const [area, setArea] = useState(ex.area ?? ''); const [t, setT] = useState('5')
   const [den, setDen] = useState('2.35'); const [loss, setLoss] = useState('3')
   const v = num(area) * (num(t) / 100)
   const ton = v * num(den) * (1 + num(loss) / 100)
@@ -392,8 +392,8 @@ const BRICK = [
   ['0.5B 쌓기', 75], ['1.0B 쌓기', 149], ['1.5B 쌓기', 224], ['2.0B 쌓기', 298],
   ['콘크리트블록', 12.5],
 ]
-export function BrickCount() {
-  const [area, setArea] = useState(''); const [kind, setKind] = useState('1.0B 쌓기')
+export function BrickCount({ ex = {} }) {
+  const [area, setArea] = useState(ex.area ?? ''); const [kind, setKind] = useState('1.0B 쌓기')
   const [per, setPer] = useState('149'); const [loss, setLoss] = useState('4')
   const cnt = num(area) * num(per) * (1 + num(loss) / 100)
   const pick = (k) => { setKind(k); const f = BRICK.find((x) => x[0] === k); if (f) setPer(String(f[1])) }
@@ -416,6 +416,24 @@ export function BrickCount() {
       <div className="hint">표준형 시멘트벽돌(190×90×57, 줄눈 10mm) 기준입니다. <b>규격이나 줄눈이 다르면 ㎡당 장수를 고쳐 넣으세요.</b></div>
     </div>
   )
+}
+
+/* 🧪 2026-09-26 — 소장님: 「각각의 도구별로 예시가 하나씩 있어야 하지 않아. 그래야 사람들이 보고 해보지」
+   «예시로 해 보기» 를 누르면 아래 값이 칸에 들어가고 결과가 바로 나옵니다 (Tools.jsx ToolPage).
+   ⚠️ 가상의 공사 숫자입니다 — 남의 공사명·금액을 옮기지 않습니다. */
+export const EXAMPLES = {
+  'a-value': { 글: '기초금액 6억 3천만 원 공사 — 요율은 참고 기본값', ex: { base: '630,000,000' } },
+  'effective-floor': { 글: '기초금액 6억 3천만 원 · A값 3,780만 원 · 하한율 89.745%', ex: { base: '630,000,000', aval: '37,800,000' } },
+  'rebar-weight': { 글: 'D16 철근 8m 짜리 120개 · 할증 3%', ex: { d: 'D16', len: '8', cnt: '120' } },
+  'floor-rate': { 글: '추정가격 6억 3천만 원 공사', ex: { est: '630,000,000' } },
+  'qualify-score': { 글: '배점표에서 읽은 항목 점수를 넣은 모습 (예시 점수 — 실제 배점은 공고서)', ex: { v: { '경영상태': '15', '시공경험': '13.5', '기술능력': '0', '신인도': '1.2', '자재·장비': '0', '기타': '68' } } },
+  'price-adjust': { 글: '남은 공사 5억 원 · 등락률 4.2% · 계약 뒤 120일', ex: { amt: '500,000,000', rate: '4.2', days: '120' } },
+  'soil-volume': { 글: '자연상태 흙 1,000㎥ 를 흐트러진·다짐 상태로', ex: { from: 'nat', vol: '1000' } },
+  'concrete-volume': { 글: '보 0.4×0.6m, 길이 12m 짜리 8개', ex: { w: '0.4', h: '0.6', l: '12', n: '8' } },
+  'formwork-area': { 글: '기둥 0.5×0.5m, 높이 3.6m 짜리 12개', ex: { kind: 'col', a: '0.5', b: '0.5', h: '3.6', n: '12' } },
+  'remicon-truck': { 글: '콘크리트 45㎥ 를 6㎥ 차로', ex: { vol: '45' } },
+  'asphalt-tonnage': { 글: '포장 1,200㎡ · 두께 5cm', ex: { area: '1200' } },
+  'brick-count': { 글: '벽 85㎡ 를 1.0B 로 쌓을 때', ex: { area: '85' } },
 }
 
 /* slug → 계산기. tools.json 의 slug 와 짝이 맞아야 합니다 (selfcheck 가 대조합니다). */

@@ -14,7 +14,7 @@
 import { useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import DATA from '../data/tools.json'
-import { CALCS } from '../tools/calcs.jsx'
+import { CALCS, EXAMPLES } from '../tools/calcs.jsx'
 import NotFound from './NotFound.jsx'
 
 const TOOLS = DATA.tools || []
@@ -143,6 +143,7 @@ export default function ToolsIndex() {
 export function ToolPage() {
   const { slug } = useParams()
   const t = toolBySlug(slug)
+  const [판, set판] = useState({ n: 0, ex: null })   /* 🧪 «예시로 해 보기» — 판을 새로 깔아(key) 예시 값으로 채웁니다 */
   /* 없는 slug 는 soft 404 가 되지 않게 NotFound 로 — noindex 를 걸고 언마운트 때 지웁니다. */
   if (!t) return <NotFound />
   const Calc = CALCS[t.slug]
@@ -156,7 +157,17 @@ export function ToolPage() {
       </div>
 
       <div className="card">
-        {Calc ? <Calc /> : <div className="note">준비 중입니다.</div>}
+        {Calc && EXAMPLES[t.slug] && (
+          <div className="tlx-ex">
+            <button type="button" className="btn line sm" style={{ width: 'auto' }}
+                    onClick={() => set판({ n: 판.n + 1, ex: EXAMPLES[t.slug].ex })}>🧪 예시로 해 보기</button>
+            {판.ex
+              ? <><span className="tlx-exd">예시: {EXAMPLES[t.slug].글}</span>
+                  <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={() => set판({ n: 판.n + 1, ex: null })}>지우기</button></>
+              : <span className="tlx-exd">눌러 보시면 칸이 채워지고 결과가 바로 나옵니다</span>}
+          </div>
+        )}
+        {Calc ? <Calc key={판.n} ex={판.ex || {}} /> : <div className="note">준비 중입니다.</div>}
       </div>
 
       {(t.secs || []).map((s, i) => (

@@ -30,6 +30,17 @@
  *    **법이 바뀝니다.** 고칠 때마다 위 두 곳을 다시 열어 보고 고치십시오.
  *    화면 맨 아래에 「언제 기준인지」 를 적어 두는 것은 그래서입니다.
  *
+ * ✅ 2026-09-26 — **「준비 서류」 칸을 넣었습니다.** 소장님: 「안전관리계획서는 있는데,
+ *    위해위험방지계획서는 왜 없지? 그리고, 준비서류 등 이런게 쓰여져 있어야 하는데 없어」
+ *    → 대상표만 있고 «무엇을 · 언제 · 어디에 · 몇 부» 가 없었습니다. 두 계획서 모두 넣었습니다.
+ *    → 도구 모음·길잡이(빵부스러기) 이름에 유해·위험방지계획서가 빠져 있던 것도 고쳤습니다.
+ *    준비 서류는 2026-09-26 에 국가법령정보센터에서 원문을 직접 읽어 옮겼습니다:
+ *      · 건설기술진흥법 제62조 [시행 2025. 10. 1.] · 시행령 제98조·제99조 [시행 2026. 6. 9.]
+ *        · 시행규칙 제58조(별표 7) [시행 2026. 6. 11.]
+ *      · 산업안전보건법 제42조 [시행 2026. 6. 1.] · 시행규칙 제42조~제45조 · 별표 10
+ *        [시행 2026. 8. 1.] (별표 10 은 2021. 11. 19. 개정본이 그대로 유효)
+ *    ⚠️ 별표 10 의 «주요 작성대상» 은 줄이지 않고 공사 종류별로 다 옮겼습니다 — 빠뜨리면 보완 요구가 옵니다.
+ *
  * ⚠️ 값은 숫자로 적지 않습니다. /naeyeok · /jeoksan 과 같은 방침입니다.
  * ⚠️ 남의 제출본을 참고했지만 공사명·상호·사람 이름은 한 글자도 싣지 않습니다.
  */
@@ -39,6 +50,45 @@ import { PriceStance } from '../components.jsx'
 
 /* 기준을 읽어 온 날. 화면 아래에 그대로 적습니다 — 「언제 것인가」 가 제일 중요합니다. */
 const 기준일 = '2026-09-16'
+const 서류기준일 = '2026-09-26'
+
+/* 위 차례 단추 — 누르면 그 칸으로 내려갑니다 */
+const 가기 = (id) => () => {
+  const el = document.getElementById(id)
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+/* 별표 10 «주요 작성대상» — 공사 종류마다 무엇을 따로 계획해야 하나 (원문 순서 그대로) */
+const 작성대상 = [
+  ['건축물 등', '31m 이상 · 연면적 3만㎡ 이상 · 5천㎡ 이상 시설 (영 제42조제3항제1호)', [
+    '비계 조립·해체 (외부비계, 높이 3m 이상 내부비계)',
+    '높이 4m 넘는 거푸집동바리 조립·해체 — 데크플레이트·호리빔 같은 무지주공법, 옹벽 등 벽체 포함',
+    '작업발판 일체형 거푸집 조립·해체',
+    '철골 · PC(Precast Concrete) 조립',
+    '양중기 설치·연장·해체 · 천공·항타',
+    '밀폐공간 내 작업 — 질식·화재·폭발 예방계획을 넣어야 합니다',
+    '해체 작업',
+    '우레탄폼 등 단열재 작업 — 옆에서 하는 화기작업 포함',
+    '같은 장소(출입구를 같이 쓰는 곳)에서 둘 이상 공정이 동시에 도는 작업',
+  ]],
+  ['다리', '최대 지간 50m 이상 (제3호)', [
+    '하부공 — 작업발판 일체형 거푸집 · 양중기·천공·항타 · 교대·교각 기초와 벽체 철근조립 · 해상·하상 굴착과 기초',
+    '상부공 — 가설작업(ILM · FCM · FSM · MSS · PSM 등) · 양중기 · 상부슬래브 거푸집동바리(특수작업대 포함)',
+  ]],
+  ['터널', '제4호', [
+    'NATM — 굴진과 막장 붕괴·낙석방지 · 화약 취급과 발파 · 환기 · 작업대(굴진·방수·철근·타설)',
+    '그 밖의 공법(TBM · 쉴드 · 추진 · 침매 등) — 환기 · 막장 안 기계·설비 유지보수. 굴진과 막장 붕괴·낙석방지 계획도 넣어야 합니다',
+  ]],
+  ['댐', '제5호', [
+    '굴착과 발파',
+    '댐 축조(가체절 포함) — 기초처리 · 둑 비탈면 처리 · 흙쌓기·다짐 장비 · 작업발판 일체형 거푸집(콘크리트 댐)',
+  ]],
+  ['굴착공사', '깊이 10m 이상 (제6호)', [
+    '흙막이 가시설 조립·해체 (복공 포함)',
+    '굴착과 발파',
+    '양중기 설치·연장·해체 · 천공·항타',
+  ]],
+]
 
 export default function Safety() {
   return (
@@ -50,11 +100,17 @@ export default function Safety() {
         </p>
         <p className="muted" style={{ margin: 0 }}>
           먼저 <b>우리 현장이 대상인지</b>부터 보십시오. 아래 표에서 한 줄이라도 걸리면 대상입니다.
+          대상이면 <b>준비 서류</b>로 내려가십시오 — 무엇을 · 언제 · 어디에 · 몇 부 내는지 적어 두었습니다.
         </p>
+        <div className="btn-grid sf-jump" style={{ marginTop: 10 }}>
+          <button type="button" className="btn ghost" onClick={가기('sf-a')}>① 안전관리계획서 대상</button>
+          <button type="button" className="btn ghost" onClick={가기('sf-b')}>② 유해·위험방지계획서 대상</button>
+          <button type="button" className="btn primary" onClick={가기('sf-prep')}>📑 준비 서류</button>
+        </div>
       </div>
 
       {/* ── 대상 판정 ① 안전관리계획서 ── */}
-      <div className="card">
+      <div className="card" id="sf-a">
         <div className="sec-title">① 안전관리계획서 — 대상입니까</div>
         <p className="muted" style={{ marginTop: 0 }}>
           건설기술진흥법 시행령 제98조제1항. <b>한 줄이라도 걸리면 대상</b>입니다.
@@ -104,7 +160,7 @@ export default function Safety() {
       </div>
 
       {/* ── 대상 판정 ② 유해·위험방지계획서 ── */}
-      <div className="card">
+      <div className="card" id="sf-b">
         <div className="sec-title">② 유해·위험방지계획서 — 대상입니까</div>
         <p className="muted" style={{ marginTop: 0 }}>
           산업안전보건법 시행령 제42조제3항. 건설공사 쪽만 옮겨 적었습니다.
@@ -142,28 +198,204 @@ export default function Safety() {
             </tr>
             <tr>
               <td className="w"><b>내는 곳</b></td>
-              <td><b>안전관리계획서</b> — 발주자에게. 인·허가기관의 장이 확인합니다
+              <td><b>안전관리계획서</b> — 발주청에. 민간공사는 <b>인·허가기관의 장</b>에게
                 <br /><b>유해·위험방지계획서</b> — <b>한국산업안전보건공단</b>에</td>
             </tr>
             <tr>
-              <td className="w"><b>도장</b><span className="d">누가 찍나</span></td>
-              <td><b>유해·위험방지계획서</b>는 <b>검토자의 서명</b>이 문서 안에 들어갑니다.
-                제출본에는 <b>건설안전기술사</b>가 검토자로 적히고, 현장에서 현장대리인과
-                실제로 만나 회의한 <b>회의록과 사진</b>까지 들어갑니다.
+              <td className="w"><b>언제까지</b></td>
+              <td><b>안전관리계획서</b> — 착공 <b>전</b>
+                <br /><b>유해·위험방지계획서</b> — 착공 <b>전날</b>까지</td>
+            </tr>
+            <tr>
+              <td className="w"><b>먼저 받을 것</b><span className="d">누가 보나</span></td>
+              <td><b>안전관리계획서</b> — 공사감독자 또는 건설사업관리기술인의 <b>검토·확인</b>
+                <br /><b>유해·위험방지계획서</b> — 작성할 때 <b>자격자의 의견</b>을 들어야 합니다
+                (건설안전 지도사 · 건설안전기술사 · 토목·건축 기술사 등).
+                실제 제출본에는 검토자 서명과, 현장대리인과 만나 회의한 <b>회의록·사진</b>까지 들어갑니다.
                 <br /><span className="muted">서류만 잘 써서 되는 것이 아니라는 뜻입니다. 일정을 미리 잡아야 합니다.</span></td>
             </tr>
             <tr>
-              <td className="w"><b>처리기간</b></td>
-              <td><b>유해·위험방지계획서</b>는 접수 서식에 <b>15일</b>로 적혀 있습니다.
-                <br /><span className="muted">착공일에서 <b>거꾸로 세어</b> 일정을 잡으셔야 합니다.</span></td>
+              <td className="w"><b>결과는 언제</b></td>
+              <td><b>안전관리계획서</b> — 받은 날부터 <b>20일</b> 안에 통보
+                <br /><b>유해·위험방지계획서</b> — 접수일부터 <b>15일</b> 안에 심사
+                <br /><span className="muted">둘 다 적정 · 조건부 적정 · 부적정으로 나옵니다.
+                  착공일에서 <b>거꾸로 세어</b> 일정을 잡으셔야 합니다.</span></td>
             </tr>
             <tr>
               <td className="w"><b>분량</b></td>
               <td>현장마다 다릅니다. 공법·규모·투입 장비에 따라 크게 벌어집니다.
                 <br /><span className="muted">도면·계산서·점검표가 통째로 들어가서 생각보다 두꺼워집니다.</span></td>
             </tr>
+            <tr>
+              <td className="w"><b>한 권으로</b></td>
+              <td><b>둘 다 대상이면 합쳐서 한 권으로 만들 수 있습니다.</b>{' '}
+                두 법이 모두 통합 작성을 허용합니다
+                <span className="muted"> (건설기술진흥법 시행령 제98조제1항 · 산업안전보건법 시행규칙 제42조제3항)</span>.
+                <br /><span className="muted">다만 내는 곳은 여전히 두 군데입니다.</span></td>
+            </tr>
           </tbody>
         </table>
+      </div>
+
+      {/* ── 준비 서류 ──────────────────────────────────────
+          2026-09-26 소장님: 「준비서류 등 이런게 쓰여져 있어야 하는데 없어」
+          ⚠️ 법령 원문에서 옮긴 것만 적습니다. 조문 번호를 꼭 같이 적습니다 — 확인하실 수 있게. */}
+      <div className="card lead-card" id="sf-prep">
+        <div className="sec-title">📑 준비 서류 — 무엇을 · 언제 · 어디에 냅니까</div>
+        <p className="muted" style={{ margin: 0 }}>
+          법령 원문을 {서류기준일} 에 직접 읽어 옮겼습니다. 괄호 안은 근거 조문입니다.
+          발주처가 따로 정한 서식이나 추가 서류가 있으면 <b>그쪽이 먼저</b>입니다.
+        </p>
+      </div>
+
+      <div className="card">
+        <div className="sec-title">① 안전관리계획서 — 준비 서류</div>
+        <table className="tbl left reptbl">
+          <tbody>
+            <tr>
+              <td className="w"><b>누가</b></td>
+              <td>건설사업자 · 주택건설등록업자 <span className="muted">(건설기술진흥법 제62조제1항)</span></td>
+            </tr>
+            <tr>
+              <td className="w"><b>언제</b></td>
+              <td><b>착공 전</b>. 내용을 바꿀 때도 다시 냅니다 <span className="muted">(시행령 제98조제2항)</span></td>
+            </tr>
+            <tr>
+              <td className="w"><b>어디에</b></td>
+              <td>공공공사 — <b>발주청</b>에 내고 승인
+                <br />민간공사 — 발주자 승인 전에 <b>사본을 인·허가기관의 장</b>에게 내고 승인
+                <span className="muted"> (법 제62조제1항)</span></td>
+            </tr>
+            <tr>
+              <td className="w"><b>내기 전에</b></td>
+              <td><b>공사감독자</b> 또는 <b>건설사업관리기술인</b>의 검토·확인 <span className="muted">(시행령 제98조제2항)</span></td>
+            </tr>
+            <tr>
+              <td className="w"><b>검토는</b></td>
+              <td>건설안전점검기관에 맡겨 검토합니다. <b>1종·2종 시설물</b>은 <b>국토안전관리원</b>이 봅니다
+                <span className="muted"> (시행령 제98조제4항)</span></td>
+            </tr>
+            <tr>
+              <td className="w"><b>결과</b></td>
+              <td>받은 날부터 <b>20일</b> 안에 통보 — 적정 · 조건부 적정 · 부적정.
+                적정·조건부 적정이면 <b>승인서</b>가 나옵니다 <span className="muted">(시행령 제98조제3항·제5항)</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div className="sec-title" style={{ marginTop: 16 }}>들어가야 할 내용 — 일곱 가지</div>
+        <p className="muted" style={{ marginTop: 0 }}>
+          시행령 제99조제1항. 세부 기준은 시행규칙 제58조 <b>별표 7</b>에 있습니다.
+        </p>
+        <ol className="flist">
+          <li><b>건설공사의 개요</b>와 <b>안전관리조직</b></li>
+          <li><b>공정별 안전점검계획</b> — 계측장비 · CCTV 같은 안전 모니터링 장비의 설치·운용계획 포함</li>
+          <li><b>공사장 주변 안전관리대책</b> — 발파·진동·소음·지하수 차단으로 인한 주변 피해방지대책,
+            굴착 위험징후를 잡는 계측계획 포함</li>
+          <li><b>통행안전시설</b> 설치와 <b>교통 소통</b> 계획</li>
+          <li><b>안전관리비 집행계획</b></li>
+          <li><b>안전교육</b>과 <b>비상시 긴급조치계획</b></li>
+          <li><b>공종별 안전관리계획</b> — 시설물별 건설공법과 시공절차 포함</li>
+        </ol>
+      </div>
+
+      <div className="card">
+        <div className="sec-title">② 유해·위험방지계획서 — 준비 서류</div>
+        <table className="tbl left reptbl">
+          <tbody>
+            <tr>
+              <td className="w"><b>누가</b></td>
+              <td>그 건설공사를 착공하려는 <b>사업주</b> <span className="muted">(산업안전보건법 제42조제1항)</span></td>
+            </tr>
+            <tr>
+              <td className="w"><b>언제</b></td>
+              <td>해당 공사 <b>착공 전날까지</b>
+                <br /><span className="muted">여기서 착공은 대상 시설물·구조물 공사를 시작하는 날입니다.
+                  대지 정리 · 가설사무소 설치 같은 준비기간은 착공으로 보지 않습니다
+                  (시행규칙 제42조제3항)</span></td>
+            </tr>
+            <tr>
+              <td className="w"><b>어디에 · 몇 부</b></td>
+              <td><b>한국산업안전보건공단</b>에 <b>2부</b> <span className="muted">(시행규칙 제42조제3항)</span></td>
+            </tr>
+            <tr>
+              <td className="w"><b>서식</b></td>
+              <td><b>별지 제17호서식</b> 건설공사 유해위험방지계획서 + 아래 <b>별표 10</b> 첨부서류</td>
+            </tr>
+            <tr>
+              <td className="w"><b>작성할 때</b></td>
+              <td><b>자격자의 의견</b>을 들어야 합니다 <span className="muted">(법 제42조제2항 · 시행규칙 제43조)</span>
+                <br />— 건설안전 분야 산업안전지도사
+                <br />— 건설안전기술사 또는 토목·건축 분야 기술사
+                <br />— 건설안전기사 이상 + 건설안전 실무 <b>5년</b>, 건설안전산업기사 + <b>7년</b></td>
+            </tr>
+            <tr>
+              <td className="w"><b>결과</b></td>
+              <td>접수일부터 <b>15일</b> 안에 심사 — 적정 · 조건부 적정 · 부적정
+                <span className="muted"> (시행규칙 제44조제1항 · 제45조)</span>
+                <br /><span className="muted">부적정이면 <b>공사착공중지명령</b>이나 계획변경명령이 나올 수 있습니다.</span></td>
+            </tr>
+            <tr>
+              <td className="w"><b>나눠 내기</b></td>
+              <td>같은 사업장에서 공사마다 착공 시기가 다르면 <b>공사별로 나눠</b> 낼 수 있습니다.
+                이미 낸 첨부서류와 겹치는 것은 다시 안 내도 됩니다 <span className="muted">(시행규칙 제42조제4항)</span></td>
+            </tr>
+            <tr>
+              <td className="w"><b>자체심사 업체</b></td>
+              <td>별표 11 기준에 맞는 <b>자체심사 및 확인업체</b>는 스스로 심사하고
+                착공 전날까지 <b>별지 제18호서식 자체심사서</b>를 공단에 냅니다 <span className="muted">(시행규칙 제42조제5항·제6항)</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div className="sec-title" style={{ marginTop: 16 }}>첨부서류 1 — 공사 개요와 안전보건관리계획 <span className="muted">(별표 10 제1호)</span></div>
+        <ul className="flist sf-chk">
+          <li>☐ <b>공사 개요서</b> <span className="muted">(별지 제101호서식)</span></li>
+          <li>☐ <b>주변 현황과 주변과의 관계를 나타내는 도면</b> — <b>매설물 현황 포함</b></li>
+          <li>☐ <b>전체 공정표</b></li>
+          <li>☐ <b>산업안전보건관리비 사용계획서</b> <span className="muted">(별지 제102호서식)</span></li>
+          <li>☐ <b>안전관리 조직표</b></li>
+          <li>☐ <b>재해 발생 위험 시 연락 및 대피방법</b></li>
+        </ul>
+
+        <div className="sec-title" style={{ marginTop: 16 }}>첨부서류 2 — 공사 종류별 유해위험방지계획 <span className="muted">(별표 10 제2호)</span></div>
+        <p className="muted" style={{ marginTop: 0 }}>
+          작업마다 두 가지를 붙입니다 — ① <b>작업개요와 재해예방 계획</b> ·
+          ② <b>위험물질 종류별 사용량과 저장·보관·사용 때의 안전작업계획</b>.
+          아래는 법이 꼭 짚은 작업입니다.
+        </p>
+        <table className="tbl left reptbl">
+          <tbody>
+            {작성대상.map(([공사, 근거, 작업]) => (
+              <tr key={공사}>
+                <td className="w"><b>{공사}</b><span className="d">{근거}</span></td>
+                <td>{작업.map((x, i) => <div key={i}>· {x}</div>)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="muted" style={{ marginBottom: 0 }}>
+          ★ <b>여기 없는 작업도</b> 그 공사에서 한다면 계획서를 쓰고 첨부서류를 붙여야 합니다 (별표 10 비고).
+          <br />★ 건축물 공사에서 환기가 부족하거나 가연물이 있는 곳에서 단열재 취급 · 용접 · 용단 같은
+          화기작업을 하면 <b>세부계획</b>을 따로 넣어야 합니다.
+        </p>
+      </div>
+
+      {/* 준비 서류에 바로 쓰는 빈 서식 — /forms 에 이미 있는 것만 겁니다 */}
+      <div className="card">
+        <div className="sec-title">바로 쓰는 빈 서식 <span className="muted">· 무료</span></div>
+        <p className="muted" style={{ marginTop: 0 }}>
+          위 준비 서류 가운데 건설맵 서식에 있는 것입니다. 발주처 서식이 따로 있으면 그것을 쓰십시오.
+        </p>
+        <div className="btn-grid">
+          <Link className="btn ghost" to="/forms/anjeon-gyehoek">📕 안전관리계획서 표지·목차</Link>
+          <Link className="btn ghost" to="/forms/yuhae-gyehoek">📙 유해위험방지계획서 표지·목차</Link>
+          <Link className="btn ghost" to="/forms/anjeonbi-gyehoek">🦺 산업안전보건관리비 사용계획서</Link>
+          <Link className="btn ghost" to="/forms/gongjeongpyo">📅 공사예정공정표</Link>
+          <Link className="btn ghost" to="/forms/hyeonjang-jojikdo">🧭 현장 조직도 · 비상 조직도</Link>
+          <Link className="btn ghost" to="/forms/bisang-yeonrak">☎️ 비상연락망</Link>
+          <Link className="btn ghost" to="/forms/wih-choego">⚠️ 최초·정기 위험성평가서</Link>
+        </div>
       </div>
 
       {/* ── 주실 자료 (갈래만) ──
@@ -317,6 +549,8 @@ export default function Safety() {
           <li><b>여기 적힌 대상 기준은 {기준일} 에 법령을 직접 읽어 옮긴 것입니다.</b>{' '}
             안전관리계획서는 <b>국토안전관리원</b>의 수립대상 안내에서,
             유해·위험방지계획서는 <b>국가법령정보센터</b>의 산업안전보건법 시행령에서 가져왔습니다.
+            <br /><b>준비 서류</b>는 {서류기준일} 에 <b>국가법령정보센터</b>에서 건설기술진흥법 제62조 ·
+            시행령 제98조·제99조, 산업안전보건법 제42조 · 시행규칙 제42조~제45조 · 별표 10 원문을 읽어 옮겼습니다.
             <br /><span className="muted">법은 바뀝니다. 실제로 내실 때는 <b>반드시 원문을 다시 확인</b>하십시오.</span></li>
           <li>이 표는 <b>길잡이</b>입니다. 발주처나 인·허가기관이 「필요하다고 인정」하면
             표에 없어도 대상이 됩니다</li>
@@ -353,6 +587,7 @@ export function SafetyStrip() {
         <div className="d">
           <b>우리 현장이 대상인지</b>부터 보십시오. 지하 10m 굴착, 항타기, 5m 거푸집,
           터널, 31m 건축물 — 걸리는 줄이 하나라도 있으면 대상입니다.{' '}
+          <b>준비 서류</b>(무엇을 · 언제 · 어디에 · 몇 부)도 적어 두었습니다.{' '}
           초안부터 <b>기술사 검토</b>까지 해 드립니다. 값은 문의로.
         </div>
       </div>

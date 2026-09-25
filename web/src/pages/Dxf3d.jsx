@@ -15,6 +15,14 @@ import { Link } from 'react-router-dom'
 import { fitBox } from '../lib/dxf3d.js'
 import { LineView } from '../lib/gl3d.js'
 
+/* 🧪 2026-09-26 — 소장님: 「각각의 도구별로 예시가 하나씩 있어야 하지 않아. 그래야 사람들이 보고 해보지」
+   예시 도면은 제가 새로 그린 «가상의 건물·언덕» 입니다(남의 공사 도면이 아닙니다). public/tools/files/ex-*.dxf */
+const 예시들 = [
+  { 이름: '🏢 가상 3층 건물 — 평면도 + 단면도', 파일: ['ex-building-plan.dxf', 'ex-building-section.dxf'],
+    글: '지하 1층 · 지상 3층 · 옥상 평면도 한 장과, 층 높이(FL)가 적힌 단면도 한 장을 같이 놓은 모습입니다' },
+  { 이름: '⛰ 가상 언덕 — 등고선 + 길', 파일: ['ex-terrain.dxf'],
+    글: '높이를 가진 등고선(2m 간격)과 3D 폴리선 길 — 높이가 든 도면은 그대로 섭니다' },
+]
 const 큰파일 = 250 * 1024 * 1024
 const 모두합 = 400 * 1024 * 1024
 
@@ -36,6 +44,7 @@ export default function Dxf3d() {
   const [높이배, set높이배] = useState(1)
   const [층찾기, set층찾기] = useState('')
   const [파일이름, set파일이름] = useState('')
+  const [예시글, set예시글] = useState('')
 
   useEffect(() => () => {
     if (viewRef.current) viewRef.current.dispose()
@@ -50,9 +59,10 @@ export default function Dxf3d() {
     return m
   }, [결과, 보임])
 
-  const 읽기 = async (list) => {
+  const 읽기 = async (list, 예시 = false) => {
     const fs = [...(list || [])]
     if (!fs.length) return
+    if (!예시) set예시글('')
     set파일이름(fs.map((f) => f.name).join(' · '))
     set결과(null)
     const dxf = fs.filter((f) => !/\.dwg$/i.test(f.name))
@@ -76,6 +86,20 @@ export default function Dxf3d() {
     }
     w.onerror = (e) => set상태({ k: 'err', msg: 'fail', more: String(e.message || '') })
     w.postMessage({ files }, files.map((f) => f.buf))
+  }
+
+  const 예시로 = async (q) => {
+    set예시글(q.글)
+    set상태({ k: 'busy', p: 0, msg: '예시 도면 받는 중' })
+    try {
+      const fs = []
+      for (const f of q.파일) {
+        const res = await fetch('/tools/files/' + f)
+        if (!res.ok) throw new Error(f)
+        fs.push(new File([await res.blob()], f))
+      }
+      await 읽기(fs, true)
+    } catch (e) { set상태({ k: 'err', msg: 'fail', more: '예시 도면을 받지 못했습니다 — 잠시 뒤 다시 눌러 주십시오' }) }
   }
 
   const 보이기 = (r, dwg수) => {
@@ -189,7 +213,13 @@ export default function Dxf3d() {
         </div>
         <input ref={파일칸} type="file" accept=".dxf,.DXF,.dwg,.DWG" multiple className="sr-only" tabIndex={-1}
                onChange={(e) => { 읽기(e.target.files); e.target.value = '' }} />
-        {파일이름 && <div className="pdfgot">📎 {파일이름}</div>}
+        <div className="tlx-ex" style={{ marginTop: 10, marginBottom: 0 }}>
+          <span className="tlx-exd"><b>🧪 예시로 해 보기</b> — 도면이 없으시면 눌러 보십시오:</span>
+          {예시들.map((q) => (
+            <button key={q.이름} type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 예시로(q)}>{q.이름}</button>
+          ))}
+        </div>
+        {파일이름 && <div className="pdfgot">📎 {파일이름}{예시글 && <span className="muted"> — 예시: {예시글}</span>}</div>}
 
         {상태.k === 'busy' && (
           <div className="dx3-bar" aria-live="polite">
