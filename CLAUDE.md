@@ -215,10 +215,10 @@ cd web && firebase deploy --only hosting        (또는 --only database)
 | `/change/excel` | 설계변경 자동계산 엑셀(시트 11장) | `Change.jsx` |
 | `/change/naeyeok` · `/{kind}` | 설계변경 내역서 | `Change.jsx` |
 | **`/change/twoline`** | **설계변경 2줄 자동변환** — 내역서 끌어놓으면 당초·변경·증감으로 벌려 내려받기. **브라우저 안에서만**, xlsx XML 만 고쳐 서식·인쇄영역·그림 보존 | **`TwoLine.jsx`** |
-| `/naeyeok` | 견적서·내역서 작성 대행 (파는 것) | `Naeyeok.jsx` |
+| `/naeyeok` | 산출내역서 알아보기 — 작성 대행은 2026-09-25 부터 «지금 받지 않음» (`대행받음 = false`, 받는 글은 숨겨 둠) | `Naeyeok.jsx` |
 | `/report` | 업체 입찰 성적표 (만들어 드림) — 엔진은 `tools/report_data.py` · `report_html.py` · `report_pdf.mjs` | `Report.jsx` |
 | `/safety` | 안전관리계획서·유해위험방지계획서 (준비 중) | `Safety.jsx` |
-| `/jeoksan` | K-적산 소개. 도면 찍기(리습·PC)는 «준비 중» | `Jeoksan.jsx` |
+| `/jeoksan` | K-적산 소개. 2026-09-25 부터 «시험 중 — 팔지 않음», 단가·내역서·원가계산서는 «안 됩니다» 로 적음 | `Jeoksan.jsx` |
 | `/jeoksan/run` | **수량산출서 만들기 — 브라우저에서 «실제로 돕니다»** (2026-09-16).
 재료표(xlsx)+치수표(csv) → 산출서·집계·태그별·검산·쓴표 5장.
 셈은 `lib/qto.js`·`lib/susik.js` — **PC 의 `K-적산/kqto.py`·`kq_susik.py` 와 같은 수량을 내야 합니다.**
@@ -226,6 +226,7 @@ cd web && firebase deploy --only hosting        (또는 --only database)
 | `/shareone` | 쉐어원 — 사무실 공유폴더 배포 | `ShareOne.jsx` |
 | `/cad` · `/cad/{slug}` | 캐드 유틸 (리습 내려받기) | `Cad.jsx` |
 | `/tools` · `/tools/{slug}` | 건설 도구 12가지 | `Tools.jsx` |
+| `/tools/dxf3d` | **도면 3D 보기** (2026-09-25) — DXF 를 브라우저 안에서만 읽어 선을 도면 높이(Z) 그대로 세움. 서버 없음. 읽기 `lib/dxf3d.js`(일꾼 `dxf3d.worker.js`) · 그리기 `lib/gl3d.js`(WebGL, three.js 없이) | `Dxf3d.jsx` |
 | `/guide` · `/guide/{slug}` | 입찰 알아보기 | `Guide.jsx` |
 | `/how` | 보는 방법 — 처음이시면 여기부터 | `How.jsx` |
 | `/qna` | 묻고 답하기 | `Qna.jsx` |

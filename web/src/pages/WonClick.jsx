@@ -148,7 +148,7 @@ export default function WonClick() {
   return (
     <div className="wrap">
       <div className="card">
-        <Link className="btn ghost sm" to="/tools">← 도구·서식</Link>
+        <Link className="btn ghost sm" to="/tools">← 도구</Link>
         <h1 className="tl-h1">⚡ 공사서류 원클릭</h1>
         <div className="note">
           <b>한 번 입력하면 착공부터 준공·하자까지 서류 {META.docs.length}가지가 채워진 엑셀</b>이 나옵니다.

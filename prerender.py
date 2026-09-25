@@ -158,7 +158,7 @@ SITENAV = [("/", "바로투찰"), ("/first", "1순위 개찰"), ("/live", "입�
            ("/cad", "캐드 유틸"), ("/pdf", "PDF 도구"), ("/jeoksan", "K-적산"),
            ("/shareone", "쉐어원 공유폴더"),
            ("/safety", "안전관리계획서"),
-           ("/naeyeok", "견적서·내역서 작성"), ("/qna", "사랑방"),
+           ("/naeyeok", "산출내역서 알아보기"), ("/tools/dxf3d", "도면 3D 보기"), ("/qna", "사랑방"),
            ("/how", "보는 방법")]
 
 
@@ -1856,35 +1856,69 @@ def lic_page(shell, rows, minn, image=None):
     return page(shell, "/lic", title, desc, "".join(out) + nav_html("/lic"), image, ld)
 
 
-def tools_index(shell, tools, cats, image=None):
-    title = "건설 도구 — A값·투찰률·철근중량 계산기 | K-건설맵"
-    desc = ("공공공사 입찰과 현장 적산에 쓰는 계산기를 모았습니다. "
-            f"{len(tools)}가지 · 회원가입 없이 무료 · 브라우저에서 계산하므로 아무것도 저장되지 않습니다.")
-    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">건설 도구</h1>'
+def load_tool_pages():
+    """tools.json 의 pages — 다른 화면에 있는 도구들(도면 3D·설계변경·PDF·원클릭 …). 화면(Tools.jsx)과 같은 것."""
+    try:
+        with open(TOOLS_JSON, encoding="utf-8") as f:
+            return (json.load(f) or {}).get("pages") or []
+    except Exception:
+        return []
+
+
+# 🧰 2026-09-25 — 소장님: 「도구가 지금도 흩어져 있는 것 같아. 한 페이지에 몰아서」
+#   화면(Tools.jsx)처럼 «다른 화면의 도구 + 계산기» 를 한 판에 굽습니다. 칸마다 어디서 쓰는지(사이트/받아서/시험 중)도.
+TOOL_WHERE = {"site": "사이트에서 바로", "down": "받아서 씀", "lock": "시험 중"}
+
+
+def tools_index(shell, tools, cats, image=None, pages=None):
+    pages = pages or []
+    by = {g.get("key"): g for g in pages}
+    groups = [by[k] for k in ("drawing", "naeyeok", "file") if k in by]
+    for ck in ("qty", "bid"):
+        c = next((x for x in cats if x.get("key") == ck), None)
+        lst = [t for t in tools if t.get("cat") == ck]
+        if c and lst:
+            groups.append({"icon": "🧮", "name": "수량 계산기" if ck == "qty" else "입찰·낙찰 계산기",
+                           "items": [{"to": f'/tools/{t["slug"]}', "icon": t.get("icon") or "",
+                                      "t": t["title"], "d": t.get("short") or "", "w": "site"} for t in lst]})
+    groups += [g for g in pages if g not in groups]
+    n = sum(len(g.get("items") or []) for g in groups)
+    n_site = sum(1 for g in groups for x in (g.get("items") or []) if x.get("w", "site") == "site")
+    title = f"건설 도구 {n}가지 — 도면 3D·설계변경·PDF·투찰·철근 계산기 | K-건설맵"
+    desc = (f"K-건설맵이 만든 건설 도구 {n}가지를 한 곳에 모았습니다. 그중 {n_site}가지는 사이트 안에서 바로 되고 "
+            "파일은 밖으로 나가지 않습니다. 도면 3D 보기 · 내역서 비율 맞추기 · 설계변경 2줄 변환 · PDF 도구 · "
+            "공사서류 원클릭 · A값 · 철근 중량 · 콘크리트 물량. 회원가입 없이 무료.")[:160]
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">🧰 건설 도구</h1>'
            '<div style="font-size:12.5px;color:var(--muted);margin-top:4px">'
-           f'{len(tools)}가지 · 입찰·낙찰 · 적산·수량</div>'
-           '<p class="cp" style="margin-top:8px">현장에서 자주 쓰는 계산을 한 자리에 모았습니다. '
-           '숫자는 브라우저에서 계산하니 <b>아무것도 저장되지 않습니다.</b></p></div>',
-           '<a class="card fbook" href="/tools/wonclick"><span class="fic">⚡</span><div class="grow"><div class="t">공사서류 원클릭 — 한 번 입력으로 서류 24가지</div><div class="d">공사명·금액·날짜를 <b>한 번만</b> 넣으면 착공계·현장대리인계·기성·준공·하자 서류가 채워진 엑셀이 나옵니다. 매크로 없음 · 관급·민간 모두.</div></div><span class="go">→</span></a>']
-    for c in cats:
-        lst = [t for t in tools if t.get("cat") == c.get("key")]
-        if not lst:
+           f'{n}가지 · 전부 무료 · 그중 {n_site}가지는 사이트에서 바로</div>'
+           '<p class="cp" style="margin-top:8px">K-건설맵이 만든 도구를 <b>한 곳에 다 모았습니다.</b> '
+           '사이트에서 바로 되는 도구는 깔 것이 없고, 넣으신 파일은 <b>밖으로 나가지 않습니다.</b></p></div>']
+    rows = []
+    for g in groups:
+        items = g.get("items") or []
+        if not items:
             continue
         out.append(f'<div class="card"><div class="sec-title" style="margin:0 0 6px">'
-                   f'{esc(c.get("icon") or "")} {esc(c.get("name") or "")}</div>')
-        for t in lst:
-            out.append(f'<a class="row rowlink" href="/tools/{esc(t["slug"])}">'
-                       f'<div class="grow"><div class="t">{esc(t["title"])}</div>'
-                       f'<div class="d">{esc(t.get("short") or "")}</div></div>'
+                   f'{esc(g.get("icon") or "")} {esc(g.get("name") or "")} · {len(items)}가지</div>')
+        for x in items:
+            w = TOOL_WHERE.get(x.get("w") or "site", "")
+            out.append(f'<a class="row rowlink" href="{esc(x.get("to") or "/tools")}">'
+                       f'<div class="grow"><div class="t">{esc(x.get("icon") or "")} {esc(x.get("t") or "")}</div>'
+                       f'<div class="d">{esc(x.get("d") or "")}{" · " + esc(w) if w else ""}</div></div>'
                        f'<span class="go">→</span></a>')
+            rows.append((x.get("to"), x.get("t")))
         out.append("</div>")
+    out.append('<a class="card fbook" href="/forms"><span class="fic">📄</span><div class="grow">'
+               '<div class="t">서식은 «서식» 탭에 <em>· 착공부터 준공까지</em></div>'
+               '<div class="d">계약·공무·공사·안전·품질·환경·노무·장비 서류를 엑셀로 바로 받습니다.</div></div>'
+               '<span class="go">→</span></a>')
     out.append('<div class="card"><div class="note sm">표준품셈·물가정보 단가·노임단가는 '
-               '유료 자료라 싣지 않습니다. 도구는 <b>수량과 금액 구조만</b> 냅니다.</div></div>')
+               '유료 자료라 싣지 않습니다. 계산기는 <b>수량과 금액 구조만</b> 냅니다.</div></div>')
     ld = {"@context": "https://schema.org", "@type": "ItemList", "name": "건설 도구",
-          "numberOfItems": len(tools),
-          "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": t["title"],
-                               "url": f'{SITE}/tools/{t["slug"]}'}
-                              for i, t in enumerate(tools)]}
+          "numberOfItems": len(rows),
+          "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": nm,
+                               "url": SITE + enc_path(u)}
+                              for i, (u, nm) in enumerate(rows) if u and nm]}
     return page(shell, "/tools", title, desc, "".join(out) + nav_html("/tools"), image, ld)
 
 
@@ -1965,6 +1999,37 @@ def wonclick_page(shell, m, image=None):
           "offers": {"@type": "Offer", "price": "0", "priceCurrency": "KRW"},
           "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}}
     return page(shell, "/tools/wonclick", title, desc, "".join(out) + nav_html(), image, ld)
+
+
+# 📦 /tools/dxf3d — 도면 3D 보기 (2026-09-25). 화면은 Dxf3d.jsx · 읽기는 lib/dxf3d.js (브라우저 안에서만).
+#  ⚠️ 입력칸(파일 놓기)만 있으면 빈 페이지로 읽힙니다 — 무엇을 읽고 무엇을 못 읽는지 글로 굽습니다.
+def dxf3d_page(shell, image=None):
+    title = "도면 3D 보기 — DXF 등고선·3D 폴리선을 높이 그대로 입체로 | K-건설맵"
+    desc = ("캐드 도면(.dxf)을 놓으면 등고선·3D 폴리선·3DFACE·메쉬를 도면에 적힌 높이 그대로 세워 돌려 봅니다. "
+            "층 켜고 끄기, 높이 과장, 그림 저장. 파일은 올라가지 않고 브라우저 안에서만 읽습니다. 회원가입 없이 무료.")[:160]
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">📦 도면 3D 보기 (DXF)</h1>'
+           '<p class="cp" style="margin-top:8px">캐드 도면(<b>.dxf</b>)을 놓으면 선을 <b>도면에 적힌 높이 그대로</b> 세워 '
+           '돌려 봅니다. 등고선 · 3D 폴리선 · 3DFACE · 메쉬 · 블록 안의 것까지 읽습니다.</p>'
+           '<p class="cp"><b>파일은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 읽고 그립니다 — '
+           '그래서 여러 분이 한꺼번에 써도 서로 느려지지 않습니다. 회원가입 없음 · 무료.</p></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">무엇이 서나</div><ul class="flist">'
+           '<li>수치지도 <b>등고선</b>(높이를 가진 폴리선)을 켜면 땅 모양이 섭니다</li>'
+           '<li>측량 성과의 <b>3D 폴리선·점</b>, 캐드에서 만든 <b>3DFACE·폴리페이스·메쉬</b>도 제 높이에 섭니다</li>'
+           '<li><b>블록</b>은 크기·회전·배열까지 풀어서 그립니다. 호·원·타원·스플라인도 곡선 그대로</li>'
+           '<li>층을 켜고 끄고, 높이를 2·5·10배로 과장하고, 위·옆·비스듬히 보고, 지금 화면을 그림(PNG)으로 저장합니다</li>'
+           '<li>도면에서 꺼 둔 층은 처음에 꺼진 채로 엽니다 — 캐드에서 보던 그대로</li></ul></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">못 읽는 것</div><ul class="flist">'
+           '<li><b>DWG</b> — 캐드에서 «다른 이름으로 저장 → DXF» 로 바꿔 놓아 주십시오</li>'
+           '<li><b>바이너리 DXF</b> — 저장할 때 ASCII 로</li>'
+           '<li><b>3DSOLID·REGION</b> — 속이 암호라 못 읽습니다. 메쉬로 바꾸면 보입니다</li>'
+           '<li><b>글자·해치·그림</b> — 3D 에서는 가려서 뺍니다. 몇 개를 뺐는지 화면에 적습니다</li>'
+           '<li>도면을 해석하지 않습니다 — 높이 없이 그린 평면도·단면도는 바닥에 납작하게 그대로 있습니다</li></ul></div>']
+    ld = {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "도면 3D 보기",
+          "applicationCategory": "DesignApplication", "operatingSystem": "Web",
+          "description": desc, "url": f"{SITE}/tools/dxf3d", "isAccessibleForFree": True,
+          "offers": {"@type": "Offer", "price": "0", "priceCurrency": "KRW"},
+          "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}}
+    return page(shell, "/tools/dxf3d", title, desc, "".join(out) + nav_html("/tools/dxf3d"), image, ld)
 
 
 
@@ -2053,24 +2118,27 @@ TABS = [
      "발주기관의 낙찰률 성향과 업체별 낙찰 실적을 3년치 개찰 기록으로 분석합니다. 회원가입 없이 무료.",
      ("발주기관·업체 낙찰 분석", "3년치 개찰 기록으로 봅니다", "자가진단",
       "우리 회사가 어디에 강한지 · 그 기관은 어떤 자리인지")),
-    ("/naeyeok", "건설 견적서 · 내역서 작성 대행 — 입찰내역서 · 실행내역 · 설계변경 · 기성 | K-건설맵",
-     "건설 견적서와 내역서를 대신 만들어 드립니다. 입찰 산출내역서, 공내역서 단가 넣기, 착공 산출내역서, 실행내역, 하도급 내역, 설계변경 내역, 기성 내역, 물가변동 조정내역, 관급자재 구입내역서까지. 원가계산서·일위대가·단가대비표 한 벌로 드립니다. 값은 문의.",
-     ("견적서·내역서 작성해 드립니다", "입찰 · 실행 · 설계변경 · 기성", "검수 후 결제",
-      "내역 일이면 다 합니다 — 값은 문의")),
+    # ⏸ 2026-09-25 — 소장님: 「작성대행도 안돼고, 적산도 안되는 거잖아. 근데, 사이트에는 된다고 해놓서」
+    #   작성 대행은 지금 받지 않습니다(Naeyeok.jsx 의 대행받음). 이 주소는 «산출내역서 알아보기» 로 남습니다.
+    ("/naeyeok", "산출내역서 — 언제 · 누가 · 무엇을 내나 | K-건설맵",
+     "산출내역서는 낙찰되면 누군가는 반드시 내야 하는 서류입니다. 추정가격 100억원 미만이면 낙찰자가 착공신고 때, 100억원 이상이면 입찰 참가자가 입찰서와 함께 냅니다. 틀리면 무효가 되는 경우와 근거 조문, 내역서 비율 맞추기(하도급 80%) 무료 도구까지 한 장에.",
+     ("산출내역서 — 언제 · 누가 · 무엇을", "낙찰되면 꼭 내는 서류", "무효 사유",
+      "직접 맞추는 무료 도구까지 한 장에")),
     ("/how", "K-건설맵 보는 방법 — 무엇부터 보면 되나 | K-건설맵",
-     "공공입찰 투찰금액 계산·개찰 결과·마감 전 공고·건설 서식·설계변경 엑셀을 어디서 어떻게 보는지 한 장으로 안내합니다. 회원가입도 로그인도 없고, 내역서 작성만 유료입니다.",
+     "공공입찰 투찰금액 계산·개찰 결과·마감 전 공고·건설 서식·설계변경 엑셀을 어디서 어떻게 보는지 한 장으로 안내합니다. 회원가입도 로그인도 없이 무료입니다.",
      ("K-건설맵 보는 방법", "무엇부터 보면 되나", "회원가입 없음",
       "로그인도, 결제도 없습니다 — 바로 쓰시면 됩니다")),
     # 🗑 2026-09-19 — 소장님: 「사이트에 띄워놓은 입찰성적표는 제거…이상해」
     #   /report(이용자용 안내·신청)는 굽지 않습니다. 주소는 첫 화면으로 보냅니다(main.jsx).
     #   성적표는 소장님이 /report/make 에서 만들어 PDF 로 보내 드리는 것만 남습니다.
-    ("/jeoksan", "K-적산 — 도면에서 물량을 뽑아 수량산출서를 만듭니다 | K-건설맵",
-     "잰 치수를 올리면 수량산출서 엑셀(산출서·집계·태그별·검산·쓴표)이 바로 나옵니다 — 사이트에서 "
-     "무료로, 깔 것도 가입도 없이. 산출식이 프로그램 안이 아니라 엑셀 재료표에 있어 토목·건축 둘 다 "
+    # ⏸ 2026-09-25 — 수량산출서는 열쇠말을 받은 분만, 단가·내역서·원가계산서는 아직 안 됩니다. 팔지 않습니다.
+    ("/jeoksan", "K-적산 — 도면에서 물량을 뽑는 프로그램 (시험 중) | K-건설맵",
+     "도면에서 물량을 뽑아 수량산출서 엑셀(산출서·집계·태그별·검산·쓴표)을 만드는 프로그램입니다. 지금은 시험 중이라 "
+     "팔지 않고, 수량산출서는 열쇠말을 받은 분만 씁니다. 산출식이 프로그램 안이 아니라 엑셀 재료표에 있어 토목·건축 둘 다 "
      "되고, 산출근거가 엑셀에서 살아 있는 수식이라 감리가 칸을 눌러 봅니다. 도면에서 찍는 캐드 리습은 "
      "준비 중입니다.",
-     ("K-적산", "도면에서 물량 뽑기", "사이트에서 무료",
-      "잰 치수를 올리면 수량산출서 엑셀이 나옵니다")),
+     ("K-적산", "도면에서 물량 뽑기", "시험 중",
+      "지금은 팔지 않습니다 — 되는 것만 적습니다")),
     # 2026-09-17 — 잠겼지만 «무엇이 나오는지» 는 누구나 봅니다.
     #   소장님: 「보여는 주되, 비번을 사용하게 하면 돼지 않아? 그리고, 문의할 수 있게 해줘야지?」
     #   ⚠️ 「무료」·「바로 쓰세요」 라고 적지 않습니다. 값을 받을 물건입니다.
@@ -2258,10 +2326,12 @@ def main():
     # ── 🧰 건설 도구 ──
     ttools, tcats = load_tools()
     if ttools:
+        tpages = load_tool_pages()
+        n_all = len(ttools) + sum(len(g.get("items") or []) for g in tpages)
         write("tools.html", tools_index(shell, ttools, tcats,
-              og.tab("tools", "건설 도구", "입찰·적산 계산기",
-                     f"{len(ttools)}가지", "회원가입 없이 무료")
-              if og.available else None))
+              og.tab("tools", "건설 도구", "도면 3D·설계변경·PDF·계산기",
+                     f"{n_all}가지", "회원가입 없이 무료")
+              if og.available else None, pages=tpages))
         made += 1
         for t in ttools:
             others = [o for o in ttools if o["slug"] != t["slug"]][:4]
@@ -2277,6 +2347,10 @@ def main():
                      "한 번 입력 → 엑셀") if og.available else None))
         made += 1
         print("  · 공사서류 원클릭 페이지 1개 (/tools/wonclick)")
+    write("tools/dxf3d.html", dxf3d_page(shell,
+          og.tab("tool-dxf3d", "도면 3D 보기", "건설 도구", "DXF", "높이 그대로 입체로") if og.available else None))
+    made += 1
+    print("  · 도면 3D 보기 페이지 1개 (/tools/dxf3d)")
 
     # ── 🪪 면허별 경쟁도 ──
     lrows, lmin = load_licstat()
@@ -2519,7 +2593,7 @@ def main():
             "시간과 품이 적잖이 들어간 것들입니다.",
             "이미 만들어 둔 것은 값을 받지 않습니다 — 한 분이 더 쓴다고 새로 드는 것이 없기 "
             "때문입니다. 바로투찰·1순위·공고·서식·설계변경 엑셀·게시판 모두 그렇습니다.",
-            "사람 손이 새로 들어가는 것은 다릅니다 — 내역서·견적서 작성과 도구 사용은 "
+            "사람 손이 새로 들어가는 것은 다릅니다 — 내역서·견적서 작성(지금은 받지 않습니다)과 도구 사용은 "
             "건건이 앉아서 품이 들어가는 일이라 추후 일정 금액을 받을 예정입니다.",
             "같은 계산인데 다른 곳은 돈을 받고, 여기는 받지 않습니다. 바라는 것은 하나입니다 "
             "— 건설맵을 풍성하게 할 말 한마디. 여러분과 같이 만들어 가고 싶습니다. "
@@ -2527,23 +2601,20 @@ def main():
             "처음이시면 셋부터 보십시오. ① 투찰금액 정하기(바로투찰) "
             "② 개찰 결과 보기(1순위) ③ 서식 받기.",
         ]),
-        "/naeyeok": lead_card("건설 견적서 · 내역서 작성해 드립니다", [
-            "산출내역서는 «누군가는 반드시» 만들어야 하는 서류입니다. "
+        "/naeyeok": lead_card("산출내역서 — 언제 · 누가 · 무엇을", [
+            "산출내역서는 낙찰되면 «누군가는 반드시» 내야 하는 서류입니다. 언제·누가 내는지, 틀리면 왜 "
+            "무효가 되는지, 직접 맞추는 무료 도구까지 한 장에 모았습니다. "
             "추정가격 100억원 미만이면 낙찰자가 착공신고서를 낼 때, "
             "100억원 이상이면 입찰 참가자가 입찰서와 함께 냅니다"
             "(국가를 당사자로 하는 계약에 관한 법률 시행령 제14조 제6항).",
             "내역입찰에서는 산출내역서가 잘못되면 입찰 자체가 무효가 됩니다 — "
             "입찰서 금액과 총계 불일치, 항목 합계 불일치, 누락 물량이 예정가격의 5% 이상, "
             "정정인 누락, 남의 내역서 복사(제출자 전원 무효).",
-            "내역 일이면 다 합니다 — 입찰 전에는 입찰 산출내역서·공내역서 단가 넣기·물량내역서 검토·입찰 견적서, "
-            "낙찰 뒤에는 착공 산출내역서·실행내역서·하도급 내역서, "
-            "공사 중에는 설계변경 내역(당초·변경·증감)·기성 내역서·물가변동 조정내역·실정보고 첨부 내역, "
-            "그 밖에 민간공사 견적서·관급자재 구입내역서·원가계산서·공사비 검토까지.",
-            "드리는 것: 내역서 · 일위대가 · 원가계산서 · 단가대비표 · 공종별 집계표 · 갑지. "
-            "엑셀로 드리고 수식이 살아 있어 물량이나 단가가 바뀌면 그 자리에서 다시 계산됩니다. "
-            "발주처 서식이 따로 있으면 그 서식에 맞춰 드립니다.",
-            "값은 공사마다 달라 문의로 받습니다. 물량을 주시면 값이 내려가고, "
-            "도면만 있어 물량을 새로 내야 하면 올라갑니다. 검수 후 결제입니다.",
+            "이미 있는 내역서를 «비율» 로만 맞추는 일(하도급 80% · 실행률 · 낙찰률)은 직접 하실 수 있습니다 — "
+            "내역서 비율 맞추기(/naeyeok/ratio)에서 무료로, 파일은 브라우저 안에서만 다룹니다.",
+            "작성 대행은 지금 받지 않습니다. 단가를 자동으로 채우는 프로그램을 시험하고 있는데 "
+            "(실제 설계 내역서 4,171줄) 품목이 맞는 줄이 3줄 중 2줄, 단가가 설계값 ±10% 안에 드는 줄이 "
+            "10줄 중 4줄이라 아직 믿고 맡기실 수준이 아닙니다. 되는 날 이 화면에 먼저 적겠습니다.",
         ]),
         "/naeyeok/ratio": lead_card("내역서 비율 맞추기 — 하도급 80% · 실행률 · 낙찰률", [
             "내역서를 올리고 «비율(예 80%)» 이나 «맞출 금액» 만 넣으시면, 단가가 그 비율로 바뀐 "
@@ -2569,7 +2640,10 @@ def main():
             "회원가입도 설치도 없습니다. 파일은 브라우저 안에서만 다룹니다 — "
             "올리신 내역서는 저희 쪽으로 올라가지 않습니다.",
         ]),
-        "/jeoksan": lead_card("K-적산 — 도면에서 물량 뽑기", [
+        "/jeoksan": lead_card("K-적산 — 도면에서 물량 뽑기 (시험 중)", [
+            "지금은 시험 중이라 팔지 않습니다. 수량산출서는 돌아가지만 열쇠말을 받은 분만 쓰고, "
+            "단가를 채워 내역서·원가계산서까지 가는 길은 아직 안 됩니다 — 공내역서 시험에서 단가가 설계값 "
+            "±10% 안에 드는 줄이 10줄 중 4줄입니다.",
             "캐드에서 부재를 찍으면 길이·면적을 재고, PC 에서 수량산출서 엑셀을 만듭니다. "
             "나오는 것은 다섯 장 — 산출서 · 집계 · 태그별 · 검산 · 쓴표.",
             "산출식이 프로그램 안이 아니라 «엑셀 재료표» 에 있습니다. 수십 가지를 코드에 박아 두면 "
@@ -2585,7 +2659,7 @@ def main():
             "캐디안 · ZWCAD 에서 같은 파일 하나로 돕니다.",
             "표준품셈 · 물가정보 · 노임단가는 유료 자료라 들어 있지 않습니다. 재료표의 환산·할증 칸은 "
             "쓰시는 기준으로 채우는 자리로 비워 두었습니다. 단가는 내지 않습니다 — 수량과 산출근거까지입니다.",
-            "값은 받습니다. 현장마다 재료표를 맞춰야 하고 도면을 같이 봐야 하는, 건건이 사람 손이 "
+            "연 뒤에는 값을 받을 생각입니다. 현장마다 재료표를 맞춰야 하고 도면을 같이 봐야 하는, 건건이 사람 손이 "
             "들어가는 일이라 그렇습니다. 얼마인지는 몇 현장에서 실제로 돌려 보고 품을 안 뒤에 적겠습니다.",
             "지금은 준비 중입니다. 내려받는 단추가 없는 것은 감춘 것이 아니라 아직 올리지 않았기 "
             "때문입니다. 캐드가 판이 여러 가지라, 남의 자리에서도 도는지 확인이 끝나기 전에는 열지 않습니다.",

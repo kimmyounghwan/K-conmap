@@ -23,14 +23,14 @@ export default function Jeoksan() {
     <>
       <div className="card lead-card">
         <h1 style={{ margin: 0, fontSize: 20 }}>🧮 K-적산</h1>
+        {/* ⏸ 2026-09-25 — 소장님: 「그럼 작성대행도 안돼고, 적산도 안되는 거잖아. 근데, 사이트에는 된다고 해놓서」
+            «산출내역서와 원가계산서까지 만듭니다» 는 아직 사실이 아닙니다. 되는 것과 안 되는 것을 그대로 적습니다. */}
         <p className="why2" style={{ marginBottom: 6 }}>
-          도면에서 물량을 뽑고, 단가를 채워{' '}
-          <b>산출내역서와 원가계산서까지</b> 만듭니다.
-          캐드에서 찍고, PC 에서 셉니다.
+          도면에서 물량을 뽑는 프로그램입니다. <b>지금은 시험 중이라 팔지 않습니다.</b>
         </p>
         <p className="muted" style={{ margin: 0 }}>
-          토목·건축 <b>둘 다</b> 됩니다. 산출식이 프로그램 안이 아니라{' '}
-          <b>엑셀 표에 있어서</b> 그렇습니다.
+          수량산출서는 돌아가고, 단가를 채워 내역서·원가계산서까지 가는 길은 아직 믿고 쓰실 수준이 아닙니다 —
+          아래 표에 그대로 적었습니다.
         </p>
       </div>
 
@@ -55,13 +55,15 @@ export default function Jeoksan() {
             </tr>
             <tr>
               <td><b>② 단가</b><br /><span className="muted">공내역서 채우기</span></td>
-              <td>빈 공내역서에 품명·규격으로 단가를 찾아 넣습니다. 못 찾은 줄은 못 찾았다고 표시합니다</td>
-              <td style={{ whiteSpace: 'nowrap' }}>시험 중</td>
+              <td>빈 공내역서에 품명·규격으로 단가를 찾아 넣습니다. 못 찾은 줄은 못 찾았다고 표시합니다.
+                <br /><span className="muted">실제 설계 내역서 4,171줄로 재 보니 품목이 맞는 줄 <b>66.7%</b> ·
+                단가가 설계값 ±10% 안 <b>39.5%</b></span></td>
+              <td style={{ whiteSpace: 'nowrap' }}><b>안 됩니다</b><br /><span className="muted">시험 중</span></td>
             </tr>
             <tr>
               <td><b>③ 내역서</b><br /><span className="muted">산출내역서</span></td>
               <td>품목 × 단가 = 금액. 합계가 원가계산서로 그대로 이어집니다</td>
-              <td style={{ whiteSpace: 'nowrap' }}>시험 중</td>
+              <td style={{ whiteSpace: 'nowrap' }}><b>안 됩니다</b><br /><span className="muted">② 가 먼저</span></td>
             </tr>
             <tr>
               <td><b>④ 원가계산서</b></td>
@@ -71,7 +73,7 @@ export default function Jeoksan() {
                 임금채권 · 기타경비 · 일반관리비 · 이윤 · 부가세</b> 를 차례로 얹어
                 총액을 냅니다
               </td>
-              <td style={{ whiteSpace: 'nowrap' }}>시험 중</td>
+              <td style={{ whiteSpace: 'nowrap' }}><b>안 됩니다</b><br /><span className="muted">② 가 먼저</span></td>
             </tr>
             <tr>
               <td><b>⑤ 일위대가</b></td>
@@ -82,11 +84,10 @@ export default function Jeoksan() {
           </tbody>
         </table>
         <p className="muted" style={{ marginBottom: 0 }}>
-          ②~④ 는 이미 돌아갑니다 — 실제 조달청 내역서의 요율로 맞춰 보고,
-          손으로 센 것과 <b>한 원도 틀리지 않는 것</b>까지 확인했습니다.
-          다만 <b>시세 단가 자료</b>가 아직 세상에 내놓을 만큼 모이지 않아,
-          지금은 «단가표를 주시면 채워 드리는» 꼴입니다. ⑤ 가 붙으면
-          재료비·노무비가 저절로 갈립니다.
+          ④ 의 «요율을 차례로 얹는 셈» 자체는 실제 조달청 내역서로 맞춰 보고 손셈과 한 원도 안 틀리는 것까지
+          확인했습니다. 하지만 그 앞의 <b>② 단가가 아직 설계값과 10줄 중 4줄만 맞아</b>,
+          내역서 전체로는 믿고 내실 수 없습니다. 그래서 ②~④ 는 «안 됩니다» 로 적습니다.
+          단가 자료가 더 쌓이고 맞는 줄이 늘면 이 표부터 고치겠습니다.
         </p>
       </div>
 
@@ -213,7 +214,7 @@ export default function Jeoksan() {
       {/* ── 값 ── */}
       <div className="card">
         <div className="sec-title">값은 어떻게 되나</div>
-        <p><b>이것은 값을 받습니다.</b></p>
+        <p><b>지금은 팔지 않습니다 — 시험 중입니다.</b> 연 뒤에는 값을 받을 생각입니다.</p>
         <p>
           건설맵의 나머지는 앞으로도 무료입니다. 자료를 모아 두면 몇 명이 보든 품이 같기 때문입니다.
           그런데 적산은 다릅니다. <b>현장마다 재료표를 맞춰 드려야 하고</b>, 도면을 같이 봐야 하고,
@@ -223,7 +224,7 @@ export default function Jeoksan() {
         <p className="muted" style={{ marginBottom: 0 }}>
           <b>얼마인지는 아직 못 적겠습니다.</b> 몇 현장에서 실제로 돌려 보고 품이 얼마나 드는지 안 뒤에 적겠습니다.
           근거 없이 적으면 나중에 못 지킵니다.{' '}
-          <Link to="/naeyeok">내역서 작성</Link>도 같은 이유로 값을 안 적어 두었습니다.
+          <Link to="/naeyeok">내역서 작성 대행</Link>도 지금은 받지 않습니다.
         </p>
       </div>
 

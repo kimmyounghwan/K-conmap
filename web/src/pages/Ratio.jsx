@@ -450,7 +450,7 @@ export default function Ratio() {
           <li>이 도구는 <b>비율을 곱해 줄 뿐</b> 무엇이 맞는 비율인지는 정해 드리지 않습니다.</li>
         </ul>
         <div className="btn-row" style={{ justifyContent: 'flex-start', marginTop: 12, flexWrap: 'wrap' }}>
-          <Link className="btn ghost" to="/naeyeok">📋 내역서 작성 대행</Link>
+          <Link className="btn ghost" to="/naeyeok">📋 산출내역서 알아보기</Link>
           <Link className="btn ghost" to="/change/twoline">🔁 설계변경 2줄 자동변환</Link>
           <Link className="btn ghost" to="/tools">🧰 건설 도구</Link>
         </div>

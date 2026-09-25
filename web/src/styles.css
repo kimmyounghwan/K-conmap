@@ -3465,3 +3465,61 @@ ul.plainlist li { margin-bottom: 5px; }
 .wc-dn em { font-style: normal; font-size: 10.5px; color: var(--muted); border: 1px solid var(--line);
   border-radius: 6px; padding: 0 5px; margin-left: 4px; }
 .wc-dd { font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+
+/* ── 📦 도면 3D 보기 (/tools/dxf3d) — 2026-09-25 · 이름은 dx3- 로 시작 (겹치지 않게) ── */
+.dx3-bar { position: relative; margin-top: 12px; height: 28px; border-radius: 8px; overflow: hidden;
+  background: var(--surface-2); border: 1px solid var(--line); }
+.dx3-bar-in { position: absolute; inset: 0 auto 0 0; background: var(--accent-soft); transition: width .2s; }
+.dx3-bar span { position: relative; display: block; line-height: 28px; text-align: center; font-size: 12.5px; font-weight: 700; }
+.dx3-err { margin-top: 12px; padding: 11px 13px; border-radius: 10px; border: 1px solid #e0a3a3;
+  background: rgba(220, 38, 38, .07); font-size: 13.5px; line-height: 1.7; }
+.dx3-card { padding-bottom: 12px; }
+.dx3-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
+.dx3-tools .chip { font-size: 12.5px; }
+.dx3-sep { width: 1px; height: 18px; background: var(--line); margin: 0 2px; }
+.dx3-lab { font-size: 12px; color: var(--muted); font-weight: 700; }
+.dx3-stage { position: relative; border-radius: 12px; overflow: hidden; background: #0b1220; }
+.dx3-cv { display: block; width: 100%; height: min(68vh, 640px); touch-action: none; cursor: grab; }
+.dx3-cv:active { cursor: grabbing; }
+@media (max-width: 560px) { .dx3-cv { height: 56vh; } }
+.dx3-hint { position: absolute; left: 8px; bottom: 6px; right: 8px; font-size: 11px; color: rgba(229, 231, 235, .75);
+  pointer-events: none; text-shadow: 0 1px 2px #000; }
+.dx3-info { margin-top: 8px; font-size: 12.5px; color: var(--text-2); line-height: 1.7; }
+.dx3-warn { margin-top: 8px; padding: 9px 11px; border-radius: 9px; font-size: 12.5px; line-height: 1.7;
+  border: 1px solid #e3c27a; background: rgba(234, 179, 8, .09); }
+.dx3-skip { margin-top: 8px; font-size: 12px; color: var(--muted); line-height: 1.7; }
+.dx3-layers { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 10px; }
+.dx3-lh { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 13px; }
+.dx3-lh .chip { font-size: 12px; }
+.dx3-find { flex: 1 1 140px; min-width: 120px; padding: 6px 9px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--surface-2); color: var(--text); font-size: 12.5px; font-family: inherit; }
+.dx3-list { max-height: 300px; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 2px 10px; }
+.dx3-row { display: flex; align-items: center; gap: 6px; padding: 4px 2px; font-size: 12.5px; cursor: pointer; min-width: 0; }
+.dx3-row.off { opacity: .55; }
+.dx3-row input { width: auto; flex: none; margin: 0; padding: 0; }
+.dx3-sw { width: 14px; height: 4px; border-radius: 2px; flex: none; box-shadow: 0 0 0 1px rgba(0, 0, 0, .25); }
+.dx3-nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.dx3-tag { flex: none; font-size: 10.5px; padding: 1px 5px; border-radius: 5px; background: var(--surface-2); color: var(--muted); }
+.dx3-tag.z { color: #059669; }
+.dx3-n { margin-left: auto; flex: none; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* ── 🧰 도구 한 판 (/tools) — 2026-09-25 · 이름은 tlx- 로 시작 ── */
+.tlx-legend { margin-top: 10px; font-size: 12px; color: var(--muted); line-height: 1.9; }
+.tlx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; margin-top: 8px; }
+.tlx-card { display: flex; gap: 10px; align-items: flex-start; padding: 11px 12px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--text); text-decoration: none;
+  transition: border-color .12s, background .12s; min-width: 0; }
+.tlx-card:hover { border-color: var(--accent); background: var(--accent-soft); }
+.tlx-ic { font-size: 22px; line-height: 1.1; flex: none; }
+.tlx-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.tlx-t { font-size: 14px; font-weight: 800; line-height: 1.4; word-break: keep-all; }
+.tlx-d { font-size: 12.5px; color: var(--text-2); line-height: 1.55; word-break: keep-all; }
+.tlx-new { font-style: normal; margin-left: 6px; font-size: 10.5px; font-weight: 800; padding: 1px 6px;
+  border-radius: 6px; background: #dc2626; color: #fff; vertical-align: 2px; }
+.tlx-w { align-self: flex-start; margin-top: 2px; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 6px; white-space: nowrap; }
+.tlx-legend .tlx-w { display: inline-block; margin: 0 2px; }
+.tlx-w.site { background: rgba(5, 150, 105, .12); color: #047857; }
+.tlx-w.down { background: rgba(37, 99, 235, .10); color: var(--accent); }
+.tlx-w.lock { background: rgba(107, 114, 128, .14); color: var(--muted); }
+@media (prefers-color-scheme: dark) { .tlx-w.site { color: #34d399; } }
+@media (max-width: 560px) { .tlx-grid { grid-template-columns: 1fr; } }

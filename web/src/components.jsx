@@ -154,7 +154,8 @@ export function NaeyeokStrip({ tone = 'win' }) {
     <a href="/naeyeok" className="naeyeok-strip">
       <span className="ns-ic">📋</span>
       <span className="ns-txt">{line}</span>
-      <span className="ns-go">작성해 드립니다 →</span>
+      {/* ⏸ 2026-09-25 — 작성 대행을 지금 받지 않아 «작성해 드립니다» 를 내렸습니다 (Naeyeok.jsx 대행받음). */}
+      <span className="ns-go">무엇을 내야 하나 →</span>
     </a>
   )
 }

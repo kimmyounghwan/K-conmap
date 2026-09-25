@@ -30,10 +30,10 @@ const NAME = {
   '/forms': '건설 서식',
   '/change': '설계변경',
   '/guide': '입찰 알아보기',
-  '/tools': '도구·서식',
+  '/tools': '도구',
   '/cad': '캐드 유틸',
   '/jeoksan': 'K-적산',
-  '/naeyeok': '내역서 작성 대행',
+  '/naeyeok': '산출내역서',
   '/safety': '안전관리계획서',
   '/shareone': '쉐어원 공유폴더',
   '/report': '업체 입찰 성적표',
@@ -55,6 +55,8 @@ const LEAF = {
   '/change/twoline': '2줄 자동변환',
   '/jeoksan/run': '수량산출서 만들기',
   '/jeoksan/lab': '적산 실험실',
+  '/tools/dxf3d': '도면 3D 보기',
+  '/tools/wonclick': '공사서류 원클릭',
   '/report/make': '성적표 만들기',
   '/naeyeok/ratio': '내역서 비율 맞추기',
 }
@@ -64,13 +66,14 @@ const LEAF = {
    특히 설계변경·서식은 9/24 에 탭에서 빠져 «도구·서식» 안으로 들어갔는데 그리로 돌아갈 길이 없었습니다.
    → 탭이 아닌 한 칸 화면은 들어온 길과 상관없이 «늘» 부모로 가는 단추를 그립니다.
    ⚠️ 부모는 «그 화면이 속한 탭» 입니다 (App.jsx 의 also 와 같게). */
+/* 📄 2026-09-25 — «서식» 이 다시 제 탭이 되어 /forms 는 부모 목록에서 뺐습니다. */
 const PARENT = {
-  '/forms': '/tools', '/change': '/tools', '/cad': '/tools', '/pdf': '/tools', '/shareone': '/tools',
+  '/change': '/tools', '/cad': '/tools', '/pdf': '/tools', '/shareone': '/tools',
   '/safety': '/naeyeok',
   '/daily': '/first',
   '/lic': '/', '/guide': '/', '/how': '/',
 }
-const 탭이름 = { '/tools': '도구·서식', '/naeyeok': '작성 대행', '/first': '1순위', '/': '바로투찰' }
+const 탭이름 = { '/tools': '도구', '/forms': '서식', '/naeyeok': '내역서', '/first': '1순위', '/': '바로투찰' }
 /* 영문 주소 조각(siljeong-bogo, a-value …)은 사람이 읽는 이름이 아닙니다 — 길에 그리지 않습니다.
    화면 제목(h1)이 바로 아래에 있습니다. */
 const 영문조각 = (x) => /^[a-z0-9]+(-[a-z0-9]+)*$/.test(x)

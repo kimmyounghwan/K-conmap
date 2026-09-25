@@ -11,11 +11,11 @@
    ■ 내용(제목·설명·근거)은 web/src/data/tools.json 한 곳에만 있습니다.
      계산기 코드는 web/src/tools/calcs.jsx. 둘의 slug 가 짝이 맞아야 합니다.
    ========================================================== */
+import { useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import DATA from '../data/tools.json'
 import { CALCS } from '../tools/calcs.jsx'
 import NotFound from './NotFound.jsx'
-import { ShareOneStrip } from './ShareOne.jsx'
 
 const TOOLS = DATA.tools || []
 const CATS = DATA.cats || []
@@ -23,101 +23,117 @@ const CATS = DATA.cats || []
    한 곳에 모아야 이용자들이 알지… 최대한 쉽게 접근할 수 있도록」
    → 다른 화면에 흩어져 있는 도구들을 여기 목록에 «같이» 싣습니다.
      원래 자리는 그대로 둡니다 — 옮기는 것이 아니라 «길을 하나 더» 내는 것입니다.
-   ⚠️ 목록은 web/src/data/tools.json 의 pages 한 곳에만 적습니다. */
+   ⚠️ 목록은 web/src/data/tools.json 의 pages 한 곳에만 적습니다 (prerender.py 도 같은 것을 굽습니다). */
 const PAGES = DATA.pages || []
-const 모두 = TOOLS.length + PAGES.reduce((n, g) => n + g.items.length, 0)
 export const toolBySlug = (s) => TOOLS.find((t) => t.slug === s) || null
 
-/* 🧰 2026-09-24 — 소장님: 「건설맵 도구는 한 자리로 모으자고 했는데, 안 된 것 같아」 · 「시작해」
-   ■ 탭 「도구·서식」 이 이제 이 화면으로 옵니다(App.jsx). 서식은 맨 위 칸, 설계변경은 «내역서·설계변경» 칸 맨 앞.
-   ■ 맨 위 칩을 누르면 그 칸으로 내려갑니다 — 길어도 한 번에 찾게.
-   ■ 아래에 따로 있던 «내역서 · PDF · 캐드/K-적산(준비 중)» 카드 네 장은 뺐습니다.
-     위 칸들과 같은 것을 두 번 보여 줬고, K-적산 «준비 중» 은 옛 글이었습니다. */
-const 칸들 = [
-  ['t-forms', '📄 서식'],
-  ...PAGES.map((g) => [`t-${g.key}`, `${g.icon} ${g.name}`]),
-  ['t-calc', '🧮 계산기'],
-]
+/* 🧰 2026-09-25 — 소장님: 「도구가 지금도 흩어져 있는 것 같아. 한 페이지에 몰아서 쉽게 알 수 있게」 ·
+   「도구는 되도록 사이트 내에서 사용하도록」 · 「탭을 도구와 서식을 … 분리」
+   ■ 계산기 12가지도 따로 아래에 두지 않고 같은 꼴의 칸으로 한 판에 놓습니다 — 한눈에 다 보이게.
+   ■ 칸마다 «어디서 쓰나» 를 붙입니다: 🌐 사이트에서 바로 · ⬇ 받아서 · 🔒 시험 중.
+   ■ 맨 위 «찾기» 한 칸으로 이름·설명을 거릅니다.
+   ■ 서식은 다시 제 탭(/forms)으로 갔습니다. 여기엔 가는 길 한 줄만 둡니다. */
+const 어디 = {
+  site: ['🌐 사이트에서 바로', 'site'],
+  down: ['⬇ 받아서 씀', 'down'],
+  lock: ['🔒 시험 중', 'lock'],
+}
+const 계산기묶음 = (key) => {
+  const c = CATS.find((x) => x.key === key)
+  if (!c) return null
+  const items = TOOLS.filter((t) => t.cat === key)
+    .map((t) => ({ to: `/tools/${t.slug}`, icon: t.icon, t: t.title, d: t.short, w: 'site' }))
+  return { key: `calc-${key}`, icon: '🧮', name: key === 'qty' ? '수량 계산기' : '입찰·낙찰 계산기', items }
+}
+const 묶음들 = (() => {
+  const by = Object.fromEntries(PAGES.map((g) => [g.key, g]))
+  const out = []
+  for (const k of ['drawing', 'naeyeok', 'file']) if (by[k]) out.push(by[k])
+  for (const c of ['qty', 'bid']) { const g = 계산기묶음(c); if (g) out.push(g) }
+  for (const g of PAGES) if (!out.includes(g)) out.push(g)
+  return out
+})()
+const 모두 = 묶음들.reduce((n, g) => n + g.items.length, 0)
+const 사이트몫 = 묶음들.reduce((n, g) => n + g.items.filter((x) => x.w === 'site').length, 0)
 const 내림 = { scrollMarginTop: 76 }
 
 export default function ToolsIndex() {
+  const [q, setQ] = useState('')
+  const 찾은 = useMemo(() => {
+    const w = q.trim().toLowerCase().split(/\s+/).filter(Boolean)
+    if (!w.length) return 묶음들
+    return 묶음들.map((g) => ({ ...g, items: g.items.filter((x) => {
+      const s = `${x.t} ${x.d} ${g.name}`.toLowerCase()
+      return w.every((k) => s.includes(k))
+    }) })).filter((g) => g.items.length)
+  }, [q])
+  const 찾은수 = 찾은.reduce((n, g) => n + g.items.length, 0)
+
   return (
     <div className="wrap">
       <div className="card">
-        <div className="detail-h">🧰 건설 도구·서식 <span className="count">· 도구 {모두}가지 + 서식</span></div>
+        <h1 className="tl-h1" style={{ marginTop: 0 }}>🧰 건설 도구 <span className="count">· {모두}가지 · 전부 무료</span></h1>
         <div className="note sm">
-          <b>K-건설맵이 만든 도구와 서식을 여기 다 모았습니다.</b> 내역서·설계변경·적산·입찰·문서·서식까지
-          한 자리에서 찾으십시오. 회원가입 없이 바로 쓰시고, <b>전부 무료</b>입니다.
+          <b>K-건설맵이 만든 도구를 여기 한 곳에 다 모았습니다.</b> 회원가입 없이 바로 쓰십시오.
+          {' '}<b>{모두}가지 가운데 {사이트몫}가지는 이 사이트 안에서 바로 됩니다</b> — 깔 것이 없고, 넣으신 파일은 밖으로 나가지 않습니다.
         </div>
-        <div className="navrow" style={{ marginTop: 10 }}>
-          {칸들.map(([id, t]) => <a className="navi" href={`#${id}`} key={id}>{t}</a>)}
+        <div className="searchwrap" style={{ marginTop: 10 }}>
+          <span className="ico">🔎</span>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="도구 찾기 — 예: 철근, 설계변경, PDF, 3D, 투찰"
+            aria-label="도구 찾기" />
+          {q && <button className="x" onClick={() => setQ('')} aria-label="지우기">×</button>}
+        </div>
+        {!q && (
+          <div className="navrow" style={{ marginTop: 10 }}>
+            {묶음들.map((g) => <a className="navi" href={`#t-${g.key}`} key={g.key}>{g.icon} {g.name}</a>)}
+          </div>
+        )}
+        <div className="tlx-legend">
+          <span className="tlx-w site">🌐 사이트에서 바로</span> 이 화면에서 끝납니다 ·
+          {' '}<span className="tlx-w down">⬇ 받아서 씀</span> 캐드·PC 에 깔아 씁니다 ·
+          {' '}<span className="tlx-w lock">🔒 시험 중</span> 아직 여는 중
         </div>
       </div>
 
-      {/* 📄 서식 — 탭 이름에 «서식» 이 있으니 맨 위에 둡니다 */}
-      <div className="card" id="t-forms" style={내림}>
-        <div className="detail-h">📄 건설 서식</div>
-        <Link className="row rowlink" to="/forms">
-          <span className="fic">📄</span>
-          <div className="grow">
-            <div className="t">현장 서식 모음 — 착공부터 준공까지</div>
-            <div className="d">계약·공무·공사·안전·품질·환경·노무·장비 서류를 엑셀로 바로 받습니다. 회원가입 없음.</div>
-          </div>
-          <span className="go">→</span>
-        </Link>
-        {/* ⚡ 2026-09-24 — 공사서류 원클릭 (한 번 입력 → 서류 24가지) */}
-        <Link className="row rowlink" to="/tools/wonclick">
-          <span className="fic">⚡</span>
-          <div className="grow">
-            <div className="t">공사서류 원클릭 — 한 번 입력으로 서류 24가지</div>
-            <div className="d">공사명·금액·날짜를 한 번만 넣으면 착공부터 준공·하자까지 서류가 채워진 엑셀이 나옵니다. 매크로 없음.</div>
-          </div>
-          <span className="go">→</span>
-        </Link>
-      </div>
+      {q && !찾은수 && (
+        <div className="card"><div className="note">「{q}」 에 맞는 도구가 없습니다. 다른 말로 찾아 보시거나, 사랑방에 «이런 도구가 있으면» 한 줄 남겨 주십시오.</div></div>
+      )}
 
-      {/* ── 다른 화면에 있는 도구들 — 여기서도 바로 갑니다 ── */}
-      {PAGES.map((g) => (
+      {찾은.map((g) => (
         <div className="card" key={g.key} id={`t-${g.key}`} style={내림}>
           <div className="detail-h">{g.icon} {g.name} <span className="count">· {g.items.length}가지</span></div>
-          {g.items.map((x) => (
-            <Link className="row rowlink" to={x.to} key={x.to}>
-              <span className="fic">{x.icon}</span>
-              <div className="grow"><div className="t">{x.t}</div><div className="d">{x.d}</div></div>
-              <span className="go">→</span>
-            </Link>
-          ))}
+          <div className="tlx-grid">
+            {g.items.map((x) => {
+              const 곳 = 어디[x.w] || 어디.site
+              return (
+                <Link className="tlx-card" to={x.to} key={x.to}>
+                  <span className="tlx-ic">{x.icon}</span>
+                  <span className="tlx-body">
+                    <span className="tlx-t">{x.t}{x.new && <em className="tlx-new">새로</em>}</span>
+                    <span className="tlx-d">{x.d}</span>
+                    <span className={'tlx-w ' + 곳[1]}>{곳[0]}</span>
+                  </span>
+                </Link>
+              )
+            })}
+          </div>
         </div>
       ))}
 
-      <div className="sec-title" id="t-calc" style={{ marginTop: 14, ...내림 }}>
-        🧮 바로 셈하는 계산기 <span className="count">· {TOOLS.length}가지 · 이 화면 안에서 바로</span>
-      </div>
-      {CATS.map((c) => {
-        const list = TOOLS.filter((t) => t.cat === c.key)
-        if (!list.length) return null
-        return (
-          <div className="card" key={c.key}>
-            <div className="detail-h">{c.icon} {c.name} <span className="count">· {list.length}가지</span></div>
-            {list.map((t) => (
-              <Link className="row rowlink" to={`/tools/${t.slug}`} key={t.slug}>
-                <span className="fic">{t.icon}</span>
-                <div className="grow"><div className="t">{t.title}</div><div className="d">{t.short}</div></div>
-                <span className="go">→</span>
-              </Link>
-            ))}
-          </div>
-        )
-      })}
-
-      {/* 🗂️ 2026-09-16 — 소장님: 「도구에 공유폴더 만든 거 다운받을 수 있게」
-          띄 문구는 ShareOne.jsx 한 곳에만 있습니다. */}
-      <ShareOneStrip />
+      <Link className="card fbook" to="/forms">
+        <span className="fic">📄</span>
+        <div className="grow">
+          <div className="t">서식은 «서식» 탭에 <em>· 착공부터 준공까지</em></div>
+          <div className="d">계약·공무·공사·안전·품질·환경·노무·장비 서류를 엑셀로 바로 받습니다.</div>
+        </div>
+        <span className="go">→</span>
+      </Link>
 
       <div className="card">
         <div className="note sm">
           ⚠️ 표준품셈·물가정보 단가·노임단가는 유료 자료라 싣지 않습니다.
-          도구는 <b>수량과 금액 구조만</b> 내고, 단가는 직접 넣으시면 됩니다.
+          계산기는 <b>수량과 금액 구조만</b> 내고, 단가는 직접 넣으시면 됩니다.
+          <br />«이런 도구가 있으면 좋겠다» 는 <Link to="/qna">사랑방</Link>에 한 줄 남겨 주십시오.
         </div>
       </div>
     </div>
@@ -134,7 +150,7 @@ export function ToolPage() {
   return (
     <div className="wrap">
       <div className="card">
-        <Link className="btn ghost sm" to="/tools">← 도구·서식</Link>
+        <Link className="btn ghost sm" to="/tools">← 도구</Link>
         <h1 className="tl-h1">{t.icon} {t.title}</h1>
         <div className="note">{t.lead}</div>
       </div>

@@ -12,6 +12,7 @@
  * ⚠️ 값은 적지 않습니다(문의). 대신 **무엇이 값을 바꾸는지**를 적어 둡니다.
  *    값을 감추면 문의가 줄지만, 근거 없이 적으면 나중에 못 지킵니다.
  * ⚠️ 낙찰을 약속하지 않습니다. 약속하는 것은 **서류의 정확성**뿐입니다.
+ * ⏸ 2026-09-25 — 대행은 지금 받지 않습니다(아래 «대행받음»). 이 화면은 «산출내역서 알아보기» 로 남습니다.
  */
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -19,6 +20,14 @@ import { Link } from 'react-router-dom'
    내역서를 보러 온 사람이 곧 착공계도 내야 하는 사람입니다 — 그 자리에 띠를 붙입니다. */
 import { SafetyStrip } from './Safety.jsx'
 import { PriceStance } from '../components.jsx'
+
+/* ⏸ 2026-09-25 — 소장님: 「공내역서 채우기가 정확히 몇 퍼센트 되는 거지? 그럼 작성대행도 안돼고,
+   적산도 안되는 거잖아. 근데, 사이트에는 된다고 해놓서...이걸 고쳐야 할 것 같아」
+   → 대행은 «지금 받지 않습니다» 로 바꿉니다. 받는 쪽 글(무엇을 드리나 · 얼마 · 어떻게 · 문의 칸 ·
+     왜 우리인가 · 약속)은 지우지 않고 이 값 하나로 숨겨 둡니다 — 다시 받을 때 true 로 바꾸십시오.
+   ⚠️ 탭 이름(App.jsx) · 길 이름(Crumbs.jsx) · 다른 화면의 띠(components.jsx NaeyeokStrip · Jobs · Ratio) ·
+      미리 굽는 글(prerender.py 의 /naeyeok) 도 같이 바꿨습니다. 다시 열 때 같이 되돌리십시오. */
+const 대행받음 = false
 
 /* ⚠️ firebase 를 «정적으로» 끌어오면 이 화면만 열어도 390KB 를 받습니다.
    「문의 남기기」 를 실제로 누를 때만 받아옵니다. (Jobs.jsx 와 같은 방식) */
@@ -216,14 +225,26 @@ export function QuoteForm({ 옵션 = null, 첫값 = '입찰 산출내역서', �
 export default function Naeyeok() {
   return (
     <div className="wrap">
-      <div className="card hero">
-        <h1 style={{ margin: 0, fontSize: 20 }}>📋 견적서 · 내역서 작성해 드립니다</h1>
-        {/* ⚠️ .hero 는 파란 바탕입니다. 여기에 .muted(회색)를 쓰면 글이 묻혀 안 읽힙니다. */}
-        <div style={{ marginTop: 6, lineHeight: 1.75, color: 'rgba(255,255,255,.92)', fontSize: 13.5 }}>
-          견적서 · 입찰 산출내역서 · 실행내역 · 설계변경 · 기성 — <b style={{ color: '#fff' }}>내역 일이면 다 합니다.</b>
-          <span style={{ opacity: .9 }}> 이 화면 말고 K-건설맵의 나머지는 전부 무료입니다.</span>
+      {대행받음 ? (
+        <div className="card hero">
+          <h1 style={{ margin: 0, fontSize: 20 }}>📋 견적서 · 내역서 작성해 드립니다</h1>
+          {/* ⚠️ .hero 는 파란 바탕입니다. 여기에 .muted(회색)를 쓰면 글이 묻혀 안 읽힙니다. */}
+          <div style={{ marginTop: 6, lineHeight: 1.75, color: 'rgba(255,255,255,.92)', fontSize: 13.5 }}>
+            견적서 · 입찰 산출내역서 · 실행내역 · 설계변경 · 기성 — <b style={{ color: '#fff' }}>내역 일이면 다 합니다.</b>
+            <span style={{ opacity: .9 }}> 이 화면 말고 K-건설맵의 나머지는 전부 무료입니다.</span>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="card hero">
+          <h1 style={{ margin: 0, fontSize: 20 }}>📋 산출내역서 — 언제 · 누가 · 무엇을</h1>
+          <div style={{ marginTop: 6, lineHeight: 1.75, color: 'rgba(255,255,255,.92)', fontSize: 13.5 }}>
+            {/* 2026-09-26 — 소장님: 「클로드 추천으로 하자」 · 「설명도 바꿔줘」 — 탭 «내역서» 에 맞춰
+                «대행 안 받음» 이 아니라 «이 화면이 무엇인가» 를 먼저 적습니다. 대행 얘기는 아래 한 줄로. */}
+            낙찰되면 <b style={{ color: '#fff' }}>누군가는 반드시 내야 하는 서류</b>입니다.
+            <span style={{ opacity: .9 }}> 언제·누가 내는지, 틀리면 왜 무효가 되는지, 직접 맞추는 무료 도구까지 한 장에 모았습니다.</span>
+          </div>
+        </div>
+      )}
 
       {/* 🦺 2026-09-16 — 소장님: 「대상판정이 사이트 어디 있어?」
           예전엔 이 띄가 «세 번째 칸» 이라 한 번 내려야 보였습니다.
@@ -240,20 +261,31 @@ export default function Naeyeok() {
           <b> 100억원 이상</b>이면 입찰 참가자가 <b>입찰서와 함께</b> 냅니다.
           금액과 상관없이 <b>누군가는 반드시 만들어야 하는 서류</b>입니다.
         </p>
-        <div className="btn-row" style={{ justifyContent: 'flex-start' }}>
-          <a className="btn line" style={{ textDecoration: 'none' }} href="#ask"
-             onClick={() => ask('hero')}>📝 문의 남기기 — 1분이면 됩니다</a>
-        </div>
-        {/* 나머지 둘은 단추가 아니라 «가는 고리»로. 셋 다 파란 단추면 무엇을 누를지 모릅니다. */}
-        <div className="navrow" style={{ marginTop: 8 }}>
-          <a className="navi" href="#ask" onClick={() => ask('hero-mail')}>✉️ 문의 남기기 ↓</a>
-          <a className="navi" href="#what">무엇을 드리나 ↓</a>
-          <a className="navi" href="#how">어떻게 되나 ↓</a>
-        </div>
-        <div className="muted" style={{ fontSize: 12.5, marginTop: 10 }}>
-          회원가입도, 로그인도 없습니다. <b>남에게 보이지 않는 문의함</b>입니다.
-          <b>적어서 보내시면 그대로 제 메일로 옵니다</b> — 메일 프로그램이 뜨지 않습니다.
-        </div>
+        {대행받음 ? (
+          <>
+            <div className="btn-row" style={{ justifyContent: 'flex-start' }}>
+              <a className="btn line" style={{ textDecoration: 'none' }} href="#ask"
+                 onClick={() => ask('hero')}>📝 문의 남기기 — 1분이면 됩니다</a>
+            </div>
+            {/* 나머지 둘은 단추가 아니라 «가는 고리»로. 셋 다 파란 단추면 무엇을 누를지 모릅니다. */}
+            <div className="navrow" style={{ marginTop: 8 }}>
+              <a className="navi" href="#ask" onClick={() => ask('hero-mail')}>✉️ 문의 남기기 ↓</a>
+              <a className="navi" href="#what">무엇을 드리나 ↓</a>
+              <a className="navi" href="#how">어떻게 되나 ↓</a>
+            </div>
+            <div className="muted" style={{ fontSize: 12.5, marginTop: 10 }}>
+              회원가입도, 로그인도 없습니다. <b>남에게 보이지 않는 문의함</b>입니다.
+              <b>적어서 보내시면 그대로 제 메일로 옵니다</b> — 메일 프로그램이 뜨지 않습니다.
+            </div>
+          </>
+        ) : (
+          <div className="note" style={{ margin: 0, lineHeight: 1.8 }}>
+            <b>작성 대행은 지금 받지 않습니다.</b> 단가를 자동으로 채우는 프로그램을 시험하고 있는데,
+            실제 설계 내역서 4,171줄로 재 보니 품목이 맞는 줄이 3줄 중 2줄(66.7%),
+            단가가 설계값 ±10% 안에 드는 줄이 10줄 중 4줄(39.5%)이라 아직 믿고 맡기실 수준이 아닙니다.
+            되는 날 이 화면에 먼저 적겠습니다.
+          </div>
+        )}
       </div>
 
 
@@ -263,7 +295,7 @@ export default function Naeyeok() {
       <div className="card" style={{ borderLeft: '5px solid #2e7d32' }}>
         <div className="sec-title" style={{ marginTop: 0 }}>직접 하실 수 있는 것 — 무료</div>
         <p style={{ margin: '0 0 10px', lineHeight: 1.85 }}>
-          <b>이미 있는 내역서를 «비율»로만 맞추는 일</b>이라면 맡기지 않으셔도 됩니다.
+          <b>이미 있는 내역서를 «비율»로만 맞추는 일</b>이라면 직접 하실 수 있습니다.
           내역서를 올리고 <b>80%</b> 같은 비율이나 맞출 금액만 넣으시면
           단가가 그 비율로 바뀐 <b>내역서</b>와 <b>원가계산서</b>가 바로 나옵니다 —
           하도급 · 실행 · 낙찰률 셋 다 같은 셈입니다.
@@ -329,6 +361,7 @@ export default function Naeyeok() {
         </div>
       </div>
 
+      {대행받음 && (<>
       {/* ── 무엇을 드리나 ─────────────────────────────────────── */}
       {/* ⚠️ 2026-09-15 — 소장님: 「견적서 작업도 넣어줘. 입찰내역서 등... 내역 작업이 필요한 모든 곳」
           처음엔 «산출내역서» 하나만 적어 뒀는데, 내역 일은 공사가 시작해서 끝날 때까지 계속 나옵니다.
@@ -486,6 +519,7 @@ export default function Naeyeok() {
              onClick={() => ask('foot')}>📝 문의 남기기</a>
         </div>
       </div>
+      </>)}
     </div>
   )
 }

@@ -10,7 +10,7 @@ import RefreshBtn from './Refresh.jsx'
 import Crumbs from './Crumbs.jsx'
 
 /* 탭에 적힌 주소가 아니어도 «이 탭의 식구» 면 불을 켭니다.
-   예) /tools · /cad 에 있어도 「서식·도구」 탭이 켜집니다. */
+   예) /cad · /pdf 에 있어도 「도구」 탭이 켜집니다. */
 function alsoOn(t, path) {
   if (!t.also) return false
   return t.also.some((p) => path === p || path.startsWith(p + '/'))
@@ -43,12 +43,20 @@ const TABS = [
      서식은 그 안 맨 위 칸으로 넣었습니다. 「설계변경」 탭도 도구 안으로 넣어 탭이 9개가 됐습니다.
      ⚠️ /forms · /change · /cad 주소는 그대로 살아 있습니다 — 검색으로 들어오는 길입니다.
         그 화면에 있어도 이 탭에 불이 들어옵니다(also). */
-  { to: '/tools', ic: '🧰', label: '도구·서식', also: ['/forms', '/change', '/cad', '/pdf', '/shareone'] },
+  /* 🧰📄 2026-09-25 — 소장님: 「탭을 도구와 서식을 묶었는데, 이걸 분리해서 해야 할 듯」
+     «도구» 와 «서식» 을 다시 두 탭으로 나눕니다. 탭은 10개(한도)입니다.
+     도구 탭: 도구 모음(/tools) — 설계변경·캐드·PDF·쉐어원 화면에서도 불이 들어옵니다.
+     서식 탭: 서식 목록(/forms). */
+  { to: '/tools', ic: '🧰', label: '도구', also: ['/change', '/cad', '/pdf', '/shareone'] },
+  { to: '/forms', ic: '📄', label: '서식' },
   /* 📋 2026-09-16 — 소장님: 「내역서 작성을 «작성 대행» 으로 넓히자」
      탭은 10개 그대로 두고, 파는 것(내역서 · 안전서류)을 한 탭에 모았습니다.
      /safety 에서도 이 탭에 불이 들어옵니다. 나중에 착공 서류 한 벌도 여기 붙습니다. */
-  { to: '/naeyeok', ic: '📋', label: '작성 대행', pay: true, also: ['/safety'] },
-  { to: '/jeoksan', ic: '🧮', label: '적산', pay: true },
+  /* ⏸ 2026-09-25 — 소장님: 「그럼 작성대행도 안돼고, 적산도 안되는 거잖아. 근데, 사이트에는 된다고 해놓서」
+     작성 대행은 지금 받지 않고(Naeyeok.jsx 대행받음), 적산은 시험 중이라 팔지 않습니다.
+     → 탭 이름을 «내역서» 로 바꾸고 두 탭의 «유료» 표시(pay)를 뗐습니다. 다시 열 때 되돌리십시오. */
+  { to: '/naeyeok', ic: '📋', label: '내역서', also: ['/safety'] },
+  { to: '/jeoksan', ic: '🧮', label: '적산' },
   { to: '/jobs', ic: '💼', label: '구인구직' },
   { to: '/qna', ic: '💬', label: '사랑방' },
   /* 📊 2026-09-18 — 성적표(/report)·업체(/corp)·기관(/agency) 화면에서도 이 탭에 불이
