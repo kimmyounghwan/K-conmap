@@ -3554,3 +3554,120 @@ ul.plainlist li { margin-bottom: 5px; }
 .flist.sf-chk { list-style: none; padding-left: 4px; }
 #sf-a, #sf-b, #sf-prep { scroll-margin-top: 64px; }
 @media (min-width: 620px) { .btn-grid.sf-jump { grid-template-columns: 1fr 1fr 1fr; } }
+
+/* 📄 /tools/dxfpdf 도면 PDF 만들기 (2026-09-26) — 종이는 어두운 화면에서도 흰색 */
+.dp-sum { font-size: 14px; margin-bottom: 10px; line-height: 1.6; }
+.dp-opts { display: grid; gap: 8px; margin-bottom: 12px; }
+.dp-opt { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.dp-lab { font-size: 12.5px; color: var(--muted); min-width: 34px; font-weight: 700; }
+.dp-chk { font-size: 13px; display: inline-flex; gap: 4px; align-items: center; margin-left: 8px; }
+.dp-chk input, .dp-f label input { width: auto; }
+.dp-stage { background: #e6eaf0; border-radius: 10px; padding: 14px; display: flex; justify-content: center; overflow: hidden; }
+.dp-paper { position: relative; background: #fff; box-shadow: 0 2px 12px rgba(0, 0, 0, .2); line-height: 0; user-select: none; }
+.dp-cv { display: block; }
+.dp-cv.pick { cursor: crosshair; touch-action: none; }
+.dp-rect { position: absolute; border: 2px solid #e5484d; background: rgba(229, 72, 77, .08); pointer-events: none; }
+.dp-rect span { position: absolute; left: 3px; top: 3px; font: 700 11px/1 sans-serif; color: #e5484d; }
+.dp-rect.now { border-style: dashed; }
+.dp-nav { display: flex; gap: 10px; align-items: center; justify-content: center; margin-top: 8px; font-size: 13px; }
+.dp-scale { text-align: center; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.dp-go { margin-top: 12px; }
+.dp-done { margin-top: 8px; font-size: 13.5px; }
+.dp-frames { margin-bottom: 12px; }
+.dp-fh { display: flex; gap: 8px; align-items: center; font-size: 13px; margin-bottom: 6px; flex-wrap: wrap; }
+.dp-flist { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; }
+.dp-f { flex: 0 0 auto; border: 2px solid var(--line); border-radius: 8px; padding: 4px; background: #fff; cursor: pointer; }
+.dp-f.now { border-color: var(--accent); }
+.dp-f.off { opacity: .45; }
+.dp-f canvas { display: block; width: 150px; height: auto; }
+.dp-f label { display: flex; gap: 4px; align-items: center; font-size: 12px; color: #333; padding-top: 3px; line-height: 1.4; }
+.dp-mine { font-size: 13px; background: var(--accent-soft); padding: 8px 10px; border-radius: 8px; margin-bottom: 10px; line-height: 1.8; }
+@media (max-width: 600px) { .dp-stage { padding: 8px; } }
+
+/* 🏗 /tools/tuipbi 현장 투입비 (2026-09-26) */
+.tp-busy { font-size: 14px; }
+.tp-start { display: flex; flex-wrap: wrap; gap: 8px; }
+.tp-start .btn { width: auto; }
+.tp-mine { display: grid; gap: 6px; }
+.tp-mrow { display: flex; gap: 8px; align-items: center; }
+.tp-mopen { flex: 1; display: flex; justify-content: space-between; gap: 10px; align-items: center; text-align: left;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 14px; }
+.tp-mopen span { color: var(--muted); font-size: 12.5px; font-family: ui-monospace, monospace; }
+.tp-form { display: grid; gap: 10px; }
+.tp-form label, .tp-erow label { display: grid; gap: 4px; font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.tp-form input, .tp-erow input { font-size: 15px; }
+.tp-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tp-hint { font-size: 12px; color: var(--accent); font-weight: 700; }
+.tp-warn { margin-top: 8px; font-size: 13px; color: #c2410c; }
+.tp-made .tp-code { font: 800 30px/1.2 ui-monospace, monospace; letter-spacing: 2px; margin: 6px 0 10px; color: var(--accent); }
+.tp-share { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
+.tp-share code { font-size: 12.5px; background: var(--surface-2); padding: 6px 8px; border-radius: 6px; word-break: break-all; }
+.tp-ex { background: var(--accent-soft); font-size: 13.5px; }
+.tp-head { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: flex-start; }
+.tp-name { font-size: 19px; margin: 0; }
+.tp-sub { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+.tp-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.tp-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
+.tp-tile { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--surface); display: grid; gap: 2px; }
+.tp-tile span { font-size: 12px; color: var(--muted); font-weight: 700; }
+.tp-tile b { font-size: 20px; }
+.tp-tile i { font-style: normal; font-size: 11.5px; color: var(--muted); }
+.tp-tile.main { border-color: var(--accent); background: var(--accent-soft); }
+.tp-tile.bad b { color: #dc2626; }
+.tp-bars { display: grid; gap: 6px; margin-top: 12px; }
+.tp-bar { display: grid; grid-template-columns: 70px 1fr auto; gap: 8px; align-items: center; font-size: 12.5px; }
+.tp-bl { color: var(--muted); font-weight: 700; }
+.tp-bt { height: 12px; background: var(--surface-2); border-radius: 6px; overflow: hidden; }
+.tp-bf { height: 100%; border-radius: 6px; }
+.tp-bf.in { background: var(--accent); }
+.tp-bf.time { background: #94a3b8; }
+.tp-bf.bud { background: #10b981; }
+.tp-bf.over { background: #dc2626; }
+.tp-bv { white-space: nowrap; }
+.tp-say { margin-top: 10px; font-size: 13.5px; line-height: 1.6; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); }
+.tp-say.warn { background: #fff4e5; color: #9a3412; }
+.tp-mini { display: flex; gap: 16px; margin-top: 8px; font-size: 13px; color: var(--muted); }
+.tp-mini b { color: var(--text); }
+.tp-kinds { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.tp-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: 0; }
+.tp-erow { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 10px; }
+.tp-erow .tp-d { width: 150px; } .tp-erow .tp-t { flex: 1; min-width: 200px; }
+.tp-erow .tp-n { width: 120px; } .tp-erow .tp-a { width: 190px; } .tp-erow .tp-by { width: 150px; }
+.tp-chk { display: flex !important; flex-direction: row; align-items: center; gap: 6px; font-weight: 600; color: var(--text) !important; font-size: 13px !important; padding-bottom: 10px; }
+.tp-chk input { width: auto; }
+.tp-sum { font-size: 14px; padding-bottom: 10px; }
+.tp-stack { display: flex; height: 16px; border-radius: 8px; overflow: hidden; margin-bottom: 10px; background: var(--surface-2); }
+.tp-kt td, .tp-mt td, .tp-rt td { font-size: 13px; }
+.tp-kt .r, .tp-mt .r, .tp-rt .r { text-align: right; }
+.tp-scroll { overflow-x: auto; }
+.tp-mt th, .tp-rt th { font-size: 12px; white-space: nowrap; }
+.tp-rt .nw, .tp-mt td { white-space: nowrap; }
+.tp-lh { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.tp-lh select { width: auto; }
+.tp-x { border: 0; background: none; color: var(--accent); font-size: 12.5px; cursor: pointer; padding: 2px 4px; }
+.tp-info { border-top: 1px dashed var(--line); margin-top: 12px; padding-top: 12px; }
+.tp-del { margin-top: 10px; font-size: 13px; }
+.tp-del summary { cursor: pointer; color: #dc2626; }
+.tp-del input { margin: 6px 0; }
+@media (max-width: 700px) {
+  .tp-tiles { grid-template-columns: 1fr 1fr; }
+  .tp-two { grid-template-columns: 1fr; }
+  .tp-erow .tp-d, .tp-erow .tp-a, .tp-erow .tp-by, .tp-erow .tp-n { width: 100%; }
+  .tp-tile b { font-size: 18px; }
+}
+@media print {
+  .no-print, .tp-entry, .tp-acts { display: none !important; }
+  .tp .card { break-inside: avoid; }
+}
+.tp-rt td { text-align: left; }
+.tp-rt td.r { text-align: right; }
+@media (max-width: 700px) {
+  .tp-rt thead { display: none; }
+  .tp-rt tr { display: grid; grid-template-columns: auto auto 1fr; grid-template-areas: "d k a" "t t t" "q q x";
+    gap: 2px 8px; padding: 8px 2px; border-bottom: 1px solid var(--line); }
+  .tp-rt td { display: block; border: 0 !important; padding: 0 !important; }
+  .tp-rt .c-d { grid-area: d; color: var(--muted); } .tp-rt .c-k { grid-area: k; }
+  .tp-rt .c-a { grid-area: a; text-align: right; } .tp-rt .c-t { grid-area: t; white-space: normal; }
+  .tp-rt .c-q { grid-area: q; text-align: left !important; } .tp-rt .c-x { grid-area: x; text-align: right; }
+  .tp-bar { grid-template-columns: 62px 1fr auto; }
+}

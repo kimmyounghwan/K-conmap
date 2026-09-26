@@ -56,6 +56,8 @@ const LEAF = {
   '/jeoksan/run': '수량산출서 만들기',
   '/jeoksan/lab': '적산 실험실',
   '/tools/dxf3d': '도면 3D 보기',
+  '/tools/dxfpdf': '도면 PDF 만들기',
+  '/tools/tuipbi': '현장 투입비',
   '/tools/wonclick': '공사서류 원클릭',
   '/report/make': '성적표 만들기',
   '/naeyeok/ratio': '내역서 비율 맞추기',

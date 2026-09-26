@@ -164,7 +164,7 @@ SITENAV = [("/", "바로투찰"), ("/first", "1순위 개찰"), ("/live", "입�
            ("/cad", "캐드 유틸"), ("/pdf", "PDF 도구"), ("/jeoksan", "K-적산"),
            ("/shareone", "쉐어원 공유폴더"),
            ("/safety", "안전관리계획서 · 유해위험방지계획서"),
-           ("/naeyeok", "산출내역서 알아보기"), ("/tools/dxf3d", "도면 3D 보기"), ("/qna", "사랑방"),
+           ("/naeyeok", "산출내역서 알아보기"), ("/tools/dxf3d", "도면 3D 보기"), ("/tools/dxfpdf", "도면 PDF 만들기"), ("/tools/tuipbi", "현장 투입비"), ("/qna", "사랑방"),
            ("/how", "보는 방법")]
 
 
@@ -2042,6 +2042,57 @@ def dxf3d_page(shell, image=None):
 
 
 
+# 📄 /tools/dxfpdf — 도면 PDF 만들기 (2026-09-26). 화면은 DxfPdf.jsx · 읽기 lib/dxfplot.js · PDF lib/plotpdf.js (브라우저 안에서만).
+def dxfpdf_page(shell, image=None):
+    title = "도면 PDF 만들기 — DXF 캐드 도면을 도곽마다 PDF 로 · 흑백·컬러·한글 | K-건설맵"
+    desc = ("캐드 도면(DXF)을 놓으면 도곽을 스스로 찾아 한 장씩 PDF 로 찍습니다. 흑백(색마다 굵기 CTB)·컬러, "
+            "점선·해치 무늬·한글 글자까지. 파일은 올라가지 않고 브라우저 안에서만 만듭니다. 무료.")[:160]
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">📄 도면 PDF 만들기 (DXF → PDF)</h1>'
+           '<p class="cp" style="margin-top:8px">캐드 도면(<b>.dxf</b>)을 놓으면 <b>도곽을 스스로 찾아 한 장씩</b> PDF 로 찍습니다. '
+           '선은 확대해도 깨지지 않는 벡터 그대로, 글자는 PDF 에서 찾기가 됩니다.</p>'
+           '<p class="cp"><b>파일은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 읽고 PDF 를 만듭니다. 회원가입 없음 · 무료.</p></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">이렇게 찍습니다</div><ul class="flist">'
+           '<li><b>도곽 찾기</b> — 가로:세로가 √2(A·B 판)인 큰 네모를 도곽으로 보고, 크기로 원래 종이와 축척(예: A1 · 1:100)을 짐작합니다. '
+           '못 찾으면 전체 한 장, 또는 그림 위에서 끌어서 범위를 직접 잡습니다</li>'
+           '<li><b>종이</b> — A4 · A3 · A2 · A1 · A0, 또는 도곽 크기 그대로</li>'
+           '<li><b>흑백</b>은 색마다 굵기(CTB): 빨강 0.13 · 노랑 0.18 · 초록 0.25 · 하늘 0.30 · 파랑 0.35 · 자홍 0.40 · 흰 0.30 · 회색 0.09 mm. <b>컬러</b>도 됩니다</li>'
+           '<li><b>점선·해치 무늬</b>를 도면 그대로 풀고, 외부참조 자르기(XCLIP)도 지킵니다. 꺼진·얼린·출력 안 함 레이어는 뺍니다</li>'
+           '<li><b>글자</b> — 캐드 전용 글꼴(SHX)은 브라우저에 없어 KCM Gothic(나눔고딕 바탕 · OFL)으로 찍습니다</li></ul></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">아직 못 하는 것</div><ul class="flist">'
+           '<li><b>DWG</b> — 캐드에서 «다른 이름으로 저장 → DXF» 로 바꿔 놓아 주십시오</li>'
+           '<li><b>배치(종이 공간)</b>에만 그린 도면 · 그림(IMAGE) · OLE · 표 · 다중 지시선 — 빠진 것은 몇 개인지 화면에 적습니다</li></ul></div>']
+    ld = {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "도면 PDF 만들기",
+          "applicationCategory": "DesignApplication", "operatingSystem": "Web",
+          "description": desc, "url": f"{SITE}/tools/dxfpdf", "isAccessibleForFree": True,
+          "offers": {"@type": "Offer", "price": "0", "priceCurrency": "KRW"},
+          "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}}
+    return page(shell, "/tools/dxfpdf", title, desc, "".join(out) + nav_html("/tools/dxfpdf"), image, ld)
+
+
+# 🏗 /tools/tuipbi — 현장 투입비 (2026-09-26). 화면은 Tuipbi.jsx · 셈은 lib/tuipbi.js · 저장은 파이어베이스(cost_*).
+def tuipbi_page(shell, image=None):
+    title = "현장 투입비 관리 — 총공사금액 대비 누적 투입비·투입률 · 공사일보 간소판 | K-건설맵"
+    desc = ("날짜·구분(노무·자재·장비·외주·경비)·금액만 적으면 누적 투입비·투입률·남은 금액·공기 경과와 견줌·"
+            "구분별·월별 집계가 나옵니다. 현장 코드와 비밀번호로 현장 사람과 같이 적고 엑셀로 받습니다. 무료.")[:160]
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">🏗 현장 투입비 (공사일보 간소판)</h1>'
+           '<p class="cp" style="margin-top:8px"><b>총공사금액 대비 지금까지 얼마 들었나</b> — 그것만 봅니다. '
+           '날짜·구분·내용·금액만 적으면 누적 투입비 · 투입률 · 남은 금액 · 공기 경과율과 견줌 · 구분별 · 월별이 저절로 나오고 엑셀로 받습니다.</p>'
+           '<p class="cp">회원가입 없음 · 무료. 현장을 만들면 <b>현장 코드 + 비밀번호</b>가 생기고 그걸 아는 사람만 봅니다. '
+           '근로자 명단 · 주민번호 · 계좌는 받지 않습니다.</p></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">이렇게 씁니다</div><ul class="flist">'
+           '<li>새 현장 만들기 — 현장명 · 총공사금액(도급액) · 실행예산(선택) · 공사기간 · 비밀번호</li>'
+           '<li>현장 코드를 현장 사람과 나누면 폰 · PC 어디서든 같이 적습니다</li>'
+           '<li>구분은 노무비 · 자재비 · 장비비 · 외주비 · 경비 · 기타. 인부 5인 × 187,000 처럼 수량 × 단가로도 적습니다</li>'
+           '<li>공기가 몇 % 지났는데 투입비는 몇 % 들었는지 견줘 드립니다. 월별 · 구분별 표와 엑셀(요약 · 월별 · 내역 3장)</li>'
+           '</ul></div>']
+    ld = {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "현장 투입비",
+          "applicationCategory": "BusinessApplication", "operatingSystem": "Web",
+          "description": desc, "url": f"{SITE}/tools/tuipbi", "isAccessibleForFree": True,
+          "offers": {"@type": "Offer", "price": "0", "priceCurrency": "KRW"},
+          "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}}
+    return page(shell, "/tools/tuipbi", title, desc, "".join(out) + nav_html("/tools/tuipbi"), image, ld)
+
+
 def load_guide():
     try:
         with open(GUIDE_JSON, encoding="utf-8") as f:
@@ -2361,6 +2412,14 @@ def main():
           og.tab("tool-dxf3d", "도면 3D 보기", "건설 도구", "DXF", "높이 그대로 입체로") if og.available else None))
     made += 1
     print("  · 도면 3D 보기 페이지 1개 (/tools/dxf3d)")
+    write("tools/dxfpdf.html", dxfpdf_page(shell,
+          og.tab("tool-dxfpdf", "도면 PDF 만들기", "건설 도구", "DXF → PDF", "도곽마다 한 장") if og.available else None))
+    made += 1
+    print("  · 도면 PDF 만들기 페이지 1개 (/tools/dxfpdf)")
+    write("tools/tuipbi.html", tuipbi_page(shell,
+          og.tab("tool-tuipbi", "현장 투입비", "건설 도구", "공사일보 간소판", "총공사금액 대비 투입률") if og.available else None))
+    made += 1
+    print("  · 현장 투입비 페이지 1개 (/tools/tuipbi)")
 
     # ── 🪪 면허별 경쟁도 ──
     lrows, lmin = load_licstat()

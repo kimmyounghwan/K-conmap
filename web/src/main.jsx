@@ -100,6 +100,10 @@ const WonClick = lazyPage(() => import('./pages/WonClick.jsx'))
 /* 📦 도면 3D 보기 — 2026-09-25. DXF 를 브라우저 안에서만 읽어 높이 그대로 세웁니다(서버 없음).
    ⚠️ /tools/:slug 보다 먼저 잡히는 «정확한 주소» 입니다. firebase.json 은 /tools/** 로 이미 덮입니다. */
 const Dxf3d = lazyPage(() => import('./pages/Dxf3d.jsx'))
+/* 📄 도면 PDF 만들기 (DXF → PDF) — 2026-09-26 */
+const DxfPdf = lazyPage(() => import('./pages/DxfPdf.jsx'))
+/* 🏗 현장 투입비 (공사일보 간소판) — 2026-09-26 */
+const Tuipbi = lazyPage(() => import('./pages/Tuipbi.jsx'))
 const ChangeCalc = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeCalc })))
 const ChangeBook = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeBook })))
 const ChangeNaeyeok = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeNaeyeok })))
@@ -170,6 +174,8 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/tools" element={<Suspense fallback={<Loading />}><ToolsIndex /></Suspense>} />
           <Route path="/tools/wonclick" element={<Suspense fallback={<Loading />}><WonClick /></Suspense>} />
           <Route path="/tools/dxf3d" element={<Suspense fallback={<Loading />}><Dxf3d /></Suspense>} />
+          <Route path="/tools/dxfpdf" element={<Suspense fallback={<Loading />}><DxfPdf /></Suspense>} />
+          <Route path="/tools/tuipbi" element={<Suspense fallback={<Loading />}><Tuipbi /></Suspense>} />
           <Route path="/tools/:slug" element={<Suspense fallback={<Loading />}><ToolPage /></Suspense>} />
           {/* 📋 2026-09-15 — 내역서 작성 대행. 하나뿐인 유료 화면입니다. */}
           {/* 💬 2026-09-15 — 묻고 답하기 */}

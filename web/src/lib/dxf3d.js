@@ -59,7 +59,7 @@ export function sniff(buf) {
 }
 
 const UNI = /\\U\+([0-9A-Fa-f]{4})/g
-const unesc = (s) => String(s).replace(UNI, (_, h) => String.fromCharCode(parseInt(h, 16)))
+export const unesc = (s) => String(s).replace(UNI, (_, h) => String.fromCharCode(parseInt(h, 16)))
 
 /* ── 늘어나는 배열 ─────────────────────────────────────── */
 export class F64 {
@@ -88,8 +88,8 @@ export class U8 {
 }
 
 /* ── 좌표 바꾸기 (3×4 행렬, 행 우선) ───────────────────── */
-const I3 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0]
-function mul(A, B) {        // A·B (둘 다 3×4 아핀)
+export const I3 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0]
+export function mul(A, B) {        // A·B (둘 다 3×4 아핀)
   const r = new Array(12)
   for (let i = 0; i < 3; i++) {
     const a0 = A[i * 4], a1 = A[i * 4 + 1], a2 = A[i * 4 + 2], a3 = A[i * 4 + 3]
@@ -101,7 +101,7 @@ function mul(A, B) {        // A·B (둘 다 3×4 아핀)
   return r
 }
 /** 임의축 알고리즘(OCS) — 돌출방향 N 으로 캐드가 쓰는 좌표축을 만듭니다. */
-function ocs(nx, ny, nz) {
+export function ocs(nx, ny, nz) {
   if (nx === 0 && ny === 0 && nz === 1) return null        // 보통의 경우 — 그대로
   const L = Math.hypot(nx, ny, nz) || 1
   nx /= L; ny /= L; nz /= L
@@ -115,7 +115,7 @@ function ocs(nx, ny, nz) {
 }
 
 /* ── 한 쌍씩 읽기 ─────────────────────────────────────── */
-function reader(text) {
+export function reader(text) {
   let p = 0
   const L = text.length
   const line = () => {
@@ -141,7 +141,7 @@ function reader(text) {
 }
 
 /* 도형 하나 = { t: 종류, g: [[코드, 값], …] } */
-const num = (v) => { const x = parseFloat(v); return Number.isFinite(x) ? x : 0 }
+export const num = (v) => { const x = parseFloat(v); return Number.isFinite(x) ? x : 0 }
 
 const NOT_DRAWN = {
   TEXT: '글자', MTEXT: '글자', ATTRIB: '글자', ATTDEF: '글자',
@@ -609,7 +609,7 @@ function 글자다듬기(s) {
 }
 
 /* 비균일 B-스플라인(드보어) — 가중치가 있으면 유리식 */
-function bspline(p, P, U, W) {
+export function bspline(p, P, U, W) {
   const n = P.length
   const lo = U[p], hi = U[n]
   if (!(hi > lo)) return null

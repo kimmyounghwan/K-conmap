@@ -111,3 +111,6 @@ _뽑은단가_*.json
 #    회차 사이 보관은 GitHub Actions 의 cache(data/store) 가 맡습니다.
 #    커밋하면 매 회차 수십 MB 가 쌓여 저장소가 GB 로 불어납니다.
 data/store/ranks3y/
+
+# 도면 PDF 글꼴의 라이선스(OFL) — 글꼴과 같이 내보내야 합니다 (2026-09-26)
+!web/public/fonts/OFL.txt
