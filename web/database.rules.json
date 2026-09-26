@@ -302,7 +302,11 @@
     // 현장 코드(9자리, 헷갈리는 글자 뺀 32가지 — 짐작으로 못 찾음) + 비밀번호(6자 이상).
     // 비밀번호는 해시만 cost_pins 에 둡니다(아무도 못 읽음, 한 번만 씀).
     // 이 브라우저(익명 uid)가 맞는 해시를 cost_keys/{현장}/{uid} 에 써야(틀리면 규칙이 거절) 그 현장을 읽고 씁니다.
-    // 화면은 get() 만 씁니다(실시간 구독 없음). 근로자 명단·주민번호·계좌 칸은 «없습니다» — $other 가 막습니다.
+    // 화면은 get() 만 씁니다(실시간 구독 없음).
+    // 2026-09-26 더함 (소장님: 「노무자 및 장비, 자재 청구내역서 작성해서 보여주는 걸로 하자. 매달...」):
+    //   명부(cost_people·cost_equip·cost_vendors) · 출역(cost_att) · 기성(cost_rows k='G').
+    //   주민번호·계좌는 «x» 칸 하나에 브라우저에서 현장 비밀번호로 잠근 글(AES-GCM)로만 들어옵니다 — 서버는 못 읽음
+    //   (개인정보 보호법 제24조의2 ② 암호화 보관). 그 밖의 칸은 $other 가 막습니다.
     "cost_pins": {
       ".read": false,
       "$site": {
@@ -330,6 +334,7 @@
         "end":    { ".validate": "newData.isString() && newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)" },
         "at":     { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
         "upd":    { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
+        "co":     { ".validate": "newData.isString() && newData.val().length <= 40" },
         "$other": { ".validate": false }
       }
     },
@@ -340,14 +345,88 @@
         "$row": {
           ".validate": "newData.hasChildren(['d','k','amt','at'])",
           "d":   { ".validate": "newData.isString() && newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)" },
-          "k":   { ".validate": "newData.isString() && newData.val().matches(/^[LMESXO]$/)" },
+          "k":   { ".validate": "newData.isString() && newData.val().matches(/^[LMESXOG]$/)" },
           "t":   { ".validate": "newData.isString() && newData.val().length <= 100" },
           "amt": { ".validate": "newData.isNumber() && newData.val() >= -100000000000 && newData.val() <= 100000000000" },
           "q":   { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000" },
           "u":   { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000" },
           "by":  { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "un":  { ".validate": "newData.isString() && newData.val().length <= 6" },
+          "sp":  { ".validate": "newData.isString() && newData.val().length <= 40" },
+          "eq":  { ".validate": "newData.isString() && newData.val().length <= 30" },
+          "vd":  { ".validate": "newData.isString() && newData.val().length <= 30" },
           "at":  { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
           "$other": { ".validate": false }
+        }
+      }
+    },
+    "cost_people": {
+      "$site": {
+        ".read": "auth != null && root.child('cost_pins').child($site).exists() && root.child('cost_keys').child($site).child(auth.uid).val() === root.child('cost_pins').child($site).val()",
+        ".write": "auth != null && root.child('cost_pins').child($site).exists() && root.child('cost_keys').child($site).child(auth.uid).val() === root.child('cost_pins').child($site).val()",
+        "$pid": {
+          ".validate": "newData.hasChildren(['n','at'])",
+          "n":   { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 20" },
+          "j":   { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "w":   { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000" },
+          "tel": { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "nx":  { ".validate": "newData.isString() && newData.val().matches(/^[PHET]{0,4}$/)" },
+          "x":   { ".validate": "newData.isString() && newData.val().length <= 3000" },
+          "off": { ".validate": "newData.isBoolean()" },
+          "at":  { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+    "cost_equip": {
+      "$site": {
+        ".read": "auth != null && root.child('cost_pins').child($site).exists() && root.child('cost_keys').child($site).child(auth.uid).val() === root.child('cost_pins').child($site).val()",
+        ".write": "auth != null && root.child('cost_pins').child($site).exists() && root.child('cost_keys').child($site).child(auth.uid).val() === root.child('cost_pins').child($site).val()",
+        "$eid": {
+          ".validate": "newData.hasChildren(['n','at'])",
+          "n":   { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40" },
+          "s":   { ".validate": "newData.isString() && newData.val().length <= 40" },
+          "v":   { ".validate": "newData.isString() && newData.val().length <= 40" },
+          "u":   { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000" },
+          "un":  { ".validate": "newData.isString() && newData.val().length <= 6" },
+          "x":   { ".validate": "newData.isString() && newData.val().length <= 3000" },
+          "off": { ".validate": "newData.isBoolean()" },
+          "at":  { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+    "cost_vendors": {
+      "$site": {
+        ".read": "auth != null && root.child('cost_pins').child($site).exists() && root.child('cost_keys').child($site).child(auth.uid).val() === root.child('cost_pins').child($site).val()",
+        ".write": "auth != null && root.child('cost_pins').child($site).exists() && root.child('cost_keys').child($site).child(auth.uid).val() === root.child('cost_pins').child($site).val()",
+        "$vid": {
+          ".validate": "newData.hasChildren(['n','at'])",
+          "n":   { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40" },
+          "g":   { ".validate": "newData.isString() && newData.val().length <= 60" },
+          "x":   { ".validate": "newData.isString() && newData.val().length <= 3000" },
+          "off": { ".validate": "newData.isBoolean()" },
+          "at":  { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+    "cost_att": {
+      "$site": {
+        ".read": "auth != null && root.child('cost_pins').child($site).exists() && root.child('cost_keys').child($site).child(auth.uid).val() === root.child('cost_pins').child($site).val()",
+        ".write": "auth != null && root.child('cost_pins').child($site).exists() && root.child('cost_keys').child($site).child(auth.uid).val() === root.child('cost_pins').child($site).val()",
+        "$ym": {
+          ".validate": "$ym.matches(/^[0-9]{4}-[0-9]{2}$/)",
+          "$pid": {
+            ".validate": "newData.hasChildren(['w'])",
+            "w": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000" },
+            "d": { "$day": { ".validate": "$day.matches(/^(0[1-9]|[12][0-9]|3[01])$/) && newData.isNumber() && newData.val() > 0 && newData.val() <= 3" } },
+            "o": { "$k": { ".validate": "$k.matches(/^(it|lt|ei|np|hi|lc)$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000" } },
+            "m": { ".validate": "newData.isString() && newData.val().length <= 100" },
+            "ap": { ".validate": "newData.isString() && newData.val().matches(/^[PHE]{0,3}$/)" },
+            "ex": { ".validate": "newData.isString() && newData.val().matches(/^[PHE]{0,3}$/)" },
+            "$other": { ".validate": false }
+          }
         }
       }
     }

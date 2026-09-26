@@ -3604,7 +3604,7 @@ ul.plainlist li { margin-bottom: 5px; }
 .tp-share code { font-size: 12.5px; background: var(--surface-2); padding: 6px 8px; border-radius: 6px; word-break: break-all; }
 .tp-ex { background: var(--accent-soft); font-size: 13.5px; }
 .tp-head { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: flex-start; }
-.tp-name { font-size: 19px; margin: 0; }
+.tp-sname { font-size: 19px; margin: 0; }
 .tp-sub { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
 .tp-acts { display: flex; flex-wrap: wrap; gap: 6px; }
 .tp-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
@@ -3671,3 +3671,154 @@ ul.plainlist li { margin-bottom: 5px; }
   .tp-rt .c-q { grid-area: q; text-align: left !important; } .tp-rt .c-x { grid-area: x; text-align: right; }
   .tp-bar { grid-template-columns: 62px 1fr auto; }
 }
+/* 🏗 /tools/tuipbi 둘째 판 — 탭 · 출역 · 명부 · 청구서 · 기성 (2026-09-26) */
+.tp-tabs { display: flex; gap: 6px; margin-top: 14px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
+.tp-tab { flex: none; border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 999px; padding: 7px 13px; font-size: 13.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.tp-tab.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tp-subtabs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.tp-tile.gs { border-color: #0ea5e9; }
+.tp-tile.gs b { color: #0284c7; }
+.tp-bf.gs { background: #0ea5e9; }
+.tp-say.ok { background: #ecfdf5; color: #065f46; }
+.tp-daybar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.tp-daybar input[type=date] { width: auto; font-size: 15px; }
+.tp-dow { font-size: 14px; }
+.tp-attsum { font-size: 13px; color: var(--muted); }
+.tp-attsum b { color: var(--text); }
+.tp-attg { display: grid; grid-template-columns: 90px 1fr; gap: 8px; align-items: start; padding: 6px 0; border-top: 1px dashed var(--line); }
+.tp-attj { font-size: 12.5px; font-weight: 700; color: var(--muted); padding-top: 8px; }
+.tp-atts { display: flex; flex-wrap: wrap; gap: 6px; }
+.tp-att { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 10px; padding: 8px 12px; font-size: 14.5px; font-weight: 700; cursor: pointer; min-width: 72px; position: relative; }
+.tp-att.on { background: #2563eb; border-color: #2563eb; color: #fff; }
+.tp-att.part { background: #f59e0b; border-color: #f59e0b; }
+.tp-att em { font-style: normal; font-size: 11px; background: rgba(255,255,255,.25); border-radius: 6px; padding: 1px 5px; margin-left: 6px; }
+.tp-lock { font-size: 13.5px; background: #fff7ed; border-color: #fdba74; }
+.tp-lock.ok { background: #f0fdf4; border-color: #bbf7d0; color: #166534; padding: 8px 12px; }
+.tp-three { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 10px; }
+.tp-nx { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.tp-nx .tp-chk { padding-bottom: 0; }
+.tp-rform { border-color: var(--accent); }
+.tp-rost td, .tp-rost th { font-size: 13px; white-space: nowrap; }
+.tp-rost .r { text-align: right; }
+.tp-rost tr.off td { opacity: .55; }
+.tp-bill-h { text-align: center; font-size: 20px; margin: 4px 0 12px; letter-spacing: 1px; }
+.tp-bill-top { width: 100%; margin-bottom: 12px; }
+.tp-bill-top th { background: var(--surface-2); font-size: 12.5px; white-space: nowrap; width: 1%; }
+.tp-bill-top td { font-size: 13.5px; }
+.tp-bill-sub { font-weight: 800; font-size: 14px; margin: 14px 0 6px; }
+.tp-bill .tbl th { font-size: 11.5px; white-space: nowrap; background: var(--surface-2); text-align: center; }
+.tp-bill .tbl td { font-size: 12.5px; }
+.tp-bill .tbl td { text-align: left; }
+.tp-bill .tbl td.r, .tp-bill .r { text-align: right; }
+.tp-bill .tp-grid td { text-align: center; }
+.tp-bill .tp-grid td.r { text-align: right; }
+.tp-bill .tp-grid td.stk { text-align: left; }
+.tp-bill .nw { white-space: nowrap; }
+.tp-bill tr.sum td { font-weight: 700; background: var(--surface-2); }
+.tp-grid th, .tp-grid td { padding: 3px 4px !important; text-align: center; min-width: 22px; }
+.tp-grid th small { font-weight: 400; color: var(--muted); }
+.tp-grid th.sun, .tp-grid th.sun small { color: #dc2626; }
+.tp-grid th.sat, .tp-grid th.sat small { color: #2563eb; }
+.tp-grid .stk { position: sticky; left: 0; background: var(--surface); text-align: left; z-index: 1; min-width: 96px; }
+.tp-grid td.r { text-align: right; }
+.tp-gc { cursor: pointer; color: #fff; font-weight: 700; }
+.tp-gc:hover { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tp-gc.on { background: #3b82f6; }
+.tp-gc.part { background: #f59e0b; }
+.tp-ded { cursor: pointer; }
+.tp-ded:hover { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tp-ded.fix { background: #fef3c7; color: #92400e; font-weight: 700; }
+.tp-dedin { width: 90px; font-size: 12.5px; padding: 3px 5px; text-align: right; }
+.tp-memo { cursor: pointer; min-width: 60px; }
+.tp-note { font-size: 11.5px; color: var(--muted); margin-top: 8px; line-height: 1.6; }
+.tp-billsum { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin: 6px 0 8px; }
+.tp-billsum > div { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; display: grid; gap: 2px; background: var(--surface); }
+.tp-billsum span { font-size: 12px; color: var(--muted); font-weight: 700; }
+.tp-billsum b { font-size: 18px; }
+.tp-billsum i { font-style: normal; font-size: 11px; color: var(--muted); line-height: 1.5; }
+.tp-billsum .minus b { color: #b91c1c; }
+.tp-billsum .pay { border-color: #16a34a; background: #f0fdf4; }
+.tp-billsum .pay b { color: #15803d; }
+.tp-inssum { font-size: 12.5px; margin-bottom: 6px; line-height: 1.6; }
+.tp-insc { white-space: nowrap; }
+.tp-ins { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; font-size: 11px; font-weight: 700; padding: 1px 5px; margin-right: 3px; cursor: pointer; }
+.tp-ins.y { background: #dcfce7; border-color: #86efac; color: #166534; }
+.tp-ins.n { background: #f1f5f9; border-color: #cbd5e1; color: #64748b; }
+.tp-ins.hand { outline: 2px solid #f59e0b; outline-offset: -1px; }
+.tp-insr { display: block; font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+.tp-lb th small { font-weight: 400; }
+.tp-eb { width: 100%; }
+.tp-eb tr.grp td { background: var(--accent-soft); font-size: 13px; }
+.tp-eb tr.sub td { background: var(--surface-2); font-weight: 700; }
+.tp-acct { font-weight: 400; color: var(--muted); margin-left: 8px; font-size: 12px; }
+.tp-bill-hd { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end; margin-bottom: 10px; }
+.tp-bill-hd .tp-bill-h { margin: 0; padding-left: 240px; }
+.tp-sign { width: 240px; margin: 0; }
+.tp-sign th { text-align: center; font-size: 11.5px !important; background: var(--surface-2); padding: 3px !important; }
+.tp-sign td { height: 40px; }
+.tp-sign th, .tp-sign td { border: 1px solid var(--line) !important; }
+.tp-guide h3 { font-size: 15px; margin: 16px 0 6px; }
+.tp-guide ol, .tp-guide ul { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.85; }
+.tp-guide li b { color: var(--text); }
+@media (max-width: 700px) {
+  .tp-three { grid-template-columns: 1fr; }
+  .tp-attg { grid-template-columns: 1fr; gap: 4px; }
+  .tp-attj { padding-top: 0; }
+  .tp-att { min-width: 0; padding: 9px 12px; }
+  .tp-bill-h { font-size: 17px; }
+  .tp-bill-hd { grid-template-columns: 1fr; }
+  .tp-bill-hd .tp-bill-h { padding-left: 0; }
+  .tp-sign { width: 100%; }
+  .tp-bill-top tbody tr { display: grid; grid-template-columns: 70px 1fr; }
+  .tp-bill-top th, .tp-bill-top td { display: block; width: auto !important; border: 0 !important; border-bottom: 1px solid var(--line) !important; }
+  .tp-bill-top td.nw { white-space: normal; }
+}
+@page tp-land { size: A4 landscape; margin: 10mm; }
+@media print {
+  body.tp-print-bill .tp > .card:not(.tp-bill), body.tp-print-bill header, body.tp-print-bill footer,
+  body.tp-print-bill nav, body.tp-print-bill .installbar, body.tp-print-bill .crumb, body.tp-print-bill .crumbs { display: none !important; }
+  body.tp-print-bill { background: #fff !important; }
+  body.tp-print-bill .tp-bill { page: tp-land; border: 0; box-shadow: none; padding: 0; margin: 0; }
+  .tp-sign td { height: 34px; }
+  .tp-bill .tbl th, .tp-bill .tbl td { border: 1px solid #9ca3af !important; }
+  .tp-bill .tp-eb tr.grp td { background: #eef2ff !important; }
+  body.tp-print-bill .tp-scroll { overflow: visible; }
+  body.tp-print-bill .tp-grid .stk { position: static; }
+  .tp-bill .tbl th, .tp-bill .tbl td { font-size: 9.5px !important; padding: 2px 3px !important; }
+  .tp-gc.on { background: none !important; color: #000 !important; }
+  .tp-gc.part { background: none !important; color: #000 !important; text-decoration: underline; }
+  .tp-ded.fix { background: none !important; color: #000 !important; }
+  .tp-tabs, .tp-lock { display: none !important; }
+  .tp-pb { break-before: page; }
+  .tp-ins { border: 0 !important; background: none !important; outline: 0 !important; padding: 0 2px !important; color: #000 !important; }
+  .tp-ins.n { text-decoration: line-through; color: #888 !important; }
+  .tp-billsum > div { padding: 3px 8px; }
+  .tp-billsum b { font-size: 12px; }
+  .tp-billsum i, .tp-billsum span { font-size: 8.5px; }
+  .tp-insr { display: none !important; }
+  .tp-bill .tp-lb th, .tp-bill .tp-lb td { font-size: 8px !important; padding: 1px 2px !important; }
+  .tp-bill .tp-lb { width: 100%; }
+  .tp-ins { font-size: 8px !important; margin-right: 1px !important; }
+  .tp-note { font-size: 8px; margin-top: 3px; }
+  .tp-bill-sub { font-size: 11px; margin: 6px 0 3px; }
+  .tp-inssum { font-size: 9px; margin-bottom: 3px; }
+  .tp-bill-hd { margin-bottom: 4px; }
+  .tp-bill-top { margin-bottom: 6px; }
+}
+/* 🏗 /tools/tuipbi 쓰는 방법 — 접는 절 (2026-09-26) */
+.tp-gsec { border: 1px solid var(--line); border-radius: 10px; margin: 8px 0; background: var(--surface); }
+.tp-gsec > summary { cursor: pointer; padding: 10px 12px; font-weight: 800; font-size: 14.5px; list-style: none; }
+.tp-gsec > summary::-webkit-details-marker { display: none; }
+.tp-gsec > summary::before { content: '▸ '; color: var(--accent); }
+.tp-gsec[open] > summary::before { content: '▾ '; }
+.tp-gbody { padding: 0 12px 10px; }
+.tp-gbody ul ul { margin-top: 4px; }
+.tp-gt { margin: 4px 0 8px; }
+.tp-gt th, .tp-gt td { text-align: left !important; font-size: 12.5px; vertical-align: top; white-space: normal !important; }
+.tp-src li { font-size: 12.5px; color: var(--muted); }
+/* 💾 자동 저장 알림 (2026-09-26 — 소장님 「자동저장된다는 것도 알려 줘....이용자가 알게」) */
+.tp-autosave { margin-top: 8px; font-size: 13.5px; line-height: 1.6; padding: 8px 12px; border-radius: 8px; background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+.tp-saved { margin-top: 10px; font-size: 12.5px; padding: 6px 10px; border-radius: 8px; background: var(--surface-2); color: var(--muted); }
+.tp-saved.on { background: #ecfdf5; color: #065f46; animation: tp-flash 1.2s ease-out; }
+@keyframes tp-flash { from { background: #bbf7d0; } to { background: #ecfdf5; } }
+@media print { .installbar { display: none !important; } }

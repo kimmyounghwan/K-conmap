@@ -1,21 +1,26 @@
 /**
- * /tools/tuipbi — 🏗 현장 투입비 (공사일보 간소판) (2026-09-26)
+ * /tools/tuipbi — 🏗 현장 투입비 · 공사일보 (2026-09-26)
  *
  * 소장님: 「공사일보를 시스템화 하는 거...이건 너무 확장판인듯 하고, 난 투입비만 나오면 돼.
  *          총공사금액 얼마. 현재 투입비 얼마...등...최대한 단순하면서 필요한 기능은 다 있는것...
- *          건설맵에서 등록해서 사용하게 하는 거지...」
+ *          건설맵에서 등록해서 사용하게 하는 거지...」  → 첫 판(투입비) 2026-09-26 새벽
+ * 소장님: 「공사금액으로 해서 공정률도 함께 나오게」 · 「노무자 및 장비, 자재 청구내역서 작성해서 보여주는 걸로 하자. 매달...」
+ *          「도구로 올릴때, 공사일보 쓰는 방법을 자세하게 알려 줘야 해.」  → 둘째 판 2026-09-26 저녁
  *
  * ■ 현장을 만들면 «현장 코드(9자리) + 비밀번호» 가 생깁니다. 회원가입 없음.
  *   코드와 비밀번호를 아는 사람(현장 직원)은 폰·PC 어디서든 같이 적고 봅니다.
- * ■ 적는 것: 날짜 · 구분(노무·자재·장비·외주·경비·기타) · 내용 · 금액(수량×단가도 됨). 그것뿐입니다.
- * ■ 보는 것: 총공사금액 · 누적 투입비 · 투입률 · 남은 금액 · 공기 경과율과 견줌 · 구분별 · 월별 · 엑셀 · 인쇄
- * ■ 받지 않는 것: 근로자 명단·주민번호·계좌·4대보험 — 참고로 주신 공사일보 서비스에서 뺀 것들입니다.
- * ■ 비용: 파이어베이스 get() 만(실시간 구독 없음). 현장 하나에 한 해 적어도 수백 KB.
- * 셈·엑셀·예시는 lib/tuipbi.js · 규칙은 web/database.rules.json «현장 투입비»
+ * ■ 명부(근로자·장비·자재 업체) → 날마다 출역·장비·자재 반입·그 밖의 지출 → 달마다 청구내역서 3종 · 기성 → 공정률
+ * ■ 주민번호·계좌는 브라우저에서 현장 비밀번호로 잠가 저장(lib/tplock.js) — 서버는 못 읽습니다.
+ * ■ 비용: 파이어베이스 get() 만(실시간 구독 없음).
+ * 화면: 이 파일(처음·만들기·열기·데이터) · TuipbiSite.jsx(탭) · TuipbiBook.jsx(명부·청구서)
+ * ⚠️ 엑셀 받기는 없습니다 — 소장님: 「프로그램으로 해서 만든 거는 … 다운 받을 수 없게 … 프린트만 가능하게 … 수정이나 입력은 건설맵에서」(일반 서식만 엑셀로 받음)
+ * 셈·예시는 lib/tuipbi.js · 공제는 lib/gongje.js · 규칙은 web/database.rules.json «현장 투입비»
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { 구분, 구분이름, 원, 억만, 퍼센트, 코드만들기, 코드보기, 코드정리, 비번해시, 오늘, 요약, 엑셀, 예시현장 } from '../lib/tuipbi.js'
+import { 원, 억만, 코드만들기, 코드보기, 코드정리, 비번해시, 예시현장 } from '../lib/tuipbi.js'
+import { 열쇠만들기, 열쇠두기, 열쇠읽기, 열쇠지우기, 잠그기, 풀기 } from '../lib/tplock.js'
+import TuipbiSite, { TuipbiGuide } from './TuipbiSite.jsx'
 
 /* firebase 는 이 화면에서 «현장을 열 때만» 받습니다 (사랑방과 같은 방식) */
 let _fb = null
@@ -28,12 +33,21 @@ const loadFb = async () => {
 }
 
 const 목록키 = 'kcm-tuipbi-sites'
-const 이름키 = 'kcm-tuipbi-by'
 const 읽기 = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v ?? d } catch (e) { return d } }
 const 쓰기 = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch (e) { /* 개인 창 등 — 없어도 됩니다 */ } }
 const 숫자만 = (s) => Number(String(s || '').replace(/[^0-9.-]/g, '')) || 0
 const 쉼표칸 = (s) => { const n = String(s || '').replace(/[^0-9]/g, ''); return n ? 원(Number(n)) : '' }
 const 막힘 = (e) => /permission|PERMISSION/.test(String((e && (e.code || e.message)) || e))
+const 명부자리 = { people: 'cost_people', equip: 'cost_equip', vendors: 'cost_vendors' }
+const 빈데이터 = { 사람: {}, 장비: {}, 업체: {}, 출역: {} }
+
+/** 잠근 칸(x)을 모두 풀어 {id: 물건} */
+async function 모두풀기(raw, ...maps) {
+  const out = {}
+  if (!raw) return out
+  for (const m of maps) for (const [id, v] of Object.entries(m || {})) if (v && v.x) { const o = await 풀기(raw, v.x); if (o) out[id] = o }
+  return out
+}
 
 export default function Tuipbi() {
   const [params, setParams] = useSearchParams()
@@ -41,10 +55,15 @@ export default function Tuipbi() {
   const [코드, set코드] = useState('')
   const [현장, set현장] = useState(null)
   const [줄들, set줄들] = useState([])
+  const [명부, set명부] = useState(빈데이터)           // {사람, 장비, 업체, 출역}
+  const [열쇠, set열쇠] = useState(null)
+  const [풀린, set풀린] = useState({})
   const [예시, set예시] = useState(false)
   const [바쁨, set바쁨] = useState('')
   const [오류, set오류] = useState('')
+  const [정보, set정보] = useState(false)
   const [목록, set목록] = useState(() => 읽기(목록키, []))
+  const [저장됨, set저장됨] = useState('')             // 소장님: 「자동저장된다는 것도 알려 줘....이용자가 알게..그래야 나중에 수정을 할 수 있다는 것도」
 
   useEffect(() => {
     const c = 코드정리(params.get('c'))
@@ -71,11 +90,16 @@ export default function Tuipbi() {
   }
   async function 불러오기(c) {
     const fb = await loadFb()
-    const [s, r] = await Promise.all([fb.get(fb.ref(fb.db, `cost_sites/${c}`)), fb.get(fb.ref(fb.db, `cost_rows/${c}`))])
+    const 곳 = ['cost_sites', 'cost_rows', 'cost_people', 'cost_equip', 'cost_vendors', 'cost_att']
+    const [s, r, p, e, v, a] = await Promise.all(곳.map((x) => fb.get(fb.ref(fb.db, `${x}/${c}`))))
     if (!s.exists()) throw Object.assign(new Error('없음'), { code: 'PERMISSION_DENIED' })
     const rows = []
     r.forEach((x) => { rows.push({ id: x.key, ...x.val() }) })
-    set예시(false); set코드(c); set현장(s.val()); set줄들(rows); set화면('site')
+    const 새명부 = { 사람: p.val() || {}, 장비: e.val() || {}, 업체: v.val() || {}, 출역: a.val() || {} }
+    const raw = 열쇠읽기(c)
+    set예시(false); set코드(c); set현장(s.val()); set줄들(rows); set명부(새명부); set화면('site'); set정보(false)
+    set열쇠(raw)
+    set풀린(await 모두풀기(raw, 새명부.사람, 새명부.장비, 새명부.업체))
     기억(c, s.val().name)
     if (params.get('c') !== c) setParams({ c }, { replace: true })
   }
@@ -86,6 +110,7 @@ export default function Tuipbi() {
       const u = await fb.ensureAnon()
       const h = await 비번해시(c, pw)
       await fb.set(fb.ref(fb.db, `cost_keys/${c}/${u.uid}`), h)
+      열쇠두기(c, await 열쇠만들기(c, pw))
       await 불러오기(c)
     } catch (e) {
       set오류(막힘(e) ? '현장 코드나 비밀번호가 맞지 않습니다.' : '열지 못했습니다 — 인터넷을 확인하고 다시 해 보십시오.')
@@ -108,8 +133,11 @@ export default function Tuipbi() {
       if (숫자만(v.budget) > 0) site.budget = 숫자만(v.budget)
       if (v.start) site.start = v.start
       if (v.end) site.end = v.end
+      if (v.co && v.co.trim()) site.co = v.co.trim().slice(0, 40)
       await fb.set(fb.ref(fb.db, `cost_sites/${c}`), site)
-      set코드(c); set현장(site); set줄들([]); set예시(false); set화면('made')
+      const raw = await 열쇠만들기(c, v.pw)
+      열쇠두기(c, raw)
+      set코드(c); set현장(site); set줄들([]); set명부(빈데이터); set열쇠(raw); set풀린({}); set예시(false); set화면('made')
       기억(c, site.name)
       setParams({ c }, { replace: true })
     } catch (e) {
@@ -117,62 +145,186 @@ export default function Tuipbi() {
     } finally { set바쁨('') }
   }
   const 예시보기 = () => {
-    const { site, rows } = 예시현장()
-    set예시(true); set코드('EXAMPLE00'); set현장(site); set줄들(rows); set화면('site'); set오류('')
+    const x = 예시현장()
+    set예시(true); set코드('EXAMPLE00'); set현장(x.site); set줄들(x.rows)
+    set명부({ 사람: x.people, 장비: x.equip, 업체: x.vendors, 출역: x.att }); set풀린(x.풀린); set열쇠(null)
+    set화면('site'); set오류(''); set정보(false)
   }
-  const 나가기 = () => { set현장(null); set줄들([]); set예시(false); set화면('home'); setParams({}, { replace: true }) }
+  const 나가기 = () => { set현장(null); set줄들([]); set명부(빈데이터); set풀린({}); set열쇠(null); set예시(false); set화면('home'); set정보(false); setParams({}, { replace: true }) }
 
-  /* 적기·고치기·지우기 */
+  /* ── 쓰기 — 예시면 화면에만 ─────────────── */
+  const 표시 = () => { const d = new Date(); set저장됨(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`) }
+  const 실패 = (e, 글) => { set오류(막힘(e) ? '이 브라우저는 이 현장에 쓸 수 없습니다 — 나갔다가 코드와 비밀번호로 다시 열어 주십시오.' : 글 || '저장하지 못했습니다 — 인터넷을 확인해 주십시오.'); return false }
+
   async function 줄저장(row, id) {
     if (예시) {
       if (id) set줄들((v) => v.map((x) => (x.id === id ? { ...row, id } : x)))
       else set줄들((v) => [...v, { ...row, id: 'n' + Date.now() }])
-      return true
+      표시(); return true
     }
     try {
       const fb = await loadFb()
       if (id) { await fb.set(fb.ref(fb.db, `cost_rows/${코드}/${id}`), row); set줄들((v) => v.map((x) => (x.id === id ? { ...row, id } : x))) }
       else { const r = fb.push(fb.ref(fb.db, `cost_rows/${코드}`)); await fb.set(r, row); set줄들((v) => [...v, { ...row, id: r.key }]) }
+      set오류(''); 표시()
       return true
-    } catch (e) { set오류(막힘(e) ? '이 브라우저는 이 현장에 쓸 수 없습니다 — 다시 열어 비밀번호를 넣어 주십시오.' : '저장하지 못했습니다 — 인터넷을 확인해 주십시오.'); return false }
+    } catch (e) { return 실패(e) }
   }
   async function 줄지우기(id) {
-    if (예시) { set줄들((v) => v.filter((x) => x.id !== id)); return }
-    try { const fb = await loadFb(); await fb.remove(fb.ref(fb.db, `cost_rows/${코드}/${id}`)); set줄들((v) => v.filter((x) => x.id !== id)) }
-    catch (e) { set오류('지우지 못했습니다 — 인터넷을 확인해 주십시오.') }
+    if (예시) { set줄들((v) => v.filter((x) => x.id !== id)); 표시(); return }
+    try { const fb = await loadFb(); await fb.remove(fb.ref(fb.db, `cost_rows/${코드}/${id}`)); set줄들((v) => v.filter((x) => x.id !== id)); 표시() }
+    catch (e) { 실패(e, '지우지 못했습니다 — 인터넷을 확인해 주십시오.') }
   }
   async function 현장저장(site) {
-    if (예시) { set현장(site); return true }
-    try { const fb = await loadFb(); await fb.set(fb.ref(fb.db, `cost_sites/${코드}`), site); set현장(site); 기억(코드, site.name); return true }
-    catch (e) { set오류('현장 정보를 저장하지 못했습니다.'); return false }
+    if (예시) { set현장(site); 표시(); return true }
+    try { const fb = await loadFb(); await fb.set(fb.ref(fb.db, `cost_sites/${코드}`), site); set현장(site); 기억(코드, site.name); 표시(); return true }
+    catch (e) { return 실패(e, '현장 정보를 저장하지 못했습니다.') }
   }
   async function 현장지우기() {
     try {
       const fb = await loadFb()
-      await fb.remove(fb.ref(fb.db, `cost_rows/${코드}`))
-      await fb.remove(fb.ref(fb.db, `cost_sites/${코드}`))
-      잊기(코드); 나가기()
-    } catch (e) { set오류('지우지 못했습니다.') }
+      for (const x of ['cost_rows', 'cost_att', 'cost_people', 'cost_equip', 'cost_vendors', 'cost_sites']) await fb.remove(fb.ref(fb.db, `${x}/${코드}`))
+      열쇠지우기(코드); 잊기(코드); 나가기()
+    } catch (e) { 실패(e, '지우지 못했습니다.') }
   }
+  async function 이기기잊기() {
+    if (!window.confirm('이 기기에서 이 현장을 잊을까요?\n다음에 열 때 현장 코드와 비밀번호를 다시 넣어야 합니다. (현장 자료는 그대로입니다)')) return
+    try { const fb = await loadFb(); const u = await fb.ensureAnon(); await fb.remove(fb.ref(fb.db, `cost_keys/${코드}/${u.uid}`)) } catch (e) { /* 그래도 잊음 */ }
+    열쇠지우기(코드); 잊기(코드); 나가기()
+  }
+
+  /** 명부 저장 — 잠금(undefined 면 전에 잠근 x 를 그대로) */
+  async function 명부저장(종류, id, obj, 잠금) {
+    const 키 = { people: '사람', equip: '장비', vendors: '업체' }[종류]
+    const 옛 = id ? 명부[키][id] : null
+    const 새 = { ...obj }
+    let 풀림 = null
+    if (잠금 === undefined) { if (옛 && 옛.x) 새.x = 옛.x }
+    else if (Object.keys(잠금).length) {
+      풀림 = 잠금
+      if (!예시) {
+        if (!열쇠) { set오류('🔒 잠금이 풀려 있지 않아 주민번호·계좌를 저장할 수 없습니다.'); return false }
+        새.x = await 잠그기(열쇠, 잠금)
+      } else 새.x = 'ex'
+    }
+    if (예시) {
+      const nid = id || 'n' + Date.now()
+      set명부((m) => ({ ...m, [키]: { ...m[키], [nid]: 새 } }))
+      set풀린((p) => { const q = { ...p }; if (풀림) q[nid] = 풀림; else if (잠금 !== undefined) delete q[nid]; return q })
+      표시(); return true
+    }
+    try {
+      const fb = await loadFb()
+      let nid = id
+      if (!nid) { const r = fb.push(fb.ref(fb.db, `${명부자리[종류]}/${코드}`)); nid = r.key }
+      await fb.set(fb.ref(fb.db, `${명부자리[종류]}/${코드}/${nid}`), 새)
+      set명부((m) => ({ ...m, [키]: { ...m[키], [nid]: 새 } }))
+      set풀린((p) => { const q = { ...p }; if (풀림) q[nid] = 풀림; else if (잠금 !== undefined) delete q[nid]; return q })
+      set오류(''); 표시()
+      return true
+    } catch (e) { return 실패(e) }
+  }
+  async function 명부지우기(종류, id) {
+    const 키 = { people: '사람', equip: '장비', vendors: '업체' }[종류]
+    if (!예시) {
+      try { const fb = await loadFb(); await fb.remove(fb.ref(fb.db, `${명부자리[종류]}/${코드}/${id}`)) } catch (e) { return 실패(e, '지우지 못했습니다.') }
+    }
+    set명부((m) => { const x = { ...m[키] }; delete x[id]; return { ...m, [키]: x } })
+    표시(); return true
+  }
+
+  /* 출역 — 화면 상태를 먼저 바꾸고(바로 보이게) 서버에 씁니다. 실패하면 되돌림 */
+  const 출역바꾸기 = (m, ym, 바꿀) => {
+    const 달 = { ...(m.출역[ym] || {}) }
+    for (const { pid, dd, g, w } of 바꿀) {
+      const a = { ...(달[pid] || { w }), d: { ...((달[pid] && 달[pid].d) || {}) } }
+      if (a.w == null) a.w = w
+      if (g > 0) a.d[dd] = g; else delete a.d[dd]
+      달[pid] = a
+    }
+    return { ...m, 출역: { ...m.출역, [ym]: 달 } }
+  }
+  async function 출역여럿(ym, dd, 목록0) {
+    const 바꿀 = 목록0.map(({ pid, g, p }) => {
+      const 있던 = 명부.출역[ym] && 명부.출역[ym][pid]
+      return { pid, dd, g, w: 있던 && 있던.w != null ? 있던.w : Number(p && p.w) || 0 }
+    })
+    const 전 = 명부
+    set명부((m) => 출역바꾸기(m, ym, 바꿀))
+    if (예시) { 표시(); return true }
+    try {
+      const fb = await loadFb()
+      const 고칠 = {}
+      for (const { pid, g, w } of 바꿀) {
+        고칠[`${ym}/${pid}/w`] = w
+        고칠[`${ym}/${pid}/d/${dd}`] = g > 0 ? g : null
+      }
+      await fb.update(fb.ref(fb.db, `cost_att/${코드}`), 고칠)
+      표시(); return true
+    } catch (e) { set명부(전); return 실패(e, '출역을 저장하지 못했습니다 — 인터넷을 확인해 주십시오.') }
+  }
+  const 출역찍기 = (ym, pid, dd, g, p) => 출역여럿(ym, dd, [{ pid, g, p }])
+  async function 출역칸(ym, pid, 칸, 값) {             // 칸: 'o/np' · 'm' · 'w'
+    const 전 = 명부
+    set명부((m) => {
+      const 달 = { ...(m.출역[ym] || {}) }
+      const a = { ...(달[pid] || {}), o: { ...((달[pid] && 달[pid].o) || {}) } }
+      if (칸.startsWith('o/')) { const k = 칸.slice(2); if (값 == null) delete a.o[k]; else a.o[k] = 값 }
+      else if (값 == null || 값 === '') delete a[칸]; else a[칸] = 값
+      if (!Object.keys(a.o).length) delete a.o
+      달[pid] = a
+      return { ...m, 출역: { ...m.출역, [ym]: 달 } }
+    })
+    if (예시) { 표시(); return true }
+    try {
+      const fb = await loadFb()
+      const r = fb.ref(fb.db, `cost_att/${코드}/${ym}/${pid}/${칸}`)
+      if (값 == null || 값 === '') await fb.remove(r); else await fb.set(r, 값)
+      표시(); return true
+    } catch (e) { set명부(전); return 실패(e) }
+  }
+  const 공제고치기 = (ym, pid, k, v) => 출역칸(ym, pid, 'o/' + k, v)
+  const 비고고치기 = (ym, pid, m) => 출역칸(ym, pid, 'm', m)
+  const 그달일급 = (ym, pid, w) => 출역칸(ym, pid, 'w', w)
+  const 대상고치기 = async (ym, pid, ap, ex) => { await 출역칸(ym, pid, 'ap', ap || null); await 출역칸(ym, pid, 'ex', ex || null) }
+
+  /** 🔒 풀기 — 비밀번호가 맞는지는 «이 브라우저가 맞힌 해시(cost_keys)» 와 견줍니다 */
+  async function 잠금풀기(pw) {
+    try {
+      const fb = await loadFb()
+      const u = await fb.ensureAnon()
+      const mine = await fb.get(fb.ref(fb.db, `cost_keys/${코드}/${u.uid}`))
+      if (mine.val() !== await 비번해시(코드, pw)) return false
+      const raw = await 열쇠만들기(코드, pw)
+      열쇠두기(코드, raw)
+      set열쇠(raw)
+      set풀린(await 모두풀기(raw, 명부.사람, 명부.장비, 명부.업체))
+      return true
+    } catch (e) { return false }
+  }
+
   const 새로고침 = async () => { if (예시) return; set바쁨('다시 불러오는 중…'); try { await 불러오기(코드) } catch (e) { set오류('불러오지 못했습니다.') } finally { set바쁨('') } }
+  const 잠김 = !예시 && !열쇠 && [명부.사람, 명부.장비, 명부.업체].some((m) => Object.values(m || {}).some((v) => v && v.x))
+  const 잠김칸 = !예시 && !열쇠
 
   return (
     <div className="wrap tp">
       {화면 !== 'site' && (
         <div className="card">
-          <h1 className="tl-h1" style={{ marginTop: 0 }}>🏗 현장 투입비 <span className="count">· 공사일보 간소판</span></h1>
+          <h1 className="tl-h1" style={{ marginTop: 0 }}>🏗 현장 투입비 · 공사일보 <span className="count">· 청구내역서까지</span></h1>
           <div className="note sm">
-            <b>총공사금액 대비 지금까지 얼마 들었나</b> — 그것만 봅니다. 날짜·구분·내용·금액만 적으면
-            누적 투입비 · 투입률 · 남은 금액 · 공기와 견줌 · 구분별 · 월별이 저절로 나오고 엑셀로 받습니다.
+            <b>총공사금액 대비 지금까지 얼마 들었나 · 공정률은 몇 % 인가</b> — 날마다 출역·장비·자재만 누르고 적으면
+            누적 투입비 · 공정률 · 남은 금액이 저절로 나오고, 달마다 <b>노무비·장비·자재 청구내역서</b>(공제 자동)를 뽑습니다.
           </div>
           <div className="pdfsafe">
-            🔑 회원가입 없음 · 무료. 현장을 만들면 <b>현장 코드 + 비밀번호</b>가 생기고, 그걸 아는 사람만 봅니다.
-            근로자 명단 · 주민번호 · 계좌는 <b>받지 않습니다</b>.
+            🔑 회원가입 없음 · 무료. 현장을 만들면 <b>현장 코드 + 비밀번호</b>가 생기고, 그걸 아는 현장 사람만 봅니다.
+            주민번호·계좌는 <b>현장 비밀번호로 잠가</b> 저장합니다(저희도 못 봅니다).
           </div>
+          <div className="tp-autosave">💾 <b>자동 저장</b> — 누르고 적는 순간 서버에 저장됩니다. 저장 단추가 없습니다. 오늘 적은 것은 <b>내일도, 다음 달에도 다시 열어 고칠 수 있습니다</b>(폰·PC 어디서든 같은 현장 코드로).</div>
         </div>
       )}
       {바쁨 && <div className="card tp-busy">⏳ {바쁨}</div>}
-      {오류 && <div className="card dx3-err">{오류}</div>}
+      {오류 && <div className="card dx3-err">{오류} <button type="button" className="tp-x" onClick={() => set오류('')}>닫기</button></div>}
 
       {화면 === 'home' && (
         <>
@@ -182,7 +334,7 @@ export default function Tuipbi() {
               <button type="button" className="btn ghost" onClick={() => { set오류(''); set코드(''); set화면('open') }}>🔑 현장 열기 (코드 + 비밀번호)</button>
             </div>
             <div className="tlx-ex" style={{ marginTop: 10, marginBottom: 0 }}>
-              <span className="tlx-exd"><b>🧪 예시로 해 보기</b> — 가상 현장(총공사금액 12억 5천)에 7개월치를 적어 둔 모습입니다. 저장되지 않습니다.</span>
+              <span className="tlx-exd"><b>🧪 예시로 해 보기</b> — 가상 현장(총공사금액 12억 5천)에 7개월치 출역·장비·자재·기성을 넣어 둔 모습입니다. 청구서까지 눌러 보십시오. 저장되지 않습니다.</span>
               <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={예시보기}>예시 현장 보기</button>
             </div>
           </div>
@@ -199,7 +351,7 @@ export default function Tuipbi() {
               </div>
             </div>
           )}
-          <Guide />
+          <TuipbiGuide />
         </>
       )}
       {화면 === 'new' && <NewSite onDone={만들기} onBack={() => set화면('home')} busy={!!바쁨} />}
@@ -209,38 +361,29 @@ export default function Tuipbi() {
           <div className="detail-h">✅ 현장을 만들었습니다</div>
           <div className="tp-code">{코드보기(코드)}</div>
           <p className="tl-p">이 <b>현장 코드</b>와 정하신 <b>비밀번호</b>를 꼭 적어 두십시오. 현장 사람에게 알려 주면 같이 적을 수 있습니다.
-            <br /><span className="muted">비밀번호는 저희도 모릅니다(해시만 둡니다) — 잊으시면 찾아 드릴 수 없습니다. 이 기기에서는 다시 묻지 않습니다.</span></p>
+            <br /><span className="muted">비밀번호는 저희도 모릅니다(해시만 둡니다) — 잊으시면 찾아 드릴 수 없고, 🔒 잠근 주민번호·계좌도 되살릴 수 없습니다. 이 기기에서는 다시 묻지 않습니다.</span></p>
           <ShareLink code={코드} />
+          <div className="tp-autosave">💾 <b>여기부터는 자동 저장입니다.</b> 누르고 적는 순간 저장되고, 나중에 다시 열어 언제든 고칠 수 있습니다.</div>
+          <p className="tl-p"><b>다음 차례:</b> 👷 명부에 근로자·장비·자재 업체를 올린 뒤, ✍️ 적기에서 날마다 출역을 누르십시오.</p>
           <button type="button" className="btn" onClick={() => set화면('site')}>현장으로 가기 →</button>
         </div>
       )}
       {화면 === 'site' && 현장 && (
-        <Site 코드={코드} 현장={현장} 줄들={줄들} 예시={예시}
-              줄저장={줄저장} 줄지우기={줄지우기} 현장저장={현장저장} 현장지우기={현장지우기}
-              새로고침={새로고침} 나가기={나가기} />
+        <TuipbiSite 코드={코드} 코드보기={코드보기} 현장={현장} 줄들={줄들} 사람={명부.사람} 장비={명부.장비} 업체={명부.업체} 출역={명부.출역}
+          풀린={풀린} 잠김={잠김칸} 잠김있음={잠김} 예시={예시} 저장됨={저장됨}
+          줄저장={줄저장} 줄지우기={줄지우기} 명부저장={명부저장} 명부지우기={명부지우기}
+          출역찍기={출역찍기} 출역여럿={출역여럿} 공제고치기={공제고치기} 비고고치기={비고고치기} 그달일급={그달일급} 대상고치기={대상고치기} 잠금풀기={잠금풀기}
+          새로고침={새로고침} 나가기={나가기} 정보={정보} set정보={set정보}
+          정보칸={<SiteInfo 현장={현장} 코드={코드} 예시={예시} onSave={async (s) => { if (await 현장저장(s)) set정보(false) }} onDelete={현장지우기} onForget={이기기잊기} />} />
       )}
 
       <div className="card no-print">
         <div className="navrow">
           <Link className="navi" to="/tools">🧰 다른 도구</Link>
           <Link className="navi" to="/forms">📄 건설 서식</Link>
-          <Link className="navi" to="/change">📐 설계변경</Link>
+          <Link className="navi" to="/safety">🦺 안전 서류</Link>
         </div>
       </div>
-    </div>
-  )
-}
-
-function Guide() {
-  return (
-    <div className="card">
-      <div className="detail-h">이렇게 씁니다</div>
-      <ol className="tl-p" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.9 }}>
-        <li><b>새 현장 만들기</b> — 현장명 · 총공사금액(도급액) · (있으면) 실행예산 · 공사기간 · 비밀번호</li>
-        <li>생긴 <b>현장 코드</b>를 현장 사람과 나눕니다. 코드 + 비밀번호로 폰·PC 어디서든 엽니다</li>
-        <li>돈이 나갈 때마다 <b>날짜 · 구분 · 내용 · 금액</b>을 적습니다 (인부 5인 × 187,000 처럼 수량×단가도 됩니다)</li>
-        <li>누적 투입비 · 투입률 · 남은 금액 · <b>공기 경과율과 견줌</b> · 구분별 · 월별이 저절로 나옵니다. 엑셀로 받고 인쇄합니다</li>
-      </ol>
     </div>
   )
 }
@@ -248,7 +391,7 @@ function Guide() {
 function ShareLink({ code }) {
   const [복사, set복사] = useState(false)
   const url = `https://k-conmap.com/tools/tuipbi?c=${code}`
-  const 복사하기 = async () => { try { await navigator.clipboard.writeText(`K-건설맵 현장 투입비\n현장 코드 ${코드보기(code)}\n${url}\n(비밀번호는 따로 알려 드립니다)`); set복사(true); setTimeout(() => set복사(false), 2000) } catch (e) { /* 막힌 브라우저 */ } }
+  const 복사하기 = async () => { try { await navigator.clipboard.writeText(`K-건설맵 현장 투입비 · 공사일보\n현장 코드 ${코드보기(code)}\n${url}\n(비밀번호는 따로 알려 드립니다)`); set복사(true); setTimeout(() => set복사(false), 2000) } catch (e) { /* 막힌 브라우저 */ } }
   return (
     <div className="tp-share">
       <code>{url}</code>
@@ -258,7 +401,7 @@ function ShareLink({ code }) {
 }
 
 function NewSite({ onDone, onBack, busy }) {
-  const [v, setV] = useState({ name: '', total: '', budget: '', start: '', end: '', pw: '', pw2: '' })
+  const [v, setV] = useState({ name: '', co: '', total: '', budget: '', start: '', end: '', pw: '', pw2: '' })
   const f = (k) => (e) => setV({ ...v, [k]: k === 'total' || k === 'budget' ? 쉼표칸(e.target.value) : e.target.value })
   const 틀림 = !v.name.trim() ? '현장명을 적어 주십시오'
     : !(숫자만(v.total) > 0) ? '총공사금액을 적어 주십시오'
@@ -270,9 +413,10 @@ function NewSite({ onDone, onBack, busy }) {
       <div className="detail-h">＋ 새 현장 만들기</div>
       <div className="tp-form">
         <label>현장명 <input value={v.name} onChange={f('name')} maxLength={60} placeholder="예: ○○지구 배수개선공사" /></label>
+        <label>회사명 (선택 — 청구내역서 머리에 들어감) <input value={v.co} onChange={f('co')} maxLength={40} placeholder="예: ○○건설(주)" /></label>
         <label>총공사금액 (도급액, 원) <input value={v.total} onChange={f('total')} inputMode="numeric" placeholder="예: 1,250,000,000" />
           {숫자만(v.total) > 0 && <span className="tp-hint">{억만(숫자만(v.total))} 원</span>}</label>
-        <label>실행예산 (선택) <input value={v.budget} onChange={f('budget')} inputMode="numeric" placeholder="있으면 — 실행 대비 투입률도 봅니다" />
+        <label>실행예산 (선택) <input value={v.budget} onChange={f('budget')} inputMode="numeric" placeholder="있으면 — 실행 대비 투입률·기성 대비 원가도 봅니다" />
           {숫자만(v.budget) > 0 && <span className="tp-hint">{억만(숫자만(v.budget))} 원</span>}</label>
         <div className="tp-two">
           <label>착공일 (선택) <input type="date" value={v.start} onChange={f('start')} /></label>
@@ -282,7 +426,7 @@ function NewSite({ onDone, onBack, busy }) {
           <label>비밀번호 (6자 이상) <input type="password" value={v.pw} onChange={f('pw')} autoComplete="new-password" /></label>
           <label>비밀번호 한 번 더 <input type="password" value={v.pw2} onChange={f('pw2')} autoComplete="new-password" /></label>
         </div>
-        <div className="muted" style={{ fontSize: 12.5 }}>공사기간을 넣으면 «공기는 몇 % 지났는데 투입비는 몇 %» 를 견줘 드립니다.</div>
+        <div className="muted" style={{ fontSize: 12.5 }}>공사기간을 넣으면 «공기는 몇 % 지났는데 공정은 몇 %» 를 견줘 드립니다. 비밀번호는 주민번호·계좌 잠금 열쇠도 됩니다 — 잊으면 되살릴 수 없습니다.</div>
       </div>
       {틀림 && (v.name || v.total || v.pw) && <div className="tp-warn">{틀림}</div>}
       <div className="tp-start" style={{ marginTop: 12 }}>
@@ -312,239 +456,8 @@ function OpenSite({ code0, onOpen, onBack, busy }) {
   )
 }
 
-/* ── 현장 화면 ─────────────────────────────── */
-function Site({ 코드, 현장, 줄들, 예시, 줄저장, 줄지우기, 현장저장, 현장지우기, 새로고침, 나가기 }) {
-  const S = useMemo(() => 요약(현장, 줄들), [현장, 줄들])
-  const [고침, set고침] = useState(null)           // 고칠 줄
-  const [정보, set정보] = useState(false)
-  const [달, set달] = useState('')                 // 목록 거르기
-  const [가름, set가름] = useState('')
-  const [더, set더] = useState(60)
-  const 달들 = useMemo(() => [...new Set(줄들.map((r) => (r.d || '').slice(0, 7)))].filter(Boolean).sort().reverse(), [줄들])
-  const 보일줄 = useMemo(() => [...줄들]
-    .filter((r) => (!달 || (r.d || '').startsWith(달)) && (!가름 || r.k === 가름))
-    .sort((a, b) => (a.d === b.d ? (b.at || 0) - (a.at || 0) : a.d < b.d ? 1 : -1)), [줄들, 달, 가름])
-  const 거른합 = 보일줄.reduce((s, r) => s + (Number(r.amt) || 0), 0)
-  const 받기 = () => {
-    const bytes = 엑셀(현장, 줄들, 예시 ? '' : 코드)
-    const url = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
-    const a = document.createElement('a')
-    a.href = url; a.download = `투입비_${현장.name.replace(/[^0-9A-Za-z가-힣 ()_.-]/g, '').trim().slice(0, 40) || '현장'}_${오늘()}.xlsx`
-    document.body.appendChild(a); a.click(); a.remove()
-    setTimeout(() => URL.revokeObjectURL(url), 5000)
-  }
-  const 차이 = Number.isFinite(S.경과율) && Number.isFinite(S.투입률) ? S.투입률 - S.경과율 : null
-  return (
-    <>
-      {예시 && <div className="card tp-ex no-print">🧪 <b>예시 현장입니다</b> — 이름·금액 모두 지어낸 것이고, 적거나 지워도 저장되지 않습니다. <button type="button" className="chip" onClick={나가기}>처음으로</button></div>}
-      <div className="card">
-        <div className="tp-head">
-          <div>
-            <h1 className="tp-name">{현장.name}</h1>
-            <div className="tp-sub">
-              {!예시 && <>현장 코드 <b>{코드보기(코드)}</b> · </>}
-              {현장.start && 현장.end ? <>공사기간 {현장.start} ~ {현장.end}{S.남은날 != null && S.남은날 >= 0 ? ` · 준공까지 ${S.남은날}일` : ''}</> : '공사기간 미입력'}
-              {' '}· 적은 것 {원(S.건수)}건
-            </div>
-          </div>
-          <div className="tp-acts no-print">
-            <button type="button" className="chip" onClick={받기}>📥 엑셀</button>
-            <button type="button" className="chip" onClick={() => window.print()}>🖨 인쇄</button>
-            {!예시 && <button type="button" className="chip" onClick={새로고침}>↻ 새로고침</button>}
-            <button type="button" className="chip" onClick={() => set정보(!정보)}>✏️ 현장 정보</button>
-            <button type="button" className="chip" onClick={나가기}>나가기</button>
-          </div>
-        </div>
-        {정보 && <SiteInfo 현장={현장} 코드={코드} 예시={예시} onSave={async (s) => { if (await 현장저장(s)) set정보(false) }} onDelete={현장지우기} />}
-
-        <div className="tp-tiles">
-          <div className="tp-tile"><span>총공사금액</span><b>{억만(현장.total)}</b><i>{원(현장.total)} 원</i></div>
-          <div className="tp-tile main"><span>누적 투입비</span><b>{억만(S.누적)}</b><i>{원(S.누적)} 원</i></div>
-          <div className="tp-tile"><span>투입률</span><b>{퍼센트(S.투입률)}</b><i>총공사금액 대비</i></div>
-          <div className={'tp-tile' + (S.남은 < 0 ? ' bad' : '')}><span>남은 금액</span><b>{억만(S.남은)}</b><i>총공사금액 − 누적</i></div>
-        </div>
-        <div className="tp-bars">
-          <Bar 이름="투입률" v={S.투입률} 글={퍼센트(S.투입률)} cls="in" />
-          {Number.isFinite(S.경과율) && <Bar 이름="공기 경과" v={S.경과율} 글={`${퍼센트(S.경과율)}`} cls="time" />}
-          {현장.budget > 0 && <Bar 이름="실행 대비" v={S.실행률} 글={`${퍼센트(S.실행률)} · 남은 ${억만(S.실행남은)}`} cls="bud" />}
-        </div>
-        {차이 !== null && (
-          <div className={'tp-say' + (차이 > 0.05 ? ' warn' : '')}>
-            {Math.abs(차이) <= 0.05
-              ? <>공기는 <b>{퍼센트(S.경과율)}</b> 지났고 투입비는 <b>{퍼센트(S.투입률)}</b> 들었습니다 — 비슷하게 가고 있습니다.</>
-              : 차이 > 0
-                ? <>⚠️ 투입비가 공기보다 <b>{(차이 * 100).toFixed(1)}%p 빠릅니다</b> (공기 {퍼센트(S.경과율)} · 투입 {퍼센트(S.투입률)}). 남은 공정에 비해 돈이 먼저 나가고 있는지 보십시오.</>
-                : <>투입비가 공기보다 <b>{(-차이 * 100).toFixed(1)}%p 느립니다</b> (공기 {퍼센트(S.경과율)} · 투입 {퍼센트(S.투입률)}). 아직 안 적은 지출(외주 기성·자재 대금)이 없는지 보십시오.</>}
-          </div>
-        )}
-        <div className="tp-mini">
-          <span>이번 달 <b>{억만(S.이번달)}</b></span>
-          <span>오늘 <b>{억만(S.오늘치)}</b></span>
-        </div>
-      </div>
-
-      <Entry key={고침 ? 고침.id : 'new'} 고침={고침} 예시={예시}
-             onSave={async (row) => { const ok = await 줄저장(row, 고침 && 고침.id); if (ok) set고침(null); return ok }}
-             onCancel={() => set고침(null)} />
-
-      <div className="card">
-        <div className="detail-h">구분별</div>
-        <div className="tp-stack">
-          {구분.map((c) => S.누적 > 0 && S.구분합[c.k] > 0 && (
-            <div key={c.k} style={{ width: (S.구분합[c.k] / S.누적) * 100 + '%', background: c.색 }} title={`${c.이름} ${퍼센트(S.구분합[c.k] / S.누적)}`} />
-          ))}
-        </div>
-        <table className="tbl tp-kt">
-          <tbody>
-            {구분.map((c) => (
-              <tr key={c.k}>
-                <td><span className="tp-dot" style={{ background: c.색 }} />{c.이름}</td>
-                <td className="r">{원(S.구분합[c.k])} 원</td>
-                <td className="r muted">{S.누적 > 0 ? 퍼센트(S.구분합[c.k] / S.누적) : '—'}</td>
-                <td className="r muted">{현장.total > 0 ? '총액의 ' + 퍼센트(S.구분합[c.k] / 현장.total) : ''}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {S.월별.length > 0 && (
-        <div className="card">
-          <div className="detail-h">월별</div>
-          <div className="tp-scroll">
-            <table className="tbl tp-mt">
-              <thead><tr><th>월</th>{구분.map((c) => <th key={c.k}>{c.이름}</th>)}<th>월 합계</th><th>누적</th><th>투입률</th></tr></thead>
-              <tbody>
-                {S.월별.map((m) => (
-                  <tr key={m.ym}>
-                    <td>{m.ym}</td>
-                    {구분.map((c) => <td key={c.k} className="r">{m[c.k] ? 원(m[c.k]) : ''}</td>)}
-                    <td className="r"><b>{원(m.합)}</b></td>
-                    <td className="r">{원(m.누적)}</td>
-                    <td className="r">{퍼센트(m.률)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      <div className="card">
-        <div className="tp-lh">
-          <div className="detail-h" style={{ margin: 0 }}>적은 것</div>
-          <select value={달} onChange={(e) => set달(e.target.value)} className="no-print">
-            <option value="">모든 달</option>
-            {달들.map((m) => <option key={m} value={m}>{m}</option>)}
-          </select>
-          <select value={가름} onChange={(e) => set가름(e.target.value)} className="no-print">
-            <option value="">모든 구분</option>
-            {구분.map((c) => <option key={c.k} value={c.k}>{c.이름}</option>)}
-          </select>
-          <span className="muted" style={{ fontSize: 13 }}>{원(보일줄.length)}건 · <b>{원(거른합)}</b> 원</span>
-        </div>
-        {보일줄.length === 0 ? <div className="muted" style={{ padding: '10px 0' }}>아직 적은 것이 없습니다. 위 «적기» 칸에 첫 줄을 적어 보십시오.</div> : (
-          <div className="tp-scroll">
-            <table className="tbl tp-rt">
-              <thead><tr><th>날짜</th><th>구분</th><th>내용</th><th>수량 × 단가</th><th>금액</th><th className="no-print" /></tr></thead>
-              <tbody>
-                {보일줄.slice(0, 더).map((r) => (
-                  <tr key={r.id}>
-                    <td className="nw c-d">{r.d}</td>
-                    <td className="nw c-k"><span className="tp-dot" style={{ background: (구분.find((c) => c.k === r.k) || {}).색 }} />{구분이름[r.k]}</td>
-                    <td className="c-t">{r.t}{r.by ? <span className="muted"> · {r.by}</span> : null}</td>
-                    <td className="r muted nw c-q">{r.q != null && r.u != null ? `${원(r.q)} × ${원(r.u)}` : ''}</td>
-                    <td className="r nw c-a"><b>{원(r.amt)}</b></td>
-                    <td className="nw no-print c-x">
-                      <button type="button" className="tp-x" onClick={() => { set고침(r); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>고치기</button>
-                      <button type="button" className="tp-x" onClick={() => { if (window.confirm(`${r.d} ${구분이름[r.k]} ${원(r.amt)}원 줄을 지울까요?`)) 줄지우기(r.id) }}>지우기</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {보일줄.length > 더 && <button type="button" className="chip no-print" style={{ marginTop: 8 }} onClick={() => set더(더 + 200)}>더 보기 ({원(보일줄.length - 더)}건 더)</button>}
-      </div>
-    </>
-  )
-}
-
-function Bar({ 이름, v, 글, cls }) {
-  const w = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0
-  return (
-    <div className="tp-bar">
-      <span className="tp-bl">{이름}</span>
-      <div className="tp-bt"><div className={'tp-bf ' + cls + (v > 1 ? ' over' : '')} style={{ width: w * 100 + '%' }} /></div>
-      <span className="tp-bv">{글}</span>
-    </div>
-  )
-}
-
-/* 적기 — 날짜 · 구분 · 내용 · 금액(또는 수량 × 단가) */
-function Entry({ 고침, onSave, onCancel, 예시 }) {
-  const [d, setD] = useState(고침 ? 고침.d : 오늘())
-  const [k, setK] = useState(고침 ? 고침.k : 'L')
-  const [t, setT] = useState(고침 ? 고침.t || '' : '')
-  const [곱, set곱] = useState(!!(고침 && 고침.q != null))
-  const [q, setQ] = useState(고침 && 고침.q != null ? String(고침.q) : '')
-  const [u, setU] = useState(고침 && 고침.u != null ? 원(고침.u) : '')
-  const [amt, setAmt] = useState(고침 ? 원(고침.amt) : '')
-  const [by, setBy] = useState(() => (고침 ? 고침.by || '' : 읽기(이름키, '')))
-  const [saving, setSaving] = useState(false)
-  const 금액 = 곱 ? Math.round((Number(String(q).replace(/[^0-9.]/g, '')) || 0) * 숫자만(u)) : 숫자만(amt)
-  const ok = /^\d{4}-\d{2}-\d{2}$/.test(d) && 금액 !== 0 && Math.abs(금액) <= 1e11
-  const 저장 = async () => {
-    if (!ok || saving) return
-    setSaving(true)
-    const row = { d, k, amt: 금액, at: Date.now() }
-    if (t.trim()) row.t = t.trim().slice(0, 100)
-    if (곱) { row.q = Number(String(q).replace(/[^0-9.]/g, '')) || 0; row.u = 숫자만(u) }
-    if (by.trim()) { row.by = by.trim().slice(0, 20); 쓰기(이름키, row.by) }
-    const done = await onSave(row)
-    setSaving(false)
-    if (done && !고침) { setT(''); setQ(''); setU(''); setAmt('') }
-  }
-  return (
-    <div className="card no-print tp-entry">
-      <div className="detail-h">{고침 ? '✏️ 고치기' : '✍️ 적기'}{예시 && <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}> · 예시라 저장되지 않습니다</span>}</div>
-      <div className="tp-kinds">
-        {구분.map((c) => (
-          <button type="button" key={c.k} className={'chip' + (k === c.k ? ' on' : '')} onClick={() => setK(c.k)}>
-            <span className="tp-dot" style={{ background: c.색 }} />{c.이름}
-          </button>
-        ))}
-      </div>
-      <div className="tp-erow">
-        <label className="tp-d">날짜 <input type="date" value={d} onChange={(e) => setD(e.target.value)} /></label>
-        <label className="tp-t">내용 <input value={t} onChange={(e) => setT(e.target.value)} maxLength={100}
-          placeholder={k === 'L' ? '예: 형틀목공 5인' : k === 'M' ? '예: 레미콘 25-24-150 30㎥' : k === 'E' ? '예: 굴착기 0.7㎥ 1일' : k === 'S' ? '예: 방수공사 1회 기성' : '예: 안전용품'} /></label>
-      </div>
-      <div className="tp-erow">
-        <label className="tp-chk"><input type="checkbox" checked={곱} onChange={(e) => set곱(e.target.checked)} /> 수량 × 단가로 적기</label>
-        {곱 ? (
-          <>
-            <label className="tp-n">수량 <input value={q} onChange={(e) => setQ(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" placeholder="5" /></label>
-            <label className="tp-n">단가 <input value={u} onChange={(e) => setU(쉼표칸(e.target.value))} inputMode="numeric" placeholder="187,000" /></label>
-            <span className="tp-sum">= <b>{원(금액)}</b> 원</span>
-          </>
-        ) : (
-          <label className="tp-a">금액 (원) <input value={amt} onChange={(e) => setAmt(쉼표칸(e.target.value))} inputMode="numeric" placeholder="예: 935,000"
-            onKeyDown={(e) => { if (e.key === 'Enter') 저장() }} />{금액 > 0 && <span className="tp-hint">{억만(금액)} 원</span>}</label>
-        )}
-        <label className="tp-by">적은 사람 (선택) <input value={by} onChange={(e) => setBy(e.target.value)} maxLength={20} placeholder="예: 공무 김" /></label>
-      </div>
-      <div className="tp-start">
-        <button type="button" className="btn" disabled={!ok || saving} onClick={저장}>{saving ? '저장 중…' : 고침 ? '고친 것 저장' : '적기'}</button>
-        {고침 && <button type="button" className="btn ghost" onClick={onCancel}>그만두기</button>}
-      </div>
-    </div>
-  )
-}
-
-function SiteInfo({ 현장, 코드, 예시, onSave, onDelete }) {
-  const [v, setV] = useState({ name: 현장.name, total: 원(현장.total), budget: 현장.budget ? 원(현장.budget) : '', start: 현장.start || '', end: 현장.end || '' })
+function SiteInfo({ 현장, 코드, 예시, onSave, onDelete, onForget }) {
+  const [v, setV] = useState({ name: 현장.name, co: 현장.co || '', total: 원(현장.total), budget: 현장.budget ? 원(현장.budget) : '', start: 현장.start || '', end: 현장.end || '' })
   const [지움, set지움] = useState('')
   const f = (k) => (e) => setV({ ...v, [k]: k === 'total' || k === 'budget' ? 쉼표칸(e.target.value) : e.target.value })
   const 저장 = () => {
@@ -552,12 +465,16 @@ function SiteInfo({ 현장, 코드, 예시, onSave, onDelete }) {
     if (숫자만(v.budget) > 0) s.budget = 숫자만(v.budget)
     if (v.start) s.start = v.start
     if (v.end) s.end = v.end
+    if (v.co.trim()) s.co = v.co.trim().slice(0, 40)
     onSave(s)
   }
   return (
     <div className="tp-info no-print">
       <div className="tp-form">
-        <label>현장명 <input value={v.name} onChange={f('name')} maxLength={60} /></label>
+        <div className="tp-two">
+          <label>현장명 <input value={v.name} onChange={f('name')} maxLength={60} /></label>
+          <label>회사명 (청구내역서 머리) <input value={v.co} onChange={f('co')} maxLength={40} /></label>
+        </div>
         <div className="tp-two">
           <label>총공사금액 (원) <input value={v.total} onChange={f('total')} inputMode="numeric" /></label>
           <label>실행예산 (선택) <input value={v.budget} onChange={f('budget')} inputMode="numeric" /></label>
@@ -566,17 +483,18 @@ function SiteInfo({ 현장, 코드, 예시, onSave, onDelete }) {
           <label>착공일 <input type="date" value={v.start} onChange={f('start')} /></label>
           <label>준공일 <input type="date" value={v.end} onChange={f('end')} /></label>
         </div>
-        <div className="muted" style={{ fontSize: 12.5 }}>설계변경으로 도급액이 바뀌면 총공사금액만 고치십시오 — 투입률이 새 금액으로 다시 셈됩니다.</div>
+        <div className="muted" style={{ fontSize: 12.5 }}>설계변경으로 도급액이 바뀌면 총공사금액만 고치십시오 — 투입률·공정률이 새 금액으로 다시 셈됩니다.</div>
       </div>
       <div className="tp-start" style={{ marginTop: 8 }}>
-        <button type="button" className="btn" disabled={!(숫자만(v.total) > 0)} onClick={저장}>저장</button>
+        <button type="button" className="btn" style={{ width: 'auto' }} disabled={!(숫자만(v.total) > 0)} onClick={저장}>저장</button>
+        {!예시 && <button type="button" className="btn ghost" style={{ width: 'auto' }} onClick={onForget}>이 기기에서 잊기</button>}
       </div>
       {!예시 && (
         <>
           <ShareLink code={코드} />
           <details className="tp-del">
             <summary>현장 지우기</summary>
-            <div className="tl-p">적은 것까지 <b>모두 지워지고 되돌릴 수 없습니다</b>. 지우시려면 현장명 «{현장.name}» 을 그대로 적어 주십시오.</div>
+            <div className="tl-p">적은 것 · 명부 · 출역까지 <b>모두 지워지고 되돌릴 수 없습니다</b>. 지우시려면 현장명 «{현장.name}» 을 그대로 적어 주십시오.</div>
             <input value={지움} onChange={(e) => set지움(e.target.value)} placeholder={현장.name} />
             <button type="button" className="btn ghost" disabled={지움 !== 현장.name} onClick={onDelete}>영영 지우기</button>
           </details>
