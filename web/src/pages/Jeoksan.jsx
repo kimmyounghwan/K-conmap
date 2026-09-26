@@ -32,8 +32,9 @@ export default function Jeoksan() {
         <p className="muted" style={{ margin: 0 }}>
           단가를 채워 내역서·원가계산서까지 가는 길은 아직 시험 중입니다 — 아래 표에 그대로 적었습니다.
         </p>
-        <div className="btn-row" style={{ marginTop: 10 }}>
-          <Link className="btn primary" style={{ width: 'auto' }} to="/jeoksan/run">🧮 수량산출서 만들기 — 무료</Link>
+        <div className="btn-row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
+          <Link className="btn primary" style={{ width: 'auto' }} to="/jeoksan/golgo">🏗 골조 수량산출 — 도면에서 찍어 재기 (무료)</Link>
+          <Link className="btn line" style={{ width: 'auto' }} to="/jeoksan/run">🧮 수량산출서 만들기 — 무료</Link>
         </div>
       </div>
 

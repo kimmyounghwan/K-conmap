@@ -78,6 +78,8 @@ const Cad = lazyPage(() => import('./pages/Cad.jsx'))
 const Jeoksan = lazyPage(() => import('./pages/Jeoksan.jsx'))
 /* 🧮 수량산출서 만들기 — 2026-09-16. 브라우저에서 엑셀을 만드느라 무거워서 반드시 lazyPage 입니다. */
 const JeoksanRun = lazyPage(() => import('./pages/JeoksanRun.jsx'))
+/* 🏗 2026-09-26 골조 수량산출 — 도면에서 찍어 재기(무거운 캔버스·일꾼이라 lazyPage) */
+const Golgo = lazyPage(() => import('./pages/Golgo.jsx'))
 /* 🔒 적산 실험실 — 2026-09-16. 잠겨 있고, 어디에서도 링크하지 않습니다.
    sitemap·prerender 에도 «넣지 않습니다» — 주소를 아는 사람만 들어옵니다.
    ⚠️ 잠금은 «보안이 아닙니다» (lib/gate.js 주석을 보십시오). */
@@ -167,6 +169,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/pdf" element={<Suspense fallback={<Loading />}><Pdf /></Suspense>} />
           <Route path="/jeoksan" element={<Suspense fallback={<Loading />}><Jeoksan /></Suspense>} />
           <Route path="/jeoksan/run" element={<Suspense fallback={<Loading />}><JeoksanRun /></Suspense>} />
+          <Route path="/jeoksan/golgo" element={<Suspense fallback={<Loading />}><Golgo /></Suspense>} />
           <Route path="/jeoksan/lab" element={<Suspense fallback={<Loading />}><JeoksanLab /></Suspense>} />
           <Route path="/jeoksan/fill" element={<Suspense fallback={<Loading />}><JeoksanFill /></Suspense>} />
           <Route path="/safety" element={<Suspense fallback={<Loading />}><Safety /></Suspense>} />

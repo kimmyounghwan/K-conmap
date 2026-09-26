@@ -3849,3 +3849,87 @@ ul.plainlist li { margin-bottom: 5px; }
 .dd-warn { flex-basis: 100%; font-size: 12.5px; color: var(--text-2); line-height: 1.6; word-break: keep-all; }
 .dd-all { display: flex; justify-content: flex-end; }
 .dd-row .dx3-err { margin-top: 8px; }
+/* 🏗 /jeoksan/golgo 골조 수량산출 — 도면에서 찍어 재기 (2026-09-26) · 이름은 gg- */
+.gg-top { flex-wrap: wrap; margin-top: 10px; }
+.gg-ask { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--warn); background: var(--warn-soft); border-radius: 10px; font-size: 13.5px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.gg-n { font-size: 11px; opacity: .75; margin-left: 2px; }
+.gg-hint { font-size: 12.5px; line-height: 1.65; margin: 8px 0; }
+.gg-draw { padding: 10px; }
+.gg-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+.gg-file { font-size: 13px; font-weight: 700; margin-right: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.gg-unit { font-size: 12.5px; color: var(--muted); display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; }
+.gg-unit select { font-size: 12.5px; padding: 3px 4px; border-radius: 7px; border: 1px solid var(--line); background: var(--surface); color: var(--text); }
+.gg-layers { display: flex; flex-wrap: wrap; gap: 4px 12px; max-height: 160px; overflow: auto; font-size: 12px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; }
+.gg-layers label { display: inline-flex; gap: 4px; align-items: center; cursor: pointer; }
+.gg-layers i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.gg-cv { position: relative; border-radius: 10px; overflow: hidden; background: #0b0f16; }
+.gg-cv canvas { display: block; cursor: crosshair; }
+.gg-empty-draw { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 10px; align-items: center; justify-content: center; text-align: center; padding: 16px; color: #cbd5e1; }
+.gg-empty-draw .muted { color: #94a3b8; font-size: 12.5px; }
+.gg-tip { position: absolute; left: 8px; bottom: 8px; right: 8px; font-size: 12px; color: #e2e8f0; background: rgba(15, 23, 42, .82); padding: 4px 8px; border-radius: 7px; pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gg-say { font-size: 13px; line-height: 1.6; margin-top: 8px; padding: 7px 10px; border-radius: 9px; background: var(--accent-soft); color: var(--text); }
+.gg-say.warn { background: var(--warn-soft); color: var(--warn); font-weight: 700; }
+.gg-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+.gg-t { border-collapse: collapse; font-size: 12.5px; min-width: 100%; }
+.gg-t th { position: sticky; top: 0; background: var(--surface-2); font-weight: 700; padding: 6px 4px; border-bottom: 1px solid var(--line); white-space: nowrap; font-size: 12px; }
+.gg-t td { padding: 2px; border-bottom: 1px solid var(--line); }
+.gg-t td input { width: 100%; min-width: 58px; border: 1px solid transparent; background: transparent; color: var(--text); padding: 5px 5px; border-radius: 6px; font-size: 13px; }
+.gg-t td.n input { text-align: right; min-width: 64px; }
+.gg-t td input:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+.gg-t td.on input { border-color: #facc15; background: rgba(250, 204, 21, .12); box-shadow: 0 0 0 1px #facc15; }
+.gg-t td.pk input { color: #b45309; font-weight: 700; }
+@media (prefers-color-scheme: dark) { .gg-t td.pk input { color: #facc15; } }
+.gg-t tr.warn td { background: var(--warn-soft); }
+.gg-pk { font-style: normal; color: #eab308; font-size: 8px; vertical-align: super; margin-left: 2px; }
+.gg-no { color: var(--muted); text-align: center; font-size: 11.5px; width: 30px; }
+.gg-x button { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 4px 6px; }
+.gg-x button:hover { color: var(--bad); }
+.gg-empty { color: var(--muted); text-align: center; padding: 14px !important; font-size: 13px; }
+.gg-warns { margin: 8px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--warn); line-height: 1.6; }
+.gg-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.gg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.gg-f { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.gg-f.wide { flex: 1 1 100%; }
+.gg-f input { font-size: 14px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); }
+.gg-head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: flex-start; }
+.gg-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0; }
+.gg-tiles > div { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-size: 12.5px; color: var(--muted); }
+.gg-tiles span { display: block; font-size: 12px; }
+.gg-tiles b { font-size: 18px; color: var(--text); margin-right: 3px; }
+.gg-tiles .bad b { color: var(--bad); } .gg-tiles .good b { color: var(--good); }
+.gg-check { border: 1px solid var(--warn); background: var(--warn-soft); border-radius: 10px; padding: 8px 12px; margin-bottom: 10px; }
+.gg-check ul { margin: 4px 0 0; padding-left: 18px; font-size: 12.5px; line-height: 1.7; }
+.gg-go { border: 0; background: none; color: var(--accent); font-weight: 700; cursor: pointer; padding: 0 4px 0 0; font-size: 12.5px; }
+.gg-sec { margin-top: 12px; }
+.gg-hide { display: none; }
+.gg-r { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+.gg-r th { background: var(--surface-2); padding: 6px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; text-align: left; }
+.gg-r td { padding: 5px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.gg-r td.r { text-align: right; font-variant-numeric: tabular-nums; }
+.gg-r td.expr { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px; white-space: normal; word-break: break-all; min-width: 180px; }
+.gg-r td.note2 { white-space: normal; color: var(--muted); font-size: 11.5px; min-width: 160px; }
+.gg-r tr.neg td { color: var(--bad); }
+@media (max-width: 700px) {
+  .gg-tiles { grid-template-columns: 1fr 1fr; }
+  .gg-t td input { min-width: 52px; font-size: 14px; }
+}
+@media print {
+  .gg .gg-hide { display: block !important; }
+  .gg .gg-print { border: 0; box-shadow: none; padding: 0; }
+  .gg .gg-r th, .gg .gg-r td { font-size: 9.5px !important; padding: 2px 4px !important; border: 1px solid #9ca3af !important; white-space: normal; }
+  .gg .gg-wrap { overflow: visible; border: 0; }
+  .gg .gg-sec { break-inside: auto; }
+  .gg .gg-tiles > div { border: 1px solid #9ca3af; }
+}
+.gg-draw { position: sticky; top: 52px; z-index: 30; }
+.gg-draw.folded { padding-bottom: 8px; }
+.gg-draw.folded .gg-say { display: none; }
+.gg-draw .gg-say { margin-top: 6px; padding: 5px 9px; font-size: 12.5px; }
+@media (max-width: 700px) { .gg-draw { top: 48px; padding: 8px; } }
+@media (max-width: 600px) {
+  .gg-bar { gap: 4px; margin-bottom: 6px; }
+  .gg-bar .chip { padding: 4px 9px; font-size: 12px; }
+  .gg-file { max-width: 46%; font-size: 12px; margin-right: auto; }
+  .gg-unit { font-size: 11.5px; }
+  .gg-draw .gg-say { font-size: 11.5px; line-height: 1.5; padding: 4px 8px; }
+}
