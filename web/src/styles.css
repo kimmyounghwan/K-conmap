@@ -3822,3 +3822,12 @@ ul.plainlist li { margin-bottom: 5px; }
 .tp-saved.on { background: #ecfdf5; color: #065f46; animation: tp-flash 1.2s ease-out; }
 @keyframes tp-flash { from { background: #bbf7d0; } to { background: #ecfdf5; } }
 @media print { .installbar { display: none !important; } }
+/* 🏗 업체별·근로자별 한 장씩 (2026-09-26 — 소장님 「업체별 한 장씩 … 근로자 개인별 명세서 한 장씩 … 넣어줘」) */
+.tp-slipt { width: 100%; margin-bottom: 8px; }
+.tp-slipt th { width: 22%; text-align: left !important; background: var(--surface-2); font-size: 12.5px; white-space: nowrap; }
+.tp-slipt td { font-size: 13px; }
+.tp-slipt tr.sum th, .tp-slipt tr.sum td { background: #f0fdf4; }
+.tp-rcpt { margin-top: 18px; font-size: 13.5px; display: grid; gap: 14px; text-align: right; }
+.tp-rcpt span { display: block; }
+.tp-slip .tp-grid td, .tp-slip .tp-grid th { min-width: 18px; }
+@media print { .tp-slipt th, .tp-slipt td { font-size: 10.5px !important; padding: 3px 6px !important; } .tp-rcpt { font-size: 11px; margin-top: 24px; } }

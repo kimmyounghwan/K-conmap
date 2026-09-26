@@ -87,14 +87,22 @@ function Bills(P) {
   const N = useMemo(() => 노무달(ym, 출역, 사람), [ym, 출역, 사람])
   const E = useMemo(() => 장비달(ym, 줄들, 장비), [ym, 줄들, 장비])
   const M = useMemo(() => 자재달(ym, 줄들, 업체), [ym, 줄들, 업체])
-  const [모두, set모두] = useState(false)               // 노무·장비·자재를 한 번에 인쇄
+  /* 인쇄판 — '' 화면 그대로 · all 노무·장비·자재 한 장씩 · vendor 업체별 한 장씩 · worker 근로자별 명세서 한 장씩
+   *   소장님: 「「업체별 한 장씩 인쇄」나 「근로자 개인별 명세서 한 장씩」 … 응 넣어줘.」 */
+  const [판, set판] = useState('')
   useEffect(() => {
-    const 끝 = () => { document.body.classList.remove('tp-print-bill'); set모두(false) }
+    const 끝 = () => { document.body.classList.remove('tp-print-bill'); set판('') }
     window.addEventListener('afterprint', 끝)
     return () => window.removeEventListener('afterprint', 끝)
   }, [])
   const 인쇄 = () => { document.body.classList.add('tp-print-bill'); setTimeout(() => window.print(), 50) }
-  const 모두인쇄 = () => { set모두(true); document.body.classList.add('tp-print-bill'); setTimeout(() => window.print(), 300) }
+  const 판인쇄 = (k) => { set판(k); document.body.classList.add('tp-print-bill'); setTimeout(() => window.print(), 400) }
+  /* 업체별로 묶기 — 장비는 같은 업체의 여러 장비를 한 장에 */
+  const 장비업체들 = useMemo(() => {
+    const m = new Map()
+    for (const g of E.목록) { const k = g.업체 || '업체 안 정함'; const x = m.get(k) || { 업체: k, 목록: [], 합계: 0 }; x.목록.push(g); x.합계 += g.금액; m.set(k, x) }
+    return [...m.values()]
+  }, [E])
   const C = useMemo(() => (보기 === 'C' ? 누계(ym, 출역, 사람, 줄들, 장비, 업체) : null), [보기, ym, 출역, 사람, 줄들, 장비, 업체])
 
   const [y, m] = ym.split('-')
@@ -115,16 +123,33 @@ function Bills(P) {
           ))}
         </div>
         <div className="tp-start" style={{ marginTop: 8 }}>
-          <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={모두인쇄}>🖨 이 달 청구서 모두 인쇄 (노무·장비·자재)</button>
+          <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => 판인쇄('all')}>🖨 이 달 청구서 모두 인쇄 (노무·장비·자재)</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 판인쇄('vendor')} disabled={!E.목록.length && !M.목록.length}>🖨 업체별 한 장씩 (장비 {장비업체들.length} · 자재 {M.목록.length})</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 판인쇄('worker')} disabled={!N.줄.length}>🖨 근로자별 명세서 한 장씩 ({N.줄.length}명)</button>
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={인쇄}>🖨 이 화면 인쇄</button>
           <label className="tp-chk" style={{ paddingBottom: 0 }}><input type="checkbox" checked={뒷자리} onChange={(e) => set뒷자리(e.target.checked)} disabled={잠김 && !예시} /> 주민번호 뒷자리 보이기</label>
         </div>
       </div>
-      {모두 ? (
+      {판 === 'all' ? (
         <>
           <div className="card tp-bill"><LaborBill N={N} y={y} m={m} 현장={현장} 풀린={풀린} 잠김={잠김 && !예시} 뒷자리={뒷자리} {...P} /></div>
           <div className="card tp-bill tp-pb"><EquipBill E={E} y={y} m={m} 현장={현장} 풀린={풀린} 잠김={잠김 && !예시} ym={ym} /></div>
           <div className="card tp-bill tp-pb"><MatBill M={M} y={y} m={m} 현장={현장} 풀린={풀린} 잠김={잠김 && !예시} ym={ym} /></div>
+        </>
+      ) : 판 === 'vendor' ? (
+        <>
+          {장비업체들.map((v, i) => (
+            <div key={'e' + v.업체} className={'card tp-bill' + (i ? ' tp-pb' : '')}><EquipBill E={v} 부제={v.업체} y={y} m={m} 현장={현장} 풀린={풀린} 잠김={잠김 && !예시} ym={ym} /></div>
+          ))}
+          {M.목록.map((g, i) => (
+            <div key={'m' + g.key} className={'card tp-bill' + (i || 장비업체들.length ? ' tp-pb' : '')}><MatBill M={{ 목록: [g], 합계: g.금액 }} 부제={g.업체} y={y} m={m} 현장={현장} 풀린={풀린} 잠김={잠김 && !예시} ym={ym} /></div>
+          ))}
+        </>
+      ) : 판 === 'worker' ? (
+        <>
+          {N.줄.map((r, i) => (
+            <div key={r.pid} className={'card tp-bill' + (i ? ' tp-pb' : '')}><WorkerSlip r={r} N={N} y={y} m={m} 현장={현장} 풀린={풀린} 잠김={잠김 && !예시} 뒷자리={뒷자리} /></div>
+          ))}
         </>
       ) : (
         <div className="card tp-bill">
@@ -138,7 +163,7 @@ function Bills(P) {
   )
 }
 
-function BillHead({ 제목, 현장, ym, 날수, 금액, 금액이름 }) {
+function BillHead({ 제목, 현장, ym, 날수, 금액, 금액이름, 업체 }) {
   return (
     <>
       <div className="tp-bill-hd">
@@ -148,6 +173,7 @@ function BillHead({ 제목, 현장, ym, 날수, 금액, 금액이름 }) {
       <table className="tbl tp-bill-top">
         <tbody>
           <tr><th>회사명</th><td>{현장.co || <span className="muted no-print">✏️ 현장 정보에서 회사명을 넣으십시오</span>}</td><th>현장명</th><td>{현장.name}</td><th>청구기간</th><td className="nw">{ym}-01 ~ {ym}-{String(날수).padStart(2, '0')}</td></tr>
+          {업체 && <tr><th>청구 업체</th><td colSpan={5}><b>{업체}</b></td></tr>}
           <tr><th>{금액이름}</th><td colSpan={5}><b>일금 {한글금액(금액)} 원정 (₩{원(금액)})</b></td></tr>
         </tbody>
       </table>
@@ -373,6 +399,52 @@ function CumBill({ C, 현장 }) {
   )
 }
 
+/* 👷 근로자 개인별 노무비 지급 명세서 — 한 사람 한 장 (영수 서명란) */
+function WorkerSlip({ r, N, y, m, 현장, 풀린, 잠김, 뒷자리 }) {
+  const x = (풀린 && 풀린[r.pid]) || {}
+  const ym = `${y}-${m}`
+  const 날들 = Array.from({ length: N.날수 }, (_, i) => `${ym}-${String(i + 1).padStart(2, '0')}`)
+  const 이름 = { P: '국민연금', H: '건강·요양', E: '고용보험' }
+  return (
+    <div className="tp-slip">
+      <div className="tp-bill-hd">
+        <h2 className="tp-bill-h">일용근로자 노무비 지급 명세서 ({y}년 {m}월)</h2>
+        <Sign />
+      </div>
+      <table className="tbl tp-bill-top">
+        <tbody>
+          <tr><th>회사명</th><td>{현장.co || ''}</td><th>현장명</th><td>{현장.name}</td><th>지급 기간</th><td className="nw">{ym}-01 ~ {ym}-{String(N.날수).padStart(2, '0')}</td></tr>
+          <tr><th>성명</th><td><b>{r.p.n}</b></td><th>주민등록번호</th><td className="nw">{잠김 ? '🔒' : x.r ? 주민가림(x.r, 뒷자리) : ''}</td><th>직종 · 연락처</th><td className="nw">{r.p.j || ''}{r.p.tel ? ` · ${r.p.tel}` : ''}</td></tr>
+        </tbody>
+      </table>
+      <div className="tp-bill-sub">① 출역</div>
+      <div className="tp-scroll">
+        <table className="tbl tp-grid">
+          <thead><tr>{날들.map((d, i) => { const w = 요일(d); return <th key={d} className={w === '일' ? 'sun' : w === '토' ? 'sat' : ''}>{i + 1}<br /><small>{w}</small></th> })}</tr></thead>
+          <tbody><tr>{r.공수.map((g, i) => <td key={i} className={'tp-gc' + (g > 0 ? ' on' : '') + (g > 0 && g !== 1 ? ' part' : '')}>{g > 0 ? 공수글(g) : ''}</td>)}</tr></tbody>
+        </table>
+      </div>
+      <div className="tp-bill-sub">② 지급 내역</div>
+      <table className="tbl tp-slipt">
+        <tbody>
+          <tr><th>일급</th><td className="r">{원(r.w)} 원</td><th>공수 · 일수</th><td className="r">{공수글(r.공수합)} 공수 · {r.일수} 일</td></tr>
+          <tr><th>보수총액 (청구금액)</th><td className="r" colSpan={3}><b>{원(r.보수)} 원</b></td></tr>
+          {공제칸.map((c) => (
+            <tr key={c.k}><th>공제 — {c.이름}</th><td className="r">{원(r.최종[c.k])} 원</td><td colSpan={2} className="muted" style={{ fontSize: 11.5 }}>
+              {c.k === 'np' ? `${r.대상.P.대상 ? '대상' : '대상 아님'} (${r.대상.P.이유})` : c.k === 'hi' || c.k === 'lc' ? `${r.대상.H.대상 ? '대상' : '대상 아님'} (${r.대상.H.이유})` : c.k === 'ei' ? `${r.대상.E.대상 ? '대상' : '대상 아님'} (${r.대상.E.이유})` : ''}
+              {r.고침[c.k] != null ? ' · 손으로 고침' : ''}</td></tr>
+          ))}
+          <tr><th>공제 합계</th><td className="r" colSpan={3}>− {원(r.최종.합)} 원</td></tr>
+          <tr className="sum"><th>실지급액 (차인지급액)</th><td className="r" colSpan={3}><b>{원(r.최종.차인)} 원</b> <span className="muted">(일금 {한글금액(r.최종.차인)} 원정)</span></td></tr>
+          <tr><th>입금 계좌</th><td colSpan={3}>{잠김 ? '🔒' : [x.b, x.a, x.h ? `예금주 ${x.h}` : ''].filter(Boolean).join(' · ')}</td></tr>
+          {r.비고 && <tr><th>비고</th><td colSpan={3}>{r.비고}</td></tr>}
+        </tbody>
+      </table>
+      <div className="tp-rcpt">위 금액을 정히 영수합니다.<span>{y}년 {m}월 &nbsp;&nbsp;&nbsp; 일</span><span>수령인 &nbsp; {r.p.n} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (서명 또는 인)</span></div>
+    </div>
+  )
+}
+
 function AcctLine({ x, 잠김 }) {
   if (잠김) return <span className="muted">🔒 계좌 잠김</span>
   if (!x) return null
@@ -380,10 +452,10 @@ function AcctLine({ x, 잠김 }) {
   return s ? <span>{s}</span> : null
 }
 
-function EquipBill({ E, y, m, 현장, 풀린, 잠김, ym }) {
+function EquipBill({ E, y, m, 현장, 풀린, 잠김, ym, 부제 }) {
   return (
     <>
-      <BillHead 제목={`장비 사용 청구 내역서 (${y}년 ${m}월)`} 현장={현장} ym={ym} 날수={new Date(Number(y), Number(m), 0).getDate()} 금액={E.합계} 금액이름="청구금액" />
+      <BillHead 제목={`장비 사용 청구 내역서 (${y}년 ${m}월)`} 업체={부제} 현장={현장} ym={ym} 날수={new Date(Number(y), Number(m), 0).getDate()} 금액={E.합계} 금액이름="청구금액" />
       {!E.목록.length ? <div className="muted" style={{ padding: '14px 0' }}>이 달 장비 사용이 없습니다.</div> : (
         <div className="tp-scroll">
           <table className="tbl tp-eb">
@@ -405,10 +477,10 @@ function EquipBill({ E, y, m, 현장, 풀린, 잠김, ym }) {
   )
 }
 
-function MatBill({ M, y, m, 현장, 풀린, 잠김, ym }) {
+function MatBill({ M, y, m, 현장, 풀린, 잠김, ym, 부제 }) {
   return (
     <>
-      <BillHead 제목={`자재 반입 청구 내역서 (${y}년 ${m}월)`} 현장={현장} ym={ym} 날수={new Date(Number(y), Number(m), 0).getDate()} 금액={M.합계} 금액이름="청구금액" />
+      <BillHead 제목={`자재 반입 청구 내역서 (${y}년 ${m}월)`} 업체={부제} 현장={현장} ym={ym} 날수={new Date(Number(y), Number(m), 0).getDate()} 금액={M.합계} 금액이름="청구금액" />
       {!M.목록.length ? <div className="muted" style={{ padding: '14px 0' }}>이 달 자재 반입이 없습니다.</div> : (
         <div className="tp-scroll">
           <table className="tbl tp-eb">
