@@ -310,7 +310,7 @@ export default function Dxf3d() {
         )}
         {결과 && (결과.dwg수 > 0 || 결과.못읽은.length > 0) && (
           <div className="dx3-skip">
-            {결과.dwg수 > 0 && <>DWG {결과.dwg수}장은 못 읽어서 뺐습니다(캐드에서 DXF 로 저장해 주십시오). </>}
+            {결과.dwg수 > 0 && <>DWG {결과.dwg수}장은 못 읽어서 뺐습니다(<Link to="/tools/dwgdxf">DWG → DXF 바꾸기</Link> 에서 먼저 바꿔 주십시오). </>}
             {결과.못읽은.length > 0 && <>못 읽은 파일: {결과.못읽은.map((x) => x.이름).join(', ')}</>}
           </div>
         )}
@@ -385,7 +385,7 @@ export default function Dxf3d() {
       <div className="card">
         <div className="detail-h">못 읽는 것</div>
         <ul className="tl-p" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.9 }}>
-          <li><b>DWG</b> — 캐드에서 «다른 이름으로 저장 → DXF» 로 바꿔 주십시오 (어느 판이든 됩니다)</li>
+          <li><b>DWG</b> — <Link to="/tools/dwgdxf">DWG → DXF 바꾸기</Link> 에서 DXF 로 바꿔 놓아 주십시오 (캐드의 «다른 이름으로 저장 → DXF» 도 됩니다)</li>
           <li><b>바이너리 DXF</b> — 저장할 때 «ASCII» 로</li>
           <li><b>3DSOLID·면(REGION)</b> — 속이 암호라 못 읽습니다. 메쉬로 바꾸면 보입니다</li>
           <li><b>글자·해치(채우기)·그림</b> — 3D 에서는 오히려 가려서 뺍니다. 몇 개를 뺐는지는 위에 적습니다</li>
@@ -412,7 +412,7 @@ function 평평(layers, 켬) {
 }
 
 function 오류글(k, more) {
-  if (k === 'dwg') return <>DWG 는 이 도구가 못 읽습니다. 캐드에서 <b>다른 이름으로 저장 → DXF</b> 로 바꿔 놓아 주십시오.</>
+  if (k === 'dwg') return <>DWG 는 먼저 <Link to="/tools/dwgdxf"><b>DWG → DXF 바꾸기</b></Link> 에서 DXF 로 바꿔 놓아 주십시오.</>
   if (k === 'bindxf') return <>바이너리 DXF 입니다. 캐드에서 DXF 로 저장할 때 <b>ASCII</b> 를 골라 주십시오.</>
   if (k === 'notdxf') return <>DXF 도면이 아닌 것 같습니다. 확장자가 .dxf 인 캐드 도면을 놓아 주십시오.</>
   if (k === 'big') return <>파일이 250MB 를 넘습니다. 캐드에서 필요 없는 층을 지우고(PURGE) 다시 저장해 주십시오.</>

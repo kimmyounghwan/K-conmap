@@ -227,7 +227,8 @@ cd web && firebase deploy --only hosting        (또는 --only database)
 | `/cad` · `/cad/{slug}` | 캐드 유틸 (리습 내려받기) | `Cad.jsx` |
 | `/tools` · `/tools/{slug}` | 건설 도구 12가지. **2026-09-26 도구마다 «🧪 예시로 해 보기»** — 예시 값은 `tools/calcs.jsx` 의 `EXAMPLES` 한 곳 (계산기는 `({ ex })` 로 첫 값을 받음). 소장님: 「각각의 도구별로 예시가 하나씩 있어야」 | `Tools.jsx` |
 | `/tools/dxf3d` | **도면 3D 보기** (2026-09-25) — DXF 를 브라우저 안에서만 읽어 선을 도면 높이(Z) 그대로 세움. 서버 없음. 읽기 `lib/dxf3d.js`(일꾼 `dxf3d.worker.js`) · 그리기 `lib/gl3d.js`(WebGL, three.js 없이). **2026-09-26 건물 세우기** — 여러 장을 받아 평면도 제목으로 층을 나누고 도면 글자(GL/FL +5,200 · 입면도 층 이름 자리)에서 층 높이를 찾아 쌓고 벽·기둥을 세움 `lib/building3d.js` (시험: 여수 새마을금고 — 골구도 값과 입면도 값이 같음. ⚠️ 금동배수장 도면은 쓰지 말 것: 바뀌기 전 도면). «🧪 예시로 해 보기» 도면은 **지어낸 것**(가상 3층 건물 평면+단면 · 가상 언덕) `web/public/tools/files/ex-*.dxf` — 남의 도면을 예시로 싣지 말 것 | `Dxf3d.jsx` |
-| `/tools/dxfpdf` | **도면 PDF 만들기 · DXF → PDF** (2026-09-26, 소장님 「dxf로 올리면 돼지...이렇게 프로그램 만들어 줘」). 브라우저 안에서만. 도곽(√2 비율 큰 네모 — 닫힌 폴리선·긴 선 네 개) 찾아 한 장씩 · 전체 한 장 · 직접 잡기(끌어서 네모). 흑백(색마다 굵기 CTB 표는 `lib/plotstyle.js`)·컬러·선 종류·해치 무늬·XCLIP·글자. 읽기 `lib/dxfplot.js`(dxf3d.js 의 쌍 읽기·블록·OCS 를 씀) · PDF `lib/plotpdf.js`(pdf-lib) · 미리보기 `lib/plotview.js` · 글자 배치 `lib/textlayout.js` · 일꾼 `lib/dxfpdf.worker.js`. 글꼴 `public/fonts/KCMGothic.ttf` = 나눔고딕 서브셋(OFL — 예약 이름 규정 때문에 이름을 바꿈, `public/fonts/OFL.txt`). ⚠️ pdf-lib 의 글꼴 서브셋(subset:true)은 나눔고딕 한글을 빠뜨립니다(조합형 글리프) — `lib/ttfslim.js` 로 «안 쓴 글자 모양만 비우고» subset:false 로 넣습니다. 예시 도면 `public/tools/files/ex-drawing-pdf.dxf` 는 지어낸 것(ezdxf 로 만듦). DWG 는 아직 못 읽음(캐드에서 DXF 로) | `DxfPdf.jsx` |
+| `/tools/dxfpdf` | **도면 PDF 만들기 · DXF → PDF** (2026-09-26, 소장님 「dxf로 올리면 돼지...이렇게 프로그램 만들어 줘」). 브라우저 안에서만. 도곽(√2 비율 큰 네모 — 닫힌 폴리선·긴 선 네 개) 찾아 한 장씩 · 전체 한 장 · 직접 잡기(끌어서 네모). 흑백(색마다 굵기 CTB 표는 `lib/plotstyle.js`)·컬러·선 종류·해치 무늬·XCLIP·글자. 읽기 `lib/dxfplot.js`(dxf3d.js 의 쌍 읽기·블록·OCS 를 씀) · PDF `lib/plotpdf.js`(pdf-lib) · 미리보기 `lib/plotview.js` · 글자 배치 `lib/textlayout.js` · 일꾼 `lib/dxfpdf.worker.js`. 글꼴 `public/fonts/KCMGothic.ttf` = 나눔고딕 서브셋(OFL — 예약 이름 규정 때문에 이름을 바꿈, `public/fonts/OFL.txt`). ⚠️ pdf-lib 의 글꼴 서브셋(subset:true)은 나눔고딕 한글을 빠뜨립니다(조합형 글리프) — `lib/ttfslim.js` 로 «안 쓴 글자 모양만 비우고» subset:false 로 넣습니다. 예시 도면 `public/tools/files/ex-drawing-pdf.dxf` 는 지어낸 것(ezdxf 로 만듦). DWG 는 `/tools/dwgdxf` 에서 바꾼 뒤 «이 도면 PDF 로 만들기» 로 넘어옴(`lib/도면넘김.js` — 같은 탭 메모리에서만) | `DxfPdf.jsx` |
+| `/tools/dwgdxf` | **DWG → DXF 바꾸기** (2026-09-26, 소장님 「캐드 파일을 드래그 하면 dxf로 만들어 주는 도구 … 다운 받게 해줘」 · 「클로드가 공개 프로그램을 이용해서 만들면 안돼?」 · 「도면을 dxf 전환해주는 도구도 만들어 줘」). 브라우저 안에서만 · 여러 장 · 한 장씩 받기 · ZIP · «이 도면 PDF 로 만들기». 엔진 = **libredwg-web 0.7.14 (LibreDWG, GPL-3.0)** 을 `web/vendor/libredwg-web/` 에 **고치지 않은 원본** 으로 둠(npm 이 아니라 vendor — package.json 안 건드림). 일꾼 `lib/dwgdxf.worker.js`(파일마다 새로 띄움 — 한 번 죽은 엔진은 못 씀) · **다듬기 `lib/dwgdxf.js`** — 엔진 DXF 를 AutoCAD 가 받게 고치는 것들(8절 80). 원래 판과 같은 판의 DXF. GPL 이라 일꾼·다듬기 소스를 `public/tools/files/dwgdxf-source.zip` 으로 공개(다듬기 고치면 이 zip 도 다시 만들 것) | `DwgDxf.jsx` |
 | `/tools/tuipbi` | **현장 투입비 · 공사일보** (2026-09-26 첫 판 투입비만 → 같은 날 둘째 판: 소장님 「공사금액으로 해서 공정률도」 · 「노무자 및 장비, 자재 청구내역서 작성해서 보여주는 걸로 하자. 매달...」 · 「공사일보 쓰는 방법을 자세하게」). 현장 코드(9자리)+비밀번호(6자↑, 해시만). 탭: 한눈에(투입·공정률·계획 견줌·기성 대비 투입비) · 적기(날짜별: 출역 칩 1→0.5→1.5→빼기, 전날처럼 · 장비 · 자재 반입 · 그 밖의 지출) · 달마다 청구서(노무비 = 출역 대장 1~말일 + 청구내역서, 공제 자동 `lib/gongje.js` 2026 요율(2027 연금 5%·건강 동결 넣음, 요양·고용 잠정) — 칸 눌러 고침 · **4대보험 대상 단추**(연금·건강·고용 ✓/✕ + 까닭, 그 달만 넣기 ap·빼기 ex) · 청구금액−공제=실지급액 · 장비·자재 업체별 · 달별 누계(처음~이 달, 사람별) · 가로 A4 인쇄, «모두 인쇄» 3장) · **엑셀 받기 없음**(소장님 2026-09-26 「프로그램으로 해서 만든 거는 … 다운 받을 수 없게 … 프린트만 가능하게 … 수정이나 입력은 건설맵에서」 — `lib/tuipbi.js` 의 엑셀 셈은 남겨 두었으나 화면에서 안 부름; 일반 서식은 그대로 엑셀) · 명부(근로자·장비·자재 업체) · 기성·공정률 · 적은 것 · 쓰는 방법. **주민번호·은행·계좌·예금주·사업자번호는 `x` 한 칸에 브라우저에서 현장 비밀번호로 잠근 글(PBKDF2 20만→AES-GCM, `lib/tplock.js`)** — 개인정보 보호법 제24조의2 ②. 열쇠는 비밀번호 넣은 기기의 localStorage. 저장 파이어베이스 `cost_pins`·`cost_keys`·`cost_sites`·`cost_rows`(k G=기성)·`cost_people`·`cost_equip`·`cost_vendors`·`cost_att/{코드}/{YYYY-MM}/{사람}`({w,d,o,m,ap,ex}) — **규칙(web/database.rules.json)을 PC 에서 따로 올려야 합니다(`--only database`)**. get() 만. 셈·엑셀·예시 `lib/tuipbi.js` | `Tuipbi.jsx` · `TuipbiSite.jsx` · `TuipbiBook.jsx` |
 | `/guide` · `/guide/{slug}` | 입찰 알아보기 | `Guide.jsx` |
 | `/how` | 보는 방법 — 처음이시면 여기부터 | `How.jsx` |
@@ -2935,3 +2936,41 @@ canonical 이중 인코딩 · 개찰 시각 문구 · 성적표 칸 · 등수 �
 「놓치기 쉬운 것」 목록의 `**굵게**` 표시가 **별표 그대로 화면에 보입니다.**
 제가 넣은 서식만이 아니라 **지금 있는 서식 전부**가 그렇습니다(anjeon-hwangyeong-bi 로 확인).
 원래 있던 것이라 손대지 않았습니다 — 고칠지는 소장님이 정하십니다.
+
+---
+
+### 80. 🔁 DWG → DXF — 엔진 DXF 는 «AutoCAD 로 열어 봐야» 믿는다 (2026-09-26, 소장님)
+
+소장님: 「도면을 dxf 전환해주는 도구도 만들어 줘」 → `/tools/dwgdxf`
+
+**ezdxf·우리 도면 PDF 도구는 다 열었는데 AutoCAD 는 못 연 파일이 여럿이었습니다.** ezdxf 는 너그럽고 AutoCAD 는 깐깐합니다.
+소장님 PC 의 AutoCAD 2023 으로 도면 8장(2000·2004·2013·2018 판)을 한 장씩 열어 가며 잡았습니다.
+「도면이 취소됨」 한 줄에 행 번호가 나오니 그 줄을 보면 원인이 바로 보입니다.
+
+| # | 엔진(LibreDWG)이 틀리게 쓰는 것 | AutoCAD | 다듬기 |
+|---|---|---|---|
+| 1 | 레이어를 **전부 꺼짐**(색 음수)으로 | 빈 도면 | 같은 엔진으로 레이어만 다시 읽어 부호 바로잡기 |
+| 2 | 사전 칸이 없는 물체(Civil 3D·Map)를 가리킴 | AUDIT 549건 | 그 칸 빼기 |
+| 3 | 속성(ATTRIB) 끝에 반쪽 AcDbXrecord (2007판↑) | 못 엶 | 빼기 |
+| 4 | DIMASSOC 칸 순서 틀림 | 못 엶 | 물체째 빼기(치수 연관만 풀림) |
+| 5 | MTEXT 「101 Embedded Object」 반쪽 | AUDIT 71건 | 빼기 |
+| 6 | SORTENTSTABLE 에 블록 핸들(330) 없음 | AUDIT | 사전의 주인에서 찾아 끼우기 |
+| 7 | 16비트 칸에 65529 · 치수 색 -1056964608 | 못 엶 | 16비트로 되돌리기 · 색 방식 풀기 |
+| 8 | 확장 데이터 1005 가 없는 핸들 | — | 그 앱 묶음 빼기 |
+| 9 | XRECORD 에 1001 없이 1000번대 | 「확장 데이터는 읽을 수 없음」 | 그 XRECORD 빼기 |
+| 10 | 동적 블록 속 물체들 반쪽 | 같은 것 | 빼기(보통 블록이 됨) |
+| 11 | WIPEOUT 대리 그림(92/160+310) | 같은 것 | 빼기 |
+| 12 | **WIPEOUT·IMAGE 다각형 경계가 안 닫힘** | 같은 것 ← 진짜 원인 | 첫 점 한 번 더 |
+| 13 | 모서리 1개만 쓴 HATCH | 「그룹 코드 72 예상」 | 해치 구조를 따라가 보고 어긋나면 그 해치만 빼기 |
+| 14 | 맞춤점 0 인 스플라인 경계에 접선 12·13 | 「그룹 코드 97 예상」 | 접선 빼기 |
+| 15 | 치수 기울기 52 를 AcDbAlignedDimension 에 | 「예상치 않은 52」 | AcDbDimension 칸으로 옮김 · 없는 50·70 채움 |
+| 16 | 여러 줄 속성 뒤에 공통 칸(빈 8 층) | 「잘못된 도면요소 도면층」 | 한 줄 속성으로 |
+| 17 | IMAGEDEF 긴 경로를 3+1 로 쪼갬 | 「너무 이른 객체의 끝」 | 한 줄로 잇기(바이트 그대로) |
+
+⚠️ **「확장 데이터는 읽을 수 없음」 은 확장 데이터 탓이 아니었습니다** — 1001 을 전부 지워도 그대로였고,
+   09 도면에서 행 번호가 WIPEOUT 을 가리켜서야 12번(경계 안 닫힘)을 찾았습니다. **메시지보다 행 번호를 믿을 것.**
+⚠️ 다듬기는 **바이트로만** 고칩니다 — 2004 판 이하 DXF 는 한글이 CP949 라 글을 풀었다 다시 싸면 깨집니다.
+⚠️ 결과: 8장 모두 AutoCAD 에서 열림 · 6장 AUDIT 0건 · 09(해치 경계 알림)·13(75MB, «*A 익명 블록 이름» 알림)은 알림만 남음(열리고 보임).
+⚠️ 13·09 도면에는 남의 경로·금동배수장 관련 내용이 있어 **시험에만** 썼습니다 — 예시·화면에 싣지 말 것.
+⚠️ AutoCAD 확인 방법: 명령줄에 FILEDIA 0 → OPEN → 경로(`/` 로, 한 글자씩 — 붙여넣기는 안 됨) · 끝나면 QUIT 에서 모두 «아니오».
+

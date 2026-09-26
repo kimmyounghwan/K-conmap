@@ -57,6 +57,7 @@ const LEAF = {
   '/jeoksan/lab': '적산 실험실',
   '/tools/dxf3d': '도면 3D 보기',
   '/tools/dxfpdf': '도면 PDF 만들기',
+  '/tools/dwgdxf': 'DWG → DXF 바꾸기',
   '/tools/tuipbi': '현장 투입비 · 공사일보',
   '/tools/wonclick': '공사서류 원클릭',
   '/report/make': '성적표 만들기',

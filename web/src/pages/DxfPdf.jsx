@@ -8,12 +8,13 @@
  * ■ 도곽(√2 비율의 큰 네모)을 스스로 찾아 «도곽마다 한 장» 으로 찍습니다. 못 찾으면 전체 한 장 · 직접 잡기.
  * ■ 흑백(색마다 굵기 — CTB 처럼) / 컬러 · 선 종류(점선) · 해치 무늬 · 글자(KCM Gothic = 나눔고딕 서브셋) · XCLIP
  * ■ 읽기·그리기: lib/dxfplot.js → (미리보기) lib/plotview.js · (PDF) lib/plotpdf.js — 일꾼 lib/dxfpdf.worker.js
- * ■ DWG 는 아직 못 읽습니다 — 캐드에서 DXF 로 저장해 올리시라고 안내합니다 (2단계에서 DWG 읽기를 붙일 자리).
+ * ■ DWG 는 /tools/dwgdxf 에서 바꾼 뒤 «이 도면 PDF 로 만들기» 로 넘어옵니다 → lib/도면넘김.js (2026-09-26)
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { drawPage, drawThumb, loadFont } from '../lib/plotview.js'
 import { PAPER, pageGeom } from '../lib/plotstyle.js'
+import { 도면받기 } from '../lib/도면넘김.js'
 
 /* 🧪 예시 — 제가 그린 «가상의 사무소 건물» 도곽 2장(A3 · 1:100): 평면도(통심선 점선·벽 해치·치수·문)와
    벽체 단면 상세(흙·잡석·콘크리트 해치·단열재 굵은 선). 남의 도면이 아닙니다 — 만든 스크립트는 CLAUDE.md 참고 */
@@ -23,8 +24,8 @@ const 쉼 = (n) => new Intl.NumberFormat('ko-KR').format(Math.round(n || 0))
 const MB = (b) => (b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB')
 
 function 오류글(k, more) {
-  if (k === 'dwg') return <>DWG 는 아직 바로 못 읽습니다. 캐드에서 <b>「다른 이름으로 저장」 → 파일 형식 「DXF」</b>로 저장해 올려 주십시오 (어느 판이든 됩니다).
-    캐드가 없으시면 무료 변환 프로그램(예: ODA File Converter)으로 DXF 로 바꿀 수 있습니다.</>
+  if (k === 'dwg') return <>DWG 는 먼저 DXF 로 바꿔 주십시오 — <Link to="/tools/dwgdxf"><b>🔁 DWG → DXF 바꾸기</b></Link> 에 놓고
+    «이 도면 PDF 로 만들기» 를 누르시면 이 화면으로 바로 넘어옵니다. (캐드에서 «다른 이름으로 저장 → DXF» 도 됩니다)</>
   if (k === 'bindxf') return <>바이너리 DXF 입니다. 캐드에서 DXF 로 저장할 때 <b>「ASCII」</b> 형식을 골라 주십시오.</>
   if (k === 'notdxf') return <>DXF 도면 파일이 아닌 것 같습니다. 캐드에서 DXF 로 저장한 파일을 올려 주십시오.</>
   if (k === 'empty') return <>도면에 찍을 것이 없습니다 — 모델 공간이 비어 있거나 모든 레이어가 꺼져(얼려져) 있습니다. 배치(종이 공간)에만 그린 도면은 아직 못 찍습니다.</>
@@ -154,6 +155,12 @@ export default function DxfPdf() {
     } catch (e) { set상태({ k: 'err', msg: 'fail', more: '예시 도면을 받지 못했습니다 — 잠시 뒤 다시 눌러 주십시오' }) }
   }
 
+  /* 📨 DWG→DXF 바꾸기에서 «이 도면 PDF 로 만들기» 로 넘어온 도면 (2026-09-26) */
+  useEffect(() => {
+    const d = 도면받기()
+    if (d && d.바이트) 읽기([new File([d.바이트], d.이름 || '도면.dxf')])
+  }, [])   // eslint-disable-line react-hooks/exhaustive-deps
+
   const 만들기 = () => {
     if (!workRef.current || !장들.length) return
     set결과(null)
@@ -238,7 +245,7 @@ export default function DxfPdf() {
              onDragLeave={() => set끌림(false)}
              onDrop={(e) => { e.preventDefault(); set끌림(false); 읽기(e.dataTransfer.files) }}>
           <button type="button" className="pdfpick" onClick={() => 파일칸.current?.click()}>📂 DXF 도면 고르기</button>
-          <div className="pdfdrop-d">또는 도면 파일을 이곳에 끌어다 놓으세요 · 250MB 까지 · DWG 는 캐드에서 DXF 로 저장해 주십시오</div>
+          <div className="pdfdrop-d">또는 도면 파일을 이곳에 끌어다 놓으세요 · 250MB 까지 · DWG 는 <Link to="/tools/dwgdxf">DWG → DXF 바꾸기</Link> 에서 먼저 바꿔 주십시오</div>
         </div>
         <input ref={파일칸} type="file" accept=".dxf,.DXF,.dwg,.DWG" className="sr-only" tabIndex={-1}
                onChange={(e) => { 읽기(e.target.files); e.target.value = '' }} />
@@ -355,7 +362,7 @@ export default function DxfPdf() {
       <div className="card">
         <div className="detail-h">아직 못 하는 것</div>
         <ul className="tl-p" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.9 }}>
-          <li><b>DWG</b> — 캐드에서 «다른 이름으로 저장 → DXF» 로 바꿔 올려 주십시오. DWG 바로 읽기는 다음에 붙입니다</li>
+          <li><b>DWG</b> — <Link to="/tools/dwgdxf">DWG → DXF 바꾸기</Link> 에서 바꾼 뒤 «이 도면 PDF 로 만들기» 를 누르시면 바로 넘어옵니다</li>
           <li><b>배치(종이 공간)</b> — 모델 공간에 그린 도면만 찍습니다. 배치 탭에만 있는 도면은 아직</li>
           <li><b>그림(IMAGE) · OLE · 표(ACAD_TABLE) · 다중 지시선(MLEADER)</b> — 빠집니다. 몇 개가 빠졌는지 위에 적습니다</li>
         </ul>

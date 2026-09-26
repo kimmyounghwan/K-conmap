@@ -164,7 +164,7 @@ SITENAV = [("/", "바로투찰"), ("/first", "1순위 개찰"), ("/live", "입�
            ("/cad", "캐드 유틸"), ("/pdf", "PDF 도구"), ("/jeoksan", "K-적산"),
            ("/shareone", "쉐어원 공유폴더"),
            ("/safety", "안전관리계획서 · 유해위험방지계획서"),
-           ("/naeyeok", "산출내역서 알아보기"), ("/tools/dxf3d", "도면 3D 보기"), ("/tools/dxfpdf", "도면 PDF 만들기"), ("/tools/tuipbi", "현장 투입비 · 공사일보"), ("/qna", "사랑방"),
+           ("/naeyeok", "산출내역서 알아보기"), ("/tools/dxf3d", "도면 3D 보기"), ("/tools/dxfpdf", "도면 PDF 만들기"), ("/tools/dwgdxf", "DWG → DXF 바꾸기"), ("/tools/tuipbi", "현장 투입비 · 공사일보"), ("/qna", "사랑방"),
            ("/how", "보는 방법")]
 
 
@@ -2028,7 +2028,7 @@ def dxf3d_page(shell, image=None):
            '<li>층을 켜고 끄고, 높이를 2·5·10배로 과장하고, 위·옆·비스듬히 보고, 지금 화면을 그림(PNG)으로 저장합니다</li>'
            '<li>도면에서 꺼 둔 층은 처음에 꺼진 채로 엽니다 — 캐드에서 보던 그대로</li></ul></div>',
            '<div class="card"><div class="sec-title" style="margin:0 0 6px">못 읽는 것</div><ul class="flist">'
-           '<li><b>DWG</b> — 캐드에서 «다른 이름으로 저장 → DXF» 로 바꿔 놓아 주십시오</li>'
+           '<li><b>DWG</b> — <a href="/tools/dwgdxf">DWG → DXF 바꾸기</a> 에서 DXF 로 바꿔 놓아 주십시오</li>'
            '<li><b>바이너리 DXF</b> — 저장할 때 ASCII 로</li>'
            '<li><b>3DSOLID·REGION</b> — 속이 암호라 못 읽습니다. 메쉬로 바꾸면 보입니다</li>'
            '<li><b>글자·해치·그림</b> — 3D 에서는 가려서 뺍니다. 몇 개를 뺐는지 화면에 적습니다</li>'
@@ -2040,6 +2040,35 @@ def dxf3d_page(shell, image=None):
           "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}}
     return page(shell, "/tools/dxf3d", title, desc, "".join(out) + nav_html("/tools/dxf3d"), image, ld)
 
+
+
+# 🔁 /tools/dwgdxf — DWG → DXF 바꾸기 (2026-09-26). 화면은 DwgDxf.jsx · 일꾼 lib/dwgdxf.worker.js(LibreDWG) · 다듬기 lib/dwgdxf.js
+def dwgdxf_page(shell, image=None):
+    title = "DWG → DXF 바꾸기 — 캐드 도면(DWG)을 DXF 로 변환 · 무료 · 여러 장 한 번에 | K-건설맵"
+    desc = ("캐드 도면(DWG)을 끌어다 놓으면 DXF 로 바꿔 바로 받습니다. AutoCAD 2000~2018 판, 한글 글자·레이어·블록·치수·해치 그대로. "
+            "여러 장 한 번에(ZIP). 파일은 올라가지 않고 브라우저 안에서만 바꿉니다. 무료.")[:160]
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">🔁 DWG → DXF 바꾸기 (캐드 도면 변환)</h1>'
+           '<p class="cp" style="margin-top:8px">캐드 도면(<b>.dwg</b>)을 놓으면 <b>DXF 로 바꿔</b> 바로 받으실 수 있습니다. 여러 장을 한 번에 놓아도 됩니다. '
+           'AutoCAD 2000 ~ 2018 판 DWG · 원래와 같은 판의 DXF 로 만듭니다.</p>'
+           '<p class="cp"><b>파일은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 바꿉니다. 회원가입 없음 · 무료.</p></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">이렇게 바꿉니다</div><ul class="flist">'
+           '<li><b>한글</b> — 글자·레이어 이름의 한글이 그대로 나옵니다</li>'
+           '<li><b>레이어</b> — 켜짐·꺼짐·얼림 그대로. 블록·치수·해치·글자 그대로</li>'
+           '<li><b>AutoCAD 에서 확인</b> — 실제 현장 도면을 AutoCAD 2023 으로 열어 보며 맞췄습니다</li>'
+           '<li><b>함께 쓰기</b> — 받은 DXF 는 <a href="/tools/dxfpdf">도면 PDF 만들기</a> · <a href="/tools/dxf3d">도면 3D 보기</a> 에 바로 넣을 수 있습니다</li></ul></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">알아 두실 점</div><ul class="flist">'
+           '<li>외부참조(XREF)·그림 파일은 DWG 밖의 파일이라 따라오지 않습니다</li>'
+           '<li>동적 블록은 지금 모양 그대로의 보통 블록이 되고, 치수의 연관은 풀립니다(모양은 그대로)</li>'
+           '<li>Civil 3D · Map 전용 정보는 빠집니다. 큰 도면은 PC 에서 30초 ~ 1분</li></ul></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">공개 프로그램</div>'
+           '<p class="cp">변환 엔진은 공개 프로그램 LibreDWG 를 브라우저용으로 만든 libredwg-web(GPL-3.0)입니다. '
+           '건설맵이 덧붙인 변환 부분도 GPL-3.0 으로 공개합니다 — <a href="/tools/files/dwgdxf-source.zip">소스 받기</a></p></div>']
+    ld = {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "DWG → DXF 바꾸기",
+          "applicationCategory": "DesignApplication", "operatingSystem": "Web",
+          "description": desc, "url": f"{SITE}/tools/dwgdxf", "isAccessibleForFree": True,
+          "offers": {"@type": "Offer", "price": "0", "priceCurrency": "KRW"},
+          "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}}
+    return page(shell, "/tools/dwgdxf", title, desc, "".join(out) + nav_html("/tools/dwgdxf"), image, ld)
 
 
 # 📄 /tools/dxfpdf — 도면 PDF 만들기 (2026-09-26). 화면은 DxfPdf.jsx · 읽기 lib/dxfplot.js · PDF lib/plotpdf.js (브라우저 안에서만).
@@ -2059,7 +2088,7 @@ def dxfpdf_page(shell, image=None):
            '<li><b>점선·해치 무늬</b>를 도면 그대로 풀고, 외부참조 자르기(XCLIP)도 지킵니다. 꺼진·얼린·출력 안 함 레이어는 뺍니다</li>'
            '<li><b>글자</b> — 캐드 전용 글꼴(SHX)은 브라우저에 없어 KCM Gothic(나눔고딕 바탕 · OFL)으로 찍습니다</li></ul></div>',
            '<div class="card"><div class="sec-title" style="margin:0 0 6px">아직 못 하는 것</div><ul class="flist">'
-           '<li><b>DWG</b> — 캐드에서 «다른 이름으로 저장 → DXF» 로 바꿔 놓아 주십시오</li>'
+           '<li><b>DWG</b> — <a href="/tools/dwgdxf">DWG → DXF 바꾸기</a> 에서 바꾼 뒤 «이 도면 PDF 로 만들기» 를 누르면 바로 넘어옵니다</li>'
            '<li><b>배치(종이 공간)</b>에만 그린 도면 · 그림(IMAGE) · OLE · 표 · 다중 지시선 — 빠진 것은 몇 개인지 화면에 적습니다</li></ul></div>']
     ld = {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "도면 PDF 만들기",
           "applicationCategory": "DesignApplication", "operatingSystem": "Web",
@@ -2427,6 +2456,10 @@ def main():
           og.tab("tool-dxfpdf", "도면 PDF 만들기", "건설 도구", "DXF → PDF", "도곽마다 한 장") if og.available else None))
     made += 1
     print("  · 도면 PDF 만들기 페이지 1개 (/tools/dxfpdf)")
+    write("tools/dwgdxf.html", dwgdxf_page(shell,
+          og.tab("tool-dwgdxf", "DWG → DXF 바꾸기", "건설 도구", "DWG → DXF", "여러 장 한 번에") if og.available else None))
+    made += 1
+    print("  · DWG → DXF 바꾸기 페이지 1개 (/tools/dwgdxf)")
     write("tools/tuipbi.html", tuipbi_page(shell,
           og.tab("tool-tuipbi", "현장 투입비 · 공사일보", "건설 도구", "출역 · 청구내역서", "공정률 · 투입률") if og.available else None))
     made += 1

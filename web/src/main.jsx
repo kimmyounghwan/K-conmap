@@ -102,6 +102,7 @@ const WonClick = lazyPage(() => import('./pages/WonClick.jsx'))
 const Dxf3d = lazyPage(() => import('./pages/Dxf3d.jsx'))
 /* 📄 도면 PDF 만들기 (DXF → PDF) — 2026-09-26 */
 const DxfPdf = lazyPage(() => import('./pages/DxfPdf.jsx'))
+const DwgDxf = lazyPage(() => import('./pages/DwgDxf.jsx'))
 /* 🏗 현장 투입비 (공사일보 간소판) — 2026-09-26 */
 const Tuipbi = lazyPage(() => import('./pages/Tuipbi.jsx'))
 const ChangeCalc = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeCalc })))
@@ -175,6 +176,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/tools/wonclick" element={<Suspense fallback={<Loading />}><WonClick /></Suspense>} />
           <Route path="/tools/dxf3d" element={<Suspense fallback={<Loading />}><Dxf3d /></Suspense>} />
           <Route path="/tools/dxfpdf" element={<Suspense fallback={<Loading />}><DxfPdf /></Suspense>} />
+          <Route path="/tools/dwgdxf" element={<Suspense fallback={<Loading />}><DwgDxf /></Suspense>} />
           <Route path="/tools/tuipbi" element={<Suspense fallback={<Loading />}><Tuipbi /></Suspense>} />
           <Route path="/tools/:slug" element={<Suspense fallback={<Loading />}><ToolPage /></Suspense>} />
           {/* 📋 2026-09-15 — 내역서 작성 대행. 하나뿐인 유료 화면입니다. */}
