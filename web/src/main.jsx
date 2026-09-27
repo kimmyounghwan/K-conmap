@@ -110,6 +110,8 @@ const DxfPdf = lazyPage(() => import('./pages/DxfPdf.jsx'))
 const DwgDxf = lazyPage(() => import('./pages/DwgDxf.jsx'))
 /* 🏗 현장 투입비 (공사일보 간소판) — 2026-09-26 */
 const Tuipbi = lazyPage(() => import('./pages/Tuipbi.jsx'))
+/* 📎 2026-09-27 업체 스스로 등록 — 업체가 받은 링크(/tools/tuipbi/v/현장/링크) · 📒 내 납품 장부(/tools/tuipbi/v) */
+const TuipbiVendor = lazyPage(() => import('./pages/TuipbiVin.jsx'))
 const ChangeCalc = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeCalc })))
 const ChangeBook = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeBook })))
 const ChangeNaeyeok = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeNaeyeok })))
@@ -186,6 +188,8 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/tools/dxfpdf" element={<Suspense fallback={<Loading />}><DxfPdf /></Suspense>} />
           <Route path="/tools/dwgdxf" element={<Suspense fallback={<Loading />}><DwgDxf /></Suspense>} />
           <Route path="/tools/tuipbi" element={<Suspense fallback={<Loading />}><Tuipbi /></Suspense>} />
+          <Route path="/tools/tuipbi/v" element={<Suspense fallback={<Loading />}><TuipbiVendor /></Suspense>} />
+          <Route path="/tools/tuipbi/v/:site/:link" element={<Suspense fallback={<Loading />}><TuipbiVendor /></Suspense>} />
           <Route path="/tools/:slug" element={<Suspense fallback={<Loading />}><ToolPage /></Suspense>} />
           {/* 📋 2026-09-15 — 내역서 작성 대행. 하나뿐인 유료 화면입니다. */}
           {/* 💬 2026-09-15 — 묻고 답하기 */}

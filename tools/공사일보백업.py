@@ -33,9 +33,11 @@ import urllib.request
 import zipfile
 
 DB = os.environ.get("RTDB_URL") or "https://k-conmap-default-rtdb.firebaseio.com"
+# 📎 2026-09-27 — 업체 스스로 등록(cost_vlink · cost_vin, TuipbiVin.jsx)도 같이 백업·비우기·되살리기
 자리들 = ["cost_pins", "cost_keys", "cost_sites", "cost_rows", "cost_people", "cost_equip",
-         "cost_vendors", "cost_att", "cost_trash"]
-현장자리 = ["cost_sites", "cost_rows", "cost_people", "cost_equip", "cost_vendors", "cost_att", "cost_trash"]
+         "cost_vendors", "cost_att", "cost_trash", "cost_vlink", "cost_vin"]
+현장자리 = ["cost_sites", "cost_rows", "cost_people", "cost_equip", "cost_vendors", "cost_att", "cost_trash",
+           "cost_vlink", "cost_vin"]
 휴지통날 = 30                     # web/src/lib/tuipbi.js 의 휴지통날 과 같게
 하루 = 86400000
 머리 = b"KCMB1"

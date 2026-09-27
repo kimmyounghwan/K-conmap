@@ -1,11 +1,12 @@
 /**
  * 🏗 현장 투입비 · 공사일보 — 현장 화면 (2026-09-26)
- *   탭: 📊 한눈에 · ✍️ 적기(날마다) · 🧾 달마다 청구서 · 👷 명부 · 📈 기성·공정률 · 📜 적은 것 · ❓ 쓰는 방법
+ *   탭: 📊 한눈에 · ✍️ 적기(날마다) · 📥 업체 입력(2026-09-27, TuipbiVin.jsx) · 🧾 달마다 청구서 · 👷 명부 · 📈 기성·공정률 · 📜 적은 것 · ❓ 쓰는 방법
  *   청구서·명부는 TuipbiBook.jsx, 데이터 읽기·쓰기는 Tuipbi.jsx 가 합니다.
  */
 import { useMemo, useState } from 'react'
 import { 구분, 구분이름, 기성, 원, 억만, 퍼센트, 공수글, 오늘, 요약, 날더하기, 요일, 자재단위, 단위들, 휴지통날 } from '../lib/tuipbi.js'
 import TuipbiBook from './TuipbiBook.jsx'
+import { VendorInbox, use업체입력 } from './TuipbiVin.jsx'
 import { use화면상태 } from '../lib/길기록.js'
 
 const 숫자만 = (s) => Number(String(s || '').replace(/[^0-9.-]/g, '')) || 0
@@ -13,7 +14,7 @@ const 쉼표칸 = (s) => { const n = String(s || '').replace(/[^0-9]/g, ''); ret
 const 공수차례 = [1, 0.5, 1.5, 0]                        // 누를 때마다
 
 const 탭들 = [
-  ['home', '📊 한눈에'], ['day', '✍️ 적기'], ['bill', '🧾 달마다 청구서'], ['book', '👷 명부'],
+  ['home', '📊 한눈에'], ['day', '✍️ 적기'], ['vin', '📥 업체 입력'], ['bill', '🧾 달마다 청구서'], ['book', '👷 명부'],
   ['gisung', '📈 기성·공정률'], ['list', '📜 적은 것'], ['help', '❓ 쓰는 방법'],
 ]
 
@@ -26,6 +27,9 @@ export default function TuipbiSite(P) {
   const S = useMemo(() => 요약(현장, 줄들, 오늘(), 출역), [현장, 줄들, 출역])
   const [통열림, set통열림] = useState(false)
   const 통수 = Object.keys(P.휴지통 || {}).length
+  /* 📎 업체가 올린 것 — 탭 이름에 «대기 N», 한눈에 위에 띠 (2026-09-27) */
+  const V = use업체입력(P.코드, 예시)
+  const 새로고침 = async () => { await V.읽기(); P.새로고침 && P.새로고침() }
   return (
     <>
       {예시 && <div className="card tp-ex no-print">🧪 <b>예시 현장입니다</b> — 이름·금액·주민번호·계좌 모두 지어낸 것이고, 적거나 지워도 저장되지 않습니다. 탭을 눌러 둘러보십시오. <button type="button" className="chip" onClick={P.나가기}>처음으로</button></div>}
@@ -40,7 +44,7 @@ export default function TuipbiSite(P) {
           </div>
           <div className="tp-acts no-print">
             <button type="button" className="chip" onClick={() => window.print()} title="지금 보고 있는 탭을 인쇄합니다 (청구서는 청구서 탭의 인쇄 단추로)">🖨 인쇄</button>
-            {!예시 && <button type="button" className="chip" onClick={P.새로고침}>↻ 새로고침</button>}
+            {!예시 && <button type="button" className="chip" onClick={새로고침}>↻ 새로고침</button>}
             <button type="button" className="chip" onClick={() => P.set정보(!P.정보)}>✏️ 현장 정보</button>
             <button type="button" className={'chip' + (통열림 ? ' on' : '')} onClick={() => set통열림(!통열림)} title={`지운 것은 ${휴지통날}일 동안 여기서 되살릴 수 있습니다`}>🗑 휴지통{통수 ? ` ${통수}` : ''}</button>
             <button type="button" className="chip" onClick={P.나가기}>나가기</button>
@@ -59,12 +63,18 @@ export default function TuipbiSite(P) {
         {통열림 && <Trash 휴지통={P.휴지통} 되살리기={P.되살리기} 닫기={() => set통열림(false)} />}
         <div className="tp-tabs no-print" role="tablist">
           {탭들.map(([k, t]) => (
-            <button key={k} type="button" role="tab" aria-selected={탭 === k} className={'tp-tab' + (탭 === k ? ' on' : '')} onClick={() => 가기(k)}>{t}</button>
+            <button key={k} type="button" role="tab" aria-selected={탭 === k} className={'tp-tab' + (탭 === k ? ' on' : '')} onClick={() => 가기(k)}>{t}{k === 'vin' && V.대기.length > 0 && <span className="tp-vbadge">{V.대기.length}</span>}</button>
           ))}
         </div>
       </div>
 
+      {탭 === 'home' && V.대기.length > 0 && (
+        <button type="button" className="card tp-vbanner no-print" onClick={() => 가기('vin')}>
+          📥 <b>업체가 올린 것 {V.대기.length}줄 — 확인 대기</b> <span>확인하면 투입비에 들어갑니다 ›</span>
+        </button>
+      )}
       {탭 === 'home' && <Overview S={S} {...P} 가기={가기} />}
+      {탭 === 'vin' && <VendorInbox {...P} V={V} />}
       {탭 === 'day' && <Daily S={S} {...P} 가기={가기} />}
       {(탭 === 'bill' || 탭 === 'book') && <TuipbiBook 보기={탭} {...P} 가기={가기} />}
       {탭 === 'gisung' && <Gisung S={S} {...P} />}
@@ -708,6 +718,17 @@ export function TuipbiGuide({ 현장안 }) {
           <li><b>⛑ 백업</b>: 모든 현장 자료를 날마다 한 번 따로 복사해 둡니다(잠가서 90일). 휴지통 기간이 지났거나 크게 잘못됐을 때는 문의 주시면 그날 자료로 되돌려 드립니다.</li>
           <li><b>비밀번호를 잊으면</b> 저희도 찾아 드릴 수 없습니다(해시만 둡니다). 비밀번호 바꾸기는 아직 없습니다.</li>
           <li><b>설계변경</b>으로 도급액이 바뀌면 ✏️ 현장 정보에서 <b>총공사금액만</b> 고치십시오. 투입률·공정률이 새 금액으로 모두 다시 셈됩니다. 공기가 늘면 준공일도 고치십시오.</li>
+        </ul>
+      </Sec>
+
+      <Sec 제목="📥 업체가 직접 적게 — 업체 링크 (2026-09-27)">
+        <ul>
+          <li><b>📥 업체 입력</b> 탭 → 갈래(자재·장비·기타)와 업체를 고르고 <b>📎 링크 만들기</b> → <b>📤 카톡 등으로 보내기</b>.</li>
+          <li>업체는 링크만 누르면 됩니다(가입·비밀번호 없음). 날짜 · 품명 · 규격 · 수량 · 단위 · 단가만 적고, <b>자기 줄만</b> 봅니다. 현장의 다른 자료는 못 봅니다.</li>
+          <li>올라오면 <b>«확인 대기 N»</b> 이 뜹니다. <b>✅ 확인</b>을 눌러야 그때 투입비(자재비·장비비·기타)에 들어갑니다. 잘못 확인했으면 <b>확인 거두기</b>(그 줄은 🗑 휴지통으로).</li>
+          <li><b>세금계산서</b>: 업체가 «🧾 발행함» 을 누르면 보이고, 받으셨으면 <b>받음</b>을 누르십시오 — 초록으로 바뀝니다.</li>
+          <li>거래가 끝나면 <b>끊기</b> — 업체는 더 적지 못하고, 적은 것만 봅니다. 링크 주소가 곧 열쇠라 짐작으로는 못 찾습니다.</li>
+          <li>업체 폰에는 <b>«📒 내 납품 장부»</b> 가 생겨 현장 여러 곳의 납품·확인·세금계산서를 한 화면에서 봅니다.</li>
         </ul>
       </Sec>
 

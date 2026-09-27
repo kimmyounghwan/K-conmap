@@ -4103,3 +4103,35 @@ span.qna-like { cursor: default; }
 /* 📥 끌어다 놓기 (도면판.jsx 끌어놓기) — 파일을 끌고 오는 동안 화면 전체 */
 .끌놓판 { position: fixed; inset: 0; z-index: 90; background: rgba(37, 99, 235, .12); border: 4px dashed #2563eb; display: flex; align-items: center; justify-content: center; pointer-events: none; }
 .끌놓판 > div { background: #fff; color: #1d4ed8; font-weight: 800; font-size: 18px; padding: 16px 24px; border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,.2); }
+
+/* 📎 2026-09-27 업체 스스로 등록 — 현장 «📥 업체 입력» 탭 · 업체 납품 장부(/tools/tuipbi/v) */
+.tp-vbadge { display: inline-block; margin-left: 5px; min-width: 18px; padding: 0 6px; border-radius: 999px; background: var(--bad); color: #fff; font-size: 11.5px; font-weight: 800; line-height: 18px; text-align: center; }
+.tp-vbanner { display: block; width: 100%; text-align: left; cursor: pointer; border: 1.5px solid var(--warn); background: var(--warn-soft); color: var(--text); font-size: 14.5px; }
+.tp-vbanner b { color: var(--warn); }
+.tp-vbanner span { color: var(--text-2); font-size: 12.5px; margin-left: 6px; }
+.tp-vrow { border: 1px solid var(--line); border-left: 4px solid var(--warn); border-radius: 10px; padding: 9px 12px; margin: 8px 0; font-size: 14px; line-height: 1.7; background: var(--surface); }
+.tp-vrow.ok { border-left-color: var(--good); }
+.tp-vrow-h { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.tp-vrow-a { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 6px; }
+.tp-vtag { display: inline-block; border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; font-size: 12px; color: var(--text-2); }
+.tp-vok { color: var(--good); font-weight: 700; font-size: 13px; }
+.tp-vwait { color: var(--warn); font-weight: 700; font-size: 13px; }
+.tp-vmsg { margin-top: 8px; font-size: 13.5px; color: var(--text); background: var(--good-soft); border-radius: 8px; padding: 6px 10px; }
+.tp-vlink { border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; margin: 8px 0; font-size: 14px; }
+.tp-vlink.off { opacity: .6; }
+.tp-vlink.new { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.tp-vurl { margin: 6px 0; padding: 6px 8px; border-radius: 6px; background: var(--surface-2, rgba(0,0,0,.04)); font-size: 12.5px; word-break: break-all; }
+.tp-vd { font-size: 16px; }
+.tp-vd .detail-h { font-size: 17px; }
+.tp-vhead h1 { margin: 4px 0 2px; font-size: 22px; }
+.tp-vbrand { font-size: 12.5px; font-weight: 700; color: var(--accent); }
+.tp-vsite { font-size: 15px; color: var(--text-2); }
+.tp-vsum { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 8px; font-size: 14px; color: var(--text-2); }
+.tp-vsum b { color: var(--text); }
+.tp-vform { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 10px; }
+.tp-vform label { display: flex; flex-direction: column; gap: 3px; font-size: 13.5px; color: var(--text-2); }
+.tp-vform label.wide { grid-column: 1 / -1; }
+.tp-vform input { font-size: 17px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--text); min-width: 0; }
+.tp-vtotal { margin: 10px 0 4px; font-size: 18px; }
+.tp-vtotal b { color: var(--accent); font-size: 22px; }
+.tp-vfoot { font-size: 14px; }
