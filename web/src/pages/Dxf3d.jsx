@@ -39,6 +39,7 @@ let 남은 = null   // { r, dwg수, 파일이름, 예시글, 레켬, 층켬, 면
 export default function Dxf3d() {
   const cvRef = useRef(null)
   const viewRef = useRef(null)
+  const [끌옮, set끌옮] = useState(false)
   const workRef = useRef(null)
   const 파일칸 = useRef(null)
   const [끌림, set끌림] = useState(false)
@@ -166,6 +167,7 @@ export default function Dxf3d() {
     requestAnimationFrame(() => {
       try {
         if (!viewRef.current) viewRef.current = new LineView(cvRef.current)
+        viewRef.current.끌어옮기기 = 끌옮
         viewRef.current.setZ(되살림 ? 되살림.높이배 || 1 : 1)
         viewRef.current.set면(되살림 && 되살림.면 === false ? 0 : 0.55)
         viewRef.current.setLayers(r.layers.map((l) => ({ ...l, off: !on[l.name] })))
@@ -334,6 +336,8 @@ export default function Dxf3d() {
             <button type="button" className={'chip' + (면 ? ' on' : '')} onClick={() => 면바꾸기(!면)}>{횡단 && !건물 ? '🟫 땅·계획 면' : 건물 && !횡단 ? '🧱 벽 면' : '🧱 벽·땅 면'}</button>
           </>)}
           <span className="dx3-sep" />
+          {/* ✋ 2026-09-27 소장님 「도면을 드래그 해서 옮길 수 있게 해줘」 — 왼쪽 끌기를 «옮기기» 로 바꾸는 단추 */}
+          <button type="button" className={'chip' + (끌옮 ? ' on' : '')} onClick={() => { const v = !끌옮; set끌옮(v); if (viewRef.current) viewRef.current.끌어옮기기 = v }}>{끌옮 ? '✋ 끌면 옮기기' : '🔄 끌면 돌리기'}</button>
           <button type="button" className="chip" onClick={그림받기}>🖼 그림 저장</button>
         </div>
         {(맞춤 || 맞춤글) && (
@@ -349,7 +353,7 @@ export default function Dxf3d() {
         )}
         <div className="dx3-stage">
           <canvas ref={cvRef} className="dx3-cv" />
-          <div className="dx3-hint">끌기 = 돌리기 · 오른쪽 끌기(Shift+끌기, 두 손가락) = 옮기기 · 휠(벌리기) = 확대</div>
+          <div className="dx3-hint">{끌옮 ? '끌기 = 옮기기 · 오른쪽 끌기(Shift+끌기) = 돌리기' : '끌기 = 돌리기 · 오른쪽 끌기(Shift+끌기, 두 손가락) = 옮기기'} · 휠(벌리기) = 확대</div>
         </div>
         {결과 && (
           <div className="dx3-info">

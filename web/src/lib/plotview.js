@@ -26,9 +26,11 @@ export function loadFont() {
  * @param cssW    화면 폭(px)
  * @returns {{G, k}} 종이 자리와 pt→px 배율 (마우스 좌표를 도면 좌표로 바꿀 때 씀)
  */
-export function drawPage(canvas, model, page, opt, cssW, cache) {
+export function drawPage(canvas, model, page, opt, cssW, cache, 배율 = 1) {
   const G = pageGeom(page.r, page.paper, opt.margin ?? 5)
-  const dpr = Math.min(2, (typeof window !== 'undefined' && window.devicePixelRatio) || 1)
+  /* 🔍 배율: 미리보기를 확대해 볼 때(2026-09-27) 캔버스를 그만큼 더 촘촘히 — 너무 크면 기기가 못 버티니 8192px 까지 */
+  const dpr0 = Math.min(2, (typeof window !== 'undefined' && window.devicePixelRatio) || 1)
+  const dpr = Math.max(dpr0, Math.min(dpr0 * Math.max(1, 배율), 8192 / Math.max(1, cssW), 8192 / Math.max(1, cssW * G.H / G.W)))
   const k = cssW / G.W
   canvas.style.width = cssW + 'px'
   canvas.style.height = Math.round(G.H * k) + 'px'

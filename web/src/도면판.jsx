@@ -268,7 +268,8 @@ export function 도면판({ 도, 찍었다, 강조 = [], 두점 = null, set두�
     cvRef.current.setPointerCapture?.(ev.pointerId)
     손가락.current.set(ev.pointerId, [ev.clientX, ev.clientY])
     const [sx, sy] = 화면점(ev)
-    누름.current = { x: ev.clientX, y: ev.clientY, sx, sy, v: { ...view.current }, 움직임: false, 두손: 손가락.current.size >= 2 }
+    // 🖐 2026-09-27 — 네모 고르기 중에도 오른쪽·가운데 단추로 끌면 도면을 옮깁니다(소장님 「도면을 드래그 해서 옮길 수 있게」)
+    누름.current = { x: ev.clientX, y: ev.clientY, sx, sy, v: { ...view.current }, 움직임: false, 두손: 손가락.current.size >= 2, 단추: ev.button || 0 }
   }
   const 움직임 = (ev) => {
     if (!누름.current) { 올림(ev); return }
@@ -292,7 +293,7 @@ export function 도면판({ 도, 찍었다, 강조 = [], 두점 = null, set두�
     const dx = ev.clientX - 누름.current.x, dy = ev.clientY - 누름.current.y
     if (!누름.current.움직임 && Math.hypot(dx, dy) < 5) return
     누름.current.움직임 = true
-    if (네모 && !누름.current.두손) {
+    if (네모 && !누름.current.두손 && 누름.current.단추 === 0) {
       const [sx, sy] = 화면점(ev)
       set끌네모([누름.current.sx, 누름.current.sy, sx, sy])
       return
@@ -317,7 +318,7 @@ export function 도면판({ 도, 찍었다, 강조 = [], 두점 = null, set두�
       }
       return
     }
-    if (n && !n.움직임 && !n.두손) 누른것(ev)
+    if (n && !n.움직임 && !n.두손 && n.단추 === 0) 누른것(ev)
   }
   useEffect(() => {
     const cv = cvRef.current
@@ -365,7 +366,7 @@ export function 도면판({ 도, 찍었다, 강조 = [], 두점 = null, set두�
       )}
       <div className="gg-cv" style={{ height: 접힘 ? 0 : 크기.h }}>
         <canvas ref={cvRef} style={{ width: 크기.w, height: 크기.h, touchAction: 'none', cursor: 네모 ? 'cell' : undefined }}
-          onPointerDown={내림} onPointerMove={움직임} onPointerUp={뗌} onPointerCancel={뗌} onPointerLeave={() => { if (set보는중) set보는중(null); set표시('') }} />
+          onPointerDown={내림} onPointerMove={움직임} onPointerUp={뗌} onPointerCancel={뗌} onContextMenu={(e) => e.preventDefault()} onPointerLeave={() => { if (set보는중) set보는중(null); set표시('') }} />
         {!모델 && (
           <div className="gg-empty-draw">
             {열기 && <button type="button" className="btn sm" onClick={열기}>📂 도면 열기 (DXF·DWG)</button>}

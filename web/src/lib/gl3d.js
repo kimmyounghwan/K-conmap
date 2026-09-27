@@ -309,7 +309,9 @@ export class LineView {
       if (!p) return
       const dx = e.clientX - p.x, dy = e.clientY - p.y
       if (ps.size === 1) {
-        if (p.b === 2 || p.b === 1 || p.s || e.shiftKey) this._pan(dx, dy)
+        // ✋ 옮기기 모드(2026-09-27): 왼쪽 끌기 = 옮기기, 오른쪽 끌기 = 돌리기 — 화면의 «✋ 끌어 옮기기» 단추
+        const 옮 = p.b === 2 || p.b === 1 || p.s || e.shiftKey
+        if (this.끌어옮기기 ? !옮 : 옮) this._pan(dx, dy)
         else this._rot(dx, dy)
       }
       p.x = e.clientX; p.y = e.clientY

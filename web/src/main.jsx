@@ -78,7 +78,7 @@ const Cad = lazyPage(() => import('./pages/Cad.jsx'))
 const Jeoksan = lazyPage(() => import('./pages/Jeoksan.jsx'))
 /* 🧮 수량산출서 만들기 — 2026-09-16. 브라우저에서 엑셀을 만드느라 무거워서 반드시 lazyPage 입니다. */
 const JeoksanRun = lazyPage(() => import('./pages/JeoksanRun.jsx'))
-/* 🏗 2026-09-26 골조 수량산출 — 도면에서 찍어 재기(무거운 캔버스·일꾼이라 lazyPage) */
+/* 🏗 2026-09-26 골조 수량산출 — 9/27 밤부터 도면 넣으면 자동(무거운 캔버스·일꾼이라 lazyPage) */
 const Golgo = lazyPage(() => import('./pages/Golgo.jsx'))
 /* ⚡ 2026-09-27 도면 물량 자동(표·토공·레이어/블록) · 🧱 마감 수량산출 — 도면판(도면판.jsx)을 같이 씀 */
 const JeoksanAuto = lazyPage(() => import('./pages/JeoksanAuto.jsx'))

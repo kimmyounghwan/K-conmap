@@ -315,16 +315,18 @@ export default function Naeyeok() {
           <Link className="navi" to="/naeyeok/ratio">📉 내역서 비율 맞추기 — 열기</Link>
           <Link className="navi" to="/change/twoline">🔁 설계변경 2줄 자동변환</Link>
         </div>
-        {/* 📑 2026-09-27 — 소장님: 「내역서 하고, 적산 설명글도 최신으로 업데이트 해줘」
+        {/* 📑 2026-09-27 — 소장님: 「내역서 하고, 적산 설명글도 최신으로 업데이트 해줘」 · 밤 「이거에 맞춰. 내역서 및 적산도 다시 수정해 주고」(골조 자동)
             9/27 에 생긴 «내역서 대조»(도면 물량 자동 안)와 물량 도구가 여기엔 없었습니다. */}
         <p style={{ margin: '12px 0 8px', lineHeight: 1.85 }}>
-          <b>물량이 맞는지 보는 일</b>도 직접 하실 수 있습니다. 도면을 넣으면 물량이 저절로 나오고,
-          <b> 내역서(엑셀)를 같이 넣으면 줄마다 짝을 지어 물량 차이</b>를 보여 드립니다.
+          <b>물량이 맞는지 보는 일</b>도 직접 하실 수 있습니다. 도면을 넣으면 물량이 저절로 나오고 —
+          <b>골조(보·기둥·슬래브·벽·기초의 콘크리트·거푸집·철근)</b>도 구조평면도와 부재 일람표가 있으면 저절로 셉니다 —
+          <b> 내역서(엑셀)를 같이 넣으면 줄마다 짝을 지어 물량 차이</b>를 보여 드립니다. 전부 엑셀 한 파일로 받습니다.
           <b> 공내역서에 단가를 채우는 일</b>은 시험판으로 열었습니다 — 채운 값은 한 줄씩 확인하십시오.
         </p>
         <div className="navrow">
           <Link className="navi" to="/jeoksan/fill">💰 공내역서 단가 채우기 — 시험판</Link>
           <Link className="navi" to="/jeoksan/auto">📑 내역서 대조 — 도면 물량 자동에서</Link>
+          <Link className="navi" to="/jeoksan/golgo">🏗 골조 — 도면 넣으면 자동</Link>
           <Link className="navi" to="/jeoksan">🧮 K-적산 — 골조 · 마감 · 수량산출서</Link>
         </div>
         <div className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>

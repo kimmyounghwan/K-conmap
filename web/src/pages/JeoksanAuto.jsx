@@ -19,6 +19,10 @@
  * ■ 도면은 이 브라우저 안에서만 읽습니다. 서버로 가지 않습니다(DWG 도 브라우저 안에서 DXF 로 바꿔 읽음).
  * ■ 셈: lib/도면자동.js (시험: node tools/시험_도면자동.mjs) · 도면판: ../도면판.jsx
  * ■ 예시 도면 web/public/jeoksan/토목_예시.dxf 는 K-건설맵이 그린 «가상» 도면입니다(tools/토목_예시도면.py).
+ * ■ 🏗⚡ 2026-09-27 밤 — 골조 자동(lib/골조자동.js): 구조평면도 + 부재 일람표가 있으면 보·기둥·슬래브·벽·기초의
+ *    콘크리트·거푸집·철근을 스스로 셈 → ① 에 줄로 · ② 골조 탭 · 엑셀에 «골조 산출서…» 시트(골조 화면과 같은 양식).
+ *    소장님: 「적산에서 왜 골조 물량을 찍어야 된다고 했지?. 도면만 주면 스스로 물량을 내는 거잖아」
+ *            「물량은 자동으로 뽑아서 엑셀로 다운 받을 수 있게 해줘」 「도면을 주면 도면에 나와있는 물량은 자동으로 엑셀로 정리되게 해줘」
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -28,7 +32,8 @@ import { 단위배율, 도형글자, 종류 } from '../lib/골조도면.js'
 import * as 자 from '../lib/도면자동.js'
 import * as 전 from '../lib/도면전부.js'
 import { 내역읽기, 모으기 as 내역모으기, 대조 as 대조하기, 대조시트, 단위풀기 } from '../lib/내역대조.js'
-import { 철근표, 셈 as 골조셈 } from '../lib/골조.js'
+import { 철근표, 셈 as 골조셈, 엑셀 as 골조엑셀 } from '../lib/골조.js'
+import { 골조읽기, 골조시트들, 개수글 } from '../lib/골조자동.js'
 import { 셈 as 마감셈 } from '../lib/마감.js'
 import { askAfter } from '../AskComment'
 import { use화면상태 } from '../lib/길기록.js'
@@ -37,6 +42,8 @@ import * as 창고 from '../lib/기억자료.js'
 import { 단위보기, 단위풀이 } from '../lib/단위.js'
 const 예시도면들 = [['/jeoksan/토목_예시.dxf', '토목_예시.dxf (가상 도면)'], ['/jeoksan/마감_예시.dxf', '마감_예시.dxf (가상 평면도)']]
 const 예시내역 = '/jeoksan/내역_예시.xlsx'
+const 골조예시 = ['/jeoksan/골조자동_예시.dxf', '골조자동_예시.dxf (가상 2층 라멘조 구조도)']
+const 골조열쇠 = 'kcm.golgo.v1'
 /** 도면마다 «모두 자동» 결과 — 도면·끈 레이어·단위가 바뀌면(새 객체) 다시 셈 */
 const 전부캐시 = new WeakMap()
 function 전부(f) {
@@ -94,6 +101,9 @@ export default function JeoksanAuto() {
   const [짝고침, set짝고침] = useState(처음.짝고침 || {})             // 내역 id → 도면 줄 key | '' (짝 없음)
   const [대조거르기, set대조거르기] = useState(처음.대조거르기 || '모두')
   const [딴화면, set딴화면] = useState(처음.딴화면 || { 골조: false, 마감: false })   // 골조·마감 화면에서 적어 둔 것도 넣기
+  const [골고침, set골고침] = useState(처음.골고침 || {})             // 골조 자동 — 층 이름 → {층고, 슬라브} (짐작을 고친 것)
+  const [골옮김, set골옮김] = useState('')                          // '' | '묻기' | '됨'
+  const [골펼침, set골펼침] = useState('')
   const 파일칸 = useRef(null)
   const 내역칸 = useRef(null)
   const 상자들 = useRef(new Map())
@@ -101,11 +111,11 @@ export default function JeoksanAuto() {
 
   /* 🧭 ① 메모리 · ② localStorage (고른 것·고친 것) */
   useEffect(() => {
-    const 설정 = { 지금, 표뺌: [...표뺌], 토공설정, 고른노선, 세기네모, 세기고름, 고침, 켬고침, 짝고침, 대조거르기, 딴화면 }
+    const 설정 = { 지금, 표뺌: [...표뺌], 토공설정, 고른노선, 세기네모, 세기고름, 고침, 켬고침, 짝고침, 대조거르기, 딴화면, 골고침 }
     남은판 = { ...설정, 파일들, 내역, 원본들: 원본들.current }
     const t = setTimeout(() => { try { localStorage.setItem(설정열쇠, JSON.stringify(설정)) } catch (e) { /* 가득 참 */ } }, 400)
     return () => clearTimeout(t)
-  }, [지금, 표뺌, 토공설정, 고른노선, 세기네모, 세기고름, 고침, 켬고침, 짝고침, 대조거르기, 딴화면, 파일들, 내역])
+  }, [지금, 표뺌, 토공설정, 고른노선, 세기네모, 세기고름, 고침, 켬고침, 짝고침, 대조거르기, 딴화면, 골고침, 파일들, 내역])
   /* 🧭 ② 창고 — 도면 파일·내역서가 바뀔 때만 */
   const 창고넣기 = (목록, 내역값) => {
     const 도면 = 목록.map((f) => ({ id: f.id, ...(원본들.current.get(f.id) || {}) })).filter((x) => x.buf || x.예시)
@@ -208,6 +218,20 @@ export default function JeoksanAuto() {
       set상태({ k: 'ok' })
     } catch (e) { set상태({ k: 'err', 글: '예시를 받지 못했습니다 (' + (e.message || e) + ')' }) }
   }
+  /* 🏗 골조 예시 — 가상 2층 라멘조 구조도(평면 3장 + 일람표). 지금 넣은 도면 뒤에 붙입니다 */
+  const 골조예시열기 = async () => {
+    set상태({ k: 'busy', msg: '골조 예시 도면 받는 중', p: 0 })
+    try {
+      const r = await fetch(골조예시[0])
+      if (!r.ok) throw new Error(r.status)
+      const { 모델 } = await 도면읽어오기(await r.arrayBuffer(), 골조예시[1].replace(/ \(.*$/, ''), (st) => set상태({ k: 'busy', ...st }))
+      const 준 = 준비(모델, 골조예시[1])
+      원본들.current.set(준.id, { 예시: 골조예시[0], 예시이름: 골조예시[1] })
+      const 목록 = [...파일들.filter((f) => f.이름 !== 골조예시[1]), 준]
+      set파일들(목록); set지금(목록.length - 1); 창고넣기(목록)
+      set탭('골조'); set상태({ k: 'ok' })
+    } catch (e) { set상태({ k: 'err', 글: '골조 예시를 받지 못했습니다 (' + (e.message || e) + ')' }) }
+  }
   const 내역열기 = async (files) => {
     const f = files && files[0]
     if (!f) return
@@ -281,6 +305,19 @@ export default function JeoksanAuto() {
     return out
   }, [딴화면, 딴저장])
 
+  /* ── 🏗 골조 자동 — 넣은 도면 모두에서(평면과 일람표가 다른 장이어도) ── */
+  const 골 = useMemo(() => {
+    if (!파일들.length) return null
+    try { return 골조읽기(파일들.map((f) => ({ 모델: f.모델, 이름: f.이름, k: (f.단위 && f.단위.k) || 1 }))) } catch (e) { return { 있음: false, 경고: ['골조를 읽다 멈췄습니다: ' + e.message], 근거: [], 읽음: { 배근: {}, 평면: [], 셈: {}, 철골: [] }, 공사: null } }
+  }, [파일들])
+  const 골공사 = useMemo(() => {
+    if (!골 || !골.있음) return null
+    return { ...골.공사, 층: 골.공사.층.map((f) => (골고침[f.이름] ? { ...f, ...골고침[f.이름] } : f)) }
+  }, [골, 골고침])
+  const 골결과 = useMemo(() => { if (!골공사) return null; try { return 골조셈(골공사) } catch (e) { return null } }, [골공사])
+  const 골도면 = 골 && 골.있음 ? [...new Set(골.근거.map((g) => (파일들[g.번] || {}).이름).filter(Boolean))].join(', ') : ''
+  const 골셈글 = 골 && 골.있음 ? 개수글(골) : ''
+
   /* ── 물량 전부 (수량산출서) — 모두 자동으로 켜 두고, 사람이 끈 것만 뺌 ── */
   const 산출 = useMemo(() => {
     const 줄 = []
@@ -313,6 +350,12 @@ export default function JeoksanAuto() {
         줄.push({ key, 켬: 켜(key, x.켬), 구분: x.구분, 품명: x.품명, 규격: x.규격, 단위: x.단위, 수량: x.수량, 근거: x.근거, 도면: f.이름 })
       }
     }
+    if (골결과) {
+      for (const a of 골결과.집계.합) {
+        const key = 'gz:' + a.항목 + '|' + a.규격 + '|' + a.단위
+        줄.push({ key, 켬: 켜(key, true), 구분: '🏗 골조 (구조평면도·일람표)', 품명: a.항목, 규격: a.규격, 단위: a.단위, 수량: a.산출, 근거: 골셈글 + ' — 할증 전 · «② 골조» 탭에 층별·부재별', 도면: 골도면 })
+      }
+    }
     for (const x of 딴줄) 줄.push({ ...x, 켬: 켜(x.key, true) })
     const 세기줄 = []
     for (const [key, s] of Object.entries(세기고름)) {
@@ -330,7 +373,7 @@ export default function JeoksanAuto() {
     }
     for (const x of 줄) { const g = 고침[x.key]; if (g) { if (g.품명 !== undefined) x.품명 = g.품명; if (g.규격 !== undefined) x.규격 = g.규격 } }
     return { 줄, 켠줄: 줄.filter((x) => x.켬), 토공들, 세기줄 }
-  }, [철, 량, 파일들, 토공설정, 세기고름, 세기네모, 고침, 켬고침, 딴줄])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [철, 량, 파일들, 토공설정, 세기고름, 세기네모, 고침, 켬고침, 딴줄, 골결과])  // eslint-disable-line react-hooks/exhaustive-deps
   const 켜기 = (key, v) => set켬고침((P) => ({ ...P, [key]: v }))
 
   /* ── 내역 대조 ── */
@@ -354,6 +397,7 @@ export default function JeoksanAuto() {
         if (R.마감표.length) 추가.push({ name: 앞 + '실내재료마감표(읽음)', head: ['층', '실명', '바닥', '걸레받이', '벽', '천장', '천장고(m)'], rows: R.마감표.map((m) => [m.층 || '', m.실명, m.바닥, m.걸레받이, m.벽, m.천장, m.천장고 ? +m.천장고 : '']), widths: [9, 18, 34, 22, 34, 34, 10], freeze: 1 })
         if (R.창호.length) 추가.push({ name: 앞 + '창호 대조', head: ['기호', '구분', '폭(m)', '높이(m)', '창호일람표 수량', '평면 기호 개수', '맞음'], rows: R.창호.map((w) => [w.기호, w.구분, +w.폭, +w.높이, w.표수 ?? '', w.도면, w.표수 === null ? '표에 수량 없음' : w.다름 ? '다름' : '같음']), widths: [8, 6, 8, 8, 14, 14, 12], freeze: 1 })
       }
+      if (골결과) for (const t of 골조시트들(골공사, 골결과, ST)) 추가.push(t)
       const bytes = 자.자동엑셀({ 줄: 산출.켠줄, 철근줄: 철.줄, 토공들: 산출.토공들, 표들: 모든표, 세기줄: 산출.세기줄, 추가 }, writeWorkbook, ST)
       const a = document.createElement('a')
       a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
@@ -362,6 +406,34 @@ export default function JeoksanAuto() {
       setTimeout(() => URL.revokeObjectURL(a.href), 60000)
       askAfter('jeoksan')
     } finally { set받는중(false) }
+  }
+
+  /* 🏗 골조만 따로 — 골조 화면의 엑셀과 같은 양식(산출서·집계·층별·배근표·주자료·검산) */
+  const 골엑셀받기 = async () => {
+    if (!골결과) return
+    set받는중(true)
+    try {
+      const { writeWorkbook, ST } = await import('../lib/qtoxlsx.js')
+      const bytes = 골조엑셀(골공사, 골결과, writeWorkbook, ST)
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+      a.download = '골조_수량산출서(도면 자동).xlsx'
+      document.body.appendChild(a); a.click(); a.remove()
+      setTimeout(() => URL.revokeObjectURL(a.href), 60000)
+      askAfter('jeoksan')
+    } finally { set받는중(false) }
+  }
+  /* 🏗 골조 화면에서 고치기 — 이 브라우저의 골조 화면(localStorage)에 넣고 그 화면으로. 적어 둔 것이 있으면 먼저 여쭘 */
+  const 골옮기기 = (묻지않음) => {
+    if (!골공사) return
+    let 있음 = false
+    try { const t = JSON.parse(localStorage.getItem(골조열쇠) || 'null'); 있음 = !!(t && ((t.동 || []).some((d) => Object.values(d.주자료 || {}).some((a) => a && a.length)) || Object.values(t.주자료 || {}).some((a) => a && a.length))) } catch (e) { 있음 = false }
+    if (있음 && !묻지않음) { set골옮김('묻기'); return }
+    try {
+      if (있음) localStorage.setItem(골조열쇠 + '.전', localStorage.getItem(골조열쇠))
+      localStorage.setItem(골조열쇠, JSON.stringify(골공사))
+      set골옮김('됨')
+    } catch (e) { set골옮김(''); set알림({ 글: '이 브라우저에 넣지 못했습니다(저장 공간이 가득 찼거나 사생활 창).' }) }
   }
 
   /* ── 도면 위 네모 · 강조 ── */
@@ -376,8 +448,18 @@ export default function JeoksanAuto() {
     }
     if (탭 === '세기' && 세기네모[cur.id]) return [{ r: 세기네모[cur.id], color: '#38bdf8', 글: '범위', w: 2 }]
     if (탭 === '실' && 지금전부) return 지금전부.실.map((r) => ({ r: r.b, color: '#a855f7', 글: r.이름 + ' ' + 쉼(r.면적, 2) + 'm²', w: 1.5 }))
+    if (탭 === '골조' && 골 && 골.근거) {
+      const 번 = 파일들.indexOf(cur)
+      const T = cur.모델.T
+      return 골.근거.filter((g) => g.번 === 번).map((g) => {
+        const 슬 = /^(R|\d)?[A-Z]?S\d/.test(g.글)
+        if (g.상자) return { r: g.상자, color: 슬 ? '#38bdf8' : '#f59e0b', 글: 슬 ? '' : g.글.split(' ')[0], w: 1.5, dash: 슬 }
+        const h = T.h[g.i] || 1
+        return { r: [T.x[g.i] - h * 0.5, T.y[g.i] - h * 0.5, T.x[g.i] + h * 2.8, T.y[g.i] + h * 1.5], color: '#22c55e', w: 2 }
+      })
+    }
     return []
-  }, [cur, 탭, 토공, 노선, 표뺌, 세기네모, 지금전부])
+  }, [cur, 탭, 토공, 노선, 표뺌, 세기네모, 지금전부, 골, 파일들])
   const 강조 = useMemo(() => {
     if (!cur || 탭 !== '토공' || !토공) return []
     const ids = []
@@ -413,13 +495,14 @@ export default function JeoksanAuto() {
   }
 
   const 안내 = 네모잡기
-    ? <>🟦 <b>도면에서 끌어서 네모를 그리십시오</b> — {네모잡기 === '토공' ? '측점 하나의 면적표(측점 글자 포함)를 감싸면 그것을 본으로 삼습니다.' : '그 안의 레이어·블록·글자만 셉니다.'} <button type="button" className="chip" onClick={() => set네모잡기('')}>그만</button></>
+    ? <>🟦 <b>도면에서 끌어서 네모를 그리십시오</b> (도면 옮기기는 <b>오른쪽 단추로 끌기</b>) — {네모잡기 === '토공' ? '측점 하나의 면적표(측점 글자 포함)를 감싸면 그것을 본으로 삼습니다.' : '그 안의 레이어·블록·글자만 셉니다.'} <button type="button" className="chip" onClick={() => set네모잡기('')}>그만</button></>
     : 탭 === '표' ? <>색 네모가 찾은 표입니다 (<b style={{ color: 종색.철근 }}>철근</b> · <b style={{ color: 종색.수량 }}>수량</b> · <b style={{ color: '#94a3b8' }}>그 밖</b>). 네모 안을 누르면 아래에 펼칩니다.</>
       : 탭 === '토공' ? <>초록 실선 = 본(한 측점의 표), 점선 = 같은 자리를 읽은 측점들, 초록 글자 = 읽은 숫자.</>
         : 탭 === '실' ? <>보라 네모 = 찾은 실(실 이름 글자를 품은 가장 작은 닫힌 선). 누르면 면적·둘레를 알려 드립니다.</>
+          : 탭 === '골조' ? <>주황 네모 = 읽은 보 한 칸(안목) · 파란 점선 = 슬래브 한 칸(보 가운데까지) · 초록 = 센 기둥·기초 기호. 끌면 옮기기 · 휠 = 확대.</>
           : <>끌면 옮기기 · 휠·두 손가락 = 확대. 범위를 좁히려면 «네모로 범위» 를 누르십시오.</>
 
-  /** ⑤ 의 체크 — 자동으로 넣은 것이면 켬/끔, 아니면 사람이 고름 */
+  /** ⑥ 의 체크 — 자동으로 넣은 것이면 켬/끔, 아니면 사람이 고름 */
   const 세칸 = (종, 이름) => {
     if (!cur) return {}
     const ak = 자동키(종, 이름)
@@ -442,7 +525,8 @@ export default function JeoksanAuto() {
         <div className="note sm">
           <b>도면을 넣기만 하면</b> 누를 것 없이 모든 물량을 뽑습니다 — 토목·건축 모두.
           <b>철근 재료표 · 수량표</b> · 횡단면 <b>깎기·쌓기(평균단면법)</b> · <b>관로·측구·경계석·포장</b>(레이어 이름으로) · <b>맨홀·집수정·가로등·수목</b>(블록) ·
-          <b>창호·기둥 기호 개수</b> · <b>실(방) 면적</b> · <b>바닥·벽·천장 마감</b>(실내재료마감표가 있으면).
+          <b>창호 기호 개수</b> · <b>실(방) 면적</b> · <b>바닥·벽·천장 마감</b>(실내재료마감표가 있으면) ·
+          <b>골조 — 보·기둥·슬래브·벽·기초의 콘크리트·거푸집·철근</b>(구조평면도 + 부재 일람표가 있으면).
           <b>내역서(엑셀)</b>를 넣으면 줄마다 도면 물량과 <b>대조</b>해 다른 곳을 찾아 드리고, 전부 <b>엑셀</b>로 받습니다.
         </div>
         <div className="pdfsafe">🔒 <b>도면은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 읽고 셉니다 · 회원가입 없음 · 무료</div>
@@ -480,8 +564,15 @@ export default function JeoksanAuto() {
       </div>
 
       <div className="tp-tabs no-print" role="tablist">
-        {[['산출', '① 물량 전부'], ['대조', '② 내역 대조'], ['표', '③ 도면의 표'], ['토공', '④ 토공'], ['세기', '⑤ 레이어·블록·글자'], ['실', '⑥ 실·마감·창호']].map(([k, t]) => (
-          <button key={k} type="button" role="tab" aria-selected={탭 === k} className={'tp-tab' + (탭 === k ? ' on' : '')} onClick={() => { set탭(k); set네모잡기(''); set알림({ 글: '' }) }}>{t}</button>
+        {[['산출', '① 물량 전부'], ['골조', '② 골조(보·기둥·슬래브)'], ['대조', '③ 내역 대조'], ['표', '④ 도면의 표'], ['토공', '⑤ 토공'], ['세기', '⑥ 레이어·블록·글자'], ['실', '⑦ 실·마감·창호']].map(([k, t]) => (
+          <button key={k} type="button" role="tab" aria-selected={탭 === k} className={'tp-tab' + (탭 === k ? ' on' : '')} onClick={() => {
+            set탭(k); set네모잡기(''); set알림({ 글: '' })
+            // 🏗 골조 탭 — 지금 도면에 읽은 부재가 없으면 가장 많이 읽은 도면(구조평면도)을 보여 줌
+            if (k === '골조' && 골 && 골.근거 && 골.근거.length) {
+              const 셈 = new Map(); for (const g of 골.근거) 셈.set(g.번, (셈.get(g.번) || 0) + 1)
+              if (!셈.get(지금)) { const 첫 = [...셈].sort((a, b) => b[1] - a[1])[0]; if (첫) set지금(첫[0]) }
+            }
+          }}>{t}</button>
         ))}
       </div>
 
@@ -494,7 +585,7 @@ export default function JeoksanAuto() {
       {탭 === '표' && (
         <div className="card no-print">
           {!파일들.length && <p className="muted">도면을 여시면 «~표» 제목이 붙은 표(철근 재료표 · 수량표 · 재료표 · 집계표 …)를 모두 찾습니다.</p>}
-          {파일들.length > 0 && !표수 && <p className="muted">«~표» 제목이 붙은 수량 표를 찾지 못했습니다. 횡단면도라면 ② 횡단면 토공을, 평면도라면 ③ 레이어·블록·글자를 보십시오.</p>}
+          {파일들.length > 0 && !표수 && <p className="muted">«~표» 제목이 붙은 수량 표를 찾지 못했습니다. 횡단면도라면 ⑤ 토공을, 평면도라면 ⑥ 레이어·블록·글자를 보십시오.</p>}
           {철.합.length > 0 && (
             <div className="gg-sec">
               <div className="detail-h">🔩 철근 — 직경별 (도면의 철근 재료표 {모든표.filter((t) => t.종류 === '철근' && !표뺌.has(t.key)).length}개)</div>
@@ -646,6 +737,110 @@ export default function JeoksanAuto() {
         </div>
       )}
 
+      {탭 === '골조' && (
+        <div className="card gg-print">
+          <div className="gg-head">
+            <div>
+              <div className="detail-h" style={{ margin: 0 }}>🏗 골조 — 보·기둥·슬래브·벽·기초 (도면에서 자동)</div>
+              <div className="muted" style={{ fontSize: 12.5 }}>구조평면도 + 부재 일람표에서 저절로 셉니다 · 도면: {골도면 || '—'}</div>
+            </div>
+            <div className="btn-row no-print" style={{ flexWrap: 'wrap' }}>
+              {골결과 && <button type="button" className="btn sm" disabled={받는중} onClick={골엑셀받기}>{받는중 ? '만드는 중…' : '⬇ 골조 산출서 엑셀'}</button>}
+              {골결과 && <button type="button" className="btn line sm" onClick={() => 골옮기기(false)}>🏗 골조 화면에서 고치기</button>}
+              <button type="button" className="btn ghost sm" onClick={골조예시열기}>🧪 골조 예시 (가상 2층)</button>
+            </div>
+          </div>
+          {골옮김 === '묻기' && (
+            <div className="ja-gz-ask no-print">
+              <b>골조 화면에 전에 적어 둔 것이 있습니다.</b> 도면에서 읽은 것으로 바꿀까요? (전에 적은 것은 이 브라우저에 한 벌 남겨 둡니다)
+              <div className="btn-row" style={{ marginTop: 8, flexWrap: 'wrap' }}>
+                <button type="button" className="btn sm" onClick={() => 골옮기기(true)}>예, 바꾸기</button>
+                <button type="button" className="btn ghost sm" onClick={() => set골옮김('')}>그만</button>
+              </div>
+            </div>
+          )}
+          {골옮김 === '됨' && (
+            <div className="ja-gz-ok no-print">✅ 골조 화면에 넣었습니다. <Link to="/jeoksan/golgo"><b>🏗 골조 수량산출 열기 ›</b></Link> — 칸을 고치면 물량이 바로 다시 나옵니다(찍기는 고칠 때만).</div>
+          )}
+          {!파일들.length && <p className="muted"><b>구조평면도</b>(제목: «2층 구조평면도» · «지붕층 구조평면도» · «기초 평면도» · «2F FRAMING PLAN»)와 <b>부재 일람표</b>(보·기둥·슬래브·벽·기초의 크기와 철근)가 있는 도면을 넣으십시오. 여러 장으로 나뉘어 있어도 한꺼번에 넣으면 됩니다. 처음이면 <b>🧪 골조 예시</b>로 먼저 보십시오.</p>}
+          {파일들.length > 0 && 골 && !골.있음 && (
+            <div className="muted">
+              <p>넣은 도면에서 셀 골조 부재를 찾지 못했습니다. 구조평면도(부재 기호 G1·C1·S1 …)와 <b>부재 일람표</b>가 같이 있어야 합니다.</p>
+            </div>
+          )}
+          {골 && 골.경고 && 골.경고.length > 0 && (
+            <>
+              <ul className="gg-warns">{골.경고.slice(0, 골펼침 === '경고' ? 200 : 6).map((w, k) => <li key={k}>⚠️ {w}</li>)}</ul>
+              {골.경고.length > 6 && <button type="button" className="chip no-print" onClick={() => set골펼침(골펼침 === '경고' ? '' : '경고')}>{골펼침 === '경고' ? '▲ 알림 접기' : '▼ 알림 ' + 골.경고.length + '개 모두 보기'}</button>}
+            </>
+          )}
+          {골 && 골.있음 && 골결과 && (
+            <>
+              <div className="gg-tiles no-print">
+                <div><span>콘크리트</span><b>{쉼(골결과.집계.합.filter((a) => a.항목 === '콘크리트').reduce((t, a) => t + a.산출, 0), 2)}</b> m³</div>
+                <div><span>거푸집</span><b>{쉼(골결과.집계.합.filter((a) => a.항목 === '거푸집').reduce((t, a) => t + a.산출, 0), 2)}</b> m²</div>
+                <div><span>철근</span><b>{쉼(골결과.집계.합.filter((a) => a.항목 === '철근').reduce((t, a) => t + a.산출, 0), 3)}</b> ton</div>
+                <div><span>읽은 부재</span><b>{골셈글}</b></div>
+              </div>
+              <div className="gg-sec">
+                <div className="detail-h">읽은 평면 → 층</div>
+                <div className="ja-gz-plans">{골.읽음.평면.map((p, k) => <span key={k} className="chip">📐 {p.제목} → <b>{p.층.map((f) => (f === 'FT' ? '기초(FT)' : f + '층')).join('·')}</b> <span className="gg-n">기호 {p.기호수}</span></span>)}</div>
+                <p className="muted gg-hint">«2층 구조평면도» 의 보·슬래브와 그 아래 기둥·벽은 <b>1층</b>으로 셉니다(골조 화면과 같은 규칙: n층 = n층 기둥·벽 + 그 위 바닥).</p>
+              </div>
+              <div className="gg-sec">
+                <div className="detail-h">층 — 층고·슬래브 두께 <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>(고치면 바로 다시 셉니다)</span></div>
+                <div className="gg-wrap"><table className="gg-r">
+                  <thead><tr><th>층</th><th>층고(mm)</th><th>슬래브 두께(mm)</th><th>근거</th></tr></thead>
+                  <tbody>{골공사.층.filter((f, i, a) => f.이름 !== 'FT' && i !== a.length - 1).map((f) => (
+                    <tr key={f.이름}>
+                      <td>{f.이름}층</td>
+                      <td><input className="ja-in ja-num" inputMode="numeric" value={f.층고} onChange={(e) => set골고침((P) => ({ ...P, [f.이름]: { ...(P[f.이름] || {}), 층고: +e.target.value.replace(/[^\d]/g, '') || 0 } }))} aria-label={f.이름 + '층 층고'} /></td>
+                      <td><input className="ja-in ja-num" inputMode="numeric" value={f.슬라브} onChange={(e) => set골고침((P) => ({ ...P, [f.이름]: { ...(P[f.이름] || {}), 슬라브: +e.target.value.replace(/[^\d]/g, '') || 0 } }))} aria-label={f.이름 + '층 슬래브 두께'} /></td>
+                      <td className="note2">{골고침[f.이름] ? '✏️ 고친 값' : 골.읽음.층고짐작.includes(f.이름) ? <span className="ja-badge mid">짐작 3,300 — 고쳐 주세요</span> : '도면의 층 높이 글자(FL)'}</td>
+                    </tr>
+                  ))}</tbody>
+                </table></div>
+              </div>
+              <div className="gg-sec">
+                <div className="detail-h">집계 — 콘크리트·거푸집·철근</div>
+                <div className="gg-wrap"><table className="gg-r">
+                  <thead><tr><th>항목</th><th>규격</th><th>단위</th><th className="r">산출</th><th className="r">할증</th><th className="r">할증 포함</th></tr></thead>
+                  <tbody>{골결과.집계.합.map((a) => <tr key={a.항목 + a.규격}><td>{a.항목}</td><td>{a.규격}</td><td className="u">{단위풀이(a.단위)}</td><td className="r"><b>{쉼(a.산출, 3)}</b><span className="단">{단위보기(a.단위)}</span></td><td className="r">{a.할증}%</td><td className="r">{쉼(a.내역, 3)}</td></tr>)}</tbody>
+                </table></div>
+              </div>
+              <div className="gg-sec">
+                <div className="detail-h">층별 · 부재별</div>
+                <div className="gg-wrap"><table className="gg-r">
+                  <thead><tr><th>층</th><th>부재</th><th className="r">콘크리트(m³)</th><th className="r">거푸집(m²)</th><th className="r">철근(ton)</th></tr></thead>
+                  <tbody>{(() => {
+                    const m = new Map()
+                    for (const x of 골결과.집계.층부재) { const k = x.층 + '|' + x.부재; const a = m.get(k) || { 층: x.층, 부재: x.부재, C: 0, F: 0, R: 0 }; if (x.항목 === '콘크리트') a.C += x.수량; else if (x.항목 === '거푸집') a.F += x.수량; else if (x.항목 === '철근') a.R += x.수량; m.set(k, a) }
+                    return [...m.values()].map((a) => <tr key={a.층 + a.부재}><td>{a.층}</td><td>{a.부재}</td><td className="r">{쉼(a.C, 3)}</td><td className="r">{쉼(a.F, 3)}</td><td className="r">{쉼(a.R, 3)}</td></tr>)
+                  })()}</tbody>
+                </table></div>
+              </div>
+              <div className="gg-sec no-print">
+                <button type="button" className="chip" onClick={() => set골펼침(골펼침 === '배근' ? '' : '배근')}>{골펼침 === '배근' ? '▲ 접기' : '▼ 일람표에서 읽은 것(배근표) 보기'}</button>
+                <button type="button" className="chip" onClick={() => set골펼침(골펼침 === '주' ? '' : '주')}>{골펼침 === '주' ? '▲ 접기' : '▼ 평면에서 읽은 부재(주자료) 보기'}</button>
+                {골펼침 === '배근' && [['보', '보', ['기호', '폭', '춤', '상부', '하부', '늑근단부', '늑근중앙', '부근', '상부추가', '하부추가']], ['기둥', '기둥', ['기호', '가로', '세로', '지름', '주근', '대근단부', '대근중앙']], ['슬라브', '슬래브', ['기호', '두께', '단변상부', '단변하부', '장변상부', '장변하부']], ['벽', '벽', ['기호', '두께', '수직', '수평', '배근']], ['기초', '기초', ['기호', '종류', '가로', '세로', '두께', '하부가로', '하부세로']]].map(([k, 이름, 칸]) => (골공사.배근[k] || []).length > 0 && (
+                  <div key={k} className="gg-wrap" style={{ marginTop: 8 }}><table className="gg-r">
+                    <thead><tr><th>{이름}</th>{칸.slice(1).map((c) => <th key={c}>{c}</th>)}</tr></thead>
+                    <tbody>{골공사.배근[k].map((r) => <tr key={r.기호}>{칸.map((c) => <td key={c}>{r[c]}</td>)}</tr>)}</tbody>
+                  </table></div>
+                ))}
+                {골펼침 === '주' && [['보', ['층', '열', '기호', '길이', '좌단', '우단', 'QT']], ['기둥', ['층', '기호', 'FT', '연결', 'QT']], ['슬라브', ['층', '기호', '단변', '장변', '단변정착', '장변정착', 'QT']], ['옹벽', ['층', '기호', '길이', 'QT']], ['기초', ['층', '기호', 'QT']]].map(([k, 칸]) => (골공사.동[0].주자료[k] || []).length > 0 && (
+                  <div key={k} className="gg-wrap" style={{ marginTop: 8 }}><table className="gg-r">
+                    <thead><tr><th colSpan={칸.length} style={{ textAlign: 'left' }}>{k === '옹벽' ? '벽' : k === '슬라브' ? '슬래브' : k} ({골공사.동[0].주자료[k].length}줄)</th></tr><tr>{칸.map((c) => <th key={c}>{c}</th>)}</tr></thead>
+                    <tbody>{골공사.동[0].주자료[k].map((r, i) => <tr key={i}>{칸.map((c) => <td key={c}>{r[c]}</td>)}</tr>)}</tbody>
+                  </table></div>
+                ))}
+              </div>
+              <p className="muted gg-hint">셈 규칙은 <Link to="/jeoksan/golgo">골조 수량산출</Link>과 같습니다(보 = 폭×(춤−슬래브)×안목 · 옆면 거푸집 · 주근 정착·이음 · 늑근 단부/중앙 · 슬래브 = 보 가운데까지). 엑셀의 수량 칸은 <b>=ROUND(식,3)</b> 이라 엑셀에서 다시 셉니다. 개구부·계단·헌치처럼 평면에 기호로 없는 것은 «골조 화면에서 고치기» 로 더하십시오.</p>
+            </>
+          )}
+        </div>
+      )}
+
       {탭 === '산출' && (
         <div className="card gg-print">
           <div className="gg-head">
@@ -666,7 +861,7 @@ export default function JeoksanAuto() {
               {딴저장.마감 && <label className="ja-put"><input type="checkbox" checked={딴화면.마감} onChange={(e) => set딴화면((P) => ({ ...P, 마감: e.target.checked }))} /> 🧱 <Link to="/jeoksan/magam">마감 수량산출</Link>에 적어 둔 것도 넣기</label>}
             </div>
           )}
-          {파일들.length > 0 && !산출.줄.length && <p className="muted">이 도면에서 뽑을 물량을 찾지 못했습니다. ⑤ 레이어·블록·글자에서 직접 고를 수 있습니다.</p>}
+          {파일들.length > 0 && !산출.줄.length && <p className="muted">이 도면에서 뽑을 물량을 찾지 못했습니다. ⑥ 레이어·블록·글자에서 직접 고를 수 있습니다.</p>}
           {산출.줄.length > 0 && (
             <>
               <div className="gg-tiles no-print">
@@ -810,7 +1005,7 @@ export default function JeoksanAuto() {
                 </>
               )}
               <div className="detail-h" style={{ marginTop: 14 }}>창호 — 창호일람표 수량 ↔ 평면의 기호 개수</div>
-              {!지금전부.창호.length && <p className="muted">«창호일람표» 를 찾지 못했습니다. 평면의 기호 개수는 ⑤ 에 있습니다.</p>}
+              {!지금전부.창호.length && <p className="muted">«창호일람표» 를 찾지 못했습니다. 평면의 기호 개수는 ⑥ 에 있습니다.</p>}
               {지금전부.창호.length > 0 && (
                 <div className="gg-wrap"><table className="gg-r">
                   <thead><tr><th>기호</th><th>구분</th><th>폭×높이(m)</th><th>일람표 수량</th><th>평면 기호</th><th>맞음</th></tr></thead>
@@ -825,9 +1020,10 @@ export default function JeoksanAuto() {
       <div className="card no-print">
         <div className="detail-h">알아 두실 것</div>
         <ul className="tl-p" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.85 }}>
-          <li><b>모두 자동</b>: 도면을 넣으면 표·토공은 그대로, 레이어·블록은 <b>이름으로 뜻을 짐작</b>해(우수관·측구·경계석·포장·맨홀·집수정·가로등·수목…) 저절로 넣습니다. 치수·글자·도곽·중심선 같은 주석은 뺍니다. 뜻을 모르는 레이어는 ⑤ 에서 고릅니다.</li>
+          <li><b>모두 자동</b>: 도면을 넣으면 표·토공은 그대로, 레이어·블록은 <b>이름으로 뜻을 짐작</b>해(우수관·측구·경계석·포장·맨홀·집수정·가로등·수목…) 저절로 넣습니다. 치수·글자·도곽·중심선 같은 주석은 뺍니다. 뜻을 모르는 레이어는 ⑥ 에서 고릅니다.</li>
           <li><b>내역 대조</b>: 내역서 줄마다 단위가 같고 이름이 닮은 도면 물량을 짝으로 붙이고 차이를 보입니다. <b>다름</b>이 나온 줄은 도면 근거와 내역을 맞춰 보십시오 — 설계변경 검토의 출발점입니다.</li>
-          <li><b>도면에 «적힌» 것을 옮깁니다.</b> 표의 칸·측점의 면적처럼 설계자가 적어 둔 숫자를 자리대로 읽습니다. 적혀 있지 않은 물량(예: 구조물 콘크리트를 선으로만 그린 것)은 <Link to="/jeoksan/golgo">골조</Link>·<Link to="/jeoksan/magam">마감</Link>·<Link to="/jeoksan/run">수량산출서 만들기</Link>에서 도면을 눌러 잽니다.</li>
+          <li><b>골조 자동</b>: «2층 구조평면도» 처럼 제목이 붙은 구조평면도와 <b>부재 일람표</b>(보·기둥·슬래브·벽·기초의 크기와 철근)가 있으면, 보는 기호 옆의 나란한 두 선을 기둥·걸친 보에서 끊어 한 칸씩, 슬래브는 보 가운데까지, 기둥·기초는 기호 개수로 셉니다. 층고는 «FL+3,600» 같은 글자로 — 없으면 3,300 으로 짐작하니 ② 골조에서 고치십시오. 철골 부재는 빼고 알려 드립니다.</li>
+          <li><b>도면에 «적힌» 것을 옮깁니다.</b> 표의 칸·측점의 면적·부재 기호처럼 설계자가 적어 둔 것을 자리대로 읽습니다. 적혀 있지 않은 물량(예: 토목 구조물 콘크리트를 선으로만 그린 것)은 <Link to="/jeoksan/golgo">골조</Link>·<Link to="/jeoksan/magam">마감</Link>·<Link to="/jeoksan/run">수량산출서 만들기</Link>에서 도면을 눌러 잽니다.</li>
           <li><b>표 찾기</b>: 제목이 «~표» 이고 재료·수량·물량·자재·집계·철근·토공·일람·마감 같은 말이 든 표를 찾습니다. 머리(칸 이름) 아래 숫자 줄을 칸마다 옮기고, 〃(같음) 표시는 위 칸 값으로 채웁니다.</li>
           <li><b>토공</b>: 측점 사이 거리 × (앞 단면 + 뒤 단면) ÷ 2. 측점 글자 «STA.0+020»·«NO.5+10»(20m 체인)을 거리로 바꿉니다. 할증·토량환산계수는 넣지 않았습니다.</li>
           <li><b>레이어·블록</b>: 무엇을 뜻하는 선인지는 도면마다 다릅니다. 레이어 이름을 보고 사람이 고릅니다. 블록 안의 선도 그 레이어 길이에 들어갑니다.</li>

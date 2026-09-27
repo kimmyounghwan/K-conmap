@@ -17,12 +17,18 @@
  * ■ 도면·자료는 이 브라우저 안에만 있습니다(적은 것: localStorage · 도면: IndexedDB). 서버로 가지 않습니다.
  * ■ 셈: lib/골조.js (시험: node tools/시험_골조.mjs) · 도면 읽기: lib/골조도면.js · 그리기: lib/골조그림.js
  * ■ 예시 도면 web/public/jeoksan/골조_예시.dxf 는 K-건설맵이 그린 «가상» 구조평면도입니다(tools/골조_예시도면.py).
+ * ■ ⚡ 2026-09-27 밤 «도면 넣으면 자동» (lib/골조자동.js) — 소장님: 「적산에서 왜 골조 물량을 찍어야 된다고 했지?.
+ *   도면만 주면 스스로 물량을 내는 거잖아」 「물량은 자동으로 뽑아서 엑셀로 다운 받을 수 있게 해줘」
+ *   구조평면도 + 부재 일람표를 넣으면(여러 장·끌어 놓기도) 배근표·주자료·층을 스스로 채우고 ④ 결과로 — 찍기는 고칠 때만.
+ *   🧪 예시도 자동 예시(골조자동_예시.dxf — tools/골조자동_예시도면.py 로 그린 가상 2층 라멘조)로 바꿈. 예시공사() 는 시험이 씀
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { 셈, 새공사, 새동, 정리, 예시공사, 양식, 양식차례, 배근칸, 배근고르기, 정착표, 규격들, 기준값, 옵션이름, 층복사, 층범위, 비교, 엑셀 } from '../lib/골조.js'
+import { 셈, 새공사, 새동, 정리, 양식, 양식차례, 배근칸, 배근고르기, 정착표, 규격들, 기준값, 옵션이름, 층복사, 층범위, 비교, 엑셀 } from '../lib/골조.js'
 import { 품은도형, 도형글자, 종류, 종류이름 } from '../lib/골조도면.js'
-import { use도면, 도면판, 도면상태줄 } from '../도면판.jsx'
+import { use도면, 도면판, 도면상태줄, 도면읽어오기, 큰파일, 오류글 } from '../도면판.jsx'
+import { 단위배율 } from '../lib/골조도면.js'
+import { 골조읽기, 개수글 } from '../lib/골조자동.js'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { askAfter } from '../AskComment'
 import { use화면상태 } from '../lib/길기록.js'
@@ -30,7 +36,7 @@ import { use화면상태 } from '../lib/길기록.js'
 import { 단위보기, 단위풀이 } from '../lib/단위.js'
 const 저장열쇠 = 'kcm.golgo.v1'
 const 도면열쇠 = '골조도면'
-const 예시도면 = '/jeoksan/골조_예시.dxf'
+const 자동예시 = ['/jeoksan/골조자동_예시.dxf', '골조자동_예시.dxf (가상 2층 라멘조 구조도)']
 
 /* 칸마다 «도면에서 무엇을 받나» */
 const 길이칸 = new Set(['길이', '좌단', '우단', 'S', '높이', '내림', 'FT', '단변', '장변', '하부', '상부', '단부', '폭', '하단참', '상단참', '줄기초', 'MAT단변', 'MAT장변', '형틀공제', '단부공제', '가로', '세로', '춤', '지름', '두께', '헌치높이', '헌치길이', '끝춤', '한변', '윗가로', '윗세로'])
@@ -90,6 +96,9 @@ export default function Golgo() {
   const [지울까, set지울까] = useState(false)
   const [보는중, set보는중] = useState(null)       // 마우스 올린 도형
   const 파일칸 = useRef(null)
+  const 자동칸 = useRef(null)
+  const [자동, set자동] = useState(null)           // ⚡ 도면에서 읽은 것 {R, 도면:[{이름, buf}], 묻기} — 적은 것이 있으면 바꿀지 여쭘
+  const [자동상태, set자동상태] = useState({ k: 'idle' })
 
   /* 저장 */
   useEffect(() => {
@@ -105,15 +114,60 @@ export default function Golgo() {
   const 유닛 = 공사.유닛 || []
   const 유kk = Math.max(0, Math.min(유k, 유닛.length - 1))
 
+  /* ⚡ 도면 넣으면 자동 — 넣은 도면(여러 장)을 모두 읽어 배근표·주자료·층을 채웁니다 */
+  const 자동읽기 = async (목록, 묻지않음 = false) => {
+    const 도면들 = [], 남김 = []
+    let 틀림 = ''
+    for (const { 이름, buf } of 목록) {
+      set자동상태({ k: 'busy', msg: 이름 + ' 읽는 중', p: 0 })
+      try {
+        const 사본 = buf.slice(0)
+        const { 모델: M } = await 도면읽어오기(buf, 이름, (st) => set자동상태({ k: 'busy', msg: 이름 + ' — ' + st.msg, p: st.p }))
+        도면들.push({ 모델: M, 이름, k: 단위배율(M.units, M.box).k || 1 })
+        남김.push({ 이름, buf: 사본 })
+      } catch (e) { 틀림 += 이름 + ' — ' + 오류글(e.kind || 'fail', e.message) + ' ' }
+    }
+    if (!도면들.length) { set자동상태({ k: 'err', 글: 틀림.trim() || '도면을 읽지 못했습니다' }); return }
+    let R
+    try { R = 골조읽기(도면들) } catch (e) { set자동상태({ k: 'err', 글: '도면에서 골조를 읽다 멈췄습니다 (' + e.message + ')' }); return }
+    set자동상태(틀림 ? { k: 'err', 글: 틀림.trim() } : { k: 'ok' })
+    // 부재를 가장 많이 읽은 도면을 도면판에 엽니다(고칠 때 누를 수 있게)
+    const 셈 = new Map()
+    for (const g of R.근거) 셈.set(g.번, (셈.get(g.번) || 0) + 1)
+    const 첫 = [...셈].sort((a, b) => b[1] - a[1])[0]
+    const 열 = 남김[첫 ? 첫[0] : 0]
+    if (!R.있음) {
+      if (열) 도면열기(열.buf, 열.이름)
+      set자동({ R, 없음: true })
+      if (!['주', '배', '유'].includes(탭)) set탭('주')
+      return
+    }
+    const 판 = { R, 열 }
+    if (!비었나 && !묻지않음) { set자동({ ...판, 묻기: true }); return }
+    자동넣기(판)
+  }
+  const 자동넣기 = (판) => {
+    const { R, 열 } = 판
+    set공사((P) => ({ ...R.공사, 기준: P.기준 || R.공사.기준 }))       // 기준값(fck·피복·할증…)은 적어 둔 것 그대로
+    set자동({ R, 됨: true })
+    set탭('결과'); set표('보'); set선택(null); set동i(0)
+    if (열) 도면열기(열.buf, 열.이름)
+  }
+  const 자동파일 = async (files) => {
+    const list = [...(files || [])].filter((f) => /\.(dxf|dwg)$/i.test(f.name))
+    if (!list.length) return
+    const 큰 = list.filter((f) => f.size > 큰파일)
+    if (큰.length) { set자동상태({ k: 'err', 글: 큰.map((f) => f.name).join(', ') + ' — ' + 오류글('big') }); return }
+    자동읽기(await Promise.all(list.map(async (f) => ({ 이름: f.name, buf: await f.arrayBuffer() }))))
+  }
   const 예시열기 = async () => {
     set예시묻기(false)
-    set공사(예시공사())
-    set탭('주'); set표('보'); set선택(null); set동i(0)
     try {
-      const r = await fetch(예시도면)
+      set자동상태({ k: 'busy', msg: '예시 도면 받는 중', p: 0 })
+      const r = await fetch(자동예시[0])
       if (!r.ok) throw new Error(r.status)
-      도면열기(await r.arrayBuffer(), '골조_예시.dxf (가상 구조평면도)')
-    } catch (e) { 도.set도면상태({ k: 'err', 글: '예시 도면을 받지 못했습니다 (' + e.message + ')' }) }
+      await 자동읽기([{ 이름: 자동예시[1], buf: await r.arrayBuffer() }], true)
+    } catch (e) { set자동상태({ k: 'err', 글: '예시 도면을 받지 못했습니다 (' + e.message + ')' }) }
   }
   const 비었나 = !공사.동.some((d) => Object.values(d.주자료 || {}).some((a) => a && a.length)) && !Object.values(공사.배근).some((a) => a.length) && !유닛.length
 
@@ -283,14 +337,15 @@ export default function Golgo() {
   return (
     <div className="wrap gg">
       <div className="card no-print">
-        <h1 className="tl-h1" style={{ marginTop: 0 }}>🏗 골조 수량산출 <span className="count">· 도면에서 찍어 재기</span></h1>
+        <h1 className="tl-h1" style={{ marginTop: 0 }}>🏗 골조 수량산출 <span className="count">· 도면을 넣으면 자동</span></h1>
         <div className="note sm">
-          <b>치수를 손으로 옮겨 적지 않습니다.</b> 표의 칸을 누르고 <b>도면의 선·치수·글자를 누르면</b> 값이 들어갑니다.
-          배근표와 주자료(골조산출양식 칸 그대로)로 <b>콘크리트 · 거푸집 · 철근</b>까지 층별·부재별로 셉니다.
+          <b>구조평면도 + 부재 일람표를 넣으면 저절로</b> 배근표·주자료(골조산출양식 칸 그대로)를 채워 <b>콘크리트 · 거푸집 · 철근</b>을 층별·부재별로 셉니다 → <b>엑셀</b>.
+          고칠 곳만 표의 칸을 누르고 <b>도면의 선·치수·글자를 누르면</b> 값이 바뀝니다(치수를 손으로 옮겨 적지 않습니다).
         </div>
         <div className="pdfsafe">🔒 <b>도면은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 읽고 셉니다 · 회원가입 없음 · 무료</div>
         <div className="btn-row gg-top">
-          <button type="button" className="btn sm" onClick={() => 파일칸.current?.click()}>📂 도면 열기 (DXF·DWG)</button>
+          <button type="button" className="btn sm" onClick={() => 자동칸.current?.click()}>⚡ 도면 넣고 자동으로 (여러 장)</button>
+          <button type="button" className="btn line sm" onClick={() => 파일칸.current?.click()}>📂 도면만 열기 (찍기)</button>
           <button type="button" className="btn line sm" onClick={() => (비었나 ? 예시열기() : set예시묻기(true))}>🧪 예시로 해 보기</button>
           <button type="button" className="btn ghost sm" onClick={() => set탭('결과')}>📊 결과 보기</button>
           {!비었나 && <button type="button" className="btn ghost sm" onClick={() => set지울까(true)}>🗑 새로 시작</button>}
@@ -304,16 +359,35 @@ export default function Golgo() {
         )}
         {예시묻기 && (
           <div className="gg-ask">
-            지금 적은 것을 지우고 예시(가상 구조평면도)를 불러올까요?
+            지금 적은 것을 지우고 예시(가상 2층 구조도 — 도면에서 자동)를 불러올까요?
             <button type="button" className="btn sm" onClick={예시열기}>예, 불러오기</button>
             <button type="button" className="btn ghost sm" onClick={() => set예시묻기(false)}>아니오</button>
           </div>
         )}
         <input ref={파일칸} type="file" accept=".dxf,.DXF,.dwg,.DWG" className="sr-only" tabIndex={-1}
                onChange={(e) => { 파일받기(e.target.files); e.target.value = '' }} />
-        {/* 📥 놓으면 도면이 보이는 탭(③ 주자료)으로 — 개요·결과 탭에서는 도면판이 안 보여 «아무 일도 없는 것» 처럼 보였습니다 */}
-        <끌어놓기판 받기={(fs) => { 파일받기(fs); if (!['주', '배', '유'].includes(탭)) set탭('주') }} />
-        <도면상태줄 상태={도.도면상태} />
+        <input ref={자동칸} type="file" multiple accept=".dxf,.DXF,.dwg,.DWG" className="sr-only" tabIndex={-1}
+               onChange={(e) => { 자동파일(e.target.files); e.target.value = '' }} />
+        {/* 📥 놓으면 ⚡ 자동으로 — 셀 부재가 없으면(일람표 없음) 도면만 열고 도면이 보이는 탭(③ 주자료)으로 */}
+        <끌어놓기판 글="도면(DXF·DWG)을 놓으면 자동으로 셉니다 — 구조평면도·일람표 여러 장도 한꺼번에" 여럿 받기={(fs) => 자동파일(fs)} />
+        <도면상태줄 상태={자동상태.k !== 'idle' && 자동상태.k !== 'ok' ? 자동상태 : 도.도면상태} />
+        {자동 && 자동.묻기 && (
+          <div className="gg-ask">
+            도면에서 <b>{개수글(자동.R)}</b> 을 읽었습니다. 지금 적은 것 대신 넣을까요? (기준값은 그대로 둡니다)
+            <button type="button" className="btn sm" onClick={() => 자동넣기(자동)}>예, 넣기</button>
+            <button type="button" className="btn ghost sm" onClick={() => set자동(null)}>아니오</button>
+          </div>
+        )}
+        {자동 && (자동.됨 || 자동.없음) && (
+          <div className={'gg-auto' + (자동.없음 ? ' warn' : '')}>
+            {자동.됨 ? <>⚡ <b>도면에서 자동으로 채웠습니다</b> — {개수글(자동.R)}
+              {자동.R.읽음.평면.length > 0 && <> · 평면 {자동.R.읽음.평면.map((p) => p.제목 + '→' + p.층.map((f) => (f === 'FT' ? 'FT' : f + '층')).join('·')).join(', ')}</>}.
+              {자동.R.읽음.층고짐작.length > 0 && <> <b>층고를 못 찾아 3,300 으로 짐작한 층({자동.R.읽음.층고짐작.join('·')})</b>은 ① 개요에서 고쳐 주세요.</>}</>
+              : <>⚡ 이 도면에서는 <b>자동으로 셀 부재를 찾지 못해 도면만 열었습니다</b>. 칸을 누르고 도면을 눌러 채우십시오.</>}
+            {자동.R.경고.length > 0 && <ul className="gg-warns">{자동.R.경고.slice(0, 12).map((w, k) => <li key={k}>⚠️ {w}</li>)}</ul>}
+            <button type="button" className="chip" onClick={() => set자동(null)}>닫기</button>
+          </div>
+        )}
       </div>
 
       <div className="tp-tabs no-print" role="tablist">

@@ -57,6 +57,12 @@ export default function DxfPdf() {
   const [보는장, set보는장] = use머무름('dxfpdf.보는장', 0)
   const [내범위, set내범위] = use머무름('dxfpdf.내범위', [])
   const [끄는중, set끄는중] = useState(null)          // 직접 잡기: {x0,y0,x1,y1} (화면 px) — 그리기용
+  /* 🖐 2026-09-27 소장님 「도면을 드래그 해서 옮길 수 있게 해줘. 지금 안된 곳도 있어」 — 미리보기 확대(휠·＋－)·끌어 옮기기.
+     «직접 잡기» 중에는 왼쪽 끌기 = 네모, 오른쪽(가운데) 단추로 끌기 = 옮기기 */
+  const [보기, set보기] = useState({ z: 1, x: 0, y: 0 })
+  const [선명, set선명] = useState(1)                  // 확대가 멈추면 그 배율로 다시 그림(글자·선이 흐려지지 않게)
+  const 옮김 = useRef(null)
+  const paperRef = useRef(null)
   const 끌기 = useRef(null)                             // 같은 값(마우스 떼는 순간 최신값이 필요해서 ref)
   const [폭, set폭] = useState(800)
   const [글꼴, set글꼴] = useState(false)
@@ -98,10 +104,52 @@ export default function DxfPdf() {
   useEffect(() => {
     if (!모델 || !보는것 || !cvRef.current) return
     const id = requestAnimationFrame(() => {
-      try { drawPage(cvRef.current, 모델, 보는것, opt, 폭, cacheRef.current) } catch (e) { /* 미리보기 실패는 PDF 와 무관 */ }
+      try { drawPage(cvRef.current, 모델, 보는것, opt, 폭, cacheRef.current, 선명) } catch (e) { /* 미리보기 실패는 PDF 와 무관 */ }
     })
     return () => cancelAnimationFrame(id)
-  }, [모델, 보는것, opt, 폭, 글꼴])
+  }, [모델, 보는것, opt, 폭, 글꼴, 선명])
+  /* 장·범위가 바뀌면 처음 크기로 */
+  useEffect(() => { set보기({ z: 1, x: 0, y: 0 }); set선명(1) }, [모델, 범위, 보는장, 종이])
+  useEffect(() => {
+    const t = setTimeout(() => set선명(Math.min(8, Math.max(1, Math.round(보기.z * 2) / 2))), 250)
+    return () => clearTimeout(t)
+  }, [보기.z])
+  /* 확대 — (cx,cy) 는 화면 좌표. 그 점이 제자리에 있게 */
+  const 확대 = (f, cx, cy) => {
+    set보기((v) => {
+      const z = Math.min(8, Math.max(1, v.z * f))
+      if (z === 1) return { z: 1, x: 0, y: 0 }
+      const el = paperRef.current
+      if (!el || cx === undefined) {
+        const w = 폭, h = el ? el.offsetHeight : 폭
+        return { z, x: v.x - (w / 2) * (z - v.z), y: v.y - (h / 2) * (z - v.z) }
+      }
+      const rc = el.getBoundingClientRect()
+      const ox = rc.left - v.x, oy = rc.top - v.y          // 옮기기 전 종이 왼쪽 위
+      const px = (cx - rc.left) / v.z, py = (cy - rc.top) / v.z
+      return { z, x: cx - ox - px * z, y: cy - oy - py * z }
+    })
+  }
+  useEffect(() => {
+    const el = boxRef.current
+    if (!el || !모델) return undefined
+    const w = (ev) => { ev.preventDefault(); 확대(Math.exp(-ev.deltaY * 0.0015), ev.clientX, ev.clientY) }
+    el.addEventListener('wheel', w, { passive: false })
+    return () => el.removeEventListener('wheel', w)
+  })   // eslint-disable-line react-hooks/exhaustive-deps
+  const 옮김시작 = (e) => {
+    const 네모중 = 범위 === 'mine' && e.button === 0 && e.pointerType === 'mouse'
+    if (네모중) return
+    if (e.pointerType !== 'mouse' && (범위 === 'mine' || 보기.z <= 1)) return   // 손가락: 직접 잡기 중엔 네모 · 확대 안 했으면 화면 넘기기
+    옮김.current = { sx: e.clientX, sy: e.clientY, v: 보기, id: e.pointerId }
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch (er) { /* 못 잡아도 됨 */ }
+  }
+  const 옮김중 = (e) => {
+    const o = 옮김.current
+    if (!o || o.id !== e.pointerId) return
+    set보기({ ...o.v, x: o.v.x + e.clientX - o.sx, y: o.v.y + e.clientY - o.sy })
+  }
+  const 옮김끝 = (e) => { if (옮김.current && 옮김.current.id === e.pointerId) 옮김.current = null }
 
   const 읽기 = async (list, 예시로 = false) => {
     const f = [...(list || [])][0]
@@ -179,7 +227,7 @@ export default function DxfPdf() {
   /* 직접 잡기 — 전체 그림 위에서 끌어 네모를 그립니다 */
   const 화면좌표 = (e) => {
     const rc = cvRef.current.getBoundingClientRect()
-    return [e.clientX - rc.left, e.clientY - rc.top]
+    return [(e.clientX - rc.left) / 보기.z, (e.clientY - rc.top) / 보기.z]
   }
   const 전체G = useMemo(() => (전체장 ? pageGeom(전체장.r, 전체장.paper, 5) : null), [전체장])
   const 도면좌표 = ([px, py]) => {
@@ -189,6 +237,7 @@ export default function DxfPdf() {
   }
   const 누름 = (e) => {
     if (범위 !== 'mine') return
+    if (e.button !== undefined && e.button !== 0) return
     const p = 화면좌표(e)
     끌기.current = { x0: p[0], y0: p[1], x1: p[0], y1: p[1] }
     set끄는중(끌기.current)
@@ -313,8 +362,16 @@ export default function DxfPdf() {
             </div>
           )}
 
-          <div className="dp-stage" ref={boxRef}>
-            <div className="dp-paper" style={{ width: 폭 }}
+          <div className="dp-zoom">
+            <button type="button" className="chip" onClick={() => 확대(1.5)}>＋ 확대</button>
+            <button type="button" className="chip" onClick={() => 확대(1 / 1.5)}>－ 축소</button>
+            <button type="button" className="chip" disabled={보기.z === 1 && !보기.x && !보기.y} onClick={() => set보기({ z: 1, x: 0, y: 0 })}>전체</button>
+            <span className="muted">{범위 === 'mine' ? '휠 = 확대 · 오른쪽 단추로 끌기 = 옮기기 · 왼쪽 끌기 = 네모' : '휠 = 확대 · 끌기 = 옮기기'}{보기.z > 1 ? ' · ' + 보기.z.toFixed(1) + '배' : ''}</span>
+          </div>
+          <div className={'dp-stage' + (보기.z > 1 || 범위 === 'mine' ? ' grab' : '')} ref={boxRef}
+               onPointerDown={옮김시작} onPointerMove={옮김중} onPointerUp={옮김끝} onPointerCancel={옮김끝}
+               onContextMenu={(e) => e.preventDefault()}>
+            <div className="dp-paper" ref={paperRef} style={{ width: 폭, transform: `translate(${보기.x}px, ${보기.y}px) scale(${보기.z})`, transformOrigin: '0 0' }}
                  onMouseDown={누름} onMouseMove={움직임} onMouseUp={뗌} onMouseLeave={() => { 끌기.current = null; set끄는중(null) }}
                  onTouchStart={(e) => 누름(e.touches[0])} onTouchMove={(e) => { if (끌기.current) 움직임(e.touches[0]) }} onTouchEnd={() => 뗌()}>
               <canvas ref={cvRef} className={'dp-cv' + (범위 === 'mine' ? ' pick' : '')} />

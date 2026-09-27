@@ -526,8 +526,10 @@ export default function Qna() {
           {write ? '닫기' : '✏️ 글쓰기'}
         </button>
         {내것.size > 0 && (
-          <button className={'btn' + (onlyMine ? ' primary' : '')} onClick={() => setOnlyMine((v) => !v)}>
-            내가 쓴 글 {내것.size}
+          /* 🩹 2026-09-27 소장님 「후기 건의 탭을 클릭해도 이제까지의 글이 안보여」 — 이 단추가 켜져도 꺼져도 똑같이 꽉 찬 파랑이라
+             켜진 줄 모르고 말머리를 누르면 «내 글 중 그 말머리» 만 찾아 빈 화면이 됐습니다. 꺼짐 = 테두리, 켜짐 = 꽉 찬 파랑 + 글로 알림 */
+          <button className={'btn' + (onlyMine ? '' : ' line')} aria-pressed={onlyMine} onClick={() => setOnlyMine((v) => !v)}>
+            {onlyMine ? '✓ 내가 쓴 글만 보는 중 — 모두 보기' : '내가 쓴 글 ' + 내것.size}
           </button>
         )}
         {나운영자 && <Link className="btn line" to="/admin">🛠 관리자</Link>}
@@ -544,7 +546,7 @@ export default function Qna() {
           const on = 갈래 === c
           const [bg, fg, ln] = 갈래빛[c] || ['var(--surface)', 'var(--text-2)', 'var(--line)']
           return (
-            <button key={c} onClick={() => { set갈래(c); setOpen(null) }}
+            <button key={c} onClick={() => { set갈래(c); setOpen(null); setOnlyMine(false) }}
               style={{
                 border: '1px solid ' + (on ? 'var(--accent)' : ln), borderRadius: 999,
                 padding: '7px 13px', fontSize: 13, cursor: 'pointer',
@@ -607,8 +609,18 @@ export default function Qna() {
       )}
 
       {list === null && <Skeleton n={4} />}
+      {/* 🔎 무엇 때문에 줄었는지 늘 보이게 — 내 글만 · 찾기 낱말 (2026-09-27) */}
+      {list && (onlyMine || q.trim()) && (
+        <div className="qna-filter-note">
+          {onlyMine && <span>✓ <b>내가 쓴 글</b>만 보는 중</span>}
+          {q.trim() && <span>🔎 «<b>{q.trim()}</b>» 로 찾는 중</span>}
+          <button type="button" className="chip" onClick={() => { setOnlyMine(false); setQ('') }}>모두 보기</button>
+        </div>
+      )}
       {list && list.length === 0 && (
-        <Empty>아직 글이 없습니다. 아무 말이나 먼저 남겨 주세요 — 한 줄이어도 됩니다.</Empty>
+        (onlyMine || q.trim())
+          ? <Empty>{onlyMine ? '내가 쓴 글 중에는' : '찾는 낱말이 들어간 글 중에는'} {갈래 === '전체' ? '' : '«' + 갈래 + '» '}글이 없습니다. 위 <b>«모두 보기»</b> 를 누르면 다른 분 글까지 모두 보입니다.</Empty>
+          : <Empty>아직 글이 없습니다. 아무 말이나 먼저 남겨 주세요 — 한 줄이어도 됩니다.</Empty>
       )}
 
       {list && list.map((r) => 글카드(r))}

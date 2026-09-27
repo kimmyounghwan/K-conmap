@@ -484,7 +484,7 @@ function Run() {
             공제가 본체보다 크면 거기 적힙니다. 수량은 «틀려도 숫자처럼 보입니다»</li>
         </ul>
         <div className="btn-row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
-          <Link className="btn ghost" to="/jeoksan/golgo">🏗 골조 — 도면에서 찍어 재기</Link>
+          <Link className="btn ghost" to="/jeoksan/golgo">🏗 골조 — 도면 넣으면 자동</Link>
           <Link className="btn ghost" to="/jeoksan/magam">🧱 마감 — 방마다 바닥·벽·천장</Link>
           <Link className="btn ghost" to="/jeoksan/auto">⚡ 도면 물량 자동</Link>
           <Link className="btn ghost" to="/jeoksan">🧮 K-적산이 무엇인지</Link>
