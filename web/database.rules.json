@@ -53,16 +53,22 @@
     //
     // ⚠️ 연락처 칸이 «없습니다». 공개 게시판에 전화번호를 적으면 광고 전화가 갑니다.
     //    연락처가 필요한 이야기는 내역서 문의함(quotes)으로 갑니다.
+    // 🔑 2026-09-27 «내 글 되찾기» — 소장님: 「비번을 풀고, 간단히 수정하게 하면 … 그래서 다시 기억하게 한다면」
+    //    다른 기기·기록 삭제 뒤에도 글 쓸 때 정한 4자리로 «옛 나»(qna_who/{지금 uid}.r)를 잇습니다.
+    //    이어진 기기는 옛 번호(r)로 쓴 글을 고치고 지우며, 새 글도 그 번호로 씁니다(별명이 같아짐).
+    //    ⚠️ uid 칸은 이제 «내 번호» 이거나 «이어진 옛 번호» 만 받습니다(전엔 아무 글자나 됐습니다).
     "qna": {
       ".read": true,
       ".indexOn": ["at"],
       "$id": {
-        ".write": "auth != null && newData.exists() && ( !data.exists() || data.child('uid').val() === auth.uid )",
+        ".write": "auth != null && newData.exists() && ( !data.exists() || data.child('uid').val() === auth.uid || data.child('uid').val() === root.child('qna_who').child(auth.uid).child('r').val() )",
         ".validate": "newData.hasChildren(['t','nick','uid','at'])",
         "t":       { ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 80" },
         "b":       { ".validate": "newData.isString() && newData.val().length <= 2000" },
-        "nick":    { ".validate": "newData.isString() && newData.val().length <= 20" },
-        "uid":     { ".validate": "newData.isString() && newData.val().length <= 64" },
+        "nick":    { ".validate": "newData.isString() && newData.val().length <= 20 && ( newData.val() !== 'K-건설맵' || auth.uid === 'ZglL1g3X5UZFBA2590LirDnEnil1' )" },
+        "uid":     { ".validate": "newData.isString() && ( newData.val() === auth.uid || newData.val() === root.child('qna_who').child(auth.uid).child('r').val() )" },
+        // ✏️ 고친 때 — 이용자가 제 글을 고치면 붙습니다(«고침» 표시)
+        "e":       { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
         "at":      { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
         "deleted": { ".validate": "newData.isBoolean()" },
         "$other":  { ".validate": false }
@@ -90,16 +96,16 @@
       ".read": true,
       "$qid": {
         "$aid": {
-          ".write": "auth != null && newData.exists() && ( !data.exists() || data.child('uid').val() === auth.uid )",
+          ".write": "auth != null && newData.exists() && ( !data.exists() || data.child('uid').val() === auth.uid || data.child('uid').val() === root.child('qna_who').child(auth.uid).child('r').val() )",
           ".validate": "newData.hasChildren(['b','nick','uid','at'])",
           "b":       { ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 2000" },
-          "nick":    { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "nick":    { ".validate": "newData.isString() && newData.val().length <= 20 && ( newData.val() !== 'K-건설맵' || auth.uid === 'ZglL1g3X5UZFBA2590LirDnEnil1' )" },
           // ⛔ 운영자 브라우저만 참으로 넣을 수 있습니다. 나머지는 거짓이거나 아예 없어야 합니다.
           //    ⚠️ 번호를 «여기 규칙 안에» 적습니다. DB 에 명단을 따로 두면 그 명단을 넣을 길이
           //       없습니다(3_규칙올리기.bat 은 규칙만 올립니다). 기기를 더하실 땐 || 로 이어 붙이고
           //       그 배치파일을 한 번 돌리면 끝입니다.
           "op":      { ".validate": "newData.isBoolean() && ( newData.val() === false || auth.uid === 'ZglL1g3X5UZFBA2590LirDnEnil1' )" },
-          "uid":     { ".validate": "newData.isString() && newData.val().length <= 64" },
+          "uid":     { ".validate": "newData.isString() && ( newData.val() === auth.uid || newData.val() === root.child('qna_who').child(auth.uid).child('r').val() )" },
           "at":      { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
           "deleted": { ".validate": "newData.isBoolean()" },
           "$other":  { ".validate": false }
@@ -113,11 +119,56 @@
     //       이용자 글을 기계가 고치는 것도 맞지 않습니다.
     "qna_mail": { ".read": false, ".write": false },
 
+    // ⚠️ 2026-09-27 — «글이 이미 있으면 그 글쓴이만» 넣습니다. 전엔 숫자가 없는 글(운영자 글 등)에
+    //    남이 숫자를 먼저 꽂을 수 있었습니다 → 그러면 «내 글 되찾기» 로 남의 글을 가져갈 수 있습니다.
     "qna_pins": {
       ".read": false,
       "$id": {
-        ".write": "auth != null && !data.exists()",
+        ".write": "auth != null && !data.exists() && ( !root.child('qna').child($id).exists() || root.child('qna').child($id).child('uid').val() === auth.uid )",
         ".validate": "newData.isString() && newData.val().length === 64"
+      }
+    },
+
+    // 🔑 «내 글 되찾기» 시도 칸 — 글마다 다섯 칸(0~4). 한 번 쓴 칸은 하루(24시간) 동안 다시 못 씁니다.
+    //    그래서 «하루 다섯 번» 까지만 맞혀 볼 수 있습니다(4자리 = 1만 가지 → 하루 0.05%).
+    //    칸에는 넣어 본 숫자의 해시만 둡니다. 아무도 못 읽습니다.
+    "qna_try": {
+      ".read": false,
+      "$id": {
+        "$n": {
+          ".write": "auth != null && newData.exists() && $n.matches(/^[0-4]$/) && $id.length <= 40 && root.child('qna_pins').child($id).exists() && ( !data.exists() || data.child('at').val() < now - 86400000 )",
+          ".validate": "newData.hasChildren(['h','u','at'])",
+          "h":      { ".validate": "newData.isString() && newData.val().length === 64" },
+          "u":      { ".validate": "newData.val() === auth.uid" },
+          "at":     { ".validate": "newData.isNumber() && newData.val() <= now + 1000 && newData.val() >= now - 60000" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+
+    // 🔑 이어 주기 — qna_who/{지금 번호} = { r: 옛 번호, q: 맞힌 글, n: 맞힌 칸 }
+    //    «10분 안에, 내가 쓴 칸의 해시가 그 글의 4자리 해시와 같을 때» 만 들어갑니다.
+    //    ⛔ 운영자 번호는 잇지도(r) 이어지지도($uid) 못합니다 — 표(op)·고정을 남이 가져가면 안 됩니다.
+    "qna_who": {
+      ".read": true,
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid && $uid !== 'ZglL1g3X5UZFBA2590LirDnEnil1' && newData.exists()",
+        ".validate": "newData.hasChildren(['r','q','n']) && root.child('qna_try').child(newData.child('q').val()).child(newData.child('n').val()).child('u').val() === auth.uid && root.child('qna_try').child(newData.child('q').val()).child(newData.child('n').val()).child('h').val() === root.child('qna_pins').child(newData.child('q').val()).val() && root.child('qna_try').child(newData.child('q').val()).child(newData.child('n').val()).child('at').val() > now - 600000 && newData.child('r').val() !== 'ZglL1g3X5UZFBA2590LirDnEnil1' && ( newData.child('r').val() === root.child('qna').child(newData.child('q').val()).child('uid').val() || newData.child('r').val() === root.child('qna_who').child(root.child('qna').child(newData.child('q').val()).child('uid').val()).child('r').val() )",
+        "r":      { ".validate": "newData.isString() && newData.val().length <= 64" },
+        "q":      { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "n":      { ".validate": "newData.isString() && newData.val().matches(/^[0-4]$/)" },
+        "$other": { ".validate": false }
+      }
+    },
+
+    // 📌 2026-09-27 — 사랑방 «도구 사용법» 고정. 소장님: 「도구설명서도 항상 위쪽에 배치 되도록 해주고」
+    //    값 = 고정한 때(ms). 작은 것이 위. **운영자 브라우저만** 꽂고 뺍니다(OPS 와 같은 번호).
+    //    ⚠️ 글(qna) 안에 칸을 늘리지 않았습니다 — $other:false 라 옛 규칙이면 글쓰기가 통째로 튕깁니다.
+    "qna_top": {
+      ".read": true,
+      "$id": {
+        ".write": "auth != null && auth.uid === 'ZglL1g3X5UZFBA2590LirDnEnil1'",
+        ".validate": "$id.length <= 40 && newData.isNumber() && newData.val() <= (now + 60000)"
       }
     },
 

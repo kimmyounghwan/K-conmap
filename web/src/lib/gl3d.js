@@ -108,7 +108,7 @@ export class LineView {
     this.쉼솎 = 솎기(1000000)
     this.낮춤 = 총 > 800000
     this.L = layers.map((x) => {
-      const o = { name: x.name, on: !x.off, n: x.pos.length / 3, pn: x.pts.length / 3, tn: x.tri ? x.tri.length / 3 : 0 }
+      const o = { name: x.name, on: !x.off, n: x.pos.length / 3, pn: x.pts.length / 3, tn: x.tri ? x.tri.length / 3 : 0, src: x }
       /* 줄인 판 — 선 k 개마다 하나 (레이어마다 고르게) */
       const 판 = (k) => {
         if (k <= 1 || !o.n) return null
@@ -237,6 +237,37 @@ export class LineView {
     this._raf = requestAnimationFrame(this._loop)
   }
 
+  /** 📍 2026-09-27 «기준점 찍기» — 화면의 (clientX, clientY) 에 가장 가까운 선 끝점(켠 층 중 고름(name) 인 것).
+      반환: [x, y, z] (가운데를 뺀 좌표, 높이 배율 뺀 값) · 16px 안에 없으면 null */
+  점고르기(cx, cy, 고름 = () => true) {
+    const cv = this.cv, r = cv.getBoundingClientRect()
+    const w = Math.max(1, r.width), h = Math.max(1, r.height)
+    const mx = ((cx - r.left) / w) * 2 - 1, my = 1 - ((cy - r.top) / h) * 2
+    const e = this._cam()
+    const P = persp(Math.PI / 4, w / h, this.d / 2000, this.d * 50)
+    const M = mm(P, look(e, this.t, [0, 0, 1]))
+    const zs = this.zs
+    let best = null, bd = (16 / Math.min(w, h)) * 2
+    bd *= bd
+    for (const l of this.L) {
+      if (!l.on || !고름(l.name) || !l.src) continue
+      for (const a of [l.src.pos, l.src.pts]) {
+        const n = a.length / 3
+        const st = Math.max(1, Math.floor(n / 300000))
+        for (let k = 0; k < n; k += st) {
+          const i = k * 3, x = a[i], y = a[i + 1], z = a[i + 2] * zs
+          const W = M[3] * x + M[7] * y + M[11] * z + M[15]
+          if (W <= 0) continue
+          const X = (M[0] * x + M[4] * y + M[8] * z + M[12]) / W - mx
+          const Y = (M[1] * x + M[5] * y + M[9] * z + M[13]) / W - my
+          const d = X * X + Y * Y
+          if (d < bd) { bd = d; best = [x, y, a[i + 2]] }
+        }
+      }
+    }
+    return best
+  }
+
   /** 지금 화면을 PNG 로 */
   png() { this.draw(); return this.cv.toDataURL('image/png') }
 
@@ -263,7 +294,9 @@ export class LineView {
     const cv = this.cv
     const ps = new Map()
     let pinch = null
+    let 누름 = null
     const down = (e) => {
+      if (ps.size === 0) 누름 = { x: e.clientX, y: e.clientY, b: e.button }
       cv.setPointerCapture(e.pointerId)
       ps.set(e.pointerId, { x: e.clientX, y: e.clientY, b: e.button, s: e.shiftKey || e.ctrlKey })
       if (ps.size === 2) {
@@ -288,7 +321,14 @@ export class LineView {
         pinch = { d, mx, my }
       }
     }
-    const up = (e) => { ps.delete(e.pointerId); if (ps.size < 2) pinch = null }
+    const up = (e) => {
+      ps.delete(e.pointerId); if (ps.size < 2) pinch = null
+      if (누름 && ps.size === 0) {
+        const 짧 = Math.hypot(e.clientX - 누름.x, e.clientY - 누름.y) < 5 && 누름.b === 0
+        누름 = null
+        if (짧 && this.onPick) this.onPick(e.clientX, e.clientY)
+      }
+    }
     const wheel = (e) => { e.preventDefault(); this._zoom(Math.exp(Math.max(-100, Math.min(100, e.deltaY)) * 0.0015)) }
     const ctx = (e) => e.preventDefault()
     cv.addEventListener('pointerdown', down)

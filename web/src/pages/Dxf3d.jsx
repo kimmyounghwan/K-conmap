@@ -51,6 +51,10 @@ export default function Dxf3d() {
   const [층찾기, set층찾기] = useState('')
   const [파일이름, set파일이름] = useState('')
   const [예시글, set예시글] = useState('')
+  /* 📍 기준점 찍기 — { g: 묶음 번호, 단계: 1|2, A: [x,y,z] } */
+  const [맞춤, set맞춤] = useState(null)
+  const [높이도, set높이도] = useState(false)
+  const [맞춤글, set맞춤글] = useState('')
 
   useEffect(() => {
     if (!남은 || !남은.r) return
@@ -143,7 +147,9 @@ export default function Dxf3d() {
     for (const l of r.layers) 레[l.ly] = (레[l.ly] ?? false) || !l.off
     if (!Object.values(레).some(Boolean)) for (const k of Object.keys(레)) 레[k] = true
     const 층 = {}
-    for (const l of r.layers) if (l.floor) 층[l.floor] = true
+    const 묶음켬 = {}
+    for (const g of r.그룹 || []) for (const k of g.층들) 묶음켬[k] = g.켬
+    for (const l of r.layers) if (l.floor) 층[l.floor] = 묶음켬[l.floor] ?? true
     if (되살림) { Object.assign(레, 되살림.레켬 || {}); Object.assign(층, 되살림.층켬 || {}) }
     set레켬(레); set층켬(층); set면(되살림 ? 되살림.면 !== false : true)
     set높이배(되살림 ? 되살림.높이배 || 1 : 1)
@@ -151,7 +157,9 @@ export default function Dxf3d() {
       layers: r.layers.map((l) => ({ name: l.name, floor: l.floor, ly: l.ly, rgb: l.rgb, off: l.off, segs: l.segs,
         pts: l.pts.length / 3, box: l.box, smp: l.smp, tri: l.tri ? l.tri.length / 9 : 0 })),
       stats: r.stats, zr: r.zr, c: r.center, 건물: r.건물, 횡단: r.횡단 || null, 파일: r.파일, 못읽은: r.못읽은 || [], dwg수,
+      구조: r.구조 || null, 그룹: r.그룹 || [],
     })
+    set맞춤(null); set맞춤글('')
     set상태({ k: 'done' })
     const on = {}
     for (const l of r.layers) on[l.name] = 보임(l, 레, 층)
@@ -188,6 +196,43 @@ export default function Dxf3d() {
     viewRef.current.fit(자리(결과.layers, 켬맵), how)
   }
   const 높이 = (z) => { set높이배(z); if (viewRef.current) viewRef.current.setZ(z) }
+  /* 🧩 묶음(도면 한 장·건물·횡단·구조물) 통째로 켜고 끄기 */
+  const 묶음켜기 = (g, on) => { const n = { ...층켬 }; for (const k of g.층들) n[k] = on; set층켬(n); 다시켜기(레켬, n) }
+  const 묶음만 = (g) => { const n = {}; for (const k of Object.keys(층켬)) n[k] = g.층들.includes(k); set층켬(n); 다시켜기(레켬, n); if (viewRef.current && 결과) { const on = {}; for (const l of 결과.layers) on[l.name] = 보임(l, 레켬, n); viewRef.current.fit(자리(결과.layers, on), 'tilt') } }
+  /* 📍 기준점 찍기 — ① 옮길 묶음에서 한 점 ② 그 점이 갈 자리(다른 도면)를 누르면 그만큼 옮깁니다 */
+  const 맞추기시작 = (g) => { set맞춤({ g: g.번, 단계: 1 }); set맞춤글('') }
+  useEffect(() => {
+    const v = viewRef.current
+    if (!v) return
+    if (!맞춤 || !결과 || !남은) { v.onPick = null; return }
+    const 묶 = 결과.그룹.find((x) => x.번 === 맞춤.g)
+    const 층들 = new Set(묶 ? 묶.층들 : [])
+    const 이름층 = new Map(결과.layers.map((l) => [l.name, l.floor]))
+    v.onPick = (cx, cy) => {
+      if (맞춤.단계 === 1) {
+        const A = v.점고르기(cx, cy, (nm) => 층들.has(이름층.get(nm)))
+        if (!A) { set맞춤글('그 자리에 선이 없습니다 — 옮길 도면의 선 끝(모서리)을 눌러 주십시오'); return }
+        set맞춤({ ...맞춤, 단계: 2, A }); set맞춤글('')
+      } else {
+        const B = v.점고르기(cx, cy, (nm) => !층들.has(이름층.get(nm)))
+        if (!B) { set맞춤글('그 자리에 선이 없습니다 — 맞출 도면(다른 묶음)의 선 끝을 눌러 주십시오'); return }
+        const d = [B[0] - 맞춤.A[0], B[1] - 맞춤.A[1], 높이도 ? B[2] - 맞춤.A[2] : 0]
+        for (const l of 남은.r.layers) {
+          if (!층들.has(l.floor)) continue
+          for (const a of [l.pos, l.pts, l.tri]) { if (!a) continue; for (let i = 0; i < a.length; i += 3) { a[i] += d[0]; a[i + 1] += d[1]; a[i + 2] += d[2] } }
+          if (l.box) { l.box[0] += d[0]; l.box[3] += d[0]; l.box[1] += d[1]; l.box[4] += d[1]; for (const k of [2, 5, 6, 7]) l.box[k] += d[2] }
+          if (l.smp) for (let i = 0; i < l.smp.p.length; i += 3) { l.smp.p[i] += d[0]; l.smp.p[i + 1] += d[1]; l.smp.p[i + 2] += d[2] }
+        }
+        const on = {}
+        for (const l of 남은.r.layers) on[l.name] = 보임(l)
+        v.setLayers(남은.r.layers.map((l) => ({ ...l, off: !on[l.name] })))
+        set맞춤(null)
+        set맞춤글(`📍 옮겼습니다 — 가로 ${(d[0] / 1000).toFixed(2)} m · 세로 ${(d[1] / 1000).toFixed(2)} m${d[2] ? ` · 높이 ${(d[2] / 1000).toFixed(2)} m` : ''}. 다시 하려면 «자리 맞추기» 를 한 번 더 누르십시오.`)
+      }
+    }
+    return () => { if (v) v.onPick = null }
+  }, [맞춤, 결과, 높이도, 보임])   // eslint-disable-line react-hooks/exhaustive-deps
+
   const 그림받기 = () => {
     if (!viewRef.current) return
     const a = document.createElement('a')
@@ -224,6 +269,10 @@ export default function Dxf3d() {
   const 건물 = 결과 && 결과.건물 && !결과.건물.실패 ? 결과.건물 : null
   const 건물실패 = 결과 && 결과.건물 && 결과.건물.실패 ? 결과.건물 : null
   const 횡단 = 결과 && 결과.횡단 ? 결과.횡단 : null
+  const 구조 = 결과 && 결과.구조 ? 결과.구조 : null
+  const 그룹 = 결과 && 결과.그룹 ? 결과.그룹 : []
+  const 입체 = !!(건물 || 횡단 || 구조)
+  const 묶음켬상태 = (g) => { const n = g.층들.filter((k) => 층켬[k]).length; return n === 0 ? false : n === g.층들.length ? true : null }
   const 선수 = 결과 ? 결과.layers.reduce((n, l) => n + l.segs, 0) : 0
 
   return (
@@ -282,11 +331,22 @@ export default function Dxf3d() {
           ))}
           {(건물 || 횡단) && (<>
             <span className="dx3-sep" />
-            <button type="button" className={'chip' + (면 ? ' on' : '')} onClick={() => 면바꾸기(!면)}>{횡단 ? '🟫 땅·계획 면' : '🧱 벽 면'}</button>
+            <button type="button" className={'chip' + (면 ? ' on' : '')} onClick={() => 면바꾸기(!면)}>{횡단 && !건물 ? '🟫 땅·계획 면' : 건물 && !횡단 ? '🧱 벽 면' : '🧱 벽·땅 면'}</button>
           </>)}
           <span className="dx3-sep" />
           <button type="button" className="chip" onClick={그림받기}>🖼 그림 저장</button>
         </div>
+        {(맞춤 || 맞춤글) && (
+          <div className={'dx3-pick' + (맞춤 ? ' on' : '')}>
+            {맞춤 ? (<>
+              📍 <b>{맞춤.단계 === 1 ? '① 옮길 도면에서 기준이 될 점(모서리·선 끝)을 누르십시오' : '② 그 점이 가야 할 자리를 다른 도면에서 누르십시오'}</b>
+              <span className="muted"> — «{(그룹.find((x) => x.번 === 맞춤.g) || { 파일: [''] }).파일.join(' · ')}»</span>
+              <label className="dx3-pick-z"><input type="checkbox" checked={높이도} onChange={(e) => set높이도(e.target.checked)} /> 높이도 맞추기</label>
+              <button type="button" className="chip" onClick={() => { set맞춤(null); set맞춤글('') }}>그만두기</button>
+              {맞춤글 && <div className="dx3-warn" style={{ marginTop: 6 }}>{맞춤글}</div>}
+            </>) : <>{맞춤글}</>}
+          </div>
+        )}
         <div className="dx3-stage">
           <canvas ref={cvRef} className="dx3-cv" />
           <div className="dx3-hint">끌기 = 돌리기 · 오른쪽 끌기(Shift+끌기, 두 손가락) = 옮기기 · 휠(벌리기) = 확대</div>
@@ -296,12 +356,72 @@ export default function Dxf3d() {
             {결과.파일 && 결과.파일.length > 1 && <>도면 <b>{결과.파일.length}</b>장 · </>}
             선 <b>{쉼(선수)}</b>개 · 레이어 <b>{레이어들.length}</b>개
             {st.pts > 0 && <> · 점 <b>{쉼(st.pts)}</b>개</>}
-            {높이범위 && !건물 && !횡단 && <> · 켠 층 높이 <b>{높이글(높이범위[0])} ~ {높이글(높이범위[1])}</b></>}
-            {높이범위 && 횡단 && <> · 표고 <b>{(높이범위[0] / 1000).toFixed(2)} ~ {(높이범위[1] / 1000).toFixed(2)} m</b></>}
+            {높이범위 && !입체 && <> · 켠 층 높이 <b>{높이글(높이범위[0])} ~ {높이글(높이범위[1])}</b></>}
+            {높이범위 && 입체 && <> · 높이 <b>{(높이범위[0] / 1000).toFixed(2)} ~ {(높이범위[1] / 1000).toFixed(2)} m</b></>}
             {st.ver && <> · {st.ver}</>}
           </div>
         )}
 
+        {그룹.length > 1 && (
+          <div className="dx3-bld">
+            <div className="dx3-bh">🧩 <b>도면 {결과.파일.length}장을 {그룹.length}묶음으로 세웠습니다</b>
+              <button type="button" className="chip" onClick={() => { const n = {}; for (const k of Object.keys(층켬)) n[k] = true; set층켬(n); 다시켜기(레켬, n) }}>모두 켜기</button>
+            </div>
+            <div className="dx3-bsub">
+              도면마다 맞는 방식으로 세웠습니다 — 🏢 건물(평면도 + 레벨) · 🛣 횡단(측점·지반고) · 🏗 구조물(평면도 + 단면 EL) · 🗺 평면(그대로).
+              실제 좌표로 그린 평면도는 제자리에 겹치고, 나머지는 그 옆에 나란히 두었습니다. 자리를 맞추려면 <b>📍 자리 맞추기</b> → 옮길 도면의 한 점 → 갈 자리의 한 점을 누르십시오.
+            </div>
+            <div className="dx3-btbl">
+              <table className="tbl left">
+                <thead><tr><th>묶음</th><th>도면</th><th>무엇을</th><th></th></tr></thead>
+                <tbody>
+                  {그룹.map((g) => {
+                    const 켬 = 묶음켬상태(g)
+                    return (
+                      <tr key={g.번} className={켬 === false ? 'off' : ''}>
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          <label><input type="checkbox" checked={켬 !== false} ref={(el) => { if (el) el.indeterminate = 켬 === null }} onChange={(e) => 묶음켜기(g, e.target.checked)} /> {{ 건물: '🏢 건물', 횡단: '🛣 횡단', 구조: '🏗 구조물', 평면: '🗺 평면' }[g.종류]}</label>
+                          {' '}<button type="button" className="dx3-only" onClick={() => 묶음만(g)}>만</button>
+                        </td>
+                        <td style={{ fontSize: 12.5 }}>{g.파일.join(' · ')}{g.기준 && <span className="dx3-tag">기준 자리</span>}</td>
+                        <td className="muted" style={{ fontSize: 12 }}>{g.설명}</td>
+                        <td style={{ whiteSpace: 'nowrap' }}>{그룹.length > 1 && <button type="button" className={'chip' + (맞춤 && 맞춤.g === g.번 ? ' on' : '')} onClick={() => 맞추기시작(g)}>📍 자리 맞추기</button>}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        {구조 && 구조.map((q, qi) => (
+          <div key={'s' + qi} className="dx3-bld">
+            <div className="dx3-bh">🏗 <b>구조물로 세웠습니다</b> — «{q.파일}» · 평면도 + 단면 {q.단면.length - 1}장</div>
+            <div className="dx3-bsub">
+              평면도를 <b>G.L {q.평면EL.toFixed(2)} m</b> 에 눕히고, 단면마다 <b>EL 글자</b>로 도면 높이를 표고(m)로 맞춘 뒤
+              평면도의 <b>자르는 선(A ─ A)</b>에 세워 꽂았습니다(울타리처럼). 옆 자리는 단면 속 벽과 평면의 벽이 가장 많이 겹치게 맞췄습니다.
+            </div>
+            <div className="dx3-btbl">
+              <table className="tbl left">
+                <thead><tr><th>평면·단면</th><th>높이(EL)</th><th>어디에 세웠나</th><th>맞춤</th></tr></thead>
+                <tbody>
+                  {q.단면.map((f) => (
+                    <tr key={f.층} className={층켬[f.층] ? '' : 'off'}>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <label><input type="checkbox" checked={!!층켬[f.층]} onChange={(e) => 층켜기(f.층, e.target.checked)} /> {f.이름}</label>
+                        {' '}<button type="button" className="dx3-only" onClick={() => 층만(f.층)}>만</button>
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{f.EL[0] === f.EL[1] ? `${f.EL[0].toFixed(2)} m` : `${f.EL[0].toFixed(2)} ~ ${f.EL[1].toFixed(2)} m`}</td>
+                      <td className="muted" style={{ fontSize: 12 }}>{f.놓임}</td>
+                      <td className="muted" style={{ fontSize: 12 }}>{f.맞춤}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {q.빠짐.length > 0 && <div className="dx3-warn">⚠️ 세우지 못한 단면: {q.빠짐.join(' · ')}</div>}
+          </div>
+        ))}
         {건물 && (
           <div className="dx3-bld">
             <div className="dx3-bh">🏢 <b>건물로 세웠습니다</b> — 층 {건물.층들.length}개 · 벽·기둥 {쉼(건물.세운벽)}장
@@ -389,7 +509,7 @@ export default function Dxf3d() {
             {결과.못읽은.length > 0 && <>못 읽은 파일: {결과.못읽은.map((x) => x.이름).join(', ')}</>}
           </div>
         )}
-        {납작 && !건물 && !횡단 && (
+        {납작 && !입체 && (
           <div className="dx3-warn">
             ⚠️ 켠 층의 높이가 <b>모두 같습니다</b> — 이 도면은 평면으로만 그려져 있어 납작하게 보입니다.
             건물이면 <b>평면도와 입면도(또는 단면도·골구도)를 같이</b>, 토목이면 <b>횡단면도(측점·지반고 표가 있는 것)</b>를 놓아 보십시오.

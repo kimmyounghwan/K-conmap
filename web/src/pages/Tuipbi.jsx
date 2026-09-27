@@ -21,7 +21,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { use화면상태, 앞칸같은주소 } from '../lib/길기록.js'
 import { 원, 억만, 코드만들기, 코드보기, 코드정리, 비번해시, 예시현장, 휴지통날 } from '../lib/tuipbi.js'
 import { 열쇠만들기, 열쇠두기, 열쇠읽기, 열쇠지우기, 잠그기, 풀기 } from '../lib/tplock.js'
-import TuipbiSite, { TuipbiGuide } from './TuipbiSite.jsx'
+import TuipbiSite, { TuipbiGuide, 함께봄 } from './TuipbiSite.jsx'
 
 /* firebase 는 이 화면에서 «현장을 열 때만» 받습니다 (사랑방과 같은 방식) */
 let _fb = null
@@ -395,6 +395,7 @@ export default function Tuipbi() {
             주민번호·계좌는 <b>현장 비밀번호로 잠가</b> 저장합니다(저희도 못 봅니다).
           </div>
           <div className="tp-autosave">💾 <b>자동 저장</b> — 누르고 적는 순간 서버에 저장됩니다. 저장 단추가 없습니다. 오늘 적은 것은 <b>내일도, 다음 달에도 다시 열어 고칠 수 있습니다</b>(폰·PC 어디서든 같은 현장 코드로).</div>
+          <함께봄 />
         </div>
       )}
       {바쁨 && <div className="card tp-busy">⏳ {바쁨}</div>}

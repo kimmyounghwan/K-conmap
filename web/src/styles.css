@@ -3544,6 +3544,12 @@ ul.plainlist li { margin-bottom: 5px; }
 .dx3-btbl tr.off { opacity: .5; }
 .dx3-btbl input { width: auto; margin: 0 4px 0 0; }
 .dx3-only { border: 1px solid var(--line); background: var(--surface-2); color: var(--text-2); border-radius: 6px; font-size: 11px; padding: 1px 6px; cursor: pointer; width: auto; }
+/* 📍 기준점 찍기 (2026-09-27) */
+.dx3-pick { margin: 8px 0; padding: 8px 11px; border-radius: 9px; font-size: 13px; background: var(--surface-2); line-height: 1.7; }
+.dx3-pick.on { background: #fff7ed; border: 1px solid #fdba74; }
+.dx3-pick .chip { margin-left: 6px; }
+.dx3-pick-z { margin-left: 10px; font-size: 12.5px; white-space: nowrap; }
+.dx3-bld td .dx3-tag { margin-left: 6px; }
 .dx3-btbl td:nth-child(4) { min-width: 170px; }
 @media (max-width: 560px) { .dx3-btbl th:nth-child(5), .dx3-btbl td:nth-child(5) { display: none; } }
 /* 🧪 예시로 해 보기 (2026-09-26) — 도구마다 맨 위 한 줄 */
@@ -3652,6 +3658,24 @@ ul.plainlist li { margin-bottom: 5px; }
 .tp-trow { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
 .tp-trow:first-of-type { border-top: 0; }
 .tp-tdesc { min-width: 0; overflow-wrap: anywhere; }
+/* 🤝 원·하도급 함께 보기 (2026-09-27) */
+.tp-together { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--good-soft, #ecfdf5); border: 1px solid var(--good, #10b981); font-size: 13.5px; line-height: 1.7; }
+.tp-together-h { font-weight: 800; color: var(--good, #047857); }
+.qna-rule ol li { margin: 3px 0; }
+/* 📌 2026-09-27 공지(쓰는 법) · 도구 사용법 — 게시판 맨 위. 밤 화면에서도 읽히게 색은 변수로 */
+.qna-notice { border: 1.5px solid var(--warn); background: var(--warn-soft); border-radius: 12px; padding: 11px 14px; }
+.qna-notice > summary { color: var(--warn); font-size: 14.5px; }
+.qna-notice > summary .qna-notice-sub { color: var(--text-2); font-weight: 500; font-size: 12.5px; }
+.qna-memo { margin-top: 8px; padding: 9px 11px; border-radius: 9px; background: var(--surface); border: 1.5px solid var(--warn); font-size: 13px; line-height: 1.75; }
+.qna-memo-h { font-weight: 800; color: var(--warn); }
+.qna-memo ul { margin: 4px 0 0; padding-left: 4px; list-style: none; }
+.qna-pinnote { margin-top: 6px; font-size: 12.5px; color: var(--warn); background: var(--warn-soft); border-radius: 7px; padding: 5px 8px; }
+.qna-pinbox { margin-bottom: 10px; border: 1.5px solid var(--accent-line); background: var(--accent-soft); border-radius: 12px; padding: 10px 12px 4px; }
+.qna-pinbox-h { display: flex; align-items: center; gap: 6px; font-weight: 800; color: var(--accent); font-size: 14.5px; }
+.qna-pinbox-fb { font-size: 12.5px; color: var(--text-2); margin: 3px 0 8px; line-height: 1.6; }
+.qna-pinbox .card { margin-bottom: 6px; padding: 9px 12px; border-color: var(--accent-line); }
+.qna-reclaim { display: block; margin-top: 10px; padding: 0; border: 0; background: none; color: var(--text-2); font-size: 12.5px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; text-align: left; }
+.qna-pinbox-more { display: block; width: 100%; margin: 2px 0 6px; padding: 7px; border: 1px dashed var(--accent-line); border-radius: 9px; background: var(--surface); color: var(--accent); font-size: 13px; cursor: pointer; }
 .tp-trow .btn { flex: none; white-space: nowrap; }
 .tp-del summary { cursor: pointer; color: #dc2626; }
 .tp-del input { margin: 6px 0; }

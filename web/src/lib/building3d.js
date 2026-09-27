@@ -45,6 +45,18 @@ export function 높이읽기(s) {
   return { 종류, v }
 }
 
+/* 🏷 레벨 표시 말 (2026-09-27) — 「G.L±0」 을 기준으로 위아래 레벨 글자 */
+const 지반표 = /^\s*(G\.?\s?L|지반고?)\s*(±|\+\/-)\s*0(\.0+)?\s*$/i
+export function 레벨열쇠(s) {
+  const t = String(s).replace(/\s+/g, ' ').trim()
+  if (t.length > 16) return null
+  let m
+  if ((m = /^(\d+)\s*(st|nd|rd|th)?\s*(층)?\s*(S\.?L|F\.?L)$/i.exec(t))) return [String(+m[1])]
+  if ((m = /^(B|지하)\s*(\d+)\s*(층)?\s*(S\.?L|F\.?L)$/i.exec(t))) return ['B' + m[2]]
+  if (/^(roof|지붕)\s*(B\.?T\.?|bottom|바닥|하단|S\.?L|F\.?L)$|^R\.?F\.?L$|^옥상\s*(S\.?L|F\.?L)$/i.test(t)) return ['RF', 'PH']
+  return null
+}
+
 /**
  * ① 층 높이 찾기 — 여러 도면의 글자를 한데 모아
  * @returns {{ 높이: {열쇠: mm}, 근거: [{층, 값, 번, 파일, 다른값}], 겹침: [] }}
@@ -106,6 +118,31 @@ export function 층높이찾기(파일들) {
       }
     }
   }
+  /* 🏷 2026-09-27 — 단면·입면의 «레벨 표시» 줄(G.L±0 · 1st S.L · Roof B.T · Roof TOP)도 층 높이입니다.
+     소장님 도면(단층 펌프동 전기실): 층 이름 옆에 FL 글자가 없고, 레벨 표시만 G.L±0 위로 한 줄로 서 있었습니다.
+     → G.L±0 글자와 «같은 세로줄»(글자 높이 3배 안)에 선 레벨 글자의 높이 차이 = 그 층 높이(1:1 모델 공간, mm).
+        글자에서 찾은 값이 있으면 그것이 먼저입니다(자리로 잰 값은 ±5cm 쯤 어긋날 수 있음). */
+  for (const { 이름, texts } of 파일들) {
+    const 바닥들 = texts.filter((t) => 지반표.test(t.s))
+    if (!바닥들.length) continue
+    const 레벨글 = texts.filter((t) => 레벨열쇠(t.s))
+    for (const g of 바닥들) {
+      const h = g.h || 100
+      for (const t of 레벨글) {
+        if (t === g || Math.abs(t.x - g.x) > 3 * h) continue
+        const v = Math.round((t.y - g.y) / 10) * 10
+        if (v < -30000 || v > 60000 || Math.abs(v) < 50) continue
+        for (const k of 레벨열쇠(t.s)) {
+          if (표.has(k) && [...표.get(k).values()].some((r) => !r.자리)) continue
+          if (!표.has(k)) 표.set(k, new Map())
+          const m = 표.get(k)
+          const r = m.get(v) || { 번: 0, 파일: new Set(), 글: `${g.s} 위 레벨 «${t.s}» — 자리로 잼(${(v / 1000).toFixed(2)} m)`, 자리: true }
+          r.번++; r.파일.add(이름)
+          m.set(v, r)
+        }
+      }
+    }
+  }
   const 높이 = {}, 근거 = []
   for (const [k, m] of 표) {
     const 후보 = [...m.entries()].sort((a, b) => b[1].번 - a[1].번 || b[0] - a[0])
@@ -164,8 +201,8 @@ export function 평면제목(texts) {
   return [...by.values()].sort((a, b) => 층차례(a.층) - 층차례(b.층))
 }
 
-const 통심층 = /center|grid|통심|중심선|C-GRD|A-GRID/i
-const 세울층 = /wall|벽|col(umn)?\b|col$|기둥|conc|옹벽|parapet|파라펫/i
+const 통심층 = /center|grid|통심|중심선|C-GRD|A-GRID|^cen$/i
+const 세울층 = /wall|^wal$|벽|col(umn)?\b|col$|기둥|conc|옹벽|parapet|파라펫/i
 const 빼는층 = /dim|치수|text|글|hatch|해치|sheet|도곽|leader|sym|furn|fur\b|가구|area|구적/i
 
 /**
@@ -304,11 +341,43 @@ export function 쌓기(raw, 제목, 높이, 새버킷) {
       둘레 = [q(xs, 0.002) - 4000, q(ys, 0.002) - 4000, q(xs, 0.998) + 4000, q(ys, 0.998) + 4000]
     }
   }
+  /* 🧱 2026-09-27 — 벽이 «0» 같은 아무 레이어에 그려진 도면(소장님 펌프동 전기실)도 있습니다.
+     레이어 이름 대신 «모양» 으로도 찾습니다: 나란한 두 줄(가로·세로)이 8~45cm 떨어져 절반 넘게 겹치면 벽.
+     (창·문틀 줄도 섞여 들 수 있지만, 반투명 면이라 안이 비쳐 보입니다) */
+  const 짝벽 = new Set()
+  {
+    const 가로 = [], 세로 = []
+    for (const [ly, b] of raw.out) {
+      if (빼는층.test(ly) || 통심층.test(ly) || 세울층.test(ly)) continue
+      const a = b.pos.a
+      for (let i = 0; i < b.pos.n; i += 6) {
+        const mx = (a[i] + a[i + 3]) / 2, my = (a[i + 1] + a[i + 4]) / 2
+        const k = 주인(mx, my)
+        if (k < 0) continue
+        const dx = a[i + 3] - a[i], dy = a[i + 4] - a[i + 1]
+        if (Math.abs(dy) < 1 && Math.abs(dx) >= 600) 가로.push([k, a[i + 1], Math.min(a[i], a[i + 3]), Math.max(a[i], a[i + 3]), ly + '|' + i])
+        else if (Math.abs(dx) < 1 && Math.abs(dy) >= 600) 세로.push([k, a[i], Math.min(a[i + 1], a[i + 4]), Math.max(a[i + 1], a[i + 4]), ly + '|' + i])
+      }
+    }
+    for (const 줄 of [가로, 세로]) {
+      줄.sort((p, q) => p[0] - q[0] || p[1] - q[1])
+      for (let i = 0; i < 줄.length; i++) {
+        const A = 줄[i]
+        for (let j = i + 1; j < 줄.length; j++) {
+          const B = 줄[j]
+          if (B[0] !== A[0] || B[1] - A[1] > 450) break
+          if (B[1] - A[1] < 80) continue
+          const 겹 = Math.min(A[3], B[3]) - Math.max(A[2], B[2])
+          if (겹 >= 0.5 * Math.min(A[3] - A[2], B[3] - B[2])) { 짝벽.add(A[4]); 짝벽.add(B[4]) }
+        }
+      }
+    }
+  }
   let 세운벽 = 0
   for (const [ly, b] of raw.out) {
     if (빼는층.test(ly) && !세울층.test(ly)) continue
     const a = b.pos.a, c = b.col.a
-    const 세움 = 세울층.test(ly) && !통심층.test(ly)
+    const 층세움 = 세울층.test(ly) && !통심층.test(ly)
     for (let i = 0, ci = 0; i < b.pos.n; i += 6, ci += 6) {
       const mx = (a[i] + a[i + 3]) / 2, my = (a[i + 1] + a[i + 4]) / 2
       const k = 주인(mx, my)
@@ -329,6 +398,7 @@ export function 쌓기(raw, 제목, 높이, 새버킷) {
       nb.pos.push6(x1, y1, z, x2, y2, z)
       nb.col.push3(c[ci], c[ci + 1], c[ci + 2]); nb.col.push3(c[ci], c[ci + 1], c[ci + 2])
       const H = 층고[k]
+      const 세움 = 층세움 || 짝벽.has(ly + '|' + i)
       if (세움 && H > 0 && Math.hypot(x2 - x1, y2 - y1) > 1) {
         nb.pos.push6(x1, y1, z + H, x2, y2, z + H)                       // 윗선
         nb.col.push3(c[ci], c[ci + 1], c[ci + 2]); nb.col.push3(c[ci], c[ci + 1], c[ci + 2])
