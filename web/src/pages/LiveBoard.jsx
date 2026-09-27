@@ -23,6 +23,9 @@ import { won, wonShort, num, dateTime, dday, REGIONS, inRegion, estOf } from '..
 import { loadLicCodes, saveLicCodes, loadLicNone, saveLicNone,
          licList, licNoneCount, licHit, licShort, loadRegion, saveRegion } from '../lib/lic.js'
 import { use남김 } from '../lib/길기록.js'
+/* 🤝 공동도급 (2026-09-27) — 판정은 lib/공동.js 한 곳, 그리기는 공동칸.jsx */
+import { 공동판정, load우리지역, save우리지역 } from '../lib/공동.js'
+import { 공동딱지, 공동칸, 공동거르개 } from '../공동칸.jsx'
 
 /* ══════════════════════════════════════════════════════════════
    «바로투찰» 버튼은 계산이 되는 공고에만 답니다.
@@ -104,6 +107,16 @@ export default function LiveBoard() {
   const [lics, setLics] = useState(loadLicCodes)
   const [licNone, setLicNone] = useState(loadLicNone)
   const [docOnly, setDocOnly] = use남김('kcm.live.doc', false, 'session')   // 단가 든 내역서가 붙은 공고만
+  /* 🤝 공동도급 거르기 — '' 끔 · 'all' 공동 되는 공고 · 'need' 단독은 안 되고 공동이면 되는 공고 */
+  const [공동거름, set공동거름] = use남김('kcm.live.jnt', '', 'session')
+  const [우리지역, set우리지역Raw] = useState(load우리지역)
+  const set우리지역 = (v) => { set우리지역Raw(v); save우리지역(v) }
+  const 나 = useMemo(() => ({ 지역: 우리지역, 면허: lics }), [우리지역, lics])
+  const 공동맞나 = (r) => {
+    if (!공동거름) return true
+    const 판 = 공동판정(r, 나)
+    return 공동거름 === 'need' ? 판.공동이면 : 판.허용
+  }
   const [editLic, setEditLic] = useState(false)
   const [open, setOpen] = use남김('kcm.live.open', null, 'session')
   const now = useMemo(() => nowStamp(), [])
@@ -176,7 +189,7 @@ export default function LiveBoard() {
   }
 
   const 첫 = useRef(true)   /* 처음 그릴 때는 남긴 쪽을 지우지 않습니다 */
-  useEffect(() => { if (첫.current) { 첫.current = false; return } setPage(1) }, [region, q, mine, lics, licNone, onlyGood, docOnly, mode, sortBy, fewOnly, amt])   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (첫.current) { 첫.current = false; return } setPage(1) }, [region, q, mine, lics, licNone, onlyGood, docOnly, mode, sortBy, fewOnly, amt, 공동거름, 우리지역])   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { saveLicCodes(lics) }, [lics])
   useEffect(() => { saveLicNone(licNone) }, [licNone])
 
@@ -189,7 +202,7 @@ export default function LiveBoard() {
         — collect.py 의 export_board 가 이 순서로 만듭니다. selfcheck 가 대조합니다.
         base/lo/hi 는 「해볼 만한 공고만」 등급이 쓰고, lic 은 면허 거르기가 씁니다
         (2026-09-05 — 전에는 공고명 낱말로 «추측» 해서 정확도가 15.7% 였습니다). */
-  const filtering = q.trim().length > 0 || region !== '전국' || mine || onlyGood || docOnly || !!amt
+  const filtering = q.trim().length > 0 || region !== '전국' || mine || onlyGood || docOnly || !!amt || !!공동거름
   /* 💰 금액을 몰라서 못 거른 공고를 «셉니다». 화면이 정직하게 적습니다.
      ⚠️ ref 인 까닭: match 는 useBoard 가 색인을 훑을 때 불립니다. 여기서 setState 를 하면
         훑는 중에 다시 그리기가 돌아 무한히 돕니다. 세기만 하고, 다 센 뒤에 한 번 읽습니다. */
@@ -199,8 +212,9 @@ export default function LiveBoard() {
     const s = q.trim()
     모름수.current = 0
     return (a) => {
-      const [name, inst, base, lo, hi, lic, sido, dsn, est] = a
+      const [name, inst, base, lo, hi, lic, sido, dsn, est, jnt] = a
       if (!inRegion({ name, inst, sido }, region)) return false
+      if (공동거름 && !공동맞나({ jnt: jnt || 0 })) return false
       if (s && !((name || '').includes(s) || (inst || '').includes(s))) return false
       if (mine && lics.length && !licHit(lic, lics, licNone)) return false
       if (docOnly && !(dsn >= 2)) return false
@@ -214,7 +228,7 @@ export default function LiveBoard() {
       if (ok === null) { 모름수.current += 1; return false }
       return ok
     }
-  }, [filtering, q, region, mine, lics, licNone, onlyGood, docOnly, amt])
+  }, [filtering, q, region, mine, lics, licNone, onlyGood, docOnly, amt, 공동거름, 나])   // eslint-disable-line react-hooks/exhaustive-deps
 
   const { info, rows: all, pageRows, pageReady, total, indexReady, loading, busy } =
     useBoard('live', KIND, { match: pick ? null : match, page, perPage: PAGE })
@@ -242,6 +256,7 @@ export default function LiveBoard() {
       if (s && !((r.name || '').includes(s) || (r.inst || '').includes(s))) continue
       if (mine && lics.length && !licHit(r.lic, lics, licNone)) continue
       if (docOnly && !((r.dsn || 0) >= 2)) continue
+      if (!공동맞나(r)) continue
       if (onlyGood) {
         const g = winGrade(r)
         if (!g || (g.key !== 'A' && g.key !== 'B')) continue
@@ -261,7 +276,7 @@ export default function LiveBoard() {
     else if (sortBy === 'ev') out.sort((a, b) => evOf(b) - evOf(a) || rateOf(b) - rateOf(a))
     else out.sort((a, b) => stamp14(a.close).localeCompare(stamp14(b.close)))
     return out
-  }, [pick, idx, q, region, mine, lics, licNone, onlyGood, docOnly, fewOnly, amt, sortBy, p50, now])
+  }, [pick, idx, q, region, mine, lics, licNone, onlyGood, docOnly, fewOnly, amt, sortBy, p50, now, 공동거름, 나])   // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ⭐ 담은 공고 — 담은 것은 공고번호뿐이라 여기서 bidindex 로 다시 찾습니다.
      마감이 지난 것은 지우지 않고 «마감됨» 으로 남겨 둡니다 — 조용히 사라지면 사용자가 알 수 없습니다. */
@@ -345,6 +360,8 @@ export default function LiveBoard() {
       {/* 💰 금액 (2026-09-17) — 지역·면허 바로 아래. 이 셋이 «내 조건» 입니다.
           지역·면허처럼 브라우저가 기억합니다 — 매번 다시 넣게 하면 아무도 안 씁니다. */}
       {!bagMode && <AmtBar amt={amt} setAmt={(v) => { setAmt(v); saveAmt(v) }} />}
+      {/* 🤝 공동도급 (2026-09-27) — 금액 바로 아래. 우리 회사 지역도 여기서 정합니다 */}
+      {!bagMode && <공동거르개 값={공동거름} set값={set공동거름} 우리지역={우리지역} set우리지역={set우리지역} />}
 
       {!bagMode && (editLic || (mine && !lics.length)) && (
         <div className="card">
@@ -523,6 +540,7 @@ export default function LiveBoard() {
                     const g = winGrade(r)
                     return g ? <span className={'gbadge ' + g.tone}>{g.key} {g.label}</span> : null
                   })()}
+                  <공동딱지 r={r} 나={나} />
                   {canBid(r, now) && (
                     <Link className="gocalc" onClick={(e) => e.stopPropagation()}
                       to={`/?no=${encodeURIComponent(r.no || '')}`}>💰 바로투찰</Link>
@@ -697,6 +715,9 @@ export default function LiveBoard() {
 
                       <div><span>공고번호</span><b>{r.no}{r.ord ? `-${r.ord}` : ''}</b></div>
                     </div>
+
+                    {/* 🤝 공동도급 — 공동이 되는 공고에만 그립니다 */}
+                    <공동칸 r={r} 나={나} />
 
                     {/* 공고문 첨부 — 조달청이 준 이름·주소 그대로입니다.
                         2026-09-05: 내역서를 갈래로 갈라 앞으로 올리고 뱃지를 붙였습니다.

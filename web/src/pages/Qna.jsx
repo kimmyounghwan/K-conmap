@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 /* ⚠️ firebase 는 «정적으로» 끌어오지 않습니다. 이 화면을 열 때만 받습니다. (Jobs.jsx 와 같은 방식) */
 let _fb = null
 const loadFb = async () => {
@@ -164,6 +164,22 @@ export default function Qna() {
   const [onlyMine, setOnlyMine] = useState(false)
   const [q, setQ] = use남김('kcm.qna.찾기', '', 'session')
   const [갈래, set갈래] = use남김('kcm.qna.갈래', '전체', 'session')
+  /* 🤝 2026-09-27 — 공고 카드에서 «구성원 구하는 글 쓰기» · «이 공고 글 보기» 로 들어온 경우(주소 뒤 state).
+     새글 = { c: 말머리, t: 제목, b: 본문 } — 한 번만 씁니다(글을 올리거나 닫으면 비웁니다). */
+  const loc = useLocation()
+  const 가기 = useNavigate()
+  const [새글, set새글] = useState(() => (loc.state && loc.state.새글) || null)
+  useEffect(() => {
+    const st = loc.state || {}
+    if (!st.찾기 && !st.새글) return
+    if (st.찾기) { setQ(String(st.찾기)); set갈래('전체') }
+    if (st.새글) set새글(st.새글)
+    /* 한 번 썼으면 기록에서 뗍니다 — 안 떼면 글쓰기를 닫을 때마다 다시 열립니다 */
+    const { 찾기: _a, 새글: _b, ...남은 } = st
+    const 화면 = { ...(남은.화면 || {}) }
+    if (st.새글) 화면.글쓰기 = true
+    가기({ pathname: loc.pathname, search: loc.search, hash: loc.hash }, { replace: true, state: { ...남은, 화면 } })
+  }, [loc.key])   // eslint-disable-line react-hooks/exhaustive-deps
   const [jobs, setJobs] = useState([])
   const [seen, setSeen] = useState(loadSeen)
   /* 📌 고정 글(qna_top) · 🔑 나(지금 번호·옛 번호) — 둘 다 «못 읽어도» 게시판은 그대로 뜹니다 */
@@ -536,8 +552,8 @@ export default function Qna() {
       </div>
 
       {write && (
-        <WriteForm 첫갈래={갈래 === '전체' ? '' : 갈래} 나운영자={나운영자}
-          onDone={() => { 글쓰기닫기(false); load(); setMine(loadMine()) }} />
+        <WriteForm 첫갈래={새글 ? 새글.c : (갈래 === '전체' ? '' : 갈래)} 첫글={새글} 나운영자={나운영자}
+          onDone={() => { set새글(null); 글쓰기닫기(false); load(); setMine(loadMine()) }} />
       )}
 
       {/* 🏷️ 말머리 — 글은 한 웅덩이, 문만 여럿. 숫자를 붙여 «빈 방» 으로 보이지 않게 합니다. */}
@@ -934,14 +950,19 @@ function AnswerForm({ qid, onDone }) {
 
 /* ── 질문 쓰기 ─────────────────────────────────────────────────── */
 const 초안열쇠 = 'kcm.qna.초안'
-function WriteForm({ onDone, 첫갈래, 나운영자 }) {
-  /* 🧭 2026-09-27 — 쓰다가 다른 화면에 갔다 와도 적은 글이 남게(이 탭을 닫을 때까지). 지울 때 쓸 숫자는 남기지 않습니다. */
+function WriteForm({ onDone, 첫갈래, 첫글, 나운영자 }) {
+  /* 🧭 2026-09-27 — 쓰다가 다른 화면에 갔다 와도 적은 글이 남게(이 탭을 닫을 때까지). 지울 때 쓸 숫자는 남기지 않습니다.
+     🤝 공고 카드에서 넘어온 초안(첫글)이 있으면 그것부터 — 소장님이 고쳐 쓰실 수 있게 칸에만 넣습니다(바로 올리지 않음). */
   const [f, setF] = useState(() => {
+    if (첫글 && (첫글.t || 첫글.b)) return { t: String(첫글.t || '').slice(0, 80), b: String(첫글.b || '').slice(0, 2000), pin: '' }
     try { const d = JSON.parse(sessionStorage.getItem(초안열쇠) || 'null'); if (d) return { t: d.t || '', b: d.b || '', pin: '' } } catch (e) { /* 없음 */ }
     return { t: '', b: '', pin: '' }
   })
   const [c, setC] = useState(첫갈래 || '')
   useEffect(() => { try { sessionStorage.setItem(초안열쇠, JSON.stringify({ t: f.t, b: f.b })) } catch (e) { /* 없음 */ } }, [f.t, f.b])
+  /* 🤝 공고에서 초안을 들고 왔으면 글쓰기 칸으로 내려 줍니다 — 공지가 펼쳐져 있으면 화면 아래에 묻힙니다 */
+  const 칸 = useRef(null)
+  useEffect(() => { if (첫글 && 칸.current) { try { 칸.current.scrollIntoView({ block: 'start', behavior: 'smooth' }) } catch (e) { /* 옛 브라우저 */ } } }, [])   // eslint-disable-line react-hooks/exhaustive-deps
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const [고정할, set고정할] = useState(false)
@@ -981,7 +1002,7 @@ function WriteForm({ onDone, 첫갈래, 나운영자 }) {
   }
 
   return (
-    <div className="card" style={{ marginBottom: 10 }}>
+    <div className="card" ref={칸} style={{ marginBottom: 10, scrollMarginTop: 70 }}>
       <div className="sec-title" style={{ margin: '0 0 10px' }}>글쓰기</div>
 
       {/* 어디에 쓸지부터. 「전체」에서 들어오셨으면 고르셔야 글이 갈 곳이 생깁니다. */}

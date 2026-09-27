@@ -770,7 +770,30 @@ def lic_by_day(key, day, kind):
         cur = out.setdefault(no, [])
         if nm not in cur:
             cur.append(nm)
+            # 🤝 2026-09-27 — 제한 그룹 번호(lmtGrpNo)도 같은 차례로 둡니다(공동도급 «면허로 단독 불가» 판정용).
+            #    나라장터 공고의 «업종제한 [그룹1] … [그룹2] …» 그 번호입니다. 모르면 0.
+            try:
+                g = int(str(pick(it, "lmtGrpNo") or "0").strip() or 0)
+            except Exception:
+                g = 0
+            LIC_GRP.setdefault(no, []).append(g)
     return out
+
+
+# lic_by_day 가 채웁니다 — {공고번호: [그룹번호, …]} (lic 이름 목록과 같은 차례)
+LIC_GRP = {}
+
+
+def put_licg(row, no, names):
+    """row 의 lic 가 이번에 받은 이름 목록과 «같을 때만» 그룹 번호를 붙입니다(차례가 맞아야 뜻이 있습니다)."""
+    g = LIC_GRP.get(no)
+    if not g or row.get("licg"):
+        return False
+    lic = row.get("lic") or []
+    if list(lic) == list(names[:6]) and len(g) >= len(lic):
+        row["licg"] = g[:len(lic)]
+        return True
+    return False
 
 
 def bsis_one(key, no, kind):
@@ -907,7 +930,7 @@ def row_live(item):
     # 공고서에 있는 내용을 되도록 사이트 안에서 볼 수 있게 담아 옵니다.
     # 항목 이름이 문서와 다를 때가 있어 후보를 여러 개 적어 pick() 으로 찾습니다.
     # 비어 오면 화면에서 그 줄만 빠집니다.
-    return {
+    out = {
         "no": no,
         "ord": txt("bidNtceOrd"),
         "name": str(item.get("bidNtceNm", "")).strip(),
@@ -947,6 +970,234 @@ def row_live(item):
         # 없을 가능성이 큽니다 — 추측하지 않고 실제 값을 보고 정합니다.
         "url2": txt("bidNtceUrl"),
     }
+    # 🤝 공동도급 칸 (2026-09-27) — 있을 때만 붙입니다(대부분 공고는 «공동수급불허» 라 비어 옵니다)
+    out.update(joint_extra(item))
+    return out
+
+
+# ══════════════════════════════════════════════════════════════════
+#  🤝 공동도급 — 2026-09-27, 소장님 「단독은 못하지만 공동으로 가능한 경우」 · 「없어도 할 수 있는 건 다 해 놓자」
+#
+#  조달청 공고 목록(getBidPblancListInfoCnstwk)이 이미 주던 칸인데 «공동수급 방식» 이름만 받고
+#  나머지는 버리고 있었습니다(diag.json 표본으로 확인 — CLAUDE.md 1번 «주는 값은 그대로 쓴다»).
+#      cmmnSpldmdAgrmntClseDt      공동수급 협정서 마감 일시   → jagr  (입찰 마감보다 먼저라 놓치기 쉬움)
+#      cmmnSpldmdCorpRgnLmtYn      공동수급업체도 지역제한?    → jrgl  "Y" 일 때만
+#      rgnDutyJntcontrctYn         지역의무 공동도급 여부      → jdy   "Y" 일 때만 (없을 때도 있어 아래 둘로도 봅니다)
+#      rgnDutyJntcontrctRt         지역의무 공동도급 지분율(%) → jdrt
+#      jntcontrctDutyRgnNm1~3      의무 지역 이름              → jdrg (원문 그대로) · jdrs (시도 줄임 — 화면이 비교에 씀)
+#  ⚠️ 빈 칸은 싣지 않습니다 — 공고 1만 2천 건 중 공동이 허용된 것은 6% 뿐입니다(파일 크기).
+#  ⚠️ 시도 줄임은 여기 한 곳(_head_sido)에서만 합니다. 화면에서 다시 줄이지 않습니다(두 벌이면 어긋납니다).
+# ══════════════════════════════════════════════════════════════════
+def joint_extra(item):
+    def t(*names):
+        v = pick(item, *names)
+        return str(v).strip() if v is not None else ""
+    out = {}
+    agr = t("cmmnSpldmdAgrmntClseDt")
+    if agr:
+        out["jagr"] = agr
+    if t("cmmnSpldmdCorpRgnLmtYn").upper() == "Y":
+        out["jrgl"] = "Y"
+    if t("rgnDutyJntcontrctYn").upper() == "Y":
+        out["jdy"] = "Y"
+    rt = to_f(t("rgnDutyJntcontrctRt"))
+    if rt and 0 < rt <= 100:
+        out["jdrt"] = int(rt) if float(rt).is_integer() else round(rt, 2)
+    names = [t(f"jntcontrctDutyRgnNm{i}") for i in (1, 2, 3)]
+    names = [n for n in names if n]
+    if names:
+        out["jdrg"] = names
+        short = []
+        for n in names:
+            for ab in (_head_sido(n) or "").split(","):
+                if ab and ab not in short:
+                    short.append(ab)
+        if short:
+            out["jdrs"] = short
+    return out
+
+
+# ══════════════════════════════════════════════════════════════════
+#  👥 공동입찰 구성원 찾기 — 2026-09-27, 소장님
+#     「공동입찰이 가능한 회사를 찾아주는 것 까지 해보자 … 회사들을 우선 보여주는 방향으로 …
+#       두 회사가 공동입찰 가능하다 … 회사가 많으면 그 회사들을 다 보여주는 거지」 · 「우선은 시작해 보고, 차례차례 붙여나가자」
+#
+#  ■ 짐작하지 않고 «실제 투찰 기록» 으로 가립니다
+#    · 면허: 그 면허 제한 공고에 **투찰한** 업체 = 그 면허가 있는 업체 (나라장터가 면허 없는 투찰을 막습니다).
+#            ⚠️ 공고 면허가 여럿이면 «그중 하나» 일 수 있어 한 업체에 다 붙이지 않습니다 —
+#               면허가 하나인 공고, 또는 면허 그룹(licg)이 하나뿐인(=모두 필요) 공고만 씁니다.
+#    · 지역: 지역제한 공고(rgnb)에 투찰한 업체 = 그 지역 업체(본사·지사) — 참가가능지역이 시도 하나일 때만.
+#            낙찰자 주소(adr, 조달청 낙찰자 목록)도 씁니다.
+#  ■ 장부(data/store/partners.json — 저장소에 안 올림, 회차 사이 보관은 Actions cache)는 «근거와 마지막 날짜» 를 쌓습니다.
+#    개찰 저장소는 70일이면 버리지만 장부는 3년까지 남깁니다. 참가·1순위 «건수» 는 최근 개찰 저장소(70일)로 셉니다.
+#  ■ 화면 파일: data/partners/{면허코드 또는 묶음 0001_4989_4994}.json — [사업자번호, 이름, 지역들, 최근 참가, 최근 1순위, 마지막 날] ·
+#    data/partners/_idx.json — {면허코드: [업체 수, 면허 이름]}
+#  ⚠️ 연락처(전화·주소)는 싣지 않습니다. 이름을 누르면 업체 성적 화면으로 갑니다.
+# ══════════════════════════════════════════════════════════════════
+PARTNER_LEDGER = os.path.join(STORE, "partners.json")
+PARTNER_KEEP_DAYS = 1095
+
+
+def _ymd8(v):
+    d = re.sub(r"[^0-9]", "", str(v or ""))[:8]
+    return d if len(d) == 8 else ""
+
+
+def _code_ok(c):
+    """면허 코드(0001) 또는 면허 묶음(0001_4989_4994) — 파일 이름으로 써도 안전한 것만"""
+    return bool(re.fullmatch(r"[0-9A-Za-z]{1,12}(_[0-9A-Za-z]{1,12}){0,5}", str(c or "")))
+
+
+def partner_evidence(first, live):
+    """개찰 저장소(+ 같은 공고의 공고 줄)에서 업체마다 면허·지역 근거를 뽑습니다.
+
+    돌려줌: (근거, 건수)
+      근거 = {사업자번호: {"n": 이름, "l": {코드: 날짜}, "ln": {코드: 면허이름}, "r": {시도: 날짜}}}
+      건수 = {사업자번호: [참가, 1순위]}"""
+    ev, cnt = {}, {}
+    lv = live.get("con", {}) if isinstance(live, dict) else {}
+    for no, r in (first.get("con", {}) or {}).items():
+        d = _ymd8(r.get("dt"))
+        if not d:
+            continue
+        lr = lv.get(no) or {}
+        pairs = lic_pairs(r) or lic_pairs(lr)
+        g = lr.get("licg") or []
+        if len(pairs) == 1:
+            lic_ok = pairs
+        elif pairs and len(g) == len(pairs) and len(set(g)) == 1 and g[0] > 0:
+            lic_ok = pairs                       # 한 그룹 = 모두 갖춰야 하는 공고
+        elif 1 < len(pairs) <= 6 and all(_code_ok(c) for c, _ in pairs):
+            # «그중 하나» 일 수 있는 공고 — 면허 하나하나에 붙이지 않고 «이 면허 묶음» 에 붙입니다.
+            # 같은 묶음으로 나온 다음 공고에는 그대로 넣을 수 있는 업체입니다(대개 종합·전문 같이 받는 묶음).
+            ps = sorted(pairs)
+            lic_ok = [("_".join(c for c, _ in ps), " 또는 ".join(nm for _, nm in ps))]
+        else:
+            lic_ok = []
+        lic_ok = [(c, nm) for c, nm in lic_ok if _code_ok(c)]
+        rg = ""
+        if lr.get("rgnb"):
+            sid = []
+            for part in re.split(r"[,/·]", str(lr.get("rgn") or "")):
+                for ab in (_head_sido(part.strip()) or "").split(","):
+                    if ab and ab not in sid:
+                        sid.append(ab)
+            if len(sid) == 1:
+                rg = sid[0]
+        corps = r.get("corps") if isinstance(r.get("corps"), list) else []
+        seen = set()
+        for c in corps:
+            if not isinstance(c, (list, tuple)) or len(c) < 4:
+                continue
+            b = re.sub(r"[^0-9]", "", str(c[3] or ""))
+            if len(b) != 10 or b in seen:
+                continue
+            seen.add(b)
+            e = ev.setdefault(b, {"n": "", "l": {}, "ln": {}, "r": {}})
+            e["n"] = str(c[0] or "").strip()[:40] or e["n"]
+            for code, nm in lic_ok:
+                if e["l"].get(code, "") < d:
+                    e["l"][code] = d
+                e["ln"][code] = nm
+            if rg and e["r"].get(rg, "") < d:
+                e["r"][rg] = d
+            k = cnt.setdefault(b, [0, 0])
+            k[0] += 1
+        wb = re.sub(r"[^0-9]", "", str(r.get("bno") or ""))
+        if len(wb) == 10:
+            if wb in cnt:
+                cnt[wb][1] += 1
+            ab = _head_sido(str(r.get("adr") or ""))
+            if ab and "," not in ab:
+                e = ev.setdefault(wb, {"n": str(r.get("win") or "")[:40], "l": {}, "ln": {}, "r": {}})
+                if e["r"].get(ab, "") < d:
+                    e["r"][ab] = d
+    return ev, cnt
+
+
+def export_partners(first, live, out_dir=None, ledger_path=None, log=print):
+    """장부에 이번 근거를 붙이고(날짜는 늦은 쪽), 면허마다 업체 목록 파일을 씁니다."""
+    out_dir = out_dir or os.path.join(OUT, "partners")
+    ledger_path = ledger_path or PARTNER_LEDGER
+    led = load_json(ledger_path, {}) or {}
+    comp = led.get("c") if isinstance(led.get("c"), dict) else {}
+    names = led.get("ln") if isinstance(led.get("ln"), dict) else {}
+    ev, cnt = partner_evidence(first, live)
+    for b, e in ev.items():
+        cur = comp.setdefault(b, {"n": "", "l": {}, "r": {}})
+        if e["n"]:
+            cur["n"] = e["n"]
+        for k in ("l", "r"):
+            for key, d in e[k].items():
+                if cur[k].get(key, "") < d:
+                    cur[k][key] = d
+        names.update(e["ln"])
+    cut = (datetime.now(KST) - timedelta(days=PARTNER_KEEP_DAYS)).strftime("%Y%m%d")
+    for b in list(comp):
+        cur = comp[b]
+        for k in ("l", "r"):
+            cur[k] = {key: d for key, d in cur[k].items() if d >= cut}
+        if not cur["l"] and not cur["r"]:
+            del comp[b]
+    save_json(ledger_path, {"v": 1, "c": comp, "ln": names})
+    by = {}
+    for b, cur in comp.items():
+        sid = ",".join(sorted(cur["r"], key=lambda x: cur["r"][x], reverse=True))
+        p, w = cnt.get(b, [0, 0])
+        for code, d in cur["l"].items():
+            by.setdefault(code, []).append([b, cur["n"], sid, p, w, d])
+    os.makedirs(out_dir, exist_ok=True)
+    built = datetime.now(KST).strftime("%Y-%m-%d %H:%M")
+    idx = {}
+    for code, rows in by.items():
+        rows.sort(key=lambda x: (x[5], x[3]), reverse=True)
+        save_json(os.path.join(out_dir, f"{code}.json"),
+                  {"built": built, "f": ["b", "n", "s", "p", "w", "d"], "r": rows})
+        idx[code] = [len(rows), names.get(code, "")]
+    save_json(os.path.join(out_dir, "_idx.json"), {"built": built, "r": idx})
+    n_r = sum(1 for c in comp.values() if c["r"])
+    log(f"  → 👥 구성원 장부 업체 {len(comp):,}곳 (면허 근거 {sum(1 for c in comp.values() if c['l']):,} · 지역 근거 {n_r:,}) · 면허 파일 {len(idx)}개")
+    return idx
+
+
+JOINT_KEYS = ("jagr", "jrgl", "jdy", "jdrt", "jdrg", "jdrs")
+JOINT_V = 1          # 공동도급 칸을 «한 번 메웠다» 는 표시(live 저장소의 _jv). 칸을 늘리면 2 로 올립니다.
+JOINT_BACK = 21      # 마감 전 공고가 올라온 지 길면 3주 — 그만큼 거슬러 올라가 메웁니다
+
+
+def joint_code(j):
+    """«(전자)공동이행 또는 분담이행» → "JS". 불허·빈칸이면 "" (공동이 안 되는 공고)."""
+    j = str(j or "")
+    if not j or "불허" in j:
+        return ""
+    c = ""
+    if "공동이행" in j:
+        c += "J"
+    if "분담이행" in j:
+        c += "S"
+    if "혼합" in j:
+        c += "M"
+    return c or "?"
+
+
+def jnt_of(r):
+    """색인·bidindex 에 싣는 공동도급 한 칸. 공동이 안 되는 공고는 0.
+
+    [방식코드, 의무시도[], 의무지분%, 면허그룹[], 지역제한시도[], 협정서마감, 공동수급업체지역제한(1/0)]
+      · 면허그룹(licg)은 lic 목록과 «같은 차례» 입니다 — 조달청 lmtGrpNo.
+      · 지역제한시도는 지역제한 공고(rgnb 있음)일 때만 — 참가가능지역(rgn)을 시도로 줄인 것.
+    ⚠️ 새 칸은 맨 뒤에 붙입니다. 화면(lib/공동.js 의 공동재료)이 자리로 읽습니다."""
+    m = joint_code(r.get("joint"))
+    if not m:
+        return 0
+    rlim = []
+    if r.get("rgnb"):
+        for part in re.split(r"[,/·]", str(r.get("rgn") or "")):
+            for ab in (_head_sido(part.strip()) or "").split(","):
+                if ab and ab not in rlim:
+                    rlim.append(ab)
+    return [m, r.get("jdrs") or [], r.get("jdrt") or 0, r.get("licg") or [],
+            rlim, r.get("jagr") or "", 1 if r.get("jrgl") == "Y" else 0]
 
 
 
@@ -2435,6 +2686,8 @@ def main():
                     if row is not None and not row.get("lic"):
                         row["lic"] = names[:6]
                         n_lic += 1
+                    if row is not None and store is live:
+                        put_licg(row, no, names)
             time.sleep(args.sleep)
 
         print(f"  {ds}  1순위 {len(first['con']) + len(first['serv']):,}건 "
@@ -2462,6 +2715,42 @@ def main():
             "at": datetime.now(KST).strftime("%Y-%m-%d %H:%M"),
         }
         save_days(daylog)
+
+    # ── 🤝 공동도급 칸 «한 번» 메우기 (2026-09-27) ──────────────────
+    #   새 칸(jagr·jdrg…)은 이번 창(최근 days일)에 다시 받은 공고에만 붙습니다.
+    #   그 앞에 올라와 아직 마감 전인 공고는 영영 못 받으므로, 공고 목록만 JOINT_BACK 일치를 한 번 더 훑어
+    #   «있는 줄에 공동도급 칸만» 붙입니다(다른 칸은 안 건드립니다). 다 받으면 _jv 를 적어 다시 안 합니다.
+    #   ⚠️ 호출은 하루 한 번(공고 목록)씩 약 18번뿐입니다. 면허 그룹(licg)은 호출이 많아(하루 12쪽) 메우지 않고
+    #      새로 올라오는 공고부터 붙입니다.
+    if live.get("_jv") != JOINT_V and not NET_DOWN:
+        _back = [today - timedelta(days=i) for i in range(JOINT_BACK, days - 1, -1)]
+        _jn, _jok = 0, True
+        for _d in _back:
+            for kind in KINDS:
+                _rows, _why = fetch_paged(ENDPOINTS[("live", kind)], key, _d,
+                                          label=f"공동도급 메우기 {kind} {_d:%m-%d}")
+                if _why:
+                    _jok = False
+                for item in _rows:
+                    row = live[kind].get(str(item.get("bidNtceNo", "")).strip())
+                    if row is None:
+                        continue
+                    ex = joint_extra(item)
+                    hit = False
+                    for k in JOINT_KEYS:
+                        if k in ex and row.get(k) is None:
+                            row[k] = ex[k]
+                            hit = True
+                    _jn += 1 if hit else 0
+                time.sleep(args.sleep)
+        if _jok:
+            live["_jv"] = JOINT_V
+        print(f"  · 🤝 공동도급 칸 메우기 — {len(_back)}일 · {_jn:,}건에 붙임"
+              f"{'' if _jok else ' (못 받은 날이 있어 다음 회차에 다시)'}")
+        try:
+            save_store("live", live)
+        except Exception as e:
+            print(f"    ! 저장 실패 ({type(e).__name__}) — 다음 회차에 다시")
 
     # ── 화면에 실릴 최근 건 중 기초금액이 빈 것만 공고번호로 개별 보충 ──
     todo = []
@@ -2774,6 +3063,13 @@ def main():
             for i, part in enumerate(parts):
                 slim = [{k: v for k, v in r.items() if k not in BOARD_RANK_KEYS}
                         for r in part]
+                # 🤝 공고 묶음에도 jnt(색인과 같은 한 칸)를 붙입니다 — 카드와 거르기가 «같은 재료» 로 판정하게.
+                #    사본(slim)에만 붙입니다. 저장소 줄은 안 건드립니다. 공동이 안 되는 공고는 붙이지 않습니다(크기).
+                if name == "live":
+                    for x, r in zip(slim, part):
+                        j = jnt_of(r)
+                        if j:
+                            x["jnt"] = j
                 with open(os.path.join(out_dir, f"{name}-{kind}-{i}.json"),
                           "w", encoding="utf-8") as f:
                     json.dump(slim, f, ensure_ascii=False, separators=(",", ":"))
@@ -2868,13 +3164,16 @@ def main():
                             return e
                         b = int(r.get("base") or 0)
                         return round(b / 1.1) if b > 0 else 0
+                    # 🤝 jnt — 2026-09-27. 공동도급이 되는 공고만 작은 배열, 나머지는 0 (jnt_of 참고).
+                    #    «공동 가능한 공고만» · «단독은 안 되고 공동이면 되는 공고» 거르기에 씁니다.
                     idx = [[r.get("name") or "", r.get("inst") or "",
                             int(r.get("base") or 0),
                             r.get("lo"), r.get("hi"), lic_codes(r), sido_of(r, rbook),
                             doc_flag(r),
-                            _est(r)]
+                            _est(r),
+                            jnt_of(r)]
                            for r in rows]
-                    fields = ["name", "inst", "base", "lo", "hi", "lic", "sido", "dsn", "est"]
+                    fields = ["name", "inst", "base", "lo", "hi", "lic", "sido", "dsn", "est", "jnt"]
                 with open(os.path.join(out_dir, f"{name}-{kind}-idx.json"),
                           "w", encoding="utf-8") as f:
                     json.dump({"f": fields, "chunk": BOARD_CHUNK, "r": idx},
@@ -3420,6 +3719,7 @@ def main():
                 sido_of(r, _rbook),                # 시도 (지역 거르기 — 짐작하지 않습니다)
                 doc_flag(r),                       # 붙임 내역서: 2 단가 있음 · 1 있음 · 0 없음
                 enp_of(r, enp_map)[2],             # 무엇을 보고 짐작했나 (ls/l/is/i) — 화면이 정직하게 적습니다
+                jnt_of(r),                         # 🤝 공동도급 (2026-09-27) — 0 이면 공동 불가
             ])
         rows.sort(key=lambda x: re.sub(r"[^0-9]", "", str(x[5])))
         out = {"built": built,
@@ -3427,7 +3727,7 @@ def main():
                      "llr", "est", "lic", "aval", "gmtrl",
                      "ayn", "ptot", "pdrw", "url",
                      "site", "rgnb", "joint", "mthd", "swin", "rebid",
-                     "enp", "enpn", "dt", "sido", "dsn", "enpb"],
+                     "enp", "enpn", "dt", "sido", "dsn", "enpb", "jnt"],
                "pick": pick,
                "r": rows}
         path = os.path.join(OUT, "bidindex.json")
@@ -3661,6 +3961,11 @@ def main():
     export_board("live", live, "dt", enp_map=pick_stats(first)[0])
     export_bidindex(live, first)
     export_aparts(live)
+    # 👥 공동입찰 구성원 찾기 (2026-09-27) — 새 기능이라 터져도 배치 전체를 멈추지 않게 감쌉니다
+    try:
+        export_partners(first, live)
+    except Exception as e:
+        print(f"  ! 구성원 장부 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
     try:
         fetch_naeyeok_files(live)
     except Exception as e:

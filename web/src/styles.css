@@ -1915,6 +1915,45 @@ table.mini td.no { color: var(--bad); font-weight: 700; }
 }
 .gbadge.good { color: var(--good); border-color: var(--good); background: var(--good-soft); }
 .gbadge.bad  { color: var(--bad);  border-color: var(--bad);  background: var(--bad-soft); }
+/* 🤝 공동도급 (2026-09-27) — 딱지 · 펼친 칸 */
+.jbadge { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px;
+  border: 1px solid var(--accent-line, var(--line)); color: var(--accent); background: var(--accent-soft); white-space: nowrap; }
+.jbadge em { font-style: normal; font-weight: 600; opacity: .85; }
+.jbadge.need { color: var(--warn); border-color: var(--warn); background: var(--warn-soft); }
+.jbadge.opp  { color: var(--good); border-color: var(--good); background: var(--good-soft); }
+.jbadge.off  { color: var(--text-2); border-color: var(--line); background: var(--surface-2); }
+.jointbox { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--accent-line, var(--line)); border-radius: 10px; background: var(--surface-2); }
+.jointbox .jh { font-size: 13.5px; margin-bottom: 6px; }
+.jointbox .jh em { font-style: normal; color: var(--muted); font-size: 12.5px; }
+.jointbox .jl { font-size: 13px; line-height: 1.65; margin: 3px 0; }
+.jointbox .jl.need { color: var(--warn); font-weight: 600; }
+.jointbox .jl.opp  { color: var(--good); font-weight: 600; }
+.jointbox .jl.off  { color: var(--bad); font-weight: 600; }
+.jointbox .jl.chk  { color: var(--text-2); }
+.jointbox .jkv { display: grid; grid-template-columns: 1fr; gap: 3px; margin: 6px 0; font-size: 12.5px; }
+.jointbox .jkv span { color: var(--muted); margin-right: 8px; }
+.jointbox .jcand { margin: 8px 0; }
+.jointbox .jcl { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.jointbox .jcl em { font-style: normal; color: var(--muted); font-size: 11.5px; }
+.jointbox .jbtns { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+/* 👥 같이 넣을 수 있는 회사 */
+.jointbox .jpair { font-size: 13px; line-height: 1.65; margin: 4px 0 8px; }
+.jointbox .jlist { border: 1px solid var(--line); border-radius: 9px; background: var(--surface); margin: 6px 0; }
+.jointbox .jlh { width: 100%; display: flex; gap: 8px; align-items: center; padding: 9px 11px; background: none; border: 0; cursor: pointer; text-align: left; font-size: 13px; color: var(--text); }
+.jointbox .jlh em { font-style: normal; color: var(--accent); font-weight: 700; }
+.jointbox .jlh span { margin-left: auto; color: var(--muted); }
+.jointbox .jq { margin: 0 10px 6px; width: calc(100% - 20px); box-sizing: border-box; }
+.jointbox .jrows { padding: 0 10px 6px; }
+.jointbox .jrow { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--line-soft, var(--line)); font-size: 13px; }
+.jointbox .jrow a { font-weight: 700; }
+.jointbox .jrow .js { color: var(--good); font-size: 12px; }
+.jointbox .jrow .jn { color: var(--muted); font-size: 12px; margin-left: auto; }
+.jointbox .pager { padding: 0 10px 8px; }
+/* 바로투찰 «이 공고에 넣으려면» 칸 안 — .cond .c span 이 block·회색으로 덮어써서 되돌립니다 */
+.cond .c span.jbadge { display: inline-block; font-size: 11.5px; font-weight: 700; letter-spacing: 0; margin: 2px 0 0; color: var(--accent); }
+.cond .c span.jbadge.need { color: var(--warn); }
+.cond .c span.jbadge.opp  { color: var(--good); }
+.cond .c span.jbadge.off  { color: var(--text-2); }
 .goodonly {
   width: 100%; margin-bottom: 8px; padding: 11px 13px; text-align: left;
   border: 1px solid var(--line); border-radius: 12px;

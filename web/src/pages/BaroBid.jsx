@@ -12,6 +12,10 @@ import { bidAmount, limitAmount, limitRate, r3, c3,
          smartBid, autoRule, canBid, nowStamp, stamp14, lowerLimit,
          rankBracket } from '../lib/bidmath.js'
 import { loadBasket, toggleBasket } from '../lib/basket.js'
+/* 🤝 공동도급 (2026-09-27) — 공고 탭과 같은 판정(lib/공동.js)·같은 딱지 */
+import { load우리지역 } from '../lib/공동.js'
+import { loadLicCodes } from '../lib/lic.js'
+import { 공동딱지 } from '../공동칸.jsx'
 import MyToday from '../MyToday.jsx'
 import { GUIDE_NAV, guideOf } from '../lib/guidenav.js'
 /* 공고 화면(LiveBoard)이 예전부터 여기서 가져다 썼습니다 — 그대로 이어 줍니다 */
@@ -1954,7 +1958,8 @@ export default function BaroBid() {
                 <div className="c">
                   <span>공동수급</span>
                   <b>{(picked.joint || '—').replace(/^\(전자\)/, '').replace(/^\(없음\)/, '')}</b>
-                  <i>{/불허/.test(picked.joint || '') ? '단독으로만' : ' '}</i>
+                  <i>{/불허/.test(picked.joint || '') ? '단독으로만'
+                    : <공동딱지 r={picked} 나={{ 지역: load우리지역(), 면허: loadLicCodes() }} />}</i>
                 </div>
                 <div className={'c' + (picked.rebid === 'Y' ? ' warn' : '')}>
                   <span>재입찰</span>
