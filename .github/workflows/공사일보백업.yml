@@ -1,0 +1,90 @@
+# ⛑ 공사일보(현장 투입비) 매일 백업 — 2026-09-27
+#
+# 소장님: 「공사일보는 비번입력시 계속 자료가 보이도록 해야 해. 만약 지워져 버리면 큰일이야 알지?」
+#
+# 하루 한 번:
+#   ① cost_* 자리를 관리자 키로 통째로 읽어 «잠가서»(AES-256-GCM) 이 회차 보관함에 90일 둡니다.
+#      ⚠️ 저장소가 공개라 보관함은 깃허브 회원 누구나 받을 수 있습니다 → 그래서 반드시 잠급니다.
+#         열쇠는 FIREBASE_SERVICE_ACCOUNT 에서 뽑습니다(따로 넣을 비밀값 없음). 로그엔 «개수» 만.
+#   ② 백업을 뜬 «뒤에만» 휴지통 30일 지난 것 · 지운 지 30일 지난 현장을 영영 지웁니다.
+#
+# 되살리기(손으로만): Actions → 공사일보 백업 → Run workflow →
+#   restore_name = 백업 이름(예: cost-backup-2026-09-28-0241 — 회차 화면 아래 Artifacts 에 보임)
+#   site_code    = 현장 코드 9자리
+#   → 먼저 «지금 모습» 을 백업으로 떠 둔 뒤, 그 현장 하나만 그날 모습으로 되돌립니다.
+#
+# 쓰는 곳: tools/공사일보백업.py (시험: python tools/시험_공사일보백업.py)
+# ⚠️ 예약을 update.yml 에 붙이지 않았습니다 — 그쪽은 회차가 길고(40분) «밀린 차례를 버리는» 일이 잦습니다.
+#    백업은 1분짜리라 따로 둡니다. 공개 저장소라 Actions 요금은 0원입니다.
+name: 공사일보 백업
+
+on:
+  schedule:
+    - cron: '41 17 * * *'        # 매일 02:41 KST (정각을 피함)
+  workflow_dispatch:
+    inputs:
+      restore_name:
+        description: '되살릴 때만 — 백업 이름 (예: cost-backup-2026-09-28-0241). 비우면 백업만 뜹니다'
+        required: false
+        default: ''
+      site_code:
+        description: '되살릴 현장 코드 9자리'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  actions: read                 # 되살리기 때 지난 회차 보관함을 받으려고
+
+concurrency:
+  group: cost-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 코드 받기
+        uses: actions/checkout@v4
+
+      - name: 파이썬 준비
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 꾸러미
+        run: python -m pip install --quiet google-auth cryptography requests
+
+      - name: 백업 뜨기 (잠가서)
+        id: bak
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PYTHONUTF8: '1'
+        run: python tools/공사일보백업.py 백업 --out 백업
+
+      - name: 백업 보관 (90일)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.bak.outputs.name }}
+          path: 백업/
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: 되살리기 (손으로 돌릴 때만)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.restore_name != '' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RESTORE_NAME: ${{ inputs.restore_name }}
+          SITE_CODE: ${{ inputs.site_code }}
+          PYTHONUTF8: '1'
+        run: python tools/공사일보백업.py 되살리기 --이름 "$RESTORE_NAME" --현장 "$SITE_CODE"
+
+      - name: 휴지통 30일 지난 것 비우기 (백업을 뜬 뒤에만)
+        if: ${{ github.event_name == 'schedule' || inputs.restore_name == '' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PYTHONUTF8: '1'
+        run: python tools/공사일보백업.py 비우기

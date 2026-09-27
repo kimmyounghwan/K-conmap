@@ -545,7 +545,9 @@ function Roster(P) {
           {떠난수 > 0 && <label className="tp-chk" style={{ paddingBottom: 0 }}><input type="checkbox" checked={떠난것} onChange={(e) => set떠난것(e.target.checked)} /> 떠난 것도 보기 ({떠난수})</label>}
         </div>
       </div>
-      {폼 && <RosterForm key={종류 + (폼.id || 'new')} 종류={종류} id={폼.id} 원본={폼.id ? 자료[폼.id] : null} 풀린={폼.id ? (풀린 || {})[폼.id] : null} 잠={잠} {...P} 닫기={() => set폼(null)} />}
+      {/* 🐛 2026-09-27 — {...P} 가 맨 뒤에 있어서 P 의 «풀린(모든 사람 표)» 이 이 사람 것을 덮었습니다.
+          그래서 고치기 창의 주민번호·계좌 칸이 늘 빈칸으로 보였고, 그대로 저장하면 잠가 둔 값이 지워졌습니다. → P 를 맨 앞에 */}
+      {폼 && <RosterForm key={종류 + (폼.id || 'new')} {...P} 종류={종류} id={폼.id} 원본={폼.id ? 자료[폼.id] : null} 풀린={폼.id ? (풀린 || {})[폼.id] : null} 잠={잠} 닫기={() => set폼(null)} />}
       <div className="card">
         {목록.length === 0 ? (
           <div className="muted">아직 없습니다. 위 «＋ 올리기» 로 {종류 === 'people' ? '근로자' : 종류 === 'equip' ? '장비' : '자재 업체'}를 올리십시오.</div>
@@ -588,9 +590,13 @@ function Roster(P) {
   )
 }
 
-function RosterForm({ 종류, id, 원본, 풀린, 잠, 예시, 명부저장, 명부지우기, 출역, 그달일급, 닫기 }) {
+function RosterForm({ 종류, id, 원본, 풀린, 잠: 잠0, 예시, 명부저장, 명부지우기, 출역, 그달일급, 닫기 }) {
   const o = 원본 || {}
   const x0 = 풀린 || {}
+  /* 🔒 2026-09-27 — 잠가 둔 칸(x)이 있는데 이 기기에서 아직 못 풀었으면(푸는 중·못 풂) 그 칸은 잠근 채로 둡니다.
+     빈칸으로 보인 채 저장하면 주민번호·계좌가 지워질 수 있었습니다. */
+  const 못품 = !예시 && !!o.x && !풀린
+  const 잠 = 잠0 || 못품
   const [v, setV] = useState({
     n: o.n || '', j: o.j || '', w: o.w ? 원(o.w) : '', tel: o.tel || '', s: o.s || '', vv: o.v || '', u: o.u ? 원(o.u) : '', un: o.un || '일', g: o.g || '',
     nx: o.nx || '', off: !!o.off,
@@ -641,14 +647,14 @@ function RosterForm({ 종류, id, 원본, 풀린, 잠, 예시, 명부저장, 명
     else set오류('저장하지 못했습니다 — 인터넷을 확인해 주십시오.')
   }
   const 지우기 = async () => {
-    if (!window.confirm(`«${o.n}» 을 명부에서 지울까요?\n지난 출역·반입 기록은 남지만 이름이 «지운 사람» 으로 보입니다.\n보통은 «현장 떠남» 을 켜시는 것이 낫습니다.`)) return
+    if (!window.confirm(`«${o.n}» 을 명부에서 지울까요?\n지난 출역·반입 기록은 남지만 이름이 «지운 사람» 으로 보입니다.\n보통은 «현장 떠남» 을 켜시는 것이 낫습니다.\n(🗑 휴지통으로 옮겨 30일 안에는 되살릴 수 있습니다)`)) return
     set바쁨(true)
     await 명부지우기(종류, id)
     set바쁨(false)
     닫기()
   }
   const 이름 = 종류 === 'people' ? '근로자' : 종류 === 'equip' ? '장비' : '자재 업체'
-  const 잠칸 = { disabled: 잠, placeholder: 잠 ? '🔒 잠김 — 위에서 비밀번호로 풀면 넣고 봅니다' : '' }
+  const 잠칸 = { disabled: 잠, placeholder: 잠 ? (잠0 ? '🔒 잠김 — 위에서 비밀번호로 풀면 넣고 봅니다' : '🔒 아직 풀리지 않아 그대로 둡니다') : '' }
   return (
     <div className="card no-print tp-rform">
       <div className="detail-h">{id ? `✏️ ${이름} 고치기` : `＋ ${이름} 올리기`}{예시 && <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}> · 예시라 저장되지 않습니다</span>}</div>

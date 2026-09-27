@@ -12,12 +12,14 @@
  * 저장 자리(파이어베이스, 규칙은 web/database.rules.json «현장 투입비»):
  *   cost_pins/{코드}               비밀번호 해시(아무도 못 읽음)
  *   cost_keys/{코드}/{uid}         이 브라우저가 비밀번호를 맞혔다는 표시(같은 해시)
- *   cost_sites/{코드}              {name, total, budget?, start?, end?, co?, at, upd?}
+ *   cost_sites/{코드}              {name, total, budget?, start?, end?, co?, at, upd?, del? 지운 때(30일 뒤 영영)}
  *   cost_rows/{코드}/{id}          {d, k:'L|M|E|S|X|O|G', t?, amt, q?, u?, un?, sp?, eq?, vd?, by?, at}   G = 기성
  *   cost_people/{코드}/{id}        {n 이름, j 직종, w 일급, tel?, x? 잠금(주민번호·은행·계좌·예금주), nx? 공제 빼기, off?, at}
  *   cost_equip/{코드}/{id}         {n 장비명, s? 규격, v? 업체, u 단가, un 단위, x? 잠금(사업자번호·은행·계좌·예금주), off?, at}
  *   cost_vendors/{코드}/{id}       {n 업체명, g? 품목, x? 잠금, off?, at}
  *   cost_att/{코드}/{YYYY-MM}/{사람} {w 그달 일급, d:{'01':1,'02':0.5}, o?:{it,lt,ei,np,hi,lc 고쳐 쓴 공제}, m? 비고}
+ *   cost_trash/{코드}/{번호}       {p 원래 자리(rows·people·equip·vendors), k 원래 번호, v 원래 내용, at 지운 때} — 🗑 휴지통 30일 (2026-09-27)
+ *   ⛑ 매일 백업: .github/workflows/공사일보백업.yml → tools/공사일보백업.py (잠가서 90일)
  */
 import { writeWorkbook, ST } from './qtoxlsx.js'
 import { 공제셈, 공제합치기, 공제칸 } from './gongje.js'
@@ -32,6 +34,8 @@ export const 구분 = [
   { k: 'O', 이름: '기타', 색: '#64748b' },
 ]
 export const 구분이름 = Object.fromEntries(구분.map((x) => [x.k, x.이름]))
+/** 🗑 지운 것을 휴지통에 두는 날 수 (2026-09-27) — 규칙·화면·매일 백업(tools/공사일보백업.py)이 같은 값을 씁니다 */
+export const 휴지통날 = 30
 export const 기성 = 'G'
 export const 단위들 = ['일', '시간', '회', '대', '월']
 export const 자재단위 = ['㎥', 'ton', 'kg', '개', '장', 'm', '㎡', '본', '포', '식', 'L', '롤', '매']

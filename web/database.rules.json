@@ -335,6 +335,7 @@
         "at":     { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
         "upd":    { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
         "co":     { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "del":    { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
         "$other": { ".validate": false }
       }
     },
@@ -427,6 +428,25 @@
             "ex": { ".validate": "newData.isString() && newData.val().matches(/^[PHE]{0,3}$/)" },
             "$other": { ".validate": false }
           }
+        }
+      }
+    },
+    // 🗑 2026-09-27 휴지통 (소장님: 「공사일보는 … 만약 지워져 버리면 큰일이야」)
+    //   지운 줄·사람·장비·업체를 여기로 옮겨 30일 둡니다 → 화면의 «🗑 휴지통» 에서 되살림.
+    //   30일 지난 것은 매일 백업(.github/workflows/공사일보백업.yml)이 백업을 뜬 «뒤에» 비웁니다.
+    //   현장 지우기는 cost_sites/{현장}/del 에 지운 때만 찍습니다(자료는 그대로 30일).
+    //   p = 원래 자리(rows·people·equip·vendors) · k = 원래 번호 · v = 원래 내용 · at = 지운 때
+    "cost_trash": {
+      "$site": {
+        ".read": "auth != null && root.child('cost_pins').child($site).exists() && root.child('cost_keys').child($site).child(auth.uid).val() === root.child('cost_pins').child($site).val()",
+        ".write": "auth != null && root.child('cost_pins').child($site).exists() && root.child('cost_keys').child($site).child(auth.uid).val() === root.child('cost_pins').child($site).val()",
+        "$t": {
+          ".validate": "newData.hasChildren(['p','k','v','at'])",
+          "p":  { ".validate": "newData.isString() && newData.val().matches(/^(rows|people|equip|vendors)$/)" },
+          "k":  { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40" },
+          "v":  { ".validate": "newData.hasChildren()" },
+          "at": { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
+          "$other": { ".validate": false }
         }
       }
     }

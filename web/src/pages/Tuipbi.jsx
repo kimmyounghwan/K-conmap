@@ -19,7 +19,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { use화면상태, 앞칸같은주소 } from '../lib/길기록.js'
-import { 원, 억만, 코드만들기, 코드보기, 코드정리, 비번해시, 예시현장 } from '../lib/tuipbi.js'
+import { 원, 억만, 코드만들기, 코드보기, 코드정리, 비번해시, 예시현장, 휴지통날 } from '../lib/tuipbi.js'
 import { 열쇠만들기, 열쇠두기, 열쇠읽기, 열쇠지우기, 잠그기, 풀기 } from '../lib/tplock.js'
 import TuipbiSite, { TuipbiGuide } from './TuipbiSite.jsx'
 
@@ -41,6 +41,13 @@ const 쉼표칸 = (s) => { const n = String(s || '').replace(/[^0-9]/g, ''); ret
 const 막힘 = (e) => /permission|PERMISSION/.test(String((e && (e.code || e.message)) || e))
 const 명부자리 = { people: 'cost_people', equip: 'cost_equip', vendors: 'cost_vendors' }
 const 빈데이터 = { 사람: {}, 장비: {}, 업체: {}, 출역: {} }
+/* 🗑 2026-09-27 휴지통 — 소장님: 「공사일보는 … 만약 지워져 버리면 큰일이야 알지?」
+   지우면 cost_trash/{현장} 로 옮겨 30일 둡니다(되살리기). 30일 지난 것은 매일 백업이 백업을 뜬 뒤에 비웁니다.
+   현장 지우기는 cost_sites/{현장}/del 에 지운 때만 찍습니다 — 자료는 30일 그대로. */
+const 하루 = 86400000
+const 휴지통자리 = { rows: 'cost_rows', people: 'cost_people', equip: 'cost_equip', vendors: 'cost_vendors' }
+const 명부키 = { people: '사람', equip: '장비', vendors: '업체' }
+const 날짜글 = (t) => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 
 /** 잠근 칸(x)을 모두 풀어 {id: 물건} */
 async function 모두풀기(raw, ...maps) {
@@ -70,6 +77,8 @@ export default function Tuipbi() {
   const [정보, set정보] = useState(false)
   const [목록, set목록] = useState(() => 읽기(목록키, []))
   const [저장됨, set저장됨] = useState('')             // 소장님: 「자동저장된다는 것도 알려 줘....이용자가 알게..그래야 나중에 수정을 할 수 있다는 것도」
+  const [알림, set알림] = useState('')                 // 🗑 «휴지통으로 옮겼습니다» · «되살렸습니다»
+  const [휴지통, set휴지통] = useState({})             // {번호: {p, k, v, at}}
 
   useEffect(() => {
     const c = 코드정리(params.get('c'))
@@ -103,8 +112,11 @@ export default function Tuipbi() {
     const rows = []
     r.forEach((x) => { rows.push({ id: x.key, ...x.val() }) })
     const 새명부 = { 사람: p.val() || {}, 장비: e.val() || {}, 업체: v.val() || {}, 출역: a.val() || {} }
+    /* 휴지통은 따로 — 못 읽어도(규칙을 올리기 전 등) 현장은 열려야 합니다 */
+    let 통 = {}
+    try { 통 = (await fb.get(fb.ref(fb.db, `cost_trash/${c}`))).val() || {} } catch (er) { 통 = {} }
     const raw = 열쇠읽기(c)
-    set예시(false); set코드(c); set현장(s.val()); set줄들(rows); set명부(새명부); set정보(false)
+    set예시(false); set코드(c); set현장(s.val()); set줄들(rows); set명부(새명부); set정보(false); set휴지통(통); set알림('')
     set화면('site', { replace: 바꿈 != null ? !!바꿈 : 화면지금() !== 'home', search: '?c=' + c })
     set열쇠(raw)
     set풀린(await 모두풀기(raw, 새명부.사람, 새명부.장비, 새명부.업체))
@@ -154,18 +166,48 @@ export default function Tuipbi() {
   const 예시보기 = () => {
     const x = 예시현장()
     set예시(true); set코드('EXAMPLE00'); set현장(x.site); set줄들(x.rows)
-    set명부({ 사람: x.people, 장비: x.equip, 업체: x.vendors, 출역: x.att }); set풀린(x.풀린); set열쇠(null)
+    set명부({ 사람: x.people, 장비: x.equip, 업체: x.vendors, 출역: x.att }); set풀린(x.풀린); set열쇠(null); set휴지통({}); set알림('')
     set화면('site'); set오류(''); set정보(false)
   }
   const 나가기 = () => {
-    set현장(null); set줄들([]); set명부(빈데이터); set풀린({}); set열쇠(null); set예시(false); set정보(false)
+    set현장(null); set줄들([]); set명부(빈데이터); set풀린({}); set열쇠(null); set예시(false); set정보(false); set휴지통({}); set알림('')
     /* 처음 화면에서 들어왔으면 기록을 되감고(보던 자리 그대로), 주소로 바로 들어왔으면 처음 화면으로 바꿈 */
     if (앞칸같은주소(window.location.pathname)) navigate(-1)
     else set화면('home', { replace: true, search: '' })
   }
 
   /* ── 쓰기 — 예시면 화면에만 ─────────────── */
-  const 표시 = () => { const d = new Date(); set저장됨(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`) }
+  const 표시 = (글) => { const d = new Date(); set저장됨(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`); set알림(typeof 글 === 'string' ? 글 : '') }
+  const 옮김글 = `휴지통으로 옮겼습니다 — ${휴지통날}일 안에는 «🗑 휴지통» 에서 되살릴 수 있습니다`
+
+  /** 🗑 지우기 = 휴지통으로 옮기기. 옮기기와 지우기를 «한 번에»(update) 해서, 옮기지 못하면 지우지도 않습니다 */
+  async function 휴지통으로(p, k, v, 지울곳) {
+    const 새 = { p, k, v, at: Date.now() }
+    if (예시) { set휴지통((x) => ({ ...x, ['ex' + Date.now()]: 새 })); return }
+    const fb = await loadFb()
+    const t = fb.push(fb.ref(fb.db, `cost_trash/${코드}`)).key
+    await fb.update(fb.ref(fb.db), { [`cost_trash/${코드}/${t}`]: 새, [지울곳]: null })
+    set휴지통((x) => ({ ...x, [t]: 새 }))
+  }
+  async function 되살리기(t) {
+    const x = 휴지통[t]
+    if (!x || !휴지통자리[x.p]) return false
+    try {
+      if (!예시) {
+        const fb = await loadFb()
+        await fb.update(fb.ref(fb.db), { [`${휴지통자리[x.p]}/${코드}/${x.k}`]: x.v, [`cost_trash/${코드}/${t}`]: null })
+      }
+      set휴지통((h) => { const q = { ...h }; delete q[t]; return q })
+      if (x.p === 'rows') set줄들((v) => [...v.filter((r) => r.id !== x.k), { ...x.v, id: x.k }])
+      else {
+        const 키 = 명부키[x.p]
+        set명부((m) => ({ ...m, [키]: { ...m[키], [x.k]: x.v } }))
+        if (x.v && x.v.x && 열쇠) { const o = await 풀기(열쇠, x.v.x); if (o) set풀린((q) => ({ ...q, [x.k]: o })) }
+      }
+      set오류(''); 표시('되살렸습니다')
+      return true
+    } catch (e) { return 실패(e, '되살리지 못했습니다 — 인터넷을 확인해 주십시오.') }
+  }
   const 실패 = (e, 글) => { set오류(막힘(e) ? '이 브라우저는 이 현장에 쓸 수 없습니다 — 나갔다가 코드와 비밀번호로 다시 열어 주십시오.' : 글 || '저장하지 못했습니다 — 인터넷을 확인해 주십시오.'); return false }
 
   async function 줄저장(row, id) {
@@ -183,21 +225,34 @@ export default function Tuipbi() {
     } catch (e) { return 실패(e) }
   }
   async function 줄지우기(id) {
-    if (예시) { set줄들((v) => v.filter((x) => x.id !== id)); 표시(); return }
-    try { const fb = await loadFb(); await fb.remove(fb.ref(fb.db, `cost_rows/${코드}/${id}`)); set줄들((v) => v.filter((x) => x.id !== id)); 표시() }
-    catch (e) { 실패(e, '지우지 못했습니다 — 인터넷을 확인해 주십시오.') }
+    try {
+      let 옛 = 줄들.find((x) => x.id === id)
+      if (!옛 && !예시) { const fb = await loadFb(); const g = await fb.get(fb.ref(fb.db, `cost_rows/${코드}/${id}`)); 옛 = g.exists() ? g.val() : null }
+      if (옛) { const { id: _없앰, ...v } = 옛; await 휴지통으로('rows', id, v, `cost_rows/${코드}/${id}`) }
+      set줄들((v) => v.filter((x) => x.id !== id)); set오류(''); 표시(옮김글)
+    } catch (e) { 실패(e, '지우지 못했습니다 — 인터넷을 확인해 주십시오. (지워지지 않았습니다)') }
   }
   async function 현장저장(site) {
     if (예시) { set현장(site); 표시(); return true }
     try { const fb = await loadFb(); await fb.set(fb.ref(fb.db, `cost_sites/${코드}`), site); set현장(site); 기억(코드, site.name); 표시(); return true }
     catch (e) { return 실패(e, '현장 정보를 저장하지 못했습니다.') }
   }
+  /* 🗑 현장 지우기 = 지운 때만 찍음. 자료는 30일 그대로 두고, 그 사이 이 화면에서 되살립니다(매일 백업이 30일 뒤 비움) */
   async function 현장지우기() {
+    if (예시) return
     try {
       const fb = await loadFb()
-      for (const x of ['cost_rows', 'cost_att', 'cost_people', 'cost_equip', 'cost_vendors', 'cost_sites']) await fb.remove(fb.ref(fb.db, `${x}/${코드}`))
-      열쇠지우기(코드); 잊기(코드); 나가기()
+      const t = Date.now()
+      await fb.set(fb.ref(fb.db, `cost_sites/${코드}/del`), t)
+      set현장((s) => ({ ...s, del: t })); set정보(false)
     } catch (e) { 실패(e, '지우지 못했습니다.') }
+  }
+  async function 현장되살리기() {
+    try {
+      const fb = await loadFb()
+      await fb.remove(fb.ref(fb.db, `cost_sites/${코드}/del`))
+      set현장((s) => { const q = { ...s }; delete q.del; return q }); 표시('현장을 되살렸습니다')
+    } catch (e) { 실패(e, '되살리지 못했습니다 — 인터넷을 확인해 주십시오.') }
   }
   async function 이기기잊기() {
     if (!window.confirm('이 기기에서 이 현장을 잊을까요?\n다음에 열 때 현장 코드와 비밀번호를 다시 넣어야 합니다. (현장 자료는 그대로입니다)')) return
@@ -206,9 +261,12 @@ export default function Tuipbi() {
   }
 
   /** 명부 저장 — 잠금(undefined 면 전에 잠근 x 를 그대로) */
-  async function 명부저장(종류, id, obj, 잠금) {
+  async function 명부저장(종류, id, obj, 잠금0) {
     const 키 = { people: '사람', equip: '장비', vendors: '업체' }[종류]
     const 옛 = id ? 명부[키][id] : null
+    /* 🔒 2026-09-27 — 잠근 칸(주민번호·계좌)이 «빈칸으로 덮여» 지워질 수 있었습니다(고치기 창이 빈칸을 보였음 — TuipbiBook 🐛).
+       ① 이 기기에서 풀어 보지 못한 칸은 절대 덮어쓰지 않고 ② 잠근 칸을 «전부 빈칸» 으로 보내 와도 지우지 않고 전에 잠근 그대로 둡니다. */
+    const 잠금 = (잠금0 !== undefined && !예시 && 옛 && 옛.x && (!풀린[id] || !Object.keys(잠금0).length)) ? undefined : 잠금0
     const 새 = { ...obj }
     let 풀림 = null
     if (잠금 === undefined) { if (옛 && 옛.x) 새.x = 옛.x }
@@ -238,11 +296,12 @@ export default function Tuipbi() {
   }
   async function 명부지우기(종류, id) {
     const 키 = { people: '사람', equip: '장비', vendors: '업체' }[종류]
-    if (!예시) {
-      try { const fb = await loadFb(); await fb.remove(fb.ref(fb.db, `${명부자리[종류]}/${코드}/${id}`)) } catch (e) { return 실패(e, '지우지 못했습니다.') }
-    }
+    const 옛 = 명부[키][id]
+    try {
+      if (옛) await 휴지통으로(종류, id, 옛, `${명부자리[종류]}/${코드}/${id}`)
+    } catch (e) { return 실패(e, '지우지 못했습니다 — 인터넷을 확인해 주십시오. (지워지지 않았습니다)') }
     set명부((m) => { const x = { ...m[키] }; delete x[id]; return { ...m, [키]: x } })
-    표시(); return true
+    set오류(''); 표시(옮김글); return true
   }
 
   /* 출역 — 화면 상태를 먼저 바꾸고(바로 보이게) 서버에 씁니다. 실패하면 되돌림 */
@@ -383,9 +442,20 @@ export default function Tuipbi() {
           <button type="button" className="btn" onClick={() => set화면('site')}>현장으로 가기 →</button>
         </div>
       )}
-      {보기 === 'site' && 현장 && (
+      {보기 === 'site' && 현장 && 현장.del && !예시 && (
+        <div className="card tp-made">
+          <div className="detail-h">🗑 지운 현장입니다 — «{현장.name}»</div>
+          <p className="tl-p">{날짜글(현장.del)} 에 지웠습니다. <b>{날짜글(현장.del + 휴지통날 * 하루)} 까지</b>는 되살릴 수 있고, 그 뒤에는 영영 지워집니다.
+            적은 것 · 명부 · 출역은 그때까지 그대로 있습니다.</p>
+          <div className="tp-start">
+            <button type="button" className="btn" style={{ width: 'auto' }} onClick={현장되살리기}>↩ 현장 되살리기</button>
+            <button type="button" className="btn ghost" style={{ width: 'auto' }} onClick={나가기}>나가기</button>
+          </div>
+        </div>
+      )}
+      {보기 === 'site' && 현장 && !(현장.del && !예시) && (
         <TuipbiSite 코드={코드} 코드보기={코드보기} 현장={현장} 줄들={줄들} 사람={명부.사람} 장비={명부.장비} 업체={명부.업체} 출역={명부.출역}
-          풀린={풀린} 잠김={잠김칸} 잠김있음={잠김} 예시={예시} 저장됨={저장됨}
+          풀린={풀린} 잠김={잠김칸} 잠김있음={잠김} 예시={예시} 저장됨={저장됨} 알림={알림} 휴지통={휴지통} 되살리기={되살리기}
           줄저장={줄저장} 줄지우기={줄지우기} 명부저장={명부저장} 명부지우기={명부지우기}
           출역찍기={출역찍기} 출역여럿={출역여럿} 공제고치기={공제고치기} 비고고치기={비고고치기} 그달일급={그달일급} 대상고치기={대상고치기} 잠금풀기={잠금풀기}
           새로고침={새로고침} 나가기={나가기} 정보={정보} set정보={set정보}
@@ -509,9 +579,10 @@ function SiteInfo({ 현장, 코드, 예시, onSave, onDelete, onForget }) {
           <ShareLink code={코드} />
           <details className="tp-del">
             <summary>현장 지우기</summary>
-            <div className="tl-p">적은 것 · 명부 · 출역까지 <b>모두 지워지고 되돌릴 수 없습니다</b>. 지우시려면 현장명 «{현장.name}» 을 그대로 적어 주십시오.</div>
+            <div className="tl-p">현장을 지우면 이 현장을 여는 사람 모두에게 «지운 현장» 으로 보입니다. <b>{휴지통날}일 안에는 되살릴 수 있고</b>, 그 뒤에는 적은 것 · 명부 · 출역까지 영영 지워집니다.
+              지우시려면 현장명 «{현장.name}» 을 그대로 적어 주십시오.</div>
             <input value={지움} onChange={(e) => set지움(e.target.value)} placeholder={현장.name} />
-            <button type="button" className="btn ghost" disabled={지움 !== 현장.name} onClick={onDelete}>영영 지우기</button>
+            <button type="button" className="btn ghost" disabled={지움 !== 현장.name} onClick={onDelete}>현장 지우기</button>
           </details>
         </>
       )}

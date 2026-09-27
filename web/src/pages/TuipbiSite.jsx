@@ -4,7 +4,7 @@
  *   청구서·명부는 TuipbiBook.jsx, 데이터 읽기·쓰기는 Tuipbi.jsx 가 합니다.
  */
 import { useMemo, useState } from 'react'
-import { 구분, 구분이름, 기성, 원, 억만, 퍼센트, 공수글, 오늘, 요약, 날더하기, 요일, 자재단위, 단위들 } from '../lib/tuipbi.js'
+import { 구분, 구분이름, 기성, 원, 억만, 퍼센트, 공수글, 오늘, 요약, 날더하기, 요일, 자재단위, 단위들, 휴지통날 } from '../lib/tuipbi.js'
 import TuipbiBook from './TuipbiBook.jsx'
 import { use화면상태 } from '../lib/길기록.js'
 
@@ -24,6 +24,8 @@ export default function TuipbiSite(P) {
   const [탭, set탭] = use화면상태('탭', 처음탭)
   const 가기 = (t) => { set탭(t); try { sessionStorage.setItem('kcm-tp-tab', t) } catch (e) { /* 없음 */ } window.scrollTo({ top: 0 }) }
   const S = useMemo(() => 요약(현장, 줄들, 오늘(), 출역), [현장, 줄들, 출역])
+  const [통열림, set통열림] = useState(false)
+  const 통수 = Object.keys(P.휴지통 || {}).length
   return (
     <>
       {예시 && <div className="card tp-ex no-print">🧪 <b>예시 현장입니다</b> — 이름·금액·주민번호·계좌 모두 지어낸 것이고, 적거나 지워도 저장되지 않습니다. 탭을 눌러 둘러보십시오. <button type="button" className="chip" onClick={P.나가기}>처음으로</button></div>}
@@ -40,17 +42,21 @@ export default function TuipbiSite(P) {
             <button type="button" className="chip" onClick={() => window.print()} title="지금 보고 있는 탭을 인쇄합니다 (청구서는 청구서 탭의 인쇄 단추로)">🖨 인쇄</button>
             {!예시 && <button type="button" className="chip" onClick={P.새로고침}>↻ 새로고침</button>}
             <button type="button" className="chip" onClick={() => P.set정보(!P.정보)}>✏️ 현장 정보</button>
+            <button type="button" className={'chip' + (통열림 ? ' on' : '')} onClick={() => set통열림(!통열림)} title={`지운 것은 ${휴지통날}일 동안 여기서 되살릴 수 있습니다`}>🗑 휴지통{통수 ? ` ${통수}` : ''}</button>
             <button type="button" className="chip" onClick={P.나가기}>나가기</button>
           </div>
         </div>
         <div className={'tp-saved no-print' + (P.저장됨 ? ' on' : '')} key={P.저장됨 || 'x'}>
           {예시
             ? <>🧪 예시 현장 — 눌러 보셔도 <b>저장되지 않습니다</b>{P.저장됨 ? ` (마지막으로 누른 때 ${P.저장됨})` : ''}</>
-            : P.저장됨
+            : P.저장됨 && P.알림
+              ? <>{/^휴지통/.test(P.알림) ? '🗑' : '↩'} <b>{P.저장됨}</b> {P.알림}{/^휴지통/.test(P.알림) && <> <button type="button" className="lnk" onClick={() => set통열림(true)}>휴지통 보기</button></>}</>
+              : P.저장됨
               ? <>✅ <b>{P.저장됨} 저장됨</b> — 자동 저장입니다. 나중에 다시 열어 언제든 고칠 수 있습니다.</>
               : <>💾 <b>자동 저장</b> — 누르고 적는 순간 저장됩니다(저장 단추 없음). 나중에 다시 열어 언제든 고칠 수 있습니다.</>}
         </div>
         {P.정보 && P.정보칸}
+        {통열림 && <Trash 휴지통={P.휴지통} 되살리기={P.되살리기} 닫기={() => set통열림(false)} />}
         <div className="tp-tabs no-print" role="tablist">
           {탭들.map(([k, t]) => (
             <button key={k} type="button" role="tab" aria-selected={탭 === k} className={'tp-tab' + (탭 === k ? ' on' : '')} onClick={() => 가기(k)}>{t}</button>
@@ -462,6 +468,40 @@ function Entry({ d0, 고침, onSave, onCancel, 예시 }) {
   )
 }
 
+/* 🗑 휴지통 — 지운 줄·근로자·장비·업체를 30일 동안 되살림 (2026-09-27) */
+function Trash({ 휴지통, 되살리기, 닫기 }) {
+  const [바쁨, set바쁨] = useState('')
+  const 지금 = Date.now()
+  const 목록 = Object.entries(휴지통 || {}).map(([t, x]) => ({ t, ...x }))
+    .filter((x) => x && x.v && 지금 - (x.at || 0) < 휴지통날 * 86400000)
+    .sort((a, b) => (b.at || 0) - (a.at || 0))
+  const 설명 = (x) => {
+    const v = x.v || {}
+    if (x.p === 'rows') return `${v.d || ''} ${v.k === 기성 ? '기성' : 구분이름[v.k] || ''} ${원(v.amt)}원${v.t ? ' · ' + v.t : ''}`
+    if (x.p === 'people') return `👷 근로자 ${v.n || ''}${v.j ? ' (' + v.j + ')' : ''}`
+    if (x.p === 'equip') return `🚜 장비 ${v.n || ''}${v.s ? ' ' + v.s : ''}${v.v ? ' · ' + v.v : ''}`
+    return `🏭 업체 ${v.n || ''}${v.g ? ' · ' + v.g : ''}`
+  }
+  const 날 = (t) => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
+  return (
+    <div className="tp-info tp-trash no-print">
+      <div className="detail-h">🗑 휴지통 <span className="muted" style={{ fontWeight: 400, fontSize: 12.5 }}>— 지운 것은 {휴지통날}일 동안 여기 있습니다. 그 뒤에는 영영 지워집니다.</span>
+        <button type="button" className="tp-x" style={{ float: 'right' }} onClick={닫기}>닫기</button></div>
+      {!목록.length && <div className="muted" style={{ fontSize: 13 }}>비어 있습니다.</div>}
+      {목록.map((x) => {
+        const 남은 = Math.max(0, Math.ceil((x.at + 휴지통날 * 86400000 - 지금) / 86400000))
+        return (
+          <div key={x.t} className="tp-trow">
+            <div className="tp-tdesc">{설명(x)}<span className="muted"> · {날(x.at)} 지움 · {남은}일 남음</span></div>
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!바쁨}
+              onClick={async () => { set바쁨(x.t); await 되살리기(x.t); set바쁨('') }}>{바쁨 === x.t ? '되살리는 중…' : '↩ 되살리기'}</button>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function RowTable({ rows, 장비, 업체, 고치기, 지우기 }) {
   const 색 = (k) => (k === 기성 ? '#0ea5e9' : (구분.find((c) => c.k === k) || {}).색)
   return (
@@ -480,7 +520,7 @@ function RowTable({ rows, 장비, 업체, 고치기, 지우기 }) {
                 <td className="r nw c-a"><b>{원(r.amt)}</b></td>
                 <td className="nw no-print c-x">
                   <button type="button" className="tp-x" onClick={() => 고치기(r)}>고치기</button>
-                  <button type="button" className="tp-x" onClick={() => { if (window.confirm(`${r.d} ${r.k === 기성 ? '기성' : 구분이름[r.k]} ${원(r.amt)}원 줄을 지울까요?`)) 지우기(r.id) }}>지우기</button>
+                  <button type="button" className="tp-x" onClick={() => { if (window.confirm(`${r.d} ${r.k === 기성 ? '기성' : 구분이름[r.k]} ${원(r.amt)}원 줄을 지울까요?\n(🗑 휴지통으로 옮겨 ${휴지통날}일 안에는 되살릴 수 있습니다)`)) 지우기(r.id) }}>지우기</button>
                 </td>
               </tr>
             )
@@ -551,7 +591,7 @@ function Gisung({ S, 현장, 줄들, 줄저장, 줄지우기, 예시 }) {
                       <td className="r"><b>{퍼센트(현장.total > 0 ? run / 현장.total : NaN)}</b></td>
                       <td className="no-print">
                         <button type="button" className="tp-x" onClick={() => 시작고침(r)}>고치기</button>
-                        <button type="button" className="tp-x" onClick={() => { if (window.confirm(`${r.d} 기성 ${원(r.amt)}원을 지울까요?`)) 줄지우기(r.id) }}>지우기</button>
+                        <button type="button" className="tp-x" onClick={() => { if (window.confirm(`${r.d} 기성 ${원(r.amt)}원을 지울까요?\n(🗑 휴지통으로 옮겨 ${휴지통날}일 안에는 되살릴 수 있습니다)`)) 줄지우기(r.id) }}>지우기</button>
                       </td>
                     </tr>
                   )
@@ -644,6 +684,8 @@ export function TuipbiGuide({ 현장안 }) {
           <li><b>다음부터는</b>: 한 번 연 폰·PC 는 비밀번호 없이 바로 열립니다(처음 화면 «이 기기에서 열어 본 현장»). 폰 <b>홈 화면에 추가</b>해 두면 앱처럼 한 번에 열립니다.</li>
           <li><b>공용 PC</b>(현장 사무실 공용 등)에서는 다 쓴 뒤 <b>✏️ 현장 정보 → 이 기기에서 잊기</b>를 누르십시오.</li>
           <li><b>권한</b>: 코드와 비밀번호를 아는 사람은 모두 같은 권한(보기·적기·고치기·지우기·현장 지우기)입니다. «보기만» 권한은 아직 없습니다 — 비밀번호는 현장 관계자에게만.</li>
+          <li><b>🗑 잘못 지웠어요</b> — 지운 줄·근로자·장비·업체는 <b>🗑 휴지통</b>(현장 이름 옆)으로 가서 <b>{휴지통날}일 동안</b> «되살리기» 할 수 있습니다. 현장을 지워도 {휴지통날}일 안에는 현장을 열어 «현장 되살리기» 를 누르면 됩니다.</li>
+          <li><b>⛑ 백업</b>: 모든 현장 자료를 날마다 한 번 따로 복사해 둡니다(잠가서 90일). 휴지통 기간이 지났거나 크게 잘못됐을 때는 문의 주시면 그날 자료로 되돌려 드립니다.</li>
           <li><b>비밀번호를 잊으면</b> 저희도 찾아 드릴 수 없습니다(해시만 둡니다). 비밀번호 바꾸기는 아직 없습니다.</li>
           <li><b>설계변경</b>으로 도급액이 바뀌면 ✏️ 현장 정보에서 <b>총공사금액만</b> 고치십시오. 투입률·공정률이 새 금액으로 모두 다시 셈됩니다. 공기가 늘면 준공일도 고치십시오.</li>
         </ul>
@@ -768,7 +810,7 @@ export function TuipbiGuide({ 현장안 }) {
           <li><b>폰으로도?</b> — 됩니다. 출역은 폰에서 누르기 좋게 만들었고, 청구서·인쇄는 PC 가 편합니다.</li>
           <li><b>지난달 출역을 빠뜨렸어요</b> — ✍️ 적기에서 날짜를 그날로 바꾸거나, 청구서의 출역 대장 칸을 누르십시오.</li>
           <li><b>같은 날 두 번 찍었어요</b> — 출역은 사람·날짜마다 한 칸이라 겹치지 않습니다. 다시 누르면 0.5 → 1.5 → 빼기로 바뀝니다.</li>
-          <li><b>현장이 끝났어요</b> — 마지막 달 청구서와 누계를 인쇄(또는 인쇄 창에서 PDF로 저장)해 두십시오. 현장은 그대로 두셔도 되고, ✏️ 현장 정보 → 현장 지우기(되돌릴 수 없음)도 됩니다.</li>
+          <li><b>현장이 끝났어요</b> — 마지막 달 청구서와 누계를 인쇄(또는 인쇄 창에서 PDF로 저장)해 두십시오. 현장은 그대로 두셔도 되고, ✏️ 현장 정보 → 현장 지우기도 됩니다({휴지통날}일 안에는 되살릴 수 있고, 그 뒤 영영 지워집니다).</li>
           <li><b>인터넷이 끊겼어요</b> — «저장하지 못했습니다» 가 뜹니다. 연결된 뒤 다시 누르십시오.</li>
           <li><b>공사일보(날씨·작업 내용) 한 장은?</b> — 아직 없습니다(투입비·청구서 중심). 필요하시면 문의 주십시오.</li>
         </ul>
