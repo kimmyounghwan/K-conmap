@@ -55,6 +55,8 @@ const LEAF = {
   '/change/twoline': '2줄 자동변환',
   '/jeoksan/run': '수량산출서 만들기',
   '/jeoksan/golgo': '골조 수량산출',
+  '/jeoksan/auto': '도면 물량 자동',
+  '/jeoksan/magam': '마감 수량산출',
   '/jeoksan/lab': '적산 실험실',
   '/tools/dxf3d': '도면 3D 보기',
   '/tools/dxfpdf': '도면 PDF 만들기',

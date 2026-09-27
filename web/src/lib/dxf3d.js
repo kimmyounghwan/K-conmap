@@ -44,8 +44,32 @@ export function decodeBytes(buf) {
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(u8).replace(/^﻿/, '')
   } catch (e) {
-    try { return new TextDecoder('euc-kr').decode(u8) } catch (e2) { /* 아래로 */ }
-    return new TextDecoder('utf-8').decode(u8)
+    /* ⚠️ 2026-09-27 — «섞인» 파일: 대부분 UTF-8 인데 몇 줄(레이어·블록 이름)만 EUC-KR 로 된 DXF 가 있습니다
+       (DWG → DXF 바꾼 것에서 나옴). 예전처럼 통째로 EUC-KR 로 풀면 한글 글자가 모두 깨집니다(«諛�硫�»).
+       → 줄마다: UTF-8 로 풀리면 UTF-8, 안 풀리는 줄만 EUC-KR. 온전히 한쪽인 파일은 예전과 같게 나옵니다. */
+    let euc
+    try { euc = new TextDecoder('euc-kr') } catch (e2) { return new TextDecoder('utf-8').decode(u8) }
+    const utf = new TextDecoder('utf-8', { fatal: true })
+    const out = []
+    let seg = 0, i = 0
+    const n = u8.length
+    while (i < n) {
+      let j = i, hi = false
+      while (j < n && u8[j] !== 10) { if (u8[j] > 127) hi = true; j++ }
+      const end = j < n ? j + 1 : j
+      if (hi) {
+        let ok = true
+        try { utf.decode(u8.subarray(i, end)) } catch (e3) { ok = false }
+        if (!ok) {
+          if (i > seg) out.push(new TextDecoder('utf-8').decode(u8.subarray(seg, i)))
+          out.push(euc.decode(u8.subarray(i, end)))
+          seg = end
+        }
+      }
+      i = end
+    }
+    if (seg < n) out.push(new TextDecoder('utf-8').decode(u8.subarray(seg, n)))
+    return out.join('').replace(/^﻿/, '')
   }
 }
 

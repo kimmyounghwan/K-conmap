@@ -33,8 +33,11 @@ export default function Jeoksan() {
           단가를 채워 내역서·원가계산서까지 가는 길은 아직 시험 중입니다 — 아래 표에 그대로 적었습니다.
         </p>
         <div className="btn-row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
+          {/* ⚡🧱 2026-09-27 — 소장님: 「골조 말고 다른 것도 있지 않았어??? 도면을 주면 수량산출서가 나오게 안돼? 건축이든, 토목이든」 */}
+          <Link className="btn primary" style={{ width: 'auto' }} to="/jeoksan/auto">⚡ 도면 물량 자동 — 도면 넣으면 모든 물량 · 내역서 대조 (무료)</Link>
           <Link className="btn primary" style={{ width: 'auto' }} to="/jeoksan/golgo">🏗 골조 수량산출 — 도면에서 찍어 재기 (무료)</Link>
-          <Link className="btn line" style={{ width: 'auto' }} to="/jeoksan/run">🧮 수량산출서 만들기 — 무료</Link>
+          <Link className="btn line" style={{ width: 'auto' }} to="/jeoksan/magam">🧱 마감 수량산출 — 방마다 바닥·벽·천장 (무료)</Link>
+          <Link className="btn line" style={{ width: 'auto' }} to="/jeoksan/run">🧮 수량산출서 만들기 — 도면에서 찍어 채우기 (무료)</Link>
         </div>
       </div>
 

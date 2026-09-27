@@ -14,7 +14,12 @@
  *
  * ■ 여기서 하는 일 / 안 하는 일
  *    하는 일   : 재료표(엑셀) + 치수표  ->  수량산출서 엑셀 다섯 장
- *    안 하는 일: **도면을 읽지 않습니다.** 도면의 선이 무엇인지는 사람이 봐야 합니다.
+ *    안 하는 일: 도면을 «해석» 하지 않습니다. 도면의 선이 무엇인지는 사람이 봐야 합니다.
+ *
+ * 📐 2026-09-27 — 소장님: 「기존 수량산출서도 이런 방식으로 해줘」 (골조 수량산출처럼 «잰 치수 빼기»)
+ *    치수표의 칸을 누르고 도면(DXF·DWG)의 선·치수·글자·닫힌 선을 누르면 값이 들어갑니다(미터).
+ *    L·W·H 등 → 길이 · A·A1·A2 → 면적 · 개소 → 개수 · 부호·태그·비고 → 글자. 칸 이름·차례는 그대로입니다.
+ *    도면판은 ../도면판.jsx (골조·마감·도면 물량 자동과 같이 씀) · 누른 값 셈은 ../lib/찍기.js
  *
  * ■ 파일은 브라우저 안에서만 다룹니다. 한 조각도 올라가지 않습니다. (서버 비용 0)
  *
@@ -25,6 +30,18 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { askAfter } from '../AskComment'
+import { use도면, 도면판, 도면상태줄 } from '../도면판.jsx'
+import { 찍기, 두점더하기, 도움글 } from '../lib/찍기.js'
+
+/** 치수표 칸마다 도면에서 무엇을 받나 */
+function 치수칸종류(k) {
+  const t = String(k || '').trim()
+  if (!t || t === '번호' || t === '부재') return ''
+  if (/^A\d*$/i.test(t)) return '면적'
+  if (t === '개소') return '개수'
+  if (/^[A-Za-z]{1,3}\d*$/.test(t)) return '길이'
+  return '글자'
+}
 
 function kb(n) { return new Intl.NumberFormat('ko-KR').format(Math.round(n / 1024)) }
 
@@ -50,6 +67,14 @@ function Run() {
   const [out, setOut] = useState(null)      /* {url, name, rows, checks, warns, serious} */
   const bRef = useRef(null)
   const uRef = useRef(null)
+  /* 📐 도면에서 찍기 (2026-09-27) */
+  const 도 = use도면('치수도면')
+  const dRef = useRef(null)
+  const [선택, set선택] = useState(null)      /* {i, k} 고른 칸 */
+  const [찍음, set찍음] = useState([])        /* 줄마다 {칸: [{e,v}]} — 어디서 찍었나 */
+  const [두점, set두점] = useState(null)
+  const [알림, set알림] = useState({ 글: '', 좋음: false })
+  const [보는중, set보는중] = useState(null)
 
   const loadLib = useCallback(async () => {
     if (lib) return lib
@@ -115,14 +140,16 @@ function Run() {
 
   /* 화면 표: 처음엔 빈 줄 세 개. «견본 줄 불러오기» 로 견본 12줄을 채울 수 있습니다. */
   const 표준비 = () => 표 || { 칸: 기본칸, 줄: [빈줄(기본칸, 1), 빈줄(기본칸, 2), 빈줄(기본칸, 3)] }
-  const 표바꿈 = (i, j, v) => {
+  const 표바꿈 = (i, j, v, 목록) => {
     const t = 표준비()
     const 줄 = t.줄.map((r) => r.slice())
     줄[i][j] = v
     set표({ ...t, 줄 }); setOut(null)
+    const k = t.칸[j]
+    set찍음((P) => { const a = P.slice(); const o = { ...(a[i] || {}) }; if (목록 && 목록.length) o[k] = 목록; else delete o[k]; a[i] = o; return a })
   }
   const 줄더하기 = () => { const t = 표준비(); set표({ ...t, 줄: [...t.줄, 빈줄(t.칸, t.줄.length + 1)] }) }
-  const 줄지우기 = (i) => { const t = 표준비(); set표({ ...t, 줄: t.줄.filter((_, k) => k !== i) }); setOut(null) }
+  const 줄지우기 = (i) => { const t = 표준비(); set표({ ...t, 줄: t.줄.filter((_, k) => k !== i) }); set찍음((P) => P.filter((_, k) => k !== i)); set선택(null); setOut(null) }
   const 견본줄 = async () => {
     setErr('')
     try {
@@ -132,7 +159,7 @@ function Run() {
       const us = m.readUnits(text)
       const 칸 = 기본칸.slice()
       for (const u of us) for (const k of Object.keys(u)) if (!칸.includes(k)) 칸.push(k)
-      set표({ 칸, 줄: us.map((u) => 칸.map((k) => u[k] ?? '')) }); setOut(null)
+      set표({ 칸, 줄: us.map((u) => 칸.map((k) => u[k] ?? '')) }); set찍음([]); set선택(null); setOut(null)
     } catch (e) { setErr(e?.message || '견본 줄을 불러오지 못했습니다.') }
   }
   const 표글 = useMemo(() => {
@@ -144,6 +171,34 @@ function Run() {
   }, [표])
 
   const 치수글 = 치수길 === '표' ? 표글 : (unit && unit.text)
+
+  /* ── 📐 찍기 ── */
+  const 선택종류 = 선택 ? 치수칸종류(선택.k) : ''
+  const 선택찍음 = 선택 ? (((찍음[선택.i] || {})[선택.k]) || []) : []
+  const 찍었다 = (e, x, y, 보기) => {
+    if (!도.모델) return
+    if (!선택) { set알림({ 글: '먼저 아래 치수표에서 채울 칸을 누르십시오.' }); return }
+    const r = 찍기(도.모델, e, x, y, { kind: 선택종류, k: (도.단위 && 도.단위.k) || 1, 끈층: 도.끈층, 보기, 지금: 선택찍음 })
+    if (r.목록 === null) { set알림({ 글: r.알림 }); return }
+    const t = 표준비()
+    표바꿈(선택.i, t.칸.indexOf(선택.k), r.값, r.목록)
+    set알림({ 글: r.알림 || '', 좋음: !!r.알림좋음 })
+  }
+  const 두점찍었다 = (p) => {
+    if (!선택 || 선택종류 !== '길이') { set알림({ 글: '길이 칸(L·W·H 등)을 먼저 누르십시오.' }); set두점(null); return }
+    if (!두점 || !두점.length) { set두점([p]); set알림({ 글: '두 번째 점을 누르십시오.', 좋음: true }); return }
+    const r = 두점더하기(선택찍음, 두점[0], p, (도.단위 && 도.단위.k) || 1)
+    표바꿈(선택.i, 표준비().칸.indexOf(선택.k), r.값, r.목록)
+    set두점(null)
+    set알림({ 글: '두 점 사이 ' + r.d.toFixed(3) + ' m 를 더했습니다.', 좋음: true })
+  }
+  const 강조 = useMemo(() => {
+    const o = []
+    const ids = 선택찍음.map((it) => it.e).filter((e) => e >= 0)
+    if (ids.length) o.push({ ids, color: '#facc15', w: 3.5 })
+    if (보는중 !== null && 보는중 >= 0) o.push({ ids: [보는중], color: '#38bdf8', w: 2.5 })
+    return o
+  }, [선택찍음, 보는중])
 
   const run = async () => {
     if (!book || !치수글) return
@@ -232,14 +287,30 @@ function Run() {
               <b>단위는 미터</b>입니다(도면의 3000mm 는 3). <b>부재</b>는 재료표에 있는 이름을 고르고,
               나머지 칸(A1·A2·L·W·H·A)은 재료표 수량식이 쓰는 치수입니다. <b>개소</b>를 비우면 1 입니다.
             </p>
+            <div className="jrx-draw">
+              <button type="button" className={'btn sm ' + (도.모델 ? 'ghost' : 'line')} style={{ width: 'auto' }} onClick={() => dRef.current?.click()}>
+                📐 {도.모델 ? '다른 도면 열기' : '도면에서 찍어 채우기 (DXF·DWG)'}</button>
+              <span className="muted" style={{ fontSize: 12.5 }}>칸을 누르고 도면의 선·치수·글자·닫힌 선을 누르면 값(m)이 들어갑니다. 도면은 이 브라우저 밖으로 나가지 않습니다.</span>
+              <input ref={dRef} type="file" accept=".dxf,.DXF,.dwg,.DWG" className="sr-only" tabIndex={-1}
+                     onChange={(e) => { 도.파일받기(e.target.files); e.target.value = '' }} />
+            </div>
+            <도면상태줄 상태={도.도면상태} />
+            {도.모델 && (
+              <도면판 도={도} 강조={강조} 찍었다={찍었다} 두점={두점} set두점={set두점} 두점찍었다={두점찍었다} set보는중={set보는중}
+                알림={알림.글} 알림좋음={알림.좋음} 열기={() => dRef.current?.click()}
+                안내={선택 ? (선택종류
+                  ? <>👉 <b>{선택.i + 1}번 줄 «{선택.k}»</b> — {도움글[선택종류]}{두점 !== null ? ' 📏 두 점 재기: 점 두 개를 누르십시오.' : ''}</>
+                  : <>«{선택.k}» 칸은 도면에서 받지 않습니다 — 직접 적거나 고르십시오.</>)
+                  : <>아래 치수표에서 채울 칸을 누른 뒤, 도면을 누르십시오. <span className="muted">(끌면 옮기기 · 휠·두 손가락 = 확대)</span></>} />
+            )}
             <div className="jrx-wrap">
               <table className="jrx">
-                <thead><tr>{t.칸.map((k) => <th key={k}>{k}</th>)}<th /></tr></thead>
+                <thead><tr>{t.칸.map((k) => <th key={k} title={치수칸종류(k) && 도.모델 ? '도면에서 받음: ' + 치수칸종류(k) : ''}>{k}{치수칸종류(k) && 도.모델 ? <i className="gg-pk">●</i> : null}</th>)}<th /></tr></thead>
                 <tbody>
                   {t.줄.map((r, i) => (
                     <tr key={i}>
                       {t.칸.map((k, j) => (
-                        <td key={k}>
+                        <td key={k} className={(선택 && 선택.i === i && 선택.k === k && 도.모델 ? 'jrx-on ' : '') + ((찍음[i] || {})[k] && (찍음[i] || {})[k].length ? 'jrx-pk' : '')}>
                           {k === '부재' && 부재들.length ? (
                             <select value={r[j]} onChange={(e) => 표바꿈(i, j, e.target.value)}>
                               <option value="">고르기</option>
@@ -247,6 +318,8 @@ function Run() {
                             </select>
                           ) : (
                             <input value={r[j]} onChange={(e) => 표바꿈(i, j, e.target.value)}
+                                   onFocus={() => { set선택({ i, k }); set두점(null); set알림({ 글: '' }) }}
+                                   aria-label={(i + 1) + '번 줄 ' + k}
                                    inputMode={/^(개소|A1|A2|L|W|H|A)$/.test(k) ? 'decimal' : 'text'}
                                    className={k === '비고' || k === '부재' ? 'w' : ''} />
                           )}
@@ -261,7 +334,7 @@ function Run() {
             <div className="btn-row" style={{ gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
               <button type="button" className="btn ghost sm" onClick={줄더하기}>＋ 줄 더하기</button>
               <button type="button" className="btn ghost sm" onClick={견본줄}>견본 12줄 불러오기</button>
-              <button type="button" className="btn ghost sm" onClick={() => { set표(null); setOut(null) }}>비우기</button>
+              <button type="button" className="btn ghost sm" onClick={() => { set표(null); set찍음([]); set선택(null); setOut(null) }}>비우기</button>
             </div>
             {!book && <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>재료표를 먼저 고르시면 «부재» 칸이 고르는 칸으로 바뀝니다.</div>}
           </>
@@ -334,8 +407,9 @@ function Run() {
         <ul className="flist">
           <li><b>단가는 내지 않습니다.</b> 수량과 산출근거까지입니다.
             표준품셈 · 물가정보 · 노임단가는 유료 자료라 싣지 않습니다</li>
-          <li><b>도면은 사람이 읽어야 합니다.</b> 도면의 선이 무엇을 뜻하는지는 도면마다 달라서,
-            자동으로 하면 반드시 틀립니다. 여기는 «잰 치수를 받아 셈하는» 자리입니다</li>
+          <li><b>무엇을 누를지는 사람이 정합니다.</b> 도면의 선이 무엇을 뜻하는지는 도면마다 달라서,
+            프로그램은 «누른 선·치수·글자의 값» 만 정확히 옮깁니다. 도면에 적힌 표(철근 재료표·횡단면 면적 등)는
+            <Link to="/jeoksan/auto">도면 물량 자동</Link>에서 누르지 않고 바로 뽑습니다</li>
           <li>견본 재료표의 환산·할증 값은 <b>쓰시는 기준으로 고쳐 쓰는 자리</b>입니다. 그대로 쓰시면 견본 값으로 셉니다</li>
           <li>철근 단위중량(<b>KS D 3504</b>)만 값표에 들어 있습니다. 표준 규격이라 그렇습니다</li>
           <li><b>검산 시트를 꼭 보십시오.</b> 밀리미터를 그대로 넣었거나, 번호가 겹쳤거나,
@@ -343,6 +417,8 @@ function Run() {
         </ul>
         <div className="btn-row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
           <Link className="btn ghost" to="/jeoksan/golgo">🏗 골조 — 도면에서 찍어 재기</Link>
+          <Link className="btn ghost" to="/jeoksan/magam">🧱 마감 — 방마다 바닥·벽·천장</Link>
+          <Link className="btn ghost" to="/jeoksan/auto">⚡ 도면 물량 자동</Link>
           <Link className="btn ghost" to="/jeoksan">🧮 K-적산이 무엇인지</Link>
           <Link className="btn ghost" to="/tools/dxf3d">📦 도면 3D 보기</Link>
           <Link className="btn ghost" to="/tools">🧰 다른 도구</Link>
