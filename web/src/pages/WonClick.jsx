@@ -18,10 +18,13 @@
  * ■ 법령 요율은 넣어 두지 않습니다 (공종·계약마다 다름). 계약서 값을 이용자가 넣습니다.
  * ■ 입력값은 이 기기(브라우저)에만 저장합니다. 서버로 보내지 않습니다.
  */
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import META from '../data/wonclick.json'
 import { askAfter } from '../AskComment'
+/* 📄 2026-09-27 — 서류를 화면에서 보고·고치고·인쇄 (엑셀화면.jsx). 무거운 셈은 열 때만 받습니다. */
+const 엑셀화면 = lazy(() => import('../엑셀화면.jsx'))
+const 고침열쇠 = 'kcm.wonclick.고침.v1'
+function 고침읽기() { try { return JSON.parse(localStorage.getItem(고침열쇠) || '{}') || {} } catch { return {} } }
 
 const KEY = 'kcm.wonclick.v1'
 const 늦게펼침 = ['6.', '7.', '8.', '9.']     // 기성·공기연장·준공·하자 — 필요할 때 펼침
@@ -94,6 +97,36 @@ export default function WonClick() {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [done, setDone] = useState('')
+  /* 📄 화면에서 보기 — 틀(xlsx)은 처음 열 때 한 번 받습니다 */
+  const [보기, set보기] = useState(false)
+  const [틀, set틀] = useState(null)
+  const [책, set책] = useState(null)
+  const [보기오류, set보기오류] = useState('')
+  const [고침, set고침원] = useState(고침읽기)
+  const set고침 = (v) => { set고침원(v); try { localStorage.setItem(고침열쇠, JSON.stringify(v)) } catch { /* 가득 참 */ } }
+  useEffect(() => {
+    if (!보기) return undefined
+    let 살 = true
+    ;(async () => {
+      try {
+        set보기오류('')
+        let t = 틀
+        const [lib, R] = await Promise.all([import('../lib/wonclick.js'), import('../lib/엑셀읽기.js')])
+        if (!t) {
+          const res = await fetch(META.file)
+          if (!res.ok) throw new Error('틀 파일을 받지 못했습니다. 잠시 뒤 다시 눌러 주세요.')
+          t = new Uint8Array(await res.arrayBuffer())
+          if (살) set틀(t)
+        }
+        const v = {}
+        for (const i of META.inputs) if (vals[i.key] !== undefined) v[i.key] = vals[i.key]
+        const out = lib.fillWorkbook(t, META, v, pick.length ? pick : META.docs.map((d) => d.sheet))
+        if (살) set책(R.엑셀읽기(out))
+      } catch (e) { if (살) set보기오류(e.message || String(e)) }
+    })()
+    return () => { 살 = false }
+  }, [보기, vals, 틀])   // eslint-disable-line react-hooks/exhaustive-deps
+  const 보일서류 = useMemo(() => META.docs.map((d) => d.sheet).filter((x) => pick.includes(x)), [pick])
 
   useEffect(() => { save({ ...vals, __pick: pick }) }, [vals, pick])
 
@@ -122,7 +155,12 @@ export default function WonClick() {
       const tpl = new Uint8Array(await res.arrayBuffer())
       const v = {}
       for (const i of META.inputs) if (vals[i.key] !== undefined) v[i.key] = vals[i.key]
-      const out = lib.fillWorkbook(tpl, META, v, pick)
+      let out = lib.fillWorkbook(tpl, META, v, pick)
+      /* 화면에서 고친 칸이 있으면 그대로 넣어 받습니다 */
+      if (Object.keys(고침).length) {
+        const [R, W] = await Promise.all([import('../lib/엑셀읽기.js'), import('../lib/엑셀쓰기.js')])
+        out = W.고친엑셀(out, R.엑셀읽기(out), 고침)
+      }
       const nm = `공사서류_원클릭_${lib.safeName(vals.공사명) || '빈칸'}.xlsx`
       const url = URL.createObjectURL(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
       const a = document.createElement('a')
@@ -140,7 +178,7 @@ export default function WonClick() {
 
   function 지우기() {
     if (!window.confirm('입력한 내용을 모두 지울까요? (이 기기에 저장된 것만 지워집니다)')) return
-    setVals({}); setPick(META.docs.map((d) => d.sheet)); setDone('')
+    setVals({}); setPick(META.docs.map((d) => d.sheet)); setDone(''); set고침({})
   }
 
   const 무리 = [['업체', '우리 회사가 내는 서류'], ['발주기관', '발주기관(감독·검사자)이 쓰는 서류']]
@@ -148,7 +186,6 @@ export default function WonClick() {
   return (
     <div className="wrap">
       <div className="card">
-        <Link className="btn ghost sm" to="/tools">← 도구</Link>
         <h1 className="tl-h1">⚡ 공사서류 원클릭</h1>
         <div className="note">
           <b>한 번 입력하면 착공부터 준공·하자까지 서류 {META.docs.length}가지가 채워진 엑셀</b>이 나옵니다.
@@ -218,6 +255,27 @@ export default function WonClick() {
         ))}
       </div>
 
+      <div className="card">
+        <div className="detail-h">③ 화면에서 보고 · 고치고 · 인쇄 <span className="count">· 엑셀 없이 여기서 끝</span></div>
+        {!보기 ? (
+          <>
+            <div className="note sm">채운 칸이 서류에 어떻게 들어갔는지 A4 그대로 봅니다. <b>칸을 누르면 고칠 수 있고</b>, 고친 것은 이 기기에 남습니다. 인쇄하면 서류 한 가지가 A4 한 장입니다.</div>
+            <div className="btn-row" style={{ marginTop: 8 }}>
+              <button className="btn" onClick={() => set보기(true)} disabled={!pick.length}>📄 서류 {pick.length}가지 화면에서 보기</button>
+            </div>
+          </>
+        ) : 보기오류 ? <div className="note sm" style={{ color: 'var(--bad, #c62828)' }}>⚠ {보기오류}</div>
+          : !책 ? <div className="note sm">서류를 채우는 중…</div>
+          : !보일서류.length ? <div className="note sm">② 에서 서류를 하나 이상 골라 주세요.</div>
+          : (
+            <Suspense fallback={<div className="note sm">화면을 준비하는 중…</div>}>
+              <엑셀화면 책={책} 시트들={보일서류} 고침={고침} set고침={set고침}
+                이름={`공사서류_${(vals.공사명 || '원클릭').slice(0, 30)}`}
+                이름표={(n) => n.replace(/^\d+\s*/, '')} />
+            </Suspense>
+          )}
+      </div>
+
       <div className="card wc-go">
         {빈칸.length > 0 && (
           <div className="note sm" style={{ color: 'var(--warn, #b25a00)' }}>
@@ -230,6 +288,7 @@ export default function WonClick() {
           </button>
           <button className="btn ghost sm" style={{ whiteSpace: 'nowrap' }} onClick={지우기}>입력 지우기</button>
         </div>
+        {Object.keys(고침).length > 0 && <div className="note sm" style={{ marginTop: 8 }}>✏️ 화면에서 고친 칸 {Object.keys(고침).length}개도 엑셀에 그대로 들어갑니다.</div>}
         {done && <div className="note sm" style={{ marginTop: 8 }}>✔ {done} 엑셀에서 열면 칸이 저절로 계산됩니다. 인쇄는 서류 한 가지가 A4 한 장입니다.</div>}
         {err && <div className="note sm" style={{ marginTop: 8, color: 'var(--bad, #c62828)' }}>⚠ {err}</div>}
       </div>
@@ -250,7 +309,7 @@ export default function WonClick() {
           <li>발주기관이 정한 서식이 있으면 그 서식을 씁니다. 이 파일은 정해진 서식이 없을 때 쓰는 기본 양식입니다.</li>
           <li>보증금률·지체상금률·하자담보책임기간은 공종과 계약마다 다릅니다. 계약서에 적힌 값을 넣으세요 — 여기서 정해 두지 않았습니다.</li>
           <li>지체상금 자동 계산은 «최종 계약금액 × 요율 × 지체일수» 입니다. 면제·감면이나 기성 인수분 공제가 있으면 입력 칸에 그 금액을 넣으세요.</li>
-          <li>휴대폰 미리보기(카톡 등)에서는 계산된 칸이 비어 보일 수 있습니다. 엑셀·한셀·구글 시트에서 열면 채워집니다.</li>
+          <li>받은 엑셀을 휴대폰 미리보기(카톡 등)로 열면 계산된 칸이 비어 보일 수 있습니다. 엑셀·한셀·구글 시트에서 열면 채워집니다 — 휴대폰에서는 위 ③ «화면에서 보기» 가 편합니다.</li>
           <li>인쇄하면 머리글 오른쪽에 작은 K-건설맵 표시가 나옵니다. 지우려면 엑셀 <b>페이지 레이아웃 → 페이지 설정 → 머리글/바닥글</b>에서 «(없음)».</li>
         </ul>
       </div>

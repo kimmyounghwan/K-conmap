@@ -6,6 +6,7 @@
 import { useMemo, useState } from 'react'
 import { 구분, 구분이름, 기성, 원, 억만, 퍼센트, 공수글, 오늘, 요약, 날더하기, 요일, 자재단위, 단위들 } from '../lib/tuipbi.js'
 import TuipbiBook from './TuipbiBook.jsx'
+import { use화면상태 } from '../lib/길기록.js'
 
 const 숫자만 = (s) => Number(String(s || '').replace(/[^0-9.-]/g, '')) || 0
 const 쉼표칸 = (s) => { const n = String(s || '').replace(/[^0-9]/g, ''); return n ? 원(Number(n)) : '' }
@@ -18,7 +19,9 @@ const 탭들 = [
 
 export default function TuipbiSite(P) {
   const { 현장, 줄들, 출역, 예시 } = P
-  const [탭, set탭] = useState(() => { try { return sessionStorage.getItem('kcm-tp-tab') || 'home' } catch (e) { return 'home' } })
+  /* 🧭 2026-09-27 — 탭 = 뒤로가기 한 칸 (lib/길기록.js). 다시 들어올 때는 마지막 탭(sessionStorage) */
+  const [처음탭] = useState(() => { try { return sessionStorage.getItem('kcm-tp-tab') || 'home' } catch (e) { return 'home' } })
+  const [탭, set탭] = use화면상태('탭', 처음탭)
   const 가기 = (t) => { set탭(t); try { sessionStorage.setItem('kcm-tp-tab', t) } catch (e) { /* 없음 */ } window.scrollTo({ top: 0 }) }
   const S = useMemo(() => 요약(현장, 줄들, 오늘(), 출역), [현장, 줄들, 출역])
   return (

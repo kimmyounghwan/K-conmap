@@ -17,6 +17,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { 판읽기, dxf이름, 크기글 } from '../lib/dwgdxf.js'
 import { 도면넘기기 } from '../lib/도면넘김.js'
 
+import { use머무름 } from '../lib/길기록.js'
+import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 const 큰파일 = 200 * 1024 * 1024
 let 번호 = 0
 
@@ -32,8 +34,9 @@ function 오류글(k, more) {
 export default function DwgDxf() {
   const 파일칸 = useRef(null)
   const [끌림, set끌림] = useState(false)
-  const [목록, set목록] = useState([])   // { id, 이름, 크기, 판, 상태:'대기'|'중'|'끝'|'실패', p, msg, 초, dxf?:Blob, info, 오류 }
-  const 목록Ref = useRef([])
+  /* 🧭 2026-09-27 — 다른 화면에 갔다 와도 바꾼 목록 그대로(이 탭에 머무는 동안). 바꾸던 중에 떠났으면 «다시 넣어 주세요» */
+  const [목록, set목록] = use머무름('dwgdxf.목록', [], (L) => L.map((x) => (x.상태 === '중' || x.상태 === '대기' ? { ...x, 상태: '실패', 오류: '바꾸는 중에 화면을 떠나 멈췄습니다 — 다시 넣어 주십시오' } : x)))   // { id, 이름, 크기, 판, 상태:'대기'|'중'|'끝'|'실패', p, msg, 초, dxf?:Blob, info, 오류 }
+  const 목록Ref = useRef(목록)   // 되살린 목록에서 이어 붙임(빈 배열로 두면 새 파일을 넣을 때 앞 목록이 사라짐)
   const 일중 = useRef(false)
   const 일꾼 = useRef(null)
   const 시계 = useRef(null)
@@ -146,6 +149,7 @@ export default function DwgDxf() {
         </div>
         <input ref={파일칸} type="file" accept=".dwg,.DWG" multiple className="sr-only" tabIndex={-1}
                onChange={(e) => { 받기(e.target.files); e.target.value = '' }} />
+        <끌어놓기판 글="DWG 도면을 놓으면 바꿉니다 — 여러 장도 됩니다" 길들={[{ 꼴: /\.dwg$/i, 받기: (fs) => 받기(fs), 여럿: true }]} />
 
         {목록.length > 0 && (
           <div className="dd-list">

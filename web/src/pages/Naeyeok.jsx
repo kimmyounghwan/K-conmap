@@ -14,7 +14,7 @@
  * ⚠️ 낙찰을 약속하지 않습니다. 약속하는 것은 **서류의 정확성**뿐입니다.
  * ⏸ 2026-09-25 — 대행은 지금 받지 않습니다(아래 «대행받음»). 이 화면은 «산출내역서 알아보기» 로 남습니다.
  */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 /* 🦺 2026-09-16 — 「작성 대행」 탭이 내역서와 안전서류 둘을 같이 품습니다.
    내역서를 보러 온 사람이 곧 착공계도 내야 하는 사람입니다 — 그 자리에 띠를 붙입니다. */
@@ -75,7 +75,17 @@ function ask(where, 이름 = 'naeyeok_ask') {
 /* 🦺 2026-09-20 — /safety 도 이 문의함을 씁니다. 같은 창구를 두 벌로 만들지 않습니다.
    «무엇이 필요하십니까» 목록만 갈아 끼웁니다(옵션). 안 주면 내역서 목록 그대로입니다. */
 export function QuoteForm({ 옵션 = null, 첫값 = '입찰 산출내역서', 쓰임 = 'naeyeok_ask' }) {
-  const [f, setF] = useState({ work: '', org: '', no: '', money: '', want: 첫값, due: '', phone: '', name: '', memo: '' })
+  /* 🧭 2026-09-27 — 적다가 다른 화면에 갔다 와도 남게(이 탭을 닫을 때까지). 연락처·이름은 남기지 않습니다. */
+  const 초안열쇠 = 'kcm.ask.초안.' + 쓰임
+  const [f, setF] = useState(() => {
+    const 기본 = { work: '', org: '', no: '', money: '', want: 첫값, due: '', phone: '', name: '', memo: '' }
+    try { const d = JSON.parse(sessionStorage.getItem(초안열쇠) || 'null'); if (d) return { ...기본, ...d, phone: '', name: '' } } catch (e) { /* 없음 */ }
+    return 기본
+  })
+  useEffect(() => {
+    const { phone, name, ...나머지 } = f   // eslint-disable-line no-unused-vars
+    try { sessionStorage.setItem(초안열쇠, JSON.stringify(나머지)) } catch (e) { /* 없음 */ }
+  }, [f])   // eslint-disable-line react-hooks/exhaustive-deps
   const [state, setState] = useState('')      // '' | 'send' | 'done' | 오류글
   const set = (k) => (e) => setF((v) => ({ ...v, [k]: e.target.value }))
 
@@ -101,6 +111,7 @@ export function QuoteForm({ 옵션 = null, 첫값 = '입찰 산출내역서', �
         at: Date.now(),
       })
       ask('form', 쓰임)
+      try { sessionStorage.removeItem(초안열쇠) } catch (e) { /* 없음 */ }
       setState('done')
     } catch (err) {
       setState('보내지 못했습니다. 메일(' + MAIL + ')로 보내 주시면 똑같이 처리해 드리겠습니다.')
@@ -498,8 +509,8 @@ export default function Naeyeok() {
           </li>
           <li>
             <b>개찰 자료 15만여 건</b>을 세어 만든 사이트입니다. 이 화면 말고 나머지는 전부 무료입니다 —
-            <a href="/"> 바로투찰</a> · <a href="/first">1순위</a> · <a href="/forms">서식</a> ·
-            <a href="/change"> 설계변경</a> · <a href="/jobs">구인구직</a> · <a href="/cad">캐드</a>.
+            <Link to="/"> 바로투찰</Link> · <Link to="/first">1순위</Link> · <Link to="/forms">서식</Link> ·
+            <Link to="/change"> 설계변경</Link> · <Link to="/jobs">구인구직</Link> · <Link to="/cad">캐드</Link>.
             써 보시고 판단하십시오.
           </li>
         </ul>

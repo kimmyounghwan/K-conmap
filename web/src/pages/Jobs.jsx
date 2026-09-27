@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 /* ⚠️ 2026-09-08 — firebase 를 «정적으로» 끌어오면 안 됩니다.
    착공현장 탭을 열기만 해도 firebase 청크(390KB · gzip 84KB)를 받습니다.
@@ -17,6 +18,7 @@ import Sites from '../Sites.jsx'
 import { pinHash } from '../lib/pin.js'
 import { loadRegion } from '../lib/lic.js'
 import { wnUrl, WN_TRADES, WN_REGION_PAGE } from '../lib/worknet.js'
+import { use화면상태 } from '../lib/길기록.js'
 
 /* ══════════════════════════════════════════════════════════════
    💼 구인·구직 — 워크넷과 우리 게시판을 «한 화면»에 (2026-09-14)
@@ -78,7 +80,8 @@ const addMine = (id) => { try { localStorage.setItem(MINE_KEY, JSON.stringify([.
 export default function Jobs() {
   /* 🏗 낙찰 현장이 기본입니다 — 글이 0건이어도 매일 570건씩 채워지는 쪽이라
      «빈 게시판» 을 첫 화면으로 보여주지 않기 위해서입니다. */
-  const [mode, setMode] = useState('sites')
+  /* 🧭 2026-09-27 — «낙찰 현장 ↔ 구인·구직» 과 «글 올리기» 도 뒤로가기 한 칸 (lib/길기록.js) */
+  const [mode, setMode] = use화면상태('보기', 'sites')
 
   return (
     <>
@@ -105,7 +108,7 @@ function WorkBoard({ onSeeAll }) {
   const [posts, setPosts] = useState(null)
   const [err, setErr] = useState('')
   const [mine, setMine] = useState(loadMine)
-  const [writing, setWriting] = useState(false)
+  const [writing, setWriting, 글쓰기닫기] = use화면상태('글쓰기', false)
 
   const [region, setRegion] = useState(() => { try { return loadRegion() } catch { return '전국' } })
   const [trade, setTrade] = useState('전체')
@@ -198,8 +201,8 @@ function WorkBoard({ onSeeAll }) {
         <WriteForm
           region0={region}
           trade0={trade}
-          onClose={() => setWriting(false)}
-          onDone={(id) => { addMine(id); setMine(loadMine()); setWriting(false); load() }}
+          onClose={() => 글쓰기닫기(false)}
+          onDone={(id) => { addMine(id); setMine(loadMine()); 글쓰기닫기(false); load() }}
         />
       )}
 
@@ -353,7 +356,7 @@ function HireSites({ region, trade, onSeeAll }) {
         background: 'var(--accent-soft, rgba(26,86,219,.08))', border: '1px solid var(--line)',
       }}>
         <b>낙찰되셨습니까?</b> 착공신고 때 <b>산출내역서</b>를 내셔야 합니다.{' '}
-        <a href="/naeyeok" style={{ fontWeight: 700 }}>산출내역서 알아보기 →</a>
+        <Link to="/naeyeok" style={{ fontWeight: 700 }}>산출내역서 알아보기 →</Link>
       </div>
 
       {loading || !pageReady ? <Skeleton n={3} /> : view.length === 0 ? (
@@ -481,14 +484,24 @@ function Post({ p, isMine, onChanged }) {
 }
 
 /* ── 글쓰기 ──────────────────────────── */
+const 초안열쇠 = 'kcm.jobs.초안'
 function WriteForm({ onClose, onDone, region0, trade0 }) {
   /* 위에서 고른 지역·직종을 그대로 채워 둡니다 — 두 번 고르게 하지 않습니다 */
-  const [f, setF] = useState({
-    type: '구인',
-    trade: trade0 && trade0 !== '전체' ? trade0 : '현장관리',
-    region: region0 && region0 !== '전국' ? region0 : '전남',
-    title: '', co: '', pay: '', contact: '', body: '', pin: '',
+  /* 🧭 2026-09-27 — 쓰다가 다른 화면에 갔다 와도 적은 글이 남게(이 탭을 닫을 때까지). 삭제용 숫자는 남기지 않습니다. */
+  const [f, setF] = useState(() => {
+    const 기본 = {
+      type: '구인',
+      trade: trade0 && trade0 !== '전체' ? trade0 : '현장관리',
+      region: region0 && region0 !== '전국' ? region0 : '전남',
+      title: '', co: '', pay: '', contact: '', body: '', pin: '',
+    }
+    try { const d = JSON.parse(sessionStorage.getItem(초안열쇠) || 'null'); if (d) return { ...기본, ...d, pin: '' } } catch (e) { /* 없음 */ }
+    return 기본
   })
+  useEffect(() => {
+    const { pin, ...나머지 } = f   // eslint-disable-line no-unused-vars
+    try { sessionStorage.setItem(초안열쇠, JSON.stringify(나머지)) } catch (e) { /* 사생활 보호 모드 */ }
+  }, [f])
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const set_ = (k) => (e) => setF((v) => ({ ...v, [k]: e.target.value }))
@@ -517,6 +530,7 @@ function WriteForm({ onClose, onDone, region0, trade0 }) {
         at: now(),
         deleted: false,
       })
+      try { sessionStorage.removeItem(초안열쇠) } catch (e) { /* 없음 */ }
       onDone(id)
     } catch {
       setMsg('저장에 실패했습니다. 잠시 후 다시 시도해주세요.')

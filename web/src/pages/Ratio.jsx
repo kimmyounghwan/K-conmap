@@ -20,6 +20,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { askAfter } from '../AskComment'
 
+import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 const fmt = (n) => new Intl.NumberFormat('ko-KR').format(Math.round(n || 0))
 const pct = (r) => (Math.round(r * 1000000) / 10000).toLocaleString('ko-KR') + '%'
 const kb = (n) => new Intl.NumberFormat('ko-KR').format(Math.round(n / 1024))
@@ -184,6 +185,7 @@ export default function Ratio() {
           onDrop={(e) => { e.preventDefault(); openFile(e.dataTransfer?.files?.[0]) }}>
           <input ref={inputRef} type="file" accept=".xlsx,.xlsm" hidden
             onChange={(e) => openFile(e.target.files?.[0])} />
+          <끌어놓기판 글="내역서(엑셀)를 놓으면 엽니다" 길들={[{ 꼴: /\.(xlsx|xlsm)$/i, 받기: (fs) => openFile(fs[0]) }]} />
           {file
             ? <><b>{file.name}</b><span>{kb(file.size)} KB · 다른 파일을 올리려면 누르십시오</span></>
             : <><b>＋ 내역서를 끌어 놓거나 누르십시오</b>

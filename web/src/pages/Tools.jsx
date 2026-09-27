@@ -14,8 +14,9 @@
 import { useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import DATA from '../data/tools.json'
-import { CALCS, EXAMPLES } from '../tools/calcs.jsx'
+import { CALCS, EXAMPLES, 칸창고 } from '../tools/calcs.jsx'
 import NotFound from './NotFound.jsx'
+import { use남김 } from '../lib/길기록.js'
 
 const TOOLS = DATA.tools || []
 const CATS = DATA.cats || []
@@ -36,6 +37,8 @@ export const toolBySlug = (s) => TOOLS.find((t) => t.slug === s) || null
 const 어디 = {
   site: ['🌐 사이트에서 바로', 'site'],
   down: ['⬇ 받아서 씀', 'down'],
+  /* 💻 2026-09-27 소장님 결정: 쉐어원은 사이트에서 돌 수 없는 PC 프로그램 — 그대로 두고 «PC 프로그램» 이라고만 표시 */
+  pc: ['💻 PC 프로그램', 'down'],
   lock: ['🔒 시험 중', 'lock'],
 }
 const 계산기묶음 = (key) => {
@@ -58,7 +61,8 @@ const 사이트몫 = 묶음들.reduce((n, g) => n + g.items.filter((x) => x.w ==
 const 내림 = { scrollMarginTop: 76 }
 
 export default function ToolsIndex() {
-  const [q, setQ] = useState('')
+  /* 🧭 2026-09-27 — 도구를 찾아 들어갔다가 뒤로 오면 찾던 말이 그대로 (이 탭을 닫을 때까지) */
+  const [q, setQ] = use남김('kcm.tools.q', '', 'session')
   const 찾은 = useMemo(() => {
     const w = q.trim().toLowerCase().split(/\s+/).filter(Boolean)
     if (!w.length) return 묶음들
@@ -90,7 +94,8 @@ export default function ToolsIndex() {
         )}
         <div className="tlx-legend">
           <span className="tlx-w site">🌐 사이트에서 바로</span> 이 화면에서 끝납니다 ·
-          {' '}<span className="tlx-w down">⬇ 받아서 씀</span> 캐드·PC 에 깔아 씁니다 ·
+          {' '}<span className="tlx-w down">⬇ 받아서 씀</span> 캐드에 올려 씁니다 ·
+          {' '}<span className="tlx-w down">💻 PC 프로그램</span> 사무실 컴퓨터에 깔아 씁니다 ·
           {' '}<span className="tlx-w lock">🔒 시험 중</span> 아직 여는 중
         </div>
       </div>
@@ -151,7 +156,6 @@ export function ToolPage() {
   return (
     <div className="wrap">
       <div className="card">
-        <Link className="btn ghost sm" to="/tools">← 도구</Link>
         <h1 className="tl-h1">{t.icon} {t.title}</h1>
         <div className="note">{t.lead}</div>
       </div>
@@ -163,11 +167,13 @@ export function ToolPage() {
                     onClick={() => set판({ n: 판.n + 1, ex: EXAMPLES[t.slug].ex })}>🧪 예시로 해 보기</button>
             {판.ex
               ? <><span className="tlx-exd">예시: {EXAMPLES[t.slug].글}</span>
-                  <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={() => set판({ n: 판.n + 1, ex: null })}>지우기</button></>
-              : <span className="tlx-exd">눌러 보시면 칸이 채워지고 결과가 바로 나옵니다</span>}
+                  <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={() => { try { localStorage.removeItem('kcm.calc.' + t.slug) } catch (e) { /* 없음 */ } set판({ n: 판.n + 1, ex: null }) }}>지우기</button></>
+              : <><span className="tlx-exd">눌러 보시면 칸이 채워지고 결과가 바로 나옵니다 · 적은 값은 이 기기에 남습니다</span>
+                  <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={() => { try { localStorage.removeItem('kcm.calc.' + t.slug) } catch (e) { /* 없음 */ } set판({ n: 판.n + 1, ex: null }) }}>칸 비우기</button></>}
           </div>
         )}
-        {Calc ? <Calc key={판.n} ex={판.ex || {}} /> : <div className="note">준비 중입니다.</div>}
+        {/* 🧭 2026-09-27 — 적은 값은 이 기기에 남습니다(calcs.jsx use칸). 계산기마다 한 묶음 */}
+        {Calc ? <칸창고.Provider value={{ 열쇠: 'kcm.calc.' + t.slug, ex: 판.ex || {} }}><Calc key={판.n} ex={판.ex || {}} /></칸창고.Provider> : <div className="note">준비 중입니다.</div>}
       </div>
 
       {(t.secs || []).map((s, i) => (

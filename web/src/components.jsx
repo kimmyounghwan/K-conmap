@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
 import { searchAgency, getAgencyTop } from './lib/data.js'
 import { num, pct } from './lib/fmt.js'
@@ -151,12 +152,12 @@ export function NaeyeokStrip({ tone = 'win' }) {
     ? <><b>투찰금액을 정하셨습니까?</b> 낙찰되면 <b>산출내역서</b>를 내셔야 합니다.</>
     : <><b>낙찰되셨습니까?</b> 착공신고 때 <b>산출내역서</b>를 내셔야 합니다.</>
   return (
-    <a href="/naeyeok" className="naeyeok-strip">
+    <Link to="/naeyeok" className="naeyeok-strip">
       <span className="ns-ic">📋</span>
       <span className="ns-txt">{line}</span>
       {/* ⏸ 2026-09-25 — 작성 대행을 지금 받지 않아 «작성해 드립니다» 를 내렸습니다 (Naeyeok.jsx 대행받음). */}
       <span className="ns-go">무엇을 내야 하나 →</span>
-    </a>
+    </Link>
   )
 }
 

@@ -94,9 +94,39 @@ export class LineView {
 
   setLayers(layers) {
     const gl = this.gl
-    for (const l of this.L) for (const b of [l.vb, l.cb, l.pb, l.pcb, l.tb, l.tnb, l.tcb]) if (b) gl.deleteBuffer(b)
+    for (const l of this.L) for (const b of [l.vb, l.cb, l.pb, l.pcb, l.tb, l.tnb, l.tcb, l.lvb, l.lcb, l.svb, l.scb]) if (b) gl.deleteBuffer(b)
+    /* 🐢 2026-09-27 — 소장님: 「3d 돌려 보는데 화면 멈춤현상이 계속 발생해...대기, 종료 창이 떠」
+       도면 여러 장이면 선이 수백만 개(토목 횡단·평면 4장 = 310만)입니다. 돌릴 때마다 그걸 다 그리면 그래픽 칩이 한 장에
+       몇 초씩 붙잡혀 페이지가 «응답 없음» 이 됩니다.
+       → 돌리는·당기는 동안에는 «줄인 판»(선 25만 개까지 고르게 솎은 것)만 그리고, 손을 떼면 0.25초 뒤 한 번 다 그립니다.
+         다 그려도 무거운 도면(200만 개 넘음)은 가만히 있을 때도 100만 개까지만, 화면 배율도 1 로 낮춥니다. */
+    let 총 = 0
+    for (const x of layers) 총 += x.pos.length / 6
+    this.총선 = 총
+    const 솎기 = (한도) => (총 > 한도 ? Math.ceil(총 / 한도) : 1)
+    this.움직임솎 = 솎기(250000)
+    this.쉼솎 = 솎기(1000000)
+    this.낮춤 = 총 > 800000
     this.L = layers.map((x) => {
       const o = { name: x.name, on: !x.off, n: x.pos.length / 3, pn: x.pts.length / 3, tn: x.tri ? x.tri.length / 3 : 0 }
+      /* 줄인 판 — 선 k 개마다 하나 (레이어마다 고르게) */
+      const 판 = (k) => {
+        if (k <= 1 || !o.n) return null
+        const 선수 = x.pos.length / 6
+        const 남 = Math.ceil(선수 / k)
+        const lp = new Float32Array(남 * 6), lc = new Uint8Array(남 * 6)
+        let j = 0
+        for (let i = 0; i < 선수; i += k, j++) {
+          lp.set(x.pos.subarray(i * 6, i * 6 + 6), j * 6)
+          lc.set(x.col.subarray(i * 6, i * 6 + 6), j * 6)
+        }
+        const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.bufferData(gl.ARRAY_BUFFER, lp.subarray(0, j * 6), gl.STATIC_DRAW)
+        const cb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, cb); gl.bufferData(gl.ARRAY_BUFFER, lc.subarray(0, j * 6), gl.STATIC_DRAW)
+        return { vb, cb, n: j * 2 }
+      }
+      const 움 = 판(this.움직임솎)
+      if (움) { o.lvb = 움.vb; o.lcb = 움.cb; o.ln = 움.n }
+      if (this.쉼솎 > 1 && this.쉼솎 !== this.움직임솎) { const 쉼 = 판(this.쉼솎); if (쉼) { o.svb = 쉼.vb; o.scb = 쉼.cb; o.sn = 쉼.n } }
       if (o.tn) {
         o.tb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, o.tb); gl.bufferData(gl.ARRAY_BUFFER, x.tri, gl.STATIC_DRAW)
         o.tnb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, o.tnb); gl.bufferData(gl.ARRAY_BUFFER, x.trn, gl.STATIC_DRAW)
@@ -139,9 +169,9 @@ export class LineView {
     return e
   }
 
-  draw() {
+  draw(줄임 = false) {
     const gl = this.gl, cv = this.cv
-    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    const dpr = this.낮춤 ? 1 : Math.min(window.devicePixelRatio || 1, 2)
     const w = Math.max(1, Math.round(cv.clientWidth * dpr)), h = Math.max(1, Math.round(cv.clientHeight * dpr))
     if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h }
     gl.viewport(0, 0, w, h)
@@ -159,9 +189,11 @@ export class LineView {
     for (const l of this.L) {
       if (!l.on) continue
       if (l.n) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, l.vb); gl.vertexAttribPointer(this.aP, 3, gl.FLOAT, false, 0, 0)
-        gl.bindBuffer(gl.ARRAY_BUFFER, l.cb); gl.vertexAttribPointer(this.aC, 3, gl.UNSIGNED_BYTE, true, 0, 0)
-        gl.drawArrays(gl.LINES, 0, l.n)
+        /* 돌리는 중 → 줄인 판 · 가만히 → 무거우면 덜 줄인 판, 아니면 다 */
+        const [vb, cb, n] = 줄임 && l.lvb ? [l.lvb, l.lcb, l.ln] : (!줄임 && l.svb ? [l.svb, l.scb, l.sn] : [l.vb, l.cb, l.n])
+        gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.vertexAttribPointer(this.aP, 3, gl.FLOAT, false, 0, 0)
+        gl.bindBuffer(gl.ARRAY_BUFFER, cb); gl.vertexAttribPointer(this.aC, 3, gl.UNSIGNED_BYTE, true, 0, 0)
+        gl.drawArrays(gl.LINES, 0, n)
       }
       if (l.pn) {
         gl.bindBuffer(gl.ARRAY_BUFFER, l.pb); gl.vertexAttribPointer(this.aP, 3, gl.FLOAT, false, 0, 0)
@@ -193,8 +225,14 @@ export class LineView {
 
   _loop() {
     if (this._dead) return
-    if (this._dirty || this.cv.width !== Math.round(this.cv.clientWidth * Math.min(window.devicePixelRatio || 1, 2))) {
-      this._dirty = false; this.draw()
+    const 지금 = performance.now()
+    const 움직이는중 = 지금 - (this._움 || 0) < 250
+    const 폭맞나 = this.cv.width === Math.round(this.cv.clientWidth * (this.낮춤 ? 1 : Math.min(window.devicePixelRatio || 1, 2)))
+    if (this._dirty || !폭맞나) {
+      this._dirty = false
+      if (움직이는중 && this.움직임솎 > 1) { this.draw(true); this._다그림 = true } else this.draw(false)
+    } else if (this._다그림 && !움직이는중) {
+      this._다그림 = false; this.draw(false)          // 손을 뗐으면 한 번 다 그립니다
     }
     this._raf = requestAnimationFrame(this._loop)
   }
@@ -210,14 +248,16 @@ export class LineView {
     this.t[0] += (-dx * rx + dy * ux) * k
     this.t[1] += (-dx * ry + dy * uy) * k
     this.t[2] += (dy * uz) * k
+    this._움 = performance.now()
     this.dirty()
   }
   _rot(dx, dy) {
+    this._움 = performance.now()
     this.yaw -= dx * 0.006
     this.pit = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 1e-3, this.pit + dy * 0.006))
     this.dirty()
   }
-  _zoom(f) { this.d = Math.max(1e-3, this.d * f); this.dirty() }
+  _zoom(f) { this._움 = performance.now(); this.d = Math.max(1e-3, this.d * f); this.dirty() }
 
   _bind() {
     const cv = this.cv
@@ -269,7 +309,7 @@ export class LineView {
     cancelAnimationFrame(this._raf)
     if (this._unbind) this._unbind()
     const gl = this.gl
-    for (const l of this.L) for (const b of [l.vb, l.cb, l.pb, l.pcb, l.tb, l.tnb, l.tcb]) if (b) gl.deleteBuffer(b)
+    for (const l of this.L) for (const b of [l.vb, l.cb, l.pb, l.pcb, l.tb, l.tnb, l.tcb, l.lvb, l.lcb, l.svb, l.scb]) if (b) gl.deleteBuffer(b)
     this.L = []
   }
 }

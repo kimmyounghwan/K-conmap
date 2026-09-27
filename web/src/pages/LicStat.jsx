@@ -4,6 +4,7 @@ import { getLicStat } from '../lib/data.js'
 import { Skeleton, Empty } from '../components.jsx'
 import { num } from '../lib/fmt.js'
 import { loadLicCodes, saveLicCodes } from '../lib/lic.js'
+import { use남김 } from '../lib/길기록.js'
 
 /* ══════════════════════════════════════════════════════════════
    ② 면허별 경쟁도 — 2026-09-14. 소장님: 「내 면허 경쟁도 표」
@@ -20,7 +21,7 @@ import { loadLicCodes, saveLicCodes } from '../lib/lic.js'
    ══════════════════════════════════════════════════════════════ */
 export default function LicStat() {
   const [d, setD] = useState(undefined)   // undefined=아직 · null=실패
-  const [q, setQ] = useState('')
+  const [q, setQ] = use남김('kcm.lic.q', '', 'session')   /* 🧭 2026-09-27 뒤로 와도 찾던 말 그대로 */
   const [mine, setMine] = useState(loadLicCodes)
   useEffect(() => { getLicStat().then((v) => setD(v || null)) }, [])
   useEffect(() => { saveLicCodes(mine) }, [mine])

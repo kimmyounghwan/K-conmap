@@ -121,6 +121,8 @@ export function use도면(열쇠) {
 }
 
 /** 진행 막대 · 오류 */
+/* 📥 끌어다 놓기는 가벼운 파일(끌어놓기.jsx)에 있습니다 — 엑셀 화면들도 같이 씁니다 */
+
 export function 도면상태줄({ 상태 }) {
   if (!상태) return null
   if (상태.k === 'busy') return <div className="dx3-bar" aria-live="polite"><div className="dx3-bar-in" style={{ width: Math.round((상태.p || 0) * 100) + '%' }} /><span>{상태.msg} …</span></div>

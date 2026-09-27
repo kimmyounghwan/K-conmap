@@ -85,6 +85,7 @@ const when = (ms) => {
 }
 
 import { 갈래들, 갈래빛, 갈래떼기, 갈래붙이기 } from '../lib/말머리.js'
+import { use화면상태, use남김 } from '../lib/길기록.js'
 
 /* 상대시간 — 「9.18 18:41」 보다 「3시간 전」 이 살아 있어 보입니다. 이틀이 지나면 날짜로. */
 const 언제 = (ms) => {
@@ -107,7 +108,8 @@ export default function Qna() {
   const [ans, setAns] = useState({})        // { 질문id: [답변…] }
   const [del, setDel] = useState({})
   const [open, setOpen] = useState(null)    // 펼친 질문 id
-  const [write, setWrite] = useState(false)
+  /* 🧭 2026-09-27 — 글쓰기 칸도 뒤로가기 한 칸 (lib/길기록.js) */
+  const [write, setWrite, 글쓰기닫기] = use화면상태('글쓰기', false)
   const [mine, setMine] = useState(loadMine)
   /* 🛠 2026-09-17 — 소장님: 「관리자 페이지 어디에 있지?」
      주소는 /admin 인데 **어디에도 길이 없었습니다.** 외워서 치셔야 했습니다.
@@ -115,8 +117,8 @@ export default function Qna() {
      ⚠️ 이용자에게는 아무것도 안 보입니다. */
   const [나운영자, set나운영자] = useState(false)
   const [onlyMine, setOnlyMine] = useState(false)
-  const [q, setQ] = useState('')
-  const [갈래, set갈래] = useState('전체')
+  const [q, setQ] = use남김('kcm.qna.찾기', '', 'session')
+  const [갈래, set갈래] = use남김('kcm.qna.갈래', '전체', 'session')
   const [jobs, setJobs] = useState([])
   const [seen, setSeen] = useState(loadSeen)
 
@@ -255,7 +257,7 @@ export default function Qna() {
           규칙은 아래 «이 게시판 쓰는 법» 으로 접고, 정말 필요한 한 줄
           (전화번호 적지 마세요)만 글 쓰는 칸 옆에 둡니다. */}
       <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-        <button className="btn line" onClick={() => setWrite((v) => !v)}>
+        <button className="btn line" onClick={() => (write ? 글쓰기닫기(false) : setWrite(true))}>
           {write ? '닫기' : '✏️ 글쓰기'}
         </button>
         {mine.length > 0 && (
@@ -268,7 +270,7 @@ export default function Qna() {
 
       {write && (
         <WriteForm 첫갈래={갈래 === '전체' ? '' : 갈래} 나운영자={나운영자}
-          onDone={() => { setWrite(false); load(); setMine(loadMine()) }} />
+          onDone={() => { 글쓰기닫기(false); load(); setMine(loadMine()) }} />
       )}
 
       {/* 🏷️ 말머리 — 글은 한 웅덩이, 문만 여럿. 숫자를 붙여 «빈 방» 으로 보이지 않게 합니다. */}
@@ -303,7 +305,7 @@ export default function Qna() {
           답은 <b>하루 안에</b> 달아 드리는 것을 목표로 합니다.<br />
           <b>물어보시는 글이라면</b> 공사 규모 · 발주처 · 지금 어디까지 —
           이 셋만 있으면 답이 훨씬 정확합니다. 모르면 모르는 대로 적으셔도 됩니다.<br />
-          연락처가 오가야 하는 일은 <a href="/naeyeok">내역서 문의</a>로 보내 주세요 — 그건 아무에게도 안 보입니다.<br />
+          연락처가 오가야 하는 일은 <Link to="/naeyeok">내역서 문의</Link>로 보내 주세요 — 그건 아무에게도 안 보입니다.<br />
           <b>답글은 누구나 답니다</b> — 글을 누르면 본문과 함께 답글 칸이 열립니다.
           K-건설맵이 단 답에는 <b>「K-건설맵 답변」</b> 표가 붙습니다.
           표가 없는 답글은 이용자 의견이니 <b>중요한 건은 발주처에 확인하십시오.</b>{' '}
@@ -414,11 +416,12 @@ export default function Qna() {
       })}
 
       {/* ── 내역서로 이어지는 한 줄 ─────────────────────────── */}
-      <a href="/naeyeok" className="naeyeok-strip" style={{ marginTop: 14 }}>
+      {/* ⏸ 2026-09-27 — 작성 대행을 지금 받지 않는데(Naeyeok.jsx 대행받음) 여기만 «대신 만들어 드립니다» 가 남아 있었습니다. */}
+      <Link to="/naeyeok" className="naeyeok-strip" style={{ marginTop: 14 }}>
         <span className="ns-ic">📋</span>
-        <span className="ns-txt"><b>직접 맡기고 싶으시다면</b> — 산출내역서·설계변경 내역을 대신 만들어 드립니다.</span>
-        <span className="ns-go">내역서 작성 →</span>
-      </a>
+        <span className="ns-txt"><b>산출내역서 · 설계변경</b> — 무엇을 언제 내야 하는지 한 장으로 정리해 두었습니다.</span>
+        <span className="ns-go">내역서 →</span>
+      </Link>
     </div>
   )
 }
@@ -543,9 +546,15 @@ function AnswerForm({ qid, onDone }) {
 }
 
 /* ── 질문 쓰기 ─────────────────────────────────────────────────── */
+const 초안열쇠 = 'kcm.qna.초안'
 function WriteForm({ onDone, 첫갈래, 나운영자 }) {
-  const [f, setF] = useState({ t: '', b: '', pin: '' })
+  /* 🧭 2026-09-27 — 쓰다가 다른 화면에 갔다 와도 적은 글이 남게(이 탭을 닫을 때까지). 지울 때 쓸 숫자는 남기지 않습니다. */
+  const [f, setF] = useState(() => {
+    try { const d = JSON.parse(sessionStorage.getItem(초안열쇠) || 'null'); if (d) return { t: d.t || '', b: d.b || '', pin: '' } } catch (e) { /* 없음 */ }
+    return { t: '', b: '', pin: '' }
+  })
   const [c, setC] = useState(첫갈래 || '')
+  useEffect(() => { try { sessionStorage.setItem(초안열쇠, JSON.stringify({ t: f.t, b: f.b })) } catch (e) { /* 없음 */ } }, [f.t, f.b])
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const set_ = (k) => (e) => setF((v) => ({ ...v, [k]: e.target.value }))
@@ -570,6 +579,7 @@ function WriteForm({ onDone, 첫갈래, 나운영자 }) {
         at: Date.now(),
       })
       addMine(id)
+      try { sessionStorage.removeItem(초안열쇠) } catch (e) { /* 없음 */ }
       onDone()
     } catch (e) {
       setMsg('올리지 못했습니다. 잠시 뒤 다시 해 주세요.')

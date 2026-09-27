@@ -5,6 +5,7 @@ import { db, ensureAnon } from './firebase.js'
 import { pinHash } from './lib/pin.js'
 import { Skeleton } from './components.jsx'
 
+import { 끌어놓기 as 끌어놓기판 } from './끌어놓기.jsx'
 /* ══════════════════════════════════════════════════════════════
    📤 이용자가 올린 서식 (2026-09-06)
    소장님: 「이용자가 스스로 서식 올릴 수 있게. 서식탭하고 설계변경탭에서.」
@@ -202,6 +203,7 @@ function UploadForm({ defaultCat, onClose, onDone }) {
         <input value={f.by} onChange={up('by')} maxLength={20} /></div>
       <div className="field"><label>파일 <span className="hint">— xlsx·xls·docx·doc·hwp·hwpx·pdf·pptx, 20MB 이하 · 큰 파일은 자동으로 압축해 저장합니다</span></label>
         <input type="file" accept=".xlsx,.xls,.docx,.doc,.hwp,.hwpx,.pdf,.pptx" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+        <끌어놓기판 글="서식 파일을 놓으면 올릴 파일로 잡힙니다" 길들={[{ 꼴: /\.(xlsx|xls|docx|doc|hwp|hwpx|pdf|pptx)$/i, 받기: (fs) => setFile(fs[0]) }]} />
         {file && <div className="hint" style={{ marginTop: 4 }}>{file.name} · {kb(file.size)}</div>}</div>
       <div className="field"><label>지울 때 쓸 4자리 숫자</label>
         <input value={f.pin} onChange={up('pin')} inputMode="numeric" maxLength={4} placeholder="예: 1234" /></div>

@@ -8,7 +8,33 @@
    ⚠️ 단가는 넣지 않습니다. 표준품셈·물가정보·노임단가는 유료 간행물이라
       표를 그대로 실을 수 없습니다. 수량만 내고 단가는 사용자가 곱합니다.
    ========================================================== */
-import { useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
+
+/* 🧭 2026-09-27 — 「손님 맞을 준비 … 뒤로가기」 전수조사: 계산기에 적은 값이 다른 화면에 갔다 오면 다 사라졌습니다.
+   → 칸마다 이 기기에 남깁니다(localStorage · 계산기마다 한 묶음). «예시로 해 보기» 중에는 남긴 값을 읽지 않고,
+     «지우기» 를 누르면 그 계산기에 남긴 값을 비웁니다(Tools.jsx ToolPage). */
+export const 칸창고 = createContext(null)
+function use칸(필드, 초기) {
+  const c = useContext(칸창고)
+  const [v, setV] = useState(() => {
+    const 첫 = typeof 초기 === 'function' ? 초기() : 초기
+    if (!c || (c.ex && Object.keys(c.ex).length)) return 첫
+    try {
+      const m = JSON.parse(localStorage.getItem(c.열쇠) || '{}')
+      if (m && Object.prototype.hasOwnProperty.call(m, 필드)) return m[필드]
+    } catch (e) { /* 사생활 보호 모드 */ }
+    return 첫
+  })
+  useEffect(() => {
+    if (!c) return
+    try {
+      const m = JSON.parse(localStorage.getItem(c.열쇠) || '{}') || {}
+      m[필드] = v
+      localStorage.setItem(c.열쇠, JSON.stringify(m))
+    } catch (e) { /* 가득 참 */ }
+  }, [v])   // eslint-disable-line react-hooks/exhaustive-deps
+  return [v, setV]
+}
 /* ⚠️ 낙찰하한율 규칙은 lib/engines.js 한 곳에만 있습니다. 여기서 다시 적지 않습니다. */
 import { lowerLimit } from '../lib/bidmath.js'
 
@@ -46,8 +72,8 @@ const A_PARTS = [
   { k: 'qual', n: '품질관리비', r: 0.70 },
 ]
 export function AValue({ ex = {} }) {
-  const [base, setBase] = useState(ex.base ?? '')
-  const [rate, setRate] = useState(() => Object.fromEntries(A_PARTS.map((p) => [p.k, String(p.r)])))
+  const [base, setBase] = use칸('base', ex.base ?? '')
+  const [rate, setRate] = use칸('rate', () => Object.fromEntries(A_PARTS.map((p) => [p.k, String(p.r)])))
   const b = num(base)
   const parts = A_PARTS.map((p) => ({ ...p, amt: b * num(rate[p.k]) / 100 }))
   const total = parts.reduce((s, p) => s + p.amt, 0)
@@ -80,10 +106,10 @@ export function AValue({ ex = {} }) {
    실효 투찰률  = 낙찰하한금액 ÷ 예정가격
    예정가격은 개찰 때 추첨이라, 여기서는 기초금액 × 사정률로 추정합니다. */
 export function EffectiveFloor({ ex = {} }) {
-  const [base, setBase] = useState(ex.base ?? '')
-  const [aval, setAval] = useState(ex.aval ?? '')
-  const [llr, setLlr] = useState('89.745')
-  const [sj, setSj] = useState('99.896')
+  const [base, setBase] = use칸('base', ex.base ?? '')
+  const [aval, setAval] = use칸('aval', ex.aval ?? '')
+  const [llr, setLlr] = use칸('llr', '89.745')
+  const [sj, setSj] = use칸('sj', '99.896')
   const b = num(base), a = num(aval), r = num(llr) / 100, s = num(sj) / 100
   const plan = b * s                      // 추정 예정가격
   const floor = plan > 0 ? (plan - a) * r + a : 0
@@ -123,10 +149,10 @@ const REBAR = [
   ['D25', 3.980], ['D29', 5.040], ['D32', 6.230], ['D35', 7.510], ['D38', 8.950], ['D41', 10.230],
 ]
 export function RebarWeight({ ex = {} }) {
-  const [d, setD] = useState(ex.d ?? 'D16')
-  const [len, setLen] = useState(ex.len ?? '')
-  const [cnt, setCnt] = useState(ex.cnt ?? '')
-  const [add, setAdd] = useState('3')
+  const [d, setD] = use칸('d', ex.d ?? 'D16')
+  const [len, setLen] = use칸('len', ex.len ?? '')
+  const [cnt, setCnt] = use칸('cnt', ex.cnt ?? '')
+  const [add, setAdd] = use칸('add', '3')
   const u = (REBAR.find((x) => x[0] === d) || [, 0])[1]
   const kg = u * num(len) * num(cnt)
   const kgAdd = kg * (1 + num(add) / 100)
@@ -161,7 +187,7 @@ export function RebarWeight({ ex = {} }) {
 
 /* ── 낙찰하한율 찾기 ─────────────────────────────────────────── */
 export function FloorRate({ ex = {} }) {
-  const [est, setEst] = useState(ex.est ?? '')
+  const [est, setEst] = use칸('est', ex.est ?? '')
   const e = num(est)
   const r = e > 0 ? lowerLimit(e) : null
   return (
@@ -181,8 +207,8 @@ export function FloorRate({ ex = {} }) {
 /* ── 적격심사 점수 합산기 — 배점표는 내장하지 않습니다 ───────────── */
 const QITEMS = ['경영상태', '시공경험', '기술능력', '신인도', '자재·장비', '기타']
 export function QualifyScore({ ex = {} }) {
-  const [v, setV] = useState(() => Object.fromEntries(QITEMS.map((k) => [k, (ex.v && ex.v[k]) ?? ''])))
-  const [pass, setPass] = useState('95')
+  const [v, setV] = use칸('v', () => Object.fromEntries(QITEMS.map((k) => [k, (ex.v && ex.v[k]) ?? ''])))
+  const [pass, setPass] = use칸('pass', '95')
   const sum = QITEMS.reduce((a, k) => a + num(v[k]), 0)
   const need = num(pass) - sum
   return (
@@ -208,9 +234,9 @@ export function QualifyScore({ ex = {} }) {
 
 /* ── 물가변동 조정금액 ────────────────────────────────────────── */
 export function PriceAdjust({ ex = {} }) {
-  const [amt, setAmt] = useState(ex.amt ?? '')
-  const [rate, setRate] = useState(ex.rate ?? '')
-  const [days, setDays] = useState(ex.days ?? '')
+  const [amt, setAmt] = use칸('amt', ex.amt ?? '')
+  const [rate, setRate] = use칸('rate', ex.rate ?? '')
+  const [days, setDays] = use칸('days', ex.days ?? '')
   const a = num(amt), r = num(rate), d = num(days)
   const ok90 = d >= 90, ok3 = Math.abs(r) >= 3
   const adj = (ok90 && ok3) ? a * r / 100 : 0
@@ -239,10 +265,10 @@ export function PriceAdjust({ ex = {} }) {
 
 /* ── 토량환산계수 L·C ─────────────────────────────────────────── */
 export function SoilVolume({ ex = {} }) {
-  const [from, setFrom] = useState(ex.from ?? 'nat')
-  const [vol, setVol] = useState(ex.vol ?? '')
-  const [L, setL] = useState('1.25')
-  const [C, setC] = useState('0.90')
+  const [from, setFrom] = use칸('from', ex.from ?? 'nat')
+  const [vol, setVol] = use칸('vol', ex.vol ?? '')
+  const [L, setL] = use칸('L', '1.25')
+  const [C, setC] = use칸('C', '0.90')
   const v = num(vol), l = num(L) || 1, c = num(C) || 1
   const nat = from === 'nat' ? v : from === 'loose' ? v / l : v / c
   return (
@@ -277,9 +303,9 @@ export function SoilVolume({ ex = {} }) {
 
 /* ── 콘크리트 물량 ────────────────────────────────────────────── */
 export function ConcreteVolume({ ex = {} }) {
-  const [w, setW] = useState(ex.w ?? ''); const [h, setH] = useState(ex.h ?? '')
-  const [l, setL] = useState(ex.l ?? ''); const [n, setN] = useState(ex.n ?? '1')
-  const [loss, setLoss] = useState('2')
+  const [w, setW] = use칸('w', ex.w ?? ''); const [h, setH] = use칸('h', ex.h ?? '')
+  const [l, setL] = use칸('l', ex.l ?? ''); const [n, setN] = use칸('n', ex.n ?? '1')
+  const [loss, setLoss] = use칸('loss', '2')
   const v = num(w) * num(h) * num(l) * num(n)
   const vl = v * (1 + num(loss) / 100)
   return (
@@ -302,9 +328,9 @@ export function ConcreteVolume({ ex = {} }) {
 
 /* ── 거푸집 면적 ──────────────────────────────────────────────── */
 export function FormworkArea({ ex = {} }) {
-  const [kind, setKind] = useState(ex.kind ?? 'col')
-  const [a, setA] = useState(ex.a ?? ''); const [b, setB] = useState(ex.b ?? '')
-  const [h, setH] = useState(ex.h ?? ''); const [n, setN] = useState(ex.n ?? '1')
+  const [kind, setKind] = use칸('kind', ex.kind ?? 'col')
+  const [a, setA] = use칸('a', ex.a ?? ''); const [b, setB] = use칸('b', ex.b ?? '')
+  const [h, setH] = use칸('h', ex.h ?? ''); const [n, setN] = use칸('n', ex.n ?? '1')
   const A = num(a), B = num(b), H = num(h), N = num(n)
   let area = 0, how = ''
   if (kind === 'col') { area = 2 * (A + B) * H * N; how = '둘레 × 높이 (네 옆면)' }
@@ -342,7 +368,7 @@ export function FormworkArea({ ex = {} }) {
 
 /* ── 레미콘 대수 ──────────────────────────────────────────────── */
 export function RemiconTruck({ ex = {} }) {
-  const [vol, setVol] = useState(ex.vol ?? ''); const [cap, setCap] = useState('6'); const [loss, setLoss] = useState('2')
+  const [vol, setVol] = use칸('vol', ex.vol ?? ''); const [cap, setCap] = use칸('cap', '6'); const [loss, setLoss] = use칸('loss', '2')
   const v = num(vol) * (1 + num(loss) / 100)
   const c = num(cap) || 6
   const cars = v > 0 ? Math.ceil(v / c) : 0
@@ -366,8 +392,8 @@ export function RemiconTruck({ ex = {} }) {
 
 /* ── 아스팔트 톤수 ────────────────────────────────────────────── */
 export function AsphaltTonnage({ ex = {} }) {
-  const [area, setArea] = useState(ex.area ?? ''); const [t, setT] = useState('5')
-  const [den, setDen] = useState('2.35'); const [loss, setLoss] = useState('3')
+  const [area, setArea] = use칸('area', ex.area ?? ''); const [t, setT] = use칸('t', '5')
+  const [den, setDen] = use칸('den', '2.35'); const [loss, setLoss] = use칸('loss', '3')
   const v = num(area) * (num(t) / 100)
   const ton = v * num(den) * (1 + num(loss) / 100)
   return (
@@ -393,8 +419,8 @@ const BRICK = [
   ['콘크리트블록', 12.5],
 ]
 export function BrickCount({ ex = {} }) {
-  const [area, setArea] = useState(ex.area ?? ''); const [kind, setKind] = useState('1.0B 쌓기')
-  const [per, setPer] = useState('149'); const [loss, setLoss] = useState('4')
+  const [area, setArea] = use칸('area', ex.area ?? ''); const [kind, setKind] = use칸('kind', '1.0B 쌓기')
+  const [per, setPer] = use칸('per', '149'); const [loss, setLoss] = use칸('loss', '4')
   const cnt = num(area) * num(per) * (1 + num(loss) / 100)
   const pick = (k) => { setKind(k); const f = BRICK.find((x) => x[0] === k); if (f) setPer(String(f[1])) }
   return (

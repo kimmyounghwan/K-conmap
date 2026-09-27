@@ -106,7 +106,6 @@ export function GuideTopic() {
   return (
     <>
       <div className="btn-row" style={{ paddingTop: 14, marginBottom: 10 }}>
-        <Link className="btn ghost sm" to="/guide">← 입찰 알아보기</Link>
         <ShareBtn />
       </div>
       <div className="card">

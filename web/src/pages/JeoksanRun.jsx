@@ -27,11 +27,21 @@
  *    «같은 수량» 을 내야 합니다 — 한쪽만 고치지 마십시오.
  *    맞는지는 tools/시험_적산.mjs 가 봅니다 (무작위 수식 4만8천 개 + 실제 산출단위 대조).
  */
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { askAfter } from '../AskComment'
 import { use도면, 도면판, 도면상태줄 } from '../도면판.jsx'
+import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { 찍기, 두점더하기, 도움글 } from '../lib/찍기.js'
+import * as 기억 from '../lib/기억자료.js'
+/* 📄 2026-09-27 — 결과를 화면에서 보고·고치고·인쇄 (엑셀 받기도 둠) */
+const 엑셀화면 = lazy(() => import('../엑셀화면.jsx'))
+
+/* 🧭 2026-09-27 — 「손님 맞을 준비 … 전수조사」: 치수표를 적다가 다른 화면에 갔다 오면 «다 사라졌습니다».
+   → 적은 치수표(표·찍은 자리)는 이 기기(localStorage)에, 고른 재료표·올린 치수표는 브라우저 창고(IndexedDB)에 둡니다.
+     서버로는 한 조각도 가지 않습니다. «비우기» 를 누르면 지워집니다. */
+const 남김열쇠 = 'kcm.run.v1'
+function 남김읽기() { try { return JSON.parse(localStorage.getItem(남김열쇠) || 'null') } catch (e) { return null } }
 
 /** 치수표 칸마다 도면에서 무엇을 받나 */
 function 치수칸종류(k) {
@@ -60,8 +70,8 @@ function Run() {
   const [lib, setLib] = useState(null)      /* 무겁습니다 — 처음 쓸 때 받아옵니다 */
   const [book, setBook] = useState(null)    /* {name, size, buf, 부재, 줄, 견본} 재료표 */
   const [unit, setUnit] = useState(null)    /* {name, size, text, n} 올린 치수표 */
-  const [표, set표] = useState(null)         /* {칸:[…], 줄:[[…]]} 화면에서 적는 치수표 */
-  const [치수길, set치수길] = useState('표')   /* '표' = 화면에서 적기 · '파일' = 올리기 */
+  const [표, set표] = useState(() => (남김읽기() || {}).표 || null)         /* {칸:[…], 줄:[[…]]} 화면에서 적는 치수표 */
+  const [치수길, set치수길] = useState(() => (남김읽기() || {}).치수길 || '표')   /* '표' = 화면에서 적기 · '파일' = 올리기 */
   const [busy, setBusy] = useState('')
   const [err, setErr] = useState('')
   const [out, setOut] = useState(null)      /* {url, name, rows, checks, warns, serious} */
@@ -71,7 +81,9 @@ function Run() {
   const 도 = use도면('치수도면')
   const dRef = useRef(null)
   const [선택, set선택] = useState(null)      /* {i, k} 고른 칸 */
-  const [찍음, set찍음] = useState([])        /* 줄마다 {칸: [{e,v}]} — 어디서 찍었나 */
+  const [찍음, set찍음] = useState(() => (남김읽기() || {}).찍음 || [])        /* 줄마다 {칸: [{e,v}]} — 어디서 찍었나 */
+  const [결과책, set결과책] = useState(null)   /* 📄 결과 엑셀을 푼 것(화면 보기) */
+  const [고침, set고침] = useState({})        /* 화면에서 고친 칸 — 다시 세면 지워집니다 */
   const [두점, set두점] = useState(null)
   const [알림, set알림] = useState({ 글: '', 좋음: false })
   const [보는중, set보는중] = useState(null)
@@ -83,11 +95,36 @@ function Run() {
     return m
   }, [lib])
 
-  const 재료표읽기 = useCallback(async (buf, name, size, 견본이름 = '') => {
+  const 재료표읽기 = useCallback(async (buf, name, size, 견본이름 = '', 남길 = true) => {
     const m = await loadLib()
     const b = new m.Book(buf, name)          /* 여기서 한 번 읽어 봐야 «틀린 파일» 을 바로 잡습니다 */
     setBook({ name, size, buf, 부재: [...new Set(b.재료표.map((r) => r['부재']).filter(Boolean))], 줄: b.재료표.length, 견본: 견본이름 })
+    if (남길) 기억.넣기('run.재료표', 견본이름 ? { 견본: 견본이름 } : { name, size, buf }).catch(() => {})
   }, [loadLib])
+
+  /* 🧭 적은 치수표 남기기 */
+  useEffect(() => {
+    const t = setTimeout(() => { try { localStorage.setItem(남김열쇠, JSON.stringify({ 표, 찍음, 치수길 })) } catch (e) { /* 가득 참 */ } }, 300)
+    return () => clearTimeout(t)
+  }, [표, 찍음, 치수길])
+  /* 🧭 다시 들어오면 재료표·올린 치수표 되살리기 */
+  useEffect(() => {
+    let 살 = true
+    ;(async () => {
+      try {
+        const b = await 기억.꺼내기('run.재료표')
+        if (살 && b) {
+          if (b.견본 && 견본[b.견본]) {
+            const r = await fetch(견본[b.견본])
+            if (r.ok && 살) { const buf = await r.arrayBuffer(); await 재료표읽기(buf, `재료표_${b.견본}.xlsx`, buf.byteLength, b.견본, false) }
+          } else if (b.buf) await 재료표읽기(b.buf, b.name, b.size, '', false)
+        }
+        const u = await 기억.꺼내기('run.치수표')
+        if (살 && u && u.text) setUnit(u)
+      } catch (e) { /* 창고를 못 쓰는 브라우저 — 처음부터 */ }
+    })()
+    return () => { 살 = false }
+  }, [])   // eslint-disable-line react-hooks/exhaustive-deps
 
   const takeBook = useCallback(async (f) => {
     if (!f) return
@@ -132,6 +169,7 @@ function Run() {
       const text = 엑셀 ? 엑셀을글로((await import('../lib/qtoxlsx.js')).readWorkbook, buf) : decodeKo(buf)
       const us = m.readUnits(text)               /* 미리 읽어 «부재 칸이 없습니다» 를 바로 알립니다 */
       setUnit({ name: f.name, size: f.size, text, n: us.length })
+      기억.넣기('run.치수표', { name: f.name, size: f.size, text, n: us.length }).catch(() => {})
     } catch (e) {
       setUnit(null)
       setErr(e?.message || '치수표를 읽지 못했습니다.')
@@ -212,6 +250,8 @@ function Run() {
       const blob = new Blob([res.bytes], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       })
+      set고침({})
+      try { const R = await import('../lib/엑셀읽기.js'); set결과책({ 책: R.엑셀읽기(res.bytes), bytes: res.bytes }) } catch (e) { set결과책(null) }
       setOut({
         url: URL.createObjectURL(blob),
         name: '수량산출서.xlsx',
@@ -227,6 +267,19 @@ function Run() {
     } catch (e) {
       setErr(e?.message || '세지 못했습니다.')
     } finally { setBusy('') }
+  }
+
+  const 엑셀받기 = async () => {
+    if (!out) return
+    let url = out.url
+    if (Object.keys(고침).length && 결과책) {
+      const W = await import('../lib/엑셀쓰기.js')
+      url = URL.createObjectURL(new Blob([W.고친엑셀(결과책.bytes, 결과책.책, 고침)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+      setTimeout(() => URL.revokeObjectURL(url), 30000)
+    }
+    const a = document.createElement('a')
+    a.href = url; a.download = out.name
+    document.body.appendChild(a); a.click(); a.remove()
   }
 
   const ready = book && 치수글 && !busy
@@ -264,6 +317,9 @@ function Run() {
         </div>
         <input ref={bRef} type="file" accept=".xlsx" hidden
                onChange={(e) => { takeBook(e.target.files?.[0]); e.target.value = '' }} />
+        {/* 📥 화면 어디에 놓아도 — 도면은 찍기 판, 엑셀은 재료표, CSV 는 치수표 (치수표 상자에 놓으면 엑셀도 치수표로) */}
+        <끌어놓기판 글="도면(DXF·DWG) → 찍기 판 · 엑셀 → 재료표 · CSV → 치수표"
+          길들={[{ 꼴: /\.(dxf|dwg)$/i, 받기: (fs) => 도.파일받기(fs) }, { 꼴: /\.xlsx$/i, 받기: (fs) => takeBook(fs[0]) }, { 꼴: /\.(csv|txt)$/i, 받기: (fs) => { set치수길('파일'); takeUnit(fs[0]) } }]} />
         {book && (
           <div className="pdfgot" style={{ marginTop: 10 }}>
             📎 {book.견본 ? `견본 — ${book.견본}` : book.name} · 재료표 {book.줄}줄 · 부재 {book.부재.join(' · ')}
@@ -334,7 +390,7 @@ function Run() {
             <div className="btn-row" style={{ gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
               <button type="button" className="btn ghost sm" onClick={줄더하기}>＋ 줄 더하기</button>
               <button type="button" className="btn ghost sm" onClick={견본줄}>견본 12줄 불러오기</button>
-              <button type="button" className="btn ghost sm" onClick={() => { set표(null); set찍음([]); set선택(null); setOut(null) }}>비우기</button>
+              <button type="button" className="btn ghost sm" onClick={() => { set표(null); set찍음([]); set선택(null); setOut(null); set결과책(null) }}>비우기</button>
             </div>
             {!book && <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>재료표를 먼저 고르시면 «부재» 칸이 고르는 칸으로 바뀝니다.</div>}
           </>
@@ -390,7 +446,7 @@ function Run() {
               ? <b style={{ color: '#c00000' }}>✕ 표시가 {out.serious}가지 있습니다. 아래를 보시고 고친 뒤 다시 돌리십시오.</b>
               : <span>✕ 표시는 없습니다.</span>}
           </p>
-          <a className="btn primary" href={out.url} download={out.name}>⬇ 수량산출서.xlsx 받기</a>
+          <button type="button" className="btn primary" style={{ width: 'auto' }} onClick={엑셀받기}>⬇ 수량산출서.xlsx 받기{Object.keys(고침).length ? ` (고친 칸 ${Object.keys(고침).length}개 넣어서)` : ''}</button>
           <p className="muted" style={{ fontSize: 12, marginTop: 10, lineHeight: 1.8 }}>
             시트 다섯 장입니다 — <b>산출서</b>(줄마다 산출근거와 수량) ·{' '}
             <b>집계</b>(재료별 합계) · <b>태그별</b>(공구·측점·공종별) ·{' '}
@@ -398,6 +454,18 @@ function Run() {
             수량 칸은 <b>=ROUND(산출근거,3)</b> 수식입니다. 치수를 고치면 엑셀에서 바로 다시 셉니다.
           </p>
           <ChecksTable checks={out.checks} warns={out.warns} />
+        </div>
+      )}
+      {/* ── 📄 화면에서 보고 · 고치고 · 인쇄 (2026-09-27) ── */}
+      {out && 결과책 && (
+        <div className="card">
+          <div className="sec-title">화면에서 보고 · 고치고 · 인쇄</div>
+          <p className="muted" style={{ marginTop: 0, fontSize: 12.5 }}>엑셀을 받지 않아도 산출서·집계를 여기서 보고 인쇄합니다. 칸을 고치면 집계가 따라 바뀝니다.
+            <b> 치수를 고쳐 다시 세면 화면에서 고친 칸은 지워집니다.</b></p>
+          <Suspense fallback={<div className="note sm">화면을 준비하는 중…</div>}>
+            <엑셀화면 책={결과책.책} 시트들={['산출서', '집계', '태그별', '검산']} 고침={고침} set고침={set고침}
+              머리행들={{ 산출서: 1, 집계: 1, 태그별: 1, 검산: 1 }} 이름="수량산출서" />
+          </Suspense>
         </div>
       )}
 

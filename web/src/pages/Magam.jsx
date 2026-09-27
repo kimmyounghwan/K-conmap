@@ -21,8 +21,11 @@ import { 품은도형, 도형글자, 종류 } from '../lib/골조도면.js'
 import { 찍기, 두점더하기, 도움글, 수글 } from '../lib/찍기.js'
 import { 표찾기 } from '../lib/도면자동.js'
 import { use도면, 도면판, 도면상태줄 } from '../도면판.jsx'
+import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { askAfter } from '../AskComment'
+import { use화면상태 } from '../lib/길기록.js'
 
+import { 단위보기, 단위풀이 } from '../lib/단위.js'
 const 저장열쇠 = 'kcm.magam.v1'
 const 도면열쇠 = '마감도면'
 const 예시도면 = '/jeoksan/마감_예시.dxf'
@@ -80,7 +83,9 @@ function 불러오기() {
 
 export default function Magam() {
   const [공사, set공사] = useState(() => 불러오기() || 새공사())
-  const [탭, set탭] = useState(() => (불러오기() ? '실' : '마감'))
+  /* 🧭 2026-09-27 — 탭 = 뒤로가기 한 칸 (lib/길기록.js) */
+  const [처음탭] = useState(() => (불러오기() ? '실' : '마감'))
+  const [탭, set탭] = use화면상태('탭', 처음탭)
   const [선택, set선택] = useState(null)        // {표, i, key}
   const 도 = use도면(도면열쇠)
   const { 모델, 끈층, 단위 } = 도
@@ -278,6 +283,8 @@ export default function Magam() {
         )}
         <input ref={파일칸} type="file" accept=".dxf,.DXF,.dwg,.DWG" className="sr-only" tabIndex={-1}
           onChange={(e) => { 도.파일받기(e.target.files); e.target.value = '' }} />
+        {/* 📥 놓으면 도면이 보이는 탭(③ 실)으로 */}
+        <끌어놓기판 받기={(fs) => { 도.파일받기(fs); if (!['실', '외벽', '창호', '묶음'].includes(탭)) set탭('실') }} />
         <도면상태줄 상태={도.도면상태} />
         {모델 && (읽은마감.length > 0 || 읽은창호.length > 0) && (
           <div className="ja-sum">
@@ -351,7 +358,7 @@ export default function Magam() {
           </div>
           <div className="gg-tiles">
             <div><span>실</span><b>{공사.실.filter((r) => String(r.실명 || '').trim()).length}</b> 개</div>
-            <div><span>바닥 면적 합</span><b>{쉼(바닥합, 2)}</b> m²</div>
+            <div><span>바닥 면적 합</span><b>{쉼(바닥합, 2)}</b> ㎡ <small>헤베</small></div>
             <div><span>재료</span><b>{결과.집계.합.length}</b> 가지</div>
             <div className={결과.경고.length ? 'bad' : 'good'}><span>검산</span><b>{결과.경고.length}</b> 건</div>
           </div>
@@ -562,8 +569,8 @@ function 편집표({ 표, 칸들, 줄, 셀, 칸쓰기, 줄더하기, 줄빼기, 
 /* ───────────────────────────── 결과 */
 function 모음표({ 목록, 앞 }) {
   return (
-    <div className="gg-wrap"><table className="gg-r"><thead><tr>{앞 ? <th>{앞}</th> : null}<th>재료</th><th>규격</th><th>단위</th><th>수량</th></tr></thead>
-      <tbody>{목록.map((a, kk) => <tr key={kk}>{앞 ? <td>{a[앞] || '—'}</td> : null}<td>{a.재료}</td><td>{a.규격}</td><td>{a.단위}</td><td className="r">{앞 ? 쉼(a.수량, 3) : <b>{쉼(a.수량, 3)}</b>}</td></tr>)}</tbody></table></div>
+    <div className="gg-wrap"><table className="gg-r"><thead><tr>{앞 ? <th>{앞}</th> : null}<th>재료</th><th>규격</th><th>단위</th><th className="r">수량</th></tr></thead>
+      <tbody>{목록.map((a, kk) => <tr key={kk}>{앞 ? <td>{a[앞] || '—'}</td> : null}<td>{a.재료}</td><td>{a.규격}</td><td className="u">{단위풀이(a.단위)}</td><td className="r">{앞 ? 쉼(a.수량, 3) : <b>{쉼(a.수량, 3)}</b>}<span className="단">{단위보기(a.단위)}</span></td></tr>)}</tbody></table></div>
   )
 }
 function 결과표({ 결과, 공사, set공사 }) {
@@ -606,8 +613,8 @@ function 결과표({ 결과, 공사, set공사 }) {
         {당초 ? (
           <>
             <p className="muted" style={{ fontSize: 12.5 }}>당초: {당초.때 || ''} 저장</p>
-            <div className="gg-wrap"><table className="gg-r"><thead><tr><th>재료</th><th>규격</th><th>단위</th><th>당초</th><th>변경</th><th>증감</th><th>증감률</th></tr></thead>
-              <tbody>{대비.map((x, kk) => <tr key={kk} className={x.증감 < -1e-9 ? 'neg' : ''}><td>{x.재료}</td><td>{x.규격}</td><td>{x.단위}</td><td className="r">{쉼(x.당초, 3)}</td><td className="r">{쉼(x.지금, 3)}</td><td className="r"><b>{(x.증감 > 1e-9 ? '+' : '') + 쉼(x.증감, 3)}</b></td><td className="r">{x.율 === null ? '신규' : (x.율 > 0 ? '+' : '') + x.율.toFixed(1) + '%'}</td></tr>)}</tbody></table></div>
+            <div className="gg-wrap"><table className="gg-r"><thead><tr><th>재료</th><th>규격</th><th>단위</th><th className="r">당초</th><th className="r">변경</th><th className="r">증감</th><th className="r">증감률</th></tr></thead>
+              <tbody>{대비.map((x, kk) => <tr key={kk} className={x.증감 < -1e-9 ? 'neg' : ''}><td>{x.재료}</td><td>{x.규격}</td><td className="u">{단위풀이(x.단위)}</td><td className="r">{쉼(x.당초, 3)}</td><td className="r">{쉼(x.지금, 3)}</td><td className="r"><b>{(x.증감 > 1e-9 ? '+' : '') + 쉼(x.증감, 3)}</b></td><td className="r">{x.율 === null ? '신규' : (x.율 > 0 ? '+' : '') + x.율.toFixed(1) + '%'}</td></tr>)}</tbody></table></div>
           </>
         ) : <p className="muted">아직 당초가 없습니다.</p>}
       </div>
@@ -617,9 +624,9 @@ function 결과표({ 결과, 공사, set공사 }) {
           <div key={s0} className={칸('산출서')}>
             <div className="detail-h">산출서 — {동 ? 동 + ' ' : ''}{층 ? 층 + '층 ' : ''}{실명 || '창호'}</div>
             <div className="gg-wrap"><table className="gg-r gg-calc">
-              <thead><tr><th>부위</th><th>마감</th><th>재료</th><th>규격</th><th>산출근거</th><th>수량</th><th>단위</th><th>비고</th></tr></thead>
+              <thead><tr><th>부위</th><th>마감</th><th>재료</th><th>규격</th><th>산출근거</th><th className="r">수량</th><th>단위</th><th>비고</th></tr></thead>
               <tbody>{결과.줄.filter((x) => (x.동 || '') === 동 && (x.층 || '') === 층 && (x.실명 || '') === 실명).map((x, kk) => (
-                <tr key={kk} className={x.수량 < 0 ? 'neg' : ''}><td>{x.부위}</td><td>{x.기호}</td><td>{x.재료}</td><td>{x.규격}</td><td className="expr">{x.식}</td><td className="r">{쉼(x.수량, 3)}</td><td>{x.단위}</td><td className="note2">{x.비고}</td></tr>
+                <tr key={kk} className={x.수량 < 0 ? 'neg' : ''}><td>{x.부위}</td><td>{x.기호}</td><td>{x.재료}</td><td>{x.규격}</td><td className="expr">{x.식}</td><td className="r">{쉼(x.수량, 3)}</td><td className="u">{단위풀이(x.단위)}</td><td className="note2">{x.비고}</td></tr>
               ))}</tbody>
             </table></div>
           </div>

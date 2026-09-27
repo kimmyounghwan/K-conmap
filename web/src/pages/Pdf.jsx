@@ -21,6 +21,8 @@ import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { askAfter } from '../AskComment'
 
+import { use화면상태, use머무름 } from '../lib/길기록.js'
+import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 /* 일감 — [코드, 이름, 도움말, 고르는 방식, 값칸] */
 const 일감 = [
   ['① 쪽 다루기', [
@@ -67,13 +69,16 @@ const 숨돌리기 = () => new Promise((r) => setTimeout(r, 0))
 const 자리들 = ['오른쪽 아래', '왼쪽 아래', '가운데 아래', '오른쪽 위', '왼쪽 위', '가운데 위', '한가운데']
 
 export default function Pdf() {
-  const [코드, 코드놓기] = useState('')
-  const [파일들, 파일놓기] = useState([])
-  const [그림, 그림놓기] = useState(null)
-  const [값, 값놓기] = useState({ a: '', b: '' })
-  const [옵, 옵놓기] = useState({ 자리: '오른쪽 아래', 각도: '90', 나눔: '몇쪽씩', 한쪽에: '2' })
-  const [기록, 기록놓기] = useState([])
-  const [결과, 결과놓기] = useState([])
+  /* 🧭 2026-09-27 — 17가지 중 하나를 고르면 기록이 한 칸 쌓입니다 → 휴대폰 뒤로가기 = 다시 고르는 화면
+     (예전엔 PDF 도구 밖으로 나갔습니다). lib/길기록.js */
+  const [코드, 코드놓기, 고르는화면으로] = use화면상태('도구', '')
+  /* 🧭 2026-09-27 — 다른 화면에 갔다 와도 고른 파일·만든 결과 그대로(이 탭에 머무는 동안) */
+  const [파일들, 파일놓기] = use머무름('pdf.파일들', [])
+  const [그림, 그림놓기] = use머무름('pdf.그림', null)
+  const [값, 값놓기] = use머무름('pdf.값', { a: '', b: '' })
+  const [옵, 옵놓기] = use머무름('pdf.옵', { 자리: '오른쪽 아래', 각도: '90', 나눔: '몇쪽씩', 한쪽에: '2' })
+  const [기록, 기록놓기] = use머무름('pdf.기록', [])
+  const [결과, 결과놓기] = use머무름('pdf.결과', [])
   const [바쁨, 바쁨놓기] = useState(false)
   const [끌림, set끌림] = useState(false)      /* 파일을 창 위로 끌고 온 동안 */
   const 파일칸 = useRef(null), 폴더칸 = useRef(null), 그림칸 = useRef(null)
@@ -82,6 +87,7 @@ export default function Pdf() {
   const 방식 = 지금 ? 지금[3] : '하나'
   const 적기 = (s) => 기록놓기((old) => [...old, s])
 
+  function 고르기상태비움() { 파일놓기([]); 그림놓기(null); 결과놓기([]); 기록놓기([]) }
   function 고르기(c) {
     코드놓기(c)
     파일놓기([]); 그림놓기(null); 결과놓기([]); 기록놓기([])
@@ -265,7 +271,7 @@ export default function Pdf() {
       {지금 ? (
         /* ── 일감 하나를 고른 뒤 — 「파일 선택」 이 화면의 주인공입니다 ── */
         <div className="card pdfwork">
-          <button type="button" className="pdfback" onClick={() => 고르기('')}>← 다른 일 고르기</button>
+          <button type="button" className="pdfback" onClick={() => { 고르기상태비움(); 고르는화면으로('') }}>← 다른 일 고르기</button>
           <h1 className="pdfh1">{지금[1]}</h1>
           <p className="pdflead">{지금[2]}</p>
 
@@ -287,6 +293,7 @@ export default function Pdf() {
             accept={방식 === '사진폴더' ? 'image/*' : 'application/pdf,.pdf'}
             multiple={방식 !== '하나'}
             onChange={(e) => 파일받기(e, 방식 !== '하나')} />
+          {지금 && <끌어놓기판 글={`파일을 놓으면 «${지금[1]}» 에 넣습니다`} 길들={[{ 꼴: /./, 받기: (fs) => 넣기(fs, 방식 !== '하나'), 여럿: true }]} />}
           <input ref={폴더칸} type="file" className="sr-only" tabIndex={-1} multiple
             webkitdirectory="" directory=""
             onChange={(e) => 파일받기(e, true)} />

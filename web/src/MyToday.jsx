@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import { getBoardMeta } from './lib/data.js'
 import { won, num, dateTime, dday, REGIONS, inRegion } from './lib/fmt.js'
@@ -133,7 +134,7 @@ export default function MyToday({ rows, idx, p50, onPick }) {
           <div className="mt-empty">
             지금 조건에 맞는 <b>마감 전·계산 가능</b> 공고가 없습니다.
             {' '}<button className="lnk" onClick={() => setEditing(true)}>조건을 넓히거나</button>
-            {' '}<a href="/live">공고 탭에서 전체 보기 →</a>
+            {' '}<Link to="/live">공고 탭에서 전체 보기 →</Link>
           </div>
         ) : (
           <>
@@ -183,7 +184,7 @@ export default function MyToday({ rows, idx, p50, onPick }) {
             <div className="tp-foot">
               마감 임박 순 · 조건에 맞는 마감 전 공고 <b>{num(list.length)}건</b> 중 {Math.min(MAX, list.length)}건.
               {' '}«이런 자리 1순위 %» 는 같은 규모·같은 참가업체수 자리의 실측이지 이 공고의 예측이 아닙니다.
-              {list.length > MAX && <> 나머지는 <a href="/live">공고 탭의 🎯 자리 찾기</a>에서.</>}
+              {list.length > MAX && <> 나머지는 <Link to="/live">공고 탭의 🎯 자리 찾기</Link>에서.</>}
             </div>
           </>
         )

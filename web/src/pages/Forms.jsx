@@ -321,7 +321,6 @@ function OrigFormPage({ f }) {
   return (
     <>
       <div className="btn-row" style={{ paddingTop: 14, marginBottom: 10 }}>
-        <Link className="btn ghost sm" to="/forms">← 서식 목록</Link>
         <ShareBtn />
       </div>
 
@@ -409,7 +408,6 @@ export function FormPage() {
   return (
     <>
       <div className="btn-row" style={{ paddingTop: 14, marginBottom: 10 }}>
-        <Link className="btn ghost sm" to="/forms">← 서식 목록</Link>
         <ShareBtn />
       </div>
 

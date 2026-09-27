@@ -242,7 +242,14 @@ export default function BaroBid() {
   /* 기본은 «계산할 수 있는 공고»만 보여줍니다. 덜 갖춰진 걸 섞으면 신뢰가 무너집니다. */
   const [onlyReady, setOnlyReady] = useState(true)
 
-  const [q, setQ] = useState('')
+  /* 🧭 적던 검색어도 이 탭에 남깁니다(주소에 아무것도 안 달고 들어왔을 때만) — 다른 화면 갔다 뒤로 와도 그대로 */
+  const [q, setQ] = useState(() => {
+    try { return window.location.search ? '' : (sessionStorage.getItem('kcm.baro.q') || '') } catch (e) { return '' }
+  })
+  useEffect(() => {
+    const t = setTimeout(() => { try { if (q) sessionStorage.setItem('kcm.baro.q', q); else sessionStorage.removeItem('kcm.baro.q') } catch (e) { /* 없음 */ } }, 300)
+    return () => clearTimeout(t)
+  }, [q])
   const [picked, setPicked] = useState(null)
   /* A값 내역 — 공고를 고르면 그때 한 번만 받아 옵니다 (한 화면에 한 번) */
   const [apMap, setApMap] = useState(null)
@@ -369,7 +376,12 @@ export default function BaroBid() {
   const autoPicked = useRef(false)
   useEffect(() => {
     if (autoPicked.current || picked) return
-    const no = (sp.get('no') || '').trim().toUpperCase()
+    /* 🧭 2026-09-27 — 고른 공고를 이 탭에 적어 둡니다. 다른 화면에 갔다가 뒤로 오면 그 공고가 다시 골라집니다
+       (주소에 아무것도 안 달고 들어왔을 때만 — 주소로 온 공고가 늘 먼저입니다). */
+    const 주소없음 = !sp.get('no') && !sp.get('name') && !sp.get('base') && sp.get('sc') !== '1'
+    let 남은 = ''
+    try { 남은 = 주소없음 ? (sessionStorage.getItem('kcm.baro.no') || '') : '' } catch (e) { /* 없음 */ }
+    const no = (sp.get('no') || 남은).trim().toUpperCase()
     if (!no || !rows.length) return
     const hit = rows.find((r) => String(r.no).toUpperCase() === no)
     if (!hit) { autoPicked.current = true; return }   // 마감된 공고면 채점만 합니다
@@ -433,6 +445,7 @@ export default function BaroBid() {
       getAparts().then((d) => setApMap((d && d.a) || {})).catch(() => {})
     }
     setPicked(r); setQ(r.name); setInst(r.inst)
+    try { sessionStorage.setItem('kcm.baro.no', String(r.no || '')) } catch (e) { /* 없음 */ }
     setBase(r.base || 0); setBudgetIn(''); setPickRate('rec'); setCopied(false)
     // 공고에 A값이 실려 오면 그대로 채웁니다 (손으로 옮겨 적을 일을 없애는 게 이 화면의 목적)
     /* ⚠️ bidPrceCalclAYn='N' 은 «이 공고는 A값을 적용하지 않는다» 는 뜻입니다.
@@ -457,6 +470,7 @@ export default function BaroBid() {
     try { askAfter('bid') } catch { /* 사생활 보호 모드 */ }
   }
   const clear = () => {
+    try { sessionStorage.removeItem('kcm.baro.no'); sessionStorage.removeItem('kcm.baro.q') } catch (e) { /* 없음 */ }
     setPicked(null); setQ(''); setInst(''); setBase(0)
     setBudgetIn(''); setAIn(''); setAAuto(false); setPickRate('rec'); setOwnRate('')
   }
@@ -1073,7 +1087,7 @@ export default function BaroBid() {
             <span className="ico">🔍</span>
             <input
               value={q}
-              onChange={(e) => { setQ(e.target.value); setPicked(null); setCopied(false) }}
+              onChange={(e) => { setQ(e.target.value); setPicked(null); setCopied(false); try { sessionStorage.removeItem('kcm.baro.no') } catch (er) { /* 없음 */ } }}
               placeholder={idx === undefined ? '공고를 불러오는 중…' : '예: 도로포장 / 안동시 / 285000000'} />
             {q && <button className="x" onClick={clear} aria-label="지우기">×</button>}
           </div>

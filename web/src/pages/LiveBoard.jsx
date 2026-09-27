@@ -22,6 +22,7 @@ import { noteLive } from '../lib/mentor.js'
 import { won, wonShort, num, dateTime, dday, REGIONS, inRegion, estOf } from '../lib/fmt.js'
 import { loadLicCodes, saveLicCodes, loadLicNone, saveLicNone,
          licList, licNoneCount, licHit, licShort, loadRegion, saveRegion } from '../lib/lic.js'
+import { use남김 } from '../lib/길기록.js'
 
 /* ══════════════════════════════════════════════════════════════
    «바로투찰» 버튼은 계산이 되는 공고에만 답니다.
@@ -95,15 +96,16 @@ export default function LiveBoard() {
   /* 지역도 기억합니다 — 바로투찰 첫 화면(«오늘 내 것»)과 같은 값을 씁니다 (2026-09-06) */
   const [region, setRegionRaw] = useState(loadRegion)
   const setRegion = (v) => { setRegionRaw(v); saveRegion(v) }
-  const [q, setQ] = useState('')
-  const [page, setPage] = useState(1)
-  const [mine, setMine] = useState(false)
-  const [onlyGood, setOnlyGood] = useState(false)   // A·B 등급만 보기
+  /* 🧭 2026-09-27 — 공고를 열었다가 뒤로 오면 «보던 그대로» — 이 탭을 닫을 때까지 (lib/길기록.js) */
+  const [q, setQ] = use남김('kcm.live.q', '', 'session')
+  const [page, setPage] = use남김('kcm.live.page', 1, 'session')
+  const [mine, setMine] = use남김('kcm.live.mine', false, 'session')
+  const [onlyGood, setOnlyGood] = use남김('kcm.live.good', false, 'session')   // A·B 등급만 보기
   const [lics, setLics] = useState(loadLicCodes)
   const [licNone, setLicNone] = useState(loadLicNone)
-  const [docOnly, setDocOnly] = useState(false)   // 단가 든 내역서가 붙은 공고만
+  const [docOnly, setDocOnly] = use남김('kcm.live.doc', false, 'session')   // 단가 든 내역서가 붙은 공고만
   const [editLic, setEditLic] = useState(false)
-  const [open, setOpen] = useState(null)
+  const [open, setOpen] = use남김('kcm.live.open', null, 'session')
   const now = useMemo(() => nowStamp(), [])
   /* ★ 원클릭 — 2026-09-03. 소장님: 「입찰가를 원클릭으로 구해서 입찰할 때.」
      전국 사정률 중앙(p50)만 있으면 공고 한 줄로 권장 금액이 나옵니다(quickBid).
@@ -126,11 +128,11 @@ export default function LiveBoard() {
        list   7주치 공고 묶음 (검색·지역·면허)
        pick   마감 전·계산 가능 공고를 확률·기대액 순으로
        basket ⭐ 담은 공고 — 여기서만 «적어도 한 건» 합산 확률을 냅니다 */
-  const [mode, setMode] = useState('list')
+  const [mode, setMode] = use남김('kcm.live.mode', 'list', 'session')
   const pick = mode === 'pick'
   const bagMode = mode === 'basket'
-  const [sortBy, setSortBy] = useState('prob')      // 'prob' 확률 순 · 'ev' 기대액 순 · 'close' 마감 순
-  const [fewOnly, setFewOnly] = useState(false)     // 참가 적은(10곳 미만) 공고만
+  const [sortBy, setSortBy] = use남김('kcm.live.sort', 'prob', 'session')      // 'prob' 확률 순 · 'ev' 기대액 순 · 'close' 마감 순
+  const [fewOnly, setFewOnly] = use남김('kcm.live.few', false, 'session')     // 참가 적은(10곳 미만) 공고만
   /* 금액대 거르기 (2026-09-14) — 실측: 1억 미만은 참가 중앙 32곳(10곳 미만 29.9%),
      3~10억은 404곳(3.2%). 붐비지 않는 자리를 찾는 가장 굵은 손잡이입니다.
      칸 경계는 손으로 적지 않고 bidindex 의 pick.sz 를 씁니다 — 표와 어긋날 자리를 안 만듭니다. */
@@ -173,7 +175,8 @@ export default function LiveBoard() {
     setTimeout(() => setCopiedNo((v) => (v === r.no ? null : v)), 1600)
   }
 
-  useEffect(() => { setPage(1) }, [region, q, mine, lics, licNone, onlyGood, docOnly, mode, sortBy, fewOnly, amt])
+  const 첫 = useRef(true)   /* 처음 그릴 때는 남긴 쪽을 지우지 않습니다 */
+  useEffect(() => { if (첫.current) { 첫.current = false; return } setPage(1) }, [region, q, mine, lics, licNone, onlyGood, docOnly, mode, sortBy, fewOnly, amt])   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { saveLicCodes(lics) }, [lics])
   useEffect(() => { saveLicNone(licNone) }, [licNone])
 

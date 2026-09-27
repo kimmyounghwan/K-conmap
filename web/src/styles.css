@@ -3998,3 +3998,52 @@ ul.plainlist li { margin-bottom: 5px; }
   .ja .ja-tbl { max-height: none; overflow: visible; }
   .ja .ja-in { border: 0; padding: 0; }
 }
+
+/* ── 📄 엑셀 화면 (엑셀화면.jsx) — 원클릭 서류·수량산출서를 화면에서 보고 고쳐 인쇄 (2026-09-27) ── */
+.xv { margin-top: 6px; }
+.xv-장들 { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 8px; scrollbar-width: thin; }
+.xv-장들 .chip { flex: none; }
+.xv-띠 { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.xv-띠 .btn { width: auto; }
+.xv-알림 { font-size: 12.5px; color: var(--muted); margin: 0 0 8px; line-height: 1.6; }
+.xv-고친견본 { outline: 2px dashed #f59e0b; outline-offset: -2px; background: #fffbeb; padding: 0 4px; }
+.xv-판 { background: #e5e7eb; border-radius: 10px; padding: 12px 0; }
+.xv-종이 { background: #fff; margin: 0 auto; padding: 12px; box-shadow: 0 1px 6px rgba(0,0,0,.18); box-sizing: border-box; }
+.xv-표 { table-layout: fixed; border-collapse: collapse; font-family: '맑은 고딕', 'Malgun Gothic', 'Noto Sans KR', sans-serif; color: #000; background: #fff; }
+.xv-표 td { padding: 0 2px; overflow: visible; line-height: 1.25; box-sizing: border-box; }
+.xv-표.격자 td { outline: 1px solid #eef0f3; outline-offset: -1px; }
+.xv-표 td.xv-누름 { cursor: pointer; }
+.xv-표 td.xv-누름:hover { box-shadow: inset 0 0 0 2px #93c5fd; }
+.xv-표 td.xv-고친 { box-shadow: inset 0 0 0 2px #f59e0b; background-color: #fffbeb; }
+.xv-표 td.xv-고른 { box-shadow: inset 0 0 0 2px #2563eb; }
+.xv-고침판 { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--nav-h, 56px) * 2 + 10px); z-index: 60;
+  width: min(560px, calc(100vw - 24px)); background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.25); padding: 10px 12px; }
+@media (min-width: 900px) { .xv-고침판 { bottom: 20px; } }
+.xv-고침머리 { font-size: 13px; margin-bottom: 6px; }
+.xv-고침판 textarea { width: 100%; box-sizing: border-box; font-size: 15px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; resize: vertical; font-family: inherit; }
+.xv-고침단추 { display: flex; gap: 6px; margin-top: 8px; }
+.xv-고침단추 .btn { width: auto; }
+#xv-인쇄 { display: none; }
+@page xv세로 { size: A4 portrait; margin: 12mm 10mm; }
+@page xv가로 { size: A4 landscape; margin: 10mm 12mm; }
+@media print {
+  body.xv-인쇄중 > *:not(#xv-인쇄) { display: none !important; }
+  html.xv-인쇄중, body.xv-인쇄중 { background: #fff !important; margin: 0 !important; padding: 0 !important; }
+  body.xv-인쇄중 #xv-인쇄 { display: block; }
+  .xv-쪽 { page: xv세로; break-after: page; page-break-after: always; }
+  .xv-쪽.가로 { page: xv가로; }
+  .xv-쪽:last-child { break-after: auto; page-break-after: auto; }
+  .xv-쪽 .xv-표 tr { break-inside: avoid; page-break-inside: avoid; }
+  .xv-쪽 .xv-표 td { box-shadow: none !important; background-color: transparent; }
+  .xv-머리 { text-align: right; font-size: 8pt; color: #808080; height: 16px; }
+  #xv-인쇄 * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+/* 📏 2026-09-27 — 「정렬이 제대로 안돼있어 · 단위 표시」: 숫자 칸 머리는 숫자와 같이 오른쪽, 수량 옆에 단위(㎥·㎡·톤) */
+.gg-r th.r { text-align: right; }
+.gg-r td.u { color: #475569; }
+.gg-r .단 { margin-left: 3px; font-size: 11px; color: #64748b; font-weight: 400; }
+.gg-tiles small { font-size: 11px; color: var(--muted); margin-left: 2px; }
+@media print { .gg-r .단 { font-size: 8px; } }
+/* 📥 끌어다 놓기 (도면판.jsx 끌어놓기) — 파일을 끌고 오는 동안 화면 전체 */
+.끌놓판 { position: fixed; inset: 0; z-index: 90; background: rgba(37, 99, 235, .12); border: 4px dashed #2563eb; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.끌놓판 > div { background: #fff; color: #1d4ed8; font-weight: 800; font-size: 18px; padding: 16px 24px; border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,.2); }

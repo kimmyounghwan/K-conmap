@@ -17,7 +17,8 @@
  * 셈·예시는 lib/tuipbi.js · 공제는 lib/gongje.js · 규칙은 web/database.rules.json «현장 투입비»
  */
 import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { use화면상태, 앞칸같은주소 } from '../lib/길기록.js'
 import { 원, 억만, 코드만들기, 코드보기, 코드정리, 비번해시, 예시현장 } from '../lib/tuipbi.js'
 import { 열쇠만들기, 열쇠두기, 열쇠읽기, 열쇠지우기, 잠그기, 풀기 } from '../lib/tplock.js'
 import TuipbiSite, { TuipbiGuide } from './TuipbiSite.jsx'
@@ -50,8 +51,13 @@ async function 모두풀기(raw, ...maps) {
 }
 
 export default function Tuipbi() {
-  const [params, setParams] = useSearchParams()
-  const [화면, set화면] = useState('home')             // home | new | open | made | site
+  const [params] = useSearchParams()
+  const navigate = useNavigate()
+  /* 🧭 2026-09-27 — 「특히 뒤로가기」: 처음·새 현장·현장 열기·현장 화면이 주소가 같아서, 휴대폰 뒤로가기를 누르면
+     도구 밖으로 나가 버렸습니다. 화면을 바꿀 때 기록을 한 칸 쌓습니다 → 뒤로가기 = 앞 화면 (lib/길기록.js).
+     ⚠️ ?c= 를 바꿀 때 setSearchParams 를 쓰면 기록에 담긴 화면이 지워집니다 → 찾기만바꾸기() */
+  const [화면, set화면, 앞단계로] = use화면상태('화면', 'home')   // home | new | open | made | site
+  const 화면지금 = () => { try { return ((window.history.state && window.history.state.usr && window.history.state.usr.화면) || {}).화면 || 'home' } catch (e) { return 'home' } }
   const [코드, set코드] = useState('')
   const [현장, set현장] = useState(null)
   const [줄들, set줄들] = useState([])
@@ -67,7 +73,7 @@ export default function Tuipbi() {
 
   useEffect(() => {
     const c = 코드정리(params.get('c'))
-    if (c.length === 9) { set코드(c); 열어보기(c) }
+    if (c.length === 9) { set코드(c); 열어보기(c, true) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -78,17 +84,18 @@ export default function Tuipbi() {
   const 잊기 = (c) => { const v = 목록.filter((x) => x.c !== c); set목록(v); 쓰기(목록키, v) }
 
   /* 이 브라우저가 이미 열어 본 현장이면 비밀번호 없이 바로 */
-  async function 열어보기(c) {
+  async function 열어보기(c, 바꿈) {
     set오류(''); set바쁨('현장을 여는 중입니다…')
     try {
       const fb = await loadFb()
       await fb.ensureAnon()
-      await 불러오기(c)
+      await 불러오기(c, 바꿈)
     } catch (e) {
       if (막힘(e)) { set코드(c); set화면('open') } else set오류('현장을 열지 못했습니다 — 인터넷을 확인하고 다시 해 보십시오.')
     } finally { set바쁨('') }
   }
-  async function 불러오기(c) {
+  /* 바꿈: true = 기록을 쌓지 않고 바꿈(주소로 바로 들어옴·비밀번호 칸에서 넘어옴) · 안 주면 처음 화면에서만 쌓음 */
+  async function 불러오기(c, 바꿈) {
     const fb = await loadFb()
     const 곳 = ['cost_sites', 'cost_rows', 'cost_people', 'cost_equip', 'cost_vendors', 'cost_att']
     const [s, r, p, e, v, a] = await Promise.all(곳.map((x) => fb.get(fb.ref(fb.db, `${x}/${c}`))))
@@ -97,11 +104,11 @@ export default function Tuipbi() {
     r.forEach((x) => { rows.push({ id: x.key, ...x.val() }) })
     const 새명부 = { 사람: p.val() || {}, 장비: e.val() || {}, 업체: v.val() || {}, 출역: a.val() || {} }
     const raw = 열쇠읽기(c)
-    set예시(false); set코드(c); set현장(s.val()); set줄들(rows); set명부(새명부); set화면('site'); set정보(false)
+    set예시(false); set코드(c); set현장(s.val()); set줄들(rows); set명부(새명부); set정보(false)
+    set화면('site', { replace: 바꿈 != null ? !!바꿈 : 화면지금() !== 'home', search: '?c=' + c })
     set열쇠(raw)
     set풀린(await 모두풀기(raw, 새명부.사람, 새명부.장비, 새명부.업체))
     기억(c, s.val().name)
-    if (params.get('c') !== c) setParams({ c }, { replace: true })
   }
   async function 열기(c, pw) {
     set오류(''); set바쁨('비밀번호를 확인하는 중입니다…')
@@ -137,9 +144,9 @@ export default function Tuipbi() {
       await fb.set(fb.ref(fb.db, `cost_sites/${c}`), site)
       const raw = await 열쇠만들기(c, v.pw)
       열쇠두기(c, raw)
-      set코드(c); set현장(site); set줄들([]); set명부(빈데이터); set열쇠(raw); set풀린({}); set예시(false); set화면('made')
+      set코드(c); set현장(site); set줄들([]); set명부(빈데이터); set열쇠(raw); set풀린({}); set예시(false)
+      set화면('made', { replace: true, search: '?c=' + c })
       기억(c, site.name)
-      setParams({ c }, { replace: true })
     } catch (e) {
       set오류('현장을 만들지 못했습니다 — 인터넷을 확인하고 다시 해 보십시오.')
     } finally { set바쁨('') }
@@ -150,7 +157,12 @@ export default function Tuipbi() {
     set명부({ 사람: x.people, 장비: x.equip, 업체: x.vendors, 출역: x.att }); set풀린(x.풀린); set열쇠(null)
     set화면('site'); set오류(''); set정보(false)
   }
-  const 나가기 = () => { set현장(null); set줄들([]); set명부(빈데이터); set풀린({}); set열쇠(null); set예시(false); set화면('home'); set정보(false); setParams({}, { replace: true }) }
+  const 나가기 = () => {
+    set현장(null); set줄들([]); set명부(빈데이터); set풀린({}); set열쇠(null); set예시(false); set정보(false)
+    /* 처음 화면에서 들어왔으면 기록을 되감고(보던 자리 그대로), 주소로 바로 들어왔으면 처음 화면으로 바꿈 */
+    if (앞칸같은주소(window.location.pathname)) navigate(-1)
+    else set화면('home', { replace: true, search: '' })
+  }
 
   /* ── 쓰기 — 예시면 화면에만 ─────────────── */
   const 표시 = () => { const d = new Date(); set저장됨(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`) }
@@ -307,9 +319,12 @@ export default function Tuipbi() {
   const 잠김 = !예시 && !열쇠 && [명부.사람, 명부.장비, 명부.업체].some((m) => Object.values(m || {}).some((v) => v && v.x))
   const 잠김칸 = !예시 && !열쇠
 
+  /* 기록에는 «현장 화면» 인데 현장을 아직 안 불러왔으면(새로고침·예시 현장에서 뒤로·앞으로) 처음 화면을 보입니다 */
+  const 보기 = ((화면 === 'site' || 화면 === 'made') && !현장) ? (바쁨 ? '' : 'home') : 화면
+
   return (
     <div className="wrap tp">
-      {화면 !== 'site' && (
+      {보기 !== 'site' && (
         <div className="card">
           <h1 className="tl-h1" style={{ marginTop: 0 }}>🏗 현장 투입비 · 공사일보 <span className="count">· 청구내역서까지</span></h1>
           <div className="note sm">
@@ -326,7 +341,7 @@ export default function Tuipbi() {
       {바쁨 && <div className="card tp-busy">⏳ {바쁨}</div>}
       {오류 && <div className="card dx3-err">{오류} <button type="button" className="tp-x" onClick={() => set오류('')}>닫기</button></div>}
 
-      {화면 === 'home' && (
+      {보기 === 'home' && (
         <>
           <div className="card">
             <div className="tp-start">
@@ -354,9 +369,9 @@ export default function Tuipbi() {
           <TuipbiGuide />
         </>
       )}
-      {화면 === 'new' && <NewSite onDone={만들기} onBack={() => set화면('home')} busy={!!바쁨} />}
-      {화면 === 'open' && <OpenSite code0={코드} onOpen={열기} onBack={() => set화면('home')} busy={!!바쁨} />}
-      {화면 === 'made' && (
+      {보기 === 'new' && <NewSite onDone={만들기} onBack={() => 앞단계로('home')} busy={!!바쁨} />}
+      {보기 === 'open' && <OpenSite code0={코드} onOpen={열기} onBack={() => 앞단계로('home')} busy={!!바쁨} />}
+      {보기 === 'made' && (
         <div className="card tp-made">
           <div className="detail-h">✅ 현장을 만들었습니다</div>
           <div className="tp-code">{코드보기(코드)}</div>
@@ -368,7 +383,7 @@ export default function Tuipbi() {
           <button type="button" className="btn" onClick={() => set화면('site')}>현장으로 가기 →</button>
         </div>
       )}
-      {화면 === 'site' && 현장 && (
+      {보기 === 'site' && 현장 && (
         <TuipbiSite 코드={코드} 코드보기={코드보기} 현장={현장} 줄들={줄들} 사람={명부.사람} 장비={명부.장비} 업체={명부.업체} 출역={명부.출역}
           풀린={풀린} 잠김={잠김칸} 잠김있음={잠김} 예시={예시} 저장됨={저장됨}
           줄저장={줄저장} 줄지우기={줄지우기} 명부저장={명부저장} 명부지우기={명부지우기}

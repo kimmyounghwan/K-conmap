@@ -27,6 +27,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { isOp } from '../lib/운영자.js'
 
+import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 const 함수주소 = import.meta.env.VITE_JEOKSAN_FN
   || 'https://us-central1-k-conmap.cloudfunctions.net/jeoksanfill'
 
@@ -296,6 +297,7 @@ function Fill() {
           <span>열어 보고 무엇인지 가립니다 · 공내역서 30MB 까지 · 재료표는 한 번 놓으면 기억</span>
           <input ref={inRef} type="file" accept=".xlsx,.xlsm,.xls,.dxf,.dwg,.csv" multiple hidden
                  onChange={(e) => { 놓기(e.target.files); e.target.value = '' }} />
+          <끌어놓기판 글="도면·공내역서·단가표를 놓으면 넣습니다" 길들={[{ 꼴: /\.(xlsx|xlsm|xls|dxf|dwg|csv)$/i, 받기: (fs) => 놓기(fs), 여럿: true }]} />
         </div>
 
         {안내.length > 0 && (

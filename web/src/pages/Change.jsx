@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { askAfter } from '../AskComment'
 import { useParams, Link } from 'react-router-dom'
@@ -11,6 +11,7 @@ import { won, num } from '../lib/fmt.js'
 import UserForms from '../UserForms.jsx'
 import { getNaeyeok, getNaeyeokAll, naeyeokRows } from '../lib/data.js'
 
+import { use남김 } from '../lib/길기록.js'
 /**
  * /change · /change/{주제} · /change/calc — 「설계변경」 (2026-09-05)
  *
@@ -187,7 +188,6 @@ export function ChangeBook() {
   return (
     <>
       <div className="btn-row" style={{ paddingTop: 14, marginBottom: 10 }}>
-        <Link className="btn ghost sm" to="/change">← 설계변경</Link>
         <ShareBtn />
       </div>
 
@@ -389,9 +389,10 @@ export function ChangeNaeyeok() {
   const [priced, setPriced] = useState(null)   // 단가가 든 갈래
   const [all, setAll] = useState(null)         // 나머지 (누를 때만 받습니다)
   const [kind, setKind] = useState(kindParam ? decodeURIComponent(kindParam) : '설계내역서')
-  const [q, setQ] = useState('')
-  const [here, setHere] = useState(false)      // 바로 받을 수 있는 것만
-  const [page, setPage] = useState(1)
+  /* 🧭 2026-09-27 — 내역서를 받으러 나갔다가 뒤로 와도 찾던 말·쪽 그대로 (이 탭을 닫을 때까지) */
+  const [q, setQ] = use남김('kcm.chgnae.q', '', 'session')
+  const [here, setHere] = use남김('kcm.chgnae.here', false, 'session')      // 바로 받을 수 있는 것만
+  const [page, setPage] = use남김('kcm.chgnae.page', 1, 'session')
   const [ad, setAd] = useState(() => {
     try { return localStorage.getItem(ADKEY) !== '0' } catch { return true }
   })
@@ -399,7 +400,8 @@ export function ChangeNaeyeok() {
 
   useEffect(() => { getNaeyeok().then(setPriced).catch(() => setPriced(false)) }, [])
   useEffect(() => { try { localStorage.setItem(ADKEY, ad ? '1' : '0') } catch { /* 사생활 모드 */ } }, [ad])
-  useEffect(() => { setPage(1) }, [kind, q, here])
+  const 첫쪽 = useRef(true)   /* 처음 그릴 때는 남긴 쪽을 지우지 않습니다 */
+  useEffect(() => { if (첫쪽.current) { 첫쪽.current = false; return } setPage(1) }, [kind, q, here])   // eslint-disable-line react-hooks/exhaustive-deps
   /* 단가가 없는 갈래를 처음 누를 때만 큰 파일을 받습니다 — 안 보는 것은 안 받습니다 */
   useEffect(() => {
     if (PRICED.includes(kind) || all !== null) return
@@ -451,7 +453,6 @@ export function ChangeNaeyeok() {
   return (
     <>
       <div className="btn-row" style={{ paddingTop: 14, marginBottom: 10 }}>
-        <Link className="btn ghost sm" to="/change">← 설계변경</Link>
         <ShareBtn />
       </div>
 
@@ -633,7 +634,6 @@ export function ChangeTopic() {
   return (
     <>
       <div className="btn-row" style={{ paddingTop: 14, marginBottom: 10 }}>
-        <Link className="btn ghost sm" to="/change">← 설계변경</Link>
         <ShareBtn />
       </div>
       <div className="card">
@@ -762,7 +762,6 @@ export function ChangeCalc() {
   return (
     <>
       <div className="btn-row" style={{ paddingTop: 14, marginBottom: 10 }}>
-        <Link className="btn ghost sm" to="/change">← 설계변경</Link>
         <ShareBtn />
       </div>
 

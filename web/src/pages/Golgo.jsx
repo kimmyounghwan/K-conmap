@@ -23,8 +23,11 @@ import { Link } from 'react-router-dom'
 import { 셈, 새공사, 새동, 정리, 예시공사, 양식, 양식차례, 배근칸, 배근고르기, 정착표, 규격들, 기준값, 옵션이름, 층복사, 층범위, 비교, 엑셀 } from '../lib/골조.js'
 import { 품은도형, 도형글자, 종류, 종류이름 } from '../lib/골조도면.js'
 import { use도면, 도면판, 도면상태줄 } from '../도면판.jsx'
+import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { askAfter } from '../AskComment'
+import { use화면상태 } from '../lib/길기록.js'
 
+import { 단위보기, 단위풀이 } from '../lib/단위.js'
 const 저장열쇠 = 'kcm.golgo.v1'
 const 도면열쇠 = '골조도면'
 const 예시도면 = '/jeoksan/골조_예시.dxf'
@@ -70,7 +73,9 @@ function 불러오기() {
 
 export default function Golgo() {
   const [공사, set공사] = useState(() => 불러오기() || 새공사())
-  const [탭, set탭] = useState(() => (불러오기() ? '주' : '개요'))
+  /* 🧭 2026-09-27 — 탭을 바꾸면 기록이 한 칸 쌓입니다 → 휴대폰 뒤로가기 = 앞 탭 (예전엔 도구 밖으로 나갔습니다) */
+  const [처음탭] = useState(() => (불러오기() ? '주' : '개요'))
+  const [탭, set탭] = use화면상태('탭', 처음탭)
   const [표, set표] = useState('보')
   const [배표, set배표] = useState('보')
   const [동i, set동i] = useState(0)
@@ -306,6 +311,8 @@ export default function Golgo() {
         )}
         <input ref={파일칸} type="file" accept=".dxf,.DXF,.dwg,.DWG" className="sr-only" tabIndex={-1}
                onChange={(e) => { 파일받기(e.target.files); e.target.value = '' }} />
+        {/* 📥 놓으면 도면이 보이는 탭(③ 주자료)으로 — 개요·결과 탭에서는 도면판이 안 보여 «아무 일도 없는 것» 처럼 보였습니다 */}
+        <끌어놓기판 받기={(fs) => { 파일받기(fs); if (!['주', '배', '유'].includes(탭)) set탭('주') }} />
         <도면상태줄 상태={도.도면상태} />
       </div>
 
@@ -706,9 +713,9 @@ function 개요({ 공사, set공사, 기준고치기, 동k, 동으로 }) {
 function 모음표({ 줄, 앞 }) {
   return (
     <div className="gg-wrap"><table className="gg-r">
-      <thead><tr>{앞.map(([h]) => <th key={h}>{h}</th>)}<th>항목</th><th>규격</th><th>단위</th><th>수량</th></tr></thead>
+      <thead><tr>{앞.map(([h]) => <th key={h}>{h}</th>)}<th>항목</th><th>규격</th><th>단위</th><th className="r">수량</th></tr></thead>
       <tbody>{줄.map((x, k) => (
-        <tr key={k}>{앞.map(([h, key]) => <td key={h}>{x[key] || '—'}</td>)}<td>{x.항목}</td><td>{x.규격}</td><td>{x.단위}</td><td className="r">{쉼(x.수량, 3)}</td></tr>
+        <tr key={k}>{앞.map(([h, key]) => <td key={h}>{x[key] || '—'}</td>)}<td>{x.항목}</td><td>{x.규격}</td><td className="u">{단위풀이(x.단위)}</td><td className="r">{쉼(x.수량, 3)}<span className="단">{단위보기(x.단위)}</span></td></tr>
       ))}</tbody>
     </table></div>
   )
@@ -746,9 +753,9 @@ function 결과판({ 공사, set공사, 결과, 합, 엑셀받기, 받는중, �
         </div>
       </div>
       <div className="gg-tiles">
-        <div><span>콘크리트</span><b>{쉼(합('콘크리트'), 2)}</b> m³</div>
-        <div><span>거푸집</span><b>{쉼(합('거푸집'), 2)}</b> m²</div>
-        <div><span>철근</span><b>{쉼(합('철근'), 3)}</b> ton</div>
+        <div><span>콘크리트 (레미콘)</span><b>{쉼(합('콘크리트'), 2)}</b> ㎥ <small>루베</small></div>
+        <div><span>거푸집</span><b>{쉼(합('거푸집'), 2)}</b> ㎡ <small>헤베</small></div>
+        <div><span>철근</span><b>{쉼(합('철근'), 3)}</b> 톤</div>
         <div className={결과.경고.length ? 'bad' : 'good'}><span>검산</span><b>{결과.경고.length}</b> 건</div>
       </div>
       {결과.경고.length > 0 && (
@@ -765,18 +772,18 @@ function 결과판({ 공사, set공사, 결과, 합, 엑셀받기, 받는중, �
         <div className={칸('집계')}>
           <div className="detail-h">집계</div>
           <div className="gg-wrap"><table className="gg-r">
-            <thead><tr><th>항목</th><th>규격</th><th>단위</th><th>산출수량</th><th>할증</th><th>할증 포함</th></tr></thead>
+            <thead><tr><th>항목</th><th>규격</th><th>단위</th><th className="r">산출수량</th><th className="r">할증</th><th className="r">할증 포함</th></tr></thead>
             <tbody>{집.합.map((x, k) => (
-              <tr key={k}><td>{x.항목}</td><td>{x.규격}</td><td>{x.단위}</td><td className="r">{쉼(x.산출, 3)}</td><td className="r">{x.할증}%</td><td className="r"><b>{쉼(x.내역, 3)}</b></td></tr>
+              <tr key={k}><td>{x.항목}</td><td>{x.규격}</td><td className="u">{단위풀이(x.단위)}</td><td className="r">{쉼(x.산출, 3)}<span className="단">{단위보기(x.단위)}</span></td><td className="r">{x.할증}%</td><td className="r"><b>{쉼(x.내역, 3)}</b><span className="단">{단위보기(x.단위)}</span></td></tr>
             ))}</tbody>
           </table></div>
         </div>
       )}
       {결과.줄.length > 0 && (
         <div className={칸('층별 부재별')}><div className="detail-h">층별 부재별</div><div className="gg-wrap"><table className="gg-r">
-          <thead><tr><th>층</th><th>부재</th><th>항목</th><th>규격</th><th>단위</th><th>수량</th></tr></thead>
+          <thead><tr><th>층</th><th>부재</th><th>항목</th><th>규격</th><th>단위</th><th className="r">수량</th></tr></thead>
           <tbody>{집.층부재.map((x, k) => (
-            <tr key={k}><td>{x.층}</td><td>{x.부재}</td><td>{x.항목}</td><td>{x.규격}</td><td>{x.단위}</td><td className="r">{쉼(x.수량, 3)}</td></tr>
+            <tr key={k}><td>{x.층}</td><td>{x.부재}</td><td>{x.항목}</td><td>{x.규격}</td><td className="u">{단위풀이(x.단위)}</td><td className="r">{쉼(x.수량, 3)}<span className="단">{단위보기(x.단위)}</span></td></tr>
           ))}</tbody>
         </table></div></div>
       )}
@@ -788,7 +795,7 @@ function 결과판({ 공사, set공사, 결과, 합, 엑셀받기, 받는중, �
       {(집.구획별 || []).length > 0 && <div className={칸('구획별')}><div className="detail-h">구획별 집계 <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>(구획 칸은 양식 밖)</span></div><모음표 줄={집.구획별} 앞={[['구획', '구획']]} /></div>}
       {(집.분석 || []).length > 0 && (
         <div className={칸('연면적 분석')}><div className="detail-h">연면적 대비 분석</div><div className="gg-wrap"><table className="gg-r">
-          <thead><tr><th>동</th><th>연면적 m²</th><th>콘크리트 m³</th><th>m³/m²</th><th>거푸집 m²</th><th>m²/m²</th><th>철근 ton</th><th>kg/m²</th></tr></thead>
+          <thead><tr><th>동</th><th className="r">연면적 m²</th><th className="r">콘크리트 m³</th><th className="r">m³/m²</th><th className="r">거푸집 m²</th><th className="r">m²/m²</th><th className="r">철근 ton</th><th className="r">kg/m²</th></tr></thead>
           <tbody>{집.분석.map((a, k) => (
             <tr key={k}><td>{a.동}</td><td className="r">{쉼(a.연면적, 2)}</td><td className="r">{쉼(a.콘크리트, 3)}</td><td className="r"><b>{쉼(a.콘당, 3)}</b></td><td className="r">{쉼(a.거푸집, 3)}</td><td className="r"><b>{쉼(a.틀당, 3)}</b></td><td className="r">{쉼(a.철근kg / 1000, 3)}</td><td className="r"><b>{쉼(a.철당, 1)}</b></td></tr>
           ))}</tbody>
@@ -805,9 +812,9 @@ function 결과판({ 공사, set공사, 결과, 합, 엑셀받기, 받는중, �
           <>
             <p className="muted" style={{ fontSize: 12.5 }}>당초: {당초.때 || ''} 저장</p>
             <div className="gg-wrap"><table className="gg-r">
-              <thead><tr><th>항목</th><th>규격</th><th>단위</th><th>당초</th><th>변경</th><th>증감</th><th>증감률</th></tr></thead>
+              <thead><tr><th>항목</th><th>규격</th><th>단위</th><th className="r">당초</th><th className="r">변경</th><th className="r">증감</th><th className="r">증감률</th></tr></thead>
               <tbody>{대비.map((x, k) => (
-                <tr key={k} className={x.증감 < -1e-9 ? 'neg' : ''}><td>{x.항목}</td><td>{x.규격}</td><td>{x.단위}</td><td className="r">{쉼(x.당초, 3)}</td><td className="r">{쉼(x.지금, 3)}</td><td className="r"><b>{(x.증감 > 1e-9 ? '+' : '') + 쉼(x.증감, 3)}</b></td><td className="r">{x.율 === null ? '신규' : (x.율 > 0 ? '+' : '') + 쉼(x.율, 1) + '%'}</td></tr>
+                <tr key={k} className={x.증감 < -1e-9 ? 'neg' : ''}><td>{x.항목}</td><td>{x.규격}</td><td className="u">{단위풀이(x.단위)}</td><td className="r">{쉼(x.당초, 3)}</td><td className="r">{쉼(x.지금, 3)}</td><td className="r"><b>{(x.증감 > 1e-9 ? '+' : '') + 쉼(x.증감, 3)}</b></td><td className="r">{x.율 === null ? '신규' : (x.율 > 0 ? '+' : '') + 쉼(x.율, 1) + '%'}</td></tr>
               ))}</tbody>
             </table></div>
           </>
@@ -817,9 +824,9 @@ function 결과판({ 공사, set공사, 결과, 합, 엑셀받기, 받는중, �
         <div key={부재} className={칸('산출서')}>
           <div className="detail-h">산출서 — {부재}</div>
           <div className="gg-wrap"><table className="gg-r gg-calc">
-            <thead><tr>{여러동 && <th>동</th>}<th>층</th><th>기호</th><th>항목</th><th>규격</th><th>산출근거</th><th>수량</th><th>단위</th><th>비고</th>{구획씀 && <th>구획</th>}</tr></thead>
+            <thead><tr>{여러동 && <th>동</th>}<th>층</th><th>기호</th><th>항목</th><th>규격</th><th>산출근거</th><th className="r">수량</th><th>단위</th><th>비고</th>{구획씀 && <th>구획</th>}</tr></thead>
             <tbody>{결과.줄.filter((x) => x.부재 === 부재).map((x, k) => (
-              <tr key={k} className={x.수량 < 0 ? 'neg' : ''}>{여러동 && <td>{x.동}</td>}<td>{x.층}</td><td>{x.기호}</td><td>{x.항목}</td><td>{x.규격}</td><td className="expr">{x.식}</td><td className="r">{쉼(x.수량, 3)}</td><td>{x.단위}</td><td className="note2">{x.비고}</td>{구획씀 && <td>{x.구획}</td>}</tr>
+              <tr key={k} className={x.수량 < 0 ? 'neg' : ''}>{여러동 && <td>{x.동}</td>}<td>{x.층}</td><td>{x.기호}</td><td>{x.항목}</td><td>{x.규격}</td><td className="expr">{x.식}</td><td className="r">{쉼(x.수량, 3)}</td><td className="u">{단위풀이(x.단위)}</td><td className="note2">{x.비고}</td>{구획씀 && <td>{x.구획}</td>}</tr>
             ))}</tbody>
           </table></div>
         </div>

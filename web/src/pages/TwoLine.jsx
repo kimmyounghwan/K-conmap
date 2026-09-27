@@ -21,6 +21,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { askAfter } from '../AskComment'
 
+import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 const LABELS = ['당초', '변경', '증감']
 
 function fmt(n) { return new Intl.NumberFormat('ko-KR').format(n) }
@@ -189,6 +190,7 @@ export default function TwoLine() {
             ref={inputRef} type="file" accept=".xlsx,.xlsm" hidden
             onChange={(e) => openFile(e.target.files?.[0])}
           />
+          <끌어놓기판 글="내역서(엑셀)를 놓으면 엽니다" 길들={[{ 꼴: /\.(xlsx|xlsm)$/i, 받기: (fs) => openFile(fs[0]) }]} />
           {file
             ? <><b>{file.name}</b><span>{fmt(Math.round(file.size / 1024))} KB · 다른 파일을 올리려면 누르십시오</span></>
             : <><b>＋ 엑셀 파일을 끌어 놓거나 누르십시오</b><span>.xlsx · .xlsm — 구형 .xls 는 xlsx 로 저장해서 올려 주십시오</span></>}

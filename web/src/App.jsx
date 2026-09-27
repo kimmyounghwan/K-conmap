@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import TitleSync from './TitleSync.jsx'
 import { useEffect, useState } from 'react'
 import { 나운영자 } from './lib/운영자.js'
@@ -8,7 +8,9 @@ import AskStrip from './AskComment'
 import FirstBar from './FirstBar.jsx'
 import RefreshBtn from './Refresh.jsx'
 import Crumbs from './Crumbs.jsx'
+import { use길지킴이 } from './lib/길기록.js'
 
+import { use떨굼막기 } from './끌어놓기.jsx'
 /* 탭에 적힌 주소가 아니어도 «이 탭의 식구» 면 불을 켭니다.
    예) /cad · /pdf 에 있어도 「도구」 탭이 켜집니다. */
 function alsoOn(t, path) {
@@ -98,7 +100,11 @@ function 운영자띠() {
 
 export default function App() {
   const { pathname } = useLocation()
-  useEffect(() => { window.scrollTo(0, 0) }, [pathname])
+  /* 🧭 2026-09-27 — 「특히 뒤로가기 잘 되어 있나」: 옛 «주소가 바뀌면 맨 위로» 를 대신합니다.
+     앞으로 가면 맨 위, 뒤로 오면 «보던 자리» (자료가 늦게 와도 기다렸다가). 칸마다 주소도 적어 둡니다 → Crumbs 의 «← 들어온 곳». lib/길기록.js */
+  use길지킴이()
+  /* 📥 파일을 받지 않는 화면에 떨어뜨려도 사이트를 떠나지 않게 (끌어놓기.jsx) */
+  use떨굼막기()
 
   return (
     <BasePriceProvider>
@@ -175,11 +181,12 @@ export default function App() {
           </div>
           {/* 📚 실측으로 쓴 글 — 하단 탭을 늘리지 않고 여기서 들어갑니다 (2026-09-06) */}
           <div style={{ marginTop: 6 }}>
-            <a href="/how"><b>📖 보는 방법</b></a>
+            {/* 🧭 2026-09-27 — <a> 였을 때는 사이트를 통째로 다시 불러와 느리고 보던 자리를 잃었습니다 → Link */}
+            <Link to="/how"><b>📖 보는 방법</b></Link>
             <span className="dot">·</span>처음이시면 여기부터 — 어디서 뭘 하는지 한 장으로
           </div>
           <div style={{ marginTop: 6 }}>
-            <a href="/guide"><b>📚 입찰 알아보기</b></a>
+            <Link to="/guide"><b>📚 입찰 알아보기</b></Link>
             <span className="dot">·</span>투찰금액 계산 · 사정률 · 참가업체수 — 개찰 1만여 건 실측
           </div>
           <div className="footer-sis">

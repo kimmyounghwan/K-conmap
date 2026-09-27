@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { getOverview, getLicStat } from '../lib/data.js'
 import FreshBar from '../Fresh.jsx'
 import NoticeDetail, { scoreState, NoticeLink } from '../NoticeDetail.jsx'
@@ -16,17 +16,19 @@ import { Skeleton, Empty, Tile, NaeyeokStrip } from '../components.jsx'
 import { won, wonShort, pct, num, dateTime, dateShort, REGIONS, inRegion } from '../lib/fmt.js'
 import { loadLicCodes, saveLicCodes, loadLicNone, saveLicNone,
          licList, licNoneCount, licHit, licShort } from '../lib/lic.js'
+import { use남김 } from '../lib/길기록.js'
 
 const PAGE = 20
 const KIND = 'con'   // 공사만 다룹니다 (용역 제외)
 
 export default function FirstBoard() {
   const [ov, setOv] = useState(null)
-  const [region, setRegion] = useState('전국')
-  const [q, setQ] = useState('')
-  const [page, setPage] = useState(1)
-  const [open, setOpen] = useState(null)
-  const [mine, setMine] = useState(false)
+  /* 🧭 2026-09-27 — 공고를 열었다가 뒤로 오면 «보던 그대로»(지역·검색어·쪽·펼친 카드) — 이 탭을 닫을 때까지 */
+  const [region, setRegion] = use남김('kcm.first.region', '전국', 'session')
+  const [q, setQ] = use남김('kcm.first.q', '', 'session')
+  const [page, setPage] = use남김('kcm.first.page', 1, 'session')
+  const [open, setOpen] = use남김('kcm.first.open', null, 'session')
+  const [mine, setMine] = use남김('kcm.first.mine', false, 'session')
   const [editLic, setEditLic] = useState(false)
   /* 면허 경쟁도 — 면허를 고를 때만 받습니다(첫 화면 전송량에 안 얹습니다) */
   const [licst, setLicst] = useState(null)
@@ -57,7 +59,8 @@ export default function FirstBoard() {
     useBoard('first', KIND, { match, page, perPage: PAGE })
 
   useEffect(() => { getOverview().then(setOv) }, [])
-  useEffect(() => { setPage(1) }, [region, q, mine, lics, licNone])
+  const 첫 = useRef(true)   /* 처음 그릴 때는 남긴 쪽을 지우지 않습니다 */
+  useEffect(() => { if (첫.current) { 첫.current = false; return } setPage(1) }, [region, q, mine, lics, licNone])   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { saveLicCodes(lics) }, [lics])
   useEffect(() => { saveLicNone(licNone) }, [licNone])
 

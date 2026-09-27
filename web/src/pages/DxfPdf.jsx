@@ -16,6 +16,8 @@ import { drawPage, drawThumb, loadFont } from '../lib/plotview.js'
 import { PAPER, pageGeom } from '../lib/plotstyle.js'
 import { 도면받기 } from '../lib/도면넘김.js'
 
+import { use머무름 } from '../lib/길기록.js'
+import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 /* 🧪 예시 — 제가 그린 «가상의 사무소 건물» 도곽 2장(A3 · 1:100): 평면도(통심선 점선·벽 해치·치수·문)와
    벽체 단면 상세(흙·잡석·콘크리트 해치·단열재 굵은 선). 남의 도면이 아닙니다 — 만든 스크립트는 CLAUDE.md 참고 */
 const 예시 = { 파일: 'ex-drawing-pdf.dxf', 글: '가상 사무소 건물 — 평면도 + 벽체 단면 상세 (A3 도곽 2장) — 흑백으로 찍어 봅니다' }
@@ -41,23 +43,24 @@ export default function DxfPdf() {
   const boxRef = useRef(null)
   const cacheRef = useRef([])
   const [끌림, set끌림] = useState(false)
-  const [상태, set상태] = useState({ k: 'idle' })
-  const [모델, set모델] = useState(null)
-  const [파일이름, set파일이름] = useState('')
-  const [예시글, set예시글] = useState('')
-  const [범위, set범위] = useState('frames')          // frames | all | mine
-  const [고른, set고른] = useState([])                // 도곽 번호 → 넣음
-  const [종이, set종이] = useState('A3')
-  const [색, set색] = useState('mono')
-  const [굵기, set굵기] = useState('ctb')
-  const [글자, set글자] = useState(true)
-  const [보는장, set보는장] = useState(0)
-  const [내범위, set내범위] = useState([])
+  /* 🧭 2026-09-27 — 다른 화면에 갔다 와도 읽은 도면·고른 장·만든 PDF 가 그대로 (이 탭에 머무는 동안, lib/길기록.js) */
+  const [상태, set상태] = use머무름('dxfpdf.상태', { k: 'idle' }, (x) => (x && x.k === 'busy' ? { k: 'idle' } : x))
+  const [모델, set모델] = use머무름('dxfpdf.모델', null)
+  const [파일이름, set파일이름] = use머무름('dxfpdf.파일이름', '')
+  const [예시글, set예시글] = use머무름('dxfpdf.예시글', '')
+  const [범위, set범위] = use머무름('dxfpdf.범위', 'frames')          // frames | all | mine
+  const [고른, set고른] = use머무름('dxfpdf.고른', [])                // 도곽 번호 → 넣음
+  const [종이, set종이] = use머무름('dxfpdf.종이', 'A3')
+  const [색, set색] = use머무름('dxfpdf.색', 'mono')
+  const [굵기, set굵기] = use머무름('dxfpdf.굵기', 'ctb')
+  const [글자, set글자] = use머무름('dxfpdf.글자', true)
+  const [보는장, set보는장] = use머무름('dxfpdf.보는장', 0)
+  const [내범위, set내범위] = use머무름('dxfpdf.내범위', [])
   const [끄는중, set끄는중] = useState(null)          // 직접 잡기: {x0,y0,x1,y1} (화면 px) — 그리기용
   const 끌기 = useRef(null)                             // 같은 값(마우스 떼는 순간 최신값이 필요해서 ref)
   const [폭, set폭] = useState(800)
   const [글꼴, set글꼴] = useState(false)
-  const [결과, set결과] = useState(null)              // {url, size, name, pages}
+  const [결과, set결과] = use머무름('dxfpdf.결과', null)              // {url, size, name, pages}
 
   useEffect(() => () => { if (workRef.current) workRef.current.terminate() }, [])
   useEffect(() => { loadFont().then(set글꼴) }, [])
@@ -70,7 +73,9 @@ export default function DxfPdf() {
     ro.observe(el)
     return () => ro.disconnect()
   }, [모델])
-  useEffect(() => () => { if (결과 && 결과.url) URL.revokeObjectURL(결과.url) }, [결과])
+  /* 만든 PDF 주소는 새 것으로 바뀔 때만 버립니다(화면을 떠날 때는 두어 뒤로 오면 그대로 받게) */
+  const 앞url = useRef(결과 && 결과.url)
+  useEffect(() => { const 앞 = 앞url.current; if (앞 && (!결과 || 결과.url !== 앞)) URL.revokeObjectURL(앞); 앞url.current = 결과 && 결과.url }, [결과])
 
   const opt = useMemo(() => ({ color: 색, lw: 굵기, text: 글자 }), [색, 굵기, 글자])
   const 종이mm = (fr) => {
@@ -249,6 +254,7 @@ export default function DxfPdf() {
         </div>
         <input ref={파일칸} type="file" accept=".dxf,.DXF,.dwg,.DWG" className="sr-only" tabIndex={-1}
                onChange={(e) => { 읽기(e.target.files); e.target.value = '' }} />
+        <끌어놓기판 글="도면(DXF·DWG)을 놓으면 엽니다" 길들={[{ 꼴: /\.(dxf|dwg)$/i, 받기: (fs) => 읽기(fs) }]} />
         <div className="tlx-ex" style={{ marginTop: 10, marginBottom: 0 }}>
           <span className="tlx-exd"><b>🧪 예시로 해 보기</b> — 도면이 없으시면 눌러 보십시오:</span>
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={예시하기}>🏢 가상 건물 도면 2장</button>
