@@ -320,8 +320,10 @@ export default function Naeyeok() {
         <p style={{ margin: '12px 0 8px', lineHeight: 1.85 }}>
           <b>물량이 맞는지 보는 일</b>도 직접 하실 수 있습니다. 도면을 넣으면 물량이 저절로 나오고,
           <b> 내역서(엑셀)를 같이 넣으면 줄마다 짝을 지어 물량 차이</b>를 보여 드립니다.
+          <b> 공내역서에 단가를 채우는 일</b>은 시험판으로 열었습니다 — 채운 값은 한 줄씩 확인하십시오.
         </p>
         <div className="navrow">
+          <Link className="navi" to="/jeoksan/fill">💰 공내역서 단가 채우기 — 시험판</Link>
           <Link className="navi" to="/jeoksan/auto">📑 내역서 대조 — 도면 물량 자동에서</Link>
           <Link className="navi" to="/jeoksan">🧮 K-적산 — 골조 · 마감 · 수량산출서</Link>
         </div>

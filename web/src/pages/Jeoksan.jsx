@@ -106,7 +106,7 @@ export default function Jeoksan() {
                 애매한 줄은 후보(1~5)에서 고르고, 못 찾은 줄은 직접 채웁니다.
                 <br /><span className="muted">실제 설계 내역서 4,171줄로 잰 것 — 칸이 채워지는 줄 <b>약 85%</b> · 품목이 맞는 줄 <b>66.7%</b> ·
                 단가가 설계값 ±10% 안 <b>39.5%</b> · «확실히 붙음» 으로 표시된 줄(전체의 절반)은 <b>98.8%</b> 맞음</span></td>
-              <td style={{ whiteSpace: 'nowrap' }}><b>시험 중</b><br /><span className="muted">아직 안 엶</span></td>
+              <td style={{ whiteSpace: 'nowrap' }}><b>시험판</b><br /><Link to="/jeoksan/fill">열기 ›</Link></td>
             </tr>
             <tr>
               <td><b>③ 내역서</b><br /><span className="muted">산출내역서</span></td>
@@ -227,10 +227,10 @@ export default function Jeoksan() {
 
       {/* ── 준비 중 ── (2026-09-27 — «도면에서 찍기» 는 사이트 안에서 됩니다. 남은 것은 단가 · 캐드 안 리습) */}
       <div className="card">
-        <div className="sec-title">아직 열지 않은 것</div>
+        <div className="sec-title">시험판 · 아직 열지 않은 것</div>
         <ul className="flist">
-          <li><b>단가 채우기</b> — 위 표 ②. 품목은 3줄 중 2줄이 맞지만 단가가 설계값 ±10% 안에 드는 줄이 39.5% 라,
-            나머지를 사람이 확인해야 합니다. 나아지면 <b>이 화면에 먼저</b> 적겠습니다.</li>
+          <li><b>단가 채우기 — 시험판으로 열었습니다</b>(2026-09-27). 품목은 3줄 중 2줄이 맞지만 단가가 설계값 ±10% 안에 드는 줄이 39.5% 라,
+            <b>채운 값을 한 줄씩 확인</b>하셔야 합니다. 고르신 짝이 쌓이면 맞는 줄이 늘어납니다. <Link to="/jeoksan/fill">📑 단가 채우기 열기 ›</Link></li>
           <li><b>캐드 안에서 찍는 리습</b> — 캐드 판이 여러 가지라 확인이 끝나기 전에는 열지 않습니다.
             그동안은 <b>사이트에서 도면을 바로 눌러</b> 채우시면 됩니다(골조 · 마감 · 수량산출서).</li>
         </ul>

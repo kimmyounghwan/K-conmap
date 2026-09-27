@@ -12,8 +12,11 @@
  *    센 물량만 서버로 보내 공내역서와 맞대 봅니다(도면대조 탭). 공내역서 없이 도면만이면 도면 물량으로 내역서를 만듭니다.
  *    ⚠️ 도면·재료표 파일은 서버로 가지 않습니다. 재료표는 이 브라우저(IndexedDB)가 기억합니다(실험실과 같은 칸).
  *
- * ■ 🔒 소장님만 — 화면은 «문 앞 이름표»(lib/운영자.js) 이고, 진짜 자물쇠는 함수입니다.
- *    함수가 로그인 번호를 확인해 OPS 가 아니면 403 을 돌려줍니다.
+ * ■ 🔓 2026-09-27 — 이용자에게 엶(시험판). 소장님: 「우선은 올려놔야 이용자들이 이용을 하고, 자료가 쌓이지 않을까?」
+ *    · 함수(K-적산웹 main.py · quota.py)가 사이트 전체 «하루 10건» 을 셉니다 — 넘으면 429 + «오늘 사용 한도를 넘었습니다…»(숫자 없이, 소장님 말씀)
+ *    · 한 건 = 올리기 → 고르기 → 다시 채우기. 다시 채울 때는 받은 «건번호» 를 같이 보내 새 건으로 세지 않게 합니다.
+ *    · 소장님 브라우저(OPS)는 한도 없음 · 이용자가 고른 짝은 «서로 다른 2명이 같으면» 모두에게(함수가 함)
+ *    · 이용자 결과 엑셀 맨 앞에 «먼저 읽기» 장(시험판 — 제출 전 확인)을 함수가 붙입니다.
  * ■ 공내역서와 채운 결과는 서버에 남지 않습니다. 남는 것은 고르신 «짝» 뿐입니다(다음에 자동으로 붙게).
  * ■ ⚠️ 셈·자료는 여기에 없습니다(공개 저장소에 올리지 않음). 이 화면은 올리고 받는 일만 합니다.
  * ⚠️ 검색엔진에 올리지 않습니다 — noindex, sitemap·prerender 에도 안 넣습니다.
@@ -79,18 +82,8 @@ export default function JeoksanFill() {
   }, [])
 
   if (uid === undefined) return <div className="wrap"><div className="card muted">여는 중…</div></div>
-  const 시험 = import.meta.env.VITE_JEOKSAN_TEST === '1'
-  if (!isOp(uid) && !시험) {
-    return (
-      <div className="wrap">
-        <div className="card">
-          <div className="sec-title">🔒 공내역서 단가 채우기</div>
-          <p className="muted" style={{ margin: 0 }}>소장님 브라우저에서만 쓸 수 있습니다.</p>
-        </div>
-      </div>
-    )
-  }
-  return <Fill />
+  /* 🔓 2026-09-27 — 누구나(시험판). 소장님 브라우저만 «한도 없음» 표시가 다릅니다(실제 한도는 함수가 셈) */
+  return <Fill 운영자={isOp(uid)} />
 }
 
 /* 파일 가리기·도면 세기는 필요할 때만 불러옵니다 (처음 화면을 가볍게) */
@@ -106,7 +99,7 @@ const 모듈 = async () => {
 const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 const 차이글 = (v) => (v === null || v === undefined) ? '' : `${v > 0 ? '+' : ''}${Math.abs(v) < 0.05 ? '0' : v.toFixed(1)}%`
 
-function Fill() {
+function Fill({ 운영자 = false }) {
   const [file, setFile] = useState(null)          /* 공내역서 {name, size, blob, 까닭} — 다시 채울 때 또 보냅니다 */
   const [도면들, set도면들] = useState([])         /* [{name, size, text, n, 꼴}] — 브라우저 안에만 */
   const [재료표, set재료표] = useState(null)       /* {name, buf, 기억} — 브라우저 안에만 */
@@ -117,6 +110,7 @@ function Fill() {
   const [초, set초] = useState(0)
   const [err, setErr] = useState('')
   const [res, setRes] = useState(null)            /* 함수가 돌려준 것 */
+  const [건번호, set건번호] = useState('')        /* 🔢 다시 채울 때 같은 건으로 세게 (함수가 준 번호) */
   const [url, setUrl] = useState('')
   const [고른, set고른] = useState({})            /* {열쇠: 1~5 | 'x'} */
   const [보기, set보기] = useState('확인')
@@ -209,12 +203,12 @@ function Fill() {
     if (새내역) setFile(새내역)
     if (새재료) set재료표(새재료)
     if (새도면.length) set도면들((o) => [...o.filter((x) => !새도면.some((y) => y.name === x.name)), ...새도면])
-    if (새내역 || 새재료 || 새도면.length) { setRes(null); set고른({}) }
+    if (새내역 || 새재료 || 새도면.length) { setRes(null); set고른({}); set건번호('') }
     set안내(말)
   }
 
   const 빼기 = async (무엇, 이름) => {
-    setRes(null); set고른({})
+    setRes(null); set고른({}); set건번호('')
     if (무엇 === '내역') setFile(null)
     if (무엇 === '도면') set도면들((o) => o.filter((x) => x.name !== 이름))
     if (무엇 === '재료표') {
@@ -247,9 +241,13 @@ function Fill() {
       fd.append('region', 지역)
       fd.append('temp', 임시채움 ? '1' : '0')
       if (고른것) fd.append('picks', JSON.stringify(고른것))
+      if (고른것 && 건번호) fd.append('case', 건번호)
       const r = await fetch(함수주소, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd })
-      const j = await r.json().catch(() => ({ 오류: `서버 응답을 못 읽었습니다 (${r.status})` }))
+      /* ⏳ 함수가 JSON 을 못 준 429·503 = 다른 분이 쓰는 중(한 번에 한 건씩) — 한도(«오늘 사용 한도…»)와 다른 말로 */
+      const j = await r.json().catch(() => ({ 오류: (r.status === 429 || r.status === 503)
+        ? '지금 다른 분이 쓰는 중입니다. 1~2분 뒤 다시 눌러 주세요.' : `서버 응답을 못 읽었습니다 (${r.status})` }))
       if (!r.ok || j.오류) throw new Error(j.오류 || `서버 오류 ${r.status}`)
+      if (j.건번호) set건번호(j.건번호)
       if (url) URL.revokeObjectURL(url)
       setUrl(b64toUrl(j.파일)); j.파일 = null
       setRes(j); set고른({}); set몇(40)
@@ -277,12 +275,20 @@ function Fill() {
   return (
     <div className="wrap">
       <div className="card lead-card">
-        <div className="sec-title">🧮 공내역서 단가 채우기 <span className="count">소장님만</span></div>
+        <div className="sec-title">🧮 공내역서 단가 채우기 <span className="count">{운영자 ? '소장님 — 한도 없음' : '시험판 · 무료'}</span></div>
+        {!운영자 && (
+          <div className="fill-beta">
+            <b>⚠️ 시험판 — 채운 단가는 참고용입니다. 제출 전에 한 줄씩 꼭 확인하십시오.</b>
+            <div>실제 설계 내역서 4,171줄로 잰 것: 품목이 맞는 줄 <b>66.7%</b> · 단가가 설계값 ±10% 안 <b>39.5%</b> ·
+              «확실히 붙음» 줄은 <b>98.8%</b> 맞음. 주황(임시)·빈칸은 꼭 보시고, 후보가 있으면 골라 주세요.</div>
+          </div>
+        )}
         <p className="muted" style={{ margin: 0, lineHeight: 1.8 }}>
           공내역서를 올리면 적산자료·조달청 가격·발주처 설계내역서로 단가를 채웁니다.
           애매한 줄은 후보를 보여 드리니 고르시면 다시 채워 드립니다.
           <br />도면(.dxf)과 재료표를 <b>같이</b> 떨어뜨리면 도면 물량을 세어 공내역서와 맞대 봅니다. 공내역서 없이 도면만 놓으면 도면 물량으로 내역서를 만듭니다.
-          <br />공내역서와 결과는 서버에 남지 않습니다. 도면·재료표는 서버로 가지 않습니다(브라우저에서 센 물량만). 고르신 짝만 기억해 다음부터 저절로 붙입니다.
+          <br />공내역서와 결과는 서버에 남지 않습니다. 도면·재료표는 서버로 가지 않습니다(브라우저에서 센 물량만).
+          {운영자 ? ' 고르신 짝만 기억해 다음부터 저절로 붙입니다.' : ' 고르신 짝은 따로 모아 두었다가, 다른 분도 같은 짝을 고르면 모두에게 붙입니다.'}
         </p>
       </div>
 

@@ -3699,6 +3699,8 @@ ul.plainlist li { margin-bottom: 5px; }
 .qna-like.on { border-color: var(--good); color: var(--good); background: var(--good-soft); font-weight: 700; }
 .qna-like.sm { padding: 2px 9px; font-size: 12px; }
 span.qna-like { cursor: default; }
+.fill-beta { margin: 8px 0 10px; padding: 10px 12px; border: 1.5px solid var(--warn); background: var(--warn-soft); border-radius: 10px; font-size: 13.5px; line-height: 1.75; }
+.fill-beta > b { color: var(--warn); }
 .qna-pinbox-more { display: block; width: 100%; margin: 2px 0 6px; padding: 7px; border: 1px dashed var(--accent-line); border-radius: 9px; background: var(--surface); color: var(--accent); font-size: 13px; cursor: pointer; }
 .tp-trow .btn { flex: none; white-space: nowrap; }
 .tp-del summary { cursor: pointer; color: #dc2626; }
