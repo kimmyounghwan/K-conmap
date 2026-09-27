@@ -169,13 +169,20 @@ export default function Qna() {
   const loc = useLocation()
   const 가기 = useNavigate()
   const [새글, set새글] = useState(() => (loc.state && loc.state.새글) || null)
+  /* 🩹 2026-09-28 — 공고에서 «이 공고 구성원 글» 로 왔을 때: { no, 이름, 초안 } — 찾는 띠·빈 화면 글을 그 공고에 맞춥니다 */
+  const [공고찾기, set공고찾기] = useState(null)
+  const 찾기띠 = useRef(null)
   useEffect(() => {
     const st = loc.state || {}
     if (!st.찾기 && !st.새글) return
-    if (st.찾기) { setQ(String(st.찾기)); set갈래('전체') }
+    if (st.찾기) {
+      setQ(String(st.찾기)); set갈래('전체')
+      set공고찾기({ no: String(st.찾기), 이름: String(st.찾기이름 || ''), 초안: st.초안 || null })
+      set공지열림(false)            /* 공지가 펼쳐져 있으면 찾은 결과가 화면 아래로 묻힙니다 — 이번만 접습니다(읽음 표시는 안 함) */
+    }
     if (st.새글) set새글(st.새글)
     /* 한 번 썼으면 기록에서 뗍니다 — 안 떼면 글쓰기를 닫을 때마다 다시 열립니다 */
-    const { 찾기: _a, 새글: _b, ...남은 } = st
+    const { 찾기: _a, 새글: _b, 찾기이름: _c, 초안: _d, ...남은 } = st
     const 화면 = { ...(남은.화면 || {}) }
     if (st.새글) 화면.글쓰기 = true
     가기({ pathname: loc.pathname, search: loc.search, hash: loc.hash }, { replace: true, state: { ...남은, 화면 } })
@@ -291,6 +298,12 @@ export default function Qna() {
       return true
     })
   }, [모두, q, onlyMine, 내것, 갈래, 고정, 기본보기])
+
+  /* 공고에서 왔고 아직 그 공고번호로 찾는 중인가 */
+  const 이공고 = !!(공고찾기 && q.trim() === 공고찾기.no)
+  useEffect(() => {
+    if (이공고 && list && 찾기띠.current) { try { 찾기띠.current.scrollIntoView({ block: 'start', behavior: 'smooth' }) } catch (e) { /* 옛 브라우저 */ } }
+  }, [이공고, list === null])   // eslint-disable-line react-hooks/exhaustive-deps
 
   const nAns = (id) => Object.values(ans[id] || {}).filter((x) => x && !x.deleted).length
 
@@ -627,13 +640,24 @@ export default function Qna() {
       {list === null && <Skeleton n={4} />}
       {/* 🔎 무엇 때문에 줄었는지 늘 보이게 — 내 글만 · 찾기 낱말 (2026-09-27) */}
       {list && (onlyMine || q.trim()) && (
-        <div className="qna-filter-note">
+        <div className="qna-filter-note" ref={찾기띠} style={{ scrollMarginTop: 70 }}>
           {onlyMine && <span>✓ <b>내가 쓴 글</b>만 보는 중</span>}
-          {q.trim() && <span>🔎 «<b>{q.trim()}</b>» 로 찾는 중</span>}
-          <button type="button" className="chip" onClick={() => { setOnlyMine(false); setQ('') }}>모두 보기</button>
+          {q.trim() && (이공고
+            ? <span>🤝 이 공고{공고찾기.이름 ? <> «<b>{공고찾기.이름.slice(0, 40)}</b>»</> : null} 로 올라온 사랑방 글</span>
+            : <span>🔎 «<b>{q.trim()}</b>» 로 찾는 중</span>)}
+          <button type="button" className="chip" onClick={() => { setOnlyMine(false); setQ(''); set공고찾기(null) }}>모두 보기</button>
         </div>
       )}
-      {list && list.length === 0 && (
+      {list && list.length === 0 && 이공고 && (
+        <div className="card" style={{ textAlign: 'center', padding: '18px 14px' }}>
+          <div style={{ fontSize: 14, marginBottom: 10 }}>이 공고로 올라온 구성원 구함 글이 <b>아직 없습니다.</b></div>
+          {공고찾기.초안 && (
+            <button className="btn" onClick={() => { set새글(공고찾기.초안); setWrite(true) }}>✏️ 이 공고로 첫 글 쓰기 (구성원 구함)</button>
+          )}
+          <div className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>초안이 채워진 글쓰기 칸이 열립니다 — 고쳐서 올리시면 됩니다.</div>
+        </div>
+      )}
+      {list && list.length === 0 && !이공고 && (
         (onlyMine || q.trim())
           ? <Empty>{onlyMine ? '내가 쓴 글 중에는' : '찾는 낱말이 들어간 글 중에는'} {갈래 === '전체' ? '' : '«' + 갈래 + '» '}글이 없습니다. 위 <b>«모두 보기»</b> 를 누르면 다른 분 글까지 모두 보입니다.</Empty>
           : <Empty>아직 글이 없습니다. 아무 말이나 먼저 남겨 주세요 — 한 줄이어도 됩니다.</Empty>
