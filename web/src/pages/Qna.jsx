@@ -65,6 +65,35 @@ const 뿌리찾기 = async () => {
   return _뿌리
 }
 
+/* 🎁 2026-09-27 보상(명예) — 소장님: 「글을 쓴 사람에게 보상은 없어?」 → 고르심: «명예만»
+   · 👍 도움됐어요 — 글(qna_like/{글}/{나}) · 답글(qna_alike/{글}/{답}/{나}). 한 사람 한 번, 내 글엔 못 누름(규칙).
+     «나» = 이어진 옛 번호(r)가 있으면 그것 — 기기 두 대로 두 번 못 누르게.
+   · 활동 표시 — 글 1 · 답글 2 · 받은 👍 3 점 → 🌱 새내기(1) · 🔨 일꾼(10) · 🏅 반장(30). 운영자(K-건설맵)는 셈에서 뺌.
+   · 👑 이달의 답변왕 — qna_king/{YYYY-MM} = {r, nick, at}, 운영자만 정함(규칙). 가장 최근 달의 왕에게 👑.
+   ⚠️ 점수는 읽어 온 글(최근 300개) 안에서 셉니다 — 참고용입니다. 답변왕은 사람이 보고 정합니다. */
+const 점수표 = [[30, '🏅', '반장'], [10, '🔨', '일꾼'], [1, '🌱', '새내기']]
+export const 계급 = (p) => (점수표.find(([n]) => p >= n) || [0, '', ''])
+const 셈하나 = (m, uid, n) => { if (uid && !isOp(uid)) m[uid] = (m[uid] || 0) + n }
+/** 점수 — 글·답글·받은 👍. 달(YYYY-MM)을 주면 그 달에 쓴 것만(👍 는 그 달 글·답글이 받은 것) */
+export function 점수셈(글들, 답들, 좋아요, 답좋아요, 달) {
+  const m = {}
+  const 그달 = (at) => !달 || (at && new Date(at + 9 * 3600e3).toISOString().slice(0, 7) === 달)   /* 한국 시각으로 달을 가름 */
+  ;(글들 || []).forEach((r) => {
+    if (r.구인구직 || !그달(r.at)) return
+    셈하나(m, r.uid, 1)
+    셈하나(m, r.uid, 3 * Object.keys((좋아요 || {})[r.id] || {}).length)
+  })
+  Object.entries(답들 || {}).forEach(([qid, 묶음]) => Object.entries(묶음 || {}).forEach(([aid, a]) => {
+    if (!a || a.deleted || a.op || !그달(a.at)) return
+    셈하나(m, a.uid, 2)
+    셈하나(m, a.uid, 3 * Object.keys(((답좋아요 || {})[qid] || {})[aid] || {}).length)
+  }))
+  return m
+}
+/* 📖 공지 판 — 공지(활용 방법·보상)를 고치면 이 글자를 바꾸십시오. 처음 온 기기와 «바뀐 판» 에서만 한 번 펼쳐집니다(소장님 고르심). */
+const 공지판 = '2026-09-27b'
+const 공지열쇠 = 'kcm.qna.공지판'
+
 /* 🔑 운영자 브라우저 — 답글에 「K-건설맵 답변」 표가 붙는 곳. (2026-09-17)
  *
  * 소장님: 「**답글에 비번이 왜 필요해.. 유료만 필요하지**」 — 맞는 말씀이었습니다.
@@ -141,6 +170,14 @@ export default function Qna() {
   const [고정, set고정] = useState({})
   const [나, set나] = useState(null)
   const [다보기, set다보기] = useState(false)
+  /* 🎁 👍 · 👑 — 못 읽어도 게시판은 그대로 */
+  const [좋아요, set좋아요] = useState({})
+  const [답좋아요, set답좋아요] = useState({})
+  const [왕들, set왕들] = useState({})
+  /* 📖 공지 — 처음 온 기기 · 바뀐 판에서만 펼친 채로 */
+  const [공지열림, set공지열림] = useState(() => { try { return localStorage.getItem(공지열쇠) !== 공지판 } catch (e) { return true } })
+  const [공지탭, set공지탭] = useState('활용')
+  const 공지닫기 = () => { set공지열림(false); try { localStorage.setItem(공지열쇠, 공지판) } catch (e) { /* 사생활 창 */ } }
 
   const load = async () => {
     try {
@@ -178,6 +215,14 @@ export default function Qna() {
       set고정((await get(ref(db, 'qna_top'))).val() || {})
     } catch (e) { /* 고정 없이 */ }
     try { set나(await 뿌리찾기()) } catch (e) { /* 모름 */ }
+    await 좋아요읽기()
+  }
+  const 좋아요읽기 = async () => {
+    try {
+      const { ref, get, db } = await loadFb()
+      const [a, b, c] = await Promise.all([get(ref(db, 'qna_like')), get(ref(db, 'qna_alike')), get(ref(db, 'qna_king'))])
+      set좋아요(a.val() || {}); set답좋아요(b.val() || {}); set왕들(c.val() || {})
+    } catch (e) { /* 👍 없이 */ }
   }
   useEffect(() => { load() }, [])
   useEffect(() => {
@@ -232,6 +277,31 @@ export default function Qna() {
   }, [모두, q, onlyMine, 내것, 갈래, 고정, 기본보기])
 
   const nAns = (id) => Object.values(ans[id] || {}).filter((x) => x && !x.deleted).length
+
+  /* 🎁 활동 점수 · 👑 가장 최근 답변왕 */
+  const 점수 = useMemo(() => 점수셈(모두, ans, 좋아요, 답좋아요), [모두, ans, 좋아요, 답좋아요])
+  const 왕 = useMemo(() => {
+    const 달 = Object.keys(왕들 || {}).filter((k) => /^\d{4}-\d{2}$/.test(k)).sort().pop()
+    return 달 ? { 달, ...왕들[달] } : null
+  }, [왕들])
+  const 배지 = (uid) => {
+    if (!uid || isOp(uid)) return ''
+    if (왕 && 왕.r === uid) return '👑 '
+    const [, 표] = 계급(점수[uid] || 0)
+    return 표 ? 표 + ' ' : ''
+  }
+  const n좋아요 = (id) => Object.keys(좋아요[id] || {}).length
+  /* 👍 누르기·빼기 — 먼저 화면에 반영하고, 서버가 막으면 되돌립니다 */
+  const 좋아요누름 = async (경로, 켬) => {
+    if (!나) return false
+    try {
+      const { ref, set, db, ensureAnon } = await loadFb()
+      await ensureAnon()
+      await set(ref(db, `${경로}/${나.r}`), 켬 ? true : null)
+      await 좋아요읽기()
+      return true
+    } catch (e) { return false }
+  }
 
   /* 📌 오늘의 K-건설맵 — 씨앗글은 여기 모읍니다. 이용자 글을 덮지 않게. (8절 69) */
   const 오늘것 = useMemo(() => (모두 || [])
@@ -307,9 +377,13 @@ export default function Qna() {
                 color: 'var(--accent, #1a56db)',
               }}>답글 {n}</span>
             )}
+            {n좋아요(r.id) > 0 && (
+              <span className="chip" style={{ fontSize: 11.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
+                background: 'var(--good-soft)', color: 'var(--good)' }}>👍 {n좋아요(r.id)}</span>
+            )}
             <b style={{ flex: '1 1 200px', fontSize: 15 }}>{r.t}</b>
             <span className="muted" style={{ fontSize: 12 }}>
-              {r.nick || '익명'} · {언제(r.at)}{r.e ? ' · 고침' : ''}
+              {배지(r.uid)}{r.nick || '익명'} · {언제(r.at)}{r.e ? ' · 고침' : ''}
               {내것.has(r.id) && <b style={{ color: 'var(--accent, #1a56db)' }}> · 내 글</b>}
             </span>
             {/* 2026-09-17 — 소장님: 「답글을 클릭해서 쓸 버튼이 없어」 → 「어차피 글을 보려면
@@ -327,7 +401,8 @@ export default function Qna() {
         </div>
         {isOpen && (
           <Detail row={r} ans={ans[r.id] || {}} mine={내것.has(r.id)} 나운영자={나운영자}
-            고정됨={!!고정[r.id]} 나={나}
+            고정됨={!!고정[r.id]} 나={나} 배지={배지}
+            좋아요={좋아요[r.id] || {}} 답좋아요={답좋아요[r.id] || {}} 좋아요누름={좋아요누름}
             onChange={() => { _뿌리 = null; load(); setMine(loadMine()) }} />
         )}
       </div>
@@ -350,8 +425,15 @@ export default function Qna() {
            「사랑방이 활성화 된다면 추후 관련 전문가 방을 따로 만들도록 하겠습니다 — 변호사, 기술사, 등」
            «연락처는 내역서 문의로» 줄은 소장님 말씀으로 뺐습니다. */}
       {/* 📌 2026-09-27 — 소장님: 「게시판 제일 위에 위치되도록 해줘」 → 머리 바로 밑, 모든 글보다 위 */}
-      <details className="qna-rule qna-notice" style={{ marginBottom: 10, lineHeight: 1.85 }}>
-        <summary style={{ cursor: 'pointer', fontWeight: 800 }}>📌 공지 · 이 사랑방 쓰는 법 <span className="qna-notice-sub">— ⚠️ 꼭 한 번 읽어 주세요 (눌러서 보기)</span></summary>
+      {/* 📖🎁 2026-09-27 저녁 — 소장님: 「사랑방 클릭하면 활용방법하고, 보상에 관한 글을 읽어 보게 해줘」 → «처음 + 바뀔 때만» 펼침(고르심) */}
+      <details className="qna-rule qna-notice" open={공지열림} style={{ marginBottom: 10, lineHeight: 1.85 }}
+        onToggle={(e) => { if (!e.currentTarget.open && 공지열림) 공지닫기(); else if (e.currentTarget.open && !공지열림) set공지열림(true) }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 800 }}>📌 공지 · 활용 방법 · 🎁 보상 · ⭐ 운영진 모심 <span className="qna-notice-sub">— ⚠️ 꼭 한 번 읽어 주세요 (눌러서 보기)</span></summary>
+        <div className="qna-tabs" role="tablist">
+          <button role="tab" aria-selected={공지탭 === '활용'} className={'qna-tab' + (공지탭 === '활용' ? ' on' : '')} onClick={() => set공지탭('활용')}>📖 활용 방법</button>
+          <button role="tab" aria-selected={공지탭 === '보상'} className={'qna-tab' + (공지탭 === '보상' ? ' on' : '')} onClick={() => set공지탭('보상')}>🎁 보상</button>
+        </div>
+        {공지탭 === '활용' && (<>
         {/* ⚠️ 2026-09-27 — 소장님: 「이용자가 알 수 있게...설명을 해줘야 하잖아 … 중요표시 많이 넣어서」
              가입이 없어서 «그 기기의 그 브라우저» 가 글쓴이를 기억합니다(9/21 익명 유지 결정). 그 한계를 먼저 크게 알립니다. */}
         <div className="qna-memo">
@@ -380,7 +462,42 @@ export default function Qna() {
           <li><b>도구가 안 되거나 고쳤으면 하는 점</b>은 위 <b>📌 도구 사용법</b> 글에 답글로, 또는 <b>후기·건의</b>에 남겨 주세요 — 바로 살펴 고치겠습니다. 🙏</li>
           <li><b>앞으로</b> 사랑방이 활성화되면 <b>변호사·기술사 등 관련 전문가 방</b>을 따로 열겠습니다.</li>
         </ol>
+        </>)}
+        {공지탭 === '보상' && (
+          <div className="qna-reward">
+            {/* ⭐ 2026-09-27 — 소장님: 「활동을 하는 사람에게 명예를 주고, 나중에 이 분들의 의견을 들어 건설맵 운영진으로 .....
+                 만약 허락하신다는 전제하에......이 말도 언급해줘. 이 글을 강조 강조 강조 해줘」 */}
+            <div className="qna-staff">
+              <div className="qna-staff-h">⭐ 꾸준히 활동하시는 분을 <u>«K-건설맵 운영진»</u>으로 모시겠습니다 ⭐</div>
+              <p>활동해 주시는 분께 <b>명예</b>를 드리고, 나중에 <b>이분들의 의견을 여쭈어</b> —
+                <b> 허락해 주신다면</b> — <b className="qna-staff-em">건설맵 운영진으로 모시려 합니다.</b></p>
+              <p className="muted" style={{ margin: 0 }}>사랑방을 함께 꾸려 갈 분을 찾습니다. 👑 답변왕 · 🏅 반장 분들께 먼저 여쭙겠습니다.</p>
+            </div>
+            <p style={{ margin: '4px 0 8px' }}>사랑방에 <b>도움 되는 글과 답글</b>을 남겨 주시는 분께 감사를 드립니다.</p>
+            <ul>
+              <li>👍 <b>도움됐어요</b> — 글·답글마다 누를 수 있습니다. <b>한 분 한 번</b>, 내 글에는 누를 수 없습니다.</li>
+              <li><b>활동 표시</b> — 글 1점 · 답글 2점 · 받은 👍 3점이 쌓이면 별명 옆에 표시가 붙습니다.
+                <div className="qna-lv"><span>🌱 새내기 <i>첫 글</i></span><span>🔨 일꾼 <i>10점</i></span><span>🏅 반장 <i>30점</i></span></div></li>
+              <li>👑 <b>이달의 답변왕</b> — 매달 1일, 지난달 가장 도움이 된 분을 K-건설맵이 정해 <b>사랑방 맨 위</b>에 모십니다. 별명 옆에 <b>👑</b>가 한 달 동안 붙습니다.</li>
+              <li>광고·도배·같은 사람이 묻고 답하기는 셈에서 뺍니다.</li>
+              <li>기기를 바꾸셨다면 글 쓸 때 정한 <b>4자리로 «🔑 내 글 되찾기»</b>를 먼저 해 주세요 — 그래야 같은 분으로 셉니다.</li>
+            </ul>
+          </div>
+        )}
+        <button className="qna-read" onClick={공지닫기}>다 읽었습니다 ▲</button>
       </details>
+
+      {/* ⭐ 운영진 모심 — 공지를 접어도 늘 보이는 한 줄. 누르면 공지의 «🎁 보상» 탭이 펼쳐집니다 */}
+      {!공지열림 && (
+        <button className="qna-staff-bar" onClick={() => { set공지탭('보상'); set공지열림(true) }}>
+          ⭐ <b>꾸준히 활동하시는 분을 «K-건설맵 운영진»으로 모시겠습니다</b> <span>— 🎁 보상 · 운영진 안내 보기 ›</span>
+        </button>
+      )}
+
+      {/* 👑 이달의 답변왕 — 가장 최근 달 */}
+      {왕 && (
+        <div className="qna-king">👑 <b>{Number(왕.달.slice(5))}월의 답변왕</b> — {왕.nick} <span className="muted">· 고맙습니다!</span></div>
+      )}
 
       {/* 🔴 내 글에 새 답글 — 이것이 «다시 오게» 만듭니다. 가입도 메일도 없이. (8절 69) */}
       {새답.n > 0 && (
@@ -496,6 +613,9 @@ export default function Qna() {
 
       {list && list.map((r) => 글카드(r))}
 
+      {/* 👑 운영자만 — 이달의 답변왕 정하기 */}
+      {나운영자 && <왕정하기 모두={모두} ans={ans} 좋아요={좋아요} 답좋아요={답좋아요} 왕들={왕들} onDone={좋아요읽기} />}
+
       {/* ── 내역서로 이어지는 한 줄 ─────────────────────────── */}
       {/* ⏸ 2026-09-27 — 작성 대행을 지금 받지 않는데(Naeyeok.jsx 대행받음) 여기만 «대신 만들어 드립니다» 가 남아 있었습니다. */}
       <Link to="/naeyeok" className="naeyeok-strip" style={{ marginTop: 14 }}>
@@ -507,8 +627,50 @@ export default function Qna() {
   )
 }
 
+/* ── 👑 이달의 답변왕 정하기 — 운영자 브라우저에만 보입니다 ─────────────────
+   점수(글 1 · 답글 2 · 받은 👍 3)는 «그 달에 쓴 것» 으로 셉니다. 참고만 하시고 사람이 보고 고릅니다
+   (도배·광고·자문자답은 빼기 — 공지 «보상» 탭에 적은 대로). 규칙: qna_king 은 운영자 번호만 씀. */
+function 왕정하기({ 모두, ans, 좋아요, 답좋아요, 왕들, onDone }) {
+  const 지난달 = (() => { const d = new Date(Date.now() + 9 * 3600e3); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1); return d.toISOString().slice(0, 7) })()
+  const [달, set달] = useState(지난달)
+  const [msg, setMsg] = useState('')
+  const 순위 = useMemo(() => {
+    const m = 점수셈(모두, ans, 좋아요, 답좋아요, 달)
+    const 별명 = {}
+    ;(모두 || []).forEach((r) => { if (r.uid && r.nick) 별명[r.uid] = 별명[r.uid] || r.nick })
+    Object.values(ans || {}).forEach((g) => Object.values(g || {}).forEach((a) => { if (a && a.uid && a.nick) 별명[a.uid] = 별명[a.uid] || a.nick }))
+    return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([r, p]) => ({ r, p, nick: 별명[r] || '익명' }))
+  }, [모두, ans, 좋아요, 답좋아요, 달])
+  const 지금왕 = (왕들 || {})[달]
+  const 정하기 = async (x) => {
+    try {
+      const { ref, set, db, ensureAnon, serverTimestamp } = await loadFb()
+      await ensureAnon()
+      await set(ref(db, `qna_king/${달}`), x ? { r: x.r, nick: String(x.nick).slice(0, 20), at: serverTimestamp() } : null)
+      setMsg(x ? `👑 ${달} 답변왕 — ${x.nick}` : '뺐습니다'); onDone && onDone()
+    } catch (e) { setMsg('정하지 못했습니다(운영자 브라우저만 됩니다).') }
+  }
+  return (
+    <details className="card" style={{ marginTop: 14 }}>
+      <summary style={{ cursor: 'pointer', fontWeight: 700 }}>🛠 👑 이달의 답변왕 정하기 <span className="muted" style={{ fontWeight: 400, fontSize: 12.5 }}>(운영자만 보임)</span></summary>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '10px 0' }}>
+        <input className="inp" type="month" value={달} onChange={(e) => set달(e.target.value)} style={{ width: 170 }} />
+        {지금왕 && <span className="muted" style={{ fontSize: 13 }}>지금: 👑 {지금왕.nick} <button className="linkbtn qna-reclaim" style={{ display: 'inline', marginTop: 0 }} onClick={() => 정하기(null)}>빼기</button></span>}
+      </div>
+      {순위.length === 0 && <div className="muted" style={{ fontSize: 13 }}>이 달에 쓴 글·답글이 없습니다.</div>}
+      {순위.map((x, i) => (
+        <div key={x.r} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '6px 0', borderTop: '1px solid var(--line)', fontSize: 13.5 }}>
+          <b style={{ width: 22 }}>{i + 1}</b><span style={{ flex: 1 }}>{x.nick}</span><span className="muted">{x.p}점</span>
+          <button className="btn line sm" style={{ width: 'auto' }} onClick={() => 정하기(x)}>👑 이 분으로</button>
+        </div>
+      ))}
+      {msg && <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>{msg}</div>}
+    </details>
+  )
+}
+
 /* ── 질문 펼침 — 본문 + 답변들 + 답변 쓰기 ──────────────────────── */
-function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나 }) {
+function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지 = () => '', 좋아요 = {}, 답좋아요 = {}, 좋아요누름 }) {
   const [pin, setPin] = useState('')
   const [msg, setMsg] = useState('')
   /* ✏️ 고치기 · 🔑 되찾기 — 2026-09-27 */
@@ -571,6 +733,17 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나 }) {
   }
   /* 되찾기 단추는 «남의 글처럼 보이는» 이용자 글에만. 운영자 글·K-건설맵 글·운영자 브라우저에는 없습니다. */
   const 되찾기됨 = !mine && !나운영자 && row.c !== 'K-건설맵' && !isOp(row.uid) && !!row.uid
+  /* 👍 — 내 것(지금 번호·옛 번호)이면 셈만 보이고 못 누릅니다(규칙도 막음) */
+  const 내번호 = (uid) => !!나 && !!uid && (uid === 나.uid || uid === 나.r)
+  const 눌렀나 = (m) => !!나 && !!(m || {})[나.r]
+  const [좋바쁨, set좋바쁨] = useState(false)
+  const 좋 = async (경로, 켬) => {
+    if (!좋아요누름 || 좋바쁨) return
+    set좋바쁨(true)
+    const ok = await 좋아요누름(경로, 켬)
+    set좋바쁨(false)
+    if (!ok) setMsg('👍 를 누르지 못했습니다. 잠시 뒤 다시 해 주세요.')
+  }
   const list = Object.entries(ans).map(([id, x]) => ({ id, ...x }))
     .filter((x) => !x.deleted).sort((a, b) => (a.at || 0) - (b.at || 0))
 
@@ -610,6 +783,12 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나 }) {
       ) : (
         <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.85, fontSize: 14 }}>{row.b}</div>
       )}
+      <div style={{ marginTop: 8 }}>
+        {내번호(row.uid)
+          ? <span className="qna-like muted">👍 도움됐어요 {Object.keys(좋아요).length}</span>
+          : <button className={'qna-like' + (눌렀나(좋아요) ? ' on' : '')} disabled={좋바쁨}
+              onClick={() => 좋(`qna_like/${row.id}`, !눌렀나(좋아요))}>👍 도움됐어요 {Object.keys(좋아요).length}</button>}
+      </div>
 
       {list.map((a) => (
         <div key={a.id} style={{
@@ -620,10 +799,16 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나 }) {
           <div style={{ fontSize: 12, marginBottom: 5 }}>
             {a.op
               ? <b style={{ color: 'var(--accent, #1a56db)' }}>K-건설맵 답변</b>
-              : <b>{a.nick || '익명'}</b>}
+              : <b>{배지(a.uid)}{a.nick || '익명'}</b>}
             <span className="muted"> · {when(a.at)}</span>
           </div>
           <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.85, fontSize: 13.5 }}>{a.b}</div>
+          <div style={{ marginTop: 4 }}>
+            {내번호(a.uid)
+              ? <span className="qna-like sm muted">👍 {Object.keys(답좋아요[a.id] || {}).length}</span>
+              : <button className={'qna-like sm' + (눌렀나(답좋아요[a.id]) ? ' on' : '')} disabled={좋바쁨}
+                  onClick={() => 좋(`qna_alike/${row.id}/${a.id}`, !눌렀나(답좋아요[a.id]))}>👍 {Object.keys(답좋아요[a.id] || {}).length}</button>}
+          </div>
         </div>
       ))}
 

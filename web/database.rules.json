@@ -161,6 +161,42 @@
       }
     },
 
+    // 🎁 2026-09-27 보상(명예) — 소장님 고르심 «명예만». 👍 도움됐어요 · 👑 이달의 답변왕 (Qna.jsx 8절 90)
+    //    👍 는 «나» 한 번: 이어진 옛 번호(qna_who)가 있으면 그 번호로만, 없으면 지금 번호로만 — 기기 두 대로 두 번 못 누름.
+    //    내 글(지금 번호·옛 번호)에는 못 누름. 빼기(null)는 누른 사람만.
+    "qna_like": {
+      ".read": true,
+      "$id": {
+        "$who": {
+          ".write": "auth != null && ( ( root.child('qna_who').child(auth.uid).exists() && $who === root.child('qna_who').child(auth.uid).child('r').val() ) || ( !root.child('qna_who').child(auth.uid).exists() && $who === auth.uid ) ) && root.child('qna').child($id).exists() && root.child('qna').child($id).child('uid').val() !== auth.uid && root.child('qna').child($id).child('uid').val() !== root.child('qna_who').child(auth.uid).child('r').val()",
+          ".validate": "newData.val() === true"
+        }
+      }
+    },
+    "qna_alike": {
+      ".read": true,
+      "$qid": {
+        "$aid": {
+          "$who": {
+            ".write": "auth != null && ( ( root.child('qna_who').child(auth.uid).exists() && $who === root.child('qna_who').child(auth.uid).child('r').val() ) || ( !root.child('qna_who').child(auth.uid).exists() && $who === auth.uid ) ) && root.child('qna_a').child($qid).child($aid).exists() && root.child('qna_a').child($qid).child($aid).child('uid').val() !== auth.uid && root.child('qna_a').child($qid).child($aid).child('uid').val() !== root.child('qna_who').child(auth.uid).child('r').val()",
+            ".validate": "newData.val() === true"
+          }
+        }
+      }
+    },
+    // 👑 이달의 답변왕 — 운영자 번호만 정하고 뺌. 키 = 상 받는 달(YYYY-MM)
+    "qna_king": {
+      ".read": true,
+      "$ym": {
+        ".write": "auth != null && auth.uid === 'ZglL1g3X5UZFBA2590LirDnEnil1' && $ym.matches(/^[0-9]{4}-[0-9]{2}$/)",
+        ".validate": "newData.hasChildren(['r','nick','at'])",
+        "r":      { ".validate": "newData.isString() && newData.val().length <= 64" },
+        "nick":   { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "at":     { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
+        "$other": { ".validate": false }
+      }
+    },
+
     // 📌 2026-09-27 — 사랑방 «도구 사용법» 고정. 소장님: 「도구설명서도 항상 위쪽에 배치 되도록 해주고」
     //    값 = 고정한 때(ms). 작은 것이 위. **운영자 브라우저만** 꽂고 뺍니다(OPS 와 같은 번호).
     //    ⚠️ 글(qna) 안에 칸을 늘리지 않았습니다 — $other:false 라 옛 규칙이면 글쓰기가 통째로 튕깁니다.
