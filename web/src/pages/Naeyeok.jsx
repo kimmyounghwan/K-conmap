@@ -315,6 +315,16 @@ export default function Naeyeok() {
           <Link className="navi" to="/naeyeok/ratio">📉 내역서 비율 맞추기 — 열기</Link>
           <Link className="navi" to="/change/twoline">🔁 설계변경 2줄 자동변환</Link>
         </div>
+        {/* 📑 2026-09-27 — 소장님: 「내역서 하고, 적산 설명글도 최신으로 업데이트 해줘」
+            9/27 에 생긴 «내역서 대조»(도면 물량 자동 안)와 물량 도구가 여기엔 없었습니다. */}
+        <p style={{ margin: '12px 0 8px', lineHeight: 1.85 }}>
+          <b>물량이 맞는지 보는 일</b>도 직접 하실 수 있습니다. 도면을 넣으면 물량이 저절로 나오고,
+          <b> 내역서(엑셀)를 같이 넣으면 줄마다 짝을 지어 물량 차이</b>를 보여 드립니다.
+        </p>
+        <div className="navrow">
+          <Link className="navi" to="/jeoksan/auto">📑 내역서 대조 — 도면 물량 자동에서</Link>
+          <Link className="navi" to="/jeoksan">🧮 K-적산 — 골조 · 마감 · 수량산출서</Link>
+        </div>
         <div className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>
           파일은 브라우저 안에서만 다룹니다 — 저희 쪽으로 올라가지 않습니다.
         </div>

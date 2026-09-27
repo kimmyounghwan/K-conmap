@@ -26,19 +26,58 @@ export default function Jeoksan() {
         {/* ⏸ 2026-09-25 — 소장님: 「그럼 작성대행도 안돼고, 적산도 안되는 거잖아. 근데, 사이트에는 된다고 해놓서」
             «산출내역서와 원가계산서까지 만듭니다» 는 아직 사실이 아닙니다. 되는 것과 안 되는 것을 그대로 적습니다. */}
         {/* 🔓 2026-09-26 — 소장님: 「적산 물량 산출도...우선은 무료로...개방」 · 「사이트 내에서 사용하도록」 */}
+        {/* 🔄 2026-09-27 — 소장님: 「지금 도구들은 알아서 물량을 채워주는 거잖아. 근데 여기는 이용자가 치수를 알려 줘야 … 되어 있는 거 아니야?」
+            설명이 9/16~17(캐드 리습 · 치수를 표에 적기) 그대로였습니다. 지금 도구에 맞게 고쳐 씁니다. */}
         <p className="why2" style={{ marginBottom: 6 }}>
-          도면에서 물량을 뽑는 프로그램입니다. <b>수량산출서 만들기는 무료로 열었습니다</b> — 사이트에서 바로 쓰십시오.
+          <b>도면을 넣으면 물량이 나옵니다.</b> 치수를 손으로 적지 않습니다 — 자동으로 전부 뽑거나, 표 칸을 누르고 도면을 누르면 값이 들어갑니다.
+          수량산출서까지 <b>무료</b>, 가입도 설치도 없습니다.
         </p>
         <p className="muted" style={{ margin: 0 }}>
           단가를 채워 내역서·원가계산서까지 가는 길은 아직 시험 중입니다 — 아래 표에 그대로 적었습니다.
         </p>
         <div className="btn-row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
-          {/* ⚡🧱 2026-09-27 — 소장님: 「골조 말고 다른 것도 있지 않았어??? 도면을 주면 수량산출서가 나오게 안돼? 건축이든, 토목이든」 */}
-          <Link className="btn primary" style={{ width: 'auto' }} to="/jeoksan/auto">⚡ 도면 물량 자동 — 도면 넣으면 모든 물량 · 내역서 대조 (무료)</Link>
-          <Link className="btn primary" style={{ width: 'auto' }} to="/jeoksan/golgo">🏗 골조 수량산출 — 도면에서 찍어 재기 (무료)</Link>
+          {/* ⚡🧱 2026-09-27 — 소장님: 「골조 말고 다른 것도 있지 않았어??? 도면을 주면 수량산출서가 나오게 안돼? 건축이든, 토목이든」
+              🎨 같은 날 저녁 — 소장님: 「파란색으로 채우는 거 없애주고」 → 넷 다 테두리 단추 */}
+          <Link className="btn line" style={{ width: 'auto' }} to="/jeoksan/auto">⚡ 도면 물량 자동 — 도면만 넣으면 물량 전부 · 내역서 대조 (무료)</Link>
+          <Link className="btn line" style={{ width: 'auto' }} to="/jeoksan/golgo">🏗 골조 수량산출 — 도면을 눌러 채우기 (무료)</Link>
           <Link className="btn line" style={{ width: 'auto' }} to="/jeoksan/magam">🧱 마감 수량산출 — 방마다 바닥·벽·천장 (무료)</Link>
-          <Link className="btn line" style={{ width: 'auto' }} to="/jeoksan/run">🧮 수량산출서 만들기 — 도면에서 찍어 채우기 (무료)</Link>
+          <Link className="btn line" style={{ width: 'auto' }} to="/jeoksan/run">🧮 수량산출서 만들기 — 재료표 + 도면 눌러 채우기 (무료)</Link>
         </div>
+      </div>
+
+      {/* ── 도구마다 무엇을 하나 ── (2026-09-27 — 옛 «네 걸음»(엑셀 재료표 → 캐드 리습으로 찍기 → 파일 끌어다 놓기)을 바꿈) */}
+      <div className="card">
+        <div className="sec-title">도구마다 무엇을 하나</div>
+        <table className="tbl left reptbl">
+          <tbody>
+            <tr>
+              <td className="w"><b>⚡ 도면 물량 자동</b><span className="d">누를 것 없음</span></td>
+              <td>도면(DXF·DWG)을 넣으면 <b>바로 셉니다.</b> 도면에 적힌 표(철근 재료표 → 직경별 무게 · 수량표),
+                횡단면 토공(측점마다 깎기·쌓기 → 평균단면법), 레이어별 선 길이·면적 · 블록·기호 개수까지 한꺼번에.
+                <br /><span className="muted">빼고 싶은 줄만 체크를 풉니다. <b>내역서(엑셀)</b>를 같이 넣으면 줄마다 짝을 지어 <b>물량 차이</b>를 보여 줍니다(내역서 대조).</span></td>
+            </tr>
+            <tr>
+              <td className="w"><b>🏗 골조</b><span className="d">도면을 눌러 채움</span></td>
+              <td>골조 산출 양식 그대로(개요 · 배근표 · 주자료). 표의 칸을 누르고 <b>도면의 선·치수·글자·닫힌 선</b>을 누르면
+                길이·치수·기호·면적이 들어갑니다. 기호 글자(C1 …)는 화면 안 개수를 셉니다.
+                <br /><span className="muted">동·층 복사 · 산출서 · 집계(층·동·공구) · 검산 · 당초 대비 · 엑셀 · 인쇄</span></td>
+            </tr>
+            <tr>
+              <td className="w"><b>🧱 마감</b><span className="d">방마다 한 줄</span></td>
+              <td>도면의 <b>방 안을 누르면 면적과 둘레</b>가 한 번에 들어갑니다. 도면에 <b>실내재료마감표·창호일람표</b>가 있으면 한 번에 채웁니다.
+                <br /><span className="muted">창호 글자를 누르면 개수 · 산출서 · 집계 · 동별 · 창호 집계 · 면적 검산 · 엑셀</span></td>
+            </tr>
+            <tr>
+              <td className="w"><b>🧮 수량산출서 만들기</b><span className="d">토목·건축 어디든</span></td>
+              <td>재료표(토목·건축 견본을 그대로 써도 됨) + 치수표. 치수표 칸을 누르고 <b>도면을 누르면</b> 값이 들어갑니다(직접 적어도 됩니다).
+                <br /><span className="muted">엑셀 다섯 장 — 산출서 · 집계 · 태그별 · 검산 · 쓴표</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <p className="muted" style={{ marginBottom: 0 }}>
+          도면은 <b>이 브라우저 안에서만</b> 읽습니다 — 서버로 가지 않습니다. 캐드가 없어도 되고, DWG 도 바로 엽니다.
+          자동은 도면을 «해석» 하지 않고 <b>도면에 적힌 표·글자·선을 자리대로 옮깁니다</b> — 어디서 읽었는지 도면 위에 네모로 보여 드리니, 검산은 꼭 한 번 보십시오.
+        </p>
       </div>
 
       {/* ── 적산의 차례 ──
@@ -57,15 +96,17 @@ export default function Jeoksan() {
           <tbody>
             <tr>
               <td><b>① 물량</b><br /><span className="muted">수량산출서</span></td>
-              <td>무엇이 얼마나 들어가나. 산출근거가 살아 있는 수식으로 남습니다</td>
-              <td style={{ whiteSpace: 'nowrap' }}><b>됩니다</b></td>
+              <td>무엇이 얼마나 들어가나. <b>도면 물량 자동</b>은 도면만 넣으면 저절로,
+                골조·마감·수량산출서는 도면을 눌러 채웁니다. 산출근거가 살아 있는 수식으로 남습니다</td>
+              <td style={{ whiteSpace: 'nowrap' }}><b>됩니다</b><br /><span className="muted">무료</span></td>
             </tr>
             <tr>
               <td><b>② 단가</b><br /><span className="muted">공내역서 채우기</span></td>
-              <td>빈 공내역서에 품명·규격으로 단가를 찾아 넣습니다. 못 찾은 줄은 못 찾았다고 표시합니다.
-                <br /><span className="muted">실제 설계 내역서 4,171줄로 재 보니 품목이 맞는 줄 <b>66.7%</b> ·
-                단가가 설계값 ±10% 안 <b>39.5%</b></span></td>
-              <td style={{ whiteSpace: 'nowrap' }}><b>안 됩니다</b><br /><span className="muted">시험 중</span></td>
+              <td>빈 공내역서에 품명·규격으로 단가를 찾아 넣습니다. <b>«확실히 붙음»</b> 줄은 그대로 두고,
+                애매한 줄은 후보(1~5)에서 고르고, 못 찾은 줄은 직접 채웁니다.
+                <br /><span className="muted">실제 설계 내역서 4,171줄로 잰 것 — 칸이 채워지는 줄 <b>약 85%</b> · 품목이 맞는 줄 <b>66.7%</b> ·
+                단가가 설계값 ±10% 안 <b>39.5%</b> · «확실히 붙음» 으로 표시된 줄(전체의 절반)은 <b>98.8%</b> 맞음</span></td>
+              <td style={{ whiteSpace: 'nowrap' }}><b>시험 중</b><br /><span className="muted">아직 안 엶</span></td>
             </tr>
             <tr>
               <td><b>③ 내역서</b><br /><span className="muted">산출내역서</span></td>
@@ -98,51 +139,6 @@ export default function Jeoksan() {
         </p>
       </div>
 
-      {/* ── 사이트에서 바로 ── */}
-      {/* 🔓 2026-09-26 — 9/17 에 잠갔던 것(「이용자 들이 사용하게 하면 안돼」)을 소장님이 «우선 무료 개방» 으로 바꾸셨습니다. */}
-      <div className="card">
-        <div className="sec-title">🧮 사이트에서 바로 — 무료</div>
-        <p style={{ marginTop: 0 }}>
-          <b>「잰 치수 → 수량산출서 엑셀」</b> 을 이 사이트에서 바로 하십니다.
-          재료표는 <b>토목·건축 견본을 그대로</b> 쓰셔도 되고, 치수는 <b>화면의 표에 바로</b> 적으시면 됩니다 —
-          받아서 고쳐 올릴 것이 없습니다. 회원가입도 없습니다.
-        </p>
-        <p className="muted">
-          넣으신 것은 브라우저 밖으로 나가지 않습니다. 수량은 한 번 틀리면 그대로 돈이 되는 자리라,
-          나오는 엑셀의 <b>검산</b> 시트를 꼭 보십시오.
-        </p>
-        <Link className="btn line" to="/jeoksan/run">🧮 수량산출서 만들기</Link>
-      </div>
-
-      {/* ── 네 걸음 ── */}
-      <div className="card">
-        <div className="sec-title">어떻게 쓰나 — 네 걸음</div>
-        <table className="tbl left reptbl">
-          <tbody>
-            <tr>
-              <td className="w"><b>1. 재료표</b><span className="d">엑셀 · 처음 한 번</span></td>
-              <td>부재 하나가 어떤 재료를 얼마나 먹는지 <b>한 줄씩</b> 적습니다.
-                <br /><span className="muted">구조물 · 콘크리트 · m3 · <b>A*H</b> 같은 식입니다. 여기가 이 물건의 머리입니다.</span></td>
-            </tr>
-            <tr>
-              <td className="w"><b>2. 설정 만들기</b><span className="d">단추 하나</span></td>
-              <td>재료표를 읽어 <b>캐드가 읽을 설정</b>을 냅니다.
-                <br /><span className="muted">「구조물을 찍을 땐 A 와 H 를 물어라」 를 <b>표에서 저절로</b> 알아냅니다. 따로 적지 않습니다.</span></td>
-            </tr>
-            <tr>
-              <td className="w"><b>3. 도면에서 찍기</b><span className="d">캐드</span></td>
-              <td>부재를 고르고, 도면의 선을 <b>한 번 클릭</b>하면 길이·넓이를 잽니다.
-                <br /><span className="muted">잰 객체는 <b>빨갛게</b> 바뀝니다. 어디까지 했는지 한눈에 보입니다.</span></td>
-            </tr>
-            <tr>
-              <td className="w"><b>4. 산출서 만들기</b><span className="d">단추 하나</span></td>
-              <td>캐드에서 낸 파일을 창에 <b>끌어다 놓으면</b> 엑셀이 나옵니다.
-                <br /><span className="muted">산출서 · 집계 · 태그별 · 검산 · 쓴표, 다섯 장입니다.</span></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
       {/* ── 무엇이 다른가 ── */}
       <div className="card">
         <div className="sec-title">흔한 방식과 무엇이 다른가</div>
@@ -170,9 +166,8 @@ export default function Jeoksan() {
                 산출서와 같은 파일 안에 한 장으로.</td>
             </tr>
             <tr>
-              <td className="w"><b>캐드</b><span className="d">어디서 도나</span></td>
-              <td>순수 AutoLISP 만 씁니다. ActiveX 를 안 써서{' '}
-                <b>AutoCAD LT 2024 이상 · 캐디안 · ZWCAD</b> 에서도 같은 파일 하나로 돕니다.</td>
+              <td className="w"><b>캐드</b><span className="d">없어도 됨</span></td>
+              <td>도면을 <b>사이트에서 바로</b> 엽니다(DXF·DWG). 캐드를 깔지 않아도 됩니다.</td>
             </tr>
           </tbody>
         </table>
@@ -199,7 +194,7 @@ export default function Jeoksan() {
 
       {/* ── 나오는 것 ── */}
       <div className="card">
-        <div className="sec-title">나오는 엑셀 — 다섯 장</div>
+        <div className="sec-title">수량산출서 만들기의 엑셀 — 다섯 장</div>
         <table className="tbl left reptbl">
           <tbody>
             <tr><td className="w"><b>산출서</b><span className="d">한 줄씩</span></td>
@@ -220,7 +215,7 @@ export default function Jeoksan() {
       {/* ── 값 ── */}
       <div className="card">
         <div className="sec-title">값은 어떻게 되나</div>
-        <p><b>수량산출서 만들기는 무료입니다</b> — 우선 무료로 열었습니다(2026-09-26).</p>
+        <p><b>물량 도구 넷(도면 물량 자동 · 골조 · 마감 · 수량산출서)은 모두 무료입니다.</b></p>
         <p className="muted" style={{ marginBottom: 0 }}>
           현장마다 재료표를 맞춰 드리거나 도면을 같이 보는 일처럼 <b>사람 손이 들어가는 일</b>은 따로입니다.
           그런 일은 아직 받지 않고, 받게 되면 값을 이 화면에 먼저 적겠습니다.{' '}
@@ -230,24 +225,15 @@ export default function Jeoksan() {
 
       <PriceStance />
 
-      {/* ── 준비 중 ── */}
+      {/* ── 준비 중 ── (2026-09-27 — «도면에서 찍기» 는 사이트 안에서 됩니다. 남은 것은 단가 · 캐드 안 리습) */}
       <div className="card">
-        <div className="sec-title">아직 열지 않은 것 — 「도면에서 찍기」</div>
-        <p>
-          <b>사이트에서 도는 것</b>(잰 치수 → 산출서)은 위에서 지금 쓰실 수 있습니다.{' '}
-          아직 안 연 것은 <b>캐드에서 도면을 찍는 리습</b>과 그것을 돌리는 PC 프로그램입니다.{' '}
-          지금은 <b>제 현장에서만 돌리고 있습니다.</b> 내려받는 단추가 없는 것은 감춘 것이 아니라{' '}
-          <b>아직 올리지 않았기 때문</b>입니다.
-        </p>
-        <p>
-          캐드가 판이 여러 가지입니다. 제 자리에서 되는 것이 남의 자리에서 된다는 뜻은 아닙니다.{' '}
-          <b>그 확인이 끝나기 전에는 열지 않겠습니다.</b>{' '}
-          되는 척하는 도구를 쥐여 드리면 그 물량으로 낸 서류가 틀립니다.
-        </p>
-        <p className="muted" style={{ marginBottom: 0 }}>
-          열리면 <b>이 화면에 적겠습니다.</b> 언제라고는 못 적겠습니다 —
-          지킬 수 없는 약속은 안 하는 편이 낫습니다.
-        </p>
+        <div className="sec-title">아직 열지 않은 것</div>
+        <ul className="flist">
+          <li><b>단가 채우기</b> — 위 표 ②. 품목은 3줄 중 2줄이 맞지만 단가가 설계값 ±10% 안에 드는 줄이 39.5% 라,
+            나머지를 사람이 확인해야 합니다. 나아지면 <b>이 화면에 먼저</b> 적겠습니다.</li>
+          <li><b>캐드 안에서 찍는 리습</b> — 캐드 판이 여러 가지라 확인이 끝나기 전에는 열지 않습니다.
+            그동안은 <b>사이트에서 도면을 바로 눌러</b> 채우시면 됩니다(골조 · 마감 · 수량산출서).</li>
+        </ul>
       </div>
 
       {/* ── 알아 두실 것 ── */}
@@ -259,19 +245,20 @@ export default function Jeoksan() {
             실제 설계에 쓰인 규격·수량·단가입니다.
             재료표의 환산·할증 칸은 <b>쓰시는 기준으로 고쳐 쓰는 자리</b>입니다</li>
           <li>철근 단위중량(<b>KS D 3504</b>)만 들어 있습니다. 표준 규격이라 그렇습니다</li>
-          <li><b>단가는 내지 않습니다.</b> 수량과 산출근거까지입니다</li>
-          <li>도면을 <b>스스로 읽어 주지 않습니다.</b> 사람이 클릭해야 합니다 —
-            도면의 선이 무엇을 뜻하는지는 도면마다 달라서, 자동으로 하면 반드시 틀립니다</li>
+          <li>물량 도구는 <b>단가를 내지 않습니다.</b> 수량과 산출근거까지입니다</li>
+          <li><b>자동은 도면에 적힌 것만 셉니다.</b> 표·글자·레이어가 없는 도면, 선의 뜻이 레이어로 갈리지 않은 도면은
+            덜 나옵니다 — 그때는 골조·마감·수량산출서에서 도면을 눌러 채우십시오</li>
         </ul>
       </div>
 
       {/* ── 그동안 쓸 것 ── */}
       <div className="card">
-        <div className="sec-title">그동안 쓰실 것</div>
+        <div className="sec-title">같이 쓰면 좋은 것</div>
         <p className="muted" style={{ marginTop: 0 }}>
-          적산이 열릴 때까지, 지금 바로 쓰실 수 있는 것들입니다. <b>전부 무료입니다.</b>
+          물량과 함께 자주 쓰시는 것들입니다. <b>전부 무료입니다.</b>
         </p>
         <div className="btn-grid">
+          <Link className="btn ghost" to="/naeyeok/ratio">📉 내역서 비율 맞추기</Link>
           <Link className="btn ghost" to="/cad">📐 캐드 유틸 — 길이·면적·개수 재기</Link>
           <Link className="btn ghost" to="/change/twoline">🔁 설계변경 2줄 변환</Link>
           <Link className="btn ghost" to="/change/excel">📊 설계변경 통합 엑셀</Link>
@@ -291,9 +278,8 @@ export function JeoksanStrip() {
       <div className="grow">
         <div className="t">K-적산 <em>· 도면에서 물량을 뽑습니다</em></div>
         <div className="d">
-          <b>치수를 적으면 수량산출서 엑셀</b>이 바로 나옵니다. 무료 · 깔 것도 가입도 없습니다.
-          산출근거가 <b>살아 있는 엑셀 수식</b>이라 감리가 칸을 눌러 봅니다.{' '}
-          도면에서 찍는 캐드 리습은 아직 준비 중입니다.
+          <b>도면을 넣으면 물량</b>이 나옵니다 — 자동으로 전부 뽑거나, 도면을 눌러 채웁니다. 무료 · 깔 것도 가입도 없습니다.
+          산출근거가 <b>살아 있는 엑셀 수식</b>이라 감리가 칸을 눌러 봅니다.
         </div>
       </div>
       <span className="go">›</span>
