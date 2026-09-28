@@ -21,6 +21,9 @@
  *   도면만 주면 스스로 물량을 내는 거잖아」 「물량은 자동으로 뽑아서 엑셀로 다운 받을 수 있게 해줘」
  *   구조평면도 + 부재 일람표를 넣으면(여러 장·끌어 놓기도) 배근표·주자료·층을 스스로 채우고 ④ 결과로 — 찍기는 고칠 때만.
  *   🧪 예시도 자동 예시(골조자동_예시.dxf — tools/골조자동_예시도면.py 로 그린 가상 2층 라멘조)로 바꿈. 예시공사() 는 시험이 씀
+ * ■ 🆕 2026-09-28 소장님 「1번부터 6번까지 한꺼번에」 (받은 무료 프로그램 설명서의 «방식만»):
+ *   📋 도면의 정착·이음 길이표 읽기(lib/정착표읽기.js — ① 개요 · 자동에서도) · 🪝 갈고리 정착(l_dh) 칸·산출 옵션 «갈고리» ·
+ *   🧱 버림콘크리트(배근표 «버림 두께») · 교대배근 표기(HD10+13@200) · 🔗 결과 ↔ 도면 오가기(lib/도면오가기.js — ④ 결과)
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -29,6 +32,8 @@ import { 품은도형, 도형글자, 종류, 종류이름 } from '../lib/골조�
 import { use도면, 도면판, 도면상태줄, 도면읽어오기, 큰파일, 오류글 } from '../도면판.jsx'
 import { 단위배율 } from '../lib/골조도면.js'
 import { 골조읽기, 개수글 } from '../lib/골조자동.js'
+import { 표찾기, 표읽기, 글자모음, 선모음, 넣을것, 칸이름, 칸들 as 정착칸들 } from '../lib/정착표읽기.js'
+import { 줄자리, 도형상자, 모은상자, 누른줄들 } from '../lib/도면오가기.js'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { askAfter } from '../AskComment'
 import { use화면상태 } from '../lib/길기록.js'
@@ -77,6 +82,9 @@ function 불러오기() {
   } catch (e) { return null }
 }
 
+/** 휴대폰 폭 — ④·⑥ 결과에서는 도면을 위에 붙이지 않음(표가 가려지지 않게) */
+const 좁은화면 = () => typeof window !== 'undefined' && window.innerWidth < 700
+
 export default function Golgo() {
   const [공사, set공사] = useState(() => 불러오기() || 새공사())
   /* 🧭 2026-09-27 — 탭을 바꾸면 기록이 한 칸 쌓입니다 → 휴대폰 뒤로가기 = 앞 탭 (예전엔 도구 밖으로 나갔습니다) */
@@ -99,6 +107,12 @@ export default function Golgo() {
   const 자동칸 = useRef(null)
   const [자동, set자동] = useState(null)           // ⚡ 도면에서 읽은 것 {R, 도면:[{이름, buf}], 묻기} — 적은 것이 있으면 바꿀지 여쭘
   const [자동상태, set자동상태] = useState({ k: 'idle' })
+  const 자동도면 = useRef([])                        // ⚡ 자동으로 넣은 도면들(버퍼) — 결과에서 다른 도면의 줄을 누르면 그 도면을 엶
+  /* 🔗 결과 ↔ 도면 (2026-09-28) */
+  const [짚음, set짚음] = useState(null)            // 결과에서 누른 줄의 곳 {동, 표, i}
+  const [짚은, set짚은] = useState([])              // 도면을 눌러 찾은 줄들의 열쇠 '동|표|i'
+  const [가볼, set가볼] = useState(null)            // {r, n} 도면 화면 옮기기
+  const [결과알림, set결과알림] = useState(null)     // {글, 열도면?}
 
   /* 저장 */
   useEffect(() => {
@@ -131,6 +145,7 @@ export default function Golgo() {
     let R
     try { R = 골조읽기(도면들) } catch (e) { set자동상태({ k: 'err', 글: '도면에서 골조를 읽다 멈췄습니다 (' + e.message + ')' }); return }
     set자동상태(틀림 ? { k: 'err', 글: 틀림.trim() } : { k: 'ok' })
+    자동도면.current = 남김
     // 부재를 가장 많이 읽은 도면을 도면판에 엽니다(고칠 때 누를 수 있게)
     const 셈 = new Map()
     for (const g of R.근거) 셈.set(g.번, (셈.get(g.번) || 0) + 1)
@@ -148,8 +163,22 @@ export default function Golgo() {
   }
   const 자동넣기 = (판) => {
     const { R, 열 } = 판
-    set공사((P) => ({ ...R.공사, 기준: P.기준 || R.공사.기준 }))       // 기준값(fck·피복·할증…)은 적어 둔 것 그대로
-    set자동({ R, 됨: true })
+    /* 기준값(fck·피복·할증…)은 적어 둔 것 그대로 — 📋 도면의 정착·이음표는 «그 fck» 의 줄만 정착표에 넣음 (2026-09-28) */
+    const 기0 = 공사.기준 || R.공사.기준
+    let 정착알림 = null
+    let 기준 = 기0
+    if (R.정착표 && R.정착표.표) {
+      const fck = +기0.fck
+      const 넣 = 넣을것(R.정착표.표.줄, fck, 정착표(fck, +기0.fy))
+      const 표fck = [...new Set(R.정착표.표.줄.filter((z) => z.칸 && z.그럴듯 !== false && z.fck != null).map((z) => z.fck))]
+      if (넣.넣은.length) {
+        기준 = { ...기0, 정착: 넣.정착, 정착출처: '도면의 정착·이음표' + (R.정착표.제목 ? ' «' + R.정착표.제목 + '»' : '') + ' — fck ' + fck + ' 줄 · ' + [...new Set(넣.넣은.map((x) => 칸이름[x.칸]))].join('·') }
+        정착알림 = { 됨: true, 글: [...new Set(넣.넣은.map((x) => 칸이름[x.칸]))].join('·'), n: 넣.넣은.length }
+      } else if (표fck.length) 정착알림 = { 됨: false, 글: '표의 fck(' + 표fck.join('·') + ')가 기준 fck ' + fck + ' 와 달라 넣지 않았습니다 — ① 개요에서 fck 를 고친 뒤 «📋 도면에서 정착·이음표 읽기» 를 누르십시오' }
+    }
+    set공사((P) => ({ ...R.공사, 기준: 정착알림 && 정착알림.됨 ? 기준 : (P.기준 || R.공사.기준) }))
+    set자동({ R, 됨: true, 정착알림 })
+    set짚음(null); set짚은([]); set결과알림(null)
     set탭('결과'); set표('보'); set선택(null); set동i(0)
     if (열) 도면열기(열.buf, 열.이름)
   }
@@ -203,7 +232,7 @@ export default function Golgo() {
     const 앞 = L[L.length - 1]
     let r = {}
     if (복사 && 앞) {
-      r = { ...앞, _찍음: {} }
+      r = { ...앞, _찍음: {}, _자리: [] }
       if (판 !== '배') { if ('열' in r) r.열 = ''; for (const k of ['길이', '단변', '장변', '개구부', '줄기초', 'MAT단변', 'MAT장변', '가로', '세로']) if (k in r) r[k] = '' }
     } else if (판 !== '배' && 앞) r = { 층: 앞.층 }
     L.push(r)
@@ -314,6 +343,48 @@ export default function Golgo() {
 
   const 기준고치기 = (고칠) => set공사((P) => ({ ...P, 기준: 고칠({ ...P.기준 }) }))
 
+  /* ── 🔗 결과 ↔ 도면 오가기 (2026-09-28) ── */
+  const 곳열쇠 = (곳) => (곳 ? (곳.동 ?? 0) + '|' + 곳.표 + '|' + 곳.i : '')
+  const 곳줄 = (곳) => { if (!곳) return null; const d = 공사.동[곳.동 ?? 0]; return d && d.주자료 && d.주자료[곳.표] ? d.주자료[곳.표][곳.i] || null : null }
+  const 짚은자리 = useMemo(() => (짚음 ? 줄자리(곳줄(짚음), 도면이름) : null), [짚음, 공사, 도면이름])  // eslint-disable-line react-hooks/exhaustive-deps
+  const 결과강조 = useMemo(() => {
+    const out = []
+    if (짚은자리 && 짚은자리.ids.length) out.push({ ids: 짚은자리.ids, color: '#f97316', w: 4 })
+    if (보는중 !== null && 보는중 >= 0) out.push({ ids: [보는중], color: '#38bdf8', w: 2.5 })
+    return out
+  }, [짚은자리, 보는중])
+  const 결과네모 = useMemo(() => (짚은자리 ? 짚은자리.네모들.map((r) => ({ r, color: '#f97316', w: 2.5 })) : []), [짚은자리])
+  const 표말 = (곳) => 곳.표 + ' ' + (곳.i + 1) + '번 줄' + (공사.동.length > 1 ? ' (' + 동이름(공사.동[곳.동 ?? 0], 곳.동 ?? 0) + ')' : '')
+  const 짚기 = (곳) => {
+    set짚은([])
+    if (!곳 || 곳.표 === '동' || 곳.표 === '층') { set짚음(null); set결과알림({ 글: '이 줄은 층 둘레·동 표에서 셈한 것이라 도면 자리가 없습니다.', warn: true }); return }
+    set짚음(곳)
+    const 자 = 줄자리(곳줄(곳), 도면이름)
+    if (자.없음) {
+      if (자.딴도면.length) {
+        const 열 = 자동도면.current.find((d) => 자.딴도면.includes(d.이름))
+        set결과알림({ 글: 표말(곳) + ' 은(는) «' + 자.딴도면[0] + '» 도면에서 읽었습니다' + (열 ? ' — 오른쪽 위 «📂 그 도면 열기»' : ' — 그 도면을 열면 보입니다') + '.', 열도면: 열 || null, warn: true })
+      } else set결과알림({ 글: 표말(곳) + ' 은(는) 도면에서 찍지 않고 직접 적은 값입니다 — ③ 주자료에서 칸을 누르고 도면을 누르면 자리가 남습니다.', warn: true })
+      return
+    }
+    const r = 모은상자([도형상자(모델, 자.ids), ...자.네모들], 자.점들)
+    if (r) set가볼({ r, n: Date.now() })
+    set결과알림({ 글: '🔗 ' + 표말(곳) + ' — 도면에 주황색으로 보입니다' + (자.네모들.length > 1 ? ' (' + 자.네모들.length + '곳)' : '') + '.' })
+    if (좁은화면()) setTimeout(() => { const el = document.querySelector('.gg-draw'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, 30)   // 휴대폰: 도면이 붙어 있지 않으니 도면으로 올라감
+  }
+  useEffect(() => { if (탭 === '결과' && 짚음 && 모델) 짚기(짚음) }, [모델])  // eslint-disable-line react-hooks/exhaustive-deps
+  const 결과찍었다 = useCallback((e, x, y, 보기) => {
+    if (!모델) return
+    const tol = 보기 ? (보기[2] - 보기[0]) / 200 : 0
+    const 표들 = []
+    공사.동.forEach((d, di) => { for (const [k] of 양식차례) ((d.주자료 || {})[k] || []).forEach((줄, i) => 표들.push({ 열쇠: di + '|' + k + '|' + i, 줄 })) })
+    const 찾음 = 누른줄들(표들, e, x, y, 도면이름, tol)
+    set짚은(찾음); set짚음(null)
+    if (!찾음.length) { set결과알림({ 글: '누른 곳에서 나온 산출서 줄이 없습니다 — 부재의 선이나 기호를 눌러 보십시오.', warn: true }); return }
+    const n = 결과.줄.filter((x2) => 찾음.includes(곳열쇠(x2.곳))).length
+    set결과알림({ 글: '🔗 누른 곳에서 나온 줄 — ' + 찾음.slice(0, 6).map((k) => { const [di, 표2, i] = k.split('|'); return 표2 + ' ' + (+i + 1) + '번' + (공사.동.length > 1 ? '(' + 동이름(공사.동[+di], +di) + ')' : '') }).join(' · ') + (찾음.length > 6 ? ' …' : '') + ' → 산출서 ' + n + '줄을 파랗게 칠했습니다.' })
+  }, [모델, 공사, 도면이름, 결과])  // eslint-disable-line react-hooks/exhaustive-deps
+
   /* ── 엑셀 · 인쇄 ── */
   const [받는중, set받는중] = useState(false)
   const 엑셀받기 = async () => {
@@ -384,6 +455,9 @@ export default function Golgo() {
               {자동.R.읽음.평면.length > 0 && <> · 평면 {자동.R.읽음.평면.map((p) => p.제목 + '→' + p.층.map((f) => (f === 'FT' ? 'FT' : f + '층')).join('·')).join(', ')}</>}.
               {자동.R.읽음.층고짐작.length > 0 && <> <b>층고를 못 찾아 3,300 으로 짐작한 층({자동.R.읽음.층고짐작.join('·')})</b>은 ① 개요에서 고쳐 주세요.</>}</>
               : <>⚡ 이 도면에서는 <b>자동으로 셀 부재를 찾지 못해 도면만 열었습니다</b>. 칸을 누르고 도면을 눌러 채우십시오.</>}
+            {자동.정착알림 && (자동.정착알림.됨
+              ? <div className="gg-okline">📋 <b>도면의 정착·이음 길이표를 읽어 기준값에 넣었습니다</b> — {자동.정착알림.글} ({자동.정착알림.n}칸). <button type="button" className="lnk" onClick={() => set탭('개요')}>① 개요에서 보기·되돌리기</button></div>
+              : <div className="gg-okline warn">📋 {자동.정착알림.글}</div>)}
             {자동.R.경고.length > 0 && <ul className="gg-warns">{자동.R.경고.slice(0, 12).map((w, k) => <li key={k}>⚠️ {w}</li>)}</ul>}
             <button type="button" className="chip" onClick={() => set자동(null)}>닫기</button>
           </div>
@@ -405,7 +479,7 @@ export default function Golgo() {
             : <>아래 표에서 채울 칸을 누른 뒤, 도면을 누르십시오. <span className="muted">(끌면 옮기기 · 휠·두 손가락 = 확대)</span></>} />
       )}
 
-      {탭 === '개요' && <개요 공사={공사} set공사={set공사} 기준고치기={기준고치기} 동k={동k} 동으로={동으로} />}
+      {탭 === '개요' && <개요 공사={공사} set공사={set공사} 기준고치기={기준고치기} 동k={동k} 동으로={동으로} 도={도} 열기={() => 파일칸.current?.click()} />}
 
       {탭 === '배' && (
         <div className="card no-print">
@@ -416,8 +490,9 @@ export default function Golgo() {
             ))}
           </div>
           <p className="muted gg-hint">부재 기호마다 한 줄. 구조도면의 <b>부재 일람표(보 리스트·기둥 리스트…)</b>를 옮겨 적습니다 — 크기 칸은 도면의 치수를, 철근 칸은 도면의 글자(예: 4-HD22, HD10@150)를 눌러도 됩니다. 크기는 <b>mm</b>.</p>
-          <p className="muted gg-hint">철근 칸은 다섯 꼴을 씁니다: <b>D10@200</b> · <b>D10+D13@200</b>(격배근) · <b>4-D13</b> · <b>4-D13@200</b>(4본씩 200 간격) · <b>D10@1000x1000 L)600</b>(지지근) — 끝에 <b>L)2000</b> 을 붙이면 한 본 길이를 정합니다.
+          <p className="muted gg-hint">철근 칸은 다섯 꼴을 씁니다: <b>D10@200</b> · <b>D10+D13@200</b>(격배근 = 교대배근, <b>HD10+13@200</b> 도 됨 — 지름마다 제 이음·정착) · <b>4-D13</b> · <b>4-D13@200</b>(4본씩 200 간격) · <b>D10@1000x1000 L)600</b>(지지근) — 끝에 <b>L)2000</b> 을 붙이면 한 본 길이를 정합니다.
             기호를 <b>1-RG1</b> 처럼 적으면 1층~R층의 G1(2G1·3G1…)에 모두 씁니다(따로 적은 기호가 먼저). <b>적용 동</b>을 적으면 그 동에만, 비우면 모든 동(공통 type).</p>
+          {['기초', '슬라브', '보'].includes(배표) && <p className="muted gg-hint">🧱 <b>버림 두께(mm)</b>를 적으면 <b>버림콘크리트</b>(기초는 사방 100mm 넓게 (가로+0.2)×(세로+0.2), 슬라브는 단변×장변, 지중보는 (폭+0.2)×안목) × 두께와 <b>버림 옆 거푸집</b>(둘레×두께)을 셉니다. 비우면 안 셉니다. 규격·할증은 ① 개요.</p>}
           <편집표 판="배" 이름={배표} 칸들={배근칸[배표].map(([h, key, 보기]) => [h, key, 보기])} 줄={줄들('배', 배표)}
             셀={셀} 칸쓰기={칸쓰기} 줄더하기={줄더하기} 줄빼기={줄빼기} 고르기={배근고르기[배표]} />
         </div>
@@ -486,8 +561,14 @@ export default function Golgo() {
         </div>
       )}
 
+      {탭 === '결과' && 모델 && (
+        <도면판 도={도} 강조={결과강조} 찍었다={결과찍었다} set보는중={set보는중} 붙음={!좁은화면()} 네모들={결과네모} 가볼곳={가볼} 두점단추={false}
+          알림={결과알림 ? 결과알림.글 : ''} 알림좋음={!(결과알림 && 결과알림.warn)} 열기={() => 파일칸.current?.click()}
+          덧단추={결과알림 && 결과알림.열도면 ? <button type="button" className="chip on" onClick={() => { const d = 결과알림.열도면; 도면열기(d.buf.slice(0), d.이름); set결과알림({ 글: '«' + d.이름 + '» 도면을 여는 중…' }) }}>📂 그 도면 열기</button> : null}
+          안내={<>🔗 <b>산출서 줄을 누르면</b> 도면에서 그 자리가 <b style={{ color: '#f97316' }}>주황색</b>으로 빛나고, <b>도면을 누르면</b> 그 자리에서 나온 산출서 줄이 <b style={{ color: '#2563eb' }}>파랗게</b> 칠해집니다.</>} />
+      )}
       {탭 === '결과' && (
-        <결과판 공사={공사} set공사={set공사} 결과={결과} 합={합} 엑셀받기={엑셀받기} 받는중={받는중} 가기={(곳) => {
+        <결과판 공사={공사} set공사={set공사} 결과={결과} 합={합} 엑셀받기={엑셀받기} 받는중={받는중} 짚기={모델 ? 짚기 : null} 짚음열쇠={곳열쇠(짚음)} 짚은={짚은} 가기={(곳) => {
           if (!곳) return
           set선택(null)
           if (곳.표 === '동' || 곳.표 === '층') { set탭('개요'); return }
@@ -501,7 +582,8 @@ export default function Golgo() {
         <ul className="tl-p" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.85 }}>
           <li><b>층</b>: n층 = n층의 기둥·벽·계단 + 그 위 바닥(보·슬라브). 맨 아래 바닥·기초는 <b>FT</b> 층입니다.</li>
           <li><b>보 길이·슬라브 단변/장변은 «기둥·보 가운데(통심)» 까지</b> — 보는 좌단·우단(기둥·보 기호나 mm)을 빼서 안목으로 셉니다.</li>
-          <li><b>정착·이음 길이</b>는 KDS 14 20 52 기본식으로 채워 두었습니다. 도면 «일반구조사항» 표가 있으면 ① 개요에서 그 값으로 고치십시오 — 그것이 맞습니다.</li>
+          <li><b>정착·이음 길이</b>는 KDS 14 20 52 기본식으로 채워 두었습니다. 도면 «일반구조사항» 표가 있으면 그 값이 맞습니다 — ⚡ 자동으로 넣으면 표를 찾아 넣고, ① 개요의 <b>📋 도면에서 정착·이음표 읽기</b>로도 옮깁니다. 끝을 구부리는 철근은 산출 옵션에 <b>갈고리</b>.</li>
+          <li><b>④ 결과 ↔ 도면</b>: 산출서 줄을 누르면 도면에서 그 자리가 빛나고, 도면을 누르면 그 자리에서 나온 산출서 줄이 칠해집니다(찍어 넣은 칸 · 자동으로 읽은 부재).</li>
           <li>할증(이형철근 3% · 레미콘 1%)은 집계에서 따로 보여 드립니다. 산출서의 수량에는 넣지 않습니다.</li>
           <li><b>동이 여럿</b>이면 ① 개요의 동 표에 더하고, ③ 주자료 위의 동 단추로 옮겨 가며 적습니다. 똑같은 동은 «같은 동» 으로 한 번만 적습니다. 결과에 동별·층별 동별·공구별·유형별 집계가 나옵니다.</li>
           <li><b>기준층</b>은 한 층만 적고 «📋 층 복사» 로 여러 층에 붙이십시오 — 2G1 은 3G1·4G1… 로 기호의 층 표시도 옮겨 붙습니다.</li>
@@ -624,8 +706,9 @@ function 층복사판({ 공사, set공사, 동k, 표, 표이름 }) {
 }
 
 /* ───────────────────────────── 개요 */
-function 개요({ 공사, set공사, 기준고치기, 동k, 동으로 }) {
+function 개요({ 공사, set공사, 기준고치기, 동k, 동으로, 도, 열기 }) {
   const 기 = 공사.기준
+  const [정착읽기, set정착읽기] = useState(false)
   /* 층 표: 공통(-1) 또는 «층 따로» 인 동 */
   const [층대상, set층대상] = useState(-1)
   const 따로동 = 공사.동.map((d, k) => [d, k]).filter(([d]) => d.층 && d.층.length)
@@ -639,7 +722,7 @@ function 개요({ 공사, set공사, 기준고치기, 동k, 동으로 }) {
   const 층더하기 = () => 층바꾸기((L) => [...L, { 이름: '', 층고: 3300, 슬라브: 150 }])
   const 층끼우기 = (i) => 층바꾸기((L) => { L.splice(i + 1, 0, { 이름: String(L[i].이름 || '') + 'A', 층고: L[i].층고, 슬라브: L[i].슬라브 }); return L })
   const 층빼기 = (i) => 층바꾸기((L) => L.filter((_, j) => j !== i))
-  const 강도바꿈 = (key, v) => 기준고치기((b) => { b[key] = v; const fck = +b.fck, fy = +b.fy; if (fck > 0 && fy > 0) b.정착 = 정착표(fck, fy); return b })
+  const 강도바꿈 = (key, v) => 기준고치기((b) => { b[key] = v; const fck = +b.fck, fy = +b.fy; if (fck > 0 && fy > 0) { b.정착 = 정착표(fck, fy); delete b.정착출처 } return b })
   const 정고치기 = (d, key, v) => 기준고치기((b) => ({ ...b, 정착: { ...b.정착, [d]: { ...b.정착[d], [key]: +v || 0 } } }))
   const 기본값 = 기준값()
 
@@ -728,6 +811,7 @@ function 개요({ 공사, set공사, 기준고치기, 동k, 동으로 }) {
         <label className="gg-f">철근 fy (MPa)<input value={기.fy} inputMode="decimal" onChange={(e) => 강도바꿈('fy', e.target.value)} /></label>
         <label className="gg-f">기본 콘크리트<input value={기.콘크리트} onChange={(e) => 기준고치기((b) => ({ ...b, 콘크리트: e.target.value }))} /></label>
         <label className="gg-f">기본 거푸집<input value={기.거푸집} onChange={(e) => 기준고치기((b) => ({ ...b, 거푸집: e.target.value }))} /></label>
+        <label className="gg-f">버림 콘크리트<input value={기.버림 ?? 기본값.버림} onChange={(e) => 기준고치기((b) => ({ ...b, 버림: e.target.value }))} /></label>
         <label className="gg-f">정척 (mm)<input value={기.정척} inputMode="decimal" onChange={(e) => 기준고치기((b) => ({ ...b, 정척: +e.target.value || 0 }))} /></label>
         <label className="gg-f">늑근·대근 갈고리 (d 배)<input value={기.갈고리} inputMode="decimal" onChange={(e) => 기준고치기((b) => ({ ...b, 갈고리: +e.target.value || 0 }))} /></label>
         <label className="gg-f">기둥 주근 기초 속 꺾음 (d 배)<input value={기.기초갈고리} inputMode="decimal" onChange={(e) => 기준고치기((b) => ({ ...b, 기초갈고리: +e.target.value || 0 }))} /></label>
@@ -746,8 +830,10 @@ function 개요({ 공사, set공사, 기준고치기, 동k, 동으로 }) {
         {Object.keys(기본값.할증).map((k) => (
           <label key={k} className="gg-f">{k}<input value={(기.할증 || {})[k] ?? ''} inputMode="decimal" onChange={(e) => 기준고치기((b) => ({ ...b, 할증: { ...b.할증, [k]: +e.target.value || 0 } }))} /></label>
         ))}
+        <label className="gg-f">버림(무근) 콘크리트<input value={(기.할증 || {}).버림 ?? ''} inputMode="decimal" placeholder={'콘크리트와 같게(' + ((기.할증 || {}).콘크리트 ?? 1) + ')'}
+          onChange={(e) => 기준고치기((b) => { const h = { ...(b.할증 || {}) }; if (e.target.value.trim() === '') delete h.버림; else h.버림 = e.target.value; return { ...b, 할증: h } })} /></label>
       </div>
-      <p className="muted gg-hint">기본값: 건설공사 표준품셈의 재료 할증 — 이형철근 3%, 레미콘(철근구조물) 1%. 아래 <b>규격별 할증</b>을 적은 철근 규격은 그 값을 씁니다.</p>
+      <p className="muted gg-hint">기본값: 건설공사 표준품셈의 재료 할증 — 이형철근 3%, 레미콘(철근구조물) 1%. <b>버림(무근)</b> 칸을 비우면 콘크리트 할증과 같게 셉니다 — 무근 구조물 할증을 쓰시려면 품셈 표를 보고 적으십시오. 아래 <b>규격별 할증</b>을 적은 철근 규격은 그 값을 씁니다.</p>
       <div className="gg-grid">
         {규격들.slice(0, 9).map((d) => (
           <label key={d} className="gg-f">{d} 할증 %<input value={(기.할증규격 || {})[d] ?? ''} inputMode="decimal" placeholder={String((기.할증 || {}).철근 ?? 3)}
@@ -755,21 +841,23 @@ function 개요({ 공사, set공사, 기준고치기, 동k, 동으로 }) {
         ))}
       </div>
       <div className="detail-h" style={{ marginTop: 12 }}>산출 옵션 — 부위별 정착 길이</div>
-      <p className="muted gg-hint">비우면 아래 정착·이음 표대로 셉니다. <b>40D</b> 처럼 적으면 철근 지름 × 40(10mm 올림), 숫자만 적으면 그 mm.</p>
+      <p className="muted gg-hint">비우면 아래 정착·이음 표대로 셉니다. <b>40D</b> 처럼 적으면 철근 지름 × 40(10mm 올림), 숫자만 적으면 그 mm, <b>갈고리</b> 라고 적으면 표의 <b>갈고리 정착</b>(표준갈고리 l_dh — 끝을 구부려 정착하는 슬래브·기초 철근 등).</p>
       <div className="gg-grid">
         {Object.keys(옵션이름).map((k) => (
           <label key={k} className="gg-f">{옵션이름[k]}<input value={(기.옵션 || {})[k] ?? ''} placeholder="표대로" onChange={(e) => 기준고치기((b) => ({ ...b, 옵션: { ...(b.옵션 || {}), [k]: e.target.value } }))} /></label>
         ))}
       </div>
       <div className="detail-h" style={{ marginTop: 12 }}>정착·이음 길이 (mm)</div>
-      <p className="muted gg-hint">fck·fy 를 바꾸면 KDS 14 20 52 기본식으로 다시 채웁니다(인장 정착 0.6·d·fy/√fck, 상부 ×1.3, 인장 이음 B급 ×1.3, 압축 이음 0.072·fy·d). <b>도면 일반구조사항에 표가 있으면 그 값으로 고치십시오.</b></p>
+      <p className="muted gg-hint">fck·fy 를 바꾸면 KDS 14 20 52 기본식으로 다시 채웁니다(인장 정착 0.6·d·fy/√fck, 상부 ×1.3, 인장 이음 B급 ×1.3, 압축 이음 0.072·fy·d,
+        <b> 갈고리 정착 0.24·d·fy/√fck — 8d·150mm 이상</b>). <b>도면 일반구조사항에 표가 있으면 그 값이 맞습니다</b> — 아래 <b>📋 도면에서 정착·이음표 읽기</b>로 옮겨 넣습니다.</p>
+      {기.정착출처 && <div className="gg-okline">📋 지금 표: <b>{기.정착출처}</b> (칸을 고치면 고친 값으로 셉니다)</div>}
       <div className="gg-wrap">
-        <table className="gg-t"><thead><tr><th>규격</th><th>인장 정착</th><th>상부 정착</th><th>압축 정착</th><th>인장 이음</th><th>압축 이음</th></tr></thead>
+        <table className="gg-t"><thead><tr><th>규격</th>{정착칸들.map((k) => <th key={k}>{칸이름[k]}</th>)}</tr></thead>
           <tbody>
             {규격들.slice(0, 9).map((d) => (
               <tr key={d}><td>{d}</td>
-                {['인장정착', '상부정착', '압축정착', '인장이음', '압축이음'].map((k) => (
-                  <td key={k} className="n"><input value={((기.정착 || {})[d] || {})[k] ?? ''} inputMode="numeric" onChange={(e) => 정고치기(d, k, e.target.value)} /></td>
+                {정착칸들.map((k) => (
+                  <td key={k} className="n"><input value={((기.정착 || {})[d] || {})[k] ?? (k === '갈고리정착' ? (정착표(+기.fck || 24, +기.fy || 400)[d] || {})[k] : '')} inputMode="numeric" onChange={(e) => 정고치기(d, k, e.target.value)} /></td>
                 ))}
               </tr>
             ))}
@@ -777,8 +865,95 @@ function 개요({ 공사, set공사, 기준고치기, 동k, 동으로 }) {
         </table>
       </div>
       <div className="btn-row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
-        <button type="button" className="btn ghost sm" onClick={() => 기준고치기((b) => ({ ...b, 정착: 정착표(+b.fck || 24, +b.fy || 400) }))}>정착·이음 표 기본식으로 다시</button>
+        <button type="button" className={'btn sm' + (정착읽기 ? ' line' : '')} onClick={() => set정착읽기(!정착읽기)}>{정착읽기 ? '📋 도면에서 읽기 닫기' : '📋 도면에서 정착·이음표 읽기'}</button>
+        <button type="button" className="btn ghost sm" onClick={() => 기준고치기((b) => { const q = { ...b, 정착: 정착표(+b.fck || 24, +b.fy || 400) }; delete q.정착출처; return q })}>정착·이음 표 기본식으로 다시</button>
       </div>
+      {정착읽기 && <정착읽기판 도={도} 기={기} 기준고치기={기준고치기} 열기={열기} />}
+    </div>
+  )
+}
+
+/**
+ * 📋 도면의 정착·이음 길이표 읽기 (2026-09-28) — 도면판에서 표를 네모로 감싸거나 «🔎 찾기» → 읽은 줄 확인 → 넣기
+ *   줄마다 «어느 칸» 을 짐작해 두고(모르면 비움) 사람이 고릅니다. fck 가 기준과 다른 줄은 처음에 빼 둡니다.
+ */
+function 정착읽기판({ 도, 기, 기준고치기, 열기 }) {
+  const { 모델, 단위, 끈층, 도면이름 } = 도
+  const k = (단위 && 단위.k) || 1
+  const [읽음, set읽음] = useState(null)        // {상자, 제목, 방향, 줄:[{…, 고름}]}
+  const [알림, set알림] = useState('')
+  const [가볼, set가볼] = useState(null)
+  const [넣음, set넣음] = useState('')
+  const 받기 = (표, 상자, 제목) => {
+    set넣음('')
+    set읽음({ 상자, 제목, 방향: 표.방향, 줄: 표.줄.map((z) => ({ ...z, 고름: !!z.칸 && z.그럴듯 !== false && (z.fck == null || +z.fck === +기.fck) })) })
+    set알림('📋 ' + 표.줄.length + '줄을 읽었습니다(' + (표.방향 === '세로' ? '지름이 줄로' : '지름이 열 머리로') + ') — 아래에서 칸을 확인하고 «기준값에 넣기».')
+  }
+  const 찾기 = () => {
+    if (!모델) return
+    let c = []
+    try { c = 표찾기(모델, k, 끈층) } catch (e) { c = [] }
+    if (!c.length) { set읽음(null); set알림('도면에서 정착·이음표를 찾지 못했습니다 — 표 전체를 마우스로 끌어 네모로 감싸 주십시오.'); return }
+    받기(c[0].표, c[0].상자, c[0].제목)
+    set가볼({ r: c[0].상자, n: Date.now() })
+  }
+  const 네모찍었다 = (r) => {
+    const 글 = 글자모음(모델, k, r, 끈층)
+    const 선 = 선모음(모델, k, r, 끈층)
+    const 제목 = 글.filter((g) => /정착|이음/.test(g.s)).sort((a, b) => b.y - a.y)[0]
+    const 표 = 표읽기(글, 선, 제목 ? 제목.s : '')
+    if (!표.줄.length) { set읽음(null); set알림(표.경고[0] || '감싼 곳에서 정착·이음 값을 읽지 못했습니다.'); return }
+    받기(표, r, 제목 ? 제목.s : '')
+  }
+  const 줄고침 = (i, 고칠) => set읽음((R) => ({ ...R, 줄: R.줄.map((z, j) => (j === i ? 고칠({ ...z }) : z)) }))
+  const 넣기 = () => {
+    if (!읽음) return
+    const fck = +기.fck
+    const 옛 = 기.정착 && Object.keys(기.정착).length ? 기.정착 : 정착표(fck, +기.fy)
+    const 넣 = 넣을것(읽음.줄, fck, 옛)
+    if (!넣.넣은.length) { set넣음('넣을 줄이 없습니다 — 줄마다 «칸» 을 고르고 ✓ 를 켜 주십시오.'); return }
+    const 칸글 = [...new Set(넣.넣은.map((x) => 칸이름[x.칸]))].join('·')
+    기준고치기((b) => ({ ...b, 정착: 넣.정착, 정착출처: '도면 «' + (도면이름 || '') + '» 의 정착·이음표' + (읽음.제목 ? ' «' + 읽음.제목 + '»' : '') + ' — ' + 칸글 }))
+    set넣음('✅ ' + 넣.넣은.length + '칸을 넣었습니다(' + 칸글 + '). 위 표에서 확인하십시오 — 되돌리려면 «기본식으로 다시».')
+  }
+  const 지름들 = 읽음 ? 규격들.filter((d) => 읽음.줄.some((z) => z.값[d] != null)) : []
+  const 네모들 = 읽음 ? [{ r: 읽음.상자, color: '#22c55e', dash: true, 글: '읽은 표' }].concat(읽음.줄.map((z) => ({ r: z.곳.map((v) => v / k), color: z.고름 ? '#16a34a' : '#94a3b8', w: 1.5 }))) : []
+  return (
+    <div className="gg-readbox">
+      <도면판 도={도} 찍었다={() => {}} 네모 네모찍었다={네모찍었다} 네모들={네모들} 가볼곳={가볼} 두점단추={false} 붙음={false} 열기={열기}
+        알림={알림} 알림좋음={!!(읽음 && 읽음.줄.length)}
+        빈글="정착·이음 길이표가 있는 도면(구조 일반사항)을 여세요."
+        덧단추={모델 ? <button type="button" className="chip on" onClick={찾기}>🔎 표 찾기</button> : null}
+        안내={<>📋 <b>🔎 표 찾기</b>를 누르거나, 표 전체를 <b>마우스로 끌어 네모로 감싸</b> 주십시오. (도면 옮기기는 오른쪽 단추로 끌기 · 휠 = 확대)</>} />
+      {읽음 && (
+        <div className="gg-readres">
+          <div className="gg-wrap">
+            <table className="gg-t gg-readt">
+              <thead><tr><th>넣기</th><th>읽은 이름</th><th>fck</th><th>어느 칸</th>{지름들.map((d) => <th key={d}>{d}</th>)}</tr></thead>
+              <tbody>
+                {읽음.줄.map((z, i) => (
+                  <tr key={i} className={z.고름 ? '' : 'off'}>
+                    <td style={{ textAlign: 'center' }}><input type="checkbox" checked={!!z.고름} onChange={(e) => 줄고침(i, (x) => { x.고름 = e.target.checked; return x })} aria-label="이 줄 넣기" /></td>
+                    <td>{z.이름 || <span className="muted">(이름 없음)</span>}</td>
+                    <td className="n">{z.fck ?? <span className="muted">—</span>}</td>
+                    <td><select value={z.칸} onChange={(e) => 줄고침(i, (x) => { x.칸 = e.target.value; if (x.칸) x.고름 = true; return x })} aria-label="어느 칸">
+                      <option value="">— 안 넣음</option>
+                      {정착칸들.map((kk) => <option key={kk} value={kk}>{칸이름[kk]}</option>)}
+                    </select></td>
+                    {지름들.map((d) => <td key={d} className="n">{z.값[d] ?? ''}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="muted gg-hint">기준 fck <b>{기.fck}</b> 와 fck 가 다른 줄, 굵은 철근일수록 길어지지 않는 줄(정착·이음 길이 같지 않은 숫자)은 처음에 빼 두었습니다. «어느 칸» 을 모르는 줄(예: A급 이음·상부 이음)은 비워 두었습니다 — 고르면 넣습니다. 같은 칸이 두 줄이면 위의 줄을 씁니다.</p>
+          <div className="btn-row" style={{ flexWrap: 'wrap' }}>
+            <button type="button" className="btn sm" onClick={넣기}>✅ 기준값에 넣기</button>
+            <button type="button" className="btn ghost sm" onClick={() => { set읽음(null); set알림(''); set넣음('') }}>다시 고르기</button>
+          </div>
+          {넣음 && <div className={'gg-okline' + (/^✅/.test(넣음) ? '' : ' warn')}>{넣음}</div>}
+        </div>
+      )}
     </div>
   )
 }
@@ -795,8 +970,18 @@ function 모음표({ 줄, 앞 }) {
   )
 }
 
-function 결과판({ 공사, set공사, 결과, 합, 엑셀받기, 받는중, 가기 }) {
+function 결과판({ 공사, set공사, 결과, 합, 엑셀받기, 받는중, 가기, 짚기, 짚음열쇠, 짚은 }) {
   const [보기, set보기] = useState('집계')
+  /* 🔗 도면을 눌러 찾은 줄 → 산출서로 옮겨 첫 줄을 보여 줌 */
+  const 짚은셋 = useMemo(() => new Set(짚은 || []), [짚은])
+  const 판Ref = useRef(null)
+  useEffect(() => {
+    if (!짚은셋.size) return
+    set보기('산출서')
+    const t = setTimeout(() => { const el = 판Ref.current && 판Ref.current.querySelector('tr.gg-hit'); if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' }) }, 60)
+    return () => clearTimeout(t)
+  }, [짚은셋])
+  const 열쇠 = (곳) => (곳 ? (곳.동 ?? 0) + '|' + 곳.표 + '|' + 곳.i : '')
   const 집 = 결과.집계
   const 부재들 = [...new Set(결과.줄.map((x) => x.부재))]
   const 여러동 = (집.동들 || []).length > 1
@@ -815,7 +1000,7 @@ function 결과판({ 공사, set공사, 결과, 합, 엑셀받기, 받는중, �
     set공사((P) => ({ ...P, 당초: { 때: 글때, 합: 집.합.map((x) => ({ 항목: x.항목, 규격: x.규격, 단위: x.단위, 산출: x.산출 })) } }))
   }
   return (
-    <div className="card gg-print">
+    <div className="card gg-print" ref={판Ref}>
       <div className="gg-head">
         <div>
           <div className="detail-h" style={{ margin: 0 }}>골조 수량산출서{공사.이름 ? ' — ' + 공사.이름 : ''}</div>
@@ -896,11 +1081,12 @@ function 결과판({ 공사, set공사, 결과, 합, 엑셀받기, 받는중, �
       </div>
       {부재들.map((부재) => (
         <div key={부재} className={칸('산출서')}>
-          <div className="detail-h">산출서 — {부재}</div>
+          <div className="detail-h">산출서 — {부재}{짚기 ? <span className="muted no-print" style={{ fontWeight: 400, fontSize: 12 }}> · 줄을 누르면 도면에서 그 자리</span> : null}</div>
           <div className="gg-wrap"><table className="gg-r gg-calc">
             <thead><tr>{여러동 && <th>동</th>}<th>층</th><th>기호</th><th>항목</th><th>규격</th><th>산출근거</th><th className="r">수량</th><th>단위</th><th>비고</th>{구획씀 && <th>구획</th>}</tr></thead>
             <tbody>{결과.줄.filter((x) => x.부재 === 부재).map((x, k) => (
-              <tr key={k} className={x.수량 < 0 ? 'neg' : ''}>{여러동 && <td>{x.동}</td>}<td>{x.층}</td><td>{x.기호}</td><td>{x.항목}</td><td>{x.규격}</td><td className="expr">{x.식}</td><td className="r">{쉼(x.수량, 3)}</td><td className="u">{단위풀이(x.단위)}</td><td className="note2">{x.비고}</td>{구획씀 && <td>{x.구획}</td>}</tr>
+              <tr key={k} className={(x.수량 < 0 ? 'neg' : '') + (짚기 ? ' gg-go-row' : '') + (짚은셋.has(열쇠(x.곳)) ? ' gg-hit' : '') + (짚음열쇠 && 짚음열쇠 === 열쇠(x.곳) ? ' gg-pick' : '')}
+                onClick={짚기 ? () => 짚기(x.곳) : undefined} title={짚기 ? '누르면 도면에서 이 줄이 나온 자리를 보여 드립니다' : undefined}>{여러동 && <td>{x.동}</td>}<td>{x.층}</td><td>{x.기호}</td><td>{x.항목}</td><td>{x.규격}</td><td className="expr">{x.식}</td><td className="r">{쉼(x.수량, 3)}</td><td className="u">{단위풀이(x.단위)}</td><td className="note2">{x.비고}</td>{구획씀 && <td>{x.구획}</td>}</tr>
             ))}</tbody>
           </table></div>
         </div>

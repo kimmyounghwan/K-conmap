@@ -23,12 +23,15 @@
  * ■ 옛 엑셀(.xls)·매크로 엑셀(.xlsm) (2026-09-25) — 소장님: 「프로그램이 알아서 칸을 맞추게 안돼?」
  *    서버가 칸 제목(품명·규격·수량·단위 …)을 읽어 자리를 잡습니다(K-적산 칸찾기.py). 나라장터 공내역서는
  *    발주처마다 칸 차례가 다르고 .xls 도 많습니다. 브라우저는 .xls 를 열지 못하므로 «공내역서» 로 보고 그대로 보냅니다.
+ * ■ 📥 넘어온 내역서 (2026-09-28) — 「⚡ 도면 물량 자동」 에서 «📑 이어서 단가까지 채우기» 를 누르면
+ *    도면 물량을 넣은 내역서(같은 탭 메모리, lib/도면넘김.js 내역받기)를 받아 곧바로 채웁니다. 소장님: 「물량, 내역채우는 거 다 자동」
  * ■ 튀는 줄 (2026-09-25) — 소장님: 「사람이 했다고 해서 맞는다는 보장은 없잖아」
  *    서버가 채운 단가를 다른 발주처 설계내역서 값과 대 봅니다(K-적산 튐검사). 튀는 줄·금액 큰 줄은
  *    «확실히 붙은» 줄이어도 목록에 올리고, 까닭을 줄 밑에 빨강(센 것)·주황(약한 것)으로 보입니다.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { isOp } from '../lib/운영자.js'
+import { 내역받기 } from '../lib/도면넘김.js'
 
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 const 함수주소 = import.meta.env.VITE_JEOKSAN_FN
@@ -120,6 +123,17 @@ function Fill({ 운영자 = false }) {
   const timer = useRef(null)
 
   useEffect(() => () => { if (url) URL.revokeObjectURL(url) }, [url])
+  /* 📥 «도면 물량 자동» 에서 넘어온 내역서 — 놓고 곧바로 채움 */
+  const 넘어옴 = useRef(false)
+  useEffect(() => {
+    const d = 내역받기()
+    if (!d) return
+    넘어옴.current = true
+    놓기([new File([d.바이트], d.이름, { type: XLSX })])
+  }, [])   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (넘어옴.current && file && !busy && !res) { 넘어옴.current = false; run() }
+  }, [file])   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { try { localStorage.setItem('kcm_fill_region', 지역) } catch { /* */ } }, [지역])
 
   /* 지난번에 놓은 재료표를 꺼내 옵니다 (실험실과 같은 기억 — 이 브라우저 안에만) */

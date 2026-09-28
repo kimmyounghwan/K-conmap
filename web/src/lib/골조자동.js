@@ -17,11 +17,14 @@
  * ■ 시험: node tools/시험_골조자동.mjs (가상 예시 두 가지 버릇 — 손으로 적은 답과 맞춤)
  */
 import { 종류 } from './골조도면.js'
-import { 새공사, 새동, 엑셀 as 골조엑셀 } from './골조.js'
+import { 새공사, 새동, 엑셀 as 골조엑셀, 정착표 } from './골조.js'
+import { 표찾기, 넣을것, 칸이름 } from './정착표읽기.js'
 
 const 글 = (x) => String(x ?? '').trim()
 const 붙 = (s) => String(s ?? '').replace(/\s+/g, '')
 const 반올림 = (v, d = 0) => { const k = Math.pow(10, d); return Math.round(v * k) / k }
+/** 🔗 줄마다 «도면의 어디서 읽었나» (2026-09-28 결과 ↔ 도면 오가기) — {n: 도면 이름, r: [x0,y0,x1,y1] 도면 단위} */
+const 자리만들기 = (이름, r) => ({ n: 이름 || '', r: r.map((v) => 반올림(v, 1)) })
 
 /* ───────────────────────────── 글자 뜻 */
 
@@ -770,7 +773,7 @@ function 슬래브재기(D, g, 구조층, 폭들, 최대 = 20000) {
  */
 export function 골조읽기(도면들0, o = {}) {
   const 경고 = []
-  const 도면들 = 도면들0.map((d, 번) => 준비(d.모델, d.k || 1, 번))
+  const 도면들 = 도면들0.map((d, 번) => ({ ...준비(d.모델, d.k || 1, 번), 이름: d.이름 || '' }))
   const { 정의, 쓴글자, 철골 } = 일람표읽기(도면들, 경고)
   const 철골수 = new Map()
   const 근거 = []
@@ -937,7 +940,7 @@ export function 골조읽기(도면들0, o = {}) {
 
   /* 부재 모으기 */
   const 층들 = new Map()
-  const 층칸 = (f) => { let v = 층들.get(f); if (!v) { v = { 보: [], 기둥: new Map(), 슬라브: [], 벽: [], 기초: new Map(), 두께: [] }; 층들.set(f, v) } return v }
+  const 층칸 = (f) => { let v = 층들.get(f); if (!v) { v = { 보: [], 기둥: new Map(), 슬라브: [], 벽: [], 기초: new Map(), 두께: [], 기둥자리: new Map(), 기초자리: new Map() }; 층들.set(f, v) } return v }
   const 없는기호 = new Map()
   const 평면목록 = []
   const 보층 = new Set(), 벽층 = new Set(), 기둥층 = new Set()
@@ -956,7 +959,8 @@ export function 골조읽기(도면들0, o = {}) {
     // 층마다 (범위 제목 «3~5층» 이면 층마다 같은 것)
     const 층목 = t.기둥판 ? 층목0 : 층목보
     for (const f of [...new Set(층목)]) {
-      const 기둥수 = new Map(), 기초수 = new Map()
+      const 기둥수 = new Map(), 기초수 = new Map(), 기둥자리 = new Map(), 기초자리 = new Map()
+      const 더하기 = (m, k2, v) => { const a = m.get(k2); if (a) a.push(v); else m.set(k2, [v]) }
       const 보띠 = [], 벽띠 = [], 슬들 = []
       for (const x of 쓸) {
         const { D, g } = x
@@ -969,8 +973,9 @@ export function 골조읽기(도면들0, o = {}) {
         const 기 = 기호정하기(r, 층f)
         if (!기) { 없는기호.set(r.기호, (없는기호.get(r.기호) || 0) + 1); continue }
         const b = 배근행[r.종류].get(기)
-        if (r.종류 === '기둥') { 기둥수.set(기, (기둥수.get(기) || 0) + 1); 근거.push({ 번: D.번, i: g.i, 글: r.기호 }) }
-        else if (r.종류 === '기초') { 기초수.set(기, (기초수.get(기) || 0) + 1); 근거.push({ 번: D.번, i: g.i, 글: r.기호 }) }
+        const 글상자 = () => 자리만들기(D.이름, [(g.x - g.w / 2 - g.h) / D.k, (g.y - g.h) / D.k, (g.x + g.w / 2 + g.h) / D.k, (g.y + g.h) / D.k])
+        if (r.종류 === '기둥') { 기둥수.set(기, (기둥수.get(기) || 0) + 1); 근거.push({ 번: D.번, i: g.i, 글: r.기호 }); 더하기(기둥자리, 기, 글상자()) }
+        else if (r.종류 === '기초') { 기초수.set(기, (기초수.get(기) || 0) + 1); 근거.push({ 번: D.번, i: g.i, 글: r.기호 }); 더하기(기초자리, 기, 글상자()) }
         else if (r.종류 === '보' || r.종류 === '벽') {
           const 폭 = +(r.종류 === '보' ? b.폭 : b.두께) || 0
           const 띠 = 띠찾기(D, g, 폭)
@@ -995,6 +1000,8 @@ export function 골조읽기(도면들0, o = {}) {
       c.보.push(...보칸); c.벽.push(...벽칸); c.슬라브.push(...슬칸)
       for (const [k2, n] of 기둥수) c.기둥.set(k2, (c.기둥.get(k2) || 0) + n)
       for (const [k2, n] of 기초수) 층칸('FT').기초.set(k2, (층칸('FT').기초.get(k2) || 0) + n)
+      for (const [k2, a2] of 기둥자리) c.기둥자리.set(k2, (c.기둥자리.get(k2) || []).concat(a2))
+      for (const [k2, a2] of 기초자리) 층칸('FT').기초자리.set(k2, (층칸('FT').기초자리.get(k2) || []).concat(a2))
       for (const s2 of 슬칸) c.두께.push(s2.두께)
     }
   }
@@ -1040,11 +1047,11 @@ export function 골조읽기(도면들0, o = {}) {
       if (줄.length === 1) {
         const x = 줄[0]
         const key = x.기호 + '|' + (x.안목 + x.좌 + x.우) + '|' + x.좌 + '|' + x.우
-        const h = 홑.get(key); if (h) h.QT++; else 홑.set(key, { 층: f, 열: '', 기호: x.기호, 길이: String(x.안목 + x.좌 + x.우), 좌단: x.좌 ? String(x.좌) : '', 우단: x.우 ? String(x.우) : '', S: '', QT: 1, C: '', F: '', 공제F: '', R: '' })
+        const h = 홑.get(key); if (h) { h.QT++; h._자리.push(x.자리) } else 홑.set(key, { 층: f, 열: '', 기호: x.기호, 길이: String(x.안목 + x.좌 + x.우), 좌단: x.좌 ? String(x.좌) : '', 우단: x.우 ? String(x.우) : '', S: '', QT: 1, C: '', F: '', 공제F: '', R: '', _자리: [x.자리] })
         continue
       }
       열번++
-      줄.forEach((x, i) => 주.보.push({ 층: f, 열: i === 0 ? 'A' + 열번 : i === 줄.length - 1 ? 'E' : '', 기호: x.기호, 길이: String(x.안목 + x.좌 + x.우), 좌단: x.좌 ? String(x.좌) : '', 우단: x.우 ? String(x.우) : '', S: '', QT: '1', C: '', F: '', 공제F: '', R: '' }))
+      줄.forEach((x, i) => 주.보.push({ 층: f, 열: i === 0 ? 'A' + 열번 : i === 줄.length - 1 ? 'E' : '', 기호: x.기호, 길이: String(x.안목 + x.좌 + x.우), 좌단: x.좌 ? String(x.좌) : '', 우단: x.우 ? String(x.우) : '', S: '', QT: '1', C: '', F: '', 공제F: '', R: '', _자리: [x.자리] }))
     }
     for (const h of 홑.values()) 주.보.push({ ...h, QT: String(h.QT) })
     const i = 이야기층.indexOf(f)
@@ -1054,21 +1061,21 @@ export function 골조읽기(도면들0, o = {}) {
     for (const [k2, n] of c.기둥) {
       const 몸 = (기호풀이(k2) || {}).몸
       const 위것 = 위층 && 층들.get(위층) ? [...층들.get(위층).기둥.keys()].find((x) => x === k2 || (기호풀이(x) || {}).몸 === 몸) : null
-      주.기둥.push({ 층: f === 'FT' ? (이야기층[0] || '1') : f, 기호: k2, 높이: '', 내림: '', S: '', FT: 기초기호, 연결: 위것 || 'R', QT: String(n), C: '', F: '', 원형F: '', R: '' })
+      주.기둥.push({ 층: f === 'FT' ? (이야기층[0] || '1') : f, 기호: k2, 높이: '', 내림: '', S: '', FT: 기초기호, 연결: 위것 || 'R', QT: String(n), C: '', F: '', 원형F: '', R: '', _자리: c.기둥자리.get(k2) || [] })
     }
     const 슬홑 = new Map()
     for (const s2 of c.슬라브) {
       const key = s2.기호 + '|' + s2.단변 + '|' + s2.장변 + '|' + s2.단정 + '|' + s2.장정
-      const h = 슬홑.get(key); if (h) h.QT++; else 슬홑.set(key, { 층: f, 기호: s2.기호, 단변: String(s2.단변), 장변: String(s2.장변), 개구부: '', 단변정착: String(s2.단정), 장변정착: String(s2.장정), QT: 1, C: '', F: '', R: '' })
+      const h = 슬홑.get(key); if (h) { h.QT++; h._자리.push(s2.자리) } else 슬홑.set(key, { 층: f, 기호: s2.기호, 단변: String(s2.단변), 장변: String(s2.장변), 개구부: '', 단변정착: String(s2.단정), 장변정착: String(s2.장정), QT: 1, C: '', F: '', R: '', _자리: [s2.자리] })
     }
     for (const h of 슬홑.values()) 주.슬라브.push({ ...h, QT: String(h.QT) })
     const 벽홑 = new Map()
     for (const 줄 of c.벽) for (const x of 줄) {
       const key = x.기호 + '|' + x.안목
-      const h = 벽홑.get(key); if (h) h.QT++; else 벽홑.set(key, { 층: f === 'FT' ? (이야기층[0] || '1') : f, 기호: x.기호, 길이: String(x.안목), 높이: '', 하부: '', 상부: '', 단부: '', X정착: '2', 상부이음: '1', OPEN: '', QT: 1, C: '', F: '', F2: '', R: '' })
+      const h = 벽홑.get(key); if (h) { h.QT++; h._자리.push(x.자리) } else 벽홑.set(key, { 층: f === 'FT' ? (이야기층[0] || '1') : f, 기호: x.기호, 길이: String(x.안목), 높이: '', 하부: '', 상부: '', 단부: '', X정착: '2', 상부이음: '1', OPEN: '', QT: 1, C: '', F: '', F2: '', R: '', _자리: [x.자리] })
     }
     for (const h of 벽홑.values()) 주.옹벽.push({ ...h, QT: String(h.QT) })
-    for (const [k2, n] of c.기초) 주.기초.push({ 층: 'FT', 기호: k2, 줄기초: '', MAT단변: '', MAT장변: '', 형틀공제: '', 추가: '', 단부공제: '', QT: String(n), C: '', F: '', 공제F: '', R: '' })
+    for (const [k2, n] of c.기초) 주.기초.push({ 층: 'FT', 기호: k2, 줄기초: '', MAT단변: '', MAT장변: '', 형틀공제: '', 추가: '', 단부공제: '', QT: String(n), C: '', F: '', 공제F: '', R: '', _자리: c.기초자리.get(k2) || [] })
   }
   P.동 = [동]
   const 셈수 = Object.values(주).reduce((t2, a2) => t2 + a2.length, 0)
@@ -1085,8 +1092,26 @@ export function 골조읽기(도면들0, o = {}) {
   for (const w of 경고) { const key = w.replace(/ \(\d+번 도면\)$/, ''); if (셈경고.has(key)) 셈경고.set(key, 셈경고.get(key) + 1); else { 셈경고.set(key, 1); 모은경고.push(key) } }
   const 경고들 = 모은경고.map((w) => (셈경고.get(w) > 1 ? w + ' (' + 셈경고.get(w) + '곳)' : w))
   if (철골.size) 경고들.unshift('철골 부재 ' + 철골.size + '가지(' + [...철골.values()].slice(0, 4).map((x) => x.기호 + ' ' + x.규격).join(' · ') + (철골.size > 4 ? ' …' : '') + ')는 철근콘크리트 셈에서 뺐습니다 — 철골 무게는 아직 자동으로 안 셉니다')
+  /* 📋 일반구조사항의 정착·이음 길이표 (2026-09-28) — 찾으면 기준값 정착표에 넣음(이 fck 줄만).
+     표의 fck 가 하나뿐이면 기준 fck 도 그 값으로. 못 알아본 줄(칸 짐작 없음)은 넣지 않음 */
+  let 정착읽음 = null
+  for (const D of 도면들) {
+    let 찾음 = []
+    try { 찾음 = 표찾기(D.모델, D.k) } catch (e) { 찾음 = [] }
+    for (const c of 찾음) if (!정착읽음 || c.셈 > 정착읽음.셈) 정착읽음 = { ...c, 번: D.번 }
+  }
+  if (정착읽음) {
+    const fcks = [...new Set(정착읽음.표.줄.filter((z) => z.칸 && z.그럴듯 !== false && z.fck != null).map((z) => z.fck))]
+    if (fcks.length === 1 && fcks[0] !== +P.기준.fck) P.기준.fck = fcks[0]
+    const 넣 = 넣을것(정착읽음.표.줄, P.기준.fck, 정착표(+P.기준.fck, +P.기준.fy))
+    정착읽음.넣은 = 넣.넣은; 정착읽음.뺀 = 넣.뺀
+    if (넣.넣은.length) {
+      P.기준.정착 = 넣.정착
+      P.기준.정착출처 = '도면의 정착·이음표' + (정착읽음.제목 ? ' «' + 정착읽음.제목 + '»' : '') + ' — fck ' + P.기준.fck + ' 줄 · ' + [...new Set(넣.넣은.map((x) => 칸이름[x.칸]))].join('·')
+    }
+  }
   return {
-    공사: P, 경고: 경고들, 근거, 있음: 셈수 > 0,
+    공사: P, 경고: 경고들, 근거, 있음: 셈수 > 0, 정착표: 정착읽음,
     읽음: {
       배근: Object.fromEntries(Object.entries(P.배근).map(([k2, v]) => [k2, v])),
       평면: 평면목록, 높이: Object.fromEntries(높이), 층고짐작: 짐작층,
@@ -1151,8 +1176,9 @@ function 평면부재(보띠, 벽띠, 슬들, 기둥층, 보층, 벽층, 배근�
           const { D, 띠 } = m2
           const a = [띠.px + 띠.ux * p.t0, 띠.py + 띠.uy * p.t0], b = [띠.px + 띠.ux * p.t1, 띠.py + 띠.uy * p.t1]
           const k = D.k
-          근거.push({ 번: D.번, 상자: [(Math.min(a[0], b[0]) - 띠.g / 2 * Math.abs(띠.nx)) / k, (Math.min(a[1], b[1]) - 띠.g / 2 * Math.abs(띠.ny)) / k, (Math.max(a[0], b[0]) + 띠.g / 2 * Math.abs(띠.nx)) / k, (Math.max(a[1], b[1]) + 띠.g / 2 * Math.abs(띠.ny)) / k], 글: 주인[i].r.기호 + ' 안목 ' + Math.round(안목) })
-          return { 기호: 주인[i].r.기호, 안목: Math.round(안목), 좌: Math.round(좌), 우: Math.round(우), 물림: !!주인[i].물림 }
+          const 상자 = [(Math.min(a[0], b[0]) - 띠.g / 2 * Math.abs(띠.nx)) / k, (Math.min(a[1], b[1]) - 띠.g / 2 * Math.abs(띠.ny)) / k, (Math.max(a[0], b[0]) + 띠.g / 2 * Math.abs(띠.nx)) / k, (Math.max(a[1], b[1]) + 띠.g / 2 * Math.abs(띠.ny)) / k]
+          근거.push({ 번: D.번, 상자, 글: 주인[i].r.기호 + ' 안목 ' + Math.round(안목) })
+          return { 기호: 주인[i].r.기호, 안목: Math.round(안목), 좌: Math.round(좌), 우: Math.round(우), 물림: !!주인[i].물림, 자리: 자리만들기(D.이름, 상자) }
         })
         칸들.push(줄)
       }
@@ -1192,8 +1218,9 @@ function 평면부재(보띠, 벽띠, 슬들, 기둥층, 보층, 벽층, 배근�
     const 단정 = x단 ? 바('오') + 바('왼') : 바('위') + 바('아래')
     const 장정 = x단 ? 바('위') + 바('아래') : 바('오') + 바('왼')
     const k = x.D.k
-    근거.push({ 번: x.D.번, 상자: [(x.g.x - 왼.d) / k, (x.g.y - 아래.d) / k, (x.g.x + 오.d) / k, (x.g.y + 위.d) / k], 글: x.r.기호 + ' ' + Math.round(Math.min(Lx, Ly)) + '×' + Math.round(Math.max(Lx, Ly)) })
-    슬칸.push({ 기호: x.r.기호, 단변: Math.round(Math.min(Lx, Ly)), 장변: Math.round(Math.max(Lx, Ly)), 단정, 장정, 두께: +(x.b && x.b.두께) || 0 })
+    const 상자 = [(x.g.x - 왼.d) / k, (x.g.y - 아래.d) / k, (x.g.x + 오.d) / k, (x.g.y + 위.d) / k]
+    근거.push({ 번: x.D.번, 상자, 글: x.r.기호 + ' ' + Math.round(Math.min(Lx, Ly)) + '×' + Math.round(Math.max(Lx, Ly)) })
+    슬칸.push({ 기호: x.r.기호, 단변: Math.round(Math.min(Lx, Ly)), 장변: Math.round(Math.max(Lx, Ly)), 단정, 장정, 두께: +(x.b && x.b.두께) || 0, 자리: 자리만들기(x.D.이름, 상자) })
   }
   return { 보칸, 벽칸, 슬칸 }
 }

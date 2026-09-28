@@ -7,7 +7,7 @@ import { InstallPill, InstallBar } from './Install.jsx'
 import AskStrip from './AskComment'
 import FirstBar from './FirstBar.jsx'
 import RefreshBtn from './Refresh.jsx'
-import Crumbs from './Crumbs.jsx'
+import Crumbs, { BackBtn } from './Crumbs.jsx'
 import { use길지킴이 } from './lib/길기록.js'
 
 import { use떨굼막기 } from './끌어놓기.jsx'
@@ -132,6 +132,8 @@ export default function App() {
                 왜 여기인가: 「자료가 멈춘 것 같다」 는 생각이 드는 순간이 곧 «위를 보는» 순간입니다.
                 자료가 도는 화면(1순위·공고)에만 두면 정작 다른 화면에서는 손이 안 갑니다.
                 좁은 화면에서는 🔄 그림만 남고 글자는 숨습니다 (styles.css .rflong). */}
+            {/* 🔙 2026-09-28 — 소장님: 「뒤로가기 버튼 … 새로고침 옆으로 옮기거나」 → 화면 안 알약 대신 여기(Crumbs.jsx BackBtn) */}
+            <BackBtn />
             <RefreshBtn />
             <a className="sisbtn" href="https://sarasa.kr" target="_blank" rel="noopener"
               title="자매 사이트 사라사 — 나노리치 실시간 신호판 · 경제 기사 · 여행">

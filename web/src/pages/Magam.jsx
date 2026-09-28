@@ -13,13 +13,20 @@
  * ■ 도면·자료는 이 브라우저 안에만 있습니다(적은 것: localStorage · 도면: IndexedDB). 서버로 가지 않습니다.
  * ■ 셈: lib/마감.js (시험: node tools/시험_마감.mjs) · 도면판: ../도면판.jsx · 누른 값: lib/찍기.js
  * ■ 예시 도면 web/public/jeoksan/마감_예시.dxf 는 K-건설맵이 그린 «가상» 평면도입니다(tools/마감_예시도면.py).
+ * ■ ⚡ 2026-09-28 «도면 넣으면 자동» (소장님 「되도록 자동으로 물량이 나오게 해줘. 도면 클릭하면 나온다 이러지 말고」)
+ *   lib/도면전부.js 마감자동: 방(실 이름 글자를 품은 닫힌 선)마다 면적·둘레·창호를 저절로 · 실내재료마감표·창호일람표가 있으면 기호·천장고·창호표까지
+ *   → 곧바로 ⑥ 결과. 누르기는 고칠 때만. 끌어 놓기·🧪 예시도 자동으로.
+ * ■ 🔗 2026-09-28 결과 ↔ 도면 오가기(lib/도면오가기.js): ⑥ 결과의 산출서 줄을 누르면 그 방을 찍은 자리가 도면에서 빛나고,
+ *   도면을 누르면 그 자리에서 나온 산출서 줄을 칠함 (받은 설명서의 «양방향 링크» 를 «방식만»)
  */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { 셈, 새공사, 예시공사, 실칸, 외벽칸, 창호칸, 재료칸, 창호재료칸, 묶음칸, 묶음종류, 조합칸, 치환칸, 창호조합칸, 부위들, 창호풀기, 창호글, 마감표읽기, 창호표읽기, 일괄바꾸기, 비교, 엑셀 } from '../lib/마감.js'
 import { 품은도형, 도형글자, 종류 } from '../lib/골조도면.js'
 import { 찍기, 두점더하기, 도움글, 수글 } from '../lib/찍기.js'
 import { 표찾기 } from '../lib/도면자동.js'
+import { 줄자리, 도형상자, 모은상자, 누른줄들 } from '../lib/도면오가기.js'
+import { 마감자동 } from '../lib/도면전부.js'
 import { use도면, 도면판, 도면상태줄 } from '../도면판.jsx'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { askAfter } from '../AskComment'
@@ -81,6 +88,9 @@ function 불러오기() {
   } catch (e) { return null }
 }
 
+/** 휴대폰 폭 — ④·⑥ 결과에서는 도면을 위에 붙이지 않음(표가 가려지지 않게) */
+const 좁은화면 = () => typeof window !== 'undefined' && window.innerWidth < 700
+
 export default function Magam() {
   const [공사, set공사] = useState(() => 불러오기() || 새공사())
   /* 🧭 2026-09-27 — 탭 = 뒤로가기 한 칸 (lib/길기록.js) */
@@ -95,6 +105,17 @@ export default function Magam() {
   const [묻기, set묻기] = useState('')          // '' | '예시' | '지우기'
   const [표채움, set표채움] = useState('')
   const 파일칸 = useRef(null)
+  const 자동칸 = useRef(null)
+  /* 🔗 결과 ↔ 도면 (2026-09-28) */
+  const [짚음, set짚음] = useState(null)      // {표, i}
+  const [짚은, set짚은] = useState([])        // '표|i'
+  const [가볼, set가볼] = useState(null)
+  const [결과알림, set결과알림] = useState(null)
+  /* ⚡ 도면 넣으면 자동 (2026-09-28) — 도면이 다 읽히면(모델) 방·표로 공사를 채움 */
+  const [자동대기, set자동대기] = useState(null)      // {옛: 그때 열려 있던 모델} — 새 도면이 다 읽히면(모델이 바뀌면) 채움
+  const [자동알림, set자동알림] = useState(null)   // {글, warn}
+  const [자동묻기, set자동묻기] = useState(null)   // 이미 적은 실이 있으면 바꿀지 여쭘 {R}
+  const 자동파일 = (files) => { if (!files || !files.length) return; set자동대기({ 옛: 모델 }); set자동알림(null); 도.파일받기(files) }
 
   useEffect(() => {
     const t = setTimeout(() => { try { localStorage.setItem(저장열쇠, JSON.stringify(공사)) } catch (e) { /* 가득 참 */ } }, 400)
@@ -110,6 +131,7 @@ export default function Magam() {
     try {
       const r = await fetch(예시도면)
       if (!r.ok) throw new Error(r.status)
+      set자동대기({ 옛: 모델, 예시: true }); set자동알림(null)
       도.도면열기(await r.arrayBuffer(), '마감_예시.dxf (가상 평면도)')
     } catch (e) { 도.set도면상태({ k: 'err', 글: '예시 도면을 받지 못했습니다 (' + e.message + ')' }) }
   }
@@ -200,6 +222,41 @@ export default function Magam() {
     if (보는중 !== null && 보는중 >= 0) o.push({ ids: [보는중], color: '#38bdf8', w: 2.5 })
     return o
   }, [선택찍음, 같은도면, 보는중])
+  const 오가는표 = ['실', '외벽', '창호', '창호조합', '묶음', '조합']
+  const 짚은자리 = useMemo(() => (짚음 ? 줄자리((공사[짚음.표] || [])[짚음.i], 도.도면이름) : null), [짚음, 공사, 도.도면이름])
+  const 결과강조 = useMemo(() => {
+    const o = []
+    if (짚은자리 && 짚은자리.ids.length) o.push({ ids: 짚은자리.ids, color: '#f97316', w: 4 })
+    if (보는중 !== null && 보는중 >= 0) o.push({ ids: [보는중], color: '#38bdf8', w: 2.5 })
+    return o
+  }, [짚은자리, 보는중])
+  const 짚기 = (곳) => {
+    set짚은([])
+    if (!곳 || !공사[곳.표]) { set짚음(null); return }
+    set짚음(곳)
+    const 줄 = 공사[곳.표][곳.i]
+    const 말 = 곳.표 + ' ' + (곳.i + 1) + '번 줄' + (줄 && 줄.실명 ? ' «' + 줄.실명 + '»' : '')
+    const 자 = 줄자리(줄, 도.도면이름)
+    if (자.없음) { set결과알림({ 글: 말 + (자.딴도면.length ? ' 은(는) «' + 자.딴도면[0] + '» 도면에서 찍었습니다 — 그 도면을 열면 보입니다.' : ' 은(는) 도면에서 찍지 않고 직접 적은 값입니다 — ③ 실에서 면적 칸을 누르고 방 안을 누르면 자리가 남습니다.'), warn: true }); return }
+    const r = 모은상자([도형상자(모델, 자.ids), ...자.네모들], 자.점들)
+    if (r) set가볼({ r, n: Date.now() })
+    set결과알림({ 글: '🔗 ' + 말 + ' — 도면에 주황색으로 보입니다.' })
+    if (좁은화면()) setTimeout(() => { const el = document.querySelector('.gg-draw'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, 30)   // 휴대폰: 도면이 붙어 있지 않으니 도면으로 올라감
+  }
+  const 결과찍었다 = useCallback((e, x, y, 보기) => {
+    if (!모델) return
+    const tol = 보기 ? (보기[2] - 보기[0]) / 200 : 0
+    const 표들 = []
+    for (const t of 오가는표) (공사[t] || []).forEach((줄, i) => 표들.push({ 열쇠: t + '|' + i, 줄 }))
+    let 찾음 = 누른줄들(표들, e, x, y, 도.도면이름, tol)
+    // 방 안을 누르면(도형 없음) — 그 방의 닫힌 선을 찍은 줄
+    if (!찾음.length) { const id = 품은도형(모델, x, y, 끈층); if (id >= 0) 찾음 = 누른줄들(표들, id, x, y, 도.도면이름, 0) }
+    set짚은(찾음); set짚음(null)
+    if (!찾음.length) { set결과알림({ 글: '누른 곳에서 나온 산출서 줄이 없습니다 — 방 안이나 찍은 선을 눌러 보십시오.', warn: true }); return }
+    const n = 결과.줄.filter((x2) => x2.곳 && 찾음.includes(x2.곳.표 + '|' + x2.곳.i)).length
+    set결과알림({ 글: '🔗 누른 곳에서 나온 줄 — ' + 찾음.slice(0, 6).map((k2) => { const [t, i] = k2.split('|'); const 줄 = (공사[t] || [])[+i] || {}; return t + ' ' + (+i + 1) + '번' + (줄.실명 ? '(' + 줄.실명 + ')' : '') }).join(' · ') + (찾음.length > 6 ? ' …' : '') + ' → 산출서 ' + n + '줄을 파랗게 칠했습니다.' })
+  }, [모델, 공사, 도.도면이름, 결과, 끈층])  // eslint-disable-line react-hooks/exhaustive-deps
+
   const 셀 = (표, i, key) => ({
     on: !!(선택 && 선택.표 === 표 && 선택.i === i && 선택.key === key),
     누름: () => { set선택({ 표, i, key }); set두점(null); set알림({ 글: '' }) },
@@ -209,6 +266,26 @@ export default function Magam() {
   const 도면표 = useMemo(() => (모델 ? 표찾기(모델) : []), [모델])
   const 읽은마감 = useMemo(() => 마감표읽기(도면표), [도면표])
   const 읽은창호 = useMemo(() => 창호표읽기(도면표), [도면표])
+  useEffect(() => {
+    if (!자동대기 || !모델 || 모델 === 자동대기.옛) return
+    const 예시로 = !!자동대기.예시
+    set자동대기(null)
+    let R
+    try { R = 마감자동(모델, { k: (단위 && 단위.k) || 1, 끈층, 표들: 도면표, 이름: 도.도면이름, 옛: 공사 }) } catch (e) { set자동알림({ 글: '도면에서 방을 읽다 멈췄습니다 (' + e.message + ')', warn: true }); return }
+    if (!R.공사) { set자동알림({ 글: '이 도면에서 방(실 이름 글자를 품은 닫힌 선)을 찾지 못했습니다 — ③ 실에서 면적 칸을 누르고 방 안을 누르십시오.', warn: true }); set탭('실'); return }
+    if (!예시로 && (공사.실 || []).some((r) => String(r.실명 || '').trim() || String(r.면적 || '').trim())) { set자동묻기({ R }); set자동알림(null); return }
+    자동넣기(R)
+  }, [자동대기, 모델])   // eslint-disable-line react-hooks/exhaustive-deps
+  const 자동넣기 = (R) => {
+    set자동묻기(null)
+    set공사(R.공사); set선택(null); set짚음(null); set짚은([]); set결과알림(null)
+    const m = R.말
+    set자동알림({ 글: '⚡ 도면에서 자동으로 채웠습니다 — 방 ' + m.실 + '개(면적·둘레·창호)' + (m.마감표 ? ' · 실내재료마감표 ' + m.마감표 + '줄(맞춘 방 ' + m.맞춘 + ')' : ' · 실내재료마감표 없음') + (m.창호표 ? ' · 창호일람표 ' + m.창호표 + '개' : '') + '.' +
+      (m.새마감 ? ' ① 마감표에 새 기호 ' + m.새마감 + '개를 이름만 더했습니다 — 기호마다 재료를 적으면 재료별 수량이 나옵니다.' : '') +
+      (!m.마감표 ? ' 방마다 바닥·벽·천장 기호를 ③ 실에 적으면 재료별 수량이 나옵니다.' : '') })
+    set탭(m.마감표 ? '결과' : '실')
+  }
+  useEffect(() => { if (도.도면상태 && 도.도면상태.k === 'err') set자동대기(null) }, [도.도면상태])   // 못 읽은 도면이면 기다림을 거둠
   const 마감표로채우기 = () => {
     let 채움 = 0, 새줄 = 0
     set공사((P) => {
@@ -221,7 +298,7 @@ export default function Magam() {
       }
       return { ...P, 실 }
     })
-    set표채움('실내재료마감표 ' + 읽은마감.length + '줄을 읽어 실 ' + 새줄 + '줄을 더하고 빈 칸 ' + 채움 + '개를 채웠습니다. 면적·둘레는 도면의 방 안을 눌러 넣으십시오.')
+    set표채움('실내재료마감표 ' + 읽은마감.length + '줄을 읽어 실 ' + 새줄 + '줄을 더하고 빈 칸 ' + 채움 + '개를 채웠습니다. 면적·둘레는 «⚡ 지금 연 도면으로 다시 자동 채우기» 를 누르면 방마다 저절로 들어갑니다.')
   }
   const 창호표로채우기 = () => {
     let 더 = 0
@@ -261,12 +338,13 @@ export default function Magam() {
       <div className="card no-print">
         <h1 className="tl-h1" style={{ marginTop: 0 }}>🧱 마감 수량산출 <span className="count">· 방마다 바닥·벽·천장</span></h1>
         <div className="note sm">
-          <b>방(실)마다 한 줄</b>입니다. 평면도의 <b>방 안을 누르면 면적과 둘레</b>가 한 번에 들어가고, 창호 글자를 누르면 벽·걸레받이에서 뺍니다.
-          마감 기호(바닥·걸레받이·벽·천장)마다 들어가는 재료를 적어 두면 <b>재료별 수량</b>이 방별·층별로 나옵니다.
+          <b>평면도를 넣으면 저절로</b> — 방마다 <b>면적·둘레·창호</b>가 들어가고, 도면에 <b>실내재료마감표·창호일람표</b>가 있으면 마감 기호·천장고·창호표까지 채워 <b>재료별 수량</b>이 바로 나옵니다.
+          누르는 것은 고칠 때만입니다(표의 칸을 누르고 도면을 누름). 마감 기호마다 들어가는 재료는 ① 마감표에 적어 둡니다.
         </div>
         <div className="pdfsafe">🔒 <b>도면은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 읽고 셉니다 · 회원가입 없음 · 무료</div>
         <div className="btn-row gg-top">
-          <button type="button" className="btn sm" onClick={() => 파일칸.current?.click()}>📂 도면 열기 (DXF·DWG)</button>
+          <button type="button" className="btn sm" onClick={() => 자동칸.current?.click()}>⚡ 도면 넣고 자동으로</button>
+          <button type="button" className="btn line sm" onClick={() => 파일칸.current?.click()}>📂 도면만 열기 (고칠 때)</button>
           <button type="button" className="btn line sm" onClick={() => (비었나 ? 예시열기() : set묻기('예시'))}>🧪 예시로 해 보기</button>
           <button type="button" className="btn ghost sm" onClick={() => set탭('결과')}>📊 결과 보기</button>
           {!비었나 && <button type="button" className="btn ghost sm" onClick={() => set묻기('지우기')}>🗑 새로 시작</button>}
@@ -283,9 +361,20 @@ export default function Magam() {
         )}
         <input ref={파일칸} type="file" accept=".dxf,.DXF,.dwg,.DWG" className="sr-only" tabIndex={-1}
           onChange={(e) => { 도.파일받기(e.target.files); e.target.value = '' }} />
-        {/* 📥 놓으면 도면이 보이는 탭(③ 실)으로 */}
-        <끌어놓기판 받기={(fs) => { 도.파일받기(fs); if (!['실', '외벽', '창호', '묶음'].includes(탭)) set탭('실') }} />
+        <input ref={자동칸} type="file" accept=".dxf,.DXF,.dwg,.DWG" className="sr-only" tabIndex={-1}
+          onChange={(e) => { 자동파일(e.target.files); e.target.value = '' }} />
+        {/* 📥 놓으면 ⚡ 자동으로 (2026-09-28) */}
+        <끌어놓기판 글="평면도(DXF·DWG)를 놓으면 방마다 면적·둘레·창호가 저절로 들어갑니다" 받기={(fs) => 자동파일(fs)} />
         <도면상태줄 상태={도.도면상태} />
+        {자동묻기 && (
+          <div className="gg-ask">
+            도면에서 방 <b>{자동묻기.R.말.실}개</b>를 읽었습니다. 지금 ③ 실의 {공사.실.length}줄 대신 넣을까요? (① 마감표·② 창호표는 그대로 두고 없는 기호만 더합니다)
+            <button type="button" className="btn sm" onClick={() => 자동넣기(자동묻기.R)}>예, 넣기</button>
+            <button type="button" className="btn ghost sm" onClick={() => set자동묻기(null)}>아니오</button>
+          </div>
+        )}
+        {자동알림 && <div className={'gg-auto' + (자동알림.warn ? ' warn' : '')}>{자동알림.글} <button type="button" className="chip" onClick={() => set자동알림(null)}>닫기</button></div>}
+        {모델 && !자동대기 && <div className="btn-row" style={{ marginTop: 8 }}><button type="button" className="chip" onClick={() => { set자동알림(null); set자동대기({ 옛: null }) }}>⚡ 지금 연 도면으로 다시 자동 채우기</button></div>}
         {모델 && (읽은마감.length > 0 || 읽은창호.length > 0) && (
           <div className="ja-sum">
             📋 도면에서 찾은 표 —{' '}
@@ -344,6 +433,11 @@ export default function Magam() {
 
       {탭 === '묶음' && <묶음판 공사={공사} 결과={결과} 셀={셀} 칸쓰기={칸쓰기} 줄더하기={줄더하기} 줄빼기={줄빼기} />}
 
+      {탭 === '결과' && 모델 && (
+        <도면판 도={도} 강조={결과강조} 찍었다={결과찍었다} set보는중={set보는중} 붙음={!좁은화면()} 가볼곳={가볼} 두점단추={false}
+          알림={결과알림 ? 결과알림.글 : ''} 알림좋음={!(결과알림 && 결과알림.warn)} 열기={() => 파일칸.current?.click()}
+          안내={<>🔗 <b>산출서 줄을 누르면</b> 도면에서 그 방(찍은 자리)이 <b style={{ color: '#f97316' }}>주황색</b>으로 빛나고, <b>방 안을 누르면</b> 그 방의 산출서 줄이 <b style={{ color: '#2563eb' }}>파랗게</b> 칠해집니다.</>} />
+      )}
       {탭 === '결과' && (
         <div className="card gg-print">
           <div className="gg-head">
@@ -367,7 +461,7 @@ export default function Magam() {
               <ul>{결과.경고.map((w, kk) => <li key={kk}>{w.곳 ? <button type="button" className="gg-go no-print" onClick={() => { set탭(표탭[w.곳.표] || w.곳.표); set선택(null) }}>{w.곳.표} {w.곳.i + 1}번 줄</button> : null} {w.글}</li>)}</ul></div>
           )}
           {!결과.줄.length && <p className="muted">아직 셀 것이 없습니다 — ① 마감표와 ③ 실을 채우십시오. (🧪 예시로 해 보기를 누르면 채워진 것을 볼 수 있습니다)</p>}
-          {결과.줄.length > 0 && <결과표 결과={결과} 공사={공사} set공사={set공사} />}
+          {결과.줄.length > 0 && <결과표 결과={결과} 공사={공사} set공사={set공사} 짚기={모델 ? 짚기 : null} 짚음열쇠={짚음 ? 짚음.표 + '|' + 짚음.i : ''} 짚은={짚은} />}
         </div>
       )}
 
@@ -376,10 +470,11 @@ export default function Magam() {
         <ul className="tl-p" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.85 }}>
           <li><b>바닥·천장 = 면적</b>, <b>벽 = 둘레 × 천장고 − 창호</b>, <b>걸레받이 = 둘레 − 문 폭</b>, <b>몰딩 = 둘레</b>. 재료 수량은 그 값 × 개수 × 계수입니다.</li>
           <li>공동주택처럼 같은 세대가 되풀이되면 세대 하나의 방만 적고 <b>묶음</b>으로 묶어 ⑤ 조합표에서 <b>동·층 범위·개수</b>로 곱하십시오. 동마다 다른 마감은 <b>치환</b>(F1→F3)으로.</li>
-          <li>방은 <b>안목(벽 안쪽)</b> 선을 누르십시오. 벽 가운데선을 누르면 벽 두께만큼 커집니다.</li>
+          <li>방은 <b>안목(벽 안쪽)</b> 선이어야 합니다(자동도 안목 닫힌 선을 씀). 벽 가운데선이면 벽 두께만큼 커집니다.</li>
           <li>창호는 방 하나에만 적습니다. 벽 양쪽이 모두 마감이면 양쪽 방에 다 적습니다(양면을 빼야 하므로).</li>
           <li>계수: 몰탈·콘크리트처럼 부피로 사는 것은 두께(m)를, 면적·길이로 사는 것은 1 을 적습니다. 할증은 넣지 않았습니다.</li>
-          <li><b>무엇을 누를지는 사람이 정합니다.</b> 결과의 <b>검산</b>을 꼭 보십시오.</li>
+          <li><b>⚡ 자동</b>: 방 이름 글자(사무실·거실…)를 품은 <b>닫힌 선</b>을 방으로 봅니다. 방이 닫힌 선으로 그려져 있지 않으면 그 방만 ③ 실에서 칸을 누르고 방 안을 누릅니다. 결과의 <b>검산</b>을 꼭 보십시오.</li>
+          <li><b>⑥ 결과 ↔ 도면</b>: 산출서 줄을 누르면 그 방이 도면에서 빛나고, 방 안을 누르면 그 방의 산출서 줄이 칠해집니다(맞게 읽었는지 확인용).</li>
         </ul>
         <div className="btn-row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
           <Link className="btn ghost sm" to="/jeoksan/golgo">🏗 골조 수량산출</Link>
@@ -573,8 +668,18 @@ function 모음표({ 목록, 앞 }) {
       <tbody>{목록.map((a, kk) => <tr key={kk}>{앞 ? <td>{a[앞] || '—'}</td> : null}<td>{a.재료}</td><td>{a.규격}</td><td className="u">{단위풀이(a.단위)}</td><td className="r">{앞 ? 쉼(a.수량, 3) : <b>{쉼(a.수량, 3)}</b>}<span className="단">{단위보기(a.단위)}</span></td></tr>)}</tbody></table></div>
   )
 }
-function 결과표({ 결과, 공사, set공사 }) {
+function 결과표({ 결과, 공사, set공사, 짚기, 짚음열쇠, 짚은 }) {
   const [보기, set보기] = useState('집계')
+  /* 🔗 도면을 눌러 찾은 줄 → 산출서로 옮겨 첫 줄을 보여 줌 */
+  const 짚은셋 = useMemo(() => new Set(짚은 || []), [짚은])
+  const 판Ref = useRef(null)
+  useEffect(() => {
+    if (!짚은셋.size) return
+    set보기('산출서')
+    const t = setTimeout(() => { const el = 판Ref.current && 판Ref.current.parentElement && 판Ref.current.parentElement.querySelector('tr.gg-hit'); if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' }) }, 60)
+    return () => clearTimeout(t)
+  }, [짚은셋])
+  const 열쇠 = (곳) => (곳 ? 곳.표 + '|' + 곳.i : '')
   const 집 = 결과.집계
   const 무리 = [...new Set(결과.줄.map((x) => [x.동 || '', x.층 || '', x.실명 || ''].join('|')))]
   const 당초 = 공사.당초 && Array.isArray(공사.당초.합) ? 공사.당초 : null
@@ -589,7 +694,7 @@ function 결과표({ 결과, 공사, set공사 }) {
   }
   return (
     <>
-      <div className="tp-subtabs no-print">
+      <div className="tp-subtabs no-print" ref={판Ref}>
         {보기들.map((kk) => <button key={kk} type="button" className={'chip' + (지금 === kk ? ' on' : '')} onClick={() => set보기(kk)}>{kk}</button>)}
       </div>
       <div className={칸('집계')}><div className="detail-h">집계 — 재료별</div><모음표 목록={집.합} /></div>
@@ -622,11 +727,12 @@ function 결과표({ 결과, 공사, set공사 }) {
         const [동, 층, 실명] = s0.split('|')
         return (
           <div key={s0} className={칸('산출서')}>
-            <div className="detail-h">산출서 — {동 ? 동 + ' ' : ''}{층 ? 층 + '층 ' : ''}{실명 || '창호'}</div>
+            <div className="detail-h">산출서 — {동 ? 동 + ' ' : ''}{층 ? 층 + '층 ' : ''}{실명 || '창호'}{짚기 ? <span className="muted no-print" style={{ fontWeight: 400, fontSize: 12 }}> · 줄을 누르면 도면에서 그 자리</span> : null}</div>
             <div className="gg-wrap"><table className="gg-r gg-calc">
               <thead><tr><th>부위</th><th>마감</th><th>재료</th><th>규격</th><th>산출근거</th><th className="r">수량</th><th>단위</th><th>비고</th></tr></thead>
               <tbody>{결과.줄.filter((x) => (x.동 || '') === 동 && (x.층 || '') === 층 && (x.실명 || '') === 실명).map((x, kk) => (
-                <tr key={kk} className={x.수량 < 0 ? 'neg' : ''}><td>{x.부위}</td><td>{x.기호}</td><td>{x.재료}</td><td>{x.규격}</td><td className="expr">{x.식}</td><td className="r">{쉼(x.수량, 3)}</td><td className="u">{단위풀이(x.단위)}</td><td className="note2">{x.비고}</td></tr>
+                <tr key={kk} className={(x.수량 < 0 ? 'neg' : '') + (짚기 ? ' gg-go-row' : '') + (짚은셋.has(열쇠(x.곳)) ? ' gg-hit' : '') + (짚음열쇠 && 짚음열쇠 === 열쇠(x.곳) ? ' gg-pick' : '')}
+                  onClick={짚기 ? () => 짚기(x.곳) : undefined} title={짚기 ? '누르면 도면에서 이 줄이 나온 자리를 보여 드립니다' : undefined}><td>{x.부위}</td><td>{x.기호}</td><td>{x.재료}</td><td>{x.규격}</td><td className="expr">{x.식}</td><td className="r">{쉼(x.수량, 3)}</td><td className="u">{단위풀이(x.단위)}</td><td className="note2">{x.비고}</td></tr>
               ))}</tbody>
             </table></div>
           </div>

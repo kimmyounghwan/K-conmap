@@ -504,6 +504,27 @@
         }
       }
     },
+    // 📝 2026-09-28 공사일보 한 장 (TuipbiIlbo.jsx) — 날짜마다 한 덩이. 날씨·기온·공정률(%)·작업 내용(JSON 글)·특기사항·내일 계획
+    "cost_day": {
+      "$site": {
+        ".read": "auth != null && root.child('cost_pins').child($site).exists() && root.child('cost_keys').child($site).child(auth.uid).val() === root.child('cost_pins').child($site).val()",
+        ".write": "auth != null && root.child('cost_pins').child($site).exists() && root.child('cost_keys').child($site).child(auth.uid).val() === root.child('cost_pins').child($site).val()",
+        "$d": {
+          ".validate": "$d.matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) && newData.hasChildren(['at'])",
+          "w":  { ".validate": "newData.isString() && newData.val().length <= 10" },
+          "lo": { ".validate": "newData.isNumber() && newData.val() >= -40 && newData.val() <= 60" },
+          "hi": { ".validate": "newData.isNumber() && newData.val() >= -40 && newData.val() <= 60" },
+          "pp": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
+          "ap": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
+          "wk": { ".validate": "newData.isString() && newData.val().length <= 4000" },
+          "nt": { ".validate": "newData.isString() && newData.val().length <= 2000" },
+          "nx": { ".validate": "newData.isString() && newData.val().length <= 1000" },
+          "by": { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "at": { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
     "cost_people": {
       "$site": {
         ".read": "auth != null && root.child('cost_pins').child($site).exists() && root.child('cost_keys').child($site).child(auth.uid).val() === root.child('cost_pins').child($site).val()",

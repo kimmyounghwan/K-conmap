@@ -19,7 +19,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { use화면상태, 앞칸같은주소 } from '../lib/길기록.js'
-import { 원, 억만, 코드만들기, 코드보기, 코드정리, 비번해시, 예시현장, 휴지통날 } from '../lib/tuipbi.js'
+import { 원, 억만, 코드만들기, 코드보기, 코드정리, 비번해시, 예시현장, 휴지통날, 예시일보 } from '../lib/tuipbi.js'
 import { 열쇠만들기, 열쇠두기, 열쇠읽기, 열쇠지우기, 잠그기, 풀기 } from '../lib/tplock.js'
 import TuipbiSite, { TuipbiGuide, 함께봄 } from './TuipbiSite.jsx'
 
@@ -79,6 +79,8 @@ export default function Tuipbi() {
   const [저장됨, set저장됨] = useState('')             // 소장님: 「자동저장된다는 것도 알려 줘....이용자가 알게..그래야 나중에 수정을 할 수 있다는 것도」
   const [알림, set알림] = useState('')                 // 🗑 «휴지통으로 옮겼습니다» · «되살렸습니다»
   const [휴지통, set휴지통] = useState({})             // {번호: {p, k, v, at}}
+  const [일보, set일보] = useState({})                 // 📝 2026-09-28 공사일보 한 장 {날짜: 저장된 것}
+  const [일보막힘, set일보막힘] = useState(false)       // 규칙을 올리기 전이면 true — 화면에 알림
 
   useEffect(() => {
     const c = 코드정리(params.get('c'))
@@ -115,6 +117,10 @@ export default function Tuipbi() {
     /* 휴지통은 따로 — 못 읽어도(규칙을 올리기 전 등) 현장은 열려야 합니다 */
     let 통 = {}
     try { 통 = (await fb.get(fb.ref(fb.db, `cost_trash/${c}`))).val() || {} } catch (er) { 통 = {} }
+    /* 📝 공사일보 한 장 — 못 읽어도(규칙을 올리기 전 등) 현장은 열려야 합니다 */
+    let 일 = {}, 일막 = false
+    try { 일 = (await fb.get(fb.ref(fb.db, `cost_day/${c}`))).val() || {} } catch (er) { 일 = {}; 일막 = true }
+    set일보(일); set일보막힘(일막)
     const raw = 열쇠읽기(c)
     set예시(false); set코드(c); set현장(s.val()); set줄들(rows); set명부(새명부); set정보(false); set휴지통(통); set알림('')
     set화면('site', { replace: 바꿈 != null ? !!바꿈 : 화면지금() !== 'home', search: '?c=' + c })
@@ -165,12 +171,12 @@ export default function Tuipbi() {
   }
   const 예시보기 = () => {
     const x = 예시현장()
-    set예시(true); set코드('EXAMPLE00'); set현장(x.site); set줄들(x.rows)
+    set예시(true); set코드('EXAMPLE00'); set현장(x.site); set줄들(x.rows); set일보(예시일보()); set일보막힘(false)
     set명부({ 사람: x.people, 장비: x.equip, 업체: x.vendors, 출역: x.att }); set풀린(x.풀린); set열쇠(null); set휴지통({}); set알림('')
     set화면('site'); set오류(''); set정보(false)
   }
   const 나가기 = () => {
-    set현장(null); set줄들([]); set명부(빈데이터); set풀린({}); set열쇠(null); set예시(false); set정보(false); set휴지통({}); set알림('')
+    set현장(null); set줄들([]); set명부(빈데이터); set풀린({}); set열쇠(null); set예시(false); set정보(false); set휴지통({}); set알림(''); set일보({})
     /* 처음 화면에서 들어왔으면 기록을 되감고(보던 자리 그대로), 주소로 바로 들어왔으면 처음 화면으로 바꿈 */
     if (앞칸같은주소(window.location.pathname)) navigate(-1)
     else set화면('home', { replace: true, search: '' })
@@ -231,6 +237,22 @@ export default function Tuipbi() {
       if (옛) { const { id: _없앰, ...v } = 옛; await 휴지통으로('rows', id, v, `cost_rows/${코드}/${id}`) }
       set줄들((v) => v.filter((x) => x.id !== id)); set오류(''); 표시(옮김글)
     } catch (e) { 실패(e, '지우지 못했습니다 — 인터넷을 확인해 주십시오. (지워지지 않았습니다)') }
+  }
+  /** 📝 공사일보 한 장 — 날짜마다 한 덩이(cost_day/{현장}/{날짜}) · 비우면 지움 */
+  async function 일보저장(d, v) {
+    const 빈 = !v || Object.keys(v).filter((k) => k !== 'at' && k !== 'by').length === 0
+    if (예시) { set일보((o) => { const n = { ...o }; if (빈) delete n[d]; else n[d] = v; return n }); 표시(); return true }
+    try {
+      const fb = await loadFb()
+      const r = fb.ref(fb.db, `cost_day/${코드}/${d}`)
+      if (빈) await fb.remove(r); else await fb.set(r, v)
+      set일보((o) => { const n = { ...o }; if (빈) delete n[d]; else n[d] = v; return n })
+      set일보막힘(false); set오류(''); 표시()
+      return true
+    } catch (e) {
+      if (막힘(e)) { set일보막힘(true); set오류('공사일보를 저장하지 못했습니다 — 저장 칸이 아직 열리지 않았거나(곧 열립니다) 이 브라우저가 이 현장에 쓸 수 없습니다.'); return false }
+      return 실패(e, '공사일보를 저장하지 못했습니다 — 인터넷을 확인해 주십시오.')
+    }
   }
   async function 현장저장(site) {
     if (예시) { set현장(site); 표시(); return true }
@@ -459,7 +481,7 @@ export default function Tuipbi() {
           풀린={풀린} 잠김={잠김칸} 잠김있음={잠김} 예시={예시} 저장됨={저장됨} 알림={알림} 휴지통={휴지통} 되살리기={되살리기}
           줄저장={줄저장} 줄지우기={줄지우기} 명부저장={명부저장} 명부지우기={명부지우기}
           출역찍기={출역찍기} 출역여럿={출역여럿} 공제고치기={공제고치기} 비고고치기={비고고치기} 그달일급={그달일급} 대상고치기={대상고치기} 잠금풀기={잠금풀기}
-          새로고침={새로고침} 나가기={나가기} 정보={정보} set정보={set정보}
+          새로고침={새로고침} 나가기={나가기} 정보={정보} set정보={set정보} 일보={일보} 일보저장={일보저장} 일보막힘={일보막힘}
           정보칸={<SiteInfo 현장={현장} 코드={코드} 예시={예시} onSave={async (s) => { if (await 현장저장(s)) set정보(false) }} onDelete={현장지우기} onForget={이기기잊기} />} />
       )}
 

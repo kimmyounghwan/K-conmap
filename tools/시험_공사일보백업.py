@@ -47,7 +47,7 @@ except Exception:
 봄("살아 있는 현장 자료는 안 건드림", not any(x.endswith("/AAAAAAAAA") for x in 지울))
 
 쓸, 핀, 키들 = M.되살릴것(자료, "AAAAAAAAA")
-봄("되살리기: 그 현장 자리 아홉 곳(업체 링크·업체 입력 포함)을 그날 모습으로", len(쓸) == 9 and "cost_vin/AAAAAAAAA" in 쓸 and "cost_vlink/AAAAAAAAA" in 쓸 and 쓸["cost_rows/AAAAAAAAA"]["r1"]["amt"] == 1500000 and 쓸["cost_att/AAAAAAAAA"] is None)
+봄("되살리기: 그 현장 자리 열 곳(업체 링크·업체 입력·공사일보 포함)을 그날 모습으로", len(쓸) == 10 and "cost_day/AAAAAAAAA" in 쓸 and "cost_vin/AAAAAAAAA" in 쓸 and "cost_vlink/AAAAAAAAA" in 쓸 and 쓸["cost_rows/AAAAAAAAA"]["r1"]["amt"] == 1500000 and 쓸["cost_att/AAAAAAAAA"] is None)
 봄("되살리기: 비밀번호 해시·열쇠도 챙김", 핀 == "h" * 64 and 키들 == {"u1": "h" * 64})
 try:
     M.되살릴것(자료, "ZZZZZZZZZ"); 봄("없는 현장은 멈춤", False)

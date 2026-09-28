@@ -583,3 +583,92 @@ export function 예시현장() {
   rows.forEach((r, i) => { r.id = 'ex' + i; r.at = i })
   return { site, rows, people, equip, vendors, att, 풀린 }
 }
+
+
+/* ─────────────────────────────── 📝 공사일보 한 장 (2026-09-28)
+   소장님: 「1번부터 6번까지 한꺼번에 가자」 — ② 받은 무료 «공사일보» 프로그램의 «방식만»:
+   날씨·기온 · 공정률(계획/실시) · 공종별 작업 내용 · 인원·장비·자재 금일/누계 · 특기사항 · 전날 복사 · A4 인쇄.
+   인원·장비·자재는 이미 적는 출역·장비·자재 반입에서 저절로 셉니다(다시 적지 않음).
+   저장: cost_day/{현장}/{날짜} = {w 날씨, lo·hi 기온, pp·ap 공정률(%), wk 작업 내용(JSON 글), nt 특기사항, nx 내일 계획, by, at} */
+export const 날씨들 = ['맑음', '구름', '흐림', '비', '눈', '안개', '강풍']
+export const 일보빈 = () => ({ w: '', lo: '', hi: '', pp: '', ap: '', wk: [], nt: '', nx: '' })
+/** 저장된 한 날 → 화면 모양 (wk 는 JSON 글로 저장) */
+export function 일보풀기(v) {
+  if (!v) return 일보빈()
+  let wk = []
+  try { wk = typeof v.wk === 'string' ? JSON.parse(v.wk) : (Array.isArray(v.wk) ? v.wk : []) } catch (e) { wk = [] }
+  return { ...일보빈(), ...v, wk: Array.isArray(wk) ? wk : [], lo: v.lo ?? '', hi: v.hi ?? '', pp: v.pp ?? '', ap: v.ap ?? '' }
+}
+/** 화면 모양 → 저장할 것 (빈 칸은 뺌 · 규칙의 길이 안으로 자름) */
+export function 일보싸기(o, by = '') {
+  const 수 = (x) => { const t = String(x ?? '').trim(); if (t === '') return null; const v = Number(t); return Number.isFinite(v) ? v : null }
+  const out = { at: Date.now() }
+  if (o.w) out.w = String(o.w).slice(0, 10)
+  const 최저 = 수(o.lo), 최고 = 수(o.hi), 계획 = 수(o.pp), 실시 = 수(o.ap)
+  if (최저 !== null && 최저 >= -40 && 최저 <= 60) out.lo = 최저
+  if (최고 !== null && 최고 >= -40 && 최고 <= 60) out.hi = 최고
+  if (계획 !== null && 계획 >= 0 && 계획 <= 100) out.pp = Math.round(계획 * 100) / 100
+  if (실시 !== null && 실시 >= 0 && 실시 <= 100) out.ap = Math.round(실시 * 100) / 100
+  const wk = (o.wk || []).map((r) => ({ g: String(r.g || '').slice(0, 40), v: String(r.v || '').slice(0, 40), t: String(r.t || '').slice(0, 300), n: String(r.n || '').slice(0, 6) }))
+    .filter((r) => r.g || r.v || r.t || r.n)
+  if (wk.length) { let j = JSON.stringify(wk); while (j.length > 4000 && wk.length) { wk.pop(); j = JSON.stringify(wk) } out.wk = j }
+  if (String(o.nt || '').trim()) out.nt = String(o.nt).slice(0, 2000)
+  if (String(o.nx || '').trim()) out.nx = String(o.nx).slice(0, 1000)
+  if (by) out.by = String(by).slice(0, 20)
+  return out
+}
+/**
+ * 그날까지의 인원·장비·자재 — 금일 / 전일까지 / 누계
+ * @returns {인원:[{이름, 전, 금, 누}], 인원합:{전, 금, 누}, 장비:[{이름, 단위, 금, 누}], 자재:[{이름, 규격, 단위, 금, 누}], 실시:(기성 공정률 0~1|null)}
+ */
+export function 일보셈(d, site, rows, 사람, 장비, att) {
+  const 인 = new Map()
+  const 더 = (j, key, v) => { let x = 인.get(j); if (!x) { x = { 이름: j, 전: 0, 금: 0, 누: 0 }; 인.set(j, x) } x[key] += v }
+  for (const [ym, 달] of Object.entries(att || {})) {
+    if (ym > d.slice(0, 7)) continue
+    for (const [pid, a] of Object.entries(달 || {})) {
+      if (!a || !a.d) continue
+      const j = (사람 && 사람[pid] && 사람[pid].j) || '직종 없음'
+      for (const [dd, g] of Object.entries(a.d)) {
+        if (!(Number(g) > 0)) continue
+        const 그날 = ym + '-' + dd
+        if (그날 > d) continue
+        더(j, '누', 1)
+        if (그날 === d) 더(j, '금', 1); else 더(j, '전', 1)
+      }
+    }
+  }
+  const 인원 = [...인.values()].filter((x) => x.누 > 0).sort((a, b) => b.금 - a.금 || a.이름.localeCompare(b.이름, 'ko'))
+  const 인원합 = 인원.reduce((s, x) => ({ 전: s.전 + x.전, 금: s.금 + x.금, 누: s.누 + x.누 }), { 전: 0, 금: 0, 누: 0 })
+  const 모아 = (k, 열쇠, 모양) => {
+    const m = new Map()
+    for (const r of rows || []) {
+      if (r.k !== k || !r.d || r.d > d) continue
+      const key = 열쇠(r)
+      let x = m.get(key); if (!x) { x = { ...모양(r), 금: 0, 누: 0 }; m.set(key, x) }
+      const q = Number(r.q) || 0
+      x.누 += q; if (r.d === d) x.금 += q
+    }
+    return [...m.values()].filter((x) => x.누 > 0).sort((a, b) => b.금 - a.금 || String(a.이름).localeCompare(String(b.이름), 'ko'))
+  }
+  const 장비이름 = (r) => { const e = r.eq && 장비 && 장비[r.eq]; return e ? [e.n, e.s].filter(Boolean).join(' ') : (r.t || '장비') }
+  const 장비들 = 모아('E', (r) => 장비이름(r) + '|' + (r.un || ''), (r) => ({ 이름: 장비이름(r), 단위: r.un || '일' }))
+  const 자재들 = 모아('M', (r) => (r.t || '') + '|' + (r.sp || '') + '|' + (r.un || ''), (r) => ({ 이름: r.t || '', 규격: r.sp || '', 단위: r.un || '' }))
+  let 기성합 = 0
+  for (const r of rows || []) if (r.k === 기성 && r.d && r.d <= d) 기성합 += Number(r.amt) || 0
+  const 실시 = site && site.total > 0 && 기성합 > 0 ? 기성합 / site.total : null
+  return { 인원, 인원합, 장비: 장비들, 자재: 자재들, 실시 }
+}
+/** 🧪 예시 현장의 공사일보 — 지어낸 것 */
+export function 예시일보(끝날 = '2026-09-25') {
+  const 날들 = []
+  for (let k = 0, d = 끝날; 날들.length < 4 && k < 10; k++, d = 날더하기(d, -1)) if (날(d).getDay() !== 0) 날들.push(d)
+  const 일 = [
+    { w: '맑음', lo: 14, hi: 26, pp: 71.5, ap: 69.8, wk: [{ g: '철근콘크리트', v: '가상건설(주)', t: '3층 기둥·벽 거푸집 조립, 철근 배근 검측', n: '7' }, { g: '조적', v: '가상건재', t: '2층 내부 칸막이 벽돌쌓기', n: '2' }], nt: '09:00 TBM — 개구부 덮개·안전난간 점검. 오후 3층 슬래브 배근 검측(감리 입회).', nx: '3층 슬래브 콘크리트 타설 준비(펌프카 예약)' },
+    { w: '구름', lo: 15, hi: 24, pp: 71.0, ap: 69.3, wk: [{ g: '철근콘크리트', v: '가상건설(주)', t: '3층 기둥 철근 배근', n: '6' }], nt: '자재 반입 — 합판 거푸집. 반입 차량 신호수 배치.', nx: '3층 기둥·벽 거푸집 조립' },
+    { w: '비', lo: 16, hi: 21, pp: 70.6, ap: 69.0, wk: [{ g: '정리', v: '', t: '우천으로 외부 작업 중지 — 자재 정리·배수로 점검', n: '3' }], nt: '우천 — 외부 작업 중지. 가설 배수 점검.', nx: '' },
+  ]
+  const out = {}
+  날들.slice(0, 3).forEach((d, i) => { const x = 일[i]; out[d] = { ...x, wk: JSON.stringify(x.wk), at: i } })
+  return out
+}

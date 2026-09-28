@@ -101,9 +101,9 @@ const TOP = new Set(['/', '/calc', '/first', '/live', '/analysis', '/jobs', '/fo
 const 뿌리로 = { '/notice': '/live', '/agency': '/analysis', '/corp': '/analysis', '/report': '/' }
 /* /daily 는 미리 구운 HTML 안의 자료로만 그려집니다(DailyPage.jsx) — 사이트 안 이동(Link)으로 가면 빈 화면. 통째로 불러옵니다. */
 const 정적 = new Set(['/daily'])
-const 길 = ({ to, className, children }) => (정적.has(to)
-  ? <a className={className} href={to}>{children}</a>
-  : <Link className={className} to={to}>{children}</Link>)
+const 길 = ({ to, className, children, ...남 }) => (정적.has(to)
+  ? <a className={className} href={to} {...남}>{children}</a>
+  : <Link className={className} to={to} {...남}>{children}</Link>)
 
 /** 주소 → 짧은 이름 (표에 없으면 그 칸의 탭 제목 앞머리) */
 function 이름짓기(주소, 제목) {
@@ -120,50 +120,39 @@ function 이름짓기(주소, 제목) {
   return t.length > 16 ? t.slice(0, 16) + '…' : t
 }
 
-export default function Crumbs() {
-  const { pathname, state } = useLocation()
-  const navigate = useNavigate()
+/* 📱 2026-09-28 — 소장님: 「핸드폰에서 K-건설맵 아래에 뒤로가기 버튼 바로투찰이 보이는데, 이걸 새로고침 옆으로 옮기거나
+   공간이 부족하면 삭제해줘. 이상해...뒤로가기 버튼만 둥그러니 있으니까」
+   → «뒤로» 단추는 맨 위 막대(새로고침 왼쪽)로 옮깁니다(BackBtn). 좁은 화면에서는 «←» 그림만, 넓으면 «← 도구» 처럼 이름까지.
+     화면 안에는 넓은 화면에서만 작은 길(도구 › 예정공정표)을 남깁니다 — 좁은 화면에서는 아무것도 그리지 않습니다.
+   ⚠️ 무엇으로 돌아가는지(기록 되감기 · 부모 · 뿌리)는 예전 그대로입니다 — 길계산() 한 곳에서만 정합니다. */
+function 길계산(pathname, state) {
   const path = pathname.replace(/\/+$/, '') || '/'
-
   /* ── 사이트 안에서 걸어 들어왔으면: «← 들어온 곳» = 기록 되감기 ── */
   const 온 = 들어온곳(pathname)
-  const 되감기 = 온 ? (
-    <button type="button" className="crumb-back" onClick={() => navigate(온.몇칸)}>← {이름짓기(온.p, 온.t)}</button>
-  ) : null
+  const 되감기 = 온 ? { 몇칸: 온.몇칸, 이름: 이름짓기(온.p, 온.t) } : null
 
   /* 🔖 2026-09-18 — 다른 화면이 state={{ from }} 을 달아 보낸 경우(성적표 → 사랑방 등).
      들어온 기록이 있으면 그것이 먼저입니다(같은 곳이고, 되감으면 보던 자리까지 돌아갑니다). */
   const 온곳 = state && state.from
   if (!되감기 && 온곳 && 온곳.to && 온곳.to !== path) {
-    const 이름 = 온곳.name || NAME[온곳.to] || '앞 화면'
-    return (
-      <nav className="crumbs" aria-label="길">
-        <Link className="crumb-back" to={온곳.to}>← {이름}</Link>
-      </nav>
-    )
+    return { back: { to: 온곳.to, 이름: 온곳.name || NAME[온곳.to] || '앞 화면' }, trail: null }
   }
 
   /* 탭에 있는 큰 자리 — 걸어 들어왔을 때만 «← 들어온 곳». 바로 들어왔으면 아무것도 그리지 않습니다
      (누르면 사이트 밖으로 나가 버리니까요). */
-  if (TOP.has(path) && !PARENT[path]) {
-    return 되감기 ? <nav className="crumbs" aria-label="길">{되감기}</nav> : null
-  }
+  if (TOP.has(path) && !PARENT[path]) return { back: 되감기, trail: null }
 
   if (PARENT[path]) {
     const to = PARENT[path]
-    return (
-      <nav className="crumbs" aria-label="길">
-        {되감기 || <Link className="crumb-back" to={to}>← {탭이름[to] || NAME[to]}</Link>}
-      </nav>
-    )
+    return { back: 되감기 || { to, 이름: 탭이름[to] || NAME[to] }, trail: null }
   }
 
   const seg = path.split('/').filter(Boolean)
-  if (seg.length <= 1) return 되감기 ? <nav className="crumbs" aria-label="길">{되감기}</nav> : null
+  if (seg.length <= 1) return { back: 되감기, trail: null }
 
   const root0 = '/' + seg[0]
   const rootName = NAME[root0]
-  if (!rootName) return 되감기 ? <nav className="crumbs" aria-label="길">{되감기}</nav> : null
+  if (!rootName) return { back: 되감기, trail: null }
   const root = 뿌리로[root0] || root0          /* /notice → 공고 목록 · /agency·/corp → 분석 */
   const rootName2 = 뿌리로[root0] ? (NAME[root] || rootName) : rootName
 
@@ -180,12 +169,29 @@ export default function Crumbs() {
 
   const parent = mid || root
   const parentName = midName || rootName2
+  return { back: 되감기 || { to: parent, 이름: parentName }, trail: { root, rootName2, mid, midName, here } }
+}
 
+/** 🔙 맨 위 막대의 «뒤로» (새로고침 왼쪽) — 돌아갈 곳이 없으면 그리지 않습니다 */
+export function BackBtn() {
+  const { pathname, state } = useLocation()
+  const navigate = useNavigate()
+  const { back } = 길계산(pathname, state)
+  if (!back) return null
+  const 글 = <><span className="tbic" aria-hidden="true">←</span>{' '}<span className="tblong">{back.이름}</span></>
+  const 말 = back.이름 + '(으)로 돌아가기'
+  if (back.몇칸) return <button type="button" className="topback" onClick={() => navigate(back.몇칸)} title={말} aria-label={말}>{글}</button>
+  return <길 className="topback" to={back.to} title={말} aria-label={말}>{글}</길>
+}
+
+/** 화면 안의 작은 길(넓은 화면에서만) — 「도구 › 예정공정표」 */
+export default function Crumbs() {
+  const { pathname, state } = useLocation()
+  const { trail } = 길계산(pathname, state)
+  if (!trail) return null
+  const { root, rootName2, mid, midName, here } = trail
   return (
     <nav className="crumbs" aria-label="길">
-      {/* 큰 단추 하나 — 손가락으로 누르는 «뒤로» 입니다 */}
-      {되감기 || <길 className="crumb-back" to={parent}>← {parentName}</길>}
-      {/* 작은 길 — 여기가 어디인지 */}
       <span className="crumb-trail">
         <길 to={root}>{rootName2}</길>
         {mid && <><span className="crumb-sep">›</span><Link to={mid}>{midName}</Link></>}

@@ -25,14 +25,16 @@
  *            「물량은 자동으로 뽑아서 엑셀로 다운 받을 수 있게 해줘」 「도면을 주면 도면에 나와있는 물량은 자동으로 엑셀로 정리되게 해줘」
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { 도면읽어오기, 도면판, 도면상태줄, 처음끈층, 큰파일, 오류글 } from '../도면판.jsx'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { 단위배율, 도형글자, 종류 } from '../lib/골조도면.js'
 import * as 자 from '../lib/도면자동.js'
 import * as 전 from '../lib/도면전부.js'
 import { 내역읽기, 모으기 as 내역모으기, 대조 as 대조하기, 대조시트, 단위풀기 } from '../lib/내역대조.js'
-import { 철근표, 셈 as 골조셈, 엑셀 as 골조엑셀 } from '../lib/골조.js'
+import { 철근표, 셈 as 골조셈, 엑셀 as 골조엑셀, 기준값 as 골조기준값 } from '../lib/골조.js'
+import { 골조보탬, 골조짝, 넣을것, 셀바꾸기, csv바꾸기 } from '../lib/내역채움.js'
+import { 내역넘기기 } from '../lib/도면넘김.js'
 import { 골조읽기, 골조시트들, 개수글 } from '../lib/골조자동.js'
 import { 셈 as 마감셈 } from '../lib/마감.js'
 import { askAfter } from '../AskComment'
@@ -52,7 +54,7 @@ function 전부(f) {
   return r
 }
 const 자동키 = (종, 이름) => (종 === '길이' ? '층길이:' + 이름 : 종 === '면적' ? '층면적:' + 이름 : 종 === '블록' ? '블록:' + 이름 : '기호:' + 자.붙임(이름).toUpperCase())
-const 판색 = { 같음: 'good', '도면이 많음': 'bad', '도면이 적음': 'bad', '도면에서 못 찾음': 'mid' }
+const 판색 = { 같음: 'good', '도면이 많음': 'bad', '도면이 적음': 'bad', '도면에서 못 찾음': 'mid', '내역 수량 없음': 'new' }
 const 쉼 = (n, d = 0) => new Intl.NumberFormat('ko-KR', { maximumFractionDigits: d, minimumFractionDigits: d }).format(n || 0)
 const 종색 = { 철근: '#f59e0b', 수량: '#22c55e', 기타: '#94a3b8' }
 const 종이름 = { 철근: '철근 재료표', 수량: '수량표', 기타: '그 밖의 표' }
@@ -100,6 +102,10 @@ export default function JeoksanAuto() {
   const [내역, set내역] = useState(남은판 ? 남은판.내역 : null)               // 내역대조.내역읽기() 결과
   const [짝고침, set짝고침] = useState(처음.짝고침 || {})             // 내역 id → 도면 줄 key | '' (짝 없음)
   const [대조거르기, set대조거르기] = useState(처음.대조거르기 || '모두')
+  /* 📥 2026-09-28 — 내역서에 도면 물량 넣기 (lib/내역채움.js) · 빈만: 빈 수량 칸만 · 할증: 재료 줄은 할증 넣은 값 · 약함: 약한 짝도 */
+  const [넣기옵션, set넣기옵션] = useState(처음.넣기옵션 || { 빈만: true, 할증: true, 약함: false })
+  const [넣은말, set넣은말] = useState(null)
+  const 가기 = useNavigate()
   const [딴화면, set딴화면] = useState(처음.딴화면 || { 골조: false, 마감: false })   // 골조·마감 화면에서 적어 둔 것도 넣기
   const [골고침, set골고침] = useState(처음.골고침 || {})             // 골조 자동 — 층 이름 → {층고, 슬라브} (짐작을 고친 것)
   const [골옮김, set골옮김] = useState('')                          // '' | '묻기' | '됨'
@@ -111,11 +117,11 @@ export default function JeoksanAuto() {
 
   /* 🧭 ① 메모리 · ② localStorage (고른 것·고친 것) */
   useEffect(() => {
-    const 설정 = { 지금, 표뺌: [...표뺌], 토공설정, 고른노선, 세기네모, 세기고름, 고침, 켬고침, 짝고침, 대조거르기, 딴화면, 골고침 }
+    const 설정 = { 지금, 표뺌: [...표뺌], 토공설정, 고른노선, 세기네모, 세기고름, 고침, 켬고침, 짝고침, 대조거르기, 딴화면, 골고침, 넣기옵션 }
     남은판 = { ...설정, 파일들, 내역, 원본들: 원본들.current }
     const t = setTimeout(() => { try { localStorage.setItem(설정열쇠, JSON.stringify(설정)) } catch (e) { /* 가득 참 */ } }, 400)
     return () => clearTimeout(t)
-  }, [지금, 표뺌, 토공설정, 고른노선, 세기네모, 세기고름, 고침, 켬고침, 짝고침, 대조거르기, 딴화면, 골고침, 파일들, 내역])
+  }, [지금, 표뺌, 토공설정, 고른노선, 세기네모, 세기고름, 고침, 켬고침, 짝고침, 대조거르기, 딴화면, 골고침, 넣기옵션, 파일들, 내역])
   /* 🧭 ② 창고 — 도면 파일·내역서가 바뀔 때만 */
   const 창고넣기 = (목록, 내역값) => {
     const 도면 = 목록.map((f) => ({ id: f.id, ...(원본들.current.get(f.id) || {}) })).filter((x) => x.buf || x.예시)
@@ -211,7 +217,7 @@ export default function JeoksanAuto() {
       set지금(0)
       const r2 = await fetch(예시내역)
       let 내역값 = null
-      if (r2.ok) { 내역값 = 내역읽기(new Uint8Array(await r2.arrayBuffer()), '내역_예시.xlsx (가상 내역서)'); set내역(내역값); set짝고침({}) }
+      if (r2.ok) { const b2 = new Uint8Array(await r2.arrayBuffer()); 내역값 = { ...내역읽기(b2, '내역_예시.xlsx (가상 내역서)'), 원본: b2 }; set내역(내역값); set짝고침({}); set넣은말(null) }
       창고넣기(새)
       set켬고침({})
       set탭('산출')
@@ -236,8 +242,9 @@ export default function JeoksanAuto() {
     const f = files && files[0]
     if (!f) return
     try {
-      const 읽음 = 내역읽기(new Uint8Array(await f.arrayBuffer()), f.name)
-      set내역(읽음); set짝고침({}); set탭('대조')
+      const b = new Uint8Array(await f.arrayBuffer())
+      const 읽음 = { ...내역읽기(b, f.name), 원본: b }        // 📥 원래 파일 — 물량을 넣어 «그 파일» 로 돌려드릴 때 씀
+      set내역(읽음); set짝고침({}); set넣은말(null); set탭('대조')
       set상태({ k: 'ok' })
     } catch (e) { set상태({ k: 'err', 글: f.name + ' — ' + (e.message || e) }) }
   }
@@ -293,7 +300,8 @@ export default function JeoksanAuto() {
     if (딴화면.골조 && 딴저장.골조) {
       try {
         const R = 골조셈(딴저장.골조)
-        for (const a of R.집계.합) out.push({ key: 'gg:' + a.항목 + '|' + a.규격 + '|' + a.단위, 구분: '🏗 골조 수량산출 (이 브라우저)', 품명: a.항목, 규격: a.규격, 단위: a.단위, 수량: a.산출, 근거: '골조 화면의 집계 (할증 전)' + (딴저장.골조.이름 ? ' · ' + 딴저장.골조.이름 : ''), 도면: '골조 수량산출' })
+        const 버림 = ((딴저장.골조.기준 || {}).버림) || 골조기준값().버림
+        for (const a of R.집계.합) out.push({ key: 'gg:' + a.항목 + '|' + a.규격 + '|' + a.단위, 골: { 항목: a.항목, 규격: a.규격, 버림: a.항목 === '콘크리트' && a.규격 === 버림 }, 할증수량: a.내역, 할증: a.할증, 구분: '🏗 골조 수량산출 (이 브라우저)', 품명: a.항목, 규격: a.규격, 단위: a.단위, 수량: a.산출, 근거: '골조 화면의 집계 (할증 전)' + (딴저장.골조.이름 ? ' · ' + 딴저장.골조.이름 : ''), 도면: '골조 수량산출' })
       } catch (e) { /* 적어 둔 것이 깨졌으면 넣지 않음 */ }
     }
     if (딴화면.마감 && 딴저장.마감) {
@@ -353,7 +361,8 @@ export default function JeoksanAuto() {
     if (골결과) {
       for (const a of 골결과.집계.합) {
         const key = 'gz:' + a.항목 + '|' + a.규격 + '|' + a.단위
-        줄.push({ key, 켬: 켜(key, true), 구분: '🏗 골조 (구조평면도·일람표)', 품명: a.항목, 규격: a.규격, 단위: a.단위, 수량: a.산출, 근거: 골셈글 + ' — 할증 전 · «② 골조» 탭에 층별·부재별', 도면: 골도면 })
+        const 버림 = ((골공사 && 골공사.기준) || {}).버림 || 골조기준값().버림
+        줄.push({ key, 켬: 켜(key, true), 골: { 항목: a.항목, 규격: a.규격, 버림: a.항목 === '콘크리트' && a.규격 === 버림 }, 할증수량: a.내역, 할증: a.할증, 구분: '🏗 골조 (구조평면도·일람표)', 품명: a.항목, 규격: a.규격, 단위: a.단위, 수량: a.산출, 근거: 골셈글 + ' — 할증 전 · «② 골조» 탭에 층별·부재별', 도면: 골도면 })
       }
     }
     for (const x of 딴줄) 줄.push({ ...x, 켬: 켜(x.key, true) })
@@ -377,7 +386,55 @@ export default function JeoksanAuto() {
   const 켜기 = (key, v) => set켬고침((P) => ({ ...P, [key]: v }))
 
   /* ── 내역 대조 ── */
-  const 대조 = useMemo(() => (내역 ? 대조하기(산출.켠줄, 내역.줄, 짝고침) : null), [내역, 산출, 짝고침])
+  /* 📥 골조는 «뜻» 으로 짝(레미콘 강도 · 철근 지름 · 가공조립 = 철근 전체 · 타설 = 콘크리트 전체 · 부재별 거푸집) — lib/내역채움.js */
+  const 골보탬 = useMemo(() => {
+    try {
+      if (골결과) return 골조보탬(골결과, ((골공사 && 골공사.기준) || {}).버림 || 골조기준값().버림)
+      if (딴화면.골조 && 딴저장.골조) return 골조보탬(골조셈(딴저장.골조), ((딴저장.골조.기준 || {}).버림) || 골조기준값().버림)
+    } catch (e) { /* 보탬 없이 */ }
+    return []
+  }, [골결과, 골공사, 딴화면, 딴저장])
+  const 대조판 = useMemo(() => {
+    if (!내역) return null
+    const 기본 = [...산출.켠줄, ...골보탬]
+    const { 규칙, 더 } = 골조짝(기본, 내역.줄)
+    const 도면 = [...기본, ...더]
+    return { 도면, 결과: 대조하기(도면, 내역.줄, 짝고침, 1, 규칙) }
+  }, [내역, 산출, 골보탬, 짝고침])
+  const 대조 = 대조판 ? 대조판.결과 : null
+  const 넣 = useMemo(() => (대조 ? 넣을것(대조, 넣기옵션) : null), [대조, 넣기옵션])
+  const 넣맵 = useMemo(() => new Map((넣 ? 넣.바꿀 : []).map((x) => [x.id, x])), [넣])
+  const 내역이름 = 내역 ? String(내역.이름 || '내역서.xlsx').replace(/\s*\([^)]*\)\s*$/, '') : ''
+  const 내역csv = /\.(csv|txt|tsv)$/i.test(내역이름)
+  /** 받은 내역서 «그 파일» 에 수량만 넣은 것 */
+  const 넣은파일 = (알림 = true) => {
+    if (!내역 || !내역.원본 || !넣 || !넣.바꿀.length) return null
+    // 단가 채우기로 보낼 때는 «물량 넣은 곳» 시트를 빼고 보냄 — 그 시트까지 내역으로 읽어 단가를 넣지 않게
+    const r = 내역csv ? csv바꾸기(내역.원본, 넣.바꿀) : 셀바꾸기(내역.원본, 넣.바꿀, { 도면: 파일들.map((f) => f.이름).join(', '), 알림 })
+    const 이름 = /\.[^.]+$/.test(내역이름) ? 내역이름.replace(/(\.[^.]+)$/, '_물량넣음$1') : 내역이름 + '_물량넣음.xlsx'
+    set넣은말({ 됨: r.됨.length, 안됨: r.안됨, 이름 })
+    return { ...r, 이름 }
+  }
+  const 넣은내역받기 = () => {
+    try {
+      const r = 넣은파일()
+      if (!r) return
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(new Blob([r.bytes], { type: 내역csv ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+      a.download = r.이름
+      document.body.appendChild(a); a.click(); a.remove()
+      setTimeout(() => URL.revokeObjectURL(a.href), 60000)
+      askAfter('jeoksan')
+    } catch (e) { set넣은말({ 오류: String(e.message || e) }) }
+  }
+  const 단가로 = () => {
+    try {
+      const r = 넣은파일(false)
+      if (!r) return
+      내역넘기기({ 이름: r.이름, 바이트: r.bytes })
+      가기('/jeoksan/fill')
+    } catch (e) { set넣은말({ 오류: String(e.message || e) }) }
+  }
   const 대조줄 = 대조 ? 대조.줄.filter((r) => 대조거르기 === '모두' || (대조거르기 === '다름' ? r.도면 && r.판정 !== '같음' : 대조거르기 === '같음' ? r.판정 === '같음' : !r.도면)) : []
 
   /* ── 실·마감·창호 (지금 도면) ── */
@@ -527,7 +584,7 @@ export default function JeoksanAuto() {
           <b>철근 재료표 · 수량표</b> · 횡단면 <b>깎기·쌓기(평균단면법)</b> · <b>관로·측구·경계석·포장</b>(레이어 이름으로) · <b>맨홀·집수정·가로등·수목</b>(블록) ·
           <b>창호 기호 개수</b> · <b>실(방) 면적</b> · <b>바닥·벽·천장 마감</b>(실내재료마감표가 있으면) ·
           <b>골조 — 보·기둥·슬래브·벽·기초의 콘크리트·거푸집·철근</b>(구조평면도 + 부재 일람표가 있으면).
-          <b>내역서(엑셀)</b>를 넣으면 줄마다 도면 물량과 <b>대조</b>해 다른 곳을 찾아 드리고, 전부 <b>엑셀</b>로 받습니다.
+          <b>내역서(엑셀)</b>를 넣으면 줄마다 도면 물량과 <b>대조</b>해 다른 곳을 찾아 드리고, <b>빈 수량 칸은 도면 물량으로 채워</b> 그 파일 그대로 돌려 드립니다. 전부 <b>엑셀</b>로 받습니다.
         </div>
         <div className="pdfsafe">🔒 <b>도면은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 읽고 셉니다 · 회원가입 없음 · 무료</div>
         <div className="btn-row gg-top">
@@ -917,8 +974,38 @@ export default function JeoksanAuto() {
                   <div className="gg-tiles">
                     <div className="good"><span>같음 (±1%)</span><b>{대조.셈.같음}</b> 줄</div>
                     <div className={대조.셈.다름 ? 'bad' : ''}><span>다름</span><b>{대조.셈.다름}</b> 줄</div>
+                    {대조.셈.빈 > 0 && <div className="new"><span>내역 수량 빈 칸 · 짝 있음</span><b>{대조.셈.빈}</b> 줄</div>}
                     <div><span>도면에서 못 찾음</span><b>{대조.셈.없음}</b> 줄</div>
                     <div><span>내역에 없는 도면 물량</span><b>{대조.셈.도면만}</b> 줄</div>
+                  </div>
+                  {/* 📥 2026-09-28 — 소장님 「물량, 내역채우는 거 다 자동이 목표야」 → 받은 내역서 «그 파일» 의 수량 칸에 도면 물량을 넣어 돌려드림 */}
+                  <div className="ja-fill no-print">
+                    <div className="ja-fill-h">📥 내역서에 도면 물량 넣기 <span className="muted">— 받은 파일 그대로, 수량 칸만</span></div>
+                    <div className="ja-fill-n">
+                      넣을 줄 <b>{넣 ? 넣.셈.넣음 : 0}</b>
+                      {넣 && 넣.셈.약함 > 0 && <> · 짝이 약해 안 넣음 <b>{넣.셈.약함}</b></>}
+                      {넣 && 넣.셈.있음 > 0 && <> · 수량이 이미 있어 그대로 <b>{넣.셈.있음}</b></>}
+                      {넣 && 넣.셈.같음 > 0 && <> · 이미 같음 <b>{넣.셈.같음}</b></>}
+                      {넣 && 넣.셈.없음 > 0 && <> · 빈 칸인데 도면에 없음 <b>{넣.셈.없음}</b></>}
+                    </div>
+                    <div className="ja-fill-o">
+                      <label><input type="checkbox" checked={넣기옵션.빈만} onChange={(e) => set넣기옵션((o) => ({ ...o, 빈만: e.target.checked }))} /> 빈 수량 칸만 채우기 <span className="muted">(끄면 도면과 다른 수량도 도면 값으로 바꿈)</span></label>
+                      <label><input type="checkbox" checked={넣기옵션.할증} onChange={(e) => set넣기옵션((o) => ({ ...o, 할증: e.target.checked }))} /> 재료 줄(레미콘·철근)은 할증 넣은 값 <span className="muted">(타설·가공조립은 늘 할증 없이)</span></label>
+                      <label><input type="checkbox" checked={넣기옵션.약함} onChange={(e) => set넣기옵션((o) => ({ ...o, 약함: e.target.checked }))} /> 짝이 약한 줄도 넣기</label>
+                    </div>
+                    <div className="btn-row" style={{ flexWrap: 'wrap', marginTop: 8 }}>
+                      <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={!넣 || !넣.바꿀.length || !내역.원본} onClick={넣은내역받기}>⬇ 물량 넣은 내역서 받기</button>
+                      {!내역csv && <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!넣 || !넣.바꿀.length || !내역.원본} onClick={단가로}>📑 이어서 단가까지 채우기 →</button>}
+                    </div>
+                    {!내역.원본 && <p className="muted" style={{ margin: '6px 0 0' }}>예전에 넣은 내역서라 원래 파일이 없습니다 — 📑 다른 내역서로 한 번 더 넣어 주십시오.</p>}
+                    {넣은말 && (넣은말.오류
+                      ? <p className="gp-warn" style={{ margin: '6px 0 0' }}>⚠️ {넣은말.오류}</p>
+                      : <p className="muted" style={{ margin: '6px 0 0' }}>✅ <b>{넣은말.이름}</b> — {넣은말.됨}줄 넣음{넣은말.안됨.length ? ' · ' + 넣은말.안됨.length + '줄은 안 넣음(' + [...new Set(넣은말.안됨.map((x) => x.까닭))].join(' · ') + ')' : ''}.
+                        넣은 칸은 노란 바탕, 맨 뒤 «물량 넣은 곳» 시트에 줄마다 근거가 있습니다. 금액 식은 엑셀을 열 때 다시 셈합니다.</p>)}
+                    <p className="muted" style={{ margin: '6px 0 0', fontSize: 12 }}>
+                      짝이 <b>확실한</b> 줄만 넣습니다(이름·규격이 같음 · 골조는 레미콘 강도·철근 지름·부재 이름으로). 다른 칸·서식·수식·다른 시트는 건드리지 않습니다. 수량 칸이 수식이면 그대로 둡니다.
+                      <b> 이어서 단가까지</b>를 누르면 이 파일로 곧바로 «공내역서 단가 채우기»(시험판)를 돌립니다.
+                    </p>
                   </div>
                   <div className="tp-subtabs no-print">
                     {['모두', '다름', '같음', '못 찾음'].map((k) => <button key={k} type="button" className={'chip' + (대조거르기 === k ? ' on' : '')} onClick={() => set대조거르기(k)}>{k}</button>)}
@@ -927,22 +1014,25 @@ export default function JeoksanAuto() {
                     <thead><tr><th>No.</th><th>내역 품명</th><th>규격</th><th>단위</th><th className="r">내역 수량</th><th>짝 (도면 물량)</th><th className="r">도면 수량</th><th className="r">차이</th><th className="r">차이율</th><th>판정</th></tr></thead>
                     <tbody>{대조줄.map((r) => {
                       const n = r.내역
-                      const 같은무리 = 산출.켠줄.filter((d) => 단위풀기(d.단위).무리 === 단위풀기(n.단위).무리)
+                      const 같은무리 = 대조판.도면.filter((d) => 단위풀기(d.단위).무리 === 단위풀기(n.단위).무리)
+                      const 넣을 = 넣맵.get(n.id)
                       return (
                         <tr key={n.id} className={'ja-j-' + (판색[r.판정] || '')}>
-                          <td>{n.id + 1}</td><td>{n.품명}</td><td>{n.규격}</td><td className="u">{단위풀이(n.단위)}</td><td className="r">{쉼(n.수량, 3)}<span className="단">{단위보기(n.단위)}</span></td>
+                          <td>{n.id + 1}</td><td>{n.품명}</td><td>{n.규격}</td><td className="u">{단위풀이(n.단위)}</td><td className="r">{n.빈 ? <span className="muted">(빈 칸)</span> : <>{쉼(n.수량, 3)}<span className="단">{단위보기(n.단위)}</span></>}</td>
                           <td className="no-print-sel">
                             <select className="ja-pair" value={r.도면 ? r.도면.key : ''} onChange={(e) => set짝고침((P) => ({ ...P, [n.id]: e.target.value }))} aria-label={n.품명 + ' 짝'}>
                               <option value="">— 짝 없음</option>
-                              {r.후보.map((c) => { const d = 산출.켠줄.find((q) => q.key === c.key); return d ? <option key={'h' + c.key} value={c.key}>★ {d.품명}{d.규격 ? ' ' + d.규격 : ''} · {쉼(d.수량, 3)} {d.단위}</option> : null })}
+                              {r.후보.map((c) => { const d = 대조판.도면.find((q) => q.key === c.key); return d ? <option key={'h' + c.key} value={c.key}>★ {d.품명}{d.규격 ? ' ' + d.규격 : ''} · {쉼(d.수량, 3)} {d.단위}</option> : null })}
                               {같은무리.filter((d) => !r.후보.some((c) => c.key === d.key)).map((d) => <option key={d.key} value={d.key}>{d.품명}{d.규격 ? ' ' + d.규격 : ''} · {쉼(d.수량, 3)} {d.단위}</option>)}
                             </select>
                             {r.도면 && <div className="note2" style={{ fontSize: 11 }}>{r.도면.구분} · {r.도면.근거}</div>}
+                            {(r.믿음 || r.까닭) && <div className={'ja-trust ' + (r.믿음 === '확실' ? 'ok' : r.믿음 === '약함' ? 'weak' : '')}>{r.믿음 ? (r.믿음 === '확실' ? '✓ 확실' : '△ 약함') + ' · ' : ''}{r.까닭}</div>}
                           </td>
-                          <td className="r">{r.도면 ? <b>{쉼(r.도면수량, 3)}</b> : '—'}</td>
+                          <td className="r">{r.도면 ? <b>{쉼(r.도면수량, 3)}</b> : '—'}{r.할증 ? <div className="note2" style={{ fontSize: 11 }}>할증 {r.할증}% → {쉼(r.할증수량, 3)}</div> : null}</td>
                           <td className="r">{r.도면 ? (r.차이 > 0 ? '+' : '') + 쉼(r.차이, 3) : ''}</td>
                           <td className="r">{r.율 === null || !r.도면 ? '' : (r.율 > 0 ? '+' : '') + r.율.toFixed(1) + '%'}</td>
-                          <td><span className={'ja-badge ' + (판색[r.판정] || '')}>{r.판정}</span>{r.고친짝 ? <span className="muted" style={{ fontSize: 11 }}> (고친 짝)</span> : null}</td>
+                          <td><span className={'ja-badge ' + (판색[r.판정] || '')}>{r.판정}</span>{r.고친짝 ? <span className="muted" style={{ fontSize: 11 }}> (고친 짝)</span> : null}
+                            {넣을 && <div className="ja-putv">📥 {쉼(넣을.값, 3)} 넣음</div>}</td>
                         </tr>
                       )
                     })}</tbody>
@@ -1021,7 +1111,10 @@ export default function JeoksanAuto() {
         <div className="detail-h">알아 두실 것</div>
         <ul className="tl-p" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.85 }}>
           <li><b>모두 자동</b>: 도면을 넣으면 표·토공은 그대로, 레이어·블록은 <b>이름으로 뜻을 짐작</b>해(우수관·측구·경계석·포장·맨홀·집수정·가로등·수목…) 저절로 넣습니다. 치수·글자·도곽·중심선 같은 주석은 뺍니다. 뜻을 모르는 레이어는 ⑥ 에서 고릅니다.</li>
-          <li><b>내역 대조</b>: 내역서 줄마다 단위가 같고 이름이 닮은 도면 물량을 짝으로 붙이고 차이를 보입니다. <b>다름</b>이 나온 줄은 도면 근거와 내역을 맞춰 보십시오 — 설계변경 검토의 출발점입니다.</li>
+          <li><b>내역 대조</b>: 내역서 줄마다 단위가 같고 이름이 닮은 도면 물량을 짝으로 붙이고 차이를 보입니다. <b>다름</b>이 나온 줄은 도면 근거와 내역을 맞춰 보십시오 — 설계변경 검토의 출발점입니다.
+            골조는 이름이 아니라 <b>뜻</b>으로 짝을 짓습니다 — 레미콘은 강도(25-24-150 ↔ 25-24-15), 철근은 지름(HD13·SHD22), 철근가공조립은 철근 전체, 타설은 버림 빼고 콘크리트 전체, 거푸집은 규격·품명에 적힌 부재(슬라브·벽·기초…).</li>
+          <li><b>📥 내역서에 물량 넣기</b>: 짝이 <b>확실한</b> 줄만 받은 내역서의 수량 칸에 넣습니다(기본은 빈 칸만). 재료 줄(레미콘·철근)은 골조 할증(철근 3%·콘크리트 1% — 골조 화면에서 고침)을 넣은 값, 타설·가공조립은 할증 없이.
+            다른 칸·서식·수식·시트는 그대로이고, 넣은 칸은 노란 바탕 · 맨 뒤 «물량 넣은 곳» 시트에 줄마다 근거가 남습니다. 수량 칸이 수식이면 건드리지 않습니다.</li>
           <li><b>골조 자동</b>: «2층 구조평면도» 처럼 제목이 붙은 구조평면도와 <b>부재 일람표</b>(보·기둥·슬래브·벽·기초의 크기와 철근)가 있으면, 보는 기호 옆의 나란한 두 선을 기둥·걸친 보에서 끊어 한 칸씩, 슬래브는 보 가운데까지, 기둥·기초는 기호 개수로 셉니다. 층고는 «FL+3,600» 같은 글자로 — 없으면 3,300 으로 짐작하니 ② 골조에서 고치십시오. 철골 부재는 빼고 알려 드립니다.</li>
           <li><b>도면에 «적힌» 것을 옮깁니다.</b> 표의 칸·측점의 면적·부재 기호처럼 설계자가 적어 둔 것을 자리대로 읽습니다. 적혀 있지 않은 물량(예: 토목 구조물 콘크리트를 선으로만 그린 것)은 <Link to="/jeoksan/golgo">골조</Link>·<Link to="/jeoksan/magam">마감</Link>·<Link to="/jeoksan/run">수량산출서 만들기</Link>에서 도면을 눌러 잽니다.</li>
           <li><b>표 찾기</b>: 제목이 «~표» 이고 재료·수량·물량·자재·집계·철근·토공·일람·마감 같은 말이 든 표를 찾습니다. 머리(칸 이름) 아래 숫자 줄을 칸마다 옮기고, 〃(같음) 표시는 위 칸 값으로 채웁니다.</li>

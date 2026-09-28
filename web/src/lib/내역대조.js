@@ -60,10 +60,15 @@ function 시트읽기(시트, grid) {
     const row = grid[r] || []
     const nm = 글(row[칸.품명])
     const q = 수(row[칸.수량])
-    if (!nm || q === null) continue
+    const 단 = 칸.단위 >= 0 ? 글(row[칸.단위]) : ''
+    if (!nm) continue
+    /* 📥 2026-09-28 — 공내역서처럼 «수량 칸이 빈» 줄도 읽습니다(단위가 있는 줄만) → 도면 물량을 넣을 자리.
+       수량 칸에 글자(「별도」 등)가 있으면 건드리지 않습니다. */
+    const 빈 = q === null && 글(row[칸.수량]) === ''
+    if (q === null && !(빈 && 단 && 단위풀기(단).무리 && 단위풀기(단).무리 !== '식')) continue
     if (합계줄.test(붙(nm))) continue
     if (H_품명.test(붙(nm))) continue
-    줄.push({ 시트, 줄: r + 1, 품명: nm, 규격: 칸.규격 >= 0 ? 글(row[칸.규격]) : '', 단위: 칸.단위 >= 0 ? 글(row[칸.단위]) : '', 수량: q })
+    줄.push({ 시트, 줄: r + 1, 수량칸: 칸.수량, 품명: nm, 규격: 칸.규격 >= 0 ? 글(row[칸.규격]) : '', 단위: 단, 수량: q, 빈 })
   }
   return { 시트, 줄, 머리줄: h.i + 1, 칸 }
 }
@@ -171,7 +176,16 @@ function 규격말(s) {
   for (const m of t.matchAll(/[A-Z]{0,3}\d+(?:\.\d+)?/g)) out.add(m[0])
   return out
 }
-const 철근지름 = (s) => { const m = 붙(s).toUpperCase().match(/(?:^|[^A-Z])(?:D|HD|SD|H)(\d{2})(?!\d)/); return m ? 'D' + m[1] : '' }
+/* 🔩 SH22·SHD22·UHD25(고강도) 도 지름으로 읽음 (2026-09-28 — 실제 공내역서에 «철근 SH22» 가 있음) */
+export const 철근지름 = (s) => { const m = 붙(s).toUpperCase().match(/(?:^|[^A-Z])(?:SHD|UHD|SH|HD|SD|D|H)(\d{2})(?!\d)/); return m ? 'D' + m[1] : '' }
+/** 레미콘 규격 «25-24-150» · «25-30-15»(슬럼프 cm) · «25-240-15»(옛 kgf) → {골재, fck} */
+export function 콘크리트규격(s) {
+  const m = 붙(s).match(/(?:^|[^\d])(\d{2})-(\d{2,3})-(\d{2,3})(?!\d)/)
+  if (!m) return null
+  let fck = +m[2]
+  if (fck >= 100) fck = fck / 10
+  return { 골재: +m[1], fck }
+}
 
 /** 도면 줄 d 와 내역 줄 n 의 닮음 점수 (0~1) — 단위 무리가 다르면 0 */
 export function 점수(d, n) {
@@ -190,7 +204,17 @@ export function 점수(d, n) {
   const fd = 철근지름(d.규격 + ' ' + d.품명), fn = 철근지름(n.규격 + ' ' + n.품명)
   if (fd && fn && fd !== fn) s *= 0.15
   if (fd && fn && fd === fn && /철근/.test(다듬기(d.품명)) && /철근/.test(다듬기(n.품명))) s = Math.max(s, 0.9)
+  // 콘크리트는 강도(fck)가 달라서는 안 됨 (25-24-150 ↔ 25-30-15)
+  const cd = 콘크리트규격(d.규격 + ' ' + d.품명), cn = 콘크리트규격(n.규격 + ' ' + n.품명)
+  if (cd && cn && cd.fck !== cn.fck) s *= 0.15
   return Math.max(0, Math.min(1, s))
+}
+/** 규격 속 숫자가 둘 다 있는데 하나도 안 겹치나 (석고보드 9.5T ↔ 12.5T) — 이름만 같은 짝을 «확실» 로 두지 않게 */
+export function 규격어긋남(d, n) {
+  const a = 규격말(d.규격 || ''), b = 규격말(n.규격 || '')
+  if (!a.size || !b.size) return false
+  for (const x of a) if (b.has(x)) return false
+  return true
 }
 export const 문턱 = 0.42
 
@@ -201,27 +225,49 @@ export const 문턱 = 0.42
  * @param 고침 {내역id: 도면key | '' (짝 없음)}
  * @returns {줄:[{내역, 도면|null, 후보:[{key, 점수}], 점수, 도면수량(내역 단위), 차이, 율, 판정}], 남은도면:[도면 줄], 셈:{같음, 다름, 없음, 도면만}}
  */
-export function 대조(도면, 내역, 고침 = {}, 허용 = 1) {
+/**
+ * 📥 2026-09-28 — 소장님 「물량, 내역채우는 거 다 자동이 목표야」
+ *   · 규칙: Map(내역 id → {key|null, 믿음:'확실'|'약함', 까닭, 할증:boolean}) — 골조처럼 «뜻» 으로 짝을 짓는 것(lib/내역채움.js 골조짝)
+ *     규칙이 알아본 줄은 이름 닮음 대신 규칙을 따르고, 이름 닮음 후보에서 골조 줄(d.골)은 뺍니다(강도 다른 레미콘에 붙지 않게).
+ *   · 도면 줄에 대조전용:true 면(골조 합계처럼 내역 맞춤용) 이름 닮음 후보·«내역에 없는 도면 물량» 에서 뺍니다.
+ *   · 내역 수량이 빈 줄(공내역서) → 판정 «내역 수량 없음» (넣을 자리)
+ *   · 믿음: 사람이 고른 짝·규칙 «확실» · 이름이 거의 같고(닮음 0.75↑) 규격 숫자가 어긋나지 않음 → 확실, 나머지 → 약함
+ */
+export function 대조(도면, 내역, 고침 = {}, 허용 = 1, 규칙 = null) {
   const 표 = new Map(도면.map((d) => [d.key, d]))
   const 쓴 = new Set()
+  const 보통 = 도면.filter((d) => !d.대조전용)
+  const 골빼고 = 보통.filter((d) => !d.골)
   const 줄 = 내역.map((n) => {
-    const 후보 = 도면.map((d) => ({ key: d.key, 점수: 점수(d, n) })).filter((c) => c.점수 >= 0.25).sort((a, b) => b.점수 - a.점수).slice(0, 6)
+    const 규 = 규칙 ? 규칙.get(n.id) : null
+    const 고친짝 = Object.prototype.hasOwnProperty.call(고침, n.id)
+    let 후보 = (규 ? 골빼고 : 보통).map((d) => ({ key: d.key, 점수: 점수(d, n) })).filter((c) => c.점수 >= 0.25).sort((a, b) => b.점수 - a.점수).slice(0, 6)
+    if (규 && 규.key) 후보 = [{ key: 규.key, 점수: 1, 규칙: true }, ...후보.filter((c) => c.key !== 규.key)].slice(0, 6)
     let key = null
-    if (Object.prototype.hasOwnProperty.call(고침, n.id)) key = 고침[n.id] || null
+    if (고친짝) key = 고침[n.id] || null
+    else if (규 && 규.key) key = 규.key
     else if (후보.length && 후보[0].점수 >= 문턱) key = 후보[0].key
     const d = key ? 표.get(key) || null : null
-    if (!d) return { 내역: n, 도면: null, 후보, 점수: 0, 도면수량: null, 차이: null, 율: null, 판정: '도면에서 못 찾음', 고친짝: Object.prototype.hasOwnProperty.call(고침, n.id) }
+    if (!d) return { 내역: n, 도면: null, 후보, 점수: 0, 도면수량: null, 차이: null, 율: null, 판정: '도면에서 못 찾음', 고친짝, 믿음: '', 까닭: 규 && !규.key ? 규.까닭 || '' : '' }
     쓴.add(d.key)
     const ud = 단위풀기(d.단위), un = 단위풀기(n.단위)
-    const 도면수량 = ud.무리 === un.무리 ? d.수량 * ud.배 / un.배 : d.수량
-    const 차이 = 도면수량 - n.수량
-    const 율 = n.수량 ? 차이 / Math.abs(n.수량) * 100 : null
-    const 판정 = 율 !== null && Math.abs(율) <= 허용 ? '같음' : (차이 > 0 ? '도면이 많음' : '도면이 적음')
-    return { 내역: n, 도면: d, 후보, 점수: (후보.find((c) => c.key === d.key) || {}).점수 || 0, 도면수량, 차이, 율, 판정, 고친짝: Object.prototype.hasOwnProperty.call(고침, n.id) }
+    const 바꿈 = (v) => (ud.무리 === un.무리 ? v * ud.배 / un.배 : v)
+    const 도면수량 = 바꿈(d.수량)
+    const 빈 = n.수량 === null || n.수량 === undefined
+    const 차이 = 빈 ? null : 도면수량 - n.수량
+    const 율 = !빈 && n.수량 ? 차이 / Math.abs(n.수량) * 100 : null
+    const 판정 = 빈 ? '내역 수량 없음' : 율 !== null && Math.abs(율) <= 허용 ? '같음' : (차이 > 0 ? '도면이 많음' : '도면이 적음')
+    const 점 = (후보.find((c) => c.key === d.key) || {}).점수 || 0
+    const 규맞음 = 규 && 규.key === d.key
+    const 이름점 = 닮음(다듬기(d.품명), 다듬기(n.품명))
+    const 믿음 = 고친짝 ? '확실' : 규맞음 ? 규.믿음 : ((이름점 >= 0.75 || 점 >= 0.9) && 점 >= 문턱 && !규격어긋남(d, n) ? '확실' : '약함')
+    const 까닭 = 고친짝 ? '사람이 고른 짝' : 규맞음 ? 규.까닭 : (믿음 === '확실' ? '이름·규격이 같음' : '이름이 닮음 — 확인')
+    const 할증쓰기 = !!(규맞음 && 규.할증) && Number.isFinite(d.할증수량)
+    return { 내역: n, 도면: d, 후보, 점수: 점, 도면수량, 할증수량: 할증쓰기 ? 바꿈(d.할증수량) : null, 할증: 할증쓰기 ? d.할증 : 0, 차이, 율, 판정, 고친짝, 믿음, 까닭 }
   })
-  const 남은도면 = 도면.filter((d) => !쓴.has(d.key))
-  const 셈 = { 같음: 0, 다름: 0, 없음: 0, 도면만: 남은도면.length }
-  for (const r of 줄) { if (r.판정 === '같음') 셈.같음++; else if (r.도면) 셈.다름++; else 셈.없음++ }
+  const 남은도면 = 보통.filter((d) => !쓴.has(d.key))
+  const 셈 = { 같음: 0, 다름: 0, 없음: 0, 빈: 0, 도면만: 남은도면.length }
+  for (const r of 줄) { if (r.판정 === '같음') 셈.같음++; else if (r.판정 === '내역 수량 없음') 셈.빈++; else if (r.도면) 셈.다름++; else 셈.없음++ }
   return { 줄, 남은도면, 셈 }
 }
 
@@ -230,14 +276,15 @@ export function 대조시트(결과, 모양) {
   const rows = 결과.줄.map((r, i) => {
     const R = i + 2
     const n = r.내역, d = r.도면
-    return [i + 1, n.시트, n.줄, n.품명, n.규격, n.단위, { v: n.수량, st: 모양.QTY },
+    const 빈 = n.수량 === null || n.수량 === undefined
+    return [i + 1, n.시트, n.줄, n.품명, n.규격, n.단위, 빈 ? '' : { v: n.수량, st: 모양.QTY },
       d ? d.품명 : '', d ? d.규격 || '' : '', d ? { v: Math.round(r.도면수량 * 1e6) / 1e6, st: 모양.QTY } : '',
-      d ? { f: 'ROUND(J' + R + '-G' + R + ',3)', st: 모양.QTY } : '', d ? { f: 'IF(G' + R + '=0,"",ROUND((J' + R + '-G' + R + ')/ABS(G' + R + ')*100,2))', st: 모양.QTY } : '',
-      r.판정, d ? { v: (d.구분 ? d.구분 + ' · ' : '') + (d.근거 || ''), st: 모양.GRAY } : '']
+      d && !빈 ? { f: 'ROUND(J' + R + '-G' + R + ',3)', st: 모양.QTY } : '', d && !빈 ? { f: 'IF(G' + R + '=0,"",ROUND((J' + R + '-G' + R + ')/ABS(G' + R + ')*100,2))', st: 모양.QTY } : '',
+      r.판정, r.믿음 ? r.믿음 + (r.까닭 ? ' — ' + r.까닭 : '') : '', d ? { v: (d.구분 ? d.구분 + ' · ' : '') + (d.근거 || '') + (r.할증 ? ' · 재료 줄은 할증 ' + r.할증 + '% 넣은 값 ' + Math.round(r.할증수량 * 1000) / 1000 : ''), st: 모양.GRAY } : '']
   })
   const 남 = 결과.남은도면.map((d, i) => [i + 1, d.구분 || '', d.품명, d.규격 || '', d.단위, { v: Math.round(d.수량 * 1000) / 1000, st: 모양.QTY }, { v: d.근거 || '', st: 모양.GRAY }, d.도면 || ''])
   return [
-    { name: '내역 대조', head: ['번호', '내역 시트', '내역 줄', '내역 품명', '내역 규격', '단위', '내역 수량', '도면 품명', '도면 규격', '도면 수량', '차이(도면−내역)', '차이율(%)', '판정', '도면 근거'], rows, widths: [6, 12, 7, 24, 16, 6, 12, 22, 14, 12, 13, 10, 12, 50], freeze: 1 },
+    { name: '내역 대조', head: ['번호', '내역 시트', '내역 줄', '내역 품명', '내역 규격', '단위', '내역 수량', '도면 품명', '도면 규격', '도면 수량', '차이(도면−내역)', '차이율(%)', '판정', '짝 믿음', '도면 근거'], rows, widths: [6, 12, 7, 24, 16, 6, 12, 22, 14, 12, 13, 10, 12, 24, 50], freeze: 1 },
     { name: '내역에 없는 도면 물량', head: ['번호', '구분', '품명', '규격', '단위', '도면 수량', '근거', '도면'], rows: 남, widths: [6, 20, 24, 14, 6, 12, 50, 22], freeze: 1 },
   ]
 }
