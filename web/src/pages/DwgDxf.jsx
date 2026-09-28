@@ -9,24 +9,31 @@
  *         일꾼 lib/dwgdxf.worker.js · 다듬기 lib/dwgdxf.js — 둘 다 GPL-3.0, 화면 아래에서 소스를 받을 수 있게 했습니다.
  * ■ 2026-09-26 소장님 도면 8장(2000·2004·2013·2018 판)을 소장님 PC 의 AutoCAD 2023 으로 하나씩 열어 보며 다듬었습니다.
  *   엔진이 틀리게 쓰는 것 11가지를 찾아 dwgdxf.js «다듬기» 에서 바로잡습니다(자세한 것은 그 파일 머리말).
- * ■ 한 파일마다 일꾼을 새로 띄웁니다 — 엔진이 한 번 죽으면 다시 못 쓰기 때문(끝나면 terminate → 기억도 돌려받음).
+ * ■ 2026-09-28 — 일꾼 «하나» 를 돌려 씁니다(lib/dwg바꾸기.js). 엔진은 파일마다 일꾼 안에서 새로 만듭니다.
+ *   전에는 파일마다 일꾼을 새로 띄웠는데, 바로 이어 띄우면 4장째에서 멈췄습니다(그 파일 혼자는 5초).
  * ■ 받은 DXF 를 «도면 PDF 로» 바로 넘길 수 있습니다 → lib/도면넘김.js (같은 탭 안에서만, 저장하지 않음)
  */
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { 판읽기, dxf이름, 크기글 } from '../lib/dwgdxf.js'
 import { 도면넘기기 } from '../lib/도면넘김.js'
+import { DWG바꾸기, DWG일꾼내리기 } from '../lib/dwg바꾸기.js'
 
 import { use머무름 } from '../lib/길기록.js'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 const 큰파일 = 200 * 1024 * 1024
 let 번호 = 0
 
-function 오류글(k, more) {
+function 오류글(k, more, 판 = '') {
   if (k === 'isdxf') return <>이미 DXF 파일입니다 — 바꿀 필요가 없습니다. 도면 PDF 로 바로 만들려면 <Link to="/tools/dxfpdf">도면 PDF 만들기</Link> 로 가십시오.</>
   if (k === 'notdwg') return <>DWG 도면 파일이 아닌 것 같습니다. 캐드에서 저장한 .dwg 파일을 놓아 주십시오.</>
   if (k === 'big') return <>파일이 너무 큽니다(200MB 까지). 캐드에서 필요 없는 외부참조·레이어를 지우고(PURGE) 다시 저장해 보십시오.</>
   if (k === 'mem') return <>이 기기의 메모리가 모자랍니다. <b>PC 의 크롬·엣지</b>에서 해 주십시오(변환 엔진이 처음에 1GB 를 잡습니다).</>
+  if (k === 'timeout') return <>변환이 4분 넘게 멈춰 있어 그만뒀습니다. 이 도면만 따로 다시 넣어 보시고, 그래도 멈추면 캐드에서 «다른 이름으로 저장 → DXF» 로 저장해 주십시오.</>
+  /* 🔍 2026-09-28 — 소장님 도면 16장 시험: AutoCAD 2007 판 DWG 가운데 5장은 엔진이 속(물체·레이어)을 하나도 읽지 못했습니다(같은 2007 판 6장은 됨).
+     그런데 전에는 «아주 옛 판(R14 이전)» 이라고 틀리게 말했습니다. */
+  if (String(판) === '2007') return <>이 도면은 바꾸지 못했습니다{more ? ` (${more})` : ''}. <b>AutoCAD 2007 판 DWG 가운데 일부</b>는 공개 변환 엔진이 속을 읽지 못합니다.
+    캐드에서 이 도면만 <b>«다른 이름으로 저장 → DXF»</b> 로 저장해 쓰시는 것이 가장 확실합니다.</>
   return <>이 도면은 바꾸지 못했습니다{more ? ` (${more})` : ''}. 아주 옛 판(R14 이전)이거나 캐드가 아닌 프로그램이 만든 DWG 일 수 있습니다.
     캐드가 있으시면 «다른 이름으로 저장 → DXF» 가 가장 확실합니다.</>
 }
@@ -38,7 +45,6 @@ export default function DwgDxf() {
   const [목록, set목록] = use머무름('dwgdxf.목록', [], (L) => L.map((x) => (x.상태 === '중' || x.상태 === '대기' ? { ...x, 상태: '실패', 오류: '바꾸는 중에 화면을 떠나 멈췄습니다 — 다시 넣어 주십시오' } : x)))   // { id, 이름, 크기, 판, 상태:'대기'|'중'|'끝'|'실패', p, msg, 초, dxf?:Blob, info, 오류 }
   const 목록Ref = useRef(목록)   // 되살린 목록에서 이어 붙임(빈 배열로 두면 새 파일을 넣을 때 앞 목록이 사라짐)
   const 일중 = useRef(false)
-  const 일꾼 = useRef(null)
   const 시계 = useRef(null)
   const 넘길곳 = useNavigate()
 
@@ -47,11 +53,13 @@ export default function DwgDxf() {
     set목록(목록Ref.current)
   }
 
-  useEffect(() => () => { if (일꾼.current) 일꾼.current.terminate(); clearInterval(시계.current) }, [])
+  /* 화면을 떠나면 도는 변환을 멈춥니다(돌아오면 «다시 넣어 주세요» — 위 use머무름) */
+  const 떠남 = useRef(false)
+  useEffect(() => { 떠남.current = false; return () => { 떠남.current = true; if (일중.current) DWG일꾼내리기(); clearInterval(시계.current) } }, [])
 
   /* 차례로 하나씩 — 큰 도면 여러 장을 한꺼번에 돌리면 메모리가 모자랍니다 */
   const 다음 = () => {
-    if (일중.current) return
+    if (일중.current || 떠남.current) return
     const 할 = 목록Ref.current.find((x) => x.상태 === '대기')
     if (!할) return
     일중.current = true
@@ -61,23 +69,16 @@ export default function DwgDxf() {
     시계.current = setInterval(() => 고치기(할.id, { 초: Math.round((Date.now() - t0) / 1000) }), 1000)
     const 끝내기 = (바꿀) => {
       clearInterval(시계.current)
-      if (일꾼.current) { 일꾼.current.terminate(); 일꾼.current = null }
+      if (떠남.current) return
       고치기(할.id, { ...바꿀, 초: Math.round((Date.now() - t0) / 1000) })
       일중.current = false
       setTimeout(다음, 0)
     }
-    할.파일.arrayBuffer().then((buf) => {
-      const w = new Worker(new URL('../lib/dwgdxf.worker.js', import.meta.url), { type: 'module' })
-      일꾼.current = w
-      w.onmessage = (ev) => {
-        const m = ev.data || {}
-        if (m.type === 'prog') 고치기(할.id, { p: m.p, msg: m.msg })
-        else if (m.type === 'err') 끝내기({ 상태: '실패', 오류: m.kind, 더: m.msg })
-        else if (m.type === 'done') 끝내기({ 상태: '끝', dxf: new Blob([m.dxf], { type: 'application/dxf' }), info: m.info })
-      }
-      w.onerror = (e) => 끝내기({ 상태: '실패', 오류: 'fail', 더: String((e && e.message) || '일꾼 오류') })
-      w.postMessage({ type: 'conv', buf, name: 할.이름 }, [buf])
-    }).catch((e) => 끝내기({ 상태: '실패', 오류: 'fail', 더: String(e && e.message) }))
+    /* 🔁 2026-09-28 — 일꾼 하나를 돌려 씁니다(lib/dwg바꾸기.js). 파일마다 새로 띄우면 4장째에서 «변환 엔진 준비» 로 멈췄습니다. */
+    할.파일.arrayBuffer()
+      .then((buf) => DWG바꾸기(buf, 할.이름, (m) => 고치기(할.id, { p: m.p, msg: m.msg })))
+      .then((r) => 끝내기({ 상태: '끝', dxf: new Blob([r.dxf], { type: 'application/dxf' }), info: r.info }))
+      .catch((e) => 끝내기({ 상태: '실패', 오류: (e && e.kind) || 'fail', 더: String((e && e.message) || '') }))
   }
 
   const 받기 = async (list) => {
@@ -183,7 +184,7 @@ export default function DwgDxf() {
                     )}
                   </div>
                 )}
-                {x.상태 === '실패' && <div className="dx3-err">{오류글(x.오류, x.더)}</div>}
+                {x.상태 === '실패' && <div className="dx3-err">{오류글(x.오류, x.더, x.판)}</div>}
               </div>
             ))}
             {된수 > 1 && (

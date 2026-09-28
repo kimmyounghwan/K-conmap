@@ -243,9 +243,14 @@ export function parseDxf(text, onProgress, opt = {}) {
   const P = (M, x, y, z) => M === I3 ? [x, y, z]
     : [M[0] * x + M[1] * y + M[2] * z + M[3], M[4] * x + M[5] * y + M[6] * z + M[7], M[8] * x + M[9] * y + M[10] * z + M[11]]
 
+  /* 🧪 2026-09-28 — AutoCAD 2007 판 DWG 가운데 엔진이 반쯤 읽은 도면은 좌표에 -5.5E+298 같은 «쓰레기 값» 이 섞여 나옵니다.
+     유한한 수라 걸러지지 않고 Float32 로 옮길 때 무한대가 되어 화면 맞추기가 깨지고 «까만 화면» 이 됐습니다(선 7천 개가 다 안 보임).
+     → 1조(10¹²) 넘는 좌표는 버립니다. 실제 좌표(TM·UTM, mm 로 그려도 10⁹~10¹⁰)는 한참 아래입니다. */
+  const 멀다 = (a) => !(Math.abs(a[0]) < 1e12 && Math.abs(a[1]) < 1e12 && Math.abs(a[2]) < 1e12)
   function seg(b, a, c, rgb) {
     if (stats.segs >= MAX) { stats.capped = true; return }
     if (!(Number.isFinite(a[0] + a[1] + a[2] + c[0] + c[1] + c[2]))) return
+    if (멀다(a) || 멀다(c)) { stats.먼값 = (stats.먼값 || 0) + 1; return }
     b.pos.push6(a[0], a[1], a[2], c[0], c[1], c[2])
     b.col.push3(rgb[0], rgb[1], rgb[2]); b.col.push3(rgb[0], rgb[1], rgb[2])
     stats.segs++
@@ -325,6 +330,7 @@ export function parseDxf(text, onProgress, opt = {}) {
       }
       case 'POINT': {
         const w = P(M, g1(g, 10), g1(g, 20), g1(g, 30))
+        if (!Number.isFinite(w[0] + w[1] + w[2]) || 멀다(w)) return
         const bb = b(); bb.pts.push3(w[0], w[1], w[2]); bb.pcol.push3(rgb[0], rgb[1], rgb[2]); stats.pts++
         return
       }

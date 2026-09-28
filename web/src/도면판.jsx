@@ -13,6 +13,7 @@ import { 찾기판, 가까운도형, 도형글자, 단위배율, 종류, 종류�
 import { 길만들기, 그리기, 전체보기, 조각표만들기, 가까운점 } from './lib/골조그림.js'
 import { loadFont, FONT } from './lib/plotview.js'
 import * as 기억 from './lib/기억자료.js'
+import { DWG바꾸기 } from './lib/dwg바꾸기.js'
 
 export const 큰파일 = 200 * 1024 * 1024
 const 쉼 = (n, d = 0) => new Intl.NumberFormat('ko-KR', { maximumFractionDigits: d, minimumFractionDigits: d }).format(n || 0)
@@ -36,17 +37,12 @@ export async function 도면읽어오기(buf, name, 알려 = () => {}, 사본남
   let dxf = buf
   if (/^AC10\d\d/.test(머리)) {
     알려({ msg: 'DWG → DXF 바꾸는 중 (큰 도면은 30초~1분)', p: 0.1 })
-    dxf = await new Promise((되면, 탈) => {
-      const w = new Worker(new URL('./lib/dwgdxf.worker.js', import.meta.url), { type: 'module' })
-      w.onmessage = (ev) => {
-        const d = ev.data || {}
-        if (d.type === 'prog') 알려({ msg: 'DWG → DXF: ' + (d.msg || ''), p: d.p || 0 })
-        if (d.type === 'done') { w.terminate(); 되면(d.dxf) }
-        if (d.type === 'err') { w.terminate(); 탈(Object.assign(new Error(d.msg || d.kind), { kind: d.kind === 'mem' ? 'mem' : 'fail' })) }
-      }
-      w.onerror = (e) => { w.terminate(); 탈(Object.assign(new Error(e.message || 'DWG 바꾸기 실패'), { kind: 'fail' })) }
-      w.postMessage({ type: 'conv', buf, name }, [buf])
-    })
+    /* 🔁 2026-09-28 — 일꾼 하나를 돌려 씁니다(lib/dwg바꾸기.js) — 도면 여러 장을 이어 넣어도 멈추지 않게 */
+    try {
+      dxf = (await DWG바꾸기(buf, name, (d) => 알려({ msg: 'DWG → DXF: ' + (d.msg || ''), p: d.p || 0 }))).dxf
+    } catch (e) {
+      throw Object.assign(new Error((e && e.message) || 'DWG 바꾸기 실패'), { kind: e && e.kind === 'mem' ? 'mem' : 'fail' })
+    }
   }
   const 사본 = 사본남김 ? dxf.slice(0) : null
   const 모델 = await new Promise((되면, 탈) => {

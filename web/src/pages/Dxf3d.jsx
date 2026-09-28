@@ -16,6 +16,7 @@ import { fitBox } from '../lib/dxf3d.js'
 import { LineView } from '../lib/gl3d.js'
 
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
+import { DWG바꾸기 } from '../lib/dwg바꾸기.js'
 /* 🧪 2026-09-26 — 소장님: 「각각의 도구별로 예시가 하나씩 있어야 하지 않아. 그래야 사람들이 보고 해보지」
    예시 도면은 제가 새로 그린 «가상의 건물·언덕» 입니다(남의 공사 도면이 아닙니다). public/tools/files/ex-*.dxf */
 const 예시들 = [
@@ -88,25 +89,16 @@ export default function Dxf3d() {
     if (fs.some((f) => f.size > 큰파일) || fs.reduce((n, f) => n + f.size, 0) > 모두합) { set상태({ k: 'err', msg: 'big' }); return }
     set상태({ k: 'busy', p: 0, msg: '파일 여는 중' })
     const files = []
-    let 못바꾼 = 0
+    const 못바꾼 = []
     for (const f of fs) {
       let buf = await f.arrayBuffer()
       const 머리 = String.fromCharCode(...new Uint8Array(buf.slice(0, 6)))
       if (/^AC10\d\d/.test(머리)) {
         set상태({ k: 'busy', p: 0.02, msg: `${f.name} — DWG 를 DXF 로 바꾸는 중 (큰 도면은 30초~1분)` })
+        /* 🔁 2026-09-28 — 일꾼 하나를 돌려 씁니다(lib/dwg바꾸기.js). 파일마다 새로 띄우면 4장째에서 멈췄습니다. */
         try {
-          buf = await new Promise((되면, 탈) => {
-            const w = new Worker(new URL('../lib/dwgdxf.worker.js', import.meta.url), { type: 'module' })
-            w.onmessage = (ev) => {
-              const d = ev.data || {}
-              if (d.type === 'prog') set상태({ k: 'busy', p: (d.p || 0) * 0.3, msg: `${f.name} — DWG → DXF: ${d.msg || ''}` })
-              if (d.type === 'done') { w.terminate(); 되면(d.dxf) }
-              if (d.type === 'err') { w.terminate(); 탈(new Error(d.msg || d.kind)) }
-            }
-            w.onerror = (e) => { w.terminate(); 탈(new Error(e.message || 'DWG')) }
-            w.postMessage({ type: 'conv', buf, name: f.name }, [buf])
-          })
-        } catch (e) { 못바꾼++; continue }
+          buf = (await DWG바꾸기(buf, f.name, (d) => set상태({ k: 'busy', p: (d.p || 0) * 0.3, msg: `${f.name} — DWG → DXF: ${d.msg || ''}` }))).dxf
+        } catch (e) { 못바꾼.push(f.name); continue }
       }
       files.push({ name: f.name.replace(/\.dwg$/i, '.dxf'), buf })
     }
@@ -114,14 +106,15 @@ export default function Dxf3d() {
     if (workRef.current) workRef.current.terminate()
     const w = new Worker(new URL('../lib/dxf3d.worker.js', import.meta.url), { type: 'module' })
     workRef.current = w
-    const dwg수 = 못바꾼
+    const dwg수 = 못바꾼.length
+    const dwg이름 = 못바꾼
     w.onmessage = (ev) => {
       const m = ev.data
       if (m.type === 'prog') set상태({ k: 'busy', p: m.p, msg: m.msg })
       else if (m.type === 'err') { set상태({ k: 'err', msg: m.kind, more: m.msg }); w.terminate() }
       else if (m.type === 'done') {
         w.terminate(); workRef.current = null
-        보이기(m.r, dwg수)
+        보이기(m.r, dwg수, null, dwg이름)
       }
     }
     w.onerror = (e) => set상태({ k: 'err', msg: 'fail', more: String(e.message || '') })
@@ -142,8 +135,8 @@ export default function Dxf3d() {
     } catch (e) { set상태({ k: 'err', msg: 'fail', more: '예시 도면을 받지 못했습니다 — 잠시 뒤 다시 눌러 주십시오' }) }
   }
 
-  const 보이기 = (r, dwg수, 되살림 = null) => {
-    남은 = { r, dwg수, 파일이름: 되살림 ? 되살림.파일이름 : 파일이름, 예시글: 되살림 ? 되살림.예시글 : 예시글 }
+  const 보이기 = (r, dwg수, 되살림 = null, dwg이름 = (되살림 && 되살림.dwg이름) || []) => {
+    남은 = { r, dwg수, dwg이름, 파일이름: 되살림 ? 되살림.파일이름 : 파일이름, 예시글: 되살림 ? 되살림.예시글 : 예시글 }
     const 레 = {}
     for (const l of r.layers) 레[l.ly] = (레[l.ly] ?? false) || !l.off
     if (!Object.values(레).some(Boolean)) for (const k of Object.keys(레)) 레[k] = true
@@ -157,7 +150,7 @@ export default function Dxf3d() {
     set결과({
       layers: r.layers.map((l) => ({ name: l.name, floor: l.floor, ly: l.ly, rgb: l.rgb, off: l.off, segs: l.segs,
         pts: l.pts.length / 3, box: l.box, smp: l.smp, tri: l.tri ? l.tri.length / 9 : 0 })),
-      stats: r.stats, zr: r.zr, c: r.center, 건물: r.건물, 횡단: r.횡단 || null, 파일: r.파일, 못읽은: r.못읽은 || [], dwg수,
+      stats: r.stats, zr: r.zr, c: r.center, 건물: r.건물, 횡단: r.횡단 || null, 파일: r.파일, 못읽은: r.못읽은 || [], dwg수, dwg이름,
       구조: r.구조 || null, 그룹: r.그룹 || [],
     })
     set맞춤(null); set맞춤글('')
@@ -509,7 +502,8 @@ export default function Dxf3d() {
         )}
         {결과 && (결과.dwg수 > 0 || 결과.못읽은.length > 0) && (
           <div className="dx3-skip">
-            {결과.dwg수 > 0 && <>DWG {결과.dwg수}장은 DXF 로 바꾸지 못해 뺐습니다(<Link to="/tools/dwgdxf">DWG → DXF 바꾸기</Link> 에서 이유를 볼 수 있습니다). </>}
+            {결과.dwg수 > 0 && <>⚠️ DWG {결과.dwg수}장은 이 브라우저의 변환 엔진이 읽지 못해 뺐습니다{결과.dwg이름 && 결과.dwg이름.length ? <>: <b>{결과.dwg이름.join(' · ')}</b></> : null}.
+              {' '}캐드에서 그 도면만 <b>«다른 이름으로 저장 → DXF»</b> 로 저장해 나머지와 <b>같이</b> 놓으시면 한 화면에 섭니다(DXF 는 섞어 넣어도 됩니다). </>}
             {결과.못읽은.length > 0 && <>못 읽은 파일: {결과.못읽은.map((x) => x.이름).join(', ')}</>}
           </div>
         )}
