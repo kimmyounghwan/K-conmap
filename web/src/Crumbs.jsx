@@ -63,6 +63,8 @@ const LEAF = {
   '/tools/dxfpdf': '도면 PDF 만들기',
   '/tools/dwgdxf': 'DWG → DXF 바꾸기',
   '/tools/tuipbi': '현장 투입비 · 공사일보',
+  '/tools/equip': '장비 임대료·수금 장부',
+  '/tools/risk': '위험성평가 (별지 1~5)',
   '/tools/wonclick': '공사서류 원클릭',
   '/report/make': '성적표 만들기',
   '/naeyeok/ratio': '내역서 비율 맞추기',

@@ -4546,3 +4546,193 @@ span.qna-like { cursor: default; }
   .il-쪽 .il-t tr { break-inside: avoid; page-break-inside: avoid; }
 }
 .gg-draw { scroll-margin-top: 70px; }
+/* 🚜 2026-09-29 /tools/equip 장비 임대료·수금 장부 (pages/EquipBook.jsx) — 청구서는 A4 세로(#gp-인쇄 · .eq-쪽) */
+.eq .err, .eq-err { color: #b91c1c; font-size: 13.5px; font-weight: 600; }
+.eq .card.err { border-color: #e0a3a3; background: #fef2f2; }
+.eq .err.sm { font-size: 12px; margin-top: 4px; }
+.eq-ok { font-size: 13px; color: #065f46; background: #ecfdf5; border-color: #a7f3d0; }
+.eq-head { display: flex; align-items: center; gap: 10px; }
+.eq-head .grow { flex: 1; min-width: 0; }
+.eq-head .d { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.eq-name { font-size: 17px; font-weight: 800; }
+.eq-tabs { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 10px; scrollbar-width: thin; }
+.eq-tabs button { flex: none; border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 999px; padding: 7px 13px; font-size: 13.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.eq-tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.eq-2, .eq-3, .eq-4 { display: grid; gap: 0 10px; }
+.eq-2 { grid-template-columns: 1fr 1fr; }
+.eq-3 { grid-template-columns: 1fr 1fr 1fr; }
+.eq-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.eq .field input, .eq .field select { width: 100%; }
+.eq-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.eq-bar select, .eq-bar input { width: auto; }
+.eq-bar .btn { width: auto; }
+.eq-chk { display: inline-flex; gap: 5px; align-items: center; font-size: 13px; color: var(--text-2); }
+.eq-chk input { width: auto; }
+.eq-seg { display: flex; gap: 6px; }
+.eq-seg button { flex: 1; border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 9px; padding: 8px 6px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.eq-seg button small { display: block; font-weight: 500; font-size: 11px; color: var(--muted); }
+.eq-seg button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.eq-seg button.on small { color: #e0e7ff; }
+.eq-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.eq-t { min-width: 520px; }
+.eq-t td .d { font-size: 11px; color: var(--muted); }
+.eq-t .eq-sum td { font-weight: 800; border-top: 2px solid var(--line); }
+.eq-list td:first-child { white-space: nowrap; }
+.eq-act { white-space: nowrap; }
+.eq-act .btn { padding: 4px 8px; font-size: 12px; }
+.eq-red { color: #dc2626; }
+.eq-code { font-family: ui-monospace, monospace; font-size: 26px; font-weight: 800; letter-spacing: 3px; padding: 10px 0; }
+.eq-rowbtn { width: 100%; background: none; border: 0; border-bottom: 1px solid var(--line-soft); text-align: left; cursor: pointer; color: var(--text); }
+.eq .linklike { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; text-decoration: underline; }
+.eq-paperwrap { overflow-x: auto; background: var(--surface-2); }
+.eq-paper { background: #fff; color: #111827; max-width: 760px; margin: 0 auto; padding: 24px 26px; font-size: 12.5px; box-shadow: 0 1px 6px rgba(0,0,0,.12); min-width: 600px; }
+.eq-p-title { text-align: center; font-size: 26px; font-weight: 800; letter-spacing: 14px; margin-bottom: 14px; }
+.eq-p-top { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; margin-bottom: 12px; }
+.eq-p-dt { font-size: 12px; margin-bottom: 8px; }
+.eq-p-cl { font-size: 17px; border-bottom: 1.5px solid #111827; padding-bottom: 3px; margin-bottom: 6px; }
+.eq-p-s { font-size: 12px; color: #374151; margin-top: 3px; }
+.eq-p-amt { font-size: 14px; margin-top: 8px; padding: 6px 8px; border: 1.5px solid #111827; }
+.eq-p-amt b { font-size: 16px; }
+.eq-p-amt span { display: block; font-size: 11.5px; color: #374151; margin-top: 2px; }
+.eq-p-me { width: 100%; border-collapse: collapse; }
+.eq-p-me th, .eq-p-me td { border: 1px solid #9ca3af; padding: 4px 6px; font-size: 11.5px; text-align: left; }
+.eq-p-me th { background: #f3f4f6; width: 76px; white-space: nowrap; font-weight: 700; }
+.eq-p-in { float: right; color: #6b7280; }
+.eq-p-t, .eq-p-sum { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+.eq-p-t th, .eq-p-t td, .eq-p-sum th, .eq-p-sum td { border: 1px solid #9ca3af; padding: 3px 5px; font-size: 11px; text-align: center; }
+.eq-p-t th, .eq-p-sum th { background: #f3f4f6; font-weight: 700; white-space: nowrap; }
+.eq-p-t td.r, .eq-p-sum td { text-align: right; font-variant-numeric: tabular-nums; }
+.eq-p-t td.l { text-align: left; }
+.eq-p-sum tr.tot th, .eq-p-sum tr.tot td { font-size: 13px; font-weight: 800; background: #eef2ff; }
+.eq-p-foot { font-size: 11.5px; line-height: 1.7; }
+.eq-p-foot .muted { color: #6b7280; font-size: 10.5px; }
+.eq-p-kc { text-align: right; color: #9ca3af; font-size: 10px; margin-top: 6px; }
+@media (max-width: 640px) {
+  .eq-3, .eq-4 { grid-template-columns: 1fr 1fr; }
+  .eq-code { font-size: 22px; }
+}
+@page eq세로 { size: A4 portrait; margin: 12mm 12mm; }
+@media print {
+  .eq-쪽 { page: eq세로; break-after: page; }
+  .eq-쪽:last-child { break-after: auto; }
+  .eq-쪽 .eq-paper { box-shadow: none; max-width: none; min-width: 0; padding: 0; }
+  .eq-쪽 .eq-p-t th, .eq-쪽 .eq-p-sum th, .eq-쪽 .eq-p-me th, .eq-쪽 .eq-p-sum tr.tot td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .eq-쪽 .eq-p-t tr { break-inside: avoid; }
+}
+/* ⚠️ 2026-09-29 /tools/risk 위험성평가 (pages/RiskBook.jsx · tools/위험성종이.jsx) — 문간·탭은 «eq-» 를 같이 씀 · 종이는 서식 wih-* 와 같은 칸 */
+.rk-kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+.rk-kind { display: grid; gap: 2px; text-align: left; border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 11px; padding: 10px 12px; cursor: pointer; }
+.rk-kind:hover { border-color: var(--accent); }
+.rk-kind .b { font-size: 11px; font-weight: 800; color: var(--accent); }
+.rk-kind b { font-size: 14px; }
+.rk-kind .d { font-size: 11.5px; color: var(--muted); }
+.rk-open { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; color: var(--text); min-width: 0; }
+.rk-open .t { white-space: normal; }
+.rk-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.rk-chips button { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 999px; padding: 5px 11px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.rk-chips button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.rk-lib { border-top: 1px dashed var(--line); padding: 8px 0; font-size: 13px; }
+.rk-lib .h { margin-top: 3px; }
+.rk-lib .m { margin-top: 3px; white-space: pre-line; color: var(--text-2); font-size: 12.5px; }
+.rk-g { display: inline-block; font-size: 11.5px; font-weight: 800; border-radius: 6px; padding: 1px 6px; background: var(--surface-2); color: var(--text-2); }
+.rk-g.g-상 { background: #fee2e2; color: #b91c1c; }
+.rk-g.g-중 { background: #fef3c7; color: #92400e; }
+.rk-g.g-하 { background: #dcfce7; color: #166534; }
+.rk-edit-head { display: flex; align-items: center; gap: 10px; }
+.rk-edit-head .grow { flex: 1; min-width: 0; }
+.rk-edit-head .d { font-size: 12px; color: var(--muted); }
+.rk-line { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.rk-line input { flex: 1; min-width: 0; }
+.rk-line .btn { flex: none; }
+.rk-pics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.rk-pic { border: 1px dashed var(--line); border-radius: 10px; padding: 8px; display: grid; gap: 6px; justify-items: center; min-height: 120px; align-content: center; }
+.rk-pic img { max-width: 100%; max-height: 200px; border-radius: 6px; }
+.rk-pic label.btn { cursor: pointer; }
+.rk-row { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px 2px; margin-bottom: 10px; background: var(--surface); }
+.rk-row-h { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.rk-row-h .grow { flex: 1; }
+.rk-row-h .btn { padding: 4px 9px; font-size: 12px; }
+.rk-row textarea { min-height: 0; }
+.rk-fs { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 0 10px; }
+.rk-days { display: flex; flex-wrap: wrap; gap: 4px; }
+.rk-day { width: 44px; border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 8px; padding: 3px 0 4px; font-size: 15px; font-weight: 800; cursor: pointer; display: grid; line-height: 1.2; }
+.rk-day small { font-size: 10px; font-weight: 600; color: var(--muted); }
+.rk-day.vo { background: #dcfce7; border-color: #86efac; color: #166534; }
+.rk-day.vx { background: #fee2e2; border-color: #fca5a5; color: #b91c1c; }
+.rk-day.vn { background: var(--surface-2); color: var(--muted); }
+.rk-panel { border: 1px solid var(--accent); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; background: var(--accent-soft, var(--surface-2)); }
+.rk-pick { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; font-size: 13px; border-top: 1px dashed var(--line); cursor: pointer; }
+.rk-pick input { width: auto; margin-top: 3px; }
+.rk-preview { overflow-x: auto; background: var(--surface-2); padding: 10px; border-radius: 10px; margin-top: 8px; }
+@media (max-width: 640px) {
+  .rk-fs { grid-template-columns: 1fr 1fr; }
+  .rk-fs .field:first-child { grid-column: 1 / 3; }
+  .rk-pics { grid-template-columns: 1fr; }
+  .rk-edit-head .btn.sm { padding: 6px 9px; }
+}
+/* 종이 */
+.rk-paper { background: #fff; color: #111; margin: 0 auto; padding: 16px 18px; box-shadow: 0 1px 6px rgba(0,0,0,.12); font-family: 'Malgun Gothic', '맑은 고딕', 'Noto Sans KR', sans-serif; }
+.rk-paper.land { width: 1080px; }
+.rk-paper.port { width: 740px; }
+.rk-top { font-weight: 800; font-size: 11pt; margin-bottom: 3px; }
+.rk-top.sm { font-weight: 400; font-size: 9pt; }
+.rk-t { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.rk-c { border: 1px solid #000; padding: 2px 3px; font-size: 8.5pt; text-align: center; vertical-align: middle; white-space: pre-line; word-break: keep-all; overflow-wrap: anywhere; line-height: 1.35; }
+.rk-c.no { border: 0; padding: 0; }
+.rk-c.l { text-align: left; }
+.rk-c.top { vertical-align: top; }
+.rk-c.hd { font-weight: 800; background: #fff; }
+.rk-c.red { color: #c00000; }
+.rk-c.gray { background: #ededed; }
+.rk-c.sm { font-size: 7.5pt; }
+.rk-c.xs { font-size: 6.8pt; }
+.rk-c.b { font-weight: 800; }
+.rk-c.ttl { font-size: 15pt; font-weight: 800; line-height: 1.35; }
+.rk-c.on { background: #eef2ff; }
+.rk-c.g-상 { color: #c00000; }
+.rk-hint { font-weight: 400; font-size: 6.8pt; }
+.rk-gap td { height: 6px; }
+.rk-foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 4px; font-size: 8.5pt; }
+.rk-kc { color: #9ca3af; font-size: 7.5pt; white-space: nowrap; }
+.rk-bigttl { text-align: center; font-size: 18pt; font-weight: 800; margin: 8px 0 12px; letter-spacing: 1px; }
+.rk-sec { font-weight: 800; font-size: 11pt; margin: 12px 0 4px; }
+.rk-box { border: 1px solid #000; padding: 6px 10px; font-size: 10pt; line-height: 1.8; min-height: 60px; }
+.rk-photo { border: 1px solid #000; height: 300px; margin-top: 14px; display: flex; gap: 8px; align-items: center; justify-content: center; padding: 6px; }
+.rk-photo.empty { color: #808080; font-size: 10pt; }
+.rk-photo img { max-height: 100%; max-width: calc(50% - 4px); object-fit: contain; }
+.rk-photo img:only-child { max-width: 100%; }
+@page rk가로 { size: A4 landscape; margin: 8mm; }
+@page rk세로 { size: A4 portrait; margin: 12mm 12mm; }
+@media print {
+  .rk-쪽.land { page: rk가로; }
+  .rk-쪽.port { page: rk세로; }
+  .rk-쪽 .rk-paper { box-shadow: none; width: auto; padding: 0; }
+  .rk-쪽 .rk-c.gray, .rk-쪽 .rk-c.on { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rk-쪽 .rk-t tr { break-inside: avoid; page-break-inside: avoid; }
+  .rk-쪽 .rk-photo { height: 88mm; }
+}
+/* 🧰 2026-09-29 서식 페이지 «사이트에서 바로 쓰기» 카드 (Forms.jsx 프로그램카드 · prerender.py 도 같은 모양) */
+a.card.fprog { display: block; text-decoration: none; color: var(--text); border: 1.5px solid var(--accent); background: var(--accent-soft, var(--surface)); position: relative; }
+a.card.fprog .k { font-size: 11.5px; font-weight: 800; color: var(--accent); }
+a.card.fprog .t { font-size: 15px; font-weight: 800; margin-top: 3px; }
+a.card.fprog .d { font-size: 12.5px; color: var(--text-2); margin-top: 4px; line-height: 1.6; }
+a.card.fprog .go { display: inline-block; margin-top: 8px; font-size: 13px; font-weight: 800; color: var(--accent); }
+.rk-c.ttl .rk-sub { font-size: 11.5pt; }
+/* 👋🙏 2026-09-29 방문 인사 쪽지 (인사.jsx) — 떠 있다가 5초 뒤 사라짐 · bottom 은 화면이 탭 막대 높이로 정함 */
+.insa { position: fixed; left: 50%; transform: translateX(-50%); z-index: 60; display: flex; align-items: center; gap: 10px;
+  width: max-content; max-width: calc(100vw - 32px); padding: 11px 12px 11px 16px; border-radius: 14px;
+  background: var(--surface); color: var(--text); border: 1px solid var(--line); box-shadow: 0 8px 28px rgba(15, 23, 42, .18);
+  animation: insa-in .35s ease-out both; }
+.insa.first { border-color: var(--accent); }
+.insa.out { animation: insa-out .5s ease-in both; }
+.insa-t { display: grid; gap: 2px; min-width: 0; }
+.insa-t b { font-size: 15px; font-weight: 800; }
+.insa-t span { font-size: 12.5px; color: var(--text-2); line-height: 1.5; }
+.insa-x { flex: none; background: none; border: 0; color: var(--muted); font-size: 15px; cursor: pointer; padding: 4px 6px; }
+@keyframes insa-in { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes insa-out { from { opacity: 1; } to { opacity: 0; transform: translate(-50%, 8px); } }
+@media (prefers-reduced-motion: reduce) { .insa, .insa.out { animation: none; } }
+@media print { .insa { display: none !important; } }
+/* 🧹 2026-09-29 사랑방 — 옛 말머리 딱지(질문·공동도급…) · ✅ K-건설맵 답변 딱지 (Qna.jsx) */
+.qna-old { font-size: 11px; font-weight: 600; color: var(--muted); border: 1px dashed var(--line); border-radius: 6px; padding: 1px 6px; flex: none; }
+.qna-opok { font-size: 11.5px; font-weight: 700; color: var(--good); background: var(--good-soft); border-radius: 999px; padding: 2px 8px; flex: none; }

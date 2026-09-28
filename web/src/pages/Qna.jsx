@@ -91,7 +91,7 @@ export function 점수셈(글들, 답들, 좋아요, 답좋아요, 달) {
   return m
 }
 /* 📖 공지 판 — 공지(활용 방법·보상)를 고치면 이 글자를 바꾸십시오. 처음 온 기기와 «바뀐 판» 에서만 한 번 펼쳐집니다(소장님 고르심). */
-const 공지판 = '2026-09-27b'
+const 공지판 = '2026-09-29'      /* 🧹 말머리를 «후기·건의 · K-건설맵» 둘로 줄인 판 — 한 번 다시 펼쳐 알립니다 */
 const 공지열쇠 = 'kcm.qna.공지판'
 
 /* 🔑 운영자 브라우저 — 답글에 「K-건설맵 답변」 표가 붙는 곳. (2026-09-17)
@@ -163,7 +163,9 @@ export default function Qna() {
   const [나운영자, set나운영자] = useState(false)
   const [onlyMine, setOnlyMine] = useState(false)
   const [q, setQ] = use남김('kcm.qna.찾기', '', 'session')
-  const [갈래, set갈래] = use남김('kcm.qna.갈래', '전체', 'session')
+  const [갈래기억, set갈래] = use남김('kcm.qna.갈래', '전체', 'session')
+  /* 🧹 2026-09-29 — 말머리가 둘로 줄었습니다. 이 탭이 옛 말머리(질문 등)를 기억하고 있으면 전체로 봅니다 */
+  const 갈래 = ['전체', '답기다림', ...갈래들].includes(갈래기억) ? 갈래기억 : '전체'
   /* 🤝 2026-09-27 — 공고 카드에서 «구성원 구하는 글 쓰기» · «이 공고 글 보기» 로 들어온 경우(주소 뒤 state).
      새글 = { c: 말머리, t: 제목, b: 본문 } — 한 번만 씁니다(글을 올리거나 닫으면 비웁니다). */
   const loc = useLocation()
@@ -187,7 +189,6 @@ export default function Qna() {
     if (st.새글) 화면.글쓰기 = true
     가기({ pathname: loc.pathname, search: loc.search, hash: loc.hash }, { replace: true, state: { ...남은, 화면 } })
   }, [loc.key])   // eslint-disable-line react-hooks/exhaustive-deps
-  const [jobs, setJobs] = useState([])
   const [seen, setSeen] = useState(loadSeen)
   /* 📌 고정 글(qna_top) · 🔑 나(지금 번호·옛 번호) — 둘 다 «못 읽어도» 게시판은 그대로 뜹니다 */
   const [고정, set고정] = useState({})
@@ -206,29 +207,17 @@ export default function Qna() {
     try {
       const { ref, get, query, orderByKey, limitToLast, db, ensureAnon } = await loadFb()
       await ensureAnon()
-      const [a, b, c, j, jd] = await Promise.all([
+      /* 🧹 2026-09-29 — 구인구직(jobs) 글을 여기 같이 띄우던 것을 뺐습니다(소장님: 사랑방은 «후기·건의 · K-건설맵» 둘만).
+         구인구직 화면(/jobs)과 그 자료는 그대로입니다. 사랑방에서 구인·구직 이야기는 후기·건의에 씁니다. */
+      const [a, b, c] = await Promise.all([
         get(query(ref(db, 'qna'), orderByKey(), limitToLast(LIMIT))),
         get(ref(db, 'qna_del')),
         get(ref(db, 'qna_a')),
-        /* 🤝 구인구직은 «옮기지 않습니다» — 있던 자리(jobs)에 그대로 두고 여기서 같이 읽습니다.
-           자료를 옮기면 되돌릴 수 없고, 연락처 칸이 있는 구인구직 화면도 그대로 살아 있어야 합니다.
-           그래서 목록에만 같이 보이고, 누르면 그 화면으로 보냅니다. */
-        get(query(ref(db, 'jobs'), orderByKey(), limitToLast(60))),
-        get(ref(db, 'job_del')),
       ])
       setDel(b.val() || {})
       setAns(c.val() || {})
       const v = a.val() || {}
       setRows(Object.entries(v).map(([id, x]) => ({ id, ...x })).reverse())
-      const jdv = jd.val() || {}
-      setJobs(Object.entries(j.val() || {})
-        .filter(([id, x]) => x && !x.deleted && !jdv[id])
-        .map(([id, x]) => ({
-          id: 'job:' + id, 구인구직: true, c: '구인구직',
-          t: String(x.title || ''), b: String(x.body || ''),
-          nick: String(x.co || x.type || '구인'), at: Number(x.at) || 0,
-          곁: [x.type, x.trade, x.region].filter(Boolean).join(' · '),
-        })).reverse())
     } catch (e) {
       setRows([])
     }
@@ -260,20 +249,24 @@ export default function Qna() {
     return () => { 살아있음 = false }
   }, [])
 
-  /* 사랑방 글 + 구인구직 글을 한 웅덩이로. 지운 것만 먼저 걸러 둡니다(셈에도 쓰니까). */
+  /* 사랑방 글 — 지운 것만 먼저 걸러 둡니다(셈에도 쓰니까). 옛 말머리(질문·공동도급…)는 r.옛 으로 남습니다 */
   const 모두 = useMemo(() => {
     if (!rows) return null
-    return [...rows.filter((r) => !r.deleted && !del[r.id])
-      .map((r) => { const g = 갈래떼기(r.t); return { ...r, c: g.c, t: g.t } }), ...jobs]
+    return rows.filter((r) => !r.deleted && !del[r.id])
+      .map((r) => { const g = 갈래떼기(r.t); return { ...r, c: g.c, t: g.t, 옛: g.옛 || '' } })
       .sort((a, b) => (b.at || 0) - (a.at || 0))
-  }, [rows, del, jobs])
+  }, [rows, del])
 
+  /* ✅ 2026-09-29 (클로드 제안) — 후기·건의가 «들렸는지» 보이게: K-건설맵이 답한 글에는 «✅ K-건설맵 답변» 딱지.
+     운영자 브라우저에는 «⏳ 답 기다리는 글» 칸 — K-건설맵 답이 아직 없는 후기·건의만(하루 안에 답한다는 약속을 지키는 목록). */
+  const op답 = (id) => Object.values(ans[id] || {}).some((x) => x && !x.deleted && x.op)
   const 셈 = useMemo(() => {
     const m = { 전체: 0 }
     갈래들.forEach((c) => { m[c] = 0 })
     ;(모두 || []).forEach((r) => { m[r.c] = (m[r.c] || 0) + 1; m.전체 += 1 })
+    m.답기다림 = (모두 || []).filter((r) => r.c === '후기·건의' && !고정[r.id] && !op답(r.id)).length
     return m
-  }, [모두])
+  }, [모두, ans, 고정])   // eslint-disable-line react-hooks/exhaustive-deps
 
   /* 🔑 «내 글» = 이 브라우저가 적어 둔 목록 + 번호가 나(지금·옛)인 글. 되찾은 뒤엔 옛 글도 여기 들어옵니다. */
   const 내것 = useMemo(() => {
@@ -292,12 +285,13 @@ export default function Qna() {
     const s = q.trim()
     return 모두.filter((r) => {
       if (기본보기 && 고정[r.id]) return false   /* 위 📌 칸에 이미 있습니다 */
-      if (갈래 !== '전체' && r.c !== 갈래) return false
+      if (갈래 === '답기다림') { if (r.c !== '후기·건의' || op답(r.id) || 고정[r.id]) return false }
+      else if (갈래 !== '전체' && r.c !== 갈래) return false
       if (onlyMine && !내것.has(r.id)) return false
       if (s && !((r.t || '') + (r.b || '')).includes(s)) return false
       return true
     })
-  }, [모두, q, onlyMine, 내것, 갈래, 고정, 기본보기])
+  }, [모두, q, onlyMine, 내것, 갈래, 고정, 기본보기, ans])   // eslint-disable-line react-hooks/exhaustive-deps
 
   /* 공고에서 왔고 아직 그 공고번호로 찾는 중인가 */
   const 이공고 = !!(공고찾기 && q.trim() === 공고찾기.no)
@@ -399,6 +393,8 @@ export default function Qna() {
             {/* 2026-09-17 — 예전엔 답글이 없으면 「답변대기」 라고 붙었습니다.
                 물음이 아닌 글에도 붙어서 «아직 답을 못 받은 글» 처럼 보였습니다.
                 답글이 있을 때만 셈을 보입니다. 없으면 아무 말도 안 붙입니다. */}
+            {!작게 && r.옛 && <span className="qna-old" title="예전 말머리">{r.옛}</span>}
+            {op답(r.id) && <span className="qna-opok">✅ K-건설맵 답변</span>}
             {n > 0 && (
               <span className="chip ok" style={{
                 fontSize: 11.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
@@ -478,6 +474,8 @@ export default function Qna() {
           </ul>
         </div>
         <ol style={{ margin: '8px 0 0', paddingLeft: 20 }}>
+          <li><b>🆕 이제 글은 모두 «후기·건의» 한 곳에 씁니다.</b> 질문 · 현장 이야기 · 공동도급 구성원 구하기 · 구인·구직 · 건의 · 후기 — 무엇이든 여기에 쓰시면 됩니다.
+            <b>«K-건설맵»</b> 은 K-건설맵이 알려 드리는 글입니다. K-건설맵이 답한 글에는 <b>✅ K-건설맵 답변</b> 딱지가 붙습니다.</li>
           <li><b>누구나, 어떤 이야기든 좋습니다.</b> 가입·이름 없이 바로 씁니다. 별명은 저절로 붙고, 같은 기기면 늘 같은 별명입니다.
             <div className="muted" style={{ fontSize: 12.5 }}>예) 오늘 현장 한 줄 · 이 서류 어떻게 쓰나요 · 이 단가 맞나요 · 좋은 장비·업체 추천 · 하소연 · 쓸 만한 자료 나눔</div></li>
           <li><b>답글은 누구나 답니다.</b> 아는 분이 먼저 답해 주세요 — 현장 경험 한 줄이 제일 큰 도움이 됩니다.
@@ -565,13 +563,13 @@ export default function Qna() {
       </div>
 
       {write && (
-        <WriteForm 첫갈래={새글 ? 새글.c : (갈래 === '전체' ? '' : 갈래)} 첫글={새글} 나운영자={나운영자}
+        <WriteForm 첫갈래={새글 ? 새글.c : (갈래 === 'K-건설맵' ? 'K-건설맵' : '후기·건의')} 첫글={새글} 나운영자={나운영자}
           onDone={() => { set새글(null); 글쓰기닫기(false); load(); setMine(loadMine()) }} />
       )}
 
       {/* 🏷️ 말머리 — 글은 한 웅덩이, 문만 여럿. 숫자를 붙여 «빈 방» 으로 보이지 않게 합니다. */}
       <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 7, marginBottom: 10 }}>
-        {['전체', ...갈래들].map((c) => {
+        {['전체', ...갈래들, ...(나운영자 ? ['답기다림'] : [])].map((c) => {
           const on = 갈래 === c
           const [bg, fg, ln] = 갈래빛[c] || ['var(--surface)', 'var(--text-2)', 'var(--line)']
           return (
@@ -583,7 +581,7 @@ export default function Qna() {
                 color: on ? '#fff' : (c === '전체' ? 'var(--text-2)' : fg),
                 fontWeight: on ? 700 : 500,
               }}>
-              {c} {셈[c] || 0}
+              {c === '답기다림' ? '⏳ 답 기다리는 글' : c} {셈[c] || 0}
             </button>
           )
         })}
@@ -659,8 +657,10 @@ export default function Qna() {
       )}
       {list && list.length === 0 && !이공고 && (
         (onlyMine || q.trim())
-          ? <Empty>{onlyMine ? '내가 쓴 글 중에는' : '찾는 낱말이 들어간 글 중에는'} {갈래 === '전체' ? '' : '«' + 갈래 + '» '}글이 없습니다. 위 <b>«모두 보기»</b> 를 누르면 다른 분 글까지 모두 보입니다.</Empty>
-          : <Empty>아직 글이 없습니다. 아무 말이나 먼저 남겨 주세요 — 한 줄이어도 됩니다.</Empty>
+          ? <Empty>{onlyMine ? '내가 쓴 글 중에는' : '찾는 낱말이 들어간 글 중에는'} {갈래 === '전체' ? '' : '«' + (갈래 === '답기다림' ? '답 기다리는 글' : 갈래) + '» '}글이 없습니다. 위 <b>«모두 보기»</b> 를 누르면 다른 분 글까지 모두 보입니다.</Empty>
+          : 갈래 === '답기다림'
+            ? <Empty>답을 기다리는 후기·건의가 없습니다 — 다 답하셨습니다. 👍</Empty>
+            : <Empty>아직 글이 없습니다. 아무 말이나 먼저 남겨 주세요 — 한 줄이어도 됩니다.</Empty>
       )}
 
       {list && list.map((r) => 글카드(r))}
@@ -982,7 +982,8 @@ function WriteForm({ onDone, 첫갈래, 첫글, 나운영자 }) {
     try { const d = JSON.parse(sessionStorage.getItem(초안열쇠) || 'null'); if (d) return { t: d.t || '', b: d.b || '', pin: '' } } catch (e) { /* 없음 */ }
     return { t: '', b: '', pin: '' }
   })
-  const [c, setC] = useState(첫갈래 || '')
+  /* 🧹 2026-09-29 — 말머리는 «후기·건의» 하나(K-건설맵은 운영자만). 이용자는 고를 것 없이 바로 씁니다(클로드 제안) */
+  const [c, setC] = useState(() => (나운영자 && 첫갈래 === 'K-건설맵' ? 'K-건설맵' : '후기·건의'))
   useEffect(() => { try { sessionStorage.setItem(초안열쇠, JSON.stringify({ t: f.t, b: f.b })) } catch (e) { /* 없음 */ } }, [f.t, f.b])
   /* 🤝 공고에서 초안을 들고 왔으면 글쓰기 칸으로 내려 줍니다 — 공지가 펼쳐져 있으면 화면 아래에 묻힙니다 */
   const 칸 = useRef(null)
@@ -1029,10 +1030,15 @@ function WriteForm({ onDone, 첫갈래, 첫글, 나운영자 }) {
     <div className="card" ref={칸} style={{ marginBottom: 10, scrollMarginTop: 70 }}>
       <div className="sec-title" style={{ margin: '0 0 10px' }}>글쓰기</div>
 
-      {/* 어디에 쓸지부터. 「전체」에서 들어오셨으면 고르셔야 글이 갈 곳이 생깁니다. */}
-      <div className="muted" style={{ fontSize: 12.5, marginBottom: 6 }}>어디에 쓸까요?</div>
-      <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 7, marginBottom: 10 }}>
-        {갈래들.filter((x) => x !== 'K-건설맵' || 나운영자).map((x) => {
+      {/* 🧹 2026-09-29 — 이용자는 «후기·건의» 로 바로 씁니다(고를 칸 없음). 운영자만 «K-건설맵» 과 둘 중 고릅니다. */}
+      {!나운영자 && (
+        <div className="muted" style={{ fontSize: 12.5, marginBottom: 8, lineHeight: 1.6 }}>
+          <b style={{ color: 'var(--text)' }}>후기·건의</b>에 올라갑니다 — 질문 · 현장 이야기 · 공동도급 구성원 · 구인·구직 · 건의 · 후기, 무엇이든 여기에 쓰시면 됩니다.
+        </div>
+      )}
+      {나운영자 && <div className="muted" style={{ fontSize: 12.5, marginBottom: 6 }}>어디에 쓸까요?</div>}
+      {나운영자 && <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 7, marginBottom: 10 }}>
+        {갈래들.map((x) => {
           const on = c === x
           const [bg, fg, ln] = 갈래빛[x]
           return (
@@ -1044,15 +1050,7 @@ function WriteForm({ onDone, 첫갈래, 첫글, 나운영자 }) {
               }}>{x}</button>
           )
         })}
-      </div>
-
-      {/* 구인구직만 연락처 칸이 필요합니다 — 그 화면으로 보냅니다. 글은 거기 그대로 쌓입니다. */}
-      {c === '구인구직' && (
-        <div className="note" style={{ marginBottom: 10, fontSize: 13, lineHeight: 1.7 }}>
-          구인·구직 글은 <b>연락처 칸</b>이 있는 화면에서 씁니다.{' '}
-          <Link to="/jobs" style={{ fontWeight: 700 }}>구인구직에서 쓰기 →</Link>
-        </div>
-      )}
+      </div>}
       {/* ⚠️ 2026-09-17 — 두 칸 다 «예) …» 로 보기를 깔아 두었습니다. 뺐습니다.
           남은 한 줄(전화번호)은 취향이 아니라 안전입니다 — 그것만 둡니다. */}
       <input className="inp" value={f.t} onChange={set_('t')} maxLength={80}
@@ -1072,7 +1070,7 @@ function WriteForm({ onDone, 첫갈래, 첫글, 나운영자 }) {
           : <input className="inp" inputMode="numeric" maxLength={4} value={f.pin}
             onChange={(e) => setF((v) => ({ ...v, pin: e.target.value.replace(/\D/g, '') }))}
             placeholder="지울 4자리" style={{ width: 118 }} title="🔑 꼭 적어 두세요 — 내 글을 지우고 되찾는 열쇠입니다" />}
-        <button className="btn primary" onClick={submit} disabled={busy || c === '구인구직'}>
+        <button className="btn primary" onClick={submit} disabled={busy}>
           {busy ? '올리는 중…' : (c ? c + '에 올리기' : '올리기')}
         </button>
         {msg && <span className="muted" style={{ fontSize: 12 }}>{msg}</span>}

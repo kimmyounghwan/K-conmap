@@ -158,7 +158,12 @@
    "prev": [
     "/forms/orig/o-jangbi-gwanri-1.webp",
     "/forms/orig/o-jangbi-gwanri-2.webp"
-   ]
+   ],
+   "prog": {
+    "to": "/tools/equip",
+    "t": "🚜 장비 임대료·수금 장부 — 이 엑셀을 사이트에서 바로",
+    "d": "기사·장비 단가와 거래처를 한 번 등록하고 날마다 사용 시간만 적으면 거래처별 임대료·받은 돈·미수금, 기사(장비)별 가동, 달마다 흐름과 A4 청구서가 저절로. 유류대(원청 지급·청구)도 나눠 셉니다. 장부 코드+비밀번호로 폰·PC 어디서든."
+   }
   },
   {
    "slug": "o-jugan-gongjeong",

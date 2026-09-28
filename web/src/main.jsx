@@ -112,6 +112,9 @@ const DwgDxf = lazyPage(() => import('./pages/DwgDxf.jsx'))
 const Tuipbi = lazyPage(() => import('./pages/Tuipbi.jsx'))
 /* 📎 2026-09-27 업체 스스로 등록 — 업체가 받은 링크(/tools/tuipbi/v/현장/링크) · 📒 내 납품 장부(/tools/tuipbi/v) */
 const TuipbiVendor = lazyPage(() => import('./pages/TuipbiVin.jsx'))
+/* 🚜⚠️ 2026-09-29 소장님: 「(서식) 좀 이상해 … 되도록 사이트내에서 사용 할 수 있는 프로그램으로 만들어 줘」 — 코드+비밀번호 장부(lib/장부.js) */
+const EquipBook = lazyPage(() => import('./pages/EquipBook.jsx'))
+const RiskBook = lazyPage(() => import('./pages/RiskBook.jsx'))
 const ChangeCalc = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeCalc })))
 const ChangeBook = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeBook })))
 const ChangeNaeyeok = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeNaeyeok })))
@@ -190,6 +193,8 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/tools/tuipbi" element={<Suspense fallback={<Loading />}><Tuipbi /></Suspense>} />
           <Route path="/tools/tuipbi/v" element={<Suspense fallback={<Loading />}><TuipbiVendor /></Suspense>} />
           <Route path="/tools/tuipbi/v/:site/:link" element={<Suspense fallback={<Loading />}><TuipbiVendor /></Suspense>} />
+          <Route path="/tools/equip" element={<Suspense fallback={<Loading />}><EquipBook /></Suspense>} />
+          <Route path="/tools/risk" element={<Suspense fallback={<Loading />}><RiskBook /></Suspense>} />
           <Route path="/tools/:slug" element={<Suspense fallback={<Loading />}><ToolPage /></Suspense>} />
           {/* 📋 2026-09-15 — 내역서 작성 대행. 하나뿐인 유료 화면입니다. */}
           {/* 💬 2026-09-15 — 묻고 답하기 */}

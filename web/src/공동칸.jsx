@@ -52,11 +52,11 @@ export function 공동칸({ r, 나 }) {
       <구성원찾기 r={r} 판={판} 나={나} />
 
       <div className="jbtns">
-        <Link className="btn sm" to="/qna" state={{ 새글: { c: '공동도급', t: 초안.t, b: 초안.b } }}>✏️ 사랑방에 구성원 구하는 글 쓰기</Link>
+        <Link className="btn sm" to="/qna" state={{ 새글: { c: '후기·건의', t: 초안.t, b: 초안.b } }}>✏️ 사랑방에 구성원 구하는 글 쓰기</Link>
         {/* 🩹 2026-09-28 소장님 「이 공고글 보기 클릭하면 사랑방으로 가는데」 — «공고문 보기» 로 읽혔습니다. 사랑방 글이라는 것을 이름에 밝히고,
             가서 글이 없으면 «이 공고로 첫 글 쓰기» 를 바로 보여 줍니다(초안을 같이 넘김). */}
         <Link className="btn ghost sm" to="/qna"
-          state={{ 찾기: String(r.no || ''), 찾기이름: String(r.name || ''), 초안: { c: '공동도급', t: 초안.t, b: 초안.b } }}>
+          state={{ 찾기: String(r.no || ''), 찾기이름: String(r.name || ''), 초안: { c: '후기·건의', t: 초안.t, b: 초안.b } }}>
           💬 사랑방에 올라온 이 공고 구성원 글</Link>
       </div>
       <div className="note sm" style={{ marginBottom: 0 }}>

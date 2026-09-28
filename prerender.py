@@ -164,7 +164,7 @@ SITENAV = [("/", "바로투찰"), ("/first", "1순위 개찰"), ("/live", "입�
            ("/cad", "캐드 유틸"), ("/pdf", "PDF 도구"), ("/jeoksan", "K-적산"),
            ("/shareone", "쉐어원 공유폴더"),
            ("/safety", "안전관리계획서 · 유해위험방지계획서"),
-           ("/naeyeok", "산출내역서 알아보기"), ("/tools/dxf3d", "도면 3D 보기"), ("/tools/dxfpdf", "도면 PDF 만들기"), ("/tools/dwgdxf", "DWG → DXF 바꾸기"), ("/jeoksan/golgo", "골조 수량산출"), ("/jeoksan/magam", "마감 수량산출"), ("/jeoksan/auto", "도면 물량 자동"), ("/tools/tuipbi", "현장 투입비 · 공사일보"), ("/qna", "사랑방"),
+           ("/naeyeok", "산출내역서 알아보기"), ("/tools/dxf3d", "도면 3D 보기"), ("/tools/dxfpdf", "도면 PDF 만들기"), ("/tools/dwgdxf", "DWG → DXF 바꾸기"), ("/jeoksan/golgo", "골조 수량산출"), ("/jeoksan/magam", "마감 수량산출"), ("/jeoksan/auto", "도면 물량 자동"), ("/tools/tuipbi", "현장 투입비 · 공사일보"), ("/tools/risk", "위험성평가"), ("/tools/equip", "장비 임대료·수금 장부"), ("/qna", "사랑방"),
            ("/how", "보는 방법")]
 
 
@@ -1007,6 +1007,16 @@ def orig_index_html(groups, orig):
     return "".join(out)
 
 
+def _prog_html(p):
+    """🧰 2026-09-29 «사이트에서 바로 쓰기» — forms.json / forms_orig.json 의 prog (화면 Forms.jsx 프로그램카드와 같은 글)"""
+    if not p or not p.get("to"):
+        return ""
+    return (f'<a class="card fprog" href="{esc(p["to"])}"><div class="k">🧰 사이트에서 바로 쓰기</div>'
+            f'<div class="t">{esc(p.get("t") or "")}</div>'
+            + (f'<div class="d">{esc(p["d"])}</div>' if p.get("d") else "")
+            + '<span class="go">열기 →</span></a>')
+
+
 def orig_form_page(shell, f, orig, image=None):
     또 = [a for a in (f.get("also") or []) if a and a != f["title"]]
     title = f'{f["title"]} 양식 엑셀 무료 내려받기 | K-건설맵'
@@ -1030,7 +1040,7 @@ def orig_form_page(shell, f, orig, image=None):
            '<div class="ometa">' + "".join(f'<span>{esc(c)}</span>' for c in chips) + '</div>'
            f'<div class="btn-row" style="margin-top:12px">'
            f'<a class="btn primary" href="{esc(f["file"])}" download="{esc(f["title"])}.xlsx">⬇ 엑셀 내려받기</a>'
-           '</div></div>']
+           '</div></div>', _prog_html(f.get("prog"))]
     prev = f.get("prev") or []
     if prev:
         out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">미리보기</div><div class="oprev">'
@@ -1283,7 +1293,7 @@ def form_page(shell, f, others, image=None):
            f'{또줄}'
            f'<div class="btn-row" style="margin-top:12px">'
            f'<a class="btn primary" href="/forms/{esc(f["slug"])}.xlsx" download>⬇ 엑셀 내려받기</a>'
-           f"</div></div>"]
+           f"</div></div>", _prog_html(f.get("prog"))]
     if f.get("when"):
         out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">언제 내나</div>'
                    f'<div class="fwhen">{bold_md(esc(f["when"]))}</div></div>')
@@ -2142,6 +2152,66 @@ def tuipbi_page(shell, image=None):
     return page(shell, "/tools/tuipbi", title, desc, "".join(out) + nav_html("/tools/tuipbi"), image, ld)
 
 
+# 🚜 /tools/equip · ⚠️ /tools/risk — «코드+비밀번호» 장부 둘 (2026-09-29)
+#   소장님: 「(서식) 좀 이상해 봐줘. 위험성평가도 이상해. 되도록 사이트내에서 사용 할 수 있는 프로그램으로 만들어 줘」
+#   화면은 EquipBook.jsx · RiskBook.jsx · 셈은 lib/장비장부.js · lib/위험성.js · 저장은 파이어베이스(eq_* · rk_*).
+def _app_ld(name, desc, path):
+    return {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": name,
+            "applicationCategory": "BusinessApplication", "operatingSystem": "Web",
+            "description": desc, "url": f"{SITE}{path}", "isAccessibleForFree": True,
+            "offers": {"@type": "Offer", "price": "0", "priceCurrency": "KRW"},
+            "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}}
+
+
+def equip_page(shell, image=None):
+    title = "장비 임대료·수금 장부 — 거래처별 임대료·미수금, 청구서 인쇄 (건설기계 임대업) | K-건설맵"
+    desc = ("굴삭기·덤프 등 건설장비 임대업자용 장부. 기사·장비 단가와 거래처를 등록하고 날마다 사용 시간만 적으면 "
+            "거래처별 임대료·받은 돈·미수금, 기사(장비)별 가동, 달마다 흐름과 A4 청구서가 나옵니다. 장부 코드+비밀번호, 무료.")[:160]
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">🚜 장비 임대료·수금 장부</h1>'
+           '<p class="cp" style="margin-top:8px">기사·장비 단가를 한 번 등록하고, 날마다 <b>어느 거래처에 몇 시간</b> 썼는지만 적으면 '
+           '거래처별 <b>임대료 · 받은 돈 · 미수금</b>과 <b>청구서</b>가 저절로 나옵니다.</p>'
+           '<p class="cp">회원가입 없음 · 무료. 장부를 만들면 <b>장부 코드 + 비밀번호</b>가 생겨 휴대폰·사무실 PC 어디서든 같은 장부를 봅니다. '
+           '사업자번호·계좌는 브라우저에서 비밀번호로 잠가(암호화) 저장합니다.</p></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">이렇게 씁니다</div><ul class="flist">'
+           '<li>등록 — 기사·장비(시간당 · 일대 단가 · 차량번호)와 거래처(현장명 · 담당 · 전화)</li>'
+           '<li>사용 적기 — 날짜 · 기사 · 거래처 · 수량(시간·일·회·대)을 고르면 단가를 곱해 금액이 들어갑니다. 유류대는 «원청이 대 줌» 과 «내가 청구» 로 나눠 적습니다</li>'
+           '<li>수금 — 받은 날 · 거래처 · 금액 · 방법(계좌이체 · 현금 · 어음 · 카드 · 상계)</li>'
+           '<li>경비 — 정비 · 주유 · 수리처럼 나간 돈(기사·장비별)</li>'
+           '<li>한눈에 — 거래처별 임대료 · 수금 · 원청 유류 · 미수금 · 비율 · 받은 비율, 기사(장비)별 가동 시간·일수, 달마다 임대료 − 경비</li>'
+           '<li>청구서 — 거래처와 달을 고르면 A4 세로 청구서(전기 미수 · 이번 청구 · 받은 돈 · 누계 미수 · 일금 한글 금액 · 입금 계좌). 이 달 거래처 모두 한 번에 인쇄</li>'
+           '<li>지운 것은 30일 동안 휴지통에서 되살립니다</li>'
+           '</ul></div>',
+           '<div class="card"><p class="cp" style="margin:0">받을 돈이 밀리면 <a href="/tools/unpaid">미불금 받기</a> · '
+           '<a href="/tools/demand-letter">내용증명</a> · <a href="/tools/payment-order">지급명령 신청서</a>로 이어 갑니다. '
+           '엑셀로 쓰시던 분은 <a href="/forms/o-jangbi-gwanri">장비관리 프로그램(엑셀) 서식</a>도 그대로 있습니다.</p></div>']
+    return page(shell, "/tools/equip", title, desc, "".join(out) + nav_html("/tools/equip"), image,
+                _app_ld("장비 임대료·수금 장부", desc, "/tools/equip"))
+
+
+def risk_page(shell, image=None):
+    title = "위험성평가 프로그램 — 최초·정기·수시(4주·1주·1일)·회의·교육·성과측정표 별지 1~5 | K-건설맵"
+    desc = ("건설현장 위험성평가 별지 1~5를 사이트에서 바로 씁니다. 위험요인 사전에서 골라 넣고 위험등급(빈도×강도)·관리기간·"
+            "달성율은 저절로, 수시·성과측정표는 앞 서류 줄을 가져오고, 서식과 같은 칸으로 A4 인쇄. 현장 코드+비밀번호, 무료.")[:160]
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">⚠️ 위험성평가 — 별지 1~5</h1>'
+           '<p class="cp" style="margin-top:8px"><b>최초·정기 → 수시(4주·1주·1일) → 회의·교육 결과 → 성과측정표</b>를 한 곳에서 씁니다. '
+           '위험등급(빈도 × 강도: 2점 이하 하 · 3~4점 중 · 6점 이상 상) · 관리기간 · 달성율은 저절로 나옵니다.</p>'
+           '<p class="cp">회원가입 없음 · 무료. 현장마다 <b>장부 코드 + 비밀번호</b>가 생겨 휴대폰·사무실 PC 어디서든 같은 서류를 봅니다. '
+           '종이는 위험성평가 서식과 <b>같은 칸</b>(결재 · 점검란 포함)으로 A4 인쇄합니다.</p></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">서류 다섯 벌</div><ul class="flist">'
+           '<li>별지1 최초·정기 위험성평가서 — 세부작업 · 사용장비/설비/인원 · 위험요인 · 재해형태 · 빈도 · 강도 · 위험등급 · 예방대책 · 관리담당 부서</li>'
+           '<li>별지2 수시 위험성평가서 — 4주(2주) · 1주(주간 점검 1~7 · 감독확인) · 1일(이행결과 · 지속여부). 별지1 줄을 가져와 작업위치 · 검토/추록 · 이행·확인 담당만 채움</li>'
+           '<li>별지3 회의 결과 · 별지4 교육 결과 — 일시 · 장소 · 내용(기본 문장) · 사진 2장 · 참석자</li>'
+           '<li>별지5 중점·특별관리 대상 성과측정표 — 중·상 등급 줄을 가져와 날마다 ○ 이행 · X 미이행 · － 해당없음, 달성율 자동</li>'
+           '</ul></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">위험요인 사전</div>'
+           '<p class="cp" style="margin:0">토공 · 흙막이·굴착 · 관로 · 콘크리트 · 거푸집·동바리 · 철근 · 비계·고소 · 양중 · 포장 · 장비 · 전기·용접 · 해체 · 도장 · 공통 — '
+           '흔한 위험요인과 예방대책을 골라 넣고 현장에 맞게 고칩니다. '
+           '빈 엑셀 서식은 <a href="/forms/wih-choego">최초·정기</a> · <a href="/forms/wih-susi">수시</a> · '
+           '<a href="/forms/wih-hoeui">회의결과</a> · <a href="/forms/wih-gyoyuk">교육결과</a> · <a href="/forms/wih-seonggwa">성과측정표</a>.</p></div>']
+    return page(shell, "/tools/risk", title, desc, "".join(out) + nav_html("/tools/risk"), image,
+                _app_ld("위험성평가 (별지 1~5)", desc, "/tools/risk"))
+
+
 def load_guide():
     try:
         with open(GUIDE_JSON, encoding="utf-8") as f:
@@ -2499,6 +2569,11 @@ def main():
           og.tab("tool-tuipbi", "현장 투입비 · 공사일보", "건설 도구", "출역 · 청구내역서", "공정률 · 투입률") if og.available else None))
     made += 1
     print("  · 현장 투입비 페이지 1개 (/tools/tuipbi)")
+    write("tools/equip.html", equip_page(shell,
+          og.tab("tool-equip", "장비 임대료·수금 장부", "건설 도구", "거래처별 미수금", "청구서 인쇄") if og.available else None))
+    write("tools/risk.html", risk_page(shell,
+          og.tab("tool-risk", "위험성평가 별지 1~5", "건설 도구", "수시 4주·1주·1일", "성과측정표") if og.available else None))
+    print("  · 장비 장부 · 위험성평가 페이지 2개 (/tools/equip · /tools/risk)")
 
     # ── 🪪 면허별 경쟁도 ──
     lrows, lmin = load_licstat()

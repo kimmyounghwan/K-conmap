@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 
 import { askAfter } from '../AskComment'
 import { useParams, Link } from 'react-router-dom'
@@ -8,6 +8,23 @@ import { ShareBtn } from './CorpPage.jsx'
 import UserForms from '../UserForms.jsx'
 import { Empty } from '../components.jsx'
 import { SafetyStrip } from './Safety.jsx'
+
+/* ⚠️ 2026-09-29 위험성평가 서식(wih-*) — 미리보기는 서식과 같은 칸의 예문 종이 · 인쇄는 빈 서식 (tools/위험성미리.jsx, 늦게 불러옴) */
+const 위험성미리 = lazy(() => import('../tools/위험성미리.jsx'))
+
+/** 🧰 2026-09-29 «사이트에서 바로 쓰기» — forms.json / forms_orig.json 의 prog {to, t, d} (prerender.py 도 같은 칸을 굽습니다)
+ *  소장님: 「좀 이상해 봐줘 … 되도록 사이트내에서 사용 할 수 있는 프로그램으로 만들어 줘」 */
+function 프로그램카드({ p }) {
+  if (!p || !p.to) return null
+  return (
+    <Link className="card fprog" to={p.to}>
+      <div className="k">🧰 사이트에서 바로 쓰기</div>
+      <div className="t">{p.t}</div>
+      {p.d ? <div className="d">{p.d}</div> : null}
+      <span className="go">열기 →</span>
+    </Link>
+  )
+}
 
 /**
  * /forms · /forms/{slug} — 「건설 서식」 (2026-09-05)
@@ -347,6 +364,8 @@ function OrigFormPage({ f }) {
         </div>
       </div>
 
+      <프로그램카드 p={f.prog} />
+
       {f.prev && f.prev.length > 0 && (
         <div className="card">
           <div className="sec-title" style={{ margin: '0 0 8px' }}>미리보기</div>
@@ -429,9 +448,12 @@ export function FormPage() {
           {/* 정적 파일이라 <a download> 하나면 됩니다 — 라이브러리도, 전송량도 없습니다 */}
           <a className="btn primary" href={xlsx} download={`${f.title}_양식.xlsx`}
             onClick={() => askAfter('forms')}>⬇ 엑셀 내려받기</a>
-          <button className="btn ghost" onClick={() => window.print()}>🖨 인쇄 · PDF</button>
+          {/* 🐛 2026-09-29 wih-* 는 화면 인쇄 대신 아래 미리보기 카드의 «빈 서식 인쇄» (화면을 찍으면 설명 글까지 나왔습니다) */}
+          {f.gen !== 'wihgen' && <button className="btn ghost" onClick={() => window.print()}>🖨 인쇄 · PDF</button>}
         </div>
       </div>
+
+      <프로그램카드 p={f.prog} />
 
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 6px' }}>언제 내나</div>
@@ -454,6 +476,9 @@ export function FormPage() {
         </div>
       )}
 
+      {f.gen === 'wihgen' ? (
+        <Suspense fallback={<div className="card muted">미리보기를 불러오는 중…</div>}><위험성미리 slug={f.slug} /></Suspense>
+      ) : (
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 8px' }}>미리보기</div>
         <div className="fscroll"><Preview sheet={f.sheet} /></div>
@@ -463,6 +488,7 @@ export function FormPage() {
           그림이 아니라 글자라서 흔적이 남지 않습니다.
         </div>
       </div>
+      )}
 
       <div className="card fwarn">
         <b>⚠️ 발주기관 서식이 우선입니다</b>

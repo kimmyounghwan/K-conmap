@@ -5,6 +5,8 @@ import { 나운영자 } from './lib/운영자.js'
 import { BasePriceProvider } from './BasePrice.jsx'
 import { InstallPill, InstallBar } from './Install.jsx'
 import AskStrip from './AskComment'
+/* 👋🙏 2026-09-29 방문 인사 — 처음 «반갑습니다» · 다시 «다시 찾아 주셔서 고맙습니다» (인사.jsx · lib/인사.js) */
+import 인사 from './인사.jsx'
 import FirstBar from './FirstBar.jsx'
 import RefreshBtn from './Refresh.jsx'
 import Crumbs, { BackBtn } from './Crumbs.jsx'
@@ -174,6 +176,8 @@ export default function App() {
                주소 이름은 Crumbs.jsx 의 NAME·LEAF 표 한 곳에만 적습니다. */}
         <Crumbs />
         <Outlet />
+        {/* 👋🙏 방문 인사 — 떠 있다가 5초 뒤 사라지는 쪽지(자리를 차지하지 않음) */}
+        <인사 />
         <footer className="footer">
           <div>
             <a href="/about">소개</a><span className="dot">·</span>

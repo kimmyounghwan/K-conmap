@@ -591,10 +591,13 @@ def write_health(first, live, added):
     got_f = int((added or {}).get("first") or 0)
     got_l = int((added or {}).get("live") or 0)
     weekday = now.weekday() < 5    # 토·일은 한 줄도 안 와도 정상입니다
+    # 🌙 2026-09-29 — 사슬이 밤에도 돕니다(update.yml). 밤(19~06시)에는 새로 나오는 것이 거의 없어
+    #    «한 줄도 안 옴» 이 정상입니다 — 실패로 세면 5분마다 다시 부르고 연속 실패가 쌓입니다.
+    낮 = 6 <= now.hour < 19
 
     if NET_DOWN:
         ok, why = False, "조달청에 연결하지 못했습니다"
-    elif got_f + got_l == 0 and weekday:
+    elif got_f + got_l == 0 and weekday and 낮:
         ok, why = False, "조달청이 한 줄도 주지 않았습니다"
     else:
         ok, why = True, ""
