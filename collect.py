@@ -134,6 +134,12 @@ LIC = {
     "serv": f"{BASE}/ad/BidPublicInfoService/getBidPblancListInfoLicenseLimit",
 }
 
+# 🗺 2026-09-28 — 참가가능지역. 공고 목록의 prtcptPsblRgnNm 은 늘 비어 옵니다(실측 0/500 · 2026-09-02, 09-28 live 300건 중 0).
+#   그래서 공동도급 칸의 «지역제한 시도»(jnt[4])가 늘 빈칸이라 «지역제한 → 그 지역 회사만» · «참가 불가» 가 안 켜졌습니다.
+#   참가가능지역은 따로 된 오퍼레이션이 있습니다(공공데이터포털 «조달청_나라장터 입찰공고정보서비스» 목록에서 확인).
+#   ⚠️ 응답 칸 이름은 첫 회차의 [진단] 줄(data/diag.json)로 확인합니다 — 아래 rgn_by_day 는 여러 이름을 봅니다.
+RGN_OP = f"{BASE}/ad/BidPublicInfoService/getBidPblancListInfoPrtcptPsblRgn"
+
 
 def load_env():
     """.env 를 읽어 환경변수로 (python-dotenv 없이도 동작)"""
@@ -782,6 +788,68 @@ def lic_by_day(key, day, kind):
 
 # lic_by_day 가 채웁니다 — {공고번호: [그룹번호, …]} (lic 이름 목록과 같은 차례)
 LIC_GRP = {}
+
+
+RGN_PAGES = 4        # 참가가능지역은 지역제한 공고에만 있어 면허제한보다 훨씬 적습니다
+RGN_V = 1            # «참가가능지역을 한 번 메웠다» 표시(live 저장소의 _rv)
+RGN_OFF = False      # 이 회차에 한 번 실패하면 더 부르지 않습니다(다른 수집을 해치지 않게)
+RGN_SEEN = {"rows": 0, "con": 0, "put": 0}
+
+
+def rgn_by_day(key, day):
+    """하루치 참가가능지역 → {공고번호: [지역명, …]} (공사만). 실패하면 이 회차에는 다시 부르지 않습니다."""
+    global RGN_OFF
+    if RGN_OFF:
+        return {}
+    out, rows = {}, []
+    for pg in range(1, RGN_PAGES + 1):
+        why = {}
+        got = fetch(RGN_OP, key, day, {"pageNo": str(pg)},
+                    label=f"참가가능지역 {day:%m-%d} {pg}쪽", why=why)
+        if why:
+            RGN_OFF = True
+            print(f"    · 참가가능지역은 이번 회차에 더 부르지 않습니다 ({why})")
+            break
+        rows.extend(got)
+        if len(got) < 999:
+            break
+    RGN_SEEN["rows"] += len(rows)
+    for it in rows:
+        no = str(pick(it, "bidNtceNo") or "").strip()
+        div = str(pick(it, "bsnsDivNm") or "").strip()
+        if div and div != "공사":
+            continue
+        nm = pick(it, "prtcptPsblRgnNm", "prtcptPsblRgn", "rgnNm", "lmtRgnNm", "prtcptLmtRgnNm")
+        if nm is None:
+            # 칸 이름이 조금 다르면 «참가가능(psbl)+지역(rgn)» 이 든 이름 칸만 씁니다.
+            #   ⚠️ rgnLmtBidLocplcJdgmBssNm(지역제한 판단기준 «본사소재지») 같은 칸을 지역으로 잘못 읽지 않게 psbl 을 꼭 봅니다.
+            for k, v in it.items():
+                kl = str(k).lower()
+                if "rgn" in kl and "psbl" in kl and kl.endswith("nm") and v not in (None, "", "-"):
+                    nm = v
+                    break
+        if not no or not nm:
+            continue
+        RGN_SEEN["con"] += 1
+        cur = out.setdefault(no, [])
+        for part in re.split(r"[,/]", str(nm)):
+            part = part.strip()
+            if part and part not in cur:
+                cur.append(part)
+    return out
+
+
+def put_rgn(stores, rm):
+    """받은 참가가능지역을 «비어 있는» rgn 칸에만 붙입니다(공사). 붙인 수를 돌려줍니다."""
+    n = 0
+    for no, names in rm.items():
+        for store in stores:
+            row = store["con"].get(no)
+            if row is not None and not row.get("rgn"):
+                row["rgn"] = ", ".join(names[:12])
+                n += 1
+    RGN_SEEN["put"] += n
+    return n
 
 
 def put_licg(row, no, names):
@@ -2690,6 +2758,15 @@ def main():
                         put_licg(row, no, names)
             time.sleep(args.sleep)
 
+            # ── 🗺 참가가능지역 (2026-09-28) — 공사만, 하루 한 번 ──
+            #   공사·용역·물품이 섞여 오는 오퍼레이션이라 kind 마다 부르지 않습니다.
+            if kind == "con":
+                try:
+                    put_rgn((live, first), rgn_by_day(key, day))
+                except Exception as e:
+                    print(f"    ! 참가가능지역 건너뜀 ({type(e).__name__})")
+                time.sleep(args.sleep)
+
         print(f"  {ds}  1순위 {len(first['con']) + len(first['serv']):,}건 "
               f"/ 공고 {len(live['con']) + len(live['serv']):,}건 "
               f"/ 기초금액 {n_base:,}건 / 빈칸메움 {n_aval:,}건 "
@@ -2751,6 +2828,28 @@ def main():
             save_store("live", live)
         except Exception as e:
             print(f"    ! 저장 실패 ({type(e).__name__}) — 다음 회차에 다시")
+
+    # ── 🗺 참가가능지역 «한 번» 메우기 (2026-09-28) — 이미 올라와 마감 전인 공고(3주)에 붙입니다. 다 받으면 _rv ──
+    if live.get("_rv") != RGN_V and not NET_DOWN and not QUOTA_OUT and not RGN_OFF:
+        _back = [today - timedelta(days=i) for i in range(JOINT_BACK, days - 1, -1)]
+        _rn = 0
+        for _d in _back:
+            try:
+                _rn += put_rgn((live,), rgn_by_day(key, _d))
+            except Exception as e:
+                print(f"    ! 참가가능지역 메우기 건너뜀 ({type(e).__name__})")
+                break
+            time.sleep(args.sleep)
+        if not RGN_OFF:
+            live["_rv"] = RGN_V
+        print(f"  · 🗺 참가가능지역 메우기 — {len(_back)}일 · {_rn:,}건에 붙임"
+              f"{'' if not RGN_OFF else ' (받지 못해 다음 회차에 다시)'}")
+        try:
+            save_store("live", live)
+        except Exception as e:
+            print(f"    ! 저장 실패 ({type(e).__name__}) — 다음 회차에 다시")
+    print(f"  · 🗺 참가가능지역 이번 회차 — 받은 줄 {RGN_SEEN['rows']:,} · 공사 {RGN_SEEN['con']:,} · 붙임 {RGN_SEEN['put']:,}"
+          f"{' · 부르지 않음(실패)' if RGN_OFF else ''}")
 
     # ── 화면에 실릴 최근 건 중 기초금액이 빈 것만 공고번호로 개별 보충 ──
     todo = []

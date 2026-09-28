@@ -35,7 +35,13 @@ const 미터 = (mm) => (mm >= 0 ? '+' : '−') + (Math.abs(mm) / 1000).toFixed(2
 /* 🧭 2026-09-27 — 「손님 맞을 준비 … 전수조사」: 도면을 세워 본 뒤 다른 화면에 갔다 오면 다시 넣어야 했습니다.
    → 마지막으로 세운 판(일꾼이 돌려준 것)과 켠 레이어·층·높이를 이 탭의 메모리에 둡니다. 뒤로 오면 다시 읽지 않고 그대로 세웁니다.
      (새로고침하면 처음부터 — 도면이 커서 창고에는 넣지 않습니다) */
-let 남은 = null   // { r, dwg수, 파일이름, 예시글, 레켬, 층켬, 면, 높이배 }
+let 남은 = null   // { r, dwg수, 파일이름, 예시글, 레켬, 층켬, 면, 높이배, 도면들, 못바꾼들 }
+/* ➕ 2026-09-28 — 소장님: 「도면을 올릴때 마다 누적된 3d 화면이 보이게」 · 「도면 새로 올리기 버튼」 · 「올라가 있는 도면 삭제 후 새로운 도면 올리기」
+   · 「도면을 한개 한개 올릴때 마다 3d 화면에 그에 따라서 변하게」
+   → 올린 도면(DXF 로 바꾼 것)을 이 탭 메모리에 쌓아 두고, 한 장이라도 더하거나 빼면 «쌓인 도면 전부» 로 다시 세웁니다.
+     건물 층·횡단·구조물·자리 잡기는 도면끼리 서로 보고 정하므로(dxf3d.worker.js) 늘 전부로 다시 세우는 것이 맞습니다.
+   ⚠️ 쌓인 도면은 새로고침하면 사라집니다(도면이 커서 창고에 넣지 않음 — 위 «남은» 과 같은 까닭). */
+let 도면번호 = 0
 
 export default function Dxf3d() {
   const cvRef = useRef(null)
@@ -53,6 +59,10 @@ export default function Dxf3d() {
   const [층찾기, set층찾기] = useState('')
   const [파일이름, set파일이름] = useState('')
   const [예시글, set예시글] = useState('')
+  const [도면들, set도면들] = useState([])      // [{ id, 이름, 크기, dxf: ArrayBuffer, dwg: bool }] — 쌓인 도면
+  const 도면들Ref = useRef([])
+  const [못바꾼들, set못바꾼들] = useState([])   // 못 읽은 DWG 이름(쌓인 채로 알림)
+  const 못바꾼Ref = useRef([])
   /* 📍 기준점 찍기 — { g: 묶음 번호, 단계: 1|2, A: [x,y,z] } */
   const [맞춤, set맞춤] = useState(null)
   const [높이도, set높이도] = useState(false)
@@ -62,6 +72,8 @@ export default function Dxf3d() {
     if (!남은 || !남은.r) return
     const 옛 = { ...남은 }
     set파일이름(옛.파일이름 || ''); set예시글(옛.예시글 || '')
+    도면들Ref.current = 옛.도면들 || []; set도면들(도면들Ref.current)
+    못바꾼Ref.current = 옛.못바꾼들 || []; set못바꾼들(못바꾼Ref.current)
     보이기(옛.r, 옛.dwg수, 옛)
   }, [])   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (남은) Object.assign(남은, { 레켬, 층켬, 면, 높이배, 파일이름, 예시글 }) }, [레켬, 층켬, 면, 높이배, 파일이름, 예시글])
@@ -78,48 +90,82 @@ export default function Dxf3d() {
     return m
   }, [결과, 보임])
 
+  /* ➕ 도면 더하기 — 새로 = true 면 쌓인 것을 비우고 이것만(예시·«모두 지우고 새로»). 같은 이름을 다시 올리면 바꿔 끼웁니다. */
   const 읽기 = async (list, 예시 = false) => {
     const fs = [...(list || [])]
     if (!fs.length) return
     if (!예시) set예시글('')
-    set파일이름(fs.map((f) => f.name).join(' · '))
-    set결과(null)
-    /* 🔁 2026-09-27 — DWG 도 받습니다: 이 브라우저 안에서 DXF 로 바꾼 뒤 세웁니다(DWG → DXF 바꾸기와 같은 일꾼).
-       전에는 「DWG 는 못 읽어서 뺐습니다」 였습니다. */
-    if (fs.some((f) => f.size > 큰파일) || fs.reduce((n, f) => n + f.size, 0) > 모두합) { set상태({ k: 'err', msg: 'big' }); return }
+    if (fs.some((f) => f.size > 큰파일)) { set상태({ k: 'err', msg: 'big' }); return }
+    const 이름들 = new Set(fs.map((f) => f.name))
+    const 남길 = 예시 ? [] : 도면들Ref.current.filter((x) => !이름들.has(x.이름))
+    if (남길.reduce((n, x) => n + x.크기, 0) + fs.reduce((n, f) => n + f.size, 0) > 모두합) { set상태({ k: 'err', msg: 'big' }); return }
     set상태({ k: 'busy', p: 0, msg: '파일 여는 중' })
-    const files = []
+    /* 🔁 2026-09-27 — DWG 도 받습니다: 이 브라우저 안에서 DXF 로 바꾼 뒤 세웁니다(DWG → DXF 바꾸기와 같은 일꾼). */
+    const 새것 = []
     const 못바꾼 = []
     for (const f of fs) {
       let buf = await f.arrayBuffer()
       const 머리 = String.fromCharCode(...new Uint8Array(buf.slice(0, 6)))
+      let dwg = false
       if (/^AC10\d\d/.test(머리)) {
+        dwg = true
         set상태({ k: 'busy', p: 0.02, msg: `${f.name} — DWG 를 DXF 로 바꾸는 중 (큰 도면은 30초~1분)` })
         /* 🔁 2026-09-28 — 일꾼 하나를 돌려 씁니다(lib/dwg바꾸기.js). 파일마다 새로 띄우면 4장째에서 멈췄습니다. */
         try {
           buf = (await DWG바꾸기(buf, f.name, (d) => set상태({ k: 'busy', p: (d.p || 0) * 0.3, msg: `${f.name} — DWG → DXF: ${d.msg || ''}` }))).dxf
         } catch (e) { 못바꾼.push(f.name); continue }
       }
-      files.push({ name: f.name.replace(/\.dwg$/i, '.dxf'), buf })
+      새것.push({ id: ++도면번호, 이름: f.name, 크기: f.size, dxf: buf, dwg })
     }
-    if (!files.length) { set상태({ k: 'err', msg: 'dwg' }); return }
+    /* 바꾸는 사이에 다른 도면이 더해졌을 수 있으니 «지금» 쌓인 것에 붙입니다 */
+    const 바탕 = 예시 ? [] : 도면들Ref.current.filter((x) => !이름들.has(x.이름))
+    const 합 = [...바탕, ...새것]
+    도면들Ref.current = 합; set도면들(합)
+    못바꾼Ref.current = [...(예시 ? [] : 못바꾼Ref.current.filter((n) => !이름들.has(n))), ...못바꾼]
+    set못바꾼들(못바꾼Ref.current)
+    if (!합.length) { set상태({ k: 'err', msg: 'dwg' }); set결과(null); return }
+    세우기(합)
+  }
+
+  /* 쌓인 도면 «전부» 로 다시 세웁니다 — 일꾼에게는 사본을 넘깁니다(원본은 다음에 또 씀) */
+  const 세우기 = (목록) => {
+    set파일이름(목록.map((x) => x.이름).join(' · '))
+    set상태({ k: 'busy', p: 0.3, msg: `도면 ${목록.length}장으로 세우는 중` })
     if (workRef.current) workRef.current.terminate()
     const w = new Worker(new URL('../lib/dxf3d.worker.js', import.meta.url), { type: 'module' })
     workRef.current = w
-    const dwg수 = 못바꾼.length
-    const dwg이름 = 못바꾼
+    const files = 목록.map((x) => ({ name: x.이름.replace(/\.dwg$/i, '.dxf'), buf: x.dxf.slice(0) }))
     w.onmessage = (ev) => {
       const m = ev.data
+      if (workRef.current !== w) return   // 그사이 더 새 세우기가 시작됨
       if (m.type === 'prog') set상태({ k: 'busy', p: m.p, msg: m.msg })
       else if (m.type === 'err') { set상태({ k: 'err', msg: m.kind, more: m.msg }); w.terminate() }
       else if (m.type === 'done') {
         w.terminate(); workRef.current = null
-        보이기(m.r, dwg수, null, dwg이름)
+        보이기(m.r, 못바꾼Ref.current.length, null, 못바꾼Ref.current, 목록)
       }
     }
     w.onerror = (e) => set상태({ k: 'err', msg: 'fail', more: String(e.message || '') })
     w.postMessage({ files }, files.map((f) => f.buf))
   }
+
+  /* ✕ 한 장 빼기 — 남은 도면으로 다시 세움 · 다 빠지면 처음 화면 */
+  const 빼기 = (id) => {
+    const 합 = 도면들Ref.current.filter((x) => x.id !== id)
+    도면들Ref.current = 합; set도면들(합)
+    if (합.length) 세우기(합)
+    else 비우기()
+  }
+  /* 🗑 모두 지우기 — 쌓인 도면·3D·못 읽은 목록을 비웁니다 */
+  const 비우기 = () => {
+    if (workRef.current) { workRef.current.terminate(); workRef.current = null }
+    도면들Ref.current = []; set도면들([])
+    못바꾼Ref.current = []; set못바꾼들([])
+    남은 = null
+    set결과(null); set파일이름(''); set예시글(''); set맞춤(null); set맞춤글('')
+    set상태({ k: 'idle' })
+  }
+  const 새로올리기 = () => { 비우기(); setTimeout(() => 파일칸.current?.click(), 0) }
 
   const 예시로 = async (q) => {
     set예시글(q.글)
@@ -135,8 +181,10 @@ export default function Dxf3d() {
     } catch (e) { set상태({ k: 'err', msg: 'fail', more: '예시 도면을 받지 못했습니다 — 잠시 뒤 다시 눌러 주십시오' }) }
   }
 
-  const 보이기 = (r, dwg수, 되살림 = null, dwg이름 = (되살림 && 되살림.dwg이름) || []) => {
-    남은 = { r, dwg수, dwg이름, 파일이름: 되살림 ? 되살림.파일이름 : 파일이름, 예시글: 되살림 ? 되살림.예시글 : 예시글 }
+  const 보이기 = (r, dwg수, 되살림 = null, dwg이름 = (되살림 && 되살림.dwg이름) || [], 목록 = null) => {
+    const 쌓인 = 목록 || (되살림 && 되살림.도면들) || 도면들Ref.current
+    남은 = { r, dwg수, dwg이름, 파일이름: 되살림 ? 되살림.파일이름 : 쌓인.map((x) => x.이름).join(' · '), 예시글: 되살림 ? 되살림.예시글 : 예시글,
+      도면들: 쌓인, 못바꾼들: 못바꾼Ref.current }
     const 레 = {}
     for (const l of r.layers) 레[l.ly] = (레[l.ly] ?? false) || !l.off
     if (!Object.values(레).some(Boolean)) for (const k of Object.keys(레)) 레[k] = true
@@ -291,8 +339,14 @@ export default function Dxf3d() {
              onDragOver={(e) => { e.preventDefault(); set끌림(true) }}
              onDragLeave={() => set끌림(false)}
              onDrop={(e) => { e.preventDefault(); set끌림(false); 읽기(e.dataTransfer.files) }}>
-          <button type="button" className="pdfpick" onClick={() => 파일칸.current?.click()}>📂 도면 고르기 (DXF·DWG · 여러 장 가능)</button>
-          <div className="pdfdrop-d">또는 도면 파일들을 이곳에 끌어다 놓으세요 · 한 장 250MB · 모두 400MB 까지</div>
+          <button type="button" className="pdfpick" onClick={() => 파일칸.current?.click()}>
+            {도면들.length ? `➕ 도면 더 올리기 — 지금 ${도면들.length}장` : '📂 도면 고르기 (DXF·DWG · 여러 장 가능)'}
+          </button>
+          <div className="pdfdrop-d">
+            {도면들.length
+              ? <>한 장씩 더할 때마다 <b>지금까지 올린 도면 전부</b>로 3D 를 다시 세웁니다 · 같은 이름을 다시 올리면 바꿔 끼웁니다</>
+              : <>또는 도면 파일들을 이곳에 끌어다 놓으세요 · 한 장씩 더해 가도 됩니다 · 한 장 250MB · 모두 400MB 까지</>}
+          </div>
         </div>
         <input ref={파일칸} type="file" accept=".dxf,.DXF,.dwg,.DWG" multiple className="sr-only" tabIndex={-1}
                onChange={(e) => { 읽기(e.target.files); e.target.value = '' }} />
@@ -303,7 +357,24 @@ export default function Dxf3d() {
             <button key={q.이름} type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 예시로(q)}>{q.이름}</button>
           ))}
         </div>
-        {파일이름 && <div className="pdfgot">📎 {파일이름}{예시글 && <span className="muted"> — 예시: {예시글}</span>}</div>}
+        {/* ➕ 쌓인 도면 — 한 장씩 ✕ 로 빼면 남은 도면으로 다시 섭니다 */}
+        {(도면들.length > 0 || 못바꾼들.length > 0) && (
+          <div className="dx3-files">
+            <div className="dx3-files-h">
+              <b>올린 도면 {도면들.length}장</b>{예시글 && <span className="muted"> — 예시: {예시글}</span>}
+              <button type="button" className="chip" onClick={새로올리기}>🗑 모두 지우고 새로 올리기</button>
+            </div>
+            <div className="dx3-files-l">
+              {도면들.map((x) => (
+                <span key={x.id} className="dx3-file">
+                  📎 {x.이름}<i>{x.크기 >= 1048576 ? (x.크기 / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(x.크기 / 1024)) + 'KB'}</i>
+                  <button type="button" aria-label={x.이름 + ' 빼기'} title="이 도면 빼기 — 남은 도면으로 다시 세웁니다" onClick={() => 빼기(x.id)}>✕</button>
+                </span>
+              ))}
+              {못바꾼들.map((n) => <span key={'x' + n} className="dx3-file bad" title="변환 엔진이 읽지 못한 DWG — 캐드에서 DXF 로 저장해 올려 주십시오">⚠️ {n}</span>)}
+            </div>
+          </div>
+        )}
 
         {상태.k === 'busy' && (
           <div className="dx3-bar" aria-live="polite">

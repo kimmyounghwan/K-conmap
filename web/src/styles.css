@@ -2835,6 +2835,19 @@ a.glink:hover { text-decoration: underline; }
 .tl-o.big{ padding:12px; background:color-mix(in srgb, var(--accent) 10%, var(--surface)); }
 .tl-o.big b{ font-size:19px; color:var(--accent); }
 
+/* ➕ 도면 3D — 쌓인 도면 목록 (2026-09-28 · Dxf3d.jsx) */
+.dx3-files{ margin-top:10px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--surface-2); }
+.dx3-files-h{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px; }
+.dx3-files-h .chip{ margin-left:auto; }
+.dx3-files-l{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.dx3-file{ display:inline-flex; align-items:center; gap:6px; max-width:100%; font-size:12.5px; padding:4px 4px 4px 10px;
+  border:1px solid var(--line); border-radius:999px; background:var(--surface); overflow-wrap:anywhere; }
+.dx3-file i{ font-style:normal; color:var(--muted); font-size:11.5px; }
+.dx3-file button{ border:0; background:transparent; cursor:pointer; color:var(--text-2); font-size:13px; line-height:1;
+  width:24px; height:24px; border-radius:999px; }
+.dx3-file button:hover{ background:var(--bad-soft); color:var(--bad); }
+.dx3-file.bad{ padding-right:10px; border-color:var(--warn); color:var(--warn); background:var(--warn-soft); }
+
 /* 📑 계약·공사 관리 도구 (2026-09-28 · tools/계약칸.jsx) — 색은 토큰만(다크모드가 따라옴)
    ⚠️ --fg · --fg-dim 은 :root 에 없는 이름입니다(위 .tl-* 가 쓰지만 먹지 않음) → --text · --text-2 · --line 을 씁니다 */
 .kt-h{ font-size:14px; font-weight:800; margin:2px 0 0; }
