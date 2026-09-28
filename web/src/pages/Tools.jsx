@@ -16,13 +16,15 @@ import { useParams, Link } from 'react-router-dom'
 import DATA from '../data/tools.json'
 import { CALCS as 셈CALCS, EXAMPLES as 셈EXAMPLES, 칸창고 } from '../tools/calcs.jsx'
 import { 계약CALCS, 계약EXAMPLES } from '../tools/계약칸.jsx'
+import { 미불CALCS, 미불EXAMPLES } from '../tools/미불칸.jsx'
 import NotFound from './NotFound.jsx'
 import { use남김 } from '../lib/길기록.js'
 
 const TOOLS = DATA.tools || []
 /* 📑 2026-09-28 — 계약·공사 관리 도구 4가지(tools/계약칸.jsx)를 같은 판에 얹습니다. slug 는 tools.json 과 짝 */
-const CALCS = { ...셈CALCS, ...계약CALCS }
-const EXAMPLES = { ...셈EXAMPLES, ...계약EXAMPLES }
+/* 💸 2026-09-28 — 미불금 받기 4가지(tools/미불칸.jsx). 넷이 칸을 같이 씁니다(tools.json "store") */
+const CALCS = { ...셈CALCS, ...계약CALCS, ...미불CALCS }
+const EXAMPLES = { ...셈EXAMPLES, ...계약EXAMPLES, ...미불EXAMPLES }
 /* 설명 글의 **굵게** 를 진짜 굵은 글씨로 — 전에는 별표가 그대로 보였습니다(서식 화면 Forms.jsx 굵게 와 같음) */
 function 굵게(s) {
   return String(s).split(/\*\*(.+?)\*\*/g).map((x, i) => (i % 2 ? <b key={i}>{x}</b> : x))
@@ -50,7 +52,7 @@ const 어디 = {
   lock: ['🔒 시험 중', 'lock'],
 }
 /* 계산기 묶음 이름 — tools.json cats 의 key. «work» 는 2026-09-28 계약·공사 관리(하도급·낙찰 뒤·지체상금·하자) */
-const 묶음이름 = { qty: ['🧮', '수량 계산기'], bid: ['🧮', '입찰·낙찰 계산기'], work: ['📑', '계약·공사 관리'] }
+const 묶음이름 = { qty: ['🧮', '수량 계산기'], bid: ['🧮', '입찰·낙찰 계산기'], work: ['📑', '계약·공사 관리'], money: ['💸', '미불금·대금 받기'] }
 const 계산기묶음 = (key) => {
   const c = CATS.find((x) => x.key === key)
   if (!c) return null
@@ -64,7 +66,7 @@ const 묶음들 = (() => {
   const by = Object.fromEntries(PAGES.map((g) => [g.key, g]))
   const out = []
   for (const k of ['drawing', 'naeyeok', 'file']) if (by[k]) out.push(by[k])
-  for (const c of ['work', 'qty', 'bid']) { const g = 계산기묶음(c); if (g) out.push(g) }
+  for (const c of ['work', 'money', 'qty', 'bid']) { const g = 계산기묶음(c); if (g) out.push(g) }
   for (const g of PAGES) if (!out.includes(g)) out.push(g)
   return out
 })()
@@ -164,6 +166,9 @@ export function ToolPage() {
   /* 없는 slug 는 soft 404 가 되지 않게 NotFound 로 — noindex 를 걸고 언마운트 때 지웁니다. */
   if (!t) return <NotFound />
   const Calc = CALCS[t.slug]
+  /* 💸 2026-09-28 — "store" 가 있으면 여러 도구가 칸 한 묶음을 같이 씁니다(미불금 4가지: 당사자·금액을 한 번만 적게).
+     같이 쓰는 칸은 🧪 예시가 덮어쓰지 않습니다(예시안남김) — 적어 둔 당사자·금액이 예시로 바뀌면 안 되므로 */
+  const 열쇠 = 'kcm.calc.' + (t.store || t.slug)
 
   return (
     <div className="wrap">
@@ -179,13 +184,13 @@ export function ToolPage() {
                     onClick={() => set판({ n: 판.n + 1, ex: EXAMPLES[t.slug].ex })}>🧪 예시로 해 보기</button>
             {판.ex
               ? <><span className="tlx-exd">예시: {EXAMPLES[t.slug].글}</span>
-                  <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={() => { try { localStorage.removeItem('kcm.calc.' + t.slug) } catch (e) { /* 없음 */ } set판({ n: 판.n + 1, ex: null }) }}>지우기</button></>
-              : <><span className="tlx-exd">눌러 보시면 칸이 채워지고 결과가 바로 나옵니다 · 적은 값은 이 기기에 남습니다</span>
-                  <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={() => { try { localStorage.removeItem('kcm.calc.' + t.slug) } catch (e) { /* 없음 */ } set판({ n: 판.n + 1, ex: null }) }}>칸 비우기</button></>}
+                  <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={() => { if (!t.store) { try { localStorage.removeItem(열쇠) } catch (e) { /* 없음 */ } } set판({ n: 판.n + 1, ex: null }) }}>{t.store ? '예시 끄기' : '지우기'}</button></>
+              : <><span className="tlx-exd">눌러 보시면 칸이 채워지고 결과가 바로 나옵니다 · 적은 값은 이 기기에 남습니다{t.store ? ' (미불금 서류 넷이 같이 씀 · 칸 비우기는 넷 다 지움)' : ''}</span>
+                  <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={() => { try { localStorage.removeItem(열쇠) } catch (e) { /* 없음 */ } set판({ n: 판.n + 1, ex: null }) }}>칸 비우기</button></>}
           </div>
         )}
         {/* 🧭 2026-09-27 — 적은 값은 이 기기에 남습니다(calcs.jsx use칸). 계산기마다 한 묶음 */}
-        {Calc ? <칸창고.Provider value={{ 열쇠: 'kcm.calc.' + t.slug, ex: 판.ex || {} }}><Calc key={판.n} ex={판.ex || {}} /></칸창고.Provider> : <div className="note">준비 중입니다.</div>}
+        {Calc ? <칸창고.Provider value={{ 열쇠, ex: 판.ex || {}, 예시안남김: !!t.store }}><Calc key={판.n} ex={판.ex || {}} /></칸창고.Provider> : <div className="note">준비 중입니다.</div>}
       </div>
 
       {(t.secs || []).map((s, i) => (

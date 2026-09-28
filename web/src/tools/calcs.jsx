@@ -27,6 +27,7 @@ export function use칸(필드, 초기) {
   })
   useEffect(() => {
     if (!c) return
+    if (c.예시안남김 && c.ex && Object.keys(c.ex).length) return   /* 같이 쓰는 칸(미불금 4가지)은 예시를 남기지 않습니다 */
     try {
       const m = JSON.parse(localStorage.getItem(c.열쇠) || '{}') || {}
       m[필드] = v

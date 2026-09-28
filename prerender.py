@@ -1881,8 +1881,10 @@ def tools_index(shell, tools, cats, image=None, pages=None):
     by = {g.get("key"): g for g in pages}
     groups = [by[k] for k in ("drawing", "naeyeok", "file") if k in by]
     # 📑 2026-09-28 «work» = 계약·공사 관리(하도급 적정성·낙찰 뒤 할 일·지체상금·하자담보) — 화면(Tools.jsx 묶음이름)과 같은 차례·이름
-    names = {"work": ("📑", "계약·공사 관리"), "qty": ("🧮", "수량 계산기"), "bid": ("🧮", "입찰·낙찰 계산기")}
-    for ck in ("work", "qty", "bid"):
+    # 💸 2026-09-28 «money» = 미불금·대금 받기(받는 순서·내용증명·지급명령·직접지급 요청서)
+    names = {"work": ("📑", "계약·공사 관리"), "money": ("💸", "미불금·대금 받기"),
+             "qty": ("🧮", "수량 계산기"), "bid": ("🧮", "입찰·낙찰 계산기")}
+    for ck in ("work", "money", "qty", "bid"):
         c = next((x for x in cats if x.get("key") == ck), None)
         lst = [t for t in tools if t.get("cat") == ck]
         if c and lst:
@@ -1931,7 +1933,9 @@ def tools_index(shell, tools, cats, image=None, pages=None):
 
 
 def tool_page(shell, t, others, image=None):
-    title = f'{t["title"]} — 무료 계산기 | K-건설맵'
+    # 서류 쓰기 도구는 «계산기» 가 아니라서 tools.json 의 tail 을 씁니다(키가 없으면 전처럼 «무료 계산기», 빈 글이면 꼬리 없음 — 제목이 길어서)
+    tail = t.get("tail", "무료 계산기")
+    title = f'{t["title"]}{" — " + tail if tail else ""} | K-건설맵'
     desc = (t.get("short") or "")[:150]
     out = [f'<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">'
            f'{esc(t.get("icon") or "")} {esc(t["title"])}</h1>'
