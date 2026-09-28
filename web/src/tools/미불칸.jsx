@@ -494,9 +494,11 @@ export function PaymentOrder({ ex = {} }) {
             {x.문단.map((y, j) => <p className="mb-pi" key={j}>{y}</p>)}
           </div>
         ))}
-        <div className="mb-date">{글.날}</div>
-        <div className="mb-sign">위 채권자 &nbsp;{글.서명} &nbsp;(서명 또는 날인)</div>
-        <div className="mb-court">{글.법원} 귀 중</div>
+        <div className="mb-end">
+          <div className="mb-date">{글.날}</div>
+          <div className="mb-sign">위 채권자 &nbsp;{글.서명} &nbsp;(서명 또는 날인)</div>
+          <div className="mb-court">{글.법원} 귀 중</div>
+        </div>
       </종이판>
       <div className="hint kt-hint">
         <b>내는 법</b> — 인쇄해 법원 민원실에 내거나, <b>대한민국 법원 전자소송</b>에서 온라인으로 낼 수 있습니다. 인지액·송달료는 법원 안 은행이나 전자소송에서 따로 내고 영수필확인서를 같이 냅니다.
