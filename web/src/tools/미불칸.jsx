@@ -17,7 +17,7 @@ import { use칸, Row, Out } from './calcs.jsx'
 import {
   종류들, 종류, 이율표, 이율, 종류별이율, 송달뒤율, 지연손해금, 시효, 받는길,
   송달회분, 송달1회기본, 미지급액,
-  내용증명글, 지급명령글, 직접지급글, 하도급사유, 임금사유, 예시값,
+  내용증명글, 지급명령글, 직접지급글, 하도급사유, 임금사유, 예시값, 사건기본,
 } from '../lib/미불셈.js'
 import { 날더하기, 날차 } from '../lib/계약셈.js'
 
@@ -49,8 +49,12 @@ const 칸들 = {
   공사명: '', 세부: '', 계약일: '', 시작일: '', 끝일: '', 계약금액: '',
   총액: '', 받은: '', 지급기일: '', 최고일: '', 계산일: '',
   기한: '', 쓴날: '', 계좌: '', 덧붙임: '',
-  발주이름: '', 원이름: '', 법원: '', 당사자: '2', 한회: String(송달1회기본),
+  발주이름: '', 원이름: '', 법원: '', 당사자: '', 한회: String(송달1회기본),
   사유: {}, 내역: [], 세통: true,
+  /* ⚖️ 지급명령(소장님 서식) — 등록번호·우편번호·여러 채무자·신청이유 고침. 주민등록번호는 여기 없음(저장 안 함) */
+  나법인: false, 나우편: '', 나사업자: '', 나법인번호: '', 나설명: '',
+  상대우편: '', 상대사업자: '', 상대법인번호: '', 상대연락: '', 상대설명: '',
+  더채무자: [], 연대: true, 사건직접: '', 이유고침: {}, 단락들: [], 산정행: [],
 }
 function use미불(ex = {}) {
   const d = {}, set = {}
@@ -99,7 +103,7 @@ function 종류고르기({ d, set }) {
 }
 
 /* 당사자 · 일한 내용 · 금액 — 서류 셋이 같이 씁니다 */
-function 공통칸({ d, set, n, 누구 = '내용증명', 이율도 = true }) {
+function 공통칸({ d, set, n, 누구 = '내용증명', 이율도 = true, 당사자 = null }) {
   const k = d.종류
   const [세부l, 세부p] = 세부이름[k] || 세부이름.공사
   const 남 = 미지급액(n)
@@ -110,6 +114,7 @@ function 공통칸({ d, set, n, 누구 = '내용증명', 이율도 = true }) {
       <div className="kt-h">① 무엇을 못 받았나</div>
       <종류고르기 d={d} set={set} />
 
+      {당사자 || (<>
       <div className="kt-h">② {나말}</div>
       <div className="tl-grid">
         <글칸 label="이름·상호" value={d.나이름} set={set.나이름} placeholder="○○건설(주) / 홍길동" />
@@ -125,6 +130,8 @@ function 공통칸({ d, set, n, 누구 = '내용증명', 이율도 = true }) {
         <글칸 label="주소" hint={누구 === '지급명령' ? '회사면 본점 — 법원이 여기로 보냅니다' : '회사면 본점'} value={d.상대주소} set={set.상대주소} placeholder="△△시 △△로 00" />
       </div>
       <label className="mb-chk"><input type="checkbox" checked={!!d.상대법인} onChange={(e) => set.상대법인(e.target.checked)} /> 상대가 회사(법인)입니다</label>
+
+      </>)}
 
       <div className="kt-h">④ 일한 내용</div>
       <div className="tl-grid">
@@ -307,55 +314,195 @@ export function DemandLetter({ ex = {} }) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   ⚖️ 지급명령 신청서
+   ⚖️ 지급명령 신청서 — 소장님 서식 그대로 (2026-09-28 「그 서식 그대로 … 이렇게 하지 않으면 보정명령 떨어져」)
+     종이는 lib/미불셈.js 지급명령글 이 만든 차례 그대로 그립니다.
+     ⚠️ 주민등록번호는 useState 로만 — 이 기기(localStorage)에 남기지 않습니다. 비우면 손으로 쓰는 빈칸.
    ══════════════════════════════════════════════════════════ */
+const 빈사람 = { 법인: false, 이름: '', 대표: '', 주소: '', 우편: '', 사업자: '', 법인번호: '', 연락: '', 설명: '' }
+function 사람칸({ 머리, p, set, 주민, set주민, 설명말, 설명기본, 빼기 = null, 전화선택 = false }) {
+  const 고침 = (f, v) => set({ ...p, [f]: v })
+  return (
+    <div className="mb-party">
+      <div className="mb-partyh">
+        <b>{머리}</b>
+        <span className="mb-kinds sm">
+          <button type="button" className={'chip' + (!p.법인 ? ' on' : '')} onClick={() => 고침('법인', false)}>개인·개인사업자</button>
+          <button type="button" className={'chip' + (p.법인 ? ' on' : '')} onClick={() => 고침('법인', true)}>법인(회사)</button>
+        </span>
+        {빼기 && <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={빼기}>✕ 빼기</button>}
+      </div>
+      <div className="tl-grid">
+        <글칸 label={p.법인 ? '상호' : '이름'} value={p.이름} set={(v) => 고침('이름', v)} placeholder={p.법인 ? '주식회사 ○○건설' : '홍길동'} />
+        {p.법인
+          ? <>
+              <글칸 label="법인등록번호" hint="비우면 빈칸으로 인쇄" value={p.법인번호} set={(v) => 고침('법인번호', v)} placeholder="000000-0000000" />
+              <글칸 label="사업자등록번호" hint="비우면 빈칸" value={p.사업자} set={(v) => 고침('사업자', v)} placeholder="000-00-00000" />
+              <글칸 label="대표이사" value={p.대표} set={(v) => 고침('대표', v)} placeholder="홍길동" />
+            </>
+          : <Row label="주민등록번호" hint="이 기기에 남기지 않음 · 비우면 손으로 쓰는 빈칸">
+              <input value={주민} onChange={(e) => set주민(e.target.value)} placeholder="000000-0000000" autoComplete="off" />
+            </Row>}
+        <글칸 label="주소" hint="회사면 본점" value={p.주소} set={(v) => 고침('주소', v)} placeholder="○○시 ○○구 ○○로 00" />
+        <글칸 label="우편번호" value={p.우편} set={(v) => 고침('우편', v)} placeholder="00000" />
+        <글칸 label="전화·휴대폰번호" hint={전화선택 || p.법인 ? '없으면 비움' : ''} value={p.연락} set={(v) => 고침('연락', v)} placeholder="010-0000-0000" />
+        {설명말 && <글칸 label={설명말} hint="신청이유 1. 당사자의 지위에 들어감" value={p.설명} set={(v) => 고침('설명', v)} placeholder={설명기본} />}
+      </div>
+    </div>
+  )
+}
+const 나설명보기 = { 공사: '건설공사를 시공하는 사업자', 장비: '건설기계 대여업을 하는 사업자', 노무: '건설현장에서 일한 근로자', 자재: '건설자재를 공급하는 사업자' }
+
 export function PaymentOrder({ ex = {} }) {
   const [d, set, n] = use미불(ex)
-  const 글 = useMemo(() => 지급명령글(n), [JSON.stringify(n)])   // eslint-disable-line react-hooks/exhaustive-deps
+  /* 주민등록번호 — 저장하지 않는 칸(새로고침하면 지워짐) */
+  const [주민, set주민] = useState({ 나: '', 너: [] })
+  const 나 = { 법인: !!d.나법인, 이름: d.나이름, 대표: d.나대표, 주소: d.나주소, 우편: d.나우편, 사업자: d.나사업자, 법인번호: d.나법인번호, 연락: d.나연락, 설명: d.나설명 }
+  const set나 = (p) => { set.나법인(!!p.법인); set.나이름(p.이름); set.나대표(p.대표); set.나주소(p.주소); set.나우편(p.우편); set.나사업자(p.사업자); set.나법인번호(p.법인번호); set.나연락(p.연락); set.나설명(p.설명) }
+  const 첫 = { 법인: !!d.상대법인, 이름: d.상대이름, 대표: d.상대대표, 주소: d.상대주소, 우편: d.상대우편, 사업자: d.상대사업자, 법인번호: d.상대법인번호, 연락: d.상대연락, 설명: d.상대설명 }
+  const set첫 = (p) => { set.상대법인(!!p.법인); set.상대이름(p.이름); set.상대대표(p.대표); set.상대주소(p.주소); set.상대우편(p.우편); set.상대사업자(p.사업자); set.상대법인번호(p.법인번호); set.상대연락(p.연락); set.상대설명(p.설명) }
+  const 더 = Array.isArray(d.더채무자) ? d.더채무자 : []
+  const 채무자들 = [첫, ...더].map((p, i) => ({ ...p, 주민: i === 0 ? (주민.너[0] || '') : (주민.너[i] || '') }))
+  const set너주민 = (i, v) => set주민((m) => { const x = [...m.너]; x[i] = v; return { ...m, 너: x } })
+  const n2 = { ...n, 채무자들, 나주민: 주민.나, 쓴날: d.쓴날, 당사자: num(d.당사자) || 1 + 채무자들.length }
+  const 글 = useMemo(() => 지급명령글(n2), [JSON.stringify(n2)])   // eslint-disable-line react-hooks/exhaustive-deps
+  const 고침 = d.이유고침 || {}
+  const 고치기 = (k, v) => set.이유고침({ ...고침, [k]: v })
+  const 되돌리기 = (k) => { const x = { ...고침 }; delete x[k]; set.이유고침(x) }
+  const 행 = d.산정행 && d.산정행.length ? d.산정행 : null
+  const 행고침 = (i, f, v) => set.산정행((행 || 글.행.map((x) => ({ ...x, 금액: String(x.금액) }))).map((x, j) => (j === i ? { ...x, [f]: v } : x)))
+  const 단락들 = Array.isArray(d.단락들) ? d.단락들 : []
+  const 책임안고침 = 채무자들.length > 1 && !(typeof 고침.책임 === 'string' && 고침.책임.trim())
+  const 이름칸 = (x) => String(x || '').trim()
+
+  const 당사자 = (
+    <>
+      <div className="kt-h">② 채권자(나)</div>
+      <사람칸 머리="채 권 자" p={나} set={set나} 주민={주민.나} set주민={(v) => set주민((m) => ({ ...m, 나: v }))}
+        설명말="나는 누구인가" 설명기본={나설명보기[n.종류] || ''} />
+      <div className="kt-h">③ 채무자(상대)</div>
+      <사람칸 머리={채무자들.length > 1 ? '채 무 자 1' : '채 무 자'} p={첫} set={set첫} 주민={주민.너[0] || ''} set주민={(v) => set너주민(0, v)}
+        설명말="채무자는 누구인가" 설명기본="예: 건설공사를 도급받아 시공하는 법인" />
+      {더.map((p, i) => (
+        <사람칸 key={i} 머리={`채 무 자 ${i + 2}`} p={{ ...빈사람, ...p }} 전화선택
+          set={(q) => set.더채무자(더.map((x, j) => (j === i ? q : x)))}
+          주민={주민.너[i + 1] || ''} set주민={(v) => set너주민(i + 1, v)}
+          설명말="채무자는 누구인가" 설명기본="예: 채무자 1의 대표이사"
+          빼기={() => { set.더채무자(더.filter((_, j) => j !== i)); set주민((m) => ({ ...m, 너: m.너.filter((_, j) => j !== i + 1) })) }} />
+      ))}
+      {채무자들.length > 1 && (
+        <label className="mb-chk"><input type="checkbox" checked={d.연대 !== false} onChange={(e) => set.연대(e.target.checked)} /> 채무자들이 연대하여 지급 — 신청취지에 «채무자들은 연대하여 …»</label>
+      )}
+      {더.length < 4 && (
+        <div className="kt-btns">
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set.더채무자([...더, { ...빈사람 }])}>＋ 채무자 더하기 (예: 연대보증한 대표이사)</button>
+        </div>
+      )}
+    </>
+  )
+
   return (
     <div className="tool">
-      <공통칸 d={d} set={set} n={n} 누구="지급명령" />
-      <div className="kt-h">⑥ 법원 · 비용</div>
+      <공통칸 d={d} set={set} n={n} 누구="지급명령" 당사자={당사자} />
+      <div className="kt-h">⑥ 사건 · 법원 · 비용</div>
       <div className="tl-grid">
+        <글칸 label="사건명" hint={`비우면 «${사건기본[n.종류] || '공사대금'}» · 뒤에 «청구의 독촉사건» 이 붙음`} value={d.사건직접} set={set.사건직접} placeholder={사건기본[n.종류] || '공사대금'} />
         <글칸 label="낼 법원" hint="상대 주소지(본점) 또는 내 주소지(영업소) 관할" value={d.법원} set={set.법원} placeholder="○○지방법원 ○○지원" />
         <날칸 label="내용증명 보낸 날" hint="보냈으면 · 이유에 한 줄 들어감" value={d.최고일} set={set.최고일} />
-        <Row label="당사자 수" hint="채권자+채무자"><input inputMode="numeric" value={d.당사자} onChange={(e) => set.당사자(e.target.value)} placeholder="2" /></Row>
-        <금액칸 label="송달료 1회분" hint={`원 · 법원 안내 금액으로 고치십시오`} value={d.한회} set={set.한회} placeholder={String(송달1회기본)} />
-        <날칸 label="쓴 날" hint="비우면 오늘" value={d.쓴날} set={set.쓴날} />
+        <Row label="당사자 수" hint={`비우면 ${1 + 채무자들.length} (채권자+채무자)`}><input inputMode="numeric" value={d.당사자} onChange={(e) => set.당사자(e.target.value)} placeholder={String(1 + 채무자들.length)} /></Row>
+        <금액칸 label="송달료 1회분" hint="원 · 법원 안내 금액으로 고치십시오" value={d.한회} set={set.한회} placeholder={String(송달1회기본)} />
+        <날칸 label="쓴 날" hint="비우면 «20  .  .  .» 빈칸 (손으로 씀)" value={d.쓴날} set={set.쓴날} />
       </div>
-      <Row label="이유에 한 줄 더 (고칠 수 있음)" hint="예: 기성 확인·약속 문자">
-        <textarea className="mb-ta" rows={2} value={d.덧붙임} onChange={(e) => set.덧붙임(e.target.value)} placeholder="채무자의 현장소장은 2026. 7. 10. 문자로 7월 말까지 지급하겠다고 약속하였습니다." />
-      </Row>
       <Out items={[
         { k: '청구금액(소가)', v: 글.청구금액 > 0 ? 원(글.청구금액) : '—' },
         { k: '인지액 (소장의 10분의 1)', v: 글.인지 ? 원(글.인지) : '—' },
-        { k: `송달료 (당사자 ${Math.max(2, num(d.당사자) || 2)} × ${송달회분}회분)`, v: 원(글.송달) },
-        { k: '독촉절차비용 합계', v: 글.청구금액 > 0 ? 원(글.비용) : '—', big: true },
+        { k: `송달료 (1회분 × 당사자 ${n2.당사자} × ${송달회분}회분)`, v: 원(글.송달) },
+        { k: '법원에 낼 돈 (서류에는 안 들어감)', v: 글.청구금액 > 0 ? 원(글.비용) : '—', big: true },
       ]} />
 
-      <종이판 제목="지급명령신청서">
-        <div className="mb-t1">지 급 명 령 신 청 서</div>
-        <사람줄 머리="채 권 자" p={글.채권자} 대표말="대표자" />
-        <사람줄 머리="채 무 자" p={글.채무자} 대표말="대표자" />
+      <div className="kt-h">⑦ 신청이유 — 자동으로 쓴 문장을 고치십시오</div>
+      {책임안고침 && (
+        <판정칸 종류="bad" 머리="꼭 고치기">
+          채무자가 둘 이상입니다. 아래 «채무자들의 책임» 에 <b>채무자 2 가 왜 같이 갚아야 하는지</b>(연대보증 등)를 적으십시오 — 근거 없이 대표이사 개인 등을 넣으면 이의·기각될 수 있습니다.
+        </판정칸>
+      )}
+      <div className="mb-edits">
+        {글.단락.map((x, i) => (
+          <div className="mb-edit" key={x.열쇠}>
+            <div className="mb-edith"><b>{i + 1}. {x.제목}</b>
+              {!x.더함 && typeof 고침[x.열쇠] === 'string' && 고침[x.열쇠].trim() && <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={() => 되돌리기(x.열쇠)}>자동 문장으로</button>}
+            </div>
+            {x.표 && (
+              <div className="mb-rows">
+                {(행 || 글.행.map((y) => ({ ...y, 금액: String(y.금액) }))).map((y, j) => (
+                  <div className="mb-rowin mb-rowin4" key={j}>
+                    <input value={y.구분 || ''} onChange={(e) => 행고침(j, '구분', e.target.value)} placeholder="가" aria-label="구분" />
+                    <input value={y.항목 || ''} onChange={(e) => 행고침(j, '항목', e.target.value)} placeholder="항목" aria-label="항목" />
+                    <input value={y.금액 ?? ''} onChange={(e) => 행고침(j, '금액', e.target.value.replace(/[^0-9-]/g, ''))} placeholder="금액(뺄 것은 -)" aria-label="금액" inputMode="numeric" />
+                    <input value={y.근거 || ''} onChange={(e) => 행고침(j, '근거', e.target.value)} placeholder="산정 근거" aria-label="산정 근거" />
+                    <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={() => set.산정행((행 || 글.행.map((z) => ({ ...z, 금액: String(z.금액) }))).filter((_, k) => k !== j))}>✕</button>
+                  </div>
+                ))}
+                <div className="kt-btns">
+                  <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set.산정행([...(행 || 글.행.map((z) => ({ ...z, 금액: String(z.금액) }))), { 구분: '', 항목: '', 금액: '', 근거: '' }])}>＋ 한 줄 더</button>
+                  {행 && <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={() => set.산정행([])}>자동 표로</button>}
+                </div>
+                {행 && 글.합계 !== 미지급액(n) && 미지급액(n) > 0 && <div className="hint kt-hint">⚠️ 표 합계 {원(글.합계)} 가 ⑤의 받지 못한 돈 {원(미지급액(n))} 과 다릅니다 — 청구금액은 표 합계로 들어갑니다.</div>}
+              </div>
+            )}
+            {x.더함
+              ? (() => { const j = Number(x.열쇠.slice(1)); const 원본 = 단락들.filter((y) => y && (이름칸(y.제목) || 이름칸(y.내용)))[j]; const 진짜 = 단락들.indexOf(원본); return (
+                  <>
+                    <input className="mb-in" value={원본.제목 || ''} onChange={(e) => set.단락들(단락들.map((y, k) => (k === 진짜 ? { ...y, 제목: e.target.value } : y)))} placeholder="단락 제목" />
+                    <textarea className="mb-ta" rows={4} value={원본.내용 || ''} onChange={(e) => set.단락들(단락들.map((y, k) => (k === 진짜 ? { ...y, 내용: e.target.value } : y)))} />
+                    <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={() => set.단락들(단락들.filter((_, k) => k !== 진짜))}>✕ 단락 빼기</button>
+                  </>) })()
+              : <textarea className="mb-ta" rows={Math.max(2, Math.min(8, (x.문단.join('\n').length / 48 | 0) + x.문단.length))}
+                  value={typeof 고침[x.열쇠] === 'string' ? 고침[x.열쇠] : (글.자동[x.열쇠] || x.문단).join('\n')}
+                  onChange={(e) => 고치기(x.열쇠, e.target.value)}
+                  placeholder={x.표 ? '표 아래에 덧붙일 설명(비워도 됨)' : ''} />}
+            {x.열쇠 === '미지급' && (
+              <button type="button" className="btn line sm" style={{ width: 'auto', marginTop: 6 }} onClick={() => set.단락들([...단락들, { 제목: '새 단락', 내용: '' }])}>＋ 단락 더하기 (경위·손해 등)</button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <종이판 제목="지급명령신청">
+        <div className="mb-t1">{글.제목}</div>
+        <div className="mb-who"><div className="mb-whoh">채 권 자</div><div className="mb-whob">{글.채권자.map((x, i) => <div key={i}>{i === 0 ? <b>{x}</b> : x}</div>)}</div></div>
+        {글.채무자들.map((c, j) => (
+          <div className="mb-who" key={j}><div className="mb-whoh">{c.머리}</div><div className="mb-whob">{c.줄.map((x, i) => <div key={i}>{i === 0 ? <b>{x}</b> : x}</div>)}</div></div>
+        ))}
         <div className="mb-case">{글.사건}</div>
-        <div className="mb-case">청구금액: {글.청구금액 > 0 ? `금 ${글.청구금액.toLocaleString('ko-KR')}원` : '금 ○○○원'}</div>
+        <div className="mb-case">청구금액 : {글.청구금액 > 0 ? `금 ${글.청구금액.toLocaleString('ko-KR')}원` : '금           원'}</div>
         <div className="mb-h">신 청 취 지</div>
-        <p className="mb-p">채무자는 채권자에게 아래 청구금액 및 독촉절차비용을 지급하라는 명령을 구합니다.</p>
+        <p className="mb-p">{글.취지머리}</p>
         <ol className="mb-ol">{글.취지.map((x, i) => <li key={i}>{x}</li>)}</ol>
-        <div className="mb-h">독 촉 절 차 비 용</div>
-        <p className="mb-p">금 {글.비용.toLocaleString('ko-KR')}원 (인지대 {글.인지.toLocaleString('ko-KR')}원, 송달료 {글.송달.toLocaleString('ko-KR')}원)</p>
         <div className="mb-h">신 청 이 유</div>
-        <ol className="mb-ol">{글.이유.map((x, i) => <li key={i}>{x}</li>)}</ol>
-        <div className="mb-h">첨 부 서 류</div>
-        <ol className="mb-ol mb-att">{글.첨부.map((x) => <li key={x.k}>{x.t} <span>{x.n}통</span></li>)}</ol>
+        {글.단락.map((x, i) => (
+          <div className="mb-sec" key={x.열쇠}>
+            <div className="mb-sech">{i + 1}. {x.제목}</div>
+            {x.표 && (
+              <table className="mb-tb mb-tb2">
+                <thead><tr><th>구분</th><th>항 목</th><th>금 액</th><th>산 정 근 거</th></tr></thead>
+                <tbody>
+                  {x.표.map((y, j) => <tr key={j}><td className="c">{y.구분}</td><td>{y.항목}</td><td className="r">{y.금액 < 0 ? `△${(-y.금액).toLocaleString('ko-KR')}원` : `${(+y.금액 || 0).toLocaleString('ko-KR')}원`}</td><td>{y.근거}</td></tr>)}
+                  <tr className="sum"><td /><td className="c">합 계</td><td className="r">{x.합계.toLocaleString('ko-KR')}원</td><td /></tr>
+                </tbody>
+              </table>
+            )}
+            {x.문단.map((y, j) => <p className="mb-pi" key={j}>{y}</p>)}
+          </div>
+        ))}
         <div className="mb-date">{글.날}</div>
-        <div className="mb-sign">채권자 &nbsp;{글.서명} &nbsp;(서명 또는 날인)</div>
-        <div className="mb-court">{글.법원} 귀중</div>
+        <div className="mb-sign">위 채권자 &nbsp;{글.서명} &nbsp;(서명 또는 날인)</div>
+        <div className="mb-court">{글.법원} 귀 중</div>
       </종이판>
       <div className="hint kt-hint">
-        <b>내는 법</b> — 인쇄해 법원 민원실에 내거나, <b>대한민국 법원 전자소송</b>에서 온라인으로 낼 수 있습니다. 인지액·송달료는 법원 안에 있는 은행에서 냅니다(전자소송은 온라인 납부).
+        <b>내는 법</b> — 인쇄해 법원 민원실에 내거나, <b>대한민국 법원 전자소송</b>에서 온라인으로 낼 수 있습니다. 인지액·송달료는 법원 안 은행이나 전자소송에서 따로 내고 영수필확인서를 같이 냅니다.
         {' '}채무자가 받은 날부터 <b>2주 안에 이의하지 않으면</b> 확정되어 강제집행할 수 있고, 이의하면 소송으로 넘어갑니다.
         {' '}낼 곳은 <b>채무자 주소지(회사면 본점·주된 영업소) 법원</b>이나, 돈을 받을 곳(따로 정하지 않았으면 <b>채권자의 주소·영업소</b>) 법원입니다(민사소송법 제463조·제8조, 민법 제467조).
+        {' '}<b>주민등록번호</b>는 이 기기에 남기지 않습니다(새로고침하면 지워짐) — 비워 두면 손으로 쓰는 빈칸으로 찍힙니다.
       </div>
       <근거줄>민사소송법 제462조·제463조·제470조·제474조 · 민사소송 등 인지법 제2조·제7조②④ · 소송촉진 등에 관한 특례법 제3조 · 같은 조 법정이율 규정(연 {송달뒤율}%) · 송달료 당사자 수 × {송달회분}회분(송달료규칙 업무처리요령 별표 1)</근거줄>
       <상담줄 />
@@ -466,7 +613,13 @@ const 노무예시 = { ...예시값, 종류: '노무', 이율: '임금', 나이�
 export const 미불EXAMPLES = {
   unpaid: { 글: '하도급 공사대금 1억 5천만 원 중 1억 원만 받음 · 7월 31일이 지급기일', ex: { ...예시값 } },
   'demand-letter': { 글: '하도급 공사대금 5천만 원 미지급 · 지어낸 회사·주소', ex: { ...예시값, 쓴날: '2026-09-28', 기한: '2026-10-08' } },
-  'payment-order': { 글: '하도급 공사대금 5천만 원 · 내용증명 뒤 지급명령 · 지어낸 회사', ex: { ...예시값, 쓴날: '2026-09-28', 법원: '△△지방법원' } },
+  'payment-order': { 글: '하도급 공사대금 5천만 원 · 원도급사와 연대보증한 대표이사 두 채무자 · 지어낸 회사·사람', ex: {
+    ...예시값, 쓴날: '2026-09-28', 법원: '△△지방법원 △△지원', 나우편: '00000', 상대우편: '00000',
+    나설명: '철근콘크리트공사업을 하는 법인', 상대설명: '「○○동 공영주차장 조성공사」를 도급받아 시공한 종합건설 법인',
+    더채무자: [{ 법인: false, 이름: '임꺽정', 대표: '', 주소: '△△시 △△구 △△로 34', 우편: '00000', 사업자: '', 법인번호: '', 연락: '', 설명: '채무자 1의 대표이사' }],
+    연대: true,
+    이유고침: { 책임: '채무자 1은 위 하도급계약에 따라 채권자에게 미지급 공사대금 금 50,000,000원을 지급할 의무가 있습니다.\n채무자 2는 2026. 3. 2. 위 하도급계약서에 채무자 1의 공사대금 지급 채무를 연대보증한다는 뜻을 적고 서명·날인하였습니다.\n따라서 채무자들은 연대하여 채권자에게 위 돈을 지급할 의무가 있습니다.' },
+  } },
   'direct-payment': { 글: '형틀목공 임금 640만 원 — 원도급사에 직접 청구 · 지어낸 이름', ex: { ...노무예시, 쓴날: '2026-09-28' } },
 }
 export const 미불CALCS = {

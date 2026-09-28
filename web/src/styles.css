@@ -4263,7 +4263,7 @@ span.qna-like { cursor: default; }
    칸은 계약칸(kt-)과 같은 꼴, 종이(mb-종이)는 A4 서류처럼. 인쇄하면 종이만 남습니다(#mb-인쇄). */
 .mb-kinds { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 10px; }
 .mb-chk { display: flex; gap: 6px; align-items: flex-start; font-size: 13.5px; margin: 4px 0 8px; line-height: 1.5; cursor: pointer; }
-.mb-chk input { margin-top: 3px; flex: none; }
+.mb-chk input { margin-top: 2px; flex: 0 0 auto; width: 18px; height: 18px; }   /* .tool input 의 width:100% 를 되돌림 — 안 그러면 글이 밀려 안 보임 */
 .mb-lawi { font-style: normal; font-size: 11.5px; color: var(--muted); }
 .mb-ta { width: 100%; box-sizing: border-box; font: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); resize: vertical; }
 .mb-legal { margin-top: 12px; padding: 9px 12px; border-radius: 10px; background: var(--surface-2, #f5f7fa); font-size: 12.5px; color: var(--muted); line-height: 1.6; }
@@ -4304,6 +4304,25 @@ span.qna-like { cursor: default; }
 .mb-tb2 th { width: auto; text-align: center; }
 .mb-tb .r { text-align: right; white-space: nowrap; }
 .mb-tb tr.sum td { font-weight: 800; }
+/* ⚖️ 지급명령 — 당사자 칸 · 신청이유 고치기 · 종이의 단락 (소장님 서식) */
+.mb-party { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 6px 0 8px; }
+.mb-partyh { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.mb-partyh > b { font-size: 14px; letter-spacing: 2px; }
+.mb-kinds.sm { margin: 0; }
+.mb-kinds.sm .chip { padding: 4px 10px; font-size: 12.5px; }
+.mb-edits { display: flex; flex-direction: column; gap: 10px; margin: 6px 0 4px; }
+.mb-edit { border-left: 3px solid var(--line); padding-left: 10px; }
+.mb-edith { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; font-size: 13.5px; }
+.mb-in { width: 100%; box-sizing: border-box; font: inherit; font-size: 14px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); margin-bottom: 6px; }
+.mb-rowin4 { grid-template-columns: 52px 1.2fr 1fr 1.6fr auto; }
+@media (max-width: 560px) { .mb-rowin4 { grid-template-columns: 48px 1fr auto; } .mb-rowin4 input:nth-child(3), .mb-rowin4 input:nth-child(4) { grid-column: 1 / -1; } }
+.mb-whob > div { white-space: pre-wrap; }   /* 등록번호·우편번호 빈칸(손으로 쓸 자리)이 한 칸으로 줄지 않게 */
+.mb-date { white-space: pre; }
+.mb-sec { margin: 10px 0 12px; }
+.mb-sech { font-weight: 800; margin-bottom: 4px; break-after: avoid; page-break-after: avoid; }   /* 단락 제목만 쪽 끝에 홀로 남지 않게 */
+.mb-tb tr { break-inside: avoid; page-break-inside: avoid; }
+.mb-pi { margin: 4px 0 6px 1em; }
+.mb-tb .c { text-align: center; }
 #mb-인쇄 { display: none; }
 @page mb쪽 { size: A4 portrait; margin: 18mm 16mm; }
 @media print {
