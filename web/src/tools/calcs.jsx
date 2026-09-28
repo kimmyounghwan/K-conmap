@@ -14,7 +14,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
    → 칸마다 이 기기에 남깁니다(localStorage · 계산기마다 한 묶음). «예시로 해 보기» 중에는 남긴 값을 읽지 않고,
      «지우기» 를 누르면 그 계산기에 남긴 값을 비웁니다(Tools.jsx ToolPage). */
 export const 칸창고 = createContext(null)
-function use칸(필드, 초기) {
+export function use칸(필드, 초기) {
   const c = useContext(칸창고)
   const [v, setV] = useState(() => {
     const 첫 = typeof 초기 === 'function' ? 초기() : 초기
@@ -41,7 +41,7 @@ import { lowerLimit } from '../lib/bidmath.js'
 const won = (n) => (n > 0 ? Math.round(n).toLocaleString('ko-KR') + '원' : '—')
 const num = (v) => { const n = Number(String(v).replace(/[^0-9.]/g, '')); return isFinite(n) ? n : 0 }
 
-function Row({ label, hint, children }) {
+export function Row({ label, hint, children }) {
   return (
     <label className="tl-row">
       <span className="tl-lab">{label}{hint ? <i>{hint}</i> : null}</span>
@@ -49,7 +49,7 @@ function Row({ label, hint, children }) {
     </label>
   )
 }
-function Out({ items }) {
+export function Out({ items }) {
   return (
     <div className="tl-out">
       {items.map((x, i) => (

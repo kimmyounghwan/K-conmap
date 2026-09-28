@@ -1880,11 +1880,13 @@ def tools_index(shell, tools, cats, image=None, pages=None):
     pages = pages or []
     by = {g.get("key"): g for g in pages}
     groups = [by[k] for k in ("drawing", "naeyeok", "file") if k in by]
-    for ck in ("qty", "bid"):
+    # 📑 2026-09-28 «work» = 계약·공사 관리(하도급 적정성·낙찰 뒤 할 일·지체상금·하자담보) — 화면(Tools.jsx 묶음이름)과 같은 차례·이름
+    names = {"work": ("📑", "계약·공사 관리"), "qty": ("🧮", "수량 계산기"), "bid": ("🧮", "입찰·낙찰 계산기")}
+    for ck in ("work", "qty", "bid"):
         c = next((x for x in cats if x.get("key") == ck), None)
         lst = [t for t in tools if t.get("cat") == ck]
         if c and lst:
-            groups.append({"icon": "🧮", "name": "수량 계산기" if ck == "qty" else "입찰·낙찰 계산기",
+            groups.append({"icon": names[ck][0], "name": names[ck][1],
                            "items": [{"to": f'/tools/{t["slug"]}', "icon": t.get("icon") or "",
                                       "t": t["title"], "d": t.get("short") or "", "w": "site"} for t in lst]})
     groups += [g for g in pages if g not in groups]
@@ -1933,14 +1935,14 @@ def tool_page(shell, t, others, image=None):
     desc = (t.get("short") or "")[:150]
     out = [f'<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">'
            f'{esc(t.get("icon") or "")} {esc(t["title"])}</h1>'
-           f'<p class="cp" style="margin-top:8px">{esc(t.get("lead") or "")}</p></div>']
+           f'<p class="cp" style="margin-top:8px">{bold_md(esc(t.get("lead") or ""))}</p></div>']
     # ⚠️ 계산기 자체는 React 가 그립니다. 크롤러에게는 «설명과 근거» 를 보여줍니다 —
     #    입력칸만 있는 페이지는 「가치 없는 콘텐츠」로 읽힙니다(애드센스·검색 둘 다).
     for sec in (t.get("secs") or []):
         out.append(f'<div class="card"><div class="sec-title" style="margin:0 0 6px">'
                    f'{esc(sec.get("h") or "")}</div>')
         for x in (sec.get("p") or []):
-            out.append(f'<p class="cp">{esc(x)}</p>')
+            out.append(f'<p class="cp">{bold_md(esc(x))}</p>')   # **굵게** → <b> (화면 Tools.jsx 굵게 와 같게)
         out.append("</div>")
     if others:
         out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">다른 도구</div>')
@@ -2463,7 +2465,8 @@ def main():
               if og.available else None, pages=tpages))
         made += 1
         for t in ttools:
-            others = [o for o in ttools if o["slug"] != t["slug"]][:4]
+            others = ([o for o in ttools if o.get("cat") == t.get("cat") and o["slug"] != t["slug"]]
+                      + [o for o in ttools if o.get("cat") != t.get("cat")])[:4]
             img = (og.tab(f'tool-{t["slug"]}', t["title"], "건설 도구",
                           "무료", (t.get("short") or "")[:44]) if og.available else None)
             write(f'tools/{t["slug"]}.html', tool_page(shell, t, others, img))

@@ -2835,6 +2835,41 @@ a.glink:hover { text-decoration: underline; }
 .tl-o.big{ padding:12px; background:color-mix(in srgb, var(--accent) 10%, var(--surface)); }
 .tl-o.big b{ font-size:19px; color:var(--accent); }
 
+/* 📑 계약·공사 관리 도구 (2026-09-28 · tools/계약칸.jsx) — 색은 토큰만(다크모드가 따라옴)
+   ⚠️ --fg · --fg-dim 은 :root 에 없는 이름입니다(위 .tl-* 가 쓰지만 먹지 않음) → --text · --text-2 · --line 을 씁니다 */
+.kt-h{ font-size:14px; font-weight:800; margin:2px 0 0; }
+.kt-hint{ font-size:13px; line-height:1.65; color:var(--text-2); }
+.kt-hint b{ color:var(--text); }
+.kt-won{ font-size:11.5px; color:var(--text-2); font-variant-numeric:tabular-nums; }
+.kt-law{ font-size:11.5px; color:var(--text-2); line-height:1.5; }
+.kt-next{ font-size:12.5px; color:var(--text-2); padding:8px 10px; border-radius:8px; background:var(--surface-2); }
+.kt-chks{ display:flex; flex-direction:column; gap:6px; }
+.kt-chk{ display:flex; gap:8px; align-items:flex-start; font-size:13px; line-height:1.45; cursor:pointer; }
+.kt-chk input{ width:18px; height:18px; margin-top:1px; flex:0 0 auto; }
+.kt-list{ display:flex; flex-direction:column; gap:1px; border-radius:10px; overflow:hidden;
+  background:var(--line); }
+.kt-it{ display:grid; grid-template-columns:150px minmax(0,1fr); gap:10px; padding:10px 12px; background:var(--surface); }
+.kt-it.past{ opacity:.55; }
+.kt-it.rule{ background:var(--surface-2); }
+.kt-d{ font-size:12.5px; line-height:1.45; font-variant-numeric:tabular-nums; }
+.kt-d b{ font-size:14px; }
+.kt-d em{ display:block; font-style:normal; font-weight:800; color:var(--accent); font-size:12.5px; }
+.kt-b{ min-width:0; }
+.kt-t{ font-size:14px; font-weight:700; line-height:1.4; }
+.kt-g{ font-size:12.5px; color:var(--text-2); line-height:1.55; margin-top:2px; }
+.kt-it .kt-law{ margin-top:3px; }
+@media (max-width:520px){ .kt-it{ grid-template-columns:1fr; gap:4px; } .kt-d em{ display:inline; margin-left:8px; } }
+.kt-bag{ display:flex; flex-direction:column; gap:6px; padding:10px 12px; border-radius:10px; border:1px solid var(--line); }
+.kt-bagit{ font-size:12.5px; line-height:1.45; font-variant-numeric:tabular-nums; }
+.kt-btns{ display:flex; gap:8px; flex-wrap:wrap; }
+.kt-all summary{ cursor:pointer; font-size:13px; font-weight:700; padding:6px 0; }
+.kt-allg{ margin:8px 0 4px; }
+.kt-allh{ font-size:13px; font-weight:800; }
+.kt-allh i{ font-style:normal; font-weight:500; font-size:11.5px; color:var(--text-2); margin-left:6px; }
+.kt-allr{ display:flex; justify-content:space-between; gap:10px; font-size:12.5px; padding:4px 0; border-bottom:1px dashed var(--line); }
+.kt-allr b{ flex:0 0 auto; font-variant-numeric:tabular-nums; }
+@media print{ .kt-btns, .tlx-ex{ display:none !important; } .kt-it.past{ opacity:1; } }
+
 
 /* ══════════════════════════════════════════════════════════════
    2026-09-14 — 모드 탭 · 금액대 · ⭐ 담은 공고 · 면허 경쟁도
