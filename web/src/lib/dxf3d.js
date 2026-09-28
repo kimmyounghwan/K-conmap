@@ -246,7 +246,9 @@ export function parseDxf(text, onProgress, opt = {}) {
   /* 🧪 2026-09-28 — AutoCAD 2007 판 DWG 가운데 엔진이 반쯤 읽은 도면은 좌표에 -5.5E+298 같은 «쓰레기 값» 이 섞여 나옵니다.
      유한한 수라 걸러지지 않고 Float32 로 옮길 때 무한대가 되어 화면 맞추기가 깨지고 «까만 화면» 이 됐습니다(선 7천 개가 다 안 보임).
      → 1조(10¹²) 넘는 좌표는 버립니다. 실제 좌표(TM·UTM, mm 로 그려도 10⁹~10¹⁰)는 한참 아래입니다. */
-  const 멀다 = (a) => !(Math.abs(a[0]) < 1e12 && Math.abs(a[1]) < 1e12 && Math.abs(a[2]) < 1e12)
+  /* 🧪 2026-09-28 (2) — 높이(Z)는 더 좁게: 도면 단위가 mm 여도 실제 높이는 10 km(10⁷)를 넘지 않습니다(m 단위면 10⁴).
+     소장님 도면 19장 중 상세도 한 장은 블록을 거치며 높이가 −2.6×10¹¹ 이 된 선이 있어 «높이 −262,873,068 m» 로 나왔습니다 → 2×10⁷ 넘는 높이는 버림. */
+  const 멀다 = (a) => !(Math.abs(a[0]) < 1e12 && Math.abs(a[1]) < 1e12 && Math.abs(a[2]) < 2e7)
   function seg(b, a, c, rgb) {
     if (stats.segs >= MAX) { stats.capped = true; return }
     if (!(Number.isFinite(a[0] + a[1] + a[2] + c[0] + c[1] + c[2]))) return
@@ -772,28 +774,125 @@ function layerSample(pos, pts) {
   return { p: out, w: n / k }
 }
 
-/** 켠 층들의 자리 [x0,y0,z0,x1,y1,z1] — 점 수로 무게를 단 1~99% */
-export function fitBox(layers, on) {
-  const xs = [], ys = [], zs = []
-  for (const l of layers) {
-    if (!on[l.name] || !l.smp) continue
-    const { p, w } = l.smp
-    for (let i = 0; i < p.length; i += 3) { xs.push([p[i], w]); ys.push([p[i + 1], w]); zs.push([p[i + 2], w]) }
+/* 🎯 2026-09-28 — 소장님 도면 19장(토목·건축)을 넣자 화면이 «점 몇 개» 만 보였습니다.
+   · 「08. …종평·횡단면도」 가 실제 좌표 평면도로 잡혔는데, 한 도면 안에 수백 km 떨어진 곳에도 선이 있어
+     1~99% 자리만으로도 234 km × 196 km 가 됐습니다 → 다른 묶음이 그 오른쪽 300 km 밖에 놓이고, 화면은 그 전부를 맞추느라 점이 됨.
+   → «알맹이 자리»: 점들의 가운데(무게 중앙값)에서 max(절반 거리 × 20, 10 km) 안에 든 점만으로 1~99% 를 잽니다(좌표는 mm).
+     한 현장 도면은 전과 그대로, 수십~수백 km 떨어진 덩어리가 섞인 도면은 가장 큰 덩어리(절반 넘는 쪽)만 잡힙니다.
+     떨어진 선은 지우지 않고 자리 잡기·화면 맞추기에서만 뺍니다. */
+export function 알맹이상자(xs, ys, ws = null, zs = null) {
+  const n = xs.length
+  if (!n) return null
+  const w = (i) => (ws ? ws[i] : 1)
+  const 무게중앙 = (v) => {
+    const ix = v.map((_, i) => i).sort((a, b) => v[a] - v[b])
+    let tot = 0; for (let i = 0; i < n; i++) tot += w(i)
+    let acc = 0
+    for (const i of ix) { acc += w(i); if (acc >= tot / 2) return v[i] }
+    return v[ix[ix.length - 1]]
   }
-  if (!xs.length) return null
-  const q = (v, lo, hi) => {
-    v.sort((a, b) => a[0] - b[0])
-    const tot = v.reduce((s, x) => s + x[1], 0)
-    let acc = 0, a = v[0][0], b = v[v.length - 1][0], gotA = false
-    for (const [x, w] of v) {
-      acc += w
-      if (!gotA && acc >= tot * lo) { a = x; gotA = true }
-      if (acc >= tot * hi) { b = x; break }
+  const mx = 무게중앙(xs), my = 무게중앙(ys)
+  const d = new Array(n)
+  for (let i = 0; i < n; i++) d[i] = Math.max(Math.abs(xs[i] - mx), Math.abs(ys[i] - my))
+  const 반거리 = 무게중앙(d)
+  /* 20배와 10 km(mm 기준 10⁷) 중 큰 것 — 한 현장 안(수 km)은 전과 똑같이 1~99% 로 잡고, 수십~수백 km 떨어진 덩어리만 뺍니다.
+     (×4 로 해 보니 빽빽한 가운데만 잡혀 화면이 너무 붙었고, 옆에 놓는 묶음이 평면도 위에 겹쳤습니다) */
+  const R = Math.max(반거리 * 20, 1e7)
+  const 고른 = []
+  for (let i = 0; i < n; i++) if (d[i] <= R) 고른.push(i)
+  const q = (vals, lo, hi) => {
+    const ix = 고른.slice().sort((a, b) => vals[a] - vals[b])
+    let tot = 0; for (const i of ix) tot += w(i)
+    let acc = 0, a = vals[ix[0]], b = vals[ix[ix.length - 1]], gotA = false
+    for (const i of ix) {
+      acc += w(i)
+      if (!gotA && acc >= tot * lo) { a = vals[i]; gotA = true }
+      if (acc >= tot * hi) { b = vals[i]; break }
     }
     return [a, b]
   }
-  const [x0, x1] = q(xs, 0.01, 0.99), [y0, y1] = q(ys, 0.01, 0.99), [z0, z1] = q(zs, 0.005, 0.995)
+  const [x0, x1] = q(xs, 0.01, 0.99), [y0, y1] = q(ys, 0.01, 0.99)
+  const [z0, z1] = zs ? q(zs, 0.005, 0.995) : [0, 0]
   return [x0, y0, z0, x1, y1, z1]
+}
+
+/** 🧱 무더기상자 — 한 도면 안에 «좌표가 다른 두 덩어리» 가 있을 때(예: 수치지도는 실제 좌표, 종평·횡단 시트는
+ *  멀리 따로), 선이 가장 많은 덩어리 하나의 자리만 [x0,y0,z0,x1,y1,z1] 로 잡습니다. (2026-09-28)
+ *  알맹이상자로 먼저 좁힌 뒤, 그 안을 128×128 칸으로 나눠 «이어진 칸» 끼리 묶고(빈 칸 하나 건너뛰기까지 이음)
+ *  가장 무거운 무리의 알맹이를 씁니다. 소장님 도면 08: 알맹이가 49 km × 118 km → 시트 무리만.
+ *  ⚠️ 다른 평면도와 좌표가 맞지 않는 «떨어진» 실제 좌표 도면에만 씁니다 — 보통 도면은 알맹이상자 그대로. */
+export function 무더기상자(xs, ys, ws = null, zs = null) {
+  const b = 알맹이상자(xs, ys, ws, zs)
+  if (!b) return null
+  /* 알맹이가 이미 10 km 안이면 한 현장 — 그대로(시트가 줄지어 3~4 km 인 종평면도를 칸으로 쪼개면 몇 장만 잡혀 화면 밖으로 나갔음) */
+  if (Math.max(b[3] - b[0], b[4] - b[1]) <= 1e7) return b
+  const N = 128
+  const S = Math.max(b[3] - b[0], b[4] - b[1]) / N
+  if (!(S > 0)) return b
+  const n = xs.length
+  const 칸 = new Float64Array(N * N)
+  const 어디 = new Int32Array(n).fill(-1)
+  for (let i = 0; i < n; i++) {
+    const x = xs[i], y = ys[i]
+    if (!(x >= b[0] && x <= b[3] && y >= b[1] && y <= b[4])) continue
+    const cx = Math.min(N - 1, Math.floor((x - b[0]) / S)), cy = Math.min(N - 1, Math.floor((y - b[1]) / S))
+    const k = cy * N + cx
+    칸[k] += ws ? ws[i] : 1; 어디[i] = k
+  }
+  const 표 = new Int32Array(N * N).fill(-1)
+  let 으뜸 = -1, 으뜸무게 = 0, 번 = 0
+  for (let k0 = 0; k0 < N * N; k0++) {
+    if (!(칸[k0] > 0) || 표[k0] >= 0) continue
+    let 무게 = 0
+    const 쌓 = [k0]; 표[k0] = 번
+    while (쌓.length) {
+      const k = 쌓.pop(); 무게 += 칸[k]
+      const cx = k % N, cy = (k - cx) / N
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+        const x = cx + dx, y = cy + dy
+        if (x < 0 || y < 0 || x >= N || y >= N) continue
+        const j = y * N + x
+        if (칸[j] > 0 && 표[j] < 0) { 표[j] = 번; 쌓.push(j) }
+      }
+    }
+    if (무게 > 으뜸무게) { 으뜸무게 = 무게; 으뜸 = 번 }
+    번++
+  }
+  if (번 <= 1) return b
+  const X = [], Y = [], W = ws ? [] : null, Z = zs ? [] : null
+  for (let i = 0; i < n; i++) {
+    if (어디[i] < 0 || 표[어디[i]] !== 으뜸) continue
+    X.push(xs[i]); Y.push(ys[i]); if (W) W.push(ws[i]); if (Z) Z.push(zs[i])
+  }
+  return 알맹이상자(X, Y, W, Z) || b
+}
+
+/** 켠 층들의 자리 [x0,y0,z0,x1,y1,z1] — 점 수로 무게를 단 «알맹이» 1~99% (위 알맹이상자).
+ *  그룹(도면 묶음 [{층들}])을 주면 «묶음마다» 알맹이 자리를 잡아 합칩니다 — 선이 수백만 개인 평면도 옆의
+ *  작은 건물·횡단·구조물도 화면에 같이 들어오게(점 수로만 달면 1% 도 안 돼서 화면 밖으로 밀림). */
+export function fitBox(layers, on, 그룹 = null) {
+  const 모음 = new Map()
+  const 묶음 = new Map()
+  const 떨어진 = new Set()   // 다른 평면도와 좌표가 맞지 않는 실제 좌표 도면 → 무더기상자
+  if (그룹 && 그룹.length > 1) for (const g of 그룹) {
+    for (const k of g.층들 || []) 묶음.set(k, g.번 ?? g)
+    if (g.떨어짐) 떨어진.add(g.번 ?? g)
+  }
+  for (const l of layers) {
+    if (!on[l.name] || !l.smp) continue
+    const k = 묶음.has(l.floor) ? 묶음.get(l.floor) : '_'
+    let m = 모음.get(k)
+    if (!m) 모음.set(k, (m = { xs: [], ys: [], zs: [], ws: [] }))
+    const { p, w } = l.smp
+    for (let i = 0; i < p.length; i += 3) { m.xs.push(p[i]); m.ys.push(p[i + 1]); m.zs.push(p[i + 2]); m.ws.push(w) }
+  }
+  let out = null
+  for (const [k, m] of 모음) {
+    if (!m.xs.length) continue
+    const b = (떨어진.has(k) ? 무더기상자 : 알맹이상자)(m.xs, m.ys, m.ws, m.zs)
+    out = out ? [Math.min(out[0], b[0]), Math.min(out[1], b[1]), Math.min(out[2], b[2]), Math.max(out[3], b[3]), Math.max(out[4], b[4]), Math.max(out[5], b[5])] : b
+  }
+  return out
 }
 
 /** 단위 번호 → 글 */

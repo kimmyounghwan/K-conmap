@@ -212,7 +212,7 @@ export default function Dxf3d() {
         viewRef.current.setZ(되살림 ? 되살림.높이배 || 1 : 1)
         viewRef.current.set면(되살림 && 되살림.면 === false ? 0 : 0.55)
         viewRef.current.setLayers(r.layers.map((l) => ({ ...l, off: !on[l.name] })))
-        viewRef.current.fit(자리(r.layers, on), 평평(r.layers, on) ? 'top' : 'tilt')
+        viewRef.current.fit(자리(r.layers, on, r.그룹), 평평(r.layers, on) ? 'top' : 'tilt')
       } catch (e) {
         set상태({ k: 'err', msg: 'webgl' })
       }
@@ -236,12 +236,12 @@ export default function Dxf3d() {
   const 면바꾸기 = (v) => { set면(v); if (viewRef.current) viewRef.current.set면(v ? 0.55 : 0) }
   const 보기 = (how) => {
     if (!결과 || !viewRef.current) return
-    viewRef.current.fit(자리(결과.layers, 켬맵), how)
+    viewRef.current.fit(자리(결과.layers, 켬맵, 결과.그룹), how)
   }
   const 높이 = (z) => { set높이배(z); if (viewRef.current) viewRef.current.setZ(z) }
   /* 🧩 묶음(도면 한 장·건물·횡단·구조물) 통째로 켜고 끄기 */
   const 묶음켜기 = (g, on) => { const n = { ...층켬 }; for (const k of g.층들) n[k] = on; set층켬(n); 다시켜기(레켬, n) }
-  const 묶음만 = (g) => { const n = {}; for (const k of Object.keys(층켬)) n[k] = g.층들.includes(k); set층켬(n); 다시켜기(레켬, n); if (viewRef.current && 결과) { const on = {}; for (const l of 결과.layers) on[l.name] = 보임(l, 레켬, n); viewRef.current.fit(자리(결과.layers, on), 'tilt') } }
+  const 묶음만 = (g) => { const n = {}; for (const k of Object.keys(층켬)) n[k] = g.층들.includes(k); set층켬(n); 다시켜기(레켬, n); if (viewRef.current && 결과) { const on = {}; for (const l of 결과.layers) on[l.name] = 보임(l, 레켬, n); viewRef.current.fit(자리(결과.layers, on, 결과.그룹), 'tilt') } }
   /* 📍 기준점 찍기 — ① 옮길 묶음에서 한 점 ② 그 점이 갈 자리(다른 도면)를 누르면 그만큼 옮깁니다 */
   const 맞추기시작 = (g) => { set맞춤({ g: g.번, 단계: 1 }); set맞춤글('') }
   useEffect(() => {
@@ -668,7 +668,7 @@ export default function Dxf3d() {
 }
 
 /* 켠 층들의 자리 — 점 수로 무게를 달아 1~99% (구석의 튀는 점 몇 개에 화면이 끌려가지 않게) */
-function 자리(layers, 켬) { return fitBox(layers, 켬) }
+function 자리(layers, 켬, 그룹 = null) { return fitBox(layers, 켬, 그룹) }
 function 평평(layers, 켬) {
   let lo = Infinity, hi = -Infinity
   for (const l of layers) if (켬[l.name] && l.box) { lo = Math.min(lo, l.box[6]); hi = Math.max(hi, l.box[7]) }

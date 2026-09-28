@@ -2470,6 +2470,16 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
 
 /* 「설계내역서가 붙은 공고만」 버튼 */
 .docbtn.on { border-color: var(--accent); }
+.goodonly i b { font-weight: 700; color: var(--text); }
+.goodonly.on i b { color: inherit; }
+
+/* ▦ 두 거르개 단추를 넓은 화면에선 나란히 (2026-09-28 — 「오른쪽이 넘 비어 있어서」) */
+.goodrow { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 8px; }
+.goodrow[hidden] { display: none; }
+.goodrow .goodonly { margin-bottom: 0; }
+@media (min-width: 760px) {
+  .goodrow { grid-template-columns: 1fr 1fr; }
+}
 
 /* ══════════════════════════════════════════════════════════════
    ⚡ 오늘 넣을 것 — 바로투찰 첫 화면, «내 면허·내 지역» 만 (MyToday.jsx) — 2026-09-06
@@ -3315,6 +3325,12 @@ ul.plainlist li { margin-bottom: 5px; }
    지역·면허 알약 바로 아래 한 줄. 평소엔 접혀 있고, 걸어 둔 것이 있으면
    접힌 채로도 「💰 금액 · 4억~10억」 처럼 보입니다. */
 .amtbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; }
+/* ▦ 금액 · 공동도급 · 면허 다시 고르기를 한 줄에 (2026-09-28)
+   .amtbar 를 display:contents 로 풀어 단추들이 .fbar 한 줄에 나란히 서고,
+   펼친 칸(.amtbox)은 order 로 줄 맨 뒤 → 폭 100% 라 단추 줄 «아래» 에 열립니다. */
+.fbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; }
+.fbar > .amtbar { display: contents; }
+.fbar .amtbox { order: 10; margin-top: 2px; }
 .amtbox {
   flex: 1 0 100%; margin-top: 8px; padding: 11px 12px;
   border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2, var(--surface));

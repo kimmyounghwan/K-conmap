@@ -358,10 +358,20 @@ export default function LiveBoard() {
       </div>
 
       {/* 💰 금액 (2026-09-17) — 지역·면허 바로 아래. 이 셋이 «내 조건» 입니다.
-          지역·면허처럼 브라우저가 기억합니다 — 매번 다시 넣게 하면 아무도 안 씁니다. */}
-      {!bagMode && <AmtBar amt={amt} setAmt={(v) => { setAmt(v); saveAmt(v) }} />}
-      {/* 🤝 공동도급 (2026-09-27) — 금액 바로 아래. 우리 회사 지역도 여기서 정합니다 */}
-      {!bagMode && <공동거르개 값={공동거름} set값={set공동거름} 우리지역={우리지역} set우리지역={set우리지역} />}
+          지역·면허처럼 브라우저가 기억합니다 — 매번 다시 넣게 하면 아무도 안 씁니다.
+          🤝 공동도급 (2026-09-27) — 금액 옆. 우리 회사 지역도 여기서 정합니다.
+          ▦ 한 줄로 (2026-09-28, 소장님 「오른쪽이 넘 비어 있어서」) — 전에는 금액 · 공동도급 · 면허 다시 고르기가
+            «한 줄에 단추 하나씩» 세 줄을 차지해 넓은 화면 오른쪽이 텅 비었습니다.
+            이제 셋을 한 줄(.fbar)에 나란히 두고, 펼친 칸(.amtbox)은 CSS order 로 그 줄 «아래» 에 폭 가득 엽니다. */}
+      {!bagMode && (
+        <div className="fbar">
+          <AmtBar amt={amt} setAmt={(v) => { setAmt(v); saveAmt(v) }} />
+          <공동거르개 값={공동거름} set값={set공동거름} 우리지역={우리지역} set우리지역={set우리지역} />
+          {!editLic && lics.length > 0 && (
+            <button className="chip" onClick={() => setEditLic(true)}>🪪 면허 다시 고르기</button>
+          )}
+        </div>
+      )}
 
       {!bagMode && (editLic || (mine && !lics.length)) && (
         <div className="card">
@@ -412,24 +422,21 @@ export default function LiveBoard() {
         </div>
       )}
 
-      {!bagMode && !editLic && lics.length > 0 && (
-        <button className="btn ghost sm" style={{ marginBottom: 8 }} onClick={() => setEditLic(true)}>
-          면허 다시 고르기
+      {/* 두 거르개 단추 — 넓은 화면에선 둘을 나란히(.goodrow), 손전화에선 위아래로.
+          ⚠️ 2026-09-28 — 설계내역서 단추의 설명(span)이 줄을 안 바꿔 «공고만발주처가» 로 붙어 보였습니다(.docbtn span 이 없었음). */}
+      <div className="goodrow" hidden={bagMode}>
+        {/* 실측: C·D 등급 156건에서 한 건도 못 땄습니다. 걸러 볼 수 있게 합니다. */}
+        <button className={'goodonly' + (onlyGood ? ' on' : '')}
+          onClick={() => setOnlyGood(!onlyGood)}>
+          {onlyGood ? '✓ 해볼 만한 공고만 보는 중 (A·B)' : '🎯 해볼 만한 공고만 보기 (A·B)'}
+          <i>승률을 가르는 건 금액이 아니라 공고의 성격입니다 — 실측 45배 차이</i>
         </button>
-      )}
 
-      {/* 실측: C·D 등급 156건에서 한 건도 못 땄습니다. 걸러 볼 수 있게 합니다. */}
-      <button className={'goodonly' + (onlyGood ? ' on' : '')} hidden={bagMode}
-        onClick={() => setOnlyGood(!onlyGood)}>
-        {onlyGood ? '✓ 해볼 만한 공고만 보는 중 (A·B)' : '🎯 해볼 만한 공고만 보기 (A·B)'}
-        <i>승률을 가르는 건 금액이 아니라 공고의 성격입니다 — 실측 45배 차이</i>
-      </button>
-
-      {/* 🎯 자리 찾기 — 마감 전 공고를 «예상 참가·1순위율·기대액» 으로 골라 줍니다 */}
-      <button className={'goodonly docbtn' + (docOnly ? ' on' : '')} hidden={bagMode} onClick={() => setDocOnly(!docOnly)}>
-        <b>📑 설계내역서가 붙은 공고만</b>
-        <span>발주처가 잡은 <b>설계 단가</b>를 그대로 볼 수 있는 공고입니다 — 내 단가와 견줘 보세요.</span>
-      </button>
+        <button className={'goodonly docbtn' + (docOnly ? ' on' : '')} onClick={() => setDocOnly(!docOnly)}>
+          {docOnly ? '✓ 설계내역서가 붙은 공고만 보는 중' : '📑 설계내역서가 붙은 공고만 보기'}
+          <i>발주처가 잡은 <b>설계 단가</b>를 그대로 볼 수 있는 공고입니다 — 내 단가와 견줘 보세요</i>
+        </button>
+      </div>
 
       {pick && (
         <div className="pickctl">

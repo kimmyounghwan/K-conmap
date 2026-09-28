@@ -6,7 +6,7 @@
      - 평면도 묶음(「지상 2층 평면도」 같은 제목이 둘 이상)이 있고, 다른 도면 글자에서 층 높이를 찾으면
        → 층마다 나눠 제 높이에 쌓고 벽·기둥을 세웁니다 (lib/building3d.js)
      - 아니면 → 전처럼 도면에 적힌 높이 그대로 (여러 장이면 겹쳐 그림) */
-import { parseDxf, decodeBytes, sniff, finish, F64, U8 } from './dxf3d.js'
+import { parseDxf, decodeBytes, sniff, finish, F64, U8, 알맹이상자, 무더기상자 } from './dxf3d.js'
 import { 층높이찾기, 지붕채우기, 평면제목, 쌓기 } from './building3d.js'
 import { 횡단세우기 } from './횡단3d.js'
 import { 구조세우기 } from './구조3d.js'
@@ -165,16 +165,34 @@ self.onmessage = (ev) => {
     if (!그룹.some((g) => g.켬)) for (const g of 그룹) g.켬 = true
 
     /* 📐 자리 — 실제 좌표 평면도들은 제자리(기준). 나머지는 그 오른쪽에 나란히(사이 20m 이상) */
-    const 상자 = (out) => {
-      const xs = [], ys = []
-      for (const [, b] of out) {
-        const a = b.pos.a, st = Math.max(3, Math.floor(b.pos.n / 3 / 4000) * 3)
-        for (let i = 0; i < b.pos.n; i += st) { xs.push(a[i]); ys.push(a[i + 1]) }
+    /* 🎯 2026-09-28 — 묶음 자리는 «알맹이» 로(dxf3d.js 알맹이상자). 한 도면 안에 수백 km 떨어진 선이 있어도
+       그 묶음이 화면 전체를 차지하거나, 다른 묶음을 300 km 밖으로 밀어내지 않게 합니다. */
+    /* 👁 처음 화면에 보일 층만 봅니다 — 캐드에서 꺼 둔(끔·얼림) 층은 자리 잡기에서 뺍니다.
+       화면 자리(fitBox)도 «켠 층» 만 보므로 둘이 같은 것을 봐야 합니다.
+       ⚠️ 소장님 도면 08: 꺼 둔 수치지도 층(수십 km)으로 자리를 잡았더니, 켜져 있는 시트 선은 180 km 밖에 남아
+          08 을 켜면 다시 점만 보였습니다(시험으로 확인). 층 켬/끔은 화면과 같은 규칙(같은 이름 층은 먼저 읽은 도면 것). */
+    const 꺼진 = new Map()
+    for (const x of 읽은) for (const [k, v] of x.raw.layerInfo) if (!꺼진.has(k)) 꺼진.set(k, !!(v && v.off))
+    const 층이름 = (name) => { const c = name.indexOf('\u0001'); return c >= 0 ? name.slice(c + 1) : name }
+    const 표본 = (out) => {
+      const 모으기 = (보임만) => {
+        /* 층마다 4000 점 남짓만 뽑으므로, 뽑은 점 하나가 «몇 점 몫» 인지(ws)를 같이 둡니다 —
+           안 그러면 선 몇 개짜리 층이 선 수만 개짜리 층과 같은 무게가 되어 자리가 엉뚱해집니다(08: 1.8 km 어긋남) */
+        const xs = [], ys = [], ws = []
+        for (const [name, b] of out) {
+          if (보임만 && 꺼진.get(층이름(name))) continue
+          const a = b.pos.a, st = Math.max(3, Math.floor(b.pos.n / 3 / 4000) * 3)
+          for (let i = 0; i < b.pos.n; i += st) { xs.push(a[i]); ys.push(a[i + 1]); ws.push(st / 3) }
+        }
+        return { xs, ys, ws }
       }
-      if (!xs.length) return null
-      xs.sort((p, q) => p - q); ys.sort((p, q) => p - q)
-      const q = (v, f) => v[Math.floor(f * (v.length - 1))]
-      return [q(xs, 0.01), q(ys, 0.01), q(xs, 0.99), q(ys, 0.99)]
+      const t = 모으기(true)
+      return t.xs.length ? t : 모으기(false)   // 다 꺼 둔 도면이면(화면도 그땐 모두 켭니다) 전부로
+    }
+    const 상자 = (t) => {
+      if (!t.xs.length) return null
+      const r = 알맹이상자(t.xs, t.ys, t.ws)
+      return [r[0], r[1], r[3], r[4]]
     }
     const 옮기기 = (out, dx, dy) => {
       for (const [, b] of out) {
@@ -182,11 +200,47 @@ self.onmessage = (ev) => {
         if (b.tri) for (let i = 0; i < b.tri.n; i += 3) { b.tri.a[i] += dx; b.tri.a[i + 1] += dy }
       }
     }
-    for (const g of 그룹) g.상자 = 상자(g.out)
+    for (const g of 그룹) { g.표본 = 표본(g.out); g.상자 = 상자(g.표본) }
+    /* 🎯 2026-09-28 — 실제 좌표 평면도가 여럿이면 «서로 맞는 무리» 를 기준으로 삼습니다.
+       소장님 도면 19장: 03·09 는 같은 자리(수백 m)인데, 08(종평·횡단면도)은 수치지도가 수십 km 넓게 깔리고
+       설계 선 일부는 170 km 떨어져 있어, 08 까지 기준으로 두면 화면이 수십~수백 km 가 되어 점만 보였습니다.
+       → 두 도면이 «서로» 상대의 자리(넉넉히 넓힌 것) 안에 선의 절반 넘게 들면 같은 무리. 선이 가장 많은 무리가 기준.
+         무리에 못 든 실제 좌표 도면은 처음엔 꺼 두고, 옆 묶음들 «맨 끝» 에 나란히 둡니다.
+         ⚠️ 처음엔 «제자리 그대로» 두었는데, 켜면(모두 켜기) 화면이 다시 수십 km 가 되어 점만 보였습니다(시험으로 확인) →
+            좌표가 서로 맞지 않는 도면은 좌표대로 두어 봐야 볼 수가 없습니다. 다른 도면을 밀어내지 않게 맨 끝에 둡니다. */
+    const 선수 = (g) => { let n = 0; for (const [, b] of g.out) n += b.pos.n; return n }
+    const 넓힘 = (a) => { const m = Math.max(2e6, 0.5 * Math.max(a[2] - a[0], a[3] - a[1])); return [a[0] - m, a[1] - m, a[2] + m, a[3] + m] }
+    const 안비율 = (g, a) => {
+      const { xs, ys } = g.표본
+      if (!xs.length) return 0
+      let n = 0
+      for (let i = 0; i < xs.length; i++) if (xs[i] >= a[0] && xs[i] <= a[2] && ys[i] >= a[1] && ys[i] <= a[3]) n++
+      return n / xs.length
+    }
+    const 서로 = (g, h) => 안비율(h, 넓힘(g.상자)) >= 0.5 && 안비율(g, 넓힘(h.상자)) >= 0.5
+    const 실들 = 그룹.filter((g) => g.실좌표 && g.상자)
+    let 으뜸 = null, 무리 = []
+    if (실들.length) {
+      let 값 = -1
+      for (const g of 실들) {
+        const m = 실들.filter((h) => h === g || 서로(g, h))
+        const v = m.reduce((n, h) => n + 선수(h), 0)
+        if (v > 값) { 값 = v; 으뜸 = g; 무리 = m }
+      }
+      for (const g of 실들) {
+        if (무리.includes(g)) continue
+        g.실좌표 = false; g.떨어짐 = true; g.켬 = false
+        /* 자리는 «가장 큰 무더기» 로 — 알맹이만으론 두 덩어리를 다 담아 수십 km 가 됩니다(dxf3d.js 무더기상자) */
+        if (g.표본.xs.length) { const r = 무더기상자(g.표본.xs, g.표본.ys, g.표본.ws); g.상자 = [r[0], r[1], r[3], r[4]] }
+        g.설명 = '실제 좌표로 그렸지만 다른 평면도와 자리가 맞지 않음(수십 km 떨어짐) — 옆에 따로 둠 · 처음엔 꺼 둠'
+      }
+    }
     const 기준들 = 그룹.filter((g) => g.실좌표 && g.상자)
+    /* 나머지는 으뜸 자리 오른쪽에 나란히 */
     let 오른 = -Infinity, 아래 = Infinity, 폭 = 0
-    for (const g of 기준들) { 오른 = Math.max(오른, g.상자[2]); 아래 = Math.min(아래, g.상자[1]); 폭 = Math.max(폭, g.상자[2] - g.상자[0]) }
-    const 나머지 = 그룹.filter((g) => !g.실좌표 && g.상자)
+    for (const g of 무리) { 오른 = Math.max(오른, g.상자[2]); 아래 = Math.min(아래, g.상자[1]); 폭 = Math.max(폭, g.상자[2] - g.상자[0]) }
+    /* 떨어진 실제 좌표 도면은 맨 끝에 — 알맹이가 커도 다른 묶음 자리·틈을 밀어내지 않게 */
+    const 나머지 = [...그룹.filter((g) => !g.실좌표 && g.상자 && !g.떨어짐), ...그룹.filter((g) => g.떨어짐 && g.상자)]
     if (!기준들.length && 나머지.length) { const g0 = 나머지.shift(); g0.기준 = true; g0.옮김 = [0, 0]; 오른 = g0.상자[2]; 아래 = g0.상자[1]; 폭 = g0.상자[2] - g0.상자[0] }
     for (const g of 기준들) { g.기준 = true; g.옮김 = [0, 0] }
     for (const g of 나머지) {
@@ -198,6 +252,7 @@ self.onmessage = (ev) => {
       오른 = g.상자[2]
       폭 = Math.max(폭, g.상자[2] - g.상자[0])
     }
+    for (const g of 그룹) delete g.표본
 
     /* 합치기 */
     const out = new Map()
@@ -230,7 +285,7 @@ self.onmessage = (ev) => {
     r.건물 = 건물
     r.횡단 = 횡단
     r.구조 = 구조.length ? 구조 : null
-    r.그룹 = 그룹.map((g, i) => ({ 번: i, 종류: g.종류, 파일: g.파일, 층들: g.층들, 켬: g.켬, 기준: !!g.기준, 실좌표: !!g.실좌표, 옮김: g.옮김 || [0, 0], 설명: g.설명 }))
+    r.그룹 = 그룹.map((g, i) => ({ 번: i, 종류: g.종류, 파일: g.파일, 층들: g.층들, 켬: g.켬, 기준: !!g.기준, 실좌표: !!g.실좌표, 떨어짐: !!g.떨어짐, 옮김: g.옮김 || [0, 0], 설명: g.설명 }))
     r.파일 = 읽은.map((x) => x.이름)
     r.못읽은 = 못읽은
     const tr = []
