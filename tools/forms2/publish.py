@@ -82,8 +82,16 @@ def main():
         m, bk, path = build(slug, OUT)
         pdf = render(path, OUT)
         blank = [p.name for (st, lg), p in bk.pages.items() if st == "blank"]
+        pp = None
+        if m.WHERE != "orig":
+            pp = os.path.join(PUB, "v2", f"{m.SLUG}.pdf")
+            _print_pdf(path, blank, pp)
+        spec_prev = m.PREV
+        if spec_prev is None:            # 틀 그대로(gen) 서식 — 빈 서식 쪽수 다음이 작성 예시
+            bp = _pages(pp)
+            spec_prev = [(1, "빈 서식"), (bp + 1, "작성 예시")]
         prev, cap = [], []
-        for i, (pg, c) in enumerate(m.PREV, 1):
+        for i, (pg, c) in enumerate(spec_prev, 1):
             dst = os.path.join(PUB, "v2", f"{m.SLUG}-{i}.webp")
             size = _webp(pdf, pg, dst)
             prev.append(f"/forms/v2/{m.SLUG}-{i}.webp")
@@ -108,8 +116,6 @@ def main():
             f = next(x for x in forms["forms"] if x["slug"] == m.SLUG)
             f["gen"] = "forms2"
             f["prev"], f["prevcap"] = prev, cap
-            pp = os.path.join(PUB, "v2", f"{m.SLUG}.pdf")
-            _print_pdf(path, blank, pp)
             f["pdf"] = f"/forms/v2/{m.SLUG}.pdf"
             print(f"   인쇄용 PDF {os.path.basename(pp)} {_pages(pp)}쪽 {os.path.getsize(pp)//1024}KB")
             if getattr(m, "SHORT", None) and f.get("short") != m.SHORT:

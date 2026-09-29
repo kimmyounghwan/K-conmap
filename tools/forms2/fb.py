@@ -252,7 +252,11 @@ class Page:
             if fmt in ("date", "ymd", "md"):
                 align = "center"
         cell.font = Font(name=FONT, size=size, bold=bold, color=ink)
-        cell.alignment = Alignment(horizontal=align, vertical=valign, wrap_text=wrap, indent=indent)
+        # 숫자 칸은 «칸에 맞춰 줄이기» — 좁은 칸에 억 단위 금액이 들어와도 ### 가 되지 않게 (엑셀·한셀·LibreOffice 공통)
+        numeric = bool(fmt) and fmt not in ("text", "date", "hangul") and not str(NF.get(fmt, fmt)).startswith("[DBNum")
+        shrink = numeric and (is_calc or is_input) and border is not False
+        cell.alignment = Alignment(horizontal=align, vertical=valign, wrap_text=(wrap and not shrink), indent=indent,
+                                   shrink_to_fit=shrink)
         if fmt:
             cell.number_format = NF.get(fmt, fmt)
         if fill:

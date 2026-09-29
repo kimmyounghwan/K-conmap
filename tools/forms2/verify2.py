@@ -14,7 +14,16 @@ warnings.filterwarnings("ignore")
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from fb import Book  # noqa: E402
-from run import _eq  # noqa: E402
+from run import _eq
+import datetime as _dt
+
+
+def _serial_eq(got, want):
+    """formulas 는 날짜를 엑셀 일련번호로 돌려줌 → 날짜로 바꿔 비교"""
+    if isinstance(want, _dt.date) and isinstance(got, (int, float)):
+        return _dt.date(1899, 12, 30) + _dt.timedelta(days=int(got)) == want
+    return False
+  # noqa: E402
 
 import formulas  # noqa: E402
 
@@ -46,7 +55,7 @@ def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     total_bad = 0
     for slug in args:
-        m = importlib.import_module("f_" + slug.replace("-", "_"))
+        import registry; m = registry.get(slug)
         bk = Book(m.TITLE)
         m.draw(bk, False)
         m.draw(bk, True)
@@ -79,7 +88,7 @@ def main():
                     continue
                 if hasattr(got, "item"):
                     got = got.item()
-                if _eq(got, want) or (want == "" and got in (None, "")):
+                if _eq(got, want) or (want == "" and got in (None, "")) or _serial_eq(got, want):
                     ok += 1
                 else:
                     bad.append(f"[{p.name}] {k}({p.k[k]}): formulas {got!r} ≠ 파이썬 {want!r}")

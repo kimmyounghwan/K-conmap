@@ -7,10 +7,10 @@ HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(os.pat
 sys.path.insert(0, HERE)
 from fb import Book
 from run import verify, _eq
-from verify2 import solve
+from verify2 import solve, _serial_eq
 bad = 0
 for slug in [a for a in sys.argv[1:] if not a.startswith("--")]:
-    m = importlib.import_module("f_" + slug.replace("-", "_"))
+    import registry; m = registry.get(slug)
     bk = Book(m.TITLE); m.draw(bk, False); m.draw(bk, True); bk.finish()
     pub = os.path.join(ROOT, "web", "public", "forms", "orig" if m.WHERE == "orig" else "", f"{m.SLUG}.xlsx")
     tmp = tempfile.mkdtemp()
@@ -28,7 +28,7 @@ for slug in [a for a in sys.argv[1:] if not a.startswith("--")]:
             got = xl.get((p.name.upper(), p.k[k]))
             if isinstance(got, np.ndarray): got = got.ravel()[0]
             if hasattr(got, "item"): got = got.item()
-            if _eq(got, want) or (want == "" and got in (None, "")): n2 += 1
+            if _eq(got, want) or (want == "" and got in (None, "")) or _serial_eq(got, want): n2 += 1
             else: b2.append(f"{k}: {got!r} ≠ {want!r}")
     shutil.rmtree(tmp)
     mark = "✅" if not (b1 or b2) else "❌"

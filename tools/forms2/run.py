@@ -25,7 +25,8 @@ ERRS = ("#REF!", "#VALUE!", "#DIV/0!", "#NAME?", "#N/A", "#NUM!", "#NULL!", "Err
 
 
 def build(slug, out):
-    m = importlib.import_module("f_" + slug.replace("-", "_"))
+    import registry
+    m = registry.get(slug)
     bk = Book(m.TITLE)
     m.draw(bk, False)
     m.draw(bk, True)
@@ -129,6 +130,9 @@ def verify(m, bk, path, out):
             shown.append(f"{cell.coordinate}={str(v)[:40]!r}")
         if shown:
             info.append(f"[{p.name}] 빈 서식인데 값이 보이는 수식 칸 {len(shown)}: " + " · ".join(shown[:8]))
+    for lg, p in ex_pages.items():
+        if getattr(p, "missing", None):
+            info.append(f"[{p.name}] 작성 예시에 값이 빠진 칸: {', '.join(p.missing)}")
     return n_ok, bad, info
 
 
@@ -142,7 +146,8 @@ def main():
     do_render = "--render" in args
     args = [a for a in args if not a.startswith("--")]
     if not args:
-        args = sorted(f[2:-3].replace("_", "-") for f in os.listdir(HERE) if f.startswith("f_") and f.endswith(".py"))
+        import registry
+        args = sorted(f[2:-3].replace("_", "-") for f in os.listdir(HERE) if f.startswith("f_") and f.endswith(".py")) + registry.all_specs()
     total_bad = 0
     for slug in args:
         m, bk, path = build(slug, out)
