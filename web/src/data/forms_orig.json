@@ -247,21 +247,30 @@
    "title": "예정공정표",
    "group": "공정 관리",
    "icon": "🗓",
-   "short": "총괄 예정공정표와 월간 공정표가 들어 있는 소하천 정비공사 예정공정표 틀입니다.",
+   "short": "금액·시작·끝만 적으면 보할(%)·주간 배분·막대·보할 합계·누계·공정곡선(S커브)·월간(일별) 공정표까지 저절로 채워지는 예정공정표입니다.",
    "also": [
     "예정공정표 양식",
     "막대 공정표",
     "바차트 공정표"
    ],
-   "note": "",
+   "note": "공종마다 금액(천원)과 시작·끝 날짜만 적으세요. 보할과 주·일 배분, 막대, 누계, 곡선은 저절로 셈합니다.",
    "file": "/forms/orig/o-yejeong-gongjeongpyo.xlsx",
-   "kb": 132,
-   "pages": 4,
+   "kb": 72,
+   "pages": 3,
    "from": "엑셀",
-   "sheets": 4,
+   "sheets": 3,
    "prev": [
-    "/forms/orig/o-yejeong-gongjeongpyo-1.webp",
-    "/forms/orig/o-yejeong-gongjeongpyo-2.webp"
+    "/forms/v2/o-yejeong-gongjeongpyo-1.webp",
+    "/forms/v2/o-yejeong-gongjeongpyo-2.webp",
+    "/forms/v2/o-yejeong-gongjeongpyo-3.webp",
+    "/forms/v2/o-yejeong-gongjeongpyo-4.webp"
+   ],
+   "re": true,
+   "prevcap": [
+    "총괄분(주간) — 빈 서식",
+    "총괄분(주간) — 작성 예시",
+    "월간(일별) — 작성 예시",
+    "공정곡선 — 작성 예시"
    ]
   },
   {
@@ -269,21 +278,26 @@
    "title": "구조물별 콘크리트 타설현황",
    "group": "공정 관리",
    "icon": "🏗",
-   "short": "구조물·일자·위치별 설계량과 반입량, 슬럼프·공기량·염분량을 적는 타설 현황표입니다.",
+   "short": "구조물별 콘크리트 타설현황([별지 제35호 서식]). 설계량·타설량을 적으면 증감·구조물별 누계·배합별 합계가 나오고, 슬럼프·공기량·염화물·28일 강도를 적으면 배합(예: 25-24-150)에 맞춰 적합/부적합을 판정합니다.",
    "also": [
     "레미콘 타설현황",
     "콘크리트 타설 대장",
     "레미콘 반입 대장"
    ],
-   "note": "",
+   "note": "노란 칸(공기량 4.5±1.5% · 염화물 0.30kg/㎥ · 강도 85%)은 KS F 4009 기준값입니다 — 발주처 기준이 다르면 고쳐 쓰세요.",
    "file": "/forms/orig/o-konkeuriteu-taseol.xlsx",
-   "kb": 125,
-   "pages": 11,
+   "kb": 23,
+   "pages": 1,
    "from": "엑셀",
-   "sheets": 7,
+   "sheets": 1,
    "prev": [
-    "/forms/orig/o-konkeuriteu-taseol-1.webp",
-    "/forms/orig/o-konkeuriteu-taseol-2.webp"
+    "/forms/v2/o-konkeuriteu-taseol-1.webp",
+    "/forms/v2/o-konkeuriteu-taseol-2.webp"
+   ],
+   "re": true,
+   "prevcap": [
+    "빈 서식",
+    "작성 예시"
    ]
   },
   {
@@ -442,20 +456,27 @@
    "title": "아스콘 포장 작업계획서",
    "group": "시공계획서",
    "icon": "🛣",
-   "short": "아스콘 포장 작업계획서와 시공 순서도입니다.",
+   "short": "아스콘 포장 작업계획서(일자별 장비·인원 투입계획 · 작업순서 · 단면도 · 시공순서도). 포장거리·폭·두께를 적으면 아스콘 물량(t)과 덤프 대수를 셈해 비고에 적어 줍니다.",
    "also": [
     "아스팔트 포장 작업계획서",
     "포장 작업계획서"
    ],
-   "note": "",
+   "note": "노란 칸(아스콘 밀도 2.35t/㎥ · 덤프 1대 적재 15t)은 현장에 맞게 고치세요. 단면도·시공순서도 그림은 원본 그대로입니다.",
    "file": "/forms/orig/o-ascon-jageop.xlsx",
-   "kb": 436,
-   "pages": 6,
+   "kb": 599,
+   "pages": 3,
    "from": "엑셀",
    "sheets": 2,
    "prev": [
-    "/forms/orig/o-ascon-jageop-1.webp",
-    "/forms/orig/o-ascon-jageop-2.webp"
+    "/forms/v2/o-ascon-jageop-1.webp",
+    "/forms/v2/o-ascon-jageop-2.webp",
+    "/forms/v2/o-ascon-jageop-3.webp"
+   ],
+   "re": true,
+   "prevcap": [
+    "계획서 — 빈 서식",
+    "계획서 — 작성 예시",
+    "시공순서도(원본 그림)"
    ]
   },
   {
@@ -547,20 +568,27 @@
    "title": "발파 작업계획서",
    "group": "시공계획서",
    "icon": "💥",
-   "short": "발파 작업계획서 양식입니다.",
+   "short": "발파 작업계획서(발파 일시 · 천공/장약 계획 · 화약류 운반 · 발파관리 · 신고 · 위치도 · 작업 방법과 안전대책). 천공수와 공당장약량을 적으면 폭약·뇌관 사용량과 천공 연장을 셈해 줍니다.",
    "also": [
     "발파 계획서",
     "발파작업 계획서"
    ],
-   "note": "",
+   "note": "발파 위치도 칸에는 현장 도면을 붙여 넣으세요(작성 예시 그림은 가상의 현장). 신고 기한은 관할 경찰서 안내를 따르세요.",
    "file": "/forms/orig/o-balpa-jageop.xlsx",
-   "kb": 376,
-   "pages": 6,
+   "kb": 114,
+   "pages": 2,
    "from": "엑셀",
-   "sheets": 3,
+   "sheets": 1,
    "prev": [
-    "/forms/orig/o-balpa-jageop-1.webp",
-    "/forms/orig/o-balpa-jageop-2.webp"
+    "/forms/v2/o-balpa-jageop-1.webp",
+    "/forms/v2/o-balpa-jageop-2.webp",
+    "/forms/v2/o-balpa-jageop-3.webp"
+   ],
+   "re": true,
+   "prevcap": [
+    "빈 서식 첫 쪽",
+    "작성 예시 첫 쪽",
+    "작성 예시 — 위치도 · 작업 방법"
    ]
   },
   {
@@ -891,20 +919,27 @@
    "title": "품질시험계획서",
    "group": "품질·검측",
    "icon": "🧪",
-   "short": "품질시험계획서 개요, 시험 항목·방법, 시험 시설·인력, 성과 관리까지 들어 있습니다.",
+   "short": "품질관리계획서 · 품질시험계획서 한 벌(개요 · 총론 · 시험항목 · 시험시설 · 시험실 · 인력 배치 · 성과 관리 · 부적합보고서). 공사비 등을 적으면 품질관리 대상 공사 구분과 시험실 기준 면적 · 배치할 사람(시행규칙 별표 5)을 판정하고, 시험 횟수를 셈합니다.",
    "also": [
     "품질시험계획 양식",
     "품질관리계획서"
    ],
-   "note": "",
+   "note": "배치기준은 건설기술 진흥법 시행규칙 [별표 5](개정 2024. 7. 10.) 원문입니다. 노란 칸(시험 빈도)은 설계도서 · 품질관리 업무지침을 확인해 고쳐 쓰세요.",
    "file": "/forms/orig/o-pumjil-siheom.xlsx",
-   "kb": 42,
-   "pages": 27,
+   "kb": 83,
+   "pages": 13,
    "from": "엑셀",
-   "sheets": 8,
+   "sheets": 7,
    "prev": [
-    "/forms/orig/o-pumjil-siheom-1.webp",
-    "/forms/orig/o-pumjil-siheom-2.webp"
+    "/forms/v2/o-pumjil-siheom-1.webp",
+    "/forms/v2/o-pumjil-siheom-2.webp",
+    "/forms/v2/o-pumjil-siheom-3.webp"
+   ],
+   "re": true,
+   "prevcap": [
+    "개요 · 총론 — 빈 서식",
+    "개요 · 총론 — 작성 예시",
+    "시험인력 배치기준(별표 5) — 작성 예시"
    ]
   },
   {
@@ -912,20 +947,27 @@
    "title": "시공측량 보고서",
    "group": "품질·검측",
    "icon": "📐",
-   "short": "현장조사, 기준점 확인, 측량 성과가 들어 있는 시공측량 보고서입니다.",
+   "short": "시공측량 보고서(제출문 · 과업의 개요 · 조사 및 측량 · 기준점 성과표 · 시공측량점의 조서 · 성과표). 성과표에 좌표를 적으면 점간 거리 · 고저차 · 경사 · 누가거리를 셈해 줍니다.",
    "also": [
     "측량 보고서",
     "착공측량 보고서"
    ],
-   "note": "",
+   "note": "위치도 · 근경/원경 사진 · 도면 칸에는 현장 자료를 붙여 넣으세요. 좌표계는 목록에서 고릅니다(세계측지계가 기본).",
    "file": "/forms/orig/o-cheukryang-bogoseo.xlsx",
-   "kb": 44,
-   "pages": 16,
+   "kb": 37,
+   "pages": 9,
    "from": "한글",
-   "sheets": null,
+   "sheets": 4,
    "prev": [
-    "/forms/orig/o-cheukryang-bogoseo-1.webp",
-    "/forms/orig/o-cheukryang-bogoseo-2.webp"
+    "/forms/v2/o-cheukryang-bogoseo-1.webp",
+    "/forms/v2/o-cheukryang-bogoseo-2.webp",
+    "/forms/v2/o-cheukryang-bogoseo-3.webp"
+   ],
+   "re": true,
+   "prevcap": [
+    "과업의 개요 — 빈 서식",
+    "과업의 개요 — 작성 예시",
+    "성과표 — 작성 예시"
    ]
   },
   {
