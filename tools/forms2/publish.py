@@ -122,8 +122,10 @@ def main():
                 f["short"] = m.SHORT
                 short_changed = True
             for old, new in (getattr(m, "NOTE_REPLACE", None) or {}).items():
-                assert old in f["notes"], (m.SLUG, old)
-                f["notes"][f["notes"].index(old)] = new
+                if old in f["notes"]:
+                    f["notes"][f["notes"].index(old)] = new
+                else:                    # 이미 바꾼 서식을 다시 올릴 때
+                    assert new in f["notes"], (m.SLUG, old)
         print(f"✅ {m.SLUG} → {os.path.relpath(dst, ROOT)} ({os.path.getsize(dst)//1024}KB)")
     _save("forms.json", forms)
     _save("forms_orig.json", orig)

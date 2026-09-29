@@ -4,10 +4,10 @@ import { askAfter } from '../AskComment'
 import { useParams, Link } from 'react-router-dom'
 import DATA from '../data/forms.json'
 import ORIG_DATA from '../data/forms_orig.json'
+import TAB from '../data/forms_tab.json'
 import { ShareBtn } from './CorpPage.jsx'
 import UserForms from '../UserForms.jsx'
 import { Empty } from '../components.jsx'
-import { SafetyStrip } from './Safety.jsx'
 
 /* ⚠️ 2026-09-29 위험성평가 서식(wih-*) — 미리보기는 서식과 같은 칸의 예문 종이 · 인쇄는 빈 서식 (tools/위험성미리.jsx, 늦게 불러옴) */
 const 위험성미리 = lazy(() => import('../tools/위험성미리.jsx'))
@@ -165,6 +165,74 @@ function OrigRow({ f }) {
   )
 }
 
+/* 📄🧰 2026-09-29 — 소장님: 「적산란 처럼 서식란도 수정해 줘. 전체적으로...」 (앞서 고르신 것: «A로 C로 같이 하자»)
+   ■ A — 공사 차례별 한 벌: «지금 무엇을 하십니까?» 아홉 칸(계약 → 착공 → 계획서 → 공사 중 → 검측·품질 → 안전·환경 → 노무·장비 → 기성·변경 → 준공).
+     칸마다 «사이트에서 바로» 프로그램을 먼저, 그다음 서식(엑셀)을 놓습니다.
+   ■ C — 서류 꾸러미: 착공 · 하도급 · 기성 · 설계변경 · 준공 때 한 번에 내는 서류를 차례대로.
+   ■ 짜임(어느 서식이 어느 칸에)은 src/data/forms_tab.json 한 곳 — prerender.py forms_index 도 같은 파일을 읽습니다.
+     ⚠️ 서식을 더하면 forms_tab.json stages 의 slugs 에도 넣으십시오(tools/forms2 · 191가지가 빠짐없이 한 번씩 들어갔는지 검사).
+   ■ 긴 설명(갈래별 전부 · 계약서 주의)은 적산 탭처럼 접어 둡니다. 찾기 칸은 맨 위 그대로. */
+const BY = new Map([...FORMS, ...ORIG].map((f) => [f.slug, f]))
+const ORIGSET = new Set(ORIG.map((f) => f.slug))
+const STAGES0 = TAB.stages || []
+const 놓인 = new Set(STAGES0.flatMap((s) => s.slugs))
+const 남은 = [...ORIG, ...FORMS].filter((f) => !놓인.has(f.slug))   /* 짜임에 아직 안 넣은 서식 — «그 밖의 서식» 칸으로(prerender 도 같게) */
+const STAGES = 남은.length
+  ? [...STAGES0, { k: 'etc', n: '', ic: '📁', h: '그 밖의 서식', 짧게: '', 언제: '', progs: [], slugs: 남은.map((f) => f.slug) }]
+  : STAGES0
+const PACKS = TAB.packs || []
+const 새로 = [...FORMS, ...ORIG].filter((f) => f.gen === 'forms2' || f.re).length
+
+function 서식칸({ f }) {
+  const 예시 = f.gen === 'forms2' || f.re
+  return (
+    <Link className="tlx-card fm-card" to={`/forms/${f.slug}`}>
+      <span className="tlx-ic">{f.icon}</span>
+      <span className="tlx-body">
+        <span className="tlx-t">{f.title}
+          {f.prog && <em className="tlx-new fm-pg">🧰 바로 쓰기</em>}
+          {예시 ? <em className="tlx-new fm-ex">✍ 작성 예시</em> : ORIGSET.has(f.slug) ? <em className="tlx-new fm-orig">원본 틀</em> : null}
+        </span>
+        <span className="tlx-d">{f.short}</span>
+      </span>
+    </Link>
+  )
+}
+
+function 프로그램칸({ p }) {
+  return (
+    <Link className="tlx-card fm-prog" to={p.to}>
+      <span className="tlx-ic">{p.ic}</span>
+      <span className="tlx-body">
+        <span className="fm-prog-k">🧰 사이트에서 바로</span>
+        <span className="tlx-t">{p.t}</span>
+        <span className="tlx-d">{p.d}</span>
+      </span>
+    </Link>
+  )
+}
+
+function 꾸러미({ p }) {
+  return (
+    <div className="fm-pack" id={'fp-' + p.k}>
+      <h3>{p.ic} {p.h}</h3>
+      <div className="d">{p.d}</div>
+      <ol className="fm-plist">
+        {p.items.map((it, i) => {
+          const f = it.s ? BY.get(it.s) : null
+          return (
+            <li key={i}>
+              {f ? <Link to={`/forms/${f.slug}`}>{f.title}</Link> : <span className="fm-out">{it.t}</span>}
+              {it.d && <span className="n"> — {it.d}</span>}
+            </li>
+          )
+        })}
+      </ol>
+      {p.prog && <Link className="go" to={p.prog.to}>{p.prog.ic} {p.prog.t} ›</Link>}
+    </div>
+  )
+}
+
 export default function Forms() {
   const [q, setQ] = useState('')
   const groups = useMemo(() => {
@@ -184,11 +252,13 @@ export default function Forms() {
 
   return (
     <>
-      <div className="card" style={{ marginTop: 14 }}>
-        <div style={{ fontSize: 18, fontWeight: 800 }}>건설 서식</div>
-        <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>
-          현장 실무 서식 {ORIG.length}가지 + 일반 양식 {FORMS.length}가지 · 엑셀로 바로 내려받기 · 회원가입 없음
-        </div>
+      <div className="card lead-card" style={{ marginTop: 14 }}>
+        <h1 style={{ margin: 0, fontSize: 20 }}>📄 건설 서식 — 공사가 어디쯤인지 고르시면 낼 서류가 나옵니다</h1>
+        <p className="why2" style={{ marginBottom: 0 }}>
+          서식 <b>{FORMS.length + ORIG.length}가지</b>, 모두 엑셀 · <b>무료</b> · 회원가입 없음.{' '}
+          {새로}가지는 현장에서 쓰던 틀(칸·차례·결재란)을 그대로 두고 <b>수식과 작성 예시</b>를 넣어 새로 만들었습니다.{' '}
+          <b>사이트에서 바로 쓰는 프로그램</b>이 있는 일은 그것부터 보여 드립니다.
+        </p>
         {/* 🔎 서식이 많아져서 — 이름·다른 이름·설명으로 찾습니다 (띄어쓰기 무시) */}
         <div className="searchwrap" style={{ marginTop: 10 }}>
           <span className="ico">🔎</span>
@@ -196,127 +266,131 @@ export default function Forms() {
             aria-label="서식 찾기" />
           {q && <button className="x" onClick={() => setQ('')} aria-label="지우기">×</button>}
         </div>
-        <div className="navrow" style={{ marginTop: 10 }}>
-          {ogroups.map(([g]) => <a className="navi" href={`#og-${g}`} key={g}>{g}</a>)}
-          <a className="navi" href="#fg-일반">일반 양식</a>
-        </div>
-        {/* 🧰 2026-09-16 — 탭에서 「도구」를 「서식·도구」로 합쳤습니다.
-            도구가 묻히지 않게 여기 맨 위에서 바로 가게 둡니다.
-            ⚠️ /tools · /cad 주소는 그대로입니다 — 검색으로 들어오던 길입니다. */}
-        <div className="navrow" style={{ marginTop: 8 }}>
-          <Link className="navi" to="/tools">🧰 건설 도구</Link>
-          <Link className="navi" to="/cad">📐 캐드 유틸</Link>
-          <Link className="navi" to="/jeoksan">🧮 K-적산</Link>
-        </div>
       </div>
-
-      {/* ⚡ 2026-09-24 — 서류를 하나씩 받기 전에: 한 번 입력으로 24가지 */}
-      <Link className="card fbook" to="/tools/wonclick">
-        <span className="fic">⚡</span>
-        <div className="grow">
-          <div className="t">공사서류 원클릭 <em>· 서류 24가지 한 번에</em></div>
-          <div className="d">
-            공사명·금액·날짜를 <b>한 번만</b> 넣으면 착공계·현장대리인계·기성·준공·하자 서류가
-            채워진 엑셀이 나옵니다. 매크로 없음 · 관급·민간 모두.
-          </div>
-        </div>
-        <span className="go">→</span>
-      </Link>
 
       {찾음 && (
         <div className="card">
           <div className="sec-title" style={{ margin: '0 0 6px' }}>
             «{q.trim()}» 찾은 서식 {찾음.o.length + 찾음.n.length}가지
           </div>
-          {찾음.o.map((f) => <OrigRow f={f} key={f.slug} />)}
-          {찾음.n.map((f) => (
-            <Link className="row rowlink" to={`/forms/${f.slug}`} key={f.slug}>
-              <span className="fic">{f.icon}</span>
-              <div className="grow">
-                <div className="t">{f.title}{f.sub && <em> · {f.sub}</em>}</div>
-                <div className="d">{f.short}</div>
-              </div>
-              <span className="go">→</span>
-            </Link>
-          ))}
+          <div className="tlx-grid fm-grid">
+            {[...찾음.o, ...찾음.n].map((f) => <서식칸 f={f} key={f.slug} />)}
+          </div>
           {찾음.o.length + 찾음.n.length === 0 && (
-            <div className="note sm">찾는 서식이 없습니다. 다른 말로 찾아 보시거나, 아래 갈래에서 골라 주세요.</div>
+            <div className="note sm">찾는 서식이 없습니다. 다른 말로 찾아 보시거나, 아래에서 공사 차례로 골라 주세요.</div>
           )}
         </div>
       )}
 
-      {/* 📂 현장 실무 서식 — 원본 틀 그대로 */}
-      <div className="card ohead">
-        <div className="detail-h">📂 현장 실무 서식 <span className="count">· {ORIG.length}가지 · 원본 틀 그대로</span></div>
-        <div className="note sm">
-          현장에서 실제로 쓰던 한글·엑셀·PPT 서식을 <b>칸과 선, 글자 자리까지 그대로</b> 엑셀로 옮겼습니다.
-          사람·회사 이름과 공사명은 ○○○로 지웠습니다. 인쇄하면 머리글에 작은 <b>K-건설맵</b> 표시가 나오는데,
-          칸 복사에는 따라가지 않고 페이지 설정에서 지울 수 있습니다.
+      <div className="card ny-pick">
+        <div className="sec-title" style={{ marginTop: 0 }}>지금 무엇을 하십니까?</div>
+        <div className="ny-pick-row">
+          {STAGES.map((s) => (
+            <a className="ny-pick-b" href={'#fm-' + s.k} key={s.k}>
+              <span className="ny-pick-t"><span className="ny-n">{s.n}</span> {s.ic} {s.h}</span>
+              <span className="ny-pick-d">{s.짧게 ? s.짧게 + ' · ' : ''}{s.slugs.length}가지</span>
+            </a>
+          ))}
+        </div>
+        <div className="sec-title fm-pick2">📦 한 번에 내는 서류 — 꾸러미</div>
+        <div className="ny-pick-row fm-packrow">
+          {PACKS.map((p) => (
+            <a className="ny-pick-b" href={'#fp-' + p.k} key={p.k}>
+              <span className="ny-pick-t">{p.ic} {p.h}</span>
+              <span className="ny-pick-d">서류 {p.items.length}가지 차례대로</span>
+            </a>
+          ))}
         </div>
       </div>
-      {ogroups.map(([g, list]) => (
-        <div className="card" key={g} id={`og-${g}`} style={{ scrollMarginTop: 76 }}>
-          <div className="sec-title" style={{ margin: '0 0 6px' }}>{g} <span className="count">· {list.length}</span></div>
-          {list.map((f) => <OrigRow f={f} key={f.slug} />)}
+
+      {STAGES.map((s) => (
+        <div className="card ny-sit" id={'fm-' + s.k} key={s.k}>
+          <div className="ny-sit-h"><span className="ny-n">{s.n}</span> {s.ic} {s.h}</div>
+          <div className="ny-sit-w">{s.언제}</div>
+          {s.progs.length > 0 && (
+            <div className="tlx-grid">
+              {s.progs.map((p) => <프로그램칸 p={p} key={p.to} />)}
+            </div>
+          )}
+          <div className="fm-sub">서식 {s.slugs.length}가지 — 엑셀</div>
+          <div className="tlx-grid fm-grid">
+            {s.slugs.map((k) => BY.get(k)).filter(Boolean).map((f) => <서식칸 f={f} key={f.slug} />)}
+          </div>
         </div>
       ))}
 
-      <div className="card ohead" id="fg-일반" style={{ scrollMarginTop: 76 }}>
-        <div className="detail-h">📄 일반 양식 <span className="count">· {FORMS.length}가지 · K-건설맵이 만든 것</span></div>
-        <div className="note sm">정해진 서식이 없을 때 쓰는 기본 양식입니다. 착공부터 준공까지 갈래별로 모았습니다.</div>
+      <div className="card" id="fm-packs">
+        <div className="sec-title" style={{ marginTop: 0 }}>📦 서류 꾸러미 — 이때 이것들을 한 번에</div>
+        <p className="muted" style={{ marginTop: 0 }}>
+          흔히 함께 내는 차례입니다. <b>발주기관 · 계약 특수조건이 정한 목록이 우선</b>이니, 받은 목록과 한 번 맞춰 보십시오.
+        </p>
+        <div className="fm-packs">
+          {PACKS.map((p) => <꾸러미 p={p} key={p.k} />)}
+        </div>
       </div>
 
-      <Link className="card fbook" to="/change/excel">
-        <span className="fic">📊</span>
-        <div className="grow">
-          <div className="t">설계변경 자동계산 엑셀 <em>· 시트 11장</em></div>
-          <div className="d">
-            빈 표가 아니라 <b>계산기</b>입니다. 단가 하나를 고치면 내역 · 증감대비표 ·
-            원가계산서까지 다시 계산됩니다.
-          </div>
-        </div>
-        <span className="go">→</span>
-      </Link>
+      <div className="card">
+        <div className="sec-title" style={{ marginTop: 0 }}>서식은 어떻게 만들었나</div>
+        <ul className="flist" style={{ marginBottom: 0 }}>
+          <li><b>틀은 현장 원본 그대로</b> — 칸 · 차례 · 결재란을 바꾸지 않았습니다. 받은 서식의 사람·회사 이름, 공사명, 전화번호는 모두 지웠습니다.</li>
+          <li><b>수식</b> — 합계 · 금액 한글 표기 · 날짜·일수 · 비율이 저절로 나옵니다. <span className="fm-key y">노란 칸</span> 은 요율·기준값(발주기관 기준으로 고쳐 씀),{' '}
+            <span className="fm-key b">옅은 하늘색 칸</span> 은 자동 계산입니다.</li>
+          <li><b>작성 예시</b> — 엑셀 뒤 시트에 가상의 현장으로 다 채운 모습이 들어 있습니다. 서식 화면의 미리보기에서도 볼 수 있습니다.</li>
+          <li>맨 윗줄의 K-건설맵 표시는 1행을 지우면 없어집니다. <b>발주기관이 정한 서식이 있으면 그 서식이 우선</b>입니다.</li>
+        </ul>
+      </div>
 
-      {/* 🦺 2026-09-16 — 착공 서류를 찾으러 오는 자리입니다.
-          안전관리계획서·유해위험방지계획서는 착공 전에 내는 것이라
-          여기서 «우리 현장이 대상인가» 를 바로 볼 수 있어야 합니다.
-          띄는 Safety.jsx 한 곳에만 있습니다 — 문구를 두 번 적지 않습니다. */}
-      <SafetyStrip />
+      <details className="card js-more">
+        <summary className="sec-title">갈래별로 전부 보기 — {FORMS.length + ORIG.length}가지</summary>
+        {ogroups.map(([g, list]) => (
+          <div key={'o' + g} id={`og-${g}`} style={{ scrollMarginTop: 76 }}>
+            <div className="fm-sub">{g} <span className="count">· {list.length}</span></div>
+            {list.map((f) => <OrigRow f={f} key={f.slug} />)}
+          </div>
+        ))}
+        {groups.map(([g, list]) => (
+          <div key={g}>
+            <div className="fm-sub">{g} <span className="count">· {list.length}</span></div>
+            {list.map((f) => (
+              <Link className="row rowlink" to={`/forms/${f.slug}`} key={f.slug}>
+                <span className="fic">{f.icon}</span>
+                <div className="grow">
+                  <div className="t">{f.title}{f.sub && <em> · {f.sub}</em>}</div>
+                  <div className="d">{f.short}</div>
+                </div>
+                <span className="go">→</span>
+              </Link>
+            ))}
+          </div>
+        ))}
+      </details>
+
+      <details className="card js-more">
+        <summary className="sec-title">계약서를 쓰실 때</summary>
+        <p style={{ margin: 0, lineHeight: 1.75 }}>
+          계약서는 K-건설맵이 만든 <b>일반 양식</b>입니다. 정부가 고시한 표준계약서가 있는
+          계약(하도급·건설기계 임대차·근로계약)은 그 <b>원문을 쓰시는 편이 안전합니다</b> —
+          여기 있는 것은 조건을 미리 맞춰 보고 빠진 항목을 확인하는 용도로 쓰세요.
+          실제 체결 전에는 반드시 검토를 받으시기 바랍니다.
+        </p>
+      </details>
+
+      {/* 📤 이용자가 올린 서식 — 승인 없이 바로 공개(소장님 결정). 열 때만 Firebase 를 받습니다 */}
+      <UserForms />
 
       <div className="card fwarn">
         <b>⚠️ 먼저 확인하세요</b>
         <div>
           발주기관이 정한 서식이 있으면 <b>그 서식을 씁니다.</b> 여기 있는 것은
-          정해진 서식이 없을 때 쓰는 일반 양식입니다. 계약서 특수조건과 과업지시서를
-          먼저 보세요.
+          정해진 서식이 없을 때 쓰는 양식입니다. 계약서 특수조건과 과업지시서를 먼저 보세요.
         </div>
       </div>
 
-      {groups.map(([g, list]) => (
-        <div className="card" key={g}>
-          <div className="sec-title" style={{ margin: '0 0 6px' }}>{g}</div>
-          {list.map((f) => (
-            <Link className="row rowlink" to={`/forms/${f.slug}`} key={f.slug}>
-              <span className="fic">{f.icon}</span>
-              <div className="grow">
-                <div className="t">{f.title}{f.sub && <em> · {f.sub}</em>}</div>
-                <div className="d">{f.short}</div>
-              </div>
-              <span className="go">→</span>
-            </Link>
-          ))}
-        </div>
-      ))}
-
-      {/* 📤 이용자가 올린 서식 — 승인 없이 바로 공개(소장님 결정). 열 때만 Firebase 를 받습니다 */}
-      <UserForms />
-
-      <div className="note" style={{ marginTop: 10 }}>
-        계약서는 K-건설맵이 만든 <b>일반 양식</b>입니다. 정부가 고시한 표준계약서가 있는
-        계약(하도급·건설기계 임대차·근로계약)은 그 <b>원문을 쓰시는 편이 안전합니다</b> —
-        여기 있는 것은 조건을 미리 맞춰 보고 빠진 항목을 확인하는 용도로 쓰세요.
-        실제 체결 전에는 반드시 검토를 받으시기 바랍니다.
+      <div className="navrow" style={{ marginTop: 10 }}>
+        <Link className="navi" to="/tools">🧰 건설 도구</Link>
+        <Link className="navi" to="/jeoksan">🧮 K-적산</Link>
+        <Link className="navi" to="/naeyeok">📋 내역서</Link>
+        <Link className="navi" to="/cad">📐 캐드 유틸</Link>
       </div>
     </>
   )

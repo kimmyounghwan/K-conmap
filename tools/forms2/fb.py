@@ -131,6 +131,7 @@ class Page:
         self.calc_keys = {}     # 이름 → 틀
         self.occ = set()        # 세로 병합으로 차 있는 (행, 열)
         self.dvs = {}
+        self.intfmt = {}        # 소수 자리 «있으면 보이는» 서식(#,##0.##) 칸 — 정수일 때 끝에 점(862.)이 안 찍히게
         self.r = 1
         self.last_print = None
         if brand:
@@ -258,7 +259,10 @@ class Page:
         cell.alignment = Alignment(horizontal=align, vertical=valign, wrap_text=(wrap and not shrink), indent=indent,
                                    shrink_to_fit=shrink)
         if fmt:
-            cell.number_format = NF.get(fmt, fmt)
+            code = NF.get(fmt, fmt)
+            cell.number_format = code
+            if re.search(r"0\.#+", code) and not code.startswith("[DBNum"):
+                self.intfmt.setdefault(code, []).append((c1, r))
         if fill:
             cell.fill = fill
         if border:
@@ -394,6 +398,30 @@ class Page:
         self.ws.add_image(img)
 
 
+def _int_cf(p):
+    """엑셀은 #,##0.## 서식에 정수가 오면 «862.» 처럼 끝에 점을 찍습니다(리브레오피스는 안 찍음).
+    그래서 그런 칸에 «정수면 #,##0» 조건부 서식을 겁니다 — 세로로 이어진 칸끼리 한 규칙."""
+    from openpyxl.formatting.rule import Rule
+    from openpyxl.styles.differential import DifferentialStyle
+    from openpyxl.styles.numbers import NumberFormat
+    ids = p.book.__dict__.setdefault("_cf_ids", {})      # 같은 파일 안에서 서식 번호가 겹치지 않게
+    for code, cells in p.intfmt.items():
+        ic = re.sub(r"\.#+", "", code)
+        nid = ids.setdefault(ic, 300 + len(ids))
+        runs = []
+        for c, r in sorted(set(cells)):
+            if runs and runs[-1][0] == c and runs[-1][2] == r - 1:
+                runs[-1][2] = r
+            else:
+                runs.append([c, r, r])
+        for c, r1, r2 in runs:
+            top = f"{CL(c)}{r1}"
+            rng = top if r1 == r2 else f"{top}:{CL(c)}{r2}"
+            rule = Rule(type="expression", formula=[f"AND(ISNUMBER({top}),MOD({top},1)=0)"],
+                        dxf=DifferentialStyle(numFmt=NumberFormat(numFmtId=nid, formatCode=ic)))
+            p.ws.conditional_formatting.add(rng, rule)
+
+
 class Book:
     """한 파일. sets: [('blank', {...}), ('ex', {...})] 두 벌을 그리고 수식을 이어 붙입니다."""
 
@@ -446,6 +474,7 @@ class Book:
                 p.ws.add_data_validation(dv)
                 for a in cells:
                     dv.add(a)
+            _int_cf(p)
             if p.last_print is None:
                 p.end_print()
         return self.wb

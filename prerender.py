@@ -1253,42 +1253,123 @@ def cad_page(shell, c, cmds, image=None):
     return page(shell, f'/cad/{c["slug"]}', title, desc, "".join(out), image, ld)
 
 
+FORMS_TAB_JSON = os.path.join(ROOT, "web", "src", "data", "forms_tab.json")
+
+
+def _fm_card(f, origset):
+    """서식 칸 — 화면 Forms.jsx 서식칸 과 같은 글"""
+    ex = f.get("gen") == "forms2" or f.get("re")
+    tags = ('<em class="tlx-new fm-pg">🧰 바로 쓰기</em>' if f.get("prog") else "") + (
+        '<em class="tlx-new fm-ex">✍ 작성 예시</em>' if ex else ('<em class="tlx-new fm-orig">원본 틀</em>' if f["slug"] in origset else ""))
+    return (f'<a class="tlx-card fm-card" href="/forms/{esc(f["slug"])}"><span class="tlx-ic">{esc(f.get("icon") or "")}</span>'
+            f'<span class="tlx-body"><span class="tlx-t">{esc(f["title"])}{tags}</span>'
+            f'<span class="tlx-d">{esc(f.get("short") or "")}</span></span></a>')
+
+
+def _fm_prog(p):
+    return (f'<a class="tlx-card fm-prog" href="{esc(p["to"])}"><span class="tlx-ic">{esc(p["ic"])}</span><span class="tlx-body">'
+            f'<span class="fm-prog-k">🧰 사이트에서 바로</span><span class="tlx-t">{esc(p["t"])}</span>'
+            f'<span class="tlx-d">{esc(p["d"])}</span></span></a>')
+
+
 def forms_index(shell, forms, image=None, ogroups=(), orig=()):
+    """📄🧰 2026-09-29 서식 탭 작업대 — 화면 Forms.jsx 와 같은 짜임(web/src/data/forms_tab.json 한 곳을 같이 읽음)
+    A: «지금 무엇을 하십니까?» 공사 차례 아홉 칸(사이트 프로그램 먼저 → 서식) · C: 서류 꾸러미 · 갈래별 전부는 접어 둠"""
+    try:
+        with open(FORMS_TAB_JSON, encoding="utf-8") as fh:
+            tab = json.load(fh) or {}
+    except Exception as e:
+        print(f"  · 서식 탭 짜임을 못 읽었습니다 ({type(e).__name__}) — 갈래 목록만 굽습니다")
+        tab = {}
+    stages, packs = tab.get("stages") or [], tab.get("packs") or []
+    by = {f["slug"]: f for f in list(forms) + list(orig)}
+    origset = {o["slug"] for o in orig}
+    placed = {k for st in stages for k in st.get("slugs", [])}
+    rest = [f for f in list(orig) + list(forms) if f["slug"] not in placed]
+    if rest:
+        print(f"  ⚠️ 서식 탭 짜임(forms_tab.json)에 없는 서식 {len(rest)}가지 — «그 밖의 서식» 칸에 둡니다: "
+              + ", ".join(f["slug"] for f in rest[:8]))
+        stages = stages + [{"k": "etc", "n": "", "ic": "📁", "h": "그 밖의 서식", "짧게": "", "언제": "", "progs": [],
+                            "slugs": [f["slug"] for f in rest]}]
+    n_all = len(forms) + len(orig)
+    n_new = sum(1 for f in list(forms) + list(orig) if f.get("gen") == "forms2" or f.get("re"))
     title = "건설 서식 무료 내려받기 — 착공계·기성청구서·작업일보 | K-건설맵"
-    desc = ("현장에서 자주 쓰는 건설 서식 %d가지를 엑셀로 무료 제공합니다. "
-            + ("시공계획서·건설기계 점검표·검측 체크리스트 같은 현장 실무 서식 %d가지는 원본 틀 그대로. " % len(orig) if orig else "")
-            +
-            "착공계·현장대리인계·기성검사원·기성금 청구서·준공계·노무비 지급확인서·"
-            "실정보고서·작업일보. 회원가입 없음.") % (len(forms) + len(orig))
-    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">건설 서식</h1>'
-           f'<div style="font-size:12.5px;color:var(--muted);margin-top:4px">'
-           + (f'현장 실무 서식 {len(orig)}가지 + 일반 양식 {len(forms)}가지' if orig else f'현장에서 자주 쓰는 서류 {len(forms)}가지')
-           + ' · 엑셀로 바로 내려받기 · 회원가입 없음</div></div>'
-           + '<a class="card fbook" href="/tools/wonclick"><span class="fic">⚡</span><div class="grow"><div class="t">공사서류 원클릭 <em>· 서류 24가지 한 번에</em></div><div class="d">공사명·금액·날짜를 <b>한 번만</b> 넣으면 착공계·현장대리인계·기성·준공·하자 서류가 채워진 엑셀이 나옵니다. 매크로 없음 · 관급·민간 모두.</div></div><span class="go">→</span></a>'
-           + orig_index_html(ogroups, orig)
-           + (f'<div class="card ohead" id="fg-일반"><div class="detail-h">📄 일반 양식 <span class="count">· {len(forms)}가지 · K-건설맵이 만든 것</span></div>'
-              '<div class="note sm">정해진 서식이 없을 때 쓰는 기본 양식입니다. 착공부터 준공까지 갈래별로 모았습니다.</div></div>' if orig else '')
-           +            '<a class="card fbook" href="/change/excel"><span class="fic">📊</span><div class="grow">'
-           '<div class="t">설계변경 자동계산 엑셀 <em>· 시트 11장</em></div>'
-           '<div class="d">빈 표가 아니라 <b>계산기</b>입니다. 단가 하나를 고치면 내역 · '
-           '증감대비표 · 원가계산서까지 다시 계산됩니다.</div></div>'
-           '<span class="go">→</span></a>'
-           '<div class="card"><div class="fwarn2">발주기관이 정한 서식이 있으면 그 서식을 씁니다. '
-           '여기 있는 것은 정해진 서식이 없을 때 쓰는 일반 양식입니다.</div></div>']
+    desc = (f"건설 서식 {n_all}가지를 엑셀로 무료 제공합니다. 공사 차례(계약·착공·시공계획서·공사 중·검측·안전·노무·기성·준공)로 "
+            "골라 쓰고, 착공·하도급·기성·설계변경·준공 때 한 번에 내는 서류를 꾸러미로 모았습니다. "
+            f"{n_new}가지는 수식과 작성 예시를 넣어 새로 만들었습니다. 회원가입 없음.")
+    out = ['<div class="card lead-card"><h1 style="margin:0;font-size:20px">📄 건설 서식 — 공사가 어디쯤인지 고르시면 낼 서류가 나옵니다</h1>'
+           f'<p class="why2" style="margin-bottom:0">서식 <b>{n_all}가지</b>, 모두 엑셀 · <b>무료</b> · 회원가입 없음. '
+           f'{n_new}가지는 현장에서 쓰던 틀(칸·차례·결재란)을 그대로 두고 <b>수식과 작성 예시</b>를 넣어 새로 만들었습니다. '
+           '<b>사이트에서 바로 쓰는 프로그램</b>이 있는 일은 그것부터 보여 드립니다.</p></div>']
+    pick = ['<div class="card ny-pick"><div class="sec-title" style="margin-top:0">지금 무엇을 하십니까?</div><div class="ny-pick-row">']
+    for st in stages:
+        pick.append(f'<a class="ny-pick-b" href="#fm-{esc(st["k"])}"><span class="ny-pick-t"><span class="ny-n">{esc(st["n"])}</span> '
+                    f'{esc(st["ic"])} {esc(st["h"])}</span><span class="ny-pick-d">{esc(st["짧게"]) + " · " if st.get("짧게") else ""}{len(st["slugs"])}가지</span></a>')
+    pick.append('</div>')
+    if packs:
+        pick.append('<div class="sec-title fm-pick2">📦 한 번에 내는 서류 — 꾸러미</div><div class="ny-pick-row fm-packrow">')
+        for p in packs:
+            pick.append(f'<a class="ny-pick-b" href="#fp-{esc(p["k"])}"><span class="ny-pick-t">{esc(p["ic"])} {esc(p["h"])}</span>'
+                        f'<span class="ny-pick-d">서류 {len(p["items"])}가지 차례대로</span></a>')
+        pick.append('</div>')
+    pick.append('</div>')
+    out.extend(pick)
+    for st in stages:
+        out.append(f'<div class="card ny-sit" id="fm-{esc(st["k"])}"><div class="ny-sit-h"><span class="ny-n">{esc(st["n"])}</span> '
+                   f'{esc(st["ic"])} {esc(st["h"])}</div><div class="ny-sit-w">{esc(st.get("언제") or "")}</div>')
+        if st.get("progs"):
+            out.append('<div class="tlx-grid">' + "".join(_fm_prog(p) for p in st["progs"]) + '</div>')
+        out.append(f'<div class="fm-sub">서식 {len(st["slugs"])}가지 — 엑셀</div><div class="tlx-grid fm-grid">'
+                   + "".join(_fm_card(by[k], origset) for k in st["slugs"] if k in by) + '</div></div>')
+    if packs:
+        out.append('<div class="card" id="fm-packs"><div class="sec-title" style="margin-top:0">📦 서류 꾸러미 — 이때 이것들을 한 번에</div>'
+                   '<p class="muted" style="margin-top:0">흔히 함께 내는 차례입니다. <b>발주기관 · 계약 특수조건이 정한 목록이 우선</b>이니, '
+                   '받은 목록과 한 번 맞춰 보십시오.</p><div class="fm-packs">')
+        for p in packs:
+            li = []
+            for it in p["items"]:
+                f = by.get(it.get("s") or "")
+                head = (f'<a href="/forms/{esc(f["slug"])}">{esc(f["title"])}</a>' if f else f'<span class="fm-out">{esc(it.get("t") or "")}</span>')
+                li.append(f'<li>{head}' + (f'<span class="n"> — {esc(it["d"])}</span>' if it.get("d") else "") + '</li>')
+            pg = p.get("prog")
+            out.append(f'<div class="fm-pack" id="fp-{esc(p["k"])}"><h3>{esc(p["ic"])} {esc(p["h"])}</h3><div class="d">{esc(p["d"])}</div>'
+                       f'<ol class="fm-plist">{"".join(li)}</ol>'
+                       + (f'<a class="go" href="{esc(pg["to"])}">{esc(pg["ic"])} {esc(pg["t"])} ›</a>' if pg else "") + '</div>')
+        out.append('</div></div>')
+    out.append('<div class="card"><div class="sec-title" style="margin-top:0">서식은 어떻게 만들었나</div><ul class="flist" style="margin-bottom:0">'
+               '<li><b>틀은 현장 원본 그대로</b> — 칸 · 차례 · 결재란을 바꾸지 않았습니다. 받은 서식의 사람·회사 이름, 공사명, 전화번호는 모두 지웠습니다.</li>'
+               '<li><b>수식</b> — 합계 · 금액 한글 표기 · 날짜·일수 · 비율이 저절로 나옵니다. <span class="fm-key y">노란 칸</span> 은 요율·기준값(발주기관 기준으로 고쳐 씀), '
+               '<span class="fm-key b">옅은 하늘색 칸</span> 은 자동 계산입니다.</li>'
+               '<li><b>작성 예시</b> — 엑셀 뒤 시트에 가상의 현장으로 다 채운 모습이 들어 있습니다. 서식 화면의 미리보기에서도 볼 수 있습니다.</li>'
+               '<li>맨 윗줄의 K-건설맵 표시는 1행을 지우면 없어집니다. <b>발주기관이 정한 서식이 있으면 그 서식이 우선</b>입니다.</li></ul></div>')
+    # 갈래별 전부 — 접어 둠(화면과 같음). 크롤러는 접힌 안의 링크도 읽습니다
+    allh = [f'<details class="card js-more"><summary class="sec-title">갈래별로 전부 보기 — {n_all}가지</summary>']
+    for g in list(ogroups) + sorted({o.get("group") for o in orig} - set(ogroups), key=str):
+        lst = [o for o in orig if o.get("group") == g]
+        if lst:
+            allh.append(f'<div id="og-{esc(g)}"><div class="fm-sub">{esc(g)} <span class="count">· {len(lst)}</span></div>'
+                        + "".join(_orig_row(o) for o in lst) + '</div>')
     group = {}
     for f in forms:
         group.setdefault(f.get("group") or "기타", []).append(f)
     for g, lst in group.items():
-        out.append(f'<div class="card"><div class="sec-title" style="margin:0 0 6px">{esc(g)}</div>')
+        allh.append(f'<div><div class="fm-sub">{esc(g)} <span class="count">· {len(lst)}</span></div>')
         for f in lst:
             sub = f' · {esc(f["sub"])}' if f.get("sub") else ""
-            out.append(f'<a class="row rowlink" href="/forms/{esc(f["slug"])}">'
-                       f'<div class="grow"><div class="t">{esc(f["title"])}{sub}</div>'
-                       f'<div class="d">{esc(f.get("short") or "")}</div></div>'
-                       f'<span class="go">→</span></a>')
-        out.append("</div>")
+            allh.append(f'<a class="row rowlink" href="/forms/{esc(f["slug"])}"><span class="fic">{esc(f.get("icon") or "")}</span>'
+                        f'<div class="grow"><div class="t">{esc(f["title"])}{sub}</div>'
+                        f'<div class="d">{esc(f.get("short") or "")}</div></div><span class="go">→</span></a>')
+        allh.append('</div>')
+    allh.append('</details>')
+    out.extend(allh)
+    out.append('<details class="card js-more"><summary class="sec-title">계약서를 쓰실 때</summary><p style="margin:0;line-height:1.75">'
+               '계약서는 K-건설맵이 만든 <b>일반 양식</b>입니다. 정부가 고시한 표준계약서가 있는 계약(하도급·건설기계 임대차·근로계약)은 '
+               '그 <b>원문을 쓰시는 편이 안전합니다</b> — 여기 있는 것은 조건을 미리 맞춰 보고 빠진 항목을 확인하는 용도로 쓰세요. '
+               '실제 체결 전에는 반드시 검토를 받으시기 바랍니다.</p></details>')
+    out.append('<div class="card fwarn"><b>⚠️ 먼저 확인하세요</b><div>발주기관이 정한 서식이 있으면 <b>그 서식을 씁니다.</b> '
+               '여기 있는 것은 정해진 서식이 없을 때 쓰는 양식입니다. 계약서 특수조건과 과업지시서를 먼저 보세요.</div></div>')
     ld = {"@context": "https://schema.org", "@type": "ItemList",
-          "name": "건설 서식", "numberOfItems": len(forms) + len(orig),
+          "name": "건설 서식", "numberOfItems": n_all,
           "itemListElement": [
               {"@type": "ListItem", "position": i + 1, "name": f'{x["title"]} 양식',
                "url": f'{SITE}/forms/{x["slug"]}'}
