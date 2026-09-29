@@ -4758,3 +4758,12 @@ a.card.fprog .go { display: inline-block; margin-top: 8px; font-size: 13px; font
 .ny-forms-h { font-size: 12.5px; font-weight: 800; color: var(--muted); margin-right: 2px; }
 .tlx-new.ny-tag { background: #d97706; }
 @media print { .ny-pick { display: none; } }
+/* 🧮 적산 탭 작업대 (2026-09-29 · Jeoksan.jsx) — 칸은 내역서 탭(.ny-*)과 같은 것. 긴 설명은 <details> 로 접음 */
+.tlx-new.js-ex { background: #059669; }
+.tlx-new.js-ex, .tlx-new.ny-tag { display: inline-block; white-space: nowrap; }
+details.js-more > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; margin: 0; }
+details.js-more > summary::-webkit-details-marker { display: none; }
+details.js-more > summary::before { content: '▸'; color: var(--accent); font-size: 13px; transition: transform .12s; }
+details.js-more[open] > summary::before { transform: rotate(90deg); }
+details.js-more[open] > summary { margin-bottom: 8px; }
+@media print { details.js-more:not([open]) { display: none; } }
