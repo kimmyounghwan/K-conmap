@@ -343,6 +343,20 @@ def main():
                     f'<changefreq>weekly</changefreq><priority>0.7</priority></url>')
         n_lc = 1
 
+    # ── 💬 사랑방 글 — 글마다 한 장 (2026-09-29, 소장님 「다 페이지 달아 줘」) ──
+    #    prerender.py 가 «같은 목록» 을 굽습니다 — qnapages.py 가 처음 읽은 것을 30분 남겨 두어 둘이 같은 글을 봅니다.
+    #    lastmod = 글 · 고친 때 · 마지막 답글 중 늦은 날. 지운 글은 목록에서 빠집니다.
+    n_qa = 0
+    try:
+        import qnapages
+        for p in qnapages.posts(qnapages.snapshot()):
+            urls.append(f'  <url><loc>{SITE}/qna/{p["id"]}</loc>'
+                        f'<lastmod>{qnapages.ymd(p["mod"]) or today}</lastmod>'
+                        f'<changefreq>weekly</changefreq><priority>0.5</priority></url>')
+            n_qa += 1
+    except Exception as e:
+        print(f"  · 사랑방 글 주소를 못 넣었습니다({type(e).__name__}: {e}) — 넘어갑니다")
+
     xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
            + "\n".join(urls) + "\n</urlset>\n")
@@ -371,13 +385,15 @@ def main():
     #      손대면 셈이 어긋납니다(줄마다 어느 통에 넣을지 적으면 새 갈래가 늘 때 또 빠집니다).
     # ══════════════════════════════════════════════════════════════
     def _갈래(u):
+        if "/qna/" in u:                  # 💬 사랑방 글은 따로 한 벌 — «팔릴 페이지»(main) 한 벌을 묽게 하지 않게
+            return "qna"
         if "/corp/" in u or "/agency/" in u:
             return "corp"
         if "/notice/" in u or "/daily" in u:
             return "bid"
         return "main"
 
-    통 = {"main": [], "bid": [], "corp": []}
+    통 = {"main": [], "bid": [], "corp": [], "qna": []}
     for u in urls:
         통[_갈래(u)].append(u)
 
@@ -392,7 +408,7 @@ def main():
 
     낸것 = []
     for 이름, 열쇠 in [("sitemap-main.xml", "main"), ("sitemap-bid.xml", "bid"),
-                     ("sitemap-corp.xml", "corp")]:
+                     ("sitemap-corp.xml", "corp"), ("sitemap-qna.xml", "qna")]:
         if 통[열쇠]:                      # 빈 사이트맵은 내지 않습니다 (빈 urlset 은 오류로 잡힙니다)
             _쓰기(이름, 통[열쇠])
             낸것.append((이름, len(통[열쇠])))
@@ -408,7 +424,7 @@ def main():
 
     print(f"  ✅ 사이트맵 — 고정 {len(STATIC)} + 면허 {n_lc} + 기관 {n_ag} + 업체 {n_co}"
           f" + 공고 {n_no} + 성적표 {n_dy} + 서식 {n_fm} + 설계변경 {n_cg}"
-          f" + 알아보기 {n_gd} + 도구 {n_tl} + 캐드 {n_cd} = {len(urls)}개")
+          f" + 알아보기 {n_gd} + 도구 {n_tl} + 캐드 {n_cd} + 사랑방 {n_qa} = {len(urls)}개")
     print("     sitemap.xml (목차) → " + " · ".join(f"{이름} {수:,}장" for 이름, 수 in 낸것))
     print(f"     {p}")
 

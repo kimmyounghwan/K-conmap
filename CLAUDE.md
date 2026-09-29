@@ -3715,3 +3715,11 @@ canonical 이중 인코딩 · 개찰 시각 문구 · 성적표 칸 · 등수 �
   ⚠️ 목록(데이터 유효성) 글이 255자를 넘으면 엑셀이 파일을 고침 — 긴 목록은 도움 표 범위(=$AL$9:$AL$39)로.
   ⚠️ COUNTIFS(범위,"<>") · (범위,"") 는 계산기마다 병합 칸을 다르게 셈(formulas 는 빈 칸도 «<>» 로 셈) → SUMPRODUCT((LEN(범위)>0)*…) 로.
   ⚠️ publish 는 orig/{slug}.xlsx 를 덮어씀 — 원본에서 뽑을 사진 · 글은 tools/forms2/img · data 에 먼저 저장해 둘 것.
+- G67 (2026-09-29): 💬 사랑방 글마다 한 장 — 소장님 「사랑방 글도 페이지 넣어서 검색 되게」 → 「다 페이지 달아 줘」.
+  `qnapages.py`(뿌리)가 RTDB 의 누구나 읽는 네 칸(qna · qna_a · qna_del · qna_top)을 열쇠 없이 읽어 지운 글을 빼고,
+  sitemap.py(빌드 앞) → sitemap-qna.xml, prerender.py(빌드 뒤) → dist/qna/{번호}.html(+ #qdata · DiscussionForumPosting) · /qna 본문에 글 목록.
+  한 회차 안에서 둘이 같은 목록을 보게 임시 파일에 30분 남김. IndexNow 는 처음 구운 글만 한 번(take_once "qna").
+  화면: main.jsx /qna/:id · firebase.json «/qna/**» → 막 올라와 안 구운 글도 열림. Qna.jsx 가 그 글을 맨 위에 펼치고,
+  데이터베이스를 못 읽으면 구운 #qdata 로 그림(«못 받은 것» ≠ «없는 글»). 지운·없는 글은 읽기에 성공했을 때만 noindex.
+  ⚠️ 전화번호 · 메일은 굽는 글(qnapages.가림)과 화면(lib/가림.js)이 **같은 규칙**으로 가림 — 한쪽만 고치면 클로킹. 뒤돌아보기 정규식 금지(옛 사파리).
+  ⚠️ 이용자 글이 JSON-LD 에 들어가므로 page() 의 JSON-LD 는 «<» 를 통째로 \u003c 로 바꿈(«<!--» 까지 막음).

@@ -44,6 +44,7 @@ from urllib.parse import quote
 from ogcard import OgMaker
 import daily as dailymod
 import indexnow
+import qnapages
 
 
 def bold_md(s):
@@ -317,7 +318,9 @@ def page(shell, path, title, desc, body, image=None, jsonld=None):
         # ⚠️ 2026-09-07 — 이제 여기에 공고명·기관명·업체명이 들어갑니다(조달청이 준 글자).
         #    그 안에 «</script» 가 있으면 스크립트가 거기서 끊겨 페이지가 깨집니다.
         #    ndata·ddata 와 같은 방어를 겁니다 — JSON 문자열 안에서 «<\/» 는 같은 값입니다.
-        _ld = json.dumps(jsonld, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+        # 💬 2026-09-29 — 사랑방 글(이용자가 쓴 글자)도 들어갑니다. «<!--» 도 스크립트를 흔들므로 «<» 를 통째로 \u003c 로
+        #    (JSON 에서 «<» 는 문자열 안에만 나오므로 같은 값입니다)
+        _ld = json.dumps(jsonld, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c")
         h = h.replace("</head>",
                       '  <script type="application/ld+json">' + _ld
                       + "</script>\n  </head>", 1)
@@ -1915,6 +1918,95 @@ def change_twoline(shell, image=None):
 #  이 사이트가 «직접 재서» 쓴 글입니다 — 개찰 1만여 건 실측이 근거입니다.
 #  ⚠️ 내용은 web/src/data/guide.json 한 곳에만 있습니다(화면·여기가 같이 읽습니다).
 #     설계변경(change.json)과 «같은 스키마·같은 블록 종류» 라 _blocks_html 을 그대로 씁니다.
+# ── 💬 사랑방 글 — 글마다 한 장 (2026-09-29) ─────────────────────────
+#  소장님: 「사랑방 글도 페이지 넣어서 검색 되게」 → 「다 페이지 달아 줘」
+#  자료는 qnapages.py 가 읽어 줍니다(지운 글 빼고 · 전화번호 · 메일 가림 · uid 안 씀).
+#  ⚠️ 화면(Qna.jsx 의 /qna/:id)이 **같은 글 · 같은 답글** 을 그립니다(lib/가림.js 로 같은 가림) — 클로킹이 아닙니다.
+def _qna_text(t):
+    """글 → HTML. 줄바꿈은 살리고(pre-wrap), 꺾쇠 · & 는 이스케이프."""
+    return esc(t)
+
+
+def qna_page(shell, p, ps):
+    t, n = p["t"], len(p["ans"])
+    head = "💬 사랑방 · " + esc(p["c"]) + (f" · {esc(p['옛'])}" if p["옛"] else "") + (" · 📌 도구 사용법" if p["pin"] else "")
+    meta = esc(p["nick"]) + " · " + esc(qnapages.ymd(p["at"], ".")) + (" · 고침" if p["e"] else "")
+    body = ['<div class="card">'
+            f'<div style="font-size:12.5px;color:var(--muted)">{head}</div>'
+            f'<h1 style="font-size:19px;font-weight:800;margin:6px 0 0;line-height:1.45">{esc(t)}</h1>'
+            f'<div style="font-size:12.5px;color:var(--muted);margin-top:6px">{meta}</div>']
+    if p["b"]:
+        body.append('<div style="font-size:14px;line-height:1.8;margin-top:12px;white-space:pre-wrap">'
+                    + _qna_text(p["b"]) + "</div>")
+    body.append("</div>")
+    if n:
+        body.append(f'<div class="card"><div class="sec-title">답글 {n}</div>')
+        for a in p["ans"]:
+            ok = ' · <b style="color:var(--accent)">✅ K-건설맵 답변</b>' if a["op"] else ""
+            body.append('<div style="border-top:1px solid var(--line);padding:10px 0">'
+                        f'<div style="font-size:12.5px;color:var(--muted)">{esc(a["nick"])}{ok} · {esc(qnapages.ymd(a["at"], "."))}</div>'
+                        '<div style="font-size:13.5px;line-height:1.75;margin-top:4px;white-space:pre-wrap">'
+                        + _qna_text(a["b"]) + "</div></div>")
+        body.append("</div>")
+    body.append('<div class="card"><p style="font-size:13.5px;line-height:1.75;margin:0">'
+                '답글은 누구나 달 수 있습니다 — 가입도 이름도 없습니다. '
+                '<a href="/qna">💬 사랑방</a>에서 이 글에 답글을 달거나 새 글을 쓰실 수 있습니다.</p></div>')
+    # 다른 글 — 크롤러가 옆 글로 건너가는 길(같은 갈래 먼저, 최근 순 8편)
+    near = [x for x in ps if x["id"] != p["id"] and x["c"] == p["c"]][:6]
+    near += [x for x in ps if x["id"] != p["id"] and x not in near][:8 - len(near)]
+    if near:
+        body.append('<div class="card"><div class="sec-title">사랑방 다른 글</div>'
+                    + "".join(f'<a class="row rowlink" href="/qna/{x["id"]}"><div class="grow">'
+                              f'<div class="t">{esc(x["t"])}</div></div>'
+                              f'<span class="r">{esc(qnapages.ymd(x["at"], "."))}</span><span class="go">→</span></a>'
+                              for x in near) + "</div>")
+    one = " ".join(p["b"].split()) if p["b"] else ""
+    if not one and p["ans"]:
+        one = "답글: " + " ".join(p["ans"][0]["b"].split())
+    desc = (one[:140] + ("…" if len(one) > 140 else "")) if one else f"K-건설맵 사랑방 글 «{t[:60]}»"
+    title = re.sub(r"^[^0-9A-Za-z가-힣(«\[]+", "", t).strip() or t
+    title = (title[:60] + ("…" if len(title) > 60 else "")) + " — 사랑방 | K-건설맵"
+    post = {"@type": "DiscussionForumPosting", "headline": t[:110], "url": SITE + f"/qna/{p['id']}",
+            "text": p["b"] or t, "datePublished": qnapages.iso(p["at"]),
+            "author": {"@type": "Organization" if p["nick"] == "K-건설맵" else "Person", "name": p["nick"]},
+            "commentCount": n}
+    if p["mod"] > p["at"]:
+        post["dateModified"] = qnapages.iso(p["mod"])
+    if n:
+        post["comment"] = [{"@type": "Comment", "text": a["b"], "datePublished": qnapages.iso(a["at"]),
+                            "author": {"@type": "Organization" if a["op"] else "Person", "name": a["nick"]}}
+                           for a in p["ans"]]
+    ld = ld_graph(ld_crumbs(("K-건설맵", None), ("사랑방", "/qna"), (t[:60], f"/qna/{p['id']}")), post)
+    h = page(shell, f"/qna/{p['id']}", title, desc, "".join(body), None, ld)
+    # 화면(Qna.jsx)이 데이터베이스를 못 읽어도 이 글을 그대로 그리게 — 구운 글 그대로(가린 것 그대로)
+    data = json.dumps({"id": p["id"], "c": p["c"], "t": t, "옛": p["옛"], "b": p["b"], "nick": p["nick"],
+                       "at": p["at"], "e": p["e"],
+                       "ans": [{"id": a["id"], "b": a["b"], "nick": a["nick"], "at": a["at"], "op": a["op"]}
+                               for a in p["ans"]]},
+                      ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c")
+    return h.replace("</body>", '<script type="application/json" id="qdata">' + data + "</script>\n  </body>", 1)
+
+
+def qna_list_html(ps, n=60):
+    """/qna 본문(구운 것)에 붙이는 글 목록 — 📌 도구 사용법 먼저, 그다음 새 글부터."""
+    if not ps:
+        return ""
+    pins = sorted([p for p in ps if p["pin"]], key=lambda p: p["pin_at"])
+    rest = [p for p in ps if not p["pin"]][:n]
+
+    def row(p):
+        k = len(p["ans"])
+        return (f'<a class="row rowlink" href="/qna/{p["id"]}"><div class="grow"><div class="t">{esc(p["t"])}</div>'
+                f'<div class="muted" style="font-size:12px">{esc(p["c"])} · {esc(p["nick"])} · {esc(qnapages.ymd(p["at"], "."))}'
+                + (f" · 답글 {k}" if k else "") + '</div></div><span class="go">→</span></a>')
+    out = ""
+    if pins:
+        out += '<div class="card"><div class="sec-title">📌 도구 사용법</div>' + "".join(row(p) for p in pins) + "</div>"
+    if rest:
+        out += '<div class="card"><div class="sec-title">최근 글</div>' + "".join(row(p) for p in rest) + "</div>"
+    return out
+
+
 GUIDE_JSON = os.path.join(ROOT, "web", "src", "data", "guide.json")
 
 
@@ -2804,6 +2896,14 @@ def main():
     if not order:
         print("  · data/store 가 없어 공고 페이지는 건너뜁니다 (collect.py 를 한 번 돌리면 생깁니다)")
 
+    # ── 💬 사랑방 글 — 글마다 한 장 (2026-09-29) ── 지운 글은 이번 회차에 안 구우므로 다음 배포에서 빠집니다.
+    qna_ps = qnapages.posts(qnapages.snapshot())
+    for p in qna_ps:
+        write(f"qna/{p['id']}.html", qna_page(shell, p, qna_ps))
+        made += 1
+    if qna_ps:
+        print(f"  · 사랑방 글 페이지 {len(qna_ps):,}개 (/qna/…) · 📌 {sum(1 for p in qna_ps if p['pin'])} · 답글 {sum(len(p['ans']) for p in qna_ps):,}")
+
     # 새로 생긴 주소만 다음 회차에 알립니다 (같은 주소를 하루에도 몇 번씩 찌르면 스팸입니다).
     try:
         _st = indexnow._load()
@@ -2824,7 +2924,9 @@ def main():
         ny_paths = [f"/notice/{safe_no(r.get('no'))}" for r in baked
                     if str(r.get("no") or "") in nydocs and safe_no(r.get("no"))]
         ny_new, ny_left = indexnow.take_once("naeyeok", ny_paths)
-        paths += st_new + ny_new
+        # 💬 사랑방 글 — 처음 구운 글만 한 번 알립니다(답글이 붙어도 다시 찌르지 않습니다 — 사이트맵 lastmod 가 알립니다)
+        qn_new, _ = indexnow.take_once("qna", [f"/qna/{p['id']}" for p in qna_ps])
+        paths += st_new + ny_new + qn_new
         n_q = indexnow.queue(paths, mark=mark)
         print(f"  · IndexNow 다음 회차에 알릴 주소 {n_q:,}개 "
               f"(새 개찰 {len(fresh):,} · 처음 알리는 정적 {len(st_new):,} · "
@@ -2835,6 +2937,7 @@ def main():
                                            "처음알리는정적": len(st_new),
                                            "내역서": len(ny_new),
                                            "내역서남은것": ny_left,
+                                           "사랑방": len(qn_new),
                                            "예": paths[:5]})
     except Exception as e:
         print(f"  · IndexNow 목록 만들기 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
@@ -3125,6 +3228,9 @@ def main():
                              "워크넷 목록은 옮겨 싣지 않고 워크넷 화면을 그대로 불러와 보여 줍니다."])
                   + c_sites),
     }
+    # 💬 사랑방 — 구운 본문에 글 목록(📌 도구 사용법 → 최근 글)을 붙입니다. 글마다 /qna/{번호} 로 갑니다.
+    if qna_ps:
+        tab_body["/qna"] = tab_body.get("/qna", "") + qna_list_html(qna_ps)
     _tabname = {"/first": "1순위 개찰", "/live": "입찰 공고",
                 "/analysis": "낙찰 분석", "/jobs": "구인구직",
                 "/naeyeok": "내역서", "/qna": "사랑방",
@@ -3139,6 +3245,8 @@ def main():
                 "/shareone": "쉐어원 공유폴더"}
     _tabrows = {"/first": done_rows[:12], "/live": open_rows[:12],
                 "/jobs": done_rows[:12]}
+    if qna_ps:
+        _tabrows["/qna"] = [(f"/qna/{p['id']}", p["t"][:80], "") for p in qna_ps[:30]]
     for path, title, desc, _card in TABS:
         _ld = ld_graph(ld_crumbs(("K-건설맵", None), (_tabname.get(path, path), path)),
                        ld_list(_tabname.get(path, path), _tabrows.get(path) or []))

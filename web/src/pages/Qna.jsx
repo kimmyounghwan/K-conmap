@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { 가림 } from '../lib/가림.js'
 /* ⚠️ firebase 는 «정적으로» 끌어오지 않습니다. 이 화면을 열 때만 받습니다. (Jobs.jsx 와 같은 방식) */
 let _fb = null
 const loadFb = async () => {
@@ -148,11 +149,27 @@ const SEEN_KEY = 'kcm_qna_seen'
 const loadSeen = () => { try { return JSON.parse(localStorage.getItem(SEEN_KEY) || '{}') } catch { return {} } }
 const saveSeen = (v) => { try { localStorage.setItem(SEEN_KEY, JSON.stringify(v)) } catch { /* 사생활 모드 */ } }
 
+/* 💬 2026-09-29 — /qna/{글번호} : 글마다 한 장 (소장님 「사랑방 글도 페이지 넣어서 검색 되게」 → 「다 페이지 달아 줘」)
+   prerender.py 가 글 · 답글을 구워 <script id="qdata"> 에 실어 둡니다(전화번호 · 메일은 가림, lib/가림.js 와 같은 규칙).
+   ⚠️ 데이터베이스를 못 읽어도(크롤러 · 느린 망) 구운 글을 그대로 그립니다 — «못 받은 것» 을 «없는 글» 로 그리면
+      구운 글이 빈 화면으로 덮여 검색에서 빠집니다(lib/baked.js 와 같은 교훈). «없는 글» 은 읽기에 성공했는데 없을 때만. */
+function 구운글(번호) {
+  try {
+    const el = document.getElementById('qdata')
+    const v = el ? JSON.parse(el.textContent || 'null') : null
+    return v && v.id === 번호 ? v : null
+  } catch (e) { return null }
+}
+
 export default function Qna() {
   const [rows, setRows] = useState(null)
   const [ans, setAns] = useState({})        // { 질문id: [답변…] }
   const [del, setDel] = useState({})
   const [open, setOpen] = useState(null)    // 펼친 질문 id
+  /* 💬 /qna/{글번호} — 이 글 하나를 맨 위에 펼쳐 둡니다 */
+  const { id: 글번호 } = useParams()
+  const [따로글, set따로글] = useState(null)   // 목록(최근 300)에 없는 글 · 구운 글
+  const [없는글, set없는글] = useState(false)
   /* 🧭 2026-09-27 — 글쓰기 칸도 뒤로가기 한 칸 (lib/길기록.js) */
   const [write, setWrite, 글쓰기닫기] = use화면상태('글쓰기', false)
   const [mine, setMine] = useState(loadMine)
@@ -237,6 +254,18 @@ export default function Qna() {
     } catch (e) { /* 👍 없이 */ }
   }
   useEffect(() => { load() }, [])
+  /* 💬 구운 글이 있으면 먼저 그립니다(데이터베이스를 읽으면 그것으로 바뀝니다) */
+  useEffect(() => {
+    set따로글(null); set없는글(false)
+    if (!글번호) return
+    const v = 구운글(글번호)
+    if (v) {
+      set따로글({ id: v.id, t: v.t, b: v.b, nick: v.nick, at: v.at, e: v.e || 0, c: v.c, 옛: v.옛 || '' })
+      setAns((a) => (a[v.id] ? a : { ...a, [v.id]: Object.fromEntries((v.ans || []).map((x) => [x.id, x])) }))
+    }
+    setOpen(글번호)
+    try { window.scrollTo(0, 0) } catch (e) { /* 옛 브라우저 */ }
+  }, [글번호])
   useEffect(() => {
     let 살아있음 = true
     ;(async () => {
@@ -257,6 +286,35 @@ export default function Qna() {
       .sort((a, b) => (b.at || 0) - (a.at || 0))
   }, [rows, del])
 
+  /* 💬 /qna/{글번호} — 목록(최근 300)에 있으면 그것, 없으면 한 편만 따로 읽습니다 */
+  const 이글 = useMemo(() => (글번호 ? ((모두 || []).find((r) => r.id === 글번호) || 따로글) : null), [글번호, 모두, 따로글])
+  useEffect(() => {
+    if (!글번호 || rows === null || (모두 || []).some((r) => r.id === 글번호)) return undefined
+    let 살 = true
+    ;(async () => {
+      try {
+        const { ref, get, db, ensureAnon } = await loadFb()
+        await ensureAnon()
+        const [a, d, c] = await Promise.all([get(ref(db, `qna/${글번호}`)), get(ref(db, `qna_del/${글번호}`)), get(ref(db, `qna_a/${글번호}`))])
+        if (!살) return
+        const x = a.val()
+        if (!x || x.deleted || d.exists()) { set따로글(null); set없는글(true); return }
+        const g = 갈래떼기(x.t)
+        set따로글({ id: 글번호, ...x, c: g.c, t: g.t, 옛: g.옛 || '' })
+        setAns((m) => ({ ...m, [글번호]: c.val() || {} }))
+      } catch (e) { /* 못 읽음 — 구운 글이 있으면 그대로 둡니다(없는 글로 그리지 않습니다) */ }
+    })()
+    return () => { 살 = false }
+  }, [글번호, rows, 모두])   // eslint-disable-line react-hooks/exhaustive-deps
+  /* 지웠거나 없는 글 — 검색엔진이 빈 주소를 담지 않게 noindex (읽기에 성공했을 때만) */
+  useEffect(() => {
+    if (!없는글) return undefined
+    const el = document.createElement('meta')
+    el.setAttribute('name', 'robots'); el.setAttribute('content', 'noindex')
+    document.head.appendChild(el)
+    return () => { el.remove() }
+  }, [없는글])
+
   /* ✅ 2026-09-29 (클로드 제안) — 후기·건의가 «들렸는지» 보이게: K-건설맵이 답한 글에는 «✅ K-건설맵 답변» 딱지.
      운영자 브라우저에는 «⏳ 답 기다리는 글» 칸 — K-건설맵 답이 아직 없는 후기·건의만(하루 안에 답한다는 약속을 지키는 목록). */
   const op답 = (id) => Object.values(ans[id] || {}).some((x) => x && !x.deleted && x.op)
@@ -276,14 +334,15 @@ export default function Qna() {
   }, [mine, 나, 모두])
 
   /* 📌 도구 사용법 — 운영자가 꽂은 글. 먼저 꽂은 것이 위(공사일보 → 바로투찰 → …). */
-  const 고정목록 = useMemo(() => (모두 || []).filter((r) => 고정[r.id])
-    .sort((a, b) => Number(고정[a.id]) - Number(고정[b.id])), [모두, 고정])
+  const 고정목록 = useMemo(() => (모두 || []).filter((r) => 고정[r.id] && r.id !== 글번호)
+    .sort((a, b) => Number(고정[a.id]) - Number(고정[b.id])), [모두, 고정, 글번호])
   const 기본보기 = 갈래 === '전체' && !onlyMine && !q.trim()
 
   const list = useMemo(() => {
     if (!모두) return null
     const s = q.trim()
     return 모두.filter((r) => {
+      if (r.id === 글번호) return false            /* 💬 맨 위에 이미 펼쳐 있습니다 */
       if (기본보기 && 고정[r.id]) return false   /* 위 📌 칸에 이미 있습니다 */
       if (갈래 === '답기다림') { if (r.c !== '후기·건의' || op답(r.id) || 고정[r.id]) return false }
       else if (갈래 !== '전체' && r.c !== 갈래) return false
@@ -291,7 +350,7 @@ export default function Qna() {
       if (s && !((r.t || '') + (r.b || '')).includes(s)) return false
       return true
     })
-  }, [모두, q, onlyMine, 내것, 갈래, 고정, 기본보기, ans])   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [모두, q, onlyMine, 내것, 갈래, 고정, 기본보기, ans, 글번호])   // eslint-disable-line react-hooks/exhaustive-deps
 
   /* 공고에서 왔고 아직 그 공고번호로 찾는 중인가 */
   const 이공고 = !!(공고찾기 && q.trim() === 공고찾기.no)
@@ -328,8 +387,8 @@ export default function Qna() {
 
   /* 📌 오늘의 K-건설맵 — 씨앗글은 여기 모읍니다. 이용자 글을 덮지 않게. (8절 69) */
   const 오늘것 = useMemo(() => (모두 || [])
-    .filter((r) => r.c === 'K-건설맵' && !고정[r.id] && (Date.now() - (r.at || 0)) < 3 * 86400000)
-    .slice(0, 3), [모두, 고정])
+    .filter((r) => r.c === 'K-건설맵' && !고정[r.id] && r.id !== 글번호 && (Date.now() - (r.at || 0)) < 3 * 86400000)
+    .slice(0, 3), [모두, 고정, 글번호])
 
   /* 🔴 내 글에 달린 «새» 답글 */
   const 새답 = useMemo(() => {
@@ -373,13 +432,13 @@ export default function Qna() {
           style={{ marginBottom: 8, display: 'block', textDecoration: 'none', color: 'inherit' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             {딱지}
-            <b style={{ flex: '1 1 200px', fontSize: 15 }}>{r.t}</b>
+            <b style={{ flex: '1 1 200px', fontSize: 15 }}>{가림(r.t)}</b>
             <span className="muted" style={{ fontSize: 12 }}>{r.곁 || r.nick} · {언제(r.at)}</span>
             <span className="caret">›</span>
           </div>
           {r.b && (
             <div className="muted" style={{ fontSize: 13, marginTop: 6, lineHeight: 1.6 }}>
-              {String(r.b).slice(0, 90)}{String(r.b).length > 90 ? '…' : ''}
+              {가림(r.b).slice(0, 90)}{가림(r.b).length > 90 ? '…' : ''}
             </div>
           )}
         </Link>
@@ -406,7 +465,7 @@ export default function Qna() {
               <span className="chip" style={{ fontSize: 11.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
                 background: 'var(--good-soft)', color: 'var(--good)' }}>👍 {n좋아요(r.id)}</span>
             )}
-            <b style={{ flex: '1 1 200px', fontSize: 15 }}>{r.t}</b>
+            <b style={{ flex: '1 1 200px', fontSize: 15 }}>{가림(r.t)}</b>
             <span className="muted" style={{ fontSize: 12 }}>
               {배지(r.uid)}{r.nick || '익명'} · {언제(r.at)}{r.e ? ' · 고침' : ''}
               {내것.has(r.id) && <b style={{ color: 'var(--accent, #1a56db)' }}> · 내 글</b>}
@@ -420,7 +479,7 @@ export default function Qna() {
           </div>
           {!isOpen && !작게 && r.b && (
             <div className="muted" style={{ fontSize: 13, marginTop: 6, lineHeight: 1.6 }}>
-              {String(r.b).slice(0, 90)}{String(r.b).length > 90 ? '…' : ''}
+              {가림(r.b).slice(0, 90)}{가림(r.b).length > 90 ? '…' : ''}
             </div>
           )}
         </div>
@@ -445,6 +504,20 @@ export default function Qna() {
           <b style={{ color: 'var(--text)' }}> 가입도 이름도 없습니다.</b>
         </div>
       </div>
+
+      {/* 💬 2026-09-29 — /qna/{글번호} 로 들어오면(검색 · 공유 주소) 그 글을 맨 위에 펼쳐 둡니다. 아래는 여느 사랑방 그대로 */}
+      {글번호 && (
+        <div className="qna-one">
+          {이글
+            ? 글카드(이글)
+            : 없는글
+              ? <Empty>이 글은 지워졌거나 없는 글입니다. 아래에서 다른 글을 보세요.</Empty>
+              : <Skeleton n={1} />}
+          <div style={{ textAlign: 'right', margin: '-2px 2px 12px', fontSize: 13 }}>
+            <Link to="/qna">💬 사랑방 글 모두 보기 →</Link>
+          </div>
+        </div>
+      )}
 
       {/* 📋 2026-09-27 새로 — 소장님: 「누구나 어떤 말이든지, 다 가능...답글은 누구라도 달아도 됨」 「광고들은 1주에 한번만」(글로만 안내)
            「사랑방이 활성화 된다면 추후 관련 전문가 방을 따로 만들도록 하겠습니다 — 변호사, 기술사, 등」
@@ -538,7 +611,7 @@ export default function Qna() {
           <b style={{ color: 'var(--bad)' }}>내 글에 새 답글 {새답.n}개</b>
           {새답.이름 && <span className="muted" style={{
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>「{새답.이름}」</span>}
+          }}>「{가림(새답.이름)}」</span>}
           <span className="muted" style={{ marginLeft: 'auto', fontSize: 12.5 }}>눌러서 보기 ▸</span>
         </div>
       )}
@@ -626,7 +699,7 @@ export default function Qna() {
                 background: 'var(--surface)', border: '1px solid var(--accent-line)',
                 borderRadius: 10, padding: '9px 12px', marginBottom: 7, cursor: 'pointer', fontSize: 13.5,
               }}>
-              {r.t}
+              {가림(r.t)}
               <div className="muted" style={{ fontSize: 12, marginTop: 3 }}>
                 K-건설맵 · {언제(r.at)} · 답글 {nAns(r.id)}
               </div>
@@ -833,13 +906,15 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
           </div>
         </div>
       ) : (
-        <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.85, fontSize: 14 }}>{row.b}</div>
+        <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.85, fontSize: 14 }}>{가림(row.b)}</div>
       )}
-      <div style={{ marginTop: 8 }}>
+      <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         {내번호(row.uid)
           ? <span className="qna-like muted">👍 도움됐어요 {Object.keys(좋아요).length}</span>
           : <button className={'qna-like' + (눌렀나(좋아요) ? ' on' : '')} disabled={좋바쁨}
               onClick={() => 좋(`qna_like/${row.id}`, !눌렀나(좋아요))}>👍 도움됐어요 {Object.keys(좋아요).length}</button>}
+        {/* 💬 2026-09-29 — 이 글만 여는 주소(검색 · 카톡으로 보내기). 그 주소로 가면 이 글이 맨 위에 펼쳐집니다 */}
+        <Link className="qna-permalink" to={`/qna/${row.id}`}>🔗 이 글 주소</Link>
       </div>
 
       {list.map((a) => (
@@ -854,7 +929,7 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
               : <b>{배지(a.uid)}{a.nick || '익명'}</b>}
             <span className="muted"> · {when(a.at)}</span>
           </div>
-          <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.85, fontSize: 13.5 }}>{a.b}</div>
+          <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.85, fontSize: 13.5 }}>{가림(a.b)}</div>
           <div style={{ marginTop: 4 }}>
             {내번호(a.uid)
               ? <span className="qna-like sm muted">👍 {Object.keys(답좋아요[a.id] || {}).length}</span>

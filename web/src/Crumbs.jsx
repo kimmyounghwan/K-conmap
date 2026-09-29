@@ -162,7 +162,8 @@ function 길계산(pathname, state) {
   let here = LEAF[path]
   if (!here) {
     const last = decodeURIComponent(seg[seg.length - 1] || '')
-    here = 영문조각(last) ? '' : (last.length > 28 ? last.slice(0, 28) + '…' : last)
+    /* 💬 /qna/{글번호} — 번호는 사람이 읽는 이름이 아닙니다(글 제목이 바로 아래에 있습니다) */
+    here = (영문조각(last) || root0 === '/qna') ? '' : (last.length > 28 ? last.slice(0, 28) + '…' : last)
   }
 
   /* 세 칸짜리(예: /change/naeyeok/공내역서) 는 가운데도 하나 끼웁니다 */

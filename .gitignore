@@ -43,6 +43,7 @@ web/public/sitemap.xml
 web/public/sitemap-main.xml
 web/public/sitemap-bid.xml
 web/public/sitemap-corp.xml
+web/public/sitemap-qna.xml
 
 # 도구·OS
 # .vscode 는 일부러 올립니다 — 작업 메뉴(Tasks)를 공유하기 위해

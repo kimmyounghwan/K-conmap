@@ -37,6 +37,7 @@
     { "source": "/naeyeok", "destination": "/index.html" },
     { "//": "📉 내역서 비율 맞추기 — 2026-09-18. 라우트를 새로 만들면 여기에도 넣어야 합니다", "source": "/naeyeok/**", "destination": "/index.html" },
     { "source": "/qna", "destination": "/index.html" },
+    { "//": "💬 사랑방 글마다 한 장 — 2026-09-29. 구운 글은 qna/{번호}.html 이 먼저 나가고, 막 올라와 아직 안 구운 글만 여기로 옵니다(화면이 데이터베이스에서 읽어 그림)", "source": "/qna/**", "destination": "/index.html" },
       { "//": "🛠 관리자 — 소장님만. sitemap·robots 에는 안 넣습니다 (2026-09-17)", "source": "/admin", "destination": "/index.html" },
     { "source": "/how", "destination": "/index.html" },
     { "source": "/lic", "destination": "/index.html" },

@@ -199,6 +199,8 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           {/* 📋 2026-09-15 — 내역서 작성 대행. 하나뿐인 유료 화면입니다. */}
           {/* 💬 2026-09-15 — 묻고 답하기 */}
           <Route path="/qna" element={<Suspense fallback={<Loading />}><Qna /></Suspense>} />
+          {/* 💬 2026-09-29 — 사랑방 글마다 한 장(검색). firebase.json 의 /qna/** 와 짝 · prerender.py 가 굽습니다 */}
+          <Route path="/qna/:id" element={<Suspense fallback={<Loading />}><Qna /></Suspense>} />
           {/* 🛠 2026-09-17 — 관리자. 운영자 브라우저가 아니면 빈 안내만 나옵니다.
               ⚠️ 새 주소를 만들었으니 web/firebase.json 의 rewrites 에도 넣었습니다 (8절 16).
               ⚠️ sitemap 에는 «넣지 않습니다» — 검색에 뜨면 안 됩니다. */}
