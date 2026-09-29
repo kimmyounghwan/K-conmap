@@ -34,7 +34,7 @@ const NAME = {
   '/tools': '도구',
   '/cad': '캐드 유틸',
   '/jeoksan': 'K-적산',
-  '/naeyeok': '산출내역서',
+  '/naeyeok': '내역서',
   '/safety': '안전·유해위험방지 계획서',
   '/shareone': '쉐어원 공유폴더',
   '/report': '업체 입찰 성적표',
@@ -52,7 +52,7 @@ const NAME = {
 const LEAF = {
   '/change/calc': '증감율 계산',
   '/change/excel': '엑셀로 만들기',
-  '/change/naeyeok': '설계변경 내역서',
+  '/change/naeyeok': '공사 내역서 모음',
   '/change/twoline': '2줄 자동변환',
   '/jeoksan/run': '수량산출서 만들기',
   '/jeoksan/golgo': '골조 수량산출',

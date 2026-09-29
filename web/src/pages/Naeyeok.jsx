@@ -20,6 +20,8 @@ import { Link } from 'react-router-dom'
    내역서를 보러 온 사람이 곧 착공계도 내야 하는 사람입니다 — 그 자리에 띠를 붙입니다. */
 import { SafetyStrip } from './Safety.jsx'
 import { PriceStance } from '../components.jsx'
+/* 📄 서식 이름·그림은 formsgen.py 가 구운 «작은 목록»(6KB) — Change.jsx 와 같은 것 */
+import FMIN from '../data/forms-min.json'
 
 /* ⏸ 2026-09-25 — 소장님: 「공내역서 채우기가 정확히 몇 퍼센트 되는 거지? 그럼 작성대행도 안돼고,
    적산도 안되는 거잖아. 근데, 사이트에는 된다고 해놓서...이걸 고쳐야 할 것 같아」
@@ -233,6 +235,127 @@ export function QuoteForm({ 옵션 = null, 첫값 = '입찰 산출내역서', �
   )
 }
 
+/* 📋🧰 2026-09-29 — 소장님: 「건설맵 내역서 탭을 보면 좀 부실해 보여,,,한 번 점검해줘」 → (A · B · 무효 검사 가운데) 「A로 해줘」
+   점검: 탭이 «알아보기 글 한 장» 이었습니다 — 맨 위 안전서류 띠 · 둘째 칸 «대행 안 받음 66.7%·39.5%» · 도구는 문단 속 작은 칩 ·
+         아래 절반은 법 설명. 사이트에 있는 내역서 도구(설계변경 넷 · 하도급 적정성 · 물가변동 · 예정공정표 · 마감)와 서식 14가지가 안 걸려 있었습니다.
+   → «상황별 작업대»: ① 낙찰 뒤 산출내역서 ② 하도급·실행 ③ 설계변경·물가변동 ④ 물량·공정표 — 칸마다 쓸 도구(차례대로)와 서식.
+     법 설명(언제·누가 · 무효)은 그 아래, 대행 안내는 맨 아래로. 대행을 다시 받으면(대행받음 = true) 예전 차례로 돌아갑니다.
+   ⚠️ 도구 설명은 tools.json(도구 탭) 과 같은 뜻으로 적습니다 — 한쪽만 고치면 말이 갈립니다.
+   ⚠️ «파일이 안 올라간다» 는 말은 단가 채우기(/jeoksan/fill)엔 틀립니다 — 그 도구만 서버가 받아 채우고 남기지 않습니다. */
+const 상황들 = [
+  {
+    k: 'award', n: '①', ic: '🏁', h: '낙찰 뒤 산출내역서', 짧게: '착공신고 때 내는 내역서',
+    언제: '100억원 미만 공사는 낙찰 뒤 착공신고 때 냅니다. 받은 공내역서에 단가를 넣고, 낙찰금액에 맞춰 원가계산서까지 맞춥니다.',
+    도구: [
+      { to: '/jeoksan/fill', ic: '💰', t: '공내역서 단가 채우기', 딱지: '시험판', d: '받은 공내역서(엑셀)를 넣으면 품목마다 단가를 찾아 넣습니다. 채운 값은 한 줄씩 확인하십시오.' },
+      { to: '/naeyeok/ratio', ic: '📉', t: '낙찰금액에 맞추기', d: '단가가 든 내역서를 올리고 맞출 금액(낙찰금액)이나 비율만 넣으면 단가·금액과 원가계산서가 그대로 따라옵니다.' },
+      { to: '/tools/after-award', ic: '📅', t: '낙찰 뒤 할 일 달력', d: '계약 · 공사대장 통보 · 착공 전 안전 서류 · 보험 신고 · 하도급 통보까지 기한을 날짜로 뽑습니다.' },
+    ],
+    서식: ['gongnaeyeok-hanbeol', 'sanchul-naeyeok', 'wonga', 'ilwidaega'],
+  },
+  {
+    k: 'sub', n: '②', ic: '🤝', h: '하도급 · 실행내역', 짧게: '하도급 80% · 우리 회사 실제 원가',
+    언제: '하도급을 줄 때 내역서를 비율(80% 등)로 맞추고, 82%·64% 적정성 심사에 걸리는지 봅니다. 실행률로 맞추면 실행내역서가 됩니다.',
+    도구: [
+      { to: '/naeyeok/ratio', ic: '📉', t: '하도급 80% · 실행률 맞추기', d: '내역서를 올리고 비율만 넣으면 단가·금액이 그 비율로 바뀌고 원가계산서도 같이 나옵니다.' },
+      { to: '/tools/subcontract-check', ic: '⚖️', t: '하도급 적정성 판정 — 82% · 64%', d: '하도급금액을 넣으면 심사 대상인지, 넘기려면 얼마 이상이어야 하는지, 직접시공 비율까지 봅니다.' },
+    ],
+    서식: ['hadogeup-gyehoek', 'silhaeng-daebipyo', 'hadogeup-daegeum'],
+  },
+  {
+    k: 'chg', n: '③', ic: '🔁', h: '설계변경 · 물가변동', 짧게: '공사 중 늘고 줄 때 · 값이 올랐을 때',
+    언제: '공사 중 물량이 늘고 줄거나 새 비목이 생길 때, 자재·노무비가 올랐을 때. 증가 물량은 계약단가, 신규 비목은 설계변경 당시 단가 × 낙찰률입니다.',
+    도구: [
+      { to: '/change/calc', ic: '🧮', t: '설계변경 증감 계산', d: '증가·감소 물량과 신규 비목을 규정 단가로 계산합니다. 낙찰률을 엉뚱한 데 곱하지 않습니다.' },
+      { to: '/change/twoline', ic: '↔️', t: '설계변경 2줄 자동변환', d: '당초 한 줄을 당초·변경 두 줄로 바꿔 줍니다. 손으로 밀어 넣다 틀리는 자리입니다.' },
+      { to: '/change/excel', ic: '📊', t: '설계변경 자동계산 엑셀', d: '단가 한 칸을 고치면 일위대가 → 내역서 → 증감대비표 → 원가계산서까지 다시 계산되는 엑셀. 당초·변경·증감이 한 표에 나란히.' },
+      { to: '/tools/price-adjust', ic: '📈', t: '물가변동 조정금액 계산기', d: '계약금액과 등락률을 넣으면 조정 가능 여부와 증감액이 나옵니다.' },
+      { to: '/change', ic: '📘', t: '설계변경 한눈에 — 절차 · 단가 기준', d: '어떤 차례로, 어떤 단가로 하는지 한 장에. 실무에서 자주 틀리는 자리도 적었습니다.' },
+    ],
+    서식: ['chg-naeyeok', 'chg-chongwal', 'chg-hyeobui', 'seolgye-byeongyeong', 'siljeong-bogo', 'mulga', 'chg-mulga-san', 'chg-ganjeopbi'],
+  },
+  {
+    k: 'qty', n: '④', ic: '📐', h: '물량 확인 · 공정표', 짧게: '도면 물량 대조 · 예정공정표',
+    언제: '내역서 물량이 도면과 맞는지 보고, 빈 수량 칸을 도면 물량으로 채웁니다. 내역서 공종·금액으로 예정공정표도 만듭니다.',
+    도구: [
+      { to: '/jeoksan/auto', ic: '⚡', t: '도면 물량 자동 · 내역서 대조', d: '도면을 넣으면 물량이 저절로 나오고, 내역서를 같이 넣으면 줄마다 대조한 뒤 빈 수량 칸에 도면 물량을 넣어 그 파일 그대로 돌려 드립니다.' },
+      { to: '/jeoksan/golgo', ic: '🏗', t: '골조 — 도면 넣으면 자동', d: '구조평면도와 부재 일람표로 보·기둥·슬래브·벽·기초의 콘크리트·거푸집·철근을 층별·부재별로 셉니다.' },
+      { to: '/jeoksan/magam', ic: '🧱', t: '마감 — 방마다 바닥 · 벽 · 천장', d: '평면도의 방을 스스로 찾아 면적·둘레를 넣고, 마감표·창호표로 재료별 수량을 셉니다.' },
+      { to: '/tools/schedule', ic: '📈', t: '예정공정표 · S커브', d: '내역서 공종별 집계표의 공종·금액으로 보할·월별 공정률·S커브까지 — 막대형 · 금액형(당초·변경).' },
+    ],
+    서식: ['suryang', 'giseong-daebipyo'],
+  },
+]
+
+/* 📚 남이 낸 설계 단가 — /change/naeyeok 은 «설계변경 서식» 이 아니라 «조달청 공개 내역서 모음» 입니다(prerender.py change_naeyeok_page) */
+const 단가보기 = [
+  { to: '/change/naeyeok', ic: '📑', t: '공사 내역서 모음 — 2026년', d: '조달청이 공고에 붙여 공개한 설계내역서·단가산출서·공내역서를 갈래별로 모았습니다. 설계내역서에는 발주처가 잡은 설계 단가가 들어 있습니다.' },
+  { to: '/change/unit', ic: '📐', t: '단가 · 품셈 기준 (2026년)', d: '신규 비목의 «설계변경 당시 단가» 를 2026년에 무엇을 기준으로, 어디서 받는지 정리했습니다.' },
+]
+
+function 도구칸({ x }) {
+  return (
+    <Link className="tlx-card" to={x.to}>
+      <span className="tlx-ic">{x.ic}</span>
+      <span className="tlx-body">
+        <span className="tlx-t">{x.t}{x.딱지 && <em className="tlx-new ny-tag">{x.딱지}</em>}</span>
+        <span className="tlx-d">{x.d}</span>
+      </span>
+    </Link>
+  )
+}
+
+function 작업대() {
+  return (
+    <>
+      <div className="card ny-pick">
+        <div className="sec-title" style={{ marginTop: 0 }}>지금 하시는 일은?</div>
+        <div className="ny-pick-row">
+          {상황들.map((s) => (
+            <a className="ny-pick-b" href={'#ny-' + s.k} key={s.k}>
+              <span className="ny-pick-t"><span className="ny-n">{s.n}</span> {s.ic} {s.h}</span>
+              <span className="ny-pick-d">{s.짧게}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+
+      {상황들.map((s) => (
+        <div className="card ny-sit" id={'ny-' + s.k} key={s.k}>
+          <div className="ny-sit-h"><span className="ny-n">{s.n}</span> {s.ic} {s.h}</div>
+          <div className="ny-sit-w">{s.언제}</div>
+          <div className="tlx-grid">
+            {s.도구.map((x, i) => <도구칸 x={x} key={x.to + i} />)}
+          </div>
+          {s.서식.some((g) => FMIN[g]) && (
+            <div className="ny-forms">
+              <span className="ny-forms-h">📄 서식</span>
+              {s.서식.filter((g) => FMIN[g]).map((g) => (
+                <Link className="navi" to={'/forms/' + g} key={g}>{FMIN[g][1]} {FMIN[g][0]}</Link>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+
+      <div className="card ny-sit" id="ny-unit">
+        <div className="ny-sit-h">📚 남이 낸 설계 단가 · 단가 기준 보기</div>
+        <div className="ny-sit-w">단가를 넣다 막힐 때 — 같은 공종을 발주처가 얼마로 잡았는지, 새 비목 단가는 어디서 가져오는지.</div>
+        <div className="tlx-grid">
+          {단가보기.map((x) => <도구칸 x={x} key={x.to} />)}
+        </div>
+        <div className="muted" style={{ fontSize: 12.5, marginTop: 10, lineHeight: 1.7 }}>
+          모두 사이트에서 바로 씁니다. 파일은 <b>브라우저 안에서만</b> 다룹니다 — 다만 <b>공내역서 단가 채우기</b>는 단가를 찾느라
+          공내역서를 서버가 받아 채우고, 채운 뒤 <b>남기지 않습니다</b>. 쓰시다 안 되는 곳은 <Link to="/qna">사랑방</Link>에 한 줄 남겨 주십시오.
+        </div>
+      </div>
+
+      {/* 🦺 안전서류 띠 — 이 탭이 /safety 도 품습니다. 내역서를 보러 온 분 맨 위가 아니라 작업대 아래로 (2026-09-29) */}
+      <SafetyStrip />
+    </>
+  )
+}
+
 export default function Naeyeok() {
   return (
     <div className="wrap">
@@ -247,16 +370,16 @@ export default function Naeyeok() {
         </div>
       ) : (
         <div className="card hero">
-          <h1 style={{ margin: 0, fontSize: 20 }}>📋 산출내역서 — 언제 · 누가 · 무엇을</h1>
+          <h1 style={{ margin: 0, fontSize: 20 }}>📋 내역서 — 낙찰 뒤 산출내역서부터 하도급 · 설계변경까지</h1>
           <div style={{ marginTop: 6, lineHeight: 1.75, color: 'rgba(255,255,255,.92)', fontSize: 13.5 }}>
-            {/* 2026-09-26 — 소장님: 「클로드 추천으로 하자」 · 「설명도 바꿔줘」 — 탭 «내역서» 에 맞춰
-                «대행 안 받음» 이 아니라 «이 화면이 무엇인가» 를 먼저 적습니다. 대행 얘기는 아래 한 줄로. */}
-            낙찰되면 <b style={{ color: '#fff' }}>누군가는 반드시 내야 하는 서류</b>입니다.
-            <span style={{ opacity: .9 }}> 언제·누가 내는지, 틀리면 왜 무효가 되는지, 직접 맞추는 무료 도구까지 한 장에 모았습니다.</span>
+            {/* 2026-09-29 — «작업대» 로 바꾸며 머리 글도: 무엇을 하는 탭인지 먼저. (9/26 글: 「산출내역서는 누군가는 반드시 내야 하는 서류」 → 아래 «언제, 누가 내나» 칸에 그대로) */}
+            지금 하시는 일을 고르시면 <b style={{ color: '#fff' }}>쓸 도구와 서식이 차례대로</b> 나옵니다.
+            <span style={{ opacity: .9 }}> 산출내역서 · 하도급 · 실행 · 설계변경 · 물가변동 · 물량 대조 · 예정공정표 — 전부 사이트에서 바로.</span>
           </div>
         </div>
       )}
 
+      {대행받음 ? (<>
       {/* 🦺 2026-09-16 — 소장님: 「대상판정이 사이트 어디 있어?」
           예전엔 이 띄가 «세 번째 칸» 이라 한 번 내려야 보였습니다.
           「작성 대행」을 눌렀을 때 바로 보이는 자리로 올렸습니다. */}
@@ -330,9 +453,11 @@ export default function Naeyeok() {
           <Link className="navi" to="/jeoksan">🧮 K-적산 — 골조 · 마감 · 수량산출서</Link>
         </div>
         <div className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>
-          파일은 브라우저 안에서만 다룹니다 — 저희 쪽으로 올라가지 않습니다.
+          파일은 브라우저 안에서만 다룹니다 — 다만 공내역서 단가 채우기는 서버가 받아 채우고 남기지 않습니다.
         </div>
       </div>
+
+      </>) : <작업대 />}
 
       {/* ── 언제 내나 ─────────────────────────────────────────── */}
       <div className="card">
@@ -385,6 +510,19 @@ export default function Naeyeok() {
           근거: 같은 시행령 제39조 제4항 · 시행규칙 제44조 · 공사입찰유의서 제15조.
         </div>
       </div>
+
+      {/* ⏸ 대행 안내 — 2026-09-29 맨 위(둘째 칸)에서 맨 아래로. 첫인상이 «안 됨» 이 되지 않게 */}
+      {!대행받음 && (
+        <div className="card">
+          <div className="sec-title">작성 대행</div>
+          <div className="note" style={{ margin: 0, lineHeight: 1.8 }}>
+            <b>작성 대행은 지금 받지 않습니다.</b> 단가를 자동으로 채우는 프로그램을 시험하고 있는데,
+            실제 설계 내역서 4,171줄로 재 보니 품목이 맞는 줄이 3줄 중 2줄(66.7%),
+            단가가 설계값 ±10% 안에 드는 줄이 10줄 중 4줄(39.5%)이라 아직 믿고 맡기실 수준이 아닙니다.
+            되는 날 이 화면에 먼저 적겠습니다.
+          </div>
+        </div>
+      )}
 
       {대행받음 && (<>
       {/* ── 무엇을 드리나 ─────────────────────────────────────── */}

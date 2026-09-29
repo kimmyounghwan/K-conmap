@@ -156,7 +156,8 @@ export function NaeyeokStrip({ tone = 'win' }) {
       <span className="ns-ic">📋</span>
       <span className="ns-txt">{line}</span>
       {/* ⏸ 2026-09-25 — 작성 대행을 지금 받지 않아 «작성해 드립니다» 를 내렸습니다 (Naeyeok.jsx 대행받음). */}
-      <span className="ns-go">무엇을 내야 하나 →</span>
+      {/* 📋 2026-09-29 — 탭이 «상황별 작업대» 가 되어 글도 «도구 · 서식» 으로 */}
+      <span className="ns-go">쓸 도구 · 서식 →</span>
     </Link>
   )
 }

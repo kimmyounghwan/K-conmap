@@ -356,7 +356,7 @@ function HireSites({ region, trade, onSeeAll }) {
         background: 'var(--accent-soft, rgba(26,86,219,.08))', border: '1px solid var(--line)',
       }}>
         <b>낙찰되셨습니까?</b> 착공신고 때 <b>산출내역서</b>를 내셔야 합니다.{' '}
-        <Link to="/naeyeok" style={{ fontWeight: 700 }}>산출내역서 알아보기 →</Link>
+        <Link to="/naeyeok" style={{ fontWeight: 700 }}>쓸 도구 · 서식 →</Link>
       </div>
 
       {loading || !pageReady ? <Skeleton n={3} /> : view.length === 0 ? (
