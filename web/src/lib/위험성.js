@@ -84,7 +84,8 @@ export function 묶음들(rows) {
   rows.forEach((r, i) => {
     const w = String(r.w || '').trim()
     const 앞 = out[out.length - 1]
-    if (i > 0 && 앞 && (!w || w === 앞.w)) 앞.n += 1
+    // 세부작업이 빈 줄은 «바로 위 세부작업의 다음 위험요인» 으로 묶음 — 단, 위도 비어 있으면 묶지 않음(빈 줄끼리 한 칸으로 합쳐져 종이가 찌그러지던 것)
+    if (i > 0 && 앞 && ((!w && 앞.w) || (w && w === 앞.w))) 앞.n += 1
     else out.push({ i, n: 1, w, eq: r.eq || '' })
   })
   return out
