@@ -185,27 +185,36 @@
    "title": "장비관리 프로그램(임대료·수금)",
    "group": "착공·공무",
    "icon": "🚜",
-   "short": "장비 사용 내역, 거래처별 임대료, 수금·미수금, 청구서를 관리하는 엑셀입니다.",
+   "short": "건설장비 임대 · 운영 장부 — 거래내역(시간 × 단가)과 수금을 적으면 업체별 · 기사별 임대료 · 기수급금(유류대 포함) · 미수급금 · 수금률이 모이고, 거래처를 고르면 청구서가 저절로 채워집니다. 매크로 없이 수식만 씁니다.",
    "also": [
     "장비 임대료 관리",
     "장비대 청구서",
     "중기 관리 엑셀"
    ],
-   "note": "",
+   "note": "기사명 · 거래처는 등록 시트에 먼저 적고 목록에서 고르세요(원본의 «띄어쓰기를 똑같이» 문제를 없앴습니다). 기사 계좌번호 칸은 뺐습니다.",
    "file": "/forms/orig/o-jangbi-gwanri.xlsx",
-   "kb": 508,
-   "pages": 113,
+   "kb": 75,
+   "pages": 12,
    "from": "엑셀",
    "sheets": 7,
    "prev": [
-    "/forms/orig/o-jangbi-gwanri-1.webp",
-    "/forms/orig/o-jangbi-gwanri-2.webp"
+    "/forms/v2/o-jangbi-gwanri-1.webp",
+    "/forms/v2/o-jangbi-gwanri-2.webp",
+    "/forms/v2/o-jangbi-gwanri-3.webp",
+    "/forms/v2/o-jangbi-gwanri-4.webp"
    ],
    "prog": {
     "to": "/tools/equip",
     "t": "🚜 장비 임대료·수금 장부 — 이 엑셀을 사이트에서 바로",
     "d": "기사·장비 단가와 거래처를 한 번 등록하고 날마다 사용 시간만 적으면 거래처별 임대료·받은 돈·미수금, 기사(장비)별 가동, 달마다 흐름과 A4 청구서가 저절로. 유류대(원청 지급·청구)도 나눠 셉니다. 장부 코드+비밀번호로 폰·PC 어디서든."
-   }
+   },
+   "re": true,
+   "prevcap": [
+    "장비관리(업체별 · 기사별 현황) — 작성 예시",
+    "거래내역원장 — 작성 예시",
+    "청구서 — 작성 예시",
+    "장비임대료 수금원장 — 작성 예시"
+   ]
   },
   {
    "slug": "o-jugan-gongjeong",
@@ -702,21 +711,30 @@
    "title": "건설기계 점검표",
    "group": "건설기계 점검표",
    "icon": "🚧",
-   "short": "굴착기·덤프트럭 등 건설기계 32종 점검표를 한 파일에 모았습니다. 기계마다 예시 사진과 점검 항목이 들어 있습니다.",
+   "short": "굴착기 · 덤프트럭 · 크레인 · 고소작업대 등 건설기계 31종 점검표 + 한 달치 일일 안전점검표. 결과를 ○ · × 로 고르면 판정(사용 가능 / 조치 후 사용)이 저절로 나오고, 일일 점검표는 장비명을 고르면 점검항목이 들어옵니다.",
    "also": [
     "건설기계 체크리스트",
     "장비 점검표",
     "건설장비 점검표"
    ],
-   "note": "",
+   "note": "설명 사진은 원본 그대로 넣었습니다(상표 글자 · 번호판 숫자만 흐리게 가림). 점검항목 글도 원본 그대로이며 오타 몇 곳만 바로잡았습니다.",
    "file": "/forms/orig/o-geonseolgigye-check.xlsx",
-   "kb": 6486,
-   "pages": 32,
+   "kb": 6521,
+   "pages": 36,
    "from": "PDF",
-   "sheets": null,
+   "sheets": 5,
    "prev": [
-    "/forms/orig/o-geonseolgigye-check-1.webp",
-    "/forms/orig/o-geonseolgigye-check-2.webp"
+    "/forms/v2/o-geonseolgigye-check-1.webp",
+    "/forms/v2/o-geonseolgigye-check-2.webp",
+    "/forms/v2/o-geonseolgigye-check-3.webp",
+    "/forms/v2/o-geonseolgigye-check-4.webp"
+   ],
+   "re": true,
+   "prevcap": [
+    "굴착기(백호) — 빈 서식",
+    "굴착기(백호) — 작성 예시",
+    "일일 안전점검표 — 작성 예시",
+    "목차 — 누르면 그 장비로 감"
    ]
   },
   {
@@ -978,20 +996,29 @@
    "title": "검측체크리스트(300여 공종)",
    "group": "품질·검측",
    "icon": "✅",
-   "short": "토목·건축 300여 공종의 검측 체크리스트를 한 파일에 모았습니다.",
+   "short": "토목 · 건축 · 전기 · 기계 400여 공종(426가지)의 검측 체크리스트를 한 파일에 — 목차에서 누르면 그 공종으로 가고, 합격 · 불합격을 ○ 로 고르면 건수 · 종합이 저절로 나오며 불합격인데 조치사항이 비었으면 알려 줍니다.",
    "also": [
     "검측 체크리스트",
     "공종별 검측표"
    ],
-   "note": "",
+   "note": "검사항목 글은 원본 그대로입니다(한글 변환 오타 «표충 · 기충» 등만 «층» 으로 바로잡음). 원본 목차 번호와 본문 차례가 어긋나 본문 차례대로 다시 매겼습니다.",
    "file": "/forms/orig/o-geomcheuk-300.xlsx",
-   "kb": 1750,
-   "pages": 682,
+   "kb": 533,
+   "pages": 472,
    "from": "한글",
-   "sheets": null,
+   "sheets": 2,
    "prev": [
-    "/forms/orig/o-geomcheuk-300-1.webp",
-    "/forms/orig/o-geomcheuk-300-2.webp"
+    "/forms/v2/o-geomcheuk-300-1.webp",
+    "/forms/v2/o-geomcheuk-300-2.webp",
+    "/forms/v2/o-geomcheuk-300-3.webp",
+    "/forms/v2/o-geomcheuk-300-4.webp"
+   ],
+   "re": true,
+   "prevcap": [
+    "목차 — 누르면 그 체크리스트로 감",
+    "관로공사 · 관부설공 — 빈 서식",
+    "관로공사 · 관부설공 — 작성 예시",
+    "철근공 · 철근가공, 조립 — 작성 예시"
    ]
   },
   {
