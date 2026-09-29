@@ -1017,6 +1017,25 @@ def _prog_html(p):
             + '<span class="go">열기 →</span></a>')
 
 
+# ✍️ 2026-09-29 서식 다시 만들기(tools/forms2) — 화면 Forms.jsx 의 새틀말·첫줄말과 «같은 글»
+NEW_FRAME = [
+    "현장에서 쓰던 원본의 틀(칸·차례·결재란)은 그대로 두고, K-건설맵이 내용과 수식을 새로 넣어 다시 만들었습니다.",
+    "엑셀 뒤 시트에 «작성 예시» 가 들어 있습니다 — 가상의 현장으로 다 채운 모습입니다. 노란 칸은 요율·기준값(발주기관 기준으로 고쳐 씀), 옅은 하늘색 칸은 자동 계산입니다.",
+]
+FIRST_ROW = "맨 윗줄의 K-건설맵 표시는 1행을 지우면 없어집니다 (마우스 오른쪽 → 행 삭제). 그림이 아니라 글자라서 흔적이 남지 않습니다."
+
+
+def _prev_html(f):
+    """미리보기 그림 + 그림 설명(prevcap) — 화면 Forms.jsx 그림들() 과 같은 모양"""
+    caps = f.get("prevcap") or []
+    out = []
+    for i, p in enumerate(f.get("prev") or []):
+        cap = caps[i] if i < len(caps) else ""
+        out.append(f'<figure><img src="{esc(p)}" alt="{esc(f["title"])} {esc(cap or f"{i + 1}쪽")} 미리보기" loading="lazy">'
+                   + (f'<figcaption>{esc(cap)}</figcaption>' if cap else '') + '</figure>')
+    return '<div class="oprev">' + "".join(out) + '</div>'
+
+
 def orig_form_page(shell, f, orig, image=None):
     또 = [a for a in (f.get("also") or []) if a and a != f["title"]]
     title = f'{f["title"]} 양식 엑셀 무료 내려받기 | K-건설맵'
@@ -1025,7 +1044,8 @@ def orig_form_page(shell, f, orig, image=None):
     desc = desc.strip()[:150]
     kb = f.get("kb") or 0
     크기 = f'{kb / 1024:.1f}MB' if kb >= 1024 else f'{kb}KB'
-    chips = [f'📂 {f.get("group") or ""}', "원본 틀 그대로", f'{f.get("from") or "엑셀"} 원본 → 엑셀']
+    chips = ([f'📂 {f.get("group") or ""}', "원본 틀 · 새로 만듦", "수식 · 작성 예시"] if f.get("re") else
+             [f'📂 {f.get("group") or ""}', "원본 틀 그대로", f'{f.get("from") or "엑셀"} 원본 → 엑셀'])
     if f.get("pages"):
         chips.append(f'인쇄 {f["pages"]}쪽')
     if f.get("sheets"):
@@ -1043,16 +1063,22 @@ def orig_form_page(shell, f, orig, image=None):
            '</div></div>', _prog_html(f.get("prog"))]
     prev = f.get("prev") or []
     if prev:
-        out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">미리보기</div><div class="oprev">'
-                   + "".join(f'<img src="{esc(p)}" alt="{esc(f["title"])} {i + 1}쪽 미리보기" loading="lazy">'
-                             for i, p in enumerate(prev))
-                   + f'</div><div class="note sm" style="margin-top:8px">내려받은 엑셀을 인쇄하면 이 모양으로 나옵니다 (앞 {len(prev)}쪽).</div></div>')
-    notes = [esc(ORIG_FROM.get(f.get("from")) or ORIG_FROM["엑셀"]),
-             "받은 서식에 있던 사람·회사 이름, 공사명, 전화번호 같은 것은 ○○○로 지웠습니다. 나머지 칸·차례·결재란은 원본 그대로입니다."]
-    if f.get("note"):
-        notes.append(esc(f["note"]))
-    notes.append("<b>K-건설맵 표시</b>는 인쇄할 때 머리글 오른쪽에 작게 나옵니다. 칸에 들어 있지 않아서 복사해도 따라가지 않습니다. "
-                 "지우려면 엑셀에서 <b>페이지 레이아웃 → 페이지 설정 → 머리글/바닥글</b> 에서 머리글을 «(없음)» 으로 고르세요.")
+        말 = ('내려받은 엑셀을 인쇄하면 이 모양으로 나옵니다. 작성 예시는 엑셀 뒤 시트에 들어 있습니다.' if f.get("re")
+             else f'내려받은 엑셀을 인쇄하면 이 모양으로 나옵니다 (앞 {len(prev)}쪽).')
+        out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">미리보기</div>' + _prev_html(f)
+                   + f'<div class="note sm" style="margin-top:8px">{esc(말)}</div></div>')
+    if f.get("re"):
+        notes = [esc(t) for t in NEW_FRAME]
+        if f.get("note"):
+            notes.append(esc(f["note"]))
+        notes.append(esc(FIRST_ROW))
+    else:
+        notes = [esc(ORIG_FROM.get(f.get("from")) or ORIG_FROM["엑셀"]),
+                 "받은 서식에 있던 사람·회사 이름, 공사명, 전화번호 같은 것은 ○○○로 지웠습니다. 나머지 칸·차례·결재란은 원본 그대로입니다."]
+        if f.get("note"):
+            notes.append(esc(f["note"]))
+        notes.append("<b>K-건설맵 표시</b>는 인쇄할 때 머리글 오른쪽에 작게 나옵니다. 칸에 들어 있지 않아서 복사해도 따라가지 않습니다. "
+                     "지우려면 엑셀에서 <b>페이지 레이아웃 → 페이지 설정 → 머리글/바닥글</b> 에서 머리글을 «(없음)» 으로 고르세요.")
     out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">알아 두실 것</div><ul class="flist">'
                + "".join(f"<li>{n}</li>" for n in notes) + "</ul></div>")
     same = [o for o in orig if o.get("group") == f.get("group") and o["slug"] != f["slug"]]
@@ -1293,7 +1319,8 @@ def form_page(shell, f, others, image=None):
            f'{또줄}'
            f'<div class="btn-row" style="margin-top:12px">'
            f'<a class="btn primary" href="/forms/{esc(f["slug"])}.xlsx" download>⬇ 엑셀 내려받기</a>'
-           f"</div></div>", _prog_html(f.get("prog"))]
+           + (f'<a class="btn ghost" href="{esc(f["pdf"])}" target="_blank" rel="noopener">🖨 인쇄용 PDF</a>' if f.get("pdf") else '')
+           + "</div></div>", _prog_html(f.get("prog"))]
     if f.get("when"):
         out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">언제 내나</div>'
                    f'<div class="fwhen">{bold_md(esc(f["when"]))}</div></div>')
@@ -1305,8 +1332,12 @@ def form_page(shell, f, others, image=None):
         out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">함께 내는 서류</div><ul class="flist tight">')
         out.extend(f"<li>{esc(a)}</li>" for a in f["attach"])
         out.append("</ul></div>")
-    out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">미리보기</div>'
-               + _sheet_html(f["sheet"]) + "</div>")
+    if f.get("prev"):     # ✍️ 2026-09-29 다시 만든 서식 — 엑셀을 그린 그림(빈 서식 · 작성 예시)
+        out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">미리보기</div>' + _prev_html(f)
+                   + f'<ul class="flist" style="margin-top:8px"><li>{esc(NEW_FRAME[1])}</li><li>{esc(FIRST_ROW)}</li></ul></div>')
+    else:
+        out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">미리보기</div>'
+                   + _sheet_html(f["sheet"]) + "</div>")
     # 안쪽으로 가는 링크 — 같은 갈래의 다른 서식
     same = [o for o in others if o.get("group") == f.get("group") and o["slug"] != f["slug"]][:5]
     if same:

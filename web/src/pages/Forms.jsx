@@ -331,6 +331,31 @@ const 출처말 = {
   엑셀: '엑셀 원본 그대로입니다 (시트·수식·서식 유지). 남의 파일을 가리키던 외부 연결만 걷어냈습니다.',
 }
 
+/* ✍️ 2026-09-29 서식 다시 만들기(tools/forms2) — 원본 틀(칸·차례·결재란)은 두고 내용·수식을 새로 넣은 것(forms_orig.json re:true)
+ *    ⚠️ prerender.py orig_form_page 와 같은 글이어야 합니다(크롤러와 사람이 보는 글이 같게). */
+export const 새틀말 = [
+  '현장에서 쓰던 원본의 틀(칸·차례·결재란)은 그대로 두고, K-건설맵이 내용과 수식을 새로 넣어 다시 만들었습니다.',
+  '엑셀 뒤 시트에 «작성 예시» 가 들어 있습니다 — 가상의 현장으로 다 채운 모습입니다. 노란 칸은 요율·기준값(발주기관 기준으로 고쳐 씀), 옅은 하늘색 칸은 자동 계산입니다.',
+]
+export const 첫줄말 = '맨 윗줄의 K-건설맵 표시는 1행을 지우면 없어집니다 (마우스 오른쪽 → 행 삭제). 그림이 아니라 글자라서 흔적이 남지 않습니다.'
+
+/* 미리보기 그림 + 그림 설명(prevcap) */
+function 그림들({ f }) {
+  return (
+    <div className="oprev">
+      {f.prev.map((p, i) => {
+        const cap = (f.prevcap || [])[i]
+        return (
+          <figure key={p}>
+            <img src={p} alt={`${f.title} ${cap || `${i + 1}쪽`} 미리보기`} loading="lazy" />
+            {cap && <figcaption>{cap}</figcaption>}
+          </figure>
+        )
+      })}
+    </div>
+  )
+}
+
 function OrigFormPage({ f }) {
   const same = ORIG.filter((o) => o.group === f.group && o.slug !== f.slug)
   const 또 = (f.also || []).filter((a) => a && a !== f.title)
@@ -352,8 +377,8 @@ function OrigFormPage({ f }) {
         )}
         <div className="ometa">
           <span>📂 {f.group}</span>
-          <span>원본 틀 그대로</span>
-          <span>{f.from} 원본 → 엑셀</span>
+          {f.re ? <span>원본 틀 · 새로 만듦</span> : <span>원본 틀 그대로</span>}
+          {f.re ? <span>수식 · 작성 예시</span> : <span>{f.from} 원본 → 엑셀</span>}
           {f.pages ? <span>인쇄 {f.pages}쪽</span> : null}
           {f.sheets ? <span>시트 {f.sheets}장</span> : null}
           <span>{크기}</span>
@@ -369,17 +394,23 @@ function OrigFormPage({ f }) {
       {f.prev && f.prev.length > 0 && (
         <div className="card">
           <div className="sec-title" style={{ margin: '0 0 8px' }}>미리보기</div>
-          <div className="oprev">
-            {f.prev.map((p, i) => (
-              <img key={p} src={p} alt={`${f.title} ${i + 1}쪽 미리보기`} loading="lazy" />
-            ))}
+          <그림들 f={f} />
+          <div className="note sm" style={{ marginTop: 8 }}>
+            {f.re ? '내려받은 엑셀을 인쇄하면 이 모양으로 나옵니다. 작성 예시는 엑셀 뒤 시트에 들어 있습니다.'
+              : `내려받은 엑셀을 인쇄하면 이 모양으로 나옵니다 (앞 ${f.prev.length}쪽).`}
           </div>
-          <div className="note sm" style={{ marginTop: 8 }}>내려받은 엑셀을 인쇄하면 이 모양으로 나옵니다 (앞 {f.prev.length}쪽).</div>
         </div>
       )}
 
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 6px' }}>알아 두실 것</div>
+        {f.re ? (
+          <ul className="flist">
+            {새틀말.map((t) => <li key={t}>{t}</li>)}
+            {f.note && <li>{f.note}</li>}
+            <li>{첫줄말}</li>
+          </ul>
+        ) : (
         <ul className="flist">
           <li>{출처말[f.from] || 출처말.엑셀}</li>
           <li>받은 서식에 있던 사람·회사 이름, 공사명, 전화번호 같은 것은 ○○○로 지웠습니다. 나머지 칸·차례·결재란은 원본 그대로입니다.</li>
@@ -389,6 +420,7 @@ function OrigFormPage({ f }) {
             지우려면 엑셀에서 <b>페이지 레이아웃 → 페이지 설정 → 머리글/바닥글</b> 에서 머리글을 «(없음)» 으로 고르세요.
           </li>
         </ul>
+        )}
       </div>
 
       {same.length > 0 && (
@@ -449,7 +481,10 @@ export function FormPage() {
           <a className="btn primary" href={xlsx} download={`${f.title}_양식.xlsx`}
             onClick={() => askAfter('forms')}>⬇ 엑셀 내려받기</a>
           {/* 🐛 2026-09-29 wih-* 는 화면 인쇄 대신 아래 미리보기 카드의 «빈 서식 인쇄» (화면을 찍으면 설명 글까지 나왔습니다) */}
-          {f.gen !== 'wihgen' && <button className="btn ghost" onClick={() => window.print()}>🖨 인쇄 · PDF</button>}
+          {/* ✍️ 2026-09-29 다시 만든 서식(gen:forms2)은 빈 서식 PDF 를 엽니다 — 화면 인쇄는 옛 미리보기 표가 나옵니다 */}
+          {f.gen !== 'wihgen' && (f.pdf
+            ? <a className="btn ghost" href={f.pdf} target="_blank" rel="noopener">🖨 인쇄용 PDF</a>
+            : <button className="btn ghost" onClick={() => window.print()}>🖨 인쇄 · PDF</button>)}
         </div>
       </div>
 
@@ -478,6 +513,15 @@ export function FormPage() {
 
       {f.gen === 'wihgen' ? (
         <Suspense fallback={<div className="card muted">미리보기를 불러오는 중…</div>}><위험성미리 slug={f.slug} /></Suspense>
+      ) : Array.isArray(f.prev) && f.prev.length > 0 ? (
+        <div className="card">
+          <div className="sec-title" style={{ margin: '0 0 8px' }}>미리보기</div>
+          <그림들 f={f} />
+          <ul className="flist" style={{ marginTop: 8 }}>
+            <li>{새틀말[1]}</li>
+            <li>{첫줄말}</li>
+          </ul>
+        </div>
       ) : (
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 8px' }}>미리보기</div>

@@ -3557,6 +3557,9 @@ ul.plainlist li { margin-bottom: 5px; }
 .oprev { display: grid; gap: 10px; }
 .oprev img { width: 100%; height: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
 @media (min-width: 900px) { .oprev { grid-template-columns: 1fr 1fr; } }
+/* ✍️ 2026-09-29 다시 만든 서식 — 미리보기 그림 설명(빈 서식 / 작성 예시) */
+.oprev figure { margin: 0; }
+.oprev figcaption { font-size: 12px; color: var(--muted); text-align: center; margin-top: 4px; }
 
 /* ── ⚡ 공사서류 원클릭 (2026-09-24) ─────────────────── */
 .wc-up { margin: 10px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.7; }
