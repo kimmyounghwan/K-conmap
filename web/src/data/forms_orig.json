@@ -331,20 +331,29 @@
    "title": "방수공사 시공계획서",
    "group": "시공계획서",
    "icon": "📘",
-   "short": "공사 개요, 조직도, 인원·자재 계획, 시공 방법, 검측 흐름도, 품질·환경·안전 관리가 들어 있는 방수공사 시공계획서입니다.",
+   "short": "방수공사 시공계획서(시멘트 액체방수 · 규산질계 침투성방수 · 아스팔트 프라이머 방수). 공사명 한 번 → 모든 장, 공사기간 일수 · 금액 한글 · 물량 합계 · 인원 합계 · 투입인원 계 · 예정공정표 막대가 자동입니다.",
    "also": [
     "방수 시공계획서",
     "액체방수 시공계획서"
    ],
-   "note": "",
+   "note": "시방 기준(KS · KCS)과 배합 비율은 원본 계획서 문구입니다 — 제출 전에 공사시방서 · 제조사 사양과 맞춰 보세요.",
    "file": "/forms/orig/o-bangsu-gyehoekseo.xlsx",
-   "kb": 37,
-   "pages": 15,
+   "kb": 59,
+   "pages": 14,
    "from": "한글",
-   "sheets": null,
+   "sheets": 5,
    "prev": [
-    "/forms/orig/o-bangsu-gyehoekseo-1.webp",
-    "/forms/orig/o-bangsu-gyehoekseo-2.webp"
+    "/forms/v2/o-bangsu-gyehoekseo-1.webp",
+    "/forms/v2/o-bangsu-gyehoekseo-2.webp",
+    "/forms/v2/o-bangsu-gyehoekseo-3.webp",
+    "/forms/v2/o-bangsu-gyehoekseo-4.webp"
+   ],
+   "re": true,
+   "prevcap": [
+    "공사개요 — 빈 서식",
+    "시멘트 액체방수 — 시공관리",
+    "공사개요 — 작성 예시",
+    "예정공정표 — 작성 예시"
    ]
   },
   {
@@ -352,20 +361,29 @@
    "title": "도장공사 시공계획서",
    "group": "시공계획서",
    "icon": "📘",
-   "short": "도장공사 시공계획서 — 공사 개요부터 품질·환경·안전 관리 계획까지.",
+   "short": "도장공사 시공계획서(수성페인트 · 에폭시 바닥 도료 · 검측 체크리스트 3장). 공사명 한 번 → 모든 장, 공사목적 글 · 공사기간 일수 · 내역 합계 · 인원 합계 · 예정공정표 막대 · 체크리스트 판정이 자동입니다.",
    "also": [
     "도장 시공계획서",
     "페인트 시공계획서"
    ],
-   "note": "",
+   "note": "KS 번호 · 공정별 희석비율 · 도료량은 원본 계획서 문구입니다 — 제출 전에 공사시방서 · 제조사 사양과 맞춰 보세요.",
    "file": "/forms/orig/o-dojang-gyehoekseo.xlsx",
-   "kb": 84,
-   "pages": 21,
+   "kb": 81,
+   "pages": 19,
    "from": "한글",
-   "sheets": null,
+   "sheets": 7,
    "prev": [
-    "/forms/orig/o-dojang-gyehoekseo-1.webp",
-    "/forms/orig/o-dojang-gyehoekseo-2.webp"
+    "/forms/v2/o-dojang-gyehoekseo-1.webp",
+    "/forms/v2/o-dojang-gyehoekseo-2.webp",
+    "/forms/v2/o-dojang-gyehoekseo-3.webp",
+    "/forms/v2/o-dojang-gyehoekseo-4.webp"
+   ],
+   "re": true,
+   "prevcap": [
+    "공사개요 — 빈 서식",
+    "바탕 만들기 · 수성페인트 공정 — 시공관리",
+    "기능인력 · 주자재 조달 — 작성 예시",
+    "검측 체크리스트(재검측) — 작성 예시"
    ]
   },
   {
@@ -373,19 +391,28 @@
    "title": "미장공사 시공계획서",
    "group": "시공계획서",
    "icon": "📘",
-   "short": "미장공사 시공계획서 — 공사 개요부터 품질·환경·안전 관리 계획까지.",
+   "short": "미장공사 시공계획서(시멘트 모르타르 바름 · 콘크리트 면마무리 · 검측 체크리스트 5장). 공사명 한 번 → 모든 장, 공사기간 일수 · 금액 한글 · 물량 합계 · 인원 합계 · 예정공정표 막대 · 체크리스트 판정이 자동입니다.",
    "also": [
     "미장 시공계획서"
    ],
-   "note": "",
+   "note": "KS 번호 · 품질기준 · 배합은 원본 계획서 문구입니다 — 제출 전에 공사시방서와 맞춰 보세요.",
    "file": "/forms/orig/o-mijang-gyehoekseo.xlsx",
-   "kb": 85,
-   "pages": 19,
+   "kb": 73,
+   "pages": 18,
    "from": "한글",
-   "sheets": null,
+   "sheets": 6,
    "prev": [
-    "/forms/orig/o-mijang-gyehoekseo-1.webp",
-    "/forms/orig/o-mijang-gyehoekseo-2.webp"
+    "/forms/v2/o-mijang-gyehoekseo-1.webp",
+    "/forms/v2/o-mijang-gyehoekseo-2.webp",
+    "/forms/v2/o-mijang-gyehoekseo-3.webp",
+    "/forms/v2/o-mijang-gyehoekseo-4.webp"
+   ],
+   "re": true,
+   "prevcap": [
+    "공사개요 — 빈 서식",
+    "시멘트 모르타르 바름 — 시공관리",
+    "검측 체크리스트 — 빈 서식",
+    "검측 체크리스트(재검측) — 작성 예시"
    ]
   },
   {
@@ -393,20 +420,29 @@
    "title": "팽이기초 시공계획서",
    "group": "시공계획서",
    "icon": "📘",
-   "short": "현장타설형 팽이기초 시공계획서입니다.",
+   "short": "팽이기초(현장타설형) 시공계획서 — 투입장비 · 인원 · 일 단위 공정표 · 작업 순서도(사진) · 특성과 용도 · 시공방법 · 평판재하시험 계획. 공사명 한 번 → 모든 장, 시공면적 · 인원 합계 · 공정 날짜 · 총 작업 일수가 자동입니다.",
    "also": [
     "팽이기초 공법",
     "팽이기초 시공계획"
    ],
-   "note": "",
+   "note": "레미콘 규격 · 철근 · 쇄석 규격은 원본 계획서 값입니다 — 설계도서와 맞춰 보세요.",
    "file": "/forms/orig/o-paengi-gyehoekseo.xlsx",
-   "kb": 632,
-   "pages": 12,
+   "kb": 330,
+   "pages": 16,
    "from": "한글",
-   "sheets": null,
+   "sheets": 5,
    "prev": [
-    "/forms/orig/o-paengi-gyehoekseo-1.webp",
-    "/forms/orig/o-paengi-gyehoekseo-2.webp"
+    "/forms/v2/o-paengi-gyehoekseo-1.webp",
+    "/forms/v2/o-paengi-gyehoekseo-2.webp",
+    "/forms/v2/o-paengi-gyehoekseo-3.webp",
+    "/forms/v2/o-paengi-gyehoekseo-4.webp"
+   ],
+   "re": true,
+   "prevcap": [
+    "공사개요 — 빈 서식",
+    "작업 순서도 — 설명 사진",
+    "공사개요 — 작성 예시",
+    "일 단위 예정공정표 — 작성 예시"
    ]
   },
   {
@@ -414,20 +450,29 @@
    "title": "지반개량공사 시공계획서",
    "group": "시공계획서",
    "icon": "📘",
-   "short": "맞춤배송주입 지반보강공 시공계획서입니다.",
+   "short": "지반개량(주입교반 보강체) 시공계획서 — 공법개요 · 배합비 · 일 단위 공정표 · 준비 · 시공 · 작업공정 · 장비 · 인부 · 자재 · 품질 · 안전. 총 주입길이 · 주입재 비중 · 주입 소요 일수 · 고화재 소요량이 자동입니다.",
    "also": [
     "지반보강 시공계획서",
     "연약지반 개량 계획서"
    ],
-   "note": "",
+   "note": "배합비 · 토출압력 · 설계량은 원본 계획서 값입니다 — 설계도서 · 공법 사양과 맞춰 보세요.",
    "file": "/forms/orig/o-jiban-gyehoekseo.xlsx",
-   "kb": 2533,
-   "pages": 10,
+   "kb": 520,
+   "pages": 11,
    "from": "한글",
-   "sheets": null,
+   "sheets": 6,
    "prev": [
-    "/forms/orig/o-jiban-gyehoekseo-1.webp",
-    "/forms/orig/o-jiban-gyehoekseo-2.webp"
+    "/forms/v2/o-jiban-gyehoekseo-1.webp",
+    "/forms/v2/o-jiban-gyehoekseo-2.webp",
+    "/forms/v2/o-jiban-gyehoekseo-3.webp",
+    "/forms/v2/o-jiban-gyehoekseo-4.webp"
+   ],
+   "re": true,
+   "prevcap": [
+    "공사개요 — 빈 서식",
+    "공법개요 · 시공 순서도 — 설명 그림",
+    "공사개요 · 총 주입길이 — 작성 예시",
+    "장비 · 인부 · 자재 투입 — 작성 예시"
    ]
   },
   {
@@ -435,20 +480,29 @@
    "title": "포장 시공계획서",
    "group": "시공계획서",
    "icon": "📘",
-   "short": "반입토사와 아스콘 포장 주요 공종, 장비 제원까지 들어 있는 포장 시공계획서입니다.",
+   "short": "포장공사 시공계획서(노상 · 보조기층 · 콘크리트 포장 · 경계석 · L형 측구 · 블록 포장 · 아스콘 포장 흐름도와 시공절차 · 투입장비). 공사명 한 번 → 모든 장, 물량 합계 · 경계석 연장 · 장비 대수 합계가 자동입니다.",
    "also": [
     "아스콘 포장 시공계획서",
     "도로포장 시공계획서"
    ],
-   "note": "",
+   "note": "포설 · 다짐 온도와 허용오차는 원본 계획서 값입니다 — 공사시방서(KCS 44 50 도로포장)와 맞춰 보세요.",
    "file": "/forms/orig/o-pojang-gyehoekseo.xlsx",
-   "kb": 311,
-   "pages": 12,
+   "kb": 41,
+   "pages": 8,
    "from": "엑셀",
-   "sheets": 7,
+   "sheets": 5,
    "prev": [
-    "/forms/orig/o-pojang-gyehoekseo-1.webp",
-    "/forms/orig/o-pojang-gyehoekseo-2.webp"
+    "/forms/v2/o-pojang-gyehoekseo-1.webp",
+    "/forms/v2/o-pojang-gyehoekseo-2.webp",
+    "/forms/v2/o-pojang-gyehoekseo-3.webp",
+    "/forms/v2/o-pojang-gyehoekseo-4.webp"
+   ],
+   "re": true,
+   "prevcap": [
+    "개요 및 현장 운영 계획 — 빈 서식",
+    "아스콘 포장 흐름도 · 시공절차",
+    "공사개요 — 작성 예시",
+    "투입장비 — 작성 예시"
    ]
   },
   {
@@ -484,20 +538,27 @@
    "title": "시스템 동바리 시공계획서",
    "group": "시공계획서",
    "icon": "📙",
-   "short": "시스템 동바리 개요, 설치 도면, 비계·낙하물방지망, 조립·해체 순서가 들어 있는 시공계획서입니다. (PPT 원본을 엑셀로)",
+   "short": "시스템 동바리(System Support) 시공계획서 — 종류 · 용어 · 특징 · 제작기준 · 도면 자리 · 비계 · 낙하물방지망 · 순서도 · 조립 7단계와 해체(설명 그림). 설치 높이/단변 · 잭 베이스 · 겹침 · U헤드 폭을 적으면 적합 여부를 자동 판정합니다.",
    "also": [
     "시스템동바리 계획서",
     "시스템 서포트 시공계획서"
    ],
-   "note": "",
+   "note": "제작기준 · 조립 기준은 원본(옛 KOSHA CODE) 문구입니다 — 현행 KOSHA GUIDE · 제조사 성능인증과 구조검토서를 기준으로 쓰세요.",
    "file": "/forms/orig/o-dongbari-gyehoekseo.xlsx",
-   "kb": 1599,
-   "pages": 20,
+   "kb": 1027,
+   "pages": 13,
    "from": "PPT",
-   "sheets": null,
+   "sheets": 3,
    "prev": [
-    "/forms/orig/o-dongbari-gyehoekseo-1.webp",
-    "/forms/orig/o-dongbari-gyehoekseo-2.webp"
+    "/forms/v2/o-dongbari-gyehoekseo-1.webp",
+    "/forms/v2/o-dongbari-gyehoekseo-2.webp",
+    "/forms/v2/o-dongbari-gyehoekseo-3.webp"
+   ],
+   "re": true,
+   "prevcap": [
+    "시스템 동바리의 종류 — 설명 그림",
+    "조립 단계 — 설명 그림",
+    "설치 조건 확인표 — 작성 예시"
    ]
   },
   {
@@ -505,20 +566,29 @@
    "title": "가시설(흙막이) 시공계획서",
    "group": "시공계획서",
    "icon": "📙",
-   "short": "흙막이 가시설 시공계획서와 계측관리계획이 들어 있습니다. (PPT 원본을 엑셀로)",
+   "short": "토공 및 흙막이 가시설(CIP + 소일네일링 + 숏크리트) 시공계획서 — 개요 · 물량 기반 공정표 · 조직 · 장비 · 인원 · 자재 · 공법별 세부계획 · 안전 · 환경 · 안전관리비 집행계획 · 품질 · 계측관리. 작업일수 · 총 공기 · 안전관리비 · 계측 관리기준(mm)이 자동입니다.",
    "also": [
     "흙막이 시공계획서",
     "가시설 시공계획서"
    ],
-   "note": "",
+   "note": "계측 관리기준 · 계측기 사양은 원본 계획서의 «당 현장» 값입니다 — 설계도서 · 계측관리계획서의 기준을 우선하세요.",
    "file": "/forms/orig/o-gaseol-gyehoekseo.xlsx",
-   "kb": 2550,
-   "pages": 45,
+   "kb": 86,
+   "pages": 20,
    "from": "PPT",
-   "sheets": null,
+   "sheets": 8,
    "prev": [
-    "/forms/orig/o-gaseol-gyehoekseo-1.webp",
-    "/forms/orig/o-gaseol-gyehoekseo-2.webp"
+    "/forms/v2/o-gaseol-gyehoekseo-1.webp",
+    "/forms/v2/o-gaseol-gyehoekseo-2.webp",
+    "/forms/v2/o-gaseol-gyehoekseo-3.webp",
+    "/forms/v2/o-gaseol-gyehoekseo-4.webp"
+   ],
+   "re": true,
+   "prevcap": [
+    "공사개요 — 빈 서식",
+    "물량 기반 예정공정표 — 작성 예시",
+    "안전관리비 세부집행계획 — 작성 예시",
+    "계측 관리기준 · 판정 — 작성 예시"
    ]
   },
   {
@@ -526,20 +596,29 @@
    "title": "가시설공사 해체계획서",
    "group": "시공계획서",
    "icon": "📙",
-   "short": "흙막이 가시설 해체 순서, 장비, 안전관리가 들어 있는 해체계획서입니다. (PPT 원본을 엑셀로)",
+   "short": "흙막이 가시설(엄지말뚝 + 토류판 + 어스앵커) 해체계획서 — 개요 · 조직 · 공정표 · 인원 · 장비 · 운영계획 · 해체 순서 · 단계별 되메우기 · 크레인 양중 검토 · 앵커 해체 · 안전 · 환경. 양중 사용률 · 되메우기 누계 · 소음 · 진동 판정이 자동입니다.",
    "also": [
     "흙막이 해체계획서",
     "가시설 해체 계획서"
    ],
-   "note": "",
+   "note": "크레인 정격하중은 사용 장비의 하중표(작업반경 기준)로 적고, 앵커 해체는 해당 제품의 해체 시방서를 따르세요.",
    "file": "/forms/orig/o-gaseol-haeche.xlsx",
-   "kb": 7325,
-   "pages": 28,
+   "kb": 92,
+   "pages": 12,
    "from": "PPT",
-   "sheets": null,
+   "sheets": 5,
    "prev": [
-    "/forms/orig/o-gaseol-haeche-1.webp",
-    "/forms/orig/o-gaseol-haeche-2.webp"
+    "/forms/v2/o-gaseol-haeche-1.webp",
+    "/forms/v2/o-gaseol-haeche-2.webp",
+    "/forms/v2/o-gaseol-haeche-3.webp",
+    "/forms/v2/o-gaseol-haeche-4.webp"
+   ],
+   "re": true,
+   "prevcap": [
+    "공사 개요 · 주요 수량 — 빈 서식",
+    "공사 개요 — 작성 예시",
+    "크레인 양중 검토 — 작성 예시",
+    "단계별 해체계획 — 작성 예시"
    ]
   },
   {
@@ -547,20 +626,29 @@
    "title": "데크플레이트 시공계획서",
    "group": "시공계획서",
    "icon": "📙",
-   "short": "데크플레이트 자재, 반입·양중, 시공 순서, 품질·안전 관리가 들어 있는 시공계획서입니다. (PPT 원본을 엑셀로)",
+   "short": "데크플레이트(철선일체형) 설치공사 시공계획서 — 개요 · 운영방침 · 생산능력 · 생산 일정 · 구간별 판개 공정표 · 조직 · 인원 · 장비 · 반입 · 양중 · 판개 · 품질 · 안전. 출하 예정일 · 판개 일수 · 발주 마감일 · 발췌 검사 매수 · 치수 판정이 자동입니다.",
    "also": [
     "데크플레이트 시공계획",
     "데크 시공계획서"
    ],
-   "note": "",
+   "note": "생산능력 · 생산 소요일 · 걸침 길이 · 용접 간격은 원본(제조사 계획서) 값입니다 — 사용할 제품의 제조사 자료와 구조도면에 맞춰 고쳐 쓰세요.",
    "file": "/forms/orig/o-deck-gyehoekseo.xlsx",
-   "kb": 3360,
-   "pages": 25,
+   "kb": 49,
+   "pages": 12,
    "from": "PPT",
-   "sheets": null,
+   "sheets": 6,
    "prev": [
-    "/forms/orig/o-deck-gyehoekseo-1.webp",
-    "/forms/orig/o-deck-gyehoekseo-2.webp"
+    "/forms/v2/o-deck-gyehoekseo-1.webp",
+    "/forms/v2/o-deck-gyehoekseo-2.webp",
+    "/forms/v2/o-deck-gyehoekseo-3.webp",
+    "/forms/v2/o-deck-gyehoekseo-4.webp"
+   ],
+   "re": true,
+   "prevcap": [
+    "공사개요 · 운영방침 — 빈 서식",
+    "생산 일정 · 출하 예정 — 작성 예시",
+    "구간별 판개 공정표 — 작성 예시",
+    "품질관리 · 발췌 검사 — 작성 예시"
    ]
   },
   {
@@ -975,20 +1063,29 @@
    "title": "안전·품질관리비 사용내역서",
    "group": "안전·환경",
    "icon": "🦺",
-   "short": "안전관리비·품질관리비 사용내역서, 세부 사용 내역, 사진대지, 노임명세서가 들어 있습니다.",
+   "short": "품질관리비 · 안전관리비 사용내역서 한 벌(표지 · 사용내역서 · 항목별 사용내역서 · 사진대지 · 노임명세서). 항목별 내역을 적으면 사용내역서의 금회 · 누계 · 사용률이 저절로 채워지고, 노임명세서는 공제(소득세 · 4대보험)까지 셈합니다.",
    "also": [
     "산업안전보건관리비 사용내역서",
     "품질관리비 사용내역서"
    ],
-   "note": "받은 파일에 있던 신분증·통장 사본, 인감, 주민번호는 지우거나 흰칸으로 바꿨습니다.",
+   "note": "항목별 사용내역서의 «항목» 은 사용내역서 항목 이름과 똑같이 적어야 모입니다(다르면 안내가 뜹니다). 노임 공제율(노란 칸)은 2026년 기준입니다.",
    "file": "/forms/orig/o-anjeon-pumjil-bi.xlsx",
-   "kb": 260,
-   "pages": 42,
+   "kb": 66,
+   "pages": 11,
    "from": "엑셀",
-   "sheets": 14,
+   "sheets": 9,
    "prev": [
-    "/forms/orig/o-anjeon-pumjil-bi-1.webp",
-    "/forms/orig/o-anjeon-pumjil-bi-2.webp"
+    "/forms/v2/o-anjeon-pumjil-bi-1.webp",
+    "/forms/v2/o-anjeon-pumjil-bi-2.webp",
+    "/forms/v2/o-anjeon-pumjil-bi-3.webp",
+    "/forms/v2/o-anjeon-pumjil-bi-4.webp"
+   ],
+   "re": true,
+   "prevcap": [
+    "품질관리비 사용내역서 — 빈 서식",
+    "품질관리비 사용내역서 — 작성 예시",
+    "안전관리비 사용내역서 — 작성 예시",
+    "노임명세서 — 작성 예시"
    ]
   },
   {
@@ -996,20 +1093,27 @@
    "title": "환경관리계획서(LH 양식)",
    "group": "안전·환경",
    "icon": "🌿",
-   "short": "LH 양식의 환경관리계획서입니다.",
+   "short": "LH 양식 환경관리계획서(공사개요 · 현장여건 · 환경관리 조직 · 비산먼지 · 소음진동 · 폐기물 · 수질 · 환경보전비 · 신고증명서). 환경보전비 항목별 내역을 적으면 총괄 사용계획과 비율이 저절로 채워지고, 점검표는 부적합 건수를 셉니다.",
    "also": [
     "환경관리계획서 양식",
     "LH 환경관리계획서"
    ],
-   "note": "",
+   "note": "소음·진동 규제기준 표는 현행 시행규칙 [별표 8] 원문으로 바꿨습니다. 그 밖의 법령 인용은 원본 계획서 문구이니 제출 전에 현행 법령을 확인하세요.",
    "file": "/forms/orig/o-hwangyeong-lh.xlsx",
-   "kb": 86,
-   "pages": 38,
+   "kb": 69,
+   "pages": 16,
    "from": "한글",
-   "sheets": null,
+   "sheets": 5,
    "prev": [
-    "/forms/orig/o-hwangyeong-lh-1.webp",
-    "/forms/orig/o-hwangyeong-lh-2.webp"
+    "/forms/v2/o-hwangyeong-lh-1.webp",
+    "/forms/v2/o-hwangyeong-lh-2.webp",
+    "/forms/v2/o-hwangyeong-lh-3.webp"
+   ],
+   "re": true,
+   "prevcap": [
+    "공사개요 — 빈 서식",
+    "환경관리 점검표 — 작성 예시",
+    "환경보전비 집행계획 — 작성 예시"
    ]
   },
   {
