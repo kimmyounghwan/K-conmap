@@ -12,6 +12,7 @@ import NoticeDetail, { scoreState, NoticeLink } from '../NoticeDetail.jsx'
       다시 붙일 자리가 생길 수 있어서입니다. 지금은 어디서도 부르지 않습니다. */
 import { noteFirst } from '../lib/mentor.js'
 import { useBoard } from '../lib/useBoard.js'
+import { useFresh, freshRows, freshWhen } from '../lib/fresh.js'
 import { Skeleton, Empty, Tile, NaeyeokStrip } from '../components.jsx'
 import { won, wonShort, pct, num, dateTime, dateShort, REGIONS, inRegion } from '../lib/fmt.js'
 import { loadLicCodes, saveLicCodes, loadLicNone, saveLicNone,
@@ -57,6 +58,11 @@ export default function FirstBoard() {
 
   const { info, rows: all, pageRows, pageReady, total, indexReady, loading, busy } =
     useBoard('first', KIND, { match, page, perPage: PAGE })
+  /* ⚡ 2026-09-30 — 방금 들어온 개찰(빠른 길, lib/fresh.js). 첫 쪽 맨 위에만 얹습니다.
+     목록에 이미 있는 공고는 빼고, 거르기(match)는 목록과 똑같이 적용합니다. */
+  const fresh = useFresh('first', filtering)
+  const 방금 = useMemo(() => (page === 1 && !loading
+    ? freshRows(fresh, new Set(all.map((r) => String(r.no))), match) : []), [fresh, all, match, page, loading])
 
   useEffect(() => { getOverview().then(setOv) }, [])
   const 첫 = useRef(true)   /* 처음 그릴 때는 남긴 쪽을 지우지 않습니다 */
@@ -70,7 +76,8 @@ export default function FirstBoard() {
      ⚠️ 받아 둔 것(all.length)으로 세면 25쪽(500건 ≈ 개찰 이틀치)에서 끝납니다 — 2026-09-03 실제 사고. */
   const count = total != null ? total : all.length
   const pages = Math.max(1, Math.ceil(count / PAGE))
-  const view = pageRows != null ? pageRows : all.slice((page - 1) * PAGE, page * PAGE)
+  const view0 = pageRows != null ? pageRows : all.slice((page - 1) * PAGE, page * PAGE)
+  const view = 방금.length ? [...방금, ...view0] : view0
   const rows = view
   const done = filtering ? indexReady : true     // 검색 중이면 색인이 와야 «다 셌다»
   const licOptions = useMemo(() => licList(info), [info])
@@ -180,6 +187,7 @@ export default function FirstBoard() {
             {/* 검색 중엔 색인이 «7주 전체»에서 센 건수입니다 — 화면에 20건만 보여도 정확합니다.
                 (전에는 받아 둔 것만 세어서 «500건 중 몇 건» 이 되곤 했습니다) */}
             결과 <span className="count">{num(count)}건{filtering && ' (7주 전체)'}</span>
+            {방금.length > 0 && <span className="freshn">🆕 방금 {num(방금.length)}건 · {freshWhen(fresh && fresh.at)}</span>}
             {/* ★ 날짜별 성적표로 가는 길 — <a href> 여야 정적 HTML 의 ddata 가 옵니다 */}
             <a className="daylink" href="/daily">📅 날짜별 성적표 →</a>
           </div>
@@ -190,7 +198,7 @@ export default function FirstBoard() {
             const winAmt = r.sAmt || r.amt
             return (
               <div className="notice" key={id} onClick={() => setOpen(isOpen ? null : id)}>
-                <h3>{r.name}</h3>
+                <h3>{r._new ? <span className="badge new">🆕 방금</span> : null}{r.name}</h3>
                 <div className="meta">
                   <span className="inst">{r.inst}</span>
                   <span>·</span>

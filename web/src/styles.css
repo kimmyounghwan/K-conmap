@@ -354,6 +354,9 @@ a.brand-sub:hover { opacity: 1; }
 .badge.w { background: var(--warn-soft); color: var(--warn); }
 .badge.r { background: var(--bad-soft); color: var(--bad); }
 .badge.n { background: var(--surface-2); color: var(--muted); border-color: var(--line); }
+/* ⚡ 2026-09-30 — 빠른 길로 방금 들어온 공고 · 개찰 (lib/fresh.js) */
+.badge.new { background: var(--good-soft); color: var(--good); border-color: var(--good); margin-right: 6px; vertical-align: 2px; font-size: 11px; }
+.freshn { margin-left: 8px; font-size: 12px; font-weight: 600; color: var(--good); }
 
 /* 좁은 화면에서는 가로 스크롤, 넓은 화면에서는 줄바꿈.
    가로 스크롤일 때 오른쪽 끝을 흐리게 해서 «더 있다»는 걸 보이게 한다.

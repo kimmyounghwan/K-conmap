@@ -1,0 +1,118 @@
+# ============================================================
+#  ⚡ 공고 · 1순위 빠른 수집 (2026-09-30)
+#
+#  소장님: 「공고하고 1순위 좀 더 빨리 뜨게 안될까?」 → 「오늘 밤에 만들어 줘」
+#  사이트 갱신(update.yml)은 수집→집계→빌드→배포 한 바퀴가 35분~1시간이라 1~2시간 늦게 보였습니다.
+#  여기서는 «오늘 새로 나온 공고 · 개찰» 만 10분마다 받아 데이터베이스(fresh)에 넣습니다.
+#  화면이 사이트 목록 위에 얹어 보여 줍니다 — 배포를 기다리지 않습니다. (자세한 것은 fast.py 머리말)
+#
+#  ■ 한 회차 = 약 51분(10분마다 여섯 번) → 끝나면 스스로 다음 회차를 부릅니다(사슬).
+#    한국시간 23시가 넘으면 사슬을 끊고, 아침 05시부터 예약이 다시 잇습니다(밤은 update.yml 이 1시간마다).
+#  ■ 끄기: 저장소 Settings → Variables 에 FAST_OFF=1 (다음 회차부터 안 부릅니다)
+#  ■ 저장소가 공개라 Actions 시간은 무료입니다. 데이터베이스는 화면이 읽는 만큼만 — 한 번에 20~50KB.
+# ============================================================
+name: 공고·1순위 빠른 수집
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'fast.py'
+      - '.github/workflows/fast.yml'
+  schedule:
+    # 아침에 사슬을 다시 잇는 보험 — 한국시간 05~08시 20분마다 (깃허브 예약은 늦게 오거나 빠지기도 합니다)
+    - cron: '3,23,43 20-23 * * *'
+    # 낮에 사슬이 끊겼을 때의 보험 — 한국시간 09~22시 매시
+    - cron: '13 0-13 * * *'
+
+# 둘이 겹쳐 돌지 않게 — 도는 중에 불리면 기다렸다가 이어받습니다
+concurrency:
+  group: fast
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write            # 회차가 끝나면 다음 회차를 스스로 부르기 위해
+
+jobs:
+  fast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - name: 이미 도는 회차가 있으면 끝냄 (예약이 겹쳐 불렸을 때)
+        id: dup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          P=$(gh run list --repo "${{ github.repository }}" --workflow fast.yml --limit 20 --json status,databaseId \
+              | jq '[.[]|select(.status=="in_progress" and .databaseId != ${{ github.run_id }})]|length')
+          echo "도는 다른 회차 ${P}개"
+          if [ "${P:-0}" -gt 0 ]; then echo "skip=1" >> "$GITHUB_OUTPUT"; else echo "skip=0" >> "$GITHUB_OUTPUT"; fi
+
+      - name: 코드 받기 (필요한 파일만)
+        if: steps.dup.outputs.skip != '1'
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            collect.py
+            fast.py
+            ranks3y.py
+            requirements.txt
+            data/seed
+          sparse-checkout-cone-mode: false
+
+      - name: 파이썬 준비
+        if: steps.dup.outputs.skip != '1'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 파이썬 패키지 (필요한 것만)
+        if: steps.dup.outputs.skip != '1'
+        run: pip install -q requests urllib3 google-auth
+
+      # 정기 수집(update.yml)이 캐시에 남긴 공고·개찰 저장소 — 1순위에 기초금액·면허 등을 덧붙이는 데만 씁니다.
+      # ⚠️ «읽기만» 합니다(cache/restore). 여기서 저장하면 정기 수집의 캐시가 헷갈립니다.
+      - name: 지난 수집 기록 가져오기 (읽기만)
+        if: steps.dup.outputs.skip != '1'
+        uses: actions/cache/restore@v4
+        with:
+          path: data/store
+          key: store-${{ github.run_id }}
+          restore-keys: store-
+
+      - name: 빠른 수집 (10분마다 여섯 번 · 약 51분)
+        id: run
+        if: steps.dup.outputs.skip != '1'
+        env:
+          G2B_API_KEY: ${{ secrets.G2B_API_KEY }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PYTHONUTF8: '1'
+          PYTHONUNBUFFERED: '1'
+        run: |
+          date +%s > .fast_t0
+          python fast.py --minutes 55 --every 10
+
+      # ⚠️ 사슬이 «헛돌지» 않게 — 수집이 실패했거나(열쇠 · 계정 문제), 조달청 몫이 다 됐거나(.fast_stop),
+      #    10분도 못 돌고 끝났으면 부르지 않습니다. 그때는 매시 예약이 한 번씩만 다시 봅니다.
+      - name: 다음 회차 부르기 (한국시간 05~23시)
+        if: ${{ !cancelled() && steps.dup.outputs.skip != '1' && steps.run.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FAST_OFF: ${{ vars.FAST_OFF }}
+        run: |
+          if [ "${FAST_OFF:-0}" = "1" ]; then echo "FAST_OFF=1 — 다음 회차를 부르지 않습니다"; exit 0; fi
+          if [ -f .fast_stop ]; then echo "$(cat .fast_stop) — 다음 회차를 부르지 않습니다(매시 예약이 다시 봅니다)"; exit 0; fi
+          EL=$(( $(date +%s) - $(cat .fast_t0 2>/dev/null || date +%s) ))
+          if [ "$EL" -lt 600 ]; then echo "이번 회차가 ${EL}초 만에 끝났습니다 — 헛돌지 않게 부르지 않습니다(매시 예약이 다시 봅니다)"; exit 0; fi
+          H=$((10#$(TZ=Asia/Seoul date +%H)))
+          if [ "$H" -ge 23 ] || [ "$H" -lt 5 ]; then
+            echo "한국시간 ${H}시 — 밤에는 쉽니다(아침 05시 예약이 다시 잇습니다)"; exit 0
+          fi
+          J=$(gh run list --repo "${{ github.repository }}" --workflow fast.yml --limit 20 --json status,databaseId)
+          Q=$(echo "$J" | jq '[.[]|select(.status=="queued" or .status=="pending" or .status=="waiting" or .status=="requested")]|length')
+          P=$(echo "$J" | jq '[.[]|select(.status=="in_progress" and .databaseId != ${{ github.run_id }})]|length')
+          echo "기다리는 회차 ${Q}개 · 도는 다른 회차 ${P}개"
+          if [ "${Q:-0}" -gt 0 ] || [ "${P:-0}" -gt 0 ]; then echo "이미 잡혀 있습니다 — 부르지 않습니다"; exit 0; fi
+          gh workflow run fast.yml --repo "${{ github.repository }}" --ref "${{ github.ref_name }}" && echo "▶ 다음 회차를 불렀습니다"

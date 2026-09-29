@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useBoard } from '../lib/useBoard.js'
+import { useFresh, freshRows, freshWhen } from '../lib/fresh.js'
 import { Skeleton, Empty } from '../components.jsx'
 import { RangeBar } from './FirstBoard.jsx'
 import { isReady, missingOf } from './BaroBid.jsx'
@@ -232,6 +233,8 @@ export default function LiveBoard() {
 
   const { info, rows: all, pageRows, pageReady, total, indexReady, loading, busy } =
     useBoard('live', KIND, { match: pick ? null : match, page, perPage: PAGE })
+  /* ⚡ 2026-09-30 — 방금 올라온 공고(빠른 길, lib/fresh.js). «공고 목록» 첫 쪽 맨 위에만 얹습니다. */
+  const fresh = useFresh('live', filtering)
 
   /* 면허 칩 목록은 «자료에서» 옵니다 — collect.py 가 board meta 에 구워 둡니다.
      화면에 손으로 적어 두면 조달청이 이름을 바꿨을 때 조용히 안 맞습니다. */
@@ -315,9 +318,19 @@ export default function LiveBoard() {
   const listOf = pick ? pickRows : (bagMode ? bagRows : null)
   const count = listOf ? listOf.length : (total != null ? total : all.length)
   const pages = Math.max(1, Math.ceil(count / PAGE))
-  const view = listOf
+  const view0 = listOf
     ? listOf.slice((page - 1) * PAGE, page * PAGE)
     : (pageRows != null ? pageRows : all.slice((page - 1) * PAGE, page * PAGE))
+  /* ⚡ 목록에 이미 있는 공고는 빼고, 거르기(match)는 목록과 똑같이. match 가 «금액 모름» 을 세므로
+     빠른 줄을 거를 때 센 것은 되돌립니다(그 숫자는 7주 목록에 대한 것입니다). */
+  const 방금 = useMemo(() => {
+    if (listOf || page !== 1 || loading) return []
+    const keep = 모름수.current
+    const out = freshRows(fresh, new Set(all.map((r) => String(r.no))), match)
+    모름수.current = keep
+    return out
+  }, [fresh, all, match, page, loading, listOf])   // eslint-disable-line react-hooks/exhaustive-deps
+  const view = 방금.length ? [...방금, ...view0] : view0
   const rows = view
   const done = listOf ? true : (filtering ? indexReady : true)     // 검색 중이면 색인이 와야 «다 셌다»
   const pickBusy = (pick || bagMode) && idx === undefined
@@ -507,7 +520,8 @@ export default function LiveBoard() {
       ) : (
         <>
           <div className="sec-title">{pick ? '넣을 만한 공고' : (bagMode ? '담은 공고' : '공고')} <span className="count">
-            {num(count)}건{pick ? ' (마감 전 · 계산 가능)' : (bagMode ? ` (최대 ${BASKET_MAX}건까지)` : (filtering ? ' (7주 전체)' : ''))}</span></div>
+            {num(count)}건{pick ? ' (마감 전 · 계산 가능)' : (bagMode ? ` (최대 ${BASKET_MAX}건까지)` : (filtering ? ' (7주 전체)' : ''))}</span>
+            {방금.length > 0 && <span className="freshn">🆕 방금 {num(방금.length)}건 · {freshWhen(fresh && fresh.at)}</span>}</div>
           {/* 💰 2026-09-17 — 금액을 «몰라서» 빠진 공고를 정직하게 적습니다.
               조달청이 추정가격도 기초금액도 안 준 공고가 실측 6.1% 있습니다.
               ⚠️ 조용히 빼면 「내가 아는 그 공고가 왜 없지」 가 되고, 그때 사람은
@@ -534,7 +548,7 @@ export default function LiveBoard() {
             )
             return (
               <div className="notice" key={id} onClick={() => setOpen(isOpen ? null : id)}>
-                <h3>{r.name}</h3>
+                <h3>{r._new ? <span className="badge new">🆕 방금</span> : null}{r.name}</h3>
                 <div className="meta">
                   <span className="inst">{r.inst}</span>
                   <span>·</span>

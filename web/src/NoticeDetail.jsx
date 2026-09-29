@@ -306,7 +306,11 @@ function BidTab({ r }) {
         </span>
       </div>
       {rankWait && <div className="hintbox">투찰 순위를 불러오는 중입니다…</div>}
-      {!rankWait && corps.length === 0 && <div className="hintbox">참여업체 정보가 없습니다.</div>}
+      {/* ⚡ 2026-09-30 — 빠른 길(lib/fresh.js)로 방금 들어온 개찰은 순위 30곳이 아직 없습니다
+          (순위는 공고마다 따로 받아야 해서 정기 갱신이 붙입니다). «정보 없음» 으로 보이면 안 됩니다. */}
+      {!rankWait && corps.length === 0 && (r._new
+        ? <div className="hintbox">방금 들어온 개찰입니다 — 투찰 순위는 다음 정기 갱신 때 붙습니다(보통 1시간 안).</div>
+        : <div className="hintbox">참여업체 정보가 없습니다.</div>)}
       {corps.map((c, j) => {
         const cr = c[2] != null ? c[2] : rateOf(c[1], r.base)
         return (

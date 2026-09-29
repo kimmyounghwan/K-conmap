@@ -208,6 +208,12 @@
       }
     },
 
+    // ⚡ 2026-09-30 — 공고 · 1순위 «빠른 길» (fast.py). 소장님: 「공고하고 1순위 좀 더 빨리 뜨게」
+    //    10분마다 깃허브(fast.yml)가 오늘 새로 나온 공고 · 개찰을 여기 넣고, 화면(lib/fresh.js)이 목록 위에 얹습니다.
+    //    누구나 읽고(공고는 조달청 공개 자료), 아무도 못 씁니다 — 서비스 계정은 규칙을 지나쳐 씁니다.
+    //    묶음은 JSON 글자 한 덩이(rows/{first|live}/{i}) · 목록표(meta/{first|live}) = {at, built, n, p, h}
+    "fresh": { ".read": true, ".write": false },
+
     "qna_del": {
       ".read": true,
       "$id": {

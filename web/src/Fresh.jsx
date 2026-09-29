@@ -138,8 +138,8 @@ export default function FreshBar({ kind = 'first', extra = '' }) {
         <b>{label} {mdd(newest) || '-'}</b>
         <span>
           자료 기준 {hhmm(v.at)} · 마지막 회차에 조달청 자료를 받지 못했습니다
-          {v.why ? ` (${v.why})` : ''} — 다음 갱신은 평일 아침입니다.
-          그 시간에는 개찰·공고가 새로 나오지 않습니다.
+          {v.why ? ` (${v.why})` : ''} — 다음 회차(약 1시간 뒤)가 다시 받아 옵니다.
+          밤에는 개찰·공고가 거의 새로 나오지 않습니다.
         </span>
       </div>
     )
@@ -152,7 +152,8 @@ export default function FreshBar({ kind = 'first', extra = '' }) {
           소장님이 시계를 보고 뺄셈하지 않으시게 «몇 분 전» 을 같이 적습니다. */}
       <span>
         자료 기준 {hhmm(v.at)} ({ago(v.mins)})
-        {v.working ? '' : ' · 갱신은 매일 06~19시에 돕니다'}
+        {/* 🌙 2026-09-29 부터 밤에도 약 1시간마다 돕니다(update.yml). 낮에는 공고 · 개찰이 «빠른 길» 로 10분마다 더 들어옵니다 */}
+        {v.working ? '' : ' · 밤에는 약 1시간마다 갱신합니다'}
         {note ? ` · ${note}` : ''}
       </span>
     </div>
