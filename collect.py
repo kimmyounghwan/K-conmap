@@ -3897,6 +3897,7 @@ def main():
                 enp_of(r, enp_map)[2],             # 무엇을 보고 짐작했나 (ls/l/is/i) — 화면이 정직하게 적습니다
                 jnt_of(r),                         # 🤝 공동도급 (2026-09-27) — 0 이면 공동 불가
                 tag_of(r),                         # 🏷 공고 유형 비트 (2026-09-30) — 자리 찾기 · 담은 공고도 같은 거르개
+                1 if r.get("nt") else 0,           # 📄 공고문 전문이 있나 (2026-09-30 · ntext.py) — 공고 화면의 «전문 보기» 단추
             ])
         rows.sort(key=lambda x: re.sub(r"[^0-9]", "", str(x[5])))
         out = {"built": built,
@@ -3904,7 +3905,7 @@ def main():
                      "llr", "est", "lic", "aval", "gmtrl",
                      "ayn", "ptot", "pdrw", "url",
                      "site", "rgnb", "joint", "mthd", "swin", "rebid",
-                     "enp", "enpn", "dt", "sido", "dsn", "enpb", "jnt", "tg"],
+                     "enp", "enpn", "dt", "sido", "dsn", "enpb", "jnt", "tg", "nt"],
                "pick": pick,
                "r": rows}
         path = os.path.join(OUT, "bidindex.json")
@@ -4130,6 +4131,24 @@ def main():
     except Exception as e:
         print(f"  ! 연락처 잇기 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
 
+
+    # 📄 공고문 전문 (2026-09-30 — 입찰나라에서 가져온 것 · ntext.py 설명 참고)
+    #    마감 전 공고의 공고문(hwpx · hwp · pdf)에서 글만 뽑아 두고, 지금 목록에 있는 것만 내보냅니다.
+    #    내보낸 공고에는 nt=1 을 붙입니다 — 화면은 이 표시가 있을 때만 «📄 공고문 전문 보기» 단추를 답니다.
+    #    새 기능이라 터져도 배치 전체를 멈추지 않게 감쌉니다. 숫자는 여기서 뽑지 않습니다.
+    try:
+        import ntext
+        _now = datetime.now(KST)
+        ntext.fetch(live, built, _now.strftime("%Y%m%d%H%M%S"), no_net=NO_NET, diag=DIAG)
+        _nt = ntext.publish(live, today=_now.strftime("%Y-%m-%d"))
+        for r in (live.get("con") or {}).values():
+            if str(r.get("no") or "") in _nt:
+                r["nt"] = 1
+            else:
+                r.pop("nt", None)
+        print(f"  → 공고문 전문  내보냄 {len(_nt):,}건")
+    except Exception as e:
+        print(f"  ! 공고문 전문 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
 
     print("-" * 52)
     export("first", first, "dt")

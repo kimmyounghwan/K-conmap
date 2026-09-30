@@ -3912,3 +3912,13 @@ canonical 이중 인코딩 · 개찰 시각 문구 · 성적표 칸 · 등수 �
 - 🛡 **(G78c) 재발 막기 — `tools/checkwf.py` 워크플로 모의 검사** (소장님 「이제 이런일 안 생기게 해줘」): `.github/workflows/*.yml` 마다 ① 받는 파일(sparse-checkout, 없으면 저장소 전체) ② 까는 패키지(pip install · -r requirements.txt) ③ 돌리는 `python 무엇.py` 를 읽어, 임시 폴더에 ① 만 두고 ② 에 없는 바깥 패키지를 우리 코드가 import 하면 막은 채 ③ 을 켜 봄(맨 위 코드까지). fast.py 는 공고 · 1순위 한 줄씩 finish · body_for 까지.
   `tools/checkimports.py` 가 끝에 부름 → **올리기 bat · 클라우드 dryrun 이 push 전에 멈춤**(Actions 안에서는 경고만). 옛 G78 collect.py · fast.py 에 `import pandas` · 받는 목록 밖 파일 import — 셋 다 잡는 것 확인.
 
+### 130. 📄 공고문 전문 — 첨부 공고문에서 글만 · 누를 때만 받기 · 제목 알약 · 글 찾기 (G79 — 2026-09-30, 소장님 «입찰나라에서 가져올 것» 3번)
+- `ntext.py` — 마감 전 공고의 첨부 중 이름에 «공고» 가 든 것 하나(hwpx → hwp → pdf · 내역/도면/시방/설명서 뺌)를 받아 글만 뽑음. 바깥 프로그램 없이:
+  hwpx = Contents/section*.xml(문단 한 줄 · 표는 «행마다 한 줄, 칸은 | » · 글상자 제목 살림 · 머리말 뺌) / hwp = olefile + BodyText 풀기 + PARA_TEXT(67)(배포용 · 암호 문서는 «잠긴 문서» 로 건너뜀 · 옛 한글 3.0 도) / pdf = pdfminer 앞 25쪽 · 6MB 넘는 pdf 는 도면으로 보고 뺌.
+  받은 글 `data/store/ntext/{번호}.json`(Actions cache) · 기록 `ntext_book.json`(다섯 번 해 보고 그만 · 잠긴 · 글 없는 것은 다시 안 봄) · 내보냄 `web/public/data/ntext/{번호}.json` = 지금 목록에 있는 것만(빠지면 지움 · 60일 지나면 저장소에서도).
+  한 회차 120건 · 180초(NTEXT_FETCH · NTEXT_BUDGET_S) · 연달아 5번 실패하면 그 회차는 접음. requirements 에 olefile · pdfminer.six.
+- collect.py — export 앞에서 fetch · publish, 내보낸 공고에 `nt=1`(카드 사본 · live.json) · bidindex 맨 뒤 `nt`. prerender 공고 페이지(마감 전)에 «📄 공고문 (앞부분)» 1,200자 + ndata `nt=1`.
+- 화면 `공고자세히.jsx 공고문전문` — nt 있는 공고에만 «📄 공고문 전문 보기 ▼»(접어 둠 · 누를 때 한 건만 받음) · 상자 안 스크롤(70vh) · 제목 알약(자격 · 공동수급 · 보증금 · 예정가격 · 낙찰 · 입찰서 제출 · 개찰 · 무효 · 계약 · 문의 → 그 줄로) · 글 찾기(칠하기 · ▼ 다음) · 글 복사. /live 카드 · /notice 같은 칸.
+  ⚠️ 숫자는 공고문 글에서 뽑지 않음(입찰나라 A값 오기) — 화면에도 «금액 · 하한율 · 일정은 위 칸(조달청 자료)» 이라고 적음.
+- 시험 `tools/test_ntext.py` 20(고르기 · 다듬기 · 그 자리에서 만든 hwpx · hwp PARA_TEXT 바이트 · 옛/잠긴/html · 내보내기 · 오래된 것 지우기). 소장님 서식 hwp 22부 · hwpx 2부 · pdf 로 뽑기 확인(진짜 파일은 올리지 않음).
+

@@ -30,7 +30,7 @@ import { 공동딱지, 공동칸, 공동거르개 } from '../공동칸.jsx'
 /* 🏷 유형 거르개 · 🏛 기관 최근 사정률 · 📋 공고 자세히 (2026-09-30 — 입찰나라에서 가져온 것, /notice 화면과 같이 씀) */
 import { 유형거르개, 유형맞나, 유형딱지 } from '../유형칸.jsx'
 import 기관사정률 from '../기관사정률.jsx'
-import { 입찰일정, 투찰조건, 공고첨부 } from '../공고자세히.jsx'
+import { 입찰일정, 투찰조건, 공고첨부, 공고문전문 } from '../공고자세히.jsx'
 
 /* ══════════════════════════════════════════════════════════════
    «바로투찰» 버튼은 계산이 되는 공고에만 답니다.
@@ -734,6 +734,9 @@ export default function LiveBoard() {
 
                     {/* 📎 공고문 첨부 — 조달청이 준 이름·주소 그대로(공고자세히.jsx) */}
                     <공고첨부 r={r} />
+
+                    {/* 📄 공고문 전문 — 글을 뽑아 둔 공고(nt)에만 · 누를 때만 받습니다 */}
+                    <공고문전문 r={r} />
 
                     <a className="btn ghost sm" style={{ width: '100%', marginTop: 10 }}
                       href={r.url || 'https://www.g2b.go.kr'} target="_blank" rel="noreferrer">

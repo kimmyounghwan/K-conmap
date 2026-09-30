@@ -16,7 +16,7 @@ import { quickBid, P50_FALLBACK } from '../lib/bidmath.js'
 import { wasBaked } from '../lib/baked.js'
 /* 🏛 기관 최근 사정률 · 📋 투찰 조건 · 일정 · 첨부 — 공고 카드(/live)와 같은 칸 (2026-09-30, 입찰나라에서 가져온 것) */
 import 기관사정률 from '../기관사정률.jsx'
-import { 입찰일정, 투찰조건, 공고첨부 } from '../공고자세히.jsx'
+import { 입찰일정, 투찰조건, 공고첨부, 공고문전문 } from '../공고자세히.jsx'
 import { 공동칸 } from '../공동칸.jsx'
 import { load우리지역 } from '../lib/공동.js'
 import { loadLicCodes } from '../lib/lic.js'
@@ -220,6 +220,7 @@ function OpenNotice({ r }) {
         <투찰조건 r={r} 번호없이 />
         <공동칸 r={r} 나={나} />
         <공고첨부 r={r} />
+        <공고문전문 r={r} />
       </div>
       <div className="btn-row" style={{ marginTop: 10 }}>
         <Link className="btn" to={`/calc?no=${encodeURIComponent(String(r.no))}`} style={{ flex: 1 }}>

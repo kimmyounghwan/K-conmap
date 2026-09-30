@@ -5,7 +5,9 @@
    계약방법 · 낙찰방법 · 참가지역 · 담당 · 첨부를 못 봤습니다. → 한 벌로 떼어 두 화면이 같이 씁니다.
    ⚠️ 숫자 · 글은 모두 조달청이 준 칸 그대로입니다(collect.py row_live). 공고문 글에서 뽑지 않습니다 —
       입찰나라가 A값 · 순공사비를 공고문에서 잘못 뽑아 보여 준 것을 직접 봤습니다(2026-09-30). */
+import { useMemo, useRef, useState } from 'react'
 import { dateTime, dday } from './lib/fmt.js'
+import { getJSON } from './lib/data.js'
 
 /* 붙임 파일 정렬 · 뱃지용 갈래.
    ⚠️ collect.py 의 NAEYEOK_KIND 와 같은 낱말을 씁니다. 한쪽만 고치면
@@ -96,6 +98,129 @@ export function 공고첨부({ r }) {
             {rk === 0 && <b className="dtag">단가 있음</b>}
           </a>
         ))}
+    </div>
+  )
+}
+
+/* 📄 공고문 전문 — 누를 때만 받습니다(한 건 몇 KB · /data/ntext/{공고번호}.json · ntext.py 가 만듦)
+   ■ 편리함을 지키려고
+     · 접어 둡니다 — 카드 길이가 늘지 않게. 펼치면 상자 안에서만 스크롤(폰 화면의 70%).
+     · «자격 · 보증금 · 낙찰 · 개찰 …» 제목 알약 — 누르면 그 줄로 바로 갑니다(긴 공고문을 폰에서 손가락으로 안 내려도 되게).
+     · 글 찾기 — 폰에서는 브라우저 «찾기» 가 불편합니다. 찾은 곳을 칠하고 ▼ 로 다음.
+   ⚠️ 첨부 공고문에서 «글만» 옮긴 것입니다. 금액 · 하한율 · 일정은 위 칸(조달청 자료)이 기준 — 여기서 숫자를 뽑지 않습니다. */
+
+const 제목말 = [
+  ['자격', /입찰\s*참가\s*자격|참가\s*자격/],
+  ['공동수급', /공동\s*수급|공동\s*도급/],
+  ['보증금', /입찰\s*보증금/],
+  ['예정가격', /예정\s*가격/],
+  ['낙찰', /낙찰자\s*결정|낙찰\s*방법|적격\s*심사/],
+  ['입찰서 제출', /입찰서\s*(의\s*)?제출|전자\s*입찰/],
+  ['개찰', /개\s*찰/],
+  ['무효', /입찰\s*무효|무효\s*입찰/],
+  ['계약', /계약\s*(체결|조건|이행)/],
+  ['문의', /문의|담당/],
+]
+
+export function 공고문전문({ r }) {
+  const [열림, set열림] = useState(false)
+  const [d, setD] = useState(undefined)
+  const [찾, set찾] = useState('')
+  const [몇째, set몇째] = useState(0)
+  const [복사, set복사] = useState(false)
+  const 상자 = useRef(null)
+  const no = r && r.no
+
+  const 줄들 = useMemo(() => (d && d.t ? String(d.t).split('\n') : []), [d])
+  const 알약 = useMemo(() => {
+    const out = []
+    for (const [이름, re] of 제목말) {
+      /* 제목처럼 보이는 짧은 줄(번호 · 기호로 시작하거나 30자 안)에서 처음 나온 곳 */
+      const i = 줄들.findIndex((ln) => ln.length <= 40 && re.test(ln))
+      if (i >= 0) out.push([이름, i])
+    }
+    return out.sort((a, b) => a[1] - b[1])
+  }, [줄들])
+  const 맞은 = useMemo(() => {
+    const q = 찾.trim()
+    if (q.length < 2) return []
+    const out = []
+    줄들.forEach((ln, i) => { if (ln.includes(q)) out.push(i) })
+    return out
+  }, [찾, 줄들])
+
+  if (!no || !r.nt) return null
+
+  const 열기 = () => {
+    set열림((v) => !v)
+    if (d === undefined) {
+      getJSON(`/data/ntext/${encodeURIComponent(no)}.json`).then((v) => setD(v || null)).catch(() => setD(null))
+    }
+  }
+  const 가기 = (i) => {
+    const box = 상자.current
+    const el = box && box.querySelector(`[data-i="${i}"]`)
+    if (box && el) box.scrollTop = Math.max(0, el.offsetTop - 8)   /* 상자가 position:relative — offsetTop 이 곧 상자 안 자리 */
+  }
+  const 다음 = () => {
+    if (!맞은.length) return
+    const k = (몇째 + 1) % 맞은.length
+    set몇째(k); 가기(맞은[k])
+  }
+  const 칠 = (ln) => {
+    const q = 찾.trim()
+    if (q.length < 2 || !ln.includes(q)) return ln
+    const ps = ln.split(q)
+    return ps.flatMap((p, j) => (j ? [<mark key={j}>{q}</mark>, p] : [p]))
+  }
+
+  return (
+    <div className="ntx" onClick={(e) => e.stopPropagation()}>
+      <button type="button" className={'ntx-btn' + (열림 ? ' on' : '')} onClick={열기}>
+        📄 공고문 전문 {열림 ? '접기 ▲' : '보기 ▼'}
+        <i>나라장터에 안 가도 · 폰에서도 읽힘</i>
+      </button>
+      {열림 && d === undefined && <div className="skel" style={{ height: 120, marginTop: 8 }} />}
+      {열림 && d === null && (
+        <div className="note sm" style={{ marginTop: 8 }}>공고문 글을 받지 못했습니다 — 아래 첨부에서 원문을 받아 보세요.</div>
+      )}
+      {열림 && d && (
+        <>
+          <div className="ntx-tools">
+            {알약.length > 0 && (
+              <div className="chips">
+                {알약.map(([이름, i]) => (
+                  <button key={이름} type="button" className="chip" onClick={() => 가기(i)}>{이름}</button>
+                ))}
+              </div>
+            )}
+            <div className="ntx-find">
+              <input className="inp" value={찾} placeholder="글 찾기 (두 글자 이상)"
+                onChange={(e) => { set찾(e.target.value); set몇째(0) }}
+                onKeyDown={(e) => { if (e.key === 'Enter') 다음() }} aria-label="공고문에서 찾기" />
+              {찾.trim().length >= 2 && (
+                <button type="button" className="chip" onClick={다음} disabled={!맞은.length}>
+                  {맞은.length ? `${몇째 + 1}/${맞은.length} ▼` : '없음'}
+                </button>
+              )}
+              <button type="button" className="chip" onClick={() => {
+                try { navigator.clipboard?.writeText(d.t); set복사(true); setTimeout(() => set복사(false), 1500) } catch { /* 옛 브라우저 */ }
+              }}>{복사 ? '✓ 복사함' : '글 복사'}</button>
+            </div>
+          </div>
+          <div className="ntx-box" ref={상자}>
+            {줄들.map((ln, i) => (
+              ln ? <div key={i} data-i={i} className={ln.includes(' | ') ? 'tr' : ''}>{칠(ln)}</div>
+                : <div key={i} data-i={i} className="gap" />
+            ))}
+            {d.cut ? <div className="note sm">— 뒷부분은 길어서 줄였습니다. 아래 첨부에서 원문을 보세요.</div> : null}
+          </div>
+          <div className="note sm" style={{ marginTop: 6 }}>
+            첨부 «{d.f}» 에서 <b>글만</b> 옮겼습니다 — 표 · 그림은 줄이 흩어지거나 빠질 수 있습니다.
+            금액 · 하한율 · 일정은 위 칸(조달청 자료)을 기준으로 보세요.
+          </div>
+        </>
+      )}
     </div>
   )
 }

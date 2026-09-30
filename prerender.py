@@ -912,6 +912,22 @@ def notice_page(shell, r, image=None, L=None, docs=None):
             ("입찰 마감", date_time(r.get("close"))),
             ("개찰", date_time(r.get("openg"))),
         ])
+    # 📄 공고문 앞부분 (2026-09-30) — ntext.py 가 내보낸 전문의 앞 1,200자. 검색으로 «공고문 내용» 을 찾는 사람이 닿게.
+    #    화면(공고문전문)은 전부를 누를 때 받습니다. 숫자는 여기서도 뽑지 않습니다 — 글 그대로.
+    if not won:
+        try:
+            import ntext as _NT
+            _tx = _NT.read_published(no)
+        except Exception:
+            _tx = None
+        if _tx and _tx.get("t"):
+            r = dict(r, nt=1)
+            _head = str(_tx["t"])[:1200]
+            body += ('<div class="card"><div class="sec-title" style="margin:0 0 6px">📄 공고문 (앞부분)</div>'
+                     '<div style="font-size:13px;line-height:1.7;white-space:pre-wrap;word-break:keep-all">'
+                     + esc(_head) + ('…' if len(_tx["t"]) > 1200 else '') + '</div>'
+                     f'<div class="note sm" style="margin-top:6px">첨부 «{esc(_tx.get("f") or "")}» 에서 글만 옮긴 것입니다. '
+                     '금액 · 일정은 위 표(조달청 자료)를 기준으로 보세요.</div></div>')
     _sj = sjr_of(inst)
     if _sj:
         _c = _sj["c"]

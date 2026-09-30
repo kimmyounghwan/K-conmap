@@ -118,3 +118,7 @@ data/store/ranks3y/
 
 # 2026-09-30(G72) 설계변경 작업대 시험용 현장 파일 — 저장소에 넣지 않습니다(공사명 · 상호)
 tools/_시험파일/
+# 📄 공고문 전문(ntext.py) — 받은 글은 Actions cache(data/store)로만 넘깁니다 (2026-09-30)
+data/store/ntext/
+data/store/ntext_book.json
+web/public/data/ntext/
