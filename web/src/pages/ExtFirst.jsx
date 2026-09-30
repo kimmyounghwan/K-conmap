@@ -48,7 +48,6 @@ export default function ExtFirst({ 기관, 차례, region, setRegion }) {
   const [결, set결] = use남김('kcm.extf.res', 'all', 'session')
   const [open, setOpen] = use남김('kcm.extf.open', null, 'session')
   const [몇, set몇] = useState(한쪽)
-  const [모름도, set모름도] = useState(false)
   const [복사, set복사] = useState('')
 
   useEffect(() => {
@@ -71,8 +70,10 @@ export default function ExtFirst({ 기관, 차례, region, setRegion }) {
 
   const 전국 = !region || region === '전국'
   const 맞는 = 전국 ? 거른 : 거른.filter((r) => r.sido && inRegion(r, region))
+  /* 지역을 못 정한 결과는 늘 아래에 붙여 보여 줍니다(G90) — 국방 · 민간은 개찰 결과에 지역을 안 줘서
+     지역을 고르면 «0건» 만 보이던 문제(폰: 전남 → 0건 · «27건 보기» 단추). 소장님 「이렇게 나오는데…」 */
   const 모름 = 전국 ? [] : 거른.filter((r) => !r.sido)
-  const 보일 = 모름도 ? [...맞는, ...모름] : 맞는
+  const 보일 = [...맞는, ...모름]
   const 쪽 = 보일.slice(0, 몇)
 
   const 알약 = (s) => {
@@ -131,28 +132,25 @@ export default function ExtFirst({ 기관, 차례, region, setRegion }) {
           <button className={결 === 'win' ? 'on' : ''} onClick={() => { set결('win'); set몇(한쪽) }}>1순위 · 낙찰</button>
           <button className={결 === 'fail' ? 'on' : ''} onClick={() => { set결('fail'); set몇(한쪽) }}>유찰</button>
         </div>
-        <span className="xmut">{num(보일.length)}건</span>
+        <span className="xmut">{전국 ? `${num(보일.length)}건` : `${region} ${num(맞는.length)}건`}</span>
       </div>
 
       {!보일.length ? (
         <Empty icon="🔍">
           고른 조건에 맞는 개찰 결과가 없습니다.
-          {모름.length > 0 && !모름도 && (
-            <div style={{ marginTop: 8 }}>
-              <button className="btn ghost sm" onClick={() => set모름도(true)}>
-                지역을 못 정한 결과 {num(모름.length)}건 보기
-              </button>
-            </div>
-          )}
         </Empty>
       ) : 쪽.map((r, i) => {
         const 열림 = open === r.id
         const g = 결과(r)
-        const 첫모름 = 모름도 && i === 맞는.length && !r.sido
+        const 첫모름 = !전국 && i === 맞는.length && !r.sido
         const 곳 = 기관[r.s] || {}
         return (
           <div key={r.id}>
-            {첫모름 && <div className="xdiv">▼ 지역을 못 정한 결과</div>}
+            {첫모름 && (
+              <div className="xdiv">
+                ▼ 지역 모름 {num(모름.length)}건 — 기관이 지역을 안 적어 준 결과
+              </div>
+            )}
             <div className="notice xnotice" onClick={() => setOpen(열림 ? null : r.id)}>
               <h3>
                 <span className={'xsrc xs-' + r.s}>{곳.nm || r.s}</span>
@@ -223,11 +221,6 @@ export default function ExtFirst({ 기관, 차례, region, setRegion }) {
       {보일.length > 몇 && (
         <button className="btn ghost" style={{ marginTop: 6 }} onClick={() => set몇(몇 + 한쪽)}>
           더 보기 ({num(보일.length - 몇)}건 남음)
-        </button>
-      )}
-      {보일.length > 0 && 모름.length > 0 && !모름도 && (
-        <button className="btn ghost sm" style={{ marginTop: 8 }} onClick={() => set모름도(true)}>
-          지역을 못 정한 결과 {num(모름.length)}건도 보기
         </button>
       )}
 

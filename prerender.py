@@ -1172,9 +1172,9 @@ def _prev_html(f):
 
 def orig_form_page(shell, f, orig, image=None):
     또 = [a for a in (f.get("also") or []) if a and a != f["title"]]
-    title = f'{f["title"]} 양식 엑셀 무료 내려받기 | K-건설맵'
-    desc = ((f'{f["title"]}(' + ' · '.join(또[:2]) + ') 양식 엑셀 무료 내려받기. ') if 또 else
-            f'{f["title"]} 양식 엑셀 무료 내려받기. ') + (f.get("short") or "")
+    title = f'{f["title"]} 양식 엑셀(xlsx) 무료 다운로드 | K-건설맵'
+    desc = ((f'{f["title"]}(' + ' · '.join(또[:2]) + ') 양식 엑셀 무료 다운로드. ') if 또 else
+            f'{f["title"]} 양식 엑셀 무료 다운로드. ') + (f.get("short") or "")
     desc = desc.strip()[:150]
     kb = f.get("kb") or 0
     크기 = f'{kb / 1024:.1f}MB' if kb >= 1024 else f'{kb}KB'
@@ -1427,7 +1427,7 @@ def forms_index(shell, forms, image=None, ogroups=(), orig=()):
                             "slugs": [f["slug"] for f in rest]}]
     n_all = len(forms) + len(orig)
     n_new = sum(1 for f in list(forms) + list(orig) if f.get("gen") == "forms2" or f.get("re"))
-    title = "건설 서식 무료 내려받기 — 착공계·기성청구서·작업일보 | K-건설맵"
+    title = "건설 서식 양식 엑셀 무료 다운로드 — 착공계·기성청구서·작업일보 | K-건설맵"
     desc = (f"건설 서식 {n_all}가지를 엑셀로 무료 제공합니다. 공사 차례(계약·착공·시공계획서·공사 중·검측·안전·노무·기성·준공)로 "
             "골라 쓰고, 착공·하도급·기성·설계변경·준공 때 한 번에 내는 서류를 꾸러미로 모았습니다. "
             f"{n_new}가지는 수식과 작성 예시를 넣어 새로 만들었습니다. 회원가입 없음.")
@@ -1511,18 +1511,49 @@ def forms_index(shell, forms, image=None, ogroups=(), orig=()):
     return page(shell, "/forms", title, desc, "".join(out), image, ld)
 
 
+def _guide_html(f):
+    """📝 2026-09-30 서식 설명 본문 — «이 서식은» · «칸별 작성법» · «근거 법령» (forms.json 의 guide · 화면 Forms.jsx 안내글 과 «같은 글»)
+       소장님: 「구글은 파일만 있는 페이지를 위로 안 올립니다. 이 서식이 뭔지, 어느 칸을 어떻게 쓰는지, 근거 법령이 뭔지 500~800자」
+       ⚠️ 법령은 국가법령정보센터 원문으로 확인한 조문만 적습니다(guide.at = 확인한 날). 조문은 원문으로 가는 링크를 겁니다."""
+    g = f.get("guide")
+    if not g:
+        return ""
+    out = ['<div class="card fguide"><h2 class="sec-title" style="margin:0 0 6px">이 서식은</h2>'
+           f'<p class="gwhat">{bold_md(esc(g.get("what") or ""))}</p></div>']
+    if g.get("how"):
+        out.append('<div class="card fguide"><h2 class="sec-title" style="margin:0 0 6px">칸별 작성법</h2><dl class="ghow">'
+                   + "".join(f'<div><dt>{esc(a)}</dt><dd>{bold_md(esc(b))}</dd></div>' for a, b in g["how"]) + '</dl></div>')
+    if g.get("law"):
+        li = []
+        for it in g["law"]:
+            nm, txt = it[0], it[1]
+            url = it[2] if len(it) > 2 else ""
+            head = (f'<a href="{esc(url)}" target="_blank" rel="noopener">{esc(nm)}</a>' if url else esc(nm))
+            li.append(f'<li><b>{head}</b> — {esc(txt)}</li>')
+        at = g.get("at") or ""
+        out.append('<div class="card fguide"><h2 class="sec-title" style="margin:0 0 6px">근거 법령</h2><ul class="flist glaw">'
+                   + "".join(li) + '</ul>'
+                   + f'<div class="note sm" style="margin-top:6px">국가법령정보센터 원문 기준{f"({esc(at)})" if at else ""}입니다. '
+                   '법령은 바뀔 수 있으니 계약·제출 전에 조문 링크로 원문을 확인하세요.</div></div>')
+    return "".join(out)
+
+
 def form_page(shell, f, others, image=None):
     # 🔎 2026-09-19 — 서치콘솔 실측: 노출되는 검색어가 «전부 서식» 인데 우리 이름과 조금씩 다릅니다.
     #    「일용직 근로계약서 엑셀」(우리는 «일용근로계약서») · 「중기 임대차계약서」(우리는 «건설기계 임대차계약서»)
     #    → forms.json 의 also 에 «진짜로 같은 말» 만 적어 두고, 제목·설명·본문에 함께 씁니다.
     #    ⚠️ 국토부 «표준계약서» 같은 공식 서류 이름은 넣지 않습니다 — 우리 서식은 그것이 아닙니다.
     또 = [a for a in (f.get("also") or []) if a and a != f["title"]]
-    title = f'{f["title"]} 양식 엑셀 무료 내려받기 | K-건설맵'
-    desc = ((f'{f["title"]}(' + ' · '.join(또[:2]) + ') 양식 엑셀 무료 내려받기. ') if 또 else '') + \
-        f'{f.get("short") or ""} {f.get("when") or ""}'.strip()
+    # 🔎 2026-09-30 소장님 「제목을 검색어 그대로 — "엑셀" "xls" "양식" "무료"」 → «내려받기» 대신 사람들이 치는 «다운로드».
+    #    파일은 .xlsx 라서 «xls» 만 쓰면 사실과 다릅니다 — «엑셀(xlsx)» 로 적습니다.
+    g = f.get("guide") or {}
+    title = f'{f["title"]} 양식 엑셀(xlsx) 무료 다운로드 | K-건설맵'
+    desc = ((f'{f["title"]}(' + ' · '.join(또[:2]) + ') 양식 엑셀 무료 다운로드. ') if 또 else
+            f'{f["title"]} 양식 엑셀 무료 다운로드. ') + \
+        (g.get("what") or f'{f.get("short") or ""} {f.get("when") or ""}').strip()
     desc = desc.strip()[:150]
     # 검색하는 말 그대로 한 문장 — 억지로 낱말을 늘어놓지 않고 자연스럽게 씁니다.
-    lead = (f'{f["title"]} 양식을 엑셀 파일로 무료로 내려받을 수 있습니다. '
+    lead = (f'{f["title"]} 양식을 엑셀(xlsx) 파일로 무료 다운로드할 수 있습니다. '
             f'회원가입이 필요 없고, 인쇄해서 바로 쓸 수 있습니다.')
     또줄 = (f'<p style="font-size:12px;color:var(--muted);margin:6px 0 0">'
             f'이렇게도 부릅니다 — {esc(" · ".join(또))}</p>') if 또 else ''
@@ -1535,7 +1566,7 @@ def form_page(shell, f, others, image=None):
            f'<div class="btn-row" style="margin-top:12px">'
            f'<a class="btn primary" href="/forms/{esc(f["slug"])}.xlsx" download>⬇ 엑셀 내려받기</a>'
            + (f'<a class="btn ghost" href="{esc(f["pdf"])}" target="_blank" rel="noopener">🖨 인쇄용 PDF</a>' if f.get("pdf") else '')
-           + "</div></div>", _prog_html(f.get("prog"))]
+           + "</div></div>", _prog_html(f.get("prog")), _guide_html(f)]
     if f.get("when"):
         out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">언제 내나</div>'
                    f'<div class="fwhen">{bold_md(esc(f["when"]))}</div></div>')
@@ -1569,7 +1600,7 @@ def form_page(shell, f, others, image=None):
             {"@type": "ListItem", "position": 3, "name": f'{f["title"]} 양식',
              "item": f'{SITE}/forms/{f["slug"]}'}]},
         {"@type": "CreativeWork", "name": f'{f["title"]} 양식',
-         "description": (f.get("short") or "")[:200],
+         "description": (g.get("what") or f.get("short") or "")[:200],
          "inLanguage": "ko", "isAccessibleForFree": True,
          "genre": f.get("group") or "건설 서식",
          "url": f'{SITE}/forms/{f["slug"]}',

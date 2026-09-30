@@ -123,7 +123,8 @@ export default function ExtBoard() {
   const 전국 = !region || region === '전국'
   const 맞는 = 전국 ? 거른 : 거른.filter((r) => r.sido && inRegion(r, region))
   const 모름 = 전국 ? [] : 거른.filter((r) => !r.sido)
-  const 보일 = 모름도 ? [...맞는, ...모름] : 맞는
+  const 다보기 = 모름도 || !맞는.length     // 고른 지역이 0건이면 지역 모름을 바로 보여 줍니다(G90)
+  const 보일 = 다보기 ? [...맞는, ...모름] : 맞는
   const 쪽 = 보일.slice(0, 몇)
 
   const 알약 = (s) => {
@@ -193,32 +194,25 @@ export default function ExtBoard() {
               <button className={순 === 'new' ? 'on' : ''} onClick={() => set순('new')}>새 공고 순</button>
               <button className={순 === 'close' ? 'on' : ''} onClick={() => set순('close')}>마감 임박 순</button>
             </div>
-            <span className="xmut">{num(보일.length)}건</span>
+            <span className="xmut">{전국 ? `${num(보일.length)}건` : `${region} ${num(맞는.length)}건`}</span>
           </div>
 
           {!보일.length ? (
             <Empty icon="🔍">
               고른 조건에 맞는 공고가 없습니다.
-              {모름.length > 0 && !모름도 && (
-                <div style={{ marginTop: 8 }}>
-                  <button className="btn ghost sm" onClick={() => set모름도(true)}>
-                    지역을 못 정한 공고 {num(모름.length)}건 보기
-                  </button>
-                </div>
-              )}
             </Empty>
           ) : 쪽.map((r, i) => {
             const 열림 = open === r.id
             const dd = dday(끝까지(r.close))
             /* «오늘» = 공고일이 오늘(기관이 적은 날짜). 우리가 처음 본 날로 하면 첫 수집 날 전부 «오늘» 이 됩니다 */
             const 새것 = r.dt && d.at && String(r.dt).slice(0, 10) === d.at.slice(0, 10)
-            const 첫모름 = 모름도 && i === 맞는.length && !r.sido
+            const 첫모름 = 다보기 && !전국 && i === 맞는.length && !r.sido
             const m0 = (r.m && r.m[0]) || null
             const 권 = 권장셈(r, d.st)
             const 취소 = /취소/.test(r.st || '')
             return (
               <div key={r.id}>
-                {첫모름 && <div className="xdiv">▼ 지역을 못 정한 공고 — 공고문에서 참가지역을 확인하세요</div>}
+                {첫모름 && <div className="xdiv">▼ 지역 모름 {num(모름.length)}건 — 공고문에서 참가지역을 확인하세요</div>}
                 <div className={'notice xnotice' + (취소 ? ' gone' : '')} onClick={() => setOpen(열림 ? null : r.id)}>
                   <h3>
                     <span className={'xsrc xs-' + r.s}>{기관[r.s]?.nm || r.s}</span>
@@ -353,7 +347,7 @@ export default function ExtBoard() {
               더 보기 ({num(보일.length - 몇)}건 남음)
             </button>
           )}
-          {보일.length > 0 && 모름.length > 0 && !모름도 && (
+          {보일.length > 0 && 모름.length > 0 && !다보기 && (
             <button className="btn ghost sm" style={{ marginTop: 8 }} onClick={() => set모름도(true)}>
               지역을 못 정한 공고 {num(모름.length)}건도 보기
             </button>

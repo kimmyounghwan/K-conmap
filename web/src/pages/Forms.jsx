@@ -514,6 +514,47 @@ function OrigFormPage({ f }) {
   )
 }
 
+/* 📝 2026-09-30 서식 설명 본문 — «이 서식은» · «칸별 작성법» · «근거 법령»
+   소장님: 「구글은 파일만 있는 페이지를 위로 안 올립니다. 이 서식이 뭔지, 어느 칸을 어떻게 쓰는지, 근거 법령이 뭔지 500~800자」
+   ⚠️ 미리 굽는 쪽(prerender.py _guide_html)과 «같은 글» — 글은 forms.json 의 guide 한 곳에만 있습니다.
+   ⚠️ 법령은 국가법령정보센터 원문으로 확인한 조문만(guide.at = 확인한 날). 조문 이름은 원문 링크. */
+function 안내글({ g }) {
+  if (!g) return null
+  return (
+    <>
+      <div className="card fguide">
+        <h2 className="sec-title" style={{ margin: '0 0 6px' }}>이 서식은</h2>
+        <p className="gwhat">{굵게(g.what)}</p>
+      </div>
+      {Array.isArray(g.how) && g.how.length > 0 && (
+        <div className="card fguide">
+          <h2 className="sec-title" style={{ margin: '0 0 6px' }}>칸별 작성법</h2>
+          <dl className="ghow">
+            {g.how.map(([a, b], i) => (
+              <div key={i}><dt>{a}</dt><dd>{굵게(b)}</dd></div>
+            ))}
+          </dl>
+        </div>
+      )}
+      {Array.isArray(g.law) && g.law.length > 0 && (
+        <div className="card fguide">
+          <h2 className="sec-title" style={{ margin: '0 0 6px' }}>근거 법령</h2>
+          <ul className="flist glaw">
+            {g.law.map(([nm, txt, url], i) => (
+              <li key={i}>
+                <b>{url ? <a href={url} target="_blank" rel="noopener">{nm}</a> : nm}</b> — {txt}
+              </li>
+            ))}
+          </ul>
+          <div className="note sm" style={{ marginTop: 6 }}>
+            국가법령정보센터 원문 기준{g.at ? `(${g.at})` : ''}입니다. 법령은 바뀔 수 있으니 계약·제출 전에 조문 링크로 원문을 확인하세요.
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 export function FormPage() {
   const { slug } = useParams()
   const o = origBySlug(slug)
@@ -563,6 +604,8 @@ export function FormPage() {
       </div>
 
       <프로그램카드 p={f.prog} />
+
+      <안내글 g={f.guide} />
 
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 6px' }}>언제 내나</div>
