@@ -295,7 +295,7 @@ def main():
         except Exception:
             ny = []
         for u in (["/change", "/change/excel", "/change/naeyeok", "/change/calc",
-                   "/change/twoline"]
+                   "/change/twoline", "/change/work"]
                   + [f"/change/naeyeok/{quote(k, safe='')}" for k in ny]
                   + [f'/change/{t["slug"]}' for t in tops]):
             urls.append(f'  <url><loc>{SITE}{u}</loc>'

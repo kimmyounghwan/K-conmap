@@ -13,6 +13,8 @@
  *    표가 몇 천 줄이라도 사람이 못 느낍니다. 대신 «틀릴 구석» 이 하나 사라집니다.
  */
 import { unzipSync, zipSync, strToU8, strFromU8 } from 'fflate'
+/* 2026-09-30(G72) 옛 엑셀(.xls)도 같은 모양으로 읽습니다 — 값만(서식 · 수식 없음). 화면마다 .xls 를 받을지는 그 화면이 정합니다 */
+import { xls인가, xls읽기 } from './xls읽기.js'
 
 /* ────────────────────────────────────────────────────────── 읽기 */
 
@@ -130,6 +132,7 @@ function gridOf(xml, sst) {
 const 이름표떼기 = (x) => x.replace(/<(\/?)[A-Za-z_][\w.-]*:/g, '<$1')
 
 export function readWorkbook(bytes) {
+  if (xls인가(new Uint8Array(bytes))) return xls읽기(new Uint8Array(bytes))
   let zip
   try {
     zip = unzipSync(new Uint8Array(bytes))

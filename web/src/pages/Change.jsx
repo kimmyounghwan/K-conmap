@@ -559,6 +559,19 @@ export default function Change() {
         </div>
       </div>
 
+      {/* 🧰 설계변경 작업대 — 2026-09-30(G72). 2줄→1줄 · 당초/변경 짝짓기 · 대비표 · 차수별 · 검산 */}
+      <Link className="card fbook" to="/change/work">
+        <span className="fic">🧰</span>
+        <div className="grow">
+          <div className="t">설계변경 작업대 <em>· 2줄→1줄 · 짝짓기 · 대비표 · 검산</em></div>
+          <div className="d">
+            변경내역서(.xlsx · .xls)를 올리면 <b>1줄 내역서</b>로, 당초 · 변경 두 파일을 올리면 <b>품목을 짝지어 2줄 변경내역서</b>로.
+            <b>공사비증감대비표 · 물량대비표 · 총괄표 · 차수별 대비표</b>와 <b>검산</b>까지 한 번에. 파일은 서버로 올라가지 않습니다.
+          </div>
+        </div>
+        <span className="go">›</span>
+      </Link>
+
       {/* 🔁 2줄 자동변환 — 2026-09-15. 손으로 행을 나누던 일을 파일 단위로 끝냅니다. */}
       <Link className="card fbook" to="/change/twoline">
         <span className="fic">🔁</span>

@@ -1666,7 +1666,7 @@ NY_KINDS = [
 
 # ── IndexNow 에 «한 번만» 알릴 정적 주소 ──────────────────────────
 #   새로 만든 화면들입니다. 사이트맵에도 있지만 크롤러가 스스로 올 때까지 기다리지 않습니다.
-STATIC_NEW = ["/change", "/change/naeyeok", "/change/excel", "/change/twoline", "/forms", "/guide",
+STATIC_NEW = ["/change", "/change/naeyeok", "/change/excel", "/change/twoline", "/change/work", "/forms", "/guide",
               "/cad", "/naeyeok", "/qna", "/how", "/jeoksan", "/jeoksan/run", "/jeoksan/golgo", "/jeoksan/magam", "/jeoksan/auto",
               "/safety", "/shareone", "/pdf", "/naeyeok/ratio"] + [
     "/cad/" + _c["slug"] for _c in (load_cad().get("cmds") or [])] + [
@@ -1981,6 +1981,40 @@ def change_twoline(shell, image=None):
     return page(shell, "/change/twoline", title, desc,
                 "".join(out) + nav_html("/change"), image, ld)
 
+
+
+def change_work(shell, image=None):
+    """/change/work — 🧰 설계변경 작업대 (2026-09-30, G72)
+
+    소장님(9/30): 설계박사 · 콘엑스에 있고 우리에게 빠진 것 「다 만들자」 — 1단계 설계변경 묶음.
+    ⚠️ 여기 적는 글은 화면(ChangeWork.jsx)이 그리는 것과 «같은 내용»입니다(React 가 덮어씀).
+    """
+    title = "설계변경 작업대 — 2줄→1줄 · 당초/변경 짝짓기 · 증감대비표 · 검산 | K-건설맵"
+    desc = ("변경내역서 엑셀(.xlsx · .xls)을 올리면 1줄 내역서로, 당초 · 변경 두 파일을 올리면 품목을 짝지어 "
+            "2줄 변경내역서로 만듭니다. 공사비증감대비표 · 물량대비표 · 총괄표 · 차수별 대비표 · 검산까지. "
+            "파일은 브라우저에서만 처리하며 서버로 올라가지 않습니다. 무료.")
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">🧰 설계변경 작업대</h1>'
+           '<p class="cp" style="margin-top:8px">내역서 엑셀(<b>.xlsx · .xls</b>)을 올리면 <b>2줄 → 1줄</b>, '
+           '<b>당초 · 변경 짝짓기</b>, <b>증감 · 물량 대비표</b>, <b>차수별 대비표</b>, <b>검산</b>을 한 번에 만들어 드립니다.</p>'
+           '<p class="cp"><b>파일은 이 브라우저 안에서만 다룹니다.</b> 서버로 올라가지 않습니다.</p></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">이렇게 씁니다</div><ul class="flist">'
+           '<li><b>2줄 변경내역서 하나</b>를 올리면 → 변경(또는 당초)만 남긴 <b>1줄 내역서</b> · 증감대비표 · 물량대비표 · 총괄표</li>'
+           '<li><b>당초 내역서 + 변경 내역서</b>(1줄 두 개)를 올리면 → 품목을 짝지어 <b>2줄 변경내역서</b>(신규 품목은 제자리에, 없어진 품목은 변경 0)</li>'
+           '<li><b>차수(연차) 내역서</b>나 파일 여럿 → <b>차수별 대비표</b></li>'
+           '<li><b>값만 남은 내역서</b> → 금액 · 합계에 <b>수식을 다시 넣은</b> 내역서 + 틀린 곳 검산</li></ul></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">알아 두실 것</div><ul class="flist">'
+           '<li><b>셈 규칙</b> — 금액 = 수량 × 단가(원 미만 버림), 합계 = 노무비 + 재료비 + 경비</li>'
+           '<li>조달수수료 · 공구손료처럼 수량 칸이 비율인 줄은 적힌 값을 그대로 둡니다</li>'
+           '<li>관급자재 · 기타공사비처럼 순공사비 밖의 공종은 공종 합을 보고 찾아 순공사비에서 뺍니다</li>'
+           '<li>원래 서식 그대로 줄만 벌리려면 2줄 자동변환을 쓰십시오</li></ul>'
+           '<div class="btn-row" style="margin-top:10px">'
+           '<a class="btn ghost" href="/change">← 설계변경</a>'
+           '<a class="btn ghost" href="/change/twoline">🔁 2줄 자동변환</a>'
+           '<a class="btn ghost" href="/qna">💬 사랑방</a></div></div>']
+    ld = ld_graph(ld_crumbs(("K-건설맵", None), ("설계변경", "/change"),
+                            ("설계변경 작업대", "/change/work")))
+    return page(shell, "/change/work", title, desc,
+                "".join(out) + nav_html("/change"), image, ld)
 
 
 # ── 입찰 알아보기 (2026-09-06) ──────────────────────────────────
@@ -2805,7 +2839,11 @@ def main():
               og.tab("change-twoline", "설계변경 2줄 자동변환", "당초 검정 · 변경 적색",
                      "무료", "합계를 SUMIF 로 갈라 줍니다 · 증감 줄까지")
               if og.available else None))
-        made += 3
+        write("change/work.html", change_work(shell,
+              og.tab("change-work", "설계변경 작업대", "2줄→1줄 · 짝짓기 · 대비표",
+                     "무료", "증감대비표 · 물량대비표 · 차수별 · 검산")
+              if og.available else None))
+        made += 4
         for t in topics:
             others = [o for o in topics if o["slug"] != t["slug"]][:4]
             img = (og.tab(f'change-{t["slug"]}', t["title"], t.get("sub") or "설계변경",
