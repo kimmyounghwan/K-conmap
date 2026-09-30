@@ -830,9 +830,11 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
     try {
       const { ref, update, db, ensureAnon, serverTimestamp } = await loadFb()
       await ensureAnon()
-      await update(ref(db, `qna/${row.id}`), {
-        t: 갈래붙이기(row.c, t), b: (고침.b || '').trim().slice(0, 2000), e: serverTimestamp(),
-      })
+      const 새갈래 = (나운영자 && 고침.c) || row.c
+      const 고칠 = { t: 갈래붙이기(새갈래, t), b: (고침.b || '').trim().slice(0, 2000), e: serverTimestamp() }
+      /* 🏷 G93 — 운영자가 말머리를 바꾸면 별명도 같이: K-건설맵 글은 «K-건설맵», 후기·건의로 내리면 그 번호의 별명 */
+      if (새갈래 !== row.c) 고칠.nick = (새갈래 === 'K-건설맵' ? 'K-건설맵' : nickOf(row.uid)).slice(0, 20)
+      await update(ref(db, `qna/${row.id}`), 고칠)
       set고침(null); onChange()
     } catch (e) { setMsg('고치지 못했습니다 — 이 기기에서 쓴(또는 되찾은) 글만 고칠 수 있습니다.') } finally { set바쁨(false) }
   }
@@ -915,6 +917,22 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
     <div style={{ marginTop: 10, borderTop: '1px solid var(--line)', paddingTop: 10 }}>
       {고침 ? (
         <div style={{ marginBottom: 8 }}>
+          {나운영자 && (
+            <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 7, marginBottom: 8 }}>
+              {갈래들.map((x) => {
+                const on = (고침.c || row.c) === x
+                const [bg, fg, ln] = 갈래빛[x]
+                return (
+                  <button key={x} onClick={() => set고침((v) => ({ ...v, c: x }))}
+                    style={{
+                      border: '1px solid ' + (on ? 'var(--accent)' : ln), borderRadius: 999,
+                      padding: '6px 12px', fontSize: 12.5, cursor: 'pointer', fontWeight: on ? 700 : 500,
+                      background: on ? 'var(--accent)' : bg, color: on ? '#fff' : fg,
+                    }}>{x}</button>
+                )
+              })}
+            </div>
+          )}
           <input className="inp" value={고침.t} maxLength={70} onChange={(e) => set고침((v) => ({ ...v, t: e.target.value }))}
             style={{ width: '100%', boxSizing: 'border-box', marginBottom: 6 }} />
           <textarea className="inp" value={고침.b} maxLength={2000} onChange={(e) => set고침((v) => ({ ...v, b: e.target.value }))}
@@ -962,7 +980,7 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
 
       {mine && !고침 && (
         <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-          <button className="btn line" onClick={() => set고침({ t: row.t || '', b: row.b || '' })}>✏️ 고치기</button>
+          <button className="btn line" onClick={() => set고침({ t: row.t || '', b: row.b || '', c: row.c })}>✏️ 고치기</button>
           {!나운영자 && <input className="inp" inputMode="numeric" maxLength={4} placeholder="4자리"
             value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
             style={{ width: 90 }} />}
@@ -1081,8 +1099,13 @@ function WriteForm({ onDone, 첫갈래, 첫글, 나운영자 }) {
     try { const d = JSON.parse(sessionStorage.getItem(초안열쇠) || 'null'); if (d) return { t: d.t || '', b: d.b || '', pin: '' } } catch (e) { /* 없음 */ }
     return { t: '', b: '', pin: '' }
   })
-  /* 🧹 2026-09-29 — 말머리는 «후기·건의» 하나(K-건설맵은 운영자만). 이용자는 고를 것 없이 바로 씁니다(클로드 제안) */
-  const [c, setC] = useState(() => (나운영자 && 첫갈래 === 'K-건설맵' ? 'K-건설맵' : '후기·건의'))
+  /* 🧹 2026-09-29 — 말머리는 «후기·건의» 하나(K-건설맵은 운영자만). 이용자는 고를 것 없이 바로 씁니다(클로드 제안)
+     🏷 2026-10-01 (G93) — 운영자 브라우저는 «K-건설맵» 이 처음부터 골라져 있습니다.
+        소장님 08:33 인사 글이 [후기·건의] · 아무개 별명으로 올라감 → 「건설맵이라는게 안 붙는다」.
+        공고 카드에서 넘어온 초안(첫글)은 그 초안의 말머리 그대로. 운영자인지는 뒤늦게(비동기) 알려지므로 알게 되면 한 번 맞춥니다. */
+  const [c, setC] = useState(() => (나운영자 ? (첫글 ? 첫갈래 : 'K-건설맵') : '후기·건의'))
+  const 손댐 = useRef(false)
+  useEffect(() => { if (나운영자 && !첫글 && !손댐.current) setC('K-건설맵') }, [나운영자])   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { try { sessionStorage.setItem(초안열쇠, JSON.stringify({ t: f.t, b: f.b })) } catch (e) { /* 없음 */ } }, [f.t, f.b])
   /* 🤝 공고에서 초안을 들고 왔으면 글쓰기 칸으로 내려 줍니다 — 공지가 펼쳐져 있으면 화면 아래에 묻힙니다 */
   const 칸 = useRef(null)
@@ -1144,7 +1167,7 @@ function WriteForm({ onDone, 첫갈래, 첫글, 나운영자 }) {
           const on = c === x
           const [bg, fg, ln] = 갈래빛[x]
           return (
-            <button key={x} onClick={() => setC(x)}
+            <button key={x} onClick={() => { 손댐.current = true; setC(x) }}
               style={{
                 border: '1px solid ' + (on ? 'var(--accent)' : ln), borderRadius: 999,
                 padding: '7px 13px', fontSize: 13, cursor: 'pointer', fontWeight: on ? 700 : 500,
