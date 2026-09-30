@@ -4745,6 +4745,9 @@ a.card.fprog .go { display: inline-block; margin-top: 8px; font-size: 13px; font
 .insa-x { flex: none; background: none; border: 0; color: var(--muted); font-size: 15px; cursor: pointer; padding: 4px 6px; }
 @keyframes insa-in { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @keyframes insa-out { from { opacity: 1; } to { opacity: 0; transform: translate(-50%, 8px); } }
+/* 9/30 넓은 화면에서는 조금 크게 — 1,700px 화면 아래 가운데에 290px 쪽지는 눈에 잘 안 띄었습니다 */
+@media (min-width: 900px) { .insa { padding: 14px 14px 14px 20px; border-radius: 16px; gap: 14px; }
+  .insa-t b { font-size: 18px; } .insa-t span { font-size: 14px; } .insa-x { font-size: 17px; } }
 @media (prefers-reduced-motion: reduce) { .insa, .insa.out { animation: none; } }
 @media print { .insa { display: none !important; } }
 /* 🧹 2026-09-29 사랑방 — 옛 말머리 딱지(질문·공동도급…) · ✅ K-건설맵 답변 딱지 (Qna.jsx) */
