@@ -80,7 +80,23 @@ def main():
             print(f"   {p:<34} {nm:<16} ← {src}")
         return 1
     print("✅ 빠진 import 없음")
-    return 0
+    return _workflows()          # 마지막 줄 = 워크플로 검사 결과 (✅ … 켜짐 / ⛔ …)
+
+
+def _workflows():
+    """🛡 워크플로 모의 검사(tools/checkwf.py) — 2026-09-30 빠른 수집 멈춤 사고 뒤 붙였습니다.
+    올리기 bat · 클라우드 모의(dryrun)가 이 파일을 push 전에 부르므로, 여기 붙이면 모든 올리기가 이 검사를 거칩니다.
+    ⚠️ 깃허브 Actions 안(update.yml)에서는 경고만 — 이미 올라간 뒤라 사이트 갱신까지 세우면 더 나쁩니다."""
+    try:
+        import checkwf
+        r = checkwf.main()
+    except Exception as e:                          # 검사기 자체가 넘어지면 그 사실을 적고 멈춥니다
+        print(f"⛔ 워크플로 모의 검사를 못 돌렸습니다 ({type(e).__name__}: {e})")
+        r = 1
+    if r and os.environ.get("GITHUB_ACTIONS") == "true":
+        print("⚠️ (Actions 안이라 경고만 합니다 — 바로 고치십시오)")
+        return 0
+    return r
 
 
 if __name__ == "__main__":

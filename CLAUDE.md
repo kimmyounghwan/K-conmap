@@ -3909,4 +3909,6 @@ canonical 이중 인코딩 · 개찰 시각 문구 · 성적표 칸 · 등수 �
 - 🚨 **(G78b) 빠른 길 멈춤 고침** — G78 의 collect.py 가 import 때 `web/src/data/공고유형.json` 을 읽었는데, 빠른 길(fast.yml)은 sparse-checkout 으로 collect.py · fast.py · ranks3y.py · requirements.txt · data/seed 만 받아 **fast.py 가 import 에서 죽음** → 공고 · 1순위 «방금» 이 멈추고 정기 갱신(1~2시간 늦음)만 돎. 소장님 「빨리 고쳐줘」.
   → 파이썬 비트는 `collect.py _TAG_BIT` 에 적고(파일 안 읽음), `tools/시험_공고유형.mjs` 가 ① JSON 비트와 대조 ② **fast.yml 의 받는 파일만 임시 폴더에 복사해 `import fast, collect`** 를 돌려 봄.
   ⚠️ collect.py · fast.py 가 import 될 때 저장소의 다른 파일을 읽게 만들지 말 것(읽어야 하면 fast.yml 받는 목록에 있는 파일만).
+- 🛡 **(G78c) 재발 막기 — `tools/checkwf.py` 워크플로 모의 검사** (소장님 「이제 이런일 안 생기게 해줘」): `.github/workflows/*.yml` 마다 ① 받는 파일(sparse-checkout, 없으면 저장소 전체) ② 까는 패키지(pip install · -r requirements.txt) ③ 돌리는 `python 무엇.py` 를 읽어, 임시 폴더에 ① 만 두고 ② 에 없는 바깥 패키지를 우리 코드가 import 하면 막은 채 ③ 을 켜 봄(맨 위 코드까지). fast.py 는 공고 · 1순위 한 줄씩 finish · body_for 까지.
+  `tools/checkimports.py` 가 끝에 부름 → **올리기 bat · 클라우드 dryrun 이 push 전에 멈춤**(Actions 안에서는 경고만). 옛 G78 collect.py · fast.py 에 `import pandas` · 받는 목록 밖 파일 import — 셋 다 잡는 것 확인.
 
