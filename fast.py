@@ -32,6 +32,12 @@ fast.py — 공고 · 1순위 «빠른 길» (2026-09-30)
 ■ 조달청 호출 — 한 번에 개찰 1쪽 + 공고 1~2쪽 + 면허제한 1~3쪽. 10분마다 · 한국시간 05~23시.
     하루 몫을 다 썼다는 답이 오면 그 회차는 그만 부릅니다(정기 수집 몫을 안 먹게).
 
+■ 🚨 2026-09-30 사고 — G78 의 collect.py 가 import 때 web/src/data/공고유형.json 을 읽었습니다.
+    이 워크플로는 필요한 파일만 받으므로(sparse-checkout) 그 파일이 없어 여기서 `import collect` 가 죽었고,
+    «방금» 이 14:55 에서 멈췄습니다(소장님 폰 화면 「방금 8건 · 14:55 기준 (70분 전)」). G78b 에서 고침.
+    ⚠️ collect.py · fast.py 가 import 될 때 위 받는 목록 밖의 파일을 읽게 만들지 마십시오 — tools/시험_공고유형.mjs 가 봅니다.
+    (이 줄을 적은 까닭 하나 더: fast.py 가 바뀌어야 올리자마자 이 워크플로가 다시 돕니다 — fast.yml 의 push paths)
+
 쓰는 법:  python fast.py --minutes 55 --every 10      (Actions: .github/workflows/fast.yml)
           python fast.py --once --dry                 (한 번만 · 데이터베이스에 안 씀)
 """

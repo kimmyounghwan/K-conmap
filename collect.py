@@ -1278,14 +1278,27 @@ def jnt_of(r):
 #  🏷 공고 유형 태그 — 2026-09-30, 소장님: 입찰나라에서 가져올 것 «공고유형 태그 거르개»
 #                                  「편리성, 기능성 유지하면서」 · 「핸드폰에서도 편리하게」
 #
-#  태그 이름 · 비트 · 무리는 web/src/data/공고유형.json 한 곳에 있습니다(화면과 같은 파일).
+#  태그 이름 · 무리는 web/src/data/공고유형.json(화면)에, 비트는 그 파일과 여기 _TAG_BIT 에 같이 있습니다(시험이 대조).
 #  여기서는 «어느 공고에 어느 태그를 붙이나» 규칙만 적습니다 — 조달청이 준 칸 그대로 봅니다.
 #      공고종류 ntceKindNm → kind   계약방법 → mthd   낙찰방법 → swin
 #      지역제한 판단기준 → rgnb     A값 적용 → ayn · aval   예정가격 결정방법 → pmth
 #  «긴급» 만 공고명에서 봅니다(조달청이 따로 주는 칸이 없습니다). 화면에도 «긴급» 이라고만 적습니다.
-#  ⚠️ 규칙이 없는 태그가 JSON 에 있으면 여기서 바로 멈춥니다 — 조용히 0 으로 두면 화면이 «0건» 을 보여 줍니다.
 #  ⚠️ 색인 · bidindex · 빠른 길(fast.py) 세 곳이 이 함수 하나를 부릅니다.
+#
+#  🚨 2026-09-30 사고 — 처음엔 여기서 공고유형.json 을 «읽었습니다». 그런데 빠른 길(fast.yml)은
+#     필요한 파일만 받습니다(sparse-checkout: collect.py · fast.py · ranks3y.py · requirements.txt · data/seed).
+#     그 JSON 이 없어 fast.py 가 `import collect` 에서 바로 죽었고 → 공고 · 1순위 «방금» 이 멈췄습니다
+#     (정기 갱신만 1~2시간 늦게 돌았습니다). 소장님: 「빨리 고쳐줘」.
+#     → 파이썬은 파일을 읽지 않고 비트를 여기 적어 둡니다. 화면 JSON 과 같은지는
+#       tools/시험_공고유형.mjs 가 대조하고, 같은 시험이 «빠른 길이 받는 파일만으로 import 되는지» 도 봅니다.
+#  ⚠️ collect.py 가 import 될 때 다른 파일을 읽게 만들지 마십시오 — 빠른 길이 죽습니다.
 # ══════════════════════════════════════════════════════════════════
+_TAG_BIT = {                      # web/src/data/공고유형.json 의 k → b 와 같아야 합니다(시험이 대조)
+    "re": 1, "chg": 2, "cancel": 4, "urgent": 8,
+    "suui": 16, "limit": 32, "open": 64, "nominate": 128,
+    "jeokgyeok": 256, "lowest": 512, "quote": 1024,
+    "region": 2048, "aval": 4096, "single": 8192,
+}
 _TAG_RULE = {
     "re":        lambda r: str(r.get("kind") or "") == "재공고",
     "chg":       lambda r: str(r.get("kind") or "") == "변경공고",
@@ -1302,23 +1315,7 @@ _TAG_RULE = {
     "aval":      lambda r: str(r.get("ayn") or "") == "Y" or int(r.get("aval") or 0) > 0,
     "single":    lambda r: str(r.get("pmth") or "") == "단일예가",
 }
-
-
-def _load_tags():
-    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web", "src", "data", "공고유형.json")
-    with open(p, encoding="utf-8") as f:
-        d = json.load(f)
-    out = []
-    for g in d.get("무리") or []:
-        for t in g.get("태그") or []:
-            k, b = t["k"], int(t["b"])
-            if k not in _TAG_RULE:
-                raise SystemExit(f"공고유형.json 의 «{t.get('n')}»({k}) 규칙이 collect.py _TAG_RULE 에 없습니다")
-            out.append((b, _TAG_RULE[k]))
-    return out
-
-
-TAGS = _load_tags()
+TAGS = [(b, _TAG_RULE[k]) for k, b in _TAG_BIT.items()]
 
 
 def tag_of(r):

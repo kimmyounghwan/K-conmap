@@ -1,6 +1,7 @@
 // 🏷 공고 유형 태그 · 🏛 기관 최근 사정률 시험 — node tools/시험_공고유형.mjs  (2026-09-30)
 // 화면 쪽(lib/유형.js · lib/기관사정률.js)과 만드는 쪽(collect.py tag_of · build_json.py sjr_bucket)이 같은 답을 내는지 봅니다.
-import { readFileSync } from 'node:fs'
+import { readFileSync, mkdtempSync, cpSync, existsSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -32,10 +33,14 @@ import sys, json; sys.path.insert(0, ${JSON.stringify(ROOT)})
 import os; os.environ.setdefault("G2B_API_KEY", "x")
 import collect as C, build_json as BJ
 rows = json.loads(sys.stdin.read())
-print(json.dumps({"tg": [C.tag_of(r) for r in rows],
+print(json.dumps({"bits": C._TAG_BIT,
+                  "tg": [C.tag_of(r) for r in rows],
                   "b": [BJ.sjr_bucket(n) for n in ["충청북도 청주시", "조달청", "전남광주통합특별시 광양시", "(사)여수YMCA", "한국농어촌공사 경남지역본부 창녕지사"]],
                   "n": BJ.SJR_BUCKETS}))
 `], { input: JSON.stringify(줄들), cwd: ROOT }).toString().trim().split('\n').pop())
+// 파이썬 비트(_TAG_BIT) = 화면 JSON 비트 — 한쪽만 고치면 거르개가 엉뚱한 공고를 냅니다
+const js비트 = Object.fromEntries(무리.flatMap((g) => g.태그.map((t) => [t.k, t.b])))
+봄('파이썬 비트 = 화면 JSON 비트', JSON.stringify(Object.entries(py.bits).sort()) === JSON.stringify(Object.entries(js비트).sort()))
 const B = Object.fromEntries(무리.flatMap((g) => g.태그.map((t) => [t.n, t.b])))
 봄('재공고+제한+적격+지역+A값', py.tg[0] === (B['재공고'] | B['제한경쟁'] | B['적격심사'] | B['지역제한'] | B['A값 있음']))
 봄('긴급+수의+견적+단일예가', py.tg[1] === (B['긴급'] | B['수의계약'] | B['수의시담 · 견적'] | B['단일예가']))
@@ -68,6 +73,28 @@ const [c, d] = 세로범위([100.01])
 봄('풀이 높게', 풀이(100.183) === '예정가격이 기초금액보다 0.18% 높게 정해지는 편입니다')
 봄('풀이 낮게', 풀이(99.7) === '예정가격이 기초금액보다 0.30% 낮게 정해지는 편입니다')
 봄('풀이 같게', /거의 같게/.test(풀이(100.02)))
+
+// ── 🚨 빠른 길(fast.yml)은 필요한 파일만 받습니다 — 그 파일들만으로 import 되는지 (2026-09-30 사고) ──
+{
+  const yml = readFileSync(path.join(ROOT, '.github/workflows/fast.yml'), 'utf-8').replace(/\r\n/g, '\n')
+  const m = /sparse-checkout: \|\n([\s\S]*?)\n\s*sparse-checkout-cone-mode/.exec(yml)
+  const 받는것 = m ? m[1].split('\n').map((x) => x.trim()).filter(Boolean) : []
+  봄('fast.yml 받는 파일 목록 읽음', 받는것.includes('collect.py') && 받는것.includes('fast.py'))
+  const tmp = mkdtempSync(path.join(tmpdir(), 'fast-'))
+  for (const f of 받는것) {
+    const src = path.join(ROOT, f)
+    if (!existsSync(src)) continue
+    cpSync(src, path.join(tmp, f), { recursive: true })
+  }
+  let 됨 = false, 글 = ''
+  try {
+    글 = execFileSync('python3', ['-c', 'import os; os.environ.setdefault("G2B_API_KEY","x"); import fast, collect; print("OK", collect.tag_of({"kind":"재공고"}))'],
+      { cwd: tmp, env: { ...process.env, G2B_API_KEY: 'x', PYTHONDONTWRITEBYTECODE: '1' }, stdio: ['ignore', 'pipe', 'pipe'] }).toString()
+    됨 = /OK 1/.test(글)
+  } catch (e) { 글 = String(e.stderr || e.message).split('\n').slice(-3).join(' ') }
+  봄('빠른 길 파일만으로 fast · collect import (' + 받는것.join(', ') + ')' + (됨 ? '' : ' — ' + 글), 됨)
+  rmSync(tmp, { recursive: true, force: true })
+}
 
 // ── 실제로 구운 통이 있으면 모양 확인 ──
 try {
