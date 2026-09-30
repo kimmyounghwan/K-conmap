@@ -1651,7 +1651,8 @@ def _blocks_html(blocks):
                 out.append(f'<div class="cstep"><b>{esc(h)}</b><span>{_bold(d)}</span></div>')
             out.append("</div>")
         elif t == "table":
-            out.append('<div class="fscroll"><table class="ctab"><thead><tr>')
+            # fit: 열이 적은 표는 폰에서 옆으로 밀지 않고 접어 보여 줍니다(G91 — 화면 Guide.jsx 와 같게)
+            out.append('<div class="fscroll"><table class="ctab' + (' fit' if b.get("fit") else '') + '"><thead><tr>')
             out.extend(f"<th>{esc(c)}</th>" for c in b["cols"])
             out.append("</tr></thead><tbody>")
             for r in b["rows"]:
@@ -2684,8 +2685,8 @@ def guide_others(t, topics, n=4):
 
 
 def guide_index(shell, topics, image=None):
-    title = "입찰 알아보기 — 투찰금액·사정률·하도급대금·설계변경 | K-건설맵"
-    desc = ("공공 공사 입찰의 투찰금액이 어떻게 정해지는지 개찰 1만여 건을 직접 재서 정리하고, "
+    title = "입찰 알아보기 — 낙찰하한율·투찰률 계산·사정률·A값·하도급대금 | K-건설맵"
+    desc = ("낙찰하한율 · 투찰률 계산 · 사정률 · 복수예비가격 · A값을 개찰 3년치 16만여 건으로 직접 재서 정리하고, "
             "하도급대금·물가변동·설계변경·지체상금은 법제처 원문으로 확인해 정리했습니다. 회원가입 없이 무료입니다.")
     out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">'
            '입찰 알아보기</h1>'

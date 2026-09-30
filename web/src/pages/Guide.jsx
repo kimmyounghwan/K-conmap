@@ -53,7 +53,7 @@ function Blocks({ blocks }) {
     if (b.t === 'table') {
       return (
         <div className="fscroll" key={i}>
-          <table className="ctab">
+          <table className={'ctab' + (b.fit ? ' fit' : '')}>
             <thead><tr>{b.cols.map((c, j) => <th key={j}>{c}</th>)}</tr></thead>
             <tbody>{b.rows.map((r, j) => <tr key={j}>{r.map((c, k) => <td key={k}>{md(c)}</td>)}</tr>)}</tbody>
           </table>

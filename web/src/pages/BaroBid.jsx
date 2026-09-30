@@ -63,7 +63,7 @@ function GuideLink({ slug }) {
 function GuideBox() {
   return (
     <div className="card guidebox">
-      <div className="detail-h">📚 입찰 알아보기 <span className="count">· 개찰 1만여 건을 직접 재서 쓴 글</span></div>
+      <div className="detail-h">📚 입찰 알아보기 <span className="count">· 개찰 자료를 직접 재서 쓴 글</span></div>
       {GUIDE_NAV.map((g) => (
         <Link className="row rowlink" to={`/guide/${g.slug}`} key={g.slug}>
           <span className="fic">{g.ic}</span>
@@ -195,6 +195,7 @@ function ScenTable({ sc, amtLabel, pctile, realNote }) {
       </div>
       <div className="note sm" style={{ margin: '0 0 8px' }}>
         사정률은 투찰 <b>뒤에</b> 추첨됩니다. «{amtLabel}»은 그대로고 하한만 움직입니다 — 통과·실격은 그날 추첨이 정합니다.
+        <GuideLink slug="sajeongryul" />
       </div>
       <div className="scrow shd">
         <span>사정률</span><span>그때의 최저가</span><span>{amtLabel}과</span><span>결과</span>
@@ -1832,6 +1833,8 @@ export default function BaroBid() {
                 {ll.given ? ' · 이 공고에 실제로 적힌 값입니다.'
                   : ' · 일반공사 적격심사 기준으로 추정한 값입니다. 공고서를 꼭 확인하세요.'}
               </div>
+              <GuideLink slug="nakchal-hahanyul" />
+              {a > 0 && <GuideLink slug="a-value" />}
             </div>
           )}
 
@@ -2167,6 +2170,7 @@ export default function BaroBid() {
             경쟁업체 투찰 자료가 없어 실제 승률은 검증값보다 낮을 수 있습니다.
             나라장터에 넣기 전에 공고서의 기초금액 · A값 · 적격심사 기준을 반드시 확인하세요.
             <GuideLink slug="bid-price" />
+            <GuideLink slug="tuchal-rate" />
           </div>
         </>
       )}
