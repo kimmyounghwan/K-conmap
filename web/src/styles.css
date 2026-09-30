@@ -3354,6 +3354,29 @@ ul.plainlist li { margin-bottom: 5px; }
 .fbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; }
 .fbar > .amtbar { display: contents; }
 .fbar .amtbox { order: 10; margin-top: 2px; }
+/* ▦ 지역 알약 + 금액 줄을 «한 흐름» 으로 (2026-09-30, 소장님 「빈 공간 활용을 해줘. 제주를 위로 올리면 좀 좋지 않아?」)
+   넓은 화면에서 제주 하나만 둘째 줄에 떨어지고 오른쪽이 텅 비었습니다. 넓은 화면(620px~)에서만:
+   · .chips · .fbar 를 display:contents 로 풀어 단추가 한 줄에 이어 섭니다 → 남는 자리에 금액 · 공동도급 · 유형이 들어감
+   · 지역 알약 옆 여백 12→10px — 1150px 폭에서 제주까지 첫 줄에 섭니다
+   · 펼친 칸(.amtbox)은 위 order:10 그대로 → 단추들 «아래» 에 폭 가득
+   ⚠️ [hidden](담은 공고 보기)은 :not([hidden]) 로 지킵니다 — display:contents 가 hidden 을 이겨 버립니다.
+   📱 손전화(620px 아래)는 그대로 — 지역은 옆으로 미는 한 줄, 그 아래 금액 줄. */
+@media (min-width: 620px) {
+  .fline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 10px; padding-top: 2px; }
+  .fline > .chips:not([hidden]), .fline > .fbar { display: contents; }
+  .fline > .chips .chip { padding-left: 10px; padding-right: 10px; }
+}
+/* ⚠️ .chips{display:flex} 가 hidden 속성을 이겨, «⭐ 담은 공고» 에서도 지역 알약이 보이고 있었습니다(2026-09-30 확인). */
+.chips[hidden] { display: none; }
+/* 📱 금액 · 공동도급 · 유형 · 면허를 «한 줄» 에 (2026-09-30, 소장님 「면허 다시 고르기도 유형 옆에 두면 안돼?」 「폰에서」)
+   전에는 «🪪 면허 다시 고르기»(135px)가 셋째 줄에 혼자 떨어졌습니다.
+   → 손전화에서는 «🪪 면허» 로 줄이고(.lg 숨김) 이 줄 단추의 좌우 여백 12→8px · 사이 6→5px.
+     실측(모의 빌드): 360 · 375 · 390 · 412px 모두 한 줄. 펼친 칸 안 알약(.amtbox)은 그대로. */
+@media (max-width: 520px) {
+  .fbar { gap: 5px; }
+  .fbar > .chip, .fbar > .amtbar > .chip { padding-left: 8px; padding-right: 8px; }
+  .fbar .lg { display: none; }
+}
 .amtbox {
   flex: 1 0 100%; margin-top: 8px; padding: 11px 12px;
   border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2, var(--surface));

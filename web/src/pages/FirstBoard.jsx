@@ -114,14 +114,24 @@ export default function FirstBoard() {
         style={{ marginBottom: 10 }}
       />
 
-      <div className="chips">
-        <button className={'chip' + (mine ? ' on' : '')}
-          onClick={() => (lics.length ? setMine(!mine) : setEditLic(true))}>
-          ✨ 내 면허 맞춤{lics.length ? ` (${lics.length})` : ''}
-        </button>
-        {REGIONS.map((r) => (
-          <button key={r} className={'chip' + (region === r ? ' on' : '')} onClick={() => setRegion(r)}>{r}</button>
-        ))}
+      {/* ▦ 빈 곳 쓰기 (2026-09-30, 소장님 「빈 공간 활용을 해줘. 제주를 위로 올리면 좀 좋지 않아?」) — LiveBoard 와 같은 .fline.
+          넓은 화면: 제주가 첫 줄 · «면허 다시 고르기» 가 따로 한 줄을 차지하지 않고 지역 알약 뒤 남는 자리에.
+          📱 손전화: 지역은 옆으로 미는 한 줄 · 그 아래 면허 단추(전과 같은 자리). */}
+      <div className="fline">
+        <div className="chips">
+          <button className={'chip' + (mine ? ' on' : '')}
+            onClick={() => (lics.length ? setMine(!mine) : setEditLic(true))}>
+            ✨ 내 면허 맞춤{lics.length ? ` (${lics.length})` : ''}
+          </button>
+          {REGIONS.map((r) => (
+            <button key={r} className={'chip' + (region === r ? ' on' : '')} onClick={() => setRegion(r)}>{r}</button>
+          ))}
+        </div>
+        {!editLic && lics.length > 0 && (
+          <div className="fbar">
+            <button className="chip" onClick={() => setEditLic(true)}>🪪 면허 다시 고르기</button>
+          </div>
+        )}
       </div>
 
       {(editLic || (mine && !lics.length)) && (
@@ -167,12 +177,6 @@ export default function FirstBoard() {
           <button className="btn" style={{ marginTop: 10 }}
             onClick={() => { setEditLic(false); setMine(lics.length > 0) }}>완료</button>
         </div>
-      )}
-
-      {!editLic && lics.length > 0 && (
-        <button className="btn ghost sm" style={{ marginBottom: 8 }} onClick={() => setEditLic(true)}>
-          면허 다시 고르기
-        </button>
       )}
 
       <RangeBar info={info} loaded={all.length} done={done} busy={busy} filtering={filtering} count={count} />

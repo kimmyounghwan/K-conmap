@@ -361,6 +361,12 @@ export default function LiveBoard() {
           placeholder="공고명 · 발주기관 검색" style={{ marginBottom: 10 }} />
       )}
 
+      {/* ▦ 빈 곳 쓰기 (2026-09-30, 소장님 「빈 공간 활용을 해줘. 제주를 위로 올리면 좀 좋지 않아?」)
+          넓은 화면에서 지역 알약이 한 줄을 조금 넘쳐 «제주» 하나만 둘째 줄에 떨어지고, 그 오른쪽이 텅 비었습니다.
+          → .fline 이 지역 알약(.chips)과 금액 · 공동도급 · 유형 줄(.fbar)을 «한 흐름» 으로 잇습니다(620px 넘을 때만 · CSS).
+            남는 자리에 금액 · 공동도급 단추가 들어가고, 지역 알약 옆 여백을 조금 줄여 제주가 첫 줄에 섭니다.
+          📱 손전화(620px 아래)는 그대로 — 지역은 옆으로 미는 한 줄, 그 아래 금액 줄. */}
+      <div className="fline">
       <div className="chips" hidden={bagMode}>
         <button className={'chip' + (mine ? ' on' : '')}
           onClick={() => (lics.length ? setMine(!mine) : setEditLic(true))}>
@@ -382,11 +388,13 @@ export default function LiveBoard() {
           <AmtBar amt={amt} setAmt={(v) => { setAmt(v); saveAmt(v) }} />
           <공동거르개 값={공동거름} set값={set공동거름} 우리지역={우리지역} set우리지역={set우리지역} />
           <유형거르개 값={유형} set값={set유형} 건수={pick ? null : info?.tags} />
+          {/* 📱 손전화에서는 «🪪 면허» 로 줄여 유형 옆 같은 줄에 (2026-09-30, 소장님 「면허 다시 고르기도 유형 옆에 두면 안돼?」 「폰에서」) */}
           {!editLic && lics.length > 0 && (
-            <button className="chip" onClick={() => setEditLic(true)}>🪪 면허 다시 고르기</button>
+            <button className="chip" onClick={() => setEditLic(true)}>🪪 면허<span className="lg"> 다시 고르기</span></button>
           )}
         </div>
       )}
+      </div>
 
       {!bagMode && (editLic || (mine && !lics.length)) && (
         <div className="card">
