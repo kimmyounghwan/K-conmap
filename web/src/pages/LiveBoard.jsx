@@ -27,6 +27,10 @@ import { use남김 } from '../lib/길기록.js'
 /* 🤝 공동도급 (2026-09-27) — 판정은 lib/공동.js 한 곳, 그리기는 공동칸.jsx */
 import { 공동판정, load우리지역, save우리지역 } from '../lib/공동.js'
 import { 공동딱지, 공동칸, 공동거르개 } from '../공동칸.jsx'
+/* 🏷 유형 거르개 · 🏛 기관 최근 사정률 · 📋 공고 자세히 (2026-09-30 — 입찰나라에서 가져온 것, /notice 화면과 같이 씀) */
+import { 유형거르개, 유형맞나, 유형딱지 } from '../유형칸.jsx'
+import 기관사정률 from '../기관사정률.jsx'
+import { 입찰일정, 투찰조건, 공고첨부 } from '../공고자세히.jsx'
 
 /* ══════════════════════════════════════════════════════════════
    «바로투찰» 버튼은 계산이 되는 공고에만 답니다.
@@ -40,15 +44,7 @@ import { 공동딱지, 공동칸, 공동거르개 } from '../공동칸.jsx'
    ══════════════════════════════════════════════════════════════ */
 /* stamp14 · nowStamp · canBid 는 bidmath.js 로 옮겼습니다 (바로투찰 첫 화면과 공유) */
 
-/* 붙임 파일 정렬·뱃지용 갈래.
-   ⚠️ collect.py 의 NAEYEOK_KIND 와 같은 낱말을 씁니다. 한쪽만 고치면
-      목록(/change/naeyeok)과 카드가 다른 말을 하게 됩니다. */
-function docRank(nm) {
-  const n = String(nm || '')
-  if (/설계내역|단가산출|일위대가/.test(n)) return 0   // 단가가 들어 있습니다
-  if (/내역|수량산출/.test(n)) return 1
-  return 2
-}
+/* 붙임 파일 갈래(docRank)는 공고자세히.jsx 로 옮겼습니다 — /notice 화면과 같이 씁니다 (2026-09-30) */
 
 const PAGE = 20
 
@@ -110,6 +106,8 @@ export default function LiveBoard() {
   const [docOnly, setDocOnly] = use남김('kcm.live.doc', false, 'session')   // 단가 든 내역서가 붙은 공고만
   /* 🤝 공동도급 거르기 — '' 끔 · 'all' 공동 되는 공고 · 'need' 단독은 안 되고 공동이면 되는 공고 */
   const [공동거름, set공동거름] = use남김('kcm.live.jnt', '', 'session')
+  /* 🏷 유형 거르기 — [비트 …] (음수는 빼기). 유형칸.jsx 의 유형맞나 한 곳에서 판정합니다 */
+  const [유형, set유형] = use남김('kcm.live.tag', [], 'session')
   const [우리지역, set우리지역Raw] = useState(load우리지역)
   const set우리지역 = (v) => { set우리지역Raw(v); save우리지역(v) }
   const 나 = useMemo(() => ({ 지역: 우리지역, 면허: lics }), [우리지역, lics])
@@ -190,7 +188,7 @@ export default function LiveBoard() {
   }
 
   const 첫 = useRef(true)   /* 처음 그릴 때는 남긴 쪽을 지우지 않습니다 */
-  useEffect(() => { if (첫.current) { 첫.current = false; return } setPage(1) }, [region, q, mine, lics, licNone, onlyGood, docOnly, mode, sortBy, fewOnly, amt, 공동거름, 우리지역])   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (첫.current) { 첫.current = false; return } setPage(1) }, [region, q, mine, lics, licNone, onlyGood, docOnly, mode, sortBy, fewOnly, amt, 공동거름, 우리지역, 유형])   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { saveLicCodes(lics) }, [lics])
   useEffect(() => { saveLicNone(licNone) }, [licNone])
 
@@ -204,6 +202,7 @@ export default function LiveBoard() {
         base/lo/hi 는 「해볼 만한 공고만」 등급이 쓰고, lic 은 면허 거르기가 씁니다
         (2026-09-05 — 전에는 공고명 낱말로 «추측» 해서 정확도가 15.7% 였습니다). */
   const filtering = q.trim().length > 0 || region !== '전국' || mine || onlyGood || docOnly || !!amt || !!공동거름
+    || (Array.isArray(유형) && 유형.length > 0)
   /* 💰 금액을 몰라서 못 거른 공고를 «셉니다». 화면이 정직하게 적습니다.
      ⚠️ ref 인 까닭: match 는 useBoard 가 색인을 훑을 때 불립니다. 여기서 setState 를 하면
         훑는 중에 다시 그리기가 돌아 무한히 돕니다. 세기만 하고, 다 센 뒤에 한 번 읽습니다. */
@@ -213,9 +212,10 @@ export default function LiveBoard() {
     const s = q.trim()
     모름수.current = 0
     return (a) => {
-      const [name, inst, base, lo, hi, lic, sido, dsn, est, jnt] = a
+      const [name, inst, base, lo, hi, lic, sido, dsn, est, jnt, tg] = a
       if (!inRegion({ name, inst, sido }, region)) return false
       if (공동거름 && !공동맞나({ jnt: jnt || 0 })) return false
+      if (유형.length && !유형맞나(tg, 유형)) return false
       if (s && !((name || '').includes(s) || (inst || '').includes(s))) return false
       if (mine && lics.length && !licHit(lic, lics, licNone)) return false
       if (docOnly && !(dsn >= 2)) return false
@@ -229,7 +229,7 @@ export default function LiveBoard() {
       if (ok === null) { 모름수.current += 1; return false }
       return ok
     }
-  }, [filtering, q, region, mine, lics, licNone, onlyGood, docOnly, amt, 공동거름, 나])   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filtering, q, region, mine, lics, licNone, onlyGood, docOnly, amt, 공동거름, 나, 유형])   // eslint-disable-line react-hooks/exhaustive-deps
 
   const { info, rows: all, pageRows, pageReady, total, indexReady, loading, busy } =
     useBoard('live', KIND, { match: pick ? null : match, page, perPage: PAGE })
@@ -260,6 +260,7 @@ export default function LiveBoard() {
       if (mine && lics.length && !licHit(r.lic, lics, licNone)) continue
       if (docOnly && !((r.dsn || 0) >= 2)) continue
       if (!공동맞나(r)) continue
+      if (!유형맞나(r.tg, 유형)) continue
       if (onlyGood) {
         const g = winGrade(r)
         if (!g || (g.key !== 'A' && g.key !== 'B')) continue
@@ -279,7 +280,7 @@ export default function LiveBoard() {
     else if (sortBy === 'ev') out.sort((a, b) => evOf(b) - evOf(a) || rateOf(b) - rateOf(a))
     else out.sort((a, b) => stamp14(a.close).localeCompare(stamp14(b.close)))
     return out
-  }, [pick, idx, q, region, mine, lics, licNone, onlyGood, docOnly, fewOnly, amt, sortBy, p50, now, 공동거름, 나])   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pick, idx, q, region, mine, lics, licNone, onlyGood, docOnly, fewOnly, amt, sortBy, p50, now, 공동거름, 나, 유형])   // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ⭐ 담은 공고 — 담은 것은 공고번호뿐이라 여기서 bidindex 로 다시 찾습니다.
      마감이 지난 것은 지우지 않고 «마감됨» 으로 남겨 둡니다 — 조용히 사라지면 사용자가 알 수 없습니다. */
@@ -380,6 +381,7 @@ export default function LiveBoard() {
         <div className="fbar">
           <AmtBar amt={amt} setAmt={(v) => { setAmt(v); saveAmt(v) }} />
           <공동거르개 값={공동거름} set값={set공동거름} 우리지역={우리지역} set우리지역={set우리지역} />
+          <유형거르개 값={유형} set값={set유형} 건수={pick ? null : info?.tags} />
           {!editLic && lics.length > 0 && (
             <button className="chip" onClick={() => setEditLic(true)}>🪪 면허 다시 고르기</button>
           )}
@@ -554,6 +556,7 @@ export default function LiveBoard() {
                   <span>·</span>
                   <span>{dateTime(r.dt)}</span>
                   {dd && <span className={'badge ' + dd.tone}>{dd.text}</span>}
+                  <유형딱지 r={r} />
                   {/* ★ 「해볼 만한가」 등급 — 목록에서 바로 보이게.
                       승률을 가르는 건 우리 계산이 아니라 그 공고의 성격입니다(실측 45배 차이).
                       아침에 A 등급만 훑어보실 수 있게 하려는 것입니다. */}
@@ -717,50 +720,20 @@ export default function LiveBoard() {
                       </div>
                     )}
 
-                    <div className="kv2">
-                      {r.main && <div><span>주공종</span><b>{r.main}</b></div>}
-                      {r.site && <div><span>공사지역</span><b>{r.site}</b></div>}
-                      {r.pmth && <div><span>예정가격</span>
-                        <b>{r.pmth}{r.ptot ? ` · ${r.ptot}개 중 ${r.pdrw}개 추첨` : ''}</b></div>}
-                      {r.kind && <div><span>공고종류</span><b>{r.kind}</b></div>}
-                      {r.mthd && <div><span>계약방법</span><b>{r.mthd}</b></div>}
-                      {r.swin && <div><span>낙찰방법</span><b>{r.swin}</b></div>}
-                      {r.rgn && <div><span>참가지역</span><b>{r.rgn}</b></div>}
-                      {r.ind && <div><span>참가업종</span><b>{r.ind}</b></div>}
-                      {r.joint && <div><span>공동수급</span><b>{r.joint}</b></div>}
-                      {r.rebid && <div><span>재입찰</span><b>{r.rebid === 'Y' ? '허용' : '불허'}</b></div>}
-                      {r.dmnd && <div><span>수요기관</span><b>{r.dmnd}</b></div>}
-                      {(r.ofcl || r.tel) && (
-                        <div><span>담당</span><b>{[r.ofcl, r.tel].filter(Boolean).join(' · ')}</b></div>
-                      )}
+                    {/* 🏛 이 기관 최근 사정률 — 펼쳤을 때만 받습니다(몇 KB). 권장 금액 바로 아래 — «이 기관은 어디쯤 나오나» */}
+                    <기관사정률 inst={r.inst} />
 
-                      <div><span>공고번호</span><b>{r.no}{r.ord ? `-${r.ord}` : ''}</b></div>
-                    </div>
+                    {/* 📅 입찰 일정 — 위 표에 입찰마감 · 개찰일시가 있으니 그 밖의 날짜만 (참가자격 등록 마감 · 제출 시작) */}
+                    <입찰일정 r={r} 뺄칸={['dt', 'close', 'openg']} />
+
+                    {/* 🧾 투찰 조건 — /notice 화면과 같은 칸(공고자세히.jsx) */}
+                    <투찰조건 r={r} />
 
                     {/* 🤝 공동도급 — 공동이 되는 공고에만 그립니다 */}
                     <공동칸 r={r} 나={나} />
 
-                    {/* 공고문 첨부 — 조달청이 준 이름·주소 그대로입니다.
-                        2026-09-05: 내역서를 갈래로 갈라 앞으로 올리고 뱃지를 붙였습니다.
-                        «설계내역서» 에는 발주처 설계 단가가 들어 있어 가장 값어치가 큽니다. */}
-                    {(r.docs || []).length > 0 && (
-                      <div className="docs">
-                        <div className="h">
-                          공고문 첨부 <em>{r.docs.length}개 · 나라장터에서 바로 받습니다</em>
-                        </div>
-                        {[...r.docs]
-                          .map((d, i) => [d, docRank(d[0]), i])
-                          .sort((a, b) => a[1] - b[1] || a[2] - b[2])
-                          .map(([[nm, u], rk]) => (
-                            <a key={u} href={u} target="_blank" rel="noreferrer"
-                              className={'doc' + (rk === 0 ? ' hot' : '')}>
-                              <span className="di">{rk === 0 ? '💰' : rk === 1 ? '📑' : '📄'}</span>
-                              <span className="dn">{nm}</span>
-                              {rk === 0 && <b className="dtag">단가 있음</b>}
-                            </a>
-                          ))}
-                      </div>
-                    )}
+                    {/* 📎 공고문 첨부 — 조달청이 준 이름·주소 그대로(공고자세히.jsx) */}
+                    <공고첨부 r={r} />
 
                     <a className="btn ghost sm" style={{ width: '100%', marginTop: 10 }}
                       href={r.url || 'https://www.g2b.go.kr'} target="_blank" rel="noreferrer">

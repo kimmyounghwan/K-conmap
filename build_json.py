@@ -57,6 +57,14 @@ CHUNK = 50
 MIN_ROWS = 2         # 이보다 적으면 통계가 무의미해서 상세를 만들지 않음
 HIST_TOP = 30        # 히스토그램은 상위 구간만 (파일 크기 방어)
 CASES = 3            # 최근 사례 보관 건수
+SJR_N = 8            # 🏛 공고 화면 «이 기관 최근 사정률» 건수 (2026-09-30)
+SJR_NAME = 22        #    그 공고명 길이
+SJR_BUCKETS = 64     #    통 개수 — 화면 lib/기관사정률.js 와 같아야 합니다
+
+
+def sjr_bucket(name):
+    """기관 이름 → 통 번호. 화면(lib/기관사정률.js 통번호)과 같은 셈 — 글자 번호 합 % 64."""
+    return sum(ord(ch) for ch in str(name)) % SJR_BUCKETS
 CORP_MIN_SPLIT = 1   # 법인 단위로 따로 만들 최소 표본
 #   🚨 2026-09-16 — 2 였습니다. 그래서 1건짜리 법인은 칸이 «안 만들어졌는데»
 #      이름 칸의 법인 목록에는 「이 법인만 보기 →」 단추가 그대로 떴습니다.
@@ -457,6 +465,7 @@ def build_agency(df):
     # (예전에는 get_group 을 1만 번 넘게 불렀는데, 그때마다 전체를 다시 훑어
     #  기관 수가 늘수록 급격히 느려지고 중간에 멈추기도 했다)
     agg = {}
+    sjr = {}                     # 🏛 기관 → 최근 사정률 (공고 화면용 — agency/sjr/{통}.json)
     for name, g in df[df["발주기관"] != ""].groupby("발주기관", sort=False):
         n = len(g)
         rates = [r for r in g["rate"].tolist() if r is not None and not pd.isna(r)]
@@ -486,6 +495,21 @@ def build_agency(df):
                    "max": amts_s[-1], "med": amts_s[len(amts_s) // 2]}
 
         recent = g.sort_values("dt", ascending=False).head(CASES)
+        # 🏛 최근 사정률 (공고 화면용 · 2026-09-30) — 사정률을 아는 개찰만 최신 SJR_N건
+        _sjg = g[g["sj"].notna()] if "sj" in g.columns else g.iloc[0:0]
+        if len(_sjg):
+            _sjg = _sjg.sort_values("dt", ascending=False)
+            sjr[name] = {
+                "n": int(len(_sjg)),
+                "med": round(float(_sjg["sj"].median()), 3),
+                "c": [[
+                    (r["dt"].strftime("%y%m%d") if pd.notna(r["dt"]) else ""),
+                    round(float(r["sj"]), 3),
+                    (round(float(r["rate"]), 3) if r["rate"] is not None and not pd.isna(r["rate"]) else None),
+                    (int(r["np"]) if ("np" in _sjg.columns and r["np"] is not None and not pd.isna(r["np"])) else None),
+                    str(r["공고명"])[:SJR_NAME],
+                ] for _, r in _sjg.head(SJR_N).iterrows()],
+            }
         cases = [[
             (str(r["공고명"])[:NAME_CUT]),
             (r["dt"].strftime("%Y-%m-%d") if pd.notna(r["dt"]) else ""),
@@ -529,6 +553,24 @@ def build_agency(df):
         written += write_json(f"agency/dat/{i}.json", ch)
     for k, v in idx.items():
         written += write_json(f"agency/idx/{k}.json", v)
+
+    # ══════════════════════════════════════════════════════════════
+    #  🏛 기관 최근 사정률 — 2026-09-30, 소장님: 입찰나라에서 가져올 것 «공고 화면에 이 기관 최근 사정률»
+    #                                    「편리성, 기능성 유지하면서」 · 「핸드폰에서도 편리하게」
+    #  공고 카드를 펼치거나 공고 화면을 열 때 «그 기관 것만» 받게 작은 통 64개로 나눕니다.
+    #      통 번호 = 기관 이름 글자 번호(코드포인트) 합 % 64   ← 화면 lib/기관사정률.js 의 통번호() 와 같은 셈
+    #  기관 전체 묶음(agency/dat · 약 65KB)이나 첫 글자 칸(전 = 57KB)을 받지 않아도 됩니다. 한 통은 몇 KB 입니다.
+    #  한 기관: {n: 사정률 아는 개찰 수, med: 가운데값, c: [[yymmdd, 사정률, 1순위 투찰률, 참가수, 공고명], … 최신 SJR_N건]}
+    #  ⚠️ 사정률은 기초금액이 실린 개찰에서만 역산합니다(예정가격 = 낙찰금액 ÷ 투찰률 → ÷ 기초금액).
+    #     그래서 2026-04 이후 개찰만 있고, 95~105% 밖은 자료 오류로 버린 값입니다(위 «사정률 역산»).
+    #  ⚠️ 64통을 늘 전부 씁니다(빈 통은 {}) — 기관이 빠졌을 때 옛 통이 남아 옛 숫자를 보여 주지 않게.
+    # ══════════════════════════════════════════════════════════════
+    buckets = [{} for _ in range(SJR_BUCKETS)]
+    for nm, v in sjr.items():
+        buckets[sjr_bucket(nm)][nm] = v
+    for i, b in enumerate(buckets):
+        written += write_json(f"agency/sjr/{i}.json", b)
+    log(f"기관 최근 사정률 {len(sjr):,}곳 → agency/sjr {SJR_BUCKETS}통")
 
     # ★ 이름 목록 한 파일 — «첫 글자 칸» 만으로는 못 찾는 것을 위해 (2026-09-04)
     #   소장님: 「광양시라고 하면 발주기관에 안떠. 전라남도를 앞에 붙여야 되더라고」

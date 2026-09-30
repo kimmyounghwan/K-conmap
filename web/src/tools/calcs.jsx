@@ -74,9 +74,32 @@ const A_PARTS = [
   { k: 'reti', n: '퇴직공제부금비', r: 2.30 },
   { k: 'qual', n: '품질관리비', r: 0.70 },
 ]
+/* 📅 2026-09-30 — 요율은 «이용자가 직접 바꾼 칸만» 기억합니다(rate2).
+   전에는 요율 여섯 칸을 통째로 브라우저에 남겨서(rate), 한 번 연 사람은 기본값을 고쳐도(국민연금 2.49 → 2.63)
+   옛 값을 계속 봤습니다. 이제 안 바꾼 칸은 늘 새 기본값입니다.
+   옛 저장(rate)에서 «그때 기본값과 다른 칸» 만 건져 옮깁니다 — 손으로 고친 값은 잃지 않습니다. */
+const A_OLD_DEF = { pens: '2.49' }            // 바꾸기 전 기본값(나머지는 지금과 같음)
+function A덮어건지기(old) {
+  const out = {}
+  if (!old || typeof old !== 'object') return out
+  for (const p of A_PARTS) {
+    const v = old[p.k]
+    if (v == null || v === '') continue
+    const 그때 = A_OLD_DEF[p.k] ?? String(p.r)
+    if (String(v) !== 그때 && String(v) !== String(p.r)) out[p.k] = String(v)
+  }
+  return out
+}
 export function AValue({ ex = {} }) {
   const [base, setBase] = use칸('base', ex.base ?? '')
-  const [rate, setRate] = use칸('rate', () => Object.fromEntries(A_PARTS.map((p) => [p.k, String(p.r)])))
+  const [old] = use칸('rate', null)
+  const [덮어, set덮어] = use칸('rate2', () => A덮어건지기(old))
+  const rate = Object.fromEntries(A_PARTS.map((p) => [p.k, 덮어 && 덮어[p.k] != null ? 덮어[p.k] : String(p.r)]))
+  const setRate = (next) => {
+    const o = {}
+    for (const p of A_PARTS) if (next[p.k] !== String(p.r)) o[p.k] = next[p.k]
+    set덮어(o)
+  }
   const b = num(base)
   const parts = A_PARTS.map((p) => ({ ...p, amt: b * num(rate[p.k]) / 100 }))
   const total = parts.reduce((s, p) => s + p.amt, 0)

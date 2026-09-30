@@ -227,8 +227,11 @@ def finish(name, rows, book, enp_map):
             j = C.jnt_of(r)
             if j:
                 x["jnt"] = j
+            t = C.tag_of(r)          # 🏷 공고 유형 비트 — 정기 색인(export_board)과 같은 칸 · 같은 함수
+            if t:
+                x["tg"] = t
             x["_ix"] = [r.get("name") or "", r.get("inst") or "", int(r.get("base") or 0),
-                        r.get("lo"), r.get("hi"), codes, sido, C.doc_flag(r), est_of(r), j]
+                        r.get("lo"), r.get("hi"), codes, sido, C.doc_flag(r), est_of(r), j, t]
         x["_new"] = 1
         out.append(x)
     return out

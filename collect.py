@@ -1012,6 +1012,9 @@ def row_live(item):
         "est": to_int(pick(item, "presmptPrce", "presmptPrceAmt") or 0),   # 추정가격
         "close": str(item.get("bidClseDt", "") or "").strip(),
         "openg": txt("opengDt"),                        # 개찰 일시
+        # 📅 입찰 일정 (2026-09-30 — 입찰나라처럼 공고 화면에 일정을 한눈에). 비어 오면 화면에서 그 줄만 빠집니다.
+        "bbgn": txt("bidBeginDt"),                      # 입찰서 제출 시작
+        "qreg": txt("bidQlfctRgstDt"),                  # 입찰참가자격 등록 마감
         "kind": txt("ntceKindNm"),                      # 공고종류(일반/긴급/재공고)
         "mthd": txt("cntrctCnclsMthdNm", "bidMethdNm"), # 계약방법
         "swin": txt("sucsfbidMthdNm"),                  # 낙찰자 결정방법
@@ -1269,6 +1272,65 @@ def jnt_of(r):
                     rlim.append(ab)
     return [m, r.get("jdrs") or [], r.get("jdrt") or 0, r.get("licg") or [],
             rlim, r.get("jagr") or "", 1 if r.get("jrgl") == "Y" else 0]
+
+
+# ══════════════════════════════════════════════════════════════════
+#  🏷 공고 유형 태그 — 2026-09-30, 소장님: 입찰나라에서 가져올 것 «공고유형 태그 거르개»
+#                                  「편리성, 기능성 유지하면서」 · 「핸드폰에서도 편리하게」
+#
+#  태그 이름 · 비트 · 무리는 web/src/data/공고유형.json 한 곳에 있습니다(화면과 같은 파일).
+#  여기서는 «어느 공고에 어느 태그를 붙이나» 규칙만 적습니다 — 조달청이 준 칸 그대로 봅니다.
+#      공고종류 ntceKindNm → kind   계약방법 → mthd   낙찰방법 → swin
+#      지역제한 판단기준 → rgnb     A값 적용 → ayn · aval   예정가격 결정방법 → pmth
+#  «긴급» 만 공고명에서 봅니다(조달청이 따로 주는 칸이 없습니다). 화면에도 «긴급» 이라고만 적습니다.
+#  ⚠️ 규칙이 없는 태그가 JSON 에 있으면 여기서 바로 멈춥니다 — 조용히 0 으로 두면 화면이 «0건» 을 보여 줍니다.
+#  ⚠️ 색인 · bidindex · 빠른 길(fast.py) 세 곳이 이 함수 하나를 부릅니다.
+# ══════════════════════════════════════════════════════════════════
+_TAG_RULE = {
+    "re":        lambda r: str(r.get("kind") or "") == "재공고",
+    "chg":       lambda r: str(r.get("kind") or "") == "변경공고",
+    "cancel":    lambda r: str(r.get("kind") or "") == "취소공고",
+    "urgent":    lambda r: "긴급" in str(r.get("name") or ""),
+    "suui":      lambda r: str(r.get("mthd") or "").startswith("수의"),
+    "limit":     lambda r: str(r.get("mthd") or "").startswith("제한경쟁"),
+    "open":      lambda r: str(r.get("mthd") or "").startswith("일반경쟁"),
+    "nominate":  lambda r: str(r.get("mthd") or "").startswith("지명경쟁"),
+    "jeokgyeok": lambda r: str(r.get("swin") or "").startswith("적격심사"),
+    "lowest":    lambda r: ("최저가" in str(r.get("swin") or "")) or ("하한율" in str(r.get("swin") or "")),
+    "quote":     lambda r: str(r.get("swin") or "").startswith(("수의시담", "소액수의견적")),
+    "region":    lambda r: bool(str(r.get("rgnb") or "").strip()),
+    "aval":      lambda r: str(r.get("ayn") or "") == "Y" or int(r.get("aval") or 0) > 0,
+    "single":    lambda r: str(r.get("pmth") or "") == "단일예가",
+}
+
+
+def _load_tags():
+    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web", "src", "data", "공고유형.json")
+    with open(p, encoding="utf-8") as f:
+        d = json.load(f)
+    out = []
+    for g in d.get("무리") or []:
+        for t in g.get("태그") or []:
+            k, b = t["k"], int(t["b"])
+            if k not in _TAG_RULE:
+                raise SystemExit(f"공고유형.json 의 «{t.get('n')}»({k}) 규칙이 collect.py _TAG_RULE 에 없습니다")
+            out.append((b, _TAG_RULE[k]))
+    return out
+
+
+TAGS = _load_tags()
+
+
+def tag_of(r):
+    """공고 한 줄의 유형 비트 합. 아무 태그도 없으면 0."""
+    v = 0
+    for b, rule in TAGS:
+        try:
+            if rule(r):
+                v |= b
+        except Exception:
+            pass
+    return v
 
 
 
@@ -3172,6 +3234,10 @@ def main():
                         j = jnt_of(r)
                         if j:
                             x["jnt"] = j
+                        # 🏷 유형 비트도 사본에만 — 카드의 «재공고 · 변경 · 취소 · 긴급» 딱지가 색인과 같은 재료를 씁니다
+                        t = tag_of(r)
+                        if t:
+                            x["tg"] = t
                 with open(os.path.join(out_dir, f"{name}-{kind}-{i}.json"),
                           "w", encoding="utf-8") as f:
                     json.dump(slim, f, ensure_ascii=False, separators=(",", ":"))
@@ -3273,9 +3339,11 @@ def main():
                             r.get("lo"), r.get("hi"), lic_codes(r), sido_of(r, rbook),
                             doc_flag(r),
                             _est(r),
-                            jnt_of(r)]
+                            jnt_of(r),
+                            tag_of(r)]
                            for r in rows]
-                    fields = ["name", "inst", "base", "lo", "hi", "lic", "sido", "dsn", "est", "jnt"]
+                    # 🏷 tg — 2026-09-30. 공고 유형 비트(tag_of · web/src/data/공고유형.json). 맨 뒤에 붙입니다.
+                    fields = ["name", "inst", "base", "lo", "hi", "lic", "sido", "dsn", "est", "jnt", "tg"]
                 with open(os.path.join(out_dir, f"{name}-{kind}-idx.json"),
                           "w", encoding="utf-8") as f:
                     json.dump({"f": fields, "chunk": BOARD_CHUNK, "r": idx},
@@ -3307,6 +3375,15 @@ def main():
                             rc[g] = rc.get(g, 0) + 1
                 meta[kind]["rgns"] = rc
                 meta[kind]["norgn"] = sum(1 for r in rows if not sido_of(r, rbook))
+                # 🏷 유형 태그별 건수 (공고만) — 화면이 알약 옆에 적고, 0건인 알약은 숨깁니다(눌러도 빈 목록이 되지 않게).
+                if name == "live":
+                    tc = {}
+                    for r in rows:
+                        t = tag_of(r)
+                        for b, _ in TAGS:
+                            if t & b:
+                                tc[str(b)] = tc.get(str(b), 0) + 1
+                    meta[kind]["tags"] = tc
             total += len(rows)
         with open(os.path.join(out_dir, f"{name}.json"), "w", encoding="utf-8") as f:
             json.dump(meta, f, ensure_ascii=False, separators=(",", ":"))
@@ -3822,6 +3899,7 @@ def main():
                 doc_flag(r),                       # 붙임 내역서: 2 단가 있음 · 1 있음 · 0 없음
                 enp_of(r, enp_map)[2],             # 무엇을 보고 짐작했나 (ls/l/is/i) — 화면이 정직하게 적습니다
                 jnt_of(r),                         # 🤝 공동도급 (2026-09-27) — 0 이면 공동 불가
+                tag_of(r),                         # 🏷 공고 유형 비트 (2026-09-30) — 자리 찾기 · 담은 공고도 같은 거르개
             ])
         rows.sort(key=lambda x: re.sub(r"[^0-9]", "", str(x[5])))
         out = {"built": built,
@@ -3829,7 +3907,7 @@ def main():
                      "llr", "est", "lic", "aval", "gmtrl",
                      "ayn", "ptot", "pdrw", "url",
                      "site", "rgnb", "joint", "mthd", "swin", "rebid",
-                     "enp", "enpn", "dt", "sido", "dsn", "enpb", "jnt"],
+                     "enp", "enpn", "dt", "sido", "dsn", "enpb", "jnt", "tg"],
                "pick": pick,
                "r": rows}
         path = os.path.join(OUT, "bidindex.json")

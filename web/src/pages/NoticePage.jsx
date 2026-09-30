@@ -14,6 +14,12 @@ import { pct, won, wonShort, dateFull, estOf } from '../lib/fmt.js'
       다시 붙일 자리가 생길 수 있어서입니다. 지금은 어디서도 부르지 않습니다. */
 import { quickBid, P50_FALLBACK } from '../lib/bidmath.js'
 import { wasBaked } from '../lib/baked.js'
+/* 🏛 기관 최근 사정률 · 📋 투찰 조건 · 일정 · 첨부 — 공고 카드(/live)와 같은 칸 (2026-09-30, 입찰나라에서 가져온 것) */
+import 기관사정률 from '../기관사정률.jsx'
+import { 입찰일정, 투찰조건, 공고첨부 } from '../공고자세히.jsx'
+import { 공동칸 } from '../공동칸.jsx'
+import { load우리지역 } from '../lib/공동.js'
+import { loadLicCodes } from '../lib/lic.js'
 
 /**
  * /notice/{공고번호} — 공고 한 건 / 개찰 결과 한 건.
@@ -168,6 +174,8 @@ function OpenNotice({ r }) {
      ⚠️ 이게 없으면 다이얼로 분위를 바꾼 사람이 보낸 주소가 «다른 금액»을 보여줍니다.
         같은 공고를 두 화면이 다른 숫자로 보여주면 사용자는 둘 다 안 믿습니다 (CLAUDE.md). */
   const qFix = Number(sp.get('q')) || 0
+  /* 🤝 공동도급 판정에 쓰는 «우리 회사» — 공고 목록에서 고른 값을 그대로 (이 브라우저에만 저장) */
+  const 나 = useMemo(() => ({ 지역: load우리지역(), 면허: loadLicCodes() }), [])
   const qb = quickBid(r, ov?.sjq?.p50 ?? P50_FALLBACK, qFix || undefined)
   return (
     <>
@@ -203,6 +211,16 @@ function OpenNotice({ r }) {
           <div className="lics big">{r.lic.map((L) => <span key={L} className="lic on">{L}</span>)}</div>
         </div>
       )}
+      {/* 🏛 이 기관 최근 사정률 — 권장 금액 · 조건 바로 아래 («이 기관은 어디쯤 나오나») */}
+      <기관사정률 inst={r.inst} />
+      {/* 📋 공고 카드(/live)를 펼쳤을 때와 같은 칸 — 검색으로 이 화면에 바로 온 사람도 다 보게 */}
+      <div className="card" style={{ marginTop: 10 }}>
+        <div className="sec-title" style={{ margin: '0 0 6px' }}>🧾 투찰 조건 · 일정</div>
+        <입찰일정 r={r} />
+        <투찰조건 r={r} 번호없이 />
+        <공동칸 r={r} 나={나} />
+        <공고첨부 r={r} />
+      </div>
       <div className="btn-row" style={{ marginTop: 10 }}>
         <Link className="btn" to={`/calc?no=${encodeURIComponent(String(r.no))}`} style={{ flex: 1 }}>
           💰 바로투찰에서 열기 →

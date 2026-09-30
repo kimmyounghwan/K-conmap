@@ -787,6 +787,35 @@ def docs_html(items):
     return "".join(out)
 
 
+# 🏛 기관 최근 사정률 (2026-09-30) — build_json.py 가 낸 agency/sjr/{통}.json 을 한 번만 읽어 둡니다(64통 · 약 0.5MB).
+#    화면(기관사정률.jsx)과 같은 자료 · 같은 숫자. 여기서 다시 셈하지 않습니다.
+_SJR = None
+
+
+def sjr_of(inst):
+    global _SJR
+    if _SJR is None:
+        _SJR = {}
+        d = os.path.join(ROOT, "web", "public", "data", "agency", "sjr")
+        if os.path.isdir(d):
+            for fn in os.listdir(d):
+                if fn.endswith(".json"):
+                    try:
+                        with open(os.path.join(d, fn), encoding="utf-8") as f:
+                            _SJR.update(json.load(f) or {})
+                    except Exception:
+                        pass
+    v = _SJR.get(str(inst or "").strip())
+    return v if v and v.get("c") else None
+
+
+def date_time(s):
+    s = "".join(ch for ch in str(s or "") if ch.isdigit())
+    if len(s) < 8:
+        return None
+    return f"{s[0:4]}-{s[4:6]}-{s[6:8]}" + (f" {s[8:10]}:{s[10:12]}" if len(s) >= 12 else "")
+
+
 def notice_page(shell, r, image=None, L=None, docs=None):
     no = r.get("no")
     nm = str(r.get("name") or no)
@@ -868,6 +897,31 @@ def notice_page(shell, r, image=None, L=None, docs=None):
             ("예가범위", (f"{r.get('lo')}% ~ {r.get('hi')}%"
                        if r.get("lo") is not None and r.get("hi") is not None else None))]
     body += rows_html("📋 공고 조건", rows)
+    # 🧾 투찰 조건 · 📅 입찰 일정 (2026-09-30) — 화면(공고자세히.jsx)과 같은 칸. 조달청이 준 글 그대로, 없는 줄은 안 씁니다.
+    body += rows_html("🧾 투찰 조건", [
+        ("계약방법", r.get("mthd")), ("낙찰방법", r.get("swin")),
+        ("참가지역", r.get("rgn")), ("지역 판단", r.get("rgnb")), ("참가업종", r.get("ind")),
+        ("공동수급", r.get("joint")), ("예정가격", r.get("pmth")),
+        ("주공종", r.get("main")), ("공사지역", r.get("site")),
+    ])
+    if not won:
+        body += rows_html("📅 입찰 일정", [
+            ("공고", date_time(r.get("dt"))),
+            ("참가자격 등록 마감", date_time(r.get("qreg"))),
+            ("입찰서 제출 시작", date_time(r.get("bbgn"))),
+            ("입찰 마감", date_time(r.get("close"))),
+            ("개찰", date_time(r.get("openg"))),
+        ])
+    _sj = sjr_of(inst)
+    if _sj:
+        _c = _sj["c"]
+        _d = round(_sj["med"] - 100, 2)
+        _say = ("기초금액과 거의 같게" if abs(_d) < 0.05
+                else (f"기초금액보다 {_d:.2f}% 높게" if _d > 0 else f"기초금액보다 {abs(_d):.2f}% 낮게"))
+        body += ('<div class="card"><div class="sec-title" style="margin:0 0 6px">🏛 이 기관 최근 사정률</div>'
+                 f'<p style="font-size:13.5px;line-height:1.75;margin:0"><b>{esc(inst)}</b> 개찰 {num(_sj["n"])}건의 사정률 '
+                 f'가운데값은 <b>{_sj["med"]:.2f}%</b> 입니다 — 예정가격이 {_say} 정해지는 편입니다. '
+                 f'최근 {len(_c)}건: ' + ", ".join(f"{x[1]:.2f}%" for x in _c) + '.</p></div>')
     if won:
         body += rows_html("🏆 개찰 결과", [
             ("낙찰업체", won),

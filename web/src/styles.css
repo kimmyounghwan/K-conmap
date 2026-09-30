@@ -5026,3 +5026,60 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 .pb-steps { margin: 10px 0 6px; padding-left: 20px; font-size: 13.5px; line-height: 1.7; }
 .pb-steps li { margin-bottom: 3px; }
 .pb-tips { margin: 6px 0 0; padding: 8px 10px 8px 26px; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--line); font-size: 12.5px; line-height: 1.7; color: var(--text-2); }
+
+/* ══ 2026-09-30 — 입찰나라에서 가져온 것: 🏷 유형 거르개 · 🏛 기관 최근 사정률 · 📅 입찰 일정 ══
+   폰(360px)부터 맞춥니다. 글자 · 단추 크기는 공고 목록의 알약(.chip) · 표(.kv2)와 같게 — 새 크기를 만들지 않습니다. */
+.tagbox .tagg { margin-bottom: 8px; }
+.tagbox .tagg:last-of-type { margin-bottom: 0; }
+.tagbox .tagh { font-weight: 800; margin: 0 0 5px; font-size: 11.5px; }
+.tagbox .tagh span { font-weight: 600; opacity: .8; }
+.tagbox .chips { margin-bottom: 4px; }
+
+.sjr {
+  margin: 10px 0; padding: 10px 12px 9px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--surface);
+}
+.sjr-h { font-size: 12.5px; font-weight: 800; color: var(--text); display: flex; flex-wrap: wrap; gap: 2px 6px; align-items: baseline; }
+.sjr-h span { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.sjr-h span b { color: var(--accent); font-weight: 800; }
+.sjr-g { display: block; width: 100%; max-width: 440px; height: auto; margin: 6px 0 2px; }
+.sjr-g .grid { stroke: var(--line); stroke-width: 1; }
+.sjr-g .b100 { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: .7; }
+.sjr-g .med { stroke: var(--accent); stroke-width: 1.4; opacity: .55; }
+.sjr-g .ln { fill: none; stroke: var(--text-2); stroke-width: 1.2; opacity: .55; }
+.sjr-g circle.up { fill: var(--accent); }
+.sjr-g circle.dn { fill: var(--warn); }
+.sjr-g text { font-size: 9.5px; fill: var(--text-2); font-variant-numeric: tabular-nums; }
+.sjr-g text.ax { text-anchor: end; fill: var(--muted); font-size: 9px; }
+.sjr-g text.vl { text-anchor: middle; font-weight: 700; }
+.sjr-g text.dt { text-anchor: middle; fill: var(--muted); font-size: 9px; }
+.sjr-t { font-size: 12.5px; color: var(--text-2); line-height: 1.5; }
+.sjr-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 6px; font-size: 12px; }
+.sjr-foot a { color: var(--accent); font-weight: 700; text-decoration: none; }
+.sjr-list { margin-top: 6px; border-top: 1px solid var(--line-soft); }
+.sjr-row {
+  display: grid; grid-template-columns: 38px 70px 1fr; gap: 1px 8px; align-items: baseline;
+  padding: 6px 0; border-bottom: 1px solid var(--line-soft); font-size: 12px;
+}
+.sjr-row .d { color: var(--muted); font-variant-numeric: tabular-nums; }
+.sjr-row b { font-variant-numeric: tabular-nums; }
+.sjr-row b.up { color: var(--accent); }
+.sjr-row b.dn { color: var(--warn); }
+.sjr-row .r { color: var(--text-2); font-variant-numeric: tabular-nums; }
+.sjr-row .nm { grid-column: 2 / 4; color: var(--muted); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sjr-list .note { margin-top: 6px; }
+.sjr.none { font-size: 12px; color: var(--text-2); line-height: 1.55; }
+.sjr.none i { font-style: normal; color: var(--muted); }
+.sjr.none a { color: var(--accent); font-weight: 700; text-decoration: none; }
+
+.ilj { margin: 8px 0 6px; }
+.ilj-h { font-size: 11px; font-weight: 800; color: var(--muted); margin-bottom: 3px; }
+.ilj-r {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  padding: 6px 2px; border-bottom: 1px solid var(--line-soft); font-size: 12.5px;
+}
+.ilj-r:last-child { border-bottom: 0; }
+.ilj-r span { width: 112px; flex: none; color: var(--muted); font-size: 11.5px; font-weight: 700; }
+.ilj-r b { font-weight: 700; font-variant-numeric: tabular-nums; }
+.ilj-r em { font-style: normal; }
+.ilj-r.past b { color: var(--muted); font-weight: 600; }
