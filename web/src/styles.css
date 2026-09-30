@@ -5052,11 +5052,22 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 
 /* ══ 2026-09-30 — 입찰나라에서 가져온 것: 🏷 유형 거르개 · 🏛 기관 최근 사정률 · 📅 입찰 일정 ══
    폰(360px)부터 맞춥니다. 글자 · 단추 크기는 공고 목록의 알약(.chip) · 표(.kv2)와 같게 — 새 크기를 만들지 않습니다. */
-.tagbox .tagg { margin-bottom: 8px; }
-.tagbox .tagg:last-of-type { margin-bottom: 0; }
-.tagbox .tagh { font-weight: 800; margin: 0 0 5px; font-size: 11.5px; }
-.tagbox .tagh span { font-weight: 600; opacity: .8; }
-.tagbox .chips { margin-bottom: 4px; }
+/* ▦ 표 모양(2026-09-30 「좀 더 깔끔하게」) — 한 무리 한 줄: 이름 | 알약. 📱 520px 아래는 이름 위 · 알약 한 줄 옆으로 밀기 */
+.tagbox { padding: 4px 12px 8px; }
+.tagbox .tagg { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 4px 10px; padding: 7px 0; }
+.tagbox .tagg + .tagg { border-top: 1px dashed var(--line); }
+.tagbox .tagh { font-size: 12px; font-weight: 800; color: var(--text-2); white-space: nowrap; cursor: default; }
+.tagbox .chips { margin: 0; padding: 1px 0; gap: 5px; }
+.tagbox .chip { padding: 5px 10px; }
+.tagbox .chip.neg { border-style: dashed; color: var(--muted); }
+.tagbox .chip.neg.on { border-style: solid; border-color: var(--bad); background: var(--bad-soft); color: var(--bad); }
+.tagbox .tagfoot { margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 11.5px; line-height: 1.55; color: var(--muted); }
+.tagbox .tgs { display: none; }
+@media (max-width: 520px) {
+  .tagbox .tagg { grid-template-columns: minmax(0, 1fr); gap: 5px; padding: 8px 0; }
+  .tagbox .tgl { display: none; }
+  .tagbox .tgs { display: inline; }
+}
 
 .sjr {
   margin: 10px 0; padding: 10px 12px 9px;
