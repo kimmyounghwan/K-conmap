@@ -212,6 +212,13 @@
         ]
       },
       {
+        "//": "🔄 화면 판 번호 — 폰이 새로 올린 화면인지 견줍니다(src/새판.jsx). 캐시하면 옛 번호를 봅니다",
+        "source": "/version.json",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        ]
+      },
+      {
         "//": "서비스 워커는 절대 캐시하지 않는다 — 캐시되면 새 sw.js 가 영영 안 내려간다 (2026-09-06, 앱 설치용)",
         "source": "/sw.js",
         "headers": [

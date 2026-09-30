@@ -5163,3 +5163,15 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 .xact { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 .xact .btn { width: auto; flex: 1 1 140px; text-align: center; }
 .xmut { font-size: 12px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+
+/* ── 🔄 새로 고친 화면이 있습니다 (2026-09-30 · 새판.jsx) — 적는 칸이 있는 화면에서만 뜨는 한 줄 ── */
+.newver {
+  display: flex; align-items: center; gap: 10px; margin: 10px 0 0; padding: 9px 12px;
+  border: 1px solid var(--accent-line); border-radius: 10px; background: var(--accent-soft);
+  font-size: 13px; font-weight: 700; color: var(--text);
+}
+.newver span { flex: 1; min-width: 0; }
+.newver button {
+  flex: none; border: 0; border-radius: 8px; padding: 7px 12px; cursor: pointer;
+  background: var(--accent); color: #fff; font-weight: 800; font-size: 13px;
+}

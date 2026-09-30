@@ -3949,3 +3949,13 @@ canonical 이중 인코딩 · 개찰 시각 문구 · 성적표 칸 · 등수 �
 - 공고판(/live) — FreshBar 아래 `밖공고줄.jsx` 한 줄(«🏗 나라장터 밖 공고 N건 → »). meta.json 이 0건이면 아무것도 안 그림(첫 수집 전 화면 그대로).
 - `web/firebase.json` rewrites 에 /ext 더함(없으면 주소로 바로 들어오면 404).
 - 시험 `tools/test_extbids.py` 45(날짜 · 금액 · JSON/XML/오류 봉투/NODATA/한도 · 키 지우기 · 기관별 한 줄 · 가짜 get 으로 받기(날짜 모양 다시 보기 · 키 오류 한 번만 · 통신 오류 글 안 남김 · 50분 간격) · 내보내기(용역 빼기 · 마감 지난 것 · 나라장터 겹침 · 참가지역 시도) · --exportonly 는 안 부름). collect.py --exportonly 로 붙인 자리 확인.
+
+### 133. 🔄 새로 올린 화면을 폰이 스스로 받게 — 판 번호 · 새판.jsx (G82 — 2026-09-30, 소장님 「폰에는 유형도 없고, 기관 사정률도 없고 또」)
+- 원인: 사이트에는 G78(유형 · 기관 사정률) · G80 이 다 올라가 있었음(엣지로 새로 열어 확인). 폰이 «예전에 열어 둔 화면» 을 그대로 들고 있었음 — 홈 화면 앱은 끌어내려 새로고침도 없고, 다시 켜도 전 화면. 그래서 «폰엔 없다» 로 보임.
+- 판 번호: vite.config.js 가 web/src + index.html 글(줄 끝 LF 로 맞춤)로 sha1 12자리 `CODE` → 화면 안 `__CODE__` · `dist/version.json` {code, build}. **자료만 새로 굽는 회차에는 안 바뀜**(BUILD 는 회차마다 바뀌어 못 씀). firebase.json `/version.json` no-cache.
+- `새판.jsx`(App 맨 위): 3분 넘게 다른 데 갔다 돌아오면(visibilitychange · pageshow) /version.json 한 번 → 번호가 다르면
+  ① 적는 칸이 없는 화면(/first /live /ext /lic /analysis /daily /notice/ /agency/ /corp/) → 바로 새로 엶(RELOAD_KEY 도장 — Refresh.jsx 와 같음. 지역 · 면허 · 거르개는 브라우저가 기억)
+  ② 그 밖(바로투찰 · 도구 · 서식 · 적산 · 사랑방 …) → 한 줄 «🔄 새로 고친 화면이 있습니다 · 새로 보기» 만. 그 뒤 ①로 옮겨 가면 그때 새로 엶.
+  보는 중엔 저절로 안 엶(처음 20초 · 30분마다 보긴 하지만 한 줄만). 같은 판으로 두 번 새로 열지 않음(sessionStorage kcm_newver_tried — 중간 캐시로 빙빙 돌지 않게).
+- ⚠️ 이 기능이 들어가기 «전» 판을 들고 있는 폰은 한 번은 손으로 🔄 를 눌러야 함.
+- 확인(모의 빌드 · 시계 돌리기): 같은 판 → 아무 일 없음 / 새 판 · /live 4분 숨었다 옴 → 한 번 새로 엶 · 또 안 엶 / 새 판 · /tools → 한 줄만 → /live 로 옮기면 한 번 새로 엶 / 1분만 숨음 → 안 엶. 두 번 빌드해 CODE 같음 · BUILD 다름.

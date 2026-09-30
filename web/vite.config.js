@@ -44,9 +44,38 @@ function pdfjs자료() {
    — 실제로 겪은 문제입니다. 캐시 24시간에 걸려 하루 종일 옛 값을 보여줬습니다. */
 const BUILD = Date.now().toString(36)
 
+/* 🔄 화면 판 번호 (2026-09-30 · src/새판.jsx) — web/src 와 index.html 글이 바뀔 때만 바뀝니다.
+   BUILD 는 자료만 새로 굽는 회차(한 시간쯤마다)에도 바뀌어서 «화면이 바뀌었나» 를 가를 수 없습니다.
+   화면 안(__CODE__)과 dist/version.json 에 같은 번호를 적고, 폰이 둘을 견줘 옛 화면이면 새로 엽니다.
+   줄 끝(CRLF · LF)은 LF 로 맞춰서 셉니다 — 받는 곳마다 줄 끝이 달라도 같은 번호가 나오게. */
+import crypto from 'node:crypto'
+const CODE = (() => {
+  const h = crypto.createHash('sha1')
+  const 걷기 = (d) => fs.readdirSync(d, { withFileTypes: true })
+    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+    .forEach((e) => {
+      const p = path.join(d, e.name)
+      if (e.isDirectory()) return 걷기(p)
+      h.update(path.relative('.', p).split(path.sep).join('/'))
+      h.update(fs.readFileSync(p).toString('latin1').replace(/\r\n/g, '\n'))
+    })
+  try { 걷기(path.resolve('src')); h.update(fs.readFileSync('index.html', 'latin1').replace(/\r\n/g, '\n')) } catch { return '' }
+  return h.digest('hex').slice(0, 12)
+})()
+function 판번호() {
+  let 낼곳 = 'dist'
+  return {
+    name: '판번호',
+    configResolved(c) { 낼곳 = c.build.outDir },
+    closeBundle() {
+      if (CODE) fs.writeFileSync(path.resolve(낼곳, 'version.json'), JSON.stringify({ code: CODE, build: BUILD }))
+    },
+  }
+}
+
 export default defineConfig({
-  define: { __BUILD__: JSON.stringify(BUILD) },
-  plugins: [react(), pdfjs자료()],
+  define: { __BUILD__: JSON.stringify(BUILD), __CODE__: JSON.stringify(CODE) },
+  plugins: [react(), pdfjs자료(), 판번호()],
   build: {
     outDir: 'dist',
     // public/data 는 수천 개 JSON이라 인라인 금지
