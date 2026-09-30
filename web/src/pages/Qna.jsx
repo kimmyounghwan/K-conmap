@@ -21,6 +21,8 @@ import { pinHash } from '../lib/pin.js'
      · uid 로 만드니 **같은 브라우저면 늘 같은 별명** 이고, 남이 흉내 낼 수 없습니다.
      · 그래서 **누가 자주 답해 주는지** 가 게시판에 그냥 보입니다 (기여도). */
 import { nickOf } from '../lib/nickname.js'
+/* 🔔 2026-09-30(G73) 답글 알림 — 올리기를 누른 그 순간 브라우저 기본 «알림 허용» 창(우리 안내창 없음) · lib/알림.js */
+import { 허락묻기, 폰알림켜기, 푸시되나 } from '../lib/알림.js'
 
 /**
  * /qna — 「사랑방」 (2026-09-15, 2026-09-17 게시판 말투 + 이름)
@@ -173,6 +175,9 @@ export default function Qna() {
   /* 🧭 2026-09-27 — 글쓰기 칸도 뒤로가기 한 칸 (lib/길기록.js) */
   const [write, setWrite, 글쓰기닫기] = use화면상태('글쓰기', false)
   const [mine, setMine] = useState(loadMine)
+  /* 🔔 G73 — 글을 쓴 적이 있고, 폰 알림을 아직 «허용/차단» 하지 않은 기기에만 단추 하나 */
+  const [폰켤단추, set폰켤단추] = useState(() => { try { return 푸시되나() && Notification.permission === 'default' && loadMine().length > 0 } catch (e) { return false } })
+  const [폰말, set폰말] = useState('')
   /* 🛠 2026-09-17 — 소장님: 「관리자 페이지 어디에 있지?」
      주소는 /admin 인데 **어디에도 길이 없었습니다.** 외워서 치셔야 했습니다.
      → 운영자 브라우저일 때만 여기에 단추를 답니다. 사랑방이 «답글 달러 오는 자리» 라 제자리입니다.
@@ -615,6 +620,20 @@ export default function Qna() {
           <span className="muted" style={{ marginLeft: 'auto', fontSize: 12.5 }}>눌러서 보기 ▸</span>
         </div>
       )}
+      {/* 🔔 2026-09-30(G73) 이 기능 전에 글을 쓰신 분 — 폰 알림을 켤 단추 하나(누를 때만 브라우저 허용 창). 이미 정했으면 안 보임 */}
+      {폰켤단추 && (
+        <div className="noti-on">
+          <button className="btn sm line" onClick={async () => {
+            const 허락 = 허락묻기()
+            const { r } = await 뿌리찾기()
+            const 결과 = await 폰알림켜기(r, 허락)
+            set폰켤단추(false)
+            set폰말(결과 === 'granted' ? '✅ 켰습니다 — 내 글에 답글이 달리면 폰 알림창에 뜹니다.' : 결과 === 'denied' ? '알림을 막아 두셨습니다 — 사이트 안 🔔 로 알려 드립니다.' : '이 기기는 폰 알림이 안 됩니다 — 사이트 안 🔔 로 알려 드립니다.')
+          }}>🔔 폰 알림 켜기</button>
+          <span className="muted">내 글에 답글이 달리면 폰 알림창에도</span>
+        </div>
+      )}
+      {폰말 && <div className="muted" style={{ fontSize: 12.5, margin: '-2px 0 10px' }}>{폰말}</div>}
 
       {/* ── 단추부터. 규칙은 뒤로 ──────────────────────────────────
           2026-09-17 — 예전에는 여기에 «하세요·하지 마세요» 가 다섯 문단 있었습니다.
@@ -1001,6 +1020,8 @@ function AnswerForm({ qid, onDone }) {
 
   const submit = async () => {
     if (b.trim().length < 2) return setMsg('답글을 적어 주세요.')
+    /* 🔔 누른 그 순간 묻습니다(아이폰 · 파이어폭스는 기다렸다 물으면 거절) — 이미 정했으면 묻지 않음 */
+    const 허락 = 허락묻기()
     setBusy(true); setMsg('')
     try {
       const { ref, set, push, db, ensureAnon } = await loadFb()
@@ -1019,6 +1040,8 @@ function AnswerForm({ qid, onDone }) {
         at: Date.now(),
       })
       setB('')
+      /* 🔔 이 글에 다음 답글이 달리면 나에게도 알림(G73) — 허락한 기기는 폰 알림창까지 */
+      폰알림켜기(r, 허락)
       onDone()
     } catch (e) {
       setMsg('올리지 못했습니다. 잠시 뒤 다시 해 주세요.')
@@ -1074,6 +1097,8 @@ function WriteForm({ onDone, 첫갈래, 첫글, 나운영자 }) {
     /* 🛠 2026-09-27 — 운영자 브라우저는 «지울 4자리» 없이 올립니다(관리자 화면에서 어떤 글이든 지움).
        소장님: 「사랑방에 각각의 도구 사용 방법을 … 게시 해줘」 — 클로드가 대신 올릴 때 비밀번호류를 넣지 않으려고 */
     if (!나운영자 && f.pin.length !== 4) return setMsg('지울 때 쓸 4자리 숫자를 정해 주세요.')
+    /* 🔔 누른 그 순간 브라우저 기본 «알림 허용» 창 — 답글이 달리면 폰 알림창에(G73) */
+    const 허락 = 허락묻기()
     setBusy(true); setMsg('')
     try {
       const { ref, set, push, db, ensureAnon, serverTimestamp } = await loadFb()
@@ -1092,6 +1117,7 @@ function WriteForm({ onDone, 첫갈래, 첫글, 나운영자 }) {
         at: Date.now(),
       })
       addMine(id)
+      폰알림켜기(r, 허락)
       /* 📌 운영자가 «도구 사용법에 고정» 을 골랐으면 — 실패해도 글은 이미 올라갔습니다 */
       if (나운영자 && 고정할) { try { await set(ref(db, `qna_top/${id}`), serverTimestamp()) } catch (e) { /* 글 안에서 다시 꽂으면 됨 */ } }
       try { sessionStorage.removeItem(초안열쇠) } catch (e) { /* 없음 */ }

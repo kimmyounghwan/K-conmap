@@ -43,6 +43,8 @@
  *      · 맨 윗줄에서 그물망을 타거나 파일을 읽지 않습니다
  *   (F2_함수올리기.bat 에 읽는 시간도 넉넉히 늘려 두었습니다) */
 const { onValueCreated } = require('firebase-functions/v2/database')
+/* 🔔 2026-09-30(G73) 사랑방 답글 알림 — 폰 알림(웹 푸시)의 공개 열쇠를 브라우저에 건네는 창구 */
+const { onRequest } = require('firebase-functions/v2/https')
 const { defineSecret } = require('firebase-functions/params')
 
 /* 비밀값 — 지메일 «앱 비밀번호». 콘솔에도 로그에도 찍히지 않습니다 */
@@ -157,6 +159,142 @@ exports.qnaMail = onValueCreated(
       return
     }
     /* ⚠️ 표는 글이 아니라 «따로» 남깁니다 — qna 는 규칙이 딴 이름표를 막습니다 */
-    await 자료().ref(`/qna_mail/${id}`).set({ at: Date.now(), by: 'fn' })
+    /* ⚠️ 2026-09-30 — 깃허브(tools/qna_mail.py)는 «q_{글번호}» 를 봅니다. 전엔 여기서 «{글번호}» 로 적어
+       깃허브가 같은 글을 몇 시간 뒤 한 번 더 보냈습니다. 이름을 맞춥니다(옛 표시도 남겨 둠). */
+    await 자료().ref(`/qna_mail/q_${id}`).set({ at: Date.now(), by: 'fn' })
+  }
+)
+
+
+/* ══════════════════════════════════════════════════════════════════
+   🔔 ③ 사랑방 답글 알림 — 사이트 안 🔔 + 폰 알림창 (2026-09-30, G73)
+
+   소장님: 「답글이 달렸다는 걸 알게 해줘. 내가 답글달면 의무적으로 가게 해줘. 그래야 또 들어와서 확인하지」
+           「사이트 안, 폰 알림창도 뜨게 해줘」 — 회원가입 없이.
+
+   ■ 답글이 달리는 «그 순간» (qna_a/{글}/{답글}) 깨어나서
+     ① 받을 사람 = 글쓴이 + 그 글에 앞서 답글을 단 사람들 − 방금 단 사람 (번호 = 사랑방 uid · 되찾은 기기면 옛 번호 r)
+     ② noti/{번호}/{답글} 에 한 줄 — 사이트 맨 위 🔔 가 이것을 읽습니다(허락 없이 누구나)
+     ③ push/{번호}/* 에 폰 알림 주소가 있으면 웹 푸시 — 글을 올리며 «알림 허용» 을 누른 기기
+     ④ 이용자가 단 답글이면 소장님께 메일(깃허브 10분 예약은 3~5시간씩 늦었습니다) · 표시 qna_mail/a_{답글}
+   ■ 웹 푸시 열쇠(VAPID)는 사람이 만지지 않습니다 — 처음 필요할 때 여기서 만들어 push_keys(읽기 금지)에 두고,
+     공개 열쇠만 pushKey 창구로 건넵니다. 저장소(공개)에 비밀이 들어가지 않습니다.
+   ■ 돈: 답글 하나에 한 번 깨어남 · maxInstances 3 · 푸시는 무료(브라우저 회사의 푸시 서버).
+   ══════════════════════════════════════════════════════════════════ */
+const 푸시옵션 = { region: 'us-central1', maxInstances: 3 }
+
+/* 열쇠 — 없으면 한 번 만들어 둡니다(두 함수가 동시에 만들어도 먼저 넣은 것 하나만 남게 transaction) */
+const 푸시열쇠 = async () => {
+  const d = 자료()
+  const 있 = (await d.ref('/push_keys').get()).val()
+  if (있 && 있.pub && 있.priv) return 있
+  const k = require('web-push').generateVAPIDKeys()
+  const r = await d.ref('/push_keys').transaction((v) => (v && v.pub && v.priv ? v : { pub: k.publicKey, priv: k.privateKey, at: Date.now() }))
+  return r.snapshot.val()
+}
+
+/* 공개 열쇠 창구 — 브라우저가 폰 알림을 켤 때 한 번 받아 갑니다(공개해도 되는 값) */
+exports.pushKey = onRequest({ ...푸시옵션, cors: true }, async (req, res) => {
+  try {
+    const k = await 푸시열쇠()
+    res.set('Cache-Control', 'public, max-age=3600')
+    res.type('text/plain').send(k.pub)
+  } catch (e) {
+    console.error('열쇠 실패:', e && e.message)
+    res.status(500).send('')
+  }
+})
+
+const 자르기 = (s, n) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s }
+
+exports.qnaReplyNotify = onValueCreated(
+  { ...옵션, ref: '/qna_a/{qid}/{aid}' },
+  async (event) => {
+    const a = event.data.val() || {}
+    const { qid, aid } = event.params
+    if (a.deleted) return
+    const d = 자료()
+    const [글s, 답들s] = await Promise.all([d.ref(`/qna/${qid}`).get(), d.ref(`/qna_a/${qid}`).get()])
+    const 글 = 글s.val()
+    if (!글 || 글.deleted) return
+    const 제목 = 자르기(String(글.t || '').replace(/^\[[^\]]{1,8}\]\s*/, ''), 40)
+    const 누가 = a.op ? 'K-건설맵' : (자르기(a.nick, 12) || '이웃')
+
+    /* ① 받을 사람 */
+    const 받는이 = new Set()
+    if (글.uid) 받는이.add(String(글.uid))
+    const 답들 = 답들s.val() || {}
+    for (const [k, x] of Object.entries(답들)) {
+      if (k !== aid && x && !x.deleted && x.uid) 받는이.add(String(x.uid))
+    }
+    if (a.uid) 받는이.delete(String(a.uid))
+
+    /* ② 사이트 안 🔔 — 사람마다 최근 30개만 남깁니다 */
+    const 한줄 = (r) => ({ q: qid, t: 제목, by: 누가, op: !!a.op, mine: String(글.uid) === r, at: Number(a.at) || Date.now() })
+    await Promise.all([...받는이].map(async (r) => {
+      await d.ref(`/noti/${r}/${aid}`).set(한줄(r))
+      const 모두 = (await d.ref(`/noti/${r}`).orderByKey().get()).val() || {}
+      const 키 = Object.keys(모두)
+      if (키.length > 30) {
+        const 뺄 = {}
+        키.slice(0, 키.length - 30).forEach((k) => { 뺄[k] = null })
+        await d.ref(`/noti/${r}`).update(뺄)
+      }
+    }))
+
+    /* ③ 폰 알림 */
+    const 주소들 = []
+    await Promise.all([...받는이].map(async (r) => {
+      const ps = (await d.ref(`/push/${r}`).get()).val() || {}
+      for (const [sid, p] of Object.entries(ps)) if (p && p.s && p.s.endpoint) 주소들.push({ r, sid, s: p.s })
+    }))
+    if (주소들.length) {
+      const wp = require('web-push')
+      const k = await 푸시열쇠()
+      wp.setVapidDetails('https://k-conmap.com', k.pub, k.priv)
+      await Promise.all(주소들.map(async ({ r, sid, s }) => {
+        const 내글 = String(글.uid) === r
+        const 알림 = {
+          title: a.op ? '💬 K-건설맵 답변이 달렸습니다' : '💬 사랑방에 답글이 달렸습니다',
+          body: 내글 ? `올리신 글 「${제목}」 — ${누가}` : `답글을 단 글 「${제목}」 — ${누가}`,
+          url: `/qna/${qid}`,
+          tag: `qna-${qid}`,
+        }
+        try {
+          await wp.sendNotification(s, JSON.stringify(알림), { TTL: 3 * 86400, urgency: 'normal' })
+        } catch (e) {
+          /* 404 · 410 = 그 기기가 알림을 끔(또는 앱을 지움) — 주소를 지웁니다 */
+          if (e && (e.statusCode === 404 || e.statusCode === 410)) await d.ref(`/push/${r}/${sid}`).remove()
+          else console.error('푸시 실패:', e && (e.statusCode || e.message))
+        }
+      }))
+    }
+
+    /* ④ 이용자가 단 답글 → 소장님께 메일 (소장님 본인 답글은 빼고) */
+    if (!a.op) {
+      const 이미 = (await d.ref(`/qna_mail/a_${aid}`).get()).val()
+      if (!이미) {
+        const 본문 = [
+          '사랑방에 새 답글이 달렸습니다.',
+          '',
+          줄('글    ', 글.t),
+          줄('별명  ', a.nick),
+          '',
+          '  답글:',
+          '  ' + (a.b || ''),
+          '',
+          '  글 주소 : https://k-conmap.com/qna/' + qid,
+          '  답은 https://k-conmap.com/admin 에서 다실 수 있습니다.',
+          '',
+          '— K-건설맵 사랑방',
+        ].join('\n')
+        try {
+          await 보내기('[K-건설맵] 사랑방 새 답글 — ' + 자르기(글.t, 40), 본문)
+          await d.ref(`/qna_mail/a_${aid}`).set({ at: Date.now(), by: 'fn' })
+        } catch (e) {
+          console.error('메일 실패:', e && e.message)       /* 표를 안 남기면 깃허브가 그물로 다시 보냅니다 */
+        }
+      }
+    }
   }
 )

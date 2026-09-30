@@ -26,3 +26,34 @@
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()))
 self.addEventListener('fetch', () => { /* 가로채지 않습니다 — 위 설명을 꼭 읽으세요 */ })
+
+/* 🔔 2026-09-30(G73) 사랑방 답글 알림 — 폰 알림창에 띄우고, 누르면 그 글을 엽니다.
+ *   소장님: 「사이트 안, 폰 알림창도 뜨게 해줘」 · 「내가 답글을 쓰면...알림가게 해줘」
+ *   ⚠️ 여기도 fetch 는 건드리지 않습니다(위 설명). push · notificationclick 만 듣습니다.
+ *   보내는 쪽은 web/functions/index.js qnaReplyNotify — {title, body, url, tag} 를 JSON 으로 보냅니다. */
+self.addEventListener('push', (e) => {
+  let d = {}
+  try { d = e.data ? e.data.json() : {} } catch (er) { d = { body: e.data ? e.data.text() : '' } }
+  const title = d.title || '💬 K-건설맵 사랑방'
+  e.waitUntil(self.registration.showNotification(title, {
+    body: d.body || '올리신 글에 답글이 달렸습니다.',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    tag: d.tag || 'kcm-qna',
+    renotify: true,
+    data: { url: d.url || '/qna' },
+  }))
+})
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close()
+  const url = new URL((e.notification.data && e.notification.data.url) || '/qna', self.location.origin).href
+  e.waitUntil((async () => {
+    const 창들 = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    for (const c of 창들) {
+      if (new URL(c.url).origin === self.location.origin && 'focus' in c) {
+        try { await c.navigate(url); return c.focus() } catch (er) { break }   /* 이 워커가 맡지 않은 창이면 새 창으로 */
+      }
+    }
+    return self.clients.openWindow(url)
+  })())
+})

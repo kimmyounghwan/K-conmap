@@ -119,6 +119,39 @@
     //       이용자 글을 기계가 고치는 것도 맞지 않습니다.
     "qna_mail": { ".read": false, ".write": false },
 
+    // 🔔 2026-09-30(G73) 사랑방 답글 알림 — 소장님 「내가 답글달면 의무적으로 가게 해줘」 · 「사이트 안, 폰 알림창도 뜨게 해줘」
+    //    noti/{번호}/{답글} : 함수(qnaReplyNotify)가 씁니다. 그 번호의 주인(지금 uid 또는 되찾아 이어진 옛 번호 r)만 읽고,
+    //                         «봤음(seen)» 표시와 지우기만 할 수 있습니다. 남의 알림은 못 읽습니다.
+    //    push/{번호}/{기기} : 폰 알림 주소(브라우저 푸시 구독). 주인만 넣고 지우며, 아무도 못 읽습니다(함수만 읽음).
+    //    push_keys         : 웹 푸시 열쇠 — 함수가 처음 필요할 때 만들어 둡니다. 읽기 · 쓰기 모두 막음(공개 열쇠는 pushKey 창구로).
+    "noti": {
+      "$r": {
+        ".read": "auth != null && ( auth.uid === $r || root.child('qna_who').child(auth.uid).child('r').val() === $r )",
+        "$id": {
+          ".write": "auth != null && !newData.exists() && ( auth.uid === $r || root.child('qna_who').child(auth.uid).child('r').val() === $r )",
+          "seen": {
+            ".write": "auth != null && data.parent().exists() && ( auth.uid === $r || root.child('qna_who').child(auth.uid).child('r').val() === $r )",
+            ".validate": "newData.isBoolean()"
+          }
+        }
+      }
+    },
+    "push": {
+      "$r": {
+        "$sid": {
+          ".write": "auth != null && ( auth.uid === $r || root.child('qna_who').child(auth.uid).child('r').val() === $r )",
+          ".validate": "!newData.exists() || newData.hasChildren(['s', 'at'])",
+          "s": {
+            ".validate": "newData.hasChildren(['endpoint', 'keys']) && newData.child('endpoint').isString() && newData.child('endpoint').val().beginsWith('https://') && newData.child('endpoint').val().length < 1000",
+            "keys": { ".validate": "newData.hasChildren(['p256dh', 'auth'])" }
+          },
+          "at": { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+    "push_keys": { ".read": false, ".write": false },
+
     // ⚠️ 2026-09-27 — «글이 이미 있으면 그 글쓴이만» 넣습니다. 전엔 숫자가 없는 글(운영자 글 등)에
     //    남이 숫자를 먼저 꽂을 수 있었습니다 → 그러면 «내 글 되찾기» 로 남의 글을 가져갈 수 있습니다.
     "qna_pins": {

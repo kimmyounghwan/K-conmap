@@ -4849,3 +4849,35 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 .cw-opts input[type="checkbox"] { width: 15px; height: 15px; margin: 0 4px 0 0; padding: 0; vertical-align: -2px; accent-color: var(--accent); }
 .cok { font-size: 12.5px; line-height: 1.7; margin: 8px 0; padding: 9px 11px; border-radius: 8px;
   background: color-mix(in srgb, #1a7f37 8%, var(--surface)); border: 1px solid color-mix(in srgb, #1a7f37 28%, var(--line)); }
+
+/* 🔔 2026-09-30(G73) 사랑방 답글 알림 — 맨 위 종(알림종.jsx) · 본문 맨 위 띠 · 사랑방 «폰 알림 켜기» */
+.noti-bell { position: relative; }
+.notibtn { position: relative; border: 1px solid rgba(255,255,255,.28); background: rgba(255,255,255,.10); color: #fff;
+  border-radius: 999px; padding: 4px 10px; font-size: 14px; line-height: 1.2; cursor: pointer; animation: noti-ring 1.2s ease-in-out 2; }
+.notibtn:hover { background: rgba(255,255,255,.18); }
+.noti-n { position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px;
+  background: #ef4444; color: #fff; font-size: 10.5px; font-weight: 800; line-height: 17px; text-align: center; box-shadow: 0 0 0 2px var(--nav, #1e293b); }
+@keyframes noti-ring { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-14deg); } 40% { transform: rotate(12deg); } 60% { transform: rotate(-8deg); } 80% { transform: rotate(5deg); } }
+@media (prefers-reduced-motion: reduce) { .notibtn { animation: none; } }
+.noti-pop { position: absolute; right: 0; top: calc(100% + 8px); z-index: 80; width: min(340px, calc(100vw - 24px));
+  background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .22); padding: 6px; }
+.noti-ph { display: flex; align-items: center; gap: 8px; padding: 6px 8px 8px; font-size: 13.5px; }
+.noti-all { margin-left: auto; border: 0; background: none; color: var(--accent); font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.noti-it { display: grid; gap: 2px; width: 100%; text-align: left; border: 0; background: var(--bad-soft); color: var(--text);
+  border-radius: 9px; padding: 9px 10px; margin-top: 4px; cursor: pointer; font: inherit; }
+.noti-it.seen { background: transparent; color: var(--text-2); }
+.noti-it:hover { outline: 1px solid var(--line); }
+.noti-t { font-size: 13px; line-height: 1.5; word-break: keep-all; }
+.noti-w { font-size: 11.5px; color: var(--muted); }
+.noti-empty { padding: 10px; font-size: 12.5px; }
+.noti-band { display: flex; align-items: center; gap: 8px; margin: 10px 0; padding: 10px 12px; border-radius: 12px;
+  background: var(--bad-soft); border: 1px solid var(--bad); }
+.noti-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--bad); flex: none; }
+.noti-go { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; border: 0; background: none;
+  color: var(--text); text-align: left; font: inherit; font-size: 13.5px; cursor: pointer; padding: 0; }
+.noti-go b { color: var(--bad); word-break: keep-all; }
+.noti-see { margin-left: auto; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.noti-x { flex: none; border: 0; background: none; color: var(--muted); font-size: 15px; cursor: pointer; padding: 2px 6px; }
+.noti-on { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: -2px 0 10px; font-size: 12.5px; }
+@media print { .noti-bell, .noti-band, .noti-on { display: none !important; } }

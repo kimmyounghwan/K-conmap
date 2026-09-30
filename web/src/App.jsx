@@ -7,6 +7,8 @@ import { InstallPill, InstallBar } from './Install.jsx'
 import AskStrip from './AskComment'
 /* 👋🙏 2026-09-29 방문 인사 — 처음 «반갑습니다» · 다시 «다시 찾아 주셔서 고맙습니다» (인사.jsx · lib/인사.js) */
 import 인사 from './인사.jsx'
+/* 🔔 2026-09-30(G73) 사랑방 답글 알림 — 맨 위 종 · 본문 맨 위 띠 (알림종.jsx · lib/알림.js) */
+import { 알림종, 알림띠 } from './알림종.jsx'
 import FirstBar from './FirstBar.jsx'
 import RefreshBtn from './Refresh.jsx'
 import Crumbs, { BackBtn } from './Crumbs.jsx'
@@ -136,6 +138,8 @@ export default function App() {
                 자료가 도는 화면(1순위·공고)에만 두면 정작 다른 화면에서는 손이 안 갑니다.
                 좁은 화면에서는 🔄 그림만 남고 글자는 숨습니다 (styles.css .rflong). */}
             {/* 🔙 2026-09-28 — 소장님: 「뒤로가기 버튼 … 새로고침 옆으로 옮기거나」 → 화면 안 알약 대신 여기(Crumbs.jsx BackBtn) */}
+            {/* 🔔 안 본 사랑방 답글이 있을 때만 보입니다(G73) */}
+            <알림종 />
             <BackBtn />
             <RefreshBtn />
             <a className="sisbtn" href="https://sarasa.kr" target="_blank" rel="noopener"
@@ -165,6 +169,8 @@ export default function App() {
       <main className="shell">
         {/* 📲 홈 화면에 추가 띠 — 모든 페이지 맨 위. 닫으면 7일 뒤에 다시 (Install.jsx) */}
         <InstallBar />
+        {/* 🔔 내 글에 새 답글 — 한 줄 띠(G73). 사랑방에 쓴 적 있는 브라우저만 읽습니다 */}
+        <알림띠 />
         {/* 🔑 소장님 기계에서만 — 성적표로 가는 길 (아래 운영자띠 설명) */}
         <운영자띠 />
         {/* 🧭 처음 온 사람에게 딱 한 번 — «보는 방법» 으로 가는 길 (FirstBar.jsx) */}
