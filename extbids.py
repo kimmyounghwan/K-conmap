@@ -60,13 +60,13 @@ ROWS = 100                                                    # 한 번에 받�
 # 기관별 설정 — nm: 화면에 붙는 짧은 이름 · cap: 하루 상한 · pages: 한 회차 쪽 상한
 #               gap: 이만큼(분) 안에 다시 부르지 않음 · back: 처음 · 평소에 며칠 치를 보나
 SRC = {
-    "lh":   dict(nm="LH", full="한국토지주택공사", cap=300, pages=6, gap=0, back=(21, 5),
+    "lh":   dict(nm="LH", full="한국토지주택공사", cap=300, pages=6, gap=0, back=(21, 5), v=2,
                  url=f"{B}/B552555/OpenBidInfoList/getOpenBidInfo"),
     "kw":   dict(nm="수자원", full="한국수자원공사", cap=2000, pages=4, gap=0, back=(45, 0),
                  url=f"{B}/B500001/ebid/tndr3/cntrwkList"),
     "dapa": dict(nm="국방", full="방위사업청(시설)", cap=60, pages=2, gap=50, back=(30, 10),
                  url=f"{B}/1690000/BidPblancInfoService/getFcltyCmpetBidPblancList"),
-    "kapt": dict(nm="아파트", full="공동주택(K-apt)", cap=1500, pages=12, gap=0, back=(14, 3),
+    "kapt": dict(nm="아파트", full="공동주택(K-apt)", cap=1500, pages=12, pages1=25, gap=0, back=(14, 3), v=2,
                  url=f"{B}/1613000/ApHusBidPblAncInfoOfferServiceV3/getPblAncDeSearchV3"),
     "nuri": dict(nm="민간", full="누리장터 민간", cap=500, pages=6, gap=0, back=(21, 4),
                  url=f"{B}/1230000/ao/PrvtBidNtceService/getPrvtBidPblancListInfoCnstwk"),
@@ -131,6 +131,20 @@ def _why(e):
     return type(e).__name__
 
 
+def decode(body):
+    """응답 바이트 → 글. XML 머리에 적힌 글자 모양(EUC-KR 등)을 따릅니다.
+       ⚠️ 2026-09-30 첫 회차 — LH 는 EUC-KR 로 적힌 XML 을 줬고, utf-8 로만 읽다가 한 건도 못 읽었습니다(진단 _ext.lh)."""
+    b = body if isinstance(body, (bytes, bytearray)) else str(body or "").encode("utf-8")
+    m = re.match(rb'\s*<\?xml[^>]*encoding=["\']([A-Za-z0-9_\-]+)["\']', b[:200])
+    enc = (m.group(1).decode("ascii").lower() if m else "utf-8")
+    if enc in ("euc-kr", "euckr", "ks_c_5601-1987", "cp949", "ms949"):
+        enc = "cp949"
+    try:
+        return b.decode(enc, "replace")
+    except LookupError:
+        return b.decode("utf-8", "replace")
+
+
 def _scrub(t):
     """혹시라도 인증키처럼 생긴 긴 글자 덩어리가 섞이면 지웁니다(오류 본문을 진단에 남길 때)"""
     return re.sub(r"[A-Za-z0-9%+/=_-]{36,}", "…", str(t or ""))
@@ -183,7 +197,8 @@ def parse(text):
         return rows, _won(body.get("totalCount")), None
     # XML
     try:
-        el = ET.fromstring(t.encode("utf-8") if isinstance(t, str) else t)
+        # 글로 다 읽은 뒤라 머리의 encoding 선언은 떼고 넘깁니다(남겨 두면 EUC-KR 로 한 번 더 풀려 깨집니다)
+        el = ET.fromstring(re.sub(r"^\s*<\?xml[^>]*\?>", "", t) if isinstance(t, str) else t)
     except Exception:
         return [], 0, {"code": "xml", "msg": _s(t, 120)}
 
@@ -308,6 +323,14 @@ KAPT_SIDO = {"11": "서울", "26": "부산", "27": "대구", "28": "인천", "29
 KAPT_KIND = {"01": "일반경쟁", "02": "제한경쟁", "03": "지명경쟁", "04": "수의계약"}
 KAPT_WAY = {"00": "직접입찰", "01": "전자입찰"}
 KAPT_AUTH = {"01": "K-apt", "02": "조달청(누리장터)", "03": "아파트비드포유"}
+KAPT_SUCWAY = {"01": "최저(고) 낙찰", "02": "적격심사", "03": "최저 낙찰", "04": "최고 낙찰",
+               "05": "적격심사(최저)", "06": "적격심사(최고)"}
+#  분류코드(2026-09-30 첫 회차 진단 _ext.kapt.codes 로 확인 — 코드 조합별 공고명):
+#    1단 01 = 주택관리업자 선정(위탁관리) · 02 = 사업자 선정
+#    2단 02 = 공사(도장 · 방수 · 변압기 교체 · 누수 …, 785건) · 03 = 용역(경비 · 청소 · 소독 · 승강기 유지 …) ·
+#        04 = 물품(에어컨 설치 · 파지 수거) · 05 = 기타(재활용품 · 매각 · 보험)
+KAPT_C2 = {"02": "공사", "03": "용역", "04": "물품", "05": "기타"}
+KAPT_FILE = "http://www.k-apt.go.kr/bid/bidFileDownload.do?file_type=bid&file_num="   # 명세(bidFileSeq 설명)에 적힌 주소
 #  공사 · 용역 가르기 — 분류코드(codeClassifyType1~3)의 뜻은 «코드정의서» 에 있습니다.
 #  첫 회차 진단(_ext.kapt.codes)으로 확인하기 전까지는 공고명 낱말로 가릅니다.
 #  ⚠️ 용역 낱말을 먼저 봅니다 — «승강기 유지보수 용역» 은 공사가 아닙니다.
@@ -317,7 +340,12 @@ _KAPT_CON = re.compile(r"공사|보수|교체|도장|방수|설치|개선|정비
                        r"보강|수선|개량|시공|교환")
 
 
-def kapt_kind(title):
+def kapt_kind(title, c1="", c2=""):
+    """공사 · 용역 가르기 — 분류코드가 있으면 코드로(위 KAPT_C2), 없을 때만 공고명 낱말로"""
+    if str(c1).strip() == "01":
+        return "관리"
+    if str(c2).strip() in KAPT_C2:
+        return KAPT_C2[str(c2).strip()]
     t = str(title or "")
     if _KAPT_SVC.search(t):
         return "용역"
@@ -334,11 +362,13 @@ def norm_kapt(r):
     fu = _s(r.get("bidFileSeq"), 400)
     if fu.startswith("http"):
         docs.append(["공고 첨부", fu])
+    elif re.fullmatch(r"\d{3,15}", fu):                 # 번호만 옵니다(첫 회차 확인) — 명세의 내려받기 주소에 붙입니다
+        docs.append(["공고 첨부(K-apt)", KAPT_FILE + fu])
     return {
         "s": "kapt", "id": f"kapt:{no}", "no": no,
         "nm": _s(r.get("bidTitle")), "org": _s(r.get("bidKaptname"), 60),
         "sido": KAPT_SIDO.get(area, ""),
-        "kind": kapt_kind(r.get("bidTitle")),
+        "kind": kapt_kind(r.get("bidTitle"), r.get("codeClassifyType1"), r.get("codeClassifyType2")),
         "c": [_s(r.get("codeClassifyType1"), 10), _s(r.get("codeClassifyType2"), 10),
               _s(r.get("codeClassifyType3"), 10)],
         "st": {"1": "신규", "2": "수정"}.get(st, _s(st, 10)),
@@ -347,7 +377,7 @@ def norm_kapt(r):
         "ddoc": ymdhm(r.get("bidDocsDeadline")), "spot": ymdhm(r.get("bidFieldDesDate")),
         "spotp": _s(r.get("bidFieldDesLoc"), 60),
         "mthd": KAPT_KIND.get(_s(r.get("codeKind"), 4), _s(r.get("codeKind"), 10)),
-        "win": _s(r.get("codeSucWay"), 20), "way": KAPT_WAY.get(_s(r.get("codeWay"), 4), ""),
+        "win": KAPT_SUCWAY.get(_s(r.get("codeSucWay"), 4), ""), "way": KAPT_WAY.get(_s(r.get("codeWay"), 4), ""),
         "auth": KAPT_AUTH.get(_s(r.get("codeAuth"), 4), ""),
         "req": _s(r.get("bidReqDocs"), 300),
         "docs": docs,
@@ -445,7 +475,7 @@ def fetch(key, now=None, no_net=False, diag=None, get=None):
                              headers={"User-Agent": "Mozilla/5.0"})
             if r.status_code != 200:
                 raise _Http(r.status_code, _scrub(_s(r.content.decode("utf-8", "replace"), 160)))
-            return r.content.decode("utf-8", "replace")     # 한글 XML 에 charset 이 없으면 requests 가 latin-1 로 읽습니다
+            return decode(r.content)     # XML 머리의 글자 모양대로(LH = EUC-KR). requests 의 추측(latin-1)은 쓰지 않습니다
     t0 = time.time()
     for src in ORDER:
         cfg = SRC[src]
@@ -465,14 +495,15 @@ def fetch(key, now=None, no_net=False, diag=None, get=None):
                     continue
             except Exception:
                 pass
-        first = not (store.get(src) or {})
+        # 처음이거나, 읽는 법을 고쳐 판(v)이 올라갔으면 «처음처럼» 넓게 다시 받습니다(옛 줄의 첨부 · 분류를 새로 채우려고)
+        first = not (store.get(src) or {}) or int(bk.get("v") or 1) != int(cfg.get("v") or 1)
         box = store.setdefault(src, {})
         jobs = ([("m", m) for m in _kw_months(now, first)] if src == "kw" else [("d", None)])
         alt = bool(bk.get("alt"))       # 날짜를 2026-09-30 모양으로 받는 곳이면(첫 회차에 알아냄) 그렇게
         fails = 0
         for jk, jv in jobs:
             page, total, seen = 1, None, 0
-            while page <= cfg["pages"]:
+            while page <= (cfg.get("pages1", cfg["pages"]) if first else cfg["pages"]):
                 if time.time() - t0 > EXT_BUDGET_S:
                     rec["cut"] = "시간 예산"
                     break
@@ -499,7 +530,8 @@ def fetch(key, now=None, no_net=False, diag=None, get=None):
                 if err:
                     # 날짜 모양이 틀렸다는 뜻일 수 있습니다 — 한 번만 2026-09-30 모양으로 다시 봅니다
                     if (src in ("dapa", "kapt", "lh") and page == 1 and not alt and not err.get("quota")
-                            and not _keyish(err) and not bk.get("alt_tried")):
+                            and not _keyish(err) and err.get("code") not in ("xml", "json", "empty")
+                            and not bk.get("alt_tried")):
                         bk["alt_tried"] = True
                         alt = True
                         rec["alt"] = err
@@ -544,6 +576,7 @@ def fetch(key, now=None, no_net=False, diag=None, get=None):
         if rec["calls"] and not rec.get("err"):
             bk["last"] = now.strftime("%Y-%m-%d %H:%M")
             bk["ok"] = bk["last"]
+            bk["v"] = int(cfg.get("v") or 1)
         got[src] = rec["rows"]
     _prune(store, now)
     _save(EXT_STORE, store)
@@ -641,8 +674,10 @@ def publish(now=None, g2b_nos=None, sido_fn=None, store=None):
                 continue                      # LH · 방위사업청은 용역 · 물품도 함께 옵니다
             if src == "kw" and k and "공사" not in k:
                 continue
-            if src == "kapt" and k == "용역":
-                continue
+            if src == "kapt":
+                c = list(x.get("c") or []) + ["", ""]
+                if kapt_kind(x.get("nm"), c[0], c[1]) != "공사":
+                    continue                  # K-apt 는 분류코드로 «공사» 만(용역 · 물품 · 관리업자 선정은 뺌) — 보관된 옛 줄도 여기서 다시 가름
             if src == "dapa" and x.get("g2b") and g2b_nos and \
                     {re.sub(r"[^0-9A-Za-z]", "", x["g2b"]),
                      re.sub(r"[^0-9A-Za-z]", "", x["g2b"].split("-")[0])} & g2b_nos:

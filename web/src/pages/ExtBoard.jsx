@@ -26,7 +26,8 @@ export const 기관 = {
   kw: { nm: '수자원', full: '한국수자원공사', site: 'https://ebid.kwater.or.kr', siteNm: 'K-water 전자조달' },
   dapa: { nm: '국방', full: '방위사업청(시설)', site: 'https://www.d2b.go.kr', siteNm: '국방전자조달' },
   kapt: { nm: '아파트', full: '공동주택(K-apt)', site: 'https://www.k-apt.go.kr', siteNm: 'K-apt' },
-  nuri: { nm: '민간', full: '누리장터 민간', site: 'https://nuri.g2b.go.kr', siteNm: '누리장터' },
+  /* 누리장터 민간 공고는 지금 나라장터 안에 있습니다 — 첫 회차 표본의 공고번호(R26BK…) · 첨부 주소(www.g2b.go.kr)로 확인(2026-09-30) */
+  nuri: { nm: '민간', full: '누리장터 민간', site: 'https://www.g2b.go.kr', siteNm: '나라장터(민간)' },
 }
 const 차례 = ['lh', 'kw', 'dapa', 'kapt', 'nuri']
 const 한쪽 = 40

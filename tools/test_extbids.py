@@ -157,5 +157,60 @@ with tempfile.TemporaryDirectory() as d:
     X.fetch("dummy", now=NOW, no_net=True, diag=dg, get=fake)
     봄("--exportonly 는 안 부름", calls == [] and "건너뜀" in dg["_ext"])
 
+# ── 2026-09-30 첫 회차에서 배운 것 (진단 _ext) ──
+#  ① LH 는 EUC-KR 로 적힌 XML — utf-8 로만 읽어 «NORMAL SERVICE» 응답을 버렸고, 날짜 모양을 바꿔 다시 물어 오류(11)까지 받았음
+EUC = ('<?xml version="1.0" encoding="EUC-KR"?><response><header><resultCode>00</resultCode><resultMsg>NORMAL SERVICE</resultMsg>'
+       '</header><body><items><item><bidNum>2026100077</bidNum><bidDegree>0</bidDegree><cstrtnJobGbNm>공사</cstrtnJobGbNm>'
+       '<bidnmKor>○○지구 조경공사</bidnmKor><tndrbidRegDt>20260930</tndrbidRegDt><tndrdocAcptEndDtm>202610081000</tndrdocAcptEndDtm>'
+       '</item></items><totalCount>1</totalCount></body></response>').encode("cp949")
+txt = X.decode(EUC)
+rows, tot, err = X.parse(txt)
+봄("EUC-KR XML 읽기", err is None and tot == 1 and rows[0]["bidnmKor"] == "○○지구 조경공사")
+봄("글자 모양 선언 없는 utf-8 도 그대로", X.decode("가나".encode("utf-8")) == "가나")
+calls2 = []
+
+
+def fake_lh(url, params, timeout):
+    calls2.append(dict(params))
+    return "<?xml version='1.0' encoding='EUC-KR'?><html>깨진"      # 읽을 수 없는 응답 — 날짜 모양 탓이 아님
+
+
+with tempfile.TemporaryDirectory() as d:
+    X.EXT_STORE = os.path.join(d, "s", "ext.json"); X.EXT_BOOK = os.path.join(d, "s", "book.json"); X.PUB_DIR = os.path.join(d, "p")
+    _o = X.ORDER; X.ORDER = ["lh"]
+    dg = {}
+    X.fetch("dummy", now=NOW, diag=dg, get=fake_lh)
+    X.ORDER = _o
+    봄("못 읽는 응답이면 날짜 모양을 바꿔 다시 묻지 않음", len(calls2) == 1 and "alt" not in dg["_ext"]["lh"])
+
+#  ② K-apt 분류코드 — 2단 02 = 공사 · 03 = 용역 · 04 물품 · 05 기타 · 1단 01 = 주택관리업자 선정
+봄("K-apt 코드로 공사", X.kapt_kind("복도 계단 대청소 및 신주 코팅", "02", "02") == "공사")
+봄("K-apt 코드로 용역 · 관리", X.kapt_kind("승강기 유지보수 업체", "02", "03") == "용역" and X.kapt_kind("주택관리업자 선정", "01", "01") == "관리")
+봄("코드 없으면 낱말로", X.kapt_kind("옥상 방수공사") == "공사")
+k2 = X.norm_kapt({"bidNum": "2026093099", "bidTitle": "○○아파트 계단 도장공사", "bidArea": "44", "bidRegDate": "2026-09-30",
+                  "bidDeadline": "2026-10-13 17:00:00", "codeClassifyType1": "02", "codeClassifyType2": "02", "codeClassifyType3": "02",
+                  "codeSucWay": "03", "bidFileSeq": "4310385"})
+봄("K-apt 첨부 번호 → 명세의 내려받기 주소 · 낙찰방법 이름", k2["docs"][0][1].endswith("file_type=bid&file_num=4310385")
+   and k2["win"] == "최저 낙찰" and k2["sido"] == "충남" and k2["close"] == "2026-10-13 17:00")
+#  ③ 읽는 법을 고쳐 판(v)이 올라가면 처음처럼 넓게(14일) 다시 받음 — 옛 줄의 첨부 · 분류를 새로 채우려고
+calls3 = []
+
+
+def fake_k(url, params, timeout):
+    calls3.append(dict(params))
+    return json.dumps({"response": {"header": {"resultCode": "00"}, "body": {"totalCount": 0, "items": ""}}})
+
+
+with tempfile.TemporaryDirectory() as d:
+    X.EXT_STORE = os.path.join(d, "s", "ext.json"); X.EXT_BOOK = os.path.join(d, "s", "book.json"); X.PUB_DIR = os.path.join(d, "p")
+    X._save(X.EXT_STORE, {"kapt": {"kapt:1": {"s": "kapt", "id": "kapt:1", "no": "1", "nm": "○○ 계단 대청소", "kind": "용역",
+                                            "c": ["02", "02", "03"], "dt": "2026-09-29", "close": "2026-10-20", "first": "2026-09-29 10:00"}}})
+    _o = X.ORDER; X.ORDER = ["kapt"]
+    X.fetch("dummy", now=NOW, diag={}, get=fake_k)
+    X.ORDER = _o
+    봄("판이 올라가면 14일 치 다시", calls3 and calls3[0].get("startDate") == (NOW - timedelta(days=14)).strftime("%Y%m%d"))
+    by = X.publish(now=NOW)
+    봄("보관된 옛 줄도 코드로 다시 가름(낱말로 용역이던 «대청소» → 공사)", by.get("kapt") == 1)
+
 print(f"\n나라장터 밖 공고 시험: {ok}가지 맞음" + (f" · {bad}가지 틀림" if bad else ""))
 sys.exit(1 if bad else 0)
