@@ -28,6 +28,7 @@
 ■ 어디에 두나   data/store/ext_res.json (공고별 한 줄 · 400일) · ext_res_book.json (받은 날 · 호출 수) — Actions cache
 ■ ⚠️ import 때 아무것도 읽지 않습니다 · 오류는 «종류 이름» 만(주소에 인증키) — extbids.py 와 같은 규칙.
 """
+import json
 import os
 import re
 import statistics
@@ -74,6 +75,12 @@ NURI_BACK = 35
 NURI_OLD_PER_RUN = 2
 NURI_PAGES = 5
 NURI_CAP = 600
+# 🔎 떠보기 — 명세만으로는 조회구분 · 날짜 모양을 확정할 수 없는 곳. 지금 모양으로 0건이면(하루 한 번) 다른 모양으로 1쪽씩 물어
+#    건수가 나오는 모양을 골라 둡니다(book «v»). 진단 «probe» 에 모양마다 건수만 남깁니다.
+NURI_SCS_TRY = [{"inqryDiv": "1"}, {"inqryDiv": "1", "bsnsDivCd": "3"}, {"inqryDiv": "3"},
+                {"inqryDiv": "3", "bsnsDivCd": "3"}, {"inqryDiv": "2"}]
+KW_TRY = [{"_type": "json"}, {}]                               # JSON · XML
+KAPT_TRY = ["one", "range", "one-", "range-"]                   # 하루 · 사흘 · 대시 모양
 FIRST_DAYS = 30          # 1순위 화면에 내보내는 날 수
 FIRST_MAX = 400          # 기관마다 내보내는 상한(폰에서 가볍게)
 
@@ -188,6 +195,15 @@ def kapt_row(r):
     return _clean(v) if v["d"] else None
 
 
+def kapt_q(day, v):
+    """K-apt 마감일 조회 값 — v: KAPT_TRY 번호 (day = YYYYMMDD)"""
+    kind = KAPT_TRY[v if 0 <= v < len(KAPT_TRY) else 0]
+    d1 = datetime.strptime(day, "%Y%m%d")
+    d0 = d1 - timedelta(days=2) if kind.startswith("range") else d1
+    f = (lambda d: d.strftime("%Y-%m-%d")) if kind.endswith("-") else (lambda d: d.strftime("%Y%m%d"))
+    return {"startDate": f(d0), "endDate": f(d1)}
+
+
 def nuri_key(r):
     return f"{E._s(r.get('bidNtceNo'), 40)}-{E._s(r.get('bidNtceOrd'), 6) or '0'}"
 
@@ -238,6 +254,44 @@ def nuri_openg_row(r, old=None):
         if c:
             v["w"], v["a1"], v["r1"] = c
     return _clean(v) if v.get("d") else None
+
+
+def _shape(text, params=None):
+    """0건일 때 진단에 남기는 «응답 모양» — 칸 이름 · 결과코드 · 전체건수만(값은 남기지 않습니다 — 업체 이름이 들 수 있음).
+       params 는 인증키를 뺀 요청 값(날짜 · 조회구분)만."""
+    t = (text or "").strip()
+    out = {"len": len(t)}
+    if params:
+        out["q"] = {k: str(v)[:16] for k, v in params.items() if k.lower() != "servicekey"}
+    if t[:1] in "{[":
+        try:
+            j = json.loads(t)
+        except Exception:
+            out["fmt"] = "json?"
+            return out
+
+        def walk(x, d=0):
+            if d > 5:
+                return "…"
+            if isinstance(x, dict):
+                return {k: (E._s(v, 40) if k in ("resultCode", "resultMsg", "totalCount", "numOfRows", "pageNo")
+                            else walk(v, d + 1)) for k, v in list(x.items())[:14]}
+            if isinstance(x, list):
+                return [walk(x[0], d + 1), len(x)] if x else []
+            return type(x).__name__
+        out["fmt"], out["keys"] = "json", walk(j)
+        return out
+    out["fmt"] = "xml" if t[:1] == "<" else "text"
+    tags = []
+    for m in re.finditer(r"<([A-Za-z_][\w.-]*)", t[:6000]):
+        if m.group(1) not in tags:
+            tags.append(m.group(1))
+    out["tags"] = tags[:30]
+    for k in ("resultCode", "resultMsg", "totalCount", "returnReasonCode", "returnAuthMsg"):
+        m = re.search(r"<%s>([^<]{0,60})</%s>" % (k, k), t)
+        if m:
+            out[k] = m.group(1)
+    return out
 
 
 def _day_list(now, book, back, per_run):
@@ -293,7 +347,31 @@ def fetch(key, now=None, no_net=False, diag=None, get=None):
         rows, tot, err = E.parse(text)
         if err and err.get("quota"):
             bk["quota"] = True
+        if not rows and "shape" not in rec:
+            rec["shape"] = _shape(text, params)          # 0건이면 왜 0건인지 볼 수 있게(칸 이름 · 결과코드만)
         return (rows, tot), err
+
+    def 떠보기(bk, rec, url, qs):
+        """qs: 물어볼 값들(쪽 · 줄 수 빼고). 건수가 나오는 첫 번호 — 없으면 None. 하루 한 번만"""
+        if bk.get("probe_at") == today:
+            return None
+        bk["probe_at"] = today
+        seen = []
+        for i, q in enumerate(qs):
+            res, err = 부름(bk, url, dict(q, pageNo="1", numOfRows="10"), rec)
+            if err:
+                if err.get("code") == "skip":              # 시간 · 한도로 못 물었으면 오늘 다시 떠볼 수 있게
+                    bk["probe_at"] = ""
+                    break
+                seen.append("x" + str(err.get("code") or err.get("http") or err.get("net") or "?")[:12])
+                continue
+            n = res[1] or len(res[0])
+            seen.append(n)
+            if n > 0:
+                rec["probe"] = seen
+                return i
+        rec["probe"] = seen
+        return None
 
     # ── LH ──
     bk = book.setdefault("lhr", {})
@@ -344,8 +422,12 @@ def fetch(key, now=None, no_net=False, diag=None, get=None):
     box = store.setdefault("dapar", {})
     n0 = len(box)
     lst = []
+    # 🏆 G84 때 받은 줄은 1순위 업체 · 결과가 없습니다(화면에 «결과» 만) — 한 번은 120일 목록을 다시 받아 다시 자세히 봅니다
+    again = bk.get("wv") != 1
+    if again:
+        bk["list_at"] = ""
     if bk.get("list_at") != today:                          # 목록은 하루 한 번(오퍼레이션마다 하루 100번 한도)
-        d0 = (now - timedelta(days=DAPA_BACK if not box else 10)).strftime("%Y%m%d")
+        d0 = (now - timedelta(days=DAPA_BACK if (not box or again) else 10)).strftime("%Y%m%d")
         for page in range(1, 4):
             res, err = 부름(bk, DAPA_LIST, {"pageNo": str(page), "numOfRows": "100",
                                             "opengDateBegin": d0, "opengDateEnd": now.strftime("%Y%m%d")}, rec)
@@ -363,7 +445,7 @@ def fetch(key, now=None, no_net=False, diag=None, get=None):
         pend = []
         for r in lst:
             k = f"{E._s(r.get('orntCode'), 10)}:{E._s(r.get('cntrwkNo'), 30)}:{E._s(r.get('pblancOdr'), 4)}"
-            if k in box:
+            if k in box and (box[k].get("w") or box[k].get("st")):
                 continue
             od = re.sub(r"\D", "", str(r.get("opengDate") or r.get("opengDt") or ""))[:8]
             res_ = E._s(r.get("bidResult"), 20)
@@ -384,6 +466,8 @@ def fetch(key, now=None, no_net=False, diag=None, get=None):
         if lst or not rec.get("err"):
             bk["pending"] = pend[:200]
             bk["list_at"] = today
+            if again and lst:
+                bk["wv"] = 1
         bk["dday"], bk["dn"] = today, 0
     done = 0
     for p in list(bk.get("pending") or []):
@@ -442,8 +526,11 @@ def fetch(key, now=None, no_net=False, diag=None, get=None):
                     ok_day = False
                     rec["cut"] = "하루 상한"
                     break
-                res, err = 부름(bk, url, {"pageNo": str(page), "numOfRows": "100", "type": "json", "inqryDiv": "1",
-                                          "inqryBgnDt": day + "0000", "inqryEndDt": day + "2359"}, rec)
+                q = {"pageNo": str(page), "numOfRows": "100", "type": "json", "inqryDiv": "1",
+                     "inqryBgnDt": day + "0000", "inqryEndDt": day + "2359"}
+                if kind == "scs":
+                    q.update(NURI_SCS_TRY[int(bk.get("v") or 0) % len(NURI_SCS_TRY)])
+                res, err = 부름(bk, url, q, rec)
                 if err:
                     ok_day = False
                     if err.get("code") != "skip":
@@ -453,6 +540,8 @@ def fetch(key, now=None, no_net=False, diag=None, get=None):
                 if rows and ("f_" + kind) not in rec:
                     rec["f_" + kind] = sorted(rows[0].keys())[:40]
                     rec["d_" + kind] = [day, E._s(rows[0].get("rlOpengDt") or rows[0].get("opengDt"), 20)]
+                if kind == "scs":
+                    rec["scs_raw"] = rec.get("scs_raw", 0) + len(rows)
                 for r in rows:
                     k = nuri_key(r)
                     if kind == "scs":
@@ -476,6 +565,16 @@ def fetch(key, now=None, no_net=False, diag=None, get=None):
             break                                           # 첫 부름부터 안 되면(승인 전 · 키) 그만
         if ok_day and day < (now - timedelta(days=1)).strftime("%Y%m%d"):
             bk["days"] = sorted(set(bk.get("days") or []) | {day})[-NURI_BACK - 10:]
+    if not rec.get("scs_raw") and not rec.get("err_scs") and rec.get("calls"):
+        # 낙찰 목록이 이 모양으로 한 건도 안 옵니다 — 사흘 치로 다른 모양들을 떠봅니다
+        d0, d1 = (now - timedelta(days=3)).strftime("%Y%m%d"), now.strftime("%Y%m%d")
+        cur = int(bk.get("v") or 0) % len(NURI_SCS_TRY)
+        order = [cur] + [i for i in range(len(NURI_SCS_TRY)) if i != cur]
+        i = 떠보기(bk, rec, NURI_SCS, [dict({"type": "json", "inqryBgnDt": d0 + "0000", "inqryEndDt": d1 + "2359"},
+                                          **NURI_SCS_TRY[j]) for j in order])
+        if i is not None and order[i] != cur:
+            bk["v"], bk["days"] = order[i], []          # 고른 모양으로 옛날 날도 다시
+    rec["v"] = int(bk.get("v") or 0)
     got["nurir"] = len(box) - n0
 
     # ── 🏆 수자원 — 입찰 결과현황(이번 달 · 달 초면 지난달도) ──
@@ -496,7 +595,8 @@ def fetch(key, now=None, no_net=False, diag=None, get=None):
             if int(bk.get("calls") or 0) >= KW_CAP:
                 rec["cut"] = "하루 상한"
                 break
-            res, err = 부름(bk, KW_RST, {"pageNo": str(page), "numOfRows": "100", "_type": "json", "searchDt": m}, rec)
+            res, err = 부름(bk, KW_RST, dict({"pageNo": str(page), "numOfRows": "100", "searchDt": m},
+                                             **KW_TRY[int(bk.get("v") or 0) % len(KW_TRY)]), rec)
             if err:
                 if err.get("code") != "skip":
                     rec["err"] = err
@@ -515,8 +615,15 @@ def fetch(key, now=None, no_net=False, diag=None, get=None):
                 break
         if rec.get("err"):
             break
+    if months and not rec.get("err") and rec.get("calls") and not rec.get("rows"):
+        cur = int(bk.get("v") or 0) % len(KW_TRY)
+        order = [cur] + [i for i in range(len(KW_TRY)) if i != cur]
+        i = 떠보기(bk, rec, KW_RST, [dict({"searchDt": months[-1]}, **KW_TRY[j]) for j in order])
+        if i is not None and order[i] != cur:
+            bk["v"], months = order[i], []              # 다음 회차에 고른 모양으로(두 시간 기다리지 않게 at 을 안 적음)
     if months and not rec.get("err") and rec.get("calls"):
         bk["at"] = now.strftime("%Y-%m-%d %H:%M")
+    rec["v"] = int(bk.get("v") or 0)
     got["kwr"] = len(box) - n0
 
     # ── 🏆 아파트(K-apt) — 마감 지난 공고의 «낙찰/유찰 사유» ──
@@ -535,8 +642,8 @@ def fetch(key, now=None, no_net=False, diag=None, get=None):
             if int(bk.get("calls") or 0) >= KAPT_CAP:
                 rec["cut"] = "하루 상한"
                 break
-            res, err = 부름(bk, KAPT_CLOS, {"pageNo": str(page), "numOfRows": "100",
-                                            "startDate": day, "endDate": day}, rec)
+            res, err = 부름(bk, KAPT_CLOS, dict({"pageNo": str(page), "numOfRows": "100"},
+                                               **kapt_q(day, int(bk.get("v") or 0) % len(KAPT_TRY))), rec)
             if err:
                 if err.get("code") != "skip":
                     rec["err"] = err
@@ -558,6 +665,15 @@ def fetch(key, now=None, no_net=False, diag=None, get=None):
                 break
         if rec.get("err"):
             break
+    if not rec.get("rows") and not rec.get("err") and rec.get("calls"):
+        # 마감 지난 공고가 사흘 동안 한 건도 없을 수는 없습니다 — 날짜 모양을 떠봅니다
+        day = (now - timedelta(days=3)).strftime("%Y%m%d")
+        cur = int(bk.get("v") or 0) % len(KAPT_TRY)
+        order = [cur] + [i for i in range(len(KAPT_TRY)) if i != cur]
+        i = 떠보기(bk, rec, KAPT_CLOS, [kapt_q(day, j) for j in order])
+        if i is not None and order[i] != cur:
+            bk["v"] = order[i]
+    rec["v"] = int(bk.get("v") or 0)
     got["kaptr"] = len(box) - n0
 
     # 오래된 것 지우기

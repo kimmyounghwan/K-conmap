@@ -228,6 +228,77 @@ with tempfile.TemporaryDirectory() as d:
     봄("🏆 LH: 옛 판(업체 이름 없음)의 최근 날은 다시", "20260920" not in bk["lhr"]["days"][:1] and "20260501" in bk["lhr"]["days"]
        and bk["lhr"]["wv"] == 1 and [p["openDtmStart"] for o, p in calls if o == "getOpenTenderopenList"][2] == "20260928")
 
+# ── 🏆 국방: G84 때 받은 줄(업체 · 결과 없음)은 한 번 120일 목록을 다시 받아 다시 자세히 ──
+with tempfile.TemporaryDirectory() as d:
+    R.RES_STORE = os.path.join(d, "res.json")
+    R.RES_BOOK = os.path.join(d, "book.json")
+    E.EXT_STORE = os.path.join(d, "ext.json")
+    E._save(R.RES_STORE, {"dapar": {"UMM:2026-1:1": {"no": "UMM0901", "d": "2026-09-25", "nm": "○○ 막사 공사", "kind": "공사",
+                                                      "base": 1000000000, "exp": 1000000000, "sj": 100.0, "np": 2}}})
+    E._save(R.RES_BOOK, {"dapar": {"list_at": NOW.strftime("%Y-%m-%d"), "pending": []}})
+    calls.clear()
+    R.fetch("dummy", now=NOW, diag={}, get=fake)
+    st = json.load(open(R.RES_STORE, encoding="utf-8"))
+    bk = json.load(open(R.RES_BOOK, encoding="utf-8"))
+    lp = [p for o, p in calls if o == "getFcltyCmpetBidResultList"]
+    봄("🏆 국방 되받기: 오늘 목록을 받았어도 한 번 더 · 120일", len(lp) == 1 and lp[0]["opengDateBegin"] == (NOW - timedelta(days=120)).strftime("%Y%m%d"))
+    v = st["dapar"]["UMM:2026-1:1"]
+    봄("🏆 국방 되받기: 업체 · 결과가 채워짐", v.get("w") == "○○토건" and v.get("st") == "낙찰" and bk["dapar"]["wv"] == 1)
+    calls.clear()
+    R.fetch("dummy", now=NOW + timedelta(hours=1), diag={}, get=fake)
+    봄("🏆 국방 되받기는 한 번만", not any(o == "getFcltyCmpetBidResultList" for o, p in calls))
+
+# ── 🔎 떠보기 — 지금 모양으로 0건이면 다른 모양을 골라 둠 ──
+def fake2(url, params, timeout):
+    op = url.rsplit("/", 1)[-1]
+    calls.append((op, dict(params)))
+    E0 = json.dumps({"response": {"header": {"resultCode": "00"}, "body": {"totalCount": 0, "items": []}}})
+    if op == "getPrvtScsbidListSttus":
+        if params.get("bsnsDivCd") != "3" or params.get("inqryDiv") != "1":
+            return E0
+        return json.dumps({"response": {"header": {"resultCode": "00"}, "body": {"totalCount": 1, "items": [
+            {"bsnsDivNm": "공사", "bidNtceNo": "R26BK0100", "bidNtceOrd": "000", "bidNtceNm": "○○ 공사",
+             "rlOpengDt": "2026-09-29 11:00:00", "bidwinnrNm": "○○", "sucsfbidAmt": "1000"}]}}})
+    if op == "getBidClosDeSearchV3":
+        if "-" not in params["startDate"]:
+            return json.dumps({"response": {"header": {"resultCode": "00"}, "body": {"totalCount": 0, "items": []}}})
+        return json.dumps({"response": {"header": {"resultCode": "00"}, "body": {"totalCount": 1, "items": [
+            {"bidNum": "K9", "bidTitle": "○○아파트 방수공사", "codeClassifyType1": "02", "codeClassifyType2": "02",
+             "bidDeadline": "2026-09-27 17:00:00", "bidReason": "○○ 낙찰"}]}}})
+    if op == "rstList":
+        if params.get("_type") == "json":
+            return json.dumps({"response": {"header": {"resultCode": "00"}, "body": {"totalCount": 0}}})
+        return ("<response><header><resultCode>00</resultCode></header><body><items><item><tndrPbanno>2026-0900</tndrPbanno>"
+                "<tndrPblancNm>○○ 공사</tndrPblancNm><cntrctDivNm>공사</cntrctDivNm><cardPrcsDt>20260928</cardPrcsDt>"
+                "<entrpsNm>○○</entrpsNm></item></items><totalCount>1</totalCount></body></response>")
+    return fake(url, params, timeout) if op not in ("getPrvtOpengResultListInfo",) else E0
+
+
+with tempfile.TemporaryDirectory() as d:
+    R.RES_STORE = os.path.join(d, "res.json")
+    R.RES_BOOK = os.path.join(d, "book.json")
+    E.EXT_STORE = os.path.join(d, "ext.json")
+    calls.clear()
+    dg = {}
+    R.fetch("dummy", now=NOW, diag=dg, get=fake2)
+    bk = json.load(open(R.RES_BOOK, encoding="utf-8"))
+    x = dg["_extres"]
+    봄("🔎 민간 낙찰: 0건이면 떠봐서 (조회구분 1 + 업무구분 3) 고름", bk["nurir"]["v"] == 1 and x["nurir"]["probe"][:2] == [0, 1]
+       and bk["nurir"]["days"] == [])
+    봄("🔎 아파트: 날짜 모양 떠보기 → 대시 모양", bk["kaptr"]["v"] == 2 and x["kaptr"]["probe"][:3] == [0, 0, 1])
+    봄("🔎 수자원: JSON 0건 → XML 로", bk["kwr"]["v"] == 1 and "at" not in bk["kwr"])
+    봄("🔎 0건 응답 모양은 칸 이름 · 결과코드만(값 없음)", x["kaptr"]["shape"]["fmt"] == "json"
+       and all("serviceKey" not in json.dumps(v.get("shape")) and "○○" not in json.dumps(v.get("shape"), ensure_ascii=False)
+               for v in x.values() if isinstance(v, dict)))
+    # 다음 회차 — 고른 모양으로 받음 · 떠보기는 하루 한 번
+    calls.clear()
+    st = {}
+    R.fetch("dummy", now=NOW + timedelta(hours=1), diag=st, get=fake2)
+    store = json.load(open(R.RES_STORE, encoding="utf-8"))
+    봄("🔎 고른 모양으로 받음(민간 · 아파트 · 수자원)", "R26BK0100-000" in store["nurir"] and "kapt:K9" in store["kaptr"]
+       and "kw:2026-0900" in store["kwr"])
+    봄("🔎 떠보기는 하루 한 번", "probe" not in st["_extres"]["nurir"])
+
 # ── 셈에 쓸 값 ──
 store = {"lhr": {}, "dapar": {}}
 for i in range(30):

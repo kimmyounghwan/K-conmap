@@ -187,6 +187,10 @@ with tempfile.TemporaryDirectory() as d:
 봄("K-apt 코드로 공사", X.kapt_kind("복도 계단 대청소 및 신주 코팅", "02", "02") == "공사")
 봄("K-apt 코드로 용역 · 관리", X.kapt_kind("승강기 유지보수 업체", "02", "03") == "용역" and X.kapt_kind("주택관리업자 선정", "01", "01") == "관리")
 봄("코드 없으면 낱말로", X.kapt_kind("옥상 방수공사") == "공사")
+봄("🧹 코드가 공사여도 제목에 «용역» 이면 용역", X.kapt_kind("하자진단 용역업체 선정 입찰", "02", "02") == "용역"
+   and X.kapt_kind("폐기물 처리 용역 사업자선정", "02", "02") == "용역"
+   and X.kapt_kind("경비원 휴게실 바닥 보수공사업체 선정", "02", "02") == "공사"
+   and X.kapt_kind("근로자 휴게시설(경비, 청소) 조성 공사업체 선정", "02", "02") == "공사")
 k2 = X.norm_kapt({"bidNum": "2026093099", "bidTitle": "○○아파트 계단 도장공사", "bidArea": "44", "bidRegDate": "2026-09-30",
                   "bidDeadline": "2026-10-13 17:00:00", "codeClassifyType1": "02", "codeClassifyType2": "02", "codeClassifyType3": "02",
                   "codeSucWay": "03", "bidFileSeq": "4310385"})

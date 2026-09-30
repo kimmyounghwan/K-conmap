@@ -349,6 +349,10 @@ def kapt_kind(title, c1="", c2=""):
     """공사 · 용역 가르기 — 분류코드가 있으면 코드로(위 KAPT_C2), 없을 때만 공고명 낱말로"""
     if str(c1).strip() == "01":
         return "관리"
+    # 🧹 K-apt 가 «공사»(2단 02)로 올렸어도 제목에 «용역» 이 있으면 용역 — 하자진단 용역 · 폐기물 처리 용역 · 원인 조사 용역 …
+    #    (2026-09-30 22:12 점검에서 찾음 · 소장님 «용역 빼기 넣어서 올려»)
+    if "용역" in str(title or ""):
+        return "용역"
     if str(c2).strip() in KAPT_C2:
         return KAPT_C2[str(c2).strip()]
     t = str(title or "")
