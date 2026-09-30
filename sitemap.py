@@ -41,7 +41,9 @@ if _ROBOTS and SITE != _ROBOTS:
           f"— robots.txt 쪽으로 맞춥니다")
     SITE = _ROBOTS
 LIMIT = int(os.environ.get("SITEMAP_AGENCIES", "800"))   # 색인 상황 보며 올릴 것
-CORP = int(os.environ.get("SITEMAP_CORPS", "300"))       # 업체도 천천히 — 처음엔 300곳만
+CORP = int(os.environ.get("SITEMAP_CORPS", "1000"))      # 업체도 천천히 — 처음엔 300곳 → 2026-09-30 1,000곳
+#   (소장님 「업체 실적페이지 … 필요한 것 지금 작업해줘」 — 페이지마다 투찰률 칸 · 순위 기록 · 상대 · 성적표 신청을 더한 뒤 올림.
+#    서치콘솔에서 색인 비율을 보고 3,000(=PRERENDER_CORP)까지 한 단계씩. PRERENDER_CORP 보다 크면 안 됨)
 NOTICE = int(os.environ.get("SITEMAP_NOTICES", "500"))   # 공고·개찰. 매일 570건씩 느니 천천히
 MIN_ROWS = 15                                            # 얄팍한 페이지는 아예 넣지 않음
 MIN_CORP = 8                                             # 낙찰 8건 미만 업체는 넣지 않음

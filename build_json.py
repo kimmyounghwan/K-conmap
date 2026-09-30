@@ -700,6 +700,35 @@ def load_rank_history(p50):
     return by_biz, by_name, pool, rivals
 
 
+# 🙅 2026-09-30 — 업체가 «우리 회사 페이지를 내려 달라» 고 하면 data/seed/corp_hide.json 의 hide 에 이름을 적습니다.
+#   이름(또는 «이름#사업자번호») — 적힌 업체는 업체 자료 · 검색 목록 · 미리 굽기 · 사이트맵에서 모두 빠집니다
+#   (셋 다 이 함수가 만든 자료에서 나오므로 여기 한 곳만 거르면 됩니다).
+#   소장님(9/30): 업체 실적 페이지를 늘리면서 «내려 달라는 요청이 오면 바로 빼는 절차» 를 둠.
+CORP_HIDE = os.path.join(ROOT, "data", "seed", "corp_hide.json")
+
+
+def load_corp_hide():
+    try:
+        with open(CORP_HIDE, encoding="utf-8") as f:
+            v = json.load(f)
+        items = v.get("hide") if isinstance(v, dict) else v
+        out = set()
+        for x in items or []:
+            x = str(x or "").strip()
+            if not x:
+                continue
+            nm, _, bz = x.partition("#")
+            bz = re.sub(r"\D", "", bz)          # 123-81-00000 처럼 적어도 숫자만
+            k = norm_corp(nm)
+            out.add(f"{k}#{bz}" if bz else k)
+        return out
+    except FileNotFoundError:
+        return set()
+    except Exception as e:
+        log(f"⚠️ corp_hide.json 을 못 읽었습니다 — {e}")
+        return set()
+
+
 def build_corp(df):
     log("업체 집계 중...")
     idx = defaultdict(dict)
@@ -840,6 +869,13 @@ def build_corp(df):
             if _riv:
                 cur[key]["rival"] = _riv
         agg[key] = cur.pop(key)
+
+    _hide = load_corp_hide()
+    if _hide:
+        _gone = [k for k in agg if k in _hide or k.split("#", 1)[0] in _hide]
+        for k in _gone:
+            agg.pop(k, None)
+        log(f"🙅 내려 달라고 한 업체 {len(_hide)}곳 → 자료에서 뺀 칸 {len(_gone)}개 (data/seed/corp_hide.json)")
 
     disp = {}          # 색인용 이름표 (URL 은 정규화된 key, 화면 제목은 원래 이름)
     for key in sorted(agg, key=lambda k: (first_key(k), k)):

@@ -2419,6 +2419,11 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
 
 /* ── 공식 자료 링크 (2026-09-05) — 파일은 퍼오지 않고 원문으로 보냅니다 ── */
 .clinks { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 2px; }
+/* ⚖️ 2026-09-30 — 법·계약 글의 «근거 조문» (법제처 원문 링크) */
+.csrc { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; margin: 10px 0 2px; font-size: 12.5px; }
+.csrc-h { color: var(--muted); font-weight: 700; margin-right: 2px; }
+.csrc a { color: var(--accent); text-decoration: none; }
+.csrc a:hover { text-decoration: underline; }
 .clink {
   display: flex; align-items: center; gap: 8px; text-decoration: none; color: inherit;
   border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; background: var(--surface);

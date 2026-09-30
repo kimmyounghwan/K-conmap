@@ -117,12 +117,26 @@ export default function CorpPage() {
       <CorpReport c={c} ov={ov} onPickFirm={법인고르기} onAll={전체보기} base={decoded} />
       {/* 📊 성적표 — 자기 회사 숫자를 «막 본 직후» 가 가장 뜨거운 자리입니다 (2026-09-15).
           이 화면은 업체마다 미리 구워져 있어 검색으로 바로 들어옵니다. */}
+      {/* 📄 2026-09-30 — 미리 구운 페이지(prerender.corp_more_html)와 같은 카드 — 검색으로 온 사장님이 가장 궁금한 «떨어진 기록» 은 성적표로 */}
+      <div className="card" style={{ marginTop: 10 }}>
+        <div className="sec-title" style={{ margin: '0 0 6px' }}>📄 우리 회사 입찰 성적표</div>
+        <p className="cp" style={{ margin: '0 0 8px' }}>
+          이 화면은 <b>낙찰(1순위) 기록</b> 중심입니다. 넣었다가 떨어진 것 · 하한 아래로 떨어진 것 · 아깝게 놓친 것까지 본
+          {' '}<b>A4 성적표</b>는 무료로 신청받습니다.
+        </p>
+        <div className="btn-row">
+          <a className="btn primary" href="/report-sample.pdf" target="_blank" rel="noopener">📄 성적표 견본 보기</a>
+          <Link className="btn ghost" to="/qna">💬 사랑방에 신청하기</Link>
+        </div>
+      </div>
       <div className="btn-row" style={{ marginTop: 10 }}>
         <Link className="btn" to="/calc" style={{ flex: 1 }}>💰 바로투찰 열기 →</Link>
       </div>
       <div className="note" style={{ marginTop: 10 }}>
         공공데이터포털 나라장터 입찰정보를 가공해 보여드립니다. 3년치 개찰의 «1순위» 기록만 담겨 있어,
         투찰했지만 떨어진 건은 집계되지 않습니다.
+        {' '}잘못된 내용이 있거나 페이지를 내려 달라는 요청은 <a href="/contact.html" style={{ color: 'var(--accent)' }}>문의</a>로
+        알려 주시면 확인한 뒤 고치거나 내립니다.
       </div>
     </>
   )

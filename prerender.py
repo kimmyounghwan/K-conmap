@@ -542,7 +542,7 @@ def agency_page(shell, name, a, image=None, L=None):
     return page(shell, f"/agency/{name}", title, desc, body, image, ld)
 
 
-def corp_page(shell, key, c, image=None, L=None):
+def corp_page(shell, key, c, image=None, L=None, pool=0):
     name = c.get("name") or key
     n = num(c.get("n"))
     avg = pct((c.get("s") or {}).get("avg"))
@@ -600,9 +600,70 @@ def corp_page(shell, key, c, image=None, L=None):
               won_short(x[4]) if len(x) > 4 and x[4] else None) if v),
           (pct(x[3], 3) if len(x) > 3 else None) or "")
          for x in cases[:12] if x and x[0]])
+    body += corp_more_html(c, pool)
     ld = ld_graph(ld_crumbs(("K-건설맵", None), ("낙찰 분석", "/analysis"),
                             (name, f"/corp/{key}")))
     return page(shell, f"/corp/{key}", title, desc, body, image, ld)
+
+
+# ── 🏢 업체 페이지 보강 (2026-09-30) ─────────────────────────────
+#  소장님: 「업체 실적페이지하고 law 5편 … 필요한 것 지금 작업해줘」
+#  사이트맵에 올리는 업체를 300 → 1,000 으로 늘리기 «전에», 페이지마다 그 업체만의 숫자를 더 싣습니다.
+#  틀만 같고 숫자만 다른 페이지가 수천 장이면 검색 · 애드센스가 «얇은 페이지» 로 봅니다.
+#  ⚠️ 새 숫자를 여기서 셈하지 않습니다 — 화면(Analysis.jsx 의 CorpReport · Rivals · RankHistory)이 이미
+#     보여 주는 칸(h · rank · rival)을 «같은 자료» 로 글로 옮길 뿐입니다(화면과 다른 말을 하면 안 됩니다).
+def corp_more_html(c, pool=0):
+    out = []
+    # 📊 투찰률이 몰린 칸 (0.5% 단위 — 화면 «내 투찰률 분포» 와 같은 h)
+    h = [x for x in (c.get("h") or []) if isinstance(x, (list, tuple)) and len(x) >= 2]
+    if h:
+        tot = sum(int(x[1] or 0) for x in h) or 1
+        rows = [(f"{float(x[0]):.1f}~{float(x[0]) + 0.5:.1f}%", f"{num(x[1])}건 · {round(int(x[1]) / tot * 100)}%")
+                for x in sorted(h, key=lambda x: -int(x[1] or 0))[:6]]
+        lows = [x for x in h if float(x[0]) < 89.5]
+        highs = [x for x in h if float(x[0]) >= 89.5]
+        note = ""
+        if lows and highs:
+            note = ("2025년에 적격심사 낙찰하한율이 2%p 올라, 88%대(오르기 전) 낙찰과 90%대(오른 뒤) 낙찰이 "
+                    "한 업체 안에 섞여 있을 수 있습니다.")
+        out.append(rows_html("📊 투찰률이 몰린 칸 (0.5% 단위, 낙찰 기준)", rows))
+        if note:
+            out.append(f'<div class="note sm" style="margin-top:-4px">{esc(note)}</div>')
+    # 🥇 최근 순위 기록 (낮은 금액 순 30위 안에 든 개찰 — 화면 RankHistory 와 같은 rank)
+    recs = [r for r in (c.get("rank") or []) if isinstance(r, (list, tuple)) and len(r) >= 6]
+    if recs:
+        ranks = sorted(int(r[3]) for r in recs if r[3] and int(r[3]) > 0)
+        wins = sum(1 for r in recs if r[3] == 1)
+        close = sum(1 for r in recs if r[3] in (2, 3))
+        med = ranks[len(ranks) // 2] if ranks else None
+        lead = (f"순위를 받은 최근 개찰{f' {num(pool)}건' if pool else ''} 가운데 <b>{num(len(recs))}건</b>에서 "
+                f"낮은 금액 순 30위 안에 들었습니다 — 1순위 <b>{num(wins)}건</b>, 2~3위 <b>{num(close)}건</b>"
+                + (f", 등수 가운데 <b>{num(med)}위</b>" if med else "") + ".")
+        items = []
+        for r in recs[:8]:
+            sub = " · ".join(v for v in (date_full(r[1]), esc(r[2] or ""),
+                                         f"{num(r[4])}곳 중" if len(r) > 4 and r[4] else None) if v)
+            items.append((r[0], sub, f"{num(r[3])}위 · {pct(r[5], 3)}" if r[3] else pct(r[5], 3)))
+        out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">🥇 최근 순위 기록</div>'
+                   f'<p class="cp" style="margin:0 0 6px">{lead}</p></div>')
+        out.append(cases_html("최근 30위 안에 든 개찰", items,
+                              "조달청이 공개하는 순위(낮은 금액 순 30곳)를 받은 최근 개찰만 봅니다. "
+                              "31위 밖이나 순위를 받기 전 개찰은 여기에 없습니다."))
+    # 🤝 자주 만나는 상대 (이름 단위만 — 법인 칸에 실으면 남의 맞대결이 됩니다: 화면 Rivals 와 같은 규칙)
+    riv = [r for r in (c.get("rival") or []) if isinstance(r, (list, tuple)) and len(r) >= 3]
+    if riv and not c.get("biz"):
+        out.append(rows_html("🤝 자주 만나는 상대 (같은 개찰에 함께 투찰)",
+                             [(str(nm), f"{num(met)}번 만남 · 이 업체가 앞섬 {num(win)}번") for nm, met, win in riv[:8]]))
+    # 📄 성적표 신청 — 이 페이지를 찾아온 사장님이 가장 궁금한 «떨어진 기록» 은 신청서로
+    out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">📄 우리 회사 입찰 성적표</div>'
+               '<p class="cp" style="margin:0 0 8px">이 페이지는 <b>낙찰(1순위) 기록</b> 중심입니다. '
+               '넣었다가 떨어진 것 · 하한 아래로 떨어진 것 · 아깝게 놓친 것까지 본 <b>A4 성적표</b>는 무료로 신청받습니다.</p>'
+               '<div class="btn-row"><a class="btn primary" href="/report-sample.pdf" target="_blank" rel="noopener">'
+               '📄 성적표 견본 보기</a><a class="btn ghost" href="/qna">💬 사랑방에 신청하기</a></div></div>')
+    out.append('<div class="note sm" style="margin-top:10px">조달청 나라장터가 공개한 개찰 결과를 K-건설맵이 정리한 것입니다. '
+               '잘못된 내용이 있거나 페이지를 내려 달라는 요청은 <a href="/contact.html">문의</a>로 알려 주시면 '
+               '확인한 뒤 고치거나 내립니다.</div>')
+    return "".join(out)
 
 
 
@@ -1495,6 +1556,14 @@ def _blocks_html(blocks):
             for r in b["rows"]:
                 out.append("<tr>" + "".join(f"<td>{_bold(c)}</td>" for c in r) + "</tr>")
             out.append("</tbody></table></div>")
+        elif t == "src":
+            # ⚖️ 2026-09-30 — 법·계약 글의 «근거 조문» — 법제처 원문으로 (화면 Guide.jsx 와 같은 모양)
+            out.append('<div class="csrc"><span class="csrc-h">근거 조문 (법제처)</span>')
+            for it in b["items"]:
+                nm, url = (list(it) + ["", ""])[:2]
+                out.append('<a href="%s" target="_blank" rel="noopener nofollow">%s ↗</a>'
+                           % (esc(url), esc(nm)))
+            out.append("</div>")
         elif t == "links":
             # 공식 자료는 «링크»로만 연결합니다 — 파일을 우리가 퍼오지 않습니다.
             out.append('<div class="clinks">')
@@ -2425,24 +2494,47 @@ def load_guide():
         return []
 
 
+# ⚖️ 2026-09-30 — 글 묶음 (화면 Guide.jsx 의 GROUPS 와 같게). guide.json 의 g 칸 — 없으면 실측.
+GUIDE_GROUPS = [("", "📊 입찰 셈 — 개찰 자료로 직접 잰 것"),
+                ("law", "⚖️ 법 · 계약 — 현장에서 자주 틀리는 것 (법제처 원문 확인)")]
+
+
+def guide_group(t):
+    """모르는 g 는 «실측» 으로 — 목록에서 글이 빠지지 않게 (화면 Guide.jsx 의 묶음() 과 같게)"""
+    return "law" if t.get("g") == "law" else ""
+
+
+def guide_others(t, topics, n=4):
+    """«이어서 볼 것» — 같은 묶음 글을 먼저 (화면과 같은 차례)"""
+    g = guide_group(t)
+    same = [o for o in topics if o["slug"] != t["slug"] and guide_group(o) == g]
+    rest = [o for o in topics if guide_group(o) != g]
+    return (same + rest)[:n]
+
+
 def guide_index(shell, topics, image=None):
-    title = "입찰 알아보기 — 투찰금액·사정률·참가업체수 | K-건설맵"
-    desc = ("공공 공사 입찰의 투찰금액이 어떻게 정해지는지, 사정률·낙찰하한율·A값이 무엇인지 "
-            "개찰 1만여 건을 직접 재서 정리했습니다. 회원가입 없이 무료입니다.")
+    title = "입찰 알아보기 — 투찰금액·사정률·하도급대금·설계변경 | K-건설맵"
+    desc = ("공공 공사 입찰의 투찰금액이 어떻게 정해지는지 개찰 1만여 건을 직접 재서 정리하고, "
+            "하도급대금·물가변동·설계변경·지체상금은 법제처 원문으로 확인해 정리했습니다. 회원가입 없이 무료입니다.")
     out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">'
            '입찰 알아보기</h1>'
            '<div style="font-size:12.5px;color:var(--muted);margin-top:4px">'
            '투찰금액 계산 · 사정률 · 분위 · 참가업체수 · 추첨번호</div>'
            '<p class="cp" style="margin-top:8px">여기 적힌 숫자는 어디서 옮겨 온 것이 아니라 '
            '<b>조달청 나라장터 개찰 결과를 직접 모아 센 것</b>입니다. 표본 건수를 문단마다 '
-           '함께 적었습니다 — 표본이 적으면 적다고 씁니다.</p></div>'
-           '<div class="card"><div class="sec-title" style="margin:0 0 6px">무엇부터 보면 되나</div>']
-    for t in topics:
-        out.append(f'<a class="row rowlink" href="/guide/{esc(t["slug"])}">'
-                   f'<div class="grow"><div class="t">{esc(t["title"])}</div>'
-                   f'<div class="d">{esc(t.get("sub") or t.get("short") or "")}</div></div>'
-                   f'<span class="go">→</span></a>')
-    out.append("</div>")
+           '함께 적었습니다 — 표본이 적으면 적다고 씁니다. 계약한 뒤의 일(하도급대금 · 물가변동 · '
+           '설계변경 · 지체상금)은 <b>법제처 원문</b>을 확인해 따로 묶었습니다.</p></div>']
+    for g, h in GUIDE_GROUPS:
+        ts = [t for t in topics if guide_group(t) == g]
+        if not ts:
+            continue
+        out.append(f'<div class="card"><div class="sec-title" style="margin:0 0 6px">{esc(h)}</div>')
+        for t in ts:
+            out.append(f'<a class="row rowlink" href="/guide/{esc(t["slug"])}">'
+                       f'<div class="grow"><div class="t">{esc(t["title"])}</div>'
+                       f'<div class="d">{esc(t.get("sub") or t.get("short") or "")}</div></div>'
+                       f'<span class="go">→</span></a>')
+        out.append("</div>")
     out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">'
                '읽고 나서 바로 써 보기</div>'
                '<div class="btn-row"><a class="btn primary" href="/">💰 바로투찰 — 권장 금액 내보기</a>'
@@ -2468,6 +2560,10 @@ def guide_topic(shell, t, others, image=None):
     for sec in t.get("secs") or []:
         out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">'
                    + esc(sec["h"]) + "</div>" + _blocks_html(sec["blocks"]) + "</div>")
+    if (t.get("g") or "") == "law":
+        out.append('<div class="note sm" style="margin-top:10px">이 글은 제목 아래 적힌 날짜의 현행 법령 기준이며, '
+                   '법률 자문이 아닙니다. 법령은 바뀔 수 있으니 «근거 조문» 으로 원문을 확인하시고, '
+                   '실제 분쟁은 계약서 · 공문과 함께 전문가와 확인하십시오.</div>')
     out.append(rows_html("이어서 볼 것",
                          [(o["title"], "보기 →") for o in others],
                          href=lambda x: next((f'/guide/{o["slug"]}' for o in others
@@ -2723,13 +2819,14 @@ def main():
     if gtopics:
         write("guide.html", guide_index(shell, gtopics,
               og.tab("guide", "입찰 알아보기", "투찰금액 · 사정률 · 참가업체수",
-                     f"{len(gtopics)}편", "개찰 1만여 건 실측")
+                     f"{len(gtopics)}편", "실측 · 법·계약")
               if og.available else None))
         made += 1
         for t in gtopics:
-            others = [o for o in gtopics if o["slug"] != t["slug"]][:4]
+            others = guide_others(t, gtopics)
             img = (og.tab(f'guide-{t["slug"]}', t["title"], t.get("sub") or "입찰 알아보기",
-                          "실측", (t.get("short") or "")[:44]) if og.available else None)
+                          "법·계약" if t.get("g") == "law" else "실측",
+                          (t.get("short") or "")[:44]) if og.available else None)
             write(f'guide/{t["slug"]}.html', guide_topic(shell, t, others, img))
             made += 1
         print(f"  · 입찰 알아보기 페이지 {len(gtopics) + 1:,}개 (/guide/)")
@@ -2834,6 +2931,7 @@ def main():
               "L.co 가 비었거나 이름 정규화(norm_corp)가 어긋났습니다.")
 
     # ── 업체 ── (ctop 과 L.co 는 위에서 이미 채웠습니다)
+    _pool = int(((load("overview.json") or {}).get("rankPool")) or 0)   # «순위 받은 개찰 N건» — 화면과 같은 분모
     by_chunk = {}
     for row in ctop[:N_CORP]:
         if len(row) >= 3 and safe(row[0]):
@@ -2846,7 +2944,7 @@ def main():
             if c:
                 img = og.corp(k, c) if n_co < OG_CORP else None
                 n_co += img is not None
-                write(f"corp/{k}.html", corp_page(shell, k, c, img, L))
+                write(f"corp/{k}.html", corp_page(shell, k, c, img, L, pool=_pool))
                 made += 1
 
     # ── 「어제의 개찰 성적표」 ── (공고 페이지보다 먼저: first 를 여기서 한 번 읽습니다)
@@ -2961,7 +3059,8 @@ def main():
         elif len(open_rows) < 24:
             open_rows.append((u, nm, won_short(r.get("base")) or date_full(r.get("close")) or ""))
     day_rows = [(f"/daily/{d}", f"{d} 개찰 결과", f"{num(c)}건") for d, c in days[:12]]
-    gd_rows = [(f'/guide/{t["slug"]}', t["title"], "실측") for t in (gtopics or [])]
+    gd_rows = [(f'/guide/{t["slug"]}', t["title"], "법·계약" if t.get("g") == "law" else "실측")
+               for t in (gtopics or [])]
     ch_rows = [(f'/change/{t["slug"]}', t["title"], "") for t in (topics or [])[:8]]
     fm_rows = [(f'/forms/{f["slug"]}', f["title"], "엑셀") for f in (forms or [])[:10]]
 

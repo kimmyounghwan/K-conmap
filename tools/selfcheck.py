@@ -881,7 +881,9 @@ def check_guidenav():
                          encoding="utf-8").read()
         except Exception:
             gi = ""
-        if "TOPICS.map(" in gi:
+        # 2026-09-30 — 목록이 묶음(실측 · 법·계약)으로 나뉘었습니다: GROUPS.map + TOPICS.filter 로 그려도 «통째» 입니다
+        #   (모르는 g 는 «실측» 으로 떨어져 빠지는 글이 없습니다 — Guide.jsx 의 묶음()).
+        if "TOPICS.map(" in gi or ("GROUPS.map(" in gi and "TOPICS.filter(" in gi):
             print(f"ℹ️ 바로투찰 인라인 목록(guidenav.js)에 없는 글: {', '.join(missing)}")
             print("   /guide 목록에는 전부 나옵니다 — 죽은 링크도 아니고 갈 길도 있습니다.")
         else:
