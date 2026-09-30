@@ -165,7 +165,7 @@ SITENAV = [("/", "바로투찰"), ("/first", "1순위 개찰"), ("/live", "입�
            ("/cad", "캐드 유틸"), ("/pdf", "PDF 도구"), ("/jeoksan", "K-적산"),
            ("/shareone", "쉐어원 공유폴더"),
            ("/safety", "안전관리계획서 · 유해위험방지계획서"),
-           ("/naeyeok", "내역서 — 산출내역서 · 하도급 · 설계변경"), ("/tools/dxf3d", "도면 3D 보기"), ("/tools/dxfpdf", "도면 PDF 만들기"), ("/tools/dwgdxf", "DWG → DXF 바꾸기"), ("/jeoksan/golgo", "골조 수량산출"), ("/jeoksan/magam", "마감 수량산출"), ("/jeoksan/auto", "도면 물량 자동"), ("/tools/tuipbi", "현장 투입비 · 공사일보"), ("/tools/risk", "위험성평가"), ("/tools/equip", "장비 임대료·수금 장부"), ("/qna", "사랑방"),
+           ("/naeyeok", "내역서 — 산출내역서 · 하도급 · 설계변경"), ("/tools/dxf3d", "도면 3D 보기"), ("/tools/dxfpdf", "도면 PDF 만들기"), ("/tools/dwgdxf", "DWG → DXF 바꾸기"), ("/jeoksan/golgo", "골조 수량산출"), ("/jeoksan/magam", "마감 수량산출"), ("/jeoksan/auto", "도면 물량 자동"), ("/tools/tuipbi", "현장 투입비 · 공사일보"), ("/tools/risk", "위험성평가"), ("/tools/equip", "장비 임대료·수금 장부"), ("/tools/photo", "사진대지 · 영수증 정리"), ("/qna", "사랑방"),
            ("/how", "보는 방법")]
 
 
@@ -1668,7 +1668,7 @@ NY_KINDS = [
 #   새로 만든 화면들입니다. 사이트맵에도 있지만 크롤러가 스스로 올 때까지 기다리지 않습니다.
 STATIC_NEW = ["/change", "/change/naeyeok", "/change/excel", "/change/twoline", "/change/work", "/forms", "/guide",
               "/cad", "/naeyeok", "/qna", "/how", "/jeoksan", "/jeoksan/run", "/jeoksan/golgo", "/jeoksan/magam", "/jeoksan/auto",
-              "/safety", "/shareone", "/pdf", "/naeyeok/ratio"] + [
+              "/safety", "/shareone", "/pdf", "/naeyeok/ratio", "/tools/photo"] + [
     "/cad/" + _c["slug"] for _c in (load_cad().get("cmds") or [])] + [
     "/change/naeyeok/" + quote(_k, safe="") for _k, _d in NY_KINDS]
 
@@ -2495,6 +2495,34 @@ def equip_page(shell, image=None):
                 _app_ld("장비 임대료·수금 장부", desc, "/tools/equip"))
 
 
+def photo_page(shell, image=None):
+    """/tools/photo — 📷 사진대지 · 🧾 영수증 정리 (2026-09-30)
+    소장님: imgsheet(사진대지 · 영수증) 캡처 → 「아이디어 더 해서 만들어줘. 프로그램으로」 — 화면 PhotoBook.jsx
+    ⚠️ 여기 글은 화면이 그리는 것과 «같은 내용»입니다(React 가 덮어씀)."""
+    title = "사진대지 · 영수증 정리 — 현장 사진 → 사진대지, 영수증 → 지출결의서 · 증빙 (PDF · 엑셀 · 한글 · 워드 무료) | K-건설맵"
+    desc = ("현장 사진을 올리면 찍은 차례로 사진대지(1~8장 · 결재란 · 전후 비교)를, 영수증 스캔은 한 장에 여러 개여도 나눠 "
+            "지출결의서 · 지출명세서 · 증빙자료를 만듭니다. PDF · 엑셀 · 한글(HWPX) · 워드 모두 무료, 가입 없음, 사진은 브라우저 밖으로 안 나감.")[:160]
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">📷 사진대지 · 🧾 영수증 정리</h1>'
+           '<p class="cp" style="margin-top:8px">현장 사진은 <b>사진대지</b>로, 영수증은 <b>지출결의서 · 명세서 · 증빙자료</b>로 — '
+           '<b>PDF · 엑셀 · 한글 · 워드 모두 무료</b>, 가입 없음.</p>'
+           '<p class="cp">사진과 영수증은 <b>이 브라우저 밖으로 나가지 않습니다</b>. 적은 것은 이 브라우저에 저절로 남아 이어서 합니다.</p></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">📷 사진대지</div><ul class="flist">'
+           '<li>찍은 시각(사진 속 정보) 차례로 자동 정리 · 날짜가 바뀌면 새 쪽</li>'
+           '<li>흐린 사진 · 거의 같은 사진(연속 촬영) · 어두운 사진 표시 → 한 번에 빼기</li>'
+           '<li>한 쪽에 1 · 2 · 3 · 4 · 6 · 8장, 세로 · 가로, 결재란, 사진 번호 · 쪽 번호, 칸 구성(일자 · 위치 · 공종 · 내용 · 비고)</li>'
+           '<li>시공 전 · 후 나란히 비교 · 일자는 찍은 날이 저절로 · 파일 이름을 내용으로 · 현장 문구 모음 · 아래로 모두 같게</li>'
+           '<li>사진 용량 고르기(가볍게 — 메일 · 나라장터 / 선명하게 — 크게 인쇄)</li></ul></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">🧾 영수증 정리</div><ul class="flist">'
+           '<li>영수증 사진 · 스캔 PDF — 한 장에 여러 개를 스캔해도 저절로 나눔(틀리면 끌어서 고침)</li>'
+           '<li>사용처를 적으면 과목 추천(주유소 → 유류비 · 식당 → 식대 …)</li>'
+           '<li>지출결의서(과목별 합계 · 한글 금액) · 지출명세서 · 증빙자료(번호 맞춤) 한 번에</li>'
+           '<li>엑셀은 합계 · 과목별(SUMIF) 수식이 살아 있어 고치면 따라 바뀜</li></ul>'
+           '<div class="btn-row" style="margin-top:10px"><a class="btn ghost" href="/pdf">📄 PDF 도구</a>'
+           '<a class="btn ghost" href="/tools/wonclick">⚡ 공사서류 원클릭</a><a class="btn ghost" href="/qna">💬 사랑방</a></div></div>']
+    return page(shell, "/tools/photo", title, desc, "".join(out) + nav_html("/tools/photo"), image,
+                _app_ld("사진대지 · 영수증 정리", desc, "/tools/photo"))
+
+
 def risk_page(shell, image=None):
     title = "위험성평가 프로그램 — 최초·정기·수시(4주·1주·1일)·회의·교육·성과측정표 별지 1~5 | K-건설맵"
     desc = ("건설현장 위험성평가 별지 1~5를 사이트에서 바로 씁니다. 위험요인 사전에서 골라 넣고 위험등급(빈도×강도)·관리기간·"
@@ -2915,6 +2943,9 @@ def main():
     write("tools/risk.html", risk_page(shell,
           og.tab("tool-risk", "위험성평가 별지 1~5", "건설 도구", "수시 4주·1주·1일", "성과측정표") if og.available else None))
     print("  · 장비 장부 · 위험성평가 페이지 2개 (/tools/equip · /tools/risk)")
+    write("tools/photo.html", photo_page(shell,
+          og.tab("tool-photo", "사진대지 · 영수증 정리", "건설 도구", "PDF · 엑셀 · 한글 · 워드", "모두 무료") if og.available else None))
+    print("  · 사진대지 · 영수증 정리 페이지 1개 (/tools/photo)")
 
     # ── 🪪 면허별 경쟁도 ──
     lrows, lmin = load_licstat()

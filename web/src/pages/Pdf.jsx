@@ -341,6 +341,10 @@ export default function Pdf() {
               </select></div>
           )}
           {코드 === '사진대지' && (
+            <div className="cok" style={{ marginTop: 0 }}>📷 더 많이 하려면 — <Link to="/tools/photo"><b>사진대지 · 영수증 정리</b></Link>:
+              찍은 차례 자동 · 흐린/같은 사진 표시 · 결재란 · 전·후 비교 · <b>엑셀 · 한글 · 워드</b>로도 받기</div>
+          )}
+          {코드 === '사진대지' && (
             <div className="field"><label>한 쪽에 몇 장</label>
               <select value={옵.한쪽에} onChange={(e) => 옵놓기((o) => ({ ...o, 한쪽에: e.target.value }))}>
                 <option value="2">2장 (가장 흔합니다)</option><option value="4">4장</option><option value="6">6장</option>
