@@ -195,6 +195,21 @@ console.log('④ 영수증')
   const 한 = 영수증찾기(스캔(400, 700, '#ffffff', [[5, 5, 390, 690]]), 400, 700)
   확인('영수증 한 장이 꽉 차면 → 1장', 한.length === 1, JSON.stringify(한))
   const 두줄 = 영수증찾기(스캔(800, 800, '#ffffff', [[60, 40, 250, 300], [450, 40, 250, 300], [60, 450, 250, 300], [450, 450, 250, 300]]), 800, 800)
+  {
+    /* 빈 줄 뒤 «합계» 한 줄만 있는 영수증 — 그 줄이 제 영수증에 붙어야(떨어져 버려지면 합계가 잘림) */
+    const W = 800, H = 566
+    const c = createCanvas(W, H), g = c.getContext('2d')
+    g.fillStyle = '#fff'; g.fillRect(0, 0, W, H)
+    for (const x0 of [60, 330, 580]) {
+      g.fillStyle = '#222'
+      for (let k = 0; k < 4; k++) g.fillRect(x0 + 10, 60 + k * 23, 110, 8)
+      g.fillRect(x0 + 10, 60 + 4 * 23 + 46, 90, 9)
+    }
+    const d = g.getImageData(0, 0, W, H).data, gray = new Uint8Array(W * H)
+    for (let i = 0; i < gray.length; i++) gray[i] = (d[i * 4] * 299 + d[i * 4 + 1] * 587 + d[i * 4 + 2] * 114) / 1000
+    const r = 영수증찾기(gray, W, H)
+    확인('빈 줄 뒤 합계 한 줄도 같은 영수증에', r.length === 3 && r.every((b) => (b.y + b.h) * H >= 60 + 4 * 23 + 46 + 9), JSON.stringify(r))
+  }
   확인('2×2 → 4장 · 위 줄 먼저', 두줄.length === 4 && 두줄[0].y < 0.2 && 두줄[1].y < 0.2 && 두줄[2].y > 0.4, JSON.stringify(두줄))
 }
 

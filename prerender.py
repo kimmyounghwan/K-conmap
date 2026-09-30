@@ -2516,7 +2516,15 @@ def photo_page(shell, image=None):
            '<li>영수증 사진 · 스캔 PDF — 한 장에 여러 개를 스캔해도 저절로 나눔(틀리면 끌어서 고침)</li>'
            '<li>사용처를 적으면 과목 추천(주유소 → 유류비 · 식당 → 식대 …)</li>'
            '<li>지출결의서(과목별 합계 · 한글 금액) · 지출명세서 · 증빙자료(번호 맞춤) 한 번에</li>'
-           '<li>엑셀은 합계 · 과목별(SUMIF) 수식이 살아 있어 고치면 따라 바뀜</li></ul>'
+           '<li>엑셀은 합계 · 과목별(SUMIF) 수식이 살아 있어 고치면 따라 바뀜</li></ul></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">📖 사용 방법</div><ol class="flist">'
+           '<li><b>사진 올리기</b> — 끌어다 놓거나 눌러서 여러 장(폴더째도). 찍은 시각 차례로 저절로 늘어섭니다</li>'
+           '<li><b>살펴보기</b> — 흐린 · 거의 같은 · 어두운 사진에 표시 → «표시된 것 빼기»</li>'
+           '<li><b>꾸미기</b> — 공사명 · 위치 · 결재란 · 한 쪽에 몇 장 · 칸 구성(오른쪽 미리보기가 바로 바뀜)</li>'
+           '<li><b>내용 적기</b> — 일자는 찍은 날이 저절로 · 내용은 «문구» 에서 고르거나 «↓» 로 아래 모두 같게</li>'
+           '<li><b>내려받기</b> — PDF · 엑셀 · 한글 · 워드 (메일 · 나라장터는 «가볍게»)</li>'
+           '<li><b>영수증</b> — 사진 · 스캔 PDF 를 올리면 저절로 나눔 → 틀리면 «칸 고치기» → 일자 · 사용처 · 금액을 적으면 과목 추천 → 지출결의서 · 명세서 · 증빙을 한 파일로</li></ol>'
+           '<p class="cp" style="margin:8px 0 0">«▶ 예시로 해 보기» 를 누르면 예시 사진 8장 · 예시 영수증 스캔으로 처음부터 끝까지 돌려 볼 수 있습니다.</p>'
            '<div class="btn-row" style="margin-top:10px"><a class="btn ghost" href="/pdf">📄 PDF 도구</a>'
            '<a class="btn ghost" href="/tools/wonclick">⚡ 공사서류 원클릭</a><a class="btn ghost" href="/qna">💬 사랑방</a></div></div>']
     return page(shell, "/tools/photo", title, desc, "".join(out) + nav_html("/tools/photo"), image,

@@ -5018,3 +5018,11 @@ details.js-more[open] > summary { margin-bottom: 8px; }
   .pb-outs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pb-vbody { max-height: none; min-height: 240px; }
 }
+/* 📖 사용 방법 · ▶ 예시 (G76) */
+.pb-how { padding: 12px 14px; background: color-mix(in srgb, var(--accent) 4%, var(--surface)); border-color: var(--accent-line); }
+.pb-howh { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pb-howt { border: 0; background: none; color: var(--accent); font-size: 15px; font-weight: 800; cursor: pointer; padding: 2px 0; }
+.pb-ex { width: auto; }
+.pb-steps { margin: 10px 0 6px; padding-left: 20px; font-size: 13.5px; line-height: 1.7; }
+.pb-steps li { margin-bottom: 3px; }
+.pb-tips { margin: 6px 0 0; padding: 8px 10px 8px 26px; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--line); font-size: 12.5px; line-height: 1.7; color: var(--text-2); }

@@ -108,7 +108,7 @@ export function 영수증찾기(gray, w, h, 기록 = null) {
   const m2 = 번지기(mask, w, h, rx, ry)
   let 상자 = 덩어리들(m2, w, h)
     .map((b) => (어두운바탕 ? b : { ...b, x0: Math.min(b.x1, b.x0 + rx), y0: Math.min(b.y1, b.y0 + ry), x1: Math.max(b.x0, b.x1 - rx), y1: Math.max(b.y0, b.y1 - ry) }))
-    .filter((b) => (b.x1 - b.x0) >= w * 0.04 && (b.y1 - b.y0) >= h * 0.03)
+    .filter((b) => (b.x1 - b.x0) >= 2 || (b.y1 - b.y0) >= 2)   /* 크기로 거르는 것은 합친 뒤에(한 줄짜리 «합계» 도 제 영수증에 붙게) */
   if (기록) 기록.push({ 어두운바탕, T, 덩어리: 상자.map((b) => ({ ...b })) })
   /* 겹치는 것 · 위아래로 붙은 것(영수증 한 장이 빈 줄로 끊긴 것) 합치기 */
   const 붙나 = (a, b) => {
@@ -117,7 +117,7 @@ export function 영수증찾기(gray, w, h, 기록 = null) {
     if (틈x <= w * 0.008 && 틈y <= h * 0.008) return true
     const 겹x = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)
     const 좁 = Math.min(a.x1 - a.x0, b.x1 - b.x0)
-    return 겹x >= 좁 * 0.55 && 틈y <= h * 0.08
+    return 겹x >= 좁 * 0.55 && 틈y <= h * 0.12   /* 한 장 안의 빈 줄(합계 위 빈칸 등)을 건너게 — 위아래 영수증은 보통 이보다 멀리 */
   }
   let 바뀜 = true
   while (바뀜) {
@@ -128,7 +128,7 @@ export function 영수증찾기(gray, w, h, 기록 = null) {
       }
     }
   }
-  상자 = 상자.filter((b) => (b.x1 - b.x0) * (b.y1 - b.y0) >= w * h * 0.005)
+  상자 = 상자.filter((b) => (b.x1 - b.x0) >= w * 0.04 && (b.y1 - b.y0) >= h * 0.03 && (b.x1 - b.x0) * (b.y1 - b.y0) >= w * h * 0.005)
   if (!상자.length) return [{ x: 0, y: 0, w: 1, h: 1 }]
   if (상자.length === 1) {
     const b = 상자[0]
