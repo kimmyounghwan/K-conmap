@@ -67,6 +67,7 @@ const LEAF = {
   '/tools/risk': '위험성평가 (별지 1~5)',
   '/tools/wonclick': '공사서류 원클릭',
   '/report/make': '성적표 만들기',
+  '/report/agency': '발주기관 보고서 만들기',
   '/naeyeok/ratio': '내역서 비율 맞추기',
   '/jeoksan/fill': '공내역서 단가 채우기',
 }

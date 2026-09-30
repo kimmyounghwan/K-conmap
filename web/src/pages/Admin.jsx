@@ -167,6 +167,8 @@ export default function Admin() {
         {/* 📊 2026-09-18 — 성적표를 «여기서» 만듭니다. 소장님: 「난 할 수 있게 해달라고 했잖아」 */}
         <div className="btn-row" style={{ marginTop: 10 }}>
           <Link className="btn primary" to="/report/make">📊 업체 성적표 만들기</Link>
+          {/* 🏛 2026-09-28 — 발주기관 보고서도 같은 자리에서 만듭니다 */}
+          <Link className="btn primary" to="/report/agency">🏛 발주기관 보고서 만들기</Link>
         </div>
       </div>
 

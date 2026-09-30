@@ -22,18 +22,18 @@ export const 흐림 = '#6b7280'
 export const 줄색 = '#e5e7eb'
 
 /* 사이트(styles.css)와 같은 차례입니다 — 소장님 컴퓨터(윈도)에서는 맑은 고딕으로 그려집니다 */
-const 글꼴 = "'Malgun Gothic','맑은 고딕','Apple SD Gothic Neo','Pretendard','Noto Sans KR','Noto Sans CJK KR',sans-serif"
+export const 글꼴 = "'Malgun Gothic','맑은 고딕','Apple SD Gothic Neo','Pretendard','Noto Sans KR','Noto Sans CJK KR',sans-serif"
 
 /* 300dpi 는 한 쪽에 4MB 가 넘습니다. 160dpi 면 글자가 또렷하면서 한 쪽 200~400KB 입니다. */
 export const DPI = 160
-const MM = (v) => v * DPI / 25.4
-const PT = (v) => v * DPI / 72
-const 쪽너비 = Math.round(MM(210))
-const 쪽높이 = Math.round(MM(297))
-const 여백가로 = Math.round(MM(13))
-const 여백세로 = Math.round(MM(14))
-const 글너비 = 쪽너비 - 여백가로 * 2
-const 바닥 = 쪽높이 - 여백세로
+export const MM = (v) => v * DPI / 25.4
+export const PT = (v) => v * DPI / 72
+export const 쪽너비 = Math.round(MM(210))
+export const 쪽높이 = Math.round(MM(297))
+export const 여백가로 = Math.round(MM(13))
+export const 여백세로 = Math.round(MM(14))
+export const 글너비 = 쪽너비 - 여백가로 * 2
+export const 바닥 = 쪽높이 - 여백세로
 
 export const 돈 = (n) => {
   if (n == null) return '—'
@@ -60,7 +60,7 @@ export function 공고가리기(s) {
    *굵게* · ⟦파란 굵게⟧ · ⟨붉은 굵게⟩ 세 가지만 씁니다.
    자료에서 온 글(공고명·업체명)은 넣기 전에 이 글자들을 떼어 냅니다. */
 export const 씻기 = (s) => String(s == null ? '' : s).replace(/[*⟦⟧⟨⟩]/g, '')
-function 조각(s) {
+export function 조각(s) {
   const out = []
   const re = /(\*[^*]+\*|⟦[^⟧]+⟧|⟨[^⟩]+⟩)/g
   let i = 0, m
@@ -104,7 +104,7 @@ export function 종이만들기() {
 /* ══════════════════════════════════════════════════════════════
    그림판 — 쪽을 채우다 넘치면 새 쪽으로 넘어갑니다
    ══════════════════════════════════════════════════════════════ */
-class 그림판 {
+export class 그림판 {
   constructor() {
     this.쪽들 = []
     this.새쪽()
@@ -132,6 +132,7 @@ class 그림판 {
     for (const s of segs) {
       this.글꼴설정(pt, s.b)
       for (const t of 토막(s.s)) {
+        if (t === '\n') { 줄.push([]); w = 0; continue }        // 2026-09-29 — «먼저 보실 것» 상자처럼 줄을 나눠 쓸 때
         const tw = this.x.measureText(t).width
         if (w + tw > maxW && w > 0 && t !== ' ') { 줄.push([]); w = 0 }
         if (w === 0 && t === ' ') continue
@@ -215,7 +216,7 @@ class 그림판 {
 /* ══════════════════════════════════════════════════════════════
    블록 하나하나
    ══════════════════════════════════════════════════════════════ */
-function 표제(g, s, hi) {
+export function 표제(g, s, hi) {
   const lh = PT(12.5) * 1.3
   /* ⚠️ 표제만 쪽 맨 아래에 남고 알맹이가 다음 쪽으로 넘어가면 종이가 이상해 보입니다.
      그래서 표제 아래로 최소 한 덩어리(약 90pt)가 들어갈 자리가 없으면 쪽을 넘깁니다. */
@@ -230,7 +231,7 @@ function 표제(g, s, hi) {
   g.y += PT(8)
 }
 
-function 상자글(g, s, { 배경, 테, pt = 10.5 }) {
+export function 상자글(g, s, { 배경, 테, pt = 10.5 }) {
   const W = 글너비 - PT(14)
   const 줄 = g.줄나누기(조각(s), pt, W)
   const lh = PT(pt) * 1.6
@@ -245,7 +246,7 @@ function 상자글(g, s, { 배경, 테, pt = 10.5 }) {
   g.y += h
 }
 
-function 타일(g, items) {
+export function 타일(g, items) {
   const n = items.length
   const gap = PT(8)
   const w = (글너비 - gap * (n - 1)) / n
@@ -265,7 +266,7 @@ function 타일(g, items) {
   g.y += h
 }
 
-function 막대(g, rows, 라벨폭 = 74) {
+export function 막대(g, rows, 라벨폭 = 74) {
   const lw = PT(라벨폭), vw = PT(80)
   const bw = 글너비 - lw - vw - PT(8)
   g.자리(PT(8) + rows.length * PT(17))
@@ -286,7 +287,7 @@ function 막대(g, rows, 라벨폭 = 74) {
   }
 }
 
-function 견줌(g, rows) {
+export function 견줌(g, rows) {
   const lw = PT(118), vw = PT(100)
   g.자리(PT(10) + rows.length * PT(21))
   g.y += PT(10)
@@ -340,7 +341,7 @@ function 눈금(g, rows, mx = 30) {
 }
 
 /** 테두리 있는 작은 표 (report_html.py 의 .tbl2) */
-function 네모표(g, head, rows, 너비몫) {
+export function 네모표(g, head, rows, 너비몫) {
   const pt = 10
   const W = 글너비
   const cw = 너비몫.map((f) => W * f)
@@ -378,7 +379,7 @@ function 네모표(g, head, rows, 너비몫) {
 }
 
 /** 빽빽한 기록표 (report_html.py 의 .rows) */
-function 기록표(g, head, rows, 너비몫) {
+export function 기록표(g, head, rows, 너비몫) {
   const pt = 8.5
   const cw = 너비몫.map((f) => 글너비 * f)
   const 머리 = () => {
@@ -424,8 +425,9 @@ function 기록표(g, head, rows, 너비몫) {
   }
 }
 
-function 꼬리(g, 큰줄, 작은줄들) {
-  g.자리(PT(60))
+export function 꼬리(g, 큰줄, 작은줄들) {
+  /* 2026-09-29 — 꼬리가 두 쪽으로 쪼개져 마지막 쪽에 작은 글 몇 줄만 남던 것 → 한 덩이로 옮깁니다 */
+  g.자리(PT(40 + 16 * ((작은줄들 || []).length + 2)))
   g.y += PT(18)
   g.선(g.y, 여백가로, 쪽너비 - 여백가로, 파랑, 2)
   g.y += PT(4)
@@ -435,7 +437,7 @@ function 꼬리(g, 큰줄, 작은줄들) {
 
 /* 📣 쪽마다 사이트 이름을 답니다 — 이 종이는 사무실을 돌아다닙니다.
    받은 사람이 아니라 «옆에서 본 사람» 이 찾아오게 하는 것이 목적입니다. */
-function 쪽바닥(p, n, 총) {
+export function 쪽바닥(p, n, 총) {
   const x = p.x
   x.strokeStyle = 줄색; x.lineWidth = 1
   x.beginPath(); x.moveTo(여백가로, 바닥 - PT(11) + 0.5); x.lineTo(쪽너비 - 여백가로, 바닥 - PT(11) + 0.5); x.stroke()
@@ -1047,10 +1049,10 @@ function 중앙값(a) {
 }
 
 /** 캔버스 쪽들 → PDF 한 벌 (A4) */
-export async function PDF만들기(캔버스들) {
+export async function PDF만들기(캔버스들, 제목 = '입찰 성적표') {
   const { PDFDocument } = await import('pdf-lib')
   const doc = await PDFDocument.create()
-  doc.setTitle('입찰 성적표')
+  doc.setTitle(제목)
   doc.setProducer('K-건설맵 k-conmap.com')
   doc.setCreator('K-건설맵 k-conmap.com')
   for (const c of 캔버스들) {

@@ -125,6 +125,8 @@ const TwoLine = lazyPage(() => import('./pages/TwoLine.jsx'))
 /* 📊 성적표 «만들기» — 2026-09-18. 소장님만. 검색엔진에 안 올립니다(ReportMake.jsx 가 noindex 를 겁니다).
    ⚠️ 무거운 것(캔버스·pdf-lib)은 이 화면을 열 때만 받습니다 — 반드시 lazyPage 입니다. */
 const ReportMake = lazyPage(() => import('./pages/ReportMake.jsx'))
+/* 🏛 발주기관 보고서 «만들기» — 2026-09-28. 소장님만. 업체 성적표와 같은 틀(noindex · lazyPage). */
+const AgencyReportMake = lazyPage(() => import('./pages/AgencyReportMake.jsx'))
 const FormPage = lazyPage(() => import('./pages/Forms.jsx').then((m) => ({ default: m.FormPage })))
 
 const Loading = () => (
@@ -165,6 +167,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
               ⚠️ pages/Report.jsx 는 지우지 않고 두었습니다 — 되살릴 일이 생기면 이 줄만 되돌리면 됩니다. */}
           <Route path="/report" element={<Navigate to="/" replace />} />
           <Route path="/report/make" element={<Suspense fallback={<Loading />}><ReportMake /></Suspense>} />
+          <Route path="/report/agency" element={<Suspense fallback={<Loading />}><AgencyReportMake /></Suspense>} />
           {/* 갈래별 주소 — prerender.py 가 이 주소로 HTML 을 굽습니다.
               ⚠️ 여기에 길이 없으면, 검색으로 들어온 사람에게 React 가 NotFound 를 씌우고
                  NotFound 는 noindex 를 겁니다 (CLAUDE.md soft 404). 반드시 짝을 맞춥니다. */}

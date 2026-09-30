@@ -80,12 +80,15 @@ export default function ReportMake() {
        혼자 만드는 화면이라 인터넷이 없어도 돌아가야 맞습니다.
        ⚠️ 자물쇠를 느슨하게 하는 것이 아닙니다 — 진짜 자물쇠는 **자료** 입니다.
           이 화면은 소장님 컴퓨터의 first.json 이 없으면 한 글자도 못 만듭니다. */
-    나운영자().then((v) => { if (v) setUid((p) => (p === undefined ? OP_LOCAL : p)) }).catch(() => {})
+    /* 🐛 2026-09-28 — 파이어베이스가 «먼저» 실패하면(인터넷이 막힌 현장) uid 가 '' 로 굳고, 뒤늦게 온
+       «브라우저에 적힌 운영자 번호» 가 무시돼 소장님 브라우저인데도 «운영자만» 으로 막혔습니다(시험에서 잡음).
+       → 운영자 번호가 확인되면 순서와 상관없이 엽니다(진짜 운영자 uid 로 이미 열렸으면 그대로). 기관 보고서와 같게. */
+    나운영자().then((v) => { if (v) setUid((p) => (p && p !== OP_LOCAL && isOp(p) ? p : OP_LOCAL)) }).catch(() => {})
     ;(async () => {
       try {
         const { ensureAnon } = await loadFb()
         const u = await ensureAnon()
-        setUid((u && u.uid) || '')
+        setUid((p) => (p === OP_LOCAL ? p : ((u && u.uid) || '')))
       } catch { setUid((p) => (p === OP_LOCAL ? p : '')) }
     })()
     /* 사정률 중앙값은 사이트가 매번 다시 재 둡니다 — 손으로 적은 숫자를 쓰지 않습니다 */

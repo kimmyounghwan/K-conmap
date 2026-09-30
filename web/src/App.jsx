@@ -95,6 +95,7 @@ function 운영자띠() {
     <div className="opbar">
       <span className="opbar-t">📊 소장님만</span>
       <NavLink to="/report/make">업체 성적표 만들기</NavLink>
+      <NavLink to="/report/agency">기관 보고서 만들기</NavLink>
       <NavLink to="/admin">문의함</NavLink>
     </div>
   )

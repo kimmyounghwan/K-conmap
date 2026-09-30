@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getAgency } from '../lib/data.js'
 import AgencyReport from '../AgencyReport.jsx'
+import 기관견본줄 from '../기관견본.jsx'
 import { Skeleton, Empty } from '../components.jsx'
 import { ShareBtn } from './CorpPage.jsx'
 import { pct, num } from '../lib/fmt.js'
@@ -70,6 +71,8 @@ export default function AgencyPage() {
       <div className="btn-row" style={{ marginTop: 10 }}>
         <Link className="btn" to="/calc" style={{ flex: 1 }}>💰 바로투찰 열기 →</Link>
       </div>
+      {/* 🏛 2026-09-28 — 이 화면을 끝까지 본 사람이 «더 세세한 것» 을 원하는 사람입니다 */}
+      <기관견본줄 name={decoded} />
     </>
   )
 }

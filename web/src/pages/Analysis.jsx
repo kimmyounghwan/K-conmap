@@ -6,6 +6,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { searchCorp } from '../lib/data.js'
 import { AgencyPicker, Bars, Months, Tile, Empty } from '../components.jsx'
 import { wonShort, pct, num, dateFull, normCorp } from '../lib/fmt.js'
+import 기관견본줄 from '../기관견본.jsx'
 
 export default function Analysis() {
   const [sp, setSp] = useSearchParams()
@@ -32,7 +33,10 @@ export default function Analysis() {
       {/* 📄 2026-09-19 — 소장님: 「견본 pdf는 이용자에게 보여야지」
           견본은 «이용자에게 보여 주는 것»이 목적입니다 — 보고 신청하시라고 만든 종이입니다.
           만드는 화면(/report/make)만 소장님 것입니다. 둘을 갈라 둡니다. */}
-      <견본줄 />
+      {/* 🏛 2026-09-28 — 견본은 «탭에 맞는 것» 을 보여 줍니다.
+          발주기관 탭 → 발주기관 분석 견본 · 업체 자가진단 탭 → 업체 성적표 견본.
+          (소장님: 「발주기관 분석도 … 업체 자가 진단 처럼 PDF 견본을 보여주고 신청하게」) */}
+      {mode === 'agency' ? <기관견본줄 /> : <견본줄 />}
       <운영자줄 />
     </>
   )
@@ -245,10 +249,11 @@ function 운영자줄() {
   return (
     <div className="card" style={{ marginTop: 12, borderColor: 'var(--accent-line)' }}>
       <div className="detail-h" style={{ marginBottom: 8 }}>
-        📊 성적표 만들기 <span className="count">· 소장님만 보입니다</span>
+        📊 성적표 · 보고서 만들기 <span className="count">· 소장님만 보입니다</span>
       </div>
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
         <Link className="btn primary" to="/report/make">📊 업체 성적표 만들기</Link>
+        <Link className="btn primary" to="/report/agency">🏛 발주기관 보고서 만들기</Link>
         <Link className="btn line" to="/qna">💬 사랑방(신청 받는 곳)</Link>
       </div>
     </div>

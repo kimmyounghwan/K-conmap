@@ -1408,7 +1408,7 @@ def main():
     print("  K-건설맵 정적 데이터 빌드")
     print("=" * 52)
 
-    for sub in ("agency", "corp", "kw"):
+    for sub in ("agency", "agency_deep", "corp", "kw"):
         p = os.path.join(OUT, sub)
         if os.path.isdir(p):
             shutil.rmtree(p)
@@ -1416,6 +1416,14 @@ def main():
 
     df = load_all()
     n_ag = build_agency(df)
+    # 🏛 발주기관 정밀 보고서의 숫자 (2026-09-28) — 운영자 화면(/report/agency)만 읽습니다.
+    #    ⚠️ build_agency «뒤» 입니다 — agency/names.json 의 묶음 번호를 그대로 씁니다.
+    #    실패해도 사이트 집계는 계속합니다(보고서 하나 때문에 사이트가 멈추면 안 됩니다).
+    try:
+        import agency_deep
+        agency_deep.build(df, OUT, log=log)
+    except Exception as e:
+        log(f"⚠️ 정밀 보고서 숫자를 못 만들었습니다 — {e}")
     n_co = build_corp(df)
     n_kw = build_keyword(df)
     build_overview(df, n_ag, n_co, n_kw)
