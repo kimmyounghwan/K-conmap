@@ -621,7 +621,7 @@ export default function Qna() {
         </div>
       )}
       {/* 🔔 2026-09-30(G73) 이 기능 전에 글을 쓰신 분 — 폰 알림을 켤 단추 하나(누를 때만 브라우저 허용 창). 이미 정했으면 안 보임 */}
-      {폰켤단추 && (
+      {폰켤단추 && !나운영자 && (
         <div className="noti-on">
           <button className="btn sm line" onClick={async () => {
             const 허락 = 허락묻기()
@@ -1020,8 +1020,9 @@ function AnswerForm({ qid, onDone }) {
 
   const submit = async () => {
     if (b.trim().length < 2) return setMsg('답글을 적어 주세요.')
-    /* 🔔 누른 그 순간 묻습니다(아이폰 · 파이어폭스는 기다렸다 물으면 거절) — 이미 정했으면 묻지 않음 */
-    const 허락 = 허락묻기()
+    /* 🔔 누른 그 순간 묻습니다(아이폰 · 파이어폭스는 기다렸다 물으면 거절) — 이미 정했으면 묻지 않음
+       ⚠️ 소장님(운영자) 브라우저에서는 묻지 않습니다 — 소장님: 「그냥, 내가 답글을 쓰면 알림이 가게 해달라고」(허용 창 없이) */
+    const 허락 = 나운영자 ? Promise.resolve('skip') : 허락묻기()
     setBusy(true); setMsg('')
     try {
       const { ref, set, push, db, ensureAnon } = await loadFb()
@@ -1097,8 +1098,8 @@ function WriteForm({ onDone, 첫갈래, 첫글, 나운영자 }) {
     /* 🛠 2026-09-27 — 운영자 브라우저는 «지울 4자리» 없이 올립니다(관리자 화면에서 어떤 글이든 지움).
        소장님: 「사랑방에 각각의 도구 사용 방법을 … 게시 해줘」 — 클로드가 대신 올릴 때 비밀번호류를 넣지 않으려고 */
     if (!나운영자 && f.pin.length !== 4) return setMsg('지울 때 쓸 4자리 숫자를 정해 주세요.')
-    /* 🔔 누른 그 순간 브라우저 기본 «알림 허용» 창 — 답글이 달리면 폰 알림창에(G73) */
-    const 허락 = 허락묻기()
+    /* 🔔 누른 그 순간 브라우저 기본 «알림 허용» 창 — 답글이 달리면 폰 알림창에(G73) · 소장님 브라우저는 묻지 않음 */
+    const 허락 = 나운영자 ? Promise.resolve('skip') : 허락묻기()
     setBusy(true); setMsg('')
     try {
       const { ref, set, push, db, ensureAnon, serverTimestamp } = await loadFb()
