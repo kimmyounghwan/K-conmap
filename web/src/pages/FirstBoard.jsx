@@ -18,6 +18,7 @@ import { won, wonShort, pct, num, dateTime, dateShort, REGIONS, inRegion } from 
 import { loadLicCodes, saveLicCodes, loadLicNone, saveLicNone,
          licList, licNoneCount, licHit, licShort } from '../lib/lic.js'
 import { use남김 } from '../lib/길기록.js'
+import 밖공고줄 from '../밖공고줄.jsx'
 
 const PAGE = 20
 const KIND = 'con'   // 공사만 다룹니다 (용역 제외)
@@ -106,6 +107,8 @@ export default function FirstBoard() {
       {/* ⚠️ 문구를 여기에 적지 않습니다 — 시각에 따라 달라지고, 숫자의 근거는
           web/src/lib/freshnote.js 에 실측과 함께 한 곳에만 둡니다 (2026-09-11). */}
       <FreshBar kind="first" />
+      {/* 🏆 나라장터 밖 1순위(LH · 수자원 · 국방 · 아파트 · 민간) — 자료가 있을 때만 한 줄 (2026-09-30) */}
+      <밖공고줄 kind="first" />
 
       <input
         value={q}

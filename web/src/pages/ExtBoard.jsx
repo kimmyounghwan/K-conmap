@@ -11,8 +11,11 @@
      · 카드를 누르면 일정 · 조건 · 첨부 · «공고번호 복사» · «원문 사이트» — 폰에서 번호를 손으로 옮겨 적지 않게.
      · 40건씩 보여 주고 «더 보기». 폰에서 한 번에 수백 장을 그리지 않게.
    ⚠️ 금액 · 일정은 기관이 공공데이터포털에 낸 값 그대로입니다(이름도 기관이 쓴 그대로 — 추정가격 · 기초금액 · 기준금액 · 배정예산).
-      여기서 셈하지 않습니다. 원문 공고로 가는 길을 늘 곁에 둡니다. */
-import { Link } from 'react-router-dom'
+      여기서 셈하지 않습니다. 원문 공고로 가는 길을 늘 곁에 둡니다.
+   ■ 🏆 1순위(낙찰) 탭 (2026-09-30 소장님 「lh나 국방 등 이런 데는 낙찰된 것은 왜 없어? 공고만 있는 거잖아.」)
+     /ext?t=first — ExtFirst.jsx. 주소에 탭을 적어 두어 /first 화면의 한 줄 · 공유 · 뒤로 가기가 그 탭으로 옵니다.
+     공고 탭의 list.json 은 공고 탭을 볼 때만 받습니다(1순위만 보러 온 폰이 공고 목록까지 받지 않게). */
+import { Link, useSearchParams } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import { getJSON } from '../lib/data.js'
 import { Skeleton, Empty } from '../components.jsx'
@@ -20,6 +23,7 @@ import { won, wonShort, num, dday, parseDate, REGIONS, inRegion } from '../lib/f
 import { loadRegion, saveRegion } from '../lib/lic.js'
 import { use남김 } from '../lib/길기록.js'
 import { smartBid } from '../lib/bidmath.js'
+import ExtFirst from './ExtFirst.jsx'
 
 /* 원문 사이트 — 공고번호로 찾아 들어갑니다(기관마다 공고 한 건으로 바로 가는 주소를 주지 않습니다) */
 export const 기관 = {
@@ -74,6 +78,9 @@ const 일정칸 = [
 ]
 
 export default function ExtBoard() {
+  const [sp, setSp] = useSearchParams()
+  const 탭 = sp.get('t') === 'first' ? 'first' : 'list'
+  const 탭바꿈 = (t) => { setSp(t === 'first' ? { t: 'first' } : {}, { replace: true }); window.scrollTo(0, 0) }
   const [d, setD] = useState(undefined)
   const [고른, set고른] = use남김('kcm.ext.src', [], 'session')
   const [q, setQ] = use남김('kcm.ext.q', '', 'session')
@@ -85,8 +92,9 @@ export default function ExtBoard() {
   const [복사, set복사] = useState('')
 
   useEffect(() => {
+    if (탭 !== 'list' || d !== undefined) return
     getJSON('/data/ext/list.json').then((v) => setD(v || null)).catch(() => setD(null))
-  }, [])
+  }, [탭])   // eslint-disable-line react-hooks/exhaustive-deps
   const setRegion = (r) => { setRegion0(r); saveRegion(r); set몇(한쪽) }
 
   const rows = (d && d.rows) || []
@@ -133,8 +141,13 @@ export default function ExtBoard() {
   return (
     <>
       <div className="sec-title" style={{ marginTop: 14 }}>
-        🏗 나라장터 밖 공고 <span className="count">· LH · 수자원 · 국방 · 아파트 · 민간</span>
+        🏗 나라장터 밖 입찰 <span className="count">· LH · 수자원 · 국방 · 아파트 · 민간</span>
       </div>
+      <div className="modetabs">
+        <button className={탭 === 'list' ? 'on' : ''} onClick={() => 탭바꿈('list')}>📋 공고</button>
+        <button className={탭 === 'first' ? 'on' : ''} onClick={() => 탭바꿈('first')}>🏆 1순위 · 낙찰</button>
+      </div>
+      {탭 === 'first' ? <ExtFirst 기관={기관} 차례={차례} region={region} setRegion={setRegion} /> : (<>
       <div className="note sm" style={{ marginTop: 0, marginBottom: 10 }}>
         나라장터(조달청)에 안 올라오는 <b>공사</b> 공고를 공공데이터포털에서 모았습니다
         {d && d.at ? <> · <b>{d.at.slice(5).replace('-', '.')}</b> 기준</> : null}
@@ -353,6 +366,7 @@ export default function ExtBoard() {
           </div>
         </>
       )}
+      </>)}
     </>
   )
 }

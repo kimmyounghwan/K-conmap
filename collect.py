@@ -4179,6 +4179,13 @@ def main():
         _g2b = {re.sub(r"[^0-9A-Za-z]", "", str(r.get("no") or "")) for r in _lv}
         _by = extbids.publish(now=_now, g2b_nos=_g2b, sido_fn=lambda x: sido_of(x, _eb), st=_st)
         print(f"  → 나라장터 밖 공고  새로 받음 {_got} · 내보냄 {_by}")
+        # 🏆 나라장터 밖 1순위(낙찰) — /ext 의 «1순위» 탭 (2026-09-30 「lh나 국방 등 이런 데는 낙찰된 것은 왜 없어?」)
+        try:
+            import extres
+            _fb = extres.publish_first(now=_now, sido_fn=lambda x: sido_of(x, _eb))
+            print(f"  → 나라장터 밖 1순위  내보냄 {_fb}")
+        except Exception as e:
+            print(f"  ! 나라장터 밖 1순위 실패 ({type(e).__name__}) — 넘어갑니다")
     except Exception as e:
         print(f"  ! 나라장터 밖 공고 실패 ({type(e).__name__}) — 넘어갑니다")
 

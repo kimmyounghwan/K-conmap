@@ -213,9 +213,10 @@ export default function App() {
             공공데이터포털 나라장터 입찰정보를 가공해 제공합니다.<br />
             분석 결과는 참고용이며 낙찰을 보장하지 않습니다.
           </div>
-          {/* 🙋 만든 사람 — 소장님(2026-09-15): 「사이트 제일 아래에 개발자 김명환 이름을 넣어 줘」 */}
+          {/* 🙋 만든 이 — 소장님(2026-09-15): 「사이트 제일 아래에 개발자 김명환 이름을 넣어 줘」
+                 2026-09-30 「만든 사람을 -만든 이-로 변경해줘」 */}
           <div className="footer-me">
-            만든 사람 · <span className="role">토목 현장소장</span> <b>김명환</b>
+            만든 이 · <span className="role">토목 현장소장</span> <b>김명환</b>
             <span className="dot">·</span>
             <a href="/about">왜 만들었는지</a>
           </div>
