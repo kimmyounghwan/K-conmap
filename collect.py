@@ -4136,10 +4136,16 @@ def main():
     #    마감 전 공고의 공고문(hwpx · hwp · pdf)에서 글만 뽑아 두고, 지금 목록에 있는 것만 내보냅니다.
     #    내보낸 공고에는 nt=1 을 붙입니다 — 화면은 이 표시가 있을 때만 «📄 공고문 전문 보기» 단추를 답니다.
     #    새 기능이라 터져도 배치 전체를 멈추지 않게 감쌉니다. 숫자는 여기서 뽑지 않습니다.
+    #    ⚠️ 2026-09-30 #655 — 받기(fetch)에서 난 오류 하나가 내보내기(publish)까지 막아 사이트에서 «전문 보기» 가 다 사라졌습니다.
+    #       받기와 내보내기를 따로 감쌉니다 — 받기가 실패해도 받아 둔 것은 그대로 내보냅니다.
     try:
         import ntext
         _now = datetime.now(KST)
-        ntext.fetch(live, built, _now.strftime("%Y%m%d%H%M%S"), no_net=NO_NET, diag=DIAG)
+        try:
+            ntext.fetch(live, built, _now.strftime("%Y%m%d%H%M%S"), no_net=NO_NET, diag=DIAG)
+        except Exception as e:
+            print(f"  ! 공고문 전문 받기 실패 ({type(e).__name__}) — 받아 둔 것으로 내보냅니다")
+            DIAG["ntext_err"] = type(e).__name__
         _nt = ntext.publish(live, today=_now.strftime("%Y-%m-%d"))
         for r in (live.get("con") or {}).values():
             if str(r.get("no") or "") in _nt:
@@ -4149,6 +4155,23 @@ def main():
         print(f"  → 공고문 전문  내보냄 {len(_nt):,}건")
     except Exception as e:
         print(f"  ! 공고문 전문 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
+
+    # 🏗 나라장터 밖 공고 (2026-09-30 — 입찰나라에서 가져온 것 4번 · extbids.py 설명 참고)
+    #    LH · 수자원 · 방위사업청(시설) · 아파트(K-apt) · 민간(누리장터) 공사 공고 → web/public/data/ext/list.json (/ext 화면)
+    #    ⚠️ 여기서만 import 합니다 — fast.yml 은 extbids.py 를 받지 않습니다(G78b 교훈).
+    #    ⚠️ 나라장터 자료(live · first)는 읽기만 합니다. 터져도 배치 전체를 멈추지 않게 감쌉니다.
+    #    ⚠️ 오류를 찍을 때 글(e)을 쓰지 않습니다 — requests 오류 글에는 인증키가 든 주소가 있습니다.
+    try:
+        import extbids
+        _now = datetime.now(KST)
+        _got = extbids.fetch(key, now=_now, no_net=NO_NET, diag=DIAG)
+        _lv = list((live.get("con") or {}).values())
+        _eb = region_book(_lv)
+        _g2b = {re.sub(r"[^0-9A-Za-z]", "", str(r.get("no") or "")) for r in _lv}
+        _by = extbids.publish(now=_now, g2b_nos=_g2b, sido_fn=lambda x: sido_of(x, _eb))
+        print(f"  → 나라장터 밖 공고  새로 받음 {_got} · 내보냄 {_by}")
+    except Exception as e:
+        print(f"  ! 나라장터 밖 공고 실패 ({type(e).__name__}) — 넘어갑니다")
 
     print("-" * 52)
     export("first", first, "dt")

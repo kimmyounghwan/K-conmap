@@ -85,5 +85,40 @@ with tempfile.TemporaryDirectory() as d:
     봄("내보낸 모양", json.load(open(os.path.join(N.PUB_DIR, "A1.json"))) == {"f": "공고문.hwpx", "t": "글" * 300, "cut": 0})
     봄("60일 지난 것은 저장소에서도 지움 · 안 지난 것은 둠", sorted(os.listdir(N.NTEXT_DIR)) == ["A1.json", "C3.json"])
 
+# ── 2026-09-30 #655 — BMP 밖 글자 · 짝 없는 서로게이트 때문에 저장이 터져 회차 전체가 멈췄던 것 ──
+봄("hwp 글: 짝 맞는 서로게이트는 한 글자로", N._para_text("가".encode("utf-16le") + "𠀀".encode("utf-16le")) == "가𠀀")
+봄("hwp 글: 짝 없는 것은 �", N._para_text("가".encode("utf-16le") + b"\x00\xd8" + "나".encode("utf-16le")) == "가\ufffd나")
+봄("다듬기: 짝 없는 서로게이트 지움", N.tidy("a\ud800b\udc00c") == "abc")
+import types
+_가짜 = types.ModuleType("requests")
+_가짜.get = lambda url, **kw: types.SimpleNamespace(status_code=200, content=b"x" * 10)
+sys.modules["requests"] = _가짜
+_원래 = N.extract
+봉 = [0]
+
+
+def _뽑기(body, ext):
+    봉[0] += 1
+    return ("글" * 300 + ("\ud800" if 봉[0] == 1 else ""), "")
+
+
+N.extract = _뽑기
+with tempfile.TemporaryDirectory() as d:
+    N.NTEXT_DIR = os.path.join(d, "store")
+    N.NTEXT_BOOK = os.path.join(d, "book.json")
+    st = {"con": {
+        "a": {"no": "A1", "dt": "2026-09-30 10:00:00", "close": "2026-12-31 10:00:00", "docs": [["공고문.hwpx", "u1"]]},
+        "b": {"no": "B2", "dt": "2026-09-29 10:00:00", "close": "2026-12-31 10:00:00", "docs": [["공고문.hwpx", "u2"]]}}}
+    try:
+        n = N.fetch(st, "2026-09-30 18:40", "20260930184000")
+        터짐 = None
+    except Exception as e:
+        n, 터짐 = -1, type(e).__name__
+    bk = json.load(open(N.NTEXT_BOOK, encoding="utf-8")) if os.path.exists(N.NTEXT_BOOK) else {}
+    봄("저장이 터진 한 건 때문에 멈추지 않음", 터짐 is None and n == 1)
+    봄("터진 건은 다시 안 봄 · 나머지는 저장", bk.get("A1", {}).get("perm") is True
+       and "저장 실패" in bk.get("A1", {}).get("why", "") and os.path.exists(os.path.join(N.NTEXT_DIR, "B2.json")))
+N.extract = _원래
+
 print(f"\n공고문 전문 시험: {ok}가지 맞음" + (f" · {bad}가지 틀림" if bad else ""))
 sys.exit(1 if bad else 0)

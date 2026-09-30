@@ -81,7 +81,8 @@ def pick_doc(docs):
 
 # ── 글 다듬기 ───────────────────────────────────────────────────
 def tidy(t):
-    t = str(t or "").replace("\r\n", "\n").replace("\r", "\n").replace(" ", " ")
+    t = re.sub("[\ud800-\udfff]", "", str(t or ""))    # 짝 없는 서로게이트 — 저장이 터집니다(2026-09-30 #655)
+    t = t.replace("\r\n", "\n").replace("\r", "\n").replace(" ", " ")
     t = re.sub(r"[\u0000-\u0008\u000b\u000c\u000e-\u001f﻿-]", "", t)   # 제어 · 사용자 정의 글자
     t = re.sub(r"[ \t　]+", " ", t)
     lines = [ln.strip() for ln in t.split("\n")]
@@ -191,7 +192,10 @@ def _para_text(buf):
             continue
         out.append(chr(c))
         i += 1
-    return "".join(out)
+    # ⚠️ 2026-09-30 — 한 글자씩 chr() 로 옮기면 BMP 밖 글자(드문 한자 · 이모지)가 «짝 없는 서로게이트» 두 개로 남아
+    #    json 저장에서 UnicodeEncodeError 가 났고, 그 한 건 때문에 공고문 전문 전체가 그 회차에 멈췄습니다(#655).
+    #    → 짝은 한 글자로 합치고, 짝 없는 것은 �(U+FFFD) 로 바꿉니다.
+    return "".join(out).encode("utf-16", "surrogatepass").decode("utf-16", "replace")
 
 
 def hwp_text(body):
@@ -342,9 +346,14 @@ def fetch(store, built, now14, no_net=False, diag=None):
             fail(why, perm=why.startswith(("잠긴", "글이 거의", "공고문 파일이 아님", "옛 한글")))
             streak = 0
             continue
-        _save(os.path.join(NTEXT_DIR, no + ".json"),
-              {"no": no, "f": nm, "t": t, "cut": 1 if why == "잘림" else 0,
-               "dt": str(r.get("dt") or "")[:10], "at": built})
+        # ⚠️ 한 건이 저장에서 터져도 나머지는 계속 — 전에는 여기서 난 오류 하나가 회차 전체(내보내기까지)를 멈췄습니다(#655)
+        try:
+            _save(os.path.join(NTEXT_DIR, no + ".json"),
+                  {"no": no, "f": nm, "t": t, "cut": 1 if why == "잘림" else 0,
+                   "dt": str(r.get("dt") or "")[:10], "at": built})
+        except Exception as e:
+            fail("저장 실패: %s" % type(e).__name__, perm=True)
+            continue
         book[no] = {"ok": 1, "at": built}
         ok += 1
         streak = 0

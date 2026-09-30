@@ -121,4 +121,7 @@ tools/_시험파일/
 # 📄 공고문 전문(ntext.py) — 받은 글은 Actions cache(data/store)로만 넘깁니다 (2026-09-30)
 data/store/ntext/
 data/store/ntext_book.json
+# 🏗 나라장터 밖 공고 (2026-09-30 · extbids.py) — 받은 것 · 호출 기록은 회차 사이 캐시로만
+data/store/ext.json
+data/store/ext_book.json
 web/public/data/ntext/

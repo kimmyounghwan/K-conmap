@@ -3922,6 +3922,9 @@ canonical 이중 인코딩 · 개찰 시각 문구 · 성적표 칸 · 등수 �
   ⚠️ 숫자는 공고문 글에서 뽑지 않음(입찰나라 A값 오기) — 화면에도 «금액 · 하한율 · 일정은 위 칸(조달청 자료)» 이라고 적음.
 - 시험 `tools/test_ntext.py` 20(고르기 · 다듬기 · 그 자리에서 만든 hwpx · hwp PARA_TEXT 바이트 · 옛/잠긴/html · 내보내기 · 오래된 것 지우기). 소장님 서식 hwp 22부 · hwpx 2부 · pdf 로 뽑기 확인(진짜 파일은 올리지 않음).
 
+- 🚨 (G79b · 2026-09-30 #655) 정기 수집 로그에 «! 공고문 전문 실패 (UnicodeEncodeError … surrogates not allowed)». hwp 글을 한 글자씩 chr() 로 옮겨 BMP 밖 글자(드문 한자 · 이모지)가 짝 없는 서로게이트로 남았고, json 저장에서 터짐 → 그 한 건 때문에 fetch 전체가 멈추고 **publish 까지 안 돌아 사이트의 «전문 보기» 가 다 사라짐**. book 도 끝에서만 저장해 다음 회차에 같은 건에서 또 터짐(무한 반복).
+  고침: `_para_text` 는 utf-16 surrogatepass → replace 로 짝을 합침 · `tidy` 가 짝 없는 서로게이트를 지움 · 한 건 저장이 터져도 «저장 실패» 로 적고(다시 안 봄) 다음 건으로 · collect.py 는 fetch 와 publish 를 따로 감쌈(받기가 터져도 받아 둔 것은 내보냄 · diag ntext_err). 시험 25.
+
 ### 131. ▦ /live 지역 알약 줄 빈 곳 쓰기 — 제주를 첫 줄로 (G80 — 2026-09-30, 소장님 「빈 공간 활용을 해줘. 제주를 위로 올리면 좀 좋지 않아?」)
 - 넓은 화면에서 지역 알약이 한 줄을 조금 넘쳐 «제주» 하나만 둘째 줄에 떨어지고 오른쪽이 텅 비었음(소장님 화면 캡처).
 - LiveBoard — 지역 알약(.chips)과 금액 · 공동도급 · 유형 · 면허 다시 고르기(.fbar)를 `.fline` 으로 감쌈. 620px 넘을 때만 두 칸을 `display:contents` 로 풀어 한 흐름으로 → 남는 자리에 금액 단추가 들어감. 지역 알약 좌우 여백 12→10px 로 1180px 에서 제주까지 첫 줄. 펼친 칸(.amtbox)은 order:10 그대로 단추들 아래 폭 가득.
@@ -3929,3 +3932,20 @@ canonical 이중 인코딩 · 개찰 시각 문구 · 성적표 칸 · 등수 �
 - /first(FirstBoard)도 같은 .fline — «면허 다시 고르기» 단추(따로 한 줄 차지하던 btn ghost)를 알약으로 바꿔 지역 알약 뒤에. 1180px 세 줄 → 두 줄.
 - ⚠️ 덤으로 고침: `.chips{display:flex}` 가 hidden 속성을 이겨 «⭐ 담은 공고» 에서도 지역 알약이 보였음 → `.chips[hidden]{display:none}`. `.fline > .chips:not([hidden])` 도 같은 까닭.
 - 확인(모의 빌드): 1180 · 1440 → 제주 첫 줄 · 두 줄(전엔 세 줄) / 1024 · 800 → 남는 자리에 금액 줄이 이어 섬 / 360~430 → 지역 한 줄 + 금액~면허 한 줄 / 금액 펼침 · 담은 공고 모드 정상 · 가로 넘침 없음.
+
+### 132. 🏗 나라장터 밖 공고 — LH · 수자원 · 국방(시설) · 아파트(K-apt) · 민간(누리장터) 공사 공고 (G81 — 2026-09-30, 소장님 «입찰나라에서 가져올 것» 4번)
+- 소장님 고름: LH · 수자원 · 방위사업청 + 아파트 공사(K-apt) + 민간 공사(누리장터). 한전은 나중(KEPCO 따로 키). 공공데이터포털 활용신청 6개 승인(2026-09-30 · 소장님 계정).
+- **인증키는 조달청과 같은 G2B_API_KEY(같은 포털 계정)**. 파일에 적지 않음. ⚠️ requests 오류 글(str(e))에는 serviceKey 가 든 주소가 있음 → extbids 는 오류 «종류 이름» 만 적고(_why), 오류 본문은 _scrub 로 긴 글자 덩어리를 지움. collect.py 도 이 단계 실패는 `type(e).__name__` 만 찍음.
+- `extbids.py` — import 때 아무것도 안 읽음 · requests 도 부를 때만 import(G78b 교훈). collect.py main 의 ntext 다음 · export 앞에서만 import(fast.yml 은 이 파일을 안 받음 — checkwf 가 지킴).
+  - 기관별: lh `B552555/OpenBidInfoList/getOpenBidInfo`(tndrbidRegDtStart/End YYYYMMDD · 처음 21일 · 평소 5일) · kw `B500001/ebid/tndr3/cntrwkList`(searchDt YYYYMM · 이번 달 + 달 초·처음엔 지난달) · dapa `1690000/BidPblancInfoService/getFcltyCmpetBidPblancList`(anmtDateBegin/End · 하루 100번 한도 → 50분에 한 번 · 하루 60번 상한) · kapt `1613000/ApHusBidPblAncInfoOfferServiceV3/getPblAncDeSearchV3`(startDate/endDate) · nuri `1230000/ao/PrvtBidNtceService/getPrvtBidPblancListInfoCnstwk`(inqryDiv=1 · YYYYMMDDHHMM).
+  - 날짜 모양이 틀렸다는 오류면 그날 한 번만 2026-09-30 모양으로 다시 봄(alt · 되면 기억). 키 · 권한 오류(승인 직후 SERVICE_KEY_IS_NOT_REGISTERED)는 다시 안 봄(_keyish). 03 NODATA 는 오류 아님. 한도(22)면 그날 그 기관만 쉼. 한 회차 150초 · 한 번 15초.
+  - JSON · XML 둘 다 읽음(parse). 모든 기관을 한 모양으로(norm_*): s · id · no · nm · org · dt · close · openg · bbgn · qreg · m=[[이름, 원]] (기관이 쓴 이름 그대로 — 추정가격 · 기초금액 · 기준금액(비공개면 안 보임) · 배정예산 · 금액) · mthd · win · rgn · lic · docs …
+  - 보관 `data/store/ext.json`(마감 45일 뒤 지움) · 기록 `data/store/ext_book.json` — 둘 다 Actions cache, .gitignore.
+  - 내보냄 `web/public/data/ext/list.json` + `meta.json`(몇십 바이트 · 공고판 한 줄용). 마감 지난 것 · LH/국방/수자원의 용역 · K-apt 용역(공고명 낱말 — 코드 뜻은 진단 _ext.kapt.codes 로 확인 예정) · 나라장터에도 올린 국방 공고(g2bPblancNo 가 /live 에 있으면) · 누리장터와 겹치는 K-apt(조달청 올림 · 같은 제목) 는 뺌. 기관당 700건 상한.
+  - 시도(sido): K-apt 는 시도코드 · 나머지는 참가지역(여럿이면 «경기,전남») → 없으면 주소 · 발주 이름 — collect.py sido_of 를 그대로 넘겨 씀(같은 규칙). 못 정하면 비움 → 화면이 따로 모아 보임.
+  - 진단: 회차마다 data/diag.json «_ext» 에 기관별 호출 · 줄 수 · 오류 · 칸 이름 · 표본 한 줄. **첫 회차에 꼭 열어 볼 것** — 명세(swagger)로 짰고 실제 응답은 아직 못 봄.
+- 화면 `pages/ExtBoard.jsx` (/ext · lazy) — 기관 알약(여럿 고름 · 0건은 흐림) · 지역(kcm_region = 공고판 · 바로투찰과 같은 값) · 새 공고/마감 임박 순 · 40건씩 더 보기 · 카드 펼치면 일정(날짜만 온 마감은 그날 23:59 로 D-day) · 조건 · 첨부 · «📋 공고번호 복사» · «원문 사이트에서 보기»(기관 전자조달 첫 화면 — 공고 한 건 주소를 안 줌) · «금액 · 일정은 기관이 낸 값 그대로 · 공고문 꼭 확인».
+  «🆕 오늘» 은 공고일(dt)이 오늘일 때만 — 처음 본 날로 하면 첫 수집 날 전부 오늘이 됨.
+- 공고판(/live) — FreshBar 아래 `밖공고줄.jsx` 한 줄(«🏗 나라장터 밖 공고 N건 → »). meta.json 이 0건이면 아무것도 안 그림(첫 수집 전 화면 그대로).
+- `web/firebase.json` rewrites 에 /ext 더함(없으면 주소로 바로 들어오면 404).
+- 시험 `tools/test_extbids.py` 45(날짜 · 금액 · JSON/XML/오류 봉투/NODATA/한도 · 키 지우기 · 기관별 한 줄 · 가짜 get 으로 받기(날짜 모양 다시 보기 · 키 오류 한 번만 · 통신 오류 글 안 남김 · 50분 간격) · 내보내기(용역 빼기 · 마감 지난 것 · 나라장터 겹침 · 참가지역 시도) · --exportonly 는 안 부름). collect.py --exportonly 로 붙인 자리 확인.

@@ -26,6 +26,7 @@
       { "source": "/calc", "destination": "/index.html" },
       { "source": "/first", "destination": "/index.html" },
       { "source": "/live", "destination": "/index.html" },
+      { "//": "🏗 나라장터 밖 공고 — 2026-09-30 (extbids.py · pages/ExtBoard.jsx)", "source": "/ext", "destination": "/index.html" },
       { "source": "/analysis", "destination": "/index.html" },
       { "source": "/jobs", "destination": "/index.html" },
       { "source": "/daily", "destination": "/index.html" },

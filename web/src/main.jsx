@@ -83,6 +83,8 @@ const Golgo = lazyPage(() => import('./pages/Golgo.jsx'))
 /* ⚡ 2026-09-27 도면 물량 자동(표·토공·레이어/블록) · 🧱 마감 수량산출 — 도면판(도면판.jsx)을 같이 씀 */
 const JeoksanAuto = lazyPage(() => import('./pages/JeoksanAuto.jsx'))
 const Magam = lazyPage(() => import('./pages/Magam.jsx'))
+/* 🏗 2026-09-30 나라장터 밖 공고(LH · 수자원 · 국방 · 아파트 · 민간) — extbids.py 가 굽는 /data/ext/list.json */
+const ExtBoard = lazyPage(() => import('./pages/ExtBoard.jsx'))
 /* 🔒 적산 실험실 — 2026-09-16. 잠겨 있고, 어디에서도 링크하지 않습니다.
    sitemap·prerender 에도 «넣지 않습니다» — 주소를 아는 사람만 들어옵니다.
    ⚠️ 잠금은 «보안이 아닙니다» (lib/gate.js 주석을 보십시오). */
@@ -148,6 +150,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/calc" element={<BaroBid />} />
           <Route path="/first" element={<FirstBoard />} />
           <Route path="/live" element={<LiveBoard />} />
+          <Route path="/ext" element={<Suspense fallback={<Loading />}><ExtBoard /></Suspense>} />
           <Route path="/analysis" element={<Analysis />} />
           <Route path="/jobs" element={<Suspense fallback={<Loading />}><Jobs /></Suspense>} />
           <Route path="/agency/:name" element={<AgencyPage />} />
