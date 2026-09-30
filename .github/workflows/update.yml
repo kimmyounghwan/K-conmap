@@ -378,6 +378,33 @@ jobs:
           exit 1
 
       # ══════════════════════════════════════════════════════════════
+      # ⚡ 빠른 수집(fast.yml) 깨우기 — 2026-10-01 (G92)
+      #   빠른 수집은 23시에 사슬을 끊고 아침 05시 «예약(cron)» 으로 다시 이어 왔습니다.
+      #   그런데 10/1 아침 05:03 ~ 07:23 예약 8번이 하나도 안 왔습니다(04:17 이후 멈춤 — 소장님 07:39 「이상 없지?」).
+      #   GitHub 예약은 무료 공개 저장소에서 하루 몇 번만 옵니다(아래 «다음 회차 예약» 머리말 실측과 같은 일).
+      #   → 스스로 잇는 이 회차(밤에도 약 1시간마다)가 끝날 때, 한국시간 05~22시에 빠른 수집이
+      #     «돌지도 기다리지도 않으면» 한 번 부릅니다(workflow_dispatch 는 예약과 달리 바로 돕니다).
+      #   ■ 빠른 수집이 조달청 몫을 다 써서 멈춘 날도 이 회차마다 한 번씩만 불립니다(매시 예약과 같은 정도).
+      #   ■ 끄기: 저장소 변수 FAST_OFF=1 (빠른 수집 자체의 끄기와 같은 이름)
+      # ══════════════════════════════════════════════════════════════
+      - name: 빠른 수집 깨우기 (한국시간 05~22시 · 멈춰 있으면)
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FAST_OFF: ${{ vars.FAST_OFF }}
+        run: |
+          if [ "${FAST_OFF:-0}" = "1" ]; then echo "FAST_OFF=1 — 깨우지 않습니다"; exit 0; fi
+          H=$((10#$(TZ=Asia/Seoul date +%H)))
+          if [ "$H" -lt 5 ] || [ "$H" -ge 23 ]; then echo "한국시간 ${H}시 — 빠른 수집은 쉬는 시간입니다"; exit 0; fi
+          J=$(gh run list --repo "${{ github.repository }}" --workflow fast.yml --limit 20 --json status) || { echo "빠른 수집 목록을 못 읽었습니다 — 이번엔 건너뜁니다"; exit 0; }
+          N=$(echo "$J" | jq '[.[]|select(.status=="in_progress" or .status=="queued" or .status=="pending" or .status=="waiting" or .status=="requested")]|length')
+          echo "빠른 수집 — 도는 · 기다리는 회차 ${N}개 (한국시간 $(TZ=Asia/Seoul date '+%H:%M'))"
+          if [ "${N:-0}" -gt 0 ]; then echo "돌고 있습니다 — 그대로 둡니다"; exit 0; fi
+          gh workflow run fast.yml --repo "${{ github.repository }}" --ref "${{ github.ref_name }}" \
+            && echo "▶ 멈춰 있던 빠른 수집을 깨웠습니다" \
+            || echo "깨우기 실패 — 다음 회차가 다시 봅니다"
+
+      # ══════════════════════════════════════════════════════════════
       # 다음 회차를 스스로 부른다 — GitHub 예약이 하루 3번밖에 안 돌아서 (2026-09-07)
       #
       #   예약(cron)을 몇 번 걸든 실제로는 하루 3번쯤만 돕니다 (실측, 예약 회차만):
