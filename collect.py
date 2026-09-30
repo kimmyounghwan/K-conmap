@@ -4165,10 +4165,19 @@ def main():
         import extbids
         _now = datetime.now(KST)
         _got = extbids.fetch(key, now=_now, no_net=NO_NET, diag=DIAG)
+        # 💰 LH · 국방 개찰 결과 → 사정률 · 하한율 (extres.py · 2026-09-30 «바로투찰도» ) — 터져도 공고 목록은 그대로
+        _st = None
+        try:
+            import extres
+            _got_r = extres.fetch(key, now=_now, no_net=NO_NET, diag=DIAG)
+            _st = extres.stats()
+            print(f"  → 나라장터 밖 개찰  새로 받음 {_got_r} · LH 사정률 {(_st.get('lh') or {}).get('n', 0)}건 · 국방 {(_st.get('dapa') or {}).get('n', 0)}건")
+        except Exception as e:
+            print(f"  ! 나라장터 밖 개찰 실패 ({type(e).__name__}) — 넘어갑니다")
         _lv = list((live.get("con") or {}).values())
         _eb = region_book(_lv)
         _g2b = {re.sub(r"[^0-9A-Za-z]", "", str(r.get("no") or "")) for r in _lv}
-        _by = extbids.publish(now=_now, g2b_nos=_g2b, sido_fn=lambda x: sido_of(x, _eb))
+        _by = extbids.publish(now=_now, g2b_nos=_g2b, sido_fn=lambda x: sido_of(x, _eb), st=_st)
         print(f"  → 나라장터 밖 공고  새로 받음 {_got} · 내보냄 {_by}")
     except Exception as e:
         print(f"  ! 나라장터 밖 공고 실패 ({type(e).__name__}) — 넘어갑니다")

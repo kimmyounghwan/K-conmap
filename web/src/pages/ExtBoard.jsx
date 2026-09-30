@@ -19,6 +19,7 @@ import { Skeleton, Empty } from '../components.jsx'
 import { won, wonShort, num, dday, parseDate, REGIONS, inRegion } from '../lib/fmt.js'
 import { loadRegion, saveRegion } from '../lib/lic.js'
 import { use남김 } from '../lib/길기록.js'
+import { smartBid } from '../lib/bidmath.js'
 
 /* 원문 사이트 — 공고번호로 찾아 들어갑니다(기관마다 공고 한 건으로 바로 가는 주소를 주지 않습니다) */
 export const 기관 = {
@@ -31,6 +32,25 @@ export const 기관 = {
 }
 const 차례 = ['lh', 'kw', 'dapa', 'kapt', 'nuri']
 const 한쪽 = 40
+
+/* 💰 권장 투찰금액 — LH · 국방만 (2026-09-30, 소장님 「나라장터 밖 공고에는 바로 입찰 이런게 왜 없어?」 「한꺼번에 다 할 수 없어?」)
+   수자원 · 아파트 · 민간은 공고에 기초금액 · 예정가격이 없어 셈할 수 없습니다(누가 해도).
+   재료: 공고의 기초금액(r.base) · A값(r.A — LH 가격점수제외금액) + 그 기관 개찰에서 센 사정률 · 낙찰하한율(list.json «st» · extres.py).
+   셈은 바로투찰과 «같은 함수» smartBid — 여기서 다시 적지 않습니다(같은 셈을 두 곳에 적으면 어긋납니다).
+   ⚠️ 모자라면 셈하지 않고 «자료 모으는 중 (N건)» 만. 개찰 20건부터 · 그 규모의 하한율을 알 때만. */
+const 최소건수 = 20
+const 규모칸 = (base, edges) => { let i = 0; for (; i < (edges || []).length; i++) if (base < edges[i]) break; return i }
+export function 권장셈(r, st) {
+  if (!r || (r.s !== 'lh' && r.s !== 'dapa')) return null
+  const s = st && st[r.s]
+  if (!(r.base > 0)) return { 기초없음: true }
+  if (!s || !(s.n >= 최소건수) || !(s.p50 > 0) || !(s.sd > 0)) return { 모음: (s && s.n) || 0 }
+  const ll = s.ll && s.ll[String(규모칸(r.base, s.edges))]
+  if (!ll) return { 하한모름: true, s }
+  const qb = smartBid({ base: r.base, llRate: ll[0], aVal: Number(r.A) || 0, aKnown: r.s === 'lh' && !!r.Ak,
+    p50: s.p50, sd: s.sd, enp: 0 })
+  return qb && qb.amt > 0 ? { qb, ll: ll[0], lln: ll[1], s } : null
+}
 
 /* 날짜만 있는 마감(수자원 · K-apt)은 그날 끝까지로 봅니다 — 자정으로 보면 하루 일찍 «마감» 이 됩니다 */
 const 끝까지 = (v) => (v && String(v).length === 10 ? `${v} 23:59` : v)
@@ -181,6 +201,7 @@ export default function ExtBoard() {
             const 새것 = r.dt && d.at && String(r.dt).slice(0, 10) === d.at.slice(0, 10)
             const 첫모름 = 모름도 && i === 맞는.length && !r.sido
             const m0 = (r.m && r.m[0]) || null
+            const 권 = 권장셈(r, d.st)
             const 취소 = /취소/.test(r.st || '')
             return (
               <div key={r.id}>
@@ -207,13 +228,44 @@ export default function ExtBoard() {
                         <span className="amt">{wonShort(m0[1])}</span>
                       </>
                     ) : <span className="xmut">금액은 공고문에</span>}
+                    {권 && 권.qb ? <span className="xbid">💰 권장 {wonShort(권.qb.amt)}</span> : null}
                     <span style={{ flex: 1 }} />
-                    {r.close ? <span className="xmut">마감 {날짜(r.close)}</span> : null}
+                    {/* 카드 줄에는 날짜만(폰 한 줄에 들어가게) — 시각은 펼친 칸 «입찰 일정» 에 */}
+                    {r.close ? <span className="xmut">마감 {날짜(r.close).split(' ')[0]}</span> : null}
                     <span className="caret">{열림 ? '▲' : '▼'}</span>
                   </div>
 
                   {열림 && (
                     <div className="detail" onClick={(e) => e.stopPropagation()}>
+                      {권 && (
+                        <div className="xqb">
+                          <div className="xqb-h">💰 권장 투찰금액</div>
+                          {권.qb ? (
+                            <>
+                              <div className="xqb-v">
+                                <b>{won(권.qb.amt)}</b>
+                                <span>투찰률 {Number(권.qb.rate).toFixed(3)}%</span>
+                                <button type="button" className="chip" onClick={(e) => {
+                                  e.stopPropagation()
+                                  try { navigator.clipboard?.writeText(String(권.qb.amt)); set복사('a' + r.id); setTimeout(() => set복사(''), 1500) } catch { /* 옛 브라우저 */ }
+                                }}>{복사 === 'a' + r.id ? '✓ 복사함' : '금액 복사'}</button>
+                              </div>
+                              <div className="note sm">
+                                기초금액 {won(r.base)} · 사정률 가운데 {권.s.p50.toFixed(3)}%(±{권.s.sd.toFixed(3)}) ·
+                                낙찰하한율 {권.ll.toFixed(3)}%{r.s === 'lh' ? ` · A값 ${won(r.A || 0)}` : ' · A값 모름(넉넉히 잡음)'} —
+                                {기관[r.s].nm} 개찰 {num(권.s.n)}건에서 센 값입니다. 셈은 바로투찰과 같습니다.
+                                <b> 공고서의 하한율 · A값이 다르면 공고서가 맞습니다.</b>
+                              </div>
+                            </>
+                          ) : 권.기초없음 ? (
+                            <div className="note sm">기초금액이 아직 공개되지 않았습니다 — 공개되면 여기 금액이 나옵니다.</div>
+                          ) : 권.하한모름 ? (
+                            <div className="note sm">이 규모의 낙찰하한율을 아직 모릅니다 — 개찰이 더 쌓이면 나옵니다.</div>
+                          ) : (
+                            <div className="note sm">자료 모으는 중 — {기관[r.s].nm} 개찰 {num(권.모음)}건 모임({최소건수}건부터 셈합니다).</div>
+                          )}
+                        </div>
+                      )}
                       <div className="ilj">
                         <div className="ilj-h">📅 입찰 일정</div>
                         {일정칸.filter(([k]) => r[k]).map(([k, nm]) => {

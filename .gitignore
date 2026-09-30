@@ -124,4 +124,6 @@ data/store/ntext_book.json
 # 🏗 나라장터 밖 공고 (2026-09-30 · extbids.py) — 받은 것 · 호출 기록은 회차 사이 캐시로만
 data/store/ext.json
 data/store/ext_book.json
+data/store/ext_res.json
+data/store/ext_res_book.json
 web/public/data/ntext/

@@ -60,7 +60,8 @@ ROWS = 100                                                    # 한 번에 받�
 # 기관별 설정 — nm: 화면에 붙는 짧은 이름 · cap: 하루 상한 · pages: 한 회차 쪽 상한
 #               gap: 이만큼(분) 안에 다시 부르지 않음 · back: 처음 · 평소에 며칠 치를 보나
 SRC = {
-    "lh":   dict(nm="LH", full="한국토지주택공사", cap=300, pages=6, gap=0, back=(21, 5), v=2,
+    # LH 는 기초금액이 공고 뒤에 채워집니다 — 평소에도 21일 치를 다시 받아 기초금액을 새로 잡습니다(권장 투찰금액용)
+    "lh":   dict(nm="LH", full="한국토지주택공사", cap=400, pages=10, gap=0, back=(30, 21), v=2,
                  url=f"{B}/B552555/OpenBidInfoList/getOpenBidInfo"),
     "kw":   dict(nm="수자원", full="한국수자원공사", cap=2000, pages=4, gap=0, back=(45, 0),
                  url=f"{B}/B500001/ebid/tndr3/cntrwkList"),
@@ -279,6 +280,9 @@ def norm_lh(r):
         "jdoc": ymdhm(r.get("cooperdocAcptEndDtm")),
         "m": _m(["기초금액", _won(r.get("fdmtlAmt"))], ["추정가격", _won(r.get("presmtPrc"))],
                 ["설계가격", _won(r.get("designPrc"))]),
+        # 💰 권장 투찰금액 셈에 쓰는 값(extres.py · 화면 smartBid) — 기초금액 · 가격점수제외금액(A값) · A값 칸이 왔는지
+        "base": _won(r.get("fdmtlAmt")), "A": _won(r.get("prcscoreExclusAmt")),
+        "Ak": 1 if "prcscoreExclusAmt" in r else 0,
         "mthd": _s(r.get("tndrCtrctMedCd"), 40), "win": _s(r.get("sunjungNm"), 40),
         "joint": _s(r.get("gongdongNm"), 40),
         "rgn": ", ".join(_uniq([r.get(f"zoneRstrct{i}") for i in range(1, 5)])),
@@ -311,6 +315,7 @@ def norm_dapa(r):
         "dt": ymdhm(r.get("pblancDate")), "qreg": ymdhm(r.get("bidPartcptRegistClosDt")),
         "close": ymdhm(r.get("biddocPresentnClosDt")), "openg": ymdhm(r.get("opengDt")),
         "m": _m(["기초금액", _won(r.get("baseAmnt"))]),
+        "base": _won(r.get("baseAmnt")),
         "mthd": _s(r.get("cntrctMth"), 40), "way": _s(r.get("bidStle"), 20),
         "g2b": g2b,
     }
@@ -650,7 +655,7 @@ def sido_ext(x, sido_fn):
     return ",".join(out)
 
 
-def publish(now=None, g2b_nos=None, sido_fn=None, store=None):
+def publish(now=None, g2b_nos=None, sido_fn=None, store=None, st=None):
     """보관함 → web/public/data/ext/list.json (+ meta.json)
        g2b_nos: 나라장터 공고번호 모음 — 방위사업청 공고 가운데 나라장터에도 올린 것은 뺍니다(/live 에 이미 있음)
        sido_fn: (pseudo_row) → '경기' 같은 시도 — collect.py 의 sido_of 를 그대로 씁니다(같은 규칙)"""
@@ -703,6 +708,8 @@ def publish(now=None, g2b_nos=None, sido_fn=None, store=None):
                          "ok": b.get("ok", "")}
     os.makedirs(PUB_DIR, exist_ok=True)
     out = {"at": now_s, "src": src_meta, "rows": rows}
+    if st:
+        out["st"] = st          # 💰 LH · 국방 개찰에서 센 사정률 · 하한율(extres.stats) — 화면이 권장 투찰금액을 셈
     _save(os.path.join(PUB_DIR, "list.json"), out)
     _save(os.path.join(PUB_DIR, "meta.json"), {"at": now_s, "n": len(rows), "by": by})
     return by
