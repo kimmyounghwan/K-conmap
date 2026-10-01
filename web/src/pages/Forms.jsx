@@ -4,7 +4,7 @@ import { askAfter } from '../AskComment'
 import { useParams, Link } from 'react-router-dom'
 import DATA from '../data/forms.json'
 /* ⬇ 2026-10-01 (G96) 서식마다 «받은 횟수» — 애널리틱스 시작값(9/15~) + 사이트가 센 것 (lib/받은수.jsx) */
-import { 받은수 } from '../lib/받은수.jsx'
+import { 받은수, use받은수, 합 } from '../lib/받은수.jsx'
 import ORIG_DATA from '../data/forms_orig.json'
 import TAB from '../data/forms_tab.json'
 import SAME from '../data/forms_same.json'
@@ -188,6 +188,45 @@ const PACKS = TAB.packs || []
 const 서식파일 = (f) => (ORIGSET.has(f.slug) ? [f.file] : [`/forms/${f.slug}.xlsx`, f.pdf])
 const 새로 = [...FORMS, ...ORIG].filter((f) => f.gen === 'forms2' || f.re).length
 
+/* 🖼 2026-10-01 (G103) 소장님 「예스폼에 나오는 것처럼 우리도 그렇게 만들 수 없어?」 → 고르심 «서식 목록을 예스폼처럼»
+   ■ 카드마다 서식 실제 모양(작은 그림) · 보기(공사 차례로 · 많이 받은 순 · 가나다순) · 거르기(바로 쓰기 · 인쇄용 PDF · 작성 예시 · 원본 틀)
+     · 맨 위 «많이 받은 서식» 줄(받은 횟수 = lib/받은수.jsx 와 같은 숫자).
+   ■ 작은 그림은 tools/forms2/thumbs.py 가 미리보기 첫 장(빈 서식)으로 굽습니다 — /forms/v2/t/{slug}.webp (가로 260px · 평균 4KB).
+     publish.py 가 서식을 올릴 때마다 같이 굽고, 빠진 그림이 있으면 멈춥니다.
+   ■ 미리 굽는 쪽(prerender.py forms_index)은 그대로 «공사 차례로» — 화면이 뜨면 이 화면으로 바뀝니다(createRoot). */
+const 썸 = (f) => (Array.isArray(f.prev) && f.prev.length ? `/forms/v2/t/${f.slug}.webp` : null)
+const 전부 = [...ORIG, ...FORMS]
+const 거르기들 = [
+  { k: 'all', t: '전체', ok: () => true },
+  { k: 'prog', t: '🧰 바로 쓰기', ok: (f) => !!(f.prog && f.prog.to) },
+  { k: 'pdf', t: '🖨 인쇄용 PDF', ok: (f) => !!f.pdf },
+  { k: 'ex', t: '✍ 작성 예시', ok: (f) => f.gen === 'forms2' || !!f.re },
+  { k: 'orig', t: '원본 틀', ok: (f) => ORIGSET.has(f.slug) },
+]
+const 거르기수 = Object.fromEntries(거르기들.map((g) => [g.k, 전부.filter(g.ok).length]))
+const 보기들 = [{ k: 'stage', t: '공사 차례로' }, { k: 'dl', t: '많이 받은 순' }, { k: 'name', t: '가나다순' }]
+const 가나다 = (a, b) => a.title.localeCompare(b.title, 'ko')
+
+/** 큰 그림 카드 — «많이 받은 순 · 가나다순» 과 «많이 받은 서식» 줄 */
+function 그림칸({ f, n, rank }) {
+  const th = 썸(f)
+  const 예시 = f.gen === 'forms2' || f.re
+  return (
+    <Link className="fm-gal" to={`/forms/${f.slug}`}>
+      <span className="fm-gal-th">
+        {th ? <img src={th} alt={`${f.title} 서식 모양`} loading="lazy" decoding="async" /> : <span className="fm-gal-ic">{f.icon}</span>}
+        {rank ? <span className="fm-rank">{rank}</span> : null}
+      </span>
+      <span className="fm-gal-t">{f.title}</span>
+      <span className="fm-gal-m">
+        {f.prog && <em className="tlx-new fm-pg">🧰 바로 쓰기</em>}
+        {예시 ? <em className="tlx-new fm-ex">✍ 작성 예시</em> : ORIGSET.has(f.slug) ? <em className="tlx-new fm-orig">원본 틀</em> : null}
+        {n ? <span className="dlcount">⬇ {n.toLocaleString('ko-KR')}회</span> : null}
+      </span>
+    </Link>
+  )
+}
+
 /* 🔗 2026-10-01 (G98) 비슷한 서식 — 같은 일에 쓰는 서식이 여럿(우리 서식 · 현장 원본 틀)이라 서로 잇습니다.
    소장님 고르심 «④ 겹치는 서식 이름 가르고 서로 잇기» (서치콘솔: 사진대지 · 착공 · 예정공정표 · 검측이 두세 쪽으로 갈려 표가 나뉨).
    묶음은 src/data/forms_same.json 한 곳 — ⚠️ 미리 굽는 쪽(prerender.py _same_html)과 «같은 글» 입니다. */
@@ -224,9 +263,12 @@ function 비슷한서식({ slug }) {
 
 function 서식칸({ f }) {
   const 예시 = f.gen === 'forms2' || f.re
+  const th = 썸(f)
   return (
     <Link className="tlx-card fm-card" to={`/forms/${f.slug}`}>
-      <span className="tlx-ic">{f.icon}</span>
+      {th
+        ? <span className="fm-th"><img src={th} alt="" loading="lazy" decoding="async" /></span>
+        : <span className="tlx-ic">{f.icon}</span>}
       <span className="tlx-body">
         <span className="tlx-t">{f.title}
           {f.prog && <em className="tlx-new fm-pg">🧰 바로 쓰기</em>}
@@ -289,6 +331,27 @@ export default function Forms() {
     if (!q.trim()) return null
     return { o: ORIG.filter((f) => 맞나(f, q)), n: FORMS.filter((f) => 맞나(f, q)) }
   }, [q])
+  /* 🖼 G103 보기 · 거르기 · 받은 횟수 */
+  const [보기, set보기] = useState('stage')
+  const [거름, set거름] = useState('all')
+  const 읽음 = use받은수({ 파일: [] })            /* null = 아직 못 읽음 · 읽으면 다시 그림 */
+  const 받은 = useMemo(() => {
+    const m = new Map()
+    if (읽음 === null) return m
+    for (const f of 전부) m.set(f.slug, 합([], 서식파일(f)) || 0)
+    return m
+  }, [읽음])
+  const 걸러 = (거르기들.find((g) => g.k === 거름) || 거르기들[0]).ok
+  const 모아 = useMemo(() => {
+    const L = 전부.filter(걸러)
+    if (보기 === 'dl') return L.sort((a, b) => (받은.get(b.slug) || 0) - (받은.get(a.slug) || 0) || 가나다(a, b))
+    return L.sort(가나다)
+  }, [보기, 거름, 받은])
+  const 윗줄 = useMemo(() => 전부.filter((f) => (받은.get(f.slug) || 0) > 0)
+    .sort((a, b) => 받은.get(b.slug) - 받은.get(a.slug) || 가나다(a, b)).slice(0, 10), [받은])
+  const 단계 = useMemo(() => STAGES.map((s) => ({ ...s, 보일: s.slugs.map((k) => BY.get(k)).filter(Boolean).filter(걸러) }))
+    .filter((s) => 거름 === 'all' || s.보일.length), [거름])
+  const 거름이름 = (거르기들.find((g) => g.k === 거름) || {}).t
 
   return (
     <>
@@ -306,7 +369,51 @@ export default function Forms() {
             aria-label="서식 찾기" />
           {q && <button className="x" onClick={() => setQ('')} aria-label="지우기">×</button>}
         </div>
+        {/* 🖼 G103 보기 · 거르기 */}
+        <div className="fm-ctl">
+          <div className="fm-ctl-row" role="group" aria-label="보기">
+            <span className="fm-ctl-k">보기</span>
+            {보기들.map((b) => (
+              <button type="button" key={b.k} className={'fm-chip' + (보기 === b.k ? ' on' : '')} aria-pressed={보기 === b.k}
+                onClick={() => set보기(b.k)}>{b.t}</button>
+            ))}
+          </div>
+          <div className="fm-ctl-row" role="group" aria-label="거르기">
+            <span className="fm-ctl-k">거르기</span>
+            {거르기들.map((g) => (
+              <button type="button" key={g.k} className={'fm-chip' + (거름 === g.k ? ' on' : '')} aria-pressed={거름 === g.k}
+                onClick={() => set거름(g.k)}>{g.t} <span className="n">{거르기수[g.k]}</span></button>
+            ))}
+          </div>
+        </div>
       </div>
+
+      {!찾음 && 보기 === 'stage' && 거름 === 'all' && 윗줄.length > 0 && (
+        <div className="card fm-top">
+          <div className="sec-title" style={{ margin: 0 }}>⬇ 많이 받은 서식</div>
+          <div className="fm-top-row">
+            {윗줄.map((f, i) => <그림칸 f={f} n={받은.get(f.slug)} rank={i + 1} key={f.slug} />)}
+          </div>
+        </div>
+      )}
+
+      {!찾음 && 보기 !== 'stage' && (
+        <div className="card">
+          <div className="sec-title" style={{ margin: '0 0 2px' }}>
+            {보기 === 'dl' ? '⬇ 많이 받은 순' : '가나다순'} — 서식 {모아.length}가지{거름 !== 'all' ? ` · ${거름이름}` : ''}
+          </div>
+          {보기 === 'dl' && 읽음 === null && <div className="note sm">받은 횟수를 읽는 중입니다…</div>}
+          {보기 === 'dl' && 읽음 !== null && (
+            <div className="note sm" style={{ margin: '2px 0 0' }}>이 사이트에서 서식 파일(엑셀·인쇄용 PDF)을 받은 횟수입니다 (2026-09-15부터).</div>
+          )}
+          <div className="fm-gal-grid">
+            {모아.map((f, i) => (
+              <그림칸 f={f} n={받은.get(f.slug)} key={f.slug}
+                rank={보기 === 'dl' && i < 10 && (받은.get(f.slug) || 0) > 0 ? i + 1 : null} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {찾음 && (
         <div className="card">
@@ -322,13 +429,14 @@ export default function Forms() {
         </div>
       )}
 
+      {보기 === 'stage' && (<>
       <div className="card ny-pick">
         <div className="sec-title" style={{ marginTop: 0 }}>지금 무엇을 하십니까?</div>
         <div className="ny-pick-row">
-          {STAGES.map((s) => (
+          {단계.map((s) => (
             <a className="ny-pick-b" href={'#fm-' + s.k} key={s.k}>
               <span className="ny-pick-t"><span className="ny-n">{s.n}</span> {s.ic} {s.h}</span>
-              <span className="ny-pick-d">{s.짧게 ? s.짧게 + ' · ' : ''}{s.slugs.length}가지</span>
+              <span className="ny-pick-d">{s.짧게 ? s.짧게 + ' · ' : ''}{s.보일.length}가지</span>
             </a>
           ))}
         </div>
@@ -343,7 +451,7 @@ export default function Forms() {
         </div>
       </div>
 
-      {STAGES.map((s) => (
+      {단계.map((s) => (
         <div className="card ny-sit" id={'fm-' + s.k} key={s.k}>
           <div className="ny-sit-h"><span className="ny-n">{s.n}</span> {s.ic} {s.h}</div>
           <div className="ny-sit-w">{s.언제}</div>
@@ -352,12 +460,13 @@ export default function Forms() {
               {s.progs.map((p) => <프로그램칸 p={p} key={p.to} />)}
             </div>
           )}
-          <div className="fm-sub">서식 {s.slugs.length}가지 — 엑셀</div>
+          <div className="fm-sub">서식 {s.보일.length}가지 — 엑셀{거름 !== 'all' ? ` · ${거름이름}` : ''}</div>
           <div className="tlx-grid fm-grid">
-            {s.slugs.map((k) => BY.get(k)).filter(Boolean).map((f) => <서식칸 f={f} key={f.slug} />)}
+            {s.보일.map((f) => <서식칸 f={f} key={f.slug} />)}
           </div>
         </div>
       ))}
+      </>)}
 
       <div className="card" id="fm-packs">
         <div className="sec-title" style={{ marginTop: 0 }}>📦 서류 꾸러미 — 이때 이것들을 한 번에</div>

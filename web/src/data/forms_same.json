@@ -151,7 +151,8 @@
    "s": [
     "jungong",
     "jungong-daega",
-    "jungong-jeongsan"
+    "jungong-jeongsan",
+    "gongsa-wanryo"
    ]
   },
   {
@@ -159,6 +160,31 @@
    "s": [
     "sayonginmgye",
     "wiimjang"
+   ]
+  },
+  {
+   "k": "대금 청구",
+   "s": [
+    "gongsa-daegeum",
+    "gisung-cheonggu",
+    "jungong-daega"
+   ]
+  },
+  {
+   "k": "자재 주문 · 반입",
+   "s": [
+    "jajae-balju",
+    "jajae-seungin",
+    "jajae-geomsu",
+    "jajae-subulbu"
+   ]
+  },
+  {
+   "k": "하자",
+   "s": [
+    "gy-haja-gakseo",
+    "haja-wanryo",
+    "gy-gakseo"
    ]
   }
  ]

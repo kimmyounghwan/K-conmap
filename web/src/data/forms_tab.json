@@ -223,6 +223,7 @@
     "jajae-gonggeupwon",
     "o-jajae-seungin",
     "o-jajae-hyeonhwang",
+    "jajae-balju",
     "jajae-geomsu",
     "jajae-banchul",
     "jajae-subulbu"
@@ -389,7 +390,7 @@
    "n": "⑨",
    "ic": "🏁",
    "h": "준공 · 하자 · 대금 받기",
-   "짧게": "준공계 · 정산 · 인수인계 · 하자",
+   "짧게": "준공계 · 정산 · 완료 확인 · 대금 청구 · 하자",
    "언제": "준공 서류와 준공 뒤 하자·대금 문제입니다. 못 받은 돈은 사이트의 미불금 도구로 순서대로 갑니다.",
    "progs": [
     {
@@ -421,7 +422,10 @@
     "jungong",
     "jungong-daega",
     "jungong-jeongsan",
+    "gongsa-wanryo",
+    "gongsa-daegeum",
     "inssu-ingye",
+    "gy-haja-gakseo",
     "haja-wanryo"
    ]
   }

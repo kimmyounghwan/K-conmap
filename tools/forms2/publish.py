@@ -8,6 +8,7 @@ publish.py — 다시 만든 서식을 사이트 자리에 놓습니다 (run.py 
   ① 엑셀 → web/public/forms/{slug}.xlsx  (원본 틀은 web/public/forms/orig/{slug}.xlsx)
   ② 미리보기 그림 → web/public/forms/v2/{slug}-{n}.webp  (서식마다 PREV = [(PDF쪽, 설명), …])
   ③ 일반 서식은 인쇄용 PDF(빈 서식만) → web/public/forms/v2/{slug}.pdf
+  ⑤ 서식 목록 카드용 작은 그림 → web/public/forms/v2/t/{slug}.webp (thumbs.py)
   ④ forms.json / forms_orig.json 의 그 서식 칸을 고침(prev · prevcap · pdf · gen/re · kb · 쪽수 …)
      forms.json 의 short 가 바뀌면 forms-min.json 도 다시 씁니다(설계변경·내역서 탭이 읽음).
 ⚠️ 그림·PDF 이름에 v2 를 붙인 까닭: /forms/** 는 브라우저가 1시간 붙잡습니다 — 옛 미리보기가 남지 않게.
@@ -129,6 +130,12 @@ def main():
         print(f"✅ {m.SLUG} → {os.path.relpath(dst, ROOT)} ({os.path.getsize(dst)//1024}KB)")
     _save("forms.json", forms)
     _save("forms_orig.json", orig)
+    # 🖼 서식 목록 카드용 작은 그림(G103) — prev 첫 장으로
+    import thumbs
+    for f in thumbs.forms():
+        if f["slug"] in slugs:
+            thumbs.make(f)
+    thumbs.check()
     if short_changed:
         mini = {f["slug"]: [f["title"], f.get("icon", ""), f.get("short", ""), f.get("group", "")] for f in forms["forms"]}
         open(os.path.join(DATA, "forms-min.json"), "w", encoding="utf-8").write(json.dumps(mini, ensure_ascii=False))

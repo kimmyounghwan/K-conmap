@@ -50,7 +50,7 @@ STAGES = [
     dict(k='quality', n='⑤', ic='🔍', h='검측 · 품질 · 자재', 짧게='검측 체크리스트 · 시험 · 자재 승인·수불',
          언제='공종마다 검측을 받고, 자재는 승인 → 반입 검수 → 수불로 관리합니다. 검측 체크리스트는 공종별로 나눠 두었습니다.',
          progs=['remicon'],
-         slugs='geomcheuk geomcheuk-yocheong geomcheuk-togong geomcheuk-baesu geomcheuk-gujomul geomcheuk-concrete geomcheuk-malttuk geomcheuk-pojang geomcheuk-psc-gang geomcheuk-budae o-geomcheuk-300 o-geomcheuk-sheetpile gulchak cheolgeun taseol-check remicon yangsaeng gangdo siheom-uiroe gyogeong ncr o-cheukryang-bogoseo jajae-seungin jajae-gonggeupwon o-jajae-seungin o-jajae-hyeonhwang jajae-geomsu jajae-banchul jajae-subulbu'),
+         slugs='geomcheuk geomcheuk-yocheong geomcheuk-togong geomcheuk-baesu geomcheuk-gujomul geomcheuk-concrete geomcheuk-malttuk geomcheuk-pojang geomcheuk-psc-gang geomcheuk-budae o-geomcheuk-300 o-geomcheuk-sheetpile gulchak cheolgeun taseol-check remicon yangsaeng gangdo siheom-uiroe gyogeong ncr o-cheukryang-bogoseo jajae-seungin jajae-gonggeupwon o-jajae-seungin o-jajae-hyeonhwang jajae-balju jajae-geomsu jajae-banchul jajae-subulbu'),
     dict(k='safety', n='⑥', ic='🦺', h='안전 · 환경 · 장비 점검', 짧게='TBM · 위험성평가 · 점검표 · 환경',
          언제='날마다·주마다 하는 안전 점검과 교육, 위험성평가, 건설기계 점검표, 환경(비산먼지·소음·폐기물) 기록입니다.',
          progs=['risk', 'safety'],
@@ -63,10 +63,10 @@ STAGES = [
          언제='돈과 금액이 걸린 서류입니다 — 선금, 기성 청구, 설계변경·물가변동·공기연장, 내역서·원가계산서.',
          progs=['chgexcel', 'twoline', 'price', 'qty'],
          slugs='seongeum seongeum-gyehoek o-seongeum gisung-geomsa giseong-daebipyo gisung-cheonggu jibul-gyehoekseo jibul-hwaginseo hadogeup-daegeum siljeong-bogo seolgye-byeongyeong chg-chongwal chg-naeyeok chg-hyeobui chg-ganjeopbi chg-mulga-san mulga gonggi-yeonjang jiche-gammyeon suryang ilwidaega sanchul-naeyeok wonga gongnaeyeok-hanbeol silhaeng-daebipyo'),
-    dict(k='end', n='⑨', ic='🏁', h='준공 · 하자 · 대금 받기', 짧게='준공계 · 정산 · 인수인계 · 하자',
+    dict(k='end', n='⑨', ic='🏁', h='준공 · 하자 · 대금 받기', 짧게='준공계 · 정산 · 완료 확인 · 대금 청구 · 하자',
          언제='준공 서류와 준공 뒤 하자·대금 문제입니다. 못 받은 돈은 사이트의 미불금 도구로 순서대로 갑니다.',
          progs=['defect', 'delay', 'unpaid', 'direct'],
-         slugs='jungong jungong-daega jungong-jeongsan inssu-ingye haja-wanryo'),
+         slugs='jungong jungong-daega jungong-jeongsan gongsa-wanryo gongsa-daegeum inssu-ingye gy-haja-gakseo haja-wanryo'),
 ]
 T = lambda t, d=None: {'t': t, **({'d': d} if d else {})}
 PACKS = [
