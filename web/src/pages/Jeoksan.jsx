@@ -24,6 +24,7 @@
       PC 는 저녁마다 더 쌓지만 G1 함수 올리기를 해야 사이트에 들어갑니다 — 함수를 다시 올리면 아래 단가표 도 같이 고치십시오.
    ⚠️ «🧪 예시 있음» 은 그 화면에 «예시로 해 보기» 단추가 실제로 있는 것만(도면 물량 자동 · 골조 · 마감). */
 import { Link } from 'react-router-dom'
+import { 받은수, 화면열쇠 } from '../lib/받은수.jsx'   /* ⬇ 2026-10-01 (G109) 소장님 「내역서 및 적산 탭 안에 … 받기 숫자가 하나도 없는데?」 — 도구 탭과 같은 숫자 */
 import { PriceStance } from '../components.jsx'
 
 const 단가표 = { 품목: '63,665', 공고: '4,555', 반영: '2026-09-27' }
@@ -77,6 +78,9 @@ const 갖고 = [
   },
 ]
 
+/* 카드마다 그 화면에서 받은 횟수(0 이면 안 보임) — 다른 카드 화면은 빼고 셈(도구 탭과 같게) */
+const 카드열쇠 = () => new Set(갖고.flatMap((s) => s.도구).map((x) => 화면열쇠(x.to)))
+let 카드열쇠캐시 = null
 function 도구칸({ x }) {
   return (
     <Link className="tlx-card" to={x.to}>
@@ -84,6 +88,7 @@ function 도구칸({ x }) {
       <span className="tlx-body">
         <span className="tlx-t">{x.t}{x.딱지 && <em className="tlx-new ny-tag">{x.딱지}</em>}{x.예시 && <em className="tlx-new js-ex">🧪 예시 있음</em>}</span>
         <span className="tlx-d">{x.d}</span>
+        <받은수 쪽={x.to} 빼기={카드열쇠캐시 || (카드열쇠캐시 = 카드열쇠())} className="dlcount tlx-dl" />
       </span>
     </Link>
   )

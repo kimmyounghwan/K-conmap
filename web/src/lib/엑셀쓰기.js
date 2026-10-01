@@ -4,7 +4,8 @@
  *   (엑셀에서 수식 칸에 손으로 적은 것과 같음). 나머지 수식은 엑셀이 열 때 다시 셉니다.
  */
 import { unzipSync, zipSync, strToU8, strFromU8 } from 'fflate'
-import { 주소풀기 } from './엑셀읽기.js'
+import { 주소풀기, 엑셀읽기 } from './엑셀읽기.js'
+import { 셈판 } from './엑셀수식.js'
 
 const 싸기 = (s) => String(s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -98,4 +99,46 @@ export function 고친엑셀(bytes, 책, 고침) {
       : wb.replace('</workbook>', '<calcPr fullCalcOnLoad="1"/></workbook>'))
   }
   return zipSync(files, { level: 6 })
+}
+
+/**
+ * 📗 값만 — 모든 수식 칸을 «셈한 값» 으로 바꿉니다 (G109 · 2026-10-01)
+ *   소장님 「엑셀로 값만 주는 걸로 하자. 프로그램 원칙으로 하고」 · 「원클릭은 값만 줘도 상관 없지 않아?」
+ *   셈은 화면과 같은 lib/엑셀수식.js(셈판) — 화면에 보이는 값 그대로. 꾸밈(s) · 인쇄영역 · 숨긴 시트는 그대로 둡니다.
+ *   계산 사슬(calcChain)과 «열 때 다시 셈» 은 지웁니다(셀 수식이 없으니).
+ * @param bytes  수식이 든 xlsx (원클릭 틀에 입력을 넣은 것)
+ * @param 고침   { '시트!B5': 값 } — 화면에서 고친 칸
+ * @returns {{바이트: Uint8Array, 바꾼: number, 오류: number}}
+ */
+export function 값만으로(bytes, 고침 = {}) {
+  const 책 = 엑셀읽기(bytes)
+  const 판 = 셈판(책, 고침)
+  const files = unzipSync(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes))
+  let 바꾼 = 0, 오류수 = 0
+  for (const s of 책.시트들) {
+    const 칸들 = []
+    for (const [ref, x] of s.칸) {
+      const k = s.이름 + '!' + ref
+      if (!x.f && !Object.prototype.hasOwnProperty.call(고침, k)) continue
+      let v = 판.값(s.이름, ref)
+      if (v != null && typeof v === 'object') { if ('오류' in v) { v = v.오류; 오류수++ } else v = null }
+      칸들.push([ref, v])
+    }
+    for (const k of Object.keys(고침)) {
+      const i = k.lastIndexOf('!')
+      if (k.slice(0, i) === s.이름 && !s.칸.has(k.slice(i + 1))) 칸들.push([k.slice(i + 1), 고침[k]])
+    }
+    if (!칸들.length || !files[s.길]) continue
+    files[s.길] = strToU8(시트고치기(strFromU8(files[s.길]), 칸들))
+    바꾼 += 칸들.length
+  }
+  if (files['xl/calcChain.xml']) {
+    delete files['xl/calcChain.xml']
+    const ct = '[Content_Types].xml'
+    if (files[ct]) files[ct] = strToU8(strFromU8(files[ct]).replace(/<Override[^>]*calcChain[^>]*\/>/g, ''))
+    const rl = 'xl/_rels/workbook.xml.rels'
+    if (files[rl]) files[rl] = strToU8(strFromU8(files[rl]).replace(/<Relationship[^>]*calcChain[^>]*\/>/g, ''))
+  }
+  files['xl/workbook.xml'] = strToU8(strFromU8(files['xl/workbook.xml']).replace(/\s*fullCalcOnLoad="1"/g, ''))
+  return { 바이트: zipSync(files, { level: 6 }), 바꾼, 오류: 오류수 }
 }

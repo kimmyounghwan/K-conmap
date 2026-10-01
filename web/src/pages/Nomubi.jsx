@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { 공제칸, 요율 } from '../lib/gongje.js'
 import { 읽기, 쓰기, 빈것, 새번호, 달셈, 칸바꿈, 줄채움, 달값, 예시, 공수차례, 달날수, 요일, 달더하기, 원, 공수글 } from '../lib/nomubi.js'
 /* 🛡 2026-10-01 (G107) 연금 · 건강 «대상» 은 lib/ilyong4.js 판단(여러 달) — 사람마다 «판단 자세히» 로 가입 판단기에 출역을 넘깁니다 */
+import { 생일풀기, 만나이, 나이날 } from '../lib/ilyong4.js'   /* 🎂 G109 생년월일 → 만 나이 · 60세 연금 · 65세 고용 */
 const 넘김열쇠 = 'kcm_ilyong_from'
 
 /**
@@ -14,8 +15,10 @@ const 넘김열쇠 = 'kcm_ilyong_from'
  * ■ 하는 일: 명단(이름 · 직종 · 일당) + 출역(날짜 칸을 누를 때마다 1 → 0.5 → 1.5 → 빈칸)
  *   → 소득세 · 지방소득세 · 고용 · 국민연금 · 건강 · 장기요양 공제와 실지급액 → 지급명세서(A4 가로 인쇄) · 신고용 집계.
  * ■ 공제 셈은 lib/gongje.js 하나(투입비 도구와 같음). 화면 모양도 투입비 청구서(tp-*)를 그대로 씁니다.
- * ■ 저장은 이 브라우저(localStorage)만 — 서버에 안 보냄 · 주민번호 · 계좌는 받지 않음.
- * ■ 엑셀 받기 없음 · 인쇄만 — 소장님(2026-09-26): 「프로그램으로 해서 만든 거는 … 다운 받을 수 없게 … 프린트만 가능하게 … 수정이나 입력은 건설맵에서」
+ * ■ 저장은 이 브라우저(localStorage)만 — 서버에 안 보냄 · 주민번호 뒷자리 · 계좌는 받지 않음.
+ * ■ 🎂 (2026-10-01 G109) 명단에 생년월일(앞 6자리) — 소장님 「나이를 넣게 하고, 4대 보험은 자동으로」 · 「미포함 및 포함 나이로 판별해서 자동으로 금액이 나오게」
+ *   만 60세(60세가 된 날의 다음 날)부터 국민연금 대상 아님 · 만 65세부터 일한 날은 고용보험 실업급여 몫 없음 → 공제 · 실지급액이 저절로 바뀜
+ * ■ (2026-10-01 G109 부터 «📗 값만 엑셀» — 셈한 값만, 수식 없음) 처음엔 엑셀 받기 없음 · 인쇄만 — 소장님(2026-09-26): 「프로그램으로 해서 만든 거는 … 다운 받을 수 없게 … 프린트만 가능하게 … 수정이나 입력은 건설맵에서」
  * ■ 신고 기한(원문 확인 2026-10-01 · 국가법령정보센터):
  *   · 근로내용 확인신고서 — 다음 달 15일까지 (고용보험법 시행령 제7조제1항 후단)
  *   · 이것을 내면 일용근로소득 지급명세서를 낸 것으로 봄 (소득세법 시행령 제213조제4항)
@@ -66,7 +69,20 @@ export default function Nomubi() {
   const 날들 = Array.from({ length: 날수 }, (_, i) => i + 1)
   const 바꿈 = (f) => setSt((s) => f(s))
   const 사람고침 = (id, k, v) => 바꿈((s) => ({ ...s, P: s.P.map((p) => (p.id === id ? { ...p, [k]: v } : p)) }))
-  const 사람더함 = () => 바꿈((s) => ({ ...s, P: [...s.P, { id: 새번호(), n: '', j: '', w: 0, nx: '' }] }))
+  const 사람더함 = () => 바꿈((s) => ({ ...s, P: [...s.P, { id: 새번호(), n: '', j: '', b: '', w: 0, nx: '' }] }))
+  /* 🎂 명단 생년월일 옆 — 그 달 1일 만 나이 · 이 달에 걸리는 것 */
+  const 나이글 = (b) => {
+    if (!b) return null
+    const 생 = 생일풀기(b)
+    if (!생) return <small className="nm-age bad">날짜 확인 (예: 610315)</small>
+    const 끝날 = `${ym}-${두자(달날수(ym))}`
+    const 처음 = 만나이(생, ym + '-01'), 끝 = 만나이(생, 끝날)
+    const L60 = 나이날(생, 60), L65 = 나이날(생, 65)
+    const 붙 = []
+    if (L60 <= 끝날) 붙.push(L60 > ym + '-01' ? `${Number(L60.slice(8))}일부터 연금 ✕` : '연금 ✕')
+    if (L65 <= 끝날) 붙.push(L65 > ym + '-01' ? `${Number(L65.slice(8))}일부터 고용(실업급여) ✕` : '고용(실업급여) ✕')
+    return <small className={'nm-age' + (붙.length ? ' on' : '')} title="민법 제158조 만 나이 · 국민연금 60세 미만 · 고용보험 65세 이후 새로 고용은 실업급여 없음">만 {처음 === 끝 ? 처음 : `${처음}→${끝}`}세{붙.length ? ' · ' + 붙.join(' · ') : ''}</small>
+  }
   const 사람뺌 = (id) => 바꿈((s) => ({ ...s, P: s.P.filter((p) => p.id !== id) }))
   const 칸누름 = (id, i) => {
     const g = (N.줄.find((r) => r.id === id) || { 공수: [] }).공수[i] || 0
@@ -81,7 +97,7 @@ export default function Nomubi() {
   }
   const navigate = useNavigate()
   const 판단보기 = (r) => {
-    try { sessionStorage.setItem(넘김열쇠, JSON.stringify({ 이름: r.p.n || '', 일당: r.w, 날: r.모음.날, 달돈: r.모음.달돈 })) } catch (e) { /* 막힘 — 그냥 이동 */ }
+    try { sessionStorage.setItem(넘김열쇠, JSON.stringify({ 이름: r.p.n || '', 일당: r.w, 날: r.모음.날, 달돈: r.모음.달돈, 생일: r.p.b || '' })) } catch (e) { /* 막힘 — 그냥 이동 */ }
     navigate('/tools/ilyong-boheom')
   }
   const 대상누름 = (r, c) => {
@@ -101,7 +117,23 @@ export default function Nomubi() {
     바꿈((x) => 달값(x, ym, id, { o }))
   }
   const 인쇄 = () => { document.body.classList.add('tp-print-bill'); setTimeout(() => window.print(), 80) }
-  const 안됨 = N.줄.filter((r) => !r.대상.P.대상 || !r.대상.H.대상)
+  /* 📗 G109 값만 엑셀 — 소장님 「엑셀로 값만 주는 걸로 하자. 프로그램 원칙으로 하고」(셈은 이 화면, 엑셀은 보관용 값) */
+  const 엑셀받기 = async () => {
+    const { 값엑셀받기, 수칸, 굵은칸 } = await import('../lib/값엑셀.js')
+    const 이유 = (r) => `연금 ${r.대상.P.대상 ? '✓' : '✕'} ${r.대상.P.이유} · 건강 ${r.대상.H.대상 ? '✓' : '✕'} ${r.대상.H.이유} · 고용 ${r.대상.E.대상 ? '✓' : '✕'}${r.대상.E.이유 !== '일용 모두' ? ' ' + r.대상.E.이유 : ''}${생일풀기(r.p.b || '') ? ` · 만 ${만나이(생일풀기(r.p.b), ym + '-01')}세` : ''}`
+    const 명세 = N.줄.map((r, i) => [i + 1, r.p.n, r.p.j, r.일수, r.공수합, 수칸(r.w), 수칸(r.보수), ...공제칸.map((c) => 수칸(r.최종[c.k])), 수칸(r.최종.합), 수칸(r.최종.차인), 이유(r)])
+    명세.push(['', 굵은칸('합계'), `${N.합계.인원}명`, N.합계.일수, N.합계.공수, '', 수칸(N.합계.보수), ...공제칸.map((c) => 수칸(N.합계[c.k])), 수칸(N.합계.합), 수칸(N.합계.차인), ''])
+    const 날 = Array.from({ length: N.날수 }, (_, i) => String(i + 1))
+    const 출역 = N.줄.map((r) => [r.p.n, r.p.j, ...r.공수.map((g) => (g > 0 ? g : '')), r.공수합, r.일수])
+    const 신고 = N.줄.map((r, i) => [i + 1, r.p.n, r.p.j, r.날들.join(', '), r.일수, 수칸(r.보수), 수칸(r.최종.it), 수칸(r.최종.lt)])
+    값엑셀받기(`일용노무비_${st.site || st.co || '현장'}_${ym}`, [
+      { name: `지급명세 ${달글(ym)}`, head: ['No', '성명', '직종', '일수', '공수', '일당', '노무비', ...공제칸.map((c) => c.이름), '공제계', '실지급액', '4대보험 대상(까닭)'], rows: 명세,
+        widths: [5, 10, 10, 6, 6, 10, 12, 10, 10, 10, 10, 10, 10, 11, 12, 60] },
+      { name: '출역', head: ['성명', '직종', ...날, '공수', '일수'], rows: 출역, widths: [10, 10, ...날.map(() => 4), 6, 6] },
+      { name: '신고용 집계', head: ['No', '성명', '직종', `근로일 (${달글(ym)})`, '근로일수', '지급액(보수 총액)', '소득세', '지방소득세'], rows: 신고, widths: [5, 10, 10, 40, 8, 14, 10, 10] },
+    ], { 주소: '/tools/nomubi', 글: `${st.co || ''} ${st.site || ''} · ${ym} 귀속 — K-건설맵 일용 노무비 계산기에서 셈한 값입니다(수식 없음). 다시 셀 때는 k-conmap.com/tools/nomubi 에서 — 적은 내용이 그 브라우저에 남아 있습니다.`.trim() })
+  }
+  const 안됨 = N.줄.filter((r) => !r.대상.P.대상 || !r.대상.H.대상 || !r.대상.E.대상)
 
   return (
     <div className="wrap tp nm">
@@ -109,12 +141,12 @@ export default function Nomubi() {
         <h1 className="tl-h1" style={{ marginTop: 0 }}>👷 일용 노무비 계산기 · 지급명세서</h1>
         <p className="cp" style={{ margin: '6px 0 0' }}>
           이름 · 직종 · 일당을 적고 <b>일한 날을 누르면</b> 소득세 · 지방소득세 · 고용보험 · 국민연금 · 건강보험 · 장기요양 공제와
-          <b> 실지급액</b>이 저절로 나옵니다. 지급명세서를 <b>A4 가로로 인쇄</b>하고, 근로내용 확인신고에 옮겨 적을 집계도 함께 나옵니다.
+          <b> 실지급액</b>이 저절로 나옵니다. <b>생년월일</b>을 넣으면 만 60세(국민연금) · 만 65세(고용보험)도 나이로 가려 금액에 넣고 뺍니다. 지급명세서를 <b>A4 가로로 인쇄</b>하고, 근로내용 확인신고에 옮겨 적을 집계도 함께 나옵니다.
         </p>
         <div className="nm-badges">
           <span>회원가입 없음 · 무료</span>
           <span>💾 이 브라우저에만 저장 {저장됨 ? '' : <b className="nm-warn">— 지금 저장이 막혀 있습니다(사생활 보호 창 등)</b>}</span>
-          <span>🔒 주민번호 · 계좌는 받지 않습니다</span>
+          <span>🔒 생년월일만 · 주민번호 뒷자리 · 계좌는 받지 않습니다</span>
         </div>
         <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
           {st.P.length === 0 && <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => setSt(예시(ym))}>예시로 채워 보기</button>}
@@ -144,13 +176,14 @@ export default function Nomubi() {
         <div className="detail-h" style={{ margin: 0 }}>👥 명단 <span className="muted" style={{ fontWeight: 400, fontSize: 12.5 }}>— 달이 바뀌어도 그대로 이어 씁니다</span></div>
         <div className="tp-scroll">
           <table className="tbl nm-roster">
-            <thead><tr><th>No</th><th>이름</th><th>직종</th><th>일당(원)</th><th>늘 빼기 <small className="muted">(그 사람은 늘 안 뗌)</small></th><th /></tr></thead>
+            <thead><tr><th>No</th><th>이름</th><th>직종</th><th>생년월일 <small className="muted">(앞 6자리 · 넣으면 나이로 자동)</small></th><th>일당(원)</th><th>늘 빼기 <small className="muted">(그 사람은 늘 안 뗌)</small></th><th /></tr></thead>
             <tbody>
               {st.P.map((p, i) => (
                 <tr key={p.id}>
                   <td className="r">{i + 1}</td>
                   <td><input className="inp nm-in" value={p.n} maxLength={20} onChange={(e) => 사람고침(p.id, 'n', e.target.value)} placeholder="이름" aria-label={`${i + 1}번 이름`} /></td>
                   <td><input className="inp nm-in" value={p.j} maxLength={20} onChange={(e) => 사람고침(p.id, 'j', e.target.value)} placeholder="직종" aria-label={`${i + 1}번 직종`} /></td>
+                  <td className="nm-bd"><input className="inp nm-in nm-birth" value={p.b || ''} maxLength={10} inputMode="numeric" onChange={(e) => 사람고침(p.id, 'b', e.target.value.replace(/[^\d.\-/ ]/g, ''))} placeholder="예: 610315" aria-label={`${i + 1}번 생년월일`} />{나이글(p.b)}</td>
                   <td><input className="inp nm-in nm-num" value={p.w ? 원(p.w) : ''} inputMode="numeric" onChange={(e) => 사람고침(p.id, 'w', 숫자만(e.target.value))} placeholder="0" aria-label={`${i + 1}번 일당`} /></td>
                   <td className="nw">
                     {빼기들.map(([c, 이름]) => {
@@ -162,7 +195,7 @@ export default function Nomubi() {
                       )
                     })}
                   </td>
-                  <td><button type="button" className="tp-x" onClick={() => 사람뺌(p.id)} aria-label={`${p.n || i + 1 + '번'} 지우기`}>지우기</button></td>
+                  <td className="nw"><button type="button" className="tp-x" onClick={() => 사람뺌(p.id)} aria-label={`${p.n || i + 1 + '번'} 지우기`}>지우기</button></td>
                 </tr>
               ))}
             </tbody>
@@ -214,7 +247,8 @@ export default function Nomubi() {
         <div className="card tp-bill">
           <div className="btn-row no-print" style={{ justifyContent: 'flex-start', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
             <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={인쇄}>🖨 지급명세서 인쇄 (A4 가로)</button>
-            <span className="muted" style={{ fontSize: 12.5, alignSelf: 'center' }}>인쇄하면 출역 대장 · 지급 명세 · 신고용 집계가 함께 나옵니다.</span>
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀받기}>📗 값만 엑셀 받기</button>
+            <span className="muted" style={{ fontSize: 12.5, alignSelf: 'center' }}>인쇄하면 출역 대장 · 지급 명세 · 신고용 집계가 함께 나옵니다. 엑셀은 보관용 값만(수식 없음) — 셈은 이 화면에서.</span>
           </div>
           <div className="tp-bill-hd">
             <h2 className="tp-bill-h">일용노무비 지급명세서 ({달글(ym)})</h2>
@@ -253,7 +287,7 @@ export default function Nomubi() {
           </div>
           <div className="tp-inssum">
             <b>4대보험 대상</b> — 국민연금 <b>{N.합계.대상수.P}명</b> · 건강·요양 <b>{N.합계.대상수.H}명</b> · 고용 <b>{N.합계.대상수.E}명</b> / 전체 {N.합계.인원}명
-            {안됨.length > 0 && <> · <span className="muted">대상 아님: {안됨.map((r) => `${r.p.n}(${[!r.대상.P.대상 && '연금', !r.대상.H.대상 && '건강'].filter(Boolean).join('·')} — ${r.대상.P.대상 ? r.대상.H.이유 : r.대상.P.이유})`).join(', ')}</span></>}
+            {안됨.length > 0 && <> · <span className="muted">대상 아님: {안됨.map((r) => `${r.p.n}(${[!r.대상.P.대상 && '연금', !r.대상.H.대상 && '건강', !r.대상.E.대상 && '고용'].filter(Boolean).join('·')} — ${!r.대상.P.대상 ? r.대상.P.이유 : !r.대상.H.대상 ? r.대상.H.이유 : r.대상.E.이유})`).join(', ')}</span></>}
           </div>
           {알림 && <div className="note sm no-print" role="status">{알림}</div>}
           <div className="tp-scroll">
@@ -284,7 +318,7 @@ export default function Nomubi() {
                             onClick={() => 대상누름(r, c)}>{이름}{d.대상 ? '✓' : '✕'}{d.손 ? '✎' : ''}</button>
                         )
                       })}
-                      <small className="tp-insr">연금 {r.대상.P.이유} · 건강 {r.대상.H.이유}</small>
+                      <small className="tp-insr">연금 {r.대상.P.이유} · 건강 {r.대상.H.이유}{r.대상.E.이유 !== '일용 모두' ? ` · 고용 ${r.대상.E.이유}` : ''}</small>
                       <button type="button" className="tp-x no-print" onClick={() => 판단보기(r)} title="이 사람 출역(이 브라우저에 적은 모든 달)으로 4대보험 가입 판단기를 엽니다">🛡 판단 자세히</button>
                     </td>
                     {공제칸.map((c) => {
@@ -325,7 +359,8 @@ export default function Nomubi() {
             장기요양 건강보험료 × {(R.lc * 100).toFixed(2)}%(8일↑) · 10원 미만 버림.
             {N.잠정 && N.잠정.length > 0 && <b> ⚠️ {N.잠정.join('·')} 요율은 아직 확정 전이라 앞해 값으로 셈했습니다.</b>}
             {N.요율없음 && <b> ⚠️ 이 해의 요율은 아직 없어 {N.요율해}년 요율로 셈했습니다.</b>}
-            {' '}다른 현장 근무(국민연금은 회사 합산) · 나이 등은 모르니 보험 단추로 넣고 빼고, 신고 전 한 번 더 확인하십시오.
+            {' '}생년월일을 넣은 사람은 만 60세가 된 다음 날부터 국민연금을, 만 65세부터 일한 날은 고용보험 실업급여 몫(0.9%)을 저절로 뺍니다(65세 전부터 끊김 없이 계속 고용된 분은 «고용» 단추로 넣기).
+            {' '}다른 현장 근무(국민연금은 회사 합산) · 외국인 등은 모르니 보험 단추로 넣고 빼고, 신고 전 한 번 더 확인하십시오.
           </div>
 
           <div className="tp-pb" />

@@ -27,16 +27,25 @@ import { loadLicCodes, saveLicCodes, loadLicNone, saveLicNone, loadRegion, saveR
    ⚠️ 거르는 규칙(canBid · inRegion · licHit)과 금액(quickBid) · 확률(pickOdds)은
       전부 공고 탭과 **같은 함수**입니다. 여기서 따로 적으면 같은 공고가 한쪽엔 뜨고 한쪽엔 안 뜹니다.
    ⚠️ 없는 숫자는 만들지 않습니다. 확률을 모르는 공고(기관 표본 6건 미만)는 뱃지를 안 답니다.
+
+   📂 접기 (G109 · 2026-10-01) — 소장님 (폰 화면을 보시고) 「이게 접기가 있어? 공정을 선택하지 않아도 접기가 되어야 하는 거 아니야?」 · 「접기 해줘」
+     예전: 아무것도 안 고르면 면허 칩 40여 개가 늘 펼쳐져 있어 폰에서 «공고 찾기» 까지 한참 내려가야 했고,
+           칩을 하나 누르면 바로 접혀 여러 개를 고르려면 매번 «조건 바꾸기» 를 다시 눌러야 했습니다.
+     지금: 고르기 칸은 «펼침» 하나로 열고 닫습니다 — 처음엔 접힌 한 줄(«면허 · 지역 고르기 ▼»),
+           펼치면 «접기 ▲» · 펼친 동안엔 칩을 여러 개 눌러도 안 닫힘 · 접었는지는 이 브라우저(localStorage kcm_mytoday_open)에 기억.
    ══════════════════════════════════════════════════════════════ */
 
 const MAX = 5
+const 펼침열쇠 = 'kcm_mytoday_open'
+const 펼침읽기 = () => { try { return localStorage.getItem(펼침열쇠) === '1' } catch (e) { return false } }
 
 export default function MyToday({ rows, idx, p50, onPick }) {
   const [lics, setLics] = useState(loadLicCodes)
   const [licNone, setLicNone] = useState(loadLicNone)
   const [region, setRegion] = useState(loadRegion)
   const [meta, setMeta] = useState(null)
-  const [editing, setEditing] = useState(false)
+  const [editing, setEditingRaw] = useState(펼침읽기)   /* 고르기 칸 펼침 — 처음엔 접힘 */
+  const setEditing = (v) => { setEditingRaw(v); try { localStorage.setItem(펼침열쇠, v ? '1' : '0') } catch (e) { /* 막힌 브라우저 — 기억만 못 함 */ } }
   const [copied, setCopied] = useState('')
   const now = useMemo(() => nowStamp(), [])
 
@@ -79,7 +88,7 @@ export default function MyToday({ rows, idx, p50, onPick }) {
   /* «기회» 축의 색 — 아래쪽 riskTone(살아남을 확률)과는 다른 축이라 따로 둡니다. 이 함수 하나만 씁니다. */
   const tone = (p) => (p == null ? 'none' : p >= 15 ? 'hot' : p >= 5 ? 'warm' : 'cool')
 
-  const showEditor = editing || !configured
+  const showEditor = editing
 
   return (
     <div className="mytoday">
@@ -88,11 +97,18 @@ export default function MyToday({ rows, idx, p50, onPick }) {
         {configured && !editing && (
           <span className="mt-cond">
             {licNames.length ? licNames.join(' · ') : '면허 전체'} · {region}
-            {' '}<button className="lnk" onClick={() => setEditing(true)}>조건 바꾸기</button>
+            {' '}<button className="lnk" onClick={() => setEditing(true)} aria-expanded="false">조건 바꾸기 ▼</button>
           </span>
         )}
-        {editing && <button className="lnk" onClick={() => setEditing(false)}>닫기</button>}
+        {!configured && !editing && <button className="lnk" onClick={() => setEditing(true)} aria-expanded="false">면허 · 지역 고르기 ▼</button>}
+        {editing && <button className="lnk" onClick={() => setEditing(false)} aria-expanded="true">접기 ▲</button>}
       </div>
+
+      {!configured && !editing && (
+        <button type="button" className="mt-fold" onClick={() => setEditing(true)}>
+          <b>면허와 지역을 고르면</b> 여기에 <b>오늘 넣을 수 있는 공고</b>가 금액과 함께 뜹니다. <span className="mt-fold-go">고르기 ▼</span>
+        </button>
+      )}
 
       {showEditor && (
         <div className="mt-setup">
@@ -121,11 +137,9 @@ export default function MyToday({ rows, idx, p50, onPick }) {
               <button key={r} className={'chip' + (region === r ? ' on' : '')} onClick={() => pickRegion(r)}>{r}</button>
             ))}
           </div>
-          {configured && (
-            <button className="btn sm" style={{ marginTop: 10 }} onClick={() => setEditing(false)}>
-              이 조건으로 보기
-            </button>
-          )}
+          <button className="btn sm" style={{ marginTop: 10 }} onClick={() => setEditing(false)}>
+            {configured ? '이 조건으로 보기' : '접기 ▲'}
+          </button>
         </div>
       )}
 

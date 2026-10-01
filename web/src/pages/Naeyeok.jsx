@@ -16,6 +16,7 @@
  */
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { 받은수, 화면열쇠 } from '../lib/받은수.jsx'   /* ⬇ 2026-10-01 (G109) 소장님 「내역서 및 적산 탭 안에 … 받기 숫자가 하나도 없는데?」 — 도구 탭과 같은 숫자 */
 /* 🦺 2026-09-16 — 「작성 대행」 탭이 내역서와 안전서류 둘을 같이 품습니다.
    내역서를 보러 온 사람이 곧 착공계도 내야 하는 사람입니다 — 그 자리에 띠를 붙입니다. */
 import { SafetyStrip } from './Safety.jsx'
@@ -293,6 +294,9 @@ const 단가보기 = [
   { to: '/change/unit', ic: '📐', t: '단가 · 품셈 기준 (2026년)', d: '신규 비목의 «설계변경 당시 단가» 를 2026년에 무엇을 기준으로, 어디서 받는지 정리했습니다.' },
 ]
 
+/* 카드마다 그 화면에서 받은 횟수(0 이면 안 보임) — 다른 카드 화면은 빼고 셈(도구 탭과 같게) */
+const 카드열쇠 = () => new Set([...상황들.flatMap((s) => s.도구), ...단가보기].map((x) => 화면열쇠(x.to)))
+let 카드열쇠캐시 = null
 function 도구칸({ x }) {
   return (
     <Link className="tlx-card" to={x.to}>
@@ -300,6 +304,7 @@ function 도구칸({ x }) {
       <span className="tlx-body">
         <span className="tlx-t">{x.t}{x.딱지 && <em className="tlx-new ny-tag">{x.딱지}</em>}</span>
         <span className="tlx-d">{x.d}</span>
+        <받은수 쪽={x.to} 빼기={카드열쇠캐시 || (카드열쇠캐시 = 카드열쇠())} className="dlcount tlx-dl" />
       </span>
     </Link>
   )

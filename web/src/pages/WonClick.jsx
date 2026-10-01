@@ -17,6 +17,10 @@
  *
  * ■ 법령 요율은 넣어 두지 않습니다 (공종·계약마다 다름). 계약서 값을 이용자가 넣습니다.
  * ■ 입력값은 이 기기(브라우저)에만 저장합니다. 서버로 보내지 않습니다.
+ *
+ * ■ 2026-10-01 (G109) 받는 엑셀은 «값만» — 소장님 「엑셀로 값만 주는 걸로 하자. 프로그램 원칙으로 하고」 · 「원클릭은 값만 줘도 상관 없지 않아?」
+ *    셈 · 서류 화면은 이 사이트(프로그램) 그대로. 받을 때 모든 수식 칸을 화면과 같은 셈(lib/엑셀수식.js)의 값으로 바꿉니다(lib/엑셀쓰기.js 값만으로).
+ *    «빈 엑셀 프로그램만 받기» 는 내렸습니다(틀 파일은 화면이 셈하려고 계속 읽습니다).
  */
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import META from '../data/wonclick.json'
@@ -155,12 +159,18 @@ export default function WonClick() {
       const tpl = new Uint8Array(await res.arrayBuffer())
       const v = {}
       for (const i of META.inputs) if (vals[i.key] !== undefined) v[i.key] = vals[i.key]
-      let out = lib.fillWorkbook(tpl, META, v, pick)
-      /* 화면에서 고친 칸이 있으면 그대로 넣어 받습니다 */
-      if (Object.keys(고침).length) {
-        const [R, W] = await Promise.all([import('../lib/엑셀읽기.js'), import('../lib/엑셀쓰기.js')])
-        out = W.고친엑셀(out, R.엑셀읽기(out), 고침)
+      const 채움 = lib.fillWorkbook(tpl, META, v, pick)
+      /* 📗 G109 — 값만: 모든 수식 칸을 화면과 같은 셈의 값으로(화면에서 고친 칸도 그대로) */
+      const W = await import('../lib/엑셀쓰기.js')
+      /* «처음» 시트 안내도 값만 파일에 맞게(입력을 고쳐도 서류가 안 바뀜 · 다시는 사이트에서) */
+      const 안내 = {
+        '처음!B2': '이 파일은 K-건설맵 원클릭에서 셈한 값만 든 파일입니다(수식 없음). 서류 칸이 모두 채워져 있어 바로 인쇄할 수 있습니다. 고칠 때는 k-conmap.com/tools/wonclick 에서 고쳐 다시 받으십시오.',
+        '처음!C4': '「입력」 시트는 받을 때 넣은 값의 기록입니다 — 여기서 고쳐도 서류는 바뀌지 않습니다.',
+        '처음!C5': '아래 목록에서 서류 이름을 누르면 그 서류로 갑니다.',
+        '처음!B39': '• 수식 없이 값만 들어 있습니다. 칸을 고치면 그 칸만 바뀝니다(다른 서류는 따라 바뀌지 않음).',
+        '처음!B41': '• 다시 셀 때는 사이트(k-conmap.com/tools/wonclick)에서 칸을 고치고 받으십시오 — 적은 내용이 그 브라우저에 남아 있습니다.',
       }
+      const out = W.값만으로(채움, { ...안내, ...고침 }).바이트
       const nm = `공사서류_원클릭_${lib.safeName(vals.공사명) || '빈칸'}.xlsx`
       const url = URL.createObjectURL(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
       const a = document.createElement('a')
@@ -193,14 +203,10 @@ export default function WonClick() {
           회원가입 없이 무료입니다.
         </div>
         <ul className="wc-up">
-          <li><b>매크로 없음</b> — 인터넷에서 받은 매크로 파일은 윈도우가 막습니다. 수식만 써서 엑셀·한셀·구글 시트에서 그냥 열립니다.</li>
           <li><b>저절로 계산</b> — 일금 …원정 한글 금액, 공사기간 일수, 계약·하자보수보증금, 하자기간 끝나는 날, 지체일수·지체상금, 기성 누계·기성률, 준공금 청구액.</li>
-          <li><b>필요한 서류만</b> — 아래에서 고른 서류만 보이게 해서 받습니다.</li>
+          <li><b>화면에서 보고 고쳐 인쇄</b> — 서류를 A4 그대로 보고, 칸을 눌러 고치고, 한 장씩 또는 모두 인쇄합니다.</li>
+          <li><b>필요한 서류만 · 값만 든 엑셀</b> — 고른 서류만 엑셀로 받습니다. 엑셀에는 셈한 값이 들어 있어 엑셀 · 한셀 · 구글 시트 어디서나 그대로 열립니다. 고칠 때는 여기서 다시 받으면 됩니다(적은 내용이 이 기기에 남아 있음).</li>
         </ul>
-        <div className="btn-row" style={{ marginTop: 10 }}>
-          <a className="btn ghost sm" href={META.file} download="K-건설맵_공사서류_원클릭(빈칸).xlsx"
-            onClick={() => askAfter('forms')}>⬇ 빈 엑셀 프로그램만 받기</a>
-        </div>
       </div>
 
       <div className="card">
@@ -279,7 +285,7 @@ export default function WonClick() {
       <div className="card wc-go">
         {빈칸.length > 0 && (
           <div className="note sm" style={{ color: 'var(--warn, #b25a00)' }}>
-            ⚠ 꼭 필요한 칸 {빈칸.length}개가 비어 있습니다 — {빈칸.map((k) => 이름[k]).join(', ')}. 그래도 받을 수 있고, 엑셀에서 채워도 됩니다.
+            ⚠ 꼭 필요한 칸 {빈칸.length}개가 비어 있습니다 — {빈칸.map((k) => 이름[k]).join(', ')}. 그래도 받을 수 있지만, 채운 뒤 받아야 서류마다 들어갑니다.
           </div>
         )}
         <div className="btn-row" style={{ marginTop: 8 }}>
@@ -289,7 +295,7 @@ export default function WonClick() {
           <button className="btn ghost sm" style={{ whiteSpace: 'nowrap' }} onClick={지우기}>입력 지우기</button>
         </div>
         {Object.keys(고침).length > 0 && <div className="note sm" style={{ marginTop: 8 }}>✏️ 화면에서 고친 칸 {Object.keys(고침).length}개도 엑셀에 그대로 들어갑니다.</div>}
-        {done && <div className="note sm" style={{ marginTop: 8 }}>✔ {done} 엑셀에서 열면 칸이 저절로 계산됩니다. 인쇄는 서류 한 가지가 A4 한 장입니다.</div>}
+        {done && <div className="note sm" style={{ marginTop: 8 }}>✔ {done} 셈한 값이 든 엑셀입니다(수식 없음) — 고칠 때는 여기서 고쳐 다시 받으십시오. 인쇄는 서류 한 가지가 A4 한 장입니다.</div>}
         {err && <div className="note sm" style={{ marginTop: 8, color: 'var(--bad, #c62828)' }}>⚠ {err}</div>}
       </div>
 

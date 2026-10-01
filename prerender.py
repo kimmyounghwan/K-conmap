@@ -2445,12 +2445,10 @@ def wonclick_page(shell, m, image=None):
     out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">⚡ 공사서류 원클릭</h1>'
            f'<p class="cp" style="margin-top:8px"><b>한 번 입력하면 착공부터 준공·하자까지 서류 {len(docs)}가지가 채워진 엑셀</b>이 나옵니다. '
            '공사명·계약금액·날짜를 서류마다 옮겨 적지 않아도 됩니다. 관급·민간 <b>모든 현장</b>에 쓰고, 회원가입 없이 무료입니다.</p>'
-           '<ul class="flist"><li><b>매크로 없음</b> — 인터넷에서 받은 매크로 파일은 윈도우가 막습니다. 수식만 써서 엑셀·한셀·구글 시트에서 그냥 열립니다.</li>'
+           '<ul class="flist">'
            '<li><b>저절로 계산</b> — 일금 …원정 한글 금액, 공사기간 일수, 계약·하자보수보증금, 하자기간 끝나는 날, 지체일수·지체상금, 기성 누계·기성률, 준공금 청구액.</li>'
-           '<li><b>필요한 서류만</b> — 고른 서류만 보이게 해서 받습니다.</li>'
-           '<li><b>화면에서 보고 고쳐 인쇄</b> — 엑셀 없이도 서류를 A4 그대로 보고, 칸을 눌러 고치고, 한 장씩 또는 모두 인쇄합니다. 고친 칸은 엑셀에도 들어갑니다.</li></ul>'
-           f'<div class="btn-row" style="margin-top:10px"><a class="btn ghost sm" href="{esc(m.get("file") or "")}" download>'
-           '⬇ 빈 엑셀 프로그램만 받기</a></div></div>']
+           '<li><b>필요한 서류만 · 값만 든 엑셀</b> — 고른 서류만 셈한 값이 든 엑셀로 받습니다(엑셀 · 한셀 · 구글 시트 어디서나 그대로). 고칠 때는 사이트에서 다시 받습니다.</li>'
+           '<li><b>화면에서 보고 고쳐 인쇄</b> — 엑셀 없이도 서류를 A4 그대로 보고, 칸을 눌러 고치고, 한 장씩 또는 모두 인쇄합니다. 고친 칸은 엑셀에도 들어갑니다.</li></ul></div>']
     out.append(f'<div class="card"><div class="sec-title" style="margin:0 0 6px">들어 있는 서류 {len(docs)}가지</div><ul class="flist">')
     for w in ["계약", "착공", "공사 중", "준공", "관리", "하자"]:
         lst = [d for d in docs if d.get("when") == w]
@@ -2609,12 +2607,12 @@ def tuipbi_page(shell, image=None):
 def nomubi_page(shell, image=None):
     title = "일용 노무비 계산기 · 지급명세서 — 소득세·4대보험 공제 자동, 근로내용 확인신고 집계 | K-건설맵"
     desc = ("이름·직종·일당을 적고 일한 날만 누르면 일용근로자 소득세·지방소득세·고용보험·국민연금·건강보험·장기요양 공제와 "
-            "실지급액이 나옵니다. A4 가로 지급명세서와 근로내용 확인신고 집계 인쇄. 회원가입 없음, 주민번호 안 받음, 무료.")[:160]
+            "실지급액이 나옵니다. 생년월일로 60세 연금 · 65세 고용 자동. A4 지급명세서 · 근로내용 확인신고 집계 인쇄. 무료.")[:160]
     out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">👷 일용 노무비 계산기 · 지급명세서</h1>'
            '<p class="cp" style="margin-top:8px">이름 · 직종 · 일당을 적고 <b>일한 날을 누르면</b> 소득세 · 지방소득세 · 고용보험 · 국민연금 · '
            '건강보험 · 장기요양 공제와 <b>실지급액</b>이 저절로 나옵니다. 지급명세서를 <b>A4 가로로 인쇄</b>하고, '
            '근로내용 확인신고에 옮겨 적을 집계도 함께 나옵니다.</p>'
-           '<p class="cp">회원가입 없음 · 무료. 적은 것은 <b>이 브라우저에만</b> 남고 서버로 보내지 않습니다. 주민등록번호 · 계좌는 받지 않습니다.</p></div>',
+           '<p class="cp">회원가입 없음 · 무료. 적은 것은 <b>이 브라우저에만</b> 남고 서버로 보내지 않습니다. 생년월일(앞 6자리)만 받고 주민등록번호 뒷자리 · 계좌는 받지 않습니다. 생년월일을 넣으면 만 60세(국민연금) · 만 65세(고용보험 실업급여)를 나이로 가려 공제합니다.</p></div>',
            '<div class="card"><div class="sec-title" style="margin:0 0 6px">공제는 이렇게 셉니다 (2026년 · 일용근로자)</div><ul class="flist">'
            '<li>소득세 — 날마다 (일급 − 15만원) × 2.7% · 한 달 합 1천원 미만은 떼지 않음(소액부징수) · 지방소득세 10%</li>'
            '<li>고용보험 0.9% · 국민연금 4.75%(달 단위 8일 이상 또는 220만원 이상, 기준소득월액 41만~659만) · '
@@ -2712,7 +2710,7 @@ def ilyong_page(shell, g, image=None):
            '<div class="card"><div class="sec-title" style="margin:0 0 6px">이렇게 씁니다</div><ul class="flist">'
            '<li>일당을 적고 달력에서 일한 날을 누릅니다(반나절도 하루). 달마다 받은 돈이 다르면 그 달 «받은 돈» 칸에 적습니다.</li>'
            '<li>같은 회사 다른 현장에서도 일했으면 «다른 현장» 칸에 적습니다 — 국민연금은 2025년 7월부터 합쳐 봅니다.</li>'
-           '<li>근로계약서가 1개월 이상 · 월 8일 이상인지, 60세 이상인지, 65세 이후 새로 고용됐는지 고릅니다.</li>'
+           '<li>생년월일(주민번호 앞 6자리)을 넣으면 만 60세(국민연금 상실) · 만 65세(고용보험 실업급여 몫 없음)를 나이로 저절로 가려 금액에 넣고 뺍니다. 근로계약서가 1개월 이상 · 월 8일 이상인지도 고릅니다.</li>'
            '<li>보험마다 가입 대상 · 취득일 · 상실일 · 보험료 달, 달마다 공제와 실지급액, 판단 과정, 신고할 일과 기한이 나오고 A4로 인쇄합니다.</li>'
            '<li>«사업주 몫도 보기» 를 누르면 회사 규모를 골라 사업주 몫(국민연금 · 건강 · 장기요양 · 고용 · 산재 참고)과 공단에 내는 보험료 총액이 달마다 나옵니다.</li></ul></div>',
            _iy_table(g)]
@@ -2728,14 +2726,15 @@ def ilyong_page(shell, g, image=None):
 def ilyong_guide_page(shell, g, image=None):
     title = "일용직 4대보험 가입 기준 — 국민연금 8일 · 220만원, 건강보험 1개월, 취득일 · 상실일 · 보험료 달 | K-건설맵"
     desc = ("건설 일용근로자의 국민연금 · 건강보험 가입 기준을 공단 실무안내 원문대로 정리했습니다. 국민연금은 달 단위(2025.7~) · 같은 회사 합산, "
-            "건강보험은 첫 근로일부터 1개월, 보험료는 취득한 달의 다음 달부터. 사례 · 신고 기한 · 자주 묻는 것.")[:160]
+            "건강보험은 첫 근로일부터 1개월, 보험료는 취득한 달의 다음 달부터. 만 60세 · 65세 나이 기준 · 사례 · 신고 기한.")[:160]
     out = [f'<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">📘 {esc(g.get("title") or "")}</h1>'
            f'<p class="cp" style="margin-top:8px">{bold_md(esc(g.get("lead") or ""))}</p>'
            '<p class="cp"><a href="/tools/ilyong-boheom">🛡 가입 판단기로 바로 계산</a> · <a href="/tools/nomubi">👷 일용 노무비 계산기</a></p>'
            f'<p class="cp" style="font-size:12px">{esc(g.get("updated") or "")} 기준 · 공단 실무안내 · 법령 원문 확인</p></div>',
            _iy_table(g)]
     for sec in (g.get("secs") or []):
-        out.append(f'<div class="card"><h2 class="sec-title" style="margin:0 0 6px">{esc(sec.get("h") or "")}</h2>')
+        sid = f' id="{esc(sec["id"])}"' if sec.get("id") else ""
+        out.append(f'<div class="card"{sid}><h2 class="sec-title" style="margin:0 0 6px">{esc(sec.get("h") or "")}</h2>')
         for x in (sec.get("p") or []):
             out.append(f'<p class="cp">{bold_md(esc(x))}</p>')
         out.append("</div>")
