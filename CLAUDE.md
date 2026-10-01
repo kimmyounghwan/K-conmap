@@ -4115,3 +4115,10 @@ canonical 이중 인코딩 · 개찰 시각 문구 · 성적표 칸 · 등수 �
 - ⚠️ «완전히» 는 못 막음: 브라우저 기록을 지우거나 다른 기기 · 시크릿 창이면 새 번호(새 별명). IP 로 막는 길은 RTDB 규칙에 없음.
 - 첫 차단: 「깔끔한 지게차168」(uid pGT3Pu5DxHbHrbeJhrwRw5GIt543) — 글 «ㄴㅇ륳»(-P2pj5_JIZblmA3aCYZi, 10/1 13:32)은 deleted:true(목록 · 미리굽기에서 빠짐 · 아주 지우지는 않음). 그 번호의 다른 글 · 답글 없음.
 - 넣는 법: G99b_사랑방차단.bat 처럼 `firebase database:set /qna_block/{uid} 파일.json --project k-conmap --force`. 풀 때는 `firebase database:remove /qna_block/{uid}`.
+### 150. 🚫 사이트 전체 기기 차단 (G100 — 2026-10-01, 소장님 「사이트 자체를 못 쓰게 해줘」 · 「공고나 1순위 도구 서식 등...모든 것 사용 금지」)
+- `web/src/lib/차단.js` + main.jsx «지킴»: qna_block/{번호} 에 오른 기기는 모든 화면 대신 «🚫 이 기기에서는 K-건설맵을 이용할 수 없습니다» 한 장.
+- 비용 원칙 그대로 — 익명 번호가 없는 기기(읽기만 하던 방문자)는 파이어베이스를 받지 않음. 사랑방에 쓴 적(kcm_qna_mine) · 알림(kcm_noti) · 파이어베이스 로그인 흔적(IndexedDB firebaseLocalStorageDb)이 있는 기기만 자기 칸 하나를 읽음.
+- 막히면 브라우저 표시(kcm_blk) → 다음부터 열자마자 막힘. 열 때마다 다시 확인해 소장님이 풀면(qna_block 에서 지우면) 표시도 지움. 확인이 끊기면 지금 표시대로.
+- 규칙: qna_block/$uid «자기 칸만» 읽기(auth.uid === $uid). 목록 · 남의 칸은 못 읽음.
+- ⚠️ 기록을 모두 지우거나 다른 브라우저 · 기기 · 시크릿 창이면 새 번호라 못 막음. 엑셀 · PDF · /data 파일 주소를 직접 치는 것도 못 막음.
+- 시험: 처음 손님 · 다른 이용자(글 쓴 기기) 정상 / 막힌 기기 /, /live, /first, /tools, /forms, /qna, /baro 모두 막힘 / 풀면 다시 정상.

@@ -15,6 +15,25 @@ import './styles.css'
 import { 열쇠왔나, 열쇠받기 } from './lib/열쇠.js'
 /* ⬇ 2026-10-01 (G96) 받은 횟수 — 파일을 받는 «누름» 을 사이트 전체에서 한 곳에서 셉니다(lib/받은수.jsx) */
 import { 켜기 as 받은수켜기 } from './lib/받은수.jsx'
+/* 🚫 2026-10-01 (G100) 막힌 기기는 사이트 모든 화면 대신 한 장만 (lib/차단.js) */
+import { 막혔나, 차단확인 } from './lib/차단.js'
+
+function 막힘화면() {
+  return (
+    <div className="blk-scr" role="alert">
+      <div className="blk-box">
+        <div className="blk-ic">🚫</div>
+        <b>이 기기에서는 K-건설맵을 이용할 수 없습니다.</b>
+        <p>운영 원칙에 맞지 않는 이용이 있어 이 기기의 이용을 제한했습니다.</p>
+      </div>
+    </div>
+  )
+}
+function 지킴({ children }) {
+  const [막, set막] = React.useState(막혔나)
+  React.useEffect(() => { 차단확인(set막) }, [])
+  return 막 ? <막힘화면 /> : children
+}
 
 /* ══════════════════════════════════════════════════════════════
    ⚠️ 2026-09-08 — 「착공현장 탭을 누르면 사이트가 멈춰. 됐다가 안됐다가 그래」
@@ -144,6 +163,7 @@ const Loading = () => (
 
 const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
+    <지킴>
     <BrowserRouter>
       <Routes>
         <Route element={<App />}>
@@ -230,6 +250,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
         </Route>
       </Routes>
     </BrowserRouter>
+    </지킴>
   </React.StrictMode>
 )
 
