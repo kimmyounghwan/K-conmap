@@ -136,6 +136,7 @@ exports.qnaMail = onValueCreated(
     const id = event.params.id
     if (g.op) return
     if (g.deleted) return
+    if (g.sb) return          /* 🙈 몰래 차단 기기의 글(G101) — 메일도 보내지 않습니다 */
 
     const 본문 = [
       '사랑방에 새 글이 올라왔습니다.',
@@ -213,6 +214,7 @@ exports.qnaReplyNotify = onValueCreated(
     const a = event.data.val() || {}
     const { qid, aid } = event.params
     if (a.deleted) return
+    if (a.sb) return          /* 🙈 몰래 차단 기기의 답글(G101) — 글쓴이 · 다른 이용자에게 알리지 않습니다(알리면 들킵니다) */
     const d = 자료()
     const [글s, 답들s] = await Promise.all([d.ref(`/qna/${qid}`).get(), d.ref(`/qna_a/${qid}`).get()])
     const 글 = 글s.val()

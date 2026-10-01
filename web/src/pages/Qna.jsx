@@ -82,12 +82,12 @@ export function 점수셈(글들, 답들, 좋아요, 답좋아요, 달) {
   const m = {}
   const 그달 = (at) => !달 || (at && new Date(at + 9 * 3600e3).toISOString().slice(0, 7) === 달)   /* 한국 시각으로 달을 가름 */
   ;(글들 || []).forEach((r) => {
-    if (r.구인구직 || !그달(r.at)) return
+    if (r.구인구직 || r.sb || !그달(r.at)) return
     셈하나(m, r.uid, 1)
     셈하나(m, r.uid, 3 * Object.keys((좋아요 || {})[r.id] || {}).length)
   })
   Object.entries(답들 || {}).forEach(([qid, 묶음]) => Object.entries(묶음 || {}).forEach(([aid, a]) => {
-    if (!a || a.deleted || a.op || !그달(a.at)) return
+    if (!a || a.deleted || a.sb || a.op || !그달(a.at)) return
     셈하나(m, a.uid, 2)
     셈하나(m, a.uid, 3 * Object.keys(((답좋아요 || {})[qid] || {})[aid] || {}).length)
   }))
@@ -133,6 +133,7 @@ const 봇같음 = () => {
    **사랑방 화면을 통째로 끌고 갔기** 때문입니다.
    여기서 다시 내보내는 것은 옛 길(`from './Qna.jsx'`)을 깨뜨리지 않기 위함입니다. */
 import { OPS, isOp } from '../lib/운영자.js'
+import { 몰래표 } from '../lib/차단.js'
 export { OPS, isOp }
 
 const when = (ms) => {
@@ -175,7 +176,7 @@ function 구운글(번호) {
 
 export default function Qna() {
   const [rows, setRows] = useState(null)
-  const [ans, setAns] = useState({})        // { 질문id: [답변…] }
+  const [ans원, setAns] = useState({})        // { 질문id: [답변…] } — 화면은 아래 ans(몰래 차단 거른 것)를 씁니다
   const [del, setDel] = useState({})
   const [open, setOpen] = useState(null)    // 펼친 질문 id
   /* 💬 /qna/{글번호} — 이 글 하나를 맨 위에 펼쳐 둡니다 */
@@ -225,6 +226,17 @@ export default function Qna() {
   /* 📌 고정 글(qna_top) · 🔑 나(지금 번호·옛 번호) — 둘 다 «못 읽어도» 게시판은 그대로 뜹니다 */
   const [고정, set고정] = useState({})
   const [나, set나] = useState(null)
+  /* 🙈 2026-10-01 (G101) 몰래 차단 — sb 표시가 붙은 글 · 답글은 쓴 기기(번호가 나)와 운영자에게만 보입니다(lib/차단.js) */
+  const 보임 = (x) => !x || !x.sb || 나운영자 || (!!나 && !!x.uid && (x.uid === 나.uid || x.uid === 나.r))
+  const ans = useMemo(() => {
+    const o = {}
+    for (const [k, m] of Object.entries(ans원 || {})) {
+      const g = {}
+      for (const [id, x] of Object.entries(m || {})) if (보임(x)) g[id] = x
+      o[k] = g
+    }
+    return o
+  }, [ans원, 나, 나운영자])   // eslint-disable-line react-hooks/exhaustive-deps
   const [다보기, set다보기] = useState(false)
   /* 🎁 👍 · 👑 — 못 읽어도 게시판은 그대로 */
   const [좋아요, set좋아요] = useState({})
@@ -303,13 +315,16 @@ export default function Qna() {
   /* 사랑방 글 — 지운 것만 먼저 걸러 둡니다(셈에도 쓰니까). 옛 말머리(질문·공동도급…)는 r.옛 으로 남습니다 */
   const 모두 = useMemo(() => {
     if (!rows) return null
-    return rows.filter((r) => !r.deleted && !del[r.id])
+    return rows.filter((r) => !r.deleted && !del[r.id] && 보임(r))
       .map((r) => { const g = 갈래떼기(r.t); return { ...r, c: g.c, t: g.t, 옛: g.옛 || '' } })
       .sort((a, b) => (b.at || 0) - (a.at || 0))
-  }, [rows, del])
+  }, [rows, del, 나, 나운영자])   // eslint-disable-line react-hooks/exhaustive-deps
 
   /* 💬 /qna/{글번호} — 목록(최근 300)에 있으면 그것, 없으면 한 편만 따로 읽습니다 */
-  const 이글 = useMemo(() => (글번호 ? ((모두 || []).find((r) => r.id === 글번호) || 따로글) : null), [글번호, 모두, 따로글])
+  const 이글 = useMemo(() => {
+    const r = 글번호 ? ((모두 || []).find((x) => x.id === 글번호) || 따로글) : null
+    return r && 보임(r) ? r : null
+  }, [글번호, 모두, 따로글, 나, 나운영자])   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!글번호 || rows === null || (모두 || []).some((r) => r.id === 글번호)) return undefined
     let 살 = true
@@ -521,6 +536,7 @@ export default function Qna() {
             <span className="muted" style={{ fontSize: 12, marginLeft: 'auto' }}>
               {배지(r.uid)}{r.nick || '익명'} · {언제(r.at)}{r.e ? ' · 고침' : ''}{조회[r.id] > 0 ? ` · 조회 ${Number(조회[r.id]).toLocaleString('ko-KR')}` : ''}
               {내것.has(r.id) && <b style={{ color: 'var(--accent, #1a56db)' }}> · 내 글</b>}
+              {r.sb && 나운영자 && <b> · 🙈 몰래 차단</b>}
             </span>
             {/* 2026-09-17 — 소장님: 「답글을 클릭해서 쓸 버튼이 없어」 → 「어차피 글을 보려면
                 클릭해야 하잖아.. 그대로 둬도 될 것 같은데」. 맞는 말씀이라 단추는 안 답니다.
@@ -562,7 +578,7 @@ export default function Qna() {
         <div className="qna-one">
           {이글
             ? 글카드(이글)
-            : 없는글
+            : (없는글 || (따로글 && !보임(따로글)))
               ? <Empty>이 글은 지워졌거나 없는 글입니다. 아래에서 다른 글을 보세요.</Empty>
               : <Skeleton n={1} />}
           <div style={{ textAlign: 'right', margin: '-2px 2px 12px', fontSize: 13 }}>
@@ -608,7 +624,8 @@ export default function Qna() {
             표가 없는 답은 이용자 의견이니 <b>중요한 일은 발주처·전문가에게 한 번 더 확인</b>하십시오.</li>
           <li><b>물어볼 때는</b> 공사 규모 · 발주처 · 지금 어디까지 — 이 셋만 적어도 답이 훨씬 정확해집니다. 모르면 모르는 대로 적으셔도 됩니다.</li>
           <li><b>자료 나눔 환영합니다.</b> 다만 남의 공사명·업체명·사람 이름·전화번호·주민번호는 지우고 올려 주세요.</li>
-          <li><b>홍보·광고는 1주에 한 번까지.</b> 같은 글을 되풀이하거나 도배하면 지웁니다.</li>
+          {/* 📢 2026-10-01 소장님: 「공지에 광고는 1주일에 한번이지만. 댓글 작성은 가능하다고 해줘」 */}
+          <li><b>홍보·광고 글은 1주에 한 번까지.</b> 다만 <b>댓글(답글)은 언제든 다셔도 됩니다.</b> 같은 글을 되풀이하거나 도배하면 지웁니다.</li>
           <li><b>예고 없이 지우는 글:</b> 욕설·비방·특정인 공격 · 남의 개인정보 · 불법(담합·대리입찰 알선 등) · 음란·도박 · 도배</li>
           <li><b>내 글은</b> 펼치면 <b>✏️ 고치기</b>가 있고, 글 쓸 때 정한 <b>4자리 숫자</b>로 지웁니다. 다른 기기에서는 먼저 <b>«🔑 내 글 되찾기»</b>.</li>
           <li><b>도구가 안 되거나 고쳤으면 하는 점</b>은 위 <b>📌 도구 사용법</b> 글에 답글로, 또는 <b>후기·건의</b>에 남겨 주세요 — 바로 살펴 고치겠습니다. 🙏</li>
@@ -1011,7 +1028,7 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
           <div style={{ fontSize: 12, marginBottom: 5 }}>
             {a.op
               ? <b style={{ color: 'var(--accent, #1a56db)' }}>K-건설맵</b>
-              : <b>{배지(a.uid)}{a.nick || '익명'}</b>}
+              : <b>{배지(a.uid)}{a.nick || '익명'}{a.sb && 나운영자 ? ' · 🙈 몰래 차단' : ''}</b>}
             <span className="muted"> · {when(a.at)}</span>
           </div>
           <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.85, fontSize: 13.5 }}>{가림(a.b)}</div>
@@ -1105,6 +1122,7 @@ function AnswerForm({ qid, onDone }) {
         op,
         uid: r,
         at: Date.now(),
+        ...(await 몰래표()),     /* 🙈 몰래 차단 기기면 sb — 규칙이 강제합니다 */
       })
       setB('')
       /* 🔔 이 글에 다음 답글이 달리면 나에게도 알림(G73) — 허락한 기기는 폰 알림창까지 */
@@ -1187,6 +1205,7 @@ function WriteForm({ onDone, 첫갈래, 첫글, 나운영자 }) {
         nick: (c === 'K-건설맵' ? 'K-건설맵' : nickOf(r)).slice(0, 20),
         uid: r,
         at: Date.now(),
+        ...(await 몰래표()),     /* 🙈 몰래 차단 기기면 sb — 규칙이 강제합니다 */
       })
       addMine(id)
       폰알림켜기(r, 허락)

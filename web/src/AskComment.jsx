@@ -42,6 +42,7 @@ import { nickOf } from './lib/nickname.js'
 /* 🏷️ 이 창에서 온 글은 사랑방 말머리 「후기·건의」로 갑니다 (2026-09-19, CLAUDE.md 8절 69).
    소장님: 「이용자에게 띄우는 창은 그대로 유지하고, 어디로 올릴건지만」 — 창은 안 바뀝니다. */
 import { 갈래붙이기 } from './lib/말머리.js'
+import { 몰래표 } from './lib/차단.js'
 
 /* ⚠️ firebase 는 «정적으로» 끌어오지 않습니다 — 이 창을 실제로 올릴 때만 받습니다.
    (사랑방·구인구직과 같은 방식. 안 그러면 모든 화면이 firebase 를 지고 다닙니다) */
@@ -234,6 +235,7 @@ export default function AskStrip() {
         nick: nickOf(user.uid).slice(0, 20),
         uid: user.uid,
         at: Date.now(),
+        ...(await 몰래표()),     /* 🙈 몰래 차단 기기면 sb — 규칙이 강제합니다(lib/차단.js) */
       })
       /* 사랑방 화면이 «내가 쓴 글» 로 알아보게 — 같은 열쇠를 씁니다 (Qna.jsx) */
       try {

@@ -5227,9 +5227,3 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 .mycond-m { flex-basis: 100%; font-size: 12px; color: var(--muted); }
 .watchrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 2px 0 10px; }
 .watchmsg { font-size: 12px; color: var(--muted); }
-
-/* 🚫 2026-10-01 (G100) 막힌 기기 한 장 — main.jsx 막힘화면 */
-.blk-scr { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; background: var(--bg); }
-.blk-box { max-width: 420px; text-align: center; display: flex; flex-direction: column; gap: 10px; font-size: 15px; }
-.blk-box p { margin: 0; font-size: 13px; color: var(--muted); word-break: keep-all; text-wrap: balance; }
-.blk-ic { font-size: 40px; }

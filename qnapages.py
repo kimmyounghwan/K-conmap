@@ -116,7 +116,8 @@ def posts(snap):
     top = snap.get("qna_top") or {}
     out = []
     for pid, r in q.items():
-        if not isinstance(r, dict) or r.get("deleted") or pid in dl or not _번호.match(pid):
+        # 🙈 sb = 몰래 차단 기기의 글(G101) — 쓴 기기 · 운영자에게만 보이므로 굽지도 사이트맵에 넣지도 않습니다
+        if not isinstance(r, dict) or r.get("deleted") or r.get("sb") or pid in dl or not _번호.match(pid):
             continue
         c, t, 옛 = 갈래떼기(r.get("t"))
         t = 가림(t).strip()
@@ -124,7 +125,7 @@ def posts(snap):
             continue
         ans = []
         for aid, a in ((aa.get(pid) or {}).items() if isinstance(aa.get(pid), dict) else []):
-            if not isinstance(a, dict) or a.get("deleted") or not str(a.get("b") or "").strip():
+            if not isinstance(a, dict) or a.get("deleted") or a.get("sb") or not str(a.get("b") or "").strip():
                 continue
             ans.append({"id": aid, "b": 가림(a.get("b")).strip(), "nick": str(a.get("nick") or "익명")[:20],
                         "at": _num(a.get("at")), "op": a.get("op") is True})

@@ -111,10 +111,10 @@ export default function Admin() {
   }
   useEffect(() => { load() }, [])
 
-  const 답수 = (id) => Object.values(ans[id] || {}).filter((x) => x && !x.deleted).length
+  const 답수 = (id) => Object.values(ans[id] || {}).filter((x) => x && !x.deleted && !x.sb).length
   const list = useMemo(() => {
     if (!rows) return null
-    const 살아있는 = rows.filter((r) => !r.deleted && !del[r.id])
+    const 살아있는 = rows.filter((r) => !r.deleted && !del[r.id] && !r.sb)   /* 🙈 몰래 차단 글은 답할 것 목록에서 뺌 (G101) */
     /* 답 안 단 것 먼저, 그 안에서는 오래된 것 먼저 — «기다린 사람» 부터 */
     const 안단것 = 살아있는.filter((r) => 답수(r.id) === 0).sort((x, y) => (x.at || 0) - (y.at || 0))
     const 단것 = 살아있는.filter((r) => 답수(r.id) > 0)
