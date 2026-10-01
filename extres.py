@@ -63,7 +63,12 @@ KW_RST = f"{E.B}/B500001/ebid/tndr3/rstList"          # 입찰 결과현황 — 
 KW_PAGES = 6
 KW_CAP = 300
 KW_GAP_S = 110 * 60
-KAPT_CLOS = f"{E.B}/1613000/ApHusBidPblAncInfoOfferServiceV3/getBidClosDeSearchV3"   # 마감일로 — «낙찰/유찰 사유»
+# 🔁 2026-10-01 (G94) — «입찰공고» 서비스(ApHusBidPblAncInfoOfferServiceV3)의 마감일 조회에는 결과가 없었습니다
+#    (10/1 08:31 진단: 받은 줄 31 · «낙찰/유찰 사유» 적힌 줄 0 → 아파트 1순위 0건).
+#    결과는 따로인 «공동주택 입찰결과공지 정보제공 서비스»(data.go.kr 15059177) — 10/1 활용신청 · 자동승인.
+#    같은 이름의 기능(getBidClosDeSearchV3)에 «낙찰/유찰사유 · 계약 · 낙찰금액» 칸이 더 있습니다.
+KAPT_CLOS = f"{E.B}/1613000/ApHusBidResultNoticeInfoOfferServiceV3/getBidClosDeSearchV3"   # 마감일로 — «낙찰/유찰 사유»
+KAPT_SVC = 2             # 부르는 서비스가 바뀌면 날짜 모양(v) · 돌림 자리(ptr) · 떠보기 날을 처음부터 다시
 KAPT_BACK = 21           # 마감이 이만큼 지난 공고까지 사유를 다시 봅니다(사유는 며칠 뒤에 채워집니다)
 KAPT_PER_RUN = 3         # 한 회차에 보는 마감일 수(어제는 늘 + 돌아가며 둘)
 KAPT_PAGES = 4
@@ -631,6 +636,12 @@ def fetch(key, now=None, no_net=False, diag=None, get=None):
     rec = dg.setdefault("kaptr", {})
     box = store.setdefault("kaptr", {})
     n0 = len(box)
+    if bk.get("svc") != KAPT_SVC:
+        # 🔁 G94 — 결과 서비스로 바꿈: 옛 서비스에서 고른 날짜 모양 · 자리 · 떠보기 표시는 버리고 새로 고릅니다
+        for k in ("v", "ptr", "probe_at"):
+            bk.pop(k, None)
+        bk["svc"] = KAPT_SVC
+        rec["svc"] = "바꿈"
     ptr = int(bk.get("ptr") or 0)
     span = max(1, KAPT_BACK - 1)
     days = [(now - timedelta(days=1)).strftime("%Y%m%d")]
@@ -650,6 +661,8 @@ def fetch(key, now=None, no_net=False, diag=None, get=None):
                 break
             rows, tot = res
             rec["rows"] = rec.get("rows", 0) + len(rows)
+            if rows and "f" not in rec and isinstance(rows[0], dict):
+                rec["f"] = sorted(rows[0].keys())[:60]          # 칸 «이름» 만(값은 안 남김) — 낙찰금액 칸 이름 확인용
             for r in rows:
                 why = str(r.get("bidReason") or "")
                 if why.strip():

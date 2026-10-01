@@ -175,6 +175,11 @@ with tempfile.TemporaryDirectory() as d:
     봄("🏆 아파트: 어제 마감은 늘 + 돌아가며 둘", kd == ["20260929", "20260928", "20260927"])
     봄("🏆 아파트: 사유 글은 진단에 안 남기고 낱말 수만", dg["_extres"]["kaptr"]["words"] == {"낙찰": 2, "유찰": 1}
        and "○○방수" not in json.dumps(dg, ensure_ascii=False))
+    # 🔁 G94 — 결과 서비스(입찰결과공지)
+    봄("🔁 아파트: 결과 서비스(입찰결과공지)로 부름", "ApHusBidResultNoticeInfoOfferServiceV3/getBidClosDeSearchV3" in R.KAPT_CLOS)
+    봄("🔁 아파트: 칸 이름만 진단에(값 없음)", "bidReason" in (dg["_extres"]["kaptr"].get("f") or [])
+       and "○○" not in json.dumps(dg["_extres"]["kaptr"].get("f"), ensure_ascii=False))
+    봄("🔁 아파트: 서비스 표시 svc=2", json.load(open(R.RES_BOOK, encoding="utf-8"))["kaptr"].get("svc") == 2)
     # 🏆 1순위 파일
     by = R.publish_first(now=NOW, sido_fn=lambda x: "경기" if "경기" in (x.get("site", "") + x.get("inst", "")) else "")
     fj = json.load(open(os.path.join(E.PUB_DIR, "first.json"), encoding="utf-8"))
@@ -298,6 +303,25 @@ with tempfile.TemporaryDirectory() as d:
     봄("🔎 고른 모양으로 받음(민간 · 아파트 · 수자원)", "R26BK0100-000" in store["nurir"] and "kapt:K9" in store["kaptr"]
        and "kw:2026-0900" in store["kwr"])
     봄("🔎 떠보기는 하루 한 번", "probe" not in st["_extres"]["nurir"])
+
+# 🔁 G94 — 서비스를 바꾼 날: 옛 서비스에서 고른 날짜 모양 · 돌림 자리 · 떠보기 표시를 버리고 새로
+with tempfile.TemporaryDirectory() as d:
+    R.RES_STORE = os.path.join(d, "s", "res.json")
+    R.RES_BOOK = os.path.join(d, "s", "book.json")
+    E.EXT_STORE = os.path.join(d, "s", "ext.json")
+    E.PUB_DIR = os.path.join(d, "pub")
+    E._save(R.RES_BOOK, {"kaptr": {"v": 3, "ptr": 5, "probe_at": NOW.strftime("%Y-%m-%d")}})
+    calls.clear()
+    dg3 = {}
+    R.fetch("dummy", now=NOW, diag=dg3, get=fake)
+    kb3 = json.load(open(R.RES_BOOK, encoding="utf-8"))["kaptr"]
+    kd3 = [p["startDate"] for o, p in calls if o == "getBidClosDeSearchV3"]
+    봄("🔁 아파트: 서비스 바꾼 날 — 옛 모양(v3 · 범위-대시) · 자리 · 떠보기 표시 버림",
+       kb3.get("svc") == 2 and not kb3.get("v") and kb3.get("probe_at") != NOW.strftime("%Y-%m-%d") and kb3.get("ptr") == 2 and kd3[:1] == ["20260929"]
+       and dg3["_extres"]["kaptr"].get("svc") == "바꿈")
+    calls.clear()
+    R.fetch("dummy", now=NOW + timedelta(hours=1), diag={}, get=fake)
+    봄("🔁 아파트: 다음 회차엔 다시 안 버림", json.load(open(R.RES_BOOK, encoding="utf-8"))["kaptr"].get("ptr") == 4)
 
 # ── 셈에 쓸 값 ──
 store = {"lhr": {}, "dapar": {}}
