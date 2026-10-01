@@ -23,6 +23,7 @@
  */
 import { writeWorkbook, ST } from './qtoxlsx.js'
 import { 공제셈, 공제합치기, 공제칸 } from './gongje.js'
+import { 판단, 출역모으기, 달규칙 } from './ilyong4.js'   /* 2026-10-01 (G107) 연금 · 건강 대상은 여러 달을 본 판단으로 */
 import { 주민가림 } from './tplock.js'
 
 export const 구분 = [
@@ -190,7 +191,8 @@ export function 노무달(ym, att, people) {
     }
     const 날돈 = 공수.filter((g) => g > 0).map((g) => Math.round(g * w))
     if (!날돈.length) continue
-    const 자동 = 공제셈(ym, 날돈, p.nx || '', { ap: a.ap, ex: a.ex })
+    const 판 = 판단(출역모으기(att, pid, (m, x) => x.w))
+    const 자동 = 공제셈(ym, 날돈, p.nx || '', { ap: a.ap, ex: a.ex }, 달규칙(판, ym))
     const 최종 = 공제합치기(자동, a.o)
     줄.push({ pid, p, w, 공수, 공수합: 공수.reduce((s, g) => s + g, 0), 일수: 자동.일수, 보수: 자동.보수, 자동, 최종, 고침: a.o || {}, 비고: a.m || '',
       대상: 자동.대상, ap: a.ap || '', ex: a.ex || '' })

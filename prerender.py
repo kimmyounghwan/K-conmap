@@ -2593,7 +2593,8 @@ def tuipbi_page(shell, image=None):
            '</ul></div>',
            '<div class="card"><div class="sec-title" style="margin:0 0 6px">공제는 이렇게 셉니다 (2026년 · 일용근로자)</div><ul class="flist">'
            '<li>소득세 (일급 − 15만원) × 2.7% · 지방소득세 10% · 고용보험 0.9%</li>'
-           '<li>국민연금 4.75%(한 달 8일 이상 또는 220만원 이상, 기준소득월액 41만~659만) · 건강보험 3.595% · 장기요양 건강보험료 × 13.14%(8일 이상)</li>'
+           '<li>국민연금 4.75%(달 단위 8일 이상 또는 220만원 이상, 기준소득월액 41만~659만) · 건강보험 3.595%(첫 근로일부터 1개월 8일 이상) · 장기요양 건강보험료 × 13.14% — 보험료는 취득한 달의 다음 달부터 '
+           '(<a href="/tools/ilyong-boheom">4대보험 가입 판단기</a>)</li>'
            '<li>보험 대상은 청구서의 단추로 그 달만 넣고 뺄 수 있습니다(다른 현장 합산·나이 등)</li>'
            '</ul></div>']
     ld = {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "현장 투입비",
@@ -2616,8 +2617,9 @@ def nomubi_page(shell, image=None):
            '<p class="cp">회원가입 없음 · 무료. 적은 것은 <b>이 브라우저에만</b> 남고 서버로 보내지 않습니다. 주민등록번호 · 계좌는 받지 않습니다.</p></div>',
            '<div class="card"><div class="sec-title" style="margin:0 0 6px">공제는 이렇게 셉니다 (2026년 · 일용근로자)</div><ul class="flist">'
            '<li>소득세 — 날마다 (일급 − 15만원) × 2.7% · 한 달 합 1천원 미만은 떼지 않음(소액부징수) · 지방소득세 10%</li>'
-           '<li>고용보험 0.9% · 국민연금 4.75%(한 달 8일 이상 또는 220만원 이상, 기준소득월액 41만~659만) · '
-           '건강보험 3.595% · 장기요양 건강보험료 × 13.14%(한 달 8일 이상)</li>'
+           '<li>고용보험 0.9% · 국민연금 4.75%(달 단위 8일 이상 또는 220만원 이상, 기준소득월액 41만~659만) · '
+           '건강보험 3.595%(첫 근로일부터 1개월 8일 이상) · 장기요양 건강보험료 × 13.14% — 보험료는 취득한 달의 다음 달부터 '
+           '(<a href="/tools/ilyong-boheom">4대보험 가입 판단기</a>)</li>'
            '<li>보험 대상은 사람마다 단추로 그 달만 넣고 뺄 수 있고, 공제 칸은 눌러서 고쳐 씁니다</li></ul></div>',
            '<div class="card"><div class="sec-title" style="margin:0 0 6px">신고 기한</div><ul class="flist">'
            '<li>근로내용 확인신고서 — 일한 달의 다음 달 15일까지 (고용보험법 시행령 제7조제1항)</li>'
@@ -2655,6 +2657,102 @@ def gyeonjeok_page(shell, image=None):
            '<a href="/forms/sanchul-naeyeok">공사 산출내역서</a>, 하도급 비율 맞추기는 <a href="/naeyeok/ratio">내역서 비율 맞추기</a>입니다.</p></div>']
     return page(shell, "/tools/gyeonjeok", title, desc, "".join(out) + nav_html("/tools/gyeonjeok"), image,
                 _app_ld("공사 견적서 · 원가계산서 만들기", desc, "/tools/gyeonjeok"))
+
+
+# 🛡 /tools/ilyong-boheom · /tools/ilyong-guide — 일용직 4대보험 가입 판단기 · 설명 (G107 · 2026-10-01).
+#    화면 Ilyong4.jsx(판단 셈 lib/ilyong4.js) · 글은 web/src/data/ilyong_guide.json 한 곳 — 화면과 같은 글을 굽습니다.
+ILYONG_JSON = os.path.join(ROOT, "web", "src", "data", "ilyong_guide.json")
+
+
+def load_ilyong_guide():
+    try:
+        with open(ILYONG_JSON, encoding="utf-8") as f:
+            return json.load(f) or None
+    except Exception as e:
+        print(f"  · 일용직 4대보험 설명 자료를 못 읽었습니다 ({type(e).__name__}) — 건너뜁니다")
+        return None
+
+
+def _iy_table(g):
+    t = g.get("table") or {}
+    out = ['<div class="card"><div class="sec-title" style="margin:0 0 6px">한눈에 — 보험마다 다른 점</div>'
+           '<div class="tp-scroll"><table class="tbl"><thead><tr>']
+    out += [f"<th>{esc(h)}</th>" for h in (t.get("head") or [])]
+    out.append("</tr></thead><tbody>")
+    for r in (t.get("rows") or []):
+        out.append("<tr>" + "".join((f"<th>{esc(c)}</th>" if j == 0 else f"<td>{esc(c)}</td>") for j, c in enumerate(r)) + "</tr>")
+    out.append("</tbody></table></div></div>")
+    return "".join(out)
+
+
+def _iy_faq_ld(g, path, name, desc):
+    return {"@context": "https://schema.org", "@graph": [
+        {"@type": "WebApplication" if path.endswith("boheom") else "Article", "name": name, "description": desc,
+         "url": f"{SITE}{path}", "inLanguage": "ko", "isAccessibleForFree": True,
+         **({"applicationCategory": "BusinessApplication", "operatingSystem": "Web",
+             "offers": {"@type": "Offer", "price": "0", "priceCurrency": "KRW"}} if path.endswith("boheom") else
+            {"headline": name, "dateModified": g.get("updated") or ""}),
+         "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}},
+        {"@type": "FAQPage", "mainEntity": [
+            {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a.replace("**", "")}}
+            for q, a in [(list(x) + ["", ""])[:2] for x in (g.get("faq") or [])]]},
+    ]}
+
+
+def ilyong_page(shell, g, image=None):
+    title = "일용직 4대보험 가입 판단기 — 국민연금 · 건강보험 취득일 · 상실일 · 보험료 달 계산 | K-건설맵"
+    desc = ("일한 날만 누르면 건설 일용근로자의 국민연금 · 건강보험 가입 대상, 취득일 · 상실일, 보험료가 나오는 달, 달마다 공제와 "
+            "신고 기한까지. 두 달에 걸친 출역 · 같은 회사 다른 현장 합산 · 공단 실무안내 사례 그대로, 판단 과정을 한 줄씩. 무료.")[:160]
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">🛡 일용직 4대보험 가입 판단기</h1>'
+           '<p class="cp" style="margin-top:8px">일한 날만 누르면 <b>국민연금 · 건강보험 가입 대상인지</b>, <b>취득일 · 상실일</b>, '
+           '<b>보험료가 나오는 달</b>, 달마다 떼는 공제(소득세 · 지방소득세 · 고용 · 연금 · 건강 · 장기요양)와 <b>신고 기한</b>까지 나옵니다. '
+           '건설 일용근로자 기준이고, 공단 실무안내의 규칙과 사례를 그대로 옮겨 <b>왜 그렇게 나왔는지 한 줄씩</b> 보여 줍니다.</p>'
+           '<p class="cp">회원가입 없음 · 무료 · 적은 것은 이 브라우저에만 남습니다. '
+           '<a href="/tools/ilyong-guide">가입 기준 자세히(설명)</a> · <a href="/tools/nomubi">여러 명 지급명세서는 일용 노무비 계산기</a></p></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">이렇게 씁니다</div><ul class="flist">'
+           '<li>일당을 적고 달력에서 일한 날을 누릅니다(반나절도 하루). 달마다 받은 돈이 다르면 그 달 «받은 돈» 칸에 적습니다.</li>'
+           '<li>같은 회사 다른 현장에서도 일했으면 «다른 현장» 칸에 적습니다 — 국민연금은 2025년 7월부터 합쳐 봅니다.</li>'
+           '<li>근로계약서가 1개월 이상 · 월 8일 이상인지, 60세 이상인지, 65세 이후 새로 고용됐는지 고릅니다.</li>'
+           '<li>보험마다 가입 대상 · 취득일 · 상실일 · 보험료 달, 달마다 공제와 실지급액, 판단 과정, 신고할 일과 기한이 나오고 A4로 인쇄합니다.</li></ul></div>',
+           _iy_table(g)]
+    out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">예시</div><ul class="flist">')
+    for c in (g.get("cases") or []):
+        out.append(f'<li><b>{esc(c.get("t") or "")}</b> — {esc(c.get("q") or "")}</li>')
+    out.append('</ul><p class="cp"><a href="/tools/ilyong-guide">사례마다 답과 까닭 보기 →</a></p></div>')
+    name = "일용직 4대보험 가입 판단기"
+    return page(shell, "/tools/ilyong-boheom", title, desc, "".join(out), image,
+                _iy_faq_ld(g, "/tools/ilyong-boheom", name, desc))
+
+
+def ilyong_guide_page(shell, g, image=None):
+    title = "일용직 4대보험 가입 기준 — 국민연금 8일 · 220만원, 건강보험 1개월, 취득일 · 상실일 · 보험료 달 | K-건설맵"
+    desc = ("건설 일용근로자의 국민연금 · 건강보험 가입 기준을 공단 실무안내 원문대로 정리했습니다. 국민연금은 달 단위(2025.7~) · 같은 회사 합산, "
+            "건강보험은 첫 근로일부터 1개월, 보험료는 취득한 달의 다음 달부터. 사례 · 신고 기한 · 자주 묻는 것.")[:160]
+    out = [f'<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">📘 {esc(g.get("title") or "")}</h1>'
+           f'<p class="cp" style="margin-top:8px">{bold_md(esc(g.get("lead") or ""))}</p>'
+           '<p class="cp"><a href="/tools/ilyong-boheom">🛡 가입 판단기로 바로 계산</a> · <a href="/tools/nomubi">👷 일용 노무비 계산기</a></p>'
+           f'<p class="cp" style="font-size:12px">{esc(g.get("updated") or "")} 기준 · 공단 실무안내 · 법령 원문 확인</p></div>',
+           _iy_table(g)]
+    for sec in (g.get("secs") or []):
+        out.append(f'<div class="card"><h2 class="sec-title" style="margin:0 0 6px">{esc(sec.get("h") or "")}</h2>')
+        for x in (sec.get("p") or []):
+            out.append(f'<p class="cp">{bold_md(esc(x))}</p>')
+        out.append("</div>")
+    out.append('<div class="card"><h2 class="sec-title" style="margin:0 0 6px">사례로 보기</h2>')
+    for c in (g.get("cases") or []):
+        out.append(f'<h3 style="font-size:15px;margin:12px 0 4px">{esc(c.get("t") or "")}</h3><p class="cp">{esc(c.get("q") or "")}</p><ul class="flist">')
+        out += [f"<li>{bold_md(esc(a))}</li>" for a in (c.get("a") or [])]
+        out.append("</ul>")
+    out.append("</div>")
+    out.append('<div class="card"><h2 class="sec-title" style="margin:0 0 6px">자주 묻는 것</h2>')
+    for q, a in [(list(x) + ["", ""])[:2] for x in (g.get("faq") or [])]:
+        out.append(f'<h3 style="font-size:14px;margin:10px 0 2px">{esc(q)}</h3><p class="cp">{esc(a)}</p>')
+    out.append("</div>")
+    out.append('<div class="card"><h2 class="sec-title" style="margin:0 0 6px">근거</h2><ul class="flist">')
+    out += [f"<li>{esc(a)} — {esc(b)}</li>" for a, b in [(list(x) + ["", ""])[:2] for x in (g.get("refs") or [])]]
+    out.append("</ul></div>")
+    return page(shell, "/tools/ilyong-guide", title, desc, "".join(out), image,
+                _iy_faq_ld(g, "/tools/ilyong-guide", g.get("title") or "일용직 4대보험 가입 기준", desc))
 
 
 def _app_ld(name, desc, path):
@@ -3149,6 +3247,14 @@ def main():
           og.tab("tool-gyeonjeok", "공사 견적서 · 원가계산서", "건설 도구", "견적금액 한글 자동", "A4 인쇄") if og.available else None))
     made += 1
     print("  · 공사 견적서 · 원가계산서 페이지 1개 (/tools/gyeonjeok)")
+    _iy = load_ilyong_guide()
+    if _iy:
+        write("tools/ilyong-boheom.html", ilyong_page(shell, _iy,
+              og.tab("tool-ilyong", "일용직 4대보험 가입 판단기", "건설 도구", "취득일 · 상실일 · 보험료 달", "공단 사례로 맞춤") if og.available else None))
+        write("tools/ilyong-guide.html", ilyong_guide_page(shell, _iy,
+              og.tab("tool-ilyong-guide", "일용직 4대보험 가입 기준", "건설 노무", "국민연금 · 건강보험 · 고용", "사례 · 자주 묻는 것") if og.available else None))
+        made += 2
+        print("  · 일용직 4대보험 판단기 · 설명 페이지 2개 (/tools/ilyong-boheom · /tools/ilyong-guide)")
     write("tools/equip.html", equip_page(shell,
           og.tab("tool-equip", "장비 임대료·수금 장부", "건설 도구", "거래처별 미수금", "청구서 인쇄") if og.available else None))
     write("tools/risk.html", risk_page(shell,

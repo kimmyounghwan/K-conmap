@@ -6,6 +6,9 @@
  *
  * ■ 공제는 lib/gongje.js 하나만 씁니다(투입비 도구와 같은 셈 · 같은 요율 · 같은 근거).
  *   여기서는 «이 브라우저에 적은 명단 · 출역» 을 그 셈에 넣는 일만 합니다.
+ * ■ 2026-10-01 (G107) 국민연금 · 건강보험 «대상» 은 lib/ilyong4.js 판단(여러 달을 봄)으로 — 소장님 「일용노무비랑 연결할 수 있어?」
+ *   건강은 첫 근로일부터 1개월(Ⓐ) · 보험료는 취득한 달의 다음 달부터(1일 취득은 그 달부터) · 연금은 달 단위(2025.7~).
+ *   ⚠️ 이 브라우저에 적은 달만 봅니다(앞 달 출역을 안 적었으면 첫 근로일을 늦게 봄).
  * ■ 저장: 이 브라우저(localStorage) 한 곳 — 서버에 안 보냅니다. 주민번호 · 계좌는 받지 않습니다.
  *
  * 저장 모양(v1)
@@ -13,6 +16,7 @@
  *     A: { 'YYYY-MM': { id: { d: { '01': 1, '02': 0.5 … }, ap, ex, o: { it: 0 … } } } } }
  */
 import { 공제셈, 공제합치기, 공제칸 } from './gongje.js'
+import { 판단, 출역모으기, 달규칙 } from './ilyong4.js'
 
 export const 열쇠 = 'kcm_nomubi1'
 export const 공수차례 = [1, 0.5, 1.5, 0]
@@ -62,10 +66,12 @@ export function 달셈(st, ym) {
     const 공수 = 공수들(st, ym, p.id)
     const 날돈 = 공수.filter((g) => g > 0).map((g) => Math.round(g * w))
     if (!날돈.length) continue
-    const 자동 = 공제셈(ym, 날돈, p.nx || '', { ap: a.ap, ex: a.ex })
+    const 모음 = 출역모으기(st.A, p.id, () => w)
+    const 판 = 판단(모음)
+    const 자동 = 공제셈(ym, 날돈, p.nx || '', { ap: a.ap, ex: a.ex }, 달규칙(판, ym))
     const 최종 = 공제합치기(자동, a.o)
     줄.push({ id: p.id, p, w, 공수, 공수합: 공수.reduce((s, g) => s + g, 0), 일수: 자동.일수, 보수: 자동.보수,
-      자동, 최종, 고침: a.o || {}, 대상: 자동.대상, ap: a.ap || '', ex: a.ex || '',
+      자동, 최종, 고침: a.o || {}, 대상: 자동.대상, ap: a.ap || '', ex: a.ex || '', 모음,
       날들: 공수.map((g, i) => (g > 0 ? i + 1 : 0)).filter(Boolean) })
   }
   const 합계 = { 인원: 줄.length, 공수: 0, 일수: 0, 보수: 0, 합: 0, 차인: 0, ...Object.fromEntries(공제칸.map((c) => [c.k, 0])),

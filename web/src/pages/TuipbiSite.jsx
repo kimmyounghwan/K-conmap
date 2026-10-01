@@ -5,6 +5,7 @@
  *   청구서·명부는 TuipbiBook.jsx, 데이터 읽기·쓰기는 Tuipbi.jsx 가 합니다.
  */
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { 구분, 구분이름, 기성, 원, 억만, 퍼센트, 공수글, 오늘, 요약, 날더하기, 요일, 자재단위, 단위들, 휴지통날 } from '../lib/tuipbi.js'
 import TuipbiBook from './TuipbiBook.jsx'
 import { VendorInbox, use업체입력 } from './TuipbiVin.jsx'
@@ -814,8 +815,8 @@ export function TuipbiGuide({ 현장안 }) {
             <tr><td>소득세</td><td>(그날 일급 − 15만원) × 6% × (1 − 55%) = 15만원 넘는 부분의 <b>2.7%</b></td><td>날마다 셈해 한 달 합. 한 달 합이 1천원 미만이면 안 뗌(소액부징수 — 한꺼번에 줄 때는 합계로 판단)</td></tr>
             <tr><td>지방소득세</td><td>소득세의 <b>10%</b></td><td>소득세를 뗄 때</td></tr>
             <tr><td>고용보험</td><td>보수총액의 <b>0.9%</b></td><td>일용 모두 (65세 이후 새로 고용된 분 등은 빼기)</td></tr>
-            <tr><td>국민연금</td><td>기준소득월액의 <b>4.75%</b> (2026.7~ 하한 41만·상한 659만, 천원 미만 버림)</td><td>이 현장에서 한 달 <b>8일 이상</b> 또는 <b>220만원 이상</b> (60세 이상 등은 빼기)</td></tr>
-            <tr><td>건강보험</td><td>보수총액의 <b>3.595%</b></td><td>한 달 <b>8일 이상</b></td></tr>
+            <tr><td>국민연금</td><td>기준소득월액의 <b>4.75%</b> (2026.7~ 하한 41만·상한 659만, 천원 미만 버림)</td><td>달 단위(일 시작한 달은 시작일~말일) <b>8일 이상</b> 또는 <b>220만원 이상</b>인 달 — 보험료는 취득한 달의 다음 달부터(1일 취득은 그 달부터) · 60세 이상 등은 빼기</td></tr>
+            <tr><td>건강보험</td><td>보수총액의 <b>3.595%</b></td><td>첫 근로일부터 1개월 되는 날까지 <b>8일 이상</b>(그다음은 달마다 8일) — 보험료는 취득한 달의 다음 달부터 · 자세히는 <Link to="/tools/ilyong-boheom">4대보험 가입 판단기</Link></td></tr>
             <tr><td>장기요양</td><td>건강보험료 × <b>13.14%</b> (= 0.9448% ÷ 7.19%)</td><td>건강보험을 뗄 때</td></tr>
           </tbody>
         </table>

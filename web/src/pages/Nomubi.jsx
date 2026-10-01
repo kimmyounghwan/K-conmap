@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { 공제칸, 요율 } from '../lib/gongje.js'
 import { 읽기, 쓰기, 빈것, 새번호, 달셈, 칸바꿈, 줄채움, 달값, 예시, 공수차례, 달날수, 요일, 달더하기, 원, 공수글 } from '../lib/nomubi.js'
+/* 🛡 2026-10-01 (G107) 연금 · 건강 «대상» 은 lib/ilyong4.js 판단(여러 달) — 사람마다 «판단 자세히» 로 가입 판단기에 출역을 넘깁니다 */
+const 넘김열쇠 = 'kcm_ilyong_from'
 
 /**
  * 👷 /tools/nomubi — 일용 노무비 계산기 · 지급명세서 (G104 · 2026-10-01)
@@ -76,6 +78,11 @@ export default function Nomubi() {
     if (r) return r.공수
     const d = ((st.A[ym] || {})[id] || {}).d || {}
     return 날들.map((i) => Number(d[두자(i)]) || 0)
+  }
+  const navigate = useNavigate()
+  const 판단보기 = (r) => {
+    try { sessionStorage.setItem(넘김열쇠, JSON.stringify({ 이름: r.p.n || '', 일당: r.w, 날: r.모음.날, 달돈: r.모음.달돈 })) } catch (e) { /* 막힘 — 그냥 이동 */ }
+    navigate('/tools/ilyong-boheom')
   }
   const 대상누름 = (r, c) => {
     const d = r.대상[c]
@@ -277,7 +284,8 @@ export default function Nomubi() {
                             onClick={() => 대상누름(r, c)}>{이름}{d.대상 ? '✓' : '✕'}{d.손 ? '✎' : ''}</button>
                         )
                       })}
-                      <small className="tp-insr">{r.대상.P.대상 && r.대상.H.대상 ? r.대상.P.이유 : !r.대상.P.대상 && !r.대상.H.대상 ? r.대상.P.이유 : `연금 ${r.대상.P.이유} · 건강 ${r.대상.H.이유}`}</small>
+                      <small className="tp-insr">연금 {r.대상.P.이유} · 건강 {r.대상.H.이유}</small>
+                      <button type="button" className="tp-x no-print" onClick={() => 판단보기(r)} title="이 사람 출역(이 브라우저에 적은 모든 달)으로 4대보험 가입 판단기를 엽니다">🛡 판단 자세히</button>
                     </td>
                     {공제칸.map((c) => {
                       const 고침 = r.고침[c.k] != null
@@ -357,8 +365,10 @@ export default function Nomubi() {
           <li><b>출역</b> 칸을 누를 때마다 <b>1공수 → 0.5 → 1.5 → 빈칸</b>. 날마다 같이 나오면 «일요일 빼고 모두» 를 누른 뒤 안 나온 날만 지우십시오.</li>
           <li><b>소득세</b>는 날마다 따로 셉니다 — 그날 받은 돈에서 15만원을 빼고 6% 의 45%(근로소득세액공제 55% 뺌), 한 달 합이 1천원 미만이면 떼지 않습니다(소액부징수).
             하루 15만원 이하면 소득세가 없습니다.</li>
-          <li><b>국민연금</b>은 한 달 8일 이상 또는 220만원 이상, <b>건강보험 · 장기요양</b>은 한 달 8일 이상일 때 셉니다. 다른 현장에서 일한 날을 합쳐야 하는 경우 ·
-            나이(연금 60세 이상 등) · 외국인처럼 이 화면이 모르는 것은 «4대보험 대상» 단추로 그 달만 넣고 빼거나, 명단의 «늘 빼기» 를 켜십시오.</li>
+          <li><b>국민연금</b>은 달 단위(일 시작한 달은 시작일~말일)로 8일 이상 또는 220만원 이상, <b>건강보험 · 장기요양</b>은 첫 근로일부터 1개월 되는 날까지 8일 이상(그다음은 달마다 8일)일 때
+            가입하고, <b>보험료는 취득한 달의 다음 달부터</b>(1일 취득은 그 달부터) 뗍니다 — 이 브라우저에 적은 모든 달을 보고 셉니다.
+            사람마다 <b>«🛡 판단 자세히»</b> 를 누르면 <Link to="/tools/ilyong-boheom">4대보험 가입 판단기</Link>에서 취득 · 상실일과 까닭을 봅니다.
+            다른 현장에서 일한 날을 합쳐야 하는 경우 · 나이(연금 60세 이상 등) · 외국인처럼 이 화면이 모르는 것은 «4대보험 대상» 단추로 그 달만 넣고 빼거나, 명단의 «늘 빼기» 를 켜십시오.</li>
           <li>공제 칸을 누르면 금액을 고쳐 쓸 수 있습니다(🟨). «자동» 을 누르면 다시 셈한 값으로 돌아갑니다.</li>
           <li>적은 것은 <b>이 브라우저에만</b> 남습니다. 다른 기기에서 같이 보려면 현장 단위로 서버에 저장하는 <Link to="/tools/tuipbi">현장 투입비 · 공사일보</Link>(노무비 청구내역서 포함)를 쓰십시오.</li>
           <li>엑셀로 쓰실 분은 서식 <Link to="/forms/nomubi">노무비 지급확인서</Link> · <Link to="/forms/imgeum-daejang">임금대장</Link> 이 있습니다.</li>

@@ -119,6 +119,8 @@ const Tuipbi = lazyPage(() => import('./pages/Tuipbi.jsx'))
 const Nomubi = lazyPage(() => import('./pages/Nomubi.jsx'))
 /* 🧾 2026-10-01 (G105) 공사 견적서 · 원가계산서 만들기 — 이 브라우저에만 저장 · 요율 근거는 lib/gyeonjeok.js */
 const Gyeonjeok = lazyPage(() => import('./pages/Gyeonjeok.jsx'))
+const Ilyong4 = lazyPage(() => import('./pages/Ilyong4.jsx'))   /* 🛡 2026-10-01 (G107) 일용직 4대보험 가입 판단기 */
+const IlyongGuide = lazyPage(() => import('./pages/Ilyong4.jsx').then((m) => ({ default: m.IlyongGuide })))
 /* 📎 2026-09-27 업체 스스로 등록 — 업체가 받은 링크(/tools/tuipbi/v/현장/링크) · 📒 내 납품 장부(/tools/tuipbi/v) */
 const TuipbiVendor = lazyPage(() => import('./pages/TuipbiVin.jsx'))
 /* 🚜⚠️ 2026-09-29 소장님: 「(서식) 좀 이상해 … 되도록 사이트내에서 사용 할 수 있는 프로그램으로 만들어 줘」 — 코드+비밀번호 장부(lib/장부.js) */
@@ -209,6 +211,8 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/tools/tuipbi" element={<Suspense fallback={<Loading />}><Tuipbi /></Suspense>} />
           <Route path="/tools/nomubi" element={<Suspense fallback={<Loading />}><Nomubi /></Suspense>} />
           <Route path="/tools/gyeonjeok" element={<Suspense fallback={<Loading />}><Gyeonjeok /></Suspense>} />
+          <Route path="/tools/ilyong-boheom" element={<Suspense fallback={<Loading />}><Ilyong4 /></Suspense>} />
+          <Route path="/tools/ilyong-guide" element={<Suspense fallback={<Loading />}><IlyongGuide /></Suspense>} />
           <Route path="/tools/tuipbi/v" element={<Suspense fallback={<Loading />}><TuipbiVendor /></Suspense>} />
           <Route path="/tools/tuipbi/v/:site/:link" element={<Suspense fallback={<Loading />}><TuipbiVendor /></Suspense>} />
           <Route path="/tools/equip" element={<Suspense fallback={<Loading />}><EquipBook /></Suspense>} />

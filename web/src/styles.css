@@ -5365,3 +5365,77 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 .mycond-m { flex-basis: 100%; font-size: 12px; color: var(--muted); }
 .watchrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 2px 0 10px; }
 .watchmsg { font-size: 12px; color: var(--muted); }
+
+/* 🛡 2026-10-01 (G107) /tools/ilyong-boheom 일용직 4대보험 가입 판단기 · /tools/ilyong-guide 설명 (Ilyong4.jsx) */
+.iy-ex { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; }
+.iy-ex .muted { font-size: 12.5px; margin-right: 2px; }
+.iy-top { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end; margin: 10px 0 8px; }
+.iy-top label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 700; color: var(--text-2); }
+.iy-top label .inp { width: 160px; text-align: right; }
+.iy-nav { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13.5px; }
+.iy-cals { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+.iy-cal { border: 1px solid var(--line); border-radius: 10px; padding: 8px; min-width: 0; }
+.iy-cal-h { display: flex; justify-content: space-between; align-items: center; font-size: 13.5px; margin-bottom: 6px; }
+.iy-n { font-size: 12px; font-weight: 800; padding: 1px 8px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); }
+.iy-n.y { background: rgba(5, 150, 105, .14); color: #047857; }
+.iy-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.iy-w { text-align: center; font-size: 11px; color: var(--muted); }
+.iy-w.sun { color: #dc2626; } .iy-w.sat { color: #2563eb; }
+.iy-d { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 6px; padding: 6px 0; font-size: 13px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.iy-d.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 800; }
+.iy-d.e { box-shadow: inset 0 0 0 2px #f59e0b; }
+.iy-cal-f { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-end; justify-content: space-between; margin-top: 6px; }
+.iy-cal-f label { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; font-weight: 700; color: var(--text-2); }
+.iy-cal-f .inp { width: 130px; text-align: right; padding: 5px 8px; font-size: 13px; }
+.iy-cal-b { display: inline-flex; gap: 4px; }
+.iy-more { margin-top: 10px; } .iy-more summary { cursor: pointer; font-weight: 700; font-size: 13px; color: var(--accent); }
+.iy-other { display: flex; flex-direction: column; gap: 6px; }
+.iy-other-r { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; font-size: 13px; }
+.iy-other-r b { min-width: 36px; }
+.iy-other-r label { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; color: var(--text-2); }
+.iy-other-r .inp { width: 110px; text-align: right; padding: 5px 8px; }
+.iy-opts { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.iy-opt { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.5; }
+.iy-opt input { margin-top: 3px; }
+.iy-boxes { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.iy-box { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.iy-box.on { border-color: rgba(5, 150, 105, .45); }
+.iy-box-h { font-weight: 800; font-size: 14px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.iy-chip { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.iy-chip.y { background: rgba(5, 150, 105, .14); color: #047857; }
+.iy-chip.n { background: var(--surface-2); color: var(--text-2); }
+.iy-line { font-size: 13px; line-height: 1.5; }
+.iy-tag { margin-left: 6px; font-size: 10.5px; font-weight: 800; padding: 1px 6px; border-radius: 6px; background: rgba(217, 119, 6, .14); color: #b45309; }
+.iy-band td, .iy-band th { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.iy-band td.iy-pay { background: rgba(5, 150, 105, .14); color: #047857; font-weight: 800; }
+.iy-band td.iy-in2 { background: rgba(37, 99, 235, .08); color: var(--text-2); }
+.iy-ded td, .iy-ded th { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.iy-ded tr.sum td { font-weight: 700; background: var(--surface-2); }
+.iy-why { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.iy-why ol { margin: 4px 0 6px; padding-left: 20px; font-size: 13px; line-height: 1.65; }
+.iy-todo td { font-size: 12.5px; vertical-align: top; text-align: left !important; }
+.iy-todo th { text-align: left !important; }
+.iy-print-h { display: none; }
+.iy-tbl th, .iy-tbl td { font-size: 12.5px; vertical-align: top; text-align: left !important; line-height: 1.5; min-width: 120px; }
+.iy-tbl tbody th { background: var(--surface-2); min-width: 0; }
+.iy-case { border-top: 1px dashed var(--line); padding: 10px 0; }
+.iy-case:first-of-type { border-top: 0; }
+.iy-case-t { font-weight: 800; font-size: 14.5px; }
+.iy-case-q { font-size: 13px; color: var(--text-2); margin: 4px 0; }
+.iy-faq { border-top: 1px dashed var(--line); padding: 8px 0; }
+.iy-faq summary { cursor: pointer; font-weight: 700; font-size: 14px; }
+@media screen and (max-width: 640px) {
+  .iy-cals { grid-template-columns: 1fr; }
+  .iy-top label .inp { width: 140px; }
+}
+@media print {
+  html:has(body.iy-print) { background: #fff !important; }
+  body.iy-print .iy > .card.iy-in, body.iy-print header, body.iy-print footer, body.iy-print nav,
+  body.iy-print .installbar, body.iy-print .crumb, body.iy-print .crumbs, body.iy-print .no-print { display: none !important; }
+  body.iy-print { background: #fff !important; }
+  body.iy-print .iy-out { border: 0; box-shadow: none; padding: 0; margin: 0; }
+  body.iy-print .iy-print-h { display: block; font-weight: 800; font-size: 15px; margin-bottom: 8px; }
+  body.iy-print .tp-scroll { overflow: visible; }
+  body.iy-print .iy-out .tbl th, body.iy-print .iy-out .tbl td { font-size: 9.5px !important; padding: 2px 4px !important; border: 1px solid #9ca3af !important; color: #000 !important; }
+  body.iy-print .iy-box { break-inside: avoid; }
+}
