@@ -5217,3 +5217,13 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 .fguide .ghow dd { margin: 0; font-size: 13px; line-height: 1.65; color: var(--text-2); word-break: keep-all; }
 .fguide .glaw li { line-height: 1.7; word-break: keep-all; }
 .fguide .glaw a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+
+/* 📍🔔 2026-10-01 (G97) 내 조건 한 줄 · 담은 공고 알림 — 내조건.jsx · LiveBoard */
+.mycond { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 10px; padding: 8px 12px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font-size: 13px; }
+.mycond-t { min-width: 0; }
+.mycond-b { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.mycond-b .chip { margin: 0; }
+.mycond-m { flex-basis: 100%; font-size: 12px; color: var(--muted); }
+.watchrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 2px 0 10px; }
+.watchmsg { font-size: 12px; color: var(--muted); }

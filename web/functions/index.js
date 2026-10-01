@@ -42,7 +42,7 @@
  *      · 묶음 설정 대신 함수마다 region·maxInstances 를 적습니다
  *      · 맨 윗줄에서 그물망을 타거나 파일을 읽지 않습니다
  *   (F2_함수올리기.bat 에 읽는 시간도 넉넉히 늘려 두었습니다) */
-const { onValueCreated } = require('firebase-functions/v2/database')
+const { onValueCreated, onValueWritten } = require('firebase-functions/v2/database')
 /* 🔔 2026-09-30(G73) 사랑방 답글 알림 — 폰 알림(웹 푸시)의 공개 열쇠를 브라우저에 건네는 창구 */
 const { onRequest } = require('firebase-functions/v2/https')
 const { defineSecret } = require('firebase-functions/params')
@@ -295,6 +295,181 @@ exports.qnaReplyNotify = onValueCreated(
           console.error('메일 실패:', e && e.message)       /* 표를 안 남기면 깃허브가 그물로 다시 보냅니다 */
         }
       }
+    }
+  }
+)
+
+/* ══════════════════════════════════════════════════════════════════
+   🔔 ④ 다시 오게 — ☆ 담은 공고 1순위 · 📍 내 조건 새 공고 (2026-10-01, G97)
+
+   소장님: 「다시 오게 하기: 내 지역·면허를 한 번 정하면 1순위·공고가 그 조건으로 열리게 하고,
+            관심 공고 결과가 나오면 알림을 보냅니다. ---- 자동으로 할 수 있어?」 → «①+②+내 조건 새 공고 알림»
+
+   ■ 언제 깨어나나 — 빠른 수집(fast.py · 10분마다)이 fresh/meta/{first|live} 를 고칠 때마다.
+     따로 시계(Cloud Scheduler)를 두지 않습니다. 빠른 수집이 05~23시에만 돌므로 밤에는 안 깨어납니다.
+   ■ first — watch/{공고번호}/{번호} 에 적힌 공고가 «방금 1순위»(fresh/rows/first)에 있으면
+     그 사람들에게 폰 알림 + 사이트 🔔(noti) 한 줄 → watch/{공고번호} 를 지웁니다(한 번만).
+     빠른 길을 놓친 결과도 잡게, 한 시간에 한 번은 사이트 1순위 첫 묶음(board/first-con-0.json)도 봅니다.
+   ■ live — 한국시간 8시 · 13시 지나 «첫 깨어남» 에 한 번만(watch_meta/slot 으로 표시 · 22시 뒤로는 안 보냄):
+     watch_cond/{번호} = {rg, lic, none} 마다 지난번 알림(watch_last/{번호}) 뒤로 올라온 공고 중 맞는 것을 세어 한 통.
+     공고 = 사이트 공고 첫 묶음(board/live-con-0.json, 약 24시간) + 그 색인(live-con-idx.json 의 앞 500줄 · sido · lic) + 방금 공고(fresh).
+     지역 · 면허 맞추기는 화면과 «같은 규칙»(lib/fmt.js inRegion · lib/lic.js licHit) — 한쪽만 고치지 말 것.
+   ■ 돈: 10분에 한 번 깨어나 watch 를 한 번 읽음(대개 몇 KB) · 하루 두 번 공고 묶음 약 2MB 받음 · maxInstances 3.
+   ══════════════════════════════════════════════════════════════════ */
+const 사이트 = 'https://k-conmap.com'
+const 한국 = (ms = Date.now()) => new Date(ms + 9 * 3600e3)
+const 한국글 = (ms) => 한국(ms).toISOString().replace('T', ' ').slice(0, 19)      /* «YYYY-MM-DD HH:MM:SS» — 조달청 dt 와 같은 꼴 */
+const 받기 = async (길) => {
+  const r = await fetch(`${사이트}${길}?t=${Date.now()}`)
+  if (!r.ok) throw new Error('HTTP ' + r.status)
+  return r.json()
+}
+const 묶음읽기 = async (d, name) => {
+  const v = (await d.ref(`/fresh/rows/${name}`).get()).val() || {}
+  const out = []
+  for (const s of Object.values(v)) { try { const a = JSON.parse(s); if (Array.isArray(a)) out.push(...a) } catch (e) { /* 깨진 묶음은 건너뜀 */ } }
+  return out
+}
+/* 사이트 🔔 한 줄 — 사람마다 최근 30개(사랑방과 같은 자리 noti/{번호}).
+   열쇠는 사랑방 답글과 같은 «시간 차례 열쇠»(push) — 30개를 자를 때 오래된 것부터 빠지게 */
+const 종한줄 = async (d, r, 줄) => {
+  await d.ref(`/noti/${r}`).push().set(줄)
+  const 모두 = (await d.ref(`/noti/${r}`).orderByKey().get()).val() || {}
+  const 키 = Object.keys(모두)
+  if (키.length > 30) {
+    const 뺄 = {}
+    키.slice(0, 키.length - 30).forEach((k) => { 뺄[k] = null })
+    await d.ref(`/noti/${r}`).update(뺄)
+  }
+}
+const 푸시보내기 = async (d, 사람들, 알림) => {
+  const 주소들 = []
+  await Promise.all(사람들.map(async (r) => {
+    const ps = (await d.ref(`/push/${r}`).get()).val() || {}
+    for (const [sid, p] of Object.entries(ps)) if (p && p.s && p.s.endpoint) 주소들.push({ r, sid, s: p.s })
+  }))
+  if (!주소들.length) return 0
+  const wp = require('web-push')
+  const k = await 푸시열쇠()
+  wp.setVapidDetails('https://k-conmap.com', k.pub, k.priv)
+  let n = 0
+  await Promise.all(주소들.map(async ({ r, sid, s }) => {
+    try { await wp.sendNotification(s, JSON.stringify(알림), { TTL: 86400, urgency: 'normal' }); n += 1 } catch (e) {
+      if (e && (e.statusCode === 404 || e.statusCode === 410)) await d.ref(`/push/${r}/${sid}`).remove()
+      else console.error('푸시 실패:', e && (e.statusCode || e.message))
+    }
+  }))
+  return n
+}
+
+/* ── ☆ 담은 공고 1순위 ── */
+async function 담은공고(d) {
+  const 지켜 = (await d.ref('/watch').get()).val()
+  if (!지켜) return
+  const 줄들 = await 묶음읽기(d, 'first')
+  /* 한 시간에 한 번은 사이트 첫 묶음도 — 빠른 길을 놓친 결과(정기 배포로만 실린 것)를 잡습니다 */
+  const 표 = d.ref('/watch_meta/board')
+  const 지난 = Number((await 표.get()).val()) || 0
+  if (Date.now() - 지난 > 55 * 60e3) {
+    await 표.set(Date.now())
+    try { const b = await 받기('/data/board/first-con-0.json'); if (Array.isArray(b)) 줄들.push(...b) } catch (e) { console.error('1순위 묶음 못 받음:', e && e.message) }
+  }
+  const 번호로 = new Map()
+  for (const r of 줄들) if (r && r.no && !번호로.has(String(r.no))) 번호로.set(String(r.no), r)
+  const 오래 = Date.now() - 45 * 86400e3
+  for (const [no, 사람표] of Object.entries(지켜)) {
+    const row = 번호로.get(String(no))
+    const 사람들 = Object.keys(사람표 || {})
+    if (!row) {
+      /* 45일 넘게 결과가 안 나온 것(유찰 · 취소 · 나라장터 밖)은 조용히 치웁니다 */
+      const 옛 = 사람들.filter((r) => Number((사람표[r] || {}).at) < 오래)
+      if (옛.length) { const 뺄 = {}; 옛.forEach((r) => { 뺄[r] = null }); await d.ref(`/watch/${no}`).update(뺄) }
+      continue
+    }
+    await d.ref(`/watch/${no}`).remove()          /* 먼저 지워 두 번 안 가게 */
+    const 이름 = 자르기(row.name || ((사람표[사람들[0]] || {}).t), 40)
+    const 업체 = 자르기(row.win, 18)
+    const 률 = row.rate != null && row.rate !== '' ? `${Number(row.rate).toFixed(3)}%` : ''
+    const 곳 = Number(row.np) > 0 ? ` · ${row.np}곳 참가` : ''
+    const u = `/first?q=${encodeURIComponent(String(row.name || '').slice(0, 30))}`
+    const 글 = `☆ 담은 공고 1순위 — 「${이름}」 ${업체}${률 ? ' · ' + 률 : ''}${곳}`
+    await Promise.all(사람들.map((r) => 종한줄(d, r, { k: '1st', m: 글, u, at: Date.now() })))
+    await 푸시보내기(d, 사람들, { title: '🏆 담은 공고 1순위가 나왔습니다', body: `「${이름}」 ${업체}${률 ? ' · ' + 률 : ''}${곳}`, url: u, tag: `w-${no}` })
+  }
+}
+
+/* ── 📍 내 조건 새 공고 (하루 두 번) ── */
+const 별칭 = { 경기: ['경기'], 강원: ['강원'], 충북: ['충북', '충청북도'], 충남: ['충남', '충청남도'], 전북: ['전북', '전라북도'], 전남: ['전남', '전라남도'], 경북: ['경북', '경상북도'], 경남: ['경남', '경상남도'] }
+const 지역맞나 = (x, rg) => {                      /* = web/src/lib/fmt.js inRegion */
+  if (!rg || rg === '전국') return true
+  if (x.sido != null && x.sido !== '') return String(x.sido).split(',').includes(rg)
+  if (x.sido === '') return false
+  const pats = 별칭[rg] || [rg]
+  const blob = `${x.inst || ''} ${x.name || ''}`
+  return pats.some((p) => blob.includes(p))
+}
+const 면허맞나 = (codes, 원함, 없음도) => {         /* = web/src/lib/lic.js licHit */
+  if (!원함.length) return true
+  const list = Array.isArray(codes) ? codes : (codes ? [codes] : [])
+  if (!list.length) return !!없음도
+  const w = new Set(원함)
+  return list.some((v) => { const t = String(v); return w.has(t) || w.has(t.slice(t.lastIndexOf('/') + 1)) })
+}
+async function 조건묶음(d) {
+  const 지금 = 한국()
+  const h = 지금.getUTCHours()
+  /* 8시 칸(8~12시) · 13시 칸(13~21시) — 빠른 수집이 그 시각에 한 번 멈췄어도 다음 깨어남에 보냅니다. 밤 22시 뒤로는 안 보냄 */
+  const 칸시 = h >= 22 ? 0 : h >= 13 ? 13 : h >= 8 ? 8 : 0
+  if (!칸시) return
+  const 칸 = 지금.toISOString().slice(0, 10) + '-' + 칸시
+  const t = await d.ref('/watch_meta/slot').transaction((v) => (v === 칸 ? undefined : 칸))
+  if (!t.committed) return                        /* 이 시간에는 이미 보냄 */
+  const 조건들 = (await d.ref('/watch_cond').get()).val()
+  if (!조건들) return
+  const 지난들 = (await d.ref('/watch_last').get()).val() || {}
+  let part = []; let idx = null; let fresh = []
+  try { [part, idx, fresh] = await Promise.all([받기('/data/board/live-con-0.json'), 받기('/data/board/live-con-idx.json'), 묶음읽기(d, 'live')]) } catch (e) {
+    console.error('공고 묶음 못 받음:', e && e.message)
+    await d.ref('/watch_meta/slot').set(null)       /* 다음 깨어남(10분 뒤)에 다시 */
+    return
+  }
+  const f = (idx && idx.f) || []
+  const iS = f.indexOf('sido'); const iL = f.indexOf('lic')
+  const 공고 = new Map()
+  ;(Array.isArray(part) ? part : []).forEach((r, i) => {
+    const x = (idx && idx.r && idx.r[i]) || []
+    if (r && r.no) 공고.set(String(r.no), { no: r.no, name: r.name, inst: r.inst, dt: String(r.dt || ''), sido: iS >= 0 ? x[iS] : null, codes: iL >= 0 ? x[iL] : [] })
+  })
+  /* 방금 공고 _ix = [name, inst, base, lo, hi, lic, sido, …] — fast.py finish() 와 같은 차례 */
+  for (const r of fresh) if (r && r.no) { const x = r._ix || []; 공고.set(String(r.no), { no: r.no, name: r.name, inst: r.inst, dt: String(r.dt || ''), sido: x[6], codes: x[5] || [] }) }
+  const 모두 = [...공고.values()]
+  for (const [r, c] of Object.entries(조건들)) {
+    if (!c) continue
+    const 부터 = Math.max(Number(지난들[r]) || 0, Number(c.at) || 0, Date.now() - 26 * 3600e3)
+    const 부터글 = 한국글(부터)
+    const 원함 = String(c.lic || '').split(',').filter(Boolean)
+    const 맞음 = 모두.filter((x) => x.dt > 부터글 && 지역맞나(x, c.rg) && 면허맞나(x.codes, 원함, c.none))
+      .sort((a, b) => (a.dt < b.dt ? 1 : -1))
+    await d.ref(`/watch_last/${r}`).set(Date.now())
+    if (!맞음.length) continue
+    const 조건글 = [c.rg && c.rg !== '전국' ? c.rg : '전국', 원함.length ? `면허 ${원함.length}개` : ''].filter(Boolean).join(' · ')
+    const 첫 = 자르기(맞음[0].name, 34)
+    const 글 = `📢 내 조건(${조건글}) 새 공고 ${맞음.length}건 — 「${첫}」${맞음.length > 1 ? ` 외 ${맞음.length - 1}건` : ''}`
+    await 종한줄(d, r, { k: 'new', m: 글, u: '/live', at: Date.now() })
+    await 푸시보내기(d, [r], { title: `📢 내 조건 새 공고 ${맞음.length}건`, body: `${조건글} — 「${첫}」${맞음.length > 1 ? ` 외 ${맞음.length - 1}건` : ''}`, url: '/live', tag: 'kcm-cond' })
+  }
+}
+
+exports.freshNotify = onValueWritten(
+  { ...푸시옵션, ref: '/fresh/meta/{name}', timeoutSeconds: 120, memory: '512MiB' },
+  async (event) => {
+    if (!event.data.after.exists()) return
+    const d = 자료()
+    try {
+      if (event.params.name === 'first') await 담은공고(d)
+      else if (event.params.name === 'live') await 조건묶음(d)
+    } catch (e) {
+      console.error('freshNotify 실패:', e && e.message)
     }
   }
 )

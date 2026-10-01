@@ -80,22 +80,22 @@ export function 알림종() {
   if (!안본.length && !열림) return null
   return (
     <div className="noti-bell" ref={칸}>
-      <button className="notibtn" onClick={() => set열림((v) => !v)} aria-label={`새 답글 ${안본.length}개`} title="사랑방 — 내 글에 달린 새 답글">
+      <button className="notibtn" onClick={() => set열림((v) => !v)} aria-label={`새 알림 ${안본.length}개`} title="새 알림 — 사랑방 답글 · 담은 공고 1순위 · 내 조건 새 공고">
         🔔{안본.length > 0 && <span className="noti-n">{안본.length > 9 ? '9+' : 안본.length}</span>}
       </button>
       {열림 && (
-        <div className="noti-pop" role="dialog" aria-label="새 답글">
-          <div className="noti-ph"><b>💬 사랑방 답글</b>
+        <div className="noti-pop" role="dialog" aria-label="새 알림">
+          <div className="noti-ph"><b>🔔 알림</b>
             {안본.length > 0 && <button className="noti-all" onClick={() => 봤다(s.목록)}>모두 읽음</button>}
           </div>
           {s.목록.slice(0, 10).map((x) => (
             <button key={x.r + x.id} className={'noti-it' + (x.seen ? ' seen' : '')}
-              onClick={() => { set열림(false); 봤다(s.목록.filter((y) => y.q === x.q)); nav(`/qna/${encodeURIComponent(x.q)}`) }}>
+              onClick={() => { set열림(false); 봤다(s.목록.filter((y) => (x.q ? y.q === x.q : y.id === x.id))); nav(x.u || `/qna/${encodeURIComponent(x.q)}`) }}>
               <span className="noti-t">{알림글(x)}</span>
               <span className="noti-w">{몇전(x.at)}</span>
             </button>
           ))}
-          {!s.목록.length && <div className="noti-empty muted">새 답글이 없습니다.</div>}
+          {!s.목록.length && <div className="noti-empty muted">새 알림이 없습니다.</div>}
         </div>
       )}
     </div>
@@ -112,12 +112,12 @@ export function 알림띠() {
   if (!안본.length) return null
   const 첫 = 안본[0]
   if (닫은 === 첫.r + '/' + 첫.id) return null
-  if (pathname === `/qna/${encodeURIComponent(첫.q)}`) return null
+  if (첫.q && pathname === `/qna/${encodeURIComponent(첫.q)}`) return null
   const 닫기 = () => { const k = 첫.r + '/' + 첫.id; set닫은(k); try { sessionStorage.setItem('kcm_noti_band', k) } catch (e) { /* 없음 */ } }
   return (
     <div className="noti-band" role="status">
       <span className="noti-dot" />
-      <button className="noti-go" onClick={() => { 봤다(안본.filter((y) => y.q === 첫.q)); nav(`/qna/${encodeURIComponent(첫.q)}`) }}>
+      <button className="noti-go" onClick={() => { 봤다(안본.filter((y) => (첫.q ? y.q === 첫.q : y.id === 첫.id))); nav(첫.u || `/qna/${encodeURIComponent(첫.q)}`) }}>
         <b>🔔 {알림글(첫)}</b>{안본.length > 1 && <span className="muted"> · 외 {안본.length - 1}건</span>}
         <span className="noti-see">보기 ▸</span>
       </button>

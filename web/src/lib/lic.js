@@ -47,6 +47,17 @@ export function hasMine() {
   return loadLicCodes().length > 0 || loadRegion() !== '전국'
 }
 
+/* ✨ 내 면허 맞춤 켜짐 — 2026-10-01 (G97) 소장님 「내 지역·면허를 한 번 정하면 1순위·공고가 그 조건으로 열리게」.
+   전에는 «내 면허 맞춤» 이 그 창(탭)에서만 기억돼 다시 열면 꺼져 있었습니다. 이제 지역·면허처럼 브라우저가 기억합니다.
+   1순위 · 공고 두 화면이 같은 값을 씁니다. */
+const LS_MINE = 'kcm_licmine'
+export function loadMine() {
+  try { return localStorage.getItem(LS_MINE) === '1' && loadLicCodes().length > 0 } catch { return false }
+}
+export function saveMine(v) {
+  try { localStorage.setItem(LS_MINE, v ? '1' : '0') } catch { /* 사생활 모드 */ }
+}
+
 export function loadLicNone() {
   try { return localStorage.getItem(LS_NONE) === '1' } catch { return false }
 }

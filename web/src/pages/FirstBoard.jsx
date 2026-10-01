@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { getOverview, getLicStat } from '../lib/data.js'
 import FreshBar from '../Fresh.jsx'
@@ -16,7 +16,9 @@ import { useFresh, freshRows, freshWhen } from '../lib/fresh.js'
 import { Skeleton, Empty, Tile, NaeyeokStrip } from '../components.jsx'
 import { won, wonShort, pct, num, dateTime, dateShort, REGIONS, inRegion } from '../lib/fmt.js'
 import { loadLicCodes, saveLicCodes, loadLicNone, saveLicNone,
-         licList, licNoneCount, licHit, licShort } from '../lib/lic.js'
+         licList, licNoneCount, licHit, licShort, loadRegion, saveRegion, loadMine, saveMine } from '../lib/lic.js'
+/* 📍 2026-10-01 (G97) 내 조건 — 지역 · 내 면허 맞춤을 공고 화면과 같이 쓰고, 다시 열어도 그 조건으로 (내조건.jsx) */
+import 내조건줄 from '../내조건.jsx'
 import { use남김 } from '../lib/길기록.js'
 import 밖공고줄 from '../밖공고줄.jsx'
 
@@ -26,11 +28,18 @@ const KIND = 'con'   // 공사만 다룹니다 (용역 제외)
 export default function FirstBoard() {
   const [ov, setOv] = useState(null)
   /* 🧭 2026-09-27 — 공고를 열었다가 뒤로 오면 «보던 그대로»(지역·검색어·쪽·펼친 카드) — 이 탭을 닫을 때까지 */
-  const [region, setRegion] = use남김('kcm.first.region', '전국', 'session')
+  /* 📍 2026-10-01 (G97) 지역은 공고 화면과 같은 «내 조건»(브라우저가 기억). 전에는 이 창에서만 기억해 다시 열면 전국이었습니다 */
+  const [region, setRegionRaw] = useState(loadRegion)
+  const setRegion = (v) => { setRegionRaw(v); saveRegion(v) }
   const [q, setQ] = use남김('kcm.first.q', '', 'session')
   const [page, setPage] = use남김('kcm.first.page', 1, 'session')
   const [open, setOpen] = use남김('kcm.first.open', null, 'session')
-  const [mine, setMine] = use남김('kcm.first.mine', false, 'session')
+  const [mine, setMineRaw] = useState(loadMine)
+  const setMine = (v) => { setMineRaw(v); saveMine(v) }
+  /* 🔔 알림을 누르면 /first?q=공고명 으로 옵니다 — 그 공고가 바로 보이게.
+   *    담은 공고가 내 조건(지역 · 면허) 밖일 수 있어 이때만 전국으로 잠깐 넓힙니다(내 조건은 그대로 · «내 조건으로 보기» 로 돌아감) */
+  const [sp] = useSearchParams()
+  useEffect(() => { const v = sp.get('q'); if (v) { setQ(v); setPage(1); setRegionRaw('전국'); setMineRaw(false) } }, [])   // eslint-disable-line react-hooks/exhaustive-deps
   const [editLic, setEditLic] = useState(false)
   /* 면허 경쟁도 — 면허를 고를 때만 받습니다(첫 화면 전송량에 안 얹습니다) */
   const [licst, setLicst] = useState(null)
@@ -109,6 +118,9 @@ export default function FirstBoard() {
       <FreshBar kind="first" />
       {/* 🏆 나라장터 밖 1순위(LH · 수자원 · 국방 · 아파트 · 민간) — 자료가 있을 때만 한 줄 (2026-09-30) */}
       <밖공고줄 kind="first" />
+      <내조건줄 region={region} mine={mine} lics={lics} licNone={licNone} licOptions={licOptions}
+        넓혀보기={() => { setRegionRaw('전국'); setMineRaw(false) }}
+        내조건으로={() => { setRegionRaw(loadRegion()); setMineRaw(loadMine()) }} />
 
       <input
         value={q}

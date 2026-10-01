@@ -59,7 +59,8 @@ export async function 알림읽기() {
   for (const r of 번호) {
     try {
       const v = (await get(query(ref(db, `noti/${r}`), orderByKey(), limitToLast(30)))).val() || {}
-      for (const [id, x] of Object.entries(v)) if (x && x.q) 목록.push({ id, r, ...x })
+      /* 🔔 2026-10-01 (G97) 공고 알림(담은 공고 1순위 · 내 조건 새 공고)은 q 대신 u(갈 주소) · m(알림 글)이 있습니다 */
+      for (const [id, x] of Object.entries(v)) if (x && (x.q || x.u)) 목록.push({ id, r, ...x })
     } catch (e) { /* 규칙 전(올리기 전) · 막힘 — 조용히 */ }
   }
   return 목록.sort((a, b) => (b.at || 0) - (a.at || 0))
@@ -151,6 +152,7 @@ export async function 폰알림켜기(r, 허락 = 허락묻기()) {
 
 /** 알림 한 줄 글 */
 export function 알림글(x) {
+  if (x.u && x.m) return x.m                  /* 공고 알림 — 함수가 다 쓴 글 */
   const 누가 = x.op ? 'K-건설맵 답변' : `${x.by || '이웃'}님 답글`
   return x.mine ? `올리신 글 「${x.t}」에 ${누가}이 달렸습니다` : `답글을 단 글 「${x.t}」에 ${누가}이 달렸습니다`
 }

@@ -22,7 +22,10 @@ import { winGrade } from '../lib/winodds.js'
 import { noteLive } from '../lib/mentor.js'
 import { won, wonShort, num, dateTime, dday, REGIONS, inRegion, estOf } from '../lib/fmt.js'
 import { loadLicCodes, saveLicCodes, loadLicNone, saveLicNone,
-         licList, licNoneCount, licHit, licShort, loadRegion, saveRegion } from '../lib/lic.js'
+         licList, licNoneCount, licHit, licShort, loadRegion, saveRegion, loadMine, saveMine } from '../lib/lic.js'
+/* 📍🔔 2026-10-01 (G97) 내 조건 한 줄 · ☆ 담은 공고 1순위 알림 */
+import 내조건줄 from '../내조건.jsx'
+import { 공고지켜보기 } from '../lib/관심알림.js'
 import { use남김 } from '../lib/길기록.js'
 /* 🤝 공동도급 (2026-09-27) — 판정은 lib/공동.js 한 곳, 그리기는 공동칸.jsx */
 import { 공동판정, load우리지역, save우리지역 } from '../lib/공동.js'
@@ -100,7 +103,9 @@ export default function LiveBoard() {
   /* 🧭 2026-09-27 — 공고를 열었다가 뒤로 오면 «보던 그대로» — 이 탭을 닫을 때까지 (lib/길기록.js) */
   const [q, setQ] = use남김('kcm.live.q', '', 'session')
   const [page, setPage] = use남김('kcm.live.page', 1, 'session')
-  const [mine, setMine] = use남김('kcm.live.mine', false, 'session')
+  /* 📍 2026-10-01 (G97) «내 면허 맞춤» 도 브라우저가 기억합니다(1순위 화면과 같이) */
+  const [mine, setMineRaw] = useState(loadMine)
+  const setMine = (v) => { setMineRaw(v); saveMine(v) }
   const [onlyGood, setOnlyGood] = use남김('kcm.live.good', false, 'session')   // A·B 등급만 보기
   const [lics, setLics] = useState(loadLicCodes)
   const [licNone, setLicNone] = useState(loadLicNone)
@@ -180,7 +185,14 @@ export default function LiveBoard() {
   /* 면허 경쟁도 — 면허를 고를 때만 받습니다(첫 화면 전송량에 안 얹습니다) */
   const [licst, setLicst] = useState(null)
   useEffect(() => { if (editLic && !licst) getLicStat().then((d) => setLicst(d || null)) }, [editLic, licst])
-  const toggleBag = (e, no) => { e.stopPropagation(); setBag(toggleBasket(no)) }
+  /* 🔔 2026-10-01 (G97) 담으면 «1순위가 나오면 알림» 도 같이 켭니다(빼면 끔). 허락 창은 이 누름 안에서 뜹니다 */
+  const [알림말, set알림말] = useState({})
+  const toggleBag = (e, no, 이름) => {
+    e.stopPropagation()
+    const 켬 = !bag.includes(String(no))
+    setBag(toggleBasket(no))
+    공고지켜보기(no, 이름, 켬).then((m) => { if (m) set알림말((v) => ({ ...v, [no]: m })) })
+  }
   const copyAmt = (e, r, amt) => {
     e.stopPropagation()
     try { navigator.clipboard?.writeText(String(amt)) } catch { /* 옛 브라우저 */ }
@@ -349,6 +361,9 @@ export default function LiveBoard() {
       <FreshBar kind="live" />
       {/* 🏗 나라장터 밖 공고 (2026-09-30 · 입찰나라에서 가져온 것 4번) — 자료가 있을 때만 한 줄 */}
       <밖공고줄 />
+      <내조건줄 region={region} mine={mine} lics={lics} licNone={licNone} licOptions={licOptions}
+        넓혀보기={() => { setRegionRaw('전국'); setMineRaw(false) }}
+        내조건으로={() => { setRegionRaw(loadRegion()); setMineRaw(loadMine()) }} />
 
       {/* ── 모드 탭 (2026-09-14) — 셋 다 같은 카드를 그립니다. 목록을 만드는 법만 다릅니다. ── */}
       <div className="modetabs">
@@ -510,12 +525,12 @@ export default function LiveBoard() {
                 {bagOdds.unknown > 0 && <> 1순위율을 모르는 {bagOdds.unknown}건은 셈에서 <b>뺐습니다</b> — 0으로 치지 않습니다.</>}
                 {bagOdds.closed > 0 && <> 마감된 {bagOdds.closed}건도 뺐습니다.</>}
               </div>
-              <button className="btn ghost sm" onClick={() => { clearBasket(); setBag([]) }}>전부 비우기</button>
+              <button className="btn ghost sm" onClick={() => { bag.forEach((n) => { 공고지켜보기(n, '', false) }); clearBasket(); setBag([]) }}>전부 비우기</button>
             </>
           ) : (
             <div className="note">
               담은 {bag.length}건 중 <b>확률을 셈할 수 있는 공고가 없습니다</b> — 마감됐거나, 예상 참가·실측이 모자랍니다.
-              <button className="btn ghost sm" style={{ marginTop: 8 }} onClick={() => { clearBasket(); setBag([]) }}>전부 비우기</button>
+              <button className="btn ghost sm" style={{ marginTop: 8 }} onClick={() => { bag.forEach((n) => { 공고지켜보기(n, '', false) }); clearBasket(); setBag([]) }}>전부 비우기</button>
             </div>
           )}
         </div>
@@ -635,7 +650,7 @@ export default function LiveBoard() {
                         )}
                         {/* ④ 담기 — 담은 공고 탭에서 «적어도 한 건» 확률을 합산합니다 */}
                         <button className={'cbtn star' + (bag.includes(String(r.no)) ? ' on' : '')}
-                          title="담은 공고에 넣기" onClick={(e) => toggleBag(e, r.no)}>
+                          title="담은 공고에 넣기 · 1순위가 나오면 알림" onClick={(e) => toggleBag(e, r.no, r.name)}>
                           {bag.includes(String(r.no)) ? '★ 담음' : '☆ 담기'}
                         </button>
                       </div>
@@ -730,6 +745,14 @@ export default function LiveBoard() {
                         )}
                       </div>
                     )}
+
+                    {/* ☆ 담기 · 🔔 1순위 알림 (2026-10-01, G97) — 완비 공고(원클릭 줄)가 아니어도 모든 공고에서 */}
+                    <div className="watchrow" onClick={(e) => e.stopPropagation()}>
+                      <button className={'cbtn star' + (bag.includes(String(r.no)) ? ' on' : '')} onClick={(e) => toggleBag(e, r.no, r.name)}>
+                        {bag.includes(String(r.no)) ? '★ 담음 · 🔔 1순위 나오면 알림' : '☆ 담기 · 🔔 1순위 나오면 알림'}
+                      </button>
+                      {알림말[r.no] && <span className="watchmsg">{알림말[r.no]}</span>}
+                    </div>
 
                     {/* 🏛 이 기관 최근 사정률 — 펼쳤을 때만 받습니다(몇 KB). 권장 금액 바로 아래 — «이 기관은 어디쯤 나오나» */}
                     <기관사정률 inst={r.inst} />
