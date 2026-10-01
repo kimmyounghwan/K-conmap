@@ -5396,7 +5396,7 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 .iy-other-r .inp { width: 110px; text-align: right; padding: 5px 8px; }
 .iy-opts { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
 .iy-opt { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.5; }
-.iy-opt input { margin-top: 3px; }
+.iy-opt input[type="checkbox"] { width: auto; flex: none; margin: 3px 0 0; accent-color: var(--accent); }   /* ⚠️ 전역 input { width: 100% } 되돌림 */
 .iy-boxes { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
 .iy-box { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .iy-box.on { border-color: rgba(5, 150, 105, .45); }
@@ -5411,6 +5411,11 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 .iy-band td.iy-in2 { background: rgba(37, 99, 235, .08); color: var(--text-2); }
 .iy-ded td, .iy-ded th { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .iy-ded tr.sum td { font-weight: 700; background: var(--surface-2); }
+.iy-emp { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px; }
+.iy-emp-t { font-size: 13.5px; }
+.iy-emp-o { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: flex-end; margin: 8px 0; }
+.iy-emp-o > label:first-child { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 700; color: var(--text-2); }
+.iy-emp-o select { min-width: 0; max-width: 100%; }
 .iy-why { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
 .iy-why ol { margin: 4px 0 6px; padding-left: 20px; font-size: 13px; line-height: 1.65; }
 .iy-todo td { font-size: 12.5px; vertical-align: top; text-align: left !important; }

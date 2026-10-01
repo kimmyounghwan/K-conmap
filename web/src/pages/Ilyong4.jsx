@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { 판단, 신고할일, 달규칙, 달더하기, 짧은날, 달글, 한달되는날, 달, 전날 } from '../lib/ilyong4.js'
+import { 판단, 신고할일, 달규칙, 달더하기, 짧은날, 달글, 한달되는날, 달, 전날, 회사규모, 사업주몫 } from '../lib/ilyong4.js'
 import { 공제셈 } from '../lib/gongje.js'
 import G from '../data/ilyong_guide.json'
 
@@ -135,6 +135,10 @@ export default function Ilyong4() {
   const 첫 = R.묶음[0]
   const 아님H = !R.날들.length ? '일한 날을 누르면 나옵니다.' : 첫 && !첫.한달이상 ? `1개월 미만 — 첫 근로일 ${짧은날(첫.시작)} 부터 1개월 되는 날 ${짧은날(첫.E)} 까지 일하지 않았습니다.` : `첫 근로일부터 1개월(Ⓐ) ${첫 ? 첫.A일 : 0}일 · 그 뒤 달마다 8일 미만입니다.`
   const 아님P = 옵션.연금제외 ? '나이 등으로 뺐습니다.' : !R.날들.length ? '일한 날을 누르면 나옵니다.' : 첫 && !첫.한달이상 ? '1개월 미만입니다.' : '달마다 8일 · 220만원 미만입니다.'
+  /* 🏢 사업주 몫 (G108) — 연금 · 건강 · 요양은 근로자와 같은 금액, 고용은 실업급여 0.9% + 고용안정(회사 규모), 산재는 참고 */
+  const 사업주 = 공제.map((r) => ({ ym: r.ym, 돈: r.돈, 근4: r.ei + r.np + r.hi + r.lc, ...사업주몫(r.ym, r.돈, r, { 규모: 옵션.규모, 고용65: 옵션.고용65, 산재: 옵션.산재 }) }))
+  const 사합 = 사업주.reduce((t, r) => ({ 돈: t.돈 + r.돈, np: t.np + r.np, hi: t.hi + r.hi, lc: t.lc + r.lc, ei: t.ei + r.ei, ia: t.ia + r.ia, 합: t.합 + r.합, 근4: t.근4 + r.근4 }), { 돈: 0, np: 0, hi: 0, lc: 0, ei: 0, ia: 0, 합: 0, 근4: 0 })
+  const 옵션바꿈 = (k, v) => 바꿈((s) => ({ ...s, 옵션: { ...(s.옵션 || {}), [k]: v } }))
   const 합계 = 공제.reduce((s, r) => ({ 돈: s.돈 + r.돈, 합: s.합 + r.합, it: s.it + r.it, lt: s.lt + r.lt, ei: s.ei + r.ei, np: s.np + r.np, hi: s.hi + r.hi, lc: s.lc + r.lc }), { 돈: 0, 합: 0, it: 0, lt: 0, ei: 0, np: 0, hi: 0, lc: 0 })
 
   return (
@@ -297,6 +301,42 @@ export default function Ilyong4() {
               </table>
             </div>
             <div className="muted" style={{ fontSize: 12 }}>소득세는 일용근로소득(일급 15만원 넘는 몫 × 2.7%, 한 달 합 1천원 미만은 안 뗌)으로 셉니다. 건설일용 보험료는 그 달 실제 보수로 매기므로 마지막에는 공단 고지액과 맞추십시오.</div>
+
+            <div className="iy-emp">
+              <label className={'iy-opt iy-emp-t' + (옵션.사업주 ? '' : ' no-print')}><input type="checkbox" checked={!!옵션.사업주} onChange={(e) => 옵션바꿈('사업주', e.target.checked)} /> 🏢 <b>사업주 몫도 보기</b> — 회사가 내는 보험료와 공단에 내는 총액</label>
+              {옵션.사업주 && (
+                <>
+                  <div className="iy-emp-o no-print">
+                    <label>회사 규모 (상시근로자 — 국내 모든 사업 합산)
+                      <select className="inp" value={옵션.규모 || 's'} onChange={(e) => 옵션바꿈('규모', e.target.value)}>
+                        {회사규모.map((x) => <option key={x.k} value={x.k}>{x.이름} — 고용안정 {(x.율 * 100).toFixed(2)}%</option>)}
+                      </select>
+                    </label>
+                    <label className="iy-opt"><input type="checkbox" checked={옵션.산재 !== false} onChange={(e) => 옵션바꿈('산재', e.target.checked)} /> 산재보험료(참고 — 2026 건설업 3.56%)도 넣기</label>
+                  </div>
+                  <div className="tp-bill-sub">달마다 사업주 몫 · 4대보험 총액</div>
+                  <div className="tp-scroll">
+                    <table className="tbl iy-ded">
+                      <thead><tr><th>달</th><th>받은 돈</th><th>국민연금</th><th>건강</th><th>장기요양</th><th>고용</th>{옵션.산재 !== false && <th>산재(참고)</th>}<th>사업주 합</th><th>근로자 몫(보험)</th><th>보험료 총액</th></tr></thead>
+                      <tbody>
+                        {사업주.map((r) => (
+                          <tr key={r.ym}>
+                            <td className="nw">{달글(r.ym)}</td><td className="r">{원(r.돈)}</td><td className="r">{원(r.np)}</td><td className="r">{원(r.hi)}</td><td className="r">{원(r.lc)}</td>
+                            <td className="r">{원(r.ei)}</td>{옵션.산재 !== false && <td className="r">{원(r.ia)}</td>}<td className="r"><b>{원(r.합)}</b></td><td className="r">{원(r.근4)}</td><td className="r"><b>{원(r.합 + r.근4)}</b></td>
+                          </tr>
+                        ))}
+                        <tr className="sum"><td>합계</td><td className="r">{원(사합.돈)}</td><td className="r">{원(사합.np)}</td><td className="r">{원(사합.hi)}</td><td className="r">{원(사합.lc)}</td>
+                          <td className="r">{원(사합.ei)}</td>{옵션.산재 !== false && <td className="r">{원(사합.ia)}</td>}<td className="r"><b>{원(사합.합)}</b></td><td className="r">{원(사합.근4)}</td><td className="r"><b>{원(사합.합 + 사합.근4)}</b></td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="muted" style={{ fontSize: 12 }}>
+                    국민연금 · 건강 · 장기요양은 근로자와 같은 금액입니다. 고용은 실업급여 0.9%{옵션.고용65 ? '(65세 이후 새로 고용 — 없음)' : ''} + 고용안정 · 직업능력개발 {((회사규모.find((x) => x.k === 옵션.규모) || 회사규모[0]).율 * 100).toFixed(2)}%(고용보험료징수법 시행령 제12조 · 하수급인은 원수급인 요율).
+                    {옵션.산재 !== false ? ' 산재는 2026 건설업 3.56%(출퇴근 0.6‰ 포함)로 보수에 곱한 참고 금액입니다 — 건설현장은 원수급인이 공사 금액(노무비율)으로 내는 경우가 많습니다.' : ''}
+                  </div>
+                </>
+              )}
+            </div>
 
             <div className="iy-why">
               <div>
