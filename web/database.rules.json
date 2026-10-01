@@ -206,6 +206,18 @@
         }
       }
     },
+    // 👁 2026-10-01 (G95) 조회수 — 소장님 「조회수 알 수 있지? 조회수도 넣어주고」
+    //    글마다 숫자 하나(qna_v/{글번호}). **1씩만 올릴 수 있습니다** — 지우기 · 낮추기 · 아무 숫자 넣기는 막힘.
+    //    사랑방은 이미 익명 로그인을 하므로 auth != null 로 충분합니다. 없는 글에는 못 붙입니다.
+    //    ⚠️ 지우기는 .validate 를 안 거치므로 .write 에 newData.exists() 를 꼭 둡니다.
+    //    같은 브라우저 하루 한 번 · 운영자 · 글쓴이 · 검색 로봇은 화면(Qna.jsx 조회세기)이 안 셉니다.
+    "qna_v": {
+      ".read": true,
+      "$id": {
+        ".write": "auth != null && newData.exists() && root.child('qna').child($id).exists()",
+        ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
+      }
+    },
     "qna_alike": {
       ".read": true,
       "$qid": {

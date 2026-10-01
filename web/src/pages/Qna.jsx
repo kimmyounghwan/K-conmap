@@ -97,6 +97,16 @@ export function 점수셈(글들, 답들, 좋아요, 답좋아요, 달) {
 const 공지판 = '2026-09-29'      /* 🧹 말머리를 «후기·건의 · K-건설맵» 둘로 줄인 판 — 한 번 다시 펼쳐 알립니다 */
 const 공지열쇠 = 'kcm.qna.공지판'
 
+/* 👁 2026-10-01 (G95) 조회수 — 소장님 「조회수 알 수 있지? 조회수도 넣어주고」
+   ⚠️ 그 전까지는 글별 조회를 어디에도 적지 않았습니다 → 올린 날부터 0 에서 셉니다.
+   세는 법: 글을 펼치거나(/qna 목록) 글 주소(/qna/{번호})로 들어오면 qna_v/{번호} 를 1 올림(runTransaction —
+   규칙이 «1씩만» 받습니다). 같은 브라우저는 하루 한 번 · 운영자 · 글쓴이 본인 · 검색 로봇은 안 셉니다. */
+const 조회열쇠 = 'kcm.qna.본날'
+const 오늘날 = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}` }
+const 봇같음 = () => {
+  try { return !!navigator.webdriver || /bot|crawl|spider|slurp|yeti|daumoa|bingpreview|headless|lighthouse|facebookexternalhit|kakaotalk-scrap/i.test(navigator.userAgent || '') } catch (e) { return true }
+}
+
 /* 🔑 운영자 브라우저 — 답글에 「K-건설맵 답변」 표가 붙는 곳. (2026-09-17)
  *
  * 소장님: 「**답글에 비번이 왜 필요해.. 유료만 필요하지**」 — 맞는 말씀이었습니다.
@@ -218,6 +228,7 @@ export default function Qna() {
   const [다보기, set다보기] = useState(false)
   /* 🎁 👍 · 👑 — 못 읽어도 게시판은 그대로 */
   const [좋아요, set좋아요] = useState({})
+  const [조회, set조회] = useState({})   /* 👁 {글번호: 수} (G95) */
   const [답좋아요, set답좋아요] = useState({})
   const [왕들, set왕들] = useState({})
   /* 📖 공지 — 처음 온 기기 · 바뀐 판에서만 펼친 채로 */
@@ -250,6 +261,12 @@ export default function Qna() {
     } catch (e) { /* 고정 없이 */ }
     try { set나(await 뿌리찾기()) } catch (e) { /* 모름 */ }
     await 좋아요읽기()
+    /* 👁 조회수 — 따로 읽습니다(규칙을 올리기 전이면 조회수만 안 보입니다) */
+    try {
+      const { ref, get, db } = await loadFb()
+      const v = (await get(ref(db, 'qna_v'))).val() || {}
+      set조회((m) => { const n = { ...v }; Object.keys(m).forEach((k) => { if ((m[k] || 0) > (n[k] || 0)) n[k] = m[k] }); return n })
+    } catch (e) { /* 조회수 없이 */ }
   }
   const 좋아요읽기 = async () => {
     try {
@@ -409,6 +426,34 @@ export default function Qna() {
     return { n, 첫, 이름 }
   }, [내것, ans, seen, 모두])
 
+  /* 👁 조회 세기 (G95) — 펼친 글이 바뀔 때 한 번. 목록을 받은 뒤라야 글쓴이를 압니다 */
+  const 받음 = rows !== null
+  useEffect(() => {
+    if (!open || !받음 || 봇같음()) return
+    const id = open
+    let 본 = {}
+    try { 본 = JSON.parse(localStorage.getItem(조회열쇠) || '{}') || {} } catch (e) { 본 = {} }
+    const 오늘 = 오늘날()
+    if (본[id] === 오늘) return
+    ;(async () => {
+      try {
+        const { ref, get, runTransaction, db, ensureAnon } = await loadFb()
+        const u = await ensureAnon()
+        if (!u || isOp(u.uid)) return                       /* 운영자는 안 셈 */
+        const 뿌리 = await 뿌리찾기()
+        const r = (모두 || []).find((x) => x.id === id) || (따로글 && 따로글.id === id ? 따로글 : null)
+        const 쓴이 = r ? r.uid : (await get(ref(db, `qna/${id}/uid`))).val()
+        if (!쓴이 || 쓴이 === 뿌리.uid || 쓴이 === 뿌리.r || 내것.has(id)) return   /* 글쓴이 본인 · 없는 글 */
+        /* 먼저 적어 둡니다 — 빨리 접었다 펴도 두 번 세지 않게 */
+        본[id] = 오늘
+        const 키 = Object.keys(본); if (키.length > 400) 키.slice(0, 키.length - 400).forEach((k) => { delete 본[k] })
+        try { localStorage.setItem(조회열쇠, JSON.stringify(본)) } catch (e) { /* 사생활 창 — 그래도 셉니다 */ }
+        const t = await runTransaction(ref(db, `qna_v/${id}`), (v) => (Number(v) || 0) + 1)
+        if (t.committed) { const n = Number(t.snapshot.val()) || 0; set조회((m) => ({ ...m, [id]: Math.max(n, m[id] || 0) })) }
+      } catch (e) { /* 규칙 전 · 막힘 — 조회수 없이 */ }
+    })()
+  }, [open, 받음])   // eslint-disable-line react-hooks/exhaustive-deps
+
   /* 글을 펼치면 «봤다» 고 적어 둡니다 — 빨간 띠가 사라지는 자리입니다. */
   const 열기 = (id) => {
     setOpen((v) => (v === id ? null : id))
@@ -458,21 +503,23 @@ export default function Qna() {
                 물음이 아닌 글에도 붙어서 «아직 답을 못 받은 글» 처럼 보였습니다.
                 답글이 있을 때만 셈을 보입니다. 없으면 아무 말도 안 붙입니다. */}
             {!작게 && r.옛 && <span className="qna-old" title="예전 말머리">{r.옛}</span>}
-            {op답(r.id) && <span className="qna-opok">✅ K-건설맵 답변</span>}
+            {/* 🏷 2026-10-01 (G95) — 소장님 「답변 글자는 빼줘」 「건설맵이 쓰고 건설맵이 답변을 쓴 것처럼 된 게 있어」
+                → 제목을 먼저, 답글 셈 · ✅ K-건설맵 은 «제목 뒤» 한 알약으로. 제목 바로 앞에 «K-건설맵 답변» 이 붙어
+                  «K-건설맵: 정말 감사합니다» 처럼 건설맵이 쓴 글로 읽혔습니다. K-건설맵이 쓴 글에는 ✅ 를 안 붙입니다. */}
+            <b style={{ flex: '0 1 auto', fontSize: 15 }}>{가림(r.t)}</b>
             {n > 0 && (
               <span className="chip ok" style={{
                 fontSize: 11.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
                 background: 'var(--accent-soft, rgba(26,86,219,.12))',
                 color: 'var(--accent, #1a56db)',
-              }}>답글 {n}</span>
+              }}>답글 {n}{op답(r.id) && r.c !== 'K-건설맵' && !isOp(r.uid) ? <span className="qna-opok-in"> · ✅ K-건설맵</span> : null}</span>
             )}
             {n좋아요(r.id) > 0 && (
               <span className="chip" style={{ fontSize: 11.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
                 background: 'var(--good-soft)', color: 'var(--good)' }}>👍 {n좋아요(r.id)}</span>
             )}
-            <b style={{ flex: '1 1 200px', fontSize: 15 }}>{가림(r.t)}</b>
-            <span className="muted" style={{ fontSize: 12 }}>
-              {배지(r.uid)}{r.nick || '익명'} · {언제(r.at)}{r.e ? ' · 고침' : ''}
+            <span className="muted" style={{ fontSize: 12, marginLeft: 'auto' }}>
+              {배지(r.uid)}{r.nick || '익명'} · {언제(r.at)}{r.e ? ' · 고침' : ''}{조회[r.id] > 0 ? ` · 조회 ${Number(조회[r.id]).toLocaleString('ko-KR')}` : ''}
               {내것.has(r.id) && <b style={{ color: 'var(--accent, #1a56db)' }}> · 내 글</b>}
             </span>
             {/* 2026-09-17 — 소장님: 「답글을 클릭해서 쓸 버튼이 없어」 → 「어차피 글을 보려면
@@ -490,7 +537,7 @@ export default function Qna() {
         </div>
         {isOpen && (
           <Detail row={r} ans={ans[r.id] || {}} mine={내것.has(r.id)} 나운영자={나운영자}
-            고정됨={!!고정[r.id]} 나={나} 배지={배지}
+            고정됨={!!고정[r.id]} 나={나} 배지={배지} 조회수={조회[r.id] || 0}
             좋아요={좋아요[r.id] || {}} 답좋아요={답좋아요[r.id] || {}} 좋아요누름={좋아요누름}
             onChange={() => { _뿌리 = null; load(); setMine(loadMine()) }} />
         )}
@@ -553,11 +600,11 @@ export default function Qna() {
         </div>
         <ol style={{ margin: '8px 0 0', paddingLeft: 20 }}>
           <li><b>🆕 이제 글은 모두 «후기·건의» 한 곳에 씁니다.</b> 질문 · 현장 이야기 · 공동도급 구성원 구하기 · 구인·구직 · 건의 · 후기 — 무엇이든 여기에 쓰시면 됩니다.
-            <b>«K-건설맵»</b> 은 K-건설맵이 알려 드리는 글입니다. K-건설맵이 답한 글에는 <b>✅ K-건설맵 답변</b> 딱지가 붙습니다.</li>
+            <b>«K-건설맵»</b> 은 K-건설맵이 알려 드리는 글입니다. K-건설맵이 답한 글에는 <b>✅ K-건설맵</b> 딱지가 붙습니다.</li>
           <li><b>누구나, 어떤 이야기든 좋습니다.</b> 가입·이름 없이 바로 씁니다. 별명은 저절로 붙고, 같은 기기면 늘 같은 별명입니다.
             <div className="muted" style={{ fontSize: 12.5 }}>예) 오늘 현장 한 줄 · 이 서류 어떻게 쓰나요 · 이 단가 맞나요 · 좋은 장비·업체 추천 · 하소연 · 쓸 만한 자료 나눔</div></li>
           <li><b>답글은 누구나 답니다.</b> 아는 분이 먼저 답해 주세요 — 현장 경험 한 줄이 제일 큰 도움이 됩니다.
-            K-건설맵도 하루 안에 답을 다는 것을 목표로 합니다. K-건설맵이 단 답에는 <b>「K-건설맵 답변」</b> 표가 붙습니다.
+            K-건설맵도 하루 안에 답을 다는 것을 목표로 합니다. K-건설맵이 단 답에는 <b>「K-건설맵」</b> 표가 붙습니다.
             표가 없는 답은 이용자 의견이니 <b>중요한 일은 발주처·전문가에게 한 번 더 확인</b>하십시오.</li>
           <li><b>물어볼 때는</b> 공사 규모 · 발주처 · 지금 어디까지 — 이 셋만 적어도 답이 훨씬 정확해집니다. 모르면 모르는 대로 적으셔도 됩니다.</li>
           <li><b>자료 나눔 환영합니다.</b> 다만 남의 공사명·업체명·사람 이름·전화번호·주민번호는 지우고 올려 주세요.</li>
@@ -814,7 +861,7 @@ function 왕정하기({ 모두, ans, 좋아요, 답좋아요, 왕들, onDone }) 
 }
 
 /* ── 질문 펼침 — 본문 + 답변들 + 답변 쓰기 ──────────────────────── */
-function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지 = () => '', 좋아요 = {}, 답좋아요 = {}, 좋아요누름 }) {
+function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지 = () => '', 좋아요 = {}, 답좋아요 = {}, 좋아요누름, 조회수 = 0 }) {
   const [pin, setPin] = useState('')
   const [msg, setMsg] = useState('')
   /* ✏️ 고치기 · 🔑 되찾기 — 2026-09-27 */
@@ -952,6 +999,7 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
               onClick={() => 좋(`qna_like/${row.id}`, !눌렀나(좋아요))}>👍 도움됐어요 {Object.keys(좋아요).length}</button>}
         {/* 💬 2026-09-29 — 이 글만 여는 주소(검색 · 카톡으로 보내기). 그 주소로 가면 이 글이 맨 위에 펼쳐집니다 */}
         <Link className="qna-permalink" to={`/qna/${row.id}`}>🔗 이 글 주소</Link>
+        {조회수 > 0 && <span className="muted" style={{ fontSize: 12.5 }}>👁 조회 {Number(조회수).toLocaleString('ko-KR')}</span>}
       </div>
 
       {list.map((a) => (
@@ -962,7 +1010,7 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
         }}>
           <div style={{ fontSize: 12, marginBottom: 5 }}>
             {a.op
-              ? <b style={{ color: 'var(--accent, #1a56db)' }}>K-건설맵 답변</b>
+              ? <b style={{ color: 'var(--accent, #1a56db)' }}>K-건설맵</b>
               : <b>{배지(a.uid)}{a.nick || '익명'}</b>}
             <span className="muted"> · {when(a.at)}</span>
           </div>
@@ -1080,7 +1128,7 @@ function AnswerForm({ qid, onDone }) {
             ⚠️ 이용자에게는 아무것도 안 보입니다. 비번 칸이 있던 자리입니다. */}
         {나운영자 && (
           <span className="muted" style={{ fontSize: 12 }}>
-            이 답글에는 <b style={{ color: 'var(--accent, #1a56db)' }}>「K-건설맵 답변」</b> 표가 붙습니다
+            이 답글에는 <b style={{ color: 'var(--accent, #1a56db)' }}>「K-건설맵」</b> 표가 붙습니다
           </span>
         )}
         {msg && <span className="muted" style={{ fontSize: 12 }}>{msg}</span>}

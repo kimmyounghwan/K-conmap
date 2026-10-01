@@ -162,7 +162,7 @@ export default function Admin() {
         <h1 style={{ margin: 0, fontSize: 20 }}>🛠 관리자</h1>
         <div className="muted" style={{ marginTop: 6, fontSize: 13.5, lineHeight: 1.75 }}>
           답 안 단 글부터 올려 둡니다. 여기서 단 답글에는{' '}
-          <b style={{ color: 'var(--accent, #1a56db)' }}>「K-건설맵 답변」</b> 표가 붙습니다.
+          <b style={{ color: 'var(--accent, #1a56db)' }}>「K-건설맵」</b> 표가 붙습니다.
         </div>
         {/* 📊 2026-09-18 — 성적표를 «여기서» 만듭니다. 소장님: 「난 할 수 있게 해달라고 했잖아」 */}
         <div className="btn-row" style={{ marginTop: 10 }}>
@@ -272,7 +272,7 @@ function 글({ r, ans, onDone, 급함 }) {
         }}>
           <div style={{ fontSize: 12, marginBottom: 4 }}>
             {a.op
-              ? <b style={{ color: 'var(--accent, #1a56db)' }}>K-건설맵 답변</b>
+              ? <b style={{ color: 'var(--accent, #1a56db)' }}>K-건설맵</b>
               : <b>{a.nick || '익명'}</b>}
             <span className="muted"> · {when(a.at)}</span>
           </div>
@@ -281,7 +281,7 @@ function 글({ r, ans, onDone, 급함 }) {
       ))}
 
       <textarea className="inp" value={b} onChange={(e) => setB(e.target.value)}
-        placeholder="답글 — 「K-건설맵 답변」 으로 올라갑니다"
+        placeholder="답글 — 「K-건설맵」 으로 올라갑니다"
         style={{ width: '100%', boxSizing: 'border-box', minHeight: 80, marginTop: 10 }} maxLength={2000} />
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
         <button className="btn primary sm" onClick={올리기} disabled={busy || !b.trim()}>

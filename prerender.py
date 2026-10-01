@@ -2147,9 +2147,10 @@ def qna_page(shell, p, ps):
     if n:
         body.append(f'<div class="card"><div class="sec-title">답글 {n}</div>')
         for a in p["ans"]:
-            ok = ' · <b style="color:var(--accent)">✅ K-건설맵 답변</b>' if a["op"] else ""
+            # 🏷 G95 — 운영자 답글은 «✅ K-건설맵» 한 번만(«답변» 글자 뺌 · 별명과 겹쳐 두 번 적히던 것도 뺌)
+            who = ('<b style="color:var(--accent)">✅ K-건설맵</b>' if a["op"] else esc(a["nick"]))
             body.append('<div style="border-top:1px solid var(--line);padding:10px 0">'
-                        f'<div style="font-size:12.5px;color:var(--muted)">{esc(a["nick"])}{ok} · {esc(qnapages.ymd(a["at"], "."))}</div>'
+                        f'<div style="font-size:12.5px;color:var(--muted)">{who} · {esc(qnapages.ymd(a["at"], "."))}</div>'
                         '<div style="font-size:13.5px;line-height:1.75;margin-top:4px;white-space:pre-wrap">'
                         + _qna_text(a["b"]) + "</div></div>")
         body.append("</div>")
@@ -3493,7 +3494,7 @@ def main():
             "가입도 이름도 없습니다. 글 쓸 때 정한 4자리 숫자로 내 글만 지울 수 있습니다.",
             "물어보시는 글이라면 공사 규모·발주처·지금 어디까지를 같이 적어 주십시오 — 답이 정확해집니다. "
             "공개 게시판이니 전화번호·이메일은 적지 마십시오.",
-            "답글은 누구나 달 수 있고, K-건설맵이 단 답에는 「K-건설맵 답변」 표가 붙습니다. "
+            "답글은 누구나 달 수 있고, K-건설맵이 단 답에는 「K-건설맵」 표가 붙습니다. "
             "표가 없는 답글은 이용자 의견이니 중요한 건은 발주처에 확인하십시오.",
         ]),
         "/jobs": (lead_card("건설 구인구직 — 곧 착공하는 현장",
