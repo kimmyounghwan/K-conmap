@@ -5423,6 +5423,30 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 .nm-age.on { color: #b45309; font-weight: 600; }
 .nm-age.bad { color: #b91c1c; }
 @media (prefers-color-scheme: dark) { .nm-age.on { color: #f59e0b; } .nm-age.bad { color: #f87171; } }
+/* 📂 G111 판단기 간편하게 — 결론 세 줄 · 달마다 한 줄 · 나머지는 접기 */
+.iy-small { font-size: 12px; color: var(--text-2); margin-top: 6px; }
+.iy-exd { margin-top: 8px; } .iy-exd > summary { cursor: pointer; font-weight: 700; font-size: 13.5px; color: var(--accent); }
+.iy-exd .iy-ex { margin-top: 8px; }
+.iy-links { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin-top: 8px; font-size: 13px; }
+.iy-links a { color: var(--accent); font-weight: 700; text-decoration: none; }
+.iy-sum { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.iy-sumr { display: grid; grid-template-columns: 78px auto 1fr; gap: 8px; align-items: center; padding: 10px 12px; border-top: 1px solid var(--line); }
+.iy-sumr:first-child { border-top: 0; }
+.iy-sumk { font-weight: 800; font-size: 14px; } .iy-sumr .iy-chip { justify-self: start; }
+.iy-sumv { font-size: 13px; line-height: 1.5; min-width: 0; }
+@media (max-width: 520px) { .iy-sumr { grid-template-columns: auto 1fr; } .iy-sumv { grid-column: 1 / -1; } }
+.iy-h2 { font-weight: 800; font-size: 14.5px; margin: 14px 0 6px; } .iy-h2 .muted { font-weight: 400; font-size: 12px; }
+.iy-pays { display: flex; flex-direction: column; gap: 6px; }
+.iy-payr { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+.iy-pay1 { font-size: 13.5px; line-height: 1.55; } .iy-pay1 .iy-net { color: var(--accent); }
+.iy-pay2 { font-size: 11.5px; color: var(--text-2); margin-top: 2px; line-height: 1.5; }
+.iy-todo2 { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.7; }
+.iy-folds { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.iy-fold { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+.iy-fold > summary { cursor: pointer; font-weight: 700; font-size: 13.5px; }
+.iy-fold[open] > summary { margin-bottom: 8px; }
+.iy-know > summary { cursor: pointer; }
+@media print { body.iy-print .iy-fold { border: 0; padding: 0; } body.iy-print .iy-fold > summary { list-style: none; font-size: 12px; margin: 8px 0 4px; } body.iy-print .iy-sumr { padding: 5px 8px; } }
 .iy-act { display: inline-flex; gap: 6px; flex-wrap: wrap; }
 .iy-emp { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px; }
 .iy-emp-t { font-size: 13.5px; }

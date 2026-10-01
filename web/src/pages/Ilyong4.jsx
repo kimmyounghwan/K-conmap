@@ -95,6 +95,8 @@ export default function Ilyong4() {
   }, [])
   const 바꿈 = (f) => setSt((s) => f(s))
   const 옵션 = st.옵션 || {}
+  const 켜진특별 = ['계약', '연금취득달', '연금제외', '고용65', '계속65'].filter((k) => 옵션[k]).length
+  const [특별열림] = useState(() => { try { const o = (JSON.parse(localStorage.getItem(열쇠) || 'null') || {}).옵션 || {}; return ['계약', '연금취득달', '연금제외', '고용65', '계속65'].some((k) => o[k]) } catch (e) { return false } })
   const 입력 = useMemo(() => 입력만들기(st), [st])
   const R = useMemo(() => 판단({ 날: 입력.날, 달돈: 입력.달돈, 다른: 입력.다른 }, 옵션), [입력, 옵션])
   const 신고 = useMemo(() => 신고할일(R, 옵션), [R, 옵션])
@@ -120,7 +122,15 @@ export default function Ilyong4() {
     return { ...s, 날: [...남, ...더].sort() }
   })
   const 사례 = (c) => { setSt(상태로({ ...c.in, 일당: c.in.일당 })); set알림(`예시 «${c.t}» 를 채웠습니다 — ${c.q}`); window.scrollTo({ top: 0, behavior: 'smooth' }) }
-  const 인쇄 = () => { document.body.classList.add('iy-print'); setTimeout(() => window.print(), 80) }
+  /* 🖨 인쇄 — 접어 둔 것을 모두 펴서 찍고(사업주 몫은 연 때만 · data-print="as-is") 끝나면 되돌림 */
+  const 인쇄 = () => {
+    const ds = [...document.querySelectorAll('.iy-out details')].filter((d) => d.dataset.print !== 'as-is')
+    const 전 = ds.map((d) => d.open)
+    ds.forEach((d) => { d.open = true })
+    const 되돌림 = () => { ds.forEach((d, i) => { d.open = 전[i] }); window.removeEventListener('afterprint', 되돌림) }
+    window.addEventListener('afterprint', 되돌림)
+    document.body.classList.add('iy-print'); setTimeout(() => window.print(), 80)
+  }
   /* 📗 G109 값만 엑셀 — 소장님 「엑셀로 값만 주는 걸로 하자. 프로그램 원칙으로 하고」(판단 · 셈은 이 화면, 엑셀은 보관용 값) */
   const 엑셀받기 = async () => {
     const { 값엑셀받기, 수칸, 굵은칸 } = await import('../lib/값엑셀.js')
@@ -149,18 +159,6 @@ export default function Ilyong4() {
 
   const H = R.건강, P = R.연금
   const 부과달 = (o) => Object.keys(o).sort()
-  const 상태칸 = (이름, 구간, 부과, 아님글, 추가) => (
-    <div className={'iy-box ' + (구간.length ? 'on' : 'off')}>
-      <div className="iy-box-h">{이름} <span className={'iy-chip ' + (구간.length ? 'y' : 'n')}>{구간.length ? '가입 대상' : '대상 아님'}</span></div>
-      {구간.length ? (
-        <>
-          {구간.map((g, i) => <div key={i} className="iy-line"><b>{짧은날(g.취득)} 취득</b> → <b>{짧은날(g.상실)} 상실</b>{g.근거 === '회사 합산' ? <span className="iy-tag">회사 합산</span> : null}</div>)}
-          <div className="iy-line">보험료 나오는 달: <b>{부과달(부과).length ? 부과달(부과).map(달글).join(' · ') : '없음'}</b></div>
-          {추가}
-        </>
-      ) : <div className="iy-line muted">{아님글}</div>}
-    </div>
-  )
   const 첫 = R.묶음[0]
   const 아님H = !R.날들.length ? '일한 날을 누르면 나옵니다.' : 첫 && !첫.한달이상 ? `1개월 미만 — 첫 근로일 ${짧은날(첫.시작)} 부터 1개월 되는 날 ${짧은날(첫.E)} 까지 일하지 않았습니다.` : `첫 근로일부터 1개월(Ⓐ) ${첫 ? 첫.A일 : 0}일 · 그 뒤 달마다 8일 미만입니다.`
   const 나 = R.나이
@@ -176,27 +174,38 @@ export default function Ilyong4() {
   const 옵션바꿈 = (k, v) => 바꿈((s) => ({ ...s, 옵션: { ...(s.옵션 || {}), [k]: v } }))
   const 합계 = 공제.reduce((s, r) => ({ 돈: s.돈 + r.돈, 합: s.합 + r.합, it: s.it + r.it, lt: s.lt + r.lt, ei: s.ei + r.ei, np: s.np + r.np, hi: s.hi + r.hi, lc: s.lc + r.lc }), { 돈: 0, 합: 0, it: 0, lt: 0, ei: 0, np: 0, hi: 0, lc: 0 })
 
+  /* 📂 G111 간편하게 — 소장님(폰 화면) 「너무 어렵게 된거 아닌가? 그리고 너무 산만해」 · 「간편하게 해주고 설명은 접기로」
+   *   위: 제목 + 한 줄 · 예시는 접기 / 입력: 일당 · 생년월일 · 달력만(드문 체크는 «특별한 경우» 접기)
+   *   결과: 결론 세 줄 · 이번에 떼는 돈(달마다 한 줄) · 할 일 몇 줄 → 표 · 판단 과정 · 신고 전부 · 사업주 몫 · 알아 둘 것은 접기
+   *   셈은 그대로(lib/ilyong4.js) — 보이는 차례만 바꿈. 인쇄할 때는 접은 것을 모두 펴서 찍고(사업주 몫은 연 때만) 끝나면 되돌림. */
+  const 결론 = (X, 아님글) => {
+    if (!X.구간.length) return { 됨: false, 글: 아님글 }
+    const 구 = X.구간.map((g) => `${짧은날(g.취득)} 취득 → ${짧은날(g.상실)} 상실${g.근거 === '회사 합산' ? '(회사 합산)' : ''}`).join(' · ')
+    const 낼달 = 부과달(X.부과)
+    return { 됨: true, 글: `${구} · 보험료 ${낼달.length ? 낼달.map(달글).join(' · ') + '분' : '없음'}` }
+  }
+  const 고용글 = 옵션.고용65 || 실업없음 ? '65세 이후 새로 고용 — 신고만(근로자 몫 없음)'
+    : 실업일부 && 나 ? `${긴날(나.L65)}부터 만 65세 — 그 뒤 일한 날은 근로자 몫 없음` : '근로내용 확인신고 · 근로자 0.9%'
+  const 할일 = 신고.filter((x) => x.날 !== '9999')
+
   return (
     <div className="wrap iy">
       <div className="card iy-in">
         <h1 className="tl-h1" style={{ marginTop: 0 }}>🛡 일용직 4대보험 가입 판단기</h1>
         <p className="cp" style={{ margin: '6px 0 0' }}>
-          일한 날만 누르면 <b>국민연금 · 건강보험 가입 대상인지</b>, <b>취득일 · 상실일</b>, <b>보험료가 나오는 달</b>, 달마다 떼는 공제와
-          <b> 신고 기한</b>까지 나옵니다. 건설 일용근로자 기준이고, 공단 실무안내의 규칙과 사례를 그대로 옮겼습니다 — <b>왜 그렇게 나왔는지 한 줄씩</b> 보여 드립니다.
+          일한 날만 누르면 <b>국민연금 · 건강보험 · 고용보험을 떼는지, 얼마 떼는지</b> 바로 나옵니다.
         </p>
-        <div className="nm-badges">
-          <span>회원가입 없음 · 무료</span>
-          <span>💾 이 브라우저에만 저장 {저장됨 ? '' : <b className="nm-warn">— 지금 저장이 막혀 있습니다</b>}</span>
-          <span>✅ 공단 실무안내 사례 28가지와 같게 나옴</span>
-        </div>
-        <div className="iy-ex">
-          <span className="muted">예시</span>
-          {G.cases.map((c) => <button key={c.id} type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 사례(c)}>{c.t}</button>)}
-        </div>
-        <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-          <Link className="btn ghost sm" style={{ width: 'auto' }} to="/tools/ilyong-guide">📘 가입 기준 자세히 (설명)</Link>
-          <Link className="btn ghost sm" style={{ width: 'auto' }} to="/tools/nomubi">👷 여러 명 · 지급명세서는 노무비 계산기</Link>
-          {!지움물음 && st.날.length > 0 && <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set지움물음(true)}>처음부터</button>}
+        <div className="iy-small">회원가입 없음 · 무료 · 💾 이 브라우저에만 저장{저장됨 ? '' : <b className="nm-warn"> — 지금 저장이 막혀 있습니다</b>} · 공단 실무안내 사례와 같게 나옴</div>
+        <details className="iy-exd">
+          <summary>👀 예시로 해 보기 ({G.cases.length}가지)</summary>
+          <div className="iy-ex">
+            {G.cases.map((c) => <button key={c.id} type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 사례(c)}>{c.t}</button>)}
+          </div>
+        </details>
+        <div className="iy-links">
+          <Link to="/tools/ilyong-guide">📘 가입 기준 설명</Link>
+          <Link to="/tools/nomubi">👷 여러 명은 노무비 계산기</Link>
+          {!지움물음 && st.날.length > 0 && <button type="button" className="tp-x" onClick={() => set지움물음(true)}>처음부터</button>}
           {지움물음 && <span className="nm-ask">적은 것을 지웁니다.
             <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => { setSt({ ...빈것(), 시작: st.시작 }); set지움물음(false); set알림('') }}>지우기</button>
             <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set지움물음(false)}>그대로</button></span>}
@@ -205,7 +214,7 @@ export default function Ilyong4() {
       </div>
 
       <div className="card iy-in">
-        <div className="detail-h" style={{ margin: 0 }}>📅 일한 날 <span className="muted" style={{ fontWeight: 400, fontSize: 12.5 }}>— 날짜를 누르면 일한 날(반나절도 하루) · 다시 누르면 지움</span></div>
+        <div className="detail-h" style={{ margin: 0 }}>📅 일한 날 <span className="muted" style={{ fontWeight: 400, fontSize: 12.5 }}>— 날짜를 누르세요 (반나절도 하루)</span></div>
         <div className="iy-top">
           <label>일당(원)<input className="inp" inputMode="numeric" value={st.일당 ? 원(st.일당) : ''} onChange={(e) => 바꿈((s) => ({ ...s, 일당: 숫자만(e.target.value) }))} placeholder="예: 200,000" /></label>
           <label className="iy-birth">생년월일 <small className="muted">(앞 6자리 · 선택)</small>
@@ -216,7 +225,6 @@ export default function Ilyong4() {
             </small>}
           </label>
           <div className="iy-nav">
-            <span className="muted">달</span>
             <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 바꿈((s) => ({ ...s, 시작: 달더하기(s.시작, -1) }))} aria-label="앞 달 보기">◀</button>
             <b>{달글(st.시작)}{st.시작.slice(0, 4) !== String(new Date().getFullYear()) ? ` (${st.시작.slice(0, 4)})` : ''} 부터 {st.달수}달</b>
             <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 바꿈((s) => ({ ...s, 시작: 달더하기(s.시작, 1) }))} aria-label="뒤 달 보기">▶</button>
@@ -256,7 +264,7 @@ export default function Ilyong4() {
             )
           })}
         </div>
-        <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>«받은 돈» 을 비워 두면 일당 × 일한 날로 셉니다. 노란 테두리 날은 첫 근로일부터 «1개월 되는 날» 입니다.</div>
+        <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>받은 돈을 비워 두면 일당 × 일한 날 · 노란 테두리 = 첫 근로일부터 «1개월 되는 날»</div>
         <details className="iy-more">
           <summary>같은 회사 다른 현장에서도 일했으면 (국민연금 합산)</summary>
           <div className="muted" style={{ fontSize: 12.5, margin: '6px 0' }}>2025년 7월부터 국민연금은 이 현장에서 8일이 안 되면 같은 회사(건설사업장) 근로를 합쳐 봅니다. 건강보험은 이 현장만 봅니다.</div>
@@ -273,88 +281,135 @@ export default function Ilyong4() {
             })}
           </div>
         </details>
-        <div className="iy-opts">
-          {[['계약', '근로계약서가 1개월 이상 · 월 8일 이상으로 되어 있음 (건강보험은 실제 일한 날과 관계없이 가입)'],
-            ['연금취득달', '국민연금 — 취득한 달 보험료도 내기 (가입자가 원할 때)'],
-            ['연금제외', 생글 ? '국민연금 대상 아님 — 생년월일과 관계없이 뺄 때(18세 미만 본인이 원하지 않음 · 다른 공적연금 등)' : '국민연금 대상 아님 — 만 60세 이상 · 18세 미만 등 (생년월일을 넣으면 60세는 저절로)'],
-            ['고용65', 생글 ? '65세 이후 새로 고용 — 모든 달 실업급여 몫 없음(생년월일 셈보다 앞섬)' : '65세 이후 새로 고용 — 고용보험 근로자 몫(실업급여) 없음 (생년월일을 넣으면 저절로)'],
-            ...(나 && R.날들.some((d) => d >= 나.L65) ? [['계속65', '65세 전부터 하루도 끊김 없이 계속 고용 — 65세 뒤에도 실업급여 몫을 냄(고용보험법 제10조② 단서)']] : [])].map(([k, 글]) => (
-            <label key={k} className="iy-opt"><input type="checkbox" checked={!!옵션[k]} onChange={(e) => 바꿈((s) => ({ ...s, 옵션: { ...(s.옵션 || {}), [k]: e.target.checked } }))} /> {글}</label>
-          ))}
-        </div>
+        <details className="iy-more" open={특별열림 || undefined}>
+          <summary>특별한 경우 — 근로계약서 · 연금 취득 달 · 나이로 못 가리는 경우{켜진특별 ? ` (${켜진특별}개 켜짐)` : ''}</summary>
+          {생글 && <div className="muted" style={{ fontSize: 12, margin: '6px 0 0' }}>생년월일을 넣었으니 만 60세(국민연금) · 만 65세(고용보험)는 저절로 가려 금액에 넣었습니다. 아래는 나이로는 알 수 없는 경우만입니다.</div>}
+          <div className="iy-opts">
+            {[['계약', '근로계약서가 1개월 이상 · 월 8일 이상으로 되어 있음 (건강보험은 실제 일한 날과 관계없이 가입)'],
+              ['연금취득달', '국민연금 — 취득한 달 보험료도 내기 (가입자가 원할 때)'],
+              ['연금제외', 생글 ? '국민연금 빼기 — 18세 미만 본인이 원하지 않음 · 공무원연금 같은 다른 공적연금' : '국민연금 대상 아님 — 만 60세 이상 · 18세 미만 등 (생년월일을 넣으면 60세는 저절로)'],
+              /* 🎂 생년월일을 넣으면 65세는 저절로 — 이미 켜 둔 사람만 끌 수 있게 남김 */
+              ...(!생글 || 옵션.고용65 ? [['고용65', 생글 ? '65세 이후 새로 고용(손으로 켜 둔 것) — 생년월일로 저절로 가리니 꺼도 됩니다' : '65세 이후 새로 고용 — 고용보험 근로자 몫(실업급여) 없음 (생년월일을 넣으면 저절로)']] : []),
+              ...(나 && R.날들.some((d) => d >= 나.L65) ? [['계속65', '65세 전부터 하루도 끊김 없이 계속 고용 — 65세 뒤에도 실업급여 몫을 냄(고용보험법 제10조② 단서)']] : [])].map(([k, 글]) => (
+              <label key={k} className="iy-opt"><input type="checkbox" checked={!!옵션[k]} onChange={(e) => 바꿈((s) => ({ ...s, 옵션: { ...(s.옵션 || {}), [k]: e.target.checked } }))} /> {글}</label>
+            ))}
+          </div>
+        </details>
       </div>
 
       <div className="card iy-out">
         <div className="btn-row no-print" style={{ justifyContent: 'space-between', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
           <div className="detail-h" style={{ margin: 0 }}>✅ 판단 결과{st.이름 ? ` — ${st.이름}` : ''}</div>
           <span className="iy-act">
-            <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={인쇄} disabled={!R.날들.length}>🖨 결과 인쇄 (A4)</button>
-            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀받기} disabled={!R.날들.length}>📗 값만 엑셀 받기</button>
+            <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={인쇄} disabled={!R.날들.length}>🖨 인쇄</button>
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀받기} disabled={!R.날들.length}>📗 엑셀(값만)</button>
           </span>
         </div>
         <div className="iy-print-h">일용직 4대보험 가입 판단{st.이름 ? ` — ${st.이름}` : ''} · {R.날들.length ? `${짧은날(R.날들[0])} ~ ${짧은날(R.날들[R.날들.length - 1])} · ${R.날들.length}일` : ''}</div>
-        <div className="iy-boxes">
-          {상태칸('국민연금', P.구간, P.부과, 아님P)}
-          {상태칸('건강보험 · 장기요양', H.구간, H.부과, 아님H)}
-          <div className={'iy-box ' + (일한달들.length ? 'on' : 'off')}>
-            <div className="iy-box-h">고용보험 <span className={'iy-chip ' + (일한달들.length ? 'y' : 'n')}>{일한달들.length ? '일한 달마다' : '—'}</span></div>
-            <div className="iy-line">근로내용 확인신고: <b>{일한달들.length ? 일한달들.map(달글).join(' · ') : '없음'}</b></div>
-            <div className="iy-line muted">{옵션.고용65 ? '65세 이후 새로 고용 — 근로자 몫 없음'
-              : 실업없음 ? `만 65세 이후 새로 고용 — 실업급여 몫(근로자 0.9% · 사업주 0.9%) 없음 · 신고는 그대로`
-                : 실업일부 && 나 ? `${긴날(나.L65)}부터 만 65세 — 그날부터 일한 날은 실업급여 몫 없음`
-                  : '근로자 0.9% (2026)'}</div>
-          </div>
-          <div className="iy-box off">
-            <div className="iy-box-h">산재보험 <span className="iy-chip n">사업주 부담</span></div>
-            <div className="iy-line muted">근로자에게서 떼지 않습니다. 근로내용 확인신고를 같이 냅니다.</div>
-          </div>
-        </div>
+        {!R.날들.length && <div className="note sm">위 달력에서 일한 날을 누르거나, «예시로 해 보기» 를 눌러 보십시오.</div>}
+        {R.날들.length > 0 && (() => {
+          const p = 결론(P, 아님P), h = 결론(H, 아님H)
+          return (
+            <>
+              <div className="iy-sum">
+                <div className="iy-sumr"><span className="iy-sumk">국민연금</span><span className={'iy-chip ' + (p.됨 ? 'y' : 'n')}>{p.됨 ? '가입 대상' : '대상 아님'}</span><span className="iy-sumv">{p.글}</span></div>
+                <div className="iy-sumr"><span className="iy-sumk">건강 · 요양</span><span className={'iy-chip ' + (h.됨 ? 'y' : 'n')}>{h.됨 ? '가입 대상' : '대상 아님'}</span><span className="iy-sumv">{h.글}</span></div>
+                <div className="iy-sumr"><span className="iy-sumk">고용보험</span><span className={'iy-chip ' + (실업없음 || 옵션.고용65 ? 'n' : 'y')}>{실업없음 || 옵션.고용65 ? '신고만' : '일한 달마다'}</span><span className="iy-sumv">{고용글}</span></div>
+              </div>
 
-        {R.날들.length > 0 && (
-          <>
-            <div className="tp-bill-sub">달마다 한눈에</div>
-            <div className="tp-scroll">
-              <table className="tbl iy-band">
-                <thead><tr><th>달</th>{R.달들.map((ym) => <th key={ym}>{달글(ym)}</th>)}</tr></thead>
-                <tbody>
-                  <tr><td className="nw">일한 날</td>{R.달들.map((ym) => <td key={ym} className="r">{입력.일[ym] || 0}일</td>)}</tr>
-                  <tr><td className="nw">받은 돈</td>{R.달들.map((ym) => <td key={ym} className="r">{입력.달돈[ym] ? 원(입력.달돈[ym]) : '—'}</td>)}</tr>
-                  {[['국민연금', P], ['건강보험', H]].map(([이름, X]) => (
-                    <tr key={이름}><td className="nw">{이름}</td>{R.달들.map((ym) => {
-                      const 가입 = X.구간.some((g) => 달(g.취득) <= ym && ym <= 달(전날(g.상실)))
-                      return <td key={ym} className={'c ' + (X.부과[ym] ? 'iy-pay' : 가입 ? 'iy-in2' : '')}>{X.부과[ym] ? '보험료' : 가입 ? '가입' : (입력.일[ym] ? '—' : '')}</td>
-                    })}</tr>
-                  ))}
-                  <tr><td className="nw">고용보험</td>{R.달들.map((ym) => <td key={ym} className={'c ' + (입력.일[ym] ? (R.고용.실업[ym] ? 'iy-pay' : 'iy-in2') : '')}>{입력.일[ym] ? (R.고용.실업[ym] ? '신고 · 공제' : '신고만') : ''}</td>)}</tr>
-                </tbody>
-              </table>
-            </div>
-            <div className="muted" style={{ fontSize: 12 }}>«가입» 은 자격은 있지만 그 달 보험료는 없는 달(취득한 달 등), «보험료» 는 노무비에서 떼는 달입니다.{나 ? ' 고용보험 «신고만» 은 만 65세 이후 새로 고용이라 실업급여 몫을 떼지 않는 달입니다.' : ''}</div>
+              <div className="iy-h2">이번에 떼는 돈 <span className="muted">(2026 요율)</span></div>
+              <div className="iy-pays">
+                {공제.map((r) => (
+                  <div key={r.ym} className="iy-payr">
+                    <div className="iy-pay1"><b>{달글(r.ym)}</b> · {r.n}일 · {원(r.돈)}원 → 공제 <b>{원(r.합)}</b> · 실지급 <b className="iy-net">{원(r.돈 - r.합)}</b></div>
+                    <div className="iy-pay2">소득세 {원(r.it)} · 지방 {원(r.lt)} · 고용 {원(r.ei)} · 연금 {원(r.np)} · 건강 {원(r.hi)} · 요양 {원(r.lc)}</div>
+                  </div>
+                ))}
+              </div>
 
-            <div className="tp-bill-sub">달마다 근로자 공제 (2026 요율 · 10원 미만 버림)</div>
-            <div className="tp-scroll">
-              <table className="tbl iy-ded">
-                <thead><tr><th>달</th><th>일한 날</th><th>받은 돈</th><th>소득세</th><th>지방소득세</th><th>고용</th><th>국민연금</th><th>건강</th><th>장기요양</th><th>공제 합</th><th>실지급</th></tr></thead>
-                <tbody>
-                  {공제.map((r) => (
-                    <tr key={r.ym}>
-                      <td className="nw">{달글(r.ym)}</td><td className="r">{r.n}</td><td className="r">{원(r.돈)}</td>
-                      <td className="r">{원(r.it)}</td><td className="r">{원(r.lt)}</td><td className="r">{원(r.ei)}</td>
-                      <td className="r">{원(r.np)}</td><td className="r">{원(r.hi)}</td><td className="r">{원(r.lc)}</td>
-                      <td className="r"><b>{원(r.합)}</b></td><td className="r"><b>{원(r.돈 - r.합)}</b></td>
-                    </tr>
-                  ))}
-                  <tr className="sum"><td>합계</td><td className="r">{R.날들.length}</td><td className="r">{원(합계.돈)}</td><td className="r">{원(합계.it)}</td><td className="r">{원(합계.lt)}</td>
-                    <td className="r">{원(합계.ei)}</td><td className="r">{원(합계.np)}</td><td className="r">{원(합계.hi)}</td><td className="r">{원(합계.lc)}</td><td className="r"><b>{원(합계.합)}</b></td><td className="r"><b>{원(합계.돈 - 합계.합)}</b></td></tr>
-                </tbody>
-              </table>
-            </div>
-            <div className="muted" style={{ fontSize: 12 }}>소득세는 일용근로소득(일급 15만원 넘는 몫 × 2.7%, 한 달 합 1천원 미만은 안 뗌)으로 셉니다. 건설일용 보험료는 그 달 실제 보수로 매기므로 마지막에는 공단 고지액과 맞추십시오.</div>
+              {할일.length > 0 && <>
+                <div className="iy-h2">할 일</div>
+                <ul className="iy-todo2">
+                  {할일.slice(0, 4).map((x, i) => <li key={i}><b>{x.보험.replace(' · 산재', '')}</b> {x.무엇.replace(/\(일한 날 · 보수\)/, '').replace('직장가입자 ', '').replace('사업장가입자 ', '')} <span className="muted">— {x.기한.split(' — ')[0].replace(/\(.*?\)/g, '').trim()}</span></li>)}
+                  {할일.length > 4 && <li className="muted">… 그 밖 {할일.length - 4}가지는 아래 «신고할 일 전부» 에</li>}
+                </ul>
+              </>}
 
-            <div className="iy-emp">
-              <label className={'iy-opt iy-emp-t' + (옵션.사업주 ? '' : ' no-print')}><input type="checkbox" checked={!!옵션.사업주} onChange={(e) => 옵션바꿈('사업주', e.target.checked)} /> 🏢 <b>사업주 몫도 보기</b> — 회사가 내는 보험료와 공단에 내는 총액</label>
-              {옵션.사업주 && (
-                <>
+              <div className="iy-folds">
+                <details className="iy-fold">
+                  <summary>📅 달마다 한눈에</summary>
+                  <div className="tp-scroll">
+                    <table className="tbl iy-band">
+                      <thead><tr><th>달</th>{R.달들.map((ym) => <th key={ym}>{달글(ym)}</th>)}</tr></thead>
+                      <tbody>
+                        <tr><td className="nw">일한 날</td>{R.달들.map((ym) => <td key={ym} className="r">{입력.일[ym] || 0}일</td>)}</tr>
+                        <tr><td className="nw">받은 돈</td>{R.달들.map((ym) => <td key={ym} className="r">{입력.달돈[ym] ? 원(입력.달돈[ym]) : '—'}</td>)}</tr>
+                        {[['국민연금', P], ['건강보험', H]].map(([이름, X]) => (
+                          <tr key={이름}><td className="nw">{이름}</td>{R.달들.map((ym) => {
+                            const 가입 = X.구간.some((g) => 달(g.취득) <= ym && ym <= 달(전날(g.상실)))
+                            return <td key={ym} className={'c ' + (X.부과[ym] ? 'iy-pay' : 가입 ? 'iy-in2' : '')}>{X.부과[ym] ? '보험료' : 가입 ? '가입' : (입력.일[ym] ? '—' : '')}</td>
+                          })}</tr>
+                        ))}
+                        <tr><td className="nw">고용보험</td>{R.달들.map((ym) => <td key={ym} className={'c ' + (입력.일[ym] ? (R.고용.실업[ym] ? 'iy-pay' : 'iy-in2') : '')}>{입력.일[ym] ? (R.고용.실업[ym] ? '신고 · 공제' : '신고만') : ''}</td>)}</tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="muted" style={{ fontSize: 12 }}>«가입» 은 자격은 있지만 그 달 보험료는 없는 달(취득한 달 등), «보험료» 는 노무비에서 떼는 달입니다.{나 ? ' 고용보험 «신고만» 은 만 65세 이후 새로 고용이라 실업급여 몫을 떼지 않는 달입니다.' : ''} 산재보험은 사업주가 내고 근로자에게서 떼지 않습니다.</div>
+                </details>
+
+                <details className="iy-fold">
+                  <summary>🧾 공제 표 (항목별 · 합계)</summary>
+                  <div className="tp-scroll">
+                    <table className="tbl iy-ded">
+                      <thead><tr><th>달</th><th>일한 날</th><th>받은 돈</th><th>소득세</th><th>지방소득세</th><th>고용</th><th>국민연금</th><th>건강</th><th>장기요양</th><th>공제 합</th><th>실지급</th></tr></thead>
+                      <tbody>
+                        {공제.map((r) => (
+                          <tr key={r.ym}>
+                            <td className="nw">{달글(r.ym)}</td><td className="r">{r.n}</td><td className="r">{원(r.돈)}</td>
+                            <td className="r">{원(r.it)}</td><td className="r">{원(r.lt)}</td><td className="r">{원(r.ei)}</td>
+                            <td className="r">{원(r.np)}</td><td className="r">{원(r.hi)}</td><td className="r">{원(r.lc)}</td>
+                            <td className="r"><b>{원(r.합)}</b></td><td className="r"><b>{원(r.돈 - r.합)}</b></td>
+                          </tr>
+                        ))}
+                        <tr className="sum"><td>합계</td><td className="r">{R.날들.length}</td><td className="r">{원(합계.돈)}</td><td className="r">{원(합계.it)}</td><td className="r">{원(합계.lt)}</td>
+                          <td className="r">{원(합계.ei)}</td><td className="r">{원(합계.np)}</td><td className="r">{원(합계.hi)}</td><td className="r">{원(합계.lc)}</td><td className="r"><b>{원(합계.합)}</b></td><td className="r"><b>{원(합계.돈 - 합계.합)}</b></td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="muted" style={{ fontSize: 12 }}>소득세는 일용근로소득(일급 15만원 넘는 몫 × 2.7%, 한 달 합 1천원 미만은 안 뗌)으로 셉니다. 10원 미만 버림. 건설일용 보험료는 그 달 실제 보수로 매기므로 마지막에는 공단 고지액과 맞추십시오.</div>
+                </details>
+
+                <details className="iy-fold">
+                  <summary>🔍 왜 이렇게 나왔나 (판단 과정)</summary>
+                  <div className="iy-why">
+                    <div>
+                      <div className="tp-bill-sub">건강보험은 이렇게 셌습니다</div>
+                      <ol>{H.과정.map((x, i) => <li key={i}>{x}</li>)}</ol>
+                      {첫 && <div className="muted" style={{ fontSize: 12 }}>첫 근로일 {짧은날(첫.시작)} → 1개월 되는 날 {짧은날(한달되는날(첫.시작))} (Ⓐ 기간)</div>}
+                    </div>
+                    <div>
+                      <div className="tp-bill-sub">국민연금은 이렇게 셌습니다</div>
+                      <ol>{P.과정.map((x, i) => <li key={i}>{x}</li>)}</ol>
+                      {R.고용.과정.length > 0 && <>
+                        <div className="tp-bill-sub">고용보험 — 나이</div>
+                        <ol>{R.고용.과정.map((x, i) => <li key={i}>{x}</li>)}</ol>
+                      </>}
+                    </div>
+                  </div>
+                </details>
+
+                <details className="iy-fold">
+                  <summary>📋 신고할 일 전부 · 기한 · 근거</summary>
+                  <div className="tp-scroll">
+                    <table className="tbl iy-todo">
+                      <thead><tr><th>보험</th><th>무엇을</th><th>언제까지</th><th>근거</th></tr></thead>
+                      <tbody>{신고.map((x, i) => <tr key={i}><td className="nw">{x.보험}</td><td>{x.무엇}</td><td>{x.기한}</td><td className="muted">{x.근거}</td></tr>)}</tbody>
+                    </table>
+                  </div>
+                </details>
+
+                <details className={'iy-fold' + (옵션.사업주 ? '' : ' no-print')} data-print="as-is" open={!!옵션.사업주} onToggle={(e) => { if (e.currentTarget.open !== !!옵션.사업주) 옵션바꿈('사업주', e.currentTarget.open) }}>
+                  <summary>🏢 사업주 몫 · 공단에 내는 보험료 총액</summary>
                   <div className="iy-emp-o no-print">
                     <label>회사 규모 (상시근로자 — 국내 모든 사업 합산)
                       <select className="inp" value={옵션.규모 || 's'} onChange={(e) => 옵션바꿈('규모', e.target.value)}>
@@ -363,7 +418,6 @@ export default function Ilyong4() {
                     </label>
                     <label className="iy-opt"><input type="checkbox" checked={옵션.산재 !== false} onChange={(e) => 옵션바꿈('산재', e.target.checked)} /> 산재보험료(참고 — 2026 건설업 3.56%)도 넣기</label>
                   </div>
-                  <div className="tp-bill-sub">달마다 사업주 몫 · 4대보험 총액</div>
                   <div className="tp-scroll">
                     <table className="tbl iy-ded">
                       <thead><tr><th>달</th><th>받은 돈</th><th>국민연금</th><th>건강</th><th>장기요양</th><th>고용</th>{옵션.산재 !== false && <th>산재(참고)</th>}<th>사업주 합</th><th>근로자 몫(보험)</th><th>보험료 총액</th></tr></thead>
@@ -383,40 +437,15 @@ export default function Ilyong4() {
                     국민연금 · 건강 · 장기요양은 근로자와 같은 금액입니다. 고용은 실업급여 0.9%{옵션.고용65 || 실업없음 ? '(65세 이후 새로 고용 — 없음)' : 실업일부 ? '(만 65세 뒤 일한 날 몫은 없음)' : ''} + 고용안정 · 직업능력개발 {((회사규모.find((x) => x.k === 옵션.규모) || 회사규모[0]).율 * 100).toFixed(2)}%(고용보험료징수법 시행령 제12조 · 하수급인은 원수급인 요율).
                     {옵션.산재 !== false ? ' 산재는 2026 건설업 3.56%(출퇴근 0.6‰ 포함)로 보수에 곱한 참고 금액입니다 — 건설현장은 원수급인이 공사 금액(노무비율)으로 내는 경우가 많습니다.' : ''}
                   </div>
-                </>
-              )}
-            </div>
-
-            <div className="iy-why">
-              <div>
-                <div className="tp-bill-sub">건강보험은 이렇게 셌습니다</div>
-                <ol>{H.과정.map((x, i) => <li key={i}>{x}</li>)}</ol>
-                {첫 && <div className="muted" style={{ fontSize: 12 }}>첫 근로일 {짧은날(첫.시작)} → 1개월 되는 날 {짧은날(한달되는날(첫.시작))} (Ⓐ 기간)</div>}
+                </details>
               </div>
-              <div>
-                <div className="tp-bill-sub">국민연금은 이렇게 셌습니다</div>
-                <ol>{P.과정.map((x, i) => <li key={i}>{x}</li>)}</ol>
-                {R.고용.과정.length > 0 && <>
-                  <div className="tp-bill-sub">고용보험 — 나이</div>
-                  <ol>{R.고용.과정.map((x, i) => <li key={i}>{x}</li>)}</ol>
-                </>}
-              </div>
-            </div>
-
-            <div className="tp-bill-sub">신고할 일</div>
-            <div className="tp-scroll">
-              <table className="tbl iy-todo">
-                <thead><tr><th>보험</th><th>무엇을</th><th>언제까지</th><th>근거</th></tr></thead>
-                <tbody>{신고.map((x, i) => <tr key={i}><td className="nw">{x.보험}</td><td>{x.무엇}</td><td>{x.기한}</td><td className="muted">{x.근거}</td></tr>)}</tbody>
-              </table>
-            </div>
-          </>
-        )}
-        {!R.날들.length && <div className="note sm" style={{ marginTop: 8 }}>위 달력에서 일한 날을 누르거나, 예시 단추를 눌러 보십시오.</div>}
+            </>
+          )
+        })()}
       </div>
 
-      <div className="card iy-in">
-        <div className="detail-h" style={{ margin: 0 }}>📌 알아 두실 것</div>
+      <details className="card iy-in iy-know">
+        <summary className="detail-h" style={{ margin: 0 }}>📌 알아 두실 것</summary>
         <ul className="flist" style={{ marginTop: 6 }}>
           <li><b>국민연금</b>은 달력 달(일 시작한 달은 시작일~말일)로, <b>건강보험</b>은 첫 근로일부터 1개월 되는 날까지로 셉니다. 그래서 같은 출역이라도 하나만 가입되는 일이 흔합니다.</li>
           <li><b>보험료는 취득한 달의 다음 달부터</b> 나옵니다(1일 취득이면 그 달부터). 국민건강보험법 제69조② · 국민연금법 제17조①.</li>
@@ -425,7 +454,7 @@ export default function Ilyong4() {
           <li>여러 사람의 한 달 지급명세서는 <Link to="/tools/nomubi">일용 노무비 계산기</Link>가 같은 판단으로 공제합니다. 서식은 <Link to="/forms/gy-ilyong">일용근로계약서</Link> · <Link to="/forms/nomubi">노무비 지급확인서</Link>.</li>
           <li>판단은 공단이 최종으로 합니다. 기준과 사례는 <Link to="/tools/ilyong-guide">가입 기준 설명</Link>에 원문 그대로 정리했습니다.</li>
         </ul>
-      </div>
+      </details>
     </div>
   )
 }
