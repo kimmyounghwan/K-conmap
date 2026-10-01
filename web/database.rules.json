@@ -218,6 +218,26 @@
         ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
       }
     },
+    // ⬇ 2026-10-01 (G96) 받은 횟수 — 소장님 「사이트 전체 … 다운받은 것은 다운로드 몇 번까지」
+    //    dl/f/{파일} · dl/p/{화면} = 숫자 하나. **1씩만** 올릴 수 있습니다(지우기 · 낮추기 · 아무 숫자 막힘).
+    //    파일을 받는 사람은 로그인을 안 하므로(익명 로그인도 안 부름 — 비용 원칙) auth 를 묻지 않습니다.
+    //    대신 열쇠 꼴을 묶습니다: f 는 «|…,확장자» · p 는 «|한 마디» 또는 «|두|마디» (lib/받은수.jsx 열쇠꼴과 짝).
+    //    ⚠️ 지우기는 .validate 를 안 거치므로 .write 에 newData.exists() 를 꼭 둡니다.
+    "dl": {
+      ".read": true,
+      "f": {
+        "$k": {
+          ".write": "newData.exists() && $k.length <= 150 && $k.matches(/^[|].+,(xlsx|xlsm|xls|pdf|hwp|hwpx|docx|doc|zip|dwg|dxf|lsp|csv|pptx)$/i)",
+          ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
+        }
+      },
+      "p": {
+        "$k": {
+          ".write": "newData.exists() && $k.length <= 80 && $k.matches(/^[|][^|]*([|][^|]+)?$/)",
+          ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
+        }
+      }
+    },
     "qna_alike": {
       ".read": true,
       "$qid": {

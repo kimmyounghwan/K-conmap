@@ -3674,6 +3674,13 @@ ul.plainlist li { margin-bottom: 5px; }
 .tlx-w.site { background: rgba(5, 150, 105, .12); color: #047857; }
 .tlx-w.down { background: rgba(37, 99, 235, .10); color: var(--accent); }
 .tlx-w.lock { background: rgba(107, 114, 128, .14); color: var(--muted); }
+/* ⬇ 2026-10-01 (G96) 받은 횟수 — lib/받은수.jsx */
+.dlcount { font-size: 11.5px; color: var(--muted); white-space: nowrap; font-weight: 600; }
+.dlcount.big { align-self: center; font-size: 12.5px; }
+.tlx-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.tlx-row .tlx-w { margin-top: 0; }
+.tlx-dl { display: inline-block; margin-top: 3px; }
+.tlx-row .tlx-dl { margin-top: 0; }
 @media (prefers-color-scheme: dark) { .tlx-w.site { color: #34d399; } }
 @media (max-width: 560px) { .tlx-grid { grid-template-columns: 1fr; } }
 

@@ -3,6 +3,8 @@ import { lazy, Suspense, useMemo, useState } from 'react'
 import { askAfter } from '../AskComment'
 import { useParams, Link } from 'react-router-dom'
 import DATA from '../data/forms.json'
+/* ⬇ 2026-10-01 (G96) 서식마다 «받은 횟수» — 애널리틱스 시작값(9/15~) + 사이트가 센 것 (lib/받은수.jsx) */
+import { 받은수 } from '../lib/받은수.jsx'
 import ORIG_DATA from '../data/forms_orig.json'
 import TAB from '../data/forms_tab.json'
 import { ShareBtn } from './CorpPage.jsx'
@@ -158,7 +160,7 @@ function OrigRow({ f }) {
       <span className="fic">{f.icon}</span>
       <div className="grow">
         <div className="t">{f.title} <em className="obadge">원본 틀</em></div>
-        <div className="d">{f.short}</div>
+        <div className="d">{f.short} <받은수 파일={[f.file]} /></div>
       </div>
       <span className="go">→</span>
     </Link>
@@ -181,6 +183,8 @@ const STAGES = 남은.length
   ? [...STAGES0, { k: 'etc', n: '', ic: '📁', h: '그 밖의 서식', 짧게: '', 언제: '', progs: [], slugs: 남은.map((f) => f.slug) }]
   : STAGES0
 const PACKS = TAB.packs || []
+/** 이 서식의 파일들 — 원본 틀은 /forms/orig/…xlsx 하나, 일반 양식은 엑셀 + 인쇄용 PDF */
+const 서식파일 = (f) => (ORIGSET.has(f.slug) ? [f.file] : [`/forms/${f.slug}.xlsx`, f.pdf])
 const 새로 = [...FORMS, ...ORIG].filter((f) => f.gen === 'forms2' || f.re).length
 
 function 서식칸({ f }) {
@@ -194,6 +198,7 @@ function 서식칸({ f }) {
           {예시 ? <em className="tlx-new fm-ex">✍ 작성 예시</em> : ORIGSET.has(f.slug) ? <em className="tlx-new fm-orig">원본 틀</em> : null}
         </span>
         <span className="tlx-d">{f.short}</span>
+        <받은수 파일={서식파일(f)} className="dlcount tlx-dl" />
       </span>
     </Link>
   )
@@ -460,6 +465,7 @@ function OrigFormPage({ f }) {
         <div className="btn-row" style={{ marginTop: 12 }}>
           <a className="btn primary" href={f.file} download={`${f.title}.xlsx`}
             onClick={() => askAfter('forms')}>⬇ 엑셀 내려받기</a>
+          <받은수 파일={[f.file]} 앞="지금까지 " 글="번 받았습니다" className="dlcount big" />
         </div>
       </div>
 
@@ -600,6 +606,7 @@ export function FormPage() {
           {f.gen !== 'wihgen' && (f.pdf
             ? <a className="btn ghost" href={f.pdf} target="_blank" rel="noopener">🖨 인쇄용 PDF</a>
             : <button className="btn ghost" onClick={() => window.print()}>🖨 인쇄 · PDF</button>)}
+          <받은수 파일={[xlsx, f.pdf]} 앞="지금까지 " 글="번 받았습니다" className="dlcount big" />
         </div>
       </div>
 

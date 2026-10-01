@@ -20,6 +20,8 @@ import { 미불CALCS, 미불EXAMPLES } from '../tools/미불칸.jsx'
 import { 공정CALCS, 공정EXAMPLES } from '../tools/공정칸.jsx'
 import NotFound from './NotFound.jsx'
 import { use남김 } from '../lib/길기록.js'
+/* ⬇ 2026-10-01 (G96) 도구마다 «받은 횟수» — 그 화면에서 받은 파일(만든 PDF · 엑셀 포함). 아래 화면이 따로 카드면 빼고 셉니다 */
+import { 받은수, 화면열쇠 } from '../lib/받은수.jsx'
 
 const TOOLS = DATA.tools || []
 /* 📑 2026-09-28 — 계약·공사 관리 도구 4가지(tools/계약칸.jsx)를 같은 판에 얹습니다. slug 는 tools.json 과 짝 */
@@ -72,6 +74,8 @@ const 묶음들 = (() => {
   return out
 })()
 const 모두 = 묶음들.reduce((n, g) => n + g.items.length, 0)
+/* ⬇ 카드가 있는 화면 열쇠들 — «/change» 카드가 «/change/excel» 카드의 숫자까지 먹지 않게 */
+const 카드열쇠 = new Set(묶음들.flatMap((g) => g.items.map((x) => 화면열쇠(x.to))))
 const 사이트몫 = 묶음들.reduce((n, g) => n + g.items.filter((x) => x.w === 'site').length, 0)
 const 내림 = { scrollMarginTop: 76 }
 
@@ -131,7 +135,10 @@ export default function ToolsIndex() {
                   <span className="tlx-body">
                     <span className="tlx-t">{x.t}{x.new && <em className="tlx-new">새로</em>}</span>
                     <span className="tlx-d">{x.d}</span>
-                    <span className={'tlx-w ' + 곳[1]}>{곳[0]}</span>
+                    <span className="tlx-row">
+                      <span className={'tlx-w ' + 곳[1]}>{곳[0]}</span>
+                      <받은수 쪽={x.to} 빼기={카드열쇠} className="dlcount tlx-dl" />
+                    </span>
                   </span>
                 </Link>
               )

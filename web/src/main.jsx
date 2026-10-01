@@ -13,6 +13,8 @@ import AgencyPage from './pages/AgencyPage.jsx'
 import NotFound from './pages/NotFound.jsx'
 import './styles.css'
 import { 열쇠왔나, 열쇠받기 } from './lib/열쇠.js'
+/* ⬇ 2026-10-01 (G96) 받은 횟수 — 파일을 받는 «누름» 을 사이트 전체에서 한 곳에서 셉니다(lib/받은수.jsx) */
+import { 켜기 as 받은수켜기 } from './lib/받은수.jsx'
 
 /* ══════════════════════════════════════════════════════════════
    ⚠️ 2026-09-08 — 「착공현장 탭을 누르면 사이트가 멈춰. 됐다가 안됐다가 그래」
@@ -236,6 +238,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
    주소에 ?op=<비밀말> 이 붙어 오면 «그리기 전에» 표를 남깁니다 — 그리고 나서 그립니다.
    ⚠️ 그린 뒤에 표를 남기면 이미 「운영자 아님」으로 한 번 그려진 뒤라 안 보입니다.
    ⚠️ 보통 손님은 이 길로 오지 않습니다 — op= 가 없으면 곧장 그립니다(느려지지 않습니다). */
+try { 받은수켜기() } catch (e) { /* 세는 것 때문에 사이트가 멈추면 안 됩니다 */ }
 if (열쇠왔나()) 열쇠받기().then(그리기).catch(그리기)
 else 그리기()
 
