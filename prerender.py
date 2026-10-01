@@ -1159,6 +1159,46 @@ NEW_FRAME = [
 FIRST_ROW = "맨 윗줄의 K-건설맵 표시는 1행을 지우면 없어집니다 (마우스 오른쪽 → 행 삭제). 그림이 아니라 글자라서 흔적이 남지 않습니다."
 
 
+# 🔗 2026-10-01 (G98) 비슷한 서식 — 화면 Forms.jsx «비슷한서식» 과 «같은 글» (묶음은 web/src/data/forms_same.json 한 곳)
+#    소장님 고르심 «④ 겹치는 서식 이름 가르고 서로 잇기» — 사진대지 · 착공 · 공정표 · 검측이 두세 쪽으로 갈려 있어 서로 잇습니다.
+FORMS_SAME_JSON = os.path.join(ROOT, "web", "src", "data", "forms_same.json")
+_SAME = None
+
+
+def _same_html(slug):
+    global _SAME
+    if _SAME is None:
+        try:
+            with open(FORMS_SAME_JSON, encoding="utf-8") as fh:
+                sets = (json.load(fh) or {}).get("sets") or []
+        except Exception as e:
+            print(f"  · 비슷한 서식 묶음을 못 읽었습니다 ({type(e).__name__}) — 건너뜁니다")
+            sets = []
+        by = {x["slug"]: (x, False) for x in load_forms()}
+        by.update({x["slug"]: (x, True) for x in load_orig()[1]})
+        _SAME = (sets, by)
+    sets, by = _SAME
+    seen, rows = {slug}, []
+    for st in sets:
+        if slug not in (st.get("s") or []):
+            continue
+        for s in st["s"]:
+            if s not in seen and s in by:
+                seen.add(s)
+                rows.append(by[s])
+    if not rows:
+        return ""
+    out = ['<div class="card"><div class="sec-title" style="margin:0 0 4px">비슷한 서식 — 같은 일, 다른 모양</div>'
+           '<div class="note sm" style="margin:0 0 6px">쓰임과 장수가 조금씩 다릅니다. 내는 곳이 원하는 범위에 맞는 것을 고르세요.</div>']
+    for x, is_orig in rows:
+        out.append(f'<a class="row rowlink" href="/forms/{esc(x["slug"])}"><span class="fic">{esc(x.get("icon") or "")}</span>'
+                   f'<div class="grow"><div class="t">{esc(x["title"])}'
+                   + (' <span class="obadge">원본 틀</span>' if is_orig else '')
+                   + f'</div><div class="d">{esc(x.get("short") or "")}</div></div><span class="go">→</span></a>')
+    out.append('</div>')
+    return "".join(out)
+
+
 def _prev_html(f):
     """미리보기 그림 + 그림 설명(prevcap) — 화면 Forms.jsx 그림들() 과 같은 모양"""
     caps = f.get("prevcap") or []
@@ -1215,6 +1255,7 @@ def orig_form_page(shell, f, orig, image=None):
                      "지우려면 엑셀에서 <b>페이지 레이아웃 → 페이지 설정 → 머리글/바닥글</b> 에서 머리글을 «(없음)» 으로 고르세요.")
     out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">알아 두실 것</div><ul class="flist">'
                + "".join(f"<li>{n}</li>" for n in notes) + "</ul></div>")
+    out.append(_same_html(f["slug"]))
     same = [o for o in orig if o.get("group") == f.get("group") and o["slug"] != f["slug"]]
     if same:
         out.append(f'<div class="card"><div class="sec-title" style="margin:0 0 6px">{esc(f.get("group") or "")} — 다른 서식</div>'
@@ -1578,6 +1619,7 @@ def form_page(shell, f, others, image=None):
         out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">함께 내는 서류</div><ul class="flist tight">')
         out.extend(f"<li>{esc(a)}</li>" for a in f["attach"])
         out.append("</ul></div>")
+    out.append(_same_html(f["slug"]))
     if f.get("prev"):     # ✍️ 2026-09-29 다시 만든 서식 — 엑셀을 그린 그림(빈 서식 · 작성 예시)
         out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">미리보기</div>' + _prev_html(f)
                    + f'<ul class="flist" style="margin-top:8px"><li>{esc(NEW_FRAME[1])}</li><li>{esc(FIRST_ROW)}</li></ul></div>')

@@ -1,0 +1,165 @@
+{
+ "_": "같은 일에 쓰는 비슷한 서식 묶음 (2026-10-01, G98) — 서식 화면(Forms.jsx 비슷한서식)과 미리굽기(prerender.py _same_html)가 같이 읽습니다. 한 서식이 여러 묶음에 들면 합쳐서 보여 줍니다.",
+ "sets": [
+  {
+   "k": "사진대지",
+   "s": [
+    "sajin-daeji",
+    "o-sajindaeji"
+   ]
+  },
+  {
+   "k": "착공 서류",
+   "s": [
+    "chakgong",
+    "o-chakgong-moeum",
+    "o-chakgong-seoryu"
+   ]
+  },
+  {
+   "k": "선금",
+   "s": [
+    "seongeum",
+    "seongeum-gyehoek",
+    "o-seongeum"
+   ]
+  },
+  {
+   "k": "품질관리 · 품질시험계획",
+   "s": [
+    "pumjil-gyehoek",
+    "pumjil-gwanri-gyehoek",
+    "o-pumjil-siheom"
+   ]
+  },
+  {
+   "k": "흙막이 가시설 시공계획",
+   "s": [
+    "heulmagi-sigong",
+    "o-gaseol-gyehoekseo"
+   ]
+  },
+  {
+   "k": "공정표",
+   "s": [
+    "gongjeongpyo",
+    "gongjeong-inryeok",
+    "o-yejeong-gongjeongpyo",
+    "gongjeong-jugan-wolgan",
+    "o-hoeui-gongjeongpyo"
+   ]
+  },
+  {
+   "k": "자재 승인",
+   "s": [
+    "jajae-seungin",
+    "jajae-gonggeupwon",
+    "o-jajae-seungin",
+    "o-jajae-hyeonhwang"
+   ]
+  },
+  {
+   "k": "검측",
+   "s": [
+    "geomcheuk",
+    "geomcheuk-yocheong",
+    "o-geomcheuk-300"
+   ]
+  },
+  {
+   "k": "회의록",
+   "s": [
+    "jugan-hoeuirok",
+    "o-jugan-gongjeong",
+    "anjeon-hyeobuiche"
+   ]
+  },
+  {
+   "k": "위험성평가",
+   "s": [
+    "wih-choego",
+    "wih-susi",
+    "wiheom-pyeongga"
+   ]
+  },
+  {
+   "k": "산업안전보건관리비",
+   "s": [
+    "anjeonbi-gyehoek",
+    "anjeonbi-naeyeok",
+    "anjeon-hwangyeong-bi",
+    "o-anjeon-pumjil-bi"
+   ]
+  },
+  {
+   "k": "장비 관리",
+   "s": [
+    "janggi-gadong",
+    "imdaeryo-jeongsan",
+    "o-jangbi-gwanri"
+   ]
+  },
+  {
+   "k": "물가변동(ESC)",
+   "s": [
+    "mulga",
+    "chg-mulga-san"
+   ]
+  },
+  {
+   "k": "공기연장",
+   "s": [
+    "gonggi-yeonjang",
+    "chg-ganjeopbi"
+   ]
+  },
+  {
+   "k": "실정보고 · 설계변경",
+   "s": [
+    "siljeong-bogo",
+    "seolgye-byeongyeong",
+    "chg-naeyeok",
+    "chg-chongwal"
+   ]
+  },
+  {
+   "k": "하도급",
+   "s": [
+    "hadogeup-tongbo",
+    "hadogeup-gyehoek",
+    "hadogeup-daegeum",
+    "gy-hadogeup"
+   ]
+  },
+  {
+   "k": "도급계약서",
+   "s": [
+    "gy-dogeup",
+    "o-mingan-dogeup"
+   ]
+  },
+  {
+   "k": "기성",
+   "s": [
+    "gisung-cheonggu",
+    "gisung-geomsa",
+    "giseong-daebipyo"
+   ]
+  },
+  {
+   "k": "준공",
+   "s": [
+    "jungong",
+    "jungong-daega",
+    "jungong-jeongsan"
+   ]
+  },
+  {
+   "k": "인감 · 위임",
+   "s": [
+    "sayonginmgye",
+    "wiimjang"
+   ]
+  }
+ ]
+}

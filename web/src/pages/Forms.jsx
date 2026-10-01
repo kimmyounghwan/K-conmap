@@ -7,6 +7,7 @@ import DATA from '../data/forms.json'
 import { 받은수 } from '../lib/받은수.jsx'
 import ORIG_DATA from '../data/forms_orig.json'
 import TAB from '../data/forms_tab.json'
+import SAME from '../data/forms_same.json'
 import { ShareBtn } from './CorpPage.jsx'
 import UserForms from '../UserForms.jsx'
 import { Empty } from '../components.jsx'
@@ -186,6 +187,40 @@ const PACKS = TAB.packs || []
 /** 이 서식의 파일들 — 원본 틀은 /forms/orig/…xlsx 하나, 일반 양식은 엑셀 + 인쇄용 PDF */
 const 서식파일 = (f) => (ORIGSET.has(f.slug) ? [f.file] : [`/forms/${f.slug}.xlsx`, f.pdf])
 const 새로 = [...FORMS, ...ORIG].filter((f) => f.gen === 'forms2' || f.re).length
+
+/* 🔗 2026-10-01 (G98) 비슷한 서식 — 같은 일에 쓰는 서식이 여럿(우리 서식 · 현장 원본 틀)이라 서로 잇습니다.
+   소장님 고르심 «④ 겹치는 서식 이름 가르고 서로 잇기» (서치콘솔: 사진대지 · 착공 · 예정공정표 · 검측이 두세 쪽으로 갈려 표가 나뉨).
+   묶음은 src/data/forms_same.json 한 곳 — ⚠️ 미리 굽는 쪽(prerender.py _same_html)과 «같은 글» 입니다. */
+const SAMESETS = SAME.sets || []
+function 비슷한목록(slug) {
+  const out = []
+  const 본 = new Set([slug])
+  for (const st of SAMESETS) {
+    if (!st.s.includes(slug)) continue
+    for (const s of st.s) if (!본.has(s) && BY.get(s)) { 본.add(s); out.push(BY.get(s)) }
+  }
+  return out
+}
+function 비슷한서식({ slug }) {
+  const L = 비슷한목록(slug)
+  if (!L.length) return null
+  return (
+    <div className="card">
+      <div className="sec-title" style={{ margin: '0 0 4px' }}>비슷한 서식 — 같은 일, 다른 모양</div>
+      <div className="note sm" style={{ margin: '0 0 6px' }}>쓰임과 장수가 조금씩 다릅니다. 내는 곳이 원하는 범위에 맞는 것을 고르세요.</div>
+      {L.map((o) => (
+        <Link className="row rowlink" to={`/forms/${o.slug}`} key={o.slug}>
+          <span className="fic">{o.icon}</span>
+          <div className="grow">
+            <div className="t">{o.title}{ORIGSET.has(o.slug) && <> <em className="obadge">원본 틀</em></>}</div>
+            <div className="d">{o.short}</div>
+          </div>
+          <span className="go">→</span>
+        </Link>
+      ))}
+    </div>
+  )
+}
 
 function 서식칸({ f }) {
   const 예시 = f.gen === 'forms2' || f.re
@@ -503,6 +538,8 @@ function OrigFormPage({ f }) {
         )}
       </div>
 
+      <비슷한서식 slug={f.slug} />
+
       {same.length > 0 && (
         <div className="card">
           <div className="sec-title" style={{ margin: '0 0 6px' }}>{f.group} — 다른 서식</div>
@@ -592,9 +629,9 @@ export function FormPage() {
             (「일용직 근로계약서」 ↔ 우리는 «일용근로계약서»). 같은 말을 적어 둡니다.
             ⚠️ 미리 굽는 쪽(prerender.py form_page)과 «같은 줄» 이어야 합니다 —
                크롤러가 보는 글과 사람이 보는 글이 다르면 안 됩니다. */}
-        {Array.isArray(f.also) && f.also.length > 0 && (
+        {Array.isArray(f.also) && f.also.filter((a) => a && a !== f.title).length > 0 && (
           <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
-            이렇게도 부릅니다 — {f.also.join(' · ')}
+            이렇게도 부릅니다 — {f.also.filter((a) => a && a !== f.title).join(' · ')}
           </div>
         )}
         <div className="btn-row" style={{ marginTop: 12 }}>
@@ -634,6 +671,8 @@ export function FormPage() {
           </ul>
         </div>
       )}
+
+      <비슷한서식 slug={f.slug} />
 
       {f.gen === 'wihgen' ? (
         <Suspense fallback={<div className="card muted">미리보기를 불러오는 중…</div>}><위험성미리 slug={f.slug} /></Suspense>
