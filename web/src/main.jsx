@@ -115,6 +115,8 @@ const DxfPdf = lazyPage(() => import('./pages/DxfPdf.jsx'))
 const DwgDxf = lazyPage(() => import('./pages/DwgDxf.jsx'))
 /* 🏗 현장 투입비 (공사일보 간소판) — 2026-09-26 */
 const Tuipbi = lazyPage(() => import('./pages/Tuipbi.jsx'))
+/* 👷 2026-10-01 (G104) 일용 노무비 계산기 · 지급명세서 — 이 브라우저에만 저장 · 공제는 lib/gongje.js */
+const Nomubi = lazyPage(() => import('./pages/Nomubi.jsx'))
 /* 📎 2026-09-27 업체 스스로 등록 — 업체가 받은 링크(/tools/tuipbi/v/현장/링크) · 📒 내 납품 장부(/tools/tuipbi/v) */
 const TuipbiVendor = lazyPage(() => import('./pages/TuipbiVin.jsx'))
 /* 🚜⚠️ 2026-09-29 소장님: 「(서식) 좀 이상해 … 되도록 사이트내에서 사용 할 수 있는 프로그램으로 만들어 줘」 — 코드+비밀번호 장부(lib/장부.js) */
@@ -203,6 +205,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/tools/dxfpdf" element={<Suspense fallback={<Loading />}><DxfPdf /></Suspense>} />
           <Route path="/tools/dwgdxf" element={<Suspense fallback={<Loading />}><DwgDxf /></Suspense>} />
           <Route path="/tools/tuipbi" element={<Suspense fallback={<Loading />}><Tuipbi /></Suspense>} />
+          <Route path="/tools/nomubi" element={<Suspense fallback={<Loading />}><Nomubi /></Suspense>} />
           <Route path="/tools/tuipbi/v" element={<Suspense fallback={<Loading />}><TuipbiVendor /></Suspense>} />
           <Route path="/tools/tuipbi/v/:site/:link" element={<Suspense fallback={<Loading />}><TuipbiVendor /></Suspense>} />
           <Route path="/tools/equip" element={<Suspense fallback={<Loading />}><EquipBook /></Suspense>} />

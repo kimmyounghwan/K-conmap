@@ -4027,6 +4027,35 @@ span.qna-like { cursor: default; }
   .tp-bill-hd { margin-bottom: 4px; }
   .tp-bill-top { margin-bottom: 6px; }
 }
+/* 👷 2026-10-01 (G104) /tools/nomubi 일용 노무비 계산기 · 지급명세서 (Nomubi.jsx) — 표 · 인쇄는 투입비 청구서(tp-*)를 그대로 */
+.nm .nw { white-space: nowrap; }
+.nm-badges { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 12.5px; color: var(--text-2); }
+.nm-warn { color: #b91c1c; }
+.nm-ask { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; font-weight: 700; }
+.nm-month { display: flex; align-items: center; gap: 10px; font-size: 16px; flex-wrap: wrap; }
+.nm-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.nm-two label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 700; color: var(--text-2); min-width: 0; }
+.nm-two .inp { width: 100%; box-sizing: border-box; }
+.nm-roster td { padding: 4px !important; vertical-align: middle; }
+.nm-roster th { font-size: 12px; white-space: nowrap; }
+.nm-in { width: 100%; min-width: 84px; box-sizing: border-box; padding: 6px 8px; font-size: 13.5px; }
+.nm-num { text-align: right; min-width: 104px; font-variant-numeric: tabular-nums; }
+.nm-printonly, .nm-printonly-inline { display: none; }
+.nm-sigh, .nm-sig { min-width: 72px; }
+.nm-days { font-size: 11.5px; line-height: 1.5; max-width: 300px; word-break: break-all; }
+.nm-due { padding-left: 18px; }
+.nm-due li { margin: 2px 0; }
+.nm-due-d { font-weight: 700; color: var(--accent); white-space: nowrap; }
+.nm .tp-lb td, .nm .tp-lb th, .nm .nm-rep td, .nm .nm-rep th { font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) { .nm-two { grid-template-columns: 1fr; } }
+@media print {
+  html:has(body.tp-print-bill) { background: #fff !important; }
+  .nm-printonly { display: block; }
+  .nm-printonly-inline { display: inline; }
+  .nm .tp-bill .nm-rep th, .nm .tp-bill .nm-rep td { font-size: 9px !important; padding: 2px 3px !important; }
+  .nm-sig { height: 22px; }
+  .nm-due { font-size: 8.5px; }
+}
 /* 🏗 /tools/tuipbi 쓰는 방법 — 접는 절 (2026-09-26) */
 .tp-gsec { border: 1px solid var(--line); border-radius: 10px; margin: 8px 0; background: var(--surface); }
 .tp-gsec > summary { cursor: pointer; padding: 10px 12px; font-weight: 800; font-size: 14.5px; list-style: none; }
