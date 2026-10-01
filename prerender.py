@@ -2633,6 +2633,30 @@ def nomubi_page(shell, image=None):
 # 🚜 /tools/equip · ⚠️ /tools/risk — «코드+비밀번호» 장부 둘 (2026-09-29)
 #   소장님: 「(서식) 좀 이상해 봐줘. 위험성평가도 이상해. 되도록 사이트내에서 사용 할 수 있는 프로그램으로 만들어 줘」
 #   화면은 EquipBook.jsx · RiskBook.jsx · 셈은 lib/장비장부.js · lib/위험성.js · 저장은 파이어베이스(eq_* · rk_*).
+# 🧾 /tools/gyeonjeok — 공사 견적서 · 원가계산서 만들기 (G105 · 2026-10-01). 화면 Gyeonjeok.jsx · 셈 lib/gyeonjeok.js · 저장 이 브라우저만.
+def gyeonjeok_page(shell, image=None):
+    title = "공사 견적서 · 원가계산서 만들기 — 내역만 적으면 견적금액(한글)·원가계산서 자동, A4 인쇄 | K-건설맵"
+    desc = ("품명·규격·수량·재료비/노무비/경비 단가만 적으면 직접공사비 → 일반관리비 · 이윤 → 부가세 → 견적금액(한글)이 "
+            "저절로 나옵니다. 간단 견적 또는 산재·고용·4대보험·산업안전보건관리비까지 넣은 공공식 원가계산서, A4 인쇄. 회원가입 없음, 무료.")[:160]
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">🧾 공사 견적서 · 원가계산서 만들기</h1>'
+           '<p class="cp" style="margin-top:8px">내역(품명 · 규격 · 수량 · 재료비/노무비/경비 단가)을 적으면 <b>직접공사비 → 일반관리비 · 이윤 → '
+           '부가가치세 → 견적금액(한글)</b>이 저절로 나옵니다. 견적서 · 원가계산서 · 내역서를 <b>A4로 인쇄</b>합니다.</p>'
+           '<p class="cp">회원가입 없음 · 무료. 적은 것은 <b>이 브라우저에만</b> 남고 서버로 보내지 않습니다. 엑셀 표를 복사해 붙여 넣을 수 있습니다.</p></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">두 가지 셈</div><ul class="flist">'
+           '<li>간단 견적 — 직접공사비 + 현장 경비 + 일반관리비 + 이윤 + 부가세 (민간 · 하도급 견적)</li>'
+           '<li>공공식 원가계산 — 재료비 · 노무비(간접노무비) · 경비(산재 · 고용 · 건강 · 연금 · 장기요양 · 퇴직공제 · 산업안전보건관리비 · 환경보전비 · 기타경비) '
+           '→ 일반관리비 · 이윤 → 부가세. 비목마다 넣고 빼기 · 요율 고쳐 쓰기</li></ul></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">요율 근거 (2026년)</div><ul class="flist">'
+           '<li>산재보험 3.56% (건설업 35/1,000 + 출퇴근 재해 0.6/1,000) · 고용보험 사업주 1.15% (상시 150명 미만)</li>'
+           '<li>국민건강 3.595% · 국민연금 4.75% · 노인장기요양 = 건강보험료 × 13.14%</li>'
+           '<li>산업안전보건관리비 — 건설업 산업안전보건관리비 계상 및 사용기준 별표 1 (공사 종류 · 금액 구간)</li>'
+           '<li>일반관리비 8% · 이윤 15% 이하 — 국가를 당사자로 하는 계약에 관한 법률 시행규칙 제8조 (공사)</li></ul></div>',
+           '<div class="card"><p class="cp" style="margin:0">엑셀 서식이 필요하면 <a href="/forms/wonga">공사원가계산서</a> · '
+           '<a href="/forms/sanchul-naeyeok">공사 산출내역서</a>, 하도급 비율 맞추기는 <a href="/naeyeok/ratio">내역서 비율 맞추기</a>입니다.</p></div>']
+    return page(shell, "/tools/gyeonjeok", title, desc, "".join(out) + nav_html("/tools/gyeonjeok"), image,
+                _app_ld("공사 견적서 · 원가계산서 만들기", desc, "/tools/gyeonjeok"))
+
+
 def _app_ld(name, desc, path):
     return {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": name,
             "applicationCategory": "BusinessApplication", "operatingSystem": "Web",
@@ -3119,7 +3143,12 @@ def main():
     print("  · 현장 투입비 페이지 1개 (/tools/tuipbi)")
     write("tools/nomubi.html", nomubi_page(shell,
           og.tab("tool-nomubi", "일용 노무비 계산기", "건설 도구", "소득세 · 4대보험 공제", "지급명세서 인쇄") if og.available else None))
+    made += 1
     print("  · 일용 노무비 계산기 페이지 1개 (/tools/nomubi)")
+    write("tools/gyeonjeok.html", gyeonjeok_page(shell,
+          og.tab("tool-gyeonjeok", "공사 견적서 · 원가계산서", "건설 도구", "견적금액 한글 자동", "A4 인쇄") if og.available else None))
+    made += 1
+    print("  · 공사 견적서 · 원가계산서 페이지 1개 (/tools/gyeonjeok)")
     write("tools/equip.html", equip_page(shell,
           og.tab("tool-equip", "장비 임대료·수금 장부", "건설 도구", "거래처별 미수금", "청구서 인쇄") if og.available else None))
     write("tools/risk.html", risk_page(shell,

@@ -4056,6 +4056,79 @@ span.qna-like { cursor: default; }
   .nm-sig { height: 22px; }
   .nm-due { font-size: 8.5px; }
 }
+/* 🧾 2026-10-01 (G105) /tools/gyeonjeok 공사 견적서 · 원가계산서 (Gyeonjeok.jsx) — 인쇄는 A4 세로(gj-port) */
+.gj .r { text-align: right; } .gj .nw { white-space: nowrap; } .gj .c { text-align: center; }
+.gj-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 10px; }
+.gj-form label, .gj-rates label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 700; color: var(--text-2); min-width: 0; }
+.gj-form .inp, .gj-rates label .inp { width: 100%; box-sizing: border-box; }
+.gj-wide { grid-column: 1 / -1; }
+.gj-rows td { padding: 3px !important; vertical-align: middle; }
+.gj-rows th { font-size: 12px; white-space: nowrap; }
+.gj-in { width: 100%; min-width: 70px; box-sizing: border-box; padding: 5px 6px; font-size: 13px; }
+.gj-w { min-width: 150px; } .gj-u { min-width: 48px; }
+.gj-num { text-align: right; min-width: 84px; font-variant-numeric: tabular-nums; }
+.gj-paste { margin-top: 10px; } .gj-paste summary { cursor: pointer; font-weight: 700; font-size: 13px; color: var(--accent); }
+.gj-rates { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; align-items: end; }
+.gj-check { flex-direction: row !important; align-items: center; gap: 6px !important; }
+.gj-add { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; }
+.gj-add-r { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.gj-add-r .inp { flex: 1 1 160px; min-width: 0; } .gj-add-r .gj-num { flex: 0 1 120px; }
+.gj-small { font-size: 11.5px; color: var(--text-2); }
+.gj-tag { font-size: 10.5px; font-weight: 800; padding: 1px 6px; border-radius: 6px; white-space: nowrap; }
+.gj-tag.law { background: rgba(5, 150, 105, .12); color: #047857; }
+.gj-tag.ex { background: rgba(217, 119, 6, .14); color: #b45309; }
+.gj-saved { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; display: flex; flex-direction: column; gap: 2px; }
+.gj-saved-r { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+.gj-title { text-align: center; font-size: 26px; letter-spacing: 12px; margin: 4px 0 14px; }
+.gj-head { display: grid; grid-template-columns: 1.2fr 1fr; gap: 12px; align-items: start; }
+.gj-head .tbl { width: 100%; }
+.gj-head th { white-space: nowrap; width: 1%; background: var(--surface-2); font-size: 12.5px; }
+.gj-head td { font-size: 13px; }
+.gj-vert { text-align: center; line-height: 1.5; }
+.gj-seal { color: var(--muted); font-size: 12px; margin-left: 8px; }
+.gj-say { margin: 12px 0 6px; font-size: 14px; }
+.gj-amt { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; border: 2px solid var(--text); padding: 10px 14px; border-radius: 4px; }
+.gj-amt > span:first-child { font-weight: 800; }
+.gj-amt b { font-size: 18px; }
+.gj-amt-n { font-weight: 700; font-variant-numeric: tabular-nums; }
+.gj-amt-v { color: var(--muted); font-size: 12.5px; }
+.gj-cut { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+.gj-cost, .gj-detail { width: 100%; }
+.gj-cost td, .gj-cost th, .gj-detail td, .gj-detail th { font-variant-numeric: tabular-nums; }
+.gj-cost tr.sum td, .gj-detail tr.sum td { font-weight: 700; background: var(--surface-2); }
+.gj-off td { color: var(--muted); }
+.gj-note { margin-top: 8px; font-size: 13px; }
+.gj-detail th { font-size: 11.5px; white-space: nowrap; text-align: center; }
+.gj-rt td { vertical-align: middle; }
+.gj-head td, .gj-name, .gj-cost td.gj-small, .gj-rt td.gj-small { text-align: left !important; }
+.gj-head th, .gj-cost th { text-align: center !important; }
+.gj-m { display: none; white-space: normal; margin-top: 2px; line-height: 1.35; }
+@media screen and (max-width: 640px) {
+  .gj-d { display: none; }
+  .gj-m { display: block; }
+  .gj-rt .gj-num { min-width: 64px; }
+  .gj-cost th, .gj-cost td { padding-left: 4px !important; padding-right: 4px !important; font-size: 12.5px; }
+}
+@media (max-width: 560px) {
+  .gj-head { grid-template-columns: 1fr; }
+  .gj-title { font-size: 22px; letter-spacing: 8px; }
+}
+@page gj-port { size: A4 portrait; margin: 12mm; }
+@media print {
+  html:has(body.gj-print) { background: #fff !important; }
+  body.gj-print .gj > .card:not(.gj-paper), body.gj-print header, body.gj-print footer, body.gj-print nav,
+  body.gj-print .installbar, body.gj-print .crumb, body.gj-print .crumbs { display: none !important; }
+  body.gj-print { background: #fff !important; }
+  body.gj-print .gj-paper { page: gj-port; border: 0; box-shadow: none; padding: 0; margin: 0; }
+  body.gj-print .tp-scroll { overflow: visible; }
+  .gj-paper .tbl th, .gj-paper .tbl td { border: 1px solid #9ca3af !important; color: #000 !important; }
+  .gj-paper .gj-head th, .gj-paper .gj-head td { font-size: 10.5px !important; padding: 3px 5px !important; }
+  .gj-paper .gj-cost th, .gj-paper .gj-cost td { font-size: 9.5px !important; padding: 2px 4px !important; }
+  .gj-paper .gj-detail th, .gj-paper .gj-detail td { font-size: 7.5px !important; padding: 1px 2px !important; }
+  .gj-pb { break-before: page; }
+  .gj-amt { border-color: #000; }
+  .gj-tag { display: none; }
+}
 /* 🏗 /tools/tuipbi 쓰는 방법 — 접는 절 (2026-09-26) */
 .tp-gsec { border: 1px solid var(--line); border-radius: 10px; margin: 8px 0; background: var(--surface); }
 .tp-gsec > summary { cursor: pointer; padding: 10px 12px; font-weight: 800; font-size: 14.5px; list-style: none; }

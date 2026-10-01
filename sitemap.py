@@ -326,7 +326,7 @@ def main():
             ttools = (json.load(f) or {}).get("tools") or []
         wc = ["/tools/wonclick"] if os.path.exists(WONCLICK_JSON) else []     # prerender.py 가 구울 때만
         # 📦 2026-09-25 — 도면 3D 보기 (prerender.py 가 늘 굽습니다)
-        for u in ["/tools"] + [f'/tools/{t["slug"]}' for t in ttools] + wc + ["/tools/dxf3d", "/tools/dxfpdf", "/tools/dwgdxf", "/tools/tuipbi", "/tools/nomubi", "/tools/equip", "/tools/risk", "/tools/photo"]:
+        for u in ["/tools"] + [f'/tools/{t["slug"]}' for t in ttools] + wc + ["/tools/dxf3d", "/tools/dxfpdf", "/tools/dwgdxf", "/tools/tuipbi", "/tools/nomubi", "/tools/gyeonjeok", "/tools/equip", "/tools/risk", "/tools/photo"]:
             urls.append(f'  <url><loc>{SITE}{u}</loc>'
                         f'<lastmod>{_mtime(TOOLS_JSON, today)}</lastmod>'
                         f'<changefreq>monthly</changefreq><priority>0.7</priority></url>')
