@@ -5481,3 +5481,205 @@ details.js-more[open] > summary { margin-bottom: 8px; }
   body.iy-print .iy-out .tbl th, body.iy-print .iy-out .tbl td { font-size: 9.5px !important; padding: 2px 4px !important; border: 1px solid #9ca3af !important; color: #000 !important; }
   body.iy-print .iy-box { break-inside: avoid; }
 }
+
+/* ═══ G112 (2026-10-01) 새 프로그램 넷 — 🦺 산안비(sn) · 💰 손익 장부(sk) · 🏢 공사지명원(jm) · 📝 작업일보(ib) ═══ */
+/* 🦺 /tools/sanan — 산업안전보건관리비 계상기 · 사용내역서(별지 제1호서식) */
+.sn-boh { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.sn-boh select.inp { width: auto; }
+.sn-amt { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.sn-amt > span:first-child { font-weight: 800; font-size: 14px; }
+.sn-amt b { font-size: 26px; color: var(--accent); font-variant-numeric: tabular-nums; }
+.sn-how { margin-top: 6px; font-size: 13.5px; line-height: 1.7; }
+.sn-t { width: 100%; }
+.sn-t td, .sn-t th { font-variant-numeric: tabular-nums; }
+.sn-t tr.on td, .sn-t td.on { background: var(--accent-soft); font-weight: 800; }
+.sn-t tr.sel td:first-child { font-weight: 800; }
+.sn-t td.r, .sk-t td.r { text-align: right; } .sn-t td.c { text-align: center; }
+.sn-al { margin: 8px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.6; }
+.sn-al li { margin: 2px 0; }
+.sn-sumbar { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13.5px; margin-bottom: 8px; }
+.sn-month { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: end; margin-top: 10px; }
+.sn-month label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 700; color: var(--text-2); }
+.sn-month .gj-check { flex-direction: row; align-items: center; }
+.sn-in td { padding: 3px !important; vertical-align: middle; }
+.sn-in th { font-size: 12px; white-space: nowrap; }
+.sn-in .gj-num { min-width: 92px; }
+.sn-dk { display: flex; flex-direction: column; gap: 3px; min-width: 128px; }
+.sn-preview { display: flex; flex-direction: column; gap: 16px; }
+.sn-paper { flex: none; }
+.rk-c.r { text-align: right; font-variant-numeric: tabular-nums; }
+.rk-c.sn-ttl { font-size: 12pt; letter-spacing: 1px; padding: 6px 3px; }
+.rk-c.sn-item { font-size: 10pt; padding: 5px 6px; }
+.rk-c.sn-say { padding: 10px 8px 4px; font-size: 9.5pt; border-bottom: 0; }
+.rk-c.sn-date { padding: 4px 8px 10px; font-size: 9.5pt; text-align: center; border-top: 0; }
+@page sn세로 { size: A4 portrait; margin: 10mm 10mm; }
+@media print {
+  .sn-쪽 { page: sn세로; break-after: page; }
+  .sn-쪽:last-child { break-after: auto; }
+  .sn-쪽 .rk-paper { box-shadow: none; width: auto; padding: 0; }
+  .sn-쪽 .il-paper { box-shadow: none; max-width: none; min-width: 0; padding: 0; }
+  .sn-쪽 .rk-t tr, .sn-쪽 .il-t tr { break-inside: avoid; page-break-inside: avoid; }
+  .sn-쪽 .il-t th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+/* 💰 /tools/sonik — 현장 손익 장부 */
+.sk-co { display: inline-flex; flex-direction: column; gap: 3px; font-size: 12px; font-weight: 700; color: var(--text-2); min-width: 200px; }
+.sk-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 10px; }
+.sk-tile { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--surface); display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sk-tile span { font-size: 12px; font-weight: 700; color: var(--muted); }
+.sk-tile b { font-size: 18px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.sk-tile em { font-style: normal; font-size: 11.5px; color: var(--text-2); }
+.sk-tile.big { border-color: var(--good); background: var(--good-soft); }
+.sk-tile.big b { color: var(--good); font-size: 20px; }
+.sk-tile.neg { border-color: var(--bad); background: var(--bad-soft); }
+.sk-tile.neg b { color: var(--bad); }
+.sk-tile.warn b { color: #b45309; }
+.sk-neg { color: var(--bad) !important; }
+.sk-prog { margin-top: 10px; }
+.sk-bar { height: 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+.sk-bar i { display: block; height: 100%; background: var(--accent); }
+.sk-prog-t { font-size: 13px; margin-top: 6px; line-height: 1.6; }
+.sk-t { width: 100%; }
+.sk-t td, .sk-t th { font-variant-numeric: tabular-nums; }
+.sk-click { cursor: pointer; }
+.sk-click:hover td { background: var(--accent-soft); }
+.sk-cut { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sk-tag { display: inline-block; font-size: 11px; font-weight: 800; padding: 1px 7px; border-radius: 6px; }
+.sk-tag.S { background: rgba(37, 99, 235, .12); color: #1d4ed8; }
+.sk-tag.P { background: rgba(217, 119, 6, .14); color: #b45309; }
+.sk-led td { vertical-align: top; }
+.sk-filter { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 8px 0; }
+.sk-filter .inp { width: auto; min-width: 120px; }
+.sk-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sk-two > .card { margin: 0; min-width: 0; }
+.sk-bars { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.sk-brow { display: grid; grid-template-columns: 56px minmax(60px, 1fr) auto 52px; gap: 8px; align-items: center; font-size: 12.5px; }
+.sk-brow b { font-variant-numeric: tabular-nums; text-align: right; }
+.sk-brow em { font-style: normal; color: var(--muted); text-align: right; }
+.sk-mini { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; color: var(--text-2); margin-top: 2px; }
+button.sk-mini { color: var(--accent); padding: 0; text-align: left; }
+.sk-newsite { border-top: 1px dashed var(--line); padding-top: 10px; }
+.sk-s.on { background: #1d4ed8; border-color: #1d4ed8; }
+.sk-p.on { background: #b45309; border-color: #b45309; }
+.sk-ledh { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; }
+@media (max-width: 720px) { .sk-two { grid-template-columns: 1fr; } }
+@page sk세로 { size: A4 portrait; margin: 12mm; }
+@page sk가로 { size: A4 landscape; margin: 8mm; }
+@media print {
+  .sk-쪽 { page: sk세로; }
+  .sk-쪽.land { page: sk가로; }
+  .sk-쪽 .il-paper { box-shadow: none; max-width: none; min-width: 0; padding: 0; }
+  .sk-쪽 .il-t th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .sk-쪽 .il-t tr { break-inside: avoid; page-break-inside: avoid; }
+  .sk-ledp .il-t th, .sk-ledp .il-t td { font-size: 8.5px; padding: 2px 3px; height: auto; }
+}
+.sk-ledp { max-width: 1060px; }
+.sk-ledp .il-t td { font-size: 10.5px; }
+
+/* 🏢 /tools/jimyeong — 공사지명원 만들기 */
+.jm-logo { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+.jm-logo img { max-height: 56px; max-width: 160px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+.jm-att { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 12px; margin-top: 8px; font-size: 13px; }
+.jm-in .jm-wide { min-width: 300px; }
+.jm-in td { padding: 3px !important; vertical-align: middle; }
+.jm-in th { font-size: 12px; white-space: nowrap; }
+.jm-preview { overflow-x: auto; background: var(--surface-2); border-radius: 10px; padding: 12px; }
+.jm-paper { background: #fff; color: #111827; width: 760px; max-width: none; margin: 0 auto; padding: 28px 30px; box-shadow: 0 1px 6px rgba(0,0,0,.12); font-size: 12.5px; line-height: 1.55; }
+.jm-cover { min-height: 860px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; padding: 70px 0 50px; border: 3px double #111827; }
+.jm-cover-t { font-size: 40px; font-weight: 800; letter-spacing: 14px; }
+.jm-cover-s { font-size: 15px; margin-top: -40px; color: #374151; }
+.jm-cover-m { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.jm-cover-m img { max-width: 220px; max-height: 120px; }
+.jm-cover-co { font-size: 30px; font-weight: 800; letter-spacing: 2px; }
+.jm-cover-en { font-size: 13px; color: #4b5563; letter-spacing: 1px; }
+.jm-cover-d { font-size: 16px; }
+.jm-cover-to { font-size: 18px; font-weight: 700; }
+.jm-sec { margin-top: 18px; }
+.jm-pb { margin-top: 30px; padding-top: 22px; border-top: 1px dashed #9ca3af; }
+.jm-h1 { text-align: center; font-size: 26px; font-weight: 800; letter-spacing: 10px; margin: 6px 0 18px; }
+.jm-h2 { font-size: 15px; font-weight: 800; border-bottom: 2px solid #111827; padding-bottom: 4px; margin-bottom: 8px; }
+.jm-small { font-size: 11.5px; font-weight: 400; color: #4b5563; }
+.jm-t { width: 100%; border-collapse: collapse; }
+.jm-t th, .jm-t td { border: 1px solid #9ca3af; padding: 5px 7px; font-size: 12px; vertical-align: middle; }
+.jm-t th { background: #f3f4f6; font-weight: 700; text-align: center; white-space: nowrap; }
+.jm-t td.r { text-align: right; font-variant-numeric: tabular-nums; } .jm-t td.c { text-align: center; } .jm-t td.l { text-align: left; }
+.jm-kv th { width: 17%; }
+.jm-t .jm-sum td { background: #f9fafb; font-weight: 700; text-align: center; }
+.jm-t .jm-sum td.r { text-align: right; } .jm-t .jm-sum td.l { text-align: left; }
+.jm-rec td { font-size: 11.5px; }
+.jm-say { margin: 22px 4px 18px; font-size: 14px; line-height: 1.9; }
+.jm-date { text-align: center; font-size: 15px; margin: 18px 0; }
+.jm-sign { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; margin: 20px 20px 26px 0; font-size: 15px; }
+.jm-sign div { display: flex; gap: 18px; align-items: baseline; }
+.jm-sign span { color: #374151; letter-spacing: 2px; }
+.jm-sign em { font-style: normal; color: #6b7280; }
+.jm-to { font-size: 18px; font-weight: 800; margin-top: 20px; }
+.jm-toc { font-size: 16px; line-height: 2.4; padding-left: 40px; margin: 30px 0; }
+.jm-intro { border: 1px solid #9ca3af; padding: 10px 12px; margin-top: 8px; white-space: pre-wrap; font-size: 12.5px; line-height: 1.8; }
+.jm-att-l { font-size: 13.5px; line-height: 2; padding-left: 26px; }
+.jm-foot { margin-top: 18px; text-align: right; font-size: 10.5px; color: #6b7280; }
+@page jm세로 { size: A4 portrait; margin: 14mm 14mm; }
+@media print {
+  .jm-쪽 { page: jm세로; }
+  .jm-쪽 .jm-paper { box-shadow: none; width: auto; padding: 0; }
+  .jm-쪽 .jm-pb { break-before: page; border-top: 0; margin-top: 0; padding-top: 0; }
+  .jm-쪽 .jm-cover { min-height: 0; height: 262mm; box-sizing: border-box; }
+  .jm-쪽 .jm-t tr { break-inside: avoid; page-break-inside: avoid; }
+  .jm-쪽 .jm-t th, .jm-쪽 .jm-sum td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .jm-쪽 .jm-foot { display: none; }
+}
+
+/* 📝 /tools/ilbo — 작업일보 만들기 (종이는 tools/일보종이.jsx · il-* 를 같이 씀) */
+.ib-days { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 12.5px; color: var(--muted); }
+.ib-days .chip { padding: 2px 8px; font-size: 12px; }
+.ib-rows { display: grid; gap: 6px; }
+.ib-row { display: flex; gap: 6px; align-items: center; }
+.ib-row input, .ib-row select { min-width: 0; padding: 7px 8px; font-size: 13px; }
+.ib-row input:first-child { flex: 1 1 180px; }
+.ib-row4 input:nth-child(2) { flex: 1 1 120px; }
+.ib-row .ib-n { width: 72px; flex: none; text-align: right; }
+.ib-row .ib-u { width: 64px; flex: none; }
+.ib-row select { width: 72px; flex: none; }
+/* G112 다듬기 — 체크칸 줄 · 표 머리 · 칸 폭 · 저절로 금액 · 빈 줄 높이 */
+.sn label.gj-check, .sk label.gj-check, .jm label.gj-check, .ib label.gj-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--text); }
+.sn label.gj-check input, .sk label.gj-check input, .jm label.gj-check input, .ib label.gj-check input, .sk-mini input { width: auto; flex: none; margin: 0; }
+.sn-t th { text-align: center !important; }
+.sn-in .sn-tx { min-width: 104px; }
+.sn-in .sn-a { min-width: 150px; }
+.sn-auto { display: inline-flex; flex-direction: column; align-items: flex-end; min-width: 92px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.sn-auto em { font-style: normal; font-weight: 600; font-size: 10.5px; color: var(--muted); }
+.sn-paper .rk-c { height: 19px; }
+.jm-in select.gj-in { min-width: 96px; }
+.jm-in .gj-w { min-width: 210px; }
+.sn-t td { white-space: nowrap; }
+.sn textarea, .sk textarea, .jm textarea, .ib textarea { font-family: inherit; }
+/* 📊 G112 작업일보 보할 공정률 (Ilbo.jsx · tools/일보종이.jsx) · 📖 새 프로그램 설명(tools/도구설명.jsx) */
+.ib-auto { display: inline-flex; align-items: baseline; gap: 5px; font-size: 13px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); }
+.ib-auto b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.ib-auto em { font-style: normal; font-size: 11px; color: var(--muted); }
+.ib-gj { width: 100%; }
+.ib-gj td, .ib-gj th { font-variant-numeric: tabular-nums; vertical-align: middle; }
+.ib-gj td.r { text-align: right; }
+.ib-gj tr.sum td { font-weight: 700; background: var(--surface-2); }
+.ib-jin { display: inline-flex; align-items: center; gap: 4px; }
+.ib-jin input { width: 76px; padding: 6px 7px; font-size: 13px; text-align: right; }
+.ib-jin em { font-style: normal; font-size: 11.5px; color: var(--muted); min-width: 22px; }
+.ib-gset { border: 1px dashed var(--line); border-radius: 10px; padding: 10px; margin-top: 6px; background: var(--surface); }
+.ib-gset-t td { padding: 3px !important; vertical-align: middle; }
+.ib-gset-t th { font-size: 12px; white-space: nowrap; }
+.ib-gset-t .gj-in { min-width: 70px; }
+.ib-gset-t td:first-child .gj-in { min-width: 120px; }
+.ib-gset-t .ib-s { min-width: 70px; width: 80px; }
+.ib-gset-t .ib-u2 { min-width: 48px; width: 56px; }
+.il-gj td { font-variant-numeric: tabular-nums; }
+.il-gj-q { font-size: 10px; color: #6b7280; }
+.tguide { margin-top: 4px; }
+/* 🦺 G112 사용내역서 — 원본 별지처럼: 바깥 테두리 · 몸은 세로줄만(nb) · 끝의 글은 칸 밖 */
+.sn-frame { border: 1.5px solid #000; padding: 14px 16px 10px; }
+.rk-c.nb { border-top: 0; border-bottom: 0; }
+.sn-paper tr.sn-blank td { height: 20px; }
+.sn-say { margin: 16px 4px 8px; font-size: 9.5pt; line-height: 1.6; }
+.sn-date { text-align: center; font-size: 10pt; margin: 10px 0 14px; letter-spacing: 1px; }
+.sn-sign { font-size: 9.5pt; margin: 6px 0 6px 40px; }
+.sn-frame .rk-foot { margin-top: 10px; }
+@media print { .sn-쪽 .rk-paper.sn-frame { border: 1.5px solid #000; padding: 10px 12px; } }

@@ -119,6 +119,11 @@ const Tuipbi = lazyPage(() => import('./pages/Tuipbi.jsx'))
 const Nomubi = lazyPage(() => import('./pages/Nomubi.jsx'))
 /* 🧾 2026-10-01 (G105) 공사 견적서 · 원가계산서 만들기 — 이 브라우저에만 저장 · 요율 근거는 lib/gyeonjeok.js */
 const Gyeonjeok = lazyPage(() => import('./pages/Gyeonjeok.jsx'))
+/* 🦺💰🏢📝 2026-10-01 (G112) 소장님 「예스폼에 또 뭐가 있지? 새로 만들어야 할 서식은?」 → 「1부터 4까지 만들어 보자」 — 넷 다 이 브라우저에만 저장 */
+const Sonik = lazyPage(() => import('./pages/Sonik.jsx'))
+const Jimyeong = lazyPage(() => import('./pages/Jimyeong.jsx'))
+const Sanan = lazyPage(() => import('./pages/Sanan.jsx'))
+const Ilbo = lazyPage(() => import('./pages/Ilbo.jsx'))
 const Ilyong4 = lazyPage(() => import('./pages/Ilyong4.jsx'))   /* 🛡 2026-10-01 (G107) 일용직 4대보험 가입 판단기 */
 const IlyongGuide = lazyPage(() => import('./pages/Ilyong4.jsx').then((m) => ({ default: m.IlyongGuide })))
 /* 📎 2026-09-27 업체 스스로 등록 — 업체가 받은 링크(/tools/tuipbi/v/현장/링크) · 📒 내 납품 장부(/tools/tuipbi/v) */
@@ -211,6 +216,10 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/tools/tuipbi" element={<Suspense fallback={<Loading />}><Tuipbi /></Suspense>} />
           <Route path="/tools/nomubi" element={<Suspense fallback={<Loading />}><Nomubi /></Suspense>} />
           <Route path="/tools/gyeonjeok" element={<Suspense fallback={<Loading />}><Gyeonjeok /></Suspense>} />
+          <Route path="/tools/sonik" element={<Suspense fallback={<Loading />}><Sonik /></Suspense>} />
+          <Route path="/tools/jimyeong" element={<Suspense fallback={<Loading />}><Jimyeong /></Suspense>} />
+          <Route path="/tools/sanan" element={<Suspense fallback={<Loading />}><Sanan /></Suspense>} />
+          <Route path="/tools/ilbo" element={<Suspense fallback={<Loading />}><Ilbo /></Suspense>} />
           <Route path="/tools/ilyong-boheom" element={<Suspense fallback={<Loading />}><Ilyong4 /></Suspense>} />
           <Route path="/tools/ilyong-guide" element={<Suspense fallback={<Loading />}><IlyongGuide /></Suspense>} />
           <Route path="/tools/tuipbi/v" element={<Suspense fallback={<Loading />}><TuipbiVendor /></Suspense>} />

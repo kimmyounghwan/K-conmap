@@ -13,8 +13,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
-import { 오늘, 날더하기, 요일, 공수글, 날씨들, 일보풀기, 일보싸기, 일보셈 } from '../lib/tuipbi.js'
+import { 오늘, 날더하기, 요일, 날씨들, 일보풀기, 일보싸기, 일보셈 } from '../lib/tuipbi.js'
 import { 계획률 } from '../lib/공정.js'
+import 일보종이 from '../tools/일보종이.jsx'   /* 2026-10-01 (G112) 종이는 따로 — /tools/ilbo(작업일보 만들기)와 같이 씀 */
 
 const 점날 = (t) => { const m = String(t || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? m[1] + '. ' + (+m[2]) + '. ' + (+m[3]) + '.' : '' }
 const 수글 = (v) => (Number.isFinite(v) ? String(Math.round(v * 100) / 100) : '')
@@ -156,63 +157,5 @@ export default function TuipbiIlbo({ 현장, 줄들, 사람, 장비, 업체, 출
       <div className="card il-paperwrap no-print">{종이}</div>
       {인쇄중 && createPortal(<div id="il-인쇄"><div className="il-쪽">{종이}</div></div>, document.body)}
     </>
-  )
-}
-
-function 일보종이({ 현장, d, 폼, 셈, 대비 }) {
-  const wk = (폼.wk || []).filter((r) => r.g || r.v || r.t || r.n)
-  const 칸수 = (a, n) => (a.length ? a : Array.from({ length: n }, () => null))
-  return (
-    <div className="il-paper">
-      <div className="il-top">
-        <div className="il-title">공 사 일 보</div>
-        <table className="il-sign"><tbody><tr><th>작 성</th><th>확 인</th></tr><tr><td /><td /></tr></tbody></table>
-      </div>
-      <table className="il-t il-info">
-        <tbody>
-          <tr><th>현 장 명</th><td colSpan={3}>{(현장 && 현장.name) || ''}</td></tr>
-          <tr><th>일 자</th><td>{점날(d)} ({요일(d)})</td><th>날 씨</th><td>{폼.w || ''}{(폼.lo !== '' || 폼.hi !== '') ? '  ' + (폼.lo !== '' ? 폼.lo : '') + ' ~ ' + (폼.hi !== '' ? 폼.hi : '') + ' ℃' : ''}</td></tr>
-          <tr><th>공 정 률</th><td colSpan={3}>계획 {폼.pp !== '' ? 폼.pp + '%' : '—'}  ·  실시 {폼.ap !== '' ? 폼.ap + '%' : '—'}{대비 !== null ? '  ·  대비 ' + (대비 > 0 ? '+' : '') + 수글(대비) + '%p' : ''}</td></tr>
-        </tbody>
-      </table>
-
-      <div className="il-h">1. 작업 내용</div>
-      <table className="il-t">
-        <thead><tr><th style={{ width: '20%' }}>공 종</th><th style={{ width: '18%' }}>업 체</th><th>작 업 내 용</th><th style={{ width: '9%' }}>인원</th></tr></thead>
-        <tbody>{칸수(wk, 3).map((r, i) => <tr key={i}><td>{r ? r.g : ''}</td><td>{r ? r.v : ''}</td><td className="l">{r ? r.t : ''}</td><td className="c">{r ? r.n : ''}</td></tr>)}</tbody>
-      </table>
-
-      <div className="il-two">
-        <div>
-          <div className="il-h">2. 출역 인원 (명)</div>
-          <table className="il-t">
-            <thead><tr><th>직 종</th><th>전일까지</th><th>금 일</th><th>누 계</th></tr></thead>
-            <tbody>
-              {칸수(셈.인원, 2).map((x, i) => <tr key={i}><td>{x ? x.이름 : ''}</td><td className="r">{x ? x.전 : ''}</td><td className="r">{x ? x.금 || '' : ''}</td><td className="r">{x ? x.누 : ''}</td></tr>)}
-              <tr className="il-sum"><td>합 계</td><td className="r">{셈.인원합.전}</td><td className="r">{셈.인원합.금}</td><td className="r">{셈.인원합.누}</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div>
-          <div className="il-h">3. 장비</div>
-          <table className="il-t">
-            <thead><tr><th>장 비</th><th>단위</th><th>금 일</th><th>누 계</th></tr></thead>
-            <tbody>{칸수(셈.장비, 2).map((x, i) => <tr key={i}><td>{x ? x.이름 : ''}</td><td className="c">{x ? x.단위 : ''}</td><td className="r">{x ? (x.금 ? 공수글(x.금) : '') : ''}</td><td className="r">{x ? 공수글(x.누) : ''}</td></tr>)}</tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="il-h">4. 자재 반입</div>
-      <table className="il-t">
-        <thead><tr><th>품 명</th><th>규 격</th><th>단위</th><th>금 일</th><th>누 계</th></tr></thead>
-        <tbody>{칸수(셈.자재, 2).map((x, i) => <tr key={i}><td>{x ? x.이름 : ''}</td><td>{x ? x.규격 : ''}</td><td className="c">{x ? x.단위 : ''}</td><td className="r">{x ? (x.금 ? 공수글(x.금) : '') : ''}</td><td className="r">{x ? 공수글(x.누) : ''}</td></tr>)}</tbody>
-      </table>
-
-      <div className="il-h">5. 특기사항</div>
-      <div className="il-box">{폼.nt || ''}</div>
-      <div className="il-h">6. 내일 작업 계획</div>
-      <div className="il-box small">{폼.nx || ''}</div>
-      <div className="il-foot">{(현장 && 현장.co) ? 현장.co + ' · ' : ''}K-건설맵 공사일보</div>
-    </div>
   )
 }

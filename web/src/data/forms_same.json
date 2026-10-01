@@ -186,6 +186,25 @@
     "haja-wanryo",
     "gy-gakseo"
    ]
+  },
+  {
+   "k": "시공계획서(공종별)",
+   "s": [
+    "sigong-gyehoek",
+    "hasugwangeo-sigong",
+    "heulmagi-sigong",
+    "otak-sigong",
+    "o-gaseol-gyehoekseo",
+    "o-gaseol-haeche",
+    "o-dongbari-gyehoekseo",
+    "o-deck-gyehoekseo",
+    "o-paengi-gyehoekseo",
+    "o-jiban-gyehoekseo",
+    "o-pojang-gyehoekseo",
+    "o-bangsu-gyehoekseo",
+    "o-dojang-gyehoekseo",
+    "o-mijang-gyehoekseo"
+   ]
   }
  ]
 }

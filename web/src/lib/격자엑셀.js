@@ -8,6 +8,8 @@
  *     (종이와 엑셀이 어긋날 일이 없습니다 — 종이를 고치면 엑셀도 따라감)
  *
  * ■ 종이를격자(종이El) → { 칸수, 줄들:[{h, 칸:[{c, n, r, v, s}]}] }
+ *     (G112) 칸에 data-n="숫자" 가 있으면 글 대신 숫자로(#,##0) — 엑셀에서 더하기가 되게
+ *     (G112) 종이를격자(종이, 폭) — 칸 폭(기본 1.5 = 위험성평가 서식). 칸 수가 적은 종이(산안비 사용내역서 24칸)는 넓게.
  *     .rk-top(윗글) · .rk-bigttl(큰 제목) · table.rk-t(colSpan · rowSpan 그대로) · .rk-sec · .rk-box · .rk-photo(사진은 «인쇄본에») · .rk-foot
  * ■ 격자책([{이름, 칸수, 줄들, 가로}]) → .xlsx 바이트 — 수식 없음 · 값만
  *     칸 폭 1.5(wihgen 단위) · 얇은 검은 선 · 머리 칸 굵게(칠 없음) · 붉은 글 C00000 · 회색 EDEDED 은 «회» 칸만 · 맑은 고딕 · A4 가로/세로 · 폭 1장 맞춤 · 여백 wihgen 과 같음
@@ -23,7 +25,9 @@ const esc = (s) => String(s)
 /* 꾸밈 번호 — STYLES 의 cellXfs 차례와 같아야 합니다.
  * 서식(wih-*.xlsx) 그대로: 머리 칸은 칠 없이 굵게(세부작업 · 사용장비는 붉게) · 회색 칠은 별지3·4 «회의일시» 같은 칸만 ·
  * 몸 글자 9pt · 작은 글 8pt · 윗글 11pt · 가운데 제목 16pt · 별지3·4 큰 제목 18pt. 위험등급 «상» 은 종이처럼 붉게. */
-export const 꼴 = { 민: 0, 칸: 1, 칸왼: 2, 칸왼위: 3, 머리: 4, 머리빨강: 5, 머리왼: 6, 굵은칸: 7, 제목: 8, 작은칸: 9, 윗글: 10, 큰제목: 11, 없음: 12, 꼬리: 13, 작은칸왼: 14, 회칸: 15, 등급상: 16 }
+export const 꼴 = { 민: 0, 칸: 1, 칸왼: 2, 칸왼위: 3, 머리: 4, 머리빨강: 5, 머리왼: 6, 굵은칸: 7, 제목: 8, 작은칸: 9, 윗글: 10, 큰제목: 11, 없음: 12, 꼬리: 13, 작은칸왼: 14, 회칸: 15, 등급상: 16, 수: 17, 굵은수: 18, 칸nb: 19, 칸왼nb: 20, 수nb: 21, 작은칸nb: 22, 작은칸왼nb: 23 }
+/* (G112) 칸에 class «nb» — 가로줄 없이 세로줄만 */
+const 세로만 = { [1]: 19, [2]: 20, [3]: 20, [17]: 21, [9]: 22, [14]: 23 }
 
 const 가 = (h, v = 'center') => `<alignment horizontal="${h}" vertical="${v}" wrapText="1"/>`
 const xf = (font, fill, border, al) => `<xf numFmtId="0" fontId="${font}" fillId="${fill}" borderId="${border}" xfId="0" applyFont="1"${fill ? ' applyFill="1"' : ''}${border ? ' applyBorder="1"' : ''} applyAlignment="1">${al}</xf>`
@@ -41,11 +45,13 @@ const STYLES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
   '</fonts>' +
   '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>' +
   '<fill><patternFill patternType="solid"><fgColor rgb="FFEDEDED"/><bgColor indexed="64"/></patternFill></fill></fills>' +
-  '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>' +
+  '<borders count="3"><border><left/><right/><top/><bottom/><diagonal/></border>' +
   '<border><left style="thin"><color rgb="FF000000"/></left><right style="thin"><color rgb="FF000000"/></right>' +
-  '<top style="thin"><color rgb="FF000000"/></top><bottom style="thin"><color rgb="FF000000"/></bottom><diagonal/></border></borders>' +
+  '<top style="thin"><color rgb="FF000000"/></top><bottom style="thin"><color rgb="FF000000"/></bottom><diagonal/></border>' +
+  /* 2 — (G112) 세로줄만(산안비 항목별 사용내역 몸통처럼 가로줄 없는 칸) */
+  '<border><left style="thin"><color rgb="FF000000"/></left><right style="thin"><color rgb="FF000000"/></right><top/><bottom/><diagonal/></border></borders>' +
   '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-  '<cellXfs count="17">' +
+  '<cellXfs count="24">' +
   '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +   /* 0 민 */
   xf(0, 0, 1, 가('center')) +       /* 1 칸 */
   xf(0, 0, 1, 가('left')) +         /* 2 칸왼 */
@@ -63,6 +69,13 @@ const STYLES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
   xf(4, 0, 1, 가('left')) +         /* 14 작은칸왼 */
   xf(1, 2, 1, 가('center')) +       /* 15 회칸 */
   xf(2, 0, 1, 가('center')) +       /* 16 등급상 */
+  /* 17 수 · 18 굵은수 — (G112) 칸에 data-n 이 있으면 숫자 그대로(#,##0) · 산안비 사용내역서처럼 금액 칸이 많은 종이 */
+  '<xf numFmtId="3" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1">' + 가('right') + '</xf>' +
+  '<xf numFmtId="3" fontId="1" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1">' + 가('right') + '</xf>' +
+  /* 19~23 — (G112) 세로줄만: 칸 · 칸왼 · 수 · 작은칸 · 작은칸왼 */
+  xf(0, 0, 2, 가('center')) + xf(0, 0, 2, 가('left')) +
+  '<xf numFmtId="3" fontId="0" fillId="0" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1">' + 가('right') + '</xf>' +
+  xf(4, 0, 2, 가('center')) + xf(4, 0, 2, 가('left')) +
   '</cellXfs><cellStyles count="1"><cellStyle name="표준" xfId="0" builtinId="0"/></cellStyles></styleSheet>'
 
 /* ── 화면 종이 → 격자 ─────────────────────────────── */
@@ -85,10 +98,10 @@ function 글읽기(el) {
   const t = (el.innerText != null ? el.innerText : el.textContent) || ''
   return t.split('\n').map((x) => x.replace(/\s+$/g, '').replace(/^\s+/g, '')).join('\n').replace(/^\n+|\n+$/g, '')
 }
-/** wihgen 줄높이 와 같은 셈 — 한 줄에 «칸수 × 1.5 ÷ 2.05» 자 */
-function 높이셈(글, n, 작게) {
-  if (!글) return 0
-  const 한줄 = Math.max(6, Math.floor((n * 1.5) / (작게 ? 1.8 : 2.05)))
+/** wihgen 줄높이 와 같은 셈 — 한 줄에 «칸 너비(글자 폭 합) ÷ 2.05» 자 · 너비 = 칸수 × 1.5(위험성) 또는 칸마다 폭의 합(G112) */
+function 높이셈(글, 너비, 작게) {
+  if (!글 && 글 !== 0) return 0
+  const 한줄 = Math.max(6, Math.floor(너비 / (작게 ? 1.8 : 2.05)))
   let 줄 = 0
   for (const 조각 of String(글).split('\n')) 줄 += Math.max(1, Math.ceil(조각.length / 한줄))
   return (작게 ? 13 : 14.5) * 줄 + 6
@@ -97,9 +110,13 @@ function 높이셈(글, n, 작게) {
 /**
  * @param {HTMLElement} 종이 — .rk-paper (화면에 그려진 미리보기)
  */
-export function 종이를격자(종이) {
+export function 종이를격자(종이, 폭 = 1.5) {
   const 표들 = [...종이.querySelectorAll('table.rk-t')]
-  const 칸수 = Math.max(12, ...표들.map((t) => t.querySelectorAll('colgroup col').length))
+  /* (G112) <col data-w="글자 폭"> 이 모두 있으면 칸마다 폭을 따로(원본 서식의 세로줄 자리 그대로) */
+  const 첫칸 = 표들.length ? [...표들[0].querySelectorAll('colgroup col')] : []
+  const 폭들 = 첫칸.length && 첫칸.every((c) => Number(c.dataset.w) > 0) ? 첫칸.map((c) => Number(c.dataset.w)) : null
+  const 칸수 = 폭들 ? 폭들.length : Math.max(12, ...표들.map((t) => t.querySelectorAll('colgroup col').length))
+  const 너비 = (c, n) => (폭들 ? 폭들.slice(c, c + n).reduce((a, b) => a + b, 0) : n * 폭)
   const 줄들 = []
   const 한줄 = (v, s, h) => { 줄들.push({ h, 칸: [{ c: 0, n: 칸수, r: 1, v, s }] }) }
   const 표넣기 = (tbl) => {
@@ -118,16 +135,19 @@ export function 종이를격자(종이) {
         const pt = parseFloat(td.style && td.style.height) || 0
         if (r === 1) 줄.h = Math.max(줄.h, pt)
         const 그림 = td.querySelectorAll('img').length
-        const v = 그림 ? `(사진 ${그림}장 — 인쇄본에 있습니다)` : 글읽기(td)
-        줄.칸.push({ c, n, r, v, s: 꼴고르기(td), pt })
+        const 숫 = td.dataset && td.dataset.n !== undefined && td.dataset.n !== '' && Number.isFinite(Number(td.dataset.n))
+        const v = 그림 ? `(사진 ${그림}장 — 인쇄본에 있습니다)` : 숫 ? Number(td.dataset.n) : 글읽기(td)
+        let s0 = 숫 ? (td.classList.contains('b') ? 꼴.굵은수 : 꼴.수) : 꼴고르기(td)
+        if (td.classList.contains('nb') && 세로만[s0] !== undefined) s0 = 세로만[s0]
+        줄.칸.push({ c, n, r, v, s: s0, pt })
         c += n
       }
     })
     /* 줄 높이 — 글자가 다 보이게(합친 칸은 그 줄들 높이 합으로) */
     for (let i = 시작; i < 줄들.length; i++) {
       for (const k of 줄들[i].칸) {
-        const 작게 = k.s === 꼴.작은칸 || k.s === 꼴.작은칸왼
-        const 필요 = Math.max(높이셈(k.v, k.n, 작게), k.r === 1 ? 18 : 0, k.pt || 0)
+        const 작게 = k.s === 꼴.작은칸 || k.s === 꼴.작은칸왼 || k.s === 꼴.작은칸nb || k.s === 꼴.작은칸왼nb
+        const 필요 = Math.max(높이셈(k.v, 너비(k.c, k.n), 작게), k.r === 1 ? 18 : 0, k.pt || 0)
         if (k.r === 1) { 줄들[i].h = Math.max(줄들[i].h, 필요); continue }
         let 합 = 0
         for (let j = i; j < i + k.r && j < 줄들.length; j++) 합 += 줄들[j].h || 18
@@ -143,7 +163,7 @@ export function 종이를격자(종이) {
     if (c.contains('rk-sec')) { 한줄(글읽기(el), 꼴.윗글, 22); continue }
     if (c.contains('rk-box')) {
       const t = [...el.children].map(글읽기).filter(Boolean).join('\n')
-      줄들.push({ h: Math.max(40, 높이셈(t, 칸수) + 6), 칸: [{ c: 0, n: 칸수, r: 1, v: t, s: 꼴.칸왼위 }] })
+      줄들.push({ h: Math.max(40, 높이셈(t, 너비(0, 칸수), false) + 6), 칸: [{ c: 0, n: 칸수, r: 1, v: t, s: 꼴.칸왼위 }] })
       continue
     }
     if (c.contains('rk-photo')) {
@@ -155,11 +175,11 @@ export function 종이를격자(종이) {
     const t = 글읽기(el)
     if (t) 한줄(t, 꼴.없음, 18)
   }
-  return { 칸수, 줄들 }
+  return { 칸수, 줄들, 폭, 폭들 }
 }
 
 /* ── 격자 → .xlsx ─────────────────────────────── */
-function 장xml({ 칸수, 줄들, 가로 }) {
+function 장xml({ 칸수, 줄들, 가로, 폭 = 1.5, 폭들 = null }) {
   const 칸들 = new Map()          // 줄 → Map(칸 → {s, v})
   const 합침 = []
   줄들.forEach((줄, ri) => {
@@ -187,7 +207,7 @@ function 장xml({ 칸수, 줄들, 가로 }) {
     '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
     '<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>' +
     '<sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews>' +
-    `<cols><col min="1" max="${칸수}" width="1.5" customWidth="1"/></cols>` +
+    (폭들 ? `<cols>${폭들.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${Math.round(w * 100) / 100}" customWidth="1"/>`).join('')}</cols>` : `<cols><col min="1" max="${칸수}" width="${폭}" customWidth="1"/></cols>`) +
     `<sheetData>${줄xml}</sheetData>` +
     (합침.length ? `<mergeCells count="${합침.length}">${합침.map((x) => `<mergeCell ref="${x}"/>`).join('')}</mergeCells>` : '') +
     '<pageMargins left="0.25" right="0.25" top="0.35" bottom="0.35" header="0.3" footer="0.3"/>' +

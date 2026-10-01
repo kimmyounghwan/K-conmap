@@ -2755,6 +2755,135 @@ def ilyong_guide_page(shell, g, image=None):
                 _iy_faq_ld(g, "/tools/ilyong-guide", g.get("title") or "일용직 4대보험 가입 기준", desc))
 
 
+# 💰🏢🦺📝 G112 (2026-10-01) 새 프로그램 넷 — 소장님 「예스폼에 또 뭐가 있지? 새로 만들어야 할 서식은?」 → 「1부터 4까지 만들어 보자」
+#   화면 Sonik.jsx · Jimyeong.jsx · Sanan.jsx · Ilbo.jsx · 셈 lib/sonik.js · jimyeong.js · sanan.js · ilbo.js · 저장 이 브라우저만.
+TOOLS_GUIDE_JSON = os.path.join(ROOT, "web", "src", "data", "tools_guide.json")
+
+
+def _tool_guide_html(key):
+    """📖 G112 새 프로그램 설명 — 화면(tools/도구설명.jsx)과 «같은 글» (web/src/data/tools_guide.json)
+       소장님: 「설명 검색에 뜨게 해줘」 · ⚠️ 법령은 국가법령정보센터 원문으로 확인한 조문만."""
+    try:
+        with open(TOOLS_GUIDE_JSON, encoding="utf-8") as f:
+            g = (json.load(f) or {}).get(key)
+    except Exception as e:
+        print(f"  · 새 프로그램 설명을 못 읽었습니다 ({type(e).__name__}) — 건너뜁니다")
+        return ""
+    if not g:
+        return ""
+    out = [f'<section class="tguide"><div class="card fguide"><h2 class="sec-title" style="margin:0 0 6px">📖 {esc(g.get("h") or "")}</h2>'
+           f'<p class="gwhat">{esc(g.get("what") or "")}</p></div>']
+    for head, k in (("쓰는 순서", "how"), ("자주 묻는 것", "faq")):
+        if g.get(k):
+            out.append(f'<div class="card fguide"><h2 class="sec-title" style="margin:0 0 6px">{head}</h2><dl class="ghow">'
+                       + "".join(f'<div><dt>{esc(a)}</dt><dd>{esc(b)}</dd></div>' for a, b in g[k]) + '</dl></div>')
+    if g.get("law"):
+        li = []
+        for it in g["law"]:
+            nm, txt = it[0], it[1]
+            url = it[2] if len(it) > 2 else ""
+            head = (f'<a href="{esc(url)}" target="_blank" rel="noopener">{esc(nm)}</a>' if url else esc(nm))
+            li.append(f'<li><b>{head}</b> — {esc(txt)}</li>')
+        at = g.get("at") or ""
+        out.append('<div class="card fguide"><h2 class="sec-title" style="margin:0 0 6px">근거 법령</h2><ul class="flist glaw">'
+                   + "".join(li) + '</ul>'
+                   + f'<div class="note sm" style="margin-top:6px">국가법령정보센터 원문 기준{f"({esc(at)})" if at else ""}입니다. '
+                   '법령은 바뀔 수 있으니 계약·제출 전에 조문 링크로 원문을 확인하세요.</div></div>')
+    out.append('</section>')
+    return "".join(out)
+
+
+def _tool_faq_ld(key):
+    """자주 묻는 것 → FAQPage 구조화 자료(같은 글)"""
+    try:
+        with open(TOOLS_GUIDE_JSON, encoding="utf-8") as f:
+            g = (json.load(f) or {}).get(key) or {}
+    except Exception:
+        return None
+    if not g.get("faq"):
+        return None
+    return {"@context": "https://schema.org", "@type": "FAQPage",
+            "mainEntity": [{"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in g["faq"]]}
+
+
+def _tool_page(shell, image, path, title, desc, h1, paras, lis, more, ld_name, key=None):
+    out = [f'<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">{esc(h1)}</h1>']
+    out += [f'<p class="cp" style="margin-top:8px">{x}</p>' for x in paras]
+    out.append('</div>')
+    for head, items in lis:
+        out.append(f'<div class="card"><div class="sec-title" style="margin:0 0 6px">{esc(head)}</div><ul class="flist">')
+        out += [f'<li>{x}</li>' for x in items]
+        out.append('</ul></div>')
+    if more:
+        out.append(f'<div class="card"><p class="cp" style="margin:0">{more}</p></div>')
+    ld = _app_ld(ld_name, desc[:160], path)
+    if key:
+        out.append(_tool_guide_html(key))
+        faq = _tool_faq_ld(key)
+        if faq:
+            a = {k: v for k, v in ld.items() if k != "@context"}
+            ld = {"@context": "https://schema.org", "@graph": [a, {k: v for k, v in faq.items() if k != "@context"}]}
+    return page(shell, path, title, desc[:160], "".join(out) + nav_html(path), image, ld)
+
+
+def sonik_page(shell, image=None):
+    return _tool_page(shell, image, "/tools/sonik",
+        "현장 손익 장부 — 매출·매입·미수금·미지급금·손익 자동, 매입매출장 인쇄 | K-건설맵",
+        "현장마다 기성 청구(매출)와 자재·장비·노무·외주(매입)를 적으면 손익·이익률·미수금·미지급금·달별 흐름·원가 구성·거래처별 잔액이 저절로 나옵니다. "
+        "손익 보고서·매입매출장 A4 인쇄, 값만 엑셀. 회원가입 없음, 무료.",
+        "💰 현장 손익 장부 — 매출 · 매입 · 미수금 · 손익",
+        ["현장마다 <b>기성 청구(매출)</b>와 <b>자재 · 장비 · 노무 · 외주(매입)</b>를 세금계산서 단위로 적으면 <b>손익 · 이익률 · 미수금 · 미지급금</b>이 저절로 나옵니다.",
+         "도급액을 넣으면 진행률과 «이대로 가면» 예상 손익(참고)까지. 회원가입 없음 · 무료. 적은 것은 <b>이 브라우저에만</b> 남고 서버로 보내지 않습니다."],
+        [("한 장부에서 보는 것", ["현장별 손익 · 이익률 · 진행률", "미수금(받을 돈) · 미지급금(줄 돈) — 거래처별", "달별 매출 · 매입 · 손익 · 돈 흐름(받은 날 · 준 날)",
+                               "원가 구성(노무 · 자재 · 장비 · 외주 · 경비)", "분기별 매출세액 − 매입세액(참고)", "손익 보고서(A4 세로) · 매입매출장(A4 가로) 인쇄 · 값만 엑셀"])],
+        '날마다 출역 · 장비 · 자재를 적고 청구내역서까지는 <a href="/tools/tuipbi">현장 투입비 · 공사일보</a>, 못 받은 돈은 <a href="/tools/unpaid">미불금 받는 순서</a>입니다.',
+        "현장 손익 장부", key="sonik")
+
+
+def jimyeong_page(shell, image=None):
+    return _tool_page(shell, image, "/tools/jimyeong",
+        "공사지명원 만들기 — 회사 소개·면허·기술인·장비·시공 실적 A4 인쇄, 무료 | K-건설맵",
+        "회사 정보·면허·연혁·기술인·장비·시공 실적·재무를 한 번 적어 두면 표지·공사지명원·목차·절마다 표가 A4로 나옵니다. "
+        "다음 지명원은 수신·날짜만 바꿔 다시. 실적·기술인은 엑셀 표 붙여 넣기. 회원가입 없음, 무료.",
+        "🏢 공사지명원 만들기 — 회사 소개 · 면허 · 기술인 · 실적",
+        ["회사 정보 · 면허 · 연혁 · 기술인 · 장비 · <b>시공 실적</b> · 재무를 한 번 적어 두면 <b>표지 · 공사지명원 · 목차 · 절마다 표</b>가 A4로 나옵니다.",
+         "다음 지명원은 수신 · 날짜만 바꿔 다시 뽑습니다. 회원가입 없음 · 무료 · 이 브라우저에만 저장."],
+        [("들어가는 쪽", ["표지(로고 · 회사명 · 제출일 · 수신)", "공사지명원(회사 현황 · 등록 업종 · 시공능력평가액 · 대표자 (인))", "목차 · 회사 개요 · 연혁",
+                          "건설업 등록(면허) 현황 · 기술인 보유 현황(분야별 인원) · 장비 보유 현황", "주요 시공 실적 · 시공 중인 공사(합계 · 한글 금액)", "재무 현황(부채비율) · 첨부 서류 목록"])],
+        '실적 사진은 <a href="/tools/photo">사진대지 만들기</a>, 견적은 <a href="/tools/gyeonjeok">공사 견적서 만들기</a>입니다.',
+        "공사지명원 만들기", key="jimyeong")
+
+
+def sanan_page(shell, image=None):
+    return _tool_page(shell, image, "/tools/sanan",
+        "산업안전보건관리비 계상기 · 사용내역서(별지 제1호서식) 자동 — 2025 고시 별표1 | K-건설맵",
+        "공사 종류와 재료비·직접노무비(모르면 총공사금액×10분의 7)로 고용노동부고시 별표1 계상액을 셉니다. 관급자재 비교·보건관리자 선임 대상·설계변경 조정·공정률별 사용 기준, "
+        "쓴 돈을 적으면 별지 제1호서식 사용내역서가 서식 칸 그대로. 무료.",
+        "🦺 산업안전보건관리비 계상기 · 사용내역서",
+        ["공사 종류와 <b>재료비 · 직접노무비</b>(모르면 총공사금액)를 넣으면 「건설업 산업안전보건관리비 계상 및 사용기준」(고용노동부고시 제2025-11호) <b>별표1</b>로 계상액이 나옵니다.",
+         "쓴 돈을 항목별로 적으면 <b>별지 제1호서식 사용내역서</b>(총괄 + 항목별 9쪽)가 서식 칸 그대로 채워집니다. 회원가입 없음 · 무료 · 이 브라우저에만 저장."],
+        [("셈하는 것 (고시 원문 확인)", ["별표1 — 건축 · 토목 · 중건설 · 특수건설, 5억 미만 · 5억~50억(비율 + 기초액) · 50억 이상 · 보건관리자 선임 대상",
+                                       "관급자재 — (넣고 셈) 과 (빼고 셈 × 1.2) 중 작은 값 이상(제4조제1항)", "대상액이 명확하지 않으면 총공사금액의 10분의 7",
+                                       "설계변경 — 별표1의3(변경 전 산안비 × 대상액 증감 비율)", "공정률 50 · 70 · 90% → 50 · 70 · 90% 이상 사용(별표3)",
+                                       "한도 — 스마트 안전장비 10분의 2 · 본사 전담조직 20분의 1 · 위험성평가 등 100분의 15(제7조)"])],
+        '엑셀 빈 서식은 <a href="/forms/anjeonbi-naeyeok">산업안전보건관리비 사용내역서</a> · <a href="/forms/anjeonbi-gyehoek">사용계획서</a>, 원가계산서는 <a href="/tools/gyeonjeok">공사 견적서 · 원가계산서</a>입니다.',
+        "산업안전보건관리비 계상기", key="sanan")
+
+
+def ilbo_page(shell, image=None):
+    return _tool_page(shell, image, "/tools/ilbo",
+        "작업일보 만들기 — 인원·장비·자재 금일/누계 자동, A4 작업일보(공사일보) 무료 | K-건설맵",
+        "날씨·작업 내용·금일 인원·장비·자재만 적으면 전일까지·누계가 저절로 셈된 A4 작업일보(공사일보)가 나옵니다. 노무비 계산기 출역·예정공정표 계획 공정률 가져오기, "
+        "달마다 값만 엑셀. 회원가입·현장 등록 없음, 무료.",
+        "📝 작업일보 만들기 — 인원 · 장비 · 자재 누계 저절로",
+        ["날마다 <b>날씨 · 작업 내용 · 금일 인원 · 장비 · 자재</b>만 적으면 <b>전일까지 · 누계</b>가 저절로 셈되어 A4 한 장 작업일보(공사일보)로 나옵니다.",
+         "회원가입 · 현장 등록 없음 · 무료. 적은 것은 이 브라우저에만 남습니다."],
+        [("편한 것", ["같은 브라우저의 노무비 계산기 출역 → 직종별 인원 가져오기", "예정공정표가 있으면 그날 계획 공정률", "↺ 전날 작업 내용 · 인원 · 장비 가져오기",
+                     "A4 세로 한 장 인쇄 · 이 날 / 이 달 값만 엑셀(달 요약 · 직종별 연인원)"])],
+        '여럿이 같이 적고 달마다 청구내역서까지는 <a href="/tools/tuipbi">현장 투입비 · 공사일보</a>, 빈 서식은 <a href="/forms/jakeop-ilbo">작업일보</a>입니다.',
+        "작업일보 만들기", key="ilbo")
+
+
 def _app_ld(name, desc, path):
     return {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": name,
             "applicationCategory": "BusinessApplication", "operatingSystem": "Web",
@@ -3247,6 +3376,14 @@ def main():
           og.tab("tool-gyeonjeok", "공사 견적서 · 원가계산서", "건설 도구", "견적금액 한글 자동", "A4 인쇄") if og.available else None))
     made += 1
     print("  · 공사 견적서 · 원가계산서 페이지 1개 (/tools/gyeonjeok)")
+    for _slug, _fn, _og in [
+            ("sonik", sonik_page, ("tool-sonik", "현장 손익 장부", "건설 도구", "매출 · 매입 · 미수금", "손익 · 이익률")),
+            ("jimyeong", jimyeong_page, ("tool-jimyeong", "공사지명원 만들기", "건설 도구", "회사 소개 · 면허 · 실적", "A4 인쇄")),
+            ("sanan", sanan_page, ("tool-sanan", "산안비 계상기 · 사용내역서", "건설 도구", "고시 별표1 · 별지 제1호", "서식 칸 그대로")),
+            ("ilbo", ilbo_page, ("tool-ilbo", "작업일보 만들기", "건설 도구", "인원 · 장비 · 자재 누계", "A4 한 장"))]:
+        write(f"tools/{_slug}.html", _fn(shell, og.tab(*_og) if og.available else None))
+        made += 1
+    print("  · 손익 장부 · 공사지명원 · 산안비 · 작업일보 페이지 4개 (G112)")
     _iy = load_ilyong_guide()
     if _iy:
         write("tools/ilyong-boheom.html", ilyong_page(shell, _iy,
