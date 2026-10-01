@@ -8,7 +8,8 @@
  *     별지1 최초·정기 → 별지2 수시(4주·1주·1일)는 별지1 줄을 «가져오기» → 별지5 성과측정표는 중·상 줄을 가져와 날마다 ○·X
  *     별지3·4 회의·교육 결과는 일시·장소·내용·사진 2장·참석자
  * ■ 위험등급(빈도×강도)·관리기간·달성율은 저절로. 📚 위험요인 사전(우리가 쓴 일반 문장)에서 골라 넣고 고쳐 씁니다.
- * ■ 종이는 서식(wih-*)과 같은 칸 — tools/위험성종이.jsx. 인쇄만(엑셀 받기 없음 — 소장님 2026-09-26: 프로그램으로 만든 것은 인쇄만).
+ * ■ 종이는 서식(wih-*)과 같은 칸 — tools/위험성종이.jsx. 인쇄 + «📗 엑셀(값만)»(G110 — 소장님 「엑셀로 값만 주는 걸로 하자. 프로그램 원칙으로 하고」 ·
+ *   「2차 가자」): 화면 종이 미리보기를 lib/격자엑셀.js 가 합친 칸 · 결재란 · 칸 이름 그대로 엑셀로(수식 없음 · 사진은 인쇄본에).
  * ■ 적으면 1초 남짓 뒤 저절로 저장됩니다(서류 한 장 = rk_docs 한 덩이). 사진은 rk_pics — 그 서류를 열 때만 받습니다.
  * 셈: lib/위험성.js (시험 node tools/시험_위험성.mjs) · 저장: lib/장부.js (ns 'rk') · 규칙: web/database.rules.json «위험성평가»
  */
@@ -218,7 +219,7 @@ export default function RiskBook() {
           <li><b>별지2 수시</b> — 4주(2주)·1주·1일 가운데 고르고, 별지1 줄을 <b>가져와</b> 작업위치·검토/추록·담당만 채웁니다. 1주는 요일별 ○·X 점검까지.</li>
           <li><b>별지3·4 회의·교육 결과</b> — 일시·장소·내용(기본 문장이 들어 있음)·사진 2장·참석자.</li>
           <li><b>별지5 성과측정표</b> — 중·상 등급 줄을 가져와 날마다 ○(이행)·X(미이행)를 누르면 달성율이 나옵니다.</li>
-          <li>다 되면 <b>🖨 인쇄</b> — 결재·서명은 종이에 받습니다.</li>
+          <li>다 되면 <b>🖨 인쇄</b> — 결재·서명은 종이에 받습니다. 보관용으로 <b>📗 엑셀(값만)</b>도 받습니다 — 종이와 같은 칸 · 결재란 그대로, 수식은 없습니다(고칠 때는 여기서).</li>
         </ol>
         <p className="note sm" style={{ marginBottom: 0 }}>
           빈 서식이 필요하면 <Link to="/forms/wih-choego">📄 위험성평가 서식(엑셀)</Link>도 그대로 있습니다.
@@ -390,6 +391,16 @@ function 서류칸({ id, 문, 정보, 자료, 예시, 서류저장, 사진읽기
   const [상태, set상태] = useState('')
   const [사진, set사진] = useState({})
   const [인쇄중, 인쇄] = use인쇄(`${K.별지}_${K.짧게}_${j.d || ''}`)
+  const 미리 = useRef(null)
+  /* 📗 G110 — 화면 종이(미리보기)를 칸 그대로 · 값만 */
+  const 엑셀받기 = async () => {
+    const 종 = 미리.current && 미리.current.querySelector('.rk-paper')
+    if (!종) return
+    const [{ 종이를격자, 격자책, 꼴 }, { 바이트받기 }] = await Promise.all([import('../lib/격자엑셀.js'), import('../lib/값엑셀.js')])
+    const g = 종이를격자(종)
+    g.줄들.push({ h: 16, 칸: [{ c: 0, n: g.칸수, r: 1, v: 'K-건설맵 위험성평가에서 만든 값입니다(수식 없음). 고칠 때는 k-conmap.com/tools/risk 에서 고쳐 다시 받으십시오.', s: 꼴.꼬리 }] })
+    바이트받기(`${K.별지}_${K.짧게}_${j.d || ''}`, 격자책([{ 이름: `${K.별지} ${K.짧게}`, ...g, 가로: !!K.가로 }]))
+  }
   const 남은 = useRef(null)
   const 첫 = useRef(true)
 
@@ -420,6 +431,7 @@ function 서류칸({ id, 문, 정보, 자료, 예시, 서류저장, 사진읽기
         <button className="btn ghost sm" onClick={닫기}>← 서류 목록</button>
         <div className="grow"><div className="eq-name" style={{ fontSize: 15 }}>{K.별지} · {K.이름}</div><div className="d">{상태 || '고치면 저절로 저장됩니다'}</div></div>
         <button className="btn sm" onClick={인쇄}>🖨 인쇄</button>
+        <button className="btn sm ghost" onClick={엑셀받기} title="종이와 같은 칸으로 · 값만(수식 없음)">📗 엑셀(값만)</button>
       </div>
       <div className="card">
         {k === '1' && (
@@ -471,8 +483,9 @@ function 서류칸({ id, 문, 정보, 자료, 예시, 서류저장, 사진읽기
       {(k === '1' || k.startsWith('2') || k === '5') && <줄들 k={k} j={j} 바꿈={바꿈} 다른서류={다른서류} />}
       <div className="card">
         <div className="eq-bar"><span className="sec-title" style={{ margin: 0 }}>🖨 종이 미리보기</span><span className="muted sm">{K.가로 ? 'A4 가로' : 'A4 세로'} · 결재·서명은 종이에</span>
-          <button className="btn sm" onClick={인쇄}>🖨 인쇄 · PDF</button></div>
-        <div className="rk-preview"><종이 k={k} j={j} 사진={사진} /></div>
+          <button className="btn sm" onClick={인쇄}>🖨 인쇄 · PDF</button>
+          <button className="btn sm ghost" onClick={엑셀받기} title="종이와 같은 칸으로 · 값만(수식 없음)">📗 엑셀(값만)</button></div>
+        <div className="rk-preview" ref={미리}><종이 k={k} j={j} 사진={사진} /></div>
       </div>
       {인쇄중 && createPortal(<div id="gp-인쇄"><div className={'rk-쪽 ' + (K.가로 ? 'land' : 'port')}><종이 k={k} j={j} 사진={사진} /></div></div>, document.body)}
     </>

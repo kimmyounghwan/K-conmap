@@ -6,7 +6,7 @@
  */
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { 구분, 구분이름, 기성, 원, 억만, 퍼센트, 공수글, 오늘, 요약, 날더하기, 요일, 자재단위, 단위들, 휴지통날 } from '../lib/tuipbi.js'
+import { 구분, 구분이름, 기성, 원, 억만, 퍼센트, 공수글, 오늘, 요약, 날더하기, 요일, 자재단위, 단위들, 휴지통날, 엑셀 } from '../lib/tuipbi.js'
 import TuipbiBook from './TuipbiBook.jsx'
 import { VendorInbox, use업체입력 } from './TuipbiVin.jsx'
 import TuipbiIlbo from './TuipbiIlbo.jsx'
@@ -47,6 +47,9 @@ export default function TuipbiSite(P) {
           </div>
           <div className="tp-acts no-print">
             <button type="button" className="chip" onClick={() => window.print()} title="지금 보고 있는 탭을 인쇄합니다 (청구서는 청구서 탭의 인쇄 단추로)">🖨 인쇄</button>
+            {/* 📗 G110 현장 전체 값만 엑셀 — 요약 · 월별 집계 · 투입 내역 · 출역 노무 · 기성(lib/tuipbi.js 엑셀 · 수식 없음) */}
+            <button type="button" className="chip" title="현장 전체 — 요약 · 월별 집계 · 투입 내역 · 출역 노무 · 기성 (셈한 값만, 수식 없음)"
+              onClick={async () => { const { 바이트받기 } = await import('../lib/값엑셀.js'); 바이트받기(`현장투입비_${현장.name || '현장'}_${오늘()}`, 엑셀(현장, 줄들, P.코드, 출역, P.사람)) }}>📗 엑셀(값만)</button>
             {!예시 && <button type="button" className="chip" onClick={새로고침}>↻ 새로고침</button>}
             <button type="button" className="chip" onClick={() => P.set정보(!P.정보)}>✏️ 현장 정보</button>
             <button type="button" className={'chip' + (통열림 ? ' on' : '')} onClick={() => set통열림(!통열림)} title={`지운 것은 ${휴지통날}일 동안 여기서 되살릴 수 있습니다`}>🗑 휴지통{통수 ? ` ${통수}` : ''}</button>
@@ -785,9 +788,12 @@ export function TuipbiGuide({ 현장안 }) {
         </ul>
       </Sec>
 
-      <Sec 제목="5. 🖨 보기 · 인쇄 (엑셀 받기는 없습니다)">
+      <Sec 제목="5. 🖨 보기 · 인쇄 · 📗 값만 엑셀">
         <ul>
-          <li>모든 내용은 <b>화면의 표</b>로 봅니다 — 엑셀처럼 줄·칸으로 나옵니다. <b>입력과 수정은 이 화면에서만</b> 합니다(엑셀 파일로 내려받기는 없습니다).</li>
+          <li>모든 내용은 <b>화면의 표</b>로 봅니다 — 엑셀처럼 줄·칸으로 나옵니다. <b>입력과 수정은 이 화면에서만</b> 합니다.</li>
+          <li><b>📗 엑셀(값만)</b>: 보관용으로 셈한 <b>값만</b> 든 엑셀을 받습니다(수식 없음 — 엑셀에서 고쳐도 다른 칸이 따라 바뀌지 않으니, 고칠 때는 이 화면에서 고쳐 다시 받으십시오).
+            현장 머리의 «📗 엑셀(값만)» 은 현장 전체(요약 · 월별 집계 · 투입 내역 · 출역 노무 · 기성), 청구서 탭의 «이 달 청구서» 는 요약 · 노무비 대장 · 노무비 청구내역서 · 장비 · 자재, «달별 누계» 는 처음 달부터 이 달까지.
+            주민번호 · 계좌는 화면과 같게 나옵니다(잠겨 있으면 빈칸, 주민번호 뒷자리는 «뒷자리 보이기» 를 켰을 때만).</li>
           <li><b>🧾 달마다 청구서 → 🖨 이 달 청구서 모두 인쇄</b>: 노무비 · 장비 · 자재 청구서를 장마다 나누어 한 번에 인쇄합니다(가로 A4, 결재란).</li>
           <li><b>🖨 업체별 한 장씩</b>: 장비는 업체마다(같은 업체의 굴착기·덤프를 한 장에), 자재는 업체마다 한 장씩 — 머리에 «청구 업체» 가 찍혀 업체에 그대로 줄 수 있습니다.</li>
           <li><b>🖨 근로자별 명세서 한 장씩</b>: 한 사람에 한 장 — 출역 달력 · 일급 · 보수총액 · 공제 항목별(대상 여부와 까닭) · <b>실지급액</b> · 입금 계좌 · «위 금액을 정히 영수합니다» 수령인 서명란.</li>

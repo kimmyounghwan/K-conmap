@@ -36,8 +36,12 @@ export function 값엑셀받기(이름, 시트들, 꼬리 = {}) {
     widths: s.widths,
     freeze: s.freeze,
   }))
-  const out = writeWorkbook(시)
-  const url = URL.createObjectURL(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+  return 바이트받기(이름, writeWorkbook(시))
+}
+
+/** 이미 만든 .xlsx 바이트를 받기 (lib/tuipbi.js 월엑셀 · 누계엑셀 · 엑셀, lib/격자엑셀.js) — <a download> 라 받은수가 저절로 셈 */
+export function 바이트받기(이름, 바이트) {
+  const url = URL.createObjectURL(new Blob([바이트], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
   const a = document.createElement('a')
   a.href = url
   a.download = 파일이름(이름) + '.xlsx'

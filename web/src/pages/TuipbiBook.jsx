@@ -2,9 +2,12 @@
  * 🏗 현장 투입비 · 공사일보 — 👷 명부 · 🧾 달마다 청구서 (2026-09-26)
  * 소장님: 「어차피 공사 관계자만 보는 거니까. 노무자 및 장비, 자재 청구내역서 작성해서 보여주는 걸로 하자. 매달...」
  *   · 공제는 «전부 자동 + 고쳐 쓰기» (lib/gongje.js) · 주민번호·계좌는 «현장 비번으로 잠가 저장» (lib/tplock.js)
+ *   · 📗 (G110 · 2026-10-01) 소장님 「엑셀로 값만 주는 걸로 하자. 프로그램 원칙으로 하고」 · 「2차 가자」 →
+ *     «이 달 청구서 엑셀(값만)»(lib/tuipbi.js 월엑셀 — 요약 · 노무비 대장 · 노무비 청구내역서 · 장비 · 자재) ·
+ *     «달별 누계 엑셀(값만)»(누계엑셀). 9/26 에 끊어 둔 셈을 다시 이었습니다 — 수식 없음 · 주민번호·계좌는 화면과 같게(잠겨 있으면 빈칸 · 뒷자리는 «보이기» 를 켰을 때만)
  */
 import { useEffect, useMemo, useState } from 'react'
-import { 원, 억만, 공수글, 오늘, 노무달, 장비달, 자재달, 누계, 장비메모, 달더하기, 요일, 단위들 } from '../lib/tuipbi.js'
+import { 원, 억만, 공수글, 오늘, 노무달, 장비달, 자재달, 누계, 장비메모, 달더하기, 요일, 단위들, 월엑셀, 누계엑셀 } from '../lib/tuipbi.js'
 import { 요율 } from '../lib/gongje.js'
 import { 공제칸 } from '../lib/gongje.js'
 import { 주민가림 } from '../lib/tplock.js'
@@ -104,6 +107,13 @@ function Bills(P) {
     return [...m.values()]
   }, [E])
   const C = useMemo(() => (보기 === 'C' ? 누계(ym, 출역, 사람, 줄들, 장비, 업체) : null), [보기, ym, 출역, 사람, 줄들, 장비, 업체])
+  /* 📗 G110 값만 엑셀 — 주민번호 · 계좌는 화면과 같게(잠겨 있으면 빈칸) */
+  const 엑셀받기 = async (무엇) => {
+    const { 바이트받기 } = await import('../lib/값엑셀.js')
+    const 열린 = 잠김 && !예시 ? {} : (풀린 || {})
+    if (무엇 === 'C') 바이트받기(`달별누계_${현장.name || '현장'}_${ym}`, 누계엑셀(현장, 누계(ym, 출역, 사람, 줄들, 장비, 업체)))
+    else 바이트받기(`청구내역서_${현장.name || '현장'}_${ym}`, 월엑셀(현장, ym, N, E, M, 사람, 장비, 업체, 열린, 뒷자리))
+  }
 
   const [y, m] = ym.split('-')
   return (
@@ -127,6 +137,8 @@ function Bills(P) {
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 판인쇄('vendor')} disabled={!E.목록.length && !M.목록.length}>🖨 업체별 한 장씩 (장비 {장비업체들.length} · 자재 {M.목록.length})</button>
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 판인쇄('worker')} disabled={!N.줄.length}>🖨 근로자별 명세서 한 장씩 ({N.줄.length}명)</button>
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={인쇄}>🖨 이 화면 인쇄</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 엑셀받기('M')} title="요약 · 노무비 대장 · 노무비 청구내역서 · 장비 · 자재 — 셈한 값만(수식 없음)">📗 이 달 청구서 엑셀(값만)</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 엑셀받기('C')} title="처음 달부터 이 달까지 — 달별 · 노무비 집계표 · 개인별 · 장비 · 자재 업체별(수식 없음)">📗 달별 누계 엑셀(값만)</button>
           <label className="tp-chk" style={{ paddingBottom: 0 }}><input type="checkbox" checked={뒷자리} onChange={(e) => set뒷자리(e.target.checked)} disabled={잠김 && !예시} /> 주민번호 뒷자리 보이기</label>
         </div>
       </div>
