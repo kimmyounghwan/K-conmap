@@ -5683,3 +5683,30 @@ button.sk-mini { color: var(--accent); padding: 0; text-align: left; }
 .sn-sign { font-size: 9.5pt; margin: 6px 0 6px 40px; }
 .sn-frame .rk-foot { margin-top: 10px; }
 @media print { .sn-쪽 .rk-paper.sn-frame { border: 1.5px solid #000; padding: 10px 12px; } }
+/* ── 🔗 이어 쓰기 칸 (tools/이어쓰기.jsx · G113 — 2026-10-02) ── */
+.bk { border: 1px solid var(--accent-line); background: var(--accent-soft); border-radius: 12px; padding: 8px 10px; margin: 8px 0 10px; font-size: 13px; }
+.bk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.bk-bar > b { color: var(--accent); }
+.bk-code { font-weight: 700; font-variant-numeric: tabular-nums; }
+.bk-btns { display: inline-flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.bk-btns .btn { width: auto; }
+.bk-ok { color: var(--good); font-weight: 700; }
+.bk-ing { color: var(--text-2); font-weight: 700; }
+.bk-warn { color: var(--warn); font-weight: 700; }
+.bk-box { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; line-height: 1.6; }
+.bk-box.warn { border-color: var(--warn); background: var(--warn-soft); }
+.bk-box.ok { border-color: var(--good); background: var(--good-soft); }
+.bk-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.bk-row .btn { width: auto; }
+.bk-row .inp { max-width: 220px; }
+.bk-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+.bk-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 700; color: var(--text-2); min-width: 0; }
+.bk-big { font: 800 28px/1.2 ui-monospace, monospace; letter-spacing: 2px; color: var(--accent); }
+.bk-busy { margin-top: 6px; color: var(--text-2); }
+.bk-err { margin-top: 6px; color: var(--bad); font-weight: 700; }
+.bk-note { margin-top: 6px; color: var(--good); }
+.bk-x { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 13px; }
+.bk-help { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.bk-cut { color: var(--bad); }
+.muted.sm { font-size: 12px; }
+@media print { .bk { display: none !important; } }

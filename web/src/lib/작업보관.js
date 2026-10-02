@@ -49,3 +49,26 @@ export async function 여럿꺼내기(열쇠들) {
     }))
   } catch (e) { return new Map() }
 }
+
+/* 💾 G113 (2026-10-02) — 작업 백업 파일(lib/백업파일.js · tools/작업백업칸.jsx): 이 창고에 든 것 전부를 꺼내고 / 통째로 바꿉니다 */
+export async function 모두꺼내기() {
+  return 열기().then((db) => new Promise((ok, no) => {
+    const t = db.transaction(곳, 'readonly')
+    const out = []
+    const r = t.objectStore(곳).openCursor()
+    r.onsuccess = () => { const c = r.result; if (c) { out.push([c.key, c.value]); c.continue() } }
+    t.oncomplete = () => ok(out)
+    t.onerror = () => no(t.error)
+  }))
+}
+export async function 모두바꾸기(자료) {
+  await 열기().then((db) => new Promise((ok, no) => {
+    const t = db.transaction(곳, 'readwrite')
+    const s = t.objectStore(곳)
+    s.clear()
+    for (const [k, v] of 자료) s.put(v, k)
+    t.oncomplete = () => ok()
+    t.onerror = () => no(t.error)
+    t.onabort = () => no(t.error)
+  }))
+}

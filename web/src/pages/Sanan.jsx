@@ -7,6 +7,8 @@ import {
 } from '../lib/sanan.js'
 import { use인쇄 } from '../tools/공정인쇄.js'
 import 도구설명 from '../tools/도구설명.jsx'
+import 이어쓰기 from '../tools/이어쓰기.jsx'
+import { 앞모습두기 } from '../lib/이어쓰기.js'
 
 /**
  * 🦺 /tools/sanan — 산업안전보건관리비 계상기 · 사용내역서 (G112 · 2026-10-01)
@@ -15,7 +17,7 @@ import 도구설명 from '../tools/도구설명.jsx'
  * ■ 탭 넷: ① 계상(별표1 · 관급 비교 · 보건관리자 · 설계변경 별표1의3 · 별표3) ② 사용 계획(항목별 계상액 — 제10조 실행예산)
  *          ③ 사용 내역 적기(항목마다 서식의 칸 그대로) ④ 사용내역서(별지 제1호서식 1~10쪽 — 서식 칸 · 차례 그대로)
  * ■ 근거 · 숫자는 lib/sanan.js 머리말(고시 원문 확인). 인쇄(A4 세로) + 📗 값만 엑셀(사용내역서는 서식 칸 그대로 — lib/격자엑셀.js).
- * ■ 저장: 이 브라우저만 · 현장 여러 벌 저장. 창(alert · confirm)을 띄우지 않습니다 — 지우기는 한 번 더 누르기.
+ * ■ 저장: 이 브라우저 + 🔗 코드 + 비밀번호로 서버에 잠가 두면 폰·PC 어디서든 이어 씀(tools/이어쓰기.jsx · G113) · 현장 여러 벌 저장. 창(alert · confirm)을 띄우지 않습니다 — 지우기는 한 번 더 누르기.
  */
 
 const 탭들 = [['calc', '① 계상'], ['plan', '② 사용 계획'], ['use', '③ 사용 내역 적기'], ['paper', '④ 사용내역서']]
@@ -124,12 +126,13 @@ export default function Sanan() {
         <div className="nm-badges">
           <span>근거: {고시}</span>
           <span>회원가입 없음 · 무료</span>
-          <span>💾 이 브라우저에만 저장 {저장됨 ? '' : <b className="nm-warn">— 지금 저장이 막혀 있습니다(사생활 보호 창 등)</b>}</span>
+          <span>💾 이 브라우저에 저장 · 🔗 코드로 폰·PC 이어 쓰기 {저장됨 ? '' : <b className="nm-warn">— 지금 저장이 막혀 있습니다(사생활 보호 창 등)</b>}</span>
         </div>
+        <이어쓰기 ns="sn" 이름="산안비 계상기" 파일="산안비" st={st} setSt={setSt} 읽기={읽기} 쓰기={쓰기} />
         <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
           <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={저장}>💾 이 현장 저장</button>
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { setSt((s) => ({ ...s, cur: 빈현장() })); set알림('새 현장을 시작했습니다.') }}>＋ 새 현장</button>
-          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { setSt((s) => ({ ...s, cur: 예시() })); set알림('예시를 채웠습니다 — 지어낸 현장(토목 · 대상액 28.3억 · 석 달 사용)입니다.') }}>🧪 예시로 해 보기</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { 앞모습두기('sn', st); setSt((s) => ({ ...s, cur: 예시() })); set알림('예시를 채웠습니다 — 지어낸 현장(토목 · 대상액 28.3억 · 석 달 사용)입니다. 전에 적던 것은 «🔗 이어 쓰기 → 💾 백업 · 더 보기 → ↩ 되돌리기» 로 살립니다.') }}>🧪 예시로 해 보기</button>
         </div>
         {알림 && <div className="note sm" role="status" style={{ marginTop: 8 }}>{알림}</div>}
         {st.모음.length > 0 && (

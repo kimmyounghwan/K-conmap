@@ -7,13 +7,15 @@ import {
 import { 한글금액 } from '../lib/gyeonjeok.js'
 import { use인쇄 } from '../tools/공정인쇄.js'
 import 도구설명 from '../tools/도구설명.jsx'
+import 이어쓰기 from '../tools/이어쓰기.jsx'
+import { 앞모습두기 } from '../lib/이어쓰기.js'
 
 /**
  * 🏢 /tools/jimyeong — 공사지명원 만들기 (G112 · 2026-10-01)
  *
  * 소장님: 「예스폼에 또 뭐가 있지??? 새로 만들어야 할 서식은?」 → 예스폼 «공사지명원·회사소개»(39만, 우리 없음) → 「1부터 4까지 만들어 보자」 (②)
  * ■ 탭: ① 회사 ② 면허 · 연혁 ③ 기술인 · 장비 ④ 시공 실적 ⑤ 재무 · 첨부 ⑥ 미리보기 · 인쇄
- * ■ 표지 · 지명원 · 목차 · 절마다 표 → A4 세로 인쇄 + 📗 값만 엑셀. 저장은 이 브라우저만(lib/jimyeong.js).
+ * ■ 표지 · 지명원 · 목차 · 절마다 표 → A4 세로 인쇄 + 📗 값만 엑셀. 저장은 이 브라우저(lib/jimyeong.js) + 🔗 코드 + 비밀번호로 서버에 잠가 두면 폰·PC 어디서든 이어 씀(tools/이어쓰기.jsx · G113).
  * ■ 창(alert · confirm)을 띄우지 않습니다 — 지우기는 한 번 더 누르기.
  */
 
@@ -101,11 +103,12 @@ export default function Jimyeong() {
         </p>
         <div className="nm-badges">
           <span>회원가입 없음 · 무료</span>
-          <span>💾 이 브라우저에만 저장 — 서버로 안 보냄 {저장 === true ? '' : 저장 === 'logo' ? <b className="nm-warn">— 로고가 커서 로고 없이 저장했습니다</b> : <b className="nm-warn">— 지금 저장이 막혀 있습니다(사생활 보호 창 등)</b>}</span>
+          <span>💾 이 브라우저에 저장 · 🔗 코드로 폰·PC 이어 쓰기 {저장 === true ? '' : 저장 === 'logo' ? <b className="nm-warn">— 로고가 커서 로고 없이 저장했습니다</b> : <b className="nm-warn">— 지금 저장이 막혀 있습니다(사생활 보호 창 등)</b>}</span>
           <span>📋 엑셀 표 붙여 넣기</span>
         </div>
+        <이어쓰기 ns="jm" 이름="공사지명원" 파일="지명원" st={st} setSt={setSt} 읽기={읽기} 쓰기={쓰기} />
         <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { setSt(예시()); set알림('예시를 채웠습니다 — 지어낸 회사입니다. «모두 비우기» 로 지우고 시작하십시오.') }}>🧪 예시로 해 보기</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { 앞모습두기('jm', st); setSt(예시()); set알림('예시를 채웠습니다 — 지어낸 회사입니다. «모두 비우기» 로 지우고 시작하십시오. 전에 적던 것은 «🔗 이어 쓰기 → 💾 백업 · 더 보기 → ↩ 되돌리기» 로 살립니다.') }}>🧪 예시로 해 보기</button>
           {묻기 === 'all'
             ? <><button type="button" className="btn line sm nm-warn" style={{ width: 'auto' }} onClick={() => { setSt(빈것()); set묻기(''); set알림('모두 비웠습니다.') }}>정말 모두 비우기</button><button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set묻기('')}>그대로</button></>
             : <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set묻기('all')}>🗑 모두 비우기</button>}

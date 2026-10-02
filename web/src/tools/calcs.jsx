@@ -32,6 +32,8 @@ export function use칸(필드, 초기) {
       const m = JSON.parse(localStorage.getItem(c.열쇠) || '{}') || {}
       m[필드] = v
       localStorage.setItem(c.열쇠, JSON.stringify(m))
+      /* 🔗 G113 — 이어 쓰기(예정공정표)가 «바뀌었다» 를 알도록 (Tools.jsx ToolPage) */
+      window.dispatchEvent(new CustomEvent('kcm-calc', { detail: c.열쇠 }))
     } catch (e) { /* 가득 참 */ }
   }, [v])   // eslint-disable-line react-hooks/exhaustive-deps
   return [v, setV]

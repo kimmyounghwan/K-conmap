@@ -25,6 +25,8 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import META from '../data/wonclick.json'
 import { askAfter } from '../AskComment'
+import 이어쓰기 from '../tools/이어쓰기.jsx'
+import { 앞모습두기 } from '../lib/이어쓰기.js'
 /* 📄 2026-09-27 — 서류를 화면에서 보고·고치고·인쇄 (엑셀화면.jsx). 무거운 셈은 열 때만 받습니다. */
 const 엑셀화면 = lazy(() => import('../엑셀화면.jsx'))
 const 고침열쇠 = 'kcm.wonclick.고침.v1'
@@ -187,8 +189,21 @@ export default function WonClick() {
   }
 
   function 지우기() {
-    if (!window.confirm('입력한 내용을 모두 지울까요? (이 기기에 저장된 것만 지워집니다)')) return
+    if (!window.confirm('입력한 내용을 모두 지울까요? (지우기 전 모습은 «🔗 이어 쓰기 → 💾 백업 · 더 보기 → ↩ 되돌리기» 로 한 번 되살릴 수 있습니다)')) return
+    앞모습두기('wc', 잇는상태)
     setVals({}); setPick(META.docs.map((d) => d.sheet)); setDone(''); set고침({})
+  }
+
+  /* 🔗 G113 — 이어 쓰기: 칸(vals + 고른 서류) · 화면에서 고친 칸(고침) 두 덩이를 한 덩이로 */
+  const 잇는상태 = useMemo(() => ({ v: { ...vals, __pick: pick }, 고침 }), [vals, pick, 고침])
+  const 잇기읽기 = () => ({ v: load(), 고침: 고침읽기() })
+  const 잇기쓰기 = (x) => { save((x && x.v) || {}); try { localStorage.setItem(고침열쇠, JSON.stringify((x && x.고침) || {})) } catch { /* 가득 참 */ } return true }
+  const 잇기받기 = (x) => {
+    const v = (x && x.v) || {}
+    setVals(v)
+    setPick(Array.isArray(v.__pick) ? v.__pick : META.docs.map((d) => d.sheet))
+    set고침원((x && x.고침) || {})
+    setDone('')
   }
 
   const 무리 = [['업체', '우리 회사가 내는 서류'], ['발주기관', '발주기관(감독·검사자)이 쓰는 서류']]
@@ -211,8 +226,9 @@ export default function WonClick() {
 
       <div className="card">
         <div className="detail-h">① 칸 채우기 <span className="count">· 모르는 칸은 비워 두세요 — 서류에서 그 자리만 빈칸이 됩니다</span></div>
-        <div className="note sm">입력한 내용은 <b>이 기기(브라우저)에만</b> 저장됩니다. 서버로 보내지 않습니다.
+        <div className="note sm">입력한 내용은 <b>이 기기(브라우저)에</b> 저장됩니다. 폰·PC 어디서든 이어 쓰려면 아래 <b>«🔗 코드 만들기»</b>(코드 + 비밀번호 · 잠가서 서버에 — 저희도 못 읽음).
           요율(보증금률·지체상금률·하자기간)은 <b>계약서·공고서에 적힌 값</b>을 넣으세요.</div>
+        <이어쓰기 ns="wc" 이름="공사서류 원클릭" 파일="공사서류원클릭" st={잇는상태} setSt={잇기받기} 읽기={잇기읽기} 쓰기={잇기쓰기} />
         {secs.map(([s, list]) => {
           const 늦게 = 늦게펼침.some((p) => s.startsWith(p))
           const 채움 = list.some((i) => String(vals[i.key] ?? '').trim())

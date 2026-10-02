@@ -80,6 +80,8 @@ async function 하나더(갈래, 열쇠) {
 export async function 받음(href, 이름) {
   try {
     if (봇()) return
+    /* 🔗 G113 — 이어 쓰기 «💾 백업 파일»(…_백업_날짜.json · …_작업백업_날짜.json)은 «받은 서류» 가 아니라 세지 않습니다 */
+    if (이름 && /_(작업)?백업_\d{4}-\d{2}-\d{2}\.json$/.test(이름)) return
     const f = href ? 파일열쇠(href) : null
     const blob = /^blob:/.test(String(href || ''))
     if (!f && !blob && !(이름 && 파일끝.test(이름))) return

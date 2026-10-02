@@ -23,6 +23,8 @@
   ■ 2026-09-29 — 🚜 장비 장부(eq_*) · ⚠️ 위험성평가(rk_*)도 같은 방식이라 같이 뜨고 비우고 되살립니다(묶음들).
       되살리기의 «현장 코드» 자리에 장부 코드를 넣으면 됩니다 — 어느 묶음인지는 스스로 찾습니다.
 
+  ■ 2026-10-02 — 🔗 이어 쓰기 여덟(sn·sk·ib·nm·jm·gj·sc·wc — {ns}_books · {ns}_doc, 휴지통 없음)도 같이 뜨고 비우고 되살립니다.
+
   ■ 시험       python tools/시험_공사일보백업.py   (인터넷·비밀값 없이 잠그기·풀기·비울 목록을 봅니다)
 """
 import base64
@@ -50,6 +52,10 @@ DB = os.environ.get("RTDB_URL") or "https://k-conmap-default-rtdb.firebaseio.com
     {"ns": "rk", "책": "rk_books", "통": "rk_trash",
      "자리": ["rk_books", "rk_docs", "rk_pics", "rk_trash"], "딸림": {"docs": "rk_pics"}},
 ]
+# 🔗 2026-10-02 (G113) — «이어 쓰기» 여덟(web/src/lib/이어쓰기.js): 프로그램 상태를 통째로 잠근 한 칸({ns}_doc) · 휴지통 없음(통 None)
+#   sn 산안비 · sk 손익 장부 · ib 작업일보 · nm 노무비 · jm 지명원 · gj 견적서 · sc 예정공정표 · wc 공사서류 원클릭
+for _ns in ["sn", "sk", "ib", "nm", "jm", "gj", "sc", "wc"]:
+    묶음들.append({"ns": _ns, "책": _ns + "_books", "통": None, "자리": [_ns + "_books", _ns + "_doc"], "딸림": {}})
 자리들 = [x for g in 묶음들 for x in [g["ns"] + "_pins", g["ns"] + "_keys"] + g["자리"]] + ["cost_vlink", "cost_vin", "cost_day"]
 자리들 = list(dict.fromkeys(자리들))
 휴지통날 = 30                     # web/src/lib/tuipbi.js 의 휴지통날 과 같게
@@ -124,6 +130,7 @@ def 세기(자료):
     for k, 이름 in [("cost_rows", "적은줄"), ("cost_people", "근로자"), ("cost_equip", "장비"), ("cost_vendors", "업체"), ("cost_trash", "휴지통")]:
         센[이름] = sum(len(v) for v in (n.get(k) or {}).values() if isinstance(v, dict))
     센["출역달"] = sum(len(v) for v in (n.get("cost_att") or {}).values() if isinstance(v, dict))
+    센["이어쓰기장부"] = sum(len(n.get(g["책"]) or {}) for g in 묶음들 if g["통"] is None)
     for 자리, 이름 in [("eq_books", "장비장부"), ("eq_rows", "장비줄"), ("rk_books", "위험성장부"), ("rk_docs", "위험성서류")]:
         v = n.get(자리) or {}
         센[이름] = len(v) if 자리.endswith("_books") else sum(len(x) for x in v.values() if isinstance(x, dict))
@@ -135,7 +142,7 @@ def 비울목록(자료, 지금ms):
     n = 자료.get("nodes", {})
     지울 = {}
     for g in 묶음들:
-        for 현장, 통 in (n.get(g["통"]) or {}).items():
+        for 현장, 통 in ((n.get(g["통"]) if g["통"] else None) or {}).items():
             for t, x in (통 or {}).items():
                 at = (x or {}).get("at") if isinstance(x, dict) else None
                 if isinstance(at, (int, float)) and 지금ms - at >= 휴지통날 * 하루:
@@ -192,9 +199,10 @@ def 비우기():
     자료 = {"nodes": {}}
     for g in 묶음들:
         for 자리 in (g["책"], g["통"]):
-            자료["nodes"][자리] = 요청("GET", 자리, tok)
+            if 자리:
+                자료["nodes"][자리] = 요청("GET", 자리, tok)
     지울 = 비울목록(자료, int(time.time() * 1000))
-    통들 = {g["통"] for g in 묶음들}
+    통들 = {g["통"] for g in 묶음들 if g["통"]}
     책들 = {g["책"] for g in 묶음들}
     낱개 = sum(1 for k in 지울 if k.split("/")[0] in 통들 and k.count("/") == 2)
     현장 = len({k for k in 지울 if k.split("/")[0] in 책들})

@@ -34,6 +34,7 @@ import { use도면, 도면판, 도면상태줄 } from '../도면판.jsx'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { 찍기, 두점더하기, 도움글 } from '../lib/찍기.js'
 import * as 기억 from '../lib/기억자료.js'
+import 작업백업칸 from '../tools/작업백업칸.jsx'
 /* 📄 2026-09-27 — 결과를 화면에서 보고·고치고·인쇄 (엑셀 받기도 둠) */
 const 엑셀화면 = lazy(() => import('../엑셀화면.jsx'))
 
@@ -42,6 +43,18 @@ const 엑셀화면 = lazy(() => import('../엑셀화면.jsx'))
      서버로는 한 조각도 가지 않습니다. «비우기» 를 누르면 지워집니다. */
 const 남김열쇠 = 'kcm.run.v1'
 function 남김읽기() { try { return JSON.parse(localStorage.getItem(남김열쇠) || 'null') } catch (e) { return null } }
+/* 💾 G113 — 작업 백업 파일: 적은 치수표(localStorage) + 고른 재료표 · 올린 치수표(IndexedDB) */
+async function 런꺼내기() {
+  const 자료 = []
+  try { const v = localStorage.getItem(남김열쇠); if (v) 자료.push(['남김', v]) } catch (e) { /* 막힘 */ }
+  for (const k of ['run.재료표', 'run.치수표']) { const v = await 기억.꺼내기(k); if (v) 자료.push([k, v]) }
+  return 자료
+}
+async function 런넣기(자료) {
+  const m = new Map(자료)
+  if (m.has('남김')) localStorage.setItem(남김열쇠, String(m.get('남김'))); else localStorage.removeItem(남김열쇠)
+  for (const k of ['run.재료표', 'run.치수표']) { if (m.has(k)) await 기억.넣기(k, m.get(k)); else await 기억.지우기(k) }
+}
 
 /** 치수표 칸마다 도면에서 무엇을 받나 */
 function 치수칸종류(k) {
@@ -298,6 +311,8 @@ function Run() {
           회원가입 없이 무료로 여기서 끝납니다. <b>넣으신 것은 이 브라우저 밖으로 나가지 않습니다</b> —
           셈은 쓰시는 컴퓨터(휴대폰) 안에서 합니다.
         </p>
+        {/* 💾 G113 — 적은 치수표 · 고른 재료표 · 올린 치수표를 파일 하나로 옮겨 다른 기기에서 이어 합니다(서버로 안 감) */}
+        <작업백업칸 곳="jeoksanrun" 파일="수량산출서" 무엇="치수표 · 재료표" 꺼내기={런꺼내기} 넣기={런넣기} />
       </div>
 
       {/* ── ① 재료표 ── */}

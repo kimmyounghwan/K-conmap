@@ -7,13 +7,14 @@ import {
 } from '../lib/sonik.js'
 import { use인쇄 } from '../tools/공정인쇄.js'
 import 도구설명 from '../tools/도구설명.jsx'
+import 이어쓰기 from '../tools/이어쓰기.jsx'
 
 /**
  * 💰 /tools/sonik — 현장 손익 장부 (G112 · 2026-10-01)
  *
  * 소장님: 「예스폼에 또 뭐가 있지??? 새로 만들어야 할 서식은?」 → 예스폼 «현장 매입매출·손익»(40만, 우리 없음) → 「1부터 4까지 만들어 보자」 (①)
  * ■ 매출(청구) · 매입을 세금계산서 단위로 적으면 → 현장마다 손익 · 이익률 · 미수금 · 미지급금 · 달별 · 원가 구성 · 거래처별 · 분기 부가세(참고)
- * ■ 인쇄: 손익 보고서(A4 세로) · 매입매출장(A4 가로) + 📗 값만 엑셀. 저장은 이 브라우저만 — 셈은 lib/sonik.js.
+ * ■ 인쇄: 손익 보고서(A4 세로) · 매입매출장(A4 가로) + 📗 값만 엑셀. 저장은 이 브라우저 + 🔗 코드 + 비밀번호로 서버에 잠가 두면 폰·PC 어디서든 이어 씀(tools/이어쓰기.jsx · G113) — 셈은 lib/sonik.js.
  * ■ 창(alert · confirm)을 띄우지 않습니다 — 지우기는 한 번 더 누르기.
  */
 
@@ -124,9 +125,10 @@ export default function Sonik() {
         </p>
         <div className="nm-badges">
           <span>회원가입 없음 · 무료</span>
-          <span>💾 이 브라우저에만 저장 — 서버로 안 보냄 {저장됨 ? '' : <b className="nm-warn">— 지금 저장이 막혀 있습니다(사생활 보호 창 등)</b>}</span>
+          <span>💾 이 브라우저에 저장 · 🔗 코드로 폰·PC 이어 쓰기 {저장됨 ? '' : <b className="nm-warn">— 지금 저장이 막혀 있습니다(사생활 보호 창 등)</b>}</span>
           <span>📋 엑셀 표 붙여 넣기</span>
         </div>
+        <이어쓰기 ns="sk" 이름="현장 손익 장부" 파일="손익장부" st={st} setSt={setSt} 읽기={읽기} 쓰기={쓰기} />
         <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
           {st.현장.length === 0 && <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => { const e = 예시(); setSt(e); set고른(''); set폼(빈줄(e.현장[0].id)); set알림('예시를 채웠습니다 — 지어낸 회사 · 현장 · 거래처입니다. «장부 비우기» 로 지우고 시작하십시오.') }}>🧪 예시로 해 보기</button>}
           <label className="sk-co">장부 이름(회사)<input className="inp" value={st.co} maxLength={40} onChange={(e) => setSt((s) => ({ ...s, co: e.target.value }))} placeholder="예: ○○건설(주)" /></label>

@@ -4,6 +4,7 @@ import { 공제칸, 요율 } from '../lib/gongje.js'
 import { 읽기, 쓰기, 빈것, 새번호, 달셈, 칸바꿈, 줄채움, 달값, 예시, 공수차례, 달날수, 요일, 달더하기, 원, 공수글 } from '../lib/nomubi.js'
 /* 🛡 2026-10-01 (G107) 연금 · 건강 «대상» 은 lib/ilyong4.js 판단(여러 달) — 사람마다 «판단 자세히» 로 가입 판단기에 출역을 넘깁니다 */
 import { 생일풀기, 만나이, 나이날 } from '../lib/ilyong4.js'   /* 🎂 G109 생년월일 → 만 나이 · 60세 연금 · 65세 고용 */
+import 이어쓰기 from '../tools/이어쓰기.jsx'
 const 넘김열쇠 = 'kcm_ilyong_from'
 
 /**
@@ -15,7 +16,7 @@ const 넘김열쇠 = 'kcm_ilyong_from'
  * ■ 하는 일: 명단(이름 · 직종 · 일당) + 출역(날짜 칸을 누를 때마다 1 → 0.5 → 1.5 → 빈칸)
  *   → 소득세 · 지방소득세 · 고용 · 국민연금 · 건강 · 장기요양 공제와 실지급액 → 지급명세서(A4 가로 인쇄) · 신고용 집계.
  * ■ 공제 셈은 lib/gongje.js 하나(투입비 도구와 같음). 화면 모양도 투입비 청구서(tp-*)를 그대로 씁니다.
- * ■ 저장은 이 브라우저(localStorage)만 — 서버에 안 보냄 · 주민번호 뒷자리 · 계좌는 받지 않음.
+ * ■ 저장은 이 브라우저(localStorage) + 🔗 코드 + 비밀번호로 서버에 잠가 두면 폰·PC 어디서든 이어 씀(tools/이어쓰기.jsx · G113) — 명단까지 통째로 잠가서 올림(서버·운영자 못 읽음) · 주민번호 뒷자리 · 계좌는 받지 않음.
  * ■ 🎂 (2026-10-01 G109) 명단에 생년월일(앞 6자리) — 소장님 「나이를 넣게 하고, 4대 보험은 자동으로」 · 「미포함 및 포함 나이로 판별해서 자동으로 금액이 나오게」
  *   만 60세(60세가 된 날의 다음 날)부터 국민연금 대상 아님 · 만 65세부터 일한 날은 고용보험 실업급여 몫 없음 → 공제 · 실지급액이 저절로 바뀜
  * ■ (2026-10-01 G109 부터 «📗 값만 엑셀» — 셈한 값만, 수식 없음) 처음엔 엑셀 받기 없음 · 인쇄만 — 소장님(2026-09-26): 「프로그램으로 해서 만든 거는 … 다운 받을 수 없게 … 프린트만 가능하게 … 수정이나 입력은 건설맵에서」
@@ -145,9 +146,10 @@ export default function Nomubi() {
         </p>
         <div className="nm-badges">
           <span>회원가입 없음 · 무료</span>
-          <span>💾 이 브라우저에만 저장 {저장됨 ? '' : <b className="nm-warn">— 지금 저장이 막혀 있습니다(사생활 보호 창 등)</b>}</span>
+          <span>💾 이 브라우저에 저장 · 🔗 코드로 폰·PC 이어 쓰기 {저장됨 ? '' : <b className="nm-warn">— 지금 저장이 막혀 있습니다(사생활 보호 창 등)</b>}</span>
           <span>🔒 생년월일만 · 주민번호 뒷자리 · 계좌는 받지 않습니다</span>
         </div>
+        <이어쓰기 ns="nm" 이름="일용 노무비" 파일="노무비" st={st} setSt={setSt} 읽기={읽기} 쓰기={쓰기} />
         <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
           {st.P.length === 0 && <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => setSt(예시(ym))}>예시로 채워 보기</button>}
           {st.P.length > 0 && !지움물음 && <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set지움물음(true)}>처음부터 (모두 지우기)</button>}
@@ -405,7 +407,7 @@ export default function Nomubi() {
             사람마다 <b>«🛡 판단 자세히»</b> 를 누르면 <Link to="/tools/ilyong-boheom">4대보험 가입 판단기</Link>에서 취득 · 상실일과 까닭을 봅니다.
             다른 현장에서 일한 날을 합쳐야 하는 경우 · 나이(연금 60세 이상 등) · 외국인처럼 이 화면이 모르는 것은 «4대보험 대상» 단추로 그 달만 넣고 빼거나, 명단의 «늘 빼기» 를 켜십시오.</li>
           <li>공제 칸을 누르면 금액을 고쳐 쓸 수 있습니다(🟨). «자동» 을 누르면 다시 셈한 값으로 돌아갑니다.</li>
-          <li>적은 것은 <b>이 브라우저에만</b> 남습니다. 다른 기기에서 같이 보려면 현장 단위로 서버에 저장하는 <Link to="/tools/tuipbi">현장 투입비 · 공사일보</Link>(노무비 청구내역서 포함)를 쓰십시오.</li>
+          <li>적은 것은 <b>이 브라우저에</b> 남습니다. 폰·PC 어디서든 이어 쓰려면 위 <b>«🔗 코드 만들기»</b> — 명단 · 출역 전부를 비밀번호로 잠가 서버에 두고(저희도 못 읽음), 다른 기기에서 «코드로 열기». 청구서까지 여럿이 같이 쓰려면 <Link to="/tools/tuipbi">현장 투입비 · 공사일보</Link>(노무비 청구내역서 포함).</li>
           <li>엑셀로 쓰실 분은 서식 <Link to="/forms/nomubi">노무비 지급확인서</Link> · <Link to="/forms/imgeum-daejang">임금대장</Link> 이 있습니다.</li>
         </ul>
       </details>

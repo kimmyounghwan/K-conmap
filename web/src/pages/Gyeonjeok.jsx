@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import {
   읽기, 쓰기, 빈견적, 새번호, 셈, 산안표, 법정, 기본요율, 켜기본, 원, 한글금액, 날더하기, 예시, 예시나, 오늘,
 } from '../lib/gyeonjeok.js'
+import 이어쓰기 from '../tools/이어쓰기.jsx'
+import { 앞모습두기 } from '../lib/이어쓰기.js'
 
 /**
  * 🧾 /tools/gyeonjeok — 공사 견적서 · 원가계산서 만들기 (G105 · 2026-10-01)
@@ -129,14 +131,15 @@ export default function Gyeonjeok() {
         </p>
         <div className="nm-badges">
           <span>회원가입 없음 · 무료</span>
-          <span>💾 이 브라우저에만 저장 {저장됨 ? '' : <b className="nm-warn">— 지금 저장이 막혀 있습니다(사생활 보호 창 등)</b>}</span>
+          <span>💾 이 브라우저에 저장 · 🔗 코드로 폰·PC 이어 쓰기 {저장됨 ? '' : <b className="nm-warn">— 지금 저장이 막혀 있습니다(사생활 보호 창 등)</b>}</span>
           <span>📋 엑셀 표를 복사해 붙여 넣을 수 있습니다</span>
         </div>
+        <이어쓰기 ns="gj" 이름="공사 견적서" 파일="견적서" st={st} setSt={setSt} 읽기={읽기} 쓰기={쓰기} />
         <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
           <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={저장}>💾 이 견적 저장</button>
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { setSt((s) => ({ ...s, cur: 빈견적() })); set알림('새 견적을 시작했습니다. 공급자(내 회사) 칸은 그대로 둡니다.') }}>＋ 새 견적</button>
-          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { setSt((s) => ({ ...s, cur: 예시('simple'), 나: s.나.상호 ? s.나 : 예시나() })); set알림('예시(간단 견적)를 채웠습니다 — 지어낸 공사 · 회사입니다.') }}>예시 — 간단 견적</button>
-          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { setSt((s) => ({ ...s, cur: 예시('public'), 나: s.나.상호 ? s.나 : 예시나() })); set알림('예시(공공식 원가계산)를 채웠습니다 — 지어낸 공사 · 회사입니다.') }}>예시 — 공공식 원가계산</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { 앞모습두기('gj', st); setSt((s) => ({ ...s, cur: 예시('simple'), 나: s.나.상호 ? s.나 : 예시나() })); set알림('예시(간단 견적)를 채웠습니다 — 지어낸 공사 · 회사입니다.') }}>예시 — 간단 견적</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { 앞모습두기('gj', st); setSt((s) => ({ ...s, cur: 예시('public'), 나: s.나.상호 ? s.나 : 예시나() })); set알림('예시(공공식 원가계산)를 채웠습니다 — 지어낸 공사 · 회사입니다.') }}>예시 — 공공식 원가계산</button>
         </div>
         {알림 && <div className="note sm" role="status" style={{ marginTop: 8 }}>{알림}</div>}
         {st.모음.length > 0 && (
@@ -408,7 +411,7 @@ export default function Gyeonjeok() {
             간접노무비 · 퇴직공제부금 · 환경보전비 · 기타경비 · 일반관리비는 공사 종류 · 규모 · 기간에 따라 다르니 <b>설계서 값으로 고쳐 쓰십시오</b>(체크를 끄면 넣지 않습니다).</li>
           <li>공공 원가계산의 일반관리비는 <b>8% 이하</b>, 이윤은 <b>15% 이하</b>입니다(국가계약법 시행규칙 제8조 — 공사). 넘으면 화면이 알려 드립니다. 민간 견적은 정해진 한도가 없습니다.</li>
           <li>엑셀에서 내역을 복사해 «📋 엑셀 표 붙여 넣기» 로 한 번에 넣을 수 있습니다.</li>
-          <li>적은 것은 <b>이 브라우저에만</b> 남습니다. «💾 이 견적 저장» 으로 여러 벌(최대 20)을 두고 다시 불러옵니다.</li>
+          <li>적은 것은 <b>이 브라우저에</b> 남습니다. «💾 이 견적 저장» 으로 여러 벌(최대 20)을 두고 다시 불러옵니다. 폰·PC 어디서든 이어 쓰려면 위 <b>«🔗 코드 만들기»</b>(코드 + 비밀번호 · 잠가서 서버에) — 다른 기기에서 «코드로 열기».</li>
           <li>엑셀 서식이 필요하면 <Link to="/forms/wonga">공사원가계산서</Link> · <Link to="/forms/sanchul-naeyeok">공사 산출내역서</Link> 서식이 있고, 하도급 비율 맞추기는 <Link to="/naeyeok/ratio">내역서 비율 맞추기</Link>입니다.</li>
         </ul>
       </details>

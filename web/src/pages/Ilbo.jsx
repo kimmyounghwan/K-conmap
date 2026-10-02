@@ -9,6 +9,7 @@ import { 계획률, 공정셈 as 공정표셈 } from '../lib/공정.js'
 import 일보종이 from '../tools/일보종이.jsx'
 import { use인쇄 } from '../tools/공정인쇄.js'
 import 도구설명 from '../tools/도구설명.jsx'
+import 이어쓰기 from '../tools/이어쓰기.jsx'
 
 /**
  * 📝 /tools/ilbo — 작업일보 만들기 (G112 · 2026-10-01)
@@ -16,7 +17,7 @@ import 도구설명 from '../tools/도구설명.jsx'
  * 소장님: 「예스폼에 또 뭐가 있지??? 새로 만들어야 할 서식은?」 → 예스폼 «작업일지»(68만) → 「1부터 4까지 만들어 보자」 (④ 작업일보 자동)
  * ■ 가입 · 현장 등록 없이 바로: 날마다 날씨 · 공정률 · 작업 내용 · 인원 · 장비 · 자재(금일만) → 전일까지 · 누계 저절로 → A4 한 장
  * ■ 같은 브라우저의 👷 노무비 계산기 출역 → 직종별 인원 «가져오기» · 📈 예정공정표 → 계획 공정률
- * ■ 여럿이 같이 · 청구서까지는 🏗 현장 투입비(같은 종이 — tools/일보종이.jsx). 저장은 이 브라우저만(lib/ilbo.js).
+ * ■ 여럿이 같이 · 청구서까지는 🏗 현장 투입비(같은 종이 — tools/일보종이.jsx). 저장은 이 브라우저(lib/ilbo.js) + 🔗 코드 + 비밀번호로 서버에 잠가 두면 폰·PC 어디서든 이어 씀(tools/이어쓰기.jsx · G113).
  */
 
 const 점날 = (t) => { const m = String(t || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[1]}. ${+m[2]}. ${+m[3]}.` : '' }
@@ -132,9 +133,10 @@ export default function Ilbo() {
         </p>
         <div className="nm-badges">
           <span>회원가입 · 현장 등록 없음 · 무료</span>
-          <span>💾 이 브라우저에만 저장 {저장됨 ? '' : <b className="nm-warn">— 지금 저장이 막혀 있습니다(사생활 보호 창 등)</b>}</span>
+          <span>💾 이 브라우저에 저장 · 🔗 코드로 폰·PC 이어 쓰기 {저장됨 ? '' : <b className="nm-warn">— 지금 저장이 막혀 있습니다(사생활 보호 창 등)</b>}</span>
           <span>🏗 여럿이 같이 적고 청구서까지 → <Link to="/tools/tuipbi">현장 투입비</Link></span>
         </div>
+        <이어쓰기 ns="ib" 이름="작업일보" 파일="작업일보" st={st} setSt={setSt} 읽기={읽기} 쓰기={쓰기} />
         <div className="gj-form">
           <label>현장명<input className="inp" value={st.현장.name} maxLength={60} onChange={(e) => 현장칸('name', e.target.value)} placeholder="예: ○○지구 배수로 정비공사" /></label>
           <label>회사<input className="inp" value={st.현장.co} maxLength={40} onChange={(e) => 현장칸('co', e.target.value)} /></label>

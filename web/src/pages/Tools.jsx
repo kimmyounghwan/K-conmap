@@ -11,7 +11,7 @@
    ■ 내용(제목·설명·근거)은 web/src/data/tools.json 한 곳에만 있습니다.
      계산기 코드는 web/src/tools/calcs.jsx. 둘의 slug 가 짝이 맞아야 합니다.
    ========================================================== */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import DATA from '../data/tools.json'
 import { CALCS as 셈CALCS, EXAMPLES as 셈EXAMPLES, 칸창고 } from '../tools/calcs.jsx'
@@ -22,6 +22,8 @@ import NotFound from './NotFound.jsx'
 import { use남김 } from '../lib/길기록.js'
 /* ⬇ 2026-10-01 (G96) 도구마다 «받은 횟수» — 그 화면에서 받은 파일(만든 PDF · 엑셀 포함). 아래 화면이 따로 카드면 빼고 셉니다 */
 import { 받은수, 화면열쇠 } from '../lib/받은수.jsx'
+import 이어쓰기 from '../tools/이어쓰기.jsx'
+import { 앞모습두기 } from '../lib/이어쓰기.js'
 
 const TOOLS = DATA.tools || []
 /* 📑 2026-09-28 — 계약·공사 관리 도구 4가지(tools/계약칸.jsx)를 같은 판에 얹습니다. slug 는 tools.json 과 짝 */
@@ -167,16 +169,38 @@ export default function ToolsIndex() {
   )
 }
 
+/* 🔗 G113 — 이어 쓰기를 붙인 계산기: 예정공정표(공종 · 금액 — 공사 내내 고쳐 씀). 칸 묶음 한 덩이를 통째로 */
+const 이어쓰는계산기 = { schedule: { ns: 'sc', 이름: '예정공정표', 파일: '예정공정표' } }
+const 맵읽기 = (k) => { try { return JSON.parse(localStorage.getItem(k) || '{}') || {} } catch (e) { return {} } }
+const 맵쓰기 = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v || {})); return true } catch (e) { return false } }
+
 export function ToolPage() {
   const { slug } = useParams()
   const t = toolBySlug(slug)
   const [판, set판] = useState({ n: 0, ex: null })   /* 🧪 «예시로 해 보기» — 판을 새로 깔아(key) 예시 값으로 채웁니다 */
+  /* 💸 2026-09-28 — "store" 가 있으면 여러 도구가 칸 한 묶음을 같이 씁니다(미불금 4가지: 당사자·금액을 한 번만 적게).
+     같이 쓰는 칸은 🧪 예시가 덮어쓰지 않습니다(예시안남김) — 적어 둔 당사자·금액이 예시로 바뀌면 안 되므로 */
+  const 열쇠 = 'kcm.calc.' + ((t && (t.store || t.slug)) || slug)
+  const 잇기 = t ? 이어쓰는계산기[t.slug] : null
+  /* 🔗 이어 쓰는 계산기도 예시가 적어 둔 칸을 덮어쓰지 않게(서버까지 덮이면 안 되므로) — 예시는 화면에만 */
+  const 예시안남김 = !!(t && (t.store || 잇기))
+  const [칸값, set칸값] = useState(() => (잇기 ? 맵읽기(열쇠) : null))
+  useEffect(() => {
+    if (!잇기) return undefined
+    set칸값(맵읽기(열쇠))
+    const f = (e) => { if (e.detail === 열쇠) set칸값(맵읽기(열쇠)) }
+    window.addEventListener('kcm-calc', f)
+    return () => window.removeEventListener('kcm-calc', f)
+  }, [열쇠, 잇기])
   /* 없는 slug 는 soft 404 가 되지 않게 NotFound 로 — noindex 를 걸고 언마운트 때 지웁니다. */
   if (!t) return <NotFound />
   const Calc = CALCS[t.slug]
-  /* 💸 2026-09-28 — "store" 가 있으면 여러 도구가 칸 한 묶음을 같이 씁니다(미불금 4가지: 당사자·금액을 한 번만 적게).
-     같이 쓰는 칸은 🧪 예시가 덮어쓰지 않습니다(예시안남김) — 적어 둔 당사자·금액이 예시로 바뀌면 안 되므로 */
-  const 열쇠 = 'kcm.calc.' + (t.store || t.slug)
+  const 칸비우기 = () => {
+    if (잇기) 앞모습두기(잇기.ns, 맵읽기(열쇠))     /* 🔗 비우기 전 모습 한 벌 — 이어 쓰기 칸의 «↩ 되돌리기» */
+    try { localStorage.removeItem(열쇠) } catch (e) { /* 없음 */ }
+    if (잇기) set칸값({})
+    set판({ n: 판.n + 1, ex: null })
+  }
 
   return (
     <div className="wrap">
@@ -191,14 +215,19 @@ export function ToolPage() {
             <button type="button" className="btn line sm" style={{ width: 'auto' }}
                     onClick={() => set판({ n: 판.n + 1, ex: EXAMPLES[t.slug].ex })}>🧪 예시로 해 보기</button>
             {판.ex
-              ? <><span className="tlx-exd">예시: {EXAMPLES[t.slug].글}</span>
-                  <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={() => { if (!t.store) { try { localStorage.removeItem(열쇠) } catch (e) { /* 없음 */ } } set판({ n: 판.n + 1, ex: null }) }}>{t.store ? '예시 끄기' : '지우기'}</button></>
+              ? <><span className="tlx-exd">예시: {EXAMPLES[t.slug].글}{잇기 ? ' — 예시는 화면에만 · 적어 둔 칸은 그대로' : ''}</span>
+                  <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={() => { if (!예시안남김) { try { localStorage.removeItem(열쇠) } catch (e) { /* 없음 */ } } set판({ n: 판.n + 1, ex: null }) }}>{예시안남김 ? '예시 끄기' : '지우기'}</button></>
               : <><span className="tlx-exd">눌러 보시면 칸이 채워지고 결과가 바로 나옵니다 · 적은 값은 이 기기에 남습니다{t.store ? ' (미불금 서류 넷이 같이 씀 · 칸 비우기는 넷 다 지움)' : ''}</span>
-                  <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={() => { try { localStorage.removeItem(열쇠) } catch (e) { /* 없음 */ } set판({ n: 판.n + 1, ex: null }) }}>칸 비우기</button></>}
+                  <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={칸비우기}>칸 비우기</button></>}
           </div>
         )}
         {/* 🧭 2026-09-27 — 적은 값은 이 기기에 남습니다(calcs.jsx use칸). 계산기마다 한 묶음 */}
-        {Calc ? <칸창고.Provider value={{ 열쇠, ex: 판.ex || {}, 예시안남김: !!t.store }}><Calc key={판.n} ex={판.ex || {}} /></칸창고.Provider> : <div className="note">준비 중입니다.</div>}
+        {잇기 && 칸값 && (
+          <이어쓰기 ns={잇기.ns} 이름={잇기.이름} 파일={잇기.파일} st={칸값}
+                  setSt={(v) => { set칸값(v); set판((p) => ({ n: p.n + 1, ex: null })) }}
+                  읽기={() => 맵읽기(열쇠)} 쓰기={(v) => 맵쓰기(열쇠, v)} />
+        )}
+        {Calc ? <칸창고.Provider value={{ 열쇠, ex: 판.ex || {}, 예시안남김 }}><Calc key={판.n} ex={판.ex || {}} /></칸창고.Provider> : <div className="note">준비 중입니다.</div>}
       </div>
 
       {(t.secs || []).map((s, i) => (
