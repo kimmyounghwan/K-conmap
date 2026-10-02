@@ -33,6 +33,25 @@ export function 지도자리찾기(표, 이름) {
   return null
 }
 
+/** 점 크기(지도 단위) — 소장님 「파란색 점도 더 크게 … 애널리틱스처럼」(2026-10-02)
+ *  점은 «화면 픽셀» 로 정합니다: 지금 9 · 12 · 15px, 오늘 5px, 고리는 지금 점 + 5px.
+ *  배율 = 지도 폭/600 을 0.75(폰) ~ 1.15(PC) 안에 — 폰에서 수도권 점이 너무 겹치지 않게.
+ *  화면 = {w, h}(그려진 px, viewBox 는 비율을 지키며 가운데 맞춤) · 아직 못 쟀으면 480px 로 봄 */
+export function 지도점크기(vw, vh, 화면) {
+  const pw = 화면 && 화면.w > 0 ? 화면.w : 480
+  const ph = 화면 && 화면.h > 0 ? 화면.h : 480 * vh / vw
+  const 픽셀당 = Math.min(pw / vw, ph / vh)             // 지도 1단위 = 몇 px
+  const 그림폭 = vw * 픽셀당
+  const 배율 = Math.max(0.75, Math.min(1.15, 그림폭 / 600))
+  const 단위 = (px) => (px * 배율) / 픽셀당
+  return {
+    지금: (n) => 단위(6 + 3 * Math.max(1, Math.min(3, n))),
+    오늘: 단위(5),
+    고리: 단위(5),
+    배율,
+  }
+}
+
 const 한국날 = (t) => new Date(t + 9 * 3600000).toISOString().slice(0, 10)
 
 /** fresh/map → 찍을 점 [{p 자리, 지금 0~3, 오늘 bool}] · 지금시각(ms) */
