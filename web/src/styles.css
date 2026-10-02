@@ -2706,7 +2706,7 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
   background: var(--warn-soft); color: var(--text); font-size: 13.5px; line-height: 1.55;
 }
 .noticebar .t { flex: 1 1 auto; min-width: 0; word-break: keep-all; overflow-wrap: break-word; }
-.noticebar .go { flex: 0 0 auto; border-radius: 10px; padding: 7px 12px; background: var(--surface); border: 1px solid var(--warn); color: var(--text); font-weight: 800; font-size: 13px; white-space: nowrap; text-decoration: none; }
+.noticebar .go { flex: 0 0 auto; border-radius: 10px; padding: 7px 12px; background: var(--surface); border: 1px solid var(--warn); color: var(--text); font-weight: 800; font-size: 13px; white-space: nowrap; text-decoration: none; cursor: pointer; font-family: inherit; }
 .noticebar .x { flex: 0 0 auto; border: 0; background: none; color: var(--text-2); font-size: 15px; cursor: pointer; padding: 4px 6px; }
 @media (max-width: 480px) {
   /* 폰 — 글 + ✕ 한 줄, «공지 보기» 는 그 아래 작게(띠가 화면을 덜 차지하게) */
@@ -2715,7 +2715,35 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
   .noticebar .x { grid-column: 2; grid-row: 1; align-self: start; }
   .noticebar .go { grid-column: 1; grid-row: 2; justify-self: start; padding: 5px 12px; font-size: 12.5px; }
 }
-@media print { .noticebar { display: none !important; } }
+@media print { .noticebar, .noticepop { display: none !important; } }
+
+/* 📢 G117 공지 창 — 들어오면 가운데에 사랑방 공지 글 전체(감사공지.jsx) */
+.noticepop { position: fixed; inset: 0; z-index: 1100; background: rgba(15, 23, 42, .55); display: grid; place-items: center; padding: 16px; }
+.noticepop-c { position: relative; width: 100%; max-width: 540px; max-height: min(86vh, 760px); overflow: auto; box-sizing: border-box;
+  background: var(--surface); color: var(--text); border: 1.5px solid var(--warn); border-radius: 16px; padding: 20px 22px 16px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .28); outline: none; }
+.noticepop-x { position: absolute; top: 10px; right: 10px; border: 0; background: none; color: var(--text-2); font-size: 17px; cursor: pointer; padding: 6px 8px; line-height: 1; }
+.noticepop-tag { display: inline-block; font-size: 12.5px; font-weight: 800; color: var(--text); background: var(--warn-soft); border: 1px solid var(--warn); border-radius: 999px; padding: 3px 10px; }
+.noticepop-h { margin: 10px 0 8px; font-size: 20px; line-height: 1.35; text-wrap: balance; }
+.noticepop-b { font-size: 14.5px; line-height: 1.75; word-break: keep-all; overflow-wrap: break-word; }
+.noticepop-b p { margin: 0 0 10px; }
+.noticepop-b ul { margin: 0 0 10px; padding-left: 18px; }
+.noticepop-b li { margin: 2px 0; }
+.noticepop-b a { font-weight: 800; color: var(--accent); }
+.noticepop-sign { color: var(--text-2); font-weight: 700; }
+.noticepop-f { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin: 6px -22px -16px; padding: 12px 22px 16px; border-top: 1px solid var(--line);
+  position: sticky; bottom: -16px; background: var(--surface); }   /* 단추는 늘 보이게 — 글이 길어 창 안에서 굴러도 */
+.noticepop-f .btn { width: auto; }
+@media (max-width: 480px) {
+  .noticepop { padding: 12px; }
+  .noticepop-c { padding: 18px 16px 14px; max-height: calc(100vh - 24px - env(safe-area-inset-bottom, 0px)); max-height: calc(100dvh - 24px - env(safe-area-inset-bottom, 0px)); border-radius: 16px; }
+  .noticepop-f { margin: 6px -16px -14px; padding: 10px 16px calc(14px + env(safe-area-inset-bottom, 0px)); bottom: -14px; }
+  .noticepop-h { font-size: 18px; }
+  .noticepop-b { font-size: 14px; }
+  .noticepop-f { justify-content: stretch; }
+  .noticepop-f .btn { flex: 1 1 auto; text-align: center; }
+  .noticepop-f a.btn { flex-basis: 100%; }
+}
 
 /* 메뉴 아래 «홈 화면에 추가» 띠 — 모든 페이지 */
 .installbar {

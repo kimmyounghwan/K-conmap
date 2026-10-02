@@ -143,7 +143,7 @@ const when = (ms) => {
   return `${d.getMonth() + 1}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-import { 갈래들, 갈래빛, 갈래떼기, 갈래붙이기 } from '../lib/말머리.js'
+import { 갈래들, 갈래빛, 갈래떼기, 갈래붙이기, 공지인가 } from '../lib/말머리.js'
 import { use화면상태, use남김 } from '../lib/길기록.js'
 import 이용자지도 from '../tools/이용자지도.jsx'   /* 🗺 G114 — 사랑방 맨 위 «지금 K-건설맵을 쓰는 곳» */
 
@@ -360,7 +360,7 @@ export default function Qna() {
     const m = { 전체: 0 }
     갈래들.forEach((c) => { m[c] = 0 })
     ;(모두 || []).forEach((r) => { m[r.c] = (m[r.c] || 0) + 1; m.전체 += 1 })
-    m.답기다림 = (모두 || []).filter((r) => r.c === '후기·건의' && !고정[r.id] && !op답(r.id)).length
+    m.답기다림 = (모두 || []).filter((r) => r.c === '후기·건의' && !고정[r.id] && !op답(r.id) && !(isOp(r.uid) && 공지인가(r.t))).length
     return m
   }, [모두, ans, 고정])   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -382,7 +382,7 @@ export default function Qna() {
     return 모두.filter((r) => {
       if (r.id === 글번호) return false            /* 💬 맨 위에 이미 펼쳐 있습니다 */
       if (기본보기 && 고정[r.id]) return false   /* 위 📌 칸에 이미 있습니다 */
-      if (갈래 === '답기다림') { if (r.c !== '후기·건의' || op답(r.id) || 고정[r.id]) return false }
+      if (갈래 === '답기다림') { if (r.c !== '후기·건의' || op답(r.id) || 고정[r.id] || (isOp(r.uid) && 공지인가(r.t))) return false }
       else if (갈래 !== '전체' && r.c !== 갈래) return false
       if (onlyMine && !내것.has(r.id)) return false
       if (s && !((r.t || '') + (r.b || '')).includes(s)) return false
@@ -901,7 +901,9 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
       const 새갈래 = (나운영자 && 고침.c) || row.c
       const 고칠 = { t: 갈래붙이기(새갈래, t), b: (고침.b || '').trim().slice(0, 2000), e: serverTimestamp() }
       /* 🏷 G93 — 운영자가 말머리를 바꾸면 별명도 같이: K-건설맵 글은 «K-건설맵», 후기·건의로 내리면 그 번호의 별명 */
-      if (새갈래 !== row.c) 고칠.nick = (새갈래 === 'K-건설맵' ? 'K-건설맵' : nickOf(row.uid)).slice(0, 20)
+      /* 📢 G117 — 운영자 글 제목에 «📢 공지» 가 있으면 후기·건의에 두어도 «K-건설맵» */
+      const 공지 = 나운영자 && isOp(row.uid) && 공지인가(t)
+      if (새갈래 !== row.c || 공지) 고칠.nick = ((새갈래 === 'K-건설맵' || 공지) ? 'K-건설맵' : nickOf(row.uid)).slice(0, 20)
       await update(ref(db, `qna/${row.id}`), 고칠)
       set고침(null); onChange()
     } catch (e) { setMsg('고치지 못했습니다 — 이 기기에서 쓴(또는 되찾은) 글만 고칠 수 있습니다.') } finally { set바쁨(false) }
@@ -1206,7 +1208,7 @@ function WriteForm({ onDone, 첫갈래, 첫글, 나운영자 }) {
         /* 🏷️ 말머리는 제목 앞에 붙습니다 — 자료 칸을 늘리지 않으려고(규칙 $other:false). */
         t: 갈래붙이기(c, f.t.trim()),
         b: f.b.trim().slice(0, 2000),
-        nick: (c === 'K-건설맵' ? 'K-건설맵' : nickOf(r)).slice(0, 20),
+        nick: ((c === 'K-건설맵' || (나운영자 && 공지인가(f.t))) ? 'K-건설맵' : nickOf(r)).slice(0, 20),   /* 📢 G117 운영자 공지 */
         uid: r,
         at: Date.now(),
         ...(await 몰래표()),     /* 🙈 몰래 차단 기기면 sb — 규칙이 강제합니다 */
