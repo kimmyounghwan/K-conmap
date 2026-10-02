@@ -124,6 +124,11 @@ const Sonik = lazyPage(() => import('./pages/Sonik.jsx'))
 const Jimyeong = lazyPage(() => import('./pages/Jimyeong.jsx'))
 const Sanan = lazyPage(() => import('./pages/Sanan.jsx'))
 const Ilbo = lazyPage(() => import('./pages/Ilbo.jsx'))
+/* 📮👷🧾🗓 G116 (2026-10-02) 경리 셋 + 해마다 바뀌는 값 — 노무비 계산기 · 투입비 출역과 이어짐 */
+const Singo = lazyPage(() => import('./pages/Singo.jsx'))
+const Toejik = lazyPage(() => import('./pages/Toejik.jsx'))
+const Boheomryo = lazyPage(() => import('./pages/Boheomryo.jsx'))
+const Haemada = lazyPage(() => import('./pages/Haemada.jsx'))
 const Ilyong4 = lazyPage(() => import('./pages/Ilyong4.jsx'))   /* 🛡 2026-10-01 (G107) 일용직 4대보험 가입 판단기 */
 const IlyongGuide = lazyPage(() => import('./pages/Ilyong4.jsx').then((m) => ({ default: m.IlyongGuide })))
 /* 📎 2026-09-27 업체 스스로 등록 — 업체가 받은 링크(/tools/tuipbi/v/현장/링크) · 📒 내 납품 장부(/tools/tuipbi/v) */
@@ -220,6 +225,10 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/tools/jimyeong" element={<Suspense fallback={<Loading />}><Jimyeong /></Suspense>} />
           <Route path="/tools/sanan" element={<Suspense fallback={<Loading />}><Sanan /></Suspense>} />
           <Route path="/tools/ilbo" element={<Suspense fallback={<Loading />}><Ilbo /></Suspense>} />
+          <Route path="/tools/singo" element={<Suspense fallback={<Loading />}><Singo /></Suspense>} />
+          <Route path="/tools/toejik" element={<Suspense fallback={<Loading />}><Toejik /></Suspense>} />
+          <Route path="/tools/boheomryo" element={<Suspense fallback={<Loading />}><Boheomryo /></Suspense>} />
+          <Route path="/tools/haemada" element={<Suspense fallback={<Loading />}><Haemada /></Suspense>} />
           <Route path="/tools/ilyong-boheom" element={<Suspense fallback={<Loading />}><Ilyong4 /></Suspense>} />
           <Route path="/tools/ilyong-guide" element={<Suspense fallback={<Loading />}><IlyongGuide /></Suspense>} />
           <Route path="/tools/tuipbi/v" element={<Suspense fallback={<Loading />}><TuipbiVendor /></Suspense>} />

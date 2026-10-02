@@ -16,6 +16,7 @@ import { use길지킴이 } from './lib/길기록.js'
 
 import { use떨굼막기 } from './끌어놓기.jsx'
 import 새판 from './새판.jsx'
+import 감사공지 from './감사공지.jsx'   /* 🙏 G116 감사 공지 띠 — ✕ 로 닫으면 다시 안 뜸 */
 /* 탭에 적힌 주소가 아니어도 «이 탭의 식구» 면 불을 켭니다.
    예) /cad · /pdf 에 있어도 「도구」 탭이 켜집니다. */
 function alsoOn(t, path) {
@@ -171,6 +172,7 @@ export default function App() {
         {/* 📲 홈 화면에 추가 띠 — 모든 페이지 맨 위. 닫으면 7일 뒤에 다시 (Install.jsx) */}
         {/* 🔄 새로 올린 화면을 폰이 스스로 받게 (2026-09-30 · 새판.jsx) — 새 판이 있을 때만 한 줄 */}
         <새판 />
+        <감사공지 />
         <InstallBar />
         {/* 🔔 내 글에 새 답글 — 한 줄 띠(G73). 사랑방에 쓴 적 있는 브라우저만 읽습니다 */}
         <알림띠 />

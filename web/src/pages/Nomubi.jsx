@@ -58,6 +58,16 @@ export default function Nomubi() {
   const [알림, set알림] = useState('')
   const [지움물음, set지움물음] = useState(false)
   useEffect(() => { set저장됨(쓰기(st)) }, [st])
+  /* 🔁 G116 — 신고 정리 · 퇴직공제 · 보험료 화면이 이 자료 안에 남기는 기록(sg · tj · bh)을 다른 창에서 바꾸면 여기에도 받아 둡니다
+     (이 창이 옛 모습으로 다시 저장하면서 그 기록을 지우지 않게 — 명단 · 출역은 건드리지 않음) */
+  useEffect(() => {
+    const 사건 = (e) => {
+      if (e.key !== 'kcm_nomubi1' || !e.newValue) return
+      try { const v = JSON.parse(e.newValue) || {}; setSt((s) => ({ ...s, sg: v.sg, tj: v.tj, bh: v.bh })) } catch (x) { /* 깨진 값 */ }
+    }
+    window.addEventListener('storage', 사건)
+    return () => window.removeEventListener('storage', 사건)
+  }, [])
   useEffect(() => {
     const 끝 = () => document.body.classList.remove('tp-print-bill')
     window.addEventListener('afterprint', 끝)
@@ -252,6 +262,13 @@ export default function Nomubi() {
             <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀받기}>📗 값만 엑셀 받기</button>
             <span className="muted" style={{ fontSize: 12.5, alignSelf: 'center' }}>인쇄하면 출역 대장 · 지급 명세 · 신고용 집계가 함께 나옵니다. 엑셀은 보관용 값만(수식 없음) — 셈은 이 화면에서.</span>
           </div>
+          {/* 📮👷🧾 G116 (2026-10-02) 경리 셋 — 같은 출역을 그대로 읽음 · 소장님 「현재 사이트에 있는 것과 연계해서」 */}
+          <div className="btn-row no-print nm-next" style={{ justifyContent: 'flex-start', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+            <span className="muted" style={{ fontSize: 12.5, alignSelf: 'center' }}>이 출역 그대로 —</span>
+            <Link className="btn line sm" style={{ width: 'auto' }} to="/tools/singo">📮 신고 정리 (원천세 · 근로내용 · 기한)</Link>
+            <Link className="btn line sm" style={{ width: 'auto' }} to="/tools/toejik">👷 퇴직공제 근로일수 · 부금</Link>
+            <Link className="btn line sm" style={{ width: 'auto' }} to="/tools/boheomryo">🧾 고용 · 산재 보험료</Link>
+          </div>
           <div className="tp-bill-hd">
             <h2 className="tp-bill-h">일용노무비 지급명세서 ({달글(ym)})</h2>
             <table className="tbl tp-sign"><tbody><tr><th>작성</th><th>검토</th><th>현장소장</th></tr><tr><td /><td /><td /></tr></tbody></table>
@@ -391,6 +408,7 @@ export default function Nomubi() {
             <li>근로내용 확인신고서에 국세청 칸(지급액 · 소득세 · 지방소득세)까지 적어 내면 <b>일용근로소득 지급명세서를 낸 것으로 봅니다</b> (소득세법 시행령 제213조제4항).</li>
             <li>지급명세서를 따로 낼 때는 <b>지급한 달의 다음 달 말일까지</b> (소득세법 제164조제1항 단서) — 홈택스.</li>
             <li>주민등록번호 · 직종 부호 · 근로시간 같은 칸은 신고 화면에서 넣으십시오. 이 화면은 그 숫자를 옮겨 적기 위한 집계입니다.</li>
+            <li>기관마다 넣을 숫자와 기한(휴일이면 다음 날)을 한 장으로 — <Link to="/tools/singo">📮 매달 신고 정리</Link> · 퇴직공제 가입 현장은 <Link to="/tools/toejik">👷 퇴직공제 집계</Link>.</li>
           </ul>
         </div>
       )}

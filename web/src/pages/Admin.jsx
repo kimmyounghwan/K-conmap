@@ -35,6 +35,7 @@ import { Link } from 'react-router-dom'
 import { Skeleton, Empty } from '../components.jsx'
 import { nickOf } from '../lib/nickname.js'
 import { OPS, isOp } from '../lib/운영자.js'
+import { 밀린점검 } from '../lib/해마다.js'
 
 /* firebase 는 이 화면을 열 때만 받습니다 (사랑방과 같은 방식) */
 let _fb = null
@@ -171,6 +172,17 @@ export default function Admin() {
           <Link className="btn primary" to="/report/agency">🏛 발주기관 보고서 만들기</Link>
         </div>
       </div>
+      {/* 🗓 G116 (2026-10-02) 해마다 바뀌는 값 — 소장님 「해마다 바뀌는 건 잊지 않게 더 세심하게」 · 다음 확인 날이 지난 값만 */}
+      {(() => {
+        const 밀린 = 밀린점검()
+        return (
+          <div className={'hm-band' + (밀린.length ? ' warn' : '')} style={{ marginTop: 12 }}>
+            🗓 <b>해마다 바뀌는 값</b> — {밀린.length
+              ? <>다시 확인할 때가 된 것 <b>{밀린.length}가지</b>: {밀린.map((x) => x.무엇).join(' · ')}. 클로드에게 «해마다 값 확인해 줘» 하시면 원문을 열어 고칩니다.</>
+              : <>모두 확인한 값입니다.</>} <Link to="/tools/haemada">모아 보기</Link>
+          </div>
+        )
+      })()}
 
       {/* ── 📝 문의함 — 사이트 어디에도 안 보이는 글입니다 ─────────── */}
       {문의 === null && <Skeleton n={2} />}

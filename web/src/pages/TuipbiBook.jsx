@@ -11,6 +11,8 @@ import { 원, 억만, 공수글, 오늘, 노무달, 장비달, 자재달, 누계
 import { 요율 } from '../lib/gongje.js'
 import { 공제칸 } from '../lib/gongje.js'
 import { 주민가림 } from '../lib/tplock.js'
+import { useNavigate } from 'react-router-dom'
+import { 투입비넘김, 넘김쓰기 } from '../lib/신고정리.js'
 
 const 숫자만 = (s) => Number(String(s || '').replace(/[^0-9.-]/g, '')) || 0
 const 쉼표칸 = (s) => { const n = String(s || '').replace(/[^0-9]/g, ''); return n ? 원(Number(n)) : '' }
@@ -88,6 +90,7 @@ function Bills(P) {
   const [보기, set보기] = useState('L')
   const [뒷자리, set뒷자리] = useState(false)
   const N = useMemo(() => 노무달(ym, 출역, 사람), [ym, 출역, 사람])
+  const navigate = useNavigate()
   const E = useMemo(() => 장비달(ym, 줄들, 장비), [ym, 줄들, 장비])
   const M = useMemo(() => 자재달(ym, 줄들, 업체), [ym, 줄들, 업체])
   /* 인쇄판 — '' 화면 그대로 · all 노무·장비·자재 한 장씩 · vendor 업체별 한 장씩 · worker 근로자별 명세서 한 장씩
@@ -140,6 +143,14 @@ function Bills(P) {
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 엑셀받기('M')} title="요약 · 노무비 대장 · 노무비 청구내역서 · 장비 · 자재 — 셈한 값만(수식 없음)">📗 이 달 청구서 엑셀(값만)</button>
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 엑셀받기('C')} title="처음 달부터 이 달까지 — 달별 · 노무비 집계표 · 개인별 · 장비 · 자재 업체별(수식 없음)">📗 달별 누계 엑셀(값만)</button>
           <label className="tp-chk" style={{ paddingBottom: 0 }}><input type="checkbox" checked={뒷자리} onChange={(e) => set뒷자리(e.target.checked)} disabled={잠김 && !예시} /> 주민번호 뒷자리 보이기</label>
+        </div>
+        {/* 📮👷🧾 G116 (2026-10-02) 경리 셋으로 이 현장 출역 넘기기 — 소장님 「현재 사이트에 있는 것과 연계해서」 (주민번호 · 계좌는 넘기지 않음) */}
+        <div className="tp-start" style={{ marginTop: 8 }}>
+          <span className="muted" style={{ fontSize: 12.5, alignSelf: 'center' }}>이 현장 출역으로 —</span>
+          {[['/tools/singo', '📮 신고 정리 (원천세 · 근로내용 · 기한)'], ['/tools/toejik', '👷 퇴직공제 근로일수 · 부금'], ['/tools/boheomryo', '🧾 고용 · 산재 보험료']].map(([to, t]) => (
+            <button key={to} type="button" className="btn line sm" style={{ width: 'auto' }}
+              onClick={() => { 넘김쓰기({ ...투입비넘김(현장.name || '', 사람, 출역), co: 현장.co || '' }); navigate(to) }}>{t}</button>
+          ))}
         </div>
       </div>
       {판 === 'all' ? (
