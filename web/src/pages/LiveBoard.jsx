@@ -35,6 +35,7 @@ import { 유형거르개, 유형맞나, 유형딱지 } from '../유형칸.jsx'
 import 기관사정률 from '../기관사정률.jsx'
 import { 입찰일정, 투찰조건, 공고첨부, 공고문전문 } from '../공고자세히.jsx'
 import 밖공고줄 from '../밖공고줄.jsx'
+import { 공고봄 } from '../lib/조회수.jsx'   /* 👁 G121 — 펼치면 그 공고 조회 1 */
 
 /* ══════════════════════════════════════════════════════════════
    «바로투찰» 버튼은 계산이 되는 공고에만 답니다.
@@ -575,7 +576,7 @@ export default function LiveBoard() {
               </div>
             )
             return (
-              <div className="notice" key={id} onClick={() => setOpen(isOpen ? null : id)}>
+              <div className="notice" key={id} onClick={() => { if (!isOpen) 공고봄(r.no, r.name); setOpen(isOpen ? null : id) }}>
                 <h3>{r._new ? <span className="badge new">🆕 방금</span> : null}{r.name}</h3>
                 <div className="meta">
                   <span className="inst">{r.inst}</span>

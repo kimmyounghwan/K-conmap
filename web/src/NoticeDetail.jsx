@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { lowerLimit as rateByEstimate } from './lib/engines.js'
 import { Link } from 'react-router-dom'
+import { 공고조회 } from './lib/조회수.jsx'
 import { getCorp, getAgency, getBoardRank } from './lib/data.js'
 import { won, wonShort, pct, num, dateFull, dateTime, normCorp } from './lib/fmt.js'
 import { winGrade } from './lib/winodds.js'
@@ -157,12 +158,15 @@ export default function NoticeDetail({ r }) {
 export function NoticeLink({ no, compact }) {
   if (!no) return null
   return (
+    <>
+    {compact && <공고조회 no={no} />}{/* 👁 G121 — 이 공고 조회 수(공고 화면 + 목록에서 펼친 것) */}
     <a className={'noticelink' + (compact ? ' compact' : '')}
        href={`/notice/${encodeURIComponent(String(no))}`}
        title="이 공고만 있는 주소로 갑니다 — 카톡으로 보낼 수 있습니다"
        onClick={(e) => e.stopPropagation()}>
       {compact ? '🔗 공유' : '🔗 이 공고만 보기 · 주소로 공유하기 →'}
     </a>
+    </>
   )
 }
 

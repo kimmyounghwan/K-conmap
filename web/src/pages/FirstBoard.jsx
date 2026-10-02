@@ -21,6 +21,7 @@ import { loadLicCodes, saveLicCodes, loadLicNone, saveLicNone,
 import 내조건줄 from '../내조건.jsx'
 import { use남김 } from '../lib/길기록.js'
 import 밖공고줄 from '../밖공고줄.jsx'
+import { 공고봄 } from '../lib/조회수.jsx'   /* 👁 G121 — 펼치면 그 공고 조회 1 */
 
 const PAGE = 20
 const KIND = 'con'   // 공사만 다룹니다 (용역 제외)
@@ -216,7 +217,7 @@ export default function FirstBoard() {
             const isOpen = open === id
             const winAmt = r.sAmt || r.amt
             return (
-              <div className="notice" key={id} onClick={() => setOpen(isOpen ? null : id)}>
+              <div className="notice" key={id} onClick={() => { if (!isOpen) 공고봄(r.no, r.name); setOpen(isOpen ? null : id) }}>
                 <h3>{r._new ? <span className="badge new">🆕 방금</span> : null}{r.name}</h3>
                 <div className="meta">
                   <span className="inst">{r.inst}</span>

@@ -33,7 +33,7 @@ export const 파일끝 = /\.(xlsx|xlsm|xls|pdf|hwp|hwpx|docx|doc|zip|dwg|dxf|lsp
 const 두마디 = new Set(['forms', 'tools', 'cad', 'jeoksan', 'naeyeok', 'change'])
 
 /** 데이터베이스 열쇠로 — «.» «/» «#» «$» «[» «]» 는 열쇠에 못 씁니다 */
-const 열쇠꼴 = (s) => String(s).replace(/\./g, ',').replace(/\//g, '|').replace(/[#$[\]]/g, '_')
+export const 열쇠꼴 = (s) => String(s).replace(/\./g, ',').replace(/\//g, '|').replace(/[#$[\]]/g, '_')
 
 /** 화면 주소 → 화면 열쇠 «|forms|chg-tonghap» (앞 두 마디 · 그 밖의 화면은 한 마디) */
 export function 화면열쇠(path) {
@@ -64,7 +64,7 @@ const 최근 = new Map()      // 열쇠 → 시각 (3초 안 다시 누름은 �
 const 듣는이 = new Set()
 let 숫자 = null             // { f: {}, p: {} } — 데이터베이스(시작값 빼고)
 
-function 봇() {
+export function 봇() {
   try { return !!navigator.webdriver || /bot|crawl|spider|slurp|headless|lighthouse/i.test(navigator.userAgent || '') } catch (e) { return true }
 }
 

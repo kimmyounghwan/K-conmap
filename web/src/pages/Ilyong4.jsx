@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { 판단, 신고할일, 달규칙, 달더하기, 짧은날, 달글, 한달되는날, 달, 전날, 회사규모, 사업주몫, 생일풀기, 만나이, 긴날 } from '../lib/ilyong4.js'
+import { 판단, 신고할일, 달규칙, 달더하기, 짧은날, 달글, 한달되는날, 달, 전날, 회사규모, 사업주몫, 생일풀기, 만나이, 긴날, 취득날 } from '../lib/ilyong4.js'
 import { 공제셈 } from '../lib/gongje.js'
 import G from '../data/ilyong_guide.json'
 
@@ -67,7 +67,7 @@ function 입력만들기(st) {
     달돈[ym] = 적음 !== undefined && 적음 !== '' ? Number(적음) || 0 : (Number(st.일당) || 0) * 일[ym]
   }
   const 다른 = {}
-  for (const [ym, o] of Object.entries(st.다른 || {})) if (o && (Number(o.일) || Number(o.돈))) 다른[ym] = { 일: Number(o.일) || 0, 돈: Number(o.돈) || 0 }
+  for (const [ym, o] of Object.entries(st.다른 || {})) if (o && (Number(o.일) || Number(o.돈) || o.가입)) 다른[ym] = { 일: Number(o.일) || 0, 돈: Number(o.돈) || 0, 가입: !!o.가입 }
   return { 날: st.날, 달돈, 다른, 일 }
 }
 
@@ -134,7 +134,7 @@ export default function Ilyong4() {
   /* 📗 G109 값만 엑셀 — 소장님 「엑셀로 값만 주는 걸로 하자. 프로그램 원칙으로 하고」(판단 · 셈은 이 화면, 엑셀은 보관용 값) */
   const 엑셀받기 = async () => {
     const { 값엑셀받기, 수칸, 굵은칸 } = await import('../lib/값엑셀.js')
-    const 구간줄 = (이름, X, 아님) => (X.구간.length ? X.구간.map((g, i) => [i ? '' : 이름, '가입 대상', 짧은날(g.취득), 짧은날(g.상실), Object.keys(X.부과).sort().map(달글).join(' · '), `${g.취득글 || ''}${g.상실글 ? ' / 상실: ' + g.상실글 : ''}${g.근거 === '회사 합산' ? ' (회사 합산)' : ''}`]) : [[이름, '대상 아님', '', '', '', 아님]])
+    const 구간줄 = (이름, X, 아님) => (X.구간.length ? X.구간.map((g, i) => [i ? '' : 이름, '가입 대상', 취득날(g), 짧은날(g.상실), Object.keys(X.부과).sort().map(달글).join(' · '), `${g.취득글 || ''}${g.상실글 ? ' / 상실: ' + g.상실글 : ''}${g.근거 === '회사 합산' ? ' (회사 합산)' : ''}`]) : [[이름, '대상 아님', '', '', '', 아님]])
     const 결과 = [...구간줄('국민연금', P, 아님P), ...구간줄('건강보험 · 장기요양', H, 아님H),
       ['고용보험', 일한달들.length ? '일한 달마다' : '—', '', '', 일한달들.map(달글).join(' · '), 옵션.고용65 || 실업없음 ? '65세 이후 새로 고용 — 실업급여 몫 없음 · 근로내용 확인신고는 그대로' : 실업일부 && R.나이 ? `${긴날(R.나이.L65)}부터 만 65세 — 그 뒤 일한 날은 실업급여 몫 없음` : '근로내용 확인신고 · 근로자 0.9% (2026)'],
       ...(R.나이 ? [['나이', `만 ${R.나이.처음 === R.나이.끝 ? R.나이.처음 : `${R.나이.처음}→${R.나이.끝}`}세`, '', '', '', `만 60세가 된 날 ${긴날(전날(R.나이.L60))} → 다음 날 국민연금 상실 · 만 65세 ${긴날(R.나이.L65)} 부터 실업급여 몫 없음`]] : []),
@@ -164,7 +164,8 @@ export default function Ilyong4() {
   const 나 = R.나이
   const 아님P = 옵션.연금제외 ? '나이 등으로 뺐습니다.' : !R.날들.length ? '일한 날을 누르면 나옵니다.'
     : 나 && 나.L60 <= R.날들[0] ? `만 60세 이상입니다(${긴날(전날(나.L60))}에 60세) — 국민연금은 18세 이상 60세 미만만 사업장가입자입니다.`
-      : 첫 && !첫.한달이상 ? '1개월 미만입니다.' : '달마다 8일 · 220만원 미만입니다.'
+      : Object.values(R.연금.달 || {}).some((x) => x && x.다른가입) ? '그 달은 다른 현장에서 현장 가입이라 합치지 않습니다(현장 우선 · 공단 실무안내 22쪽) — 이 현장 근로분은 국민연금 신고 · 공제 없음.'
+        : 첫 && !첫.한달이상 ? '1개월 미만입니다.' : '달마다 8일 · 220만원 미만입니다.'
   const 생글 = 옵션.생일 ? 생일풀기(옵션.생일) : ''
   const 실업없음 = 일한달들.length > 0 && 일한달들.every((ym) => !R.고용.실업[ym])
   const 실업일부 = !실업없음 && 일한달들.some((ym) => R.고용.실업[ym] !== 입력.달돈[ym])
@@ -180,7 +181,7 @@ export default function Ilyong4() {
    *   셈은 그대로(lib/ilyong4.js) — 보이는 차례만 바꿈. 인쇄할 때는 접은 것을 모두 펴서 찍고(사업주 몫은 연 때만) 끝나면 되돌림. */
   const 결론 = (X, 아님글) => {
     if (!X.구간.length) return { 됨: false, 글: 아님글 }
-    const 구 = X.구간.map((g) => `${짧은날(g.취득)} 취득 → ${짧은날(g.상실)} 상실${g.근거 === '회사 합산' ? '(회사 합산)' : ''}`).join(' · ')
+    const 구 = X.구간.map((g) => `${취득날(g)} 취득 → ${짧은날(g.상실)} 상실${g.근거 === '회사 합산' ? '(회사 합산)' : ''}`).join(' · ')
     const 낼달 = 부과달(X.부과)
     return { 됨: true, 글: `${구} · 보험료 ${낼달.length ? 낼달.map(달글).join(' · ') + '분' : '없음'}` }
   }
@@ -265,9 +266,9 @@ export default function Ilyong4() {
           })}
         </div>
         <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>받은 돈을 비워 두면 일당 × 일한 날 · 노란 테두리 = 첫 근로일부터 «1개월 되는 날»</div>
-        <details className="iy-more">
+        <details className="iy-more" open={Object.values(st.다른 || {}).some((o) => o && (Number(o.일) || Number(o.돈) || o.가입)) || undefined}>
           <summary>같은 회사 다른 현장에서도 일했으면 (국민연금 합산)</summary>
-          <div className="muted" style={{ fontSize: 12.5, margin: '6px 0' }}>2025년 7월부터 국민연금은 이 현장에서 8일이 안 되면 같은 회사(건설사업장) 근로를 합쳐 봅니다. 건강보험은 이 현장만 봅니다.</div>
+          <div className="muted" style={{ fontSize: 12.5, margin: '6px 0', lineHeight: 1.7 }}>2025년 7월부터 국민연금은 이 현장에서 8일(220만원)이 안 되면 같은 회사(건설사업장) 근로를 합쳐 봅니다. <b>다만 그 달 다른 현장 한 곳에서 8일(220만원) 이상으로 이미 «현장 가입» 했으면 합치지 않습니다</b> — 현장 적용이 먼저라 그 달은 그 현장으로만(공단 실무안내 22쪽). 그런 달은 «그 현장에서 가입» 을 체크하십시오. 건강보험은 이 현장만 봅니다.</div>
           <div className="iy-other">
             {달들.map((ym) => {
               const o = (st.다른 || {})[ym] || {}
@@ -276,6 +277,8 @@ export default function Ilyong4() {
                 <div key={ym} className="iy-other-r"><b>{달글(ym)}</b>
                   <label>일수<input className="inp" inputMode="numeric" value={o.일 || ''} onChange={(e) => 고침('일', 숫자만(e.target.value))} placeholder="0" /></label>
                   <label>받은 돈<input className="inp" inputMode="numeric" value={o.돈 ? 원(o.돈) : ''} onChange={(e) => 고침('돈', 숫자만(e.target.value))} placeholder="0" /></label>
+                  <label className="iy-other-c"><input type="checkbox" checked={!!o.가입} onChange={(e) => 바꿈((s) => ({ ...s, 다른: { ...(s.다른 || {}), [ym]: { ...((s.다른 || {})[ym] || {}), 가입: e.target.checked } } }))} /> 그 현장에서 가입(8일 · 220만 이상)</label>
+                  {!o.가입 && ((Number(o.일) || 0) >= 8 || (Number(o.돈) || 0) >= 2200000) && <span className="iy-other-hint">다른 현장 <b>한 곳</b>에서 8일(220만) 이상이었으면 체크 — 그 달은 합치지 않습니다</span>}
                 </div>
               )
             })}

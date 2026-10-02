@@ -12,6 +12,7 @@ import { 알림종, 알림띠 } from './알림종.jsx'
 import FirstBar from './FirstBar.jsx'
 import RefreshBtn from './Refresh.jsx'
 import Crumbs, { BackBtn } from './Crumbs.jsx'
+import { 화면조회줄 } from './lib/조회수.jsx'   /* 👁 G121 — 모든 화면 위 «이 화면 조회 N» */
 import { use길지킴이 } from './lib/길기록.js'
 
 import { use떨굼막기 } from './끌어놓기.jsx'
@@ -187,6 +188,7 @@ export default function App() {
             ⚠️ 화면을 하나하나 고치지 않습니다 — 새 화면을 만들 때마다 또 빠집니다.
                주소 이름은 Crumbs.jsx 의 NAME·LEAF 표 한 곳에만 적습니다. */}
         <Crumbs />
+        <화면조회줄 />
         <Outlet />
         {/* 👋🙏 방문 인사 — 떠 있다가 5초 뒤 사라지는 쪽지(자리를 차지하지 않음) */}
         <인사 />

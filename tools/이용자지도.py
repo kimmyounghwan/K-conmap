@@ -23,6 +23,12 @@
       화면열쇠는 web/src/lib/받은수.jsx 의 화면열쇠() 와 «똑같이»(앞 두 마디 — forms·tools·cad·jeoksan·naeyeok·change, 그 밖은 한 마디).
       ⚠️ 한쪽만 고치지 말 것 — 시험(tools/시험_이용자지도.py)이 두 쪽을 같은 주소들로 대 봅니다.
       도구 · 적산 · 내역서 · 서식 카드의 «조회 N» 이 이것을 읽습니다. 지도와 따로 실패합니다(조회수가 안 돼도 지도는 그대로).
+  👁 화면마다 · 공고마다 (G121 · 2026-10-02) — 소장님: 「공고 클릭 수도 조회 클릭수 보이게 … 사이트 내 모든 것에」 → 「공고, 모든 화면 — 누적으로 해줘」
+      같은 애널리틱스 줄로 두 가지를 더 만듭니다(한 번에 PATCH fresh):
+      · fresh/pvp = {전체열쇠: 조회수} — 화면 하나하나(주소 전체 · 사이트 화면 꼴만 · 현장 링크는 /tools/tuipbi 까지) — 화면 위 «👁 이 화면 조회 N»
+      · fresh/nv = {공고번호 앞 8자: {공고번호: 조회수}} — /notice/{공고번호} 조회(공고 화면 + 목록에서 펼친 것 — 화면이 애널리틱스에
+        같은 주소로 page_view 를 보냄) — 공고 카드 «👁 N». 목록은 보이는 공고의 묶음(앞 8자)만 받습니다.
+      전체열쇠 · 공고번호는 web/src/lib/조회수.js 와 «똑같이». 시험(tools/시험_이용자지도.py)이 두 쪽을 대 봅니다.
 """
 import json
 import os
@@ -175,6 +181,81 @@ def 조회묶기(rows):
     return out
 
 
+첫마디들 = {"agency", "analysis", "cad", "calc", "change", "corp", "daily", "ext", "first", "forms", "guide", "how", "jeoksan", "jobs",
+           "lic", "live", "naeyeok", "pdf", "qna", "report", "safety", "shareone", "tools", "about", "privacy", "terms", "contact"}
+공고모양 = re.compile(r"^[A-Za-z0-9-]{6,30}$")
+
+
+def 마디풀기(path):
+    p = str(path or "/").split("?")[0].split("#")[0]
+    out = []
+    for x in [x for x in p.split("/") if x]:
+        try:
+            out.append(unquote(x, errors="strict"))
+        except Exception:
+            out.append(x)
+    return out
+
+
+def 전체열쇠(path):
+    """화면 하나하나의 열쇠(주소 전체) — 조회수.js 전체열쇠 와 같게. 사이트 화면이 아니면 None (공고는 공고번호로 따로)"""
+    m = 마디풀기(path)
+    if not m:
+        return "|"
+    if m[0] not in 첫마디들:
+        return None
+    if m[0] == "tools" and len(m) >= 2 and m[1] == "tuipbi":
+        m = m[:2]                         # 현장 링크(/tools/tuipbi/v/현장/링크)는 비밀 — 화면까지만
+    if len(m) > 3 or any(len(x) > 60 or any(ord(c) < 32 or ord(c) == 127 for c in x) for x in m):
+        return None
+    return 열쇠꼴("|" + "|".join(m))[:120]
+
+
+def 공고번호(path):
+    m = 마디풀기(path)
+    return m[1] if len(m) == 2 and m[0] == "notice" and 공고모양.match(m[1]) else None
+
+
+def 줄들(rows):
+    """애널리틱스 줄 → [(주소, 조회수)] — 우리 주소 · 0 넘는 것만"""
+    out = []
+    for row in rows or []:
+        d = [x.get("value", "") for x in row.get("dimensionValues") or []]
+        m = [x.get("value", "0") for x in row.get("metricValues") or []]
+        if len(d) < 2 or not 우리주소(d[0]) or not str(d[1]).startswith("/"):
+            continue
+        try:
+            n = int(float(m[0]))
+        except Exception:
+            n = 0
+        if n > 0:
+            out.append((d[1], n))
+    return out
+
+
+def 화면묶기(rows):
+    """→ {전체열쇠: 조회수} (공고 화면은 빼고 — 공고묶기 에)"""
+    out = {}
+    for path, n in 줄들(rows):
+        if 공고번호(path):
+            continue
+        k = 전체열쇠(path)
+        if k:
+            out[k] = out.get(k, 0) + n
+    return out
+
+
+def 공고묶기(rows):
+    """→ {앞 8자: {공고번호: 조회수}}"""
+    out = {}
+    for path, n in 줄들(rows):
+        no = 공고번호(path)
+        if no:
+            g = out.setdefault(no[:8], {})
+            g[no] = g.get(no, 0) + n
+    return out
+
+
 def 조회수(tok):
     r = requests.post(
         f"https://analyticsdata.googleapis.com/v1beta/properties/{GA_PROPERTY}:runReport",
@@ -186,17 +267,19 @@ def 조회수(tok):
         timeout=60)
     if r.status_code != 200:
         raise RuntimeError(f"애널리틱스(조회수) HTTP {r.status_code} {r.text[:160]}")
-    return 조회묶기(r.json().get("rows") or [])
+    return r.json().get("rows") or []
 
 
 def 조회넣기(ctx, dry=False):
-    p = 조회수(ctx["tok"])
-    새 = {"at": int(지금().timestamp() * 1000), "from": 조회시작, "p": p or None}
-    적기(f"  · 조회수 {len(p)}곳 · 합 {sum(p.values()):,}")
+    rows = 조회수(ctx["tok"])
+    p, pp, nv = 조회묶기(rows), 화면묶기(rows), 공고묶기(rows)
+    at = int(지금().timestamp() * 1000)
+    새 = {"pv": {"at": at, "from": 조회시작, "p": p or None}, "pvp": pp or None, "nv": nv or None}
+    적기(f"  · 조회수 {len(p)}곳 · 합 {sum(p.values()):,} · 화면 {len(pp)} · 공고 {sum(len(g) for g in nv.values())}건")
     if dry:
         return 새
-    r = requests.put(f"{DB}/fresh/pv.json", headers={"Authorization": "Bearer " + ctx["tok"], "Content-Type": "application/json"},
-                     data=json.dumps(새, ensure_ascii=False).encode("utf-8"), timeout=30)
+    r = requests.patch(f"{DB}/fresh.json", headers={"Authorization": "Bearer " + ctx["tok"], "Content-Type": "application/json"},
+                       data=json.dumps(새, ensure_ascii=False).encode("utf-8"), timeout=30)
     if r.status_code != 200:
         raise RuntimeError(f"데이터베이스(조회수) HTTP {r.status_code} {r.text[:120]}")
     return 새

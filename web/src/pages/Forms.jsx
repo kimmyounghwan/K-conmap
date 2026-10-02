@@ -289,6 +289,8 @@ function 프로그램칸({ p }) {
         <span className="fm-prog-k">🧰 사이트에서 바로</span>
         <span className="tlx-t">{p.t}</span>
         <span className="tlx-d">{p.d}</span>
+        {/* G120 — 도구 카드와 같은 숫자(받기 · 조회) · 소장님 「위험성평가 이런거는 누적 및 카운트가 안되는 거야?」 */}
+        <받은수 쪽={p.to} 봄={p.to} className="dlcount tlx-dl" />
       </span>
     </Link>
   )

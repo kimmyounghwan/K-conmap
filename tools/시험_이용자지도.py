@@ -86,7 +86,7 @@ def 가짜get(url, **k):
 def 가짜put(url, **k):
     보낸.append((url, k.get("data")))
     return 답(200, {})
-M.requests.post, M.requests.get, M.requests.put = 가짜post, 가짜get, 가짜put
+M.requests.post, M.requests.get, M.requests.put, M.requests.patch = 가짜post, 가짜get, 가짜put, 가짜put
 M.토큰 = lambda sa: "tok"
 ctx = {"sa": {}}
 M.한번(ctx)
@@ -98,18 +98,31 @@ def 가짜post2(url, **k):
         b = _j.loads(k["data"])
         봄("조회수 요청 — 2026-09-15 ~ today · hostName·pagePath · screenPageViews",
           b["dateRanges"] == [{"startDate": "2026-09-15", "endDate": "today"}] and [d["name"] for d in b["dimensions"]] == ["hostName", "pagePath"] and b["metrics"] == [{"name": "screenPageViews"}])
-        return 답(200, {"rows": [줄("k-conmap.com", "/tools/rebar-weight", 8), 줄("k-conmap.com", "/jeoksan/fill", 45)]})
+        return 답(200, {"rows": [줄("k-conmap.com", "/tools/rebar-weight", 8), 줄("k-conmap.com", "/jeoksan/fill", 45),
+                                 줄("k-conmap.com", "/notice/R26BK01726752", 10), 줄("k-conmap.com", "/corp/국토건설", 17)]})
     return 가짜post(url, **k)
 M.requests.post = 가짜post2
 보낸.clear(); ctx = {"sa": {}}
 M.한번(ctx)
 import json as _j
-pv = [_j.loads(d.decode("utf-8")) for u, d in 보낸 if u.endswith("/fresh/pv.json")]
-봄("조회수 넣음 — fresh/pv = {at, from, p}", len(pv) == 1 and pv[0]["p"] == {"|tools|rebar-weight": 8, "|jeoksan|fill": 45} and pv[0]["from"] == "2026-09-15" and isinstance(pv[0]["at"], int), pv[:1])
+pa = [_j.loads(d.decode("utf-8")) for u, d in 보낸 if u.endswith("/fresh.json")]
+pv = [x["pv"] for x in pa]
+봄("조회수 넣음 — PATCH fresh 한 번 · pv = {at, from, p}", len(pv) == 1 and pv[0]["p"] == {"|tools|rebar-weight": 8, "|jeoksan|fill": 45, "|notice": 10, "|corp": 17} and pv[0]["from"] == "2026-09-15" and isinstance(pv[0]["at"], int), pv[:1])
+봄("같은 PATCH 에 화면마다(pvp) · 공고마다(nv)", pa and pa[0]["pvp"] == {"|tools|rebar-weight": 8, "|jeoksan|fill": 45, "|corp|국토건설": 17} and pa[0]["nv"] == {"R26BK017": {"R26BK01726752": 10}}, pa[:1])
 봄("지도도 넣음", any(u.endswith("/fresh/map.json") for u, _ in 보낸))
 보낸.clear()
 M.한번(ctx)
 봄("30분 안 다음 회차 — 조회수는 안 넣음(지도만)", [u for u, _ in 보낸] == [M.DB + "/fresh/map.json"], [u for u, _ in 보낸])
 
+
+# ── 👁 화면마다 · 공고마다 (G121) — web/src/lib/조회수.jsx 와 같은 답 ──
+전체답 = [["/", "|", None], ["", "|", None], ["/tools", "|tools", None], ["/tools/", "|tools", None], ["/tools/rebar-weight", "|tools|rebar-weight", None], ["/tools/tuipbi/v/abc/def", "|tools|tuipbi", None], ["/tools/tuipbi", "|tools|tuipbi", None], ["/forms/o-sajindaeji", "|forms|o-sajindaeji", None], ["/corp/국토건설", "|corp|국토건설", None], ["/corp/%EA%B5%AD%ED%86%A0", "|corp|국토", None], ["/agency/조달청 서울지방조달청", "|agency|조달청 서울지방조달청", None], ["/notice/R26BK01726752", None, "R26BK01726752"], ["/notice/R26BK01726752/x", None, None], ["/notice/a.b", None, None], ["/qna/-P2vCUv665xH_5zFrBr6", "|qna|-P2vCUv665xH_5zFrBr6", None], ["/jeoksan/fill", "|jeoksan|fill", None], ["/change/naeyeok/공내역서", "|change|naeyeok|공내역서", None], ["/change/naeyeok/%EA%B3%B5", "|change|naeyeok|공", None], ["/cad/kl", "|cad|kl", None], ["/daily/2026-09-23", "|daily|2026-09-23", None], ["/guide/bid-price", "|guide|bid-price", None], ["/없는주소-시험", None, None], ["/admin", None, None], ["/admin/x", None, None], ["/a.b/c", None, None], ["/tools/x.y", "|tools|x,y", None], ["/tools/a#b", "|tools|a", None], ["/tools/a?q=1", "|tools|a", None], ["/tools/%ZZ", "|tools|%ZZ", None], ["/forms/$x[1]", "|forms|_x_1_", None], ["/corp/(주)강원랜드", "|corp|(주)강원랜드", None], ["//tools//dxf3d//", "|tools|dxf3d", None], ["/about", "|about", None], ["/report/make", "|report|make", None], ["/a/b/c/d", None, None], ["/corp/가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가", None, None], ["/tools/a/b/c", None, None]]
+틀린전체 = [(a, M.전체열쇠(a), M.공고번호(a), b, c) for a, b, c in 전체답 if M.전체열쇠(a) != b or M.공고번호(a) != c]
+봄("전체열쇠 · 공고번호 — 조회수.jsx 와 같은 답 %d가지" % len(전체답), not 틀린전체, 틀린전체[:3])
+묶 = [줄("k-conmap.com", "/tools/tuipbi/v/현장/링크", 2), 줄("k-conmap.com", "/tools/tuipbi", 25), 줄("k-conmap.com", "/corp/국토건설", 17), 줄("k-conmap.com", "/corp/대유건설", 13),
+      줄("k-conmap.com", "/admin", 35), 줄("k-conmap.com", "/notice/R26BK01726752", 10), 줄("k-conmap.com", "/notice/R26BK01737540", 10), 줄("k-conmap.com", "/notice/R26BK01698669", 3),
+      줄("localhost", "/corp/국토건설", 99), 줄("k-conmap.com", "/없는주소-시험", 1), 줄("k-conmap.com", "/", 1574)]
+봄("화면묶기 — 현장 링크는 /tools/tuipbi 로 · 관리자 · 없는 주소 · 내 컴퓨터 · 공고는 뺌", M.화면묶기(묶) == {"|tools|tuipbi": 27, "|corp|국토건설": 17, "|corp|대유건설": 13, "|": 1574}, M.화면묶기(묶))
+봄("공고묶기 — 앞 8자로 묶음", M.공고묶기(묶) == {"R26BK017": {"R26BK01726752": 10, "R26BK01737540": 10}, "R26BK016": {"R26BK01698669": 3}}, M.공고묶기(묶))
 print("✓ 모두 맞음" if not 틀림 else f"✗ {틀림}개 틀림")
 sys.exit(1 if 틀림 else 0)
