@@ -161,7 +161,7 @@ function OrigRow({ f }) {
       <span className="fic">{f.icon}</span>
       <div className="grow">
         <div className="t">{f.title} <em className="obadge">원본 틀</em></div>
-        <div className="d">{f.short} <받은수 파일={[f.file]} /></div>
+        <div className="d">{f.short} <받은수 파일={[f.file]} 봄={`/forms/${f.slug}`} /></div>
       </div>
       <span className="go">→</span>
     </Link>
@@ -275,7 +275,7 @@ function 서식칸({ f }) {
           {예시 ? <em className="tlx-new fm-ex">✍ 작성 예시</em> : ORIGSET.has(f.slug) ? <em className="tlx-new fm-orig">원본 틀</em> : null}
         </span>
         <span className="tlx-d">{f.short}</span>
-        <받은수 파일={서식파일(f)} className="dlcount tlx-dl" />
+        <받은수 파일={서식파일(f)} 봄={`/forms/${f.slug}`} className="dlcount tlx-dl" />
       </span>
     </Link>
   )

@@ -1,5 +1,5 @@
 {
- "_": "구글 애널리틱스(측정 ID 를 고친 2026-09-15 ~ 2026-10-01 11시) — file_download 372회(파일 115개) · CAD 받기(cad_download) 12회. 사이트가 직접 세기 전의 «시작값». lib/받은수.jsx 가 데이터베이스 숫자에 더해 보여 줍니다. f = 파일 · p = 그 파일을 받는 화면(애널리틱스가 화면을 안 알려 줘 짐작: 서식 → 그 서식 화면 · 통합 엑셀 → /change/excel · 원클릭 → /tools/wonclick · 재료표 → /jeoksan/lab · 쉐어원 ZIP → /shareone · CAD 12 → /cad)",
+ "_": "구글 애널리틱스(측정 ID 를 고친 2026-09-15 ~ 2026-10-01 11시) — file_download 372회(파일 115개) · CAD 받기(cad_download) 12회. 사이트가 직접 세기 전의 «시작값». lib/받은수.jsx 가 데이터베이스 숫자에 더해 보여 줍니다. f = 파일 · p = 그 파일을 받는 화면(애널리틱스가 화면을 안 알려 줘 짐작: 서식 → 그 서식 화면 · 통합 엑셀 → /change/excel · 원클릭 → /tools/wonclick · 재료표 → /jeoksan/lab · 쉐어원 ZIP → /shareone · CAD 12 → /cad) ＋ (G119 · 2026-10-02) 화면이 만들어 주는 결과 엑셀은 애널리틱스가 못 세서 따로 채움: /jeoksan/fill 8 = 서버 사용 기록(jeoksan/sayong · 9/27~10/1 09:29 · 소장님 브라우저 뺀 수 · 결과 엑셀을 만든 횟수) · /jeoksan/run 4 = 애널리틱스 jeoksan_run(9/15~9/30 · 수량산출서를 만든 횟수 · 10/1~ 는 0)",
  "f": {
   "|agency-sample,pdf": 1,
   "|forms|achasago,xlsx": 2,
@@ -213,7 +213,9 @@
   "|forms|wiimjang": 1,
   "|forms|wonga": 9,
   "|forms|yagan-jakeop": 1,
+  "|jeoksan|fill": 8,
   "|jeoksan|lab": 1,
+  "|jeoksan|run": 4,
   "|shareone": 2,
   "|tools|wonclick": 11
  }

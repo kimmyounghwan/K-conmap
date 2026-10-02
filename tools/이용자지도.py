@@ -17,12 +17,20 @@
           «Google Analytics Data API» 를 켜야 합니다(소장님이 한 번). 안 돼 있으면 403 을 찍고 다음 회차에 다시 봅니다.
 
   python tools/이용자지도.py --minutes 55 --every 10     (한 번만: --once · 넣지 않고 보기만: --dry)
+
+  👁 화면 조회수 (G119 · 2026-10-02) — 소장님: 「다른 것들도 꼼꼼히 점검해서 누적으로 카운트 해서 올려줘. 그리고 카운트 되게 해주고」
+      같은 회차에서 30분마다 한 번: 애널리틱스 runReport(2026-09-15 ~ 오늘 · 페이지 경로별 조회수) → fresh/pv = {at, from, p: {화면열쇠: 조회수}}
+      화면열쇠는 web/src/lib/받은수.jsx 의 화면열쇠() 와 «똑같이»(앞 두 마디 — forms·tools·cad·jeoksan·naeyeok·change, 그 밖은 한 마디).
+      ⚠️ 한쪽만 고치지 말 것 — 시험(tools/시험_이용자지도.py)이 두 쪽을 같은 주소들로 대 봅니다.
+      도구 · 적산 · 내역서 · 서식 카드의 «조회 N» 이 이것을 읽습니다. 지도와 따로 실패합니다(조회수가 안 돼도 지도는 그대로).
 """
 import json
 import os
+import re
 import sys
 import time
 from datetime import datetime, timedelta, timezone
+from urllib.parse import unquote
 
 import requests
 
@@ -114,9 +122,96 @@ def 합치기(옛, 도시들, 지금시각):
             "day": {"d": 오늘, "c": c or None}}
 
 
+# ── 👁 화면 조회수 (G119) ─────────────────────────────────────────
+조회시작 = "2026-09-15"          # 애널리틱스 측정 ID 를 고친 날 — 받은수_시작.json 과 같은 시작
+조회틈 = 30 * 60                 # 30분마다 한 번(지도는 10분마다)
+두마디 = {"forms", "tools", "cad", "jeoksan", "naeyeok", "change"}
+_열쇠바꿈 = str.maketrans({"#": "_", "$": "_", "[": "_", "]": "_"})
+열쇠모양 = re.compile(r"^\|(?:[a-z0-9-]+(?:\|[A-Za-z0-9,_-]+)?)?$")
+
+
+def 열쇠꼴(s):
+    """받은수.jsx 열쇠꼴 — «.»→«,» · «/»→«|» · «# $ [ ]»→«_»"""
+    return s.replace(".", ",").replace("/", "|").translate(_열쇠바꿈)
+
+
+def 화면열쇠(path):
+    """받은수.jsx 화면열쇠 와 같게 — «/tools/tuipbi/v/현장/링크» → «|tools|tuipbi» · «/corp/이름» → «|corp» · «/» → «|»"""
+    p = str(path or "/").split("?")[0].split("#")[0]
+    마디 = [x for x in p.split("/") if x]
+    if not 마디:
+        return "|"
+    둘 = 마디[:2] if 마디[0] in 두마디 else 마디[:1]
+    try:
+        k = "|".join(unquote(x, errors="strict") for x in 둘)
+    except Exception:
+        k = "|".join(둘)
+    return 열쇠꼴("|" + k)[:80]
+
+
+def 우리주소(host):
+    h = (host or "").strip().lower()
+    return bool(h) and h != "(not set)" and h != "localhost" and not h.startswith("127.") and not h.startswith("192.168.") and not h.endswith(".localhost")
+
+
+def 조회묶기(rows):
+    """애널리틱스 줄들([hostName, pagePath] · [screenPageViews]) → {화면열쇠: 조회수}"""
+    out = {}
+    for row in rows or []:
+        d = [x.get("value", "") for x in row.get("dimensionValues") or []]
+        m = [x.get("value", "0") for x in row.get("metricValues") or []]
+        if len(d) < 2 or not 우리주소(d[0]) or not str(d[1]).startswith("/"):
+            continue
+        try:
+            n = int(float(m[0]))
+        except Exception:
+            n = 0
+        if n <= 0:
+            continue
+        k = 화면열쇠(d[1])
+        if not 열쇠모양.match(k):            # 사이트 화면 꼴만(첫 마디 영문 소문자) — 아무 주소나 쳐 넣은 것은 공개 숫자에 안 남김
+            continue
+        out[k] = out.get(k, 0) + n
+    return out
+
+
+def 조회수(tok):
+    r = requests.post(
+        f"https://analyticsdata.googleapis.com/v1beta/properties/{GA_PROPERTY}:runReport",
+        headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"},
+        data=json.dumps({"dateRanges": [{"startDate": 조회시작, "endDate": "today"}],
+                         "dimensions": [{"name": "hostName"}, {"name": "pagePath"}],
+                         "metrics": [{"name": "screenPageViews"}],
+                         "limit": 100000}),
+        timeout=60)
+    if r.status_code != 200:
+        raise RuntimeError(f"애널리틱스(조회수) HTTP {r.status_code} {r.text[:160]}")
+    return 조회묶기(r.json().get("rows") or [])
+
+
+def 조회넣기(ctx, dry=False):
+    p = 조회수(ctx["tok"])
+    새 = {"at": int(지금().timestamp() * 1000), "from": 조회시작, "p": p or None}
+    적기(f"  · 조회수 {len(p)}곳 · 합 {sum(p.values()):,}")
+    if dry:
+        return 새
+    r = requests.put(f"{DB}/fresh/pv.json", headers={"Authorization": "Bearer " + ctx["tok"], "Content-Type": "application/json"},
+                     data=json.dumps(새, ensure_ascii=False).encode("utf-8"), timeout=30)
+    if r.status_code != 200:
+        raise RuntimeError(f"데이터베이스(조회수) HTTP {r.status_code} {r.text[:120]}")
+    return 새
+
+
 def 한번(ctx, dry=False):
     if not ctx.get("tok") or time.time() - ctx.get("tok_t", 0) > 40 * 60:
         ctx["tok"], ctx["tok_t"] = 토큰(ctx["sa"]), time.time()
+    if time.time() - ctx.get("pv_t", 0) >= 조회틈:          # 👁 조회수 — 지도와 따로 실패
+        try:
+            조회넣기(ctx, dry)
+            ctx["pv_t"] = time.time()
+        except Exception as e:
+            ctx["pv_t"] = time.time() - 조회틈 + 10 * 60    # 10분 뒤 다시
+            적기(f"  ! 조회수 못 했습니다 ({type(e).__name__}: {str(e)[:200]})")
     도시들 = 실시간(ctx["tok"])
     옛 = requests.get(f"{DB}/fresh/map.json", timeout=20).json()
     새 = 합치기(옛, 도시들, 지금())

@@ -88,7 +88,7 @@ function 도구칸({ x }) {
       <span className="tlx-body">
         <span className="tlx-t">{x.t}{x.딱지 && <em className="tlx-new ny-tag">{x.딱지}</em>}{x.예시 && <em className="tlx-new js-ex">🧪 예시 있음</em>}</span>
         <span className="tlx-d">{x.d}</span>
-        <받은수 쪽={x.to} 빼기={카드열쇠캐시 || (카드열쇠캐시 = 카드열쇠())} className="dlcount tlx-dl" />
+        <받은수 쪽={x.to} 봄={x.to} 빼기={카드열쇠캐시 || (카드열쇠캐시 = 카드열쇠())} className="dlcount tlx-dl" />
       </span>
     </Link>
   )

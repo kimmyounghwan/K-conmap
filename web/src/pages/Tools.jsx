@@ -139,7 +139,7 @@ export default function ToolsIndex() {
                     <span className="tlx-d">{x.d}</span>
                     <span className="tlx-row">
                       <span className={'tlx-w ' + 곳[1]}>{곳[0]}</span>
-                      <받은수 쪽={x.to} 빼기={카드열쇠} className="dlcount tlx-dl" />
+                      <받은수 쪽={x.to} 봄={x.to} 빼기={카드열쇠} className="dlcount tlx-dl" />
                     </span>
                   </span>
                 </Link>
