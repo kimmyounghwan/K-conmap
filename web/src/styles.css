@@ -5710,3 +5710,20 @@ button.sk-mini { color: var(--accent); padding: 0; text-align: left; }
 .bk-cut { color: var(--bad); }
 .muted.sm { font-size: 12px; }
 @media print { .bk { display: none !important; } }
+/* ── 🗺 이용자 지도 (tools/이용자지도.jsx · G114 — 2026-10-02) ── */
+.umap { padding: 12px 14px 10px; }
+.umap-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; justify-content: space-between; }
+.umap-head b { font-size: 15px; }
+.umap-key { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 4px 6px; flex-wrap: wrap; }
+.umap-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; vertical-align: middle; }
+.umap-dot.now { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-line); }
+.umap-dot.day { background: var(--accent); opacity: .35; margin-left: 6px; }
+.umap-svg { display: block; width: 100%; max-width: 480px; height: auto; margin: 6px auto 2px; }
+.umap-land { fill: var(--accent-soft); stroke: var(--accent-line); stroke-width: .9; }
+.umap-day circle { fill: var(--accent); opacity: .4; cursor: pointer; }
+.umap-now circle { fill: var(--accent); cursor: pointer; }
+.umap-now .umap-ring { fill: none; stroke: var(--accent); stroke-width: 1.6; opacity: .5; transform-box: fill-box; transform-origin: center; animation: umap-pulse 2.4s ease-out infinite; pointer-events: none; }
+@keyframes umap-pulse { from { transform: scale(.6); opacity: .65; } to { transform: scale(1.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .umap-now .umap-ring { animation: none; } }
+.umap-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; font-size: 12.5px; }
+.umap-src { font-size: 11.5px; }

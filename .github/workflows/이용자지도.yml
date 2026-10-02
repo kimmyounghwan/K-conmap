@@ -1,0 +1,93 @@
+# ============================================================
+#  🗺 이용자 지도 — 애널리틱스 실시간 도시 → 데이터베이스 fresh/map (2026-10-02 · G114)
+#
+#  소장님: 「건설맵 이용자 지도 만들 수 있어? 실시간으로」 「다 볼 수 있게」 「컴퓨터 꺼져 있어도 계속 되는 거야 해」
+#  사랑방 맨 위 지도(web/src/tools/이용자지도.jsx)가 이것을 읽습니다. 숫자 없이 점만.
+#
+#  ■ 한 회차 = 약 51분(10분마다 여섯 번) → 끝나면 스스로 다음 회차를 부릅니다(사슬) — 밤낮없이 24시간.
+#    공고 빠른 수집(fast.yml)과 따로 돕니다 — 그쪽을 건드리지 않게.
+#    깃허브 예약은 늦게 오거나 빠지기도 해서, 사슬이 끊겨도 매시 예약이 다시 잇습니다(보험).
+#  ■ 끄기: 저장소 Settings → Variables 에 MAP_OFF=1 (다음 회차부터 안 부릅니다)
+#  ■ 권한이 아직 없으면(403) 그 회차는 그만하고 사슬을 잇지 않습니다 — 매시 예약이 다시 봅니다.
+#  ■ 저장소가 공개라 Actions 시간은 무료 · 애널리틱스 Data API 도 무료 몫 안(하루 150회쯤).
+# ============================================================
+name: 이용자 지도
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/이용자지도.py'
+      - '.github/workflows/이용자지도.yml'
+  schedule:
+    - cron: '37 * * * *'
+
+concurrency:
+  group: usermap
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write            # 회차가 끝나면 다음 회차를 스스로 부르기 위해
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - name: 이미 도는 회차가 있으면 끝냄
+        id: dup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          P=$(gh run list --repo "${{ github.repository }}" --workflow 이용자지도.yml --limit 20 --json status,databaseId \
+              | jq '[.[]|select(.status=="in_progress" and .databaseId != ${{ github.run_id }})]|length')
+          echo "도는 다른 회차 ${P}개"
+          if [ "${P:-0}" -gt 0 ]; then echo "skip=1" >> "$GITHUB_OUTPUT"; else echo "skip=0" >> "$GITHUB_OUTPUT"; fi
+
+      - name: 코드 받기 (필요한 파일만)
+        if: steps.dup.outputs.skip != '1'
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            tools/이용자지도.py
+          sparse-checkout-cone-mode: false
+
+      - name: 파이썬 준비
+        if: steps.dup.outputs.skip != '1'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 파이썬 패키지 (필요한 것만)
+        if: steps.dup.outputs.skip != '1'
+        run: pip install -q requests google-auth
+
+      - name: 지도 받기 (10분마다 여섯 번 · 약 51분)
+        id: run
+        if: steps.dup.outputs.skip != '1'
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PYTHONUTF8: '1'
+          PYTHONUNBUFFERED: '1'
+        run: |
+          date +%s > .map_t0
+          python tools/이용자지도.py --minutes 55 --every 10
+
+      - name: 다음 회차 부르기 (24시간)
+        if: ${{ !cancelled() && steps.dup.outputs.skip != '1' && steps.run.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MAP_OFF: ${{ vars.MAP_OFF }}
+        run: |
+          if [ "${MAP_OFF:-0}" = "1" ]; then echo "MAP_OFF=1 — 다음 회차를 부르지 않습니다"; exit 0; fi
+          if [ -f .map_stop ]; then echo "$(cat .map_stop) — 다음 회차를 부르지 않습니다(매시 예약이 다시 봅니다)"; exit 0; fi
+          EL=$(( $(date +%s) - $(cat .map_t0 2>/dev/null || date +%s) ))
+          if [ "$EL" -lt 600 ]; then echo "이번 회차가 ${EL}초 만에 끝났습니다 — 헛돌지 않게 부르지 않습니다(매시 예약이 다시 봅니다)"; exit 0; fi
+          J=$(gh run list --repo "${{ github.repository }}" --workflow 이용자지도.yml --limit 20 --json status,databaseId)
+          Q=$(echo "$J" | jq '[.[]|select(.status=="queued" or .status=="pending" or .status=="waiting" or .status=="requested")]|length')
+          P=$(echo "$J" | jq '[.[]|select(.status=="in_progress" and .databaseId != ${{ github.run_id }})]|length')
+          echo "기다리는 회차 ${Q}개 · 도는 다른 회차 ${P}개"
+          if [ "${Q:-0}" -gt 0 ] || [ "${P:-0}" -gt 0 ]; then echo "이미 잡혀 있습니다 — 부르지 않습니다"; exit 0; fi
+          gh workflow run 이용자지도.yml --repo "${{ github.repository }}" --ref "${{ github.ref_name }}" && echo "▶ 다음 회차를 불렀습니다"
