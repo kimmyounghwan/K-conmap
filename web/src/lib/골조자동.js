@@ -19,6 +19,7 @@
 import { 종류 } from './골조도면.js'
 import { 새공사, 새동, 엑셀 as 골조엑셀, 정착표 } from './골조.js'
 import { 표찾기, 넣을것, 칸이름 } from './정착표읽기.js'
+import { 도곽찾기 } from './dxfplot.js'
 
 const 글 = (x) => String(x ?? '').trim()
 const 붙 = (s) => String(s ?? '').replace(/\s+/g, '')
@@ -30,7 +31,11 @@ const 자리만들기 = (이름, r) => ({ n: 이름 || '', r: r.map((v) => 반�
 
 /** 부재 기호 — 「G1」「2G1」「RG1」「B1C2」「TG1A」 → {기호, 몸(층 표시 뗀 것), 종류:'보'|'기둥'|'슬라브'|'벽'|'기초'} */
 export function 기호풀이(s) {
-  const t = 붙(s).toUpperCase()
+  /* 🛠 G118 — 「(G1)」「G-1」 → G1 */
+  let m0
+  let t = 붙(s).toUpperCase()
+  if ((m0 = /^[(\[]([A-Z0-9]{2,6})[)\]]$/.exec(t))) t = m0[1]
+  if ((m0 = /^([A-Z]{1,3})-(\d{1,2}[A-Z]?)$/.exec(t))) t = m0[1] + m0[2]
   const m = /^(B\d{1,2}|\d{1,2}|R|PH\d?|RF)?([A-Z]{1,3})(\d{1,2}[A-Z]?)$/.exec(t)
   if (!m) return null
   let 앞 = m[1] || '', 글자 = m[2]
@@ -48,6 +53,17 @@ export function 기호풀이(s) {
   if (!k) return null
   return { 기호: t, 몸: 글자 + m[3], 층표: 앞, 종류: k }
 }
+/** 🛠 G118 — 평면의 기호 글자: 크기를 붙여 적은 꼴(「G1(400X700)」「G1 400X700」)도 기호로 (일람표 칸은 기호풀이 그대로) */
+export function 평면기호(s) {
+  const r = 기호풀이(s)
+  if (r) return r
+  const m = /^(\s*)([A-Za-z0-9]{2,6})\s*[(\[]?\s*\d{3,4}\s*[Xx×*]\s*\d{3,4}(?:\s*[Xx×*]\s*\d{3,4})?\s*[)\]]?\s*$/.exec(String(s ?? ''))
+  if (!m) return null
+  const r2 = 기호풀이(m[2])
+  return r2 ? { ...r2, 앞: m[1].length, 길이: m[2].length } : null     // 앞 · 길이 — 글자 안에서 기호가 차지한 자리(가운데를 기호 쪽으로)
+}
+/** 글자 폭 짐작 — 준비() 와 같은 셈(한글 1 · 빈칸 0.5 · 나머지 0.75 × 높이) */
+const 폭짐작 = (s, h) => { let w = 0; for (const ch of s) w += /[ㄱ-힝]/.test(ch) ? 1.0 : (ch === ' ' ? 0.5 : 0.75); return w * h }
 /** 한 글자 칸에 기호가 여럿 — 「G1, G2」「2G1·3G1」 */
 function 기호들(s) {
   const t = 붙(s).toUpperCase()
@@ -95,9 +111,9 @@ export function 기호칸(s) {
 }
 
 const RE개수 = /(\d{1,2})\s*-\s*[A-Z]{0,3}D(\d{2})(?!\d)/g
-const RE간격 = /[A-Z]{0,3}D(\d{2})(?:\s*\+\s*[A-Z]{0,3}D(\d{2}))?\s*@\s*(\d{2,4})/g
+const RE간격 = /[A-Z]{0,3}D(\d{2})(?:\s*\+\s*[A-Z]{0,3}D(\d{2}))?\s*-?\s*@\s*(\d{2,4})/g      // 🛠 G118 「HD10-@150」 도
 const RE크기 = /(\d{1,2},\d{3}|\d{3,4})\s*[X×x*]\s*(\d{1,2},\d{3}|\d{3,4})(?:\s*[X×x*]\s*(\d{1,2},\d{3}|\d{3,4}))?/
-const RE두께 = /(?:THK|THICK|T\s*=|D\s*=|H\s*=|두께)\s*[=:]?\s*(\d{2,4})|(\d{2,4})\s*THK/i
+const RE두께 = /(?:THK|THICK|T\s*=|(?<![×X*]\s?)D\s*=|H\s*=|두께)\s*[=:]?\s*(\d{2,4})|(\d{2,4})\s*THK/i     // 🛠 G118 「B×D=400×700」 의 D= 는 두께 아님
 const RE지름 = /[ØΦ∅]\s*(\d{3,4})|%%C\s*(\d{3,4})|^\s*D\s*(\d{3,4})\s*$/i
 const 철규 = (n) => { const d = 'D' + n; return ['D10', 'D13', 'D16', 'D19', 'D22', 'D25', 'D29', 'D32', 'D35', 'D38', 'D41', 'D51'].includes(d) ? d : '' }
 
@@ -105,6 +121,8 @@ const 철규 = (n) => { const d = 'D' + n; return ['D10', 'D13', 'D16', 'D19', '
 const RE철골 = /^\s*(H|I|C|L|ㄷ|ㅁ|□|■|○|◎|Ø|Φ|P|RHS|SHS|BOX|TUBE|PIPE|CT|SQ|LGS|Z)\s*[-–]\s*\d|\d\s*[X×*]\s*\d+(\.\d+)?\s*T\b|^H\s*\d{3}\s*[X×*]/i
 export function 토막들(s) {
   const u = String(s ?? '').toUpperCase().replace(/[−–—]/g, '-')
+    /* 🛠 G118 — 「B400×D700」 → 400×700 */
+    .replace(/\bB\s*=?\s*(\d{3,4})\s*([X×*])\s*[DH]\s*=?\s*(\d{3,4})/, '$1$2$3')
   // 철골 단면(H-400X200X8X13 · ㅁ-125X125X5t · C-100X50X20X2.3T) — 철근콘크리트 값으로 읽지 않음
   if (RE철골.test(u) && !/[A-Z]{0,3}D\d{2}\s*@|\d\s*-\s*[A-Z]{0,3}D\d{2}/.test(u)) return [{ k: '철골', 글: 글(s) }]
   const out = []
@@ -120,6 +138,10 @@ export function 토막들(s) {
   // 「HD13-2EA」「D22×4EA」 처럼 개수를 뒤에 적은 꼴
   const RE개수뒤 = /[A-Z]{0,3}D(\d{2})\s*[-×X*]\s*(\d{1,2})\s*(?:EA|개|본)/g
   while ((m = RE개수뒤.exec(가린))) { const d = 철규(m[1]); if (d && +m[2] > 0 && !out.some((o) => o.k === '개수' && o.d === d && o.n === +m[2])) out.push({ k: '개수', n: +m[2], d, 글: m[2] + '-' + d }) }
+  /* 🛠 G118 — 「4EA-HD22」 · 칸 전체가 「HD22-4」 */
+  const RE개수앞 = /(\d{1,2})\s*(?:EA|개|본)\s*-\s*[A-Z]{0,3}D(\d{2})(?!\d)/g
+  while ((m = RE개수앞.exec(가린))) { const d = 철규(m[2]); if (d && +m[1] > 0 && !out.some((o) => o.k === '개수' && o.d === d && o.n === +m[1])) out.push({ k: '개수', n: +m[1], d, 글: m[1] + '-' + d }) }
+  if (!out.some((o) => o.k === '개수') && (m = /^\s*[A-Z]{0,3}D(\d{2})\s*-\s*(\d{1,2})\s*$/.exec(가린))) { const d = 철규(m[1]); if (d && +m[2] > 0) out.push({ k: '개수', n: +m[2], d, 글: m[2] + '-' + d }) }
   if ((m = RE크기.exec(u))) { const n = (x) => +String(x).replace(/,/g, ''); out.push({ k: '크기', a: n(m[1]), b: n(m[2]), c: m[3] ? n(m[3]) : null }) }
   if ((m = RE두께.exec(u))) out.push({ k: '두께', t: +(m[1] || m[2]) })
   if ((m = RE지름.exec(u))) out.push({ k: '지름', t: +(m[1] || m[2] || m[3]) })
@@ -171,8 +193,14 @@ export function 제목층(s) {
   if (/기초|FOUNDATION|FOOTING|BASEPLAN|매트/.test(t)) return ['FT']
   if (/(옥상|옥탑|PH|PENT)지붕|PHR|(PH|PENT\w*)ROOF/.test(t)) return ['PR']
   if (/지붕|옥상|ROOF|^RF|R층/.test(t)) return ['R']
-  if (/옥탑|PENT/.test(t)) return ['R']
+  if (/옥탑|PENT|^PH\d?(층|F)|PH층/.test(t)) return ['R']
   let m
+  /* 🛠 G118 — 「2,3층 구조평면도」「2·4층」 → 여러 층 · 「2ND FLOOR FRAMING PLAN」 */
+  if ((m = /^((?:지하)?\d{1,2}(?:층|F)?(?:[,·](?:지하)?\d{1,2}(?:층|F)?)+)(?:층|F)?/.exec(t))) {
+    const 들 = m[1].split(/[,·]/).map((x) => /지하/.test(x) ? 'B' + +x.replace(/\D/g, '') : String(+x.replace(/\D/g, '')))
+    if (들.length >= 2 && 들.every((x) => x !== 'NaN' && x !== 'B0' && x !== '0')) return 들
+  }
+  if ((m = /(\d{1,2})(?:ST|ND|RD|TH)FLOOR/.exec(t))) return [String(+m[1])]
   if ((m = /(지하)?(\d{1,2})(?:층|F)?[~∼\-](지하)?(\d{1,2})(?:층|F)/.exec(t))) {
     const a = +m[2], b = +m[4], 지 = !!(m[1] || m[3])
     const out = []
@@ -271,7 +299,21 @@ function 준비(모델, k, 번) {
     const cx = x + (w / 2) * Math.cos(a) - (h / 2) * Math.sin(a), cy = y + (w / 2) * Math.sin(a) + (h / 2) * Math.cos(a)
     글자.push({ i, 번, s, u: 붙(s).toUpperCase(), x: cx, y: cy, h, w, a, ly: E.ly[T.e[i]], x0: x })
   }
-  return { 번, k, 모델, sx0, sy0, sx1, sy1, sly, se, 닫힌, 찾기, 글자, layers }
+  /* 🛠 G118 (2026-10-02) — 소장님 「골조 수량 산출 도면을 넣었는데, 물량이 제대로 안나온데..」
+     도면이 «도곽(박스)» 마다 한 장이고 제목이 표제란(도곽 오른쪽 아래)에만 있으면, 평면 왼쪽의 부재 기호가 제목과 너무 멀어
+     어느 평면에도 안 걸리고 빠졌습니다(보 46 → 33줄 · 콘크리트 216 → 189㎥). 도곽을 찾아, 같은 도곽 안의 제목을 그 평면의 제목으로 봅니다.
+     도곽 찾기는 도면 PDF 만들기와 같은 것(lib/dxfplot.js 도곽찾기) — 주석층(도곽 · TITLE 등)도 봅니다. */
+  let 도곽 = []
+  try {
+    const 조각 = []
+    for (let q = 0; q < Q.e.length; q++) {
+      const t = E.t[Q.e[q]]
+      if (t === 종류.선 || t === 종류.폴리선 || t === 종류.닫힌폴리선) 조각.push({ s: Q.p0[q], n: Q.pn[q], closed: t === 종류.닫힌폴리선 })
+    }
+    도곽 = 도곽찾기(P, 조각, 모델.units).map((f) => [f.x0 * k, f.y0 * k, f.x1 * k, f.y1 * k])
+  } catch (e) { 도곽 = [] }
+  const 도곽번 = (x, y) => { for (let i = 0; i < 도곽.length; i++) { const f = 도곽[i]; if (x >= f[0] && x <= f[2] && y >= f[1] && y <= f[3]) return i } return -1 }
+  return { 번, k, 모델, sx0, sy0, sx1, sy1, sly, se, 닫힌, 찾기, 글자, layers, 도곽, 도곽번 }
 }
 
 /* ───────────────────────────── ① 일람표 → 배근표 */
@@ -288,7 +330,9 @@ function 일람표읽기(도면들, 경고) {
   for (const D of 도면들) {
     const 토 = [], 머리 = [], 기후 = [], 층머리 = [], 부호머리 = []
     for (const g of D.글자) {
-      const 칸 = 기호칸(g.s)
+      /* 🛠 G118 — 평면의 「G1(400X700)」 꼴도 기호로 봄(값 토막으로 보면 가까운 일람표가 가져가 평면에서 빠졌음) */
+      const 평 = 기호칸(g.s) ? null : 평면기호(g.s)
+      const 칸 = 기호칸(g.s) || (평 ? { 기호들: [평], 범위: null } : null)
       if (칸) { 기후.push({ g, 기: 칸.기호들, 범위: 칸.범위 }); continue }
       const tk = 토막들(g.s)
       const 역 = 역할들(g.s)
@@ -802,7 +846,7 @@ export function 골조읽기(도면들0, o = {}) {
 
   /* 평면 제목 */
   const 제목들 = []
-  for (const D of 도면들) for (const g of D.글자) { const f = 제목층(g.s); if (f) 제목들.push({ D, g, f, 기둥판: 기둥제목(g.s), 이름: 붙(g.s).toUpperCase() }) }
+  for (const D of 도면들) for (const g of D.글자) { const f = 제목층(g.s); if (f) 제목들.push({ D, g, f, 기둥판: 기둥제목(g.s), 이름: 붙(g.s).toUpperCase(), 판: D.도곽.length ? D.도곽번(g.x, g.y) : -1 }) }
   const 바닥들 = new Set()
   for (const t of 제목들) for (const f of t.f) if (f !== 'FT') 바닥들.add(f)
   for (const f of 높이.keys()) 바닥들.add(f)
@@ -831,6 +875,21 @@ export function 골조읽기(도면들0, o = {}) {
 
   /* 제목 찾기 — 기호 글자(또는 일람표 칸)가 어느 평면 제목에 붙나: 제목은 보통 평면 «아래». 옆 도면과 헷갈리지 않게 가로 거리를 먼저 봄 */
   const 제목찾기 = (D, g) => {
+    /* 🛠 G118 — 도곽 안의 글자는 «같은 도곽 안» 제목에서 고름(거리 제한 없이).
+       그 도곽에 제목이 하나도 없으면(도곽이 아닌 큰 네모일 수도) 예전처럼 가까운 제목을 찾음 */
+    const 판 = D.도곽 && D.도곽.length ? D.도곽번(g.x, g.y) : -1
+    const 안 = 판 >= 0 ? 제목들.filter((t) => t.D === D && t.판 === 판) : []
+    if (안.length) {
+      let best = null, bd = Infinity, 아무 = null, ad = Infinity
+      for (const t of 안) {
+        const dy = g.y - t.g.y, dx = Math.abs(g.x - t.g.x)
+        const d = dx + 0.3 * Math.max(0, dy)
+        if (d < ad) { ad = d; 아무 = t }
+        if (dy < -2 * t.g.h) continue
+        if (d < bd) { bd = d; best = t }
+      }
+      return best || 아무
+    }
     let best = null, bd = Infinity
     for (const t of 제목들) {
       if (t.D !== D) continue
@@ -907,8 +966,15 @@ export function 골조읽기(도면들0, o = {}) {
   for (const D of 도면들) {
     for (const g of D.글자) {
       if (쓴글자.has(D.번 + ':' + g.i)) continue
-      const r = 기호풀이(g.s)
+      const r = 평면기호(g.s)
       if (!r) continue
+      if (r.길이 != null) {
+        /* 「G1(400X700)」 — 글자 가운데가 아니라 «G1» 부분의 가운데를 기호 자리로 (기둥·보 찾는 거리가 어긋나지 않게) */
+        const 앞폭 = 폭짐작(g.s.slice(0, r.앞), g.h), 몸폭 = 폭짐작(g.s.slice(r.앞, r.앞 + r.길이), g.h)
+        const 가운데 = 앞폭 + 몸폭 / 2 - g.w / 2
+        기호글자.push({ D, g: { ...g, x: g.x + 가운데 * Math.cos(g.a), y: g.y + 가운데 * Math.sin(g.a), w: 몸폭 }, r })
+        continue
+      }
       기호글자.push({ D, g, r })
     }
   }

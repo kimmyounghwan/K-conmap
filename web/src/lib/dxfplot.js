@@ -213,22 +213,15 @@ export function parsePlot(text, onProgress) {
       const a = PX.a, i0 = st * 2
       const x0 = a[i0], y0 = a[i0 + 1], x1 = a[i0 + 2], y1 = a[i0 + 3]
       if (Math.abs(y1 - y0) < 1e-9 * (Math.abs(x1 - x0) + 1) || Math.abs(x1 - x0) < 1e-9 * (Math.abs(y1 - y0) + 1)) axisLines.push([x0, y0, x1, y1])
-    } else if ((closed && cnt === 4) || cnt === 5) rectCand(st, cnt)
+    } else if (cnt >= 4 && cnt <= 24) rectCand(PX.a, st * 2, cnt, closed)
   }
-  function rectCand(st, cnt) {
-    const a = PX.a, i0 = st * 2
-    if (cnt === 5 && (Math.abs(a[i0] - a[i0 + 8]) > 1e-6 * (Math.abs(a[i0]) + 1) || Math.abs(a[i0 + 1] - a[i0 + 9]) > 1e-6 * (Math.abs(a[i0 + 1]) + 1))) return
-    const xs = [a[i0], a[i0 + 2], a[i0 + 4], a[i0 + 6]], ys = [a[i0 + 1], a[i0 + 3], a[i0 + 5], a[i0 + 7]]
-    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys)
-    const w = x1 - x0, h = y1 - y0
-    if (!(w > 0 && h > 0)) return
-    const tol = Math.max(w, h) * 1e-4
-    for (let k = 0; k < 4; k++) {
-      const onX = Math.abs(xs[k] - x0) < tol || Math.abs(xs[k] - x1) < tol
-      const onY = Math.abs(ys[k] - y0) < tol || Math.abs(ys[k] - y1) < tol
-      if (!onX || !onY) return
-    }
-    rects.push([x0, y0, x1, y1])
+  const rectCand = (a, i0, cnt, closed) => 네모후보(a, i0, cnt, closed, rects)
+  /** 굵은(폭 있는) 폴리선 도곽 — 채움으로 그려지므로 가운데 선으로 네모 후보만 따로 봅니다 (G118) */
+  function rectFromPts(M, pts, closed) {
+    if (pts.length < 4 || pts.length > 24) return
+    const a = []
+    for (const q of pts) { const w = P(M, q[0], q[1], q[2] || 0); if (!Number.isFinite(w[0] + w[1])) return; a.push(w[0], w[1]) }
+    rectCand(a, 0, pts.length, closed)
   }
   function addFill(M, loops, sty, cx) {              // loops: [[[x,y,z]…]…]
     const l0 = LS.n
@@ -778,7 +771,7 @@ export function parsePlot(text, onProgress) {
     if (wide && pts.length >= 2) {
       // 폭이 모두 같고 넓지 않으면 선으로(굵기는 채움과 같게 보이도록) — 여기서는 늘 채움으로
       const rb = ribbon(pts, closed)
-      if (rb) { addFill(MM, [rb], rs.sty, cx); return }
+      if (rb) { addFill(MM, [rb], rs.sty, cx); rectFromPts(MM, pts, closed); return }
     }
     addPath(MM, pts, false, rs.sty, cx)
   }
@@ -903,8 +896,22 @@ export function parsePlot(text, onProgress) {
     fills.box[i * 4] = x0; fills.box[i * 4 + 1] = y0; fills.box[i * 4 + 2] = x1; fills.box[i * 4 + 3] = y1
   }
   const box = robustBox(paths, texts)
-  const frames = findFrames(rects, axisLines, box, paths)
+  const frames = findFrames(rects, axisLines, box, paths, header.insunits)
   return { paths, fills, texts, styles, ltypes, clips, box, frames, stats, units: header.insunits, paper: modelPaper }
+}
+
+/** 🛠 G118 — 골조 자동도 같은 «도곽 찾기» 를 씁니다(박스 안 글자는 그 박스의 제목으로).
+ *  P: 점 [x,y,…] · 조각들: [{s: 첫 점 번호, n: 점 수, closed}] · 돌려주는 도곽은 P 좌표 */
+export function 도곽찾기(P, 조각들, units) {
+  const rects = [], lines = []
+  for (const c of 조각들) {
+    if (c.n === 2) {
+      const i0 = c.s * 2, x0 = P[i0], y0 = P[i0 + 1], x1 = P[i0 + 2], y1 = P[i0 + 3]
+      if (Math.abs(y1 - y0) < 1e-9 * (Math.abs(x1 - x0) + 1) || Math.abs(x1 - x0) < 1e-9 * (Math.abs(y1 - y0) + 1)) lines.push([x0, y0, x1, y1])
+    } else if (c.n >= 4 && c.n <= 24) 네모후보(P, c.s * 2, c.n, !!c.closed, rects)
+  }
+  const paths = { xy: P }
+  return findFrames(rects, lines, robustBox(paths, []), paths, units)
 }
 
 /** 튀는 점(수 km 밖 찌꺼기)에 끌리지 않는 도면 범위 — 꼭짓점 0.3~99.7% */
@@ -925,6 +932,40 @@ function robustBox(paths, texts) {
   const w = x1 - x0 || 1, h = y1 - y0 || 1
   x0 -= w * 0.02; x1 += w * 0.02; y0 -= h * 0.02; y1 += h * 0.02
   return [x0, y0, x1, y1]
+}
+
+/* 도곽 후보 — 축에 붙은 닫힌 네모. 🛠 G118(2026-10-02, 소장님 「박스별로 한 장씩 pdf로 나와야 하는데 한꺼번에 나온다고」):
+   꼭짓점이 4개보다 많아도(변 가운데 점 · 겹친 점) 모든 점이 네 변 위에 있고 토막이 모두 변을 따라가면 네모로 봅니다. */
+function 네모후보(a, i0, cnt, closed, rects) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
+  for (let k = 0; k < cnt; k++) { const x = a[i0 + k * 2], y = a[i0 + k * 2 + 1]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y }
+  const w = x1 - x0, h = y1 - y0
+  if (!(w > 0 && h > 0)) return
+  const tol = Math.max(w, h) * 1e-4
+  const 끝 = i0 + (cnt - 1) * 2
+  if (!closed && (Math.abs(a[i0] - a[끝]) > tol || Math.abs(a[i0 + 1] - a[끝 + 1]) > tol)) return
+  let 모서리 = 0
+  for (let k = 0; k < cnt; k++) {
+    const x = a[i0 + k * 2], y = a[i0 + k * 2 + 1]
+    const L = Math.abs(x - x0) < tol, R = Math.abs(x - x1) < tol, B = Math.abs(y - y0) < tol, T = Math.abs(y - y1) < tol
+    if (!(L || R || B || T)) return
+    if (L && B) 모서리 |= 1
+    if (R && B) 모서리 |= 2
+    if (R && T) 모서리 |= 4
+    if (L && T) 모서리 |= 8
+  }
+  if (모서리 !== 15) return
+  const 토막 = closed ? cnt : cnt - 1
+  for (let k = 0; k < 토막; k++) {
+    const j = (k + 1) % cnt
+    const xa = a[i0 + k * 2], ya = a[i0 + k * 2 + 1], xb = a[i0 + j * 2], yb = a[i0 + j * 2 + 1]
+    const 가로 = Math.abs(ya - yb) < tol, 세로 = Math.abs(xa - xb) < tol
+    if (가로 && 세로) continue
+    if (가로) { if (Math.abs(ya - y0) >= tol && Math.abs(ya - y1) >= tol) return }
+    else if (세로) { if (Math.abs(xa - x0) >= tol && Math.abs(xa - x1) >= tol) return }
+    else return
+  }
+  rects.push([x0, y0, x1, y1])
 }
 
 /* ── 도곽 찾기 ─────────────────────────────────────────
@@ -949,62 +990,152 @@ export function guessScale(w, h, units) {
   }
   return best
 }
-function findFrames(rects, lines, box, paths) {
-  const diag = Math.hypot(box[2] - box[0], box[3] - box[1])
-  const cand = []
-  const ok = (w, h) => { const r = Math.max(w, h) / Math.min(w, h); return r > 1.33 && r < 1.5 }
-  for (const r of rects) { const w = r[2] - r[0], h = r[3] - r[1]; if (ok(w, h) && Math.max(w, h) > diag * 0.02) cand.push(r) }
-  /* 긴 선 네모 */
-  const minL = diag * 0.03
-  const H = [], V = []
-  for (const [x0, y0, x1, y1] of lines) {
-    if (Math.abs(y1 - y0) < 1e-9 && Math.abs(x1 - x0) > minL) H.push([Math.min(x0, x1), Math.max(x0, x1), y0])
-    else if (Math.abs(x1 - x0) < 1e-9 && Math.abs(y1 - y0) > minL) V.push([Math.min(y0, y1), Math.max(y0, y1), x0])
-  }
-  if (H.length < 2000 && V.length < 2000) {
-    H.sort((p, q) => p[2] - q[2])
-    for (let i = 0; i < H.length; i++) {
-      for (let j = i + 1; j < H.length; j++) {
-        const a = H[i], b = H[j]
-        const w = a[1] - a[0], tol = w * 0.004
-        if (Math.abs(a[0] - b[0]) > tol || Math.abs(a[1] - b[1]) > tol) continue
-        const h = b[2] - a[2]
-        if (!ok(w, h)) continue
-        const hasV = (x) => V.some((v) => Math.abs(v[2] - x) < tol && v[0] <= a[2] + tol && v[1] >= b[2] - tol)
-        if (hasV(a[0]) && hasV(a[1])) cand.push([a[0], a[2], a[1], b[2]])
+/* 🛠 G118 (2026-10-02) — 소장님 「캐드내에서 박스로 여러 도면이 있는데, 박스별로 한장씩 pdf로 나와야 하는데, 한꺼번에 나온다고」
+   시험 도면 10가지로 짚은 «한 장으로 통째» 다섯 가지를 고침:
+   ① 모든 도곽을 둘러싼 큰 네모(둘레) — 안에 도곽이 둘 이상 있고 그것들이 둘레 안 그림을 거의 다(85%) 담으면 둘레는 뺌
+   ② 박스 비율이 종이 비율이 아님 — 종이 비율 도곽이 하나도 없을 때만 «아무 비율(1:1~1:3) 박스» 로 다시 봄
+      (단, 2장 이상 · 박스들이 도면 그림의 60% 이상을 담을 때 — 방 · 표 같은 네모를 도곽으로 잘못 잡지 않게)
+   ③ 선 4개 도곽 + 긴 선이 많은 도면(전엔 2,000개 넘으면 안 봄) — 줄 맞춰 묶어서 봄(개수 제한 없음)
+   ④ 꼭짓점이 4개보다 많은 폴리선 · 굵은(폭) 폴리선 — rectCand / rectFromPts
+   ⑤ 중간에 끊긴 도곽 선 — 같은 줄의 토막을 이어 붙여서 봄 */
+function findFrames(rects, lines, box, paths, units) {
+  const diag = Math.hypot(box[2] - box[0], box[3] - box[1]) || 1
+  const 비율 = (r) => { const w = r[2] - r[0], h = r[3] - r[1]; return Math.max(w, h) / Math.min(w, h) }
+  const area = (r) => (r[2] - r[0]) * (r[3] - r[1])
+  const 종이꼴 = (r) => { const q = 비율(r); return q > 1.33 && q < 1.5 }
+  const 박스꼴 = (r) => 비율(r) <= 3
+
+  /* 후보: 닫힌 네모 */
+  const cand = rects.filter((r) => Math.max(r[2] - r[0], r[3] - r[1]) > diag * 0.02 && 박스꼴(r))
+
+  /* 후보: 선 네 개 네모 — 같은 줄 토막은 이어 붙이고(끊긴 선), 끝이 맞는 가로선 둘 + 세로선 둘 */
+  {
+    const 짧 = diag * 0.004, 틈 = diag * 0.0008, q = diag * 0.002
+    const 줄 = new Map(), 칸 = new Map()
+    const put = (m, k, v) => { let a = m.get(k); if (!a) { a = []; m.set(k, a) } a.push(v) }
+    for (const [x0, y0, x1, y1] of lines) {
+      if (Math.abs(y1 - y0) <= Math.abs(x1 - x0) * 1e-9 + 1e-12 && Math.abs(x1 - x0) > 짧) put(줄, Math.round(y0 / 틈), [Math.min(x0, x1), Math.max(x0, x1), y0])
+      else if (Math.abs(x1 - x0) <= Math.abs(y1 - y0) * 1e-9 + 1e-12 && Math.abs(y1 - y0) > 짧) put(칸, Math.round(x0 / 틈), [Math.min(y0, y1), Math.max(y0, y1), x0])
+    }
+    const 잇기 = (m) => {
+      const out = []
+      for (const [, a] of m) {
+        a.sort((p, r) => p[0] - r[0])
+        let c = a[0].slice()
+        for (let i = 1; i < a.length; i++) {
+          if (a[i][0] <= c[1] + 틈) c[1] = Math.max(c[1], a[i][1])
+          else { out.push(c); c = a[i].slice() }
+        }
+        out.push(c)
+      }
+      return out
+    }
+    const minL = diag * 0.03
+    const H = 잇기(줄).filter((h) => h[1] - h[0] > minL)
+    const V = 잇기(칸).filter((v) => v[1] - v[0] > minL)
+    const Vx = new Map()
+    for (const v of V) put(Vx, Math.round(v[2] / q), v)
+    const hasV = (x, ya, yb, tol) => {
+      const k = Math.round(x / q)
+      for (let d = -1; d <= 1; d++) for (const v of Vx.get(k + d) || []) if (Math.abs(v[2] - x) < tol && v[0] <= ya + tol && v[1] >= yb - tol) return true
+      return false
+    }
+    const 무리 = new Map()
+    for (const h of H) put(무리, Math.round(h[0] / q) + ',' + Math.round(h[1] / q), h)
+    let 본 = 0
+    for (const [k, a] of 무리) {
+      const [kx0, kx1] = k.split(',').map(Number)
+      const 짝들 = []
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) { const b = 무리.get((kx0 + dx) + ',' + (kx1 + dy)); if (b) 짝들.push(...b) }
+      짝들.sort((p, r) => p[2] - r[2])
+      for (const a1 of a) {
+        const w = a1[1] - a1[0], tol = w * 0.004
+        for (const b of 짝들) {
+          if (b[2] <= a1[2]) continue
+          const hgt = b[2] - a1[2]
+          if (hgt > w * 3) break
+          if (++본 > 3_000_000) break
+          if (hgt < w / 3 || Math.abs(a1[0] - b[0]) > tol || Math.abs(a1[1] - b[1]) > tol) continue
+          if (hasV(a1[0], a1[2], b[2], tol) && hasV(a1[1], a1[2], b[2], tol)) cand.push([a1[0], a1[2], a1[1], b[2]])
+        }
       }
     }
   }
   if (!cand.length) return []
-  /* 크기: 가장 큰 것의 20% 이상만 */
-  const area = (r) => (r[2] - r[0]) * (r[3] - r[1])
-  const amax = Math.max(...cand.map(area))
-  let keep = cand.filter((r) => area(r) >= amax * 0.2)
-  /* 겹치는 것 정리: 같은 네모 · 안에 든 네모 → 바깥 것만 */
-  keep.sort((p, q) => area(q) - area(p))
-  const out = []
-  for (const r of keep) {
-    const tol = Math.max(r[2] - r[0], r[3] - r[1]) * 0.002
-    const inside = out.some((o) => r[0] >= o[0] - tol && r[1] >= o[1] - tol && r[2] <= o[2] + tol && r[3] <= o[3] + tol)
-    if (!inside) out.push(r)
-  }
-  /* 속이 빈 네모는 뺍니다 (꼭짓점 40개 이상이 안에 있어야) */
+
+  /* 그림(꼭짓점) — 네모 안에 몇 개 드나 (최대 30만 점만 봄) */
   const a = paths.xy
   const n = a.length >> 1
   const step = Math.max(1, Math.floor(n / 300000))
-  const cnt = out.map(() => 0)
-  for (let i = 0; i < n; i += step) {
-    const x = a[i * 2], y = a[i * 2 + 1]
-    for (let k = 0; k < out.length; k++) { const r = out[k]; if (x > r[0] && x < r[2] && y > r[1] && y < r[3]) cnt[k]++ }
+  const 점x = [], 점y = []
+  for (let i = 0; i < n; i += step) { 점x.push(a[i * 2]); 점y.push(a[i * 2 + 1]) }
+  const 셈집 = new Map()
+  const 안점 = (r) => {
+    const k = r.join(',')
+    if (셈집.has(k)) return 셈집.get(k)
+    let c = 0
+    for (let i = 0; i < 점x.length; i++) { const x = 점x[i], y = 점y[i]; if (x > r[0] && x < r[2] && y > r[1] && y < r[3]) c++ }
+    셈집.set(k, c)
+    return c
   }
-  const res = out.filter((_, k) => cnt[k] * step >= 40)
-  /* 차례: 위 줄부터, 왼쪽부터 */
-  if (!res.length) return []
-  const hAvg = res.reduce((s, r) => s + (r[3] - r[1]), 0) / res.length
-  res.sort((p, q) => {
-    const dy = (q[3] + q[1]) / 2 - (p[3] + p[1]) / 2
-    if (Math.abs(dy) > hAvg * 0.5) return dy
-    return p[0] - q[0]
-  })
-  return res.map((r) => ({ x0: r[0], y0: r[1], x1: r[2], y1: r[3] }))
+  const 안에 = (r, o) => { const tol = Math.max(o[2] - o[0], o[3] - o[1]) * 0.002; return r[0] >= o[0] - tol && r[1] >= o[1] - tol && r[2] <= o[2] + tol && r[3] <= o[3] + tol }
+  const 같음 = (r, o) => { const tol = Math.max(o[2] - o[0], o[3] - o[1]) * 0.002; return Math.abs(r[0] - o[0]) < tol && Math.abs(r[1] - o[1]) < tol && Math.abs(r[2] - o[2]) < tol && Math.abs(r[3] - o[3]) < tol }
+
+  const 고르기 = (c0) => {
+    /* 같은 네모 하나로 */
+    const c = []
+    for (const r of c0.slice().sort((p, r) => area(r) - area(p))) if (!c.some((o) => 같음(r, o))) c.push(r)
+    if (!c.length) return []
+    /* ① 둘레(여러 도곽을 담은 큰 네모) 빼기 — 큰 것부터 30개만 봄 */
+    const 둘레 = new Set()
+    for (let i = 0; i < Math.min(c.length, 30); i++) {
+      const o = c[i]
+      const 속 = c.filter((r, j) => j !== i && area(r) < area(o) * 0.9 && area(r) > area(o) * 0.01 && 안에(r, o))
+      const 바깥들 = []
+      for (const r of 속) if (!속.some((t) => t !== r && area(t) > area(r) && 안에(r, t))) 바깥들.push(r)
+      if (바깥들.length < 2) continue
+      /* 둘레 자신이 종이(축척이 맞는 도곽)처럼 보이는데 속 네모들은 아니면 — 한 장 안의 상세 박스들입니다(둘레 아님) */
+      const 종이같음 = (r) => !!guessScale(r[2] - r[0], r[3] - r[1], units)
+      if (종이같음(o) && !바깥들.every(종이같음)) continue
+      const 전체 = 안점(o)
+      const 담음 = 바깥들.reduce((s2, r) => s2 + 안점(r), 0)
+      if (전체 > 0 && 담음 >= 전체 * 0.85) 둘레.add(o)
+    }
+    let keep = c.filter((r) => !둘레.has(r))
+    if (!keep.length) return []
+    /* 크기: 가장 큰 것의 20% 이상만 */
+    const amax = Math.max(...keep.map(area))
+    keep = keep.filter((r) => area(r) >= amax * 0.2)
+    /* 안에 든 네모(안쪽 테두리) → 바깥 것만 */
+    keep.sort((p, r) => area(r) - area(p))
+    const out = []
+    for (const r of keep) if (!out.some((o) => 안에(r, o))) out.push(r)
+    /* 속이 빈 네모는 뺍니다 (꼭짓점 40개 이상이 안에 있어야) */
+    return out.filter((r) => 안점(r) * step >= 40)
+  }
+  const 차례 = (res) => {
+    const hAvg = res.reduce((s2, r) => s2 + (r[3] - r[1]), 0) / res.length
+    res.sort((p, q2) => {
+      const dy = (q2[3] + q2[1]) / 2 - (p[3] + p[1]) / 2
+      if (Math.abs(dy) > hAvg * 0.5) return dy
+      return p[0] - q2[0]
+    })
+    return res.map((r) => ({ x0: r[0], y0: r[1], x1: r[2], y1: r[3] }))
+  }
+
+  /* 먼저 종이 비율(A·B 계열) 도곽 */
+  const 종이 = 고르기(cand.filter(종이꼴))
+  if (종이.length) return 차례(종이)
+  /* 없으면 아무 비율 박스 — 2장 이상 · 서로 떨어져 있고(벽을 나눈 방들이 아니게 · 작은 쪽 긴 변의 5% 이상) · 도면 그림의 60% 이상을 담을 때만 */
+  const 박스 = 고르기(cand)
+  const 떨어짐 = (r, o) => {
+    const gx = Math.max(o[0] - r[2], r[0] - o[2]), gy = Math.max(o[1] - r[3], r[1] - o[3])
+    const 변 = Math.min(Math.max(r[2] - r[0], r[3] - r[1]), Math.max(o[2] - o[0], o[3] - o[1]))
+    return Math.max(gx, gy) >= 변 * 0.05
+  }
+  if (박스.length >= 2 && 박스.every((r, i) => 박스.every((o, j) => i === j || 떨어짐(r, o)))) {
+    const 담음 = 박스.reduce((s2, r) => s2 + 안점(r), 0)
+    if (담음 >= 점x.length * 0.6) return 차례(박스)
+  }
+  return []
 }

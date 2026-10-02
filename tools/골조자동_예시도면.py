@@ -6,6 +6,12 @@
 
    변형 'b' (시험용 — 다른 도면 버릇): 보 선이 기둥을 뚫고 이어짐 · 글자가 모두 가로 · 평면 기호에 층 표시(2G1) ·
    보 일람표가 «줄마다 한 부재» · 제목이 영문(2F FRAMING PLAN) · 슬래브 기호 동그라미 없음 · 단위 표시 없음
+   🛠 G118 (2026-10-02, 소장님 「골조 수량 산출 도면을 넣었는데, 물량이 제대로 안나온데..」) — 환경 변수로 더 다른 버릇:
+     FRAMES=block  도면마다 A1 도곽(1:100) · 제목은 표제란(도곽 오른쪽 아래)에만  ← 전엔 평면 왼쪽 부재가 빠졌음
+     FRAMES=both   평면 아래 제목 + 표제란 + 도면 목록 표
+     LABEL=size    평면 기호에 크기를 붙여 적음(「G1(400X700)」)        ← 전엔 일람표 가까운 평면의 기호가 빠졌음
+     LABEL=mtext   기호가 서식 붙은 MTEXT · LABEL=attr  기호가 블록 속성(ATTRIB)
+     OUT=파일      저장할 곳 (시험자료: tools/시험자료/골조자동_예시c.dxf = FRAMES=block LABEL=size)
 """
 import sys, os, math
 import ezdxf
@@ -13,6 +19,11 @@ from ezdxf.enums import TextEntityAlignment as A
 
 변형 = sys.argv[1] if len(sys.argv) > 1 else 'a'
 B = 변형 == 'b'
+도곽 = os.environ.get('FRAMES', '')   # '' | 'block' (제목은 표제란에만) | 'both' (평면 아래 + 표제란 + 도면목록)
+출력 = os.environ.get('OUT', 'out.dxf')
+OX2, OY2 = (90000, 0) if 도곽 else (0, 24000)
+FX0 = 180000 if 도곽 else 32000
+TX0, TY0 = (275000, 45000) if 도곽 else (32000, 40000)
 doc = ezdxf.new('R2010', setup=True)
 doc.header['$INSUNITS'] = 0 if B else 4
 msp = doc.modelspace()
@@ -22,9 +33,27 @@ for name, col in [('S-GRID', 1), ('S-COLU', 7), ('S-BEAM', 3), ('S-BEAM-TXT', 2)
 doc.styles.add('KOR', font='malgun.ttf')
 
 
+라벨 = os.environ.get('LABEL', '')   # '' | size | mtext | attr
+크기표 = {'G1': '400X700', 'G2': '500X750', 'B1': '300X600', 'C1': '600X600'}
+if 라벨 == 'attr':
+    _b = doc.blocks.new('TAG')
+    _b.add_attdef('NO', (0, 0), dxfattribs={'height': 250, 'style': 'KOR'})
+import re as _re
 def txt(s, x, y, h=250, layer='S-BEAM-TXT', align=A.MIDDLE_CENTER, rot=0):
     if B:
         rot = 0
+    부재 = layer in ('S-BEAM-TXT', 'S-COLU', 'S-SLAB-TXT', 'S-WALL', 'S-FOOT') and _re.match(r'^[A-Z0-9]{2,4}$', s)
+    if 부재 and 라벨 == 'size':
+        몸 = _re.sub(r'^(R|\d)', '', s)
+        if 몸 in 크기표: s = s + '(' + 크기표[몸] + ')'
+    if 부재 and 라벨 == 'mtext':
+        m = msp.add_mtext('{\\fArial|b1|i0|c0|p34;\\H1.0x;' + s + '}', dxfattribs={'layer': layer, 'char_height': h, 'style': 'KOR', 'rotation': rot})
+        m.set_location((x, y), attachment_point=5 if align == A.MIDDLE_CENTER else 7)
+        return
+    if 부재 and 라벨 == 'attr':
+        r = msp.add_blockref('TAG', (x, y), dxfattribs={'layer': layer, 'rotation': rot})
+        r.add_auto_attribs({'NO': s})
+        return
     t = msp.add_text(s, dxfattribs={'layer': layer, 'height': h, 'style': 'KOR', 'rotation': rot})
     t.set_placement((x, y), align=align)
 
@@ -41,6 +70,19 @@ X = [0, 7000, 14000, 21000]
 Y = [0, 6000, 12000]
 C = 600
 h = C / 2
+
+
+번호 = [0]
+def 틀(x0, y0, 제목):
+    W, H = 84100, 59400
+    번호[0] += 1
+    msp.add_lwpolyline([(x0, y0), (x0 + W, y0), (x0 + W, y0 + H), (x0, y0 + H)], close=True, dxfattribs={'layer': 'S-TITLE'})
+    msp.add_lwpolyline([(x0 + 2500, y0 + 1000), (x0 + W - 1000, y0 + 1000), (x0 + W - 1000, y0 + H - 1000), (x0 + 2500, y0 + H - 1000)], close=True, dxfattribs={'layer': 'S-TITLE', 'const_width': 70})
+    bx0, by0 = x0 + W - 21000, y0 + 1000
+    for r, (k, v) in enumerate([('도면번호', 'S-%03d' % (100 + 번호[0])), ('축    척', '1/100'), ('도 면 명', 제목), ('공 사 명', '가상 예시 공사')]):
+        msp.add_lwpolyline([(bx0, by0 + r * 2000), (x0 + W - 1000, by0 + r * 2000), (x0 + W - 1000, by0 + (r + 1) * 2000), (bx0, by0 + (r + 1) * 2000)], close=True, dxfattribs={'layer': 'S-TITLE'})
+        t = msp.add_text(k, dxfattribs={'layer': 'S-TITLE', 'height': 350, 'style': 'KOR'}); t.set_placement((bx0 + 2500, by0 + r * 2000 + 1000), align=A.MIDDLE_CENTER)
+        t = msp.add_text(v, dxfattribs={'layer': 'S-TITLE', 'height': 500, 'style': 'KOR'}); t.set_placement((bx0 + 12000, by0 + r * 2000 + 1000), align=A.MIDDLE_CENTER)
 
 
 def 평면(ox, oy, 층표, 보이름, 슬래브, 제목, 벽=False):
@@ -118,19 +160,22 @@ def 평면(ox, oy, 층표, 보이름, 슬래브, 제목, 벽=False):
         d = msp.add_linear_dim(base=(ox, oy - 1500), p1=(ox + X[i], oy), p2=(ox + X[i + 1], oy), dimstyle='Standard',
                                dxfattribs={'layer': 'S-DIMS'}, override={'dimtxt': 250, 'dimasz': 150, 'dimdec': 0})
         d.render()
-    txt(제목, ox + 10500, oy - 5000, 500, 'S-TITLE')
-    txt('S=1/100  (가상 예시 — 실제 현장이 아닙니다)', ox + 10500, oy - 5800, 280, 'S-TITLE')
+    if 도곽 != 'block':
+        txt(제목, ox + 10500, oy - 5000, 500, 'S-TITLE')
+        txt('S=1/100  (가상 예시 — 실제 현장이 아닙니다)', ox + 10500, oy - 5800, 280, 'S-TITLE')
+    if 도곽:
+        틀(ox - 12000, oy - 12000, 제목)
 
 
 if B:
     평면(0, 0, '2', ('G1', 'G2', 'B1'), 'S1', '2F FRAMING PLAN', 벽=True)
-    평면(0, 24000, 'R', ('G1', 'G2', 'B1'), 'S1', 'ROOF FRAMING PLAN')
+    평면(OX2, OY2, 'R', ('G1', 'G2', 'B1'), 'S1', 'ROOF FRAMING PLAN')
 else:
     평면(0, 0, '', ('G1', 'G2', 'B1'), 'S1', '2층 구조평면도', 벽=True)
-    평면(0, 24000, '', ('RG1', 'RG2', 'RB1'), 'RS1', '지붕층 구조평면도')
+    평면(OX2, OY2, '', ('RG1', 'RG2', 'RB1'), 'RS1', '지붕층 구조평면도')
 
 # ③ 기초 평면도 — 독립기초 F1 2400각 × 12
-fx0, fy0 = 32000, 0
+fx0, fy0 = FX0, 0
 for i, x in enumerate(X):
     line((fx0 + x, fy0 - 2500), (fx0 + x, fy0 + 14500), 'S-GRID')
 for j, y in enumerate(Y):
@@ -140,10 +185,13 @@ for x in X:
         rect(fx0 + x, fy0 + y, 2400, 2400, 'S-FOOT')
         rect(fx0 + x, fy0 + y, C, C, 'S-COLU')
         txt('F1', fx0 + x, fy0 + y - 1500, 250, 'S-FOOT')
-txt('BASE PLAN' if B else '기초 평면도', fx0 + 10500, fy0 - 5000, 500, 'S-TITLE')
+if 도곽 != 'block':
+    txt('BASE PLAN' if B else '기초 평면도', fx0 + 10500, fy0 - 5000, 500, 'S-TITLE')
+if 도곽:
+    틀(fx0 - 12000, fy0 - 12000, '기초 평면도')
 
 # ④ 부재 일람표
-tx0, ty0 = 32000, 40000
+tx0, ty0 = TX0, TY0
 
 
 def 칸(x0, y0, w, hh):
@@ -251,6 +299,13 @@ if not B:
         for c, (n, d) in enumerate(지름):
             칸(jx0 + 2600 + c * 1000, y, 1000, 600); 표글('{:,}'.format(f(d)), jx0 + 3100 + c * 1000, y - 300)
 
-out = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'web', 'public', 'jeoksan', '골조자동_예시.dxf') if not B else sys.argv[2]
+if 도곽:
+    틀(tx0 - 3000, -12000, '부재 일람표')
+    if 도곽 == 'both':
+        표글('도 면 목 록', tx0 + 35000, 20000, 450)
+        for r, (n, t) in enumerate([('S-101', '2층 구조평면도'), ('S-102', '지붕층 구조평면도'), ('S-103', '기초 평면도'), ('S-104', '부재 일람표')]):
+            칸(tx0 + 30000, 19000 - r * 700, 2500, 700); 표글(n, tx0 + 31250, 18650 - r * 700)
+            칸(tx0 + 32500, 19000 - r * 700, 6000, 700); 표글(t, tx0 + 35500, 18650 - r * 700)
+out = 출력 if os.environ.get('OUT') else (os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'web', 'public', 'jeoksan', '골조자동_예시.dxf') if not B else sys.argv[2])
 doc.saveas(out)
 print('ok', out)
