@@ -4,7 +4,8 @@
  *
  * ■ 넣은 날짜 · 일당 · 달마다 받은 돈 · 다른 현장 · 체크만 주소(?c=)에 담습니다 — 이름 · 생년월일은 안 담음(개인정보).
  * ■ 꼴: JSON(짧은 열쇠) → UTF-8 → base64url. 주소에 쓰는 글자는 A-Z a-z 0-9 - _ 뿐이라 카톡 · 카페에서 링크가 끊기지 않습니다.
- *     { v:1, w:일당, s:'YYYY-MM'(보이는 첫 달), n:달수, d:{ 'YYYY-MM': '1-5,8,10-11' }, m:{ ym: 받은 돈 }, o:{ ym: [일, 돈, 가입 0/1] }, x:'cae…', g:규모, i:0(산재 뺌) }
+ *     { v:1, w:일당, s:'YYYY-MM'(보이는 첫 달), n:달수, d:{ 'YYYY-MM': '1-5,8,10-11' }, m:{ ym: 받은 돈 }, o:{ ym: [일, 돈, 가입 0/1] }, x:'cae…', g:규모, i:0(산재 뺌),
+ *       h:[[일당, { ym: '1-5' }], …](G125 날짜로 넣은 다른 현장 · 5곳까지 · 현장 이름은 안 담음) }
  * ■ 읽을 때는 남이 만든 주소일 수 있으니 하나하나 따져서(날짜 꼴 · 개수 · 금액 범위) 맞는 것만 받습니다.
  * ■ 셈 없음 — 화면 상태만 오갑니다(셈은 lib/ilyong4.js 그대로).
  */
@@ -84,6 +85,13 @@ export function 링크만들기(st) {
     다[ym] = [Number(x.일) || 0, Number(x.돈) || 0, x.가입 ? 1 : 0]
   }
   if (Object.keys(다).length) o.o = 다
+  const h = []
+  for (const x of (st.현장들 || []).slice(0, 5)) {
+    const hd = {}
+    for (const ds of (x && x.날) || []) if (날꼴.test(ds)) (hd[ds.slice(0, 7)] = hd[ds.slice(0, 7)] || []).push(Number(ds.slice(8, 10)))
+    if (Object.keys(hd).length) h.push([Number(x.일당) || 0, Object.fromEntries(Object.entries(hd).map(([ym, a]) => [ym, 날묶기(a)]))])
+  }
+  if (h.length) o.h = h
   const 옵 = st.옵션 || {}
   const x = 깃발.filter(([k]) => 옵[k]).map(([, c]) => c).join('')
   if (x) o.x = x
@@ -120,6 +128,18 @@ export function 링크읽기(c) {
       다른[ym] = { 일: 일 || '', 돈: 돈 || '', 가입: a[2] === 1 }
     }
   }
+  const 현장들 = []
+  if (Array.isArray(o.h)) {
+    for (const a of o.h.slice(0, 5)) {
+      if (!Array.isArray(a) || !a[1] || typeof a[1] !== 'object') continue
+      const 날들 = []
+      for (const [ym, 글] of Object.entries(a[1])) {
+        const ds = 달꼴.test(ym) ? 날풀기(글, ym) : null
+        if (ds) for (const n of ds) 날들.push(`${ym}-${두자(n)}`)
+      }
+      if (날들.length && 날들.length <= 400) 현장들.push({ 이름: '', 일당: 수(a[0], 돈위) || '', 날: 날들.sort() })
+    }
+  }
   const 옵션 = {}
   if (typeof o.x === 'string') for (const [k, ch] of 깃발) if (o.x.includes(ch)) 옵션[k] = true
   if (typeof o.g === 'string' && 규모들.includes(o.g)) 옵션.규모 = o.g
@@ -128,15 +148,19 @@ export function 링크읽기(c) {
   /* 보이는 달: 주소에 있으면 그대로(날이 그 안에 들도록 넓힘) · 없으면 첫 날의 달부터 */
   let 시작 = typeof o.s === 'string' && 달꼴.test(o.s) ? o.s : (날[0] ? 날[0].slice(0, 7) : null)
   let 달수 = 수(o.n, 12) || 3
-  if (날.length) {
-    const 첫 = 날[0].slice(0, 7), 끝 = 날[날.length - 1].slice(0, 7)
+  const 모든날 = [...날, ...현장들.flatMap((x) => x.날)].sort()
+  if (모든날.length) {
+    const 첫 = 모든날[0].slice(0, 7), 날끝 = 모든날[모든날.length - 1].slice(0, 7)
+    /* 원래 보이던 마지막 달도 그대로 보이게(앞으로 넓힐 때 뒤 달이 잘리지 않게) */
+    const 원끝 = 시작 ? (() => { const t = Number(시작.slice(0, 4)) * 12 + Number(시작.slice(5, 7)) - 1 + 달수 - 1; return `${Math.floor(t / 12)}-${두자((t % 12) + 1)}` })() : ''
+    const 끝 = 원끝 > 날끝 ? 원끝 : 날끝
     if (!시작 || 첫 < 시작) 시작 = 첫
     const 사이 = (Number(끝.slice(0, 4)) - Number(시작.slice(0, 4))) * 12 + (Number(끝.slice(5, 7)) - Number(시작.slice(5, 7))) + 1
     달수 = Math.min(12, Math.max(달수, 사이))
   }
   if (!시작) return null
   달수 = Math.max(1, 달수)
-  return { 일당, 시작, 달수, 날, 달돈, 다른, 옵션 }
+  return 현장들.length ? { 일당, 시작, 달수, 날, 달돈, 다른, 현장들, 옵션 } : { 일당, 시작, 달수, 날, 달돈, 다른, 옵션 }
 }
 
 /** 첫날 ~ 끝날 사이 채울 날(꼴: 'sun' 일요일 빼고 · 'wk' 평일만 · 'all' 매일) */

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { 판단, 신고할일, 달규칙, 달더하기, 짧은날, 달글, 한달되는날, 달, 전날, 회사규모, 사업주몫, 생일풀기, 만나이, 긴날, 취득날 } from '../lib/ilyong4.js'
+import { 판단, 신고할일, 달규칙, 달더하기, 짧은날, 달글, 한달되는날, 달, 전날, 회사규모, 사업주몫, 생일풀기, 만나이, 긴날, 취득날, 현장들셈, 다른합치기, 다른현장최대 } from '../lib/ilyong4.js'
 import { 공제셈 } from '../lib/gongje.js'
 import { 링크만들기, 링크읽기, 기간날들 } from '../lib/ilyong4link.js'
 import G from '../data/ilyong_guide.json'
@@ -24,6 +24,10 @@ import G from '../data/ilyong_guide.json'
  *      처음 여는 사람은 달력이 지난달부터(지난달 일을 따지는 경우가 많아서).
  *   ③ 결과 링크 — 넣은 것을 그대로 여는 주소(?c= · lib/ilyong4link.js · 이름 · 생년월일은 안 담음). 폰은 공유 창, PC 는 복사.
  *      받은 쪽은 링크 것으로 채우고(내가 적어 둔 것은 «되돌리기»), 같은 창에서 새로고침해도 다시 덮지 않음(sessionStorage).
+ * ■ 🏗 (G125 · 2026-10-03) 소장님 「수정해서 고쳐줘 사이트」 — 카페 질문(A·B·C·D·E 현장)에서 연금 취득일이 «8월 중» 으로만 나옴
+ *   ① 다른 현장도 날짜로 — «다른 현장» 칸에 현장마다 달력(5곳까지 · 일당 비우면 이 현장 일당) → 회사 첫 근로일 · 연금 취득일이 그 날로
+ *   ② 여러 현장 한 번에 — 결과에 «🏗 현장마다» 표(건강보험은 현장마다 따로 판단 · 국민연금은 회사 합산) · 그 현장 혼자 현장 가입인 달은 저절로 «가입»
+ *   날짜를 모르면 예전처럼 달마다 일수 · 받은 돈(둘은 더해짐) · 링크에 날짜 · 일당 담음(현장 이름은 안 담음) · 셈은 lib/ilyong4.js 현장들셈 · 다른합치기
  */
 
 const 열쇠 = 'kcm_ilyong1'
@@ -38,7 +42,7 @@ const 달날수 = (ym) => new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)
 const 첫요일 = (ym) => new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1, 1).getDay()
 export function 굵게(s) { return String(s).split(/\*\*(.+?)\*\*/g).map((x, i) => (i % 2 ? <b key={i}>{x}</b> : x)) }
 
-const 빈것 = () => ({ 일당: '', 시작: 지난달(), 달수: 3, 날: [], 달돈: {}, 다른: {}, 옵션: {}, 이름: '' })
+const 빈것 = () => ({ 일당: '', 시작: 지난달(), 달수: 3, 날: [], 달돈: {}, 다른: {}, 현장들: [], 옵션: {}, 이름: '' })
 function 읽기() {
   try {
     const s = JSON.parse(localStorage.getItem(열쇠) || 'null')
@@ -67,8 +71,19 @@ export function 상태로(c) {
   return { ...빈것(), 일당: 일당 || '', 시작, 달수: Math.min(12, Math.max(2, 달수 + 1)), 날, 달돈, 다른: c.다른 || {}, 옵션, 이름: c.이름 || '' }
 }
 
-/** 화면 상태 → 판단 입력(그 달 받은 돈: 적은 값이 있으면 그 값, 없으면 일당 × 일수) */
-function 입력만들기(st) {
+/** 🏗 현장마다 표 — 건강보험 칸 · 국민연금 칸 글(G125) */
+const 건강칸 = (r) => (r && r.건강.구간.length ? r.건강.구간.map((g) => `${짧은날(g.취득)} 취득${g.상실 ? ` ~ ${짧은날(g.상실)} 상실` : ''}`).join(' · ') : '가입 안 됨')
+const 연금칸 = (r, 이현장) => {
+  const 달들 = (근거) => Object.entries((r && r.연금.달) || {}).filter(([, x]) => x && x.된다 && x.근거 === 근거).map(([ym]) => ym).sort()
+  const 현 = 달들('현장'), 합 = 이현장 ? 달들('회사 합산') : []
+  const 글 = [현.length ? `현장 가입(${현.map(달글).join(' · ')})` : '', 합.length ? `회사 합산(${합.map(달글).join(' · ')})` : ''].filter(Boolean)
+  return 글.length ? 글.join(' · ') : 이현장 ? '가입 안 됨' : '현장 가입 아님 → 회사 합산에 셈'
+}
+
+/** 화면 상태 → 판단 입력(그 달 받은 돈: 적은 값이 있으면 그 값, 없으면 일당 × 일수)
+ *   현장: 현장들셈 결과 — 그 달 다른 현장 날(이 현장과 겹친 날은 한 번만) · 돈을 «다른» 에 더하고,
+ *   그 현장 혼자 8일(220만) 이상으로 «현장 가입» 인 달은 가입 체크와 같게 봅니다(현장 우선 · 실무안내 22쪽) */
+function 입력만들기(st, 현장 = []) {
   const 일 = {}
   for (const d of st.날) 일[d.slice(0, 7)] = (일[d.slice(0, 7)] || 0) + 1
   const 달돈 = {}
@@ -78,7 +93,7 @@ function 입력만들기(st) {
   }
   const 다른 = {}
   for (const [ym, o] of Object.entries(st.다른 || {})) if (o && (Number(o.일) || Number(o.돈) || o.가입)) 다른[ym] = { 일: Number(o.일) || 0, 돈: Number(o.돈) || 0, 가입: !!o.가입 }
-  return { 날: st.날, 달돈, 다른, 일 }
+  return { 날: st.날, 달돈, 다른: 다른합치기(다른, 현장, st.날), 일 }
 }
 
 export default function Ilyong4() {
@@ -157,7 +172,8 @@ export default function Ilyong4() {
   const 옵션 = st.옵션 || {}
   const 켜진특별 = ['계약', '연금취득달', '연금제외', '고용65', '계속65'].filter((k) => 옵션[k]).length
   const [특별열림] = useState(() => { try { const o = (JSON.parse(localStorage.getItem(열쇠) || 'null') || {}).옵션 || {}; return ['계약', '연금취득달', '연금제외', '고용65', '계속65'].some((k) => o[k]) } catch (e) { return false } })
-  const 입력 = useMemo(() => 입력만들기(st), [st])
+  const 현장 = useMemo(() => 현장들셈(st, 옵션), [st.현장들, st.일당, 옵션.생일, 옵션.연금제외])   // eslint-disable-line react-hooks/exhaustive-deps
+  const 입력 = useMemo(() => 입력만들기(st, 현장), [st, 현장])
   const R = useMemo(() => 판단({ 날: 입력.날, 달돈: 입력.달돈, 다른: 입력.다른 }, 옵션), [입력, 옵션])
   const 신고 = useMemo(() => 신고할일(R, 옵션), [R, 옵션])
   const 달들 = useMemo(() => { const out = []; for (let i = 0; i < st.달수; i++) out.push(달더하기(st.시작, i)); return out }, [st.시작, st.달수])
@@ -393,9 +409,59 @@ export default function Ilyong4() {
         </aside>
         </div>
         <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>받은 돈을 비워 두면 일당 × 일한 날 · 노란 테두리 = 첫 근로일부터 «1개월 되는 날»</div>
-        <details className="iy-more" open={Object.values(st.다른 || {}).some((o) => o && (Number(o.일) || Number(o.돈) || o.가입)) || undefined}>
-          <summary>같은 회사 다른 현장에서도 일했으면 (국민연금 합산)</summary>
+        <details className="iy-more" open={((st.현장들 || []).length > 0 || Object.values(st.다른 || {}).some((o) => o && (Number(o.일) || Number(o.돈) || o.가입))) || undefined}>
+          <summary>같은 회사 다른 현장에서도 일했으면 (국민연금 합산 · 현장마다 건강보험){현장.some((h) => h.날.length) ? ` — ${현장.filter((h) => h.날.length).length}곳` : ''}</summary>
           <div className="muted" style={{ fontSize: 12.5, margin: '6px 0', lineHeight: 1.7 }}>2025년 7월부터 국민연금은 이 현장에서 8일(220만원)이 안 되면 같은 회사(건설사업장) 근로를 합쳐 봅니다. <b>다만 그 달 다른 현장 한 곳에서 8일(220만원) 이상으로 이미 «현장 가입» 했으면 합치지 않습니다</b> — 현장 적용이 먼저라 그 달은 그 현장으로만(공단 실무안내 22쪽). 그런 달은 «그 현장에서 가입» 을 체크하십시오. 건강보험은 이 현장만 봅니다.</div>
+          {/* 🏗 G125 (2026-10-03) 소장님 「수정해서 고쳐줘 사이트」 — 다른 현장도 날짜로(연금 취득일을 «○월 중» 이 아니라 그 날로) · 여러 현장 한 번에(현장마다 건강보험) */}
+          <div className="iy-sites">
+            <div className="iy-sites-h"><b>날짜로 넣기</b> <span className="muted">— 연금 취득일이 정확히 나오고, 결과에 <b>현장마다 건강보험</b> 이 나옵니다. 그 현장 혼자 8일(220만) 이상인 달은 «그 현장에서 가입» 으로 저절로 봅니다.</span></div>
+            {(st.현장들 || []).map((x, i) => {
+              const h = 현장[i] || { 날: [], 이름: '' }
+              const 고침 = (f) => 바꿈((s) => ({ ...s, 현장들: (s.현장들 || []).map((y, j) => (j === i ? f(y) : y)) }))
+              const 하루 = (ds) => 고침((y) => ({ ...y, 날: (y.날 || []).includes(ds) ? y.날.filter((d) => d !== ds) : [...(y.날 || []), ds].sort() }))
+              const 달로 = (ym, 꼴) => 고침((y) => ({ ...y, 날: [...(y.날 || []).filter((d) => !d.startsWith(ym)), ...(꼴 ? 기간날들(`${ym}-01`, `${ym}-${두자(달날수(ym))}`, 꼴) : [])].sort() }))
+              return (
+                <div key={i} className="iy-site">
+                  <div className="iy-site-h">
+                    <label>현장<input className="inp" value={x.이름 || ''} maxLength={20} placeholder={`다른 현장 ${i + 1}`} onChange={(e) => 고침((y) => ({ ...y, 이름: e.target.value }))} /></label>
+                    <label>일당<input className="inp" inputMode="numeric" value={x.일당 ? 원(x.일당) : ''} placeholder={Number(st.일당) ? `${원(st.일당)}(이 현장)` : '일당'} onChange={(e) => { const v = 숫자만(e.target.value); 고침((y) => ({ ...y, 일당: v === '' ? '' : Number(v) })) }} /></label>
+                    <span className="iy-site-n">{h.날.length}일</span>
+                    <button type="button" className="tp-x" onClick={() => 바꿈((s) => ({ ...s, 현장들: (s.현장들 || []).filter((_, j) => j !== i) }))}>✕ 빼기</button>
+                  </div>
+                  <div className="iy-cals">
+                    {달들.map((ym) => {
+                      const n = h.날.filter((d) => d.startsWith(ym)).length
+                      return (
+                        <div key={ym} className="iy-cal iy-cal-s">
+                          <div className="iy-cal-h"><b>{달글(ym)}</b> <span className={'iy-n ' + (n >= 8 ? 'y' : '')}>{n}일</span></div>
+                          <div className="iy-grid" role="group" aria-label={`${h.이름} ${달글(ym)} 일한 날`}>
+                            {'일월화수목금토'.split('').map((w) => <span key={w} className={'iy-w ' + (w === '일' ? 'sun' : w === '토' ? 'sat' : '')}>{w}</span>)}
+                            {Array.from({ length: 첫요일(ym) }, (_, k) => <span key={'b' + k} />)}
+                            {Array.from({ length: 달날수(ym) }, (_, k) => {
+                              const ds = `${ym}-${두자(k + 1)}`
+                              const on = h.날.includes(ds)
+                              return <button key={ds} type="button" className={'iy-d' + (on ? ' on o' : '') + (st.날.includes(ds) ? ' me' : '')} aria-pressed={on}
+                                title={st.날.includes(ds) ? '이 현장에서도 일한 날' : ''} onClick={() => 하루(ds)}>{k + 1}</button>
+                            })}
+                          </div>
+                          <div className="iy-cal-b" style={{ marginTop: 6 }}>
+                            <button type="button" className="tp-x" onClick={() => 달로(ym, 'sun')}>일요일 빼고</button>
+                            <button type="button" className="tp-x" onClick={() => 달로(ym, 'wk')}>평일만</button>
+                            <button type="button" className="tp-x" onClick={() => 달로(ym, '')}>지움</button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+            {(st.현장들 || []).length < 다른현장최대
+              ? <button type="button" className="btn line sm" style={{ width: 'auto', alignSelf: 'flex-start' }} onClick={() => 바꿈((s) => ({ ...s, 현장들: [...(s.현장들 || []), { 이름: '', 일당: '', 날: [] }] }))}>＋ 다른 현장 더하기 (날짜로)</button>
+              : <span className="muted" style={{ fontSize: 12 }}>다른 현장은 {다른현장최대}곳까지 — 더 있으면 아래 «달마다 일수 · 받은 돈» 에 합쳐 적으십시오.</span>}
+            <div className="muted" style={{ fontSize: 12 }}>점선 테두리 = 이 현장에서도 일한 날(같은 날은 회사 합산에서 하루로 셉니다)</div>
+          </div>
+          <div className="iy-sites-h" style={{ marginTop: 10 }}><b>날짜를 모르면 — 달마다 일수 · 받은 돈</b> <span className="muted">(위 날짜로 넣은 현장과 따로 더해집니다)</span></div>
           <div className="iy-other">
             {달들.map((ym) => {
               const o = (st.다른 || {})[ym] || {}
@@ -452,6 +518,21 @@ export default function Ilyong4() {
                 <div className="iy-sumr"><span className="iy-sumk">건강 · 요양</span><span className={'iy-chip ' + 요약.h}>{뗌글[요약.h]}</span><span className="iy-sumv">{h.글}</span></div>
                 <div className="iy-sumr"><span className="iy-sumk">고용보험</span><span className={'iy-chip ' + 요약.e}>{요약.e === 'y' ? '뗍니다' : '신고만'}</span><span className="iy-sumv">{고용글}</span></div>
               </div>
+
+              {현장.some((x) => x.날.length) && <>
+                <div className="iy-h2">🏗 현장마다 <span className="muted">— 건강보험은 현장마다 따로 · 국민연금은 같은 회사 합산</span></div>
+                <div className="tp-scroll">
+                  <table className="tbl iy-sitet">
+                    <thead><tr><th>현장</th><th>일한 날</th><th>건강보험</th><th>국민연금</th></tr></thead>
+                    <tbody>
+                      {[{ i: -1, 이름: '이 현장', 날: R.날들, R }, ...현장.filter((x) => x.날.length)].map((x) => (
+                        <tr key={x.i}><th>{x.이름}</th><td>{x.날.length}일<br /><span className="muted">{짧은날(x.날[0])}~{짧은날(x.날[x.날.length - 1])}</span></td><td>{건강칸(x.R)}</td><td>{연금칸(x.R, x.i < 0)}</td></tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="muted" style={{ fontSize: 12.5 }}>국민연금(회사 전체): {p.글}</div>
+              </>}
 
               <div className="iy-h2">이번에 떼는 돈 <span className="muted">(2026 요율)</span></div>
               <div className="iy-pays">

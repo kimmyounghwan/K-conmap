@@ -5939,3 +5939,18 @@ button.sk-mini { color: var(--accent); padding: 0; text-align: left; }
 .rt-kg tr.off td { opacity: .45; text-decoration: line-through; }
 .rt-kg tr.off td:first-child { opacity: 1; text-decoration: none; }
 .tlprev tr.rt-kgrow td { background: rgba(217, 119, 6, .08); }
+/* 🏗 G125 다른 현장 날짜로 · 현장마다 표 */
+.iy-sites { display: flex; flex-direction: column; gap: 10px; margin: 8px 0; }
+.iy-sites-h { font-size: 13px; line-height: 1.6; } .iy-sites-h .muted { font-size: 12px; }
+.iy-site { border: 1px dashed var(--line); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.iy-site-h { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.iy-site-h label { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; font-weight: 700; color: var(--text-2); }
+.iy-site-h .inp { width: 140px; padding: 5px 8px; font-size: 13px; }
+.iy-site-n { font-weight: 800; font-size: 13px; padding-bottom: 6px; font-variant-numeric: tabular-nums; }
+.iy-site .iy-cals { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.iy-d.o { background: #0f766e; border-color: #0f766e; }
+.iy-d.me { outline: 2px dotted var(--accent); outline-offset: -3px; }
+.iy-sitet th, .iy-sitet td { font-size: 12.5px; vertical-align: top; text-align: left !important; line-height: 1.5; }
+.iy-sitet tbody th { background: var(--surface-2); white-space: nowrap; }
+.iy-sitet thead th { white-space: nowrap; }
+@media (max-width: 640px) { .iy-site .iy-cals { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 86%; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 4px; } .iy-site .iy-cal { scroll-snap-align: start; } }
