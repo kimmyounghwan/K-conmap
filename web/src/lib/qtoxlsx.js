@@ -88,14 +88,15 @@ function sheetMap(zip) {
 /** 시트 XML 하나를 2차원 배열로. 값은 «글자» 또는 «숫자» 입니다. */
 function gridOf(xml, sst) {
   const rows = []
-  const rowRe = /<row\b([^>]*)>([\s\S]*?)<\/row>/g
+  /* 2026-10-03 — 빈 줄 «<row r="15" … />» (닫는 태그 없는 꼴)을 그냥 «<row …>» 로 보면 다음 줄 칸들이 이 줄 번호로 읽혀 한 줄씩 밀렸습니다 */
+  const rowRe = /<row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/row>)/g
   let rm
   while ((rm = rowRe.exec(xml))) {
     const rIdx = parseInt((rm[1].match(/ r="(\d+)"/) || [])[1] || '0', 10)
     const cells = []
     const cRe = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g
     let cm
-    while ((cm = cRe.exec(rm[2]))) {
+    while ((cm = cRe.exec(rm[2] || ""))) {
       const at = cm[1] || ''
       const inner = cm[2] || ''
       const ref = (at.match(/ r="([A-Z]+)\d+"/) || [])[1]
@@ -106,7 +107,7 @@ function gridOf(xml, sst) {
         const is = (inner.match(/<is>([\s\S]*?)<\/is>/) || [])[1]
         v = is ? siText(is) : ''
       } else {
-        const vm = inner.match(/<v>([\s\S]*?)<\/v>/)
+        const vm = inner.match(/<v(?:\s[^>]*)?>([\s\S]*?)<\/v>/)
         const raw = vm ? unesc(vm[1]) : null
         if (raw === null) v = null
         else if (t === 's') v = sst[parseInt(raw, 10)] ?? ''

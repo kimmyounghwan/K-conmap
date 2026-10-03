@@ -5465,6 +5465,7 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 .iy-chip { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
 .iy-chip.y { background: rgba(5, 150, 105, .14); color: #047857; }
 .iy-chip.n { background: var(--surface-2); color: var(--text-2); }
+.iy-chip.g { background: rgba(37, 99, 235, .10); color: var(--accent); }   /* G122 «가입 · 보험료 없음» */
 .iy-line { font-size: 13px; line-height: 1.5; }
 .iy-tag { margin-left: 6px; font-size: 10.5px; font-weight: 800; padding: 1px 6px; border-radius: 6px; background: rgba(217, 119, 6, .14); color: #b45309; }
 .iy-band td, .iy-band th { white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -5888,3 +5889,53 @@ button.sk-mini { color: var(--accent); padding: 0; text-align: left; }
   body.hm-print .hm-done:not(.on) { display: none; } body.hm-print .hm-done.on { border: 0; background: none; color: #000; }
   body.hm-print .hm-sum > div { border-color: #9ca3af; }
 }
+
+/* 👆 G122 4대보험 판단기 «편하게» — 누르기 방식 · 달력 옆 요약(넓은 화면) · 결과 띠(폰 · 좁은 화면) · 링크 */
+.iy-pick { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin: 2px 0 6px; font-size: 13px; }
+.iy-pick-k { font-weight: 700; color: var(--text-2); font-size: 12.5px; }
+.iy-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+.iy-seg button { border: 0; border-left: 1px solid var(--line); background: var(--surface); color: var(--text); padding: 6px 10px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.iy-seg button:first-child { border-left: 0; }
+.iy-seg button.on { background: var(--accent); color: #fff; }
+.iy-pick-h { font-size: 12.5px; line-height: 1.6; margin: 0 0 8px; padding: 6px 10px; border-radius: 8px; background: var(--surface-2); color: var(--text); }
+.iy-pick-h .tp-x { margin-left: 4px; }
+.iy-d.s { box-shadow: inset 0 0 0 3px #f59e0b; font-weight: 800; }
+.iy-calrow { display: block; }
+.iy-side { display: none; }
+@media (min-width: 1100px) {
+  .iy-calrow { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 12px; align-items: start; }
+  .iy-side { display: flex; flex-direction: column; gap: 8px; position: sticky; top: 64px; border: 1px solid var(--accent); border-radius: 12px; padding: 12px; background: var(--surface); }
+}
+.iy-side-h { font-weight: 800; font-size: 14px; } .iy-side-h small { font-weight: 400; font-size: 11.5px; }
+.iy-side-r { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 700; }
+.iy-side-m { font-size: 13px; line-height: 1.6; border-top: 1px solid var(--line); padding-top: 8px; font-variant-numeric: tabular-nums; }
+.iy-side-m .iy-net { color: var(--accent); }
+.iy-out { scroll-margin-top: 64px; }
+.iy-bar { display: none; position: fixed; left: 10px; right: 10px; margin: 0 auto; max-width: 560px; z-index: 55;
+  flex-direction: column; gap: 4px; align-items: stretch; text-align: left; cursor: pointer;
+  background: var(--surface); color: var(--text); border: 1.5px solid var(--accent); border-radius: 14px; padding: 8px 12px;
+  box-shadow: 0 6px 22px rgba(15, 23, 42, .18); font: inherit; }
+.iy-bar.on { display: flex; }
+@media (min-width: 1100px) { .iy-bar, .iy-bar.on { display: none; } }
+.iy-has-bar { padding-bottom: 84px; }
+@media (min-width: 1100px) { .iy-has-bar { padding-bottom: 0; } }
+.iy-bar-c { display: flex; flex-wrap: wrap; gap: 5px; }
+.iy-bc { font-size: 12px; font-weight: 800; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.iy-bc.y { background: rgba(5, 150, 105, .14); color: #047857; }
+.iy-bc.g { background: rgba(37, 99, 235, .10); color: var(--accent); }
+.iy-bc.n { background: var(--surface-2); color: var(--text-2); }
+.iy-bar-m { font-size: 12.5px; line-height: 1.45; font-variant-numeric: tabular-nums; }
+.iy-bar-m b { font-weight: 800; }
+.iy-bar-go { float: right; color: var(--accent); font-weight: 800; }
+.iy-link { display: flex; flex-direction: column; gap: 6px; margin: 0 0 10px; }
+.iy-link .inp { width: 100%; font-size: 12px; }
+.iy-link .muted { font-size: 11.5px; }
+.iy-undo { margin-left: 4px; font-weight: 700; }
+@media print { .iy-bar, .iy-side, .iy-pick, .iy-pick-h { display: none !important; } }
+
+/* 🏛 G123 내역서 비율 — 관급 줄 목록 · 미리 보기 표시 */
+.rt-kg td, .rt-kg th { font-size: 12.5px; white-space: nowrap; }
+.rt-kg td.r { text-align: right; font-variant-numeric: tabular-nums; }
+.rt-kg tr.off td { opacity: .45; text-decoration: line-through; }
+.rt-kg tr.off td:first-child { opacity: 1; text-decoration: none; }
+.tlprev tr.rt-kgrow td { background: rgba(217, 119, 6, .08); }

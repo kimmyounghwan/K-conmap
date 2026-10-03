@@ -15,6 +15,10 @@
  *
  * ■ 파일은 브라우저 안에서만 다룹니다. 아무것도 올라가지 않습니다.
  * ■ 셈은 lib/비율.js 에 있습니다 — 화면은 값을 받아 보여 주기만 합니다.
+ * ■ 🏛 (G123 · 2026-10-03) 소장님 「관급자재는 그대로 둬야지. 내역서만 비율에 맞게」 —
+ *    관급 줄(관급자재대 묶음 · 이름 · 비고의 «관급»)은 그대로 · 화면에 잡힌 줄 목록 · 줄마다 끄기 · 맞출 금액은 관급 뺀 금액
+ *    (G124) «지급자재»(발주자 지급자재 · LH 지급자재 · 지급자재대 …) · 【관급자재】 · 관급(지급)자재 꼴도 관급으로 잡음
+ *    (G124) 🧮 합계 · 소계 · 공종 머리 · 원가계산 줄은 품목에서 뺌(목록으로 보여 줌) · «공종 | 품명» 두 칸 꼴은 품명 칸으로 읽음
  */
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -46,6 +50,8 @@ export default function Ratio() {
   const [목표글, set목표글] = useState('')
   const [단수꼴, set단수꼴] = useState('버림')
   const [노무고정, set노무고정] = useState(false)
+  const [관급그대로, set관급그대로] = useState(true)
+  const [관급끔, set관급끔] = useState(() => new Set())
   const [단수조정, set단수조정] = useState(true)
   const [일감, set일감] = useState('하도급 내역서')
 
@@ -61,7 +67,7 @@ export default function Ratio() {
 
   const openFile = useCallback(async (f) => {
     if (!f) return
-    setErr(''); setOut(null); set온것(null); set고른시트([]); setFile(null)
+    setErr(''); setOut(null); set온것(null); set고른시트([]); setFile(null); set관급끔(new Set())
     if (!/\.(xlsx|xlsm)$/i.test(f.name)) {
       setErr(/\.xls$/i.test(f.name)
         ? '구형 엑셀(.xls)은 아직 못 읽습니다. 엑셀에서 «다른 이름으로 저장 → Excel 통합 문서(.xlsx)» 한 뒤 올려 주십시오.'
@@ -96,12 +102,26 @@ export default function Ratio() {
         값: lib.맞추기(읽은, {
           비율: 모드 === '비율' ? Number(String(비율글).replace(/[^\d.]/g, '')) : 0,
           목표: 모드 === '금액' ? Number(String(목표글).replace(/[^\d.]/g, '')) : 0,
-          단수꼴, 노무고정,
+          단수꼴, 노무고정, 관급그대로, 관급끔,
         }),
         탈: '',
       }
     } catch (e) { return { 값: null, 탈: (e && e.message) || '셈하지 못했습니다.' } }
-  }, [읽은, lib, 모드, 비율글, 목표글, 단수꼴, 노무고정])
+  }, [읽은, lib, 모드, 비율글, 목표글, 단수꼴, 노무고정, 관급그대로, 관급끔])
+
+  /* 🧮 품목에서 뺀 합계 · 소계 · 머리 · 원가 줄 (G124) */
+  const 모음들 = useMemo(() => (읽은 && 읽은.모음들 ? 읽은.모음들 : []), [읽은])
+  const 모음셈 = useMemo(() => 모음들.reduce((a, x) => { a[x.모음꼴] = (a[x.모음꼴] || 0) + 1; return a }, {}), [모음들])
+  const 모음말 = (x) => (x.모음꼴 === '합계' ? '합계 · 소계 줄'
+    : x.모음꼴 === '머리' ? '공종 머리 — 아래 ' + fmt((x.아이줄 || []).length) + '줄의 합' + (x.근사 ? '(원본 숫자가 조금 다름)' : '')
+    : x.모음꼴 === '원가' ? '원가계산 줄'
+    : x.모음꼴 === '중복' ? '위 요약에 한 번 더 적힌 줄'
+    : x.모음꼴 === '총괄' ? '공사명 총괄(전체 총액) 줄' : x.모음꼴)
+  /* 🏛 관급으로 잡힌 줄 — 화면에서 줄마다 끌 수 있습니다 */
+  const 관급들 = useMemo(() => (읽은 ? 읽은.rows.filter((x) => x.관급) : []), [읽은])
+  const 관급말 = { 묶음: '관급 · 지급자재 묶음 안', 이름: '이름에 «관급 · 지급자재»', 비고: '비고 «관급 · 지급»', 시트: '관급 · 지급자재 시트', 칸: '관급여부 칸' }
+  const 관급켬수 = 관급그대로 ? 관급들.filter((x) => !관급끔.has(x.시트 + '#' + x.줄)).length : 0
+  const 관급켬합 = 관급그대로 ? 관급들.filter((x) => !관급끔.has(x.시트 + '#' + x.줄)).reduce((a, x) => a + (x.총금액 || 0), 0) : 0
 
   const R = 결과 && 결과.값
 
@@ -124,6 +144,8 @@ export default function Ratio() {
           ['수식으로 바꾼 칸', fmt(got.칸) + '칸 — 값이 아니라 «비율 칸을 보는 수식» 입니다'],
           ['살려 둔 원본 수식', fmt(got.지킨수식) + '칸' +
             (got.단수씌움 ? ' (그 가운데 ' + fmt(got.단수씌움) + '칸은 반올림이 없어 단수를 씌웠습니다)' : '')],
+          ...(got.관급둔 ? [['🏛 관급자재', fmt(got.관급둔) + '줄은 손대지 않았습니다 — 단가 · 금액 그대로']] : []),
+          ...(got.모음고침 ? [['🧮 합계 · 소계 · 머리 줄', fmt(got.모음고침) + '칸 — 아래 품목을 더하는 수식(SUM)으로 · 원가계산 줄은 비율을 곱하는 수식으로']] : []),
         ].concat(got.경고.map((x) => ['⚠️ ' + x[0], x[1]]))
         if (got.원본셈) {
           말.push(['⚠️ 원본 셈법', fmt(got.원본셈) + '칸은 원본이 제 반올림을 갖고 있어 그대로 두었습니다 ' +
@@ -145,7 +167,9 @@ export default function Ratio() {
           ['원가계산서', 읽은.셋있나
             ? '재료비·노무비·경비를 내역서에서 «수식으로» 받습니다 — 비율을 바꾸면 같이 바뀝니다. 요율(노란 칸)은 맞춰 보십시오.'
             : '재료비·노무비·경비 갈래가 없어 «0» 으로 두었습니다 — 손으로 넣으십시오.'],
-          ['맞출 금액', '「비율」 시트 B3 에 금액을 넣으시면 「단수조정」 줄이 차액을 먹어 총액이 딱 맞습니다.'],
+          ['맞출 금액', '「비율」 시트 B3 에 금액을 넣으시면 「단수조정」 줄이 차액을 먹어 총액이 딱 맞습니다.' +
+            (R.관급줄 ? ' — 관급을 뺀 금액입니다.' : '')],
+          ...(R.관급줄 ? [['🏛 관급자재', fmt(R.관급줄) + '줄 · ' + fmt(R.관급합) + '원은 그대로 — 내역서 «관급» 칸 · 원가계산서 «관급자재비»(도급액 밖)']] : []),
         ]
       }
       const url = URL.createObjectURL(new Blob([bytes], {
@@ -197,13 +221,15 @@ export default function Ratio() {
           <div style={{ marginTop: 10 }}>
             {읽은 ? (
             <p style={{ margin: '0 0 6px' }}>
-              내역 <b>{fmt(읽은.rows.length)}줄</b> · 당초 합계 <b>{fmt(읽은.합)}원</b>
+              내역 <b>{fmt(읽은.rows.length)}줄</b> · 당초 합계 <b>{fmt(읽은.합)}원</b>{관급들.length > 0 && <span className="muted"> (관급 포함)</span>}
               {읽은.셋있나
                 ? <span> · <b>재료비·노무비·경비</b>가 갈려 있습니다 — 원가계산서까지 자동으로 채웁니다</span>
                 : <span className="muted"> · 재료비·노무비·경비 갈래가 없습니다 — 원가계산서는 «0» 으로 둡니다</span>}
             </p>
-            ) : <p className="cwarn" style={{ margin: '0 0 6px' }}>⚠️ 쓸 시트를 하나 이상 켜 주십시오.</p>}
-            {온것.시트들.length > 1 && (
+            ) : <p className="cwarn" style={{ margin: '0 0 6px' }}>⚠️ 쓸 시트를 하나 이상 켜 주십시오.
+              {온것.시트들.every((x) => /일위|단가|중기|기계경비|노임|자재|총괄|품셈|산출근거|수량산출|공정|목차|안내|표지|원가계산|예산서|집계/.test(x.시트)) &&
+                <> 내역서 시트에 단가가 없어(공내역서) 일위대가 · 총괄 같은 시트만 읽혔습니다 — 그 시트로 맞추실 때만 켜 주십시오.</>}</p>}
+            {(온것.시트들.length > 1 || !고른시트.length) && (
               <div className="tlsheets" style={{ marginBottom: 10 }}>
                 {온것.시트들.map((x) => {
                   const 켬 = 고른시트.indexOf(x.시트) >= 0
@@ -229,6 +255,82 @@ export default function Ratio() {
                 전부 켜면 <b>일위대가가 내역서 단가 속에 또 들어가 두 번 세어집니다.</b>
                 그래서 <b>내역서다운 시트만</b> 켜 두었습니다 — 틀렸으면 고쳐 주십시오.
               </p>
+            )}
+            {읽은 && (관급들.length > 0 ? (
+              <div className="note" style={{ margin: '0 0 8px' }}>
+                🏛 <b>관급자재 {fmt(관급들.length)}줄 · {fmt(관급들.reduce((a, x) => a + (x.총금액 || 0), 0))}원</b> —
+                관급자재대는 <b>도급액 밖</b>이라 비율을 곱하지 않고 <b>그대로</b> 둡니다. 맞출 금액도 관급을 뺀 금액으로 셉니다.
+                <div style={{ marginTop: 6 }}>
+                  <label className="tlchk" style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                    <input type="checkbox" checked={관급그대로} onChange={(e) => set관급그대로(e.target.checked)} />
+                    관급자재는 <b>그대로</b> 두기
+                  </label>
+                </div>
+                {관급그대로 && (
+                  <details style={{ marginTop: 6 }}>
+                    <summary style={{ cursor: 'pointer', fontWeight: 700 }}>잡힌 줄 보기 · 관급이 아닌 줄은 끄십시오</summary>
+                    <div style={{ overflowX: 'auto', marginTop: 6 }}>
+                      <table className="tbl left rt-kg">
+                        <thead><tr><th>그대로</th><th>시트 · 줄</th><th>공종</th><th>규격</th><th>당초 금액</th><th>왜 관급으로</th></tr></thead>
+                        <tbody>
+                          {관급들.map((x) => {
+                            const k = x.시트 + '#' + x.줄
+                            const 켬 = !관급끔.has(k)
+                            return (
+                              <tr key={k} className={켬 ? '' : 'off'}>
+                                <td><input type="checkbox" checked={켬} aria-label={`${x.줄}행 관급 그대로`}
+                                  onChange={(e) => set관급끔((v) => { const n = new Set(v); if (e.target.checked) n.delete(k); else n.add(k); return n })} /></td>
+                                <td className="nw">{x.시트} · {x.줄}행</td>
+                                <td>{String(x.공종).slice(0, 26)}</td>
+                                <td>{String(x.규격).slice(0, 18)}</td>
+                                <td className="r">{x.총금액 === null ? '' : fmt(x.총금액)}</td>
+                                <td className="muted">{관급말[x.관급] || x.관급}</td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                      «관급자재대 · 관급자재비 · 도급자/관급자 관급자재 · 지급자재(발주자 지급자재 등)» 묶음 아래 줄(이름에 관급이 없는 보도블록 · 조달수수료도)과
+                      품명 · 비고에 «관급» · «지급자재» 가 적힌 줄을 잡습니다(사급자재는 도급 몫이라 안 잡습니다). 관급자재관리비 같은 경비 · 노무비가 든 줄(설치 · 타설 등 도급자 일)은 잡지 않습니다.
+                    </div>
+                  </details>
+                )}
+              </div>
+            ) : (
+              <p className="muted" style={{ margin: '0 0 6px', fontSize: 12.5 }}>
+                🏛 관급자재로 보이는 줄은 없습니다 — 관급 줄이 있다면 «관급자재대 · 지급자재» 묶음 아래에 있거나 품명 · 비고에 «관급» · «지급자재» 가 적혀 있어야 잡힙니다.
+              </p>
+            ))}
+            {읽은 && 모음들.length > 0 && (
+              <div className="note" style={{ margin: '0 0 8px' }}>
+                🧮 <b>합계 · 소계 · 공종 머리 줄 {fmt(모음들.length)}줄</b>은 품목으로 세지 않았습니다 —
+                아래 품목을 더한 값이라 같이 더하면 <b>두 번</b> 셉니다.
+                {모음셈.원가 ? <> 원가계산 줄 {fmt(모음셈.원가)}줄(간접노무비 · 보험료 · 이윤 · 부가세 · 도급액 …)도 뺐습니다.</> : null}
+                <details style={{ marginTop: 6 }}>
+                  <summary style={{ cursor: 'pointer', fontWeight: 700 }}>뺀 줄 보기</summary>
+                  <div style={{ overflowX: 'auto', marginTop: 6 }}>
+                    <table className="tbl left rt-kg">
+                      <thead><tr><th>시트 · 줄</th><th>이름</th><th>당초 금액</th><th>왜 뺐나</th></tr></thead>
+                      <tbody>
+                        {모음들.slice(0, 300).map((x) => (
+                          <tr key={x.시트 + '#' + x.줄}>
+                            <td className="nw">{x.시트} · {x.줄}행</td>
+                            <td>{String(x.공종).replace(/\s+/g, ' ').slice(0, 26)}</td>
+                            <td className="r">{x.총금액 === null ? '' : fmt(x.총금액)}</td>
+                            <td className="muted">{모음말(x)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {모음들.length > 300 && <div className="muted" style={{ fontSize: 12 }}>… 그 밖 {fmt(모음들.length - 300)}줄</div>}
+                  <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                    공종 머리는 «아래 품목을 더한 값이 그 금액과 같을 때만» 머리로 봅니다. 셈이 안 맞는 머리 줄은 품목으로 남겨 둡니다.
+                  </div>
+                </details>
+              </div>
             )}
             {읽은 && 읽은.특수줄 > 0 && (
               <p className="muted" style={{ margin: '0 0 6px', fontSize: 12.5, lineHeight: 1.8 }}>
@@ -267,6 +369,7 @@ export default function Ratio() {
                     value={목표글 ? fmt(Number(String(목표글).replace(/[^\d.]/g, ''))) : ''}
                     placeholder="예) 480,000,000"
                     onChange={(e) => set목표글(e.target.value.replace(/[^\d.]/g, ''))} /> 원
+                  {관급켬수 > 0 && <span className="muted" style={{ fontSize: 12 }}> (관급 뺀 금액)</span>}
                 </label>
               )}
             </div>
@@ -320,9 +423,11 @@ export default function Ratio() {
           <div style={{ overflowX: 'auto' }}>
             <table className="tbl left">
               <tbody>
-                <tr><th style={{ width: 140 }}>당초 합계</th><td><b>{fmt(R.원합)}</b> 원</td></tr>
+                <tr><th style={{ width: 140 }}>당초 합계</th><td><b>{fmt(R.원합)}</b> 원{R.관급줄 > 0 && <span className="muted"> — 관급자재를 뺀 것</span>}</td></tr>
+                {R.관급줄 > 0 && <tr><th>🏛 관급자재</th><td><b>{fmt(R.관급합)}</b> 원 <span className="muted">— {fmt(R.관급줄)}줄 · 비율 안 곱함 · 그대로</span></td></tr>}
                 <tr><th>넣은 비율</th><td><b>{pct(R.비율)}</b>{노무고정 && <span className="muted"> — 노무비를 뺀 나머지에만</span>}</td></tr>
-                <tr><th>비율 합계</th><td><b style={{ fontSize: 17 }}>{fmt(R.합)}</b> 원</td></tr>
+                <tr><th>비율 합계</th><td><b style={{ fontSize: 17 }}>{fmt(R.합)}</b> 원{R.관급줄 > 0 && <span className="muted"> — 관급 뺀 것</span>}</td></tr>
+                {R.관급줄 > 0 && <tr><th>관급 포함 총액</th><td>{fmt(R.새전합)} 원 <span className="muted">— 비율 합계 + 관급자재</span></td></tr>}
                 <tr><th>실제 비율</th><td>{pct(R.실비율)} <span className="muted">— 줄마다 단수를 깎아 넣은 비율과 조금 다릅니다</span></td></tr>
                 {R.목표 !== null && (
                   <tr>
@@ -361,8 +466,8 @@ export default function Ratio() {
               </thead>
               <tbody>
                 {미리.map((x, i) => (
-                  <tr key={i}>
-                    <td>{String(x.공종).slice(0, 22)}</td>
+                  <tr key={i} className={x.관급고정 ? 'rt-kgrow' : ''}>
+                    <td>{x.관급고정 ? '🏛 ' : ''}{String(x.공종).slice(0, 22)}</td>
                     <td>{String(x.규격).slice(0, 16)}</td>
                     <td>{x.단위}</td>
                     <td>{x.수량 === null ? '' : x.수량}</td>
@@ -377,6 +482,7 @@ export default function Ratio() {
           </div>
           <p className="muted" style={{ marginBottom: 0 }}>
             앞 {미리.length}줄만 보여 드립니다. 엑셀에는 {fmt(R.rows.length)}줄이 모두 들어갑니다.
+            {R.관급줄 > 0 && <> 🏛 관급 {fmt(R.관급줄)}줄은 엑셀에서 «관급» 칸에 표시되고 단가 · 금액이 그대로입니다.</>}
           </p>
         </div>
       )}
@@ -427,14 +533,21 @@ export default function Ratio() {
           <li><b>맞출 금액을 넣으시면</b> 비율을 거꾸로 셉니다(맞출 금액 ÷ 당초 합계).
             줄마다 단수를 깎으므로 조금 모자랍니다 — 그 차액을 숨기지 않고 보여 드리고,
             원하시면 「단수조정」 한 줄로 정확히 맞춥니다.</li>
-          <li><b>소계·합계 줄은 우리가 다시 더합니다.</b> 원본을 그대로 고칠 때
-            그 줄이 «수식이 아니라 숫자»로 박혀 있으면 손대지 못합니다 —
-            그때는 <b>몇 행인지 알려 드립니다.</b></li>
+          <li><b>🧮 합계 · 소계 · 공종 머리 줄은 품목으로 세지 않습니다.</b> 「[ 합 계 ]」 「소계」 줄과,
+            금액이 적힌 공종 머리(「1. 토공 981,210」)는 <b>아래 품목을 더한 값이 그 금액과 같을 때만</b> 머리로 봅니다 —
+            같이 더하면 두 번 세어 당초 합계가 부풀고, 맞출 금액으로 맞추면 비율이 틀어집니다.
+            내역서 위쪽에 붙은 <b>원가계산 줄</b>(간접노무비 · 보험료 · 일반관리비 · 이윤 · 부가세 · 도급액 …)도 품목이 아닙니다.
+            «원본 그대로 고치기» 에서는 이 줄들을 <b>아래 품목을 더하는 수식</b>으로 바꿔 드리고(원가 줄은 비율을 곱하는 수식),
+            총공사비 · 총사업비처럼 관급까지 든 총액은 손대지 않고 <b>몇 행인지 알려 드립니다.</b></li>
+          <li><b>«공종 | 품명» 두 칸</b>으로 된 내역서는 번호가 아닌 글이 많은 칸을 품명으로 읽습니다.</li>
           <li><b>비율은 «박아 넣지» 않습니다.</b> 엑셀에 <b>「비율」 시트</b>를 붙이고, 단가·금액을
             그 칸을 보는 <b>살아 있는 수식</b>으로 넣습니다. 당초 단가는 그 시트(원본 쪽)나
             숨긴 칸(새 엑셀 쪽)에 남겨 둡니다 — 그게 있어야 다시 곱합니다. <b>지우지 마십시오.</b></li>
-          <li><b>관급자재·지급자재는 비율 대상이 아닌 경우가 많습니다.</b>
-            내역서에서 빼고 올리시거나, 나온 뒤에 그 줄만 되돌리십시오.</li>
+          <li><b>🏛 관급자재는 그대로 둡니다.</b> 관급자재대는 <b>도급액 밖</b>(총공사비 = 도급액 + 관급자재대)이라
+            하도급 · 실행 비율의 대상이 아닙니다(건설공사 하도급 심사기준 제2조도 하도급 금액 셈에서 «직접 지급하는 자재의 비용» 을 뺍니다).
+            «관급자재대 · 관급자재비 · 도급자/관급자 관급자재 · 지급자재» 묶음 아래 줄과
+            품명 · 비고에 «관급» · «지급자재» 가 적힌 줄은 <b>단가 · 금액을 손대지 않고</b>, 맞출 금액도 <b>관급을 뺀 금액</b>으로 셉니다.
+            원가계산서에는 <b>«관급자재비»</b> 로 따로 들어갑니다. 잘못 잡힌 줄은 올린 뒤 목록에서 끄십시오.</li>
         </ul>
       </div>
 

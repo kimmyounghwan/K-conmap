@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { 판단, 신고할일, 달규칙, 달더하기, 짧은날, 달글, 한달되는날, 달, 전날, 회사규모, 사업주몫, 생일풀기, 만나이, 긴날, 취득날 } from '../lib/ilyong4.js'
 import { 공제셈 } from '../lib/gongje.js'
+import { 링크만들기, 링크읽기, 기간날들 } from '../lib/ilyong4link.js'
 import G from '../data/ilyong_guide.json'
 
 /**
@@ -16,6 +17,13 @@ import G from '../data/ilyong_guide.json'
  * ■ 다른 화면에서 넘겨받기: sessionStorage `kcm_ilyong_from` = { 이름, 일당, 날, 달돈, 생일 } (노무비 계산기 «판단 자세히» · 설명 페이지 «이 사례로 계산»)
  * ■ 🎂 (G109) 생년월일(앞 6자리) → 옵션.생일 — 소장님 「나이를 넣게 하고, 4대 보험은 자동으로」 · 「설명은 자세히」
  *   만 60세가 된 날의 다음 날 국민연금 상실 · 만 65세부터 일한 날은 실업급여 몫 없음(«계속65» 로 되돌림) — 셈은 lib/ilyong4.js
+ * ■ 👆 (G122 · 2026-10-03) 소장님 「사이트 계산기 최대한 계산하기 편하게 해줘. 이용자 입장에서」 → 고른 세 가지
+ *   ① 결과를 바로 — 폰 · 좁은 화면은 아래 탭 위에 «연금 · 건강 · 고용 · 실지급» 띠(결과 카드가 안 보일 때만 · 글 넣는 중엔 숨김 · 누르면 결과로),
+ *      넓은 화면(1100px~)은 달력 옆에 같은 요약(따라 내려옴). 결과 칩은 «뗍니다 / 안 뗍니다 / 가입 · 보험료 없음».
+ *   ② 날짜를 빨리 — «기간» 으로 바꾸면 첫날 · 끝날 두 번 눌러 사이를 채움(일요일 빼고 · 평일만 · 매일 · 되돌리기), 달마다 «평일만» 단추,
+ *      처음 여는 사람은 달력이 지난달부터(지난달 일을 따지는 경우가 많아서).
+ *   ③ 결과 링크 — 넣은 것을 그대로 여는 주소(?c= · lib/ilyong4link.js · 이름 · 생년월일은 안 담음). 폰은 공유 창, PC 는 복사.
+ *      받은 쪽은 링크 것으로 채우고(내가 적어 둔 것은 «되돌리기»), 같은 창에서 새로고침해도 다시 덮지 않음(sessionStorage).
  */
 
 const 열쇠 = 'kcm_ilyong1'
@@ -24,11 +32,13 @@ const 두자 = (n) => String(n).padStart(2, '0')
 const 원 = (n) => Math.round(n || 0).toLocaleString('ko-KR')
 const 숫자만 = (s) => String(s || '').replace(/[^\d]/g, '')
 const 이번달 = () => { const t = new Date(); return `${t.getFullYear()}-${두자(t.getMonth() + 1)}` }
+const 지난달 = () => { const t = new Date(); t.setDate(1); t.setMonth(t.getMonth() - 1); return `${t.getFullYear()}-${두자(t.getMonth() + 1)}` }
+const 쓴링크열쇠 = 'kcm_ilyong_link'
 const 달날수 = (ym) => new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), 0).getDate()
 const 첫요일 = (ym) => new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1, 1).getDay()
 export function 굵게(s) { return String(s).split(/\*\*(.+?)\*\*/g).map((x, i) => (i % 2 ? <b key={i}>{x}</b> : x)) }
 
-const 빈것 = () => ({ 일당: '', 시작: 이번달(), 달수: 3, 날: [], 달돈: {}, 다른: {}, 옵션: {}, 이름: '' })
+const 빈것 = () => ({ 일당: '', 시작: 지난달(), 달수: 3, 날: [], 달돈: {}, 다른: {}, 옵션: {}, 이름: '' })
 function 읽기() {
   try {
     const s = JSON.parse(localStorage.getItem(열쇠) || 'null')
@@ -76,18 +86,68 @@ export default function Ilyong4() {
   const [저장됨, set저장됨] = useState(true)
   const [알림, set알림] = useState('')
   const [지움물음, set지움물음] = useState(false)
+  const [되돌릴, set되돌릴] = useState(null)       // 링크 · 예시로 덮기 전 내가 적어 둔 것(G122)
+  const [누르기, set누르기] = useState('one')      // 'one' 하루씩 · 'range' 기간(첫날 → 끝날)
+  const [기간꼴, set기간꼴] = useState('sun')      // 'sun' 일요일 빼고 · 'wk' 평일만 · 'all' 매일
+  const [기간첫, set기간첫] = useState(null)
+  const [기간한것, set기간한것] = useState(null)   // { 전: 날[], 글 } — 되돌리기
+  const [링크, set링크] = useState(null)           // { url, 복사 }
+  const [결과보임, set결과보임] = useState(false)
+  const [입력중, set입력중] = useState(false)
+  const [바닥, set바닥] = useState(12)
+  const 결과칸 = useRef(null)
   useEffect(() => {
+    /* 🔗 G122 받은 링크(?c=) — 같은 창에서 이미 채운 링크면 다시 덮지 않음(새로고침 · 뒤로가기) */
+    try {
+      const c = new URLSearchParams(window.location.search).get('c')
+      if (c !== null) {
+        let 쓴 = ''
+        try { 쓴 = sessionStorage.getItem(쓴링크열쇠) || '' } catch (e) { /* 막힘 */ }
+        if (쓴 !== c) {
+          const r = 링크읽기(c)
+          try { sessionStorage.setItem(쓴링크열쇠, c) } catch (e) { /* 막힘 */ }
+          if (r) {
+            const 전 = 읽기()
+            if (전.날.length) set되돌릴(전)
+            setSt({ ...빈것(), ...r })
+            set알림('🔗 받은 링크의 날짜 · 금액으로 채웠습니다. 이름 · 생년월일은 링크에 담기지 않습니다.')
+          } else set알림('🔗 링크를 읽지 못했습니다 — 주소가 잘렸을 수 있습니다. 적어 두신 것은 그대로입니다.')
+          return
+        }
+      }
+    } catch (e) { /* 주소 읽기 실패 — 그냥 지나감 */ }
     try {
       const raw = sessionStorage.getItem(넘김열쇠)
       if (raw) {
         sessionStorage.removeItem(넘김열쇠)
         const c = JSON.parse(raw)
+        const 전 = 읽기()
+        if (전.날.length) set되돌릴(전)
         setSt(상태로(c))
         set알림(c.이름 ? `${c.이름} 님 출역을 노무비 계산기에서 가져왔습니다.` : (c.글 || '사례를 채웠습니다.'))
       }
     } catch (e) { /* 넘겨받기 없음 */ }
   }, [])
-  useEffect(() => { set저장됨(쓰기(st)) }, [st])
+  useEffect(() => { set저장됨(쓰기(st)); set링크(null) }, [st])
+  /* 👆 G122 결과 띠 — 결과 카드가 화면에 들어오면 숨김 · 아래 탭 높이만큼 띄움 */
+  useEffect(() => {
+    const el = 결과칸.current
+    if (!el || typeof IntersectionObserver === 'undefined') return undefined
+    const io = new IntersectionObserver(([e]) => set결과보임(e.isIntersecting), { rootMargin: '0px 0px -90px 0px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+  useEffect(() => {
+    const 잼 = () => {
+      const tb = document.querySelector('.tabbar')
+      const h = tb && getComputedStyle(tb).display !== 'none' ? tb.getBoundingClientRect().height : 0
+      set바닥(h ? Math.round(h) + 8 : 12)
+    }
+    잼()
+    window.addEventListener('resize', 잼)
+    return () => window.removeEventListener('resize', 잼)
+  }, [])
+  const 글칸 = (t) => t && /^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName) && t.type !== 'checkbox'
   useEffect(() => {
     const 끝 = () => document.body.classList.remove('iy-print')
     window.addEventListener('afterprint', 끝)
@@ -112,16 +172,29 @@ export default function Ilyong4() {
     return { ym, n, 돈, ...r, 합: r.it + r.lt + r.ei + r.np + r.hi + r.lc }
   }), [일한달들.join(','), 입력, R, 옵션.고용65])   // eslint-disable-line react-hooks/exhaustive-deps
 
-  const 날누름 = (ds) => 바꿈((s) => ({ ...s, 날: s.날.includes(ds) ? s.날.filter((d) => d !== ds) : [...s.날, ds].sort() }))
-  const 달채움 = (ym, 켬) => 바꿈((s) => {
-    const n = 달날수(ym)
+  const 꼴글 = { sun: '일요일 빼고', wk: '평일만', all: '매일' }
+  const 날누름 = (ds) => {
+    if (누르기 === 'range') {
+      /* 📌 G122 기간 — 첫날 누르고 끝날 누르면 사이를 채움(이미 누른 날은 그대로 둠) */
+      if (!기간첫) { set기간첫(ds); set기간한것(null); return }
+      const 더 = 기간날들(기간첫, ds, 기간꼴)
+      const [a, b] = 기간첫 <= ds ? [기간첫, ds] : [ds, 기간첫]
+      const 새것 = 더.filter((d) => !st.날.includes(d)).length
+      set기간한것({ 전: st.날, 글: `${짧은날(a)} ~ ${짧은날(b)} · ${꼴글[기간꼴]} ${더.length}일${새것 !== 더.length ? `(새로 ${새것}일)` : ''} 채웠습니다.` })
+      set기간첫(null)
+      바꿈((s) => ({ ...s, 날: [...new Set([...s.날, ...더])].sort() }))
+      return
+    }
+    바꿈((s) => ({ ...s, 날: s.날.includes(ds) ? s.날.filter((d) => d !== ds) : [...s.날, ds].sort() }))
+  }
+  const 달채움 = (ym, 꼴) => 바꿈((s) => {
     const 남 = s.날.filter((d) => !d.startsWith(ym))
-    if (!켬) return { ...s, 날: 남 }
-    const 더 = []
-    for (let i = 1; i <= n; i++) { const w = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1, i).getDay(); if (w !== 0) 더.push(`${ym}-${두자(i)}`) }
-    return { ...s, 날: [...남, ...더].sort() }
+    if (!꼴) return { ...s, 날: 남 }
+    return { ...s, 날: [...남, ...기간날들(`${ym}-01`, `${ym}-${두자(달날수(ym))}`, 꼴)].sort() }
   })
-  const 사례 = (c) => { setSt(상태로({ ...c.in, 일당: c.in.일당 })); set알림(`예시 «${c.t}» 를 채웠습니다 — ${c.q}`); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+  const 누르기바꿈 = (m) => { set누르기(m); set기간첫(null); set기간한것(null) }
+  const 사례 = (c) => { if (st.날.length && !되돌릴) set되돌릴(st); setSt(상태로({ ...c.in, 일당: c.in.일당 })); set알림(`예시 «${c.t}» 를 채웠습니다 — ${c.q}`); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+  const 결과로 = () => { const el = 결과칸.current; if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
   /* 🖨 인쇄 — 접어 둔 것을 모두 펴서 찍고(사업주 몫은 연 때만 · data-print="as-is") 끝나면 되돌림 */
   const 인쇄 = () => {
     const ds = [...document.querySelectorAll('.iy-out details')].filter((d) => d.dataset.print !== 'as-is')
@@ -189,12 +262,36 @@ export default function Ilyong4() {
     : 실업일부 && 나 ? `${긴날(나.L65)}부터 만 65세 — 그 뒤 일한 날은 근로자 몫 없음` : '근로내용 확인신고 · 근로자 0.9%'
   const 할일 = 신고.filter((x) => x.날 !== '9999')
 
+  /* 👆 G122 한눈 요약 — 결과 띠(폰) · 달력 옆(넓은 화면) · 링크 글이 같은 말을 씀
+   *   y 뗍니다(보험료 나오는 달이 있음) · g 가입 · 보험료 없음(취득한 달만 등) · n 안 뗍니다 */
+  const 뗌 = (X) => (X.구간.length ? (Object.keys(X.부과).length ? 'y' : 'g') : 'n')
+  const 뗌글 = { y: '뗍니다', g: '가입 · 보험료 없음', n: '안 뗍니다' }
+  const 짧은뗌 = { y: '뗌', g: '가입만', n: '안 뗌' }
+  const 요약 = (() => {
+    if (!R.날들.length) return null
+    const p = 뗌(P), h = 뗌(H), e = 실업없음 || 옵션.고용65 ? 'g' : 'y'
+    const 하나 = 공제.length === 1 ? 공제[0] : null
+    const 돈 = 하나 ? { 이름: `${달글(하나.ym)} ${하나.n}일`, 받음: 하나.돈, 공제: 하나.합 } : { 이름: `${공제.length}달 ${R.날들.length}일`, 받음: 합계.돈, 공제: 합계.합 }
+    return { p, h, e, 돈, 고용말: e === 'y' ? '뗌' : '신고만' }
+  })()
+  const 링크보내기 = async () => {
+    if (!요약) return
+    const url = `${window.location.origin}/tools/ilyong-boheom?c=${링크만들기(st)}`
+    const 글 = `일용직 4대보험 판단 — 국민연금 ${짧은뗌[요약.p]} · 건강보험 ${짧은뗌[요약.h]} · 고용보험 ${요약.고용말} (${요약.돈.이름} · ${원(요약.돈.받음)}원)`
+    let 폰 = false
+    try { 폰 = window.matchMedia('(pointer: coarse)').matches } catch (e) { /* 모름 */ }
+    if (폰 && navigator.share) {
+      try { await navigator.share({ title: 'K-건설맵 · 일용직 4대보험 판단', text: 글, url }); return } catch (e) { if (e && e.name === 'AbortError') return }
+    }
+    try { await navigator.clipboard.writeText(url); set링크({ url, 복사: true }) } catch (e) { set링크({ url, 복사: false }) }
+  }
+
   return (
-    <div className="wrap iy">
+    <div className={'wrap iy' + (요약 ? ' iy-has-bar' : '')} onFocusCapture={(e) => { if (글칸(e.target)) set입력중(true) }} onBlurCapture={(e) => { if (글칸(e.target)) set입력중(false) }}>
       <div className="card iy-in">
         <h1 className="tl-h1" style={{ marginTop: 0 }}>🛡 일용직 4대보험 가입 판단기</h1>
         <p className="cp" style={{ margin: '6px 0 0' }}>
-          일한 날만 누르면 <b>국민연금 · 건강보험 · 고용보험을 떼는지, 얼마 떼는지</b> 바로 나옵니다.
+          일한 날만 누르면 <b>국민연금 · 건강보험 · 고용보험을 떼는지, 얼마 떼는지</b> 바로 나옵니다. 여러 날은 <b>«기간»</b> 으로 첫날 · 끝날만 누르면 됩니다.
         </p>
         <div className="iy-small">회원가입 없음 · 무료 · 💾 이 브라우저에만 저장{저장됨 ? '' : <b className="nm-warn"> — 지금 저장이 막혀 있습니다</b>} · 공단 실무안내 사례와 같게 나옴</div>
         <details className="iy-exd">
@@ -208,10 +305,12 @@ export default function Ilyong4() {
           <Link to="/tools/nomubi">👷 여러 명은 노무비 계산기</Link>
           {!지움물음 && st.날.length > 0 && <button type="button" className="tp-x" onClick={() => set지움물음(true)}>처음부터</button>}
           {지움물음 && <span className="nm-ask">적은 것을 지웁니다.
-            <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => { setSt({ ...빈것(), 시작: st.시작 }); set지움물음(false); set알림('') }}>지우기</button>
+            <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => { setSt({ ...빈것(), 시작: st.시작 }); set지움물음(false); set알림(''); set되돌릴(null); set기간한것(null); set기간첫(null) }}>지우기</button>
             <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set지움물음(false)}>그대로</button></span>}
         </div>
-        {알림 && <div className="note sm" style={{ marginTop: 8 }} role="status">{알림}</div>}
+        {알림 && <div className="note sm" style={{ marginTop: 8 }} role="status">{알림}
+          {되돌릴 && <> <button type="button" className="tp-x iy-undo" onClick={() => { setSt(되돌릴); set되돌릴(null); set알림('적어 두셨던 것으로 되돌렸습니다.') }}>↩ 내가 적어 둔 것으로 되돌리기</button></>}
+        </div>}
       </div>
 
       <div className="card iy-in">
@@ -233,6 +332,22 @@ export default function Ilyong4() {
             <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={st.달수 >= 12} onClick={() => 바꿈((s) => ({ ...s, 달수: s.달수 + 1 }))}>＋ 달</button>
           </div>
         </div>
+        <div className="iy-pick" role="group" aria-label="날짜 누르는 방식">
+          <span className="iy-pick-k">누르기</span>
+          <span className="iy-seg">
+            <button type="button" className={누르기 === 'one' ? 'on' : ''} aria-pressed={누르기 === 'one'} onClick={() => 누르기바꿈('one')}>하루씩</button>
+            <button type="button" className={누르기 === 'range' ? 'on' : ''} aria-pressed={누르기 === 'range'} onClick={() => 누르기바꿈('range')}>📌 기간 (첫날 → 끝날)</button>
+          </span>
+          {누르기 === 'range' && <span className="iy-seg">
+            {['sun', 'wk', 'all'].map((k) => <button key={k} type="button" className={기간꼴 === k ? 'on' : ''} aria-pressed={기간꼴 === k} onClick={() => set기간꼴(k)}>{꼴글[k]}</button>)}
+          </span>}
+        </div>
+        {누르기 === 'range' && <div className="iy-pick-h" role="status">
+          {기간첫 ? <><b>끝날</b>을 누르세요 — 첫날 {짧은날(기간첫)} <button type="button" className="tp-x" onClick={() => set기간첫(null)}>취소</button></>
+            : 기간한것 ? <>✅ {기간한것.글} <button type="button" className="tp-x" onClick={() => { const 전 = 기간한것.전; 바꿈((s) => ({ ...s, 날: 전 })); set기간한것(null) }}>↩ 되돌리기</button> <span className="muted">· 다른 기간은 또 첫날부터 · 하루만 고치려면 «하루씩»</span></>
+              : <><b>첫날</b>을 누르고 <b>끝날</b>을 누르면 사이가 {꼴글[기간꼴]} 채워집니다(달을 넘어도 됩니다).</>}
+        </div>}
+        <div className="iy-calrow">
         <div className="iy-cals">
           {달들.map((ym) => {
             const n = 입력.일[ym] || 0
@@ -248,7 +363,7 @@ export default function Ilyong4() {
                     const ds = `${ym}-${두자(i + 1)}`
                     const on = st.날.includes(ds)
                     const 기준 = R.묶음.some((b) => b.E === ds)
-                    return <button key={ds} type="button" className={'iy-d' + (on ? ' on' : '') + (기준 ? ' e' : '')} aria-pressed={on}
+                    return <button key={ds} type="button" className={'iy-d' + (on ? ' on' : '') + (기준 ? ' e' : '') + (기간첫 === ds ? ' s' : '')} aria-pressed={on}
                       title={기준 ? '첫 근로일부터 1개월 되는 날' : ''} onClick={() => 날누름(ds)}>{i + 1}</button>
                   })}
                 </div>
@@ -257,13 +372,25 @@ export default function Ilyong4() {
                     placeholder={n ? 원((Number(st.일당) || 0) * n) : '—'} aria-label={`${달글(ym)} 받은 돈`}
                     onChange={(e) => { const v = 숫자만(e.target.value); 바꿈((s) => { const 달돈 = { ...s.달돈 }; if (v === '') delete 달돈[ym]; else 달돈[ym] = Number(v); return { ...s, 달돈 } }) }} /></label>
                   <span className="iy-cal-b">
-                    <button type="button" className="tp-x" onClick={() => 달채움(ym, true)}>일요일 빼고 모두</button>
-                    <button type="button" className="tp-x" onClick={() => 달채움(ym, false)}>지움</button>
+                    <button type="button" className="tp-x" onClick={() => 달채움(ym, 'sun')}>일요일 빼고</button>
+                    <button type="button" className="tp-x" onClick={() => 달채움(ym, 'wk')}>평일만</button>
+                    <button type="button" className="tp-x" onClick={() => 달채움(ym, '')}>지움</button>
                   </span>
                 </div>
               </div>
             )
           })}
+        </div>
+        <aside className="iy-side no-print" aria-label="판단 결과 바로 보기">
+          <div className="iy-side-h">✅ 판단 결과 <small className="muted">누를 때마다 바로</small></div>
+          {요약 ? <>
+            {[['국민연금', 요약.p, 뗌글[요약.p]], ['건강 · 요양', 요약.h, 뗌글[요약.h]], ['고용보험', 요약.e, 요약.e === 'y' ? '뗍니다' : '신고만']].map(([k, c, 말]) => (
+              <div key={k} className="iy-side-r"><span>{k}</span><span className={'iy-chip ' + c}>{말}</span></div>
+            ))}
+            <div className="iy-side-m">{요약.돈.이름} · {원(요약.돈.받음)}원<br />공제 <b>{원(요약.돈.공제)}</b> · 실지급 <b className="iy-net">{원(요약.돈.받음 - 요약.돈.공제)}</b></div>
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={결과로}>까닭 · 할 일 자세히 ↓</button>
+          </> : <div className="muted" style={{ fontSize: 12.5 }}>달력에서 일한 날을 누르면 여기에 바로 나옵니다.</div>}
+        </aside>
         </div>
         <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>받은 돈을 비워 두면 일당 × 일한 날 · 노란 테두리 = 첫 근로일부터 «1개월 되는 날»</div>
         <details className="iy-more" open={Object.values(st.다른 || {}).some((o) => o && (Number(o.일) || Number(o.돈) || o.가입)) || undefined}>
@@ -300,14 +427,20 @@ export default function Ilyong4() {
         </details>
       </div>
 
-      <div className="card iy-out">
+      <div className="card iy-out" ref={결과칸}>
         <div className="btn-row no-print" style={{ justifyContent: 'space-between', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
           <div className="detail-h" style={{ margin: 0 }}>✅ 판단 결과{st.이름 ? ` — ${st.이름}` : ''}</div>
           <span className="iy-act">
             <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={인쇄} disabled={!R.날들.length}>🖨 인쇄</button>
             <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀받기} disabled={!R.날들.length}>📗 엑셀(값만)</button>
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={링크보내기} disabled={!R.날들.length}>🔗 링크 보내기</button>
           </span>
         </div>
+        {링크 && <div className="note sm iy-link no-print" role="status">
+          {링크.복사 ? '📋 링크를 복사했습니다 — 카톡 · 문자 · 카페에 붙여 넣으십시오. 받는 분이 누르면 같은 날짜 · 금액으로 열립니다.' : '아래 주소를 눌러 복사하십시오 — 받는 분이 누르면 같은 날짜 · 금액으로 열립니다.'}
+          <input className="inp" readOnly value={링크.url} onFocus={(e) => e.target.select()} onClick={(e) => e.target.select()} aria-label="결과 링크" />
+          <span className="muted">이름{옵션.생일 ? ' · 생년월일' : ''}은 담지 않습니다{옵션.생일 ? ' — 나이로 가린 것은 받는 쪽에서 생년월일을 넣어야 같게 나옵니다' : ''}.</span>
+        </div>}
         <div className="iy-print-h">일용직 4대보험 가입 판단{st.이름 ? ` — ${st.이름}` : ''} · {R.날들.length ? `${짧은날(R.날들[0])} ~ ${짧은날(R.날들[R.날들.length - 1])} · ${R.날들.length}일` : ''}</div>
         {!R.날들.length && <div className="note sm">위 달력에서 일한 날을 누르거나, «예시로 해 보기» 를 눌러 보십시오.</div>}
         {R.날들.length > 0 && (() => {
@@ -315,9 +448,9 @@ export default function Ilyong4() {
           return (
             <>
               <div className="iy-sum">
-                <div className="iy-sumr"><span className="iy-sumk">국민연금</span><span className={'iy-chip ' + (p.됨 ? 'y' : 'n')}>{p.됨 ? '가입 대상' : '대상 아님'}</span><span className="iy-sumv">{p.글}</span></div>
-                <div className="iy-sumr"><span className="iy-sumk">건강 · 요양</span><span className={'iy-chip ' + (h.됨 ? 'y' : 'n')}>{h.됨 ? '가입 대상' : '대상 아님'}</span><span className="iy-sumv">{h.글}</span></div>
-                <div className="iy-sumr"><span className="iy-sumk">고용보험</span><span className={'iy-chip ' + (실업없음 || 옵션.고용65 ? 'n' : 'y')}>{실업없음 || 옵션.고용65 ? '신고만' : '일한 달마다'}</span><span className="iy-sumv">{고용글}</span></div>
+                <div className="iy-sumr"><span className="iy-sumk">국민연금</span><span className={'iy-chip ' + 요약.p}>{뗌글[요약.p]}</span><span className="iy-sumv">{p.글}</span></div>
+                <div className="iy-sumr"><span className="iy-sumk">건강 · 요양</span><span className={'iy-chip ' + 요약.h}>{뗌글[요약.h]}</span><span className="iy-sumv">{h.글}</span></div>
+                <div className="iy-sumr"><span className="iy-sumk">고용보험</span><span className={'iy-chip ' + 요약.e}>{요약.e === 'y' ? '뗍니다' : '신고만'}</span><span className="iy-sumv">{고용글}</span></div>
               </div>
 
               <div className="iy-h2">이번에 떼는 돈 <span className="muted">(2026 요율)</span></div>
@@ -459,6 +592,15 @@ export default function Ilyong4() {
           <li>판단은 공단이 최종으로 합니다. 기준과 사례는 <Link to="/tools/ilyong-guide">가입 기준 설명</Link>에 원문 그대로 정리했습니다.</li>
         </ul>
       </details>
+
+      {요약 && <button type="button" className={'iy-bar no-print' + (!결과보임 && !입력중 ? ' on' : '')} style={{ bottom: 바닥 }} onClick={결과로} aria-label="판단 결과로 가기">
+        <span className="iy-bar-c">
+          <span className={'iy-bc ' + 요약.p}>연금 {짧은뗌[요약.p]}</span>
+          <span className={'iy-bc ' + 요약.h}>건강 {짧은뗌[요약.h]}</span>
+          <span className={'iy-bc ' + 요약.e}>고용 {요약.고용말}</span>
+        </span>
+        <span className="iy-bar-m">{요약.돈.이름} · 공제 <b>{원(요약.돈.공제)}</b> · 실지급 <b>{원(요약.돈.받음 - 요약.돈.공제)}</b> <span className="iy-bar-go">결과 ▾</span></span>
+      </button>}
     </div>
   )
 }
