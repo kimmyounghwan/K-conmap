@@ -5954,3 +5954,7 @@ button.sk-mini { color: var(--accent); padding: 0; text-align: left; }
 .iy-sitet tbody th { background: var(--surface-2); white-space: nowrap; }
 .iy-sitet thead th { white-space: nowrap; }
 @media (max-width: 640px) { .iy-site .iy-cals { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 86%; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 4px; } .iy-site .iy-cal { scroll-snap-align: start; } }
+/* 🐞 G127 일당 없을 때 — 결과 쪽에서 일당 받기 */
+.iy-nowage { display: flex; flex-direction: column; gap: 8px; line-height: 1.6; }
+.iy-nowage label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; font-weight: 700; color: var(--text-2); max-width: 220px; }
+.iy-nowage .inp { text-align: right; padding: 6px 8px; font-size: 14px; }

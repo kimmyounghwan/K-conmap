@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { 판단, 신고할일, 달규칙, 달더하기, 짧은날, 달글, 한달되는날, 달, 전날, 회사규모, 사업주몫, 생일풀기, 만나이, 긴날, 취득날, 현장들셈, 다른합치기, 다른현장최대 } from '../lib/ilyong4.js'
+import { 판단, 신고할일, 달규칙, 달더하기, 짧은날, 달글, 한달되는날, 달, 전날, 회사규모, 사업주몫, 생일풀기, 만나이, 긴날, 취득날, 현장들셈, 다른합치기, 다른현장최대, 금액읽기 } from '../lib/ilyong4.js'
 import { 공제셈 } from '../lib/gongje.js'
 import { 링크만들기, 링크읽기, 기간날들 } from '../lib/ilyong4link.js'
 import G from '../data/ilyong_guide.json'
@@ -144,6 +144,20 @@ export default function Ilyong4() {
     } catch (e) { /* 넘겨받기 없음 */ }
   }, [])
   useEffect(() => { set저장됨(쓰기(st)); set링크(null) }, [st])
+  /* 👆 G127 (2026-10-04) 소장님 「2달이 왜 고정이지?」 → 「클로드가 판단해」 — 날짜를 마지막으로 보이는 달에 찍으면
+   *   다음 달을 저절로 하나 더 보여 줍니다(상실일 · 보험료 달이 다음 달 1일에 걸리는 일이 많아서). 날이 바뀔 때만 보므로 «－ 달» 로 줄인 것은 그대로 둡니다. */
+  const 앞날 = useRef(st.날)
+  useEffect(() => {
+    if (앞날.current === st.날) return
+    앞날.current = st.날
+    if (!st.날.length) return
+    const 끝달 = st.날[st.날.length - 1].slice(0, 7)
+    if (끝달 < 달더하기(st.시작, st.달수 - 1)) return
+    let n = 1
+    for (let m = st.시작; m < 끝달 && n < 13; m = 달더하기(m, 1)) n++
+    const 새 = Math.min(12, n + 1)
+    if (새 > st.달수) setSt((s) => ({ ...s, 달수: Math.max(s.달수, 새) }))
+  }, [st.날])   // eslint-disable-line react-hooks/exhaustive-deps
   /* 👆 G122 결과 띠 — 결과 카드가 화면에 들어오면 숨김 · 아래 탭 높이만큼 띄움 */
   useEffect(() => {
     const el = 결과칸.current
@@ -182,6 +196,8 @@ export default function Ilyong4() {
   /* 달마다 공제 — 노무비 계산기와 같은 셈(gongje.js) · 연금 · 건강은 위 판단 결과로 */
   const 공제 = useMemo(() => 일한달들.map((ym) => {
     const n = 입력.일[ym], 돈 = 입력.달돈[ym]
+    /* 🐞 G127 — 받은 돈 0원인 달은 셈하지 않음(연금 하한 41만으로 셈해 «실지급 -19,470» 이 나오던 것) */
+    if (!(Number(돈) > 0)) return { ym, n, 돈: 0, it: 0, lt: 0, ei: 0, np: 0, hi: 0, lc: 0, 합: 0, 빈: true }
     const 하루 = n ? Math.floor(돈 / n) : 0
     const 날돈 = Array.from({ length: n }, (_, i) => 하루 + (i === 0 ? 돈 - 하루 * n : 0))
     const r = 공제셈(ym, 날돈, 옵션.고용65 ? 'E' : '', {}, 달규칙(R, ym))
@@ -243,7 +259,7 @@ export default function Ilyong4() {
     }
     시트.push({ name: '판단 과정', head: ['보험', '이렇게 셌습니다'], rows: [...H.과정.map((x, i) => [i ? '' : '건강보험', x]), ...P.과정.map((x, i) => [i ? '' : '국민연금', x]), ...R.고용.과정.map((x, i) => [i ? '' : '고용보험', x])], widths: [12, 100] })
     시트.push({ name: '신고할 일', head: ['보험', '무엇을', '언제까지', '근거'], rows: 신고.map((x) => [x.보험, x.무엇, x.기한, x.근거]), widths: [12, 50, 40, 34] })
-    값엑셀받기(`4대보험판단_${st.이름 || ''}${R.날들.length ? '_' + R.날들[0].slice(0, 7) : ''}`, 시트, { 주소: '/tools/ilyong-boheom' })
+    값엑셀받기(['4대보험판단', st.이름, R.날들.length ? R.날들[0].slice(0, 7) : ''].filter(Boolean).join('_'), 시트, { 주소: '/tools/ilyong-boheom' })
   }
 
   const H = R.건강, P = R.연금
@@ -256,8 +272,11 @@ export default function Ilyong4() {
       : Object.values(R.연금.달 || {}).some((x) => x && x.다른가입) ? '그 달은 다른 현장에서 현장 가입이라 합치지 않습니다(현장 우선 · 공단 실무안내 22쪽) — 이 현장 근로분은 국민연금 신고 · 공제 없음.'
         : 첫 && !첫.한달이상 ? '1개월 미만입니다.' : '달마다 8일 · 220만원 미만입니다.'
   const 생글 = 옵션.생일 ? 생일풀기(옵션.생일) : ''
-  const 실업없음 = 일한달들.length > 0 && 일한달들.every((ym) => !R.고용.실업[ym])
-  const 실업일부 = !실업없음 && 일한달들.some((ym) => R.고용.실업[ym] !== 입력.달돈[ym])
+  /* 🐞 G127 — 받은 돈이 0원(일당을 안 넣음)인 달을 «65세 이후라 실업급여 몫 0» 으로 잘못 읽던 것: 돈이 있는 달만 보고, 돈이 없으면 나이로 */
+  const 돈달 = 일한달들.filter((ym) => (Number(입력.달돈[ym]) || 0) > 0)
+  const 나이로실업없음 = !!(나 && 나.L65 && !옵션.계속65 && R.날들.length && R.날들[0] >= 나.L65)
+  const 실업없음 = 나이로실업없음 || (돈달.length > 0 && 돈달.every((ym) => !R.고용.실업[ym]))
+  const 실업일부 = !실업없음 && 돈달.some((ym) => R.고용.실업[ym] !== 입력.달돈[ym])
   /* 🏢 사업주 몫 (G108) — 연금 · 건강 · 요양은 근로자와 같은 금액, 고용은 실업급여 0.9% + 고용안정(회사 규모), 산재는 참고 */
   const 사업주 = 공제.map((r) => ({ ym: r.ym, 돈: r.돈, 근4: r.ei + r.np + r.hi + r.lc, ...사업주몫(r.ym, r.돈, r, { 규모: 옵션.규모, 고용65: 옵션.고용65, 산재: 옵션.산재, 실업보수: R.고용.실업[r.ym] }) }))
   const 사합 = 사업주.reduce((t, r) => ({ 돈: t.돈 + r.돈, np: t.np + r.np, hi: t.hi + r.hi, lc: t.lc + r.lc, ei: t.ei + r.ei, ia: t.ia + r.ia, 합: t.합 + r.합, 근4: t.근4 + r.근4 }), { 돈: 0, np: 0, hi: 0, lc: 0, ei: 0, ia: 0, 합: 0, 근4: 0 })
@@ -288,12 +307,12 @@ export default function Ilyong4() {
     const p = 뗌(P), h = 뗌(H), e = 실업없음 || 옵션.고용65 ? 'g' : 'y'
     const 하나 = 공제.length === 1 ? 공제[0] : null
     const 돈 = 하나 ? { 이름: `${달글(하나.ym)} ${하나.n}일`, 받음: 하나.돈, 공제: 하나.합 } : { 이름: `${공제.length}달 ${R.날들.length}일`, 받음: 합계.돈, 공제: 합계.합 }
-    return { p, h, e, 돈, 고용말: e === 'y' ? '뗌' : '신고만' }
+    return { p, h, e, 돈, 고용말: e === 'y' ? '뗌' : '신고만', 돈없음: !(합계.돈 > 0) }
   })()
   const 링크보내기 = async () => {
     if (!요약) return
     const url = `${window.location.origin}/tools/ilyong-boheom?c=${링크만들기(st)}`
-    const 글 = `일용직 4대보험 판단 — 국민연금 ${짧은뗌[요약.p]} · 건강보험 ${짧은뗌[요약.h]} · 고용보험 ${요약.고용말} (${요약.돈.이름} · ${원(요약.돈.받음)}원)`
+    const 글 = `일용직 4대보험 판단 — 국민연금 ${짧은뗌[요약.p]} · 건강보험 ${짧은뗌[요약.h]} · 고용보험 ${요약.고용말} (${요약.돈.이름}${요약.돈없음 ? '' : ` · ${원(요약.돈.받음)}원`})`
     let 폰 = false
     try { 폰 = window.matchMedia('(pointer: coarse)').matches } catch (e) { /* 모름 */ }
     if (폰 && navigator.share) {
@@ -332,7 +351,7 @@ export default function Ilyong4() {
       <div className="card iy-in">
         <div className="detail-h" style={{ margin: 0 }}>📅 일한 날 <span className="muted" style={{ fontWeight: 400, fontSize: 12.5 }}>— 날짜를 누르세요 (반나절도 하루)</span></div>
         <div className="iy-top">
-          <label>일당(원)<input className="inp" inputMode="numeric" value={st.일당 ? 원(st.일당) : ''} onChange={(e) => 바꿈((s) => ({ ...s, 일당: 숫자만(e.target.value) }))} placeholder="예: 200,000" /></label>
+          <label>일당(원)<input className="inp" inputMode="numeric" value={st.일당 ? 원(st.일당) : ''} onChange={(e) => 바꿈((s) => ({ ...s, 일당: 금액읽기(e.target.value) }))} placeholder="예: 200,000" /></label>
           <label className="iy-birth">생년월일 <small className="muted">(앞 6자리 · 선택)</small>
             <input className="inp" inputMode="numeric" maxLength={10} value={옵션.생일 || ''} onChange={(e) => 옵션바꿈('생일', e.target.value.replace(/[^\d.\-/ ]/g, ''))} placeholder="예: 610315" aria-label="생년월일" />
             {옵션.생일 && !생글 && <small className="nm-age bad">날짜 확인 (예: 610315)</small>}
@@ -386,7 +405,7 @@ export default function Ilyong4() {
                 <div className="iy-cal-f">
                   <label>받은 돈<input className="inp" inputMode="numeric" value={st.달돈[ym] !== undefined && st.달돈[ym] !== '' ? 원(st.달돈[ym]) : ''}
                     placeholder={n ? 원((Number(st.일당) || 0) * n) : '—'} aria-label={`${달글(ym)} 받은 돈`}
-                    onChange={(e) => { const v = 숫자만(e.target.value); 바꿈((s) => { const 달돈 = { ...s.달돈 }; if (v === '') delete 달돈[ym]; else 달돈[ym] = Number(v); return { ...s, 달돈 } }) }} /></label>
+                    onChange={(e) => { const v = 금액읽기(e.target.value); 바꿈((s) => { const 달돈 = { ...s.달돈 }; if (v === '') delete 달돈[ym]; else 달돈[ym] = Number(v); return { ...s, 달돈 } }) }} /></label>
                   <span className="iy-cal-b">
                     <button type="button" className="tp-x" onClick={() => 달채움(ym, 'sun')}>일요일 빼고</button>
                     <button type="button" className="tp-x" onClick={() => 달채움(ym, 'wk')}>평일만</button>
@@ -403,7 +422,7 @@ export default function Ilyong4() {
             {[['국민연금', 요약.p, 뗌글[요약.p]], ['건강 · 요양', 요약.h, 뗌글[요약.h]], ['고용보험', 요약.e, 요약.e === 'y' ? '뗍니다' : '신고만']].map(([k, c, 말]) => (
               <div key={k} className="iy-side-r"><span>{k}</span><span className={'iy-chip ' + c}>{말}</span></div>
             ))}
-            <div className="iy-side-m">{요약.돈.이름} · {원(요약.돈.받음)}원<br />공제 <b>{원(요약.돈.공제)}</b> · 실지급 <b className="iy-net">{원(요약.돈.받음 - 요약.돈.공제)}</b></div>
+            <div className="iy-side-m">{요약.돈없음 ? <>{요약.돈.이름}<br /><span className="muted">일당을 넣으면 떼는 돈이 나옵니다</span></> : <>{요약.돈.이름} · {원(요약.돈.받음)}원<br />공제 <b>{원(요약.돈.공제)}</b> · 실지급 <b className="iy-net">{원(요약.돈.받음 - 요약.돈.공제)}</b></>}</div>
             <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={결과로}>까닭 · 할 일 자세히 ↓</button>
           </> : <div className="muted" style={{ fontSize: 12.5 }}>달력에서 일한 날을 누르면 여기에 바로 나옵니다.</div>}
         </aside>
@@ -424,7 +443,7 @@ export default function Ilyong4() {
                 <div key={i} className="iy-site">
                   <div className="iy-site-h">
                     <label>현장<input className="inp" value={x.이름 || ''} maxLength={20} placeholder={`다른 현장 ${i + 1}`} onChange={(e) => 고침((y) => ({ ...y, 이름: e.target.value }))} /></label>
-                    <label>일당<input className="inp" inputMode="numeric" value={x.일당 ? 원(x.일당) : ''} placeholder={Number(st.일당) ? `${원(st.일당)}(이 현장)` : '일당'} onChange={(e) => { const v = 숫자만(e.target.value); 고침((y) => ({ ...y, 일당: v === '' ? '' : Number(v) })) }} /></label>
+                    <label>일당<input className="inp" inputMode="numeric" value={x.일당 ? 원(x.일당) : ''} placeholder={Number(st.일당) ? `${원(st.일당)}(이 현장)` : '일당'} onChange={(e) => { const v = 금액읽기(e.target.value); 고침((y) => ({ ...y, 일당: v === '' ? '' : Number(v) })) }} /></label>
                     <span className="iy-site-n">{h.날.length}일</span>
                     <button type="button" className="tp-x" onClick={() => 바꿈((s) => ({ ...s, 현장들: (s.현장들 || []).filter((_, j) => j !== i) }))}>✕ 빼기</button>
                   </div>
@@ -469,7 +488,7 @@ export default function Ilyong4() {
               return (
                 <div key={ym} className="iy-other-r"><b>{달글(ym)}</b>
                   <label>일수<input className="inp" inputMode="numeric" value={o.일 || ''} onChange={(e) => 고침('일', 숫자만(e.target.value))} placeholder="0" /></label>
-                  <label>받은 돈<input className="inp" inputMode="numeric" value={o.돈 ? 원(o.돈) : ''} onChange={(e) => 고침('돈', 숫자만(e.target.value))} placeholder="0" /></label>
+                  <label>받은 돈<input className="inp" inputMode="numeric" value={o.돈 ? 원(o.돈) : ''} onChange={(e) => 고침('돈', 금액읽기(e.target.value))} placeholder="0" /></label>
                   <label className="iy-other-c"><input type="checkbox" checked={!!o.가입} onChange={(e) => 바꿈((s) => ({ ...s, 다른: { ...(s.다른 || {}), [ym]: { ...((s.다른 || {})[ym] || {}), 가입: e.target.checked } } }))} /> 그 현장에서 가입(8일 · 220만 이상)</label>
                   {!o.가입 && ((Number(o.일) || 0) >= 8 || (Number(o.돈) || 0) >= 2200000) && <span className="iy-other-hint">다른 현장 <b>한 곳</b>에서 8일(220만) 이상이었으면 체크 — 그 달은 합치지 않습니다</span>}
                 </div>
@@ -536,14 +555,23 @@ export default function Ilyong4() {
               </>}
 
               <div className="iy-h2">이번에 떼는 돈 <span className="muted">(2026 요율)</span></div>
+              {/* 🐞 G127 — 일당(받은 돈)이 없으면 돈 줄 대신 여기서 바로 일당을 받습니다(위로 안 올라가도 됨) */}
+              {요약 && 요약.돈없음 ? (
+                <div className="note sm iy-nowage">
+                  <div>💡 <b>일당</b>을 넣으면 달마다 떼는 돈 · 실지급이 나옵니다. 가입 판단(위 세 줄)은 일당 없이도 맞습니다.</div>
+                  <label>일당(원)<input className="inp" inputMode="numeric" value={st.일당 ? 원(st.일당) : ''} onChange={(e) => 바꿈((s) => ({ ...s, 일당: 금액읽기(e.target.value) }))} placeholder="예: 200,000" aria-label="일당" /></label>
+                </div>
+              ) : (
               <div className="iy-pays">
                 {공제.map((r) => (
                   <div key={r.ym} className="iy-payr">
+                    {r.빈 ? <div className="iy-pay1"><b>{달글(r.ym)}</b> · {r.n}일 · <span className="muted">받은 돈 0원 — 달력 아래 «받은 돈» 을 넣으면 나옵니다</span></div> : <>
                     <div className="iy-pay1"><b>{달글(r.ym)}</b> · {r.n}일 · {원(r.돈)}원 → 공제 <b>{원(r.합)}</b> · 실지급 <b className="iy-net">{원(r.돈 - r.합)}</b></div>
-                    <div className="iy-pay2">소득세 {원(r.it)} · 지방 {원(r.lt)} · 고용 {원(r.ei)} · 연금 {원(r.np)} · 건강 {원(r.hi)} · 요양 {원(r.lc)}</div>
+                    <div className="iy-pay2">소득세 {원(r.it)} · 지방 {원(r.lt)} · 고용 {원(r.ei)} · 연금 {원(r.np)} · 건강 {원(r.hi)} · 요양 {원(r.lc)}</div></>}
                   </div>
                 ))}
               </div>
+              )}
 
               {할일.length > 0 && <>
                 <div className="iy-h2">할 일</div>
@@ -681,7 +709,7 @@ export default function Ilyong4() {
           <span className={'iy-bc ' + 요약.h}>건강 {짧은뗌[요약.h]}</span>
           <span className={'iy-bc ' + 요약.e}>고용 {요약.고용말}</span>
         </span>
-        <span className="iy-bar-m">{요약.돈.이름} · 공제 <b>{원(요약.돈.공제)}</b> · 실지급 <b>{원(요약.돈.받음 - 요약.돈.공제)}</b> <span className="iy-bar-go">결과 ▾</span></span>
+        <span className="iy-bar-m">{요약.돈없음 ? <>{요약.돈.이름} · 일당을 넣으면 떼는 돈이 나옵니다</> : <>{요약.돈.이름} · 공제 <b>{원(요약.돈.공제)}</b> · 실지급 <b>{원(요약.돈.받음 - 요약.돈.공제)}</b></>} <span className="iy-bar-go">결과 ▾</span></span>
       </button>}
     </div>
   )
