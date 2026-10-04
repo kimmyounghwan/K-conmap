@@ -63,7 +63,7 @@ function 칸모양(책, s) {
 }
 
 /** 시트 한 장 그리기 */
-export function 시트판({ 책, 시, 셈, 고침 = {}, 고칠수 = false, 고른칸 = null, on칸 = null, 격자보임 = true, 머리행 = 0 }) {
+export function 시트판({ 책, 시, 셈, 고침 = {}, 고칠수 = false, 고른칸 = null, on칸 = null, 격자보임 = true, 머리행 = 0, 행배수 = 1, 열배수 = 1 }) {
   const 틀 = useMemo(() => 틀짜기(시), [시])
   const 모양기억 = useMemo(() => new Map(), [책])
   const 모양 = (s) => { if (!모양기억.has(s)) 모양기억.set(s, 칸모양(책, s)); return 모양기억.get(s) }
@@ -116,10 +116,10 @@ export function 시트판({ 책, 시, 셈, 고침 = {}, 고칠수 = false, 고�
   const 머리줄 = 머리행 ? 틀.행들.filter((h) => h.r <= 머리행) : []
   const 몸줄 = 머리행 ? 틀.행들.filter((h) => h.r > 머리행) : 틀.행들
   return (
-    <table className={'xv-표' + (격자보임 && 시.격자 ? ' 격자' : '')} style={{ width: 틀.너비 }}>
-      <colgroup>{틀.열들.map((x) => <col key={x.c} style={{ width: x.px }} />)}</colgroup>
-      {머리줄.length > 0 && <thead>{머리줄.map((h) => <tr key={h.r} style={{ height: h.px }}>{줄(h.r)}</tr>)}</thead>}
-      <tbody>{몸줄.map((h) => <tr key={h.r} style={{ height: h.px }}>{줄(h.r)}</tr>)}</tbody>
+    <table className={'xv-표' + (격자보임 && 시.격자 ? ' 격자' : '')} style={{ width: 틀.너비 * 열배수 }}>
+      <colgroup>{틀.열들.map((x) => <col key={x.c} style={{ width: x.px * 열배수 }} />)}</colgroup>
+      {머리줄.length > 0 && <thead>{머리줄.map((h) => <tr key={h.r} style={{ height: h.px * 행배수 }}>{줄(h.r)}</tr>)}</thead>}
+      <tbody>{몸줄.map((h) => <tr key={h.r} style={{ height: h.px * 행배수 }}>{줄(h.r)}</tr>)}</tbody>
     </table>
   )
 }
@@ -140,6 +140,25 @@ function 인쇄배율(시, 틀) {
   return Math.min((시.용지.배율 || 100) / 100, p.w / 틀.너비)
 }
 
+/* 🖨 G129 (2026-10-05) 쪽 채움 — 소장님 「원클릭 … 엉성해」 + 아이폰 인쇄 미리보기 42쪽(서류 24가지)
+ *   ① 아이폰 사파리는 쪽마다 머리·바닥글(날짜·주소·쪽 번호)을 붙여 쓸 수 있는 높이가 줄어듭니다.
+ *      예전엔 쪽 높이를 꽉 채워 맞춰서 맨 아래 «○○ 귀하» 가 다음 장으로 넘어갔습니다 → 높이는 86% · 폭은 96% 만 씁니다.
+ *   ② 내용이 쪽 왼쪽 70% 에만 있던 것 → 가운데에 놓고, 1.5배까지 키워 폭을 채웁니다(글자도 커짐).
+ *   ③ 원클릭 틀은 줄을 늘려 쪽 높이(700pt)를 채워 두어서 폭이 쪽의 75% 남짓 — 줄 높이를 85% 까지 줄이는 만큼 키우고(글자 ≈1.1배),
+ *      남는 폭은 칸 너비를 늘려(최대 1.6배), 남는 높이는 줄 높이를 늘려(최대 1.6배) 채웁니다.
+ *   쓰는 곳: 원클릭(쪽채움). 수량산출서는 예전 그대로(여러 쪽 표). */
+const 안전 = { w: 0.96, h: 0.86 }
+const 줄임 = 0.85      /* 줄 높이는 85% 까지 줄여 그만큼 글자를 키움(원클릭 틀은 줄을 늘려 700pt 를 채워 둠 — 여유가 있음) */
+export function 채움배율(시, 틀) {
+  const p = 가로냐(시, 틀) ? 쪽.가로 : 쪽.세로
+  const 머리h = 시.머리 ? 16 : 0
+  const w = p.w * 안전.w, h = p.h * 안전.h - 머리h
+  const z = Math.min(1.5, w / 틀.너비, h / (틀.높이 * 줄임))
+  const 행배수 = Math.max(줄임, Math.min(1.6, h / (틀.높이 * z)))
+  const 열배수 = Math.max(1, Math.min(1.6, w / (틀.너비 * z)))     /* 좁은 서류는 칸을 넓혀 쪽 폭을 채움(글자는 그대로) */
+  return { z, 행배수, 열배수 }
+}
+
 /**
  * @param 책        엑셀읽기() 결과
  * @param 시트들    보일 시트 이름들(차례대로)
@@ -147,7 +166,7 @@ function 인쇄배율(시, 틀) {
  * @param 머리행들  { 시트이름: 줄 } — 인쇄할 때 쪽마다 되풀이할 머리 줄(없으면 틀의 인쇄 제목)
  * @param 이름      인쇄할 때 브라우저 제목(= PDF 파일 이름)
  */
-export default function 엑셀화면({ 책, 시트들, 고침, set고침, 머리행들 = {}, 이름 = 'K-건설맵', 고칠수 = true, 이름표 = null }) {
+export default function 엑셀화면({ 책, 시트들, 고침, set고침, 머리행들 = {}, 이름 = 'K-건설맵', 고칠수 = true, 이름표 = null, 쪽채움 = false }) {
   const 셈 = useMemo(() => 셈판(책, 고침 || {}), [책, 고침])
   const 보일 = useMemo(() => 책.시트들.filter((s) => 시트들.includes(s.이름)).sort((a, b) => 시트들.indexOf(a.이름) - 시트들.indexOf(b.이름)), [책, 시트들])
   const [지금, set지금] = useState(0)
@@ -258,12 +277,14 @@ export default function 엑셀화면({ 책, 시트들, 고침, set고침, 머리
         <div id="xv-인쇄">
           {보일.filter((s) => 인쇄할.includes(s.이름)).map((s) => {
             const t = 틀짜기(s)
-            const z = 인쇄배율(s, t)
+            const 채 = 쪽채움 ? 채움배율(s, t) : null
+            const z = 채 ? 채.z : 인쇄배율(s, t)
             return (
-              <section key={s.이름} className={'xv-쪽' + (가로냐(s, t) ? ' 가로' : '')}>
-                <div style={{ zoom: z, width: t.너비, margin: s.용지.가운데 ? '0 auto' : 0 }}>
+              <section key={s.이름} className={'xv-쪽' + (가로냐(s, t) ? ' 가로' : '') + (채 ? ' 채움' : '')}>
+                <div style={{ zoom: z, width: t.너비 * (채 ? 채.열배수 : 1), margin: 채 || s.용지.가운데 ? '0 auto' : 0 }}>
                   {s.머리 && <div className="xv-머리">{s.머리}</div>}
-                  <시트판 책={책} 시={s} 셈={셈} 고침={고침 || {}} 격자보임={false} 머리행={머리행들[s.이름] || 0} />
+                  <시트판 책={책} 시={s} 셈={셈} 고침={고침 || {}} 격자보임={false} 머리행={머리행들[s.이름] || 0}
+                    행배수={채 ? 채.행배수 : 1} 열배수={채 ? 채.열배수 : 1} />
                 </div>
               </section>
             )

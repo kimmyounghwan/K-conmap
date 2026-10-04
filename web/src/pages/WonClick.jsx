@@ -291,7 +291,7 @@ export default function WonClick() {
           : !보일서류.length ? <div className="note sm">② 에서 서류를 하나 이상 골라 주세요.</div>
           : (
             <Suspense fallback={<div className="note sm">화면을 준비하는 중…</div>}>
-              <엑셀화면 책={책} 시트들={보일서류} 고침={고침} set고침={set고침}
+              <엑셀화면 책={책} 시트들={보일서류} 고침={고침} set고침={set고침} 쪽채움
                 이름={`공사서류_${(vals.공사명 || '원클릭').slice(0, 30)}`}
                 이름표={(n) => n.replace(/^\d+\s*/, '')} />
             </Suspense>
