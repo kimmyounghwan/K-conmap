@@ -5958,3 +5958,17 @@ button.sk-mini { color: var(--accent); padding: 0; text-align: left; }
 .iy-nowage { display: flex; flex-direction: column; gap: 8px; line-height: 1.6; }
 .iy-nowage label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; font-weight: 700; color: var(--text-2); max-width: 220px; }
 .iy-nowage .inp { text-align: right; padding: 6px 8px; font-size: 14px; }
+/* ── 📰 오늘의 건설 소식 (tools/건설소식.jsx · G128 — 2026-10-04) ── */
+.news { padding: 12px 14px 10px; }
+.news-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; justify-content: space-between; }
+.news-head b { font-size: 15px; }
+.news-src { font-size: 11.5px; }
+.news-list { list-style: none; margin: 6px 0 0; padding: 0; }
+.news-row { padding: 9px 0; border-top: 1px solid var(--line-soft); min-width: 0; }
+.news-row:first-child { border-top: 0; }
+.news-t { display: block; color: var(--text); font-size: 14px; font-weight: 600; line-height: 1.45; text-decoration: none; overflow-wrap: anywhere; }
+.news-t:hover { color: var(--accent); text-decoration: underline; }
+.news-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; margin-top: 4px; font-size: 12px; }
+.news-acts { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.news-acts .chip { padding: 4px 10px; font-size: 12px; text-decoration: none; }
+.news-more { margin-top: 4px; width: 100%; }

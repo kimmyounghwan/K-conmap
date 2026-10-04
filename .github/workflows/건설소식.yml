@@ -1,0 +1,62 @@
+# ============================================================
+#  📰 오늘의 건설 소식 — 건설 전문지 RSS → 데이터베이스 fresh/news (2026-10-04 · G128)
+#
+#  소장님: 「건설뉴스?」 → 「클로드가 다 해」
+#  사랑방 맨 위 «📰 오늘의 건설 소식»(web/src/tools/건설소식.jsx)이 이것을 읽습니다.
+#
+#  ■ 매시 한 번 · 1분 안에 끝납니다. 다른 워크플로(사이트 갱신 · 빠른 수집 · 이용자 지도)와 따로 돕니다 — 그쪽을 건드리지 않게.
+#  ■ 열쇠(API 키) 없음 — 언론사 RSS 만. 넣는 비밀값은 이미 있는 FIREBASE_SERVICE_ACCOUNT 하나뿐.
+#  ■ 끄기: 저장소 Settings → Variables 에 NEWS_OFF=1
+# ============================================================
+name: 건설 소식
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/건설소식.py'
+      - '.github/workflows/건설소식.yml'
+  schedule:
+    - cron: '23 * * * *'
+
+concurrency:
+  group: news
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  news:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    if: ${{ vars.NEWS_OFF != '1' }}
+    steps:
+      - name: 코드 받기 (필요한 파일만)
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            tools/건설소식.py
+            tools/시험_건설소식.py
+          sparse-checkout-cone-mode: false
+
+      - name: 파이썬 준비
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 파이썬 패키지 (필요한 것만)
+        run: pip install -q requests google-auth
+
+      - name: 시험 (인터넷 없이) — 틀리면 넣지 않습니다
+        env:
+          PYTHONUTF8: '1'
+        run: python tools/시험_건설소식.py
+
+      - name: 소식 받아 넣기
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PYTHONUTF8: '1'
+          PYTHONUNBUFFERED: '1'
+        run: python tools/건설소식.py
