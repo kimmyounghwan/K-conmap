@@ -143,7 +143,7 @@ const when = (ms) => {
   return `${d.getMonth() + 1}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-import { 갈래들, 갈래빛, 갈래떼기, 갈래붙이기, 공지인가 } from '../lib/말머리.js'
+import { 갈래들, 갈래빛, 갈래떼기, 갈래붙이기 } from '../lib/말머리.js'
 import { use화면상태, use남김 } from '../lib/길기록.js'
 import 이용자지도 from '../tools/이용자지도.jsx'   /* 🗺 G114 — 사랑방 맨 위 «지금 K-건설맵을 쓰는 곳» */
 import 건설소식 from '../tools/건설소식.jsx'   /* 📰 G128 — 지도 아래 «오늘의 건설 소식» · 💬 이야기하기 → 글쓰기 칸 */
@@ -361,7 +361,7 @@ export default function Qna() {
     const m = { 전체: 0 }
     갈래들.forEach((c) => { m[c] = 0 })
     ;(모두 || []).forEach((r) => { m[r.c] = (m[r.c] || 0) + 1; m.전체 += 1 })
-    m.답기다림 = (모두 || []).filter((r) => r.c === '후기·건의' && !고정[r.id] && !op답(r.id) && !(isOp(r.uid) && 공지인가(r.t))).length
+    m.답기다림 = (모두 || []).filter((r) => r.c === '후기·건의' && !고정[r.id] && !op답(r.id) && !isOp(r.uid)   /* 💬 G130 운영자 글은 공지가 아니어도 답 기다림에서 뺌(사례 · 카페 답 옮긴 글) */).length
     return m
   }, [모두, ans, 고정])   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -383,7 +383,7 @@ export default function Qna() {
     return 모두.filter((r) => {
       if (r.id === 글번호) return false            /* 💬 맨 위에 이미 펼쳐 있습니다 */
       if (기본보기 && 고정[r.id]) return false   /* 위 📌 칸에 이미 있습니다 */
-      if (갈래 === '답기다림') { if (r.c !== '후기·건의' || op답(r.id) || 고정[r.id] || (isOp(r.uid) && 공지인가(r.t))) return false }
+      if (갈래 === '답기다림') { if (r.c !== '후기·건의' || op답(r.id) || 고정[r.id] || isOp(r.uid)) return false }
       else if (갈래 !== '전체' && r.c !== 갈래) return false
       if (onlyMine && !내것.has(r.id)) return false
       if (s && !((r.t || '') + (r.b || '')).includes(s)) return false
@@ -910,8 +910,9 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
       const 고칠 = { t: 갈래붙이기(새갈래, t), b: (고침.b || '').trim().slice(0, 2000), e: serverTimestamp() }
       /* 🏷 G93 — 운영자가 말머리를 바꾸면 별명도 같이: K-건설맵 글은 «K-건설맵», 후기·건의로 내리면 그 번호의 별명 */
       /* 📢 G117 — 운영자 글 제목에 «📢 공지» 가 있으면 후기·건의에 두어도 «K-건설맵» */
-      const 공지 = 나운영자 && isOp(row.uid) && 공지인가(t)
-      if (새갈래 !== row.c || 공지) 고칠.nick = ((새갈래 === 'K-건설맵' || 공지) ? 'K-건설맵' : nickOf(row.uid)).slice(0, 20)
+      /* 💬 G130 — 운영자가 쓴 글(운영자 번호)은 말머리를 바꿔도 · 그냥 고쳐도 «K-건설맵» (후기·건의로 옮긴 옛 글도 고치면 맞춰짐) */
+      const 운영글 = 나운영자 && isOp(row.uid)
+      if (새갈래 !== row.c || 운영글) 고칠.nick = ((새갈래 === 'K-건설맵' || 운영글) ? 'K-건설맵' : nickOf(row.uid)).slice(0, 20)
       await update(ref(db, `qna/${row.id}`), 고칠)
       set고침(null); onChange()
     } catch (e) { setMsg('고치지 못했습니다 — 이 기기에서 쓴(또는 되찾은) 글만 고칠 수 있습니다.') } finally { set바쁨(false) }
@@ -1183,9 +1184,10 @@ function WriteForm({ onDone, 첫갈래, 첫글, 나운영자 }) {
      🏷 2026-10-01 (G93) — 운영자 브라우저는 «K-건설맵» 이 처음부터 골라져 있습니다.
         소장님 08:33 인사 글이 [후기·건의] · 아무개 별명으로 올라감 → 「건설맵이라는게 안 붙는다」.
         공고 카드에서 넘어온 초안(첫글)은 그 초안의 말머리 그대로. 운영자인지는 뒤늦게(비동기) 알려지므로 알게 되면 한 번 맞춥니다. */
-  const [c, setC] = useState(() => (나운영자 ? (첫글 ? 첫갈래 : 'K-건설맵') : '후기·건의'))
+  /* 💬 2026-10-05 (G130) 소장님 「앞으로는 항상 건의 후기로 올려 두번 일하지 않게. 그리고 후기 건의에 올릴때도 건설맵이 뜨게」
+     → 운영자 브라우저도 처음부터 «후기·건의» · 글쓴이는 말머리와 상관없이 «K-건설맵»(아래 submit) */
+  const [c, setC] = useState(() => (나운영자 && 첫글 ? 첫갈래 : '후기·건의'))
   const 손댐 = useRef(false)
-  useEffect(() => { if (나운영자 && !첫글 && !손댐.current) setC('K-건설맵') }, [나운영자])   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { try { sessionStorage.setItem(초안열쇠, JSON.stringify({ t: f.t, b: f.b })) } catch (e) { /* 없음 */ } }, [f.t, f.b])
   /* 🤝 공고에서 초안을 들고 왔으면 글쓰기 칸으로 내려 줍니다 — 공지가 펼쳐져 있으면 화면 아래에 묻힙니다 */
   const 칸 = useRef(null)
@@ -1216,7 +1218,7 @@ function WriteForm({ onDone, 첫갈래, 첫글, 나운영자 }) {
         /* 🏷️ 말머리는 제목 앞에 붙습니다 — 자료 칸을 늘리지 않으려고(규칙 $other:false). */
         t: 갈래붙이기(c, f.t.trim()),
         b: f.b.trim().slice(0, 2000),
-        nick: ((c === 'K-건설맵' || (나운영자 && 공지인가(f.t))) ? 'K-건설맵' : nickOf(r)).slice(0, 20),   /* 📢 G117 운영자 공지 */
+        nick: ((c === 'K-건설맵' || 나운영자) ? 'K-건설맵' : nickOf(r)).slice(0, 20),   /* 💬 G130 운영자 글은 어느 말머리든 «K-건설맵»(규칙도 운영자 번호만 허락) */
         uid: r,
         at: Date.now(),
         ...(await 몰래표()),     /* 🙈 몰래 차단 기기면 sb — 규칙이 강제합니다 */
