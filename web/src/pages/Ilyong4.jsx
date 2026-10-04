@@ -170,8 +170,8 @@ export default function Ilyong4() {
   }, [])
   const 바꿈 = (f) => setSt((s) => f(s))
   const 옵션 = st.옵션 || {}
-  const 켜진특별 = ['계약', '연금취득달', '연금제외', '고용65', '계속65'].filter((k) => 옵션[k]).length
-  const [특별열림] = useState(() => { try { const o = (JSON.parse(localStorage.getItem(열쇠) || 'null') || {}).옵션 || {}; return ['계약', '연금취득달', '연금제외', '고용65', '계속65'].some((k) => o[k]) } catch (e) { return false } })
+  const 켜진특별 = ['계약', '연금취득달', '연금제외', '고용65', '계속65', '하도급'].filter((k) => 옵션[k]).length
+  const [특별열림] = useState(() => { try { const o = (JSON.parse(localStorage.getItem(열쇠) || 'null') || {}).옵션 || {}; return ['계약', '연금취득달', '연금제외', '고용65', '계속65', '하도급'].some((k) => o[k]) } catch (e) { return false } })
   const 현장 = useMemo(() => 현장들셈(st, 옵션), [st.현장들, st.일당, 옵션.생일, 옵션.연금제외])   // eslint-disable-line react-hooks/exhaustive-deps
   const 입력 = useMemo(() => 입력만들기(st, 현장), [st, 현장])
   const R = useMemo(() => 판단({ 날: 입력.날, 달돈: 입력.달돈, 다른: 입력.다른 }, 옵션), [입력, 옵션])
@@ -478,11 +478,12 @@ export default function Ilyong4() {
           </div>
         </details>
         <details className="iy-more" open={특별열림 || undefined}>
-          <summary>특별한 경우 — 근로계약서 · 연금 취득 달 · 나이로 못 가리는 경우{켜진특별 ? ` (${켜진특별}개 켜짐)` : ''}</summary>
+          <summary>특별한 경우 — 근로계약서 · 연금 취득 달 · 하도급 현장 · 나이로 못 가리는 경우{켜진특별 ? ` (${켜진특별}개 켜짐)` : ''}</summary>
           {생글 && <div className="muted" style={{ fontSize: 12, margin: '6px 0 0' }}>생년월일을 넣었으니 만 60세(국민연금) · 만 65세(고용보험)는 저절로 가려 금액에 넣었습니다. 아래는 나이로는 알 수 없는 경우만입니다.</div>}
           <div className="iy-opts">
             {[['계약', '근로계약서가 1개월 이상 · 월 8일 이상으로 되어 있음 (건강보험은 실제 일한 날과 관계없이 가입)'],
               ['연금취득달', '국민연금 — 취득한 달 보험료도 내기 (가입자가 원할 때)'],
+              ['하도급', '하도급 현장 — 원도급(원수급인)에게서 하도급받은 공사 (고용 · 산재 신고는 하수급인관리번호로 · 보험료는 원수급인)'],
               ['연금제외', 생글 ? '국민연금 빼기 — 18세 미만 본인이 원하지 않음 · 공무원연금 같은 다른 공적연금' : '국민연금 대상 아님 — 만 60세 이상 · 18세 미만 등 (생년월일을 넣으면 60세는 저절로)'],
               /* 🎂 생년월일을 넣으면 65세는 저절로 — 이미 켜 둔 사람만 끌 수 있게 남김 */
               ...(!생글 || 옵션.고용65 ? [['고용65', 생글 ? '65세 이후 새로 고용(손으로 켜 둔 것) — 생년월일로 저절로 가리니 꺼도 됩니다' : '65세 이후 새로 고용 — 고용보험 근로자 몫(실업급여) 없음 (생년월일을 넣으면 저절로)']] : []),
