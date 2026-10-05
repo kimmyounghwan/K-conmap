@@ -1401,7 +1401,7 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자 }) {
           <input type="file" accept="image/*" onChange={사진고름} className="sr-only" />
         </label>
         {나운영자
-          ? <label className="mt-opfix"><input type="checkbox" checked={고정할} onChange={(e) => set고정할(e.target.checked)} /> 📌 도구 사용법에 고정</label>
+          ? <label className="mt-opfix" title="📌 도구 사용법에 고정"><input type="checkbox" checked={고정할} onChange={(e) => set고정할(e.target.checked)} /><span className="mt-opfix-t">📌 도구 사용법에 고정</span></label>
           : <input ref={핀칸} className="mt-pin4" inputMode="numeric" maxLength={4} value={pin} aria-label="지우고 되찾을 때 쓸 4자리 숫자"
               onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} placeholder="🔑 4자리" title="🔑 꼭 적어 두세요 — 내 글을 지우고 되찾는 열쇠입니다" />}
         <button type="button" className="mt-send" onClick={submit} disabled={busy}>

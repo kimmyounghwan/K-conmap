@@ -6286,7 +6286,8 @@ button.sk-mini { color: var(--accent); padding: 0; text-align: left; }
 .mt-chip.on { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
 .mt-chip:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .mt-pin4 { width: 100px; min-height: 44px; box-sizing: border-box; border: 1px solid var(--line); border-radius: 999px; padding: 0 12px; text-align: center; font: inherit; font-size: 14.5px; background: var(--surface); color: var(--text); }
-.mt-opfix { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; color: var(--text-2); }
+.mt-opfix { display: inline-flex; align-items: center; gap: 6px; flex: none; white-space: nowrap; font-size: 13px; color: var(--text-2); cursor: pointer; }
+.mt-opfix input { flex: none; width: 17px; height: 17px; min-height: 0; margin: 0; padding: 0; }
 .mt-send { margin-left: auto; position: relative; display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 24px; border: 0; border-radius: 999px; background: #1d4ed8; color: #fff; font: inherit; font-size: 16px; font-weight: 800; cursor: pointer; box-shadow: 0 8px 18px rgba(29,78,216,.38); }
 .mt-send:hover { background: #1e40af; }
 .mt-send:disabled { opacity: .75; cursor: progress; }
@@ -6417,6 +6418,8 @@ span.mt-act { cursor: default; }
   .mt-chip { padding: 0 11px; font-size: 13px; }
   .mt-chip-t { display: none; }
   .mt-chip::after { content: '사진'; }
+  .mt-opfix-t { display: none; }
+  .mt-opfix::after { content: '📌 고정'; }
   .mt-pin4 { width: 84px; padding: 0 8px; }
   .mt-send { padding: 0 16px; font-size: 15px; min-height: 46px; }
   .mt-plane { animation-name: mtflyup; }
