@@ -67,7 +67,7 @@ const TABS = [
   { to: '/naeyeok', ic: '📋', label: '내역서', also: ['/safety'] },
   { to: '/jeoksan', ic: '🧮', label: '적산' },
   { to: '/jobs', ic: '💼', label: '구인구직' },
-  { to: '/qna', ic: '💬', label: '사랑방' },
+  { to: '/qna', ic: '🗺', label: '맵톡' },
   /* 📊 2026-09-18 — 성적표(/report)·업체(/corp)·기관(/agency) 화면에서도 이 탭에 불이
      들어오게 합니다. 탭은 10개가 한도라(위 설명) 성적표에 새 탭을 줄 수 없습니다 —
      대신 «어디에 속한 화면인지» 만이라도 알려 줍니다. */

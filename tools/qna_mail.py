@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""💬 사랑방 알림 — 새 글·새 답글이 오면 메일 한 통. (2026-09-17)
+"""💬 맵톡 알림 — 새 글·새 답글이 오면 메일 한 통. (2026-09-17)
 
 소장님: 「글이 올라오면 내가 알 수 있는 페이지가 있으면 좋겠어」
         「메일 보고 내가 관리자 페이지에서 클로드랑 답글 달면 되지」
@@ -114,7 +114,7 @@ def send(subject, text):
         return False
     msg = MIMEText(text, "plain", "utf-8")
     msg["Subject"] = Header(subject, "utf-8")
-    msg["From"] = formataddr((str(Header("K-건설맵 사랑방", "utf-8")), USER))
+    msg["From"] = formataddr((str(Header("K-건설맵 맵톡", "utf-8")), USER))
     msg["To"] = TO
     with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as s:
         s.login(USER, PASS)
@@ -134,7 +134,7 @@ def main():
         지움 = get("qna_del", tok) or {}
         알림 = get("qna_mail", tok) or {}
     except Exception as e:
-        print("사랑방을 읽지 못했습니다: %s" % type(e).__name__)
+        print("맵톡을 읽지 못했습니다: %s" % type(e).__name__)
         return 0
 
     새것 = []          # (표시열쇠, 언제, 본문)
@@ -173,9 +173,9 @@ def main():
         제목조각.append("새 글 %d" % n글)
     if n답:
         제목조각.append("새 답글 %d" % n답)
-    subject = "[K-건설맵 사랑방] " + " · ".join(제목조각)
+    subject = "[K-건설맵 맵톡] " + " · ".join(제목조각)
 
-    본문 = ["사랑방에 새로 올라왔습니다.", ""]
+    본문 = ["맵톡에 새로 올라왔습니다.", ""]
     본문 += ["\n\n".join(t for _, _, t in 담을것)]
     if 남은 > 0:
         본문 += ["", "… 그리고 %d건 더 있습니다." % 남은]

@@ -13,7 +13,7 @@
  *   아이폰은 «홈 화면에 추가» 한 경우에만 됩니다(애플 규칙). 안 되는 기기는 🔔 로 알게 됩니다.
  */
 
-export const 알림열쇠 = 'kcm_noti'            /* '1' = 이 브라우저가 사랑방에 글 · 답글을 썼음 */
+export const 알림열쇠 = 'kcm_noti'            /* '1' = 이 브라우저가 맵톡에 글 · 답글을 썼음 */
 const 내글열쇠 = 'kcm_qna_mine'
 const 공개열쇠칸 = 'kcm_push_pub'
 /* 공개 열쇠 창구 — 웹 푸시 공개 열쇠(공개해도 되는 값)를 건넵니다. web/functions/index.js pushKey */

@@ -150,7 +150,7 @@ export default function Admin() {
             <div className="note sm" style={{ marginTop: 10 }}>브라우저 번호를 확인하지 못했습니다.</div>
           )}
           <div className="btn-row" style={{ justifyContent: 'flex-start', marginTop: 12 }}>
-            <Link className="btn line" to="/qna">💬 사랑방으로</Link>
+            <Link className="btn line" to="/qna">💬 맵톡으로</Link>
           </div>
         </div>
       </div>
@@ -205,7 +205,7 @@ export default function Admin() {
         </div>
       )}
 
-      <div className="sec-title" style={{ marginTop: 20 }}>💬 사랑방</div>
+      <div className="sec-title" style={{ marginTop: 20 }}>💬 맵톡</div>
       {list === null && <Skeleton n={4} />}
       {list && list.전체 === 0 && <Empty>아직 글이 없습니다.</Empty>}
 
@@ -223,7 +223,7 @@ export default function Admin() {
       )}
 
       <div className="note sm" style={{ marginTop: 14 }}>
-        이 화면은 검색엔진에 올리지 않습니다. 사랑방 글은 원래 누구나 읽을 수 있으니,
+        이 화면은 검색엔진에 올리지 않습니다. 맵톡 글은 원래 누구나 읽을 수 있으니,
         여기서 새는 것은 없습니다 — 다만 <b>답글에 표를 다는 것</b>은 서버가 브라우저 번호로 막습니다.
       </div>
     </div>
@@ -299,7 +299,7 @@ function 글({ r, ans, onDone, 급함 }) {
         <button className="btn primary sm" onClick={올리기} disabled={busy || !b.trim()}>
           {busy ? '올리는 중…' : '답글 올리기'}
         </button>
-        <a className="btn line sm" href={`/qna`}>사랑방에서 보기 →</a>
+        <a className="btn line sm" href={`/qna`}>맵톡에서 보기 →</a>
         {msg && <span className="muted" style={{ fontSize: 12 }}>{msg}</span>}
       </div>
     </div>

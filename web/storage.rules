@@ -20,6 +20,17 @@ service firebase.storage {
         && !file.matches('(?i).*\\.(xlsm|xlam|docm|pptm|exe|zip|js|html)$');
       allow update, delete: if false;
     }
+    // 🗺 G147 (2026-10-05) 맵톡 사진 — 글 하나에 한 장. 익명 로그인한 기기가 «제 번호 폴더» 에만 · 3MB 이하 · 그림만
+    //   (화면이 긴 변 1600px JPEG 로 줄여 올립니다 — 보통 300KB 안팎) · 한 번 올린 것은 덮어쓰기 · 지우기 불가 · 읽기는 누구나(글에 보임)
+    match /qna_pics/{uid}/{file} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.size <= 3 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)')
+        && file.matches('^[A-Za-z0-9_-]{1,40}[.](jpg|png|webp)$');
+      allow update, delete: if false;
+    }
     match /{allPaths=**} {
       allow read, write: if false;
     }

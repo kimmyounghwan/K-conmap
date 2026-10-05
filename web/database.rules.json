@@ -82,6 +82,10 @@
         "deleted": { ".validate": "newData.isBoolean()" },
         // 🙈 몰래 차단(G101) — qna_block 에 오른 기기의 글. 쓴 기기 · 운영자에게만 보임(화면이 거름)
         "sb":      { ".validate": "newData.isBoolean()" },
+        // 🗺 G147 (2026-10-05) 맵톡 — g: 핀을 꽂을 시·군(data/한국지도.json «곳» 번호, 접속 주소로 짐작 · 고치기에서만 바꿈)
+        //    p: 사진 한 장 주소(Storage qna_pics/{기기}/{글}.jpg — storage.rules) · 그 밖의 주소는 못 넣음
+        "g":       { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 12" },
+        "p":       { ".validate": "newData.isString() && newData.val().length <= 600 && newData.val().beginsWith('https://firebasestorage.googleapis.com/v0/b/k-conmap.firebasestorage.app/o/qna_pics%2F')" },
         "$other":  { ".validate": false }
       }
     },

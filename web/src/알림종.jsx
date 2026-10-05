@@ -80,7 +80,7 @@ export function 알림종() {
   if (!안본.length && !열림) return null
   return (
     <div className="noti-bell" ref={칸}>
-      <button className="notibtn" onClick={() => set열림((v) => !v)} aria-label={`새 알림 ${안본.length}개`} title="새 알림 — 사랑방 답글 · 담은 공고 1순위 · 내 조건 새 공고">
+      <button className="notibtn" onClick={() => set열림((v) => !v)} aria-label={`새 알림 ${안본.length}개`} title="새 알림 — 맵톡 답글 · 담은 공고 1순위 · 내 조건 새 공고">
         🔔{안본.length > 0 && <span className="noti-n">{안본.length > 9 ? '9+' : 안본.length}</span>}
       </button>
       {열림 && (

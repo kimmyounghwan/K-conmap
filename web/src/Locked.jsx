@@ -29,7 +29,7 @@ export default function Locked({
   backLabel = '← K-적산으로',
   title = '',          /* 잠겨 있어도 «무엇인지» 는 보여 줍니다 */
   lead = null,         /* 무엇이 나오는지 — 있으면 소개 화면이 됩니다 */
-  ask = '',            /* 사랑방에 미리 적어 둘 한 줄 */
+  ask = '',            /* 맵톡에 미리 적어 둘 한 줄 */
 }) {
   const [open, setOpen] = useState(false)
   const [word, setWord] = useState('')
@@ -77,7 +77,7 @@ export default function Locked({
           <div style={{ display: 'grid', gap: 6 }}>
             <Link className="btn line" style={{ textDecoration: 'none' }}
               to={'/qna' + (ask ? '?ask=' + encodeURIComponent(ask) : '')}>
-              💬 사랑방에 남기기 <span className="muted" style={{ fontWeight: 400 }}>— 누구나 보는 자리</span>
+              💬 맵톡에 남기기 <span className="muted" style={{ fontWeight: 400 }}>— 누구나 보는 자리</span>
             </Link>
             <Link className="btn ghost" style={{ textDecoration: 'none' }} to="/naeyeok#ask">
               📋 문의함으로 보내기 <span className="muted" style={{ fontWeight: 400 }}>— 아무에게도 안 보입니다</span>

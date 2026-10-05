@@ -17,7 +17,7 @@ import { 로봇 as 로봇글 } from './lib/인사.js'
 const 판 = '2026-10-감사'
 const 까지 = '2026-10-11'          /* 이 날까지 보임 */
 const 연휴끝 = '2026-10-05'        /* 개천절 연휴(10.3 토 · 4 일 · 5 월 대체공휴일) */
-const 글주소 = '/qna/-P2vCUv665xH_5zFrBr6'   /* 사랑방 공지 글 */
+const 글주소 = '/qna/-P2vCUv665xH_5zFrBr6'   /* 맵톡 공지 글 */
 const 열쇠 = 'kcm_notice_hide'      /* 다시 보지 않기(띠 ✕ 도 같음) — localStorage */
 const 본열쇠 = 'kcm_notice_seen'    /* 이번에 한 번 봤음 — sessionStorage(창을 닫으면 그 창 동안은 다시 안 띄움) */
 const 한국오늘 = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)
@@ -55,12 +55,12 @@ function 공지창({ 오늘, 닫기, 그만 }) {
             <li><Link to="/tools/boheomryo" onClick={닫기}>🧾 고용·산재 보험료</Link> — 개산·확정·분할 납부 기한까지</li>
           </ul>
           <p>노무비 계산기에 적은 출역을 그대로 쓰니 다시 적지 않으셔도 됩니다. 해마다 바뀌는 요율도 원문을 확인해 한 곳에서 챙기겠습니다.</p>
-          <p>쓰시다가 불편한 점이나 틀린 곳, «이런 것도 있으면 좋겠다» 싶은 것은 사랑방에 편하게 남겨 주십시오. 하나하나 읽고 고쳐 나가겠습니다.</p>
+          <p>쓰시다가 불편한 점이나 틀린 곳, «이런 것도 있으면 좋겠다» 싶은 것은 맵톡에 편하게 남겨 주십시오. 하나하나 읽고 고쳐 나가겠습니다.</p>
           <p>{연휴 ? <>이번 주말은 개천절 연휴네요. <b>푹 쉬시고, 즐거운 주말 보내십시오.</b></> : <b>늘 안전한 현장 되십시오.</b>}</p>
           <p className="noticepop-sign">— 토목 현장소장 김명환 · K-건설맵</p>
         </div>
         <div className="noticepop-f">
-          <Link className="btn line sm" to={글주소} onClick={닫기}>💬 사랑방에서 보기 · 답글</Link>
+          <Link className="btn line sm" to={글주소} onClick={닫기}>💬 맵톡에서 보기 · 답글</Link>
           <button type="button" className="btn line sm" onClick={그만}>다시 보지 않기</button>
           <button type="button" className="btn sm" onClick={닫기}>닫기</button>
         </div>

@@ -262,9 +262,9 @@ export default function AskStrip() {
           /* ── 올라갔습니다 ───────────────────────────────────── */
           <>
             <div className="q">고맙습니다 🙏</div>
-            <div className="s">사랑방에 올라갔습니다. 답이 달리면 거기에 붙습니다.</div>
+            <div className="s">맵톡에 올라갔습니다. 답이 달리면 거기에 붙습니다.</div>
             <div className="b">
-              <Link className="btn primary" to="/qna" onClick={() => setKind('')}>사랑방에서 보기 →</Link>
+              <Link className="btn primary" to="/qna" onClick={() => setKind('')}>맵톡에서 보기 →</Link>
               <button className="btn ghost" onClick={() => setKind('')}>닫기</button>
             </div>
           </>

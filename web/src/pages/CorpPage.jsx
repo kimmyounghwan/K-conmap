@@ -126,7 +126,7 @@ export default function CorpPage() {
         </p>
         <div className="btn-row">
           <a className="btn primary" href="/report-sample.pdf" target="_blank" rel="noopener">📄 성적표 견본 보기</a>
-          <Link className="btn ghost" to="/qna">💬 사랑방에 신청하기</Link>
+          <Link className="btn ghost" to="/qna">💬 맵톡에 신청하기</Link>
         </div>
       </div>
       <div className="btn-row" style={{ marginTop: 10 }}>

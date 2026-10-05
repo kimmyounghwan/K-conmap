@@ -16,11 +16,11 @@ export default function 기관견본줄({ name }) {
         {name ? <><b>{name}</b> 공고에 </> : <>한 기관 공고에 </>}
         3년 동안 몇 곳이 들어왔고 낙찰이 몇 %에서 났는지, 1·2위가 몇 %p 차이로 갈렸는지,
         사정률은 어디서 뽑혔는지, 누가 자주 들어오는지까지 A4 한 벌로 묶은 종이입니다.
-        견본을 먼저 보시고, 받아 보고 싶으시면 사랑방에 <b>기관 이름</b>만 한 줄 남겨 주세요.
+        견본을 먼저 보시고, 받아 보고 싶으시면 맵톡에 <b>기관 이름</b>만 한 줄 남겨 주세요.
       </div>
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
         <a className="btn primary" href="/agency-sample.pdf" target="_blank" rel="noopener">📄 견본 PDF 열기</a>
-        <Link className="btn line" to="/qna">💬 사랑방에 신청하기</Link>
+        <Link className="btn line" to="/qna">💬 맵톡에 신청하기</Link>
       </div>
     </div>
   )

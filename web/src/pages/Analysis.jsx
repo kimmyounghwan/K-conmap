@@ -225,11 +225,11 @@ function 견본줄() {
       <div className="muted" style={{ fontSize: 13, lineHeight: 1.65, marginBottom: 10 }}>
         우리 회사가 3년 동안 어디에·얼마에·몇 번 넣었는지, 투찰률 버릇과 순위,
         아깝게 놓친 건까지 한 벌로 묶은 종이입니다. 아래 견본을 먼저 보시고,
-        받아 보고 싶으시면 사랑방에 상호만 한 줄 남겨 주세요.
+        받아 보고 싶으시면 맵톡에 상호만 한 줄 남겨 주세요.
       </div>
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
         <a className="btn primary" href="/report-sample.pdf" target="_blank" rel="noopener">📄 견본 PDF 열기</a>
-        <Link className="btn line" to="/qna">💬 사랑방에 신청하기</Link>
+        <Link className="btn line" to="/qna">💬 맵톡에 신청하기</Link>
       </div>
     </div>
   )
@@ -254,7 +254,7 @@ function 운영자줄() {
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
         <Link className="btn primary" to="/report/make">📊 업체 성적표 만들기</Link>
         <Link className="btn primary" to="/report/agency">🏛 발주기관 보고서 만들기</Link>
-        <Link className="btn line" to="/qna">💬 사랑방(신청 받는 곳)</Link>
+        <Link className="btn line" to="/qna">💬 맵톡(신청 받는 곳)</Link>
       </div>
     </div>
   )

@@ -122,7 +122,7 @@ export default function ToolsIndex() {
       </div>
 
       {q && !찾은수 && (
-        <div className="card"><div className="note">「{q}」 에 맞는 도구가 없습니다. 다른 말로 찾아 보시거나, 사랑방에 «이런 도구가 있으면» 한 줄 남겨 주십시오.</div></div>
+        <div className="card"><div className="note">「{q}」 에 맞는 도구가 없습니다. 다른 말로 찾아 보시거나, 맵톡에 «이런 도구가 있으면» 한 줄 남겨 주십시오.</div></div>
       )}
 
       {찾은.map((g) => (
@@ -162,7 +162,7 @@ export default function ToolsIndex() {
         <div className="note sm">
           ⚠️ 표준품셈·물가정보 단가·노임단가는 유료 자료라 싣지 않습니다.
           계산기는 <b>수량과 금액 구조만</b> 내고, 단가는 직접 넣으시면 됩니다.
-          <br />«이런 도구가 있으면 좋겠다» 는 <Link to="/qna">사랑방</Link>에 한 줄 남겨 주십시오.
+          <br />«이런 도구가 있으면 좋겠다» 는 <Link to="/qna">맵톡</Link>에 한 줄 남겨 주십시오.
         </div>
       </div>
     </div>

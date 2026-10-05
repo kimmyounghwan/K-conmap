@@ -165,7 +165,7 @@ SITENAV = [("/", "바로투찰"), ("/first", "1순위 개찰"), ("/live", "입�
            ("/cad", "캐드 유틸"), ("/pdf", "PDF 도구"), ("/jeoksan", "K-적산"),
            ("/shareone", "쉐어원 공유폴더"),
            ("/safety", "안전관리계획서 · 유해위험방지계획서"),
-           ("/naeyeok", "내역서 — 산출내역서 · 하도급 · 설계변경"), ("/tools/dxf3d", "도면 3D 보기"), ("/tools/dxfpdf", "도면 PDF 만들기"), ("/tools/dwgdxf", "DWG → DXF 바꾸기"), ("/jeoksan/golgo", "골조 수량산출"), ("/jeoksan/magam", "마감 수량산출"), ("/jeoksan/auto", "도면 물량 자동"), ("/tools/tuipbi", "현장 투입비 · 공사일보"), ("/tools/risk", "위험성평가"), ("/tools/equip", "장비 임대료·수금 장부"), ("/tools/photo", "사진대지 · 영수증 정리"), ("/qna", "사랑방"),
+           ("/naeyeok", "내역서 — 산출내역서 · 하도급 · 설계변경"), ("/tools/dxf3d", "도면 3D 보기"), ("/tools/dxfpdf", "도면 PDF 만들기"), ("/tools/dwgdxf", "DWG → DXF 바꾸기"), ("/jeoksan/golgo", "골조 수량산출"), ("/jeoksan/magam", "마감 수량산출"), ("/jeoksan/auto", "도면 물량 자동"), ("/tools/tuipbi", "현장 투입비 · 공사일보"), ("/tools/risk", "위험성평가"), ("/tools/equip", "장비 임대료·수금 장부"), ("/tools/photo", "사진대지 · 영수증 정리"), ("/qna", "맵톡"),
            ("/how", "보는 방법")]
 
 
@@ -659,7 +659,7 @@ def corp_more_html(c, pool=0):
                '<p class="cp" style="margin:0 0 8px">이 페이지는 <b>낙찰(1순위) 기록</b> 중심입니다. '
                '넣었다가 떨어진 것 · 하한 아래로 떨어진 것 · 아깝게 놓친 것까지 본 <b>A4 성적표</b>는 무료로 신청받습니다.</p>'
                '<div class="btn-row"><a class="btn primary" href="/report-sample.pdf" target="_blank" rel="noopener">'
-               '📄 성적표 견본 보기</a><a class="btn ghost" href="/qna">💬 사랑방에 신청하기</a></div></div>')
+               '📄 성적표 견본 보기</a><a class="btn ghost" href="/qna">💬 맵톡에 신청하기</a></div></div>')
     out.append('<div class="note sm" style="margin-top:10px">조달청 나라장터가 공개한 개찰 결과를 K-건설맵이 정리한 것입니다. '
                '잘못된 내용이 있거나 페이지를 내려 달라는 요청은 <a href="/contact.html">문의</a>로 알려 주시면 '
                '확인한 뒤 고치거나 내립니다.</div>')
@@ -2119,7 +2119,7 @@ def change_twoline(shell, image=None):
            '<div class="btn-row" style="margin-top:10px">'
            '<a class="btn ghost" href="/change">← 설계변경</a>'
            '<a class="btn ghost" href="/change/excel">📊 설계변경 통합 엑셀</a>'
-           '<a class="btn ghost" href="/qna">💬 사랑방</a></div></div>']
+           '<a class="btn ghost" href="/qna">💬 맵톡</a></div></div>']
     ld = ld_graph(ld_crumbs(("K-건설맵", None), ("설계변경", "/change"),
                             ("2줄 자동변환", "/change/twoline")))
     return page(shell, "/change/twoline", title, desc,
@@ -2154,7 +2154,7 @@ def change_work(shell, image=None):
            '<div class="btn-row" style="margin-top:10px">'
            '<a class="btn ghost" href="/change">← 설계변경</a>'
            '<a class="btn ghost" href="/change/twoline">🔁 2줄 자동변환</a>'
-           '<a class="btn ghost" href="/qna">💬 사랑방</a></div></div>']
+           '<a class="btn ghost" href="/qna">💬 맵톡</a></div></div>']
     ld = ld_graph(ld_crumbs(("K-건설맵", None), ("설계변경", "/change"),
                             ("설계변경 작업대", "/change/work")))
     return page(shell, "/change/work", title, desc,
@@ -2185,7 +2185,7 @@ def change_won(shell, image=None):
            '<div class="btn-row" style="margin-top:10px">'
            '<a class="btn ghost" href="/change">← 설계변경</a>'
            '<a class="btn ghost" href="/change/work">🧰 설계변경 작업대</a>'
-           '<a class="btn ghost" href="/qna">💬 사랑방</a></div></div>']
+           '<a class="btn ghost" href="/qna">💬 맵톡</a></div></div>']
     ld = ld_graph(ld_crumbs(("K-건설맵", None), ("설계변경", "/change"),
                             ("원 내역서로 설계변경", "/change/won")))
     return page(shell, "/change/won", title, desc,
@@ -2207,7 +2207,7 @@ def _qna_text(t):
 
 def qna_page(shell, p, ps):
     t, n = p["t"], len(p["ans"])
-    head = "💬 사랑방 · " + esc(p["c"]) + (f" · {esc(p['옛'])}" if p["옛"] else "") + (" · 📌 도구 사용법" if p["pin"] else "")
+    head = "💬 맵톡 · " + esc(p["c"]) + (f" · {esc(p['옛'])}" if p["옛"] else "") + (" · 📌 도구 사용법" if p["pin"] else "")
     meta = esc(p["nick"]) + " · " + esc(qnapages.ymd(p["at"], ".")) + (" · 고침" if p["e"] else "")
     body = ['<div class="card">'
             f'<div style="font-size:12.5px;color:var(--muted)">{head}</div>'
@@ -2229,12 +2229,12 @@ def qna_page(shell, p, ps):
         body.append("</div>")
     body.append('<div class="card"><p style="font-size:13.5px;line-height:1.75;margin:0">'
                 '답글은 누구나 달 수 있습니다 — 가입도 이름도 없습니다. '
-                '<a href="/qna">💬 사랑방</a>에서 이 글에 답글을 달거나 새 글을 쓰실 수 있습니다.</p></div>')
+                '<a href="/qna">💬 맵톡</a>에서 이 글에 답글을 달거나 새 글을 쓰실 수 있습니다.</p></div>')
     # 다른 글 — 크롤러가 옆 글로 건너가는 길(같은 갈래 먼저, 최근 순 8편)
     near = [x for x in ps if x["id"] != p["id"] and x["c"] == p["c"]][:6]
     near += [x for x in ps if x["id"] != p["id"] and x not in near][:8 - len(near)]
     if near:
-        body.append('<div class="card"><div class="sec-title">사랑방 다른 글</div>'
+        body.append('<div class="card"><div class="sec-title">맵톡 다른 글</div>'
                     + "".join(f'<a class="row rowlink" href="/qna/{x["id"]}"><div class="grow">'
                               f'<div class="t">{esc(x["t"])}</div></div>'
                               f'<span class="r">{esc(qnapages.ymd(x["at"], "."))}</span><span class="go">→</span></a>'
@@ -2242,9 +2242,9 @@ def qna_page(shell, p, ps):
     one = " ".join(p["b"].split()) if p["b"] else ""
     if not one and p["ans"]:
         one = "답글: " + " ".join(p["ans"][0]["b"].split())
-    desc = (one[:140] + ("…" if len(one) > 140 else "")) if one else f"K-건설맵 사랑방 글 «{t[:60]}»"
+    desc = (one[:140] + ("…" if len(one) > 140 else "")) if one else f"K-건설맵 맵톡 글 «{t[:60]}»"
     title = re.sub(r"^[^0-9A-Za-z가-힣(«\[]+", "", t).strip() or t
-    title = (title[:60] + ("…" if len(title) > 60 else "")) + " — 사랑방 | K-건설맵"
+    title = (title[:60] + ("…" if len(title) > 60 else "")) + " — 맵톡 | K-건설맵"
     post = {"@type": "DiscussionForumPosting", "headline": t[:110], "url": SITE + f"/qna/{p['id']}",
             "text": p["b"] or t, "datePublished": qnapages.iso(p["at"]),
             "author": {"@type": "Organization" if p["nick"] == "K-건설맵" else "Person", "name": p["nick"]},
@@ -2255,7 +2255,7 @@ def qna_page(shell, p, ps):
         post["comment"] = [{"@type": "Comment", "text": a["b"], "datePublished": qnapages.iso(a["at"]),
                             "author": {"@type": "Organization" if a["op"] else "Person", "name": a["nick"]}}
                            for a in p["ans"]]
-    ld = ld_graph(ld_crumbs(("K-건설맵", None), ("사랑방", "/qna"), (t[:60], f"/qna/{p['id']}")), post)
+    ld = ld_graph(ld_crumbs(("K-건설맵", None), ("맵톡", "/qna"), (t[:60], f"/qna/{p['id']}")), post)
     h = page(shell, f"/qna/{p['id']}", title, desc, "".join(body), None, ld)
     # 화면(Qna.jsx)이 데이터베이스를 못 읽어도 이 글을 그대로 그리게 — 구운 글 그대로(가린 것 그대로)
     data = json.dumps({"id": p["id"], "c": p["c"], "t": t, "옛": p["옛"], "b": p["b"], "nick": p["nick"],
@@ -3054,7 +3054,7 @@ def photo_page(shell, image=None):
            '<li><b>영수증</b> — 사진 · 스캔 PDF 를 올리면 저절로 나눔 → 틀리면 «칸 고치기» → 일자 · 사용처 · 금액을 적으면 과목 추천 → 지출결의서 · 명세서 · 증빙을 한 파일로</li></ol>'
            '<p class="cp" style="margin:8px 0 0">«▶ 예시로 해 보기» 를 누르면 예시 사진 8장 · 예시 영수증 스캔으로 처음부터 끝까지 돌려 볼 수 있습니다.</p>'
            '<div class="btn-row" style="margin-top:10px"><a class="btn ghost" href="/pdf">📄 PDF 도구</a>'
-           '<a class="btn ghost" href="/tools/wonclick">⚡ 공사서류 원클릭</a><a class="btn ghost" href="/qna">💬 사랑방</a></div></div>']
+           '<a class="btn ghost" href="/tools/wonclick">⚡ 공사서류 원클릭</a><a class="btn ghost" href="/qna">💬 맵톡</a></div></div>']
     return page(shell, "/tools/photo", title, desc, "".join(out) + nav_html("/tools/photo"), image,
                 _app_ld("사진대지 · 영수증 정리", desc, "/tools/photo"))
 
@@ -3293,10 +3293,10 @@ TABS = [
      "유해위험방지계획서는 착공 전날까지 안전보건공단에 2부(별표 10 첨부서류)까지 적어 두었습니다.",
      ("안전관리계획서 · 유해위험방지계획서", "대상과 준비 서류", "대상 판정 무료",
       "착공 전에 내야 하는 법정 계획서 — 대상 기준과 준비 서류부터 보십시오")),
-    ("/qna", "사랑방 — 건설 입찰·내역서·설계변경 묻고 답하기 | K-건설맵",
-     "공공 입찰·산출내역서·설계변경 — 궁금한 것도, 겪은 것도, 건설맵에 하고 싶은 말도 아무거나 쓰는 게시판입니다. 회원가입 없이 바로 쓰고, 물으신 것은 하루 안에 답을 달아 드립니다.",
-     ("사랑방", "입찰·내역서·설계변경", "가입 없음",
-      "들러서 아무 말이나 하고 가세요")),
+    ("/qna", "맵톡 — 건설인 이야기 지도 · 입찰·내역서·설계변경 묻고 답하기 | K-건설맵",
+     "질문, 현장 이야기, 건의 — 어떤 것이든 쓰면 내 시·군에 핀이 꽂히는 건설인 이야기 지도입니다. 회원가입 없이 바로 쓰고, 같은 이야기가 10개 모이면 방이 저절로 생깁니다. 물으신 것은 하루 안에 답을 달아 드립니다.",
+     ("맵톡", "건설인 이야기 지도", "가입 없음",
+      "질문 · 현장 · 건의 — 쓰면 내 시·군에 핀이 꽂힙니다")),
     ("/jobs", "건설 구인구직 — 곧 착공하는 현장 · 인력·장비 | K-건설맵",
      "최근 낙찰된 공사(=곧 착공하는 현장)를 지역·공종으로 골라 보고, 조달청이 공개하는 낙찰업체 연락처를 함께 봅니다. 구인·구직 글은 로그인 없이 올리고, 고용24(워크넷) 건설 채용정보도 같은 화면에서 봅니다.",
      ("건설 구인구직", "현장 인력·장비", "무료",
@@ -3646,7 +3646,7 @@ def main():
         write(f"qna/{p['id']}.html", qna_page(shell, p, qna_ps))
         made += 1
     if qna_ps:
-        print(f"  · 사랑방 글 페이지 {len(qna_ps):,}개 (/qna/…) · 📌 {sum(1 for p in qna_ps if p['pin'])} · 답글 {sum(len(p['ans']) for p in qna_ps):,}")
+        print(f"  · 맵톡 글 페이지 {len(qna_ps):,}개 (/qna/…) · 📌 {sum(1 for p in qna_ps if p['pin'])} · 답글 {sum(len(p['ans']) for p in qna_ps):,}")
 
     # 새로 생긴 주소만 다음 회차에 알립니다 (같은 주소를 하루에도 몇 번씩 찌르면 스팸입니다).
     try:
@@ -3681,7 +3681,7 @@ def main():
                                            "처음알리는정적": len(st_new),
                                            "내역서": len(ny_new),
                                            "내역서남은것": ny_left,
-                                           "사랑방": len(qn_new),
+                                           "맵톡": len(qn_new),
                                            "예": paths[:5]})
     except Exception as e:
         print(f"  · IndexNow 목록 만들기 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
@@ -3780,7 +3780,7 @@ def main():
             "적산은 도면을 넣으면 철근·토공부터 골조까지 물량이 저절로 나오도록 실제 도면으로 맞춰 가며 만들었습니다. "
             "시간과 품이 적잖이 들어간 것들입니다.",
             "이미 만들어 둔 것은 값을 받지 않습니다 — 한 분이 더 쓴다고 새로 드는 것이 없기 "
-            "때문입니다. 바로투찰·1순위·공고·서식·설계변경 엑셀·사랑방 모두 그렇습니다.",
+            "때문입니다. 바로투찰·1순위·공고·서식·설계변경 엑셀·맵톡 모두 그렇습니다.",
             "사람 손이 새로 들어가는 것은 다릅니다 — 내역서·견적서 작성(지금은 받지 않습니다)과 도구 사용은 "
             "건건이 앉아서 품이 들어가는 일이라 추후 일정 금액을 받을 예정입니다.",
             "처음이시면 넷부터 보십시오. ① 투찰금액 정하기(바로투찰) "
@@ -3792,7 +3792,7 @@ def main():
             "업체가 링크로 납품을 스스로 올립니다. 공사서류 원클릭은 한 번 입력으로 착공·준공 서류 34가지를 채웁니다.",
             "같은 계산인데 다른 곳은 돈을 받고, 여기는 받지 않습니다. 바라는 것은 하나입니다 "
             "— 건설맵을 풍성하게 할 말 한마디. 여러분과 같이 만들어 가고 싶습니다. "
-            "쓰시다가 아쉬운 데가 보이면 사랑방에 한 줄 남겨 주십시오. 그 한 줄이 다음 판을 만듭니다.",
+            "쓰시다가 아쉬운 데가 보이면 맵톡에 한 줄 남겨 주십시오. 그 한 줄이 다음 판을 만듭니다.",
         ]),
         "/naeyeok": lead_card("내역서 — 낙찰 뒤 산출내역서부터 하도급 · 설계변경까지", [
             "하시는 일을 고르시면 쓸 도구와 서식이 차례대로 나옵니다. "
@@ -3953,11 +3953,11 @@ def main():
             "투찰 버릇 · 그 기관 그 금액대에서 실제로 어느 자리가 낙찰선이었는지 · 놓친 자리 · "
             "금액대별 성적 · 기관별 낙찰선 · 그때 바로투찰 금액이었다면 몇 위였을지.",
             "값은 받지 않습니다. 다만 한 번에 여러 곳을 만들지는 못해, 건설맵에 한 줄이라도 "
-            "보태 주신 분부터 만들어 드립니다. 신청은 사랑방에 「성적표 신청」과 업체명을 "
+            "보태 주신 분부터 만들어 드립니다. 신청은 맵톡에 「성적표 신청」과 업체명을 "
             "한 줄 남기시면 됩니다.",
             "성적표는 지나간 기록을 정리한 것입니다 — 다음 입찰을 맞히는 것이 아닙니다.",
         ]),
-        "/qna": lead_card("사랑방", [
+        "/qna": lead_card("맵톡", [
             "들러 오셔서 아무 말이나 하고 가시면 됩니다 — 현장 일도, 건설맵에 하고 싶은 말도. "
             "가입도 이름도 없습니다. 글 쓸 때 정한 4자리 숫자로 내 글만 지울 수 있습니다.",
             "물어보시는 글이라면 공사 규모·발주처·지금 어디까지를 같이 적어 주십시오 — 답이 정확해집니다. "
@@ -3980,7 +3980,7 @@ def main():
         tab_body["/qna"] = tab_body.get("/qna", "") + qna_list_html(qna_ps)
     _tabname = {"/first": "1순위 개찰", "/live": "입찰 공고",
                 "/analysis": "낙찰 분석", "/jobs": "구인구직",
-                "/naeyeok": "내역서", "/qna": "사랑방",
+                "/naeyeok": "내역서", "/qna": "맵톡",
                 "/how": "보는 방법", "/report": "업체 입찰 성적표",
                 "/jeoksan": "K-적산",
                 "/jeoksan/run": "수량산출서 만들기",
