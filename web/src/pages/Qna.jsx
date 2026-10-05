@@ -149,7 +149,7 @@ import { use화면상태, use남김 } from '../lib/길기록.js'
 import 건설소식 from '../tools/건설소식.jsx'   /* 📰 G128 — 지도 아래 «오늘의 건설 소식» · 💬 이야기하기 → 글쓰기 칸 */
 /* 🗺 G147 (2026-10-05) 사랑방 → 맵톡 — 큰 지도 위 글쓰기 · 글 = 핀(시·군) · 방은 저절로(같은 주제 10개) · 사진 한 장 */
 import 맵톡지도 from '../tools/맵톡지도.jsx'
-import { 주제들, 주제짐작, 방나누기, 글나누기, 자리짐작, 짧은이름, 곳찾기, 카드크기, 물음인가, 사진줄이기, 사진크기한도, 방기준, 답나무, 첫줄, 누적셈 } from '../lib/맵톡.js'
+import { 주제들, 주제짐작, 방나누기, 글나누기, 자리짐작, 짧은이름, 곳찾기, 카드크기, 물음인가, 사진줄이기, 사진크기한도, 방기준, 답나무, 첫줄, 누적셈, 시도차례, 시도별, 곳기억읽기, 곳기억하기 } from '../lib/맵톡.js'
 import { 세기 } from '../lib/받은수.jsx'
 
 /* 🕰 G148 (2026-10-05) 소장님 「글을쓴 날짜 시간도 보이게 해주고」 — 카드 «10.05 22:47» · 글 창 «2026.10.05(월) 22:47 · 5분 전» · 답글 «10.05(월) 13:15».
@@ -1296,7 +1296,9 @@ function AnswerForm({ qid, onDone, to = null, 받는이 = '', 인용 = '', 열�
            「📍 전남에 꽂혀요 · 바꾸기 — 그럼 이것도 필요 없어지잖아 … 자동으로 꽂히니까」 「사진만」
    ■ 한 칸에 씁니다 → 첫 줄(첫 문장)이 제목, 나머지가 본문(lib/맵톡.js 글나누기). 말머리는 예전처럼 «[후기·건의]» 를 제목 앞에
      붙여 둡니다(메일 · 글 페이지 · 옛 화면이 그대로 읽게) — 주제와 방은 글 내용으로 짐작합니다.
-   ■ 자리(g): 올리는 순간 접속 주소로 시·군을 짐작(4초 안 · 못 하면 자리 없이 올림). 고르는 칸 없음.
+   ■ 자리(g): 📍 G150 (2026-10-05) 소장님 「지역을 선택하게 해야 할 것 같아. 내가 해보니까 서울로 가」 → 고르심 «바꾸기 줄 + 기억»
+     칸 아래 «📍 서울에 꽂혀요(짐작) · 바꾸기» — 처음엔 접속 주소로 짐작(칸이 열릴 때 · 4초 안), 누르면 시·도 → 시·군.
+     한 번 고르면 이 기기는 다음부터 그곳(lib/맵톡.js 곳기억 · localStorage) — 짐작 안 함. 짐작도 못 하고 안 고르면 핀 없이.
    ■ 사진(p): 한 장 · 긴 변 1600px JPEG 로 줄여 Storage qna_pics/{기기 번호}/{글번호}.jpg 에 올리고 주소만 글에.
      사진이 실패해도 글은 올라갑니다(«사진은 못 올렸습니다» 한 줄).
    ■ 4자리(지우고 되찾는 열쇠)는 예전 그대로 — 운영자 브라우저는 없이.
@@ -1318,6 +1320,30 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자 }) {
   const [고정할, set고정할] = useState(false)
   const 칸 = useRef(null)
   const 핀칸 = useRef(null)
+  /* 📍 G150 지역 — { 곳, 어떻게: '찾는중' | '짐작' | '고름' | '모름' } · 고르기: null | '시도' | 시·도 이름 */
+  const [바탕, set바탕] = useState(null)
+  const [자리, set자리] = useState({ 곳: null, 어떻게: '찾는중' })
+  const [고르기, set고르기] = useState(null)
+  const 짐작중 = useRef(null)
+  useEffect(() => {
+    let 살 = true
+    짐작중.current = import('../data/한국지도.json').then(async (m) => {
+      const b = m.default || m
+      if (살) set바탕(b)
+      const 기억 = 곳기억읽기(b)
+      if (기억) { if (살) set자리((v) => (v.어떻게 === '고름' ? v : { 곳: 기억, 어떻게: '고름' })); return 기억 }
+      const 곳 = await 자리짐작(b)
+      if (살) set자리((v) => (v.어떻게 === '고름' ? v : { 곳, 어떻게: 곳 ? '짐작' : '모름' }))
+      return 곳
+    }).catch(() => { if (살) set자리((v) => (v.어떻게 === '고름' ? v : { 곳: null, 어떻게: '모름' })); return null })
+    return () => { 살 = false }
+  }, [])
+  const 곳고름 = (p) => {
+    set자리({ 곳: p, 어떻게: '고름' }); set고르기(null)
+    곳기억하기(p.k)
+    세기('|맵톡|지역고름')
+  }
+  const 시도들 = useMemo(() => (바탕 ? 시도별(바탕) : {}), [바탕])
   useEffect(() => { try { sessionStorage.setItem(초안열쇠, JSON.stringify({ 글 })) } catch (e) { /* 없음 */ } }, [글])
   /* 🤝 공고 · 건설 소식에서 초안을 들고 왔으면 칸에 바로 — 고쳐 쓰시게(바로 올리지 않음) */
   useEffect(() => { if (첫글 && 칸.current) { try { 칸.current.focus({ preventScroll: true }) } catch (e) { /* 옛 브라우저 */ } } }, [])   // eslint-disable-line react-hooks/exhaustive-deps
@@ -1342,8 +1368,9 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자 }) {
     /* 🔔 누른 그 순간 브라우저 기본 «알림 허용» 창 — 답글이 달리면 폰 알림창에(G73) · 소장님 브라우저는 묻지 않음 */
     const 허락 = 나운영자 ? Promise.resolve('skip') : 허락묻기()
     setBusy(true); setMsg(''); set날기(true)
-    /* 📍 자리 — 글을 올리는 동안 같이 짐작합니다(4초 안) */
-    const 자리약속 = import('../data/한국지도.json').then((m) => 자리짐작(m.default || m)).catch(() => null)
+    /* 📍 자리 — 칸에 보이는 그곳(고른 곳 · 짐작). 아직 찾는 중이면 그 짐작을 기다립니다(4초 안) */
+    const 자리약속 = 자리.어떻게 === '찾는중' && 짐작중.current ? 짐작중.current.catch(() => null) : Promise.resolve(자리.곳)
+    set고르기(null)
     try {
       const { ref, set, push, db, ensureAnon, serverTimestamp } = await loadFb()
       const u = await ensureAnon()
@@ -1394,6 +1421,44 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자 }) {
       {사진 && (
         <div className="mt-att"><img src={사진.미리} alt="" />사진 1장<button type="button" onClick={() => set사진(null)}>빼기</button></div>
       )}
+      {/* 📍 G150 어디에 꽂히는지 · 바꾸기 */}
+      <div className="mt-place">
+        {자리.어떻게 === '찾는중'
+          ? <span className="muted">📍 지역 찾는 중…</span>
+          : 자리.곳
+            ? <span>📍 <b>{짧은이름(자리.곳.n)}</b>에 꽂혀요{자리.어떻게 === '짐작' && <em> (짐작)</em>}</span>
+            : <span className="muted">📍 지역을 골라 주세요</span>}
+        <button type="button" className={'mt-place-b' + (고르기 ? ' on' : '')} onClick={() => set고르기((v) => (v ? null : '시도'))} aria-expanded={!!고르기}>
+          {자리.곳 ? '바꾸기' : '고르기'}
+        </button>
+      </div>
+      {고르기 && (
+        <div className="mt-pick" role="group" aria-label="지역 고르기">
+          {고르기 === '시도' ? (
+            <>
+              <div className="mt-pick-h">시·도를 고르세요</div>
+              <div className="mt-pick-g">
+                {시도차례.filter((d) => (시도들[d] || []).length).map((d) => (
+                  <button type="button" key={d} className={'mt-pick-c' + (자리.곳 && 자리.곳.d === d ? ' on' : '')}
+                    onClick={() => (시도들[d].length === 1 ? 곳고름(시도들[d][0]) : set고르기(d))}>{d}</button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mt-pick-h">
+                <button type="button" className="mt-pick-back" onClick={() => set고르기('시도')}>‹ 시·도</button>
+                <b>{고르기}</b> — 시·군을 고르세요
+              </div>
+              <div className="mt-pick-g">
+                {(시도들[고르기] || []).map((p) => (
+                  <button type="button" key={p.k} className={'mt-pick-c' + (자리.곳 && 자리.곳.k === p.k ? ' on' : '')} onClick={() => 곳고름(p)}>{p.n}</button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
       <div className="mt-crow">
         <label className={'mt-chip' + (사진 ? ' on' : '')}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
@@ -1412,7 +1477,7 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자 }) {
       </div>
       <p className="mt-hint" role="status">{msg || (나운영자
         ? '🛠 운영자 — 숫자 없이 올립니다 · 글쓴이는 «K-건설맵»'
-        : '질문 · 현장 · 건의 · 사는 이야기 무엇이든 · 지역은 저절로 꽂힙니다 · 🔑 4자리는 내 글을 지우고 되찾는 열쇠')}</p>
+        : '질문 · 현장 · 건의 · 사는 이야기 무엇이든 · 🔑 4자리는 내 글을 지우고 되찾는 열쇠')}</p>
     </div>
   )
 }

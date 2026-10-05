@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs'
 import {
   주제짐작, 방나누기, 글나누기, 경위도자리, 가까운곳, 자리고르기, 자리짐작, 곳찾기, 짧은이름, 카드크기, 물음인가, 줄인크기, 맵톡시작, 주제들, 주제차례,
-  답나무, 첫줄, 누적셈,
+  답나무, 첫줄, 누적셈, 시도차례, 시도별, 곳기억읽기, 곳기억하기,
 } from '../web/src/lib/맵톡.js'
 
 const 바탕 = JSON.parse(readFileSync(new URL('../web/src/data/한국지도.json', import.meta.url), 'utf8'))
@@ -133,6 +133,25 @@ console.log('⑧ 지금까지 누적')
   const 답좋 = { q1: { a: { u3: true } }, q3: { d: { u1: true } } }
   eq(누적셈(글, 답, 좋, 답좋), { 글: 2, 답글: 2, 공감: 3, 사진: 1 }, '보이는 글만 · 지운 답 빼고 · 글 👍 + 답 👍')
   eq(누적셈(null, null, null, null), { 글: 0, 답글: 0, 공감: 0, 사진: 0 }, 'null')
+}
+
+console.log('⑨ 지역 고르기 — 시·도별 · 기억')
+{
+  const m = 시도별(바탕)
+  eq(시도차례.length, 17, '시·도 17')
+  eq(시도차례.every((d) => (m[d] || []).length > 0), true, '시·도마다 곳이 있음')
+  eq(Object.keys(m).sort(), [...시도차례].sort(), '자료의 시·도 = 차례표')
+  eq(시도차례.reduce((n, d) => n + m[d].length, 0), 바탕.곳.length, '161곳 다 들어감')
+  eq([m['전남'].some((p) => p.n === '광양시'), m['서울'].length, m['경기'].length], [true, 1, 31], '전남에 광양시 · 서울 하나 · 경기 31')
+  const 가짜 = { v: {}, getItem(k) { return this.v[k] ?? null }, setItem(k, x) { this.v[k] = x }, removeItem(k) { delete this.v[k] } }
+  eq(곳기억읽기(바탕, 가짜), null, '처음엔 기억 없음')
+  const 광양 = m['전남'].find((p) => p.n === '광양시')
+  eq(곳기억하기(광양.k, 가짜), true, '기억하기')
+  eq(곳기억읽기(바탕, 가짜).n, '광양시', '다음부터 광양시')
+  가짜.v['kcm.mt.곳'] = 'zz'
+  eq(곳기억읽기(바탕, 가짜), null, '없는 번호면 null')
+  eq(곳기억읽기(바탕, { getItem() { throw new Error('막힘') } }), null, '저장소 막힘이면 null')
+  eq(곳기억하기('11', { setItem() { throw new Error('막힘') } }), false, '저장 막힘이면 false')
 }
 
 console.log(`\n통과 ${통과} · 실패 ${실패}`)

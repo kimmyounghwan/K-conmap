@@ -6437,6 +6437,23 @@ span.mt-act { cursor: default; }
   .mt-grab { display: block; width: 44px; height: 5px; border-radius: 9px; background: var(--line); margin: 0 auto 6px; }
   .mt-full { font-size: 18.5px; }
 }
+/* ── G150 맵톡: 📍 지역 고르기(바꾸기 줄 + 기억) ── */
+.mt-place { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin: 2px 2px 8px; font-size: 13.5px; color: var(--text-2); }
+.mt-place b { color: var(--text); }
+.mt-place em { font-style: normal; color: var(--muted); font-size: 12.5px; }
+.mt-place-b { min-height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+.mt-place-b.on, .mt-place-b:hover { background: var(--accent); color: #fff; }
+.mt-pick { margin: 0 0 10px; padding: 10px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); animation: mtafin .2s ease both; }
+.mt-pick-h { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12.5px; color: var(--text-2); }
+.mt-pick-back { min-height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text-2); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.mt-pick-g { display: flex; flex-wrap: wrap; gap: 6px; max-height: 156px; overflow-y: auto; overscroll-behavior: contain; }
+.mt-pick-c { min-height: 32px; padding: 0 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.mt-pick-c:hover { border-color: var(--accent); color: var(--accent); }
+.mt-pick-c.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+@media (min-width: 1021px) {
+  .mt-hwrap { transition: min-height .25s ease; }
+  .mt-hwrap:has(.mt-pick) { min-height: 740px; }
+}
 /* ── G148 맵톡: 지금까지 · 내 글 맨 위로 · 누구에게 답글 ── */
 .mt-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 14px; }
 .mt-stats small { font-size: 11.5px; letter-spacing: .08em; color: #9fb3d9; font-weight: 700; margin-right: 2px; }

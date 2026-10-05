@@ -236,3 +236,22 @@ export function 누적셈(글들, 답들, 좋아요, 답좋아요) {
   }
   return { 글: 보이는.length, 답글, 공감, 사진: 보이는.filter((r) => r.p).length }
 }
+
+/* ── 📍 지역 고르기 (G150 · 2026-10-05) ───────────────────────────────────────
+   소장님: 「지역을 선택하게 해야 할 것 같아. 내가 해보니까 서울로 가」 → 고르심 «바꾸기 줄 + 기억»
+   ■ 글쓰기 칸에 «📍 서울에 꽂혀요(짐작) · 바꾸기» — 처음엔 접속 주소로 짐작, 누르면 시·도 → 시·군.
+   ■ 한 번 고르면 그 기기(브라우저)는 다음부터 그곳이 기본(localStorage 'kcm.mt.곳') — 짐작하지 않음. */
+export const 시도차례 = ['서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주']
+export function 시도별(바탕) {
+  const m = {}
+  for (const p of (바탕 && 바탕.곳) || []) (m[p.d] = m[p.d] || []).push(p)
+  for (const d of Object.keys(m)) m[d].sort((a, b) => String(a.n).localeCompare(String(b.n), 'ko'))
+  return m
+}
+export const 곳기억열쇠 = 'kcm.mt.곳'
+export function 곳기억읽기(바탕, 저장 = typeof localStorage !== 'undefined' ? localStorage : null) {
+  try { const k = 저장 && 저장.getItem(곳기억열쇠); return k ? 곳찾기(바탕, k) : null } catch (e) { return null }
+}
+export function 곳기억하기(k, 저장 = typeof localStorage !== 'undefined' ? localStorage : null) {
+  try { if (저장) { if (k) 저장.setItem(곳기억열쇠, String(k)); else 저장.removeItem(곳기억열쇠) } return true } catch (e) { return false }
+}

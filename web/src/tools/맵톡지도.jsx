@@ -22,26 +22,29 @@ const 언제 = (ms) => {
 }
 
 /* 📊 G148 지금까지 — 숫자가 0 에서 올라갑니다(처음 한 번 · 움직임 줄이기면 바로) */
+/* ⚠️ G150 — 실제 사이트 확인에서 «글 0 · 답글 0» 으로 멈춰 보였습니다(크롬 뒤쪽 탭은 requestAnimationFrame 이 안 돎).
+   → 숨은 탭이면 바로 끝 숫자 · 어떤 경우에도 시간이 지나면 끝 숫자(setTimeout) · 중간에 숫자가 바뀌면 «보이던 숫자» 에서 이어 감 */
 function 올림수({ n }) {
   const [v, setV] = useState(0)
-  const 앞 = useRef(0)
+  const 보임 = useRef(0)
   useEffect(() => {
     const 끝 = Number(n) || 0
-    const 시작 = 앞.current
-    앞.current = 끝
+    const 시작 = 보임.current
+    const 놓기 = (x) => { 보임.current = x; setV(x) }
     let 줄임 = false
-    try { 줄임 = window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch (e) { /* 옛 브라우저 */ }
-    if (줄임 || 시작 === 끝) { setV(끝); return undefined }
+    try { 줄임 = window.matchMedia('(prefers-reduced-motion: reduce)').matches || document.hidden } catch (e) { 줄임 = true }
+    if (줄임 || 시작 === 끝 || typeof requestAnimationFrame !== 'function') { 놓기(끝); return undefined }
     let raf = 0
     const t0 = performance.now()
     const 걸림 = 시작 === 0 ? 1100 : 500
     const 돌 = (t) => {
-      const k = Math.min(1, (t - t0) / 걸림)
-      setV(Math.round(시작 + (끝 - 시작) * (1 - Math.pow(1 - k, 3))))
+      const k = Math.min(1, Math.max(0, (t - t0) / 걸림))
+      놓기(Math.round(시작 + (끝 - 시작) * (1 - Math.pow(1 - k, 3))))
       if (k < 1) raf = requestAnimationFrame(돌)
     }
     raf = requestAnimationFrame(돌)
-    return () => cancelAnimationFrame(raf)
+    const 끝내기 = setTimeout(() => { cancelAnimationFrame(raf); 놓기(끝) }, 걸림 + 150)
+    return () => { cancelAnimationFrame(raf); clearTimeout(끝내기) }
   }, [n])
   return <b>{v.toLocaleString('ko-KR')}</b>
 }
