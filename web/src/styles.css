@@ -5876,8 +5876,8 @@ button.sk-mini { color: var(--accent); padding: 0; text-align: left; }
 .umap-ra { text-align: right; white-space: nowrap; }
 .umap-rt { text-align: right; font-size: 12px; color: var(--muted); white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .umap-bar i { transition: none; } }
-.umap-more { display: none; width: 100%; margin-top: 6px; padding: 7px; border: 1px solid var(--accent-line); border-radius: 8px; background: none; color: var(--accent); font-size: 13px; cursor: pointer; }
-@media (max-width: 899px) { .umap-rows:not(.all) li:nth-child(n+7) { display: none; } .umap-more { display: block; } }
+.umap-more { display: block; width: 100%; margin-top: 6px; padding: 7px; border: 1px solid var(--accent-line); border-radius: 8px; background: none; color: var(--accent); font-size: 13px; cursor: pointer; }
+.umap-rows:not(.all) li:nth-child(n+7) { display: none; }     /* G145 PC · 폰 모두 6곳 + 펴기 ↔ 접기 */
 
 /* ═══ G116 (2026-10-02) 경리 셋 — 📮 신고 정리(sg) · 👷 퇴직공제(tj) · 🧾 고용·산재 보험료(bh) · 🗓 해마다 바뀌는 값(hd) ═══ */
 .hm-band { font-size: 13px; line-height: 1.6; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--text-2); margin-bottom: 10px; }
