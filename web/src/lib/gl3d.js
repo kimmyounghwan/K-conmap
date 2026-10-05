@@ -153,11 +153,21 @@ export class LineView {
   fit(box, view = 'tilt') {
     if (!box) return
     this.t = [(box[0] + box[3]) / 2, (box[1] + box[4]) / 2, ((box[2] + box[5]) / 2) * this.zs]
-    const r = Math.max(box[3] - box[0], box[4] - box[1], (box[5] - box[2]) * this.zs, 1e-3)
-    this.d = r * (view === 'top' ? 1.25 : 1.75)
+    /* G137 (2026-10-05) 화면 가로·세로 비율을 보고 거리를 잡음 — 전에는 큰 변 × 1.75 라 넓은 PC 화면에선 도면이 가운데 1/3 만,
+     * 좁은 폰에선 긴 노선 끝이 잘렸음. 화각 45° → 거리 d 에서 보이는 폭 = 0.83·d(세로) · 0.83·d·비율(가로). */
+    const dx = Math.max(box[3] - box[0], 1e-3), dy = Math.max(box[4] - box[1], 1e-3), dz = Math.max((box[5] - box[2]) * this.zs, 1e-3)
+    const a = Math.min(3, Math.max(0.4, (this.cv.clientWidth || 1) / (this.cv.clientHeight || 1)))
     if (view === 'top') { this.yaw = -Math.PI / 2; this.pit = Math.PI / 2 - 1e-3 }
     else if (view === 'side') { this.yaw = -Math.PI / 2; this.pit = 0.02 }
     else { this.yaw = -Math.PI / 3; this.pit = 0.55 }
+    if (view === 'top') this.d = Math.max(dy, dx / a) * 1.3
+    else if (view === 'side') this.d = Math.max(dz, dx / a) * 1.3 + dy / 2
+    else {
+      const sy = Math.abs(Math.sin(this.yaw)), cy = Math.abs(Math.cos(this.yaw))
+      const W = dx * sy + dy * cy                                                   // 화면 가로로 보이는 폭
+      const H = (dx * cy + dy * sy) * Math.sin(this.pit) + dz * Math.cos(this.pit)  // 화면 세로로 보이는 높이
+      this.d = Math.max(Math.max(H, W / a) * 1.5, Math.max(dx, dy) * 1.15)          // 가까운 쪽이 커 보이는 만큼 넉넉히 · 카메라가 도면 안으로 들어가지 않게
+    }
     this.dirty()
   }
 

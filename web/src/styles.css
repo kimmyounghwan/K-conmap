@@ -6137,3 +6137,26 @@ button.sk-mini { color: var(--accent); padding: 0; text-align: left; }
 .pre-agr .a { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .pre-agr .go { white-space: nowrap; color: var(--good); font-weight: 800; text-decoration: none; font-size: 12px; }
 .pre-agr .pre-k { margin-right: 0; padding: 0 4px; }
+
+/* 📌 도면 3D — 꼭 넣을 자료 · 상태표 (2026-10-05) */
+.dx3-need { margin-top: 10px; padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--accent-line, #bfdbfe); background: var(--accent-soft, #eff6ff); font-size: 13px; line-height: 1.65; }
+.dx3-need .h { font-weight: 800; margin-bottom: 4px; }
+.dx3-need .h .muted { font-weight: 400; font-size: 12px; }
+.dx3-need ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.dx3-need li .d { font-size: 12px; color: var(--muted); }
+.dx3-need li .st { font-size: 12.5px; margin-top: 2px; }
+.dx3-need li.ok .st { color: #047857; }
+.dx3-need li.no .st { color: #b45309; }
+.dx3-need .more { margin-top: 6px; font-size: 12px; color: var(--muted); }
+.dx3-file.sur { border-color: #fbbf24; }
+.dx3-st { display: inline; }
+.dx3-st.ok { color: #047857; }
+.dx3-st.warn { color: #b45309; }
+.dx3-st.no { color: #b45309; }
+.dx3-tag.ref { background: #fef3c7; color: #92400e; }
+.dx3-pairs td { background: var(--surface-2); }
+.dx3-pair { display: inline-block; margin: 2px 6px 2px 0; padding: 1px 6px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); font-size: 11.5px; }
+.dx3-pair i { font-style: normal; color: var(--muted); }
+.dx3-pair.far { border-color: #fdba74; }
+.dx3-need .more.add { color: var(--text); background: var(--surface); border: 1px dashed #fdba74; border-radius: 8px; padding: 6px 9px; }
+.dx3-need .more.add ul { margin: 4px 0 0; padding-left: 18px; }

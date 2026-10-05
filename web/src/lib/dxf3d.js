@@ -739,7 +739,7 @@ export function finish(out, layerInfo, stats) {
 }
 
 /* 층 하나의 자리 — 튀는 점 몇 개에 끌리지 않게 2~98% (가운데를 뺀 좌표) + 높이는 끝까지 */
-function layerBox(pos, pts) {
+export function layerBox(pos, pts) {
   const n = pos.length / 3 + pts.length / 3
   if (!n) return null
   const step = Math.max(1, Math.floor(n / 4000))
@@ -760,7 +760,7 @@ function layerBox(pos, pts) {
 
 /* 층마다 점 몇백 개를 떼어 둡니다 — 화면 맞추기(켠 층들 전체의 1~99%)에 씁니다.
    한쪽 구석에 점 세 개만 찍힌 층이 있어도 화면이 그리로 끌려가지 않게. [x,y,z,…] + 무게(한 점이 몇 점 몫인지) */
-function layerSample(pos, pts) {
+export function layerSample(pos, pts) {
   const n = pos.length / 3 + pts.length / 3
   if (!n) return null
   const k = Math.min(n, 600)

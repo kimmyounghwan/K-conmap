@@ -11,11 +11,13 @@
  *      지반선 레이어가 중심선과 만나는 높이 = 지반고 → 도면 높이를 표고(m)로 바꿈
  *   ④ 도면 단위 — 단면 폭이 수백을 넘으면 mm 로 그린 것으로 봄(÷1000). 아니면 m
  * ■ 어떻게 세우나
- *   측점 순서대로 한 줄(곧은 축)에 늘어놓습니다: X = 측점(m), Y = 중심에서 떨어진 거리, Z = 표고.
+ *   측점 순서대로 한 줄(곧은 축)에 늘어놓습니다: X = 측점(m), Y = 중심에서 떨어진 거리(도면 오른쪽 +), Z = 표고.
+ *   (G138 · 2026-10-05) 평면도에서 같은 이름의 노선을 찾으면 일꾼(dxf3d.worker.js)이 이 곧은 축을 노선 곡선에 얹습니다(노선3d.js).
  *   선은 레이어 그대로, 지반선은 이웃 단면끼리 이어 «땅 면» 을, 계획선(터파기·계획)은 «계획 면» 을 만듭니다.
- *   (평면도의 노선 곡선을 따라 휘게 놓는 것은 다음 차례 — 지금은 곧게 폅니다)
  * ■ 좌표는 mm 로 냅니다(건물 세우기와 같은 단위 — 화면의 높이·자 표시가 같게).
  */
+
+import { 단면면적 } from './토공3d.js'
 
 const 붙 = (s) => String(s ?? '').replace(/\s+/g, '')
 const 수글 = /^[-+]?\(?[-+]?\)?\d+(\.\d+)?$/
@@ -25,19 +27,110 @@ function 값(s) {
   return /^[-+]?\d+(\.\d+)?$/.test(t) ? parseFloat(t) : NaN
 }
 
-/** 측점 글자 → m (NO 간격 20m). 못 읽으면 NaN */
-export function 측점m(글, 앞NO = false) {
+/**
+ * 측점 글자 → { n, d }(NO 번호 · 더한 m — 간격은 도면마다 따로 정함) 또는 { m }(km 꼴 «0+020.000» · STA.0+120) | null
+ * 🛠 2026-10-05 — 소장님 도면 08: «NO.3+36.00» 처럼 더한 값이 20 을 넘습니다 → NO 간격이 20 m 가 아니라 50 m.
+ *   그래서 간격은 그 도면 측점들의 «더한 값» 가운데 가장 큰 것보다 큰 표준 간격(20 · 25 · 50 · 100 m)으로 정합니다(간격고르기).
+ */
+export function 측점풀기(글, 앞NO = false) {
   const c = 붙(글).toUpperCase().replace(/^측점[:=]?/, '')
-  let m = c.match(/^NO\.?(\d{1,4})(?:([+-])(\d{1,3}(?:\.\d+)?))?$/)
-  if (m) { const v = +m[1] * 20; return m[3] ? (m[2] === '+' ? v + +m[3] : v - +m[3]) : v }
+  const 더 = (부, 수) => (부 === '-' ? -수 : +수)
+  let m = c.match(/^NO\.?(\d{1,4})(?:([+-])(\d{1,4}(?:\.\d+)?))?$/)
+  if (m) return { n: +m[1], d: m[3] ? 더(m[2], m[3]) : 0 }
   m = c.match(/^STA\.?(\d{1,3})([+-])(\d{1,4}(?:\.\d+)?)$/)
-  if (m) return m[2] === '+' ? +m[1] * 1000 + +m[3] : +m[1] * 1000 - +m[3]
+  if (m) return /^\d{3}/.test(m[3]) ? { m: +m[1] * 1000 + 더(m[2], m[3]) } : { n: +m[1], d: 더(m[2], m[3]) }
   m = c.match(/^(\d{1,4})([+-])(\d{1,4}(?:\.\d+)?)$/)
   if (m) {
-    if (앞NO) return +m[1] * 20 + (m[2] === '+' ? +m[3] : -m[3])
-    if (/^\d{3}/.test(m[3])) return +m[1] * 1000 + (m[2] === '+' ? +m[3] : -m[3])
+    if (앞NO) return { n: +m[1], d: 더(m[2], m[3]) }
+    if (/^\d{3}/.test(m[3])) return { m: +m[1] * 1000 + 더(m[2], m[3]) }
   }
-  return NaN
+  return null
+}
+const 간격들 = [20, 25, 50, 100, 200]
+/** 그 도면의 NO 간격 — 더한 값이 가장 큰 것보다 큰 표준 간격 (없으면 20 m) */
+export function 간격고르기(풀이들) {
+  let 큰 = 0
+  for (const q of 풀이들) if (q && q.n != null) 큰 = Math.max(큰, Math.abs(q.d))
+  return 간격들.find((g) => g > 큰 + 1e-9) || 1000
+}
+const 풀어m = (q, 간격) => (!q ? NaN : q.m != null ? q.m : q.n * 간격 + q.d)
+/** 측점 글자 → m (NO 간격 20m). 못 읽으면 NaN — 옛 시험이 씁니다 */
+export function 측점m(글, 앞NO = false) { return 풀어m(측점풀기(글, 앞NO), 20) }
+
+/**
+ * 📏 높이 눈금자 — 단면 양옆에 세로로 늘어선 숫자(4 · 2 · 0 · -2)
+ * 소장님 도면 03 · 08 의 횡단면도는 단면마다 양옆에 눈금자가 있고, 측점 표(«S T A .» · 지반고 · 계획고)는 단면 «오른쪽» 에 있습니다.
+ * 눈금자를 찾으면 ① 단면의 가로 범위(왼쪽 자 ~ 오른쪽 자) ② 도면 높이 → 표고(m) 를 바로 알 수 있습니다.
+ * @returns [{ ly, xL, xR, y0, y1, a, b, 칸 }]  표고 = a + b·y
+ */
+export function 눈금자들(T) {
+  const 층별 = new Map()
+  for (const t of T) {
+    if (!수평(t)) continue
+    const c = 붙(t.s)
+    if (!/^[-+]?\d{1,4}(\.\d+)?$/.test(c)) continue
+    let a = 층별.get(t.ly); if (!a) { a = []; 층별.set(t.ly, a) } a.push({ x: t.x, y: t.y, v: parseFloat(c), h: t.h || 1 })
+  }
+  const 토막 = []
+  for (const [ly, a] of 층별) {
+    if (a.length < 6) continue
+    a.sort((p, q) => p.x - q.x)
+    /* 열 — x 가 글자 높이 1.5배 안이면 같은 열(부호 «-» 때문에 조금씩 어긋남) */
+    const 열들 = []
+    let 열 = [a[0]]
+    for (let i = 1; i < a.length; i++) {
+      if (a[i].x - 열[열.length - 1].x <= 1.5 * a[i].h) 열.push(a[i])
+      else { 열들.push(열); 열 = [a[i]] }
+    }
+    열들.push(열)
+    for (const c of 열들) {
+      if (c.length < 3) continue
+      c.sort((p, q) => p.y - q.y)
+      /* 고른 간격 · 고른 값 차이로 이어진 줄만 (⚠️ 첫 판은 줄이 끊길 때 마지막 숫자 하나를 흘려서 맨 위 눈금이 빠졌습니다 — 시험으로 잡음) */
+      const 끊기 = (from, to) => {
+        const r = c.slice(from, to)
+        if (r.length < 3) return
+        const b = (r[r.length - 1].v - r[0].v) / (r[r.length - 1].y - r[0].y)
+        const xs = r.map((p) => p.x).sort((p, q) => p - q)
+        /* 글자 자리는 글자 «밑줄» 입니다 — 눈금은 글자 가운데에 맞춰 그리므로 글자 높이의 반만 올려 잽니다
+           (소장님 도면 08: 반을 안 올리면 눈금자 높이와 표의 지반고가 모든 단면에서 꼭 0.15 m(= 글자 0.3 의 반) 어긋났음) */
+        const 반 = r.reduce((s2, p) => s2 + p.h, 0) / r.length / 2
+        토막.push({ ly, x: xs[xs.length >> 1], y0: r[0].y + 반, y1: r[r.length - 1].y + 반, b, a: r[0].v - b * (r[0].y + 반), 칸: (r[r.length - 1].y - r[0].y) / (r.length - 1), n: r.length })
+      }
+      let 시작 = 0
+      for (let i = 1; i <= c.length; i++) {
+        let 이어짐 = false
+        if (i < c.length) {
+          const dy = c[i].y - c[i - 1].y, dv = c[i].v - c[i - 1].v
+          if (dy > 0 && dv > 0) {
+            if (i - 시작 >= 2) {
+              const dy0 = c[i - 1].y - c[i - 2].y, dv0 = c[i - 1].v - c[i - 2].v
+              이어짐 = Math.abs(dy - dy0) <= 0.15 * dy0 && Math.abs(dv - dv0) <= 0.05 * Math.abs(dv0) + 1e-9
+            } else 이어짐 = true
+          }
+        }
+        if (!이어짐) { 끊기(시작, i); 시작 = i }
+      }
+    }
+  }
+  /* 짝 — 같은 레이어 · 같은 높이 범위 · 같은 눈금(a, b)인 왼쪽 자와 오른쪽 자 */
+  토막.sort((p, q) => p.x - q.x)
+  const 쓴 = new Set()
+  const 짝 = []
+  for (const L of 토막) {
+    if (쓴.has(L)) continue
+    let best = null
+    for (const R of 토막) {
+      if (R === L || 쓴.has(R) || R.ly !== L.ly || R.x <= L.x) continue
+      if (Math.abs(R.y0 - L.y0) > L.칸 * 0.5 || Math.abs(R.y1 - L.y1) > L.칸 * 0.5) continue
+      if (Math.abs(R.b - L.b) > Math.abs(L.b) * 0.02) continue
+      if (!best || R.x - L.x < best.x - L.x) best = R
+    }
+    if (!best) continue
+    쓴.add(L); 쓴.add(best)
+    짝.push({ ly: L.ly, xL: L.x, xR: best.x, y0: (L.y0 + best.y0) / 2, y1: (L.y1 + best.y1) / 2, a: (L.a + best.a) / 2, b: (L.b + best.b) / 2, 칸: L.칸 })
+  }
+  return 짝
 }
 
 const 수평 = (t) => !t.a || Math.abs(((t.a % 180) + 180) % 180) < 3
@@ -54,8 +147,8 @@ export function 단면찾기(raw) {
     if (!수평(t)) continue
     const c = 붙(t.s).toUpperCase()
     if (c.length > 26) continue
-    let v = NaN, 글 = t.s.trim(), 값칸 = -1
-    if (c === 'NO.' || c === 'NO') {
+    let 풀이 = null, 글 = t.s.trim(), 값칸 = -1
+    if (c === 'NO.' || c === 'NO' || c === 'STA.' || c === 'STA') {
       // 같은 줄 오른쪽 가까이의 «0+10.00»
       let best = -1, bd = Infinity
       for (let j = 0; j < T.length; j++) {
@@ -67,14 +160,18 @@ export function 단면찾기(raw) {
         if (dx < bd) { bd = dx; best = j }
       }
       if (best < 0) continue
-      v = 측점m(T[best].s, true); 글 = 'NO.' + 붙(T[best].s); 값칸 = best
+      풀이 = 측점풀기(T[best].s, true); 글 = 'NO.' + 붙(T[best].s); 값칸 = best
     } else if (/^(NO\.?\d|STA\.?\d|측점)/.test(c) || /^\d{1,3}\+\d{3}(\.\d+)?$/.test(c)) {
-      v = 측점m(c)
+      풀이 = 측점풀기(c)
     }
-    if (!Number.isFinite(v)) continue
-    라벨.push({ i, 글, 측: v, x: t.x, y: t.y, h: t.h, 값칸 })
+    if (!풀이) continue
+    라벨.push({ i, 글, 풀이, x: t.x, y: t.y, h: t.h, 값칸 })
   }
   if (라벨.length < 2) return []
+  const 간격 = 간격고르기(라벨.map((L) => L.풀이))
+  for (const L of 라벨) L.측 = 풀어m(L.풀이, 간격)
+  /* 📏 눈금자 짝(단면 양옆 숫자 자) — 있으면 그 단면의 가로 범위와 높이를 눈금자로 정합니다 */
+  const 자들 = 눈금자들(T)
   /* 표 안 값: 「지반고」「계획고」 글자와 같은 줄 오른쪽 숫자 */
   const 칸값 = (L, 이름) => {
     const h = L.h
@@ -126,6 +223,28 @@ export function 단면찾기(raw) {
     const 폭 = 옆.length ? Math.min(...옆) : (라벨폭중간 || 120 * L.h)
     let 윗끝
     if (위) { const 위표 = 표네모(위); 윗끝 = 위표.y0 - 0.5 * L.h } else 윗끝 = 표.y1 + Math.min(폭 * 0.6, 60 * L.h)
+    /* 📏 눈금자 꼴 — 표가 단면 «옆» 에 있는 도면(소장님 도면 03 · 08). 표 자리가 자 짝의 가로 범위 안이고, 세로로 가장 가까운 짝 */
+    let 자 = null, 자거리 = Infinity
+    for (const P of 자들) {
+      if (L.x < P.xL || L.x > P.xR) continue
+      const 거 = L.y < P.y0 ? P.y0 - L.y : L.y > P.y1 ? L.y - P.y1 : 0
+      if (거 > (P.y1 - P.y0) * 1.5 + 10 * L.h) continue
+      if (거 < 자거리) { 자거리 = 거; 자 = P }
+    }
+    if (자) {
+      const 높 = 자.y1 - 자.y0
+      let 아래 = 자.y0 - 높 * 0.6, 위끝 = 자.y1 + 높 * 0.4
+      for (const Q of 자들) {         // 이웃 단면(위·아래 자 짝)과는 반씩 나눔
+        if (Q === 자 || Q.xR < 자.xL || Q.xL > 자.xR) continue
+        if (Q.y1 <= 자.y0) 아래 = Math.max(아래, (Q.y1 + 자.y0) / 2)
+        if (Q.y0 >= 자.y1) 위끝 = Math.min(위끝, (Q.y0 + 자.y1) / 2)
+      }
+      /* 가운데 — 같은 측점의 단면 이름표(NO.4+000)가 자 범위 안에 있으면 그 x, 없으면 자 가운데 */
+      const 이름표 = 라벨.find((M) => M !== L && Math.abs(M.측 - L.측) < 1e-6 && M.x > 자.xL && M.x < 자.xR && M.y > 아래 - 높 && M.y < 위끝 + 높)
+      const cx0 = 이름표 ? 이름표.x : (자.xL + 자.xR) / 2
+      out.push({ ...L, 지반고, 계획고, 창: [자.xL, 아래, 자.xR, 위끝], cx0, 눈금: { a: 자.a, b: 자.b }, 표 })
+      continue
+    }
     const cx0 = (표.x0 + 표.x1) / 2
     out.push({ ...L, 지반고, 계획고, 창: [cx0 - 폭 * 0.48, 표.y1 + 0.2 * L.h, cx0 + 폭 * 0.48, 윗끝], cx0 })
   }
@@ -237,7 +356,15 @@ export function 횡단세우기(raw, 새버킷, 어긋 = 0, 머리 = '') {
     const 땅 = [...조각].filter(([ly]) => 땅층.test(ly)).flatMap(([, a]) => a)
     const 계 = [...조각].filter(([ly]) => 계획층.test(ly) && !땅층.test(ly)).flatMap(([, a]) => a)
     let 기준y = NaN, 기준값 = NaN, 근거 = ''
-    if (땅.length && Number.isFinite(s.지반고)) { 기준y = y에서(땅, cx); 기준값 = s.지반고; 근거 = '지반고' }
+    /* 📏 눈금자가 있으면 그것이 높이의 정답(도면 높이 → 표고). 지반선이 중심에서 지반고와 얼마나 맞는지는 확인용으로 적습니다 */
+    if (s.눈금) {
+      const { a, b } = s.눈금
+      기준y = -a / b; 기준값 = 0
+      const yg = 땅.length ? y에서(땅, cx) : NaN
+      const 차 = Number.isFinite(yg) && Number.isFinite(s.지반고) ? Math.abs(a + b * yg - s.지반고) : NaN
+      근거 = Number.isFinite(차) ? `눈금자(지반고와 ${차.toFixed(2)} m 차이)` : '눈금자'
+    }
+    if (!Number.isFinite(기준y) && 땅.length && Number.isFinite(s.지반고)) { 기준y = y에서(땅, cx); 기준값 = s.지반고; 근거 = '지반고' }
     if (!Number.isFinite(기준y) && 계.length && Number.isFinite(s.계획고)) { 기준y = y에서아래(계, cx); 기준값 = s.계획고; 근거 = '계획고' }
     if (!Number.isFinite(기준y)) { 빠짐.push(s.글 + ' (중심에서 지반선을 못 찾음)'); continue }
     쓴.push({ ...s, 조각, cx, 기준y, 기준값, 근거, 땅, 계, 중심근거 })
@@ -249,7 +376,8 @@ export function 횡단세우기(raw, 새버킷, 어긋 = 0, 머리 = '') {
   const out = new Map()
   const 면버킷 = (키) => { let b = out.get(키); if (!b) { b = 새버킷(); out.set(키, b) } if (!b.tri) { b.tri = 새버킷().pos; b.trc = 새버킷().col } return b }
   const M = 1000                                        // m → mm
-  const 점 = (s, x, y) => [s.측 * M, (x - s.cx) * 배 * M + 어긋, (s.기준값 + (y - s.기준y) * 배) * M]
+  const 높 = (s, y) => (s.눈금 ? s.눈금.a + s.눈금.b * y : s.기준값 + (y - s.기준y) * 배)   // 도면 높이 → 표고(m)
+  const 점 = (s, x, y) => [s.측 * M, (x - s.cx) * 배 * M + 어긋, 높(s, y) * M]
   for (const s of 쓴) {
     const 층키 = 머리 + s.글
     for (const [ly, arr] of s.조각) {
@@ -275,7 +403,7 @@ export function 횡단세우기(raw, 새버킷, 어긋 = 0, 머리 = '') {
       const lo = Math.max(alo, blo), hi = Math.min(ahi, bhi)
       if (!(hi - lo > 간격)) continue
       const b = 면버킷(키)
-      const z = (s, 선, o) => { const x = s.cx + o / 배; const y = 아래쪽 ? y에서아래(선, x) : y에서(선, x); return Number.isFinite(y) ? s.기준값 + (y - s.기준y) * 배 : NaN }
+      const z = (s, 선, o) => { const x = s.cx + o / 배; const y = 아래쪽 ? y에서아래(선, x) : y에서(선, x); return Number.isFinite(y) ? 높(s, y) : NaN }
       let 앞 = null, 첫 = null
       const 가장자리 = (st) => {       // 면 가장자리 — 측점 사이를 잇는 선(면만 있으면 화면이 그 레이어를 안 그립니다)
         const P = (x, oo, zz) => [x * M, oo * M + 어긋, zz * M]
@@ -325,7 +453,12 @@ export function 횡단세우기(raw, 새버킷, 어긋 = 0, 머리 = '') {
   return {
     끌층,
     out,
-    단면: 쓴.map((s) => ({ 층: 머리 + s.글, 이름: s.글 + ' (' + s.측.toFixed(2).replace(/\.00$/, '') + ' m)', 측: s.측, 지반고: s.지반고, 계획고: s.계획고, 근거: s.근거, 중심: s.중심근거 })),
+    단면: 쓴.map((s) => {
+      /* 📐 (G139) 단면 면적 — 터파기 · 되메우기 · 구조물 · 성토(lib/토공3d.js · 선 모양으로) */
+      let 면적 = null
+      try { 면적 = 단면면적(s.조각, (ly) => 땅층.test(ly), (y) => 높(s, y), 배, s.cx) } catch (e) { 면적 = null }
+      return { 층: 머리 + s.글, 이름: s.글 + ' (' + s.측.toFixed(2).replace(/\.00$/, '') + ' m)', 측: s.측, 풀이: s.풀이, 글: s.글, 지반고: s.지반고, 계획고: s.계획고, 근거: s.근거, 중심: s.중심근거, 면적 }
+    }),
     폭m: Math.max(...폭들),
     시작: 쓴[0].측, 끝: 쓴[쓴.length - 1].측,
     배,
