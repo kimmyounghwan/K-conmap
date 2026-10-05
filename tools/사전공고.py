@@ -281,6 +281,16 @@ def run(days, dry=False):
                         f.write(f"\n**{name} 항목**: {', '.join(x['항목'])}\n")
         except Exception:
             pass
+    # 📌 깃허브 «주석(annotation)» 으로도 한 줄씩 — 로그는 로그인해야 보이지만 주석은 누구나 API 로 읽습니다
+    #    (클라우드에서 회차 결과를 확인하려고 · 2026-10-05). 열쇠는 들어가지 않습니다.
+    if os.environ.get("GITHUB_ACTIONS"):
+        for name in SVC:
+            x = diag_all[name]
+            시험 = " / ".join(f"{t['주소'].split('/')[0]}·조건{t['조건']}={t['상태']}{(':' + t['말'][:60]) if t['말'] else ''}"
+                            for t in x["주소시험"])[:600]
+            lv = "notice" if x["상태"] == "ok" else "warning"
+            log(f"::{lv} title=사전공고 {name}::상태 {x['상태']} · 주소 {x['주소'] or '없음'} · 조건 {x['조건'] or '-'} · "
+                f"이번 {x['받은']}건 · 쌓인 {x['쌓인']}건 · 항목 {len(x['항목'])}개({', '.join(x['항목'][:25])}) · 시험 {시험}")
     bad = [n for n in SVC if diag_all[n]["상태"] not in ("ok",)]
     return 0 if len(bad) < len(SVC) else 1
 
@@ -290,4 +300,20 @@ if __name__ == "__main__":
     ap.add_argument("--days", type=int, default=7)
     ap.add_argument("--dry", action="store_true")
     a = ap.parse_args()
-    sys.exit(run(max(1, min(a.days, 31)), a.dry))
+    try:
+        rc = run(max(1, min(a.days, 31)), a.dry)
+    except SystemExit:
+        raise
+    except Exception as e:                       # 뜻밖의 오류도 주석으로 — 열쇠는 지워서
+        k = os.environ.get("G2B_API_KEY", "")
+        m = f"{type(e).__name__}: {e}"
+        if k:
+            m = m.replace(k, "***")
+        import traceback
+        tb = traceback.format_exc().replace(k, "***") if k else traceback.format_exc()
+        log(tb)
+        if os.environ.get("GITHUB_ACTIONS"):
+            last = [ln.strip() for ln in tb.strip().splitlines() if ln.strip().startswith("File ")][-1:]
+            log(f"::error title=사전공고 오류::{m[:300]} · {(last[0] if last else '')[:200]}")
+        rc = 3
+    sys.exit(rc)
