@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  읽기, 쓰기, 빈견적, 새번호, 셈, 산안표, 법정, 기본요율, 켜기본, 원, 한글금액, 날더하기, 예시, 예시나, 오늘,
+  읽기, 쓰기, 빈견적, 새번호, 셈, 산안표, 법정, 기본요율, 켜기본, 원, 한글금액, 날더하기, 예시, 예시나, 오늘, 목표맞추기,
 } from '../lib/gyeonjeok.js'
+import { 세기 } from '../lib/받은수.jsx'
 import 이어쓰기 from '../tools/이어쓰기.jsx'
 import { 앞모습두기 } from '../lib/이어쓰기.js'
 
@@ -284,6 +285,7 @@ export default function Gyeonjeok() {
             </div>
           </div>
         )}
+        <목표칸 key={`${견.id || ''}|${견.방식}`} 견={견} 적용={(r) => (견.방식 === 'public' ? 요율칸('이윤', String(r)) : 간단칸('이윤', String(r)))} />
       </div>
 
       <div className="card gj-paper">
@@ -419,3 +421,47 @@ export default function Gyeonjeok() {
     </div>
   )
 }
+
+/**
+ * 🎯 목표 금액 맞추기 (G140 · 2026-10-05) — 소장님 「1,2,3다 하자」(강하넷 견적 엑셀에서 고른 #6)
+ * 목표 금액 · 기준을 넣고 «맞추기» → 이윤율(0.01% 걸음)을 바꿔 목표를 넘지 않는 가장 가까운 금액을 보여 주고, «이 이윤율로 바꾸기» 로 넣습니다.
+ */
+function 목표칸({ 견, 적용 }) {
+  const [목표, set목표] = useState('')
+  const [기준, set기준] = useState('견적')
+  const [결과, set결과] = useState(null)
+  const 공공 = 견.방식 === 'public'
+  const 지금 = 공공 ? (견.공공 && 견.공공.요율 && 견.공공.요율.이윤) : (견.간단 && 견.간단.이윤)
+  const 쉼 = (v) => { const t = String(v || '').replace(/[^\d]/g, ''); return t ? Number(t).toLocaleString('ko-KR') : '' }
+  const 기준글 = { 견적: '견적 금액(끝전 버린 뒤)', 공급: 공공 ? '총원가(부가세 전)' : '공급가액(부가세 전)', 합계: '합계(부가세 포함)' }
+  const 맞추기 = () => set결과(목표맞추기(견, 목표, 기준))
+  return (
+    <div className="gj-goal">
+      <div className="fm-ctl-k">🎯 목표 금액 맞추기 <span className="muted" style={{ fontWeight: 400 }}>— 이윤율을 바꿔 원하는 금액에 맞춥니다</span></div>
+      <div className="gj-goal-r">
+        <input className="inp gj-num" inputMode="numeric" placeholder="목표 금액(원)" value={목표} onChange={(e) => { set목표(쉼(e.target.value)); set결과(null) }} aria-label="목표 금액" />
+        <select className="inp" value={기준} onChange={(e) => { set기준(e.target.value); set결과(null) }} aria-label="무엇을 맞출지">
+          {Object.entries(기준글).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+        <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={맞추기} disabled={!목표}>맞추기</button>
+      </div>
+      {결과 && (결과.됨 ? (
+        <div className="note sm" role="status" style={{ marginTop: 6 }}>
+          이윤율 <b>{결과.이윤율.toFixed(2)}%</b>{지금 !== undefined && 지금 !== '' ? <span className="muted"> (지금 {지금}%)</span> : null} → {기준글[기준]} <b>{결과.금액.toLocaleString('ko-KR')}원</b>
+          {결과.차이 === 0 ? ' — 목표와 꼭 같습니다.' : <> — 목표보다 <b>{결과.차이.toLocaleString('ko-KR')}원</b> 적습니다(이윤율을 0.01% 올리면 {결과.다음.toLocaleString('ko-KR')}원으로 넘음).{기준 !== '견적' ? ' 끝 몇 원까지 맞추려면 기준을 «견적 금액» 으로 두고 끝전 버림을 고르십시오.' : ''}</>}
+          {결과.한도넘음 && <div className="nm-warn" style={{ marginTop: 4 }}>⚠️ 공공 원가계산의 이윤은 15% 이하입니다(국가계약법 시행규칙 제8조②) — 이 금액은 공공 공사 원가계산으로는 못 씁니다.</div>}
+          <div style={{ marginTop: 6 }}>
+            <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => { 적용(결과.이윤율.toFixed(2)); 세기('|견적|목표맞춤'); set결과({ ...결과, 넣음: true }) }} disabled={결과.넣음}>
+              {결과.넣음 ? '✓ 넣었습니다' : `이윤율 ${결과.이윤율.toFixed(2)}% 로 바꾸기`}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="note sm nm-warn" role="status" style={{ marginTop: 6 }}>
+          {결과.까닭}{결과.최소 ? ` (이윤 0% 일 때 ${결과.최소.toLocaleString('ko-KR')}원)` : ''}
+        </div>
+      ))}
+    </div>
+  )
+}
+

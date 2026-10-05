@@ -107,7 +107,7 @@ const CadPage = lazyPage(() => import('./pages/Cad.jsx').then((m) => ({ default:
 /* 🪪 면허별 경쟁도 — 2026-09-14. 주소를 주는 이유: 「토목공사업 입찰 경쟁률」 같은 건 실제 검색어입니다. */
 const LicStat = lazyPage(() => import('./pages/LicStat.jsx'))
 const ToolPage = lazyPage(() => import('./pages/Tools.jsx').then((m) => ({ default: m.ToolPage })))
-/* ⚡ 공사서류 원클릭 — 2026-09-24. 한 번 입력 → 서류 24가지 엑셀. 엑셀을 만드느라 lazyPage 입니다.
+/* ⚡ 공사서류 원클릭 — 2026-09-24. 한 번 입력 → 서류 34가지 엑셀. 엑셀을 만드느라 lazyPage 입니다.
    ⚠️ /tools/:slug 보다 «정확한 주소» 가 먼저 잡힙니다 (react-router v6 순위). prerender·sitemap 도 같이 고쳤습니다. */
 const WonClick = lazyPage(() => import('./pages/WonClick.jsx'))
 /* 📦 도면 3D 보기 — 2026-09-25. DXF 를 브라우저 안에서만 읽어 높이 그대로 세웁니다(서버 없음).

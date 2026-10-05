@@ -8,13 +8,14 @@
 
 쓰는 법: python build_wonclick.py <출력폴더> [시험값.json]
 """
-import json, math, os, sys, datetime
+import json, math, os, re, sys, datetime
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.hyperlink import Hyperlink
 from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.worksheet.properties import PageSetupProperties
+from openpyxl.utils import get_column_letter
 
 FONT = '맑은 고딕'
 NC = 12                 # 서식 칸 수 (B..M)
@@ -116,6 +117,45 @@ SECTIONS = [
         ('하자검사일', '하자 검사일', 'date', '', '', None),
         ('하자결과', '하자 검사 결과', 'list', '', '', ['하자 없음', '하자 있음 (보수 요구)']),
     ]),
+    # ⚡ G142 (2026-10-05) 서류 8가지 더함 — 칸은 «맨 뒤» 에만 붙임(앞 칸 주소 그대로 · 이미 쓴 입력이 안 어긋나게)
+    ('10. 선금 (받을 때만)', [
+        ('선금신청일', '선금 신청일', 'date', '', '', None),
+        ('선금률', '선금 신청률 (%)', 'num', '', '계약서·발주기관에서 정한 비율 — 예: 30', None),
+        ('선금액', '선금 신청 금액 (원)', 'money', '', '비우면 계약 금액 × 신청률 (원 미만 버림)', None),
+        ('선금보증', '보증기관 · 보증번호', 'text', '', '선금 보증서(증권)에 적힌 그대로', None),
+    ]),
+    ('11. 공사 중 — 달마다 내는 서류', [
+        ('월간대상', '대상 달', 'date', '', '그 달의 아무 날 — 서류에는 «2026년 4월» 처럼 나옵니다', None),
+        ('월간작성일', '작성일 (제출일)', 'date', '', '', None),
+        ('계획공정률', '계획 공정률 — 누계 (%)', 'num', '', '예정공정표의 그 달 말 누계', None),
+        ('실적공정률', '실적 공정률 — 누계 (%)', 'num', '', '산안비 사용내역서 «누계공정률» 에도 들어갑니다', None),
+        ('노무비청구', '그 달 노무비 청구 금액 (원)', 'money', '', '', None),
+        ('노무비전월', '전월까지 노무비 누계 (원)', 'money', '', '처음이면 0', None),
+        ('산안비계상', '계상된 산업안전보건관리비 (원)', 'money', '', '도급 산출내역서에 계상된 금액 — 모르면 🦺 산안비 계상기(도구)로', None),
+    ]),
+    ('12. 하도급 (통보 · 대금 지급확인)', [
+        ('하수급상호', '하수급인 상호', 'text', '', '', None),
+        ('하수급대표', '하수급인 대표자', 'text', '', '', None),
+        ('하수급업종', '하수급인 업종 · 등록번호', 'text', '', '건설업 등록증 그대로', None),
+        ('하수급주소', '하수급인 영업소 소재지', 'text', '', '', None),
+        ('협력등록일', '협력업자로 등록된 연월일', 'date', '', '우리 회사에 협력업자로 등록된 날 — 없으면 비움', None),
+        ('하도급사유', '하도급 사유', 'text', '', '', None),
+        ('하도급공종', '하도급 공사의 종류', 'text', '', '예: 철근콘크리트공사', None),
+        ('하도급부분액', '도급액 — 하도급 부분 (원)', 'money', '', '우리 계약 단가로 산출한 그 부분 금액 (통보서 뒤쪽 유의사항 ①)', None),
+        ('하도급금액', '하도급 (예정) 금액 (원)', 'money', '', '', None),
+        ('하도급일', '하도급 계약 (예정 · 변경)일', 'date', '', '', None),
+        ('하도급착공', '하도급 착공 (예정)일', 'date', '', '', None),
+        ('하도급준공', '하도급 준공 (예정)일', 'date', '', '', None),
+        ('하도급통보일', '통보일', 'date', '', '', None),
+    ]),
+    ('13. 계약금액 조정 (설계변경 · 물가변동)', [
+        ('조정구분', '조정 구분', 'list', '', '', ['설계변경', '물가변동', '설계변경 · 물가변동']),
+        ('조정신청일', '신청일', 'date', '', '', None),
+        ('조정기준일', '조정 기준일', 'date', '', '물가변동이면 조정기준일 — 설계변경만이면 비워도 됩니다', None),
+        ('조정증감', '증액 / 감액', 'list', '', '', ['증액', '감액']),
+        ('조정금액', '조정 신청 금액 (원)', 'money', '', '산출서의 합계 (부가세 포함)', None),
+        ('조정사유', '조정 사유', 'text', '', '짧게 — 자세한 것은 산출서로', None),
+    ]),
 ]
 
 # 자동 계산 (입력 시트 아래) — (키, 이름, 수식 틀, 형식)
@@ -140,9 +180,14 @@ CALCS = [
     ('준공청구eff', '준공금 청구일', 'IF({준공청구일}="",{검사일},{준공청구일})', 'yyyy-mm-dd'),
     ('연장일수', '연장 요청 일수', 'IF(OR({연장기한}="",{준공기한}=""),"",{연장기한}-{준공기한})', '0"일"'),
     ('증감액', '정산 증감액 (원)', 'IF(OR({정산액}="",{계약금액}=""),"",{정산액}-{계약금액})', '#,##0;[Red]-#,##0'),
+    # G142
+    ('선금eff', '선금 신청 금액 (원)', 'IF({선금액}="",IF(OR({계약금액}="",{선금률}=""),"",ROUNDDOWN({계약금액}*{선금률}/100,0)),{선금액})', '#,##0'),
+    ('노무비누계', '노무비 누계 (원)', 'IF({노무비청구}="","",N({노무비전월})+{노무비청구})', '#,##0'),
+    ('하도급률', '하도급률 (하도급 금액 ÷ 하도급 부분 도급액)', 'IF(OR({하도급금액}="",N({하도급부분액})=0),"",{하도급금액}/{하도급부분액})', '0.00%'),
+    ('조정후금액', '조정 후 계약금액 (원)', 'IF(OR({계약금액}="",{조정금액}=""),"",{계약금액}+IF({조정증감}="감액",-1,1)*{조정금액})', '#,##0'),
 ]
 # 금액을 한글로 (계산 시트)
-HANGUL = ['계약금액', '정산액', '계약보증금', '하자보증금', '기성청구액', '준공청구액', '금회기성', '기성누계', '증감액abs']
+HANGUL = ['계약금액', '정산액', '계약보증금', '하자보증금', '기성청구액', '준공청구액', '금회기성', '기성누계', '증감액abs', '선금eff', '조정후금액']
 
 REQUIRED = ['공사명', '현장위치', '계약일', '착공일', '준공기한', '계약금액', '발주기관', '받는사람', '상호', '대표자', '업체주소', '대리인']
 
@@ -190,6 +235,20 @@ def T(k):        # 입력 글자 그대로
     return f'{R(k)}&""'
 
 
+def MON(k, blank='          년      월'):   # 2026년 4월 (대상 달)
+    r = R(k)
+    return f'IF({r}="","{blank}",YEAR({r})&"년 "&MONTH({r})&"월")'
+
+
+def AMT(k, unit='원'):     # 123,456,000원 (비면 빈칸)
+    r = R(k)
+    return f'IF({r}="","",FIXED({r},0)&"{unit}")'
+
+
+def WHO2(a, b):  # 상호 / 대표자
+    return f'{R(a)}&IF({R(b)}="",""," / "&{R(b)})'
+
+
 # ─────────────────────── 서류 정의 ───────────────────────
 # 블록: ('title', 글) ('kv', [(이름, 수식|글, 높이?)]) ('text', 글) ('ftext', 수식) ('table', 머리, 너비, 줄들, 높이)
 #       ('date', 수식) ('sign', [(이름, 수식)]) ('to',) ('note', 글) ('gap', pt)
@@ -222,9 +281,14 @@ DOCS = []
 STAGE = {'계약': 1, '착공': 2, '공사 중': 3, '준공': 4, '관리': 5, '하자': 6}
 
 
-def doc(no, sheet, title, who, when, pub, blocks, date_key=None, land=False, desc=''):
+def doc(no, sheet, title, who, when, pub, blocks, date_key=None, land=False, desc='', pre=None, with_=None, colw=None):
     DOCS.append(dict(no=no, name=sheet[3:], title=title, who=who, when=when, pub=pub, blocks=blocks,
-                     date_key=date_key, land=land, desc=desc))
+                     date_key=date_key, land=land, desc=desc, pre=pre, with_=with_, colw=colw))
+
+
+def doc_count():
+    """서류 가짓수 — 앞쪽에 딸린 «뒤쪽» 장은 세지 않음"""
+    return sum(1 for d in DOCS if not d.get('with_'))
 
 
 def number_docs():
@@ -422,6 +486,191 @@ def build_docs():
                  '청구에 따라 즉시 현금으로 납부할 것을 각서합니다.'),
         ('date', '검사일'), CONTRACTOR(), TO()], date_key='검사일', desc='하자보수보증금 대신 내는 지급각서.')
 
+    # ════════ ⚡ G142 (2026-10-05) 서류 8가지 더함 ════════
+    # 소장님 「1,2,3다 하자」 → 설계 «이대로 해» — 머리는 있는 입력에서 · 표는 빈 줄(숫자를 지어내지 않음)
+    # · 법정 서식 둘(산안비 사용내역서 · 하도급계약 통보서)은 law.go.kr 원문 서식 그림을 열어 칸 이름·차례 그대로 옮김.
+    # ── 선금 (계약) ──
+    doc(9.1, '00 선금 신청서', '선  금  신  청  서', '업체', '계약', True, [
+        ('kv', [kvF('공 사 명', T('공사명'), 34), kvF('계약 번호', T('계약번호')), kvF('계약 금액', KRW('계약금액'), 34),
+                kvF('선금 신청률', f'IF({R("선금률")}="","",{R("선금률")}&"%")'),
+                kvF('선금 신청 금액', KRW('선금eff'), 34), kvF('보증기관 · 보증번호', T('선금보증'))]),
+        ('kv', [kvF('은 행 명', T('은행')), kvF('예 금 주', T('예금주')), kvF('계좌 번호', T('계좌'))]),
+        ('text', '위와 같이 선금을 신청합니다.'),
+        ATT(['선금 보증서(보증증권)', '선금 사용계획서']),
+        ('date', '선금신청일'), CONTRACTOR(), TO()], date_key='선금신청일',
+        desc='선금을 달라는 신청서. 신청률을 넣으면 금액·한글 금액 자동.')
+
+    doc(9.2, '00 선금 사용계획서', '선 금 사 용 계 획 서', '업체', '계약', True, [
+        ('kv', [kvF('공 사 명', T('공사명'), 34), kvF('선금 수령액', KRW('선금eff'), 34), ('사용 기간', '', None)]),
+        ('table', ['사용 항목', '세부 내용', '금액 (원)', '사용 시기', '비  고'], [3, 4, 2, 2, 1],
+         [['', '', '', '', ''] for _ in range(10)] + [['합  계', '', F('SUMCOL'), '', '']], 26),
+        ('text', '위와 같이 선금을 사용할 것을 계획하며, 계약 목적 외에는 사용하지 않겠습니다.'),
+        ('date', '선금신청일'), CONTRACTOR(), TO()], date_key='선금신청일',
+        desc='선금을 어디에 쓸지 적는 계획서. 표는 빈 줄 — 합계만 자동.')
+
+    # ── 착공 ──
+    def 달머리():
+        return [F(f'IF({R("착공일")}="","",MONTH(EDATE(DATE(YEAR({R("착공일")}),MONTH({R("착공일")}),1),{k}))&"월")') for k in range(8)]
+    doc(3.5, '00 인력·장비 투입계획서', '공정별 인력 및 장비 투입계획서', '업체', '착공', False, [
+        ('kv', [kvF('공 사 명', T('공사명'), 34), kvF('공사 기간', PERIOD('착공일', '준공기한')), kvF('현장 위치', T('현장위치'), 34)]),
+        ('text', '■ 인력 (명)'),
+        ('table', ['공  종', '직  종'] + 달머리(), [2, 2] + [1] * 8,
+         [['', ''] + [''] * 8 for _ in range(7)] + [['합  계', ''] + [F('SUMCOL')] * 8], 21),
+        ('text', '■ 장비 (대)'),
+        ('table', ['공  종', '장비 · 규격'] + 달머리(), [2, 2] + [1] * 8,
+         [['', ''] + [''] * 8 for _ in range(6)] + [['합  계', ''] + [F('SUMCOL')] * 8], 21),
+        ('note', '※ 공종마다 달별 투입 인원(명)·장비(대)를 적습니다. 달 이름은 착공일에 맞춰 저절로 바뀝니다.'),
+        ('date', '착공일'), CONTRACTOR(), TO()], date_key='착공일',
+        desc='착공신고서 붙임 «공정별 인력 및 장비투입계획서». 달은 착공일부터 저절로.')
+
+    산안항목 = ['1. 안전·보건관리자 임금 등', '2. 안전시설비 등', '3. 보호구 등', '4. 안전보건진단비 등', '5. 안전보건교육비 등',
+              '6. 근로자 건강장해예방비 등', '7. 건설재해예방전문지도기관 기술지도비', '8. 본사 전담조직 근로자 임금 등',
+              '9. 위험성평가 등에 따른 소요비용']     # 별지 제1호서식 «항목» 칸 글 그대로
+    doc(4.5, '00 산안비 사용계획서', '산업안전보건관리비 사용계획서', '업체', '착공', False, [
+        ('kv', [kvF('공 사 명', T('공사명'), 34), kvF('계약 금액', KRW('계약금액'), 34),
+                kvF('계상된\n산업안전보건관리비', AMT('산안비계상'), 34), kvF('공사 기간', PERIOD('착공일', '준공기한'))]),
+        ('table', ['사 용 항 목', '세부 내용', '예정 금액 (원)', '사용 시기', '비  고'], [4, 3, 2, 2, 1],
+         [[n, '', '', '', ''] for n in 산안항목] + [['합  계', '', F('SUMCOL'), '', '']], 28),
+        ('note', '※ 항목은 「건설업 산업안전보건관리비 계상 및 사용기준」(고용노동부고시) 별지 제1호서식의 9가지입니다. '
+                 '계상액은 🦺 산안비 계상기(k-conmap.com/tools/sanan)로 셀 수 있습니다.'),
+        ('date', '착공일'), CONTRACTOR(), TO()], date_key='착공일', colw=[7.4] * 4 + [5.9] * 8,
+        desc='산안비를 항목별로 언제·얼마 쓸지 적는 계획서. 항목 9가지는 고시 서식 그대로.')
+
+    # ── 공사 중 (달마다) ──
+    계획, 실적 = R('계획공정률'), R('실적공정률')
+    doc(10.1, '00 월간 공정보고서', '월 간 공 정 보 고 서', '업체', '공사 중', False, [
+        ('kv', [kvF('공 사 명', T('공사명'), 34), kvF('대상 달', MON('월간대상', '')),
+                kvF('공사 기간', PERIOD('착공일', '기한eff')),
+                kvF('계획 공정률 (누계)', f'IF({계획}="","",{계획}&"%")'), kvF('실적 공정률 (누계)', f'IF({실적}="","",{실적}&"%")'),
+                kvF('계획 대비', f'IF(OR({계획}="",{실적}=""),"",IF({실적}={계획},"계획대로",IF({실적}>{계획},"계획보다 "&FIXED({실적}-{계획},2)&"%p 앞섬","계획보다 "&FIXED({계획}-{실적},2)&"%p 늦음")))')]),
+        ('table', ['공  종', '이번 달 한 일', '다음 달 할 일', '비  고'], [2, 4, 4, 2], [['', '', '', ''] for _ in range(8)], 26),
+        ('kv', [('특기 사항\n(문제점 · 대책)', '', 64)]),
+        ('note', '※ 붙임: 공정 사진, 예정·실적 공정표(S커브 — 📈 예정공정표 도구).'),
+        ('date', '월간작성일'), CONTRACTOR(), TO()], date_key='월간작성일',
+        desc='달마다 내는 공정 보고. 계획·실적 공정률을 넣으면 앞섬·늦음 자동.')
+
+    doc(10.2, '00 노무비 청구내역서', '노 무 비 청 구 내 역 서', '업체', '공사 중', True, [
+        ('kv', [kvF('공 사 명', T('공사명'), 34), kvF('계약 번호', T('계약번호')), kvF('대상 달', MON('월간대상', '')),
+                kvF('이번 달 청구 금액', AMT('노무비청구')), kvF('전월까지 누계', AMT('노무비전월')), kvF('누      계', AMT('노무비누계'))]),
+        ('text', '■ 직종별 집계'),
+        ('table', ['직  종', '인원 (명)', '연인원 (공수)', '단가 (원)', '금액 (원)', '비  고'], [2.5, 1.5, 2, 2, 2.5, 1.5],
+         [['', '', '', '', '', ''] for _ in range(12)] + [['합  계', F('SUMCOL'), F('SUMCOL'), '', F('SUMCOL'), '']], 22),
+        ('note', '※ 표의 금액 합계가 «이번 달 청구 금액» 과 같은지 확인하세요. 붙임: 임금대장 · 노무비 지급확인서 · 출역일보 · 근로자 명부.'),
+        ('date', '월간작성일'), CONTRACTOR(), TO()], date_key='월간작성일',
+        desc='달마다 노무비를 청구할 때 직종별로 모은 표. 누계 자동 · 표는 빈 줄.')
+
+    # 산업안전보건관리비 사용내역서 — 고시 [별지 제1호서식] 첫 쪽(총괄) 칸 그대로
+    #   (2~10쪽 «항목별 사용내역» 은 🦺 /tools/sanan 이 씀 — 여기서는 서식 첫 쪽만)
+    G = lambda v, cs, k='C', rs=1: (v, cs, k, rs)
+    돈칸 = lambda k: F(f'IF({R(k)}="","원",FIXED({R(k)},0)&" 원")')
+    doc(10.3, '00 산안비 사용내역서', '산업안전보건관리비 사용내역서', '업체', '공사 중', False, [
+        ('grid', [
+            (30, [G('건설업체명', 2), G(F(T('상호')), 4, 'L'), G('공 사 명', 2), G(F(T('공사명')), 4, 'L')]),
+            (30, [G('소 재 지', 2), G(F(T('업체주소')), 4, 'L'), G('대 표 자', 2), G(F(T('대표자')), 4, 'L')]),
+            (30, [G('공 사 금 액', 2), G(돈칸('계약금액'), 4, 'R'), G('공 사 기 간', 2),
+                  G(F(f'IF(OR({R("착공일")}="",{R("기한eff")}=""),"~",{DS(R("착공일"))}&" ~ "&{DS(R("기한eff"))})'), 4, 'S')]),
+            (30, [G('발 주 자', 2), G(F(T('발주기관')), 4, 'L'), G('누계공정률', 2),
+                  G(F(f'IF({실적}="","%",{실적}&" %")'), 4, 'R')]),
+            (34, [G('계 상 된\n산업안전보건관리비', 2, 'X'), G(돈칸('산안비계상'), 10)]),
+            (28, [G('사          용          금          액', 12)]),
+            (28, [G('항                    목', 6), G(F(f'IF({R("월간대상")}="","(      )월 사용금액","( "&MONTH({R("월간대상")})&" )월 사용금액")'), 3),
+                  G('누계 사용금액', 3)]),
+            (28, [G('계', 6), G(F('SUMBELOW:9'), 3, 'N'), G(F('SUMBELOW:9'), 3, 'N')]),
+        ] + [(28, [G(n, 6, 'L'), G('', 3, 'N'), G('', 3, 'N')]) for n in 산안항목]),
+        ('text', '「건설업 산업안전보건관리비 계상 및 사용기준」 제10조제1항에 따라 위와 같이 사용내역서를 작성하였습니다.'),
+        ('date', '월간작성일'),
+        ('grid', [(26, [G('작 성 자', 2, 'O'), G('직책', 1, 'O'), G('', 2, 'O'), G('성명', 1, 'O'), G('', 3, 'O'), G('(서명 또는 인)', 3, 'O')]),
+                  (26, [G('확 인 자', 2, 'O'), G('직책', 1, 'O'), G('', 2, 'O'), G('성명', 1, 'O'), G('', 3, 'O'), G('(서명 또는 인)', 3, 'O')])])],
+        date_key='월간작성일', pre=('【별지 제1호 서식】', ''), colw=[7.6, 7.6] + [6.16] * 10,
+        desc='고시 별지 제1호서식 첫 쪽(총괄) 칸 그대로. 항목별 사용내역 9쪽은 🦺 산안비 도구에서.')
+
+    # 건설공사의 하도급계약 통보서 — 건설산업기본법 시행규칙 [별지 제23호서식] <개정 2021. 8. 27.> 칸 그대로
+    doc(10.4, '00 하도급계약 통보서', '건설공사의 하도급계약 통보서', '업체', '공사 중', False, [
+        ('grid', [
+            (28, [G('공사명', 5), G(F(T('공사명')), 7, 'L')]),
+            (26, [G('수급인', 2, 'C', 3), G('상호 및 대표자', 3), G(F(WHO2('상호', '대표자')), 7, 'L')]),
+            (26, [G('영업소 소재지', 3), G(F(T('업체주소')), 7, 'L')]),
+            (26, [G('하도급 사유', 3), G(F(T('하도급사유')), 7, 'L')]),
+            (26, [G('하수급인', 2, 'C', 4), G('상호 및 대표자', 3), G(F(WHO2('하수급상호', '하수급대표')), 7, 'L')]),
+            (26, [G('업종 및 등록번호', 3), G(F(T('하수급업종')), 7, 'L')]),
+            (26, [G('영업소 소재지', 3), G(F(T('하수급주소')), 7, 'L')]),
+            (30, [G('수급인에게 협력업자로\n등록된 연월일', 3, 'S'), G(F(DS(R('협력등록일'))), 7, 'L')]),
+            (26, [G('하도급\n\n내용', 2, 'C', 14), G('공사의 종류', 3), G(F(T('하도급공종')), 7, 'L')]),
+            (22, [G('하도급내용(율)', 3, 'C', 3), G(F(f'"도급액(① 하도급 부분):  "&{AMT("하도급부분액")}'), 7, 'LT')]),
+            (22, [G(F(f'"하도급(예정)금액:  "&{AMT("하도급금액")}'), 7, 'LM')]),
+            (22, [G(F(f'"② 하도급률:  "&IF({R("하도급률")}="","",FIXED({R("하도급률")}*100,2)&"%")'), 7, 'LB')]),
+            (22, [G('하도급내용\n(예정·변경)일', 3, 'S', 2), G(F(DS(R('하도급일'))), 2, 'C', 2), G('하도급\n공사기간', 2, 'S', 2),
+                  G(F(f'"착공(예정): "&{DS(R("하도급착공"))}'), 3, 'LST')]),
+            (22, [G(F(f'"준공(예정): "&{DS(R("하도급준공"))}'), 3, 'LSB')]),
+            (30, [G('사회보험료', 3), G('직접노무비\n또는 노무비', 2, 'S'), G('반영\n요율', 1, 'S'), G('반영금액', 2), G('부담방법', 2)]),
+        ] + [(24, [G(n, 3, 'LS'), G('', 2, 'N'), G('', 1), G('', 2, 'N'), G('[  ] 일괄  [  ] 개별' if 괄 else '', 2, 'S')])
+             for n, 괄 in [('③ 고용보험', 1), ('④ 산재해보상보험', 1), ('⑤ 국민연금보험', 0), ('⑥ 국민건강보험', 0),
+                          ('⑦ 노인장기요양보험', 0), ('⑧ 퇴직공제부금', 1)]]
+          + [(24, [G('*③~⑧에서 보험료를 일괄 부담할 경우에는 부담방법 중 일괄란에만 표시합니다.', 10, 'LS')])]),
+        ('text', '「건설산업기본법」 제29조제6항 및 같은 법 시행령 제32조제1항에 따라 위와 같이 건설공사의 하도급계약내용을 통보합니다.'),
+        ('date', '하도급통보일', 'R'),
+        ('grid', [(26, [G('', 4, 'O'), G('수급인', 2, 'O'), G(F(WHO2('상호', '대표자')), 4, 'LO'), G('(서명 또는 인)', 2, 'SO')])]),
+        TO(),
+        ('grid', [(26, [G('첨부서류', 2), G('뒤쪽 참조', 10, 'L')])])],
+        date_key='하도급통보일', pre=('■ 건설산업기본법 시행규칙 [별지 제23호서식] <개정 2021. 8. 27.>', '(앞쪽)'),
+        colw=[4.6, 4.6, 7.0, 7.0, 7.0, 6.2, 6.2, 4.6, 6.2, 6.2, 8.4, 8.4],
+        desc='법정 서식(건설산업기본법 시행규칙 별지 제23호서식) 앞·뒤쪽 칸 그대로 — 2장. 하도급률 자동.')
+
+    유의1 = ('① 하도급 부분 금액은 하도급하려는 공사 부분에 대하여 수급인의 계약단가(직접·간접 노무비, 재료비 및 경비를 포함합니다)를 '
+            '기준으로 산출한 금액에 일반관리비, 이윤 및 부가가치세를 포함한 금액을 말하며, 수급인이 하수급인에게 직접 지급하는 자재의 비용과 '
+            '「건설산업기본법」 제34조제3항에 따른 하도급대금 지급보증서 발급에 드는 금액 등 관계 법령에 따라 수급인이 부담하는 금액은 제외합니다.')
+    doc(10.45, '00 하도급계약 통보서 뒤쪽', '', '업체', '공사 중', False, [
+        ('grid', [
+            (30, [G('첨부서류', 2, 'C', 6), G('1. 하도급계약서(변경계약서를 포함하고, 특수조건이 있는 경우 특수조건을 포함합니다) 사본', 10, 'LS')]),
+            (24, [G('2. 공사량(규모)·공사단가 및 공사금액 등이 분명하게 적힌 공사내역서', 10, 'LS')]),
+            (24, [G('3. 예정공정표', 10, 'LS')]),
+            (24, [G('4. 하도급대금지급보증서 교부의무가 면제되는 경우에는 그 증빙서류', 10, 'LS')]),
+            (24, [G('5. 현장설명서(현장설명을 실시한 경우만 해당합니다)', 10, 'LS')]),
+            (36, [G('6. 공동도급인 경우 공동수급체 구성원 간에 체결한 협정서 사본. 다만, 별지 제17호서식의 건설공사대장에 해당 협정서의 내용을 첨부한 경우는 제외합니다.', 10, 'LS')]),
+            (24, [G('유의사항', 12, 'H')]),
+            (70, [G(유의1, 12, 'LS')]),
+            (24, [G('② 하도급률은 하도급 계약금액을 하도급 부분 금액으로 나눈 비율을 말합니다.', 12, 'LS')]),
+            (24, [G('처리절차', 12, 'H')]),
+            (24, [G('이 통보서는 아래와 같이 처리됩니다.', 12, 'LSO')]),
+            (26, [G('건설사업자', 6), G('발주자(담당부서)', 6)]),
+            (34, [G('통보서 작성·제출   ──▶', 6, 'C', 5), G('접수', 6)]),
+            (20, [G('▼', 6)]),
+            (34, [G('통보내용 확인\n(적정성)', 6)]),
+            (20, [G('▼', 6)]),
+            (34, [G('결재', 6)]),
+        ])],
+        date_key=None, pre=('', '(뒤쪽)'), with_='하도급계약 통보서',
+        desc='별지 제23호서식 뒤쪽(첨부서류 · 유의사항 · 처리절차) 그대로. 앞쪽과 같이 인쇄하세요.')
+
+    doc(12.5, '00 하도급대금 지급확인서', '하 도 급 대 금 지 급 확 인 서', '업체', '공사 중', True, [
+        ('kv', [kvF('공 사 명', T('공사명'), 34), kvF('계약 번호', T('계약번호')),
+                kvF('기성 회차', f'IF({R("기성회차")}="","","제 "&{R("기성회차")}&" 회")'),
+                kvF('대상 기간', f'IF(OR({R("기성시작")}="",{R("기성끝")}=""),"",{DS(R("기성시작"))}&" ~ "&{DS(R("기성끝"))})')]),
+        ('table', ['구  분', '상  호', '계약 금액 (원)', '금회 지급액 (원)', '누계 지급액 (원)', '지 급 일', '지급 방법'],
+         [1, 2, 2, 2, 2, 2, 1],
+         [[F(f'IF({R("하수급상호")}="","","하도급")'), F(T('하수급상호')), F(f'IF({R("하도급금액")}="","",{R("하도급금액")})'), '', '', '', '']]
+         + [[''] * 7 for _ in range(7)] + [['합  계', '', F('SUMCOL'), F('SUMCOL'), F('SUMCOL'), '', '']], 26),
+        ('note', '※ 구분: 하도급 / 자재 / 장비. 첫 줄은 «12. 하도급» 입력에서 채워집니다.'),
+        ('text', '위와 같이 지급하였음을 확인합니다.'),
+        ('date', '기성청구eff'), CONTRACTOR(), TO()], date_key='기성청구eff',
+        desc='하도급·자재·장비 대금을 준 것을 확인하는 서류(기성 청구 때). 기성 회차·기간 자동.')
+
+    doc(13.5, '00 계약금액 조정 신청서', '계 약 금 액 조 정 신 청 서', '업체', '공사 중', True, [
+        ('kv', [kvF('공 사 명', T('공사명'), 34), kvF('계약 번호', T('계약번호')), kvF('계 약 일', DS(R('계약일'))),
+                kvF('조정 구분', f'IF({R("조정구분")}="","[   ] 설계변경        [   ] 물가변동",{R("조정구분")})'),
+                kvF('조정 기준일', DS(R('조정기준일'))),
+                kvF('조정 전 계약금액', KRW('계약금액'), 34),
+                kvF('조정 신청 금액', f'IF({R("조정금액")}="","",IF({R("조정증감")}="감액","감액 ","증액 ")&FIXED({R("조정금액")},0)&"원")'),
+                kvF('조정 후 계약금액', KRW('조정후금액'), 34),
+                kvF('조정 사유', T('조정사유'), 44)]),
+        ('table', ['구  분', '당초 금액 (원)', '조정 금액 (원)', '증  감 (원)', '산출 근거'], [2, 2.5, 2.5, 2, 3],
+         [['', '', '', '', ''] for _ in range(6)] + [['합  계', F('SUMCOL'), F('SUMCOL'), F('SUMCOL'), '']], 24),
+        ('text', '위와 같이 계약금액의 조정을 신청합니다.'),
+        ATT(['조정금액 산출서', '근거 자료']),
+        ('note', '※ «조정 전 계약금액» 은 «1. 공사» 의 계약 금액입니다. 산출은 🔁 설계변경 도구(k-conmap.com/change)로 할 수 있습니다.'),
+        ('date', '조정신청일'), CONTRACTOR(), TO()], date_key='조정신청일',
+        desc='설계변경·물가변동으로 계약금액을 고쳐 달라는 신청서. 조정 후 금액·한글 금액 자동.')
+
     # ── 발주기관이 쓰는 것 ──
     doc(20, '20 공사감독조서', '공 사 감 독 조 서', '발주기관', '준공', False, [
         ('kv', [kvF('공 사 명', T('공사명'), 34), kvF('계약 번호', T('계약번호')),
@@ -540,21 +789,106 @@ def spread(ws_widths, n=NC):
     return out
 
 
+def is_money(hd):
+    """표 머리가 돈 칸인가 — «금액 (원)» «예정 금액 (원)» «단가 (원)» «금회 지급액 (원)» (대비·비율은 아님)"""
+    if not isinstance(hd, str) or isinstance(hd, F):
+        return False
+    t = hd.replace(' ', '')
+    if '대비' in t:
+        return False
+    return t.startswith('금액') or t.startswith('단가') or t.endswith('금액(원)') or t.endswith('지급액(원)')
+
+
+def put_rect(ws, r1, c1, r2, c2, val, font, align, fill=None, sides='LRTB', fmt=None):
+    if r2 > r1 or c2 > c1:
+        ws.merge_cells(start_row=r1, start_column=c1, end_row=r2, end_column=c2)
+    cell = ws.cell(r1, c1)
+    if isinstance(val, F):
+        cell.value = '=' + val
+    else:
+        cell.value = val if val != '' else None
+    cell.font = font
+    cell.alignment = align
+    if fmt:
+        cell.number_format = fmt
+    for rr in range(r1, r2 + 1):
+        for cc in range(c1, c2 + 1):
+            x = ws.cell(rr, cc)
+            x.border = Border(left=thin if cc == c1 and 'L' in sides else None, right=thin if cc == c2 and 'R' in sides else None,
+                              top=thin if rr == r1 and 'T' in sides else None, bottom=thin if rr == r2 and 'B' in sides else None)
+            if fill:
+                x.fill = fill
+    return cell
+
+
+def draw_grid(ws, r0, rows, expr, stretch):
+    """G142 — 법정 서식처럼 칸이 줄마다 다른 표.
+    rows = [(높이, [(값, 칸수, 모양, 줄수=1), ...]), ...]  · 칸수 합 = 12 (위에서 내려온 칸 빼고)
+    모양 글자: L 왼쪽 · R 오른쪽 (없으면 가운데) · S 작은 글 · X 더 작은 글 · N 숫자(#,##0) · H 머리(회색·굵게) · O 테두리 없음
+              T 아래 테두리 없음(여러 줄 한 칸의 윗줄) · M 위아래 없음 · B 위 테두리 없음(아랫줄)
+    값 F('SUMBELOW:n') → 바로 아래 n 줄 합 (0이면 빈칸)"""
+    first = col(0)
+    occ = set()
+    for ri, (h, cells) in enumerate(rows):
+        c = 0
+        rr = r0 + ri
+        for cell in cells:
+            val, cs, kind = cell[0], cell[1], cell[2]
+            rs = cell[3] if len(cell) > 3 else 1
+            while (ri, c) in occ:
+                c += 1
+            for a in range(ri, ri + rs):
+                for b2 in range(c, c + cs):
+                    assert (a, b2) not in occ, (rows[ri], cell)
+                    occ.add((a, b2))
+            c1 = first + c
+            c2 = c1 + cs - 1
+            if isinstance(val, F) and str(val).startswith('SUMBELOW:'):
+                n = int(str(val).split(':')[1])
+                cl = get_column_letter(c1)
+                val = F(f'IF(SUM({cl}{rr + 1}:{cl}{rr + n})=0,"",SUM({cl}{rr + 1}:{cl}{rr + n}))')
+            hz = 'left' if 'L' in kind else 'right' if 'R' in kind else 'center'
+            al = Alignment(horizontal=hz, vertical='center', wrap_text=True, indent=1 if hz != 'center' else 0)
+            if 'N' in kind:
+                al = Alignment(horizontal='right', vertical='center', indent=1)
+            fnt = f(8.5 if 'X' in kind else 9.5 if 'S' in kind else 10.5, 'H' in kind)
+            sides = '' if 'O' in kind else 'LRT' if 'T' in kind else 'LR' if 'M' in kind else 'LRB' if 'B' in kind else 'LRTB'
+            put_rect(ws, rr, c1, rr + rs - 1, c2, expr(val), fnt, al, HEAD_FILL if 'H' in kind else None, sides,
+                     '#,##0' if 'N' in kind else None)
+            c += cs
+        while (ri, c) in occ:
+            c += 1
+        assert c == NC, (ri, c, cells)
+        ws.row_dimensions[rr].height = h
+        stretch.append(rr)
+    return r0 + len(rows)
+
+
 def make_sheet_for_doc(wb, d, hangul_ref):
     """제목 → 블록 순서로 그림"""
     ws = wb.create_sheet(d['sheet'])
     ws.sheet_view.showGridLines = False
     ws.sheet_properties.tabColor = {'업체': '2F6FB5', '발주기관': 'B7802F'}[d['who']]
     ws.column_dimensions['A'].width = 1.5
+    cw = d.get('colw') or [COLW] * NC       # G142 법정 서식은 칸 너비를 서식에 맞춰 조금씩 다르게(합은 같게)
+    assert len(cw) == NC and abs(sum(cw) - COLW * NC) < 0.5, (d['name'], sum(cw))
     for i in range(NC):
-        ws.column_dimensions[ws.cell(1, col(i)).column_letter].width = COLW
+        ws.column_dimensions[get_column_letter(col(i))].width = cw[i]
     ws.column_dimensions['N'].width = 2
     ws.column_dimensions['O'].width = 18
     first = col(0); last = col(NC - 1)
     ws.row_dimensions[1].height = 8
+    pre = d.get('pre')
+    if pre:       # G142 법정 서식 머리줄 — «■ ○○법 시행규칙 [별지 제○호서식]» · «(앞쪽)»
+        ws.row_dimensions[1].height = 18
+        if pre[0]:
+            put(ws, 1, first, last - 2, pre[0], f(9, color='333333'), Alignment(horizontal='left', vertical='center'), border=False)
+        if pre[1]:
+            put(ws, 1, last - 1, last, pre[1], f(9, color='333333'), Alignment(horizontal='right', vertical='center'), border=False)
     title = d['title']
-    put(ws, 2, first, last, title, f(20, True), Alignment(horizontal='center', vertical='center'), border=False)
-    ws.row_dimensions[2].height = 44
+    if title:
+        put(ws, 2, first, last, title, f(20, True), Alignment(horizontal='center', vertical='center'), border=False)
+    ws.row_dimensions[2].height = 44 if title else 10
     sub = {'업체': '', '발주기관': ''}[d['who']]
     ws.row_dimensions[3].height = 10
     r = 4
@@ -612,12 +946,15 @@ def make_sheet_for_doc(wb, d, hangul_ref):
                         v = F(f'IF(OR({pc}{r}="",N({R("계약금액")})=0),"",{pc}{r}/{R("계약금액")})')
                     bold = isinstance(row[0], str) and row[0].startswith(('합', '월별', '누계'))
                     al = Alignment(horizontal='center', vertical='center', wrap_text=True)
-                    if j > 0 and hd.startswith('금'):
+                    돈 = is_money(hd)
+                    if j > 0 and (hd.startswith('금') or 돈):
                         al = Alignment(horizontal='right', vertical='center', indent=1)
                     if j == 0 and len(heads) > 2 and heads[1] == '금  액 (원)':
                         al = Alignment(horizontal='left', vertical='center', indent=1)
+                    if j == 0 and isinstance(v, str) and re.match(r'^\d+\.\s', v):      # G142 «1. 안전시설비 등» 같은 항목 줄
+                        al = Alignment(horizontal='left', vertical='center', wrap_text=True, indent=1)
                     cell = put(ws, r, c, c + sp - 1, expr(v), f(10.5, bold), al)
-                    if hd.startswith('금액') or hd.startswith('금  액'):
+                    if 돈:
                         cell.number_format = '#,##0'
                     if hd.startswith('비율'):
                         cell.number_format = '0.0%'
@@ -626,11 +963,17 @@ def make_sheet_for_doc(wb, d, hangul_ref):
                 stretch.append(r)
                 r += 1
             ws.row_dimensions[r].height = 8; r += 1
+        elif kind == 'grid':      # G142 칸을 마음대로 나누는 표 (법정 서식) — 줄마다 (높이, [(값, 칸수, 모양, 줄수)])
+            r = draw_grid(ws, r, b[1], expr, stretch)
+            ws.row_dimensions[r].height = 8; r += 1
         elif kind == 'date':
             ws.row_dimensions[r].height = 8
             date_gap = r
             r += 1
-            put(ws, r, first, last, F(DL(R(b[1]))), f(12), Alignment(horizontal='center', vertical='center'), border=False)
+            if len(b) > 2 and b[2] == 'R':
+                put(ws, r, first, last, F(DL(R(b[1]))), f(12), Alignment(horizontal='right', vertical='center', indent=1), border=False)
+            else:
+                put(ws, r, first, last, F(DL(R(b[1]))), f(12), Alignment(horizontal='center', vertical='center'), border=False)
             ws.row_dimensions[r].height = 30
             r += 1
             ws.row_dimensions[r].height = 6; r += 1
@@ -672,7 +1015,7 @@ def make_sheet_for_doc(wb, d, hangul_ref):
     c2.font = Font(name=FONT, size=10, color='1F5FBF', underline='single')
     ws.cell(5, 15, '칸은 「입력」 시트에서 저절로 채워집니다. 여기서 직접 고쳐 써도 됩니다 (그 칸만 수식이 바뀜).').font = f(9, color='777777')
     ws.cell(5, 15).alignment = Alignment(wrap_text=True, vertical='top')
-    ws.print_area = f'A1:{ws.cell(1, last).column_letter}{last_row}'
+    ws.print_area = f'A1:{get_column_letter(last)}{last_row}'
     page(ws, d.get('land'))
     return ws
 
@@ -704,7 +1047,7 @@ def make_input(wb):
         ws.column_dimensions[c].width = w
     put(ws, 1, 2, 4, '공사서류 원클릭 — 입력', f(18, True), Alignment(vertical='center'), border=False)
     ws.row_dimensions[1].height = 36
-    put(ws, 2, 2, 4, '노란 칸만 채우면 서류 24가지에 저절로 들어갑니다. 모르는 칸은 비워 두세요 — 서류에서 그 자리만 빈칸으로 나옵니다.',
+    put(ws, 2, 2, 4, '노란 칸만 채우면 서류마다 저절로 들어갑니다. 모르는 칸은 비워 두세요 — 서류에서 그 자리만 빈칸으로 나옵니다.',
         f(10.5, color='333333'), Alignment(vertical='center', wrap_text=True), border=False)
     ws.row_dimensions[2].height = 30
     back = ws.cell(3, 2, '← 처음(목록)으로')
@@ -733,7 +1076,7 @@ def make_input(wb):
             from openpyxl.styles import Protection
             cell.protection = Protection(locked=False)
             h = put(ws, r, 4, 4, hlp, f(9.5, color='666666'), Alignment(vertical='center', wrap_text=True, indent=1), border=False)
-            ws.row_dimensions[r].height = 22 if typ != 'text' or key not in ('공사명', '현장위치', '공사개요', '연장사유', '업체주소') else 30
+            ws.row_dimensions[r].height = 22 if typ != 'text' or key not in ('공사명', '현장위치', '공사개요', '연장사유', '업체주소', '하수급주소', '하도급사유', '조정사유') else 30
             REF[key] = f"'입력'!$C${r}"
             CELL[key] = f'C{r}'
             if opts:
@@ -823,7 +1166,7 @@ def make_front(wb, docs_meta, meta_inputs):
         ws.column_dimensions[c].width = w
     put(ws, 1, 2, 7, 'K-건설맵 공사서류 원클릭', f(22, True, '1F3A5F'), Alignment(vertical='center'), border=False)
     ws.row_dimensions[1].height = 46
-    put(ws, 2, 2, 7, '한 번 입력하면 착공부터 준공·하자까지 서류 24가지가 채워집니다. 매크로 없이 수식만 써서 '
+    put(ws, 2, 2, 7, f'한 번 입력하면 착공부터 준공·하자까지 서류 {doc_count()}가지가 채워집니다. 매크로 없이 수식만 써서 '
                      '엑셀·한셀·구글 시트 어디서나 열립니다. 모든 공사 현장(관급·민간)에 쓸 수 있습니다.',
         f(10.5, color='333333'), Alignment(vertical='center', wrap_text=True), border=False)
     ws.row_dimensions[2].height = 34
@@ -873,14 +1216,19 @@ def make_front(wb, docs_meta, meta_inputs):
         '• 입력 시트는 수식이 지워지지 않게 보호해 두었습니다(암호 없음). 칸 모양을 바꾸려면 검토 → 시트 보호 해제.',
         '• 인쇄하면 머리글 오른쪽에 작은 K-건설맵 표시가 나옵니다. 지우려면 페이지 레이아웃 → 페이지 설정 → 머리글/바닥글에서 «(없음)».',
         '• 사이트(k-conmap.com/tools/wonclick)에서 칸을 채우고 받으면, 입력이 채워진 파일을 바로 받을 수 있습니다.',
+        '• 「산업안전보건관리비 사용내역서」(고시 별지 제1호서식 첫 쪽)와 「건설공사의 하도급계약 통보서」(건설산업기본법 시행규칙 별지 제23호서식 앞·뒤쪽)는 법정 서식 칸 그대로입니다.',
     ]
-    for s in notes:
+    note_rows = {}
+    for i, s in enumerate(notes):
         put(ws, r, 2, 7, s, f(10, color='444444'), Alignment(vertical='center', wrap_text=True), border=False)
         ws.row_dimensions[r].height = 30 if len(s) > 60 else 20
+        note_rows[i] = f'B{r}'
         r += 1
     page(ws)
     ws.page_setup.fitToHeight = 0
     ws.print_area = f'A1:G{r}'
+    # G142 — 사이트가 «값만» 받을 때 바꿔 쓰는 안내 칸 주소(서류 수가 바뀌면 줄이 내려감)
+    return {'보호': note_rows[3], '사이트': note_rows[5]}
 
 
 def set_default_font(wb):
@@ -906,7 +1254,10 @@ def build(outdir, sample=None):
         make_sheet_for_doc(wb, d, hangul_ref)
         docs_meta.append(dict(no=d['no'], sheet=d['sheet'], name=d['name'], title=d['title'], who=d['who'],
                               when=d['when'], pub=d['pub'], desc=d['desc']))
-    make_front(wb, docs_meta, meta_inputs)
+        if d.get('with_'):      # G142 딸린 장(뒤쪽) — 사이트는 앞쪽과 같이 고르고 따로 세지 않음
+            docs_meta[-1]['with'] = next(x['sheet'] for x in DOCS if x['name'] == d['with_'])
+    front = make_front(wb, docs_meta, meta_inputs)
+    ws_in['B2'].value = f'노란 칸만 채우면 서류 {doc_count()}가지에 저절로 들어갑니다. 모르는 칸은 비워 두세요 — 서류에서 그 자리만 빈칸으로 나옵니다.'
     # 순서: 처음, 입력, 서류들…, 계산(숨김)
     order = ['처음', '입력'] + [d['sheet'] for d in DOCS] + ['계산']
     wb._sheets = [wb[n] for n in order]
@@ -929,7 +1280,7 @@ def build(outdir, sample=None):
     wb.save(os.path.join(outdir, name))
     sheet_files = {ws.title: f'xl/worksheets/sheet{i + 1}.xml' for i, ws in enumerate(wb.worksheets)}
     meta = dict(version=1, file='/tools/files/k-conmap-wonclick.xlsx', inputSheet=sheet_files['입력'],
-                sections=[s for s, _ in SECTIONS], inputs=meta_inputs, docs=docs_meta, required=REQUIRED)
+                sections=[s for s, _ in SECTIONS], inputs=meta_inputs, docs=docs_meta, required=REQUIRED, front=front)
     if not sample:
         json.dump(meta, open(os.path.join(outdir, 'wonclick_meta.json'), 'w'), ensure_ascii=False, indent=1)
     return meta

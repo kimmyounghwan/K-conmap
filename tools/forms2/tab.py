@@ -8,7 +8,7 @@ F = {f['slug']: f for f in json.load(open(R + 'forms.json', encoding='utf-8'))['
 O = {f['slug']: f for f in json.load(open(R + 'forms_orig.json', encoding='utf-8'))['forms']}
 ALL = {**F, **O}
 P = dict(
-    wonclick=('/tools/wonclick', '⚡', '공사서류 원클릭 — 한 번 입력으로 서류 24가지', '공사명·금액·날짜를 한 번만 넣으면 착공계·현장대리인계·기성·준공·하자 서류가 채워진 엑셀로. 매크로 없음.'),
+    wonclick=('/tools/wonclick', '⚡', '공사서류 원클릭 — 한 번 입력으로 서류 34가지', '공사명·금액·날짜를 한 번만 넣으면 착공계·현장대리인계·기성·준공·하자 서류가 채워진 엑셀로. 매크로 없음.'),
     after=('/tools/after-award', '📅', '낙찰 뒤 할 일 달력', '낙찰 통지일·착공일·도급금액을 넣으면 계약·공사대장 통보·안전 서류·보험 신고·하도급 통보 기한이 날짜로.'),
     subchk=('/tools/subcontract-check', '⚖️', '하도급 적정성 판정 — 82% · 64%', '하도급금액을 넣으면 적정성 심사 대상인지, 넘기려면 얼마 이상이어야 하는지.'),
     ratio=('/naeyeok/ratio', '📉', '내역서 비율 맞추기 — 하도급 80% · 실행률', '내역서를 올리면 원하는 비율로 단가·금액을 맞추고 원가계산서까지 따라옵니다.'),

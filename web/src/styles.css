@@ -3774,6 +3774,11 @@ ul.plainlist li { margin-bottom: 5px; }
 .flist.sf-chk { list-style: none; padding-left: 4px; }
 #sf-a, #sf-b, #sf-prep { scroll-margin-top: 64px; }
 @media (min-width: 620px) { .btn-grid.sf-jump { grid-template-columns: 1fr 1fr 1fr; } }
+/* 🔎 이름 헷갈리는 안전 서류 한 장 (G141) — 폰에서는 옆으로 밀어 봄 */
+.sf-cmp { min-width: 720px; }
+.sf-cmp td, .sf-cmp th { font-size: 12.5px; vertical-align: top; }
+.sf-cmp td:first-child { min-width: 7em; }
+@media (min-width: 760px) { .sf-swipe { display: none; } }
 
 /* 📄 /tools/dxfpdf 도면 PDF 만들기 (2026-09-26) — 종이는 어두운 화면에서도 흰색 */
 .dp-sum { font-size: 14px; margin-bottom: 10px; line-height: 1.6; }
@@ -4123,6 +4128,11 @@ span.qna-like { cursor: default; }
 .gj-num { text-align: right; min-width: 84px; font-variant-numeric: tabular-nums; }
 .gj-paste { margin-top: 10px; } .gj-paste summary { cursor: pointer; font-weight: 700; font-size: 13px; color: var(--accent); }
 .gj-rates { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; align-items: end; }
+/* 🎯 목표 금액 맞추기 (G140) */
+.gj-goal { margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--line, #cbd5e1); border-radius: 10px; background: var(--surface-2, #f8fafc); }
+.gj-goal-r { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; align-items: center; }
+.gj-goal-r .inp { flex: 1 1 140px; min-width: 0; }
+@media print { .gj-goal { display: none; } }
 .gj-check { flex-direction: row !important; align-items: center; gap: 6px !important; }
 .gj-add { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; }
 .gj-add-r { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }

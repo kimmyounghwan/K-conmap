@@ -21,19 +21,50 @@
  * ■ 2026-10-01 (G109) 받는 엑셀은 «값만» — 소장님 「엑셀로 값만 주는 걸로 하자. 프로그램 원칙으로 하고」 · 「원클릭은 값만 줘도 상관 없지 않아?」
  *    셈 · 서류 화면은 이 사이트(프로그램) 그대로. 받을 때 모든 수식 칸을 화면과 같은 셈(lib/엑셀수식.js)의 값으로 바꿉니다(lib/엑셀쓰기.js 값만으로).
  *    «빈 엑셀 프로그램만 받기» 는 내렸습니다(틀 파일은 화면이 셈하려고 계속 읽습니다).
+ *
+ * ■ 2026-10-05 (G142) 서류 8가지 더함(소장님 「1,2,3다 하자」 → 설계 «이대로 해»)
+ *    선금 신청·사용계획 · 인력·장비 투입계획 · 월간 공정보고 · 노무비 청구내역 · 산안비 사용계획·사용내역(고시 별지 제1호서식 첫 쪽)
+ *    · 하도급계약 통보서(건설산업기본법 시행규칙 별지 제23호서식 앞·뒤쪽) · 하도급대금 지급확인 · 계약금액 조정 신청.
+ *    입력 칸은 맨 뒤(10.~13.)에만 붙여 예전 칸 주소 그대로. 서류 번호가 바뀌어(«06 착공신고서» → «08 …») 예전에 골라 둔 서류 ·
+ *    화면에서 고친 칸은 «서류 이름» 으로 옮겨 읽습니다(시트옮김). «뒤쪽» 장은 앞쪽에 딸려 같이 골라지고 따로 세지 않습니다.
  */
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import META from '../data/wonclick.json'
 import { askAfter } from '../AskComment'
 import 이어쓰기 from '../tools/이어쓰기.jsx'
 import { 앞모습두기 } from '../lib/이어쓰기.js'
+import { 세기 } from '../lib/받은수.jsx'
 /* 📄 2026-09-27 — 서류를 화면에서 보고·고치고·인쇄 (엑셀화면.jsx). 무거운 셈은 열 때만 받습니다. */
 const 엑셀화면 = lazy(() => import('../엑셀화면.jsx'))
 const 고침열쇠 = 'kcm.wonclick.고침.v1'
-function 고침읽기() { try { return JSON.parse(localStorage.getItem(고침열쇠) || '{}') || {} } catch { return {} } }
+function 고침읽기() { try { return 고침옮김(JSON.parse(localStorage.getItem(고침열쇠) || '{}') || {}) } catch { return {} } }
 
 const KEY = 'kcm.wonclick.v1'
-const 늦게펼침 = ['6.', '7.', '8.', '9.']     // 기성·공기연장·준공·하자 — 필요할 때 펼침
+const 늦게펼침 = ['6.', '7.', '8.', '9.', '10.', '11.', '12.', '13.']     // 기성·공기연장·준공·하자 · G142 선금·달마다·하도급·조정 — 필요할 때 펼침
+
+/* 🗂 G142 — 고르는 단위는 «서류»(뒤쪽 장은 앞쪽에 딸림) · 예전에 저장한 시트 이름은 서류 이름으로 옮김 */
+const 서류들 = META.docs.filter((d) => !d.with)
+const 모두 = () => META.docs.map((d) => d.sheet)
+const 이름으로 = new Map(META.docs.map((d) => [d.name, d.sheet]))
+const 시트옮김 = (s) => { const x = String(s); return META.docs.some((d) => d.sheet === x) ? x : (이름으로.get(x.replace(/^\d+\s*/, '')) || x) }
+function 딸림붙임(p) {
+  const set = new Set(p)
+  return META.docs.filter((d) => set.has(d.sheet) || (d.with && set.has(d.with))).map((d) => d.sheet)
+}
+function 고른것읽기(v) {
+  if (!v || !Array.isArray(v.__pick)) return 모두()
+  if (!v.__pv && v.__pick.length >= 24) return 모두()     /* 예전(24가지)에 전부 골라 두셨으면 새 서류까지 전부 */
+  return 딸림붙임(v.__pick.map(시트옮김))
+}
+/* 📊 G142 누적 카운트(화면엔 안 보임) — 새 서류 8가지 중 하나라도 골라 보거나 받으면 «|원클릭|새서류» */
+const 새서류 = new Set(['선금 신청서', '선금 사용계획서', '인력·장비 투입계획서', '산안비 사용계획서', '월간 공정보고서', '노무비 청구내역서',
+  '산안비 사용내역서', '하도급계약 통보서', '하도급대금 지급확인서', '계약금액 조정 신청서'])
+const 새것골랐나 = (p) => META.docs.some((d) => 새서류.has(d.name) && p.includes(d.sheet))
+function 고침옮김(g) {
+  const out = {}
+  for (const [k, v] of Object.entries(g || {})) { const i = k.lastIndexOf('!'); out[i > 0 ? 시트옮김(k.slice(0, i)) + k.slice(i) : k] = v }
+  return out
+}
 
 function load() {
   try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {} } catch { return {} }
@@ -96,10 +127,7 @@ function Field({ inp, v, set }) {
 
 export default function WonClick() {
   const [vals, setVals] = useState(load)
-  const [pick, setPick] = useState(() => {
-    const v = load()
-    return v.__pick && Array.isArray(v.__pick) ? v.__pick : META.docs.map((d) => d.sheet)
-  })
+  const [pick, setPick] = useState(() => 고른것읽기(load()))
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [done, setDone] = useState('')
@@ -134,7 +162,8 @@ export default function WonClick() {
   }, [보기, vals, 틀])   // eslint-disable-line react-hooks/exhaustive-deps
   const 보일서류 = useMemo(() => META.docs.map((d) => d.sheet).filter((x) => pick.includes(x)), [pick])
 
-  useEffect(() => { save({ ...vals, __pick: pick }) }, [vals, pick])
+  useEffect(() => { save({ ...vals, __pick: pick, __pv: 2 }) }, [vals, pick])
+  const 고른수 = useMemo(() => pick.filter((s) => { const d = META.docs.find((x) => x.sheet === s); return d && !d.with }).length, [pick])
 
   const set = (k, v) => { setVals((o) => ({ ...o, [k]: v })); setDone('') }
   const secs = useMemo(() => META.sections.map((s) => [s, META.inputs.filter((i) => i.sec === s)]), [])
@@ -149,8 +178,11 @@ export default function WonClick() {
   const 계약 = 수(vals.계약금액)
   const 보증 = 계약 && vals.계약보증률 ? Math.ceil(계약 * Number(vals.계약보증률) / 100) : null
 
-  const togg = (s) => setPick((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]))
-  const 고르기 = (fn) => setPick(META.docs.filter(fn).map((d) => d.sheet))
+  const togg = (s) => setPick((p) => {
+    const 딸 = META.docs.filter((d) => d.with === s).map((d) => d.sheet)
+    return p.includes(s) ? p.filter((x) => x !== s && !딸.includes(x)) : [...p, s, ...딸]
+  })
+  const 고르기 = (fn) => setPick(딸림붙임(서류들.filter(fn).map((d) => d.sheet)))
 
   async function 받기() {
     setErr(''); setDone(''); setBusy(true)
@@ -169,8 +201,8 @@ export default function WonClick() {
         '처음!B2': '이 파일은 K-건설맵 원클릭에서 셈한 값만 든 파일입니다(수식 없음). 서류 칸이 모두 채워져 있어 바로 인쇄할 수 있습니다. 고칠 때는 k-conmap.com/tools/wonclick 에서 고쳐 다시 받으십시오.',
         '처음!C4': '「입력」 시트는 받을 때 넣은 값의 기록입니다 — 여기서 고쳐도 서류는 바뀌지 않습니다.',
         '처음!C5': '아래 목록에서 서류 이름을 누르면 그 서류로 갑니다.',
-        '처음!B39': '• 수식 없이 값만 들어 있습니다. 칸을 고치면 그 칸만 바뀝니다(다른 서류는 따라 바뀌지 않음).',
-        '처음!B41': '• 다시 셀 때는 사이트(k-conmap.com/tools/wonclick)에서 칸을 고치고 받으십시오 — 적은 내용이 그 브라우저에 남아 있습니다.',
+        ['처음!' + ((META.front && META.front.보호) || 'B39')]: '• 수식 없이 값만 들어 있습니다. 칸을 고치면 그 칸만 바뀝니다(다른 서류는 따라 바뀌지 않음).',
+        ['처음!' + ((META.front && META.front.사이트) || 'B41')]: '• 다시 셀 때는 사이트(k-conmap.com/tools/wonclick)에서 칸을 고치고 받으십시오 — 적은 내용이 그 브라우저에 남아 있습니다.',
       }
       const out = W.값만으로(채움, { ...안내, ...고침 }).바이트
       const nm = `공사서류_원클릭_${lib.safeName(vals.공사명) || '빈칸'}.xlsx`
@@ -179,8 +211,9 @@ export default function WonClick() {
       a.href = url; a.download = nm
       document.body.appendChild(a); a.click(); a.remove()
       setTimeout(() => URL.revokeObjectURL(url), 30000)
-      setDone(`«${nm}» 을 받았습니다 — 서류 ${pick.length}가지.`)
+      setDone(`«${nm}» 을 받았습니다 — 서류 ${고른수}가지.`)
       askAfter('forms')
+      if (새것골랐나(pick)) 세기('|원클릭|새서류')
     } catch (e) {
       setErr(e.message || String(e))
     } finally {
@@ -191,18 +224,18 @@ export default function WonClick() {
   function 지우기() {
     if (!window.confirm('입력한 내용을 모두 지울까요? (지우기 전 모습은 «🔗 이어 쓰기 → 💾 백업 · 더 보기 → ↩ 되돌리기» 로 한 번 되살릴 수 있습니다)')) return
     앞모습두기('wc', 잇는상태)
-    setVals({}); setPick(META.docs.map((d) => d.sheet)); setDone(''); set고침({})
+    setVals({}); setPick(모두()); setDone(''); set고침({})
   }
 
   /* 🔗 G113 — 이어 쓰기: 칸(vals + 고른 서류) · 화면에서 고친 칸(고침) 두 덩이를 한 덩이로 */
-  const 잇는상태 = useMemo(() => ({ v: { ...vals, __pick: pick }, 고침 }), [vals, pick, 고침])
+  const 잇는상태 = useMemo(() => ({ v: { ...vals, __pick: pick, __pv: 2 }, 고침 }), [vals, pick, 고침])
   const 잇기읽기 = () => ({ v: load(), 고침: 고침읽기() })
   const 잇기쓰기 = (x) => { save((x && x.v) || {}); try { localStorage.setItem(고침열쇠, JSON.stringify((x && x.고침) || {})) } catch { /* 가득 참 */ } return true }
   const 잇기받기 = (x) => {
     const v = (x && x.v) || {}
     setVals(v)
-    setPick(Array.isArray(v.__pick) ? v.__pick : META.docs.map((d) => d.sheet))
-    set고침원((x && x.고침) || {})
+    setPick(고른것읽기(v))
+    set고침원(고침옮김((x && x.고침) || {}))
     setDone('')
   }
 
@@ -213,12 +246,14 @@ export default function WonClick() {
       <div className="card">
         <h1 className="tl-h1">⚡ 공사서류 원클릭</h1>
         <div className="note">
-          <b>한 번 입력하면 착공부터 준공·하자까지 서류 {META.docs.length}가지가 채워진 엑셀</b>이 나옵니다.
+          <b>한 번 입력하면 착공부터 준공·하자까지 서류 {서류들.length}가지가 채워진 엑셀</b>이 나옵니다.
           공사명·계약금액·날짜를 서류마다 옮겨 적지 않아도 됩니다. 관급·민간 <b>모든 현장</b>에 쓰고,
           회원가입 없이 무료입니다.
         </div>
         <ul className="wc-up">
           <li><b>저절로 계산</b> — 일금 …원정 한글 금액, 공사기간 일수, 계약·하자보수보증금, 하자기간 끝나는 날, 지체일수·지체상금, 기성 누계·기성률, 준공금 청구액.</li>
+          <li><b>공사 중 서류까지</b> — 선금 신청·사용계획, 인력·장비 투입계획, 월간 공정보고, 노무비 청구내역, 산안비 사용계획·사용내역(고시 별지 제1호서식),
+            하도급계약 통보서(건설산업기본법 시행규칙 별지 제23호서식 앞·뒤쪽), 하도급대금 지급확인, 계약금액 조정 신청. 법정 서식 둘은 원문 칸 그대로입니다.</li>
           <li><b>화면에서 보고 고쳐 인쇄</b> — 서류를 A4 그대로 보고, 칸을 눌러 고치고, 한 장씩 또는 모두 인쇄합니다.</li>
           <li><b>필요한 서류만 · 값만 든 엑셀</b> — 고른 서류만 엑셀로 받습니다. 엑셀에는 셈한 값이 들어 있어 엑셀 · 한셀 · 구글 시트 어디서나 그대로 열립니다. 고칠 때는 여기서 다시 받으면 됩니다(적은 내용이 이 기기에 남아 있음).</li>
         </ul>
@@ -254,7 +289,7 @@ export default function WonClick() {
       </div>
 
       <div className="card">
-        <div className="detail-h">② 서류 고르기 <span className="count">· {pick.length}/{META.docs.length}가지</span></div>
+        <div className="detail-h">② 서류 고르기 <span className="count">· {고른수}/{서류들.length}가지</span></div>
         <div className="navrow" style={{ marginBottom: 8 }}>
           <button className="navi" onClick={() => 고르기(() => true)}>전부</button>
           <button className="navi" onClick={() => 고르기((d) => d.who === '업체')}>우리 회사 서류만</button>
@@ -265,7 +300,7 @@ export default function WonClick() {
           <div key={w} style={{ marginTop: 6 }}>
             <div className="wc-st">{t}</div>
             <div className="wc-docs">
-              {META.docs.filter((d) => d.who === w).map((d) => (
+              {서류들.filter((d) => d.who === w).map((d) => (
                 <label key={d.sheet} className={'wc-doc' + (pick.includes(d.sheet) ? ' on' : '')}>
                   <input type="checkbox" checked={pick.includes(d.sheet)} onChange={() => togg(d.sheet)} />
                   <span className="wc-dn">{d.no}. {d.name}{d.pub && <em> 관급</em>}</span>
@@ -283,7 +318,7 @@ export default function WonClick() {
           <>
             <div className="note sm">채운 칸이 서류에 어떻게 들어갔는지 A4 그대로 봅니다. <b>칸을 누르면 고칠 수 있고</b>, 고친 것은 이 기기에 남습니다. 인쇄하면 서류 한 가지가 A4 한 장입니다.</div>
             <div className="btn-row" style={{ marginTop: 8 }}>
-              <button className="btn" onClick={() => set보기(true)} disabled={!pick.length}>📄 서류 {pick.length}가지 화면에서 보기</button>
+              <button className="btn" onClick={() => { set보기(true); if (새것골랐나(pick)) 세기('|원클릭|새서류') }} disabled={!pick.length}>📄 서류 {고른수}가지 화면에서 보기</button>
             </div>
           </>
         ) : 보기오류 ? <div className="note sm" style={{ color: 'var(--bad, #c62828)' }}>⚠ {보기오류}</div>
@@ -306,7 +341,7 @@ export default function WonClick() {
         )}
         <div className="btn-row" style={{ marginTop: 8 }}>
           <button className="btn primary" onClick={받기} disabled={busy}>
-            {busy ? '만드는 중…' : `⬇ 엑셀로 받기 (서류 ${pick.length}가지)`}
+            {busy ? '만드는 중…' : `⬇ 엑셀로 받기 (서류 ${고른수}가지)`}
           </button>
           <button className="btn ghost sm" style={{ whiteSpace: 'nowrap' }} onClick={지우기}>입력 지우기</button>
         </div>
@@ -316,10 +351,10 @@ export default function WonClick() {
       </div>
 
       <div className="card">
-        <div className="detail-h">들어 있는 서류 {META.docs.length}가지</div>
+        <div className="detail-h">들어 있는 서류 {서류들.length}가지</div>
         <ul className="flist">
           {['계약', '착공', '공사 중', '준공', '관리', '하자'].map((w) => {
-            const l = META.docs.filter((d) => d.when === w)
+            const l = 서류들.filter((d) => d.when === w)
             return l.length ? <li key={w}><b>{w}</b> — {l.map((d) => d.name).join(' · ')}</li> : null
           })}
         </ul>

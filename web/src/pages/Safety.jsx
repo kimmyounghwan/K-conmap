@@ -51,6 +51,11 @@ import { PriceStance } from '../components.jsx'
 /* 기준을 읽어 온 날. 화면 아래에 그대로 적습니다 — 「언제 것인가」 가 제일 중요합니다. */
 const 기준일 = '2026-09-16'
 const 서류기준일 = '2026-09-26'
+/* 🦺 G141 (2026-10-05) 소장님 「1,2,3다 하자」 — 카페 질문 «관급 보수공사도 안전관리계획서 대상?» · 댓글 «산안법이냐 건진법이냐» 에서 고른 13~16.
+ *   국가법령정보센터 원문을 이날 다시 읽어 옮겼습니다:
+ *     · 건설기술 진흥법 [시행 2025. 10. 1.] 제62조의2 · 시행령 [시행 2026. 6. 9.] 제98조제1항제1호 괄호 · 제101조의5 · 제101조의6
+ *     · 산업안전보건법 [시행 2026. 8. 1.] 제67조 · 시행령 [시행 2026. 8. 1.] 제55조 · 제55조의2 · 시행규칙 [시행 2026. 8. 1.] 제86조 */
+const 보완기준일 = '2026-10-05'
 
 /* 위 차례 단추 — 누르면 그 칸으로 내려갑니다 */
 const 가기 = (id) => () => {
@@ -106,6 +111,9 @@ export default function Safety() {
           <button type="button" className="btn ghost" onClick={가기('sf-a')}>① 안전관리계획서 대상</button>
           <button type="button" className="btn ghost" onClick={가기('sf-b')}>② 유해·위험방지계획서 대상</button>
           <button type="button" className="btn primary" onClick={가기('sf-prep')}>📑 준비 서류</button>
+          <button type="button" className="btn ghost" onClick={가기('sf-c')}>③ 소규모안전관리계획서</button>
+          <button type="button" className="btn ghost" onClick={가기('sf-d')}>④ 안전보건대장 (발주자)</button>
+          <button type="button" className="btn ghost" onClick={가기('sf-cmp')}>🔎 이름 헷갈리는 서류 한 장</button>
         </div>
       </div>
 
@@ -116,7 +124,8 @@ export default function Safety() {
           건설기술진흥법 시행령 제98조제1항. <b>한 줄이라도 걸리면 대상</b>입니다.
         </p>
         <ul className="flist">
-          <li><b>1종·2종 시설물</b>의 건설공사</li>
+          <li><b>1종·2종 시설물</b>의 건설공사
+            <br /><span className="muted">단 <b>유지관리를 위한 건설공사는 제외</b> (시설물안전법 제2조제11호 — 원문 괄호)</span></li>
           <li><b>지하 10m 이상</b>을 굴착하는 건설공사</li>
           <li><b>폭발물 사용</b>으로 주변에 영향이 예상되는 건설공사
             <br /><span className="muted">주변 — 20m 내 시설물 또는 100m 내 가축 사육</span></li>
@@ -130,6 +139,13 @@ export default function Safety() {
           <li><b>발주자</b> 또는 <b>인·허가기관의 장</b>이 특히 필요하다고 인정하는 건설공사
             <br /><span className="muted">지자체 조례로 정하는 공사도 여기에 들어갑니다</span></li>
         </ul>
+
+        <div className="note sm" style={{ marginTop: 10 }}>
+          <b>⚠️ 보수 · 보강 공사(유지관리 공사)라도 대상일 수 있습니다.</b> 원문에서 빠지는 것은 <b>첫 줄(1종·2종 시설물)</b> 하나뿐입니다.
+          같은 보수공사라도 아래 줄 — <b>지하 10m 이상 굴착</b> · <b>폭발물</b> · <b>항타 및 항발기 · 타워크레인 · 10m 이상 천공기</b> ·
+          <b>31m 이상 비계 · 5m 이상 거푸집·동바리 · 2m 이상 흙막이 지보공</b> 같은 가설구조물 — 에 하나라도 걸리면 대상입니다.
+          <span className="muted"> (건설기술진흥법 시행령 제98조제1항 — 각 호는 따로 봅니다 · {보완기준일} 원문 확인)</span>
+        </div>
 
         <div className="sec-title" style={{ marginTop: 16 }}>어떤 가설구조물이 걸리나</div>
         <table className="tbl left reptbl">
@@ -235,6 +251,101 @@ export default function Safety() {
             </tr>
           </tbody>
         </table>
+      </div>
+
+      {/* ── ③ 소규모안전관리계획서 (G141 · 13~16 의 14) ── */}
+      <div className="card" id="sf-c">
+        <div className="sec-title">③ 소규모안전관리계획서 — 안전관리계획서 대상이 아닌 건축물</div>
+        <p className="muted" style={{ marginTop: 0 }}>
+          건설기술진흥법 제62조의2 · 시행령 제101조의5 · 제101조의6. 안전관리계획서 대상이 <b>아닌</b> 건설공사 가운데 아래에 걸리면 냅니다.
+        </p>
+        <table className="tbl left reptbl">
+          <tbody>
+            <tr>
+              <td className="w"><b>대상</b></td>
+              <td><b>2층 이상 10층 미만</b> 건축물의 건설공사로서
+                <br />— 연면적 <b>1,000㎡ 이상</b> 공동주택
+                <br />— 연면적 <b>1,000㎡ 이상</b> 제1종 · 제2종 근린생활시설
+                <br />— 연면적 <b>1,000㎡ 이상</b> 공장 <span className="muted">(산업단지 안 공장은 2,000㎡ 이상)</span>
+                <br />— 연면적 <b>5,000㎡ 이상</b> 창고 <span className="muted">(건축법 시행령 별표 1 제8호가목)</span>
+                <br /><span className="muted">(시행령 제101조의5제1항)</span></td>
+            </tr>
+            <tr>
+              <td className="w"><b>누가</b></td>
+              <td>건설사업자 · 주택건설등록업자 <span className="muted">(법 제62조의2제1항)</span></td>
+            </tr>
+            <tr>
+              <td className="w"><b>언제 · 어디에</b></td>
+              <td><b>착공 전</b>에 <b>발주자</b>에게 내고 승인 — 발주자가 발주청이 아니면(민간) <b>인·허가기관의 장</b>.
+                바꿀 때도 다시 냅니다 <span className="muted">(법 제62조의2제1항)</span></td>
+            </tr>
+            <tr>
+              <td className="w"><b>결과</b></td>
+              <td>받은 날부터 <b>15일</b> 안에 통보 — 적정 · 조건부 적정 · 부적정 <span className="muted">(시행령 제101조의5제2항)</span></td>
+            </tr>
+            <tr>
+              <td className="w"><b>들어갈 내용</b></td>
+              <td>① 건설공사의 개요 ② <b>비계</b> 설치계획 ③ <b>안전시설물</b> 설치계획
+                <span className="muted"> — 세부는 국토교통부령 (시행령 제101조의6)</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* ── ④ 산업안전보건법 안전보건대장 (G141 · 15) ── */}
+      <div className="card" id="sf-d">
+        <div className="sec-title">④ 안전보건대장 — 발주자가 챙기는 것 (산업안전보건법)</div>
+        <p className="muted" style={{ marginTop: 0 }}>
+          산업안전보건법 제67조 · 시행령 제55조 · 시행규칙 제86조. <b>총공사금액 50억 원 이상</b> 공사의 <b>건설공사발주자</b>가 단계마다 챙깁니다.
+          시공사가 내는 계획서와 이름이 비슷하지만 <b>주인(발주자)</b>이 다릅니다.
+        </p>
+        <table className="tbl left reptbl">
+          <thead><tr><th>단계</th><th>대장</th><th>누가 만드나</th><th>담을 것 (시행규칙 제86조)</th></tr></thead>
+          <tbody>
+            <tr>
+              <td className="w"><b>계획</b></td><td><b>기본</b>안전보건대장</td><td>발주자</td>
+              <td>공사 개요 · 현장 제반 정보 · 설치·사용 예정 구조물과 기계·기구의 유해·위험요인과 감소방안 · 발주자의 법령상 주요 의무와 확인</td>
+            </tr>
+            <tr>
+              <td className="w"><b>설계</b></td><td><b>설계</b>안전보건대장</td><td>설계자 (발주자가 확인)</td>
+              <td>안전한 작업을 위한 적정 공사기간 · 공사금액 산출서 · 시공 때 고려할 유해·위험요인 감소방안 · 산업안전보건관리비 산출내역서</td>
+            </tr>
+            <tr>
+              <td className="w"><b>시공</b></td><td><b>공사</b>안전보건대장</td><td>처음 도급받은 수급인 (발주자가 이행 확인)</td>
+              <td>설계대장의 감소방안을 반영한 안전보건 조치 이행계획 · 유해위험방지계획서 심사·확인 결과 조치 · 기계·기구 배치·이동계획 · 재해예방 지도 계약·결과</td>
+            </tr>
+          </tbody>
+        </table>
+        <ul className="flist" style={{ marginTop: 10 }}>
+          <li>발주자는 대장 내용의 적정성을 <b>안전보건 전문가</b>에게 확인받아야 합니다 — 건설안전 산업안전지도사 · 건설안전기술사 ·
+            건설안전기사 + 실무 3년 · 건설안전산업기사 + 실무 5년 <span className="muted">(법 제67조제2항 · 시행령 제55조의2)</span></li>
+          <li>발주자는 설계자 · 수급인이 안전을 먼저 생각할 수 있게 <b>적정한 비용과 기간</b>을 잡아야 합니다 <span className="muted">(법 제67조제3항)</span></li>
+          <li>시공사 쪽에서 보면 — 발주자에게서 <b>설계안전보건대장</b>을 받아 <b>공사안전보건대장</b>을 만들고, 발주자가 이행을 확인합니다.</li>
+        </ul>
+      </div>
+
+      {/* ── 🔎 이름 헷갈리는 안전 서류 한 장 (G141 · 16) ── */}
+      <div className="card" id="sf-cmp">
+        <div className="sec-title">🔎 이름 헷갈리는 안전 서류 — 한 장으로</div>
+        <p className="muted" style={{ marginTop: 0 }}>카페에서 자주 묻는 «산안법이냐 건진법이냐» 를 한눈에. 자세한 것은 위 칸으로. <span className="sf-swipe">폰은 표를 옆으로 밀어 보십시오.</span></p>
+        <div className="tp-scroll">
+          <table className="tbl left reptbl sf-cmp">
+            <thead><tr><th>서류</th><th>법</th><th>누가</th><th>대상(줄여서)</th><th>언제</th><th>어디에</th></tr></thead>
+            <tbody>
+              <tr><td><b>안전관리계획서</b></td><td>건설기술진흥법 제62조</td><td>건설사업자 · 주택건설등록업자</td>
+                <td>1종·2종 시설물(유지관리 공사 제외) · 지하 10m 굴착 · 10층 이상 16층 미만 건축물 · 항타 및 항발기 · 타워크레인 · 가설구조물 등</td><td>착공 전 (승인)</td><td>발주청 · 민간은 인·허가기관</td></tr>
+              <tr><td><b>소규모안전관리계획서</b></td><td>건설기술진흥법 제62조의2</td><td>건설사업자 · 주택건설등록업자</td>
+                <td>안전관리계획 대상 아닌 2~9층 건축물 · 공동주택·근생·공장 1천㎡ · 창고 5천㎡ 이상</td><td>착공 전 (승인)</td><td>발주자 · 민간은 인·허가기관</td></tr>
+              <tr><td><b>유해·위험방지계획서</b></td><td>산업안전보건법 제42조</td><td>사업주(시공사)</td>
+                <td>31m 이상 · 연면적 3만㎡ · 5천㎡ 이상 시설 · 50m 이상 다리 · 터널 · 댐 · 10m 이상 굴착</td><td>착공 전날까지</td><td>한국산업안전보건공단 (2부)</td></tr>
+              <tr><td><b>안전보건대장</b> (기본·설계·공사)</td><td>산업안전보건법 제67조</td><td>건설공사<b>발주자</b> (설계자 · 수급인이 작성 · 발주자 확인)</td>
+                <td>총공사금액 50억 원 이상</td><td>계획 · 설계 · 시공 단계마다</td><td>내는 곳이 아니라 발주자가 챙김 · 전문가 확인</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p className="muted" style={{ marginBottom: 0 }}>
+          안전관리계획서와 유해·위험방지계획서는 <b>둘 다 대상이면 한 권으로 합쳐 쓸 수 있지만, 내는 곳은 두 군데</b>입니다(위 «둘은 어떻게 다릅니까»).
+        </p>
       </div>
 
       {/* ── 준비 서류 ──────────────────────────────────────
@@ -551,6 +662,8 @@ export default function Safety() {
             유해·위험방지계획서는 <b>국가법령정보센터</b>의 산업안전보건법 시행령에서 가져왔습니다.
             <br /><b>준비 서류</b>는 {서류기준일} 에 <b>국가법령정보센터</b>에서 건설기술진흥법 제62조 ·
             시행령 제98조·제99조, 산업안전보건법 제42조 · 시행규칙 제42조~제45조 · 별표 10 원문을 읽어 옮겼습니다.
+            <br /><b>유지관리 공사 제외 · 소규모안전관리계획서 · 안전보건대장</b>은 {보완기준일} 에 <b>국가법령정보센터</b>에서 건설기술진흥법 제62조의2 ·
+            시행령 제98조제1항 · 제101조의5 · 제101조의6, 산업안전보건법 제67조 · 시행령 제55조 · 제55조의2 · 시행규칙 제86조 원문을 읽어 옮겼습니다.
             <br /><span className="muted">법은 바뀝니다. 실제로 내실 때는 <b>반드시 원문을 다시 확인</b>하십시오.</span></li>
           <li>이 표는 <b>길잡이</b>입니다. 발주처나 인·허가기관이 「필요하다고 인정」하면
             표에 없어도 대상이 됩니다</li>
