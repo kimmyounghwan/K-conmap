@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { 세기 } from './lib/받은수.jsx'
 
 /* ══════════════════════════════════════════════════════════════
    📲 홈 화면에 추가 (2026-09-06)
@@ -49,8 +50,17 @@ const markInstalled = () => { try { localStorage.setItem(INSTALLED_KEY, '1') } c
 /* 📊 2026-10-05 — 소장님: 「현재 몇 명이 설치했는지 숫자를 알 수 있다면」 → 지금까지는 기록이 없어 모릅니다. 앞으로 셉니다.
    · app_open      — 아이콘(시작 주소 /?src=app)이나 앱 창으로 열었을 때, 탭마다 한 번 {how: window|tab, device: pc|phone}
    · app_installed — 설치했을 때(안드로이드·PC 크롬/엣지가 알려 줌)
-   애널리틱스 «이벤트» 에서 사용자 수로 봅니다. 개인 정보는 넣지 않습니다. */
-const 셈 = (이름, 값) => { try { if (window.gtag) window.gtag('event', 이름, 값) } catch { /* 광고차단기 */ } }
+   애널리틱스 «이벤트» 에서 사용자 수로 봅니다. 개인 정보는 넣지 않습니다.
+   + 소장님 상시 지시(10-05) 「바탕화면에 아이콘 만드는 것 꼭 카운트해」 → 사이트 데이터베이스에도 «누적» 으로 셉니다(lib/받은수.jsx 세기 · 화면엔 안 보임 — 물으면 클로드가 dl/p.json 을 읽어 알려 드림):
+     |앱설치|pc · |앱설치|폰 — 설치(아이콘 만들기)한 횟수
+     |앱사람|pc · |앱사람|폰 — 아이콘(앱 창)으로 쓰는 브라우저 수(브라우저마다 한 번 — 예전에 설치한 사람도 아이콘으로 열면 셈)
+     |앱열기|pc · |앱열기|폰 — 아이콘으로 연 횟수(탭마다 한 번) · |앱옮김|pc — 옛 앱 창에서 브라우저 탭으로 옮긴 횟수 */
+const 셈 = (이름, 값) => {
+  try { if (window.gtag) window.gtag('event', 이름, 값) } catch { /* 광고차단기 */ }
+  const 기기 = 값 && 값.device === 'phone' ? '폰' : 'pc'
+  const 열쇠 = { app_installed: '|앱설치|', app_open: '|앱열기|', app_moved: '|앱옮김|', app_person: '|앱사람|' }[이름]
+  if (열쇠) 세기(열쇠 + 기기)
+}
 const installed = () => {
   if (isStandalone()) { markInstalled(); return true }
   try { return localStorage.getItem(INSTALLED_KEY) === '1' } catch { return false }
@@ -82,6 +92,10 @@ if (typeof window !== 'undefined') {
       let 첫 = true
       try { 첫 = !sessionStorage.getItem('kcm_app_open'); sessionStorage.setItem('kcm_app_open', '1') } catch { /* 사생활 보호 모드 */ }
       if (첫) 셈('app_open', { how: 창 ? 'window' : 'tab', device: isPC() ? 'pc' : 'phone' })
+      /* 이 브라우저에서 처음 — 아이콘으로 쓰는 사람 하나 */
+      let 처음 = false
+      try { 처음 = !localStorage.getItem('kcm_app_person'); localStorage.setItem('kcm_app_person', '1') } catch { /* 사생활 보호 모드 */ }
+      if (처음) 셈('app_person', { device: isPC() ? 'pc' : 'phone' })
     }
     if (아이콘) {
       q.delete('src')
