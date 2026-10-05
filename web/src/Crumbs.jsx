@@ -46,6 +46,7 @@ const NAME = {
   '/pdf': 'PDF 도구',
   '/admin': '관리자',
   '/notice': '공고',
+  '/pre': '곧 나올 공사',
 }
 
 /* 두 칸짜리 안쪽 화면의 «제 이름» — 없으면 주소 조각을 그대로 씁니다. */
@@ -86,6 +87,7 @@ const PARENT = {
   '/safety': '/naeyeok',
   '/daily': '/first',
   '/lic': '/', '/guide': '/', '/how': '/',
+  '/pre': '/live',
 }
 const 탭이름 = { '/tools': '도구', '/forms': '서식', '/naeyeok': '내역서', '/first': '1순위', '/': '바로투찰' }
 /* 영문 주소 조각(siljeong-bogo, a-value …)은 사람이 읽는 이름이 아닙니다 — 길에 그리지 않습니다.

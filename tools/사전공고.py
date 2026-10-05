@@ -56,7 +56,9 @@ SVC = {
 }
 
 CALLS = 0
-CALL_CAP = 120          # 한 회차 최대 호출 (하루 1,000 중) — 넉넉히 남깁니다
+CALL_CAP = 200          # 한 회차 최대 호출 (하루 1,000 중 · 하루 두 회차) — 넉넉히 남깁니다
+SWEEP_MONTHS = 6        # 📋 발주계획 «달 훑기» — 지난 6달 동안 등록된 계획 중 앞으로 발주될 것 (하루 한 번)
+AHEAD_MONTHS = 6        #    앞으로 몇 달 치 발주를 볼지
 
 
 def log(*a):
@@ -198,8 +200,40 @@ def pick_path(name, key, day, diag):
     return None, 0, [], ("noreg" if seen and all(x == "noreg" for x in seen) else "fail")
 
 
+def 발주월(it):
+    """발주계획 한 줄 → 'YYYYMM' (발주년도 orderYear + 발주월 orderMnth · 모양이 여럿이라 너그럽게) · 모르면 ''"""
+    low = {str(k).lower(): v for k, v in it.items()}
+    y = str(low.get("orderyear") or low.get("orderyr") or "").strip()
+    m = str(low.get("ordermnth") or low.get("ordermonth") or "").strip()
+    d = "".join(ch for ch in m if ch.isdigit())
+    if len(d) >= 6:
+        return d[:6]
+    yd = "".join(ch for ch in y if ch.isdigit())
+    if len(yd) == 4 and d:
+        return yd + d[-2:].zfill(2)
+    return ""
+
+
+def _ym_add(ym, n):
+    y, m = int(ym[:4]), int(ym[4:6]) + n
+    while m > 12:
+        y, m = y + 1, m - 12
+    while m < 1:
+        y, m = y - 1, m + 12
+    return f"{y:04d}{m:02d}"
+
+
 def item_key(name, it):
     low = {str(k).lower(): v for k, v in it.items()}
+    if name == "발주계획":
+        for k in ("orderplanuntyno", "orderplanno", "orderplansno", "planno", "bsnsno"):
+            if low.get(k) not in (None, ""):
+                return str(low[k])
+        # 번호 칸을 모르면 «기관 · 사업명 · 발주월» 로 — 금액 · 바뀐 날이 달라져도 같은 계획은 한 줄로
+        org = low.get("orderinsttnm") or low.get("dminsttnm") or low.get("totlmnginsttnm") or ""
+        nm = low.get("biznm") or low.get("cnstwknm") or low.get("prdctclsfcnonm") or ""
+        if org or nm:
+            return "c:" + hashlib.md5(f"{org}|{nm}|{발주월(it)}".encode("utf-8")).hexdigest()[:16]
     for k in SVC[name]["keys"]:
         v = low.get(k.lower())
         if v not in (None, ""):
@@ -243,6 +277,44 @@ def run(days, dry=False):
                         break
                 got += items
                 time.sleep(0.3)
+        # 📋 발주계획 «달 훑기» — 하루씩 받는 것은 «최근 등록» 뿐이라, 몇 달 전에 올라온 계획(예: 연초 계획의 11월 발주)이 빠집니다.
+        #    하루 한 번(아침 회차 · 또는 오늘 아직 안 했으면) 지난 SWEEP_MONTHS 달의 등록분을 달 단위로 받되,
+        #    발주년월은 이번 달 ~ AHEAD_MONTHS 달 뒤만 묻습니다(앞으로 나올 것만). 달 단위 조회가 거절되면 그만두고 진단에 적습니다.
+        sweep = {"했나": False}
+        prev = load(os.path.join(OUT, f"{name}.json"))
+        if name == "발주계획" and bp and state == "ok" and (prev.get("sweep") != today.isoformat()):
+            this_ym = today.strftime("%Y%m")
+            n_sw, why_sw = 0, ""
+            for mb in range(SWEEP_MONTHS):
+                first = (today.replace(day=1) - timedelta(days=1)).replace(day=1) if mb else today.replace(day=1)
+                for _ in range(mb - 1):
+                    first = (first - timedelta(days=1)).replace(day=1)
+                last = (first.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+                if last > today:
+                    last = today
+                p = {"inqryDiv": "1", "inqryBgnDt": first.strftime("%Y%m%d") + "0000", "inqryEndDt": last.strftime("%Y%m%d") + "2359",
+                     "orderBgnYm": this_ym, "orderEndYm": _ym_add(this_ym, AHEAD_MONTHS)}
+                url = f"{BASE}/{bp}/{SVC[name]['op']}"
+                pg = 1
+                while True:
+                    p["pageNo"] = str(pg)
+                    st, items, total, msg = call(url, key, dict(p))
+                    diag["호출"].append({"날": first.strftime("%Y%m") + "(달)", "쪽": pg, "상태": st, "수": len(items), "전체": total, "말": msg})
+                    if st not in ("ok", "empty"):
+                        why_sw = f"{first.strftime('%Y%m')} {st} {msg}"[:120]
+                        break
+                    got += items
+                    n_sw += len(items)
+                    if not items or pg * ROWS >= total or pg >= 10:
+                        break
+                    pg += 1
+                    time.sleep(0.3)
+                if why_sw:
+                    break
+                time.sleep(0.3)
+            sweep = {"했나": not why_sw, "건": n_sw, "말": why_sw}
+            diag["주소시험"].append({"주소": bp + "/" + SVC[name]["op"], "조건": "달훑기", "상태": "ok" if not why_sw else "멈춤",
+                                 "수": n_sw, "말": why_sw or f"지난 {SWEEP_MONTHS}달 등록 · 발주 {this_ym}~{_ym_add(this_ym, AHEAD_MONTHS)}"})
         # 등록일로 7일을 다 봐도 0건이면 «발주년월만» 조건으로 한 번 더(조건 뜻이 문서와 다를 때 대비)
         if bp and not got and len(VARIANTS_BY[name]) > 1 and state == "ok":
             lv = len(VARIANTS_BY[name]) - 1
@@ -266,14 +338,34 @@ def run(days, dry=False):
                 if v:
                     return str(v)[:10]
             return ""
-        r = {k: v for k, v in r.items() if not 날(v) or 날(v) >= cut}
+        if name == "발주계획":
+            # 계획은 «언제 발주하나» 로 남깁니다 — 지난달보다 앞선 발주월은 버리고, 발주월을 모르는 줄만 등록일로
+            ym_cut = _ym_add(today.strftime("%Y%m"), -1)
+            r = {k: v for k, v in r.items() if ((발주월(v) >= ym_cut) if 발주월(v) else (not 날(v) or 날(v) >= cut))}
+        else:
+            r = {k: v for k, v in r.items() if not 날(v) or 날(v) >= cut}
         res = {"at": now.strftime("%Y-%m-%d %H:%M"), "path": bp, "cond": (vi + 1) if bp else None, "state": state,
-               "n": len(r), "new": len(got), "fields": fields, "r": r}
+               "n": len(r), "new": len(got), "fields": fields, "r": r,
+               "sweep": today.isoformat() if sweep.get("했나") else prev.get("sweep")}
         per_day = {}
         for c in diag["호출"]:
             if c["상태"] in ("ok", "empty"):
                 per_day[c["날"]] = per_day.get(c["날"], 0) + c["수"]
+        월분포 = {}
+        for v in r.values():
+            ym = 발주월(v) if name == "발주계획" else str(v.get("rgstDt") or v.get("rcptDt") or "")[:7].replace("-", "")
+            월분포[ym or "?"] = 월분포.get(ym or "?", 0) + 1
+        견본 = {}
+        if got:
+            one = got[0]
+            for k in sorted(one.keys()):
+                if k.lower() in ("ofclnm",):          # 담당자 이름은 찍지 않음
+                    continue
+                v = str(one.get(k) or "")
+                if v:
+                    견본[k] = v[:40]
         diag_all[name] = {"주소": bp, "조건": (vi + 1) if bp else None, "상태": state, "받은": len(got), "쌓인": len(r),
+                          "월분포": dict(sorted(월분포.items())[-14:]), "견본": 견본, "달훑기": sweep,
                           "하루별": dict(sorted(per_day.items())), "항목": fields,
                           "주소시험": diag["주소시험"], "호출수": len(diag["호출"]),
                           "초": round(time.time() - t0, 1)}
@@ -319,7 +411,13 @@ def run(days, dry=False):
                             for t in x["주소시험"])[:600]
             lv = "notice" if x["상태"] == "ok" else "warning"
             log(f"::{lv} title=사전공고 {name}::상태 {x['상태']} · 주소 {x['주소'] or '없음'} · 조건 {x['조건'] or '-'} · "
-                f"이번 {x['받은']}건 · 쌓인 {x['쌓인']}건 · 항목 {len(x['항목'])}개({', '.join(x['항목'][:25])}) · 시험 {시험}")
+                f"이번 {x['받은']}건 · 쌓인 {x['쌓인']}건 · 달훑기 {x.get('달훑기')} · 시험 {시험}")
+            if x["항목"]:
+                log(f"::notice title=사전공고 {name} 항목 {len(x['항목'])}개::{', '.join(x['항목'])}")
+            if x.get("월분포"):
+                log(f"::notice title=사전공고 {name} 월별::" + " · ".join(f"{k} {v}" for k, v in x["월분포"].items()))
+            if x.get("견본"):
+                log(f"::notice title=사전공고 {name} 견본 한 줄::" + json.dumps(x["견본"], ensure_ascii=False)[:3000])
     bad = [n for n in SVC if diag_all[n]["상태"] not in ("ok",)]
     return 0 if len(bad) < len(SVC) else 1
 

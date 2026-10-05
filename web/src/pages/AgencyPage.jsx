@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { getAgency } from '../lib/data.js'
 import AgencyReport from '../AgencyReport.jsx'
 import 기관견본줄 from '../기관견본.jsx'
+import { 기관낼공사 } from '../곧나올줄.jsx'
 import { Skeleton, Empty } from '../components.jsx'
 import { ShareBtn } from './CorpPage.jsx'
 import { pct, num } from '../lib/fmt.js'
@@ -73,6 +74,8 @@ export default function AgencyPage() {
       </div>
       {/* 🏛 2026-09-28 — 이 화면을 끝까지 본 사람이 «더 세세한 것» 을 원하는 사람입니다 */}
       <기관견본줄 name={decoded} />
+      {/* 📣 이 기관이 낼 공사(발주계획 · 사전규격) — 2026-10-05 G135 · 있을 때만 */}
+      <기관낼공사 name={decoded} />
     </>
   )
 }

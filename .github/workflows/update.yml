@@ -171,6 +171,16 @@ jobs:
         # (시각으로 «아침 첫 회차»를 고르던 방식은 예약이 밀려 거의 안 걸렸습니다)
         run: python collect.py --probe
 
+      # 📣 곧 나올 공사 (2026-10-05 · G135) — 사전공고 수집(사전공고.yml)이 쌓아 둔 캐시 pre-* 를 «읽기만» 합니다.
+      #    restore 만 쓰므로 여기서 새 캐시를 만들지 않습니다(저장은 사전공고.yml 몫). 없으면 build_json 이 빈 파일을 씁니다.
+      - name: 사전공고 수집분 가져오기 (읽기만)
+        continue-on-error: true
+        uses: actions/cache/restore@v4
+        with:
+          path: data/pre
+          key: pre-none
+          restore-keys: pre-
+
       - name: 3년치 집계
         env:
           PYTHONUTF8: '1'

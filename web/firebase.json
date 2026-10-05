@@ -27,6 +27,7 @@
       { "source": "/first", "destination": "/index.html" },
       { "source": "/live", "destination": "/index.html" },
       { "//": "🏗 나라장터 밖 공고 — 2026-09-30 (extbids.py · pages/ExtBoard.jsx)", "source": "/ext", "destination": "/index.html" },
+      { "//": "📣 곧 나올 공사 — 2026-10-05 G135 (build_json build_pre · pages/Pre.jsx)", "source": "/pre", "destination": "/index.html" },
       { "source": "/analysis", "destination": "/index.html" },
       { "source": "/jobs", "destination": "/index.html" },
       { "source": "/daily", "destination": "/index.html" },
@@ -224,6 +225,11 @@
         "headers": [
           { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
         ]
+      },
+      {
+        "//": "🩹 2026-10-05 흰 화면 — 주소 화면(/live · /qna · /notice/… 처럼 점 없는 주소)이 Firebase 기본값 max-age=3600 으로 한 시간 캐시돼, 배포 뒤 폰이 옛 HTML 로 이미 없어진 /assets/index-*.js 를 불러 흰 화면이 됐습니다. 점 없는 주소는 매번 확인(no-cache · 안 바뀌었으면 304). 아래 /index.html · / 줄이 뒤에 있어 그 둘은 no-store 그대로.",
+        "regex": "^/[^.]*$",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
       },
       {
         "source": "/index.html",

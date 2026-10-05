@@ -12,6 +12,7 @@ import Analysis from './pages/Analysis.jsx'
 import AgencyPage from './pages/AgencyPage.jsx'
 import NotFound from './pages/NotFound.jsx'
 import './styles.css'
+import 화면지킴 from './화면지킴.jsx'
 import { 열쇠왔나, 열쇠받기 } from './lib/열쇠.js'
 /* ⬇ 2026-10-01 (G96) 받은 횟수 — 파일을 받는 «누름» 을 사이트 전체에서 한 곳에서 셉니다(lib/받은수.jsx) */
 import { 켜기 as 받은수켜기 } from './lib/받은수.jsx'
@@ -64,6 +65,8 @@ const Change = lazyPage(() => import('./pages/Change.jsx'))
 const ChangeTopic = lazyPage(() => import('./pages/Change.jsx').then((m) => ({ default: m.ChangeTopic })))
 /* 📚 입찰 알아보기 — 실측으로 쓴 원본 글 (2026-09-06). 하단 탭은 안 늘리고 푸터·바로투찰에서 들어갑니다. */
 const Guide = lazyPage(() => import('./pages/Guide.jsx'))
+/* 📣 곧 나올 공사(발주계획 · 사전규격) — 2026-10-05 G135 · 공고판 한 줄에서 들어옵니다 */
+const Pre = lazyPage(() => import('./pages/Pre.jsx'))
 const Naeyeok = lazyPage(() => import('./pages/Naeyeok.jsx'))
 /* 📉 내역서 비율 맞추기 — 2026-09-18. 하도급률·실행률·낙찰률이 같은 셈입니다.
    브라우저에서 엑셀을 읽고 쓰느라 무거워서 반드시 lazyPage 입니다. */
@@ -161,6 +164,7 @@ const Loading = () => (
 
 const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
+    <화면지킴>
     <BrowserRouter>
       <Routes>
         <Route element={<App />}>
@@ -170,6 +174,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/first" element={<FirstBoard />} />
           <Route path="/live" element={<LiveBoard />} />
           <Route path="/ext" element={<Suspense fallback={<Loading />}><ExtBoard /></Suspense>} />
+          <Route path="/pre" element={<Suspense fallback={<Loading />}><Pre /></Suspense>} />
           <Route path="/analysis" element={<Analysis />} />
           <Route path="/jobs" element={<Suspense fallback={<Loading />}><Jobs /></Suspense>} />
           <Route path="/agency/:name" element={<AgencyPage />} />
@@ -260,6 +265,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
         </Route>
       </Routes>
     </BrowserRouter>
+    </화면지킴>
   </React.StrictMode>
 )
 
@@ -269,6 +275,16 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
    ⚠️ 그린 뒤에 표를 남기면 이미 「운영자 아님」으로 한 번 그려진 뒤라 안 보입니다.
    ⚠️ 보통 손님은 이 길로 오지 않습니다 — op= 가 없으면 곧장 그립니다(느려지지 않습니다). */
 try { 받은수켜기() } catch (e) { /* 세는 것 때문에 사이트가 멈추면 안 됩니다 */ }
+/* 🩹 2026-10-05 흰 화면 지킴 — 여기까지 왔으면 큰 묶음(index-*.js)은 받은 것입니다.
+   index.html 의 «못 받으면 한 번 새로 받기» 표를 지우고(다음 배포 때 또 한 번 구하게), 그때 붙인 ?__v= 꼬리를 주소에서 뗍니다. */
+try {
+  sessionStorage.removeItem('kcm_main_reload')
+  if (/[?&]__v=/.test(location.search)) {
+    const 주소 = new URL(location.href)
+    주소.searchParams.delete('__v')
+    history.replaceState(history.state, '', 주소.pathname + 주소.search + 주소.hash)
+  }
+} catch (e) { /* 사생활 보호 모드 */ }
 if (열쇠왔나()) 열쇠받기().then(그리기).catch(그리기)
 else 그리기()
 

@@ -35,6 +35,7 @@ import { 유형거르개, 유형맞나, 유형딱지 } from '../유형칸.jsx'
 import 기관사정률 from '../기관사정률.jsx'
 import { 입찰일정, 투찰조건, 공고첨부, 공고문전문 } from '../공고자세히.jsx'
 import 밖공고줄 from '../밖공고줄.jsx'
+import 곧나올줄 from '../곧나올줄.jsx'
 import { 공고봄 } from '../lib/조회수.jsx'   /* 👁 G121 — 펼치면 그 공고 조회 1 */
 
 /* ══════════════════════════════════════════════════════════════
@@ -362,6 +363,8 @@ export default function LiveBoard() {
       <FreshBar kind="live" />
       {/* 🏗 나라장터 밖 공고 (2026-09-30 · 입찰나라에서 가져온 것 4번) — 자료가 있을 때만 한 줄 */}
       <밖공고줄 />
+      {/* 📣 곧 나올 공사(발주계획 · 사전규격) 한 줄 — 2026-10-05 G135 · 자료가 있을 때만 */}
+      <곧나올줄 />
       <내조건줄 region={region} mine={mine} lics={lics} licNone={licNone} licOptions={licOptions}
         넓혀보기={() => { setRegionRaw('전국'); setMineRaw(false) }}
         내조건으로={() => { setRegionRaw(loadRegion()); setMineRaw(loadMine()) }} />

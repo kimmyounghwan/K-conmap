@@ -15,6 +15,7 @@ build_json.py — 3년치 낙찰 데이터를 사이트가 바로 읽는 정적 
 import os
 import re
 import json
+import hashlib
 import math
 import shutil
 from collections import Counter, defaultdict
@@ -1675,13 +1676,215 @@ def build_kan(first=None, live=None):
     return len(pts)
 
 
+def _pick(it, *names):
+    """조달청 응답 칸 이름은 대소문자 · 이름이 문서와 다를 때가 있어 여러 후보로 찾습니다(collect.pick 과 같은 뜻)"""
+    low = {str(k).lower(): v for k, v in it.items()}
+    for n in names:
+        v = low.get(n.lower())
+        if v not in (None, "", "-", "None"):
+            return v
+    return None
+
+
+def _pre_kind(v):
+    """공종 — 조달청이 준 공종 칸 값 그대로(짧게). 없으면 ''.
+    ⚠️ 사업명 낱말로 짐작하지 않습니다(lib/lic.js 머리말 · CLAUDE.md 1번 «조달청이 주는 값만»)."""
+    t = re.sub(r"\s+", " ", str(v or "")).strip()
+    return t[:12]
+
+
+def _pre_nos(v):
+    """bidNtceNoList → 공고번호 목록 (R26BK01742278 꼴 · 차수 꼬리 -000 뗌)"""
+    out = []
+    for tok in re.split(r"[^0-9A-Za-z\-]+", str(v or "")):
+        tok = tok.strip().upper()
+        if len(tok) < 10:
+            continue
+        tok = re.sub(r"-\d{2,3}$", "", tok)
+        if tok not in out:
+            out.append(tok)
+    return out[:5]
+
+
+def _pre_dt(v):
+    s = re.sub(r"[^0-9]", "", str(v or ""))
+    if len(s) >= 12:
+        return f"{s[:4]}-{s[4:6]}-{s[6:8]} {s[8:10]}:{s[10:12]}"
+    if len(s) >= 8:
+        return f"{s[:4]}-{s[4:6]}-{s[6:8]}"
+    return ""
+
+
+PRE_F = ["id", "k", "nm", "org", "dm", "rgn", "amt", "ym", "due", "how", "kind", "per", "see", "dept", "tel",
+         "nos", "st", "reg", "files", "sd"]
+
+
+def build_pre(src_dir=None, out_dir=None, now=None):
+    """📣 곧 나올 공사 — 발주계획 · 사전규격(공사) → 화면 자료 (2026-10-05, G135)
+
+    소장님: 「설계부터 보여줘 최대한 사용자 편의성 기준으로」 → 「클로드 의견대로 해줘」
+    수집: tools/사전공고.py (따로 도는 워크플로 · Actions 캐시 pre-*) → update.yml 이 data/pre 로 되살려 둠
+    ■ 고르는 것
+       · 발주계획 — 발주월이 이번 달 ~ 6달 뒤 (지난달 것은 «공고 났나» 볼 때만 의미가 있어 뺌)
+       · 사전규격 — 의견 마감이 3일 전 이후이거나, 등록 30일 안
+       · 공고번호(bidNtceNoList)가 지금 열린 공고(bidindex)면 st='o' — 화면이 «✅ 공고 나옴 → 바로투찰»
+         이미 지난 공고(store/live · first)면 st='c'(공고 끝)
+    ■ 담당자 «이름» 은 싣지 않습니다(부서 · 전화만 · 누른 화면에서만 보임) — 소장님 고름(클로드 추천 ①)
+    ■ 파일
+       pre/idx.json        — {at, src, n: {시도: [전체, 공고 직전]}, all: [...], o: {id: 열린 공고번호}}  (공고 탭 한 줄 · 담은 것 알림)
+       pre/{i}.json        — 시도 차례 i(SIDO_KAN) · 17 = 시도 모름 · {f, r}
+       pre/ag/{통}.json     — 기관 → [[id, 사업명, 시기, 금액, 종류]] (기관 화면 «이 기관이 낼 공사» · 통번호 = 기관사정률과 같은 셈)
+    ⚠️ 수집분이 없으면(첫 배포 · 캐시 사라짐) 빈 파일을 씁니다 — 화면은 «아직 모읍니다» 로 보여 줌."""
+    try:
+        from collect import sido_of
+    except Exception:
+        def sido_of(r, book=None):
+            return ""
+    src_dir = src_dir or os.path.join(ROOT, "data", "pre")
+    out_dir = out_dir or "pre"
+    now = now or datetime.now(KST)
+    today = now.strftime("%Y-%m-%d")
+    ym0 = now.strftime("%Y%m")
+
+    def ym_add(ym, n):
+        y, m = int(ym[:4]), int(ym[4:6]) + n
+        while m > 12:
+            y, m = y + 1, m - 12
+        return f"{y:04d}{m:02d}"
+    ym_hi = ym_add(ym0, 6)
+
+    def load(name):
+        try:
+            with open(os.path.join(src_dir, name + ".json"), encoding="utf-8") as f:
+                return json.load(f) or {}
+        except Exception:
+            return {}
+    plan, spec = load("발주계획"), load("사전규격")
+    # 열린 공고 · 지난 공고
+    open_nos = set()
+    try:
+        with open(os.path.join(OUT, "bidindex.json"), encoding="utf-8") as f:
+            bi = json.load(f)
+        i_no = bi["f"].index("no")
+        open_nos = {str(r[i_no]).upper() for r in bi["r"]}
+    except Exception:
+        pass
+    past = set()
+    for nm in ("live.json", "first.json"):
+        con = (_store(nm).get("con") or {})
+        past |= {str(k).upper() for k in con.keys()}
+
+    rows, seen = [], set()
+
+    def status(nos):
+        for n in nos:
+            if n in open_nos:
+                return "o", n
+        for n in nos:
+            if n in past:
+                return "c", n
+        return "", ""
+
+    for key, it in (plan.get("r") or {}).items():
+        y = str(_pick(it, "orderYear") or "")
+        m = re.sub(r"[^0-9]", "", str(_pick(it, "orderMnth", "orderMonth") or ""))
+        ym = m[:6] if len(m) >= 6 else (y[:4] + m[-2:].zfill(2) if len(y) >= 4 and m else "")
+        if not ym or not (ym0 <= ym <= ym_hi):
+            continue
+        nm = str(_pick(it, "bizNm", "cnstwkNm", "prdctClsfcNoNm", "dtilPrdctClsfcNoNm") or "").strip()
+        org = str(_pick(it, "orderInsttNm", "dminsttNm", "ntceInsttNm", "totlmngInsttNm") or "").strip()
+        if not nm:
+            continue
+        rgn = str(_pick(it, "cnstwkRgnNm", "cnstrtsiteRgnNm", "rgnNm") or "").strip()
+        nos = _pre_nos(_pick(it, "bidNtceNoList", "bidNtceNo"))
+        st, sno = status(nos)
+        sig = ("p", org, nm, ym)
+        if sig in seen:
+            continue
+        seen.add(sig)
+        see = " · ".join(x for x in (str(_pick(it, "dsgnDocRdngPlceNm") or "").strip(),
+                                     str(_pick(it, "dsgnDocRdngPrdCntnts") or "").strip()) if x)
+        rows.append({
+            "id": "p" + hashlib.md5(f"{org}|{nm}|{ym}".encode("utf-8")).hexdigest()[:10],
+            "k": "p", "nm": nm[:60], "org": org[:40], "dm": "", "rgn": rgn[:40],
+            "amt": int(_num(_pick(it, "sumOrderAmt", "orderContrctAmt", "orderAmt", "totAmt", "cnstwkAmt", "bdgtAmt"))),
+            "ym": ym, "due": "", "how": str(_pick(it, "cntrctMthdNm", "cntrctCnclsMthdNm", "prcrmntMethd") or "")[:20],
+            "kind": _pre_kind(_pick(it, "cnsttyDivNm", "cnstwkDivNm", "cnstwkTyNm")),
+            "per": str(_pick(it, "cnstwkPrdCntnts", "cnstwkPrd") or "")[:30], "see": see[:80],
+            "dept": str(_pick(it, "deptNm") or "")[:30], "tel": str(_pick(it, "telNo", "ofclTelNo") or "")[:20],
+            "nos": nos, "st": st, "stno": sno, "reg": _pre_dt(_pick(it, "nticeDt", "rgstDt"))[:10], "files": [],
+            "sd": sido_of({"site": rgn, "inst": org}),
+        })
+    for key, it in (spec.get("r") or {}).items():
+        nm = str(_pick(it, "prdctClsfcNoNm", "bizNm") or "").strip()
+        org = str(_pick(it, "orderInsttNm", "rlDminsttNm") or "").strip()
+        if not nm:
+            continue
+        due = _pre_dt(_pick(it, "opninRgstClseDt"))
+        reg = _pre_dt(_pick(it, "rcptDt", "rgstDt"))[:10]
+        d3 = (now - timedelta(days=3)).strftime("%Y-%m-%d")
+        d30 = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+        if not ((due and due[:10] >= d3) or (reg and reg >= d30)):
+            continue
+        rid = str(_pick(it, "bfSpecRgstNo") or "") or hashlib.md5(f"{org}|{nm}|{reg}".encode("utf-8")).hexdigest()[:10]
+        sig = ("s", rid)
+        if sig in seen:
+            continue
+        seen.add(sig)
+        nos = _pre_nos(_pick(it, "bidNtceNoList"))
+        st, sno = status(nos)
+        dm = str(_pick(it, "rlDminsttNm") or "").strip()
+        files = [str(_pick(it, f"specDocFileUrl{i}") or "") for i in range(1, 6)]
+        rows.append({
+            "id": "s" + re.sub(r"[^0-9A-Za-z]", "", rid)[-14:], "k": "s", "nm": nm[:60], "org": org[:40],
+            "dm": (dm if dm != org else "")[:40], "rgn": "",
+            "amt": int(_num(_pick(it, "asignBdgtAmt", "bdgtAmt"))), "ym": "", "due": due,
+            "how": "", "kind": "", "per": (str(_pick(it, "dlvrDaynum") or "") + "일") if _pick(it, "dlvrDaynum") else "",
+            "see": "", "dept": "", "tel": str(_pick(it, "ofclTelNo") or "")[:20],
+            "nos": nos, "st": st, "stno": sno, "reg": reg, "files": [f for f in files if f.startswith("http")][:5],
+            "sd": sido_of({"site": dm, "inst": org}),
+        })
+    # 나올 차례 — 공고 직전(사전규격 · 마감 빠른 순) → 발주월 빠른 순 → 금액 큰 순
+    rows.sort(key=lambda r: (0 if r["k"] == "s" else 1, r["due"] or "9999", r["ym"] or "999999", -r["amt"]))
+    written = 0
+    buckets = {i: [] for i in range(len(SIDO_KAN) + 1)}
+    cnt = {}
+    for r in rows:
+        sds = [s for s in str(r["sd"] or "").split(",") if s in SIDO_KAN] or [""]
+        for s in sds:
+            i = SIDO_KAN.index(s) if s else len(SIDO_KAN)
+            buckets[i].append(r)
+            c = cnt.setdefault(s or "?", [0, 0])
+            c[0] += 1
+            c[1] += 1 if r["k"] == "s" else 0
+    f = [k for k in PRE_F if k != "sd"] + ["stno"]
+    for i, rs in buckets.items():
+        written += write_json(f"{out_dir}/{i}.json", {"at": now.strftime("%Y-%m-%d %H:%M"), "f": f,
+                                                       "r": [[r[k] for k in f] for r in rs]})
+    ag = [{} for _ in range(SJR_BUCKETS)]
+    for r in rows:
+        for nm in {r["org"], r["dm"]} - {""}:
+            ag[sjr_bucket(nm)].setdefault(nm, []).append([r["id"], r["nm"], r["ym"] or r["due"][:10], r["amt"], r["k"], r["st"], r["stno"]])
+    for i, b in enumerate(ag):
+        written += write_json(f"{out_dir}/ag/{i}.json", {k: v[:12] for k, v in b.items()})
+    idx = {"at": now.strftime("%Y-%m-%d %H:%M"),
+           "src": {"발주계획": plan.get("at"), "사전규격": spec.get("at")},
+           "n": cnt, "all": [len(rows), sum(1 for r in rows if r["k"] == "s")],
+           "o": {r["id"]: r["stno"] for r in rows if r["st"] == "o"}}
+    written += write_json(f"{out_dir}/idx.json", idx)
+    log(f"📣 곧 나올 공사 — 발주계획 {sum(1 for r in rows if r['k'] == 'p'):,} · 사전규격 {idx['all'][1]:,} · "
+        f"공고 나옴 {len(idx['o']):,} · 시도 모름 {len(buckets[len(SIDO_KAN)]):,} → {out_dir}/ {written/1024:.0f}KB"
+        + ("" if plan or spec else " (수집분 없음 — 빈 파일)"))
+    return len(rows)
+
+
 def main():
     t0 = datetime.now()
     print("=" * 52)
     print("  K-건설맵 정적 데이터 빌드")
     print("=" * 52)
 
-    for sub in ("agency", "agency_deep", "corp", "kw", "kan"):
+    for sub in ("agency", "agency_deep", "corp", "kw", "kan", "pre"):
         p = os.path.join(OUT, sub)
         if os.path.isdir(p):
             shutil.rmtree(p)
@@ -1705,6 +1908,11 @@ def main():
         build_kan()
     except Exception as e:
         log(f"⚠️ 칸 자료를 못 만들었습니다 — {e}")
+    # 📣 곧 나올 공사 (2026-10-05 · G135) — 실패해도 사이트 집계는 계속합니다
+    try:
+        build_pre()
+    except Exception as e:
+        log(f"⚠️ 곧 나올 공사 자료를 못 만들었습니다 — {e}")
 
     total = sum(os.path.getsize(os.path.join(r, f))
                 for r, _, fs in os.walk(OUT) for f in fs)

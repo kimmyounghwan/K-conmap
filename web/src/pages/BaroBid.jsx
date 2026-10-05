@@ -20,6 +20,7 @@ import MyToday from '../MyToday.jsx'
 import { GUIDE_NAV, guideOf } from '../lib/guidenav.js'
 import 기관사정률 from '../기관사정률.jsx'
 import 칸누가 from '../칸누가.jsx'
+import 곧나올줄 from '../곧나올줄.jsx'
 /* 공고 화면(LiveBoard)이 예전부터 여기서 가져다 썼습니다 — 그대로 이어 줍니다 */
 export { missingOf, isReady }
 
@@ -1016,6 +1017,9 @@ export default function BaroBid() {
           <span className="go">자세히 보기 ↓</span>
         </button>
       )}
+
+      {/* ⭐ 담아 둔 «곧 나올 공사» 가 공고로 나왔으면 맨 위 한 줄 — 누르면 그 공고로 바로투찰 (2026-10-05 G135) */}
+      {!verifyMode && !picked && !q && <곧나올줄 kind="got" />}
 
       {/* ⚡ 오늘 넣을 것 — «내 면허·내 지역» 의 마감 전 공고 (MyToday.jsx 머리말 참고) */}
       {!verifyMode && !picked && !q && (
