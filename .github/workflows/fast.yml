@@ -119,3 +119,21 @@ jobs:
           echo "기다리는 회차 ${Q}개 · 도는 다른 회차 ${P}개"
           if [ "${Q:-0}" -gt 0 ] || [ "${P:-0}" -gt 0 ]; then echo "이미 잡혀 있습니다 — 부르지 않습니다"; exit 0; fi
           gh workflow run fast.yml --repo "${{ github.repository }}" --ref "${{ github.ref_name }}" && echo "▶ 다음 회차를 불렀습니다"
+
+      # 🗺 G154 (2026-10-06) 이용자 지도 깨우기 — 소장님 「항상 깨어 있게 해줘....잠들면 안돼」
+      #   10/6 05:39 이용자 지도 회차가 «러너를 못 받아»(GitHub: The job was not acquired by Runner … after multiple attempts) 취소돼 사슬이 끊겼습니다.
+      #   세 사슬(사이트 자동 갱신 · 빠른 수집 · 이용자 지도)이 서로 깨웁니다 — 하나라도 살아 있으면 나머지가 다시 이어집니다.
+      - name: 이용자 지도 깨우기 (멈춰 있으면)
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MAP_OFF: ${{ vars.MAP_OFF }}
+        run: |
+          if [ "${MAP_OFF:-0}" = "1" ]; then echo "MAP_OFF=1 — 깨우지 않습니다"; exit 0; fi
+          J=$(gh run list --repo "${{ github.repository }}" --workflow 이용자지도.yml --limit 20 --json status) || { echo "이용자 지도 목록을 못 읽었습니다 — 이번엔 건너뜁니다"; exit 0; }
+          N=$(echo "$J" | jq '[.[]|select(.status=="in_progress" or .status=="queued" or .status=="pending" or .status=="waiting" or .status=="requested")]|length')
+          echo "이용자 지도 — 도는 · 기다리는 회차 ${N}개 (한국시간 $(TZ=Asia/Seoul date '+%H:%M'))"
+          if [ "${N:-0}" -gt 0 ]; then echo "돌고 있습니다 — 그대로 둡니다"; exit 0; fi
+          gh workflow run 이용자지도.yml --repo "${{ github.repository }}" --ref "${{ github.ref_name }}" \
+            && echo "▶ 멈춰 있던 이용자 지도를 깨웠습니다" \
+            || echo "깨우기 실패 — 다음 회차가 다시 봅니다"
