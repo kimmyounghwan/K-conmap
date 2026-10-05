@@ -134,5 +134,20 @@ export function 날째(지금시각 = Date.now()) {
   return Math.floor((오늘 - 연날) / 86400000) + 1
 }
 
+/** 📅 G151 (2026-10-06) 소장님 폰 화면 「여기에 날짜가 없어」 — 오늘(한국) 날짜 · 요일 '10. 6.(화)'.
+ *  자정이 지나면 «오늘 +0» 으로 돌아가는데 그 «오늘» 이 언제인지 안 보였습니다. */
+export function 오늘글(지금시각 = Date.now(), 요일 = true) {
+  const [, m, d] = 한국날(지금시각).split('-').map(Number)
+  const 요 = ['일', '월', '화', '수', '목', '금', '토'][new Date(Date.parse(한국날(지금시각) + 'T00:00:00Z')).getUTCDay()]
+  return 요일 ? `${m}. ${d}.(${요})` : `${m}. ${d}.`
+}
+/** 자료 기준 시각(한국) '10. 6. 00:10' */
+export function 기준글(at) {
+  if (typeof at !== 'number' || !(at > 0)) return ''
+  const k = new Date(at + 9 * 3600000)
+  const p2 = (n) => String(n).padStart(2, '0')
+  return `${k.getUTCMonth() + 1}. ${k.getUTCDate()}. ${p2(k.getUTCHours())}:${p2(k.getUTCMinutes())}`
+}
+
 /** '2026-08-30' → '2026. 8. 30.' */
 export const 날글 = (s) => { const [y, m, d] = String(s).split('-').map(Number); return `${y}. ${m}. ${d}.` }

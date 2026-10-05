@@ -2,7 +2,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { 지도이름표, 지도자리찾기, 지도점들, 시도찾기, 지역줄들, 날째, 날글 } from '../web/src/lib/이용자지도.js'
+import { 지도이름표, 지도자리찾기, 지도점들, 시도찾기, 지역줄들, 날째, 날글, 오늘글, 기준글 } from '../web/src/lib/이용자지도.js'
 const 여기 = path.dirname(fileURLToPath(import.meta.url))
 const d = JSON.parse(fs.readFileSync(path.join(여기, '..', 'web', 'src', 'data', '한국지도.json'), 'utf-8'))
 const 표 = 지도이름표(d.곳, d.별)
@@ -39,5 +39,12 @@ eq(날째(Date.parse('2026-10-05T18:00:00+09:00')), 37, '10월 5일 = 37일째')
 eq(날째(Date.parse('2026-10-05T23:59:00+09:00')), 37, '한국 밤 11시 59분도 37일째')
 eq(날째(Date.parse('2026-10-06T00:01:00+09:00')), 38, '자정 넘으면 38일째')
 eq(날글('2026-08-30'), '2026. 8. 30.', '날 글')
+eq(오늘글(Date.parse('2026-10-06T00:13:00+09:00')), '10. 6.(화)', '오늘 글 — 자정 지나 화요일')
+eq(오늘글(Date.parse('2026-10-05T23:59:00+09:00')), '10. 5.(월)', '밤 11시 59분은 월요일')
+eq(오늘글(Date.parse('2026-08-30T09:00:00+09:00')), '8. 30.(일)', '연 날 일요일')
+eq(오늘글(Date.parse('2026-10-06T00:13:00+09:00'), false), '10. 6.', '요일 없이')
+eq(기준글(Date.parse('2026-10-06T00:10:00+09:00')), '10. 6. 00:10', '자료 기준 시각(한국)')
+eq(기준글(Date.parse('2026-10-05T14:05:00Z')), '10. 5. 23:05', 'UTC → 한국')
+eq(기준글(null), '', '시각 없으면 빈 글')
 console.log(`${ok} 통과 · ${bad} 실패`)
 process.exit(bad ? 1 : 0)

@@ -19,7 +19,7 @@
  *   누르면(점 · 시도 줄) 누적 카운트 «|지도|누름» 한 번(화면엔 안 보임).
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { 지도주소, 지도이름표, 지도점들, 지도점크기, 지역주소, 지역줄들, 날째, 날글, 개설일, 누적시작 } from '../lib/이용자지도.js'
+import { 지도주소, 지도이름표, 지도점들, 지도점크기, 지역주소, 지역줄들, 날째, 날글, 개설일, 누적시작, 오늘글, 기준글 } from '../lib/이용자지도.js'
 import { 세기 } from '../lib/받은수.jsx'
 
 const 쉼 = (n) => Math.round(n || 0).toLocaleString('ko-KR')
@@ -104,7 +104,8 @@ export default function 이용자지도() {
       <div className="umap-head">
         <div className="umap-title">
           <b>🗺 지금 K-건설맵을 쓰는 곳</b>
-          <span className="umap-open">{날글(개설일)} 문을 열었습니다 · 오늘 <b>{날째(때)}일째</b></span>
+          {/* 📅 G151 소장님 「여기에 날짜가 없어」 — 오늘(한국) 날짜 · 요일 */}
+          <span className="umap-open">{날글(개설일)} 문을 열었습니다 · 오늘 <b>{오늘글(때)}</b> · <b>{날째(때)}일째</b></span>
         </div>
         <span className="umap-key"><i className="umap-dot now" /> 지금(30분 안) <i className="umap-dot day" /> 오늘 다녀간 곳</span>
       </div>
@@ -127,12 +128,14 @@ export default function 이용자지도() {
           <div className="umap-reg">
             <div className="umap-now-n">
               <i className="umap-dot now" /> 지금(30분 안) <b>{지금사람 != null ? <><수 v={지금사람} />명</> : '—'}</b>
+              {/* 🩹 G153 — 자료가 45분 넘게 멈추면 «지금» 점이 다 사라져 «아무것도 안 뜬다» 로 보였습니다(10/6 아침). 늦어진 것을 그대로 알립니다 */}
+              {!새것 && 기준글(자료.at) && <span className="umap-late">자료가 늦어지고 있습니다 · {기준글(자료.at)} 기준</span>}
             </div>
             <div className="umap-tot">
               <span>전국 누적 <b><수 v={줄들.전국.a} />명</b></span>
-              <span className="umap-today">오늘 <b>+<수 v={줄들.전국.t} /></b></span>
+              <span className="umap-today">오늘 {오늘글(때, false)} <b>+<수 v={줄들.전국.t} /></b></span>
             </div>
-            <div className="umap-reg-h"><span>시·도</span><span>{날글(누적시작)}부터 누적 · 오늘</span></div>
+            <div className="umap-reg-h"><span>시·도</span><span>{날글(누적시작)}부터 누적 · 오늘({오늘글(때, false)})</span></div>
             <ol className={'umap-rows' + (다봄 ? ' all' : '')}>
               {줄들.줄.map((x) => (
                 <li key={x.n} onClick={누름세기}>
@@ -155,7 +158,7 @@ export default function 이용자지도() {
         {고른
           ? <span>📍 <b>{고른.p.n}</b> ({고른.p.d}) — {고른.지금 ? '지금 쓰는 중' : '오늘 다녀감'}</span>
           : <span className="muted">{지금수 ? '점을 누르면 어느 도시인지 나옵니다.' : '지금은 조용합니다 — 옅은 점은 오늘 다녀간 곳입니다.'}</span>}
-        <span className="muted umap-src">10분마다 새로 · 구글 애널리틱스(사용자 수 · 누적·오늘은 애널리틱스에 잡히는 대로 조금 늦게 올라갑니다)</span>
+        <span className="muted umap-src">{기준글(자료.at) && <>자료 {기준글(자료.at)} 기준 · </>}10분마다 새로 · 구글 애널리틱스(사용자 수 · 누적·오늘은 애널리틱스에 잡히는 대로 조금 늦게 올라갑니다)</span>
       </div>
     </div>
   )
