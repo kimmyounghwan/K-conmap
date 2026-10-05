@@ -205,7 +205,12 @@ export function InstallBar() {
  *  소장님: 「이미 설치한 사람들도, 수정돼서 보이게 해주고」 「자동으로 돼게 해줘」
  *  ⚠️ 누르기 전에 저절로 여는 것은 브라우저가 막습니다(팝업 차단) — 그래서 «첫 클릭» 에 붙입니다.
  *  ⚠️ 설치할 때 고른 «창으로 열기» 는 브라우저가 지켜서(크롬 문서: 사용자 선택이 늘 우선) 사이트 설정만으로는 안 바뀝니다.
- *  ⚠️ 꼭 <a target="_blank"> 를 누르게 합니다 — PC 앱 창에서 이것만 브라우저 탭으로 엽니다(window.open 은 앱 창이 또 뜸 · web.dev «Window management»). */
+ *  ⚠️ 꼭 <a target="_blank"> 를 누르게 합니다(window.open 은 앱 창이 또 뜸 · web.dev «Window management»).
+ *  🩹 G143 (2026-10-05) 소장님 화면: 띠는 떴는데 «새로고침해도 안 바뀌고, 뒤로가기도 없는데»
+ *     → 같은 주소(k-conmap.com · 앱 범위 안)를 target=_blank 로 열면 엣지가 탭이 아니라 «앱 창» 을 하나 더 띄우고 옛 창은 닫혀
+ *       눈에는 아무것도 안 바뀐 것처럼 보였습니다. 이제 «같은 사이트의 다른 주소» k-conmap.web.app 을 엽니다 —
+ *       앱 범위 밖이라 엣지가 «일반 탭» 으로 열고, 그 탭은 index.html 맨 위 규칙으로 곧바로 k-conmap.com 같은 화면으로 넘어갑니다.
+ *     앱 창에는 뒤로 가기 단추가 없어 띠에 «Alt + ←» 를 적습니다. */
 export function AppWindowBar() {
   const 켬 = typeof window !== 'undefined' && isStandalone() && isPC()
   const [옮김, set옮김] = useState(false)
@@ -216,7 +221,9 @@ export function AppWindowBar() {
       if (e.button != null && e.button !== 0) return
       e.preventDefault(); e.stopPropagation()
       const a = document.createElement('a')
-      a.href = location.origin + location.pathname + location.search + location.hash
+      /* 🩹 G143 — 앱 범위 밖 주소로(위 설명). 시험 서버(127.0.0.1 등)에서는 그 자리 그대로 */
+      const 밖 = location.hostname === 'k-conmap.com' ? 'https://k-conmap.web.app' : location.origin
+      a.href = 밖 + location.pathname + location.search + location.hash
       a.target = '_blank'; a.rel = 'noopener'
       document.body.appendChild(a); a.click(); a.remove()
       /* 그다음 뒤따르는 click 을 한 번 막습니다 — 누른 단추·링크가 앱 창 안에서 따로 움직이지 않게.
@@ -236,7 +243,7 @@ export function AppWindowBar() {
     <div className="installbar appwin" role="status">
       <span className="t">{옮김
         ? <>🖥 <b>브라우저 탭</b>에서 열었습니다 — 이 창은 닫으셔도 됩니다.</>
-        : <>🖥 K-건설맵은 이제 PC 에서 <b>브라우저 탭</b>으로 엽니다 — <b>아무 곳이나 한 번 누르면</b> 자동으로 옮겨 갑니다.</>}</span>
+        : <>🖥 K-건설맵은 이제 PC 에서 <b>브라우저 탭</b>으로 엽니다 — <b>아무 곳이나 한 번 누르면</b> 자동으로 옮겨 갑니다. <span className="appwin-k">(이 창에서 뒤로 가기: <b>Alt + ←</b>)</span></>}</span>
     </div>
   )
 }
