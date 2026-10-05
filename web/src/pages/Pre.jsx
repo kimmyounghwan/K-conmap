@@ -12,7 +12,8 @@
    ■ 정직하게
      · 발주계획은 기관의 «계획» — 시기 · 금액이 바뀌거나 취소될 수 있습니다(맨 위 · 펼친 칸에 늘 적음).
      · 담당자 이름은 싣지 않습니다(부서 · 전화만 · 펼친 칸에서만) — 소장님 고름.
-     · 공종은 조달청이 준 값만(사업명 낱말로 짐작하지 않음). 값이 없으면 공종 칩을 안 그립니다. */
+     · 구분 칩은 조달청이 준 값만(사업명 낱말로 짐작하지 않음) — 실제로는 «종합 / 전문». 값이 없으면 칩을 안 그립니다.
+     · 발주계획 «나라장터에서 이 계획 보기» — 조달청이 계획마다 준 상세 주소(orderPlanDtlUrl). (2026-10-05 G135b 다듬기) */
 import { Link, useSearchParams } from 'react-router-dom'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Skeleton, Empty } from '../components.jsx'
@@ -122,8 +123,9 @@ export default function Pre() {
         ))}
       </div>
       {공종들.length > 1 && (
-        <div className="chips pre-kind" role="group" aria-label="공종">
-          <button className={'chip' + (!공종 ? ' on' : '')} onClick={() => set공종('')}>공종 전체</button>
+        <div className="chips pre-kind" role="group" aria-label="종합·전문">
+          {/* 조달청 «공사 구분» 값 = 종합 / 전문 (2026-10-05 실제 응답 · 토목·건축 같은 공종이 아님) */}
+          <button className={'chip' + (!공종 ? ' on' : '')} onClick={() => set공종('')}>종합·전문 전체</button>
           {공종들.map(([k, n]) => (
             <button key={k} className={'chip' + (공종 === k ? ' on' : '')} onClick={() => set공종(공종 === k ? '' : k)}>
               {k} <em className="licn">{num(n)}</em>
@@ -162,7 +164,7 @@ export default function Pre() {
             <div className="foot">
               <span className="amt">{억(r.amt) || <span className="xmut">금액 미정</span>}</span>
               {r.how ? <span className="badge n">{r.how}</span> : null}
-              {r.kind ? <span className="badge n">{r.kind}</span> : null}
+              {r.kind ? <span className="badge n">{/^(종합|전문)$/.test(r.kind) ? `${r.kind}공사` : r.kind}</span> : null}
               <span style={{ flex: 1 }} />
               <button type="button" className={'pre-star' + (담음 ? ' on' : '')} onClick={(e) => 담기(e, r)}
                 aria-label={담음 ? '담기 빼기' : '담기'}>{담음 ? '★' : '☆'}</button>
@@ -185,7 +187,7 @@ export default function Pre() {
                   {r.due ? <div><span>의견 마감</span><b>{r.due}</b></div> : null}
                   {r.rgn ? <div><span>공사 지역</span><b>{r.rgn}</b></div> : null}
                   {r.how ? <div><span>계약 방법</span><b>{r.how}</b></div> : null}
-                  {r.kind ? <div><span>공종</span><b>{r.kind}</b></div> : null}
+                  {r.kind ? <div><span>공사 구분</span><b>{/^(종합|전문)$/.test(r.kind) ? `${r.kind}공사` : r.kind}</b></div> : null}
                   {r.per ? <div><span>공사 기간</span><b>{r.per}</b></div> : null}
                   {r.see ? <div><span>설계서 열람</span><b>{r.see}</b></div> : null}
                   {(r.dept || r.tel) ? <div><span>문의</span><b>{[r.dept, r.tel].filter(Boolean).join(' · ')}</b></div> : null}
@@ -206,13 +208,16 @@ export default function Pre() {
                 <div className="xact">
                   <button className={'btn sm' + (담음 ? '' : ' line')} onClick={(e) => 담기(e, r)}>{담음 ? '★ 담음' : '☆ 담기'}</button>
                   <button className="btn line sm" onClick={(e) => 복사하기(e, r.nm, r.id)}>{복사 === r.id ? '✓ 복사함' : '📋 사업명 복사'}</button>
-                  <a className="btn sm" href="https://www.g2b.go.kr" target="_blank" rel="noreferrer">나라장터 열기 ↗</a>
+                  {/* 🔗 발주계획은 조달청이 준 «계획 상세» 주소로 바로(orderPlanDtlUrl) · 없으면 나라장터 첫 화면 */}
+                  {r.url
+                    ? <a className="btn sm" href={r.url} target="_blank" rel="noreferrer">나라장터에서 이 계획 보기 ↗</a>
+                    : <a className="btn sm" href="https://www.g2b.go.kr" target="_blank" rel="noreferrer">나라장터 열기 ↗</a>}
                 </div>
                 <div className="note sm">
                   {r.k === 's'
                     ? <>사전규격은 입찰공고 «직전» 단계입니다. 의견 마감 뒤 대개 곧 공고가 나옵니다 — 나오면 이 카드가 «✅ 공고 나옴» 으로 바뀝니다.</>
                     : <>발주계획은 기관이 연초 · 분기마다 낸 «계획» 입니다. 시기 · 금액이 바뀌거나 취소될 수 있습니다.</>}
-                  {' '}나라장터에서는 사업명으로 찾으세요.
+                  {r.url ? null : <>{' '}나라장터에서는 사업명으로 찾으세요.</>}
                 </div>
               </div>
             )}

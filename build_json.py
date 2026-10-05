@@ -1687,7 +1687,8 @@ def _pick(it, *names):
 
 
 def _pre_kind(v):
-    """공종 — 조달청이 준 공종 칸 값 그대로(짧게). 없으면 ''.
+    """공사 구분 — 조달청이 준 값 그대로(짧게). 없으면 ''.
+    ⚠️ 2026-10-05 실제 응답: 발주계획 cnsttyDivNm 은 «종합 / 전문» 구분입니다(토목·건축 같은 공종이 아님) → 화면은 «종합·전문» 칩.
     ⚠️ 사업명 낱말로 짐작하지 않습니다(lib/lic.js 머리말 · CLAUDE.md 1번 «조달청이 주는 값만»)."""
     t = re.sub(r"\s+", " ", str(v or "")).strip()
     return t[:12]
@@ -1716,7 +1717,7 @@ def _pre_dt(v):
 
 
 PRE_F = ["id", "k", "nm", "org", "dm", "rgn", "amt", "ym", "due", "how", "kind", "per", "see", "dept", "tel",
-         "nos", "st", "reg", "files", "sd"]
+         "nos", "st", "reg", "files", "url", "sd"]
 
 
 def build_pre(src_dir=None, out_dir=None, now=None):
@@ -1813,6 +1814,8 @@ def build_pre(src_dir=None, out_dir=None, now=None):
             "per": str(_pick(it, "cnstwkPrdCntnts", "cnstwkPrd") or "")[:30], "see": see[:80],
             "dept": str(_pick(it, "deptNm") or "")[:30], "tel": str(_pick(it, "telNo", "ofclTelNo") or "")[:20],
             "nos": nos, "st": st, "stno": sno, "reg": _pre_dt(_pick(it, "nticeDt", "rgstDt"))[:10], "files": [],
+            # 🔗 나라장터 «발주계획 상세» 주소 — 조달청이 계획마다 줍니다(orderPlanDtlUrl · G135b 실제 응답에서 확인)
+            "url": (lambda u: u if u.startswith("http") else "")(str(_pick(it, "orderPlanDtlUrl") or "")),
             "sd": sido_of({"site": rgn, "inst": org}),
         })
     for key, it in (spec.get("r") or {}).items():
@@ -1841,7 +1844,7 @@ def build_pre(src_dir=None, out_dir=None, now=None):
             "amt": int(_num(_pick(it, "asignBdgtAmt", "bdgtAmt"))), "ym": "", "due": due,
             "how": "", "kind": "", "per": (str(_pick(it, "dlvrDaynum") or "") + "일") if _pick(it, "dlvrDaynum") else "",
             "see": "", "dept": "", "tel": str(_pick(it, "ofclTelNo") or "")[:20],
-            "nos": nos, "st": st, "stno": sno, "reg": reg, "files": [f for f in files if f.startswith("http")][:5],
+            "nos": nos, "st": st, "stno": sno, "reg": reg, "files": [f for f in files if f.startswith("http")][:5], "url": "",
             "sd": sido_of({"site": dm, "inst": org}),
         })
     # 나올 차례 — 공고 직전(사전규격 · 마감 빠른 순) → 발주월 빠른 순 → 금액 큰 순

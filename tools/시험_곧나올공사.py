@@ -38,7 +38,8 @@ plan = {"at": "2026-10-05 07:23", "r": {
     "a": {"bizNm": "가상 소하천 정비공사", "orderInsttNm": "전라남도 가상시", "cnstwkRgnNm": "전라남도 가상시",
           "orderYear": "2026", "orderMnth": "11", "orderContrctAmt": "512000000", "cntrctMthdNm": "일반경쟁",
           "cnsttyDivNm": "토목", "deptNm": "건설과", "ofclNm": "홍길동", "telNo": "061-000-0000",
-          "dsgnDocRdngPlceNm": "건설과", "dsgnDocRdngPrdCntnts": "공고 시", "bidNtceNoList": ""},
+          "dsgnDocRdngPlceNm": "건설과", "dsgnDocRdngPrdCntnts": "공고 시", "bidNtceNoList": "",
+          "orderPlanDtlUrl": "https://www.g2b.go.kr/link/PRPA015_01/single/?가상"},
     "b": {"cnstwkNm": "가상 청사 리모델링", "orderInsttNm": "경기도 가상군", "orderYear": "2026", "orderMnth": "202610",
           "sumOrderAmt": "1,234,000,000", "bidNtceNoList": "R26BK09990001-000"},
     "c": {"bizNm": "지난달 계획", "orderInsttNm": "경기도 가상군", "orderYear": "2026", "orderMnth": "09"},
@@ -69,7 +70,9 @@ jn = json.load(open(os.path.join(out, "pre", str(BJ.SIDO_KAN.index("전남")) + 
 rows = [dict(zip(jn["f"], r)) for r in jn["r"]]
 같음([r["k"] for r in rows], ["s", "p"], "전남 — 공고 직전(사전규격)이 먼저, 그다음 발주계획")
 p = rows[1]
-같음([p["ym"], p["amt"], p["how"], p["kind"], p["dept"], p["tel"]], ["202611", 512000000, "일반경쟁", "토목", "건설과", "061-000-0000"], "발주계획 — 월 · 금액 · 계약방법 · 공종 · 부서 · 전화")
+같음([p["ym"], p["amt"], p["how"], p["kind"], p["dept"], p["tel"]], ["202611", 512000000, "일반경쟁", "토목", "건설과", "061-000-0000"], "발주계획 — 월 · 금액 · 계약방법 · 구분 · 부서 · 전화")
+같음(p["url"], "https://www.g2b.go.kr/link/PRPA015_01/single/?가상", "나라장터 발주계획 상세 주소(orderPlanDtlUrl)")
+같음(rows[0]["url"], "", "사전규격은 상세 주소 없음")
 같음("홍길동" in json.dumps(jn, ensure_ascii=False), False, "담당자 이름은 싣지 않음")
 s = rows[0]
 같음([s["due"], s["amt"], s["files"], s["tel"]], ["2026-10-08 18:00", 300000000, ["https://www.g2b.go.kr/가상파일1"], "061-111-1111"], "사전규격 — 의견 마감 · 배정예산 · 규격서 · 전화")
