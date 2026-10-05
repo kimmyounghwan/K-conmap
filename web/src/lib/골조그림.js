@@ -19,18 +19,28 @@ function 보이는색(rgb) {
 export function 길만들기(model) {
   const { E, Q, P } = model
   const 층들 = new Map()
+  /* 🧭 G132 — 아주 작은 조각(도곽 귀퉁이 위치도 · 기호 속 잔선)은 따로 묶어, 화면에서 1px 도 안 될 때는 안 그립니다(큰 도면이 빨라짐) */
+  const b = model.box || [0, 0, 1, 1]
+  const 잔크기 = Math.max(b[2] - b[0], b[3] - b[1]) / 4000
+  const 잔 = new Map()
   for (let q = 0; q < Q.e.length; q++) {
     const e = Q.e[q]
     const ly = E.ly[e]
-    let m = 층들.get(ly)
-    if (!m) { m = new Map(); 층들.set(ly, m) }
+    const s = Q.p0[q] * 2, n = Q.pn[q]
+    let x0 = P[s], x1 = x0, y0 = P[s + 1], y1 = y0
+    for (let k = 1; k < n; k++) { const x = P[s + k * 2], y = P[s + k * 2 + 1]; if (x < x0) x0 = x; else if (x > x1) x1 = x; if (y < y0) y0 = y; else if (y > y1) y1 = y }
+    const 작 = x1 - x0 < 잔크기 && y1 - y0 < 잔크기
+    const 묶음 = 작 ? 잔 : 층들
+    let m = 묶음.get(ly)
+    if (!m) { m = new Map(); 묶음.set(ly, m) }
     const c = E.rgb[e]
     let p = m.get(c)
     if (!p) { p = new Path2D(); m.set(c, p) }
-    const s = Q.p0[q] * 2, n = Q.pn[q]
     p.moveTo(P[s], P[s + 1])
     for (let k = 1; k < n; k++) p.lineTo(P[s + k * 2], P[s + k * 2 + 1])
   }
+  층들.잔 = 잔
+  층들.잔크기 = 잔크기
   return 층들
 }
 
@@ -72,6 +82,12 @@ export function 그리기(ctx, W, H, dpr, model, 길들, view, 끈층, 강조, �
   for (const [ly, m] of 길들) {
     if (끈층 && 끈층.has(ly)) continue
     for (const [c, p] of m) { ctx.strokeStyle = 보이는색(c); ctx.stroke(p) }
+  }
+  if (길들.잔 && s * 길들.잔크기 >= 0.6) {
+    for (const [ly, m] of 길들.잔) {
+      if (끈층 && 끈층.has(ly)) continue
+      for (const [c, p] of m) { ctx.strokeStyle = 보이는색(c); ctx.stroke(p) }
+    }
   }
   // 글자
   const T = model.T

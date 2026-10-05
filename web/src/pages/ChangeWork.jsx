@@ -10,6 +10,7 @@
  * ■ 파일은 브라우저 안에서만 다룹니다. 서버로 올라가지 않습니다.
  */
 import { useMemo, useRef, useState } from 'react'
+import 두줄색, { 두줄색상태 } from '../tools/두줄색.jsx'
 import { Link } from 'react-router-dom'
 import { askAfter } from '../AskComment'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
@@ -27,6 +28,7 @@ export default function ChangeWork() {
   const [대비a, set대비a] = useState(0)
   const [대비b, set대비b] = useState(-1)             /* -1 = 마지막 */
   const [빼기0, set빼기0] = useState(true)
+  const [두색, set두색원] = 두줄색상태()          /* G131 두 줄 글자색 — 원 내역서 설계변경 쪽과 같이 씀 */
   const [결과, set결과] = useState(null)             /* {url, 이름, 크기} */
   const 칸 = useRef(null)
   const 번호 = useRef(0)
@@ -121,6 +123,7 @@ export default function ChangeWork() {
         총괄: 할것.총괄 ? (S > 1 ? Array.from({ length: S }, (_, i) => i) : [0]) : null,
         차수: 할것.차수 && S > 2,
         검산: 할것.검산 ? 검 : null,
+        색: 두색,
       }
       const 부 = `${파일들.map((f) => f.이름).join(' · ')} — K-건설맵 설계변경 작업대에서 만듦(${new Date().toLocaleDateString('ko-KR')})`
       const 쓸모형 = { ...모형, 부제: 부 }
@@ -290,7 +293,8 @@ export default function ChangeWork() {
                 그 상태에서 수량이 0 인 품목(없어진 것 · 아직 안 한 것)은 뺌</label>
             )}
             {S > 1 && <label><input type="checkbox" checked={할것.여러줄} onChange={(e) => set할것({ ...할것, 여러줄: e.target.checked })} />{' '}
-              <b>{S === 2 ? '2줄 변경내역서' : `${S}줄 차수내역서`}</b> — 품목마다 {S === 2 ? '당초 · 변경' : '상태마다 한 줄'}(뒤 줄은 적색)</label>}
+              <b>{S === 2 ? '2줄 변경내역서' : `${S}줄 차수내역서`}</b> — 품목마다 {S === 2 ? '당초 · 변경' : '상태마다 한 줄'}(위 줄 {두색.위 === '빨' ? '빨강' : '검정'} · {S === 2 ? '아래 줄' : '뒤 줄들'} {두색.아래 === '빨' ? '빨강' : '검정'} — 아래에서 바꿈)</label>}
+            {S > 1 && (할것.여러줄 || 할것.총괄) && <두줄색 색={두색} set색={(f) => { set두색원(f); set결과(null) }} />}
             {S > 1 && <label><input type="checkbox" checked={할것.대비} onChange={(e) => set할것({ ...할것, 대비: e.target.checked })} />{' '}
               <b>공사비증감대비표 · 공사비물량대비표</b> — {모형.상태[가]} → {모형.상태[나]}</label>}
             <label><input type="checkbox" checked={할것.총괄} onChange={(e) => set할것({ ...할것, 총괄: e.target.checked })} />{' '}

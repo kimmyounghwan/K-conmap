@@ -19,6 +19,12 @@
  * ■ 도면은 이 브라우저 안에서만 읽습니다. 서버로 가지 않습니다(DWG 도 브라우저 안에서 DXF 로 바꿔 읽음).
  * ■ 셈: lib/도면자동.js (시험: node tools/시험_도면자동.mjs) · 도면판: ../도면판.jsx
  * ■ 예시 도면 web/public/jeoksan/토목_예시.dxf 는 K-건설맵이 그린 «가상» 도면입니다(tools/토목_예시도면.py).
+ * ■ 🧭 G132 (2026-10-05) — 소장님 「지우기 버튼 없고, 도면 이상하고, 굉장히 느려, 엑셀에 도면 물량이 안 나와… 점검해줘」 → 「고쳐줘」
+ *    실제 하수도 도면 7장 점검: 평면도 본 그림이 외부참조(xref)라 DWG 안에 없음 · 도곽 귀퉁이 위치도(0.1배 사본)를 물량으로 셈 ·
+ *    파일 머리 mm 인데 실제 m · 종·횡단면 표를 못 읽음 · 위치도 사본을 다 그려 느림 · 모두 지우기 없음.
+ *    → 외부참조 끼우기(lib/외부참조.js — XCLIP 대로 자르고, 여러 도면이 같은 바탕이면 «한 번만») · 축소 사본(배율 0.5 미만) 빼기 ·
+ *      TM 좌표면 m · 종단 «이름 / L=» 띠 · 횡단 수량표 블록 속성 평균단면법(lib/단면표.js) · 작은 조각은 1px 안 되면 안 그림 ·
+ *      🗑 모두 지우기 · 예시(가상) 도면 빼기 · 설명을 «되는 것만» 으로.  시험: node tools/시험_외부참조.mjs
  * ■ 🏗⚡ 2026-09-27 밤 — 골조 자동(lib/골조자동.js): 구조평면도 + 부재 일람표가 있으면 보·기둥·슬래브·벽·기초의
  *    콘크리트·거푸집·철근을 스스로 셈 → ① 에 줄로 · ② 골조 탭 · 엑셀에 «골조 산출서…» 시트(골조 화면과 같은 양식).
  *    소장님: 「적산에서 왜 골조 물량을 찍어야 된다고 했지?. 도면만 주면 스스로 물량을 내는 거잖아」
@@ -28,7 +34,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { 도면읽어오기, 도면판, 도면상태줄, 처음끈층, 큰파일, 오류글 } from '../도면판.jsx'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
-import { 단위배율, 도형글자, 종류 } from '../lib/골조도면.js'
+import { 단위배율, 도형글자, 종류, 찾기판 } from '../lib/골조도면.js'
+import { 조각표만들기 } from '../lib/골조그림.js'
+import { 참조키, 부르는참조, 참조붙이기, 참조모음, 경계를B로 } from '../lib/외부참조.js'
 import * as 자 from '../lib/도면자동.js'
 import * as 전 from '../lib/도면전부.js'
 import { 내역읽기, 모으기 as 내역모으기, 대조 as 대조하기, 대조시트, 단위풀기 } from '../lib/내역대조.js'
@@ -50,7 +58,14 @@ const 골조열쇠 = 'kcm.golgo.v1'
 const 전부캐시 = new WeakMap()
 function 전부(f) {
   let r = 전부캐시.get(f)
-  if (!r) { r = 전.모두(f.모델, { k: (f.단위 && f.단위.k) || 1, 끈층: f.끈층, 표들: f.표들 }); 전부캐시.set(f, r) }
+  if (!r) {
+    /* 🧭 G132 — 외부참조 원본은 «도면들이 보여 주는 곳만 한 번» 센 모델(모음)로, 끼운 도면은 끼운 것을 빼고 셈 */
+    const 원본 = f.참조원 && f.모음
+    /* 종단 · 횡단면도(이름 또는 측점이 있는 도면)의 선 길이는 실제 연장이 아님 → 처음엔 꺼 둠 */
+    const 단면 = !원본 && (/종단|횡단|종평면|단면도|PROFILE|SECTION/i.test(f.이름) || f.노선.some((g) => g.점.length >= 3))
+    r = 전.모두(원본 ? f.모음 : f.모델, { k: (f.단위 && f.단위.k) || 1, 끈층: f.끈층, 표들: 원본 ? [] : f.표들, 참조뺌: !원본, 단면 })
+    전부캐시.set(f, r)
+  }
   return r
 }
 const 자동키 = (종, 이름) => (종 === '길이' ? '층길이:' + 이름 : 종 === '면적' ? '층면적:' + 이름 : 종 === '블록' ? '블록:' + 이름 : '기호:' + 자.붙임(이름).toUpperCase())
@@ -70,13 +85,66 @@ const 설정열쇠 = 'kcm.auto.설정.v1'
 const 창고한도 = 60 * 1024 * 1024
 function 설정읽기() { try { return JSON.parse(localStorage.getItem(설정열쇠) || 'null') || {} } catch (e) { return {} } }
 
-function 준비(모델, 이름) {
+function 준비(모델, 이름, id = ++번호, 원모델 = 모델) {
   return {
-    id: ++번호, 이름, 모델,
-    끈층: 처음끈층(모델), 단위: 단위배율(모델.units, 모델.box),
+    id, 이름, 모델, 원모델,
+    끈층: 처음끈층(모델), 단위: 단위배율(모델.units, 모델.box, 모델.ox, 모델.oy),
     표들: 자.표찾기(모델),
     노선: 자.노선묶기(자.측점찾기(모델)),
   }
+}
+/**
+ * 🧭 G132 외부참조 맞추기 — 도면들끼리 «부르는 외부참조 이름 = 다른 도면 파일 이름» 이면 끼워 넣습니다.
+ *   · 끼운 도면: 참조 = {붙음:[이름], 없음:[이름]} · 모델 = 끼운 모델(원모델은 그대로 둠)
+ *   · 참조로 쓰인 파일: 참조원 = true → 물량을 따로 세지 않음(같은 관로를 두 번 세지 않게)
+ *   같은 짝은 다시 셈하지 않게 기억(원모델 → 짝 → 결과)
+ */
+const 끼운기억 = new WeakMap()
+function 참조맞추기(list) {
+  const 키로 = new Map()
+  for (const f of list) { const k = 참조키(f.이름.replace(/ \(.*$/, '')); if (!키로.has(k)) 키로.set(k, f) }
+  const 원으로 = new Set()
+  const 다음 = list.map((f) => {
+    const 원 = f.원모델 || f.모델
+    const 부름 = 부르는참조(원)
+    if (!부름.length) return f.참조 ? { ...f, 참조: null } : f
+    const 짝 = 부름.map((r) => ({ r, g: 키로.get(r.키) })).map((x) => (x.g && x.g.id !== f.id ? x : { ...x, g: null }))
+    const 열쇠 = 짝.map((x) => x.r.키 + '=' + (x.g ? x.g.id : '')).join('|')
+    let 기억 = 끼운기억.get(원)
+    if (!기억) { 기억 = new Map(); 끼운기억.set(원, 기억) }
+    for (const x of 짝) if (x.g) 원으로.add(x.g.id)
+    /* 도곽(테두리) 외부참조는 없어도 물량엔 상관없어 «없음» 경고에서 뺌 */
+    const 도곽 = (r) => /도곽|TITLE|FRAME|BORDER|틀$|SHEET/i.test(r.이름)
+    const 참조 = { 붙음: 짝.filter((x) => x.g).map((x) => ({ 이름: x.r.이름, 파일: x.g.이름 })), 없음: 짝.filter((x) => !x.g && !도곽(x.r)).map((x) => x.r.이름 + '.dwg'), 도곽없음: 짝.filter((x) => !x.g && 도곽(x.r)).map((x) => x.r.이름) }
+    if (f.참조열쇠 === 열쇠) return { ...f, 참조 }
+    let M = 기억.get(열쇠)
+    if (!M) {
+      M = 원
+      for (const x of 짝) if (x.g) M = 참조붙이기(M, x.g.원모델 || x.g.모델, x.r.키).모델
+      if (M !== 원) { M.판 = 찾기판(M); M.조각표 = 조각표만들기(M) }
+      기억.set(열쇠, M)
+    }
+    return { ...준비(M, f.이름, f.id, 원), 참조, 참조열쇠: 열쇠 }
+  })
+  /* 외부참조 원본 — 끼운 도면들이 보여 주는 자리(자른 경계)를 모아 «한 번만» 셀 모델 */
+  return 다음.map((f) => {
+    if (!원으로.has(f.id)) return f.참조원 ? { ...f, 참조원: false, 모음: null, 모음열쇠: '' } : f
+    const B = f.원모델 || f.모델
+    const 자리 = []
+    let 이름 = '', 배율 = 1
+    for (const h of 다음) {
+      if (h.id === f.id || !h.참조) continue
+      for (const r of (h.원모델 || h.모델).참조 || []) {
+        if (!(r.배율 >= 0.5) || 참조키(r.길 || r.이름) !== 참조키(f.이름.replace(/ \(.*$/, ''))) continue
+        자리.push({ h: h.id, r }); 이름 = 이름 || r.이름; 배율 = r.배율
+      }
+    }
+    const 열쇠 = 자리.map((x) => x.h + ':' + x.r.X.map((v) => v.toFixed(3)).join(',')).join('|')
+    if (f.모음열쇠 === 열쇠 && f.참조원) return f
+    const 모음 = 참조모음(B, 자리.map((x) => 경계를B로(x.r, B)), 배율, 이름 || f.이름)
+    모음.모음.도면수 = new Set(자리.map((x) => x.h)).size
+    return { ...f, 참조원: true, 모음, 모음열쇠: 열쇠 }
+  })
 }
 
 export default function JeoksanAuto() {
@@ -161,7 +229,7 @@ export default function JeoksanAuto() {
           원본들.current.set(f.id, x.예시 ? { 예시: x.예시, 예시이름: x.예시이름 } : { 이름, buf: 사본 })
           새.push(f)
         }
-        if (살 && 새.length) { set파일들(새); set지금((j) => Math.min(j, 새.length - 1)) }
+        if (살 && 새.length) { set파일들(참조맞추기(새)); set지금((j) => Math.min(j, 새.length - 1)) }
         if (살) set상태({ k: 'ok' })
       } catch (e) { if (살) set상태({ k: 'idle' }) } finally { 복원끝.current = true }
     })()
@@ -196,7 +264,7 @@ export default function JeoksanAuto() {
     set상태(틀림 ? { k: 'err', 글: 틀림.trim() } : { k: 'ok' })
     if (새.length) {
       const n = 파일들.length
-      set파일들((P) => [...P, ...새])
+      set파일들((P) => 참조맞추기([...P, ...새]))
       set지금(n + 새.length - 1)
       창고넣기([...파일들, ...새])
     }
@@ -249,15 +317,33 @@ export default function JeoksanAuto() {
     } catch (e) { set상태({ k: 'err', 글: f.name + ' — ' + (e.message || e) }) }
   }
   const 빼기 = (id) => {
-    set파일들((P) => P.filter((f) => f.id !== id))
+    set파일들((P) => 참조맞추기(P.filter((f) => f.id !== id)))
     set지금(0)
     상자들.current.delete(id)
     원본들.current.delete(id)
     창고넣기(파일들.filter((f) => f.id !== id))
   }
+  /* 🗑 G132 — 모두 지우기(도면 · 내역서 · 고른 것) · 예시(가상) 도면만 빼기 */
+  const [지울까, set지울까] = useState(false)
+  const 모두지우기 = () => {
+    set파일들([]); set지금(0); set내역(null); set짝고침({}); set넣은말(null); set켬고침({}); set고침({})
+    상자들.current.clear(); 원본들.current.clear()
+    창고넣기([], null)
+    set지울까(false); set상태({ k: 'idle' }); set알림({ 글: '' })
+  }
+  const 예시들 = 파일들.filter((f) => (원본들.current.get(f.id) || {}).예시)
+  const 예시빼기 = () => {
+    const 뺄 = new Set(예시들.map((f) => f.id))
+    const 남 = 파일들.filter((f) => !뺄.has(f.id))
+    for (const id of 뺄) { 상자들.current.delete(id); 원본들.current.delete(id) }
+    set파일들(참조맞추기(남)); set지금(0)
+    if (내역 && /\(가상 내역서\)/.test(내역.이름 || '')) { set내역(null); 창고넣기(남, null) } else 창고넣기(남)
+  }
 
   /* ── ① 표 ── */
-  const 모든표 = useMemo(() => 파일들.flatMap((f) => f.표들.map((t) => ({ ...t, fid: f.id, 도면: f.이름, key: f.id + ':' + t.id }))), [파일들])
+  /* 🧭 G132 — 다른 도면의 외부참조로 쓰인 파일은 따로 셈하지 않습니다(끼운 도면 쪽에서 셈) */
+  const 셀파일 = useMemo(() => 파일들.filter((f) => !f.참조원), [파일들])
+  const 모든표 = useMemo(() => 셀파일.flatMap((f) => f.표들.map((t) => ({ ...t, fid: f.id, 도면: f.이름, key: f.id + ':' + t.id }))), [셀파일])
   const 철 = useMemo(() => {
     const 줄 = [], 검산 = []
     for (const f of 파일들) {
@@ -316,7 +402,7 @@ export default function JeoksanAuto() {
   /* ── 🏗 골조 자동 — 넣은 도면 모두에서(평면과 일람표가 다른 장이어도) ── */
   const 골 = useMemo(() => {
     if (!파일들.length) return null
-    try { return 골조읽기(파일들.map((f) => ({ 모델: f.모델, 이름: f.이름, k: (f.단위 && f.단위.k) || 1 }))) } catch (e) { return { 있음: false, 경고: ['골조를 읽다 멈췄습니다: ' + e.message], 근거: [], 읽음: { 배근: {}, 평면: [], 셈: {}, 철골: [] }, 공사: null } }
+    try { return 골조읽기(셀파일.map((f) => ({ 모델: f.모델, 이름: f.이름, k: (f.단위 && f.단위.k) || 1 }))) } catch (e) { return { 있음: false, 경고: ['골조를 읽다 멈췄습니다: ' + e.message], 근거: [], 읽음: { 배근: {}, 평면: [], 셈: {}, 철골: [] }, 공사: null } }
   }, [파일들])
   const 골공사 = useMemo(() => {
     if (!골 || !골.있음) return null
@@ -336,7 +422,7 @@ export default function JeoksanAuto() {
     }
     for (const a of 량) { const key = '량:' + a.품명 + '|' + a.규격 + '|' + a.단위; 줄.push({ key, 켬: 켜(key, true), 구분: '도면 수량표', 품명: a.품명, 규격: a.규격, 단위: a.단위, 수량: a.수량, 식: a.식, 근거: '도면에 적힌 수량 ' + a.식, 도면: a.도면 }) }
     const 토공들 = []
-    for (const f of 파일들) {
+    for (const f of 셀파일) {
       for (const g of f.노선) {
         const k = f.id + ':' + g.번호
         const st = 토공설정[k] || {}
@@ -353,9 +439,10 @@ export default function JeoksanAuto() {
       }
     }
     for (const f of 파일들) {
+      const 원본글 = f.참조원 && f.모음 ? ' (외부참조 — 도면 ' + f.모음.모음.도면수 + '장이 보여 주는 곳, 겹친 곳은 한 번)' : ''
       for (const x of 전부(f).항목) {
         const key = 'all:' + f.id + ':' + x.key
-        줄.push({ key, 켬: 켜(key, x.켬), 구분: x.구분, 품명: x.품명, 규격: x.규격, 단위: x.단위, 수량: x.수량, 근거: x.근거, 도면: f.이름 })
+        줄.push({ key, 켬: 켜(key, x.켬), 구분: x.구분, 품명: x.품명, 규격: x.규격, 단위: x.단위, 수량: x.수량, 근거: x.근거, 도면: f.이름 + 원본글 })
       }
     }
     if (골결과) {
@@ -578,13 +665,17 @@ export default function JeoksanAuto() {
   return (
     <div className="wrap gg ja">
       <div className="card no-print">
-        <h1 className="tl-h1" style={{ marginTop: 0 }}>⚡ 도면 물량 자동 <span className="count">· 도면을 넣으면 모든 물량 · 내역서와 대조</span></h1>
+        <h1 className="tl-h1" style={{ marginTop: 0 }}>⚡ 도면 물량 자동 <span className="count">· 도면에 그려진 · 적힌 물량 → 엑셀 · 내역서와 대조</span></h1>
         <div className="note sm">
-          <b>도면을 넣기만 하면</b> 누를 것 없이 모든 물량을 뽑습니다 — 토목·건축 모두.
-          <b>철근 재료표 · 수량표</b> · 횡단면 <b>깎기·쌓기(평균단면법)</b> · <b>관로·측구·경계석·포장</b>(레이어 이름으로) · <b>맨홀·집수정·가로등·수목</b>(블록) ·
-          <b>창호 기호 개수</b> · <b>실(방) 면적</b> · <b>바닥·벽·천장 마감</b>(실내재료마감표가 있으면) ·
-          <b>골조 — 보·기둥·슬래브·벽·기초의 콘크리트·거푸집·철근</b>(구조평면도 + 부재 일람표가 있으면).
-          <b>내역서(엑셀)</b>를 넣으면 줄마다 도면 물량과 <b>대조</b>해 다른 곳을 찾아 드리고, <b>빈 수량 칸은 도면 물량으로 채워</b> 그 파일 그대로 돌려 드립니다. 전부 <b>엑셀</b>로 받습니다.
+          <b>DWG · DXF 둘 다</b> 넣을 수 있습니다(여러 장). 도면을 «해석» 하지 않고, 파일 안의 <b>좌표 · 글자를 그대로 읽어</b> 셉니다 —
+          선은 길이, 닫힌 선은 면적, 블록은 개수, 표는 적힌 값.
+          <br />읽는 것: <b>철근 재료표 · 수량표</b> · 횡단면에 적힌 <b>깎기·쌓기 면적(평균단면법)</b> · <b>관로·측구·경계석·포장</b>(레이어 이름으로 짐작) ·
+          <b>맨홀·집수정·가로등·수목</b>(블록 이름) · <b>창호 기호</b> · <b>실(방) 면적</b> · 마감(실내재료마감표가 있으면) ·
+          <b>골조</b>(구조평면도 + 부재 일람표가 있으면).
+          <b>내역서(엑셀)</b>를 넣으면 줄마다 대조하고 빈 수량 칸을 채워 그 파일 그대로 돌려 드립니다.
+          <br /><b>꼭 아실 것</b> — ① 본 그림이 <b>외부참조(xref)</b>로 붙은 평면도는 그 xref 파일도 <b>같이</b> 넣어야 합니다(안 넣으면 빈 도곽만 보이고 알려 드립니다).
+          ② 레이어 · 블록 «이름» 으로 뜻을 짐작하므로 <b>도면마다 확인</b>하십시오 — 현황(있는 것) · 외부참조 바탕도 · 귀퉁이 위치도(축소 사본)는 처음부터 빼거나 꺼 둡니다.
+          ③ 종단면도 · 횡단면도는 도면에 <b>표로 적힌 값</b>을 읽습니다(그림으로 재지 않음).
         </div>
         <div className="pdfsafe">🔒 <b>도면은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 읽고 셉니다 · 회원가입 없음 · 무료</div>
         <div className="btn-row gg-top">
@@ -603,14 +694,41 @@ export default function JeoksanAuto() {
         {파일들.length > 0 && (
           <div className="ja-files">
             {파일들.map((f, k) => (
-              <span key={f.id} className={'chip' + (k === 지금 ? ' on' : '')}>
+              <span key={f.id} className={'chip' + (k === 지금 ? ' on' : '') + (f.참조원 ? ' ja-ref' : '') + (f.참조 && f.참조.없음.length ? ' ja-miss' : '')}>
                 <button type="button" className="ja-fbtn" onClick={() => set지금(k)} title="이 도면 보기">📐 {f.이름}</button>
-                <span className="ja-fmeta">표 {f.표들.length} · 측점 {f.노선.reduce((s, g) => s + g.점.length, 0)}</span>
+                <span className="ja-fmeta">
+                  {f.참조원 ? '외부참조 원본 · 도면 ' + ((f.모음 && f.모음.모음.도면수) || 0) + '장이 보여 주는 곳만 한 번 셈'
+                    : <>표 {f.표들.length} · 측점 {f.노선.reduce((s, g) => s + g.점.length, 0)}
+                      {f.참조 && f.참조.붙음.length > 0 && <> · 🔗 참조 붙음</>}
+                      {f.참조 && f.참조.없음.length > 0 && <> · ⚠️ 참조 없음</>}</>}
+                </span>
                 <button type="button" className="ja-fx" onClick={() => 빼기(f.id)} aria-label={f.이름 + ' 빼기'}>✕</button>
               </span>
             ))}
+            <span className="ja-fact">
+              {예시들.length > 0 && 예시들.length < 파일들.length && <button type="button" className="btn ghost sm" onClick={예시빼기}>🧪 예시(가상) 도면 빼기</button>}
+              {!지울까
+                ? <button type="button" className="btn ghost sm" onClick={() => set지울까(true)}>🗑 모두 지우기</button>
+                : <span className="ja-ask">넣은 도면 · 내역서를 모두 지울까요?
+                    <button type="button" className="btn sm ja-del" onClick={모두지우기}>지우기</button>
+                    <button type="button" className="btn ghost sm" onClick={() => set지울까(false)}>그대로</button></span>}
+            </span>
           </div>
         )}
+        {(() => {
+          /* 🧭 G132 — 외부참조가 없는 도면: 무엇을 같이 넣어야 하는지 */
+          const 없음 = new Map()
+          for (const f of 파일들) for (const n of (f.참조 ? f.참조.없음 : [])) { const a = 없음.get(n) || []; a.push(f.이름); 없음.set(n, a) }
+          if (!없음.size) return null
+          return (
+            <div className="cwarn ja-xref">
+              <b>📎 본 그림이 «외부참조» 파일에 있는 도면이 있습니다.</b> 이 도면 파일 안에는 도곽 · 글자 · 귀퉁이 위치도만 있어 그림이 비어 보이고 물량이 나오지 않습니다.
+              같은 폴더의 아래 파일(.dwg 나 .dxf)을 <b>같이 넣으면</b> 자리에 맞춰 끼워 넣고(잘라 쓴 경계 그대로) 셉니다.
+              <ul>{[...없음].map(([n, fs]) => <li key={n}><b>{n}</b> — {fs.join(' · ')}</li>)}</ul>
+              <span className="muted">AutoCAD 에서 외부참조를 «결합(BIND)» 해 저장한 도면이면 이 파일 하나로도 됩니다.</span>
+            </div>
+          )
+        })()}
         {파일들.length > 0 && (
           <div className="ja-sum">이 도면{파일들.length > 1 ? '들' : ''}에서 뽑은 물량 <b>{산출.켠줄.length}줄</b> ·{' '}<b>표 {표수}개</b>
             {표수 > 0 && <> (철근 재료표 {모든표.filter((t) => t.종류 === '철근').length} · 수량표 {모든표.filter((t) => t.종류 === '수량').length} · 그 밖 {모든표.filter((t) => t.종류 === '기타').length})</>}

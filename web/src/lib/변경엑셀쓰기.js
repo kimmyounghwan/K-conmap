@@ -22,7 +22,7 @@ export function 열글(n) {
 }
 
 /* ── 꼴 ── 글꼴 · 채우기 · 테두리 · 숫자 형식을 이름으로 부릅니다 */
-const 형식 = { 금: '#,##0', 수0: '#,##0', 수1: '#,##0.0', 수2: '#,##0.00', 수3: '#,##0.000', 수4: '#,##0.0000', 율: '0.00%', 율1: '0.0%' }
+const 형식 = { 금: '#,##0', 수0: '#,##0', 수1: '#,##0.0', 수2: '#,##0.00', 수3: '#,##0.000', 수4: '#,##0.0000', 율: '0.00%', 율1: '0.0%', 율3: '0.000%', 율4: '0.0000%' }
 const 형식번호 = {}
 Object.keys(형식).forEach((k, i) => { 형식번호[k] = 180 + i })
 const 글꼴 = [
@@ -64,19 +64,53 @@ const 기본꼴 = {
   공종: [0, 1, 3, 1, ''],
   공종가: [0, 1, 3, 1, 'center'],
   확인: [0, 0, 4, 1, ''],
+  /* G131 — 두 줄 글자색(위 줄을 빨강으로 고를 때) */
+  글가빨: [0, 2, 0, 1, 'center'],
+  공종가빨: [0, 3, 3, 1, 'center'],
+  /* G131 — 긴 글(사유 · 근거)은 칸 안에서 줄을 바꾸고, 선에서 한 칸 띄움 */
+  글감: [0, 0, 0, 1, 'left', { 감: 1, 띄움: 1 }],
+  확인감: [0, 0, 4, 1, 'left', { 감: 1, 띄움: 1 }],
 }
 /* 숫자 꼴은 [형식] × [보통 · 굵게(공종) · 붉게(변경) · 굵고붉게 · 파랗게(증) · 굵고파랗게] × [테두리 셋] 을 모두 만들어 둡니다 */
 const 숫자변형 = { '': [0, 0], 굵: [1, 3], 빨: [2, 0], 굵빨: [3, 3], 파: [4, 0], 굵파: [7, 3], 확인: [0, 4] }
 const 선변형 = { '': 1, 위: 2, 아래: 3 }         /* 위 = 당초 줄(아래 점선) · 아래 = 변경 줄(위 점선) */
-const 글변형 = { 글: [0, 0], 글굵: [1, 3], 글빨: [2, 0], 글굵빨: [3, 3], 글파: [4, 0] }
+const 글변형 = { 글: [0, 0], 글굵: [1, 3], 글빨: [2, 0], 글굵빨: [3, 3], 글파: [4, 0], 글흐림: [6, 0] }
+
+/**
+ * 두 줄 글자색 (G131 — 소장님 「첫째 빨강, 검정, 둘째 빨강, 검정 클릭하면 변경 되게」)
+ *   색 = { 위: '검' | '빨', 아래: '검' | '빨' } — 위 줄 = 당초(첫 상태), 아래 줄 = 변경(뒤 상태들). 줄 전체(품명 · 규격 · 단위 · 숫자)에 씁니다.
+ *   색꼴('금굵_위', true) → '금굵빨_위' · 색꼴('글빨_아래', false) → '글_아래' · 파랑(증) · 확인(노랑) · 흐림은 그대로
+ */
+export const 기본색 = Object.freeze({ 위: '검', 아래: '빨' })
+export function 색맞춤(색) {
+  const 하나 = (v, d) => (v === '빨' || v === '검' ? v : d)
+  return { 위: 하나(색 && 색.위, 기본색.위), 아래: 하나(색 && 색.아래, 기본색.아래) }
+}
+export function 색꼴(이름, 빨강) {
+  const m = String(이름 || '').match(/^(.*?)(_위|_아래)?$/)
+  const 바탕 = m[1], 선 = m[2] || ''
+  if (/파|확인|흐림|감/.test(바탕)) return 바탕 + 선
+  if (!빨강) return 바탕.replace('빨', '') + 선
+  if (바탕.includes('빨')) return 바탕 + 선
+  if (/^(글|글굵|글가|공종가|금|금굵|수\d|율\d?)$/.test(바탕)) return 바탕 + '빨' + 선
+  return 바탕 + 선
+}
+
+/** 율 꼴 — 적힌 자리수만큼(3.545% · 87.745%) 보여 줍니다 */
+export function 율꼴(v) {
+  const t = Math.abs(Number(v) || 0) * 100
+  for (const [k, 꼴] of [[2, '율'], [3, '율3']]) if (Math.abs(t * 10 ** k - Math.round(t * 10 ** k)) < 1e-6) return 꼴
+  return '율4'
+}
 
 const 꼴표 = []
 const 꼴번호 = {}
-function 꼴더하기(이름, [f, font, fill, border, 맞춤]) {
+function 꼴더하기(이름, [f, font, fill, border, 맞춤, 덧 = null]) {
   꼴번호[이름] = 꼴표.length
   꼴표.push('<xf numFmtId="' + (f ? 형식번호[f] : 0) + '" fontId="' + font + '" fillId="' + fill + '" borderId="' + border +
     '" xfId="0"' + (f ? ' applyNumberFormat="1"' : '') + ' applyFont="1" applyFill="1" applyBorder="1"' +
-    (맞춤 ? ' applyAlignment="1"><alignment horizontal="' + 맞춤 + '" vertical="center"/></xf>'
+    (덧 ? ' applyAlignment="1"><alignment horizontal="' + (맞춤 || 'left') + '" vertical="center"' + (덧.감 ? ' wrapText="1"' : '') + (덧.띄움 ? ' indent="' + 덧.띄움 + '"' : '') + '/></xf>'
+      : 맞춤 ? ' applyAlignment="1"><alignment horizontal="' + 맞춤 + '" vertical="center"/></xf>'
       : ' applyAlignment="1"><alignment vertical="center"' + (f ? '' : ' wrapText="0"') + '/></xf>'))
 }
 Object.entries(기본꼴).forEach(([k, v]) => 꼴더하기(k, v))
@@ -151,7 +185,7 @@ function 시트xml(t) {
   const 머리시작 = r + 1
   for (const h of t.머리 || []) 넣기(h.map((x) => (x === null ? { v: '', s: '머리' } : { v: x, s: '머리' })), 20)
   const 머리끝 = r
-  for (const 줄 of t.줄 || []) 넣기(줄)
+  for (const 줄 of t.줄 || []) 넣기(줄, 줄 && 줄.높이)
   const 고정줄 = 머리끝
   const pane = 고정줄 || t.고정열
     ? '<pane' + (t.고정열 ? ' xSplit="' + t.고정열 + '"' : '') + (고정줄 ? ' ySplit="' + 고정줄 + '"' : '') +

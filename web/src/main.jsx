@@ -143,6 +143,7 @@ const ChangeNaeyeok = lazyPage(() => import('./pages/Change.jsx').then((m) => ({
 const TwoLine = lazyPage(() => import('./pages/TwoLine.jsx'))
 /* 🧰 2026-09-30(G72) 설계변경 작업대 — 2줄→1줄 · 당초/변경 짝짓기 · 대비표 · 검산 */
 const ChangeWork = lazyPage(() => import('./pages/ChangeWork.jsx'))
+const WonChange = lazyPage(() => import('./pages/WonChange.jsx'))   /* 🧾 G131 원 내역서로 설계변경 */
 /* 📊 업체 입찰 성적표(이용자용 안내) — 2026-09-15 · 2026-09-19 내림.
    화면 파일(pages/Report.jsx)은 두었지만 아무 데서도 부르지 않습니다 — 꾸러미에도 안 들어갑니다. */
 /* 📊 성적표 «만들기» — 2026-09-18. 소장님만. 검색엔진에 안 올립니다(ReportMake.jsx 가 noindex 를 겁니다).
@@ -187,6 +188,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/change/naeyeok" element={<Suspense fallback={<Loading />}><ChangeNaeyeok /></Suspense>} />
           <Route path="/change/twoline" element={<Suspense fallback={<Loading />}><TwoLine /></Suspense>} />
           <Route path="/change/work" element={<Suspense fallback={<Loading />}><ChangeWork /></Suspense>} />
+          <Route path="/change/won" element={<Suspense fallback={<Loading />}><WonChange /></Suspense>} />
           {/* 🗑 2026-09-19 — 소장님: 「사이트에 띄워놓은 입찰성적표는 제거…이상해」
               화면은 내렸습니다. 옛 링크(소개메일·카페글)가 404 가 되지 않게 첫 화면으로 보냅니다.
               ⚠️ pages/Report.jsx 는 지우지 않고 두었습니다 — 되살릴 일이 생기면 이 줄만 되돌리면 됩니다. */}

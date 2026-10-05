@@ -55,6 +55,7 @@ const LEAF = {
   '/change/naeyeok': '공사 내역서 모음',
   '/change/twoline': '2줄 자동변환',
   '/change/work': '설계변경 작업대',
+  '/change/won': '원 내역서로 설계변경',
   '/jeoksan/run': '수량산출서 만들기',
   '/jeoksan/golgo': '골조 수량산출',
   '/jeoksan/auto': '도면 물량 자동',

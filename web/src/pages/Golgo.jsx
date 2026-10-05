@@ -137,7 +137,7 @@ export default function Golgo() {
       try {
         const 사본 = buf.slice(0)
         const { 모델: M } = await 도면읽어오기(buf, 이름, (st) => set자동상태({ k: 'busy', msg: 이름 + ' — ' + st.msg, p: st.p }))
-        도면들.push({ 모델: M, 이름, k: 단위배율(M.units, M.box).k || 1 })
+        도면들.push({ 모델: M, 이름, k: 단위배율(M.units, M.box, M.ox, M.oy).k || 1 })
         남김.push({ 이름, buf: 사본 })
       } catch (e) { 틀림 += 이름 + ' — ' + 오류글(e.kind || 'fail', e.message) + ' ' }
     }

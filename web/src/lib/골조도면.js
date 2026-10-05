@@ -53,12 +53,18 @@ export function 도면읽기(text, onProgress) {
   // 도형(엔티티) 한 개마다
   const Et = new Grow(Uint8Array), Ely = new Grow(Uint16Array), Ergb = new Grow(Uint32Array)
   const Elen = new Grow(Float64Array), Earea = new Grow(Float64Array), Eval = new Grow(Float64Array), Eins = new Grow(Int32Array)
+  /* 🧭 G132 — 도형마다 «넣은 배율»(블록을 0.1배로 줄여 넣은 위치도 같은 사본은 물량에서 뺌) */
+  const Esc = new Grow(Float32Array)
+  let 지금배율 = 1
   // 조각(그림 토막 묶음) — 도형 하나가 조각 여러 개일 수 있음(치수·해치)
   const Qe = new Grow(Uint32Array), Q0 = new Grow(Uint32Array), Qn = new Grow(Uint32Array)
   const PX = new Grow(Float64Array, 1 << 16)
   // 글자
   const Ts = [], Tx = new Grow(Float64Array), Ty = new Grow(Float64Array), Th = new Grow(Float64Array), Ta = new Grow(Float64Array), Te = new Grow(Int32Array)
   const inserts = []
+  /* 🧭 G132 — 외부참조(XREF) 넣은 자리: 블록이 비어 있어(딴 파일) 그 파일을 같이 넣으면 화면이 끼워 넣습니다 */
+  const 참조들 = []
+  const 사전 = new Map(), 거르개 = new Map()     // OBJECTS — DICTIONARY · SPATIAL_FILTER (XCLIP)
 
   const P = (M, x, y, z) => M === I3 ? [x, y] : [M[0] * x + M[1] * y + M[2] * z + M[3], M[4] * x + M[5] * y + M[6] * z + M[7]]
   function g1(g, c, d = 0) { for (const [k, v] of g) if (k === c) return num(v); return d }
@@ -79,7 +85,7 @@ export function 도면읽기(text, onProgress) {
   function 새도형(t, ly, rgb, ins) {
     const i = Et.n
     Et.push(t); Ely.push(ly); Ergb.push((rgb[0] << 16) | (rgb[1] << 8) | rgb[2])
-    Elen.push(NaN); Earea.push(NaN); Eval.push(NaN); Eins.push(ins)
+    Elen.push(NaN); Earea.push(NaN); Eval.push(NaN); Eins.push(ins); Esc.push(지금배율)
     return i
   }
   function 조각(e, M, pts) {        // pts: [[x,y,z]…] 엔티티 좌표
@@ -234,6 +240,7 @@ export function 도면읽기(text, onProgress) {
     stats.ents++
     const rgb = 색(g, L, cx)
     const ins = cx.ins ?? -1
+    지금배율 = M === I3 ? 1 : Math.sqrt(Math.abs(M[0] * M[5] - M[1] * M[4])) || 1
     switch (t) {
       case 'LINE': {
         const a = [g1(g, 10), g1(g, 20), g1(g, 30)], b = [g1(g, 11), g1(g, 21), g1(g, 31)]
@@ -394,10 +401,26 @@ export function 도면읽기(text, onProgress) {
         const bl = blocks.get(name.toUpperCase())
         let myIns = ins
         if (top) { myIns = inserts.length; inserts.push({ name, x: 0, y: 0, ly: L.i }) }
+        /* 🧭 G132 — 블록 속성(ATTRIB) 이름표와 값도 적어 둠(횡단면 수량표 블록: 측점 · 터파기 · 모래부설 …) */
+        if (top && e.att && e.att.length) inserts[myIns].속성 = e.att.map((a) => [unesc(gs(a.g, 2)), cadText(unesc(gs(a.g, 1)))])
         if (e.att) for (const a of e.att) draw(a, M, { ...cx, ly: lyName, rgb, ins: myIns }, depth + 1, false)
         if (!bl) { skip('없는 블록'); return }
         if (depth > 16) return
         const O = ext(g)
+        if (bl.xref) {
+          /* 외부참조 — 블록 안이 비어 있습니다. 넣은 자리(변환)와 XCLIP 사전 번호만 적어 둠 */
+          const sx0 = g1(g, 41, 1), sy0 = g1(g, 42, 1), r0 = g1(g, 50, 0) * D2R
+          const c0 = Math.cos(r0), s0 = Math.sin(r0)
+          const [bx0, by0, bz0] = bl.base
+          let L0 = [c0 * sx0, -s0 * sy0, 0, -(c0 * sx0 * bx0) + s0 * sy0 * by0 + g1(g, 10),
+            s0 * sx0, c0 * sy0, 0, -(s0 * sx0 * bx0) - c0 * sy0 * by0 + g1(g, 20),
+            0, 0, g1(g, 43, 1), -g1(g, 43, 1) * bz0 + g1(g, 30)]
+          if (O) L0 = mul(O, L0)
+          const X0 = mul(M, L0)
+          let xd = ''
+          for (let k = 0; k < g.length - 1; k++) if (g[k][0] === 102 && /ACAD_XDICTIONARY/i.test(g[k][1])) { xd = String(g[k + 1][1]).trim().toUpperCase(); break }
+          참조들.push({ 이름: bl.name, 길: bl.path || '', X: Array.from(X0), xd, 배율: Math.sqrt(Math.abs(X0[0] * X0[5] - X0[1] * X0[4])) || 1, 층: L.i })
+        }
         const sx = g1(g, 41, 1), sy = g1(g, 42, 1), sz = g1(g, 43, 1)
         const rot = g1(g, 50, 0) * D2R
         const cs = Math.cos(rot), sn = Math.sin(rot)
@@ -564,7 +587,7 @@ export function 도면읽기(text, onProgress) {
         while (pair && !(pair[0] === 0 && pair[1].trim() === 'ENDSEC')) {
           if (pair[0] !== 0) { pair = R.next(); continue }
           const t = pair[1].trim()
-          if (t === 'BLOCK') { const e = readEnt('BLOCK'); cur = { name: unesc(gs(e.g, 2)), base: [g1(e.g, 10), g1(e.g, 20), g1(e.g, 30)], ents: [] }; continue }
+          if (t === 'BLOCK') { const e = readEnt('BLOCK'); const fl = g1(e.g, 70, 0); cur = { name: unesc(gs(e.g, 2)), base: [g1(e.g, 10), g1(e.g, 20), g1(e.g, 30)], ents: [], xref: (fl & 4) === 4, path: (fl & 4) ? unesc(gs(e.g, 1)) : '' }; continue }
           if (t === 'ENDBLK') { if (cur) blocks.set(cur.name.toUpperCase(), cur); cur = null; readEnt('ENDBLK'); continue }
           const e = readFull()
           if (cur && !/^\*paper_space/i.test(cur.name)) { for (const kv of e.g) if (kv[0] === 8 || kv[0] === 2 || kv[0] === 1 || kv[0] === 3) kv[1] = unesc(kv[1]); cur.ents.push(e) }
@@ -576,6 +599,27 @@ export function 도면읽기(text, onProgress) {
           for (const kv of e.g) if (kv[0] === 8 || kv[0] === 2) kv[1] = unesc(kv[1])
           if (!stats.capped) draw(e, I3, { ins: -1 }, 0, true)
           if (onProgress && R.pos - last > 2_000_000) { last = R.pos; onProgress(R.pos / R.len) }
+        }
+      } else if (sec === 'OBJECTS' && 참조들.length) {
+        /* XCLIP 만 봅니다: INSERT 의 확장 사전 → ACAD_FILTER → SPATIAL → SPATIAL_FILTER */
+        while (pair && !(pair[0] === 0 && pair[1].trim() === 'ENDSEC')) {
+          if (pair[0] !== 0) { pair = R.next(); continue }
+          const t = pair[1].trim()
+          if (t !== 'DICTIONARY' && t !== 'SPATIAL_FILTER') { pair = R.next(); continue }
+          const e = readEnt(t)
+          const h = gs(e.g, 5).toUpperCase()
+          if (t === 'DICTIONARY') {
+            const m = new Map()
+            let nm = null
+            for (const [k, v] of e.g) { if (k === 3) nm = String(v).trim().toUpperCase(); else if ((k === 350 || k === 360) && nm) { m.set(nm, String(v).trim().toUpperCase()); nm = null } }
+            사전.set(h, m)
+          } else {
+            const pts = []
+            let cur = null
+            const m40 = []
+            for (const [k, v] of e.g) { if (k === 10) { cur = [num(v), 0]; pts.push(cur) } else if (k === 20 && cur) cur[1] = num(v); else if (k === 40) m40.push(num(v)) }
+            거르개.set(h, { pts, m40 })
+          }
         }
       } else {
         while (pair && !(pair[0] === 0 && pair[1].trim() === 'ENDSEC')) pair = R.next()
@@ -593,19 +637,48 @@ export function 도면읽기(text, onProgress) {
   for (let k = 0; k < xy.length; k += 2) { xy[k] -= ox; xy[k + 1] -= oy }
   for (let k = 0; k < tx.length; k++) { tx[k] -= ox; ty[k] -= oy }
   for (const I of inserts) { I.x -= ox; I.y -= oy }
-  const E = { t: Et.done(), ly: Ely.done(), rgb: Ergb.done(), len: Elen.done(), area: Earea.done(), val: Eval.done(), ins: Eins.done() }
+  const 참조 = 참조맞춤(참조들, 사전, 거르개, ox, oy)
+  const E = { t: Et.done(), ly: Ely.done(), rgb: Ergb.done(), len: Elen.done(), area: Earea.done(), val: Eval.done(), ins: Eins.done(), sc: Esc.done() }
   const Q = { e: Qe.done(), p0: Q0.done(), pn: Qn.done() }
   const T = { s: Ts, x: tx, y: ty, h: Th.done(), a: Ta.done(), e: Te.done() }
   return {
     E, Q, P: xy, T, I: inserts,
     layers: layerList.map((L) => ({ name: L.name, rgb: L.rgb, hide: L.hide })),
     box: [box[0] - ox, box[1] - oy, box[2] - ox, box[3] - oy], ox, oy,
-    units: header.insunits, stats,
+    units: header.insunits, stats, 참조,
   }
 }
 
 /** 튀는 점에 끌리지 않는 범위 (0.2~99.8%) */
-function 범위(xy, tx, ty) {
+/**
+ * 🧭 G132 — 외부참조 자리 정리: XCLIP(자르기) 경계를 도면 좌표로(가운데 뺀 좌표)
+ *   SPATIAL_FILTER 의 점은 «넣을 때의 역변환»(40 × 12) 으로 블록 좌표가 되고, 넣은 변환 X 로 도면 좌표가 됩니다(ezdxf xclip 과 같은 셈).
+ *   점 두 개면 블록 좌표에서 네모로 폅니다.
+ */
+function 참조맞춤(참조들, 사전, 거르개, ox, oy) {
+  const 곱 = (m, x, y) => [m[0] * x + m[1] * y + m[3], m[4] * x + m[5] * y + m[7]]
+  return 참조들.map((r) => {
+    let 경계 = null
+    const d1 = r.xd && 사전.get(r.xd)
+    const d2 = d1 && d1.get('ACAD_FILTER') && 사전.get(d1.get('ACAD_FILTER'))
+    const f = d2 && d2.get('SPATIAL') && 거르개.get(d2.get('SPATIAL'))
+    if (f && f.pts.length >= 2) {
+      const v = f.m40.length >= 24 ? f.m40.slice(-24, -12) : null
+      let 블 = f.pts.map(([x, y]) => (v ? 곱(v, x, y) : [x, y]))
+      if (블.length === 2) {
+        const [a, b] = 블
+        const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]), y0 = Math.min(a[1], b[1]), y1 = Math.max(a[1], b[1])
+        블 = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]
+      }
+      경계 = 블.map(([x, y]) => { const w = 곱(r.X, x, y); return [w[0] - ox, w[1] - oy] })
+    }
+    const X = r.X.slice()
+    X[3] -= ox; X[7] -= oy
+    return { 이름: r.이름, 길: r.길, X, 배율: r.배율, 층: r.층, 경계 }
+  })
+}
+
+export function 범위(xy, tx, ty) {
   const n = xy.length >> 1
   const xs = [], ys = []
   const step = Math.max(1, Math.floor(n / 200000))
@@ -743,7 +816,13 @@ export function 도형글자(model, e) {
 }
 
 /** 도면 단위 → mm 배율. $INSUNITS: 4 mm · 5 cm · 6 m · 1 inch · 2 feet · 0 모름 */
-export function 단위배율(units, box) {
+export function 단위배율(units, box, ox, oy) {
+  /* 🧭 G132 — 파일 머리엔 mm(4) 인데 실제로는 m 로 그린 토목 도면이 많습니다(캐드 기본값이 남음).
+   *   가운데 좌표가 TM 좌표(동서 10만~60만 · 남북 10만~80만 m)이고 도면 너비가 2만 단위보다 작으면 m 로 봅니다.
+   *   (mm 로 그린 건물이 그 자리에 있으면 너비가 수만 단위를 넘습니다) */
+  const w0 = box ? Math.max(box[2] - box[0], box[3] - box[1]) : 0
+  const tm = Number.isFinite(ox) && Number.isFinite(oy) && ox > 1e5 && ox < 6e5 && oy > 1e5 && oy < 8e5 && w0 > 0 && w0 < 2e4
+  if (tm && (units === 4 || units === 0 || units === 1 || units === 2 || units === undefined)) return { k: 1000, 글: 'm (좌표로 짐작)' }
   if (units === 4) return { k: 1, 글: 'mm' }
   if (units === 5) return { k: 10, 글: 'cm' }
   if (units === 6) return { k: 1000, 글: 'm' }

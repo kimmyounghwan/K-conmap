@@ -559,6 +559,19 @@ export default function Change() {
         </div>
       </div>
 
+      {/* 🧾 원 내역서로 설계변경 — 2026-10-05(G131). 원본 시트 그대로 + 변경 시트 한 벌 */}
+      <Link className="card fbook" to="/change/won">
+        <span className="fic">🧾</span>
+        <div className="grow">
+          <div className="t">원 내역서로 설계변경 <em>· 원본 그대로 + 변경 시트 한 벌</em></div>
+          <div className="d">
+            원 내역서(계약내역서)를 올리고 바뀐 <b>수량 · 사유 · 신규 비목</b>만 적으면, 원본 시트 뒤에 <b>변경내역서(2줄) · 변경 원가계산서(원 요율)</b> ·
+            증감 · 물량 대비표 · 신규비목 단가산출서(× 낙찰률) · 단가 근거표 · 사유서 · 검산을 붙여 드립니다. 2회 · 3회 차수도.
+          </div>
+        </div>
+        <span className="go">›</span>
+      </Link>
+
       {/* 🧰 설계변경 작업대 — 2026-09-30(G72). 2줄→1줄 · 당초/변경 짝짓기 · 대비표 · 차수별 · 검산 */}
       <Link className="card fbook" to="/change/work">
         <span className="fic">🧰</span>

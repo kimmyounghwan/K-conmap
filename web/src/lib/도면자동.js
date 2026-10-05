@@ -639,10 +639,15 @@ export function 세기(모델, o = {}) {
     return B[e * 4] >= 네모[0] && B[e * 4 + 1] >= 네모[1] && B[e * 4 + 2] <= 네모[2] && B[e * 4 + 3] <= 네모[3]
   }
   const 층 = layers.map((L, i) => ({ i, 이름: L.name, 길이m: 0, 선수: 0, 면적m2: 0, 면수: 0, 글수: 0, 수: 0 }))
+  /* 🧭 G132 — 블록을 0.5배보다 작게(도곽 귀퉁이 위치도 · 축소 사본) 또는 2배보다 크게 넣은 도형은 물량이 아님 → 뺌 */
+  const SC = E.sc
+  const 사본 = (e) => SC && (SC[e] < 0.5 || SC[e] > 2)
+  let 뺀사본 = 0
   for (let e = 0; e < E.t.length; e++) {
     const ly = E.ly[e]
     if (끈.has(ly)) continue
     if (!안(e)) continue
+    if (사본(e)) { 뺀사본++; continue }
     const t = E.t[e]
     const a = 층[ly]
     a.수++
@@ -656,8 +661,9 @@ export function 세기(모델, o = {}) {
     if (끈.has(ins.ly)) continue
     if (네모 && (ins.x < 네모[0] || ins.x > 네모[2] || ins.y < 네모[1] || ins.y > 네모[3])) continue
     const key = ins.name
-    const b = 블.get(key) || { 이름: key, 수: 0, 층: new Map() }
+    const b = 블.get(key) || { 이름: key, 수: 0, 층: new Map(), 참조수: 0 }
     b.수++
+    if (ins.참조) b.참조수++
     const ln = layers[ins.ly] ? layers[ins.ly].name : ''
     b.층.set(ln, (b.층.get(ln) || 0) + 1)
     블.set(key, b)
@@ -667,6 +673,7 @@ export function 세기(모델, o = {}) {
     const e = T.e[i]
     if (E.t[e] !== 종류.글자) continue
     if (끈.has(E.ly[e])) continue
+    if (사본(e)) continue
     if (네모 && !(T.x[i] >= 네모[0] && T.x[i] <= 네모[2] && T.y[i] >= 네모[1] && T.y[i] <= 네모[3])) continue
     const s = T.s[i].trim()
     if (!s || s.length > 30) continue
@@ -674,8 +681,9 @@ export function 세기(모델, o = {}) {
   }
   return {
     층: 층.filter((a) => a.수 > 0).sort((a, b) => b.길이m - a.길이m),
-    블록: [...블.values()].map((b) => ({ 이름: b.이름, 수: b.수, 층: [...b.층.entries()].map(([n, c]) => n + (b.층.size > 1 ? '(' + c + ')' : '')).join(', ') })).sort((a, b) => b.수 - a.수),
+    블록: [...블.values()].map((b) => ({ 이름: b.이름, 수: b.수, 참조수: b.참조수, 층이름: [...b.층.keys()], 층: [...b.층.entries()].map(([n, c]) => n + (b.층.size > 1 ? '(' + c + ')' : '')).join(', ') })).sort((a, b) => b.수 - a.수),
     글: [...글.entries()].map(([s, n]) => ({ 글: s, 수: n, 숫자: 숫자인가(s) })).sort((a, b) => b.수 - a.수 || a.글.localeCompare(b.글)),
+    뺀사본,
   }
 }
 

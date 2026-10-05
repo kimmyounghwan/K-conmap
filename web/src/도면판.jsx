@@ -87,7 +87,7 @@ export function use도면(열쇠) {
       if (나 !== 차례.current) return null
       set모델(M)
       set도면이름(name)
-      set단위(단위배율(M.units, M.box))
+      set단위(단위배율(M.units, M.box, M.ox, M.oy))
       set끈층(처음끈층(M))
       set도면상태({ k: 'ok' })
       if (dxf && 열쇠) 기억.넣기(열쇠, { name, buf: dxf }).catch(() => {})
