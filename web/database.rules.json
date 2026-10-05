@@ -1275,6 +1275,46 @@
         "by": { ".validate": "newData.isString() && newData.val().length <= 20" },
         "$other": { ".validate": false }
       }
+    },
+    // 🩺 국민건강 · 연금보험료 정산 청구서 (BoheomJeongsan.jsx · G146 · 2026-10-05)
+    "bj_pins": {
+      ".read": false,
+      "$c": {
+        ".write": "auth != null && !data.exists() && $c.matches(/^[A-Z0-9]{9}$/)",
+        ".validate": "newData.isString() && newData.val().length === 64"
+      }
+    },
+    "bj_keys": {
+      "$c": {
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid && (!newData.exists() || newData.val() === root.child('bj_pins').child($c).val())"
+        }
+      }
+    },
+    "bj_books": {
+      "$c": {
+        ".read": "auth != null && root.child('bj_pins').child($c).exists() && root.child('bj_keys').child($c).child(auth.uid).val() === root.child('bj_pins').child($c).val()",
+        ".write": "auth != null && root.child('bj_pins').child($c).exists() && root.child('bj_keys').child($c).child(auth.uid).val() === root.child('bj_pins').child($c).val()",
+        ".validate": "newData.hasChildren(['name','at'])",
+        "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60" },
+        "at": { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
+        "upd": { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
+        "del": { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
+        "$other": { ".validate": false }
+      }
+    },
+    "bj_doc": {
+      "$c": {
+        ".read": "auth != null && root.child('bj_pins').child($c).exists() && root.child('bj_keys').child($c).child(auth.uid).val() === root.child('bj_pins').child($c).val()",
+        ".write": "auth != null && root.child('bj_pins').child($c).exists() && root.child('bj_keys').child($c).child(auth.uid).val() === root.child('bj_pins').child($c).val()",
+        ".validate": "newData.hasChildren(['s','r','at'])",
+        "s": { ".validate": "newData.isString() && newData.val().beginsWith('v1.') && newData.val().length <= 3000000" },
+        "r": { ".validate": "newData.isNumber() && ((!data.exists() && newData.val() === 1) || (data.exists() && newData.val() === data.val() + 1))" },
+        "at": { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
+        "by": { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "$other": { ".validate": false }
+      }
     }
   }
 }

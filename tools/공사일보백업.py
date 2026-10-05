@@ -53,8 +53,8 @@ DB = os.environ.get("RTDB_URL") or "https://k-conmap-default-rtdb.firebaseio.com
      "자리": ["rk_books", "rk_docs", "rk_pics", "rk_trash"], "딸림": {"docs": "rk_pics"}},
 ]
 # 🔗 2026-10-02 (G113) — «이어 쓰기» 여덟(web/src/lib/이어쓰기.js): 프로그램 상태를 통째로 잠근 한 칸({ns}_doc) · 휴지통 없음(통 None)
-#   sn 산안비 · sk 손익 장부 · ib 작업일보 · nm 노무비 · jm 지명원 · gj 견적서 · sc 예정공정표 · wc 공사서류 원클릭
-for _ns in ["sn", "sk", "ib", "nm", "jm", "gj", "sc", "wc"]:
+#   sn 산안비 · sk 손익 장부 · ib 작업일보 · nm 노무비 · jm 지명원 · gj 견적서 · sc 예정공정표 · wc 공사서류 원클릭 · bj 보험료 정산(G146)
+for _ns in ["sn", "sk", "ib", "nm", "jm", "gj", "sc", "wc", "bj"]:
     묶음들.append({"ns": _ns, "책": _ns + "_books", "통": None, "자리": [_ns + "_books", _ns + "_doc"], "딸림": {}})
 자리들 = [x for g in 묶음들 for x in [g["ns"] + "_pins", g["ns"] + "_keys"] + g["자리"]] + ["cost_vlink", "cost_vin", "cost_day"]
 자리들 = list(dict.fromkeys(자리들))

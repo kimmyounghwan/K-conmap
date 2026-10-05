@@ -62,6 +62,7 @@ if hasattr(sys.stdout, "reconfigure"):
 
 # 🔧 소식 → 우리 도구 (첫 번째로 맞는 것 하나). 주소는 web/src/main.jsx 에 있는 것만.
 도구잇기 = [
+    (re.compile(r"(건강|연금|4대)\s*(보험료?)?\s*(사후\s*)?정산|보험료\s*사후\s*정산"), "/tools/boheom-jeongsan", "건강·연금보험료 정산 청구서"),   # G146
     (re.compile(r"4대\s*보험|국민연금|건강보험|고용보험|일용\s*근로|일용직"), "/tools/ilyong-boheom", "4대보험 판단기"),
     (re.compile(r"산재\s*보험|보험료"), "/tools/boheomryo", "고용·산재 보험료 계산기"),
     (re.compile(r"퇴직\s*공제"), "/tools/toejik", "퇴직공제 집계"),

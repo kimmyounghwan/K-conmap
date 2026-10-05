@@ -131,6 +131,7 @@ const Ilbo = lazyPage(() => import('./pages/Ilbo.jsx'))
 const Singo = lazyPage(() => import('./pages/Singo.jsx'))
 const Toejik = lazyPage(() => import('./pages/Toejik.jsx'))
 const Boheomryo = lazyPage(() => import('./pages/Boheomryo.jsx'))
+const BoheomJeongsan = lazyPage(() => import('./pages/BoheomJeongsan.jsx'))   /* 🩺 2026-10-05 (G146) 국민건강 · 연금보험료 정산 청구서 */
 const Haemada = lazyPage(() => import('./pages/Haemada.jsx'))
 const Ilyong4 = lazyPage(() => import('./pages/Ilyong4.jsx'))   /* 🛡 2026-10-01 (G107) 일용직 4대보험 가입 판단기 */
 const IlyongGuide = lazyPage(() => import('./pages/Ilyong4.jsx').then((m) => ({ default: m.IlyongGuide })))
@@ -235,6 +236,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/tools/singo" element={<Suspense fallback={<Loading />}><Singo /></Suspense>} />
           <Route path="/tools/toejik" element={<Suspense fallback={<Loading />}><Toejik /></Suspense>} />
           <Route path="/tools/boheomryo" element={<Suspense fallback={<Loading />}><Boheomryo /></Suspense>} />
+          <Route path="/tools/boheom-jeongsan" element={<Suspense fallback={<Loading />}><BoheomJeongsan /></Suspense>} />
           <Route path="/tools/haemada" element={<Suspense fallback={<Loading />}><Haemada /></Suspense>} />
           <Route path="/tools/ilyong-boheom" element={<Suspense fallback={<Loading />}><Ilyong4 /></Suspense>} />
           <Route path="/tools/ilyong-guide" element={<Suspense fallback={<Loading />}><IlyongGuide /></Suspense>} />

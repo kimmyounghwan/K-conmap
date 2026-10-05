@@ -55,7 +55,7 @@ export default function 이용자지도() {
   const [자료, set자료] = useState(null)
   const [지역, set지역] = useState(null)
   const [고른, set고른] = useState(null)
-  const [다봄, set다봄] = useState(false)       /* 시·도 6곳만 · 누르면 모두 · 다시 누르면 접기(G145 — PC · 폰 같음) */
+  const [다봄, set다봄] = useState(false)       /* 폰: 시·도 6곳만 · 누르면 모두 · 다시 누르면 접기(G145) · PC 는 CSS 로 늘 다 펼침 · 단추 숨김(G145b) */
   const [때, set때] = useState(Date.now())
   const [화면, set화면] = useState(null)          // {w, h} — 그려진 지도 크기(px)
   const 그림 = useRef(null)
@@ -143,7 +143,7 @@ export default function 이용자지도() {
                 </li>
               ))}
             </ol>
-            {줄들.줄.length > 6 && (     /* G145 소장님 「전국 누적 아래 접기 버튼 없어」 → PC · 폰 모두 6곳 + 펴기 ↔ 접기 */
+            {줄들.줄.length > 6 && (     /* G145 소장님 「전국 누적 아래 접기 버튼 없어」 → 펴기 ↔ 접기 · G145b 「컴에서 접히면 이상하지 않아?」 → 단추는 폰에서만 보임(CSS) */
               <button type="button" className="umap-more" aria-expanded={다봄} onClick={() => { set다봄((v) => !v); if (!다봄) 누름세기() }}>
                 {다봄 ? '▲ 접기' : `▼ 시·도 모두 보기 (${줄들.줄.length})`}
               </button>

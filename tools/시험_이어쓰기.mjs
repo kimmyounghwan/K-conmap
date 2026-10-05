@@ -56,8 +56,8 @@ function 대기(마디, v, 옛, 곳, 변수 = {}) {
 }
 const 문 = (ns) => `auth != null && root.child('${ns}_pins').child($c).exists() && root.child('${ns}_keys').child($c).child(auth.uid).val() === root.child('${ns}_pins').child($c).val()`
 
-console.log('① 규칙 — 여덟 ns')
-eq(이어쓰기들.join(','), 'sn,sk,ib,nm,jm,gj,sc,wc', 'ns 여덟 (산안비 · 손익 · 작업일보 · 노무비 · 지명원 · 견적서 · 예정공정표 · 원클릭)')
+console.log('① 규칙 — 아홉 ns')
+eq(이어쓰기들.join(','), 'sn,sk,ib,nm,jm,gj,sc,wc,bj', 'ns 아홉 (산안비 · 손익 · 작업일보 · 노무비 · 지명원 · 견적서 · 예정공정표 · 원클릭 · 보험료 정산 G146)')
 const 옛것 = Object.keys(규칙)
 for (const ns of 이어쓰기들) {
   const 자리 = Object.keys(규칙).filter((k) => k.startsWith(ns + '_'))

@@ -5876,8 +5876,9 @@ button.sk-mini { color: var(--accent); padding: 0; text-align: left; }
 .umap-ra { text-align: right; white-space: nowrap; }
 .umap-rt { text-align: right; font-size: 12px; color: var(--muted); white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .umap-bar i { transition: none; } }
-.umap-more { display: block; width: 100%; margin-top: 6px; padding: 7px; border: 1px solid var(--accent-line); border-radius: 8px; background: none; color: var(--accent); font-size: 13px; cursor: pointer; }
-.umap-rows:not(.all) li:nth-child(n+7) { display: none; }     /* G145 PC · 폰 모두 6곳 + 펴기 ↔ 접기 */
+.umap-more { display: none; width: 100%; margin-top: 6px; padding: 7px; border: 1px solid var(--accent-line); border-radius: 8px; background: none; color: var(--accent); font-size: 13px; cursor: pointer; }
+/* G145b — 소장님 「컴에서 접히면 이상하지 않아?」 → PC 는 지도 옆에 17곳 다 펼침(단추 없음) · 폰(지도 아래로 내려감)만 6곳 + 모두 보기 ↔ 접기 */
+@media (max-width: 899px) { .umap-rows:not(.all) li:nth-child(n+7) { display: none; } .umap-more { display: block; } }
 
 /* ═══ G116 (2026-10-02) 경리 셋 — 📮 신고 정리(sg) · 👷 퇴직공제(tj) · 🧾 고용·산재 보험료(bh) · 🗓 해마다 바뀌는 값(hd) ═══ */
 .hm-band { font-size: 13px; line-height: 1.6; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--text-2); margin-bottom: 10px; }
@@ -6196,3 +6197,38 @@ button.sk-mini { color: var(--accent); padding: 0; text-align: left; }
 .dx3-pair.far { border-color: #fdba74; }
 .dx3-need .more.add { color: var(--text); background: var(--surface); border: 1px dashed #fdba74; border-radius: 8px; padding: 6px 9px; }
 .dx3-need .more.add ul { margin: 4px 0 0; padding-left: 18px; }
+
+/* 🩺 2026-10-05 (G146) 국민건강 · 연금보험료 정산 청구서 /tools/boheom-jeongsan (BoheomJeongsan.jsx) */
+.bj-more { margin-top: 10px; }
+.bj-more > summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--accent); }
+.bj-set td, .bj-set th { padding: 4px 6px; font-size: 12.5px; white-space: nowrap; }
+.bj-set .gj-num { width: 130px; }
+.bj-inline { display: flex; gap: 6px; align-items: center; }
+.bj-inline .inp { flex: 1; min-width: 0; }
+.bj-rows { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.bj-row { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--surface); min-width: 0; }
+.bj-row-h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bj-no { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: 12px; }
+.bj-sum { margin-left: auto; font-size: 13px; font-variant-numeric: tabular-nums; }
+.bj-sum b { color: var(--accent); font-size: 15px; }
+.bj-f { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; margin-top: 8px; }
+.bj-f label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; font-weight: 700; color: var(--text-2); min-width: 0; }
+.bj-f .inp { width: 100%; box-sizing: border-box; min-width: 0; }
+.bj-f .bj-w2 { grid-column: span 2; }
+.bj-to { font-size: 11.5px; font-weight: 700; color: var(--accent); text-align: right; font-variant-numeric: tabular-nums; }
+.bj-paste { width: 100%; box-sizing: border-box; margin-top: 6px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+.bj-preview { margin-top: 12px; }
+.bj-box { min-height: 0; font-size: 8pt; line-height: 1.5; margin-top: 6px; padding: 4px 10px; }
+.bj-paper .rk-bigttl { font-size: 17pt; margin: 0 0 8px; }
+.bj-paper .rk-sec { font-size: 9.5pt; margin: 8px 0 3px; }
+.bj-paper .sn-say { margin: 8px 4px 2px; }
+.bj-paper .sn-date { margin: 4px 0 4px; }
+.bj-paper .sn-sign { margin: 2px 0 2px 40px; }
+.bj-to-line { font-size: 12pt; font-weight: 800; margin: 6px 0 2px 6px; }
+.bj-paper .rk-foot { margin-top: 2px; }
+@media print { .rk-쪽 .bj-paper.sn-frame { border: 1.5px solid #000; padding: 8px 10px 4px; } }
+@media (max-width: 560px) {
+  .bj-f { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bj-sum { margin-left: 0; width: 100%; order: 3; }
+  .bj-set .gj-num { width: 104px; }
+}

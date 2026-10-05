@@ -11,6 +11,7 @@
        {ns}_books/{코드}       {name, at, upd?, del?}
        {ns}_doc/{코드}         {s: 잠근 글('v1.' — lib/tplock.js), r: 판 번호, at: 서버 시각, by: 'PC' | '폰'}
      ns: sn 산안비 · sk 손익 장부 · ib 작업일보 · nm 노무비 · jm 지명원 · gj 견적서 · sc 예정공정표 · wc 공사서류 원클릭
+         · bj 보험료 정산 청구서(G146 · 2026-10-05)
      규칙: web/database.rules.json · 매일 백업: tools/공사일보백업.py (묶음들)
 
    ■ 판 번호 r — 규칙이 «서버 판 + 1» 만 받습니다(처음은 1).
@@ -24,7 +25,7 @@
 import { 장부, loadFb, 막힘 } from './장부.js'
 import { 잠그기, 풀기, 열쇠읽기 } from './tplock.js'
 
-export const 이어쓰기들 = ['sn', 'sk', 'ib', 'nm', 'jm', 'gj', 'sc', 'wc']
+export const 이어쓰기들 = ['sn', 'sk', 'ib', 'nm', 'jm', 'gj', 'sc', 'wc', 'bj']
 export const 최대글 = 2900000          // 규칙 s ≤ 3,000,000 보다 조금 작게
 
 const 연결자리 = (ns) => `kcm-bk-${ns}`

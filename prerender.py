@@ -2961,6 +2961,22 @@ def boheomryo_page(shell, image=None):
         "고용·산재 보험료 계산기", key="boheomryo")
 
 
+def jeongsan_page(shell, image=None):
+    # 🩺 G146 (2026-10-05) — 화면 BoheomJeongsan.jsx · 셈 lib/보험정산.js · 설명 tools_guide.json «jeongsan»
+    return _tool_page(shell, image, "/tools/boheom-jeongsan",
+        "국민건강·연금보험료 정산 청구서 — 하수급인 → 원청, 사업자 부담분 · 상용 일할 자동 (집행기준 제94조) | K-건설맵",
+        "공단 납부확인서 금액만 옮겨 적으면 현장 고지(일용·현장 전입 소장)는 그대로, 회사 고지(상용)는 현장 투입일만큼 일할해 "
+        "국민건강·노인장기요양·국민연금보험료 사업자 부담분 청구액. 전회까지·누계·내역서 계상액 대비 남은 금액, 붙임 서류, A4 인쇄·엑셀. 무료.",
+        "🩺 국민건강 · 연금보험료 정산 청구서 — 사업자 부담분 · 일할 저절로",
+        ["하수급인이 원청에 <b>국민건강 · 노인장기요양 · 국민연금보험료(사업자 부담분)</b>를 청구할 때 쓰는 청구서입니다. 공단 <b>납부확인서 금액</b>을 옮겨 적으면 청구액이 저절로 나옵니다.",
+         "현장 앞으로 고지된 보험료(일용근로자 · 현장으로 전입한 소장)는 그 금액 그대로, 회사 앞으로 고지된 상용근로자 보험료는 <b>현장 투입일 ÷ 그달 일수</b>로 일할합니다(정부 입찰 · 계약 집행기준 제94조제3항). 회원가입 없음 · 무료."],
+        [("청구서에 들어가는 것", ["공사명 · 청구 회차 · 청구 기간 · 청구인(하수급인) · 받는 곳", "줄마다 납부확인서 금액(건강 · 장기요양 · 연금) → 사업자 부담분 청구액",
+                                  "전회까지 청구 · 이번 청구 · 누계 · 내역서 계상액 대비 남은 금액(계상액 범위 — 제94조제2항)", "정산 기준 · 붙임 서류(납부확인서 · 현장인 명부) · 청구인 (인)",
+                                  "A4 가로 인쇄 · 엑셀(값만) · 다음 회차는 사람 줄 그대로 · 🔗 코드로 폰 · PC 이어 쓰기"])],
+        '4대보험 가입 여부는 <a href="/tools/ilyong-boheom">일용직 4대보험 가입 판단기</a>, 고용 · 산재는 <a href="/tools/boheomryo">고용 · 산재 보험료 계산기</a>, 퇴직공제는 <a href="/tools/toejik">퇴직공제 집계</a>, 안전관리비는 <a href="/tools/sanan">산안비 사용내역서</a>입니다.',
+        "국민건강·연금보험료 정산 청구서", key="jeongsan")
+
+
 def haemada_page(shell, image=None):
     return _tool_page(shell, image, "/tools/haemada",
         "해마다 바뀌는 값 — 2026 건설 노무·보험 요율표(노무비율·산재·고용·퇴직공제부금·공휴일) | K-건설맵",
@@ -3487,6 +3503,10 @@ def main():
         write(f"tools/{_slug}.html", _fn(shell, og.tab(*_og) if og.available else None))
         made += 1
     print("  · 신고 정리 · 퇴직공제 · 보험료 · 해마다 바뀌는 값 페이지 4개 (G116)")
+    write("tools/boheom-jeongsan.html", jeongsan_page(shell,
+          og.tab("tool-jeongsan", "건강·연금보험료 정산 청구서", "건설 노무", "하수급인 → 원청 · 사업자 부담분", "상용 일할 자동") if og.available else None))
+    made += 1
+    print("  · 국민건강 · 연금보험료 정산 청구서 페이지 1개 (G146)")
     _iy = load_ilyong_guide()
     if _iy:
         write("tools/ilyong-boheom.html", ilyong_page(shell, _iy,
