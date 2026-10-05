@@ -100,6 +100,8 @@ _kcm_찌꺼기/
 # indexnow.json : 검색엔진에 이미 알린 주소 목록. 같은 이유로 넣지 않습니다.
 data/store/health.json
 data/store/indexnow.json
+# 📣 사전공고(발주계획 · 사전규격) 수집분 (2026-10-05) — 회차 사이 보관은 Actions 의 cache(pre-*) 가 맡습니다.
+data/pre/
 
 # 📚 조달청 내역서 모음 — 소장님 PC 안에만 둡니다. 저장소에 올리지 않습니다.
 #    (저장소 바깥 폴더라 원래 안 잡히지만, 혹시 안으로 옮겨져도 막히도록 적어 둡니다)

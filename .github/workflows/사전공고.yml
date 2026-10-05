@@ -1,0 +1,78 @@
+# ============================================================
+#  📣 사전공고 수집 — 발주계획 · 사전규격 (공사) — 2026-10-05 · G133
+#
+#  소장님: 「1부터 3까지 같이」 중 ③ — «수집 쪽을 따로 만들어 자동 실행으로 확인한 뒤 화면을 붙이는 쪽»
+#  ■ 이번 판은 받아서 쌓기까지입니다(tools/사전공고.py). 화면은 실제 응답의 항목 이름을 확인한 뒤 붙입니다.
+#  ■ 빠른 수집(fast.yml) · 본 수집(update.yml) 과 따로 돕니다 — 그쪽을 건드리지 않습니다.
+#  ■ 결과: 이 회차 «Summary» 표 · 내려받기(artifact «사전공고») · 캐시 pre-* (다음 회차 · 나중에 화면 빌드가 읽음)
+#  ■ 열쇠는 Secrets 의 G2B_API_KEY — 로그 · 파일 어디에도 찍지 않습니다.
+#  ■ 하루 두 번(아침 · 저녁) · 한 회차 호출 수십 번 — 개발계정 하루 1,000번 안.
+# ============================================================
+name: 사전공고 수집
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: '며칠 치(등록일 기준)'
+        required: false
+        default: '7'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/사전공고.py'
+      - '.github/workflows/사전공고.yml'
+  schedule:
+    - cron: '23 22 * * *'     # 한국 07:23
+    - cron: '23 8 * * *'      # 한국 17:23
+
+concurrency:
+  group: prenotice
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  pre:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: 코드 받기 (필요한 파일만)
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            tools/사전공고.py
+          sparse-checkout-cone-mode: false
+
+      - name: 파이썬 준비
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 파이썬 패키지 (필요한 것만)
+        run: pip install -q requests urllib3
+
+      - name: 지난 수집분 가져오기
+        uses: actions/cache@v4
+        with:
+          path: data/pre
+          key: pre-${{ github.run_id }}
+          restore-keys: pre-
+
+      - name: 발주계획 · 사전규격 받기
+        env:
+          G2B_API_KEY: ${{ secrets.G2B_API_KEY }}
+          PYTHONUTF8: '1'
+          PYTHONUNBUFFERED: '1'
+          DAYS: ${{ github.event.inputs.days || '7' }}
+        run: python tools/사전공고.py --days "$DAYS"
+
+      - name: 결과 내려받기로 남김 (7일)
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: 사전공고
+          path: data/pre
+          retention-days: 7
+          if-no-files-found: warn

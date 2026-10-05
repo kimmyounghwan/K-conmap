@@ -8,13 +8,27 @@
    ■ 편리함을 지키려고
      · 펼친 뒤에야 받습니다(몇 KB). 목록을 넘기는 사람은 아무것도 더 받지 않습니다.
      · 자료가 없으면 한 줄로만 적고 끝냅니다 — 빈 그림을 그리지 않습니다.
+     · ⏳ 2026-10-05 — 「이 기관 아직 개찰 안 된 공고 N건 · 가장 이른 개찰 M.D HH:MM」 한 줄(입찰나라에 있는 것).
+       자료는 빌드 때 실어 두고, 화면이 «지금» 보다 뒤인 것만 셉니다. 바로투찰(공고를 고른 뒤)에도 이 상자가 뜹니다.
    ⚠️ 사정률 = 예정가격 ÷ 기초금액. 1순위 금액 ÷ 투찰률로 예정가격을 거꾸로 셈한 값입니다(build_json «사정률 역산»).
       입찰나라처럼 공고문 글에서 숫자를 뽑지 않습니다. */
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { 기관사정률받기, 날짜짧게, 세로범위, 풀이 } from './lib/기관사정률.js'
+import { 기관사정률받기, 날짜짧게, 세로범위, 풀이, 미개찰 } from './lib/기관사정률.js'
 
 const W = 320, H = 104, L = 32, R = 20, T = 16, B = 18   /* R — 맨 오른쪽 값 글자(99.24)가 잘리지 않게 */
+
+/** ⏳ 한 줄 — 미개찰이 없으면 아무것도 안 그립니다 */
+function 대기줄({ p }) {
+  const m = 미개찰(p)
+  if (!m) return null
+  return (
+    <div className="sjr-wait">
+      ⏳ 이 기관 아직 개찰 안 된 공고 <b>{m.n}건{m.넘침 ? ' 넘게' : ''}</b>
+      <span> · 가장 이른 개찰 {m.첫}</span>
+    </div>
+  )
+}
 
 export default function 기관사정률({ inst }) {
   const [d, setD] = useState(undefined)
@@ -35,12 +49,13 @@ export default function 기관사정률({ inst }) {
       </div>
     )
   }
-  if (!d) {
+  if (!d || !Array.isArray(d.c) || !d.c.length) {
     return (
       <div className="sjr none">
         🏛 <b>이 기관 최근 사정률</b> — 아직 셀 수 있는 개찰이 없습니다
         <i> (기초금액이 실린 2026년 4월 이후 개찰만 셉니다)</i>{' '}
         <Link to={`/agency/${encodeURIComponent(inst)}`} onClick={(e) => e.stopPropagation()}>기관 분석 →</Link>
+        {d && <대기줄 p={d.p} />}
       </div>
     )
   }
@@ -80,6 +95,7 @@ export default function 기관사정률({ inst }) {
         ))}
       </svg>
       <div className="sjr-t">{풀이(d.med)}</div>
+      <대기줄 p={d.p} />
       <div className="sjr-foot">
         <button type="button" className="lnk" onClick={() => set표((v) => !v)}>
           {표 ? '건별 접기 ▲' : '건별 보기 ▼'}

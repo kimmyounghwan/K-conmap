@@ -2650,20 +2650,18 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
      ⚠️ 「📖 보는 방법」은 접지 않습니다 — 소장님(09-15): 「누구나 볼 수 있게 해줘야지」 */
 /* 🔙 2026-09-28 뒤로 (Crumbs.jsx BackBtn) — 새로고침 왼쪽. 소장님: 「뒤로가기 버튼만 둥그러니 있으니까」 → 막대 안으로 */
 .topback {
-  display: inline-flex; align-items: center; gap: 4px; max-width: 150px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 34px;
   border: 1px solid rgba(255,255,255,.28); background: rgba(255,255,255,.10);
   color: #fff; border-radius: 999px; padding: 5px 11px;
   font-size: 12px; font-weight: 800; font-family: inherit;
   white-space: nowrap; cursor: pointer; line-height: 1.2; text-decoration: none;
 }
 .topback:hover { background: rgba(255,255,255,.18); }
-.topback .tbic { font-size: 14px; line-height: 1; }
-.topback .tblong { overflow: hidden; text-overflow: ellipsis; }
+.topback .tbic { font-size: 15px; line-height: 1; }   /* 2026-10-05 — 어느 폭에서나 «←» 하나 (앞 화면 이름은 title 로만) */
 @media (max-width: 560px) {
   .rfbtn { padding: 5px 8px; }
   .rfbtn .rflong { display: none; }
   .topback { padding: 5px 9px; }
-  .topback .tblong { display: none; }      /* 좁은 화면 — «←» 그림만 (이름은 title·aria-label) */
 }
 /* 아주 좁은 화면(320px 폰)은 자리가 모자라 뺍니다 — 소장님: 「공간이 부족하면 삭제해줘」 (휴대폰 뒤로가기·아래 탭이 있음) */
 @media (max-width: 340px) { .topback { display: none; } }
@@ -5317,6 +5315,54 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 .sjr.none { font-size: 12px; color: var(--text-2); line-height: 1.55; }
 .sjr.none i { font-style: normal; color: var(--muted); }
 .sjr.none a { color: var(--accent); font-weight: 700; text-decoration: none; }
+/* ⏳ 이 기관 아직 개찰 안 된 공고 (2026-10-05) */
+.sjr-wait { margin-top: 5px; font-size: 12px; color: var(--text-2); line-height: 1.5; }
+.sjr-wait b { color: var(--text); font-variant-numeric: tabular-nums; }
+.sjr-wait span { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* 🎯 이 칸에 누가 넣나 — 바로투찰 (2026-10-05) */
+.kan {
+  margin: 10px 0; padding: 10px 12px 9px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--surface);
+}
+.kan-h { font-size: 12.5px; font-weight: 800; color: var(--text); display: flex; flex-wrap: wrap; gap: 2px 6px; align-items: baseline; }
+.kan-h span { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.kan-me { margin-top: 5px; font-size: 12.5px; color: var(--text-2); line-height: 1.55; }
+.kan-me b { color: var(--text); font-variant-numeric: tabular-nums; }
+.kan-me b.k { color: var(--accent); }
+.kan-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.kan-chips button {
+  font: inherit; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--text-2);
+}
+.kan-chips button.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.kan-g { display: block; width: 100%; max-width: 440px; height: auto; margin: 6px 0 0; }
+.kan-g .base { stroke: var(--line); stroke-width: 1; }
+.kan-g .hit { fill: transparent; cursor: pointer; }
+.kan-g .bar { fill: var(--text-2); opacity: .32; }
+.kan-g .me { fill: var(--accent); }
+.kan-g .sel { stroke: var(--text); stroke-width: 1.2; }
+.kan-g .bar.sel { opacity: .6; }
+.kan-g text { font-size: 9px; fill: var(--muted); font-variant-numeric: tabular-nums; pointer-events: none; }
+.kan-g text.vl { text-anchor: middle; font-weight: 700; fill: var(--text-2); font-size: 9.5px; }
+.kan-sel { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 12px; color: var(--text-2); }
+.kan-sel span { flex: 1; min-width: 0; text-align: center; font-variant-numeric: tabular-nums; }
+.kan-sel b { color: var(--text); }
+.kan-sel span i { display: inline-block; font-style: normal; white-space: nowrap; margin: 0 3px; }
+.kan-g text.ax { text-anchor: middle; }
+.kan-sel button {
+  font: inherit; font-size: 12px; width: 36px; height: 30px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--text-2);
+}
+.kan-top { list-style: none; margin: 6px 0 0; padding: 0; border-top: 1px solid var(--line-soft); }
+.kan-top li { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line-soft); font-size: 12.5px; }
+.kan-top li a { flex: 1; min-width: 0; color: var(--text); font-weight: 700; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kan-top li .n { color: var(--text-2); font-variant-numeric: tabular-nums; }
+.kan-top li .fix { font-style: normal; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px;
+  color: var(--warn); background: var(--warn-soft); border: 1px solid var(--warn); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.kan-none { margin-top: 6px; font-size: 12px; color: var(--muted); }
+.kan .note { margin-top: 7px; }
+.kan-sel, .kan-top, .kan-none { max-width: 440px; }   /* PC — 막대 그림 폭에 맞춰 ◀ ▶ 가 멀리 떨어지지 않게 */
 
 .ilj { margin: 8px 0 6px; }
 .ilj-h { font-size: 11px; font-weight: 800; color: var(--muted); margin-bottom: 3px; }

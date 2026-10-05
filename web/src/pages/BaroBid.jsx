@@ -18,6 +18,8 @@ import { loadLicCodes } from '../lib/lic.js'
 import { 공동딱지 } from '../공동칸.jsx'
 import MyToday from '../MyToday.jsx'
 import { GUIDE_NAV, guideOf } from '../lib/guidenav.js'
+import 기관사정률 from '../기관사정률.jsx'
+import 칸누가 from '../칸누가.jsx'
 /* 공고 화면(LiveBoard)이 예전부터 여기서 가져다 썼습니다 — 그대로 이어 줍니다 */
 export { missingOf, isReady }
 
@@ -1859,6 +1861,11 @@ export default function BaroBid() {
               </div>
             </div>
           )}
+
+          {/* 🏛 ⏳ 이 기관 최근 사정률 · 아직 개찰 안 된 공고 (2026-10-05 — 공고 카드·공고 화면과 같은 상자)
+              🎯 이 칸에 누가 넣나 — 우리 금액이 버티는 사정률(판정 상자의 그 값) 칸과 그 칸의 지난 투찰 */}
+          {picked?.inst && <기관사정률 inst={picked.inst} />}
+          {pp && pp.sj > 0 && <칸누가 sj={pp.sj} sido={picked?.sido || ''} lic={picked?.lic || []} />}
 
           {/* ── 여기부터는 «근거» 입니다. 기본은 접어 둡니다. ── */}
           <button className={'whytoggle' + (showWhy ? ' on' : '')}

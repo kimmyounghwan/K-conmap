@@ -128,7 +128,7 @@ function 이름짓기(주소, 제목) {
 
 /* 📱 2026-09-28 — 소장님: 「핸드폰에서 K-건설맵 아래에 뒤로가기 버튼 바로투찰이 보이는데, 이걸 새로고침 옆으로 옮기거나
    공간이 부족하면 삭제해줘. 이상해...뒤로가기 버튼만 둥그러니 있으니까」
-   → «뒤로» 단추는 맨 위 막대(새로고침 왼쪽)로 옮깁니다(BackBtn). 좁은 화면에서는 «←» 그림만, 넓으면 «← 도구» 처럼 이름까지.
+   → «뒤로» 단추는 맨 위 막대(새로고침 왼쪽)로 옮깁니다(BackBtn). «←» 그림만(2026-10-05 — 넓은 화면의 이름도 뺌).
      화면 안에는 넓은 화면에서만 작은 길(도구 › 예정공정표)을 남깁니다 — 좁은 화면에서는 아무것도 그리지 않습니다.
    ⚠️ 무엇으로 돌아가는지(기록 되감기 · 부모 · 뿌리)는 예전 그대로입니다 — 길계산() 한 곳에서만 정합니다. */
 function 길계산(pathname, state) {
@@ -185,8 +185,12 @@ export function BackBtn() {
   const navigate = useNavigate()
   const { back } = 길계산(pathname, state)
   if (!back) return null
-  const 글 = <><span className="tbic" aria-hidden="true">←</span>{' '}<span className="tblong">{back.이름}</span></>
-  const 말 = back.이름 + '(으)로 돌아가기'
+  /* 🔙 2026-10-05 — 소장님: 「뒤로가기가 또 이상하게 됐어. 그냥 화살표만 있고 뒤로 가기로 수정해줘」
+     넓은 화면에서 «← 도면 물량 자동» 처럼 앞 화면 이름이 붙어 나왔습니다(이름이 들쭉날쭉 · 무엇을 누르는지 헷갈림).
+     → 어느 폭에서나 «←» 하나. 하는 일은 그대로 «뒤로»(들어온 곳으로 기록 되감기 · 바로 들어왔으면 윗 화면).
+       어디로 가는지는 마우스를 올리면(title) 보입니다. */
+  const 글 = <span className="tbic" aria-hidden="true">←</span>
+  const 말 = '뒤로 가기' + (back.이름 ? ` (${back.이름})` : '')
   if (back.몇칸) return <button type="button" className="topback" onClick={() => navigate(back.몇칸)} title={말} aria-label={말}>{글}</button>
   return <길 className="topback" to={back.to} title={말} aria-label={말}>{글}</길>
 }

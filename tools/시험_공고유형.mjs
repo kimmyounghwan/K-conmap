@@ -105,7 +105,10 @@ try {
     for (const [nm, v] of Object.entries(t)) {
       곳++
       if (통번호(nm) !== i) 틀++
-      if (!(v.c.length >= 1 && v.c.length <= 8 && v.n >= v.c.length && v.c.every((x) => x[1] >= 95 && x[1] <= 105))) 틀++
+      /* ⏳ 2026-10-05 — 사정률을 아직 모르는 기관도 미개찰(p)만 있으면 실립니다: c 는 빈 칸, p 는 'yymmddHHMM' 30개까지 */
+      const 사정률모양 = v.c.length <= 8 && v.n >= v.c.length && v.c.every((x) => x[1] >= 95 && x[1] <= 105)
+      const 대기모양 = v.p == null || (Array.isArray(v.p) && v.p.length >= 1 && v.p.length <= 30 && v.p.every((x) => /^\d{10}$/.test(x)))
+      if (!(사정률모양 && 대기모양 && (v.c.length >= 1 || (v.p && v.p.length)))) 틀++
     }
   }
   봄(`구운 통 ${곳}곳 — 번호 · 모양 맞음`, 곳 > 0 && 틀 === 0)

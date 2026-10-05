@@ -60,6 +60,15 @@ CASES = 3            # 최근 사례 보관 건수
 SJR_N = 8            # 🏛 공고 화면 «이 기관 최근 사정률» 건수 (2026-09-30)
 SJR_NAME = 22        #    그 공고명 길이
 SJR_BUCKETS = 64     #    통 개수 — 화면 lib/기관사정률.js 와 같아야 합니다
+SJR_PEND = 30        # ⏳ 기관마다 «아직 개찰 안 된 공고» 개찰 시각 최대 개수 (2026-10-05)
+
+# 🎯 이 칸에 누가 넣나 (2026-10-05) — 화면 lib/칸누가.js 와 같아야 합니다
+KAN_LO, KAN_HI = 970, 1030   # 0.1%p 칸 — 97.0 ~ 102.9 (밖은 자료 오류 · 너무 드묾)
+KAN_TOP = 3                  # 칸마다 많이 넣은 업체 수
+KAN_LIC_MIN = 300            # 면허별 칸 — 시도 안에서 투찰이 이만큼 넘는 면허만 따로
+KAN_FIX_N, KAN_FIX_IQR = 5, 0.15   # «고정 성향» — 5번 이상 · 가운데 절반이 0.15%p 안
+SIDO_KAN = ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기",
+            "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"]
 
 
 def sjr_bucket(name):
@@ -565,12 +574,27 @@ def build_agency(df):
     #     그래서 2026-04 이후 개찰만 있고, 95~105% 밖은 자료 오류로 버린 값입니다(위 «사정률 역산»).
     #  ⚠️ 64통을 늘 전부 씁니다(빈 통은 {}) — 기관이 빠졌을 때 옛 통이 남아 옛 숫자를 보여 주지 않게.
     # ══════════════════════════════════════════════════════════════
+    #  ⏳ 2026-10-05 — 소장님: 입찰나라처럼 «이 기관 아직 개찰 안 된 공고 N건»
+    #     한 기관에 p: [yymmddHHMM, …] (빌드 때 아직 개찰 전인 공고의 개찰 시각 · 이른 순 SJR_PEND 개)를 붙입니다.
+    #     화면은 «지금» 보다 뒤인 것만 셉니다 — 빌드 뒤에 개찰이 지나가도 숫자가 맞게.
+    #     사정률을 아직 모르는 기관도 미개찰만 있으면 {n: 0, med: null, c: [], p: […]} 로 싣습니다.
+    n_sj = len(sjr)
+    try:
+        pend = load_pending()
+    except Exception as e:
+        pend = {}
+        log(f"⚠️ 미개찰 공고를 못 읽었습니다 — {e}")
+    for nm, lst in pend.items():
+        v = sjr.get(nm) or {"n": 0, "med": None, "c": []}
+        v["p"] = lst
+        sjr[nm] = v
     buckets = [{} for _ in range(SJR_BUCKETS)]
     for nm, v in sjr.items():
         buckets[sjr_bucket(nm)][nm] = v
     for i, b in enumerate(buckets):
         written += write_json(f"agency/sjr/{i}.json", b)
-    log(f"기관 최근 사정률 {len(sjr):,}곳 → agency/sjr {SJR_BUCKETS}통")
+    log(f"기관 최근 사정률 {n_sj:,}곳 · 미개찰 있는 기관 {len(pend):,}곳 "
+        f"({sum(len(x) for x in pend.values()):,}건) → agency/sjr {SJR_BUCKETS}통")
 
     # ★ 이름 목록 한 파일 — «첫 글자 칸» 만으로는 못 찾는 것을 위해 (2026-09-04)
     #   소장님: 「광양시라고 하면 발주기관에 안떠. 전라남도를 앞에 붙여야 되더라고」
@@ -1480,13 +1504,184 @@ def build_overview(df, n_agency, n_corp, n_kw):
 
 
 # ─────────────────────────────────────────────
+def _store(name):
+    """data/store/{name} → {'con': {...}} (없으면 빈 것)"""
+    p = os.path.join(ROOT, "data", "store", name)
+    try:
+        with open(p, encoding="utf-8") as f:
+            return json.load(f) or {}
+    except Exception:
+        return {}
+
+
+def _num(v):
+    try:
+        x = float(str(v).replace(",", "").strip())
+        return x if math.isfinite(x) else 0.0
+    except Exception:
+        return 0.0
+
+
+def load_pending(live=None, now=None):
+    """⏳ 기관 → 아직 개찰 안 된 공고의 개찰 시각 [yymmddHHMM, …] (이른 순, SJR_PEND 개까지)
+
+    store/live.json 의 공사 공고 중 개찰 시각이 «빌드한 지금(한국시간)» 보다 뒤인 것.
+    ⚠️ 취소공고는 뺍니다. 같은 공고가 차수로 여럿이면 공고번호 하나로 셉니다(live.json 열쇠가 공고번호).
+    ⚠️ 조달청 시각은 한국시간입니다. GitHub 은 UTC 로 돕니다 — now() 를 그냥 쓰면 9시간 어긋납니다."""
+    if live is None:
+        live = (_store("live.json").get("con") or {})
+    now = now or datetime.now(KST).strftime("%Y-%m-%d %H:%M")
+    out = defaultdict(list)
+    for r in live.values():
+        if "취소" in str(r.get("kind") or ""):
+            continue
+        og = str(r.get("openg") or "")[:16]
+        if len(og) < 16 or not og[:4].isdigit() or og <= now:
+            continue
+        inst = str(r.get("inst") or "").strip()
+        if not inst:
+            continue
+        out[inst].append(re.sub(r"[^0-9]", "", og)[2:12])
+    return {k: sorted(v)[:SJR_PEND] for k, v in out.items()}
+
+
+def _corps(v):
+    c = v.get("corps") or []
+    if isinstance(c, str):
+        try:
+            import ast
+            c = ast.literal_eval(c)
+        except Exception:
+            c = []
+    return c if isinstance(c, list) else []
+
+
+def build_kan(first=None, live=None):
+    """🎯 이 칸에 누가 넣나 — 2026-10-05, 소장님: 「1부터 3까지 같이」 중 ②
+
+    지난 개찰의 «투찰한 업체 전부(개찰 결과에 실린 30곳까지)» 를 «그 금액이 버티는 사정률» 로 바꿔
+    0.1%p 칸에 넣습니다. 그 금액이 낙찰하한을 넘으려면 사정률이 이 값 아래로 나와야 한다는 경계입니다:
+        sj* = ((금액 − A) × 100 ÷ 낙찰하한율 + A) ÷ 기초금액 × 100      ← 화면 bidmath.breakEvenSj 와 같은 식
+    바로투찰은 우리 금액의 sj* 칸을 보여 주고, 그 칸에 누가 · 얼마나 몰려 있는지 시도(+면허)별로 보여 줍니다.
+
+    kan/{i}.json (i = SIDO_KAN 차례) · kan/all.json (전국)
+      {v, f: 첫 개찰 yymmdd, t: 끝 개찰, w: 전국 칸별 1순위 비율,
+       g: {'': 전체, '면허': …}  — 한 묶음 = {e: 개찰 수, n: 투찰 수, h: [칸별 투찰 수 60개], t: {칸: [[업체, 그 칸 투찰 수, 고정이면 가운데 sj*]]}}}
+    ⚠️ 정직하게: 칸별 1순위 비율은 전국 3.5~4.4% 로 평평합니다(2026-10-05 실측). 붐비는 칸을 피한다고
+       낙찰이 늘지 않습니다 — «누가 같은 칸에 있나» 를 보는 참고입니다. 화면도 그렇게 적습니다.
+    ⚠️ corps 는 개찰 결과에 실린 투찰(최대 30곳)뿐입니다. 참가 300곳 공고면 나머지는 안 보입니다."""
+    try:
+        from collect import sido_of
+    except Exception:
+        def sido_of(r, book=None):
+            return ""
+    first = first if first is not None else (_store("first.json").get("con") or {})
+    live = live if live is not None else (_store("live.json").get("con") or {})
+    pts = []                       # (시도들, 면허, 업체열쇠, 이름, sj*, 칸, 1순위?, 공고번호)
+    days = []
+    for no, v in first.items():
+        c = _corps(v)
+        if len(c) < 2:
+            continue
+        L = live.get(no)
+        if not L:
+            continue
+        base, llr = _num(L.get("base")), _num(L.get("llr"))
+        aval = 0.0 if str(L.get("ayn") or "") == "N" else _num(L.get("aval"))
+        if base <= 0 or not (60 <= llr <= 100):
+            continue
+        sds = [s for s in str(sido_of(L) or "").split(",") if s in SIDO_KAN]
+        lic = L.get("lic") or []
+        lic = str(lic[0]).split("/")[0].strip() if isinstance(lic, list) and lic else ""
+        win = str(v.get("win") or "").strip()
+        wbno = re.sub(r"[^0-9]", "", str(v.get("bno") or ""))
+        d = re.sub(r"[^0-9]", "", str(v.get("dt") or ""))[2:8]
+        used = False
+        for x in c:
+            if not isinstance(x, (list, tuple)) or len(x) < 2:
+                continue
+            amt = _num(x[1])
+            if amt <= 0:
+                continue
+            sj = ((amt - aval) * 100.0 / llr + aval) / base * 100.0
+            k = int(math.floor(sj * 10 + 1e-9))
+            if not (KAN_LO <= k < KAN_HI):
+                continue
+            nm = str(x[0] or "").strip()
+            bno = re.sub(r"[^0-9]", "", str(x[3] if len(x) > 3 else ""))
+            key = bno if len(bno) == 10 else "n:" + nm
+            one = (bno == wbno) if (len(bno) == 10 and len(wbno) == 10) else (nm == win)
+            pts.append((sds, lic, key, nm, sj, k, one, no))
+            used = True
+        if used and len(d) == 6:
+            days.append(d)
+    # 업체 성향(전국) — 5번 이상 넣었고 가운데 절반이 0.15%p 안이면 «고정»
+    by = defaultdict(list)
+    for p in pts:
+        by[p[2]].append(p[4])
+    fixed = {}
+    for key, v in by.items():
+        if len(v) >= KAN_FIX_N:
+            v = sorted(v)
+            q1, q3 = v[len(v) // 4], v[(3 * len(v)) // 4]
+            if q3 - q1 <= KAN_FIX_IQR:
+                fixed[key] = round(v[len(v) // 2], 2)
+    # 전국 칸별 1순위 비율 (투찰 200건 넘는 칸만 · %, 소수 1자리)
+    hh, ww = Counter(), Counter()
+    for p in pts:
+        hh[p[5]] += 1
+        ww[p[5]] += p[6]
+    w = [(round(ww[k] * 100.0 / hh[k], 1) if hh[k] >= 200 else None) for k in range(KAN_LO, KAN_HI)]
+    tot = sum(hh.values())
+    w_all = round(sum(ww.values()) * 100.0 / tot, 1) if tot else None
+
+    def group(ps):
+        h = [0] * (KAN_HI - KAN_LO)
+        cnt = defaultdict(Counter)
+        name = {}
+        e = set()
+        for p in ps:
+            h[p[5] - KAN_LO] += 1
+            cnt[p[5]][p[2]] += 1
+            name[p[2]] = p[3]
+            e.add(p[7])
+        t = {}
+        for k, cc in cnt.items():
+            top = [[name[key][:20], n, fixed.get(key, 0)] for key, n in cc.most_common(KAN_TOP) if n >= 2]
+            if top:
+                t[str(k)] = top
+        return {"e": len(e), "n": len(ps), "h": h, "t": t}
+
+    meta = {"v": 1, "lo": KAN_LO, "f": min(days) if days else "", "t": max(days) if days else "",
+            "w": w, "wa": w_all}
+    written, rows = 0, []
+
+    def pack(ps):
+        g = {"": group(ps)}
+        lc = Counter(p[1] for p in ps if p[1])
+        for lic, n in lc.most_common():
+            if n < KAN_LIC_MIN:
+                break
+            g[lic] = group([p for p in ps if p[1] == lic])
+        return dict(meta, g=g)
+
+    written += write_json("kan/all.json", pack(pts))
+    for i, sd in enumerate(SIDO_KAN):
+        ps = [p for p in pts if sd in p[0]]
+        written += write_json(f"kan/{i}.json", pack(ps))
+        rows.append(f"{sd} {len(ps):,}")
+    log(f"🎯 칸 — 개찰 {len(days):,}건 · 투찰 {len(pts):,} · 고정 성향 {len(fixed):,}곳 · "
+        f"1순위 비율 {w_all}% → kan/ {written/1024:.0f}KB ({' · '.join(rows)})")
+    return len(pts)
+
+
 def main():
     t0 = datetime.now()
     print("=" * 52)
     print("  K-건설맵 정적 데이터 빌드")
     print("=" * 52)
 
-    for sub in ("agency", "agency_deep", "corp", "kw"):
+    for sub in ("agency", "agency_deep", "corp", "kw", "kan"):
         p = os.path.join(OUT, sub)
         if os.path.isdir(p):
             shutil.rmtree(p)
@@ -1505,6 +1700,11 @@ def main():
     n_co = build_corp(df)
     n_kw = build_keyword(df)
     build_overview(df, n_ag, n_co, n_kw)
+    # 🎯 이 칸에 누가 넣나 (2026-10-05) — 실패해도 사이트 집계는 계속합니다
+    try:
+        build_kan()
+    except Exception as e:
+        log(f"⚠️ 칸 자료를 못 만들었습니다 — {e}")
 
     total = sum(os.path.getsize(os.path.join(r, f))
                 for r, _, fs in os.walk(OUT) for f in fs)
