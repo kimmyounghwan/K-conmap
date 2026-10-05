@@ -1,5 +1,5 @@
 import { askAfter } from '../AskComment'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { NaeyeokStrip } from '../components.jsx'
 import { Link, useSearchParams } from 'react-router-dom'
 import { getJSON, getOverview, getAgency, similarZone, getSim, getBidIndex, indexRows, getResults } from '../lib/data.js'
@@ -21,6 +21,9 @@ import { GUIDE_NAV, guideOf } from '../lib/guidenav.js'
 import 기관사정률 from '../기관사정률.jsx'
 import 칸누가 from '../칸누가.jsx'
 import 곧나올줄 from '../곧나올줄.jsx'
+/* 🗺 G144 (2026-10-05) 지금 K-건설맵을 쓰는 곳 — 사랑방에서 옮겨 옴(소장님 「실시간 지도를 바로입찰 상단에 … 여기가 조회수가 가장 많으니까」)
+   화면이 뜬 뒤에 받습니다(지도 바탕 37KB · 자료 1KB) — 투찰 셈을 늦추지 않게 */
+const 이용자지도 = lazy(() => import('../tools/이용자지도.jsx'))
 /* 공고 화면(LiveBoard)이 예전부터 여기서 가져다 썼습니다 — 그대로 이어 줍니다 */
 export { missingOf, isReady }
 
@@ -970,6 +973,9 @@ export default function BaroBid() {
 
   return (
     <>
+      {/* 🗺 G144 맨 위 지도 — 공고를 골라 셈하러 온 화면(?bid=)과 검증 화면에서는 안 띄움(셈이 먼저) */}
+      {!picked && !verifyMode && <Suspense fallback={null}><이용자지도 /></Suspense>}
+
       {/* 📋 투찰금액을 정하러 온 사람 = 곧 내역서가 필요해질 사람입니다. */}
       <NaeyeokStrip tone="bid" />
 

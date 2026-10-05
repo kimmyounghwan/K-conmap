@@ -116,8 +116,31 @@ def 실시간(tok):
     return out
 
 
-def 합치기(옛, 도시들, 지금시각):
-    """옛 fresh/map + 이번 도시들 → 새 fresh/map (인터넷 없이 시험: tools/시험_이용자지도.py)"""
+def 실시간전국(tok):
+    """지금(30분 안) 대한민국 사용자 수 — 애널리틱스 «실시간» 첫 칸과 같은 셈(도시로 나누지 않음 · 겹침 없음)"""
+    r = requests.post(
+        f"https://analyticsdata.googleapis.com/v1beta/properties/{GA_PROPERTY}:runRealtimeReport",
+        headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"},
+        data=json.dumps({"dimensions": [{"name": "country"}], "metrics": [{"name": "activeUsers"}],
+                         "minuteRanges": [{"name": "30분", "startMinutesAgo": 29, "endMinutesAgo": 0}], "limit": 50}),
+        timeout=30)
+    if r.status_code != 200:
+        raise RuntimeError(f"애널리틱스(실시간 전국) HTTP {r.status_code} {r.text[:160]}")
+    n = 0
+    for row in r.json().get("rows") or []:
+        d = [x.get("value", "") for x in row.get("dimensionValues") or []]
+        m = [x.get("value", "0") for x in row.get("metricValues") or []]
+        if d and d[0] == "South Korea":
+            try:
+                n += int(float(m[0]))
+            except Exception:
+                pass
+    return n
+
+
+def 합치기(옛, 도시들, 지금시각, 전국=None):
+    """옛 fresh/map + 이번 도시들 → 새 fresh/map (인터넷 없이 시험: tools/시험_이용자지도.py)
+    G144 — n: 지금(30분 안) 전국 사람 수(소장님 「애널리틱스 처럼 … 실시간으로」) · 못 받았으면 도시 합"""
     오늘 = 지금시각.strftime("%Y-%m-%d")
     옛날 = (옛 or {}).get("day") or {}
     c = dict(옛날.get("c") or {}) if 옛날.get("d") == 오늘 else {}
@@ -125,7 +148,81 @@ def 합치기(옛, 도시들, 지금시각):
         c[k] = 1
     return {"at": int(지금시각.timestamp() * 1000),
             "now": {k: 크기(n) for k, n in 도시들.items()} or None,
+            "n": int(전국) if 전국 is not None else sum(int(v) for v in 도시들.values()),
             "day": {"d": 오늘, "c": c or None}}
+
+
+# ── 🗺 시·도별 사용자 — 9/15부터 누적 · 오늘 (G144 · 2026-10-05) ──────────
+#   소장님: 「누적은 9월 15일 부터 … 애널리틱스 처럼 누적으로 서울 몇명, 부산 몇명, 실시간으로 올라가게」 · 「오늘도 카운트 할까?」
+#   애널리틱스 «사용자 › 지역» 과 같은 셈 = activeUsers · 지역(region) · 대한민국만. 10분마다(지도와 같이).
+#   ⚠️ 애널리틱스 보통 보고서는 실시간보다 늦게(몇십 분~몇 시간) 채워집니다 — 숫자는 그만큼 늦게 올라갑니다.
+#   fresh/reg = {at, from, d(오늘 · 한국), kr: {a 누적, t 오늘}, r: {지역(영어): {a, t}}}
+def 지역묶기(rows, 이름들=("a", "t")):
+    """[countryId, region, dateRange] · [activeUsers] → {지역: {a, t}} — KR 만 · 0 은 뺌 · (not set) → «notset»"""
+    out = {}
+    for row in rows or []:
+        d = [x.get("value", "") for x in row.get("dimensionValues") or []]
+        m = [x.get("value", "0") for x in row.get("metricValues") or []]
+        if len(d) < 3 or d[0] != "KR" or d[2] not in 이름들:
+            continue
+        try:
+            n = int(float(m[0]))
+        except Exception:
+            n = 0
+        if n <= 0:
+            continue
+        k = (d[1] or "").strip()
+        k = "notset" if (not k or k.startswith("(")) else k.translate(나쁜글자)[:60]
+        g = out.setdefault(k, {})
+        g[d[2]] = g.get(d[2], 0) + n
+    return out
+
+
+def 전국묶기(rows):
+    """[countryId, dateRange] · [activeUsers] → {a, t} — KR 만"""
+    out = {}
+    for row in rows or []:
+        d = [x.get("value", "") for x in row.get("dimensionValues") or []]
+        m = [x.get("value", "0") for x in row.get("metricValues") or []]
+        if len(d) < 2 or d[0] != "KR" or d[1] not in ("a", "t"):
+            continue
+        try:
+            out[d[1]] = out.get(d[1], 0) + int(float(m[0]))
+        except Exception:
+            pass
+    return out
+
+
+def _지역요청(tok, 나눔):
+    r = requests.post(
+        f"https://analyticsdata.googleapis.com/v1beta/properties/{GA_PROPERTY}:runReport",
+        headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"},
+        data=json.dumps({"dateRanges": [{"startDate": 조회시작, "endDate": "today", "name": "a"},
+                                        {"startDate": "today", "endDate": "today", "name": "t"}],
+                         "dimensions": [{"name": "countryId"}] + ([{"name": "region"}] if 나눔 else []),
+                         "metrics": [{"name": "activeUsers"}],
+                         "dimensionFilter": {"filter": {"fieldName": "countryId", "stringFilter": {"value": "KR"}}},
+                         "limit": 1000}),
+        timeout=60)
+    if r.status_code != 200:
+        raise RuntimeError(f"애널리틱스(지역) HTTP {r.status_code} {r.text[:160]}")
+    return r.json().get("rows") or []
+
+
+def 지역넣기(ctx, dry=False):
+    tok = ctx["tok"]
+    r = 지역묶기(_지역요청(tok, True))
+    kr = 전국묶기(_지역요청(tok, False))
+    새 = {"at": int(지금().timestamp() * 1000), "from": 조회시작, "d": 지금().strftime("%Y-%m-%d"),
+          "kr": {"a": kr.get("a", 0), "t": kr.get("t", 0)}, "r": r or None}
+    적기(f"  · 지역 {len(r)}곳 · 전국 누적 {새['kr']['a']:,} · 오늘 {새['kr']['t']:,}")
+    if dry:
+        return 새
+    q = requests.put(f"{DB}/fresh/reg.json", headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"},
+                     data=json.dumps(새, ensure_ascii=False).encode("utf-8"), timeout=30)
+    if q.status_code != 200:
+        raise RuntimeError(f"데이터베이스(지역) HTTP {q.status_code} {q.text[:120]}")
+    return 새
 
 
 # ── 👁 화면 조회수 (G119) ─────────────────────────────────────────
@@ -295,9 +392,18 @@ def 한번(ctx, dry=False):
         except Exception as e:
             ctx["pv_t"] = time.time() - 조회틈 + 10 * 60    # 10분 뒤 다시
             적기(f"  ! 조회수 못 했습니다 ({type(e).__name__}: {str(e)[:200]})")
+    try:                                                  # 🗺 G144 시·도별 누적 · 오늘 — 지도와 따로 실패
+        지역넣기(ctx, dry)
+    except Exception as e:
+        적기(f"  ! 지역 못 했습니다 ({type(e).__name__}: {str(e)[:200]})")
     도시들 = 실시간(ctx["tok"])
+    try:
+        전국 = 실시간전국(ctx["tok"])
+    except Exception as e:
+        전국 = None
+        적기(f"  ! 실시간 전국 못 했습니다 ({type(e).__name__}: {str(e)[:120]})")
     옛 = requests.get(f"{DB}/fresh/map.json", timeout=20).json()
-    새 = 합치기(옛, 도시들, 지금())
+    새 = 합치기(옛, 도시들, 지금(), 전국)
     적기(f"  · 지금 {len(도시들)}곳 · 오늘 {len((새['day'] or {}).get('c') or {})}곳")
     if dry:
         return 새

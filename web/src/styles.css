@@ -5852,6 +5852,32 @@ button.sk-mini { color: var(--accent); padding: 0; text-align: left; }
 @media (prefers-reduced-motion: reduce) { .umap-now .umap-ring { animation: none; } }
 .umap-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; font-size: 12.5px; }
 .umap-src { font-size: 11.5px; }
+/* 🗺 G144 바로투찰 맨 위 — 개설일 · 지금 전국 · 시·도별 누적 · 오늘 (지도 크기는 사랑방 때와 같게 760px) */
+.umap-title { display: flex; flex-direction: column; gap: 2px; }
+.umap-open { font-size: 12.5px; color: var(--muted); }
+.umap-open b { font-size: 12.5px; color: var(--accent); }
+.umap-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px 18px; align-items: start; }
+.umap-mapcol { min-width: 0; }
+@media (min-width: 900px) { .umap-body.two { grid-template-columns: minmax(0, 760px) minmax(250px, 1fr); } }
+.umap-reg { min-width: 0; font-size: 13px; font-variant-numeric: tabular-nums; padding-top: 6px; }
+.umap-now-n { display: flex; align-items: center; gap: 6px; font-size: 13.5px; }
+.umap-now-n b { font-size: 16px; color: var(--accent); }
+.umap-tot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px; margin: 6px 0 8px; padding: 8px 10px;
+  border-radius: 10px; background: var(--accent-soft); }
+.umap-tot b { font-size: 16px; }
+.umap-today b, .umap-rt.up { color: var(--accent); }
+.umap-reg-h { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); padding: 0 2px 4px; border-bottom: 1px solid var(--line, #e5e7eb); }
+.umap-rows { list-style: none; margin: 0; padding: 0; }
+.umap-rows li { display: grid; grid-template-columns: 2.6em minmax(0, 1fr) auto 3.2em; align-items: center; gap: 8px; padding: 4px 2px;
+  border-bottom: 1px dashed var(--line, #e5e7eb); cursor: default; }
+.umap-rn { font-weight: 600; }
+.umap-bar { height: 8px; border-radius: 4px; background: var(--accent-soft); overflow: hidden; }
+.umap-bar i { display: block; height: 100%; border-radius: 4px; background: var(--accent); opacity: .75; transition: width .9s ease; }
+.umap-ra { text-align: right; white-space: nowrap; }
+.umap-rt { text-align: right; font-size: 12px; color: var(--muted); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .umap-bar i { transition: none; } }
+.umap-more { display: none; width: 100%; margin-top: 6px; padding: 7px; border: 1px solid var(--accent-line); border-radius: 8px; background: none; color: var(--accent); font-size: 13px; cursor: pointer; }
+@media (max-width: 899px) { .umap-rows:not(.all) li:nth-child(n+7) { display: none; } .umap-more { display: block; } }
 
 /* ═══ G116 (2026-10-02) 경리 셋 — 📮 신고 정리(sg) · 👷 퇴직공제(tj) · 🧾 고용·산재 보험료(bh) · 🗓 해마다 바뀌는 값(hd) ═══ */
 .hm-band { font-size: 13px; line-height: 1.6; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--text-2); margin-bottom: 10px; }

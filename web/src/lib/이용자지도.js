@@ -75,3 +75,64 @@ export function 지도점들(자료, 표, 지금시각 = Date.now()) {
   }
   return [...점.values()].sort((a, b) => a.지금 - b.지금)      // 지금 점이 위에 그려지게
 }
+
+/* ══════════════════════════════════════════════════════════════
+   🗺 G144 (2026-10-05) 바로투찰 맨 위로 · 개설일 · 시·도별 누적 · 오늘 · 지금 전국
+   소장님: 「실시간 지도를 바로입찰 상단에 … 지역별 누적도」 「개설일 8월 30일, 누적은 9월 15일 부터」
+           「애널리틱스 처럼 누적으로 서울 몇명, 부산 몇명, 실시간으로 올라가게」 「오늘도 카운트 할까?」
+   ■ fresh/reg (tools/이용자지도.py 가 10분마다): {at, from, d, kr: {a 누적, t 오늘}, r: {지역(영어): {a, t}}}
+     지역 = 애널리틱스 region 영어 이름(Seoul · Gyeonggi-do · Jeollanam-do …) → 시·도 줄임 이름(서울 · 경기 · 전남 …)
+   ■ fresh/map.n — 지금(30분 안) 전국 사람 수
+   ══════════════════════════════════════════════════════════════ */
+export const 지역주소 = 'https://k-conmap-default-rtdb.firebaseio.com/fresh/reg.json'
+export const 개설일 = '2026-08-30'          // 지금 K-건설맵(새 사이트)이 문을 연 날 — k-conmap.com 연결
+export const 누적시작 = '2026-09-15'        // 애널리틱스로 세기 시작한 날(tools/이용자지도.py 조회시작 과 같음)
+
+/* 영어 → 시·도 (앞부분으로 맞춤 · «Gangwon State» «Jeonbuk State» 같은 새 이름도) */
+const 시도영어 = [['seoul', '서울'], ['busan', '부산'], ['incheon', '인천'], ['daegu', '대구'], ['daejeon', '대전'], ['gwangju', '광주'],
+  ['ulsan', '울산'], ['sejong', '세종'], ['gyeonggi', '경기'], ['gangwon', '강원'], ['chungcheongbuk', '충북'], ['northchungcheong', '충북'],
+  ['chungbuk', '충북'], ['chungcheongnam', '충남'], ['southchungcheong', '충남'], ['chungnam', '충남'], ['jeollabuk', '전북'], ['northjeolla', '전북'],
+  ['jeonbuk', '전북'], ['jeollanam', '전남'], ['southjeolla', '전남'], ['jeonnam', '전남'], ['gyeongsangbuk', '경북'], ['northgyeongsang', '경북'],
+  ['gyeongbuk', '경북'], ['gyeongsangnam', '경남'], ['southgyeongsang', '경남'], ['gyeongnam', '경남'], ['jeju', '제주']]
+const 시도한글 = [['서울', '서울'], ['부산', '부산'], ['인천', '인천'], ['대구', '대구'], ['대전', '대전'], ['광주', '광주'], ['울산', '울산'], ['세종', '세종'],
+  ['경기', '경기'], ['강원', '강원'], ['충청북', '충북'], ['충북', '충북'], ['충청남', '충남'], ['충남', '충남'], ['전라북', '전북'], ['전북', '전북'],
+  ['전라남', '전남'], ['전남', '전남'], ['경상북', '경북'], ['경북', '경북'], ['경상남', '경남'], ['경남', '경남'], ['제주', '제주']]
+
+/** 애널리틱스 지역 이름 → 시·도 줄임 이름 · 모르면 null */
+export function 시도찾기(이름) {
+  const 글 = String(이름 || '').trim()
+  if (/[가-힣]/.test(글)) { for (const [p, n] of 시도한글) if (글.startsWith(p)) return n; return null }
+  const s = 글.toLowerCase().replace(/[^a-z]/g, '')
+  if (!s) return null
+  for (const [p, n] of 시도영어) if (s.startsWith(p)) return n
+  return null
+}
+
+/** fresh/reg → { 줄: [{n 시도, a 누적, t 오늘}] (누적 많은 차례 · 모르는 곳은 «기타» 맨 끝), 전국: {a, t}, 오늘날: bool, at }
+ *  오늘(t)은 자료의 날짜(d)가 한국 오늘일 때만 — 자정 지나 아직 새로 안 받았으면 0 */
+export function 지역줄들(자료, 지금시각 = Date.now()) {
+  if (!자료 || !자료.r) return null
+  const 오늘날 = 자료.d === 한국날(지금시각)
+  const 묶음 = new Map()
+  for (const [이름, v] of Object.entries(자료.r)) {
+    const n = 시도찾기(이름) || '기타'
+    const g = 묶음.get(n) || { n, a: 0, t: 0 }
+    g.a += Number(v && v.a) || 0
+    g.t += 오늘날 ? (Number(v && v.t) || 0) : 0
+    묶음.set(n, g)
+  }
+  const 줄 = [...묶음.values()].filter((x) => x.a > 0 || x.t > 0)
+    .sort((x, y) => (x.n === '기타') - (y.n === '기타') || y.a - x.a || y.t - x.t || x.n.localeCompare(y.n, 'ko'))
+  const kr = 자료.kr || {}
+  return { 줄, 전국: { a: Number(kr.a) || 0, t: 오늘날 ? (Number(kr.t) || 0) : 0 }, 오늘날, at: 자료.at }
+}
+
+/** 개설일부터 오늘(한국)까지 며칠째 — 연 날이 1일째 */
+export function 날째(지금시각 = Date.now()) {
+  const 오늘 = Date.parse(한국날(지금시각) + 'T00:00:00Z')
+  const 연날 = Date.parse(개설일 + 'T00:00:00Z')
+  return Math.floor((오늘 - 연날) / 86400000) + 1
+}
+
+/** '2026-08-30' → '2026. 8. 30.' */
+export const 날글 = (s) => { const [y, m, d] = String(s).split('-').map(Number); return `${y}. ${m}. ${d}.` }
