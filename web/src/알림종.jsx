@@ -90,7 +90,7 @@ export function 알림종() {
           </div>
           {s.목록.slice(0, 10).map((x) => (
             <button key={x.r + x.id} className={'noti-it' + (x.seen ? ' seen' : '')}
-              onClick={() => { set열림(false); 봤다(s.목록.filter((y) => (x.q ? y.q === x.q : y.id === x.id))); nav(x.u || `/qna/${encodeURIComponent(x.q)}`) }}>
+              onClick={() => { set열림(false); 봤다(s.목록.filter((y) => (x.q ? y.q === x.q : y.id === x.id))); nav(x.u || `/qna/${encodeURIComponent(x.q)}${x.to ? '#' + encodeURIComponent(x.id) : ''}`) }}>
               <span className="noti-t">{알림글(x)}</span>
               <span className="noti-w">{몇전(x.at)}</span>
             </button>
@@ -117,7 +117,7 @@ export function 알림띠() {
   return (
     <div className="noti-band" role="status">
       <span className="noti-dot" />
-      <button className="noti-go" onClick={() => { 봤다(안본.filter((y) => (첫.q ? y.q === 첫.q : y.id === 첫.id))); nav(첫.u || `/qna/${encodeURIComponent(첫.q)}`) }}>
+      <button className="noti-go" onClick={() => { 봤다(안본.filter((y) => (첫.q ? y.q === 첫.q : y.id === 첫.id))); nav(첫.u || `/qna/${encodeURIComponent(첫.q)}${첫.to ? '#' + encodeURIComponent(첫.id) : ''}`) }}>
         <b>🔔 {알림글(첫)}</b>{안본.length > 1 && <span className="muted"> · 외 {안본.length - 1}건</span>}
         <span className="noti-see">보기 ▸</span>
       </button>

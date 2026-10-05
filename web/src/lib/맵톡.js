@@ -177,3 +177,62 @@ export async function 사진줄이기(파일) {
   if (bmp.close) bmp.close()
   return new Promise((res, rej) => cv.toBlob((b) => (b ? res(b) : rej(new Error('사진을 줄이지 못했습니다'))), 'image/jpeg', 0.82))
 }
+
+/* ── ↩ 누구에게 답글 (G148 · 2026-10-05) ──────────────────────────────────────
+   소장님: 「여러사람인데, 누구에게 댓글을 쓰는 건지 알게 해줘. 글을 쓴 사람 박스 아래 답글쓰기가 있으면 …」
+   ■ 답글(qna_a/{글}/{답}) 에 to = 받는 답글 번호(없으면 원글에게). 규칙이 «그 글에 있는 답글 번호» 만 받습니다.
+   ■ 화면은 한 단계만 들여 씁니다(폰이 좁음) — 답글의 답글도 맨 위 줄기 아래에 붙고, «↳ ○○ 님에게» 딱지로 누구에게인지 보입니다.
+   ■ 받은수 = 상자마다 «↩ 답글쓰기 · 3» (지운 답글은 안 셈) */
+export function 답나무(답들) {
+  const 모두 = {}
+  for (const a of 답들 || []) if (a && a.id) 모두[a.id] = a
+  const 산 = Object.values(모두).filter((a) => !a.deleted)
+  const 받은수 = {}
+  let 원글받은수 = 0
+  const 받는곳 = (a) => (a.to && 모두[a.to] && a.to !== a.id ? a.to : null)
+  for (const a of 산) {
+    const k = 받는곳(a)
+    if (k) 받은수[k] = (받은수[k] || 0) + 1
+    else 원글받은수++
+  }
+  /* 맨 위 줄기 찾기 — to 를 따라 올라갑니다(돌고 도는 사슬은 20번에서 끊음). 지운 줄기면 그 아래 답은 «살아 있는 맨 위» 에 붙습니다 */
+  const 줄기찾기 = (a) => {
+    let x = a, n = 0, 살아있는 = a
+    while (받는곳(x) && n < 20) { x = 모두[받는곳(x)]; n++; if (!x.deleted) 살아있는 = x }
+    return 받는곳(x) ? 살아있는 : (x.deleted ? 살아있는 : x)
+  }
+  const 차례 = (p, q) => (p.at || 0) - (q.at || 0) || String(p.id).localeCompare(String(q.id))
+  const 줄기들 = {}
+  const 가지들 = {}
+  for (const a of 산) {
+    const top = 줄기찾기(a)
+    if (top.id === a.id) 줄기들[a.id] = a
+    else (가지들[top.id] = 가지들[top.id] || []).push(a)
+  }
+  const 줄기 = Object.values(줄기들).sort(차례).map((a) => ({ a, 가지: (가지들[a.id] || []).sort(차례) }))
+  return { 줄기, 받은수, 원글받은수 }
+}
+
+/** 첫 줄(인용) — «↳ ○○ 님에게» 아래 회색 한 줄 */
+export const 첫줄 = (s, n = 40) => {
+  const t = String(s || '').replace(/\s+/g, ' ').trim()
+  return t.length > n ? t.slice(0, n - 1) + '…' : t
+}
+
+/* ── 📊 맵톡 지금까지(누구나 봄 · G148) — 소장님 「누적 카운트가 보이게 해줘」 → 고르심 «맵톡 화면에 전체 누적»
+   실제 자료로 셉니다(옛 사랑방 글 포함): 글 = 보이는 글 · 답글 = 지우지 않은 답글 · 공감 = 글 👍 + 답글 👍 · 사진 = 사진 붙은 글 */
+export function 누적셈(글들, 답들, 좋아요, 답좋아요) {
+  const 보이는 = (글들 || []).filter((r) => r && !r.deleted)
+  const ids = new Set(보이는.map((r) => r.id))
+  let 답글 = 0, 공감 = 0
+  for (const [q, m] of Object.entries(답들 || {})) {
+    if (!ids.has(q)) continue
+    for (const a of Object.values(m || {})) if (a && !a.deleted) 답글++
+  }
+  for (const [q, m] of Object.entries(좋아요 || {})) if (ids.has(q)) 공감 += Object.keys(m || {}).length
+  for (const [q, m] of Object.entries(답좋아요 || {})) {
+    if (!ids.has(q)) continue
+    for (const v of Object.values(m || {})) 공감 += Object.keys(v || {}).length
+  }
+  return { 글: 보이는.length, 답글, 공감, 사진: 보이는.filter((r) => r.p).length }
+}

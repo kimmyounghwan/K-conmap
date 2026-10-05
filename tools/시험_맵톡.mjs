@@ -5,6 +5,7 @@
 import { readFileSync } from 'node:fs'
 import {
   주제짐작, 방나누기, 글나누기, 경위도자리, 가까운곳, 자리고르기, 자리짐작, 곳찾기, 짧은이름, 카드크기, 물음인가, 줄인크기, 맵톡시작, 주제들, 주제차례,
+  답나무, 첫줄, 누적셈,
 } from '../web/src/lib/맵톡.js'
 
 const 바탕 = JSON.parse(readFileSync(new URL('../web/src/data/한국지도.json', import.meta.url), 'utf8'))
@@ -100,6 +101,39 @@ eq([물음인가('맞나요'), 물음인가('얼마 주세요?'), 물음인가('
 eq(줄인크기(4000, 3000), { w: 1600, h: 1200 }, '긴 변 1600')
 eq(줄인크기(800, 600), { w: 800, h: 600 }, '작으면 그대로')
 eq(줄인크기(1080, 2400), { w: 720, h: 1600 }, '세로 사진')
+
+console.log('⑦ 누구에게 답글 — 나무 · 받은 수')
+{
+  const 답 = [
+    { id: 'a1', at: 1, uid: 'u1' },                       // 원글에게
+    { id: 'a2', at: 2, uid: 'u2', to: 'a1' },             // a1 에게
+    { id: 'a3', at: 3, uid: 'u1', to: 'a2' },             // a2(가지)에게 → 줄기 a1 아래
+    { id: 'a4', at: 4, uid: 'u3' },                       // 원글에게
+    { id: 'a5', at: 5, uid: 'u4', to: 'zz' },             // 없는 번호 → 원글에게로 봄
+    { id: 'a6', at: 6, uid: 'u5', to: 'a4', deleted: true },
+    { id: 'a7', at: 7, uid: 'u6', to: 'a4' },
+  ]
+  const r = 답나무(답)
+  eq(r.줄기.map((x) => [x.a.id, x.가지.map((y) => y.id)]), [['a1', ['a2', 'a3']], ['a4', ['a7']], ['a5', []]], '한 단계 들여쓰기 · 시간 차례')
+  eq([r.받은수.a1, r.받은수.a2, r.받은수.a4, r.원글받은수], [1, 1, 1, 3], '받은 수(지운 것 빼고 · 없는 번호는 원글)')
+  const 지운줄기 = 답나무([{ id: 'b1', at: 1, deleted: true }, { id: 'b2', at: 2, to: 'b1' }, { id: 'b3', at: 3, to: 'b2' }])
+  eq(지운줄기.줄기.map((x) => [x.a.id, x.가지.map((y) => y.id)]), [['b2', ['b3']]], '줄기를 지우면 살아 있는 답이 줄기')
+  const 돌기 = 답나무([{ id: 'c1', at: 1, to: 'c2' }, { id: 'c2', at: 2, to: 'c1' }])
+  eq(돌기.줄기.length + 돌기.줄기.reduce((n, x) => n + x.가지.length, 0) <= 2, true, '돌고 도는 사슬도 멈춤')
+  eq(답나무([{ id: 'd1', to: 'd1', at: 1 }]).원글받은수, 1, '자기 자신에게 = 원글에게')
+  eq(답나무(null).줄기, [], 'null')
+  eq([첫줄('  가나다\n라마  '), 첫줄('x'.repeat(50)).length], ['가나다 라마', 40], '첫 줄')
+}
+
+console.log('⑧ 지금까지 누적')
+{
+  const 글 = [{ id: 'q1' }, { id: 'q2', p: 'https://x' }, { id: 'q3', deleted: true }]
+  const 답 = { q1: { a: {}, b: { deleted: true } }, q2: { c: {} }, q3: { d: {} } }
+  const 좋 = { q1: { u1: true, u2: true }, q3: { u1: true } }
+  const 답좋 = { q1: { a: { u3: true } }, q3: { d: { u1: true } } }
+  eq(누적셈(글, 답, 좋, 답좋), { 글: 2, 답글: 2, 공감: 3, 사진: 1 }, '보이는 글만 · 지운 답 빼고 · 글 👍 + 답 👍')
+  eq(누적셈(null, null, null, null), { 글: 0, 답글: 0, 공감: 0, 사진: 0 }, 'null')
+}
 
 console.log(`\n통과 ${통과} · 실패 ${실패}`)
 if (실패) process.exit(1)

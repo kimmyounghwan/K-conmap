@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { 가림 } from '../lib/가림.js'
 /* ⚠️ firebase 는 «정적으로» 끌어오지 않습니다. 이 화면을 열 때만 받습니다. (Jobs.jsx 와 같은 방식) */
@@ -149,8 +149,19 @@ import { use화면상태, use남김 } from '../lib/길기록.js'
 import 건설소식 from '../tools/건설소식.jsx'   /* 📰 G128 — 지도 아래 «오늘의 건설 소식» · 💬 이야기하기 → 글쓰기 칸 */
 /* 🗺 G147 (2026-10-05) 사랑방 → 맵톡 — 큰 지도 위 글쓰기 · 글 = 핀(시·군) · 방은 저절로(같은 주제 10개) · 사진 한 장 */
 import 맵톡지도 from '../tools/맵톡지도.jsx'
-import { 주제들, 주제짐작, 방나누기, 글나누기, 자리짐작, 짧은이름, 곳찾기, 카드크기, 물음인가, 사진줄이기, 사진크기한도, 방기준 } from '../lib/맵톡.js'
+import { 주제들, 주제짐작, 방나누기, 글나누기, 자리짐작, 짧은이름, 곳찾기, 카드크기, 물음인가, 사진줄이기, 사진크기한도, 방기준, 답나무, 첫줄, 누적셈 } from '../lib/맵톡.js'
 import { 세기 } from '../lib/받은수.jsx'
+
+/* 🕰 G148 (2026-10-05) 소장님 「글을쓴 날짜 시간도 보이게 해주고」 — 카드 «10.05 22:47» · 글 창 «2026.10.05(월) 22:47 · 5분 전» · 답글 «10.05(월) 13:15».
+   올해가 아니면 앞에 해(2025.12.30). 흐르는 띠 · 위 알림은 «5분 전» 그대로(살아 있게) */
+const 요일 = ['일', '월', '화', '수', '목', '금', '토']
+const 날시 = (ms, { 해 = false, 요 = false } = {}) => {
+  if (!ms) return ''
+  const d = new Date(ms)
+  const p2 = (n) => String(n).padStart(2, '0')
+  const 앞 = 해 || d.getFullYear() !== new Date().getFullYear() ? `${d.getFullYear()}.` : ''
+  return `${앞}${p2(d.getMonth() + 1)}.${p2(d.getDate())}${요 ? `(${요일[d.getDay()]})` : ''} ${p2(d.getHours())}:${p2(d.getMinutes())}`
+}
 
 /* 상대시간 — 「9.18 18:41」 보다 「3시간 전」 이 살아 있어 보입니다. 이틀이 지나면 날짜로. */
 const 언제 = (ms) => {
@@ -478,7 +489,9 @@ export default function Qna() {
 
   /* 글을 펼치면 «봤다» 고 적어 둡니다 — 빨간 띠가 사라지는 자리입니다.
      🗺 G147 맵톡 — 펼치기 대신 옆 창(폰은 아래 창)으로 엽니다. 뒤로 가기 한 번이면 닫힙니다(lib/길기록.js) */
+  const 예약 = useRef(0)          // ⬆ G148 내 글 맨 위로 — 늦게 여는 창. 그 사이 다른 것을 열거나 닫으면 안 엽니다
   const 열기 = (id, 어디) => {
+    예약.current++
     set열린(id)
     if (어디 === '핀') 세기('|맵톡|핀')
     if (내것.has(id)) {
@@ -487,9 +500,77 @@ export default function Qna() {
     }
   }
   const 닫기 = () => {
+    예약.current++
     if (열린) 열린닫기(null)
     else if (글번호) 가기('/qna')
   }
+
+  /* ⬆ G148 내 글 맨 위로 — 소장님 「자기가 쓴글을 터치 하면 그 글이 있는 카드가 제일 위쪽으로」 → 고르심 «내 화면에서만»
+     내 글 카드(또는 지도의 내 핀)를 누르면 그 카드가 맨 앞 칸으로 날아가고(나머지는 한 칸씩 밀림 · FLIP) 빛난 뒤 글 창이 열립니다.
+     남의 화면 순서는 그대로 · 새로고침하면 원래 자리 · 📊 |맵톡|내글올림 */
+  const [올림, set올림] = useState(null)
+  const [빛, set빛] = useState(null)
+  const 앞자리 = useRef(null)
+  const 보이는목록 = useMemo(() => {
+    if (!list || !올림) return list
+    const i = list.findIndex((r) => r.id === 올림)
+    return i <= 0 ? list : [list[i], ...list.slice(0, i), ...list.slice(i + 1)]
+  }, [list, 올림])
+  const 자리재기 = () => {
+    const m = {}
+    document.querySelectorAll('.mt-feed .mt-card[data-id]').forEach((el) => { m[el.dataset.id] = el.getBoundingClientRect() })
+    return m
+  }
+  useLayoutEffect(() => {
+    const 앞 = 앞자리.current
+    앞자리.current = null
+    if (!앞) return
+    let 줄임 = false
+    try { 줄임 = window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch (e) { /* 옛 브라우저 */ }
+    if (줄임) return
+    const 움직인 = []
+    document.querySelectorAll('.mt-feed .mt-card[data-id]').forEach((el) => {
+      const a = 앞[el.dataset.id]
+      if (!a) return
+      const b = el.getBoundingClientRect()
+      const dx = a.left - b.left, dy = a.top - b.top
+      if (!dx && !dy) return
+      el.style.transition = 'none'
+      el.style.transform = `translate(${dx}px, ${dy}px)`
+      el.style.zIndex = el.dataset.id === 올림 ? '3' : ''
+      움직인.push(el)
+    })
+    if (!움직인.length) return
+    void document.body.offsetHeight
+    requestAnimationFrame(() => {
+      움직인.forEach((el) => { el.style.transition = 'transform .7s cubic-bezier(.2,.85,.25,1)'; el.style.transform = '' })
+      setTimeout(() => 움직인.forEach((el) => { el.style.transition = ''; el.style.zIndex = '' }), 760)
+    })
+  }, [보이는목록])   // eslint-disable-line react-hooks/exhaustive-deps
+  const 내글올리기 = (id, 어디) => {
+    const 목록 = 보이는목록 || []
+    const i = 목록.findIndex((r) => r.id === id)
+    if (i < 0) { 열기(id, 어디); return }
+    세기('|맵톡|내글올림')
+    if (i > 0) 앞자리.current = 자리재기()
+    set올림(id); set빛(null)
+    requestAnimationFrame(() => set빛(id))
+    setTimeout(() => set빛((v) => (v === id ? null : v)), 2200)
+    setTimeout(() => {
+      const f = document.querySelector('.mt-feed')
+      if (f) { try { window.scrollTo({ top: f.getBoundingClientRect().top + window.scrollY - 130, behavior: 'smooth' }) } catch (e) { /* 옛 브라우저 */ } }
+    }, 40)
+    const 내차례 = ++예약.current
+    setTimeout(() => { if (예약.current === 내차례) 열기(id, 어디) }, i > 0 ? 1500 : 900)
+  }
+  const 누르기 = (id, 어디) => (내것.has(id) ? 내글올리기(id, 어디) : 열기(id, 어디))
+  useEffect(() => {
+    const 멈춤 = () => { 예약.current++ }
+    const 키 = (e) => { if (e.key === 'Escape') 예약.current++ }
+    window.addEventListener('popstate', 멈춤)
+    window.addEventListener('keydown', 키)
+    return () => { window.removeEventListener('popstate', 멈춤); window.removeEventListener('keydown', 키); 예약.current++ }
+  }, [])
   useEffect(() => {
     if (!open) return undefined
     const k = (e) => { if (e.key === 'Escape') 닫기() }
@@ -514,6 +595,9 @@ export default function Qna() {
     const t = setTimeout(() => set새방(null), 4300)
     return () => clearTimeout(t)
   }, [방들])   // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* 📊 G148 지금까지(누구나 봄) — 글 · 답글 · 공감 · 사진, 실제 자료로 */
+  const 누적 = useMemo(() => 누적셈(모두 || [], ans, 좋아요, 답좋아요), [모두, ans, 좋아요, 답좋아요])
 
   /* 공감 · 답글 많은 글 둘은 크게(카드 두 칸) — 공감 둘 · 공감+답 하나쯤은 넘어야(감사 한 줄이 크게 뜨지 않게) */
   const 큰글 = useMemo(() => {
@@ -542,15 +626,15 @@ export default function Qna() {
     const 제목 = 가림(r.t)
     const 본문 = 가림(r.b || '')
     return (
-      <article key={r.id} className={'mt-card' + (크기 ? ' ' + 크기 : '') + (r.id === 새글번호 ? ' fresh' : '') + (고정[r.id] ? ' pinned' : '')}>
+      <article key={r.id} data-id={r.id} className={'mt-card' + (크기 ? ' ' + 크기 : '') + (r.id === 새글번호 ? ' fresh' : '') + (고정[r.id] ? ' pinned' : '') + (빛 === r.id ? ' lifted' : '')}>
         <div className="mt-meta">
           <span className="mt-tag" style={{ color: t.색 }}><i style={{ background: t.색 }} />{t.이름}</span>
           {곳 && <span className="mt-where">{짧은이름(곳.n)}</span>}
-          <span>· {언제(r.at)}</span>
+          <span className="mt-date" title={언제(r.at)}>· {날시(r.at)}</span>
           {고정[r.id] && <span title="도구 사용법">📌</span>}
           {r.sb && 나운영자 && <b>🙈</b>}
         </div>
-        <button type="button" className="mt-open" onClick={() => 열기(r.id)}>
+        <button type="button" className="mt-open" onClick={() => 누르기(r.id)}>
           {r.p && <img className="mt-photo" src={r.p} alt="" loading="lazy" />}
           <span className="mt-say">{제목}</span>
           {본문 && <span className="mt-rest">{본문.slice(0, 160)}</span>}
@@ -577,7 +661,7 @@ export default function Qna() {
 
   return (
     <div className="mt-page">
-      <맵톡지도 글들={모두 || []} 새글번호={새글번호} 열기={열기} 새방={새방}>
+      <맵톡지도 글들={모두 || []} 새글번호={새글번호} 열기={누르기} 새방={새방} 누적={누적}>
         <맵톡글쓰기 key={새글 ? '초안:' + (새글.t || '') : '빈칸'} 첫글={새글} 나운영자={나운영자}
           onDone={(id) => {
             set새글(null); 방감시.current = true; set새글번호(id)
@@ -736,7 +820,7 @@ export default function Qna() {
                   ? <Empty>답을 기다리는 글이 없습니다 — 다 답하셨습니다. 👍</Empty>
                   : <Empty>아직 글이 없습니다. 맨 위 칸에 아무 말이나 먼저 남겨 주세요 — 한 줄이어도 됩니다.</Empty>
             )}
-            {list && list.length > 0 && <div className="mt-feed">{list.map((r) => 카드(r))}</div>}
+            {보이는목록 && 보이는목록.length > 0 && <div className="mt-feed">{보이는목록.map((r) => 카드(r))}</div>}
           </div>
 
           <aside className="mt-side">
@@ -795,7 +879,7 @@ export default function Qna() {
                 <div className="mt-meta">
                   <span className="mt-tag" style={{ color: (주제들[창글.주제] || 주제들.talk).색 }}><i style={{ background: (주제들[창글.주제] || 주제들.talk).색 }} />{(주제들[창글.주제] || 주제들.talk).이름}</span>
                   {창곳 && <span className="mt-where">{짧은이름(창곳.n)}</span>}
-                  <span>· {언제(창글.at)}{창글.e ? ' · 고침' : ''}</span>
+                  <span className="mt-date">· {날시(창글.at, { 해: true, 요: true })} · {언제(창글.at)}{창글.e ? ' · 고침' : ''}</span>
                 </div>
                 <h2 className="mt-full">{가림(창글.t)}</h2>
                 <div className="mt-who">{배지(창글.uid)}{창글.nick || '익명'}{내것.has(창글.id) ? ' · 내 글' : ''}{창글.sb && 나운영자 ? ' · 🙈 몰래 차단' : ''}</div>
@@ -939,8 +1023,64 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
     set좋바쁨(false)
     if (!ok) setMsg('👍 를 누르지 못했습니다. 잠시 뒤 다시 해 주세요.')
   }
-  const list = Object.entries(ans).map(([id, x]) => ({ id, ...x }))
-    .filter((x) => !x.deleted).sort((a, b) => (a.at || 0) - (b.at || 0))
+  /* ↩ G148 누구에게 답글 — 줄기(원글에게 쓴 답) 아래 한 단계 들여 «↳ ○○ 님에게» */
+  const 나무 = useMemo(() => 답나무(Object.entries(ans).map(([id, x]) => ({ id, ...x }))), [ans])
+  const 답이름 = (a) => (a ? (a.op ? 'K-건설맵' : (a.nick || '익명')) : '')
+  const 글쓴이 = row.c === 'K-건설맵' || isOp(row.uid) ? 'K-건설맵' : (row.nick || '익명')
+  const [답할, set답할] = useState(null)          // 답글쓰기를 누른 답글 번호(null = 맨 아래 칸 · 원글에게)
+  const [반짝, set반짝] = useState(null)
+  const 상자들 = useRef({})
+  const 아래칸 = useRef(null)
+  const 가서반짝 = (id) => {
+    const el = 상자들.current[id]
+    if (!el) return
+    try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }) } catch (e) { el.scrollIntoView() }
+    set반짝(id); setTimeout(() => set반짝((v) => (v === id ? null : v)), 1600)
+  }
+  /* 🔔 알림에서 들어오면(/qna/{글}#{답글}) 그 답글로 가서 반짝 */
+  useEffect(() => {
+    const h = decodeURIComponent((window.location.hash || '').slice(1))
+    if (h && ans[h]) setTimeout(() => 가서반짝(h), 450)
+  }, [row.id, Object.keys(ans).length])   // eslint-disable-line react-hooks/exhaustive-deps
+  const 원글에게 = () => {
+    set답할(null)
+    const el = 아래칸.current
+    if (!el) return
+    try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }) } catch (e) { el.scrollIntoView() }
+    const t = el.querySelector('textarea'); if (t) setTimeout(() => { try { t.focus({ preventScroll: true }) } catch (e) { t.focus() } }, 350)
+  }
+  const 답상자 = (a, 가지) => {
+    const 받는 = a.to && ans[a.to] ? ans[a.to] : null
+    const n = 나무.받은수[a.id] || 0
+    return (
+      <div key={a.id} ref={(el) => { 상자들.current[a.id] = el }} className={'mt-ans' + (가지 ? ' sub' : '') + (a.op ? ' op' : '') + (반짝 === a.id ? ' flash' : '')} id={'a-' + a.id}>
+        <div className="mt-ans-h">
+          {a.op
+            ? <b style={{ color: 'var(--accent, #1a56db)' }}>K-건설맵</b>
+            : <b>{배지(a.uid)}{a.nick || '익명'}{a.sb && 나운영자 ? ' · 🙈 몰래 차단' : ''}</b>}
+          <span className="muted"> · {날시(a.at, { 요: true })}</span>
+        </div>
+        {받는 && (
+          <button type="button" className="mt-to" onClick={() => 가서반짝(a.to)} title="누구에게 쓴 답글인지 — 누르면 그 말로 갑니다">
+            ↳ <b>{답이름(받는)}</b> 님에게{!받는.deleted && <span className="mt-to-q"> «{첫줄(가림(받는.b), 26)}»</span>}
+          </button>
+        )}
+        <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.85, fontSize: 13.5 }}>{가림(a.b)}</div>
+        <div className="mt-ans-f">
+          {내번호(a.uid)
+            ? <span className="qna-like sm muted">👍 {Object.keys(답좋아요[a.id] || {}).length}</span>
+            : <button className={'qna-like sm' + (눌렀나(답좋아요[a.id]) ? ' on' : '')} disabled={좋바쁨}
+                onClick={() => 좋(`qna_alike/${row.id}/${a.id}`, !눌렀나(답좋아요[a.id]))}>👍 {Object.keys(답좋아요[a.id] || {}).length}</button>}
+          <button type="button" className={'mt-reply' + (답할 === a.id ? ' on' : '')} onClick={() => set답할((v) => (v === a.id ? null : a.id))}
+            aria-label={`${답이름(a)} 님에게 답글쓰기 · 받은 답글 ${n}`}>↩ 답글쓰기{n > 0 && <em> · {n}</em>}</button>
+        </div>
+        {답할 === a.id && (
+          <AnswerForm qid={row.id} to={a.id} 받는이={답이름(a)} 인용={첫줄(가림(a.b), 40)} 열림
+            onCancel={() => set답할(null)} onDone={() => { set답할(null); onChange() }} />
+        )}
+      </div>
+    )
+  }
 
   /* 🛠 운영자 브라우저가 숫자 없이 올린 글 — 이 브라우저(같은 uid)가 직접 지웁니다(규칙이 uid 를 봄) */
   const 운영지우기 = async () => {
@@ -1010,31 +1150,21 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
         {/* 💬 2026-09-29 — 이 글만 여는 주소(검색 · 카톡으로 보내기). 그 주소로 가면 이 글이 맨 위에 펼쳐집니다 */}
         <Link className="qna-permalink" to={`/qna/${row.id}`}>🔗 이 글 주소</Link>
         {조회수 > 0 && <span className="muted" style={{ fontSize: 12.5 }}>👁 조회 {Number(조회수).toLocaleString('ko-KR')}</span>}
+        <button type="button" className="mt-reply" onClick={원글에게} aria-label={`글쓴이 ${글쓴이} 님에게 답글쓰기 · 받은 답글 ${나무.원글받은수}`}>
+          ↩ 답글쓰기{나무.원글받은수 > 0 && <em> · {나무.원글받은수}</em>}
+        </button>
       </div>
 
-      {list.map((a) => (
-        <div key={a.id} style={{
-          marginTop: 10, padding: '10px 12px', borderRadius: 9,
-          background: a.op ? 'var(--accent-soft, rgba(26,86,219,.08))' : 'var(--bg-soft, rgba(0,0,0,.03))',
-          border: '1px solid var(--line)',
-        }}>
-          <div style={{ fontSize: 12, marginBottom: 5 }}>
-            {a.op
-              ? <b style={{ color: 'var(--accent, #1a56db)' }}>K-건설맵</b>
-              : <b>{배지(a.uid)}{a.nick || '익명'}{a.sb && 나운영자 ? ' · 🙈 몰래 차단' : ''}</b>}
-            <span className="muted"> · {when(a.at)}</span>
-          </div>
-          <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.85, fontSize: 13.5 }}>{가림(a.b)}</div>
-          <div style={{ marginTop: 4 }}>
-            {내번호(a.uid)
-              ? <span className="qna-like sm muted">👍 {Object.keys(답좋아요[a.id] || {}).length}</span>
-              : <button className={'qna-like sm' + (눌렀나(답좋아요[a.id]) ? ' on' : '')} disabled={좋바쁨}
-                  onClick={() => 좋(`qna_alike/${row.id}/${a.id}`, !눌렀나(답좋아요[a.id]))}>👍 {Object.keys(답좋아요[a.id] || {}).length}</button>}
-          </div>
+      {나무.줄기.map(({ a, 가지 }) => (
+        <div key={a.id} className="mt-thread">
+          {답상자(a, false)}
+          {가지.length > 0 && <div className="mt-subs">{가지.map((x) => 답상자(x, true))}</div>}
         </div>
       ))}
 
-      <AnswerForm qid={row.id} onDone={onChange} />
+      <div ref={아래칸}>
+        <AnswerForm qid={row.id} onDone={onChange} 받는이={글쓴이} 원글 />
+      </div>
 
       {mine && !고침 && (
         <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
@@ -1074,8 +1204,11 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
 }
 
 /* ── 답변 쓰기 — 누구나 ────────────────────────────────────────── */
-function AnswerForm({ qid, onDone }) {
+/* ↩ G148 — to(받는 답글 번호)가 있으면 «↳ ○○ 님에게» 칸 · 없으면 원글(글쓴이)에게. 받은 사람에게 알림은 함수(qnaReplyNotify)가 보냅니다 */
+function AnswerForm({ qid, onDone, to = null, 받는이 = '', 인용 = '', 열림 = false, onCancel = null, 원글 = false }) {
   const [b, setB] = useState('')
+  const 칸 = useRef(null)
+  useEffect(() => { if (열림 && 칸.current) { try { 칸.current.focus({ preventScroll: false }) } catch (e) { 칸.current.focus() } } }, [열림])
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const [나운영자, set나운영자] = useState(false)
@@ -1115,9 +1248,11 @@ function AnswerForm({ qid, onDone }) {
         op,
         uid: r,
         at: Date.now(),
+        ...(to ? { to } : {}),   /* ↩ G148 — 누구에게(규칙: 이 글에 있는 답글 번호만) */
         ...(await 몰래표()),     /* 🙈 몰래 차단 기기면 sb — 규칙이 강제합니다 */
       })
       setB('')
+      세기('|맵톡|답글'); if (to) 세기('|맵톡|누구에게')
       /* 🔔 이 글에 다음 답글이 달리면 나에게도 알림(G73) — 허락한 기기는 폰 알림창까지 */
       폰알림켜기(r, 허락)
       onDone()
@@ -1127,13 +1262,20 @@ function AnswerForm({ qid, onDone }) {
   }
 
   return (
-    <div style={{ marginTop: 12 }}>
-      <textarea className="inp" value={b} onChange={(e) => setB(e.target.value)}
-        placeholder="답글 — 아무 말이나"
+    <div className={'mt-af' + (to ? ' to' : '')} style={{ marginTop: 12 }}>
+      {받는이 && (
+        <div className="mt-af-h">
+          <span>↳ {원글 ? '글쓴이 ' : ''}<b>{받는이}</b> 님에게 답글</span>
+          {onCancel && <button type="button" className="mt-af-x" onClick={onCancel} aria-label="답글쓰기 닫기">✕</button>}
+          {인용 && <span className="mt-af-q">«{인용}»</span>}
+        </div>
+      )}
+      <textarea ref={칸} className="inp" value={b} onChange={(e) => setB(e.target.value)}
+        placeholder={받는이 ? `${받는이} 님에게 — 아무 말이나` : '답글 — 아무 말이나'}
         style={{ width: '100%', boxSizing: 'border-box', minHeight: 72 }} maxLength={2000} />
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
         <button className="btn primary" onClick={submit} disabled={busy}>
-          {busy ? '올리는 중…' : '답글 올리기'}
+          {busy ? '올리는 중…' : (받는이 && !원글 ? `${받는이} 님에게 답글 올리기` : '답글 올리기')}
         </button>
         {/* 🔑 운영자 브라우저일 때만 — 「이 답에는 표가 붙습니다」 를 미리 알려 줍니다.
             ⚠️ 이용자에게는 아무것도 안 보입니다. 비번 칸이 있던 자리입니다. */}

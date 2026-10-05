@@ -8,7 +8,7 @@
  * ■ 글쓰기 칸은 children 으로 받습니다(Qna.jsx 맵톡글쓰기 — 글 올리기 · 4자리 · 사진은 거기서)
  * ■ 움직임 줄이기 설정(prefers-reduced-motion)이면 바탕 · 핀 움직임을 멈춥니다(styles.css)
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { 지도주소, 지도이름표, 지도점들 } from '../lib/이용자지도.js'
 import { 주제들, 짧은이름, 곳찾기 } from '../lib/맵톡.js'
 
@@ -21,7 +21,32 @@ const 언제 = (ms) => {
   return 시간 < 24 ? `${시간}시간 전` : `${Math.round(시간 / 24)}일 전`
 }
 
-export default function 맵톡지도({ 글들, 새글번호, 열기, 새방, children }) {
+/* 📊 G148 지금까지 — 숫자가 0 에서 올라갑니다(처음 한 번 · 움직임 줄이기면 바로) */
+function 올림수({ n }) {
+  const [v, setV] = useState(0)
+  const 앞 = useRef(0)
+  useEffect(() => {
+    const 끝 = Number(n) || 0
+    const 시작 = 앞.current
+    앞.current = 끝
+    let 줄임 = false
+    try { 줄임 = window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch (e) { /* 옛 브라우저 */ }
+    if (줄임 || 시작 === 끝) { setV(끝); return undefined }
+    let raf = 0
+    const t0 = performance.now()
+    const 걸림 = 시작 === 0 ? 1100 : 500
+    const 돌 = (t) => {
+      const k = Math.min(1, (t - t0) / 걸림)
+      setV(Math.round(시작 + (끝 - 시작) * (1 - Math.pow(1 - k, 3))))
+      if (k < 1) raf = requestAnimationFrame(돌)
+    }
+    raf = requestAnimationFrame(돌)
+    return () => cancelAnimationFrame(raf)
+  }, [n])
+  return <b>{v.toLocaleString('ko-KR')}</b>
+}
+
+export default function 맵톡지도({ 글들, 새글번호, 열기, 새방, 누적, children }) {
   const [바탕, set바탕] = useState(null)
   const [오늘점, set오늘점] = useState([])
   const [돌기, set돌기] = useState(0)
@@ -67,6 +92,15 @@ export default function 맵톡지도({ 글들, 새글번호, 열기, 새방, chi
           <small>K-건설맵 · 이야기 지도</small>
           <h1>맵톡</h1>
           <p>질문, 현장, 건의 — 어떤 것이든 쓰면 내 시·군에 핀이 꽂힙니다.</p>
+          {누적 && 누적.글 > 0 && (
+            <div className="mt-stats" aria-label="맵톡 지금까지">
+              <small>지금까지</small>
+              <span>글 <올림수 n={누적.글} /></span>
+              <span>답글 <올림수 n={누적.답글} /></span>
+              <span>공감 <올림수 n={누적.공감} /></span>
+              <span>사진 <올림수 n={누적.사진} /></span>
+            </div>
+          )}
         </div>
         <div className="mt-map">
           {바탕 && (

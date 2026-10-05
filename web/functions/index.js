@@ -139,7 +139,7 @@ exports.qnaMail = onValueCreated(
     if (g.sb) return          /* 🙈 몰래 차단 기기의 글(G101) — 메일도 보내지 않습니다 */
 
     const 본문 = [
-      '사랑방에 새 글이 올라왔습니다.',
+      '맵톡에 새 글이 올라왔습니다.',
       '',
       줄('제목', g.t),
       줄('별명', g.nick),
@@ -150,11 +150,11 @@ exports.qnaMail = onValueCreated(
       '  글 번호 : ' + id,
       '  답은 https://k-conmap.com/admin 에서 다실 수 있습니다.',
       '',
-      '— K-건설맵 사랑방',
+      '— K-건설맵 맵톡',
     ].join('\n')
 
     try {
-      await 보내기('[K-건설맵] 사랑방 새 글 — ' + String(g.t || '').slice(0, 40), 본문)
+      await 보내기('[K-건설맵] 맵톡 새 글 — ' + String(g.t || '').slice(0, 40), 본문)
     } catch (e) {
       console.error('메일 실패:', e && e.message)
       return
@@ -221,10 +221,17 @@ exports.qnaReplyNotify = onValueCreated(
     if (!글 || 글.deleted) return
     const 제목 = 자르기(String(글.t || '').replace(/^\[[^\]]{1,8}\]\s*/, ''), 40)
     const 누가 = a.op ? 'K-건설맵' : (자르기(a.nick, 12) || '이웃')
+    /* ↩ G148 (2026-10-05) 누구에게 답글 — 소장님 「알림이 가야 의미가 있지. 알림 작업까지 해줘」
+       a.to = 받는 답글 번호. 그 답글을 쓴 사람(번호)에게는 «○○님이 내 답글에 답했습니다» + 답글 첫 줄 — 🔔 줄에는 to 표시 */
+    const 답들미리 = 답들s.val() || {}
+    const 받는답 = a.to && 답들미리[a.to] && !답들미리[a.to].deleted ? 답들미리[a.to] : null
+    const 콕 = 받는답 && 받는답.uid && String(받는답.uid) !== String(a.uid) ? String(받는답.uid) : null
+    const 첫말 = 자르기(a.b, 36)
 
     /* ① 받을 사람 */
     const 받는이 = new Set()
     if (글.uid) 받는이.add(String(글.uid))
+    if (콕) 받는이.add(콕)
     const 답들 = 답들s.val() || {}
     for (const [k, x] of Object.entries(답들)) {
       if (k !== aid && x && !x.deleted && x.uid) 받는이.add(String(x.uid))
@@ -232,7 +239,7 @@ exports.qnaReplyNotify = onValueCreated(
     if (a.uid) 받는이.delete(String(a.uid))
 
     /* ② 사이트 안 🔔 — 사람마다 최근 30개만 남깁니다 */
-    const 한줄 = (r) => ({ q: qid, t: 제목, by: 누가, op: !!a.op, mine: String(글.uid) === r, at: Number(a.at) || Date.now() })
+    const 한줄 = (r) => ({ q: qid, t: 제목, by: 누가, op: !!a.op, mine: String(글.uid) === r, ...(r === 콕 ? { to: true } : {}), at: Number(a.at) || Date.now() })
     await Promise.all([...받는이].map(async (r) => {
       await d.ref(`/noti/${r}/${aid}`).set(한줄(r))
       const 모두 = (await d.ref(`/noti/${r}`).orderByKey().get()).val() || {}
@@ -256,12 +263,19 @@ exports.qnaReplyNotify = onValueCreated(
       wp.setVapidDetails('https://k-conmap.com', k.pub, k.priv)
       await Promise.all(주소들.map(async ({ r, sid, s }) => {
         const 내글 = String(글.uid) === r
-        const 알림 = {
-          title: a.op ? '💬 K-건설맵 답변이 달렸습니다' : '💬 사랑방에 답글이 달렸습니다',
-          body: 내글 ? `올리신 글 「${제목}」 — ${누가}` : `답글을 단 글 「${제목}」 — ${누가}`,
-          url: `/qna/${qid}`,
-          tag: `qna-${qid}`,
-        }
+        const 알림 = r === 콕
+          ? {
+              title: `↩ ${a.op ? 'K-건설맵이' : `${누가}님이`} 내 답글에 답했습니다`,
+              body: `「${첫말}」 — 글 「${제목}」`,
+              url: `/qna/${qid}#${aid}`,
+              tag: `qna-${qid}`,
+            }
+          : {
+              title: a.op ? '💬 K-건설맵 답변이 달렸습니다' : '💬 맵톡에 답글이 달렸습니다',
+              body: 내글 ? `올리신 글 「${제목}」 — ${누가}: ${첫말}` : `답글을 단 글 「${제목}」 — ${누가}`,
+              url: `/qna/${qid}`,
+              tag: `qna-${qid}`,
+            }
         try {
           await wp.sendNotification(s, JSON.stringify(알림), { TTL: 3 * 86400, urgency: 'normal' })
         } catch (e) {
@@ -277,10 +291,11 @@ exports.qnaReplyNotify = onValueCreated(
       const 이미 = (await d.ref(`/qna_mail/a_${aid}`).get()).val()
       if (!이미) {
         const 본문 = [
-          '사랑방에 새 답글이 달렸습니다.',
+          '맵톡에 새 답글이 달렸습니다.',
           '',
           줄('글    ', 글.t),
           줄('별명  ', a.nick),
+          ...(받는답 ? [줄('누구에게', (받는답.op ? 'K-건설맵' : 받는답.nick || '익명') + ' 님에게(↩ 답글의 답글)')] : []),
           '',
           '  답글:',
           '  ' + (a.b || ''),
@@ -288,10 +303,10 @@ exports.qnaReplyNotify = onValueCreated(
           '  글 주소 : https://k-conmap.com/qna/' + qid,
           '  답은 https://k-conmap.com/admin 에서 다실 수 있습니다.',
           '',
-          '— K-건설맵 사랑방',
+          '— K-건설맵 맵톡',
         ].join('\n')
         try {
-          await 보내기('[K-건설맵] 사랑방 새 답글 — ' + 자르기(글.t, 40), 본문)
+          await 보내기('[K-건설맵] 맵톡 새 답글 — ' + 자르기(글.t, 40), 본문)
           await d.ref(`/qna_mail/a_${aid}`).set({ at: Date.now(), by: 'fn' })
         } catch (e) {
           console.error('메일 실패:', e && e.message)       /* 표를 안 남기면 깃허브가 그물로 다시 보냅니다 */

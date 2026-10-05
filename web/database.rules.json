@@ -124,6 +124,8 @@
           "at":      { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
           "deleted": { ".validate": "newData.isBoolean()" },
           "sb":      { ".validate": "newData.isBoolean()" },
+          // ↩ G148 (2026-10-05) 누구에게 답글 — 받는 답글 번호. 이 글에 이미 있는 다른 답글 번호만 받습니다(없는 번호 · 자기 자신 막음)
+          "to":      { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40 && newData.val() !== $aid && root.child('qna_a').child($qid).child(newData.val()).exists()" },
           "$other":  { ".validate": false }
         }
       }
