@@ -107,6 +107,14 @@ def call(url, key, params):
         j = r.json()
     except Exception:
         return "json", [], 0, "JSON 아님 · " + head[:120]
+    # ⚠️ 2026-10-05 — 새 나라장터는 필수값이 빠지면 HTTP 200 에 {"nkoneps.com.response.ResponseError": {"header": {"resultCode": "08"}}}
+    #    로 답합니다. «response» 가 없다고 «빈 응답» 으로 보면 «정상 0건» 이 됩니다(발주계획 첫 회차가 그랬음).
+    if isinstance(j, dict) and "response" not in j:
+        for k, v in j.items():
+            if "error" in str(k).lower() and isinstance(v, dict):
+                eh = v.get("header", {}) or {}
+                return "code", [], 0, f"오류 응답 {eh.get('resultCode', '')} · {str(eh.get('resultMsg', ''))[:100]}"
+        return "json", [], 0, "모르는 모양 · " + head[:120]
     resp = j.get("response", {}) if isinstance(j, dict) else {}
     h = resp.get("header", {}) or {}
     code = str(h.get("resultCode", "")).strip()
@@ -129,13 +137,26 @@ def call(url, key, params):
 
 
 # 조회 조건 후보 — 문서상 «inqryDiv=1(등록일시) + inqryBgnDt/inqryEndDt(YYYYMMDDHHMM)».
-#   발주계획은 조건이 다를 수 있어(발주년월 등) 첫 회차에 한 번씩 대 보고 된 것을 진단에 적습니다.
-VARIANTS = [
-    lambda d, day: {"inqryDiv": "1", "inqryBgnDt": d + "0000", "inqryEndDt": d + "2359"},
-    lambda d, day: {"inqryBgnDt": d + "0000", "inqryEndDt": d + "2359"},
-    lambda d, day: {"inqryDiv": "2", "orderBgnYm": day.strftime("%Y%m"),
-                    "orderEndYm": (day + timedelta(days=95)).strftime("%Y%m")},
-]
+#   ⚠️ 발주계획은 «발주년월(orderBgnYm · orderEndYm)» 이 필수입니다 — 빠지면 오류 응답(08).
+#      등록일로 하루씩 받되 발주년월은 앞뒤 1년 남짓을 넉넉히 둡니다(그 사이 발주 예정인 것 전부).
+def _ym(day, dd):
+    return (day + timedelta(days=dd)).strftime("%Y%m")
+
+
+VARIANTS_BY = {
+    "사전규격": [
+        lambda d, day: {"inqryDiv": "1", "inqryBgnDt": d + "0000", "inqryEndDt": d + "2359"},
+        lambda d, day: {"inqryBgnDt": d + "0000", "inqryEndDt": d + "2359"},
+    ],
+    "발주계획": [
+        lambda d, day: {"inqryDiv": "1", "inqryBgnDt": d + "0000", "inqryEndDt": d + "2359",
+                        "orderBgnYm": _ym(day, -400), "orderEndYm": _ym(day, 400)},
+        lambda d, day: {"inqryBgnDt": d + "0000", "inqryEndDt": d + "2359",
+                        "orderBgnYm": _ym(day, -400), "orderEndYm": _ym(day, 400)},
+        lambda d, day: {"orderBgnYm": _ym(day, -31), "orderEndYm": _ym(day, 95)},
+    ],
+}
+VARIANTS = VARIANTS_BY["사전규격"]      # (옛 이름 — 시험이 씀)
 
 
 def fetch_day(name, key, day, base_path, diag, vi=0):
@@ -143,7 +164,7 @@ def fetch_day(name, key, day, base_path, diag, vi=0):
     s = SVC[name]
     url = f"{BASE}/{base_path}/{s['op']}"
     d = day.strftime("%Y%m%d")
-    params = VARIANTS[vi](d, day)
+    params = VARIANTS_BY[name][vi](d, day)
     out, page = [], 1
     while True:
         params["pageNo"] = str(page)
@@ -164,7 +185,7 @@ def pick_path(name, key, day, diag):
           트래픽 초과 · 상한이면 바로 멈춥니다."""
     seen = []
     for bp in SVC[name]["paths"]:
-        for vi in range(len(VARIANTS)):
+        for vi in range(len(VARIANTS_BY[name])):
             st, items, msg = fetch_day(name, key, day, bp, diag, vi)
             diag["주소시험"].append({"주소": bp + "/" + SVC[name]["op"], "조건": vi + 1, "상태": st, "수": len(items), "말": msg})
             if st == "ok":
@@ -222,6 +243,14 @@ def run(days, dry=False):
                         break
                 got += items
                 time.sleep(0.3)
+        # 등록일로 7일을 다 봐도 0건이면 «발주년월만» 조건으로 한 번 더(조건 뜻이 문서와 다를 때 대비)
+        if bp and not got and len(VARIANTS_BY[name]) > 1 and state == "ok":
+            lv = len(VARIANTS_BY[name]) - 1
+            if lv != vi:
+                st2, items2, msg2 = fetch_day(name, key, datetime.combine(today, datetime.min.time()), bp, diag, lv)
+                diag["주소시험"].append({"주소": bp + "/" + SVC[name]["op"], "조건": lv + 1, "상태": st2, "수": len(items2), "말": msg2 or "등록일 7일 0건이라 발주년월만으로"})
+                if st2 == "ok" and items2:
+                    got, vi = items2, lv
         fields = sorted({k for it in got for k in it.keys()})
         path = os.path.join(OUT, f"{name}.json")
         old = load(path)
