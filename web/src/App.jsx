@@ -3,7 +3,7 @@ import TitleSync from './TitleSync.jsx'
 import { useEffect, useState } from 'react'
 import { 나운영자 } from './lib/운영자.js'
 import { BasePriceProvider } from './BasePrice.jsx'
-import { InstallPill, InstallBar } from './Install.jsx'
+import { InstallPill, InstallBar, AppWindowBar } from './Install.jsx'
 import AskStrip from './AskComment'
 /* 👋🙏 2026-09-29 방문 인사 — 처음 «반갑습니다» · 다시 «다시 찾아 주셔서 고맙습니다» (인사.jsx · lib/인사.js) */
 import 인사 from './인사.jsx'
@@ -170,11 +170,13 @@ export default function App() {
       </div>
 
       <main className="shell">
-        {/* 📲 홈 화면에 추가 띠 — 모든 페이지 맨 위. 닫으면 7일 뒤에 다시 (Install.jsx) */}
+        {/* 📲 홈 화면에 추가 띠 — 모든 페이지 맨 위. ✕ 는 이 탭 동안만 · 설치하면 안 뜸 (Install.jsx) */}
         {/* 🔄 새로 올린 화면을 폰이 스스로 받게 (2026-09-30 · 새판.jsx) — 새 판이 있을 때만 한 줄 */}
         <새판 />
         <감사공지 />
         <InstallBar />
+        {/* 🖥 예전에 설치한 PC 앱 창 — 첫 클릭에 브라우저 탭으로 자동으로 옮김 (Install.jsx · 2026-10-05) */}
+        <AppWindowBar />
         {/* 🔔 내 글에 새 답글 — 한 줄 띠(G73). 사랑방에 쓴 적 있는 브라우저만 읽습니다 */}
         <알림띠 />
         {/* 🔑 소장님 기계에서만 — 성적표로 가는 길 (아래 운영자띠 설명) */}

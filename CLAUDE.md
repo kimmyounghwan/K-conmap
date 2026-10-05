@@ -4512,3 +4512,9 @@ canonical 이중 인코딩 · 개찰 시각 문구 · 성적표 칸 · 등수 �
 - `곧나올줄.jsx`: 공고판(/live) 맨 위 «📣 곧 나올 공사 (내 지역) N건 · 공고 직전 M건 →» · 담은 공사가 공고로 나오면 공고판 · 바로투찰 첫 화면 맨 위 «⭐ 담아 둔 공사 n건이 공고로 나왔습니다 → 바로투찰» · `기관낼공사` = 기관 화면 «📣 이 기관이 낼 공사». /pre 는 main.jsx 길 · firebase rewrites · Crumbs(부모 /live) · App 공고 탭 also.
 - 시험: `python3 tools/시험_곧나올공사.py` 11 · `node tools/시험_곧나올공사.mjs` 21(금액 0 이 «1억 미만» 에 섞이던 것 잡음) · 수집 가짜 응답(달 훑기 하루 한 번 · 지난달 계획 버림 · 견본에 이름 없음) · 모의 화면 폰/PC(넘침 0 · 오류 0 · 담기 → 첫 화면 알림 · 기관 화면) · checklabels(「배정예산」 옆 값) · checkimports · checkops · 칸누가 · 공고유형 · 지도이름 다시.
 - G135b 다듬기(소장님 「다듬어」 · 기록 2026-10-05 13:13): 실제 응답 확인 — 발주계획 cnsttyDivNm 은 «종합 / 전문» 구분 → 칩 «종합·전문 전체 · 종합 · 전문», 카드 «전문공사», 펼친 칸 «공사 구분» · 계획마다 조달청이 주는 orderPlanDtlUrl → 펼친 칸 «나라장터에서 이 계획 보기 ↗»(없으면 «나라장터 열기»). 실제 수집 첫 회차: 발주계획 쌓인 1,700(화면 대상 이번 달~ 약 1,160) · 사전규격 49. 시험 python 13 · node 21.
+
+### 185. 🖥 아이콘(앱) — PC 앱 창은 첫 클릭에 브라우저 탭으로 · 설치 띠 X 는 이 탭 동안만 · 설치 수 세기 (G136 — 2026-10-05, 소장님 「설치해도 아이콘만 생기게 해주고, 설치안했을때처럼 보이게 해줘」 → 「너무 복잡해」 「자동으로 돼게 해줘」 → 고름 «① 설치 한 번» · 「x만 누르고 설치하지 않으면 계속 떠야해」 · 기록 2026-10-05 14:08)
+- ⚠️ 사이트가 혼자 바탕화면에 아이콘을 놓는 길은 없음 — 브라우저 «설치»(beforeinstallprompt) 만. 그래서 manifest 는 standalone 그대로(PC 를 display:browser 로 바꾸면 한 번에 설치가 사라짐 — 소장님이 ① 고름).
+- 설치할 때 고른 «창으로 열기» 는 브라우저가 지킴(크롬 문서 «사용자 선택이 늘 우선») → `Install.jsx AppWindowBar`: PC(isPC) + 앱 창(display-mode standalone)일 때만 맨 위 띠, 첫 pointerdown 에 `<a target=_blank>` 를 눌러 같은 주소를 브라우저 탭으로(앱 창에서 window.open 은 앱 창이 또 뜸) → 뒤따르는 click 한 번 막음(⚠️ a.click() 뒤에 걸 것 — 먼저 걸면 탭이 안 열림) → window.close().
+- 설치 띠 · 알약: PC 는 «🖥 바탕화면·작업표시줄 아이콘 만들기 / 🖥 아이콘», 폰은 그대로. X 는 sessionStorage(kcm_install_hide2) — 이 탭 동안만. beforeinstallprompt 가 오면(= 지금 설치 안 됨) kcm_installed 를 지우고 다시 띄움.
+- 설치 수: 예전 기록 없음. 애널리틱스 이벤트 app_open{how: window|tab, device} · app_installed{device} · app_moved — manifest start_url `/?src=app`(id `/` 그대로라 설치 정체 안 바뀜) · 센 뒤 주소의 src 는 뗌.

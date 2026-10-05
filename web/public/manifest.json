@@ -1,7 +1,7 @@
 {
   "name": "K-건설맵 — 바로투찰 · 공공 입찰",
   "short_name": "K-건설맵",
-  "start_url": "/",
+  "start_url": "/?src=app",
   "display": "standalone",
   "background_color": "#f4f6f9",
   "theme_color": "#1d4ed8",
