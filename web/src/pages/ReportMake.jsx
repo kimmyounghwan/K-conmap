@@ -28,6 +28,7 @@ import { getOverview, getBidIndex, indexRows, searchCorp, getCorp } from '../lib
 import { normCorp } from '../lib/fmt.js'
 import { 성적표, 업체목록, 업체찾기, P50_FALLBACK } from '../lib/성적표.js'
 import { 그리기, PDF만들기, 내려받기 } from '../lib/성적표종이.js'
+import { 투찰자리 } from '../lib/투찰자리.js'   /* 📈 G174 투찰 사정률 · 확보 예가 */
 import { 기억됨, 꺼내기, 넣기, 바로되나, 허락받기, 골라서기억 } from '../lib/파일기억.js'
 
 let _fb = null
@@ -252,6 +253,10 @@ export default function ReportMake() {
         set일(자료 ? '⛔ 그 업체의 기록이 없습니다'
                   : '⛔ 3년치 낙찰 기록이 없는 업체입니다 — 떨어진 것까지 보시려면 아래에서 개찰 자료를 여십시오.')
         return
+      }
+      /* 📈 G174 (2026-10-06) 투찰 사정률 구간 · 확보 예가 · 줄그림 — 성적표.js(파이썬과 맞추는 셈)와 따로 셉니다 */
+      if (!d.두달없음 && 자료 && 자료.rows) {
+        try { d.사정률 = 투찰자리(업체.bno, 자료.rows, p50) } catch { d.사정률 = null }
       }
       set셈(d)
       set일('그리는 중…')

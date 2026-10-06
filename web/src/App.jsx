@@ -12,7 +12,7 @@ import { 알림종, 알림띠 } from './알림종.jsx'
 import FirstBar from './FirstBar.jsx'
 import RefreshBtn from './Refresh.jsx'
 import Crumbs, { BackBtn } from './Crumbs.jsx'
-import { 화면조회줄 } from './lib/조회수.jsx'   /* 👁 G121 — 모든 화면 위 «이 화면 조회 N» */
+import { 화면조회줄, 방문자바닥 } from './lib/조회수.jsx'   /* 👁 G121 — 모든 화면 위 «이 화면 조회 N» · 👥 G172 방문자 오늘 · 어제 · 누적 */
 import { use길지킴이 } from './lib/길기록.js'
 
 import { use떨굼막기 } from './끌어놓기.jsx'
@@ -201,6 +201,8 @@ export default function App() {
             <a href="/terms">이용약관</a><span className="dot">·</span>
             <a href="/contact">문의</a>
           </div>
+          {/* 👥 G172 (2026-10-06) 소장님 「일 접속자 공개하는 사이트 많아」 → 「해줘」 — 방문자 오늘 · 어제 · 누적 (lib/조회수.jsx) */}
+          <방문자바닥 />
           {/* 📚 실측으로 쓴 글 — 하단 탭을 늘리지 않고 여기서 들어갑니다 (2026-09-06) */}
           <div style={{ marginTop: 6 }}>
             {/* 🧭 2026-09-27 — <a> 였을 때는 사이트를 통째로 다시 불러와 느리고 보던 자리를 잃었습니다 → Link */}

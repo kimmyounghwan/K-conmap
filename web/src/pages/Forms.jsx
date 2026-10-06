@@ -207,6 +207,23 @@ const 거르기수 = Object.fromEntries(거르기들.map((g) => [g.k, 전부.fil
 const 보기들 = [{ k: 'stage', t: '공사 차례로' }, { k: 'dl', t: '많이 받은 순' }, { k: 'name', t: '가나다순' }]
 const 가나다 = (a, b) => a.title.localeCompare(b.title, 'ko')
 
+/** 🩹 G173 — 이름에 끊을 자리(<wbr>)를 넣습니다: 가운뎃점 · 닫는 괄호 · 쉼표 · 빗금 «뒤», 여는 괄호 «앞».
+ *  아이폰 사파리는 keep-all 일 때 이 자리에서도 줄을 못 바꿔 카드 밖으로 넘쳤습니다(소장님 캡처 「글자가 겹쳐졌어..」). */
+function 끊을자리(글) {
+  /* ⚠️ 정규식 뒤보기((?<=…))는 옛 아이폰(사파리 16.3 아래)에서 화면 묶음 전체를 못 읽게 합니다 — 글자를 하나씩 봅니다 */
+  const 뒤 = '·ㆍ・,/)]'
+  const 앞 = '(['
+  const 조각 = []
+  let 지금 = ''
+  for (const ch of String(글 || '')) {
+    if (앞.includes(ch) && 지금) { 조각.push(지금); 지금 = '' }
+    지금 += ch
+    if (뒤.includes(ch)) { 조각.push(지금); 지금 = '' }
+  }
+  if (지금) 조각.push(지금)
+  return 조각.flatMap((x, i) => (i ? [<wbr key={'w' + i} />, x] : [x]))
+}
+
 /** 큰 그림 카드 — «많이 받은 순 · 가나다순» 과 «많이 받은 서식» 줄 */
 function 그림칸({ f, n, rank }) {
   const th = 썸(f)
@@ -217,7 +234,7 @@ function 그림칸({ f, n, rank }) {
         {th ? <img src={th} alt={`${f.title} 서식 모양`} loading="lazy" decoding="async" /> : <span className="fm-gal-ic">{f.icon}</span>}
         {rank ? <span className="fm-rank">{rank}</span> : null}
       </span>
-      <span className="fm-gal-t">{f.title}</span>
+      <span className="fm-gal-t">{끊을자리(f.title)}</span>
       <span className="fm-gal-m">
         {f.prog && <em className="tlx-new fm-pg">🧰 바로 쓰기</em>}
         {예시 ? <em className="tlx-new fm-ex">✍ 작성 예시</em> : ORIGSET.has(f.slug) ? <em className="tlx-new fm-orig">원본 틀</em> : null}

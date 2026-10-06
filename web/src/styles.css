@@ -64,6 +64,8 @@
 html, body {
   margin: 0;
   padding: 0;
+  /* 🩹 G173 안전망 — 낱말 안 끊기(keep-all · 40곳) 칸에서 띄어쓰기 없는 긴 글이 칸 밖으로 넘칠 때만 그 자리에서 끊습니다(넘치지 않으면 그대로) */
+  overflow-wrap: break-word;
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard",
@@ -3754,6 +3756,16 @@ ul.plainlist li { margin-bottom: 5px; }
 .dlc2 > span { white-space: nowrap; }
 /* 👁 G121 — 화면 위 «이 화면 조회 N» · 공고 카드 «👁 N» (lib/조회수.jsx) */
 .pvline { font-size: 11.5px; color: var(--muted); text-align: right; margin: 0 2px 6px; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* 👥 G172 방문자 «오늘 · 어제 · 누적» — 조회 줄 왼쪽 · 좁으면 두 줄(오른쪽 정렬 그대로) */
+.pvline { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: baseline; gap: 2px 12px; }
+.pvline .vsline { color: inherit; text-decoration: none; white-space: nowrap; }
+.pvline .vsline b { color: var(--text); font-weight: 800; }
+.pvline .vsline:hover b { text-decoration: underline; }
+.pvline .pvnum { white-space: nowrap; }
+.vsdot { margin: 0 4px; opacity: .6; }
+.vsfoot { margin-top: 6px; font-variant-numeric: tabular-nums; }
+.vsfoot b { font-weight: 800; }
+.vsfoot .vsnote { opacity: .75; font-size: .92em; white-space: nowrap; display: inline-block; }
 .nvcount { font-size: 11.5px; color: var(--muted); font-weight: 600; white-space: nowrap; margin-right: 6px; font-variant-numeric: tabular-nums; }
 @media print { .pvline { display: none; } }
 .tlx-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
@@ -5078,7 +5090,10 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 .fm-rank { position: absolute; left: 6px; top: 6px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px;
   background: var(--accent); color: #fff; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center;
   font-variant-numeric: tabular-nums; }
-.fm-gal-t { font-size: 13px; font-weight: 800; line-height: 1.4; word-break: keep-all; }
+/* 🩹 G173 (2026-10-06) 소장님 폰 캡처 「글자가 겹쳐졌어..」 — «착공서류(착공계·직접시공계획서·안전관리)» 처럼 띄어쓰기 없는 긴 이름을
+   아이폰 사파리는 keep-all 때문에 «·» «( )» 에서도 못 끊어 112px 카드 밖으로 넘쳐 옆 카드 이름과 겹쳤습니다.
+   → 넘치면 그 자리에서 끊기(anywhere — 칸 폭 셈에도 들어감) + 그림칸이 가운뎃점 · 괄호 자리에 <wbr> 를 넣어 먼저 거기서 끊깁니다(Forms.jsx 끊을자리). */
+.fm-gal-t { font-size: 13px; font-weight: 800; line-height: 1.4; word-break: keep-all; overflow-wrap: anywhere; min-width: 0; }
 .fm-gal-m { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .fm-gal-m .tlx-new { margin-left: 0; font-size: 10px; vertical-align: 0; }
 .fm-top-row { display: grid; grid-auto-flow: column; grid-auto-columns: 132px; gap: 12px; overflow-x: auto;

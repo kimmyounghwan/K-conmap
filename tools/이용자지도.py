@@ -156,7 +156,9 @@ def 합치기(옛, 도시들, 지금시각, 전국=None):
 #   소장님: 「누적은 9월 15일 부터 … 애널리틱스 처럼 누적으로 서울 몇명, 부산 몇명, 실시간으로 올라가게」 · 「오늘도 카운트 할까?」
 #   애널리틱스 «사용자 › 지역» 과 같은 셈 = activeUsers · 지역(region) · 대한민국만. 10분마다(지도와 같이).
 #   ⚠️ 애널리틱스 보통 보고서는 실시간보다 늦게(몇십 분~몇 시간) 채워집니다 — 숫자는 그만큼 늦게 올라갑니다.
-#   fresh/reg = {at, from, d(오늘 · 한국), kr: {a 누적, t 오늘}, r: {지역(영어): {a, t}}}
+#   fresh/reg = {at, from, d(오늘 · 한국), kr: {a 누적, t 오늘, y 어제}, r: {지역(영어): {a, t}}}
+#   👥 G172 (2026-10-06) 소장님 「일 접속자 공개하는 사이트 많아」 → 「해줘」 — 모든 화면 위 · 바닥에 «오늘 · 어제 · 누적»
+#      어제(y)는 전국 요청에만 하나 더(지역 요청은 그대로). 화면은 web/src/lib/조회수.jsx 방문자줄 · lib/이용자지도.js 방문수.
 def 지역묶기(rows, 이름들=("a", "t")):
     """[countryId, region, dateRange] · [activeUsers] → {지역: {a, t}} — KR 만 · 0 은 뺌 · (not set) → «notset»"""
     out = {}
@@ -179,12 +181,12 @@ def 지역묶기(rows, 이름들=("a", "t")):
 
 
 def 전국묶기(rows):
-    """[countryId, dateRange] · [activeUsers] → {a, t} — KR 만"""
+    """[countryId, dateRange] · [activeUsers] → {a, t, y} — KR 만 (y 어제 — G172)"""
     out = {}
     for row in rows or []:
         d = [x.get("value", "") for x in row.get("dimensionValues") or []]
         m = [x.get("value", "0") for x in row.get("metricValues") or []]
-        if len(d) < 2 or d[0] != "KR" or d[1] not in ("a", "t"):
+        if len(d) < 2 or d[0] != "KR" or d[1] not in ("a", "t", "y"):
             continue
         try:
             out[d[1]] = out.get(d[1], 0) + int(float(m[0]))
@@ -198,7 +200,8 @@ def _지역요청(tok, 나눔):
         f"https://analyticsdata.googleapis.com/v1beta/properties/{GA_PROPERTY}:runReport",
         headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"},
         data=json.dumps({"dateRanges": [{"startDate": 조회시작, "endDate": "today", "name": "a"},
-                                        {"startDate": "today", "endDate": "today", "name": "t"}],
+                                        {"startDate": "today", "endDate": "today", "name": "t"}]
+                                       + ([] if 나눔 else [{"startDate": "yesterday", "endDate": "yesterday", "name": "y"}]),
                          "dimensions": [{"name": "countryId"}] + ([{"name": "region"}] if 나눔 else []),
                          "metrics": [{"name": "activeUsers"}],
                          "dimensionFilter": {"filter": {"fieldName": "countryId", "stringFilter": {"value": "KR"}}},
@@ -214,8 +217,8 @@ def 지역넣기(ctx, dry=False):
     r = 지역묶기(_지역요청(tok, True))
     kr = 전국묶기(_지역요청(tok, False))
     새 = {"at": int(지금().timestamp() * 1000), "from": 조회시작, "d": 지금().strftime("%Y-%m-%d"),
-          "kr": {"a": kr.get("a", 0), "t": kr.get("t", 0)}, "r": r or None}
-    적기(f"  · 지역 {len(r)}곳 · 전국 누적 {새['kr']['a']:,} · 오늘 {새['kr']['t']:,}")
+          "kr": {"a": kr.get("a", 0), "t": kr.get("t", 0), "y": kr.get("y", 0)}, "r": r or None}
+    적기(f"  · 지역 {len(r)}곳 · 전국 누적 {새['kr']['a']:,} · 오늘 {새['kr']['t']:,} · 어제 {새['kr']['y']:,}")
     if dry:
         return 새
     q = requests.put(f"{DB}/fresh/reg.json", headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"},

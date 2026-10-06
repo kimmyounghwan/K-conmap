@@ -136,6 +136,7 @@ r3 = lambda c, g, dr, n: {"dimensionValues": [{"value": c}, {"value": g}, {"valu
   지 == {"Seoul": {"a": 120, "t": 7}, "Jeollanam-do": {"a": 33}, "notset": {"a": 4}, "Busan": {"a": 15}, "St_X": {"a": 1}}, 지)
 r2 = lambda c, dr, n: {"dimensionValues": [{"value": c}, {"value": dr}], "metricValues": [{"value": str(n)}]}
 봄("전국묶기 — KR 누적 · 오늘", M.전국묶기([r2("KR", "a", 170), r2("KR", "t", 9), r2("US", "a", 3)]) == {"a": 170, "t": 9})
+봄("전국묶기 — 어제 y (G172)", M.전국묶기([r2("KR", "a", 170), r2("KR", "t", 9), r2("KR", "y", 21), r2("US", "y", 4), r2("KR", "z", 5)]) == {"a": 170, "t": 9, "y": 21})
 본몸 = []
 def 가짜post3(url, **k):
     if "runRealtimeReport" in url:
@@ -147,7 +148,7 @@ def 가짜post3(url, **k):
     if [d["name"] for d in b["dimensions"]] == ["countryId", "region"]:
         return 답(200, {"rows": [r3("KR", "Seoul", "a", 120), r3("KR", "Seoul", "t", 7)]})
     if [d["name"] for d in b["dimensions"]] == ["countryId"]:
-        return 답(200, {"rows": [r2("KR", "a", 150), r2("KR", "t", 8)]})
+        return 답(200, {"rows": [r2("KR", "a", 150), r2("KR", "t", 8), r2("KR", "y", 13)]})
     return 답(200, {"rows": []})
 M.requests.post = 가짜post3
 보낸.clear(); ctx = {"sa": {}, "pv_t": __import__("time").time()}
@@ -155,10 +156,13 @@ M.한번(ctx)
 reg = [_j.loads(d.decode("utf-8")) for u, d in 보낸 if u.endswith("/fresh/reg.json")]
 mp = [_j.loads(d.decode("utf-8")) for u, d in 보낸 if u.endswith("/fresh/map.json")]
 지요청 = [b for b in 본몸 if b["dimensions"][0]["name"] == "countryId"]
-봄("지역 요청 — 9/15~today(a) · today(t) · activeUsers · KR 거르기",
-  len(지요청) == 2 and all(b["dateRanges"] == [{"startDate": "2026-09-15", "endDate": "today", "name": "a"}, {"startDate": "today", "endDate": "today", "name": "t"}]
-                          and b["metrics"] == [{"name": "activeUsers"}] and b["dimensionFilter"]["filter"]["stringFilter"]["value"] == "KR" for b in 지요청), 지요청[:1])
-봄("fresh/reg 넣음 — {at, from, d, kr, r}", len(reg) == 1 and reg[0]["kr"] == {"a": 150, "t": 8} and reg[0]["r"] == {"Seoul": {"a": 120, "t": 7}} and reg[0]["from"] == "2026-09-15" and len(reg[0]["d"]) == 10, reg[:1])
+_at = [{"startDate": "2026-09-15", "endDate": "today", "name": "a"}, {"startDate": "today", "endDate": "today", "name": "t"}]
+_y = [{"startDate": "yesterday", "endDate": "yesterday", "name": "y"}]
+봄("지역 요청 — 9/15~today(a) · today(t) · activeUsers · KR 거르기 · 전국에만 어제(y · G172)",
+  len(지요청) == 2 and all(b["dateRanges"] == (_at if len(b["dimensions"]) == 2 else _at + _y)
+                          and b["metrics"] == [{"name": "activeUsers"}] and b["dimensionFilter"]["filter"]["stringFilter"]["value"] == "KR" for b in 지요청)
+  and sorted(len(b["dimensions"]) for b in 지요청) == [1, 2], 지요청[:2])
+봄("fresh/reg 넣음 — {at, from, d, kr, r}", len(reg) == 1 and reg[0]["kr"] == {"a": 150, "t": 8, "y": 13} and reg[0]["r"] == {"Seoul": {"a": 120, "t": 7}} and reg[0]["from"] == "2026-09-15" and len(reg[0]["d"]) == 10, reg[:1])
 봄("fresh/map 에 지금 전국 n = 3", len(mp) == 1 and mp[0]["n"] == 3, mp[:1])
 print("✓ 모두 맞음" if not 틀림 else f"✗ {틀림}개 틀림")
 sys.exit(1 if 틀림 else 0)

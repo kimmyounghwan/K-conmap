@@ -127,6 +127,24 @@ export function 지역줄들(자료, 지금시각 = Date.now()) {
   return { 줄, 전국: { a: Number(kr.a) || 0, t: 오늘날 ? (Number(kr.t) || 0) : 0 }, 오늘날, at: 자료.at }
 }
 
+/** 👥 G172 (2026-10-06) 소장님 「일 접속자 공개하는 사이트 많아」 → 「해줘」 — 모든 화면 위 · 바닥 «오늘 · 어제 · 누적»
+ *  fresh/reg.kr = {a 누적(9/15부터), t 오늘, y 어제} (tools/이용자지도.py · 10분마다 · 애널리틱스 활성 사용자 · 대한민국)
+ *  → { 오늘, 어제, 누적, at } — 오늘/어제는 모르면 null(그 칸은 안 그림)
+ *  · 자료 날짜(d)가 한국 오늘이면 오늘 = t · 어제 = y
+ *  · 자정을 넘겨 아직 새로 안 받았으면(d = 어제) 오늘 = null · 어제 = t (그날의 «오늘» 이 곧 어제)
+ *  · 그보다 오래됐으면 누적만 · 누적이 0 이면 null(아무것도 안 그림) */
+export function 방문수(자료, 지금시각 = Date.now()) {
+  const kr = 자료 && 자료.kr
+  const a = kr ? Number(kr.a) || 0 : 0
+  if (!(a > 0)) return null
+  const 오늘 = 한국날(지금시각)
+  const 어제 = 한국날(지금시각 - 86400000)
+  const 수 = (v) => (v == null || !isFinite(Number(v)) ? null : Math.max(0, Math.round(Number(v))))
+  if (자료.d === 오늘) return { 오늘: 수(kr.t), 어제: 수(kr.y), 누적: a, at: 자료.at }
+  if (자료.d === 어제) return { 오늘: null, 어제: 수(kr.t), 누적: a, at: 자료.at }
+  return { 오늘: null, 어제: null, 누적: a, at: 자료.at }
+}
+
 /** 개설일부터 오늘(한국)까지 며칠째 — 연 날이 1일째 */
 export function 날째(지금시각 = Date.now()) {
   const 오늘 = Date.parse(한국날(지금시각) + 'T00:00:00Z')

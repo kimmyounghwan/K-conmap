@@ -8,24 +8,47 @@
  *   ■ 끝나는 날(아래 «까지») 이 지나면 저절로 안 뜸. «주말 잘 보내세요» 는 연휴가 끝나는 날까지, 그 뒤엔 «늘 안전한 현장».
  *   ■ 관리자 화면 · 검색 로봇 · 인쇄에는 안 나옵니다. 그 공지 글을 보고 있는 화면(/qna/글번호)에서는 창을 저절로 띄우지 않습니다.
  *   ■ 글은 사랑방 글(«[후기·건의] 📢 공지 · 찾아 주셔서 고맙습니다» · K-건설맵)과 같은 글 — 고치면 둘 다.
+ *
+ * 🛠 G176 (2026-10-07) 소장님 「이번에 고친것 정리해서 간단히 공지로 띄우자. 예전 공지는 제거하고… 먼저 보여줘」
+ *   → 감사 공지(2026-10-감사)를 내리고 «새로 넣고 고친 것» 공지로 바꿈. 판 = '2026-10-고침' (예전 공지를 닫은 분에게도 새로 뜸) · 10월 18일까지.
+ *   · 맵톡 공지 글과 잇지 않음(새 글을 올리지 않음 — 띠 · 창만). 맵톡의 옛 감사 공지 글은 그대로 둠(소장님 「맵톡 공지는 그대로 유지」). 맨 아래 «💬 맵톡에 고칠 점 남기기» 는 맵톡 첫 화면으로.
+ *   · 숨은 누적: |공지|보기(띠의 «공지 보기») · |공지|누름(창 안 도구 링크 · 맵톡).
  */
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
 import { 로봇 as 로봇글 } from './lib/인사.js'
+import { 세기 } from './lib/받은수.jsx'
 
-const 판 = '2026-10-감사'
-const 까지 = '2026-10-11'          /* 이 날까지 보임 */
-const 연휴끝 = '2026-10-05'        /* 개천절 연휴(10.3 토 · 4 일 · 5 월 대체공휴일) */
-const 글주소 = '/qna/-P2vCUv665xH_5zFrBr6'   /* 맵톡 공지 글 */
+const 판 = '2026-10-고침'
+const 까지 = '2026-10-18'          /* 이 날까지 보임 */
 const 열쇠 = 'kcm_notice_hide'      /* 다시 보지 않기(띠 ✕ 도 같음) — localStorage */
 const 본열쇠 = 'kcm_notice_seen'    /* 이번에 한 번 봤음 — sessionStorage(창을 닫으면 그 창 동안은 다시 안 띄움) */
 const 한국오늘 = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)
 const 로봇 = () => { try { return 로봇글(navigator.userAgent || '') } catch (e) { return false } }
 const 닫았나 = () => { try { return localStorage.getItem(열쇠) === 판 } catch (e) { return false } }
 const 봤나 = () => { try { return sessionStorage.getItem(본열쇠) === 판 } catch (e) { return false } }
+let 누름셌다 = false
+const 누름 = () => { if (!누름셌다) { 누름셌다 = true; 세기('|공지|누름') } }
 
-function 공지창({ 오늘, 닫기, 그만 }) {
+/* 이번에 새로 넣고 고친 것 — [아이콘, 이름, 주소, 한 줄] */
+const 고친것 = [
+  /* 소장님 「사랑방도 맵톡으로 새롭게 이용자에게 더 친숙하게 수정」 — G147~G161(10/5~10/6) */
+  ['🗺', '맵톡 (옛 사랑방)', '/qna', '사랑방을 맵톡으로 새로 꾸몄습니다. 지도 위 칸에 바로 쓰면 내 시·군에 핀이 꽂히고, 답글이 달리면 알림이 갑니다. 사진 · 파일도 붙일 수 있습니다'],
+  ['🤝', '하도급 내역서 만들기', '/naeyeok/hado', '원도급 내역서를 넣고 율 하나만 정하면 대비표 · 대상내역서 · 하도급 내역서 · 직접시공 원가계산서까지 한 벌로'],
+  ['📉', '내역서 비율 맞추기', '/naeyeok/ratio', '올린 엑셀 틀 그대로(원가계산서까지) 낙찰금액에 맞춰 드립니다'],
+  /* 소장님 「그리고 현장 노무자 넣기, 빼기도 수정」 — G162(10/6 · 맵톡 이용자 건의) */
+  ['👷', '노무비 계산기 — 노무자 넣기 · 빼기', '/tools/nomubi', '명단을 달마다 따로 둡니다. 이 달에 빼도 지난달 지급명세서는 그대로 남고, 일당을 고치면 이 달부터 바뀝니다'],
+  /* 소장님 「3D, pdf 이것도 고쳤잖아」 — G137~G139(10/5) · G118(10/2) */
+  ['🧊', '도면 3D 보기', '/tools/dxf3d', '도곽(박스)마다 나눠 세우고 측량 기준점으로 자리를 맞춥니다. 횡단을 노선 따라 세우고, 터파기 · 되메우기 · 성토 면적과 평균단면법 물량을 엑셀로'],
+  ['🖨', '도면 PDF 만들기', '/tools/dxfpdf', '한 파일에 도면이 여러 장 있으면 도곽(박스)마다 한 장씩 나눠 뽑습니다'],
+  ['🛡', '일용직 4대보험 설명', '/tools/ilyong-guide', '어느 사업장으로 신고하나 · 고지서에 그 달분이 없을 때 · 이미 본사로 신고했을 때'],
+  ['💰', '바로투찰', '/', '공고에서 넘어왔을 때 계산기가 안 뜨던 것을 고쳤습니다'],
+  ['👥', '방문자 수', '/', '모든 화면 위에 오늘 · 어제 · 누적 방문자를 띄웠습니다'],
+  ['📄', '서식', '/forms', '아이폰에서 서식 이름이 옆 카드와 겹치던 것을 고쳤습니다'],
+]
+
+function 공지창({ 닫기, 그만 }) {
   const 상자 = useRef(null)
   const 닫기글 = useRef(닫기)
   닫기글.current = 닫기
@@ -37,30 +60,28 @@ function 공지창({ 오늘, 닫기, 그만 }) {
     try { 상자.current && 상자.current.focus({ preventScroll: true }) } catch (e) { /* 옛 브라우저 */ }
     return () => { window.removeEventListener('keydown', 키); document.body.style.overflow = 전 }
   }, [])
-  const 연휴 = 오늘 <= 연휴끝
+  const 감 = () => { 누름(); 닫기() }
   /* 몸(body)에 바로 붙임 — 화면 틀 안에 두면 아래 탭바(메뉴)가 창 위로 올라옴(폰에서 실제로 그랬음) */
   return createPortal(
     <div className="noticepop" onClick={(e) => { if (e.target === e.currentTarget) 닫기() }}>
       <div className="noticepop-c" role="dialog" aria-modal="true" aria-labelledby="noticepop-h" tabIndex={-1} ref={상자}>
         <button type="button" className="noticepop-x" aria-label="공지 닫기" onClick={닫기}>✕</button>
         <div className="noticepop-tag">📢 공지</div>
-        <h2 id="noticepop-h" className="noticepop-h">찾아 주셔서 고맙습니다</h2>
+        <h2 id="noticepop-h" className="noticepop-h">새로 넣고 고친 것</h2>
         <div className="noticepop-b">
-          <p>안녕하십니까, K-건설맵을 만든 토목 현장소장입니다.</p>
-          <p>문을 연 지 아직 한 달이 채 안 됐는데, 생각보다 훨씬 많은 분들이 찾아 주셨습니다. 현장에서, 사무실에서 열어 봐 주시고 글도 남겨 주셔서 <b>정말 고맙습니다.</b></p>
-          <p>오늘은 경리·공무 일을 덜어 드릴 프로그램 세 가지를 더 올렸습니다.</p>
+          <p>안녕하십니까, K-건설맵을 만든 토목 현장소장입니다. 요 며칠 새로 넣고 고친 것을 알려 드립니다.</p>
           <ul>
-            <li><Link to="/tools/singo" onClick={닫기}>📮 매달 신고 정리</Link> — 원천세·지방소득세·근로내용 확인신고·퇴직공제 기한과 넣을 숫자를 한 화면에</li>
-            <li><Link to="/tools/toejik" onClick={닫기}>👷 퇴직공제 집계</Link> — 입찰공고일에 맞는 일액으로 근로일수·부금 계산, 계상액과 비교</li>
-            <li><Link to="/tools/boheomryo" onClick={닫기}>🧾 고용·산재 보험료</Link> — 개산·확정·분할 납부 기한까지</li>
+            {고친것.map(([ic, 이름, 주소, 줄]) => (
+              <li key={이름}><Link to={주소} onClick={감}>{ic} {이름}</Link> — {줄}</li>
+            ))}
           </ul>
-          <p>노무비 계산기에 적은 출역을 그대로 쓰니 다시 적지 않으셔도 됩니다. 해마다 바뀌는 요율도 원문을 확인해 한 곳에서 챙기겠습니다.</p>
-          <p>쓰시다가 불편한 점이나 틀린 곳, «이런 것도 있으면 좋겠다» 싶은 것은 맵톡에 편하게 남겨 주십시오. 하나하나 읽고 고쳐 나가겠습니다.</p>
-          <p>{연휴 ? <>이번 주말은 개천절 연휴네요. <b>푹 쉬시고, 즐거운 주말 보내십시오.</b></> : <b>늘 안전한 현장 되십시오.</b>}</p>
+          <p>여기 화면과 도구는 모두 <b>자유롭게</b> 쓰실 수 있습니다. 도구는 지금도 고쳐 나가는 중입니다.
+            써 보시고 고칠 점이 보이면 맵톡에 한 줄 남겨 주십시오. <b>남겨 주신 한 줄로 다음 판을 고칩니다.</b></p>
+          <p><b>늘 안전한 현장 되십시오.</b></p>
           <p className="noticepop-sign">— 토목 현장소장 김명환 · K-건설맵</p>
         </div>
         <div className="noticepop-f">
-          <Link className="btn line sm" to={글주소} onClick={닫기}>💬 맵톡에서 보기 · 답글</Link>
+          <Link className="btn line sm" to="/qna" onClick={감}>💬 맵톡에 고칠 점 남기기</Link>
           <button type="button" className="btn line sm" onClick={그만}>다시 보지 않기</button>
           <button type="button" className="btn sm" onClick={닫기}>닫기</button>
         </div>
@@ -73,8 +94,8 @@ function 공지창({ 오늘, 닫기, 그만 }) {
 export default function 감사공지() {
   const { pathname } = useLocation()
   const [닫힘, set닫힘] = useState(() => 닫았나())
-  /* 창 — 이 창(탭)을 연 뒤 처음 한 번 저절로. 그 공지 글을 보는 화면에서는 저절로 안 띄움 */
-  const [창, set창] = useState(() => !닫았나() && !봤나() && pathname !== 글주소)
+  /* 창 — 이 창(탭)을 연 뒤 처음 한 번 저절로 */
+  const [창, set창] = useState(() => !닫았나() && !봤나())
   const 오늘 = 한국오늘()
   if (닫힘 || 오늘 > 까지 || 로봇() || pathname.startsWith('/admin')) return null
   const 본표 = () => { try { sessionStorage.setItem(본열쇠, 판) } catch (e) { /* 사생활 창 */ } }
@@ -83,12 +104,11 @@ export default function 감사공지() {
   return (
     <>
       <div className="noticebar" role="note">
-        <span className="t">🙏 문을 연 지 한 달도 안 됐는데 많은 분들이 찾아 주셨습니다 — <b>고맙습니다!</b>
-          {오늘 <= 연휴끝 ? ' 개천절 연휴, 즐거운 주말 보내십시오.' : ' 늘 안전한 현장 되십시오.'}</span>
-        <button type="button" className="go" onClick={() => set창(true)}>공지 보기</button>
+        <span className="t">🛠 <b>새로 넣고 고친 것</b> — 맵톡(옛 사랑방) · 하도급 내역서 · 비율 맞추기 · 노무자 넣기·빼기 · 도면 3D · PDF 외</span>
+        <button type="button" className="go" onClick={() => { 세기('|공지|보기'); set창(true) }}>공지 보기</button>
         <button type="button" className="x" aria-label="공지 닫기" title="닫기 — 이 공지는 다시 안 뜹니다" onClick={그만}>✕</button>
       </div>
-      {창 && <공지창 오늘={오늘} 닫기={창닫기} 그만={그만} />}
+      {창 && <공지창 닫기={창닫기} 그만={그만} />}
     </>
   )
 }
