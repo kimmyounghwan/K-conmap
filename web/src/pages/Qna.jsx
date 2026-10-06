@@ -1096,6 +1096,17 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
   const 답이름 = (a) => (a ? (a.op ? 'K-건설맵' : (a.nick || '익명')) : '')
   const 글쓴이 = row.c === 'K-건설맵' || isOp(row.uid) ? 'K-건설맵' : (row.nick || '익명')
   const [답할, set답할] = useState(null)          // 답글쓰기를 누른 답글 번호(null = 맨 아래 칸 · 원글에게)
+  /* 🗑 G163 (2026-10-06) 소장님 「답글 지워줘」 「왜 지우기가 없지」 — 내 답글(이 기기 번호 · 되찾은 번호)은 그 자리에서 지움.
+     규칙(qna_a)이 원래 «쓴 번호만 고침» 이라 deleted 만 참으로 — 숫자 없이 · 한 번 더 물음(창 대신 그 자리) · 지운 답글 아래 답은 살아 있는 줄기에 붙음(답나무) */
+  const [답지울, set답지울] = useState(null)
+  const 답지우기 = async (a) => {
+    try {
+      const { ref, set, db, ensureAnon } = await loadFb()
+      await ensureAnon()
+      await set(ref(db, `qna_a/${row.id}/${a.id}/deleted`), true)
+      set답지울(null); 세기('|맵톡|답지움'); onChange()
+    } catch (e) { set답지울(null); setMsg('이 기기에서 쓴 답글만 지울 수 있습니다. 다른 기기에서 쓰셨다면 먼저 «🔑 내 글 되찾기».') }
+  }
   const [반짝, set반짝] = useState(null)
   const 상자들 = useRef({})
   const 아래칸 = useRef(null)
@@ -1147,6 +1158,11 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
                 onClick={() => 좋(`qna_alike/${row.id}/${a.id}`, !눌렀나(답좋아요[a.id]))}>♥ {Object.keys(답좋아요[a.id] || {}).length}</button>}
           <button type="button" className={'mt-reply' + (답할 === a.id ? ' on' : '')} onClick={() => set답할((v) => (v === a.id ? null : a.id))}
             aria-label={`${답이름(a)} 님에게 답글쓰기 · 받은 답글 ${n}`}>↩ 답글쓰기{n > 0 && <em> · {n}</em>}</button>
+          {내번호(a.uid) && (답지울 === a.id
+            ? <span className="mt-adel-ask">이 답글을 지울까요?
+                <button type="button" className="mt-adel-yes" onClick={() => 답지우기(a)}>지우기</button>
+                <button type="button" className="mt-adel-no" onClick={() => set답지울(null)}>그대로</button></span>
+            : <button type="button" className="mt-adel" onClick={() => set답지울(a.id)} aria-label="내 답글 지우기">🗑 지우기</button>)}
         </div>
         {답할 === a.id && (
           <AnswerForm qid={row.id} to={a.id} 받는이={답이름(a)} 인용={첫줄(가림(a.b), 40)} 열림
