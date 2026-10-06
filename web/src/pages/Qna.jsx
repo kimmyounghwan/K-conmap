@@ -662,6 +662,9 @@ export default function Qna() {
                 {톡 === r.id && <span className="mt-burst" aria-hidden="true"><s /><s /><s /><s /><s /><s /></span>}
               </button>}
           <button type="button" className="mt-act" onClick={() => 열기(r.id)} aria-label={`답글 ${n}`}>💬 {n}</button>
+          {/* 👁 G156 (2026-10-06) 소장님 「맵톡에 왜 조회가 없지? 이거 꼭 있어야 해....」 — 세기는 G95 그대로(같은 기기 하루 한 번 ·
+              글쓴이 본인 · 운영자 · 검색 로봇은 안 셈). 전엔 글을 펼쳐야만 · 1 이상일 때만 보였습니다 → 카드마다 늘 보이게. */}
+          <span className="mt-act mt-view" title="조회 — 같은 기기는 하루 한 번만 셉니다(글쓴이 · 운영자는 안 셈)" aria-label={`조회 ${조회[r.id] || 0}`}>👁 {Number(조회[r.id] || 0).toLocaleString('ko-KR')}</span>
           {op답(r.id) && r.c !== 'K-건설맵' && !isOp(r.uid) && <span className="mt-ok">✅ K-건설맵</span>}
           {!n && 물음인가(r.t + ' ' + (r.b || '')) && <button type="button" className="mt-ask" onClick={() => 열기(r.id)}>답하기</button>}
           <span className="mt-nick">{배지(r.uid)}{r.nick || '익명'}{내것.has(r.id) ? ' · 내 글' : ''}</span>
@@ -1167,7 +1170,7 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
               onClick={() => 좋(`qna_like/${row.id}`, !눌렀나(좋아요))}>👍 도움됐어요 {Object.keys(좋아요).length}</button>}
         {/* 💬 2026-09-29 — 이 글만 여는 주소(검색 · 카톡으로 보내기). 그 주소로 가면 이 글이 맨 위에 펼쳐집니다 */}
         <Link className="qna-permalink" to={`/qna/${row.id}`}>🔗 이 글 주소</Link>
-        {조회수 > 0 && <span className="muted" style={{ fontSize: 12.5 }}>👁 조회 {Number(조회수).toLocaleString('ko-KR')}</span>}
+        <span className="muted" style={{ fontSize: 12.5 }} title="같은 기기는 하루 한 번만 셉니다(글쓴이 · 운영자는 안 셈)">👁 조회 {Number(조회수 || 0).toLocaleString('ko-KR')}</span>
         <button type="button" className="mt-reply" onClick={원글에게} aria-label={`글쓴이 ${글쓴이} 님에게 답글쓰기 · 받은 답글 ${나무.원글받은수}`}>
           ↩ 답글쓰기{나무.원글받은수 > 0 && <em> · {나무.원글받은수}</em>}
         </button>
