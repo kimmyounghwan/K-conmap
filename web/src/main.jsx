@@ -71,6 +71,7 @@ const Naeyeok = lazyPage(() => import('./pages/Naeyeok.jsx'))
 /* 📉 내역서 비율 맞추기 — 2026-09-18. 하도급률·실행률·낙찰률이 같은 셈입니다.
    브라우저에서 엑셀을 읽고 쓰느라 무거워서 반드시 lazyPage 입니다. */
 const Ratio = lazyPage(() => import('./pages/Ratio.jsx'))
+const Hado = lazyPage(() => import('./pages/Hado.jsx'))   /* 🤝 2026-10-06 (G171) 하도급 내역서 만들기 — 6장 한 벌 */
 const Qna = lazyPage(() => import('./pages/Qna.jsx'))
 /* 🛠 관리자 — 소장님만. 검색엔진에 안 올립니다(Admin.jsx 가 noindex 를 겁니다). */
 const Admin = lazyPage(() => import('./pages/Admin.jsx'))
@@ -259,6 +260,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/how" element={<Suspense fallback={<Loading />}><How /></Suspense>} />
           <Route path="/naeyeok" element={<Suspense fallback={<Loading />}><Naeyeok /></Suspense>} />
           <Route path="/naeyeok/ratio" element={<Suspense fallback={<Loading />}><Ratio /></Suspense>} />
+          <Route path="/naeyeok/hado" element={<Suspense fallback={<Loading />}><Hado /></Suspense>} />
           <Route path="/guide" element={<Suspense fallback={<Loading />}><Guide /></Suspense>} />
           <Route path="/guide/:slug" element={<Suspense fallback={<Loading />}><GuideTopic /></Suspense>} />
           <Route path="/daily" element={<DailyIndex />} />

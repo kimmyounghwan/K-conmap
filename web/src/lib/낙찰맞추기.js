@@ -118,7 +118,8 @@ export function 원가표찾기(격자들, 뺄시트 = []) {
           if (typeof v === 'number') 수.push(v)
           else { const n = 숫자(v); if (n !== null) 수.push(n); else 글.push(String(v)) }
         }
-        rows.push({ 줄: r + 1, 이름, 꼴: 원가꼴(이름), 구분, 금액: 금, 금액칸: i금액, 옛글: row[i금액], 글, 수, 근거: 글.join(' ') })
+        rows.push({ 줄: r + 1, 이름, 꼴: 원가꼴(이름), 구분, 금액: 금, 금액칸: i금액, 옛글: row[i금액], 글, 수, 근거: 글.join(' '),
+          원이름: 이름칸 >= 0 ? String(row[이름칸] ?? '').trim() : 이름 })   /* 원이름 = 띄어 쓴 그대로(G171 하도급 대비표가 원본 글자 그대로 씀) */
       }
       if (rows.filter((x) => x.금액 !== null).length >= 5) {
         for (const x of rows) x.역 = 역할(x.꼴)
