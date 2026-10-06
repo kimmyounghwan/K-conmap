@@ -621,23 +621,15 @@ export default function Qna() {
       .sort((a, b) => b[1] - a[1]).slice(0, 2).map(([id]) => id))
   }, [list, 좋아요, ans, 조회])   // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* 👍 카드에서 바로 — 누르면 톡톡 튀고 숫자가 올라갑니다(내 글은 셈만) */
-  const [톡, set톡] = useState(null)
-  const 카드공감 = async (r) => {
-    if (!나 || r.uid === 나.uid || r.uid === 나.r) return
-    const 눌림 = !!(좋아요[r.id] || {})[나.r]
-    if (!눌림) { set톡(r.id); setTimeout(() => set톡((v) => (v === r.id ? null : v)), 700) }
-    const ok = await 좋아요누름(`qna_like/${r.id}`, !눌림)
-    if (ok && !눌림) 세기('|맵톡|공감')
-  }
-
+  /* ♥ G157 (2026-10-06) 소장님 「다른 사이트 처럼,,,하트가 안으로 들어가고」 「하트도 보여야 하고, 글쓰기가 안으로 들어가야 하지 않아?」
+     카드에서 바로 누르던 ♥ 공감을 뺐습니다 — 카드는 숫자(♥ 공감 · 💬 답글 · 👁 조회), 누르기 · 쓰기는 글을 열고 안에서.
+     단 답 없는 질문의 «답하기» 는 남김(답을 부르는 단추) — 누르면 답글 칸이 열린 채로 엽니다(답하러). */
+  const [답하러, set답하러] = useState(null)
   const 카드 = (r) => {
     const t = 주제들[r.주제] || 주제들.talk
     const n = nAns(r.id)
     const 곳 = r.g ? 곳찾기(지도바탕, r.g) : null
     const 크기 = 카드크기(r, 큰글.has(r.id) ? 0 : undefined)
-    const 내번호 = !!나 && (r.uid === 나.uid || r.uid === 나.r)
-    const 눌림 = !!나 && !!(좋아요[r.id] || {})[나.r]
     const 제목 = 가림(r.t)
     const 본문 = 가림(r.b || '')
     return (
@@ -655,18 +647,15 @@ export default function Qna() {
           {본문 && <span className="mt-rest">{본문.slice(0, 160)}</span>}
         </button>
         <div className="mt-foot">
-          {내번호
-            ? <span className="mt-act" title="내 글 — 공감은 다른 분이 누릅니다">♥ {n좋아요(r.id)}</span>
-            : <button type="button" className={'mt-act' + (눌림 ? ' liked' : '')} onClick={() => 카드공감(r)} aria-label={`공감 ${n좋아요(r.id)}`} aria-pressed={눌림}>
-                ♥ <span key={n좋아요(r.id)} className={'mt-num' + (톡 === r.id ? ' roll' : '')}>{n좋아요(r.id)}</span>
-                {톡 === r.id && <span className="mt-burst" aria-hidden="true"><s /><s /><s /><s /><s /><s /></span>}
-              </button>}
-          <button type="button" className="mt-act" onClick={() => 열기(r.id)} aria-label={`답글 ${n}`}>💬 {n}</button>
+          {/* 숫자만 — 누르면 글이 열리고, 공감 · 답글은 그 안에서 */}
+          <button type="button" className="mt-act mt-cnt" onClick={() => 열기(r.id)} aria-label={`공감 ${n좋아요(r.id)} · 글 열기`} title="공감 — 글을 열어 누릅니다">♥ {n좋아요(r.id)}</button>
+          <button type="button" className="mt-act mt-cnt" onClick={() => 열기(r.id)} aria-label={`답글 ${n} · 글 열기`} title="답글 — 글을 열어 씁니다">💬 {n}</button>
           {/* 👁 G156 (2026-10-06) 소장님 「맵톡에 왜 조회가 없지? 이거 꼭 있어야 해....」 — 세기는 G95 그대로(같은 기기 하루 한 번 ·
               글쓴이 본인 · 운영자 · 검색 로봇은 안 셈). 전엔 글을 펼쳐야만 · 1 이상일 때만 보였습니다 → 카드마다 늘 보이게. */}
           <span className="mt-act mt-view" title="조회 — 같은 기기는 하루 한 번만 셉니다(글쓴이 · 운영자는 안 셈)" aria-label={`조회 ${조회[r.id] || 0}`}>👁 {Number(조회[r.id] || 0).toLocaleString('ko-KR')}</span>
           {op답(r.id) && r.c !== 'K-건설맵' && !isOp(r.uid) && <span className="mt-ok">✅ K-건설맵</span>}
-          {!n && 물음인가(r.t + ' ' + (r.b || '')) && <button type="button" className="mt-ask" onClick={() => 열기(r.id)}>답하기</button>}
+          {/* 💬 «답하기» 는 남김(소장님 고르심 2026-10-06 「남겨두는 쪽으로 해줘」) — 답 없는 질문에만 · 누르면 글이 열리고 답글 칸이 열린 채로 */}
+          {!n && 물음인가(r.t + ' ' + (r.b || '')) && <button type="button" className="mt-ask" onClick={() => { set답하러(r.id); 열기(r.id); 세기('|맵톡|답하기') }}>답하기</button>}
           <span className="mt-nick">{배지(r.uid)}{r.nick || '익명'}{내것.has(r.id) ? ' · 내 글' : ''}</span>
         </div>
       </article>
@@ -793,7 +782,7 @@ export default function Qna() {
               </div>
               <p style={{ margin: '4px 0 8px' }}>맵톡에 <b>도움 되는 글과 답글</b>을 남겨 주시는 분께 감사를 드립니다.</p>
               <ul>
-                <li>♥ <b>공감</b> — 글·답글마다 누를 수 있습니다. <b>한 분 한 번</b>, 내 글에는 누를 수 없습니다.</li>
+                <li>♥ <b>공감</b> — 글을 열면 글·답글마다 누를 수 있습니다. <b>한 분 한 번</b>, 내 글에는 누를 수 없습니다.</li>
                 <li><b>활동 표시</b> — 글 1점 · 답글 2점 · 받은 공감 3점이 쌓이면 별명 옆에 표시가 붙습니다.
                   <div className="qna-lv"><span>🌱 새내기 <i>첫 글</i></span><span>🔨 일꾼 <i>10점</i></span><span>🏅 반장 <i>30점</i></span></div></li>
                 <li>👑 <b>이달의 답변왕</b> — 매달 1일, 지난달 가장 도움이 된 분을 K-건설맵이 정해 <b>맵톡 맨 위</b>에 모십니다. 별명 옆에 <b>👑</b>가 한 달 동안 붙습니다.</li>
@@ -908,6 +897,7 @@ export default function Qna() {
                 <Detail row={창글} ans={ans[창글.id] || {}} mine={내것.has(창글.id)} 나운영자={나운영자}
                   고정됨={!!고정[창글.id]} 나={나} 배지={배지} 조회수={조회[창글.id] || 0} 지도바탕={지도바탕}
                   좋아요={좋아요[창글.id] || {}} 답좋아요={답좋아요[창글.id] || {}} 좋아요누름={좋아요누름}
+                  바로답={답하러 === 창글.id} 바로답끝={() => set답하러(null)}
                   onChange={() => { _뿌리 = null; load(); setMine(loadMine()) }} />
               </>
             ) : (없는글 || (따로글 && !보임(따로글)))
@@ -963,7 +953,7 @@ function 왕정하기({ 모두, ans, 좋아요, 답좋아요, 왕들, onDone }) 
 }
 
 /* ── 질문 펼침 — 본문 + 답변들 + 답변 쓰기 ──────────────────────── */
-function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지 = () => '', 좋아요 = {}, 답좋아요 = {}, 좋아요누름, 조회수 = 0, 지도바탕 = null }) {
+function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지 = () => '', 좋아요 = {}, 답좋아요 = {}, 좋아요누름, 조회수 = 0, 지도바탕 = null, 바로답 = false, 바로답끝 = () => {} }) {
   const [pin, setPin] = useState('')
   const [msg, setMsg] = useState('')
   /* ✏️ 고치기 · 🔑 되찾기 — 2026-09-27 */
@@ -1042,7 +1032,8 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
     set좋바쁨(true)
     const ok = await 좋아요누름(경로, 켬)
     set좋바쁨(false)
-    if (!ok) setMsg('👍 를 누르지 못했습니다. 잠시 뒤 다시 해 주세요.')
+    if (!ok) setMsg('♥ 공감을 누르지 못했습니다. 잠시 뒤 다시 해 주세요.')
+    else if (켬) 세기(경로.startsWith('qna_alike/') ? '|맵톡|답공감' : '|맵톡|공감')   /* 📊 카드에서 세던 것을 글 안으로 옮김 */
   }
   /* ↩ G148 누구에게 답글 — 줄기(원글에게 쓴 답) 아래 한 단계 들여 «↳ ○○ 님에게» */
   const 나무 = useMemo(() => 답나무(Object.entries(ans).map(([id, x]) => ({ id, ...x }))), [ans])
@@ -1070,6 +1061,12 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
     try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }) } catch (e) { el.scrollIntoView() }
     const t = el.querySelector('textarea'); if (t) setTimeout(() => { try { t.focus({ preventScroll: true }) } catch (e) { t.focus() } }, 350)
   }
+  /* 💬 카드 «답하기» 로 열었으면 — 창이 미끄러져 들어온 뒤 맨 아래 답글 칸으로 내려가 글자 칸에 커서 */
+  useEffect(() => {
+    if (!바로답) return undefined
+    const t = setTimeout(() => { 원글에게(); 바로답끝() }, 450)
+    return () => clearTimeout(t)
+  }, [바로답, row.id])   // eslint-disable-line react-hooks/exhaustive-deps
   const 답상자 = (a, 가지) => {
     const 받는 = a.to && ans[a.to] ? ans[a.to] : null
     const n = 나무.받은수[a.id] || 0
@@ -1091,7 +1088,7 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
           {내번호(a.uid)
             ? <span className="qna-like sm muted">👍 {Object.keys(답좋아요[a.id] || {}).length}</span>
             : <button className={'qna-like sm' + (눌렀나(답좋아요[a.id]) ? ' on' : '')} disabled={좋바쁨}
-                onClick={() => 좋(`qna_alike/${row.id}/${a.id}`, !눌렀나(답좋아요[a.id]))}>👍 {Object.keys(답좋아요[a.id] || {}).length}</button>}
+                onClick={() => 좋(`qna_alike/${row.id}/${a.id}`, !눌렀나(답좋아요[a.id]))}>♥ {Object.keys(답좋아요[a.id] || {}).length}</button>}
           <button type="button" className={'mt-reply' + (답할 === a.id ? ' on' : '')} onClick={() => set답할((v) => (v === a.id ? null : a.id))}
             aria-label={`${답이름(a)} 님에게 답글쓰기 · 받은 답글 ${n}`}>↩ 답글쓰기{n > 0 && <em> · {n}</em>}</button>
         </div>
@@ -1165,9 +1162,9 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
       )}
       <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         {내번호(row.uid)
-          ? <span className="qna-like muted">👍 도움됐어요 {Object.keys(좋아요).length}</span>
+          ? <span className="qna-like muted" title="내 글 — 공감은 다른 분이 누릅니다">♥ 공감 {Object.keys(좋아요).length}</span>
           : <button className={'qna-like' + (눌렀나(좋아요) ? ' on' : '')} disabled={좋바쁨}
-              onClick={() => 좋(`qna_like/${row.id}`, !눌렀나(좋아요))}>👍 도움됐어요 {Object.keys(좋아요).length}</button>}
+              onClick={() => 좋(`qna_like/${row.id}`, !눌렀나(좋아요))} aria-pressed={눌렀나(좋아요)}>♥ 공감 {Object.keys(좋아요).length}</button>}
         {/* 💬 2026-09-29 — 이 글만 여는 주소(검색 · 카톡으로 보내기). 그 주소로 가면 이 글이 맨 위에 펼쳐집니다 */}
         <Link className="qna-permalink" to={`/qna/${row.id}`}>🔗 이 글 주소</Link>
         <span className="muted" style={{ fontSize: 12.5 }} title="같은 기기는 하루 한 번만 셉니다(글쓴이 · 운영자는 안 셈)">👁 조회 {Number(조회수 || 0).toLocaleString('ko-KR')}</span>

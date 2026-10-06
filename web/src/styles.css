@@ -6367,6 +6367,9 @@ button.sk-mini { color: var(--accent); padding: 0; text-align: left; }
 span.mt-act { cursor: default; }
 /* 👁 G156 조회 — 누르는 것이 아니니 바탕 없이 옅게 */
 .mt-act.mt-view { background: transparent; padding: 0 5px; color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
+/* ♥ G157 카드는 숫자만 — 공감 · 답글도 조회와 같은 모양(누르면 글이 열림) */
+.mt-act.mt-cnt { background: transparent; padding: 0 5px; color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
+.mt-act.mt-cnt:hover { color: var(--accent); }
 .mt-act.liked { color: #be185d; background: #fde9f2; }
 .mt-num { display: inline-block; }
 .mt-num.roll { animation: mtroll .45s ease; }
