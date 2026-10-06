@@ -576,7 +576,7 @@ export default function Ilyong4() {
               {할일.length > 0 && <>
                 <div className="iy-h2">할 일</div>
                 <ul className="iy-todo2">
-                  {할일.slice(0, 4).map((x, i) => <li key={i}><b>{x.보험.replace(' · 산재', '')}</b> {x.무엇.replace(/\(일한 날 · 보수\)/, '').replace('직장가입자 ', '').replace('사업장가입자 ', '')} <span className="muted">— {x.기한.split(' — ')[0].replace(/\(.*?\)/g, '').trim()}</span></li>)}
+                  {할일.slice(0, 4).map((x, i) => <li key={i}><b>{x.보험.replace(' · 산재', '')}</b> {x.무엇.replace(/\(일한 날 · 보수\)/, '').replace('직장가입자 ', '').replace('사업장가입자 ', '').replace(' — 이 건설현장 사업장으로', ' · 현장 사업장')} <span className="muted">— {x.기한.split(' — ')[0].replace(/\(.*?\)/g, '').trim()}</span></li>)}
                   {할일.length > 4 && <li className="muted">… 그 밖 {할일.length - 4}가지는 아래 «신고할 일 전부» 에</li>}
                 </ul>
               </>}
