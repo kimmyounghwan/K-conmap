@@ -19,10 +19,15 @@
  *    관급 줄(관급자재대 묶음 · 이름 · 비고의 «관급»)은 그대로 · 화면에 잡힌 줄 목록 · 줄마다 끄기 · 맞출 금액은 관급 뺀 금액
  *    (G124) «지급자재»(발주자 지급자재 · LH 지급자재 · 지급자재대 …) · 【관급자재】 · 관급(지급)자재 꼴도 관급으로 잡음
  *    (G124) 🧮 합계 · 소계 · 공종 머리 · 원가계산 줄은 품목에서 뺌(목록으로 보여 줌) · «공종 | 품명» 두 칸 꼴은 품명 칸으로 읽음
+ * ■ 🏷 (G169 · 2026-10-06) 소장님 「비율 맞추기면 내역서를 주는 거잖아. 그럼 내역서 틀을 유지 해줘야지 … 올린 내역서에서 비율만」
+ *    → 「낙찰금액 맞추기」 → 「해줘」 — lib/낙찰맞추기.js 틀그대로():
+ *    올린 엑셀의 시트 · 칸 · 서식 · 병합을 그대로 두고 «숫자만 값으로» 갈아 끼움(시트를 붙이지 않음) ·
+ *    원가계산서 · 총괄표까지 원본의 요율 · 산출근거로 다시 셈 · 낙찰금액이면 도급액 = 낙찰금액(끝전은 이윤) · A값 · 관급 그대로
  */
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { askAfter } from '../AskComment'
+import { 세기 } from '../lib/받은수.jsx'   /* 🏷 G169 */
 
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 const fmt = (n) => new Intl.NumberFormat('ko-KR').format(Math.round(n || 0))
@@ -45,7 +50,10 @@ export default function Ratio() {
   const [온것, set온것] = useState(null)       /* 파일에서 읽은 것 전부 */
   const [고른시트, set고른시트] = useState([]) /* 그 가운데 «쓸» 시트 */
 
-  const [모드, set모드] = useState('비율')     /* '비율' | '금액' */
+  const [모드, set모드] = useState('비율')     /* '비율' | '금액' | '낙찰' (G169 — 도급액을 낙찰금액에) */
+  const [낙찰글, set낙찰글] = useState('')
+  const [A값그대로, setA값그대로] = useState(true)
+  const [틀, set틀] = useState(null)          /* G169 틀그대로 결과 {url, name, 말, 원가줄, 낙} */
   const [비율글, set비율글] = useState('80')
   const [목표글, set목표글] = useState('')
   const [단수꼴, set단수꼴] = useState('버림')
@@ -67,7 +75,7 @@ export default function Ratio() {
 
   const openFile = useCallback(async (f) => {
     if (!f) return
-    setErr(''); setOut(null); set온것(null); set고른시트([]); setFile(null); set관급끔(new Set())
+    setErr(''); setOut(null); set틀(null); set온것(null); set고른시트([]); setFile(null); set관급끔(new Set())
     if (!/\.(xlsx|xlsm)$/i.test(f.name)) {
       setErr(/\.xls$/i.test(f.name)
         ? '구형 엑셀(.xls)은 아직 못 읽습니다. 엑셀에서 «다른 이름으로 저장 → Excel 통합 문서(.xlsx)» 한 뒤 올려 주십시오.'
@@ -96,7 +104,7 @@ export default function Ratio() {
 
   /* 설정이 바뀔 때마다 다시 셉니다 */
   const 결과 = useMemo(() => {
-    if (!읽은 || !lib) return null
+    if (!읽은 || !lib || 모드 === '낙찰') return null
     try {
       return {
         값: lib.맞추기(읽은, {
@@ -124,6 +132,8 @@ export default function Ratio() {
   const 관급켬합 = 관급그대로 ? 관급들.filter((x) => !관급끔.has(x.시트 + '#' + x.줄)).reduce((a, x) => a + (x.총금액 || 0), 0) : 0
 
   const R = 결과 && 결과.값
+  /* 설정이 바뀌면 전에 만든 파일(틀 그대로 · 수식 · 새 엑셀)은 내립니다 — 옛 비율 파일을 받지 않게 */
+  useEffect(() => { set틀(null); setOut(null) }, [모드, 비율글, 목표글, 낙찰글, 단수꼴, 노무고정, 관급그대로, 관급끔, 고른시트, A값그대로])
 
   const 만들기 = async (어느) => {
     if (!R || !file || !lib) return
@@ -182,6 +192,46 @@ export default function Ratio() {
     } finally { setBusy('') }
   }
 
+  /* 🏷 G169 — 올린 엑셀 «틀 그대로» (값으로 · 원가계산서 · 총괄표까지) */
+  const 틀만들기 = async () => {
+    if (!file || !읽은) return
+    const 낙찰 = 모드 === '낙찰' ? Number(String(낙찰글).replace(/[^\d]/g, '')) : 0
+    if (모드 === '낙찰' && !(낙찰 > 0)) { setErr('낙찰금액(도급액 · 부가세 포함)을 넣어 주십시오.'); return }
+    if (모드 !== '낙찰' && !R) return
+    setBusy(모드 === '낙찰' ? '낙찰금액에 맞는 비율을 찾는 중입니다 — 내역 · 원가계산서를 여러 번 다시 셉니다…' : '올린 엑셀에 새 값을 넣는 중입니다…'); setErr('')
+    if (틀 && 틀.url) { try { URL.revokeObjectURL(틀.url) } catch (e) { /* 지나갑니다 */ } }
+    set틀(null)
+    await new Promise((r) => setTimeout(r, 40))
+    try {
+      let n
+      try { n = await import('../lib/낙찰맞추기.js') } catch (e) { throw new Error('도구를 불러오지 못했습니다 — 화면을 한 번 새로고침해 주십시오.') }
+      const got = n.틀그대로(file.buf, 읽은, {
+        단수꼴, 노무고정, 관급그대로, 관급끔,
+        A값그대로: 모드 === '낙찰' ? A값그대로 : false,
+        낙찰금액: 낙찰, 비율: 모드 === '낙찰' ? 0 : R.비율 * 100,
+      })
+      const 밑 = file.name.replace(/\.(xlsx|xlsm)$/i, '')
+      const name = 모드 === '낙찰' ? 밑 + '_낙찰' + 낙찰 + '원.xlsx' : 밑 + '_' + (Math.round(got.비율 * 10000) / 100) + '%_그대로.xlsx'
+      const 말 = []
+      if (got.낙) {
+        말.push(['도급액', fmt(got.낙.당초도급액) + '원 → ' + fmt(got.낙.도급액) + '원' + (got.낙.도급액 === 낙찰 ? ' — 낙찰금액과 딱 맞습니다' : ' — 낙찰금액과 ' + fmt(낙찰 - got.낙.도급액) + '원 다릅니다')])
+        말.push(['비율', pct(got.비율) + ' — 품목 단가(재료비 · 노무비 · 경비)에 곱했습니다'])
+        if (got.낙.이윤덧 || got.낙.부가덧) 말.push(['끝전', (got.낙.이윤덧 ? '이윤 +' + fmt(got.낙.이윤덧) + '원' : '') + (got.낙.부가덧 ? (got.낙.이윤덧 ? ' · ' : '') + '부가세 ' + (got.낙.부가덧 > 0 ? '+' : '') + fmt(got.낙.부가덧) + '원' : '') + '으로 맞췄습니다'])
+      } else 말.push(['비율', pct(got.비율)])
+      말.push(['바꾼 칸', fmt(got.바꾼칸) + '칸 — 품목 ' + fmt(got.품목칸) + ' · 공종 머리 ' + fmt(got.머리칸) + ' · 원가 ' + fmt(got.원가칸) + (got.짝칸 ? ' · 총괄표 등 ' + fmt(got.짝칸) : '') + ' · 모두 «값» 으로'])
+      말.push(['그대로 둔 것', '시트 · 칸 · 서식 · 병합 · 인쇄영역 · 글자 칸' + (got.A값줄 ? ' · A값 묶음 품목 ' + fmt(got.A값줄) + '줄' : '') + (got.관급줄 ? ' · 관급 ' + fmt(got.관급줄) + '줄' : '')])
+      if (!got.원가시트) 말.push(['⚠️ 원가계산서', '원가계산서 시트(비목 · 금액)를 못 찾아 내역서만 고쳤습니다'])
+      for (const w of got.경고.slice(0, 12)) 말.push(['⚠️ ' + w[0], w[1]])
+      if (got.경고.length > 12) 말.push(['⚠️ 그 밖', fmt(got.경고.length - 12) + '건'])
+      const url = URL.createObjectURL(new Blob([got.bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+      set틀({ url, name, 말, 원가줄: got.원가줄, 원가시트: got.원가시트 })
+      try { 세기(모드 === '낙찰' ? '|비율|낙찰틀' : '|비율|틀그대로') } catch (e) { /* 지나갑니다 */ }
+      try { askAfter('biyul') } catch (e) { /* 사생활 보호 모드 */ }
+    } catch (e) {
+      setErr((e && e.message) || '만들지 못했습니다.')
+    } finally { setBusy('') }
+  }
+
   const 미리 = R ? R.rows.slice(0, 12) : []
 
   return (
@@ -196,6 +246,7 @@ export default function Ratio() {
         <p className="muted" style={{ margin: 0 }}>
           <b>하도급 내역서</b>(도급 × 하도급률) · <b>실행 내역서</b>(도급 × 실행률) ·
           <b> 계약 내역서</b>(설계 × 낙찰률) — 셈이 같아 한 도구로 만들었습니다.
+          <b> 🏷 낙찰금액</b>을 넣으시면 도급액이 그 금액에 딱 맞는 계약내역서를 <b>올리신 엑셀 틀 그대로</b> 드립니다.
           파일은 <b>브라우저 안에서만</b> 다룹니다. 저희 쪽으로 올라가지 않습니다.
         </p>
       </div>
@@ -355,10 +406,19 @@ export default function Ratio() {
               <b>어떻게</b>
               <label><input type="radio" checked={모드 === '비율'} onChange={() => set모드('비율')} /> 비율(%)로</label>
               <label><input type="radio" checked={모드 === '금액'} onChange={() => set모드('금액')} /> 맞출 금액으로</label>
+              <label><input type="radio" checked={모드 === '낙찰'} onChange={() => set모드('낙찰')} /> 🏷 낙찰금액으로</label>
             </div>
             <div>
-              <b>{모드 === '비율' ? '비율' : '맞출 금액'}</b>
-              {모드 === '비율' ? (
+              <b>{모드 === '비율' ? '비율' : 모드 === '낙찰' ? '낙찰금액' : '맞출 금액'}</b>
+              {모드 === '낙찰' ? (
+                <label>
+                  <input type="text" inputMode="numeric" style={칸꼴(158)}
+                    value={낙찰글 ? fmt(Number(String(낙찰글).replace(/[^\d]/g, ''))) : ''}
+                    placeholder="예) 25,123,456"
+                    onChange={(e) => { set낙찰글(e.target.value.replace(/[^\d]/g, '')); set틀(null) }} /> 원
+                  <span className="muted" style={{ fontSize: 12 }}> (도급액 · 부가세 포함 · 관급 뺀 것)</span>
+                </label>
+              ) : 모드 === '비율' ? (
                 <label>
                   <input type="text" inputMode="decimal" style={칸꼴(78)} value={비율글}
                     onChange={(e) => set비율글(e.target.value.replace(/[^\d.]/g, ''))} /> %
@@ -406,6 +466,18 @@ export default function Ratio() {
               </label>
             </div>
           </div>
+          {모드 === '낙찰' && (
+            <div className="note" style={{ marginTop: 10, lineHeight: 1.8 }}>
+              🏷 <b>도급액(부가세 포함)이 낙찰금액이 되게</b> 품목 단가에 같은 비율을 곱하고, 원가계산서는 <b>올리신 파일의 요율 · 산출근거 그대로</b> 다시 셉니다.
+              원 단위 끝전은 <b>이윤</b>에서 맞춥니다.
+              <div style={{ marginTop: 6 }}>
+                <label className="tlchk" style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                  <input type="checkbox" checked={A값그대로} onChange={(e) => { setA값그대로(e.target.checked); set틀(null) }} />
+                  <span><b>A값</b>(국민연금 · 건강 · 노인장기요양 · 퇴직공제부금 · 산업안전보건관리비 · 안전관리비 · 품질관리비)은 <b>설계금액 그대로</b></span>
+                </label>
+              </div>
+            </div>
+          )}
           {노무고정 && (
             <div className="note" style={{ marginTop: 10 }}>
               노무비 합계 <b>{fmt(R ? R.노무합 : 0)}원</b>에는 비율을 곱하지 않고,
@@ -488,24 +560,64 @@ export default function Ratio() {
       )}
 
       {/* ── ③ 내려받기 ── */}
-      {R && (
+      {읽은 && (R || 모드 === '낙찰') && (
         <div className="card">
-          <div className="sec-title">③ 내려받기 — 두 가지로 드립니다</div>
+          <div className="sec-title">③ 내려받기</div>
+          {/* 🏷 G169 — 올린 엑셀 틀 그대로 · 값으로 (먼저) */}
           <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
-            <button className="btn primary" disabled={!!busy} onClick={() => 만들기('원본')}>
-              📄 올린 엑셀 «그대로» 고치기
+            <button className="btn primary" disabled={!!busy} onClick={틀만들기}>
+              📄 올린 엑셀 그대로 (원가계산서까지 · 값으로)
+            </button>
+          </div>
+          <div className="muted" style={{ fontSize: 12.5, marginTop: 6, lineHeight: 1.8 }}>
+            올리신 엑셀과 <b>같은 시트 · 같은 칸 · 같은 서식</b>에 <b>숫자만</b> 새 값으로 넣습니다. 시트를 덧붙이지 않습니다.
+            원가계산서 · 총괄표도 <b>원본의 요율 · 산출근거</b>로 다시 셉니다.
+          </div>
+          {틀 && (
+            <div style={{ marginTop: 12 }}>
+              <a className="btn primary" href={틀.url} download={틀.name}>⬇ {틀.name}</a>
+              <ul className="flist" style={{ marginTop: 10 }}>
+                {틀.말.map((x, i) => <li key={i}><b>{x[0]}</b> · {x[1]}</li>)}
+              </ul>
+              {틀.원가줄 && 틀.원가줄.length > 0 && (
+                <details style={{ marginTop: 6 }}>
+                  <summary style={{ cursor: 'pointer', fontWeight: 700 }}>원가계산서 «{틀.원가시트}» — 당초 ↔ 새 값 보기</summary>
+                  <div style={{ overflowX: 'auto', marginTop: 6 }}>
+                    <table className="tbl left rt-kg">
+                      <thead><tr><th>비목</th><th>당초</th><th>새 값</th><th>어떻게</th></tr></thead>
+                      <tbody>
+                        {틀.원가줄.map((x, i) => (
+                          <tr key={i}>
+                            <td>{(x.구분 ? x.구분 + ' ' : '') + String(x.이름 || '').slice(0, 20)}</td>
+                            <td className="r">{fmt(x.옛)}</td>
+                            <td className="r"><b>{fmt(x.새)}</b></td>
+                            <td className="muted" style={{ fontSize: 12 }}>{String(x.어떻게 || '').slice(0, 60)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              )}
+            </div>
+          )}
+          {모드 !== '낙찰' && R && (<>
+          <div className="sec-title" style={{ marginTop: 16, fontSize: 14 }}>다른 꼴로 받기</div>
+          <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+            <button className="btn ghost" disabled={!!busy} onClick={() => 만들기('원본')}>
+              📄 올린 엑셀에 «비율» 시트 붙여 수식으로
             </button>
             <button className="btn ghost" disabled={!!busy} onClick={() => 만들기('새것')}>
               📊 새 엑셀 한 벌 (내역서 · 대비표 · 원가계산서)
             </button>
           </div>
           <div className="note" style={{ marginTop: 10 }}>
-            ⭐ <b>두 파일 모두 「비율」 시트가 들어 있습니다.</b> 그 시트의 <b>노란 칸에 숫자만 고치시면</b>
+            ⭐ <b>이 두 파일에는 「비율」 시트가 들어 있습니다.</b> 그 시트의 <b>노란 칸에 숫자만 고치시면</b>
             — 80 이라고 적으면 80% — <b>단가·금액·원가계산서가 그 자리에서 전부 다시 셈됩니다.</b>
             비율을 바꾸려고 여기 다시 오실 필요가 없습니다.
           </div>
           <div className="muted" style={{ fontSize: 12.5, marginTop: 8, lineHeight: 1.85 }}>
-            <b>그대로 고치기</b> — 서식·인쇄영역·병합·매크로가 남습니다. 발주처 서식 그대로 내실 때.
+            <b>비율 시트 붙여 수식으로</b> — 서식·인쇄영역·병합·매크로가 남습니다. 비율을 엑셀에서 바꿔 가며 보실 때.
             단가 칸이 <b>「비율」 시트를 보는 수식</b>으로 바뀌고, 당초 단가는 그 시트에 남습니다.
             <br />
             <b>새 엑셀 한 벌</b> — 우리 서식입니다. <b>원가계산서</b>와 <b>당초↔비율 대비표</b>가 같이 나옵니다.
@@ -519,6 +631,7 @@ export default function Ratio() {
               </ul>
             </div>
           )}
+          </>)}
         </div>
       )}
 

@@ -1620,3 +1620,6 @@ export function 원본고치기(buf, 읽은, 결과) {
 
   return { bytes: zipSync(zip, { level: 6 }), ...고친것, 관급둔, 모음고침, 경고, 비율시트: 비율이름 }
 }
+
+/* 🏷 G169 (2026-10-06) — «낙찰금액 맞추기 · 올린 틀 그대로»(lib/낙찰맞추기.js)가 같은 zip · xml 손질 도구를 씁니다 */
+export const 내부 = { 속성, xesc, 이름표, 덩어리, 공유풀기, 시트경로, 풀글 }
