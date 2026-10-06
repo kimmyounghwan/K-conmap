@@ -5560,6 +5560,29 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 .nm-bd { min-width: 128px; }
 .nm-birth { max-width: 120px; }
 .nm-age { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; white-space: nowrap; }
+/* ── G162 노무비 계산기: 달마다 명단 · 빼기 · 되살리기 · 되돌리기 ── */
+.nm-cnt { display: inline-block; margin-left: 4px; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12.5px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.nm-wh { display: block; margin-top: 2px; font-size: 11px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.nm-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; margin-top: 10px; padding: 9px 12px; border-radius: 12px; background: var(--accent-soft); border: 1px solid var(--accent-line); font-size: 13px; line-height: 1.5; }
+.nm-strip-warn { background: var(--warn-soft); border-color: #f2d39a; }
+.nm-orphan { flex-direction: column; align-items: stretch; }
+.nm-orphan ul { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.nm-orphan li { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+.nm-orphan li > span:first-child { font-variant-numeric: tabular-nums; }
+.nm-undo { position: sticky; top: calc(var(--nav-h, 58px) + 6px); z-index: 20; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; background: var(--text); color: var(--surface); font-size: 13.5px; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+.nm-undo > span { flex: 1 1 260px; min-width: 0; }
+.nm-undo .btn { background: var(--surface); color: var(--text); border-color: var(--surface); }
+.nm-undo-x { border: 0; background: transparent; color: inherit; font-size: 15px; cursor: pointer; padding: 4px 6px; }
+.nm-gone { margin-top: 10px; border: 1px dashed var(--line); border-radius: 12px; }
+.nm-gone-h { all: unset; box-sizing: border-box; display: block; width: 100%; padding: 10px 12px; cursor: pointer; font-size: 13.5px; line-height: 1.5; }
+.nm-gone-h:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 12px; }
+.nm-gone-l { list-style: none; margin: 0; padding: 0 12px 10px; display: flex; flex-direction: column; gap: 6px; }
+.nm-gone-l li { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; padding: 6px 0; border-top: 1px solid var(--line-soft); }
+.nm-gone-n { min-width: 120px; }
+.nm-gone-m { font-size: 12.5px; flex: 1 1 auto; }
+.nm-newrow td { background: var(--warn-soft); transition: background 1s; }
+.tp-x:disabled { opacity: .45; cursor: default; }
+@media print { .nm-undo, .nm-strip, .nm-gone { display: none !important; } }
 .nm-age.on { color: #b45309; font-weight: 600; }
 .nm-age.bad { color: #b91c1c; }
 @media (prefers-color-scheme: dark) { .nm-age.on { color: #f59e0b; } .nm-age.bad { color: #f87171; } }

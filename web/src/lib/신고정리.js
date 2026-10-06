@@ -45,7 +45,7 @@ export function 달줄(st, ym) {
     if (!날돈.length) continue
     const 모음 = 출역모으기(st.A, p.id, (m, x) => 일당(p, x))
     const 판 = 판단(모음, { 생일: p.b || '' })
-    const 자동 = 공제셈(ym, 날돈, p.nx || '', { ap: a.ap, ex: a.ex }, 달규칙(판, ym))
+    const 자동 = 공제셈(ym, 날돈, String(a.nx != null ? a.nx : p.nx || ''), { ap: a.ap, ex: a.ex }, 달규칙(판, ym))   /* 💰 G162 그 달 늘 빼기(노무비 계산기가 묶어 둔 값) */
     const 최종 = 공제합치기(자동, a.o)
     줄.push({ id: p.id, p, w, 공수, 공수합: 공수.reduce((s, g) => s + g, 0), 일수: 자동.일수, 보수: 자동.보수, 자동, 최종, 대상: 자동.대상, 판,
       날들: 공수.map((g, i) => (g > 0 ? i + 1 : 0)).filter(Boolean) })

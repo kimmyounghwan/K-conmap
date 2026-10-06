@@ -14,8 +14,16 @@
  * ■ 저장: 이 브라우저(localStorage) 한 곳 — 서버에 안 보냅니다. 주민번호 뒷자리 · 계좌는 받지 않습니다.
  *
  * 저장 모양(v1)
- *   { co, site, ym, P: [{ id, n(이름), j(직종), b(생년월일 — 적은 그대로 · G109), w(일당), nx(늘 빼기 'P'·'H'·'E'·'T') }],
- *     A: { 'YYYY-MM': { id: { d: { '01': 1, '02': 0.5 … }, ap, ex, o: { it: 0 … } } } } }
+ *   { co, site, ym, P: [{ id, n(이름), j(직종), b(생년월일 — 적은 그대로 · G109), w(일당), nx(늘 빼기 'P'·'H'·'E'·'T'), r(명단에 드는 달 · G162) }],
+ *     A: { 'YYYY-MM': { id: { d: { '01': 1, '02': 0.5 … }, ap, ex, o: { it: 0 … }, w(그 달 일당 · G162), nx(그 달 늘 빼기 · G162) } } } }
+ *
+ * ■ 🗓 G162 (2026-10-06) 맵톡 이용자 건의 「매달 근로자가 바뀌는데 기존 명단에 추가하니 명단은 많아지고 … 필요없는 명단을 지웠더니
+ *   그 전달 지급명세서까지 지워져요」 → 소장님 「보완하고 아이디어 더해서, 그리고 추가로 문제가 될 소지가 있는 것 까지 수정하자」
+ *   · 명단은 «달마다» — p.r = [[처음달, 끝달(안 듦)], …] (null = 끝없음 · r 없음 = 모든 달 · 옛 자료 그대로). 그 달에 일한 날이 있으면 늘 보임.
+ *     «빼기» = 이 달(이 달에 일한 날이 있으면 다음 달)부터 명단에서 빠짐 — 지난달 명세서 · 신고 · 퇴직공제는 그대로(사람 자체는 남음).
+ *   · 일당 · 늘 빼기를 고치면 «이 달(과 아직 안 적은 달)» 만 바뀜 — 일한 날이 있는 다른 달은 그 달 값(A[달][id].w · nx)으로 묶어 둠.
+ *     (전에는 명단 일당을 고치면 지난달 명세서 금액까지 바뀌었음) 신고 정리 · 보험료 · 퇴직공제도 같은 값을 읽음(lib/신고정리.js 일당 · 늘빼기).
+ *   · 이미 지운 사람: 출역(A)은 남아 있으므로 «남은기록» 으로 찾아 되살림(이름 · 일당만 다시 적음).
  */
 import { 공제셈, 공제합치기, 공제칸 } from './gongje.js'
 import { 판단, 출역모으기, 달규칙 } from './ilyong4.js'
@@ -51,6 +59,108 @@ export function 쓰기(s) {
 
 export const 새번호 = () => 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
 
+/* ── 🗓 G162 달마다 명단 ─────────────────────────────────────────── */
+/** 그 달에 일한 날(공수 > 0)이 있나 */
+export function 일한날있음(st, ym, id) {
+  const d = (((st.A || {})[ym] || {})[id] || {}).d || {}
+  return Object.values(d).some((g) => Number(g) > 0)
+}
+/** 그 사람이 일한 달들(오래된 것부터) */
+export function 일한달(st, id) {
+  return Object.keys(st.A || {}).filter((m) => /^\d{4}-\d{2}$/.test(m) && 일한날있음(st, m, id)).sort()
+}
+const 안 = (r, ym) => !r || r.some(([a, b]) => (a == null || a <= ym) && (b == null || ym < b))
+/** 범위 정리 — 겹치거나 맞닿으면 합침 · 모든 달이면 undefined */
+export function 범위정리(r) {
+  if (!r) return undefined
+  const L = r.filter((x) => Array.isArray(x) && (x[0] == null || x[1] == null || x[0] < x[1]))
+    .map(([a, b]) => [a ?? null, b ?? null]).sort((x, y) => (x[0] == null ? -1 : y[0] == null ? 1 : x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0))
+  const 합 = []
+  for (const x of L) {
+    const 끝 = 합[합.length - 1]
+    if (끝 && (끝[1] == null || (x[0] != null && x[0] <= 끝[1]) || x[0] == null)) { if (끝[1] != null && (x[1] == null || x[1] > 끝[1])) 끝[1] = x[1] }
+    else 합.push([...x])
+  }
+  if (합.length === 1 && 합[0][0] == null && 합[0][1] == null) return undefined
+  return 합
+}
+/** 그 달부터 끝까지 뺌 */
+export function 범위빼기(r, 부터) {
+  const L = r || [[null, null]]
+  return L.filter(([a]) => a == null || a < 부터).map(([a, b]) => [a, b == null || b > 부터 ? 부터 : b])
+}
+/** 그 달부터 끝까지 넣음 */
+export const 범위넣기 = (r, 부터) => 범위정리([...(r || [[null, null]]), [부터, null]])
+/** 그 달 명단에 보이나 — 범위 안이거나 그 달에 일한 날이 있으면 */
+export const 보임 = (st, p, ym) => 안(p.r, ym) || 일한날있음(st, ym, p.id)
+/** 명단에서 빼기 — 이 달에 일한 날이 있으면 다음 달부터. { st, 부터 } */
+export function 명단빼기(st, ym, id) {
+  const 부터 = 일한날있음(st, ym, id) ? 달더하기(ym, 1) : ym
+  return { st: { ...st, P: st.P.map((p) => (p.id === id ? { ...p, r: 범위빼기(p.r, 부터) } : p)) }, 부터 }
+}
+export const 명단넣기 = (st, ym, id) => ({ ...st, P: st.P.map((p) => (p.id === id ? { ...p, r: 범위넣기(p.r, ym) } : p)) })
+/** 완전히 지우기 — 사람과 모든 달 출역 */
+export function 완전히지우기(st, id) {
+  const A = {}
+  for (const [m, 사람들] of Object.entries(st.A || {})) { const x = { ...(사람들 || {}) }; delete x[id]; A[m] = x }
+  return { ...st, P: st.P.filter((p) => p.id !== id), A }
+}
+/** 지운 사람의 남은 출역 — 명단(P)에 없는 번호 중 일한 날이 있는 것 [{ id, 달들, 일수, 공수 }] */
+export function 남은기록(st) {
+  const 있음 = new Set((st.P || []).map((p) => p.id))
+  const m = new Map()
+  for (const [ym, 사람들] of Object.entries(st.A || {})) {
+    if (!/^\d{4}-\d{2}$/.test(ym)) continue
+    for (const [id, a] of Object.entries(사람들 || {})) {
+      if (있음.has(id) || !a || !a.d) continue
+      const g = Object.values(a.d).map(Number).filter((x) => x > 0)
+      if (!g.length) continue
+      const x = m.get(id) || { id, 달들: [], 일수: 0, 공수: 0, w: 0 }
+      x.달들.push(ym); x.일수 += g.length; x.공수 += g.reduce((s, v) => s + v, 0)
+      if (a.w) x.w = Number(a.w) || x.w
+      m.set(id, x)
+    }
+  }
+  return [...m.values()].map((x) => ({ ...x, 달들: x.달들.sort(), 공수: Math.round(x.공수 * 100) / 100 })).sort((a, b) => (a.달들[a.달들.length - 1] < b.달들[b.달들.length - 1] ? 1 : -1))
+}
+/** 되살리기 — 이름 · 일당은 비워 두고(다시 적음) 일한 달에만 명단에 듦 */
+export function 되살리기(st, x) {
+  const 끝 = x.달들[x.달들.length - 1]
+  return { ...st, P: [...st.P, { id: x.id, n: '', j: '', b: '', w: x.w || 0, nx: '', r: [[x.달들[0], 달더하기(끝, 1)]] }] }
+}
+/** 버리기 — 지운 사람의 남은 출역을 정말 지움 */
+export function 남은기록버리기(st, id) { return 완전히지우기(st, id) }
+
+/* ── 💰 G162 달마다 일당 · 늘 빼기 ── */
+/** 그 달 값 — 그 달에 묶어 둔 값(A[달][id].w · nx)이 있으면 그것, 없으면 명단 값 */
+export const 달마다 = (p, a, k) => (a && a[k] != null && !(k === 'w' && a[k] === '') ? a[k] : p[k])   /* nx 의 '' 는 «그 달은 안 뺌» 으로 묶은 값 */
+export const 그달일당 = (st, ym, p) => Math.max(0, Number(달마다(p, (((st.A || {})[ym] || {})[p.id]), 'w')) || 0)
+export const 그달빼기 = (st, ym, p) => String(달마다(p, (((st.A || {})[ym] || {})[p.id]), 'nx') || '')
+/**
+ * 일당(w) · 늘 빼기(nx) 고치기 — 이 달(과 아직 안 적은 달)만 바뀜.
+ * 일한 날이 있는 다른 달은 지금 값을 그 달에 묶어 둡니다(지난달 명세서가 안 바뀌게).
+ */
+export function 달값고침(st, ym, id, k, v) {
+  const p = (st.P || []).find((x) => x.id === id)
+  if (!p) return st
+  const A = { ...(st.A || {}) }
+  for (const m of Object.keys(A)) {
+    if (m === ym || !/^\d{4}-\d{2}$/.test(m)) continue
+    const a = (A[m] || {})[id]
+    if (!a || !일한날있음(st, m, id) || (a[k] != null && !(k === 'w' && a[k] === ''))) continue
+    A[m] = { ...A[m], [id]: { ...a, [k]: p[k] ?? (k === 'w' ? 0 : '') } }
+  }
+  const 이달 = (A[ym] || {})[id]
+  if (이달 && 이달[k] != null) { const x = { ...이달 }; delete x[k]; A[ym] = { ...A[ym], [id]: x } }
+  return { ...st, A, P: st.P.map((x) => (x.id === id ? { ...x, [k]: v } : x)) }
+}
+/** 다른 달 값(일한 날이 있는 달만) — 이 달과 다른 것 [{ ym, v }] */
+export function 다른달값(st, ym, p, k) {
+  const 지금 = String(k === 'w' ? 그달일당(st, ym, p) : 그달빼기(st, ym, p))
+  return 일한달(st, p.id).filter((m) => m !== ym).map((m) => ({ ym: m, v: k === 'w' ? 그달일당(st, m, p) : 그달빼기(st, m, p) }))
+    .filter((x) => String(x.v) !== 지금)
+}
+
 /** 그 달 한 사람 공수 배열(1일~말일) */
 export function 공수들(st, ym, id) {
   const n = 달날수(ym)
@@ -64,13 +174,13 @@ export function 달셈(st, ym) {
   const 줄 = []
   for (const p of st.P || []) {
     const a = (((st.A || {})[ym] || {})[p.id]) || {}
-    const w = Math.max(0, Number(p.w) || 0)
+    const w = Math.max(0, Number(달마다(p, a, 'w')) || 0)   /* 💰 G162 그 달 일당 */
     const 공수 = 공수들(st, ym, p.id)
     const 날돈 = 공수.filter((g) => g > 0).map((g) => Math.round(g * w))
     if (!날돈.length) continue
-    const 모음 = 출역모으기(st.A, p.id, () => w)
+    const 모음 = 출역모으기(st.A, p.id, (m, x) => 달마다(p, x, 'w'))   /* 🐞 G162 — 전엔 모든 달을 이 달 일당으로 셈(220만 기준이 어긋날 수 있음) */
     const 판 = 판단(모음, { 생일: p.b || '' })   /* 🎂 G109 생년월일 → 만 60세 연금 · 만 65세 고용(실업급여) 저절로 */
-    const 자동 = 공제셈(ym, 날돈, p.nx || '', { ap: a.ap, ex: a.ex }, 달규칙(판, ym))
+    const 자동 = 공제셈(ym, 날돈, String(달마다(p, a, 'nx') || ''), { ap: a.ap, ex: a.ex }, 달규칙(판, ym))
     const 최종 = 공제합치기(자동, a.o)
     줄.push({ id: p.id, p, w, 공수, 공수합: 공수.reduce((s, g) => s + g, 0), 일수: 자동.일수, 보수: 자동.보수,
       자동, 최종, 고침: a.o || {}, 대상: 자동.대상, ap: a.ap || '', ex: a.ex || '', 모음,

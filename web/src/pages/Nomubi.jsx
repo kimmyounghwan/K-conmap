@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { 공제칸, 요율 } from '../lib/gongje.js'
-import { 읽기, 쓰기, 빈것, 새번호, 달셈, 칸바꿈, 줄채움, 달값, 예시, 공수차례, 달날수, 요일, 달더하기, 원, 공수글 } from '../lib/nomubi.js'
+import { 읽기, 쓰기, 빈것, 새번호, 달셈, 칸바꿈, 줄채움, 달값, 예시, 공수차례, 달날수, 요일, 달더하기, 원, 공수글,
+  보임, 명단빼기, 명단넣기, 완전히지우기, 남은기록, 되살리기, 일한날있음, 일한달, 그달일당, 그달빼기, 달값고침, 다른달값 } from '../lib/nomubi.js'   /* 🗓 G162 */
+import { 세기 } from '../lib/받은수.jsx'
 /* 🛡 2026-10-01 (G107) 연금 · 건강 «대상» 은 lib/ilyong4.js 판단(여러 달) — 사람마다 «판단 자세히» 로 가입 판단기에 출역을 넘깁니다 */
 import { 생일풀기, 만나이, 나이날 } from '../lib/ilyong4.js'   /* 🎂 G109 생년월일 → 만 나이 · 60세 연금 · 65세 고용 */
 import 이어쓰기 from '../tools/이어쓰기.jsx'
 const 넘김열쇠 = 'kcm_ilyong_from'
+const 백업열쇠 = 'kcm_nomubi1_전'   /* 🗓 G162 «처음부터 (모두 지우기)» 직전 자료 — 새로고침해도 되살릴 수 있게 */
 
 /**
  * 👷 /tools/nomubi — 일용 노무비 계산기 · 지급명세서 (G104 · 2026-10-01)
@@ -57,13 +60,32 @@ export default function Nomubi() {
   const [편집, set편집] = useState(null)        // { id, k } 공제 칸 고치기
   const [알림, set알림] = useState('')
   const [지움물음, set지움물음] = useState(false)
-  useEffect(() => { set저장됨(쓰기(st)) }, [st])
-  /* 🔁 G116 — 신고 정리 · 퇴직공제 · 보험료 화면이 이 자료 안에 남기는 기록(sg · tj · bh)을 다른 창에서 바꾸면 여기에도 받아 둡니다
-     (이 창이 옛 모습으로 다시 저장하면서 그 기록을 지우지 않게 — 명단 · 출역은 건드리지 않음) */
+  /* 🗓 G162 — 되돌리기(빼기 · 지우기 · 출역 지움 · 모두 지우기 바로 뒤 한 번) · 완전히 지우기 묻기 · 접은 칸 */
+  const [되돌림, set되돌림] = useState(null)       // { 글, 전 }
+  const [지울사람, set지울사람] = useState(null)   // 완전히 지우기 묻는 사람 번호
+  const [버릴기록, set버릴기록] = useState(null)   // 지운 사람 남은 출역 버리기 묻기
+  const [없는펼침, set없는펼침] = useState(false)
+  const [새줄, set새줄] = useState(null)           // 방금 되살린 사람 — 잠깐 빛남
+  const [백업, set백업] = useState(() => { try { return JSON.parse(localStorage.getItem(백업열쇠) || 'null') } catch (e) { return null } })
+  const 밖에서 = useRef(false)
+  /* 되돌리기 줄은 20초 뒤 저절로 닫힘(처음부터 지운 것은 아래 «되살리기» 줄이 남음) */
+  useEffect(() => { if (!되돌림) return undefined; const t = setTimeout(() => set되돌림(null), 20000); return () => clearTimeout(t) }, [되돌림])
+  useEffect(() => {
+    if (밖에서.current) { 밖에서.current = false; return }   /* 다른 창에서 받은 것은 다시 쓰지 않음(두 창이 서로 덮어쓰며 맴돌지 않게) */
+    set저장됨(쓰기(st))
+  }, [st])
+  /* 🔁 G116 → G162 — 다른 창(이 계산기 · 신고 정리 · 퇴직공제 · 보험료)에서 자료를 바꾸면 «통째로» 받아 둡니다.
+     전에는 sg · tj · bh 만 받아서, 계산기를 두 창으로 열어 두면 한 창이 다른 창의 명단 · 출역을 옛 것으로 덮을 수 있었음.
+     보고 있는 달(ym)은 이 창 것을 그대로 둠. */
   useEffect(() => {
     const 사건 = (e) => {
       if (e.key !== 'kcm_nomubi1' || !e.newValue) return
-      try { const v = JSON.parse(e.newValue) || {}; setSt((s) => ({ ...s, sg: v.sg, tj: v.tj, bh: v.bh })) } catch (x) { /* 깨진 값 */ }
+      try {
+        const v = JSON.parse(e.newValue) || {}
+        if (!Array.isArray(v.P) || !v.A || typeof v.A !== 'object') return
+        밖에서.current = true
+        setSt((s) => ({ ...빈것(), ...v, ym: s.ym }))
+      } catch (x) { /* 깨진 값 */ }
     }
     window.addEventListener('storage', 사건)
     return () => window.removeEventListener('storage', 사건)
@@ -79,8 +101,13 @@ export default function Nomubi() {
   const 날수 = 달날수(ym)
   const 날들 = Array.from({ length: 날수 }, (_, i) => i + 1)
   const 바꿈 = (f) => setSt((s) => f(s))
-  const 사람고침 = (id, k, v) => 바꿈((s) => ({ ...s, P: s.P.map((p) => (p.id === id ? { ...p, [k]: v } : p)) }))
-  const 사람더함 = () => 바꿈((s) => ({ ...s, P: [...s.P, { id: 새번호(), n: '', j: '', b: '', w: 0, nx: '' }] }))
+  /* 💰 G162 일당(w) · 늘 빼기(nx)는 «이 달(과 아직 안 적은 달)» 만 — 일한 날이 있는 다른 달 명세서는 그대로(lib/nomubi.js 달값고침) */
+  const 사람고침 = (id, k, v) => 바꿈((s) => (k === 'w' || k === 'nx' ? 달값고침(s, s.ym, id, k, v) : { ...s, P: s.P.map((p) => (p.id === id ? { ...p, [k]: v } : p)) }))
+  /* 🗓 G162 새로 더한 사람은 이 달부터 명단에(지난달 화면을 어지럽히지 않게) */
+  const 사람더함 = () => 바꿈((s) => ({ ...s, P: [...s.P, { id: 새번호(), n: '', j: '', b: '', w: 0, nx: '', r: [[s.ym, null]] }] }))
+  const 되돌릴수 = (글, 새) => { set되돌림({ 글, 전: st }); setSt(새) }
+  const 되돌리기 = () => { if (!되돌림) return; setSt(되돌림.전); set되돌림(null); 세기('|노무비|되돌리기') }
+  const 이름글 = (p) => (p.n && p.n.trim()) || '이름 없는 사람'
   /* 🎂 명단 생년월일 옆 — 그 달 1일 만 나이 · 이 달에 걸리는 것 */
   const 나이글 = (b) => {
     if (!b) return null
@@ -94,7 +121,64 @@ export default function Nomubi() {
     if (L65 <= 끝날) 붙.push(L65 > ym + '-01' ? `${Number(L65.slice(8))}일부터 고용(실업급여) ✕` : '고용(실업급여) ✕')
     return <small className={'nm-age' + (붙.length ? ' on' : '')} title="민법 제158조 만 나이 · 국민연금 60세 미만 · 고용보험 65세 이후 새로 고용은 실업급여 없음">만 {처음 === 끝 ? 처음 : `${처음}→${끝}`}세{붙.length ? ' · ' + 붙.join(' · ') : ''}</small>
   }
-  const 사람뺌 = (id) => 바꿈((s) => ({ ...s, P: s.P.filter((p) => p.id !== id) }))
+  /* 🗓 G162 이용자 건의 「필요없는 명단을 지웠더니 그 전달 지급명세서까지 지워져요」 — «지우기» 는 «빼기» 로:
+     이 달(이 달에 일한 날이 있으면 다음 달)부터 명단에서만 빠지고, 지난달 명세서 · 신고 · 퇴직공제는 그대로 */
+  const 짧달 = (m) => (m.slice(0, 4) === ym.slice(0, 4) ? `${Number(m.slice(5, 7))}월` : `${m.slice(2, 4)}년 ${Number(m.slice(5, 7))}월`)
+  const 빼기 = (p) => {
+    const { st: 새, 부터 } = 명단빼기(st, ym, p.id)
+    되돌릴수(`${이름글(p)} — ${짧달(부터)}부터 명단에서 뺐습니다.${부터 !== ym ? ` ${짧달(ym)}에 일한 날이 있어 ${짧달(ym)} 명세서에는 남습니다.` : ''} 지난달까지 명세서는 그대로입니다.`, 새)
+    세기('|노무비|빼기')
+  }
+  const 다시넣기 = (p) => { setSt(명단넣기(st, ym, p.id)); set되돌림(null); 세기('|노무비|다시넣기') }
+  const 정말지우기 = (p) => {
+    되돌릴수(`${이름글(p)} — 명단과 모든 달 출역을 지웠습니다.`, 완전히지우기(st, p.id))
+    set지울사람(null); 세기('|노무비|완전지움')
+  }
+  const 줄지움 = (p) => {
+    if (!일한날있음(st, ym, p.id)) return
+    되돌릴수(`${이름글(p)} — ${짧달(ym)} 출역을 지웠습니다.`, 줄채움(st, ym, p.id, false))
+  }
+  const 줄모두 = (p) => {
+    const 있던 = 일한날있음(st, ym, p.id)
+    const 새 = 줄채움(st, ym, p.id, true)
+    if (있던) 되돌릴수(`${이름글(p)} — ${짧달(ym)} 출역을 «일요일 빼고 모두» 로 바꿨습니다.`, 새)
+    else setSt(새)
+  }
+  const 처음부터 = () => {
+    const 지금 = { at: Date.now(), st }
+    try { localStorage.setItem(백업열쇠, JSON.stringify(지금)) } catch (e) { /* 막힘 — 되돌리기만 */ }
+    set백업(지금)
+    되돌릴수('명단과 모든 달의 출역을 지웠습니다.', { ...빈것(), ym })
+    set지움물음(false)
+  }
+  const 백업되살림 = () => {
+    if (!백업 || !백업.st) return
+    setSt({ ...빈것(), ...백업.st }); 백업버림(); 세기('|노무비|백업되살림')
+  }
+  const 백업버림 = () => { try { localStorage.removeItem(백업열쇠) } catch (e) { /* 막힘 */ } set백업(null) }
+  /* 🗓 G162 이 달 명단 · 명단에 없는 사람 · 지운 사람의 남은 출역 */
+  const 이달명단 = st.P.filter((p) => 보임(st, p, ym))
+  const 없는사람 = st.P.filter((p) => !보임(st, p, ym))
+  const 앞달 = 달더하기(ym, -1)
+  const 이달새로 = (p) => !!(p.r && p.r.some(([a]) => a === ym))
+  const 일하는현장 = st.P.some((p) => 일한날있음(st, ym, p.id) || 일한날있음(st, 앞달, p.id))
+  const 쉬는후보 = 일하는현장 ? 이달명단.filter((p) => !일한날있음(st, ym, p.id) && !일한날있음(st, 앞달, p.id) && !이달새로(p)) : []
+  const 한꺼번빼기 = () => {
+    let 새 = st
+    for (const p of 쉬는후보) 새 = 명단빼기(새, ym, p.id).st
+    되돌릴수(`${쉬는후보.length}명을 ${짧달(ym)}부터 명단에서 뺐습니다. 지난달까지 명세서는 그대로입니다.`, 새)
+    세기('|노무비|한꺼번빼기')
+  }
+  const 남은 = useMemo(() => 남은기록(st), [st])
+  const 되살림 = (x) => {
+    const 끝 = x.달들[x.달들.length - 1]
+    setSt({ ...되살리기(st, x), ym: 끝 })
+    set새줄(x.id); setTimeout(() => set새줄((v) => (v === x.id ? null : v)), 4000)
+    set되돌림(null); 세기('|노무비|되살리기')
+  }
+  const 기록버림 = (x) => { 되돌릴수(`지운 사람의 남은 출역(${x.달들.map(짧달).join(' · ')})을 버렸습니다.`, 완전히지우기(st, x.id)); set버릴기록(null); 세기('|노무비|기록버림') }
+  const 이름없음 = 이달명단.filter((p) => !(p.n || '').trim()).length
+  const 같은이름 = [...new Set(이달명단.map((p) => (p.n || '').trim()).filter((n, i, a) => n && a.indexOf(n) !== i))]
   const 칸누름 = (id, i) => {
     const g = (N.줄.find((r) => r.id === id) || { 공수: [] }).공수[i] || 0
     const 다음 = g === 0 ? 1 : 공수차례[(공수차례.indexOf(g) + 1) % 공수차례.length]
@@ -165,12 +249,29 @@ export default function Nomubi() {
           {st.P.length > 0 && !지움물음 && <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set지움물음(true)}>처음부터 (모두 지우기)</button>}
           {지움물음 && (
             <span className="nm-ask">명단과 모든 달의 출역을 지웁니다.
-              <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => { setSt({ ...빈것(), ym }); set지움물음(false) }}>지우기</button>
+              <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={처음부터}>지우기</button>
               <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set지움물음(false)}>그대로 두기</button>
             </span>
           )}
         </div>
+        {/* 🗓 G162 «처음부터» 로 지운 자료 — 새로고침해도 한 번은 되살릴 수 있게 */}
+        {백업 && 백업.st && st.P.length === 0 && (
+          <div className="nm-strip nm-strip-warn">
+            <span>↩ <b>처음부터 지우기 전 자료</b>가 남아 있습니다 — {new Date(백업.at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 지움 · 명단 {(백업.st.P || []).length}명</span>
+            <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={백업되살림}>되살리기</button>
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={백업버림}>버리기</button>
+          </div>
+        )}
       </div>
+
+      {/* 🗓 G162 되돌리기 — 빼기 · 지우기 · 출역 지움 · 모두 지우기 바로 뒤 */}
+      {되돌림 && (
+        <div className="nm-undo no-print" role="status">
+          <span>✓ {되돌림.글}</span>
+          <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={되돌리기}>↩ 되돌리기</button>
+          <button type="button" className="nm-undo-x" onClick={() => set되돌림(null)} aria-label="닫기">✕</button>
+        </div>
+      )}
 
       <div className="card">
         <div className="nm-month">
@@ -185,39 +286,119 @@ export default function Nomubi() {
       </div>
 
       <div className="card">
-        <div className="detail-h" style={{ margin: 0 }}>👥 명단 <span className="muted" style={{ fontWeight: 400, fontSize: 12.5 }}>— 달이 바뀌어도 그대로 이어 씁니다</span></div>
+        <div className="detail-h" style={{ margin: 0 }}>👥 {달글(ym)} 명단 <span className="nm-cnt">{이달명단.length}명</span> <span className="muted" style={{ fontWeight: 400, fontSize: 12.5 }}>— 다음 달에도 이어집니다 · 안 나오는 사람은 «빼기»(지난달 명세서는 그대로)</span></div>
         <div className="tp-scroll">
           <table className="tbl nm-roster">
             <thead><tr><th>No</th><th>이름</th><th>직종</th><th>생년월일 <small className="muted">(앞 6자리 · 넣으면 나이로 자동)</small></th><th>일당(원)</th><th>늘 빼기 <small className="muted">(그 사람은 늘 안 뗌)</small></th><th /></tr></thead>
             <tbody>
-              {st.P.map((p, i) => (
-                <tr key={p.id}>
+              {이달명단.map((p, i) => (
+                <tr key={p.id} className={새줄 === p.id ? 'nm-newrow' : ''}>
                   <td className="r">{i + 1}</td>
                   <td><input className="inp nm-in" value={p.n} maxLength={20} onChange={(e) => 사람고침(p.id, 'n', e.target.value)} placeholder="이름" aria-label={`${i + 1}번 이름`} /></td>
                   <td><input className="inp nm-in" value={p.j} maxLength={20} onChange={(e) => 사람고침(p.id, 'j', e.target.value)} placeholder="직종" aria-label={`${i + 1}번 직종`} /></td>
                   <td className="nm-bd"><input className="inp nm-in nm-birth" value={p.b || ''} maxLength={10} inputMode="numeric" onChange={(e) => 사람고침(p.id, 'b', e.target.value.replace(/[^\d.\-/ ]/g, ''))} placeholder="예: 610315" aria-label={`${i + 1}번 생년월일`} />{나이글(p.b)}</td>
-                  <td><input className="inp nm-in nm-num" value={p.w ? 원(p.w) : ''} inputMode="numeric" onChange={(e) => 사람고침(p.id, 'w', 숫자만(e.target.value))} placeholder="0" aria-label={`${i + 1}번 일당`} /></td>
+                  <td>{(() => {
+                    const w = 그달일당(st, ym, p)
+                    const 딴 = 다른달값(st, ym, p, 'w')
+                    return (<>
+                      <input className="inp nm-in nm-num" value={w ? 원(w) : ''} inputMode="numeric" onChange={(e) => 사람고침(p.id, 'w', 숫자만(e.target.value))} placeholder="0" aria-label={`${i + 1}번 일당`} />
+                      {딴.length > 0 && (() => {
+                        const 묶 = new Map()
+                        for (const x of 딴) 묶.set(x.v, [...(묶.get(x.v) || []), x.ym])
+                        const 글 = [...묶.entries()].map(([v, 달들]) => `${달들.map((m) => 짧달(m).replace(/월$/, '')).join(' · ')}월 ${원(v)}`)
+                        return <small className="nm-wh" title="일한 날이 있는 다른 달은 그 달 일당 그대로입니다(그 달로 가서 고치면 그 달만 바뀝니다)">{글.slice(0, 2).join(' / ')}{글.length > 2 ? ` 외 ${글.length - 2}` : ''}</small>
+                      })()}
+                    </>)
+                  })()}</td>
                   <td className="nw">
                     {빼기들.map(([c, 이름]) => {
-                      const on = (p.nx || '').includes(c)
+                      const nx = 그달빼기(st, ym, p)
+                      const on = nx.includes(c)
                       return (
                         <button key={c} type="button" className={'tp-ins ' + (on ? 'n' : 'y')} aria-pressed={on}
-                          title={on ? `${이름} — 늘 뺌 (누르면 다시 셈)` : `${이름} — 셈함 (누르면 늘 뺌)`}
-                          onClick={() => 사람고침(p.id, 'nx', on ? (p.nx || '').replace(c, '') : (p.nx || '') + c)}>{이름}{on ? '✕' : '✓'}</button>
+                          title={on ? `${이름} — 늘 뺌 (누르면 다시 셈 · 이 달부터)` : `${이름} — 셈함 (누르면 늘 뺌 · 이 달부터 — 지난달 명세서는 그대로)`}
+                          onClick={() => 사람고침(p.id, 'nx', on ? nx.replace(c, '') : nx + c)}>{이름}{on ? '✕' : '✓'}</button>
                       )
                     })}
                   </td>
-                  <td className="nw"><button type="button" className="tp-x" onClick={() => 사람뺌(p.id)} aria-label={`${p.n || i + 1 + '번'} 지우기`}>지우기</button></td>
+                  <td className="nw"><button type="button" className="tp-x" onClick={() => 빼기(p)} aria-label={`${p.n || i + 1 + '번'} 명단에서 빼기`}
+                    title={일한날있음(st, ym, p.id) ? `${짧달(달더하기(ym, 1))}부터 명단에서 뺍니다(${짧달(ym)}에 일한 날이 있어 이 달 명세서에는 남음)` : `${짧달(ym)}부터 명단에서 뺍니다 — 지난달 명세서는 그대로`}>빼기</button></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <button type="button" className="btn line sm" style={{ width: 'auto', marginTop: 8 }} onClick={사람더함}>＋ 사람 더하기</button>
+        <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={사람더함}>＋ 사람 더하기</button>
+        </div>
         {st.P.length === 0 && <div className="note sm" style={{ marginTop: 8 }}>«＋ 사람 더하기» 로 이름 · 직종 · 일당을 적거나, 위의 «예시로 채워 보기» 로 먼저 둘러보십시오.</div>}
+        {(이름없음 > 0 || 같은이름.length > 0) && (
+          <div className="note sm" style={{ marginTop: 8 }}>⚠️ {이름없음 > 0 ? `이름이 빈 사람 ${이름없음}명` : ''}{이름없음 > 0 && 같은이름.length ? ' · ' : ''}{같은이름.length ? `같은 이름 ${같은이름.slice(0, 3).join(' · ')}` : ''}
+            {' '}— 지급명세서 · 신고에서 헷갈리지 않게 이름을 적거나 «홍길동A» 처럼 구분해 두십시오.</div>
+        )}
+        {/* 💡 G162 지난달 · 이 달 모두 일한 날이 없는 사람 — 한꺼번에 빼기 */}
+        {쉬는후보.length > 0 && (
+          <div className="nm-strip">
+            <span>💡 <b>{짧달(앞달)} · {짧달(ym)}</b> 모두 일한 날이 없는 <b>{쉬는후보.length}명</b>{쉬는후보.length <= 4 ? ` (${쉬는후보.map(이름글).join(' · ')})` : ` (${쉬는후보.slice(0, 3).map(이름글).join(' · ')} 외 ${쉬는후보.length - 3}명)`}</span>
+            <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={한꺼번빼기}>{짧달(ym)}부터 한꺼번에 빼기</button>
+          </div>
+        )}
+        {/* 🗓 G162 이 달 명단에 없는 사람 — 다시 오면 «이 달 명단에 넣기» */}
+        {없는사람.length > 0 && (
+          <div className="nm-gone">
+            <button type="button" className="nm-gone-h" onClick={() => set없는펼침((v) => !v)} aria-expanded={없는펼침}>
+              {없는펼침 ? '▾' : '▸'} 이 달 명단에 없는 사람 <b>{없는사람.length}명</b> <span className="muted">— 다시 오면 «이 달 명단에 넣기» · 지난달 명세서에는 그대로 있습니다</span>
+            </button>
+            {없는펼침 && (
+              <ul className="nm-gone-l">
+                {없는사람.map((p) => {
+                  const 달들 = 일한달(st, p.id)
+                  const 마지막 = 달들[달들.length - 1]
+                  const 앞으로 = (p.r || []).map(([a]) => a).filter((a) => a && a > ym).sort()[0]
+                  return (
+                    <li key={p.id}>
+                      <span className="nm-gone-n"><b>{이름글(p)}</b> <small className="muted">{p.j}</small></span>
+                      <span className="nm-gone-m muted">{마지막 ? `마지막 출역 ${짧달(마지막)}` : 앞으로 ? `${짧달(앞으로)}부터 명단` : '출역 없음'}</span>
+                      <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 다시넣기(p)}>이 달 명단에 넣기</button>
+                      {지울사람 === p.id ? (
+                        <span className="nm-ask">{달들.length ? `${달들.map(짧달).join(' · ')} 출역도 지웁니다 — 그 달 지급명세서 · 신고 정리에서도 빠집니다.` : '명단에서 지웁니다.'}
+                          <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => 정말지우기(p)}>지우기</button>
+                          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set지울사람(null)}>그대로</button>
+                        </span>
+                      ) : <button type="button" className="tp-x" onClick={() => set지울사람(p.id)}>완전히 지우기</button>}
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+        {/* 🩹 G162 전에 «지우기» 로 지운 사람 — 출역은 남아 있음(이름 · 일당만 없어짐) → 되살리면 그 달 명세서가 돌아옵니다 */}
+        {남은.length > 0 && (
+          <div className="nm-strip nm-strip-warn nm-orphan">
+            <div>🩹 <b>전에 지운 사람의 출역 {남은.length}명분</b>이 남아 있습니다 — 되살리고 이름 · 일당을 다시 적으면 그 달 지급명세서가 돌아옵니다.</div>
+            <ul>
+              {남은.slice(0, 12).map((x) => (
+                <li key={x.id}>
+                  <span>{x.달들.map(짧달).join(' · ')} · {x.일수}일 · {공수글(x.공수)}공수{x.w ? ` · 일당 ${원(x.w)}` : ''}</span>
+                  <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => 되살림(x)}>되살리기</button>
+                  {버릴기록 === x.id ? (
+                    <span className="nm-ask">정말 버릴까요?
+                      <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 기록버림(x)}>버리기</button>
+                      <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set버릴기록(null)}>그대로</button>
+                    </span>
+                  ) : <button type="button" className="tp-x" onClick={() => set버릴기록(x.id)}>버리기</button>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
-      {st.P.length > 0 && (
+      {st.P.length > 0 && 이달명단.length === 0 && (
+        <div className="card"><div className="note sm" style={{ margin: 0 }}>📅 {달글(ym)} 명단이 비어 있습니다 — 위 «＋ 사람 더하기» 나 «이 달 명단에 없는 사람» 에서 넣으십시오.</div></div>
+      )}
+      {이달명단.length > 0 && (
         <div className="card">
           <div className="detail-h" style={{ margin: 0 }}>📅 {달글(ym)} 출역 <span className="muted" style={{ fontWeight: 400, fontSize: 12.5 }}>— 칸을 누를 때마다 1 → 0.5 → 1.5 → 빈칸</span></div>
           <div className="tp-scroll">
@@ -230,7 +411,7 @@ export default function Nomubi() {
                 </tr>
               </thead>
               <tbody>
-                {st.P.map((p) => {
+                {이달명단.map((p) => {
                   const g = 공수표(p.id)
                   const 합 = g.reduce((s, x) => s + x, 0)
                   return (
@@ -242,8 +423,8 @@ export default function Nomubi() {
                       ))}
                       <td className="r">{공수글(합)}</td><td className="r">{g.filter((x) => x > 0).length}</td>
                       <td className="nw">
-                        <button type="button" className="tp-x" onClick={() => 바꿈((s) => 줄채움(s, ym, p.id, true))}>일요일 빼고 모두</button>
-                        <button type="button" className="tp-x" onClick={() => 바꿈((s) => 줄채움(s, ym, p.id, false))}>지움</button>
+                        <button type="button" className="tp-x" onClick={() => 줄모두(p)}>일요일 빼고 모두</button>
+                        <button type="button" className="tp-x" onClick={() => 줄지움(p)} disabled={!일한날있음(st, ym, p.id)}>지움</button>
                       </td>
                     </tr>
                   )
@@ -251,7 +432,7 @@ export default function Nomubi() {
               </tbody>
             </table>
           </div>
-          {st.P.some((p) => !p.w) && <div className="note sm" style={{ marginTop: 6 }}>⚠️ 일당이 0원인 사람이 있습니다 — 명단에서 일당을 적어야 금액과 공제가 나옵니다.</div>}
+          {이달명단.some((p) => !그달일당(st, ym, p)) && <div className="note sm" style={{ marginTop: 6 }}>⚠️ 일당이 0원인 사람이 있습니다 — 명단에서 일당을 적어야 금액과 공제가 나옵니다.</div>}
         </div>
       )}
 
@@ -416,7 +597,11 @@ export default function Nomubi() {
       <details className="card js-more">
         <summary className="sec-title">쓰는 방법 · 알아 두실 것</summary>
         <ul className="flist" style={{ marginBottom: 0 }}>
-          <li><b>명단</b>에 이름 · 직종 · 일당을 적습니다. 다음 달에도 명단은 그대로 이어집니다.</li>
+          <li><b>명단</b>에 이름 · 직종 · 일당을 적습니다. 다음 달에도 명단은 그대로 이어집니다.
+            안 나오는 사람은 <b>«빼기»</b> — 그 달부터 명단 · 출역표에서 빠지고 <b>지난달 지급명세서 · 신고는 그대로</b>입니다(이 달에 일한 날이 있으면 다음 달부터).
+            다시 오면 <b>«이 달 명단에 없는 사람»</b> 에서 «이 달 명단에 넣기». 새로 더한 사람은 더한 달부터 보입니다.</li>
+          <li><b>일당 · 늘 빼기</b>를 고치면 <b>그 달(과 아직 안 적은 달)만</b> 바뀝니다 — 일한 날이 있는 다른 달은 그 달 값 그대로(일당 칸 아래 «9월 170,000» 처럼 보임). 지난달 것을 고치려면 그 달로 가서 고치십시오.</li>
+          <li>빼기 · 지우기 · 출역 «지움» · «처음부터» 는 바로 뒤에 <b>«↩ 되돌리기»</b> 가 있습니다.</li>
           <li><b>출역</b> 칸을 누를 때마다 <b>1공수 → 0.5 → 1.5 → 빈칸</b>. 날마다 같이 나오면 «일요일 빼고 모두» 를 누른 뒤 안 나온 날만 지우십시오.</li>
           <li><b>소득세</b>는 날마다 따로 셉니다 — 그날 받은 돈에서 15만원을 빼고 6% 의 45%(근로소득세액공제 55% 뺌), 한 달 합이 1천원 미만이면 떼지 않습니다(소액부징수).
             하루 15만원 이하면 소득세가 없습니다.</li>
