@@ -1093,7 +1093,7 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
         <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.85, fontSize: 13.5 }}>{가림(a.b)}</div>
         <div className="mt-ans-f">
           {내번호(a.uid)
-            ? <span className="qna-like sm muted">👍 {Object.keys(답좋아요[a.id] || {}).length}</span>
+            ? <span className="qna-like sm muted" title="내 답글 — 공감은 다른 분이 누릅니다">♥ {Object.keys(답좋아요[a.id] || {}).length}</span>
             : <button className={'qna-like sm' + (눌렀나(답좋아요[a.id]) ? ' on' : '')} disabled={좋바쁨}
                 onClick={() => 좋(`qna_alike/${row.id}/${a.id}`, !눌렀나(답좋아요[a.id]))}>♥ {Object.keys(답좋아요[a.id] || {}).length}</button>}
           <button type="button" className={'mt-reply' + (답할 === a.id ? ' on' : '')} onClick={() => set답할((v) => (v === a.id ? null : a.id))}

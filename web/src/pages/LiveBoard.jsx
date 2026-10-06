@@ -367,7 +367,9 @@ export default function LiveBoard() {
       <곧나올줄 />
       <내조건줄 region={region} mine={mine} lics={lics} licNone={licNone} licOptions={licOptions}
         넓혀보기={() => { setRegionRaw('전국'); setMineRaw(false) }}
-        내조건으로={() => { setRegionRaw(loadRegion()); setMineRaw(loadMine()) }} />
+        내조건으로={() => { setRegionRaw(loadRegion()); setMineRaw(loadMine()) }}
+        지우기={() => { setRegion('전국'); setMine(false) }}
+        되살리기={(x) => { setRegion(x.지역 || '전국'); setMine(!!x.맞춤) }} />
 
       {/* ── 모드 탭 (2026-09-14) — 셋 다 같은 카드를 그립니다. 목록을 만드는 법만 다릅니다. ── */}
       <div className="modetabs">
@@ -389,7 +391,7 @@ export default function LiveBoard() {
             남는 자리에 금액 · 공동도급 단추가 들어가고, 지역 알약 옆 여백을 조금 줄여 제주가 첫 줄에 섭니다.
           📱 손전화(620px 아래)는 그대로 — 지역은 옆으로 미는 한 줄, 그 아래 금액 줄. */}
       <div className="fline">
-      <div className="chips" hidden={bagMode}>
+      <div className="chips" hidden={bagMode} data-cond="1">
         <button className={'chip' + (mine ? ' on' : '')}
           onClick={() => (lics.length ? setMine(!mine) : setEditLic(true))}>
           ✨ 내 면허 맞춤{lics.length ? ` (${lics.length})` : ''}

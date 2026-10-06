@@ -973,8 +973,10 @@ export default function BaroBid() {
 
   return (
     <>
-      {/* 🗺 G144 맨 위 지도 — 공고를 골라 셈하러 온 화면(?bid=)과 검증 화면에서는 안 띄움(셈이 먼저) */}
-      {!picked && !verifyMode && <Suspense fallback={null}><이용자지도 /></Suspense>}
+      {/* 🗺 G144 맨 위 지도 — 공고를 골라 셈하러 온 화면(?bid=)과 검증 화면에서는 맨 위에 안 띄움(셈이 먼저)
+          → G160 (2026-10-06) 소장님 「공고에서 바로투찰을 클릭하면 지도가 사라져 이것도 같이 고쳐줘」: 공고에서 온 화면도 맨 위에 — 다만 작은 상자로 */}
+      {/* G160 소장님 「공간을 너무 많이 차지하지 않고 공간 활용을 잘 해서 배치 해줘」 → 골라 온 화면은 맨 위에 «작은 상자»(지도 크게 보기 ▾) */}
+      {!verifyMode && <Suspense fallback={null}><이용자지도 작게={!!picked} /></Suspense>}
 
       {/* 📋 투찰금액을 정하러 온 사람 = 곧 내역서가 필요해질 사람입니다. */}
       <NaeyeokStrip tone="bid" />

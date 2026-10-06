@@ -121,7 +121,9 @@ export default function FirstBoard() {
       <밖공고줄 kind="first" />
       <내조건줄 region={region} mine={mine} lics={lics} licNone={licNone} licOptions={licOptions}
         넓혀보기={() => { setRegionRaw('전국'); setMineRaw(false) }}
-        내조건으로={() => { setRegionRaw(loadRegion()); setMineRaw(loadMine()) }} />
+        내조건으로={() => { setRegionRaw(loadRegion()); setMineRaw(loadMine()) }}
+        지우기={() => { setRegion('전국'); setMine(false) }}
+        되살리기={(x) => { setRegion(x.지역 || '전국'); setMine(!!x.맞춤) }} />
 
       <input
         value={q}
@@ -134,7 +136,7 @@ export default function FirstBoard() {
           넓은 화면: 제주가 첫 줄 · «면허 다시 고르기» 가 따로 한 줄을 차지하지 않고 지역 알약 뒤 남는 자리에.
           📱 손전화: 지역은 옆으로 미는 한 줄 · 그 아래 면허 단추(전과 같은 자리). */}
       <div className="fline">
-        <div className="chips">
+        <div className="chips" data-cond="1">
           <button className={'chip' + (mine ? ' on' : '')}
             onClick={() => (lics.length ? setMine(!mine) : setEditLic(true))}>
             ✨ 내 면허 맞춤{lics.length ? ` (${lics.length})` : ''}

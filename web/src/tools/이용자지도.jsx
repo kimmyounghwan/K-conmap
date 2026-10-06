@@ -17,7 +17,13 @@
  *   「오늘도 카운트 할까?」 → 제목 아래 «2026. 8. 30. 문을 열었습니다 · 오늘 N일째» · 지금(30분 안) 전국 N명 ·
  *   시·도별 «누적 N명 · 오늘 +N» (fresh/reg — 10분마다) · 숫자가 바뀌면 올라가는 모습(카운트업) · 지도 크기는 그대로(PC 760px).
  *   누르면(점 · 시도 줄) 누적 카운트 «|지도|누름» 한 번(화면엔 안 보임).
+ * ■ G160 (2026-10-06) 소장님 「공고에서 바로투찰을 하면 … 지도가 사라져」 → 「공간을 너무 많이 차지하지 않고 공간 활용을 잘 해서 배치 해줘」
+ *   작게(공고를 골라 온 바로투찰 화면) — 한 줄 상자: 왼쪽 작은 지도(폰 120px · PC 160px 폭) + 오른쪽 «지금 N명 · 누적 · 오늘 +N · 많은 시·도 셋»
+ *   · «지도 크게 보기 ▾» 를 누르면 원래 지도로 펼침(📊 |지도|크게). 맨 위에 두어도 금액을 거의 밀어내지 않습니다(폰 약 170px).
+ *   · 소장님 「그래, 그렇게 해줘」(Claude 의견: 한 번 «크게» 를 누른 분은 다음부터 계속 큰 지도) → 브라우저가 기억(localStorage kcm.map.big)
+ *     · 큰 지도 머리에 «▴ 작게 보기» — 누르면 다시 작은 상자 · 기억도 지움(📊 |지도|작게).
  */
+const 큰기억 = 'kcm.map.big'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { 지도주소, 지도이름표, 지도점들, 지도점크기, 지역주소, 지역줄들, 날째, 날글, 개설일, 누적시작, 오늘글, 기준글 } from '../lib/이용자지도.js'
 import { 세기 } from '../lib/받은수.jsx'
@@ -50,7 +56,8 @@ function useCountUp(값) {
 
 function 수({ v }) { return <>{쉼(useCountUp(v))}</> }
 
-export default function 이용자지도() {
+export default function 이용자지도({ 작게 = false }) {
+  const [펼침, set펼침] = useState(() => { try { return localStorage.getItem(큰기억) === '1' } catch (e) { return false } })
   const [바탕, set바탕] = useState(null)
   const [자료, set자료] = useState(null)
   const [지역, set지역] = useState(null)
@@ -86,7 +93,7 @@ export default function 이용자지도() {
     const ro = new ResizeObserver(재기)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [바탕, 자료])
+  }, [바탕, 자료, 작게, 펼침])   /* G160 작은 상자 ↔ 큰 지도로 바뀌면 그림이 바뀌므로 다시 잼 */
 
   const 표 = useMemo(() => (바탕 ? 지도이름표(바탕.곳, 바탕.별) : null), [바탕])
   const 점 = useMemo(() => (표 && 자료 ? 지도점들(자료, 표, 때) : []), [표, 자료, 때])
@@ -99,6 +106,45 @@ export default function 이용자지도() {
   const 크기 = 지도점크기(w, h, 화면)
   const 큰 = 줄들 && 줄들.줄.length ? Math.max(...줄들.줄.map((x) => x.a)) || 1 : 1
 
+  /* 🗺 G160 작은 상자 — 공고를 골라 온 화면(금액이 먼저) */
+  if (작게 && !펼침) {
+    const 많은셋 = 줄들 && 줄들.줄.length ? 줄들.줄.slice(0, 3) : []
+    return (
+      <div className="card umap umap-mini">
+        <svg ref={그림} className="umap-svg" viewBox={`0 0 ${w} ${h}`} role="img" aria-label={`한국 지도 — 지금 K-건설맵을 쓰는 곳 ${지금수 ? '표시' : '없음'}`}>
+          {Object.entries(바탕.판).map(([k, d]) => <path key={k} d={d} className="umap-land" />)}
+          {점.map(({ p, 지금 }) => (
+            <g key={p.k} className={지금 ? 'umap-now' : 'umap-day'}>
+              {지금 > 0 && <circle cx={p.x} cy={p.y} r={크기.지금(지금) + 크기.고리} className="umap-ring" />}
+              <circle cx={p.x} cy={p.y} r={지금 ? 크기.지금(지금) : 크기.오늘}><title>{p.n}{지금 ? ' — 지금' : ' — 오늘'}</title></circle>
+            </g>
+          ))}
+        </svg>
+        <div className="umap-mini-r">
+          <b className="umap-mini-t">🗺 지금 K-건설맵을 쓰는 곳</b>
+          <span className="umap-mini-n"><i className="umap-dot now" /> 지금 <b>{지금사람 != null ? <><수 v={지금사람} />명</> : '—'}</b>
+            {줄들 && 줄들.전국 && <> · 누적 <b><수 v={줄들.전국.a} />명</b> · 오늘 <b>+<수 v={줄들.전국.t} /></b></>}</span>
+          {많은셋.length > 0 && <span className="umap-mini-top">{많은셋.map((x) => `${x.n} ${쉼(x.a)}`).join(' · ')}{줄들.줄.length > 3 ? ' …' : ''}</span>}
+          {!새것 && 기준글(자료.at) && <span className="umap-late">자료 {기준글(자료.at)} 기준</span>}
+          <button type="button" className="umap-mini-b" onClick={() => { set펼침(true); try { localStorage.setItem(큰기억, '1') } catch (e) { /* 사생활 창 — 이번만 */ } 세기('|지도|크게') }}>지도 크게 보기 ▾</button>
+        </div>
+        {/* 넓은 화면(700px 넘음)은 남는 오른쪽에 많은 시·도 다섯 — 막대 · 누적 · 오늘 */}
+        {줄들 && 줄들.줄.length > 0 && (
+          <ol className="umap-rows umap-mini-reg" aria-label="시·도별 누적">
+            {줄들.줄.slice(0, 5).map((x) => (
+              <li key={x.n}>
+                <span className="umap-rn">{x.n}</span>
+                <span className="umap-bar"><i style={{ width: `${Math.max(2, (x.a / 큰) * 100)}%` }} /></span>
+                <span className="umap-ra"><수 v={x.a} />명</span>
+                <span className={'umap-rt' + (x.t > 0 ? ' up' : '')}>{x.t > 0 ? <>+<수 v={x.t} /></> : '·'}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="card umap">
       <div className="umap-head">
@@ -107,7 +153,9 @@ export default function 이용자지도() {
           {/* 📅 G151 소장님 「여기에 날짜가 없어」 — 오늘(한국) 날짜 · 요일 */}
           <span className="umap-open">{날글(개설일)} 문을 열었습니다 · 오늘 <b>{오늘글(때)}</b> · <b>{날째(때)}일째</b></span>
         </div>
-        <span className="umap-key"><i className="umap-dot now" /> 지금(30분 안) <i className="umap-dot day" /> 오늘 다녀간 곳</span>
+        <span className="umap-key"><i className="umap-dot now" /> 지금(30분 안) <i className="umap-dot day" /> 오늘 다녀간 곳
+          {작게 && <button type="button" className="umap-mini-b umap-less" onClick={() => { set펼침(false); try { localStorage.removeItem(큰기억) } catch (e) { /* 없음 */ } 세기('|지도|작게') }}>▴ 작게 보기</button>}
+        </span>
       </div>
       <div className={'umap-body' + (줄들 && 줄들.줄.length ? ' two' : '')}>
         <div className="umap-mapcol">
