@@ -1,5 +1,7 @@
 import { askAfter } from '../AskComment'
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { 세기 } from '../lib/받은수.jsx'   /* 🩹 G166 */
+import { Component, useEffect, useMemo, useRef, useState } from 'react'
+import 이용자지도 from '../tools/이용자지도.jsx'   /* 🩹 G166 따로 받지 않음 — 아래 설명 */
 import { NaeyeokStrip } from '../components.jsx'
 import { Link, useSearchParams } from 'react-router-dom'
 import { getJSON, getOverview, getAgency, similarZone, getSim, getBidIndex, indexRows, getResults } from '../lib/data.js'
@@ -23,7 +25,21 @@ import 칸누가 from '../칸누가.jsx'
 import 곧나올줄 from '../곧나올줄.jsx'
 /* 🗺 G144 (2026-10-05) 지금 K-건설맵을 쓰는 곳 — 사랑방에서 옮겨 옴(소장님 「실시간 지도를 바로입찰 상단에 … 여기가 조회수가 가장 많으니까」)
    화면이 뜬 뒤에 받습니다(지도 바탕 37KB · 자료 1KB) — 투찰 셈을 늦추지 않게 */
-const 이용자지도 = lazy(() => import('../tools/이용자지도.jsx'))
+/* 🩹 2026-10-06 (G166) 소장님 「공고에서 바로투찰로 계산하기 누르면 계산기가 아예 안떠, 권장금액도 안뜨고」
+   「이런 경우가 더 이상 반복되지 않게 해줘. 그리고 지도도 뜨게 해주고」
+   전에는 이 지도를 따로 떼어(lazy) 나중에 받았습니다. 사이트는 한 시간쯤마다 새로 올라가고 그때 그 파일 이름
+   (이용자지도-xxxx.js)이 바뀌어 옛 파일은 없어집니다 → 그 전에 열어 둔 화면에서 바로투찰로 오면 옛 이름을 찾다가 404 →
+   바로투찰 화면이 통째로 멈췄습니다(계산기 · 권장 투찰금액까지 · 두 번째부터는 «화면을 그리다 멈췄습니다»).
+   → 지도(12KB · 압축 4KB)를 바로투찰과 «한 덩이» 로 묶습니다 — 따로 받을 파일이 없으니 배포가 지나가도 안 깨집니다.
+     지도 바탕(한국지도 · 이름이 안 바뀌는 파일)만 따로 받고, 그것도 못 받으면 점만 그립니다.
+     또 지도에서 무슨 일이 나도 계산기는 그대로 뜨게 «지도지킴» 으로 감쌉니다.
+   ⚠️ 바로투찰(첫 화면)에 lazy() 를 다시 넣지 마세요. */
+class 지도지킴 extends Component {
+  constructor(p) { super(p); this.state = { 오류: false } }
+  static getDerivedStateFromError() { return { 오류: true } }
+  componentDidCatch() { try { 세기('|바로투찰|지도멈춤') } catch (e) { /* 없음 */ } }
+  render() { return this.state.오류 ? null : this.props.children }
+}
 /* 공고 화면(LiveBoard)이 예전부터 여기서 가져다 썼습니다 — 그대로 이어 줍니다 */
 export { missingOf, isReady }
 
@@ -230,6 +246,7 @@ function ScenTable({ sc, amtLabel, pctile, realNote }) {
 export default function BaroBid() {
   const [sp] = useSearchParams()
   const [idx, setIdx] = useState(undefined)
+  const [없는공고, set없는공고] = useState('')   /* 🩹 G166 주소로 왔는데 목록에 없는 공고번호 */
   const [ov, setOv] = useState(null)
   const [ag, setAg] = useState(null)
   const [sim, setSim] = useState(null)
@@ -287,10 +304,24 @@ export default function BaroBid() {
 
   useEffect(() => {
     getOverview().then(setOv)
-    getIndex().then((v) => setIdx(v || null))
     getSim().then(setBt)
     getBandStat().then(setBs)
   }, [])
+
+  /* 🩹 G166 공고 목록(bidindex) — 한 번 못 받으면(폰 신호 · 잠깐 끊김) 예전엔 이 화면이 끝까지 «빈 계산기» 였습니다.
+     이제 3초 · 8초 · 20초 뒤 저절로 다시 받고, 그래도 안 되면 «다시 받기» 단추를 보여 줍니다. */
+  const [목록다시, set목록다시] = useState(0)
+  useEffect(() => {
+    let ok = true, t = null
+    const 받기 = (n) => getIndex().then((v) => {
+      if (!ok) return
+      if (v) { setIdx(v); return }
+      if (n === 0) { try { 세기('|바로투찰|목록못받음') } catch (e) { /* 없음 */ } }
+      if (n < 3) { t = setTimeout(() => 받기(n + 1), [3000, 8000, 20000][n]) } else setIdx(null)
+    })
+    받기(0)
+    return () => { ok = false; clearTimeout(t) }
+  }, [목록다시])
 
   /* 개찰 상세의 «바로투찰 열기» 로 넘어온 값 */
   useEffect(() => {
@@ -395,7 +426,12 @@ export default function BaroBid() {
     const no = (sp.get('no') || 남은).trim().toUpperCase()
     if (!no || !rows.length) return
     const hit = rows.find((r) => String(r.no).toUpperCase() === no)
-    if (!hit) { autoPicked.current = true; return }   // 마감된 공고면 채점만 합니다
+    if (!hit) {
+      autoPicked.current = true   // 마감된 공고면 채점만 합니다
+      /* 🩹 G166 — 주소로 온 공고(?no=)가 계산 목록에 없으면 예전엔 아무것도 안 떴습니다. 이유를 띄웁니다. */
+      if (sp.get('no')) { set없는공고(no); try { 세기('|바로투찰|공고없음') } catch (e) { /* 없음 */ } }
+      return
+    }
     autoPicked.current = true
     pick(hit)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -976,7 +1012,7 @@ export default function BaroBid() {
       {/* 🗺 G144 맨 위 지도 — 공고를 골라 셈하러 온 화면(?bid=)과 검증 화면에서는 맨 위에 안 띄움(셈이 먼저)
           → G160 (2026-10-06) 소장님 「공고에서 바로투찰을 클릭하면 지도가 사라져 이것도 같이 고쳐줘」: 공고에서 온 화면도 맨 위에 — 다만 작은 상자로 */}
       {/* G160 소장님 「공간을 너무 많이 차지하지 않고 공간 활용을 잘 해서 배치 해줘」 → 골라 온 화면은 맨 위에 «작은 상자»(지도 크게 보기 ▾) */}
-      {!verifyMode && <Suspense fallback={null}><이용자지도 작게={!!picked} /></Suspense>}
+      {!verifyMode && <지도지킴><이용자지도 작게={!!picked} /></지도지킴>}
 
       {/* 📋 투찰금액을 정하러 온 사람 = 곧 내역서가 필요해질 사람입니다. */}
       <NaeyeokStrip tone="bid" />
@@ -1106,12 +1142,25 @@ export default function BaroBid() {
             <span className="ico">🔍</span>
             <input
               value={q}
-              onChange={(e) => { setQ(e.target.value); setPicked(null); setCopied(false); try { sessionStorage.removeItem('kcm.baro.no') } catch (er) { /* 없음 */ } }}
+              onChange={(e) => { setQ(e.target.value); setPicked(null); setCopied(false); set없는공고(''); try { sessionStorage.removeItem('kcm.baro.no') } catch (er) { /* 없음 */ } }}
               placeholder={idx === undefined ? '공고를 불러오는 중…' : '예: 도로포장 / 안동시 / 285000000'} />
             {q && <button className="x" onClick={clear} aria-label="지우기">×</button>}
           </div>
         </div>
 
+        {/* 🩹 G166 계산이 안 뜨는 까닭을 빈 화면 대신 보여 줌 */}
+        {idx === null && (
+          <div className="note warn baro-why" role="status">
+            📶 <b>공고 목록을 받지 못했습니다</b> — 인터넷이 잠깐 끊겼을 수 있습니다.
+            {' '}<button type="button" className="lnk" onClick={() => { setIdx(undefined); set목록다시((n) => n + 1) }}>다시 받기</button>
+          </div>
+        )}
+        {idx && !picked && !res && 없는공고 && !q && (
+          <div className="note baro-why" role="status">
+            ⏳ <b>이 공고({없는공고})는 아직 계산 목록에 없습니다.</b> 방금 올라온 공고는 다음 사이트 갱신(보통 1시간 안)에 들어옵니다.
+            {' '}기초금액을 아시면 위 칸에 숫자로 넣어 바로 계산할 수 있습니다.
+          </div>
+        )}
         {!picked && !qIsAmount && hiddenCount > 0 && (
           <div className="hidenote">
             계산에 필요한 값이 빠진 공고 <b>{hiddenCount}건</b>은 감췄습니다.

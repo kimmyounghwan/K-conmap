@@ -65,15 +65,16 @@ export function winScore(r) {
   return s
 }
 
+/* 💬 G167 (2026-10-06) 소장님 「다 알고서 어떻게든 해보려고 하는데…이런말은 다른 말로 교체하자」 — C · D 이름 · 설명을 «하지 말라» 대신 «이렇게 넣으라» 로 */
 export const GRADES = [
   { key: 'A', min: 3, label: '해볼 만함', win: 5.4, n: 576,
     tone: 'good', say: '창이 넓은 편입니다. 넣어볼 자리입니다.' },
   { key: 'B', min: 1, label: '보통', win: 3.5, n: 226,
     tone: 'mid', say: '평균쯤입니다. 다른 조건이 좋으면 넣어볼 만합니다.' },
-  { key: 'C', min: -1, label: '어려움', win: 0, n: 72,
-    tone: 'bad', say: '하한에 바짝 붙는 공고입니다. 지난 자료에서 못 땄습니다.' },
-  { key: 'D', min: -99, label: '사실상 운', win: 0, n: 84,
-    tone: 'bad', say: '거의 전원이 하한에 붙습니다. 시간과 보증금만 씁니다.' },
+  { key: 'C', min: -1, label: '경쟁 많음', win: 0, n: 72,
+    tone: 'bad', say: '하한에 바짝 붙는 공고입니다. 작은 금액 차이로 갈리니 금액을 한 번 더 확인하고 넣으세요.' },
+  { key: 'D', min: -99, label: '경쟁 치열', win: 0, n: 84,
+    tone: 'bad', say: '거의 모든 업체가 하한 근처에 몰립니다. 사정률 운이 크게 작용하는 자리라, 권장 금액으로 꾸준히 넣는 것이 방법입니다.' },
 ]
 
 export function winGrade(r) {

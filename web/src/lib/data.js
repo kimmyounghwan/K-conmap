@@ -57,7 +57,11 @@ export async function getJSON(path) {
     .then((r) => (r.ok ? r.json() : null))
     .catch(() => null)
     .then((v) => {
+      /* 🩹 G166 — 못 받은 것(null)은 오래 붙들지 않습니다. 예전엔 한 번 못 받으면 그 탭이 닫힐 때까지
+         «없음» 으로 남아, 바로투찰 계산기가 끝까지 안 떴습니다(폰 신호가 잠깐 끊긴 뒤 등). 2초 뒤엔 다시 받을 수 있게 합니다
+         (같은 순간 여러 곳이 부르는 것은 위 inflight 가 한 번으로 묶습니다). */
       cache.set(url, v)
+      if (v == null) setTimeout(() => { if (cache.get(url) == null) cache.delete(url) }, 2000)
       inflight.delete(url)
       return v
     })
@@ -281,7 +285,9 @@ export const getBoardRank = (name, kind, k) =>
    collect.py 의 export_bidindex 가 "f" 에 칸 이름을 주므로, 자리 번호를 어디에도 적지 않습니다. */
 let _bidIndex = null
 export const getBidIndex = () =>
-  _bidIndex || (_bidIndex = getJSON('/data/bidindex.json').catch(() => { _bidIndex = null; return null }))
+  _bidIndex || (_bidIndex = getJSON('/data/bidindex.json')
+    .then((v) => { if (!v) _bidIndex = null; return v })      /* 🩹 G166 못 받았으면 다음에 다시 */
+    .catch(() => { _bidIndex = null; return null }))
 
 /** {f:[...], r:[[...]]} → [{no, name, inst, base, …}] — 없는 칸은 undefined */
 /* 면허별 경쟁도 (2026-09-14) — 면허를 고를 때와 /lic 페이지에서만 받습니다.

@@ -656,6 +656,26 @@ export default function Qna() {
      카드에서 바로 누르던 ♥ 공감을 뺐습니다 — 카드는 숫자(♥ 공감 · 💬 답글 · 👁 조회), 누르기 · 쓰기는 글을 열고 안에서.
      단 답 없는 질문의 «답하기» 는 남김(답을 부르는 단추) — 누르면 답글 칸이 열린 채로 엽니다(답하러). */
   const [답하러, set답하러] = useState(null)
+  /* ♥ G164 (2026-10-06) 소장님 「난 왜 하트 클릭이 안돼. 맵톡에서」 「내가 쓴 글이 아닌데도 안돼」 → 「해」
+     G157 때 카드 ♥ 는 «누르면 글이 열리는 숫자» 로만 두어, 카드에서 누르면 공감이 안 되는 것처럼 보였음.
+     이제 카드 ♥ 를 누르면 글을 열지 않고 그 자리에서 공감 · 한 번 더 누르면 뺌(먼저 화면에 · 서버가 막으면 되돌림).
+     내 글이면 «내 글은 다른 분이 공감합니다» 말풍선만. 📊 |맵톡|카드공감 */
+  const [하트임시, set하트임시] = useState({})     // { 글번호: true(누름) | false(뺌) } — 서버 답 오기 전
+  const [하트말, set하트말] = useState(null)
+  const 내글인가 = (r) => 내것.has(r.id) || (!!나 && !!r.uid && (r.uid === 나.uid || r.uid === 나.r))
+  const 하트눌림 = (id) => (id in 하트임시 ? 하트임시[id] : !!(나 && (좋아요[id] || {})[나.r]))
+  const 하트수 = (id) => { const 원 = n좋아요(id), 원눌림 = !!(나 && (좋아요[id] || {})[나.r]); return id in 하트임시 ? 원 + (하트임시[id] === 원눌림 ? 0 : (하트임시[id] ? 1 : -1)) : 원 }
+  const 카드하트 = async (r) => {
+    if (내글인가(r)) { set하트말(r.id); setTimeout(() => set하트말((v) => (v === r.id ? null : v)), 1800); return }
+    if (!나) { 열기(r.id); return }
+    if (r.id in 하트임시) return              /* 누르는 중 */
+    const 켬 = !하트눌림(r.id)
+    set하트임시((m) => ({ ...m, [r.id]: 켬 }))
+    const ok = await 좋아요누름(`qna_like/${r.id}`, 켬)
+    set하트임시((m) => { const x = { ...m }; delete x[r.id]; return x })
+    if (ok && 켬) 세기('|맵톡|카드공감')
+    if (!ok) { set하트말('못함:' + r.id); setTimeout(() => set하트말((v) => (v === '못함:' + r.id ? null : v)), 2200) }
+  }
   const 카드 = (r) => {
     const t = 주제들[r.주제] || 주제들.talk
     const n = nAns(r.id)
@@ -681,7 +701,12 @@ export default function Qna() {
         </button>
         <div className="mt-foot">
           {/* 숫자만 — 누르면 글이 열리고, 공감 · 답글은 그 안에서 */}
-          <button type="button" className="mt-act mt-cnt" onClick={() => 열기(r.id)} aria-label={`공감 ${n좋아요(r.id)} · 글 열기`} title="공감 — 글을 열어 누릅니다">♥ {n좋아요(r.id)}</button>
+          <button type="button" className={'mt-act mt-cnt mt-heart' + (하트눌림(r.id) ? ' on' : '')} onClick={() => 카드하트(r)} aria-pressed={하트눌림(r.id)}
+            aria-label={`공감 ${하트수(r.id)}${내글인가(r) ? ' · 내 글' : 하트눌림(r.id) ? ' · 누르면 공감 빼기' : ' · 누르면 공감'}`}
+            title={내글인가(r) ? '내 글 — 공감은 다른 분이 누릅니다' : 하트눌림(r.id) ? '공감했습니다 — 한 번 더 누르면 뺍니다' : '누르면 공감'}>♥ {하트수(r.id)}
+            {하트말 === r.id && <span className="mt-heart-tip" role="status">내 글은 다른 분이 공감합니다</span>}
+            {하트말 === '못함:' + r.id && <span className="mt-heart-tip" role="status">공감을 누르지 못했습니다 — 잠시 뒤 다시</span>}
+          </button>
           <button type="button" className="mt-act mt-cnt" onClick={() => 열기(r.id)} aria-label={`답글 ${n} · 글 열기`} title="답글 — 글을 열어 씁니다">💬 {n}</button>
           {/* 👁 G156 (2026-10-06) 소장님 「맵톡에 왜 조회가 없지? 이거 꼭 있어야 해....」 — 세기는 G95 그대로(같은 기기 하루 한 번 ·
               글쓴이 본인 · 운영자 · 검색 로봇은 안 셈). 전엔 글을 펼쳐야만 · 1 이상일 때만 보였습니다 → 카드마다 늘 보이게. */}

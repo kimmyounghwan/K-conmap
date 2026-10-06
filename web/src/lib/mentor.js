@@ -49,7 +49,9 @@ export function noteLive(r, ctx = {}) {
   }
   if (enp >= 100) {
     return { tone: 'bad',
-      text: `예상 ${num(enp)}곳이 몰립니다. 금액을 다듬어도 잘 안 바뀌는 구간이라, 다른 공고가 낫습니다.` }
+      /* 💬 G167 (2026-10-06) 소장님 「다른 공고가 낫습니다. 이런 말은 아니지 않아..다 알고서 어떻게든 해보려고 하는데」
+         → 넣으려는 분께 «하지 말라» 가 아니라 «이렇게 넣으라» 로 */
+      text: `예상 ${num(enp)}곳이 몰리는 공고입니다. 1순위가 낙찰하한 바로 위에서 갈리는 자리라, 하한 밑으로만 내려가지 않게 넣으시면 됩니다.` }
   }
   if (odds && odds.win > 0 && odds.n > 0) {
     return { tone: odds.win >= 8 ? 'good' : odds.win >= 3 ? 'mid' : 'bad',
@@ -77,7 +79,7 @@ export function noteFirst(r) {
   }
   if (np >= 100) {
     return { tone: 'bad',
-      text: `${num(np)}곳이 붙었습니다. 이런 자리는 1순위가 하한 바로 위에 붙어, 금액보다 «어느 공고에 넣느냐»가 갈랐습니다.` }
+      text: `${num(np)}곳이 붙었습니다. 1순위가 하한 바로 위에서 정해졌습니다. 이런 자리는 작은 금액 차이로 갈립니다.` }   /* 💬 G167 */
   }
   if (np >= 2 && np < 10) {
     const w = recWinFor(np)

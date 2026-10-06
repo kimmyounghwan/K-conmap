@@ -27,6 +27,15 @@ export default class 화면지킴 extends Component {
     this.state = { 오류: null }
   }
 
+  /* 🩹 G166 — «한 번만 새로 고침» 표시가 한 번 찍히면 그 탭이 닫힐 때까지 남아,
+     두 번째 배포가 지나간 뒤엔 새로 고치지 않고 «멈췄습니다» 만 떴습니다. 잘 뜨고 20초가 지나면 표시를 지웁니다
+     (곧바로 또 멈추는 진짜 고장이면 20초 안이라 표시가 남아 — 끝없이 새로 고치지는 않습니다). */
+  componentDidMount() {
+    this.지움 = setTimeout(() => { if (!this.state.오류) { try { sessionStorage.removeItem(다시표) } catch (e) { /* 없음 */ } } }, 20000)
+  }
+
+  componentWillUnmount() { clearTimeout(this.지움) }
+
   static getDerivedStateFromError(e) {
     return { 오류: e || new Error('알 수 없는 오류') }
   }
