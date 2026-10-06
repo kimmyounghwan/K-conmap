@@ -152,7 +152,7 @@ import { use화면상태, use남김 } from '../lib/길기록.js'
 import 건설소식 from '../tools/건설소식.jsx'   /* 📰 G128 — 지도 아래 «오늘의 건설 소식» · 💬 이야기하기 → 글쓰기 칸 */
 /* 🗺 G147 (2026-10-05) 사랑방 → 맵톡 — 큰 지도 위 글쓰기 · 글 = 핀(시·군) · 방은 저절로(같은 주제 10개) · 사진 한 장 */
 import 맵톡지도 from '../tools/맵톡지도.jsx'
-import { 주제들, 주제짐작, 방나누기, 글나누기, 자리짐작, 짧은이름, 곳찾기, 카드크기, 물음인가, 사진줄이기, 사진크기한도, 방기준, 답나무, 첫줄, 누적셈, 시도차례, 시도별, 곳기억읽기, 곳기억하기 } from '../lib/맵톡.js'
+import { 주제들, 주제짐작, 방나누기, 글나누기, 자리짐작, 짧은이름, 곳찾기, 카드크기, 물음인가, 한마디인가, 사진줄이기, 사진크기한도, 방기준, 답나무, 첫줄, 누적셈, 시도차례, 시도별, 곳기억읽기, 곳기억하기 } from '../lib/맵톡.js'
 import { 세기 } from '../lib/받은수.jsx'
 import { 받는꼴, 파일검사, 파일올리기, 크기글, 오늘올린수, 올린수더하기, 하루한도 } from '../lib/파일올리기.js'   /* 📎 G158 */
 
@@ -530,11 +530,38 @@ export default function Qna() {
   const [올림, set올림] = useState(null)
   const [빛, set빛] = useState(null)
   const 앞자리 = useRef(null)
+  /* 💬 G161 (2026-10-06) 소장님 「배치가 너무 단조로워」 → 고르심 ①높이 자동 ②인사 글 묶음 ④방 색 (③⑤⑥⑦은 글이 쌓이면)
+     ② 짧은 인사 · 응원 · 수다(lib/맵톡.js 한마디인가)는 카드 대신 맨 위 «💬 고마워요 · 한마디» 띠에 말풍선으로.
+     «전체» 보기에서만 · 셋 이상일 때만 · 내 글은 내 화면에선 카드 그대로(방금 쓴 글이 안 보이는 일 없게). 누르면 똑같이 열립니다. */
+  const 한마디들 = useMemo(() => {
+    if (!list || !기본보기) return []
+    const x = list.filter((r) => !내것.has(r.id) && 한마디인가(r))
+    return x.length >= 3 ? x : []
+  }, [list, 기본보기, 내것])
+  const 카드바탕 = useMemo(() => {
+    if (!list || !한마디들.length) return list
+    const 뺄 = new Set(한마디들.map((r) => r.id))
+    return list.filter((r) => !뺄.has(r.id))
+  }, [list, 한마디들])
+  const [한마디다, set한마디다] = useState(false)
   const 보이는목록 = useMemo(() => {
-    if (!list || !올림) return list
-    const i = list.findIndex((r) => r.id === 올림)
-    return i <= 0 ? list : [list[i], ...list.slice(0, i), ...list.slice(i + 1)]
-  }, [list, 올림])
+    if (!카드바탕 || !올림) return 카드바탕
+    const i = 카드바탕.findIndex((r) => r.id === 올림)
+    return i <= 0 ? 카드바탕 : [카드바탕[i], ...카드바탕.slice(0, i), ...카드바탕.slice(i + 1)]
+  }, [카드바탕, 올림])
+
+  /* 🧱 G161 ① 높이 자동(벽돌 쌓기) — 칸 높이 2px · 카드마다 제 높이만큼 칸을 차지(--rs). 짧은 글은 낮게 · 긴 글은 길게.
+     폰(한 줄)은 그대로. 카드 높이가 바뀌면(사진이 늦게 뜸 · 창 너비) ResizeObserver 가 다시 잽니다. */
+  const 판 = useRef(null)
+  const 벽돌됨 = typeof ResizeObserver !== 'undefined'
+  useLayoutEffect(() => {
+    const g = 판.current
+    if (!g || !벽돌됨) return undefined
+    const 재기 = (el) => { const n = Math.max(1, Math.ceil((el.offsetHeight + 14) / 2)); if (el.style.getPropertyValue('--rs') !== String(n)) el.style.setProperty('--rs', String(n)) }
+    const ro = new ResizeObserver((es) => es.forEach((e) => 재기(e.target)))
+    g.querySelectorAll('.mt-card').forEach((el) => { 재기(el); ro.observe(el) })
+    return () => ro.disconnect()
+  }, [보이는목록])   // eslint-disable-line react-hooks/exhaustive-deps
   const 자리재기 = () => {
     const m = {}
     document.querySelectorAll('.mt-feed .mt-card[data-id]').forEach((el) => { m[el.dataset.id] = el.getBoundingClientRect() })
@@ -621,9 +648,9 @@ export default function Qna() {
   /* 공감 · 답글 많은 글 둘은 크게(카드 두 칸) — 공감 둘 · 공감+답 하나쯤은 넘어야(감사 한 줄이 크게 뜨지 않게) */
   const 큰글 = useMemo(() => {
     const 점 = (r) => 3 * n좋아요(r.id) + 2 * nAns(r.id) + Math.min(10, Math.floor((조회[r.id] || 0) / 10))
-    return new Set((list || []).filter((r) => !r.p).map((r) => [r.id, 점(r)]).filter(([, s]) => s >= 5)
+    return new Set((카드바탕 || []).filter((r) => !r.p).map((r) => [r.id, 점(r)]).filter(([, s]) => s >= 5)
       .sort((a, b) => b[1] - a[1]).slice(0, 2).map(([id]) => id))
-  }, [list, 좋아요, ans, 조회])   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [카드바탕, 좋아요, ans, 조회])   // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ♥ G157 (2026-10-06) 소장님 「다른 사이트 처럼,,,하트가 안으로 들어가고」 「하트도 보여야 하고, 글쓰기가 안으로 들어가야 하지 않아?」
      카드에서 바로 누르던 ♥ 공감을 뺐습니다 — 카드는 숫자(♥ 공감 · 💬 답글 · 👁 조회), 누르기 · 쓰기는 글을 열고 안에서.
@@ -637,9 +664,10 @@ export default function Qna() {
     const 제목 = 가림(r.t)
     const 본문 = 가림(r.b || '')
     return (
-      <article key={r.id} data-id={r.id} className={'mt-card' + (크기 ? ' ' + 크기 : '') + (r.id === 새글번호 ? ' fresh' : '') + (고정[r.id] ? ' pinned' : '') + (빛 === r.id ? ' lifted' : '')}>
+      <article key={r.id} data-id={r.id} style={{ '--rc': t.색 }} className={'mt-card' + (크기 ? ' ' + 크기 : '') + (r.id === 새글번호 ? ' fresh' : '') + (고정[r.id] ? ' pinned' : '') + (빛 === r.id ? ' lifted' : '')}>
         <div className="mt-meta">
-          <span className="mt-tag" style={{ color: t.색 }}><i style={{ background: t.색 }} />{t.이름}</span>
+          {/* 🎨 G161 ④ 방 색 — 카드 위 색 띠 · 아주 옅은 바탕 · 방 이름 글씨(색은 styles.css 가 --rc 로 · 어두운 화면은 밝게) */}
+          <span className="mt-tag"><i />{t.이름}</span>
           {곳 && <span className="mt-where">{짧은이름(곳.n)}</span>}
           <span className="mt-date" title={언제(r.at)}>· {날시(r.at)}</span>
           {고정[r.id] && <span title="도구 사용법">📌</span>}
@@ -837,7 +865,28 @@ export default function Qna() {
                   ? <Empty>답을 기다리는 글이 없습니다 — 다 답하셨습니다. 👍</Empty>
                   : <Empty>아직 글이 없습니다. 맨 위 칸에 아무 말이나 먼저 남겨 주세요 — 한 줄이어도 됩니다.</Empty>
             )}
-            {보이는목록 && 보이는목록.length > 0 && <div className="mt-feed">{보이는목록.map((r) => 카드(r))}</div>}
+            {한마디들.length > 0 && (
+              <section className="mt-hanmadi" aria-label="고마워요 · 한마디">
+                <div className="mt-hm-h"><b>💬 고마워요 · 한마디</b><em>{한마디들.length}</em><span>인사 · 응원 · 수다 — 누르면 글이 열립니다</span></div>
+                <div className="mt-hm-list">
+                  {(한마디다 ? 한마디들 : 한마디들.slice(0, 8)).map((r) => {
+                    const 곳 = r.g ? 곳찾기(지도바탕, r.g) : null
+                    const n = nAns(r.id), h = n좋아요(r.id)
+                    return (
+                      <button type="button" key={r.id} className="mt-hm" style={{ '--rc': (주제들[r.주제] || 주제들.talk).색 }} onClick={() => { 세기('|맵톡|한마디'); 누르기(r.id) }}>
+                        <span className="mt-hm-t">{가림(r.t)}{r.b ? <small> {가림(r.b)}</small> : null}</span>
+                        <span className="mt-hm-m">{r.nick || '익명'}{곳 ? ' · ' + 짧은이름(곳.n) : ''} · {날시(r.at)}{h > 0 ? ` · ♥ ${h}` : ''}{n > 0 ? ` · 💬 ${n}` : ''}</span>
+                      </button>
+                    )
+                  })}
+                  {한마디들.length > 8 && (
+                    <button type="button" className="mt-hm-more" onClick={() => { if (!한마디다) 세기('|맵톡|한마디더'); set한마디다((v) => !v) }}>
+                      {한마디다 ? '접기 ▴' : `+${한마디들.length - 8} 더 보기 ▾`}</button>
+                  )}
+                </div>
+              </section>
+            )}
+            {보이는목록 && 보이는목록.length > 0 && <div ref={판} className={'mt-feed' + (벽돌됨 ? ' mason' : '')}>{보이는목록.map((r) => 카드(r))}</div>}
           </div>
 
           <aside className="mt-side">

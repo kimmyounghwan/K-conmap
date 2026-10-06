@@ -6543,6 +6543,55 @@ span.mt-act { cursor: default; }
   .mt-stats b { font-size: 13.5px; }
   .mt-subs { margin-left: 8px; padding-left: 8px; }
 }
+/* ── G161 맵톡 배치(2026-10-06 소장님 「배치가 너무 단조로워」 → ①②④) ──
+   ① 높이 자동(벽돌) — 칸 2px · 카드가 제 높이만큼(--rs, Qna.jsx 가 잼). 폰(한 줄)은 그대로
+   ② 💬 고마워요 · 한마디 — 짧은 인사 글은 말풍선으로 한 띠에
+   ④ 방 색 — 카드 위 색 띠 · 옅은 바탕 · 방 이름 글씨 (어두운 화면은 색을 밝게 섞어서) */
+.mt-card, .mt-hm { --rcb: var(--rc, var(--accent)); }
+.mt-card::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--rcb); pointer-events: none; }
+.mt-card .mt-tag { color: var(--rcb); }
+.mt-card .mt-tag i { background: var(--rcb); }
+@media (min-width: 641px) {
+  .mt-feed.mason { grid-auto-rows: 2px; row-gap: 0; align-items: start; }
+  .mt-feed.mason .mt-card, .mt-feed.mason .mt-card.tall { grid-row: auto / span var(--rs, 90); }
+  .mt-feed.mason .mt-photo { flex: none; height: 190px; }
+  .mt-feed.mason .mt-say { -webkit-line-clamp: 3; }
+  .mt-feed.mason .mt-rest { -webkit-line-clamp: 4; }
+  .mt-feed.mason .mt-card.tall .mt-rest { -webkit-line-clamp: 2; }
+}
+/* 폰 · 좁은 PC 는 .mt-body 가 세로(align-items:flex-start)라 띠가 줄을 넓히지 않게 */
+@media (max-width: 1020px) { .mt-feedcol { width: 100%; } }
+.mt-hanmadi { margin: 0 0 14px; padding: 14px 16px 13px; border-radius: 20px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.mt-hm-h { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; margin-bottom: 11px; font-size: 15px; }
+.mt-hm-h b { font-weight: 900; }
+.mt-hm-h em { font-style: normal; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mt-hm-h span { font-size: 12.5px; color: var(--muted); }
+.mt-hm-list { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
+.mt-hm { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: 3px; min-width: 0; max-width: 100%; padding: 9px 14px 8px; border-radius: 16px 16px 16px 4px;
+  background: var(--surface-2); border: 1px solid var(--line); transition: transform .18s, box-shadow .18s; }
+.mt-hm-t { max-width: 320px; font-size: 14.5px; font-weight: 700; line-height: 1.45; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mt-hm-t small { font-size: 13px; font-weight: 500; color: var(--text-2); }
+.mt-hm-m { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.mt-hm:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) { .mt-hm:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(16,24,40,.12); border-color: var(--rcb); } }
+.mt-hm-more { align-self: center; min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px dashed var(--line); background: transparent; color: var(--accent); font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.mt-hm-more:hover { border-color: var(--accent); }
+/* color-mix 를 모르는 옛 브라우저는 위(옅은 바탕 없이)만 — 바탕이 투명해지지 않게 @supports 안에 */
+@supports (color: color-mix(in srgb, red 50%, blue)) {
+  @media (prefers-color-scheme: dark) { .mt-card, .mt-hm { --rcb: color-mix(in srgb, var(--rc, #6b9bff) 55%, #dfe6f2); } }
+  .mt-card { background: color-mix(in srgb, var(--rcb) 4%, var(--surface)); }
+  .mt-hm { background: color-mix(in srgb, var(--rcb) 9%, var(--surface)); border-color: color-mix(in srgb, var(--rcb) 24%, var(--line)); }
+  @media (hover: hover) and (pointer: fine) { .mt-card:not(.pinned):hover { border-color: color-mix(in srgb, var(--rcb) 45%, var(--line)); } }
+}
+@media (max-width: 640px) {
+  .mt-hanmadi { padding: 12px 0 10px; border-radius: 18px; }
+  .mt-hm-h { padding: 0 14px; margin-bottom: 9px; }
+  .mt-hm-h span { flex-basis: 100%; }
+  .mt-hm-list { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; scroll-padding-inline: 14px; padding: 2px 14px 4px; }
+  .mt-hm-list::-webkit-scrollbar { display: none; }
+  .mt-hm { flex: none; max-width: 78vw; scroll-snap-align: start; }
+  .mt-hm-t { max-width: 66vw; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .mt-hero *, .mt-page .mt-ticker *, .mt-card, .mt-card *, .mt-room, .mt-sheet, .mt-back, .mt-ans, .mt-af { animation: none !important; transition: none !important; }
+  .mt-hero *, .mt-page .mt-ticker *, .mt-card, .mt-card *, .mt-hm, .mt-room, .mt-sheet, .mt-back, .mt-ans, .mt-af { animation: none !important; transition: none !important; }
 }
