@@ -50,6 +50,29 @@ function 올림수({ n }) {
 }
 
 export default function 맵톡지도({ 글들, 새글번호, 열기, 새방, 누적, children }) {
+  /* 📎 G158 (2026-10-06) PC 에선 글쓰기 칸이 지도 위에 떠 있어(position:absolute) 사진 · 파일 · 지역 고르기로 칸이 길어지면
+     지도 상자 밖으로 넘쳐 «올리기» 가 가려졌습니다 → 칸 높이를 재서 지도 상자를 그만큼 늘립니다(폰은 칸이 흐름 속이라 그대로). */
+  const 틀 = useRef(null)
+  useEffect(() => {
+    const el = 틀.current
+    if (!el || typeof ResizeObserver === 'undefined') return undefined
+    let mq = null
+    try { mq = window.matchMedia('(min-width: 1021px)') } catch (e) { return undefined }
+    const 맞춤 = () => {
+      const c = el.querySelector('.mt-compose')
+      if (!c || !mq.matches) { el.style.minHeight = ''; return }
+      el.style.minHeight = ''
+      const 필요 = c.offsetTop + c.offsetHeight + 28
+      if (필요 > el.offsetHeight) el.style.minHeight = 필요 + 'px'
+    }
+    const ro = new ResizeObserver(맞춤)
+    const c = el.querySelector('.mt-compose')
+    if (c) ro.observe(c)
+    맞춤()
+    const 바뀜 = () => 맞춤()
+    try { mq.addEventListener('change', 바뀜) } catch (e) { /* 옛 브라우저 */ }
+    return () => { ro.disconnect(); try { mq.removeEventListener('change', 바뀜) } catch (e) { /* 옛 브라우저 */ } }
+  }, [])
   const [바탕, set바탕] = useState(null)
   const [오늘점, set오늘점] = useState([])
   const [돌기, set돌기] = useState(0)
@@ -90,7 +113,7 @@ export default function 맵톡지도({ 글들, 새글번호, 열기, 새방, 누
   return (
     <section className="mt-hero" aria-label="맵톡 첫 화면">
       <span className="mt-aur a1" /><span className="mt-aur a2" /><span className="mt-aur a3" />
-      <div className="mt-hwrap">
+      <div className="mt-hwrap" ref={틀}>
         <div className="mt-brand">
           <small>K-건설맵 · 이야기 지도</small>
           <h1>맵톡</h1>

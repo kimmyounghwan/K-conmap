@@ -86,6 +86,16 @@
         //    p: 사진 한 장 주소(Storage qna_pics/{기기}/{글}.jpg — storage.rules) · 그 밖의 주소는 못 넣음
         "g":       { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 12" },
         "p":       { ".validate": "newData.isString() && newData.val().length <= 600 && newData.val().beginsWith('https://firebasestorage.googleapis.com/v0/b/k-conmap.firebasestorage.app/o/qna_pics%2F')" },
+        // 📎 G158 (2026-10-06) 맵톡 파일 한 개 — u: 받는 주소(이용자 서식과 같은 Storage user_forms/{올린 기기}/ · storage.rules 가 10MB · 확장자를 막음)
+        //    n: 원래 이름 · s: 원본 크기(20MB 까지) · z: 저장 크기(눌러 올린 것 · 10MB 까지) — 그 밖의 주소 · 칸은 못 넣음
+        "f": {
+          ".validate": "newData.hasChildren(['u','n','s'])",
+          "u": { ".validate": "newData.isString() && newData.val().length <= 2000 && newData.val().beginsWith('https://firebasestorage.googleapis.com/v0/b/k-conmap.firebasestorage.app/o/user_forms%2F' + auth.uid + '%2F')" },
+          "n": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 120" },
+          "s": { ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 20971520" },
+          "z": { ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 10485760" },
+          "$other": { ".validate": false }
+        },
         "$other":  { ".validate": false }
       }
     },

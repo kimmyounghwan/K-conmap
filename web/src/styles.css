@@ -6296,6 +6296,17 @@ button.sk-mini { color: var(--accent); padding: 0; text-align: left; }
 .mt-att { display: inline-flex; align-items: center; gap: 8px; margin: 2px 0 8px; padding: 5px 8px 5px 5px; border-radius: 12px; background: var(--surface-2); font-size: 13px; font-weight: 700; color: var(--text-2); }
 .mt-att img { width: 46px; height: 36px; object-fit: cover; border-radius: 8px; }
 .mt-att button { border: 0; background: none; color: var(--muted); font-size: 13px; cursor: pointer; min-height: 32px; font-family: inherit; }
+/* 📎 G158 맵톡 파일 — 칸 아래 붙인 것 · 카드 한 줄 · 글 안 받기 상자 */
+.mt-att-f { flex-wrap: wrap; padding: 6px 10px; max-width: 100%; box-sizing: border-box; }
+.mt-att-i { font-size: 16px; }
+.mt-att-n { min-width: 0; max-width: 60vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mt-att-warn { flex-basis: 100%; font-size: 12px; font-weight: 600; color: #92400e; }
+.mt-fileline { display: block; margin-top: 6px; font-size: 12.5px; font-weight: 700; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mt-filebox { display: flex; align-items: center; gap: 10px; margin: 12px 0 2px; padding: 11px 14px; border: 1px solid var(--accent-line); border-radius: 14px; background: var(--accent-soft); color: var(--text); text-decoration: none; min-width: 0; }
+.mt-filebox:hover { border-color: var(--accent); }
+.mt-filebox-i { font-size: 20px; }
+.mt-filebox-n { flex: 1 1 auto; min-width: 0; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mt-filebox-go { color: var(--accent); white-space: nowrap; }
 .mt-crow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 4px; }
 .mt-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text-2); font-size: 14px; font-weight: 600; cursor: pointer; }
 .mt-chip.on { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
@@ -6438,6 +6449,7 @@ span.mt-act { cursor: default; }
   .mt-chip { padding: 0 11px; font-size: 13px; }
   .mt-chip-t { display: none; }
   .mt-chip::after { content: '사진'; }
+  .mt-chip.mt-file::after { content: '파일'; }
   .mt-opfix-t { display: none; }
   .mt-opfix::after { content: '📌 고정'; }
   .mt-pin4 { width: 84px; padding: 0 8px; }
