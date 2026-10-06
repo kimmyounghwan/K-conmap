@@ -99,7 +99,7 @@ export default function Sites() {
             const isOpen = open === id
             const corp = normCorp(r.win || '')
             return (
-              <div className={'notice site' + (isOpen ? ' open' : '')} key={id} onClick={() => setOpen(isOpen ? null : id)}>
+              <div className={'notice site tap' + (isOpen ? ' open' : '')} key={id} onClick={() => setOpen(isOpen ? null : id)}>
                 <h3>{r.name}</h3>
                 <div className="meta">
                   <span className="inst">{r.site || r.inst}</span>

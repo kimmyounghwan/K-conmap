@@ -213,7 +213,7 @@ export default function ExtBoard() {
             return (
               <div key={r.id}>
                 {첫모름 && <div className="xdiv">▼ 지역 모름 {num(모름.length)}건 — 공고문에서 참가지역을 확인하세요</div>}
-                <div className={'notice xnotice' + (취소 ? ' gone' : '')} onClick={() => setOpen(열림 ? null : r.id)}>
+                <div className={'notice xnotice tap' + (취소 ? ' gone' : '') + (열림 ? ' open' : '')} onClick={() => setOpen(열림 ? null : r.id)}>
                   <h3>
                     <span className={'xsrc xs-' + r.s}>{기관[r.s]?.nm || r.s}</span>
                     {새것 ? <span className="badge new">🆕 오늘</span> : null}

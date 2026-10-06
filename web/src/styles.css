@@ -310,6 +310,19 @@ a.brand-sub:hover { opacity: 1; }
   transition: transform .1s, border-color .12s;
 }
 .notice:active { transform: scale(.995); border-color: var(--accent-line); }
+/* 🖱 G155 (2026-10-06) 소장님 「공고하고 1순위에서 마우스를 박스에 대면 조금 움직이거나 아니면 뭔가 표시가 잇어야 하는데, 없어」
+   누르면 펼쳐지는 카드(.tap — 공고 · 1순위 · 나라장터 밖 · 곧 나올 공사 · 현장)만. 마우스가 있는 기기에서만 —
+   올리면 2px 떠오르고 테두리 · 그림자에 파란 빛, 제목 · ▼ 가 파래집니다. 폰(손가락)은 그대로(누를 때 살짝 눌림).
+   펼친 카드(.open)는 파란 테두리로 남습니다. «움직임 줄이기» 를 켠 분은 떠오르지 않고 빛만. */
+.notice.tap { transition: transform .16s ease, border-color .16s, box-shadow .16s; }
+.notice.tap h3, .notice.tap .caret { transition: color .16s; }
+.notice.tap.open { border-color: var(--accent-line); }
+@media (hover: hover) and (pointer: fine) {
+  .notice.tap:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 18%, transparent), var(--shadow); }
+  .notice.tap:hover h3, .notice.tap:hover .caret { color: var(--accent); }
+  .notice.tap:active { transform: translateY(0) scale(.995); }
+}
+@media (prefers-reduced-motion: reduce) { .notice.tap:hover, .notice.tap:active { transform: none; } }
 .notice h3 {
   margin: 0 0 7px;
   font-size: 14.5px;

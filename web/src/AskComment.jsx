@@ -264,7 +264,8 @@ export default function AskStrip() {
             <div className="q">고맙습니다 🙏</div>
             <div className="s">맵톡에 올라갔습니다. 답이 달리면 거기에 붙습니다.</div>
             <div className="b">
-              <Link className="btn primary" to="/qna" onClick={() => setKind('')}>맵톡에서 보기 →</Link>
+              {/* 🩹 G155 — /qna 맨 위로만 가서 «내 글이 안 보인다» 였습니다 → 방금 쓴 그 글이 바로 열리게 */}
+              <Link className="btn primary" to={`/qna/${encodeURIComponent(끝)}`} onClick={() => setKind('')}>맵톡에서 내 글 보기 →</Link>
               <button className="btn ghost" onClick={() => setKind('')}>닫기</button>
             </div>
           </>

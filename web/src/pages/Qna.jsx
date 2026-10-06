@@ -230,6 +230,9 @@ export default function Qna() {
   /* 🩹 2026-09-28 — 공고에서 «이 공고 구성원 글» 로 왔을 때: { no, 이름, 초안 } — 찾는 띠·빈 화면 글을 그 공고에 맞춥니다 */
   const [공고찾기, set공고찾기] = useState(null)
   const 찾기띠 = useRef(null)
+  /* 🩹 G155 (2026-10-06) 소장님 「맵톡에서 내가 쓰는 글 보기 클릭해도 안나오는 것 같아」 — «내 글» 을 누르면 목록이 바뀌는 곳이
+     지도 · 글쓰기 아래라 폰에서는 화면이 그대로인 것처럼 보였습니다 → 누르면 «내가 쓴 글만 보는 중» 줄로 내려 갑니다 */
+  const 내글보러 = useRef(false)
   useEffect(() => {
     const st = loc.state || {}
     if (!st.찾기 && !st.새글) return
@@ -272,36 +275,42 @@ export default function Qna() {
   const 공지닫기 = () => { set공지열림(false); try { localStorage.setItem(공지열쇠, 공지판) } catch (e) { /* 사생활 창 */ } }
 
   const load = async () => {
-    try {
-      const { ref, get, query, orderByKey, limitToLast, db, ensureAnon } = await loadFb()
-      await ensureAnon()
-      /* 🧹 2026-09-29 — 구인구직(jobs) 글을 여기 같이 띄우던 것을 뺐습니다(소장님: 사랑방은 «후기·건의 · K-건설맵» 둘만).
-         구인구직 화면(/jobs)과 그 자료는 그대로입니다. 사랑방에서 구인·구직 이야기는 후기·건의에 씁니다. */
-      const [a, b, c] = await Promise.all([
-        get(query(ref(db, 'qna'), orderByKey(), limitToLast(LIMIT))),
-        get(ref(db, 'qna_del')),
-        get(ref(db, 'qna_a')),
-      ])
+    /* ⚡ G155 (2026-10-06) 소장님 「이제 3개 글이 다 보여, 반응이 느린 것 같아. 바로 반응오게 고쳐줘」
+       전엔 글 → 📌 고정 → 🔑 나(내 번호) → 👍 공감 → 👁 조회수를 «하나씩 차례로» 기다렸습니다. 그래서 글은 떴는데
+       «내 글» 이 한참 뒤에야 찼습니다(폰: «내 글 1» → 조금 뒤 «내 글 3»). 이제 다섯 가지를 «한꺼번에» 묻고,
+       글 · 고정 · 나는 «같이» 그립니다 — 글이 뜨는 그 순간 «내 글» 숫자도 맞습니다.
+       고정 · 나 · 공감 · 조회수는 따로 .catch — 규칙이 없거나 막혀도 게시판은 그대로 뜹니다(옛 주의 그대로). */
+    const 없어도 = (pr) => Promise.resolve(pr).catch(() => null)
+    const 붙음 = loadFb().then(async (fb) => { await fb.ensureAnon(); return fb })
+    /* 🧹 2026-09-29 — 구인구직(jobs) 글을 여기 같이 띄우던 것을 뺐습니다(소장님: 사랑방은 «후기·건의 · K-건설맵» 둘만).
+       구인구직 화면(/jobs)과 그 자료는 그대로입니다. 사랑방에서 구인·구직 이야기는 후기·건의에 씁니다. */
+    const 글읽기 = 붙음.then(({ ref, get, query, orderByKey, limitToLast, db }) => Promise.all([
+      get(query(ref(db, 'qna'), orderByKey(), limitToLast(LIMIT))),
+      get(ref(db, 'qna_del')),
+      get(ref(db, 'qna_a')),
+    ]))
+    const 고정읽기 = 없어도(붙음.then(({ ref, get, db }) => get(ref(db, 'qna_top'))).then((x) => (x ? x.val() || {} : null)))
+    const 나읽기 = 없어도(붙음.then(() => 뿌리찾기()))
+    const 곁 = 없어도(붙음.then(() => 좋아요읽기()))
+    const 조회읽기 = 없어도(붙음.then(({ ref, get, db }) => get(ref(db, 'qna_v'))).then((x) => (x ? x.val() || {} : null)))
+    let 글 = null
+    try { 글 = await 글읽기 } catch (e) { 글 = null }
+    /* 한 번에 그립니다(React 18 이 묶음) — 고정 글이 피드에 잠깐 떴다가 옆 칸으로 튀는 일도 없습니다.
+       다만 고정 · 나가 글보다 «0.4초 넘게» 늦으면 글부터 그리고, 온 뒤에 채웁니다(글을 붙잡아 두지 않게). */
+    const 늦어도 = (pr) => Promise.race([pr, new Promise((r) => setTimeout(() => r(undefined), 400))])
+    const [g, me] = await Promise.all([늦어도(고정읽기), 늦어도(나읽기)])
+    if (g) set고정(g); else if (g === undefined) 고정읽기.then((x) => { if (x) set고정(x) })
+    if (me) set나(me); else if (me === undefined) 나읽기.then((x) => { if (x) set나(x) })
+    if (글) {
+      const [a, b, c] = 글
       setDel(b.val() || {})
       setAns(c.val() || {})
       const v = a.val() || {}
       setRows(Object.entries(v).map(([id, x]) => ({ id, ...x })).reverse())
-    } catch (e) {
-      setRows([])
-    }
-    /* ⚠️ 따로 읽습니다 — 위 Promise.all 에 넣으면 규칙이 아직 없을 때 «게시판 전체» 가 빈 칸이 됩니다 */
-    try {
-      const { ref, get, db } = await loadFb()
-      set고정((await get(ref(db, 'qna_top'))).val() || {})
-    } catch (e) { /* 고정 없이 */ }
-    try { set나(await 뿌리찾기()) } catch (e) { /* 모름 */ }
-    await 좋아요읽기()
-    /* 👁 조회수 — 따로 읽습니다(규칙을 올리기 전이면 조회수만 안 보입니다) */
-    try {
-      const { ref, get, db } = await loadFb()
-      const v = (await get(ref(db, 'qna_v'))).val() || {}
-      set조회((m) => { const n = { ...v }; Object.keys(m).forEach((k) => { if ((m[k] || 0) > (n[k] || 0)) n[k] = m[k] }); return n })
-    } catch (e) { /* 조회수 없이 */ }
+    } else setRows([])
+    await 곁
+    const v = await 조회읽기
+    if (v) set조회((m) => { const n = { ...v }; Object.keys(m).forEach((k) => { if ((m[k] || 0) > (n[k] || 0)) n[k] = m[k] }); return n })
   }
   const 좋아요읽기 = async () => {
     try {
@@ -410,6 +419,12 @@ export default function Qna() {
     })
   }, [모두, q, onlyMine, 내것, 방고름, 고정, 기본보기, ans])   // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!onlyMine || !내글보러.current) return
+    내글보러.current = false
+    const t = setTimeout(() => { const el = 찾기띠.current; if (el) { try { el.scrollIntoView({ block: 'start', behavior: 'smooth' }) } catch (e) { el.scrollIntoView() } } }, 60)
+    return () => clearTimeout(t)
+  }, [onlyMine])
   /* 공고에서 왔고 아직 그 공고번호로 찾는 중인가 */
   const 이공고 = !!(공고찾기 && q.trim() === 공고찾기.no)
   useEffect(() => {
@@ -709,19 +724,22 @@ export default function Qna() {
         {왕 && <div className="qna-king">👑 <b>{Number(왕.달.slice(5))}월의 답변왕</b> — {왕.nick} <span className="muted">· 고맙습니다!</span></div>}
 
         {/* 🗺 방 — 고르지 않고 쓴 글이 10개씩 모이면 저절로 생깁니다. 글 수는 지금 보이는 글(최근 300) 기준 */}
+        {/* 🩹 G155 (2026-10-06) 소장님 「내 글 세개인데, 하나만 뜨는데, 클릭하면」 — 방(예: 후기·건의)을 골라 둔 채 «내 글» 을 누르면
+            «그 방에 든 내 글» 만 남아 숫자(3)와 목록(1)이 달랐습니다. 이제 «내 글» 과 방은 하나만 켜집니다 — 내 글을 누르면 방은 «전체» 로,
+            방을 누르면 «내 글» 은 꺼집니다. 그래서 «내 글 N» 이면 늘 N 장이 보입니다. */}
         <nav className="mt-rooms" aria-label="방">
           <span className="mt-lab">방</span>
           <button type="button" className={'mt-room' + (방고름 === 'all' && !onlyMine ? ' on' : '')} aria-pressed={방고름 === 'all'}
             onClick={() => { set방고름('all'); setOnlyMine(false) }}>전체 <em>{(모두 || []).length}</em></button>
           {방들.방.map((x) => (
             <button key={x.k} type="button" className={'mt-room' + (방고름 === x.k ? ' on' : '') + (새방 && 새방.k === x.k ? ' fresh' : '')} aria-pressed={방고름 === x.k}
-              onClick={() => { set방고름(x.k); 세기('|맵톡|방') }}><i style={{ background: x.색 }} />{x.이름} <em>{x.n}</em></button>
+              onClick={() => { set방고름(x.k); setOnlyMine(false); 세기('|맵톡|방') }}><i style={{ background: x.색 }} />{x.이름} <em>{x.n}</em></button>
           ))}
           {내것.size > 0 && (
-            <button type="button" className={'mt-room' + (onlyMine ? ' on' : '')} aria-pressed={onlyMine} onClick={() => setOnlyMine((v) => !v)}>
+            <button type="button" className={'mt-room' + (onlyMine ? ' on' : '')} aria-pressed={onlyMine} onClick={() => { const 켬 = !onlyMine; setOnlyMine(켬); if (켬) { set방고름('all'); 내글보러.current = true; 세기('|맵톡|내글보기') } }}>
               {onlyMine ? '✓ 내 글만' : '내 글'} <em>{내것.size}</em></button>
           )}
-          {나운영자 && <button type="button" className={'mt-room' + (방고름 === '답기다림' ? ' on' : '')} onClick={() => set방고름('답기다림')}>⏳ 답 기다림 <em>{셈.답기다림 || 0}</em></button>}
+          {나운영자 && <button type="button" className={'mt-room' + (방고름 === '답기다림' ? ' on' : '')} onClick={() => { set방고름('답기다림'); setOnlyMine(false) }}>⏳ 답 기다림 <em>{셈.답기다림 || 0}</em></button>}
           {나운영자 && <Link className="mt-room" to="/admin">🛠 관리자</Link>}
           <input className="inp mt-find" placeholder="찾기 — 낱말" value={q} onChange={(e) => setQ(e.target.value)} aria-label="맵톡 글 찾기" />
         </nav>

@@ -151,7 +151,7 @@ export default function ExtFirst({ 기관, 차례, region, setRegion }) {
                 ▼ 지역 모름 {num(모름.length)}건 — 기관이 지역을 안 적어 준 결과
               </div>
             )}
-            <div className="notice xnotice" onClick={() => setOpen(열림 ? null : r.id)}>
+            <div className={'notice xnotice tap' + (열림 ? ' open' : '')} onClick={() => setOpen(열림 ? null : r.id)}>
               <h3>
                 <span className={'xsrc xs-' + r.s}>{곳.nm || r.s}</span>
                 {r.nm}

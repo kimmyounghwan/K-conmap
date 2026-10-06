@@ -217,7 +217,7 @@ export default function FirstBoard() {
             const isOpen = open === id
             const winAmt = r.sAmt || r.amt
             return (
-              <div className="notice" key={id} onClick={() => { if (!isOpen) 공고봄(r.no, r.name); setOpen(isOpen ? null : id) }}>
+              <div className={'notice tap' + (isOpen ? ' open' : '')} key={id} onClick={() => { if (!isOpen) 공고봄(r.no, r.name); setOpen(isOpen ? null : id) }}>
                 <h3>{r._new ? <span className="badge new">🆕 방금</span> : null}{r.name}</h3>
                 <div className="meta">
                   <span className="inst">{r.inst}</span>

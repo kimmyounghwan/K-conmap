@@ -151,7 +151,7 @@ export default function Pre() {
         const 때 = 시기(r)
         const 담음 = 담은.some((x) => x.id === r.id)
         return (
-          <div key={r.id} className={'notice xnotice pre-card' + (r.st === 'o' ? ' got' : '')} onClick={() => set열림(펼침 ? null : r.id)}>
+          <div key={r.id} className={'notice xnotice pre-card tap' + (r.st === 'o' ? ' got' : '') + (펼침 ? ' open' : '')} onClick={() => set열림(펼침 ? null : r.id)}>
             <h3>
               <span className={'pre-k ' + (r.k === 's' ? 's' : 'p')}>{r.k === 's' ? '📝 사전규격' : '📋 발주계획'}</span>
               {r.nm}
