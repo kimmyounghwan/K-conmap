@@ -359,6 +359,18 @@ def main():
     except Exception as e:
         print(f"  · 사랑방 글 주소를 못 넣었습니다({type(e).__name__}: {e}) — 넘어갑니다")
 
+    # ── 🪪 G188 마이컨맵 — 검색 등록 칸을 다 채운 페이지만 (mypages.py · prerender.py 와 같은 목록 · 30분 남겨 둠) ──
+    n_my = 0
+    try:
+        import mypages, qnapages
+        for x in mypages.pages(mypages.snapshot()):
+            urls.append(f'  <url><loc>{mypages.사이트맵주소(x["a"])}</loc>'
+                        f'<lastmod>{qnapages.ymd(x["mod"]) or today}</lastmod>'
+                        f'<changefreq>weekly</changefreq><priority>0.5</priority></url>')
+            n_my += 1
+    except Exception as e:
+        print(f"  · 마이컨맵 주소를 못 넣었습니다({type(e).__name__}: {e}) — 넘어갑니다")
+
     xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
            + "\n".join(urls) + "\n</urlset>\n")
@@ -389,13 +401,15 @@ def main():
     def _갈래(u):
         if "/qna/" in u:                  # 💬 사랑방 글은 따로 한 벌 — «팔릴 페이지»(main) 한 벌을 묽게 하지 않게
             return "qna"
+        if f"<loc>{SITE}/@" in u:          # 🪪 G188 마이컨맵 — 따로 한 벌
+            return "my"
         if "/corp/" in u or "/agency/" in u:
             return "corp"
         if "/notice/" in u or "/daily" in u:
             return "bid"
         return "main"
 
-    통 = {"main": [], "bid": [], "corp": [], "qna": []}
+    통 = {"main": [], "bid": [], "corp": [], "qna": [], "my": []}
     for u in urls:
         통[_갈래(u)].append(u)
 
@@ -410,7 +424,7 @@ def main():
 
     낸것 = []
     for 이름, 열쇠 in [("sitemap-main.xml", "main"), ("sitemap-bid.xml", "bid"),
-                     ("sitemap-corp.xml", "corp"), ("sitemap-qna.xml", "qna")]:
+                     ("sitemap-corp.xml", "corp"), ("sitemap-qna.xml", "qna"), ("sitemap-my.xml", "my")]:
         if 통[열쇠]:                      # 빈 사이트맵은 내지 않습니다 (빈 urlset 은 오류로 잡힙니다)
             _쓰기(이름, 통[열쇠])
             낸것.append((이름, len(통[열쇠])))

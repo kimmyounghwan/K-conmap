@@ -14,6 +14,7 @@ import RefreshBtn from './Refresh.jsx'
 import Crumbs, { BackBtn } from './Crumbs.jsx'
 import { 화면조회줄, 방문자바닥 } from './lib/조회수.jsx'   /* 👁 G121 — 모든 화면 위 «이 화면 조회 N» · 👥 G172 방문자 오늘 · 어제 · 누적 */
 import { use길지킴이 } from './lib/길기록.js'
+import { 쓴곳기록 } from './lib/마이쓴곳.js'   /* 🪪 G188 마이컨맵 «내 도구 · 서식» — 연 도구 · 서식을 이 브라우저에만 셈 */
 
 import { use떨굼막기 } from './끌어놓기.jsx'
 import 새판 from './새판.jsx'
@@ -22,7 +23,7 @@ import 감사공지 from './감사공지.jsx'   /* 🙏 G116 감사 공지 띠 �
    예) /cad · /pdf 에 있어도 「도구」 탭이 켜집니다. */
 function alsoOn(t, path) {
   if (!t.also) return false
-  return t.also.some((p) => path === p || path.startsWith(p + '/'))
+  return t.also.some((p) => path === p || path.startsWith(p + '/') || (p === '/@' && path.startsWith('/@')))
 }
 
 const TABS = [
@@ -37,7 +38,7 @@ const TABS = [
        [입찰 3] 바로투찰·1순위·공고
        [서류 2] 서식·설계변경
        [파는 것] 내역서 작성      ← 둘째 줄 머리
-       [게시판 2] 구인구직·사랑방
+       [게시판 2] 마이컨맵(옛 구인구직 자리 · G188)·맵톡
        [보조 2] 분석·도구 */
   { to: '/', ic: '💰', label: '바로투찰' },
   { to: '/first', ic: '🏆', label: '1순위' },
@@ -66,7 +67,10 @@ const TABS = [
      → 탭 이름을 «내역서» 로 바꾸고 두 탭의 «유료» 표시(pay)를 뗐습니다. 다시 열 때 되돌리십시오. */
   { to: '/naeyeok', ic: '📋', label: '내역서', also: ['/safety'] },
   { to: '/jeoksan', ic: '🧮', label: '적산' },
-  { to: '/jobs', ic: '💼', label: '구인구직' },
+  /* 🪪 G188 · 2026-10-07 — 소장님: 「구인 구직을 탭을 제거하고, 마이컨맵으로 대체하면」 → 「클로드 의견대로 하자」(A안)
+     탭 자리만 💼 구인구직 → 🪪 마이컨맵(탭 10개 그대로). /jobs 화면 · 글 · 고용24 · 주소 · 검색은 그대로 두고,
+     마이컨맵 첫 화면(작업대)과 «구인 · 구직» 블록에서 이어 줍니다. /jobs · /@주소 에 있어도 이 탭에 불이 들어옵니다. */
+  { to: '/my', ic: '🪪', label: '마이컨맵', also: ['/jobs', '/@'] },
   { to: '/qna', ic: '🗺', label: '맵톡' },
   /* 📊 2026-09-18 — 성적표(/report)·업체(/corp)·기관(/agency) 화면에서도 이 탭에 불이
      들어오게 합니다. 탭은 10개가 한도라(위 설명) 성적표에 새 탭을 줄 수 없습니다 —
@@ -111,6 +115,25 @@ export default function App() {
   /* 🧭 2026-09-27 — 「특히 뒤로가기 잘 되어 있나」: 옛 «주소가 바뀌면 맨 위로» 를 대신합니다.
      앞으로 가면 맨 위, 뒤로 오면 «보던 자리» (자료가 늦게 와도 기다렸다가). 칸마다 주소도 적어 둡니다 → Crumbs 의 «← 들어온 곳». lib/길기록.js */
   use길지킴이()
+  useEffect(() => { 쓴곳기록(pathname) }, [pathname])
+  /* 🪪 G188 마이컨맵 «그 일로 바로» 단축키 — 주소 끝 #go-… 면 그 칸이 그려질 때까지(4초) 기다렸다 그 자리로 · 글 칸이면 커서
+     (#go-mt-say 처럼 id 가 go- 없이 있어도 찾음) · 다른 # 은 건드리지 않음 */
+  const { hash } = useLocation()
+  useEffect(() => {
+    if (!hash || !hash.startsWith('#go-')) return undefined
+    const id = decodeURIComponent(hash.slice(1))
+    let n = 0
+    const t = setInterval(() => {
+      const el = document.getElementById(id) || document.getElementById(id.slice(3))
+      if (el || ++n > 40) {
+        clearInterval(t)
+        if (!el) return
+        try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }) } catch (e) { el.scrollIntoView() }
+        if (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) setTimeout(() => { try { el.focus({ preventScroll: true }) } catch (e) { el.focus() } }, 350)
+      }
+    }, 100)
+    return () => clearInterval(t)
+  }, [pathname, hash])
   /* 📥 파일을 받지 않는 화면에 떨어뜨려도 사이트를 떠나지 않게 (끌어놓기.jsx) */
   use떨굼막기()
 

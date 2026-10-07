@@ -86,7 +86,8 @@ if (typeof window !== 'undefined') {
   /* 아이콘으로 열었나 — 세고 나서 주소의 ?src=app 은 떼어 냅니다(주소를 복사해 나눌 때 섞이지 않게) */
   try {
     const q = new URLSearchParams(location.search)
-    const 아이콘 = q.get('src') === 'app'
+    const 아이콘 = q.get('src') === 'app' || q.get('src') === 'app-sc'   /* 🪪 G188 app-sc = 앱 아이콘을 길게 눌러 고른 단축 메뉴(manifest shortcuts) */
+    if (q.get('src') === 'app-sc') 세기('|마이|앱단축')
     const 창 = isStandalone()
     if (아이콘 || 창) {
       let 첫 = true

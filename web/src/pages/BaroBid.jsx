@@ -1301,8 +1301,9 @@ export default function BaroBid() {
         </div>
 
         <div className="field">
-          <label>기초금액 (원)</label>
-          <input inputMode="numeric" className="big"
+          <label htmlFor="go-base">기초금액 (원)</label>
+          {/* 🪪 G188 마이컨맵 단축키 «바로투찰 — 기초금액 넣기»(/calc#go-base) 가 여기로 와서 커서를 둡니다(App.jsx) */}
+          <input id="go-base" inputMode="numeric" className="big"
             value={base ? base.toLocaleString('ko-KR') : ''}
             onChange={(e) => { setBase(toNum(e.target.value)); setCopied(false) }}
             placeholder="예: 285,000,000" />

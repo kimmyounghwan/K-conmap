@@ -73,6 +73,9 @@ const Naeyeok = lazyPage(() => import('./pages/Naeyeok.jsx'))
 const Ratio = lazyPage(() => import('./pages/Ratio.jsx'))
 const Hado = lazyPage(() => import('./pages/Hado.jsx'))   /* 🤝 2026-10-06 (G171) 하도급 내역서 만들기 — 6장 한 벌 */
 const Qna = lazyPage(() => import('./pages/Qna.jsx'))
+/* 🪪 G188 마이컨맵 — /my(만들기 · 내 작업대) · /@{주소}(공개 페이지). 파이어베이스는 이 화면을 열 때만 */
+const MyConmap = lazyPage(() => import('./pages/MyConmap.jsx'))
+const MyAt = lazyPage(() => import('./pages/MyConmap.jsx').then((m) => ({ default: m.MyAt })))
 /* 🛠 관리자 — 소장님만. 검색엔진에 안 올립니다(Admin.jsx 가 noindex 를 겁니다). */
 const Admin = lazyPage(() => import('./pages/Admin.jsx'))
 const How = lazyPage(() => import('./pages/How.jsx'))
@@ -265,6 +268,10 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/guide/:slug" element={<Suspense fallback={<Loading />}><GuideTopic /></Suspense>} />
           <Route path="/daily" element={<DailyIndex />} />
           <Route path="/daily/:date" element={<DailyPage />} />
+          {/* 🪪 G188 마이컨맵 — «/@주소» 는 한 칸짜리 «/:at» 로 받고 @ 로 시작하지 않으면 MyAt 이 NotFound 를 그립니다(react-router 6 은 «/@:a» 같은 반쪽 변수를 못 받음).
+              ⚠️ web/firebase.json rewrites 에 «/my» · 정규식 «^/@[^/]+$» 를 같이 넣었습니다. 구운 페이지(@주소.html)는 mypages.py · prerender.py. */}
+          <Route path="/my" element={<Suspense fallback={<Loading />}><MyConmap /></Suspense>} />
+          <Route path="/:at" element={<Suspense fallback={<Loading />}><MyAt /></Suspense>} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

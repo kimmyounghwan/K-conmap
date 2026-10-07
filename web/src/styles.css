@@ -6799,3 +6799,242 @@ span.mt-act { cursor: default; }
 .gm-btns { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 8px; font-size: 12.5px; }
 ul.gm-why { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: 12.5px; line-height: 1.6; }
 @media (max-width: 520px) { .gm-tbl th, .gm-tbl td { padding: 7px 4px; } .gm-tbl small { display: block; } }
+
+/* ══════════ 🪪 G188 마이컨맵 — /my · /@주소 (pages/MyConmap.jsx) ══════════
+   테마 여섯 가지는 .mc-th-* 의 색 몇 개만 바꿉니다(링크트리처럼 «표지 색 · 칩 · 단추» 가 같이 바뀜). 밝은 · 어두운 화면 둘 다. */
+.mc-th-mint     { --mc-a: #0f9f8f; --mc-a2: #34c6a4; --mc-ink: #fff; --mc-soft: #e6f7f3; --mc-softink: #0b6f64; }
+.mc-th-sky      { --mc-a: #2f7de1; --mc-a2: #5fb2ff; --mc-ink: #fff; --mc-soft: #e8f1fd; --mc-softink: #1d5bb0; }
+.mc-th-lemon    { --mc-a: #e2b100; --mc-a2: #ffd84d; --mc-ink: #2b2100; --mc-soft: #fff7d6; --mc-softink: #7a5d00; }
+.mc-th-apricot  { --mc-a: #ea6a4b; --mc-a2: #ff9f76; --mc-ink: #fff; --mc-soft: #fdeee8; --mc-softink: #a8402a; }
+.mc-th-lavender { --mc-a: #7c5ce6; --mc-a2: #a98bff; --mc-ink: #fff; --mc-soft: #f0ecfd; --mc-softink: #5a3dc0; }
+.mc-th-ink      { --mc-a: #334155; --mc-a2: #64748b; --mc-ink: #fff; --mc-soft: #eef1f5; --mc-softink: #334155; }
+@media (prefers-color-scheme: dark) {
+  .mc-th-mint { --mc-soft: #0f2e2a; --mc-softink: #7fe3cf; }
+  .mc-th-sky { --mc-soft: #13233b; --mc-softink: #9cc6ff; }
+  .mc-th-lemon { --mc-soft: #2e2708; --mc-softink: #ffd84d; }
+  .mc-th-apricot { --mc-soft: #33190f; --mc-softink: #ffb196; }
+  .mc-th-lavender { --mc-soft: #221a3d; --mc-softink: #c4b3ff; }
+  .mc-th-ink { --mc-a: #475569; --mc-soft: #1c2430; --mc-softink: #cbd5e1; }
+}
+.mc-wrap { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; padding-bottom: 8px; }
+.mc-wrap > .mc-page, .mc-wrap > .mc-seo, .mc-wrap > .mc-after { max-width: 560px; width: 100%; margin-left: auto; margin-right: auto; }
+
+/* 공개 페이지 */
+.mc-page { background: var(--surface); border-radius: 22px; overflow: hidden; box-shadow: var(--shadow); border: 1px solid var(--line); }
+.mc-cover { background: linear-gradient(140deg, var(--mc-a), var(--mc-a2)); color: var(--mc-ink); text-align: center; padding: 30px 20px 22px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.mc-ava { width: 74px; height: 74px; border-radius: 50%; background: #fff; color: var(--mc-a); display: grid; place-items: center; font-size: 32px; font-weight: 900; box-shadow: 0 6px 18px rgba(0, 0, 0, .14); }
+.mc-kind { font-size: 12px; font-weight: 800; letter-spacing: .02em; opacity: .9; margin-top: 4px; }
+.mc-name { margin: 0; font-size: 24px; line-height: 1.3; font-weight: 900; text-wrap: balance; word-break: keep-all; }
+.mc-line { margin: 0; font-size: 14.5px; line-height: 1.6; opacity: .95; word-break: keep-all; }
+.mc-block { padding: 16px 18px; border-top: 1px solid var(--line-soft); }
+.mc-cover + .mc-block { border-top: 0; }
+.mc-bh { margin: 0 0 8px; font-size: 13px; font-weight: 900; color: var(--mc-softink); display: flex; gap: 6px; align-items: center; }
+.mc-text { white-space: pre-wrap; line-height: 1.85; font-size: 14.5px; color: var(--text); word-break: keep-all; overflow-wrap: anywhere; }
+.mc-small { font-size: 12.5px; color: var(--text-2); line-height: 1.6; }
+.mc-empty { color: var(--muted); text-align: center; font-size: 13px; }
+.mc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.mc-chips-c { justify-content: center; margin-top: 6px; }
+.mc-chip { display: inline-flex; align-items: center; min-height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text-2); font: inherit; font-size: 12.5px; font-weight: 700; }
+.mc-chip-a { background: var(--mc-soft); border-color: transparent; color: var(--mc-softink); }
+.mc-chip-w { background: rgba(255, 255, 255, .22); border-color: rgba(255, 255, 255, .35); color: var(--mc-ink); }
+.mc-badge { display: inline-block; margin-bottom: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--line); }
+.mc-badge.on { background: var(--mc-soft); color: var(--mc-softink); border-color: transparent; }
+.mc-contact { display: flex; flex-direction: column; gap: 8px; }
+.mc-pill { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; padding: 0 16px; border-radius: 14px; border: 1.5px solid var(--mc-a); background: var(--surface); color: var(--mc-softink); font: inherit; font-size: 15px; font-weight: 800; text-decoration: none; cursor: pointer; text-align: center; }
+.mc-pill small { font-weight: 600; font-size: 11.5px; opacity: .8; }
+.mc-pill-a { background: var(--mc-a); color: var(--mc-ink); border-color: var(--mc-a); }
+.mc-pill-k { background: #fee500; color: #191919; border-color: #fee500; }
+.mc-links { display: flex; flex-direction: column; gap: 6px; }
+.mc-link { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line-soft); color: var(--text); text-decoration: none; font-size: 14px; font-weight: 700; }
+.mc-link em { margin-left: auto; font-style: normal; color: var(--mc-a); }
+.mc-more { display: inline-block; margin-top: 8px; font-size: 12.5px; font-weight: 700; color: var(--mc-softink); }
+.mc-foot { padding: 12px 18px 16px; text-align: center; font-size: 11.5px; color: var(--muted); border-top: 1px solid var(--line-soft); }
+.mc-after { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; font-weight: 700; padding: 0 4px; }
+.mc-flag { border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+.mc-none { text-align: center; }
+
+/* 주인 줄 · 검색 등록 막대 */
+.mc-owner { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 10px 12px; border-radius: 14px; background: var(--accent-soft); border: 1px solid var(--accent-line); }
+.mc-owner-t { font-size: 13px; color: var(--text-2); }
+.mc-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.mc-seo { padding: 12px 14px; border-radius: 14px; background: var(--warn-soft); border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent); }
+.mc-seo.ok { background: var(--good-soft); border-color: color-mix(in srgb, var(--good) 30%, transparent); }
+.mc-seo-h { font-size: 13.5px; font-weight: 800; color: var(--text); }
+.mc-seo-bar { height: 8px; border-radius: 999px; background: var(--line); margin: 8px 0; overflow: hidden; }
+.mc-seo-bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #f59e0b, #10b981); }
+.mc-seo ul { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12.5px; color: var(--text-2); }
+.mc-seo li.on { color: var(--good); font-weight: 700; }
+.mc-seo li em { font-style: normal; color: var(--muted); }
+
+/* 꾸미기 */
+.mc-tabs { display: none; gap: 6px; padding: 4px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); }
+.mc-tabs button { flex: 1; min-height: 38px; border: 0; border-radius: 999px; background: transparent; color: var(--text-2); font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
+.mc-tabs button.on { background: var(--surface); color: var(--accent); box-shadow: var(--shadow); }
+.mc-edit { display: flex; flex-direction: column; gap: 10px; }
+.mc-edit-g { display: grid; grid-template-columns: minmax(0, 1fr) 390px; gap: 18px; align-items: start; }
+.mc-edit-l { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.mc-edit-r { position: sticky; top: 76px; min-width: 0; }
+.mc-ec { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.mc-eh { margin: 0; font-size: 15px; font-weight: 900; display: flex; align-items: center; gap: 6px; }
+.mc-ebh { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.mc-ebtn { display: flex; gap: 4px; }
+.mc-ebtn button { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text-2); cursor: pointer; font-size: 13px; }
+.mc-ebtn button:disabled { opacity: .35; cursor: default; }
+.mc-done { margin-left: 4px; padding: 1px 8px; border-radius: 999px; background: var(--good-soft); color: var(--good); font-size: 11px; font-weight: 800; }
+.mc-f { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.mc-f .inp { width: 100%; }
+.mc-fl { font-size: 12.5px; font-weight: 800; color: var(--text-2); }
+.mc-fh { font-size: 12px; color: var(--muted); line-height: 1.6; margin: 0; }
+.mc-check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }
+.mc-check input { width: auto; flex: 0 0 auto; margin: 0; }
+.mc-tog { cursor: pointer; }
+.mc-tog.on, .mc-chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.mc-x { cursor: pointer; }
+.mc-themes { display: flex; flex-wrap: wrap; gap: 8px; }
+.mc-sw { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px 0 6px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); color: var(--text-2); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.mc-sw i { width: 24px; height: 24px; border-radius: 50%; background: var(--sw); display: inline-block; }
+.mc-sw.on { border-color: var(--sw); color: var(--text); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sw) 25%, transparent); }
+.mc-plus { min-height: 48px; border-radius: 14px; border: 1.5px dashed var(--accent-line); background: var(--accent-soft); color: var(--accent); font: inherit; font-size: 14.5px; font-weight: 800; cursor: pointer; }
+.mc-addg { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.mc-add { display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; text-align: left; }
+.mc-add b { font-size: 18px; }
+.mc-phone { border: 10px solid #111827; border-radius: 38px; background: var(--bg); box-shadow: 0 18px 40px rgba(15, 23, 42, .22); overflow: hidden; }
+.mc-phone-in { max-height: calc(100vh - 140px); overflow-y: auto; padding: 12px 10px; }
+.mc-phone-in .mc-page { box-shadow: none; }
+.mc-savebar { position: sticky; bottom: 12px; z-index: 30; display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; padding: 10px 12px; border-radius: 16px; background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(10px); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.mc-savet { margin-right: auto; font-size: 12.5px; color: var(--text-2); }
+@media (max-width: 959px) {
+  .mc-tabs { display: flex; }
+  .mc-edit-g { grid-template-columns: minmax(0, 1fr); }
+  .mc-hide-m { display: none; }
+  .mc-edit-r { position: static; }
+  .mc-phone { border-width: 0; border-radius: 0; box-shadow: none; background: transparent; }
+  .mc-phone-in { max-height: none; padding: 0; }
+}
+@media (max-width: 899px) { .mc-savebar { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 8px); } }
+@media (max-width: 560px) { .mc-savebar { bottom: calc(var(--nav-h) * 2 + env(safe-area-inset-bottom) + 8px); } }
+
+/* /my — 첫 화면 · 만들기 · 작업대 */
+.mc-hero { border-radius: 22px; padding: 26px 22px; color: #fff; background: linear-gradient(135deg, #0f9f8f 0%, #2f7de1 60%, #7c5ce6 100%); box-shadow: var(--shadow); }
+.mc-hero-t { font-size: 13px; font-weight: 900; letter-spacing: .04em; opacity: .9; }
+.mc-hero-h { margin: 6px 0 8px; font-size: 26px; line-height: 1.3; font-weight: 900; text-wrap: balance; }
+.mc-hero-p { margin: 0 0 14px; font-size: 14px; line-height: 1.7; opacity: .95; max-width: 46ch; word-break: keep-all; }
+.mc-cta { min-height: 48px; padding: 0 26px; border-radius: 999px; border: 0; background: #fff; color: #0f766e; font: inherit; font-size: 16px; font-weight: 900; cursor: pointer; box-shadow: 0 8px 20px rgba(0, 0, 0, .18); }
+.mc-wiz { padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.mc-steps { display: flex; gap: 6px; }
+.mc-steps i { flex: 1; height: 6px; border-radius: 999px; background: var(--line); }
+.mc-steps i.on { background: linear-gradient(90deg, #0f9f8f, #2f7de1); }
+.mc-kinds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.mc-kindc { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 18px 10px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; text-align: center; }
+.mc-kindc b { font-size: 34px; }
+.mc-kindc span { font-size: 15px; font-weight: 900; }
+.mc-kindc em { font-style: normal; font-size: 12px; color: var(--muted); }
+.mc-kindc.on, .mc-kindc:hover { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.mc-addr { display: flex; align-items: center; gap: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
+.mc-addr em { font-style: normal; padding: 0 4px 0 10px; color: var(--muted); font-size: 13px; white-space: nowrap; }
+.mc-addr .inp { border: 0; flex: 1; min-width: 0; }
+.mc-pw .mc-f { min-width: 140px; }
+.mc-mini { max-width: 380px; width: 100%; margin: 0 auto; }
+.mc-linkbtn { align-self: flex-start; border: 0; background: transparent; color: var(--accent); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; padding: 4px 2px; }
+.mc-desk, .mc-mine { display: flex; flex-direction: column; gap: 10px; }
+.mc-dh { margin: 6px 0 0; font-size: 17px; font-weight: 900; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.mc-dh small { font-size: 12px; font-weight: 600; color: var(--muted); }
+.mc-tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+.mc-tool { display: flex; align-items: stretch; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); overflow: hidden; min-width: 0; }
+.mc-tool.pin { border-color: var(--accent-line); background: var(--accent-soft); }
+.mc-tool a { flex: 1; min-width: 0; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 8px; align-items: center; padding: 10px 12px; color: var(--text); text-decoration: none; }
+.mc-tool a span { grid-row: 1 / span 2; font-size: 20px; }
+.mc-tool a b { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc-tool a em { font-style: normal; font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc-tool button { width: 36px; border: 0; border-left: 1px solid var(--line-soft); background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; }
+@media (max-width: 560px) {
+  .mc-kinds { grid-template-columns: minmax(0, 1fr); }
+  .mc-kindc { flex-direction: row; justify-content: flex-start; text-align: left; padding: 12px 14px; gap: 10px; }
+  .mc-kindc b { font-size: 26px; }
+  .mc-kindc em { margin-left: auto; }
+  .mc-hero-h { font-size: 22px; }
+  .mc-tools { grid-template-columns: minmax(0, 1fr); }
+}
+/* ⚡ G188 마이컨맵 «내 단축키» 판 — 폰 4칸 · PC 8칸 아이콘 */
+.mc-keys { display: flex; flex-direction: column; gap: 8px; }
+.mc-keys-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.mc-keyg { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; }
+.mc-key { min-width: 0; }
+.mc-key-in { position: relative; width: 100%; min-height: 92px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 10px 6px; border-radius: 18px; border: 1px solid var(--line); background: var(--surface); color: var(--text); text-decoration: none; font: inherit; cursor: pointer; box-shadow: var(--shadow); text-align: center; }
+a.mc-key-in:hover { border-color: var(--accent-line); background: var(--accent-soft); }
+.mc-key-i { font-size: 28px; line-height: 1; }
+.mc-key-n { font-size: 12px; font-weight: 700; line-height: 1.35; word-break: keep-all; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.mc-key-k { position: absolute; top: 6px; left: 8px; font-style: normal; font-size: 10.5px; font-weight: 800; color: var(--muted); }
+.mc-key-add { border-style: dashed; background: var(--accent-soft); color: var(--accent); box-shadow: none; }
+.mc-keyg.edit .mc-key-in { box-shadow: none; border-style: dashed; }
+.mc-key-e { display: flex; gap: 4px; }
+.mc-key-e button { width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text-2); font-size: 11px; cursor: pointer; padding: 0; }
+.mc-key-e button:disabled { opacity: .35; cursor: default; }
+.mc-pick { gap: 6px; }
+.mc-hero.sm { padding: 16px 18px; }
+.mc-hero.sm .mc-hero-h { font-size: 20px; margin: 4px 0 6px; }
+.mc-hero.sm .mc-hero-p { display: none; }
+@media (max-width: 899px) { .mc-keyg { grid-template-columns: repeat(4, minmax(0, 1fr)); } .mc-key-k { display: none; } }
+@media (max-width: 380px) { .mc-key-in { min-height: 84px; } .mc-key-i { font-size: 24px; } .mc-key-n { font-size: 11px; } }
+
+/* 📊 G188 마이컨맵 «실적 자동» · 📰 «소식» · 🪪 «명함 이미지» */
+.mc-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.mc-stats > div { display: flex; flex-direction: column; gap: 2px; padding: 10px 8px; border-radius: 12px; background: var(--mc-soft, var(--accent-soft)); text-align: center; min-width: 0; }
+.mc-stats span { font-size: 11.5px; color: var(--text-2); }
+.mc-stats b { font-size: 16px; color: var(--mc-softink, var(--text)); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.mc-recent { display: flex; flex-direction: column; margin-top: 8px; border-top: 1px solid var(--line); }
+.mc-recent > div { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 7px 2px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+.mc-recent span { color: var(--text-3, var(--text-2)); font-variant-numeric: tabular-nums; }
+.mc-recent b { font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc-recent em { font-style: normal; font-weight: 800; color: var(--mc-softink, var(--text-2)); font-variant-numeric: tabular-nums; }
+.mc-news { display: flex; flex-direction: column; gap: 0; }
+.mc-news > div { position: relative; display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--line); }
+.mc-news > div:last-child { border-bottom: 0; }
+.mc-news span { font-size: 12px; font-weight: 800; color: var(--mc-softink, var(--text-2)); font-variant-numeric: tabular-nums; padding-top: 2px; }
+.mc-news p { margin: 0; font-size: 13.5px; line-height: 1.7; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
+.mc-mini-rec { padding: 10px; border-radius: 12px; border: 1px dashed var(--line); background: var(--surface); }
+
+.mc-bc { display: flex; flex-direction: column; gap: 12px; }
+.mc-bc-h { display: flex; flex-direction: column; gap: 2px; }
+.mc-bc-h b { font-size: 15px; }
+.mc-bc-h .muted { font-size: 12.5px; }
+.mc-bc-kk { display: flex; gap: 8px; flex-wrap: wrap; }
+.mc-bc-k { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.mc-bc-k.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.mc-bc-k i { width: 36px; height: 20px; border-radius: 4px; flex: 0 0 auto; border: 1px solid rgba(0,0,0,.12); }
+.mc-bc-k-clean i { background: #fff; border-left: 6px solid #0f9f8f; }
+.mc-bc-k-ink i { background: #171a21; box-shadow: inset 0 0 0 2px #d4af37; }
+.mc-bc-k span { display: flex; flex-direction: column; align-items: flex-start; font-size: 13px; font-weight: 800; line-height: 1.2; }
+.mc-bc-k small { font-size: 11px; font-weight: 500; color: var(--text-2); }
+.mc-bc-view { position: relative; align-self: center; width: 100%; max-width: 560px; }
+.mc-bc-view canvas { display: block; width: 100%; height: auto; aspect-ratio: 1063 / 591; border-radius: 10px; box-shadow: 0 10px 30px rgba(15, 23, 42, .18), 0 2px 6px rgba(15, 23, 42, .08); background: #fff; }
+.mc-bc-wait { position: absolute; inset: 0; display: grid; place-items: center; font-size: 12.5px; color: var(--text-2); }
+.mc-bc-btns { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.mc-bc-note { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.7; color: var(--text-2); }
+/* ✏️ 명함에만 쓰는 설정(바탕 · 색 · 넣을 것 · 글) */
+.mc-bc-row { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+.mc-bc-l { flex: 0 0 52px; padding-top: 8px; font-size: 12.5px; font-weight: 800; color: var(--text-2); }
+.mc-bc-row > div { flex: 1 1 240px; min-width: 0; }
+.mc-bc-edit { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.mc-bc-et { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; padding: 11px 14px; border: 0; background: var(--surface); color: var(--text); font: inherit; font-size: 13.5px; font-weight: 800; cursor: pointer; text-align: left; }
+.mc-bc-et small { font-size: 12px; font-weight: 500; color: var(--text-2); }
+.mc-bc-ef { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; padding: 4px 14px 14px; }
+.mc-bc-reset { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; text-decoration: underline; }
+/* 🌐 공개 범위 */
+.mc-vis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+.mc-vis-o { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 10px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.mc-vis-o b { font-size: 13.5px; }
+.mc-vis-o small { font-size: 11.5px; line-height: 1.5; color: var(--text-2); }
+.mc-vis-o.on { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.mc-vis-b { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 800; background: var(--good-soft); color: var(--good); }
+.mc-vis-b.mc-vis-링크 { background: var(--accent-soft); color: var(--accent); }
+.mc-vis-b.mc-vis-나만 { background: var(--warn-soft); color: var(--text); }
+/* 📖 마이컨맵 쓰는 법 */
+.mc-guide { display: flex; flex-direction: column; gap: 4px; }
+.mc-guide-g { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.mc-guide-i { padding: 12px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); min-width: 0; }
+.mc-guide-i h3 { margin: 0 0 6px; font-size: 14px; font-weight: 800; color: var(--text); text-wrap: balance; }
+.mc-guide-i p { margin: 0; font-size: 13px; line-height: 1.75; color: var(--text-2); overflow-wrap: anywhere; }
+.mc-guide-end { margin-top: 12px; padding: 14px 16px; border-radius: 14px; background: var(--good-soft); border: 1px solid color-mix(in srgb, var(--good) 30%, transparent); display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.mc-guide-end b { font-size: 14.5px; color: var(--text); }
+.mc-guide-end p { margin: 0; font-size: 13px; line-height: 1.75; color: var(--text-2); }

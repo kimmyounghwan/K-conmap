@@ -583,7 +583,8 @@ function 계산기({ 현장id, 현장칸, on현장명 }) {
             </table>
           </div>
 
-          <div className="tp-bill-sub"><span className="nm-printonly-inline">② </span>지급 명세 <span className="muted no-print">— 보험 단추를 누르면 이 달만 넣고 빼며, 공제 칸을 누르면 금액을 고쳐 씁니다 (🟨 = 손으로 고친 칸)</span></div>
+          {/* 🪪 G188 마이컨맵 단축키 «노무비 — 이 달 지급명세서»(/tools/nomubi#go-myeongse) 가 여기로 내려옵니다(App.jsx) */}
+          <div className="tp-bill-sub" id="go-myeongse"><span className="nm-printonly-inline">② </span>지급 명세 <span className="muted no-print">— 보험 단추를 누르면 이 달만 넣고 빼며, 공제 칸을 누르면 금액을 고쳐 씁니다 (🟨 = 손으로 고친 칸)</span></div>
           <div className="tp-billsum">
             <div><span>노무비 (보수 총액)</span><b>{원(N.합계.보수)}</b></div>
             <div className="minus"><span>공제 합계</span><b>− {원(N.합계.합)}</b><i>{공제칸.map((c) => `${c.이름} ${원(N.합계[c.k])}`).join(' · ')}</i></div>

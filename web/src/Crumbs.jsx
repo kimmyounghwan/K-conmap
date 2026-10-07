@@ -95,7 +95,7 @@ const 탭이름 = { '/tools': '도구', '/forms': '서식', '/naeyeok': '내역�
 const 영문조각 = (x) => /^[a-z0-9]+(-[a-z0-9]+)*$/.test(x)
 
 /* 탭(또는 큰 자리)에 이미 있는 주소 — 길을 안 그립니다. */
-const TOP = new Set(['/', '/calc', '/first', '/live', '/analysis', '/jobs', '/forms',
+const TOP = new Set(['/', '/calc', '/first', '/live', '/analysis', '/jobs', '/my', '/forms',
   '/change', '/naeyeok', '/jeoksan', '/qna', '/how', '/guide', '/tools', '/cad',
   '/daily', '/safety', '/shareone', '/report', '/lic', '/pdf', '/admin'])
 

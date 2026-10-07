@@ -190,6 +190,26 @@ class OgMaker:
             return None
         return self._card(f"og/tab/{slug}.png", title, sub, big, "green", foot)
 
+    def my(self, a, d):
+        """🪪 G188 마이컨맵 /@주소 — 카톡 · 문자 미리보기 카드. ⚠️ 전화 · 카톡 주소는 넣지 않습니다(누구나 보는 그림)."""
+        if not self.available:
+            return None
+        import hashlib
+        b = d.get("블록") or []
+        if isinstance(b, dict):
+            b = [b[k] for k in sorted(b, key=lambda k: int(k) if str(k).isdigit() else 999)]
+        칩 = []
+        for x in b:
+            if isinstance(x, dict) and x.get("t") == "면허":
+                for k in ("면허", "자격"):
+                    v = x.get(k) or []
+                    v = list(v.values()) if isinstance(v, dict) else v
+                    칩 += [str(y) for y in v if isinstance(y, str) and y.strip()]
+        종류 = {"업체": "건설업체", "사람": "현장 사람", "장비": "장비 · 자재"}.get(d.get("종류"), "건설업체")
+        slug = hashlib.md5(str(a).encode("utf-8")).hexdigest()[:12]
+        return self._card(f"og/my/{slug}.png", str(d.get("이름") or a)[:30], str(d.get("한줄") or "")[:60],
+                          ((칩[0] + (f" 외 {len(칩) - 1}" if len(칩) > 1 else "")) if 칩 else "마이컨맵"), "green", f"k-conmap.com/@{a}", f"마이컨맵 · {종류}")
+
     def daily(self, dd):
         """날짜별 개찰 성적표 카드 — 매일 한 장 생기는 «퍼갈 거리» 입니다."""
         if not self.available:

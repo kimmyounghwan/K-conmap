@@ -45,6 +45,7 @@ from ogcard import OgMaker
 import daily as dailymod
 import indexnow
 import qnapages
+import mypages   # 🪪 G188 마이컨맵 «내 건설 명함 페이지» — 검색 등록 칸을 다 채운 것만
 
 
 def bold_md(s):
@@ -3647,6 +3648,24 @@ def main():
         made += 1
     if qna_ps:
         print(f"  · 맵톡 글 페이지 {len(qna_ps):,}개 (/qna/…) · 📌 {sum(1 for p in qna_ps if p['pin'])} · 답글 {sum(len(p['ans']) for p in qna_ps):,}")
+
+    # ── 🪪 G188 마이컨맵 — /@{주소} 한 장씩 (2026-10-07) ── 검색 등록 칸(이름 · 한 줄 · 소개 100자 · 채운 칸 3개)을 다 채운 것만.
+    #    전화 · 카톡 주소는 굽지 않음(화면도 누르면 보임) · 글 속 전화 · 메일은 가림(qnapages.가림). 화면(pages/MyConmap.jsx)과 같은 내용.
+    #    ✚ (G188 「모두 다 하자」) 칸을 덜 채운 페이지도 굽되 noindex — 카톡 · 문자로 주소를 보냈을 때 미리보기(이름 · 그림)가 뜨게.
+    #      사이트맵(sitemap.py)에는 다 채운 것만 · 미리보기 그림(og/my/…png)에는 전화 · 카톡 주소를 넣지 않음.
+    my_ps = mypages.pages(mypages.snapshot(), 전부=True)
+    for x in my_ps:
+        if not safe(x["a"]):
+            continue
+        t, d, body, ld = mypages.html(x)
+        img = og.my(x["a"], x["d"]) if og else None
+        h = page(shell, mypages.주소(x["a"]), t, d, body, img, ld if x["ok"] else None)
+        if not x["ok"]:
+            h = h.replace("</head>", '  <meta name="robots" content="noindex" />\n  </head>', 1)
+        write(f"@{x['a']}.html", h)
+        made += 1
+    if my_ps:
+        print(f"  · 마이컨맵 페이지 {len(my_ps):,}개 (/@…) · 검색에 내는 것 {sum(1 for x in my_ps if x['ok']):,}개")
 
     # 새로 생긴 주소만 다음 회차에 알립니다 (같은 주소를 하루에도 몇 번씩 찌르면 스팸입니다).
     try:

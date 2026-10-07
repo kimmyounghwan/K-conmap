@@ -744,6 +744,122 @@
       }
     },
 
+    // ───── 🪪 G188 마이컨맵 (2026-10-07, pages/MyConmap.jsx · lib/마이컨맵.js) ─────
+    // 소장님: 「검색에 걸리게 · 만들기 단추 · 자기가 원하는 것을 꾸미게」 → 「우선 만들어 줘. 컨맵에 띄우지는 말고」
+    // 회원가입 없이 «주소 + 비밀번호»(장비 장부와 같은 문): mp_pins(해시 · 아무도 못 읽음 · 한 번만 = 주소 선점) · mp_keys(이 브라우저가 맞힌 해시)
+    // mp_pub 은 누구나 읽음(공개 페이지 · mypages.py 가 열쇠 없이 읽어 굽음) · 주인만 씀 · 칸마다 모양 · 길이 · $other 막음.
+    // 📞 전화는 «0XX-XXXX-XXXX» 꼴만 · 카톡은 open.kakao.com / pf.kakao.com 주소만. mp_flag 🚩 신고 한 사람 한 번.
+    "mp_pins": {
+      ".read": false,
+      "$a": {
+        ".write": "auth != null && !data.exists() && $a.length >= 2 && $a.length <= 20 && !$a.matches(/[A-Z ]/)",
+        ".validate": "newData.isString() && newData.val().length === 64"
+      }
+    },
+    "mp_keys": {
+      "$a": {
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid && (!newData.exists() || newData.val() === root.child('mp_pins').child($a).val())"
+        }
+      }
+    },
+    "mp_pub": {
+      ".read": true,
+      "$a": {
+        ".write": "auth != null && newData.exists() && root.child('mp_pins').child($a).exists() && root.child('mp_keys').child($a).child(auth.uid).val() === root.child('mp_pins').child($a).val()",
+        ".validate": "newData.hasChildren(['v', 'at', 'upd']) && (newData.child('나만').val() === true || newData.hasChildren(['종류', '이름', '테마']))",
+        "나만": { ".validate": "newData.val() === true" },
+        "공개": { ".validate": "newData.val() === '공개' || newData.val() === '링크'" },
+        "v": { ".validate": "newData.val() === 1" },
+        "종류": { ".validate": "newData.val() === '업체' || newData.val() === '사람' || newData.val() === '장비'" },
+        "이름": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 30" },
+        "한줄": { ".validate": "newData.isString() && newData.val().length <= 60" },
+        "테마": { ".validate": "newData.isString() && newData.val().length <= 12" },
+        "at": { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
+        "upd": { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
+        "블록": {
+          "$i": {
+            ".validate": "$i.matches(/^([0-9]|1[01])$/) && newData.hasChild('t')",
+            "t": { ".validate": "newData.val() === '소개' || newData.val() === '면허' || newData.val() === '지역' || newData.val() === '연락' || newData.val() === '구인' || newData.val() === '도구' || newData.val() === '실적' || newData.val() === '소식'" },
+            "글": { ".validate": "newData.isString() && newData.val().length <= 1500" },
+            "면허": { "$j": { ".validate": "$j.matches(/^([0-9]|1[0-9])$/) && newData.isString() && newData.val().length <= 30" } },
+            "자격": { "$j": { ".validate": "$j.matches(/^[0-9]$/) && newData.isString() && newData.val().length <= 30" } },
+            "시도": { "$j": { ".validate": "$j.matches(/^([0-9]|1[0-6])$/) && newData.isString() && newData.val().length <= 4" } },
+            "전화": { ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^0[0-9]{1,3}-[0-9]{3,4}-[0-9]{4}$/))" },
+            "문자": { ".validate": "newData.isBoolean()" },
+            "톡": { ".validate": "newData.isString() && newData.val().length <= 120 && (newData.val() === '' || newData.val().beginsWith('https://open.kakao.com/') || newData.val().beginsWith('https://pf.kakao.com/'))" },
+            "시간": { ".validate": "newData.isString() && newData.val().length <= 40" },
+            "갈래": { ".validate": "newData.val() === '' || newData.val() === '구함' || newData.val() === '찾음'" },
+            "곳": { "$j": { ".validate": "$j.matches(/^([0-9]|1[01])$/) && newData.isString() && newData.val().length <= 80 && newData.val().matches(/^\\/[a-z0-9\\/_-]+$/)" } },
+            "사업자": { ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[0-9]{10}$/))" },
+            "글들": {
+              "$j": {
+                ".validate": "$j.matches(/^[0-9]$/) && newData.hasChildren(['d', '글'])",
+                "d": { ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/))" },
+                "글": { ".validate": "newData.isString() && newData.val().length <= 300" },
+                "$other": { ".validate": false }
+              }
+            },
+            "$other": { ".validate": false }
+          }
+        },
+        "$other": { ".validate": false }
+      }
+    },
+    // 🔒 G188 마이컨맵 «나만 보기» — 속 내용은 여기(열쇠가 맞는 기기만 읽고 씀) · mp_pub 에는 {나만: true} 표만
+    "mp_priv": {
+      "$a": {
+        ".read": "auth != null && root.child('mp_pins').child($a).exists() && root.child('mp_keys').child($a).child(auth.uid).val() === root.child('mp_pins').child($a).val()",
+        ".write": "auth != null && root.child('mp_pins').child($a).exists() && root.child('mp_keys').child($a).child(auth.uid).val() === root.child('mp_pins').child($a).val()",
+        ".validate": "newData.hasChildren(['v', '종류', '이름', '테마', 'at', 'upd'])",
+        "공개": { ".validate": "newData.val() === '나만'" },
+        "v": { ".validate": "newData.val() === 1" },
+        "종류": { ".validate": "newData.val() === '업체' || newData.val() === '사람' || newData.val() === '장비'" },
+        "이름": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 30" },
+        "한줄": { ".validate": "newData.isString() && newData.val().length <= 60" },
+        "테마": { ".validate": "newData.isString() && newData.val().length <= 12" },
+        "at": { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
+        "upd": { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
+        "블록": {
+          "$i": {
+            ".validate": "$i.matches(/^([0-9]|1[01])$/) && newData.hasChild('t')",
+            "t": { ".validate": "newData.val() === '소개' || newData.val() === '면허' || newData.val() === '지역' || newData.val() === '연락' || newData.val() === '구인' || newData.val() === '도구' || newData.val() === '실적' || newData.val() === '소식'" },
+            "글": { ".validate": "newData.isString() && newData.val().length <= 1500" },
+            "면허": { "$j": { ".validate": "$j.matches(/^([0-9]|1[0-9])$/) && newData.isString() && newData.val().length <= 30" } },
+            "자격": { "$j": { ".validate": "$j.matches(/^[0-9]$/) && newData.isString() && newData.val().length <= 30" } },
+            "시도": { "$j": { ".validate": "$j.matches(/^([0-9]|1[0-6])$/) && newData.isString() && newData.val().length <= 4" } },
+            "전화": { ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^0[0-9]{1,3}-[0-9]{3,4}-[0-9]{4}$/))" },
+            "문자": { ".validate": "newData.isBoolean()" },
+            "톡": { ".validate": "newData.isString() && newData.val().length <= 120 && (newData.val() === '' || newData.val().beginsWith('https://open.kakao.com/') || newData.val().beginsWith('https://pf.kakao.com/'))" },
+            "시간": { ".validate": "newData.isString() && newData.val().length <= 40" },
+            "갈래": { ".validate": "newData.val() === '' || newData.val() === '구함' || newData.val() === '찾음'" },
+            "곳": { "$j": { ".validate": "$j.matches(/^([0-9]|1[01])$/) && newData.isString() && newData.val().length <= 80 && newData.val().matches(/^\\/[a-z0-9\\/_-]+$/)" } },
+            "사업자": { ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[0-9]{10}$/))" },
+            "글들": {
+              "$j": {
+                ".validate": "$j.matches(/^[0-9]$/) && newData.hasChildren(['d', '글'])",
+                "d": { ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/))" },
+                "글": { ".validate": "newData.isString() && newData.val().length <= 300" },
+                "$other": { ".validate": false }
+              }
+            },
+            "$other": { ".validate": false }
+          }
+        },
+        "$other": { ".validate": false }
+      }
+    },
+    "mp_flag": {
+      ".read": true,
+      "$a": {
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('mp_pub').child($a).exists()",
+          ".validate": "newData.val() === true"
+        }
+      }
+    },
+
     // ───── 🚜 장비 임대료·수금 장부 (2026-09-29, pages/EquipBook.jsx · lib/장부.js ns 'eq') ─────
     // 소장님: 「(서식의 장비관리 엑셀) 좀 이상해 … 되도록 사이트내에서 사용 할 수 있는 프로그램으로 만들어 줘」
     // 현장 투입비(cost_*)와 같은 문: 장부 코드 9자리 + 비밀번호 해시(eq_pins, 아무도 못 읽음) + 이 브라우저가 맞힌 해시(eq_keys).
