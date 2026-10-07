@@ -6751,6 +6751,7 @@ span.mt-act { cursor: default; }
   .kb-ring { width: 128px; height: 128px; } .kb-ring-in { width: 100px; height: 100px; } .kb-ring-in b { font-size: 17px; }
   .kb-vs { font-size: 26px; }
   .kb-rep-sum { font-size: 15px; } .kb-rep-sum b { font-size: 16.5px; }
+}
 .kb-big b { font-size: 17px; }
 .kb-up { color: var(--accent, #1d4ed8); }
 .kb-dn { color: var(--text-2, #6b7280); }
