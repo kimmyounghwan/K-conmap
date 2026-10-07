@@ -29,9 +29,10 @@ TTL = 30 * 60
 SITE = "https://k-conmap.com"
 
 _주소 = re.compile(r"^[0-9a-z가-힣_-]{2,20}$")
-종류이름 = {"업체": "건설업체", "사람": "현장 사람", "장비": "장비 · 자재"}
-블록이름 = {"소개": "소개", "면허": "면허 · 자격", "지역": "일하는 지역", "연락": "연락하기", "구인": "구인 · 구직", "도구": "함께 쓰는 도구 · 서식",
-          "실적": "K-건설맵 개찰 실적", "소식": "소식"}   # 📊 📣 G188 「모두 다 하자」
+# 👷 G192 — 마이컨맵은 «사람» 페이지(소장님 「회사 홈피를 만들어 주는게 아니야」) · 옛 «업체» 는 현장 사람으로 · 📊 개찰 실적 → 🏗 경력
+종류이름 = {"사람": "건설인"}          # 하나로(소장님 「하나로 통일」) — 옛 업체 · 장비도 건설인
+블록이름 = {"소개": "소개", "경력": "경력", "면허": "자격 · 면허", "지역": "일하는 지역", "연락": "연락하기", "구인": "구인 · 구직",
+          "도구": "함께 쓰는 도구 · 서식", "소식": "소식"}   # 📣 G188 소식
 소개글자 = 100
 채운블록수 = 3
 
@@ -96,8 +97,8 @@ def 채움(b):
         return bool(str(b.get("글") or "").strip())
     if t == "도구":
         return len(_목록(b.get("곳"))) > 0
-    if t == "실적":
-        return bool(re.match(r"^[0-9]{10}$", str(b.get("사업자") or "")))
+    if t == "경력":
+        return len(경력들(b)) > 0
     if t == "소식":
         return len(소식들(b)) > 0
     return False
@@ -115,27 +116,16 @@ def 소식들(b):
     return out[:10]
 
 
-# 📊 실적 — 확보예가굽기.mjs 가 먼저 구운 업체 조각(web/dist/data/kb/c/{n}.json)을 읽음(화면과 같은 파일 · 없으면 건너뜀)
-_조각 = {}
-KB_DIR = os.environ.get("MY_KB_DIR") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "web", "dist", "data", "kb", "c")
-
-
-def 실적자료(biz):
-    d = re.sub(r"[^0-9]", "", str(biz or ""))
-    if len(d) != 10:
-        return None
-    n = int(d[-4:-1])
-    if n not in _조각:
-        try:
-            with open(os.path.join(KB_DIR, f"{n}.json"), encoding="utf-8") as f:
-                _조각[n] = (json.load(f) or {}).get("업체") or {}
-        except Exception:
-            _조각[n] = {}
-    return _조각[n].get(d)
-
-
-def 가린번호(d):
-    return f"{d[:3]}-{d[3:5]}-***{d[8:]}"
+def 경력들(b):
+    """[{곳, 기간, 일}] — «곳» 이 있는 줄만(lib/마이컨맵.js 블록정리 와 같음) · 10줄까지 · 위가 최근."""
+    v = b.get("줄들")
+    if isinstance(v, dict):
+        v = [v[k] for k in sorted(v, key=lambda k: int(k) if str(k).isdigit() else 999)]
+    out = []
+    for x in v or []:
+        if isinstance(x, dict) and str(x.get("곳") or "").strip():
+            out.append({"곳": str(x["곳"]).strip()[:30], "기간": str(x.get("기간") or "").strip()[:20], "일": str(x.get("일") or "").strip()[:80]})
+    return out[:10]
 
 
 def 검색칸(d):
@@ -184,7 +174,7 @@ def html(x):
     a, d = x["a"], x["d"]
     이름 = str(d.get("이름") or "").strip()
     한줄 = str(d.get("한줄") or "").strip()
-    종류 = 종류이름.get(d.get("종류"), "건설업체")
+    종류 = "건설인"
     bs = [b for b in 블록들(d) if 채움(b)]
     면허 = next((b for b in bs if b.get("t") == "면허"), {})
     지역 = next((b for b in bs if b.get("t") == "지역"), {})
@@ -213,19 +203,9 @@ def html(x):
             안 = (f"<p><b>{_e(갈)}</b></p>" if 갈 else "") + f'<div style="white-space:pre-wrap;line-height:1.8">{_e(qnapages.가림(b.get("글")))}</div>'
         elif t == "도구":
             안 = "<ul>" + "".join(f'<li><a href="{_e(p)}">{_e(p)}</a></li>' for p in _목록(b.get("곳"))) + "</ul>"
-        elif t == "실적":
-            biz = str(b.get("사업자"))
-            r = 실적자료(biz)
-            if r:
-                확 = (r.get("확보합") or 0) / r["평균합"] if r.get("평균합") else None
-                안 = (f'<p>넣은 개찰 <b>{int(r.get("잰개찰") or 0):,}건</b> · 1순위 <b>{r.get("실제1순위", "-")}건</b>'
-                     + (f' · 확보 예가 평균의 <b>{확:.2f}배</b>' if 확 is not None else "") + "</p>")
-                줄 = list(reversed((r.get("최근") or [])[-5:]))
-                if 줄:
-                    안 += "<ul>" + "".join(f'<li>{_e(str(x.get("dt"))[:10])} · {_e(x.get("name"))} · {_e(x.get("rank"))}/{_e(x.get("n"))}</li>' for x in 줄) + "</ul>"
-                안 += f'<p class="muted" style="font-size:12px">K-건설맵에 실린 최근 개찰로 셉니다 · 사업자번호 {_e(가린번호(biz))}</p>'
-            else:
-                안 = f'<p class="muted">사업자번호 {_e(가린번호(biz))} — 최근 개찰 기록을 이 페이지에서 봅니다.</p>'
+        elif t == "경력":
+            안 = "<ul>" + "".join(f'<li>{(_e(x["기간"]) + " · ") if x["기간"] else ""}<b>{_e(x["곳"])}</b>'
+                                  + (f' — {_e(qnapages.가림(x["일"]))}' if x["일"] else "") + "</li>" for x in 경력들(b)) + "</ul>"
         elif t == "소식":
             안 = "".join(f'<p><b>{_e(x["d"][2:].replace("-", "."))}</b> {_e(qnapages.가림(x["글"]))}</p>' for x in 소식들(b))
         else:
@@ -233,7 +213,7 @@ def html(x):
         body.append(f'<div class="card">{h}{안}</div>')
     body.append('<div class="card"><a href="/my">🪪 나도 마이컨맵 만들기</a></div>')
     ld = {"@context": "https://schema.org", "@type": "ProfilePage", "url": 사이트맵주소(a),
-          "mainEntity": {"@type": "Organization" if d.get("종류") != "사람" else "Person", "name": 이름, "description": 한줄 or 설명}}
+          "mainEntity": {"@type": "Person", "name": 이름, "description": 한줄 or 설명}}   # G192 — 늘 사람
     return 제목, 설명, "".join(body), ld
 
 

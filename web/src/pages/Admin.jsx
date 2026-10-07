@@ -36,6 +36,7 @@ import { Skeleton, Empty } from '../components.jsx'
 import { nickOf } from '../lib/nickname.js'
 import { OPS, isOp } from '../lib/운영자.js'
 import { 밀린점검 } from '../lib/해마다.js'
+import * as MP from '../lib/마이컨맵.js'   /* 🪪 G192 마이컨맵 만든 사람 */
 
 /* firebase 는 이 화면을 열 때만 받습니다 (사랑방과 같은 방식) */
 let _fb = null
@@ -184,6 +185,8 @@ export default function Admin() {
         )
       })()}
 
+      <마이컨맵칸 />
+
       {/* ── 📝 문의함 — 사이트 어디에도 안 보이는 글입니다 ─────────── */}
       {문의 === null && <Skeleton n={2} />}
       {문의 && 문의.length > 0 && (() => {
@@ -226,6 +229,84 @@ export default function Admin() {
         이 화면은 검색엔진에 올리지 않습니다. 맵톡 글은 원래 누구나 읽을 수 있으니,
         여기서 새는 것은 없습니다 — 다만 <b>답글에 표를 다는 것</b>은 서버가 브라우저 번호로 막습니다.
       </div>
+    </div>
+  )
+}
+
+/* 🪪 G192 (2026-10-07) 마이컨맵 만든 사람 — 소장님 「마이컨맵 만든사람 기록해야 해」 → 「관리자 화면」
+   이 화면을 열 때 한 번만 읽습니다: mp_pub(누구나 읽는 공개 문서 · 만든 시각 at) · mp_flag(신고) · dl/p 숨은 누적(|마이|만들기 · |마이|만듦).
+   «🔒 나만 보기» 는 내용이 잠겨 있어(mp_priv — 규칙이 주인 기기만) 주소 · 만든 시각만 보입니다.
+   회원가입이 없어 페이지에 적은 것 말고 따로 모으는 개인 정보는 없습니다. 비용: 관리자 화면을 열 때 읽기 한 번 · 규칙 그대로. */
+function 마이컨맵칸() {
+  const [L, setL] = useState(null)            /* null 받는 중 */
+  const [셈, set셈] = useState({ 시작: 0, 만듦: 0 })
+  const [다봄, set다봄] = useState(false)
+  useEffect(() => {
+    let 끝 = false
+    ;(async () => {
+      try {
+        const { ref, get, db } = await loadFb()
+        const [p, f, c1, c2] = await Promise.all([
+          get(ref(db, 'mp_pub')),
+          get(ref(db, 'mp_flag')).catch(() => null),
+          get(ref(db, 'dl/p/|마이|만들기')).catch(() => null),
+          get(ref(db, 'dl/p/|마이|만듦')).catch(() => null),
+        ])
+        const 신고 = (f && f.val()) || {}
+        const rows = Object.entries(p.val() || {})
+          .map(([a, d]) => ({ a, d: d || {}, 신고: Object.keys(신고[a] || {}).length }))
+          .sort((x, y) => (Number(y.d.at) || 0) - (Number(x.d.at) || 0))
+        if (!끝) { setL(rows); set셈({ 시작: Number(c1 && c1.val()) || 0, 만듦: Number(c2 && c2.val()) || 0 }) }
+      } catch (e) { if (!끝) setL([]) }
+    })()
+    return () => { 끝 = true }
+  }, [])
+  if (L === null) return <div style={{ marginTop: 16 }}><Skeleton n={1} /></div>
+  const 오늘 = new Date().toDateString()
+  const 칠일 = Date.now() - 7 * 864e5
+  const 나만 = L.filter((x) => x.d.나만 === true)
+  const 보임 = L.filter((x) => x.d.나만 !== true).map((x) => ({ ...x, 정: MP.정리(x.d) }))
+  const 칸 = [
+    ['모두', L.length], ['오늘', L.filter((x) => new Date(Number(x.d.at) || 0).toDateString() === 오늘).length], ['7일', L.filter((x) => (Number(x.d.at) || 0) >= 칠일).length],
+    ['🌐 공개', 보임.filter((x) => x.정.공개 === '공개').length], ['🔗 링크', 보임.filter((x) => x.정.공개 === '링크').length], ['🔒 나만', 나만.length],
+    ['🔎 검색 등록', 보임.filter((x) => MP.검색됨(x.정)).length],
+  ]
+  const 줄 = 다봄 ? L : L.slice(0, 10)
+  return (
+    <div className="card adm-mp" style={{ marginTop: 16 }}>
+      <div className="sec-title" style={{ margin: 0 }}>🪪 마이컨맵 만든 사람 <span className="count">{L.length}곳</span></div>
+      <div className="adm-mp-sum">{칸.map(([k, n]) => <span key={k}><em>{k}</em><b>{n}</b></span>)}</div>
+      <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>
+        숨은 누적 — «＋ 만들기» 누름 <b>{셈.시작}</b>회 → 끝까지 만듦 <b>{셈.만듦}</b>회 (소장님 브라우저 · 자동 브라우저는 안 셈)
+      </div>
+      {L.length === 0 && <div className="note sm" style={{ marginTop: 10 }}>아직 만든 마이컨맵이 없습니다.</div>}
+      {L.length > 0 && (
+        <div className="adm-mp-list">
+          {줄.map((x) => {
+            const 잠김 = x.d.나만 === true
+            const d = 잠김 ? null : MP.정리(x.d)
+            const 범위 = 잠김 ? MP.공개of('나만') : MP.공개of(d.공개)
+            const at = Number(x.d.at) || 0
+            return (
+              <div key={x.a} className="adm-mp-row">
+                <span className="adm-mp-t">{when(at)}<small>{at ? 얼마전(at) : ''}</small></span>
+                <span className="adm-mp-m">
+                  <Link to={MP.페이지주소(x.a)}>@{x.a}</Link>
+                  {잠김
+                    ? <small className="muted">🔒 나만 보기 — 내용은 주인 기기에서만 보입니다</small>
+                    : <small><b>{d.이름}</b>{d.한줄 ? ` · ${d.한줄}` : ''}</small>}
+                </span>
+                <span className="adm-mp-b">
+                  <i className={'mc-vis-b mc-vis-' + 범위.k}>{범위.아이콘} {범위.이름}</i>
+                  {d && MP.검색됨(d) && <i className="adm-mp-ok">🔎 검색</i>}
+                  {x.신고 > 0 && <i className="adm-mp-flag">🚩 {x.신고}</i>}
+                </span>
+              </div>
+            )
+          })}
+          {L.length > 10 && <button type="button" className="lnk" style={{ marginTop: 8 }} onClick={() => set다봄(!다봄)}>{다봄 ? '접기' : `모두 보기 (${L.length}곳)`}</button>}
+        </div>
+      )}
     </div>
   )
 }

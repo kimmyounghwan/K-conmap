@@ -205,7 +205,7 @@ class OgMaker:
                     v = x.get(k) or []
                     v = list(v.values()) if isinstance(v, dict) else v
                     칩 += [str(y) for y in v if isinstance(y, str) and y.strip()]
-        종류 = {"업체": "건설업체", "사람": "현장 사람", "장비": "장비 · 자재"}.get(d.get("종류"), "건설업체")
+        종류 = "건설인"   # G192 — 마이컨맵은 사람 페이지 · 종류 하나
         slug = hashlib.md5(str(a).encode("utf-8")).hexdigest()[:12]
         return self._card(f"og/my/{slug}.png", str(d.get("이름") or a)[:30], str(d.get("한줄") or "")[:60],
                           ((칩[0] + (f" 외 {len(칩) - 1}" if len(칩) > 1 else "")) if 칩 else "마이컨맵"), "green", f"k-conmap.com/@{a}", f"마이컨맵 · {종류}")

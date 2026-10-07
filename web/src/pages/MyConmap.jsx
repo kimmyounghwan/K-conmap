@@ -3,9 +3,10 @@
 
    소장님: 「검색에 걸리게 해줘. 그리고, 만들기 단추를 주고, 만들기를 클릭하면, 자기가 원하는 것을 꾸미게 …
            다른 사이트 참고해서, 상큼하게」 → 「우선 만들어 줘. 컨맵에 띄우지는 말고」
-   ■ /my       «＋ 만들기»(3단계: 나는 누구 → 이름 · 주소 · 비밀번호 → 테마) · 이 기기의 내 페이지 · 🧰 내 작업대(이 기기에만)
+   ■ /my       «＋ 만들기»(2단계: 이름 · 주소 · 비밀번호 → 테마 · 공개 범위 — G192 «나는 누구» 뺌 · 종류 하나) · 이 기기의 내 페이지 · 🧰 내 작업대(이 기기에만)
    ■ /@{주소}  공개 페이지(누구나) · 주인 브라우저면 «✏️ 꾸미기» — 블록 쌓기 · 옆에 폰 미리보기(PC) / 꾸미기 · 미리보기 탭(폰)
    ■ 셈 · 저장 · 규칙은 lib/마이컨맵.js 한 곳. 검색 등록 조건은 mypages.py 와 «같은 규칙».
+   ■ 👷 G192 마이컨맵은 «사람» 페이지(회사 홈페이지 아님 — 소장님) · 🏢 업체 종류 · 📊 개찰 실적 칸 뺌 → 🏗 경력 칸
    ■ 숨은 누적: |마이|홈 · 만들기 · 만듦 · 열기 · 저장 · 공개보기 · 전화 · 문자 · 톡 · 바로가기 · 이어하기 · 신고
    ══════════════════════════════════════════════════════════════ */
 import { Component, useEffect, useMemo, useRef, useState } from 'react'
@@ -17,7 +18,6 @@ import { use화면상태 } from '../lib/길기록.js'
 import { 세기 } from '../lib/받은수.jsx'
 import { 가림 } from '../lib/가림.js'
 import * as 명함 from '../lib/명함그림.js'   /* 🪪 명함 이미지 — 캔버스 · QR 은 열 때만 받음 */
-import { 업체조각자료 } from '../tools/확보예가.jsx'   /* 📊 실적 칸 — 업체 조각(kb/c) 하나 · 바로투찰과 같은 파일 */   /* 글 속 전화 · 메일은 가림 — 구운 페이지(mypages.py)와 같은 규칙(클로킹 아님) · 번호는 «연락하기» 칸으로 */
 import TOOLS from '../data/tools.json'
 import FORMS from '../data/forms.json'
 
@@ -81,44 +81,26 @@ function 연락칸({ b, 미리 }) {
   )
 }
 
-const 가린번호 = (d) => (String(d || '').length === 10 ? `${d.slice(0, 3)}-${d.slice(3, 5)}-***${d.slice(8)}` : '')
-const 배글 = (v) => (v == null || !isFinite(v) ? '-' : `${v >= 10 ? Math.round(v) : (Math.round(v * 10) / 10).toFixed(1)}배`)
-/** 📊 실적 자동 — 사업자번호 → K-건설맵 개찰 기록(넣은 개찰 · 1순위 · 확보 예가 · 최근 5) · 번호는 가운데 가림 */
-function 실적칸({ biz }) {
-  const [t, setT] = useState(undefined)
-  useEffect(() => {
-    let 끝 = false
-    setT(undefined)
-    업체조각자료(biz).then((j) => { if (!끝) setT((j && j.업체 && j.업체[biz]) || null) }).catch(() => { if (!끝) setT(null) })
-    return () => { 끝 = true }
-  }, [biz])
-  const 번 = 가린번호(biz)
-  if (t === undefined) return <div className="mc-small">개찰 기록을 받는 중…</div>
-  if (!t) return <div className="mc-small">사업자번호 {번} — 사이트에 실린 최근 개찰에서 아직 셀 수 있는 기록이 없습니다.</div>
-  const 확배 = t.평균합 > 0 ? t.확보합 / t.평균합 : null
-  const 줄 = (t.최근 || []).slice(-5).reverse()
+/** 🏗 경력 — 다닌 곳 · 기간 · 맡은 일(위가 최근) · G192 */
+function 경력칸({ b }) {
   return (
-    <>
-      <div className="mc-stats">
-        <div><span>넣은 개찰</span><b>{t.잰개찰}건</b></div>
-        <div><span>1순위</span><b>{t.실제1순위 ?? '-'}건</b></div>
-        <div><span>확보 예가</span><b>{확배 == null ? '-' : `평균의 ${배글(확배)}`}</b></div>
-      </div>
-      {줄.length > 0 && (
-        <div className="mc-recent">
-          {줄.map((x) => <div key={x.no + x.dt}><span>{String(x.dt).slice(5).replace('-', '.')}</span><b>{x.name}</b><em>{x.rank === 1 ? '🏆 ' : ''}{x.rank}/{x.n}</em></div>)}
+    <div className="mc-career">
+      {(b.줄들 || []).filter((x) => x && x.곳).map((x, k) => (
+        <div key={x.곳 + k} className={k === 0 ? 'now' : ''}>
+          <span>{x.기간 || '\u00a0'}</span>
+          <div><b>{x.곳}</b>{x.일 && <p>{가림(x.일)}</p>}</div>
         </div>
-      )}
-      <div className="mc-small" style={{ marginTop: 6 }}>K-건설맵에 실린 최근 개찰(개찰마다 금액 낮은 30곳까지)로 매일 다시 셉니다 · 사업자번호 {번}(입력한 번호의 공개 개찰 기록)</div>
-    </>
+      ))}
+    </div>
   )
 }
 
-function 블록그림({ b, 종류, 미리 }) {
+function 블록그림({ b, 미리 }) {
   const 정 = M.블록들[b.t]
-  const 이름 = b.t === '면허' && 종류 === '사람' ? '자격 · 면허' : 정.이름
+  const 이름 = 정.이름
   let 안 = null
   if (b.t === '소개') 안 = <div className="mc-text">{가림(b.글)}</div>
+  if (b.t === '경력') 안 = <경력칸 b={b} />
   if (b.t === '면허') {
     안 = (
       <div className="mc-chips">
@@ -145,7 +127,6 @@ function 블록그림({ b, 종류, 미리 }) {
       </>
     )
   }
-  if (b.t === '실적') 안 = <실적칸 biz={b.사업자} />
   if (b.t === '소식') {
     안 = <div className="mc-news">{(b.글들 || []).map((x, k) => <div key={x.d + k}><span>{x.d.slice(2).replace(/-/g, '.')}</span><p>{가림(x.글)}</p></div>)}</div>
   }
@@ -166,7 +147,7 @@ function 블록그림({ b, 종류, 미리 }) {
 
 /** 페이지 그림 — 공개 화면 · 꾸미기 미리보기가 같이 씀(두 벌로 그리지 않음) */
 export function 페이지그림({ d, a, 미리 }) {
-  const 종 = M.종류들[d.종류] || M.종류들.업체
+  const 종 = M.종류들[d.종류] || M.종류들[M.기본종류]
   const 블록 = (d.블록 || []).filter(M.채움)
   const 면허 = (d.블록 || []).find((b) => b.t === '면허')
   const 지역 = (d.블록 || []).find((b) => b.t === '지역')
@@ -182,7 +163,7 @@ export function 페이지그림({ d, a, 미리 }) {
         {칩.length > 0 && <div className="mc-chips mc-chips-c">{칩.map((x) => <span key={x} className="mc-chip mc-chip-w">{x}</span>)}</div>}
       </header>
       {블록.length
-        ? 블록.map((b, i) => <블록그림 key={b.t + i} b={b} 종류={d.종류} 미리={미리} />)
+        ? 블록.map((b, i) => <블록그림 key={b.t + i} b={b} 미리={미리} />)
         : <section className="mc-block mc-empty">아직 채운 칸이 없습니다.</section>}
       <footer className="mc-foot">🪪 K-건설맵 마이컨맵{a ? <> · <b>@{a}</b></> : null}</footer>
     </article>
@@ -249,21 +230,51 @@ function 소식고침({ b, 고 }) {
     </>
   )
 }
+/** 🏗 경력 고치기 — 맨 위가 지금 · 회사를 옮기면 맨 위에 한 줄(G192) */
+function 경력고침({ b, 고 }) {
+  const L = b.줄들 || []
+  const 칸바꿈 = (k, 키, v) => 고('줄들', L.map((x, j) => (j === k ? { ...x, [키]: v } : x)))
+  const 옮기기 = (k, d) => { const j = k + d; if (j < 0 || j >= L.length) return; const n = [...L]; [n[k], n[j]] = [n[j], n[k]]; 고('줄들', n) }
+  return (
+    <>
+      <p className="mc-fh" style={{ margin: '0 0 6px' }}>맨 위가 지금 하는 일입니다. 회사를 옮기면 «＋ 맨 위에 한 줄» 을 누르고 새 곳을 적으십시오 — 주소 · 명함은 그대로입니다.</p>
+      <button type="button" className="btn line sm" style={{ width: 'auto', alignSelf: 'flex-start' }} disabled={L.length >= M.한도.경력}
+        onClick={() => 고('줄들', [{ 곳: '', 기간: '', 일: '' }, ...L])}>＋ 맨 위에 한 줄</button>
+      {L.map((x, k) => (
+        <div key={k} className={'mc-career-e' + (k === 0 ? ' now' : '')}>
+          <div className="mc-career-r">
+            <input className="inp" value={x.곳 || ''} maxLength={M.한도.경력곳} placeholder="다닌 곳 · 현장 (예: ○○건설 · △△ 배수로 현장)" aria-label="다닌 곳" onChange={(e) => 칸바꿈(k, '곳', e.target.value)} />
+            <input className="inp mc-career-d" value={x.기간 || ''} maxLength={M.한도.경력기간} placeholder={k === 0 ? '예) 2024 ~ 지금' : '예) 2019 ~ 2023'} aria-label="기간" onChange={(e) => 칸바꿈(k, '기간', e.target.value)} />
+          </div>
+          <div className="mc-career-r">
+            <input className="inp" value={x.일 || ''} maxLength={M.한도.경력일} placeholder="맡은 일 (예: 토목 현장소장 · 공정 · 안전 관리)" aria-label="맡은 일" onChange={(e) => 칸바꿈(k, '일', e.target.value)} />
+            <div className="mc-ebtn">
+              <button type="button" onClick={() => 옮기기(k, -1)} disabled={k === 0} aria-label="위로">▲</button>
+              <button type="button" onClick={() => 옮기기(k, 1)} disabled={k === L.length - 1} aria-label="아래로">▼</button>
+              <button type="button" onClick={() => 고('줄들', L.filter((_, j) => j !== k))} aria-label="이 줄 빼기">🗑</button>
+            </div>
+          </div>
+        </div>
+      ))}
+      <p className="mc-fh">{M.한도.경력}줄까지 · «다닌 곳» 을 적은 줄만 페이지에 보입니다 · 저장을 눌러야 올라갑니다.</p>
+    </>
+  )
+}
 function 블록고침({ b, 종류, 바꿈 }) {
   const 고 = (k, v) => 바꿈({ ...b, [k]: v })
   if (b.t === '소개') {
     const n = String(b.글 || '').trim().length
     return <칸글 이름="소개 글" 값={b.글} 바꿈={(v) => 고('글', v)} 최대={M.한도.소개} 줄={6}
-      보기={종류 === '사람' ? '하는 일 · 경력 · 해 본 공사 종류 · 잘하는 것' : 종류 === '장비' ? '가진 장비 · 기사 포함 여부 · 다니는 지역 · 일 받는 방식' : '하는 공사 · 강점 · 해 본 공사 종류 · 일하는 방식'}
+      보기="하는 일 · 해 본 공사 · 잘하는 것 · 일하는 방식 — 현장 · 사무실 · 장비 · 자재 무엇이든"
       도움={`${n}자 · 검색 등록은 ${M.소개글자}자부터${n < M.소개글자 ? ` (${M.소개글자 - n}자 더)` : ' ✓'}`} />
   }
   if (b.t === '면허') {
     return (
       <>
-        <div className="mc-fl">{종류 === '사람' ? '면허(있으면)' : '건설업 면허'}</div>
-        <칩고르기 목록={M.면허목록} 고른={b.면허} 바꿈={(v) => 고('면허', v)} 최대={M.한도.면허} />
-        <div className="mc-fl" style={{ marginTop: 10 }}>자격 · 기술</div>
+        <div className="mc-fl">자격 · 기술</div>
         <낱말더하기 고른={b.자격} 바꿈={(v) => 고('자격', v)} 최대={M.한도.자격} 보기="예) 토목기사 · 건설안전기사 · 굴삭기운전기능사" />
+        <div className="mc-fl" style={{ marginTop: 10 }}>할 줄 아는 공종(있으면)</div>
+        <칩고르기 목록={M.면허목록} 고른={b.면허} 바꿈={(v) => 고('면허', v)} 최대={M.한도.면허} />
       </>
     )
   }
@@ -299,16 +310,7 @@ function 블록고침({ b, 종류, 바꿈 }) {
       </>
     )
   }
-  if (b.t === '실적') {
-    const d = String(b.사업자 || '')
-    return (
-      <>
-        <칸글 이름="내 사업자번호(10자리)" 값={d.length > 5 ? `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}` : d} 바꿈={(v) => 고('사업자', v.replace(/[^0-9]/g, '').slice(0, 10))} 최대={12} 보기="000-00-00000"
-          도움="넣으면 K-건설맵 개찰 기록(넣은 개찰 · 1순위 · 확보 예가 · 최근 5건)이 저절로 붙습니다. 페이지에는 가운데를 가린 번호로 보입니다. 내 회사 번호만 넣어 주십시오." />
-        {d.length === 10 && <div className="mc-mini-rec"><실적칸 biz={d} /></div>}
-      </>
-    )
-  }
+  if (b.t === '경력') return <경력고침 b={b} 고={고} />
   if (b.t === '소식') return <소식고침 b={b} 고={고} />
   if (b.t === '도구') {
     const 쓴 = [...고정읽기(), ...쓴곳읽기().map((x) => x.p)].filter((p, i, a) => a.indexOf(p) === i)
@@ -416,8 +418,8 @@ function 꾸미기({ a, 처음, 저장됨 }) {
         <div className={'mc-edit-l' + (보기 === '꾸미기' ? '' : ' mc-hide-m')}>
           <section className="card mc-ec">
             <h3 className="mc-eh">🎨 표지</h3>
-            <칸글 이름="이름(상호 · 이름)" 값={d.이름} 바꿈={(v) => 고({ 이름: v })} 최대={M.한도.이름} 보기="예) 대유건설" />
-            <칸글 이름="한 줄 소개" 값={d.한줄} 바꿈={(v) => 고({ 한줄: v })} 최대={M.한도.한줄} 보기={(M.종류들[d.종류] || M.종류들.업체).보기} />
+            <칸글 이름="이름" 값={d.이름} 바꿈={(v) => 고({ 이름: v })} 최대={M.한도.이름} 보기="예) 홍길동" />
+            <칸글 이름="한 줄 소개" 값={d.한줄} 바꿈={(v) => 고({ 한줄: v })} 최대={M.한도.한줄} 보기={(M.종류들[d.종류] || M.종류들[M.기본종류]).보기} />
             <div className="mc-fl">테마</div>
             <div className="mc-themes">
               {M.테마들.map((t) => (
@@ -433,7 +435,7 @@ function 꾸미기({ a, 처음, 저장됨 }) {
           {d.블록.map((b, i) => (
             <section key={b.t + i} className="card mc-ec">
               <div className="mc-ebh">
-                <h3 className="mc-eh">{M.블록들[b.t].아이콘} {b.t === '면허' && d.종류 === '사람' ? '자격 · 면허' : M.블록들[b.t].이름}{M.채움(b) ? <span className="mc-done">채움</span> : null}</h3>
+                <h3 className="mc-eh">{M.블록들[b.t].아이콘} {M.블록들[b.t].이름}{M.채움(b) ? <span className="mc-done">채움</span> : null}</h3>
                 <div className="mc-ebtn">
                   <button type="button" onClick={() => 옮김(i, -1)} disabled={i === 0} aria-label="위로">▲</button>
                   <button type="button" onClick={() => 옮김(i, 1)} disabled={i === d.블록.length - 1} aria-label="아래로">▼</button>
@@ -554,8 +556,8 @@ function 명함판({ d, a }) {
         {글열림 && (
           <div className="mc-bc-ef">
             <칸글 이름="이름(크게)" 값={설.이름} 바꿈={(v) => 고({ 이름: v })} 최대={명함.명함한도.이름} 보기={d.이름} 도움="비우면 페이지 이름 그대로" />
-            <칸글 이름="직함 · 담당자" 값={설.직함} 바꿈={(v) => 고({ 직함: v })} 최대={명함.명함한도.직함} 보기="예) 대표 김명환 · 토목 현장소장" />
-            <칸글 이름="한 줄 소개" 값={설.한줄} 바꿈={(v) => 고({ 한줄: v })} 최대={명함.명함한도.한줄} 보기={d.한줄 || '예) 철콘 · 토공 전문 — 전남 동부권'} />
+            <칸글 이름="직함 · 담당자" 값={설.직함} 바꿈={(v) => 고({ 직함: v })} 최대={명함.명함한도.직함} 보기="예) 토목 현장소장 · 지금 다니는 곳" />
+            <칸글 이름="한 줄 소개" 값={설.한줄} 바꿈={(v) => 고({ 한줄: v })} 최대={명함.명함한도.한줄} 보기={d.한줄 || '예) 토목 현장소장 — 전남 동부권'} />
             <칸글 이름="명함에 쓸 전화" 값={설.전화} 바꿈={(v) => 고({ 전화: M.전화정리(v) })} 최대={명함.명함한도.전화} 보기={(d.블록 && (d.블록.find((b) => b.t === '연락') || {}).전화) || '010-0000-0000'} 도움="비우면 «연락하기» 칸 번호 그대로" />
           </div>
         )}
@@ -680,7 +682,7 @@ export function MyAt() {
 function 만들기단계({ 끝, 처음주소 }) {
   const navigate = useNavigate()
   const [단계, set단계, 앞단계로] = use화면상태('마이단계', 1)
-  const [종류, set종류] = useState('업체')
+  const 종류 = M.기본종류        /* G192 — 종류 하나 · «나는 누구» 단계 없음 */
   const [이름, set이름] = useState('')
   const [한줄, set한줄] = useState('')
   const [주소, set주소] = useState(처음주소 || '')
@@ -710,34 +712,24 @@ function 만들기단계({ 끝, 처음주소 }) {
       navigate(M.페이지주소(a), { state: { 꾸미기: true } })
     } catch (e) {
       set말(e && e.code === '있음' ? '⚠️ 그 사이에 누가 이 주소를 썼습니다 — 다른 주소로 정해 주십시오.' : '만들지 못했습니다 — 잠시 뒤 다시 해 주십시오.')
-      if (e && e.code === '있음') set단계(2)
+      if (e && e.code === '있음') set단계(1)
     } finally { set바쁨(false) }
   }
   const 미리문서 = M.새문서(종류, 이름 || '내 이름', 한줄, 테마)
   return (
     <div className="card mc-wiz">
-      <div className="mc-steps" aria-label={`3단계 중 ${단계}단계`}>{[1, 2, 3].map((n) => <i key={n} className={n <= 단계 ? 'on' : ''} />)}</div>
+      <div className="mc-steps" aria-label={`2단계 중 ${단계}단계`}>{[1, 2].map((n) => <i key={n} className={n <= 단계 ? 'on' : ''} />)}</div>
       {단계 === 1 && (
         <>
-          <h2 className="mc-eh">① 나는 누구인가요?</h2>
-          <div className="mc-kinds">
-            {Object.entries(M.종류들).map(([k, v]) => (
-              <button type="button" key={k} className={'mc-kindc' + (종류 === k ? ' on' : '')} onClick={() => { set종류(k); set단계(2) }}>
-                <b aria-hidden="true">{v.아이콘}</b><span>{v.이름}</span><em>{v.설명}</em>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-      {단계 === 2 && (
-        <>
-          <h2 className="mc-eh">② 이름 · 주소 · 비밀번호</h2>
-          <칸글 이름="이름(상호 · 이름)" 값={이름} 바꿈={set이름} 최대={M.한도.이름} 보기={종류 === '사람' ? '예) 김OO 소장' : '예) 대유건설'} />
+          <h2 className="mc-eh">① 이름 · 주소 · 비밀번호</h2>
+          <칸글 이름="이름" 값={이름} 바꿈={set이름} 최대={M.한도.이름} 보기="예) 홍길동"
+            도움="명함에 크게 들어가는 이름입니다. 별명을 적으면 명함에도 별명이 나갑니다 — 명함만 실명으로 바꿀 수도 있습니다(명함 이미지 → ✏️ 명함 글 고치기)." />
           <칸글 이름="한 줄 소개" 값={한줄} 바꿈={set한줄} 최대={M.한도.한줄} 보기={M.종류들[종류].보기} />
           <label className="mc-f">
             <span className="mc-fl">페이지 주소</span>
-            <span className="mc-addr"><em>k-conmap.com/@</em><input className="inp" value={주소} maxLength={24} placeholder="대유건설" onChange={(e) => set주소(e.target.value)} /></span>
-            <span className="mc-fh">{주소말 || '한글 · 영문 소문자 · 숫자 · 붙임표(-) 2~20자 — 한 번 정하면 못 바꿉니다'}{a && a !== 주소.trim() ? ` → 주소는 k-conmap.com/@${a}` : ''}</span>
+            <span className="mc-addr"><em>k-conmap.com/@</em><input className="inp" value={주소} maxLength={24} placeholder="홍길동" onChange={(e) => set주소(e.target.value)} /></span>
+            <span className="mc-fh">{주소말 || '내 이름이나 별명으로 — 한글 · 영문 소문자 · 숫자 · 붙임표(-) 2~20자 · 한 번 정하면 못 바꿉니다'}{a && a !== 주소.trim() ? ` → 주소는 k-conmap.com/@${a}` : ''}</span>
+            {M.회사같은주소(a) && <span className="mc-fh mc-warn">💡 회사 이름 같습니다 — 마이컨맵은 «나» 한 사람의 페이지입니다. 회사를 옮겨도 그대로 쓰도록 내 이름이나 별명을 권합니다(그래도 쓰실 수는 있습니다).</span>}
           </label>
           <div className="mc-row mc-pw">
             <label className="mc-f"><span className="mc-fl">비밀번호(4자 이상)</span><input className="inp" type="password" value={pw} onChange={(e) => setPw(e.target.value)} /></label>
@@ -745,14 +737,13 @@ function 만들기단계({ 끝, 처음주소 }) {
           </div>
           <p className="mc-fh">🔑 다른 기기에서 고칠 때 이 주소와 비밀번호를 씁니다. 회원가입은 없습니다 — 비밀번호를 잊으면 되찾을 길이 없으니 꼭 적어 두십시오.{pw2 && pw !== pw2 ? ' ⚠️ 두 비밀번호가 다릅니다.' : ''}</p>
           <div className="mc-row">
-            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 앞단계로(1)}>‹ 앞으로</button>
-            <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={!둘째됨} onClick={() => set단계(3)}>다음 ›</button>
+            <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={!둘째됨} onClick={() => set단계(2)}>다음 ›</button>
           </div>
         </>
       )}
-      {단계 === 3 && (
+      {단계 === 2 && (
         <>
-          <h2 className="mc-eh">③ 테마 · 공개 범위</h2>
+          <h2 className="mc-eh">② 테마 · 공개 범위</h2>
           <div className="mc-themes">
             {M.테마들.map((t) => (
               <button type="button" key={t.k} className={'mc-sw' + (테마 === t.k ? ' on' : '')} style={{ '--sw': t.a }} aria-pressed={테마 === t.k} onClick={() => set테마(t.k)}><i aria-hidden="true" />{t.이름}</button>
@@ -763,7 +754,7 @@ function 만들기단계({ 끝, 처음주소 }) {
           <div className="mc-mini"><페이지그림 d={미리문서} a={a} 미리 /></div>
           {말 && <p className="mc-fh">{말}</p>}
           <div className="mc-row">
-            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 앞단계로(2)}>‹ 앞으로</button>
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 앞단계로(1)}>‹ 앞으로</button>
             <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={바쁨} onClick={만들자}>{바쁨 ? '만드는 중…' : '🪪 만들고 꾸미러 가기'}</button>
           </div>
         </>
@@ -921,7 +912,7 @@ function 작업대() {
    「자기만의 주소를 갖는다는 것과 명함....그리고, 건설맵 이용 편의성 등...이런것도 설명에 넣어줘」 */
 const 설명들 = [
   ['🏷', '나만의 주소 — k-conmap.com/@내주소',
-    '업체 이름이나 내 이름으로 주소를 하나 정합니다(예: k-conmap.com/@대유건설). 홈페이지를 따로 만들지 않아도 이 주소 하나가 내 소개 페이지가 됩니다. 견적서 · 문자 · 카톡 프로필에 주소만 붙이면 하는 일 · 면허 · 일하는 지역 · 연락 방법을 한 번에 보여 드릴 수 있습니다. 주소는 먼저 정한 분의 것이고, 한 번 정하면 내 것으로 남습니다.'],
+    '내 이름이나 별명으로 주소를 하나 정합니다(예: k-conmap.com/@홍길동). 마이컨맵은 회사 홈페이지가 아니라 «나» 한 사람의 페이지입니다 — 회사를 옮겨도 주소 · 명함은 그대로 내 것이고, 경력 칸 맨 위에 한 줄만 더하면 됩니다. 문자 · 카톡 프로필 · 명함에 주소만 붙이면 하는 일 · 자격 · 경력 · 일하는 지역 · 연락 방법을 한 번에 보여 드릴 수 있습니다. 주소는 먼저 정한 분의 것이고, 한 번 정하면 내 것으로 남습니다.'],
   ['🪪', '명함 이미지 — 저절로 만들어집니다',
     '페이지에 적은 내용으로 명함 그림을 바로 만듭니다. 깔끔 · 물결 · 먹금 세 가지 바탕에 색을 고르고, 직함 · 명함에 쓸 전화번호를 따로 넣을 수 있습니다. 폰 · 카톡용, 인쇄용(90×50mm · 인쇄소에 그대로), QR 만 받기가 있습니다. 명함의 QR 을 찍으면 내 페이지가 열립니다.'],
   ['⚡', '내 단축키 — 건설맵을 내 손에 맞게',
@@ -929,7 +920,7 @@ const 설명들 = [
   ['🧰', '내 작업대 — 하던 일을 이어서',
     '노무비 · 투입비 · 작업일보 · 견적서 같은 도구에 적어 둔 것을 한곳에 모아 바로 이어 갑니다. 오늘 넣을 공고 · 담은 공고, 💼 구인 · 구직(곧 착공하는 낙찰 현장 · 구인 글 · 고용24 채용)도 여기서 들어갑니다. 작업대에 보이는 것은 이 기기에만 있고 서버로 보내지 않습니다.'],
   ['🧱', '꾸미기 — 블록을 쌓듯이',
-    '소개 · 면허/자격 · 일하는 지역 · 연락하기 · 개찰 실적 · 소식 · 구인/구직 · 함께 쓰는 도구 칸을 골라 넣고 ▲▼ 로 차례를 바꿉니다. 사업자번호를 넣으면 K-건설맵에 실린 최근 개찰 기록(넣은 개찰 · 1순위 · 확보 예가)이 저절로 붙고, 소식 칸에는 «이번 주 순천 현장 시작» 같은 짧은 글을 10개까지 올립니다. 테마 색은 6가지, 폰 미리보기를 보면서 고칩니다.'],
+    '소개 · 경력 · 자격/면허 · 일하는 지역 · 연락하기 · 소식 · 구인/구직 · 함께 쓰는 도구 칸을 골라 넣고 ▲▼ 로 차례를 바꿉니다. 경력 칸에는 다닌 곳 · 기간 · 맡은 일을 10줄까지 적고(맨 위가 지금), 소식 칸에는 «이번 주 순천 현장 시작» 같은 짧은 글을 10개까지 올립니다. 테마 색은 6가지, 폰 미리보기를 보면서 고칩니다.'],
   ['🌐', '공개 범위 — 내가 정합니다',
     '🌐 공개: 누구나 보고, 칸을 다 채우면 검색에도 나옵니다. 🔗 주소 아는 사람만: 검색에는 안 나오고 명함 QR · 링크로 연 분만 봅니다. 🔒 나만 보기: 남이 열면 «비공개 페이지» 로만 보이고, 내용은 서버에서도 남이 읽지 못하게 따로 둡니다. 언제든 «✏️ 꾸미기» 에서 바꿉니다.'],
   ['🔎', '검색에 나오려면',
@@ -975,7 +966,7 @@ function 마이홈() {
       <section className={'mc-hero' + (내것.length ? ' sm' : '')}>
         <div className="mc-hero-t">🪪 마이컨맵</div>
         <h1 className="mc-hero-h">나만의 마이컨맵,<br />1분이면 만듭니다</h1>
-        <p className="mc-hero-p">업체 · 현장 사람 · 장비 — 하는 일과 면허 · 지역 · 연락처를 한 장에. 다 채우면 검색에도 나옵니다.</p>
+        <p className="mc-hero-p">현장 · 사무실 · 장비 · 자재 — 건설 일 하는 나 한 사람의 하는 일 · 경력 · 자격 · 연락처를 한 장에. 회사를 옮겨도 내 주소 · 내 명함은 그대로입니다.</p>
         {!만드는중 && <button type="button" className="mc-cta" onClick={() => { set만드는중(true); 세기('|마이|만들기') }}>＋ 만들기</button>}
       </section>
       {만드는중 && <만들기단계 처음주소={(loc.state && loc.state.주소) || ''} 끝={() => set내것(M.내주소들())} />}

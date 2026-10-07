@@ -781,7 +781,7 @@
         "블록": {
           "$i": {
             ".validate": "$i.matches(/^([0-9]|1[01])$/) && newData.hasChild('t')",
-            "t": { ".validate": "newData.val() === '소개' || newData.val() === '면허' || newData.val() === '지역' || newData.val() === '연락' || newData.val() === '구인' || newData.val() === '도구' || newData.val() === '실적' || newData.val() === '소식'" },
+            "t": { ".validate": "newData.val() === '소개' || newData.val() === '면허' || newData.val() === '지역' || newData.val() === '연락' || newData.val() === '구인' || newData.val() === '도구' || newData.val() === '실적' || newData.val() === '소식' || newData.val() === '경력'" },
             "글": { ".validate": "newData.isString() && newData.val().length <= 1500" },
             "면허": { "$j": { ".validate": "$j.matches(/^([0-9]|1[0-9])$/) && newData.isString() && newData.val().length <= 30" } },
             "자격": { "$j": { ".validate": "$j.matches(/^[0-9]$/) && newData.isString() && newData.val().length <= 30" } },
@@ -793,6 +793,16 @@
             "갈래": { ".validate": "newData.val() === '' || newData.val() === '구함' || newData.val() === '찾음'" },
             "곳": { "$j": { ".validate": "$j.matches(/^([0-9]|1[01])$/) && newData.isString() && newData.val().length <= 80 && newData.val().matches(/^\\/[a-z0-9\\/_-]+$/)" } },
             "사업자": { ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[0-9]{10}$/))" },
+            // 🏗 G192 경력 — 다닌 곳(30) · 기간(20) · 맡은 일(80) · 10줄 · «곳» 은 꼭
+            "줄들": {
+              "$j": {
+                ".validate": "$j.matches(/^[0-9]$/) && newData.hasChild('곳')",
+                "곳": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 30" },
+                "기간": { ".validate": "newData.isString() && newData.val().length <= 20" },
+                "일": { ".validate": "newData.isString() && newData.val().length <= 80" },
+                "$other": { ".validate": false }
+              }
+            },
             "글들": {
               "$j": {
                 ".validate": "$j.matches(/^[0-9]$/) && newData.hasChildren(['d', '글'])",
@@ -824,7 +834,7 @@
         "블록": {
           "$i": {
             ".validate": "$i.matches(/^([0-9]|1[01])$/) && newData.hasChild('t')",
-            "t": { ".validate": "newData.val() === '소개' || newData.val() === '면허' || newData.val() === '지역' || newData.val() === '연락' || newData.val() === '구인' || newData.val() === '도구' || newData.val() === '실적' || newData.val() === '소식'" },
+            "t": { ".validate": "newData.val() === '소개' || newData.val() === '면허' || newData.val() === '지역' || newData.val() === '연락' || newData.val() === '구인' || newData.val() === '도구' || newData.val() === '실적' || newData.val() === '소식' || newData.val() === '경력'" },
             "글": { ".validate": "newData.isString() && newData.val().length <= 1500" },
             "면허": { "$j": { ".validate": "$j.matches(/^([0-9]|1[0-9])$/) && newData.isString() && newData.val().length <= 30" } },
             "자격": { "$j": { ".validate": "$j.matches(/^[0-9]$/) && newData.isString() && newData.val().length <= 30" } },
@@ -836,6 +846,16 @@
             "갈래": { ".validate": "newData.val() === '' || newData.val() === '구함' || newData.val() === '찾음'" },
             "곳": { "$j": { ".validate": "$j.matches(/^([0-9]|1[01])$/) && newData.isString() && newData.val().length <= 80 && newData.val().matches(/^\\/[a-z0-9\\/_-]+$/)" } },
             "사업자": { ".validate": "newData.isString() && (newData.val() === '' || newData.val().matches(/^[0-9]{10}$/))" },
+            // 🏗 G192 경력 — 다닌 곳(30) · 기간(20) · 맡은 일(80) · 10줄 · «곳» 은 꼭
+            "줄들": {
+              "$j": {
+                ".validate": "$j.matches(/^[0-9]$/) && newData.hasChild('곳')",
+                "곳": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 30" },
+                "기간": { ".validate": "newData.isString() && newData.val().length <= 20" },
+                "일": { ".validate": "newData.isString() && newData.val().length <= 80" },
+                "$other": { ".validate": false }
+              }
+            },
             "글들": {
               "$j": {
                 ".validate": "$j.matches(/^[0-9]$/) && newData.hasChildren(['d', '글'])",
