@@ -6672,6 +6672,20 @@ span.mt-act { cursor: default; }
 .nm-chk input[type=checkbox] { width: 18px; height: 18px; min-width: 18px; margin: 2px 0 0; padding: 0; flex: 0 0 18px; }
 .nm-chk > span { flex: 1 1 auto; min-width: 0; }
 .nm-sites-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+/* 👥 G182 이름만 쳐서 다른 현장 사람 데려오기 */
+.nm-find { margin-top: 8px; padding: 8px 10px 10px; border-radius: 12px; background: var(--accent-soft); border: 1px solid var(--accent-line); display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.5; }
+.nm-find-h { display: flex; align-items: flex-start; gap: 8px; }
+.nm-find-x { all: unset; cursor: pointer; margin-left: auto; padding: 0 4px; color: var(--muted); font-size: 14px; line-height: 1.4; }
+.nm-find-i { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; width: 100%; padding: 8px 10px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); font-size: 13.5px; }
+.nm-find-i:hover, .nm-find-i:focus-visible { border-color: var(--accent); outline: none; }
+.nm-find-i small { flex: 1 1 100%; color: var(--muted); font-size: 12px; }
+.nm-bring { margin-top: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.5; }
+.nm-bring .nm-site-sel { flex: 0 0 auto; align-self: flex-start; width: auto; max-width: 100%; }
+.nm-bring-l { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-height: 320px; overflow-y: auto; }
+.nm-bring-l li { padding: 6px 0; border-top: 1px solid var(--line-soft); }
+.nm-bring-l li.off { opacity: .6; }
+.nm-bring-l .nm-chk { font-weight: 400; }
+@media print { .nm-find, .nm-bring { display: none !important; } }
 .nm-sites-ask { font-weight: 600; }
 .nm-sites-msg { padding: 7px 10px; border-radius: 8px; background: var(--accent-soft, #eaf1fd); border: 1px solid var(--accent-line, #bcd0f5); font-weight: 600; line-height: 1.5; }
 .nm-sites-note { font-size: 12px; line-height: 1.5; }

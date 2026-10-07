@@ -4,6 +4,7 @@ import { 공제칸, 요율 } from '../lib/gongje.js'
 import { 빈것, 새번호, 달셈, 칸바꿈, 줄채움, 달값, 예시, 공수차례, 달날수, 요일, 달더하기, 원, 공수글,
   보임, 명단빼기, 명단넣기, 완전히지우기, 남은기록, 되살리기, 일한날있음, 일한달, 그달일당, 그달빼기, 달값고침, 다른달값 } from '../lib/nomubi.js'   /* 🗓 G162 */
 import { 읽기현장, 쓰기현장, 현장목록, 현장목록쓰기, 현장목록열쇠, 현장자료열쇠, 현장연결자리, 현장백업열쇠, 현장이름, 현장더하기, 현장지우기, 현장되살리기 } from '../lib/nomubi.js'   /* 🏗 G178 현장별로 나눠 쓰기 */
+import { 다른현장명단, 사람찾기, 사람열쇠, 현장사람들, 줄에채움, 데려오기 } from '../lib/nomubi.js'   /* 👥 G182 이름만 쳐서 다른 현장 사람 데려오기 */
 import { 세기 } from '../lib/받은수.jsx'
 /* 🛡 2026-10-01 (G107) 연금 · 건강 «대상» 은 lib/ilyong4.js 판단(여러 달) — 사람마다 «판단 자세히» 로 가입 판단기에 출역을 넘깁니다 */
 import { 생일풀기, 만나이, 나이날 } from '../lib/ilyong4.js'   /* 🎂 G109 생년월일 → 만 나이 · 60세 연금 · 65세 고용 */
@@ -69,6 +70,9 @@ function 계산기({ 현장id, 현장칸, on현장명 }) {
   const [버릴기록, set버릴기록] = useState(null)   // 지운 사람 남은 출역 버리기 묻기
   const [없는펼침, set없는펼침] = useState(false)
   const [새줄, set새줄] = useState(null)           // 방금 되살린 사람 — 잠깐 빛남
+  /* 👥 G182 — 이름 칸에서 찾는 줄(새로 더한 빈 줄) · «다른 현장 명단에서 데려오기» 칸 { 현장id, 고름: [사람 번호] } */
+  const [찾는줄, set찾는줄] = useState(null)
+  const [데려옴, set데려옴] = useState(null)
   const [백업, set백업] = useState(() => { try { return JSON.parse(localStorage.getItem(백업열쇠) || 'null') } catch (e) { return null } })
   const 밖에서 = useRef(false)
   /* 되돌리기 줄은 20초 뒤 저절로 닫힘(처음부터 지운 것은 아래 «되살리기» 줄이 남음) */
@@ -109,7 +113,8 @@ function 계산기({ 현장id, 현장칸, on현장명 }) {
   /* 💰 G162 일당(w) · 늘 빼기(nx)는 «이 달(과 아직 안 적은 달)» 만 — 일한 날이 있는 다른 달 명세서는 그대로(lib/nomubi.js 달값고침) */
   const 사람고침 = (id, k, v) => 바꿈((s) => (k === 'w' || k === 'nx' ? 달값고침(s, s.ym, id, k, v) : { ...s, P: s.P.map((p) => (p.id === id ? { ...p, [k]: v } : p)) }))
   /* 🗓 G162 새로 더한 사람은 이 달부터 명단에(지난달 화면을 어지럽히지 않게) */
-  const 사람더함 = () => 바꿈((s) => ({ ...s, P: [...s.P, { id: 새번호(), n: '', j: '', b: '', w: 0, nx: '', r: [[s.ym, null]] }] }))
+  const [방금더함, set방금더함] = useState(null)     // 👥 G182 새 줄 이름 칸에 바로 커서
+  const 사람더함 = () => { const id = 새번호(); set방금더함(id); 바꿈((s) => ({ ...s, P: [...s.P, { id, n: '', j: '', b: '', w: 0, nx: '', r: [[s.ym, null]] }] })) }
   const 되돌릴수 = (글, 새) => { set되돌림({ 글, 전: st }); setSt(새) }
   const 되돌리기 = () => { if (!되돌림) return; setSt(되돌림.전); set되돌림(null); 세기('|노무비|되돌리기') }
   const 이름글 = (p) => (p.n && p.n.trim()) || '이름 없는 사람'
@@ -184,6 +189,39 @@ function 계산기({ 현장id, 현장칸, on현장명 }) {
   const 기록버림 = (x) => { 되돌릴수(`지운 사람의 남은 출역(${x.달들.map(짧달).join(' · ')})을 버렸습니다.`, 완전히지우기(st, x.id)); set버릴기록(null); 세기('|노무비|기록버림') }
   const 이름없음 = 이달명단.filter((p) => !(p.n || '').trim()).length
   const 같은이름 = [...new Set(이달명단.map((p) => (p.n || '').trim()).filter((n, i, a) => n && a.indexOf(n) !== i))]
+  /* 👥 G182 이름만 쳐서 데려오기 — 맵톡 이용자 답글 「기존 현장에 입력되어 있는 명단도 이름만 치며 정보를 가지고 올 수 있도록」 → 소장님 「해」
+     · 새로 더한 빈 줄(직종 · 생년월일 · 일당 · 출역이 다 빈 줄)의 이름 칸에 글자를 치면 → 다른 현장 명단 · 이 현장 지난 명단에서 찾아 줄을 띄움
+     · 누르면 직종 · 생년월일 · 일당 · 늘 빼기가 채워짐(다른 현장) / 이 현장 지난 명단 사람은 그 사람을 이 달 명단에 다시 넣음(지난 출역과 이어짐)
+     · 출역은 옮기지 않음 · 다른 현장 자료는 읽기만 함 */
+  const 다른현장있음 = useMemo(() => 현장목록().L.some((x) => x && !x.del && x.id !== 현장id), [현장id, 찾는줄, 데려옴])   // eslint-disable-line react-hooks/exhaustive-deps
+  const 다른 = useMemo(() => (찾는줄 || 데려옴 ? 다른현장명단(현장id) : []), [현장id, 찾는줄, !!데려옴])   // eslint-disable-line react-hooks/exhaustive-deps
+  const 찾는사람 = 찾는줄 ? 이달명단.find((p) => p.id === 찾는줄) : null
+  const 빈줄 = (p) => !!p && !String(p.j || '').trim() && !String(p.b || '').trim() && !(그달일당(st, ym, p) > 0) && 일한달(st, p.id).length === 0
+  const 찾을글 = 찾는사람 && 빈줄(찾는사람) ? String(찾는사람.n || '').replace(/\s+/g, '') : ''
+  const 이달열쇠 = new Set(이달명단.filter((p) => p.id !== 찾는줄).map(사람열쇠))
+  const 후보 = 찾을글 ? 사람찾기(다른, 찾을글, 이달열쇠, 6) : []
+  const 이현장후보 = 찾을글 ? 현장사람들(st, 현장id, '이 현장').filter((h) => 없는사람.some((p) => p.id === h.id) && h.n.replace(/\s+/g, '').includes(찾을글)).slice(0, 3) : []
+  const 찾아채움 = (h) => {
+    const 줄 = 찾는줄
+    되돌릴수(`${h.n} — «${h.현장명}» 명단에서 직종 · 생년월일 · 일당을 가져왔습니다(출역은 비어 있음).`, 줄에채움(st, 줄, h))
+    set찾는줄(null); 세기('|노무비|이름찾아넣기')
+  }
+  const 찾아다시 = (h) => {
+    const 줄 = 찾는줄
+    되돌릴수(`${h.n} — 이 현장 지난 명단의 사람을 ${짧달(ym)} 명단에 다시 넣었습니다(지난 출역과 이어집니다).`, 명단넣기({ ...st, P: st.P.filter((p) => p.id !== 줄) }, ym, h.id))
+    set찾는줄(null); 세기('|노무비|이름찾아다시넣기')
+  }
+  const 데려올현장 = 데려옴 ? (다른.find((h) => h.현장id === 데려옴.현장id) || 다른[0] || null) : null
+  const 데려올사람 = 데려올현장 ? [...데려올현장.사람].sort((a, b) => (b.마지막 || '').localeCompare(a.마지막 || '') || a.n.localeCompare(b.n, 'ko')) : []
+  const 이달있음 = new Set(이달명단.map(사람열쇠))
+  const 고른 = 데려옴 ? 데려올사람.filter((h) => 데려옴.고름.includes(h.id) && !이달있음.has(사람열쇠(h))) : []
+  const 데려오기열기 = () => { set데려옴({ 현장id: '', 고름: [] }); set찾는줄(null) }
+  const 데려넣기 = () => {
+    if (!데려올현장 || !고른.length) return
+    const { st: 새, 넣음, 건넘 } = 데려오기(st, ym, 고른)
+    되돌릴수(`«${데려올현장.현장명}» 명단에서 ${넣음}명을 ${짧달(ym)} 명단에 넣었습니다 — 출역은 비어 있습니다.${건넘 ? ` (이미 있는 ${건넘}명은 건너뜀)` : ''}`, 새)
+    set데려옴(null); 세기('|노무비|데려오기')
+  }
   const 칸누름 = (id, i) => {
     const g = (N.줄.find((r) => r.id === id) || { 공수: [] }).공수[i] || 0
     const 다음 = g === 0 ? 1 : 공수차례[(공수차례.indexOf(g) + 1) % 공수차례.length]
@@ -301,7 +339,7 @@ function 계산기({ 현장id, 현장칸, on현장명 }) {
               {이달명단.map((p, i) => (
                 <tr key={p.id} className={새줄 === p.id ? 'nm-newrow' : ''}>
                   <td className="r">{i + 1}</td>
-                  <td><input className="inp nm-in" value={p.n} maxLength={20} onChange={(e) => 사람고침(p.id, 'n', e.target.value)} placeholder="이름" aria-label={`${i + 1}번 이름`} /></td>
+                  <td><input className="inp nm-in" value={p.n} maxLength={20} onChange={(e) => { 사람고침(p.id, 'n', e.target.value); if (찾는줄 !== p.id) set찾는줄(p.id) }} onFocus={() => set찾는줄(p.id)} placeholder="이름" aria-label={`${i + 1}번 이름`} autoComplete="off" autoFocus={방금더함 === p.id} /></td>
                   <td><input className="inp nm-in" value={p.j} maxLength={20} onChange={(e) => 사람고침(p.id, 'j', e.target.value)} placeholder="직종" aria-label={`${i + 1}번 직종`} /></td>
                   <td className="nm-bd"><input className="inp nm-in nm-birth" value={p.b || ''} maxLength={10} inputMode="numeric" onChange={(e) => 사람고침(p.id, 'b', e.target.value.replace(/[^\d.\-/ ]/g, ''))} placeholder="예: 610315" aria-label={`${i + 1}번 생년월일`} />{나이글(p.b)}</td>
                   <td>{(() => {
@@ -335,9 +373,68 @@ function 계산기({ 현장id, 현장칸, on현장명 }) {
             </tbody>
           </table>
         </div>
+        {/* 👥 G182 이름 칸에서 찾은 사람 — 표 밖에 띄움(표는 옆으로 밀리는 칸이라 아래로 펼치면 잘림) */}
+        {찾을글 && (후보.length > 0 || 이현장후보.length > 0) && (
+          <div className="nm-find no-print" role="list" aria-label="이름으로 찾은 사람">
+            <div className="nm-find-h">🔎 «{찾는사람.n.trim()}» — {이현장후보.length && !후보.length ? '이 현장 지난 명단' : '다른 현장 명단'}에서 찾았습니다. 누르면 직종 · 생년월일 · 일당이 채워집니다.
+              <button type="button" className="nm-find-x" onClick={() => set찾는줄(null)} aria-label="닫기">✕</button></div>
+            {이현장후보.map((h) => (
+              <button key={'s' + h.id} type="button" className="nm-find-i" role="listitem" onClick={() => 찾아다시(h)}>
+                <b>{h.n}</b>{h.j && <span>{h.j}</span>}{h.b && <span>{h.b}</span>}{h.w > 0 && <span>{원(h.w)}원</span>}
+                <small>이 현장 지난 명단{h.마지막 ? ` · 마지막 출역 ${짧달(h.마지막)}` : ''} → 이 달 명단에 다시 넣기</small>
+              </button>
+            ))}
+            {후보.map((h) => (
+              <button key={h.현장id + h.id} type="button" className="nm-find-i" role="listitem" onClick={() => 찾아채움(h)}>
+                <b>{h.n}</b>{h.j && <span>{h.j}</span>}{h.b && <span>{h.b}</span>}{h.w > 0 && <span>{원(h.w)}원</span>}
+                <small>«{h.현장명}»{h.마지막 ? ` · 마지막 출역 ${짧달(h.마지막)}` : ''}</small>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={사람더함}>＋ 사람 더하기</button>
+          {다른현장있음 && !데려옴 && <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={데려오기열기}>👥 다른 현장 명단에서 데려오기</button>}
         </div>
+        {/* 👥 G182 다른 현장 명단에서 여러 명 골라 데려오기 */}
+        {데려옴 && (
+          <div className="nm-bring no-print">
+            <div className="nm-bring-h"><b>👥 다른 현장 명단에서 데려오기</b> <span className="muted">— 이름 · 직종 · 생년월일 · 일당만 옮겨 오고, 출역은 비어서 시작합니다</span></div>
+            {!다른.length ? (
+              <div className="muted">다른 현장 명단이 비어 있습니다.</div>
+            ) : (
+              <>
+                <select className="inp nm-site-sel" value={데려올현장 ? 데려올현장.현장id : ''} onChange={(e) => set데려옴({ 현장id: e.target.value, 고름: [] })} aria-label="데려올 현장">
+                  {다른.map((h) => <option key={h.현장id} value={h.현장id}>{h.현장명} · {h.사람.length}명</option>)}
+                </select>
+                <ul className="nm-bring-l">
+                  {데려올사람.map((h) => {
+                    const 있음 = 이달있음.has(사람열쇠(h))
+                    const on = !있음 && 데려옴.고름.includes(h.id)
+                    return (
+                      <li key={h.id} className={있음 ? 'off' : ''}>
+                        <label className="nm-chk"><input type="checkbox" checked={on} disabled={있음}
+                          onChange={(e) => set데려옴({ ...데려옴, 현장id: 데려올현장.현장id, 고름: e.target.checked ? [...데려옴.고름, h.id] : 데려옴.고름.filter((x) => x !== h.id) })} />
+                          <span><b>{h.n}</b> {h.j && <span className="muted">{h.j}</span>} {h.b && <span className="muted">{h.b}</span>} {h.w > 0 && <span>{원(h.w)}원</span>}
+                            {있음 ? <small className="muted"> · 이미 {짧달(ym)} 명단에 있음</small> : h.마지막 ? <small className="muted"> · 마지막 출역 {짧달(h.마지막)}</small> : null}</span>
+                        </label>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </>
+            )}
+            <div className="nm-sites-btns">
+              {데려올사람.some((h) => !이달있음.has(사람열쇠(h))) && (
+                <button type="button" className="btn line sm" style={{ width: 'auto' }}
+                  onClick={() => set데려옴({ 현장id: 데려올현장.현장id, 고름: 고른.length === 데려올사람.filter((h) => !이달있음.has(사람열쇠(h))).length ? [] : 데려올사람.filter((h) => !이달있음.has(사람열쇠(h))).map((h) => h.id) })}>
+                  {고른.length && 고른.length === 데려올사람.filter((h) => !이달있음.has(사람열쇠(h))).length ? '모두 풀기' : '모두 고르기'}</button>
+              )}
+              <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={!고른.length} onClick={데려넣기}>고른 {고른.length}명 {짧달(ym)} 명단에 넣기</button>
+              <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set데려옴(null)}>그만두기</button>
+            </div>
+          </div>
+        )}
         {st.P.length === 0 && <div className="note sm" style={{ marginTop: 8 }}>«＋ 사람 더하기» 로 이름 · 직종 · 일당을 적거나, 위의 «예시로 채워 보기» 로 먼저 둘러보십시오.</div>}
         {(이름없음 > 0 || 같은이름.length > 0) && (
           <div className="note sm" style={{ marginTop: 8 }}>⚠️ {이름없음 > 0 ? `이름이 빈 사람 ${이름없음}명` : ''}{이름없음 > 0 && 같은이름.length ? ' · ' : ''}{같은이름.length ? `같은 이름 ${같은이름.slice(0, 3).join(' · ')}` : ''}
@@ -608,7 +705,9 @@ function 계산기({ 현장id, 현장칸, on현장명 }) {
             안 나오는 사람은 <b>«빼기»</b> — 그 달부터 명단 · 출역표에서 빠지고 <b>지난달 지급명세서 · 신고는 그대로</b>입니다(이 달에 일한 날이 있으면 다음 달부터).
             다시 오면 <b>«이 달 명단에 없는 사람»</b> 에서 «이 달 명단에 넣기». 새로 더한 사람은 더한 달부터 보입니다.</li>
           <li><b>일당 · 늘 빼기</b>를 고치면 <b>그 달(과 아직 안 적은 달)만</b> 바뀝니다 — 일한 날이 있는 다른 달은 그 달 값 그대로(일당 칸 아래 «9월 170,000» 처럼 보임). 지난달 것을 고치려면 그 달로 가서 고치십시오.</li>
-          <li>빼기 · 지우기 · 출역 «지움» · «처음부터» 는 바로 뒤에 <b>«↩ 되돌리기»</b> 가 있습니다.</li>
+          <li><b>👥 다른 현장 사람 데려오기</b> — «＋ 사람 더하기» 로 생긴 빈 줄의 이름 칸에 이름(한두 글자도 됨)을 치면, 다른 현장 명단과 이 현장 지난 명단에서 찾아 아래에 띄웁니다. 누르면 직종 · 생년월일 · 일당이 채워집니다(출역은 비어서 시작).
+            여러 명은 «👥 다른 현장 명단에서 데려오기» 에서 골라 한꺼번에 넣습니다. 같은 브라우저에 있는 현장끼리만 찾습니다(다른 기기의 현장은 🔗 코드로 먼저 불러오십시오).</li>
+          <li>빼기 · 지우기 · 출역 «지움» · «처음부터» · 데려오기는 바로 뒤에 <b>«↩ 되돌리기»</b> 가 있습니다.</li>
           <li><b>출역</b> 칸을 누를 때마다 <b>1공수 → 0.5 → 1.5 → 빈칸</b>. 날마다 같이 나오면 «일요일 빼고 모두» 를 누른 뒤 안 나온 날만 지우십시오.</li>
           <li><b>소득세</b>는 날마다 따로 셉니다 — 그날 받은 돈에서 15만원을 빼고 6% 의 45%(근로소득세액공제 55% 뺌), 한 달 합이 1천원 미만이면 떼지 않습니다(소액부징수).
             하루 15만원 이하면 소득세가 없습니다.</li>

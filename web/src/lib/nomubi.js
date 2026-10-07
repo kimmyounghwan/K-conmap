@@ -320,3 +320,66 @@ export function 예시(ym = 이번달()) {
   }
   return st
 }
+
+/* ── 👥 G182 이름만 쳐서 다른 현장 명단의 사람 데려오기 (2026-10-07) ─────────────
+   맵톡 이용자 답글 「기존 현장에 입력되어 있는 명단도 이름만 치며 정보를 가지고 올 수 있도록 하면 좋지 않을까?」 → 소장님 「해」
+   · 같은 브라우저에 있는 다른 현장(뺀 현장 빼고) 명단에서 이름 · 직종 · 생년월일 · 일당 · 늘 빼기만 옮김 — 출역 · 공제 고친 값은 안 옮김
+   · 일당 · 늘 빼기는 그 현장에서 그 사람이 마지막으로 일한 달 값(일한 달이 없으면 그 현장이 보던 달 값)
+   · 같은 사람 = 이름(띄어쓰기 무시) + 생년월일(숫자만) */
+const 이름꼴 = (s) => String(s || '').replace(/\s+/g, '')
+export const 사람열쇠 = (p) => 이름꼴(p && p.n) + '|' + String((p && p.b) || '').replace(/[^\d]/g, '')
+/** 한 현장의 사람들 — [{ 현장id, 현장명, id, n, j, b, w, nx, 마지막 }] (이름 있는 사람만) */
+export function 현장사람들(st, 현장id, 현장명) {
+  return (st.P || []).filter((p) => p && 이름꼴(p.n)).map((p) => {
+    const 달들 = 일한달(st, p.id)
+    const 마지막 = 달들[달들.length - 1] || ''
+    const 기준 = 마지막 || st.ym || 이번달()
+    return { 현장id, 현장명, id: p.id, n: String(p.n).trim(), j: String(p.j || ''), b: String(p.b || ''), w: 그달일당(st, 기준, p), nx: 그달빼기(st, 기준, p), 마지막 }
+  })
+}
+/** 다른 현장 명단 — [{ 현장id, 현장명, 사람: [...] }] (사람 있는 현장만 · 목록 차례) */
+export function 다른현장명단(지금id, 목록 = 현장목록(), 읽기 = 읽기현장) {
+  const 결과 = []
+  목록.L.forEach((x, i) => {
+    if (!x || x.del || x.id === 지금id) return
+    const 명 = 현장이름(x, i)
+    const 사람 = 현장사람들(읽기(x.id), x.id, 명)
+    if (사람.length) 결과.push({ 현장id: x.id, 현장명: 명, 사람 })
+  })
+  return 결과
+}
+/** 이름으로 찾기 — 이름에 글이 든 사람(띄어쓰기 무시) · 같은 사람 · 같은 값은 한 번만(가장 최근 현장) · 이름이 똑같은 사람 먼저 · 최근 것 먼저
+ *  뺄 = 이미 이 달 명단에 있는 사람열쇠(Set) */
+export function 사람찾기(현장들, 글, 뺄 = new Set(), 최대 = 8) {
+  const q = 이름꼴(글)
+  if (!q) return []
+  const 모음 = new Map()
+  for (const h of 현장들 || []) for (const p of h.사람 || []) {
+    if (!이름꼴(p.n).includes(q) || 뺄.has(사람열쇠(p))) continue
+    const k = [사람열쇠(p), p.j, p.w, p.nx].join('|')
+    const 앞 = 모음.get(k)
+    if (!앞 || (p.마지막 || '') > (앞.마지막 || '')) 모음.set(k, p)
+  }
+  return [...모음.values()].sort((a, b) => {
+    const 같a = 이름꼴(a.n) === q ? 0 : 1, 같b = 이름꼴(b.n) === q ? 0 : 1
+    if (같a !== 같b) return 같a - 같b
+    return (b.마지막 || '').localeCompare(a.마지막 || '') || a.n.localeCompare(b.n, 'ko')
+  }).slice(0, 최대)
+}
+/** 빈 줄 하나를 데려온 사람으로 채움(이름 · 직종 · 생년월일 · 일당 · 늘 빼기) — 출역은 그대로(빈 줄이라 없음) */
+export function 줄에채움(st, 줄id, p) {
+  return { ...st, P: (st.P || []).map((x) => (x.id === 줄id ? { ...x, n: p.n, j: p.j || '', b: p.b || '', w: Number(p.w) || 0, nx: p.nx || '' } : x)) }
+}
+/** 여러 사람을 이 달부터 명단에 넣음 — 이미 이 달 명단에 있는 사람(사람열쇠)은 건너뜀. { st, 넣음, 건넘 } */
+export function 데려오기(st, ym, 사람들) {
+  const 있음 = new Set((st.P || []).filter((p) => 보임(st, p, ym)).map(사람열쇠))
+  const 새 = []
+  let 건넘 = 0
+  for (const p of 사람들 || []) {
+    const k = 사람열쇠(p)
+    if (있음.has(k)) { 건넘++; continue }
+    있음.add(k)
+    새.push({ id: 새번호(), n: p.n, j: p.j || '', b: p.b || '', w: Number(p.w) || 0, nx: p.nx || '', r: [[ym, null]] })
+  }
+  return { st: { ...st, P: [...(st.P || []), ...새] }, 넣음: 새.length, 건넘 }
+}
