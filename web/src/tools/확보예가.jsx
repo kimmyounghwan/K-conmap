@@ -111,48 +111,63 @@ function 미리안({ base, llr, aval, amt, 공고, p50 }) {
     } catch (e) { set상태('err') }
   }
   if (내s == null) return null
-  const 최고 = 결과 && 결과.격자 ? 결과.격자.reduce((m, g) => (g.배 != null && (m == null || g.배 > m.배) ? g : m), null) : null
+  /* 🩹 G195 (2026-10-07) 소장님 폰 캡처 둘 → 「수정해야 되는 거야. 확보예가..」 — 셈은 그대로, «보여 주기» 만 고침
+     ① 잴 수 없을 때(비교 5건 미만 · 잰 개찰 0건) — 큰 칸 대신 «한 줄» 만(자리만 차지하던 것)
+     ② «덜 몰린 자리» 인데 «0.6배» 처럼 앞뒤가 안 맞아 보이던 것 — 몫이 작은 «까닭» 을 한 줄로(높은/낮은 자리 · 몰린 자리)
+     ③ 그래프가 «가장 큰 칸» 을 파랗게 칠해 «이리 옮기라» 처럼 보이던 것 — «지금» 칸만 칠하고 «참고» 로 작게
+     ④ 머리의 «투찰 사정률 100.72» 가 위 파란 칸 «사정률 100.42% 에서도…» 와 숫자가 둘로 보여 헷갈림 — 머리에서 뺌
+     ⑤ 소장님 「권장금액 그대로 보라고 하지마. 선택하라고 해야지. 클로드가 책임져 줄 수는 없잖아」 — «그대로 보십시오» → «참고하시고, 직접 골라 주십시오»(「권장금액 참고 하라고 적어. 권장금액 보라고 하지말고」) */
+  const 못잼 = 결과 && (결과.없음 || 결과.배가운데 == null)
+  if (못잼) {
+    return (
+      <div className="kb-box" ref={자리}>
+        <div className="kb-in muted" style={{ padding: '8px 12px', gap: 2 }}>
+          🎯 확보 예가 — {결과.없음 ? '이 공고는 비교할 지난 개찰(같은 기관 · 비슷한 금액)이 적어 셀 수 없습니다.' : '업체가 많은 공사라, 이 금액 근처는 지난 개찰 자료로 셀 수 없습니다.'}
+        </div>
+      </div>
+    )
+  }
+  const 배 = 결과 && 결과.배가운데
+  const 멀리 = Number.isFinite(p50) ? 내s - p50 : 0
+  const 까닭 = 배 == null ? '' : 배 >= 1.15
+    ? '남들보다 몫이 큰 자리입니다.'
+    : 배 >= 0.85
+      ? '남들과 비슷한 몫입니다(1배 = 평균).'
+    : 결과.근처평균 != null && 결과.근처평균 >= 3
+      ? '남들이 몰린 자리라 몫이 작습니다.'
+      : 멀리 > 0.4
+        ? '남들은 덜 몰렸지만, 예정가격이 이 근처(높은 쪽)로는 잘 안 나와 몫이 작습니다.'
+        : 멀리 < -0.4
+          ? '남들은 덜 몰렸지만, 예정가격이 이 근처(낮은 쪽)로는 잘 안 나와 몫이 작습니다.'
+          : '바로 아래 금액의 업체와 붙어 있어 몫이 작습니다.'
   return (
     <div className="kb-box" ref={자리}>
-      {(
-        <div className="kb-in">
-          <div className="kb-h">🎯 확보 예가 미리 보기 <span className="muted">(어림 · 투찰 사정률 {사정(내s)})</span></div>
-          {(상태 === 'ing' || (!결과 && 상태 === '')) && <div className="muted">지난 개찰 자료를 받아 셉니다…</div>}
-          {상태 === 'err' && <div className="muted">개찰 자료를 받지 못했습니다 — 잠시 뒤 다시 눌러 주십시오. <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={셈}>다시</button></div>}
-          {결과 && 결과.없음 && <div className="muted">비교할 만한 지난 개찰이 5건이 안 됩니다(같은 기관 · 비슷한 금액).</div>}
-          {/* 🩹 G183 — 개찰 자료는 낮은 금액 30곳까지라, 업체가 많은 공사에서 이 금액 근처는 «바로 아래 업체» 를 몰라 못 잽니다 */}
-          {결과 && !결과.없음 && 결과.배가운데 == null && (
-            <div className="muted">비슷한 지난 개찰 {결과.건}건 가운데 이 금액 근처를 잴 수 있는 개찰이 {결과.잰}건뿐입니다 —
-              개찰 자료는 낮은 금액 30곳까지만 실려 있어, 업체가 많은 공사에서 이 금액 근처는 남들이 얼마나 몰렸는지 셀 수 없습니다.</div>
-          )}
-          {결과 && !결과.없음 && 결과.배가운데 != null && (
-            <>
-              <div className="kb-big">
-                <span>확보 예가 <b className={결과.배가운데 >= 1 ? 'kb-up' : 'kb-dn'}>평균의 {배글(결과.배가운데)}</b></span>
-                <span className="muted">· {결과.고른} 개찰 {결과.잰}건의 가운데값 · 평균 넘은 개찰 {결과.평균넘은}건</span>
-              </div>
-              {결과.근처평균 != null && (
-                <div className="kb-line">이 사정률 근처(±0.05)에 넣은 업체가 개찰마다 평균 <b>{결과.근처평균}곳</b>
-                  {결과.근처평균 >= 3 ? ' — 몰린 자리입니다' : 결과.근처평균 >= 1 ? ' — 보통입니다' : ' — 덜 몰린 자리입니다'}.</div>
-              )}
-              <div className="kb-grid" role="table" aria-label="사정률 근처의 확보 예가">
-                {결과.격자.map((g) => (
-                  <div key={g.d} className={'kb-cell' + (Math.abs(g.d) < 1e-9 ? ' me' : '') + (최고 && g.s === 최고.s ? ' top' : '')} role="row">
-                    <span className="s">{g.d > 0 ? '+' : ''}{g.d.toFixed(2)}</span>
-                    <span className="bar"><i style={{ height: `${Math.min(100, (g.배 || 0) / Math.max(1.5, 최고?.배 || 1) * 100)}%` }} /></span>
-                    <span className="v">{g.배 == null ? '-' : 배글(g.배)}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="kb-note muted">
-                칸은 «내 투찰 사정률에서 ±» 입니다(가운데 = 지금 금액). 남들이 몰린 곳은 1순위 될 폭이 좁아 확보 예가가 작습니다.
-                {' '}⚠️ 예정가격을 맞히는 것이 아니라 지난 개찰에서 «남들이 얼마나 몰렸나» 만 봅니다. 지난 개찰 1만여 건으로 재 보니, 이 값을 보고 금액을 옮겨도
-                {' '}1순위가 늘지는 않았습니다 — 참고로만 보시고, 권장 금액 · 실격 확률은 위 숫자 그대로 보십시오.{결과.격자.some((g) => g.배 == null) ? ' «-» 칸은 개찰 자료(낮은 금액 30곳)로 잴 수 없는 자리입니다.' : ''}
-              </div>
-            </>
-          )}
-        </div>
-      )}
+      <div className="kb-in">
+        <div className="kb-h">🎯 확보 예가 <span className="muted">(참고 · 지난 개찰로 본 어림)</span></div>
+        {(상태 === 'ing' || (!결과 && 상태 === '')) && <div className="muted">지난 개찰 자료를 받아 셉니다…</div>}
+        {상태 === 'err' && <div className="muted">개찰 자료를 받지 못했습니다 — 잠시 뒤 다시 눌러 주십시오. <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={셈}>다시</button></div>}
+        {결과 && 배 != null && (
+          <>
+            <div className="kb-big">
+              <span>이 금액 <b className={배 >= 1 ? 'kb-up' : 'kb-dn'}>평균의 {배글(배)}</b></span>
+              <span className="muted">· {결과.고른} 개찰 {결과.잰}건</span>
+            </div>
+            <div className="kb-line">{까닭}{결과.근처평균 != null && <span className="muted"> (근처 ±0.05 에 개찰마다 평균 {결과.근처평균}곳)</span>}</div>
+            <div className="kb-grid" role="table" aria-label="사정률 근처의 확보 예가 (참고)">
+              {결과.격자.map((g) => (
+                <div key={g.d} className={'kb-cell' + (Math.abs(g.d) < 1e-9 ? ' me' : '')} role="row">
+                  <span className="s">{Math.abs(g.d) < 1e-9 ? '지금' : (g.d > 0 ? '+' : '') + g.d.toFixed(2)}</span>
+                  <span className="bar"><i style={{ height: `${Math.min(100, (g.배 || 0) / Math.max(1.5, ...결과.격자.map((x) => x.배 || 0)) * 100)}%` }} /></span>
+                  <span className="v">{g.배 == null ? '-' : 배글(g.배)}</span>
+                </div>
+              ))}
+            </div>
+            <div className="kb-note muted">
+              참고용입니다 — 지난 개찰 1만여 건으로 재 보니 이 값만 보고 금액을 옮겨도 1순위가 늘지는 않았습니다. <b>권장 금액 · 금액 고르기 · 이 값은 참고하시고, 투찰 금액은 직접 골라 주십시오.</b>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }

@@ -6773,6 +6773,11 @@ span.mt-act { cursor: default; }
 @media (max-width: 520px) { .kb-tbl .kb-pc { display: none; } .kb-tbl td.kb-name { max-width: 150px; } .kb-tbl th, .kb-tbl td { padding: 8px 4px; } }
 @media (max-width: 520px) { .kb-cell { font-size: 9.5px; } .kb-cell .bar { height: 44px; } .kb-grid { gap: 2px; } }
 @media (max-width: 520px) { .kb-cell .v { display: none; } .kb-cell.me .v, .kb-cell.top .v { display: block; } .kb-cell:nth-child(even) .s { visibility: hidden; } }
+/* 🩹 G195 — 확보 예가 그래프는 «참고» 로 작게 · «지금» 칸만 칠함 */
+.kb-box .kb-grid { opacity: .85; }
+.kb-box .kb-cell .bar { height: 34px; }
+.kb-cell.me .s { color: var(--accent, #1d4ed8); font-weight: 800; }
+@media (max-width: 520px) { .kb-box .kb-cell .v { display: block; visibility: hidden; } .kb-box .kb-cell.me .v { visibility: visible; } }   /* 칸 높이를 맞춰 «지금» 글자가 떠 보이지 않게 */
 /* 💰 G185 금액 고르기 — 이 금액대 지난 개찰로 본 성적(tools/금액고르기.jsx) */
 .gm-card { margin-top: 10px; }
 .gm-now { margin: 0 0 8px; padding: 8px 10px; border-radius: 10px; background: var(--accent-soft, #eaf1fd); font-size: 13.5px; line-height: 1.5; }
