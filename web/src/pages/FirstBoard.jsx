@@ -67,13 +67,13 @@ export default function FirstBoard() {
     }
   }, [filtering, q, region, mine, lics, licNone])
 
-  const { info, rows: all, pageRows, pageReady, total, indexReady, loading, busy } =
+  const { info, rows: all, pageRows, pageReady, total, indexReady, loading, busy, floor } =
     useBoard('first', KIND, { match, page, perPage: PAGE })
   /* ⚡ 2026-09-30 — 방금 들어온 개찰(빠른 길, lib/fresh.js). 첫 쪽 맨 위에만 얹습니다.
      목록에 이미 있는 공고는 빼고, 거르기(match)는 목록과 똑같이 적용합니다. */
   const fresh = useFresh('first', filtering)
   const 방금 = useMemo(() => (page === 1 && !loading
-    ? freshRows(fresh, new Set(all.map((r) => String(r.no))), match) : []), [fresh, all, match, page, loading])
+    ? freshRows(fresh, new Set(all.map((r) => String(r.no))), match, floor) : []), [fresh, all, match, page, loading, floor])   /* 🩹 G193 floor */
 
   useEffect(() => { getOverview().then(setOv) }, [])
   const 첫 = useRef(true)   /* 처음 그릴 때는 남긴 쪽을 지우지 않습니다 */

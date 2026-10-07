@@ -17,6 +17,12 @@ fast.py — 공고 · 1순위 «빠른 길» (2026-09-30)
 ■ «새 것» 을 어떻게 가리나 — 사이트에 «지금 올라가 있는» 첫 묶음(최신 500건)과 대 봅니다
     조달청에서 오늘치를 받고, 사이트 첫 묶음에 없는 공고번호만 남깁니다(첫 묶음보다 오래된 것은 뺍니다).
     다음 정기 배포가 그 공고를 싣는 순간 여기서 저절로 빠집니다 — 두 벌이 겹칠 일이 없습니다.
+  🩹 G193 (2026-10-07) 소장님 폰 20:07 «왜 이렇지?» — 11:00 개찰이 첫 묶음(500건)과 둘째 묶음에 걸쳐 나뉘자,
+    둘째 묶음으로 넘어간 11:00 개찰 94건을 «첫 묶음에 없음 · 가장 오래된 시각(11:00)보다 오래되지 않음» 으로 보고
+    «🆕 방금» 으로 다시 올렸습니다(17:30 개찰 위에). → known_on_site: 첫 묶음이 꽉 찼으면 같은 시각 무리가 넘어간
+    뒤 묶음까지 받아 «있는 것» 에 넣습니다. 뒤 묶음을 못 받으면 가장 오래된 시각과 같은 줄은 그 회차엔 뺍니다(겹치는 것보다 낫게).
+    화면(lib/fresh.js freshRows · 바닥시각)도 같은 자리를 한 번 더 거릅니다 — 정기 배포 직후 빠른 길이 아직 옛것일 때를 위해.
+    시험: python tools/시험_빠른길.py · node tools/시험_빠른길.mjs
 
 ■ 무엇을 덧붙이나 (조달청 호출 없이)
     · 개찰: 같은 공고번호의 공고 저장소(정기 수집이 캐시에 남긴 것)에서 기초금액 · 예가범위 · A값 · 면허 · 낙찰하한율 …
@@ -126,32 +132,89 @@ def today_range(now):
 
 
 # ── 사이트에 지금 올라가 있는 것 ────────────────────────────────────
+MORE_PARTS = 3             # 🩹 G193 첫 묶음 뒤로 더 볼 묶음 수 — 같은 시각 무리가 넘어간 만큼만(보통 1개)
+
+
+def known_on_site(m, part0, fetch):
+    """사이트에 «이미 있는 것» — 첫 묶음 + (첫 묶음이 꽉 찼으면) 같은 시각 무리가 넘어간 뒤 묶음.  🩹 G193
+    m: 목록표(board/{name}.json — chunk · con.parts) · part0: 첫 묶음 · fetch(i): i번 묶음(list) 또는 None(못 받음)
+    돌려줌 {have: 공고번호들, oldest: 첫 묶음의 가장 오래된 시각(숫자 12자), edge: 뒤 묶음을 못 봐 경계가 불확실}
+    첫 묶음의 가장 오래된 시각보다 «더 오래된» 줄은 pick_fresh 가 늘 뺍니다. 여기서 챙기는 것은
+    «같은 시각» 인데 뒤 묶음으로 넘어간 줄입니다(11:00 개찰 수백 건이 500 경계에 걸리는 날)."""
+    rows0 = [r for r in (part0 or []) if isinstance(r, dict)]
+    have = {str(r.get("no")) for r in rows0 if r.get("no")}
+    ds = [C.dt_digits(r.get("dt")) for r in rows0 if r.get("dt")]
+    oldest = min(ds) if ds else ""
+    try:
+        chunk = int((m or {}).get("chunk") or 500)
+    except (TypeError, ValueError):
+        chunk = 500
+    try:
+        parts = int(((m or {}).get("con") or {}).get("parts") or 0)   # 0 = 모름 → 받아 보고 판단
+    except (TypeError, ValueError):
+        parts = 0
+    edge = False
+    cur, i = rows0, 0
+    while oldest and len(cur) >= chunk and i < MORE_PARTS:
+        if parts and i + 1 >= parts:
+            break                                     # 뒤 묶음이 없음
+        i += 1
+        got = fetch(i)
+        if not isinstance(got, list):
+            edge = True                               # 못 받음 — pick_fresh 가 같은 시각 줄을 뺌
+            break
+        cur = [r for r in got if isinstance(r, dict)]
+        have |= {str(r.get("no")) for r in cur if r.get("no")}
+        cd = [C.dt_digits(r.get("dt")) for r in cur if r.get("dt")]
+        if not cd or min(cd) < oldest:
+            break                                     # 이 묶음 안에서 더 오래된 시각이 나옴 — 같은 시각 무리는 여기서 끝
+    else:
+        if oldest and len(cur) >= chunk and i >= MORE_PARTS and (not parts or i + 1 < parts):
+            edge = True                               # 같은 시각이 MORE_PARTS 묶음을 넘게 이어짐 — 끝까지 못 봄
+    return {"have": have, "oldest": oldest, "edge": edge}
+
+
 def deployed(name):
-    """(목록표, 첫 묶음) — 캐시를 비켜 가려고 주소에 시각을 붙입니다. 못 받으면 (None, None)."""
+    """(목록표, 첫 묶음, 아는 것) — 캐시를 비켜 가려고 주소에 시각을 붙입니다. 못 받으면 (None, None, None).
+    아는 것 = known_on_site(…) — 첫 묶음이 꽉 차 있으면 같은 시각 무리가 넘어간 뒤 묶음까지(🩹 G193)."""
     t = int(time.time())
+    nm = "개찰" if name == "first" else "공고"
     try:
         m = requests.get(f"{SITE}/data/board/{name}.json?t={t}", timeout=20).json()
         p = requests.get(f"{SITE}/data/board/{name}-con-0.json?t={t}", timeout=30).json()
         if not isinstance(p, list):
-            return None, None
-        return m, p
+            return None, None, None
     except Exception as e:
-        nm = "개찰" if name == "first" else "공고"
         log(f"  ! 사이트의 {nm} 첫 묶음을 못 받았습니다 ({type(e).__name__}) — 이번엔 {nm}을 건너뜁니다")
-        return None, None
+        return None, None, None
+
+    def fetch(i):
+        try:
+            v = requests.get(f"{SITE}/data/board/{name}-con-{i}.json?t={t}", timeout=30).json()
+            return v if isinstance(v, list) else None
+        except Exception:
+            return None
+
+    k = known_on_site(m if isinstance(m, dict) else {}, p, fetch)
+    if k["edge"]:
+        log(f"  ! 사이트의 {nm} 뒤 묶음을 못 봤습니다 — 첫 묶음 가장 오래된 시각과 같은 줄은 이번 회차 «방금» 에서 뺍니다")
+    return m, p, k
 
 
-def pick_fresh(rows, part0):
-    """사이트 첫 묶음에 없는 줄만 — 첫 묶음보다 오래된 줄은 이미 뒤 묶음에 있으므로 뺍니다."""
-    have = {str(r.get("no")) for r in part0 if isinstance(r, dict)}
-    ds = [C.dt_digits(r.get("dt")) for r in part0 if isinstance(r, dict) and r.get("dt")]
-    oldest = min(ds) if ds else ""
+def pick_fresh(rows, part0, known=None):
+    """사이트에 없는 줄만 — 첫 묶음보다 오래된 줄은 이미 뒤 묶음에 있으므로 뺍니다.
+    known: known_on_site(…) 결과(🩹 G193 — 뒤 묶음으로 넘어간 같은 시각 줄까지 «있는 것»).
+           없으면 첫 묶음만으로 셈하되, 첫 묶음이 꽉 찼으면 같은 시각 줄도 뺍니다(뒤 묶음을 못 본 것과 같게)."""
+    if known is None:
+        known = known_on_site({}, part0, lambda i: None)
+    have, oldest, edge = known["have"], known["oldest"], known["edge"]
     seen, out = set(), []
     for r in rows:
         no = str(r.get("no") or "")
         if not no or no in have or no in seen:
             continue
-        if oldest and C.dt_digits(r.get("dt")) < oldest:
+        d = C.dt_digits(r.get("dt"))
+        if oldest and (d < oldest or (edge and d <= oldest)):
             continue
         seen.add(no)
         out.append(r)
@@ -290,12 +353,12 @@ def once(key, ctx, dry=False):
     now = now_kst()
     body, said = {}, []
     # ① 개찰 → 1순위
-    m, p0 = deployed("first")
+    m, p0, k0 = deployed("first")
     if p0 is not None:
         try:
             items = api_paged(C.ENDPOINTS[("first", "con")], key, today_range(now), PAGES["first"])
             rows = [r for r in (C.row_first(it) for it in items) if r]
-            fr = pick_fresh(rows, p0)
+            fr = pick_fresh(rows, p0, k0)
             joined = enrich_first(fr, ctx["live"], ctx["first"])
             body.update(body_for("first", finish("first", fr, ctx["book"], None), (m or {}).get("built")))
             said.append(f"개찰 오늘 {len(rows)}건 중 새 것 {len(fr)}건(이어붙임 {joined}칸)")
@@ -305,12 +368,12 @@ def once(key, ctx, dry=False):
         except Exception as e:
             log(f"  ! 개찰을 못 받았습니다 ({type(e).__name__}: {e}) — 지난 것을 그대로 둡니다")
     # ② 공고
-    m, p0 = deployed("live")
+    m, p0, k0 = deployed("live")
     if p0 is not None and not ctx.get("quota"):
         try:
             items = api_paged(C.ENDPOINTS[("live", "con")], key, today_range(now), PAGES["live"])
             rows = [r for r in (C.row_live(it) for it in items) if r]
-            fr = pick_fresh(rows, p0)
+            fr = pick_fresh(rows, p0, k0)
             lv = (ctx["live"] or {}).get("con") or {}
             for r in fr:
                 prev = lv.get(r["no"]) or {}

@@ -77,13 +77,36 @@ export function useFresh(name, all = false) {
   return v
 }
 
+/** 시각 → 숫자 12자리(YYYYMMDDhhmm) — fast.py 의 C.dt_digits 와 같은 꼴 */
+export const 시각숫자 = (v) => String(v == null ? '' : v).replace(/\D/g, '').slice(0, 12)
+
+/** 🩹 G193 바닥 시각 — 0번부터 끊김 없이 받아 둔 묶음 가운데 가장 오래된 시각(숫자 12자리).
+ *  뒤 묶음이 더 있을 때만 돌려주고(아니면 ''), freshRows 가 이 시각과 같거나 더 오래된 빠른 줄을 얹지 않습니다.
+ *  까닭: 소장님 폰 2026-10-07 20:07 — 11:00 개찰이 첫 묶음(500)과 둘째 묶음에 걸쳐 나뉘자, 둘째 묶음에 있는
+ *  11:00 개찰 94건이 «첫 묶음에 없음» 으로 보여 17:30 개찰 위에 «🆕 방금» 으로 떴습니다(fast.py 도 같이 고침).
+ *  chunks: { 묶음번호: 줄들 } (useBoard 의 것) · parts: 그 목록의 묶음 수 */
+export function 바닥시각(chunks, parts) {
+  if (!chunks || !parts) return ''
+  let k = 0, min = ''
+  while (Array.isArray(chunks[k])) {
+    for (const r of chunks[k]) {
+      const d = 시각숫자(r && r.dt)
+      if (d && (!min || d < min)) min = d
+    }
+    k++
+  }
+  return k > 0 && k < parts ? min : ''
+}
+
 /** 목록에 이미 있는 공고는 빼고, 거르기(match)를 똑같이 적용해 «얹을 줄» 만 돌려줍니다.
- *  match 는 useBoard 에 넘기는 그 함수(색인 한 줄 → 참/거짓) — 빠른 줄에는 fast.py 가 같은 차례의 _ix 를 붙여 둡니다. */
-export function freshRows(fresh, have, match) {
+ *  match 는 useBoard 에 넘기는 그 함수(색인 한 줄 → 참/거짓) — 빠른 줄에는 fast.py 가 같은 차례의 _ix 를 붙여 둡니다.
+ *  floor(🩹 G193): 바닥시각(…) — 이 시각과 같거나 더 오래된 빠른 줄은 이미 뒤 묶음에 있거나 «방금» 이 아니므로 뺍니다. */
+export function freshRows(fresh, have, match, floor = '') {
   if (!fresh || !fresh.rows || !fresh.rows.length) return []
   const out = []
   for (const r of fresh.rows) {
     if (have.has(String(r.no))) continue
+    if (floor && 시각숫자(r.dt) <= floor) continue
     if (match && !(Array.isArray(r._ix) && match(r._ix, -1))) continue
     out.push(r)
   }

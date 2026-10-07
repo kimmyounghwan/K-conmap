@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { getBoardMeta, getBoardPart, getBoardIndex } from './data.js'
+import { 바닥시각 } from './fresh.js'   /* 🩹 G193 빠른 길 겹침 막기 */
 
 /**
  * 7주치 목록 — «지금 보고 있는 쪽»에 필요한 것만 받습니다.
@@ -190,9 +191,13 @@ export function useBoard(name, kind, { match = null, page = 1, perPage = 20 } = 
     return { pageRows: out, pageReady: ready }
   }, [hits, chunks, page, perPage, CHUNK, totalAll])
 
+  /* 🩹 G193 — 0번부터 이어 받은 묶음의 가장 오래된 시각(뒤 묶음이 더 있을 때만) · 빠른 길(fresh) 겹침 막기 */
+  const floor = useMemo(() => 바닥시각(chunks, parts), [chunks, parts])
+
   return {
     meta,
     info: meta ? meta[kind] : null,
+    floor,
     rows,
     pageRows,       // 이 쪽에 그릴 줄 (검색 중이든 아니든)
     pageReady,      // 이 쪽에 필요한 묶음이 다 왔나 (아니면 «불러오는 중»)

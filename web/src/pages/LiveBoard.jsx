@@ -246,7 +246,7 @@ export default function LiveBoard() {
     }
   }, [filtering, q, region, mine, lics, licNone, onlyGood, docOnly, amt, 공동거름, 나, 유형])   // eslint-disable-line react-hooks/exhaustive-deps
 
-  const { info, rows: all, pageRows, pageReady, total, indexReady, loading, busy } =
+  const { info, rows: all, pageRows, pageReady, total, indexReady, loading, busy, floor } =
     useBoard('live', KIND, { match: pick ? null : match, page, perPage: PAGE })
   /* ⚡ 2026-09-30 — 방금 올라온 공고(빠른 길, lib/fresh.js). «공고 목록» 첫 쪽 맨 위에만 얹습니다. */
   const fresh = useFresh('live', filtering)
@@ -342,10 +342,10 @@ export default function LiveBoard() {
   const 방금 = useMemo(() => {
     if (listOf || page !== 1 || loading) return []
     const keep = 모름수.current
-    const out = freshRows(fresh, new Set(all.map((r) => String(r.no))), match)
+    const out = freshRows(fresh, new Set(all.map((r) => String(r.no))), match, floor)   /* 🩹 G193 floor */
     모름수.current = keep
     return out
-  }, [fresh, all, match, page, loading, listOf])   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fresh, all, match, page, loading, listOf, floor])   // eslint-disable-line react-hooks/exhaustive-deps
   const view = 방금.length ? [...방금, ...view0] : view0
   const rows = view
   const done = listOf ? true : (filtering ? indexReady : true)     // 검색 중이면 색인이 와야 «다 셌다»
