@@ -39,6 +39,19 @@ const 가운데 = (a) => {
   return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2
 }
 
+/* 🩹 G183 (2026-10-07) «바로 아래 업체를 아는가» — 개찰 자료는 개찰 순위 30곳까지(하한 위 낮은 순 → 하한 아래)만 실려 있습니다.
+   참가가 실린 수보다 많으면 하한 아래 업체 · 30위 밖 업체가 빠져 있어, 1위(바로 아래가 안 실린 하한 아래 업체) ·
+   하한 아래로 실린 업체는 몫을 셀 수 없습니다(전에는 바로 아래를 «없음» 으로 보고 몫을 크게 셌음 — 1위 칩 «13배» 처럼).
+   알 수 있는 것: 다 실렸거나, 하한 위 덩이(1위 ~ k위 · 금액이 이어짐) 안에서 자기보다 낮은 금액이 덩이에 있을 때. */
+export function 아래앎(corps, np, nrank) {
+  const 금 = (corps || []).map((c) => (c && Number(c[1]) > 0 ? Number(c[1]) : null)).filter((m) => m != null)
+  const 다실림 = Math.max(Number(np) || 0, Number(nrank) || 0, 금.length) <= 금.length
+  let k = 1
+  while (k < 금.length && 금[k] >= 금[k - 1]) k++
+  const 덩 = 금.slice(0, k)
+  return (amt) => 다실림 || (덩.includes(amt) && 덩.some((m) => m < amt))
+}
+
 /** 개찰 한 건 — 이 업체가 없거나 셀 수 없으면 null */
 export function 한개찰(row, bno, p50) {
   const base = Number(row && row.base) || 0
@@ -63,6 +76,7 @@ export function 한개찰(row, bno, p50) {
   let 몫 = F(내s) - (앞 != null ? F(be(앞)) : 0)
   if (같은값 > 1) 몫 /= 같은값                          // 같은 금액이면 추첨 — 나눠 가짐
   몫 = Math.max(0, Math.min(1, 몫))
+  if (!아래앎(row.corps, row.np, row.nrank)(amt)) 몫 = null   // 🩹 G183 바로 아래 업체를 모름 — 확보 예가는 안 셈
   const n = Math.max(Number(row.np) || 0, Number(row.nrank) || 0, cs.length)
   const 예가수 = 조합수(row.ptot || 15, row.pdrw || 4)
   /* 예정가격 사정률(개찰 뒤 확정) — 1순위 금액 ÷ 1순위 투찰률 (성적표.js 한건 과 같은 셈) */
@@ -74,7 +88,7 @@ export function 한개찰(row, bno, p50) {
     n, 담긴: cs.length, rank, 일순: rank === 1,
     내s: r3(내s), 예정s: r3(예정s), 일순s: r3(be(Number(w[1]))),
     실격: 예정s != null && 내s != null ? 내s < 예정s - 1e-9 : false,
-    몫, 배: 몫 * n, 확보: 몫 * 예가수, 평균: 예가수 / n, 예가수,
+    몫, 배: 몫 == null ? null : 몫 * n, 확보: 몫 == null ? null : 몫 * 예가수, 평균: 예가수 / n, 예가수,
     남s: cs.map((c) => be(Number(c[1]))).filter((s) => s != null),
   }
 }
@@ -98,21 +112,26 @@ export function 투찰자리(bno, rows, p50) {
   const 전체 = 칸(건들.flatMap((x) => x.남s))
   const 일순 = 칸(건들.map((x) => x.일순s))
   const 몰린 = 전체.reduce((m, v, i) => (v.몫 > 전체[m].몫 ? i : m), 0)
-  const 기대 = 건들.reduce((p, x) => p + x.몫, 0)
+  /* 🩹 G183 확보 예가는 «바로 아래 업체를 아는» 개찰만(몫잰) — 1순위 · 하한 아래로 실린 개찰은 대개 못 잼 */
+  const 잰 = 건들.filter((x) => x.몫 != null)
+  const 기대 = 잰.reduce((p, x) => p + x.몫, 0)
   return {
     잰개찰: 건들.length,
+    몫잰: 잰.length,
     구간: 구간들.map(([k], i) => ({ k, 귀사: 귀[i], 전체: 전체[i], 일순: 일순[i] })),
     몰린구간: 구간들[몰린][0], 몰린몫: 전체[몰린].몫, 귀사몰린몫: 귀[몰린].몫,
-    배가운데: r3(가운데(건들.map((x) => x.배))),
-    배평균: r3(건들.reduce((p, x) => p + x.배, 0) / 건들.length),
-    평균넘은: 건들.filter((x) => x.배 >= 1).length,
+    배가운데: 잰.length ? r3(가운데(잰.map((x) => x.배))) : null,
+    배평균: 잰.length ? r3(잰.reduce((p, x) => p + x.배, 0) / 잰.length) : null,
+    평균넘은: 잰.filter((x) => x.배 >= 1).length,
     기대1순위: Math.round(기대 * 10) / 10,
+    잰1순위: 잰.filter((x) => x.일순).length,
     실제1순위: 건들.filter((x) => x.일순).length,
     실격: 건들.filter((x) => x.실격).length,
     내s가운데: r3(가운데(건들.map((x) => x.내s))),
     예정s가운데: r3(가운데(건들.map((x) => x.예정s))),
     /* 최근 것부터 — 표 · 줄그림 */
-    최근: 건들.slice(-24).map(({ 남s, ...x }) => ({ ...x, 몫퍼: r3(x.몫 * 100), 배: r3(x.배), 확보: Math.round(x.확보 * 10) / 10, 평균: Math.round(x.평균 * 10) / 10 })),
+    최근: 건들.slice(-24).map(({ 남s, ...x }) => ({ ...x, 몫퍼: x.몫 == null ? null : r3(x.몫 * 100), 배: x.배 == null ? null : r3(x.배),
+      확보: x.확보 == null ? null : Math.round(x.확보 * 10) / 10, 평균: Math.round(x.평균 * 10) / 10 })),
   }
 }
 
@@ -141,8 +160,9 @@ export function 개찰몫들(row, corps, p50) {
   if (!잣 || cs.filter((m) => m != null).length < 2) return cs.map(() => null)
   const n = Math.max(Number(row.np) || 0, Number(row.nrank) || 0, cs.filter((m) => m != null).length)
   const 금액들 = [...new Set(cs.filter((m) => m != null))].sort((x, y) => x - y)
+  const 앎 = 아래앎(corps, row.np, row.nrank)                 // 🩹 G183 1위 · 하한 아래(안 실린 업체가 있을 때)는 못 셈
   return cs.map((amt) => {
-    if (amt == null) return null
+    if (amt == null || !앎(amt)) return null
     const i = 금액들.indexOf(amt)
     const 앞 = i > 0 ? 금액들[i - 1] : null
     const 같은값 = cs.filter((m) => m === amt).length
@@ -153,10 +173,16 @@ export function 개찰몫들(row, corps, p50) {
   })
 }
 
+/** 시도 줄임말 → 현장 · 기관 글에 나오는 말들 (G183) */
+export const 시도말 = {
+  충북: ['충북', '충청북도'], 충남: ['충남', '충청남도'], 전북: ['전북', '전라북도'], 전남: ['전남', '전라남도'],
+  경북: ['경북', '경상북도'], 경남: ['경남', '경상남도'],
+}
 /** 바로투찰 — 비슷한 개찰을 고름: 같은 기관 → 같은 시도·금액대 → 금액대(전국). 최근 것부터 최대 max건 */
 export function 비슷한개찰(rows, 공고, { max = 60, 최소 = 8 } = {}) {
   const base = Number(공고 && 공고.base) || 0
-  const 셀 = (r) => r && Number(r.base) > 0 && Number(r.llr) > 0 && Array.isArray(r.corps) && r.corps.filter((c) => c && Number(c[1]) > 0).length >= 2
+  /* 📦 G184 — 작은 자료(lib/확보예가자료.js 미니풀기)는 corps 대신 _s(사정률들) 를 가짐 */
+  const 셀 = (r) => r && Number(r.base) > 0 && Number(r.llr) > 0 && (Array.isArray(r._s) ? r._s.length >= 2 : Array.isArray(r.corps) && r.corps.filter((c) => c && Number(c[1]) > 0).length >= 2)
   const 금액대 = (r) => base > 0 && Number(r.base) >= base / 2 && Number(r.base) <= base * 2
   const 새것 = (a) => a.sort((x, y) => String(y.dt || '').localeCompare(String(x.dt || ''))).slice(0, max)
   const 다 = (rows || []).filter(셀)
@@ -167,7 +193,9 @@ export function 비슷한개찰(rows, 공고, { max = 60, 최소 = 8 } = {}) {
   }
   const sido = String((공고 && 공고.sido) || '').split(',')[0]
   if (sido) {
-    const 시도 = 다.filter((r) => 금액대(r) && String(r.site || r.inst || '').includes(sido))
+    /* 🩹 G183 — 현장 글은 «전라남도 …» 처럼 긴 이름이라 «전남» 으로는 안 맞았음(전남 · 전북 · 경남 · 경북 · 충남 · 충북) */
+    const 말들 = 시도말[sido] || [sido]
+    const 시도 = 다.filter((r) => 금액대(r) && 말들.some((w) => String(r.site || r.inst || '').includes(w)))
     if (시도.length >= 최소) return { 고른: `${sido} · 비슷한 금액`, rows: 새것(시도) }
   }
   const 전국 = 다.filter(금액대)
@@ -181,28 +209,49 @@ export function 미리확보(rows, 내s, p50, { 폭 = 0.05 } = {}) {
   for (const r of rows || []) {
     const 잣 = 잣대(r, p50)
     if (!잣) continue
-    const 남s = (r.corps || []).map((c) => (c && Number(c[1]) > 0 ? 잣.be(Number(c[1])) : null)).filter((s) => s != null && isFinite(s))
+    /* 📦 G184 — 작은 자료는 사정률(_s · 개찰 순위 차례)을 이미 가짐 → 그대로 */
+    const 순서s = Array.isArray(r._s) ? r._s.filter((s) => s != null && isFinite(s))
+      : (r.corps || []).map((c) => (c && Number(c[1]) > 0 ? 잣.be(Number(c[1])) : null)).filter((s) => s != null && isFinite(s))
+    const 남s = 순서s
     if (남s.length < 2) continue
-    const n = Math.max(Number(r.np) || 0, Number(r.nrank) || 0, 남s.length) + 1
+    const 참가 = Math.max(Number(r.np) || 0, Number(r.nrank) || 0, 남s.length)
+    const n = 참가 + 1
+    /* 🩹 G183 (2026-10-07) 개찰 자료는 «낮은 금액 30곳» 까지만 실려 있습니다. 참가가 그보다 많은 개찰에서
+       내 사정률이 실린 곳 가운데 가장 높은 것보다 위면, 바로 아래 업체가 누구인지(안 실린 업체가 사이에 있는지) 모릅니다.
+       전에는 실린 맨 위 업체를 «바로 아래» 로 보고 몫을 크게 셌습니다(큰 공사에서 «평균의 14배» 처럼 부풀려짐) → 그 개찰은 «못 잼» 으로 뺍니다. */
+    const 다실림 = 참가 <= 남s.length
+    /* corps 는 개찰 순위 차례(하한 위 낮은 순 → 하한 아래). 하한 위 덩이(1위 ~ k위)는 금액이 이어져 있어
+       그 안(1위 초과 ~ k위 이하)에 들면 바로 아래 업체를 압니다. 1위 아래 · k위 위는 안 실린 업체가 있을 수 있어 못 잽니다. */
+    const 순s = 순서s
+    let k = 1
+    while (k < 순s.length && 순s[k] >= 순s[k - 1]) k++
+    const 아래끝 = 순s[0], 위끝 = 순s[k - 1]
+    const 잼 = (s) => 다실림 || (s > 아래끝 + 1e-9 && s <= 위끝 + 1e-9)
     const 몫at = (s) => {
+      if (!잼(s)) return null
       let 앞 = null
       for (const x of 남s) if (x < s && (앞 == null || x > 앞)) 앞 = x
       return Math.max(0, Math.min(1, 잣.F(s) - (앞 != null ? 잣.F(앞) : 0)))
     }
-    const 근처 = 남s.filter((x) => Math.abs(x - 내s) <= 폭).length
-    건들.push({ 배: 몫at(내s) * n, 근처, 몫at, n })
+    const 근처 = 잼(내s + 폭) && 잼(내s - 폭) ? 남s.filter((x) => Math.abs(x - 내s) <= 폭).length : null
+    const 몫 = 몫at(내s)
+    건들.push({ 배: 몫 == null ? null : 몫 * n, 근처, 몫at, n })
   }
+  const 잰 = 건들.filter((x) => x.배 != null)
   if (건들.length < 5) return null
   const 격자 = []
   for (let d = -0.3; d <= 0.3001; d += 0.05) {
     const s = 내s + d
-    격자.push({ s: r3(s), d: r3(d), 배: r3(가운데(건들.map((x) => x.몫at(s) * x.n))) })
+    const 값 = 건들.map((x) => { const m = x.몫at(s); return m == null ? null : m * x.n }).filter((v) => v != null)
+    격자.push({ s: r3(s), d: r3(d), 배: 값.length >= 5 ? r3(가운데(값)) : null, 잰: 값.length })
   }
+  const 근처들 = 건들.filter((x) => x.근처 != null)
   return {
     건: 건들.length,
-    배가운데: r3(가운데(건들.map((x) => x.배))),
-    평균넘은: 건들.filter((x) => x.배 >= 1).length,
-    근처평균: Math.round(건들.reduce((p, x) => p + x.근처, 0) / 건들.length * 10) / 10,
+    잰: 잰.length,
+    배가운데: 잰.length >= 5 ? r3(가운데(잰.map((x) => x.배))) : null,
+    평균넘은: 잰.filter((x) => x.배 >= 1).length,
+    근처평균: 근처들.length >= 5 ? Math.round(근처들.reduce((p, x) => p + x.근처, 0) / 근처들.length * 10) / 10 : null,
     격자,
   }
 }
