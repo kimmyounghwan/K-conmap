@@ -33,11 +33,16 @@ import META from '../data/wonclick.json'
 import { askAfter } from '../AskComment'
 import 이어쓰기 from '../tools/이어쓰기.jsx'
 import { 앞모습두기 } from '../lib/이어쓰기.js'
+import { 현장나눔 } from '../lib/현장나눔.js'   /* 🏗 G179 현장별로 나눠 쓰기 */
+import 현장틀 from '../tools/현장틀.jsx'
 import { 세기 } from '../lib/받은수.jsx'
 /* 📄 2026-09-27 — 서류를 화면에서 보고·고치고·인쇄 (엑셀화면.jsx). 무거운 셈은 열 때만 받습니다. */
 const 엑셀화면 = lazy(() => import('../엑셀화면.jsx'))
 const 고침열쇠 = 'kcm.wonclick.고침.v1'
-function 고침읽기() { try { return 고침옮김(JSON.parse(localStorage.getItem(고침열쇠) || '{}') || {}) } catch { return {} } }
+/* 🏗 G179 — 현장마다 칸 · 고친 칸 두 덩이 다 따로: 첫 현장은 예전 자리 그대로 · 그 밖 '{열쇠}@{현장}' */
+const 원나눔 = 현장나눔('wc')
+function 고침읽기(id) { try { return 고침옮김(JSON.parse(localStorage.getItem(원나눔.열쇠(고침열쇠, id)) || '{}') || {}) } catch { return {} } }
+function 고침쓰기(id, v) { try { localStorage.setItem(원나눔.열쇠(고침열쇠, id), JSON.stringify(v || {})) } catch { /* 가득 참 */ } }
 
 const KEY = 'kcm.wonclick.v1'
 const 늦게펼침 = ['6.', '7.', '8.', '9.', '10.', '11.', '12.', '13.']     // 기성·공기연장·준공·하자 · G142 선금·달마다·하도급·조정 — 필요할 때 펼침
@@ -66,11 +71,11 @@ function 고침옮김(g) {
   return out
 }
 
-function load() {
-  try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {} } catch { return {} }
+function load(id) {
+  try { return JSON.parse(localStorage.getItem(원나눔.열쇠(KEY, id)) || '{}') || {} } catch { return {} }
 }
-function save(v) {
-  try { localStorage.setItem(KEY, JSON.stringify(v)) } catch { /* 사생활 보호 모드 */ }
+function save(id, v) {
+  try { localStorage.setItem(원나눔.열쇠(KEY, id), JSON.stringify(v)) } catch { /* 사생활 보호 모드 */ }
 }
 
 const 숫자 = ['', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구']
@@ -125,9 +130,10 @@ function Field({ inp, v, set }) {
   )
 }
 
-export default function WonClick() {
-  const [vals, setVals] = useState(load)
-  const [pick, setPick] = useState(() => 고른것읽기(load()))
+/* 🏗 G179 원클릭 한 벌 = 현장(공사) 하나 — 현장을 바꾸면 key 로 통째로 새로 그림 */
+function 원클릭({ 현장id, 현장줄, 이름바뀜 }) {
+  const [vals, setVals] = useState(() => load(현장id))
+  const [pick, setPick] = useState(() => 고른것읽기(load(현장id)))
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [done, setDone] = useState('')
@@ -136,8 +142,9 @@ export default function WonClick() {
   const [틀, set틀] = useState(null)
   const [책, set책] = useState(null)
   const [보기오류, set보기오류] = useState('')
-  const [고침, set고침원] = useState(고침읽기)
-  const set고침 = (v) => { set고침원(v); try { localStorage.setItem(고침열쇠, JSON.stringify(v)) } catch { /* 가득 참 */ } }
+  const [고침, set고침원] = useState(() => 고침읽기(현장id))
+  const set고침 = (v) => { set고침원(v); 고침쓰기(현장id, v) }
+  const [지움물음, set지움물음] = useState(false)
   useEffect(() => {
     if (!보기) return undefined
     let 살 = true
@@ -162,7 +169,8 @@ export default function WonClick() {
   }, [보기, vals, 틀])   // eslint-disable-line react-hooks/exhaustive-deps
   const 보일서류 = useMemo(() => META.docs.map((d) => d.sheet).filter((x) => pick.includes(x)), [pick])
 
-  useEffect(() => { save({ ...vals, __pick: pick, __pv: 2 }) }, [vals, pick])
+  useEffect(() => { save(현장id, { ...vals, __pick: pick, __pv: 2 }) }, [vals, pick])  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (이름바뀜) 이름바뀜() }, [vals.공사명])  // eslint-disable-line react-hooks/exhaustive-deps
   const 고른수 = useMemo(() => pick.filter((s) => { const d = META.docs.find((x) => x.sheet === s); return d && !d.with }).length, [pick])
 
   const set = (k, v) => { setVals((o) => ({ ...o, [k]: v })); setDone('') }
@@ -221,16 +229,16 @@ export default function WonClick() {
     }
   }
 
+  /* 🩹 G179 — 창(confirm) 대신 «한 번 더 누르기»(노무비 · 작업일보 등 다른 프로그램과 같게 · 무엇이 지워지는지 «이 현장» 으로 적음) */
   function 지우기() {
-    if (!window.confirm('입력한 내용을 모두 지울까요? (지우기 전 모습은 «🔗 이어 쓰기 → 💾 백업 · 더 보기 → ↩ 되돌리기» 로 한 번 되살릴 수 있습니다)')) return
-    앞모습두기('wc', 잇는상태)
-    setVals({}); setPick(모두()); setDone(''); set고침({})
+    앞모습두기(원나눔.연결자리(현장id), 잇는상태)
+    setVals({}); setPick(모두()); setDone(''); set고침({}); set지움물음(false)
   }
 
   /* 🔗 G113 — 이어 쓰기: 칸(vals + 고른 서류) · 화면에서 고친 칸(고침) 두 덩이를 한 덩이로 */
   const 잇는상태 = useMemo(() => ({ v: { ...vals, __pick: pick, __pv: 2 }, 고침 }), [vals, pick, 고침])
-  const 잇기읽기 = () => ({ v: load(), 고침: 고침읽기() })
-  const 잇기쓰기 = (x) => { save((x && x.v) || {}); try { localStorage.setItem(고침열쇠, JSON.stringify((x && x.고침) || {})) } catch { /* 가득 참 */ } return true }
+  const 잇기읽기 = () => ({ v: load(현장id), 고침: 고침읽기(현장id) })
+  const 잇기쓰기 = (x) => { save(현장id, (x && x.v) || {}); 고침쓰기(현장id, (x && x.고침) || {}); return true }
   const 잇기받기 = (x) => {
     const v = (x && x.v) || {}
     setVals(v)
@@ -263,7 +271,8 @@ export default function WonClick() {
         <div className="detail-h">① 칸 채우기 <span className="count">· 모르는 칸은 비워 두세요 — 서류에서 그 자리만 빈칸이 됩니다</span></div>
         <div className="note sm">입력한 내용은 <b>이 기기(브라우저)에</b> 저장됩니다. 폰·PC 어디서든 이어 쓰려면 아래 <b>«🔗 코드 만들기»</b>(코드 + 비밀번호 · 잠가서 서버에 — 저희도 못 읽음).
           요율(보증금률·지체상금률·하자기간)은 <b>계약서·공고서에 적힌 값</b>을 넣으세요.</div>
-        <이어쓰기 ns="wc" 이름="공사서류 원클릭" 파일="공사서류원클릭" st={잇는상태} setSt={잇기받기} 읽기={잇기읽기} 쓰기={잇기쓰기} />
+        {현장줄}
+        <이어쓰기 ns="wc" 자리={원나눔.연결자리(현장id)} 이름="공사서류 원클릭" 파일="공사서류원클릭" st={잇는상태} setSt={잇기받기} 읽기={잇기읽기} 쓰기={잇기쓰기} />
         {secs.map(([s, list]) => {
           const 늦게 = 늦게펼침.some((p) => s.startsWith(p))
           const 채움 = list.some((i) => String(vals[i.key] ?? '').trim())
@@ -343,7 +352,13 @@ export default function WonClick() {
           <button className="btn primary" onClick={받기} disabled={busy}>
             {busy ? '만드는 중…' : `⬇ 엑셀로 받기 (서류 ${고른수}가지)`}
           </button>
-          <button className="btn ghost sm" style={{ whiteSpace: 'nowrap' }} onClick={지우기}>입력 지우기</button>
+          {!지움물음 && <button className="btn ghost sm" style={{ whiteSpace: 'nowrap' }} onClick={() => set지움물음(true)}>입력 지우기</button>}
+          {지움물음 && (
+            <span className="nm-ask">이 현장에 적은 칸을 모두 지웁니다(지우기 전 모습은 «🔗 이어 쓰기 → 💾 백업 · 더 보기 → ↩ 되돌리기» 로 한 번 되살림).
+              <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={지우기}>지우기</button>
+              <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set지움물음(false)}>그대로 두기</button>
+            </span>
+          )}
         </div>
         {Object.keys(고침).length > 0 && <div className="note sm" style={{ marginTop: 8 }}>✏️ 화면에서 고친 칸 {Object.keys(고침).length}개도 엑셀에 그대로 들어갑니다.</div>}
         {done && <div className="note sm" style={{ marginTop: 8 }}>✔ {done} 셈한 값이 든 엑셀입니다(수식 없음) — 고칠 때는 여기서 고쳐 다시 받으십시오. 인쇄는 서류 한 가지가 A4 한 장입니다.</div>}
@@ -371,5 +386,25 @@ export default function WonClick() {
         </ul>
       </div>
     </div>
+  )
+}
+
+/**
+ * 🏗 G179 (2026-10-07) 공사서류 원클릭 — 현장(공사)별로 나눠 쓰기(노무비 계산기 G178 과 같은 모양 · tools/현장틀.jsx)
+ *   소장님 「현장별로... 수정할 것 클로드가 봐서 고쳐줘」 · 새 현장은 «우리 회사» 칸(3번 — 상호 · 대표자 · 사업자번호 · 주소 · 전화 · 업종 · 계좌)을 가져올 수 있음
+ *   숨은 누적: |원클릭|현장추가 · 현장바꿈 · 현장뺌 · 현장되살림 · 현장가져옴
+ */
+const 회사칸 = META.inputs.filter((i) => String(i.sec || '').startsWith('3.')).map((i) => i.key)
+export default function WonClick() {
+  return (
+    <현장틀 나={원나눔} 머리="|원클릭|" 가져오기글="우리 회사 정보(상호 · 대표자 · 주소 · 계좌 등) 가져오기"
+      이름읽기={(id) => load(id).공사명}
+      새로만들기={(id, 이름, 지금id, 가져옴) => {
+        const 앞 = load(지금id)
+        const v = { 공사명: 이름 }
+        if (가져옴) for (const k of 회사칸) if (앞[k] !== undefined && 앞[k] !== '') v[k] = 앞[k]
+        save(id, v)
+      }}
+      안={(id, 현장줄, 이름바뀜) => <원클릭 key={id} 현장id={id} 현장줄={현장줄} 이름바뀜={이름바뀜} />} />
   )
 }

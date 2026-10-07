@@ -79,5 +79,31 @@ const st7 = { ym: '2026-10', P: [{ id: 'a', n: '갑', j: '', w: 100000, nx: '' }
 const 옮김 = L.명단만(st7, '2026-10')
 eq(옮김.map((p) => [p.n, p.w]), [['갑', 120000]], '뺀 을은 빠짐 · 갑은 10월 일당 120,000')
 
+console.log('⑧ G179 여러 프로그램이 같이 쓰는 lib/현장나눔.js')
+{
+  const { 현장나눔 } = await import('../web/src/lib/현장나눔.js')
+  const 나 = 현장나눔('wc')
+  eq([나.목록열쇠, 나.열쇠('kcm.wonclick.v1', 'h1'), 나.열쇠('kcm.wonclick.v1', 'habc'), 나.연결자리('h1'), 나.연결자리('habc')],
+    ['kcm_sites_wc', 'kcm.wonclick.v1', 'kcm.wonclick.v1@habc', 'wc', 'wc@habc'], '열쇠 · 연결 자리')
+  let m = 나.목록()
+  eq(m, { cur: 'h1', L: [{ id: 'h1', n: '', at: 0 }] }, '처음 — 첫 현장 하나')
+  const r = 나.더하기(m, ' 다 공사 '); m = r.m; 나.목록쓰기(m)
+  eq([나.지금(), m.L.length, m.L[1].n], [r.id, 2, '다 공사'], '더하기 → 지금 현장 · 이름 다듬음')
+  eq(나.빼기(나.빼기(m, r.id), 'h1').L.filter((x) => !x.del).length, 1, '하나 남으면 못 뺌')
+  eq(나.되살리기(나.빼기(m, r.id), r.id).cur, r.id, '되살리기')
+  eq(현장나눔('ib').목록().cur, 'h1', '프로그램마다 목록 따로(작업일보는 그대로 첫 현장)')
+}
+console.log('⑨ 작업일보 lib/ilbo.js — 지금 현장 · 정해 쓰기')
+{
+  const I = await import('../web/src/lib/ilbo.js')
+  localStorage.setItem('kcm_ilbo1', JSON.stringify({ 현장: { name: '라 현장', co: '라건설' }, 공종: [], 일: { '2026-10-07': { w: '맑음' } } }))
+  eq(I.읽기().현장.name, '라 현장', '첫 현장 = 예전 자리')
+  const r = I.일보나눔.더하기(I.일보나눔.목록(), '마 현장'); I.일보나눔.목록쓰기(r.m)
+  I.쓰기현장(r.id, { ...I.빈것(), 현장: { name: '마 현장', co: '' } })
+  eq([I.읽기().현장.name, Object.keys(I.읽기().일).length], ['마 현장', 0], '지금 현장 = 새 현장 · 날마다 적은 것 없음')
+  eq(I.읽기현장('h1').일['2026-10-07'].w, '맑음', '첫 현장 그대로')
+  eq(localStorage.getItem('kcm_ilbo1@' + r.id) !== null, true, '새 현장 자리')
+}
+
 console.log(`\n${통과} 통과 · ${실패} 실패`)
 if (실패) process.exit(1)

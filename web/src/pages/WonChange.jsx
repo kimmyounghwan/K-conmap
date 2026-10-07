@@ -16,6 +16,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { askAfter } from '../AskComment'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import 두줄색, { 두줄색상태 } from '../tools/두줄색.jsx'
+import { 현장나눔 } from '../lib/현장나눔.js'
 
 const 원 = (n) => (typeof n === 'number' && Number.isFinite(n) ? Math.round(n).toLocaleString('ko-KR') : '—')
 const 증감글 = (n) => (typeof n === 'number' && Number.isFinite(n) ? (n > 0 ? '+' : '') + Math.round(n).toLocaleString('ko-KR') : '—')
@@ -197,7 +198,8 @@ export default function WonChange() {
     const 금 = 요.원가 && (요.원가.도급액 || 요.원가.총공사비)
     const 당 = 금 ? 금.당초 : 요.순[0], 변 = 금 ? 금.변경 : 요.순[1]
     try {
-      const 키 = 'kcm.wonclick.v1'
+      const 나 = 현장나눔('wc')                                       /* 🏗 G179 원클릭에서 지금 고른 현장(공사)으로 */
+      const 키 = 나.열쇠('kcm.wonclick.v1', 나.지금())
       const v = JSON.parse(localStorage.getItem(키) || '{}') || {}
       const 쉼 = (n) => Math.round(n).toLocaleString('ko-KR')
       if (!v.계약금액) v.계약금액 = 쉼(당)

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import {
-  날씨들, 장비단위, 오늘, 날더하기, 요일, 수, 일빈, 빈것, 읽기, 쓰기, 그날, 적음, 싸기, 셈, 노무비인원, 달날들, 예시,
+  날씨들, 장비단위, 오늘, 날더하기, 요일, 수, 일빈, 빈것, 읽기현장, 쓰기현장, 일보나눔, 그날, 적음, 싸기, 셈, 노무비인원, 달날들, 예시,
   보할들, 공정셈, 공정표공종, 새번호,
 } from '../lib/ilbo.js'
 import { 계획률, 공정셈 as 공정표셈 } from '../lib/공정.js'
@@ -10,6 +10,7 @@ import 일보종이 from '../tools/일보종이.jsx'
 import { use인쇄 } from '../tools/공정인쇄.js'
 import 도구설명 from '../tools/도구설명.jsx'
 import 이어쓰기 from '../tools/이어쓰기.jsx'
+import 현장틀 from '../tools/현장틀.jsx'   /* 🏗 G179 현장별로 나눠 쓰기 */
 
 /**
  * 📝 /tools/ilbo — 작업일보 만들기 (G112 · 2026-10-01)
@@ -24,13 +25,15 @@ const 점날 = (t) => { const m = String(t || '').match(/^(\d{4})-(\d{2})-(\d{2}
 const 수글 = (v) => (Number.isFinite(v) ? String(Math.round(v * 100) / 100) : '')
 const 공정표읽기 = () => { try { const m = JSON.parse(localStorage.getItem('kcm.calc.schedule') || 'null'); return m && Array.isArray(m.공종) && m.착공 ? m : null } catch (e) { return null } }
 
-export default function Ilbo() {
-  const [st, setSt] = useState(() => 읽기())
+/* 🏗 G179 일보 한 벌 = 현장 하나 — 현장을 바꾸면 key 로 통째로 새로 그림 */
+function 일보({ 현장id, 현장줄, 이름바뀜 }) {
+  const [st, setSt] = useState(() => 읽기현장(현장id))
   const [저장됨, set저장됨] = useState(true)
   const [d, setD] = useState(() => 오늘())
   const [알림, set알림] = useState('')
   const [묻기, set묻기] = useState(false)
-  useEffect(() => { set저장됨(쓰기(st)) }, [st])
+  useEffect(() => { set저장됨(쓰기현장(현장id, st)) }, [st])  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (이름바뀜) 이름바뀜() }, [st.현장.name])  // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { document.title = '작업일보 만들기 | K-건설맵' }, [])
   useEffect(() => { set알림(''); set묻기(false) }, [d])
   const 폼 = useMemo(() => 그날(st, d), [st, d])
@@ -136,7 +139,9 @@ export default function Ilbo() {
           <span>💾 이 브라우저에 저장 · 🔗 코드로 폰·PC 이어 쓰기 {저장됨 ? '' : <b className="nm-warn">— 지금 저장이 막혀 있습니다(사생활 보호 창 등)</b>}</span>
           <span>🏗 여럿이 같이 적고 청구서까지 → <Link to="/tools/tuipbi">현장 투입비</Link></span>
         </div>
-        <이어쓰기 ns="ib" 이름="작업일보" 파일="작업일보" st={st} setSt={setSt} 읽기={읽기} 쓰기={쓰기} />
+        {현장줄}
+        <이어쓰기 ns="ib" 자리={일보나눔.연결자리(현장id)} 이름="작업일보" 파일="작업일보" st={st} setSt={setSt}
+          읽기={() => 읽기현장(현장id)} 쓰기={(x) => 쓰기현장(현장id, x)} />
         <div className="gj-form">
           <label>현장명<input className="inp" value={st.현장.name} maxLength={60} onChange={(e) => 현장칸('name', e.target.value)} placeholder="예: ○○지구 배수로 정비공사" /></label>
           <label>회사<input className="inp" value={st.현장.co} maxLength={40} onChange={(e) => 현장칸('co', e.target.value)} /></label>
@@ -342,5 +347,19 @@ export default function Ilbo() {
       <도구설명 k="ilbo" />
       {인쇄중 && createPortal(<div id="gp-인쇄"><div className="il-쪽">{종이}</div></div>, document.body)}
     </div>
+  )
+}
+
+/**
+ * 🏗 G179 (2026-10-07) 작업일보 — 현장별로 나눠 쓰기(노무비 계산기 G178 과 같은 모양 · tools/현장틀.jsx)
+ *   소장님 「현장별로... 수정할 것 클로드가 봐서 고쳐줘」 · 새 현장은 회사명을 가져올 수 있음(공종 · 날마다 적은 것은 빈 채로)
+ *   숨은 누적: |작업일보|현장추가 · 현장바꿈 · 현장뺌 · 현장되살림 · 현장가져옴
+ */
+export default function Ilbo() {
+  return (
+    <현장틀 나={일보나눔} 머리="|작업일보|" 가져오기글="회사명 가져오기"
+      이름읽기={(id) => 읽기현장(id).현장.name}
+      새로만들기={(id, 이름, 지금id, 가져옴) => 쓰기현장(id, { ...빈것(), 현장: { name: 이름, co: 가져옴 ? 읽기현장(지금id).현장.co : '' } })}
+      안={(id, 현장줄, 이름바뀜) => <일보 key={id} 현장id={id} 현장줄={현장줄} 이름바뀜={이름바뀜} />} />
   )
 }

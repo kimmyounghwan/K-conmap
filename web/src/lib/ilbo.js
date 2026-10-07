@@ -18,6 +18,7 @@
  *     일: { 'YYYY-MM-DD': { w, lo, hi, pp, ap, wk:[{g,v,t,n}], 인:[{j,n}], 장:[{n,u,q}], 자:[{n,s,u,q}], 진:{공종id: 금일 값}, nt, nx } } }
  */
 import { 현장자료열쇠, 지금현장 } from './nomubi.js'
+import { 현장나눔 } from './현장나눔.js'
 
 export const 열쇠 = 'kcm_ilbo1'
 export const 날씨들 = ['맑음', '구름', '흐림', '비', '눈', '안개', '강풍']
@@ -33,14 +34,19 @@ export const 수 = (v) => { const x = Number(String(v ?? '').replace(/[^\d.-]/g,
 export const 일빈 = () => ({ w: '', lo: '', hi: '', pp: '', ap: '', wk: [{ g: '', v: '', t: '', n: '' }], 인: [{ j: '', n: '' }], 장: [{ n: '', u: '대', q: '' }], 자: [{ n: '', s: '', u: '', q: '' }], 진: {}, nt: '', nx: '' })
 export const 빈것 = () => ({ 현장: { name: '', co: '' }, 공종: [], 일: {} })
 
-export function 읽기() {
+/* 🏗 G179 (2026-10-07) 현장별로 나눠 쓰기 — lib/현장나눔.js · 첫 현장은 예전 자리 'kcm_ilbo1' 그대로 · 그 밖 'kcm_ilbo1@{id}'
+   읽기() · 쓰기() 는 «지금 현장» · 화면은 읽기현장(id) · 쓰기현장(id) 로 현장을 정해 씁니다. */
+export const 일보나눔 = 현장나눔('ib')
+export function 읽기현장(id) {
   try {
-    const s = JSON.parse(localStorage.getItem(열쇠) || 'null')
+    const s = JSON.parse(localStorage.getItem(일보나눔.열쇠(열쇠, id)) || 'null')
     if (s && s.일 && typeof s.일 === 'object') return { ...빈것(), ...s, 현장: { ...빈것().현장, ...(s.현장 || {}) }, 공종: Array.isArray(s.공종) ? s.공종 : [] }
   } catch (e) { /* 막힌 브라우저 · 깨진 값 */ }
   return 빈것()
 }
-export function 쓰기(s) { try { localStorage.setItem(열쇠, JSON.stringify(s)); return true } catch (e) { return false } }
+export function 쓰기현장(id, s) { try { localStorage.setItem(일보나눔.열쇠(열쇠, id), JSON.stringify(s)); return true } catch (e) { return false } }
+export function 읽기() { return 읽기현장(일보나눔.지금()) }
+export function 쓰기(s) { return 쓰기현장(일보나눔.지금(), s) }
 
 /** 그날 것 (없으면 빈 것) — 칸이 빠진 옛 것도 채워서 */
 export function 그날(st, d) {
