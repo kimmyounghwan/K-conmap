@@ -8,6 +8,7 @@ import { pct, num } from '../lib/fmt.js'
    ReferenceError: wasBaked is not defined. AgencyPage·NoticePage 에는 있었는데
    여기만 없었습니다. tools/checkimports.py 가 이제 이런 걸 잡습니다. */
 import { wasBaked } from '../lib/baked.js'
+import { 업체확보예가 } from '../tools/확보예가.jsx'   /* 🎯 G181 */
 
 /**
  * /corp/{업체키} — 업체 성적표. 분석 탭 안에 갇혀 있던 화면을 주소로 꺼낸 것입니다.
@@ -115,6 +116,10 @@ export default function CorpPage() {
         </div>
       )}
       <CorpReport c={c} ov={ov} onPickFirm={법인고르기} onAll={전체보기} base={decoded} />
+      {/* 🎯 G181 (2026-10-07) 확보 예가 — 최근 개찰(누를 때만 셈 · 법인 하나일 때) · 소장님 「예가만 추가해」
+          법인 하나뿐인 업체는 biz 가 비어 있고 번호가 bz[0] 에만 있습니다(업체 자료의 4할) — 그 번호로 셉니다. */}
+      <업체확보예가 biz={c.biz || (Number(c.bzn) === 1 && Array.isArray(c.bz) && Array.isArray(c.bz[0]) ? String(c.bz[0][0] || '') : '')}
+        여럿={!c.biz && Number(c.bzn) > 1} 이름={c.name} />
       {/* 📊 성적표 — 자기 회사 숫자를 «막 본 직후» 가 가장 뜨거운 자리입니다 (2026-09-15).
           이 화면은 업체마다 미리 구워져 있어 검색으로 바로 들어옵니다. */}
       {/* 📄 2026-09-30 — 미리 구운 페이지(prerender.corp_more_html)와 같은 카드 — 검색으로 온 사장님이 가장 궁금한 «떨어진 기록» 은 성적표로 */}

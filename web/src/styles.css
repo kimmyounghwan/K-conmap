@@ -6675,3 +6675,32 @@ span.mt-act { cursor: default; }
 .nm-sites-ask { font-weight: 600; }
 .nm-sites-msg { padding: 7px 10px; border-radius: 8px; background: var(--accent-soft, #eaf1fd); border: 1px solid var(--accent-line, #bcd0f5); font-weight: 600; line-height: 1.5; }
 .nm-sites-note { font-size: 12px; line-height: 1.5; }
+
+/* 🎯 G181 (2026-10-07) 확보 예가 — 바로투찰 미리 보기 · 1순위 투찰 순위 · 업체 페이지 (tools/확보예가.jsx · NoticeDetail.jsx) */
+.kb-box { margin: 10px 0 4px; }
+.kb-open { width: 100%; text-align: left; padding: 11px 14px; border-radius: 12px; border: 1px dashed var(--accent-line, #bcd0f5); background: var(--accent-soft, #eaf1fd); color: var(--text); font-size: 13.5px; line-height: 1.5; cursor: pointer; }
+.kb-open span { color: var(--text-2); font-weight: 400; }
+.kb-in { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line, #e5e7eb); background: var(--surface, #fff); display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.55; }
+.kb-h { font-weight: 800; font-size: 14px; }
+.kb-big { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; font-size: 14px; }
+.kb-big b { font-size: 17px; }
+.kb-up { color: var(--accent, #1d4ed8); }
+.kb-dn { color: var(--text-2, #6b7280); }
+.kb-line { font-size: 13px; }
+.kb-grid { display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 3px; align-items: end; }
+.kb-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.kb-cell .bar { width: 100%; height: 54px; display: flex; align-items: flex-end; justify-content: center; }
+.kb-cell .bar i { display: block; width: 72%; min-height: 2px; border-radius: 3px 3px 0 0; background: var(--line-2, #cbd5e1); }
+.kb-cell.me .bar i { background: var(--accent, #1d4ed8); }
+.kb-cell.top .v { font-weight: 800; color: var(--accent, #1d4ed8); }
+.kb-cell .s { color: var(--text-2); white-space: nowrap; }
+.kb-cell .v { white-space: nowrap; }
+.kb-note { font-size: 12px; line-height: 1.55; }
+.kb-chip { font-size: 12px; font-weight: 700; white-space: nowrap; }
+.kb-tbl th, .kb-tbl td { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.kb-tbl th.kb-name, .kb-tbl td.kb-name { text-align: left; }
+.kb-tbl td.kb-name { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+/* 폰: 개찰일 · 공고 · 등수 · 평균 대비 넷만(줄이 세로로 늘어나지 않게) — 사정률 · 가지 수는 PC 에서 */
+@media (max-width: 520px) { .kb-tbl .kb-pc { display: none; } .kb-tbl td.kb-name { max-width: 150px; } .kb-tbl th, .kb-tbl td { padding: 8px 4px; } }
+@media (max-width: 520px) { .kb-cell { font-size: 9.5px; } .kb-cell .bar { height: 44px; } .kb-grid { gap: 2px; } }
+@media (max-width: 520px) { .kb-cell .v { display: none; } .kb-cell.me .v, .kb-cell.top .v { display: block; } .kb-cell:nth-child(even) .s { visibility: hidden; } }

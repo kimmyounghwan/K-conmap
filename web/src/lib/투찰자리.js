@@ -115,3 +115,94 @@ export function 투찰자리(bno, rows, p50) {
     최근: 건들.slice(-24).map(({ 남s, ...x }) => ({ ...x, 몫퍼: r3(x.몫 * 100), 배: r3(x.배), 확보: Math.round(x.확보 * 10) / 10, 평균: Math.round(x.평균 * 10) / 10 })),
   }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   🎯 G181 (2026-10-07) 확보 예가를 «보이는 자리» 로 — 소장님 「원래 이게 어디에 있어야 가장 효과가 크지?」 →
+   (바로투찰 · 1순위 개찰 상세 · 업체 페이지) 「고쳐줘」 · 「이미 잘 돌아가는 것은 손대지 말고, 예가만 추가해」
+   → 위 한개찰 · 투찰자리(성적표)는 그대로 두고, 같은 셈을 «개찰 한 건의 모든 업체» 와 «아직 안 넣은 내 금액» 에 씁니다.
+   ══════════════════════════════════════════════════════════════ */
+
+/** 그 개찰의 사정률 잣대(σ · 하한선 사정률 함수) — 셀 수 없으면 null */
+function 잣대(row, p50) {
+  const base = Number(row && row.base) || 0
+  const llr = Number(row && row.llr) || 0
+  if (!base || !llr) return null
+  const sd = B.sjSigma(row.lo != null && row.lo !== '' ? Number(row.lo) : -3, row.hi != null && row.hi !== '' ? Number(row.hi) : 3,
+                       row.ptot || 15, row.pdrw || 4)
+  if (!(sd > 0)) return null
+  const a = Number(row.aval) || 0
+  return { be: (m) => B.breakEvenSj(base, llr, a, m), F: (s) => B.normCdf((s - p50) / sd), 예가수: 조합수(row.ptot || 15, row.pdrw || 4) }
+}
+
+/** 1순위 개찰 상세 — 투찰 순위의 업체마다 확보 예가(어림). corps 와 같은 차례 · 셀 수 없으면 null 만 든 배열 */
+export function 개찰몫들(row, corps, p50) {
+  const cs = (corps || []).map((c) => (c && Number(c[1]) > 0 ? Number(c[1]) : null))
+  const 잣 = 잣대(row, p50)
+  if (!잣 || cs.filter((m) => m != null).length < 2) return cs.map(() => null)
+  const n = Math.max(Number(row.np) || 0, Number(row.nrank) || 0, cs.filter((m) => m != null).length)
+  const 금액들 = [...new Set(cs.filter((m) => m != null))].sort((x, y) => x - y)
+  return cs.map((amt) => {
+    if (amt == null) return null
+    const i = 금액들.indexOf(amt)
+    const 앞 = i > 0 ? 금액들[i - 1] : null
+    const 같은값 = cs.filter((m) => m === amt).length
+    let 몫 = 잣.F(잣.be(amt)) - (앞 != null ? 잣.F(잣.be(앞)) : 0)
+    if (같은값 > 1) 몫 /= 같은값
+    몫 = Math.max(0, Math.min(1, 몫))
+    return { 몫, 배: 몫 * n, 확보: 몫 * 잣.예가수, 평균: 잣.예가수 / n, 예가수: 잣.예가수, n }
+  })
+}
+
+/** 바로투찰 — 비슷한 개찰을 고름: 같은 기관 → 같은 시도·금액대 → 금액대(전국). 최근 것부터 최대 max건 */
+export function 비슷한개찰(rows, 공고, { max = 60, 최소 = 8 } = {}) {
+  const base = Number(공고 && 공고.base) || 0
+  const 셀 = (r) => r && Number(r.base) > 0 && Number(r.llr) > 0 && Array.isArray(r.corps) && r.corps.filter((c) => c && Number(c[1]) > 0).length >= 2
+  const 금액대 = (r) => base > 0 && Number(r.base) >= base / 2 && Number(r.base) <= base * 2
+  const 새것 = (a) => a.sort((x, y) => String(y.dt || '').localeCompare(String(x.dt || ''))).slice(0, max)
+  const 다 = (rows || []).filter(셀)
+  const inst = String((공고 && 공고.inst) || '').trim()
+  if (inst) {
+    const 같은 = 다.filter((r) => String(r.inst || '').trim() === inst)
+    if (같은.length >= 최소) return { 고른: '같은 기관', rows: 새것(같은) }
+  }
+  const sido = String((공고 && 공고.sido) || '').split(',')[0]
+  if (sido) {
+    const 시도 = 다.filter((r) => 금액대(r) && String(r.site || r.inst || '').includes(sido))
+    if (시도.length >= 최소) return { 고른: `${sido} · 비슷한 금액`, rows: 새것(시도) }
+  }
+  const 전국 = 다.filter(금액대)
+  return { 고른: '전국 · 비슷한 금액', rows: 새것(전국) }
+}
+
+/** 바로투찰 — «이 사정률(내 금액이 딱 하한선이 되는 사정률)로 그 개찰들에 넣었다면» 확보 예가(평균 대비 배) */
+export function 미리확보(rows, 내s, p50, { 폭 = 0.05 } = {}) {
+  if (내s == null || !isFinite(내s)) return null
+  const 건들 = []
+  for (const r of rows || []) {
+    const 잣 = 잣대(r, p50)
+    if (!잣) continue
+    const 남s = (r.corps || []).map((c) => (c && Number(c[1]) > 0 ? 잣.be(Number(c[1])) : null)).filter((s) => s != null && isFinite(s))
+    if (남s.length < 2) continue
+    const n = Math.max(Number(r.np) || 0, Number(r.nrank) || 0, 남s.length) + 1
+    const 몫at = (s) => {
+      let 앞 = null
+      for (const x of 남s) if (x < s && (앞 == null || x > 앞)) 앞 = x
+      return Math.max(0, Math.min(1, 잣.F(s) - (앞 != null ? 잣.F(앞) : 0)))
+    }
+    const 근처 = 남s.filter((x) => Math.abs(x - 내s) <= 폭).length
+    건들.push({ 배: 몫at(내s) * n, 근처, 몫at, n })
+  }
+  if (건들.length < 5) return null
+  const 격자 = []
+  for (let d = -0.3; d <= 0.3001; d += 0.05) {
+    const s = 내s + d
+    격자.push({ s: r3(s), d: r3(d), 배: r3(가운데(건들.map((x) => x.몫at(s) * x.n))) })
+  }
+  return {
+    건: 건들.length,
+    배가운데: r3(가운데(건들.map((x) => x.배))),
+    평균넘은: 건들.filter((x) => x.배 >= 1).length,
+    근처평균: Math.round(건들.reduce((p, x) => p + x.근처, 0) / 건들.length * 10) / 10,
+    격자,
+  }
+}

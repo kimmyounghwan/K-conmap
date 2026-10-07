@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { lowerLimit as rateByEstimate } from './lib/engines.js'
 import { Link } from 'react-router-dom'
 import { 공고조회 } from './lib/조회수.jsx'
 import { getCorp, getAgency, getBoardRank } from './lib/data.js'
 import { won, wonShort, pct, num, dateFull, dateTime, normCorp } from './lib/fmt.js'
 import { winGrade } from './lib/winodds.js'
+import { 개찰몫들 } from './lib/투찰자리.js'   /* 🎯 G181 */
+import { useP50 } from './tools/확보예가.jsx'
 
 /* ============================================================
    개찰 카드를 펼쳤을 때 나오는 상세 화면
@@ -208,6 +210,11 @@ function useRanks(r) {
 
 function BidTab({ r }) {
   const { corps, waiting: rankWait } = useRanks(r)
+  /* 🎯 G181 (2026-10-07) 투찰 순위마다 «확보 예가»(어림 · 평균 대비 배) — 소장님 「예가만 추가해」 · 셈은 lib/투찰자리.js(성적표와 같음)
+     기초금액 · 하한율이 없거나 혼자 넣은 개찰은 셀 수 없어 비워 둡니다. 셈이 틀어져도 순위표는 그대로 뜹니다(try). */
+  const p50 = useP50()
+  const 몫들 = useMemo(() => { try { return 개찰몫들(r, corps, p50) } catch (e) { return [] } }, [r, corps, p50])
+  const 몫있음 = 몫들.some((x) => x)
   const winAmt = r.sAmt || r.amt
   const ll = lowerLimit(r.base)
   const est = estPrice(r.base)
@@ -322,12 +329,21 @@ function BidTab({ r }) {
             <span className={'badge ' + (j === 0 ? 'g' : 'n')}>{j + 1}위</span>
             <div className="grow">
               <div className="t">{c[0]}</div>
-              <div className="d">{won(c[1])}</div>
+              <div className="d">{won(c[1])}{몫들[j] ? (
+                <span className={'kb-chip ' + (몫들[j].배 >= 1 ? 'kb-up' : 'kb-dn')}
+                  title={`확보 예가(어림) ${Math.round(몫들[j].확보).toLocaleString('ko-KR')}가지 / 예가 조합 ${몫들[j].예가수.toLocaleString('ko-KR')}가지 · 평균 ${Math.round(몫들[j].평균)}가지`}>
+                  {' '}· 확보 예가 {몫들[j].배 >= 10 ? Math.round(몫들[j].배) : (Math.round(몫들[j].배 * 10) / 10).toFixed(1)}배</span>) : null}</div>
             </div>
             <span className="r">{cr != null ? pct(cr, 3) : '-'}</span>
           </div>
         )
       })}
+      {몫있음 && (
+        <div className="kb-note muted" style={{ marginTop: 6 }}>
+          🎯 <b>확보 예가</b>(어림) — 이 개찰 금액들을 낮은 순으로 늘어놓았을 때 그 업체가 1순위가 될 사정률 폭에 예정가격이 나올 몫을
+          {' '}예가 조합 수로 바꾼 것입니다. <b>1배 = 평균</b>(조합 수 ÷ 참가 수) · 남들이 몰린 자리일수록 작아집니다. 개찰 뒤 실제로 뽑힌 조합 수가 아니라 «넣을 때의 기대» 입니다.
+        </div>
+      )}
       {corps.length === 1 && (
         <div className="hintbox">
           {/* 2026-09-02: 조달청은 순위를 «줍니다». 다만 공고번호로 물어야 옵니다
