@@ -1124,6 +1124,24 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
   /* 🗑 G163 (2026-10-06) 소장님 「답글 지워줘」 「왜 지우기가 없지」 — 내 답글(이 기기 번호 · 되찾은 번호)은 그 자리에서 지움.
      규칙(qna_a)이 원래 «쓴 번호만 고침» 이라 deleted 만 참으로 — 숫자 없이 · 한 번 더 물음(창 대신 그 자리) · 지운 답글 아래 답은 살아 있는 줄기에 붙음(답나무) */
   const [답지울, set답지울] = useState(null)
+  /* ✏️ G187 (2026-10-07) 소장님 「맵톡에서 댓글쓸때, 수정버튼이 없어. 지우기만 있고」 → 「고치기만…올려줘」(㉠ — «고침» 표시 없이)
+     규칙(qna_a)이 원래 «쓴 번호(이 기기 · 되찾은 번호)만 고침» 이라 글(b)만 바꿔 씁니다 — 규칙은 그대로. 2~2000자(규칙과 같음). */
+  const [답고칠, set답고칠] = useState(null)
+  const [고칠글, set고칠글] = useState('')
+  const [고치는중, set고치는중] = useState(false)
+  const 답고치기 = async (a) => {
+    const t = 고칠글.replace(/\r/g, '').trim()
+    if (t.length < 2) { setMsg('두 글자 이상 적어 주세요.'); return }
+    if (t === String(a.b || '').trim()) { set답고칠(null); return }
+    set고치는중(true)
+    try {
+      const { ref, set, db, ensureAnon } = await loadFb()
+      await ensureAnon()
+      await set(ref(db, `qna_a/${row.id}/${a.id}/b`), t.slice(0, 2000))
+      set답고칠(null); 세기('|맵톡|답고침'); onChange()
+    } catch (e) { setMsg('이 기기에서 쓴 답글만 고칠 수 있습니다. 다른 기기에서 쓰셨다면 먼저 «🔑 내 글 되찾기».') }
+    finally { set고치는중(false) }
+  }
   const 답지우기 = async (a) => {
     try {
       const { ref, set, db, ensureAnon } = await loadFb()
@@ -1175,7 +1193,17 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
             ↳ <b>{답이름(받는)}</b> 님에게{!받는.deleted && <span className="mt-to-q"> «{첫줄(가림(받는.b), 26)}»</span>}
           </button>
         )}
-        <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.85, fontSize: 13.5 }}>{가림(a.b)}</div>
+        {답고칠 === a.id
+          ? (
+            <div className="mt-aedit">
+              <textarea className="inp" rows={4} maxLength={2000} value={고칠글} onChange={(e) => set고칠글(e.target.value)} aria-label="답글 고치기" autoFocus />
+              <div className="mt-aedit-b">
+                <button type="button" className="mt-adel-no" onClick={() => set답고칠(null)} disabled={고치는중}>그만</button>
+                <button type="button" className="mt-aedit-ok" onClick={() => 답고치기(a)} disabled={고치는중}>{고치는중 ? '고치는 중…' : '고친 대로 올리기'}</button>
+              </div>
+            </div>
+          )
+          : <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.85, fontSize: 13.5 }}>{가림(a.b)}</div>}
         <div className="mt-ans-f">
           {내번호(a.uid)
             ? <span className="qna-like sm muted" title="내 답글 — 공감은 다른 분이 누릅니다">♥ {Object.keys(답좋아요[a.id] || {}).length}</span>
@@ -1183,7 +1211,10 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
                 onClick={() => 좋(`qna_alike/${row.id}/${a.id}`, !눌렀나(답좋아요[a.id]))}>♥ {Object.keys(답좋아요[a.id] || {}).length}</button>}
           <button type="button" className={'mt-reply' + (답할 === a.id ? ' on' : '')} onClick={() => set답할((v) => (v === a.id ? null : a.id))}
             aria-label={`${답이름(a)} 님에게 답글쓰기 · 받은 답글 ${n}`}>↩ 답글쓰기{n > 0 && <em> · {n}</em>}</button>
-          {내번호(a.uid) && (답지울 === a.id
+          {내번호(a.uid) && 답고칠 !== a.id && 답지울 !== a.id && (
+            <button type="button" className="mt-aed" onClick={() => { set답지울(null); set고칠글(String(a.b || '')); set답고칠(a.id) }} aria-label="내 답글 고치기">✏️ 고치기</button>
+          )}
+          {내번호(a.uid) && 답고칠 !== a.id && (답지울 === a.id
             ? <span className="mt-adel-ask">이 답글을 지울까요?
                 <button type="button" className="mt-adel-yes" onClick={() => 답지우기(a)}>지우기</button>
                 <button type="button" className="mt-adel-no" onClick={() => set답지울(null)}>그대로</button></span>

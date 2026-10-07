@@ -6591,6 +6591,15 @@ span.mt-act { cursor: default; }
 /* 🗑 G163 내 답글 지우기 — 그 자리에서 한 번 더 물음 */
 .mt-adel { margin-left: auto; min-height: 32px; padding: 0 10px; border-radius: 999px; border: 1px solid transparent; background: transparent; color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; }
 .mt-adel:hover { color: var(--bad); border-color: var(--bad); }
+/* ✏️ G187 맵톡 내 답글 고치기 — «고치기» 가 오른쪽 끝, «지우기» 가 그 옆 */
+.mt-aed { margin-left: auto; min-height: 32px; padding: 0 10px; border-radius: 999px; border: 1px solid transparent; background: transparent; color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; }
+.mt-aed:hover { color: var(--accent); border-color: var(--accent); }
+.mt-aed + .mt-adel, .mt-aed + .mt-adel-ask { margin-left: 0; }
+.mt-aedit { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 2px; }
+.mt-aedit textarea { width: 100%; min-height: 90px; font-size: 14px; line-height: 1.7; }
+.mt-aedit-b { display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
+.mt-aedit-ok { min-height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+.mt-aedit-ok:disabled, .mt-aedit .mt-adel-no:disabled { opacity: .6; cursor: default; }
 .mt-adel-ask { margin-left: auto; display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--bad); }
 .mt-adel-yes, .mt-adel-no { min-height: 30px; padding: 0 11px; border-radius: 999px; font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
 .mt-adel-yes { border: 1px solid var(--bad); background: var(--bad); color: #fff; }
