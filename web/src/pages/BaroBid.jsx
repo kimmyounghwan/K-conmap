@@ -24,6 +24,7 @@ import 기관사정률 from '../기관사정률.jsx'
 import 칸누가 from '../칸누가.jsx'
 import 곧나올줄 from '../곧나올줄.jsx'
 import { 확보예가미리 } from '../tools/확보예가.jsx'   /* 🎯 G181 */
+import 금액고르기 from '../tools/금액고르기.jsx'   /* 💰 G185 */
 /* 🗺 G144 (2026-10-05) 지금 K-건설맵을 쓰는 곳 — 사랑방에서 옮겨 옴(소장님 「실시간 지도를 바로입찰 상단에 … 여기가 조회수가 가장 많으니까」)
    화면이 뜬 뒤에 받습니다(지도 바탕 37KB · 자료 1KB) — 투찰 셈을 늦추지 않게 */
 /* 🩹 2026-10-06 (G166) 소장님 「공고에서 바로투찰로 계산하기 누르면 계산기가 아예 안떠, 권장금액도 안뜨고」
@@ -1794,6 +1795,16 @@ export default function BaroBid() {
                 <GuideLink slug="quantile" />
               </div>
             </div>
+          )}
+          {/* 💰 G185 (2026-10-07) 금액 고르기 — 소장님 「이용자들이 금액을 선택해서 최종낙찰금액을 보게」 · 「선택하도록 해야지. 설명만 하고… 단정적으로 하면 안돼」 · 「비용 고려 해서」
+              이 공고 금액대의 지난 개찰로 «20~95분위(5분위마다) · 권장 · 직접» 의 투찰 금액 · 1순위 · 실격 비율을 보여 주고 고르게 함(소장님 「저런식을 금액제시해서 자세히 · 비용안들어 가게」).
+              누르면 위 고르기(pickRate)와 같은 것이 바뀝니다 — 금액 셈은 바로투찰 그대로 · 숫자는 /data/kb/gm.json(수 KB · tools/금액고르기.jsx). */}
+          {qchoices.length > 0 && (
+            <금액고르기 base={base} llr={ll?.rate} aval={a} p50={sjMid} sd={sjSd} 지금금액={main} 지금={pickRate} aKnown={aKnown}
+              고르기={(k) => { rateTouched.current = true; setPickRate(k); setCopied(false) }}
+              직접={(rate) => { rateTouched.current = true; setOwnRate(Number(rate).toFixed(3)); setPickRate('own'); setCopied(false) }}
+              q후보={Object.fromEntries(qchoices.map((c) => [c.k, { rate: c.rate, 금액: bidAmount(base, sjMid, c.rate) }]))}
+              권장={(() => { const c = choices.find((x) => x.k === 'rec'); return c ? { rate: c.rate, 금액: bidAmount(base, sjMid, c.rate) } : null })()} />
           )}
           {pickRate === 'own' && (
             <div className="card" style={{ marginTop: 0 }}>

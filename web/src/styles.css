@@ -6718,3 +6718,29 @@ span.mt-act { cursor: default; }
 @media (max-width: 520px) { .kb-tbl .kb-pc { display: none; } .kb-tbl td.kb-name { max-width: 150px; } .kb-tbl th, .kb-tbl td { padding: 8px 4px; } }
 @media (max-width: 520px) { .kb-cell { font-size: 9.5px; } .kb-cell .bar { height: 44px; } .kb-grid { gap: 2px; } }
 @media (max-width: 520px) { .kb-cell .v { display: none; } .kb-cell.me .v, .kb-cell.top .v { display: block; } .kb-cell:nth-child(even) .s { visibility: hidden; } }
+/* 💰 G185 금액 고르기 — 이 금액대 지난 개찰로 본 성적(tools/금액고르기.jsx) */
+.gm-card { margin-top: 10px; }
+.gm-now { margin: 0 0 8px; padding: 8px 10px; border-radius: 10px; background: var(--accent-soft, #eaf1fd); font-size: 13.5px; line-height: 1.5; }
+.gm-rows { display: flex; flex-direction: column; gap: 6px; }
+.gm-row { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 9px 12px; border-radius: 12px; border: 1px solid var(--line, #e5e7eb); background: var(--surface, #fff); font-size: 13.5px; line-height: 1.5; }
+.gm-row:hover, .gm-row:focus-visible { border-color: var(--accent, #1d4ed8); }
+.gm-row.on { border-color: var(--accent, #1d4ed8); background: var(--accent-soft, #eaf1fd); box-shadow: inset 0 0 0 1px var(--accent, #1d4ed8); }
+.gm-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.gm-amt { font-variant-numeric: tabular-nums; font-weight: 700; }
+.gm-st { font-variant-numeric: tabular-nums; }
+.gm-st small { color: var(--muted); }
+.gm-why { color: var(--muted); font-size: 12.5px; }
+@media print { .gm-card { display: none !important; } }
+.gm-tbl { font-size: 13px; }
+.gm-tbl th, .gm-tbl td { white-space: nowrap; font-variant-numeric: tabular-nums; padding: 7px 6px; }
+.gm-tbl .l { text-align: left; }
+.gm-tbl td.amt { font-weight: 700; }
+.gm-tbl tbody tr { cursor: pointer; }
+.gm-tbl tbody tr:hover td { background: var(--surface-2, #f5f7fb); }
+.gm-tbl tbody tr.mid td { background: var(--warn-soft, #fff7e6); }
+.gm-tbl tbody tr.rec td { color: var(--accent, #1d4ed8); }
+.gm-tbl tbody tr.on td { background: var(--accent-soft, #eaf1fd); box-shadow: inset 0 1px 0 var(--accent, #1d4ed8), inset 0 -1px 0 var(--accent, #1d4ed8); }
+.gm-tbl small { color: var(--muted); font-weight: 400; }
+.gm-btns { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 8px; font-size: 12.5px; }
+ul.gm-why { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: 12.5px; line-height: 1.6; }
+@media (max-width: 520px) { .gm-tbl th, .gm-tbl td { padding: 7px 4px; } .gm-tbl small { display: block; } }

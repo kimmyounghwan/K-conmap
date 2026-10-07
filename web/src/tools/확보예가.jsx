@@ -58,16 +58,17 @@ export function 업체조각자료(biz) {
 
 /* 📂 G183 (2026-10-07) 소장님 「확보예가는 펼쳐져 있게 해줘」 — 단추 없이 펼친 채로 두되, 개찰 자료(2MB 남짓 · 압축)는
    «그 칸이 화면에 들어올 때» 한 번 받습니다(첫 화면을 무겁게 하지 않게 · 아래로 내리지 않는 사람은 안 받음). */
-function useBo임(ref) {
+function useBo임(ref, 켜짐 = true) {
   const [보임, set보임] = useState(false)
+  /* ⚠️ 켜짐 — 칸이 처음엔 안 그려졌다가(기초금액을 나중에 넣음) 나중에 그려지면 그때 다시 지켜봄 (G185 시험에서 잡음) */
   useEffect(() => {
     const el = ref.current
-    if (!el || 보임) return undefined
+    if (!켜짐 || !el || 보임) return undefined
     if (typeof IntersectionObserver === 'undefined') { set보임(true); return undefined }
     const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { set보임(true); io.disconnect() } }, { rootMargin: '200px 0px' })
     io.observe(el)
     return () => io.disconnect()
-  }, [ref, 보임])
+  }, [ref, 보임, 켜짐])
   return 보임
 }
 
@@ -86,11 +87,11 @@ class 예가지킴 extends Component {
 export function 확보예가미리(props) { return <예가지킴><미리안 {...props} /></예가지킴> }
 function 미리안({ base, llr, aval, amt, 공고, p50 }) {
   const 자리 = useRef(null)
-  const 보임 = useBo임(자리)
+  const 내s = base > 0 && llr > 0 && amt > 0 ? breakEvenSj(base, llr, aval, amt) : null
+  const 보임 = useBo임(자리, 내s != null)
   const 셌음 = useRef(false)
   const [상태, set상태] = useState('')          // '' | 'ing' | 'err'
   const [결과, set결과] = useState(null)
-  const 내s = base > 0 && llr > 0 && amt > 0 ? breakEvenSj(base, llr, aval, amt) : null
   const 키 = `${base}|${llr}|${aval}|${amt}|${공고?.inst || ''}`
   useEffect(() => {
     set결과(null)

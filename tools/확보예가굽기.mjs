@@ -6,6 +6,7 @@
  *   깃허브 자동 갱신(update.yml «성적표용 개찰 자료 싣기» 다음)에서 돕니다 — 깃허브 쪽은 무료.
  *   ① kb/mini.json   바로투찰 «확보 예가 미리 보기» 용 작은 자료(lib/확보예가자료.js 미니만들기)
  *   ② kb/c/{0~999}.json 업체 페이지용 — 사업자번호마다 투찰자리(성적표와 같은 셈) 결과를 줄인 것
+ *   ③ kb/gm.json     💰 G185 바로투찰 «금액 고르기» 용 — 금액대마다 사정률 자리별 실격 · 1순위 건수(lib/금액대성적.js · 수 KB)
  *   셈은 화면과 같은 lib(투찰자리.js)를 그대로 부릅니다 — 같은 식을 두 번 적지 않습니다.
  *   실패해도 배포는 계속됩니다(continue-on-error) — 그때 화면은 «자료를 받지 못했습니다» 를 띄웁니다.
  */
@@ -14,6 +15,7 @@ import path from 'path'
 import { 투찰자리 } from '../web/src/lib/투찰자리.js'
 import { P50_FALLBACK } from '../web/src/lib/bidmath.js'
 import { 미니만들기, 업체조각, 업체요약 } from '../web/src/lib/확보예가자료.js'
+import { 성적만들기 } from '../web/src/lib/금액대성적.js'   /* 💰 G185 금액대별 «이 자리에 넣었다면» */
 
 const [원본, 싣는곳, 개요] = process.argv.slice(2)
 if (!원본 || !싣는곳) { console.error('쓰는 법: node tools/확보예가굽기.mjs <first.json> <web/dist/data> [overview.json]'); process.exit(2) }
@@ -61,5 +63,8 @@ for (let n = 0; n < 1000; n++) {
   합 += txt.length
   fs.writeFileSync(path.join(조각폴더, `${n}.json`), txt)
 }
+/* ③ 금액대별 자리 성적 */
+const 성적 = 성적만들기(rows, p50)
+fs.writeFileSync(path.join(폴더, 'gm.json'), JSON.stringify(성적))
 const 미니글 = fs.statSync(path.join(폴더, 'mini.json')).size
-console.log(`확보 예가 굽기 — 개찰 ${rows.length} · 작은 자료 ${미니.r.length}줄 ${(미니글 / 1e6).toFixed(2)}MB · 업체 ${업체}곳 · 조각 1000개 ${(합 / 1e6).toFixed(2)}MB · p50 ${p50} · ${((Date.now() - 처음) / 1000).toFixed(1)}초`)
+console.log(`확보 예가 굽기 — 개찰 ${rows.length} · 작은 자료 ${미니.r.length}줄 ${(미니글 / 1e6).toFixed(2)}MB · 업체 ${업체}곳 · 조각 1000개 ${(합 / 1e6).toFixed(2)}MB · 금액대 성적 ${성적.b.reduce((p, c) => p + c.n, 0)}건 ${(fs.statSync(path.join(폴더, 'gm.json')).size / 1e3).toFixed(1)}KB · p50 ${p50} · ${((Date.now() - 처음) / 1000).toFixed(1)}초`)
