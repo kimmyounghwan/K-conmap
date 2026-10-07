@@ -45,16 +45,81 @@ export function 빈것() {
   return { co: '', site: '', ym: 이번달(), P: [], A: {} }
 }
 
-export function 읽기() {
+/* ── 🏗 G178 현장별로 나눠 쓰기 (2026-10-07) ─────────────────────────
+   맵톡 이용자 건의 「현장별로 나눠서 저장이 가능해야 되는데 그 기능은 없는 것 같아요」 → 소장님 「현장별로 나눠서 쓸 수 있게 해줘」
+   · 현장 목록: localStorage 'kcm_nomubi_sites' = {cur 지금 현장, L: [{id, n 이름, at 만든 때, del? 지운 때}]}
+   · 현장 자료: 첫 현장(h1)은 예전 자리 'kcm_nomubi1' 그대로(옮기지 않음 · 지금 쓰던 자료가 곧 첫 현장) · 그 밖은 'kcm_nomubi1@{id}'
+   · 🔗 이어 쓰기 연결도 현장마다: 첫 현장 'kcm-bk-nm' 그대로 · 그 밖 'kcm-bk-nm@{id}'(서버 자리는 같은 ns 'nm' — 코드가 다름)
+   · 읽기() · 쓰기() 는 «지금 현장» — 신고 정리 · 퇴직공제 · 보험료 · 작업일보도 고른 현장을 읽습니다.
+     계산기 화면은 현장을 정해 두고(읽기현장 · 쓰기현장) 씁니다 — 현장을 바꾸는 사이 늦게 끝난 저장이 다른 현장에 들어가지 않게. */
+export const 현장목록열쇠 = 'kcm_nomubi_sites'
+export const 첫현장 = 'h1'
+export const 현장자료열쇠 = (id) => (!id || id === 첫현장 ? 열쇠 : `${열쇠}@${id}`)
+export const 현장연결자리 = (id) => (!id || id === 첫현장 ? 'nm' : `nm@${id}`)
+export const 현장백업열쇠 = (id) => (!id || id === 첫현장 ? 'kcm_nomubi1_전' : `kcm_nomubi1_전@${id}`)
+
+export function 현장목록() {
   try {
-    const s = JSON.parse(localStorage.getItem(열쇠) || 'null')
+    const m = JSON.parse(localStorage.getItem(현장목록열쇠) || 'null')
+    if (m && Array.isArray(m.L) && m.L.some((x) => x && x.id === 첫현장)) {
+      const L = m.L.filter((x) => x && typeof x.id === 'string' && /^h[0-9a-z]{1,16}$/.test(x.id))
+      const 산 = L.filter((x) => !x.del)
+      const cur = 산.some((x) => x.id === m.cur) ? m.cur : (산[0] || L[0]).id
+      return { cur, L }
+    }
+  } catch (e) { /* 막힘 · 깨짐 — 첫 현장 하나로 */ }
+  return { cur: 첫현장, L: [{ id: 첫현장, n: '', at: 0 }] }
+}
+export function 현장목록쓰기(m) {
+  try { localStorage.setItem(현장목록열쇠, JSON.stringify(m)); return true } catch (e) { return false }
+}
+export const 지금현장 = () => 현장목록().cur
+
+export function 읽기현장(id) {
+  try {
+    const s = JSON.parse(localStorage.getItem(현장자료열쇠(id)) || 'null')
     if (s && Array.isArray(s.P) && s.A && typeof s.A === 'object') return { ...빈것(), ...s }
   } catch (e) { /* 막힌 브라우저 · 깨진 값 — 빈 것으로 */ }
   return 빈것()
 }
+export function 쓰기현장(id, s) {
+  try { localStorage.setItem(현장자료열쇠(id), JSON.stringify(s)); return true } catch (e) { return false }
+}
+export function 읽기() { return 읽기현장(지금현장()) }
+export function 쓰기(s) { return 쓰기현장(지금현장(), s) }
 
-export function 쓰기(s) {
-  try { localStorage.setItem(열쇠, JSON.stringify(s)); return true } catch (e) { return false }
+/** 목록에 보일 이름 — 그 현장 자료의 현장명 → 만들 때 적은 이름 → «현장 N» */
+export function 현장이름(x, i) {
+  let s = ''
+  try { s = String((JSON.parse(localStorage.getItem(현장자료열쇠(x.id)) || 'null') || {}).site || '').trim() } catch (e) { /* 없음 */ }
+  return s || String(x.n || '').trim() || `현장 ${i + 1}`
+}
+export const 새현장번호 = () => 'h' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5)
+
+/** 지금 보는 달 명단(이름 · 직종 · 생년월일 · 그 달 일당 · 늘 빼기)만 새 현장으로 — 출역 · 기록은 안 가져감 */
+export function 명단만(st, ym) {
+  return (st.P || []).filter((p) => 보임(st, p, ym)).map((p) => ({
+    id: 새번호(), n: p.n || '', j: p.j || '', b: p.b || '', w: 그달일당(st, ym, p), nx: 그달빼기(st, ym, p),
+  }))
+}
+/** 새 현장 만들기 → 새 목록(지금 현장으로) · 자료도 써 둠 */
+export function 현장더하기(m, 이름, 앞st, 가져옴) {
+  const id = 새현장번호()
+  const ym = (앞st && 앞st.ym) || 이번달()
+  const st = { ...빈것(), ym, site: String(이름 || '').trim().slice(0, 60), co: (앞st && 앞st.co) || '', P: 앞st && 가져옴 ? 명단만(앞st, ym) : [] }
+  쓰기현장(id, st)
+  return { m: { cur: id, L: [...m.L, { id, n: st.site, at: Date.now() }] }, id, st }
+}
+/** 지우기 — 목록에서만 빼고 자료는 둠(되살리기) · 하나 남은 현장은 못 지움 */
+export function 현장지우기(m, id) {
+  const 산 = m.L.filter((x) => !x.del)
+  if (산.length <= 1 || !산.some((x) => x.id === id)) return m
+  const L = m.L.map((x) => (x.id === id ? { ...x, del: Date.now() } : x))
+  const 남 = L.filter((x) => !x.del)
+  return { cur: m.cur === id ? 남[0].id : m.cur, L }
+}
+export function 현장되살리기(m, id) {
+  return { cur: id, L: m.L.map((x) => { if (x.id !== id) return x; const y = { ...x }; delete y.del; return y }) }
 }
 
 export const 새번호 = () => 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)

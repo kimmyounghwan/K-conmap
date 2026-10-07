@@ -17,6 +17,7 @@
  *   { 현장: { name, co }, 공종: [{ id, n, amt 금액, w 보할(%), q 설계수량, u 단위, b 쓰기 전 누계(% · 수량), s 시작, dur 기간(일) }],
  *     일: { 'YYYY-MM-DD': { w, lo, hi, pp, ap, wk:[{g,v,t,n}], 인:[{j,n}], 장:[{n,u,q}], 자:[{n,s,u,q}], 진:{공종id: 금일 값}, nt, nx } } }
  */
+import { 현장자료열쇠, 지금현장 } from './nomubi.js'
 
 export const 열쇠 = 'kcm_ilbo1'
 export const 날씨들 = ['맑음', '구름', '흐림', '비', '눈', '안개', '강풍']
@@ -161,7 +162,7 @@ export function 공정표공종(공정셈표) {
 /** 👷 같은 브라우저의 노무비 계산기에 적은 그날 출역 → 직종별 인원 [{j, n}] (공수가 0 보다 크면 1명) */
 export function 노무비인원(d) {
   try {
-    const s = JSON.parse(localStorage.getItem('kcm_nomubi1') || 'null')
+    const s = JSON.parse(localStorage.getItem(현장자료열쇠(지금현장())) || 'null')   /* 🏗 G178 노무비 계산기에서 고른 현장 */
     if (!s || !Array.isArray(s.P) || !s.A) return null
     const 달 = (s.A || {})[d.slice(0, 7)] || {}
     const dd = d.slice(8, 10)

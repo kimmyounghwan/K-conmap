@@ -6659,3 +6659,19 @@ span.mt-act { cursor: default; }
 @media (prefers-reduced-motion: reduce) {
   .mt-hero *, .mt-page .mt-ticker *, .mt-card, .mt-card *, .mt-hm, .mt-room, .mt-sheet, .mt-back, .mt-ans, .mt-af { animation: none !important; transition: none !important; }
 }
+
+/* 🏗 G178 (2026-10-07) 노무비 계산기 — 현장별로 나눠 쓰기 (pages/Nomubi.jsx 현장칸) */
+.nm-sites { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2, #f6f8fb); border: 1px solid var(--line, #e3e8ef); display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.nm-sites-row, .nm-sites-del { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; min-width: 0; }
+.nm-sites-h { font-size: 14px; white-space: nowrap; }
+.nm-site-sel { width: auto; min-width: 0; max-width: 100%; flex: 0 1 320px; padding-top: 6px; padding-bottom: 6px; }
+.nm-sites-n { white-space: nowrap; }
+.nm-sites-new { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 10px; background: var(--surface, #fff); border: 1px dashed var(--accent-line, #bcd0f5); }
+.nm-sites-new .inp { width: 100%; box-sizing: border-box; }
+.nm-chk { display: flex; align-items: flex-start; gap: 6px; font-weight: 600; line-height: 1.5; }
+.nm-chk input[type=checkbox] { width: 18px; height: 18px; min-width: 18px; margin: 2px 0 0; padding: 0; flex: 0 0 18px; }
+.nm-chk > span { flex: 1 1 auto; min-width: 0; }
+.nm-sites-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.nm-sites-ask { font-weight: 600; }
+.nm-sites-msg { padding: 7px 10px; border-radius: 8px; background: var(--accent-soft, #eaf1fd); border: 1px solid var(--accent-line, #bcd0f5); font-weight: 600; line-height: 1.5; }
+.nm-sites-note { font-size: 12px; line-height: 1.5; }

@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { 공제칸, 요율 } from '../lib/gongje.js'
-import { 읽기, 쓰기, 빈것, 새번호, 달셈, 칸바꿈, 줄채움, 달값, 예시, 공수차례, 달날수, 요일, 달더하기, 원, 공수글,
+import { 빈것, 새번호, 달셈, 칸바꿈, 줄채움, 달값, 예시, 공수차례, 달날수, 요일, 달더하기, 원, 공수글,
   보임, 명단빼기, 명단넣기, 완전히지우기, 남은기록, 되살리기, 일한날있음, 일한달, 그달일당, 그달빼기, 달값고침, 다른달값 } from '../lib/nomubi.js'   /* 🗓 G162 */
+import { 읽기현장, 쓰기현장, 현장목록, 현장목록쓰기, 현장목록열쇠, 현장자료열쇠, 현장연결자리, 현장백업열쇠, 현장이름, 현장더하기, 현장지우기, 현장되살리기 } from '../lib/nomubi.js'   /* 🏗 G178 현장별로 나눠 쓰기 */
 import { 세기 } from '../lib/받은수.jsx'
 /* 🛡 2026-10-01 (G107) 연금 · 건강 «대상» 은 lib/ilyong4.js 판단(여러 달) — 사람마다 «판단 자세히» 로 가입 판단기에 출역을 넘깁니다 */
 import { 생일풀기, 만나이, 나이날 } from '../lib/ilyong4.js'   /* 🎂 G109 생년월일 → 만 나이 · 60세 연금 · 65세 고용 */
 import 이어쓰기 from '../tools/이어쓰기.jsx'
 const 넘김열쇠 = 'kcm_ilyong_from'
-const 백업열쇠 = 'kcm_nomubi1_전'   /* 🗓 G162 «처음부터 (모두 지우기)» 직전 자료 — 새로고침해도 되살릴 수 있게 */
+/* 🗓 G162 «처음부터 (모두 지우기)» 직전 자료 — 새로고침해도 되살릴 수 있게 · 🏗 G178 현장마다 따로(lib/nomubi.js 현장백업열쇠) */
 
 /**
  * 👷 /tools/nomubi — 일용 노무비 계산기 · 지급명세서 (G104 · 2026-10-01)
@@ -54,8 +55,10 @@ const 빼기들 = [['P', '연금'], ['H', '건강'], ['E', '고용'], ['T', '소
 const 두자 = (n) => String(n).padStart(2, '0')
 const 달글 = (ym) => `${ym.slice(0, 4)}년 ${Number(ym.slice(5, 7))}월`
 
-export default function Nomubi() {
-  const [st, setSt] = useState(() => 읽기())
+/* 🏗 G178 계산기 한 벌 = 현장 하나. 현장을 바꾸면 key 로 통째로 새로 그립니다(되돌리기 · 묻기 · 이어 쓰기 상태가 다른 현장에 섞이지 않게). */
+function 계산기({ 현장id, 현장칸, on현장명 }) {
+  const 백업열쇠 = 현장백업열쇠(현장id)
+  const [st, setSt] = useState(() => 읽기현장(현장id))
   const [저장됨, set저장됨] = useState(true)
   const [편집, set편집] = useState(null)        // { id, k } 공제 칸 고치기
   const [알림, set알림] = useState('')
@@ -72,14 +75,16 @@ export default function Nomubi() {
   useEffect(() => { if (!되돌림) return undefined; const t = setTimeout(() => set되돌림(null), 20000); return () => clearTimeout(t) }, [되돌림])
   useEffect(() => {
     if (밖에서.current) { 밖에서.current = false; return }   /* 다른 창에서 받은 것은 다시 쓰지 않음(두 창이 서로 덮어쓰며 맴돌지 않게) */
-    set저장됨(쓰기(st))
+    set저장됨(쓰기현장(현장id, st))
   }, [st])
+  /* 🏗 현장명을 고치면 위 현장 목록 이름도 따라 바뀜 */
+  useEffect(() => { if (on현장명) on현장명(현장id, st.site) }, [st.site])  // eslint-disable-line react-hooks/exhaustive-deps
   /* 🔁 G116 → G162 — 다른 창(이 계산기 · 신고 정리 · 퇴직공제 · 보험료)에서 자료를 바꾸면 «통째로» 받아 둡니다.
      전에는 sg · tj · bh 만 받아서, 계산기를 두 창으로 열어 두면 한 창이 다른 창의 명단 · 출역을 옛 것으로 덮을 수 있었음.
      보고 있는 달(ym)은 이 창 것을 그대로 둠. */
   useEffect(() => {
     const 사건 = (e) => {
-      if (e.key !== 'kcm_nomubi1' || !e.newValue) return
+      if (e.key !== 현장자료열쇠(현장id) || !e.newValue) return
       try {
         const v = JSON.parse(e.newValue) || {}
         if (!Array.isArray(v.P) || !v.A || typeof v.A !== 'object') return
@@ -243,7 +248,9 @@ export default function Nomubi() {
           <span>💾 이 브라우저에 저장 · 🔗 코드로 폰·PC 이어 쓰기 {저장됨 ? '' : <b className="nm-warn">— 지금 저장이 막혀 있습니다(사생활 보호 창 등)</b>}</span>
           <span>🔒 생년월일만 · 주민번호 뒷자리 · 계좌는 받지 않습니다</span>
         </div>
-        <이어쓰기 ns="nm" 이름="일용 노무비" 파일="노무비" st={st} setSt={setSt} 읽기={읽기} 쓰기={쓰기} />
+        {현장칸}
+        <이어쓰기 ns="nm" 자리={현장연결자리(현장id)} 이름="일용 노무비" 파일="노무비" st={st} setSt={setSt}
+          읽기={() => 읽기현장(현장id)} 쓰기={(x) => 쓰기현장(현장id, x)} />
         <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
           {st.P.length === 0 && <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => setSt(예시(ym))}>예시로 채워 보기</button>}
           {st.P.length > 0 && !지움물음 && <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set지움물음(true)}>처음부터 (모두 지우기)</button>}
@@ -610,10 +617,112 @@ export default function Nomubi() {
             사람마다 <b>«🛡 판단 자세히»</b> 를 누르면 <Link to="/tools/ilyong-boheom">4대보험 가입 판단기</Link>에서 취득 · 상실일과 까닭을 봅니다.
             다른 현장에서 일한 날을 합쳐야 하는 경우 · 나이(연금 60세 이상 등) · 외국인처럼 이 화면이 모르는 것은 «4대보험 대상» 단추로 그 달만 넣고 빼거나, 명단의 «늘 빼기» 를 켜십시오.</li>
           <li>공제 칸을 누르면 금액을 고쳐 쓸 수 있습니다(🟨). «자동» 을 누르면 다시 셈한 값으로 돌아갑니다.</li>
+          <li><b>🏗 현장</b> — 맨 위 «＋ 새 현장» 으로 현장을 더하면 현장마다 회사명 · 현장명 · 명단 · 출역이 <b>따로</b> 저장됩니다. 목록에서 고르면 그 현장으로 바뀝니다. 새 현장을 만들 때 «이 달 명단 가져오기» 를 고르면 이름 · 직종 · 생년월일 · 일당만 옮겨 오고 출역은 비어서 시작합니다. «이 현장 빼기» 는 목록에서만 빼고 자료는 남겨 «뺀 현장» 에서 되살립니다. 🔗 이어 쓰기 코드도 현장마다 따로 겁니다. 신고 정리 · 퇴직공제 · 보험료 계산기는 여기서 고른 현장으로 셉니다.</li>
           <li>적은 것은 <b>이 브라우저에</b> 남습니다. 폰·PC 어디서든 이어 쓰려면 위 <b>«🔗 코드 만들기»</b> — 명단 · 출역 전부를 비밀번호로 잠가 서버에 두고(저희도 못 읽음), 다른 기기에서 «코드로 열기». 청구서까지 여럿이 같이 쓰려면 <Link to="/tools/tuipbi">현장 투입비 · 공사일보</Link>(노무비 청구내역서 포함).</li>
           <li>엑셀로 쓰실 분은 서식 <Link to="/forms/nomubi">노무비 지급확인서</Link> · <Link to="/forms/imgeum-daejang">임금대장</Link> 이 있습니다.</li>
         </ul>
       </details>
     </div>
   )
+}
+
+/**
+ * 🏗 G178 (2026-10-07) 현장별로 나눠 쓰기 — 맵톡 이용자 건의 「현장별로 나눠서 저장이 가능해야 되는데 그 기능은 없는 것 같아요」
+ *   → 소장님 「현장별로 나눠서 쓸 수 있게 해줘」 「고쳐줘」
+ *   · 현장 목록(lib/nomubi.js 현장목록) — 고르기 · ＋ 새 현장(이 달 명단 가져오기 고를 수 있음) · 이 현장 빼기(자료는 남김) · 뺀 현장 되살리기
+ *   · 지금 쓰던 자료 = 첫 현장(예전 자리 그대로) · 창(alert · confirm)은 띄우지 않음 — «한 번 더 누르기»
+ *   · 숨은 누적: |노무비|현장추가 · |노무비|명단가져옴 · |노무비|현장바꿈 · |노무비|현장뺌 · |노무비|현장되살림
+ */
+export default function Nomubi() {
+  const [목록, set목록] = useState(() => 현장목록())
+  const [, set판] = useState(0)                  // 현장명을 고치면 목록 이름을 다시 읽음
+  const [새칸, set새칸] = useState(null)          // { 이름, 가져옴 }
+  const [뺌물음, set뺌물음] = useState(false)
+  const [되살릴, set되살릴] = useState('')
+  const [알림, set알림] = useState('')
+  const cur = 목록.cur
+  const 산 = 목록.L.filter((x) => !x.del)
+  const 뺀 = 목록.L.filter((x) => x.del)
+  const 이름 = (x) => (x ? 현장이름(x, 목록.L.indexOf(x)) : '')
+  const 지금 = 목록.L.find((x) => x.id === cur)
+  /* 다른 창(이 계산기 · 신고 정리 등)에서 현장을 더하거나 빼면 목록만 따라감 — 이 창이 보고 있는 현장은 그대로 */
+  useEffect(() => {
+    const f = (e) => {
+      if (e.key !== 현장목록열쇠) return
+      set목록((m) => { const n = 현장목록(); return n.L.some((x) => x.id === m.cur && !x.del) ? { ...n, cur: m.cur } : n })
+    }
+    window.addEventListener('storage', f)
+    return () => window.removeEventListener('storage', f)
+  }, [])
+  useEffect(() => { if (!알림) return undefined; const t = setTimeout(() => set알림(''), 12000); return () => clearTimeout(t) }, [알림])
+  const 바꿈 = (m, 글) => { 현장목록쓰기(m); set목록(m); set새칸(null); set뺌물음(false); set알림(글 || '') }
+  const 고르기 = (id) => {
+    if (!id || id === cur) return
+    바꿈({ ...목록, cur: id }, '')
+    세기('|노무비|현장바꿈')
+  }
+  const 만들기 = () => {
+    if (!새칸) return
+    const 이름글 = 새칸.이름.trim()
+    const { m } = 현장더하기(목록, 이름글, 읽기현장(cur), 새칸.가져옴)
+    바꿈(m, `새 현장 «${이름글 || `현장 ${m.L.length}`}» 을 만들었습니다${새칸.가져옴 ? ' — 명단(이름 · 직종 · 생년월일 · 일당)을 가져왔고 출역은 비어 있습니다' : ''}.`)
+    세기('|노무비|현장추가')
+    if (새칸.가져옴) 세기('|노무비|명단가져옴')
+  }
+  const 빼기 = () => {
+    const 글 = 이름(지금)
+    바꿈(현장지우기(목록, cur), `«${글}» 현장을 목록에서 뺐습니다 — 자료는 남아 있어 아래 «뺀 현장» 에서 되살릴 수 있습니다.`)
+    세기('|노무비|현장뺌')
+  }
+  const 되살리기 = () => {
+    const x = 목록.L.find((y) => y.id === 되살릴)
+    if (!x) return
+    바꿈(현장되살리기(목록, x.id), `«${이름(x)}» 현장을 되살렸습니다.`)
+    set되살릴('')
+    세기('|노무비|현장되살림')
+  }
+  const 현장칸 = (
+    <div className="nm-sites no-print">
+      <div className="nm-sites-row">
+        <b className="nm-sites-h">🏗 현장</b>
+        <select className="inp nm-site-sel" value={cur} onChange={(e) => 고르기(e.target.value)} aria-label="현장 고르기">
+          {산.map((x) => <option key={x.id} value={x.id}>{이름(x)}</option>)}
+        </select>
+        <span className="muted nm-sites-n">{산.length}곳</span>
+        {!새칸 && <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { set새칸({ 이름: '', 가져옴: false }); set뺌물음(false) }}>＋ 새 현장</button>}
+        {산.length > 1 && !새칸 && !뺌물음 && <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set뺌물음(true)}>이 현장 빼기</button>}
+      </div>
+      {새칸 && (
+        <div className="nm-sites-new">
+          <input className="inp" value={새칸.이름} maxLength={60} autoFocus placeholder="새 현장 이름 (예: ○○지구 배수로 정비공사)"
+            onChange={(e) => set새칸({ ...새칸, 이름: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') 만들기() }} aria-label="새 현장 이름" />
+          <label className="nm-chk"><input type="checkbox" checked={새칸.가져옴} onChange={(e) => set새칸({ ...새칸, 가져옴: e.target.checked })} />
+            <span>«{이름(지금)}» 의 이 달 명단(이름 · 직종 · 생년월일 · 일당) 가져오기 <span className="muted">— 출역은 비어서 시작</span></span></label>
+          <div className="nm-sites-btns">
+            <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={만들기}>만들기</button>
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set새칸(null)}>그만두기</button>
+          </div>
+        </div>
+      )}
+      {뺌물음 && (
+        <div className="nm-ask nm-sites-ask">«{이름(지금)}» 현장을 목록에서 뺍니다. 자료는 지우지 않고 남겨 두어 되살릴 수 있습니다.
+          <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={빼기}>빼기</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set뺌물음(false)}>그대로 두기</button>
+        </div>
+      )}
+      {뺀.length > 0 && (
+        <div className="nm-sites-del">
+          <span className="muted">🗑 뺀 현장 {뺀.length}곳</span>
+          <select className="inp nm-site-sel" value={되살릴} onChange={(e) => set되살릴(e.target.value)} aria-label="되살릴 현장">
+            <option value="">고르기</option>
+            {뺀.map((x) => <option key={x.id} value={x.id}>{이름(x)}</option>)}
+          </select>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!되살릴} onClick={되살리기}>되살리기</button>
+        </div>
+      )}
+      {알림 && <div className="nm-sites-msg" role="status">✓ {알림}</div>}
+      <div className="nm-sites-note muted">현장마다 회사명 · 현장명 · 명단 · 출역이 따로 저장됩니다. 🔗 이어 쓰기 코드도 현장마다 따로 겁니다.</div>
+    </div>
+  )
+  return <계산기 key={cur} 현장id={cur} 현장칸={현장칸} on현장명={() => set판((n) => n + 1)} />
 }

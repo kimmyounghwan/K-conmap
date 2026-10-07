@@ -61,7 +61,7 @@ STAGES = [
     dict(k='quality', n='⑤', ic='🔍', h='검측 · 품질 · 자재', 짧게='검측 체크리스트 · 시험 · 자재 승인·수불',
          언제='공종마다 검측을 받고, 자재는 승인 → 반입 검수 → 수불로 관리합니다. 검측 체크리스트는 공종별로 나눠 두었습니다.',
          progs=['remicon'],
-         slugs='geomcheuk geomcheuk-yocheong geomcheuk-togong geomcheuk-baesu geomcheuk-gujomul geomcheuk-concrete geomcheuk-malttuk geomcheuk-pojang geomcheuk-psc-gang geomcheuk-budae o-geomcheuk-300 o-geomcheuk-sheetpile gulchak cheolgeun taseol-check remicon yangsaeng gangdo siheom-uiroe gyogeong ncr o-cheukryang-bogoseo jajae-seungin jajae-gonggeupwon o-jajae-seungin o-jajae-hyeonhwang jajae-balju jajae-geomsu jajae-banchul jajae-subulbu'),
+         slugs='geomcheuk geomcheuk-yocheong geomcheuk-togong geomcheuk-baesu geomcheuk-gujomul geomcheuk-concrete geomcheuk-malttuk geomcheuk-pojang geomcheuk-psc-gang geomcheuk-budae o-geomcheuk-300 o-geomcheuk-sheetpile gulchak cheolgeun taseol-check remicon o-remicon-gongjang yangsaeng gangdo siheom-uiroe o-pumjil-daejang o-pumjil-siljeok o-pumjil-chonggwal gyogeong ncr o-cheukryang-bogoseo jajae-seungin jajae-gonggeupwon o-jajae-seungin o-jajae-hyeonhwang jajae-balju jajae-geomsu jajae-banchul jajae-subulbu'),
     dict(k='safety', n='⑥', ic='🦺', h='안전 · 환경 · 장비 점검', 짧게='TBM · 위험성평가 · 점검표 · 환경',
          언제='날마다·주마다 하는 안전 점검과 교육, 위험성평가, 건설기계 점검표, 환경(비산먼지·소음·폐기물) 기록입니다.',
          progs=['risk', 'sanan', 'safety'],

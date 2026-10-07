@@ -35,11 +35,14 @@ function 내려받기(이름, 글) {
   setTimeout(() => URL.revokeObjectURL(u), 4000)
 }
 
-export default function 이어쓰기({ ns, 이름, 파일, st, setSt, 읽기, 쓰기 }) {
+/* 🏗 G178 (2026-10-07) 자리 — 이 기기의 연결 · 바뀌기 전 모습을 두는 이름(없으면 ns). 노무비 계산기는 현장마다 다른 자리('nm@{현장}')를 넘겨
+   현장마다 코드를 따로 겁니다. 서버 자리(ns_doc/코드)는 ns 그대로 — 코드가 다르니 섞이지 않습니다. */
+export default function 이어쓰기({ ns, 자리, 이름, 파일, st, setSt, 읽기, 쓰기 }) {
+  const 곳 = 자리 || ns
   const h = useMemo(() => 이어손잡이(ns), [ns])
-  const [연결, set연결상태] = useState(() => 연결읽기(ns))
+  const [연결, set연결상태] = useState(() => 연결읽기(곳))
   const 연결r = useRef(연결)
-  const set연결 = (v) => { 연결r.current = v; 연결쓰기(ns, v); set연결상태(v) }
+  const set연결 = (v) => { 연결r.current = v; 연결쓰기(곳, v); set연결상태(v) }
   const stR = useRef(st)
   stR.current = st
   const 마지막글 = useRef(연결 && !연결.d ? JSON.stringify(st) : null)
@@ -64,7 +67,7 @@ export default function 이어쓰기({ ns, 이름, 파일, st, setSt, 읽기, �
 
   /* ── 서버 것을 화면에 ── */
   function 들이기(x, v, 보관) {
-    if (보관 && JSON.stringify(stR.current) !== JSON.stringify(x.상태)) 앞모습두기(ns, stR.current)
+    if (보관 && JSON.stringify(stR.current) !== JSON.stringify(x.상태)) 앞모습두기(곳, stR.current)
     쓰기(x.상태)
     const 새 = 읽기()
     마지막글.current = JSON.stringify(새)
@@ -152,7 +155,7 @@ export default function 이어쓰기({ ns, 이름, 파일, st, setSt, 읽기, �
     본글.current = j
     /* 🗑 크게 지워짐(모두 비우기 · 처음부터 등) — 지우기 전 모습을 한 벌 보관해 «↩ 되돌리기» 로 살림 */
     if (앞글 && 앞글.length > 400 && j.length < 앞글.length * 0.5) {
-      try { if (앞모습두기(ns, JSON.parse(앞글))) set알림(`많이 지워졌습니다 — 지우기 전 모습은 보관해 두었습니다(«💾 백업 · 더 보기» → «↩ 되돌리기»).${연결r.current ? ' 코드로 이어 쓰는 중이라 다른 기기에서도 지워집니다.' : ''}`) } catch (e) { /* 없음 */ }
+      try { if (앞모습두기(곳, JSON.parse(앞글))) set알림(`많이 지워졌습니다 — 지우기 전 모습은 보관해 두었습니다(«💾 백업 · 더 보기» → «↩ 되돌리기»).${연결r.current ? ' 코드로 이어 쓰는 중이라 다른 기기에서도 지워집니다.' : ''}`) } catch (e) { /* 없음 */ }
     }
     const v = 연결r.current
     if (!v) return
@@ -304,24 +307,24 @@ export default function 이어쓰기({ ns, 이름, 파일, st, setSt, 읽기, �
   }
   function 불러오기확정() {
     if (!불러온) return
-    앞모습두기(ns, stR.current)
+    앞모습두기(곳, stR.current)
     쓰기(불러온.상태)
     setSt(읽기())
     set불러온(null); set한번더('')
     set알림(`«${불러온.이름}» 을(를) 불러왔습니다. 바뀌기 전 것은 따로 보관해 두었습니다(«💾 백업 · 더 보기» → «↩ 되돌리기»).${연결r.current ? ' 곧 서버에도 올립니다.' : ''}`)
   }
   function 되돌리기() {
-    const p = 앞모습읽기(ns)
+    const p = 앞모습읽기(곳)
     if (!p || !p.상태) return
     if (한번더 !== '되돌리기') { set한번더('되돌리기'); return }
     set한번더('')
-    앞모습두기(ns, stR.current)
+    앞모습두기(곳, stR.current)
     쓰기(p.상태)
     setSt(읽기())
     set알림(`${시각(p.at)} 에 보관한 모습으로 되돌렸습니다. 방금 것도 다시 보관해 두었습니다(한 번 더 «↩ 되돌리기» 면 돌아감).`)
   }
 
-  const 앞 = 앞모습읽기(ns)
+  const 앞 = 앞모습읽기(곳)
 
   /* ── 그리기 ── */
   const 상태글 = {

@@ -10,9 +10,9 @@
  *    투입비에서 넘겨받은 현장은 이 브라우저에만(localStorage 'kcm_tp_{키}' · 현장 이름별).
  *    쓸 때는 «지금 저장된 것» 을 다시 읽어 그 칸만 바꿔 넣습니다 — 다른 창의 출역을 덮지 않게.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { 읽기, 쓰기 } from '../lib/nomubi.js'
+import { 현장목록, 현장목록쓰기, 현장목록열쇠, 현장연결자리, 현장이름, 읽기현장, 쓰기현장 } from '../lib/nomubi.js'   /* 🏗 G178 현장별 — 노무비 계산기에서 고른 현장 */
 import { 넘김읽기, 넘김지우기 } from '../lib/신고정리.js'
 import 이어쓰기 from './이어쓰기.jsx'
 
@@ -22,35 +22,44 @@ function 로컬쓰기(키, 현장, v) { try { const 모두 = JSON.parse(localSto
 
 export function use노무자료() {
   const [넘김, set넘김] = useState(() => 넘김읽기())
-  const [st, setSt] = useState(() => 읽기())
+  /* 🏗 G178 — 현장(노무비 계산기에서 고른 현장)과 그 자료를 같이 들고 있음. 쓸 때도 이 현장에만(다른 창이 현장을 바꿔도 섞이지 않게) */
+  const [현장, set현장] = useState(() => 현장목록().cur)
+  const [st, setSt] = useState(() => 읽기현장(현장목록().cur))
   const [판, set판] = useState(0)
+  const 현장r = useRef(현장)
+  현장r.current = 현장
+  /* 🔗 이어 쓰기가 받아 온 것은 «그 현장을 아직 보고 있을 때만» 화면에 — 현장을 바꾼 뒤 늦게 끝난 받기가 섞이지 않게 */
+  const st받기 = (id) => (v) => { if (현장r.current === id) setSt(v) }
   useEffect(() => {
-    const 다시 = () => setSt(읽기())
-    const 사건 = (e) => { if (!e.key || e.key === 'kcm_nomubi1') 다시() }
+    const 다시 = () => { const c = 현장목록().cur; set현장(c); setSt(읽기현장(c)) }
+    const 사건 = (e) => { if (!e.key || e.key === 현장목록열쇠 || e.key.startsWith('kcm_nomubi1')) 다시() }
     const 보임 = () => { if (document.visibilityState === 'visible') 다시() }
     window.addEventListener('storage', 사건)
     document.addEventListener('visibilitychange', 보임)
     return () => { window.removeEventListener('storage', 사건); document.removeEventListener('visibilitychange', 보임) }
   }, [])
-  const 노무비로 = () => { 넘김지우기(); set넘김(null); setSt(읽기()) }
+  const 노무비로 = () => { 넘김지우기(); set넘김(null); const c = 현장목록().cur; set현장(c); setSt(읽기현장(c)) }
+  const 현장고르기 = (id) => { const m = 현장목록(); if (!m.L.some((x) => x.id === id && !x.del)) return; 현장목록쓰기({ ...m, cur: id }); set현장(id); setSt(읽기현장(id)) }
   const 자료 = 넘김 || st
   /** 🔁 설정 · 기록 — 노무비 자료 안(sg · tj · bh) 또는 투입비 현장이면 이 브라우저 */
   const 기록 = (키) => (넘김 ? 로컬읽기(키, 넘김.site) : (st && st[키]) || null)
   const 기록쓰기 = (키, v) => {
     if (넘김) { 로컬쓰기(키, 넘김.site, v); set판((x) => x + 1); return }
-    const 지금 = 읽기()
+    const 지금 = 읽기현장(현장)
     const 새 = { ...지금, [키]: v }
-    쓰기(새)
+    쓰기현장(현장, 새)
     setSt(새)
   }
-  return { 자료, 출처: 넘김 ? 'tp' : 'nm', 넘김, st, setSt, 노무비로, 기록, 기록쓰기, 판 }
+  return { 자료, 출처: 넘김 ? 'tp' : 'nm', 넘김, st, setSt, 노무비로, 기록, 기록쓰기, 판, 현장, 현장고르기, st받기 }
 }
 
 const 시각 = (t) => { const d = new Date(t); return `${d.getMonth() + 1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
 
 /** 맨 위 «어느 자료로 셈하나» 한 줄 + (노무비 계산기면) 🔗 이어 쓰기 */
 export function 노무자료줄({ 노 }) {
-  const { 출처, 넘김, st, setSt, 노무비로 } = 노
+  const { 출처, 넘김, st, 노무비로, 현장, 현장고르기, st받기 } = 노
+  const 목록 = 현장목록()
+  const 산 = 목록.L.filter((x) => !x.del)
   if (출처 === 'tp') {
     return (
       <div className="hm-src">
@@ -63,7 +72,17 @@ export function 노무자료줄({ 노 }) {
     <div className="hm-src">
       <div>👷 <b>노무비 계산기</b>에 적은 명단 · 출역으로 셉니다{st.site ? <> — <b>{st.site}</b></> : null}
         {' '}<span className="muted">(이 화면에서는 고치지 않습니다 · 고칠 때는 <Link to="/tools/nomubi">노무비 계산기</Link>에서)</span></div>
-      <이어쓰기 ns="nm" 이름="일용 노무비" 파일="노무비" st={st} setSt={setSt} 읽기={읽기} 쓰기={쓰기} />
+      {산.length > 1 && (
+        <div className="nm-sites-row" style={{ marginTop: 6 }}>
+          <b className="nm-sites-h">🏗 현장</b>
+          <select className="inp nm-site-sel" value={현장} onChange={(e) => 현장고르기(e.target.value)} aria-label="현장 고르기">
+            {산.map((x) => <option key={x.id} value={x.id}>{현장이름(x, 목록.L.indexOf(x))}</option>)}
+          </select>
+          <span className="muted">노무비 계산기의 현장 목록과 같습니다</span>
+        </div>
+      )}
+      <이어쓰기 key={현장} ns="nm" 자리={현장연결자리(현장)} 이름="일용 노무비" 파일="노무비" st={st} setSt={st받기(현장)}
+        읽기={() => 읽기현장(현장)} 쓰기={(x) => 쓰기현장(현장, x)} />
     </div>
   )
 }
