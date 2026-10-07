@@ -4,7 +4,9 @@ rules_version = '2';
 // 소장님 결정: 승인 없이 바로 공개. 그래서 «규칙» 이 유일한 문지기입니다.
 //   · 익명 로그인한 사람만 올립니다 (자기 uid 폴더에만).
 //   · 10MB 이하. 압축 저장한 크기 기준(브라우저가 gzip 해 올립니다).
-//   · 확장자 허용 목록: xlsx xls docx doc hwp hwpx pdf pptx. **xlsm·docm(매크로) · exe · zip 은 안 됩니다.**
+//   · 확장자 허용 목록: xlsx xls docx doc hwp hwpx pdf pptx zip. **xlsm·docm(매크로) · exe 는 안 됩니다.**
+//   · 🗜 G196 (2026-10-08) 소장님 「압축파일 안된다는 건 바꿔줘」 — zip 받음. zip 안(실행 파일 · 매크로 · 암호 · zip 안의 zip)은
+//     맵톡 화면이 올리기 전에 목차를 읽어 막습니다(lib/파일올리기.js 압축검사). 규칙은 형식 · 10MB 만 봅니다.
 //   · 한 번 올린 파일은 덮어쓰기·삭제 불가 (목록에서 «내리기» 는 RTDB 쪽 표시로 합니다).
 //   · 읽기는 누구나 — 다운로드 링크가 공개되어야 하니까요.
 //
@@ -16,8 +18,8 @@ service firebase.storage {
       allow create: if request.auth != null
         && request.auth.uid == uid
         && request.resource.size <= 10 * 1024 * 1024
-        && file.matches('^[^/]{1,120}\\.(xlsx|xls|docx|doc|hwp|hwpx|pdf|pptx)$')
-        && !file.matches('(?i).*\\.(xlsm|xlam|docm|pptm|exe|zip|js|html)$');
+        && file.matches('^[^/]{1,120}\\.(xlsx|xls|docx|doc|hwp|hwpx|pdf|pptx|zip)$')
+        && !file.matches('(?i).*\\.(xlsm|xlam|docm|pptm|exe|js|html)$');
       allow update, delete: if false;
     }
     // 🗺 G147 (2026-10-05) 맵톡 사진 — 글 하나에 한 장. 익명 로그인한 기기가 «제 번호 폴더» 에만 · 3MB 이하 · 그림만

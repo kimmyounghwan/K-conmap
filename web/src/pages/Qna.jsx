@@ -154,7 +154,7 @@ import 건설소식 from '../tools/건설소식.jsx'   /* 📰 G128 — 지도 �
 import 맵톡지도 from '../tools/맵톡지도.jsx'
 import { 주제들, 주제짐작, 방나누기, 글나누기, 자리짐작, 짧은이름, 곳찾기, 카드크기, 물음인가, 한마디인가, 사진줄이기, 사진크기한도, 방기준, 답나무, 첫줄, 누적셈, 시도차례, 시도별, 곳기억읽기, 곳기억하기 } from '../lib/맵톡.js'
 import { 세기 } from '../lib/받은수.jsx'
-import { 받는꼴, 파일검사, 파일올리기, 크기글, 오늘올린수, 올린수더하기, 하루한도 } from '../lib/파일올리기.js'   /* 📎 G158 */
+import { 받는꼴, 파일검사, 압축검사, 확장자, 파일올리기, 크기글, 오늘올린수, 올린수더하기, 하루한도 } from '../lib/파일올리기.js'   /* 📎 G158 · 🗜 G196 압축검사 */
 
 /* 🕰 G148 (2026-10-05) 소장님 「글을쓴 날짜 시간도 보이게 해주고」 — 카드 «10.05 22:47» · 글 창 «2026.10.05(월) 22:47 · 5분 전» · 답글 «10.05(월) 13:15».
    올해가 아니면 앞에 해(2025.12.30). 흐르는 띠 · 위 알림은 «5분 전» 그대로(살아 있게) */
@@ -819,8 +819,8 @@ export default function Qna() {
               <li><b>🗺 맵톡 — 고를 것 없이 그냥 쓰세요.</b> 질문 · 현장 이야기 · 공동도급 구성원 구하기 · 구인·구직 · 건의 · 후기, 무엇이든 한 칸에 씁니다.
                 글을 올리면 <b>내 시·군에 핀</b>이 꽂히고(접속한 곳으로 짐작 — 통신사에 따라 다른 곳으로 잡힐 수 있습니다), 같은 이야기가 <b>10개 모이면 «방»</b>이 저절로 생깁니다.</li>
               <li><b>📷 사진도 올릴 수 있습니다</b>(한 장 · 크게 찍은 사진은 줄여서 올립니다). 남의 얼굴 · 이름 · 전화번호가 보이는 사진은 올리지 마세요.</li>
-              <li><b>📎 파일도 하나 붙일 수 있습니다</b> — 한글 · 엑셀 · 워드 · PDF · PPT(20MB 까지 · 올릴 때 저절로 눌러 작게 올립니다). 받는 분은 글을 열어 «받기».
-                남의 공사명 · 업체명 · 사람 이름 · 전화번호는 지우고 올려 주세요. 매크로 파일 · 압축 파일은 안 됩니다.</li>
+              {/* 🩹 G196 소장님 「이상한 파일 이면...이런 거 말고, 그냥, 파일 올릴 수 있다. 이렇게 해줘」 — 막는 것 · 주의 글은 뺌(고를 때 안 되는 것은 그 자리에서 알림) */}
+              <li><b>📎 파일도 올릴 수 있습니다</b> — 한글 · 엑셀 · 워드 · PDF · PPT · 압축(zip).</li>
               <li><b>누구나, 어떤 이야기든 좋습니다.</b> 가입·이름 없이 바로 씁니다. 별명은 저절로 붙고, 같은 기기면 늘 같은 별명입니다.</li>
               <li><b>답글은 누구나 답니다.</b> 아는 분이 먼저 답해 주세요 — 현장 경험 한 줄이 제일 큰 도움이 됩니다.
                 K-건설맵도 하루 안에 답을 다는 것을 목표로 합니다. K-건설맵이 단 답에는 <b>「K-건설맵」</b> 표가 붙습니다.
@@ -1297,7 +1297,6 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
           <b className="mt-filebox-go">받기 ↓</b>
         </a>
       )}
-      {파일있음(row) && <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>올린 분이 올린 파일입니다 — 받기 전에 이름 · 크기를 확인하세요. 이상한 파일이면 맵톡에 알려 주세요.</div>}
       <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         {내번호(row.uid)
           ? <span className="qna-like muted" title="내 글 — 공감은 다른 분이 누릅니다">♥ 공감 {Object.keys(좋아요).length}</span>
@@ -1521,12 +1520,17 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자 }) {
     setMsg('')
   }
 
-  const 파일고름 = (e) => {
+  const 파일고름 = async (e) => {
     const f = e.target.files && e.target.files[0]
     e.target.value = ''
     if (!f) return
     const 말 = 파일검사(f)
     if (말) return 막기(말)
+    /* 🗜 G196 zip — 올리기 전에 목차만 읽어 안을 봄(풀지 않음) · 막히면 📊 |맵톡|압축막음 */
+    if (확장자(f.name) === 'zip') {
+      const 안말 = await 압축검사(f)
+      if (안말) { 세기('|맵톡|압축막음'); return 막기(안말) }
+    }
     set첨부(f); setMsg('')
   }
 
@@ -1583,7 +1587,7 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자 }) {
       })
       addMine(id)
       폰알림켜기(r, 허락)
-      세기('|맵톡|글'); if (p) 세기('|맵톡|사진'); if (곳) 세기('|맵톡|자리'); if (f) { 세기('|맵톡|파일'); 올린수더하기() }
+      세기('|맵톡|글'); if (p) 세기('|맵톡|사진'); if (곳) 세기('|맵톡|자리'); if (f) { 세기('|맵톡|파일'); if (확장자(f.n) === 'zip') 세기('|맵톡|압축파일'); 올린수더하기() }
       if (나운영자 && 고정할) { try { await set(ref(db, `qna_top/${id}`), serverTimestamp()) } catch (e) { /* 글 안에서 다시 꽂으면 됨 */ } }
       try { sessionStorage.removeItem(초안열쇠) } catch (e) { /* 없음 */ }
       set글(''); setPin(''); set사진(null); set첨부(null)
@@ -1655,10 +1659,10 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자 }) {
           <input type="file" accept="image/*" onChange={사진고름} className="sr-only" />
         </label>
         {/* 📎 G158 파일 한 개 — 한글 · 엑셀 · 워드 · PDF · PPT */}
-        <label className={'mt-chip mt-file' + (첨부 ? ' on' : '')} title="한글 · 엑셀 · 워드 · PDF · PPT (20MB 까지)">
+        <label className={'mt-chip mt-file' + (첨부 ? ' on' : '')} title="한글 · 엑셀 · 워드 · PDF · PPT (20MB 까지) · 압축 zip (10MB 까지)">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 11.5 12.5 20a5 5 0 0 1-7-7L14 4.5a3.3 3.3 0 0 1 4.7 4.7L10.2 17.7a1.7 1.7 0 0 1-2.4-2.4L15.5 7.6" /></svg>
           <span className="mt-chip-t">파일도 올려요</span>
-          <input type="file" accept={받는꼴} onChange={파일고름} className="sr-only" aria-label="파일 올리기 — 한글 · 엑셀 · 워드 · PDF · PPT" />
+          <input type="file" accept={받는꼴} onChange={파일고름} className="sr-only" aria-label="파일 올리기 — 한글 · 엑셀 · 워드 · PDF · PPT · 압축(zip)" />
         </label>
         {나운영자
           ? <label className="mt-opfix" title="📌 도구 사용법에 고정"><input type="checkbox" checked={고정할} onChange={(e) => set고정할(e.target.checked)} /><span className="mt-opfix-t">📌 도구 사용법에 고정</span></label>

@@ -9,8 +9,19 @@
  * ■ 하루 한도: 이 브라우저에서 하루 «하루한도» 개. 숫자는 화면 어디에도 안 씁니다(소장님만 압니다) —
  *     넘으면 «잠시 뒤 다시 올려 주세요» 한 줄만. ⚠️ 브라우저 쪽 셈이라 마음먹고 우회하면 못 막습니다 —
  *     진짜 문지기는 크기 규칙(10MB) · 운영자 지우기 · 예산 알림(소장님 메일)입니다.
+ *
+ * 🗜 G196 (2026-10-08) 소장님 「압축파일이 왜 안돼?」 → 「압축파일 안된다는 건 바꿔줘」 — zip 도 받습니다. 대신 올리기 «전에»
+ *     브라우저가 zip 의 목차(중앙 디렉터리)만 읽어 안을 봅니다(풀지 않음 · 몇 KB 만 읽음):
+ *       · 안에 든 것이 모두 한글 · 엑셀 · 워드 · PDF · PPT · 사진(jpg · png)일 때만 통과
+ *       · 실행 파일 · 매크로 · 스크립트 · zip 안의 zip(7z · rar · alz · egg …) · 암호 걸린 zip · 너무 많은(300개 넘는) 파일 ·
+ *         풀면 너무 커지는(합 300MB 넘는) zip 은 막음 · 맥에서 묶을 때 끼는 __MACOSX · .DS_Store · Thumbs.db 는 셈에서 뺌
+ *       · zip 은 이미 눌린 파일이라 더 안 줄어듭니다 → 저장 한도(10MB)가 곧 zip 한도 — 고를 때 바로 알림
+ *     ⚠️ 목차 보기는 브라우저에서 합니다. 화면을 거치지 않고 일부러 올리는 사람은 규칙(형식 · 10MB)만 막습니다 → 운영자 지우기.
  */
-export const 파일종류 = ['hwp', 'hwpx', 'xlsx', 'xls', 'docx', 'doc', 'pdf', 'pptx']
+export const 파일종류 = ['hwp', 'hwpx', 'xlsx', 'xls', 'docx', 'doc', 'pdf', 'pptx', 'zip']   /* 🗜 G196 zip 더함 */
+export const 압축안종류 = ['hwp', 'hwpx', 'xlsx', 'xls', 'docx', 'doc', 'pdf', 'pptx', 'jpg', 'jpeg', 'png']
+export const 압축안개수한도 = 300
+export const 압축안크기한도 = 300 * 1024 * 1024
 export const 받는꼴 = 파일종류.map((x) => '.' + x).join(',')
 export const 원본한도 = 20 * 1024 * 1024
 export const 저장한도 = 10 * 1024 * 1024
@@ -24,9 +35,64 @@ export const 크기글 = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + 'MB' 
 export function 파일검사(f) {
   if (!f) return '파일을 고르세요.'
   const e = 확장자(f.name)
-  if (!파일종류.includes(e)) return `이 형식은 받지 않습니다${e ? `(${e})` : ''} — 한글 · 엑셀 · 워드 · PDF · PPT 만 됩니다(매크로 파일 · 압축 파일은 안 됨).`
+  if (!파일종류.includes(e)) return `이 형식은 받지 않습니다${e ? `(${e})` : ''} — 한글 · 엑셀 · 워드 · PDF · PPT · 압축(zip) 만 됩니다(매크로 파일은 안 됨).`
+  if (e === 'zip' && f.size > 저장한도) return `압축 파일이 너무 큽니다(${크기글(f.size)}) — 압축(zip)은 10MB 까지 올릴 수 있습니다.`
   if (f.size > 원본한도) return `파일이 너무 큽니다(${크기글(f.size)}) — 20MB 까지 올릴 수 있습니다.`
   if (!f.size) return '빈 파일입니다.'
+  return ''
+}
+
+/* 🗜 G196 zip 목차 읽기 — 끝의 «목차 끝(EOCD)» 을 찾아 중앙 디렉터리만 읽습니다(풀지 않음).
+   돌려줌: { 목록: [{ 이름, 크기, 암호, 폴더 }], 오류: '' } — 오류가 있으면 목록은 비어 있을 수 있음 */
+const 쓰레기 = (이름) => /(^|\/)__MACOSX\//.test(이름) || /(^|\/)(\.DS_Store|Thumbs\.db|desktop\.ini)$/i.test(이름) || /(^|\/)\._[^/]*$/.test(이름)
+function 이름풀기(b, utf8) {
+  try { if (utf8) return new TextDecoder('utf-8', { fatal: true }).decode(b) } catch (e) { /* 아래로 */ }
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(b) } catch (e) { /* 한국 윈도우 zip(cp949) */ }
+  try { return new TextDecoder('euc-kr').decode(b) } catch (e) { return Array.from(b, (c) => String.fromCharCode(c)).join('') }
+}
+export async function 압축목차(f) {
+  const 크기 = f.size
+  if (크기 < 22) return { 목록: [], 오류: '압축 파일이 아니거나 깨진 파일입니다.' }
+  const 꼬리길이 = Math.min(크기, 65557)
+  const 꼬리 = new Uint8Array(await f.slice(크기 - 꼬리길이).arrayBuffer())
+  let i = 꼬리.length - 22
+  for (; i >= 0; i--) if (꼬리[i] === 0x50 && 꼬리[i + 1] === 0x4b && 꼬리[i + 2] === 0x05 && 꼬리[i + 3] === 0x06) break
+  if (i < 0) return { 목록: [], 오류: '압축 파일이 아니거나 깨진 파일입니다.' }
+  const dv = new DataView(꼬리.buffer, 꼬리.byteOffset + i, 22)
+  const 개수 = dv.getUint16(10, true), 목차크기 = dv.getUint32(12, true), 목차자리 = dv.getUint32(16, true)
+  if (개수 === 0xffff || 목차크기 === 0xffffffff || 목차자리 === 0xffffffff) return { 목록: [], 오류: '이 압축 파일 형식(ZIP64)은 받지 않습니다.' }
+  if (목차자리 + 목차크기 > 크기) return { 목록: [], 오류: '압축 파일이 아니거나 깨진 파일입니다.' }
+  const 목차 = new Uint8Array(await f.slice(목차자리, 목차자리 + 목차크기).arrayBuffer())
+  const v = new DataView(목차.buffer, 목차.byteOffset, 목차.byteLength)
+  const 목록 = []
+  let p = 0
+  for (let n = 0; n < 개수; n++) {
+    if (p + 46 > 목차.length || v.getUint32(p, true) !== 0x02014b50) return { 목록, 오류: '압축 파일이 아니거나 깨진 파일입니다.' }
+    const 깃발 = v.getUint16(p + 8, true), 푼크기 = v.getUint32(p + 24, true)
+    const 이름길이 = v.getUint16(p + 28, true), 덧길이 = v.getUint16(p + 30, true), 말길이 = v.getUint16(p + 32, true)
+    const 이름 = 이름풀기(목차.subarray(p + 46, p + 46 + 이름길이), !!(깃발 & 0x800))
+    목록.push({ 이름, 크기: 푼크기, 암호: !!(깃발 & 1), 폴더: /\/$/.test(이름) })
+    p += 46 + 이름길이 + 덧길이 + 말길이
+  }
+  return { 목록, 오류: '' }
+}
+
+/** 🗜 G196 zip 안 보기 — 문제없으면 '' · 아니면 알릴 말 */
+export async function 압축검사(f) {
+  let r
+  try { r = await 압축목차(f) } catch (e) { return '압축 파일을 읽지 못했습니다 — 다시 묶어서 올려 주세요.' }
+  if (r.오류) return '🗜 ' + r.오류
+  const 파일들 = r.목록.filter((x) => !x.폴더 && !쓰레기(x.이름))
+  if (!파일들.length) return '🗜 압축 파일 안에 든 파일이 없습니다.'
+  if (r.목록.some((x) => x.암호)) return '🗜 암호가 걸린 압축 파일은 받지 않습니다 — 암호 없이 묶어 올려 주세요.'
+  if (파일들.length > 압축안개수한도) return `🗜 압축 파일 안에 파일이 너무 많습니다(${파일들.length}개) — ${압축안개수한도}개까지 됩니다.`
+  const 안됨 = 파일들.filter((x) => !압축안종류.includes(확장자(x.이름)))
+  if (안됨.length) {
+    const 보기 = 안됨.slice(0, 3).map((x) => x.이름.split('/').pop()).join(' · ')
+    return `🗜 압축 파일 안에 받지 않는 파일이 있습니다(${보기}${안됨.length > 3 ? ` 외 ${안됨.length - 3}개` : ''}) — 안에는 한글 · 엑셀 · 워드 · PDF · PPT · 사진(jpg · png)만 됩니다(실행 파일 · 매크로 · 압축 안의 압축은 안 됨).`
+  }
+  const 합 = 파일들.reduce((a, x) => a + x.크기, 0)
+  if (합 > 압축안크기한도) return '🗜 풀면 너무 커지는 압축 파일입니다 — 나눠서 올려 주세요.'
   return ''
 }
 
@@ -66,7 +132,7 @@ export async function 파일올리기(file, uid) {
   const { getStorage, ref: sref, uploadBytes, getDownloadURL } = await import('firebase/storage')
   const r = sref(getStorage(), `user_forms/${uid}/${저장이름(file.name)}`)
   await uploadBytes(r, blob, {
-    contentType: file.type || 'application/octet-stream',
+    contentType: (확장자(file.name) === 'zip' ? 'application/zip' : file.type) || 'application/octet-stream',
     ...(gz ? { contentEncoding: 'gzip' } : {}),
     contentDisposition: `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`,
   })
