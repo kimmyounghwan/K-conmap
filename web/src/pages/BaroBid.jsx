@@ -23,7 +23,7 @@ import { GUIDE_NAV, guideOf } from '../lib/guidenav.js'
 import 기관사정률 from '../기관사정률.jsx'
 import 칸누가 from '../칸누가.jsx'
 import 곧나올줄 from '../곧나올줄.jsx'
-import { 확보예가미리 } from '../tools/확보예가.jsx'   /* 🎯 G181 */
+import { 확보예가미리, 사업자확보예가 } from '../tools/확보예가.jsx'   /* 🎯 G181 · 🔎 G189 사업자번호로 */
 import 금액고르기 from '../tools/금액고르기.jsx'   /* 💰 G185 */
 /* 🗺 G144 (2026-10-05) 지금 K-건설맵을 쓰는 곳 — 사랑방에서 옮겨 옴(소장님 「실시간 지도를 바로입찰 상단에 … 여기가 조회수가 가장 많으니까」)
    화면이 뜬 뒤에 받습니다(지도 바탕 37KB · 자료 1KB) — 투찰 셈을 늦추지 않게 */
@@ -2258,6 +2258,9 @@ export default function BaroBid() {
           </div>
         </>
       )}
+
+      {/* 🔎 G189 사업자번호로 확보 예가 보기 — 금액이 나오든 안 나오든 늘(비드스코어 «확보예가 통계 조회» 처럼) · 소장님 「넣어줘」 */}
+      <사업자확보예가 />
 
       {/* 📚 5편 전체 — 금액이 나오든 안 나오든 화면 맨 아래에 늘 있습니다. */}
       <GuideBox />

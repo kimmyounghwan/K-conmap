@@ -6706,6 +6706,51 @@ span.mt-act { cursor: default; }
 .kb-in { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line, #e5e7eb); background: var(--surface, #fff); display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.55; }
 .kb-h { font-weight: 800; font-size: 14px; }
 .kb-big { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; font-size: 14px; }
+/* 🔎 G189 사업자번호로 확보 예가 보기(바로투찰 맨 아래) */
+.kb-find { margin-top: 14px; }
+.kb-find-row { display: flex; gap: 6px; align-items: center; }
+.kb-find-row .inp { flex: 1; min-width: 0; font-size: 16px; letter-spacing: .02em; }
+.kb-find .card { box-shadow: none; border: 1px solid var(--line-soft); }
+.kb-rep { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.kb-rep-sum { padding: 14px 16px; border-radius: 14px; background: var(--accent-soft); border: 1px solid var(--accent-line); font-size: 16px; line-height: 1.7; word-break: keep-all; }
+.kb-rep-sum b { font-size: 18px; }
+.kb-rep-sub { margin-top: 4px; font-size: 12.5px; color: var(--text-2); }
+.kb-rep-h { margin: 8px 0 0; font-size: 15px; font-weight: 900; }
+.kb-rings { display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap; padding: 6px 0; }
+.kb-ring { width: 150px; height: 150px; border-radius: 50%; background: conic-gradient(var(--c) var(--p), var(--line) 0); display: grid; place-items: center; }
+.kb-ring-in { width: 118px; height: 118px; border-radius: 50%; background: var(--surface); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 6px; }
+.kb-ring-in span { font-size: 11.5px; color: var(--text-2); line-height: 1.35; word-break: keep-all; }
+.kb-ring-in b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.kb-vs { font-size: 34px; font-weight: 900; color: var(--muted); }
+.kb-exp { padding: 10px 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line-soft); font-size: 13px; line-height: 1.75; color: var(--text-2); word-break: keep-all; }
+.kb-exp p { margin: 0 0 6px; } .kb-exp p:last-child { margin-bottom: 0; }
+.kb-exp b { color: var(--text); }
+.kb-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.kb-stats div { padding: 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); text-align: center; }
+.kb-stats span { display: block; font-size: 12px; color: var(--muted); }
+.kb-stats b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.kb-leg { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--text-2); }
+.kb-leg i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.kb-k-yj { background: #3b82f6; } .kb-k-me { background: #10b981; } .kb-k-win { background: #f59e0b; } .kb-k-dq { background: #ef4444; }
+.kb-chart { overflow-x: auto; }
+.kb-svg { display: block; width: 100%; min-width: 560px; max-width: 760px; margin: 0 auto; height: auto; }   /* 폰에선 옆으로 밀어 봄 — 글자가 너무 작아지지 않게 */
+.kb-grid { stroke: var(--line); stroke-width: 1; }
+.kb-ax { fill: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.kb-l-yj { fill: none; stroke: #3b82f6; stroke-width: 2; }
+.kb-l-me { fill: none; stroke: #10b981; stroke-width: 2; }
+.kb-d-yj { fill: #3b82f6; stroke: var(--surface); stroke-width: 1.5; }
+.kb-d-me { fill: #10b981; stroke: var(--surface); stroke-width: 1.5; }
+.kb-d-win { fill: #f59e0b; stroke: var(--surface); stroke-width: 2; }
+.kb-d-dq { fill: #ef4444; stroke: var(--surface); stroke-width: 1.5; }
+.kb-b-me { fill: #10b981; } .kb-b-win { fill: #f59e0b; }
+.kb-rep .kb-tbl th, .kb-rep .kb-tbl td { padding: 6px 8px; }
+.kb-how { margin: 0; padding-left: 20px; font-size: 13.5px; line-height: 1.8; color: var(--text-2); }
+.kb-how b { color: var(--text); }
+@media (max-width: 560px) {
+  .kb-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kb-ring { width: 128px; height: 128px; } .kb-ring-in { width: 100px; height: 100px; } .kb-ring-in b { font-size: 17px; }
+  .kb-vs { font-size: 26px; }
+  .kb-rep-sum { font-size: 15px; } .kb-rep-sum b { font-size: 16.5px; }
 .kb-big b { font-size: 17px; }
 .kb-up { color: var(--accent, #1d4ed8); }
 .kb-dn { color: var(--text-2, #6b7280); }

@@ -24,6 +24,9 @@ import { 내줄 } from './성적표.js'
 
 export const 구간들 = [['99 미만', -Infinity, 99], ['99~100', 99, 100], ['100~101', 100, 101], ['101 이상', 101, Infinity]]
 export const 구간찾기 = (s) => (s == null || !isFinite(s) ? -1 : 구간들.findIndex(([, lo, hi]) => s >= lo && s < hi))
+/* 🔎 G189 사정률 분포 칸 — 98.0~102.0 을 0.2 씩 20칸(밖은 양 끝 칸에 넣음) · 이름은 칸의 아래 끝 */
+export const 분포칸들 = Array.from({ length: 20 }, (_, i) => Math.round((98 + i * 0.2) * 10) / 10)
+export const 분포찾기 = (s) => (s == null || !isFinite(s) ? -1 : Math.max(0, Math.min(19, Math.floor((s - 98) / 0.2 + 1e-9))))
 export function 조합수(n, k) {
   n = Number(n) || 15; k = Number(k) || 4
   if (k < 1 || n <= k) return 0
@@ -115,7 +118,13 @@ export function 투찰자리(bno, rows, p50) {
   /* 🩹 G183 확보 예가는 «바로 아래 업체를 아는» 개찰만(몫잰) — 1순위 · 하한 아래로 실린 개찰은 대개 못 잼 */
   const 잰 = 건들.filter((x) => x.몫 != null)
   const 기대 = 잰.reduce((p, x) => p + x.몫, 0)
+  /* 🔎 G189 (2026-10-07) 사업자번호로 보기 — 비드스코어처럼 «평균 예가 합 · 확보 예가 합 · 사정률 분포» (더하기만 · 위 셈은 그대로) */
+  const 분칸 = (list) => { const c = 분포칸들.map(() => 0); for (const v of list) { const i = 분포찾기(v); if (i >= 0) c[i]++ } return c }
   return {
+    확보합: Math.round(잰.reduce((p, x) => p + x.확보, 0)),
+    평균합: Math.round(잰.reduce((p, x) => p + x.평균, 0)),
+    평균1순위: Math.round(건들.reduce((p, x) => p + 1 / Math.max(1, x.n), 0) * 100) / 100,
+    분포: { 내: 분칸(건들.map((x) => x.내s)), 일순: 분칸(건들.map((x) => x.일순s)) },
     잰개찰: 건들.length,
     몫잰: 잰.length,
     구간: 구간들.map(([k], i) => ({ k, 귀사: 귀[i], 전체: 전체[i], 일순: 일순[i] })),
