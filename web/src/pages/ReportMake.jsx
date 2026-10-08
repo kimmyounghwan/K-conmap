@@ -70,7 +70,10 @@ async function 받아오기() {
     const u = await f.ensureAnon()
     운영 = 운영 || isOp(u && u.uid)
     if (!운영) throw new Error('운영자 기기가 아닙니다')
-    return await 풀기(await st.getBytes(st.ref(st.getStorage(), OP_자리)))
+    /* 🩹 G203 — 저장소가 503 이면 SDK 가 2분까지 다시 묻습니다(기본값). 4초만 묻고 옛 자리로 넘어갑니다 */
+    const 창고 = st.getStorage()
+    창고.maxOperationRetryTime = 4000
+    return await 풀기(await st.getBytes(st.ref(창고, OP_자리)))
   } catch (e) {
     if (!운영) throw e
     const r = await fetch('/data/first_full.json', { cache: 'no-cache' })

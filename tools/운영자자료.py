@@ -28,6 +28,7 @@ import hashlib
 import json
 import os
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -52,7 +53,7 @@ def 줄수(raw):
         return -1
 
 
-def 토큰():
+def 토큰(범위="read_write"):
     raw = (os.environ.get("FIREBASE_SERVICE_ACCOUNT") or "").strip()
     if not raw:
         raise RuntimeError("FIREBASE_SERVICE_ACCOUNT 가 없습니다")
@@ -60,9 +61,40 @@ def 토큰():
     from google.oauth2 import service_account
     import google.auth.transport.requests as gr
     c = service_account.Credentials.from_service_account_info(
-        sa, scopes=["https://www.googleapis.com/auth/devstorage.read_write"])
+        sa, scopes=["https://www.googleapis.com/auth/devstorage." + 범위])
     c.refresh(gr.Request())
     return c.token
+
+
+# 🩹 G203 (2026-10-08) 올린 뒤 점검 — 저장소의 파일을 «주소창으로 열면» 받아지는데, 사이트 화면(다른 출처 · Origin 머리)에서
+#   받으면 503 이었습니다(32바이트 시험 파일도 같음 · 정보 읽기 · 올리기 · 규칙은 정상). 파이어베이스 안내:
+#   «브라우저에서 직접 받으려면 버킷에 CORS 를 설정해야 한다». → 우리 사이트 출처의 GET 만 허락하는 CORS 한 줄을 버킷에 둡니다.
+#   읽기 권한은 그대로 저장소 규칙이 정합니다(CORS 는 «어느 사이트 화면이 응답을 읽을 수 있나» 만). 이미 있으면 안 건드림.
+CORS_출처 = ["https://k-conmap.com", "https://www.k-conmap.com", "https://k-conmap.web.app", "https://k-conmap.firebaseapp.com"]
+CORS_줄 = {"origin": CORS_출처, "method": ["GET", "HEAD"],
+          "responseHeader": ["Content-Type", "Content-Length", "Content-Encoding", "Content-Disposition", "Cache-Control",
+                             "Authorization", "X-Firebase-Storage-Version", "X-Firebase-GMPID", "X-Firebase-AppCheck"],
+          "maxAgeSeconds": 3600}
+
+
+def CORS있나(목록):
+    for c in 목록 or []:
+        if set(CORS_출처) <= set(c.get("origin") or []) and "GET" in (c.get("method") or []):
+            return True
+    return False
+
+
+def CORS맞춤(tok):
+    """버킷 CORS 에 우리 출처 GET 이 없으면 더함 — 돌려줌: '있음' | '더함' (실패면 예외)"""
+    url = "%s/storage/v1/b/%s?fields=cors" % (API, BUCKET)
+    지금 = (요청(url, tok) or {}).get("cors") or []
+    if CORS있나(지금):
+        return "있음"
+    새 = 지금 + [CORS_줄]
+    r = 요청(url, tok, data=json.dumps({"cors": 새}).encode("utf-8"), 머리={"Content-Type": "application/json"}, 방법="PATCH")
+    if not CORS있나((r or {}).get("cors")):
+        raise RuntimeError("CORS 를 넣었는데 돌아온 값에 없음")
+    return "더함"
 
 
 def 요청(url, tok, data=None, 머리=None, 방법=None):
@@ -96,7 +128,11 @@ def 올리기(gz, tok, 줄):
     return 요청(url, tok, data=몸, 머리={"Content-Type": "multipart/related; boundary=" + 경계})
 
 
-def main(argv=None, 토큰함수=토큰, 지금함수=지금것, 올림함수=올리기):
+def _CORS():
+    return CORS맞춤(토큰("full_control"))
+
+
+def main(argv=None, 토큰함수=토큰, 지금함수=지금것, 올림함수=올리기, CORS함수=_CORS):
     a = list(sys.argv[1:] if argv is None else argv)
     dry = "--dry" in a
     a = [x for x in a if x != "--dry"]
@@ -117,6 +153,12 @@ def main(argv=None, 토큰함수=토큰, 지금함수=지금것, 올림함수=�
     if dry:
         print("(--dry) 올리지 않음")
         return 0
+    if CORS함수 is not None:
+        try:
+            print("▶ 버킷 CORS(사이트 화면에서 받기) — %s" % CORS함수())
+        except Exception as e:
+            code = getattr(e, "code", None)
+            print("⚠️ 버킷 CORS 를 못 봄/못 넣음 — %s%s (사이트에 실은 것으로 받으니 성적표는 됨)" % (type(e).__name__, " HTTP %s" % code if code else ""))
     try:
         tok = 토큰함수()
         전 = 지금함수(tok)

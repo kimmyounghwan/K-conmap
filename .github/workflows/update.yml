@@ -229,13 +229,15 @@ jobs:
           PYTHONUTF8: '1'
         run: |
           python -m pip install --quiet google-auth
-          if python tools/운영자자료.py data/store/first.json; then
-            echo "▶ 사이트에는 안 실음"
-          else
-            echo "⚠️ 운영자 자리에 못 올림 — 이번 회차만 예전처럼 사이트에 실음"
-            mkdir -p web/dist/data
-            cp data/store/first.json web/dist/data/first_full.json
-          fi
+          python tools/운영자자료.py data/store/first.json || echo "⚠️ 운영자 자리에 못 올림"
+          # 🩹 G203 (2026-10-08) 올린 뒤 점검 — 파이어베이스 저장소가 «받기» 를 모두 503 으로 거절(올리기 · 정보 읽기 · 규칙은 정상 ·
+          #   32바이트 시험 파일도 같음 · 상태판 장애 없음). 성적표 만들기가 멈춰 소장님 「1번 하고 2번 이어서 고쳐줘」 →
+          #   받기가 고쳐질 때까지 예전처럼 사이트에도 싣습니다(소장님 브라우저가 저장소에서 못 받으면 여기서 받음).
+          #   원인: 버킷에 CORS 가 없어 «사이트 화면에서» 받으면 503(주소창으로 열면 받아짐) — tools/운영자자료.py 가 우리 출처 GET 만 허락하는
+          #   CORS 한 줄을 버킷에 넣어 봅니다(서비스 계정에 권한이 없으면 기록에 «⚠️ 버킷 CORS 를 못 …»).
+          #   ⚠️ 성적표 화면이 저장소에서 받는 것을 확인하면 아래 두 줄을 지우십시오(그때부터 다시 «운영자만»).
+          mkdir -p web/dist/data
+          cp data/store/first.json web/dist/data/first_full.json
 
       # 📦 G184 (2026-10-07) 소장님 「비용이 왜 이렇게 들어가지? 무료로 할 수 있는 방법 없어?」 → 「1, 2번으로 무료로 만들어 줘」
       #   확보 예가(바로투찰 미리 보기 · 업체 페이지)가 위 개찰 자료 통째(받는 크기 8.4MB)를 받지 않게,

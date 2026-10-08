@@ -25,6 +25,7 @@ def 확인(이름, 참, 더=""):
 
 
 def 돌려(argv, **k):
+    k.setdefault("CORS함수", None)
     b = io.StringIO()
     with redirect_stdout(b):
         r = M.main(argv, **k)
@@ -95,6 +96,35 @@ url, data, 머리 = 받.got
 확인("내용 종류 application/gzip · 캐시 안 함", b'"contentType": "application/gzip"' in data and b"no-cache" in data)
 확인("압축 바이트가 몸 안에 그대로", g1 in data)
 확인("토큰은 주소에 없음", "TOKENZZ" not in url, url)
+
+# ⑥ 🩹 G203 버킷 CORS — 우리 출처 GET 이 없으면 더하고, 다른 줄은 그대로 · 있으면 안 건드림
+불린 = []
+def 가짜요청2(url, tok, data=None, 머리=None, 방법=None):
+    불린.append((방법 or ("POST" if data is not None else "GET"), url, data))
+    if 방법 == "PATCH":
+        return json.loads(data.decode("utf-8"))
+    return {"cors": 지금cors}
+원래 = M.요청; M.요청 = 가짜요청2
+try:
+    지금cors = [{"origin": ["https://다른.example"], "method": ["PUT"]}]
+    r = M.CORS맞춤("T")
+    patch = [x for x in 불린 if x[0] == "PATCH"]
+    몸 = json.loads(patch[0][2].decode("utf-8"))["cors"] if patch else []
+    확인("CORS 없으면 더함 · 다른 줄 그대로", r == "더함" and len(몸) == 2 and 몸[0]["origin"] == ["https://다른.example"] and "https://k-conmap.com" in 몸[1]["origin"], 몸)
+    확인("CORS 는 GET · HEAD 만(쓰기 없음)", 몸 and set(몸[1]["method"]) == {"GET", "HEAD"}, 몸)
+    확인("CORS 주소에 토큰 없음", all("T" not in x[1].split("?")[0][-3:] for x in 불린))
+    불린.clear(); 지금cors = [M.CORS_줄]
+    r = M.CORS맞춤("T")
+    확인("이미 있으면 안 건드림(PATCH 0)", r == "있음" and not [x for x in 불린 if x[0] == "PATCH"], 불린)
+finally:
+    M.요청 = 원래
+def 터짐():
+    raise urllib.error.HTTPError("https://x", 403, "Forbidden", {}, None)
+올린.clear()
+r, out = 돌려([p], 토큰함수=가짜토큰, 지금함수=lambda t: None, 올림함수=가짜올림, CORS함수=터짐)
+확인("CORS 권한 없어도 자료는 올림 · 0", r == 0 and len(올린) == 1 and "CORS 를 못" in out and "HTTP 403" in out, out)
+r, out = 돌려([p], 토큰함수=가짜토큰, 지금함수=lambda t: None, 올림함수=가짜올림, CORS함수=lambda: "있음")
+확인("CORS 있으면 한 줄 «있음»", "버킷 CORS(사이트 화면에서 받기) — 있음" in out, out)
 
 print("\n실패", 실패)
 sys.exit(1 if 실패 else 0)

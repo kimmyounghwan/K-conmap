@@ -4990,3 +4990,10 @@ canonical 이중 인코딩 · 개찰 시각 문구 · 성적표 칸 · 등수 �
 - update.yml «화면 검사»(막는 검사 · 수집 «전») 의 tools/checklabels.py 가 web/src/pages/SvcBoard.jsx 의 `<span>낙찰금액</span><b>{won(r.sAmt)}</b>`(G194)를 «이름표와 다른 금액» 으로 잡아 exit 1 → 올렸다면 **공사 수집 · 배포까지 매 회차 멈췄음**. push bat · dryrun 은 checkimports · checkops 만 돌려 못 봤음.
 - sAmt = 조달청 sucsfbidAmt(낙찰금액 · collect.py row_first) — 맞는 값. 그래서 checklabels 의 낙찰금액 «있어야» 에 sAmt 를 더하고 자가시험 두 줄(sAmt 통과 · base 잡음)을 넣음(맞음 11 · 틀림 0).
 - ⚠️ 올리기 bat · dryrun 에 **checklabels 도** 돌림(update.yml «화면 검사» 셋과 같게). 저장소 규칙(G200)은 push bat 이 커밋 뒤 · push 전에 `firebase deploy --only storage`(실패하면 push 안 함).
+
+### 245. 🩹 성적표 재료 — 저장소 «받기» 503 → 사이트에도 다시 실음 + 버킷 CORS (G203 — 2026-10-08, 올린 뒤 점검 · 소장님 「1번 하고 2번 이어서 고쳐줘」)
+- 올린 뒤(15:06) 운영자 크롬으로 /report/make: 저장소 op/first_full.json.gz 받기가 503 → «⛔ 받지 못했습니다». 정보(메타) 읽기 200 · 올리기 200 · 규칙 정상 · 32바이트 시험 파일(user_forms/소장님번호/kcm_test_g202a.pdf · b.zip — 소장님이 콘솔에서 지우실 것)도 503. 그런데 **주소창으로 열면 받아짐**(PDF 보기 뜸) · 없는 파일은 404 글 → «사이트 화면(다른 출처 · Origin)에서 받을 때만» 막힘 = 버킷 CORS 없음(파이어베이스 안내: 브라우저에서 직접 받으려면 버킷 CORS 필요). 상태판 장애 없음.
+- 1번(되살리기): update.yml 이 저장소에 올리고 **사이트에도 늘 실음**(예전처럼). ReportMake 는 저장소를 4초만 묻고(SDK 기본은 503 에 2분까지 다시 물음 · maxOperationRetryTime) 옛 자리로.
+- 2번(고치기): tools/운영자자료.py 가 버킷 CORS 를 봐서 우리 출처(k-conmap.com · www · web.app · firebaseapp.com) GET · HEAD 줄이 없으면 더함(다른 줄은 그대로 · full_control 토큰). 서비스 계정에 권한이 없으면 기록 «⚠️ 버킷 CORS 를 못 …» — 그때는 소장님 계정(콘솔 · Cloud Shell)으로.
+- ⚠️ 성적표 화면이 저장소에서 받는 것을 확인하면 update.yml 의 «사이트에도 싣기» 두 줄을 지울 것(다시 운영자만 · 41MB 줄어듦). 맵톡 사진 · 파일 받기도 같은 CORS 로 풀림.
+- 시험 시험_운영자자료(24) · t203(13).
