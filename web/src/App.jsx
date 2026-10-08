@@ -12,18 +12,21 @@ import { 알림종, 알림띠 } from './알림종.jsx'
 import FirstBar from './FirstBar.jsx'
 import RefreshBtn from './Refresh.jsx'
 import Crumbs, { BackBtn } from './Crumbs.jsx'
-import { 화면조회줄, 방문자바닥 } from './lib/조회수.jsx'   /* 👁 G121 — 모든 화면 위 «이 화면 조회 N» · 👥 G172 방문자 오늘 · 어제 · 누적(바닥글만 — G197) */
+import { 화면조회줄 } from './lib/조회수.jsx'   /* 👁 G121 — 모든 화면 위 «이 화면 조회 N» · 👥 G172 방문자 바닥글은 G199 에서 뺌(바로투찰 지도에만) */
 import { use길지킴이 } from './lib/길기록.js'
 import { 쓴곳기록 } from './lib/마이쓴곳.js'   /* 🪪 G188 마이컨맵 «내 도구 · 서식» — 연 도구 · 서식을 이 브라우저에만 셈 */
 
 import { use떨굼막기 } from './끌어놓기.jsx'
 import 새판 from './새판.jsx'
 import 감사공지 from './감사공지.jsx'   /* 🙏 G116 감사 공지 띠 — ✕ 로 닫으면 다시 안 뜸 */
+import 종류띠, { 종류물음, use종류기억, use지금종류, 종류찾기 } from './종류띠.jsx'   /* 🏠 G194c 한 집 세 방 — 맨 위 [공사 | 용역 | 물품] 띠 · 아래 탭이 방을 따라감 */
 /* 탭에 적힌 주소가 아니어도 «이 탭의 식구» 면 불을 켭니다.
    예) /cad · /pdf 에 있어도 「도구」 탭이 켜집니다. */
 function alsoOn(t, path) {
   if (!t.also) return false
-  return t.also.some((p) => path === p || path.startsWith(p + '/') || (p === '/@' && path.startsWith('/@')))
+  /* 📐 G194 — «$» 로 끝나면 그 주소 «만»(아래 주소는 안 켬): 공고 탭은 /svc 에서만, 1순위 탭은 /svc/first 에서 */
+  return t.also.some((p) => (p.endsWith('$') ? path === p.slice(0, -1) || path === p.slice(0, -1) + '/live'
+    : path === p || path.startsWith(p + '/') || (p === '/@' && path.startsWith('/@'))))
 }
 
 const TABS = [
@@ -41,8 +44,9 @@ const TABS = [
        [게시판 2] 마이컨맵(옛 구인구직 자리 · G188)·맵톡
        [보조 2] 분석·도구 */
   { to: '/', ic: '💰', label: '바로투찰' },
-  { to: '/first', ic: '🏆', label: '1순위' },
-  { to: '/live', ic: '📋', label: '공고', also: ['/pre'] },   /* 📣 곧 나올 공사(/pre)도 공고 탭에 불 (2026-10-05 G135) */
+  /* 🏠 G194c — «1순위 · 공고» 두 탭은 지금 방(종류띠.jsx)을 따라갑니다: 용역 방이면 /svc/first · /svc (App 안에서 바꿔 끼움) */
+  { to: '/first', ic: '🏆', label: '1순위', also: ['/svc/first', '/goods/first'] },
+  { to: '/live', ic: '📋', label: '공고', also: ['/pre', '/svc$', '/goods$'] },   /* 📣 곧 나올 공사(/pre)도 공고 탭에 불 (2026-10-05 G135) */
   /* 📄🧰 2026-09-16 — 소장님: 「서식·도구를 하나의 탭으로 하고, 적산도 하나의 탭으로」
      서식과 도구를 한 탭으로 묶어 자리를 비우고 그 자리에 적산을 넣었습니다. 탭은 10개 그대로.
      ⚠️ /tools 와 /cad 주소는 살아 있습니다 — 서식 138장과 도구 13가지가
@@ -112,6 +116,12 @@ function 운영자띠() {
 
 export default function App() {
   const { pathname } = useLocation()
+  /* 🏠 G194c 지금 방 · 아래 탭 «1순위 · 공고» 를 그 방 주소로 */
+  use종류기억()
+  const 방 = 종류찾기(use지금종류())
+  /* 💰 G194d «바로투찰» 탭도 방을 따라감(용역 방 → /svc/calc) */
+  const 탭들 = TABS.map((t) => ({ ...t, key: t.to, to: t.to === '/first' ? 방.first : t.to === '/live' ? 방.live : t.to === '/' ? 방.calc : t.to }))
+  const 끝까지 = (to) => to === '/' || to === '/svc' || to === '/goods'
   /* 🧭 2026-09-27 — 「특히 뒤로가기 잘 되어 있나」: 옛 «주소가 바뀌면 맨 위로» 를 대신합니다.
      앞으로 가면 맨 위, 뒤로 오면 «보던 자리» (자료가 늦게 와도 기다렸다가). 칸마다 주소도 적어 둡니다 → Crumbs 의 «← 들어온 곳». lib/길기록.js */
   use길지킴이()
@@ -175,12 +185,16 @@ export default function App() {
           </div>
         </div>
       </header>
+      {/* 🏠 G194c 한 집 세 방 — 머리줄 바로 아래 [🏗 공사][📐 용역][📦 물품] · 셋 다 늘 보임
+          🩹 G198 머리줄 «밖» 으로 — 머리줄(위에 붙음)이 50→93px 로 커져 적산 도면판 · 노무비 되돌리기 등 «머리줄 아래 붙는 칸» 이 가려졌음.
+          이제 띠는 화면 맨 위에만 있고 내리면 같이 올라갑니다(머리줄 높이 그대로). */}
+      <종류띠 />
 
       {/* 넓은 화면에서는 하단 탭 대신 상단 가로 메뉴 */}
       <div className="railwrap">
         <nav className="railnav">
-          {TABS.map((t) => (
-            <NavLink key={t.to} to={t.to} end={t.to === '/'} title={t.pay ? '유료' : undefined}
+          {탭들.map((t) => (
+            <NavLink key={t.key} to={t.to} end={끝까지(t.to)} title={t.pay ? '유료' : undefined}
               className={({ isActive }) =>
                 [(isActive || alsoOn(t, pathname)) ? 'on' : '',
                  t.pay ? 'pay' : ''].join(' ').trim()}>
@@ -206,6 +220,8 @@ export default function App() {
         <운영자띠 />
         {/* 🧭 처음 온 사람에게 딱 한 번 — «보는 방법» 으로 가는 길 (FirstBar.jsx) */}
         <FirstBar />
+        {/* 🏠 G194c 처음 온 분께 한 번 «어떤 일을 하세요?» — 다른 조르는 띠가 떠 있으면 비켜 줌 */}
+        <종류물음 />
         {/* 💬 서식·캐드를 받은 «직후» 에만, 이레에 한 번 (AskComment.jsx) */}
         <AskStrip />
         {/* 🧭 길 — 안쪽 화면에 「← 어디로 돌아가나」 를 붙입니다 (Crumbs.jsx).
@@ -224,8 +240,9 @@ export default function App() {
             <a href="/terms">이용약관</a><span className="dot">·</span>
             <a href="/contact">문의</a>
           </div>
-          {/* 👥 G172 (2026-10-06) 소장님 「일 접속자 공개하는 사이트 많아」 → 「해줘」 — 방문자 오늘 · 어제 · 누적 (lib/조회수.jsx) */}
-          <방문자바닥 />
+          {/* 👥 G172 방문자 «오늘 · 어제 · 누적» 바닥글 — 🩹 G199 (2026-10-08) 뺌. 소장님 「방문자 수 빼줘. 지도위에만 뜨게 하자」 ·
+              「바로입찰 지도 아래 뜨는 방문자수는 유지」 → 방문자 수는 바로투찰 첫 화면 이용자 지도(tools/이용자지도.jsx)에만.
+              다시 넣을 땐 lib/조회수.jsx 의 방문자바닥 을 여기 한 줄로. */}
           {/* 📚 실측으로 쓴 글 — 하단 탭을 늘리지 않고 여기서 들어갑니다 (2026-09-06) */}
           <div style={{ marginTop: 6 }}>
             {/* 🧭 2026-09-27 — <a> 였을 때는 사이트를 통째로 다시 불러와 느리고 보던 자리를 잃었습니다 → Link */}
@@ -255,8 +272,8 @@ export default function App() {
       </main>
 
       <nav className="tabbar">
-        {TABS.map((t) => (
-          <NavLink key={t.to} to={t.to} end={t.to === '/'} title={t.pay ? '유료' : undefined}
+        {탭들.map((t) => (
+          <NavLink key={t.key} to={t.to} end={끝까지(t.to)} title={t.pay ? '유료' : undefined}
             className={({ isActive }) =>
               [(isActive || alsoOn(t, pathname)) ? 'on' : '',
                t.pay ? 'pay' : ''].join(' ').trim()}>

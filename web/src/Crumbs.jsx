@@ -47,6 +47,11 @@ const NAME = {
   '/admin': '관리자',
   '/notice': '공고',
   '/pre': '곧 나올 공사',
+  '/svc': '용역 공고',
+  '/goods': '물품 공고',
+  /* 🩹 G198 뒤로가기 이름(«← 물품 1순위») */
+  '/svc/first': '용역 1순위', '/svc/calc': '용역 바로투찰',
+  '/goods/first': '물품 1순위', '/goods/calc': '물품 바로투찰',
 }
 
 /* 두 칸짜리 안쪽 화면의 «제 이름» — 없으면 주소 조각을 그대로 씁니다. */
@@ -88,14 +93,18 @@ const PARENT = {
   '/daily': '/first',
   '/lic': '/', '/guide': '/', '/how': '/',
   '/pre': '/live',
+  /* 🩹 G198 소장님 「용역, 물품 에서 클릭해서 들어가면 뒤로가야 하는데 뒤로가기 버튼이 없어?」 —
+     계산기를 주소(카톡 링크 · 즐겨찾기)로 바로 열어도 맨 위 «←» 가 그 방 공고로 */
+  '/svc/calc': '/svc', '/goods/calc': '/goods',
 }
-const 탭이름 = { '/tools': '도구', '/forms': '서식', '/naeyeok': '내역서', '/first': '1순위', '/': '바로투찰' }
+const 탭이름 = { '/tools': '도구', '/forms': '서식', '/naeyeok': '내역서', '/first': '1순위', '/': '바로투찰', '/svc': '용역 공고', '/goods': '물품 공고' }
 /* 영문 주소 조각(siljeong-bogo, a-value …)은 사람이 읽는 이름이 아닙니다 — 길에 그리지 않습니다.
    화면 제목(h1)이 바로 아래에 있습니다. */
 const 영문조각 = (x) => /^[a-z0-9]+(-[a-z0-9]+)*$/.test(x)
 
 /* 탭(또는 큰 자리)에 이미 있는 주소 — 길을 안 그립니다. */
 const TOP = new Set(['/', '/calc', '/first', '/live', '/analysis', '/jobs', '/my', '/forms',
+  '/svc', '/svc/live', '/svc/first', '/svc/calc', '/goods', '/goods/live', '/goods/first', '/goods/calc',   /* 🏠 G194c · 💰 G194d 세 방의 탭 자리 */
   '/change', '/naeyeok', '/jeoksan', '/qna', '/how', '/guide', '/tools', '/cad',
   '/daily', '/safety', '/shareone', '/report', '/lic', '/pdf', '/admin'])
 

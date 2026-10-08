@@ -281,8 +281,8 @@ def 조회묶기(rows):
     return out
 
 
-첫마디들 = {"agency", "analysis", "cad", "calc", "change", "corp", "daily", "ext", "first", "forms", "guide", "how", "jeoksan", "jobs",
-           "lic", "live", "naeyeok", "pdf", "qna", "report", "safety", "shareone", "tools", "about", "privacy", "terms", "contact"}
+첫마디들 = {"agency", "analysis", "cad", "calc", "change", "corp", "daily", "ext", "first", "forms", "goods", "guide", "how", "jeoksan", "jobs",
+           "lic", "live", "naeyeok", "pdf", "qna", "report", "safety", "shareone", "svc", "tools", "about", "privacy", "terms", "contact"}
 공고모양 = re.compile(r"^[A-Za-z0-9-]{6,30}$")
 
 

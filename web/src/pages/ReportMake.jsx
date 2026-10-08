@@ -10,9 +10,9 @@
    ■ 어떻게 «다른 이용자는 못 쓰나»
      ① 문 앞 이름표 — 운영자 브라우저(lib/운영자.js 의 OPS)에서만 열립니다.
      ② **진짜 자물쇠는 자료입니다.** 성적표는 개찰마다 «투찰업체 30곳» 이 다 들어 있는
-        data/store/first.json 이 있어야 만들어집니다. 그 파일은 사이트에 올라가 있지
-        않습니다 (사이트의 /data/first.json 은 최근 300건 요약본입니다).
-        소장님 컴퓨터에 있는 그 파일을 **고르셔야** 성적표가 나옵니다.
+        data/store/first.json 이 있어야 만들어집니다.
+        🔒 G200 (2026-10-08) 그 파일은 파이어베이스 저장소 op/ 에만 있고, 저장소 규칙이 소장님 기기만 읽게 합니다
+        (9/19 ~ 10/8 에는 사이트 /data/first_full.json 에 공개로 실렸었습니다 — 아래 받아오기 설명).
         그러니 이 주소를 알아내도 남이 쓸 수 있는 것이 없습니다.
      ⚠️ 자료는 **서버로 올라가지 않습니다.** 브라우저 안에서만 읽습니다.
 
@@ -44,6 +44,40 @@ const 날 = (s) => String(s || '').slice(0, 10)
 
 /* 브라우저가 적어 둔 번호로 먼저 통과시켰을 때 쓰는 표식입니다 */
 const OP_LOCAL = '«브라우저가 적어 둔 번호»'
+
+/* 🔒 G200 (2026-10-08) 소장님 「운영자만 받게하기로 해주고」
+ *   개찰 자료 통째(원본 41MB)를 더는 사이트(/data/first_full.json)에 싣지 않습니다 — 주소만 알면 누구나 받을 수 있었고,
+ *   배포 한 벌마다 사이트 저장 용량을 먹었습니다. 이제 Actions(tools/운영자자료.py)가 파이어베이스 저장소
+ *   op/first_full.json.gz 에 압축해 올리고, 저장소 규칙(web/storage.rules)이 «소장님 기기 번호» 만 읽게 합니다.
+ *   ① 저장소 — 익명 로그인(이 기기 번호)으로 받아 브라우저에서 풂(gzip)
+ *   ② 못 받으면 옛 자리(/data/first_full.json) — Actions 가 저장소에 못 올린 회차에만 실립니다(그 회차 성적표가 멈추지 않게)
+ *   둘 다 안 되면 위에서 «⛔ 받지 못했습니다 — 직접 골라 주십시오» (파일 고르기 뒷길 그대로). */
+const OP_자리 = 'op/first_full.json.gz'
+async function 풀기(buf) {
+  const u8 = new Uint8Array(buf)
+  if (u8[0] === 0x1f && u8[1] === 0x8b) {   /* gzip 그대로 왔으면 풂 — 저장소가 이미 풀어 보냈으면 그냥 읽음 */
+    if (typeof DecompressionStream === 'undefined') throw new Error('이 브라우저는 압축을 못 풉니다 — 크롬으로 열어 주십시오')
+    return new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip'))).json()
+  }
+  return JSON.parse(new TextDecoder().decode(u8))
+}
+async function 받아오기() {
+  /* 운영자 기기가 아니면 아무 데서도 받지 않습니다(전에는 이 주소를 연 누구나 41MB 를 받기 시작했습니다) */
+  let 운영 = false
+  try { 운영 = !!(await 나운영자()) } catch (e) { /* 모름 */ }
+  try {
+    const [st, f] = await Promise.all([import('firebase/storage'), import('../firebase.js')])
+    const u = await f.ensureAnon()
+    운영 = 운영 || isOp(u && u.uid)
+    if (!운영) throw new Error('운영자 기기가 아닙니다')
+    return await 풀기(await st.getBytes(st.ref(st.getStorage(), OP_자리)))
+  } catch (e) {
+    if (!운영) throw e
+    const r = await fetch('/data/first_full.json', { cache: 'no-cache' })
+    if (!r.ok) throw new Error('HTTP ' + r.status)
+    return r.json()
+  }
+}
 
 export default function ReportMake() {
   const [uid, setUid] = useState(undefined)        // undefined=아직 · ''=못 물어봄
@@ -183,6 +217,7 @@ export default function ReportMake() {
    *
    * ■ 이제
    *   깃허브가 배포할 때 개찰 자료를 사이트에 같이 싣습니다(/data/first_full.json).
+   *   🔒 G200 (2026-10-08) → 사이트가 아니라 «운영자만 받는 자리»(저장소 op/)에 올립니다 — 위 받아오기.
    *   이 화면은 열자마자 그것을 받아 옵니다. **고르실 것이 없습니다.**
    *   파일 고르기는 «손에 더 새 자료가 있을 때» 쓰는 뒷길로만 남겨 둡니다.
    *   그래도 자료가 없으면 **PDF 내려받기를 막습니다** — 허접한 종이가 나가지 않게. */
@@ -200,12 +235,10 @@ export default function ReportMake() {
         } catch { /* 안 되면 ② 로 */ }
       }
       if (!살았나) return
-      /* ② 사이트에 실린 개찰 자료 — 아무것도 안 하셔도 됩니다 */
+      /* ② 운영자만 받는 자리의 개찰 자료 — 아무것도 안 하셔도 됩니다 (🔒 G200 — 아래 받아오기) */
       set읽는중('개찰 자료 받는 중…')
       try {
-        const r = await fetch('/data/first_full.json', { cache: 'no-cache' })
-        if (!r.ok) throw new Error('HTTP ' + r.status)
-        const j = await r.json()
+        const j = await 받아오기()
         const rows = Object.values(j.con || {})
         if (!rows.length) throw new Error('개찰이 없습니다')
         if (!살았나) return
@@ -213,7 +246,7 @@ export default function ReportMake() {
         set자료({ rows, 목록: 업체목록(rows), 처음: dts[0], 끝: dts[dts.length - 1] })
         set읽는중('')
       } catch (e) {
-        if (살았나) set읽는중('⛔ 사이트에서 개찰 자료를 받지 못했습니다 — 아래에서 직접 골라 주십시오.')
+        if (살았나) set읽는중('⛔ 개찰 자료를 받지 못했습니다 — 아래에서 직접 골라 주십시오.')
       }
     })()
     return () => { 살았나 = false }

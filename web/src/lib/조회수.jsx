@@ -16,8 +16,8 @@ import { 열쇠꼴, 봇, 세기 } from './받은수.jsx'
 import { 지역주소, 방문수, 누적시작, 날글 } from './이용자지도.js'
 
 const DB = 'https://k-conmap-default-rtdb.firebaseio.com'
-export const 첫마디들 = new Set(['agency', 'analysis', 'cad', 'calc', 'change', 'corp', 'daily', 'ext', 'first', 'forms', 'guide', 'how', 'jeoksan', 'jobs',
-  'lic', 'live', 'naeyeok', 'pdf', 'qna', 'report', 'safety', 'shareone', 'tools', 'about', 'privacy', 'terms', 'contact'])
+export const 첫마디들 = new Set(['agency', 'analysis', 'cad', 'calc', 'change', 'corp', 'daily', 'ext', 'first', 'forms', 'goods', 'guide', 'how', 'jeoksan', 'jobs',
+  'lic', 'live', 'naeyeok', 'pdf', 'qna', 'report', 'safety', 'shareone', 'svc', 'tools', 'about', 'privacy', 'terms', 'contact'])
 const 공고모양 = /^[A-Za-z0-9-]{6,30}$/
 const 마디풀기 = (path) => String(path || '/').split('?')[0].split('#')[0].split('/').filter(Boolean)
   .map((x) => { try { return decodeURIComponent(x) } catch (e) { return x } })
@@ -120,7 +120,7 @@ function 방문글({ v, 길게 }) {
   칸.push(<span key="a">누적 <b>{쉼표(v.누적)}</b>명</span>)
   return 칸.flatMap((x, i) => (i ? [<span key={'d' + i} className="vsdot">·</span>, x] : [x]))
 }
-/** 바닥글 한 줄 — App.jsx footer */
+/** 바닥글 한 줄 — 🩹 G199 (2026-10-08) App.jsx 에서 뺌(소장님 「방문자 수 빼줘. 지도위에만」) · 지금은 아무 데서도 안 씀(다시 쓸 때를 위해 남김) */
 export function 방문자바닥() {
   const v = use방문수()
   if (!v) return null

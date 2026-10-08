@@ -7080,3 +7080,73 @@ a.mc-key-in:hover { border-color: var(--accent-line); background: var(--accent-s
 .mc-guide-end { margin-top: 12px; padding: 14px 16px; border-radius: 14px; background: var(--good-soft); border: 1px solid color-mix(in srgb, var(--good) 30%, transparent); display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 .mc-guide-end b { font-size: 14.5px; color: var(--text); }
 .mc-guide-end p { margin: 0; font-size: 13px; line-height: 1.75; color: var(--text-2); }
+
+/* 🏠 G194c (2026-10-08) 한 집 세 방 — 머리줄 아래 «종류 띠» [🏗 공사][📐 용역][📦 물품] (종류띠.jsx)
+   소장님 「위 쪽에도 아래에도 1순위, 공고가 있잖아」 · 「모르는 사용자는」 → 셋 다 늘 보이게 · 지금 방만 색 채움
+   색: 공사 파랑 · 용역 초록 · 물품 주황 — 머리줄(늘 짙은 남색) 위라 밝은/어두운 화면 같음 */
+.kindstrip { background: var(--bar); border-bottom: 1px solid var(--bar-line); padding-top: 8px; }   /* 🩹 G198 머리줄 밖(위에 안 붙음) — 머리줄과 같은 바탕 */
+.kindstrip-in { max-width: var(--maxw); margin: 0 auto; padding: 0 14px 8px; display: flex; gap: 6px; }
+.ks { flex: 1 1 0; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 5px; height: 34px; padding: 0 6px;
+  border-radius: 999px; border: 1.5px solid rgba(255,255,255,.22); background: transparent; font: inherit; font-size: 14px; font-weight: 800;
+  text-decoration: none; white-space: nowrap; cursor: pointer; transition: background .15s, border-color .15s; }
+.ks .ks-ic { font-size: 15px; line-height: 1; }
+.ks-con { color: #93c5fd; } .ks-svc { color: #6ee7b7; } .ks-goods { color: #fdba74; }
+.ks:hover { border-color: rgba(255,255,255,.45); }
+.ks.on { color: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.25); }
+.ks-con.on { background: #2563eb; border-color: #2563eb; }
+.ks-svc.on { background: #059669; border-color: #059669; }
+.ks-goods.on { background: #ea580c; border-color: #ea580c; }
+@media (min-width: 900px) { .kindstrip-in { justify-content: flex-start; } .ks { flex: 0 0 132px; } }
+/* 처음 온 분께 한 번 «어떤 일을 하세요?» */
+.kindask { margin: 0 0 10px; padding: 11px 13px; border-radius: 10px; background: var(--accent-soft); border: 1px solid var(--accent-line);
+  border-left: 4px solid var(--accent); color: var(--text); }
+.kindask-t { font-size: 13.5px; line-height: 1.6; margin-bottom: 8px; }
+.kindask-b { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.kindask .ks { flex: 1 1 0; height: 36px; border-color: var(--line); background: var(--surface); }
+.kindask .ks-con { color: #1d4ed8; } .kindask .ks-svc { color: #047857; } .kindask .ks-goods { color: #c2410c; }
+.kindask-x { flex: 0 0 auto; background: none; border: 0; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; padding: 6px 4px; text-decoration: underline; }
+/* 카드 이름표 — 방 색 */
+.badge.kd-svc { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
+.badge.kd-goods { background: #ffedd5; color: #9a3412; border-color: #fed7aa; }
+@media (prefers-color-scheme: dark) {
+  .kindask .ks-con { color: #93c5fd; } .kindask .ks-svc { color: #6ee7b7; } .kindask .ks-goods { color: #fdba74; }
+  .badge.kd-svc { background: rgba(5,150,105,.22); color: #6ee7b7; border-color: rgba(110,231,183,.35); }
+  .badge.kd-goods { background: rgba(234,88,12,.22); color: #fdba74; border-color: rgba(253,186,116,.35); }
+}
+
+/* 💰 G194d (2026-10-08) 용역 · 물품 바로투찰 — 카드 단추 · 계산기(SvcCalc.jsx) */
+.sv-baro { width: auto; white-space: nowrap; background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 800; }
+.sv-baro.mini { padding: 4px 10px; font-size: 12.5px; min-height: 0; }
+.sv-why { opacity: .85; }
+.sv-baroline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 8px; }
+.sv-noline { margin: 0 0 8px; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line-soft); }
+.sc-head .sc-name { display: block; font-size: 15px; line-height: 1.45; }
+.sc-head .sc-sub { font-size: 12.5px; margin-top: 3px; }
+.sc-head .sc-links { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.sc-f { display: block; font-size: 12.5px; color: var(--text-2); margin-top: 8px; }
+.sc-f input { display: block; width: 100%; margin-top: 4px; font-size: 16px; }
+.sc-chips { display: flex; gap: 6px; margin-top: 4px; }
+.sc-no { border-left: 4px solid var(--muted); }
+.sc-hero .sc-ref { margin-top: 10px; font-size: 12px; opacity: .9; }
+.sc-q { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.sc-qb { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 8px 4px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.sc-qb b { font-size: 13px; } .sc-qb span { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; } .sc-qb i { font-style: normal; font-size: 11px; color: var(--muted); }
+.sc-qb.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.sc-mine { margin-top: 8px; padding: 8px 10px; border-radius: 8px; font-size: 13px; line-height: 1.55; }
+.sc-mine.ok { background: rgba(16,185,129,.12); } .sc-mine.warn { background: rgba(239,68,68,.12); }
+.sc-tbl { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.sc-tbl th, .sc-tbl td { padding: 5px 6px; border-bottom: 1px solid var(--line-soft); text-align: right; }
+.sc-tbl th:first-child, .sc-tbl td:first-child { text-align: center; }
+.sc-tbl tr.ok td { background: rgba(16,185,129,.10); }
+.sc-why summary { cursor: pointer; list-style: none; }
+.sc-why ol { margin: 8px 0; padding-left: 20px; font-size: 13.5px; line-height: 1.75; color: var(--text-2); }
+.sc-why ol b { color: var(--text); }
+.sc-list { display: flex; flex-direction: column; gap: 6px; }
+.sc-item { display: flex; flex-direction: column; gap: 2px; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); text-decoration: none; color: var(--text); }
+.sc-item b { font-size: 13.5px; line-height: 1.45; } .sc-item span { font-size: 12px; }
+@media (max-width: 380px) { .sc-q { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* 🩹 G198 용역 · 물품 방에서 연 분석 — «준비 중» 한 줄 */
+.an-soon { margin: 0 0 10px; border-left: 4px solid var(--accent); }
+.an-soon-svc { border-left-color: #059669; } .an-soon-goods { border-left-color: #ea580c; }
+.an-soon a { color: var(--accent); text-decoration: underline; font-weight: 700; }

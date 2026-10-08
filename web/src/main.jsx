@@ -94,6 +94,9 @@ const JeoksanAuto = lazyPage(() => import('./pages/JeoksanAuto.jsx'))
 const Magam = lazyPage(() => import('./pages/Magam.jsx'))
 /* 🏗 2026-09-30 나라장터 밖 공고(LH · 수자원 · 국방 · 아파트 · 민간) — extbids.py 가 굽는 /data/ext/list.json */
 const ExtBoard = lazyPage(() => import('./pages/ExtBoard.jsx'))
+/* 📐📦 G194 (2026-10-07) 용역 · 물품 공고 · 1순위 — svc.py 가 굽는 board/svc-* · goods-* · 설계 docs/용역_설계_261007.md */
+const SvcBoard = lazyPage(() => import('./pages/SvcBoard.jsx'))
+const SvcCalc = lazyPage(() => import('./pages/SvcCalc.jsx'))   /* 💰 G194d 용역 · 물품 바로투찰 */
 /* 🔒 적산 실험실 — 2026-09-16. 잠겨 있고, 어디에서도 링크하지 않습니다.
    sitemap·prerender 에도 «넣지 않습니다» — 주소를 아는 사람만 들어옵니다.
    ⚠️ 잠금은 «보안이 아닙니다» (lib/gate.js 주석을 보십시오). */
@@ -179,6 +182,14 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/first" element={<FirstBoard />} />
           <Route path="/live" element={<LiveBoard />} />
           <Route path="/ext" element={<Suspense fallback={<Loading />}><ExtBoard /></Suspense>} />
+          <Route path="/svc" element={<Suspense fallback={<Loading />}><SvcBoard key="svc-live" kind="svc" which="live" /></Suspense>} />
+          <Route path="/svc/live" element={<Suspense fallback={<Loading />}><SvcBoard key="svc-live" kind="svc" which="live" /></Suspense>} />
+          <Route path="/svc/first" element={<Suspense fallback={<Loading />}><SvcBoard key="svc-first" kind="svc" which="first" /></Suspense>} />
+          <Route path="/svc/calc" element={<Suspense fallback={<Loading />}><SvcCalc key="svc-calc" kind="svc" /></Suspense>} />
+          <Route path="/goods" element={<Suspense fallback={<Loading />}><SvcBoard key="goods-live" kind="goods" which="live" /></Suspense>} />
+          <Route path="/goods/live" element={<Suspense fallback={<Loading />}><SvcBoard key="goods-live" kind="goods" which="live" /></Suspense>} />
+          <Route path="/goods/first" element={<Suspense fallback={<Loading />}><SvcBoard key="goods-first" kind="goods" which="first" /></Suspense>} />
+          <Route path="/goods/calc" element={<Suspense fallback={<Loading />}><SvcCalc key="goods-calc" kind="goods" /></Suspense>} />
           <Route path="/pre" element={<Suspense fallback={<Loading />}><Pre /></Suspense>} />
           <Route path="/analysis" element={<Analysis />} />
           <Route path="/jobs" element={<Suspense fallback={<Loading />}><Jobs /></Suspense>} />

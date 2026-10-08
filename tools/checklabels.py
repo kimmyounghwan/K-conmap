@@ -52,7 +52,7 @@ SRC = os.path.join(ROOT, "web", "src")
     "추정가격": (["estOf", "est", "estimate", "estPrice"], ["budget"]),
     "기초금액": (["base", "bssamt"],                        ["budget", "est"]),
     "배정예산": (["budget"],                                []),
-    "낙찰금액": (["amt", "win", "price", "bid"],            ["budget", "base"]),
+    "낙찰금액": (["amt", "win", "price", "bid", "sAmt"],    ["budget", "base"]),   # 🩹 G202 sAmt = 조달청 sucsfbidAmt(낙찰금액 · collect.py row_first) — 용역 · 물품 1순위(SvcBoard)가 씀
 }
 # 「추정가격/배정예산」처럼 «모르면 이름을 바꾸는» 짝 — 값에 둘 다 있어야 맞습니다
 갈아끼움 = {("추정가격", "배정예산"): ["estOf", "budget"]}
@@ -162,6 +162,10 @@ def 자가시험():
          False, "모르면 이름을 바꾸는 짝 — 맞게 쓴 것"),
         ("<span>{estOf(r) > 0 ? '추정가격' : '배정예산'}</span><b>{won(r.budget)}</b>",
          True,  "이름은 갈아끼우는데 값은 늘 배정예산 — 반쪽짜리"),
+        ("<span>낙찰금액</span><b>{won(r.sAmt)}</b>",
+         False, "낙찰금액 = sAmt(sucsfbidAmt) — 맞게 쓴 것 (G202)"),
+        ("<span>낙찰금액</span><b>{won(r.base)}</b>",
+         True,  "낙찰금액이라 적고 기초금액을 찍음"),
     ]
     ok = bad = 0
     print("자가시험 — 일부러 틀린 것을 넣어 봅니다")

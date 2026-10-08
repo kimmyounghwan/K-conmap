@@ -7,17 +7,36 @@ import { searchCorp } from '../lib/data.js'
 import { AgencyPicker, Bars, Months, Tile, Empty } from '../components.jsx'
 import { wonShort, pct, num, dateFull, normCorp } from '../lib/fmt.js'
 import 기관견본줄 from '../기관견본.jsx'
+import { use지금종류, 종류찾기 } from '../종류띠.jsx'   /* 🩹 G198 용역 · 물품 방에서 연 분석 → «준비 중» 안내 */
+import { 세기 as 분석세기 } from '../lib/받은수.jsx'
+
+/* 🩹 G198 (2026-10-08) 소장님 「1번만 하고, 휴일에 작업을 하자」 — 용역 · 물품 분석(3년치)은 휴일 작업.
+   그 전까지 용역 · 물품 방에서 «분석» 을 누르면 맨 위에 «준비 중» 한 줄 · 아래 공사 분석은 그대로.
+   숨은 누적 |분석|준비중용역 · |분석|준비중물품(탭마다 한 번 · 화면엔 안 보임) */
+const 준비중셈 = new Set()
+function 분석준비중({ k }) {
+  const 종 = 종류찾기(k)
+  useEffect(() => { if (!준비중셈.has(k)) { 준비중셈.add(k); 분석세기('|분석|준비중' + 종.이름) } }, [k])   // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div className={'note sm an-soon an-soon-' + k} role="note">
+      {종.ic} <b>{종.이름} 분석은 준비 중입니다.</b> 아래는 <b>공사</b> 3년치 개찰 자료로 본 분석입니다.
+      {' '}{종.이름} 공고 · 1순위는 <Link to={종.live}>{종.이름} 공고</Link> · <Link to={종.first}>{종.이름} 1순위</Link> 에서 보실 수 있습니다.
+    </div>
+  )
+}
 
 export default function Analysis() {
   const [sp, setSp] = useSearchParams()
   const mode = sp.get('m') === 'corp' ? 'corp' : 'agency'
   const setMode = (m) => setSp(m === 'corp' ? { m: 'corp' } : {}, { replace: true })
+  const 방 = use지금종류()
 
   return (
     <>
       <div className="sec-title" style={{ marginTop: 14 }}>
         🔍 분석 <span className="count">· 3년치 낙찰 데이터</span>
       </div>
+      {방 !== 'con' && <분석준비중 k={방} />}
       <div className="seg">
         <button className={mode === 'agency' ? 'on' : ''} onClick={() => setMode('agency')}>발주기관 분석</button>
         <button className={mode === 'corp' ? 'on' : ''} onClick={() => setMode('corp')}>업체 자가진단</button>

@@ -52,6 +52,8 @@ MIN_CORP = 8                                             # 낙찰 8건 미만 �
 #    서버가 돌려주는 문서가 홈과 **바이트까지 같습니다**(실측 2,853B · canonical 도 «/»).
 #    사이트맵에 내면 구글이 «대표 페이지가 따로 있는 중복» 으로 세기만 합니다.
 STATIC = [("/", "1.0", "hourly"), ("/first", "0.9", "hourly"), ("/live", "0.9", "hourly"),
+          # 📐📦 G194 (2026-10-07) 용역 · 물품 — 라우트(main.jsx) · prerender TABS · firebase.json 과 넷이 같이
+          ("/svc", "0.8", "daily"), ("/svc/first", "0.8", "daily"), ("/goods", "0.7", "daily"), ("/goods/first", "0.7", "daily"),
           ("/analysis", "0.8", "weekly"),
           ("/jobs", "0.7", "daily"), ("/about", "0.3", "monthly"),
           ("/privacy", "0.2", "yearly"), ("/terms", "0.2", "yearly"), ("/contact", "0.3", "yearly"),

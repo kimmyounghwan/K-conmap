@@ -33,6 +33,14 @@ service firebase.storage {
         && file.matches('^[A-Za-z0-9_-]{1,40}[.](jpg|png|webp)$');
       allow update, delete: if false;
     }
+    // 🔒 G200 (2026-10-08) 성적표 만들기 재료(개찰 자료 통째 · op/first_full.json.gz) — 소장님 「운영자만 받게하기로 해주고」
+    //   읽기는 «소장님 기기 번호» 만(web/src/lib/운영자.js 의 OPS · database.rules.json 의 op 와 같은 번호 — 기기를 더하면 세 곳 다).
+    //   쓰기는 Actions 의 tools/운영자자료.py(서비스 계정 = 규칙 밖)만 — 화면에서는 아무도 못 씀.
+    //   ⚠️ 이 규칙이 «먼저» 올라가 있어야 합니다(push 전에 firebase deploy --only storage). 없으면 성적표 화면이 못 받고 파일 고르기로 넘어감.
+    match /op/{file} {
+      allow read: if request.auth != null && request.auth.uid == 'ZglL1g3X5UZFBA2590LirDnEnil1';
+      allow write: if false;
+    }
     match /{allPaths=**} {
       allow read, write: if false;
     }
