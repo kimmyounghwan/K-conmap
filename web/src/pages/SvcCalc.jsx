@@ -7,7 +7,7 @@
  * ■ 셈은 lib/용역셈.js(공사 lib/bidmath.js 와 같은 식) — 이 화면은 «보여 주기» 만
  * ■ 권장 금액은 «참고» · 투찰 금액은 직접 고름(분위 단추 · 내 금액 넣기) — 소장님 「권장금액 참고 하라고 적어」
  * ■ «왜 공사와 다른가요?» 를 늘 펼쳐 둠(공사 바로투찰처럼 까닭을 적음)
- * ■ 숨은 누적: |용역|바로투찰(열기) · |용역|바로투찰복사 · |용역|바로투찰분위 · |용역|바로투찰직접 — 물품은 |물품|…
+ * ■ 숨은 누적: |용역|바로투찰(열기) · |용역|바로투찰복사 · |용역|바로투찰분위 · |용역|바로투찰직접 · |용역|바로투찰표(G207 표 줄 누름) — 물품은 |물품|…
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
@@ -56,6 +56,18 @@ export default function SvcCalc({ kind = 'svc' }) {
   const [범위, set범위] = useState(2)
   const [A, setA] = useState('')
   const 직접셈 = useRef(false)
+  /* 🩹 G207 (2026-10-09) 소장님 「이걸 클릭하면 위 바로입찰 금액이 바뀌게 해줘」 — «사정률이 이렇게 나오면» 표의 줄을 누르면
+     그 줄(5 · 15 … 95분위) 하한금액이 위 큰 금액이 됨(분위 단추와 같은 셈 · 용역셈.js 분위금액). 위 금액이 화면 밖이면 그리로 올려 보여 줌. */
+  const 위금액 = useRef(null)
+  const 표고름 = (q) => {
+    set고른(q); 세기(T.셈 + '바로투찰표')
+    try {
+      const e = 위금액.current; if (!e) return
+      if (e.getBoundingClientRect().top < 70) e.scrollIntoView({ block: 'start' })   /* 바로 — 가려진 탭에서도 · 머리줄은 CSS scroll-margin-top */
+      e.classList.remove('flash'); void e.offsetWidth; e.classList.add('flash')
+      setTimeout(() => { try { e.classList.remove('flash') } catch (er) { /* 없음 */ } }, 1400)
+    } catch (er) { /* 옛 브라우저 */ }
+  }
   const 직접쓰기 = (f) => (e) => { f(e.target.value); if (!직접셈.current) { 직접셈.current = true; 세기(T.셈 + '바로투찰직접') } }
 
   useEffect(() => { 세기(T.셈 + '바로투찰') }, [T.셈])
@@ -146,7 +158,7 @@ export default function SvcCalc({ kind = 'svc' }) {
       )}
 
       {m && 참고 && (
-        <div className="hero sc-hero">
+        <div className="hero sc-hero" ref={위금액}>
           <div className="sjline">
             <span className="lab">{분위 ? `${분위.q}분위로 고른 금액` : '참고 금액(권장)'}</span>
             <span className="val">사정률 {(분위 ? 분위.sj : 참고.sj).toFixed(3)}%</span>
@@ -193,13 +205,15 @@ export default function SvcCalc({ kind = 'svc' }) {
               <thead><tr><th>분위</th><th>사정률</th><th>하한금액</th></tr></thead>
               <tbody>
                 {표.map((x) => (
-                  <tr key={x.q} className={보일금액 >= x.low ? 'ok' : ''}>
+                  <tr key={x.q} className={(보일금액 >= x.low ? 'ok' : '') + (고른 === x.q ? ' on' : '')} role="button" tabIndex={0}
+                    title={`${x.q}분위 하한금액으로 위 금액 바꾸기`}
+                    onClick={() => 표고름(x.q)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); 표고름(x.q) } }}>
                     <td>{x.q}</td><td>{x.sj.toFixed(3)}%</td><td>{won(x.low)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <div className="note sm" style={{ marginTop: 6 }}>색칠된 줄은 위 금액이 하한을 넘기는 자리입니다.</div>
+            <div className="note sm" style={{ marginTop: 6 }}>줄을 누르면 위 금액이 그 줄의 하한금액으로 바뀝니다 · 색칠된 줄은 위 금액이 하한을 넘기는 자리입니다.</div>
           </div>
 
           <div className="card sc-mat">

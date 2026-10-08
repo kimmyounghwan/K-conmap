@@ -72,11 +72,14 @@ export function 참고금액(m) {
 /** 분위 고르기 — q 분위 사정률에서의 하한금액(올림) · 하한을 넘길 확률 ≈ q% */
 export const 분위들 = [50, 60, 70, 80, 90, 95]
 const Z = { 50: 0, 60: 0.2533, 70: 0.5244, 80: 0.8416, 90: 1.2816, 95: 1.6449 }
+/* 🩹 G207 (2026-10-09) 아래 «사정률이 이렇게 나오면» 표의 줄(5 · 15 … 95분위)을 눌러도 같은 셈 — 그 줄 z 를 SCEN_Z 에서 */
+const 표Z = Object.fromEntries(SCEN_Z)
 export function 분위금액(m, q) {
-  if (!m || Z[q] == null) return null
-  const sj = Math.round((m.p50 + Z[q] * m.sd) * 1000) / 1000
+  const z = Z[q] ?? 표Z[q]
+  if (!m || z == null) return null
+  const sj = Math.round((m.p50 + z * m.sd) * 1000) / 1000
   const amt = Math.ceil(limitAmount(m.base, sj, m.llRate, m.aVal))
-  return { q, sj, amt, 통과: normCdf(Z[q]) }
+  return { q, sj, amt, 통과: normCdf(z) }
 }
 
 /** 내가 넣은 금액 — 사정률이 몇 % 이하로 나오면 하한을 넘나 · 그 확률 */

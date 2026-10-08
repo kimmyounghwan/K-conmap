@@ -308,6 +308,11 @@ export default function BaroBid() {
     rateTouched.current = true; 기억에서.current = false; setPickRate(k); setCopied(false)
     try { if (String(k).startsWith('q')) localStorage.setItem('kcm_qtile', String(k).slice(1)); else localStorage.removeItem('kcm_qtile') } catch { /* noop */ }
   }
+  /* 🩹 G207 (2026-10-09) 소장님(폰 «금액 고르기» 표) 「누르다 보면 내 투찰율 적기로 가버려. 오류만 고치면 될 듯」 —
+     표에서 분위표에 없는 줄(20 · 30 · 35 · 45 …분위)을 누르면 «직접» 으로 그 투찰률을 넣는데, 그때 나타나는 «내 투찰률» 칸이
+     autoFocus 라 화면이 그 칸으로 뛰고 폰 자판이 올라왔음 → autoFocus 뺌. «직접» 단추 · «직접 넣기» 를 손으로 눌렀을 때만 그 칸에 커서. */
+  const 직접칸 = useRef(null)
+  const 직접칸으로 = () => { setTimeout(() => { try { 직접칸.current && 직접칸.current.focus() } catch (er) { /* 없음 */ } }, 0) }
   const [went, setWent] = useState(false)   // «복사하고 나라장터 열기» 를 눌렀나 (돌아왔을 때 보이라고 길게 둡니다)
   const [linked, setLinked] = useState(false)      // 「주소 복사」 눌렀나
   const [bag, setBag] = useState(loadBasket)      // ⭐ 담은 공고 (브라우저 저장)
@@ -760,7 +765,7 @@ export default function BaroBid() {
         </button>
       ))}
       <button className={'r-none' + (pickRate === 'own' ? ' on' : '')}
-        onClick={() => 고름('own')}>
+        onClick={() => { 고름('own'); 직접칸으로() }}>
         <b>직접</b><span>입력</span>
       </button>
     </div>
@@ -1829,7 +1834,7 @@ export default function BaroBid() {
               누르면 위 고르기(pickRate)와 같은 것이 바뀝니다 — 금액 셈은 바로투찰 그대로 · 숫자는 /data/kb/gm.json(수 KB · tools/금액고르기.jsx). */}
           {qchoices.length > 0 && (
             <금액고르기 base={base} llr={ll?.rate} aval={a} p50={sjMid} sd={sjSd} 지금금액={main} 지금={pickRate} aKnown={aKnown}
-              고르기={(k) => 고름(k)}
+              고르기={(k) => { 고름(k); if (k === 'own') 직접칸으로() }}
               직접={(rate) => { setOwnRate(Number(rate).toFixed(3)); 고름('own') }}
               q후보={Object.fromEntries(qchoices.map((c) => [c.k, { rate: c.rate, 금액: bidAmount(base, sjMid, c.rate) }]))}
               권장={(() => { const c = choices.find((x) => x.k === 'rec'); return c ? { rate: c.rate, 금액: bidAmount(base, sjMid, c.rate) } : null })()} />
@@ -1838,7 +1843,7 @@ export default function BaroBid() {
             <div className="card" style={{ marginTop: 0 }}>
               <div className="field" style={{ marginBottom: 0 }}>
                 <label>내 투찰률 (%)</label>
-                <input inputMode="decimal" value={ownRate} autoFocus
+                <input ref={직접칸} inputMode="decimal" value={ownRate}
                   onChange={(e) => { setOwnRate(e.target.value.replace(/[^0-9.]/g, '')); setCopied(false) }}
                   placeholder={rec ? String(rec) : '90.1'} />
               </div>

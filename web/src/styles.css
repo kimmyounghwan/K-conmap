@@ -7143,6 +7143,17 @@ a.mc-key-in:hover { border-color: var(--accent-line); background: var(--accent-s
 .sc-tbl th, .sc-tbl td { padding: 5px 6px; border-bottom: 1px solid var(--line-soft); text-align: right; }
 .sc-tbl th:first-child, .sc-tbl td:first-child { text-align: center; }
 .sc-tbl tr.ok td { background: rgba(16,185,129,.10); }
+/* 🩹 G207 줄을 누르면 위 금액이 그 줄 하한금액으로 — 누를 수 있게 보이고, 고른 줄은 테두리 */
+.sc-tbl tbody tr { cursor: pointer; }
+.sc-tbl tbody tr:hover td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.sc-tbl tbody tr.ok:hover td { background: rgba(16,185,129,.18); }
+.sc-tbl tbody tr.on td { font-weight: 800; color: var(--text); box-shadow: inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--accent); }
+.sc-tbl tbody tr:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* 👆 G207 표 줄을 누르면 큰 금액으로 올라감 — 머리줄(.topbar)에 안 가리게 · 바뀐 걸 알게 잠깐 빛남(용역 · 물품 .sc-hero) */
+.sc-hero { scroll-margin-top: 76px; }
+@keyframes kcmHeroFlash { 0% { box-shadow: 0 0 0 4px var(--accent), 0 0 24px color-mix(in srgb, var(--accent) 55%, transparent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.sc-hero.flash { animation: kcmHeroFlash 1.3s ease-out 1; }
+@media (prefers-reduced-motion: reduce) { .sc-hero.flash { animation: none; } }
 .sc-why summary { cursor: pointer; list-style: none; }
 .sc-why ol { margin: 8px 0; padding-left: 20px; font-size: 13.5px; line-height: 1.75; color: var(--text-2); }
 .sc-why ol b { color: var(--text); }
