@@ -17,7 +17,9 @@ import { 지역주소, 방문수, 누적시작, 날글 } from './이용자지도
 
 const DB = 'https://k-conmap-default-rtdb.firebaseio.com'
 export const 첫마디들 = new Set(['agency', 'analysis', 'cad', 'calc', 'change', 'corp', 'daily', 'ext', 'first', 'forms', 'goods', 'guide', 'how', 'jeoksan', 'jobs',
-  'lic', 'live', 'naeyeok', 'pdf', 'qna', 'report', 'safety', 'shareone', 'svc', 'tools', 'about', 'privacy', 'terms', 'contact'])
+  'lic', 'live', 'my', 'naeyeok', 'pdf', 'qna', 'report', 'safety', 'shareone', 'svc', 'tools', 'about', 'privacy', 'terms', 'contact'])
+/* 🔢 G205 (2026-10-08) 소장님 「마이컨맵은 다른 페이지처럼 누적으로 카운트되게」 — 'my' 를 더함(/my → |my). 공개 페이지 /@주소 는 일부러 안 넣음(숨은 누적 |명함|주소 만 — MyConmap.jsx).
+ *   ⚠️ 파이썬 tools/이용자지도.py 첫마디들 과 «똑같이» */
 const 공고모양 = /^[A-Za-z0-9-]{6,30}$/
 const 마디풀기 = (path) => String(path || '/').split('?')[0].split('#')[0].split('/').filter(Boolean)
   .map((x) => { try { return decodeURIComponent(x) } catch (e) { return x } })
@@ -138,7 +140,7 @@ const 숨김 = (p) => p.startsWith('/admin') || p.startsWith('/tools/tuipbi/v')
 /** 화면 위 «👁 이 화면 조회 N» — App.jsx 에 한 번(모든 화면) */
 /* 🩹 G197 (2026-10-08) 소장님(폰 /my 캡처): 「위에 갑자기 없던게 떠있어… 이거 고쳐줘 화면이 지져분해 보여」
  *   → 화면 위 줄에서 «👥 오늘 · 어제 · 누적» 을 뺌(바닥글 방문자바닥 한 곳에만). 위 줄은 G121 그대로 «👁 이 화면 조회 N» 만 —
- *     조회 수가 없는 화면(마이컨맵 등)은 위 줄 자체가 없음. */
+ *     조회 수가 없는 화면은 위 줄 자체가 없음(마이컨맵 /my 는 G205 부터 조회 N 이 뜸 · 공개 페이지 /@주소 는 안 뜸). */
 export function 화면조회줄() {
   const { pathname } = useLocation()
   const no = 공고번호(pathname)

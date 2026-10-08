@@ -282,7 +282,9 @@ def 조회묶기(rows):
 
 
 첫마디들 = {"agency", "analysis", "cad", "calc", "change", "corp", "daily", "ext", "first", "forms", "goods", "guide", "how", "jeoksan", "jobs",
-           "lic", "live", "naeyeok", "pdf", "qna", "report", "safety", "shareone", "svc", "tools", "about", "privacy", "terms", "contact"}
+           "lic", "live", "my", "naeyeok", "pdf", "qna", "report", "safety", "shareone", "svc", "tools", "about", "privacy", "terms", "contact"}
+# 🔢 G205 (2026-10-08) «my» 더함 — 마이컨맵(/my)도 다른 화면처럼 «👁 이 화면 조회 N»(누적). 공개 페이지 /@주소 는 안 넣음(화면에 안 보이게).
+#   ⚠️ web/src/lib/조회수.jsx 첫마디들 과 «똑같이»
 공고모양 = re.compile(r"^[A-Za-z0-9-]{6,30}$")
 
 

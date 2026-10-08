@@ -8,6 +8,7 @@
    ■ 셈 · 저장 · 규칙은 lib/마이컨맵.js 한 곳. 검색 등록 조건은 mypages.py 와 «같은 규칙».
    ■ 👷 G192 마이컨맵은 «사람» 페이지(회사 홈페이지 아님 — 소장님) · 🏢 업체 종류 · 📊 개찰 실적 칸 뺌 → 🏗 경력 칸
    ■ 숨은 누적: |마이|홈 · 만들기 · 만듦 · 열기 · 저장 · 공개보기 · 전화 · 문자 · 톡 · 바로가기 · 이어하기 · 신고
+     · 🔢 G205 페이지마다 연 횟수 |명함|{주소} (나만 보기는 안 남김) — 화면엔 안 보임
    ══════════════════════════════════════════════════════════════ */
 import { Component, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -79,6 +80,11 @@ const 고를곳 = [...곳표.keys()].filter((p) => /^\/(tools|jeoksan|change|nae
 const 시각 = (t) => { if (!t) return ''; const d = new Date(t); return `${d.getMonth() + 1}.${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
 const 한번 = new Set()
 const 한번세기 = (k) => { if (!한번.has(k)) { 한번.add(k); 세기(k) } }
+/* 🔢 G205 (2026-10-08) 소장님 「명함은 그냥 숨겨서 카운트 하고」 — /@주소 페이지마다 연 횟수(이 탭에서 페이지마다 한 번 · 주인 · 운영자 · 로봇은 안 셈).
+ *   화면 어디에도 안 보임(숨은 누적 dl/p «|명함|주소») · 🔒 나만 보기 페이지는 주소를 남기지 않음(«|마이|비공개봄» 에만).
+ *   ⚠️ 그 주소의 자료를 «받은 그 자리»(불러오기 .then)에서 셉니다 — useEffect([d, a]) 로 세면 사이트 안에서 /@가 → /@나 로 옮길 때
+ *      앞 페이지 자료(d)가 남은 채 새 주소를 세어 «없는 주소» 까지 셌습니다(G205 점검 t216b 에서 찾음). */
+const 명함세기 = (a, x) => { if (a && x && !M.내것인가(a) && !(x.나만 === true && !x.이름) && x.공개 !== '나만') 한번세기('|명함|' + a) }
 
 /* 화면 하나가 깨져도 사이트 전체가 하얘지지 않게 */
 class 지킴 extends Component {
@@ -637,7 +643,7 @@ function 공개안() {
     let 끝 = false
     setD(undefined); set틀(false)
     Promise.all([M.불러오기(a), M.신고수(a)])
-      .then(([x, n]) => { if (!끝) { setD(x); set숨김(n >= 3) } })
+      .then(([x, n]) => { if (!끝) { setD(x); set숨김(n >= 3); 명함세기(a, x) } })
       .catch(() => { if (!끝) { set틀(true); setD(null) } })
     return () => { 끝 = true }
   }, [a])
