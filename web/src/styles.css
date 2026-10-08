@@ -2131,6 +2131,10 @@ b.money { white-space: nowrap; }
 .qdial .ratepick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-bottom: 9px; }
 .qdial .ratepick button { min-width: 0; width: 100%; padding: 7px 4px; gap: 1px; }
 @media (max-width: 420px) { .qdial .ratepick { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* 🩹 G206 (2026-10-08) 위 줄(권장 · 최저 · 중간 · 직접)도 제목 아래 같은 상자 안 — 위 줄은 예전처럼 한 줄(폰도 4칸) */
+.qdial.all { margin-top: 0; }
+.qdial .ratepick.top { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.qdial .ratepick.top button { flex: 1; min-width: 64px; width: auto; padding: 9px 4px; }
 
 /* 고른 분위의 실측 성적 — «판정»이 아니라 «자료»입니다. 위험 색(빨강/주황/초록)과 섞이지 않게
    일부러 중립색으로 둡니다. 옆 칸은 초록인데 이 상자만 파랗면 다른 말을 하는 것처럼 읽힙니다. */

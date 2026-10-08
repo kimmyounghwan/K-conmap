@@ -298,6 +298,16 @@ export default function BaroBid() {
   const rateTouched = useRef(false)
   const [ownRate, setOwnRate] = useState('')
   const [copied, setCopied] = useState(false)
+  /* 🩹 G206 (2026-10-08) 고른 분위 기억 — 소장님 PC 캡처: 60분위를 골라 뒀는데(kcm_qtile=60) 다시 열면 «권장».
+     처음 열 때 · 공고를 고를 때 «권장(자동)» 으로 되돌리던 두 곳이 기억을 덮었습니다(9/16부터 · 화면 글은 «이 브라우저에 기억됩니다»).
+     이제: 기억한 분위가 있으면 그것으로 시작 · 권장 · 최저 · 중간 · 직접 · 자동을 고르면 기억을 지움 ·
+     기억에서 꺼낸 분위가 이 공고 실효 하한 아래(실격 금액)면 그 공고에서는 원래 기본값으로(아래 «기억위험»). */
+  const 기억에서 = useRef(false)
+  const 기억분위 = () => { try { const q = localStorage.getItem('kcm_qtile'); return q ? `q${q}` : null } catch { return null } }
+  const 고름 = (k) => {
+    rateTouched.current = true; 기억에서.current = false; setPickRate(k); setCopied(false)
+    try { if (String(k).startsWith('q')) localStorage.setItem('kcm_qtile', String(k).slice(1)); else localStorage.removeItem('kcm_qtile') } catch { /* noop */ }
+  }
   const [went, setWent] = useState(false)   // «복사하고 나라장터 열기» 를 눌렀나 (돌아왔을 때 보이라고 길게 둡니다)
   const [linked, setLinked] = useState(false)      // 「주소 복사」 눌렀나
   const [bag, setBag] = useState(loadBasket)      // ⭐ 담은 공고 (브라우저 저장)
@@ -495,7 +505,8 @@ export default function BaroBid() {
     }
     setPicked(r); setQ(r.name); setInst(r.inst)
     try { sessionStorage.setItem('kcm.baro.no', String(r.no || '')) } catch (e) { /* 없음 */ }
-    setBase(r.base || 0); setBudgetIn(''); setPickRate('rec'); setCopied(false)
+    setBase(r.base || 0); setBudgetIn(''); setCopied(false)
+    { const m = 기억분위(); 기억에서.current = !!m; setPickRate(m || 'rec') }   /* 🩹 G206 기억한 분위로 시작 */
     // 공고에 A값이 실려 오면 그대로 채웁니다 (손으로 옮겨 적을 일을 없애는 게 이 화면의 목적)
     /* ⚠️ bidPrceCalclAYn='N' 은 «이 공고는 A값을 적용하지 않는다» 는 뜻입니다.
        그런데 수집 쪽은 항목 합계를 그대로 담습니다. 화면에서 걸러야 합니다.
@@ -717,14 +728,43 @@ export default function BaroBid() {
   const recBelow = llEff != null && rec95 == null && rec != null && rec < llEff
   useEffect(() => {
     if (rateTouched.current) return
-    if (recBelow) setPickRate('limit')
+    if (recBelow && !기억분위()) setPickRate('limit')
   }, [recBelow])
   /* 예상 참가를 아는 공고는 «자동 분위» 로 시작합니다 (손대지 않았고, 기억해 둔 분위도 없을 때) */
   const hasAuto = !!(autoOut && autoOut.mode === 'auto')
   useEffect(() => {
     if (rateTouched.current) return
-    setPickRate(hasAuto ? 'auto' : 'rec')
+    const m = 기억분위()                                   /* 🩹 G206 기억한 분위가 먼저 (주석 «기억해 둔 분위도 없을 때» 대로) */
+    기억에서.current = !!m
+    setPickRate(m || (hasAuto ? 'auto' : 'rec'))
   }, [hasAuto, picked?.no])
+  /* 🩹 G206 기억에서 꺼낸 분위가 이 공고의 실효 하한 아래면(넣으면 실격) 기본값(최저 · 자동 · 권장)으로 — 실격 금액을 기본으로 내밀지 않음.
+     손으로 고른 것은 그대로 둡니다(칸이 붉게 «warn» 으로 보임). */
+  const 기억위험 = 기억에서.current && pickRate.startsWith('q') && llEff != null
+    && (qchoices.find((c) => c.k === pickRate)?.rate ?? Infinity) < llEff
+  useEffect(() => {
+    if (!기억위험) return
+    기억에서.current = false
+    setPickRate(recBelow ? 'limit' : (hasAuto ? 'auto' : 'rec'))
+  }, [기억위험])
+
+  /* 투찰률 위 줄(권장 · 최저 · 중간 · 직접) — 🩹 G206 분위 칸이 있으면 분위 상자 안 · 제목 아래에 둠(아래 JSX) */
+  const 위줄 = (
+    <div className={'ratepick' + (qchoices.length > 0 ? ' top' : '')}>
+      {choices.map((c) => (
+        <button key={c.k}
+          className={rateTone(c.rate) + (pickRate === c.k ? ' on' : '')
+            + (llEff && c.rate < llEff ? ' warn' : '')}
+          onClick={() => 고름(c.k)}>
+          <b>{c.label}</b><span>{c.rate.toFixed(3)}%</span>
+        </button>
+      ))}
+      <button className={'r-none' + (pickRate === 'own' ? ' on' : '')}
+        onClick={() => 고름('own')}>
+        <b>직접</b><span>입력</span>
+      </button>
+    </div>
+  )
 
   const steps = []
   for (let s = 100 + lo; s <= 100 + hi + 0.001; s += 0.5) steps.push(Math.round(s * 100) / 100)
@@ -1736,37 +1776,24 @@ export default function BaroBid() {
 
           {/* ── 분석 정보 ── */}
           
-          {/* 투찰률 고르기 */}
-          <div className="ratepick">
-            {choices.map((c) => (
-              <button key={c.k}
-                className={rateTone(c.rate) + (pickRate === c.k ? ' on' : '')
-                  + (llEff && c.rate < llEff ? ' warn' : '')}
-                onClick={() => { rateTouched.current = true; setPickRate(c.k); setCopied(false) }}>
-                <b>{c.label}</b><span>{c.rate.toFixed(3)}%</span>
-              </button>
-            ))}
-            <button className={'r-none' + (pickRate === 'own' ? ' on' : '')}
-              onClick={() => { rateTouched.current = true; setPickRate('own') }}>
-              <b>직접</b><span>입력</span>
-            </button>
-          </div>
+          {/* 투찰률 고르기 — 🩹 G206 (2026-10-08) 소장님 「사정율 분위를 직접 고르기 위치가 다르잖아 · 끼어 있잖아」(PC · 폰 캡처 두 장):
+              제목이 위 줄(권장 · 최저 · 중간 · 직접)과 분위 칸 사이에 끼어 있었음 → 분위 칸이 있으면 위 줄도 같은 상자 안 · 제목 아래로.
+              ⚠️ 제목을 다시 두 줄 사이에 넣지 말 것. 분위 칸이 없을 때(기초금액 · 하한율 전)는 위 줄만 예전처럼. */}
+          {qchoices.length === 0 && 위줄}
           {qchoices.length > 0 && (
-            <div className="qdial">
+            <div className="qdial all">
               <div className="qh">
-                사정률 분위를 직접 고르기
+                투찰률 고르기 — 권장 · 최저 · 중간 · 사정률 분위
                 <i>낮을수록 싸게 넣지만 실격이 잦고, 높을수록 안전하지만 낙찰가와 멀어집니다.</i>
               </div>
+              {위줄}
               {/* ★ 칸에는 «분위 + 투찰률» 만 둡니다. 설명은 전부 칸 아래에 적습니다.
                   칸 안에 설명을 넣었더니 글자가 칸 밖으로 나와 서로 겹쳤습니다(소장님 지적 3회). */}
               <div className="ratepick q">
                 {qchoices.map((c) => (
                   <button key={c.k}
                     className={rateTone(c.rate) + (pickRate === c.k ? ' on' : '') + (llEff && c.rate < llEff ? ' warn' : '')}
-                    onClick={() => {
-                      rateTouched.current = true; setPickRate(c.k); setCopied(false)
-                      try { localStorage.setItem('kcm_qtile', String(c.q)) } catch { /* noop */ }
-                    }}>
+                    onClick={() => 고름(c.k)}>
                     <b>{c.label}</b><span>{c.rate.toFixed(3)}%</span>
                   </button>
                 ))}
@@ -1792,7 +1819,7 @@ export default function BaroBid() {
                 25분위는 넷 중 셋이 실격, 50분위는 반반, 95분위는 스물다섯 중 하나만 실격입니다.
                 그런데 어느 분위든 1순위율은 3.6~4.4% 입니다 —
                 분위는 «얼마나 자주 살아남나»를 정하지 «얼마나 자주 이기나»는 못 바꿉니다.
-                {pickRate.startsWith('q') && <> 고른 분위는 이 브라우저에 기억됩니다 · <a onClick={() => { try { localStorage.removeItem('kcm_qtile') } catch { /* noop */ } setPickRate('rec') }}>권장으로 되돌리기</a></>}
+                {pickRate.startsWith('q') && <> 고른 분위는 이 브라우저에 기억됩니다 · <a onClick={() => 고름('rec')}>권장으로 되돌리기</a></>}
                 <GuideLink slug="quantile" />
               </div>
             </div>
@@ -1802,8 +1829,8 @@ export default function BaroBid() {
               누르면 위 고르기(pickRate)와 같은 것이 바뀝니다 — 금액 셈은 바로투찰 그대로 · 숫자는 /data/kb/gm.json(수 KB · tools/금액고르기.jsx). */}
           {qchoices.length > 0 && (
             <금액고르기 base={base} llr={ll?.rate} aval={a} p50={sjMid} sd={sjSd} 지금금액={main} 지금={pickRate} aKnown={aKnown}
-              고르기={(k) => { rateTouched.current = true; setPickRate(k); setCopied(false) }}
-              직접={(rate) => { rateTouched.current = true; setOwnRate(Number(rate).toFixed(3)); setPickRate('own'); setCopied(false) }}
+              고르기={(k) => 고름(k)}
+              직접={(rate) => { setOwnRate(Number(rate).toFixed(3)); 고름('own') }}
               q후보={Object.fromEntries(qchoices.map((c) => [c.k, { rate: c.rate, 금액: bidAmount(base, sjMid, c.rate) }]))}
               권장={(() => { const c = choices.find((x) => x.k === 'rec'); return c ? { rate: c.rate, 금액: bidAmount(base, sjMid, c.rate) } : null })()} />
           )}
