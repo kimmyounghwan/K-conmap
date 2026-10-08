@@ -99,7 +99,7 @@ export async function 공고봄(no, 이름) {
 /* ── 👥 G172 방문자 «오늘 · 어제 · 누적» (2026-10-06) ──────────────────
    소장님: 「일 접속자 공개하는 사이트 많아. 건설맵처럼」 → 「해줘」
    ■ 자료: fresh/reg.kr (tools/이용자지도.py · 10분마다 · 애널리틱스 «활성 사용자» · 대한민국) — 이 화면은 5분에 한 번만 받음(작음)
-   ■ 자리: 모든 화면 위 «👁 이 화면 조회» 줄 왼쪽 + 바닥글 한 줄. 누르면 바로투찰 맨 위 이용자 지도(시·도별).
+   ■ 자리: 바닥글 한 줄(🩹 G197 화면 위 줄에서는 뺌 — 소장님 「화면이 지져분해 보여」). 누르면 바로투찰 맨 위 이용자 지도(시·도별).
    ■ 누르면 숨은 누적 «|방문자|누름» (탭마다 한 번 · 화면엔 안 보임 — 물으면 클로드가 dl/p 를 읽어 알려 드림)
    ■ 애널리틱스를 막은 브라우저는 안 셈 · 몇십 분 늦게 오름. 소장님 브라우저도 애널리틱스엔 들어갑니다. */
 export function use방문수() {
@@ -112,7 +112,7 @@ const 쉼표 = (n) => Number(n).toLocaleString('ko-KR')
 let 방문셌다 = false
 const 방문누름 = () => { if (!방문셌다) { 방문셌다 = true; 세기('|방문자|누름') } }
 const 방문설명 = `구글 애널리틱스 «사용자» · 대한민국 · ${날글(누적시작)}부터 누적 · 10분마다 고침(몇십 분 늦을 수 있음)`
-/** «오늘 N · 어제 N · 누적 N명» — 짧게(화면 위) · 길게(바닥) */
+/** «오늘 N · 어제 N · 누적 N명» — 바닥글(길게) */
 function 방문글({ v, 길게 }) {
   const 칸 = []
   if (v.오늘 != null) 칸.push(<span key="t">오늘 <b>{쉼표(v.오늘)}</b>{길게 ? '명' : ''}</span>)
@@ -135,27 +135,22 @@ export function 방문자바닥() {
 
 /* ── 그리기 ── */
 const 숨김 = (p) => p.startsWith('/admin') || p.startsWith('/tools/tuipbi/v')
-/** 화면 위 «👥 오늘 · 어제 · 누적 | 👁 이 화면 조회 N» — App.jsx 에 한 번(모든 화면) */
+/** 화면 위 «👁 이 화면 조회 N» — App.jsx 에 한 번(모든 화면) */
+/* 🩹 G197 (2026-10-08) 소장님(폰 /my 캡처): 「위에 갑자기 없던게 떠있어… 이거 고쳐줘 화면이 지져분해 보여」
+ *   → 화면 위 줄에서 «👥 오늘 · 어제 · 누적» 을 뺌(바닥글 방문자바닥 한 곳에만). 위 줄은 G121 그대로 «👁 이 화면 조회 N» 만 —
+ *     조회 수가 없는 화면(마이컨맵 등)은 위 줄 자체가 없음. */
 export function 화면조회줄() {
   const { pathname } = useLocation()
   const no = 공고번호(pathname)
   const 화면 = use화면조회(no || 숨김(pathname) ? null : pathname)
   const 공고 = use공고조회(no)
-  const 방 = use방문수()
   const n = no ? 공고 : 화면
-  if (숨김(pathname) || (!n && !방)) return null
+  if (숨김(pathname) || !n) return null
   return (
     <div className="pvline">
-      {방 && (
-        <Link to="/" className="vsline" onClick={방문누름} title={'K-건설맵 방문자 — ' + 방문설명}>
-          👥 <방문글 v={방} />
-        </Link>
-      )}
-      {!!n && (
-        <span className="pvnum" title="이 화면을 연 횟수 (2026-09-15부터 · 구글 애널리틱스 · 30분마다 고침)">
-          👁 {no ? '이 공고' : '이 화면'} 조회 {n.toLocaleString('ko-KR')}
-        </span>
-      )}
+      <span className="pvnum" title="이 화면을 연 횟수 (2026-09-15부터 · 구글 애널리틱스 · 30분마다 고침)">
+        👁 {no ? '이 공고' : '이 화면'} 조회 {n.toLocaleString('ko-KR')}
+      </span>
     </div>
   )
 }

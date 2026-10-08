@@ -6969,6 +6969,8 @@ ul.gm-why { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size:
 a.mc-key-in:hover { border-color: var(--accent-line); background: var(--accent-soft); }
 .mc-key-i { font-size: 28px; line-height: 1; }
 .mc-key-n { font-size: 12px; font-weight: 700; line-height: 1.35; word-break: keep-all; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+/* 🩹 G197 이름이 길어도 칸 안에서 — 두 줄까지 · 넘치면 잘라 «…» (전에는 띄어쓰기 없는 긴 글이 칸을 넘어 옆 칸과 겹침) */
+.mc-key-n { max-width: 100%; overflow-wrap: anywhere; }
 .mc-key-k { position: absolute; top: 6px; left: 8px; font-style: normal; font-size: 10.5px; font-weight: 800; color: var(--muted); }
 .mc-key-add { border-style: dashed; background: var(--accent-soft); color: var(--accent); box-shadow: none; }
 .mc-keyg.edit .mc-key-in { box-shadow: none; border-style: dashed; }
@@ -6980,6 +6982,8 @@ a.mc-key-in:hover { border-color: var(--accent-line); background: var(--accent-s
 .mc-hero.sm .mc-hero-h { font-size: 20px; margin: 4px 0 6px; }
 .mc-hero.sm .mc-hero-p { display: none; }
 @media (max-width: 899px) { .mc-keyg { grid-template-columns: repeat(4, minmax(0, 1fr)); } .mc-key-k { display: none; } }
+/* 🩹 G197 폰 ✏️ 편집 — ◀ ✕ ▶ 세 단추가 4칸 폭을 넘어 옆 칸에 걸침 → 편집하는 동안만 3칸 */
+@media (max-width: 899px) { .mc-keyg.edit { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 380px) { .mc-key-in { min-height: 84px; } .mc-key-i { font-size: 24px; } .mc-key-n { font-size: 11px; } }
 
 /* 📊 G188 마이컨맵 «실적 자동» · 📰 «소식» · 🪪 «명함 이미지» */

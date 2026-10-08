@@ -12,7 +12,7 @@ import { 알림종, 알림띠 } from './알림종.jsx'
 import FirstBar from './FirstBar.jsx'
 import RefreshBtn from './Refresh.jsx'
 import Crumbs, { BackBtn } from './Crumbs.jsx'
-import { 화면조회줄, 방문자바닥 } from './lib/조회수.jsx'   /* 👁 G121 — 모든 화면 위 «이 화면 조회 N» · 👥 G172 방문자 오늘 · 어제 · 누적 */
+import { 화면조회줄, 방문자바닥 } from './lib/조회수.jsx'   /* 👁 G121 — 모든 화면 위 «이 화면 조회 N» · 👥 G172 방문자 오늘 · 어제 · 누적(바닥글만 — G197) */
 import { use길지킴이 } from './lib/길기록.js'
 import { 쓴곳기록 } from './lib/마이쓴곳.js'   /* 🪪 G188 마이컨맵 «내 도구 · 서식» — 연 도구 · 서식을 이 브라우저에만 셈 */
 

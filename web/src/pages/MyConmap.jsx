@@ -19,6 +19,7 @@ import { 세기 } from '../lib/받은수.jsx'
 import { 가림 } from '../lib/가림.js'
 import * as 명함 from '../lib/명함그림.js'   /* 🪪 명함 이미지 — 캔버스 · QR 은 열 때만 받음 */
 import TOOLS from '../data/tools.json'
+import { GUIDE_NAV } from '../lib/guidenav.js'
 import FORMS from '../data/forms.json'
 
 /* ── 주소 → 이름 · 아이콘 (도구 목록 · 서식 목록 그대로) ── */
@@ -32,8 +33,46 @@ const 곳표 = (() => {
   return m
 })()
 for (const [p, i, n] of [['/', '💰', '바로투찰'], ['/calc', '💰', '바로투찰'], ['/first', '🏆', '1순위 개찰'], ['/live', '📋', '입찰 공고'], ['/qna', '💬', '맵톡'], ['/jobs', '💼', '구인구직'], ['/analysis', '🔍', '분석'], ['/my', '🪪', '마이컨맵']]) if (!곳표.has(p)) 곳표.set(p, { i, n })
+for (const g of GUIDE_NAV) if (!곳표.has('/guide/' + g.slug)) 곳표.set('/guide/' + g.slug, { i: g.ic, n: String(g.t).split(' — ')[0] })
 for (const g of 그일들) 곳표.set(g.p, { i: g.i, n: g.n })
-export const 곳이름 = (p) => 곳표.get(p) || 곳표.get(String(p).split('#')[0]) || { i: '🔗', n: p }
+/* 🩹 G197 (2026-10-08) 소장님(폰 /my 캡처): 단축키 칸에 «/forms/o-chakgong-s…» «/guide/quantile» 같은 날 주소가 칸을 넘어 겹침
+     → 이름표에 없는 주소(원본 서식 o-… · 입찰 알아보기 글 · 설계변경 글 · 캐드 명령)는 그 목록을 «필요할 때만» 받아 이름을 채움
+       (마이컨맵 화면을 연 모든 분이 받지 않게 — 모르는 주소가 있을 때 그 묶음 하나만 · 한 번)
+     · 받기 전 · 못 받으면 주소 대신 묶음 이름(📄 서식 · 📘 입찰 알아보기 …) — 화면에 날 주소를 쓰지 않음 */
+const 이름보충 = (목록, 꼴) => (m) => { for (const x of (m.default || m)[목록] || []) { const [p, v] = 꼴(x); if (!곳표.has(p)) 곳표.set(p, v) } }
+const 앞이름 = [
+  ['/forms/', '📄', '서식', () => import('../data/forms_orig.json').then(이름보충('forms', (f) => [`/forms/${f.slug}`, { i: f.icon || '📁', n: String(f.title) }]))],
+  ['/guide/', '📘', '입찰 알아보기', () => import('../data/guide.json').then(이름보충('topics', (t) => [`/guide/${t.slug}`, { i: t.icon || '📘', n: String(t.title).split(' — ')[0] }]))],
+  ['/change/', '🔁', '설계변경', () => import('../data/change.json').then(이름보충('topics', (t) => [`/change/${t.slug}`, { i: t.icon || '🔁', n: String(t.title) }]))],
+  ['/cad/', '📐', '캐드', () => import('../data/cad.json').then(이름보충('cmds', (c) => [`/cad/${c.slug}`, { i: '📐', n: `${c.cmd} ${c.name}` }]))],
+  ['/jeoksan', '🧮', '적산'], ['/naeyeok', '📑', '내역서'], ['/change', '🔁', '설계변경'], ['/tools/', '🧰', '도구'],
+]
+const 받는중 = new Set()
+function 이름받기(k, 받기) {
+  if (!받기 || 받는중.has(k)) return
+  받는중.add(k)
+  Promise.resolve().then(받기).catch(() => null).then(() => { try { window.dispatchEvent(new Event('kcm-names')) } catch (e) { /* 없음 */ } })
+}
+export const 곳이름 = (p) => {
+  const s = String(p || ''), 몸 = s.split('#')[0]
+  const v = 곳표.get(s) || 곳표.get(몸)
+  if (v) return v
+  const a = 앞이름.find(([k]) => 몸.startsWith(k))
+  if (!a) return { i: '🔗', n: '건설맵 화면' }
+  이름받기(a[0], a[3])
+  return { i: a[1], n: a[2] }
+}
+/** 🩹 G197 단축키 칸에는 짧게 — «착공서류(착공계·직접…)» → «착공서류» · «일용 노무비 계산기 · …» → «일용 노무비 계산기» (전체 이름은 길게 누르기 · 마우스 올림) */
+const 칸이름 = (n) => String(n || '').split(/\s*[(（]|\s+·\s+/)[0].trim() || String(n || '')
+/** 이름을 받아 오면 화면을 다시 그림 — 맨 위(MyConmap · MyAt)에서 한 번 */
+function use이름다시() {
+  const [, 틱] = useState(0)
+  useEffect(() => {
+    const f = () => 틱((n) => n + 1)
+    window.addEventListener('kcm-names', f)
+    return () => window.removeEventListener('kcm-names', f)
+  }, [])
+}
 /* 도구 블록에 고를 수 있는 것 — 도구 목록(사이트에서 바로 쓰는 것) + 계산기 */
 const 고를곳 = [...곳표.keys()].filter((p) => /^\/(tools|jeoksan|change|naeyeok|safety|pdf|cad|lic)/.test(p))
 
@@ -673,6 +712,7 @@ function 공개안() {
   )
 }
 export function MyAt() {
+  use이름다시()
   const { at } = useParams()
   if (!String(at || '').startsWith('@') || String(at).length < 3) return <NotFound />
   return <지킴><공개안 /></지킴>
@@ -851,7 +891,7 @@ function 단축키판() {
               {편집
                 ? (
                   <div className="mc-key-in">
-                    <span className="mc-key-i" aria-hidden="true">{g.i}</span><span className="mc-key-n">{g.n}</span>
+                    <span className="mc-key-i" aria-hidden="true">{g.i}</span><span className="mc-key-n" title={g.n}>{칸이름(g.n)}</span>
                     <div className="mc-key-e">
                       <button type="button" onClick={() => 옮김(k, -1)} disabled={k === 0} aria-label="앞으로">◀</button>
                       <button type="button" onClick={() => 바꿈(L.filter((x) => x !== p))} aria-label="빼기">✕</button>
@@ -860,9 +900,9 @@ function 단축키판() {
                   </div>
                 )
                 : (
-                  <Link className="mc-key-in" to={p} onClick={() => 세기('|마이|단축키')}>
+                  <Link className="mc-key-in" to={p} onClick={() => 세기('|마이|단축키')} title={g.n} aria-label={g.n}>
                     {k < 9 && <em className="mc-key-k">{k + 1}</em>}
-                    <span className="mc-key-i" aria-hidden="true">{g.i}</span><span className="mc-key-n">{g.n}</span>
+                    <span className="mc-key-i" aria-hidden="true">{g.i}</span><span className="mc-key-n">{칸이름(g.n)}</span>
                   </Link>
                 )}
             </div>
@@ -992,5 +1032,6 @@ function 마이홈() {
 }
 
 export default function MyConmap() {
+  use이름다시()
   return <지킴><마이홈 /></지킴>
 }
