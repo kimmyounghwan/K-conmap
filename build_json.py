@@ -902,7 +902,7 @@ CORP_HIDE = os.path.join(ROOT, "data", "seed", "corp_hide.json")
 
 
 def load_partner_evidence():
-    """🧾 G219 업체마다 «넣어 본 공고» 의 면허 · 지역 제한 근거 — {사업자번호: {"l": {코드: 날짜}, "r": {시도: 날짜}}, "__ln__": {코드: 면허이름}}
+    """🧾 G219 업체마다 «넣어 본 공고» 의 면허 · 지역 제한 근거 — {사업자번호: {"l": {코드: 날짜}, "r": {시도: 날짜}, "s": {"시도 시군": 날짜}}, "__ln__": {코드: 면허이름}}
     재료: collect.py 가 회차마다 쌓는 구성원 장부 data/store/partners.json(3년 보관). 없으면 개찰 · 공고 저장소로 바로 셈.
     넣었다는 것 = 그 면허 · 그 지역 제한을 갖췄다는 근거(조달청이 자격 없는 투찰을 받지 않음)."""
     p = os.path.join(ROOT, "data", "store", "partners.json")
@@ -928,7 +928,7 @@ def load_partner_evidence():
         ln = {}
         for e in ev.values():
             ln.update(e.get("ln") or {})
-        out = {b: {"l": e["l"], "r": e["r"]} for b, e in ev.items()}
+        out = {b: {"l": e["l"], "r": e["r"], "s": e.get("s") or {}} for b, e in ev.items()}
         out["__ln__"] = ln
         log(f"🧾 참여 근거(장부 없음 → 개찰 · 공고로 셈) 업체 {len(ev):,}곳")
         return out
@@ -1106,6 +1106,8 @@ def build_corp(df):
             cur[key]["pl"] = {
                 "l": [[c, str(_ln.get(c, ""))[:40]] for c, _ in sorted(_e.get("l", {}).items(), key=lambda x: x[1], reverse=True)][:12],
                 "r": [r for r, _ in sorted(_e.get("r", {}).items(), key=lambda x: x[1], reverse=True)][:6],
+                # 🗺 G221 시 · 군 근거(«전남 여수시») — 본사 주소 · 시 · 군 제한 공고에 넣은 기록. 시 · 군 제한 공고를 가릴 때 씀
+                "s": [r for r, _ in sorted((_e.get("s") or {}).items(), key=lambda x: x[1], reverse=True)][:8],
             }
         agg[key] = cur.pop(key)
 

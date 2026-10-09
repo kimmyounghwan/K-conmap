@@ -112,26 +112,34 @@ const getIndex = () => getBidIndex()
 export function OpenNotices({ title, match, limit = 8, hint, empty, 우선 }) {
   const [idx, setIdx] = useState(undefined)
   const [ov, setOv] = useState(null)
+  /* 🔢 G220 (2026-10-09) 제목 건수 = 맞는 공고 «전체» 건수 — 전에는 보여 준 8건만 세어 «마감 전 8건» 으로 보였음(실제 87건)
+     소장님 확인 화면에서 드러남 · 나머지는 «더 보기» 로 8건씩 */
+  const [보임, set보임] = useState(limit)
+  useEffect(() => { set보임(limit) }, [match, limit])          /* 다른 업체 · 기관으로 바뀌면 처음 8건부터 */
   useEffect(() => {
     getIndex().then(setIdx)
     getOverview().then(setOv).catch(() => {})
   }, [])
   const p50 = ov?.sjq?.p50 ?? P50_FALLBACK
-  const rows = useMemo(() => {
+  const 전체 = useMemo(() => {
     if (!idx || !Array.isArray(idx.r)) return []
     return indexRows(idx)
       .filter((r) => match(r))
       .filter((r) => { const d = dday(r.close); return !d || d.text !== '마감' })
       .sort((a, b) => (우선 ? (우선(b) ? 1 : 0) - (우선(a) ? 1 : 0) : 0) || String(a.close).localeCompare(String(b.close)))
-      .slice(0, limit)
-      .map((r) => ({ ...r, g: winGrade({ ...r, est: r.est || 0 }), qb: isReady(r) ? quickBid(r, p50) : null }))
-  }, [idx, match, p50, limit, 우선])
+  }, [idx, match, 우선])
+  const rows = useMemo(() => 전체.slice(0, 보임)
+    .map((r) => ({ ...r, g: winGrade({ ...r, est: r.est || 0 }), qb: isReady(r) ? quickBid(r, p50) : null })), [전체, 보임, p50])
+  const 더보기 = () => {
+    set보임((n) => n + limit)
+    import('./lib/받은수.jsx').then((m) => m.세기('|마감전공고|더보기')).catch(() => {})   /* 숨은 누적 */
+  }
 
   if (idx === undefined) return null
   return (
     <div className="spot-open">
       <div className="sec-title" style={{ margin: '14px 0 8px' }}>
-        📋 {title} <span className="count">· 마감 전 {num(rows.length)}건{hint ? ` · ${hint}` : ''}</span>
+        📋 {title} <span className="count">· 마감 전 {num(전체.length)}건{hint ? ` · ${hint}` : ''}</span>
       </div>
       {rows.length === 0 ? (
         <div className="note">{empty || '지금 마감 전인 공고가 없습니다.'}</div>
@@ -165,6 +173,11 @@ export function OpenNotices({ title, match, limit = 8, hint, empty, 우선 }) {
           </div>
         )
       })}
+      {전체.length > rows.length && (
+        <button type="button" className="btn ghost" style={{ width: '100%', marginTop: 6 }} onClick={더보기}>
+          더 보기 ({num(rows.length)} / {num(전체.length)}건)
+        </button>
+      )}
     </div>
   )
 }
@@ -247,14 +260,15 @@ export function 참여공고({ c }) {
     )
   }
   const 면허글 = g.면허.slice(0, 4).map((x) => 짧은면허(Array.isArray(x) ? x[1] || x[0] : x)).filter(Boolean).join(' · ')
-  const 지역글 = [...g.지역].slice(0, 3).join('·')
+  /* 🗺 G221 시 · 군을 알면 시 · 군까지(«전남 여수시») — 시 · 군으로 좁힌 공고를 이것으로 가립니다 */
+  const 지역글 = g.시군.size ? [...g.시군].slice(0, 2).join('·') : [...g.지역].slice(0, 3).join('·')
   return (
     <>
       <OpenNotices title="참여할 수 있는 마감 전 공고" match={match} 우선={우선}
         hint={`면허 ${면허글 || '-'}${지역글 ? ` · 지역 ${지역글}` : ''}`}
         empty="지금 마감 전인 공고 중 이 회사의 면허 · 지역으로 넣을 수 있는 공고가 없습니다." />
       <div className="note sm" style={{ marginTop: 6 }}>
-        이 회사가 <b>실제로 넣어 본 공고</b>의 면허 · 지역 제한으로 확인했습니다
+        이 회사가 <b>실제로 넣어 본 공고</b>의 면허 · 본사 지역과 공고의 <b>참가가능지역</b>으로 확인했습니다
         {셈 ? <> — 마감 전 {num(셈.됨 + 셈.안됨 + 셈.모름)}건 중 <b>넣을 수 있음 {num(셈.됨)}</b> · 면허/지역 안 맞음 {num(셈.안됨)} · 확인 못 함 {num(셈.모름)}(안 띄움)</> : null}.
         {' '}시공능력평가액 · 실적 제한 · 공동도급 조건은 공고문에서 확인하십시오.
       </div>

@@ -809,7 +809,7 @@ LIC_GRP = {}
 
 
 RGN_PAGES = 4        # 참가가능지역은 지역제한 공고에만 있어 면허제한보다 훨씬 적습니다
-RGN_V = 1            # «참가가능지역을 한 번 메웠다» 표시(live 저장소의 _rv)
+RGN_V = 2            # «참가가능지역을 한 번 메웠다» 표시(live 저장소의 _rv) · 2 = G221 잘리지 않은 판정 열쇠(rgk)를 마감 전 공고에 한 번 더 메움
 RGN_OFF = False      # 이 회차에 한 번 실패하면 더 부르지 않습니다(다른 수집을 해치지 않게)
 RGN_SEEN = {"rows": 0, "con": 0, "put": 0}
 
@@ -863,9 +863,13 @@ def put_rgn(stores, rm):
     for no, names in rm.items():
         for store in stores:
             row = store["con"].get(no)
-            if row is not None and not row.get("rgn"):
-                row["rgn"] = ", ".join(names[:12])
+            if row is None:
+                continue
+            if not row.get("rgn"):
+                row["rgn"] = ", ".join(names[:12])          # 화면에 적는 글(길면 12곳까지)
                 n += 1
+            if not row.get("rgk"):
+                row["rgk"] = rgn_keys(", ".join(names))     # 🗺 G221 판정용 — 잘리지 않은 전체(전남 22개 시군 등)
     RGN_SEEN["put"] += n
     return n
 
@@ -1141,7 +1145,7 @@ def partner_evidence(first, live):
     """개찰 저장소(+ 같은 공고의 공고 줄)에서 업체마다 면허·지역 근거를 뽑습니다.
 
     돌려줌: (근거, 건수)
-      근거 = {사업자번호: {"n": 이름, "l": {코드: 날짜}, "ln": {코드: 면허이름}, "r": {시도: 날짜}}}
+      근거 = {사업자번호: {"n": 이름, "l": {코드: 날짜}, "ln": {코드: 면허이름}, "r": {시도: 날짜}, "s": {"시도 시군": 날짜}}}
       건수 = {사업자번호: [참가, 1순위]}"""
     ev, cnt = {}, {}
     lv = live.get("con", {}) if isinstance(live, dict) else {}
@@ -1164,15 +1168,16 @@ def partner_evidence(first, live):
         else:
             lic_ok = []
         lic_ok = [(c, nm) for c, nm in lic_ok if _code_ok(c)]
-        rg = ""
-        if lr.get("rgnb"):
-            sid = []
-            for part in re.split(r"[,/·]", str(lr.get("rgn") or "")):
-                for ab in (_head_sido(part.strip()) or "").split(","):
-                    if ab and ab not in sid:
-                        sid.append(ab)
+        # 🗺 G221 지역 근거 — 참가가능지역(rgk · rgn)이 있는 공고에 넣었다 = 그 지역에 본사 · 지사가 있음.
+        #   전에는 rgnb(수의계약에만 옴)가 있을 때만 봐서 제한경쟁 공고의 지역을 못 썼습니다.
+        rg, sg = "", ""
+        _k = lr.get("rgk") or rgn_keys(lr.get("rgn"))
+        if _k and "?" not in _k:
+            sid = {x.split(" ")[0] for x in _k}
             if len(sid) == 1:
-                rg = sid[0]
+                rg = next(iter(sid))
+            if len(_k) == 1 and " " in _k[0]:
+                sg = _k[0]                          # 시 · 군 하나로 좁힌 공고 — 그 시 · 군 업체
         corps = r.get("corps") if isinstance(r.get("corps"), list) else []
         seen = set()
         for c in corps:
@@ -1182,7 +1187,7 @@ def partner_evidence(first, live):
             if len(b) != 10 or b in seen:
                 continue
             seen.add(b)
-            e = ev.setdefault(b, {"n": "", "l": {}, "ln": {}, "r": {}})
+            e = ev.setdefault(b, {"n": "", "l": {}, "ln": {}, "r": {}, "s": {}})
             e["n"] = str(c[0] or "").strip()[:40] or e["n"]
             for code, nm in lic_ok:
                 if e["l"].get(code, "") < d:
@@ -1190,6 +1195,8 @@ def partner_evidence(first, live):
                 e["ln"][code] = nm
             if rg and e["r"].get(rg, "") < d:
                 e["r"][rg] = d
+            if sg and e["s"].get(sg, "") < d:
+                e["s"][sg] = d
             k = cnt.setdefault(b, [0, 0])
             k[0] += 1
         wb = re.sub(r"[^0-9]", "", str(r.get("bno") or ""))
@@ -1198,9 +1205,12 @@ def partner_evidence(first, live):
                 cnt[wb][1] += 1
             ab = _head_sido(str(r.get("adr") or ""))
             if ab and "," not in ab:
-                e = ev.setdefault(wb, {"n": str(r.get("win") or "")[:40], "l": {}, "ln": {}, "r": {}})
+                e = ev.setdefault(wb, {"n": str(r.get("win") or "")[:40], "l": {}, "ln": {}, "r": {}, "s": {}})
                 if e["r"].get(ab, "") < d:
                     e["r"][ab] = d
+                _a = rgn_keys(str(r.get("adr") or "").split(",")[0])[:1]   # 🗺 G221 본사 주소 → «전남 여수시»
+                if _a and " " in _a[0] and e["s"].get(_a[0], "") < d:
+                    e["s"][_a[0]] = d
     return ev, cnt
 
 
@@ -1214,19 +1224,20 @@ def export_partners(first, live, out_dir=None, ledger_path=None, log=print):
     ev, cnt = partner_evidence(first, live)
     for b, e in ev.items():
         cur = comp.setdefault(b, {"n": "", "l": {}, "r": {}})
+        cur.setdefault("s", {})                        # 🗺 G221 시 · 군 근거(옛 장부엔 없음)
         if e["n"]:
             cur["n"] = e["n"]
-        for k in ("l", "r"):
-            for key, d in e[k].items():
+        for k in ("l", "r", "s"):
+            for key, d in e.get(k, {}).items():
                 if cur[k].get(key, "") < d:
                     cur[k][key] = d
         names.update(e["ln"])
     cut = (datetime.now(KST) - timedelta(days=PARTNER_KEEP_DAYS)).strftime("%Y%m%d")
     for b in list(comp):
         cur = comp[b]
-        for k in ("l", "r"):
-            cur[k] = {key: d for key, d in cur[k].items() if d >= cut}
-        if not cur["l"] and not cur["r"]:
+        for k in ("l", "r", "s"):
+            cur[k] = {key: d for key, d in (cur.get(k) or {}).items() if d >= cut}
+        if not cur["l"] and not cur["r"] and not cur["s"]:
             del comp[b]
     save_json(ledger_path, {"v": 1, "c": comp, "ln": names})
     by = {}
@@ -2189,6 +2200,41 @@ def _head_sido(s):
         if s.startswith(full):
             return ab
     return ""
+
+
+def rgn_keys(rgn):
+    """🗺 G221 (2026-10-09) 참가가능지역(조달청 그대로) → ["전남", "전남 여수시", "광주 광산구", "?"]
+
+    소장님: 「87건이나 된다고 이상한데 ㅎㅎㅎ」 — 지역 제한을 «지역제한 판단기준»(rgnb) 칸으로만 봤는데 그 칸은
+    수의계약에만 채워져 와서, 경기 · 경북 지역 제한 «제한경쟁» 공고가 «전국» 으로 셈해졌습니다.
+    참가가능지역은 시도 전체(«인천광역시») 이거나 시 · 군 · 구(«전남광주통합특별시 장흥군») 로 옵니다.
+      · 시도 전체 → "인천" · 시 · 군 · 구 → "전남 장흥군" · 못 읽는 조각 → "?"(그 공고는 «모름» 으로)
+      · «전남광주통합특별시» 만 → "전남", "광주" 둘 다(통합특별시 전체)
+    주소(낙찰업체 주소)도 같은 함수로 «시도 시군» 을 뽑습니다 — 첫 조각만 넘깁니다."""
+    out = []
+    for part in re.split(r"[,/·]", str(rgn or "")):
+        p = part.strip()
+        if not p:
+            continue
+        ab = _head_sido(p)
+        if not ab:
+            k = "?"
+        elif "," in ab:
+            for x in ab.split(","):
+                if x not in out:
+                    out.append(x)
+            continue
+        else:
+            if p.startswith(MERGED):
+                rest = p[len(MERGED):].split()
+            else:
+                full = next((f for f, a in SIDO_FULL if p.startswith(f)), "")
+                rest = p[len(full):].split()
+            h = rest[0] if rest else ""
+            k = f"{ab} {h}" if h and h[-1] in "시군구" else ab
+        if k not in out:
+            out.append(k)
+    return out
 
 
 def region_book(rows):
@@ -4009,6 +4055,9 @@ def main():
                 # ✅ G219 면허 그룹(조달청 lmtGrpNo · lic 와 같은 차례) — 같은 그룹 = 모두 갖춰야 · 다른 그룹 = 그중 하나.
                 #   업체 화면 «참여할 수 있는 공고» 가 씀(Spot.jsx 참여판정). 공동도급 칸(jnt[3])에만 있던 것을 모든 공고에.
                 r.get("licg") or [],
+                # 🗺 G221 참가가능지역 열쇠(«전남» · «전남 장흥군» · «?») — 비면 지역 제한 정보 없음.
+                #   업체 화면 «참여할 수 있는 공고» 가 씀. rgnb(판단기준)는 수의계약에만 와서 지역을 못 가립니다.
+                r.get("rgk") or rgn_keys(r.get("rgn")),
             ])
         rows.sort(key=lambda x: re.sub(r"[^0-9]", "", str(x[5])))
         out = {"built": built,
@@ -4016,7 +4065,7 @@ def main():
                      "llr", "est", "lic", "aval", "gmtrl",
                      "ayn", "ptot", "pdrw", "url",
                      "site", "rgnb", "joint", "mthd", "swin", "rebid",
-                     "enp", "enpn", "dt", "sido", "dsn", "enpb", "jnt", "tg", "nt", "licg"],
+                     "enp", "enpn", "dt", "sido", "dsn", "enpb", "jnt", "tg", "nt", "licg", "rgs"],
                "pick": pick,
                "r": rows}
         path = os.path.join(OUT, "bidindex.json")

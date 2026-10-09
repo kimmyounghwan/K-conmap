@@ -2096,6 +2096,8 @@ b.money { white-space: nowrap; }
 .spot-open .foot .amt { font-size: 15px; font-weight: 900; color: var(--text); margin-left: 6px; font-variant-numeric: tabular-nums; }
 @media (max-width: 380px) { .spot-tiles { grid-template-columns: 1fr; } }
 .spot-open .sec-title { flex-wrap: wrap; row-gap: 2px; }
+/* 📱 G221 (2026-10-09) «참여할 수 있는 공고» 는 건수 뒤에 면허 · 지역 안내가 길게 붙어 폰에서 오른쪽으로 넘쳤음 → 이 칸만 줄바꿈 허용 */
+.spot-open .sec-title .count { white-space: normal; }
 
 /* 최근 순위 기록 (업체 자가진단) — 2026-09-03 */
 .rankhist .rh-sum { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 6px 0 10px; }
