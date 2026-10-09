@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
 import { searchAgency, getAgencyTop } from './lib/data.js'
 import { num, pct } from './lib/fmt.js'
+import { 손끝 } from './lib/손끝고르기.js'   /* 👆 G215 */
 
 /* ── 상태 표시 ────────────────────────── */
 export const Skeleton = ({ n = 4 }) => (
@@ -82,6 +83,7 @@ export function AgencyPicker({ value, onPick, label = '발주기관', autoFocus 
     return () => clearTimeout(timer.current)
   }, [q, value])
 
+  /* 👆 G215 (2026-10-09) 아이폰 사파리: 한글 치는 중 목록을 누르면 click 이 안 옴 → 손가락 떼는 순간 고름(lib/손끝고르기.js) */
   const pick = (name, chunk) => {
     setQ(name); setOpen(false); setList([])
     onPick({ name, chunk })
@@ -100,7 +102,7 @@ export function AgencyPicker({ value, onPick, label = '발주기관', autoFocus 
       {open && list.length > 0 && (
         <div className="suggest">
           {list.map((a) => (
-            <button key={a.name} onClick={() => pick(a.name, a.chunk)}>
+            <button key={a.name} type="button" {...손끝(() => pick(a.name, a.chunk), '기관')}>
               <span className="c">{num(a.n)}건</span>{a.name}
             </button>
           ))}
@@ -109,7 +111,7 @@ export function AgencyPicker({ value, onPick, label = '발주기관', autoFocus 
       {open && !q.trim() && top.length > 0 && (
         <div className="suggest">
           {top.slice(0, 20).map(([name, n, chunk]) => (
-            <button key={name} onClick={() => pick(name, chunk)}>
+            <button key={name} type="button" {...손끝(() => pick(name, chunk), '기관')}>
               <span className="c">{num(n)}건</span>{name}
             </button>
           ))}

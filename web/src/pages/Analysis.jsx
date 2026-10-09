@@ -9,6 +9,7 @@ import { wonShort, pct, num, dateFull, normCorp } from '../lib/fmt.js'
 import 기관견본줄 from '../기관견본.jsx'
 import { use지금종류, 종류찾기 } from '../종류띠.jsx'   /* 🩹 G198 용역 · 물품 방에서 연 분석 → «준비 중» 안내 */
 import { 세기 as 분석세기 } from '../lib/받은수.jsx'
+import { 손끝 } from '../lib/손끝고르기.js'   /* 👆 G215 아이폰 — 한글 치는 중 목록 누름이 안 먹던 것 */
 
 /* 🩹 G198 (2026-10-08) 소장님 「1번만 하고, 휴일에 작업을 하자」 — 용역 · 물품 분석(3년치)은 휴일 작업.
    그 전까지 용역 · 물품 방에서 «분석» 을 누르면 맨 위에 «준비 중» 한 줄 · 아래 공사 분석은 그대로.
@@ -125,7 +126,11 @@ function CorpTab() {
      아직 못 찾은 것이지 없는 것이 아닙니다 — 그때 「없습니다」 라고 하면 거짓말이 됩니다. */
   const 못찾음 = deep && normCorp(q).length >= 2 && list.length === 0
 
+  /* 👆 G215 (2026-10-09) 소장님 「업체분석에서 업체가 나오면 선택하게 해줘야 하는데 지금 그게 아니야」
+     아이폰 사파리: 한글을 치는 중(마지막 글자 조합 중)에 목록을 누르면 «click» 이 안 옵니다 — 키보드가 그대로라 다시 눌러도 같음.
+     → 목록 단추는 손가락을 떼는 순간(touchend) 고릅니다(lib/손끝고르기.js). 숨은 누적 |자가진단|고름 · |손끝고름|업체 */
   const pick = (item) => {
+    분석세기('|자가진단|고름')
     setOpen(false)
     const base = String(item.key).split('#')[0]
     navigate('/corp/' + encodeURIComponent(base),
@@ -162,7 +167,7 @@ function CorpTab() {
               {list.map((it) => {
                 const 모음 = !it.biz && it.bzn > 1
                 return (
-                  <button key={it.key} className={모음 ? 'grp' : undefined} onClick={() => pick(it)}>
+                  <button key={it.key} type="button" className={모음 ? 'grp' : undefined} {...손끝(() => pick(it), '업체')}>
                     <span className="c">{num(it.n)}건</span>{모음 ? it.label : (it.nm || it.label)}
                     {it.biz
                       ? <span className="sub2"> · {it.reg} · {it.ceo || '대표 미상'}
@@ -175,7 +180,7 @@ function CorpTab() {
                 )
               })}
               {!deep && (
-                <button className="deepmore" onClick={(e) => { e.preventDefault(); setDeep(true) }}>
+                <button className="deepmore" type="button" {...손끝(() => setDeep(true), '가운데찾기')}>
                   🔎 찾는 업체가 없나요? <b>이름 가운데로도 찾기</b>
                   <span className="sub2"> · 「종합건설」·「개발」처럼 뒷말로 찾을 때 (한 번만 받습니다)</span>
                 </button>
