@@ -22,6 +22,7 @@ import 내조건줄 from '../내조건.jsx'
 import { use남김 } from '../lib/길기록.js'
 import 밖공고줄 from '../밖공고줄.jsx'
 import { 공고봄 } from '../lib/조회수.jsx'   /* 👁 G121 — 펼치면 그 공고 조회 1 */
+import { 검색어기억 } from '../lib/저절로알림.js'   /* 🔔 G222 찾은 말 → 하루 두 번 알림(다 친 뒤 2.5초) */
 
 const PAGE = 20
 const KIND = 'con'   // 공사만 다룹니다 (용역 제외)
@@ -127,7 +128,7 @@ export default function FirstBoard() {
 
       <input
         value={q}
-        onChange={(e) => setQ(e.target.value)}
+        onChange={(e) => { setQ(e.target.value); 검색어기억(e.target.value) }}
         placeholder="공고명 · 발주기관 · 낙찰업체 검색"
         style={{ marginBottom: 10 }}
       />

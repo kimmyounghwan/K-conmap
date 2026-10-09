@@ -327,11 +327,12 @@ exports.qnaReplyNotify = onValueCreated(
    ■ first — watch/{공고번호}/{번호} 에 적힌 공고가 «방금 1순위»(fresh/rows/first)에 있으면
      그 사람들에게 폰 알림 + 사이트 🔔(noti) 한 줄 → watch/{공고번호} 를 지웁니다(한 번만).
      빠른 길을 놓친 결과도 잡게, 한 시간에 한 번은 사이트 1순위 첫 묶음(board/first-con-0.json)도 봅니다.
-   ■ live — 한국시간 8시 · 13시 지나 «첫 깨어남» 에 한 번만(watch_meta/slot 으로 표시 · 22시 뒤로는 안 보냄):
+   ■ live — ① 📍 내 조건 «신청»(watch_cond = 내 조건 줄 «🔔 새 공고 알림 받기») — 하루 두 번(8시 칸 · 13시 칸 · watch_meta/slot) · G97 그대로.
      watch_cond/{번호} = {rg, lic, none} 마다 지난번 알림(watch_last/{번호}) 뒤로 올라온 공고 중 맞는 것을 세어 한 통.
      공고 = 사이트 공고 첫 묶음(board/live-con-0.json, 약 24시간) + 그 색인(live-con-idx.json 의 앞 500줄 · sido · lic) + 방금 공고(fresh).
-     지역 · 면허 맞추기는 화면과 «같은 규칙»(lib/fmt.js inRegion · lib/lic.js licHit) — 한쪽만 고치지 말 것.
-   ■ 돈: 10분에 한 번 깨어나 watch 를 한 번 읽음(대개 몇 KB) · 하루 두 번 공고 묶음 약 2MB 받음 · maxInstances 3.
+     ② 📢 신청 «안 한» 분 — 하루 한 번 오전 10시(G222 · watch_meta/day · 아래 하루한통) · 소장님 「현재 하던대로 하고, 알림 신청하지 않은 이용자만 하루 한 번 알림 가게 하자.」
+     지역 · 면허 맞추기는 화면과 «같은 규칙»(lib/fmt.js inRegion · lib/lic.js licHit = alertpack.js 지역맞나 · 면허맞나) — 한쪽만 고치지 말 것.
+   ■ 돈: 10분에 한 번 깨어나 watch 를 한 번 읽음(대개 몇 KB) · 하루 두 번 공고 묶음 약 2MB · 하루 한 번 색인 1~2MB 받음 · maxInstances 3.
    ══════════════════════════════════════════════════════════════════ */
 const 사이트 = 'https://k-conmap.com'
 const 한국 = (ms = Date.now()) => new Date(ms + 9 * 3600e3)
@@ -381,8 +382,8 @@ const 푸시보내기 = async (d, 사람들, 알림) => {
 
 /* ── ☆ 담은 공고 1순위 ── */
 async function 담은공고(d) {
-  const 지켜 = (await d.ref('/watch').get()).val()
-  if (!지켜) return
+  const 지켜 = (await d.ref('/watch').get()).val() || {}
+  if (!Object.keys(지켜).length) return
   const 줄들 = await 묶음읽기(d, 'first')
   /* 한 시간에 한 번은 사이트 첫 묶음도 — 빠른 길을 놓친 결과(정기 배포로만 실린 것)를 잡습니다 */
   const 표 = d.ref('/watch_meta/board')
@@ -415,23 +416,8 @@ async function 담은공고(d) {
   }
 }
 
-/* ── 📍 내 조건 새 공고 (하루 두 번) ── */
-const 별칭 = { 경기: ['경기'], 강원: ['강원'], 충북: ['충북', '충청북도'], 충남: ['충남', '충청남도'], 전북: ['전북', '전라북도'], 전남: ['전남', '전라남도'], 경북: ['경북', '경상북도'], 경남: ['경남', '경상남도'] }
-const 지역맞나 = (x, rg) => {                      /* = web/src/lib/fmt.js inRegion */
-  if (!rg || rg === '전국') return true
-  if (x.sido != null && x.sido !== '') return String(x.sido).split(',').includes(rg)
-  if (x.sido === '') return false
-  const pats = 별칭[rg] || [rg]
-  const blob = `${x.inst || ''} ${x.name || ''}`
-  return pats.some((p) => blob.includes(p))
-}
-const 면허맞나 = (codes, 원함, 없음도) => {         /* = web/src/lib/lic.js licHit */
-  if (!원함.length) return true
-  const list = Array.isArray(codes) ? codes : (codes ? [codes] : [])
-  if (!list.length) return !!없음도
-  const w = new Set(원함)
-  return list.some((v) => { const t = String(v); return w.has(t) || w.has(t.slice(t.lastIndexOf('/') + 1)) })
-}
+/* ── 📍 내 조건 새 공고 «신청한 분» (하루 두 번 · G97 그대로) ── */
+const { 지역맞나, 면허맞나 } = require('./alertpack.js')     /* = web/src/lib/fmt.js inRegion · lib/lic.js licHit */
 async function 조건묶음(d) {
   const 지금 = 한국()
   const h = 지금.getUTCHours()
@@ -477,6 +463,98 @@ async function 조건묶음(d) {
   }
 }
 
+/* ── 📢 신청 «안 한» 분께 하루 한 번 (G222 · 2026-10-09) — 오전 10시(10:00~21:59 첫 깨어남 · 한 번만 · watch_meta/day) ──
+   소장님: 「알림 해줘」 → 「너무 알림이 많이 가면 짜증이 날 수도 있어」 → 「10시에 하자. 모아서 한 번」
+           → 「현재 하던대로 하고, 알림 신청하지 않은 이용자만 하루 한 번 알림 가게 하자.」
+   ■ 받는 사람 = 폰 알림을 허용한 사람(push/{번호}) 가운데
+       ✕ 내 조건 알림을 신청한 사람(watch_cond — 위 하루 두 번을 받음)  ✕ ☆ 담은 공고가 걸려 있는 사람(watch — 1순위가 나오면 바로)
+       ✕ 끈 사람(watch_auto/{번호}.off)
+   ■ 한 통에 = 그 기기가 기억하는 것(watch_auto = lib/저절로알림.js: 지역 · 면허 · 찾은 말 · 쓴 화면) 에 맞는 새 공고 · 1순위 · 고친 화면(alertpack.js 한사람 · 글)
+       맞는 것이 없거나 기억하는 것이 없으면 «지난 하루 새 공고 N건 · 1순위 N건» 요약(alertpack.js 요약) · 새 것이 0이면 안 보냄.
+   공고 = 마감 전 공고 색인(bidindex — 지난 하루 새 공고가 다 들어 있음) + 방금 공고(fresh) · 하루 한 번만 받음(1~2MB)
+   ⚠️ 부터 = 지난번 한 통 뒤(watch_day_last · 없으면 26시간 전) */
+async function 공고재료(d) {
+  const 공고 = new Map()
+  const bi = await 받기('/data/bidindex.json')
+  const bf = (bi && bi.f) || []
+  for (const a of (bi && bi.r) || []) {
+    const o = {}; bf.forEach((k, i) => { o[k] = a[i] }); o.lic = Array.isArray(o.lic) ? o.lic : []
+    공고.set(String(o.no), { no: o.no, name: o.name, inst: o.inst, dt: String(o.dt || ''), sido: o.sido, codes: o.lic })
+  }
+  /* 방금 공고 _ix = [name, inst, base, lo, hi, lic, sido, …] — fast.py finish() 와 같은 차례(색인보다 늦게 올라온 것) */
+  for (const r of await 묶음읽기(d, 'live')) {
+    if (!r || !r.no || 공고.has(String(r.no))) continue
+    const x = r._ix || []; 공고.set(String(r.no), { no: r.no, name: r.name, inst: r.inst, dt: String(r.dt || ''), sido: x[6], codes: x[5] || [] })
+  }
+  return [...공고.values()]
+}
+
+async function 하루한통(d) {
+  const M = require('./alertpack.js')
+  const 칸 = M.칸()
+  if (!칸) return
+  const t = await d.ref('/watch_meta/day').transaction((v) => (v === 칸 ? undefined : 칸))
+  if (!t.committed) return                        /* 오늘 한 통은 이미 보냄 */
+  const [ps, cs, ws, as] = await Promise.all([d.ref('/push').get(), d.ref('/watch_cond').get(), d.ref('/watch').get(), d.ref('/watch_auto').get()])
+  const 푸시 = ps.val() || {}, 신청 = cs.val() || {}, 담음 = ws.val() || {}, 기억 = as.val() || {}
+  const 담은사람 = new Set()
+  for (const v of Object.values(담음)) for (const r of Object.keys(v || {})) 담은사람.add(r)
+  const 사람들 = Object.keys(푸시).filter((r) => !신청[r] && !담은사람.has(r) && !(기억[r] && 기억[r].off))
+  try { await 세어두기(d, { 푸시, 신청, 담음, 담은사람, 기억, 사람들 }) } catch (e) { console.error('알림 수 세기 실패:', e && e.message) }
+  if (!사람들.length) return
+  let 공고
+  try { 공고 = await 공고재료(d) } catch (e) {
+    console.error('공고 색인 못 받음:', e && e.message)
+    await d.ref('/watch_meta/day').set(null)        /* 다음 깨어남(10분 뒤)에 다시 */
+    return
+  }
+  /* 1순위 — 방금 1순위 + 사이트 1순위 첫 묶음(찾은 말 1순위 · 요약의 1순위 수) */
+  let 일순위 = []
+  try {
+    const [fr, b] = await Promise.all([묶음읽기(d, 'first'), 받기('/data/board/first-con-0.json').catch(() => [])])
+    const 본 = new Set()
+    for (const y of [...fr, ...(Array.isArray(b) ? b : [])]) {
+      if (!y || !y.no || 본.has(String(y.no))) continue
+      본.add(String(y.no)); 일순위.push({ no: y.no, name: y.name, dt: String(y.dt || ''), win: y.win })
+    }
+  } catch (e) { console.error('1순위 묶음 못 받음:', e && e.message) }
+  /* 고친 화면 — public/fixes.json {r: [{p, d, m}]} */
+  let 고침 = []
+  if (사람들.some((r) => 기억[r] && String(기억[r].tools || '').trim())) {
+    try { const fx = await 받기('/fixes.json'); 고침 = Array.isArray(fx && fx.r) ? fx.r : [] } catch (e) { /* 없으면 이 칸만 빠짐 */ }
+  }
+  const 지난들 = (await d.ref('/watch_day_last').get()).val() || {}
+  let 보낸 = 0, 요약보낸 = 0
+  for (const r of 사람들) {
+    const c = 기억[r] && typeof 기억[r] === 'object' ? 기억[r] : null
+    const 부터 = Math.max(Number(지난들[r]) || 0, Date.now() - 26 * 3600e3)
+    await d.ref(`/watch_day_last/${r}`).set(Date.now())
+    let 알림 = c ? M.글(M.한사람(c, 부터, { 공고, 일순위, 고침 }), c) : null
+    if (알림) 보낸 += 1
+    else { 알림 = M.요약(공고, 일순위, 부터); if (알림) 요약보낸 += 1 }
+    if (!알림) continue
+    await 종한줄(d, r, { k: 'new', m: `${알림.title} — ${알림.body}`, u: 알림.url, at: Date.now() })
+    await 푸시보내기(d, [r], 알림)
+  }
+  try { await d.ref('/fresh/stat/alert/sent').set({ 칸, n: 보낸, 요약: 요약보낸, at: Date.now() }) } catch (e) { /* 숫자만 */ }
+}
+
+/* 📊 알림 수 — 숫자만(번호 · 주소 없음) · 소장님 「알람신청 있었어??? 카운트 하고 있어??」(2026-10-09)
+   fresh/stat/alert = {at, push, cond, watch, watchP, day, auto, off, rg, lic, kw, tools, sent{칸, n, 요약}} — 사이트에는 안 보이고, 물으시면 클로드가 읽어 알려 드림
+     push = 폰 알림 허용 기기 · cond = 내 조건 알림 신청 · watch / watchP = 담은 공고 수 / 사람 · day = 하루 한 번 받을 사람(신청 안 함)
+     auto = 기억 조건이 있는 기기 · off = 하루 한 번 끈 기기 · rg · lic · kw · tools = 기억 조건 가운데 그 칸이 있는 수 */
+async function 세어두기(d, { 푸시, 신청, 담음, 담은사람, 기억, 사람들 }) {
+  const as = Object.values(기억 || {}).filter((c) => c && typeof c === 'object')
+  const 켬 = as.filter((c) => !c.off)
+  const 몇 = (k) => 켬.filter((c) => String(c[k] || '').trim()).length
+  await d.ref('/fresh/stat/alert').update({
+    at: Date.now(), push: Object.keys(푸시).length, cond: Object.keys(신청).length,
+    watch: Object.keys(담음).length, watchP: 담은사람.size, day: 사람들.length,
+    auto: 켬.length, off: as.length - 켬.length,
+    rg: 켬.filter((c) => c.rg && c.rg !== '전국').length, lic: 몇('lic'), kw: 몇('kw'), tools: 몇('tools'),
+  })
+}
+
 exports.freshNotify = onValueWritten(
   { ...푸시옵션, ref: '/fresh/meta/{name}', timeoutSeconds: 120, memory: '512MiB' },
   async (event) => {
@@ -484,7 +562,10 @@ exports.freshNotify = onValueWritten(
     const d = 자료()
     try {
       if (event.params.name === 'first') await 담은공고(d)
-      else if (event.params.name === 'live') await 조건묶음(d)
+      else if (event.params.name === 'live') {
+        await 조건묶음(d)                         /* 📍 내 조건 신청 — 하루 두 번(8시 · 13시) · 하던 대로 */
+        try { await 하루한통(d) } catch (e) { console.error('하루 한 통 실패:', e && e.message) }   /* 📢 신청 안 한 분 — 오전 10시 한 번 */
+      }
     } catch (e) {
       console.error('freshNotify 실패:', e && e.message)
     }

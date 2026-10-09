@@ -85,12 +85,16 @@ export function 푸시되나() {
  * 브라우저 기본 «알림 허용» 창 — 글 · 답글 «올리기» 를 누른 그 순간(사용자 동작 안에서) 부릅니다.
  * 아이폰 · 파이어폭스는 사용자 동작 밖에서 물으면 거절합니다 — 그래서 올리기를 기다리지 않고 먼저 부릅니다.
  */
+let 묻는중 = null      /* G222 — 한 누름에 두 곳이 같이 물어도(첫 누름 한번묻기 + 단추) 창은 한 번 · 같은 답을 나눠 씀 */
 export function 허락묻기() {
   if (!푸시되나()) return Promise.resolve('unsupported')
   if (Notification.permission !== 'default') return Promise.resolve(Notification.permission)
+  if (묻는중) return 묻는중
   try {
     const p = Notification.requestPermission()
-    return p && p.then ? p : Promise.resolve(Notification.permission)
+    if (!(p && p.then)) return Promise.resolve(Notification.permission)
+    묻는중 = p.then((v) => { 묻는중 = null; return v }, (e) => { 묻는중 = null; throw e })
+    return 묻는중
   } catch (e) { return Promise.resolve('default') }
 }
 

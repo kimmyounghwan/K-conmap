@@ -8,10 +8,14 @@
  *     바꾸기 = 아래 지역 알약 줄로 내려가 반짝(거기서 누르면 바로 바뀜 · 따로 저장 없음).
  *     지우기 = 지역 «전국» · 면허 맞춤 끔(브라우저 기억도) → «지웠습니다 · 되돌리기» 한 줄. 알림을 켜 두었으면 알림도 꺼짐(조건이 없으니).
  *     📊 |내조건|바꾸기 · |내조건|지움 · |내조건|되돌림
+ *   ■ G222 (2026-10-09) 이 «🔔 새 공고 알림 받기» 신청은 그대로(하루 두 번 · 8시 · 13시) — 소장님 「현재 하던대로 하고, 알림 신청하지 않은 이용자만 하루 한 번 알림 가게 하자.」
+ *     신청을 «끄면» 신청 안 한 분께 가는 하루 한 번(오전 10시 · lib/저절로알림.js)도 안 가게 끔 표시를 같이 남깁니다(끈 분께 알림이 새로 생기지 않게).
+ *     📊 숨은 누적 |알림|신청 · |알림|신청끔 (lib/관심알림.js)
  */
 import { useEffect, useRef, useState } from 'react'
 import { loadRegion, loadMine, licShort } from './lib/lic.js'
 import { 조건알림, 조건알림켜짐 } from './lib/관심알림.js'
+import { 알림끄기 } from './lib/저절로알림.js'
 import { 세기 } from './lib/받은수.jsx'
 
 export default function 내조건줄({ region, mine, lics, licNone, licOptions, 넓혀보기, 내조건으로, 지우기, 되살리기 }) {
@@ -70,6 +74,7 @@ export default function 내조건줄({ region, mine, lics, licNone, licOptions, 
     set바쁨(true)
     try {
       const m = await 조건알림(켜짐 ? null : 조건, !켜짐)
+      알림끄기(켜짐, true).catch(() => {})       /* G222 — 신청을 끄면 하루 한 번(오전 10시)도 끔 · 다시 켜면 그 끔도 풂(조용히 · 숨은 누적 안 셈) */
       set켜짐(!켜짐); set말(m)
     } finally { set바쁨(false) }
   }
@@ -81,7 +86,7 @@ export default function 내조건줄({ region, mine, lics, licNone, licOptions, 
         {내조건중
           ? <button className="chip" onClick={넓혀보기}>전국 · 모든 면허 보기</button>
           : <button className="chip on" onClick={내조건으로}>내 조건으로 보기</button>}
-        <button className={'chip' + (켜짐 ? ' on' : '')} onClick={알림누름} disabled={바쁨}
+        <button className={'chip' + (켜짐 ? ' on' : '')} onClick={알림누름} disabled={바쁨} data-no-ask="1"
           title="하루 두 번(아침 8시 · 낮 1시) 내 조건에 맞는 새 공고를 묶어 알려 드립니다">
           {켜짐 ? '🔔 새 공고 알림 받는 중' : '🔔 새 공고 알림 받기'}
         </button>

@@ -5151,6 +5151,11 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 .noti-pop { position: absolute; right: 0; top: calc(100% + 8px); z-index: 80; width: min(340px, calc(100vw - 24px));
   background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 12px;
   box-shadow: 0 12px 32px rgba(15, 23, 42, .22); padding: 6px; }
+/* 🩹 G222 폰 — 종이 오른쪽 끝이 아니라(새로고침 · 테마 단추 왼쪽) 창이 화면 왼쪽 밖으로 잘리던 것 → 화면 양쪽 12px 안에 고정 */
+@media (max-width: 560px) {
+  .noti-pop { position: fixed; left: 12px; right: 12px; top: calc(env(safe-area-inset-top, 0px) + 58px); width: auto;
+    max-height: calc(100vh - 90px); overflow-y: auto; }
+}
 .noti-ph { display: flex; align-items: center; gap: 8px; padding: 6px 8px 8px; font-size: 13.5px; }
 .noti-all { margin-left: auto; border: 0; background: none; color: var(--accent); font-size: 12.5px; font-weight: 700; cursor: pointer; }
 .noti-it { display: grid; gap: 2px; width: 100%; text-align: left; border: 0; background: var(--bad-soft); color: var(--text);
@@ -5166,6 +5171,10 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 .noti-go { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; border: 0; background: none;
   color: var(--text); text-align: left; font: inherit; font-size: 13.5px; cursor: pointer; padding: 0; }
 .noti-go b { color: var(--bad); word-break: keep-all; }
+/* 🆕 G222 다시 오신 분께 — 알림(빨강)이 아니라 안내라 파랑으로 */
+.noti-band.since { background: var(--accent-soft); border-color: var(--accent); }
+.noti-band.since .noti-dot { background: var(--accent); }
+.noti-band.since .noti-go b { color: var(--accent); }
 .noti-see { margin-left: auto; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
 .noti-x { flex: none; border: 0; background: none; color: var(--muted); font-size: 15px; cursor: pointer; padding: 2px 6px; }
 .noti-on { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: -2px 0 10px; font-size: 12.5px; }

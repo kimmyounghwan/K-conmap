@@ -9,6 +9,8 @@ import AskStrip from './AskComment'
 import 인사 from './인사.jsx'
 /* 🔔 2026-09-30(G73) 사랑방 답글 알림 — 맨 위 종 · 본문 맨 위 띠 (알림종.jsx · lib/알림.js) */
 import { 알림종, 알림띠 } from './알림종.jsx'
+/* 🆕 G222 다시 오신 분께 — «지난번 오신 뒤 새 공고 N건» 한 줄(폰 알림 아님 · 사이트 안에서만) */
+import 다시오심띠 from './다시오심.jsx'
 import FirstBar from './FirstBar.jsx'
 import RefreshBtn from './Refresh.jsx'
 import Crumbs, { BackBtn } from './Crumbs.jsx'
@@ -216,6 +218,8 @@ export default function App() {
         <AppWindowBar />
         {/* 🔔 내 글에 새 답글 — 한 줄 띠(G73). 사랑방에 쓴 적 있는 브라우저만 읽습니다 */}
         <알림띠 />
+        {/* 🆕 G222 지난번 방문 뒤 3시간 넘었으면 — 새 공고 · 1순위 · 내 지역 수(이 탭에서 한 번) */}
+        <다시오심띠 />
         {/* 🔑 소장님 기계에서만 — 성적표로 가는 길 (아래 운영자띠 설명) */}
         <운영자띠 />
         {/* 🧭 처음 온 사람에게 딱 한 번 — «보는 방법» 으로 가는 길 (FirstBar.jsx) */}

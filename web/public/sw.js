@@ -31,22 +31,36 @@ self.addEventListener('fetch', () => { /* 가로채지 않습니다 — 위 설�
  *   소장님: 「사이트 안, 폰 알림창도 뜨게 해줘」 · 「내가 답글을 쓰면...알림가게 해줘」
  *   ⚠️ 여기도 fetch 는 건드리지 않습니다(위 설명). push · notificationclick 만 듣습니다.
  *   보내는 쪽은 web/functions/index.js qnaReplyNotify — {title, body, url, tag} 를 JSON 으로 보냅니다. */
+/* 🔔 G222 (2026-10-09) 모든 알림에 «🏗 건설맵 열기» · «✕ 닫기» 단추 + 본문 끝에 k-conmap.com
+ *   소장님: 「알림이 가도 반드시 닫기, 건설맵 링크가 있어야 해」
+ *   · 단추를 못 그리는 기기(아이폰 · 맥 사파리 등)는 알림을 누르면 건설맵이 열리고, 옆으로 밀면 닫힙니다 — 그래서 본문에도 주소를 적습니다.
+ *   · 누르고 들어오면 주소에 ?kcm=push 를 붙여 사이트가 «알림을 눌러 들어옴» 을 숨은 누적으로 셉니다(|알림|누름 · main.jsx) */
+const 건설맵 = 'k-conmap.com'
 self.addEventListener('push', (e) => {
   let d = {}
   try { d = e.data ? e.data.json() : {} } catch (er) { d = { body: e.data ? e.data.text() : '' } }
   const title = d.title || '💬 K-건설맵 사랑방'
+  const 본문 = d.body || '올리신 글에 답글이 달렸습니다.'
   e.waitUntil(self.registration.showNotification(title, {
-    body: d.body || '올리신 글에 답글이 달렸습니다.',
+    body: 본문.includes(건설맵) ? 본문 : `${본문}\n👉 ${건설맵}`,
     icon: '/icon-192.png',
     badge: '/icon-192.png',
     tag: d.tag || 'kcm-qna',
     renotify: true,
     data: { url: d.url || '/qna' },
+    actions: [
+      { action: 'open', title: '🏗 건설맵 열기' },
+      { action: 'close', title: '✕ 닫기' },
+    ],
   }))
 })
 self.addEventListener('notificationclick', (e) => {
   e.notification.close()
-  const url = new URL((e.notification.data && e.notification.data.url) || '/qna', self.location.origin).href
+  if (e.action === 'close') return                 /* ✕ 닫기 — 닫기만 */
+  const 길 = (e.notification.data && e.notification.data.url) || '/qna'
+  const u = new URL(길, self.location.origin)
+  u.searchParams.set('kcm', 'push')
+  const url = u.href
   e.waitUntil((async () => {
     const 창들 = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
     for (const c of 창들) {

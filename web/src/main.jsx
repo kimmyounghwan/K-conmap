@@ -297,6 +297,16 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
    ⚠️ 그린 뒤에 표를 남기면 이미 「운영자 아님」으로 한 번 그려진 뒤라 안 보입니다.
    ⚠️ 보통 손님은 이 길로 오지 않습니다 — op= 가 없으면 곧장 그립니다(느려지지 않습니다). */
 try { 받은수켜기() } catch (e) { /* 세는 것 때문에 사이트가 멈추면 안 됩니다 */ }
+/* 🔔 G222 저절로 알림 — 신청 안 한 분(폰 알림 허용)의 지역 · 면허 · 찾은 말 · 쓴 화면을 watch_auto 로(바뀌었을 때 · 사흘에 한 번) · 첫 누름에 허용 창 한 번 */
+import('./lib/저절로알림.js').then((m) => m.켜두기()).catch(() => { /* 알림 때문에 사이트가 멈추면 안 됩니다 */ })
+/* 🔔 G222 폰 알림을 눌러 들어옴(sw.js 가 ?kcm=push 를 붙임) — 숨은 누적 |알림|누름 · 주소에서는 지움 */
+try {
+  const u = new URL(location.href)
+  if (u.searchParams.get('kcm') === 'push') {
+    u.searchParams.delete('kcm'); history.replaceState(history.state, '', u.pathname + u.search + u.hash)
+    import('./lib/받은수.jsx').then((m) => m.세기('|알림|누름')).catch(() => {})
+  }
+} catch (e) { /* 없음 */ }
 /* 🩹 2026-10-05 흰 화면 지킴 — 여기까지 왔으면 큰 묶음(index-*.js)은 받은 것입니다.
    index.html 의 «못 받으면 한 번 새로 받기» 표를 지우고(다음 배포 때 또 한 번 구하게), 그때 붙인 ?__v= 꼬리를 주소에서 뗍니다. */
 try {

@@ -4084,6 +4084,31 @@ def main():
         print(f"  \u2192 bidindex  \ub9c8\uac10\uc804 {len(rows):,}\uac74 "
               f"(\uae30\ucd08\uae08\uc561 \uc788\ub294 \uac83 {have:,}\uac74, "
               f"{os.path.getsize(path)/1024:.0f}KB)")
+        # 🆕 G222 (2026-10-09) 시간마다 새 공고 · 1순위 수(작은 파일) — 다시 온 사람에게 «지난번 오신 뒤 새 공고 N건 · 1순위 N건 · 내 지역 N건»
+        #   소장님: 「방문했던 이용자 모두에게 알림 가게 해야 해…」 → 폰 알림을 허용 안 한 사람도 다시 오면 사이트 안에서(띠 한 줄 · 다시오심.jsx)
+        #   {built, h: {YYYYMMDDHH: [공고, 1순위]}, s: {YYYYMMDDHH: {시도: 공고}}} · 최근 8일 · 한국시간(조달청 dt 그대로)
+        try:
+            cut = (datetime.now(KST) - timedelta(days=8)).strftime("%Y%m%d%H")
+            hh, ss = {}, {}
+            for r in store["con"].values():
+                k = dt_digits(r.get("dt"))[:10]
+                if len(k) != 10 or k < cut:
+                    continue
+                hh.setdefault(k, [0, 0])[0] += 1
+                sd = sido_of(r, _rbook)
+                for x in [y for y in str(sd or "").split(",") if y]:
+                    ss.setdefault(k, {})[x] = ss.setdefault(k, {}).get(x, 0) + 1
+            for r in (fstore.get("con") or {}).values():
+                k = dt_digits(r.get("dt"))[:10]
+                if len(k) == 10 and k >= cut:
+                    hh.setdefault(k, [0, 0])[1] += 1
+            npth = os.path.join(OUT, "newcount.json")
+            with open(npth, "w", encoding="utf-8") as f:
+                json.dump({"built": built, "h": dict(sorted(hh.items())), "s": dict(sorted(ss.items()))},
+                          f, ensure_ascii=False, separators=(",", ":"))
+            print(f"  \u2192 newcount  {len(hh)}\uc2dc\uac04 ({os.path.getsize(npth)/1024:.1f}KB)")
+        except Exception as e:     # 이 작은 파일 때문에 회차가 멈추면 안 됨
+            print(f"  ! newcount \uac74\ub108\ub700 ({type(e).__name__}: {e})")
 
     def export_aparts(store):
         """A값 내역(법정경비 항목별)만 따로 담습니다 — 2026-09-03.

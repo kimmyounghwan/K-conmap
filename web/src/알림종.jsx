@@ -7,6 +7,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { 켤까닭, 알림읽기, 봤음, 알림글 } from './lib/알림.js'
+import { 알림꺼짐, 알림끄기 } from './lib/저절로알림.js'   /* 🔕 G222 */
+import { 조건알림켜짐 } from './lib/관심알림.js'
 
 /* ── 둘(종 · 띠)이 같이 쓰는 작은 저장소 ── */
 const 곳 = { 목록: [], 읽음: 0 }
@@ -64,6 +66,22 @@ const 몇전 = (at) => {
   return `${Math.round(h / 24)}일 전`
 }
 
+/* 🔕 G222 — 신청하지 않은 분께 가는 «하루 한 번(오전 10시)» 끄기 · 다시 켜기. 조건을 안 고른 분도 끌 수 있게 종 안에 둡니다
+   (소장님 「너무 알림이 많이 가면 짜증이 날 수도 있어. 알지??」 · 「현재 하던대로 하고, 알림 신청하지 않은 이용자만 하루 한 번」)
+   내 조건 알림을 신청한 분은 이 줄이 안 보입니다(신청은 내 조건 줄 «🔔 새 공고 알림 받는 중» 으로 끔 — 하던 대로) */
+function 알림끄기줄() {
+  const [꺼짐, set꺼짐] = useState(알림꺼짐)
+  if (조건알림켜짐()) return null
+  return (
+    <div className="noti-ph" style={{ borderTop: '1px solid var(--line)', borderBottom: 0 }}>
+      <span className="muted" style={{ fontSize: 12.5 }}>{꺼짐 ? '하루 한 번 공고 소식이 꺼져 있습니다' : '공고 소식 — 하루 한 번(오전 10시)'}</span>
+      <button className="noti-all" data-no-ask="1" onClick={() => { const 끔 = !꺼짐; 알림끄기(끔).catch(() => {}); set꺼짐(끔) }}>
+        {꺼짐 ? '🔔 다시 켜기' : '🔕 끄기'}
+      </button>
+    </div>
+  )
+}
+
 /** 맨 위 막대의 종 — 안 본 답글이 있을 때만 보입니다 */
 export function 알림종() {
   const s = use알림()
@@ -96,6 +114,7 @@ export function 알림종() {
             </button>
           ))}
           {!s.목록.length && <div className="noti-empty muted">새 알림이 없습니다.</div>}
+          <알림끄기줄 />
         </div>
       )}
     </div>

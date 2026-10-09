@@ -30,8 +30,11 @@ export function loadLicCodes() {
     return Array.isArray(v) ? v.map(String) : []
   } catch { return [] }
 }
+/* 🔔 G222 — 지역 · 면허가 바뀌면 «저절로 알림» 이 조건을 다시 올립니다(lib/저절로알림.js 켜두기가 듣습니다 · 서로 불러오지 않게 사건으로) */
+const 바뀜 = () => { try { window.dispatchEvent(new Event('kcm-cond')) } catch { /* 서버 굽기 */ } }
 export function saveLicCodes(v) {
   try { localStorage.setItem(LS_CODES, JSON.stringify(v)) } catch { /* 사생활 모드 */ }
+  바뀜()
 }
 /* 지역 — 2026-09-06. 면허와 같은 이유로 브라우저에만 저장합니다(서버 0, 로그인 없음).
    공고 탭과 바로투찰 첫 화면이 같은 값을 읽습니다. 한쪽에서 바꾸면 양쪽이 따라옵니다. */
@@ -41,6 +44,7 @@ export function loadRegion() {
 }
 export function saveRegion(v) {
   try { localStorage.setItem(LS_REGION, v || '전국') } catch { /* 사생활 모드 */ }
+  바뀜()
 }
 /** 면허나 지역을 한 번이라도 골랐나 — 바로투찰 첫 화면이 «설정 안내» 와 «내 것» 을 가르는 기준 */
 export function hasMine() {
@@ -56,6 +60,7 @@ export function loadMine() {
 }
 export function saveMine(v) {
   try { localStorage.setItem(LS_MINE, v ? '1' : '0') } catch { /* 사생활 모드 */ }
+  바뀜()
 }
 
 export function loadLicNone() {
@@ -63,6 +68,7 @@ export function loadLicNone() {
 }
 export function saveLicNone(v) {
   try { localStorage.setItem(LS_NONE, v ? '1' : '0') } catch { /* 사생활 모드 */ }
+  바뀜()
 }
 
 /** meta 에서 면허 목록을 꺼냅니다. [[코드, 이름, 건수], …]

@@ -37,6 +37,7 @@ import { 입찰일정, 투찰조건, 공고첨부, 공고문전문 } from '../�
 import 밖공고줄 from '../밖공고줄.jsx'
 import 곧나올줄 from '../곧나올줄.jsx'
 import { 공고봄 } from '../lib/조회수.jsx'   /* 👁 G121 — 펼치면 그 공고 조회 1 */
+import { 검색어기억 } from '../lib/저절로알림.js'   /* 🔔 G222 찾은 말 → 하루 두 번 알림(다 친 뒤 2.5초) */
 
 /* ══════════════════════════════════════════════════════════════
    «바로투찰» 버튼은 계산이 되는 공고에만 답니다.
@@ -381,7 +382,7 @@ export default function LiveBoard() {
       </div>
 
       {!bagMode && (
-        <input value={q} onChange={(e) => setQ(e.target.value)}
+        <input value={q} onChange={(e) => { setQ(e.target.value); 검색어기억(e.target.value) }}
           placeholder="공고명 · 발주기관 검색" style={{ marginBottom: 10 }} />
       )}
 
