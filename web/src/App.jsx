@@ -11,6 +11,8 @@ import 인사 from './인사.jsx'
 import { 알림종, 알림띠 } from './알림종.jsx'
 /* 🆕 G222 다시 오신 분께 — «지난번 오신 뒤 새 공고 N건» 한 줄(폰 알림 아님 · 사이트 안에서만) */
 import 다시오심띠 from './다시오심.jsx'
+/* 🔔 G222 알림 안내 쪽지 — 내 조건을 고른 순간 «하루 두 번 폰으로 알려 드릴까요?» (차가운 허용 창 대신 · 허용 비율 올리기) */
+import 알림안내 from './알림안내.jsx'
 import FirstBar from './FirstBar.jsx'
 import RefreshBtn from './Refresh.jsx'
 import Crumbs, { BackBtn } from './Crumbs.jsx'
@@ -237,6 +239,7 @@ export default function App() {
         <Outlet />
         {/* 👋🙏 방문 인사 — 떠 있다가 5초 뒤 사라지는 쪽지(자리를 차지하지 않음) */}
         <인사 />
+        <알림안내 />
         <footer className="footer">
           <div>
             <a href="/about">소개</a><span className="dot">·</span>

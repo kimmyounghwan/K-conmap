@@ -74,7 +74,7 @@ function 알림끄기줄() {
   if (조건알림켜짐()) return null
   return (
     <div className="noti-ph" style={{ borderTop: '1px solid var(--line)', borderBottom: 0 }}>
-      <span className="muted" style={{ fontSize: 12.5 }}>{꺼짐 ? '하루 한 번 공고 소식이 꺼져 있습니다' : '공고 소식 — 하루 한 번(오전 10시)'}</span>
+      <span className="muted" style={{ fontSize: 12.5 }}>{꺼짐 ? '하루 한 번 공고 소식이 꺼져 있습니다' : '공고 소식 — 평일 하루 한 번(오전 10시)'}</span>
       <button className="noti-all" data-no-ask="1" onClick={() => { const 끔 = !꺼짐; 알림끄기(끔).catch(() => {}); set꺼짐(끔) }}>
         {꺼짐 ? '🔔 다시 켜기' : '🔕 끄기'}
       </button>

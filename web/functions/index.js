@@ -331,6 +331,7 @@ exports.qnaReplyNotify = onValueCreated(
      watch_cond/{번호} = {rg, lic, none} 마다 지난번 알림(watch_last/{번호}) 뒤로 올라온 공고 중 맞는 것을 세어 한 통.
      공고 = 사이트 공고 첫 묶음(board/live-con-0.json, 약 24시간) + 그 색인(live-con-idx.json 의 앞 500줄 · sido · lic) + 방금 공고(fresh).
      ② 📢 신청 «안 한» 분 — 하루 한 번 오전 10시(G222 · watch_meta/day · 아래 하루한통) · 소장님 「현재 하던대로 하고, 알림 신청하지 않은 이용자만 하루 한 번 알림 가게 하자.」
+     🗓 G223 토 · 일 · 공휴일 · 밤에는 공고 · 1순위 알림(①② · ☆ 담은 공고)을 안 보냄 — 다음 평일 첫 알림에 모아서. 맵톡 답글 알림(qnaReplyNotify)은 그대로.
      지역 · 면허 맞추기는 화면과 «같은 규칙»(lib/fmt.js inRegion · lib/lic.js licHit = alertpack.js 지역맞나 · 면허맞나) — 한쪽만 고치지 말 것.
    ■ 돈: 10분에 한 번 깨어나 watch 를 한 번 읽음(대개 몇 KB) · 하루 두 번 공고 묶음 약 2MB · 하루 한 번 색인 1~2MB 받음 · maxInstances 3.
    ══════════════════════════════════════════════════════════════════ */
@@ -382,6 +383,8 @@ const 푸시보내기 = async (d, 사람들, 알림) => {
 
 /* ── ☆ 담은 공고 1순위 ── */
 async function 담은공고(d) {
+  /* 🗓 G223 쉬는 날(토 · 일 · 공휴일) · 밤 · 새벽(평일 8시 전 · 22시 뒤)에는 안 보냄 — watch 를 그대로 두어 다음 평일 아침 8시 지나 첫 깨어남에(alertpack.js 보낼때) */
+  if (!require('./alertpack.js').보낼때()) return
   const 지켜 = (await d.ref('/watch').get()).val() || {}
   if (!Object.keys(지켜).length) return
   const 줄들 = await 묶음읽기(d, 'first')
@@ -416,9 +419,12 @@ async function 담은공고(d) {
   }
 }
 
-/* ── 📍 내 조건 새 공고 «신청한 분» (하루 두 번 · G97 그대로) ── */
-const { 지역맞나, 면허맞나 } = require('./alertpack.js')     /* = web/src/lib/fmt.js inRegion · lib/lic.js licHit */
+/* ── 📍 내 조건 새 공고 «신청한 분» (하루 두 번 · G97 그대로) ──
+   🗓 G223 (2026-10-10) 소장님 「휴일하고, 토, 일은 알림이 안가도 돼잖아 공고 나 1순위는…」 → 쉬는 날은 안 보냄 · 다음 평일 8시 칸에 모아서
+      (부터 = 지난번 알림 · 직전 평일 같은 시각 − 2시간 = alertpack.js 거슬러 — 평일은 전과 똑같이 26시간 · 하루 넘게 비면 마감 전 색인도 같이 봄) */
+const { 지역맞나, 면허맞나, 쉬나, 거슬러 } = require('./alertpack.js')     /* = web/src/lib/fmt.js inRegion · lib/lic.js licHit */
 async function 조건묶음(d) {
+  if (쉬나()) return                               /* 🗓 토 · 일 · 공휴일 */
   const 지금 = 한국()
   const h = 지금.getUTCHours()
   /* 8시 칸(8~12시) · 13시 칸(13~21시) — 빠른 수집이 그 시각에 한 번 멈췄어도 다음 깨어남에 보냅니다. 밤 22시 뒤로는 안 보냄 */
@@ -445,10 +451,16 @@ async function 조건묶음(d) {
   })
   /* 방금 공고 _ix = [name, inst, base, lo, hi, lic, sido, …] — fast.py finish() 와 같은 차례 */
   for (const r of fresh) if (r && r.no) { const x = r._ix || []; 공고.set(String(r.no), { no: r.no, name: r.name, inst: r.inst, dt: String(r.dt || ''), sido: x[6], codes: x[5] || [] }) }
+  /* 🗓 쉬는 날 뒤 첫 칸(월요일 8시 등) — 사이트 첫 묶음(약 24시간)으로는 모자라서 마감 전 색인(bidindex)도 같이 봄(없는 번호만 더함) */
+  const 아래끝 = 거슬러()
+  const 가장이른 = Math.min(...Object.entries(조건들).filter(([, c]) => c).map(([r, c]) => Math.max(Number(지난들[r]) || 0, Number(c.at) || 0, 아래끝)))
+  if (가장이른 < Date.now() - 22 * 3600e3) {
+    try { for (const x of await 공고재료(d)) if (!공고.has(String(x.no))) 공고.set(String(x.no), x) } catch (e) { console.error('색인 못 받음(첫 묶음으로만):', e && e.message) }
+  }
   const 모두 = [...공고.values()]
   for (const [r, c] of Object.entries(조건들)) {
     if (!c) continue
-    const 부터 = Math.max(Number(지난들[r]) || 0, Number(c.at) || 0, Date.now() - 26 * 3600e3)
+    const 부터 = Math.max(Number(지난들[r]) || 0, Number(c.at) || 0, 아래끝)
     const 부터글 = 한국글(부터)
     const 원함 = String(c.lic || '').split(',').filter(Boolean)
     const 맞음 = 모두.filter((x) => x.dt > 부터글 && 지역맞나(x, c.rg) && 면허맞나(x.codes, 원함, c.none))
@@ -463,7 +475,7 @@ async function 조건묶음(d) {
   }
 }
 
-/* ── 📢 신청 «안 한» 분께 하루 한 번 (G222 · 2026-10-09) — 오전 10시(10:00~21:59 첫 깨어남 · 한 번만 · watch_meta/day) ──
+/* ── 📢 신청 «안 한» 분께 하루 한 번 (G222 · 2026-10-09) — 평일 오전 10시(10:00~21:59 첫 깨어남 · 한 번만 · watch_meta/day · 🗓 G223 쉬는 날은 안 보냄) ──
    소장님: 「알림 해줘」 → 「너무 알림이 많이 가면 짜증이 날 수도 있어」 → 「10시에 하자. 모아서 한 번」
            → 「현재 하던대로 하고, 알림 신청하지 않은 이용자만 하루 한 번 알림 가게 하자.」
    ■ 받는 사람 = 폰 알림을 허용한 사람(push/{번호}) 가운데
@@ -527,11 +539,12 @@ async function 하루한통(d) {
   let 보낸 = 0, 요약보낸 = 0
   for (const r of 사람들) {
     const c = 기억[r] && typeof 기억[r] === 'object' ? 기억[r] : null
-    const 부터 = Math.max(Number(지난들[r]) || 0, Date.now() - 26 * 3600e3)
+    const 부터 = Math.max(Number(지난들[r]) || 0, M.거슬러())      /* 🗓 월요일이면 금요일 10시 무렵부터(쉬는 날 공고까지) */
     await d.ref(`/watch_day_last/${r}`).set(Date.now())
-    let 알림 = c ? M.글(M.한사람(c, 부터, { 공고, 일순위, 고침 }), c) : null
+    const 머리 = M.사이말(부터)                        /* «지난 하루» · 월요일 «주말 사이» · 연휴 뒤 «연휴 사이» */
+    let 알림 = c ? M.글(M.한사람(c, 부터, { 공고, 일순위, 고침 }), c, 머리) : null
     if (알림) 보낸 += 1
-    else { 알림 = M.요약(공고, 일순위, 부터); if (알림) 요약보낸 += 1 }
+    else { 알림 = M.요약(공고, 일순위, 부터, 머리); if (알림) 요약보낸 += 1 }
     if (!알림) continue
     await 종한줄(d, r, { k: 'new', m: `${알림.title} — ${알림.body}`, u: 알림.url, at: Date.now() })
     await 푸시보내기(d, [r], 알림)

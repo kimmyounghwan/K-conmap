@@ -27,6 +27,13 @@ export default function 내조건줄({ region, mine, lics, licNone, licOptions, 
   const [바쁨, set바쁨] = useState(false)
   const [지운것, set지운것] = useState(null)   // { 지역, 맞춤, 알림 } — 되돌리기용
 
+  /* G222 — 알림 안내 쪽지(알림안내.jsx)에서 신청하면 이 단추도 «받는 중» 으로 */
+  useEffect(() => {
+    const 켬 = () => set켜짐(true)
+    window.addEventListener('kcm-cond-on', 켬)
+    return () => window.removeEventListener('kcm-cond-on', 켬)
+  }, [])
+
   /* 알림을 켠 채로 조건을 바꾸면 서버의 조건도 따라 바꿉니다(1.5초 모아서) */
   const 첫 = useRef(true)
   const 조건 = { rg: 저장지역, lic: 저장맞춤 ? lics : [], none: !!licNone }
@@ -87,7 +94,7 @@ export default function 내조건줄({ region, mine, lics, licNone, licOptions, 
           ? <button className="chip" onClick={넓혀보기}>전국 · 모든 면허 보기</button>
           : <button className="chip on" onClick={내조건으로}>내 조건으로 보기</button>}
         <button className={'chip' + (켜짐 ? ' on' : '')} onClick={알림누름} disabled={바쁨} data-no-ask="1"
-          title="하루 두 번(아침 8시 · 낮 1시) 내 조건에 맞는 새 공고를 묶어 알려 드립니다">
+          title="평일 하루 두 번(아침 8시 · 낮 1시) 내 조건에 맞는 새 공고를 묶어 알려 드립니다">
           {켜짐 ? '🔔 새 공고 알림 받는 중' : '🔔 새 공고 알림 받기'}
         </button>
         <button className="chip" onClick={바꾸기} title="아래 지역 · 면허를 눌러 바꿉니다">✏️ 바꾸기</button>

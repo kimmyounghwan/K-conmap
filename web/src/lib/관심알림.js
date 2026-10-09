@@ -90,7 +90,7 @@ export async function 조건알림(조건, 누름 = false) {
     try { localStorage.setItem(조건열쇠, '1') } catch (e) { /* 없음 */ }
     if (!허락) return ''
     const p = await 폰알림켜기(r, 허락)
-    return '아침 8시 · 낮 1시, 새 공고를 묶어 한 번 — ' + 결과말(p)
+    return '평일 아침 8시 · 낮 1시, 새 공고를 묶어 한 번 — ' + 결과말(p)
   } catch (e) {
     return 조건 ? '알림을 켜지 못했습니다 — 잠시 뒤 다시 눌러 주세요' : ''
   }

@@ -58,7 +58,7 @@ const 깨움 = (name = 'live') => fn.freshNotify({ data: { after: { exists: () =
 ;(async () => {
   let 틀림 = 0, 셈 = 0
   const 봄 = (이름, 참, 덧 = '') => { 셈++; console.log((참 ? '✓ ' : '✗ ') + 이름 + (덧 ? ` — ${덧}` : '')); if (!참) 틀림++ }
-  const 오늘 = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)
+  const 오늘 = '2026-10-14'          /* 수요일로 못 박음 — 🗓 G223 부터 토 · 일 · 공휴일엔 공고 · 1순위 알림이 쉬므로(시험 날짜가 주말이어도 같은 결과) */
   const 원now = Date.now
   const 시각 = (hm) => Date.parse(`${오늘}T${hm}:00+09:00`)
   for (const r of 사이트['/data/board/live-con-0.json']) r.dt = 오늘 + ' 07:00:00'
@@ -137,6 +137,37 @@ const 깨움 = (name = 'live') => fn.freshNotify({ data: { after: { exists: () =
   // ⑦ 밤 23시 — 아무것도 안 감
   Date.now = () => 시각('23:00'); 전 = 보낸푸시.length; await 깨움('live')
   봄('⑦ 밤 23시 — 안 감', 보낸푸시.length === 전)
+
+  // 🗓 G223 쉬는 날 — 소장님 「휴일하고, 토, 일은 알림이 안가도 돼잖아 공고 나 1순위는…」 「맵톡 알림은 가야 하지만…」
+  const 때2 = (날, hm) => Date.parse(`${날}T${hm}:00+09:00`)
+  나무.watch_last.u1 = 때2('2026-10-16', '13:05'); 나무.watch_last.u2 = 때2('2026-10-16', '13:05')        /* 금요일까지 보낸 것으로 */
+  for (const r of ['u3', 'u4', 'u7', 'u9']) 나무.watch_day_last[r] = 때2('2026-10-16', '10:00')
+  나무.watch_meta.slot = '2026-10-16-13'; 나무.watch_meta.day = '2026-10-16-10'
+  /* 금 오후 · 토요일 공고 — 마감 전 색인에만 있음(사이트 첫 묶음 · 방금 공고에는 없음) */
+  사이트['/data/bidindex.json'].r.push(
+    ['H', '광양 배수로 정비공사', '전남광주통합특별시 광양시', '2026-10-16 15:00:00', ['지반조성ㆍ포장공사업/4989'], [1], ['전남 광양시'], '제한경쟁', '', '전남'],
+    ['S', '순천 도로 포장 보수', '전남광주통합특별시 순천시', '2026-10-17 11:00:00', ['지반조성ㆍ포장공사업/4989'], [1], ['전남 순천시'], '제한경쟁', '', '전남'])
+  나무.fresh.rows.live = {}
+  나무.fresh.rows.first = { b: JSON.stringify([{ no: 'W2', name: '어느 교량 보수공사', win: '○○', rate: 89.9, np: 12, dt: '2026-10-17 11:00:00' }]) }   /* 토요일에 나온 ☆ 담은 공고(u6) 1순위 */
+  전 = 보낸푸시.length
+  for (const [날, hms] of [['2026-10-17', ['08:10', '10:00', '11:30', '13:05', '18:00']], ['2026-10-18', ['08:10', '10:00', '13:05']]]) {
+    for (const hm of hms) { Date.now = () => 때2(날, hm); await 깨움('live'); await 깨움('first') }
+  }
+  봄('⑧ 토 · 일 — 공고 · 1순위 알림 하나도 안 감(☆ 담은 공고도 지우지 않고 기다림)', 보낸푸시.length === 전 && !!나무.watch.W2, 받음(전).join(' / '))
+  Date.now = () => 때2('2026-10-19', '07:30'); await 깨움('first'); await 깨움('live')
+  봄('⑨ 월 7시 반 — 아직 안 감(평일 8시부터)', 보낸푸시.length === 전)
+  Date.now = () => 때2('2026-10-19', '08:05'); await 깨움('first')
+  const 월담 = 받음(전)
+  봄('⑩ 월 8시 — 주말에 나온 ☆ 담은 공고 1순위가 u6 에게(바로 · 평일 아침)', 월담.length === 1 && 월담[0].startsWith('u6 🏆'), 월담.join(' / '))
+  전 = 보낸푸시.length; Date.now = () => 때2('2026-10-19', '08:10'); await 깨움('live')
+  const 월8 = 보낸푸시.slice(전)
+  봄('⑩ 월 8시 칸 — 신청한 u1 에게 금 오후 · 토요일 공고 2건(색인에서 찾음)', 월8.length === 1 && 월8[0][0].endsWith('/u1') && 월8[0][1].title === '📢 내 조건 새 공고 2건', 월8.map((x) => x[0].replace('https://push/', '') + ' ' + x[1].title + ' ' + x[1].body).join(' / '))
+  전 = 보낸푸시.length; Date.now = () => 때2('2026-10-19', '10:00'); await 깨움('live')
+  const u4월 = (보낸푸시.slice(전).find((x) => x[0].endsWith('/u4')) || [])[1] || {}
+  봄('⑪ 월 10시 — 신청 안 한 u4 «주말 사이 새 공고 2건 · 1순위 1건»', u4월.title === '📢 주말 사이 새 공고 2건 · 1순위 1건', u4월.title)
+  전 = 보낸푸시.length
+  for (const 날 of ['2026-12-25']) for (const hm of ['08:10', '10:00', '13:05']) { Date.now = () => 때2(날, hm); await 깨움('live'); await 깨움('first') }
+  봄('⑫ 공휴일(성탄절 · 금) — 안 감', 보낸푸시.length === 전)
   Date.now = 원now
   console.log(`\n${셈}개 중 틀림 ${틀림}`)
   process.exit(틀림 ? 1 : 0)

@@ -10,8 +10,8 @@
        {rg, lic, none, kw, tools, at}  — 번호(익명) · 조건만. 이름 · 연락처 · 기기 정보는 없습니다. 폰 알림을 허용하지 않은 기기는 올리지 않습니다.
        kw    = 공고 · 1순위에서 찾은 말 최근 5개(2자 넘는 것) — 공고 이름에 들어 있으면 알림
        tools = 이 기기에서 연 도구 · 서식 주소(마이쓴곳.js · 자주 쓴 20개) — 그 화면을 고치면 알림(public/fixes.json)
-   ■ 건설맵이 따로 묻는 창은 없습니다. 폰 · PC 알림창은 브라우저 규칙상 «허용» 이 한 번 있어야 해서,
-     지역 · 면허를 «누를 때» · ⭐ 담을 때 · 서식을 받을 때 브라우저 기본 창만 «한 번» 뜹니다(한번묻기 · 맵톡과 같은 방식).
+   ■ 폰 · PC 알림창은 브라우저 규칙상 «허용» 이 한 번 있어야 합니다. 허용 창은 «누를 때» 만 뜹니다:
+     내 조건 «🔔 새 공고 알림 받기» · 알림 안내 쪽지 «🔔 알림 받기»(알림안내.jsx · G222 2026-10-10) · ⭐ 담을 때 · 맵톡.
      허용 안 하면(막음 · 닫음) 사이트 맨 위 🔔 로만 알립니다. 페이지를 보는 데는 아무 상관 없습니다.
    ■ «🔕 끄기»(맨 위 🔔 안) · 내 조건 알림 신청을 끈 기기 = {rg:'전국', off:true} 만 남김(kcm_alert_off) — 하루 한 번도 안 감.
    ■ 돈: 조건이 «바뀌었을 때» 와 사흘에 한 번만 씁니다(kcm_cond_sync) — 화면을 열 때마다 쓰지 않습니다.
@@ -24,13 +24,12 @@
      📊 숨은 누적: |알림|허용 · |알림|막음 · |알림|조건 · |알림|끔 · |알림|켬
    ══════════════════════════════════════════════════════════════ */
 import { loadRegion, loadMine, loadLicCodes, loadLicNone } from './lic.js'
-import { 표시해두기, 폰알림켜기, 허락묻기, 푸시되나 } from './알림.js'
+import { 표시해두기, 폰알림켜기, 푸시되나 } from './알림.js'
 import { 쓴곳읽기 } from './마이쓴곳.js'
 
 const 끔열쇠 = 'kcm_alert_off'
 const 맞춤열쇠 = 'kcm_cond_sync'          /* 마지막으로 올린 조건 글 + 때 */
 const 말열쇠 = 'kcm_kw'                  /* 찾은 말 최근 5개 */
-const 물음열쇠 = 'kcm_ask_once'           /* 브라우저 허용 창을 한 번 띄웠음 */
 const 사흘 = 3 * 86400e3
 const 셈 = (k) => { import('./받은수.jsx').then((m) => m.세기(k)).catch(() => {}) }   /* 숨은 누적 — 화면엔 안 보임 */
 
@@ -114,17 +113,10 @@ async function 폰주소올리기() {
   } catch (e) { /* 그물 · 막힘 — 다음에 조건을 올릴 때 다시 */ }
 }
 
-/**
- * 브라우저 기본 «알림 허용» 창 — «한 번만». 반드시 누름(클릭) 안에서 부르십시오(아이폰 · 파이어폭스는 누름 밖이면 거절).
- * 허용되면 곧바로 조건 · 푸시 주소를 올립니다.
- */
-export function 한번묻기() {
-  if (알림꺼짐() || !푸시되나() || typeof Notification === 'undefined') return
-  if (Notification.permission !== 'default') return
-  if (읽(물음열쇠, '') === '1') return
-  쓰(물음열쇠, '1')
-  허락묻기().then((p) => { 셈(p === 'granted' ? '|알림|허용' : '|알림|막음'); if (p === 'granted') { 폰주소올리기(); 조건바뀜(true) } }).catch(() => {})
-}
+/* ⛔ G222 (2026-10-10) «첫 누름에 브라우저 허용 창»(한번묻기)은 없앴습니다 — 소장님 «허용 비율 올리기»:
+   차갑게 바로 물으면 막는 분이 많고, 한 번 막으면 다시 물을 수 없고, 막는 분이 많은 사이트는 크롬이 창을 숨깁니다.
+   이제는 내 조건을 고른 순간 우리 쪽지(알림안내.jsx)를 먼저 띄우고 «🔔 알림 받기» 를 누른 분께만 허용 창(= 내 조건 알림 신청).
+   허용이 된 기기(쪽지 · ☆ 담기 · 맵톡)는 아래 켜두기가 폰 주소 · 기억 조건을 올립니다. */
 
 /** 🔕 끄기 · 🔔 다시 켜기 — 조용히 = 내 조건 알림 신청을 끄고 켤 때 따라서(숨은 누적은 |알림|신청 · |알림|신청끔 으로 따로 셈) */
 export async function 알림끄기(끔, 조용히 = false) {
@@ -134,20 +126,13 @@ export async function 알림끄기(끔, 조용히 = false) {
   await 올리기(true)
 }
 
-/* ── 사이트를 열 때 한 번(main.jsx) — 조건이 바뀌면(lib/lic.js 가 «kcm-cond» 를 알림) 올리고,
-      첫 방문의 «첫 누름»(단추 · 링크 · 공고 카드 — 어디든) 때 브라우저 허용 창을 기기마다 한 번만(G222 소장님 고르심 «첫 방문 첫 누름에 허용 창»)
-      ✕ 닫기 · 인사 쪽지 · 알림 끄기 단추([data-no-ask]) 를 누를 때는 묻지 않습니다 ── */
-const 안물음 = '.noti-x, .insa, [data-no-ask], .noticepop'
-const 물을곳 = 'button, a[href], [role="button"], .notice, [data-cond], [data-ask-alert]'
+/* ── 사이트를 열 때 한 번(main.jsx) — 조건이 바뀌면(lib/lic.js 가 «kcm-cond» 를 알림) 올림 · 허용된 기기면 폰 주소도 ── */
 export function 켜두기() {
   if (typeof window === 'undefined' || window.__저절로알림) return
   window.__저절로알림 = true
   window.addEventListener('kcm-cond', () => 조건바뀜())
-  document.addEventListener('click', (e) => {
-    try {
-      const t = e.target && e.target.closest ? e.target : null
-      if (t && t.closest(물을곳) && !t.closest(안물음)) 한번묻기()
-    } catch (er) { /* 없음 */ }
-  }, true)
-  setTimeout(() => 조건바뀜(), 4000)                /* 첫 화면이 뜬 뒤 — 바뀌지 않았으면 사흘에 한 번만 씀 */
+  setTimeout(() => {
+    조건바뀜()                                       /* 첫 화면이 뜬 뒤 — 바뀌지 않았으면 사흘에 한 번만 씀 */
+    try { if (푸시되나() && Notification.permission === 'granted') 폰주소올리기() } catch (e) { /* 없음 */ }
+  }, 4000)
 }
