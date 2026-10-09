@@ -200,6 +200,19 @@ jobs:
           PYTHONUNBUFFERED: '1'
         run: python build_json.py
 
+      # 🛡 G218 (2026-10-09) 자료 검진 — 소장님 「더 이상 틀어지지 않게 하면서 업데이트 자동으로」 · 「배포를 멈추거나. 작동이 안되면 더 문제 아냐?」
+      #   build_json 이 남긴 재료(data/store/검진_재료.json)로 업체 · 기관 3년치 집계를 검진하고,
+      #   빨간 칸만 지난 좋은판(data/store/좋은판/*.tar.gz)으로 바꿔 끼웁니다 — 공고 · 1순위 · 바로투찰은 안 건드림.
+      #   ⚠️ 배포를 멈추지 않습니다. 이 단계가 고장 나도 그대로 갑니다(continue-on-error · 자료검진.py 는 늘 exit 0).
+      #   ⚠️ 반드시 «3년치 집계» 바로 뒤 · «검색엔진 주소 목록 · 사이트 빌드 · 주소별 HTML» 앞(그쪽이 바꿔 끼운 것을 씀).
+      #   기준 · 시험: tools/자료검진.py · python tools/시험_자료검진.py
+      - name: 자료 검진 (틀린 칸만 지난 좋은판)
+        id: check
+        continue-on-error: true
+        env:
+          PYTHONUTF8: '1'
+        run: python tools/자료검진.py
+
       - name: 검색엔진 주소 목록
         env:
           PYTHONUTF8: '1'
@@ -423,6 +436,17 @@ jobs:
           echo "  이 빨간불은 «사이트가 죽었다» 가 아닙니다."
           echo "  사이트는 그대로 뜨지만, 새 공고·개찰이 안 들어오고 있다는 뜻입니다."
           echo "  대부분 조달청 쪽 일시 장애입니다 — 다음 회차(5분 뒤)가 스스로 다시 시도합니다."
+          exit 1
+
+      # 🛡 G218 자료 검진 알림 — 빨간불(또는 검사 못 돎)이면 하루 한 번 · 낮에만 일부러 빨간 회차로 만들어 GitHub 메일이 가게 함.
+      #   사이트는 이미 배포됐습니다(틀린 칸만 지난 좋은판). 이 단계가 «실패» 여도 아래 깨우기 · 다음 회차 예약은 그대로 돕니다(!cancelled()).
+      - name: 자료 검진 알림 (빨간불 = 메일 · 하루 한 번)
+        if: ${{ !cancelled() && steps.check.outputs.mail == '1' }}
+        run: |
+          echo "::error::자료 검진 빨간불 — ${{ steps.check.outputs.why }}"
+          echo ""
+          echo "  사이트는 그대로 갱신됐습니다. 틀린 칸(${{ steps.check.outputs.red }})만 지난 좋은판으로 두었습니다."
+          echo "  자세한 숫자: 사이트 /data/검진.json"
           exit 1
 
       # ══════════════════════════════════════════════════════════════

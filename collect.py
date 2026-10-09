@@ -28,6 +28,7 @@ import requests
 import urllib3
 
 import ranks3y            # 3년치 투찰 순위 보관함 (2026-09-15)
+import kcm_rules as R      # 📏 G217 공통 규칙(업체 이름 · 사업자번호 · 지역) — build_json.py 와 같은 것
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -626,6 +627,20 @@ def write_health(first, live, added):
         #   first : 평일만 봅니다 (실측 토 1건 · 일 0건), 공휴일은 뺍니다
         "gaps": {"first": find_gaps(first, "first"), "live": find_gaps(live, "live")},
     }
+    # 🩹 G217 수집 입구 — 최근 30일 개찰 1순위에 사업자번호 · 대표가 비어 오는 비율.
+    #   2026-04~08 처럼 조달청 응답(또는 우리 읽기)에서 번호가 빠지면 그날 바로 보이게 합니다.
+    #   (전에는 «몇 줄 받았나» 만 봐서, 번호가 몇 달째 비어도 아무도 몰랐습니다)
+    try:
+        cut30 = (now - timedelta(days=30)).strftime("%Y%m%d")
+        rec = [r for r in (first.get("con") or {}).values() if dt_digits(r.get("dt"))[:8] >= cut30]
+        nb = sum(1 for r in rec if not R.bizno10(r.get("bno")))
+        nc = sum(1 for r in rec if not str(r.get("ceo") or "").strip())
+        v["번호빈"] = {"n": len(rec), "번호": nb, "대표": nc, "율": round(nb / len(rec), 3) if rec else 0}
+        if len(rec) >= 100 and nb / len(rec) > 0.3:
+            print("  \u26a0\ufe0f 최근 30일 1순위 %s건 중 사업자번호 빈 것 %s건(%.0f%%) — 수집 확인 필요"
+                  % (format(len(rec), ","), format(nb, ","), nb * 100 / len(rec)))
+    except Exception as e:
+        print("    ! 번호 빈 비율 셈 실패 (%s)" % type(e).__name__)
     # 두 곳에 적습니다. store 쪽은 회차 사이에 이어지는 기록(fails 를 세려면 필요),
     # OUT 쪽은 사이트가 받아 가는 파일입니다.
     for p in (HEALTH_LOG, os.path.join(OUT, "health.json")):
@@ -1736,8 +1751,8 @@ def archive(first, live=None):
         try:
             with io.open(p, encoding="utf-8-sig", newline="") as f:
                 for row in csv.DictReader(f):
-                    no = (row.get("공고번호") or "").strip()
-                    if no:
+                    no = (row.get("공고번호") or "").replace("\ufeff", "").strip()
+                    if no and no != "공고번호":
                         have.add(no)
         except Exception as e:
             print(f"  ! 누적 CSV 읽기 실패 {os.path.basename(p)} ({type(e).__name__})")
@@ -1803,21 +1818,75 @@ def archive(first, live=None):
                         v = r.get(src)
                         if v is not None and v != "" and v != 0:
                             cur[dst] = v
+                    # 🩹 G217 사업자번호 · 대표자도 소급 — 개찰(first) 1순위의 번호 · 대표 · 이름
+                    #   (전에는 A값 · 예가 · 참가수만 채워서, 번호 없이 적힌 4~8월 줄이 끝까지 비어 있었습니다)
+                    if st is first:
+                        b = R.bizno10(r.get("bno"))
+                        if b and r.get("win"):
+                            cur["_번호"], cur["_대표"], cur["_이름"] = b, str(r.get("ceo") or "").strip(), str(r["win"])
+        # 순위 보관함 1위 줄(3년치 메우기가 옛 공고까지 채워 감) — 번호 · 이름만 있음(대표 없음)
+        try:
+            for no, v in ranks3y.iter_notices():
+                for rk in v.get("r") or []:
+                    if rk[0] == 1:
+                        b = R.bizno10(rk[1])
+                        if b:
+                            cur = known.setdefault(no, {})
+                            if "_번호" not in cur:
+                                cur["_번호"], cur["_대표"], cur["_이름"] = b, "", str(rk[2])
+                        break
+        except Exception as e:
+            print(f"  ! 순위 보관함 읽기 실패 ({type(e).__name__}) — 번호 소급은 개찰 자료로만")
         known = {k: v for k, v in known.items() if v}
 
         if known:
-            filled = {c: 0 for c in ("A값", "예가하한", "참가업체수")}
+            filled = {c: 0 for c in ("A값", "예가하한", "참가업체수", "사업자번호", "대표자")}
             n_files = 0
+            n_junk = 0
             for path in sorted(_glob.glob(os.path.join(ARCHIVE_DIR, "extra_*.csv"))):
                 with io.open(path, encoding="utf-8-sig", newline="") as f:
                     rows = list(csv.DictReader(f))
                 if not rows:
                     continue
                 ch = False
+                # 🩹 G217 파일 안에 머리글이 줄로 섞여 든 것(«\ufeff공고번호,날짜,…») 과 같은 공고가 두 번 든 줄을 버립니다.
+                #   실측: 2026-07 파일이 같은 17,073줄을 세 번 담고 있었음(51,220줄 · 사이사이 머리글 2줄).
+                #   겹친 줄은 «먼저 적힌 줄» 을 남기되(build_json 이 원래 그렇게 셈) 빈 칸은 뒤 줄 값으로 채웁니다.
+                _n0 = len(rows)
+                _seen = {}
+                _keep = []
+                for x in rows:
+                    _no = (x.get("공고번호") or "").replace("\ufeff", "").strip()
+                    if _no in ("공고번호", ""):
+                        continue
+                    if _no in _seen:
+                        _a = _seen[_no]
+                        for _c in ARCH_COLS:
+                            if not str(_a.get(_c) or "").strip() and str(x.get(_c) or "").strip():
+                                _a[_c] = x[_c]
+                        continue
+                    x["공고번호"] = _no
+                    _seen[_no] = x
+                    _keep.append(x)
+                rows = _keep
+                if len(rows) != _n0:
+                    n_junk += _n0 - len(rows)
+                    ch = True
                 for row in rows:
                     k = known.get((row.get("공고번호") or "").strip())
                     if not k:
                         continue
+                    # 🩹 G217 사업자번호 · 대표자 — «같은 공고 · 같은 이름(다듬은 이름)» 일 때만. 짐작은 하지 않습니다(사실만).
+                    if k.get("_번호") and not R.bizno10(row.get("사업자번호")):
+                        if R.norm_corp(k.get("_이름", "")) == R.norm_corp(row.get("1순위업체", "")) and R.norm_corp(row.get("1순위업체", "")):
+                            row["사업자번호"] = k["_번호"]
+                            filled["사업자번호"] += 1
+                            ch = True
+                    if k.get("_대표") and not str(row.get("대표자") or "").strip() \
+                            and R.bizno10(row.get("사업자번호")) == k.get("_번호"):
+                        row["대표자"] = k["_대표"]
+                        filled["대표자"] += 1
+                        ch = True
                     # A값 — 적용여부(N)도 값이므로 둘을 한 쌍으로 봅니다
                     if k.get("A값") and not str(row.get("A값") or "").strip():
                         row["A값"] = k["A값"]
@@ -1843,10 +1912,11 @@ def archive(first, live=None):
                         w.writeheader()
                         for row in rows:
                             w.writerow({c: row.get(c, "") for c in ARCH_COLS})
-            if any(filled.values()):
+            if any(filled.values()) or n_junk:
                 print(f"  → 누적 CSV 소급 기록 ({n_files}개 파일) — "
                       f"A값 {filled['A값']:,} · 예가범위 {filled['예가하한']:,} · "
-                      f"참가업체수 {filled['참가업체수']:,}칸 (조달청 호출 0번)")
+                      f"참가업체수 {filled['참가업체수']:,} · 사업자번호 {filled['사업자번호']:,} · "
+                      f"대표자 {filled['대표자']:,}칸 · 섞인 머리글 · 겹친 줄 {n_junk:,}줄 버림 (조달청 호출 0번)")
     except Exception as e:
         print(f"  ! 소급 기록 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
 

@@ -129,3 +129,11 @@ data/store/ext_book.json
 data/store/ext_res.json
 data/store/ext_res_book.json
 web/public/data/ntext/
+
+# 🛡 G218 자료 검진 — 재료 · 결과 · 지난 좋은판(업체 · 기관 압축)은 Actions cache(data/store)로만 넘깁니다
+data/store/검진_재료.json
+data/store/검진.json
+data/store/검진_좋은판.json
+data/store/검진_메일.json
+data/store/좋은판/
+web/public/data/검진.json

@@ -130,40 +130,10 @@ STOPWORDS = {"공사", "용역", "설치", "사업", "시공", "및", "기타", 
              "구매", "임차", "위탁", "본공사", "추가", "변경", "신규",
              "사업소", "지사", "본부", "관리소", "센터", "확정", "낙찰"}
 
-CORP_NOISE = ["주식회사", "(주)", "㈜", "유한회사", "합자회사", "(유)", "(합)", "주)", "유)"]
-
-REGIONS = ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기",
-           "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"]
-REGION_ALIAS = {
-    "경기": ["경기"], "강원": ["강원"], "충북": ["충북", "충청북도"], "충남": ["충남", "충청남도"],
-    "전북": ["전북", "전라북도"], "전남": ["전남", "전라남도"],
-    "경북": ["경북", "경상북도"], "경남": ["경남", "경상남도"],
-}
-
-
-# 🩹 G216 (2026-10-09) 전남광주통합특별시 — 2026 통합 뒤 기관명이 «전남광주통합특별시 여수시» 꼴이 됐습니다.
-#   예전 판정은 «광주» 를 «전남» 보다 먼저 봐서 전남 시·군 낙찰이 전부 «광주» 로 잡혔습니다
-#   (소장님 사진: 주식회사 호남산업개발 여수시 낙찰 → «광주»). collect.py _head_sido 와 같은 규칙:
-#   뒤 낱말이 광주 자치구(동 · 서 · 남 · 북 · 광산구 · 광주청사)면 광주, «…시 · …군» 이면 전남,
-#   광역 기관(본청 · 교육청 등)은 통합특별시 이름을 빼고 공고명 단서로 — 그래도 없으면 정하지 않습니다.
-MERGED_SIDO = "전남광주통합특별시"
-GWANGJU_GU = {"동구", "서구", "남구", "북구", "광산구", "광주청사"}
-
-
-def region_of(inst, name=""):
-    s = str(inst or "").strip()
-    if s.startswith(MERGED_SIDO):
-        t = s[len(MERGED_SIDO):].split()
-        h = t[0] if t else ""
-        if h in GWANGJU_GU:
-            return "광주"
-        if h and (h[-1] in "시군" or h == "무안청사"):
-            return "전남"
-    blob = f"{s} {name}".replace(MERGED_SIDO, " ")
-    for reg in REGIONS:
-        if any(p in blob for p in REGION_ALIAS.get(reg, [reg])):
-            return reg
-    return ""
+# 📏 G217 — 업체 이름 · 사업자번호 · 지역 규칙은 kcm_rules.py «한 곳» 에만 둡니다(collect.py 와 같이 씀).
+#   여기 이름(CORP_NOISE · REGIONS · REGION_ALIAS · norm_corp · region_of)은 다른 파일(prerender.py 등)이 가져다 쓰므로 그대로 내보냅니다.
+from kcm_rules import (CORP_NOISE, REGIONS, REGION_ALIAS, MERGED_SIDO, GWANGJU_GU,  # noqa: E402,F401
+                       norm_corp, region_of, bizno10)
 
 
 # ─────────────────────────────────────────────
@@ -214,9 +184,7 @@ def biz_cols(df):
         df["ceo"] = ""
     if "사업자번호" in df.columns:   # 수집분에 실려 오기 시작한 경우
         # 🚨 G216 — 혹시 실수로 읽혀도(«…777.0») 끝의 «.0» 을 먼저 떼고 숫자만 남깁니다
-        b2 = (df["사업자번호"].fillna("").astype(str).str.strip()
-              .str.replace(r"\.0+$", "", regex=True)
-              .str.replace(r"[^0-9]", "", regex=True))
+        b2 = df["사업자번호"].map(bizno10)
         df["bizno"] = df["bizno"].where(df["bizno"].astype(str) != "", b2)
     df["bizno"] = df["bizno"].fillna("").astype(str)
     df["bizno"] = df["bizno"].where(df["bizno"].str.len() == 10, "")
@@ -241,13 +209,6 @@ def to_amt(v):
         return int(float(s))
     except Exception:
         return 0
-
-
-def norm_corp(s):
-    s = str(s)
-    for t in CORP_NOISE:
-        s = s.replace(t, "")
-    return re.sub(r"\s+", "", s).strip()
 
 
 def first_key(s):
@@ -399,6 +360,8 @@ def fill_bizno(df, first=None, rank_iter=None):
             n=("raw", "size"), raw=("raw", "sum"), left=("left", "sum"))
         bad = tab[(tab["n"] >= 300) & (tab["raw"] / tab["n"] > 0.2)]
         st["빠진달"] = {k: [int(r.n), int(r.raw), int(r.left)] for k, r in bad.iterrows()}
+        # 🛡 G218 자료 검진 재료 — 달마다 [1순위 건수 · 수집 때 번호 빈 · 채운 뒤 남은 빈] (tools/자료검진.py 가 읽음)
+        CHECK["달"] = {k: [int(r.n), int(r.raw), int(r.left)] for k, r in tab.iterrows()}
         for k, r in bad.iterrows():
             log(f"⚠️ {k} 1순위 {int(r.n):,}건 중 {int(r.raw):,}건이 수집 때 사업자번호 없이 들어옴 → 채운 뒤 남음 {int(r.left):,}건 (collect.py 확인)")
     return st
@@ -807,6 +770,10 @@ def _baro_amount(base, A, a_known, lo, hi, llr, p50):
 
 
 RANK_POOL = 0          # 순위를 받은 개찰 수 — overview.json 에 실어 화면이 분모로 쓴다
+# 🛡 G218 (2026-10-09) 자료 검진 재료 — 굽는 동안 모아 data/store/검진_재료.json 으로 남깁니다.
+#   소장님: 「더 이상 틀어지지 않게 하면서 업데이트 자동으로」 · 「배포를 멈추거나. 작동이 안되면 더 문제 아냐?」
+#   판정 · 되돌리기는 tools/자료검진.py 가 합니다(이 파일은 «재기만» — 굽기를 멈추지 않음).
+CHECK = {}
 # ★ 「실제 1순위보다 싸면 정말 «가격 1순위» 인가」 — 실측 (2026-09-06)
 #   시뮬레이션은 «실제 1순위보다 낮았고 하한을 넘겼나» 까지만 봅니다.
 #   그게 곧 가격 1순위인지는, 1순위보다 싸면서 하한도 넘긴 투찰이 있었는지 세면 압니다.
@@ -2071,6 +2038,21 @@ def main():
     except Exception as e:
         log(f"⚠️ 정밀 보고서 숫자를 못 만들었습니다 — {e}")
     n_co = build_corp(df)
+    # 🛡 G218 자료 검진 재료 — 최근 90일 1순위 중 지역을 못 정한 비율 · 업체 · 기관 수
+    try:
+        _cut = pd.Timestamp.now().normalize() - pd.Timedelta(days=90)
+        _r = df[df["dt"].notna() & (df["dt"] >= _cut)]
+        _u = sum(1 for a, b in zip(_r["발주기관"], _r["공고명"]) if not region_of(a, b))
+        CHECK["지역"] = [int(len(_r)), int(_u)]
+        CHECK["업체"], CHECK["기관"] = int(n_co), int(n_ag)
+        CHECK["at"] = (datetime.now(timezone.utc) + timedelta(hours=9)).strftime("%Y-%m-%d %H:%M")
+        _p = os.path.join(ROOT, "data", "store", "검진_재료.json")
+        os.makedirs(os.path.dirname(_p), exist_ok=True)
+        with open(_p, "w", encoding="utf-8") as f:
+            json.dump(CHECK, f, ensure_ascii=False)
+        log(f"🛡 검진 재료 — 업체 {n_co:,} · 기관 {n_ag:,} · 최근 90일 지역 못 정함 {_u:,}/{len(_r):,}")
+    except Exception as e:
+        log(f"⚠️ 검진 재료를 못 남김 — {e}")
     n_kw = build_keyword(df)
     build_overview(df, n_ag, n_co, n_kw)
     # 🎯 이 칸에 누가 넣나 (2026-10-05) — 실패해도 사이트 집계는 계속합니다

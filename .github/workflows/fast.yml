@@ -61,6 +61,7 @@ jobs:
             collect.py
             fast.py
             ranks3y.py
+            kcm_rules.py
             requirements.txt
             data/seed
           sparse-checkout-cone-mode: false
