@@ -174,6 +174,11 @@ function CorpTab() {
                           {' '}({it.biz.slice(0, 3)}-{it.biz.slice(3, 5)}-•••)</span>
                       : <>
                           {it.reg && <span className="sub2"> · {it.reg}</span>}
+                          {/* 🩹 G216 소장님 「업체하고 사업자 이름이 나와야 하잖아 그래야 선택을 하지」 — 법인 한 곳뿐인 줄에도 대표 · 가린 번호 */}
+                          {!모음 && (it.ceo || it.bz5) && (
+                            <span className="sub2"> · {it.ceo || '대표 미상'}
+                              {it.bz5 ? ` (${it.bz5.slice(0, 3)}-${it.bz5.slice(3, 5)}-•••)` : ''}</span>
+                          )}
                           {모음 && <span className="mix">법인 {it.bzn}곳 — 골라 보기 →</span>}
                         </>}
                   </button>
@@ -324,6 +329,9 @@ export function CorpReport({ c, ov, onPickFirm, onAll, base: base0 }) {
     : [...bzMap.entries()].map(([bz, v]) => ({ bz, nm: c.name, reg: '', ceo: v.ceo, cnt: v.cnt })))
   const 곳수 = Math.max(줄들.length, c ? (c.bzn || 0) : 0)
   const 고른자리 = !!(c && c.biz)
+  /* 🩹 G216 법인이 한 곳뿐인 이름(합계 아님) — 그 법인의 번호 · 대표를 머리에 (bz[0] = [번호, 대표, 건수]) */
+  const 한곳 = (c && !c.biz && Number(c.bzn) === 1 && Array.isArray(c.bz) && Array.isArray(c.bz[0]) && String(c.bz[0][0] || '').length === 10)
+    ? [String(c.bz[0][0]), String(c.bz[0][1] || '')] : null
   const 고르는칸 = (여럿일까 && 줄들.length > 1) ? (
     <div className="mixbox">
       <div className="h">
@@ -369,8 +377,15 @@ export function CorpReport({ c, ov, onPickFirm, onAll, base: base0 }) {
               {c.biz
                 ? <>사업자 {c.biz.slice(0, 3)}-{c.biz.slice(3, 5)}-•••
                     {c.ceo ? ` · 대표 ${c.ceo}` : ''} · 누적 1순위 {num(c.n)}건</>
+                : 한곳 ? <>사업자 {한곳[0].slice(0, 3)}-{한곳[0].slice(3, 5)}-•••
+                    {한곳[1] ? ` · 대표 ${한곳[1]}` : ''} · 누적 1순위 {num(c.n)}건</>
                 : <>누적 1순위 {num(c.n)}건</>}
             </div>
+            {한곳 && Number(c.bzk) < Number(c.n) && (
+              <div className="onefirm" style={{ background: 'var(--surface-2)', color: 'var(--muted)' }}>
+                {num(c.n - c.bzk)}건은 조달청 자료에 사업자번호가 없어 같은 회사인지 확인하지 못했습니다
+              </div>
+            )}
             {c.biz && (
               <div className="onefirm">이 법인 하나만의 기록입니다 — 동명 업체와 섞이지 않았습니다</div>
             )}

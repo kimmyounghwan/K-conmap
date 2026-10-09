@@ -189,8 +189,9 @@ export async function searchCorp(qNorm, deep = false) {
     .slice(0, 40)
     // bzn: 이 이름에 섞여 있는 «서로 다른 법인» 수 · reg: 주력 지역
     // nm: 그 법인의 «진짜 상호» — 2026-09-18. 없으면(옛 자료·이름 가운데 찾기) 정규화된 이름.
-    .map(([k2, [n, chunk, bzn, reg, ceo, nm]]) => ({
-      key: k2, n, chunk, bzn: bzn || 0, reg: reg || '', ceo: ceo || '',
+    // 🩹 G216 bz5: 법인이 한 곳뿐인 이름 줄의 사업자번호 앞 다섯 자리(화면이 123-45-••• 로 가림) — 없으면 ''
+    .map(([k2, [n, chunk, bzn, reg, ceo, nm, bz5]]) => ({
+      key: k2, n, chunk, bzn: bzn || 0, reg: reg || '', ceo: ceo || '', bz5: bz5 || '',
       // '이름#사업자번호' 는 법인 단위 기록입니다
       biz: k2.includes('#') ? k2.split('#')[1] : '',
       label: k2.split('#')[0],

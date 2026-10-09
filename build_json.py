@@ -141,6 +141,31 @@ REGION_ALIAS = {
 }
 
 
+# 🩹 G216 (2026-10-09) 전남광주통합특별시 — 2026 통합 뒤 기관명이 «전남광주통합특별시 여수시» 꼴이 됐습니다.
+#   예전 판정은 «광주» 를 «전남» 보다 먼저 봐서 전남 시·군 낙찰이 전부 «광주» 로 잡혔습니다
+#   (소장님 사진: 주식회사 호남산업개발 여수시 낙찰 → «광주»). collect.py _head_sido 와 같은 규칙:
+#   뒤 낱말이 광주 자치구(동 · 서 · 남 · 북 · 광산구 · 광주청사)면 광주, «…시 · …군» 이면 전남,
+#   광역 기관(본청 · 교육청 등)은 통합특별시 이름을 빼고 공고명 단서로 — 그래도 없으면 정하지 않습니다.
+MERGED_SIDO = "전남광주통합특별시"
+GWANGJU_GU = {"동구", "서구", "남구", "북구", "광산구", "광주청사"}
+
+
+def region_of(inst, name=""):
+    s = str(inst or "").strip()
+    if s.startswith(MERGED_SIDO):
+        t = s[len(MERGED_SIDO):].split()
+        h = t[0] if t else ""
+        if h in GWANGJU_GU:
+            return "광주"
+        if h and (h[-1] in "시군" or h == "무안청사"):
+            return "전남"
+    blob = f"{s} {name}".replace(MERGED_SIDO, " ")
+    for reg in REGIONS:
+        if any(p in blob for p in REGION_ALIAS.get(reg, [reg])):
+            return reg
+    return ""
+
+
 # ─────────────────────────────────────────────
 # 유틸
 # ─────────────────────────────────────────────
@@ -156,14 +181,47 @@ def find_source(paths):
     return None
 
 
-def read_any(path):
+def read_any(path, dtype=None):
     comp = "zip" if path.lower().endswith(".zip") else None
     for enc in ("utf-8-sig", "cp949"):
         try:
-            return pd.read_csv(path, compression=comp, encoding=enc, low_memory=False)
+            return pd.read_csv(path, compression=comp, encoding=enc, low_memory=False, dtype=dtype)
         except Exception:
             continue
     raise RuntimeError(f"읽기 실패: {path}")
+
+
+def read_extra(path):
+    """매일 수집분(extra_*.csv) 읽기.
+    🚨 G216 (2026-10-09) 번호 칸은 «글자» 로 읽습니다. 숫자로 읽으면 빈 칸 때문에 실수(float)가 되어
+      «7058800777.0» → 숫자만 남기면 11자리 → «10자리만» 에서 통째로 버려졌습니다.
+      실측: 2026-09 수집분 6,782건 전부 번호를 잃음 — 9/18 «같은 이름 다른 법인 가르기» 가 9월 자료에서
+      한 번도 안 돌았던 까닭(소장님 「예전에 고쳤잖아 … 또 이래」). 시험: python tools/시험_업체번호채움.py"""
+    return read_any(path, dtype={"공고번호": str, "사업자번호": str, "대표자": str})
+
+
+def biz_cols(df):
+    """df 에 bizno(10자리 · 없으면 '') · ceo 칸을 만듭니다. load_all 과 시험이 같이 씁니다."""
+    #   원자료 «전체업체» 가 '업체명^사업자번호^대표^금액^투찰률' 이라 번호를 꺼낼 수 있습니다.
+    if "전체업체" in df.columns:
+        head = df["전체업체"].fillna("").astype(str).str.split("|").str[0]
+        part = head.str.split("^")
+        df["bizno"] = (part.str[1].fillna("").astype(str)
+                       .str.replace(r"[^0-9]", "", regex=True))
+        df["ceo"] = part.str[2].fillna("").astype(str).str.strip().str.slice(0, 12)
+    else:
+        df["bizno"] = ""
+        df["ceo"] = ""
+    if "사업자번호" in df.columns:   # 수집분에 실려 오기 시작한 경우
+        # 🚨 G216 — 혹시 실수로 읽혀도(«…777.0») 끝의 «.0» 을 먼저 떼고 숫자만 남깁니다
+        b2 = (df["사업자번호"].fillna("").astype(str).str.strip()
+              .str.replace(r"\.0+$", "", regex=True)
+              .str.replace(r"[^0-9]", "", regex=True))
+        df["bizno"] = df["bizno"].where(df["bizno"].astype(str) != "", b2)
+    df["bizno"] = df["bizno"].fillna("").astype(str)
+    df["bizno"] = df["bizno"].where(df["bizno"].str.len() == 10, "")
+    df["ceo"] = df["ceo"].fillna("").astype(str)
+    return df
 
 
 def to_rate(v):
@@ -235,6 +293,117 @@ def write_json(relpath, obj):
 # ─────────────────────────────────────────────
 # 로딩
 # ─────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════
+#  🩹 G216 (2026-10-09) 번호 빠진 1순위 채우기
+#  소장님 사진: 「호남산업개발 누르면 바로 그 회사 · 업체하고 사업자 이름이 나와야 선택하지 ·
+#             주식회사 호남산업개발은 아예 없어」 · 「예전에 고쳤잖아 … 또 이래」
+#  까닭: 매일 모은 1순위 중 2026-07(51,213/51,215) · 2026-08(14,013/14,021)에 사업자번호 · 대표가 비어 있었습니다.
+#        9/18 고침(같은 이름 여러 법인 → «법인 N곳 — 골라 보기»)은 «번호» 로 법인을 가르는데, 번호가 없으니
+#        주식회사 호남산업개발(다른 회사)의 8/10 낙찰이 이름 하나 «호남산업개발» 로 합쳐져 법인 1곳으로 보였습니다
+#        → 고르는 자리가 안 뜨고, 그 회사는 목록에서 사라지고, 다른 회사 건수가 늘었습니다.
+#  채우는 차례(믿을 만한 것부터):
+#    ① 같은 공고번호의 개찰 순위 자료 — data/store/first.json 의 1순위(번호 · 대표) · 3년치 순위 보관함 1위 줄(번호)
+#       단, 이름(정규화)이 같을 때만 — 다른 공고 자료가 잘못 붙지 않게.
+#    ② 상호(원문 그대로)가 아는 번호 «한 곳» 하고만 이어질 때 — 같은 상호 다른 번호가 있으면 채우지 않습니다.
+#    ③ 번호를 알면 대표도 — 그 번호로 확인된 대표.
+#  달마다 «번호 빈 1순위 비율» 을 적습니다 — 7월처럼 수집에서 빠지면 그 자리에서 ⚠️ 가 뜹니다.
+#  시험: python tools/시험_업체번호채움.py
+# ══════════════════════════════════════════════════════════════
+def fill_bizno(df, first=None, rank_iter=None):
+    """df(1순위업체 · bizno · ceo · 공고번호 · dt) 의 빈 번호 · 대표를 채웁니다. 돌려주는 것: 셈(dict)"""
+    if first is None:
+        try:
+            with open(os.path.join(ROOT, "data", "store", "first.json"), encoding="utf-8") as f:
+                first = json.load(f)
+        except Exception:
+            first = {}
+    if rank_iter is None:
+        try:
+            import ranks3y
+            rank_iter = ranks3y.iter_notices()
+        except Exception:
+            rank_iter = iter(())
+    if "대표자" in df.columns:
+        c2 = df["대표자"].fillna("").astype(str).str.strip().str.slice(0, 12)
+        df["ceo"] = df["ceo"].where(df["ceo"] != "", c2)
+
+    by_no = {}                       # 공고번호 → (번호, 대표, 이름)
+    name_bz = defaultdict(set)       # 상호(원문) → 번호들
+    bz_ceo = {}                      # 번호 → 대표
+    def _bz(v):
+        v = re.sub(r"[^0-9]", "", str(v or ""))
+        return v if len(v) == 10 else ""
+    for nm, bz, ce in zip(df["1순위업체"], df["bizno"], df["ceo"]):
+        if bz:
+            name_bz[str(nm).strip()].add(bz)
+            if ce and bz not in bz_ceo:
+                bz_ceo[bz] = ce
+    for kind in (first or {}).values():
+        if not isinstance(kind, dict):
+            continue
+        for no, r in kind.items():
+            if not isinstance(r, dict):
+                continue
+            wb = _bz(r.get("bno"))
+            if wb and r.get("win"):
+                by_no.setdefault(str(no).strip(), (wb, str(r.get("ceo") or "")[:12], str(r["win"])))
+            for c in r.get("corps") or []:
+                if len(c) > 3:
+                    cb = _bz(c[3])
+                    if cb:
+                        name_bz[str(c[0]).strip()].add(cb)
+                        if len(c) > 4 and c[4] and cb not in bz_ceo:
+                            bz_ceo[cb] = str(c[4])[:12]
+    n_rank = 0
+    for no, v in rank_iter:
+        for rk in v.get("r") or []:
+            rb = _bz(rk[1])
+            if not rb:
+                continue
+            name_bz[str(rk[2]).strip()].add(rb)
+            if rk[0] == 1:
+                n_rank += 1
+                by_no.setdefault(str(no).strip(), (rb, "", str(rk[2])))
+
+    miss = df["bizno"] == ""
+    raw_miss = miss.copy()
+    st = {"빈": int(miss.sum()), "공고": 0, "상호": 0, "대표": 0, "순위1위": n_rank}
+    nos = df["공고번호"].fillna("").astype(str).str.strip() if "공고번호" in df.columns else pd.Series([""] * len(df))
+    nb, nc = df["bizno"].tolist(), df["ceo"].tolist()
+    for i in [i for i, m in enumerate(miss.tolist()) if m]:
+        nm = str(df["1순위업체"].iat[i]).strip()
+        hit = by_no.get(nos.iat[i])
+        if hit and norm_corp(hit[2]) == norm_corp(nm) and norm_corp(nm):
+            nb[i] = hit[0]
+            if hit[1] and not nc[i]:
+                nc[i] = hit[1]
+            st["공고"] += 1
+            continue
+        cand = name_bz.get(nm)
+        if cand and len(cand) == 1:
+            nb[i] = next(iter(cand))
+            st["상호"] += 1
+    for i, bz in enumerate(nb):
+        if bz and not nc[i] and bz in bz_ceo:
+            nc[i] = bz_ceo[bz]
+            st["대표"] += 1
+    df["bizno"] = nb
+    df["ceo"] = nc
+    st["남음"] = int((df["bizno"] == "").sum())
+    log(f"🩹 번호 빈 1순위 {st['빈']:,}건 → 같은 공고 {st['공고']:,} · 상호 {st['상호']:,} 채움 · 남음 {st['남음']:,} "
+        f"(대표 {st['대표']:,} 채움 · 순위 보관함 1위 {n_rank:,}개찰)")
+    # 달마다 «수집에서 번호가 빠진» 비율 — 300건 넘는 달에서 20% 넘으면 ⚠️
+    if "dt" in df.columns:
+        ym = df["dt"].dt.strftime("%Y-%m")
+        tab = pd.DataFrame({"ym": ym, "raw": raw_miss, "left": df["bizno"] == ""}).groupby("ym").agg(
+            n=("raw", "size"), raw=("raw", "sum"), left=("left", "sum"))
+        bad = tab[(tab["n"] >= 300) & (tab["raw"] / tab["n"] > 0.2)]
+        st["빠진달"] = {k: [int(r.n), int(r.raw), int(r.left)] for k, r in bad.iterrows()}
+        for k, r in bad.iterrows():
+            log(f"⚠️ {k} 1순위 {int(r.n):,}건 중 {int(r.raw):,}건이 수집 때 사업자번호 없이 들어옴 → 채운 뒤 남음 {int(r.left):,}건 (collect.py 확인)")
+    return st
+
+
 def load_all():
     frames = []
     for kind, paths in SOURCES:
@@ -251,7 +420,7 @@ def load_all():
     import glob as _glob
     for p in sorted(_glob.glob(os.path.join(ROOT, "data", "extra_*.csv"))):
         try:
-            df = read_any(p)
+            df = read_extra(p)
             df["__kind"] = "추가"
             frames.append(df)
             log(f"추가자료: {len(df):,}건  ({os.path.basename(p)})")
@@ -344,23 +513,14 @@ def load_all():
     #   «대영건설» 이라는 이름 하나에 서로 다른 법인이 40곳 있습니다.
     #   3년치 이름 37,301개 중 6,756개(18%)가 여러 법인이 섞인 이름이고,
     #   그 이름들이 낙찰 55,115건(46%)을 차지합니다.
-    #   원자료 «전체업체» 가 '업체명^사업자번호^대표^금액^투찰률' 이라 번호를 꺼낼 수 있습니다.
-    if "전체업체" in df.columns:
-        head = df["전체업체"].fillna("").astype(str).str.split("|").str[0]
-        part = head.str.split("^")
-        df["bizno"] = (part.str[1].fillna("").astype(str)
-                       .str.replace(r"[^0-9]", "", regex=True))
-        df["ceo"] = part.str[2].fillna("").astype(str).str.strip().str.slice(0, 12)
-    else:
-        df["bizno"] = ""
-        df["ceo"] = ""
-    if "사업자번호" in df.columns:   # 수집분에 실려 오기 시작한 경우
-        b2 = (df["사업자번호"].fillna("").astype(str)
-              .str.replace(r"[^0-9]", "", regex=True))
-        df["bizno"] = df["bizno"].where(df["bizno"].astype(str) != "", b2)
-    df["bizno"] = df["bizno"].fillna("").astype(str)
-    df["bizno"] = df["bizno"].where(df["bizno"].str.len() == 10, "")
-    df["ceo"] = df["ceo"].fillna("").astype(str)
+    #   원자료 «전체업체» 가 '업체명^사업자번호^대표^금액^투찰률' 이라 번호를 꺼낼 수 있습니다(biz_cols).
+    biz_cols(df)
+    # 🩹 G216 — 번호 빠진 1순위 채우기(위 fill_bizno). 실패해도 집계는 계속합니다.
+    #   ⚠️ «dt» 를 만든 뒤라야 달마다 비율을 적습니다 — dt 는 이 위에서 만들어집니다.
+    try:
+        fill_bizno(df)
+    except Exception as e:
+        log(f"⚠️ 번호 채우기 실패 — {e} (채우지 않고 계속)")
 
     # ── 사정률 역산 ──────────────────────────────
     #   예정가격 = 낙찰금액 ÷ 투찰률,  사정률 = 예정가격 ÷ 기초금액
@@ -845,12 +1005,9 @@ def build_corp(df):
 
         region = Counter()
         for inst, nm in zip(g["발주기관"], g["공고명"]):
-            blob = f"{inst} {nm}"
-            for reg in REGIONS:
-                pats = REGION_ALIAS.get(reg, [reg])
-                if any(p in blob for p in pats):
-                    region[reg] += 1
-                    break
+            _rg = region_of(inst, nm)
+            if _rg:
+                region[_rg] += 1
 
         dts = g["dt"].dropna()
         monthly = [0] * 12
@@ -956,11 +1113,21 @@ def build_corp(df):
         #   화면이었습니다. 실제 상호는 (주)국토건설·국토건설(주)·국토건설 주식회사 로 다 다릅니다.
         #   ⚠️ 화면(Analysis.jsx)은 «합계 줄» 에는 이 상호를 쓰지 않습니다 — 합계는 한 법인이
         #      아니므로 그 줄에 상호를 찍으면 그게 더 큰 거짓말이 됩니다.
+        # 🩹 G216 — 법인이 «한 곳뿐» 인 이름 줄에도 대표 · 번호 앞 다섯 자리를 싣습니다.
+        #   소장님: 「업체하고 사업자 이름이 나와야 하잖아 그래야 선택을 하지」
+        #   전에는 대표 칸이 «이름#번호» 줄에만 있어, 한 곳뿐인 이름은 상호 · 지역만 보였습니다.
+        #   번호는 앞 다섯 자리만(화면이 123-45-••• 로 가림) — 주소 · 검색결과에 전체 번호를 남기지 않습니다.
+        _ceo = agg[key].get("ceo", "")
+        _bz5 = ""
+        _fz = agg[key].get("bz") or []
+        if "#" not in key and agg[key].get("bzn", 0) == 1 and _fz:
+            _ceo = _ceo or str(_fz[0][1] or "")
+            _bz5 = str(_fz[0][0] or "")[:5]
         idx[first_key(key)][key] = [agg[key]["n"], len(chunks),
                                     agg[key].get("bzn", 0),
                                     next(iter(_r), ""),
-                                    agg[key].get("ceo", ""),
-                                    agg[key].get("name") or key]
+                                    _ceo,
+                                    agg[key].get("name") or key] + ([_bz5] if _bz5 else [])
         cur_n += 1
         if cur_n >= CHUNK:
             chunks.append(cur)
