@@ -145,8 +145,8 @@ export default function NoticeDetail({ r }) {
         ))}
       </div>
       {tab === 'bid' && <BidTab r={r} />}
-      {tab === 'corp' && <CorpTab name={r.win} />}
-      {tab === 'inst' && <InstTab name={r.inst} />}
+      {tab === 'corp' && <CorpTab name={r.win} inst={r.inst} />}
+      {tab === 'inst' && <InstTab name={r.inst} win={r.win} />}
       {tab === 'doc' && <DocTab r={r} />}
     </div>
   )
@@ -383,22 +383,48 @@ function BidTab({ r }) {
 }
 
 /* ── ② 1순위 업체 (3년치) ──────────────── */
-function CorpTab({ name }) {
+/* 🩹 G214 (2026-10-09) 소장님 사진 「1순위인데 발주기관이 나와」 「1순위 업체에 업체 나오게 하고, 발주기관에 발주기관이 나오게 해줘.
+   현재 제목과 아래에 뜨는게 뒤바뀌어 있잖아」 — «1순위 업체» 칸 아래에 «주로 낙찰받은 기관»(기관 목록)이,
+   «발주기관» 칸 아래에 «이 기관에서 자주 낙찰받는 업체»(업체 목록)가 떠 칸 이름과 목록이 서로 엇갈렸습니다.
+   → 목록을 맞바꿈: 1순위 업체 칸 = 업체 성적 · 최근 낙찰 사례 · «이 기관에서 자주 낙찰받는 업체»(이번 1순위 표시)
+                    발주기관 칸   = 기관 성적 · «1순위 업체가 주로 낙찰받은 기관»(이 기관 표시) */
+const 같은기관 = (a, b) => String(a || '').replace(/\s+/g, '') === String(b || '').replace(/\s+/g, '')
+function CorpTab({ name, inst }) {
   const [d, setD] = useState(undefined)
+  const [ag, setAg] = useState(null)
   useEffect(() => {
     let ok = true
     getCorp(normCorp(name)).then((v) => { if (ok) setD(v) })
+    if (inst) getAgency(inst).then((v) => { if (ok) setAg(v || null) }).catch(() => {})
     return () => { ok = false }
-  }, [name])
+  }, [name, inst])
+  const 업체목록 = ag && (ag.corps || []).length > 0 && (
+    <>
+      <div className="detail-h">이 발주기관({inst})에서 자주 낙찰받는 업체</div>
+      {(ag.corps || []).slice(0, 5).map(([nm, c], i) => {
+        const 이번 = normCorp(nm) === normCorp(name)
+        return (
+          <div className="row" key={i}>
+            <span className="badge n">{i + 1}</span>
+            <div className="grow"><div className="t">{이번 ? <b>{nm} · 이번 1순위</b> : nm}</div></div>
+            <span className="r">{num(c)}건</span>
+          </div>
+        )
+      })}
+    </>
+  )
 
   if (d === undefined) return <div className="skel" style={{ height: 90 }} />
   if (!d) {
     return (
-      <div className="hintbox">
-        <b>{name}</b><br />
-        최근 3년 낙찰 기록에서 찾지 못했습니다. 이번이 첫 낙찰이거나
-        상호가 조금 다르게 등록돼 있을 수 있습니다.
-      </div>
+      <>
+        <div className="hintbox">
+          <b>{name}</b><br />
+          최근 3년 낙찰 기록에서 찾지 못했습니다. 이번이 첫 낙찰이거나
+          상호가 조금 다르게 등록돼 있을 수 있습니다.
+        </div>
+        {업체목록}
+      </>
     )
   }
   const top = (d.h || [])[0]
@@ -411,18 +437,6 @@ function CorpTab({ name }) {
         <div><span>편차</span><b>{d.s?.std != null ? d.s.std.toFixed(3) : '-'}</b></div>
         <div><span>최다 구간</span><b>{top ? pct(top[0], 2) : '-'}</b></div>
       </div>
-
-      {(d.inst || []).length > 0 && (
-        <>
-          <div className="detail-h">주로 낙찰받은 기관</div>
-          {(d.inst || []).slice(0, 5).map(([nm, c], i) => (
-            <div className="row" key={i}>
-              <div className="grow"><div className="t">{nm}</div></div>
-              <span className="r">{num(c)}건</span>
-            </div>
-          ))}
-        </>
-      )}
 
       {(d.cases || []).length > 0 && (
         <>
@@ -439,6 +453,8 @@ function CorpTab({ name }) {
         </>
       )}
 
+      {업체목록}
+
       <Link className="btn ghost sm" style={{ width: '100%', marginTop: 10 }}
         to={`/analysis?m=corp&q=${encodeURIComponent(d.name)}`}>
         이 업체 전체 분석 보기
@@ -448,16 +464,29 @@ function CorpTab({ name }) {
 }
 
 /* ── ③ 발주기관 (3년치) ────────────────── */
-function InstTab({ name }) {
+function InstTab({ name, win }) {
   const [d, setD] = useState(undefined)
+  const [co, setCo] = useState(null)
   useEffect(() => {
     let ok = true
     getAgency(name).then((v) => { if (ok) setD(v) })
+    if (win) getCorp(normCorp(win)).then((v) => { if (ok) setCo(v || null) }).catch(() => {})
     return () => { ok = false }
-  }, [name])
+  }, [name, win])
+  const 기관목록 = co && (co.inst || []).length > 0 && (
+    <>
+      <div className="detail-h">1순위 업체({co.name || win})가 주로 낙찰받은 기관</div>
+      {(co.inst || []).slice(0, 5).map(([nm, c], i) => (
+        <div className="row" key={i}>
+          <div className="grow"><div className="t">{같은기관(nm, name) ? <b>{nm} · 이 기관</b> : nm}</div></div>
+          <span className="r">{num(c)}건</span>
+        </div>
+      ))}
+    </>
+  )
 
   if (d === undefined) return <div className="skel" style={{ height: 90 }} />
-  if (!d) return <div className="hintbox"><b>{name}</b><br />최근 3년 자료가 부족한 기관입니다.</div>
+  if (!d) return <><div className="hintbox"><b>{name}</b><br />최근 3년 자료가 부족한 기관입니다.</div>{기관목록}</>
 
   const top = (d.h01 || d.h1 || [])[0]
   return (
@@ -470,18 +499,7 @@ function InstTab({ name }) {
         <div><span>최다 구간</span><b className="hi">{top ? pct(top[0], 2) : '-'}</b></div>
       </div>
 
-      {(d.corps || []).length > 0 && (
-        <>
-          <div className="detail-h">이 기관에서 자주 낙찰받는 업체</div>
-          {(d.corps || []).slice(0, 5).map(([nm, c], i) => (
-            <div className="row" key={i}>
-              <span className="badge n">{i + 1}</span>
-              <div className="grow"><div className="t">{nm}</div></div>
-              <span className="r">{num(c)}건</span>
-            </div>
-          ))}
-        </>
-      )}
+      {기관목록}
 
       <Link className="btn ghost sm" style={{ width: '100%', marginTop: 10 }}
         to={`/agency/${encodeURIComponent(name)}`}>
