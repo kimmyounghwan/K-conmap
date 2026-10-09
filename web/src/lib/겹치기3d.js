@@ -15,7 +15,8 @@
  *   못 넘으면 자리를 짐작하지 않고 «옆» 그대로 둡니다(📍 두 점 찍기 안내).
  */
 
-const 빼는층 = /^[_#!★\-\s]*(text|글|문자|dim|치수|hatch|해치|defpoints|도곽|sheet|border|form|title|table|테이블|tick|sym|지시|lead|cen|중심|center)/i
+/* 콘크리트 = 일꾼이 만든 면 층(G212 — 겹치기 전에 만들므로 틀에서 뺌) */
+const 빼는층 = /^[_#!★\-\s]*(text|글|문자|dim|치수|hatch|해치|defpoints|도곽|sheet|border|form|title|table|테이블|tick|sym|지시|lead|cen|중심|center|콘크리트$)/i
 
 /** 묶음(out)에서 «바닥에 누운» 선만 [x1,y1,x2,y2] 로. 골라(키, 층) → 참/거짓 · z 가 고른 높이(±창) 안인 것만 */
 export function 누운선(out, { 골라 = null, z = null, 창 = 300, 최소 = 30 } = {}) {
@@ -267,7 +268,7 @@ function 넓게준비(B) {
 }
 
 /** 넓게 찾기 — 판마다 센 방향에 틀의 센 방향을 맞춰(90° 네 가지) 2 m 걸음으로 «선까지 거리 합» 이 작은 자리 */
-function 넓게찾기(B, P, 틀방향, 몇 = 80, 영역 = null) {
+function 넓게찾기(B, P, 틀방향, 몇 = 80, 영역 = null, 마감 = Infinity) {
   const N = 넓게준비(B)
   const n = P.length / 2
   const 상한 = 4000
@@ -281,6 +282,7 @@ function 넓게찾기(B, P, 틀방향, 몇 = 80, 영역 = null) {
   const Q = new Float64Array(P.length)
   const 걸음 = Math.max(2000, N.칸)
   for (const 판 of N.판들) {
+    if (Date.now() > 마감) break
     if (영역 && !영역.some((r) => 판.x0 < r[2] && 판.x0 + N.판칸 > r[0] && 판.y0 < r[3] && 판.y0 + N.판칸 > r[1])) continue
     const θs = []
     for (const db of 판.방) for (const dt of 틀방향) for (let k = 0; k < 4; k++) {
@@ -312,7 +314,8 @@ function 넓게찾기(B, P, 틀방향, 몇 = 80, 영역 = null) {
 
 /** 가까이 다듬기 — 후보 둘레만 25 cm 칸 거리 지도로 그리고, 돌림 ±1.5° · 옮김 ±3 m 를 찾음 */
 function 가까이찾기(B, P, th0, cx0, cy0, 반경) {
-  const 칸 = 250, 여 = 반경 + 6000
+  /* 🩹 G212 — 틀이 넓으면(수백 m) 25 cm 칸 지도가 수천만 칸이 되어 한 번에 몇 초씩 걸렸습니다(현장 D 화장실 도면 108초) → 칸을 넓혀 1600 칸 안으로 */
+  const 여 = 반경 + 6000, 칸 = Math.max(250, (2 * 여) / 1600)
   const x0 = cx0 - 여, y0 = cy0 - 여, W = Math.ceil(2 * 여 / 칸), H = W
   const 고른 = 창선(B, x0, y0, x0 + 2 * 여, y0 + 2 * 여)
   if (!고른.size) return null
@@ -372,7 +375,7 @@ function 거꾸로몫(B, 틀B, T, 가운데, 반경, 한도 = 150) {
  *   ㉢ 가장 잘 맞은 자리를 가까운 선에 맞춰 다듬고(ICP) «15 cm 안에 든 몫» 으로 판정
  * @returns {null | { T, 맞음비, 회전, 둘째, 됨, 까닭?, 방법 }}
  */
-export function 모양맞추기(틀, B, { 문턱 = 0.5, 근처 = null, 근처문턱 = 0.5, 영역 = null } = {}) {
+export function 모양맞추기(틀, B, { 문턱 = 0.5, 근처 = null, 근처문턱 = 0.5, 영역 = null, 마감 = Infinity, 둘째틈 = 0.08 } = {}) {
   const n = 틀.length / 4
   if (n < 8 || !B.긴.length) return null
   const 디 = globalThis.__겹치기디버그 ? console.log : () => {}
@@ -464,13 +467,14 @@ export function 모양맞추기(틀, B, { 문턱 = 0.5, 근처 = null, 근처문
       const 성긴 = 점뽑기(틀, 160)
       const C = new Float64Array(성긴.length)
       for (let i = 0; i < 성긴.length; i += 2) { C[i] = 성긴[i] - mx; C[i + 1] = 성긴[i + 1] - my }
-      const 넓 = 넓게찾기(B, C, 틀방향, 영역 ? 30 : 60, 영역)
+      const 넓 = 넓게찾기(B, C, 틀방향, 영역 ? 20 : 36, 영역, 마감)
       때('넓게 ' + 넓.length)
       const 가 = 점뽑기(틀, 400)
       const G = new Float64Array(가.length)
       for (let i = 0; i < 가.length; i += 2) { G[i] = 가[i] - mx; G[i + 1] = 가[i + 1] - my }
       const 다듬은 = []
       for (const [, th, cx, cy] of 넓) {
+        if (Date.now() > 마감) break
         const r = 가까이찾기(B, G, th, cx, cy, 반경)
         if (r) 다듬은.push(r)
       }
@@ -479,6 +483,8 @@ export function 모양맞추기(틀, B, { 문턱 = 0.5, 근처 = null, 근처문
     }
   }
   때('㉡')
+  /* 넓게 찾기를 끝까지 못 했으면(시간) 판정하지 않습니다 — 덜 찾은 채로 1등을 고르면 «비슷한 다른 자리» 를 못 보고 엉뚱한 곳에 붙을 수 있음 */
+  if (!빠른 && Date.now() > 마감) return { 됨: false, 까닭: '시간이 오래 걸려 모양 찾기를 그만둠', 몫: 0, 맞음비: 0, 거꾸로: 0, 회전: 0, 둘째: 0, T: null }
   if (!후보.length) return null
   후보.sort((p, q) => q.몫 - p.몫)
   for (const c of 후보.slice(0, 8)) { const [x, y] = 가운데(c.T); 디('  후보', c.방법, c.몫.toFixed(3), '돌림', (Math.atan2(c.T.b, c.T.a) * 180 / Math.PI).toFixed(2), '가운데', Math.round(x), Math.round(y)) }
@@ -505,7 +511,7 @@ export function 모양맞추기(틀, B, { 문턱 = 0.5, 근처 = null, 근처문
   const 회전 = Math.atan2(첫.T.b, 첫.T.a) * 180 / Math.PI
   const 바탕 = { T: 첫.T, 맞음비: 첫.앞, 거꾸로: 첫.뒤, 몫: 첫.몫, 회전, 둘째, 방법: 첫.방법, 근처: !!첫안 }
   if (첫.몫 < (첫안 ? 근처문턱 : 문턱)) return { ...바탕, 됨: false, 까닭: `기준 도면에서 같은 모양을 못 찾음(가장 잘 겹친 곳 ${Math.round(첫.몫 * 100)}%)` }
-  if (둘째 >= 첫.몫 - 0.08) return { ...바탕, 됨: false, 까닭: `비슷한 모양이 두 곳 넘게 있어 자리를 정하지 못함(${Math.round(첫.몫 * 100)}% · ${Math.round(둘째 * 100)}%)` }
+  if (둘째 >= 첫.몫 - 둘째틈) return { ...바탕, 됨: false, 까닭: `비슷한 모양이 두 곳 넘게 있어 자리를 정하지 못함(${Math.round(첫.몫 * 100)}% · ${Math.round(둘째 * 100)}%)` }
   /* 같은 자리에서 반 바퀴 돌린 것(앞뒤가 같은 꼴)이 거의 똑같이 맞으면 방향을 모름 */
   for (const c of 다.slice(1)) {
     const [x, y] = 가운데(c.T)

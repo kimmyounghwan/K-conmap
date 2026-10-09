@@ -192,6 +192,11 @@ export function parseDxf(text, onProgress, opt = {}) {
   /* 📝 2026-09-26 — 글자도 «자리와 함께» 모읍니다(그리지는 않음). 도면에서 높이(GL +5,200 · 지상 2층 · 평면도 제목)를
      스스로 찾으려면 글자가 있어야 합니다 — lib/building3d.js 가 씁니다. 블록 안 글자·속성(ATTRIB)까지. */
   const texts = []
+  /* 🔗 G212 xref 끼움 — 이 도면이 다른 도면(xref)을 «어디에 · 몇 배로 · 몇 도 돌려» 끼웠는지. 끼운 도면 자체는 파일에 없지만
+     (LibreDWG 는 xref 를 안 읽음) 끼운 자리는 남아 있어, 그 도면을 같이 올리면 정확히 겹칠 수 있습니다(lib/xref3d.js) */
+  const xrefs = []
+  const 자르기들 = []
+  const 사전들 = new Map()
   const 글자 = (s, w, h, ly) => {
     if (texts.length >= 300000) return
     const t = 글자다듬기(s)
@@ -511,6 +516,22 @@ export function parseDxf(text, onProgress, opt = {}) {
         const bl = blocks.get(name)
         if (!bl) { if (t === 'INSERT') skip('없는 블록'); return }
         if (depth > 12) { stats.depthCut++; return }
+        if (bl.xref && t === 'INSERT') {
+          if (xrefs.length < 400) {
+            const O = ext(g)
+            const sx = g1(g, 41, 1), sy = g1(g, 42, 1), sz = g1(g, 43, 1)
+            const rot = (g1(g, 50, 0) * Math.PI) / 180, cs = Math.cos(rot), sn = Math.sin(rot)
+            const ix = g1(g, 10), iy = g1(g, 20), iz = g1(g, 30)
+            const [bx, by, bz] = bl.base
+            let L = [cs * sx, -sn * sy, 0, -(cs * sx * bx) + sn * sy * by + ix, sn * sx, cs * sy, 0, -(sn * sx * bx) - cs * sy * by + iy, 0, 0, sz, -sz * bz + iz]
+            if (O) L = mul(O, L)
+            /* 자르기(XCLIP) 를 찾을 사전 번호 — 102 {ACAD_XDICTIONARY · 360 번호 */
+            let 사전 = ''
+            for (let k = 0; k < g.length - 1; k++) if (g[k][0] === 102 && /ACAD_XDICTIONARY/i.test(g[k][1]) && g[k + 1][0] === 360) { 사전 = g[k + 1][1].trim(); break }
+            xrefs.push({ 이름: name, 경로: bl.xref, M: mul(M, L), 겹: Math.max(1, g1(g, 70, 1)) * Math.max(1, g1(g, 71, 1)), 사전: depth === 0 ? 사전 : '' })
+          }
+          if (!bl.ents.length) return
+        }
         let X
         if (t === 'DIMENSION') X = M                    // 치수 블록은 이미 제자리 좌표
         else {
@@ -596,6 +617,7 @@ export function parseDxf(text, onProgress, opt = {}) {
           if (t === 'BLOCK') {
             const e = readEnt('BLOCK')
             cur = { name: unesc(gs(e.g, 2)), base: [g1(e.g, 10), g1(e.g, 20), g1(e.g, 30)], ents: [] }
+            if ((g1(e.g, 70, 0) & 4) === 4) cur.xref = unesc(gs(e.g, 1)) || cur.name     /* 🔗 xref 블록(70 의 4) · 1 = 파일 경로 */
             continue
           }
           if (t === 'ENDBLK') { if (cur) blocks.set(cur.name, cur); cur = null; readEnt('ENDBLK'); continue }
@@ -613,6 +635,28 @@ export function parseDxf(text, onProgress, opt = {}) {
           if (!stats.capped) draw(e, I3, null, null, 0)
           if (onProgress && R.pos - lastProg > 2_000_000) { lastProg = R.pos; onProgress(R.pos / R.len) }
         }
+      } else if (sec === 'OBJECTS') {
+        /* 🔗 G212 xref 자르기(XCLIP) — SPATIAL_FILTER: 자른 테두리(이 도면 좌표) + 끼운 블록의 거꾸로 변환(12). 종평면도처럼
+           같은 xref 를 그림마다 돌려 끼운 도면에서 «이 그림은 어느 끼움인지» 를 압니다 */
+        while (pair && !(pair[0] === 0 && pair[1].trim() === 'ENDSEC')) {
+          if (pair[0] === 0 && pair[1].trim() === 'SPATIAL_FILTER') {
+            const e = readEnt('SPATIAL_FILTER')
+            const xs = [], ys = [], m40 = []
+            for (const [k, v] of e.g) { if (k === 10) xs.push(num(v)); else if (k === 20) ys.push(num(v)); else if (k === 40) m40.push(num(v)) }
+            if (xs.length >= 2 && xs.length === ys.length && m40.length >= 12 && 자르기들.length < 400) 자르기들.push({ 번: gs(e.g, 5), xs, ys, inv: m40.slice(0, 12) })
+            continue
+          }
+          if (pair[0] === 0 && pair[1].trim() === 'DICTIONARY') {
+            const e = readEnt('DICTIONARY')
+            const 번 = gs(e.g, 5)
+            let 이름 = null
+            const m = new Map()
+            for (const [k, v] of e.g) { if (k === 3) 이름 = v.trim(); else if ((k === 350 || k === 360) && 이름) { m.set(이름, v.trim()); 이름 = null } }
+            if (번 && (m.has('ACAD_FILTER') || m.has('SPATIAL'))) 사전들.set(번, m)
+            continue
+          }
+          pair = R.next()
+        }
       } else {
         while (pair && !(pair[0] === 0 && pair[1].trim() === 'ENDSEC')) pair = R.next()
       }
@@ -621,7 +665,40 @@ export function parseDxf(text, onProgress, opt = {}) {
     pair = R.next()
   }
 
-  if (opt.raw) return { out, layerInfo, stats, texts }
+  /* 자르기 ↔ 끼움: ① 사전 사슬(INSERT → ACAD_FILTER → SPATIAL → SPATIAL_FILTER) — 자른 뒤 옮긴 끼움도 지금 자리로
+                    ② 없으면 거꾸로 변환 · 끼운 변환 = 하나(I) 인 것 */
+  const 필터번 = new Map(자르기들.map((f) => [f.번, f]))
+  for (const x of xrefs) {
+    const M = x.M
+    const d1 = x.사전 && 사전들.get(x.사전)
+    const d2 = d1 && d1.get('ACAD_FILTER') && 사전들.get(d1.get('ACAD_FILTER'))
+    const f0 = d2 && d2.get('SPATIAL') && 필터번.get(d2.get('SPATIAL'))
+    if (f0) {
+      /* 지금 테두리 = M · (거꾸로) · 그때 테두리 */
+      const C = mul(M, f0.inv)
+      const q = f0.xs.map((v, i) => [C[0] * v + C[1] * f0.ys[i] + C[3], C[4] * v + C[5] * f0.ys[i] + C[7]])
+      const 꼴 = q.length === 2 ? [[q[0][0], q[0][1]], [q[1][0], q[0][1]], [q[1][0], q[1][1]], [q[0][0], q[1][1]]] : q
+      if (q.length === 2) {
+        /* 두 점 = 그때 좌표의 네모 → 돌렸으면 네 꼭짓점을 따로 옮김 */
+        const r = [[f0.xs[0], f0.ys[0]], [f0.xs[1], f0.ys[0]], [f0.xs[1], f0.ys[1]], [f0.xs[0], f0.ys[1]]]
+        for (let i = 0; i < 4; i++) 꼴[i] = [C[0] * r[i][0] + C[1] * r[i][1] + C[3], C[4] * r[i][0] + C[5] * r[i][1] + C[7]]
+      }
+      x.자르기 = [Math.min(...꼴.map((p) => p[0])), Math.min(...꼴.map((p) => p[1])), Math.max(...꼴.map((p) => p[0])), Math.max(...꼴.map((p) => p[1]))]
+      x.자른꼴 = 꼴
+      continue
+    }
+    for (const f of 자르기들) {
+      const C = mul(f.inv, M)
+      const sc = Math.hypot(M[0], M[4]) || 1
+      if (Math.abs(C[0] - 1) < 1e-6 && Math.abs(C[5] - 1) < 1e-6 && Math.abs(C[1]) < 1e-6 && Math.abs(C[4]) < 1e-6 &&
+        Math.abs(C[3]) < 1e-6 * sc * Math.max(1, Math.abs(M[3])) + 1e-3 && Math.abs(C[7]) < 1e-6 * sc * Math.max(1, Math.abs(M[7])) + 1e-3) {
+        x.자르기 = [Math.min(...f.xs), Math.min(...f.ys), Math.max(...f.xs), Math.max(...f.ys)]
+        x.자른꼴 = f.xs.length === 2 ? null : f.xs.map((v, i) => [v, f.ys[i]])
+        break
+      }
+    }
+  }
+  if (opt.raw) return { out, layerInfo, stats, texts, xrefs }
   const r = finish(out, layerInfo, stats)
   r.texts = texts
   return r

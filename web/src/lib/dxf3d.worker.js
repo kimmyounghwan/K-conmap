@@ -22,6 +22,8 @@ import { 글짝들, 글열쇠, 짝맞추기, 변환하기, 회전도, 축척 } f
 import { 노선열쇠, 노선이름, 노선같음, 노선찾기, 종단표읽기, 노선에얹기, 종단선, 측점m로, 중심꼴 } from './노선3d.js'
 import { 평균단면, 삼각망, 높이찾개, 땅면부피 } from './토공3d.js'
 import { 누운선, 바닥높이, 바탕만들기, 모양맞추기, 콘크리트면 } from './겹치기3d.js'
+import { 그림나누기, 그림떼기, 그림이름, 표같음 } from './그림나누기3d.js'
+import { 끼움관계, 잇기, 꼴안, 도면이름, 틀이름 } from './xref3d.js'
 
 const 새버킷 = () => ({ pos: new F64(), col: new U8(), pts: new F64(64), pcol: new U8(64) })
 /** 버킷 모음 합치기 (같은 이름이면 이어 붙임) */
@@ -82,7 +84,7 @@ self.onmessage = async (ev) => {
       if (!/(^|\n)\s*0\s*\r?\n\s*SECTION/.test(text.slice(0, 20000))) { 못읽은.push({ 이름: f.name, 까닭: 'notdxf' }); continue }
       const raw = parseDxf(text, (p) => self.postMessage({ type: 'prog', p: 0.02 + (앞 + p * 폭 / 0.7) * 0.7, msg: `${f.name} 선 세우는 중` }), { raw: true })
       if (!raw.stats.ents && !raw.texts.length) { 못읽은.push({ 이름: f.name, 까닭: 'empty' }); continue }
-      읽은.push({ 이름: f.name, raw, 번: 읽은.length })
+      읽은.push({ 이름: f.name, raw, 번: 읽은.length, xrefs: raw.xrefs || [] })
     }
     if (!읽은.length && !성과) {
       const k = 못읽은[0] ? 못읽은[0].까닭 : 'fail'
@@ -137,6 +139,7 @@ self.onmessage = async (ev) => {
       const fr = 도곽찾기3d(x.raw, 보임)
       if (!fr.length && 파일종류 === '기타' && 측량다움(x.raw)) 파일종류 = '측량'
       const 단 = 도면단위배(x.raw, fr)
+      x.배 = 단.배
       const 넣기 = (o) => 항목.push({ 파일: x.이름, 파일번: x.번, 배: 단.배, 단위근거: 단.근거, ...o })
       if (!fr.length) { 넣기({ 박스: -1, 제목: '', 종류: 파일종류, raw: x.raw }); x.raw = null; continue }
       const 나 = 네모로나누기(x.raw, fr)
@@ -156,7 +159,11 @@ self.onmessage = async (ev) => {
         }
         넣기({ 박스: i, 제목: 제, 종류: 종, raw: 나.조각[i], 도곽: r })
       })
-      if (선수(나.밖.out) > 0) 넣기({ 박스: '밖', 제목: '도곽 밖', 종류: 파일종류 === '측량' ? '측량' : '밖', raw: 나.밖 })
+      /* 🩹 G212 측량 xref 안에 작은 네모(범례 · 표 블록)가 하나둘 있어 «박스» 로 잡히면, 나머지 측량 그림이 전부 «도곽 밖» 이 되어
+         기준이 되지 못했습니다(현장 C 측량 xref — 1 m 네모 하나 · 선 103만 개는 밖). 밖이 거의 전부(80%)이고 측량다우면 측량도면 */
+      const 밖수 = 선수(나.밖.out)
+      const 밖측량 = 파일종류 !== '측량' && 밖수 >= 0.8 * 선수(x.raw.out) && 측량다움(나.밖)
+      if (밖수 > 0) 넣기({ 박스: '밖', 제목: 밖측량 ? '' : '도곽 밖', 종류: 파일종류 === '측량' || 밖측량 ? '측량' : '밖', raw: 나.밖 })
       x.raw = null
     }
 
@@ -225,17 +232,21 @@ self.onmessage = async (ev) => {
       if (!선수(out)) continue
       곱하기(out, it.배)
       if (it.종류 === '횡단') it.종류 = '횡단못'
+      /* 🩹 G212 구조도라 했지만 단면(EL)을 못 읽은 것 — 설명 없이 «구조물» 로 떠 있었음 → 상세 · 표준도로(그림 나누기로 평면 그림만 겹쳐 봄) */
+      if (it.종류 === '구조') it.종류 = '상세'
       const 평면 = 평면꼴.has(it.종류)
       /* 📈 종단 표(측점 · 누가거리 · 지반고 · 계획고) — 노선을 찾으면 그 위에 지반선 · 계획선으로 */
       let 종단표 = null
       if (it.종류 === '종단' || it.종류 === '종평') { try { 종단표 = 종단표읽기(it.raw.texts) } catch (e) { 종단표 = null } }
       그룹.push({
-        종단표, 노선열쇠: 노선열쇠(it.제목 || it.파일),
+        종단표, 노선열쇠: 노선열쇠(it.제목 || it.파일), 파일번: it.파일번,
         종류: it.종류, 파일: [it.파일], 제목: it.제목 || '', 박스: it.박스 !== -1, out, 층들: [키],
         켬: 평면 && it.종류 !== '밖', 평면, 단위근거: it.단위근거,
         /* 꺼 둔 층 글자(수치지도 등)는 «숨» 표 — 그대로 맞는지 확인에는 쓰고, 다른 도면을 붙이는 바탕(pool)에는 안 넣습니다 */
         글: 평면 ? 글짝들(it.raw.texts, it.배, (ly) => !!꺼진.get(ly)) : null,
         이름: it.제목 || it.파일,
+        /* 🖼 G212 그림 이름(«…평면도» «…단면도») 찾기용 — 보이는 층 글자만 · 단위 맞춤 */
+        글자: (it.raw.texts || []).filter((t) => !꺼진.get(t.ly)).map((t) => ({ x: t.x * it.배, y: t.y * it.배, h: (t.h || 0) * it.배, s: t.s })),
       })
       it.raw = null
     }
@@ -307,6 +318,31 @@ self.onmessage = async (ev) => {
     const 기준후보 = (평들.some((g) => g.종류 !== '밖') ? 평들.filter((g) => g.종류 !== '밖') : 평들).slice().sort((a, b) => 차례(a) - 차례(b) || 크기(b) - 크기(a))
     let 기준g = null
     const 무리들 = []         // [{ 머리, 들:[g] }]
+    /* 🔗 G212 xref 끼움 관계(lib/xref3d.js) — 도면끼리 «캐드에서 끼운 자리» 그대로 */
+    const 관계 = 끼움관계(읽은.map((x) => ({ 이름: x.이름, xrefs: x.xrefs, 배: x.배 || 1 })))
+    /* 끼움으로 놓인 도곽 밖 · 이름 없는 종이는 기준 그림 위(몸통의 절반 넘게)일 때만 켬 — 캐드 모형 공간 먼 곳의 다른 그림까지 켜지지 않게 */
+    const 기준위 = (g) => {
+      const 머 = 무리들.length && 무리들[0].머리
+      if (!머 || !머.상자 || !g.표본 || !g.표본.xs.length) return false
+      const [x0, y0, x1, y1] = 머.상자, mx = (x1 - x0) * 0.1, my = (y1 - y0) * 0.1
+      let 안 = 0, 모두 = 0
+      for (let i = 0; i < g.표본.xs.length; i++) { 모두 += g.표본.ws[i]; if (g.표본.xs[i] >= x0 - mx && g.표본.xs[i] <= x1 + mx && g.표본.ys[i] >= y0 - my && g.표본.ys[i] <= y1 + my) 안 += g.표본.ws[i] }
+      return 모두 > 0 && 안 >= 모두 * 0.5
+    }
+    const 끼움T = (g, 들) => {
+      if (g.파일번 == null) return null
+      let 최 = null
+      for (const h of 들) {
+        if (h.파일번 == null || h.파일번 === g.파일번 || h.종류 === '밖') continue
+        const r = 관계(h.파일번, g.파일번)
+        if (!r) continue
+        /* 배가 1 에서 많이 벗어나면(단위를 잘못 짚었거나 축소 위치도) 쓰지 않음 */
+        if (Math.abs(Math.hypot(r.T.a, r.T.b) - 1) > 0.01) continue
+        const 점 = (h.기준 ? 3 : 0) + (h.자리 && h.자리.how === '글자' ? 1 : 0) - r.길.length * 0.1
+        if (!최 || 점 > 최.점) 최 = { 점, T: h.T ? 잇기(h.T, r.T) : r.T, h, 길: r.길 }
+      }
+      return 최
+    }
     const 붙이기 = (머리, 남은) => {
       const 들 = [머리]
       머리.무리 = 무리들.length
@@ -333,6 +369,20 @@ self.onmessage = async (ev) => {
       let 바뀜 = true, 판 = 0
       while (바뀜 && 판++ < 6) {
         바뀜 = false
+        /* ㉢(먼저) xref 끼움 — 이미 놓인 도면과 끼움 관계가 있으면 그 자리 그대로(글자 · 좌표 짐작보다 먼저) */
+        for (const g of 남은) {
+          if (g.무리 != null) continue
+          const k = 끼움T(g, 들)
+          if (!k) continue
+          바꾸기(g.out, k.T)
+          if (g.글) g.글 = g.글.map((p) => { const [x, y] = 변환하기(k.T, p.x, p.y); return { ...p, x, y } })
+          g.표본 = 표본(g.out); g.상자 = 상자(g.표본)
+          g.T = k.T
+          g.무리 = 머리.무리
+          g.자리 = { how: '끼움', 길: k.길.slice(0, 3), 회전: 회전도(k.T) }
+          if (g.종류 === '밖') g.켬 = 기준위(g)
+          넣기(g); 바뀜 = true
+        }
         /* ㉠ 같은 글자로 — 이미 제자리(좌표가 같음)인 도면은 옮기지 않습니다.
            ⚠️ 도곽 밖(밖)은 글자로 맞추지 않습니다: 꺼 둔 수치지도 · 다른 도면 사본이 섞여 있어(소장님 도면 02 · 03 · 08 · 13 모두 같은 수치지도가 도곽 밖에 있음)
               엉뚱한 짝으로 맞춰지고, 그 글자가 다른 도면까지 끌고 갔습니다(시험으로 확인). */
@@ -351,6 +401,7 @@ self.onmessage = async (ev) => {
           바꾸기(g.out, r.T)
           g.글 = g.글.map((p) => { const [x, y] = 변환하기(r.T, p.x, p.y); return { ...p, x, y } })
           g.표본 = 표본(g.out); g.상자 = 상자(g.표본)
+          g.T = r.T
           g.무리 = 머리.무리
           const 돌 = 회전도(r.T), 축 = 축척(r.T)
           g.자리 = { how: '글자', n: r.n, rms: r.rms / 1000, max: r.max / 1000, 회전: 돌, 축척: r.단위배 ? 1 : 축, 단위배: r.단위배 || 0, 옮김m: Math.hypot(r.T.tx, r.T.ty) / 1000,
@@ -372,9 +423,17 @@ self.onmessage = async (ev) => {
           const { xs, ys, ws } = g.표본
           let 안 = 0, 모두 = 0
           for (let i = 0; i < xs.length; i++) { 모두 += ws[i]; if (xs[i] >= X0 - m && xs[i] <= X1 + m && ys[i] >= Y0 - m && ys[i] <= Y1 + m) 안 += ws[i] }
-          if (!(모두 > 0 && 안 >= 모두 * 0.6)) continue
+          /* 🩹 G212 같은 좌표계 — 측량 범위보다 길게 뻗은 도로 평면 · 종평(현장 A 평면 및 종단면도: 2 km)은 60% 가 안 들어가 옆에 놓였습니다.
+             기준과 이 도면이 둘 다 나라 좌표(50 ~ 1000 km)이고, 이 도면 몸통이 기준 범위(±2 km)에 걸치면 같은 좌표로 그린 것 — 그대로 둡니다.
+             도곽 박스(종이 한 장)는 «옮겨 둔 사본» 일 수 있어 이 규칙을 쓰지 않습니다(위 글자 확인 그대로) */
+          const 나라 = (v) => Math.abs(v) >= 5e7 && Math.abs(v) <= 1e9
+          const 같은좌표계 = !g.박스 && g.종류 !== '밖' && g.상자 && Number.isFinite(X0) &&
+            나라((X0 + X1) / 2) && 나라((Y0 + Y1) / 2) && 나라((g.상자[0] + g.상자[2]) / 2) && 나라((g.상자[1] + g.상자[3]) / 2) &&
+            g.상자[2] - g.상자[0] < 2e7 && g.상자[3] - g.상자[1] < 2e7 &&
+            g.상자[0] < X1 + 2e6 && g.상자[2] > X0 - 2e6 && g.상자[1] < Y1 + 2e6 && g.상자[3] > Y0 - 2e6
+          if (!(모두 > 0 && 안 >= 모두 * 0.6) && !같은좌표계) continue
           g.무리 = 머리.무리
-          g.자리 = { how: '좌표', 까닭: 못.get(g) ? 못.get(g).까닭 : '' }
+          g.자리 = { how: '좌표', 까닭: 못.get(g) ? 못.get(g).까닭 : '', ...(모두 > 0 && 안 >= 모두 * 0.6 ? {} : { 같은좌표계: true }) }
           넣기(g); 바뀜 = true
         }
       }
@@ -404,8 +463,105 @@ self.onmessage = async (ev) => {
       g.자리 = { how: '옆', 까닭: g.못 ? g.못.까닭 : '같은 글자(지번·측점·기준점 이름)를 못 찾음', n: g.못 ? g.못.n : 0 }
     }
     /* 밖(도곽 밖 그림)은 기준 무리에 붙었을 때만 켭니다 */
-    for (const g of 그룹) if (g.종류 === '밖') g.켬 = g.무리 === 0 && g !== 기준g ? true : g.켬
+    for (const g of 그룹) if (g.종류 === '밖') g.켬 = g.무리 === 0 && g !== 기준g ? (g.자리 && g.자리.how === '끼움' ? g.켬 : true) : g.켬
     for (const g of 그룹) if (끔꼴.has(g.종류)) g.켬 = false
+    /* 🔗 G212 끼움 — 이름 없는 종이(기타) 박스도 xref 끼움 관계가 있으면 그 자리로(현장 D 공사계획평면도의 종이 박스) */
+    if (무리들.length) {
+      const 들 = 무리들[0].들
+      for (const g of 그룹) {
+        if (g.무리 != null || g.평면 || g.종류 !== '기타' || !g.상자) continue
+        const k = 끼움T(g, 들)
+        if (!k) continue
+        바꾸기(g.out, k.T); g.표본 = 표본(g.out); g.상자 = 상자(g.표본); g.T = k.T
+        g.무리 = 0; g.자리 = { how: '끼움', 길: k.길.slice(0, 3), 회전: 회전도(k.T) }; g.켬 = 기준위(g)
+        들.push(g)
+      }
+    }
+    /* 🔗 G212 자른(XCLIP) 끼움 — 같은 측량 xref 를 그림마다 돌려 끼운 종평면도(현장 C 종평면도: 19 곳). 자른 테두리 안의 선을 떼어
+          그 끼움 자리로 겹칩니다(테두리 밖 — 종단 그래프 · 표 · 제목은 그대로 옆) */
+    if (무리들.length) {
+      const 들 = 무리들[0].들
+      const 새것 = []
+      for (const g of 그룹.slice()) {
+        if (g.무리 != null || g.파일번 == null || !g.out || !['평면', '종평', '기타', '밖', '종단', '측량'].includes(g.종류)) continue
+        let 최 = null
+        for (const h of 들) {
+          if (h.파일번 == null || h.파일번 === g.파일번 || h.종류 === '밖' || h.그림) continue
+          const L = 관계.구역(g.파일번, h.파일번)
+          if (!L.length) continue
+          const 점 = (h.기준 ? 2 : 0) + L.length * 0.01
+          if (!최 || 점 > 최.점) 최 = { 점, L, h }
+        }
+        if (!최) continue
+        const 상자들 = 최.L.map((r) => r.상자)
+        const 어디 = (x, y) => {
+          for (let k = 0; k < 상자들.length; k++) { const b = 상자들[k]; if (x >= b[0] && x <= b[2] && y >= b[1] && y <= b[3] && (!최.L[k].꼴 || 꼴안(최.L[k].꼴, x, y))) return k }
+          return -1
+        }
+        let 뗌 = 0
+        최.L.forEach((r, k) => {
+          const 키 = `${g.층들[0]}·끼움${k + 1}`
+          const out = 그림떼기(g.out, 어디, k, () => 키, 새버킷)
+          if (선수(out) < 20) return
+          const T = 최.h.T ? 잇기(최.h.T, r.T) : r.T
+          바꾸기(out, T)
+          const 원 = (g.제목 && g.제목 !== '도곽 밖' ? g.제목 : '') || g.파일[0].replace(/\.dxf$/i, '')
+          const 이 = 그림이름(g.글자 || [], r.상자)
+          const h = { 종류: '평면', 파일: g.파일, 파일번: g.파일번, 제목: 이.이름 || `${원} — 그림 ${k + 1}`, out, 층들: [키], 켬: true, 평면: true, 무리: 0, 그림: true, 이름: 이.이름 || 원, T,
+            자리: { how: '끼움', 길: [`${g.파일[0]} ← ${r.이름} (자른 자리 ${k + 1})`], 회전: 회전도(T), 그림: 원 } }
+          h.표본 = 표본(out); h.상자 = 상자(h.표본)
+          새것.push(h); 들.push(h); 뗌++
+        })
+        if (뗌) { g.그림뗌 = (g.그림뗌 || 0) + 뗌; g.끼움뗌 = true; g.표본 = 표본(g.out); g.상자 = 상자(g.표본) }
+      }
+      for (const h of 새것) 그룹.push(h)
+    }
+    /* 🔗 끼움 · 글자 · 좌표로 놓인 도면 중 기준(측량) 그림 밖으로 멀리 나간 부분(위치도 · 다른 종이 · 범례)은 따로 떼어 처음엔 꺼 둠 —
+          캐드 모형 공간의 먼 그림까지 켜면 화면이 그것까지 담느라 현장이 작아졌습니다(현장 D 화장실 · 현황 및 철거계획평면도) */
+    if (무리들.length && 무리들[0].머리 && 무리들[0].머리.상자) {
+      /* 기준 그림 둘레(그 크기만큼 또는 1.5 km) — 측량 범위보다 넓은 사업계획평면도 · 배수로 종평면도(송금지구)는 그대로 켜 두고,
+         몇 km 떨어진 위치도 · 다른 종이(현장 D 현황 및 철거계획평면도: 10 km 서쪽에 같은 식재도가 한 벌 더)만 뗌 */
+      const [x0, y0, x1, y1] = 무리들[0].머리.상자
+      const mx = Math.max((x1 - x0) * 1.0, 1.5e6), my = Math.max((y1 - y0) * 1.0, 1.5e6)
+      const 안 = (x, y) => x >= x0 - mx && x <= x1 + mx && y >= y0 - my && y <= y1 + my
+      const 새것 = []
+      for (const g of 그룹) {
+        if (!g.자리 || !['끼움', '글자', '좌표'].includes(g.자리.how) || !g.켬 || !g.out || g.기준 || g.종류 === '땅면') continue
+        let 안수 = 0, 밖수 = 0
+        for (const [, b] of g.out) { const a = b.pos.a; for (let i = 0; i < b.pos.n; i += 6) { if (안((a[i] + a[i + 3]) / 2, (a[i + 1] + a[i + 4]) / 2)) 안수++; else 밖수++ } }
+        if (밖수 < 0.1 * (안수 + 밖수) || 안수 < 20) { if (안수 < 20) g.켬 = false; continue }
+        const 키 = `${g.층들[0]}·밖`
+        const out = 그림떼기(g.out, (x, y) => (안(x, y) ? -1 : 0), 0, () => 키, 새버킷)
+        const h = { ...g, out, 층들: [키], 켬: false, 그림: true, 제목: `${g.제목 || g.파일[0].replace(/\.dxf$/i, '')} — 측량 그림 밖`, 자리: { how: g.자리.how, 기준밖: true }, 글: null, 글자: null, 그림뗌: 0 }
+        h.표본 = 표본(out); h.상자 = 상자(h.표본)
+        g.표본 = 표본(g.out); g.상자 = 상자(g.표본)
+        새것.push(h)
+      }
+      for (const h of 새것) 그룹.push(h)
+      /* 측량 도면이 시 · 군 전체만큼 넓으면(현장 C 측량 xref: 130 km — 마을 그림이 두 벌) 공사 도면 둘레 밖은 떼어 처음엔 꺼 둠 */
+      const 머 = 무리들[0].머리
+      let p0 = Infinity, q0 = Infinity, p1 = -Infinity, q1 = -Infinity
+      for (const g of 그룹) {
+        if (g.무리 !== 0 || g === 머 || !g.켬 || !g.상자 || g.종류 === '땅면' || g.종류 === '측량' || g.성과표 || (g.파일번 != null && g.파일번 === 머.파일번)) continue
+        p0 = Math.min(p0, g.상자[0]); q0 = Math.min(q0, g.상자[1]); p1 = Math.max(p1, g.상자[2]); q1 = Math.max(q1, g.상자[3])
+      }
+      if (Number.isFinite(p0) && 머.out && 머.상자) {
+        const ex = Math.max((p1 - p0) * 0.5, 1e6), ey = Math.max((q1 - q0) * 0.5, 1e6)
+        const 공 = [p0 - ex, q0 - ey, p1 + ex, q1 + ey]
+        const 넓 = (머.상자[2] - 머.상자[0]) * (머.상자[3] - 머.상자[1]), 좁 = (공[2] - 공[0]) * (공[3] - 공[1])
+        if (넓 > 2 * 좁) {
+          const 키 = `${머.층들[0]}·밖`
+          const out = 그림떼기(머.out, (x, y) => (x >= 공[0] && x <= 공[2] && y >= 공[1] && y <= 공[3] ? -1 : 0), 0, () => 키, 새버킷)
+          if (선수(out) > 0) {
+            const h = { 종류: 머.종류, 파일: 머.파일, 파일번: 머.파일번, 제목: `${머.제목 || 머.파일[0].replace(/\.dxf$/i, '')} — 공사 자리 밖`, out, 층들: [키], 켬: false, 평면: true, 무리: 0, 그림: true,
+              자리: { how: '기준', 기준밖: true } }
+            h.표본 = 표본(out); h.상자 = 상자(h.표본)
+            머.표본 = 표본(머.out); 머.상자 = 상자(머.표본)
+            그룹.push(h)
+          }
+        }
+      }
+    }
     /* 한 가지뿐이면 무조건 켭니다(도면 한 장만 넣었을 때 빈 화면이 되지 않게) */
     if (!그룹.some((g) => g.켬)) for (const g of 그룹) g.켬 = true
 
@@ -590,6 +746,26 @@ self.onmessage = async (ev) => {
     for (const g of 그룹) if ((g.종류 === '횡단' || g.종류 === '노선' || g.종류 === '땅면') && !g.표본) { g.표본 = 표본(g.out); g.상자 = 상자(g.표본) }
     const 노선요약 = 노선들.map((L) => ({ 이름: L.이름, 근거: L.r.근거, 층: L.r.층, 간격: L.r.간격, n: L.r.n, 모두: L.r.모두, rms: L.r.rms, 어긋: L.r.어긋, 범위: L.r.범위, 토막: L.r.토막, 평면: L.평면.map((g) => g.제목 || g.파일[0]) }))
 
+    /* 🧱 구조물 콘크리트 면 — 평면 바깥(발자국)으로 바닥판(가장 낮은 EL) · 바깥 벽(→ G.L). «면» 단추로 보임
+       🩹 G212 — 전에는 측량 도면에 겹친(돌린) «뒤에» 칸으로 채워 벽이 계단처럼 깨졌습니다(펌프장 25.9° 돌림).
+          이제 도면 그대로(가로 · 세로 바른 자리)에서 만들고, 겹칠 때 같이 돌립니다(콘크리트 층은 겹치기 틀에서 뺌). */
+    for (const g of 그룹) {
+      if (g.종류 !== '구조' || !g.구조r) continue
+      const 평선 = 누운선(g.out, { 골라: (키, ly) => 키 === g.층들[0] && !꺼진.get(ly) && !/기계|machine|mech|pump|펌프|배관|pipe|전기|elec/i.test(ly) })
+      const 낮 = g.구조r.단면.slice(1).map((d) => d.EL && d.EL[0]).filter((v) => Number.isFinite(v)).sort((p, q) => p - q)
+      if (!낮.length) continue
+      /* 가장 낮은 EL 은 말뚝 · 기초 아래까지 내려간 선일 수 있어 단면들의 «가운데» 아래값을 씀 */
+      const 아래 = 낮[Math.floor(낮.length / 2)] * 1000, 위 = g.구조r.평면EL * 1000
+      let c = null
+      try { c = 콘크리트면(평선, 아래, 위) } catch (e) { c = null }
+      if (!c || !c.tri.length) continue
+      const b = 새버킷(); b.tri = 새버킷().pos; b.trc = 새버킷().col
+      for (let i = 0; i < c.tri.length; i += 3) { b.tri.push3(c.tri[i], c.tri[i + 1], c.tri[i + 2]); b.trc.push3(168, 168, 162) }
+      for (let i = 0; i < c.선.length; i += 6) { b.pos.push6(c.선[i], c.선[i + 1], c.선[i + 2], c.선[i + 3], c.선[i + 4], c.선[i + 5]); b.col.push3(150, 150, 145); b.col.push3(150, 150, 145) }
+      g.out.set(g.층들[0] + '\u0001콘크리트', b)
+      g.콘크리트 = { 넓이: c.넓이, 아래: 아래 / 1000, 위: 위 / 1000 }
+    }
+
     /* ⑦¾ 🧲 (G209) 모양으로 겹치기 — 건물 · 구조물 · 글자로 못 맞춘 평면(파일배치도 · 기계 평면)을
           기준 무리(측량도면 · 자리 맞춘 계획평면도)에 그려진 «같은 모양» 자리에 겹칩니다(lib/겹치기3d.js).
           전에는 이 묶음들이 기준 오른쪽에 나란히 놓였습니다(실제 자리와 무관). 못 찾으면 그대로 옆(📍 두 점 찍기). */
@@ -621,14 +797,20 @@ self.onmessage = async (ev) => {
       for (const g of 할것) {
         if (바탕선.length < 400) break
         /* 한 번에 너무 오래 붙잡지 않게 — 25초가 넘으면 남은 것은 옆에 둠(📍 두 점 찍기) */
-        if (Date.now() - 겹시작 > 25000) { g.모양못 = '시간이 오래 걸려 모양 찾기를 건너뜀'; continue }
+        if (Date.now() - 겹시작 > 18000) { g.모양못 = '시간이 오래 걸려 모양 찾기를 건너뜀'; continue }
         const t = 틀뽑기(g)
         if (!t || t.선.length < 120) continue
+        /* 🖼 G212 평면 묶음이 수백 m 로 퍼져 있으면(종이 여러 장 · 그림 여러 개) 통째로 견주지 않고 아래 «그림 하나씩» 에서 */
+        if (g.종류 === '평면') {
+          let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
+          for (let i = 0; i < t.선.length; i += 2) { x0 = Math.min(x0, t.선[i]); x1 = Math.max(x1, t.선[i]); y0 = Math.min(y0, t.선[i + 1]); y1 = Math.max(y1, t.선[i + 1]) }
+          if (Math.max(x1 - x0, y1 - y0) > 800000) { g.넓게퍼짐 = true; continue }
+        }
         if (!B) B = 바탕만들기(바탕선)
         /* 구조물 · 건물이 먼저 놓였으면 그 둘레(10 m)를 «근처» 로 — 평면(기계 평면도 등)이 그 안에서 맞으면 바깥의 비슷한 자리와 견주지 않음 */
         const 근처 = g.종류 === '평면' ? 겹친.filter((h) => h.종류 !== '평면' && h.상자).map((h) => [h.상자[0] - 10000, h.상자[1] - 10000, h.상자[2] + 10000, h.상자[3] + 10000]) : null
         let r = null
-        try { r = 모양맞추기(t.선, B, { 문턱: 0.5, 근처: 근처 && 근처.length ? 근처 : null }) } catch (e) { r = null }
+        try { r = 모양맞추기(t.선, B, { 문턱: 0.5, 근처: 근처 && 근처.length ? 근처 : null, 마감: Math.min(겹시작 + 18000, Date.now() + 7000) }) } catch (e) { r = null }
         if (!r) continue
         if (!r.됨) { g.모양못 = r.까닭; if (g.자리 && g.자리.how === '옆') g.자리.까닭 = `같은 글자도, 같은 모양도 못 찾음 — ${r.까닭}`; continue }
         바꾸기(g.out, r.T)
@@ -650,26 +832,93 @@ self.onmessage = async (ev) => {
         for (const [, b] of g.out) for (const arr of [b.pos, b.pts, b.tri]) { if (!arr) continue; for (let i = 2; i < arr.n; i += 3) arr.a[i] += dz }
         g.자리.높이 = `G.L ±0 → ${근거}`
       }
+
+      /* 🖼 G212 그림 하나씩 — 종이 한 장(박스) · 도면 통째에 평면도 · 단면도 · 표가 같이 그려진 것은 «떨어진 그림» 으로 나눠
+            평면 그림만 측량 도면의 같은 모양 자리에 겹칩니다(나머지는 옆 그대로 · lib/그림나누기3d.js).
+            엉뚱한 자리에 붙지 않게: 단면 · 상세 · 표 이름이 붙은 그림은 안 봄 · 이름 없는 그림은 문턱 60% · 비슷한 자리와 10% 넘게 앞서야 ·
+            한 종이에서 놓인 그림들은 돌림이 같아야(3°) — 다르면 더 잘 맞은 것만 */
+      const 그림할것 = 그룹.filter((g) => g.무리 == null && g.out && g.상자 && !g.성과표 && !g.그림 && !g.끼움뗌 &&
+        (['평면', '종평', '기타', '상세'].includes(g.종류) || (g.종류 === '밖' && g.자리 && g.자리.how === '옆')))
+      const 새그룹 = []
+      const 디 = globalThis.__겹치기디버그 ? console.log : () => {}
+      /* 찾을 곳 — 측량 도면이 넓으면(시 · 군 전체 xref) 이 공사 자리(글자 · 좌표로 놓인 계획 도면 둘레 1 km)에서만.
+         현장 C 측량 xref(선 103만 개)에서 종평면도 그림 하나가 8초를 넘겨 못 찾았습니다 */
+      let 영역 = null
+      {
+        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
+        for (const h of 그룹) {
+          if (h.무리 !== 0 || !h.상자 || h.기준 || h.성과표 || h.종류 === '측량' || h.종류 === '땅면' || h.그림) continue
+          if (!h.자리 || !['글자', '좌표', '모양'].includes(h.자리.how)) continue
+          x0 = Math.min(x0, h.상자[0]); y0 = Math.min(y0, h.상자[1]); x1 = Math.max(x1, h.상자[2]); y1 = Math.max(y1, h.상자[3])
+        }
+        const 기 = 그룹.find((h) => h.기준 && h.상자)
+        if (!Number.isFinite(x0) && 기) { x0 = 기.상자[0]; y0 = 기.상자[1]; x1 = 기.상자[2]; y1 = 기.상자[3] }
+        if (Number.isFinite(x0)) {
+          const 여 = 1e6
+          const r = [x0 - 여, y0 - 여, x1 + 여, y1 + 여]
+          /* 기준이 이 영역보다 훨씬 넓을 때만 좁힘(보통 측량 도면은 그대로 다 봄) */
+          if (기 && (기.상자[2] - 기.상자[0]) * (기.상자[3] - 기.상자[1]) > 4 * (r[2] - r[0]) * (r[3] - r[1])) 영역 = [r]
+        }
+      }
+      /* ① 묶음마다 그림 나누기 → 후보(묶음, 그림, 이름) 를 모두 모은 뒤 ② «평면도» 라고 적힌 그림부터 · 큰 것부터 견줌
+            (배근도 · 상세도 종이가 수십 장이어도 평면 그림이 시간 안에 먼저 보이게) */
+      const 후보들 = []
+      const 너비 = (p) => Math.max(p.상자[2] - p.상자[0], p.상자[3] - p.상자[1])
+      for (const g of 그림할것) {
+        if (바탕선.length < 400 || Date.now() - 겹시작 > 25000) break
+        /* 배근 · 철근 · 표준 · 단면 종이는 «평면도» 라고 적힌 그림만 */
+        const 상세종이 = g.종류 === '상세' || /배근|철근|조립|표준|단면|입면/.test(g.제목 || '')
+        let 나눔 = null
+        try { 나눔 = 그림나누기(g.out, { 골라: 보이는층 }) } catch (e) { 나눔 = null }
+        if (!나눔) continue
+        const 후 = 나눔.그림.filter((p) => p.선 >= 150 && 너비(p) >= 3000 && 너비(p) <= 800000)
+        디('🖼', g.종류, g.파일[0], g.제목, '그림', 나눔.그림.length, '후보', 후.length, 후.slice(0, 6).map((p) => `${p.선}선 ${Math.round(너비(p) / 1000)}m`).join(' | '), Date.now() - 겹시작)
+        if (!후.length) continue
+        /* 그림이 하나뿐이고 통째로 이미 견줘 본 평면이면 다시 안 함 */
+        if (나눔.그림.length === 1 && g.종류 === '평면' && !g.넓게퍼짐) continue
+        for (const p of 후.slice(0, 6)) {
+          const 이 = 그림이름(g.글자 || [], p.상자, g.제목)
+          if (이.꼴 === '아님') continue
+          if (상세종이 && 이.꼴 !== '평면') continue
+          후보들.push({ g, 나눔, p, 이, 차: (이.꼴 === '평면' ? 0 : 1) })
+        }
+      }
+      후보들.sort((a, b) => a.차 - b.차 || b.p.길이 - a.p.길이)
+      const 전선들 = new Map()
+      const 돌림들 = new Map()     /* 한 종이(묶음)에서 놓인 그림의 돌림 */
+      const 뗀수 = new Map()
+      for (const c of 후보들) {
+        if (Date.now() - 겹시작 > 25000) break
+        const { g, 나눔, p, 이 } = c
+        if (!전선들.has(g)) 전선들.set(g, 누운선(g.out, { 골라: 보이는층 }))
+        const 전선 = 전선들.get(g)
+        const 틀 = []
+        for (let i = 0; i < 전선.length; i += 4) if (나눔.어디((전선[i] + 전선[i + 2]) / 2, (전선[i + 1] + 전선[i + 3]) / 2) === p.id) 틀.push(전선[i], 전선[i + 1], 전선[i + 2], 전선[i + 3])
+        if (틀.length / 4 < 120 || 표같음(틀)) continue
+        if (!B) B = 바탕만들기(바탕선)
+        let r = null
+        try { r = 모양맞추기(틀, B, { 문턱: 이.꼴 === '평면' ? 0.55 : 0.6, 둘째틈: 0.1, 영역, 마감: Math.min(겹시작 + 25000, Date.now() + 6000) }) } catch (e) { r = null }
+        디('   그림', g.제목, p.id, 이.꼴, 이.이름, 틀.length / 4, r && (r.됨 ? '됨' : r.까닭), r && r.몫 != null && r.몫.toFixed(2), Date.now() - 겹시작)
+        if (!r || !r.됨) continue
+        const 돌림 = 돌림들.get(g)
+        if (돌림 != null && Math.abs(((r.회전 - 돌림 + 540) % 360) - 180) > 3) continue
+        if (돌림 == null) 돌림들.set(g, r.회전)
+        const k = (뗀수.get(g) || 0) + 1
+        뗀수.set(g, k)
+        const 키 = `${g.층들[0]}·그림${k}`
+        const out = 그림떼기(g.out, 나눔.어디, p.id, () => 키, 새버킷)
+        바꾸기(out, r.T)
+        const 원 = (g.제목 && g.제목 !== '도곽 밖' ? g.제목 : '') || g.파일[0].replace(/\.dxf$/i, '')
+        const h = { 종류: '평면', 파일: g.파일, 제목: 이.이름 || `${원} — 그림 ${k}`, out, 층들: [키], 켬: true, 평면: true, 무리: 0, 그림: true, 이름: 이.이름 || 원,
+          자리: { how: '모양', 몫: r.몫, 앞: r.맞음비, 뒤: r.거꾸로, 회전: r.회전, 방법: r.방법, 그림: 원 } }
+        h.표본 = 표본(out); h.상자 = 상자(h.표본)
+        새그룹.push(h)
+        g.그림뗌 = (g.그림뗌 || 0) + 1
+      }
+      for (const g of 뗀수.keys()) { g.표본 = 표본(g.out); g.상자 = 상자(g.표본) }
+      for (const h of 새그룹) 그룹.push(h)
     }
     if (globalThis.__겹치기디버그 != null) console.log('겹치기 걸림', Date.now() - 겹시작, 'ms')
-    /* 🧱 구조물 콘크리트 면 — 평면 바깥(발자국)으로 바닥판(가장 낮은 EL) · 바깥 벽(→ G.L). «면» 단추로 보임 */
-    for (const g of 그룹) {
-      if (g.종류 !== '구조' || !g.구조r) continue
-      const 평선 = 누운선(g.out, { 골라: (키, ly) => 키 === g.층들[0] && !꺼진.get(ly) && !/기계|machine|mech|pump|펌프|배관|pipe|전기|elec/i.test(ly) })
-      const 낮 = g.구조r.단면.slice(1).map((d) => d.EL && d.EL[0]).filter((v) => Number.isFinite(v)).sort((p, q) => p - q)
-      if (!낮.length) continue
-      /* 가장 낮은 EL 은 말뚝 · 기초 아래까지 내려간 선일 수 있어 단면들의 «가운데» 아래값을 씀 */
-      const 아래 = 낮[Math.floor(낮.length / 2)] * 1000, 위 = g.구조r.평면EL * 1000
-      let c = null
-      try { c = 콘크리트면(평선, 아래, 위) } catch (e) { c = null }
-      if (!c || !c.tri.length) continue
-      const b = 새버킷(); b.tri = 새버킷().pos; b.trc = 새버킷().col
-      for (let i = 0; i < c.tri.length; i += 3) { b.tri.push3(c.tri[i], c.tri[i + 1], c.tri[i + 2]); b.trc.push3(168, 168, 162) }
-      for (let i = 0; i < c.선.length; i += 6) { b.pos.push6(c.선[i], c.선[i + 1], c.선[i + 2], c.선[i + 3], c.선[i + 4], c.선[i + 5]); b.col.push3(150, 150, 145); b.col.push3(150, 150, 145) }
-      g.out.set(g.층들[0] + '\u0001콘크리트', b)
-      g.콘크리트 = { 넓이: c.넓이, 아래: 아래 / 1000, 위: 위 / 1000 }
-    }
-
     /* ⑧ 📐 나머지 자리 — 기준 무리는 제자리. 나머지(건물·횡단·구조·종단·상세·못 맞춘 평면)는 그 오른쪽에 나란히(사이 20 m 넘게) */
     const 첫무리 = 무리들.length ? 무리들[0].들.filter((g) => g.켬 || g === 무리들[0].머리) : []
     const 바탕 = 첫무리.length ? 첫무리 : []
@@ -712,31 +961,49 @@ self.onmessage = async (ev) => {
       }
       if (g.종류 === '횡단' || g.종류 === '노선' || g.종류 === '땅면') continue
       const z = g.자리 || {}
+      if (z.기준밖) { g.설명 = '캐드 모형 공간에서 측량 그림 밖에 있는 부분(위치도 · 범례 · 다른 종이) — 같은 도면과 함께 놓음 · 처음엔 꺼 둠'; continue }
       if (z.how === '기준') g.설명 = z.안이어짐 ? '측량 좌표(기준) — 같은 이름을 가진 도면이 없어 도면과 아직 안 이어짐 · 처음엔 꺼 둠'
         : z.둘째 ? '도면끼리의 기준(측량성과표와는 아직 안 이어짐)' : g.성과표 ? '측량 좌표 — 모든 자리의 기준' : g.종류 === '측량' ? '측량도면 — 모든 자리의 기준' : `${종이름[g.종류] || '도면'} — 자리의 기준(측량 자료 없음)`
       else if (z.how === '글자') g.설명 = `같은 글자 ${z.n}쌍으로 맞춤 · 평균 오차 ${z.rms.toFixed(2)} m · 돌림 ${z.회전.toFixed(2)}°${z.단위배 ? ` · 도면 단위를 바로잡음(×${z.단위배})` : Math.abs(z.축척 - 1) > 0.01 ? ` · 축척 ×${z.축척.toFixed(3)}` : ''}`
-      else if (z.how === '좌표') g.설명 = '좌표가 기준과 같은 자리 — 그대로 둠'
-      else if (z.how === '모양') g.설명 = `측량 도면의 같은 모양 자리에 겹침(${Math.round(z.몫 * 100)}% · 돌림 ${z.회전.toFixed(2)}°)`
+      else if (z.how === '끼움') g.설명 = `${z.그림 ? `«${z.그림}» 안의 그림 — ` : ''}캐드에서 xref 를 끼운 자리 그대로 겹침${z.길 && z.길.length ? ` (${z.길[z.길.length - 1]})` : ''}${Math.abs(z.회전 || 0) > 0.01 ? ` · 돌림 ${z.회전.toFixed(2)}°` : ''}`
+      else if (z.how === '좌표') g.설명 = z.같은좌표계 ? '기준과 같은 측량 좌표로 그린 도면 — 그대로 둠(기준 범위 밖까지 뻗음)' : '좌표가 기준과 같은 자리 — 그대로 둠'
+      else if (z.how === '모양') g.설명 = `${z.그림 ? `«${z.그림}» 안의 그림 — ` : ''}측량 도면의 같은 모양 자리에 겹침(${Math.round(z.몫 * 100)}% · 돌림 ${z.회전.toFixed(2)}°)`
       else if (z.how === '옆') g.설명 = `자리를 못 찾아 옆에 둠 — ${z.까닭} · 📍 두 점 찍기로 맞추세요`
       else if (g.종류 === '종단') g.설명 = g.종단자리 && g.종단자리.how === '노선' ? `종단 표 ${g.종단자리.줄}줄을 읽어 노선 «${g.종단자리.노선}» 위 지반선·계획선으로 세움 · 이 도면 그림은 처음엔 꺼 둠`
         : g.종단표 ? `종단 표 ${g.종단표.줄.length}줄을 읽었지만 ${g.종단자리 ? g.종단자리.까닭 : '평면 노선을 못 찾음'} · 처음엔 꺼 둠` : '높이 자료(측점·지반고·계획고) — 표를 못 읽음 · 처음엔 꺼 둠'
       else if (g.종류 === '횡단못') g.설명 = '횡단면도 — 이 꼴의 측점·지반고 표(오른쪽 표 · «S T A .»)는 아직 못 읽어 그대로 둠 · 다음 차례에 읽게 함 · 처음엔 꺼 둠'
       else if (g.종류 === '밖' && !g.무리) g.설명 = '도곽 밖 그림(꺼 둔 수치지도 등) — 자리를 몰라 옆에 둠 · 처음엔 꺼 둠'
       else g.설명 = `${종이름[g.종류] || '도면'} — 옆에 둠 · 처음엔 꺼 둠`
+      if (g.그림뗌) g.설명 += ` · 이 안의 평면 그림 ${g.그림뗌}개는 측량 도면에 겹침`
     }
 
     /* 꼭 필요한 자료 — 화면 맨 위 «꼭 넣을 것» 표에 씁니다 */
     const 측량도면 = 그룹.find((g) => g.종류 === '측량')
-    const 계획 = 그룹.find((g) => g.평면 && !g.성과표 && g.종류 !== '측량' && 이름에(g, /계획평면|평면도|배치도|계획도/)) || 그룹.find((g) => g.종류 === '평면')
+    const 계획 = 그룹.find((g) => g.평면 && !g.성과표 && g.종류 !== '측량' && g.종류 !== '밖' && !g.그림 && 이름에(g, /계획평면|평면도|배치도|계획도/)) || 그룹.find((g) => g.종류 === '평면' && !g.그림)
     const 이어진 = (g) => g && g.무리 === 0 && 무리들[0] && 무리들[0].머리 && (무리들[0].머리.성과표 || 무리들[0].머리.종류 === '측량')
     const 필요 = {
       측량: 성과 ? { 있음: true, 종류: '성과표', 이름: 측량점.파일, 점: 측량점.n, 이어짐: !!(기준g && 기준g.성과표 && !기준g.자리.안이어짐) }
         : 측량도면 ? { 있음: true, 종류: '측량도면', 이름: 측량도면.파일[0], 이어짐: true } : { 있음: false },
       평면: 계획 ? { 있음: true, 이름: 계획.이름, 이어짐: !!이어진(계획), 자리: (계획.자리 || {}).how } : { 있음: false },
       높이: !!(그룹.some((g) => g.종류 === "횡단") || 그룹.some((g) => g.종류 === "종단") || (성과 && 측량점.높이 > 0) || 땅면),
+      /* 🔗 G212 자리를 못 찾은 도면이 끼워 쓴 xref 중 안 올린 것 — 같이 넣으라고 알림 */
+      xref: (() => {
+        const 올린 = new Set(읽은.map((x) => 도면이름(x.이름)))
+        const 못파일 = new Set(그룹.filter((g) => g.무리 == null && g.파일번 != null && ['평면', '종평', '기타', '밖', '상세'].includes(g.종류)).map((g) => g.파일번))
+        const 이름들 = new Map()
+        for (const x of 읽은) {
+          if (!못파일.has(x.번)) continue
+          for (const r of x.xrefs || []) {
+            const n = 도면이름(r.이름) || 도면이름(r.경로)
+            if (!n || 올린.has(n) || 틀이름.test(n)) continue
+            if (!이름들.has(n)) 이름들.set(n, String(r.경로 || r.이름).split(/[\\/]/).pop().replace(/\.dwg$/i, ''))
+          }
+        }
+        return [...이름들.values()].slice(0, 8)
+      })(),
     }
 
-    for (const g of 그룹) delete g.표본
+    for (const g of 그룹) { delete g.표본; delete g.글자 }
 
     /* 합치기 */
     const out = new Map()
