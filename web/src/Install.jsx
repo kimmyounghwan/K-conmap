@@ -47,6 +47,29 @@ export const isPC = () => {
 }
 const markInstalled = () => { try { localStorage.setItem(INSTALLED_KEY, '1') } catch { /* noop */ } }
 
+/* 🩹 G213 (2026-10-09) 소장님 「다른 사람 컴에서 하니까 아이콘 설치가 안돼. 점검해줘」
+   점검: 사이트(manifest · 서비스 워커 · 아이콘)는 설치 조건을 다 채움 — 새 크롬(141)에서 «아이콘 만들기» 를 누르면 설치 창이 바로 뜸(시험으로 확인).
+   안 되는 것은 «그 컴퓨터의 브라우저 사정» 이었습니다:
+     · 설치 창을 안 주는 브라우저(파이어폭스 · 웨일 · 카톡 안 브라우저 등) → 전에는 크롬 · 엣지 메뉴만 적은 안내가 떠 따라 할 수 없었음
+     · 그 브라우저에 이미 설치했거나 예전에 «취소» → 설치 창이 안 옴(같은 안내)
+     · 엣지는 설치해도 «바탕 화면 바로 가기» 를 체크하지 않으면 바탕화면에 아이콘이 안 생김
+     · 설치 창을 닫으면 아무 말 없이 끝났음
+   → 브라우저마다 맞는 길 + «어느 브라우저나 되는 길»(주소창 맨 왼쪽 표시를 바탕화면으로 끌어 놓기) · 설치 뒤 · 닫은 뒤에도 안내.
+   📊 |앱설치창|pc·폰 (설치 창을 띄움) · |앱설치닫음|pc·폰 · |앱안내|pc·브라우저 (설치 창 없이 안내만) — 어느 브라우저에서 막히는지 알 수 있게 */
+export const 브라우저 = () => {
+  const u = navigator.userAgent || ''
+  if (/KAKAOTALK|NAVER\(inapp|DaumApps|Line\/|FBAN|FBAV|Instagram|everytimeApp|BAND\//i.test(u)) return 'inapp'
+  if (/Whale\//.test(u)) return 'whale'
+  if (/Edg(e|A|iOS)?\//.test(u)) return 'edge'
+  if (/SamsungBrowser/.test(u)) return 'samsung'
+  if (/Firefox\/|FxiOS/.test(u)) return 'firefox'
+  if (/OPR\/|Opera/.test(u)) return 'opera'
+  if (/Chrome\/|CriOS/.test(u)) return 'chrome'
+  if (/Safari\//.test(u)) return 'safari'
+  return 'other'
+}
+const 기기말 = () => (isPC() ? 'pc' : '폰')
+
 /* 📊 2026-10-05 — 소장님: 「현재 몇 명이 설치했는지 숫자를 알 수 있다면」 → 지금까지는 기록이 없어 모릅니다. 앞으로 셉니다.
    · app_open      — 아이콘(시작 주소 /?src=app)이나 앱 창으로 열었을 때, 탭마다 한 번 {how: window|tab, device: pc|phone}
    · app_installed — 설치했을 때(안드로이드·PC 크롬/엣지가 알려 줌)
@@ -120,33 +143,66 @@ function useInstall() {
       deferred = null
       try {
         e.prompt()
+        세기('|앱설치창|' + 기기말())
         const r = await e.userChoice
-        if (r && r.outcome === 'accepted') { markInstalled(); setDone(true) }
+        if (r && r.outcome === 'accepted') {
+          markInstalled(); setDone(true)
+          /* PC — 엣지는 바탕화면 바로 가기를 체크해야 아이콘이 생김 · 크롬도 안 보이면 같은 길로 */
+          if (isPC()) setGuide('설치')
+        } else { 세기('|앱설치닫음|' + 기기말()); setGuide('닫음') }
         notify()
         return
       } catch { /* 이미 쓴 이벤트 — 아래 안내로 */ }
     }
+    세기('|앱안내|' + 기기말() + '·' + 브라우저())
     setGuide(true)
   }
   return { done, guide, setGuide, install }
 }
 
-function Guide({ onClose }) {
+function Guide({ onClose, 때 = true }) {
   const ios = isIOS()
+  const pc = isPC()
+  const 브 = 브라우저()
+  const 되는곳 = typeof window !== 'undefined' && 'onbeforeinstallprompt' in window     /* 크롬 · 엣지 · 웨일 · 삼성 — 설치 창을 줄 수 있는 브라우저 */
+  /* 어느 브라우저나 되는 길(윈도 PC) — 주소창 맨 왼쪽 표시(🔒 · ⚙)를 끌어 바탕화면에 놓으면 바로가기 파일이 생김 */
+  const 끌기 = <li>어느 브라우저나: 주소창 <b>맨 왼쪽 표시</b>(🔒 또는 ⚙)를 마우스로 <b>끌어서 바탕화면에 놓으면</b> K-건설맵 바로가기가 생깁니다</li>
   return (
     <div className="installguide" onClick={onClose}>
       <div className="box" onClick={(e) => e.stopPropagation()}>
-        <div className="h">{isPC() ? '🖥 바탕화면·작업표시줄 아이콘' : '📲 홈 화면에 추가'}</div>
-        {isPC() ? (
+        <div className="h">{때 === '설치' ? '✅ 설치했습니다' : pc ? '🖥 바탕화면에 K-건설맵 아이콘 만들기' : '📲 홈 화면에 추가'}</div>
+        {때 === '설치' ? (
           <ol>
-            <li>주소창 오른쪽 끝 <b>«앱 설치»</b> 단추(⊕ 모양)를 누릅니다 — 없으면 오른쪽 위 메뉴(⋯ · ⋮) → <b>앱 → 이 사이트를 앱으로 설치</b>(크롬은 <b>전송, 저장, 공유 → 설치</b>)</li>
-            <li><b>설치</b>를 누르면 바탕화면·작업표시줄에 아이콘이 생깁니다(엣지는 다음 창에서 <b>작업 표시줄에 고정 · 바탕 화면 바로 가기</b>를 체크)</li>
+            <li>바탕화면에 아이콘이 <b>안 보이면</b> — 엣지는 방금 뜬 창에서 <b>«바탕 화면 바로 가기 만들기»</b>를 체크합니다</li>
+            <li>그 창을 닫았으면: 시작 메뉴에서 <b>K-건설맵</b>을 찾아 오른쪽 클릭 → <b>작업 표시줄에 고정</b></li>
+            {끌기}
+          </ol>
+        ) : pc ? (
+          <>
+            {때 === '닫음'
+              ? <div className="note sm">설치 창을 닫으셨습니다. 다시 하시려면 아래 길로 하시면 됩니다.</div>
+              : 되는곳 && <div className="note sm">이 브라우저가 지금은 설치 창을 주지 않습니다 — <b>이미 설치돼 있으면</b> 시작 메뉴에서 «K-건설맵» 을 찾아 보세요(예전에 «취소» 를 눌렀거나 회사 컴퓨터라 막혀 있을 수도 있습니다).</div>}
+            <ol>
+              {브 === 'edge' && <li>오른쪽 위 <b>⋯</b> → <b>앱</b> → <b>«이 사이트를 앱으로 설치»</b> → 다음 창에서 <b>«바탕 화면 바로 가기 만들기»</b> 체크</li>}
+              {브 === 'chrome' && <li>오른쪽 위 <b>⋮</b> → <b>전송, 저장, 공유</b> → <b>«바로가기 만들기…»</b> → <b>만들기</b></li>}
+              {끌기}
+            </ol>
+          </>
+        ) : 브 === 'inapp' ? (
+          <ol>
+            <li>카카오톡 · 네이버 앱 <b>안</b>에서는 홈 화면에 못 넣습니다 — 오른쪽 위(또는 아래) <b>⋮ · 공유</b> → <b>«다른 브라우저로 열기»</b>(아이폰은 «Safari로 열기»)</li>
+            <li>열린 브라우저에서 위 <b>«추가하기»</b> 를 다시 누릅니다</li>
           </ol>
         ) : ios ? (
           <ol>
             <li>화면 <b>아래 가운데</b>(아이패드는 위) <b>공유 버튼</b> <span className="ic">⎋</span> 을 누릅니다</li>
             <li>목록을 조금 내려 <b>「홈 화면에 추가」</b> 를 누릅니다</li>
             <li>오른쪽 위 <b>「추가」</b></li>
+          </ol>
+        ) : 브 === 'samsung' ? (
+          <ol>
+            <li>아래 <b>메뉴(≡)</b> 를 누릅니다</li>
+            <li><b>「현재 페이지 추가」</b> → <b>「홈 화면」</b></li>
           </ol>
         ) : (
           <ol>
@@ -156,8 +212,8 @@ function Guide({ onClose }) {
           </ol>
         )}
         <div className="note sm">
-          {isPC() ? '아이콘으로 열면 처음 한 번 누를 때 브라우저 탭으로 옮겨 갑니다. 설치 파일은 없습니다.' : '홈 화면에 K-건설맵 아이콘이 생기고, 열면 브라우저 테두리 없이 앱처럼 뜹니다. 설치 파일은 없습니다.'}
-          {ios ? ' 아이폰은 Safari 에서만 됩니다 — 카카오톡·네이버 앱 안에서 열었으면 Safari 로 여세요.' : ''}
+          {pc ? '설치 파일은 없습니다. 아이콘으로 열면 처음 한 번 누를 때 브라우저 탭으로 옮겨 갑니다.' : '홈 화면에 K-건설맵 아이콘이 생기고, 열면 브라우저 테두리 없이 앱처럼 뜹니다. 설치 파일은 없습니다.'}
+          {ios && 브 !== 'inapp' ? ' 아이폰은 Safari 에서만 됩니다.' : ''}
         </div>
         <button className="btn sm" onClick={onClose}>알겠습니다</button>
       </div>
@@ -168,7 +224,7 @@ function Guide({ onClose }) {
 /** 위 막대 오른쪽 알약 — 모든 페이지 */
 export function InstallPill() {
   const { done, guide, setGuide, install } = useInstall()
-  if (done) return null
+  if (done) return guide === '설치' ? <Guide 때="설치" onClose={() => setGuide(false)} /> : null
   return (
     <>
       {/* 📱 2026-09-17 — 좁은 화면에서 글자를 접습니다 (styles.css .instlong).
@@ -178,7 +234,7 @@ export function InstallPill() {
           🖥<span className="instlong"> 아이콘</span></button>
         : <button className="installbtn" onClick={install} title="홈 화면에 아이콘을 만들어 앱처럼 씁니다">
           📲<span className="instlong"> 앱으로</span></button>}
-      {guide && <Guide onClose={() => setGuide(false)} />}
+      {guide && <Guide 때={guide} onClose={() => setGuide(false)} />}
     </>
   )
 }
@@ -187,7 +243,8 @@ export function InstallPill() {
 export function InstallBar() {
   const { done, guide, setGuide, install } = useInstall()
   const [closed, setClosed] = useState(() => hidden())
-  if (done || closed) return null
+  if (done) return guide === '설치' ? <Guide 때="설치" onClose={() => setGuide(false)} /> : null
+  if (closed) return null
   return (
     <>
       <div className="installbar">
@@ -197,7 +254,7 @@ export function InstallBar() {
         <button className="go" onClick={install}>{isPC() ? '아이콘 만들기' : '추가하기'}</button>
         <button className="x" aria-label="닫기" onClick={() => { hideFor(); setClosed(true) }}>✕</button>
       </div>
-      {guide && <Guide onClose={() => setGuide(false)} />}
+      {guide && <Guide 때={guide} onClose={() => setGuide(false)} />}
     </>
   )
 }
