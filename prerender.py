@@ -2259,7 +2259,7 @@ def qna_page(shell, p, ps):
     ld = ld_graph(ld_crumbs(("K-건설맵", None), ("맵톡", "/qna"), (t[:60], f"/qna/{p['id']}")), post)
     h = page(shell, f"/qna/{p['id']}", title, desc, "".join(body), None, ld)
     # 화면(Qna.jsx)이 데이터베이스를 못 읽어도 이 글을 그대로 그리게 — 구운 글 그대로(가린 것 그대로)
-    data = json.dumps({"id": p["id"], "c": p["c"], "t": t, "옛": p["옛"], "b": p["b"], "nick": p["nick"],
+    data = json.dumps({"id": p["id"], "c": p["c"], "t": t, "옛": p["옛"], "k": p.get("k", ""), "b": p["b"], "nick": p["nick"],
                        "at": p["at"], "e": p["e"],
                        "ans": [{"id": a["id"], "b": a["b"], "nick": a["nick"], "at": a["at"], "op": a["op"]}
                                for a in p["ans"]]},

@@ -37,6 +37,8 @@ KST = timezone(timedelta(hours=9))
 # lib/말머리.js 와 같게 — 제목 앞 [말머리]
 갈래들 = ["후기·건의", "K-건설맵"]
 옛갈래들 = ["질문", "현장", "공동도급", "구인구직"]
+# lib/맵톡.js 주제차례와 같게 (G211 고른 방)
+방열쇠 = ("kcm", "bid", "ins", "work", "safe", "equip", "job", "fb", "talk")
 _머리 = re.compile(r"^\[([^\]]{1,8})\]\s*")
 # 파이어베이스 push 번호: 영문 · 숫자 · - · _ (주소 · 파일 이름에 그대로 씁니다)
 _번호 = re.compile(r"^[A-Za-z0-9_-]{6,40}$")
@@ -132,7 +134,9 @@ def posts(snap):
         ans.sort(key=lambda a: a["at"])
         at = _num(r.get("at"))
         e = _num(r.get("e"))
-        out.append({"id": pid, "c": c, "t": t, "옛": 옛, "b": 가림(r.get("b")).strip(),
+        # 🩹 G211 고른 방(k) — 화면(lib/맵톡.js 주제짐작)이 구운 글도 같은 방에 둡니다
+        k = r.get("k") if r.get("k") in 방열쇠 else ""
+        out.append({"id": pid, "c": c, "t": t, "옛": 옛, "k": k, "b": 가림(r.get("b")).strip(),
                     "nick": str(r.get("nick") or "익명")[:20], "at": at, "e": e, "ans": ans,
                     "pin": pid in top, "pin_at": _num(top.get(pid)),
                     "mod": max([at, e] + [a["at"] for a in ans])})

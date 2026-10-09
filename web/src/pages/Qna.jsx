@@ -146,13 +146,13 @@ const when = (ms) => {
   return `${d.getMonth() + 1}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-import { 갈래들, 갈래빛, 갈래떼기, 갈래붙이기 } from '../lib/말머리.js'
+import { 갈래떼기, 갈래붙이기 } from '../lib/말머리.js'
 import { use화면상태, use남김 } from '../lib/길기록.js'
 /* 🗺 G114 사랑방 맨 위 지도는 G144(2026-10-05) 바로투찰 맨 위로 옮김 — 소장님 「사랑방에 있는 지도는 제거하고」 */
 import 건설소식 from '../tools/건설소식.jsx'   /* 📰 G128 — 지도 아래 «오늘의 건설 소식» · 💬 이야기하기 → 글쓰기 칸 */
 /* 🗺 G147 (2026-10-05) 사랑방 → 맵톡 — 큰 지도 위 글쓰기 · 글 = 핀(시·군) · 방은 저절로(같은 주제 10개) · 사진 한 장 */
 import 맵톡지도 from '../tools/맵톡지도.jsx'
-import { 주제들, 주제짐작, 방나누기, 글나누기, 자리짐작, 짧은이름, 곳찾기, 카드크기, 물음인가, 한마디인가, 사진줄이기, 사진크기한도, 방기준, 답나무, 첫줄, 누적셈, 시도차례, 시도별, 곳기억읽기, 곳기억하기 } from '../lib/맵톡.js'
+import { 주제들, 주제짐작, 넣을방, 고를방들, 방나누기, 글나누기, 자리짐작, 짧은이름, 곳찾기, 카드크기, 물음인가, 한마디인가, 사진줄이기, 사진크기한도, 방기준, 답나무, 첫줄, 누적셈, 시도차례, 시도별, 곳기억읽기, 곳기억하기 } from '../lib/맵톡.js'
 import { 세기 } from '../lib/받은수.jsx'
 import { 받는꼴, 파일검사, 압축검사, 확장자, 파일올리기, 크기글, 오늘올린수, 올린수더하기, 하루한도 } from '../lib/파일올리기.js'   /* 📎 G158 · 🗜 G196 압축검사 */
 
@@ -330,7 +330,9 @@ export default function Qna() {
     if (!글번호) return
     const v = 구운글(글번호)
     if (v) {
-      set따로글({ id: v.id, t: v.t, b: v.b, nick: v.nick, at: v.at, e: v.e || 0, c: v.c, 옛: v.옛 || '' })
+      const y = { id: v.id, t: v.t, b: v.b, nick: v.nick, at: v.at, e: v.e || 0, c: v.c, 옛: v.옛 || '', k: v.k || '' }
+      y.주제 = 주제짐작(y, isOp)   /* 🩹 G211 구운 글도 방을 알게 */
+      set따로글(y)
       setAns((a) => (a[v.id] ? a : { ...a, [v.id]: Object.fromEntries((v.ans || []).map((x) => [x.id, x])) }))
     }
     try { window.scrollTo(0, 0) } catch (e) { /* 옛 브라우저 */ }
@@ -727,7 +729,7 @@ export default function Qna() {
   return (
     <div className="mt-page">
       <맵톡지도 글들={모두 || []} 새글번호={새글번호} 열기={누르기} 새방={새방} 누적={누적}>
-        <맵톡글쓰기 key={새글 ? '초안:' + (새글.t || '') : '빈칸'} 첫글={새글} 나운영자={나운영자}
+        <맵톡글쓰기 key={새글 ? '초안:' + (새글.t || '') : '빈칸'} 첫글={새글} 나운영자={나운영자} 방고름={방고름}
           onDone={(id) => {
             set새글(null); 방감시.current = true; set새글번호(id)
             setTimeout(() => set새글번호((v) => (v === id ? null : v)), 3200)
@@ -1050,8 +1052,11 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
     try {
       const { ref, update, db, ensureAnon, serverTimestamp } = await loadFb()
       await ensureAnon()
-      const 새갈래 = (나운영자 && 고침.c) || row.c
+      /* 🩹 G211 — 방을 바꿨으면 k 로 남깁니다. 운영자 글은 말머리도 같이(소식 = [K-건설맵] · 다른 방 = [후기·건의]) */
+      const 방바뀜 = !!고침.k && 고침.k !== row.주제
+      const 새갈래 = 나운영자 && 방바뀜 ? (고침.k === 'kcm' ? 'K-건설맵' : '후기·건의') : row.c
       const 고칠 = { t: 갈래붙이기(새갈래, t), b: (고침.b || '').trim().slice(0, 2000), e: serverTimestamp() }
+      if (방바뀜) 고칠.k = 고침.k
       /* 🗺 G147 — 핀이 엉뚱한 시·군에 꽂혔으면 «고치기» 에서만 바꿉니다(소장님 「바꾸기 … 필요 없어지잖아」 — 글쓰기 칸엔 없음) */
       if ((고침.g || '') !== (row.g || '')) 고칠.g = 고침.g ? String(고침.g) : null
       /* 🏷 G93 — 운영자가 말머리를 바꾸면 별명도 같이: K-건설맵 글은 «K-건설맵», 후기·건의로 내리면 그 번호의 별명 */
@@ -1059,7 +1064,13 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
       /* 💬 G130 — 운영자가 쓴 글(운영자 번호)은 말머리를 바꿔도 · 그냥 고쳐도 «K-건설맵» (후기·건의로 옮긴 옛 글도 고치면 맞춰짐) */
       const 운영글 = 나운영자 && isOp(row.uid)
       if (새갈래 !== row.c || 운영글) 고칠.nick = ((새갈래 === 'K-건설맵' || 운영글) ? 'K-건설맵' : nickOf(row.uid)).slice(0, 20)
-      await update(ref(db, `qna/${row.id}`), 고칠)
+      /* 방(k) 규칙이 아직 안 올라간 때에도 고친 글은 올라가게 — k 를 빼고 한 번 더 */
+      try { await update(ref(db, `qna/${row.id}`), 고칠) } catch (e) {
+        if (!고칠.k) throw e
+        delete 고칠.k
+        await update(ref(db, `qna/${row.id}`), 고칠)
+      }
+      if (방바뀜) 세기('|맵톡|방옮김')
       set고침(null); onChange()
     } catch (e) { setMsg('고치지 못했습니다 — 이 기기에서 쓴(또는 되찾은) 글만 고칠 수 있습니다.') } finally { set바쁨(false) }
   }
@@ -1252,22 +1263,17 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
     <div style={{ marginTop: 10, borderTop: '1px solid var(--line)', paddingTop: 10 }}>
       {고침 ? (
         <div style={{ marginBottom: 8 }}>
-          {나운영자 && (
-            <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 7, marginBottom: 8 }}>
-              {갈래들.map((x) => {
-                const on = (고침.c || row.c) === x
-                const [bg, fg, ln] = 갈래빛[x]
-                return (
-                  <button key={x} onClick={() => set고침((v) => ({ ...v, c: x }))}
-                    style={{
-                      border: '1px solid ' + (on ? 'var(--accent)' : ln), borderRadius: 999,
-                      padding: '6px 12px', fontSize: 12.5, cursor: 'pointer', fontWeight: on ? 700 : 500,
-                      background: on ? 'var(--accent)' : bg, color: on ? '#fff' : fg,
-                    }}>{x}</button>
-                )
-              })}
-            </div>
-          )}
+          {/* 🩹 G211 방 옮기기 — 글 내용으로 짐작한 방이 틀렸으면 여기서 바꿉니다(소식은 운영자만) */}
+          <div className="mt-toroom" role="group" aria-label="이 글의 방">
+            <span className="mt-toroom-l">📂 방</span>
+            {고를방들(나운영자).map((k) => {
+              const on = (고침.k || row.주제) === k
+              return (
+                <button type="button" key={k} className={'mt-toroom-c' + (on ? ' on' : '')} style={{ '--rc': 주제들[k].색 }}
+                  aria-pressed={on} onClick={() => set고침((v) => ({ ...v, k }))}><i />{주제들[k].이름}</button>
+              )
+            })}
+          </div>
           <input className="inp" value={고침.t} maxLength={70} onChange={(e) => set고침((v) => ({ ...v, t: e.target.value }))}
             style={{ width: '100%', boxSizing: 'border-box', marginBottom: 6 }} />
           <textarea className="inp" value={고침.b} maxLength={2000} onChange={(e) => set고침((v) => ({ ...v, b: e.target.value }))}
@@ -1323,7 +1329,7 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
 
       {mine && !고침 && (
         <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-          <button className="btn line" onClick={() => set고침({ t: row.t || '', b: row.b || '', c: row.c, g: row.g || '' })}>✏️ 고치기</button>
+          <button className="btn line" onClick={() => set고침({ t: row.t || '', b: row.b || '', c: row.c, g: row.g || '', k: '' })}>✏️ 고치기</button>
           {!나운영자 && <input className="inp" inputMode="numeric" maxLength={4} placeholder="4자리"
             value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
             style={{ width: 90 }} />}
@@ -1464,7 +1470,7 @@ function AnswerForm({ qid, onDone, to = null, 받는이 = '', 인용 = '', 열�
      파일만 못 올라가면(인터넷 등) 글은 올라가고 «파일은 못 올렸습니다» 한 줄.
    ■ 📊 세기: |맵톡|글 · |맵톡|사진 · |맵톡|자리 · |맵톡|파일 (숫자는 어디에도 안 보임) */
 const 초안열쇠 = 'kcm.qna.초안'
-function 맵톡글쓰기({ onDone, 첫글, 나운영자 }) {
+function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
   const [글, set글] = useState(() => {
     if (첫글 && (첫글.t || 첫글.b)) return [String(첫글.t || ''), String(첫글.b || '')].filter(Boolean).join('\n').slice(0, 2070)
     try { const d = JSON.parse(sessionStorage.getItem(초안열쇠) || 'null'); if (d) return typeof d.글 === 'string' ? d.글 : [d.t, d.b].filter(Boolean).join('\n') } catch (e) { /* 없음 */ }
@@ -1478,6 +1484,12 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자 }) {
   const [흔들, set흔들] = useState(0)
   const [msg, setMsg] = useState('')
   const [고정할, set고정할] = useState(false)
+  /* 🩹 G211 (2026-10-09) 소장님 「왜 내가 쓰는 글은 모두 건설맵 소식으로 가지? 분명 후기 건의 클릭해도」
+     넣을 방(k) — 아래 «방» 줄에서 방을 골라 둔 채 쓰면 그 방. 이용자는 방을 안 골랐으면 '' (글 내용으로 짐작 · 예전 그대로).
+     운영자는 칸 안에서 방을 고릅니다(방을 안 보고 있으면 처음엔 소식). 방을 바꿔 보면 칸도 따라 바뀝니다. */
+  const 처음방 = () => 넣을방(방고름, 나운영자) || (나운영자 ? 'kcm' : '')
+  const [방, set방] = useState(처음방)
+  useEffect(() => { set방(처음방()) }, [방고름, 나운영자])   // eslint-disable-line react-hooks/exhaustive-deps
   const 칸 = useRef(null)
   const 핀칸 = useRef(null)
   /* 📍 G150 지역 — { 곳, 어떻게: '찾는중' | '짐작' | '고름' | '모름' } · 고르기: null | '시도' | 시·도 이름 */
@@ -1574,17 +1586,27 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자 }) {
         } catch (e) { 사진말 = ' · 사진은 못 올렸습니다(글만 올라갔습니다)' }
       }
       const 곳 = await 자리약속
-      await set(slot, {
-        t: 갈래붙이기(나운영자 ? 'K-건설맵' : '후기·건의', t),   /* 운영자 글은 예전처럼 [K-건설맵] — 메일 · 글 페이지가 그대로 읽게 */
+      const 넣방 = 나운영자 ? (방 || 'kcm') : 방
+      const 글값 = {
+        /* 운영자 글은 소식이면 [K-건설맵] · 다른 방이면 [후기·건의] — 메일 · 글 페이지가 그대로 읽게 (G211) */
+        t: 갈래붙이기(나운영자 && 넣방 === 'kcm' ? 'K-건설맵' : '후기·건의', t),
         b,
         nick: (나운영자 ? 'K-건설맵' : nickOf(r)).slice(0, 20),   /* 💬 G130 운영자 글은 «K-건설맵»(규칙도 운영자 번호만 허락) */
         uid: r,
         at: Date.now(),
+        ...(넣방 ? { k: 넣방 } : {}),   /* 🩹 G211 고른 방 */
         ...(곳 ? { g: String(곳.k) } : {}),
         ...(p ? { p } : {}),
         ...(f ? { f } : {}),
         ...(await 몰래표()),     /* 🙈 몰래 차단 기기면 sb — 규칙이 강제합니다 */
-      })
+      }
+      /* 🩹 G211 — 방(k) 규칙이 아직 안 올라간 때(사이트가 먼저 바뀐 몇 분)에도 글은 올라가게: k 를 빼고 한 번 더 */
+      try { await set(slot, 글값) } catch (e) {
+        if (!글값.k) throw e
+        const { k, ...k없이 } = 글값   // eslint-disable-line no-unused-vars
+        await set(slot, k없이)
+      }
+      if (넣방 && 넣방 !== 'kcm') 세기('|맵톡|방골라씀')
       addMine(id)
       폰알림켜기(r, 허락)
       세기('|맵톡|글'); if (p) 세기('|맵톡|사진'); if (곳) 세기('|맵톡|자리'); if (f) { 세기('|맵톡|파일'); if (확장자(f.n) === 'zip') 세기('|맵톡|압축파일'); 올린수더하기() }
@@ -1614,6 +1636,21 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자 }) {
           <span className="mt-att-warn">남의 공사명 · 업체명 · 사람 이름 · 전화번호는 지우고 올려 주세요</span>
         </div>
       )}
+      {/* 🩹 G211 어느 방에 올라가는지 — 운영자는 고르고, 이용자는 방을 보고 있을 때만 한 줄(✕ 누르면 내용 따라) */}
+      {나운영자 ? (
+        <div className="mt-toroom" role="group" aria-label="올릴 방 고르기">
+          <span className="mt-toroom-l">📂 올릴 방</span>
+          {고를방들(true).map((k) => (
+            <button type="button" key={k} className={'mt-toroom-c' + (방 === k ? ' on' : '')} style={{ '--rc': 주제들[k].색 }}
+              aria-pressed={방 === k} onClick={() => set방(k)}><i />{주제들[k].이름}</button>
+          ))}
+        </div>
+      ) : 방 ? (
+        <div className="mt-toroom">
+          <span>📂 <b style={{ color: (주제들[방] || 주제들.talk).색 }}>{(주제들[방] || 주제들.talk).이름}</b> 방에 올라가요</span>
+          <button type="button" className="mt-place-b" onClick={() => set방('')} title="방을 고르지 않으면 글 내용으로 방을 짐작합니다">내용 따라</button>
+        </div>
+      ) : null}
       {/* 📍 G150 어디에 꽂히는지 · 바꾸기 */}
       <div className="mt-place">
         {자리.어떻게 === '찾는중'

@@ -96,6 +96,9 @@
           "z": { ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 10485760" },
           "$other": { ".validate": false }
         },
+        // 🩹 G211 (2026-10-09) 맵톡 방 — k: 글을 둔 방(방을 골라 둔 채 썼거나 ✏️ 고치기에서 옮김). 없으면 화면이 글 내용으로 짐작.
+        //    «K-건설맵 소식»(kcm) 방은 운영자 번호만 (별명 K-건설맵 과 같은 규칙)
+        "k":       { ".validate": "newData.isString() && newData.val().matches(/^(kcm|bid|ins|work|safe|equip|job|fb|talk)$/) && ( newData.val() !== 'kcm' || auth.uid === 'ZglL1g3X5UZFBA2590LirDnEnil1' )" },
         "$other":  { ".validate": false }
       }
     },
