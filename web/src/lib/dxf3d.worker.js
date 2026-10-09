@@ -21,6 +21,7 @@ import { 도곽찾기3d, 박스제목, 도면종류, 네모로나누기, 도면�
 import { 글짝들, 글열쇠, 짝맞추기, 변환하기, 회전도, 축척 } from './자리맞춤.js'
 import { 노선열쇠, 노선이름, 노선같음, 노선찾기, 종단표읽기, 노선에얹기, 종단선, 측점m로, 중심꼴 } from './노선3d.js'
 import { 평균단면, 삼각망, 높이찾개, 땅면부피 } from './토공3d.js'
+import { 누운선, 바닥높이, 바탕만들기, 모양맞추기, 콘크리트면 } from './겹치기3d.js'
 
 const 새버킷 = () => ({ pos: new F64(), col: new U8(), pts: new F64(64), pcol: new U8(64) })
 /** 버킷 모음 합치기 (같은 이름이면 이어 붙임) */
@@ -208,7 +209,7 @@ self.onmessage = async (ev) => {
         const 이름 = 후보[0].파일
         구조.push({ 파일: 이름, 단면: r.단면, 평면EL: r.평면EL, 빠짐: r.빠짐, 제목: r.제목 })
         그룹.push({ 종류: '구조', 파일: [이름], 제목: 통째 ? '' : `박스 ${후보.length}장`, out: r.out, 층들: r.단면.map((s) => s.층), 켬: true,
-          설명: `평면 + 단면 ${r.단면.length - 1}장 · G.L ${r.평면EL.toFixed(2)} m` })
+          설명: `평면 + 단면 ${r.단면.length - 1}장 · G.L ${r.평면EL.toFixed(2)} m`, 구조r: { 단면: r.단면, 평면EL: r.평면EL } })
       }
     }
 
@@ -589,6 +590,86 @@ self.onmessage = async (ev) => {
     for (const g of 그룹) if ((g.종류 === '횡단' || g.종류 === '노선' || g.종류 === '땅면') && !g.표본) { g.표본 = 표본(g.out); g.상자 = 상자(g.표본) }
     const 노선요약 = 노선들.map((L) => ({ 이름: L.이름, 근거: L.r.근거, 층: L.r.층, 간격: L.r.간격, n: L.r.n, 모두: L.r.모두, rms: L.r.rms, 어긋: L.r.어긋, 범위: L.r.범위, 토막: L.r.토막, 평면: L.평면.map((g) => g.제목 || g.파일[0]) }))
 
+    /* ⑦¾ 🧲 (G209) 모양으로 겹치기 — 건물 · 구조물 · 글자로 못 맞춘 평면(파일배치도 · 기계 평면)을
+          기준 무리(측량도면 · 자리 맞춘 계획평면도)에 그려진 «같은 모양» 자리에 겹칩니다(lib/겹치기3d.js).
+          전에는 이 묶음들이 기준 오른쪽에 나란히 놓였습니다(실제 자리와 무관). 못 찾으면 그대로 옆(📍 두 점 찍기). */
+    self.postMessage({ type: 'prog', p: 0.915, msg: '건물 · 구조물을 측량 도면의 같은 모양 자리에 겹치는 중' })
+    const 겹시작 = Date.now()
+    const 겹친 = []
+    {
+      const 보이는층 = (키, ly) => !꺼진.get(ly)
+      const 바탕그룹 = 그룹.filter((g) => g.무리 === 0 && g.평면 && !g.성과표 && g.종류 !== '밖')
+      const 바탕선 = []
+      const 더하기 = (L) => { for (let i = 0; i < L.length; i++) 바탕선.push(L[i]) }
+      for (const g of 바탕그룹) 더하기(누운선(g.out, { 골라: 보이는층 }))
+      const 할것 = 그룹.filter((g) => g.무리 == null && (g.종류 === '구조' && g.구조r || g.종류 === '건물' || (g.종류 === '평면' && g.자리 && g.자리.how === '옆')))
+      /* 차례: 구조물(큰 것부터) → 건물 → 평면(파일배치도는 놓인 구조물 선도 바탕으로 씀) */
+      const 차 = (g) => (g.종류 === '구조' ? 0 : g.종류 === '건물' ? 1 : 2)
+      할것.sort((p, q) => 차(p) - 차(q))
+      /* 묶음마다 «바닥에 누운 평면 선» 만 틀로 */
+      const 틀뽑기 = (g) => {
+        if (g.종류 === '구조') return { 선: 누운선(g.out, { 골라: (키, ly) => 키 === g.층들[0] && 보이는층(키, ly) }), z: g.구조r.평면EL * 1000 }
+        if (g.종류 === '건물') {
+          let 낮 = null, 낮z = Infinity
+          for (const k of g.층들) { const z = 바닥높이(g.out, (키) => 키 === k); if (z != null && z < 낮z) { 낮z = z; 낮 = k } }
+          if (낮 == null) return null
+          return { 선: 누운선(g.out, { 골라: (키, ly) => 키 === 낮 && 보이는층(키, ly), z: 낮z, 창: 300 }), z: 낮z, 층: 낮 }
+        }
+        return { 선: 누운선(g.out, { 골라: 보이는층 }), z: null }
+      }
+      let B = null
+      for (const g of 할것) {
+        if (바탕선.length < 400) break
+        /* 한 번에 너무 오래 붙잡지 않게 — 25초가 넘으면 남은 것은 옆에 둠(📍 두 점 찍기) */
+        if (Date.now() - 겹시작 > 25000) { g.모양못 = '시간이 오래 걸려 모양 찾기를 건너뜀'; continue }
+        const t = 틀뽑기(g)
+        if (!t || t.선.length < 120) continue
+        if (!B) B = 바탕만들기(바탕선)
+        /* 구조물 · 건물이 먼저 놓였으면 그 둘레(10 m)를 «근처» 로 — 평면(기계 평면도 등)이 그 안에서 맞으면 바깥의 비슷한 자리와 견주지 않음 */
+        const 근처 = g.종류 === '평면' ? 겹친.filter((h) => h.종류 !== '평면' && h.상자).map((h) => [h.상자[0] - 10000, h.상자[1] - 10000, h.상자[2] + 10000, h.상자[3] + 10000]) : null
+        let r = null
+        try { r = 모양맞추기(t.선, B, { 문턱: 0.5, 근처: 근처 && 근처.length ? 근처 : null }) } catch (e) { r = null }
+        if (!r) continue
+        if (!r.됨) { g.모양못 = r.까닭; if (g.자리 && g.자리.how === '옆') g.자리.까닭 = `같은 글자도, 같은 모양도 못 찾음 — ${r.까닭}`; continue }
+        바꾸기(g.out, r.T)
+        g.무리 = 0
+        g.켬 = true
+        g.자리 = { how: '모양', 몫: r.몫, 앞: r.맞음비, 뒤: r.거꾸로, 회전: r.회전, 방법: r.방법, 근처: r.근처 }
+        g.표본 = 표본(g.out); g.상자 = 상자(g.표본)
+        겹친.push(g)
+        g.틀z = t.z
+      }
+      /* 🏢 건물 높이 — 놓인 구조물 위면 그 G.L, 아니면 측량 땅 면 높이(건물 도면의 ±0 을 그 높이에) */
+      for (const g of 겹친) {
+        if (g.종류 !== '건물') continue
+        const [x0, y0, x1, y1] = g.상자, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2
+        let dz = null, 근거 = ''
+        for (const h of 겹친) if (h.종류 === '구조' && h.상자 && cx > h.상자[0] && cx < h.상자[2] && cy > h.상자[1] && cy < h.상자[3]) { dz = h.구조r.평면EL * 1000; 근거 = `구조물 «${h.파일[0].replace(/\.dxf$/i, '')}» G.L ${h.구조r.평면EL.toFixed(2)} m` }
+        if (dz == null && 땅높이) { const z = 땅높이(cx, cy); if (Number.isFinite(z)) { dz = Math.round(z / 10) * 10; 근거 = `측량 땅 면 ${(z / 1000).toFixed(2)} m` } }
+        if (dz == null) { g.자리.높이 = '높이 기준을 못 찾아 도면 ±0 그대로'; continue }
+        for (const [, b] of g.out) for (const arr of [b.pos, b.pts, b.tri]) { if (!arr) continue; for (let i = 2; i < arr.n; i += 3) arr.a[i] += dz }
+        g.자리.높이 = `G.L ±0 → ${근거}`
+      }
+    }
+    if (globalThis.__겹치기디버그 != null) console.log('겹치기 걸림', Date.now() - 겹시작, 'ms')
+    /* 🧱 구조물 콘크리트 면 — 평면 바깥(발자국)으로 바닥판(가장 낮은 EL) · 바깥 벽(→ G.L). «면» 단추로 보임 */
+    for (const g of 그룹) {
+      if (g.종류 !== '구조' || !g.구조r) continue
+      const 평선 = 누운선(g.out, { 골라: (키, ly) => 키 === g.층들[0] && !꺼진.get(ly) && !/기계|machine|mech|pump|펌프|배관|pipe|전기|elec/i.test(ly) })
+      const 낮 = g.구조r.단면.slice(1).map((d) => d.EL && d.EL[0]).filter((v) => Number.isFinite(v)).sort((p, q) => p - q)
+      if (!낮.length) continue
+      /* 가장 낮은 EL 은 말뚝 · 기초 아래까지 내려간 선일 수 있어 단면들의 «가운데» 아래값을 씀 */
+      const 아래 = 낮[Math.floor(낮.length / 2)] * 1000, 위 = g.구조r.평면EL * 1000
+      let c = null
+      try { c = 콘크리트면(평선, 아래, 위) } catch (e) { c = null }
+      if (!c || !c.tri.length) continue
+      const b = 새버킷(); b.tri = 새버킷().pos; b.trc = 새버킷().col
+      for (let i = 0; i < c.tri.length; i += 3) { b.tri.push3(c.tri[i], c.tri[i + 1], c.tri[i + 2]); b.trc.push3(168, 168, 162) }
+      for (let i = 0; i < c.선.length; i += 6) { b.pos.push6(c.선[i], c.선[i + 1], c.선[i + 2], c.선[i + 3], c.선[i + 4], c.선[i + 5]); b.col.push3(150, 150, 145); b.col.push3(150, 150, 145) }
+      g.out.set(g.층들[0] + '\u0001콘크리트', b)
+      g.콘크리트 = { 넓이: c.넓이, 아래: 아래 / 1000, 위: 위 / 1000 }
+    }
+
     /* ⑧ 📐 나머지 자리 — 기준 무리는 제자리. 나머지(건물·횡단·구조·종단·상세·못 맞춘 평면)는 그 오른쪽에 나란히(사이 20 m 넘게) */
     const 첫무리 = 무리들.length ? 무리들[0].들.filter((g) => g.켬 || g === 무리들[0].머리) : []
     const 바탕 = 첫무리.length ? 첫무리 : []
@@ -622,12 +703,20 @@ self.onmessage = async (ev) => {
     /* 설명 글 */
     const 종이름 = { 측량: '측량도면', 평면: '평면도', 종평: '종평면도의 평면 칸', 밖: '도곽 밖 그림', 측량점: '측량성과표', 종단: '종단면도', 상세: '상세·표준도', 표: '표·목록', 기타: '도면', 건축: '건축 도면' }
     for (const g of 그룹) {
-      if (g.종류 === '건물' || g.종류 === '횡단' || g.종류 === '구조' || g.종류 === '노선' || g.종류 === '땅면') continue
+      if (g.종류 === '건물' || g.종류 === '구조') {
+        const z = g.자리 || {}
+        if (z.how === '모양') g.설명 += ` · 측량 도면의 같은 모양 자리에 겹침(${Math.round(z.몫 * 100)}%)`
+        else if (g.모양못) { g.설명 += ` · 옆에 둠 — ${g.모양못}`; g.자리 = { how: '옆', 까닭: g.모양못 } }
+        if (g.콘크리트) g.설명 += ` · 콘크리트 바닥 ${Math.round(g.콘크리트.넓이)} ㎡ (EL ${g.콘크리트.아래.toFixed(2)} ~ ${g.콘크리트.위.toFixed(2)} m)`
+        continue
+      }
+      if (g.종류 === '횡단' || g.종류 === '노선' || g.종류 === '땅면') continue
       const z = g.자리 || {}
       if (z.how === '기준') g.설명 = z.안이어짐 ? '측량 좌표(기준) — 같은 이름을 가진 도면이 없어 도면과 아직 안 이어짐 · 처음엔 꺼 둠'
         : z.둘째 ? '도면끼리의 기준(측량성과표와는 아직 안 이어짐)' : g.성과표 ? '측량 좌표 — 모든 자리의 기준' : g.종류 === '측량' ? '측량도면 — 모든 자리의 기준' : `${종이름[g.종류] || '도면'} — 자리의 기준(측량 자료 없음)`
       else if (z.how === '글자') g.설명 = `같은 글자 ${z.n}쌍으로 맞춤 · 평균 오차 ${z.rms.toFixed(2)} m · 돌림 ${z.회전.toFixed(2)}°${z.단위배 ? ` · 도면 단위를 바로잡음(×${z.단위배})` : Math.abs(z.축척 - 1) > 0.01 ? ` · 축척 ×${z.축척.toFixed(3)}` : ''}`
       else if (z.how === '좌표') g.설명 = '좌표가 기준과 같은 자리 — 그대로 둠'
+      else if (z.how === '모양') g.설명 = `측량 도면의 같은 모양 자리에 겹침(${Math.round(z.몫 * 100)}% · 돌림 ${z.회전.toFixed(2)}°)`
       else if (z.how === '옆') g.설명 = `자리를 못 찾아 옆에 둠 — ${z.까닭} · 📍 두 점 찍기로 맞추세요`
       else if (g.종류 === '종단') g.설명 = g.종단자리 && g.종단자리.how === '노선' ? `종단 표 ${g.종단자리.줄}줄을 읽어 노선 «${g.종단자리.노선}» 위 지반선·계획선으로 세움 · 이 도면 그림은 처음엔 꺼 둠`
         : g.종단표 ? `종단 표 ${g.종단표.줄.length}줄을 읽었지만 ${g.종단자리 ? g.종단자리.까닭 : '평면 노선을 못 찾음'} · 처음엔 꺼 둠` : '높이 자료(측점·지반고·계획고) — 표를 못 읽음 · 처음엔 꺼 둠'
@@ -667,6 +756,7 @@ self.onmessage = async (ev) => {
     if (!stats) stats = { segs: 0, pts: 0, ents: 0, capped: false, skipped: {}, unknown: {}, ver: '', units: 0, depthCut: 0 }
     if (측량점) layerInfo.set('측량점(성과표)', { rgb: [255, 214, 64] })
     if (땅면) layerInfo.set('측량 땅 면', { rgb: [170, 140, 95] })
+    if (그룹.some((g) => g.콘크리트)) layerInfo.set('콘크리트', { rgb: [168, 168, 162] })
     if (그룹.some((g) => g.종류 === '노선')) { layerInfo.set('종단 지반선', { rgb: [176, 132, 80] }); layerInfo.set('종단 계획선', { rgb: [80, 160, 255] }); layerInfo.set('종단 깃', { rgb: [150, 150, 150] }) }
     if (횡단) {
       layerInfo.set('땅 면', { rgb: [120, 160, 90] }); layerInfo.set('계획 면', { rgb: [90, 150, 220] })
