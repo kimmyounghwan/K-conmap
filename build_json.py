@@ -901,6 +901,42 @@ def load_rank_history(p50):
 CORP_HIDE = os.path.join(ROOT, "data", "seed", "corp_hide.json")
 
 
+def load_partner_evidence():
+    """🧾 G219 업체마다 «넣어 본 공고» 의 면허 · 지역 제한 근거 — {사업자번호: {"l": {코드: 날짜}, "r": {시도: 날짜}}, "__ln__": {코드: 면허이름}}
+    재료: collect.py 가 회차마다 쌓는 구성원 장부 data/store/partners.json(3년 보관). 없으면 개찰 · 공고 저장소로 바로 셈.
+    넣었다는 것 = 그 면허 · 그 지역 제한을 갖췄다는 근거(조달청이 자격 없는 투찰을 받지 않음)."""
+    p = os.path.join(ROOT, "data", "store", "partners.json")
+    try:
+        with open(p, encoding="utf-8") as f:
+            led = json.load(f)
+        comp = led.get("c") if isinstance(led, dict) else None
+        if isinstance(comp, dict) and comp:
+            out = dict(comp)
+            out["__ln__"] = led.get("ln") or {}
+            log(f"🧾 참여 근거(구성원 장부) 업체 {len(comp):,}곳")
+            return out
+    except Exception:
+        pass
+    try:
+        import collect as _C
+        st = os.path.join(ROOT, "data", "store")
+        with open(os.path.join(st, "first.json"), encoding="utf-8") as f:
+            first = json.load(f)
+        with open(os.path.join(st, "live.json"), encoding="utf-8") as f:
+            live = json.load(f)
+        ev, _ = _C.partner_evidence(first, live)
+        ln = {}
+        for e in ev.values():
+            ln.update(e.get("ln") or {})
+        out = {b: {"l": e["l"], "r": e["r"]} for b, e in ev.items()}
+        out["__ln__"] = ln
+        log(f"🧾 참여 근거(장부 없음 → 개찰 · 공고로 셈) 업체 {len(ev):,}곳")
+        return out
+    except Exception as e:
+        log(f"⚠️ 참여 근거를 못 읽음 — {e} (참여 가능 공고는 «확인 못 함» 으로 나옴)")
+        return {}
+
+
 def load_corp_hide():
     try:
         with open(CORP_HIDE, encoding="utf-8") as f:
@@ -936,6 +972,7 @@ def build_corp(df):
     _sjs = sorted(v for v in df["sj"].tolist() if v is not None and not pd.isna(v))
     _p50 = _sjs[len(_sjs) // 2] if len(_sjs) >= 10 else 99.896
     rk_biz, rk_name, rk_pool, rk_rival = load_rank_history(_p50)
+    _pl = load_partner_evidence()
     global RANK_POOL
     RANK_POOL = rk_pool
     log(f"순위 기록: 순위 받은 개찰 {rk_pool:,}건 · 업체(사업자번호) {len(rk_biz):,} · 업체(이름) {len(rk_name):,}")
@@ -1059,6 +1096,17 @@ def build_corp(df):
             _riv = rk_rival.get(key)
             if _riv:
                 cur[key]["rival"] = _riv
+        # 🧾 G219 참여 근거 — 이 법인이 «실제로 넣어 본» 공고의 면허 · 지역 제한(구성원 장부).
+        #   소장님: 「공고를 보고 정말 참여가 가능한 것만 보여 줘야지」 — 화면이 마감 전 공고를 이 근거로 거릅니다.
+        #   법인 하나로 정해지는 칸(이름#번호 · 법인 한 곳뿐인 이름)에만 싣습니다. 합계 칸은 법인을 고르게 합니다.
+        _b = key.split("#", 1)[1] if is_sub else (str(firms[0][0]) if len(bzc) == 1 and firms else "")
+        _e = _pl.get(_b) if _b else None
+        if _e and (_e.get("l") or _e.get("r")):
+            _ln = _pl.get("__ln__", {})
+            cur[key]["pl"] = {
+                "l": [[c, str(_ln.get(c, ""))[:40]] for c, _ in sorted(_e.get("l", {}).items(), key=lambda x: x[1], reverse=True)][:12],
+                "r": [r for r, _ in sorted(_e.get("r", {}).items(), key=lambda x: x[1], reverse=True)][:6],
+            }
         agg[key] = cur.pop(key)
 
     _hide = load_corp_hide()

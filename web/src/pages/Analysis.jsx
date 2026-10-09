@@ -1,4 +1,4 @@
-import { SpotBlock, OpenNotices, corpMatch } from '../Spot.jsx'
+import { SpotBlock, 참여공고 } from '../Spot.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { 나운영자 } from '../lib/운영자.js'
@@ -470,9 +470,9 @@ export function CorpReport({ c, ov, onPickFirm, onAll, base: base0 }) {
               ))}
             </div>
           )}
-          {/* ★ 내 자리에 맞는 마감 전 공고 — 자주 딴 지역·기관으로 걸러서 원클릭 금액까지 */}
-          <OpenNotices title="내 자리에 맞는 마감 전 공고" match={corpMatch(c)}
-            hint={`${Object.keys(c.reg || {}).slice(0, 2).join('·') || '전국'} · 자주 딴 기관`} />
+          {/* ✅ G219 (2026-10-09) 참여할 수 있는 마감 전 공고 — 소장님 「공고를 보고 정말 참여가 가능한 것만 보여 줘야지」
+              전에는 «내 자리에 맞는»(자주 딴 지역 · 기관)만 봐서 면허 없는 공고까지 떴습니다. 이제 면허 · 지역 제한으로 거름(Spot.jsx 참여판정). */}
+          <참여공고 c={c} />
     </>
   )
 }

@@ -4,6 +4,7 @@ import { getJSON, getOverview, getBidIndex, indexRows } from './lib/data.js'
 import { quickBid, isReady, P50_FALLBACK } from './lib/bidmath.js'
 import { winGrade } from './lib/winodds.js'
 import { won, wonShort, num, dday, inRegion } from './lib/fmt.js'
+import { 참여근거, 참여판정 } from './lib/참여.js'   /* ✅ G219 */
 
 /* ══════════════════════════════════════════════════════════════
    «자리» 블록 — 발주기관 분석과 업체 자가진단이 같이 씁니다. 2026-09-03
@@ -108,7 +109,7 @@ export function SpotBlock({ spot, who = '이 기관' }) {
    bidindex.json(마감 전 공고, 109KB gzip)을 이 블록이 열릴 때만 받습니다. */
 const getIndex = () => getBidIndex()
 
-export function OpenNotices({ title, match, limit = 8, hint }) {
+export function OpenNotices({ title, match, limit = 8, hint, empty, 우선 }) {
   const [idx, setIdx] = useState(undefined)
   const [ov, setOv] = useState(null)
   useEffect(() => {
@@ -121,10 +122,10 @@ export function OpenNotices({ title, match, limit = 8, hint }) {
     return indexRows(idx)
       .filter((r) => match(r))
       .filter((r) => { const d = dday(r.close); return !d || d.text !== '마감' })
-      .sort((a, b) => String(a.close).localeCompare(String(b.close)))
+      .sort((a, b) => (우선 ? (우선(b) ? 1 : 0) - (우선(a) ? 1 : 0) : 0) || String(a.close).localeCompare(String(b.close)))
       .slice(0, limit)
       .map((r) => ({ ...r, g: winGrade({ ...r, est: r.est || 0 }), qb: isReady(r) ? quickBid(r, p50) : null }))
-  }, [idx, match, p50, limit])
+  }, [idx, match, p50, limit, 우선])
 
   if (idx === undefined) return null
   return (
@@ -133,7 +134,7 @@ export function OpenNotices({ title, match, limit = 8, hint }) {
         📋 {title} <span className="count">· 마감 전 {num(rows.length)}건{hint ? ` · ${hint}` : ''}</span>
       </div>
       {rows.length === 0 ? (
-        <div className="note">지금 마감 전인 공고가 없습니다.</div>
+        <div className="note">{empty || '지금 마감 전인 공고가 없습니다.'}</div>
       ) : rows.map((r) => {
         const d = dday(r.close)
         return (
@@ -187,4 +188,76 @@ export const corpMatch = (c) => {
     // ⚠️ r 을 통째로 넘깁니다 — sido 가 있으면 그걸 쓰고, 없을 때만 낱말로 봅니다
     return regions.some((rg) => inRegion(r, rg))
   }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ✅ 참여할 수 있는 마감 전 공고 (G219 · 2026-10-09)
+   소장님: 「호남산업개발이 참여 할 수 있는 공고라는 거야」 → 「공고를 보고 정말 참여가 가능한 것만 보여 줘야지. 안그래.」
+   전에는 «자주 딴 지역 · 기관» 만 맞으면 보여 줘서, 기계설비 면허가 없는 회사에 기계설비 공사가 떴습니다.
+   이제 공고마다 두 가지를 봅니다 — 둘 다 «조달청이 준 값» 과 «그 회사가 실제로 넣어 본 기록» 으로만:
+     ① 면허: 공고가 요구하는 면허(lic) 중 그 회사가 넣어 본 면허가 있는가
+              (면허가 «모두 있어야» 하는 공고(면허그룹 하나)는 전부 · «그중 하나» 묶음은 같은 묶음을 넣어 봤으면 됨)
+     ② 지역 제한(rgnb): 허용 시도 안에 그 회사가 지역 제한 공고로 넣어 본 시도가 있는가
+   모르면(면허가 안 적힌 공고 · 근거 없는 회사 · 지역 근거 없음) 보여 주지 않습니다 — «될 것 같다» 로 띄우지 않음.
+   ⚠️ 시공능력평가액 · 실적 제한 · 공동도급 의무는 여기서 못 봅니다(조달청 목록에 없음) — 화면에 그렇게 적습니다.
+   근거: build_json.py load_partner_evidence → 업체 자료 c.pl = {l: [[코드, 이름]], r: [시도]}
+   ══════════════════════════════════════════════════════════════ */
+/* 판정 셈은 lib/참여.js 한 곳(시험: node tools/시험_참여판정.mjs) */
+const 짧은면허 = (nm) => String(nm || '').replace(/ㆍ/g, '·').replace(/공사업/g, '').replace(/ 또는 /g, '/').trim()
+
+export function 참여공고({ c }) {
+  const 합계 = !!c && !c.biz && Number(c.bzn) > 1
+  const g = useMemo(() => (합계 ? null : 참여근거(c)), [c, 합계])
+  const match = useMemo(() => (r) => 참여판정(r, g) === '됨', [g])
+  /* 같은 «넣을 수 있음» 이면 이 회사 지역(지역 제한으로 넣어 본 시도 · 주력 지역) 공고를 앞에 */
+  const 우선 = useMemo(() => {
+    const 내 = new Set([...(g ? g.지역 : []), ...Object.keys((c && c.reg) || {}).slice(0, 2)])
+    return (r) => String(r.sido || '').split(',').some((x) => 내.has(x.trim()))
+  }, [g, c])
+  const [셈, set셈] = useState(null)
+  useEffect(() => {
+    if (!g) return undefined
+    let alive = true
+    getIndex().then((idx) => {
+      if (!alive) return
+      const rows = indexRows(idx).filter((r) => { const d = dday(r.close); return !d || d.text !== '마감' })
+      const t = { 됨: 0, 안됨: 0, 모름: 0 }
+      for (const r of rows) t[참여판정(r, g)]++
+      set셈(t)
+    }).catch(() => {})
+    return () => { alive = false }
+  }, [g])
+  useEffect(() => {                                       /* 숨은 누적 — 화면엔 안 보임 */
+    import('./lib/받은수.jsx').then((m) => m.세기(g ? '|자가진단|참여가능' : '|자가진단|참여근거없음')).catch(() => {})
+  }, [g])
+  if (!c) return null
+  if (합계) {
+    return (
+      <div className="note" style={{ marginTop: 14 }}>
+        ✅ <b>참여할 수 있는 마감 전 공고</b> — 이 이름은 법인이 여럿입니다. 위에서 <b>법인을 고르시면</b> 그 회사가 넣을 수 있는 공고만 나옵니다.
+      </div>
+    )
+  }
+  if (!g) {
+    return (
+      <div className="note" style={{ marginTop: 14 }}>
+        ✅ <b>참여할 수 있는 마감 전 공고</b> — 이 회사의 <b>면허를 확인할 투찰 기록</b>(면허가 적힌 공고에 넣은 기록)이 아직 없어
+        참여 가능한 공고를 고르지 못했습니다. 확인되지 않은 공고는 띄우지 않습니다.
+      </div>
+    )
+  }
+  const 면허글 = g.면허.slice(0, 4).map((x) => 짧은면허(Array.isArray(x) ? x[1] || x[0] : x)).filter(Boolean).join(' · ')
+  const 지역글 = [...g.지역].slice(0, 3).join('·')
+  return (
+    <>
+      <OpenNotices title="참여할 수 있는 마감 전 공고" match={match} 우선={우선}
+        hint={`면허 ${면허글 || '-'}${지역글 ? ` · 지역 ${지역글}` : ''}`}
+        empty="지금 마감 전인 공고 중 이 회사의 면허 · 지역으로 넣을 수 있는 공고가 없습니다." />
+      <div className="note sm" style={{ marginTop: 6 }}>
+        이 회사가 <b>실제로 넣어 본 공고</b>의 면허 · 지역 제한으로 확인했습니다
+        {셈 ? <> — 마감 전 {num(셈.됨 + 셈.안됨 + 셈.모름)}건 중 <b>넣을 수 있음 {num(셈.됨)}</b> · 면허/지역 안 맞음 {num(셈.안됨)} · 확인 못 함 {num(셈.모름)}(안 띄움)</> : null}.
+        {' '}시공능력평가액 · 실적 제한 · 공동도급 조건은 공고문에서 확인하십시오.
+      </div>
+    </>
+  )
 }

@@ -4006,6 +4006,9 @@ def main():
                 jnt_of(r),                         # 🤝 공동도급 (2026-09-27) — 0 이면 공동 불가
                 tag_of(r),                         # 🏷 공고 유형 비트 (2026-09-30) — 자리 찾기 · 담은 공고도 같은 거르개
                 1 if r.get("nt") else 0,           # 📄 공고문 전문이 있나 (2026-09-30 · ntext.py) — 공고 화면의 «전문 보기» 단추
+                # ✅ G219 면허 그룹(조달청 lmtGrpNo · lic 와 같은 차례) — 같은 그룹 = 모두 갖춰야 · 다른 그룹 = 그중 하나.
+                #   업체 화면 «참여할 수 있는 공고» 가 씀(Spot.jsx 참여판정). 공동도급 칸(jnt[3])에만 있던 것을 모든 공고에.
+                r.get("licg") or [],
             ])
         rows.sort(key=lambda x: re.sub(r"[^0-9]", "", str(x[5])))
         out = {"built": built,
@@ -4013,7 +4016,7 @@ def main():
                      "llr", "est", "lic", "aval", "gmtrl",
                      "ayn", "ptot", "pdrw", "url",
                      "site", "rgnb", "joint", "mthd", "swin", "rebid",
-                     "enp", "enpn", "dt", "sido", "dsn", "enpb", "jnt", "tg", "nt"],
+                     "enp", "enpn", "dt", "sido", "dsn", "enpb", "jnt", "tg", "nt", "licg"],
                "pick": pick,
                "r": rows}
         path = os.path.join(OUT, "bidindex.json")
