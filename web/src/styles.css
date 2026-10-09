@@ -3809,6 +3809,39 @@ ul.plainlist li { margin-bottom: 5px; }
 .dx3-bld td .dx3-tag { margin-left: 6px; }
 .dx3-btbl td:nth-child(4) { min-width: 170px; }
 @media (max-width: 560px) { .dx3-btbl th:nth-child(5), .dx3-btbl td:nth-child(5) { display: none; } }
+/* 🧰 G224 3D 로 더 하기 (Dxf3d활용.jsx) */
+.ux3-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+.ux3-tabs .chip { font-size: 12.5px; }
+.ux3-in { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--accent); }
+.ux3-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 6px 0; font-size: 12.5px; }
+.ux3-row label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.ux3 input, .ux3 select { width: auto; margin: 0; padding: 3px 6px; font-size: 12.5px; min-height: 0; }
+.ux3 input[type="checkbox"] { padding: 0; }
+.ux3-form { padding: 6px 8px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); }
+.ux3-tbl { overflow-x: auto; margin-top: 6px; max-height: 420px; overflow-y: auto; }
+.ux3-tbl .tbl { font-size: 12.5px; background: var(--surface); }
+@media (max-width: 640px) { .ux3-tbl .tbl { min-width: 620px; } .ux3-tbl td { white-space: nowrap; } .ux3-tbl td:last-child { white-space: normal; min-width: 140px; } }
+.ux3-tbl tr.off { opacity: .45; }
+.ux3-click { cursor: pointer; }
+.ux3-click:hover td { background: var(--accent-soft); }
+.ux3-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--text-2); margin: 4px 0; }
+.ux3-legend i { display: inline-block; width: 14px; height: 6px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+.ux3 .btn.sm { width: auto; }
+/* 📐 /tools/earthcheck 토공 검산 (G224) */
+.ec-two { display: grid; gap: 10px; }
+@media (min-width: 720px) { .ec-two { grid-template-columns: 1fr 1fr; } }
+.ec-box { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); font-size: 13px; line-height: 1.6; }
+.ec-box.on { border-color: var(--accent); background: var(--accent-soft); }
+.ec-box .btn { width: auto; }
+.ec-map { width: 100%; max-width: 760px; aspect-ratio: 4 / 3; display: block; margin: 8px auto 0; border-radius: 8px; background: #f8fafc; border: 1px solid var(--line); }
+.ec-leg { display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); margin-top: 4px; }
+.ec-leg b { display: inline-block; width: 160px; height: 10px; border-radius: 3px; background: linear-gradient(90deg, #b91c1c, #fca5a5, #f8fafc, #93c5fd, #1d4ed8); }
+.ec-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-top: 10px; }
+.ec-sum > div { padding: 8px 10px; border-radius: 9px; background: var(--surface-2); font-size: 12.5px; }
+.ec-sum b { display: block; font-size: 17px; margin-top: 2px; }
+.ec-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: 12.5px; margin: 8px 0; }
+.ec-row label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.ec-row input, .ec-row select { width: auto; margin: 0; padding: 3px 6px; font-size: 12.5px; }
 /* 🧪 예시로 해 보기 (2026-09-26) — 도구마다 맨 위 한 줄 */
 .tlx-ex { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; padding: 9px 11px; border-radius: 10px; background: var(--accent-soft); border: 1px dashed var(--accent); }
 .tlx-exd { font-size: 12.5px; color: var(--text-2); }

@@ -166,7 +166,7 @@ SITENAV = [("/", "바로투찰"), ("/first", "1순위 개찰"), ("/live", "입�
            ("/cad", "캐드 유틸"), ("/pdf", "PDF 도구"), ("/jeoksan", "K-적산"),
            ("/shareone", "쉐어원 공유폴더"),
            ("/safety", "안전관리계획서 · 유해위험방지계획서"),
-           ("/naeyeok", "내역서 — 산출내역서 · 하도급 · 설계변경"), ("/tools/dxf3d", "도면 3D 보기"), ("/tools/dxfpdf", "도면 PDF 만들기"), ("/tools/dwgdxf", "DWG → DXF 바꾸기"), ("/jeoksan/golgo", "골조 수량산출"), ("/jeoksan/magam", "마감 수량산출"), ("/jeoksan/auto", "도면 물량 자동"), ("/tools/tuipbi", "현장 투입비 · 공사일보"), ("/tools/risk", "위험성평가"), ("/tools/equip", "장비 임대료·수금 장부"), ("/tools/photo", "사진대지 · 영수증 정리"), ("/qna", "맵톡"),
+           ("/naeyeok", "내역서 — 산출내역서 · 하도급 · 설계변경"), ("/tools/dxf3d", "도면 3D 보기"), ("/tools/earthcheck", "토공 검산"), ("/tools/dxfpdf", "도면 PDF 만들기"), ("/tools/dwgdxf", "DWG → DXF 바꾸기"), ("/jeoksan/golgo", "골조 수량산출"), ("/jeoksan/magam", "마감 수량산출"), ("/jeoksan/auto", "도면 물량 자동"), ("/tools/tuipbi", "현장 투입비 · 공사일보"), ("/tools/risk", "위험성평가"), ("/tools/equip", "장비 임대료·수금 장부"), ("/tools/photo", "사진대지 · 영수증 정리"), ("/qna", "맵톡"),
            ("/how", "보는 방법")]
 
 
@@ -1813,7 +1813,7 @@ NY_KINDS = [
 #   새로 만든 화면들입니다. 사이트맵에도 있지만 크롤러가 스스로 올 때까지 기다리지 않습니다.
 STATIC_NEW = ["/change", "/change/naeyeok", "/change/excel", "/change/twoline", "/change/work", "/change/won", "/forms", "/guide",
               "/cad", "/naeyeok", "/qna", "/how", "/jeoksan", "/jeoksan/run", "/jeoksan/golgo", "/jeoksan/magam", "/jeoksan/auto",
-              "/safety", "/shareone", "/pdf", "/naeyeok/ratio", "/tools/photo"] + [
+              "/safety", "/shareone", "/pdf", "/naeyeok/ratio", "/tools/photo", "/tools/earthcheck"] + [
     "/cad/" + _c["slug"] for _c in (load_cad().get("cmds") or [])] + [
     "/change/naeyeok/" + quote(_k, safe="") for _k, _d in NY_KINDS]
 
@@ -2530,6 +2530,15 @@ def dxf3d_page(shell, image=None):
            '<li><b>블록</b>은 크기·회전·배열까지 풀어서 그립니다. 호·원·타원·스플라인도 곡선 그대로</li>'
            '<li>층을 켜고 끄고, 높이를 2·5·10배로 과장하고, 위·옆·비스듬히 보고, 지금 화면을 그림(PNG)으로 저장합니다</li>'
            '<li>도면에서 꺼 둔 층은 처음에 꺼진 채로 엽니다 — 캐드에서 보던 그대로</li></ul></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">🧰 세운 뒤 3D 로 더 하기</div><ul class="flist">'
+           '<li><b>📐 토공 검산</b> — 원지반 측량과 나중 측량 두 땅 면으로 깎인 양 · 쌓인 양(<a href="/tools/earthcheck">토공 검산</a>)</li>'
+           '<li><b>🔍 도면 검사</b> — 같은 노선의 평면 · 종단 · 횡단(+ 측량 땅 면)을 측점마다 맞대어 «확인할 곳» 목록</li>'
+           '<li><b>📍 측설표</b> — 중심선 측점 · 터파기 끝 · 구조물 모서리 좌표(X 북 · Y 동) → 엑셀 · 장비용 CSV</li>'
+           '<li><b>🧱 구조물 물량</b> — 횡단면도의 구조물 모양으로 콘크리트 · 거푸집(평균단면법) · 내역서 엑셀과 맞대기</li>'
+           '<li><b>💧 물길</b> — 측량 땅 면에서 물이 모이는 길 · 고인 곳 · 배수로 여유(참고)</li>'
+           '<li><b>🎨 기성 색칠</b> — 한 일을 노선 구간 · 공종 · 날로 적으면 3D 에 색칠 · 기성률</li>'
+           '<li><b>📷 사진 위치</b> — 폰 사진의 GPS 로 «NO.3+15 오른쪽 5 m» 위치를 적어 줌</li>'
+           '<li><b>🦺 안전 그림</b> — 굴착 깊이 · 기울기 기준(산업안전보건기준에 관한 규칙 별표 11) · 장비 작업 반경</li></ul></div>',
            '<div class="card"><div class="sec-title" style="margin:0 0 6px">못 읽는 것</div><ul class="flist">'
            '<li><b>아주 옛 판 DWG</b> — DWG 는 이 화면 안에서 DXF 로 바꿔 세웁니다. 안 바뀌면 <a href="/tools/dwgdxf">DWG → DXF 바꾸기</a> 에서 이유를 봅니다</li>'
            '<li><b>바이너리 DXF</b> — 저장할 때 ASCII 로</li>'
@@ -2543,6 +2552,31 @@ def dxf3d_page(shell, image=None):
           "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}}
     return page(shell, "/tools/dxf3d", title, desc, "".join(out) + nav_html("/tools/dxf3d"), image, ld)
 
+
+
+# 📐 /tools/earthcheck — 토공 검산 · 두 측량 땅 면 비교 (G224 · 2026-10-10). 화면은 EarthCheck.jsx · 셈 lib/활용3d.js
+def earthcheck_page(shell, image=None):
+    title = "토공 검산 — 원지반 측량 · 기성 측량 두 땅 면 비교 · 절토 · 성토 · 사토 덤프 대수 (무료) | K-건설맵"
+    desc = ("원지반 측량(착공 전)과 현황 · 기성 · 준공 측량을 넣으면 두 땅 면을 같은 칸에서 맞대어 깎인 양 · 쌓인 양을 재고 색 지도로 보여 줍니다. "
+            "사토량 · 덤프 대수까지. 측량성과표(엑셀 · CSV) · 측량도면(DXF · DWG). 파일은 올라가지 않습니다.")[:160]
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">📐 토공 검산 — 두 측량 땅 면 비교</h1>'
+           '<p class="cp" style="margin-top:8px"><b>원지반 측량(착공 전)</b>과 <b>나중 측량(현황 · 기성 · 준공)</b>을 넣으면 두 땅 면을 같은 격자 칸에서 맞대어 '
+           '<b>깎인 양(절토) · 쌓인 양(성토)</b>을 재고, 어디가 깎이고 쌓였는지 색 지도로 보여 줍니다. 기성 검사 · 설계변경 토공 증감 · 사토 반출량 확인에 씁니다.</p>'
+           '<p class="cp"><b>파일은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 읽고 셉니다 · 회원가입 없음 · 무료.</p></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">넣는 것</div><ul class="flist">'
+           '<li><b>측량성과표</b> — 엑셀(.xlsx · .xls) · CSV · TXT (점번호 · X · Y · Z 표고)</li>'
+           '<li><b>측량도면</b> — DXF · DWG (높이 든 측량점 · 등고선 · 3D 폴리선)</li>'
+           '<li>두 측량은 <b>같은 측량 좌표</b>(같은 원점)여야 합니다 — X · Y 를 바꿔 적은 성과표는 알아서 바꿔 읽습니다</li></ul></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">어떻게 재나</div><ol class="flist">'
+           '<li>두 측량의 높이 든 점을 각각 삼각형으로 이어 땅 면을 만듭니다(점이 없는 빈 곳은 잇지 않음)</li>'
+           '<li>전 측량 범위에 격자 칸(0.5 ~ 10 m)을 깔고 칸 가운데에서 두 땅 면의 높이를 잽니다</li>'
+           '<li>칸마다 (후 − 전) × 칸 넓이 — 빼기면 깎인 양, 더하기면 쌓인 양(두 측량이 겹친 칸만)</li>'
+           '<li>남는 흙 = 깎인 양 − 쌓인 양 ÷ C · 실어 낼 양 = 남는 흙 × L · 덤프 대수 = 실어 낼 양 ÷ 한 대 (L · C · 한 대는 고쳐 넣음)</li>'
+           '<li>엑셀 — 총괄 + 블록별(10 · 20 · 50 m) 깎인 양 · 쌓인 양</li></ol>'
+           '<p class="cp" style="margin:8px 0 0">«🧪 예시로 해 보기» 를 누르면 가상 언덕 측량 두 번(깎고 메운 터)으로 처음부터 끝까지 돌려 볼 수 있습니다. '
+           '<a href="/tools/dxf3d">도면 3D 보기</a>에서 세운 측량 땅 면을 바로 넘겨받을 수도 있습니다.</p></div>']
+    return page(shell, "/tools/earthcheck", title, desc, "".join(out) + nav_html("/tools/earthcheck"), image,
+                _app_ld("토공 검산 — 두 측량 땅 면 비교", desc, "/tools/earthcheck"))
 
 
 # 🔁 /tools/dwgdxf — DWG → DXF 바꾸기 (2026-09-26). 화면은 DwgDxf.jsx · 일꾼 lib/dwgdxf.worker.js(LibreDWG) · 다듬기 lib/dwgdxf.js
@@ -3485,6 +3519,10 @@ def main():
           og.tab("tool-dxf3d", "도면 3D 보기", "건설 도구", "DXF", "높이 그대로 입체로") if og.available else None))
     made += 1
     print("  · 도면 3D 보기 페이지 1개 (/tools/dxf3d)")
+    write("tools/earthcheck.html", earthcheck_page(shell,
+          og.tab("tool-earthcheck", "토공 검산", "건설 도구", "두 측량 비교", "절토 · 성토 · 덤프") if og.available else None))
+    made += 1
+    print("  · 토공 검산 페이지 1개 (/tools/earthcheck)")
     write("tools/dxfpdf.html", dxfpdf_page(shell,
           og.tab("tool-dxfpdf", "도면 PDF 만들기", "건설 도구", "DXF → PDF", "도곽마다 한 장") if og.available else None))
     made += 1

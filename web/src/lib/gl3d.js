@@ -144,8 +144,27 @@ export class LineView {
     })
     this.dirty()
   }
+  /** 🧰 G224 덧그림 층 하나만 넣고 빼기(도면 층 버퍼는 그대로 — 큰 도면도 안 느려짐) · x = null 이면 뺌 · 이름은 «활용·…» */
+  set덧(name, x) {
+    const gl = this.gl
+    const i = this.L.findIndex((l) => l.name === name)
+    if (i >= 0) { for (const b of [this.L[i].vb, this.L[i].cb, this.L[i].pb, this.L[i].pcb]) if (b) gl.deleteBuffer(b); this.L.splice(i, 1) }
+    if (x && (x.pos.length || x.pts.length)) {
+      const o = { name, on: !x.off, n: x.pos.length / 3, pn: x.pts.length / 3, tn: 0, src: x, 덧: true }
+      if (o.n) {
+        o.vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, o.vb); gl.bufferData(gl.ARRAY_BUFFER, x.pos, gl.STATIC_DRAW)
+        o.cb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, o.cb); gl.bufferData(gl.ARRAY_BUFFER, x.col, gl.STATIC_DRAW)
+      }
+      if (o.pn) {
+        o.pb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, o.pb); gl.bufferData(gl.ARRAY_BUFFER, x.pts, gl.STATIC_DRAW)
+        o.pcb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, o.pcb); gl.bufferData(gl.ARRAY_BUFFER, x.pcol, gl.STATIC_DRAW)
+      }
+      this.L.push(o)
+    }
+    this.dirty()
+  }
   setOn(name, on) { for (const l of this.L) if (l.name === name) l.on = on; this.dirty() }
-  setAll(fn) { for (const l of this.L) l.on = !!fn(l.name); this.dirty() }
+  setAll(fn) { for (const l of this.L) if (!l.덧) l.on = !!fn(l.name); this.dirty() }
   set면(a) { this.면투명 = a; this.dirty() }
   setZ(z) { const k = z / this.zs; this.t[2] *= k; this.zs = z; this.dirty() }
 
@@ -249,7 +268,7 @@ export class LineView {
 
   /** 📍 2026-09-27 «기준점 찍기» — 화면의 (clientX, clientY) 에 가장 가까운 선 끝점(켠 층 중 고름(name) 인 것).
       반환: [x, y, z] (가운데를 뺀 좌표, 높이 배율 뺀 값) · 16px 안에 없으면 null */
-  점고르기(cx, cy, 고름 = () => true) {
+  점고르기(cx, cy, 고름 = () => true, 반경 = 16) {
     const cv = this.cv, r = cv.getBoundingClientRect()
     const w = Math.max(1, r.width), h = Math.max(1, r.height)
     const mx = ((cx - r.left) / w) * 2 - 1, my = 1 - ((cy - r.top) / h) * 2
@@ -257,10 +276,10 @@ export class LineView {
     const P = persp(Math.PI / 4, w / h, this.d / 2000, this.d * 50)
     const M = mm(P, look(e, this.t, [0, 0, 1]))
     const zs = this.zs
-    let best = null, bd = (16 / Math.min(w, h)) * 2
+    let best = null, bd = (반경 / Math.min(w, h)) * 2
     bd *= bd
     for (const l of this.L) {
-      if (!l.on || !고름(l.name) || !l.src) continue
+      if (!l.on || l.덧 || !고름(l.name) || !l.src) continue        // 덧그림(활용·…)은 찍는 자리가 아님
       for (const a of [l.src.pos, l.src.pts]) {
         const n = a.length / 3
         const st = Math.max(1, Math.floor(n / 300000))
@@ -276,6 +295,24 @@ export class LineView {
       }
     }
     return best
+  }
+
+  /** 🧰 G224 «3D 로 더 하기» 찍기 — 선 끝(40px 안)이 없으면 지금 보는 가운데 높이의 수평면과 만나는 자리. 반환 [x, y, z](가운데 뺀 값) · 하늘을 누르면 null */
+  땅고르기(cx, cy) {
+    const P = this.점고르기(cx, cy, () => true, 40)
+    if (P) return P
+    const r = this.cv.getBoundingClientRect(), w = Math.max(1, r.width), h = Math.max(1, r.height)
+    const mx = ((cx - r.left) / w) * 2 - 1, my = 1 - ((cy - r.top) / h) * 2
+    const e = this._cam(), t = this.t
+    let f = [t[0] - e[0], t[1] - e[1], t[2] - e[2]]; let l = Math.hypot(...f) || 1; f = f.map((v) => v / l)
+    let rt = [f[1], -f[0], 0]; l = Math.hypot(...rt) || 1; rt = rt.map((v) => v / l)          // f × (0,0,1)
+    const up = [rt[1] * f[2] - rt[2] * f[1], rt[2] * f[0] - rt[0] * f[2], rt[0] * f[1] - rt[1] * f[0]]
+    const th = Math.tan(Math.PI / 8), a = w / h
+    const d = [0, 1, 2].map((k) => f[k] + mx * th * a * rt[k] + my * th * up[k])
+    if (Math.abs(d[2]) < 1e-9) return null
+    const s = (t[2] - e[2]) / d[2]
+    if (!(s > 0)) return null
+    return [e[0] + s * d[0], e[1] + s * d[1], t[2] / this.zs]
   }
 
   /** 지금 화면을 PNG 로 */

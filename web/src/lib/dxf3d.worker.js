@@ -606,7 +606,7 @@ self.onmessage = async (ev) => {
       return null
     }
     /* 🟫 (G139) 측량 땅 면 — 측량성과표 · 측량도면 · 평면도 안의 «높이 든 점» 을 들로네 삼각형으로(자리 맞춘 무리 안 것만) */
-    let 땅면 = null, 땅높이 = null
+    let 땅면 = null, 땅높이 = null, 땅점 = null, 땅삼 = null      /* 🧰 G224 땅점 · 땅삼 = 3D 활용(토공 · 물길 · 도면 검사)에 넘김 */
     {
       const 점 = [], 본 = new Set(), 출처 = new Set()
       const 넣기 = (x, y, z, 이름) => { const k = Math.round(x / 300) + ',' + Math.round(y / 300); if (본.has(k)) return; 본.add(k); 점.push([x, y, z]); 출처.add(이름) }
@@ -650,6 +650,7 @@ self.onmessage = async (ev) => {
           }
           out.set(키 + '\u0001측량 땅 면', b)
           땅높이 = 높이찾개(점, 삼)
+          땅점 = 점; 땅삼 = 삼
           땅면 = { 점: 점.length, 삼각: 삼.length, 최대변: 최대변 / 1000, 출처: [...출처] }
           그룹.push({ 종류: '땅면', 파일: [...출처], 제목: `측량점 ${점.length}개 → 삼각형 ${삼.length}개`, out, 층들: [키], 켬: true, 무리: 0,
             자리: { how: '땅면', 점: 점.length, 삼각: 삼.length, 최대변: 최대변 / 1000 },
@@ -711,6 +712,7 @@ self.onmessage = async (ev) => {
       횡단 = { 노선: 노선표, 안씀: [] }
     }
     /* 종단 — 표가 있는 종단(종평의 종단·표 칸 포함)을 노선별로 모아 노선 위 지반선 · 계획선 */
+    const 종단모음 = []                                   /* 🧰 G224 3D 활용(도면 검사 · 측설표) */
     {
       const 노선별 = new Map()
       for (const g of 그룹) {
@@ -723,6 +725,7 @@ self.onmessage = async (ev) => {
       let k = 0
       for (const [L, gs] of 노선별) {
         const 줄 = gs.flatMap((g) => g.종단표.줄).sort((a, b) => a.m - b.m).filter((r, i, arr) => i === 0 || Math.abs(r.m - arr[i - 1].m) > 1e-6)
+        종단모음.push({ 노선: L.이름, 줄: 줄.map((r) => ({ m: r.m, 글: r.글, 지반고: r.지반고, 계획고: r.계획고 })), 파일: [...new Set(gs.flatMap((g) => g.파일))] })
         const 키 = `노선${++k}· ${L.이름}`
         const out = 종단선(줄, L.r, 새버킷, 키)
         if (!out.size) continue
@@ -763,7 +766,7 @@ self.onmessage = async (ev) => {
       for (let i = 0; i < c.tri.length; i += 3) { b.tri.push3(c.tri[i], c.tri[i + 1], c.tri[i + 2]); b.trc.push3(168, 168, 162) }
       for (let i = 0; i < c.선.length; i += 6) { b.pos.push6(c.선[i], c.선[i + 1], c.선[i + 2], c.선[i + 3], c.선[i + 4], c.선[i + 5]); b.col.push3(150, 150, 145); b.col.push3(150, 150, 145) }
       g.out.set(g.층들[0] + '\u0001콘크리트', b)
-      g.콘크리트 = { 넓이: c.넓이, 아래: 아래 / 1000, 위: 위 / 1000 }
+      g.콘크리트 = { 넓이: c.넓이, 둘레: c.둘레 || 0, 아래: 아래 / 1000, 위: 위 / 1000 }
     }
 
     /* ⑦¾ 🧲 (G209) 모양으로 겹치기 — 건물 · 구조물 · 글자로 못 맞춘 평면(파일배치도 · 기계 평면)을
@@ -1036,6 +1039,37 @@ self.onmessage = async (ev) => {
     if (!건물 && (평.length || Object.keys(높이).length) && !그룹.some((g) => g.종류 !== '평면' && g.종류 !== '밖')) {
       건물 = { 실패: true, 평면수: 평.length ? 평[0].제목.length : 0, 높이수: Object.keys(높이).length, 근거 }
     }
+    /* 🧰 G224 (2026-10-10) 3D 활용 자료 — 도면 검사 · 측설표 · 구조물 물량 · 물길 · 기성 · 사진 위치 · 안전 그림(lib/활용3d.js)
+       좌표는 화면과 같은 mm · «가운데 빼기 전»(화면 = 이 값 − r.center). 실좌표 = 기준이 측량 자료(측량도면 · 측량성과표)일 때만 참 */
+    const 활용 = (() => {
+      const 기준 = 그룹.find((g) => g.기준)
+      const 노선 = []
+      for (const L of 노선들) {
+        const [s0, s1] = L.r.범위
+        if (!(s1 > s0)) continue
+        const 걸음 = Math.max(0.5, (s1 - s0) / 4000)
+        const 줄 = []
+        for (let s = s0; s <= s1 + 1e-9; s += 걸음) { const p = L.r.자리(s); 줄.push(s, p.x, p.y, p.tx, p.ty) }
+        if (Math.abs(줄[줄.length - 5] - s1) > 1e-6) { const p = L.r.자리(s1); 줄.push(s1, p.x, p.y, p.tx, p.ty) }
+        노선.push({ 이름: L.이름, 간격: L.r.간격, 범위: [s0, s1], 근거: L.r.근거, 무리: L.무리, 줄: Float64Array.from(줄) })
+      }
+      const 횡 = 횡단 ? 횡단.노선.map((t) => ({
+        노선: t.자리 && t.자리.how === '노선' ? t.자리.노선 : null, 파일: t.파일,
+        단면: t.단면.map((s) => {
+          const a = s.면적 && !s.면적.이상 ? s.면적 : null
+          return { 측: s.측, 이름: s.이름, 글: s.글, 지반고: s.지반고, 계획고: s.계획고, 이상: s.면적 && s.면적.이상 ? s.면적.이상 : '',
+            면적: a ? { 터파기: a.터파기, 되메우기: a.되메우기, 구조물: a.구조물, 성토: a.성토, 콘크리트: a.콘크리트 || 0, 거푸집: a.거푸집 || 0 } : null,
+            바닥: a ? a.바닥 : null, 지반: a ? a.지반 : null, 구조폭: a ? a.구조폭 : null, 구조높: a ? a.구조높 : null, 터폭: a ? a.터폭 : null, 깊이: a ? a.깊이 : 0 }
+        }),
+      })) : []
+      const 구 = 그룹.filter((g) => g.종류 === '구조' && g.콘크리트).map((g) => ({ 이름: g.제목 || g.파일[0], 층: g.층들[0], ...g.콘크리트, 자리: g.자리 ? g.자리.how : '' }))
+      return {
+        실좌표: !!(기준 && (기준.종류 === '측량' || 기준.종류 === '측량점')), 바꿈: !!(측량점 && 측량점.바꿈),
+        땅: 땅점 && 땅삼 ? { 점: Float64Array.from(땅점.flat()), 삼: Int32Array.from(땅삼.flat()) } : null,
+        노선, 종단: 종단모음, 횡단: 횡, 구조: 구,
+        성과점: 성과 ? 성과.점.slice(0, 5000).map((p) => ({ 이름: p.이름, N: p.N, E: p.E, Z: p.Z })) : [],
+      }
+    })()
     if (횡단) for (const t of 횡단.노선) for (const s of t.단면) if (s.면적) s.면적 = s.면적.이상 ? { 이상: s.면적.이상 } : { 터파기: s.면적.터파기, 되메우기: s.면적.되메우기, 구조물: s.면적.구조물, 성토: s.면적.성토 }
     self.postMessage({ type: 'prog', p: 0.93, msg: '화면에 올리는 중' })
     const r = finish(out, layerInfo, stats)
@@ -1048,9 +1082,12 @@ self.onmessage = async (ev) => {
     r.측량점 = 측량점
     r.노선 = 노선요약
     r.땅면 = 땅면
+    r.활용 = 활용
     r.파일 = 읽은.map((x) => x.이름)
     r.못읽은 = 못읽은
     const tr = []
+    if (활용.땅) tr.push(활용.땅.점.buffer, 활용.땅.삼.buffer)
+    for (const L of 활용.노선) tr.push(L.줄.buffer)
     for (const l of r.layers) {
       tr.push(l.pos.buffer, l.col.buffer, l.pts.buffer, l.pcol.buffer)
       if (l.tri) tr.push(l.tri.buffer, l.trn.buffer, l.trc.buffer)

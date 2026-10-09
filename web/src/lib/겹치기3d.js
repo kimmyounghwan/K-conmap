@@ -582,8 +582,9 @@ export function 콘크리트면(s, 아래, 위, 칸 = 200) {
   for (let i = 0; i < W * H; i++) 칸수 += 안[i]
   if (칸수 < 25) return null
   const tri = [], 선 = []
+  let 둘레 = 0                                  /* 🧱 G224 바깥 벽 길이(m) — 구조물 물량(개략) · 거푸집 */
   const 네모 = (ax, ay, az, bx, by, bz, cx, cy, cz, dx, dy, dz) => { tri.push(ax, ay, az, bx, by, bz, cx, cy, cz, ax, ay, az, cx, cy, cz, dx, dy, dz) }
-  const 벽 = (ax, ay, bx, by) => { 네모(ax, ay, 아래, bx, by, 아래, bx, by, 위, ax, ay, 위); 선.push(ax, ay, 아래, bx, by, 아래, ax, ay, 위, bx, by, 위) }
+  const 벽 = (ax, ay, bx, by) => { 네모(ax, ay, 아래, bx, by, 아래, bx, by, 위, ax, ay, 위); 선.push(ax, ay, 아래, bx, by, 아래, ax, ay, 위, bx, by, 위); 둘레 += Math.hypot(bx - ax, by - ay) / 1000 }
   /* 바닥판 — 줄마다 이어진 칸 */
   for (let y = 0; y < H; y++) {
     let x = 0
@@ -621,5 +622,5 @@ export function 콘크리트면(s, 아래, 위, 칸 = 200) {
       y = e
     }
   }
-  return { tri, 선, 넓이: 칸수 * 칸 * 칸 / 1e6 }
+  return { tri, 선, 넓이: 칸수 * 칸 * 칸 / 1e6, 둘레 }
 }

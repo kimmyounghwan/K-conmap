@@ -1,11 +1,12 @@
 // 🛣 횡단면도 → 3D 시험 — node tools/시험_횡단3d.mjs
 // 가상 횡단면 3장(도면에 m 로 그린 것)을 메모리에서 만들어, 측점·지반고로 높이를 맞추는지 봅니다. (실제 공사 도면이 아닙니다)
 import path from 'path'
-import { fileURLToPath } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
+const 파일주소 = (p) => pathToFileURL(p).href   // 윈도(PC 올리기 bat)에서도 — «E:\…» 그대로는 import 못 함
 const 여기 = path.dirname(fileURLToPath(import.meta.url))
 const W = path.join(여기, '..', 'web', 'src', 'lib')
-const { F64, U8 } = await import(path.join(W, 'dxf3d.js'))
-const { 횡단세우기, 측점m } = await import(path.join(W, '횡단3d.js'))
+const { F64, U8 } = await import(파일주소(path.join(W, 'dxf3d.js')))
+const { 횡단세우기, 측점m } = await import(파일주소(path.join(W, '횡단3d.js')))
 
 let 틀림 = 0
 const 봄 = (이름, 참, 더 = '') => { if (!참) 틀림++; console.log((참 ? '  ✓ ' : '  ✗ ') + 이름 + (더 ? ' — ' + 더 : '')) }

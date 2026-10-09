@@ -120,6 +120,7 @@ const WonClick = lazyPage(() => import('./pages/WonClick.jsx'))
 /* 📦 도면 3D 보기 — 2026-09-25. DXF 를 브라우저 안에서만 읽어 높이 그대로 세웁니다(서버 없음).
    ⚠️ /tools/:slug 보다 먼저 잡히는 «정확한 주소» 입니다. firebase.json 은 /tools/** 로 이미 덮입니다. */
 const Dxf3d = lazyPage(() => import('./pages/Dxf3d.jsx'))
+const EarthCheck = lazyPage(() => import('./pages/EarthCheck.jsx'))
 /* 📄 도면 PDF 만들기 (DXF → PDF) — 2026-09-26 */
 const DxfPdf = lazyPage(() => import('./pages/DxfPdf.jsx'))
 const DwgDxf = lazyPage(() => import('./pages/DwgDxf.jsx'))
@@ -239,6 +240,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/tools" element={<Suspense fallback={<Loading />}><ToolsIndex /></Suspense>} />
           <Route path="/tools/wonclick" element={<Suspense fallback={<Loading />}><WonClick /></Suspense>} />
           <Route path="/tools/dxf3d" element={<Suspense fallback={<Loading />}><Dxf3d /></Suspense>} />
+          <Route path="/tools/earthcheck" element={<Suspense fallback={<Loading />}><EarthCheck /></Suspense>} />
           <Route path="/tools/dxfpdf" element={<Suspense fallback={<Loading />}><DxfPdf /></Suspense>} />
           <Route path="/tools/dwgdxf" element={<Suspense fallback={<Loading />}><DwgDxf /></Suspense>} />
           <Route path="/tools/tuipbi" element={<Suspense fallback={<Loading />}><Tuipbi /></Suspense>} />

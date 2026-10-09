@@ -2,20 +2,21 @@
 //   node tools/시험_도면3d.mjs
 // 모두 메모리에서 지어낸 가상 도면입니다(실제 공사 도면 아님). 실제 도면 시험은 python tools/도면3d_시험도면.py 로 만든 가상 도면으로.
 import path from 'path'
-import { fileURLToPath } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
+const 파일주소 = (p) => pathToFileURL(p).href   // 윈도(PC 올리기 bat)에서도 — «E:\…» 그대로는 import 못 함
 const 여기 = path.dirname(fileURLToPath(import.meta.url))
 const W = path.join(여기, '..', 'web', 'src', 'lib')
-const { F64, U8 } = await import(path.join(W, 'dxf3d.js'))
-const { 도곽찾기3d, 박스제목, 도면종류, 네모로나누기, 평면칸, 묶음이름, 도면단위배, 테두리빼기 } = await import(path.join(W, '도곽3d.js'))
-const { 글열쇠, 글짝들, 짝맞추기, 두점변환, 변환하기, 회전도, 축척 } = await import(path.join(W, '자리맞춤.js'))
-const { 성과표풀기, 글표 } = await import(path.join(W, '성과표.js'))
-const { 측점풀기, 간격고르기, 눈금자들, 횡단세우기 } = await import(path.join(W, '횡단3d.js'))
-const { 노선열쇠, 노선같음, 줄잇기, 노선찾기, 종단표읽기, 노선에얹기, 종단선 } = await import(path.join(W, '노선3d.js'))
-const { 단면면적, 평균단면, 삼각망, 높이찾개, 땅면부피 } = await import(path.join(W, '토공3d.js'))
-const { 누운선, 바닥높이, 바탕만들기, 모양맞추기, 콘크리트면 } = await import(path.join(W, '겹치기3d.js'))
-const { 끼움관계, 도면이름, 닮음, 꼴안 } = await import(path.join(W, 'xref3d.js'))
-const { 그림나누기, 그림떼기, 그림이름, 표같음 } = await import(path.join(W, '그림나누기3d.js'))
-const { parseDxf } = await import(path.join(W, 'dxf3d.js'))
+const { F64, U8 } = await import(파일주소(path.join(W, 'dxf3d.js')))
+const { 도곽찾기3d, 박스제목, 도면종류, 네모로나누기, 평면칸, 묶음이름, 도면단위배, 테두리빼기 } = await import(파일주소(path.join(W, '도곽3d.js')))
+const { 글열쇠, 글짝들, 짝맞추기, 두점변환, 변환하기, 회전도, 축척 } = await import(파일주소(path.join(W, '자리맞춤.js')))
+const { 성과표풀기, 글표 } = await import(파일주소(path.join(W, '성과표.js')))
+const { 측점풀기, 간격고르기, 눈금자들, 횡단세우기 } = await import(파일주소(path.join(W, '횡단3d.js')))
+const { 노선열쇠, 노선같음, 줄잇기, 노선찾기, 종단표읽기, 노선에얹기, 종단선 } = await import(파일주소(path.join(W, '노선3d.js')))
+const { 단면면적, 평균단면, 삼각망, 높이찾개, 땅면부피 } = await import(파일주소(path.join(W, '토공3d.js')))
+const { 누운선, 바닥높이, 바탕만들기, 모양맞추기, 콘크리트면 } = await import(파일주소(path.join(W, '겹치기3d.js')))
+const { 끼움관계, 도면이름, 닮음, 꼴안 } = await import(파일주소(path.join(W, 'xref3d.js')))
+const { 그림나누기, 그림떼기, 그림이름, 표같음 } = await import(파일주소(path.join(W, '그림나누기3d.js')))
+const { parseDxf } = await import(파일주소(path.join(W, 'dxf3d.js')))
 
 let 틀림 = 0, 맞음 = 0
 const 봄 = (이름, 참, 더 = '') => { if (!참) 틀림++; else 맞음++; console.log((참 ? '  ✓ ' : '  ✗ ') + 이름 + (더 ? ' — ' + 더 : '')) }

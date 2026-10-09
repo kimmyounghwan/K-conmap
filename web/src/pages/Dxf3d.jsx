@@ -17,6 +17,7 @@ import { LineView } from '../lib/gl3d.js'
 import { 성과표읽기 } from '../lib/성과표.js'
 import { 두점변환, 회전도 } from '../lib/자리맞춤.js'
 import { 세기 } from '../lib/받은수.jsx'
+import 활용판 from './Dxf3d활용.jsx'
 
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { DWG바꾸기 } from '../lib/dwg바꾸기.js'
@@ -78,6 +79,16 @@ export default function Dxf3d() {
   const 성과Ref = useRef(null)
   const [자세히, set자세히] = useState(null)           // 상태표에서 펼친 묶음 번호
   const [끈것보기, set끈것보기] = useState(false)
+  /* 🧰 G224 3D 로 더 하기(Dxf3d활용.jsx) — 3D 위 덧그림 층(물길 · 표시 · 원 · 핀). 도면을 다시 세워도(setLayers) 다시 얹음 */
+  const 덧Ref = useRef(new Map())
+  const [옮긴수, set옮긴수] = useState(0)
+  const 덧그림 = useCallback((키, 층) => {
+    if (층) 덧Ref.current.set(키, 층); else 덧Ref.current.delete(키)
+    if (viewRef.current) viewRef.current.set덧('활용·' + 키, 층)
+  }, [])
+  const 덧다시 = () => { const v = viewRef.current; if (v) for (const [k, l] of 덧Ref.current) v.set덧('활용·' + k, l) }
+  const 원층 = useCallback(() => (남은 && 남은.r ? 남은.r.layers : []), [])
+  const 보기판 = useCallback(() => viewRef.current, [])
 
   useEffect(() => {
     if (!남은 || !남은.r) return
@@ -249,8 +260,9 @@ export default function Dxf3d() {
         pts: l.pts.length / 3, box: l.box, smp: l.smp, tri: l.tri ? l.tri.length / 9 : 0 })),
       stats: r.stats, zr: r.zr, c: r.center, 건물: r.건물, 횡단: r.횡단 || null, 파일: r.파일, 못읽은: r.못읽은 || [], dwg수, dwg이름,
       구조: r.구조 || null, 그룹: r.그룹 || [], 필요: r.필요 || null, 측량점: r.측량점 || null, 노선: r.노선 || [], 땅면: r.땅면 || null,
+      활용: r.활용 || null,
     })
-    set맞춤(null); set맞춤글('')
+    set맞춤(null); set맞춤글(''); set옮긴수(0)
     set상태({ k: 'done' })
     const on = {}
     for (const l of r.layers) on[l.name] = 보임(l, 레, 층)
@@ -261,6 +273,7 @@ export default function Dxf3d() {
         viewRef.current.setZ(되살림 ? 되살림.높이배 || 1 : 1)
         viewRef.current.set면(되살림 && 되살림.면 === false ? 0 : 0.55)
         viewRef.current.setLayers(r.layers.map((l) => ({ ...l, off: !on[l.name] })))
+        덧다시()
         viewRef.current.fit(자리(r.layers, on, r.그룹), 평평(r.layers, on) ? 'top' : 'tilt')
       } catch (e) {
         set상태({ k: 'err', msg: 'webgl' })
@@ -321,7 +334,8 @@ export default function Dxf3d() {
     const on = {}
     for (const l of 남은.r.layers) on[l.name] = 보임(l)
     viewRef.current.setLayers(남은.r.layers.map((l) => ({ ...l, off: !on[l.name] })))
-    set맞춤(null)
+    덧다시()
+    set맞춤(null); set옮긴수((n) => n + 1)
     세기('|도면3d|두점')
     const 길A = A2 ? Math.hypot(A2[0] - A1[0], A2[1] - A1[1]) : 0, 길B = A2 && B2 ? Math.hypot(B2[0] - B1[0], B2[1] - B1[1]) : 0
     const 차 = 길A > 0 ? Math.abs(길B / 길A - 1) * 100 : 0
@@ -642,6 +656,7 @@ export default function Dxf3d() {
           </div>
         )}
         {횡단 && 횡단.노선.some((g) => g.토공 && g.토공.줄.length >= 2) && <토공카드 횡단={횡단} 땅면={결과.땅면} />}
+        {결과 && 결과.활용 && <활용판 결과={결과} 보기={보기판} 원층={원층} 덧그림={덧그림} 옮긴수={옮긴수} />}
         {횡단 && (
           <div className="dx3-bld">
             <div className="dx3-bh">🛣 <b>횡단면도로 세웠습니다</b> — 노선 {횡단.노선.length}개 · 단면 {횡단.노선.reduce((n, g) => n + g.단면.length, 0)}개

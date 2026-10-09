@@ -227,6 +227,83 @@ export function 단면면적(조각, 땅인가, 높, 배, cx) {
       }
     }
   }
+  /* 🧱 (G224 · 2026-10-10) 콘크리트 · 거푸집 — 구조물 덩어리(닫힌 모양 · 물길은 뺌) 가운데 «터파기에 닿은» 것만(표 칸 · 범례 네모는 안 셈)
+       거푸집 = 콘크리트 칸의 옆면(왼 · 오른쪽 이웃이 콘크리트 아님) + 아랫면(아래 이웃이 물길 · 공중 — 흙에 닿은 바닥 아랫면은 안 셈) · 윗면은 안 셈
+       칸 모서리로 재므로 비스듬한 면(헌치)은 조금 길게 나옵니다 — 검산용 */
+  let 콘칸 = 0, 거푸집 = 0
+  const 구조폭 = [Infinity, -Infinity], 구조높 = [Infinity, -Infinity]
+  const 콘속 = new Uint8Array(N)            /* 선 칸을 뺀 콘크리트 속 칸 — 넓이는 아래 영역면적(선 칸은 안쪽 몫만)으로 */
+  {
+    const 표2 = new Int32Array(N), q = new Int32Array(N)
+    const 남길 = new Set()
+    let n = 0
+    for (let k0 = 0; k0 < N; k0++) {
+      if (S[k0] !== 1 || 표2[k0]) continue
+      n++; let h = 0, t = 0, 닿 = false; 표2[k0] = n; q[t++] = k0
+      while (h < t) {
+        const k = q[h++], i = k % nx, j = (k / nx) | 0
+        if (E[k]) 닿 = true
+        for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+          const ii = i + di, jj = j + dj
+          if (ii < 0 || jj < 0 || ii >= nx || jj >= ny) continue
+          const kk = jj * nx + ii
+          if (S[kk] === 1 && !표2[kk]) { 표2[kk] = n; q[t++] = kk }
+        }
+      }
+      if (닿) 남길.add(n)
+    }
+    const 콘인가 = (k) => S[k] === 1 && 남길.has(표2[k])
+    const 세로변 = ch * kz, 가로변 = cw * 배
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      const k = j * nx + i
+      if (!콘인가(k)) continue
+      콘칸++
+      if (!벽[k]) 콘속[k] = 1
+      const o = (ox + (i + 0.5) * cw - cx) * 배, z = 높(oy + (j + 0.5) * ch)
+      if (o < 구조폭[0]) 구조폭[0] = o
+      if (o > 구조폭[1]) 구조폭[1] = o
+      if (z < 구조높[0]) 구조높[0] = z
+      if (z > 구조높[1]) 구조높[1] = z
+      if (i === 0 || !콘인가(k - 1)) 거푸집 += 세로변
+      if (i === nx - 1 || !콘인가(k + 1)) 거푸집 += 세로변
+      if (j > 0 && !콘인가(k - nx)) {
+        const kk = k - nx
+        const 흙 = E[kk] || 아래(i, j - 1)          // 아래가 터파기 · 원지반이면 흙에 닿은 바닥
+        if (S[kk] === 2 || (!흙 && !벽[kk]) || (!흙 && 위(i, j - 1))) 거푸집 += 가로변
+      }
+    }
+  }
+  /* 터파기 폭 · 깊이 — 측설표 · 안전 그림에 씀 */
+  const 터폭 = [Infinity, -Infinity]
+  let 깊이 = 0
+  for (let i = 0; i < nx; i++) {
+    let 바 = -1
+    for (let j = 0; j < ny; j++) if (E[j * nx + i]) { 바 = j; break }
+    if (바 < 0 || !Number.isFinite(g[i])) continue
+    const o = (ox + (i + 0.5) * cw - cx) * 배
+    if (o < 터폭[0]) 터폭[0] = o
+    if (o > 터폭[1]) 터폭[1] = o
+    const d = 높(g[i]) - 높(oy + 바 * ch)
+    if (d > 깊이) 깊이 = d
+  }
+  /* 칸 가운데로 잰 끝은 2 ~ 5 cm 안쪽에 옴(비탈 끝 쐐기 칸) → 그 가까이(15 cm · 칸 넷 안) «지반선 위에 놓인 선 꼭짓점» 이 있으면 그 자리로(측설표 cm) */
+  if (Number.isFinite(터폭[0])) {
+    const 붙 = (o) => {
+      let best = null
+      const 멀 = Math.max(0.15, 4 * cw * 배)
+      for (const [ax, ay, bx, by] of 딴) for (const [x, y] of [[ax, ay], [bx, by]]) {
+        const oo = (x - cx) * 배
+        if (Math.abs(oo - o) > 멀) continue
+        const gi = ci(x)
+        if (gi < 0 || gi >= nx || !Number.isFinite(g[gi])) continue
+        if (Math.abs(높(y) - 높(g[gi])) > Math.max(0.1, 3 * ch * kz)) continue
+        if (best === null || Math.abs(oo - o) < Math.abs(best - o)) best = oo
+      }
+      return best === null ? o : best
+    }
+    터폭[0] = 붙(터폭[0]); 터폭[1] = 붙(터폭[1])
+  }
+
   /* ④ 성토 — 지반선 위, 둘러싸이고 지반선에 닿은 덩어리(아래 «성토 칸 다시 모음») */
   const 성닿음 = 붓기(위, 벽)
   const n성 = 0
@@ -291,6 +368,7 @@ export function 단면면적(조각, 땅인가, 높, 배, cx) {
   }
   void n성
   const 터 = 영역면적(E)
+  const 콘크리트 = 콘칸 ? 영역면적(콘속) : 0
   const 구 = Math.min(터, 영역면적(SE))
   const 성 = 영역면적(F)
   /* 바닥 · 지반 모양(0.1 m 마다) — 땅 면 부피 확인에 씀 */
@@ -302,11 +380,12 @@ export function 단면면적(조각, 땅인가, 높, 배, cx) {
     지반.push([o, 높(g[i])])
     for (let j = 0; j < ny; j++) if (E[j * nx + i]) { 바닥.push([o, 높(oy + j * ch)]); break }
   }
-  return { 터파기: 터, 구조물: 구, 되메우기: Math.max(0, 터 - 구), 성토: 성, 바닥, 지반, 칸: Math.min(cw * 배, ch * kz) }
+  return { 터파기: 터, 구조물: 구, 되메우기: Math.max(0, 터 - 구), 성토: 성, 바닥, 지반, 칸: Math.min(cw * 배, ch * kz),
+    콘크리트, 거푸집, 구조폭: 콘칸 ? 구조폭 : null, 구조높: 콘칸 ? 구조높 : null, 터폭: Number.isFinite(터폭[0]) ? 터폭 : null, 깊이 }
 }
 
 /* ── 평균단면법 ─────────────────────────────── */
-const 종류들 = ['터파기', '되메우기', '구조물', '성토']
+const 종류들 = ['터파기', '되메우기', '구조물', '성토', '콘크리트', '거푸집']      /* 🧱 G224 콘크리트(㎡ → ㎥) · 거푸집(m → ㎡) 도 같은 평균단면 */
 /**
  * @param 단면들 [{ 측(m), 이름, 면적: {터파기, 되메우기, 구조물, 성토} }]
  * @returns { 줄: [{ 측, 이름, 거리, 면적{}, 부피{}, 누계{} }], 합: {}, 길이 }
