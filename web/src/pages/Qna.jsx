@@ -152,7 +152,7 @@ import { use화면상태, use남김 } from '../lib/길기록.js'
 import 건설소식 from '../tools/건설소식.jsx'   /* 📰 G128 — 지도 아래 «오늘의 건설 소식» · 💬 이야기하기 → 글쓰기 칸 */
 /* 🗺 G147 (2026-10-05) 사랑방 → 맵톡 — 큰 지도 위 글쓰기 · 글 = 핀(시·군) · 방은 저절로(같은 주제 10개) · 사진 한 장 */
 import 맵톡지도 from '../tools/맵톡지도.jsx'
-import { 주제들, 주제짐작, 넣을방, 고를방들, 방나누기, 글나누기, 자리짐작, 짧은이름, 곳찾기, 카드크기, 물음인가, 한마디인가, 사진줄이기, 사진크기한도, 방기준, 답나무, 첫줄, 누적셈, 시도차례, 시도별, 곳기억읽기, 곳기억하기 } from '../lib/맵톡.js'
+import { 주제들, 주제짐작, 넣을방, 고칠방들, 운영자글방, 방나누기, 글나누기, 자리짐작, 짧은이름, 곳찾기, 카드크기, 물음인가, 한마디인가, 사진줄이기, 사진크기한도, 방기준, 답나무, 첫줄, 누적셈, 시도차례, 시도별, 곳기억읽기, 곳기억하기 } from '../lib/맵톡.js'
 import { 세기 } from '../lib/받은수.jsx'
 import { 받는꼴, 파일검사, 압축검사, 확장자, 파일올리기, 크기글, 오늘올린수, 올린수더하기, 하루한도 } from '../lib/파일올리기.js'   /* 📎 G158 · 🗜 G196 압축검사 */
 
@@ -626,8 +626,10 @@ export default function Qna() {
     return () => window.removeEventListener('keydown', k)
   }, [open, 열린, 글번호])   // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* 🗺 방 — 같은 주제가 10개 모이면 저절로(lib/맵톡.js). 글을 올린 뒤 새로 생긴 방이 있으면 첫 화면에 한 번 알립니다 */
+  /* 🗺 방 — 같은 주제가 30개(G226 · 전엔 10) 모이면 저절로(lib/맵톡.js). 글을 올린 뒤 새로 생긴 방이 있으면 첫 화면에 한 번 알립니다 */
   const 방들 = useMemo(() => 방나누기(모두 || []), [모두])
+  /* 🩹 G226 (2026-10-10) 소장님 「지금 현재 올릴 방하고, 아래쪽 방이 다르잖아」 — 글쓰기 · 고치기의 방 칩도 아래 «방» 줄과 같은 방(10개 넘게 모인 방)만, 같은 차례로 */
+  const 있는방 = useMemo(() => 방들.방.map((x) => x.k), [방들])
   const 옛방 = useRef(null)
   useEffect(() => {
     if (!모두) return undefined
@@ -729,7 +731,7 @@ export default function Qna() {
   return (
     <div className="mt-page">
       <맵톡지도 글들={모두 || []} 새글번호={새글번호} 열기={누르기} 새방={새방} 누적={누적}>
-        <맵톡글쓰기 key={새글 ? '초안:' + (새글.t || '') : '빈칸'} 첫글={새글} 나운영자={나운영자} 방고름={방고름}
+        <맵톡글쓰기 key={새글 ? '초안:' + (새글.t || '') : '빈칸'} 첫글={새글} 나운영자={나운영자} 방고름={방고름} 있는방={있는방}
           onDone={(id) => {
             set새글(null); 방감시.current = true; set새글번호(id)
             setTimeout(() => set새글번호((v) => (v === id ? null : v)), 3200)
@@ -775,7 +777,7 @@ export default function Qna() {
         {폰말 && <div className="muted" style={{ fontSize: 12.5, margin: '-2px 0 10px' }}>{폰말}</div>}
         {왕 && <div className="qna-king">👑 <b>{Number(왕.달.slice(5))}월의 답변왕</b> — {왕.nick} <span className="muted">· 고맙습니다!</span></div>}
 
-        {/* 🗺 방 — 고르지 않고 쓴 글이 10개씩 모이면 저절로 생깁니다. 글 수는 지금 보이는 글(최근 300) 기준 */}
+        {/* 🗺 방 — 고르지 않고 쓴 글이 30개씩(G226 · 전엔 10) 모이면 저절로 생깁니다. 글 수는 지금 보이는 글(최근 300) 기준 */}
         {/* 🩹 G155 (2026-10-06) 소장님 「내 글 세개인데, 하나만 뜨는데, 클릭하면」 — 방(예: 후기·건의)을 골라 둔 채 «내 글» 을 누르면
             «그 방에 든 내 글» 만 남아 숫자(3)와 목록(1)이 달랐습니다. 이제 «내 글» 과 방은 하나만 켜집니다 — 내 글을 누르면 방은 «전체» 로,
             방을 누르면 «내 글» 은 꺼집니다. 그래서 «내 글 N» 이면 늘 N 장이 보입니다. */}
@@ -819,7 +821,7 @@ export default function Qna() {
             </div>
             <ol style={{ margin: '8px 0 0', paddingLeft: 20 }}>
               <li><b>🗺 맵톡 — 고를 것 없이 그냥 쓰세요.</b> 질문 · 현장 이야기 · 공동도급 구성원 구하기 · 구인·구직 · 건의 · 후기, 무엇이든 한 칸에 씁니다.
-                글을 올리면 <b>내 시·군에 핀</b>이 꽂히고(접속한 곳으로 짐작 — 통신사에 따라 다른 곳으로 잡힐 수 있습니다), 같은 이야기가 <b>10개 모이면 «방»</b>이 저절로 생깁니다.</li>
+                글을 올리면 <b>내 시·군에 핀</b>이 꽂히고(접속한 곳으로 짐작 — 통신사에 따라 다른 곳으로 잡힐 수 있습니다), 같은 이야기가 <b>{방기준}개 모이면 «방»</b>이 저절로 생깁니다.</li>
               <li><b>📷 사진도 올릴 수 있습니다</b>(한 장 · 크게 찍은 사진은 줄여서 올립니다). 남의 얼굴 · 이름 · 전화번호가 보이는 사진은 올리지 마세요.</li>
               {/* 🩹 G196 소장님 「이상한 파일 이면...이런 거 말고, 그냥, 파일 올릴 수 있다. 이렇게 해줘」 — 막는 것 · 주의 글은 뺌(고를 때 안 되는 것은 그 자리에서 알림) */}
               <li><b>📎 파일도 올릴 수 있습니다</b> — 한글 · 엑셀 · 워드 · PDF · PPT · 압축(zip).</li>
@@ -977,7 +979,7 @@ export default function Qna() {
                 <h2 className="mt-full">{가림(창글.t)}</h2>
                 <div className="mt-who">{배지(창글.uid)}{창글.nick || '익명'}{내것.has(창글.id) ? ' · 내 글' : ''}{창글.sb && 나운영자 ? ' · 🙈 몰래 차단' : ''}</div>
                 {창글.p && <a href={창글.p} target="_blank" rel="noopener noreferrer"><img className="mt-bigphoto" src={창글.p} alt="올린 사진" /></a>}
-                <Detail row={창글} ans={ans[창글.id] || {}} mine={내것.has(창글.id)} 나운영자={나운영자}
+                <Detail row={창글} ans={ans[창글.id] || {}} mine={내것.has(창글.id)} 나운영자={나운영자} 있는방={있는방}
                   고정됨={!!고정[창글.id]} 나={나} 배지={배지} 조회수={조회[창글.id] || 0} 지도바탕={지도바탕}
                   좋아요={좋아요[창글.id] || {}} 답좋아요={답좋아요[창글.id] || {}} 좋아요누름={좋아요누름}
                   바로답={답하러 === 창글.id} 바로답끝={() => set답하러(null)}
@@ -1036,7 +1038,7 @@ function 왕정하기({ 모두, ans, 좋아요, 답좋아요, 왕들, onDone }) 
 }
 
 /* ── 질문 펼침 — 본문 + 답변들 + 답변 쓰기 ──────────────────────── */
-function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지 = () => '', 좋아요 = {}, 답좋아요 = {}, 좋아요누름, 조회수 = 0, 지도바탕 = null, 바로답 = false, 바로답끝 = () => {} }) {
+function Detail({ row, ans, mine, onChange, 나운영자, 있는방 = null, 고정됨, 나, 배지 = () => '', 좋아요 = {}, 답좋아요 = {}, 좋아요누름, 조회수 = 0, 지도바탕 = null, 바로답 = false, 바로답끝 = () => {} }) {
   const [pin, setPin] = useState('')
   const [msg, setMsg] = useState('')
   /* ✏️ 고치기 · 🔑 되찾기 — 2026-09-27 */
@@ -1266,7 +1268,7 @@ function Detail({ row, ans, mine, onChange, 나운영자, 고정됨, 나, 배지
           {/* 🩹 G211 방 옮기기 — 글 내용으로 짐작한 방이 틀렸으면 여기서 바꿉니다(소식은 운영자만) */}
           <div className="mt-toroom" role="group" aria-label="이 글의 방">
             <span className="mt-toroom-l">📂 방</span>
-            {고를방들(나운영자).map((k) => {
+            {고칠방들(나운영자, 있는방, 고침.k || row.주제).map((k) => {
               const on = (고침.k || row.주제) === k
               return (
                 <button type="button" key={k} className={'mt-toroom-c' + (on ? ' on' : '')} style={{ '--rc': 주제들[k].색 }}
@@ -1470,7 +1472,7 @@ function AnswerForm({ qid, onDone, to = null, 받는이 = '', 인용 = '', 열�
      파일만 못 올라가면(인터넷 등) 글은 올라가고 «파일은 못 올렸습니다» 한 줄.
    ■ 📊 세기: |맵톡|글 · |맵톡|사진 · |맵톡|자리 · |맵톡|파일 (숫자는 어디에도 안 보임) */
 const 초안열쇠 = 'kcm.qna.초안'
-function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
+function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all', 있는방 = null }) {
   const [글, set글] = useState(() => {
     if (첫글 && (첫글.t || 첫글.b)) return [String(첫글.t || ''), String(첫글.b || '')].filter(Boolean).join('\n').slice(0, 2070)
     try { const d = JSON.parse(sessionStorage.getItem(초안열쇠) || 'null'); if (d) return typeof d.글 === 'string' ? d.글 : [d.t, d.b].filter(Boolean).join('\n') } catch (e) { /* 없음 */ }
@@ -1487,9 +1489,14 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
   /* 🩹 G211 (2026-10-09) 소장님 「왜 내가 쓰는 글은 모두 건설맵 소식으로 가지? 분명 후기 건의 클릭해도」
      넣을 방(k) — 아래 «방» 줄에서 방을 골라 둔 채 쓰면 그 방. 이용자는 방을 안 골랐으면 '' (글 내용으로 짐작 · 예전 그대로).
      운영자는 칸 안에서 방을 고릅니다(방을 안 보고 있으면 처음엔 소식). 방을 바꿔 보면 칸도 따라 바뀝니다. */
-  const 처음방 = () => 넣을방(방고름, 나운영자) || (나운영자 ? 'kcm' : '')
+  /* 🩹 G226 (2026-10-10) «📂 올릴 방» 칩 없앰 — 소장님 「올릴방이 필요가 없잖아 … 방을 선택하는 것은 아래에도 있으니까」
+     운영자도 이용자와 같게: 아래 방 줄에서 방을 보고 있으면 그 방, 전체면 글 내용으로(운영자는 소식 방을 보고 쓰면 소식) */
+  /* 🩹 G226 소장님 「방을 클릭하면 그쪽으로 가고, 그 방으로 갔는데, 다른 내용이면,,,그 내용들만 추려서 다시 방을 자동으로 만드는 거야?」 → 「자동으로 방이 생기게 해줘」
+     → 어느 방을 보고 있든 글 «내용» 으로 방을 정함(내용이 다르면 다른 주제로 모여 30개면 새 방) · 소식만 운영자가 소식 방을 보고 쓸 때 */
+  const 처음방 = () => (나운영자 && 넣을방(방고름, true) === 'kcm' ? 'kcm' : '')
   const [방, set방] = useState(처음방)
   useEffect(() => { set방(처음방()) }, [방고름, 나운영자])   // eslint-disable-line react-hooks/exhaustive-deps
+  void 있는방
   const 칸 = useRef(null)
   const 핀칸 = useRef(null)
   /* 📍 G150 지역 — { 곳, 어떻게: '찾는중' | '짐작' | '고름' | '모름' } · 고르기: null | '시도' | 시·도 이름 */
@@ -1586,7 +1593,8 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
         } catch (e) { 사진말 = ' · 사진은 못 올렸습니다(글만 올라갔습니다)' }
       }
       const 곳 = await 자리약속
-      const 넣방 = 나운영자 ? (방 || 'kcm') : 방
+      const 넣방 = 나운영자 ? 운영자글방(방, t, b) : ''      /* 🩹 G226 늘 글 내용으로 — 운영자는 소식 방을 보고 쓸 때만 소식(나머지는 내용으로 정해 넣음) · 이용자는 k 없이(보일 때 내용으로) */
+      const 간방 = 넣방 || 주제짐작({ t, b, at: Date.now() })
       const 글값 = {
         /* 운영자 글은 소식이면 [K-건설맵] · 다른 방이면 [후기·건의] — 메일 · 글 페이지가 그대로 읽게 (G211) */
         t: 갈래붙이기(나운영자 && 넣방 === 'kcm' ? 'K-건설맵' : '후기·건의', t),
@@ -1613,7 +1621,9 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
       if (나운영자 && 고정할) { try { await set(ref(db, `qna_top/${id}`), serverTimestamp()) } catch (e) { /* 글 안에서 다시 꽂으면 됨 */ } }
       try { sessionStorage.removeItem(초안열쇠) } catch (e) { /* 없음 */ }
       set글(''); setPin(''); set사진(null); set첨부(null)
-      setMsg(`✅ 올렸습니다${곳 ? ` — ${짧은이름(곳.n)}에 핀이 꽂혔어요` : ''}${사진말}${파일말}`)
+      /* 🩹 G226 보고 있던 방과 다른 주제면 어디로 갔는지 알림 */
+      const 다른방 = 방고름 && 방고름 !== 'all' && 주제들[방고름] && 간방 !== 방고름 && 주제들[간방] ? ` · 글 내용으로 «${주제들[간방].이름}» 에 모였어요` : ''
+      setMsg(`✅ 올렸습니다${곳 ? ` — ${짧은이름(곳.n)}에 핀이 꽂혔어요` : ''}${다른방}${사진말}${파일말}`)
       onDone(id)
     } catch (e) {
       setMsg('올리지 못했습니다. 잠시 뒤 다시 해 주세요.')
@@ -1636,16 +1646,8 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
           <span className="mt-att-warn">남의 공사명 · 업체명 · 사람 이름 · 전화번호는 지우고 올려 주세요</span>
         </div>
       )}
-      {/* 🩹 G211 어느 방에 올라가는지 — 운영자는 고르고, 이용자는 방을 보고 있을 때만 한 줄(✕ 누르면 내용 따라) */}
-      {나운영자 ? (
-        <div className="mt-toroom" role="group" aria-label="올릴 방 고르기">
-          <span className="mt-toroom-l">📂 올릴 방</span>
-          {고를방들(true).map((k) => (
-            <button type="button" key={k} className={'mt-toroom-c' + (방 === k ? ' on' : '')} style={{ '--rc': 주제들[k].색 }}
-              aria-pressed={방 === k} onClick={() => set방(k)}><i />{주제들[k].이름}</button>
-          ))}
-        </div>
-      ) : 방 ? (
+      {/* 🩹 G211 · G226 방 줄은 운영자가 소식 방을 보고 있을 때만(«내용 따라» 누르면 글 내용으로) — 나머지는 늘 내용으로 */}
+      {방 ? (
         <div className="mt-toroom">
           <span>📂 <b style={{ color: (주제들[방] || 주제들.talk).색 }}>{(주제들[방] || 주제들.talk).이름}</b> 방에 올라가요</span>
           <button type="button" className="mt-place-b" onClick={() => set방('')} title="방을 고르지 않으면 글 내용으로 방을 짐작합니다">내용 따라</button>
@@ -1712,7 +1714,7 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
         </button>
       </div>
       <p className="mt-hint" role="status">{msg || (나운영자
-        ? '🛠 운영자 — 숫자 없이 올립니다 · 글쓴이는 «K-건설맵»'
+        ? '🛠 운영자 — 숫자 없이 올립니다 · 글쓴이는 «K-건설맵» · 방은 글 내용으로 저절로(소식은 아래 «K-건설맵 소식» 방을 누르고)'
         : '질문 · 현장 · 건의 · 사는 이야기 무엇이든 · 🔑 4자리는 내 글을 지우고 되찾는 열쇠')}</p>
     </div>
   )
