@@ -12,15 +12,21 @@
  *
  * 읽는 뼈대(쌍 읽기·OCS·스플라인)는 dxf3d.js, 글자 다듬기는 dxfplot.js 것을 그대로 씁니다.
  */
-import { reader, ocs, mul, I3, unesc, num, bspline, aciRgb } from './dxf3d.js'
+import { reader, ocs, mul, I3, unesc, num, bspline, aciRgb, 다중지시선 } from './dxf3d.js'
 import { cadText, mtextLines } from './dxfplot.js'
 
 const D2R = Math.PI / 180
 const MAX_V = 6_000_000
+const 더예산 = 4_000_000          /* 🧭 G246 점이 다 찬 뒤 구조 판(opt.범위)에 더 담는 점 */
+/* 🧭 G246 끝까지 읽기 — 소장님 「캐드를 완벽하게 읽는 도구를 먼저 개발해」 · 「도면에 있는건 모조리 읽고」
+   전엔 점 600만 개에서 «읽기를 멈춤»(그 뒤 글자 · 판까지 버림) — 현장 C 건축 통합본: 판 179장 중 12장 · 글자 52,632개 중 3,454개만 읽었음.
+   이제 점이 다 차면 «모양» 만 더 안 담고(개수를 점검 표에) 글자 · 판 테두리(가로 · 세로 곧은 선 = 틀선)는 끝까지 읽음.
+   (모양을 다 담으면 현장 D 건축 통합본은 점 5천만 개 넘어 기억이 모자람 — 2,400만 점에서 7 GB 넘어 멈췄음. 모양은 판 단위로 다시 읽기로) */
 
 /** 도형 종류 (E.t) */
-export const 종류 = { 선: 1, 폴리선: 2, 닫힌폴리선: 3, 호: 4, 원: 5, 치수: 6, 해치: 7, 곡선: 8, 글자: 9, 채움: 10 }
-export const 종류이름 = { 1: '선', 2: '폴리선', 3: '닫힌 폴리선', 4: '호', 5: '원', 6: '치수', 7: '해치', 8: '곡선', 9: '글자', 10: '채움' }
+/* 🧭 G245 지시선(11) — 지시선 · 다중 지시선의 선은 부재 모양이 아니라 «글자를 가리키는 선» 이라 따로 둠(벽 · 보 · 기둥 찾기 · 길이 셈에 안 섞이게) */
+export const 종류 = { 선: 1, 폴리선: 2, 닫힌폴리선: 3, 호: 4, 원: 5, 치수: 6, 해치: 7, 곡선: 8, 글자: 9, 채움: 10, 지시선: 11 }
+export const 종류이름 = { 1: '선', 2: '폴리선', 3: '닫힌 폴리선', 4: '호', 5: '원', 6: '치수', 7: '해치', 8: '곡선', 9: '글자', 10: '채움', 11: '지시선' }
 
 class Grow {
   constructor(T, n = 4096) { this.T = T; this.a = new T(n); this.n = 0 }
@@ -41,14 +47,23 @@ export function 치수숫자(s) {
  * DXF 글자 → 찍기용 모델
  * @returns {{E, Q, P, T, I, layers, box, ox, oy, units, stats}}
  */
-export function 도면읽기(text, onProgress) {
+/**
+ * @param opt.범위 [[x0,y0,x1,y1]…] (도면 좌표 · 가운데 빼기 전) — 점이 다 찬(600만) 뒤에도 이 네모들(구조 판)에 걸친 모양은 더 담음(400만 점까지).
+ *   점이 차기 전은 예전과 한 자리도 같음. 🧭 G246 큰 통합본의 뒤쪽 구조 판(lib/끝까지읽기.js)
+ */
+export function 도면읽기(text, onProgress, opt = {}) {
+  const 읽을범위 = opt && opt.범위 && opt.범위.length ? opt.범위 : null
   const R = reader(text)
-  const stats = { ents: 0, verts: 0, capped: false, skipped: {}, hidden: 0, ver: '' }
+  /* 🧭 G245 읽기 점검 — 파일 속 도형 종류별 개수(블록 정의 안 것도) · 배치(종이) 공간 · 안 보이게 한 것 → lib/읽기점검.js 가 표로 */
+  const stats = { ents: 0, verts: 0, capped: false, 못그림: 0, 범위밖: 0, 더담음: 0, 더못: 0, skipped: {}, hidden: 0, ver: '', 파일속: {}, 배치: 0, 배치종류: {}, 안보임: 0, 인쇄안함: 0, 없는블록: {}, 못층: {} }
+  const 셈 = (t) => { stats.파일속[t] = (stats.파일속[t] || 0) + 1 }
   const skip = (k) => { stats.skipped[k] = (stats.skipped[k] || 0) + 1 }
   const layers = new Map()        // 대문자 이름 → {i, name, rgb, hide}
   const layerList = []
   const blocks = new Map()
+  const 블록rec = new Map()        // BLOCK_RECORD 번호(330) → 블록 — 다중 지시선의 블록 내용(341)이 이 번호로 가리킴
   const header = { insunits: 0 }
+  const 무늬 = new Map()
 
   // 도형(엔티티) 한 개마다
   const Et = new Grow(Uint8Array), Ely = new Grow(Uint16Array), Ergb = new Grow(Uint32Array)
@@ -59,8 +74,16 @@ export function 도면읽기(text, onProgress) {
   // 조각(그림 토막 묶음) — 도형 하나가 조각 여러 개일 수 있음(치수·해치)
   const Qe = new Grow(Uint32Array), Q0 = new Grow(Uint32Array), Qn = new Grow(Uint32Array)
   const PX = new Grow(Float64Array, 1 << 16)
+  /* 🧭 G246 점이 다 찬 뒤의 가로 · 세로 곧은 선(판 테두리 찾기용 — x0,y0,x1,y1) · 너무 많으면(150만 넘게) 짧은 것부터 버림 */
+  const 틀 = new Grow(Float64Array, 1 << 12)
+  let 틀최소 = 0
   // 글자
   const Ts = [], Tx = new Grow(Float64Array), Ty = new Grow(Float64Array), Th = new Grow(Float64Array), Ta = new Grow(Float64Array), Te = new Grow(Int32Array)
+  /* 🧭 G246 범위 읽기 — 점이 다 찬 뒤 구조 판 밖 글(모양을 안 담은 판의 글)은 1 · 판 목록에만 씀(골조자동 준비 → 뒤글자) */
+  const T밖 = 읽을범위 ? new Grow(Uint8Array) : null
+  /* 🧭 G246 배치(종이) 공간 판 — 배치 탭마다 글 · 선 · 화면틀(모형 공간을 보는 창). 읽는 동안만 배치중 = 지금 배치 */
+  let 배치중 = null
+  const 활성배치 = [], 배치목록 = []      // ENTITIES 의 67=1 도형 · OBJECTS 의 LAYOUT {이름, 탭, rec}
   const inserts = []
   /* 🧭 G132 — 외부참조(XREF) 넣은 자리: 블록이 비어 있어(딴 파일) 그 파일을 같이 넣으면 화면이 끼워 넣습니다 */
   const 참조들 = []
@@ -91,7 +114,13 @@ export function 도면읽기(text, onProgress) {
   function 조각(e, M, pts) {        // pts: [[x,y,z]…] 엔티티 좌표
     const n = pts.length
     if (n < 2) return 0
-    if (stats.verts + n > MAX_V) { stats.capped = true; return 0 }
+    if (배치중) {                  /* 배치 공간 — 선 토막만 모음(판 테두리 찾기) */
+      let a = null
+      for (const q of pts) { const w = P(M, q[0], q[1], q[2] || 0); if (a && Number.isFinite(w[0] + w[1])) { 배치중.선.need(6); 배치중.선.a.set([a[0], a[1], 0, w[0], w[1], 0], 배치중.선.n); 배치중.선.n += 6 } a = w }
+      return 0
+    }
+    if (!stats.capped && stats.verts + n > MAX_V) { stats.capped = true; stats.캡글 = Ts.length }
+    if (stats.capped && !읽을범위) { stats.못그림++; 틀모으기(M, pts); return 0 }
     const st = PX.n >> 1
     let cnt = 0, lx = NaN, ly = NaN
     for (let i = 0; i < n; i++) {
@@ -102,9 +131,37 @@ export function 도면읽기(text, onProgress) {
       PX.push2(w[0], w[1]); lx = w[0]; ly = w[1]; cnt++
     }
     if (cnt < 2) { PX.n = st * 2; return 0 }
+    if (stats.capped) {           /* 읽을범위 있음 — 점이 다 찬 뒤는 구조 판에 걸친 것만 더 */
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
+      for (let k = st * 2; k < PX.n; k += 2) { const x = PX.a[k], y = PX.a[k + 1]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y }
+      let 안 = false
+      for (const r of 읽을범위) if (x1 >= r[0] && x0 <= r[2] && y1 >= r[1] && y0 <= r[3]) { 안 = true; break }
+      if (!안 || stats.verts + cnt > MAX_V + 더예산) { PX.n = st * 2; if (안) stats.더못++; else stats.범위밖++; stats.못그림++; 틀모으기(M, pts); return 0 }
+      stats.더담음 += cnt
+    }
     Qe.push(e); Q0.push(st); Qn.push(cnt)
     stats.verts += cnt
     return cnt
+  }
+  function 틀모으기(M, pts) {
+    let a = null
+    for (const q of pts) {
+      const w = P(M, q[0], q[1], q[2] || 0)
+      if (a && Number.isFinite(w[0] + w[1])) {
+        const dx = Math.abs(w[0] - a[0]), dy = Math.abs(w[1] - a[1])
+        if ((dy <= 1e-7 * dx || dx <= 1e-7 * dy) && dx + dy > 틀최소) { 틀.need(4); 틀.a[틀.n++] = a[0]; 틀.a[틀.n++] = a[1]; 틀.a[틀.n++] = w[0]; 틀.a[틀.n++] = w[1] }
+      }
+      a = w
+    }
+    if (틀.n > 6_000_000) {
+      const L = []
+      for (let i = 0; i < 틀.n; i += 4) L.push(Math.abs(틀.a[i + 2] - 틀.a[i]) + Math.abs(틀.a[i + 3] - 틀.a[i + 1]))
+      L.sort((x, y) => x - y)
+      틀최소 = L[L.length >> 1]
+      let k = 0
+      for (let i = 0; i < 틀.n; i += 4) if (Math.abs(틀.a[i + 2] - 틀.a[i]) + Math.abs(틀.a[i + 3] - 틀.a[i + 1]) > 틀최소) { for (let j = 0; j < 4; j++) 틀.a[k + j] = 틀.a[i + j]; k += 4 }
+      틀.n = k
+    }
   }
   /** 마지막으로 넣은 조각(들)의 길이·면적 — 그림 토막으로 */
   function 토막길이(qFrom) {
@@ -187,7 +244,15 @@ export function 도면읽기(text, onProgress) {
     if (isM && has(g, 11)) { const d = [g1(g, 11), g1(g, 21)]; const w = M === I3 ? d : [M[0] * d[0] + M[1] * d[1], M[4] * d[0] + M[5] * d[1]]; a = Math.atan2(w[1], w[0]) }
     else { const r = g1(g, 50, 0) * D2R; const w = MM === I3 ? [Math.cos(r), Math.sin(r)] : [MM[0] * Math.cos(r) + MM[1] * Math.sin(r), MM[4] * Math.cos(r) + MM[5] * Math.sin(r)]; a = Math.atan2(w[1], w[0]) }
     const sc = MM === I3 ? 1 : Math.hypot(MM[1], MM[5]) || 1
+    if (배치중) {                  /* 배치 공간 글 — 가운데 · 오른쪽 맞춤만 대충 옮겨 모음 */
+      const w0 = s.length * h0 * sc * 0.9
+      let ddx = 0
+      if (!isM) { if (hj === 1 || hj === 4) ddx = -w0 / 2; else if (hj === 2) ddx = -w0 } else { const col = (g1(g, 71, 1) - 1) % 3; if (col === 1) ddx = -w0 / 2; else if (col === 2) ddx = -w0 }
+      배치중.글.push({ s, x: p[0] + ddx * Math.cos(a), y: p[1] + ddx * Math.sin(a), h: h0 * sc, a })
+      return
+    }
     Ts.push(s); Tx.push(p[0]); Ty.push(p[1]); Th.push(h0 * sc); Ta.push(a); Te.push(e)
+    if (T밖) { let 밖 = 0; if (stats.capped) { 밖 = 1; for (const r of 읽을범위) if (p[0] >= r[0] && p[0] <= r[2] && p[1] >= r[1] && p[1] <= r[3]) { 밖 = 0; break } } T밖.push(밖) }
     // 정렬: 가운데·오른쪽 정렬이면 글자 상자를 옮겨야 누를 수 있음 → 대충 폭으로 옮김
     const w = s.length * h0 * sc * 0.9
     let dx = 0
@@ -230,12 +295,13 @@ export function 도면읽기(text, onProgress) {
 
   function draw(e, M, cx, depth, top) {
     const g = e.g
-    if (g1(g, 67, 0) === 1) { skip('배치(종이) 공간'); return }
-    if (g1(g, 60, 0) === 1) return
+    if (g1(g, 67, 0) === 1 && !배치중) { skip('배치(종이) 공간'); return }
+    if (g1(g, 60, 0) === 1) { stats.안보임++; return }
     let lyName = gs(g, 8, '0')
     if (lyName === '0' && cx.ly) lyName = cx.ly
     const L = layerOf(lyName)
     const t = e.t
+    if (L.인쇄안함 && t !== 'INSERT') stats.인쇄안함++
     if (L.hide && t !== 'INSERT') { stats.hidden++; return }
     stats.ents++
     const rgb = 색(g, L, cx)
@@ -262,7 +328,7 @@ export function 도면읽기(text, onProgress) {
           closed = (g1(g, 70, 0) & 1) === 1
         } else {
           const fl = g1(g, 70, 0)
-          if (fl & (16 | 64)) { skip('메쉬'); return }
+          if (fl & (16 | 64)) { 메쉬선(e, M, L, rgb, ins, fl); return }      /* 🧭 G245 전엔 건너뜀(메쉬) — 이제 모서리 선으로 */
           const V = (e.v || []).filter((x) => !(g1(x.g, 70, 0) & 16))
           closed = (fl & 1) === 1
           if (fl & 8) vs = V.map((x) => [g1(x.g, 10), g1(x.g, 20), 0, g1(x.g, 30)])
@@ -287,6 +353,7 @@ export function 도면읽기(text, onProgress) {
         return
       }
       case 'CIRCLE': case 'ARC': {
+        if (stats.capped && !읽을범위) { stats.못그림++; return }       /* 🧭 G246 점이 다 찬 뒤 — 곡선은 판 테두리가 아니라 건너뜀(개수만 · 구조 판 다시 읽기면 조각에서 가림) */
         const O = ext(g); const MM = O ? mul(M, O) : M
         const r = g1(g, 40)
         if (!(r > 0)) return
@@ -302,6 +369,7 @@ export function 도면읽기(text, onProgress) {
         return
       }
       case 'ELLIPSE': case 'SPLINE': {
+        if (stats.capped && !읽을범위) { stats.못그림++; return }
         let pts = []
         if (t === 'ELLIPSE') {
           const c = [g1(g, 10), g1(g, 20), g1(g, 30)], mj = [g1(g, 11), g1(g, 21), g1(g, 31)]
@@ -348,16 +416,92 @@ export function 도면읽기(text, onProgress) {
         const pts = []
         let cur = null
         for (const [k, v] of g) { if (k === 10) { cur = [num(v), 0, 0]; pts.push(cur) } else if (k === 20 && cur) cur[1] = num(v) }
-        const id = 새도형(종류.폴리선, L.i, rgb, ins)
+        const id = 새도형(종류.지시선, L.i, rgb, ins)
         const q = Qe.n
         if (조각(id, M, pts)) Elen.a[id] = 토막길이(q)
         return
       }
+      case 'MULTILEADER': case 'MLEADER': {
+        /* 🧭 G245 다중 지시선 — 선(꺾인 끝까지) · 끝 글자 · 블록 내용. 전엔 통째로 건너뜀(현장 C 토목 568개) */
+        const r = 다중지시선(g)
+        for (const pts of r.선) { const id = 새도형(종류.지시선, L.i, rgb, ins); const q = Qe.n; if (조각(id, M, pts)) Elen.a[id] = 토막길이(q) }
+        if (r.글) {
+          const s2 = mtextLines(r.글.s).join(' ').trim()
+          if (s2) { const id = 새도형(종류.글자, L.i, rgb, ins); 글자넣기(id, s2, M, [[10, r.글.p[0]], [20, r.글.p[1]], [30, r.글.p[2]], [40, r.글.h], [71, r.글.맞춤 === 2 ? 2 : r.글.맞춤 === 3 ? 3 : 1], [11, Math.cos(r.글.a)], [21, Math.sin(r.글.a)]], true) }
+        }
+        if (r.블록 && depth < 16) {
+          const bl = 블록rec.get(r.블록.rec)
+          if (bl) {
+            const [bx, by, bz] = bl.base, [sx, sy, sz] = r.블록.sc, cs = Math.cos(r.블록.a), sn = Math.sin(r.블록.a), [ix, iy, iz] = r.블록.p
+            const X = mul(M, [cs * sx, -sn * sy, 0, -(cs * sx * bx) + sn * sy * by + ix, sn * sx, cs * sy, 0, -(sn * sx * bx) - cs * sy * by + iy, 0, 0, sz, -sz * bz + iz])
+            for (const s2 of bl.ents) { draw(s2, X, { ...cx, ly: lyName, rgb, ins }, depth + 1, false) }
+          }
+        }
+        return
+      }
+      case '3DFACE': {
+        /* 🧭 G245 3D 면(네 점) — 채움처럼(전엔 건너뜀) */
+        const q4 = [0, 1, 2, 3].map((k) => [g1(g, 10 + k), g1(g, 20 + k), g1(g, 30 + k)])
+        if (Math.hypot(q4[3][0] - q4[2][0], q4[3][1] - q4[2][1]) < 1e-9) q4.pop()
+        const id = 새도형(종류.채움, L.i, rgb, ins)
+        const q = Qe.n
+        if (!조각(id, M, q4.concat([q4[0]]))) return
+        Elen.a[id] = 토막길이(q); Earea.a[id] = Math.abs(토막면적(q))
+        return
+      }
+      case 'MESH': {
+        /* 🧭 G245 새 메쉬(MESH) — 면 모서리 선으로 */
+        const vs = [], faces = []
+        let mode = 0, cur = null, left = 0
+        for (const [k, v] of g) {
+          if (k === 92) { mode = 1; continue }
+          if (k === 93) { mode = 2; left = 0; continue }
+          if (k === 94 || k === 95) { mode = 3; continue }
+          if (mode === 1) { if (k === 10) { cur = [num(v), 0, 0]; vs.push(cur) } else if (k === 20 && cur) cur[1] = num(v); else if (k === 30 && cur) cur[2] = num(v) }
+          else if (mode === 2 && k === 90) { const x = parseInt(v, 10); if (left === 0) { faces.push([]); left = x } else { faces[faces.length - 1].push(x); left-- } }
+        }
+        for (const f of faces) { const pts = f.map((j) => vs[j]).filter(Boolean); if (pts.length >= 2) { pts.push(pts[0]); const id = 새도형(종류.폴리선, L.i, rgb, ins); const q = Qe.n; if (조각(id, M, pts)) Elen.a[id] = 토막길이(q) } }
+        return
+      }
+      case 'ATTDEF': {
+        /* 🧭 G245 속성 정의 — 블록 안의 «고정 속성»(70 & 2)은 넣을 때마다 그 값이 보임 → 글자로. 모형 공간에 바로 있는 것은 이름표(2)가 보임.
+           나머지(바뀌는 속성)는 값이 블록 속성(ATTRIB)으로 따로 오므로 여기선 셀 것 없음 */
+        const fl = g1(g, 70, 0)
+        if (fl & 1) return
+        let s2 = ''
+        if (top) s2 = cadText(unesc(gs(g, 2)))
+        else if (fl & 2) s2 = cadText(unesc(gs(g, 1)))
+        s2 = s2.trim()
+        if (!s2) { stats.ents--; return }
+        const id = 새도형(종류.글자, L.i, rgb, ins)
+        글자넣기(id, s2, M, g, false)
+        return
+      }
+      case 'ACAD_TABLE': {
+        /* 🧭 G245 표 객체 — 그려진 모양은 이름 없는 블록(2)에 있음 → 넣은 자리(10)에 방향(11/21)으로 */
+        const bl = blocks.get(gs(g, 2).toUpperCase())
+        if (!bl || depth > 16) { skip('표(블록 없음)'); stats.ents--; return }
+        const a0 = Math.atan2(g1(g, 21, 0), g1(g, 11, 1)), cs = Math.cos(a0), sn = Math.sin(a0)
+        const ix = g1(g, 10), iy = g1(g, 20), iz = g1(g, 30)
+        const X = mul(M, [cs, -sn, 0, ix, sn, cs, 0, iy, 0, 0, 1, iz])
+        for (const s2 of bl.ents) { draw(s2, X, { ...cx, ly: lyName, rgb, ins }, depth + 1, false) }
+        return
+      }
+      case 'POINT': return          /* 🧭 G245 점 — 길이 · 넓이가 없어 셀 것 없음(읽음) */
+      case 'WIPEOUT': case 'VIEWPORT': case 'XLINE': case 'RAY':   /* 가림막 · 화면틀 · 끝없는 보조선 — 셀 것 없음 */
+        /* 🧭 G246 배치 공간 화면틀 — 종이 위 자리 · 크기와 모형 공간에서 보는 곳(가운데 12/22 + 과녁 17/27 · 높이 45 · 돌림 51) */
+        if (배치중 && t === 'VIEWPORT' && g1(g, 69, 0) !== 1) {
+          const w = g1(g, 40, 0), h = g1(g, 41, 0), vh = g1(g, 45, 0)
+          if (w > 0 && h > 0 && vh > 0) 배치중.화면.push({ x: g1(g, 10), y: g1(g, 20), w, h, mx: g1(g, 17, 0) + g1(g, 12, 0), my: g1(g, 27, 0) + g1(g, 22, 0), mh: vh, mw: vh * (w / h), 돌림: g1(g, 51, 0) })
+        }
+        stats.ents--; return
       case 'HATCH': {
+        if (stats.capped && !읽을범위) { stats.못그림++; return }
         const loops = 해치경계(g)
         if (!loops.length) return
         const O = ext(g); const MM = O ? mul(M, O) : M
         const id = 새도형(종류.해치, L.i, rgb, ins)
+        무늬.set(id, gs(g, 2).toUpperCase())             /* 🧱 G233 해치 무늬 이름(ANSI31 · SOLID …) — MAT 기초 범례 무늬 ↔ 평면 구역 */
         const areas = []
         for (const Lp of loops) { const q = Qe.n; if (조각(id, MM, Lp.concat([Lp[0]]))) areas.push(Math.abs(토막면적(q))) }
         if (!areas.length) return
@@ -404,7 +548,7 @@ export function 도면읽기(text, onProgress) {
         /* 🧭 G132 — 블록 속성(ATTRIB) 이름표와 값도 적어 둠(횡단면 수량표 블록: 측점 · 터파기 · 모래부설 …) */
         if (top && e.att && e.att.length) inserts[myIns].속성 = e.att.map((a) => [unesc(gs(a.g, 2)), cadText(unesc(gs(a.g, 1)))])
         if (e.att) for (const a of e.att) draw(a, M, { ...cx, ly: lyName, rgb, ins: myIns }, depth + 1, false)
-        if (!bl) { skip('없는 블록'); return }
+        if (!bl) { skip('없는 블록'); stats.없는블록[name] = (stats.없는블록[name] || 0) + 1; return }
         if (depth > 16) return
         const O = ext(g)
         if (bl.xref) {
@@ -436,12 +580,39 @@ export function 도면읽기(text, onProgress) {
             0, 0, sz, -sz * bz + iz]
           if (O) Lm = mul(O, Lm)
           const X = mul(M, Lm)
-          for (const s of bl.ents) { draw(s, X, { ...cx, ly: lyName, rgb, ins: myIns }, depth + 1, false); if (stats.capped) return }
+          for (const s of bl.ents) { draw(s, X, { ...cx, ly: lyName, rgb, ins: myIns }, depth + 1, false) }
         }
         return
       }
-      default: skip(t); stats.ents--
+      default: { skip(t); stats.ents--; const m = stats.못층[t] || (stats.못층[t] = {}); m[lyName] = (m[lyName] || 0) + 1 }
     }
+  }
+
+  /** 🧭 G245 옛 메쉬(POLYLINE 16 · 64) → 모서리 선. 다면 메쉬(64)는 면 줄(71~74 번호, 음수 = 안 보이는 모서리) · 격자 메쉬(16)는 M×N 줄 */
+  function 메쉬선(e, M, L, rgb, ins, fl) {
+    const V = e.v || []
+    const 선 = (pts) => { if (pts.length < 2) return; const id = 새도형(종류.폴리선, L.i, rgb, ins); const q = Qe.n; if (조각(id, M, pts)) Elen.a[id] = 토막길이(q) }
+    const P3 = (x) => [g1(x.g, 10), g1(x.g, 20), g1(x.g, 30)]
+    if (fl & 64) {
+      const 점 = V.filter((x) => g1(x.g, 70, 0) & 64).map(P3)
+      for (const x of V) {
+        const vf = g1(x.g, 70, 0)
+        if (!(vf & 128) || (vf & 64)) continue
+        const ix = [71, 72, 73, 74].map((c) => g1(x.g, c, 0)).filter((n) => n !== 0)
+        for (let j = 0; j < ix.length; j++) {
+          if (ix[j] < 0) continue
+          const a = 점[Math.abs(ix[j]) - 1], b = 점[Math.abs(ix[(j + 1) % ix.length]) - 1]
+          if (a && b) 선([a, b])
+        }
+      }
+      return
+    }
+    const m = Math.max(1, g1(e.g, 71, 0)), n = Math.max(1, g1(e.g, 72, 0))
+    const 점 = V.map(P3)
+    if (점.length < m * n) { 선(점); return }
+    const 닫M = (fl & 1) === 1, 닫N = (fl & 32) === 32
+    for (let i = 0; i < m; i++) { const row = []; for (let j = 0; j < n; j++) row.push(점[i * n + j]); if (닫N) row.push(row[0]); 선(row) }
+    for (let j = 0; j < n; j++) { const col = []; for (let i = 0; i < m; i++) col.push(점[i * n + j]); if (닫M) col.push(col[0]); 선(col) }
   }
 
   /** 치수 블록 속 도형 → 치수 도형(id)의 조각으로 (글자는 글자로도 넣음) */
@@ -577,6 +748,11 @@ export function 도면읽기(text, onProgress) {
             for (const [k, v] of e.g) if (k === 420) tc = parseInt(v, 10)
             const L = layerOf(name)
             L.rgb = tc !== null && Number.isFinite(tc) ? [(tc >> 16) & 255, (tc >> 8) & 255, tc & 255] : aciRgb(ci)
+            /* 🧭 G245 «인쇄 안 함» 층(290 = 0)도 숨김 — 캐드 화면엔 보여도 도면(PDF)에는 안 찍힘. 현장 A 구조도서 PDF 와 판마다 견주니
+               xref 건축 «area 02»(실 면적 테두리 · 인쇄 안 함)가 캐드 선의 1/3 이었음 */
+            L.인쇄안함 = g1(e.g, 290, 1) === 0
+            /* 🧭 G246 인쇄 안 하는 층(290=0)은 «화면에는 보이고 종이에만 안 찍힘» — 읽음(감추지 않음). 현장 B 구조평면도는 부재 이름(NAME-보 · NAME-기둥)이
+                 이 층에 있어 G245 끝에 감췄더니 부재 283 → 128 로 줄었음. PDF 대조(판 대조)만 이 층을 뺌(dxfplot 도 안 그림) */
             L.hide = ci < 0 || (fl & 1) === 1 || name.toUpperCase() === 'DEFPOINTS'
             continue
           }
@@ -587,25 +763,29 @@ export function 도면읽기(text, onProgress) {
         while (pair && !(pair[0] === 0 && pair[1].trim() === 'ENDSEC')) {
           if (pair[0] !== 0) { pair = R.next(); continue }
           const t = pair[1].trim()
-          if (t === 'BLOCK') { const e = readEnt('BLOCK'); const fl = g1(e.g, 70, 0); cur = { name: unesc(gs(e.g, 2)), base: [g1(e.g, 10), g1(e.g, 20), g1(e.g, 30)], ents: [], xref: (fl & 4) === 4, path: (fl & 4) ? unesc(gs(e.g, 1)) : '' }; continue }
-          if (t === 'ENDBLK') { if (cur) blocks.set(cur.name.toUpperCase(), cur); cur = null; readEnt('ENDBLK'); continue }
+          if (t === 'BLOCK') { const e = readEnt('BLOCK'); const fl = g1(e.g, 70, 0); cur = { name: unesc(gs(e.g, 2)), base: [g1(e.g, 10), g1(e.g, 20), g1(e.g, 30)], ents: [], xref: (fl & 4) === 4, path: (fl & 4) ? unesc(gs(e.g, 1)) : '', rec: gs(e.g, 330).toUpperCase() }; continue }
+          if (t === 'ENDBLK') { if (cur) { blocks.set(cur.name.toUpperCase(), cur); if (cur.rec) 블록rec.set(cur.rec, cur) } cur = null; readEnt('ENDBLK'); continue }
           const e = readFull()
-          if (cur && !/^\*paper_space/i.test(cur.name)) { for (const kv of e.g) if (kv[0] === 8 || kv[0] === 2 || kv[0] === 1 || kv[0] === 3) kv[1] = unesc(kv[1]); cur.ents.push(e) }
+          if (cur && /^\*paper_space/i.test(cur.name)) { stats.배치++; stats.배치종류[e.t] = (stats.배치종류[e.t] || 0) + 1; for (const kv of e.g) if (kv[0] === 8 || kv[0] === 2 || kv[0] === 1 || kv[0] === 3) kv[1] = unesc(kv[1]); cur.ents.push(e) }
+          else if (cur) { 셈(e.t); if (e.att) for (let k = 0; k < e.att.length; k++) 셈('ATTRIB'); for (const kv of e.g) if (kv[0] === 8 || kv[0] === 2 || kv[0] === 1 || kv[0] === 3) kv[1] = unesc(kv[1]); cur.ents.push(e) }
         }
       } else if (sec === 'ENTITIES') {
         while (pair && !(pair[0] === 0 && pair[1].trim() === 'ENDSEC')) {
           if (pair[0] !== 0) { pair = R.next(); continue }
           const e = readFull()
+          if (g1(e.g, 67, 0) === 1) { stats.배치++; stats.배치종류[e.t] = (stats.배치종류[e.t] || 0) + 1; 활성배치.push(e) }
+          else { 셈(e.t); if (e.att) for (let k = 0; k < e.att.length; k++) 셈('ATTRIB') }
           for (const kv of e.g) if (kv[0] === 8 || kv[0] === 2) kv[1] = unesc(kv[1])
-          if (!stats.capped) draw(e, I3, { ins: -1 }, 0, true)
+          draw(e, I3, { ins: -1 }, 0, true)
           if (onProgress && R.pos - last > 2_000_000) { last = R.pos; onProgress(R.pos / R.len) }
         }
-      } else if (sec === 'OBJECTS' && 참조들.length) {
-        /* XCLIP 만 봅니다: INSERT 의 확장 사전 → ACAD_FILTER → SPATIAL → SPATIAL_FILTER */
+      } else if (sec === 'OBJECTS') {
+        /* XCLIP: INSERT 의 확장 사전 → ACAD_FILTER → SPATIAL → SPATIAL_FILTER (xref 가 있을 때만) · 🧭 G246 LAYOUT(배치 탭 이름 · 차례 · 종이 공간 블록) */
         while (pair && !(pair[0] === 0 && pair[1].trim() === 'ENDSEC')) {
           if (pair[0] !== 0) { pair = R.next(); continue }
           const t = pair[1].trim()
-          if (t !== 'DICTIONARY' && t !== 'SPATIAL_FILTER') { pair = R.next(); continue }
+          if (t === 'LAYOUT') { const e = readEnt(t); const 이름 = unesc(gs(e.g, 1)); if (!/^model$/i.test(이름)) 배치목록.push({ 이름, 탭: g1(e.g, 71, 0), rec: gs(e.g, 340).toUpperCase() }); continue }
+          if (!참조들.length || (t !== 'DICTIONARY' && t !== 'SPATIAL_FILTER')) { pair = R.next(); continue }
           const e = readEnt(t)
           const h = gs(e.g, 5).toUpperCase()
           if (t === 'DICTIONARY') {
@@ -629,6 +809,31 @@ export function 도면읽기(text, onProgress) {
   }
   if (!layerList.length) layerOf('0')
 
+  /* ── 🧭 G246 배치(종이) 공간 판 — 배치 탭마다 같은 그리기로 글 · 선 · 화면틀만 모음(모형 공간 셈 · 도형 수에는 안 섞음) ── */
+  const 배치 = []
+  if (stats.배치) {
+    const 짝 = []
+    for (const L of 배치목록.slice().sort((p, q) => p.탭 - q.탭)) { const bl = 블록rec.get(L.rec); if (bl) 짝.push({ 이름: L.이름, 탭: L.탭, ents: /^\*paper_space$/i.test(bl.name) ? 활성배치 : bl.ents }) }
+    if (!짝.length) {               // LAYOUT 이 없는 옛 DXF — 종이 공간 블록 이름으로
+      if (활성배치.length) 짝.push({ 이름: 'Layout1', 탭: 1, ents: 활성배치 })
+      let k = 2
+      for (const bl of blocks.values()) if (/^\*paper_space\d+$/i.test(bl.name) && bl.ents.length) 짝.push({ 이름: 'Layout' + k++, 탭: k, ents: bl.ents })
+    }
+    const 백 = JSON.stringify(stats), n0 = { E: Et.n, ly: Ely.n, rgb: Ergb.n, len: Elen.n, area: Earea.n, val: Eval.n, ins: Eins.n, sc: Esc.n }, i0 = inserts.length, r0 = 참조들.length
+    for (const b of 짝) {
+      if (!b.ents.length) continue
+      배치중 = { 이름: b.이름, 탭: b.탭, 글: [], 선: new Grow(Float64Array, 1024), 화면: [] }
+      try { for (const e of b.ents) draw(e, I3, { ins: -1 }, 0, false) } catch (er) { /* 배치 한 장 못 읽어도 모형 공간은 그대로 */ }
+      if (배치중.글.length || 배치중.선.n || 배치중.화면.length) 배치.push({ 이름: 배치중.이름, 탭: 배치중.탭, 글: 배치중.글, 선: 배치중.선.done(), 화면: 배치중.화면 })
+      배치중 = null
+    }
+    /* 배치 그리기가 남긴 도형 · 넣은 자리 · 셈은 되돌림 */
+    Et.n = n0.E; Ely.n = n0.ly; Ergb.n = n0.rgb; Elen.n = n0.len; Earea.n = n0.area; Eval.n = n0.val; Eins.n = n0.ins; Esc.n = n0.sc
+    for (const k of [...무늬.keys()]) if (k >= n0.E) 무늬.delete(k)
+    inserts.length = i0; 참조들.length = r0
+    Object.assign(stats, JSON.parse(백))
+  }
+
   /* ── 묶기: 가운데를 빼고 도형마다 상자 ── */
   const xy = PX.done()
   const tx = Tx.done(), ty = Ty.done()
@@ -638,14 +843,17 @@ export function 도면읽기(text, onProgress) {
   for (let k = 0; k < tx.length; k++) { tx[k] -= ox; ty[k] -= oy }
   for (const I of inserts) { I.x -= ox; I.y -= oy }
   const 참조 = 참조맞춤(참조들, 사전, 거르개, ox, oy)
+  stats.글수 = Ts.length          /* 🧭 G246 이 파일 글자 수(xref 끼우면 뒤에 붙음 — 캡글 ~ 글수 = 점이 다 찬 뒤 읽은 글) */
+  let 틀선 = null
+  if (틀.n) { const a = 틀.a.slice(0, 틀.n); for (let i = 0; i < a.length; i += 2) { a[i] -= ox; a[i + 1] -= oy } 틀선 = { a, n: a.length } }
   const E = { t: Et.done(), ly: Ely.done(), rgb: Ergb.done(), len: Elen.done(), area: Earea.done(), val: Eval.done(), ins: Eins.done(), sc: Esc.done() }
   const Q = { e: Qe.done(), p0: Q0.done(), pn: Qn.done() }
   const T = { s: Ts, x: tx, y: ty, h: Th.done(), a: Ta.done(), e: Te.done() }
   return {
-    E, Q, P: xy, T, I: inserts,
-    layers: layerList.map((L) => ({ name: L.name, rgb: L.rgb, hide: L.hide })),
+    E, Q, P: xy, T, I: inserts, 무늬,
+    layers: layerList.map((L) => ({ name: L.name, rgb: L.rgb, hide: L.hide, ...(L.인쇄안함 ? { 인쇄안함: true } : {}) })),
     box: [box[0] - ox, box[1] - oy, box[2] - ox, box[3] - oy], ox, oy,
-    units: header.insunits, stats, 참조,
+    units: header.insunits, stats, 참조, ...(틀선 ? { 틀선 } : {}), ...(배치.length ? { 배치: 배치.map((b) => ({ ...b, 화면: b.화면.map((v) => ({ ...v, mx: v.mx - ox, my: v.my - oy })) })) } : {}), ...(T밖 ? { T밖: T밖.done() } : {}),
   }
 }
 
@@ -654,9 +862,19 @@ export function 도면읽기(text, onProgress) {
  * 🧭 G132 — 외부참조 자리 정리: XCLIP(자르기) 경계를 도면 좌표로(가운데 뺀 좌표)
  *   SPATIAL_FILTER 의 점은 «넣을 때의 역변환»(40 × 12) 으로 블록 좌표가 되고, 넣은 변환 X 로 도면 좌표가 됩니다(ezdxf xclip 과 같은 셈).
  *   점 두 개면 블록 좌표에서 네모로 폅니다.
+ *   🧭 G257 점은 «자른 테두리 좌표»(자를 때의 UCS) — 뒤 40 × 12(자른 테두리 변환 = 도면 → 그 좌표)의 역변환을 먼저 해야 도면 좌표
+ *     (현장 B S-101: 변환이 (−9750, −297068) 옮김이라 아홉 층 자른 테두리가 모두 판 밖 · 엉뚱한 자리로 가 4 층은 딴 층 그림을 끼우고
+ *      5 층은 «같은 글자» 로만 맞췄음 — 지하1층 기초 평면은 글자가 적어 그림이 아예 안 들어왔음). 변환이 그대로(단위)인 도면은 예전과 같음.
  */
 function 참조맞춤(참조들, 사전, 거르개, ox, oy) {
   const 곱 = (m, x, y) => [m[0] * x + m[1] * y + m[3], m[4] * x + m[5] * y + m[7]]
+  /* 평면 몫(2 × 2 + 옮김)의 역 — 못 뒤집으면(행렬식 0) null */
+  const 뒤집기 = (m) => {
+    const a = m[0], b = m[1], c = m[4], d = m[5], det = a * d - b * c
+    if (!(Math.abs(det) > 1e-12)) return null
+    const ia = d / det, ib = -b / det, ic = -c / det, id = a / det
+    return [ia, ib, 0, -(ia * m[3] + ib * m[7]), ic, id, 0, -(ic * m[3] + id * m[7]), 0, 0, 1, 0]
+  }
   return 참조들.map((r) => {
     let 경계 = null
     const d1 = r.xd && 사전.get(r.xd)
@@ -664,7 +882,8 @@ function 참조맞춤(참조들, 사전, 거르개, ox, oy) {
     const f = d2 && d2.get('SPATIAL') && 거르개.get(d2.get('SPATIAL'))
     if (f && f.pts.length >= 2) {
       const v = f.m40.length >= 24 ? f.m40.slice(-24, -12) : null
-      let 블 = f.pts.map(([x, y]) => (v ? 곱(v, x, y) : [x, y]))
+      const 역 = f.m40.length >= 24 ? 뒤집기(f.m40.slice(-12)) : null
+      let 블 = f.pts.map(([x, y]) => { const w = 역 ? 곱(역, x, y) : [x, y]; return v ? 곱(v, w[0], w[1]) : w })
       if (블.length === 2) {
         const [a, b] = 블
         const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]), y0 = Math.min(a[1], b[1]), y1 = Math.max(a[1], b[1])

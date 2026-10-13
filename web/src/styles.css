@@ -5157,6 +5157,9 @@ details.js-more[open] > summary { margin-bottom: 8px; }
   .fm-chip { font-size: 12px; padding: 5px 9px; }
 }
 @media print { .fm-ctl, .fm-top { display: none; } }
+/* 🔥 G231 도구 순위 — 서식 그림칸 꼴 그대로 · 그림 대신 큰 아이콘(정사각에 가깝게) */
+.tl-top-th { aspect-ratio: 1 / 1; background: var(--surface-2); }
+
 
 /* 🧰 2026-09-30(G72) 설계변경 작업대 (/change/work · ChangeWork.jsx) */
 .cw-files { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
@@ -7228,3 +7231,163 @@ a.mc-key-in:hover { border-color: var(--accent-line); background: var(--accent-s
 .an-soon { margin: 0 0 10px; border-left: 4px solid var(--accent); }
 .an-soon-svc { border-left-color: #059669; } .an-soon-goods { border-left-color: #ea580c; }
 .an-soon a { color: var(--accent); text-decoration: underline; font-weight: 700; }
+
+/* 🏗 /jeoksan/bim BIM 물량 (G225 · 2026-10-10) — 3D 판 + 옆 칸(폰은 아래로) */
+.bim-put { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); border: 1px dashed var(--accent); }
+.bim-put .btn { width: auto; }
+.bim-st { margin-top: 8px; font-size: 13px; color: var(--text-2); }
+.bim-how { margin-top: 10px; font-size: 13px; }
+.bim-how summary { cursor: pointer; font-weight: 600; color: var(--text-2); }
+.bim-how ul { margin: 6px 0 0; padding-left: 18px; line-height: 1.6; }
+.bim-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.bim-sum > div { padding: 8px 10px; border-radius: 9px; background: var(--surface-2); font-size: 12.5px; min-width: 0; }
+.bim-sum b { display: block; font-size: 18px; margin: 2px 0; font-variant-numeric: tabular-nums; }
+.bim-sum .muted { display: block; font-size: 11.5px; overflow-wrap: anywhere; }
+.bim-tool { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 12px 0 8px; }
+.bim-tool select { width: auto; margin: 0; padding: 4px 8px; font-size: 13px; }
+.bim-chips, .bim-views { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.bim-views .btn { width: auto; padding: 4px 9px; }
+.bim-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: 12.5px; cursor: pointer; }
+.bim-chip i, .bim-title i, .bim-tbl th i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; border: 1px solid rgba(0, 0, 0, .18); }
+.bim-chip.off { opacity: .45; text-decoration: line-through; }
+.bim-chk { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; white-space: nowrap; }
+.bim-chk input { width: auto; margin: 0; }
+.bim-view { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 10px; }
+.bim-canvas { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #eef1f5; height: min(68vh, 640px); min-height: 360px; }
+.bim-canvas canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.bim-hint { position: absolute; left: 8px; bottom: 6px; right: 8px; font-size: 11.5px; color: #4b5563; pointer-events: none; text-shadow: 0 0 3px #fff; }
+.bim-side { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--surface-2); font-size: 13px; min-width: 0; overflow: auto; max-height: min(68vh, 640px); }
+.bim-title { display: flex; align-items: center; gap: 6px; font-size: 14px; margin-bottom: 6px; }
+.bim-title b { font-size: 16px; }
+.bim-sub { margin: 8px 0 2px; font-weight: 700; font-size: 12.5px; color: var(--text-2); }
+.bim-kv { width: 100%; border-collapse: collapse; }
+.bim-kv th { text-align: left; font-weight: 600; color: var(--muted); white-space: nowrap; padding: 3px 8px 3px 0; vertical-align: top; width: 1%; }
+.bim-kv td { padding: 3px 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.bim-guess { margin-top: 4px; font-size: 12px; color: var(--warn); }
+.bim-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.bim-btns .btn { width: auto; }
+.bim-out { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.bim-out .btn { width: auto; }
+.bim-h2 { font-size: 16px; margin: 0 0 8px; }
+.bim-h2 .muted { font-size: 12.5px; font-weight: 500; }
+.bim-tblwrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.bim-tbl { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 560px; }
+.bim-tbl th, .bim-tbl td { border-bottom: 1px solid var(--line-soft); padding: 6px 8px; text-align: right; vertical-align: top; font-variant-numeric: tabular-nums; }
+.bim-tbl thead th { background: var(--surface-2); text-align: right; white-space: nowrap; }
+.bim-tbl thead th i { margin-right: 4px; vertical-align: -1px; }
+.bim-tbl tbody th { text-align: left; white-space: nowrap; }
+/* 🏢🏞 G230 건축 · 토목 큰 단추 */
+.bim-big { display: flex; gap: 8px; margin: 2px 0 8px; flex-wrap: wrap; }
+.bim-bigbtn { flex: 1 1 140px; min-height: 42px; border-radius: 10px; border: 2px solid var(--line); background: var(--surface-2); color: var(--muted); font-weight: 700; font-size: 15px; cursor: pointer; }
+.bim-bigbtn.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+/* 🧱 G229 흙막이 표 — 폰에서는 규격 · 단위무게를 공종 아래 작은 줄로(가로로 안 밀리게) */
+.bim-tbl .bim-m { display: none; }
+.bim-tbl td.bim-nw { white-space: nowrap; }
+@media (max-width: 560px) {
+  .bim-tbl.bim-tbl-h { min-width: 0; }
+  .bim-tbl.bim-tbl-h .bim-d { display: none !important; }
+  .bim-tbl.bim-tbl-h .bim-m { display: block; font-weight: 400; font-size: 11px; white-space: normal; }
+  .bim-tbl.bim-tbl-h tbody th { white-space: normal; min-width: 96px; }
+  .bim-tbl.bim-tbl-h th, .bim-tbl.bim-tbl-h td { padding: 6px 5px; }
+}
+.bim-cell { cursor: pointer; }
+.bim-cell:hover { background: var(--accent-soft); }
+.bim-cell span { display: block; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.bim-total th, .bim-total td { border-top: 2px solid var(--line); background: var(--surface-2); }
+.bim-floors { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: flex-end; }
+.bim-floors label { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; }
+.bim-floors label span { color: var(--text-2); font-weight: 600; }
+.bim-floors input { width: 110px; margin: 0; padding: 5px 8px; font-variant-numeric: tabular-nums; }
+.bim-floors label em { font-style: normal; font-size: 11px; color: var(--muted); }
+.bim-floors label.guess input { border-color: var(--warn); background: var(--warn-soft); }
+.bim-check { margin: 0 0 8px; padding-left: 4px; list-style: none; font-size: 13px; line-height: 1.55; }
+.bim-check li { padding: 2px 0; }
+.bim-check li.warn { color: var(--warn); }
+.bim-check li.guess { color: var(--text-2); }
+.bim-check li.info { color: var(--muted); }
+.bim-float { display: none; position: absolute; left: 8px; right: 8px; top: 8px; text-align: left; padding: 7px 10px; border-radius: 9px; border: 1px solid var(--accent-line); background: rgba(255, 255, 255, .94); color: #111827; font-size: 12.5px; line-height: 1.45; cursor: pointer; box-shadow: var(--shadow); }
+.bim-float u { color: var(--accent); text-decoration: none; font-weight: 700; white-space: nowrap; }
+@media (max-width: 860px) {
+  .bim-view { grid-template-columns: 1fr; }
+  .bim-side { max-height: none; }
+  .bim-canvas { height: 56vh; min-height: 320px; }
+  .bim-float { display: block; }
+}
+@media (prefers-color-scheme: dark) {
+  .bim-float { background: rgba(22, 26, 33, .94); color: #e8eaed; }
+  .bim-canvas { background: #161a21; }
+  .bim-hint { color: #b3b9c4; text-shadow: 0 0 3px #000; }
+}
+/* 📋 G234 토공 = 도면 표 값 표시 */
+.bim-pyo { display: inline-block; margin-top: 3px; padding: 1px 7px; border-radius: 999px; background: #eef6ee; color: #2f6b34; font-size: 11px; font-weight: 600; white-space: normal; }
+.bim-pyo em { font-style: normal; font-weight: 400; color: #5b6b5c; }
+@media (prefers-color-scheme: dark) { .bim-pyo { background: #1f3322; color: #9fd5a3; } .bim-pyo em { color: #9fb3a0; } }
+
+/* 🔎 G245 읽기 점검 칸 */
+.rd-chk .rd-file { margin: 8px 0 0; padding: 6px 0 0; border-top: 1px dashed var(--line, #ddd); font-size: 12.5px; }
+.rd-chk ul { margin: 3px 0 0; padding-left: 16px; line-height: 1.55; }
+.rd-chk .rd-bad { color: #c0392b; }
+.rd-chk .rd-all { margin-top: 3px; }
+.rd-chk .rd-all summary { font-weight: 400; font-size: 12px; }
+.rd-chk .rd-tbl { border-collapse: collapse; font-size: 12px; margin-top: 4px; }
+.rd-chk .rd-tbl th, .rd-chk .rd-tbl td { border: 1px solid var(--line, #ddd); padding: 2px 8px; text-align: left; }
+.rd-chk .rd-tbl td:nth-child(2) { text-align: right; }
+.rd-chk .rd-foot { font-size: 11.5px; margin-top: 8px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .rd-chk .rd-bad { color: #ff8a80; } }
+:root[data-theme="dark"] .rd-chk .rd-bad { color: #ff8a80; }
+/* 📑 G246 판 목록 — 도면명은 왼쪽 · 글자 수는 오른쪽 · 폰에서 넘치면 가로 밀기 */
+.pan-list .rd-file > summary { font-weight: 400; }
+.pan-list .rd-tbl { display: block; max-width: 100%; overflow-x: auto; }
+.pan-list .rd-tbl td:nth-child(2) { text-align: left; }
+.pan-list .rd-tbl td:nth-child(4) { text-align: right; }
+.pan-list .rd-tbl td:first-child { white-space: nowrap; }
+.pan-list .pan-lay td:nth-child(2) { text-align: left; white-space: nowrap; }
+.pan-list .pan-lay td:nth-child(3), .pan-list .pan-lay td:nth-child(4) { text-align: left; }
+.pan-list .pan-lay td:nth-child(5) { text-align: right; }
+.pan-list .pan-lay { margin-top: 6px; }
+/* 🧭 G248 판마다 상태 · 읽은 것 · 물량 */
+.pan-list .rd-tbl td:nth-child(6) { text-align: left; min-width: 12em; }
+.pan-list .rd-tbl td.num { text-align: right; white-space: nowrap; }
+.pan-list .rd-tbl td:nth-child(5), .pan-list .rd-tbl td:nth-child(3) { white-space: nowrap; }
+.pan-list tr.pan-못셈 td { background: rgba(230, 140, 0, 0.10); }
+.pan-list tr.pan-물량 td:nth-child(5) { color: var(--ok, #138a36); }
+.pan-list .pan-bad { color: #c26a00; }
+
+/* 🔎 G280 검수 · 3D 크게(소장님 «3D 크게» — 검수할 때는 화면 대부분을 3D 로) */
+.bim-view.big { grid-template-columns: minmax(0, 1fr) 280px; }
+.bim-view.big .bim-canvas { height: min(86vh, 1100px); }
+.bim-view.big .bim-side { max-height: min(86vh, 1100px); }
+.bim-views .btn.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.bim-chip.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.bim-rv-bar { height: 8px; border-radius: 6px; background: var(--line); overflow: hidden; margin: 2px 0 10px; }
+.bim-rv-bar i { display: block; height: 100%; background: var(--good); transition: width .2s; }
+.bim-rv-top { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.bim-rv-done { color: var(--good); font-weight: 700; font-size: 13px; }
+.bim-review .bim-tblwrap { max-height: min(62vh, 640px); overflow: auto; }
+.bim-rv-tbl thead th { position: sticky; top: 0; z-index: 1; }
+.bim-rv-tbl td { cursor: pointer; }
+.bim-rv-tbl td:nth-child(1), .bim-rv-tbl td:nth-child(2), .bim-rv-tbl td:nth-child(4), .bim-rv-tbl th:nth-child(1), .bim-rv-tbl th:nth-child(2), .bim-rv-tbl th:nth-child(4) { text-align: left; }
+.bim-rv-tbl td:nth-child(2) i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; border: 1px solid rgba(0, 0, 0, .18); }
+.bim-rv-tbl .rv-why { font-size: 12px; max-width: 560px; color: var(--text-2); }
+.bim-rv-tbl .rv-btns { white-space: nowrap; }
+.bim-rv-tbl .rv-btns .btn { width: auto; padding: 3px 8px; margin-left: 4px; }
+.bim-rv-tbl tr.rv-ok td { opacity: .6; }
+.bim-rv-tbl tr.rv-out td { opacity: .45; text-decoration: line-through; }
+.bim-rv-tbl tr.rv-out td.rv-btns { text-decoration: none; opacity: 1; }
+.bim-rv-tbl tr.rv-sel td { background: var(--accent-soft); }
+.bim-rv-btns { flex-wrap: wrap; }
+.bim-rv-btns .btn { width: auto; }
+@media (max-width: 860px) {
+  .bim-view.big { grid-template-columns: 1fr; }
+  .bim-view.big .bim-canvas { height: 74vh; }
+  .bim-view.big .bim-side { max-height: none; }
+}
+
+/* 📋 G282 부재 일람표 (BIM 물량) */
+.bim-ilam .bim-tblwrap { max-height: min(62vh, 640px); overflow: auto; }
+.bim-il-tbl thead th { position: sticky; top: 0; z-index: 1; text-align: left; }
+.bim-il-tbl td, .bim-il-tbl tbody th { text-align: left; white-space: nowrap; }
+.bim-il-tbl td.il-why { white-space: normal; min-width: 260px; max-width: 520px; font-size: 12px; color: var(--text-2); }
+.bim-il-tbl tr.il-made td, .bim-il-tbl tr.il-made th { background: color-mix(in srgb, var(--accent-soft) 55%, transparent); }
+.bim-il-tbl tr.il-use { cursor: pointer; }
+.bim-il-tbl tr.il-use:hover td, .bim-il-tbl tr.il-use:hover th { background: var(--accent-soft); }

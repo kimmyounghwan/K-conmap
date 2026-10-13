@@ -33,6 +33,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { 도면읽어오기, 도면판, 도면상태줄, 처음끈층, 큰파일, 오류글 } from '../도면판.jsx'
+import 읽기점검칸 from '../읽기점검칸.jsx'
+import 판목록칸 from '../판목록칸.jsx'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { 단위배율, 도형글자, 종류, 찾기판 } from '../lib/골조도면.js'
 import { 조각표만들기 } from '../lib/골조그림.js'
@@ -691,6 +693,8 @@ export default function JeoksanAuto() {
         <input ref={내역칸} type="file" accept=".xlsx,.XLSX,.csv,.CSV" className="sr-only" tabIndex={-1}
           onChange={(e) => { 내역열기(e.target.files); e.target.value = '' }} />
         <도면상태줄 상태={상태} />
+        {파일들.length > 0 && 상태.k !== 'busy' && <읽기점검칸 들={파일들.map((f) => ({ 모델: f.원모델 || f.모델, 이름: f.이름 }))} />}
+        {골 && 골.읽음 && 골.읽음.판 && 상태.k !== 'busy' && <판목록칸 판={골.읽음.판} 공사={골공사} S={골결과} />}
         {파일들.length > 0 && (
           <div className="ja-files">
             {파일들.map((f, k) => (
@@ -997,13 +1001,13 @@ export default function JeoksanAuto() {
               <div className="gg-sec no-print">
                 <button type="button" className="chip" onClick={() => set골펼침(골펼침 === '배근' ? '' : '배근')}>{골펼침 === '배근' ? '▲ 접기' : '▼ 일람표에서 읽은 것(배근표) 보기'}</button>
                 <button type="button" className="chip" onClick={() => set골펼침(골펼침 === '주' ? '' : '주')}>{골펼침 === '주' ? '▲ 접기' : '▼ 평면에서 읽은 부재(주자료) 보기'}</button>
-                {골펼침 === '배근' && [['보', '보', ['기호', '폭', '춤', '상부', '하부', '늑근단부', '늑근중앙', '부근', '상부추가', '하부추가']], ['기둥', '기둥', ['기호', '가로', '세로', '지름', '주근', '대근단부', '대근중앙']], ['슬라브', '슬래브', ['기호', '두께', '단변상부', '단변하부', '장변상부', '장변하부']], ['벽', '벽', ['기호', '두께', '수직', '수평', '배근']], ['기초', '기초', ['기호', '종류', '가로', '세로', '두께', '하부가로', '하부세로']]].map(([k, 이름, 칸]) => (골공사.배근[k] || []).length > 0 && (
+                {골펼침 === '배근' && [['보', '보', ['기호', '폭', '춤', '상부', '하부', '늑근단부', '늑근중앙', '부근', '상부추가', '하부추가']], ['기둥', '기둥', ['기호', '가로', '세로', '지름', '주근', '대근단부', '대근중앙']], ['슬라브', '슬래브', ['기호', '두께', '단변상부', '단변하부', '장변상부', '장변하부']], ['벽', '벽', ['기호', '두께', '수직', '수평', '배근']], ['기초', '기초', ['기호', '종류', '가로', '세로', '두께', '하부가로', '하부세로']], ['계단', '계단', ['기호', '두께', '주근', '상부주근', '배력근', '참주근', '배근']]].map(([k, 이름, 칸]) => (골공사.배근[k] || []).length > 0 && (
                   <div key={k} className="gg-wrap" style={{ marginTop: 8 }}><table className="gg-r">
                     <thead><tr><th>{이름}</th>{칸.slice(1).map((c) => <th key={c}>{c}</th>)}</tr></thead>
                     <tbody>{골공사.배근[k].map((r) => <tr key={r.기호}>{칸.map((c) => <td key={c}>{r[c]}</td>)}</tr>)}</tbody>
                   </table></div>
                 ))}
-                {골펼침 === '주' && [['보', ['층', '열', '기호', '길이', '좌단', '우단', 'QT']], ['기둥', ['층', '기호', 'FT', '연결', 'QT']], ['슬라브', ['층', '기호', '단변', '장변', '단변정착', '장변정착', 'QT']], ['옹벽', ['층', '기호', '길이', 'QT']], ['기초', ['층', '기호', 'QT']]].map(([k, 칸]) => (골공사.동[0].주자료[k] || []).length > 0 && (
+                {골펼침 === '주' && [['보', ['층', '열', '기호', '길이', '좌단', '우단', 'QT']], ['기둥', ['층', '기호', 'FT', '연결', 'QT']], ['슬라브', ['층', '기호', '단변', '장변', '단변정착', '장변정착', 'QT']], ['옹벽', ['층', '기호', '길이', 'QT']], ['기초', ['층', '기호', 'QT']], ['계단', ['층', '기호', '길이', '폭', '하단참', '상단참', 'QT']]].map(([k, 칸]) => (골공사.동[0].주자료[k] || []).length > 0 && (
                   <div key={k} className="gg-wrap" style={{ marginTop: 8 }}><table className="gg-r">
                     <thead><tr><th colSpan={칸.length} style={{ textAlign: 'left' }}>{k === '옹벽' ? '벽' : k === '슬라브' ? '슬래브' : k} ({골공사.동[0].주자료[k].length}줄)</th></tr><tr>{칸.map((c) => <th key={c}>{c}</th>)}</tr></thead>
                     <tbody>{골공사.동[0].주자료[k].map((r, i) => <tr key={i}>{칸.map((c) => <td key={c}>{r[c]}</td>)}</tr>)}</tbody>
@@ -1241,6 +1245,7 @@ export default function JeoksanAuto() {
           <li><b>검산</b>: 도면의 «도면에서 보기» 로 네모를 꼭 맞춰 보십시오. 표 모양이 흔치 않으면 칸이 밀릴 수 있습니다.</li>
         </ul>
         <div className="btn-row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
+          <Link className="btn ghost sm" to="/jeoksan/bim">🧊 BIM 물량 — 같은 도면을 3D 로</Link>
           <Link className="btn ghost sm" to="/jeoksan/golgo">🏗 골조 수량산출</Link>
           <Link className="btn ghost sm" to="/jeoksan/magam">🧱 마감 수량산출</Link>
           <Link className="btn ghost sm" to="/jeoksan/run">🧮 수량산출서 만들기</Link>

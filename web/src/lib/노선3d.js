@@ -11,17 +11,17 @@
  *      (소장님 도면 08 은 NO 간격 50 m · 02 는 20 m — 도면마다 다릅니다)
  *   ④ 중심선이 없으면 측점 글자 자리를 이어 노선으로 씁니다(글자가 선 옆에 있어 몇 m 어긋날 수 있음 — 그렇게 적습니다)
  * ■ 종단표읽기(글자들) — 종단면도 아래 표: 측점 · 누가거리 · 지반고 · 계획고 줄을 머리 글자로 찾아 칸(x)끼리 묶습니다
- * ■ 노선열쇠(제목) — «송금지구 1호(중앙)배수로 종평면도(1/2)» 와 «… 횡단면도» 를 같은 노선으로 잇는 이름
+ * ■ 노선열쇠(제목) — «가상지구 1호(중앙)배수로 종평면도(1/2)» 와 «… 횡단면도» 를 같은 노선으로 잇는 이름
  *
  * 좌표는 mm(화면과 같은 단위) · 측점은 m 입니다.
  */
-import { 측점풀기, 간격고르기 } from './횡단3d.js'
+import { 측점풀기, 간격고르기, 노선이름글, 노선글열쇠 } from './횡단3d.js'
 
 const 붙 = (s) => String(s ?? '').normalize('NFKC').replace(/\s+/g, '')
 
 /* ── 이름 ─────────────────────────────── */
 const 끝말 = /(종\s*,?\s*횡\s*단\s*면\s*도|종횡단면도|종\s*평\s*면\s*도|종\s*단\s*면\s*도|횡\s*단\s*면\s*도|계\s*획\s*평\s*면\s*도|평\s*면\s*도|종단도|횡단도|평면도|계획도|일반도|노선도)$/
-/** 도면 제목 → 노선 이름 열쇠 («송금지구1호(중앙)배수로» · «금동배수장») */
+/** 도면 제목 → 노선 이름 열쇠 («가상지구1호(중앙)배수로» · «동쪽배수장») */
 export function 노선열쇠(제목) {
   let s = String(제목 || '').normalize('NFKC').replace(/\.(dxf|dwg)$/i, '').replace(/^\s*\d{1,3}\s*[.)_-]\s*/, '')
   s = s.replace(/\s*[—-]\s*(평면|종단·표|종단)\s*$/, '')
@@ -30,7 +30,7 @@ export function 노선열쇠(제목) {
   for (let k = 0; k < 2; k++) s = s.replace(끝말, '').replace(/(부근|일원|주변|구간)$/, '')
   return s
 }
-/** 도면 제목 → 화면에 보일 노선 이름(«송금지구 1호(중앙)배수로» · «금동배수장 부근») */
+/** 도면 제목 → 화면에 보일 노선 이름(«가상지구 1호(중앙)배수로» · «동쪽배수장 부근») */
 export function 노선이름(제목) {
   let s = String(제목 || '').normalize('NFKC').replace(/\.(dxf|dwg)$/i, '').replace(/^\s*\d{1,3}\s*[.)_-]\s*/, '')
   s = s.replace(/\s*[—-]\s*(평면|종단·표|종단)\s*$/, '').replace(/\(?\s*\d+\s*\/\s*\d+\s*\)?\s*$/, '').trim()
@@ -43,6 +43,17 @@ export function 노선같음(a, b) {
   if (a === b) return 2
   const [짧, 긴] = a.length <= b.length ? [a, b] : [b, a]
   return 짧.length >= 3 && 긴.includes(짧) ? 1 : 0
+}
+
+/**
+ * 🏭 G234 횡단 묶음마다 고른 노선({k, L} | null) → 한 노선에 «이름이 꼭 맞는(k = 2)» 횡단이 있으면,
+ *   이름을 품기만 한(k = 1) · 이름이 다른(k = 0) 다른 횡단은 그 노선에서 뺌(null · 까닭)
+ *   소장님 현장 E: «동쪽배수장 유수지 횡단면도» 가 «동쪽배수장 부근» 노선(«동쪽배수장 횡단면도» 가 꼭 맞음)에 겹쳐 섰음
+ * @returns [{ 고른, 까닭 }]
+ */
+export function 꼭맞음거르기(고름) {
+  const 꼭 = new Set(고름.filter((c) => c && c.k === 2).map((c) => c.L))
+  return 고름.map((c) => (c && c.k !== 2 && 꼭.has(c.L) ? { 고른: null, 까닭: `«${c.L.이름}» 노선에는 이름이 꼭 맞는 횡단이 따로 있음` } : { 고른: c, 까닭: '' }))
 }
 
 /* ── 선 → 줄 ─────────────────────────────── */
@@ -157,7 +168,7 @@ const m로 = (q, G) => (q.m != null ? q.m : q.n * G + q.d)
 /** 측점 풀이({n,d} | {m}) → m (간격 G) */
 export const 측점m로 = m로
 /** 중심선 레이어 이름 — 중심선 · CENTER · CL · 선형 · ALIGNMENT */
-export const 중심꼴 = /중심선|^중심|center|^c\.?l$|^cl[-_ ]|[-_ ]cl$|선형|alignment|algn[-_ ]?(cl|cntr|cen|line)/i
+export const 중심꼴 = /중심선|^중심|center|^c\.?l$|^cl[-_ ]|[-_ ]cl$|선형|alignment|algn[-_ ]?(cl|cntr|cntl|cen|line)/i      /* 🛣 G236 «CA-ALGN-CNTL»(도로 선형 중심) */
 
 /**
  * 측점 글자 + 중심선 → 노선
@@ -169,12 +180,64 @@ export const 중심꼴 = /중심선|^중심|center|^c\.?l$|^cl[-_ ]|[-_ ]cl$|선
  * 그래서 줄(토막)마다 그 줄에 가까운 측점 글자로 따로 맞추고, 측점 차례대로 토막을 이어 씁니다(넘어가는 곳 = 두 토막이 가장 가까운 측점).
  */
 export function 노선찾기(글들, 선들) {
+  const a = 노선들찾기(글들, 선들)
+  return a.length ? a[0] : null
+}
+
+/* ── 🛣 G236 노선 이름 글자(램프 B · 본선) — 글자 풀이는 횡단3d.js(횡단 열 제목도 같이 씀) ─────────────── */
+export { 노선이름글, 노선글열쇠 }
+/** 두 노선 이름이 같은가 — 2 같음(«Rramp-B» 처럼 글자 겹침 오타도) · 1 한쪽이 품음 · 0 다름 */
+export function 노선글같음(a, b) {
+  const A = 노선글열쇠(a), B = 노선글열쇠(b)
+  if (!A || !B) return 0
+  const 접 = (t) => t.replace(/(.)\1+/g, '$1')
+  if (A === B || 접(A) === 접(B)) return 2
+  return 노선같음(A, B)
+}
+/** 이름 글자마다 가장 가까운 노선에 한 표 — 측점이 붙은 글자(«STA.0+63.8(Rramp-B)»)는 그 노선의 그 측점 자리와 잰 거리 */
+function 이름붙이기(결과, 이름글들) {
+  const 표 = 결과.map(() => new Map())
+  const 줄거리 = (r, x, y) => {
+    let d = Infinity
+    const [s0, s1] = r.줄범위, n = Math.min(400, Math.max(2, Math.ceil((s1 - s0) / 5)))
+    for (let k = 0; k <= n; k++) { const p = r.자리(s0 + (s1 - s0) * k / n); d = Math.min(d, Math.hypot(p.x - x, p.y - y)) }
+    return d
+  }
+  for (const t of 이름글들) {
+    const g = 노선이름글(t.s)
+    if (!g) continue
+    let 첫 = null, 둘째 = Infinity
+    결과.forEach((r, i) => {
+      let d
+      if (g.풀이) {
+        const s = m로(g.풀이, r.간격)
+        if (!(s >= r.줄범위[0] - 20 && s <= r.줄범위[1] + 20)) return
+        const p = r.자리(s); d = Math.hypot(p.x - t.x, p.y - t.y)
+      } else d = 줄거리(r, t.x, t.y)
+      if (!첫 || d < 첫.d) { if (첫) 둘째 = 첫.d; 첫 = { i, d } } else 둘째 = Math.min(둘째, d)
+    })
+    if (!첫 || 첫.d > 120000 || 첫.d > 0.7 * 둘째) continue
+    const 열 = 노선글열쇠(g.이름), o = 표[첫.i].get(열) || { 이름: g.이름, n: 0 }
+    o.n++; 표[첫.i].set(열, o)
+  }
+  결과.forEach((r, i) => {
+    const a = [...표[i].values()].sort((p, q) => q.n - p.n)
+    if (a.length) { r.이름글 = a[0].이름; r.이름표 = a[0].n }
+  })
+}
+
+/**
+ * 🛣 G236 측점 글자 + 중심선 → 노선들 [첫째(예전 노선찾기와 같음), 갈래…]
+ *   이름 글자(«(Rramp-B)» · «본선»)가 있으면 측점이 겹치는 다른 선(램프)도 따로 노선으로 — 이름이 붙은 것만
+ * @param 이름글들 [{ s, x, y }] (mm) — 없으면 예전처럼 하나만
+ */
+export function 노선들찾기(글들, 선들, 이름글들 = null) {
   const 점 = []
   for (const t of 글들 || []) {
     const q = 측점풀기(t.s)
     if (q) 점.push({ q, x: t.x, y: t.y, s: t.s })
   }
-  if (점.length < 2) return null
+  if (점.length < 2) return []
   const 모두km = 점.every((p) => p.q.m != null)
   /* 글자 사이 가장 짧은 거리 — 내려 붙일 반경 */
   const 간들 = []
@@ -212,47 +275,90 @@ export function 노선찾기(글들, 선들) {
       const 맞 = 맞추기(토.글, 모두km, 간격)
       if (맞) 조각.push({ ...토, 맞, 어긋: 가운데(토.글.map((g) => g.d)), 아래: Math.min(...맞.측들), 위: Math.max(...맞.측들) })
     }
-    /* 같은 측점을 두 토막이 덮으면(같은 선을 두 레이어 · 사본) 글자가 많은 쪽 */
     조각.sort((a, b) => b.맞.n - a.맞.n || a.맞.rms - b.맞.rms)
-    const 남 = []
-    for (const z of 조각) {
-      const 겹 = 남.some((y) => { const lo = Math.max(y.아래, z.아래), hi = Math.min(y.위, z.위); return hi - lo > 0.5 * Math.max(1e-6, z.위 - z.아래) && z.위 - z.아래 > 0 })
-      if (!겹) 남.push(z)
-    }
-    조각 = 남.sort((a, b) => a.아래 - b.아래)
   }
-  const 모든n = 조각.reduce((s, z) => s + z.맞.n, 0)
-  if (조각.length && 모든n >= Math.min(3, 점.length)) {
-    const 토자리 = (z, s) => {
-      const t = (z.맞.방향 * (s - z.맞.c)) * 1000 / z.맞.k
-      const r = 줄자리(z.p, z.L, t)
-      return { x: r.x, y: r.y, tx: r.tx * z.맞.방향, ty: r.ty * z.맞.방향 }
+  const 토자리 = (z, s) => {
+    const t = (z.맞.방향 * (s - z.맞.c)) * 1000 / z.맞.k
+    const r = 줄자리(z.p, z.L, t)
+    return { x: r.x, y: r.y, tx: r.tx * z.맞.방향, ty: r.ty * z.맞.방향 }
+  }
+  /* 같은 측점을 두 토막이 덮으면(같은 선을 두 레이어 · 사본) 글자가 많은 쪽 */
+  const 겹 = (y, z) => { const lo = Math.max(y.아래, z.아래), hi = Math.min(y.위, z.위); return hi - lo > 0.5 * Math.max(1e-6, z.위 - z.아래) && z.위 - z.아래 > 0 }
+  /* 넘어가는 측점 — 앞 토막 마지막 글자 ~ 다음 토막 첫 글자 사이에서 두 토막 자리가 가장 가까운 곳 { s, d(mm) } */
+  const 넘기 = (A, B) => {
+    let lo = Math.min(A.위, B.아래), hi = Math.max(A.위, B.아래)
+    const 여유 = 0.25 * 간격
+    lo -= 여유; hi += 여유
+    let best = { s: (A.위 + B.아래) / 2, d: Infinity }
+    for (let k = 0; k <= 60; k++) {
+      const s = lo + (hi - lo) * k / 60
+      const a = 토자리(A, s), b = 토자리(B, s), d = Math.hypot(a.x - b.x, a.y - b.y)
+      if (d < best.d) best = { s, d }
     }
-    /* 넘어가는 측점 — 앞 토막 마지막 글자 ~ 다음 토막 첫 글자 사이에서 두 토막 자리가 가장 가까운 곳 */
+    return best
+  }
+  /* 🛣 G236 한 노선으로 이을 토막은 «이어진» 것만 — 넘어가는 곳에서 두 토막 자리가 20 m(간격 반) 넘게 떨어지면 다른 노선
+       소장님 현장 G: 램프 B 의 시작(0+000)과 본선 끝(0+500)을 한 노선으로 이어 램프 단면이 본선 위에 섰음 */
+  const 이음한 = Math.max(20, 0.5 * (간격 || 0)) * 1000
+  const 이어진것 = (조, 머리) => {
+    const 줄들 = [[조[0]]]
+    for (let i = 0; i + 1 < 조.length; i++) {
+      if (넘기(조[i], 조[i + 1]).d > 이음한) 줄들.push([])
+      줄들[줄들.length - 1].push(조[i + 1])
+    }
+    return 줄들.find((줄) => 줄.includes(머리)) || 줄들[0]
+  }
+  /* 같은 자리의 같은 선(두 레이어 · 겹쳐 그림) — 겹치는 측점에서 두 토막 자리가 평균 3 m 안 */
+  const 같은선 = (y, z) => {
+    const lo = Math.max(y.아래, z.아래), hi = Math.min(y.위, z.위)
+    const ss = hi >= lo ? [lo, (lo + hi) / 2, hi] : [z.아래, z.위]
+    let d = 0
+    for (const s of ss) { const a = 토자리(y, s), b = 토자리(z, s); d += Math.hypot(a.x - b.x, a.y - b.y) }
+    return d / ss.length < 3000
+  }
+  const 하나로 = (조) => {
+    const 모든n = 조.reduce((s, z) => s + z.맞.n, 0)
     const 넘 = []
-    for (let i = 0; i + 1 < 조각.length; i++) {
-      const A = 조각[i], B = 조각[i + 1]
-      let lo = Math.min(A.위, B.아래), hi = Math.max(A.위, B.아래)
-      const 여유 = 0.25 * 간격
-      lo -= 여유; hi += 여유
-      let best = { s: (A.위 + B.아래) / 2, d: Infinity }
-      for (let k = 0; k <= 60; k++) {
-        const s = lo + (hi - lo) * k / 60
-        const a = 토자리(A, s), b = 토자리(B, s), d = Math.hypot(a.x - b.x, a.y - b.y)
-        if (d < best.d) best = { s, d }
-      }
-      넘.push(best.s)
-    }
-    const 자리 = (s) => { let i = 0; while (i < 넘.length && s > 넘[i]) i++; return 토자리(조각[i], s) }
-    const 측들 = 조각.flatMap((z) => z.맞.측들)
-    const rms = Math.sqrt(조각.reduce((a, z) => a + z.맞.rms * z.맞.rms * z.맞.n, 0) / 모든n)
+    for (let i = 0; i + 1 < 조.length; i++) 넘.push(넘기(조[i], 조[i + 1]).s)
+    const 자리 = (s) => { let i = 0; while (i < 넘.length && s > 넘[i]) i++; return 토자리(조[i], s) }
+    const 측들 = 조.flatMap((z) => z.맞.측들)
+    const rms = Math.sqrt(조.reduce((a, z) => a + z.맞.rms * z.맞.rms * z.맞.n, 0) / 모든n)
+    /* 선이 덮는 측점(글자 밖으로 이어진 선 — 램프 «-0+060» 처럼 글자 없는 끝까지) */
+    let 줄0 = Infinity, 줄1 = -Infinity
+    for (const z of 조) for (const t of [0, z.L[z.L.length - 1]]) { const s = z.맞.c + z.맞.방향 * (t / 1000) * z.맞.k; 줄0 = Math.min(줄0, s); 줄1 = Math.max(줄1, s) }
     return {
-      근거: '중심선', 층: [...new Set(조각.map((z) => z.층))].join(' · '), 간격, n: 모든n, 모두: 점.length, rms, 토막: 조각.length,
-      어긋: 가운데(조각.map((z) => z.어긋)), 축척: 조각[0].맞.k,
-      범위: [Math.min(...측들), Math.max(...측들)], 자리,
+      근거: '중심선', 층: [...new Set(조.map((z) => z.층))].join(' · '), 간격, n: 모든n, 모두: 점.length, rms, 토막: 조.length,
+      어긋: 가운데(조.map((z) => z.어긋)), 축척: 조[0].맞.k,
+      범위: [Math.min(...측들), Math.max(...측들)], 줄범위: [줄0, 줄1], 자리,
     }
   }
-
+  const 이름있음 = !!(이름글들 && 이름글들.some((t) => 노선이름글(t.s)))
+  const 결과 = []
+  if (조각.length) {
+    let 남은 = 조각.slice()
+    const 무리들 = []
+    while (남은.length && 무리들.length < 8) {
+      let 조 = []
+      for (const z of 남은) if (!조.some((y) => 겹(y, z))) 조.push(z)
+      조 = 이어진것(조.sort((a, b) => a.아래 - b.아래), 남은[0])
+      무리들.push(조)
+      if (!이름있음) break
+      남은 = 남은.filter((z) => !무리들.some((무) => 무.includes(z) || 무.some((y) => 같은선(y, z))))
+    }
+    무리들.forEach((조, i) => {
+      const r = 하나로(조)
+      const 최소 = i === 0 ? Math.min(3, 점.length) : 3
+      /* 이름 글자가 있는 도면(램프 B · D)은 측점 글자가 처음 · 끝 둘뿐이어도 — 선 길이와 측점 차이가 맞으면(rms 2 m 안) 받고, 이름이 붙어야 남김 */
+      if (r.n >= 최소) 결과.push(r)
+      else if (이름있음 && r.n >= 2 && r.rms < 2) 결과.push({ ...r, 느슨: true })
+    })
+  }
+  if (결과.length) {
+    if (이름있음) 이름붙이기(결과, 이름글들)
+    /* 첫째(예전과 같은 노선)는 그대로 · 둘째부터(갈래)와 글자 둘로 받은 것은 이름이 붙은 것만 */
+    const 남김 = 결과.filter((r, i) => (i === 0 && !r.느슨) || r.이름글)
+    if (남김.length) return 남김
+  }
   /* ② 중심선이 없으면 — 측점 글자 자리를 이은 꺾은선(글자가 선 옆에 있어 몇 m 어긋날 수 있음) */
   let best = null
   for (const G of 모두km ? [1] : 간격후보) {
@@ -268,7 +374,7 @@ export function 노선찾기(글들, 선들) {
     const e = 가운데(비)
     if (!best || e < best.e) best = { e, G, 고른 }
   }
-  if (!best || !(best.e < 0.15) || best.고른.length < 3) return null
+  if (!best || !(best.e < 0.15) || best.고른.length < 3) return []
   /* 너무 붙은 글자(1 m 사이 «No.0+18.89 · No.1+0.00») 로 방향을 잡으면 흔들려서 — 5 m 넘게 떨어진 것만 이음(처음 · 끝은 둠) */
   const Q = []
   for (const p of best.고른) if (!Q.length || p.m - Q[Q.length - 1].m >= 5) Q.push(p)
@@ -280,7 +386,7 @@ export function 노선찾기(글들, 선들) {
     const ok = (o) => !o || Math.abs(Math.hypot(o.x - p.x, o.y - p.y) / 1000 / Math.max(0.5, Math.abs(o.m - p.m)) - 1) < 0.3
     return ok(앞) || ok(뒤)
   })
-  if (남.length < 3) return null
+  if (남.length < 3) return []
   const 자리 = (s) => {
     let i = 0
     while (i < 남.length - 2 && 남[i + 1].m < s) i++
@@ -290,8 +396,8 @@ export function 노선찾기(글들, 선들) {
     const u = (s - A.m) * 1000 * (l / 1000 / Math.max(0.5, B.m - A.m))
     return { x: A.x + tx * u, y: A.y + ty * u, tx, ty }
   }
-  return { 근거: '측점 글자', 층: '', 간격: best.G, n: 남.length, 모두: 점.length, rms: best.e, 어긋: NaN, 축척: 1, 토막: 1,
-    범위: [남[0].m, 남[남.length - 1].m], 자리 }
+  return [{ 근거: '측점 글자', 층: '', 간격: best.G, n: 남.length, 모두: 점.length, rms: best.e, 어긋: NaN, 축척: 1, 토막: 1,
+    범위: [남[0].m, 남[남.length - 1].m], 자리 }]
 }
 
 /**

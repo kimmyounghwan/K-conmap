@@ -15,6 +15,9 @@ import 도 정의도 안 한» 파일을 찾습니다.
 """
 import os, re, sys
 
+# 🩹 2026-10-10 G228 — «가진 이름» 은 한글 이름도(전엔 첫 글자를 영문만 봐서 import { 도면준비 } · const 층차례 를 못 셈 →
+#   lib/BIM모델.js 가 «import 안 하고 쓴다» 는 틀린 경보 2건으로 올리기가 멈출 뻔함). 내보내는 이름 목록은 그대로.
+ID = r"(?:[^\W\d]|\$)[\w$]*"
 SRC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web", "src")
 
 
@@ -43,10 +46,10 @@ def scan(src=SRC):
         s = open(p, encoding="utf-8").read()
         have = set()
         for m in re.finditer(r"import\s+([^;]+?)\s+from", s, re.S):
-            have.update(re.findall(r"[A-Za-z_$][\w$]*", m.group(1)))
-        for m in re.finditer(r"(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)", s):
+            have.update(re.findall(ID, m.group(1)))
+        for m in re.finditer(r"(?:const|let|var|function|class)\s+(" + ID + ")", s):
             have.add(m.group(1))
-        for m in re.finditer(r"\{\s*([A-Za-z_$][\w$]*(?:\s*,\s*[A-Za-z_$][\w$]*)*)\s*\}\s*=", s):
+        for m in re.finditer(r"\{\s*(" + ID + r"(?:\s*,\s*" + ID + r")*)\s*\}\s*=", s):
             for nm in m.group(1).split(","):
                 have.add(nm.strip())
         # ⚠️ 2026-09-17 — «반 안에 든 이름(메서드)» 도 «이 파일이 가진 것» 으로 셉니다.
@@ -59,7 +62,7 @@ def scan(src=SRC):
         #   틀린 경보로 매번 멈추는 쪽이 더 위험합니다(경보를 안 믿게 됩니다).
         for m in re.finditer(
                 r"(?m)^\s*(?:static\s+|async\s+|get\s+|set\s+|\*\s*)*"
-                r"([A-Za-z_$][\w$]*)\s*\([^)\n]*\)\s*\{", s):
+                r"(" + ID + r")\s*\([^)\n]*\)\s*\{", s):
             have.add(m.group(1))
         body = re.sub(r"/\*.*?\*/", "", s, flags=re.S)
         body = re.sub(r"//[^\n]*", "", body)

@@ -14,16 +14,20 @@ import { 길만들기, 그리기, 전체보기, 조각표만들기, 가까운점
 import { loadFont, FONT } from './lib/plotview.js'
 import * as 기억 from './lib/기억자료.js'
 import { DWG바꾸기 } from './lib/dwg바꾸기.js'
+import { 파일한도, 한도글, 멈춤감시, 멈춤글 } from './lib/파일한도.js'
 
-export const 큰파일 = 200 * 1024 * 1024
+/* 🧭 G243 PC 는 크기 한도 없음(2 GB) · 폰 200 MB — lib/파일한도.js (전: 모두 200 MB · 현장 C · D 243 MB DXF 를 못 받았음) */
+export const 큰파일 = 파일한도()
 const 쉼 = (n, d = 0) => new Intl.NumberFormat('ko-KR', { maximumFractionDigits: d, minimumFractionDigits: d }).format(n || 0)
 
 export function 오류글(k, more) {
   if (k === 'bindxf') return '바이너리 DXF 입니다. 캐드에서 DXF 로 저장할 때 «ASCII» 를 골라 주십시오.'
   if (k === 'notdxf' || k === 'notdwg') return 'DXF·DWG 도면 파일이 아닌 것 같습니다.'
   if (k === 'empty') return '도면에 읽을 것이 없습니다 — 모델 공간이 비었거나 레이어가 모두 꺼져 있습니다.'
-  if (k === 'big') return '파일이 너무 큽니다(200MB 까지).'
+  if (k === 'big') return 한도글()
+  if (k === 'stall') return 멈춤글 + '.'
   if (k === 'mem') return '도면이 너무 커서 이 기기의 기억 공간이 모자랍니다. PC 에서 열어 주십시오.'
+  if (k === 'readmem') return '변환 엔진이 이 DWG 를 읽다 기억이 넘쳐 건너뛰었습니다(나머지 도면은 그대로) — 캐드에서 «다른 이름으로 저장 → DXF» 로 넣어 주십시오.'
   return '도면을 읽지 못했습니다' + (more ? ' (' + more + ')' : '') + '. 캐드에서 DXF(ASCII)로 다시 저장해 보십시오.'
 }
 
@@ -34,32 +38,39 @@ export function 오류글(k, more) {
  */
 export async function 도면읽어오기(buf, name, 알려 = () => {}, 사본남김 = false) {
   const 머리 = String.fromCharCode(...new Uint8Array(buf.slice(0, 6)))
-  let dxf = buf
+  let dxf = buf, 원본 = null
   if (/^AC10\d\d/.test(머리)) {
     알려({ msg: 'DWG → DXF 바꾸는 중 (큰 도면은 30초~1분)', p: 0.1 })
     /* 🔁 2026-09-28 — 일꾼 하나를 돌려 씁니다(lib/dwg바꾸기.js) — 도면 여러 장을 이어 넣어도 멈추지 않게 */
     try {
-      dxf = (await DWG바꾸기(buf, name, (d) => 알려({ msg: 'DWG → DXF: ' + (d.msg || ''), p: d.p || 0 }))).dxf
+      const r = await DWG바꾸기(buf, name, (d) => 알려({ msg: 'DWG → DXF: ' + (d.msg || ''), p: d.p || 0 }))
+      dxf = r.dxf
+      원본 = (r.info && r.info.원본) || null      /* 🧭 G245 DWG 원본 도형 개수 — 읽기 점검이 «바꾸며 빠진 것» 을 견줌 */
     } catch (e) {
-      throw Object.assign(new Error((e && e.message) || 'DWG 바꾸기 실패'), { kind: e && e.kind === 'mem' ? 'mem' : 'fail' })
+      throw Object.assign(new Error((e && e.message) || 'DWG 바꾸기 실패'), { kind: e && (e.kind === 'mem' || e.kind === 'readmem') ? e.kind : e && e.kind === 'timeout' ? 'stall' : 'fail' })
     }
   }
   const 사본 = 사본남김 ? dxf.slice(0) : null
   const 모델 = await new Promise((되면, 탈) => {
     const w = new Worker(new URL('./lib/골조도면.worker.js', import.meta.url), { type: 'module' })
+    /* 🧭 G243 일꾼이 5분 넘게 말이 없으면(기억이 모자라 조용히 죽음 등) 끝내고 알림 — 화면이 기다리기만 하지 않게 */
+    const 감시 = 멈춤감시(() => { w.terminate(); 탈(Object.assign(new Error('멈춤'), { kind: 'stall' })) })
     w.onmessage = (ev) => {
       const d = ev.data || {}
+      감시.깨움()
       if (d.type === 'prog') 알려({ msg: '도면 읽는 중', p: d.p })
-      if (d.type === 'err') { w.terminate(); 탈(Object.assign(new Error(d.msg || d.kind), { kind: d.kind })) }
+      if (d.type === 'err') { 감시.끝(); w.terminate(); 탈(Object.assign(new Error(d.msg || d.kind), { kind: d.kind })) }
       if (d.type === 'done') {
+        감시.끝()
         w.terminate()
         const M = d.model
         M.판 = 찾기판(M)
         M.조각표 = 조각표만들기(M)
+        if (원본) M.원본 = 원본
         되면(M)
       }
     }
-    w.onerror = (e) => { w.terminate(); 탈(Object.assign(new Error(e.message || '읽기 실패'), { kind: 'fail' })) }
+    w.onerror = (e) => { 감시.끝(); w.terminate(); 탈(Object.assign(new Error(e.message || '읽기 실패'), { kind: /memory|allocation|Invalid (string|array) length/i.test(e.message || '') ? 'mem' : 'fail' })) }
     w.postMessage({ type: 'read', buf: dxf }, [dxf])
   })
   return { 모델, dxf: 사본 }

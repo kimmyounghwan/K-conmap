@@ -13,7 +13,7 @@
  * 1 토공 검산(두 땅 면) · 2 도면 검사 · 3 측설표 · 4 구조물 물량 · 5 물길 · 6 기성 · 7 사진 위치 · 8 안전 그림
  * 시험: node tools/시험_3d활용.mjs
  */
-import { 삼각망, 높이찾개, 평균단면 } from './토공3d.js'
+import { 삼각망, 높이찾개, 평균단면, 가시떼기, 튀는점 } from './토공3d.js'
 
 /* ── 공통 ─────────────────────────────── */
 const 가운데 = (a) => { if (!a.length) return NaN; const s = a.slice().sort((p, q) => p - q); return s[s.length >> 1] }
@@ -138,7 +138,10 @@ export function 땅만들기(점들) {
     if (Number.isFinite(d)) 거.push(d)
   }
   const 최대변 = Math.min(80000, Math.max(25000, 6 * (가운데(거) || 10000)))
-  const T = 삼각망(점들, 최대변)
+  let T0 = 삼각망(점들, 최대변)
+  const 뺄 = 튀는점(점들, T0)                       /* 🛣 G236 높이 잘못 든 점 */
+  if (뺄.size) { 점들 = 점들.filter((_, i) => !뺄.has(i)); T0 = 삼각망(점들, 최대변) }
+  const T = 가시떼기(점들, T0)       /* 🏭 G234 가장자리 가시 세모 · 매달린 조각 뗌 */
   if (T.length < 1) return null
   return { 점: Float64Array.from(점들.flat()), 삼: Int32Array.from(T.flat()), 최대변 }
 }

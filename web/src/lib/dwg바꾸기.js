@@ -44,7 +44,7 @@ const 쉬기 = (ms) => new Promise((z) => setTimeout(z, ms))
  * @param {ArrayBuffer} buf  DWG 바이트(일꾼에게 넘겨 주므로 이 뒤로는 비어 있습니다)
  * @param {string} name
  * @param {(m:{p:number,msg:string})=>void} [알려]
- * @returns {Promise<{dxf:ArrayBuffer, info:object}>}  실패하면 Error(kind: 'mem'|'fail'|'isdxf'|'notdwg'|'timeout')
+ * @returns {Promise<{dxf:ArrayBuffer, info:object}>}  실패하면 Error(kind: 'mem'|'readmem'|'fail'|'isdxf'|'notdwg'|'timeout')
  */
 export function DWG바꾸기(buf, name, 알려 = () => {}) {
   const 할 = 차례.then(() => 한장(buf, name, 알려))
@@ -69,7 +69,12 @@ async function 한장(buf, name, 알려) {
         const d = ev.data || {}
         if (d.type === 'prog') { 깨움(); 알려({ p: d.p || 0, msg: d.msg || '' }) }
         else if (d.type === 'done') { 끝(); 되면({ dxf: d.dxf, info: d.info || {} }) }
-        else if (d.type === 'err') { 끝(); 탈(Object.assign(new Error(d.msg || d.kind || 'fail'), { kind: d.kind || 'fail' })) }
+        else if (d.type === 'err') {
+          끝()
+          /* 🩹 G228 기억이 넘친 도면 뒤에는 일꾼을 내려(4 GB 엔진 기억을 바로 돌려받고) 잠깐 쉰 뒤 새 일꾼으로 — 다음 도면이 그 기억 위에 또 쌓여 탭이 죽지 않게 */
+          if (d.kind === 'mem' || d.kind === 'readmem') 버리기()
+          탈(Object.assign(new Error(d.msg || d.kind || 'fail'), { kind: d.kind || 'fail' }))
+        }
       }
       w.onerror = (e) => { 끝(); 버리기(); 탈(Object.assign(new Error((e && e.message) || '일꾼 오류'), { kind: 'fail' })) }
       깨움()

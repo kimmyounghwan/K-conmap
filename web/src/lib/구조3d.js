@@ -303,12 +303,44 @@ export function 구조세우기(raw, 새버킷, 머리 = '') {
       const [ax, ay] = 자리xy(s[1]), [bx, by] = 자리xy(s[3])
       넣기(키, s[0], ax, ay, d.EL(s[2]) * 1000, bx, by, d.EL(s[4]) * 1000, s[5], s[6], s[7])
     }
-    결과단면.push({ 층: 키, 이름: `단면 ${d.표시}`, 놓임, EL: [d.lo, d.hi], 맞춤: `${맞춤} · EL 글자 ${d.맞음}/${d.표수} 맞음` })
+    /* 📐 G234 높이 점 — 이 단면이 선 자리(평면 자르는 선)에서 벽 면(세로선)마다 «위 · 아래 EL» → BIM 구조물 벽을 그 자리 높이로(구조물면 높이별 벽)
+         말뚝 · 기계 · 철근 · 배관 레이어와 아주 짧은 세로선(300 mm 아래)은 뺌 · 같은 자리 세로선은 가장 높은 위 · 가장 낮은 아래 */
+    {
+      const m = d.기울 === 1 ? 1 : 1000, 칸 = 0.05 * m
+      const 모음 = new Map()
+      for (const s of d.선) {
+        if (Math.abs(s[1] - s[3]) > 0.003 * m || Math.abs(s[2] - s[4]) < 0.8 * m) continue         // 세로 · 0.8 m 넘게(난간 기둥 · 계단 턱은 뺌)
+        if (/pile|파일|말뚝|phc|기계|mech|pump|펌프|철근|bar|배관|pipe|전기|elec|hatch|해치|지시|치수|dim|text|글|난간|hand|rail|창호|창|문|door|win/i.test(s[0])) continue
+        const k = Math.round(s[1] / 칸)
+        const lo = d.EL(Math.min(s[2], s[4])), hi = d.EL(Math.max(s[2], s[4]))
+        const o = 모음.get(k)
+        if (!o) 모음.set(k, { x: s[1], 위: hi, 아래: lo, 길: hi - lo })
+        else { o.위 = Math.max(o.위, hi); o.아래 = Math.min(o.아래, lo); o.길 += hi - lo }
+      }
+      /* 방향 = 자르는 선 방향(이 점은 자르는 선과 만나는 벽 — 대개 그 선에 직각인 벽) */
+      /* 아래 = 그 벽 면 둘레(옆 1 m 안) 구조 선의 가장 낮은 곳(바닥판 아랫면 — 바닥판 옆 세로선은 0.8 m 보다 짧아 위에서 빠짐) · 세로선 아래에서 2 m 안(말뚝 · 기초 말단은 뺌) */
+      const 둘레 = 1 * m
+      const 낮은 = (o) => {
+        let v = o.아래
+        for (const s of d.선) {
+          if (/pile|파일|말뚝|phc|기계|mech|pump|펌프|철근|bar|배관|pipe|전기|elec|hatch|해치|지시|치수|dim|text|글/i.test(s[0])) continue
+          for (const [px, py] of [[s[1], s[2]], [s[3], s[4]]]) {
+            if (Math.abs(px - o.x) > 둘레) continue
+            const e = d.EL(py)
+            if (e < v && e > o.아래 - 2) v = e
+          }
+        }
+        return v
+      }
+      d.높이점 = [...모음.values()].filter((o) => o.길 >= 1.5).map((o) => { const [x, y] = 자리xy(o.x); return { x, y, 위: +o.위.toFixed(3), 아래: +낮은(o).toFixed(3), 방향: [+ux.toFixed(4), +uy.toFixed(4)] } })
+    }
+    결과단면.push({ 층: 키, 이름: `단면 ${d.표시}`, 놓임, EL: [d.lo, d.hi], 맞춤: `${맞춤} · EL 글자 ${d.맞음}/${d.표수} 맞음`, 높이점: d.높이점 || [], 자름: 쌍 && 쌍.length >= 2 ? 글 : '' })
   }
   if (결과단면.length < 2) return null
   /* m 로 그린 도면(기울기 1)이면 가로·세로도 mm 로 */
   if (단면들.every((d) => d.기울 === 1)) {
     for (const [, b] of 새) for (let i = 0; i < b.pos.n; i += 3) { b.pos.a[i] *= 1000; b.pos.a[i + 1] *= 1000 }
+    for (const d of 결과단면) for (const q of d.높이점 || []) { q.x *= 1000; q.y *= 1000 }
   }
   return { out: 새, 단면: 결과단면, 평면EL, 빠짐, 제목: 평제.s }
 }

@@ -21,7 +21,7 @@ import { 공정CALCS, 공정EXAMPLES } from '../tools/공정칸.jsx'
 import NotFound from './NotFound.jsx'
 import { use남김 } from '../lib/길기록.js'
 /* ⬇ 2026-10-01 (G96) 도구마다 «받은 횟수» — 그 화면에서 받은 파일(만든 PDF · 엑셀 포함). 아래 화면이 따로 카드면 빼고 셉니다 */
-import { 받은수, 화면열쇠 } from '../lib/받은수.jsx'
+import { 받은수, 화면열쇠, use받은수, 합 as 받은합, 조회합, 세기 } from '../lib/받은수.jsx'
 import 이어쓰기 from '../tools/이어쓰기.jsx'
 import { 앞모습두기 } from '../lib/이어쓰기.js'
 
@@ -79,6 +79,10 @@ const 모두 = 묶음들.reduce((n, g) => n + g.items.length, 0)
 /* ⬇ 카드가 있는 화면 열쇠들 — «/change» 카드가 «/change/excel» 카드의 숫자까지 먹지 않게 */
 const 카드열쇠 = new Set(묶음들.flatMap((g) => g.items.map((x) => 화면열쇠(x.to))))
 const 사이트몫 = 묶음들.reduce((n, g) => n + g.items.filter((x) => x.w === 'site').length, 0)
+/* 🔥 G231 (2026-10-10) 많이 쓴 도구 — 소장님 「사이트 보면 서식은 순위가 있는데, 도구은 없어 · 많이 사용한 도구 순위가 있어야 하지 않을까」
+   → 고르심 «연 횟수 + 받은 횟수» · «서식과 같은 형식으로 도구도 같은 위치에 해줘. 도구 탭에서»
+   점수 = 그 카드의 받은 횟수(⬇ — 카드 숫자와 같은 셈) + 조회(화면을 연 횟수 · 애널리틱스) · 1 ~ 10위 · 둘 다 0 이면 안 넣음 */
+const 모든카드 = (() => { const 본 = new Set(), out = []; for (const g of 묶음들) for (const x of g.items) if (!본.has(x.to)) { 본.add(x.to); out.push(x) } return out })()
 const 내림 = { scrollMarginTop: 76 }
 
 export default function ToolsIndex() {
@@ -93,6 +97,12 @@ export default function ToolsIndex() {
     }) })).filter((g) => g.items.length)
   }, [q])
   const 찾은수 = 찾은.reduce((n, g) => n + g.items.length, 0)
+  const 읽음 = use받은수({ 쪽: [] })              /* null = 아직 못 읽음 · 읽으면 다시 그림 */
+  const 윗줄 = useMemo(() => {
+    if (읽음 === null) return []
+    return 모든카드.map((x) => { const 받 = 받은합([x.to], [], 카드열쇠) || 0, 봄 = 조회합([x.to], 카드열쇠) || 0; return { x, 받, 봄, 점: 받 + 봄 } })
+      .filter((v) => v.점 > 0).sort((a, b) => b.점 - a.점 || a.x.t.localeCompare(b.x.t, 'ko')).slice(0, 10)
+  }, [읽음])
 
   return (
     <div className="wrap">
@@ -120,6 +130,24 @@ export default function ToolsIndex() {
           {' '}<span className="tlx-w lock">🔒 시험 중</span> 아직 여는 중
         </div>
       </div>
+
+      {!q && 윗줄.length > 0 && (
+        <div className="card fm-top">
+          <div className="sec-title" style={{ margin: 0 }}>🔥 많이 쓴 도구 <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>· 화면을 연 횟수 + 받은 횟수</span></div>
+          <div className="fm-top-row">
+            {윗줄.map((v, i) => (
+              <Link className="fm-gal" to={v.x.to} key={v.x.to} onClick={() => 세기('|도구|순위')}>
+                <span className="fm-gal-th tl-top-th"><span className="fm-gal-ic">{v.x.icon}</span><span className="fm-rank">{i + 1}</span></span>
+                <span className="fm-gal-t">{v.x.t}</span>
+                <span className="fm-gal-m">
+                  {v.받 ? <span className="dlcount">⬇ {v.받.toLocaleString('ko-KR')}회</span> : null}
+                  {v.봄 ? <span className="dlcount pvcount">조회 {v.봄.toLocaleString('ko-KR')}</span> : null}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {q && !찾은수 && (
         <div className="card"><div className="note">「{q}」 에 맞는 도구가 없습니다. 다른 말로 찾아 보시거나, 맵톡에 «이런 도구가 있으면» 한 줄 남겨 주십시오.</div></div>

@@ -20,10 +20,12 @@ import { 도면받기 } from '../lib/도면넘김.js'
 
 import { use머무름 } from '../lib/길기록.js'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
+import { 파일한도, 한도글, 멈춤감시, 멈춤글 } from '../lib/파일한도.js'
 /* 🧪 예시 — 제가 그린 «가상의 사무소 건물» 도곽 2장(A3 · 1:100): 평면도(통심선 점선·벽 해치·치수·문)와
    벽체 단면 상세(흙·잡석·콘크리트 해치·단열재 굵은 선). 남의 도면이 아닙니다 — 만든 스크립트는 CLAUDE.md 참고 */
 const 예시 = { 파일: 'ex-drawing-pdf.dxf', 글: '가상 사무소 건물 — 평면도 + 벽체 단면 상세 (A3 도곽 2장) — 흑백으로 찍어 봅니다' }
-const 큰파일 = 250 * 1024 * 1024
+/* 🧭 G243 PC 는 크기 한도 없음(2 GB) · 폰 200 MB — lib/파일한도.js (전 250 MB) */
+const 큰파일 = 파일한도()
 const 쉼 = (n) => new Intl.NumberFormat('ko-KR').format(Math.round(n || 0))
 const MB = (b) => (b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB')
 
@@ -33,7 +35,8 @@ function 오류글(k, more) {
   if (k === 'bindxf') return <>바이너리 DXF 입니다. 캐드에서 DXF 로 저장할 때 <b>「ASCII」</b> 형식을 골라 주십시오.</>
   if (k === 'notdxf') return <>DXF 도면 파일이 아닌 것 같습니다. 캐드에서 DXF 로 저장한 파일을 올려 주십시오.</>
   if (k === 'empty') return <>도면에 찍을 것이 없습니다 — 모델 공간이 비어 있거나 모든 레이어가 꺼져(얼려져) 있습니다. 배치(종이 공간)에만 그린 도면은 아직 못 찍습니다.</>
-  if (k === 'big') return <>파일이 너무 큽니다(250MB 까지). 캐드에서 필요 없는 레이어·외부참조를 지우고 다시 저장해 주십시오.</>
+  if (k === 'big') return <>{한도글()}</>
+  if (k === 'stall') return <>{멈춤글}.</>
   if (k === 'pdffail') return <>PDF 를 만들지 못했습니다{more ? ` (${more})` : ''}. 장 수를 줄이거나 «글자 넣기» 를 끄고 다시 해 보십시오.</>
   return <>도면을 읽지 못했습니다{more ? ` (${more})` : ''}. 캐드에서 DXF(ASCII)로 다시 저장해 보십시오.</>
 }
@@ -167,12 +170,16 @@ export default function DxfPdf() {
     if (workRef.current) workRef.current.terminate()
     const w = new Worker(new URL('../lib/dxfpdf.worker.js', import.meta.url), { type: 'module' })
     workRef.current = w
+    /* 🧭 G243 읽는 동안 일꾼이 5분 넘게 말이 없으면 끝내고 알림 */
+    const 감시 = 멈춤감시(() => { if (workRef.current === w) { w.terminate(); workRef.current = null; set상태({ k: 'err', msg: 'stall' }) } })
     w.onmessage = (ev) => {
       const m = ev.data
+      감시.깨움()
       if (m.type === 'prog') set상태({ k: 'busy', p: m.p, msg: m.msg })
       else if (m.type === 'pprog') set상태({ k: 'pdf', p: m.p, msg: m.msg })
-      else if (m.type === 'err') set상태({ k: 'err', msg: m.kind, more: m.msg })
+      else if (m.type === 'err') { 감시.끝(); set상태({ k: 'err', msg: m.kind, more: m.msg }) }
       else if (m.type === 'model') {
+        감시.끝()
         const md = m.model
         set모델(md)
         set고른(md.frames.map(() => true))
@@ -196,7 +203,7 @@ export default function DxfPdf() {
         document.body.appendChild(a); a.click(); a.remove()
       }
     }
-    w.onerror = (e) => set상태({ k: 'err', msg: 'fail', more: String(e.message || '') })
+    w.onerror = (e) => { 감시.끝(); set상태({ k: 'err', msg: 'fail', more: String(e.message || '') }) }
     w.postMessage({ type: 'parse', buf }, [buf])
   }
 

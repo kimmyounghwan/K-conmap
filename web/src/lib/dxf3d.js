@@ -39,10 +39,10 @@ const ACI = (() => {
 export const aciRgb = (n) => ACI[Math.abs(n | 0)] || ACI[7]
 
 /* ── 글자 읽기 ─────────────────────────────────────────── */
-export function decodeBytes(buf) {
-  const u8 = new Uint8Array(buf)
+/* 바이트 한 덩이 → 글자열. UTF-8 이 아니면 줄마다(섞인 파일) */
+function 풀기(u8) {
   try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(u8).replace(/^﻿/, '')
+    return new TextDecoder('utf-8', { fatal: true }).decode(u8)
   } catch (e) {
     /* ⚠️ 2026-09-27 — «섞인» 파일: 대부분 UTF-8 인데 몇 줄(레이어·블록 이름)만 EUC-KR 로 된 DXF 가 있습니다
        (DWG → DXF 바꾼 것에서 나옴). 예전처럼 통째로 EUC-KR 로 풀면 한글 글자가 모두 깨집니다(«諛�硫�»).
@@ -69,8 +69,44 @@ export function decodeBytes(buf) {
       i = end
     }
     if (seg < n) out.push(new TextDecoder('utf-8').decode(u8.subarray(seg, n)))
-    return out.join('').replace(/^﻿/, '')
+    return out.join('')
   }
+}
+
+/** 🧭 G243 아주 큰 DXF 의 글 — 줄 끝에서 끊은 조각들(한 글자열로 풀면 브라우저 글자열 한도 약 5억 자 · 기억에 걸림).
+ *  소장님 「반드시 다 읽게해」: 현장 C 건축 통합본을 DXF(243 MB)로 넣으면 «200MB 까지» 로 막혀 나머지 도면까지 안 읽었음.
+ *  reader() 와 slice() 는 글자열과 똑같이 씀(도면 읽기 셋 — parseDxf · 도면읽기 · parsePlot — 은 reader 로만 읽음) */
+export class 조각글 {
+  constructor(조각) { this.조각 = 조각; this.length = 조각.reduce((n, t) => n + t.length, 0) }
+  slice(a = 0, b = this.length) {
+    a = Math.max(0, a); b = Math.min(this.length, b)
+    const out = []
+    let 앞 = 0
+    for (const t of this.조각) {
+      const 끝 = 앞 + t.length
+      if (끝 > a && 앞 < b) out.push(t.slice(Math.max(0, a - 앞), Math.min(t.length, b - 앞)))
+      if (끝 >= b) break
+      앞 = 끝
+    }
+    return out.join('')
+  }
+  toString() { return this.조각.join('') }
+}
+export const 큰글 = 256 * 1024 * 1024          // 이보다 큰 파일은 조각글로
+export const 글조각 = 64 * 1024 * 1024
+
+export function decodeBytes(buf, 조각크기 = 글조각, 한도 = 큰글) {
+  const u8 = new Uint8Array(buf)
+  if (u8.length <= 한도) return 풀기(u8).replace(/^﻿/, '')
+  const 조각 = []
+  for (let s = 0; s < u8.length;) {
+    let e = Math.min(u8.length, s + 조각크기)
+    if (e < u8.length) { const k = u8.indexOf(10, e - 1); e = k < 0 ? u8.length : k + 1 }      // 줄 끝(\n)에서 끊음 — 한 줄이 두 조각에 걸치지 않게
+    조각.push(풀기(u8.subarray(s, e)))
+    s = e
+  }
+  조각[0] = 조각[0].replace(/^﻿/, '')
+  return new 조각글(조각)
 }
 
 /** 어떤 파일인지 먼저 봅니다 — DWG·바이너리 DXF 는 읽지 못합니다. */
@@ -140,6 +176,7 @@ export function ocs(nx, ny, nz) {
 
 /* ── 한 쌍씩 읽기 ─────────────────────────────────────── */
 export function reader(text) {
+  if (text && text.조각) return 조각reader(text)
   let p = 0
   const L = text.length
   const line = () => {
@@ -164,15 +201,114 @@ export function reader(text) {
   }
 }
 
+/* 🧭 G243 조각글 읽기 — 줄은 조각을 넘지 않음(decodeBytes 가 줄 끝에서 끊음) · pos 는 처음부터 센 글자 자리 */
+function 조각reader(T) {
+  const 조 = T.조각
+  let ci = 0, p = 0, 앞 = 0
+  const line = () => {
+    while (ci < 조.length && p >= 조[ci].length) { 앞 += 조[ci].length; ci++; p = 0 }
+    if (ci >= 조.length) return null
+    const t = 조[ci]
+    let q = t.indexOf('\n', p)
+    if (q < 0) q = t.length
+    let s = t.slice(p, q)
+    p = q + 1
+    if (s.charCodeAt(s.length - 1) === 13) s = s.slice(0, -1)
+    return s
+  }
+  return {
+    get pos() { return 앞 + Math.min(p, ci < 조.length ? 조[ci].length : 0) },
+    len: T.length,
+    next() {
+      const c = line()
+      if (c === null) return null
+      const v = line()
+      if (v === null) return null
+      return [parseInt(c, 10), v]
+    },
+  }
+}
+
 /* 도형 하나 = { t: 종류, g: [[코드, 값], …] } */
 export const num = (v) => { const x = parseFloat(v); return Number.isFinite(x) ? x : 0 }
+
+/**
+ * 🧭 G245 다중 지시선(MULTILEADER · MLEADER) 풀기 — 소장님 「1번부터 시작해」(캐드 빈틈 메우기)
+ *   전엔 세 읽개(골조 · 3D · PDF) 모두 이것을 통째로 건너뛰어 지시선 선 · 끝 글자가 빠졌음(현장 C 토목 568개).
+ *   DXF 그룹 차례: 300 CONTEXT_DATA{ … 302 LEADER{ … 304 LEADER_LINE{ 10/20/30 … 305 } … 303 } … 301 }
+ *   글자(290=1 일 때 304) · 글자 자리 12/22/32 · 높이 41(290 앞) · 방향 13/23 · 돌림 42 · 맞춤 171 / 블록(296=1) 341 · 15/25/35 · 47(4×4)
+ * @returns {{선: number[][][], 글: null|{s:string, p:number[], h:number, a:number, 맞춤:number}, 블록: null|{rec:string, M:number[]|null, p:number[], sc:number[], a:number}}}
+ */
+export function 다중지시선(g) {
+  const 선 = []
+  let st = 0, n290 = 0, 글있음 = false, 블있음 = false
+  let s = '', tp = null, h = 0, a = 0, 맞춤 = 1, 방 = null
+  let rec = '', bp = null, ba = 0
+  const bsc = [1, 1, 1], bm = []
+  let 끝 = null, 꺾 = null, 꺾길 = 0, 줄 = null, 갈래 = []
+  for (const [k, v0] of g) {
+    const v = String(v0)
+    if (st === 0) { if (k === 300) st = 1; continue }
+    if (st === 1) {
+      if (k === 301) { st = 0; continue }
+      if (k === 302) { st = 2; 끝 = null; 꺾 = null; 꺾길 = 0; 갈래 = []; continue }
+      if (k === 290) { n290++; if (n290 === 1) 글있음 = v.trim() === '1'; continue }
+      if (k === 296) { 블있음 = v.trim() === '1'; continue }
+      if (k === 304 && 글있음 && n290 === 1) { s += v; continue }
+      if (k === 12) { tp = [num(v), 0, 0]; continue }
+      if (k === 22 && tp) { tp[1] = num(v); continue }
+      if (k === 32 && tp) { tp[2] = num(v); continue }
+      if (k === 41 && n290 === 0) { h = num(v); continue }
+      if (k === 13 && 글있음) { 방 = [num(v), 0]; continue }
+      if (k === 23 && 방) { 방[1] = num(v); continue }
+      if (k === 42 && 글있음) { a = num(v); continue }
+      if (k === 171 && 글있음) { 맞춤 = parseInt(v, 10) || 1; continue }
+      if (k === 341) { rec = v.trim().toUpperCase(); continue }
+      if (k === 15) { bp = [num(v), 0, 0]; continue }
+      if (k === 25 && bp) { bp[1] = num(v); continue }
+      if (k === 35 && bp) { bp[2] = num(v); continue }
+      if (k === 16) { bsc[0] = num(v); continue }
+      if (k === 26) { bsc[1] = num(v); continue }
+      if (k === 36) { bsc[2] = num(v); continue }
+      if (k === 46) { ba = num(v); continue }
+      if (k === 47) bm.push(num(v))
+      continue
+    }
+    if (st === 2) {
+      if (k === 303) {
+        for (const L of 갈래) { const q = L.slice(); if (끝) q.push(끝.slice()); if (q.length >= 2) 선.push(q) }
+        if (끝 && 꺾 && 꺾길 > 0) { const d = Math.hypot(꺾[0], 꺾[1], 꺾[2]) || 1; 선.push([끝.slice(), [끝[0] + (꺾[0] / d) * 꺾길, 끝[1] + (꺾[1] / d) * 꺾길, 끝[2] + (꺾[2] / d) * 꺾길]]) }
+        st = 1; continue
+      }
+      if (k === 304) { st = 3; 줄 = []; continue }
+      if (k === 10) { 끝 = [num(v), 0, 0]; continue }
+      if (k === 20 && 끝) { 끝[1] = num(v); continue }
+      if (k === 30 && 끝) { 끝[2] = num(v); continue }
+      if (k === 11) { 꺾 = [num(v), 0, 0]; continue }
+      if (k === 21 && 꺾) { 꺾[1] = num(v); continue }
+      if (k === 31 && 꺾) { 꺾[2] = num(v); continue }
+      if (k === 40) 꺾길 = num(v)
+      continue
+    }
+    if (st === 3) {
+      if (k === 305) { 갈래.push(줄); 줄 = null; st = 2; continue }
+      if (k === 10) { 줄.push([num(v), 0, 0]); continue }
+      if (k === 20 && 줄.length) { 줄[줄.length - 1][1] = num(v); continue }
+      if (k === 30 && 줄.length) 줄[줄.length - 1][2] = num(v)
+    }
+  }
+  if (방 && (방[0] || 방[1]) && !a) a = Math.atan2(방[1], 방[0])
+  const 글 = 글있음 && s.trim() && tp ? { s, p: tp, h: h > 0 ? h : 2.5, a, 맞춤 } : null
+  const 블록 = 블있음 && rec ? { rec, M: bm.length >= 12 ? bm.slice(0, 12) : null, p: bp || [0, 0, 0], sc: bsc, a: ba } : null
+  return { 선, 글, 블록 }
+}
 
 const NOT_DRAWN = {
   TEXT: '글자', MTEXT: '글자', ATTRIB: '글자', ATTDEF: '글자',
   HATCH: '해치(채우기)', '3DSOLID': '입체(3DSOLID)', BODY: '입체(3DSOLID)', REGION: '입체(3DSOLID)',
   SURFACE: '입체(3DSOLID)', PLANESURFACE: '입체(3DSOLID)', EXTRUDEDSURFACE: '입체(3DSOLID)',
   IMAGE: '그림', WIPEOUT: '가림막', OLE2FRAME: 'OLE', VIEWPORT: null, SEQEND: null, VERTEX: null,
-  MULTILEADER: '지시선 글자', MLEADER: '지시선 글자', ACAD_TABLE: '표', TOLERANCE: '공차', XLINE: '무한선', RAY: '무한선',
+  ACAD_TABLE: '표', TOLERANCE: '공차', XLINE: '무한선', RAY: '무한선',
 }
 
 /**
@@ -188,19 +324,23 @@ export function parseDxf(text, onProgress, opt = {}) {
   const layerInfo = new Map()          // 이름 → {rgb, off}
   const blocks = new Map()             // 이름 → {base:[x,y,z], ents:[]}
   const out = new Map()                // 층 → {pos:F64, col:U8, pts:F64, pcol:U8}
-  const stats = { segs: 0, pts: 0, ents: 0, capped: false, skipped: {}, unknown: {}, ver: '', units: 0, depthCut: 0 }
+  const stats = { segs: 0, pts: 0, ents: 0, capped: false, skipped: {}, unknown: {}, ver: '', units: 0, depthCut: 0, 끊김: false, 블록으로: '' }
+  let 엔티티본 = false, EOF본 = false
   /* 📝 2026-09-26 — 글자도 «자리와 함께» 모읍니다(그리지는 않음). 도면에서 높이(GL +5,200 · 지상 2층 · 평면도 제목)를
      스스로 찾으려면 글자가 있어야 합니다 — lib/building3d.js 가 씁니다. 블록 안 글자·속성(ATTRIB)까지. */
   const texts = []
   /* 🔗 G212 xref 끼움 — 이 도면이 다른 도면(xref)을 «어디에 · 몇 배로 · 몇 도 돌려» 끼웠는지. 끼운 도면 자체는 파일에 없지만
      (LibreDWG 는 xref 를 안 읽음) 끼운 자리는 남아 있어, 그 도면을 같이 올리면 정확히 겹칠 수 있습니다(lib/xref3d.js) */
   const xrefs = []
+  /* 🧭 G237 원(CIRCLE) 자리 — 통심 기호(원 안 X1 · Y1)를 찾으려고(lib/통심.js). 반지름 100 ~ 8000(큰 축척 판 · G240) · 20 만 개까지 */
+  const circles = []
   const 자르기들 = []
   const 사전들 = new Map()
-  const 글자 = (s, w, h, ly) => {
+  /* A = 🛣 G236 맞춤점(가운데 · 오른쪽 맞춤 TEXT 의 11/21 — 캐드가 글자를 그리는 기준 자리). x · y 는 예전처럼 10/20(왼쪽 아래)을 둠 */
+  const 글자 = (s, w, h, ly, A = null) => {
     if (texts.length >= 300000) return
     const t = 글자다듬기(s)
-    if (t && Number.isFinite(w[0] + w[1])) texts.push({ s: t, x: w[0], y: w[1], z: w[2], h, ly })
+    if (t && Number.isFinite(w[0] + w[1])) texts.push(A && Number.isFinite(A[0] + A[1]) ? { s: t, x: w[0], y: w[1], z: w[2], h, ly, ax: A[0], ay: A[1] } : { s: t, x: w[0], y: w[1], z: w[2], h, ly })
   }
   const skip = (k) => { stats.skipped[k] = (stats.skipped[k] || 0) + 1 }
   let lastProg = 0
@@ -253,9 +393,64 @@ export function parseDxf(text, onProgress, opt = {}) {
      → 1조(10¹²) 넘는 좌표는 버립니다. 실제 좌표(TM·UTM, mm 로 그려도 10⁹~10¹⁰)는 한참 아래입니다. */
   /* 🧪 2026-09-28 (2) — 높이(Z)는 더 좁게: 도면 단위가 mm 여도 실제 높이는 10 km(10⁷)를 넘지 않습니다(m 단위면 10⁴).
      소장님 도면 19장 중 상세도 한 장은 블록을 거치며 높이가 −2.6×10¹¹ 이 된 선이 있어 «높이 −262,873,068 m» 로 나왔습니다 → 2×10⁷ 넘는 높이는 버림. */
+  const 글자쪽 = { TEXT: 1, MTEXT: 1, ATTRIB: 1, INSERT: 1, CIRCLE: 1 }
+  const 틀쪽 = { LINE: 1, LWPOLYLINE: 1 }          /* 🧭 G241 선이 다 찬 뒤에도 판 테두리용 가로 · 세로 선은 봄 */
+  /* 블록 안에 글자 · 원 · 블록이 하나도 없으면(선뿐) 선이 다 찬 뒤엔 건너뜀 — 큰 도면에서 빨리 */
+  const 글자블록캐시 = new Map()
+  const 글자블록 = (bl) => { if (!글자블록캐시.has(bl)) 글자블록캐시.set(bl, bl.ents.some((x) => 글자쪽[x.t])); return 글자블록캐시.get(bl) }
   const 멀다 = (a) => !(Math.abs(a[0]) < 1e12 && Math.abs(a[1]) < 1e12 && Math.abs(a[2]) < 2e7)
+  /* 🧭 G239 큰 통합본(현장 C · D 식당 건축 통합본 — 선 2,465만 개 · 글자 5만 4천)은 «필요한 판 둘레만» 선을 읽습니다(opt.범위 [[x0, y0, x1, y1] …]) */
+  const 범위 = Array.isArray(opt.범위) && opt.범위.length ? opt.범위 : null
+  const 범안 = (x, y) => { for (const r of 범위) if (x >= r[0] && x <= r[2] && y >= r[1] && y <= r[3]) return true; return false }
+  /* 🧭 G241 판 테두리 선은 끝까지(겹치는 순서 0 포장 펴기) — 소장님 현장 C · D 건축 통합본: 판 181장 중 앞 300만 개 선 안의 43장만 박스로 잡혀
+       뒤쪽 판 도면명(«방수 계획도» · «주 단면도» …)을 못 읽었음. 선이 다 차거나 범위 밖이어도 «가로 · 세로 곧은 선» 만 따로 모음(도곽 찾기용).
+       긴 것부터 150만 개까지 — 넘치면 짧은 것을 버리고 문턱을 올림 */
+  const 틀 = { a: new Float64Array(1 << 16), n: 0, 짧: 0 }
+  const 틀예산 = opt.틀예산 || 1_500_000
+  function 틀넣기(x0, y0, x1, y1) {
+    const dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0)
+    if (!(dx + dy > 틀.짧)) return
+    if (!(dy <= 1e-7 * dx || dx <= 1e-7 * dy)) return
+    if (!(Math.abs(x0) < 1e12 && Math.abs(y0) < 1e12 && Math.abs(x1) < 1e12 && Math.abs(y1) < 1e12)) return
+    if (틀.n + 4 > 틀.a.length) {
+      if (틀.n / 4 >= 2 * 틀예산) {
+        const m = 틀.n / 4, L = new Float64Array(m)
+        for (let i = 0; i < m; i++) L[i] = Math.abs(틀.a[4 * i + 2] - 틀.a[4 * i]) + Math.abs(틀.a[4 * i + 3] - 틀.a[4 * i + 1])
+        const s = L.slice().sort()
+        틀.짧 = s[m - 틀예산]
+        let k = 0
+        for (let i = 0; i < m; i++) if (L[i] > 틀.짧) { for (let j = 0; j < 4; j++) 틀.a[k + j] = 틀.a[4 * i + j]; k += 4 }
+        틀.n = k
+        stats.틀문턱 = 틀.짧
+        if (!(dx + dy > 틀.짧)) return
+      } else { const na = new Float64Array(틀.a.length * 2); na.set(틀.a.subarray(0, 틀.n)); 틀.a = na }
+    }
+    틀.a[틀.n++] = x0; 틀.a[틀.n++] = y0; 틀.a[틀.n++] = x1; 틀.a[틀.n++] = y1
+  }
+  /* 선만 든 블록(판 테두리 블록 등)은 선이 다 찬 뒤엔 안 그림 — 대신 «블록 크기의 1/4 넘는 가로 · 세로 선» 만 한 번 골라 두고 끼운 자리로 옮겨 넣음 */
+  const 블록틀캐시 = new Map()
+  const 블록틀 = (bl) => {
+    if (블록틀캐시.has(bl)) return 블록틀캐시.get(bl)
+    const s = []
+    for (const x of bl.ents) {
+      if (x.t === 'LINE') s.push([g1(x.g, 10), g1(x.g, 20), g1(x.g, 11), g1(x.g, 21)])
+      else if (x.t === 'LWPOLYLINE' && !x.g.some(([k, v]) => k === 42 && num(v) !== 0)) {
+        const v = []; let c = null
+        for (const [k, w] of x.g) { if (k === 10) { c = [num(w), 0]; v.push(c) } else if (k === 20 && c) c[1] = num(w) }
+        if ((g1(x.g, 70, 0) & 1) === 1 && v.length > 2) v.push(v[0])
+        for (let i = 0; i + 1 < v.length; i++) s.push([v[i][0], v[i][1], v[i + 1][0], v[i + 1][1]])
+      }
+    }
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
+    for (const q of s) { x0 = Math.min(x0, q[0], q[2]); x1 = Math.max(x1, q[0], q[2]); y0 = Math.min(y0, q[1], q[3]); y1 = Math.max(y1, q[1], q[3]) }
+    const 큰 = 0.25 * Math.max(x1 - x0, y1 - y0)
+    const r = s.filter((q) => { const dx = Math.abs(q[2] - q[0]), dy = Math.abs(q[3] - q[1]); return dx + dy >= 큰 && (dy <= 1e-7 * dx || dx <= 1e-7 * dy) })
+    블록틀캐시.set(bl, r)
+    return r
+  }
   function seg(b, a, c, rgb) {
-    if (stats.segs >= MAX) { stats.capped = true; return }
+    if (범위 && !범안((a[0] + c[0]) / 2, (a[1] + c[1]) / 2)) { stats.범위밖 = (stats.범위밖 || 0) + 1; if (opt.raw) 틀넣기(a[0], a[1], c[0], c[1]); return }
+    if (stats.segs >= MAX) { stats.capped = true; if (opt.raw) 틀넣기(a[0], a[1], c[0], c[1]); return }
     if (!(Number.isFinite(a[0] + a[1] + a[2] + c[0] + c[1] + c[2]))) return
     if (멀다(a) || 멀다(c)) { stats.먼값 = (stats.먼값 || 0) + 1; return }
     b.pos.push6(a[0], a[1], a[2], c[0], c[1], c[2])
@@ -328,6 +523,8 @@ export function parseDxf(text, onProgress, opt = {}) {
     if (ly === '0' && inLayer) ly = inLayer             // 블록 안 0층은 넣은 쪽 층을 따릅니다
     const rgb = colorOf(g, ly, inRgb)
     const t = e.t
+    /* 🧭 G239 선이 다 차도(300만) 글자 · 원 · xref 자리는 끝까지 읽음 — 뒤쪽 단면도 높이 글자 · 판 제목이 빠지지 않게(겹치는 순서 0 포장 펴기) */
+    if (stats.capped && !글자쪽[t] && !(opt.raw && 틀쪽[t])) return
     stats.ents++
     const b = () => bucket(ly)
     switch (t) {
@@ -432,6 +629,10 @@ export function parseDxf(text, onProgress, opt = {}) {
         const O = ext(g); const MM = O ? mul(M, O) : M
         const cx = g1(g, 10), cy = g1(g, 20), cz = g1(g, 30), r = g1(g, 40)
         if (!(r > 0)) return
+        if (t === 'CIRCLE' && opt.raw && circles.length < 200000) {
+          const c0 = P(MM, cx, cy, cz), c1 = P(MM, cx + r, cy, cz), R = Math.hypot(c1[0] - c0[0], c1[1] - c0[1])
+          if (R >= 100 && R <= 8000 && Number.isFinite(c0[0] + c0[1])) circles.push({ x: c0[0], y: c0[1], r: R, ly })
+        }
         const s = t === 'ARC' ? (g1(g, 50) * Math.PI) / 180 : 0
         const en = t === 'ARC' ? (g1(g, 51) * Math.PI) / 180 : Math.PI * 2
         poly(b(), MM, arcPts(cx, cy, cz, r, s, t === 'ARC' ? en : s + Math.PI * 2), false, rgb)
@@ -486,6 +687,13 @@ export function parseDxf(text, onProgress, opt = {}) {
           else if (k === 30 && cur) cur[2] = num(v)
         }
         poly(b(), M, pts, false, rgb)
+        return
+      }
+      case 'MULTILEADER': case 'MLEADER': {
+        /* 🧭 G245 다중 지시선 — 선 · 끝 글자(전엔 통째로 건너뜀 «지시선 글자») */
+        const r = 다중지시선(g)
+        for (const pts of r.선) poly(b(), M, pts, false, rgb)
+        if (r.글) { const sc = M === I3 ? 1 : Math.hypot(M[0], M[4], M[8]); 글자(r.글.s, P(M, r.글.p[0], r.글.p[1], r.글.p[2]), r.글.h * sc, ly) }
         return
       }
       case 'MESH': {
@@ -552,21 +760,32 @@ export function parseDxf(text, onProgress, opt = {}) {
             if (O) L = mul(O, L)
             X = mul(M, L)
             const inRgbNext = rgb
-            for (const s of bl.ents) {
-              draw(s, X, ly, inRgbNext, depth + 1)
-              if (stats.capped) return
+            if (stats.capped && 글자블록(bl) === false) {
+              if (opt.raw) for (const q of 블록틀(bl)) { const a = P(X, q[0], q[1], 0), c = P(X, q[2], q[3], 0); 틀넣기(a[0], a[1], c[0], c[1]) }
+              continue
             }
+            for (const s of bl.ents) draw(s, X, ly, inRgbNext, depth + 1)
           }
           return
         }
-        for (const s of bl.ents) { draw(s, X, ly, rgb, depth + 1); if (stats.capped) return }
+        if (stats.capped && !글자블록(bl)) return
+        for (const s of bl.ents) draw(s, X, ly, rgb, depth + 1)
         return
       }
       case 'TEXT': case 'MTEXT': case 'ATTRIB': {
         let str = ''
         if (t === 'MTEXT') { for (const [k, v] of g) if (k === 3) str += v; str += gs(g, 1) } else str = gs(g, 1)
         const sc = M === I3 ? 1 : Math.hypot(M[0], M[4], M[8])
-        글자(unesc(str), P(M, g1(g, 10), g1(g, 20), g1(g, 30)), g1(g, 40) * sc, ly)
+        let A = null
+        if (t !== 'MTEXT') {
+          const 가 = g1(g, 72, 0), 세 = g1(g, t === 'ATTRIB' ? 74 : 73, 0)
+          if ((가 || 세) && g.some(([k]) => k === 11)) {
+            let ax = g1(g, 11), ay = g1(g, 21)
+            if (가 === 3 || 가 === 5) { ax = (ax + g1(g, 10)) / 2; ay = (ay + g1(g, 20)) / 2 }   // 맞춤(aligned) · 채움(fit) — 두 점 가운데
+            A = P(M, ax, ay, g1(g, 31))
+          }
+        }
+        글자(unesc(str), P(M, g1(g, 10), g1(g, 20), g1(g, 30)), g1(g, 40) * sc, ly, A)
         skip('글자'); stats.ents--
         return
       }
@@ -627,12 +846,14 @@ export function parseDxf(text, onProgress, opt = {}) {
             cur.ents.push(e)
           }
         }
+        if (cur && !blocks.has(cur.name)) blocks.set(cur.name, cur)      /* 🩹 G230 파일이 블록 중간에서 끊김 — 읽은 데까지 둠 */
       } else if (sec === 'ENTITIES') {
+        엔티티본 = true
         while (pair && !(pair[0] === 0 && pair[1].trim() === 'ENDSEC')) {
           if (pair[0] !== 0) { pair = R.next(); continue }
           const e = readFull()
           for (const kv of e.g) if (kv[0] === 8 || kv[0] === 2) kv[1] = unesc(kv[1])
-          if (!stats.capped) draw(e, I3, null, null, 0)
+          draw(e, I3, null, null, 0)
           if (onProgress && R.pos - lastProg > 2_000_000) { lastProg = R.pos; onProgress(R.pos / R.len) }
         }
       } else if (sec === 'OBJECTS') {
@@ -643,7 +864,17 @@ export function parseDxf(text, onProgress, opt = {}) {
             const e = readEnt('SPATIAL_FILTER')
             const xs = [], ys = [], m40 = []
             for (const [k, v] of e.g) { if (k === 10) xs.push(num(v)); else if (k === 20) ys.push(num(v)); else if (k === 40) m40.push(num(v)) }
-            if (xs.length >= 2 && xs.length === ys.length && m40.length >= 12 && 자르기들.length < 400) 자르기들.push({ 번: gs(e.g, 5), xs, ys, inv: m40.slice(0, 12) })
+            /* 🧭 G257 점은 «자른 테두리 좌표»(자를 때의 UCS) — 뒤 12(자른 테두리 변환 = 도면 → 그 좌표)를 거꾸로 해 도면 좌표로 먼저 옮김.
+                 앞 12 = 끼운 블록의 거꾸로 변환(앞쪽 자르기 거리 40 이 끼어도 뒤에서 셈). 현장 B S-101: 뒤 변환이 (−9750, −297068) 옮김 */
+            const 둘 = m40.length >= 24
+            const bt = 둘 ? m40.slice(-12) : null, det = bt ? bt[0] * bt[5] - bt[1] * bt[4] : 0
+            if (bt && Math.abs(det) > 1e-12 && !(bt[0] === 1 && bt[1] === 0 && bt[4] === 0 && bt[5] === 1 && bt[3] === 0 && bt[7] === 0)) {
+              for (let i = 0; i < xs.length; i++) {
+                const u = xs[i] - bt[3], w = ys[i] - bt[7]
+                xs[i] = (bt[5] * u - bt[1] * w) / det; ys[i] = (-bt[4] * u + bt[0] * w) / det
+              }
+            }
+            if (xs.length >= 2 && xs.length === ys.length && m40.length >= 12 && 자르기들.length < 400) 자르기들.push({ 번: gs(e.g, 5), xs, ys, inv: 둘 ? m40.slice(-24, -12) : m40.slice(0, 12) })
             continue
           }
           if (pair[0] === 0 && pair[1].trim() === 'DICTIONARY') {
@@ -662,7 +893,20 @@ export function parseDxf(text, onProgress, opt = {}) {
       }
       if (onProgress && R.pos - lastProg > 2_000_000) { lastProg = R.pos; onProgress(R.pos / R.len) }
     }
+    if (pair && pair[0] === 0 && pair[1].trim() === 'EOF') EOF본 = true
     pair = R.next()
+  }
+  /* 🩹 G230 (2026-10-10) 끝까지 저장되지 않은(끊긴) DXF — 현장 A A-400 단면도 · A-450 · A-461: AutoCAD 콘솔 DXFOUT 이 박아 넣은 xref 블록(«XR 단면도» 8만 개)을
+     다 쓰고 ENTITIES 앞에서 끊겨 모형 공간이 비어 «읽을 것 없음» → 다른 블록이 끼우지 않은 «맨 위» 블록 중 큰 것(200개 넘게)을 모형 공간으로 그림 */
+  if (!EOF본) stats.끊김 = true
+  if (!엔티티본 || (stats.끊김 && !stats.segs && !texts.length)) {
+    const 끼운 = new Set()
+    for (const b of blocks.values()) for (const e of b.ents) if (e.t === 'INSERT') 끼운.add(gs(e.g, 2))
+    const 맨위 = [...blocks.values()].filter((b) => !/^\*/.test(b.name) && !끼운.has(b.name) && b.ents.length >= 200).sort((a, b) => b.ents.length - a.ents.length)
+    const 큰 = 맨위.length ? 맨위[0].ents.length : 0
+    const 쓸 = 맨위.filter((b) => b.ents.length >= 큰 * 0.2).slice(0, 8)
+    for (const b of 쓸) { for (const e of b.ents) draw(e, I3, null, null, 1) }
+    if (쓸.length) stats.블록으로 = 쓸.map((b) => b.name).join(' · ')
   }
 
   /* 자르기 ↔ 끼움: ① 사전 사슬(INSERT → ACAD_FILTER → SPATIAL → SPATIAL_FILTER) — 자른 뒤 옮긴 끼움도 지금 자리로
@@ -698,7 +942,7 @@ export function parseDxf(text, onProgress, opt = {}) {
       }
     }
   }
-  if (opt.raw) return { out, layerInfo, stats, texts, xrefs }
+  if (opt.raw) return { out, layerInfo, stats, texts, xrefs, circles, 틀선: { a: 틀.a.subarray(0, 틀.n), n: 틀.n } }
   const r = finish(out, layerInfo, stats)
   r.texts = texts
   return r

@@ -15,7 +15,7 @@
  *
  * 모든 좌표는 «도면 좌표 그대로(double)» 입니다. 종이 좌표로 옮기는 것은 plotpdf.js · plotview.js 가 합니다.
  */
-import { reader, ocs, mul, I3, unesc, num, bspline, aciRgb } from './dxf3d.js'
+import { reader, ocs, mul, I3, unesc, num, bspline, aciRgb, 다중지시선 } from './dxf3d.js'
 
 /* ── 늘어나는 배열 ─────────────────────────────────────── */
 class Grow {
@@ -34,7 +34,7 @@ class Grow {
 const NOT_DRAWN = {
   '3DSOLID': '솔리드(3D)', BODY: '솔리드(3D)', REGION: '영역', SURFACE: '면(3D)',
   IMAGE: '그림', WIPEOUT: '가림막', OLE2FRAME: 'OLE', OLEFRAME: 'OLE',
-  MULTILEADER: '다중 지시선', MLEADER: '다중 지시선', ACAD_TABLE: '표', TOLERANCE: '공차',
+  ACAD_TABLE: '표', TOLERANCE: '공차',
   XLINE: '무한선', RAY: '무한선', POINT: null, VIEWPORT: null, SEQEND: null, VERTEX: null, ATTDEF: null,
   ACAD_PROXY_ENTITY: '프록시', HELIX: '나선', UNDERLAY: '밑그림', PDFUNDERLAY: '밑그림', DWFUNDERLAY: '밑그림',
   DGNUNDERLAY: '밑그림', LIGHT: null, SUN: null, SECTION: null, SHAPE: '모양(SHP)',
@@ -78,6 +78,8 @@ export function mtextLines(raw) {
       cur += n; i++; continue
     }
     if (c === '{' || c === '}' || c === '\n' || c === '\r') continue
+    /* 🧭 G245 캐럿 글자 — «^I» 탭 · «^J» 줄 바꿈 · «^M» 줄 끝(현장 A 구조평면 주기 «1.^I시공전 벽체…» 가 그대로 나왔음 · PDF 대조로 찾음) */
+    if (c === '^' && (s[i + 1] === 'I' || s[i + 1] === 'J' || s[i + 1] === 'M')) { if (s[i + 1] === 'J') { out.push(cur); cur = '' } else if (s[i + 1] === 'I') cur += ' '; i++; continue }
     cur += c
   }
   out.push(cur)
@@ -85,7 +87,7 @@ export function mtextLines(raw) {
 }
 
 /* ── XCLIP 미리 훑기: SPATIAL_FILTER → 어느 INSERT 의 것인지 ──
-   2026-09-26 여수 A-300 으로 확인: 경계점에 «역삽입 행렬(첫 번째 40 열두 개)» 을 곱하면 블록 좌표가 됩니다.
+   2026-09-26 현장 A A-300 으로 확인: 경계점에 «역삽입 행렬(첫 번째 40 열두 개)» 을 곱하면 블록 좌표가 됩니다.
    (곱하지 않으면 블록 그림과 수백만 mm 떨어진 곳을 가리킵니다.) */
 function groupsAt(text, pos) {
   const R = reader(text.slice(pos, pos + 200000))
@@ -104,8 +106,15 @@ function findByHandle(text, h) {
   const type = text.slice(k + 1, m.index).trim()
   return { type, g: groupsAt(text, m.index + 1) }
 }
+/* 🧭 G243 조각글(아주 큰 DXF — dxf3d.js decodeBytes)이면 조각마다 훑고, 손잡이(5) 찾기는 모든 조각에서 */
 export function scanClips(text) {
+  const 조각 = text && text.조각 ? text.조각 : [text]
   const map = new Map()
+  const 찾기 = (h) => { for (const t of 조각) { const o = findByHandle(t, h); if (o) return o } return null }
+  for (const t of 조각) 클립훑기(t, 찾기, map)
+  return map
+}
+function 클립훑기(text, 찾기, map) {
   let i = 0
   let guard = 0
   while ((i = text.indexOf('SPATIAL_FILTER', i)) >= 0 && guard++ < 5000) {
@@ -130,7 +139,7 @@ export function scanClips(text) {
     // SPATIAL_FILTER ← 사전(ACAD_FILTER) ← 사전(확장 사전) ← INSERT
     let h = owner, ins = null
     for (let hop = 0; hop < 3 && h; hop++) {
-      const o = findByHandle(text, h)
+      const o = 찾기(h)
       if (!o) break
       if (o.type === 'INSERT') { ins = h; break }
       const ow = o.g.filter(([k]) => k === 330).map(([, v]) => v.trim())
@@ -143,7 +152,6 @@ export function scanClips(text) {
       : pts).map(([x, y]) => [M1[0] * x + M1[1] * y + M1[3], M1[4] * x + M1[5] * y + M1[7]])
     map.set(ins.toUpperCase(), bp)
   }
-  return map
 }
 
 /**
@@ -708,6 +716,13 @@ export function parsePlot(text, onProgress) {
           else if (k === 30 && cur) cur[2] = num(v)
         }
         addPath(M, pts, false, rs.sty, cx)
+        return
+      }
+      case 'MULTILEADER': case 'MLEADER': {
+        /* 🧭 G245 다중 지시선 — 선 · 끝 글자(전엔 PDF 에서 빠짐 «다중 지시선») */
+        const r = 다중지시선(g)
+        for (const pts of r.선) addPath(M, pts, false, rs.sty, cx)
+        if (r.글) textEnt({ t: 'MTEXT' }, [[1, r.글.s], [10, r.글.p[0]], [20, r.글.p[1]], [30, r.글.p[2]], [40, r.글.h], [71, r.글.맞춤 === 2 ? 2 : r.글.맞춤 === 3 ? 3 : 1], [11, Math.cos(r.글.a)], [21, Math.sin(r.글.a)], [31, 0]], M, rs, cx)
         return
       }
       case 'HATCH': hatch(g, M, rs, cx); return

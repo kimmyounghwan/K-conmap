@@ -137,3 +137,6 @@ data/store/검진_좋은판.json
 data/store/검진_메일.json
 data/store/좋은판/
 web/public/data/검진.json
+
+# 🔒 내부 기록(소장님 현장 내역서 물량 · PC 파일 자리) — 공개 저장소에 올리지 않음 (G244)
+docs/비공개/

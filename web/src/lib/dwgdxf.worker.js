@@ -26,8 +26,10 @@ async function 엔진() {
   return LibreDwg.createByWasmInstance(inst)
 }
 
-/* DWG 안 레이어마다 진짜 켜짐/꺼짐 — 표(LAYER)만 훑습니다(도면 전체를 JS 로 옮기지 않아 빠릅니다) */
-function 레이어읽기(lib, buf) {
+/* DWG 안 레이어마다 진짜 켜짐/꺼짐 — 표(LAYER)만 훑습니다(도면 전체를 JS 로 옮기지 않아 빠릅니다)
+   🧭 G245 훑는 김에 «도형 종류별 개수»(원본)도 셈 — 읽기 점검(lib/읽기점검.js)이 DXF 로 바꾼 뒤 개수와 견줘 «바꾸며 빠진 것» 을 알림 */
+const 종류이름 = Object.fromEntries(Object.entries(Dwg_Object_Type).map(([k, v]) => [v, k.replace(/^DWG_TYPE_/, '')]))
+function 레이어읽기(lib, buf, 원본 = {}) {
   const data = lib.dwg_read_data(buf, Dwg_File_Type.DWG)
   if (!data) throw new Error('DWG 를 읽지 못했습니다')
   const 표 = new Map()
@@ -38,7 +40,11 @@ function 레이어읽기(lib, buf) {
     for (let i = 0; i < n; i++) {
       const obj = lib.dwg_get_object(data, i)
       if (!obj) continue
-      if (lib.dwg_object_get_fixedtype(obj) !== Dwg_Object_Type.DWG_TYPE_LAYER) continue
+      const ft = lib.dwg_object_get_fixedtype(obj)
+      if (ft !== Dwg_Object_Type.DWG_TYPE_LAYER) {
+        try { if (lib.dwg_object_get_supertype(obj) === 0) { const k = 종류이름[ft] || String(ft); 원본[k] = (원본[k] || 0) + 1 } } catch (e) { /* 셈 못 해도 바꾸기는 그대로 */ }
+        continue
+      }
       const tio = lib.dwg_object_to_object_tio(obj)
       if (!tio) continue
       const 이름 = lib.dwg_dynapi_entity_data(tio, 'name')
@@ -73,8 +79,17 @@ self.onmessage = async (ev) => {
 
     post({ type: 'prog', p: 0.15, msg: '레이어 켜짐·꺼짐 읽는 중' })
     let 표 = null, 레이어문제 = ''
-    try { 표 = 레이어읽기(lib, buf) } catch (e) {
+    const 원본 = {}
+    try { 표 = 레이어읽기(lib, buf, 원본) } catch (e) {
       레이어문제 = String((e && e.message) || e)
+      /* 🩹 G228 (2026-10-10) 읽다 «기억이 넘친»(memory access out of bounds) 도면은 그 자리에서 건너뜀.
+         현장 A 도면 66장 시험 — 6층 강당 건축음향 도면이 읽기에서 엔진 기억을 4 GB 끝까지 키운 뒤 넘침 → 전엔 새 엔진을 하나 더 띄워
+         DXF 로 바꾸려다(4 GB + 4 GB) 브라우저 탭이 통째로 죽어 다른 도면까지 다 날아감. 같은 도면은 DXF 쓰기도 실패(오류 8192). */
+      if (기억오류(e)) {
+        lib = null
+        post({ type: 'err', kind: 'readmem', msg: '변환 엔진이 이 DWG 를 읽다 기억이 넘쳐 건너뜀' })
+        return
+      }
       lib = await 엔진()   // 죽은 엔진은 다시 못 씁니다
     }
 
@@ -93,7 +108,7 @@ self.onmessage = async (ev) => {
       info: {
         머리: 판.머리, 판: 판.판, ms: Date.now() - t0, 크기: ab.byteLength,
         레이어수: 고친.레이어수, 켬: 고친.켬, 끔: 고친.끔, 고침: 고친.고침, 뺌: 정리.뺌, 속성: 정리.속성, 물체: 정리.물체, 긴글: 정리.긴글, 순서표: 정리.순서표, 수: 정리.수, 꼬리: 정리.꼬리, 대리: 정리.대리, 기록: 정리.기록, 틀: 정리.틀, 해치: 정리.해치, 접선: 정리.접선, 치수: 정리.치수,
-        레이어문제, 모름: 고친.모름.slice(0, 5), 모름수: 고친.모름.length,
+        레이어문제, 모름: 고친.모름.slice(0, 5), 모름수: 고친.모름.length, 원본,
       },
     }, [ab])
   } catch (e) {

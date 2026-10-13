@@ -39,6 +39,53 @@ export function 누운선(out, { 골라 = null, z = null, 창 = 300, 최소 = 30
   return s
 }
 
+/**
+ * 🧭 G242 치수선 빼기 — 누운선([x1,y1,x2,y2 …]) 가운데 «곧은 선 하나를 수직선 넷 넘게가 양쪽으로 꿰뚫는» 선(치수선 · 치수보조선이 지나는 줄)을 뺌.
+ * 현장 C 2 · 3층: 치수를 «2_철골기둥» 층에 그려 바깥 치수 두 줄(1.2 m 사이)이 벽으로 읽히고 바닥이 치수 테두리까지 커졌음(벽 두께 0.71 m · 바닥 6,214 ㎡).
+ * 벽 선은 다른 벽이 T 로 닿을 뿐 양쪽으로 꿰뚫리지 않음.
+ */
+export function 치수선빼기(s, { 넘침 = 100, 최소수 = 4, 최소길이 = 2000 } = {}) {
+  const n = s.length / 4
+  const 가로 = [], 세로 = []
+  for (let i = 0; i < n; i++) {
+    const x1 = s[i * 4], y1 = s[i * 4 + 1], x2 = s[i * 4 + 2], y2 = s[i * 4 + 3]
+    const dx = Math.abs(x2 - x1), dy = Math.abs(y2 - y1)
+    if (dy <= dx * 0.02) 가로.push(i)
+    else if (dx <= dy * 0.02) 세로.push(i)
+  }
+  const 뺄 = new Uint8Array(n)
+  /* 가로 선을 세로 선들이 꿰뚫는지 — 세로 선은 x 1 m 칸 */
+  const 칸셈 = (긴, 짧, 축) => {
+    const 칸 = new Map()
+    for (const j of 짧) { const k = Math.floor((축 ? s[j * 4] : s[j * 4 + 1]) / 1000); let a = 칸.get(k); if (!a) { a = []; 칸.set(k, a) } a.push(j) }
+    for (const i of 긴) {
+      const a0 = 축 ? Math.min(s[i * 4], s[i * 4 + 2]) : Math.min(s[i * 4 + 1], s[i * 4 + 3]), a1 = 축 ? Math.max(s[i * 4], s[i * 4 + 2]) : Math.max(s[i * 4 + 1], s[i * 4 + 3])
+      if (a1 - a0 < 최소길이) continue
+      const 높 = 축 ? (s[i * 4 + 1] + s[i * 4 + 3]) / 2 : (s[i * 4] + s[i * 4 + 2]) / 2
+      const 자리 = new Set()
+      for (let k = Math.floor(a0 / 1000); k <= Math.floor(a1 / 1000); k++) {
+        for (const j of 칸.get(k) || []) {
+          const p = 축 ? (s[j * 4] + s[j * 4 + 2]) / 2 : (s[j * 4 + 1] + s[j * 4 + 3]) / 2
+          if (p <= a0 + 넘침 || p >= a1 - 넘침) continue
+          const b0 = 축 ? Math.min(s[j * 4 + 1], s[j * 4 + 3]) : Math.min(s[j * 4], s[j * 4 + 2]), b1 = 축 ? Math.max(s[j * 4 + 1], s[j * 4 + 3]) : Math.max(s[j * 4], s[j * 4 + 2])
+          if (b0 < 높 - 넘침 && b1 > 높 + 넘침) 자리.add(Math.round(p / 50))
+        }
+        if (자리.size >= 최소수) break
+      }
+      if (자리.size >= 최소수) 뺄[i] = 1
+    }
+  }
+  칸셈(가로, 세로, true)
+  칸셈(세로, 가로, false)
+  let m = 0
+  for (let i = 0; i < n; i++) if (!뺄[i]) m++
+  if (m === n) return s
+  const out = new Array(m * 4)
+  let k = 0
+  for (let i = 0; i < n; i++) if (!뺄[i]) { out[k++] = s[i * 4]; out[k++] = s[i * 4 + 1]; out[k++] = s[i * 4 + 2]; out[k++] = s[i * 4 + 3] }
+  return out
+}
+
 /** 가장 많이 나오는 «누운 선 높이» (구조물 평면 · 건물 1층 바닥 고르기) */
 export function 바닥높이(out, 골라 = null) {
   const m = new Map()
@@ -268,6 +315,9 @@ function 넓게준비(B) {
 }
 
 /** 넓게 찾기 — 판마다 센 방향에 틀의 센 방향을 맞춰(90° 네 가지) 2 m 걸음으로 «선까지 거리 합» 이 작은 자리 */
+/** 🧭 G246 일 셈 — 모양 찾기의 «마감» 을 시계(초)가 아니라 한 일의 양으로. 시계로 끊으면 기계가 바쁜 정도에 따라 같은 도면도
+    돌릴 때마다 답이 달랐음(현장 E 평면 그룹 8 ~ 9개). 넓게 찾기 한 자리 = 1 · 가까이 다듬기 한 자리 = 30 (이 기계 약 250만 / 초) */
+export const 일셈 = { n: 0 }
 function 넓게찾기(B, P, 틀방향, 몇 = 80, 영역 = null, 마감 = Infinity) {
   const N = 넓게준비(B)
   const n = P.length / 2
@@ -282,7 +332,7 @@ function 넓게찾기(B, P, 틀방향, 몇 = 80, 영역 = null, 마감 = Infinit
   const Q = new Float64Array(P.length)
   const 걸음 = Math.max(2000, N.칸)
   for (const 판 of N.판들) {
-    if (Date.now() > 마감) break
+    if (일셈.n > 마감) break
     if (영역 && !영역.some((r) => 판.x0 < r[2] && 판.x0 + N.판칸 > r[0] && 판.y0 < r[3] && 판.y0 + N.판칸 > r[1])) continue
     const θs = []
     for (const db of 판.방) for (const dt of 틀방향) for (let k = 0; k < 4; k++) {
@@ -295,6 +345,7 @@ function 넓게찾기(B, P, 틀방향, 몇 = 80, 영역 = null, 마감 = Infinit
       for (let cx = 판.x0 - 20000; cx <= 판.x0 + N.판칸 + 20000; cx += 걸음) {
         for (let cy = 판.y0 - 20000; cy <= 판.y0 + N.판칸 + 20000; cy += 걸음) {
           if (영역 && !영역.some((r) => cx >= r[0] && cx <= r[2] && cy >= r[1] && cy <= r[3])) continue
+          일셈.n++
           let 합 = 0, 끊 = false
           const 한 = 문 * n
           for (let i = 0; i < n; i++) {
@@ -322,6 +373,7 @@ function 가까이찾기(B, P, th0, cx0, cy0, 반경) {
   const d = 거리지도(B.s, 고른, x0, y0, 칸, W, H, 1e9)
   const n = P.length / 2
   const 몫 = (th, cx, cy, 한) => {
+    일셈.n += 30
     const a = Math.cos(th), b = Math.sin(th)
     let m = 0
     for (let i = 0; i < n; i++) {
@@ -375,7 +427,7 @@ function 거꾸로몫(B, 틀B, T, 가운데, 반경, 한도 = 150) {
  *   ㉢ 가장 잘 맞은 자리를 가까운 선에 맞춰 다듬고(ICP) «15 cm 안에 든 몫» 으로 판정
  * @returns {null | { T, 맞음비, 회전, 둘째, 됨, 까닭?, 방법 }}
  */
-export function 모양맞추기(틀, B, { 문턱 = 0.5, 근처 = null, 근처문턱 = 0.5, 영역 = null, 마감 = Infinity, 둘째틈 = 0.08 } = {}) {
+export function 모양맞추기(틀, B, { 문턱 = 0.5, 근처 = null, 근처문턱 = 0.5, 영역 = null, 마감 = Infinity, 둘째틈 = 0.08, 방점 = null } = {}) {
   const n = 틀.length / 4
   if (n < 8 || !B.긴.length) return null
   const 디 = globalThis.__겹치기디버그 ? console.log : () => {}
@@ -474,7 +526,7 @@ export function 모양맞추기(틀, B, { 문턱 = 0.5, 근처 = null, 근처문
       for (let i = 0; i < 가.length; i += 2) { G[i] = 가[i] - mx; G[i + 1] = 가[i + 1] - my }
       const 다듬은 = []
       for (const [, th, cx, cy] of 넓) {
-        if (Date.now() > 마감) break
+        if (일셈.n > 마감) break
         const r = 가까이찾기(B, G, th, cx, cy, 반경)
         if (r) 다듬은.push(r)
       }
@@ -484,7 +536,7 @@ export function 모양맞추기(틀, B, { 문턱 = 0.5, 근처 = null, 근처문
   }
   때('㉡')
   /* 넓게 찾기를 끝까지 못 했으면(시간) 판정하지 않습니다 — 덜 찾은 채로 1등을 고르면 «비슷한 다른 자리» 를 못 보고 엉뚱한 곳에 붙을 수 있음 */
-  if (!빠른 && Date.now() > 마감) return { 됨: false, 까닭: '시간이 오래 걸려 모양 찾기를 그만둠', 몫: 0, 맞음비: 0, 거꾸로: 0, 회전: 0, 둘째: 0, T: null }
+  if (!빠른 && 일셈.n > 마감) return { 됨: false, 까닭: '시간이 오래 걸려 모양 찾기를 그만둠', 몫: 0, 맞음비: 0, 거꾸로: 0, 회전: 0, 둘째: 0, T: null }
   if (!후보.length) return null
   후보.sort((p, q) => q.몫 - p.몫)
   for (const c of 후보.slice(0, 8)) { const [x, y] = 가운데(c.T); 디('  후보', c.방법, c.몫.toFixed(3), '돌림', (Math.atan2(c.T.b, c.T.a) * 180 / Math.PI).toFixed(2), '가운데', Math.round(x), Math.round(y)) }
@@ -500,6 +552,25 @@ export function 모양맞추기(틀, B, { 문턱 = 0.5, 근처 = null, 근처문
   다.sort((p, q) => q.몫 - p.몫)
   때('㉢')
   for (const c of 다.slice(0, 6)) { const [x, y] = 가운데(c.T); 디('  다듬음', c.방법, '앞', c.앞.toFixed(3), '뒤', c.뒤.toFixed(3), '몫', c.몫.toFixed(3), '돌림', (Math.atan2(c.T.b, c.T.a) * 180 / Math.PI).toFixed(2), '가운데', Math.round(x), Math.round(y)) }
+  /* 🏢 G228 방점(배치도에서 이 건물 방 이름 글자 자리) 이 주어지면 — 그 글자들이 놓인 건물 테두리(틀 네모 + 1 m) 안에 가장 많이 드는 자리만 견줌 */
+  if (방점 && 방점.length) {
+    let tx0 = Infinity, ty0 = Infinity, tx1 = -Infinity, ty1 = -Infinity
+    for (let i = 0; i < 틀.length; i += 2) { const x = 틀[i], y = 틀[i + 1]; if (x < tx0) tx0 = x; if (x > tx1) tx1 = x; if (y < ty0) ty0 = y; if (y > ty1) ty1 = y }
+    const 든몫 = (T) => {
+      const s2 = T.a * T.a + T.b * T.b || 1
+      let n = 0
+      for (const [x, y] of 방점) {
+        const u = (T.a * (x - T.tx) + T.b * (y - T.ty)) / s2, v = (-T.b * (x - T.tx) + T.a * (y - T.ty)) / s2
+        if (u >= tx0 - 1000 && u <= tx1 + 1000 && v >= ty0 - 1000 && v <= ty1 + 1000) n++
+      }
+      return n / 방점.length
+    }
+    for (const c of 다) c.방몫 = 든몫(c.T)
+    const 큰 = Math.max(...다.map((c) => c.방몫))
+    if (!(큰 >= 0.5)) return { T: 다[0].T, 맞음비: 다[0].앞, 거꾸로: 다[0].뒤, 몫: 다[0].몫, 회전: 0, 둘째: 0, 방법: 다[0].방법, 됨: false, 까닭: '같은 방 이름이 든 자리에서 같은 모양을 못 찾음' }
+    const 안쪽 = 다.filter((c) => c.방몫 >= 큰 - 1e-9)
+    다.length = 0; 다.push(...안쪽)
+  }
   const 첫 = 다[0]
   const [fx, fy] = 가운데(첫.T)
   /* 둘째 — 다른 자리(가운데가 10 m 넘게 떨어진 것) 중 가장 잘 맞은 것. 같은 자리에서 뒤집힌 것은 셈하지 않음 */

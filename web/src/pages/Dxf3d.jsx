@@ -21,6 +21,7 @@ import 활용판 from './Dxf3d활용.jsx'
 
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { DWG바꾸기 } from '../lib/dwg바꾸기.js'
+import { 파일한도, 작은기기, 한도글, 멈춤감시, 멈춤글 } from '../lib/파일한도.js'
 /* 🧪 2026-09-26 — 소장님: 「각각의 도구별로 예시가 하나씩 있어야 하지 않아. 그래야 사람들이 보고 해보지」
    예시 도면은 제가 새로 그린 «가상의 건물·언덕» 입니다(남의 공사 도면이 아닙니다). public/tools/files/ex-*.dxf */
 const 예시들 = [
@@ -29,8 +30,10 @@ const 예시들 = [
   { 이름: '⛰ 가상 언덕 — 등고선 + 길', 파일: ['ex-terrain.dxf'],
     글: '높이를 가진 등고선(2m 간격)과 3D 폴리선 길 — 높이가 든 도면은 그대로 섭니다' },
 ]
-const 큰파일 = 250 * 1024 * 1024
-const 모두합 = 400 * 1024 * 1024
+/* 🧭 G243 PC 는 크기 한도 없음(파일 하나 2 GB · 모두 합 한도 없음 — 일꾼이 한 장씩 꺼내 읽고 놓음) · 폰 · 작은 기기는 파일 200 MB · 합 400 MB
+     (전: 파일 250 MB · 합 400 MB — 현장 C 건축 통합본 DXF 243 MB + 토목 110 MB 가 «너무 큼» 으로 막혔음) */
+const 큰파일 = 파일한도()
+const 모두합 = 작은기기() ? 400 * 1024 * 1024 : Infinity
 /* 📡 2026-10-05 측량성과표 — 소장님: 「좌표측량성과표하고, 평면도는 항상 필요하다는 걸 알려야 하지 않을까?」
    「평면도에도 좌표가 안입혀져 있어. 대부분 그래, 그래서 좌표가 있는 측량도면을 측량성과표 도면을 꼭 넣어달라고 해야 하지 않아.」 */
 const 표끝 = /\.(csv|txt|xlsx|xls)$/i
@@ -78,6 +81,7 @@ export default function Dxf3d() {
   const [성과, set성과] = useState(null)              // 📡 측량성과표 { 파일, 점:[{이름,N,E,Z}], 북동확실 }
   const 성과Ref = useRef(null)
   const [자세히, set자세히] = useState(null)           // 상태표에서 펼친 묶음 번호
+  const [판보기, set판보기] = useState(null)           // 🧭 G241 건물 묶음의 판(도곽) · 도면명 목록 펼침
   const [끈것보기, set끈것보기] = useState(false)
   /* 🧰 G224 3D 로 더 하기(Dxf3d활용.jsx) — 3D 위 덧그림 층(물길 · 표시 · 원 · 핀). 도면을 다시 세워도(setLayers) 다시 얹음 */
   const 덧Ref = useRef(new Map())
@@ -128,7 +132,7 @@ export default function Dxf3d() {
     if (!모두.length) return
     /* 📡 측량성과표(엑셀·CSV·TXT) — 같은 칸에 놓아도 됩니다. 점번호·X·Y·Z 를 읽어 기준으로 씁니다 */
     const 표들 = 모두.filter((f) => 표끝.test(f.name))
-    const fs = 모두.filter((f) => !표끝.test(f.name))
+    let fs = 모두.filter((f) => !표끝.test(f.name))
     if (표들.length) {
       let 됨 = null
       for (const f of 표들) {
@@ -146,7 +150,14 @@ export default function Dxf3d() {
     }
     if (!fs.length) return
     if (!예시) set예시글('')
-    if (fs.some((f) => f.size > 큰파일)) { set상태({ k: 'err', msg: 'big' }); return }
+    /* 🧭 G243 한도를 넘는 파일만 빼고(⚠️ 이름표로 알림) 나머지는 다 세움 — 전엔 한 장 때문에 모두 안 섰음 */
+    const 넘친 = fs.filter((f) => f.size > 큰파일)
+    if (넘친.length) {
+      fs = fs.filter((f) => f.size <= 큰파일)
+      못바꾼Ref.current = [...못바꾼Ref.current.filter((n) => !넘친.some((f) => f.name === n)), ...넘친.map((f) => f.name)]
+      set못바꾼들(못바꾼Ref.current)
+      if (!fs.length) { set상태({ k: 'err', msg: 'big' }); return }
+    }
     const 이름들 = new Set(fs.map((f) => f.name))
     const 남길 = 예시 ? [] : 도면들Ref.current.filter((x) => !이름들.has(x.이름))
     if (남길.reduce((n, x) => n + x.크기, 0) + fs.reduce((n, f) => n + f.size, 0) > 모두합) { set상태({ k: 'err', msg: 'big' }); return }
@@ -191,12 +202,16 @@ export default function Dxf3d() {
     const w = new Worker(new URL('../lib/dxf3d.worker.js', import.meta.url), { type: 'module' })
     workRef.current = w
     const files = 목록.map((x) => ({ name: x.이름.replace(/\.dwg$/i, '.dxf'), blob: x.dxf }))
+    /* 🧭 G243 일꾼이 5분 넘게 말이 없으면 끝내고 알림 */
+    const 감시 = 멈춤감시(() => { if (workRef.current === w) { w.terminate(); workRef.current = null; set상태({ k: 'err', msg: 'stall' }) } })
     w.onmessage = (ev) => {
       const m = ev.data
-      if (workRef.current !== w) return   // 그사이 더 새 세우기가 시작됨
+      if (workRef.current !== w) { 감시.끝(); return }   // 그사이 더 새 세우기가 시작됨
+      감시.깨움()
       if (m.type === 'prog') set상태({ k: 'busy', p: m.p, msg: m.msg })
-      else if (m.type === 'err') { set상태({ k: 'err', msg: m.kind, more: m.msg }); w.terminate() }
+      else if (m.type === 'err') { 감시.끝(); set상태({ k: 'err', msg: m.kind, more: m.msg }); w.terminate() }
       else if (m.type === 'done') {
+        감시.끝()
         w.terminate(); workRef.current = null
         보이기(m.r, 못바꾼Ref.current.length, null, 못바꾼Ref.current, 목록)
         세기('|도면3d|세움')
@@ -204,7 +219,7 @@ export default function Dxf3d() {
         if ((m.r.그룹 || []).some((g) => (g.종류 === '횡단' || g.종류 === '노선') && g.자리 && g.자리.how === '노선')) 세기('|도면3d|노선')
       }
     }
-    w.onerror = (e) => set상태({ k: 'err', msg: 'fail', more: String(e.message || '') })
+    w.onerror = (e) => { 감시.끝(); set상태({ k: 'err', msg: /memory|allocation|Invalid (string|array) length/i.test(e.message || '') ? 'mem' : 'fail', more: String(e.message || '') }) }
     w.postMessage({ files, 성과: 성과Ref.current })
   }
 
@@ -564,9 +579,20 @@ export default function Dxf3d() {
                           <td style={{ fontSize: 12 }}>
                             <자리글 g={g} />
                             {z.짝 && z.짝.length > 0 && <button type="button" className="dx3-only" style={{ marginLeft: 6 }} onClick={() => set자세히(펼 ? null : g.번)}>{펼 ? '접기' : '짝 보기'}</button>}
+                            {g.판목록 && g.판목록.length > 0 && <button type="button" className="dx3-only" style={{ marginLeft: 6 }} onClick={() => set판보기(판보기 === g.번 ? null : g.번)}>{판보기 === g.번 ? '판 접기' : `판 ${g.판목록.length}장 · 도면명 보기`}</button>}
                           </td>
                           <td style={{ whiteSpace: 'nowrap' }}><button type="button" className={'chip' + (맞춤 && 맞춤.g === g.번 ? ' on' : '')} onClick={() => 맞추기시작(g)}>📍 두 점 찍기</button></td>
                         </tr>,
+                        판보기 === g.번 && g.판목록 && (
+                          <tr key={g.번 + '판'} className="dx3-pairs">
+                            <td colSpan={4}>
+                              <div className="muted" style={{ fontSize: 11.5, marginBottom: 4 }}>건물로 쓴 도면의 판(도곽) {g.판목록.length}장 — 표제란(TITLE · 도면명) 칸에서 읽은 도면명 · 종류</div>
+                              <div className="dx3-sheets">
+                                {g.판목록.map((t, i) => <span key={i} className="dx3-pair"><i>{i + 1}</i> {t.제목 || '(이름 없음)'} <b>{종류글[t.종류] || t.종류}</b></span>)}
+                              </div>
+                            </td>
+                          </tr>
+                        ),
                         펼 && (
                           <tr key={g.번 + '짝'} className="dx3-pairs">
                             <td colSpan={4}>
@@ -983,7 +1009,9 @@ function 오류글(k, more) {
   if (k === 'dwg') return <>DWG 를 DXF 로 바꾸지 못했습니다. <Link to="/tools/dwgdxf"><b>DWG → DXF 바꾸기</b></Link> 에서 이유를 볼 수 있습니다(아주 옛 판·깨진 파일).</>
   if (k === 'bindxf') return <>바이너리 DXF 입니다. 캐드에서 DXF 로 저장할 때 <b>ASCII</b> 를 골라 주십시오.</>
   if (k === 'notdxf') return <>DXF 도면이 아닌 것 같습니다. 확장자가 .dxf 인 캐드 도면을 놓아 주십시오.</>
-  if (k === 'big') return <>파일이 250MB 를 넘습니다. 캐드에서 필요 없는 층을 지우고(PURGE) 다시 저장해 주십시오.</>
+  if (k === 'big') return <>{한도글()}</>
+  if (k === 'stall') return <>{멈춤글}.</>
+  if (k === 'mem') return <>도면이 너무 커서 이 기기의 기억 공간이 모자랍니다. 다른 창 · 탭을 닫고 다시 놓거나 PC 에서 열어 주십시오.</>
   if (k === 'webgl') return <>이 브라우저에서 3D(WebGL)를 켤 수 없습니다. 크롬·엣지·사파리 최신판에서 열어 주십시오.</>
   if (k === 'webgl-lost') return <>그래픽 메모리가 모자라 3D 화면이 꺼졌습니다. 도면 몇 장을 <b>✕</b> 로 빼거나(꺼 둔 수치지도가 큰 도면부터), 다른 창·탭을 닫고 다시 올려 주십시오.</>
   if (k === 'sur') return <>측량성과표에서 <b>점번호 · X · Y</b> 칸을 찾지 못했습니다{more ? <span className="muted"> ({more})</span> : null}. 첫 줄에 «점명 · X · Y · Z(표고)» 머리가 있는 엑셀·CSV 로 넣어 주십시오.</>

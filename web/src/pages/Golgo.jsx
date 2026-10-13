@@ -27,12 +27,14 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { 셈, 새공사, 새동, 정리, 양식, 양식차례, 배근칸, 배근고르기, 정착표, 규격들, 기준값, 옵션이름, 층복사, 층범위, 비교, 엑셀 } from '../lib/골조.js'
+import { 셈, 새공사, 새동, 정리, 양식, 양식차례, 배근칸, 배근고르기, 정착표, 정착표규격, 규격들, 기준값, 옵션이름, 층복사, 층범위, 비교, 엑셀 } from '../lib/골조.js'
 import { 품은도형, 도형글자, 종류, 종류이름 } from '../lib/골조도면.js'
 import { use도면, 도면판, 도면상태줄, 도면읽어오기, 큰파일, 오류글 } from '../도면판.jsx'
+import 읽기점검칸 from '../읽기점검칸.jsx'
+import 판목록칸 from '../판목록칸.jsx'
 import { 단위배율 } from '../lib/골조도면.js'
 import { 골조읽기, 개수글 } from '../lib/골조자동.js'
-import { 표찾기, 표읽기, 글자모음, 선모음, 넣을것, 칸이름, 칸들 as 정착칸들 } from '../lib/정착표읽기.js'
+import { 표찾기, 표읽기, 글자모음, 선모음, 정착표넣기, 칸이름, 칸들 as 정착칸들 } from '../lib/정착표읽기.js'
 import { 줄자리, 도형상자, 모은상자, 누른줄들 } from '../lib/도면오가기.js'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { askAfter } from '../AskComment'
@@ -46,7 +48,7 @@ const 자동예시 = ['/jeoksan/골조자동_예시.dxf', '골조자동_예시.d
 /* 칸마다 «도면에서 무엇을 받나» */
 const 길이칸 = new Set(['길이', '좌단', '우단', 'S', '높이', '내림', 'FT', '단변', '장변', '하부', '상부', '단부', '폭', '하단참', '상단참', '줄기초', 'MAT단변', 'MAT장변', '형틀공제', '단부공제', '가로', '세로', '춤', '지름', '두께', '헌치높이', '헌치길이', '끝춤', '한변', '윗가로', '윗세로'])
 const 기호도칸 = new Set(['좌단', '우단', 'S', 'FT', '상부', '하부'])
-const 글자칸 = new Set(['층', '열', '기호', '연결', '주근', '대근단부', '대근중앙', '늑근단부', '늑근중앙', '부근', '단변하부', '단변상부', '장변하부', '장변상부', '수직', '수평', '배력근', '하부가로', '하부세로', '상부가로', '상부세로', '가로근', '세로근', '사선근', '종류', '배근', '상부꼴', '동', '부재', '상부추가', '하부추가', '보조늑근', '지지근', '데크', '단부보강', '상부보강', '단부전단', '참주근', '참배력근', '_구획'])
+const 글자칸 = new Set(['층', '열', '기호', '연결', '주근', '대근단부', '대근중앙', '늑근단부', '늑근중앙', '부근', '단변하부', '단변상부', '장변하부', '장변상부', '수직', '수평', '배력근', '하부가로', '하부세로', '상부가로', '상부세로', '가로근', '세로근', '사선근', '종류', '배근', '상부꼴', '동', '부재', '상부추가', '하부추가', '보조늑근', '지지근', '데크', '단부보강', '상부보강', '단부전단', '참주근', '참배력근', '_구획', '수직밖', '수평밖', '추가수직'])
 const 면적칸 = new Set(['개구부', '면적'])
 const 개수칸 = new Set(['QT', '단수'])
 function 칸종류(key, 판) {
@@ -107,6 +109,8 @@ export default function Golgo() {
   const 자동칸 = useRef(null)
   const [자동, set자동] = useState(null)           // ⚡ 도면에서 읽은 것 {R, 도면:[{이름, buf}], 묻기} — 적은 것이 있으면 바꿀지 여쭘
   const [자동상태, set자동상태] = useState({ k: 'idle' })
+  const [점검들, set점검들] = useState(null)       // 🔎 G245 읽기 점검 — 자동으로 읽은 도면들(모델 · 이름)
+  const [판들, set판들] = useState(null)           // 📑 G246 판 목록 — 골조읽기(…).읽음.판
   const 자동도면 = useRef([])                        // ⚡ 자동으로 넣은 도면들(버퍼) — 결과에서 다른 도면의 줄을 누르면 그 도면을 엶
   /* 🔗 결과 ↔ 도면 (2026-09-28) */
   const [짚음, set짚음] = useState(null)            // 결과에서 누른 줄의 곳 {동, 표, i}
@@ -129,9 +133,9 @@ export default function Golgo() {
   const 유kk = Math.max(0, Math.min(유k, 유닛.length - 1))
 
   /* ⚡ 도면 넣으면 자동 — 넣은 도면(여러 장)을 모두 읽어 배근표·주자료·층을 채웁니다 */
-  const 자동읽기 = async (목록, 묻지않음 = false) => {
+  const 자동읽기 = async (목록, 묻지않음 = false, 앞틀림 = '') => {
     const 도면들 = [], 남김 = []
-    let 틀림 = ''
+    let 틀림 = 앞틀림
     for (const { 이름, buf } of 목록) {
       set자동상태({ k: 'busy', msg: 이름 + ' 읽는 중', p: 0 })
       try {
@@ -142,8 +146,10 @@ export default function Golgo() {
       } catch (e) { 틀림 += 이름 + ' — ' + 오류글(e.kind || 'fail', e.message) + ' ' }
     }
     if (!도면들.length) { set자동상태({ k: 'err', 글: 틀림.trim() || '도면을 읽지 못했습니다' }); return }
+    set점검들(도면들.map((d) => ({ 모델: d.모델, 이름: d.이름 })))
     let R
     try { R = 골조읽기(도면들) } catch (e) { set자동상태({ k: 'err', 글: '도면에서 골조를 읽다 멈췄습니다 (' + e.message + ')' }); return }
+    set판들((R.읽음 && R.읽음.판) || null)
     set자동상태(틀림 ? { k: 'err', 글: 틀림.trim() } : { k: 'ok' })
     자동도면.current = 남김
     // 부재를 가장 많이 읽은 도면을 도면판에 엽니다(고칠 때 누를 수 있게)
@@ -169,10 +175,15 @@ export default function Golgo() {
     let 기준 = 기0
     if (R.정착표 && R.정착표.표) {
       const fck = +기0.fck
-      const 넣 = 넣을것(R.정착표.표.줄, fck, 정착표(fck, +기0.fy))
+      /* 🧭 G270 표 여럿(fy 400 · 500) · 부재 칸(기초 / 보, 기둥 / 슬래브, 벽체) · 규격마다 fy(일반사항 글) — 골조자동과 같은 넣기 */
+      const fy규격 = R.공사.기준.fy규격 || null
+      const 표들 = R.정착표들 && R.정착표들.length ? R.정착표들 : [R.정착표]
+      const 넣 = 정착표넣기(표들, fck, +기0.fy, fy규격, 정착표규격(fck, +기0.fy, fy규격), 기0.fck부재 || R.공사.기준.fck부재 || null)
       const 표fck = [...new Set(R.정착표.표.줄.filter((z) => z.칸 && z.그럴듯 !== false && z.fck != null).map((z) => z.fck))]
       if (넣.넣은.length) {
-        기준 = { ...기0, 정착: 넣.정착, 정착출처: '도면의 정착·이음표' + (R.정착표.제목 ? ' «' + R.정착표.제목 + '»' : '') + ' — fck ' + fck + ' 줄 · ' + [...new Set(넣.넣은.map((x) => 칸이름[x.칸]))].join('·') }
+        기준 = { ...기0, 정착: 넣.정착, 정착출처: R.공사.기준.정착출처 || ('도면의 정착·이음표' + (R.정착표.제목 ? ' «' + R.정착표.제목 + '»' : '') + ' — fck ' + fck + ' 줄 · ' + [...new Set(넣.넣은.map((x) => 칸이름[x.칸]))].join('·')) }
+        if (넣.정착부재) 기준.정착부재 = 넣.정착부재; else delete 기준.정착부재
+        if (fy규격) 기준.fy규격 = fy규격
         정착알림 = { 됨: true, 글: [...new Set(넣.넣은.map((x) => 칸이름[x.칸]))].join('·'), n: 넣.넣은.length }
       } else if (표fck.length) 정착알림 = { 됨: false, 글: '표의 fck(' + 표fck.join('·') + ')가 기준 fck ' + fck + ' 와 달라 넣지 않았습니다 — ① 개요에서 fck 를 고친 뒤 «📋 도면에서 정착·이음표 읽기» 를 누르십시오' }
     }
@@ -185,9 +196,11 @@ export default function Golgo() {
   const 자동파일 = async (files) => {
     const list = [...(files || [])].filter((f) => /\.(dxf|dwg)$/i.test(f.name))
     if (!list.length) return
-    const 큰 = list.filter((f) => f.size > 큰파일)
-    if (큰.length) { set자동상태({ k: 'err', 글: 큰.map((f) => f.name).join(', ') + ' — ' + 오류글('big') }); return }
-    자동읽기(await Promise.all(list.map(async (f) => ({ 이름: f.name, buf: await f.arrayBuffer() }))))
+    /* 🧭 G243 한도(PC 2 GB · 폰 200 MB)를 넘는 파일만 빼고 나머지는 다 읽음 */
+    const 큰 = list.filter((f) => f.size > 큰파일), 쓸 = list.filter((f) => f.size <= 큰파일)
+    const 큰글 = 큰.length ? 큰.map((f) => f.name).join(', ') + ' — ' + 오류글('big') + ' ' : ''
+    if (!쓸.length) { set자동상태({ k: 'err', 글: 큰글.trim() }); return }
+    자동읽기(await Promise.all(쓸.map(async (f) => ({ 이름: f.name, buf: await f.arrayBuffer() }))), false, 큰글)
   }
   const 예시열기 = async () => {
     set예시묻기(false)
@@ -442,6 +455,8 @@ export default function Golgo() {
         {/* 📥 놓으면 ⚡ 자동으로 — 셀 부재가 없으면(일람표 없음) 도면만 열고 도면이 보이는 탭(③ 주자료)으로 */}
         <끌어놓기판 글="도면(DXF·DWG)을 놓으면 자동으로 셉니다 — 구조평면도·일람표 여러 장도 한꺼번에" 여럿 받기={(fs) => 자동파일(fs)} />
         <도면상태줄 상태={자동상태.k !== 'idle' && 자동상태.k !== 'ok' ? 자동상태 : 도.도면상태} />
+        {점검들 && 자동상태.k !== 'busy' && <읽기점검칸 들={점검들} />}
+        {판들 && 자동상태.k !== 'busy' && <판목록칸 판={판들} 공사={공사} S={결과} />}
         {자동 && 자동.묻기 && (
           <div className="gg-ask">
             도면에서 <b>{개수글(자동.R)}</b> 을 읽었습니다. 지금 적은 것 대신 넣을까요? (기준값은 그대로 둡니다)
@@ -590,6 +605,7 @@ export default function Golgo() {
           <li><b>도면은 사람이 읽습니다.</b> 무엇을 누를지는 사람이 정하고, 프로그램은 누른 것의 값만 정확히 옮깁니다. 결과의 <b>검산</b>을 꼭 보십시오.</li>
         </ul>
         <div className="btn-row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
+          <Link className="btn ghost sm" to="/jeoksan/bim">🧊 BIM 물량 — 같은 도면을 3D 로</Link>
           <Link className="btn ghost sm" to="/jeoksan/run">🧮 수량산출서 만들기 (재료표 방식)</Link>
           <Link className="btn ghost sm" to="/tools/dwgdxf">🔁 DWG → DXF</Link>
           <Link className="btn ghost sm" to="/tools/dxfpdf">📄 도면 PDF</Link>
@@ -722,7 +738,7 @@ function 개요({ 공사, set공사, 기준고치기, 동k, 동으로, 도, 열�
   const 층더하기 = () => 층바꾸기((L) => [...L, { 이름: '', 층고: 3300, 슬라브: 150 }])
   const 층끼우기 = (i) => 층바꾸기((L) => { L.splice(i + 1, 0, { 이름: String(L[i].이름 || '') + 'A', 층고: L[i].층고, 슬라브: L[i].슬라브 }); return L })
   const 층빼기 = (i) => 층바꾸기((L) => L.filter((_, j) => j !== i))
-  const 강도바꿈 = (key, v) => 기준고치기((b) => { b[key] = v; const fck = +b.fck, fy = +b.fy; if (fck > 0 && fy > 0) { b.정착 = 정착표(fck, fy); delete b.정착출처 } return b })
+  const 강도바꿈 = (key, v) => 기준고치기((b) => { b[key] = v; const fck = +b.fck, fy = +b.fy; if (fck > 0 && fy > 0) { b.정착 = 정착표규격(fck, fy, b.fy규격 || null); delete b.정착출처; delete b.정착부재 } return b })
   const 정고치기 = (d, key, v) => 기준고치기((b) => ({ ...b, 정착: { ...b.정착, [d]: { ...b.정착[d], [key]: +v || 0 } } }))
   const 기본값 = 기준값()
 
@@ -851,13 +867,14 @@ function 개요({ 공사, set공사, 기준고치기, 동k, 동으로, 도, 열�
       <p className="muted gg-hint">fck·fy 를 바꾸면 KDS 14 20 52 기본식으로 다시 채웁니다(인장 정착 0.6·d·fy/√fck, 상부 ×1.3, 인장 이음 B급 ×1.3, 압축 이음 0.072·fy·d,
         <b> 갈고리 정착 0.24·d·fy/√fck — 8d·150mm 이상</b>). <b>도면 일반구조사항에 표가 있으면 그 값이 맞습니다</b> — 아래 <b>📋 도면에서 정착·이음표 읽기</b>로 옮겨 넣습니다.</p>
       {기.정착출처 && <div className="gg-okline">📋 지금 표: <b>{기.정착출처}</b> (칸을 고치면 고친 값으로 셉니다)</div>}
+      {기.정착부재 && <div className="gg-okline">🧱 부재 칸: <b>{Object.keys(기.정착부재).join(' · ')}</b> 은 도면 표의 그 부재 칸 값(인장 정착 · 이음)으로 셉니다 — 아래 표는 보 · 기둥 칸과 공통 칸입니다</div>}
       <div className="gg-wrap">
         <table className="gg-t"><thead><tr><th>규격</th>{정착칸들.map((k) => <th key={k}>{칸이름[k]}</th>)}</tr></thead>
           <tbody>
             {규격들.slice(0, 9).map((d) => (
               <tr key={d}><td>{d}</td>
                 {정착칸들.map((k) => (
-                  <td key={k} className="n"><input value={((기.정착 || {})[d] || {})[k] ?? (k === '갈고리정착' ? (정착표(+기.fck || 24, +기.fy || 400)[d] || {})[k] : '')} inputMode="numeric" onChange={(e) => 정고치기(d, k, e.target.value)} /></td>
+                  <td key={k} className="n"><input value={((기.정착 || {})[d] || {})[k] ?? (k === '갈고리정착' ? (정착표(+기.fck || 24, +기.fy || 400)[d] || {})[k] : '')} placeholder={k === '상부이음' ? '= 인장 이음' : ''} inputMode="numeric" onChange={(e) => 정고치기(d, k, e.target.value)} /></td>
                 ))}
               </tr>
             ))}
@@ -866,7 +883,7 @@ function 개요({ 공사, set공사, 기준고치기, 동k, 동으로, 도, 열�
       </div>
       <div className="btn-row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
         <button type="button" className={'btn sm' + (정착읽기 ? ' line' : '')} onClick={() => set정착읽기(!정착읽기)}>{정착읽기 ? '📋 도면에서 읽기 닫기' : '📋 도면에서 정착·이음표 읽기'}</button>
-        <button type="button" className="btn ghost sm" onClick={() => 기준고치기((b) => { const q = { ...b, 정착: 정착표(+b.fck || 24, +b.fy || 400) }; delete q.정착출처; return q })}>정착·이음 표 기본식으로 다시</button>
+        <button type="button" className="btn ghost sm" onClick={() => 기준고치기((b) => { const q = { ...b, 정착: 정착표규격(+b.fck || 24, +b.fy || 400, b.fy규격 || null) }; delete q.정착출처; delete q.정착부재; return q })}>정착·이음 표 기본식으로 다시</button>
       </div>
       {정착읽기 && <정착읽기판 도={도} 기={기} 기준고치기={기준고치기} 열기={열기} />}
     </div>
@@ -909,11 +926,11 @@ function 정착읽기판({ 도, 기, 기준고치기, 열기 }) {
   const 넣기 = () => {
     if (!읽음) return
     const fck = +기.fck
-    const 옛 = 기.정착 && Object.keys(기.정착).length ? 기.정착 : 정착표(fck, +기.fy)
-    const 넣 = 넣을것(읽음.줄, fck, 옛)
+    const 옛 = 기.정착 && Object.keys(기.정착).length ? 기.정착 : 정착표규격(fck, +기.fy, 기.fy규격 || null)
+    const 넣 = 정착표넣기([{ 표: 읽음, 셈: 1 }], fck, +기.fy, 기.fy규격 || null, 옛)
     if (!넣.넣은.length) { set넣음('넣을 줄이 없습니다 — 줄마다 «칸» 을 고르고 ✓ 를 켜 주십시오.'); return }
     const 칸글 = [...new Set(넣.넣은.map((x) => 칸이름[x.칸]))].join('·')
-    기준고치기((b) => ({ ...b, 정착: 넣.정착, 정착출처: '도면 «' + (도면이름 || '') + '» 의 정착·이음표' + (읽음.제목 ? ' «' + 읽음.제목 + '»' : '') + ' — ' + 칸글 }))
+    기준고치기((b) => { const q = { ...b, 정착: 넣.정착, 정착출처: '도면 «' + (도면이름 || '') + '» 의 정착·이음표' + (읽음.제목 ? ' «' + 읽음.제목 + '»' : '') + ' — ' + 칸글 }; if (넣.정착부재) q.정착부재 = { ...(b.정착부재 || {}), ...넣.정착부재 }; return q })
     set넣음('✅ ' + 넣.넣은.length + '칸을 넣었습니다(' + 칸글 + '). 위 표에서 확인하십시오 — 되돌리려면 «기본식으로 다시».')
   }
   const 지름들 = 읽음 ? 규격들.filter((d) => 읽음.줄.some((z) => z.값[d] != null)) : []

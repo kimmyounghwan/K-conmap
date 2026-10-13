@@ -3,7 +3,7 @@
  *
  * 소장님: 「높이를 나오게 프로그램을 업그레이드 할 수 없을까? 구조물등」 · 「클로드가 도면에서 직접 찾아서 해줘야지」
  *         「지하에 들어서는 구조물이든, 지상에 올라가는 구조물 이든」 · 「높이 등이 나와야 3D같지」
- *         (시험 도면: 여수 새마을금고 — 금동배수장 도면은 쓰지 않습니다. 소장님: 「바뀌기 전 도면」)
+ *         (시험 도면: 현장 A — 동쪽배수장 도면은 쓰지 않습니다. 소장님: 「바뀌기 전 도면」)
  *
  * ■ 무엇을 찾나 — 전부 «도면에 적힌 글자» 에서
  *   ① 층 높이 : 「지상 2층」 같은 층 이름 바로 아래(또는 옆) 「GL +5,200」「FL +5,200」「SL -400」 → 2층 = +5,200
@@ -16,25 +16,39 @@
  *    새 도면에서 안 되면 규칙을 늘리십시오 — 짐작으로 높이를 지어내지는 않습니다.
  */
 
+import { 통심기호 } from './통심.js'
+
 /* ── 층 이름 → 열쇠 (B1 · 1 · 2 … · RF(옥상) · PH(옥탑·옥상지붕)) ── */
 export function 층열쇠(s) {
   const t = String(s).replace(/\s+/g, '')
   let m
   if ((m = /지하(\d+)층/.exec(t))) return 'B' + m[1]
-  if ((m = /^B(\d+)(F|FL|층)?/i.exec(t))) return 'B' + m[1]
+  if ((m = /^B([1-9]\d?)(F|FL|층)?(?![\dA-Za-z])/i.exec(t))) return 'B' + m[1]    // «B01 · B02»(실 번호) · «B1A»(보 기호)는 층 아님
   if ((m = /지상(\d+)층/.exec(t))) return String(+m[1])
   if ((m = /^(\d+)(층|F|FL)(?![A-Za-z가-힣])/.exec(t))) return String(+m[1])
+  /* 🧭 G237 «1st FL · 2nd FL · 3rd FL»(현장 B 단면 · 입면 레벨 이름) · «PH FL» · «RF FL» · «Roof-1»(지붕 위 꼭대기 — 층 아님) */
+  if ((m = /^(\d+)(st|nd|rd|th)(F\.?L\.?|F|층)?$/i.exec(t))) return String(+m[1])
+  if (/^roof-?\d/i.test(t)) return null
+  if (/^PH(F\.?L\.?)?$/i.test(t)) return 'PH'
   if (/옥탑지붕|옥상지붕|지붕층|PH(R|ROOF)?$/i.test(t)) return 'PH'
-  if (/옥탑/.test(t)) return 'PH'
+  if (/^지붕$/.test(t)) return 'PH'                      // 현장 B «지붕 평면도» = 옥탑 위 지붕
+  /* «옥탑 평면도» = 옥상(지붕) 위에 선 옥탑 층 — 바닥은 옥상(RF) 높이 · 옥상 평면도가 따로 있으면 평면제목에서 PH 로 */
+  if (/옥탑/.test(t)) return 'RF'
   if (/옥상|^RF|^ROOF/i.test(t)) return 'RF'
   return null
 }
+/* 🧭 G237 레벨 이름만의 열쇠 — «PIT FL»(피트 바닥 · 지하 1층 평면도에 PIT 평면이 있을 때 지하 1층 바닥) */
+const 레벨이름 = (s) => { const t = String(s).replace(/\s+/g, ''); return /^PIT(F\.?L\.?)?$/i.test(t) ? 'PIT' : 층열쇠(s) }
 export const 층이름 = (k) => (k == null ? '' : k[0] === 'B' ? `지하 ${k.slice(1)}층` : k === 'RF' ? '옥상' : k === 'PH' ? '옥탑·옥상지붕' : `${k}층`)
-const 층차례 = (k) => (k[0] === 'B' ? -(+k.slice(1)) : k === 'RF' ? 900 : k === 'PH' ? 950 : +k)
+const 층차례 = (k) => (k[0] === 'B' ? -(+k.slice(1)) : k === 'PIT' ? -0.5 : k === 'RF' ? 900 : k === 'PH' ? 950 : +k)
 
 /* 「GL +5,200」「FL±0」「SL -400」「EL.12.50」 → {종류, 값} (값은 mm 로 봅니다 — 쉼표 천 단위) */
 const 높이글 = /\b(FL|GL|SL|TOS|EL)\s*[.:=]?\s*(±|\+\/-|[+-])?\s*(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?/i
+/* 🧭 G237 «1FL +4,100» · «1FL ±0» · «1FL -3,500» — 1층 바닥 기준 값(현장 B 단면 · 입면 · 골조입면). 다른 층 기준(«2FL +500»)은 안 씀 */
+const 일층기준 = /^\s*1\s*F\.?\s*L\.?\s*(±|\+\/-|[+-])\s*(\d{1,3}(?:,\d{3})+|\d+)\s*$/i
 export function 높이읽기(s) {
+  const q = 일층기준.exec(String(s))
+  if (q) { let v = +q[2].replace(/,/g, ''); if (q[1] === '-') v = -v; if (q[1] === '±' || q[1] === '+/-') v = 0; return { 종류: 'FL', v } }
   const m = 높이글.exec(String(s))
   if (!m) return null
   const 종류 = m[1].toUpperCase()
@@ -61,13 +75,45 @@ export function 레벨열쇠(s) {
  * ① 층 높이 찾기 — 여러 도면의 글자를 한데 모아
  * @returns {{ 높이: {열쇠: mm}, 근거: [{층, 값, 번, 파일, 다른값}], 겹침: [] }}
  */
+/* 🧭 G237 나눠 쓴 층 이름 잇기 — «지상» «3» «층» 처럼 한 줄에 따로 놓인 글자(현장 F 입면 레벨 표)를 «지상3층» 하나로
+   같은 줄(높이 0.4h 안) · 같은 크기 · 사이 3h 안 · 조각마다 4자 이하 · 이은 것이 층 이름일 때만 */
+export function 글잇기(texts) {
+  const 짧 = texts.filter((t) => { const u = String(t.s || '').trim(); return u && u.length <= 4 && !/\s/.test(u) })
+  if (!짧.length) return texts
+  const 줄 = new Map()
+  for (const t of 짧) { const h = t.h || 300; const k = Math.round(t.y / (0.5 * h)) + '|' + Math.round(h); const a = 줄.get(k); if (a) a.push(t); else 줄.set(k, [t]) }
+  const 더 = []
+  for (const a of 줄.values()) {
+    if (a.length < 2) continue
+    a.sort((p, q) => p.x - q.x)
+    for (let i = 0; i < a.length; i++) {
+      if (층열쇠(a[i].s)) continue
+      let 글 = String(a[i].s).trim(), 끝 = a[i]
+      for (let j = i + 1; j < a.length && j <= i + 3; j++) {
+        const h = a[i].h || 300
+        if (a[j].x - 끝.x > 3 * h + 끝.s.length * h || Math.abs(a[j].y - a[i].y) > 0.4 * h) break
+        글 += String(a[j].s).trim(); 끝 = a[j]
+        if (층열쇠(글) && /층$|FL$|F$/i.test(글)) { 더.push({ ...a[i], s: 글, 이음: true }); break }
+      }
+    }
+  }
+  return 더.length ? texts.concat(더) : texts
+}
+
 export function 층높이찾기(파일들) {
   const 표 = new Map()                 // 열쇠 → Map(값 → {번, 파일들})
-  for (const { 이름, texts } of 파일들) {
-    const 이름글 = texts.filter((t) => 층열쇠(t.s) && !/평면도|입면도|단면도|구조도|주심도|배근|일람/.test(t.s) && t.s.length <= 14)
+  for (const { 이름, texts: 날글 } of 파일들) {
+    const texts = 글잇기(날글)
+    /* 🧭 G240 홀로 쓴 «B2» 는 보 기호(현장 C · D 기초보 B1 ~ B5) — 레벨 이름은 «B2F · B2 FL · 지하 2층» 꼴만 */
+    const 이름글 = texts.filter((t) => 레벨이름(t.s) && !높이읽기(t.s) && !/^\s*B\d{1,2}\s*$/i.test(t.s) && !/평면도|입면도|단면도|구조도|주심도|배근|일람/.test(t.s) && t.s.length <= 14)
     const 높이들 = []
     for (const t of texts) { const r = 높이읽기(t.s); if (r) 높이들.push({ ...t, ...r }) }
-    if (!이름글.length || !높이들.length) continue
+    /* 🧭 G237 레벨 표(층 이름이 한 세로줄에 셋 넘게)에서는 이름 바로 밑 맨 숫자도 높이(현장 F 입면: «지상 3 층» 밑 «8100» · «GL» 밑 «0») */
+    const 열 = (t) => { const c = 이름글.filter((u) => Math.abs(u.x - t.x) < 1.5 * (t.h || 300)); return c.length >= 3 && c.some((u) => 레벨이름(u.s) === '1') }
+    const 맨숫자 = texts.filter((t) => /^[+-]?(\d{1,3}(,\d{3})+|\d{3,6})$/.test(String(t.s || '').trim()) && !/dim|치수/i.test(t.ly || ''))
+      .map((t) => ({ ...t, 종류: '숫자', v: +String(t.s).trim().replace(/,/g, '') }))
+    if (!이름글.length || (!높이들.length && !맨숫자.length)) continue
+    const 짝들 = []
     for (const 글 of 이름글) {
       const h = 글.h || 300
       let 가장 = null, 거리 = Infinity
@@ -77,18 +123,40 @@ export function 층높이찾기(파일들) {
         const d = Math.hypot(dx * 0.5, dy)
         if (d < 거리) { 거리 = d; 가장 = q }
       }
+      if (!가장 && 열(글)) {
+        for (const q of 맨숫자) {
+          const dx = q.x - 글.x, dy = q.y - 글.y
+          if (Math.abs(dx) > 1.5 * h || dy > -0.3 * h || dy < -3.5 * h || (q.h || h) > 1.3 * h) continue
+          const d = Math.hypot(dx, dy)
+          if (d < 거리) { 거리 = d; 가장 = q }
+        }
+      }
       if (!가장) continue
-      const k = 층열쇠(글.s)
-      if (!표.has(k)) 표.set(k, new Map())
-      const m = 표.get(k)
-      const r = m.get(가장.v) || { 번: 0, 파일: new Set(), 글: `${글.s} → ${가장.s}` }
+      짝들.push({ 글, 가장, k: 레벨이름(글.s), 맨: 가장.종류 === '숫자' })
+    }
+    /* 맨 숫자 짝은 한 세로줄에 셋 넘게 · 위로 갈수록 값이 커질 때만(레벨 표) — 면적표 숫자를 높이로 읽지 않게 */
+    for (const z of 짝들) {
+      if (!z.맨) continue
+      const h = z.글.h || 300
+      const 줄 = 짝들.filter((w) => w.맨 && Math.abs(w.글.x - z.글.x) < 1.5 * h).sort((a, b) => a.글.y - b.글.y)
+      z.버림 = 줄.length < 3 || 줄.some((w, i) => i > 0 && !(w.가장.v > 줄[i - 1].가장.v))
+    }
+    for (let i = 짝들.length - 1; i >= 0; i--) if (짝들[i].버림) 짝들.splice(i, 1)
+    /* 한 세로줄에 같은 열쇠가 둘이면(현장 F «지붕층» · «옥탑지붕층» → 둘 다 PH) 아래 것만 */
+    for (const z of 짝들) {
+      const h = z.글.h || 300
+      const 말 = (t) => String(t.s).replace(/\s+/g, '')
+      if (짝들.some((w) => w !== z && w.k === z.k && 말(w.글) !== 말(z.글) && Math.abs(w.글.x - z.글.x) < 3 * h && w.글.y < z.글.y && z.글.y - w.글.y < 60 * h)) continue
+      const m = 표.get(z.k) || new Map(); 표.set(z.k, m)
+      const r = m.get(z.가장.v) || { 번: 0, 파일: new Set(), 글: `${z.글.s} → ${z.가장.s}` }
       r.번++; r.파일.add(이름)
-      m.set(가장.v, r)
+      m.set(z.가장.v, r)
     }
   }
   /* 높이 글자가 없는 도면(입면도 등) — 층 이름이 한 줄로 위아래 늘어서 있으면 «자리의 차이» 가 곧 층 높이입니다
      (1:1 로 그린 모델 공간, mm). 층 사이가 2~10m 일 때만 믿습니다. 글자에서 찾은 값이 있으면 그것이 먼저입니다. */
-  for (const { 이름, texts } of 파일들) {
+  for (const { 이름, texts: 날글 } of 파일들) {
+    const texts = 글잇기(날글)
     const 이름글 = texts.filter((t) => 층열쇠(t.s) && t.s.length <= 8 && !/평면|입면|단면/.test(t.s))
     const 줄 = new Map()
     for (const t of 이름글) {
@@ -104,6 +172,8 @@ export function 층높이찾기(파일들) {
       for (let i = 1; i < 차례대로.length; i++) {
         const d = 차례대로[i].y - 차례대로[i - 1].y
         if (d < 2000 || d > 10000) { 됨 = false; break }
+        /* 🧭 G237 아래 글자가 아래층이어야 단면 · 입면의 층 이름 — 위에서 아래로 적은 표(면적표 «지하1층 · 1층 · 2층 · 3층»)는 높이가 거꾸로 됨(소장님 현장 F: 지하 1층이 맨 위 +5.34 m) */
+        if (!(층차례(층열쇠(차례대로[i].s)) > 층차례(층열쇠(차례대로[i - 1].s)))) { 됨 = false; break }
       }
       if (!됨) continue
       for (const t of 무리) {
@@ -179,6 +249,8 @@ export function 지붕채우기(높이, 파일들, 필요) {
   const 값들 = [...남는.entries()].filter(([, n]) => n >= 2).map(([v]) => v).sort((a, b) => a - b)
   for (const k of ['RF', 'PH']) {
     if (!필요.includes(k) || 높이[k] != null) continue
+    /* 🧭 G239 옥탑 · 지붕(PH)은 옥상(RF)보다 위 값만 */
+    while (k === 'PH' && 높이.RF != null && 값들.length && 값들[0] <= 높이.RF) 값들.shift()
     const v = 값들.shift()
     if (v == null) break
     높이[k] = v
@@ -187,14 +259,95 @@ export function 지붕채우기(높이, 파일들, 필요) {
   return 근거
 }
 
+/**
+ * 🧭 G237 지하 1층 평면도 자리에 «PIT 평면도» 가 같이 있고, 지하 1층 레벨은 없이 «PIT FL» 만 있으면 그 높이가 지하 1층 바닥
+ * (소장님 현장 B: 단면 · 골조입면 «PIT FL 1FL -3,500» · 평면 «지하1층 평면도» 옆 «PIT 평면도»). 짐작이 아니라 같은 자리 글자로만.
+ */
+export function 지하채우기(높이, 제목, texts) {
+  const 근거 = []
+  const b1 = 제목.find((t) => t.층 === 'B1')
+  if (!b1 || 높이.B1 != null || 높이.PIT == null) return 근거
+  const 남 = 제목.filter((t) => t !== b1)
+  const 사이 = 남.length ? Math.min(...남.map((t) => Math.hypot(t.x - b1.x, t.y - b1.y))) : 100000
+  const pit = (texts || []).find((t) => /PIT\s*평면/i.test(t.s) && Math.hypot(t.x - b1.x, t.y - b1.y) < 0.6 * 사이)
+  if (!pit) return 근거
+  높이.B1 = 높이.PIT
+  근거.push({ 층: 'B1', 값: 높이.PIT, 번: 1, 파일: '', 글: `지하 1층 평면도 옆 «${pit.s.trim()}» — «PIT FL» 높이`, 다른값: '' })
+  return 근거
+}
+
+/**
+ * 🧭 G239 층 이름 없이 높이 글자만 세로로 선 레벨 줄(«FL±0.00 · FL+5400 · FL+9400 · FL+15400» — 현장 C · D 식당 단면 · 입면)
+ *   한 줄(같은 x · 글자 높이 절반 안)에 FL 값이 셋 넘게 · ±0 이 있고 · 위로 갈수록 커지고 · 자리 차가 값 차와 같은 비(1:1 로 그린 단면) 일 때만
+ *   ±0 = 1층, 그 위 값들을 2층 · 3층 … 차례로(이름으로 못 찾은 숫자 층만 · 짐작이 아니라 그 도면 글자 그대로)
+ * @param 파일들 [{이름, texts}] · 층들 평면 제목 열쇠들 · 높이 이름으로 찾은 값(바꾸지 않고 빈 층만 채운 새 객체를 돌려줌)
+ * @returns {{ h, 근거: [] }}
+ */
+export function 레벨줄채우기(파일들, 층들, 높이) {
+  const h = { ...높이 }, 근거 = []
+  const 숫자층 = [...new Set(층들)].filter((k) => /^\d+$/.test(k)).sort((a, b) => +a - +b)
+  const 빈 = 숫자층.filter((k) => h[k] == null)
+  if (!빈.length) return { h, 근거 }
+  const 줄들 = new Map()            // "0,5400,9400" → {n, 파일}
+  for (const { 이름, texts } of 파일들) {
+    const 글 = []
+    for (const t of texts) { const r = 높이읽기(t.s); if (r && r.종류 === 'FL' && /^\s*F\.?L/i.test(String(t.s))) 글.push({ x: t.x, y: t.y, h: t.h || 300, v: r.v }) }
+    if (글.length < 3) continue
+    글.sort((a, b) => a.x - b.x)
+    const 쓴 = new Set()
+    for (let i = 0; i < 글.length; i++) {
+      if (쓴.has(i)) continue
+      const 열 = [글[i]]
+      for (let j = i + 1; j < 글.length && 글[j].x - 글[i].x <= 0.5 * 글[i].h; j++) { 열.push(글[j]); 쓴.add(j) }
+      if (열.length < 3) continue
+      /* 같은 값 · 같은 자리 겹침 하나로 → 아래에서 위로 */
+      const 본 = new Map(); for (const q of 열) if (!본.has(q.v)) 본.set(q.v, q)
+      const 차 = [...본.values()].sort((a, b) => a.y - b.y)
+      if (차.length < 3 || !차.some((q) => q.v === 0)) continue
+      if (차.some((q, k) => k > 0 && !(q.v > 차[k - 1].v))) continue
+      const 비 = 차.slice(1).map((q, k) => (q.y - 차[k].y) / (q.v - 차[k].v))
+      const 가 = 비.reduce((a, b) => a + b, 0) / 비.length
+      if (!(가 > 0) || 비.some((r) => Math.abs(r - 가) > 0.1 * 가)) continue
+      const key = 차.filter((q) => q.v >= 0).map((q) => q.v).join(',')
+      const z = 줄들.get(key) || { n: 0, 파일: new Set() }; z.n++; z.파일.add(이름); 줄들.set(key, z)
+    }
+  }
+  if (!줄들.size) return { h, 근거 }
+  /* 가장 많이 나온 줄 · 같으면 값이 많은 줄 */
+  const [key, z] = [...줄들.entries()].sort((a, b) => b[1].n - a[1].n || b[0].split(',').length - a[0].split(',').length)[0]
+  const 값 = key.split(',').map(Number)
+  if (h['1'] == null && 값[0] === 0 && 숫자층.includes('1')) { h['1'] = 0; 근거.push({ 층: '1', 값: 0, 번: z.n, 파일: [...z.파일].join(' · '), 글: '층 이름 없는 레벨 줄 FL±0', 다른값: '' }) }
+  const 위 = 값.filter((v) => v > 0)
+  let i = 0
+  for (const k of 숫자층) {
+    if (k === '1') continue
+    if (h[k] != null) { while (i < 위.length && 위[i] <= h[k]) i++; continue }
+    if (i >= 위.length) break
+    h[k] = 위[i]; 근거.push({ 층: k, 값: 위[i], 번: z.n, 파일: [...z.파일].join(' · '), 글: `층 이름 없는 레벨 줄 ${값.map((v) => 'FL+' + v).join(' · ')} 의 ${i + 2}번째`, 다른값: '' })
+    i++
+  }
+  /* 숫자 층이 다 차고 남은 값 — 옥상(RF) · 옥탑 · 지붕(PH) 평면이 있으면 그 차례로 */
+  const 꼭 = Math.max(...숫자층.map((k) => (h[k] != null ? h[k] : -Infinity)))
+  const 남 = 위.filter((v) => v > 꼭)
+  for (const k of ['RF', 'PH']) {
+    if (!층들.includes(k) || h[k] != null || !남.length) continue
+    const v = 남.shift()
+    h[k] = v; 근거.push({ 층: k, 값: v, 번: z.n, 파일: [...z.파일].join(' · '), 글: `층 이름 없는 레벨 줄의 맨 위 쪽(${층이름(k)})`, 다른값: '' })
+  }
+  return { h, 근거 }
+}
+
 /** ② 평면도 제목 찾기 */
 export function 평면제목(texts) {
   const out = []
   for (const t of texts) {
-    if (!/평면도\s*$/.test(t.s) || /구조|배근|주심|천정|천장|바닥계획|방화|방수|단열|우수|배수|조명|전기|설비/.test(t.s)) continue
+    /* 🧭 G239 «지상 1층 창호 평면도» · «장애인편의시설 평면도» · «외벽단열면적 평면도» 같은 주제도는 층 평면이 아님(현장 C · D 식당 통합본) */
+    if (!/평면도\s*$/.test(t.s) || /구조|배근|주심|천정|천장|바닥계획|방화|방수|단열|우수|배수|조명|전기|설비|창호|장애인|편의|면적|마감|가구|조경|확대|계단|주방|기계실|물탱크|피난|소방|구획|동선|사인|색채/.test(t.s)) continue
     const k = 층열쇠(t.s.replace(/평면도\s*$/, ''))
     if (k) out.push({ ...t, 층: k })
   }
+  /* «옥탑 평면도» 와 «옥상 평면도» 가 다 있으면 옥탑은 옥상 위(PH) */
+  if (out.some((t) => t.층 === 'RF' && !/옥탑/.test(t.s)) && !out.some((t) => t.층 === 'PH')) for (const t of out) if (t.층 === 'RF' && /옥탑/.test(t.s)) t.층 = 'PH'
   // 같은 층 제목이 둘이면 글자가 큰 쪽(도면 제목)을 씁니다
   const by = new Map()
   for (const t of out) if (!by.has(t.층) || (t.h || 0) > (by.get(t.층).h || 0)) by.set(t.층, t)
@@ -411,8 +564,34 @@ export function 쌓기(raw, 제목, 높이, 새버킷) {
       }
     }
   }
-  for (const [, b] of raw.out) void b
+  /* 🧭 G237 통심 기호(원 안 X1 · Y1 + 그 줄 긴 선) — 층마다 옮긴 만큼 옮겨 기준 층 자리로 · 같은 글자는 하나로(겹치는 순서 4: 골조를 이 건물 안 제자리에) */
+  const 통심 = []
+  if (raw.circles && raw.circles.length) {
+    const 선 = []
+    for (const [, b] of raw.out) {
+      const a = b.pos.a
+      for (let i = 0; i < b.pos.n; i += 6) if (Math.hypot(a[i + 3] - a[i], a[i + 4] - a[i + 1]) >= 2500) 선.push([a[i], a[i + 1], a[i + 3], a[i + 4]])
+    }
+    let 기호 = []
+    try { 기호 = 통심기호({ 원: raw.circles, 선, 글자: (raw.texts || []).map((t) => ({ u: String(t.s || '').trim(), x: t.x, y: t.y, h: t.h || 0 })) }) } catch (e) { 기호 = [] }
+    const 모음 = new Map()
+    for (const g of 기호) {
+      const k = 주인(g.x, g.y)
+      if (k < 0) continue
+      const t = 층들[k], o = 옮김[k]
+      const ox = -t.x + 기준점[0] + o.dx, oy = -t.y + 기준점[1] + o.dy
+      const 끝 = [g.끝[0] + ox, g.끝[1] + oy, g.끝[2] + ox, g.끝[3] + oy]
+      const 열 = g.글 + '|' + g.각칸
+      const a = 모음.get(열) || []; a.push({ 글: g.글, 각칸: g.각칸, 끝, 층: t.층 }); 모음.set(열, a)
+    }
+    for (const a of 모음.values()) {
+      /* 기준 층 것 먼저 · 없으면 첫 것 */
+      const z = a.find((q) => q.층 === 층들[기준].층) || a[0]
+      통심.push({ 글: z.글, 각칸: z.각칸, 끝: z.끝, 수: a.length })
+    }
+  }
   return {
+    통심,
     out: 새,
     층들: 층들.map((t, i) => ({ 층: t.층, 이름: 층이름(t.층), 높이: 높이[t.층], 층고: 층고[i], 옮김: [옮김[i].dx, 옮김[i].dy], 맞춤: 옮김[i].맞춤, 제목: t.s, 도곽: !!도곽[i] })),
     세운벽,

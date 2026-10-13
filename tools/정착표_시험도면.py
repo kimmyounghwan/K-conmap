@@ -6,6 +6,9 @@
    c 가로 · 안쪽 선 없음(바깥 테두리만) · 이름이 합친 칸 가운데
    d 가로 소표 두 단(fck=24 · fck=27 이 머리 줄 왼쪽) · m 단위(0.47) · 40d 꼴 섞임
    e 가로 · 칸마다 네모(닫힌 폴리선)로 그린 표 + 바로 왼쪽에 붙은 다른 표(슬래브 일람표 «HD10@250») — 이웃 글자가 안 섞이는지
+   f 세로 «행렬» 표(일반구조사항에 흔한 꼴) — 지름 줄이 fck 마다 되풀이(21 · 24 — fck 는 왼쪽 합친 칸) ·
+     머리 세 단(인장정착 · B급 인장이음 → 기초 / 보, 기둥(기타부재) / 슬래브, 벽체(피복 20mm) → 일반 · 상부) + 압축정착 · 압축이음 · 갈고리(미확보 · 확보) ·
+     fy 400 · 500 두 표가 옆으로 · 글자는 왼쪽 맞춤(실제 도면처럼) · 일반사항 글 «D13 이하 SD400 · D16 이상 SD500»  (G270)
 """
 import os, math
 import ezdxf
@@ -183,3 +186,74 @@ for r, (이름, f) in enumerate([('인장 정착', ld), ('인장 이음 (B급)',
     for c, d in enumerate(D):
         네모(2600 + c * 1000, y, 1000, 600); txt(m, '{:,}'.format(f(d, 24)), 3100 + c * 1000, y - 300)
 저장(doc, '정착표_e.dxf')
+
+# f — 세로 «행렬» 표 · fck 마다 되풀이 · 부재별 칸 · fy 두 표 (G270)
+F_부재 = {'기초': 0.45, '보기둥': 0.6, '슬벽': 0.65}
+up10 = lambda v: int(math.ceil(v / 10 - 1e-9) * 10)
+def f정(d, fck, fy, 부): return up10(max(F_부재[부] * db[d] * fy / math.sqrt(fck), 300))
+def f값(d, fck, fy):
+    out = []
+    for 부 in ('기초', '보기둥', '슬벽'):
+        a = f정(d, fck, fy, 부); out += [a, up10(a * 1.3)]
+    for 부 in ('기초', '보기둥', '슬벽'):
+        a = up10(max(f정(d, fck, fy, 부) * 1.3, 300)); out += [a, up10(a * 1.3)]
+    h = up10(max(0.24 * db[d] * fy / math.sqrt(fck), 8 * db[d], 150))
+    out += [up10(max(0.25 * db[d] * fy / math.sqrt(fck), 0.043 * db[d] * fy, 200)), up10(max(0.072 * fy * db[d], 300)), h, up10(h * 0.7)]
+    return out
+def ltxt(m, s, x, y, h=100):
+    t = m.add_text(s, dxfattribs={'layer': 'S-TEXT', 'height': h, 'style': 'KOR'})
+    t.set_placement((x, y), align=A.LEFT)
+doc, m = 새()
+for ti, fy in enumerate([400, 500]):
+    X = ti * 14000
+    cw, c0, c1 = 520, 600, 560
+    xs = [X + c0 + c1 + cw * i for i in range(16)]          # 값 칸 왼쪽
+    right = xs[-1] + cw
+    top = 0
+    hr = [320, 300, 260, 300]                                  # 머리 단 높이
+    hy = [top]
+    for v in hr: hy.append(hy[-1] - v)
+    rh = 260
+    블록 = [21, 24]
+    n = len(D)
+    bottom = hy[-1] - rh * n * len(블록)
+    ltxt(m, '2.5.1 철근의 정착 / 이음길이 (fy = %dMPa 인 경우)' % fy, X, top + 400, 150)
+    # 바깥 · 머리 선
+    ln(m, (X, top), (right, top)); ln(m, (X, bottom), (right, bottom))
+    ln(m, (X, top), (X, bottom)); ln(m, (X + c0, top), (X + c0, bottom)); ln(m, (X + c0 + c1, top), (X + c0 + c1, bottom)); ln(m, (right, top), (right, bottom))
+    ltxt(m, '콘크리트', X + 60, top - 400); ltxt(m, '강도(MPa)', X + 60, top - 560)
+    ltxt(m, '철근', X + c0 + 60, top - 400); ltxt(m, '직경', X + c0 + 60, top - 560)
+    # 큰 머리
+    큰 = [('인장정착길이(fy = %dMPa 인 경우)' % fy, 0, 6), ('B급 인장이음길이(fy = %dMPa 인 경우)' % fy, 6, 12), ('압축', 12, 13), ('압축', 13, 14), ('표준갈고리를', 14, 16)]
+    for 글, a, b in 큰:
+        ln(m, (xs[b - 1] + cw, top), (xs[b - 1] + cw, bottom))
+        ltxt(m, 글, xs[a] + 40, hy[0] - 220, 90)
+    ltxt(m, '정착길이', xs[12] + 40, hy[1] - 200, 90); ltxt(m, '이음길이', xs[13] + 40, hy[1] - 200, 90); ltxt(m, '갖는 인장정착', xs[14] + 40, hy[1] - 200, 90)
+    ln(m, (xs[0], hy[1]), (xs[11] + cw, hy[1])); ln(m, (xs[14], hy[2]), (right, hy[2]))
+    for g0 in (0, 6):
+        for k, (이름, 아래) in enumerate([('기 초', ''), ('보, 기둥', '기타부재'), ('슬래브, 벽체', '피복 20mm')]):
+            a = xs[g0 + 2 * k]
+            ln(m, (a + 2 * cw, hy[1]), (a + 2 * cw, bottom))
+            ltxt(m, 이름, a + 60, hy[1] - 200, 90)
+            if 아래: ltxt(m, 아래, a + 60, hy[2] - 180, 80)
+        ln(m, (xs[g0], hy[3]), (xs[g0 + 5] + cw, hy[3]))
+        for k in range(6):
+            ln(m, (xs[g0 + k], hy[3]), (xs[g0 + k], bottom))
+            ltxt(m, '일반철근' if k % 2 == 0 else '상부철근', xs[g0 + k] + 30, hy[3] - 200, 70)
+    ltxt(m, '피복두께', xs[14] + 30, hy[2] - 120, 70); ltxt(m, '미확보시', xs[14] + 30, hy[3] - 200, 70)
+    ltxt(m, '피복두께', xs[15] + 30, hy[2] - 120, 70); ltxt(m, '확보시', xs[15] + 30, hy[3] - 200, 70)
+    ln(m, (xs[15], hy[2]), (xs[15], bottom))
+    ln(m, (X, hy[-1]), (right, hy[-1]))
+    for bi, fck in enumerate(블록):
+        y0 = hy[-1] - rh * n * bi
+        ln(m, (X, y0), (right, y0))
+        ltxt(m, str(fck), X + 150, y0 - rh * (n / 2) - 50, 100)      # 합친 칸 가운데쯤
+        for r, d in enumerate(D):
+            y = y0 - rh * (r + 1)
+            if r < n - 1: ln(m, (X + c0, y), (right, y))
+            ltxt(m, d, X + c0 + 120, y + 80, 100)
+            for c, v in enumerate(f값(d, fck, fy)):
+                ltxt(m, str(v), xs[c] + 60, y + 80, 90)
+ltxt(m, '- 철근 : D13 이하 fy = 400MPa (SD400)', 0, -6000, 120)
+ltxt(m, '         D16 이상 fy = 500MPa (SD500)', 0, -6250, 120)
+저장(doc, '정착표_f.dxf')

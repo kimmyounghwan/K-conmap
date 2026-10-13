@@ -63,14 +63,14 @@ export function 칸짐작(이름) {
   const 정착 = /정착|DEVELOP|L_?D\b|LD/.test(u)
   if (/압축|COMP/.test(u)) return 이음 ? '압축이음' : 정착 ? '압축정착' : ''
   if (이음) {
-    if (/상부|TOP/.test(u)) return ''          // 상부 이음은 칸이 없음 — 화면에서 고름
+    if (/상부|TOP/.test(u)) return /A급|CLASSA/.test(u) && !/B급|CLASSB/.test(u) ? '' : '상부이음'      // 🧭 G270 상부근 이음(보 위 철근 — 아래 콘크리트 300 mm 넘음)
     if (/A급|CLASSA/.test(u) && !/B급|CLASSB/.test(u)) return ''   // A급만이면 B급(기본)과 다름 — 화면에서 고름
     return '인장이음'
   }
   if (정착) return /상부|TOP/.test(u) ? '상부정착' : '인장정착'
   return ''
 }
-export const 칸이름 = { 인장정착: '인장 정착', 상부정착: '상부 정착', 압축정착: '압축 정착', 인장이음: '인장 이음', 압축이음: '압축 이음', 갈고리정착: '갈고리 정착' }
+export const 칸이름 = { 인장정착: '인장 정착', 상부정착: '상부 정착', 압축정착: '압축 정착', 인장이음: '인장 이음', 상부이음: '상부 이음', 압축이음: '압축 이음', 갈고리정착: '갈고리 정착' }
 export const 칸들 = Object.keys(칸이름)
 
 /* ───────────────────────────── 도면 → 글자·선 (mm) */
@@ -179,6 +179,16 @@ const 제목같음 = (s) => { const u = 붙(s); return /표$|TABLE|일반구조|
 const 제목짐작 = (t) => { const u = 붙(t); return /정착/.test(u) && /이음/.test(u) ? '' : 칸짐작(t) }
 /** 제목·머리 글 안의 fck — 「(fck=24MPa)」「f'ck 27」 */
 export function 글속fck(t) { const m = 붙(t).toUpperCase().replace(/[’'`]/g, '').match(/FCK[=:]?(\d{2})/); return m ? +m[1] : null }
+/** 🧭 G270 글 속 fy — 「(fy = 500MPa 인 경우)」「SD500」 → 500 · 없으면 null */
+export function 글속fy(t) { const u = 붙(t).toUpperCase(); const m = u.match(/FY[=:]?(\d{3})/) || u.match(/SD(\d{3})/); return m ? +m[1] : null }
+/** 🧭 G270 머리 글 → 부재 칸 — 「기 초」 → '기초' · 「슬래브, 벽체」 → '슬래브벽' · 「보, 기둥」「기타부재」 → '보기둥' · 모르면 '' */
+export function 부재짐작(t) {
+  const u = 붙(t).toUpperCase().replace(/미?확보시?|피복두께/g, '')          // «피복두께 미확보시»(갈고리 칸)의 «보» 는 부재가 아님
+  if (/기초|FOOTING|FOUNDATION|MAT/.test(u)) return '기초'
+  if (/슬[래라]브|벽체|벽|SLAB|WALL/.test(u)) return '슬래브벽'
+  if (/보|기둥|기타부재|BEAM|COLUMN|GIRDER/.test(u)) return '보기둥'
+  return ''
+}
 const 이름글 = (목록) => 목록.map((g) => g.s.trim()).filter(Boolean).join(' ')
 
 /* ───────────────────────────── 표 읽기 */
@@ -195,7 +205,7 @@ export function 표읽기(글자들, 선 = { 가로: [], 세로: [] }, 제목 = 
   const 가로머리 = 무리(지름글, (g) => g.y, (g) => g.h * 0.6)
     .map((줄) => 줄.sort((a, b) => a.x - b.x)).filter((줄) => 오름(줄))
   const 세로머리 = 무리(지름글, (g) => g.x, (g) => Math.max(g.h * 1.2, g.w * 0.6))
-    .map((열) => 열.sort((a, b) => b.y - a.y)).filter((열) => 오름(열))
+    .flatMap((열) => 오름조각(열.sort((a, b) => b.y - a.y)))
   const 가 = 가로머리.length ? 가로읽기(글자들, 선, 가로머리, 제목) : null
   const 세 = 세로머리.length ? 세로읽기(글자들, 선, 세로머리, 제목) : null
   const 셈 = (r) => (r ? r.줄.reduce((s, z) => s + Object.keys(z.값).length, 0) : 0)
@@ -203,7 +213,22 @@ export function 표읽기(글자들, 선 = { 가로: [], 세로: [] }, 제목 = 
   if (!고른 || !고른.줄.length) return { 방향: '', 줄: [], 지름들: [], 경고: ['지름 머리 아래(옆)에서 길이 숫자를 찾지 못했습니다'] }
   const 지름들 = 지름목록.filter((d) => 고른.줄.some((z) => z.값[d] != null))
   for (const z of 고른.줄) z.그럴듯 = 그럴듯(z.값)
+  /* 🧭 G270 한 표 안의 fy 가 하나뿐이면 fy 를 못 읽은 칸(압축 · 갈고리 — 머리에 fy 글이 없음)도 그 fy */
+  const fys = [...new Set(고른.줄.map((z) => z.fy).filter((v) => v != null))]
+  if (fys.length === 1) for (const z of 고른.줄) if (z.fy == null) z.fy = fys[0]
   return { ...고른, 지름들, 경고: 경고.concat(고른.경고 || []) }
+}
+/** 🧭 G270 한 열(위 → 아래)에 지름이 fck 마다 되풀이되는 표(D10 ~ D35 · D10 ~ D35 …) — 지름 차례가 다시 작아지는 곳에서 끊어 «커지는 토막» 들로.
+ *  셋 넘게 다른 지름인 토막만. 예전엔 열 전체를 한 머리로 봐 지름이 겹쳐(오름 아님) 표를 통째로 못 찾았음(일반구조사항 «정착 / 이음길이» 표) */
+export function 오름조각(목록) {
+  const out = []
+  let 지금 = []
+  for (const g of 목록) {
+    if (지금.length && 지름차례.get(g.d) <= 지름차례.get(지금[지금.length - 1].d)) { out.push(지금); 지금 = [] }
+    지금.push(g)
+  }
+  if (지금.length) out.push(지금)
+  return out.filter((t) => 오름(t))
 }
 /** 지름이 셋 넘게 · 겹치지 않고 커지는 차례(한 칸 빠져도 됨) */
 function 오름(목록) {
@@ -323,9 +348,17 @@ function 세로읽기(글자들, 선, 열들, 제목) {
     const 옆 = 열들.filter((o) => o !== 지열 && o[0].x > 첫.x && Math.abs(o[0].y - 첫.y) < 간격 * 2).map((o) => o[0].x)
     const 한계 = 옆.length ? Math.min(...옆) : Infinity
     // 머리글 — 표의 세로선(지름 줄까지 내려오는 선)이 있으면 그 선 가까이의 글자만(위에 붙은 다른 표 글자를 빼려고)
-    const 표세로 = 선.세로.filter((L) => L.y0 <= 끝.y && L.y1 >= 첫.y)
+    /* 🧭 G270 지름이 fck 마다 되풀이되는 표 — 머리는 맨 위 토막 위에만 있음(아래 토막의 «위» 는 앞 토막 숫자). 같은 열의 맨 위 지름 줄을 머리 바닥으로 */
+    const 같은열 = 열들.filter((o) => Math.abs(o[0].x - 첫.x) <= Math.max(h * 1.2, 첫.w * 0.6))
+    const 머리y = Math.max(첫.y, ...같은열.map((o) => o[0].y))
+    /* 🧭 G270 머리 칸의 세로선 — 머리 바닥(맨 위 지름 줄 바로 위)에 닿는 선. 머리와 값 칸 사이에서 끊긴 선(현장 B 일반구조사항 표)도 셈 —
+         예전엔 값 줄부터 머리까지 한 줄로 이어진 선만 봐, 끊긴 칸의 «슬래브, 벽체» 같은 머리글이 빠졌음 */
+    const 표세로 = 선.세로.filter((L) => (L.y0 <= 끝.y && L.y1 >= 첫.y) || (L.y0 <= 머리y + 간격 * 2 && L.y1 >= 머리y))
     const 머리안 = (g) => (표세로.length ? 표세로.some((L) => L.y1 >= g.y - g.h * 0.5 && Math.abs(L.x - g.x) <= Math.max(g.w, 30 * g.h)) : true)
-    const 머리글 = 글자들.filter((g) => g.y > 첫.y + h * 0.6 && g.y < 첫.y + 간격 * 6 + h * 8 && g.x < 한계 && !제목같음(g.s) && 머리안(g))
+    const 머리글 = 글자들.filter((g) => g.y > 머리y + h * 0.6 && g.y < 머리y + 간격 * 6 + h * 8 && g.x < 한계 && !제목같음(g.s) && 머리안(g))
+    /* 🧭 G270 토막의 fck — 지름 열 바로 왼쪽(합친 칸)의 «21» · «24» 글자(토막 높이 안). 하나뿐일 때만 */
+    const 왼fck = [...new Set(글자들.filter((g) => g.x < 첫.x - 첫.w / 2 && g.x > 첫.x - 첫.w / 2 - 14 * h && g.y <= 위 && g.y >= 아래).map((g) => fck읽기(g.s)).filter((v) => v !== null))]
+    const 토막fck = 왼fck.length === 1 ? 왼fck[0] : null
     for (const vc of 값열들) {
       const x = vc.reduce((s, g) => s + g.x, 0) / vc.length
       if (x >= 한계) continue
@@ -333,7 +366,8 @@ function 세로읽기(글자들, 선, 열들, 제목) {
       // 이 열을 덮는 머리글: 선이 있으면 칸 가로 범위, 없으면 x 가 가까운 것(위 단은 넓게)
       const 덮는 = 머리글.filter((g) => {
         const [l, r] = 칸가로(g, 선)
-        if (Number.isFinite(l) && Number.isFinite(r) && r - l < 40 * hh) return x > l && x < r
+        /* 🧭 G270 여러 칸을 덮는 머리(«인장정착길이» 가 6칸 · 40글자 높이)도 — 예전 40 배 한도에 딱 걸려 가장자리 칸이 머리를 잃었음 */
+        if (Number.isFinite(l) && Number.isFinite(r) && r - l < 100 * hh) return x > l && x < r
         return Math.abs(g.x - x) <= Math.max(g.w / 2, hh * 2.5)
       }).sort((a, b) => b.y - a.y)
       let fck = null
@@ -341,11 +375,27 @@ function 세로읽기(글자들, 선, 열들, 제목) {
       for (const g of 덮는) { const f = fck읽기(g.s); if (f !== null && fck === null) fck = f; else if (!지름(g.s)) 이름조각.push(g) }
       let 이름 = 이름글(이름조각)
       if (!칸짐작(이름) && 제목 && 제목짐작(제목)) 이름 = (이름 ? 이름 + ' ' : '') + '(' + 제목 + ')'
+      /* 🧭 G270 칸은 값에 가까운(아래) 머리부터 — 「압축정착 / 압축이음」 합친 머리 아래 «압축 정착길이» 칸이 «압축이음» 으로 읽히지 않게 */
+      const 칸무리 = []          // 같은 칸(세로선 · 가로선이 같은 네모)의 글자끼리 — 위에서 아래로
+      for (const g of 이름조각) {
+        const [l, r] = 칸가로(g, 선), [a0, a1] = 칸세로(g, 선)
+        const 같 = 칸무리.find((c) => c.l === l && c.r === r && c.a0 === a0 && c.a1 === a1 && Number.isFinite(a0) && Number.isFinite(a1))
+        if (같) 같.글.push(g); else 칸무리.push({ l, r, a0, a1, 글: [g] })
+      }
+      let 아래칸 = ''
+      for (let j = 1; j <= 칸무리.length && !아래칸; j++) 아래칸 = 칸짐작(칸무리.slice(-j).map((c) => 이름글(c.글)).join(' '))
+      if (fck === null) fck = 토막fck
       if (fck === null) fck = 글속fck(제목)
       const 값 = {}
       for (const g of vc) if (값[g.d] == null) 값[g.d] = g.v
       const xs = vc.map((g) => g.x), ys = vc.map((g) => g.y)
-      줄.push({ 이름, fck, 값, 칸: 칸짐작(이름), 곳: [Math.min(...xs) - hh * 2, Math.min(...ys) - hh, Math.max(...xs) + hh * 2, Math.max(...ys) + hh] })
+      const z = { 이름, fck, 값, 칸: 아래칸 || 칸짐작(이름), 곳: [Math.min(...xs) - hh * 2, Math.min(...ys) - hh, Math.max(...xs) + hh * 2, Math.max(...ys) + hh] }
+      /* 🧭 G270 부재 칸(기초 · 보 · 기둥 · 슬래브 · 벽체) · fy(«fy = 500MPa 인 경우») — 머리 · 제목에서 */
+      const 부 = 부재짐작(이름)
+      if (부) z.부재 = 부
+      const fy = 글속fy(이름) ?? 글속fy(제목)
+      if (fy !== null) z.fy = fy
+      줄.push(z)
     }
   }
   return { 방향: '세로', 줄 }
@@ -389,7 +439,8 @@ export function 표찾기(모델, k = 1, 끈층 = null) {
     for (const 덩 of 무리(줄, (g) => g.x, (g) => g.h * 12)) if (오름([...덩].sort((a, b) => a.x - b.x))) 머리들.push({ 방: '가로', 글: 덩 })
   }
   for (const 열 of 무리(지름글, (g) => g.x, (g) => Math.max(g.h * 1.2, g.w * 0.6))) {
-    for (const 덩 of 무리(열, (g) => g.y, (g) => g.h * 6)) if (오름([...덩].sort((a, b) => b.y - a.y))) 머리들.push({ 방: '세로', 글: 덩 })
+    /* 🧭 G270 fck 마다 지름이 되풀이되는 열 — 커지는 토막으로 끊어 토막이 하나라도 있으면 열(덩) 전체를 한 표로 */
+    for (const 덩 of 무리(열, (g) => g.y, (g) => g.h * 6)) { const 조 = 오름조각([...덩].sort((a, b) => b.y - a.y)); if (조.length) 머리들.push({ 방: '세로', 글: 조.flat() }) }
   }
   const 후보 = []
   for (const 머 of 머리들) {
@@ -400,7 +451,16 @@ export function 표찾기(모델, k = 1, 끈층 = null) {
     const 가까운 = 낱말.filter((g) => g.x > x0 - 60 * h && g.x < x1 + 60 * h && g.y > y0 - 60 * h && g.y < y1 + 25 * h)
     if (!가까운.length) continue
     if (머.방 === '가로') { x0 -= 40 * h; x1 += 3 * h; y1 += 12 * h; y0 -= 45 * h }
-    else { x0 -= 6 * h; x1 += 70 * h; y1 += 18 * h; y0 -= 3 * h }
+    else {
+      /* 🧭 G270 오른쪽 끝 — 지름 줄과 같은 높이의 글자를 15글자 높이 틈 안으로 이어 간 끝(칸이 16개인 표는 70글자 높이를 넘음) */
+      let 끝x = x1 + 70 * h
+      for (const g of 머.글) {
+        let cur = g.x
+        for (const c of 모두.filter((t) => t.x > g.x && Math.abs(t.y - g.y) <= g.h * 0.6).sort((a, b) => a.x - b.x)) { if (c.x - cur <= 15 * g.h) cur = c.x; else break }
+        if (cur + 8 * h > 끝x) 끝x = cur + 8 * h          // 오른쪽 테두리 선까지(마지막 칸 머리의 칸 범위)
+      }
+      x0 -= 15 * h; x1 = 끝x; y1 += 18 * h; y0 -= 3 * h          // 왼쪽 15글자 높이 — 지름 열 왼쪽 합친 칸의 fck 글자까지(G270)
+    }
     const 제목글 = 가까운.filter((g) => g.y > Math.max(...ys)).sort((a, b) => b.y - a.y)[0]
     const 상자mm = [x0, y0, x1, y1]
     const 안글 = 모두.filter((g) => g.x >= x0 && g.x <= x1 && g.y >= y0 && g.y <= y1)
@@ -453,4 +513,111 @@ export function 넣을것(줄, fck, 옛정착 = {}) {
     }
   }
   return { 정착, 넣은, 뺀 }
+}
+
+/* ───────────────────────────── 🧭 G270 철근 강도(규격마다) · 표 여럿을 부재마다 */
+
+/**
+ * 일반사항 글 «D13 이하 fy = 400MPa (SD400)» · «D16 이상 fy = 500MPa (SD500)» → 규격마다 fy
+ * @param 글들 문자열 목록 · @param 기본fy 기준 fy
+ * @returns {D16:500, …}(기본 fy 와 다른 규격만) 또는 null(못 찾음 · 서로 어긋남)
+ */
+export function 강도규격읽기(글들, 기본fy = 400) {
+  const 규칙 = []
+  for (const s0 of 글들) {
+    const u = 붙(s0).toUpperCase()
+    if (u.length > 60 || !/이하|이상/.test(u)) continue
+    let m = u.match(/D(\d{2})(이하|이상).*?(?:FY[=:]?(\d{3})|SD(\d{3}))/)
+    let d, 쪽, fy
+    if (m) { d = 'D' + m[1]; 쪽 = m[2]; fy = +(m[3] || m[4]) }
+    else if ((m = u.match(/(?:FY[=:]?(\d{3})|SD(\d{3})).*?D(\d{2})(이하|이상)/))) { d = 'D' + m[3]; 쪽 = m[4]; fy = +(m[1] || m[2]) }      // «* fy=500MPa : SHD22이상»(현장 A 평면 주기)
+    else continue
+    if (!지름차례.has(d)) continue
+    규칙.push({ i: 지름차례.get(d), 쪽, fy })
+  }
+  if (!규칙.length) return null
+  const out = {}
+  for (const d of 지름목록) {
+    const i = 지름차례.get(d)
+    const fys = new Set(규칙.filter((r) => (r.쪽 === '이하' ? i <= r.i : i >= r.i)).map((r) => r.fy))
+    if (fys.size > 1) return null           // 서로 어긋남 — 안 씀
+    if (fys.size === 1) { const f = [...fys][0]; if (f !== +기본fy) out[d] = f }
+  }
+  return Object.keys(out).length ? out : null
+}
+
+/**
+ * 찾은 표 여럿(fy 400 · 500 표 · 부재 칸)을 기준값으로 — 규격마다 그 규격 fy 의 표 · 기준 fck 줄만.
+ *   부재 칸(기초 · 보기둥 · 슬래브벽)이 있으면 «정착부재»(기초 · 보 · 기둥 · 슬라브 · 벽)에 따로, 공통 정착표는 부재 칸 없는 줄 + 보 · 기둥 칸.
+ *   부재 · fy 를 못 읽은 표는 예전 넣을것 그대로.
+ * @param 표들 [{표:{줄}, 셈}] · @param 기본 규격마다 fy 로 셈한 기본식 정착표
+ * @returns {정착, 정착부재|null, 넣은:[{칸,d,v,부재}], 뺀:[글]}
+ */
+export function 정착표넣기(표들, fck, fy, fy규격, 기본 = {}, fck부재 = null) {
+  const 줄들 = [...표들].sort((a, b) => (b.셈 || 0) - (a.셈 || 0)).flatMap((t) => (t.표 ? t.표.줄 : t.줄) || [])
+  if (!줄들.some((z) => z.부재 || z.fy != null)) {
+    /* 🧭 G275 fy 가 안 적힌 표 하나 + 일반사항 «D22 이상 SD500»(규격마다 fy) — 표는 기준 fy 것으로 보고, fy 가 다른 규격(SD500)은 기본식(그 규격 fy) 그대로.
+         현장 A S-101 정착표(fy 400 · fck 마다)를 SHD22 ~ 25 에도 넣어 정착 · 이음이 20 % 짧았음 */
+    const 다른 = new Set(Object.entries(fy규격 || {}).filter(([, v]) => +v && +v !== +fy).map(([d]) => d))
+    if (!다른.size) return { ...넣을것(줄들, fck, 기본), 정착부재: null }
+    const 거른 = 줄들.map((z) => ({ ...z, 값: Object.fromEntries(Object.entries(z.값 || {}).filter(([d]) => !다른.has(d))) }))
+    const r = 넣을것(거른, fck, 기본)
+    return { ...r, 정착부재: null, 다른fy: [...다른] }
+  }
+  const 규fy = (d) => (fy규격 && +fy규격[d]) || +fy
+  const 정착 = JSON.parse(JSON.stringify(기본 || {}))
+  const 정착부재 = {}
+  const 넣은 = [], 뺀 = new Set(), 이미 = new Set()
+  const 부재키 = { 기초: ['기초'], 보기둥: ['보', '기둥'], 슬래브벽: ['슬라브', '벽'] }
+  for (const z of 줄들) {
+    if (!z.칸) continue
+    const 부 = z.부재 || ''
+    /* 🧭 G272 부재 칸의 fck — 기초는 «fck=27MPa (기초)» 처럼 따로 적혔으면 그 줄(현장 A: 기초 27 · 나머지 30) */
+    const 이fck = (fck부재 && 부 && fck부재[부]) || fck
+    const 고름 = z.고름 !== undefined ? z.고름 : (z.그럴듯 !== false && (z.fck == null || +z.fck === +이fck))
+    if (!고름) { 뺀.add((z.이름 || z.칸) + (z.fck != null ? ' (fck ' + z.fck + ')' : '')); continue }
+    for (const [d, v] of Object.entries(z.값)) {
+      if (z.fy != null && +z.fy !== 규fy(d)) continue          // 이 규격의 강도 표가 아님
+      const key = 부 + '|' + z.칸 + '|' + d
+      if (이미.has(key)) continue
+      이미.add(key)
+      if (!부 || 부 === '보기둥') {          // 공통 표 = 부재 칸 없는 줄 · 보 · 기둥 칸(먼저 읽은 것)
+        const k2 = '공통|' + z.칸 + '|' + d
+        if (!이미.has(k2)) { 정착[d] = { ...(정착[d] || {}), [z.칸]: v }; 이미.add(k2) }
+      }
+      for (const k of 부재키[부] || []) { 정착부재[k] = 정착부재[k] || {}; 정착부재[k][d] = { ...(정착부재[k][d] || {}), [z.칸]: v } }
+      넣은.push({ 칸: z.칸, d, v, 부재: 부 })
+    }
+  }
+  return { 정착, 정착부재: Object.keys(정착부재).length ? 정착부재 : null, 넣은, 뺀: [...뺀] }
+}
+
+/**
+ * 🧭 G272 일반사항 · 평면 주기의 콘크리트 강도 — «fck = 30 MPa» · «* fck=30MPa (기초 외 전부재)» · «* fck=27MPa (기초)» → {기본, 기초} (못 찾으면 null)
+ *   «별도의 표기가 없는 경우 fck = 15 MPa 이상» · «fck= 40MPa 이상이면» 같은 규정 글 · 표 칸(«21 ≤ fck < 27»)은 뺌.
+ *   이름 붙은 글(기초 · 기초 외)이 있으면 그것 먼저 · 없으면 이름 없는 글이 한 값일 때만
+ */
+export function 강도fck읽기(글들) {
+  const 기본 = new Map(), 기초 = new Map(), 맨 = new Map()
+  const 더 = (mp, v) => mp.set(v, (mp.get(v) || 0) + 1)
+  for (const s0 of 글들) {
+    const u = 붙(s0).toUpperCase().replace(/[’'`]/g, '')
+    if (!u || u.length > 60) continue
+    const m = u.match(/F?CK[=:]?(\d{2})(?:MPA|N\/MM2)/)
+    if (!m) continue
+    if (/이상|이하|미만|초과|경우|≤|≥|<|>|저감|이면/.test(u)) continue
+    const v = +m[1]
+    if (!(v >= 15 && v <= 80)) continue
+    const 말 = u.slice(0, m.index) + u.slice(m.index + m[0].length)
+    if (/기초/.test(말) && /외|제외|이외|기타|나머지/.test(말)) 더(기본, v)
+    else if (/기초|FOUND|FOOT|매트/.test(말)) 더(기초, v)
+    else if (/구체|기둥|슬[래라]브|벽체|전부재|모든부재|전체/.test(말)) 더(기본, v)
+    else 더(맨, v)
+  }
+  const 하나 = (mp) => (mp.size === 1 ? [...mp.keys()][0] : null)
+  let b = 하나(기본)
+  const f = 하나(기초)
+  if (b === null && !기본.size && 맨.size === 1) b = [...맨.keys()][0]
+  if (b === null && f === null) return null
+  return { 기본: b, 기초: f }
 }
