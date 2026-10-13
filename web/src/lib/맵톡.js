@@ -152,6 +152,17 @@ export function 방나누기(글들, 기준 = 방기준) {
  * 첫 줄(또는 첫 문장)이 제목, 나머지가 본문. 제목 앞에 말머리 «[후기·건의] » 가 붙어 80자 안이어야 하므로 제목은 70자까지 —
  * 넘으면 69자에서 자르고(…) 나머지는 본문으로.
  */
+/**
+ * ✍️ G285 (2026-10-14) 소장님 「맵톡 쓰기도 이런 방식으로 쓰게 해줘. 제목은 굵게, 내용은 작게 … 맵톡 쓰기만」 — 글쓰기 칸을 «제목 한 줄 + 내용» 둘로
+ * 제목을 적었으면 그대로(70자까지) · 내용은 2000자까지 · 제목을 비우고 내용만 적었으면 예전처럼 첫 줄(첫 문장)이 제목(글나누기)
+ */
+export function 제목내용(제목, 내용) {
+  const t = String(제목 || '').replace(/\s+/g, ' ').trim()
+  const b = String(내용 || '').replace(/\r/g, '').trim()
+  if (!t) return 글나누기(b)
+  if (t.length > 70) return { t: t.slice(0, 69).trimEnd() + '…', b: (t.slice(69) + (b ? '\n' + b : '')).trim().slice(0, 2000) }
+  return { t, b: b.slice(0, 2000) }
+}
 export function 글나누기(글) {
   const s = String(글 || '').replace(/\r/g, '').trim()
   if (!s) return { t: '', b: '' }

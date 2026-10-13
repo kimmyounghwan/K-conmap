@@ -6433,6 +6433,10 @@ button.sk-mini { color: var(--accent); padding: 0; text-align: left; }
 .mt-compose { position: absolute; left: 36px; top: 268px; width: 600px; z-index: 4; background: var(--surface); color: var(--text); border-radius: 24px; padding: 20px 20px 14px; box-shadow: 0 26px 64px rgba(4,12,32,.5); }
 .mt-compose textarea { width: 100%; box-sizing: border-box; border: 0; resize: none; font: inherit; font-size: 19px; line-height: 1.55; color: var(--text); outline: none; min-height: 96px; background: transparent; }
 .mt-compose textarea::placeholder { color: var(--muted); }
+/* ✍️ G285 맵톡 쓰기 — 제목(굵게) + 내용(작게) · 소장님 「제목은 굵게, 내용은 작게」 */
+.mt-compose .mt-title { display: block; width: 100%; box-sizing: border-box; border: 0; border-bottom: 1px solid var(--line); outline: none; background: transparent; font: inherit; font-size: 21px; font-weight: 800; line-height: 1.35; color: var(--text); padding: 2px 0 10px; margin: 0 0 8px; letter-spacing: -.01em; }
+.mt-compose .mt-title::placeholder { color: var(--muted); font-weight: 700; }
+.mt-compose textarea.mt-body { font-size: 15px; line-height: 1.6; min-height: 84px; }
 .mt-att { display: inline-flex; align-items: center; gap: 8px; margin: 2px 0 8px; padding: 5px 8px 5px 5px; border-radius: 12px; background: var(--surface-2); font-size: 13px; font-weight: 700; color: var(--text-2); }
 .mt-att img { width: 46px; height: 36px; object-fit: cover; border-radius: 8px; }
 .mt-att button { border: 0; background: none; color: var(--muted); font-size: 13px; cursor: pointer; min-height: 32px; font-family: inherit; }
@@ -6592,6 +6596,8 @@ span.mt-act { cursor: default; }
   .mt-made { top: 60px; font-size: 13px; padding: 9px 14px; white-space: normal; max-width: calc(100% - 28px); }
   .mt-compose { margin-top: -60px; padding: 14px 14px 10px; border-radius: 20px; }
   .mt-compose textarea { font-size: 16.5px; min-height: 64px; }
+  .mt-compose .mt-title { font-size: 18.5px; padding-bottom: 8px; }
+  .mt-compose textarea.mt-body { font-size: 16px; min-height: 64px; }   /* 폰은 16px — 더 작으면 아이폰이 글 칠 때 화면을 확대함 */
   .mt-crow { gap: 6px; }
   .mt-chip { padding: 0 11px; font-size: 13px; }
   .mt-chip-t { display: none; }

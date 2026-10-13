@@ -152,7 +152,7 @@ import { use화면상태, use남김 } from '../lib/길기록.js'
 import 건설소식 from '../tools/건설소식.jsx'   /* 📰 G128 — 지도 아래 «오늘의 건설 소식» · 💬 이야기하기 → 글쓰기 칸 */
 /* 🗺 G147 (2026-10-05) 사랑방 → 맵톡 — 큰 지도 위 글쓰기 · 글 = 핀(시·군) · 방은 저절로(같은 주제 10개) · 사진 한 장 */
 import 맵톡지도 from '../tools/맵톡지도.jsx'
-import { 주제들, 주제짐작, 고칠방들, 글쓸방, 올릴방, 방나누기, 글나누기, 자리짐작, 짧은이름, 곳찾기, 카드크기, 물음인가, 한마디인가, 사진줄이기, 사진크기한도, 방기준, 답나무, 첫줄, 누적셈, 시도차례, 시도별, 곳기억읽기, 곳기억하기 } from '../lib/맵톡.js'
+import { 주제들, 주제짐작, 고칠방들, 글쓸방, 올릴방, 방나누기, 글나누기, 제목내용, 자리짐작, 짧은이름, 곳찾기, 카드크기, 물음인가, 한마디인가, 사진줄이기, 사진크기한도, 방기준, 답나무, 첫줄, 누적셈, 시도차례, 시도별, 곳기억읽기, 곳기억하기 } from '../lib/맵톡.js'
 import { 세기 } from '../lib/받은수.jsx'
 import { 받는꼴, 파일검사, 압축검사, 확장자, 파일올리기, 크기글, 오늘올린수, 올린수더하기, 하루한도 } from '../lib/파일올리기.js'   /* 📎 G158 · 🗜 G196 압축검사 */
 
@@ -1473,11 +1473,18 @@ function AnswerForm({ qid, onDone, to = null, 받는이 = '', 인용 = '', 열�
    ■ 📊 세기: |맵톡|글 · |맵톡|사진 · |맵톡|자리 · |맵톡|파일 (숫자는 어디에도 안 보임) */
 const 초안열쇠 = 'kcm.qna.초안'
 function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all', 있는방 = null }) {
-  const [글, set글] = useState(() => {
-    if (첫글 && (첫글.t || 첫글.b)) return [String(첫글.t || ''), String(첫글.b || '')].filter(Boolean).join('\n').slice(0, 2070)
-    try { const d = JSON.parse(sessionStorage.getItem(초안열쇠) || 'null'); if (d) return typeof d.글 === 'string' ? d.글 : [d.t, d.b].filter(Boolean).join('\n') } catch (e) { /* 없음 */ }
-    return ''
+  /* ✍️ G285 (2026-10-14) 소장님 「맵톡 쓰기도 이런 방식으로 쓰게 해줘. 제목은 굵게, 내용은 작게」 — 한 칸 → «제목(굵게) + 내용(작게)» 둘 */
+  const [처음] = useState(() => {
+    if (첫글 && (첫글.t || 첫글.b)) return { t: String(첫글.t || '').slice(0, 70), b: String(첫글.b || '').slice(0, 2000) }
+    try {
+      const d = JSON.parse(sessionStorage.getItem(초안열쇠) || 'null')
+      if (d && typeof d.글 === 'string') return 글나누기(d.글)          /* 옛 초안(한 칸) */
+      if (d) return { t: String(d.t || ''), b: String(d.b || '') }
+    } catch (e) { /* 없음 */ }
+    return { t: '', b: '' }
   })
+  const [제목, set제목] = useState(처음.t)
+  const [내용, set내용] = useState(처음.b)
   const [pin, setPin] = useState('')
   const [사진, set사진] = useState(null)        // { 파일, 미리(blob 주소) }
   const [첨부, set첨부] = useState(null)        // 📎 G158 File
@@ -1525,7 +1532,7 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all', 있�
     세기('|맵톡|지역고름')
   }
   const 시도들 = useMemo(() => (바탕 ? 시도별(바탕) : {}), [바탕])
-  useEffect(() => { try { sessionStorage.setItem(초안열쇠, JSON.stringify({ 글 })) } catch (e) { /* 없음 */ } }, [글])
+  useEffect(() => { try { sessionStorage.setItem(초안열쇠, JSON.stringify({ t: 제목, b: 내용 })) } catch (e) { /* 없음 */ } }, [제목, 내용])
   /* 🤝 공고 · 건설 소식에서 초안을 들고 왔으면 칸에 바로 — 고쳐 쓰시게(바로 올리지 않음) */
   useEffect(() => { if (첫글 && 칸.current) { try { 칸.current.focus({ preventScroll: true }) } catch (e) { /* 옛 브라우저 */ } } }, [])   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { if (사진 && 사진.미리) URL.revokeObjectURL(사진.미리) }, [사진])
@@ -1557,7 +1564,7 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all', 있�
 
   const submit = async () => {
     if (busy) return
-    const { t, b } = 글나누기(글)
+    const { t, b } = 제목내용(제목, 내용)
     if (t.length < 2) return 막기('두 글자 이상 적어 주세요.')
     if (!나운영자 && pin.length !== 4) { 막기('🔑 지우고 되찾을 때 쓸 4자리 숫자를 정해 주세요.'); try { 핀칸.current && 핀칸.current.focus() } catch (e) { /* 없음 */ } return }
     /* 📎 하루 한도 — 숫자는 안 알려 드림(소장님만 앎) */
@@ -1622,7 +1629,7 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all', 있�
       세기('|맵톡|글'); if (p) 세기('|맵톡|사진'); if (곳) 세기('|맵톡|자리'); if (f) { 세기('|맵톡|파일'); if (확장자(f.n) === 'zip') 세기('|맵톡|압축파일'); 올린수더하기() }
       if (나운영자 && 고정할) { try { await set(ref(db, `qna_top/${id}`), serverTimestamp()) } catch (e) { /* 글 안에서 다시 꽂으면 됨 */ } }
       try { sessionStorage.removeItem(초안열쇠) } catch (e) { /* 없음 */ }
-      set글(''); setPin(''); set사진(null); set첨부(null)
+      set제목(''); set내용(''); setPin(''); set사진(null); set첨부(null)
       /* 🩹 G226 보고 있던 방과 다른 주제면 어디로 갔는지 알림 */
       const 다른방 = 방고름 && 방고름 !== 'all' && 주제들[방고름] && 간방 !== 방고름 && 주제들[간방] ? ` · 글 내용으로 «${주제들[간방].이름}» 에 모였어요` : ''
       setMsg(`✅ 올렸습니다${곳 ? ` — ${짧은이름(곳.n)}에 핀이 꽂혔어요` : ''}${다른방}${사진말}${파일말}`)
@@ -1634,9 +1641,13 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all', 있�
 
   return (
     <div className={'mt-compose' + (흔들 ? (흔들 % 2 ? ' shkA' : ' shkB') : '')}>
-      <label className="sr-only" htmlFor="mt-say">맵톡에 글쓰기</label>
-      <textarea id="mt-say" ref={칸} value={글} onChange={(e) => set글(e.target.value)} maxLength={2070} rows={3}
-        placeholder="질문, 현장 이야기, 건의 등 어떤 것이든 좋아요" />
+      <label className="sr-only" htmlFor="mt-title">맵톡 글 제목</label>
+      <input id="mt-title" className="mt-title" ref={칸} value={제목} onChange={(e) => set제목(e.target.value)} maxLength={70}
+        placeholder="제목" enterKeyHint="next" autoComplete="off"
+        onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); try { document.getElementById('mt-say').focus() } catch (er) { /* 없음 */ } } }} />
+      <label className="sr-only" htmlFor="mt-say">맵톡 글 내용</label>
+      <textarea id="mt-say" className="mt-body" value={내용} onChange={(e) => set내용(e.target.value)} maxLength={2000} rows={3}
+        placeholder="내용 — 질문, 현장 이야기, 구인 · 구직 등 어떤 말이든 좋아요" />
       {사진 && (
         <div className="mt-att"><img src={사진.미리} alt="" />사진 1장<button type="button" onClick={() => set사진(null)}>빼기</button></div>
       )}
