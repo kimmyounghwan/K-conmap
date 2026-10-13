@@ -48,6 +48,9 @@ import { 일람표만들기, 일람표시트 } from '../lib/부재일람표.js'
 import { 멈춤감시, 멈춤글 } from '../lib/파일한도.js'
 
 const 예시 = [['/jeoksan/BIM_예시_3층.dxf', 'BIM_예시_3층.dxf']]
+/* 🏛 G284 (2026-10-13) 가상 청사 — 지하 1층 둘레 옹벽 · 층 머리 부재 이름 · 끝이 빈 벽(단부 보강근) · 일람표에 크기가 빈 보(🤖 같은 몸) · «180mm» 두께
+   소장님 「진월 거 하면 어때?」 → 남의 도면은 안 올리고 비슷한 꼴을 지어냄(tools/BIM_예시_청사.py) */
+const 예시청사 = [['/jeoksan/BIM예시_청사.dxf', 'BIM예시_청사.dxf']]
 const 예시토목 = [
   ['/jeoksan/BIM예시_측량도면.dxf', 'BIM예시_측량도면.dxf'], ['/jeoksan/BIM예시_계획평면도.dxf', 'BIM예시_계획평면도.dxf'],
   ['/jeoksan/BIM예시_종횡단면도.dxf', 'BIM예시_종횡단면도.dxf'], ['/jeoksan/BIM예시_배수장일반도.dxf', 'BIM예시_배수장일반도.dxf'],
@@ -632,6 +635,7 @@ export default function Bim() {
           <input ref={칸Ref} type="file" multiple accept=".dxf,.DXF,.dwg,.DWG" className="sr-only" tabIndex={-1} onChange={(e) => { 파일받기(e.target.files); e.target.value = '' }} />
           <span className="tlx-exd"><b>🧪 도면이 없으시면</b></span>
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 예시열기(예시)} disabled={상태.k === 'busy'}>🏢 가상 3층 건물로 해 보기</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { 세기('|BIM물량|예시청사'); 예시열기(예시청사) }} disabled={상태.k === 'busy'}>🏛 가상 청사(지하 1층 · 옹벽)로 해 보기</button>
           {예시토목 && <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 예시열기(예시토목)} disabled={상태.k === 'busy'}>🏞 가상 배수로 · 배수장 + 관리동 · 건물 · 흙막이 한꺼번에</button>}
         </div>
         {상태.k === 'busy' && <div className="bim-st">⏳ {상태.글}…</div>}

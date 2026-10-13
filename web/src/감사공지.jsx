@@ -26,6 +26,12 @@
  *     소장님 「지도위에만 뜨게 하자」 · 「지도위에 뜨는 건 빼면 안돼」 · 「바로입찰 지도 아래 뜨는 방문자수는 유지」 → 바로투찰 첫 화면 이용자 지도의 «누적 · 오늘» 은 그대로.
  *   · 주소가 없는 줄(분석 «준비 중»)은 링크 없이 글만.
  *   · 맵톡에도 같은 글(«📢 용역 · 물품을 열었습니다» · 후기·건의 · K-건설맵)을 올림 — 소장님 «올려» 뒤 운영자 크롬으로.
+ *
+ * 📢 G284 (2026-10-13 22:5x) 소장님 「이용자 필독으로 해서 공지 올리자. 자유롭게 쓰되, 다중이 이용하는 곳. 예의를 갖추어 달라. 비매너 이용자는 차단 하겠음.
+ *   맵톡을 많이 이용해 달라. 질문, 현장 이야기, 구인, 구직 등 어떤 말도 좋다. 새로 올린 3D 간단히 설명」 → (고쳐 주신 글) · 「건설맵 사이트에 띄우고,
+ *   건의, 후기 및 건설맵 소식에도 올려. 현재 사이트에 띄우는 공지는 제거 하고…」
+ *   → 옛 공지(용역 · 물품)를 빼고 «이용자 필독» 하나로. 판 = '2026-10-필독'(닫은 분에게도 한 번 뜸) · 10월 20일까지(올린 날 포함 8일).
+ *   · 맵톡에도 같은 글을 «후기 · 건의» 와 «K-건설맵 소식» 두 방에 올림(운영자 크롬).
  */
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -33,28 +39,31 @@ import { Link, useLocation } from 'react-router-dom'
 import { 로봇 as 로봇글 } from './lib/인사.js'
 import { 세기 } from './lib/받은수.jsx'
 
-const 판 = '2026-10-용역'         /* G199 — 용역 · 물품 열림(닫은 분에게도 한 번) · G186 '2026-10-고침2' · G176 '2026-10-고침' */
-const 까지 = '2026-10-12'          /* 이 날까지 보임 — 소장님 「보이는 기간 5일」 · 10/8 올리면 10/8~10/12 (올리는 날이 바뀌면 같이 고침) */
+const 판 = '2026-10-필독'         /* G284 — 이용자 필독 · G199 '2026-10-용역' · G186 '2026-10-고침2' · G176 '2026-10-고침' */
+const 까지 = '2026-10-20'          /* 이 날까지 보임 — 10/13 올리면 10/13~10/20 (올리는 날이 바뀌면 같이 고침) */
 const 열쇠 = 'kcm_notice_hide'      /* 다시 보지 않기(띠 ✕ 도 같음) — localStorage */
 const 본열쇠 = 'kcm_notice_seen'    /* 이번에 한 번 봤음 — sessionStorage(창을 닫으면 그 창 동안은 다시 안 띄움) */
 const 한국오늘 = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)
 const 로봇 = () => { try { return 로봇글(navigator.userAgent || '') } catch (e) { return false } }
-const 닫았나 = () => { try { return localStorage.getItem(열쇠) === 판 } catch (e) { return false } }
+/* 🩹 G284 소장님 「20일까지 계속 띄워. 닫기 누른 이용자에게도 계속 보이게 해줘.」 — «다시 보지 않기» 없음 · 늘(옛 판에서 닫은 열쇠도 안 봄)
+   창은 들어올 때마다(새 창 · 탭마다) 한 번 · 띠는 ✕ 없이 늘(「사이트 접속자 모두에게 계속 보이도록」) */
+const 늘보임 = true
+const 닫았나 = () => { if (늘보임) return false; try { return localStorage.getItem(열쇠) === 판 } catch (e) { return false } }
+const 띠감춤열쇠 = 'kcm_notice_bar_off'
+const 띠감췄나 = () => { try { return sessionStorage.getItem(띠감춤열쇠) === 판 } catch (e) { return false } }
 const 봤나 = () => { try { return sessionStorage.getItem(본열쇠) === 판 } catch (e) { return false } }
+/* 🩹 G284 소장님 「사이트 접속시 한번 띄우고, 사이트 닫았다가 들어오면 또 띄우고, 단 건설맵 사이트 이용시에는 또 띄우면 안돼지」
+   → 창은 «사이트를 열 때» 한 번. 열려 있는 K-건설맵 탭이 하나도 없다가 새로 열면 = 새 접속 → 띄움.
+     이미 다른 K-건설맵 탭이 열려 있으면(쓰는 중) 새 탭 · 다른 화면 · 새로고침엔 안 띄움.
+     열린 탭마다 5초마다 «살아 있음» 시각을 적고(localStorage), 새 탭은 12초 안의 시각이 있으면 «쓰는 중» 으로 봄 */
+const 살아열쇠 = 'kcm_notice_alive'
+const 살아간격 = 5000
+const 살아적기 = () => { try { localStorage.setItem(살아열쇠, String(Date.now())) } catch (e) { /* 사생활 창 */ } }
+const 다른탭열림 = () => { try { return Date.now() - (Number(localStorage.getItem(살아열쇠)) || 0) < 12000 } catch (e) { return false } }
 let 누름셌다 = false
 const 누름 = () => { if (!누름셌다) { 누름셌다 = true; 세기('|공지|누름') } }
 
-/* 이번에 연 것 — [아이콘, 이름, 주소(없으면 글만), 한 줄] · 맵톡 글과 같은 문장 (G199 — 옛 공지 13가지는 뺌) */
-const 고친것 = [
-  ['🏠', '공사 · 용역 · 물품 고르기', '/', '화면 맨 위 띠에서 고르시면 됩니다. 아래 탭(공고 · 1순위 · 바로투찰)이 고르신 쪽을 따라갑니다'],
-  ['📐', '용역 공고 · 1순위', '/svc', '나라장터 용역 입찰공고와 개찰 1순위를 봅니다. 기초금액과 예가 범위가 나온 공고에는 💰 바로투찰 단추가 붙습니다. 계산이 안 되는 공고에는 협상에 의한 계약, 기초금액 공개 전 같은 까닭을 적어 둡니다'],
-  ['📦', '물품 공고 · 1순위', '/goods', '용역과 같습니다. 단가로 입찰하는 공고는 «단가 입찰»로 표시합니다'],
-  ['🏅', '1순위 «2곳 이상 경쟁만»', '/svc/first', '단독 응찰을 빼고 볼 수 있습니다'],
-  ['📊', '용역 · 물품 분석', null, '준비 중입니다. 자료가 쌓이는 대로 붙이겠습니다'],
-  ['🧭', '마이컨맵', '/my', '단축키 이름이 주소로 보이던 것을 고쳤습니다'],
-]
-
-function 공지창({ 닫기, 그만 }) {
+function 공지창({ 닫기 }) {
   const 상자 = useRef(null)
   const 닫기글 = useRef(닫기)
   닫기글.current = 닫기
@@ -73,23 +82,23 @@ function 공지창({ 닫기, 그만 }) {
       <div className="noticepop-c" role="dialog" aria-modal="true" aria-labelledby="noticepop-h" tabIndex={-1} ref={상자}>
         <button type="button" className="noticepop-x" aria-label="공지 닫기" onClick={닫기}>✕</button>
         <div className="noticepop-tag">📢 공지</div>
-        <h2 id="noticepop-h" className="noticepop-h">용역 · 물품을 열었습니다</h2>
+        <h2 id="noticepop-h" className="noticepop-h"><span className="noticepop-must">📢 이용자 필독</span><span className="noticepop-sub">맵톡 이용 안내 · 새로 올린 3D</span></h2>   {/* G284 소장님 「제목을 강조해줘」 */}
         <div className="noticepop-b">
-          <p>안녕하십니까, K-건설맵을 만든 토목 현장소장입니다. 공사만 보던 K-건설맵에 용역과 물품을 더했습니다. 공사 화면은 그대로입니다.</p>
+          <p>안녕하세요, K-건설맵입니다.</p>
+          <p><Link to="/qna" onClick={감}>🗺 맵톡</Link>은 누구나 자유롭게 쓰는 곳입니다. 질문, 현장 이야기, 구인 · 구직 등 어떤 말이든 좋습니다. 많이 이용해 주세요.</p>
+          <p>다만 여러 분이 함께 쓰는 곳이니 서로 예의를 지켜 주세요.</p>
           <ul>
-            {고친것.map(([ic, 이름, 주소, 줄]) => (
-              <li key={이름}>{주소 ? <Link to={주소} onClick={감}>{ic} {이름}</Link> : <b>{ic} {이름}</b>} — {줄}</li>
-            ))}
+            <li>욕설 · 비방 · 장난 글은 지우고, 이런 글을 올리는 이용자는 차단합니다.</li>
           </ul>
-          <p>처음 하루쯤은 자료를 채우는 중이라 목록이 적게 보일 수 있습니다.</p>
-          <p>여기 화면과 도구는 모두 <b>자유롭게</b> 쓰실 수 있습니다. 용역과 물품은 이제 막 시작해서 고칠 곳이 많을 것입니다.
-            써 보시고 고칠 점이 보이면 맵톡에 한 줄 남겨 주십시오. <b>남겨 주신 한 줄로 다음 판을 고칩니다.</b></p>
-          <p><b>늘 안전한 현장 되십시오.</b></p>
-          <p className="noticepop-sign">— 토목 현장소장 김명환 · K-건설맵</p>
+          <p><b>🧊 새로 올린 3D — <Link to="/jeoksan/bim" onClick={감}>BIM 물량</Link></b><br />
+            캐드 도면을 넣으면 3D로 세우고 콘크리트 · 거푸집 · 철근 물량과 부재 일람표를 바로 냅니다(엑셀 받기 · 무료).</p>
+          <p>캐드 도면은 그리는 방식이 도면마다 달라 경우의 수가 많습니다. 아직 다 맞지 않을 수 있어 계속 고치고 있습니다. 안 맞는 곳은 <Link to="/qna" onClick={감}>맵톡</Link>에 남겨 주시면 반영하겠습니다.</p>
+          <p>늘 찾아 주셔서 감사합니다.</p>
+          <p className="noticepop-sign">— K-건설맵</p>
         </div>
         <div className="noticepop-f">
-          <Link className="btn line sm" to="/qna" onClick={감}>💬 맵톡에 고칠 점 남기기</Link>
-          <button type="button" className="btn line sm" onClick={그만}>다시 보지 않기</button>
+          <Link className="btn line sm" to="/qna" onClick={감}>🗺 맵톡 가기</Link>
+          <Link className="btn line sm" to="/jeoksan/bim" onClick={감}>🧊 BIM 물량 해 보기</Link>
           <button type="button" className="btn sm" onClick={닫기}>닫기</button>
         </div>
       </div>
@@ -100,22 +109,22 @@ function 공지창({ 닫기, 그만 }) {
 
 export default function 감사공지() {
   const { pathname } = useLocation()
-  const [닫힘, set닫힘] = useState(() => 닫았나())
+  const [닫힘] = useState(() => 닫았나() || 띠감췄나())
   /* 창 — 이 창(탭)을 연 뒤 처음 한 번 저절로 */
-  const [창, set창] = useState(() => !닫았나() && !봤나())
+  const [창, set창] = useState(() => !닫았나() && !봤나() && !다른탭열림())
+  useEffect(() => { 살아적기(); const t = setInterval(살아적기, 살아간격); return () => clearInterval(t) }, [])   /* 이 탭이 열려 있는 동안 «쓰는 중» */
   const 오늘 = 한국오늘()
   if (닫힘 || 오늘 > 까지 || 로봇() || pathname.startsWith('/admin')) return null
   const 본표 = () => { try { sessionStorage.setItem(본열쇠, 판) } catch (e) { /* 사생활 창 */ } }
   const 창닫기 = () => { 본표(); set창(false) }
-  const 그만 = () => { try { localStorage.setItem(열쇠, 판) } catch (e) { /* 사생활 창 — 이번만 */ } 본표(); set창(false); set닫힘(true) }
   return (
     <>
       <div className="noticebar" role="note">
-        <span className="t">📢 <b>용역 · 물품을 열었습니다</b> — 맨 위에서 공사 · 용역 · 물품을 고르세요</span>
+        <span className="t">📢 <b className="noticebar-must">이용자 필독</b> — 맵톡은 자유롭게, 예의는 지켜 주세요 · 새로 올린 3D(BIM 물량)</span>
         <button type="button" className="go" onClick={() => { 세기('|공지|보기'); set창(true) }}>공지 보기</button>
-        <button type="button" className="x" aria-label="공지 닫기" title="닫기 — 이 공지는 다시 안 뜹니다" onClick={그만}>✕</button>
+        {/* 🩹 G284 소장님 「사이트 접속자 모두에게 계속 보이도록 해줘.」 — 띠 ✕ 없앰(20일까지 모든 화면 위에 늘) */}
       </div>
-      {창 && <공지창 닫기={창닫기} 그만={그만} />}
+      {창 && <공지창 닫기={창닫기} />}
     </>
   )
 }

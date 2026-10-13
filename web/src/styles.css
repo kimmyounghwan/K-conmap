@@ -2756,6 +2756,11 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
 .noticepop-x { position: absolute; top: 10px; right: 10px; border: 0; background: none; color: var(--text-2); font-size: 17px; cursor: pointer; padding: 6px 8px; line-height: 1; }
 .noticepop-tag { display: inline-block; font-size: 12.5px; font-weight: 800; color: var(--text); background: var(--warn-soft); border: 1px solid var(--warn); border-radius: 999px; padding: 3px 10px; }
 .noticepop-h { margin: 10px 0 8px; font-size: 20px; line-height: 1.35; text-wrap: balance; }
+/* 📢 G284 «이용자 필독» 제목 강조 — 소장님 「제목을 강조해줘」 */
+.noticepop-must { display: block; font-size: 28px; font-weight: 900; color: var(--bad); letter-spacing: -0.02em; line-height: 1.2; }
+.noticepop-sub { display: block; margin-top: 4px; font-size: 18px; font-weight: 800; color: var(--text); }
+.noticebar .noticebar-must { color: var(--bad); font-weight: 900; }
+@media (max-width: 560px) { .noticepop-must { font-size: 24px; } .noticepop-sub { font-size: 16px; } }
 .noticepop-b { font-size: 14.5px; line-height: 1.75; word-break: keep-all; overflow-wrap: break-word; }
 .noticepop-b p { margin: 0 0 10px; }
 .noticepop-b ul { margin: 0 0 10px; padding-left: 18px; }
