@@ -166,7 +166,7 @@ SITENAV = [("/", "바로투찰"), ("/first", "1순위 개찰"), ("/live", "입�
            ("/cad", "캐드 유틸"), ("/pdf", "PDF 도구"), ("/jeoksan", "K-적산"),
            ("/shareone", "쉐어원 공유폴더"),
            ("/safety", "안전관리계획서 · 유해위험방지계획서"),
-           ("/naeyeok", "내역서 — 산출내역서 · 하도급 · 설계변경"), ("/tools/dxf3d", "도면 3D 보기"), ("/tools/earthcheck", "토공 검산"), ("/tools/dxfpdf", "도면 PDF 만들기"), ("/tools/dwgdxf", "DWG → DXF 바꾸기"), ("/jeoksan/bim", "BIM 물량 · 3D + 물량"), ("/jeoksan/golgo", "골조 수량산출"), ("/jeoksan/magam", "마감 수량산출"), ("/jeoksan/auto", "도면 물량 자동"), ("/tools/tuipbi", "현장 투입비 · 공사일보"), ("/tools/risk", "위험성평가"), ("/tools/equip", "장비 임대료·수금 장부"), ("/tools/photo", "사진대지 · 영수증 정리"), ("/qna", "맵톡"),
+           ("/naeyeok", "내역서 — 산출내역서 · 하도급 · 설계변경"), ("/tools/dxf3d", "도면 3D 보기"), ("/tools/earthcheck", "토공 검산"), ("/tools/dxfpdf", "도면 PDF 만들기"), ("/tools/dwgdxf", "DWG → DXF 바꾸기"), ("/tools/sajincad", "사진 · 손그림 → 캐드"), ("/jeoksan/bim", "BIM 물량 · 3D + 물량"), ("/jeoksan/golgo", "골조 수량산출"), ("/jeoksan/magam", "마감 수량산출"), ("/jeoksan/auto", "도면 물량 자동"), ("/tools/tuipbi", "현장 투입비 · 공사일보"), ("/tools/risk", "위험성평가"), ("/tools/equip", "장비 임대료·수금 장부"), ("/tools/photo", "사진대지 · 영수증 정리"), ("/qna", "맵톡"),
            ("/how", "보는 방법")]
 
 
@@ -2608,6 +2608,32 @@ def dwgdxf_page(shell, image=None):
     return page(shell, "/tools/dwgdxf", title, desc, "".join(out) + nav_html("/tools/dwgdxf"), image, ld)
 
 
+# 📷 /tools/sajincad — 사진 · 손그림 · 건물 → 캐드(DXF) (G287 · 2026-10-14). 화면은 SajinCad.jsx · 일꾼 lib/사진캐드.worker.js · 엔진 lib/사진캐드_*.js (기기 안에서만)
+def sajincad_page(shell, image=None):
+    title = "사진 · 손그림 → 캐드(DXF) — 도면 사진 · 손그림 · 건물 사진을 DXF 로 · 치수 숫자 자동 · 3D · 바로 이용 가능 | K-건설맵"
+    desc = ("도면을 찍은 사진, 종이에 그린 손그림, 건물 정면 사진을 캐드 도면(DXF)으로 바꿉니다. 비스듬한 사진을 반듯하게 펴고 선 · 원 · 호를 찾아 "
+            "직각 · 평행을 맞추고, 적힌 치수 숫자를 읽어 그 길이대로 맞추고 3D 로도 세웁니다. 사진은 올라가지 않고 이 기기 안에서만 · 바로 이용 가능.")[:160]
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">📷 사진 · 손그림 → 캐드 (DXF · 치수까지)</h1>'
+           '<p class="cp" style="margin-top:8px">도면을 찍은 사진, 종이에 그린 <b>손그림</b>, <b>건물 정면 사진</b>을 캐드 도면(DXF)으로 바꿉니다. '
+           '비스듬한 사진을 반듯하게 펴고, 선 · 원 · 호를 찾아 직각 · 평행을 맞추고, 도면에 적힌 <b>치수 숫자를 읽어 그 길이대로</b> 맞춥니다.</p>'
+           '<p class="cp"><b>사진은 어디로도 올라가지 않습니다.</b> 이 기기 안에서만 바꿉니다. 회원가입 없이 바로 이용 가능.</p></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">이렇게 정확하게 맞춥니다</div><ul class="flist">'
+           '<li><b>사진 펴기</b> — 종이 네 모서리를 찾아 진짜 가로 : 세로까지 셈 · 건물은 소실점으로 정면을 폄</li>'
+           '<li><b>반듯하게</b> — 거의 가로 · 세로 · 45° 인 선은 딱 맞추고, 끊긴 선은 잇고, 모서리는 만나게</li>'
+           '<li><b>치수 숫자대로</b> — 인쇄 · 손글씨 숫자를 기기 안에서 읽어 치수선 양 끝에 맞춤 · 부분 합 ≠ 전체면 짚어 줌</li>'
+           '<li><b>DXF</b> — 선 · 원 · 호 · 자동 치수(DIMENSION) · 원래 글씨 레이어 · mm 단위</li>'
+           '<li><b>건물 정면 치수</b> — 길이 하나만 넣으면 창 · 문 자리 · 층 · 창 높이 · 전체 폭 · 높이 치수가 저절로</li>'
+           '<li><b>3D</b> — 평면의 벽을 높이만큼 세워 돌려 보고 3D DXF · OBJ 로 받기</li></ul></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">알아 두실 점</div><ul class="flist">'
+           '<li>숫자가 적힌 곳은 숫자 그대로, 안 적힌 곳은 사진 비율대로 들어갑니다 — 꼭 맞아야 하는 길이는 선을 눌러 넣어 주세요</li>'
+           '<li>건물 사진은 한 면(정면)만 정확합니다 · 아는 길이 하나로 크기를 맞춥니다</li></ul></div>']
+    ld = {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "사진 · 손그림 → 캐드",
+          "applicationCategory": "DesignApplication", "operatingSystem": "Web",
+          "description": desc, "url": f"{SITE}/tools/sajincad",
+          "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}}
+    return page(shell, "/tools/sajincad", title, desc, "".join(out) + nav_html("/tools/sajincad"), image, ld)
+
+
 # 📄 /tools/dxfpdf — 도면 PDF 만들기 (2026-09-26). 화면은 DxfPdf.jsx · 읽기 lib/dxfplot.js · PDF lib/plotpdf.js (브라우저 안에서만).
 def dxfpdf_page(shell, image=None):
     title = "도면 PDF 만들기 — DXF 캐드 도면을 도곽마다 PDF 로 · 흑백·컬러·한글 | K-건설맵"
@@ -3541,6 +3567,10 @@ def main():
           og.tab("tool-dwgdxf", "DWG → DXF 바꾸기", "건설 도구", "DWG → DXF", "여러 장 한 번에") if og.available else None))
     made += 1
     print("  · DWG → DXF 바꾸기 페이지 1개 (/tools/dwgdxf)")
+    write("tools/sajincad.html", sajincad_page(shell,
+          og.tab("tool-sajincad", "사진 · 손그림 → 캐드", "건설 도구", "사진 → DXF", "치수 숫자 자동") if og.available else None))
+    made += 1
+    print("  · 사진 · 손그림 → 캐드 페이지 1개 (/tools/sajincad)")
     write("tools/tuipbi.html", tuipbi_page(shell,
           og.tab("tool-tuipbi", "현장 투입비 · 공사일보", "건설 도구", "출역 · 청구내역서", "공정률 · 투입률") if og.available else None))
     made += 1

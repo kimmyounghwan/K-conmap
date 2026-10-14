@@ -126,6 +126,7 @@ const EarthCheck = lazyPage(() => import('./pages/EarthCheck.jsx'))
 /* 📄 도면 PDF 만들기 (DXF → PDF) — 2026-09-26 */
 const DxfPdf = lazyPage(() => import('./pages/DxfPdf.jsx'))
 const DwgDxf = lazyPage(() => import('./pages/DwgDxf.jsx'))
+const SajinCad = lazyPage(() => import('./pages/SajinCad.jsx'))   /* 📷 G287 사진 · 손그림 · 건물 → 캐드 */
 /* 🏗 현장 투입비 (공사일보 간소판) — 2026-09-26 */
 const Tuipbi = lazyPage(() => import('./pages/Tuipbi.jsx'))
 /* 👷 2026-10-01 (G104) 일용 노무비 계산기 · 지급명세서 — 이 브라우저에만 저장 · 공제는 lib/gongje.js */
@@ -246,6 +247,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/tools/earthcheck" element={<Suspense fallback={<Loading />}><EarthCheck /></Suspense>} />
           <Route path="/tools/dxfpdf" element={<Suspense fallback={<Loading />}><DxfPdf /></Suspense>} />
           <Route path="/tools/dwgdxf" element={<Suspense fallback={<Loading />}><DwgDxf /></Suspense>} />
+          <Route path="/tools/sajincad" element={<Suspense fallback={<Loading />}><SajinCad /></Suspense>} />
           <Route path="/tools/tuipbi" element={<Suspense fallback={<Loading />}><Tuipbi /></Suspense>} />
           <Route path="/tools/nomubi" element={<Suspense fallback={<Loading />}><Nomubi /></Suspense>} />
           <Route path="/tools/gyeonjeok" element={<Suspense fallback={<Loading />}><Gyeonjeok /></Suspense>} />

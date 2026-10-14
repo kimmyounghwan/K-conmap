@@ -7402,3 +7402,40 @@ a.mc-key-in:hover { border-color: var(--accent-line); background: var(--accent-s
 .bim-il-tbl tr.il-made td, .bim-il-tbl tr.il-made th { background: color-mix(in srgb, var(--accent-soft) 55%, transparent); }
 .bim-il-tbl tr.il-use { cursor: pointer; }
 .bim-il-tbl tr.il-use:hover td, .bim-il-tbl tr.il-use:hover th { background: var(--accent-soft); }
+
+/* ── 📷 사진 · 손그림 → 캐드 (/tools/sajincad · G287 · 2026-10-14) ── */
+.sc-kinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.sc-kind { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 14px 14px 12px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--surface-2); color: var(--text); cursor: pointer; font: inherit; }
+.sc-kind b { font-size: 16px; }
+.sc-kind span:last-child { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+.sc-kind.on { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.sc-kind-i { font-size: 26px; line-height: 1; }
+.sc-ex { border: 0; background: none; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; padding: 0; text-decoration: underline; }
+.sc-tip { margin-top: 12px; font-size: 13px; color: var(--muted); line-height: 1.7; }
+.sc-tip b { color: var(--text); }
+.sc-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 10px; }
+.sc-row label { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; }
+.sc-row input[inputmode], .sc-row select { font-size: 16px; padding: 7px 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); max-width: 160px; }
+.sc-corner { width: 100%; display: flex; justify-content: center; }
+.sc-corner canvas { border-radius: 10px; cursor: crosshair; }
+.sc-view { position: relative; width: 100%; margin-top: 10px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #fff; }
+.sc-view canvas { display: block; cursor: grab; }
+.sc-zoom { position: absolute; right: 8px; top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.sc-zoom button { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,0.92); color: #111; font-size: 18px; cursor: pointer; }
+.sc-sum { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13.5px; margin: 4px 0 2px; }
+.sc-sum b { font-size: 15px; }
+.sc-warn { color: var(--warn); }
+.sc-bad { color: var(--bad); }
+.sc-ok { color: var(--good); font-weight: 700; }
+.sc-banner { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: var(--warn-soft); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent); color: var(--warn); font-size: 13.5px; }
+.sc-pick { margin-top: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); font-size: 14px; }
+.sc-pick em { color: var(--muted); font-style: normal; }
+.sc-toggles label { font-size: 13px; white-space: nowrap; flex: none; }
+.sc-toggles input[type="checkbox"] { width: auto; min-width: 0; margin: 0; flex: none; }
+@media (max-width: 640px) {
+  .sc-kinds { grid-template-columns: 1fr; }
+  .sc-kind { flex-direction: row; align-items: center; gap: 10px; }
+  .sc-kind span:last-child { flex: 1; }
+  .sc-zoom { top: auto; bottom: 5px; flex-direction: row; }
+  .sc-zoom button { width: 36px; height: 34px; }
+}

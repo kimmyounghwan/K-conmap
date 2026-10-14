@@ -72,6 +72,7 @@ const LEAF = {
   '/tools/earthcheck': '토공 검산 · 두 측량 비교',
   '/tools/dxfpdf': '도면 PDF 만들기',
   '/tools/dwgdxf': 'DWG → DXF 바꾸기',
+  '/tools/sajincad': '사진 · 손그림 → 캐드',
   '/tools/tuipbi': '현장 투입비 · 공사일보',
   '/tools/equip': '장비 임대료·수금 장부',
   '/tools/risk': '위험성평가 (별지 1~5)',
