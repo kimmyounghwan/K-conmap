@@ -1436,6 +1436,14 @@ function AnswerForm({ qid, onDone, to = null, 받는이 = '', 인용 = '', 열�
   const [b, setB] = useState('')
   const 칸 = useRef(null)
   useEffect(() => { if (열림 && 칸.current) { try { 칸.current.focus({ preventScroll: false }) } catch (e) { 칸.current.focus() } } }, [열림])
+  /* ✍ G289 답글 칸 — 처음부터 넉넉하게(약 5줄) · 쓰면 글만큼 저절로 늘어남(화면 높이의 60 % 까지) — 소장님 「답글쓰기 칸이 너무 작아. 크게 해줘」 */
+  useEffect(() => {
+    const el = 칸.current; if (!el) return
+    el.style.height = 'auto'
+    const 최대 = Math.max(220, Math.round((window.innerHeight || 800) * 0.6))
+    el.style.height = Math.min(최대, Math.max(150, el.scrollHeight + 2)) + 'px'
+    el.style.overflowY = el.scrollHeight + 2 > 최대 ? 'auto' : 'hidden'
+  }, [b])
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const [나운영자, set나운영자] = useState(false)
@@ -1497,9 +1505,9 @@ function AnswerForm({ qid, onDone, to = null, 받는이 = '', 인용 = '', 열�
           {인용 && <span className="mt-af-q">«{인용}»</span>}
         </div>
       )}
-      <textarea ref={칸} className="inp" value={b} onChange={(e) => setB(e.target.value)}
+      <textarea ref={칸} className="inp mt-af-t" value={b} onChange={(e) => setB(e.target.value)} rows={5}
         placeholder={받는이 ? `${받는이} 님에게 — 아무 말이나` : '답글 — 아무 말이나'}
-        style={{ width: '100%', boxSizing: 'border-box', minHeight: 72 }} maxLength={2000} />
+        style={{ width: '100%', boxSizing: 'border-box', minHeight: 150, fontSize: 16, lineHeight: 1.6, resize: 'vertical' }} maxLength={2000} />
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
         <button className="btn primary" onClick={submit} disabled={busy}>
           {busy ? '올리는 중…' : (받는이 && !원글 ? `${받는이} 님에게 답글 올리기` : '답글 올리기')}

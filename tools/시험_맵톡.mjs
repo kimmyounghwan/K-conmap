@@ -241,5 +241,15 @@ console.log('⑩ 🔴 G288 열어 둔 화면에도 새 글 · 답글이 들어�
   eq(/살림/.test(듣기), true, '듣기가 막혀도 3분마다 살펴 읽음(살림)')
 }
 
+console.log('⑪ ✍ G289 답글 칸 크기 (소장님 「답글쓰기 칸이 너무 작아. 크게 해줘」 — 다시 작아지지 않게)')
+{
+  const 화면 = readFileSync(new URL('../web/src/pages/Qna.jsx', import.meta.url), 'utf8')
+  const 칸 = 화면.slice(화면.indexOf('function AnswerForm'), 화면.indexOf('function AnswerForm') + 6000)
+  eq(/className="inp mt-af-t"[\s\S]{0,200}rows=\{5\}/.test(칸), true, '답글 칸 처음 5줄')
+  eq(/minHeight: 150/.test(칸), true, '답글 칸 최소 높이 150px(예전 72px)')
+  eq(/fontSize: 16/.test(칸), true, '글자 16px(아이폰이 확대하지 않음)')
+  eq(/el\.scrollHeight/.test(칸) && /\[b\]\)/.test(칸), true, '쓰면 글만큼 저절로 늘어남')
+}
+
 console.log(`\n통과 ${통과} · 실패 ${실패}`)
 if (실패) process.exit(1)
