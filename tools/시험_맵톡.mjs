@@ -224,5 +224,22 @@ console.log('⑨ 지역 고르기 — 시·도별 · 기억')
   eq(곳기억하기('11', { setItem() { throw new Error('막힘') } }), false, '저장 막힘이면 false')
 }
 
+console.log('⑩ 🔴 G288 열어 둔 화면에도 새 글 · 답글이 들어오나 (소장님 「멥톡은 절대 실수하면 안돼. 방안도 마련해」)')
+{
+  // 빠지면 다시 «아침에 연 PC 탭에 오후 글이 안 보이는» 일이 생깁니다 — 올리기 전 검사(PC 검사.py 도 이 시험을 돌림)에서 막힘
+  const 화면 = readFileSync(new URL('../web/src/pages/Qna.jsx', import.meta.url), 'utf8')
+  const 듣기 = 화면.slice(화면.indexOf('🔴 G288'))
+  eq(/onValue\(/.test(듣기), true, '실시간 듣기(onValue) 가 있음')
+  eq(/query\(ref\(db, 'qna'\), orderByKey\(\), limitToLast\(1\)\)/.test(듣기), true, '새 글: 맨 끝 글 하나만 들음(요금)')
+  eq(/듣기\(ref\(db, 'qna_a'\)/.test(듣기), true, '답글 들음')
+  eq(/듣기\(ref\(db, 'qna_del'\)/.test(듣기), true, '지움 들음')
+  eq(/듣기\(ref\(db, 'qna_top'\)/.test(듣기), true, '고정 들음')
+  eq(/startAfter\(최신키\.current\)/.test(듣기), true, '새 글은 그 뒤 글만 받아 붙임(전체 다시 읽지 않음)')
+  eq(/addEventListener\('visibilitychange'/.test(듣기) && /addEventListener\('online'/.test(듣기), true, '다른 창 갔다 오면 · 인터넷 다시 붙으면 다시 읽음')
+  eq(/끄기\.forEach/.test(듣기), true, '화면을 떠나면 듣기를 끔(새는 연결 없음)')
+  eq(/듣기\(query\(ref\(db, 'qna'\), orderByKey\(\), limitToLast\(LIMIT\)\)/.test(화면), false, '글 300개 전체를 듣지는 않음(요금)')
+  eq(/살림/.test(듣기), true, '듣기가 막혀도 3분마다 살펴 읽음(살림)')
+}
+
 console.log(`\n통과 ${통과} · 실패 ${실패}`)
 if (실패) process.exit(1)

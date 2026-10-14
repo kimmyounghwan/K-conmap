@@ -324,6 +324,70 @@ export default function Qna() {
     } catch (e) { /* 👍 없이 */ }
   }
   useEffect(() => { load() }, [])
+  /* 🔴 G288 (2026-10-14) 소장님 「맵톡은 계속 보이게 해줘야 이용자들이 사용을 하지 이걸 실수 하면 어떻게 해」
+     전엔 화면을 열 때 «한 번만» 읽어서, 아침에 열어 둔 PC 탭에 오후 새 글(«33행» 등 17개)이 안 들어왔습니다(폰은 새로 열어 보임).
+     이제 ① 새 글: 맨 끝 글 «하나만» 실시간으로 지켜보다가(아주 작음) 새 번호가 오면 그 뒤 글만 받아 맨 위에 붙임
+         ② 답글 · 지움 · 📌 고정: 실시간 듣기 — 처음 한 번 뒤로는 «바뀐 것만» 받음
+         ③ 다른 창 · 탭에 갔다 오거나 PC 가 깨어나면(1분 넘게 지났으면) 전부 다시 읽음(글 고침 · 공감 · 조회수까지)
+         ④ 인터넷이 끊겼다 붙으면 듣기는 파이어베이스가 저절로 다시 잇고, 그때도 한 번 다시 읽음
+     💰 firebase.js 머리말의 «실시간 구독 금지» 는 24시간 도는 폴링으로 요금이 샌 전례 때문 — 여기는 «바뀐 것만» 받는 듣기라 예외(8절 G288). */
+  const 최신키 = useRef('')
+  useEffect(() => { if (rows && rows.length) { const k = rows.reduce((m, r) => (r.id > m ? r.id : m), ''); if (k > 최신키.current) 최신키.current = k } }, [rows])
+  useEffect(() => {
+    let 꺼짐 = false, 시계 = null, 마지막 = Date.now(), 받는중 = false
+    const 끄기 = []
+    const 다시 = () => {
+      if (꺼짐) return
+      clearTimeout(시계)
+      시계 = setTimeout(() => { if (!꺼짐) { 마지막 = Date.now(); load() } }, 600)
+    }
+    ;(async () => {
+      try {
+        const fb = await loadFb()
+        await fb.ensureAnon()
+        if (꺼짐) return
+        const { ref, get, query, orderByKey, limitToLast, startAfter, onValue, db } = fb
+        // 듣기가 막히면(규칙 · 연결) 살림: 화면이 보이는 동안 3분마다 맨 끝 글을 살펴 새 글이면 붙이고, 6분마다 전부 다시 읽음
+        let 살림 = null
+        const 살리기 = () => {
+          if (살림 || 꺼짐) return
+          let 번 = 0
+          살림 = setInterval(() => { if (document.visibilityState !== 'visible') return; 번++; if (번 % 2) 새글받기(); else 다시() }, 180000)
+          끄기.push(() => clearInterval(살림))
+        }
+        const 듣기 = (q, 넣기) => { 끄기.push(onValue(q, (snap) => { if (!꺼짐) 넣기(snap.val()) }, () => 살리기())) }
+        // ① 새 글
+        const 새글받기 = async () => {
+          if (받는중 || !최신키.current) return
+          받는중 = true
+          try {
+            const 뒤 = (await get(query(ref(db, 'qna'), orderByKey(), startAfter(최신키.current)))).val() || {}
+            const 새 = Object.entries(뒤).map(([id, x]) => ({ id, ...x }))
+            if (새.length && !꺼짐) {
+              setRows((rs) => { const 있 = new Set((rs || []).map((r) => r.id)); const 더 = 새.filter((r) => !있.has(r.id)).reverse(); return 더.length ? [...더, ...(rs || [])] : rs })
+            }
+          } catch (e) { 다시() } finally { 받는중 = false }
+        }
+        듣기(query(ref(db, 'qna'), orderByKey(), limitToLast(1)), (v) => {
+          const k = Object.keys(v || {})[0]
+          if (k && 최신키.current && k > 최신키.current) 새글받기()
+        })
+        // ② 답글 · 지움 · 고정
+        듣기(ref(db, 'qna_a'), (v) => setAns(v || {}))
+        듣기(ref(db, 'qna_del'), (v) => setDel(v || {}))
+        듣기(ref(db, 'qna_top'), (v) => set고정(v || {}))
+      } catch (e) { /* 듣기를 못 걸어도 ③으로 다시 읽음 */ }
+    })()
+    const 돌아옴 = () => { if (document.visibilityState === 'visible' && Date.now() - 마지막 > 60000) 다시() }
+    document.addEventListener('visibilitychange', 돌아옴)
+    window.addEventListener('focus', 돌아옴)
+    window.addEventListener('online', 다시)
+    return () => {
+      꺼짐 = true; clearTimeout(시계)
+      document.removeEventListener('visibilitychange', 돌아옴); window.removeEventListener('focus', 돌아옴); window.removeEventListener('online', 다시)
+      끄기.forEach((f) => { try { f() } catch (e) { /* */ } })
+    }
+  }, [])   // eslint-disable-line react-hooks/exhaustive-deps
   /* 💬 구운 글이 있으면 먼저 그립니다(데이터베이스를 읽으면 그것으로 바뀝니다) */
   useEffect(() => {
     set따로글(null); set없는글(false)
