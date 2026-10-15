@@ -340,6 +340,9 @@ function 준비(모델, k, 번) {
   const 보강층 = layers.map((L) => /보강|추가|ADD|REINF/i.test(L.name || ''))
   // 선분
   const sx0 = [], sy0 = [], sx1 = [], sy1 = [], sly = [], se = []
+  /* 🏭 G294 토막의 선 꼴(골조도면 E.lt) — 0 실선 · 1 도형에 따로 준 끊어진 선(일점쇄선 · 숨은선 — 플랜트 기초 읽기가 윤곽에서 뺌) · 2 층 꼴이 끊어진 선(씀). 다른 셈은 안 씀 */
+  const slt = []
+  const Elt = E.lt || null
   const 닫힌 = [], 주석가로 = [], 주석세로 = []
   /* 🧭 G254 지시선(LEADER · MLEADER) 선분은 따로(구조 선 찾기에 안 섞음) — 글 → 지시선 끝(현장 A S-701 추가 보강근 글이 LEADER 로 구역에 이어짐) */
   const 지 = { sx0: [], sy0: [], sx1: [], sy1: [], sly: [] }
@@ -384,7 +387,7 @@ function 준비(모델, k, 번) {
       const a = s + j, b = s + ((j + 1) % n)
       const x0 = P[a * 2] * k, y0 = P[a * 2 + 1] * k, x1 = P[b * 2] * k, y1 = P[b * 2 + 1] * k
       if (Math.hypot(x1 - x0, y1 - y0) < 50) continue
-      sx0.push(x0); sy0.push(y0); sx1.push(x1); sy1.push(y1); sly.push(ly); se.push(e)
+      sx0.push(x0); sy0.push(y0); sx1.push(x1); sy1.push(y1); sly.push(ly); se.push(e); slt.push(Elt ? Elt[e] : 0)
     }
   }
   // 칸 찾기판
@@ -513,7 +516,7 @@ function 준비(모델, k, 번) {
     for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const a2 = 지판.get(열쇠(i, j)); if (!a2) continue; for (const s2 of a2) if (지도장[s2] !== 지도장번) { 지도장[s2] = 지도장번; out.push(s2) } }
     return out
   }
-  return { 번, k, 모델, sx0, sy0, sx1, sy1, sly, se, 닫힌, 찾기, 글자, 뒤글자, layers, 도곽, 도곽번, 판제목, 해치, 주석가로, 주석세로, 지시D: 지 }
+  return { 번, k, 모델, sx0, sy0, sx1, sy1, sly, se, slt, 닫힌, 찾기, 글자, 뒤글자, layers, 도곽, 도곽번, 판제목, 해치, 주석가로, 주석세로, 지시D: 지 }
 }
 
 /** 🧱 G260 열린 선들의 바깥 테두리 — 끝점 붙이기(tol) · 만나는 곳 · T 자리에서 나눔 → 평면 그래프 → 가장 큰 무리의 바깥 면을 오른쪽 돌기로 한 바퀴
@@ -3171,12 +3174,22 @@ function 골조읽기0(도면들0, o = {}) {
       if ((t.기둥판 || (주심층.size && fw !== 'FT' && !주심층.has(fw)) || 일반미표기) && t.D && t.g) {
         const D = t.D
         const 판i = D.도곽 && D.도곽.length ? D.도곽번(t.g.x, t.g.y) : -1
-        const 표 = 판i >= 0 ? 미표기표(D, 판i) : new Map()
+        let 표 = 판i >= 0 ? 미표기표(D, 판i) : new Map()
+        let 틀 = 판i >= 0 ? D.도곽[판i] : null
+        /* 🧭 G292 ⑦ 판(도곽)을 못 찾은 도면(표제란 틀이 외부참조 XREF_DAN-FORM 으로 빠짐) — 이 평면 기호 글자들의 테두리(3 m 더)를 판으로 · 미표기 범례는 도면 전체에서.
+             현장 B 를 구조도면 폴더만 넣으니 1층 바깥 · 칸막이 철근콘크리트 벽(이름 없이 두 줄 · 범례 «W3(미표기벽체) 200»)이 다 빠져 콘크리트 −13 % · 거푸집 −27 % */
+        if (판i < 0) {
+          const 점 = 쓸.filter((x) => x.D === D).map((x) => [x.g.x, x.g.y])
+          if (점.length >= 4) {
+            const xs = 점.map((p2) => p2[0]), ys = 점.map((p2) => p2[1])
+            틀 = [Math.min(...xs) - 3000, Math.min(...ys) - 3000, Math.max(...xs) + 3000, Math.max(...ys) + 3000]
+            표 = 미표기표(D, -1)
+          }
+        }
         const 층s = new Set([...기둥층, ...(일반미표기 ? [...벽층].filter((k2) => !보층.has(k2)) : [])].filter((k2) => k2.startsWith(D.번 + ':')).map((k2) => +k2.split(':')[1]))      // 🧭 G261 보 층(이름 붙은 보 띠 층)은 뺌
         /* 이 평면에서 이름으로 잡은 보 띠와 같은 두 선은 보(벽으로 또 안 셈) */
         const 보와같음 = (b) => 보띠.some((x) => x.D === D && Math.abs(x.띠.ux * b.uy - x.띠.uy * b.ux) < 0.01 && Math.abs((b.px - x.띠.px) * x.띠.nx + (b.py - x.띠.py) * x.띠.ny) <= 20 && Math.abs(x.띠.g - b.g) <= 10)
-        if (표.size && 층s.size) {
-          const 틀 = D.도곽[판i]
+        if (표.size && 층s.size && 틀) {
           const 상자 = D.닫힌.filter((c) => !c.글틀 && 층s.has(c.ly) && c.b[2] - c.b[0] >= 150 && c.b[3] - c.b[1] >= 150 && c.b[2] - c.b[0] <= 3000 && c.b[3] - c.b[1] <= 3000).map((c) => c.b)
           let n미 = 0
           const 지하틀 = (() => {
@@ -3460,9 +3473,13 @@ function 골조읽기0(도면들0, o = {}) {
         const 두 = 무늬두께.get(h.무늬)
         if (!(두 > 기본)) continue
         const 고 = h.고리.slice().sort((a, b) => 고리넓이(b) - 고리넓이(a))
-        const 넓 = h.넓이 > 0 ? h.넓이 : 고리넓이(고[0])
+        /* 🧭 G292 ⑩ 한 해치에 떨어진 섬이 여럿(현장 B «Thk 1,000» 무늬 — 왼쪽 ㄴ자 41 ㎡ + 오른쪽 띠 12 ㎡) — 다른 고리 안에 든 고리만 구멍 · 나머지는 다 구역.
+             전엔 가장 큰 고리 하나만 셈 */
+        const 섬 = 고.filter((r, k) => !고.some((q, j) => j < k && 고리넓이(q) > 고리넓이(r) && 점안(r[0], q)))
+        const 구멍 = 고.filter((r) => !섬.includes(r))
+        const 넓 = Math.max(0, 섬.reduce((t, r) => t + 고리넓이(r), 0) - 구멍.reduce((t, r) => t + 고리넓이(r), 0))
         const v = 구역.get(두) || { 넓: 0, 둘: 0, 판: [], b: [Infinity, Infinity, -Infinity, -Infinity] }
-        v.넓 += 넓; v.둘 += 고리둘레(고[0]); v.판.push(고[0])
+        v.넓 += 넓; v.둘 += 고.reduce((t, r) => t + 고리둘레(r), 0); v.판.push(...섬)
         v.b = [Math.min(v.b[0], h.b[0]), Math.min(v.b[1], h.b[1]), Math.max(v.b[2], h.b[2]), Math.max(v.b[3], h.b[3])]
         구역.set(두, v)
       }
@@ -3621,7 +3638,7 @@ function 골조읽기0(도면들0, o = {}) {
       try { r = 구조물읽기(D, 판목록(D)) } catch (e) { continue }
       주.보강.push(...r.줄)
       for (const a of r.읽음) {
-        읽은.push(a.이름 + ' ' + a.콘크리트.toFixed(1) + ' ㎥')
+        읽은.push(a.이름 + ' ' + a.콘크리트.toFixed(1) + ' ㎥' + (a.짐작 ? '(짐작)' : ''))
         const f = D.도곽[a.p]; const o = f ? 쓰임(D, (f[0] + f[2]) / 2, (f[1] + f[3]) / 2) : null
         if (o) o.구조물 = a.글
       }
@@ -3631,7 +3648,7 @@ function 골조읽기0(도면들0, o = {}) {
         if (o) o.구조물못 = a.까닭
       }
     }
-    if (읽은.length) 경고.push('구조물 판 ' + 읽은.length + '장을 평면 벽 두께 · 단면 높이 치수로 셈했습니다(골조 산출서 «보강» 표 산출식): ' + 읽은.join(' · '))
+    if (읽은.length) 경고.push('구조물 판 ' + 읽은.length + '장을 평면 벽 두께 · 단면 높이 치수로 셈했습니다(골조 산출서 «보강» 표 산출식): ' + 읽은.join(' · ') + (읽은.some((t) => /\(짐작\)$/.test(t)) ? ' — 짐작: 높이 «VAR»(곳마다 다름)는 단면 그림에서 잰 값 · 낮은 판은 단면 레벨 글자로 본 두께' : ''))
     if (못.length) 경고.push('구조물 판 ' + 못.length + '장은 아직 못 셌습니다: ' + 못.join(' · '))
   }
   const 이야기층 = P.층.filter((f) => f.이름 !== 'FT' && f.층고 > 0).map((f) => f.이름)
@@ -3667,7 +3684,7 @@ function 골조읽기0(도면들0, o = {}) {
     const 슬홑 = new Map()
     for (const s2 of c.슬라브) {
       const key = s2.기호 + '|' + s2.단변 + '|' + s2.장변 + '|' + s2.단정 + '|' + s2.장정
-      const h = 슬홑.get(key); if (h) { h.QT++; h._자리.push(s2.자리) } else 슬홑.set(key, { 층: f, 기호: s2.기호, 단변: String(s2.단변), 장변: String(s2.장변), 개구부: '', 단변정착: String(s2.단정), 장변정착: String(s2.장정), QT: 1, C: '', F: '', R: '', _자리: [s2.자리] })
+      const h = 슬홑.get(key); if (h) { h.QT++; h._자리.push(s2.자리); h._안.push(s2.안 || null) } else 슬홑.set(key, { 층: f, 기호: s2.기호, 단변: String(s2.단변), 장변: String(s2.장변), 개구부: '', 단변정착: String(s2.단정), 장변정착: String(s2.장정), QT: 1, C: '', F: '', R: '', _자리: [s2.자리], _안: [s2.안 || null], _안cc: String(s2.단변) + '|' + String(s2.장변) })
     }
     for (const h of 슬홑.values()) 주.슬라브.push({ ...h, QT: String(h.QT) })
     /* 🧭 G274 계단 — 평면 계단판(판 수 · 길이 · 폭 · 참)마다 · 단수는 셈에서 층고 ÷ 판 수 ÷ 단 높이 */
@@ -3778,6 +3795,29 @@ function 골조읽기0(도면들0, o = {}) {
   const 경고들 = 모은경고.map((w) => (셈경고.get(w) > 1 ? w + ' (' + 셈경고.get(w) + '곳)' : w))
   if (SRC짝.size) 경고들.unshift('SRC 기둥으로 읽었습니다 — 평면 ' + [...SRC짝].map(([k, v]) => k + ' ' + v + '곳').join(' · ') + '(그 층은 SRC 기둥 일람표에만 있음 · 철골 무게는 «철골» 줄로 · 콘크리트는 철골 단면을 뺌)')
   if (철골.size) 경고들.unshift('철골 부재 ' + 철골.size + '가지(' + [...철골.values()].slice(0, 4).map((x) => x.기호 + ' ' + x.규격).join(' · ') + (철골.size > 4 ? ' …' : '') + ')는 철근콘크리트 셈에서 뺐습니다 — 철골 무게는 아직 자동으로 안 셉니다')
+  /* 🧭 G291 일람표 없음 알림 — 소장님 「우선에 물량을 넣고, 일람표가 없다는 알림을 줘」 (실제 판매시설 구조평면도: 일람표가 없어 부재 52가지를 모두 짐작 —
+       벽 두께 1,040 · 보 1,160 × 2,300 · 기둥 2,150 × 2,300 처럼 말이 안 되는 크기로 셈했는데 알림이 묻혀 있었음). 물량은 그대로 넣고 맨 위에 알림 · 흔치 않은 짐작 크기는 따로 */
+  const 일람 = (() => {
+    const 행들 = Object.entries(P.배근 || {}).flatMap(([종, a]) => (a || []).map((r) => ({ 종, r })))
+    const 짐 = 행들.filter((x) => x.r.만든)
+    const n = (v) => +String(v ?? '').replace(/,/g, '') || 0
+    const 쉼 = (v) => n(v).toLocaleString('ko-KR')
+    const 큰 = []
+    for (const { 종, r } of 짐) {
+      if (종 === '벽' && n(r.두께) > 600) 큰.push(r.기호 + ' 벽 두께 ' + 쉼(r.두께))
+      else if (종 === '보' && (n(r.폭) > 1000 || n(r.춤) > 1500)) 큰.push(r.기호 + ' 보 ' + 쉼(r.폭) + ' × ' + 쉼(r.춤))
+      else if (종 === '기둥' && Math.max(n(r.가로), n(r.세로), n(r.지름)) > 1500) 큰.push(r.기호 + ' 기둥 ' + (n(r.지름) ? '⌀' + 쉼(r.지름) : 쉼(r.가로) + ' × ' + 쉼(r.세로)))
+      else if (종 === '슬라브' && n(r.두께) > 400) 큰.push(r.기호 + ' 슬래브 두께 ' + 쉼(r.두께))
+      else if (종 === '기초' && n(r.두께) > 2500) 큰.push(r.기호 + ' 기초 두께 ' + 쉼(r.두께))
+    }
+    return { 표있음: 배근있음, 짐작: 짐.length, 전체: 행들.length, 큰 }
+  })()
+  {
+    const 큰글 = 일람.큰.length ? ' · 흔치 않은 짐작 크기(꼭 확인): ' + 일람.큰.slice(0, 6).join(' · ') + (일람.큰.length > 6 ? ' 외 ' + (일람.큰.length - 6) + '가지' : '') : ''
+    if (셈수 > 0 && !일람.표있음 && 일람.짐작 > 0) 경고들.unshift('📋 넣은 도면에서 부재 일람표(보 · 기둥 · 벽 · 슬래브 · 기초 일람표 · 배근표)를 찾지 못했습니다 — 물량은 넣었지만, 부재 ' + 일람.짐작 + '가지의 크기 · 철근은 평면 그림의 두 선과 흔한 설계 값으로 짐작한 것이라 실제와 크게 다를 수 있습니다. 일람표 도면을 같이 넣어 주세요' + 큰글)
+    else if (셈수 > 0 && 일람.짐작 >= Math.max(3, 0.3 * 일람.전체)) 경고들.unshift('📋 일람표에 없는 부재가 많습니다 — ' + 일람.전체 + '가지 가운데 ' + 일람.짐작 + '가지는 평면 그림 · 같은 공사의 비슷한 부재 · 흔한 설계 값으로 짐작한 크기 · 철근입니다(물량은 넣었음). 그 부재의 일람표 도면을 같이 넣어 주세요' + 큰글)
+    else if (셈수 > 0 && 일람.큰.length) 경고들.unshift('📋 짐작한 부재 가운데 흔치 않은 크기가 있습니다(꼭 확인): ' + 일람.큰.slice(0, 6).join(' · ') + (일람.큰.length > 6 ? ' 외 ' + (일람.큰.length - 6) + '가지' : ''))
+  }
   /* 📋 일반구조사항의 정착·이음 길이표 (2026-09-28) — 찾으면 기준값 정착표에 넣음(이 fck 줄만).
      표의 fck 가 하나뿐이면 기준 fck 도 그 값으로. 못 알아본 줄(칸 짐작 없음)은 넣지 않음 */
   let 정착읽음 = null
@@ -3847,6 +3887,7 @@ function 골조읽기0(도면들0, o = {}) {
     읽음: {
       배근: Object.fromEntries(Object.entries(P.배근).map(([k2, v]) => [k2, v])),
       평면: 평면목록, 높이: Object.fromEntries(높이), 층고짐작: 짐작층,
+      일람,                      // 🧭 G291 {표있음, 짐작, 전체, 큰:[글]} — 화면 알림 띠
       /* 🧭 G246 판 펼치기 — 파일마다 판(쪽) 목록: 번호 · 도면명 · 테두리 · 글자 수(화면 «판 목록») */
       판: 도면들.map((D) => ({ 파일: D.이름, k: D.k, 판: 판목록(D).map((x) => ({ ...x, 쓰임: 쓰임표.get(D.번 + '|' + x.p) || null })), 배치판: (() => { try { return 배치판목록(D.모델) } catch (e) { return [] } })(), 덜읽음: !!(D.모델 && D.모델.stats && D.모델.stats.capped) })),
       철골: [...철골.values()].map((x) => ({ 기호: x.기호, 종류: x.종류, 규격: x.규격, 수: 철골수.get(x.기호) || 0, ...(x.동 ? { 동: x.동 } : {}) })),
@@ -4175,7 +4216,10 @@ function 평면부재(보띠, 벽띠, 슬들, 기둥층, 보층, 벽층, 배근�
     const k = x.D.k
     const 상자 = [(x.g.x - 왼.d) / k, (x.g.y - 아래.d) / k, (x.g.x + 오.d) / k, (x.g.y + 위.d) / k]
     근거.push({ 번: x.D.번, 상자, 글: x.r.기호 + ' ' + Math.round(Math.min(Lx, Ly)) + '×' + Math.round(Math.max(Lx, Ly)) })
-    슬칸.push({ 기호: x.r.기호, 단변: Math.round(Math.min(Lx, Ly)), 장변: Math.round(Math.max(Lx, Ly)), 단정, 장정, 두께: +(x.b && x.b.두께) || 0, 자리: 자리만들기(x.D.이름, 상자), ...(x.씨 ? { 씨: x.씨 } : {}), ...(x.채움 ? { 채움: true } : {}) })
+    /* 🧭 G292 ⑨ 안목(보 · 벽 면 사이) — 둘레 면까지 거리(면)가 있으면 그것 · 없으면 가운데까지(d) · 데크플레이트 넓이에 씀 */
+    const 면 = (v) => (v && v.면 != null && v.면 > 0 && v.면 <= v.d ? v.면 : v.d)
+    const 안x = 면(오) + 면(왼), 안y = 면(위) + 면(아래)
+    슬칸.push({ 기호: x.r.기호, 단변: Math.round(Math.min(Lx, Ly)), 장변: Math.round(Math.max(Lx, Ly)), 단정, 장정, 두께: +(x.b && x.b.두께) || 0, 자리: 자리만들기(x.D.이름, 상자), 안: [Math.round(x단 ? 안x : 안y), Math.round(x단 ? 안y : 안x)], ...(x.씨 ? { 씨: x.씨 } : {}), ...(x.채움 ? { 채움: true } : {}) })
   }
   return { 보칸, 벽칸, 슬칸 }
 }

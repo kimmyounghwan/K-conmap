@@ -177,7 +177,9 @@ function 규격말(s) {
   return out
 }
 /* 🔩 SH22·SHD22·UHD25(고강도) 도 지름으로 읽음 (2026-09-28 — 실제 공내역서에 «철근 SH22» 가 있음) */
-export const 철근지름 = (s) => { const m = 붙(s).toUpperCase().match(/(?:^|[^A-Z])(?:SHD|UHD|SH|HD|SD|D|H)(\d{2})(?!\d)/); return m ? 'D' + m[1] : '' }
+/* 🧭 G295 KS 지름(10 ~ 51)만 — «철근 SD40 D13» 의 SD40(강종)을 D40 으로 읽었음 */
+const KS지름 = new Set(['10', '13', '16', '19', '22', '25', '29', '32', '35', '38', '41', '51'])
+export const 철근지름 = (s) => { for (const m of 붙(s).toUpperCase().matchAll(/(?<![A-Z])(?:SHD|UHD|SH|HD|SD|D|H)(\d{2})(?!\d)/g)) if (KS지름.has(m[1])) return 'D' + m[1]; return '' }
 /** 레미콘 규격 «25-24-150» · «25-30-15»(슬럼프 cm) · «25-240-15»(옛 kgf) → {골재, fck} */
 export function 콘크리트규격(s) {
   const m = 붙(s).match(/(?:^|[^\d])(\d{2})-(\d{2,3})-(\d{2,3})(?!\d)/)
@@ -192,6 +194,7 @@ export function 점수(d, n) {
   const ud = 단위풀기(d.단위), un = 단위풀기(n.단위)
   if (!ud.무리 || !un.무리 || ud.무리 !== un.무리 || un.무리 === '식') return 0
   const da = 다듬기(d.품명), na = 다듬기(n.품명)
+  if (da.length < 2 || na.length < 2) return 0                // 🧭 G295 한 글자 이름(«a'» 같은 표 머리)은 짝이 아님 — 어느 이름에나 들어 있어 «닮음» 이 됐었음
   const 이름 = 닮음(da, na)
   if (이름 < 0.35) return 0
   const 한d = da.replace(/[^가-힣]/g, ''), 한n = na.replace(/[^가-힣]/g, '')
@@ -244,18 +247,33 @@ export function 대조(도면, 내역, 고침 = {}, 허용 = 1, 규칙 = null) {
     let 후보 = (규 ? 골빼고 : 보통).map((d) => ({ key: d.key, 점수: 점수(d, n) })).filter((c) => c.점수 >= 0.25).sort((a, b) => b.점수 - a.점수).slice(0, 6)
     if (규 && 규.key) 후보 = [{ key: 규.key, 점수: 1, 규칙: true }, ...후보.filter((c) => c.key !== 규.key)].slice(0, 6)
     let key = null
+    let 멀어뺌 = ''
+    const 막음 = !!(규 && !규.key && (규.다른 || 규.멀다))     // 🧭 G295 덩이 고르기에서 «다른 동 · 공종» · «3 배 넘게 다름» 으로 뺀 줄은 이름 닮음으로도 안 붙임
     if (고친짝) key = 고침[n.id] || null
     else if (규 && 규.key) key = 규.key
-    else if (후보.length && 후보[0].점수 >= 문턱) key = 후보[0].key
+    else if (!막음 && 후보.length && 후보[0].점수 >= 문턱) {
+      key = 후보[0].key
+      /* 🧭 G295 이름만 닮고 수량이 3 배 넘게 다르면 짝으로 안 봄(일반사항 표를 물량으로 읽은 줄 · 다른 품목) — 후보에는 남김 */
+      const c = 표.get(key)
+      const 빈0 = n.수량 === null || n.수량 === undefined
+      if (c && !빈0 && Math.abs(+n.수량) > 0 && c.수량 > 0) {
+        const ud0 = 단위풀기(c.단위), un0 = 단위풀기(n.단위)
+        const 배 = (c.수량 * ud0.배 / un0.배) / Math.abs(+n.수량)
+        if (배 > 3 || 배 < 1 / 3) { 멀어뺌 = '이름은 닮았지만 수량이 ' + (배 > 1 ? Math.round(배) + '배' : '1/' + Math.round(1 / 배)) + ' 라 짝으로 안 봄 — 맞으면 짝을 고르십시오'; key = null }
+      }
+    }
     const d = key ? 표.get(key) || null : null
-    if (!d) return { 내역: n, 도면: null, 후보, 점수: 0, 도면수량: null, 차이: null, 율: null, 판정: '도면에서 못 찾음', 고친짝, 믿음: '', 까닭: 규 && !규.key ? 규.까닭 || '' : '' }
+    if (!d) return { 내역: n, 도면: null, 후보, 점수: 0, 도면수량: null, 차이: null, 율: null, 판정: 규 && 규.다른 && !고친짝 ? '다른 동·공종' : '도면에서 못 찾음', 고친짝, 믿음: '', 까닭: 멀어뺌 || (규 && !규.key ? 규.까닭 || '' : '') }
     쓴.add(d.key)
     const ud = 단위풀기(d.단위), un = 단위풀기(n.단위)
     const 바꿈 = (v) => (ud.무리 === un.무리 ? v * ud.배 / un.배 : v)
     const 도면수량 = 바꿈(d.수량)
     const 빈 = n.수량 === null || n.수량 === undefined
-    const 차이 = 빈 ? null : 도면수량 - n.수량
-    const 율 = !빈 && n.수량 ? 차이 / Math.abs(n.수량) * 100 : null
+    /* 🧭 G295 덩이 — 붙은 여러 줄(거푸집 3 · 4 · 6회)의 합과 견줌 */
+    const 덩 = !고친짝 && 규 && 규.key === d.key && 규.덩이 ? 규.덩이 : null
+    const 견줄 = 덩 ? 바꿈(덩.합) : n.수량
+    const 차이 = 빈 ? null : 도면수량 - 견줄
+    const 율 = !빈 && 견줄 ? 차이 / Math.abs(견줄) * 100 : null
     const 판정 = 빈 ? '내역 수량 없음' : 율 !== null && Math.abs(율) <= 허용 ? '같음' : (차이 > 0 ? '도면이 많음' : '도면이 적음')
     const 점 = (후보.find((c) => c.key === d.key) || {}).점수 || 0
     const 규맞음 = 규 && 규.key === d.key
@@ -263,12 +281,29 @@ export function 대조(도면, 내역, 고침 = {}, 허용 = 1, 규칙 = null) {
     const 믿음 = 고친짝 ? '확실' : 규맞음 ? 규.믿음 : ((이름점 >= 0.75 || 점 >= 0.9) && 점 >= 문턱 && !규격어긋남(d, n) ? '확실' : '약함')
     const 까닭 = 고친짝 ? '사람이 고른 짝' : 규맞음 ? 규.까닭 : (믿음 === '확실' ? '이름·규격이 같음' : '이름이 닮음 — 확인')
     const 할증쓰기 = !!(규맞음 && 규.할증) && Number.isFinite(d.할증수량)
-    return { 내역: n, 도면: d, 후보, 점수: 점, 도면수량, 할증수량: 할증쓰기 ? 바꿈(d.할증수량) : null, 할증: 할증쓰기 ? d.할증 : 0, 차이, 율, 판정, 고친짝, 믿음, 까닭 }
+    return { 내역: n, 도면: d, 후보, 점수: 점, 도면수량, 할증수량: 할증쓰기 ? 바꿈(d.할증수량) : null, 할증: 할증쓰기 ? d.할증 : 0, 차이, 율, 판정, 고친짝, 믿음, 까닭, 덩이: 덩 ? { ...덩, 합: 바꿈(덩.합) } : null }
   })
   const 남은도면 = 보통.filter((d) => !쓴.has(d.key))
-  const 셈 = { 같음: 0, 다름: 0, 없음: 0, 빈: 0, 도면만: 남은도면.length }
-  for (const r of 줄) { if (r.판정 === '같음') 셈.같음++; else if (r.판정 === '내역 수량 없음') 셈.빈++; else if (r.도면) 셈.다름++; else 셈.없음++ }
+  const 셈 = { 같음: 0, 다름: 0, 없음: 0, 빈: 0, 다른: 0, 도면만: 남은도면.length }
+  for (const r of 줄) { if (r.판정 === '같음') 셈.같음++; else if (r.판정 === '내역 수량 없음') 셈.빈++; else if (r.판정 === '다른 동·공종') 셈.다른++; else if (r.도면) 셈.다름++; else 셈.없음++ }
   return { 줄, 남은도면, 셈 }
+}
+
+/**
+ * 🎯 G295 한눈에 — 골조 물량(콘크리트 · 버림 · 거푸집 · 철근)이 내역서와 맞는 정도. 무리마다 짝 하나(전체 합계 짝 먼저 · 덩이는 덩이 합)
+ * @returns [{이름, 줄글, 내역, 도면, 단위, 율, 맞음(0~100)}]
+ */
+export function 한눈에(결과) {
+  const 무리 = [['콘크리트', (g) => g.항목 === '콘크리트' && !g.버림], ['버림', (g) => g.항목 === '콘크리트' && g.버림], ['거푸집', (g) => g.항목 === '거푸집'], ['철근', (g) => g.항목 === '철근']]
+  const out = []
+  for (const [이름, 맞] of 무리) {
+    const 줄 = ((결과 && 결과.줄) || []).filter((r) => r.도면 && r.도면.골 && 맞(r.도면.골) && Number.isFinite(r.율))
+    if (!줄.length) continue
+    줄.sort((a, b) => (b.도면.골.전체 ? 1 : 0) - (a.도면.골.전체 ? 1 : 0) || Math.abs(a.율) - Math.abs(b.율))
+    const r = 줄[0]
+    out.push({ 이름, 줄글: r.덩이 ? r.덩이.줄 : r.내역.줄 + '행', 내역: r.덩이 ? r.덩이.합 : r.내역.수량, 도면: r.도면수량, 단위: r.내역.단위, 율: r.율, 맞음: Math.max(0, 100 - Math.abs(r.율)) })
+  }
+  return out
 }
 
 /** 엑셀 시트 둘 — «내역 대조» (차이·율은 살아 있는 식) · «내역에 없는 도면 물량» */
@@ -279,7 +314,9 @@ export function 대조시트(결과, 모양) {
     const 빈 = n.수량 === null || n.수량 === undefined
     return [i + 1, n.시트, n.줄, n.품명, n.규격, n.단위, 빈 ? '' : { v: n.수량, st: 모양.QTY },
       d ? d.품명 : '', d ? d.규격 || '' : '', d ? { v: Math.round(r.도면수량 * 1e6) / 1e6, st: 모양.QTY } : '',
-      d && !빈 ? { f: 'ROUND(J' + R + '-G' + R + ',3)', st: 모양.QTY } : '', d && !빈 ? { f: 'IF(G' + R + '=0,"",ROUND((J' + R + '-G' + R + ')/ABS(G' + R + ')*100,2))', st: 모양.QTY } : '',
+      /* 🧭 G295 덩이 줄은 붙은 줄 합과 견준 값(식 아님) */
+      d && !빈 ? (r.덩이 ? { v: Math.round(r.차이 * 1000) / 1000, st: 모양.QTY } : { f: 'ROUND(J' + R + '-G' + R + ',3)', st: 모양.QTY }) : '',
+      d && !빈 ? (r.덩이 ? { v: Math.round(r.율 * 100) / 100, st: 모양.QTY } : { f: 'IF(G' + R + '=0,"",ROUND((J' + R + '-G' + R + ')/ABS(G' + R + ')*100,2))', st: 모양.QTY }) : '',
       r.판정, r.믿음 ? r.믿음 + (r.까닭 ? ' — ' + r.까닭 : '') : '', d ? { v: (d.구분 ? d.구분 + ' · ' : '') + (d.근거 || '') + (r.할증 ? ' · 재료 줄은 할증 ' + r.할증 + '% 넣은 값 ' + Math.round(r.할증수량 * 1000) / 1000 : ''), st: 모양.GRAY } : '']
   })
   const 남 = 결과.남은도면.map((d, i) => [i + 1, d.구분 || '', d.품명, d.규격 || '', d.단위, { v: Math.round(d.수량 * 1000) / 1000, st: 모양.QTY }, { v: d.근거 || '', st: 모양.GRAY }, d.도면 || ''])

@@ -41,11 +41,15 @@ import { 조각표만들기 } from '../lib/골조그림.js'
 import { 참조키, 부르는참조, 참조붙이기, 참조모음, 경계를B로 } from '../lib/외부참조.js'
 import * as 자 from '../lib/도면자동.js'
 import * as 전 from '../lib/도면전부.js'
-import { 내역읽기, 모으기 as 내역모으기, 대조 as 대조하기, 대조시트, 단위풀기 } from '../lib/내역대조.js'
+import { 내역읽기, 모으기 as 내역모으기, 대조 as 대조하기, 대조시트, 단위풀기, 한눈에 } from '../lib/내역대조.js'
 import { 철근표, 셈 as 골조셈, 엑셀 as 골조엑셀, 기준값 as 골조기준값 } from '../lib/골조.js'
 import { 골조보탬, 골조짝, 넣을것, 셀바꾸기, csv바꾸기 } from '../lib/내역채움.js'
 import { 내역넘기기 } from '../lib/도면넘김.js'
 import { 골조읽기, 골조시트들, 개수글 } from '../lib/골조자동.js'
+import { 플랜트다듬기, 플랜트공사 } from '../lib/플랜트기초.js'   // 🏭 G294 · G295 플랜트공사 = BIM 화면과 같은 3D 받침 높이
+import 셈방법칸, { 셈방법입히기 } from '../셈방법칸.jsx'
+import { 셈방법고르기 } from '../lib/셈방법.js'   // 🧮 G295 셈 방법(저절로 · 도면 그대로 · 내역서처럼)
+import { 세기 as 쓴수세기 } from '../lib/받은수.jsx'
 import { 셈 as 마감셈 } from '../lib/마감.js'
 import { askAfter } from '../AskComment'
 import { use화면상태 } from '../lib/길기록.js'
@@ -71,7 +75,7 @@ function 전부(f) {
   return r
 }
 const 자동키 = (종, 이름) => (종 === '길이' ? '층길이:' + 이름 : 종 === '면적' ? '층면적:' + 이름 : 종 === '블록' ? '블록:' + 이름 : '기호:' + 자.붙임(이름).toUpperCase())
-const 판색 = { 같음: 'good', '도면이 많음': 'bad', '도면이 적음': 'bad', '도면에서 못 찾음': 'mid', '내역 수량 없음': 'new' }
+const 판색 = { 같음: 'good', '도면이 많음': 'bad', '도면이 적음': 'bad', '도면에서 못 찾음': 'mid', '내역 수량 없음': 'new', '다른 동·공종': 'mid' }
 const 쉼 = (n, d = 0) => new Intl.NumberFormat('ko-KR', { maximumFractionDigits: d, minimumFractionDigits: d }).format(n || 0)
 const 종색 = { 철근: '#f59e0b', 수량: '#22c55e', 기타: '#94a3b8' }
 const 종이름 = { 철근: '철근 재료표', 수량: '수량표', 기타: '그 밖의 표' }
@@ -404,13 +408,35 @@ export default function JeoksanAuto() {
   /* ── 🏗 골조 자동 — 넣은 도면 모두에서(평면과 일람표가 다른 장이어도) ── */
   const 골 = useMemo(() => {
     if (!파일들.length) return null
-    try { return 골조읽기(셀파일.map((f) => ({ 모델: f.모델, 이름: f.이름, k: (f.단위 && f.단위.k) || 1 }))) } catch (e) { return { 있음: false, 경고: ['골조를 읽다 멈췄습니다: ' + e.message], 근거: [], 읽음: { 배근: {}, 평면: [], 셈: {}, 철골: [] }, 공사: null } }
+    try {
+      const 들 = 셀파일.map((f) => ({ 모델: f.모델, 이름: f.이름, k: (f.단위 && f.단위.k) || 1 }))
+      const R = 플랜트다듬기(들, 골조읽기(들))
+      return R && R.플랜트 ? { ...R, 공사: 플랜트공사(들, R) } : R   // 🏭 G295 BIM 화면과 같은 물량(3D 로 잰 받침 기둥 높이)
+    } catch (e) { return { 있음: false, 경고: ['골조를 읽다 멈췄습니다: ' + e.message], 근거: [], 읽음: { 배근: {}, 평면: [], 셈: {}, 철골: [] }, 공사: null } }
   }, [파일들])
-  const 골공사 = useMemo(() => {
+  const 골공사기본 = useMemo(() => {
     if (!골 || !골.있음) return null
     return { ...골.공사, 층: 골.공사.층.map((f) => (골고침[f.이름] ? { ...f, ...골고침[f.이름] } : f)) }
   }, [골, 골고침])
-  const 골결과 = useMemo(() => { if (!골공사) return null; try { return 골조셈(골공사) } catch (e) { return null } }, [골공사])
+  /* 🧮 G295 셈 방법 — 플랜트식 토목 기초 도면일 때만: 🤖 저절로(내역서를 넣으면 내역서 합계 — 철근 콘크리트 ㎥ · 거푸집 ㎡ — 와 더 가까운 쪽) · 📐 도면 그대로 · 📑 내역서처럼 */
+  const 플랜트 = !!(골 && 골.플랜트)
+  const [셈방법, set셈방법] = useState('저절로')
+  const 골두셈 = useMemo(() => {
+    if (!골공사기본 || !플랜트) return null
+    try { const 내공 = 셈방법입히기(골공사기본, '내역식'); return { 도면: 골조셈(골공사기본), 내역식: 골조셈(내공), 내공 } } catch (e) { return null }
+  }, [골공사기본, 플랜트])
+  const 저절로고른 = useMemo(() => {
+    if (!골두셈 || !내역 || !내역.줄) return { 방법: '도면', 까닭: '' }
+    const 버림 = ((골공사기본 && 골공사기본.기준) || {}).버림 || 골조기준값().버림
+    return 셈방법고르기(내역.줄, 골두셈.도면, 골두셈.내역식, 버림)   // 🧭 G295 이어진 줄 덩이마다 견줌(내역서 한 권에 건물 · 공종이 여럿이어도)
+  }, [골두셈, 내역, 골공사기본])
+  const 쓸방법 = 플랜트 ? (셈방법 === '저절로' ? 저절로고른.방법 : 셈방법) : '도면'
+  const 골공사 = useMemo(() => (쓸방법 === '내역식' && 골두셈 ? 골두셈.내공 : 골공사기본), [쓸방법, 골두셈, 골공사기본])
+  const 골결과 = useMemo(() => {
+    if (!골공사) return null
+    if (골두셈) return 쓸방법 === '내역식' ? 골두셈.내역식 : 골두셈.도면
+    try { return 골조셈(골공사) } catch (e) { return null }
+  }, [골공사, 골두셈, 쓸방법])
   const 골도면 = 골 && 골.있음 ? [...new Set(골.근거.map((g) => (파일들[g.번] || {}).이름).filter(Boolean))].join(', ') : ''
   const 골셈글 = 골 && 골.있음 ? 개수글(골) : ''
 
@@ -431,7 +457,7 @@ export default function JeoksanAuto() {
         if (st.넣기 === false) continue
         const r = 토공셈(f, g, st)
         const 쓴칸 = r.칸.map((c, j) => ({ c, j })).filter(({ c }) => c.쓰기)
-        if (!쓴칸.length || !r.결과.점.length) continue
+        if (!쓴칸.length || !r.결과.구간.length) continue   // 🧭 G295 단면이 하나뿐(구간 없음)이면 토공 물량 아님 — 일반사항 표 «NO.1» 같은 글자
         const 이름 = (f.노선.length > 1 ? '노선' + g.번호 + ' ' : '') + r.결과.점[0]?.글 + '~' + r.결과.점[r.결과.점.length - 1]?.글
         토공들.push({ 이름: (파일들.length > 1 ? f.이름.replace(/\.dxf.*$|\.dwg.*$/i, '') + ' ' : '') + '노선' + g.번호, 칸: 쓴칸.map(({ c }) => ({ 이름: c.이름, 단위: c.단위 })), 점: r.결과.점.map((p) => ({ 글: p.글, 측: p.측, 값: 쓴칸.map(({ j }) => p.값[j]) })) })
         for (const [n, { c, j }] of 쓴칸.entries()) {
@@ -742,6 +768,9 @@ export default function JeoksanAuto() {
         )}
       </div>
 
+      {플랜트 && (탭 === '산출' || 탭 === '골조' || 탭 === '대조') && (
+        <div className="no-print"><셈방법칸 값={셈방법} 저절로 고른={저절로고른.방법} 까닭={내역 ? 저절로고른.까닭 : ''} 바꾸기={(k) => { set셈방법(k); 쓴수세기('|적산자동|셈방법|' + k) }} /></div>
+      )}
       <div className="tp-tabs no-print" role="tablist">
         {[['산출', '① 물량 전부'], ['골조', '② 골조(보·기둥·슬래브)'], ['대조', '③ 내역 대조'], ['표', '④ 도면의 표'], ['토공', '⑤ 토공'], ['세기', '⑥ 레이어·블록·글자'], ['실', '⑦ 실·마감·창호']].map(([k, t]) => (
           <button key={k} type="button" role="tab" aria-selected={탭 === k} className={'tp-tab' + (탭 === k ? ' on' : '')} onClick={() => {
@@ -1093,11 +1122,28 @@ export default function JeoksanAuto() {
               {!파일들.length && <p className="muted">도면을 넣으면 짝을 짓습니다.</p>}
               {대조 && (
                 <>
+                  {(() => {
+                    /* 🎯 G295 한눈에 — 골조 물량이 내역서와 맞는 정도(무리마다 짝 하나) */
+                    const 한 = 한눈에(대조)
+                    if (!한.length) return null
+                    return (
+                      <div className="ja-glance">
+                        <div className="detail-h">🎯 한눈에 — 내역서와 맞는 정도</div>
+                        <div className="gg-tiles">{한.map((x) => (
+                          <div key={x.이름} className={x.맞음 >= 95 ? 'good' : x.맞음 >= 90 ? 'mid' : 'bad'}>
+                            <span>{x.이름} · 내역 {x.줄글}</span><b>{Math.round(x.맞음)}%</b> 맞음
+                            <small className="ja-glance-n">도면 {쉼(x.도면, 1)} · 내역 {쉼(x.내역, 1)} {단위보기(x.단위)}</small>
+                          </div>))}
+                        </div>
+                      </div>
+                    )
+                  })()}
                   <div className="gg-tiles">
                     <div className="good"><span>같음 (±1%)</span><b>{대조.셈.같음}</b> 줄</div>
                     <div className={대조.셈.다름 ? 'bad' : ''}><span>다름</span><b>{대조.셈.다름}</b> 줄</div>
                     {대조.셈.빈 > 0 && <div className="new"><span>내역 수량 빈 칸 · 짝 있음</span><b>{대조.셈.빈}</b> 줄</div>}
                     <div><span>도면에서 못 찾음</span><b>{대조.셈.없음}</b> 줄</div>
+                    {대조.셈.다른 > 0 && <div><span>다른 동·공종 몫</span><b>{대조.셈.다른}</b> 줄</div>}
                     <div><span>내역에 없는 도면 물량</span><b>{대조.셈.도면만}</b> 줄</div>
                   </div>
                   {/* 📥 2026-09-28 — 소장님 「물량, 내역채우는 거 다 자동이 목표야」 → 받은 내역서 «그 파일» 의 수량 칸에 도면 물량을 넣어 돌려드림 */}
@@ -1140,7 +1186,7 @@ export default function JeoksanAuto() {
                       const 넣을 = 넣맵.get(n.id)
                       return (
                         <tr key={n.id} className={'ja-j-' + (판색[r.판정] || '')}>
-                          <td>{n.id + 1}</td><td>{n.품명}</td><td>{n.규격}</td><td className="u">{단위풀이(n.단위)}</td><td className="r">{n.빈 ? <span className="muted">(빈 칸)</span> : <>{쉼(n.수량, 3)}<span className="단">{단위보기(n.단위)}</span></>}</td>
+                          <td>{n.id + 1}</td><td>{n.품명}</td><td>{n.규격}</td><td className="u">{단위풀이(n.단위)}</td><td className="r">{n.빈 ? <span className="muted">(빈 칸)</span> : <>{쉼(n.수량, 3)}<span className="단">{단위보기(n.단위)}</span></>}{r.덩이 && <div className="note2" style={{ fontSize: 11 }}>붙은 {r.덩이.수}줄 합 {쉼(r.덩이.합, 3)}</div>}</td>
                           <td className="no-print-sel">
                             <select className="ja-pair" value={r.도면 ? r.도면.key : ''} onChange={(e) => set짝고침((P) => ({ ...P, [n.id]: e.target.value }))} aria-label={n.품명 + ' 짝'}>
                               <option value="">— 짝 없음</option>
@@ -1171,6 +1217,8 @@ export default function JeoksanAuto() {
                   <ul className="tl-p no-print" style={{ paddingLeft: 18, marginTop: 10, lineHeight: 1.8, fontSize: 13 }}>
                     <li><b>짝</b>은 단위 무리(m·m²·m³·개·kg/ton)가 같고 품명·규격이 가장 닮은 도면 물량입니다. ★ 는 닮은 순서. 틀리면 고르십시오 — 엑셀에도 고친 짝이 나갑니다.</li>
                     <li><b>다름 ≠ 틀림</b>: 할증·토량환산·범위(도면 한 장 vs 공사 전체)·구간이 다를 수 있습니다. 도면 근거를 보고 판단하십시오. 철근은 kg ↔ ton 을 바꿔 맞춥니다.</li>
+                    <li><b>붙은 줄 합</b>: 거푸집 3회 · 4회 · 6회처럼 붙은 줄은 합해서 견줍니다.</li>
+                    <li><b>다른 동·공종 몫</b>: 여러 동이 든 내역서는 도면과 가장 가까운 줄만 짝으로 봅니다. 3배 넘게 다르면 짝을 안 붙입니다(짝 칸에서 고를 수 있음).</li>
                   </ul>
                 </>
               )}
@@ -1232,6 +1280,7 @@ export default function JeoksanAuto() {
       <div className="card no-print">
         <div className="detail-h">알아 두실 것</div>
         <ul className="tl-p" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.85 }}>
+          <li><b>🧮 셈 방법</b>(공장식 토목 기초 도면일 때만): 📐 도면 그대로 = 겹친 곳 한 번 · 📑 내역서처럼 = 지중보 · 기초를 바닥판 윗면까지 · 🤖 저절로 = 내역서와 가까운 쪽.</li>
           <li><b>모두 자동</b>: 도면을 넣으면 표·토공은 그대로, 레이어·블록은 <b>이름으로 뜻을 짐작</b>해(우수관·측구·경계석·포장·맨홀·집수정·가로등·수목…) 저절로 넣습니다. 치수·글자·도곽·중심선 같은 주석은 뺍니다. 뜻을 모르는 레이어는 ⑥ 에서 고릅니다.</li>
           <li><b>내역 대조</b>: 내역서 줄마다 단위가 같고 이름이 닮은 도면 물량을 짝으로 붙이고 차이를 보입니다. <b>다름</b>이 나온 줄은 도면 근거와 내역을 맞춰 보십시오 — 설계변경 검토의 출발점입니다.
             골조는 이름이 아니라 <b>뜻</b>으로 짝을 짓습니다 — 레미콘은 강도(25-24-150 ↔ 25-24-15), 철근은 지름(HD13·SHD22), 철근가공조립은 철근 전체, 타설은 버림 빼고 콘크리트 전체, 거푸집은 규격·품명에 적힌 부재(슬라브·벽·기초…).</li>

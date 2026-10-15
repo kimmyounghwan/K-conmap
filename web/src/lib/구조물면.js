@@ -426,7 +426,16 @@ function 구조물면1(선, 벽선 = null, o = {}) {
       const 칸들 = new Map()
       const 벽이냐 = M === C
       for (let i = 0; i < W * H; i++) { if (!M[i]) continue; const c = 무리칸(i, 벽이냐); let a = 칸들.get(c); if (!a) { a = new Uint8Array(W * H); 칸들.set(c, a) } a[i] = 1 }
-      return [...칸들].map(([c, A]) => { let n = 0; for (let i = 0; i < W * H; i++) n += A[i]; const 판 = 꼴(A); return { 무리: c, 위: c >= 0 ? 무리위[c] : null, 아래: c >= 0 ? 무리아래[c] : null, 판, 넓이: n * 칸 * 칸 / 1e6, 둘레: 둘(판) } }).filter((x) => x.판.length)
+      /* 🧭 G292 ⑤ 무리끼리 맞닿은 길이(m) — 높이가 달라 나눈 자리의 자른 면은 거푸집이 아님(높이 차만큼만 드러남 · BIM토목 이 씀) */
+      const 라벨 = new Int32Array(W * H).fill(-9), 키 = [...칸들.keys()]
+      키.forEach((c, k) => { const A = 칸들.get(c); for (let i = 0; i < W * H; i++) if (A[i]) 라벨[i] = k })
+      const 접 = 키.map(() => new Map())
+      for (let i = 0; i < W * H; i++) {
+        const a = 라벨[i]; if (a < 0) continue
+        const x = i % W
+        for (const j of [x < W - 1 ? i + 1 : -1, i < W * (H - 1) ? i + W : -1]) { if (j < 0) continue; const b = 라벨[j]; if (b < 0 || b === a) continue; 접[a].set(b, (접[a].get(b) || 0) + 1); 접[b].set(a, (접[b].get(a) || 0) + 1) }
+      }
+      return 키.map((c, k) => { const A = 칸들.get(c); let n = 0; for (let i = 0; i < W * H; i++) n += A[i]; const 판 = 꼴(A); return { 무리: c, 위: c >= 0 ? 무리위[c] : null, 아래: c >= 0 ? 무리아래[c] : null, 판, 넓이: n * 칸 * 칸 / 1e6, 둘레: 둘(판), 맞닿음: [...접[k]].map(([b, m]) => ({ 무리: 키[b], 길이: m * 칸 / 1000 })) } }).filter((x) => x.판.length)
     }
     벽들 = 벽칸 ? 나눔(C) : []
     바닥들 = 나눔(F)

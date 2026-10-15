@@ -4468,6 +4468,9 @@ span.qna-like { cursor: default; }
 .ja-putv { font-size: 11.5px; font-weight: 700; color: var(--accent); margin-top: 3px; white-space: nowrap; }
 .ja-badge.new { color: var(--accent); border-color: var(--accent-line); }
 .gg-tiles .new b { color: var(--accent); }
+.gg-tiles .mid b { color: var(--warn); }
+.ja-glance .gg-tiles { margin-top: 6px; }
+.ja-glance-n { display: block; font-size: 11px; margin-top: 2px; }
 .gg-tiles:has(> div:nth-child(5)) { grid-template-columns: repeat(5, 1fr); }
 @media (max-width: 700px) { .gg-tiles:has(> div:nth-child(5)) { grid-template-columns: repeat(2, 1fr); } }
 @media (prefers-color-scheme: dark) { .ja-trust.weak { color: #fbbf24; } }
@@ -7251,6 +7254,12 @@ a.mc-key-in:hover { border-color: var(--accent-line); background: var(--accent-s
 .bim-how summary { cursor: pointer; font-weight: 600; color: var(--text-2); }
 .bim-how ul { margin: 6px 0 0; padding-left: 18px; line-height: 1.6; }
 .bim-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+/* 🧮 G295 셈 방법 고르기(플랜트식 토목 기초 도면일 때만) — 단추 둘(셋) + 한 줄 */
+.sem-box { border: 1px solid var(--line, #e3e6ea); border-radius: 10px; padding: 9px 12px; margin: 0 0 10px; background: var(--card, #fff); }
+.sem-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.sem-btns { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.sem-btns .btn.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.sem-say { font-size: 12.5px; margin-top: 6px; line-height: 1.5; }
 .bim-sum > div { padding: 8px 10px; border-radius: 9px; background: var(--surface-2); font-size: 12.5px; min-width: 0; }
 .bim-sum b { display: block; font-size: 18px; margin: 2px 0; font-variant-numeric: tabular-nums; }
 .bim-sum .muted { display: block; font-size: 11.5px; overflow-wrap: anywhere; }

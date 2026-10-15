@@ -62,6 +62,17 @@ export function 부재들(t) {
 }
 const 벽부재 = ['벽', '벽(기타)', 'Dry Area']
 
+/** 🧭 G295 버림 줄인가 — «버림 · 밑창» 이거나, «무근» 인데 강도가 낮은 것(135K · 150K · 180K · −18− 아래 = 버림 콘크리트 · 현장 5 · 6 공내역 «레미콘타설(135K 무근, P/CAR)») */
+export function 버림인가(T) {
+  const t = 붙(T).toUpperCase()
+  if (/버림|밑창/.test(t)) return true
+  if (!/무근/.test(t)) return false
+  const k = /(\d{3})K(?![A-Z])/.exec(t)                      // 135K · 240K (kgf/cm²)
+  if (k) return +k[1] <= 180
+  const c = 콘크리트규격(t)
+  return !!(c && c.fck <= 18)
+}
+
 /** 내역 줄의 «골조 갈래» — 레미콘 · 타설 · 철근재료 · 가공조립 · 거푸집 · 'X'(골조 말을 쓰지만 골조 물량이 아님: 양생·방수턱…) · '' */
 export function 골조갈래(n) {
   const u = 단위풀기(n.단위).무리
@@ -74,7 +85,7 @@ export function 골조갈래(n) {
   }
   if (u === 'm3') {
     if (/벽돌|블록|블럭|인방|깨기|철거|면처리|폴리싱|미장|양생|보수|절단|코어|천공|2차|파일|말뚝|측구|경계석|흄관|관로|암거|맨홀|집수정|포장|잡석|자갈|모래|되메우|되메움|성토|절토|터파기/.test(이)) return /레미콘|콘크리트|CONC|타설/.test(이) ? 'X' : ''
-    if (/무근/.test(T) && !/버림|밑창/.test(T)) return 'X'                     // 무근(버림 아닌 것 — 바닥·보호 콘크리트)은 골조 물량이 아님
+    if (/무근/.test(T) && !버림인가(T)) return 'X'                     // 무근(버림 아닌 것 — 바닥·보호 콘크리트)은 골조 물량이 아님 · 강도 낮은 무근(135K)은 버림
     if (/타설/.test(T)) return '타설'
     if (/레미콘|레디믹스|콘크리트|CONC/.test(이)) return '레미콘'
     return ''
@@ -109,7 +120,7 @@ export function 골조짝(도면, 내역) {
     if (!g) continue
     if (g === 'X') { 규칙.set(n.id, { key: null, 믿음: '', 까닭: '골조 물량과 다른 품목(양생·방수턱·운반 등) — 골조 물량을 넣지 않음' }); continue }
     const T = n.품명 + ' ' + n.규격
-    const 버림말 = /버림|밑창/.test(붙(T))
+    const 버림말 = 버림인가(T)
     if (g === '철근재료') {
       const d = 철근지름(T)
       const hit = d ? 철들.find((x) => 철근지름(x.규격) === d) : null
@@ -175,7 +186,62 @@ export function 골조짝(도면, 내역) {
       else 규칙.set(n.id, { key: null, 믿음: '', 까닭: '골조 거푸집 없음' })
     }
   }
+  덩이고르기(내역, 규칙, (key) => 찾(key) || 더.find((x) => x.key === key))
   return { 규칙, 더 }
+}
+
+/**
+ * 🧭 G295 공내역 한 권에 건물 · 공종이 여럿(두 동 × 토목 · 건축)이면 같은 도면 물량(콘크리트 전체 · 거푸집 전체 · 철근 D13 …)에 짝이 될 줄이 곳곳에 있음 —
+ *   전엔 줄마다 도면 전체와 견줘 «다름 +7,000 %» 가 쏟아졌음. 이제 같은 짝의 «이어진 줄 덩이»(합판거푸집 3 · 4 · 6회처럼 붙은 줄은 더함)마다 합을 내
+ *   도면 물량과 가장 가까운 덩이 하나만 짝(덩이 합과 견줌) · 나머지 덩이는 «다른 동 · 공종» · 가장 가까운 덩이도 3 배 넘게 다르면 짝 없음(말뚝 머리 보강근 같은 다른 품목).
+ *   수량이 빈 줄(공내역서 빈 칸)은 그대로.
+ */
+export const 덩이배 = 3
+const 자리무게 = 1          // 덩이 고를 때 «내역서에서 떨어진 거리»(전체 줄 수 대비) 무게 — 한 동의 콘크리트 · 거푸집 · 철근은 내역서에서 가까이 있음
+function 덩이고르기(내역, 규칙, 도면찾기) {
+  const N = Math.max(1, 내역.length)
+  const 묶 = new Map()       // key → [내역 차례]
+  내역.forEach((n, i) => {
+    const r = 규칙.get(n.id)
+    if (!r || !r.key || n.수량 === null || n.수량 === undefined || !(Math.abs(+n.수량) > 0)) return
+    const a = 묶.get(r.key) || []; a.push(i); 묶.set(r.key, a)
+  })
+  const 줄글 = (g) => { const a = 내역[g[0]], b = 내역[g[g.length - 1]]; return a.줄 === b.줄 ? a.줄 + '행' : a.줄 + '~' + b.줄 + '행' }
+  const 판 = []             // {key, d, 차례, 후보:[{g, 합, 멀기, 자리}]}
+  for (const [key, 차례] of 묶) {
+    const d = 도면찾기(key)
+    if (!d || !(d.수량 > 0)) continue
+    const ud = 단위풀기(d.단위)
+    const 값 = (n) => +n.수량 * 단위풀기(n.단위).배 / (ud.배 || 1)        // 내역 줄 → 도면 단위
+    const 덩이들 = []
+    for (const i of 차례) { const 끝 = 덩이들[덩이들.length - 1]; if (끝 && 끝[끝.length - 1] === i - 1) 끝.push(i); else 덩이들.push([i]) }
+    const 후보 = 덩이들.map((g) => { const 합 = g.reduce((a, i) => a + 값(내역[i]), 0); return { g, 합, 멀기: Math.abs(Math.log(d.수량 / 합)), 자리: g.reduce((a, i) => a + i, 0) / g.length } })
+    판.push({ key, d, 차례, 후보, 쓸: 후보.filter((c) => c.멀기 <= Math.log(덩이배)) })
+  }
+  /* 기준 자리 — 모든 짝의 (수량 멀기 + 자리 무게 × 떨어진 거리) 합이 가장 작은 덩이 자리 (여러 동이면 한 동에 모임) */
+  const 값매김 = (c, 자) => c.멀기 + 자리무게 * Math.abs(c.자리 - 자) / N
+  let 기준 = null, 기준점 = Infinity
+  for (const x of 판) for (const a of x.쓸) {
+    let 점 = 0
+    for (const y of 판) if (y.쓸.length) 점 += Math.min(...y.쓸.map((c) => 값매김(c, a.자리)))
+    if (점 < 기준점) { 기준점 = 점; 기준 = a.자리 }
+  }
+  for (const { d, 차례, 쓸 } of 판) {
+    if (!쓸.length) {
+      for (const i of 차례) { const n = 내역[i]; 규칙.set(n.id, { key: null, 믿음: '', 까닭: '도면 ' + d.품명 + (d.규격 ? ' ' + d.규격 : '') + ' 와 수량이 ' + 덩이배 + '배 넘게 달라 짝으로 안 봄(다른 품목) — 맞으면 짝을 고르십시오', 멀다: true }) }
+      continue
+    }
+    const 본 = 쓸.slice().sort((a, b) => 값매김(a, 기준) - 값매김(b, 기준))[0]
+    const 본줄 = new Set(본.g)
+    for (const i of 차례) {
+      const n = 내역[i], r = 규칙.get(n.id)
+      if (본줄.has(i)) {
+        if (본.g.length > 1) 규칙.set(n.id, { ...r, 덩이: { 수: 본.g.length, 합: 본.합, 줄: 줄글(본.g) }, 까닭: r.까닭 + ' · 붙은 ' + 본.g.length + '줄(' + 줄글(본.g) + ') 합과 견줌' })
+        continue
+      }
+      규칙.set(n.id, { key: null, 믿음: '', 까닭: '다른 동 · 공종 줄로 봄 — 도면 ' + d.품명 + (d.규격 ? ' ' + d.규격 : '') + ' 은 ' + 줄글(본.g) + ' 와 견줌', 다른: true })
+    }
+  }
 }
 
 /* ───────────────────────────── ② 넣을 것 */
@@ -195,6 +261,7 @@ export function 넣을것(대조결과, 옵션 = {}) {
     const n = r.내역
     if (!r.도면) { if (n.빈) 셈.없음++; continue }
     if (r.믿음 !== '확실' && !약함) { 셈.약함++; continue }
+    if (r.덩이 && r.덩이.수 > 1) { 셈.있음++; continue }      // 🧭 G295 여러 줄 덩이와 견준 줄 — 도면 합계를 줄마다 넣지 않음
     const 할 = 할증 && r.할증수량 !== null && r.할증수량 !== undefined
     const 값 = 둥글게(할 ? r.할증수량 : r.도면수량, n.단위)
     if (!n.빈) {

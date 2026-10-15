@@ -53,7 +53,7 @@ STAGES = [
     dict(k='plan', n='③', ic='📘', h='시공계획서 · 작업계획서', 짧게='공종별 시공계획 · 해체 · 발파 · 야간작업',
          언제='공종을 시작하기 전에 감독(감리) 승인을 받는 계획서입니다. 현장에서 쓰던 원본의 틀을 그대로 옮겼습니다.',
          progs=[],
-         slugs='sigong-gyehoek sigong-sangse hasugwangeo-sigong heulmagi-sigong otak-sigong o-gaseol-gyehoekseo o-gaseol-haeche o-dongbari-gyehoekseo o-deck-gyehoekseo o-paengi-gyehoekseo o-jiban-gyehoekseo o-pojang-gyehoekseo o-ascon-jageop o-bangsu-gyehoekseo o-dojang-gyehoekseo o-mijang-gyehoekseo o-balpa-jageop o-hyuil-jageop yagan-jakeop jakeop-heoga'),
+         slugs='sigong-gyehoek sigong-sangse hasugwangeo-sigong heulmagi-sigong otak-sigong o-gaseol-gyehoekseo o-gaseol-haeche o-dongbari-gyehoekseo dongbari-haeche o-deck-gyehoekseo o-paengi-gyehoekseo o-jiban-gyehoekseo o-pojang-gyehoekseo o-ascon-jageop o-bangsu-gyehoekseo o-dojang-gyehoekseo o-mijang-gyehoekseo o-balpa-jageop o-hyuil-jageop yagan-jakeop jakeop-heoga'),
     dict(k='daily', n='④', ic='🏗', h='공사 중 — 날마다 · 주마다 · 달마다', 짧게='일보 · 주간·월간 보고 · 회의 · 사진대지',
          언제='공사하는 동안 되풀이해 쓰는 서류입니다. 공사일보·투입비는 사이트에서 바로 쓰는 프로그램이 있습니다.',
          progs=['ilbo', 'tuipbi', 'schedule'],

@@ -404,6 +404,8 @@ export function 측점찾기(모델) {
     if (!Number.isFinite(v)) continue
     // «1+2» 같은 식 글자를 막으려고: STA·NO 가 없으면 소수점 자리(0+020.000)나 3자리(0+020)가 있어야 함
     if (!/(STA|NO|측점)/i.test(s) && !/[+-]\d{3}/.test(붙임(s))) continue
+    /* 🧭 G295 STA · NO 없이 «−» 로 적힌 것은 «0-020»(시점 앞쪽)만 측점 — «50-150»(피복 · 간격 범위 글자)은 49,850 m 로 읽혀 몇만 ㎥ 토공이 생겼음(현장 5) */
+    if (!/(STA|NO|측점)/i.test(s) && /^\d{1,3}-/.test(붙임(s)) && !/^0+-/.test(붙임(s))) continue
     out.push({ i, 글: s.trim(), 측: v, x: T.x[i], y: T.y[i], h: T.h[i] })
   }
   return out

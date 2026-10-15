@@ -71,6 +71,10 @@ export function 도면읽기(text, onProgress, opt = {}) {
   /* 🧭 G132 — 도형마다 «넣은 배율»(블록을 0.1배로 줄여 넣은 위치도 같은 사본은 물량에서 뺌) */
   const Esc = new Grow(Float32Array)
   let 지금배율 = 1
+  /* 🏭 G294 도형마다 «끊어진 선 꼴»(CENTER · HIDDEN · DASHED · PHANTOM …) — 1 도형에 따로 준 것 · 2 층 꼴. 플랜트 기초 도면의 상세 경계(팔각 일점쇄선)는 윤곽이 아님 */
+  const Elt = new Grow(Uint8Array)
+  let 지금점선 = 0
+  const 점선꼴 = /CENTER|HIDDEN|DASH|PHANTOM|DOT|DIVIDE|BORDER|ACAD_ISO0[2-9]|ACAD_ISO1\d/i
   // 조각(그림 토막 묶음) — 도형 하나가 조각 여러 개일 수 있음(치수·해치)
   const Qe = new Grow(Uint32Array), Q0 = new Grow(Uint32Array), Qn = new Grow(Uint32Array)
   const PX = new Grow(Float64Array, 1 << 16)
@@ -108,7 +112,7 @@ export function 도면읽기(text, onProgress, opt = {}) {
   function 새도형(t, ly, rgb, ins) {
     const i = Et.n
     Et.push(t); Ely.push(ly); Ergb.push((rgb[0] << 16) | (rgb[1] << 8) | rgb[2])
-    Elen.push(NaN); Earea.push(NaN); Eval.push(NaN); Eins.push(ins); Esc.push(지금배율)
+    Elen.push(NaN); Earea.push(NaN); Eval.push(NaN); Eins.push(ins); Esc.push(지금배율); Elt.push(지금점선)
     return i
   }
   function 조각(e, M, pts) {        // pts: [[x,y,z]…] 엔티티 좌표
@@ -301,6 +305,12 @@ export function 도면읽기(text, onProgress, opt = {}) {
     if (lyName === '0' && cx.ly) lyName = cx.ly
     const L = layerOf(lyName)
     const t = e.t
+    /* 🏭 G294 선 꼴 — BYLAYER(비어 있음) = 층 꼴 · BYBLOCK = 넣은 블록의 꼴 */
+    const lt0 = gs(g, 6, '')
+    const 층꼴 = !lt0 || /^BYLAYER$/i.test(lt0)
+    const lt = 층꼴 ? (L.lt || '') : /^BYBLOCK$/i.test(lt0) ? (cx.lt || '') : lt0
+    /* 1 = 도형에 따로 준 끊어진 선(층은 실선 · 상세 경계 팔각형 등) · 2 = 층 꼴이 끊어진 선(숨은 기초선 층 — 기초 평면에서는 윤곽) */
+    지금점선 = 점선꼴.test(lt) ? (층꼴 ? 2 : 1) : 0
     if (L.인쇄안함 && t !== 'INSERT') stats.인쇄안함++
     if (L.hide && t !== 'INSERT') { stats.hidden++; return }
     stats.ents++
@@ -547,7 +557,7 @@ export function 도면읽기(text, onProgress, opt = {}) {
         if (top) { myIns = inserts.length; inserts.push({ name, x: 0, y: 0, ly: L.i }) }
         /* 🧭 G132 — 블록 속성(ATTRIB) 이름표와 값도 적어 둠(횡단면 수량표 블록: 측점 · 터파기 · 모래부설 …) */
         if (top && e.att && e.att.length) inserts[myIns].속성 = e.att.map((a) => [unesc(gs(a.g, 2)), cadText(unesc(gs(a.g, 1)))])
-        if (e.att) for (const a of e.att) draw(a, M, { ...cx, ly: lyName, rgb, ins: myIns }, depth + 1, false)
+        if (e.att) for (const a of e.att) draw(a, M, { ...cx, ly: lyName, rgb, ins: myIns, lt }, depth + 1, false)
         if (!bl) { skip('없는 블록'); stats.없는블록[name] = (stats.없는블록[name] || 0) + 1; return }
         if (depth > 16) return
         const O = ext(g)
@@ -580,7 +590,7 @@ export function 도면읽기(text, onProgress, opt = {}) {
             0, 0, sz, -sz * bz + iz]
           if (O) Lm = mul(O, Lm)
           const X = mul(M, Lm)
-          for (const s of bl.ents) { draw(s, X, { ...cx, ly: lyName, rgb, ins: myIns }, depth + 1, false) }
+          for (const s of bl.ents) { draw(s, X, { ...cx, ly: lyName, rgb, ins: myIns, lt }, depth + 1, false) }
         }
         return
       }
@@ -751,6 +761,7 @@ export function 도면읽기(text, onProgress, opt = {}) {
             /* 🧭 G245 «인쇄 안 함» 층(290 = 0)도 숨김 — 캐드 화면엔 보여도 도면(PDF)에는 안 찍힘. 현장 A 구조도서 PDF 와 판마다 견주니
                xref 건축 «area 02»(실 면적 테두리 · 인쇄 안 함)가 캐드 선의 1/3 이었음 */
             L.인쇄안함 = g1(e.g, 290, 1) === 0
+            L.lt = gs(e.g, 6, '')          /* 🏭 G294 층 선 꼴 */
             /* 🧭 G246 인쇄 안 하는 층(290=0)은 «화면에는 보이고 종이에만 안 찍힘» — 읽음(감추지 않음). 현장 B 구조평면도는 부재 이름(NAME-보 · NAME-기둥)이
                  이 층에 있어 G245 끝에 감췄더니 부재 283 → 128 로 줄었음. PDF 대조(판 대조)만 이 층을 뺌(dxfplot 도 안 그림) */
             L.hide = ci < 0 || (fl & 1) === 1 || name.toUpperCase() === 'DEFPOINTS'
@@ -819,7 +830,7 @@ export function 도면읽기(text, onProgress, opt = {}) {
       let k = 2
       for (const bl of blocks.values()) if (/^\*paper_space\d+$/i.test(bl.name) && bl.ents.length) 짝.push({ 이름: 'Layout' + k++, 탭: k, ents: bl.ents })
     }
-    const 백 = JSON.stringify(stats), n0 = { E: Et.n, ly: Ely.n, rgb: Ergb.n, len: Elen.n, area: Earea.n, val: Eval.n, ins: Eins.n, sc: Esc.n }, i0 = inserts.length, r0 = 참조들.length
+    const 백 = JSON.stringify(stats), n0 = { E: Et.n, ly: Ely.n, rgb: Ergb.n, len: Elen.n, area: Earea.n, val: Eval.n, ins: Eins.n, sc: Esc.n, lt: Elt.n }, i0 = inserts.length, r0 = 참조들.length
     for (const b of 짝) {
       if (!b.ents.length) continue
       배치중 = { 이름: b.이름, 탭: b.탭, 글: [], 선: new Grow(Float64Array, 1024), 화면: [] }
@@ -828,7 +839,7 @@ export function 도면읽기(text, onProgress, opt = {}) {
       배치중 = null
     }
     /* 배치 그리기가 남긴 도형 · 넣은 자리 · 셈은 되돌림 */
-    Et.n = n0.E; Ely.n = n0.ly; Ergb.n = n0.rgb; Elen.n = n0.len; Earea.n = n0.area; Eval.n = n0.val; Eins.n = n0.ins; Esc.n = n0.sc
+    Et.n = n0.E; Ely.n = n0.ly; Ergb.n = n0.rgb; Elen.n = n0.len; Earea.n = n0.area; Eval.n = n0.val; Eins.n = n0.ins; Esc.n = n0.sc; Elt.n = n0.lt
     for (const k of [...무늬.keys()]) if (k >= n0.E) 무늬.delete(k)
     inserts.length = i0; 참조들.length = r0
     Object.assign(stats, JSON.parse(백))
@@ -846,7 +857,7 @@ export function 도면읽기(text, onProgress, opt = {}) {
   stats.글수 = Ts.length          /* 🧭 G246 이 파일 글자 수(xref 끼우면 뒤에 붙음 — 캡글 ~ 글수 = 점이 다 찬 뒤 읽은 글) */
   let 틀선 = null
   if (틀.n) { const a = 틀.a.slice(0, 틀.n); for (let i = 0; i < a.length; i += 2) { a[i] -= ox; a[i + 1] -= oy } 틀선 = { a, n: a.length } }
-  const E = { t: Et.done(), ly: Ely.done(), rgb: Ergb.done(), len: Elen.done(), area: Earea.done(), val: Eval.done(), ins: Eins.done(), sc: Esc.done() }
+  const E = { t: Et.done(), ly: Ely.done(), rgb: Ergb.done(), len: Elen.done(), area: Earea.done(), val: Eval.done(), ins: Eins.done(), sc: Esc.done(), lt: Elt.done() }
   const Q = { e: Qe.done(), p0: Q0.done(), pn: Qn.done() }
   const T = { s: Ts, x: tx, y: ty, h: Th.done(), a: Ta.done(), e: Te.done() }
   return {
