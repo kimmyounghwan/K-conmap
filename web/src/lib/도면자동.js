@@ -27,6 +27,8 @@ export function 숫자(s) { const t = 붙임(s).replace(/,/g, ''); return 수식
 /** 칸 글에서 숫자 — 「IP2 4.113」 처럼 곁글이 붙었으면 끝의 숫자 */
 export function 칸숫자(s) {
   if (숫자인가(s)) return 숫자(s)
+  /* 🧭 G290 점이 두 번 찍힌 글(«361..500» — 실제 토목 배근도의 오타) · 끝 점(«12.») 은 그 숫자로 */
+  { const t = 붙임(s); if (/^[-+]?\d+\.{2,}\d+$/.test(t)) return parseFloat(t.replace(/\.{2,}/, '.')); if (/^[-+]?\d+\.$/.test(t)) return parseFloat(t) }
   const tok = String(s ?? '').trim().split(/\s+/).filter((t) => 숫자인가(t))
   return tok.length ? 숫자(tok[tok.length - 1]) : NaN
 }
@@ -69,7 +71,7 @@ export function 표제목인가(s) {
 const 칸이름 = {
   기호: /^(기호|부호|번호|철근번호|NO\.?|MARK)$/i,
   직경: /^(직경|규격|지름|철근경|철근규격|DIA\.?|SIZE)$/i,
-  길이: /^(길이|1본길이|단위길이|LENGTH)$/i,
+  길이: /^(길이|1본길이|단위길이|본당길이|1본당길이|LENGTH)$/i,   // 🧭 G290 «본당길이»
   개수: /^(개수|수량|본수|갯수|EA|Q'?TY)$/i,
   총길이: /^(총길이|총연장|총장|합계길이|TOTALLENGTH)$/i,
   단위무게: /^(단위무게|단위중량|단위질량|UNITWEIGHT)$/i,
@@ -108,13 +110,13 @@ export function 표찾기(모델) {
   return 표들
 }
 
-function 제목아래표(모델, ti, 제목들) {
+function 제목아래표(모델, ti, 제목들, 넓힘 = null) {
   const T = 모델.T
   const th = T.h[ti]
   const tw = 글자폭(T, ti)
   const cx = T.x[ti] + tw / 2
   const 반폭 = Math.max(28 * th, 3 * tw)
-  const X0 = cx - 반폭, X1 = cx + 반폭
+  const X0 = 넓힘 ? 넓힘[0] : cx - 반폭, X1 = 넓힘 ? 넓힘[1] : cx + 반폭
   const 아래끝 = T.y[ti] - 400 * th
   const 후보 = []
   const 딴제목 = new Set(제목들.filter((j) => j !== ti))
@@ -133,6 +135,7 @@ function 제목아래표(모델, ti, 제목들) {
   const 몸줄 = []
   let 앞y = T.y[ti]
   let 간격들 = []
+  let 앞소계 = false
   for (const r of 줄) {
     if (r.ids.some((i) => 딴제목.has(i))) break
     const gap = 앞y - r.y
@@ -141,8 +144,10 @@ function 제목아래표(모델, ti, 제목들) {
       if (gap > Math.max(10 * h, 3 * th)) { if (!머리줄.length) return null; break }
     } else {
       const 보통 = 가운데값(간격들) || 3 * h
-      if (gap > Math.max(2.6 * 보통, 5 * h)) break
+      /* 🧭 G290 소계 줄 뒤에는 빈 줄 하나를 두는 표가 많음 — 그 틈은 두 배까지(실제 토목 배근도: H16 소계 뒤 H13 줄들을 표 끝으로 보고 뺐음) */
+      if (gap > Math.max(2.6 * 보통, 5 * h) * (앞소계 ? 2 : 1)) break
     }
+    앞소계 = r.ids.some((i) => /^(소계|합계|SUBTOTAL)$/i.test(붙임(T.s[i])))
     const 숫자있음 = r.ids.some((i) => 숫자인가(T.s[i]))
     if (!몸줄.length && !숫자있음) { if (머리줄.length >= 5) return null; 머리줄.push(r) }
     else { 몸줄.push(r); if (몸줄.length > 1) 간격들.push(gap) }
@@ -167,6 +172,39 @@ function 제목아래표(모델, ti, 제목들) {
         for (const j of 표층글) { const b0 = T.x[j], b1 = T.x[j] + 글자폭(T, j); d = Math.min(d, Math.max(0, b0 - a1, a0 - b1)) }
         return d <= 6 * hh0
       })
+    }
+  }
+  /* 🧭 G290 머리 줄이 찾는 넓이(제목 ± 28 글자) 밖으로 이어지면 — 옆으로 나란한 판이 둘 · 셋인 넓은 재료표(실제 토목 배근도: 제목은 표 가운데,
+       왼쪽 판의 «번호 · 직경» 칸이 넓이 밖이라 오른쪽 판만 읽었음). 머리 줄과 같은 높이 · 같은 레이어 글자를 틈(12 글자) 안에서 양옆으로 이어 넓이를 늘려 다시 읽음 */
+  if (!넓힘) {
+    const E = 모델.E
+    const 층 = new Map(); for (const r of 머리줄) for (const i of r.ids) { const L = E.ly[T.e[i]]; 층.set(L, (층.get(L) || 0) + 1) }
+    const 큰층 = [...층].sort((a, b) => b[1] - a[1])[0][0]
+    const h0 = 가운데값(머리줄.flatMap((r) => r.ids.map((i) => T.h[i]))) || th
+    const 틈 = 12 * h0
+    let a0 = Infinity, a1 = -Infinity
+    for (const r of 머리줄) for (const i of r.ids) if (E.ly[T.e[i]] === 큰층) { a0 = Math.min(a0, T.x[i]); a1 = Math.max(a1, T.x[i] + 글자폭(T, i)) }
+    if (Number.isFinite(a0)) {
+      const 같은줄 = []
+      for (let i = 0; i < T.s.length; i++) {
+        if (!수평(T, i) || E.ly[T.e[i]] !== 큰층 || 제목들.includes(i)) continue
+        if (!머리줄.some((r) => Math.abs(T.y[i] - r.y) < 0.6 * Math.max(r.h, h0))) continue
+        if (T.x[i] > cx + 120 * th || T.x[i] < cx - 120 * th) continue
+        같은줄.push([T.x[i], T.x[i] + 글자폭(T, i)])
+      }
+      같은줄.sort((p, q) => p[0] - q[0])
+      let 늘음 = true
+      while (늘음) {
+        늘음 = false
+        for (const [x0, x1] of 같은줄) {
+          if (x1 < a0 && x1 >= a0 - 틈) { a0 = x0; 늘음 = true }
+          else if (x0 > a1 && x0 <= a1 + 틈) { a1 = x1; 늘음 = true }
+        }
+      }
+      if (a0 < X0 - 2 * h0 || a1 > X1 + 2 * h0) {
+        const 넓은 = 제목아래표(모델, ti, 제목들, [Math.min(X0, a0 - 2 * h0), Math.max(X1, a1 + 2 * h0)])
+        if (넓은) return 넓은
+      }
     }
   }
   // 머리의 가로 넓이 → 몸통은 그 안의 글자만
@@ -237,27 +275,46 @@ function 길이단위(표) {
 const 소계말 = /(소계|합계|총계|계$|TOTAL|SUB)/i
 
 /**
+ * 🧭 G290 옆으로 나란한 «판»(같은 머리가 두 번 · 세 번 — «번호 직경 형태 … 총길이 비고 | 번호 직경 형태 …») → [[시작, 끝)…]
+ *   (실제 토목 배근도 점검: 철근 재료표 왼쪽 판만 읽어 재료표 합계보다 약 30% 적게 셈) — 직경 칸이 둘 이상일 때만 나눔.
+ *   판의 시작 = 그 직경 칸 바로 앞의 기호 칸(앞 판의 직경 뒤에 있는 것) · 없으면 직경 칸. 첫 판은 0 부터.
+ */
+export function 표판들(뜻) {
+  const D = 뜻.map((f, k) => (f === '직경' ? k : -1)).filter((k) => k >= 0)
+  if (D.length < 2) return [[0, 뜻.length]]
+  const 시작 = D.map((d, i) => { const lo = i ? D[i - 1] : -1; for (let k = d - 1; k > lo; k--) if (뜻[k] === '기호') return k; return d })
+  시작[0] = 0
+  return 시작.map((s, i) => [s, i + 1 < 시작.length ? 시작[i + 1] : 뜻.length])
+}
+
+/**
  * 철근 재료표 → 직경별 모음
  * @returns {{줄:[{표, 기호, 규격, d, 길이m, 개수, 총길이m, kg, 식}], 합:[{규격, d, 총길이m, kg}], 검산:[글]}}
  */
 export function 철근모으기(표들) {
   const 줄 = []
   const 검산 = []
+  const 소계들 = []
   for (const 표 of 표들) {
     if (표.종류 !== '철근') continue
-    const j = (k) => 표.뜻.indexOf(k)
-    const jd = j('직경'), jl = j('길이'), jn = j('개수'), jt = j('총길이'), jg = j('기호'), jw = j('총무게')
     const 배 = 표.단위길이 === 'mm' ? 0.001 : 1
+    for (const [s0, e0] of 표판들(표.뜻)) {
+    const 뜻p = 표.뜻.slice(s0, e0)
+    const j = (k) => 뜻p.indexOf(k)
+    const jd = j('직경'), jl = j('길이'), jn = j('개수'), jt = j('총길이'), jg = j('기호'), jw = j('총무게')
+    if (jd < 0) continue
     let 소계길이 = 0
     let 앞d = ''
-    for (const r of 표.줄) {
+    for (const r0 of 표.줄) {
+      const r = r0.slice(s0, e0)
       const 첫 = 붙임(r[0] || '') + 붙임(r[jg] || '')
       if (소계말.test(첫) || r.every((c, k) => !c || k === jt || k === jw || 숫자인가(c) || 소계말.test(붙임(c))) && 소계말.test(r.join(''))) {
         // 소계 줄: 적힌 총길이와 우리 합을 맞춰 봄
         const 적힌 = jt >= 0 ? 칸숫자(r[jt]) : NaN
-        if (Number.isFinite(적힌) && 소계길이 > 0 && !/총/.test(첫) && Math.abs(적힌 * 배 - 소계길이) > 0.02 + 소계길이 * 0.002) {
-          검산.push(표.제목 + ' 소계(' + (앞d || '') + '): 표에 적힌 총길이 ' + r[jt] + ' · 줄마다 더한 값 ' + 소계길이.toFixed(3) + ' m')
-        }
+        /* 🧭 G290 소계는 판 · 이어진 표(«재료표» 두 장)에 걸쳐 있기도 함 — 줄마다 견주지 않고 끝에서 직경마다 «적힌 소계 합 ↔ 읽은 줄 합» 으로 견줌
+             (실제 토목 배근도: 오른쪽 판 · 다음 표의 소계를 그 판 줄만으로 견주어 맞는데도 틀렸다고 6줄 알렸음) */
+        const 소d = 규격(앞d)
+        if (Number.isFinite(적힌) && 소계길이 > 0 && !/총|합/.test(첫) && 소d) 소계들.push({ d: 소d, 길이: 적힌 * 배, 제목: 표.제목 })
         소계길이 = 0
         continue
       }
@@ -278,10 +335,18 @@ export function 철근모으기(표들) {
       소계길이 += 총
       앞d = r[jd]
     }
+    }
   }
   const m = new Map()
   for (const x of 줄) { const a = m.get(x.d) || { d: x.d, 규격들: new Set(), 총길이m: 0, kg: 0, n: 0 }; a.규격들.add(x.규격); a.총길이m += x.총길이m; a.kg += x.kg; a.n++; m.set(x.d, a) }
   const 합 = [...m.values()].sort((a, b) => parseInt(a.d.slice(1), 10) - parseInt(b.d.slice(1), 10)).map((a) => ({ ...a, 규격들: [...a.규격들].join('·') }))
+  /* 직경마다: 표에 적힌 소계를 다 더한 것 ↔ 읽은 줄을 다 더한 것 (그 직경에 소계가 하나라도 있을 때) */
+  const 소합 = new Map()
+  for (const x of 소계들) 소합.set(x.d, (소합.get(x.d) || 0) + x.길이)
+  for (const [d, v] of 소합) {
+    const a = m.get(d), 읽 = a ? a.총길이m : 0
+    if (Math.abs(v - 읽) > 0.02 + v * 0.002) 검산.push('철근 재료표 ' + d + ': 표에 적힌 소계 합 ' + v.toFixed(3) + ' m · 줄마다 더한 값 ' + 읽.toFixed(3) + ' m')
+  }
   return { 줄, 합, 검산 }
 }
 

@@ -183,7 +183,7 @@ export function PriceStance() {
       <p style={{ margin: '0 0 10px', lineHeight: 1.85 }}>
         그래서 이 일로 크게 남길 생각이 없습니다.{' '}
         <b>현장에 보탬이 되는 쪽으로 운영하겠습니다.</b>{' '}
-        건설맵의 나머지를 계속 무료로 두는 것도 같은 까닭입니다.
+        건설맵의 나머지를 지금처럼 그대로 이용하실 수 있게 두는 것도 같은 까닭입니다.
       </p>
       <p className="muted" style={{ margin: 0, lineHeight: 1.85 }}>
         맡기시던 곳이 있으시면 <b>그 값을 말씀해 주십시오.</b> 맞춰 드리겠습니다.

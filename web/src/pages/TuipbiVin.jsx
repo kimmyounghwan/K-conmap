@@ -337,7 +337,7 @@ function VendorPage({ site, link }) {
   return (
     <div className="wrap tp-vd">
       <div className="card tp-vhead">
-        <div className="tp-vbrand">📒 K-건설맵 무료 납품 장부</div>
+        <div className="tp-vbrand">📒 K-건설맵 납품 장부</div>
         <h1>{L.n}</h1>
         <div className="tp-vsite">🏗 {L.sn} <span className="tp-vtag">{업체갈래[L.k]}</span></div>
         {L.off && <div className="cwarn">⚠️ 현장이 이 링크를 끊었습니다 — 새로 적을 수 없습니다. 적은 것은 볼 수 있습니다.</div>}
@@ -396,7 +396,7 @@ function VendorPage({ site, link }) {
         <div>💡 폰에서 <b>«홈 화면에 추가»</b> 해 두면 다음부터 한 번에 열립니다.</div>
         <div className="navrow" style={{ marginTop: 8 }}>
           <Link className="navi" to="/tools/tuipbi/v">📒 내 납품 장부 — 현장 모아 보기</Link>
-          <Link className="navi" to="/tools/tuipbi">🏗 내 현장도 공사일보로 — 출역·장비·자재·청구서 무료</Link>
+          <Link className="navi" to="/tools/tuipbi">🏗 내 현장도 공사일보로 — 출역·장비·자재·청구서까지</Link>
           <Link className="navi" to="/">💰 바로투찰 — 투찰금액 계산</Link>
         </div>
       </div>
@@ -430,7 +430,7 @@ function MyLedger() {
   return (
     <div className="wrap tp-vd">
       <div className="card tp-vhead">
-        <div className="tp-vbrand">📒 K-건설맵 무료 납품 장부</div>
+        <div className="tp-vbrand">📒 K-건설맵 납품 장부</div>
         <h1>내 납품 장부</h1>
         <div className="muted">이 폰(브라우저)에서 연 현장 링크들을 모아 봅니다. 현장에서 받은 링크를 한 번 열면 여기 저절로 들어옵니다.</div>
       </div>
@@ -454,7 +454,7 @@ function MyLedger() {
       })}
       <div className="card tp-vfoot">
         <div className="navrow">
-          <Link className="navi" to="/tools/tuipbi">🏗 내 현장도 공사일보로 — 무료</Link>
+          <Link className="navi" to="/tools/tuipbi">🏗 내 현장도 공사일보로 — 바로 이용 가능</Link>
           <Link className="navi" to="/">💰 바로투찰</Link>
         </div>
       </div>

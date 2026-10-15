@@ -131,7 +131,7 @@ export default function Gyeonjeok() {
           견적서를 <b>A4로 인쇄</b>합니다.
         </p>
         <div className="nm-badges">
-          <span>회원가입 없음 · 무료</span>
+          <span>회원가입 없이 바로 이용 가능</span>
           <span>💾 이 브라우저에 저장 · 🔗 코드로 폰·PC 이어 쓰기 {저장됨 ? '' : <b className="nm-warn">— 지금 저장이 막혀 있습니다(사생활 보호 창 등)</b>}</span>
           <span>📋 엑셀 표를 복사해 붙여 넣을 수 있습니다</span>
         </div>

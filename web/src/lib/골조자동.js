@@ -786,7 +786,9 @@ function 일람채우기(배근) {
         if (!(+r.지름 > 0) && !(+r.가로 > 0 && +r.세로 > 0)) {
           /* 🧭 G278 같은 몸(층 붙인 «1C2 · 2C2 · RC2» 600 × 600 · «1C3» ⌀500) 기둥이 있으면 그 크기 · 꼴 — 현장 B 옥탑 «C2 · C3» 가 «흔한 크기» 500 × 500 사각이 됐음 */
           const 몸r = (기호풀이(r.기호) || {}).몸 || r.기호
-          const 같 = 줄들.filter((o) => o !== r && !o.만든 && !o._크기만든 && ((기호풀이(o.기호) || {}).몸 || o.기호) === 몸r && (+o.지름 > 0 || (+o.가로 > 0 && +o.세로 > 0)))
+          const 같몸 = (몸) => 줄들.filter((o) => o !== r && !o.만든 && !o._크기만든 && ((기호풀이(o.기호) || {}).몸 || o.기호) === 몸 && (+o.지름 > 0 || (+o.가로 > 0 && +o.세로 > 0)))
+          /* 🧭 G290 SRC 짝(평면 «C2» 자리의 «4SRC2») — 같은 몸 SRC 가 없으면 짝 C 기둥 크기(SRC 일람표가 «1,000» 치수만 적어 ⌀ 를 못 읽음 — 600 × 600 흔한 크기가 됐었음) */
+          const 같 = 같몸(몸r).length || !r._짝몸 ? 같몸(몸r) : 같몸(r._짝몸)
           if (같.length) {
             const 서 = (o) => (+o.지름 > 0 ? 'ø' + (+o.지름) : (+o.가로) + '×' + (+o.세로))
             const 셈 = new Map(); for (const o of 같) 셈.set(서(o), (셈.get(서(o)) || 0) + 1)
@@ -1436,7 +1438,8 @@ function 일람표읽기(도면들, 경고0) {
           if (!r) continue
           된것 = true
           const 판이름c = D.도곽 && D.도곽.length ? (D.판제목 || [])[판번(c.g)] || '' : ''
-          if (r.철골) { const 동 = 동꼬리(판이름c), k = 기.기호 + '|' + 동; if (!철골.has(k)) 철골.set(k, { ...r, 동, 번: D.번 }); continue }
+          if (r.철골 === true) {   /* 🧭 G290 SRC 기둥(r.철골 = 규격 글)은 철근콘크리트 정의로 */
+           const 동 = 동꼬리(판이름c), k = 기.기호 + '|' + 동; if (!철골.has(k)) 철골.set(k, { ...r, 동, 번: D.번 }); continue }
           const 범 = 범위 && !범위.전체 ? 범위 : c.범위
           정의.push({ 종류: 기.종류, 기호: 기.기호, 몸: 기.몸, 층표: 기.층표, r, 범위: 범, 명시: !!범, 번: D.번, g: c.g, 근거: { 번: D.번, i: c.g.i, 글: c.g.s }, 목록판: /LIST|SCHEDULE|일람/i.test(판이름c), 평면판: !!판이름c && !!제목층(판이름c), ...(c.칸 ? { 칸: true, 칸수: c.토.length + (c.보기 ? 1000 : 0) } : {}) })
         }
@@ -1596,7 +1599,14 @@ function 단면가닥(D, c, 아래y, a, b) {
 function 배근만들기(기, 값, c, 머리, 경고, D = null) {
   const 모 = (k) => 값.flatMap(({ t, 역 }) => t.tk.filter((x) => x.k === k).map((x) => ({ x, 역, g: t.g, 보: t.보기종 || '' })))
   const 철 = 모('철골')
-  if (철.length) return { 철골: true, 기호: 기.기호, 종류: 기.종류, 규격: 철.sort((a, b) => Math.hypot(a.g.x - c.g.x, a.g.y - c.g.y) - Math.hypot(b.g.x - c.g.x, b.g.y - c.g.y))[0].x.글 }
+  let SRC = ''
+  if (철.length) {
+    const 규 = 철.sort((a, b) => Math.hypot(a.g.x - c.g.x, a.g.y - c.g.y) - Math.hypot(b.g.x - c.g.x, b.g.y - c.g.y))[0].x.글
+    /* 🧭 G290 SRC 기둥 — 철골 단면과 주근(«12-SHD25» 꼴 개수)이 같은 칸에 같이 적힌 기둥은 철근콘크리트로 읽고 철골 규격을 덧붙임
+         (실제 구조도면 점검: 4층 SRC1 · SRC2 · SRC3 · SRC9 가 «철골» 로만 빠져 콘크리트 · 주근 · 철골 모두 안 셌음). 철골만 적힌 것(STEEL LIST)은 예전대로 철골 */
+    if (기.종류 === '기둥' && 모('개수').length) SRC = 규
+    else return { 철골: true, 기호: 기.기호, 종류: 기.종류, 규격: 규 }
+  }
   const 개 = 모('개수'), 간 = 모('간격'), 크 = 모('크기'), 두 = 모('두께'), 수 = 모('숫자'), 지 = 모('지름')
   const 읽기차례 = (a, b) => (Math.abs(a.g.y - b.g.y) > 0.6 * a.g.h ? b.g.y - a.g.y : a.g.x - b.g.x)
   const 가로차례 = (a, b) => a.g.x - b.g.x
@@ -1689,6 +1699,7 @@ function 배근만들기(기, 값, c, 머리, 경고, D = null) {
     const 크들 = new Set(크.map((v) => v.x.a + 'x' + v.x.b))
     if (크들.size > 1) 경고.push('기둥 «' + 기.기호 + '» 는 층마다 크기가 달라 보입니다(' + [...크들].join(' · ') + ') — 첫 크기로 셈했습니다. 골조 화면 배근표에서 «1-2' + 기.기호 + '» 처럼 나눠 적어 주세요')
     if (치수로) r._짐작 = '크기(단면 치수 글자)'
+    if (SRC) r.철골 = SRC
     /* 🧭 G281 일람 칸 단면 그림의 보조 대근(띠철근 네모 안을 가로지르는 곧은 선) — 현장 B S-401 기둥 일람 C1 · C2(가운데 세로 · 가로 한 가닥씩) */
     if (D && !(+r.지름 > 0) && r.형태 !== '원형') {
       const 가닥 = 단면가닥(D, c, 주 && 주.g.y < c.g.y - 2 * c.g.h ? 주.g.y + 주.g.h : c.g.y - 30 * c.g.h, +r.가로 || 0, +r.세로 || 0)
@@ -2474,6 +2485,7 @@ function 골조읽기0(도면들0, o = {}) {
   for (const d of 정의) { const D = 도면들[d.번]; const o = D && d.g ? 쓰임(D, d.g.x, d.g.y) : null; if (o) o.정의[d.종류] = (o.정의[d.종류] || 0) + 1 }
   for (const D of 도면들) for (const g of D.글자) if (/^(?:\d{1,3}-)?H?D\d{2}(?:@\d{2,4})?$/.test(g.u)) { const o = 쓰임(D, g.x, g.y); if (o) o.철근글++ }
   const 철골수 = new Map()
+  const SRC짝 = new Map()        // 🧭 G290 평면 C 기호 → 그 층 SRC 정의
   const 근거 = []
 
   /* 층 높이 */
@@ -2509,7 +2521,8 @@ function 골조읽기0(도면들0, o = {}) {
     const 제목바닥 = new Set()
     for (const D of 도면들) for (const g of D.글자) { const f = 제목층(g.s); if (f) for (const x of f) 제목바닥.add(x) }
     for (const [k, v] of Object.entries(건)) {
-      const f = /^B?\d+$/.test(k) ? k : k === 'RF' && 제목바닥.has('R') ? 'R' : k === 'PH' && 제목바닥.has('PH') ? 'PH' : null
+      /* 🧭 G290 레벨 표의 «옥상지붕»(층높이찾기 = PH)은 골조 평면 제목이 «옥상지붕 구조평면도»(PR)뿐이면 PR — 실제 구조도면 점검: 옥탑 층고를 3,300 으로 짐작했음(골구도 2,800) */
+      const f = /^B?\d+$/.test(k) ? k : k === 'RF' && 제목바닥.has('R') ? 'R' : k === 'PH' && 제목바닥.has('PH') ? 'PH' : k === 'PH' && 제목바닥.has('PR') ? 'PR' : null
       if (f && !높이.has(f)) 높이.set(f, v)
     }
     /* 🧭 G271 PH 평면(«PHF-2»)의 기둥 · 벽은 PH 바닥에서 위로 — 그 위 레벨이 없으면 입면 «Roof-1 · Roof-2»(옥탑 위 지붕) 가운데 PH 보다 높은 가장 낮은 것을 PR 로.
@@ -3092,7 +3105,17 @@ function 골조읽기0(도면들0, o = {}) {
           if (st) { 계단들.push({ D, g, 기: 계단일람.has(r.기호) ? r.기호 : 계단일람.has(r.몸) ? r.몸 : (r.몸 || r.기호), st }); continue }
         }
         const 층f = r.종류 === '기초' ? 'FT' : r.종류 === '기둥' || r.종류 === '벽' ? fw : f
-        let 기 = 기호정하기(r, 층f) || 일람만들기(r, D, g)
+        let 기 = 기호정하기(r, 층f)
+        /* 🧭 G290 SRC 짝 — 평면 «C1» 자리에, 같은 번호 SRC 정의(SRC 기둥 일람표 «SRC1 · 4F»)가 그 층으로 적혀 있고 이 평면에 «SRC1» 글자가 따로 없으면 그 SRC 기둥
+             (실제 구조도면 점검: 4층 주심도는 C1 · C2 · C3 · C9 그대로, 기둥 일람표엔 4F 가 빠지고 SRC 일람표에만 4F — 3층 것 · 평면 범례 것으로 셈했었음) */
+        if (r.종류 === '기둥') {
+          const n = /^C(\d+[A-Z]?)$/.exec(r.몸 || r.기호 || '')
+          if (n && (층정의.기둥.get('SRC' + n[1]) || []).some((d) => d.층들.has(층f)) && !쓸.some((y) => y.r.종류 === '기둥' && (y.r.몸 === 'SRC' + n[1] || y.r.기호 === 'SRC' + n[1]))) {
+            const k2 = 기호정하기({ ...r, 기호: 'SRC' + n[1], 몸: 'SRC' + n[1] }, 층f)
+            if (k2) { 기 = k2; SRC짝.set(r.몸 + ' → ' + k2, (SRC짝.get(r.몸 + ' → ' + k2) || 0) + 1); const 행 = 배근행.기둥.get(k2); if (행 && !행._짝몸) 행._짝몸 = r.몸 }
+          }
+        }
+        if (!기) 기 = 일람만들기(r, D, g)
         if (!기) { 없는기호.set(r.기호, (없는기호.get(r.기호) || 0) + 1); continue }
         let b = 배근행[r.종류].get(기)
         const 글상자 = () => 자리만들기(D.이름, [(g.x - g.w / 2 - g.h) / D.k, (g.y - g.h) / D.k, (g.x + g.w / 2 + g.h) / D.k, (g.y + g.h) / D.k])
@@ -3753,6 +3776,7 @@ function 골조읽기0(도면들0, o = {}) {
   const 셈경고 = new Map()
   for (const w of 경고) { const key = w.replace(/ \(\d+번 도면\)$/, ''); if (셈경고.has(key)) 셈경고.set(key, 셈경고.get(key) + 1); else { 셈경고.set(key, 1); 모은경고.push(key) } }
   const 경고들 = 모은경고.map((w) => (셈경고.get(w) > 1 ? w + ' (' + 셈경고.get(w) + '곳)' : w))
+  if (SRC짝.size) 경고들.unshift('SRC 기둥으로 읽었습니다 — 평면 ' + [...SRC짝].map(([k, v]) => k + ' ' + v + '곳').join(' · ') + '(그 층은 SRC 기둥 일람표에만 있음 · 철골 무게는 «철골» 줄로 · 콘크리트는 철골 단면을 뺌)')
   if (철골.size) 경고들.unshift('철골 부재 ' + 철골.size + '가지(' + [...철골.values()].slice(0, 4).map((x) => x.기호 + ' ' + x.규격).join(' · ') + (철골.size > 4 ? ' …' : '') + ')는 철근콘크리트 셈에서 뺐습니다 — 철골 무게는 아직 자동으로 안 셉니다')
   /* 📋 일반구조사항의 정착·이음 길이표 (2026-09-28) — 찾으면 기준값 정착표에 넣음(이 fck 줄만).
      표의 fck 가 하나뿐이면 기준 fck 도 그 값으로. 못 알아본 줄(칸 짐작 없음)은 넣지 않음 */

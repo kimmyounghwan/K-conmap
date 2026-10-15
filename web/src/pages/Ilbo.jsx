@@ -135,7 +135,7 @@ function 일보({ 현장id, 현장줄, 이름바뀜 }) {
           같은 브라우저의 <Link to="/tools/nomubi">노무비 계산기</Link> 출역을 직종별 인원으로 가져오고, <Link to="/tools/schedule">예정공정표</Link>가 있으면 계획 공정률도 가져옵니다.
         </p>
         <div className="nm-badges">
-          <span>회원가입 · 현장 등록 없음 · 무료</span>
+          <span>회원가입 · 현장 등록 없이 바로 이용 가능</span>
           <span>💾 이 브라우저에 저장 · 🔗 코드로 폰·PC 이어 쓰기 {저장됨 ? '' : <b className="nm-warn">— 지금 저장이 막혀 있습니다(사생활 보호 창 등)</b>}</span>
           <span>🏗 여럿이 같이 적고 청구서까지 → <Link to="/tools/tuipbi">현장 투입비</Link></span>
         </div>

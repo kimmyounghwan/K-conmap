@@ -102,7 +102,7 @@ export default function Jimyeong() {
           다음 지명원은 <b>수신 · 날짜만 바꿔</b> 다시 뽑습니다. 실적 · 기술인은 엑셀 표를 그대로 붙여 넣을 수 있습니다.
         </p>
         <div className="nm-badges">
-          <span>회원가입 없음 · 무료</span>
+          <span>회원가입 없이 바로 이용 가능</span>
           <span>💾 이 브라우저에 저장 · 🔗 코드로 폰·PC 이어 쓰기 {저장 === true ? '' : 저장 === 'logo' ? <b className="nm-warn">— 로고가 커서 로고 없이 저장했습니다</b> : <b className="nm-warn">— 지금 저장이 막혀 있습니다(사생활 보호 창 등)</b>}</span>
           <span>📋 엑셀 표 붙여 넣기</span>
         </div>

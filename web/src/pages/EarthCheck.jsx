@@ -275,7 +275,7 @@ export default function EarthCheck() {
           <b> 깎인 양(절토) · 쌓인 양(성토)</b>을 칸마다 재고, 어디가 깎이고 쌓였는지 색 지도로 보여 줍니다.
           기성 검사 · 설계변경 토공 증감 · 사토 반출량(덤프 대수) 확인에 씁니다.
         </div>
-        <div className="pdfsafe">🔒 <b>파일은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 읽고 셉니다 · 회원가입 없음 · 무료.</div>
+        <div className="pdfsafe">🔒 <b>파일은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 읽고 셉니다 · 회원가입 없이 바로 이용 가능.</div>
         <div className="tlx-ex" style={{ marginTop: 10, marginBottom: 0 }}>
           <span className="tlx-exd"><b>🧪 예시로 해 보기</b> — 측량 파일이 없으시면:</span>
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={예시}>⛰ 가상 언덕 — 깎고 메운 터</button>

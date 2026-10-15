@@ -468,6 +468,8 @@ export default function Bim() {
     return { 콘: h('콘크리트'), 틀: h('거푸집'), 철: h('철근') }
   }, [S])
   const 규격합 = useMemo(() => (S ? (S.집계.합 || []).filter((x) => x.항목 === '철근') : []), [S])
+  /* 🧭 G290 SRC 철골(ton) — 철근 칸 아래 글에 같이 */
+  const 철골합 = useMemo(() => (S ? (S.집계.합 || []).filter((x) => x.항목 === '철골') : []), [S])
   const 묶음고르기 = (글, 거르개) => {
     const ids = new Set((모델 ? 모델.부재 : []).filter(거르개).map((o) => o.id))
     set선택(null); set묶음(ids.size ? { 글, ids } : null)
@@ -629,7 +631,7 @@ export default function Bim() {
           <b> 3D 로 세우고</b>, 같은 모델로 <b>물량</b>을 냅니다. 건축 · 토목 도면을 <b>한꺼번에</b> 넣으셔도 됩니다. 3D 에서 누르면 그 덩어리의 물량이 나옵니다.
           <b> 도면은 고치지 않습니다</b> — 읽기만 합니다.
         </div>
-        <div className="pdfsafe">🔒 <b>파일은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 읽고 셉니다 · 회원가입 없음 · 무료.</div>
+        <div className="pdfsafe">🔒 <b>파일은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 읽고 셉니다 · 회원가입 없이 바로 이용 가능.</div>
         <div className="bim-put">
           <button type="button" className="btn" onClick={() => 칸Ref.current && 칸Ref.current.click()} disabled={상태.k === 'busy'}>📂 도면 넣기 (여러 장)</button>
           <input ref={칸Ref} type="file" multiple accept=".dxf,.DXF,.dwg,.DWG" className="sr-only" tabIndex={-1} onChange={(e) => { 파일받기(e.target.files); e.target.value = '' }} />
@@ -694,7 +696,7 @@ export default function Bim() {
               })()}
               {덩어리있음 && ((건축켬 ? 합.콘 + 건물합.콘크리트 : 0) + (토목켬 ? 토목합.콘크리트 : 0) > 0 || !흙들.length) && <div>콘크리트<b>{쉼((건축켬 ? 합.콘 + 건물합.콘크리트 : 0) + (토목켬 ? 토목합.콘크리트 : 0), 2)} ㎥</b><span className="muted">{[골조수 && 건축켬 ? '골조 ' + 쉼(합.콘, 1) : '', 토목물 && 토목켬 ? '토목 ' + 쉼(토목합.콘크리트, 1) : '', 셀건물.length && 건축켬 ? '건물(평면 · 개략) ' + 쉼(건물합.콘크리트, 1) : ''].filter(Boolean).join(' · ')}</span></div>}
               {덩어리있음 && ((건축켬 ? 합.틀 + 건물합.거푸집 : 0) + (토목켬 ? 토목합.거푸집 : 0) > 0 || !흙들.length) && <div>거푸집<b>{쉼((건축켬 ? 합.틀 + 건물합.거푸집 : 0) + (토목켬 ? 토목합.거푸집 : 0), 2)} ㎡</b><span className="muted">{[골조수 && 건축켬 ? '골조 ' + 쉼(합.틀, 1) : '', 토목물 && 토목켬 ? '토목 ' + 쉼(토목합.거푸집, 1) : '', 셀건물.length && 건축켬 ? '건물 ' + 쉼(건물합.거푸집, 1) : ''].filter(Boolean).join(' · ')}</span></div>}
-              {골조수 > 0 && 건축켬 && <div>철근<b>{쉼(합.철, 3)} ton</b><span className="muted">{규격합.map((x) => x.규격 + ' ' + 쉼(x.산출, 2)).join(' · ')}{토목있음 ? ' · 토목 · 건물(평면)은 아직' : ''}</span></div>}
+              {골조수 > 0 && 건축켬 && <div>철근<b>{쉼(합.철, 3)} ton</b><span className="muted">{규격합.map((x) => x.규격 + ' ' + 쉼(x.산출, 2)).join(' · ')}{철골합.length ? ' · 철골(SRC) ' + 쉼(철골합.reduce((a, x) => a + x.산출, 0), 3) + ' t' : ''}{토목있음 ? ' · 토목 · 건물(평면)은 아직' : ''}</span></div>}
               {(토목물 || 흙합.터파기 > 0) && 토목켬 && <div>토공<b>{쉼(토목합.터파기 + (토목합.절토 || 0) + 흙합.터파기, 1)} ㎥</b><span className="muted">{[토목물 ? '터파기 ' + 쉼(토목합.터파기, 1) + (절있음 ? ' · 흙깎기 ' + 쉼(토목합.절토, 1) : '') + ' · 되메우기 ' + 쉼(토목합.되메우기, 1) + ' · 성토 ' + 쉼(토목합.성토, 1) + ' ㎥' : '', 흙합.터파기 > 0 ? '건물 터파기(흙막이 안) ' + 쉼(흙합.터파기, 1) + ' ㎥' : '', 표쓴노선.length ? '📋 도면 표 값' : ''].filter(Boolean).join(' · ')}</span></div>}
               {흙들.length > 0 && 토목켬 && <div>흙막이 강재<b>{쉼(흙합.강재, 2)} ton</b><span className="muted">H-PILE {쉼(흙합.말뚝)}본 · 토류판 {쉼(흙합.토류판, 1)} ㎡ · 할증 {쉼(할증수, 1)}%</span></div>}
               {건물들.length > 0 && 건축켬 && <div>연면적<b>{쉼(건물들.reduce((a, b) => a + b.연면적, 0), 1)} ㎡</b><span className="muted">건물(평면) {건물들.length}동 · {건물들.reduce((n, b) => n + b.층.filter((f) => !f.지붕).length, 0)}개 층{참고건물 ? ' · 건축 평면으로 잰 값' : ''}</span></div>}

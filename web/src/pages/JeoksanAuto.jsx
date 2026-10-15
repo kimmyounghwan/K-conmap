@@ -679,7 +679,7 @@ export default function JeoksanAuto() {
           ② 레이어 · 블록 «이름» 으로 뜻을 짐작하므로 <b>도면마다 확인</b>하십시오 — 현황(있는 것) · 외부참조 바탕도 · 귀퉁이 위치도(축소 사본)는 처음부터 빼거나 꺼 둡니다.
           ③ 종단면도 · 횡단면도는 도면에 <b>표로 적힌 값</b>을 읽습니다(그림으로 재지 않음).
         </div>
-        <div className="pdfsafe">🔒 <b>도면은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 읽고 셉니다 · 회원가입 없음 · 무료</div>
+        <div className="pdfsafe">🔒 <b>도면은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 읽고 셉니다 · 회원가입 없이 바로 이용 가능</div>
         <div className="btn-row gg-top">
           <button type="button" className="btn sm" onClick={() => 파일칸.current?.click()}>📂 도면 넣기 (DXF·DWG · 여러 장)</button>
           <button type="button" className="btn sm" onClick={() => 내역칸.current?.click()}>📑 내역서 넣기 (대조 · xlsx·csv)</button>

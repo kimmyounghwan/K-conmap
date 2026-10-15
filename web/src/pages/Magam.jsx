@@ -341,7 +341,7 @@ export default function Magam() {
           <b>평면도를 넣으면 저절로</b> — 방마다 <b>면적·둘레·창호</b>가 들어가고, 도면에 <b>실내재료마감표·창호일람표</b>가 있으면 마감 기호·천장고·창호표까지 채워 <b>재료별 수량</b>이 바로 나옵니다.
           누르는 것은 고칠 때만입니다(표의 칸을 누르고 도면을 누름). 마감 기호마다 들어가는 재료는 ① 마감표에 적어 둡니다.
         </div>
-        <div className="pdfsafe">🔒 <b>도면은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 읽고 셉니다 · 회원가입 없음 · 무료</div>
+        <div className="pdfsafe">🔒 <b>도면은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 읽고 셉니다 · 회원가입 없이 바로 이용 가능</div>
         <div className="btn-row gg-top">
           <button type="button" className="btn sm" onClick={() => 자동칸.current?.click()}>⚡ 도면 넣고 자동으로</button>
           <button type="button" className="btn line sm" onClick={() => 파일칸.current?.click()}>📂 도면만 열기 (고칠 때)</button>
