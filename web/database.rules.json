@@ -139,6 +139,15 @@
           "sb":      { ".validate": "newData.isBoolean()" },
           // ↩ G148 (2026-10-05) 누구에게 답글 — 받는 답글 번호. 이 글에 이미 있는 다른 답글 번호만 받습니다(없는 번호 · 자기 자신 막음)
           "to":      { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40 && newData.val() !== $aid && root.child('qna_a').child($qid).child(newData.val()).exists()" },
+          // 📎 2026-10-16 답글 파일 한 개 — 소장님 「파일 올리는 란이 없는 것 같아..고쳐줘」 · 글(qna)의 f 와 같은 규칙(이 기기의 user_forms 주소 · 20MB · 저장 10MB)
+          "f": {
+            ".validate": "newData.hasChildren(['u','n','s'])",
+            "u": { ".validate": "newData.isString() && newData.val().length <= 2000 && newData.val().beginsWith('https://firebasestorage.googleapis.com/v0/b/k-conmap.firebasestorage.app/o/user_forms%2F' + auth.uid + '%2F')" },
+            "n": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 120" },
+            "s": { ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 20971520" },
+            "z": { ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 10485760" },
+            "$other": { ".validate": false }
+          },
           "$other":  { ".validate": false }
         }
       }

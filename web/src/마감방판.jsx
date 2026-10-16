@@ -27,10 +27,21 @@ const 무리말 = { 화장실: '화장실', 홀복도: '홀 · 복도', 계단: 
 const 층차례 = (f) => (/^B(\d+)/i.test(f) ? -Number(String(f).slice(1)) : /^\d+$/.test(f) ? Number(f) : /^(RF|PH)$/i.test(f) ? 90 : 0)
 const 어두움 = () => { try { return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches } catch (e) { return false } }
 
-export default function 마감방판({ 공사, set공사 }) {
-  const 방 = useMemo(() => (공사.실 || []).map((r, i) => ({ r, i })).filter((x) => x.r && x.r._방), [공사.실])
+/* 🧊 2026-10-16 (나) — 3D 에 안 나오는 줄은 까닭을 말함 */
+export function 삼디까닭(r) {
+  if (!r) return '빈 줄'
+  if (r._방 && r._방.점 && r._방.점.length >= 3) return ''
+  if (!(수(r.면적) > 0)) return '면적이 비어 있습니다 — ③ 실에서 면적 칸을 누르고 도면의 방 안을 누르면 3D 에 나옵니다'
+  if (r._찍음 && r._찍음.면적 && r._찍음.면적.length) return '예전에 누른 방이라 모양이 남아 있지 않습니다 — ③ 실에서 면적 칸을 누르고 도면의 그 방 안을 다시 누르면 3D 에 나옵니다(값은 그대로)'
+  return '직접 적은 면적이라 방 모양이 없습니다 — ③ 실에서 면적 칸을 누르고 도면의 방 안을 누르면 3D 에 나옵니다'
+}
+
+export default function 마감방판({ 공사, set공사, 고른: 밖고른 = null }) {
+  /* 방 = 모양(_방.점)이 있는 줄 — ⚡ 자동으로 찾은 방 + 🧊 2026-10-16 면적 칸을 눌러 도면에서 잰 방 */
+  const 방 = useMemo(() => (공사.실 || []).map((r, i) => ({ r, i })).filter((x) => x.r && x.r._방 && x.r._방.점), [공사.실])
+  const 전체 = useMemo(() => (공사.실 || []).map((r, i) => ({ r, i })).filter((x) => x.r && (String(x.r.실명 || '').trim() || 수(x.r.면적) > 0)), [공사.실])
   const [열림, set열림] = useState(false)
-  const [보기, set보기] = useState('대조')
+  const [보기, set보기] = useState(() => (방.length ? '대조' : '3D'))
   const [내역, set내역] = useState(null)
   const [내역말, set내역말] = useState('')
   const 파일칸 = useRef(null)
@@ -49,7 +60,7 @@ export default function 마감방판({ 공사, set공사 }) {
     return { 안, 중, 견, 평균: 견 ? 차 / 견 : null }
   }, [방])
   const 대조 = useMemo(() => (내역 ? 마감대조(공사.실, 내역, { 창호: 공사.창호, 기본천장고: 공사.기준 && 공사.기준.천장고, 층높이: 공사.층높이 }) : null), [내역, 공사.실, 공사.창호, 공사.기준, 공사.층높이])
-  if (!방.length) return null
+  if (!전체.length) return null
 
   const 내역받기 = async (files) => {
     const f = files && files[0]
@@ -117,8 +128,8 @@ export default function 마감방판({ 공사, set공사 }) {
   return (
     <div className="card no-print mb-card">
       <button type="button" className="mb-head" onClick={열기} aria-expanded={열림}>
-        <span className="mb-title">🏠 도면에서 찾은 방 <b>{방.length}</b>개</span>
-        <span className="mb-sum">바닥 안목 <b>{쉼(합.안, 1)}</b> ㎡ · 벽 중심 <b>{쉼(합.중, 1)}</b> ㎡{합.평균 !== null ? <> · 설계 면적 선 {합.견}곳과 평균 ±{합.평균.toFixed(1)}%</> : null}</span>
+        <span className="mb-title">🏠 도면에서 찾은 방 <b>{방.length}</b>개{방.length < 전체.length ? <span className="muted"> · 3D 에 없는 줄 {전체.length - 방.length}</span> : null}</span>
+        <span className="mb-sum">{방.length ? <>바닥 안목 <b>{쉼(합.안, 1)}</b> ㎡ · 벽 중심 <b>{쉼(합.중, 1)}</b> ㎡{합.평균 !== null ? <> · 설계 면적 선 {합.견}곳과 평균 ±{합.평균.toFixed(1)}%</> : null}</> : '③ 실의 면적 칸을 누르고 도면의 방 안을 누르면 그 방이 3D 에 나옵니다'}</span>
         <span className="mb-open">{열림 ? '접기 ▲' : '🎯 내역 대조 · 📐 검산 · 🧊 3D ▼'}</span>
       </button>
       {열림 && (
@@ -186,7 +197,7 @@ export default function 마감방판({ 공사, set공사 }) {
             </div>
           )}
           {보기 === '검산' && <검산표 방={방} />}
-          {보기 === '3D' && <방3D 방={방} 공사={공사} />}
+          {보기 === '3D' && <방3D 방={방} 전체={전체} 공사={공사} 밖고른={밖고른} />}
         </>
       )}
     </div>
@@ -218,11 +229,17 @@ function 검산표({ 방 }) {
   )
 }
 
-function 방3D({ 방, 공사 }) {
+/* 🧊 3D 고르기 번호 — 줄 i: 바닥 i*2 · 천장까지 i*2+1 · 더 누른 방(같은 줄 둘째 방부터) 100000 + i*100 + j*2(+1) */
+const 더번 = 100000
+const 줄번 = (id) => (id >= 더번 ? Math.floor((id - 더번) / 100) : Math.floor(id / 2))
+const 줄들번 = (i, b) => [i * 2, i * 2 + 1, ...((b && b.더) || []).flatMap((_, j) => [더번 + i * 100 + j * 2, 더번 + i * 100 + j * 2 + 1])]
+
+function 방3D({ 방, 전체, 공사, 밖고른 = null }) {
   const 판Ref = useRef(null)
   const 보기Ref = useRef(null)
   const [층고, set층고] = useState('4.0')
   const [고른, set고른] = useState(null)
+  const [까닭, set까닭] = useState(null)          /* 3D 에 없는 줄을 눌렀을 때 {i, 글} */
   const [glErr, setGlErr] = useState('')
   /* 층마다 맞춤점(판 제목 자리 · 없으면 그 층 방들의 왼쪽 아래) */
   const 부재 = useMemo(() => {
@@ -245,15 +262,27 @@ function 방3D({ 방, 공사 }) {
       if (!p || p.length < 3) continue
       const k = b.k || 1
       const m = b.닻 ? { x: b.닻[0], y: b.닻[1] } : 맞춤.get(r.층 || '') || { x: 0, y: 0 }     /* 방마다 제 판 제목 자리로(같은 층 판이 둘이어도) */
-      const 판 = p.map((q) => [(q[0] - m.x) * k, (q[1] - m.y) * k])
       const z = (층차례(r.층 || '') - 1) * H
       const g = 방무리(r) || '뺌'
       const ch = Math.min(H * 2.2, (수(r.천장고) * 1000) || (b.위뚫림 ? H + 기본천장 : 기본천장))
-      out.push({ id: i * 2, 판, z0: z, z1: z + 80, 색: 무리색[g] })
-      out.push({ id: i * 2 + 1, 판, z0: z + 80, z1: z + ch, 색: 무리색[g], 비침: 0.16 })
+      ;[p, ...(b.더 || [])].forEach((pp, j) => {
+        if (!pp || pp.length < 3) return
+        const 판 = pp.map((q) => [(q[0] - m.x) * k, (q[1] - m.y) * k])
+        const id0 = j === 0 ? i * 2 : 더번 + i * 100 + (j - 1) * 2
+        out.push({ id: id0, 판, z0: z, z1: z + 80, 색: 무리색[g] })
+        out.push({ id: id0 + 1, 판, z0: z + 80, z1: z + ch, 색: 무리색[g], 비침: 0.16 })
+      })
     }
     return out
   }, [방, 층고, 공사.기준])
+  const 줄고르기 = (i, 다가가기 = true) => {
+    const r = (공사.실 || [])[i]
+    const 왜 = 삼디까닭(r)
+    if (왜) { set고른(null); set까닭({ i, 글: 왜 }); if (보기Ref.current) 보기Ref.current.set고름([]); return }
+    set까닭(null); set고른(i)
+    const ids = 줄들번(i, r._방)
+    if (보기Ref.current) { 보기Ref.current.set고름(ids); if (다가가기) 보기Ref.current.보기로(ids, 6) }
+  }
   useEffect(() => {
     if (!판Ref.current) return
     if (!보기Ref.current) {
@@ -263,9 +292,11 @@ function 방3D({ 방, 공사 }) {
     const v = 보기Ref.current
     v.set부재(부재, { 바닥: true, 바닥색: 어두움() ? [0.16, 0.18, 0.22] : [0.88, 0.90, 0.92] })
     v.fit('tilt')
-    v.onPick = (id) => { if (id >= 0) { set고른(Math.floor(id / 2)); v.set고름([id]); 세기('|마감|3D방') } else { set고른(null); v.set고름([]) } }
-  }, [부재])
+    v.onPick = (id) => { if (id >= 0) { const i = 줄번(id); set까닭(null); set고른(i); v.set고름(줄들번(i, ((공사.실 || [])[i] || {})._방)); 세기('|마감|3D방') } else { set고른(null); v.set고름([]) } }
+  }, [부재])   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { if (보기Ref.current) { 보기Ref.current.dispose(); 보기Ref.current = null } }, [])
+  /* ③ 실 표에서 줄을 누르면(칸을 고르면) 3D 에서도 그 방 */
+  useEffect(() => { if (밖고른 !== null && 밖고른 !== undefined) 줄고르기(밖고른) }, [밖고른])   // eslint-disable-line react-hooks/exhaustive-deps
   const r = 고른 !== null ? (공사.실 || [])[고른] : null
   return (
     <div className="mb-sec">
@@ -274,13 +305,29 @@ function 방3D({ 방, 공사 }) {
         {['tilt', 'top'].map((k) => <button key={k} type="button" className="btn line sm" onClick={() => 보기Ref.current && 보기Ref.current.fit(k)}>{k === 'top' ? '⬇ 위에서' : '↗ 비스듬히'}</button>)}
         <span className="mb-legend">{Object.entries(무리말).map(([g, t]) => <span key={g}><i style={{ background: 'rgb(' + 무리색[g].map((c) => Math.round(c * 255)).join(',') + ')' }} />{t}</span>)}</span>
       </div>
-      <div className="bim-canvas mb-canvas">
-        {glErr ? <div className="dx3-warn" style={{ margin: 12 }}>{glErr}</div> : <canvas ref={판Ref} />}
-        <div className="bim-hint">끌기 = 돌리기 · 오른쪽 끌기(두 손가락) = 옮기기 · 휠(벌리기) = 확대 · <b>바닥을 누르면 그 방</b></div>
-      </div>
+      {방.length > 0 ? (
+        <div className="bim-canvas mb-canvas">
+          {glErr ? <div className="dx3-warn" style={{ margin: 12 }}>{glErr}</div> : <canvas ref={판Ref} />}
+          <div className="bim-hint">끌기 = 돌리기 · 오른쪽 끌기(두 손가락) = 옮기기 · 휠(벌리기) = 확대 · <b>바닥을 누르면 그 방</b></div>
+        </div>
+      ) : <p className="mb-warn">아직 모양이 있는 방이 없습니다 — ③ 실에서 <b>면적 칸</b>을 누르고 도면의 <b>방 안</b>을 누르면 그 방이 3D 에 나옵니다(닫힌 선이 없어도 벽 · 창 · 문으로 막힌 방이면 찾습니다).</p>}
       {r ? (
-        <div className="mb-pick"><b>{r.층 ? r.층 + '층 ' : ''}{r.실명}</b> — 안목 {쉼(수(r.면적), 2)} ㎡{r._방.중심면적 ? ' · 벽 중심 ' + 쉼(수(r._방.중심면적), 2) + ' ㎡' : ''} · 둘레 {쉼(수(r.둘레), 2)} m{r.천장고 ? ' · 천장고 ' + r.천장고 + ' m' : ''}{r.비고 ? <div className="muted" style={{ fontSize: 12 }}>{r.비고}</div> : null}</div>
-      ) : <p className="muted" style={{ fontSize: 12.5, margin: '6px 0 0' }}>층은 판 제목(«1층평면도» 등) 자리로 맞춰 쌓았습니다. 비친 덩어리 높이 = 천장고(비면 기본 천장고 · 위가 뚫린 곳은 두 층).</p>}
+        <div className="mb-pick"><b>{r.층 ? r.층 + '층 ' : ''}{r.실명}</b> — 안목 {쉼(수(r.면적), 2)} ㎡{r._방.중심면적 ? ' · 벽 중심 ' + 쉼(수(r._방.중심면적), 2) + ' ㎡' : ''} · 둘레 {쉼(수(r.둘레), 2)} m{r.천장고 ? ' · 천장고 ' + r.천장고 + ' m' : ''}{r._방.길 === '누름' ? <span className="muted"> · 도면에서 눌러 잰 방</span> : null}{r.비고 ? <div className="muted" style={{ fontSize: 12 }}>{r.비고}</div> : null}</div>
+      ) : 까닭 ? (
+        <div className="mb-warn">⚠️ <b>{((공사.실 || [])[까닭.i] || {}).실명 || (까닭.i + 1) + '번 줄'}</b> — {까닭.글}</div>
+      ) : 방.length ? <p className="muted" style={{ fontSize: 12.5, margin: '6px 0 0' }}>층은 판 제목(«1층평면도» 등) 자리로 맞춰 쌓았습니다. 비친 덩어리 높이 = 천장고(비면 기본 천장고 · 위가 뚫린 곳은 두 층). 아래 목록 · ③ 실 표의 줄을 누르면 3D 에서 그 방이 파랗게 됩니다.</p> : null}
+      <div className="gg-wrap mb-list"><table className="gg-r mb-t">
+        <thead><tr><th>층</th><th>실</th><th className="r">안목 ㎡</th><th>3D</th></tr></thead>
+        <tbody>{전체.map(({ r: x, i }) => {
+          const 왜 = 삼디까닭(x)
+          return (
+            <tr key={i} className={'mb-row' + (고른 === i ? ' on' : '') + (왜 ? ' mb-no3d' : '')} onClick={() => 줄고르기(i)}>
+              <td>{x.층}</td><td>{x.실명 || <span className="muted">(이름 없음)</span>}</td><td className="r">{수(x.면적) > 0 ? 쉼(수(x.면적), 2) : '—'}</td>
+              <td>{왜 ? <span className="mb-why" title={왜}>없음 — 까닭 보기</span> : <span className="mb-ok3d">✓ 있음</span>}</td>
+            </tr>
+          )
+        })}</tbody>
+      </table></div>
     </div>
   )
 }

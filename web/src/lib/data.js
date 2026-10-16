@@ -264,13 +264,15 @@ export const getLive = () => getJSON('/data/live.json')
    그래서 500건씩 나눠두고, 첫 화면은 0번 묶음만 받습니다.
    검색하거나 지역을 고를 때 나머지를 뒤에서 받아옵니다. */
 export const getBoardMeta = (name) => getJSON(`/data/board/${name}.json`)
-export const getBoardPart = (name, kind, i) =>
-  getJSON(`/data/board/${name}-${kind}-${i}.json`)
+/* 🩹 2026-10-16 tok — 색인과 묶음이 서로 다른 수집 판이면(useBoard 가 알아챔) 같은 tok 을 붙여 «둘 다 지금 판» 으로 다시 받습니다 */
+const 판붙임 = (p, tok) => (tok ? `${fresh(p)}&x=${tok}` : p)
+export const getBoardPart = (name, kind, i, tok = '') =>
+  getJSON(판붙임(`/data/board/${name}-${kind}-${i}.json`, tok))
 /* 검색 색인 — «걸러내기»에 필요한 칸만 담은 가벼운 목록.
    검색·지역선택을 실제로 할 때만 받습니다 (1순위 358KB · 공고 352KB).
    전에는 검색하면 묶음을 전부 받아서 1,528KB 였습니다. */
-export const getBoardIndex = (name, kind) =>
-  getJSON(`/data/board/${name}-${kind}-idx.json`)
+export const getBoardIndex = (name, kind, tok = '') =>
+  getJSON(판붙임(`/data/board/${name}-${kind}-idx.json`, tok))
 
 /* 순위 30곳(corps) — **카드를 펼칠 때만** 받습니다. 50건씩이라 한 개 약 5KB.
    전에는 목록 묶음 안에 들어 있어서, 1순위 탭을 열기만 해도 gzip 376KB 중

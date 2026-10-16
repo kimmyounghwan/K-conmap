@@ -6672,6 +6672,8 @@ span.mt-act { cursor: default; }
 .mt-reply { display: inline-flex; align-items: center; gap: 2px; min-height: 32px; padding: 0 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text-2); font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
 .mt-reply em { font-style: normal; color: var(--accent); font-variant-numeric: tabular-nums; }
 .mt-reply:hover, .mt-reply.on { border-color: var(--accent); color: var(--accent); }
+.mt-af-open { margin-top: 14px; min-height: 40px; padding: 0 14px; font-size: 13px; gap: 4px; }
+.mt-af-open b { color: var(--accent); }
 /* 🗑 G163 내 답글 지우기 — 그 자리에서 한 번 더 물음 */
 .mt-adel { margin-left: auto; min-height: 32px; padding: 0 10px; border-radius: 999px; border: 1px solid transparent; background: transparent; color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; }
 .mt-adel:hover { color: var(--bad); border-color: var(--bad); }
@@ -7503,6 +7505,26 @@ a.mc-key-in:hover { border-color: var(--accent-line); background: var(--accent-s
 .mb-legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
 .mb-canvas { margin-top: 8px; height: min(62vh, 560px); min-height: 320px; }
 .mb-pick { margin-top: 8px; padding: 8px 10px; border: 1px solid var(--accent); border-radius: 10px; background: var(--accent-soft); font-size: 13.5px; }
+/* 🧊 2026-10-16 (나) 마감 3D 방 목록 — 줄을 누르면 3D 에서 그 방 · 3D 에 없는 줄은 까닭 */
+.mb-list { margin-top: 10px; max-height: 320px; overflow: auto; }
+.mb-row { cursor: pointer; }
+.mb-row:hover td { background: var(--accent-soft); }
+.mb-row.on td { background: var(--accent-soft); font-weight: 700; }
+.mb-row.mb-no3d td { color: var(--muted); }
+.mb-why { color: var(--warn); font-size: 12px; text-decoration: underline dotted; }
+.mb-ok3d { color: var(--good); font-weight: 700; font-size: 12.5px; }
+div.mb-warn { margin-top: 8px; padding: 8px 10px; border: 1px solid var(--warn); border-radius: 10px; background: color-mix(in srgb, var(--warn) 9%, transparent); }
+/* 🧊 2026-10-16 (가) 골조 수량산출 ④ 결과 안 3D */
+.gz3-card .bim-tool { margin-top: 8px; }
+.gz3-canvas { height: min(60vh, 540px); min-height: 320px; }
+.gz3-t td.bim-cell { cursor: pointer; }
+.gz3-t td.bim-cell:hover { background: var(--accent-soft); }
+.gz3-hint { font-size: 13px; color: var(--muted); }
+/* 📑 2026-10-16 (다) 판 목록 — 판마다 층 고르기 */
+.pan-floor select { font-size: 12.5px; padding: 2px 6px; min-height: 30px; max-width: 150px; }
+.pan-floor select.pan-floor-no { border-color: var(--warn); color: var(--warn); font-weight: 700; }
+.pan-floor-warn { margin: 8px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.pan-floor-warn .btn { width: auto; }
 @media (max-width: 640px) { .mb-open { margin-left: 0; } .mb-canvas { height: 56vh; min-height: 280px; } }
 
 /* 📄 G298 설계변경 — 한글에 넣을 장(누르면 빼기) */
@@ -7663,3 +7685,12 @@ details.sg-more-sm > summary::before { top: 5px; left: 10px; }
 .js-more-grid > details[open] { grid-column: 1 / -1; }
 @media (max-width: 819px) { .js-more-grid { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .tlx-card, .tlx-card:hover { transition: none; transform: none; } }
+
+/* 🏞 2026-10-16 BIM 물량 — 토목을 다 읽을 때까지 «지금 숫자는 건물만» 띠 (소장님 「가상 배수로 불러오는 중 — 지금 숫자는 관리동 건물만」) */
+.bim-wait { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 0 0 10px; padding: 10px 12px; border-radius: 10px;
+  background: #fff7e6; border: 1px solid #f5c26b; color: #6b4300; font-size: 14px; line-height: 1.5; }
+.bim-wait-p { font-weight: 800; padding: 1px 8px; border-radius: 999px; background: #f5c26b; color: #3d2600; font-size: 12.5px; }
+.bim-wait .muted { color: #8a6a2f; font-size: 13px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bim-wait { background: #2b2614; border-color: #6b5a2a; color: #f1e3b5; } :root:not([data-theme="light"]) .bim-wait .muted { color: #cdb98a; } }
+:root[data-theme="dark"] .bim-wait { background: #2b2614; border-color: #6b5a2a; color: #f1e3b5; }
+:root[data-theme="dark"] .bim-wait .muted { color: #cdb98a; }

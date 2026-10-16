@@ -26,12 +26,14 @@ import { 품은도형, 도형글자, 종류 } from '../lib/골조도면.js'
 import { 찍기, 두점더하기, 도움글, 수글 } from '../lib/찍기.js'
 import { 표찾기 } from '../lib/도면자동.js'
 import { 줄자리, 도형상자, 모은상자, 누른줄들 } from '../lib/도면오가기.js'
-import { 마감자동 } from '../lib/도면전부.js'
+import { 마감자동, 판닻, 도형점 } from '../lib/도면전부.js'
+import { 벽방찾기, 막는도형, 막는토막, 안 as 고리안 } from '../lib/방찾기.js'   // 🧊 2026-10-16 닫힌 선 없는 방도 눌러 재기
 import { use도면, 도면판, 도면상태줄 } from '../도면판.jsx'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { askAfter } from '../AskComment'
 import { use화면상태 } from '../lib/길기록.js'
 import 마감방판 from '../마감방판.jsx'
+import { 세기 } from '../lib/받은수.jsx'
 
 import { 단위보기, 단위풀이 } from '../lib/단위.js'
 const 저장열쇠 = 'kcm.magam.v1'
@@ -72,7 +74,7 @@ function 칸종류(표, key) {
 }
 const 도움 = {
   ...도움글,
-  방: '방(닫힌 선·해치) 안을 누르면 «면적»과 «둘레»가 한 번에 들어갑니다. 다른 방을 또 누르면 더하고, 다시 누르면 뺍니다.',
+  방: '방 안을 누르면 «면적»과 «둘레»가 한 번에 들어갑니다(닫힌 선이 없어도 벽 · 창 · 문으로 막힌 방이면 찾음 · 🧊 3D 에도 나옴). 다른 방을 또 누르면 더하고, 다시 누르면 뺍니다.',
   창호: '창호 글자(예: WD1·AW1)를 누르면 하나씩 더해집니다(«WD1*2»). 잘못 넣었으면 칸에서 지우십시오.',
 }
 const 숫자칸 = new Set(['개수', '면적', '둘레', '천장고', '벽공제', '길이', '높이', '공제', '폭', '전용'])
@@ -168,6 +170,15 @@ export default function Magam() {
   const 같은도면 = 선택값 && (!선택값._도면 || 선택값._도면 === 도.도면이름)
   const k = (단위 && 단위.k) || 1
 
+  /* 🧱 벽으로 방 찾기 — 막는 선은 도면마다 한 번만 */
+  const 막토Ref = useRef({ m: null, 토: null })
+  const 벽으로방 = (x, y) => {
+    try {
+      if (막토Ref.current.m !== 모델) 막토Ref.current = { m: 모델, 토: 막는토막(모델, 막는도형(모델), k) }
+      const [w] = 벽방찾기(모델, [{ x, y }], { 토막: 막토Ref.current.토, 칸: 25 / k, 창들: [30000 / k, 60000 / k], 최대넓이: 1500e6 / (k * k) })
+      return w && w.넓이 * k * k / 1e6 >= 0.5 ? w : null
+    } catch (e) { return null }
+  }
   const 찍었다 = (e, x, y, 보기) => {
     if (!모델) return
     if (!선택) { set알림({ 글: '먼저 아래 표에서 채울 칸을 누르십시오.' }); return }
@@ -175,10 +186,28 @@ export default function Magam() {
     if (kind === '방') {
       let id = e
       if (id < 0 || !(모델.E.area[id] > 0)) id = 품은도형(모델, x, y, 끈층)
-      if (id < 0) { set알림({ 글: '방(닫힌 선·해치) 안을 눌러 주십시오. 방이 선 여러 개로 그려져 있으면 면적은 두 점·직접 적기로 넣으십시오.' }); return }
+      /* 🧱 품은 닫힌 선이 방보다 훨씬 크면(도곽 · 층 외곽선 — 벽 선만 그린 평면도) 벽으로 둘러싼 방을 먼저 */
+      let 벽방 = null
+      if (id < 0 || 모델.E.area[id] * k * k / 1e6 > 150) { const w = 벽으로방(x, y); if (w && (id < 0 || w.넓이 < 모델.E.area[id] / 1.3)) { 벽방 = w; id = -1 } }
       const 지금 = (선택값._찍음 && 선택값._찍음.면적) || []
-      const 있음 = 지금.findIndex((it) => it.e === id)
-      const 새 = 있음 >= 0 ? 지금.filter((_, j) => j !== 있음) : 지금.concat([{ e: id, v: 모델.E.area[id] * k * k / 1e6, L: 모델.E.len[id] * k / 1000 }])
+      /* 🧊 2026-10-16 소장님 「방 목록 어느 줄을 눌러도 3D 에서 그 방이 켜지게」(나) · 「벽선만 있는 도면에서도 방을 찾게」(라)
+         닫힌 선이 없으면 벽 · 창 · 문 선으로 둘러싼 칸을 찾음(벽방찾기) · 누른 방 모양을 줄에 남겨 🧊 3D 에 나오게 */
+      let 새
+      if (id >= 0) {
+        const 있음 = 지금.findIndex((it) => it.e === id)
+        /* 예전에 누른 방(모양 없이 남은 것)을 다시 누르면 빼지 않고 모양만 남김 — 🧊 3D 에 나오게 */
+        if (있음 >= 0 && !지금[있음].점 && 도형점(모델, id)) 새 = 지금.map((it, j) => (j === 있음 ? { ...it, 점: 도형점(모델, id) } : it))
+        else 새 = 있음 >= 0 ? 지금.filter((_, j) => j !== 있음) : 지금.concat([{ e: id, v: 모델.E.area[id] * k * k / 1e6, L: 모델.E.len[id] * k / 1000, 점: 도형점(모델, id) }])
+      } else {
+        const 있음 = 지금.findIndex((it) => it.e < 0 && it.점 && 고리안(it.점, x, y))
+        if (있음 >= 0) 새 = 지금.filter((_, j) => j !== 있음)
+        else {
+          const w = 벽방 || 벽으로방(x, y)
+          if (!w) { set알림({ 글: '방 안을 눌러 주십시오 — 그 자리를 둘러싼 닫힌 선도, 벽 · 창 · 문 선으로 막힌 칸도 찾지 못했습니다(문 · 창 자리가 비어 있으면 샙니다). 면적은 두 점 · 직접 적기로 넣으십시오.' }); return }
+          새 = 지금.concat([{ e: -1, v: w.넓이 * k * k / 1e6, L: w.둘레 * k / 1000, 점: w.점.map(([a, b]) => [Math.round(a), Math.round(b)]), 벽: true }])
+          세기('|마감|벽방누름')
+        }
+      }
       const A = 새.reduce((s, it) => s + it.v, 0)
       const 둘레있음 = 새.every((it) => Number.isFinite(it.L) && it.L > 0)
       const L = 새.reduce((s, it) => s + (it.L || 0), 0)
@@ -187,6 +216,18 @@ export default function Magam() {
         if (둘레있음) r.둘레 = 새.length ? 수글(L, 3) : ''
         r._찍음 = { ...(r._찍음 || {}), 면적: 새, 둘레: 둘레있음 ? 새 : (r._찍음 || {}).둘레 }
         r._도면 = 도.도면이름
+        /* 🧊 3D 모양 — 누른 방들(첫 방 + 더) · 판 제목 자리(닻 — 층마다 맞춰 쌓음) · 단위 */
+        const 모양 = 새.map((it) => it.점 || (it.e >= 0 ? 도형점(모델, it.e) : null)).filter((p) => p && p.length >= 3)
+        const 옛 = r._방 || {}
+        const 남길 = Object.fromEntries(['천장고근거', '샤프트', '마감없음', '위뚫림'].filter((kk) => 옛[kk] !== undefined).map((kk) => [kk, 옛[kk]]))
+        if (모양.length) {
+          const p0 = 모양[0], c = [p0.reduce((a, q) => a + q[0], 0) / p0.length, p0.reduce((a, q) => a + q[1], 0) / p0.length]
+          const 닻 = 판닻(모델, c[0], c[1])
+          r._방 = { ...남길, 길: '누름', 점: p0, ...(모양.length > 1 ? { 더: 모양.slice(1) } : {}), ...(닻 ? { 닻: [Math.round(닻.x), Math.round(닻.y)] } : {}), ...(k !== 1 ? { k } : {}) }
+          if (!String(r.층 || '').trim() && 닻) r.층 = 닻.f
+        } else if (옛.길 === '누름') delete r._방
+        const 벽자리 = 새.filter((it) => it.e < 0 && it.점)
+        if (벽자리.length) r._자리 = 벽자리.map((it) => ({ n: 도.도면이름, r: [Math.min(...it.점.map((q) => q[0])), Math.min(...it.점.map((q) => q[1])), Math.max(...it.점.map((q) => q[0])), Math.max(...it.점.map((q) => q[1]))] }))
         return r
       })
       set알림({ 글: 새.length ? '면적 ' + 수글(A, 3) + ' m²' + (둘레있음 ? ' · 둘레 ' + 수글(L, 3) + ' m' : ' (해치라 둘레는 못 잽니다 — 선을 누르거나 적으십시오)') + (새.length > 1 ? ' — 방 ' + 새.length + '개를 더했습니다(둘레는 맞닿은 변이 두 번 들어갑니다)' : '') : '뺐습니다.', 좋음: true })
@@ -273,7 +314,7 @@ export default function Magam() {
     set자동대기(null)
     let R
     try { R = 마감자동(모델, { k: (단위 && 단위.k) || 1, 끈층, 표들: 도면표, 이름: 도.도면이름, 옛: 공사 }) } catch (e) { set자동알림({ 글: '도면에서 방을 읽다 멈췄습니다 (' + e.message + ')', warn: true }); return }
-    if (!R.공사) { set자동알림({ 글: '이 도면에서 방(실 이름 글자를 품은 닫힌 선)을 찾지 못했습니다 — ③ 실에서 면적 칸을 누르고 방 안을 누르십시오.', warn: true }); set탭('실'); return }
+    if (!R.공사) { set자동알림({ 글: '이 도면에서 방(실 이름 글자를 품은 닫힌 선 · 벽으로 막힌 칸)을 찾지 못했습니다 — ③ 실에서 면적 칸을 누르고 방 안을 누르십시오.', warn: true }); set탭('실'); return }
     if (!예시로 && (공사.실 || []).some((r) => String(r.실명 || '').trim() || String(r.면적 || '').trim())) { set자동묻기({ R }); set자동알림(null); return }
     자동넣기(R)
   }, [자동대기, 모델])   // eslint-disable-line react-hooks/exhaustive-deps
@@ -388,7 +429,7 @@ export default function Magam() {
       </div>
 
       {/* 🏠 G298 도면에서 찾은 방 — 🎯 내역 대조 · 📐 설계 면적 검산 · 🧊 3D */}
-      <마감방판 공사={공사} set공사={set공사} />
+      <마감방판 공사={공사} set공사={set공사} 고른={선택 && 선택.표 === '실' ? 선택.i : 짚음 && 짚음.표 === '실' ? 짚음.i : null} />
 
       <div className="tp-tabs no-print" role="tablist">
         {Object.entries(탭이름).map(([kk, t]) => (
@@ -400,7 +441,7 @@ export default function Magam() {
       {(탭 === '실' || 탭 === '외벽' || 탭 === '창호' || 탭 === '묶음') && (
         <도면판 도={도} 강조={강조} 찍었다={찍었다} 두점={두점} set두점={set두점} 두점찍었다={두점찍었다} set보는중={set보는중}
           알림={알림.글} 알림좋음={알림.좋음} 안내={안내} 열기={() => 파일칸.current?.click()}
-          빈글="평면도(방이 닫힌 선으로 그려진 도면)를 여세요. 도면 없이 표에 직접 적어도 됩니다." />
+          빈글="평면도를 여세요 — 방이 닫힌 선이 아니어도 벽 · 창 · 문으로 막혀 있으면 방 안을 눌러 잽니다. 도면 없이 표에 직접 적어도 됩니다." />
       )}
 
       {탭 === '마감' && <마감표판 공사={공사} set공사={set공사} 줄더하기={줄더하기} 줄빼기={줄빼기} />}
@@ -477,7 +518,7 @@ export default function Magam() {
           <li>방은 <b>안목(벽 안쪽)</b> 선이어야 합니다(자동도 안목 닫힌 선을 씀). 벽 가운데선이면 벽 두께만큼 커집니다.</li>
           <li>창호는 방 하나에만 적습니다. 벽 양쪽이 모두 마감이면 양쪽 방에 다 적습니다(양면을 빼야 하므로).</li>
           <li>계수: 몰탈·콘크리트처럼 부피로 사는 것은 두께(m)를, 면적·길이로 사는 것은 1 을 적습니다. 할증은 넣지 않았습니다.</li>
-          <li><b>⚡ 자동</b>: 방 이름 글자(사무실·거실…)를 품은 <b>닫힌 선</b>을 방으로 봅니다. 방이 닫힌 선으로 그려져 있지 않으면 그 방만 ③ 실에서 칸을 누르고 방 안을 누릅니다. 결과의 <b>검산</b>을 꼭 보십시오.</li>
+          <li><b>⚡ 자동</b>: 방 이름 글자(사무실·거실…)를 품은 <b>닫힌 선</b>을 방으로 봅니다. 닫힌 선이 없으면 이름 둘레를 <b>벽 · 창 · 문 선</b>으로 막아 찾습니다. 그래도 못 찾은 방은 ③ 실에서 칸을 누르고 방 안을 누릅니다. 결과의 <b>검산</b>을 꼭 보십시오.</li>
           <li><b>⑥ 결과 ↔ 도면</b>: 산출서 줄을 누르면 그 방이 도면에서 빛나고, 방 안을 누르면 그 방의 산출서 줄이 칠해집니다(맞게 읽었는지 확인용).</li>
         </ul>
         <div className="btn-row" style={{ marginTop: 10, flexWrap: 'wrap' }}>

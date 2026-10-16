@@ -179,7 +179,7 @@ export default function Admin() {
         return (
           <div className={'hm-band' + (밀린.length ? ' warn' : '')} style={{ marginTop: 12 }}>
             🗓 <b>해마다 바뀌는 값</b> — {밀린.length
-              ? <>다시 확인할 때가 된 것 <b>{밀린.length}가지</b>: {밀린.map((x) => x.무엇).join(' · ')}. 클로드에게 «해마다 값 확인해 줘» 하시면 원문을 열어 고칩니다.</>
+              ? <>다시 확인할 때가 된 것 <b>{밀린.length}가지</b>: {밀린.map((x) => x.무엇).join(' · ')}. «해마다 값 확인해 줘» 하시면 원문을 열어 고칩니다.</>
               : <>모두 확인한 값입니다.</>} <Link to="/tools/haemada">모아 보기</Link>
           </div>
         )

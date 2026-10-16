@@ -50,6 +50,8 @@ export function 막는토막(모델, 막, k = 1) {
   const 조각들 = new Map()
   for (let q = 0; q < Q.e.length; q++) { const e = Q.e[q]; if (!막[e]) continue; const l = 조각들.get(e); if (l) l.push(q); else 조각들.set(e, [q]) }
   const 문층 = layers.map((L) => /DOOR|^DR|[-_]DR|문/i.test((L && L.name) || ''))
+  const 벽층 = layers.map((L) => 벽만말.test((L && L.name) || ''))
+  const 벽토 = []                       /* 🧱 2026-10-16 벽 층 선만 — 벽 끝 막기에 씀 */
   const 호들 = []
   for (const [e, qs] of 조각들) {
     if (E.t[e] === 종류.호 && (문층[E.ly[e]] || E.ins[e] >= 0)) {
@@ -60,9 +62,17 @@ export function 막는토막(모델, 막, k = 1) {
     }
     for (const q of qs) {
       const s0 = Q.p0[q], n = Q.pn[q]
-      for (let k = 0; k + 1 < n; k++) 토.push(P[(s0 + k) * 2], P[(s0 + k) * 2 + 1], P[(s0 + k + 1) * 2], P[(s0 + k + 1) * 2 + 1])
+      for (let k = 0; k + 1 < n; k++) {
+        토.push(P[(s0 + k) * 2], P[(s0 + k) * 2 + 1], P[(s0 + k + 1) * 2], P[(s0 + k + 1) * 2 + 1])
+        if (벽층[E.ly[e]]) 벽토.push(P[(s0 + k) * 2], P[(s0 + k) * 2 + 1], P[(s0 + k + 1) * 2], P[(s0 + k + 1) * 2 + 1])
+      }
     }
   }
+  /* 🧱 2026-10-16 소장님 「방 테두리가 닫힌 선이 아니고 벽선만 있는 도면에서도 방을 찾게」(라)
+     두 줄로 그린 벽이 창 · 문 자리에서 «끝 막음 선» 없이 끝나면 두 줄 사이 틈으로 물이 새어 방을 못 찾았음
+     (3D 도구 가상 평면도: 창을 벽 가운데 한 줄로만 그림 → 방 0개). 벽 층 선의 끝점끼리 막음 — 벽끝막기() */
+  const 막음 = 벽끝막기(벽토, k)
+  for (let i = 0; i < 막음.length; i++) 토.push(막음[i])
   const 문들 = []                       /* 🚪 찾은 문(돌쩌귀 · 닫힌 끝 · 폭) — 마감 벽 공제(G298 ③) */
   if (호들.length) {
     /* 열린 끝 고르기 — 돌쩌귀와 그 끝을 잇는(30 mm 안) 곧은 선(문짝)이 있는 쪽. 같은 블록 · 같은 층의 선만 봄 */
@@ -97,6 +107,47 @@ export function 막는토막(모델, 막, k = 1) {
   결과.문들 = 문들
   return 결과
 }
+
+/** 🧱 벽 끝 막기 — 벽 층 두 선의 끝점 p · q 가 50 ~ 450 mm · 두 선이 나란(5° 안) · 같은 쪽으로 끝남 · p→q 가 벽에 거의 직각이면 p–q 를 막는 선으로.
+ *  (문 자리처럼 벽 길이 방향으로 떨어진 끝은 직각이 아니라 안 막음 — 문은 문짝 · 열림 호가 막음) · 벽 층 선만(계단 디딤판 끝끼리는 안 막음)
+ *  @param 벽토 [x0,y0,x1,y1, …] (모델 단위) · k 단위 배율(모델 → mm) · @returns [x0,y0,x1,y1, …] */
+export function 벽끝막기(벽토, k = 1) {
+  const n = 벽토.length / 4
+  const 최소 = 50 / k, 최대 = 450 / k, 짧은선 = 300 / k
+  const 끝 = []                        /* [x, y, 바깥 방향 ux, uy, 선 번호] */
+  for (let i = 0; i < n; i++) {
+    const a = 벽토[i * 4], b = 벽토[i * 4 + 1], c = 벽토[i * 4 + 2], d = 벽토[i * 4 + 3]
+    const L = Math.hypot(c - a, d - b)
+    if (!(L >= 짧은선)) continue
+    const ux = (c - a) / L, uy = (d - b) / L
+    끝.push([c, d, ux, uy, i], [a, b, -ux, -uy, i])
+  }
+  const 칸 = 최대, 판 = new Map()
+  const 열쇠 = (x, y) => Math.floor(x / 칸) + ',' + Math.floor(y / 칸)
+  끝.forEach((p, j) => { const kk = 열쇠(p[0], p[1]); const l = 판.get(kk); if (l) l.push(j); else 판.set(kk, [j]) })
+  const out = [], 한 = new Set()
+  끝.forEach((p, j) => {
+    const cx = Math.floor(p[0] / 칸), cy = Math.floor(p[1] / 칸)
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+      for (const m of 판.get((cx + dx) + ',' + (cy + dy)) || []) {
+        if (m <= j) continue
+        const q = 끝[m]
+        if (q[4] === p[4]) continue
+        const vx = q[0] - p[0], vy = q[1] - p[1], D = Math.hypot(vx, vy)
+        if (!(D >= 최소 && D <= 최대)) continue
+        if (Math.abs(p[2] * q[3] - p[3] * q[2]) > 0.09) continue          /* 나란(5° 안) */
+        if (p[2] * q[2] + p[3] * q[3] < 0.9) continue                       /* 같은 쪽으로 끝남 */
+        if (Math.abs((p[2] * vx + p[3] * vy) / D) > 0.35) continue          /* 잇는 선이 벽에 거의 직각 */
+        const kk = Math.min(p[4], q[4]) + '|' + Math.max(p[4], q[4]) + '|' + (p[2] > 0 ? 1 : 0) + (p[3] > 0 ? 1 : 0)
+        if (한.has(kk)) continue
+        한.add(kk)
+        out.push(p[0], p[1], q[0], q[1])
+      }
+    }
+  })
+  return out
+}
+const 벽만말 = /WAL|WALL|벽|^CON$|^CONC|[-_ ]CON$|PARA|난간벽/i   /* CORE(코어) 층은 계단 디딤판이 섞여 뺌 */
 
 /** 🚪 방(다각형)에 붙은 문 — 문 자리(돌쩌귀 ~ 닫힌 끝 가운데)가 방 테두리에서 «곁» 안 · 폭 [mm 모델 단위] */
 export function 방문들(다각형, 문들, 곁 = 300) {

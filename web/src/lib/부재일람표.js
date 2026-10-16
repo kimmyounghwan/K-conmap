@@ -87,7 +87,7 @@ export function 일람표만들기(배근, 부재 = null) {
     const 줄 = rows.slice().sort((a, b) => 차례(a.기호, b.기호)).map((r) => ({
       기호: 글(r.기호),
       칸: 칸.map(([, f]) => f(r)),
-      만든: 글(r.만든).replace(/^클로드:\s*/, ''),
+      만든: 글(r.만든).replace(/^(클로드|건설맵):\s*/, ''),
       쓰임: 부재 ? (쓰임.get(종 + '|' + 글(r.기호)) || 0) : null,
     }))
     out.push({ 종류: 종, 이름: 일람이름[종], 머리: ['기호', ...칸.map(([h]) => h)], 줄 })
@@ -103,12 +103,12 @@ export function 일람표시트(표들, ST) {
     if (rows.length) rows.push([])
     rows.push([{ v: '■ ' + t.이름 + ' 일람표', st: ST.HEAD }])
     rows.push([...t.머리, '3D 쓰임', '근거'].map((h) => ({ v: h, st: ST.HEAD })))
-    for (const z of t.줄) rows.push([z.기호, ...z.칸, z.쓰임 === null ? '' : z.쓰임, z.만든 ? '🤖 클로드가 만든 값 — ' + z.만든 : '📄 도면 일람표'])
+    for (const z of t.줄) rows.push([z.기호, ...z.칸, z.쓰임 === null ? '' : z.쓰임, z.만든 ? '🤖 건설맵이 만든 값 — ' + z.만든 : '📄 도면 일람표'])
     넓 = Math.max(넓, t.머리.length)
   }
   return {
     name: '부재 일람표',
-    head: ['K-건설맵 부재 일람표 — 📄 도면에서 읽은 값 · 🤖 클로드가 만든 값(까닭 적음 · 배근표에서 고칠 수 있음)'],
+    head: ['K-건설맵 부재 일람표 — 📄 도면에서 읽은 값 · 🤖 건설맵이 만든 값(까닭 적음 · 배근표에서 고칠 수 있음)'],
     rows,
     widths: [12, ...Array.from({ length: Math.max(넓 - 1, 0) }, () => 16), 9, 60],
   }

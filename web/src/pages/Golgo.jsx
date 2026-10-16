@@ -39,6 +39,8 @@ import { 플랜트다듬기, 플랜트공사 } from '../lib/플랜트기초.js' 
 import { 표찾기, 표읽기, 글자모음, 선모음, 정착표넣기, 칸이름, 칸들 as 정착칸들 } from '../lib/정착표읽기.js'
 import { 줄자리, 도형상자, 모은상자, 누른줄들 } from '../lib/도면오가기.js'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
+import 골조3D칸 from '../골조3D칸.jsx'   // 🧊 2026-10-16 (가) ④ 결과 안 3D
+import { 세기 } from '../lib/받은수.jsx'
 import { askAfter } from '../AskComment'
 import { use화면상태 } from '../lib/길기록.js'
 
@@ -136,6 +138,7 @@ export default function Golgo() {
 
   /* ⚡ 도면 넣으면 자동 — 넣은 도면(여러 장)을 모두 읽어 배근표·주자료·층을 채웁니다 */
   const 자동읽기 = async (목록, 묻지않음 = false, 앞틀림 = '') => {
+    판층Ref.current = {}          /* 📑 새 도면 — 판마다 고른 층은 비움 */
     const 도면들 = [], 남김 = []
     let 틀림 = 앞틀림
     for (const { 이름, buf } of 목록) {
@@ -167,12 +170,12 @@ export default function Golgo() {
       if (!['주', '배', '유'].includes(탭)) set탭('주')
       return
     }
-    const 판 = { R, 열 }
+    const 판 = { R, 열, 들: 도면들 }       /* 🧊 2026-10-16 들 — ④ 결과 3D(골조3D칸)가 읽은 도면으로 부재를 세움 */
     if (!비었나 && !묻지않음) { set자동({ ...판, 묻기: true }); return }
     자동넣기(판)
   }
   const 자동넣기 = (판) => {
-    const { R, 열 } = 판
+    const { R, 열, 들 } = 판
     /* 기준값(fck·피복·할증…)은 적어 둔 것 그대로 — 📋 도면의 정착·이음표는 «그 fck» 의 줄만 정착표에 넣음 (2026-09-28) */
     const 기0 = 공사.기준 || R.공사.기준
     let 정착알림 = null
@@ -192,10 +195,28 @@ export default function Golgo() {
       } else if (표fck.length) 정착알림 = { 됨: false, 글: '표의 fck(' + 표fck.join('·') + ')가 기준 fck ' + fck + ' 와 달라 넣지 않았습니다 — ① 개요에서 fck 를 고친 뒤 «📋 도면에서 정착·이음표 읽기» 를 누르십시오' }
     }
     set공사((P) => ({ ...R.공사, 기준: 정착알림 && 정착알림.됨 ? 기준 : (P.기준 || R.공사.기준) }))
-    set자동({ R, 됨: true, 정착알림 })
+    set자동({ R, 됨: true, 정착알림, 들 })
     set짚음(null); set짚은([]); set결과알림(null)
     set탭('결과'); set표('보'); set선택(null); set동i(0)
     if (열) 도면열기(열.buf, 열.이름)
+  }
+  /* 📑 2026-10-16 (다) 판 목록에서 판마다 층을 고르면 — 넣은 도면(자동.들)으로 골조를 다시 읽어 채움 */
+  const 판층Ref = useRef({})
+  const 판층바꾸기 = (번, p, f) => {
+    if (!자동 || !자동.들) return
+    const 새 = { ...판층Ref.current }, 키 = 번 + '|' + p
+    if (f) 새[키] = f; else delete 새[키]
+    판층Ref.current = 새
+    const 들 = 자동.들
+    set자동상태({ k: 'busy', msg: '고른 층으로 골조를 다시 읽는 중', p: 0 })
+    setTimeout(() => {
+      let R
+      try { R = 플랜트다듬기(들, 골조읽기(들, { 판층: 새 })); if (R && R.플랜트) R = { ...R, 공사: 플랜트공사(들, R) } } catch (e) { set자동상태({ k: 'err', 글: '고른 층으로 다시 읽다 멈췄습니다 (' + e.message + ')' }); return }
+      set판들((R.읽음 && R.읽음.판) || null)
+      set자동상태({ k: 'ok' })
+      if (R.있음) 자동넣기({ R, 열: null, 들 })
+      세기('|골조|판층')
+    }, 30)
   }
   const 자동파일 = async (files) => {
     const list = [...(files || [])].filter((f) => /\.(dxf|dwg)$/i.test(f.name))
@@ -460,7 +481,7 @@ export default function Golgo() {
         <끌어놓기판 글="도면(DXF·DWG)을 놓으면 자동으로 셉니다 — 구조평면도·일람표 여러 장도 한꺼번에" 여럿 받기={(fs) => 자동파일(fs)} />
         <도면상태줄 상태={자동상태.k !== 'idle' && 자동상태.k !== 'ok' ? 자동상태 : 도.도면상태} />
         {점검들 && 자동상태.k !== 'busy' && <읽기점검칸 들={점검들} />}
-        {판들 && 자동상태.k !== 'busy' && <판목록칸 판={판들} 공사={공사} S={결과} />}
+        {판들 && 자동상태.k !== 'busy' && <판목록칸 판={판들} 공사={공사} S={결과} 층바꾸기={자동 && 자동.들 ? 판층바꾸기 : null} 바꿈말="(③ 주자료는 도면에서 다시 채웁니다)" />}
         {자동 && 자동.묻기 && (
           <div className="gg-ask">
             도면에서 <b>{개수글(자동.R)}</b> 을 읽었습니다. 지금 적은 것 대신 넣을까요? (기준값은 그대로 둡니다)
@@ -580,6 +601,12 @@ export default function Golgo() {
         </div>
       )}
 
+      {/* 🧊 2026-10-16 (가) 소장님 「골조는 왜 3D가 없지?」 — ⚡ 자동으로 읽은 도면이면 ④ 결과 안에서 3D · 부재 누르면 물량 · 산출서 줄 누르면 3D 에서 파랗게 */}
+      {탭 === '결과' && (자동 && 자동.됨 && 자동.들 && 자동.R && 자동.R.있음
+        ? <골조3D칸 들={자동.들} R={자동.R} 공사={공사} 짚음={짚음} />
+        : (공사.동 || []).some((d) => Object.values(d.주자료 || {}).some((a) => Array.isArray(a) && a.length)) && (
+          <div className="card no-print gz3-hint">🧊 <b>3D 로 보기</b> — 위 <b>⚡ 도면 넣으면 자동</b>으로 구조평면도 · 일람표를 넣으면 여기서 3D 로 보고, 부재를 누르면 그 부재 물량이 나옵니다. <Link to="/jeoksan/bim">🧊 BIM 물량</Link>에서도 됩니다.</div>
+        ))}
       {탭 === '결과' && 모델 && (
         <도면판 도={도} 강조={결과강조} 찍었다={결과찍었다} set보는중={set보는중} 붙음={!좁은화면()} 네모들={결과네모} 가볼곳={가볼} 두점단추={false}
           알림={결과알림 ? 결과알림.글 : ''} 알림좋음={!(결과알림 && 결과알림.warn)} 열기={() => 파일칸.current?.click()}

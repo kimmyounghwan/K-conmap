@@ -1281,6 +1281,15 @@ function Detail({ row, ans, mine, onChange, 나운영자, 있는방 = null, 고�
             </div>
           )
           : <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.85, fontSize: 13.5 }}>{가림(a.b)}</div>}
+        {/* 📎 2026-10-16 답글에 붙인 파일 — 글의 파일과 같은 상자 · 📊 |맵톡|답글파일받기 */}
+        {파일있음(a) && !a.deleted && (
+          <a className="mt-filebox" href={a.f.u} target="_blank" rel="noopener noreferrer nofollow" download={a.f.n} onClick={() => 세기('|맵톡|답글파일받기')}>
+            <span className="mt-filebox-i" aria-hidden="true">📎</span>
+            <span className="mt-filebox-n">{a.f.n}</span>
+            <span className="muted">{크기글(a.f.s)}</span>
+            <b className="mt-filebox-go">받기 ↓</b>
+          </a>
+        )}
         <div className="mt-ans-f">
           {내번호(a.uid)
             ? <span className="qna-like sm muted" title="내 답글 — 공감은 다른 분이 누릅니다">♥ {Object.keys(답좋아요[a.id] || {}).length}</span>
@@ -1389,8 +1398,17 @@ function Detail({ row, ans, mine, onChange, 나운영자, 있는방 = null, 고�
         </div>
       ))}
 
+      {/* ↩ 2026-10-16 소장님 「답글 쓰는게 두 개나 있어...이거 고쳐 줘」 — 답글마다 «답글쓰기» 로 칸을 열면
+          맨 아래 «글쓴이에게» 칸은 접어 두고(쓰던 글은 남음) 작은 단추 하나만. 누르면 위 칸이 닫히고 이 칸이 다시 열림 → 늘 칸 하나 */}
       <div ref={아래칸}>
-        <AnswerForm qid={row.id} onDone={onChange} 받는이={글쓴이} 원글 />
+        {답할 !== null && (
+          <button type="button" className="mt-reply mt-af-open" onClick={원글에게} aria-label={`글쓴이 ${글쓴이} 님에게 답글쓰기`}>
+            ↩ 글쓴이 <b>{글쓴이}</b> 님에게 답글쓰기
+          </button>
+        )}
+        <div hidden={답할 !== null}>
+          <AnswerForm qid={row.id} onDone={onChange} 받는이={글쓴이} 원글 />
+        </div>
       </div>
 
       {mine && !고침 && (
@@ -1447,6 +1465,21 @@ function AnswerForm({ qid, onDone, to = null, 받는이 = '', 인용 = '', 열�
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const [나운영자, set나운영자] = useState(false)
+  /* 📎 2026-10-16 답글에도 파일 한 개 — 소장님 「파일 올리는 란이 없는 것 같아..계속 답글을 쓰면..고쳐줘」
+     (이용자가 답글로 «파일 올리고 싶은데 어떻게» 를 묻고 있었음) · 글쓰기와 같은 검사 · 같은 자리(user_forms/{기기}) · 같은 하루 한도 */
+  const [첨부, set첨부] = useState(null)
+  const 파일고름 = async (e) => {
+    const f = e.target.files && e.target.files[0]
+    e.target.value = ''
+    if (!f) return
+    const 말 = 파일검사(f)
+    if (말) return setMsg(말)
+    if (확장자(f.name) === 'zip') {
+      const 안말 = await 압축검사(f)
+      if (안말) { 세기('|맵톡|압축막음'); return setMsg(안말) }
+    }
+    set첨부(f); setMsg('')
+  }
 
   /* 이 브라우저가 운영자인지 미리 알아 둡니다 — 올리기 «전에» 화면에 알려 주려고.
      쓰기 전에 「이 답에는 표가 붙습니다」 를 보여 줘야 무게를 알고 씁니다. */
@@ -1463,7 +1496,8 @@ function AnswerForm({ qid, onDone, to = null, 받는이 = '', 인용 = '', 열�
   }, [])
 
   const submit = async () => {
-    if (b.trim().length < 2) return setMsg('답글을 적어 주세요.')
+    if (b.trim().length < 2 && !첨부) return setMsg('답글을 적어 주세요.')
+    if (첨부 && !나운영자 && 오늘올린수() >= 하루한도) return setMsg('📎 지금은 파일을 더 올릴 수 없습니다. 잠시 뒤 다시 올려 주세요. (글만 올리시려면 파일을 빼 주세요)')
     /* 🔔 누른 그 순간 묻습니다(아이폰 · 파이어폭스는 기다렸다 물으면 거절) — 이미 정했으면 묻지 않음
        ⚠️ 소장님(운영자) 브라우저에서는 묻지 않습니다 — 소장님: 「그냥, 내가 답글을 쓰면 알림이 가게 해달라고」(허용 창 없이) */
     const 허락 = 나운영자 ? Promise.resolve('skip') : 허락묻기()
@@ -1476,18 +1510,31 @@ function AnswerForm({ qid, onDone, to = null, 받는이 = '', 인용 = '', 열�
       const op = isOp(user.uid)
       /* 🔑 되찾은 기기면 옛 번호(r)로 — 별명이 같아집니다 */
       const { r } = await 뿌리찾기()
+      /* 📎 파일 먼저(10MB 넘으면 답글을 올리지 않고 그 자리에서 알림 · 칸은 그대로) */
+      let f = null, 파일말 = ''
+      if (첨부) {
+        try { f = await 파일올리기(첨부, user.uid) } catch (e) {
+          if (e && e.message === '큼') { setBusy(false); return setMsg(`📎 눌러도 ${크기글(e.저장)} 입니다 — 10MB 넘는 파일은 올릴 수 없습니다. 나눠서 올려 주세요.`) }
+          파일말 = ' · 파일은 못 올렸습니다(답글만 올라갔습니다)'
+        }
+      }
+      const 글 = b.trim() || (f ? '📎 ' + f.n : '')
+      if (글.length < 2) { setBusy(false); return setMsg('답글을 적어 주세요.' + 파일말) }
       const slot = push(ref(db, `qna_a/${qid}`))
       await set(slot, {
-        b: b.trim().slice(0, 2000),
+        b: 글.slice(0, 2000),
         nick: (op ? 'K-건설맵' : nickOf(r)).slice(0, 20),
         op,
         uid: r,
         at: Date.now(),
         ...(to ? { to } : {}),   /* ↩ G148 — 누구에게(규칙: 이 글에 있는 답글 번호만) */
+        ...(f ? { f } : {}),     /* 📎 답글 파일(규칙: 이 기기의 user_forms 주소만) */
         ...(await 몰래표()),     /* 🙈 몰래 차단 기기면 sb — 규칙이 강제합니다 */
       })
-      setB('')
+      setB(''); set첨부(null)
       세기('|맵톡|답글'); if (to) 세기('|맵톡|누구에게')
+      if (f) { 세기('|맵톡|답글파일'); if (확장자(f.n) === 'zip') 세기('|맵톡|압축파일'); 올린수더하기() }
+      if (파일말) setMsg(파일말.replace(/^ · /, ''))
       /* 🔔 이 글에 다음 답글이 달리면 나에게도 알림(G73) — 허락한 기기는 폰 알림창까지 */
       폰알림켜기(r, 허락)
       onDone()
@@ -1508,7 +1555,20 @@ function AnswerForm({ qid, onDone, to = null, 받는이 = '', 인용 = '', 열�
       <textarea ref={칸} className="inp mt-af-t" value={b} onChange={(e) => setB(e.target.value)} rows={5}
         placeholder={받는이 ? `${받는이} 님에게 — 아무 말이나` : '답글 — 아무 말이나'}
         style={{ width: '100%', boxSizing: 'border-box', minHeight: 150, fontSize: 16, lineHeight: 1.6, resize: 'vertical' }} maxLength={2000} />
+      {첨부 && (
+        <div className="mt-att mt-att-f">
+          <span className="mt-att-i" aria-hidden="true">📎</span>
+          <span className="mt-att-n">{첨부.name}</span><span className="muted">{크기글(첨부.size)}</span>
+          <button type="button" onClick={() => set첨부(null)}>빼기</button>
+          <span className="mt-att-warn">남의 공사명 · 업체명 · 사람 이름 · 전화번호는 지우고 올려 주세요</span>
+        </div>
+      )}
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+        <label className={'mt-chip mt-file mt-af-file' + (첨부 ? ' on' : '')} title="한글 · 엑셀 · 워드 · PDF · PPT (20MB 까지) · 압축 zip (10MB 까지)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 11.5 12.5 20a5 5 0 0 1-7-7L14 4.5a3.3 3.3 0 0 1 4.7 4.7L10.2 17.7a1.7 1.7 0 0 1-2.4-2.4L15.5 7.6" /></svg>
+          <span className="mt-chip-t">{첨부 ? '파일 바꾸기' : '파일 붙이기'}</span>
+          <input type="file" accept={받는꼴} onChange={파일고름} className="sr-only" aria-label="답글에 파일 붙이기 — 한글 · 엑셀 · 워드 · PDF · PPT · 압축(zip)" />
+        </label>
         <button className="btn primary" onClick={submit} disabled={busy}>
           {busy ? '올리는 중…' : (받는이 && !원글 ? `${받는이} 님에게 답글 올리기` : '답글 올리기')}
         </button>

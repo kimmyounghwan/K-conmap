@@ -212,6 +212,14 @@ export default function Bim() {
   const [흙할증, set흙할증] = useState(기억.흙할증)      // 🧱 G229 흙막이 강재 할증(% 글자 · 도면 재료표 «Add 10%»)
   const [토목상태, set토목상태] = useState({ k: 기억.토목 ? 'ok' : 'idle' })
   const [상태, set상태] = useState({ k: 'idle' })
+  /* 🏞 2026-10-16 소장님 「배수로는 다 읽을 때까지 «가상 배수로 불러오는 중 — 지금 숫자는 관리동 건물만» 안내 띠」 — 지금 보는 예시(내 도면이면 '') */
+  const [보는예시, set보는예시] = useState('')
+  /* ⏳ 2026-10-16 소장님 「다른 것 클릭할 때도 안내 띠 있어야 하는거 아니야?」 — 새 도면을 읽는 동안에도 앞 결과(숫자 · 3D)가 그대로 보여
+     «안 바뀐다» 로 보이던 것 → 3층 · 청사 · 배수로 · 내 도면 모두 «○○ 불러오는 중 — 지금 보이는 숫자는 아직 △△ 것» 띠 */
+  /* 📑 2026-10-16 (다) 판마다 고른 층 { '번|판': '2' } — 판 목록에서 고르면 골조를 다시 읽음(새 도면을 넣으면 비움) */
+  const [판층, set판층] = useState({})
+  const 불러오는Ref = useRef('')                 // 지금 읽는 것 이름(예시 이름 · 내 도면 파일 이름)
+  const [보이는것, set보이는것] = useState('')    // 지금 화면 숫자 · 3D 가 어느 도면 것인지
   const [선택, set선택] = useState(null)          // 부재 id (토목은 토목ID 위)
   const [묶음, set묶음] = useState(null)          // {글, ids:Set}
   const [끔, set끔] = useState(() => new Set())  // 끈 종류
@@ -272,7 +280,7 @@ export default function Bim() {
     let 틀림 = 앞틀림
     const 쓴이름 = new Set()
     if (일꾼Ref.current) { 일꾼Ref.current.terminate(); 일꾼Ref.current = null }
-    set토목(null); set끔(new Set())
+    set토목(null); set끔(new Set()); set판층({})
     const 바꾼 = []
     for (const { 이름: nm0, buf } of 목록) {
       let nm = nm0
@@ -305,9 +313,25 @@ export default function Bim() {
     처음맞춤.current = false
     set도면들(들); setR(r); set셈방법('도면'); set높이({}); set선택(null); set묶음(null); set층만(''); set두께({}); set건물두께({}); set높이배(1)
     set이름(목록.length === 1 ? 목록[0].이름 : 목록[0].이름 + ' 외 ' + (목록.length - 1) + '장')
+    set보이는것(불러오는Ref.current || (목록.length === 1 ? 목록[0].이름 : 목록[0].이름 + ' 외 ' + (목록.length - 1) + '장'))
     set상태(틀림 ? { k: 'err', 글: '읽지 못한 도면: ' + 틀림.trim() } : { k: 'ok' })
     세기(예시로 ? '|BIM물량|예시' : '|BIM물량|도면')
     if (r && r.플랜트) 세기('|BIM물량|플랜트기초')   /* 📊 G294 (안 보임) 플랜트식 토목 기초 도면으로 읽은 때 */
+  }
+  const 층바꾸기 = (번, p, f) => {
+    const 새 = { ...판층 }, 키 = 번 + '|' + p
+    if (f) 새[키] = f; else delete 새[키]
+    set판층(새)
+    if (!도면들 || !도면들.length) return
+    set상태({ k: 'busy', 글: '고른 층으로 골조를 다시 읽는 중' })
+    setTimeout(() => {
+      let r
+      try { r = 플랜트다듬기(도면들, 골조읽기(도면들, { 판층: 새 })) } catch (e) { set상태({ k: 'err', 글: '고른 층으로 다시 읽다 멈췄습니다 (' + e.message + ')' }); return }
+      처음맞춤.current = false
+      setR(r); set선택(null); set묶음(null)
+      set상태({ k: 'ok' })
+      세기('|BIM물량|판층')
+    }, 30)
   }
   const 파일받기 = async (files) => {
     const list = [...(files || [])].filter((f) => /\.(dxf|dwg)$/i.test(f.name))
@@ -317,9 +341,13 @@ export default function Bim() {
     const 큰글 = 큰.length ? 큰.map((f) => f.name).join(', ') + ' — ' + 오류글('big') + ' ' : ''
     if (!쓸.length) { set상태({ k: 'err', 글: 큰글.trim() }); return }
     set상태({ k: 'busy', 글: '파일 여는 중' })
+    set보는예시('')
+    불러오는Ref.current = 쓸.length === 1 ? 쓸[0].name : 쓸[0].name + ' 외 ' + (쓸.length - 1) + '장'
     읽기(await Promise.all(쓸.map(async (f) => ({ 이름: f.name, buf: await f.arrayBuffer() }))), false, 큰글)
   }
   const 예시열기 = async (q = 예시) => {
+    set보는예시(q === 예시토목 ? '배수로' : q === 예시청사 ? '청사' : '3층')
+    불러오는Ref.current = q === 예시토목 ? '가상 배수로' : q === 예시청사 ? '가상 청사' : '가상 3층 건물'
     try {
       set상태({ k: 'busy', 글: '예시 도면 받는 중' })
       const 목록 = []
@@ -589,7 +617,7 @@ export default function Bim() {
     const 찾 = (표, 기호) => (배[표 === '옹벽' ? '벽' : 표] || []).find((b) => String(b.기호 || '').trim() === String(기호 || '').trim())
     return 모델1.부재.map((o) => {
       const b = 찾(o.표, o.기호)
-      const 까닭 = [...(b && b.만든 ? ['🤖 ' + String(b.만든).replace(/^클로드:\s*/, '')] : []), ...(o.짐작 || []).map((w) => '💭 ' + w)]
+      const 까닭 = [...(b && b.만든 ? ['🤖 ' + String(b.만든).replace(/^(클로드|건설맵):\s*/, '')] : []), ...(o.짐작 || []).map((w) => '💭 ' + w)]
       return { o, 키: 검키(o), 까닭 }
     }).filter((x) => x.까닭.length)
   }, [모델1, 공사0])  // eslint-disable-line react-hooks/exhaustive-deps
@@ -659,7 +687,7 @@ export default function Bim() {
         {토목상태.k === 'busy' && <div className="bim-st">🏞 {토목상태.글 || '토목 · 구조물 · 땅을 좌표로 읽는 중'} {토목상태.p ? Math.round(토목상태.p * 100) + '%' : ''}…{골조수 > 0 ? ' (골조는 먼저 보여 드립니다)' : ''}</div>}
         {토목상태.k === 'err' && <div className="dx3-warn">⚠️ {토목상태.글}</div>}
         {도면들 && 도면들.length > 0 && 상태.k !== 'busy' && <읽기점검칸 들={도면들} />}
-        {R && R.읽음 && R.읽음.판 && 상태.k !== 'busy' && <판목록칸 판={R.읽음.판} 공사={공사} S={S} />}
+        {R && R.읽음 && R.읽음.판 && 상태.k !== 'busy' && <판목록칸 판={R.읽음.판} 공사={공사} S={S} 층바꾸기={층바꾸기} />}
         <details className="bim-how">
           <summary>📘 어떤 도면을 넣으면 되나요</summary>
           <ul>
@@ -708,6 +736,20 @@ export default function Bim() {
               </div>
             )}
             {플랜트 && <셈방법칸 값={셈방법} 바꾸기={(k) => { set셈방법(k); 세기('|BIM물량|셈방법|' + k) }} />}
+            {상태.k === 'busy' && (() => {
+              const 퍼 = (String(상태.글 || '').match(/(\d+)%/) || [])[1]
+              const 앞것 = 보이는것 || 이름 || '앞 도면'
+              return (
+                <div className="bim-wait" role="status"><span>⏳ <b>{불러오는Ref.current || '새 도면'} 불러오는 중</b> — 지금 보이는 숫자 · 3D 는 아직 <b>{앞것}</b> 것입니다</span>
+                  {퍼 ? <span className="bim-wait-p">{퍼}%</span> : null}
+                  <span className="muted">다 읽으면 바뀝니다</span></div>
+              )
+            })()}
+            {상태.k !== 'busy' && 토목상태.k === 'busy' && (
+              <div className="bim-wait" role="status"><span>🏞 <b>{보는예시 === '배수로' ? '가상 배수로 불러오는 중' : 보는예시 ? (보는예시 === '청사' ? '가상 청사' : '가상 3층 건물') + ' — 땅 · 토목이 있는지 살피는 중' : '토목 · 구조물 · 땅 읽는 중'}</b> — 지금 숫자는 <b>{보는예시 === '배수로' ? '관리동 건물만' : '건물(골조)'}</b>입니다</span>
+                {토목상태.p ? <span className="bim-wait-p">{Math.round(토목상태.p * 100)}%</span> : null}
+                <span className="muted">{보는예시 === '배수로' ? '다 읽으면 배수로 · 배수장 · 흙막이 · 땅이 더해집니다' : 보는예시 ? '있으면 더해집니다' : '다 읽으면 토목 · 땅이 더해집니다'}</span></div>
+            )}
             <div className="bim-sum">
               {(() => {
                 const 건덩 = 토 ? 토.부재.filter((o) => o.종류 === '건물' && !(참고건물 && o.건물 === 참고건물)).length : 0
@@ -893,7 +935,7 @@ export default function Bim() {
             const 다음 = 검다음(null)
             return (
               <div className="card bim-review">
-                <h2 className="bim-h2">🔎 검수 <span className="muted">— 클로드가 짐작하거나 만든 값이 든 부재 {쉼(검목록.length)}개 · 확인 {쉼(끝 - 뺀수)} · 뺌 {쉼(뺀수)} ({몫}%)</span></h2>
+                <h2 className="bim-h2">🔎 검수 <span className="muted">— 건설맵이 짐작하거나 만든 값이 든 부재 {쉼(검목록.length)}개 · 확인 {쉼(끝 - 뺀수)} · 뺌 {쉼(뺀수)} ({몫}%)</span></h2>
                 <div className="bim-rv-bar" aria-label={'검수 ' + 몫 + '%'}><i style={{ width: 몫 + '%' }} /></div>
                 <div className="bim-rv-top">
                   <span className="bim-chips">
@@ -937,7 +979,7 @@ export default function Bim() {
             const 모든줄 = 일람표.reduce((n, t) => n + t.줄.length, 0), 모든만든 = 일람표.reduce((n, t) => n + 만든수(t), 0)
             return (
               <div className="card bim-ilam">
-                <h2 className="bim-h2">📋 부재 일람표 <span className="muted">— 도면에서 읽어 만든 일람 {쉼(모든줄)}줄 · 📄 도면 {쉼(모든줄 - 모든만든)} · 🤖 클로드가 만든 값 {쉼(모든만든)}</span></h2>
+                <h2 className="bim-h2">📋 부재 일람표 <span className="muted">— 도면에서 읽어 만든 일람 {쉼(모든줄)}줄 · 📄 도면 {쉼(모든줄 - 모든만든)} · 🤖 건설맵이 만든 값 {쉼(모든만든)}</span></h2>
                 <div className="bim-rv-top">
                   <span className="bim-chips">
                     {일람표.map((t) => <button key={t.종류} type="button" className={'bim-chip' + (지금 === t ? ' on' : '')} onClick={() => { set일람종(t.종류); 세기('|BIM물량|일람') }}>{t.이름} {쉼(t.줄.length)}{만든수(t) ? ' · 🤖 ' + 쉼(만든수(t)) : ''}</button>)}
@@ -958,7 +1000,7 @@ export default function Bim() {
                     </tbody>
                   </table>
                 </div>
-                <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>🤖 = 도면 일람표에 없거나 빈 칸이라 클로드가 채운 값(어디서 가져왔는지 «근거» 에) · 3D = 이 기호로 세운 부재 수(— 는 일람표에만 있음) · 줄을 누르면 그 부재들이 3D 에서 파랗게 · 엑셀 수량산출서 «부재 일람표» 시트에도 들어갑니다.</div>
+                <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>🤖 = 도면 일람표에 없거나 빈 칸이라 건설맵이 채운 값(어디서 가져왔는지 «근거» 에) · 3D = 이 기호로 세운 부재 수(— 는 일람표에만 있음) · 줄을 누르면 그 부재들이 3D 에서 파랗게 · 엑셀 수량산출서 «부재 일람표» 시트에도 들어갑니다.</div>
               </div>
             )
           })()}
