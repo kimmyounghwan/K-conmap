@@ -12,6 +12,9 @@ import { ShareBtn } from './CorpPage.jsx'
 import UserForms from '../UserForms.jsx'
 import { Empty } from '../components.jsx'
 
+/* 🎨 2026-10-16 탭 꾸밈 — 묶음마다 색(머리 띠 · 아이콘 바탕) */
+const 묶음색 = ['#2563eb', '#0d9488', '#d97706', '#7c3aed', '#e11d48', '#16a34a', '#0284c7', '#ea580c']
+
 /* ⚠️ 2026-09-29 위험성평가 서식(wih-*) — 미리보기는 서식과 같은 칸의 예문 종이 · 인쇄는 빈 서식 (tools/위험성미리.jsx, 늦게 불러옴) */
 const 위험성미리 = lazy(() => import('../tools/위험성미리.jsx'))
 
@@ -282,17 +285,19 @@ function 서식칸({ f }) {
   const 예시 = f.gen === 'forms2' || f.re
   const th = 썸(f)
   return (
-    <Link className="tlx-card fm-card" to={`/forms/${f.slug}`}>
+    <Link className="tlx-card fm-card" to={`/forms/${f.slug}`} title={f.short}>
       {th
         ? <span className="fm-th"><img src={th} alt="" loading="lazy" decoding="async" /></span>
         : <span className="tlx-ic">{f.icon}</span>}
       <span className="tlx-body">
-        <span className="tlx-t">{f.title}
+        <span className="tlx-t">{f.title}</span>
+        <span className="tlx-d">{f.short}</span>
+        {/* 🎨 2026-10-16 표(작성 예시 · 바로 쓰기)와 받은 횟수를 한 줄에 — 표가 제목 밑에 한 줄 더 차지하던 빈 곳을 줄임 */}
+        <span className="fm-meta">
           {f.prog && <em className="tlx-new fm-pg">🧰 바로 쓰기</em>}
           {예시 ? <em className="tlx-new fm-ex">✍ 작성 예시</em> : ORIGSET.has(f.slug) ? <em className="tlx-new fm-orig">원본 틀</em> : null}
+          <받은수 파일={서식파일(f)} 봄={`/forms/${f.slug}`} className="dlcount tlx-dl" />
         </span>
-        <span className="tlx-d">{f.short}</span>
-        <받은수 파일={서식파일(f)} 봄={`/forms/${f.slug}`} className="dlcount tlx-dl" />
       </span>
     </Link>
   )
@@ -470,8 +475,8 @@ export default function Forms() {
         </div>
       </div>
 
-      {단계.map((s) => (
-        <div className="card ny-sit" id={'fm-' + s.k} key={s.k}>
+      {단계.map((s, si) => (
+        <div className="card ny-sit" id={'fm-' + s.k} key={s.k} style={{ '--sec': 묶음색[si % 묶음색.length] }}>
           <div className="ny-sit-h"><span className="ny-n">{s.n}</span> {s.ic} {s.h}</div>
           <div className="ny-sit-w">{s.언제}</div>
           {s.progs.length > 0 && (

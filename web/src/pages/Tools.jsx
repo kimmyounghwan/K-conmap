@@ -25,6 +25,9 @@ import { 받은수, 화면열쇠, use받은수, 합 as 받은합, 조회합, 세
 import 이어쓰기 from '../tools/이어쓰기.jsx'
 import { 앞모습두기 } from '../lib/이어쓰기.js'
 
+/* 🎨 2026-10-16 탭 꾸밈 — 묶음마다 색(머리 띠 · 아이콘 바탕) */
+const 묶음색 = ['#2563eb', '#0d9488', '#d97706', '#7c3aed', '#e11d48', '#16a34a', '#0284c7', '#ea580c']
+
 const TOOLS = DATA.tools || []
 /* 📑 2026-09-28 — 계약·공사 관리 도구 4가지(tools/계약칸.jsx)를 같은 판에 얹습니다. slug 는 tools.json 과 짝 */
 /* 💸 2026-09-28 — 미불금 받기 4가지(tools/미불칸.jsx). 넷이 칸을 같이 씁니다(tools.json "store") */
@@ -153,14 +156,14 @@ export default function ToolsIndex() {
         <div className="card"><div className="note">「{q}」 에 맞는 도구가 없습니다. 다른 말로 찾아 보시거나, 맵톡에 «이런 도구가 있으면» 한 줄 남겨 주십시오.</div></div>
       )}
 
-      {찾은.map((g) => (
-        <div className="card" key={g.key} id={`t-${g.key}`} style={내림}>
+      {찾은.map((g, gi) => (
+        <div className="card tlx-sec" key={g.key} id={`t-${g.key}`} style={{ ...(내림 || {}), '--sec': 묶음색[gi % 묶음색.length] }}>
           <div className="detail-h">{g.icon} {g.name} <span className="count">· {g.items.length}가지</span></div>
           <div className="tlx-grid">
             {g.items.map((x) => {
               const 곳 = 어디[x.w] || 어디.site
               return (
-                <Link className="tlx-card" to={x.to} key={x.to}>
+                <Link className="tlx-card" to={x.to} key={x.to} title={x.d}>
                   <span className="tlx-ic">{x.icon}</span>
                   <span className="tlx-body">
                     <span className="tlx-t">{x.t}{x.new && <em className="tlx-new">새로</em>}</span>

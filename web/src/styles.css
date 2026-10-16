@@ -7585,3 +7585,81 @@ details.sg-more-sm > summary::before { top: 5px; left: 10px; }
 .sg-pager select { height: 38px; max-width: 240px; font-size: 14px; padding: 0 8px; }
 .sg-view { overflow-x: auto; background: #e9ecf1; border-radius: 10px; padding: 10px 0; display: flex; justify-content: center; }
 .sg-page { box-shadow: 0 1px 6px rgba(0, 0, 0, .18); background: #fff; flex: 0 0 auto; font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Pretendard", sans-serif; }
+
+/* ═══ 🎨 2026-10-16 서식 · 도구 · 내역서 · 적산 탭 꾸밈 — 소장님 「빈 공간이 너무 많아, 예쁘게」 ═══
+   ① 카드 높이 맞춤(설명 3줄 · 마우스를 대면 전체 글) ② 끝 줄 외톨이 카드 넓게 ③ 작은 묶음 둘 나란히(.ny-pair)
+   ④ 묶음마다 색(--sec · 머리 띠 · 아이콘 바탕) · 카드는 흰 바탕 · 마우스를 대면 살짝 뜸 ⑤ 적산 질문 막대 2열.
+   열 수를 화면 폭에 맞춰 정해 두어야(4 · 3 · 2 · 1) «끝 줄에 몇 장 남았나» 를 셀 수 있습니다. */
+.tlx-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.fm-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 1099px) { .tlx-grid, .fm-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 819px) { .tlx-grid, .fm-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .tlx-grid { grid-template-columns: 1fr; } .fm-grid { grid-template-columns: 1fr 1fr; } }
+/* 끝 줄 외톨이 → 넓게 */
+@media (min-width: 1100px) {
+  .tlx-grid > .tlx-card:last-child:nth-child(4n+1) { grid-column: 1 / -1; }
+  .tlx-grid > .tlx-card:nth-last-child(2):nth-child(4n+1), .tlx-grid > .tlx-card:last-child:nth-child(4n+2) { grid-column: span 2; }
+  .tlx-grid > .tlx-card:last-child:nth-child(4n+3) { grid-column: span 2; }
+}
+@media (min-width: 820px) and (max-width: 1099px) {
+  .tlx-grid > .tlx-card:last-child:nth-child(3n+1) { grid-column: 1 / -1; }
+  .tlx-grid > .tlx-card:last-child:nth-child(3n+2) { grid-column: span 2; }
+}
+@media (min-width: 561px) and (max-width: 819px) { .tlx-grid > .tlx-card:last-child:nth-child(2n+1) { grid-column: 1 / -1; } }
+@media (max-width: 560px) { .fm-grid > .tlx-card:last-child:nth-child(2n+1) { grid-column: 1 / -1; } }
+/* 카드 */
+.tlx-card { background: var(--surface); box-shadow: 0 1px 2px rgba(15, 23, 42, .05); align-items: stretch; gap: 12px; padding: 12px 13px;
+  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease; cursor: pointer; }
+.tlx-card:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(15, 23, 42, .10); border-color: var(--sec, var(--accent)); background: var(--surface); }
+.tlx-card:focus-visible { outline: 2px solid var(--sec, var(--accent)); outline-offset: 2px; }
+.tlx-ic { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font-size: 21px; line-height: 1;
+  background: var(--accent-soft); background: color-mix(in srgb, var(--sec, var(--accent)) 13%, transparent); }
+.tlx-body { flex: 1 1 auto; }
+.tlx-t { font-size: 14.5px; }
+.tlx-d { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.tlx-body > .tlx-row, .tlx-body > .tlx-dl { margin-top: auto; padding-top: 6px; }
+/* 넓어진 카드는 글을 다 보여 줌 */
+.tlx-grid > .tlx-card:last-child .tlx-d { -webkit-line-clamp: 4; }
+/* 서식 카드는 조금 작게(그대로 2줄) */
+.fm-card .tlx-d { -webkit-line-clamp: 2; }
+.fm-card .tlx-ic { width: 36px; height: 36px; font-size: 18px; border-radius: 10px; }
+/* 서식 카드 아랫줄 — 표(작성 예시 · 바로 쓰기) + 받은 횟수 한 줄 */
+.fm-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: auto; padding-top: 6px; }
+.fm-meta:empty { display: none; }
+.fm-card .fm-meta .tlx-new { margin: 0; }
+.fm-meta .tlx-dl { margin: 0 0 0 2px; padding: 0; }
+@media (min-width: 561px) { .fm-card { padding: 10px 11px; gap: 10px; } }
+/* 폰 — 카드를 작고 촘촘하게(빈 곳이 늘지 않게) */
+@media (max-width: 560px) {
+  .tlx-card { padding: 10px 11px; gap: 10px; }
+  .tlx-ic { width: 34px; height: 34px; font-size: 18px; border-radius: 10px; }
+  .tlx-body > .tlx-row, .tlx-body > .tlx-dl { padding-top: 3px; }
+  .fm-card { padding: 8px 9px; gap: 7px; }
+  .fm-card .tlx-ic { width: 28px; height: 28px; font-size: 15px; border-radius: 8px; }
+  .tlx-grid { gap: 8px; }
+  .fm-grid { gap: 6px; }
+  .fm-card .tlx-body > .tlx-dl { margin-top: 2px; padding-top: 0; }
+  .fm-meta { gap: 3px 4px; padding-top: 4px; }
+  /* 폰은 한 줄에 카드 하나 — 높이 맞출 일이 없으니 설명을 끝까지(마우스 대기도 없음) */
+  .tlx-card:not(.fm-card) .tlx-d { display: block; -webkit-line-clamp: unset; overflow: visible; }
+}
+/* 묶음 머리 — 색 띠 */
+.ny-sit, .tlx-sec { position: relative; overflow: hidden; }
+.ny-sit::before, .tlx-sec::before { content: ''; position: absolute; left: 0; top: 0; right: 0; height: 4px; background: var(--sec, var(--accent)); }
+.ny-sit .ny-n { color: var(--sec, var(--accent)); }
+.ny-sit-h { padding-top: 2px; }
+.tlx-sec .detail-h { display: flex; align-items: center; gap: 6px; padding-top: 2px; }
+.tlx-sec .detail-h .count { color: var(--sec, var(--accent)); font-weight: 800; }
+/* 작은 묶음 둘 나란히 */
+.ny-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; align-items: stretch; }
+.ny-pair > .card { margin-bottom: 0; }
+.ny-pair .tlx-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ny-pair .tlx-grid > .tlx-card { grid-column: auto !important; }
+@media (max-width: 819px) { .ny-pair { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .ny-pair .tlx-grid { grid-template-columns: 1fr; } }
+/* 적산 — 접어 둔 설명 2열 · 펼치면 한 줄 다 */
+.js-more-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; align-items: start; }
+.js-more-grid > .card { margin-bottom: 0; }
+.js-more-grid > details[open] { grid-column: 1 / -1; }
+@media (max-width: 819px) { .js-more-grid { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .tlx-card, .tlx-card:hover { transition: none; transform: none; } }

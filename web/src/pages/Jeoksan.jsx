@@ -82,9 +82,11 @@ const 갖고 = [
 /* 카드마다 그 화면에서 받은 횟수(0 이면 안 보임) — 다른 카드 화면은 빼고 셈(도구 탭과 같게) */
 const 카드열쇠 = () => new Set(갖고.flatMap((s) => s.도구).map((x) => 화면열쇠(x.to)))
 let 카드열쇠캐시 = null
+/* 🎨 2026-10-16 탭 꾸밈 — 묶음마다 색(머리 띠 · 아이콘 바탕) */
+const 묶음색 = ['#2563eb', '#0d9488', '#d97706', '#7c3aed', '#e11d48', '#16a34a', '#0284c7', '#ea580c']
 function 도구칸({ x }) {
   return (
-    <Link className="tlx-card" to={x.to}>
+    <Link className="tlx-card" to={x.to} title={x.d}>
       <span className="tlx-ic">{x.ic}</span>
       <span className="tlx-body">
         <span className="tlx-t">{x.t}{x.딱지 && <em className="tlx-new ny-tag">{x.딱지}</em>}{x.예시 && <em className="tlx-new js-ex">🧪 예시 있음</em>}</span>
@@ -93,6 +95,17 @@ function 도구칸({ x }) {
       </span>
     </Link>
   )
+}
+
+/* 카드 1~2장짜리 묶음이 둘 이어지면 한 줄에 나란히(빈 오른쪽을 채움) */
+function 묶어놓기(목록) {
+  const out = []
+  for (let i = 0; i < 목록.length; i++) {
+    const 작음 = (s) => s && (s.도구 || []).length <= 2
+    if (작음(목록[i]) && 작음(목록[i + 1])) { out.push([{ s: 목록[i], i }, { s: 목록[i + 1], i: i + 1 }]); i++ }
+    else out.push([{ s: 목록[i], i }])
+  }
+  return out
 }
 
 function 작업대() {
@@ -109,15 +122,20 @@ function 작업대() {
           ))}
         </div>
       </div>
-      {갖고.map((s) => (
-        <div className="card ny-sit" id={'js-' + s.k} key={s.k}>
-          <div className="ny-sit-h"><span className="ny-n">{s.n}</span> {s.ic} {s.h}</div>
-          <div className="ny-sit-w">{s.언제}</div>
-          <div className="tlx-grid">
-            {s.도구.map((x, i) => <도구칸 x={x} key={x.to + i} />)}
+      {묶어놓기(갖고).map((무리) => {
+        const 칸 = (s, i) => (
+          <div className={'card ny-sit' + (무리.length > 1 ? ' ny-half' : '')} id={'js-' + s.k} key={s.k} style={{ '--sec': 묶음색[i % 묶음색.length] }}>
+            <div className="ny-sit-h"><span className="ny-n">{s.n}</span> {s.ic} {s.h}</div>
+            <div className="ny-sit-w">{s.언제}</div>
+            <div className="tlx-grid">
+              {s.도구.map((x, j) => <도구칸 x={x} key={x.to + j} />)}
+            </div>
           </div>
-        </div>
-      ))}
+        )
+        return 무리.length > 1
+          ? <div className="ny-pair" key={무리.map((x) => x.s.k).join('+')}>{무리.map((x) => 칸(x.s, x.i))}</div>
+          : 칸(무리[0].s, 무리[0].i)
+      })}
     </>
   )
 }
@@ -219,6 +237,7 @@ export default function Jeoksan() {
       </div>
 
       {/* ── 긴 설명은 접어 둡니다 (2026-09-29) — 글은 그대로, 펼치면 보입니다 ── */}
+      <div className="js-more-grid">
       <details className="card js-more">
         <summary className="sec-title">도구마다 무엇을 하나</summary>
         <table className="tbl left reptbl">
@@ -346,6 +365,7 @@ export default function Jeoksan() {
             없으면 골조·마감·수량산출서에서 도면을 눌러 채우십시오. 개구부·계단·헌치처럼 평면에 기호로 없는 것도 골조 화면에서 더합니다</li>
         </ul>
       </details>
+      </div>
 
       <div className="card">
         <div className="sec-title">값은 어떻게 되나</div>

@@ -1438,8 +1438,8 @@ def _fm_card(f, origset):
     tags = ('<em class="tlx-new fm-pg">🧰 바로 쓰기</em>' if f.get("prog") else "") + (
         '<em class="tlx-new fm-ex">✍ 작성 예시</em>' if ex else ('<em class="tlx-new fm-orig">원본 틀</em>' if f["slug"] in origset else ""))
     return (f'<a class="tlx-card fm-card" href="/forms/{esc(f["slug"])}"><span class="tlx-ic">{esc(f.get("icon") or "")}</span>'
-            f'<span class="tlx-body"><span class="tlx-t">{esc(f["title"])}{tags}</span>'
-            f'<span class="tlx-d">{esc(f.get("short") or "")}</span></span></a>')
+            f'<span class="tlx-body"><span class="tlx-t">{esc(f["title"])}</span>'
+            f'<span class="tlx-d">{esc(f.get("short") or "")}</span><span class="fm-meta">{tags}</span></span></a>')
 
 
 def _fm_prog(p):

@@ -298,9 +298,11 @@ const 단가보기 = [
 /* 카드마다 그 화면에서 받은 횟수(0 이면 안 보임) — 다른 카드 화면은 빼고 셈(도구 탭과 같게) */
 const 카드열쇠 = () => new Set([...상황들.flatMap((s) => s.도구), ...단가보기].map((x) => 화면열쇠(x.to)))
 let 카드열쇠캐시 = null
+/* 🎨 2026-10-16 탭 꾸밈 — 묶음마다 색(머리 띠 · 아이콘 바탕) */
+const 묶음색 = ['#2563eb', '#0d9488', '#d97706', '#7c3aed', '#e11d48', '#16a34a', '#0284c7', '#ea580c']
 function 도구칸({ x }) {
   return (
-    <Link className="tlx-card" to={x.to}>
+    <Link className="tlx-card" to={x.to} title={x.d}>
       <span className="tlx-ic">{x.ic}</span>
       <span className="tlx-body">
         <span className="tlx-t">{x.t}{x.딱지 && <em className="tlx-new ny-tag">{x.딱지}</em>}</span>
@@ -326,8 +328,8 @@ function 작업대() {
         </div>
       </div>
 
-      {상황들.map((s) => (
-        <div className="card ny-sit" id={'ny-' + s.k} key={s.k}>
+      {상황들.map((s, si) => (
+        <div className="card ny-sit" id={'ny-' + s.k} key={s.k} style={{ '--sec': 묶음색[si % 묶음색.length] }}>
           <div className="ny-sit-h"><span className="ny-n">{s.n}</span> {s.ic} {s.h}</div>
           <div className="ny-sit-w">{s.언제}</div>
           <div className="tlx-grid">
@@ -344,7 +346,7 @@ function 작업대() {
         </div>
       ))}
 
-      <div className="card ny-sit" id="ny-unit">
+      <div className="card ny-sit" id="ny-unit" style={{ '--sec': 묶음색[상황들.length % 묶음색.length] }}>
         <div className="ny-sit-h">📚 남이 낸 설계 단가 · 단가 기준 보기</div>
         <div className="ny-sit-w">단가를 넣다 막힐 때 — 같은 공종을 발주처가 얼마로 잡았는지, 새 비목 단가는 어디서 가져오는지.</div>
         <div className="tlx-grid">
