@@ -36,10 +36,16 @@ const 오늘달 = () => { const d = new Date(Date.now() + 9 * 3600e3); return `$
 const 날더하기 = (t, n) => { const d = new Date(t + 'T00:00:00Z'); if (Number.isNaN(+d)) return ''; d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
 const 날수 = (a, b) => (a && b ? Math.round((new Date(b) - new Date(a)) / 86400000) + 1 : 0)
 const 공종표시 = { 토공: '토공', 철거: '기존구조물 철거', 자립식: '자립식 가시설', 구조물: '구조물공', 조경: '조경공사', 흙막이: '흙막이 가시설', PHC: 'PHC파일' }
+/* [열쇠, 이름, 그 공종을 넣었을 때만, 시공계획서 어디에 들어가나, 무엇을 올리면 좋은가] */
 const 그림자리들 = [
-  ['철거현황', '철거 구간 평면 · 단면도', '철거'], ['자립식위치', '자립식 가시설 위치도', '자립식'], ['타설계획도', '타설 계획도(구조도 · 시공상세도)', '구조물'],
-  ['말뚝배치도', '말뚝 배치도', 'PHC'], ['신호수배치', '신호수 배치계획도', ''], ['교통처리', '교통처리 계획도', ''],
+  ['철거현황', '철거 구간 평면 · 단면도', '철거', '5장 공종별 › 기존구조물 철거 › 기존구조물 현황 및 철거위치', '철거할 구조물이 표시된 평면도 · 단면도'],
+  ['자립식위치', '자립식 가시설 위치도', '자립식', '5장 공종별 › 자립식 가시설 › 공사위치', '가시설 설치 구간이 보이는 평면도'],
+  ['타설계획도', '타설 계획도', '구조물', '5장 공종별 › 구조물공사 › 타설 계획', '구조도 · 시공상세도(타설 구획이 보이는 것)'],
+  ['말뚝배치도', '말뚝 배치도', 'PHC', '5장 공종별 › PHC파일 시공계획 끝(항타기록부 앞)', '파일 배치도(말뚝 번호가 보이는 것)'],
+  ['신호수배치', '신호수 배치계획도', '', '7장 안전관리계획 › 신호수 배치계획', '현장 배치도 · 장비 동선도'],
+  ['교통처리', '교통처리 계획도', '', '9장 교통처리계획 › 교통처리 계획도', '현장 배치도 · 우회도로 · 안내표지 계획도'],
 ]
+const 기본셈 = { 노임: 230000, 가동률: 0.7, 회당: 60 }
 const 형식표 = {
   pdf: ['PDF', 'application/pdf', '.pdf'],
   hwpx: ['한글', 'application/hwp+zip', '.hwpx'],
@@ -326,6 +332,22 @@ export default function SigongPlan() {
   const 공기 = 날수(공사.착공, 공사.준공)
   const 쪽 = 쪽들[쪽번]
   const 칸고침 = (k) => (e) => set공사((g) => ({ ...g, [k]: e.target.value }))
+  /* 그림 자리마다 미리보기 몇 쪽에 있나 — «👁 그 쪽 보기» */
+  const 자리쪽 = useMemo(() => {
+    const m = {}
+    쪽들.forEach((p, i) => p.칸들.forEach((c) => { if (c.자리 && !(c.자리 in m)) m[c.자리] = i }))
+    return m
+  }, [쪽들])
+  const 쪽으로 = (i) => { set쪽번(i); setTimeout(() => 폭틀.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60) }
+  /* 셈 기준이 지금 표에 어떻게 들어갔나(보여 주기만) */
+  const 셈보기 = useMemo(() => {
+    const 노무비 = (결과?.줄들 || []).reduce((t, r) => t + (r.무게만 ? 0 : (r.노무비 || 0)), 0)
+    const 인원 = (결과?.투입?.인원 || []).reduce((t, r) => t + (r.계 || 0), 0)
+    const 반장 = (결과?.투입?.인원 || []).find((r) => r.이름 === '작업반장')?.계 || 0
+    const 펌프 = (결과?.투입?.장비 || []).find((r) => /펌프카/.test(r.이름))?.계 || 0
+    const 레미콘 = 결과?.설정?.레미콘 || 0
+    return { 노무비, 인원, 반장, 펌프, 레미콘, 일하는날: Math.round(공기 * (설정.가동률 || 0)) }
+  }, [결과, 공기, 설정.가동률])
 
   return (
     <>
@@ -342,7 +364,7 @@ export default function SigongPlan() {
           <div className="sg-lock">
             <b>🔒 지금은 준비 중입니다</b> — 내 내역서를 올려 만들고 받는 것은 곧 엽니다.
             지금은 <button type="button" className="btn line sm" style={{ width: 'auto', margin: '0 2px' }} onClick={예시}>🧪 예시 내역서</button>로 어떻게 나오는지 미리 보실 수 있습니다.
-            <details style={{ marginTop: 6 }}>
+            <details className="sg-more sg-more-sm" style={{ marginTop: 6 }}>
               <summary className="muted" style={{ fontSize: 12.5 }}>🔑 열쇠말이 있으신가요?</summary>
               <form style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }} onSubmit={async (e) => {
                 e.preventDefault()
@@ -404,8 +426,8 @@ export default function SigongPlan() {
           <span className="tl-lab">공사목적 <i>비우면 저절로 한 줄</i></span>
           <textarea rows={2} value={공사.목적} onChange={칸고침('목적')} placeholder="예: 상습 침수구역의 배수 능력을 높여 주민 안전을 확보하는 데 목적이 있음." style={{ width: '100%', fontSize: 14 }} />
         </label>
-        <details style={{ marginTop: 10 }}>
-          <summary><b>👷 현장 조직(이름 — 비워 두면 빈칸)</b></summary>
+        <details className="sg-more" style={{ marginTop: 10 }}>
+          <summary><b>👷 현장 조직</b> <span className="muted">— 조직표 · 담당자 표에 들어갈 이름(비워 두면 빈칸으로 나옴)</span></summary>
           <div className="tl-grid" style={{ marginTop: 8 }}>
             {[['현장대리인', '현장대리인(소장)'], ['공무', '공무'], ['공사', '공사'], ['품질', '품질관리자'], ['안전', '안전관리자']].map(([k, t]) => (
               <Row key={k} label={t}><input value={사람[k]} onChange={(e) => set사람((s) => ({ ...s, [k]: e.target.value }))} /></Row>
@@ -433,8 +455,8 @@ export default function SigongPlan() {
           </div>
           <p className="muted" style={{ margin: '6px 0 0' }}>견본 시공계획서의 공종입니다. 내역서 금액의 1% 이상인 공종을 저절로 고릅니다 — 눌러서 넣고 뺄 수 있습니다.</p>
 
-          <details style={{ marginTop: 12 }} open={false}>
-            <summary><b>🗓 공정 고치기</b> <span className="muted">— 공종마다 시작일 · 기간(일). 처음엔 공종 성격별 기본 자리에 놓습니다</span></summary>
+          <details className="sg-more" style={{ marginTop: 12 }}>
+            <summary><b>🗓 공정 고치기</b> <span className="muted">— 예정공정표의 공종마다 시작일 · 기간(일)을 고칩니다. 처음엔 공종 성격대로 저절로 놓습니다</span></summary>
             {!(공사.착공 && 공사.준공) && <div className="cwarn" style={{ marginTop: 8 }}>착공일 · 준공일을 넣으면 공정표 · 투입계획이 그려집니다.</div>}
             <div className="sg-tablewrap">
               <table className="sg-table">
@@ -454,39 +476,54 @@ export default function SigongPlan() {
             <button type="button" className="btn line sm" style={{ width: 'auto', marginTop: 6 }} onClick={() => set공정고침(null)}>🪄 자동 배치로 되돌리기</button>
           </details>
 
-          <details style={{ marginTop: 10 }}>
-            <summary><b>🖼 도면 · 사진 넣기</b> <span className="muted">— 올린 그림 {그림목록.length}장</span></summary>
-            {그림목록.length === 0 && <p className="muted" style={{ marginTop: 8 }}>위 ① 에 도면(PDF · JPG)이나 착공사진을 넣으면 여기서 자리를 고릅니다.</p>}
-            {그림목록.length > 0 && (
-              <>
-                <div className="tl-grid" style={{ marginTop: 8 }}>
-                  {그림자리들.filter(([, , 공]) => !공 || 지금고른[공]).map(([k, t]) => (
-                    <Row key={k} label={t}>
-                      <select value={그림자리[k] || ''} onChange={(e) => set그림자리((s) => ({ ...s, [k]: e.target.value }))}>
-                        <option value="">(빈 자리로 둠)</option>
-                        {그림목록.map(([열, g]) => <option key={열} value={열}>{g.이름}</option>)}
-                      </select>
-                    </Row>
-                  ))}
+          <details className="sg-more" style={{ marginTop: 10 }}>
+            <summary><b>🖼 도면 · 사진 넣기</b> <span className="muted">— 올린 도면 · 사진을 시공계획서의 그림 자리와 별첨 착공사진에 넣습니다 · 올린 그림 {그림목록.length}장</span></summary>
+            <div className="sg-help">
+              <b>무엇을 하는 곳인가요?</b> 시공계획서 안에는 도면이 들어가는 자리가 있습니다(타설 계획도 · 말뚝 배치도 · 교통처리 계획도 …).
+              여기서 «이 자리에 이 도면» 을 고르면 PDF · 한글 · 워드 · 엑셀에 그 그림이 들어갑니다.
+              <ol>
+                <li>맨 위 <b>①</b> 칸에 도면(PDF · JPG · PNG)이나 착공사진을 올립니다. PDF 도면은 첫 쪽이 그림으로 들어옵니다.</li>
+                <li>아래 자리마다 넣을 그림을 고릅니다. <b>고르지 않은 자리</b>는 «도면을 올리면 이 자리에 들어갑니다» 라는 <b>빈 테두리</b>로 나옵니다.</li>
+                <li><b>👁 그 쪽 보기</b>를 누르면 아래 미리보기가 그 쪽으로 넘어가 들어간 모습을 보여 줍니다.</li>
+              </ol>
+            </div>
+            <div className="sg-slots">
+              {그림자리들.filter(([, , 공]) => !공 || 지금고른[공]).map(([k, t, , 어디, 무엇]) => (
+                <div key={k} className="sg-slot">
+                  <div className="sg-slot-h"><b>{t}</b><span>{어디}</span></div>
+                  <div className="sg-slot-b">
+                    <select value={그림자리[k] || ''} disabled={!그림목록.length} onChange={(e) => set그림자리((s2) => ({ ...s2, [k]: e.target.value }))} aria-label={t + ' 그림 고르기'}>
+                      <option value="">{그림목록.length ? '(빈 자리로 둠)' : '(먼저 ① 에 그림을 올리십시오)'}</option>
+                      {그림목록.map(([열, g]) => <option key={열} value={열}>{g.이름}</option>)}
+                    </select>
+                    {k in 자리쪽 && <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 쪽으로(자리쪽[k])}>👁 그 쪽 보기 ({자리쪽[k] + 1}쪽)</button>}
+                  </div>
+                  <i>넣으면 좋은 것: {무엇}</i>
                 </div>
-                <div className="tl-lab" style={{ marginTop: 10 }}>별첨 착공사진 <i>누른 차례대로 2장씩 한 쪽</i></div>
-                <div className="sg-thumbs">
-                  {그림목록.map(([열, g]) => {
-                    const n = 사진들.indexOf(열)
-                    return (
-                      <button type="button" key={열} className={'sg-thumb' + (n >= 0 ? ' on' : '')} onClick={() => set사진들((s) => (s.includes(열) ? s.filter((x) => x !== 열) : [...s, 열]))} title={g.이름}>
-                        <img src={그림주소(g)} alt="" />
-                        {n >= 0 && <b>{n + 1}</b>}
-                      </button>
-                    )
-                  })}
-                </div>
-              </>
-            )}
+              ))}
+            </div>
+            <div className="sg-help" style={{ marginTop: 12 }}>
+              <b>별첨 착공사진</b> — 시공계획서 맨 뒤 «별첨. 착공사진» 에 붙일 사진을 고릅니다.
+              사진을 <b>누른 차례대로 번호</b>가 붙고 2장씩 한 쪽에 들어갑니다. 다시 누르면 빠집니다.
+            </div>
+            {그림목록.length > 0 ? (
+              <div className="sg-thumbs">
+                {그림목록.map(([열, g]) => {
+                  const n = 사진들.indexOf(열)
+                  return (
+                    <button type="button" key={열} className={'sg-thumb' + (n >= 0 ? ' on' : '')} onClick={() => set사진들((s2) => (s2.includes(열) ? s2.filter((x) => x !== 열) : [...s2, 열]))} title={(n >= 0 ? '빼기 — ' : '별첨에 넣기 — ') + g.이름}>
+                      <img src={그림주소(g)} alt="" />
+                      {n >= 0 && <b>{n + 1}</b>}
+                    </button>
+                  )
+                })}
+              </div>
+            ) : <p className="muted" style={{ margin: '6px 0 0' }}>착공사진(JPG · PNG)을 ① 에 올리면 여기에 작은 그림으로 나옵니다.</p>}
+            {사진들.length > 0 && <button type="button" className="btn line sm" style={{ width: 'auto', marginTop: 6 }} onClick={() => 쪽으로(Math.max(0, 쪽들.length - Math.ceil(사진들.length / 2)))}>👁 별첨 쪽 보기</button>}
           </details>
 
           {지금고른.철거 && (
-            <details style={{ marginTop: 10 }}>
+            <details className="sg-more" style={{ marginTop: 10 }}>
               <summary><b>🏗 크레인 인양능력 판정</b> <span className="muted">— 부재 규격(가로×세로×높이 m)과 투입 크레인의 정격하중(작업반경별)을 적으면 O.K / N.G</span></summary>
               <div className="sg-tablewrap">
                 <table className="sg-table">
@@ -506,13 +543,30 @@ export default function SigongPlan() {
             </details>
           )}
 
-          <details style={{ marginTop: 10 }}>
-            <summary><b>⚙️ 셈 기준</b> <span className="muted">— 평균 노임 · 가동률 · 1회 타설량</span></summary>
-            <div className="tl-grid" style={{ marginTop: 8 }}>
-              <Row label="평균 노임(원/일)" hint="연인원 = 노무비 ÷ 노임"><input type="number" value={설정.노임} onChange={(e) => set설정((s) => ({ ...s, 노임: +e.target.value || 0 }))} /></Row>
-              <Row label="가동률" hint="날씨 · 휴일 빼고"><input type="number" step="0.05" min="0.3" max="1" value={설정.가동률} onChange={(e) => set설정((s) => ({ ...s, 가동률: +e.target.value || 0.7 }))} /></Row>
-              <Row label="1회 타설량(㎥)" hint="펌프카 1대 하루"><input type="number" value={설정.회당} onChange={(e) => set설정((s) => ({ ...s, 회당: +e.target.value || 60 }))} /></Row>
+          <details className="sg-more" style={{ marginTop: 10 }}>
+            <summary><b>⚙️ 셈 기준</b> <span className="muted">— 인원 · 장비 · 펌프카 숫자를 셀 때 쓰는 값 3가지(고치면 표가 바로 바뀝니다)</span></summary>
+            <div className="sg-help">
+              <b>무엇을 하는 곳인가요?</b> «4. 인원 · 장비 투입계획» 과 «타설 계획» 표의 숫자는 내역서에 이 세 값을 곱하고 나눠서 셉니다.
+              현장에 맞게 고치면 표가 그 자리에서 다시 셈해집니다. 모르시면 그대로 두셔도 됩니다(보통 쓰는 값).
             </div>
+            <div className="sg-calc">
+              <div className="sg-calc-row">
+                <label>💰 평균 노임 <small>원 / 하루</small><input type="number" value={설정.노임} onChange={(e) => set설정((s2) => ({ ...s2, 노임: +e.target.value || 0 }))} /></label>
+                <p>사람 한 명의 <b>하루 품삯 평균</b>입니다. <b>연인원(몇 사람 · 몇 날) = 내역서 노무비 ÷ 평균 노임</b>으로 셉니다. 노임을 올리면 인원이 줄고, 내리면 늘어납니다.
+                  {셈보기.노무비 > 0 && <em>지금: 노무비 {Math.round(셈보기.노무비).toLocaleString('ko-KR')}원 ÷ {Number(설정.노임 || 0).toLocaleString('ko-KR')}원 = 약 {(셈보기.인원 - 셈보기.반장).toLocaleString('ko-KR')}인{셈보기.반장 > 0 ? ` + 작업반장 ${셈보기.반장.toLocaleString('ko-KR')}인(공사 기간 내내 하루 1명)` : ''} → 인원 투입 합계 {셈보기.인원.toLocaleString('ko-KR')}인</em>}</p>
+              </div>
+              <div className="sg-calc-row">
+                <label>📅 가동률 <small>0.3 ~ 1</small><input type="number" step="0.05" min="0.3" max="1" value={설정.가동률} onChange={(e) => set설정((s2) => ({ ...s2, 가동률: +e.target.value || 0.7 }))} /></label>
+                <p>공사 기간 가운데 <b>실제로 일하는 날의 비율</b>입니다(비 · 눈 · 휴일 빼고). 0.7 이면 30일 중 21일입니다. 인원 · 장비를 순(상 · 중 · 하순)마다 나눌 때 날수에 곱합니다.
+                  {공기 > 0 && <em>지금: 공기 {공기}일 × {설정.가동률} → 일하는 날 약 {셈보기.일하는날}일</em>}</p>
+              </div>
+              <div className="sg-calc-row">
+                <label>🚚 1회 타설량 <small>㎥ / 하루</small><input type="number" value={설정.회당} onChange={(e) => set설정((s2) => ({ ...s2, 회당: +e.target.value || 60 }))} /></label>
+                <p>콘크리트 <b>펌프카 한 대가 하루에 붓는 양</b>입니다(보통 50 ~ 80㎥). <b>타설 횟수 · 펌프카 대수 = 레미콘 물량 ÷ 1회 타설량</b>(올림)입니다.
+                  {셈보기.레미콘 > 0 && <em>지금: 레미콘 {Math.round(셈보기.레미콘).toLocaleString('ko-KR')}㎥ ÷ {설정.회당}㎥ → 타설 {Math.ceil(셈보기.레미콘 / (설정.회당 || 60))}회 · 펌프카 {셈보기.펌프}대</em>}</p>
+              </div>
+            </div>
+            <button type="button" className="btn line sm" style={{ width: 'auto', marginTop: 8 }} onClick={() => set설정((s2) => ({ ...s2, ...기본셈 }))}>↺ 보통 값으로(230,000원 · 0.7 · 60㎥)</button>
           </details>
         </div>
       )}

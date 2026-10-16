@@ -7526,6 +7526,38 @@ a.mc-key-in:hover { border-color: var(--accent-line); background: var(--accent-s
 .sg-locked { cursor: not-allowed; background: #f6f6f8; border-style: dashed; }
 .sg-locked b { color: #6b5a2a; }
 .sg-lockbtn { opacity: .8; }
+/* 펼치는 칸 — 손가락 표시 · 마우스를 대면 바탕이 바뀜 · ▸ / ▾ (2026-10-16 소장님 「마우스를 같다 대면 마우스 표시가 되어야 하는데 안돼」) */
+details.sg-more > summary { cursor: pointer; list-style: none; display: block; padding: 9px 12px 9px 30px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); position: relative; line-height: 1.6; transition: background .12s, border-color .12s; }
+details.sg-more > summary::-webkit-details-marker { display: none; }
+details.sg-more > summary::before { content: '▸'; position: absolute; left: 11px; top: 9px; color: var(--accent); font-weight: 800; transition: transform .12s; }
+details.sg-more[open] > summary::before { transform: rotate(90deg); }
+details.sg-more > summary:hover { background: var(--accent-soft); border-color: var(--accent-line); }
+details.sg-more > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+details.sg-more[open] > summary { margin-bottom: 8px; border-color: var(--accent-line); }
+details.sg-more-sm > summary { padding: 5px 10px 5px 26px; border-style: dashed; }
+details.sg-more-sm > summary::before { top: 5px; left: 10px; }
+.sg-help { font-size: 13.5px; line-height: 1.75; color: var(--text); background: var(--surface-2, #f6f8fb); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.sg-help ol { margin: 6px 0 0; padding-left: 20px; }
+.sg-help li { margin: 2px 0; }
+.sg-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; margin-top: 10px; }
+.sg-slot { border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; display: grid; gap: 6px; }
+.sg-slot-h { display: grid; gap: 2px; }
+.sg-slot-h b { font-size: 14px; }
+.sg-slot-h span { font-size: 12px; color: var(--muted); }
+.sg-slot-b { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.sg-slot-b select { flex: 1 1 160px; min-width: 0; height: auto; min-height: 40px; padding: 8px 10px; line-height: 1.35; font-size: 14px; cursor: pointer; }
+.sg-slot-b select:disabled { cursor: not-allowed; }
+.sg-slot i { font-style: normal; font-size: 12px; color: var(--muted); }
+.sg-calc { display: grid; gap: 8px; margin-top: 10px; }
+.sg-calc-row { display: grid; grid-template-columns: 190px 1fr; gap: 10px; align-items: start; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.sg-calc-row label { display: grid; gap: 4px; font-weight: 800; font-size: 14px; }
+.sg-calc-row label small { font-weight: 500; color: var(--muted); font-size: 12px; }
+.sg-calc-row input { height: 38px; font-size: 15px; padding: 0 10px; width: 100%; }
+.sg-calc-row p { margin: 0; font-size: 13.5px; line-height: 1.75; }
+.sg-calc-row em { display: block; font-style: normal; margin-top: 4px; color: var(--accent); font-weight: 700; font-size: 13px; }
+@media (max-width: 640px) { .sg-calc-row { grid-template-columns: 1fr; } }
+.sg-chip:hover { border-color: var(--accent-line); }
+.sg-thumb:hover { border-color: var(--accent-line); }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .sg-lock { background: #2b2614; border-color: #6b5a2a; color: #f1e3b5; }
   :root:not([data-theme="light"]) .sg-locked { background: transparent; }
