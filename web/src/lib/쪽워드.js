@@ -45,12 +45,24 @@ export function 쪽들워드(쪽들, 그림들, { 제목 = '' } = {}) {
   let 그림번 = 0
   let 개체번 = 0
   const 몸 = []
+  /* 구역 — 용지(가로 · 세로 · 크기 · 여백)가 바뀌는 곳마다 구역 나눔(시공계획서: 세로 → 가로 공정표 → 세로 · G300). 한 가지 용지면 예전과 같음 */
+  const 용지열쇠 = (p) => [p.폭, p.높이, p.안.x, p.안.y, p.안.w, p.안.h].map((v) => Math.round(v * 10)).join('|')
+  const 구역틀 = (쪽0) => {
+    const 가로 = 쪽0.폭 > 쪽0.높이
+    const 여 = 쪽0.안
+    return `<w:sectPr><w:pgSz w:w="${tw(쪽0.폭)}" w:h="${tw(쪽0.높이)}"${가로 ? ' w:orient="landscape"' : ''}/>`
+      + `<w:pgMar w:top="${tw(여.y)}" w:right="${tw(쪽0.폭 - 여.x - 여.w)}" w:bottom="${tw(Math.max(3, 쪽0.높이 - 여.y - 여.h - 2))}" w:left="${tw(여.x)}" w:header="0" w:footer="0" w:gutter="0"/></w:sectPr>`
+  }
   쪽들.forEach((쪽, pi) => {
+    if (pi > 0 && 용지열쇠(쪽) !== 용지열쇠(쪽들[pi - 1])) {
+      /* 앞 구역을 닫음 — 이 문단의 sectPr 가 앞 구역의 용지 · 다음 구역은 새 쪽에서 */
+      몸.push(`<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/>${구역틀(쪽들[pi - 1])}</w:pPr></w:p>`)
+    }
     const g = 격자로(쪽)
     const 칸자리 = new Map(g.칸.map((p) => [p.r + ',' + p.c, p]))
     const 덮임 = Array.from({ length: g.줄.length }, () => new Array(g.열.length).fill(null))
     for (const p of g.칸) for (let r = p.r; r < p.r + p.rs; r++) for (let c = p.c; c < p.c + p.cs; c++) 덮임[r][c] = p
-    if (pi > 0) 몸.push('<w:p><w:pPr><w:pageBreakBefore/><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/></w:pPr><w:r><w:rPr><w:sz w:val="2"/></w:rPr><w:t></w:t></w:r></w:p>')
+    if (pi > 0 && 용지열쇠(쪽) === 용지열쇠(쪽들[pi - 1])) 몸.push('<w:p><w:pPr><w:pageBreakBefore/><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/></w:pPr><w:r><w:rPr><w:sz w:val="2"/></w:rPr><w:t></w:t></w:r></w:p>')
     const 너비합 = g.열.reduce((a, b) => a + tw(b), 0)
     const t = [`<w:tbl><w:tblPr><w:tblW w:w="${너비합}" w:type="dxa"/><w:tblLayout w:type="fixed"/>`
       + '<w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders>'
@@ -98,11 +110,8 @@ export function 쪽들워드(쪽들, 그림들, { 제목 = '' } = {}) {
     t.push('</w:tbl>')
     몸.push(t.join(''))
   })
-  const 쪽0 = 쪽들[0] || { 폭: 210, 높이: 297, 안: { x: 12, y: 12, w: 186, h: 273 } }
-  const 가로 = 쪽0.폭 > 쪽0.높이
-  const 여 = 쪽0.안
-  const sect = `<w:sectPr><w:pgSz w:w="${tw(쪽0.폭)}" w:h="${tw(쪽0.높이)}"${가로 ? ' w:orient="landscape"' : ''}/>`
-    + `<w:pgMar w:top="${tw(여.y)}" w:right="${tw(쪽0.폭 - 여.x - 여.w)}" w:bottom="${tw(Math.max(3, 쪽0.높이 - 여.y - 여.h - 2))}" w:left="${tw(여.x)}" w:header="0" w:footer="0" w:gutter="0"/></w:sectPr>`
+  const 끝쪽 = 쪽들[쪽들.length - 1] || { 폭: 210, 높이: 297, 안: { x: 12, y: 12, w: 186, h: 273 } }
+  const sect = 구역틀(끝쪽)
   const 끝문단 = '<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/><w:rPr><w:sz w:val="2"/></w:rPr></w:pPr></w:p>'
   const ns = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" '
     + 'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '

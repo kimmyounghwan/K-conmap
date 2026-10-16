@@ -112,6 +112,7 @@ const ShareOne = lazyPage(() => import('./pages/ShareOne.jsx'))
    반드시 lazyPage 라야 이 화면에 안 들어온 분이 2MB 를 안 받습니다. */
 const Pdf = lazyPage(() => import('./pages/Pdf.jsx'))
 const PhotoBook = lazyPage(() => import('./pages/PhotoBook.jsx'))
+const SigongPlan = lazyPage(() => import('./pages/SigongPlan.jsx'))
 const CadPage = lazyPage(() => import('./pages/Cad.jsx').then((m) => ({ default: m.CadPage })))
 /* 🪪 면허별 경쟁도 — 2026-09-14. 주소를 주는 이유: 「토목공사업 입찰 경쟁률」 같은 건 실제 검색어입니다. */
 const LicStat = lazyPage(() => import('./pages/LicStat.jsx'))
@@ -269,6 +270,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/tools/equip" element={<Suspense fallback={<Loading />}><EquipBook /></Suspense>} />
           <Route path="/tools/risk" element={<Suspense fallback={<Loading />}><RiskBook /></Suspense>} />
           <Route path="/tools/photo" element={<Suspense fallback={<Loading />}><PhotoBook /></Suspense>} />
+          <Route path="/tools/sigong" element={<Suspense fallback={<Loading />}><SigongPlan /></Suspense>} />
           <Route path="/tools/:slug" element={<Suspense fallback={<Loading />}><ToolPage /></Suspense>} />
           {/* 📋 2026-09-15 — 내역서 작성 대행. 하나뿐인 유료 화면입니다. */}
           {/* 💬 2026-09-15 — 묻고 답하기 */}

@@ -104,6 +104,22 @@ export async function 쪽들PDF(쪽들, 그림들, { 제목 = '' } = {}, 진도)
         borderColor: 색(k.선색 || '#333333', rgb), borderWidth: k.굵은테 ? 1.1 : 0.5,
       })
     }
+    /* 선 · 원 (쪽흐름.js — 공정표의 S커브 · 화살표 · 마디). 칸이 아니라서 엑셀 · 한글 · 워드에는 안 들어감 */
+    for (const s of 쪽.선들 || []) {
+      const 점 = s.점들 || []
+      for (let i = 1; i < 점.length; i++) {
+        page.drawLine({
+          start: { x: pt(점[i - 1][0]), y: H - pt(점[i - 1][1]) }, end: { x: pt(점[i][0]), y: H - pt(점[i][1]) },
+          thickness: s.굵기 || 0.6, color: 색(s.색 || '#333333', rgb), ...(s.점선 ? { dashArray: [2.2, 1.6] } : {}),
+        })
+      }
+    }
+    for (const o of 쪽.원들 || []) {
+      page.drawEllipse({
+        x: pt(o.x), y: H - pt(o.y), xScale: pt(o.r), yScale: pt(o.r),
+        borderColor: 색(o.색 || '#333333', rgb), borderWidth: o.굵기 || 0.6, ...(o.바탕 ? { color: 색(o.바탕, rgb) } : {}),
+      })
+    }
     if (진도) await 진도(pi + 1, 쪽들.length)
   }
   return await doc.save()

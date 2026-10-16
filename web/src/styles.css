@@ -7516,3 +7516,40 @@ a.mc-key-in:hover { border-color: var(--accent-line); background: var(--accent-s
 .mb-ch .btn { width: auto; }
 .mb-chsay { width: 100%; padding: 6px 10px; border-radius: 8px; background: var(--surface-2); font-size: 12.5px; line-height: 1.5; overflow-wrap: anywhere; }
 .mb-note { font-size: 12.5px; line-height: 1.6; margin: 8px 0 0; overflow-wrap: anywhere; }
+
+/* ── 📑 시공계획서 자동 만들기 (/tools/sigong · G300 · 2026-10-16) ── */
+.sg-msgs { margin: 8px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.6; }
+/* 🔒 시공계획서 — 소장님만 쓰고 이용자는 예시만 보기(2026-10-16) */
+.sg-fs { border: 0; padding: 0; margin: 0; min-width: 0; }
+.sg-fs:disabled input, .sg-fs:disabled select, .sg-fs:disabled textarea { opacity: .75; cursor: not-allowed; }
+.sg-lock { margin-top: 10px; padding: 10px 12px; border: 1px solid #f0c36d; background: #fff8e6; border-radius: 10px; font-size: 13.5px; line-height: 1.7; color: #4a3b12; }
+.sg-locked { cursor: not-allowed; background: #f6f6f8; border-style: dashed; }
+.sg-locked b { color: #6b5a2a; }
+.sg-lockbtn { opacity: .8; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .sg-lock { background: #2b2614; border-color: #6b5a2a; color: #f1e3b5; }
+  :root:not([data-theme="light"]) .sg-locked { background: transparent; }
+}
+:root[data-theme="dark"] .sg-lock { background: #2b2614; border-color: #6b5a2a; color: #f1e3b5; }
+:root[data-theme="dark"] .sg-locked { background: transparent; }
+.sg-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.sg-chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; font-size: 13px; font-weight: 700; cursor: pointer; background: var(--surface); }
+.sg-chip.on { border-color: var(--accent-line); background: var(--accent-soft); }
+.sg-chip i { font-style: normal; font-weight: 500; color: var(--muted); font-size: 11.5px; }
+.sg-chip input { width: 16px; height: 16px; margin: 0; }
+.sg-tablewrap { overflow-x: auto; margin-top: 8px; }
+.sg-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.sg-table th, .sg-table td { border: 1px solid var(--line); padding: 4px 6px; text-align: left; }
+.sg-table th { background: var(--line-soft); font-size: 12px; }
+.sg-table td.r { text-align: right; white-space: nowrap; }
+.sg-table input { width: 100%; min-width: 90px; height: 34px; font-size: 13px; }
+.sg-thumbs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.sg-thumb { position: relative; width: 84px; height: 64px; padding: 0; border: 2px solid var(--line); border-radius: 8px; overflow: hidden; background: #fff; cursor: pointer; }
+.sg-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sg-thumb.on { border-color: var(--accent); }
+.sg-thumb b { position: absolute; top: 2px; left: 2px; background: var(--accent); color: #fff; border-radius: 6px; padding: 0 5px; font-size: 12px; }
+.sg-dl { display: flex; flex-wrap: wrap; gap: 8px; }
+.sg-pager { display: flex; gap: 6px; align-items: center; margin: 12px 0 6px; flex-wrap: wrap; }
+.sg-pager select { height: 38px; max-width: 240px; font-size: 14px; padding: 0 8px; }
+.sg-view { overflow-x: auto; background: #e9ecf1; border-radius: 10px; padding: 10px 0; display: flex; justify-content: center; }
+.sg-page { box-shadow: 0 1px 6px rgba(0, 0, 0, .18); background: #fff; flex: 0 0 auto; font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Pretendard", sans-serif; }

@@ -490,6 +490,28 @@ export async function 글자뽑기(파일) {
   }
 }
 
+/** 📑 시공계획서(G300) — PDF 의 모든 쪽 글자를 한 덩이 글로 (공사설명서 · 시방서에서 공사명 · 기간을 찾을 때) */
+export async function 글모두(파일, 최대쪽 = 30) {
+  const d = await 읽기열기(파일)
+  const 조각 = []
+  for (let i = 1; i <= Math.min(d.numPages, 최대쪽); i++) 조각.push(await 쪽글(await d.getPage(i)))
+  return 조각.join('\n')
+}
+/** 📑 시공계획서(G300) — PDF 첫 쪽을 JPEG 한 장으로(긴 변 최대px) — 도면을 그림 자리에 넣을 때 */
+export async function 첫쪽JPEG(파일, 최대px = 2000) {
+  const d = await 읽기열기(파일)
+  const p = await d.getPage(1)
+  const v0 = p.getViewport({ scale: 1 })
+  const 배율 = Math.min(4, 최대px / Math.max(v0.width, v0.height))
+  const v = p.getViewport({ scale: 배율 })
+  const c = 캔버스만들기(v.width, v.height)
+  const ctx = c.getContext('2d')
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height)
+  await p.render({ canvasContext: ctx, viewport: v }).promise
+  const b = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.86))
+  return { 바이트: new Uint8Array(await b.arrayBuffer()), w: c.width, h: c.height }
+}
+
 export async function 쪽을그림으로(파일, 범위 = '전부', 배율 = 2, 진도) {
   const { zipSync } = await import('fflate')
   const d = await 읽기열기(파일)
