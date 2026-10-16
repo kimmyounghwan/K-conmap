@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
-"""web/public/lisp/k-conmap.lsp 에 「오늘 + 30일」 유효기간을 찍습니다.
+"""web/public/lisp/k-conmap.lsp 에 「오늘 + 30일」 날짜를 찍습니다.
 
 소장님: 「한달에 한번 다운 받게 해줘」 (2026-09-14)
+  → 2026-10-16 「캐드 리습 날짜 제한없이 다운로드 할 수 있게 해줘. 건설맵 링크 걸 수 있지?」
+    리습 2.6 부터 이 날짜가 지나도 «멈추지 않고», 캐드를 켤 때 «새 판 확인 -> k-conmap.com/cad» 한 줄만 보입니다.
 
 왜 이렇게 하나
   손으로 기한을 박아 두면 그 날이 왔을 때 쓰던 분들이 «전부» 멈춥니다.
@@ -54,7 +56,7 @@ def main():
     ok = stamp(LISP, "cp949", exp, warn)
     ok = stamp(LISP_U, "utf-8", exp, warn) and ok
     if ok:
-        print("  ✅ 캐드 유틸 유효기간 %s 까지 (알림 %s 부터)" % (exp, warn))
+        print("  ✅ 캐드 유틸 «새 판 확인» 알림 날짜 %s (쓰는 기간 제한 없음)" % exp)
         return 0
     print("  ⚠️ 유효기간을 못 찍었습니다 - 그대로 배포하면 기한이 안 걸립니다")
     return 1

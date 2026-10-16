@@ -19,6 +19,7 @@ import { 종류 } from './골조도면.js'
 import { 세기, 도형상자, 글자폭, 붙임, 숫자인가 } from './도면자동.js'
 import { 마감표읽기, 창호표읽기, 셈 as 마감셈 } from './마감.js'
 import { 구간표읽기, 속성단면 } from './단면표.js'
+import { 벽방찾기, 막는도형, 막는토막, 층방들, 벽상자, 방문들, 안 as 고리안 } from './방찾기.js'
 
 const 글 = (x) => String(x ?? '').trim()
 const 셋 = (v) => Math.round(v * 1000) / 1000
@@ -140,8 +141,8 @@ function 기호풀이(t) { for (const [re, n] of 기호뜻) if (re.test(t.replac
 
 /* ───────────────────────────── ④ 실(방) */
 
-const 실말 = /(실|방|룸|홀|로비|복도|계단|현관|거실|주방|식당|욕실|화장실|변소|샤워|창고|발코니|베란다|다용도|드레스|파우더|세탁|보일러|펌프|물탱크|사무|회의|휴게|탕비|대기|상담|객장|금고|숙직|경비|강당|교실|병실|진료|주차|램프|승강기|엘리베이터|E\/?V|PIT|피트|덕트|DUCT|포치|테라스|옥탑|다락|알파|안방|부엌|취사|식품|매장|점포|공용|로비|통로|전실|부속|탈의|목욕|헬스|체력|열람|도서|자료|서고|전산|서버|통신|방재|중앙|관리|ROOM|HALL|LOBBY|CORR|OFFICE|TOILET|STOR|KITCHEN|BED|LIVING|BATH)/i
-const 실아님 = /(소방|설비|통신설비|전기설비|새마을금고|공사|현장|주식회사|㈜|건축사|사무소$|구조|토목|조경|허가|준공|지붕|대지|도로|부지|경계|인접|건축선|옥외|외부|평면|단면|입면|배치|도면|축척|SCALE|표$|일람|범례|주기|비고|마감|재료|규격|수량|기준|상세|계획|위치|구조|설비|전기|기계설비|소방설비|NOTE|TYPE|타입|참조|참고|S=|1\/\d|방향|방수층|방수턱|계단참|UP|DN|DOWN|\d+층$)/i
+const 실말 = /(실|방|룸|홀|로비|복도|계단|현관|거실|주방|식당|욕실|화장실|변소|샤워|창고|발코니|베란다|다용도|드레스|파우더|세탁|보일러|펌프|물탱크|사무|회의|휴게|탕비|대기|상담|객장|금고|숙직|경비|강당|교실|병실|진료|주차|램프|승강기|엘리베이터|E\/?V|PIT|피트|덕트|DUCT|포치|테라스|옥탑|다락|알파|안방|부엌|취사|식품|매장|점포|공용|로비|통로|전실|부속|탈의|목욕|헬스|체력|열람|도서|자료|서고|전산|서버|통신|방재|중앙|관리|인감|문서고|ROOM|HALL|LOBBY|CORR|OFFICE|TOILET|STOR|KITCHEN|BED|LIVING|BATH)/i
+const 실아님 = /(소방|설비|통신설비|전기설비|새마을금고|공사|현장|주식회사|㈜|건축사|사무소$|구조|토목|조경|허가|준공|지붕|대지|도로|부지|경계|인접|건축선|옥외|외부|평면|단면|입면|배치|도면|축척|SCALE|표$|일람|범례|주기|비고|마감|재료|규격|수량|기준|상세|계획|위치|구조|설비|전기|기계설비|소방설비|NOTE|TYPE|타입|참조|참고|S=|1\/\d|방향|방수층|방수턱|계단참|UP|DN|DOWN|\d+층$|설치$|셔터|방범|[겔갤]러리월|무빙월|^월$)/i
 /** 실 이름 글자인가 (마감표에 적힌 실 이름이면 무조건) */
 export function 실이름인가(s, 아는이름) {
   const t = 붙임(s)
@@ -169,6 +170,8 @@ function 안인가(모델, 조각, x, y) {
   return inside
 }
 const 닫힌종 = new Set([종류.닫힌폴리선, 종류.원, 종류.해치, 종류.채움, 종류.곡선])
+/** 점이 방 안인가 — 벽으로 찾은 방(다각형)이면 그 다각형 · 닫힌 선 방이면 그 선 */
+export function 방안(모델, r, x, y) { return r.다각형 ? 고리안(r.다각형, x, y) : 안인가(모델, r.qs, x, y) }
 
 /** 닫힌 도형 목록(상자·조각) — 한 번 만들어 여러 번 씀 */
 export function 닫힌도형들(모델, 끈층, k, 상자) {
@@ -201,6 +204,11 @@ function 품은(모델, 도형들, x, y, 최소, 최대, 거르기) {
 /** 평면도 제목 — 「지상 1층 평면도」「2F PLAN」 → 층 이름 */
 function 평면층(s) {
   const t = 붙임(s)
+  /* 🏠 G298 «평면도» 없이 층 이름만 적은 판 제목(«지하1층/pit» · «지붕») */
+  let m0
+  if ((m0 = /^지하(\d+)층(\/?PIT|피트)?$/i.exec(t))) return 'B' + m0[1]
+  if (/^(지붕|옥상)(층)?$/.test(t)) return 'RF'
+  if (/^옥탑(층)?$/.test(t)) return 'PH'
   if (!/(평면도|PLAN)/i.test(t)) return null
   let m
   if ((m = /지하(\d+)층/.exec(t))) return 'B' + m[1]
@@ -216,6 +224,59 @@ function 평면층(s) {
  * 실 찾기
  * @returns [{이름, 층, 면적, 둘레, e, x, y, 글자:[i], 해치}]
  */
+/** 공간 안의 것 세기 — 위생기구(층 · 블록 이름) · 승강기 · 계단 선 (첫 꼭짓점이 안에 든 도형 수) */
+const 위생말 = /TOIL|BATH|SANI|PLUMB|위생|변기|세면|소변|대변|WC|LAV|URINAL|CLOSET|BASIN/i
+const 승강말 = /승강|ELEV|^EV|LIFT/i
+const 계단말 = /STAIR|계단|STEP/i
+function 안것(모델, f, 토 = null) {
+  const { Q, P, E, layers, I } = 모델
+  const 수 = { 위생: 0, 승강: 0, 계단: 0, 디딤L: 0 }
+  const 본 = new Set()
+  for (let q = 0; q < Q.e.length; q++) {
+    const e = Q.e[q]
+    if (본.has(e)) continue
+    const s0 = Q.p0[q]
+    const x = P[s0 * 2], y = P[s0 * 2 + 1]
+    if (x < f.상자[0] || x > f.상자[2] || y < f.상자[1] || y > f.상자[3]) continue
+    본.add(e)
+    const ly = (layers[E.ly[e]] && layers[E.ly[e]].name) || ''
+    const bn = E.ins[e] >= 0 && I && I[E.ins[e]] ? I[E.ins[e]].name || '' : ''
+    const 위 = 위생말.test(ly) || 위생말.test(bn), 승 = 승강말.test(ly) || 승강말.test(bn), 계 = 계단말.test(ly) || 계단말.test(bn)
+    if (!위 && !승 && !계) continue
+    if (!고리안(f.점, x, y)) continue
+    if (위) 수.위생++; if (승) 수.승강++; if (계) 수.계단++
+  }
+  /* 계단 디딤판 — 공간 안에 홀로 선 막는 선 중 같은 방향 · 같은 길이(50 mm)가 6개 넘게(디딤판을 벽 · 코어 층에 그린 도면) */
+  if (토) {
+    const 무리 = new Map()
+    for (let i = 0; i < 토.length / 4; i++) {
+      const ax = 토[i * 4], ay = 토[i * 4 + 1], bx = 토[i * 4 + 2], by = 토[i * 4 + 3]
+      if (Math.min(ax, bx) < f.상자[0] || Math.max(ax, bx) > f.상자[2] || Math.min(ay, by) < f.상자[1] || Math.max(ay, by) > f.상자[3]) continue
+      const L = Math.hypot(bx - ax, by - ay)
+      if (L < 600 || L > 3000) continue
+      if (!고리안(f.점, (ax + bx) / 2, (ay + by) / 2)) continue
+      const k = Math.round(((Math.atan2(by - ay, bx - ax) * 180) / Math.PI + 180) % 180 / 5) + '|' + Math.round(L / 50)
+      무리.set(k, (무리.get(k) || 0) + 1)
+    }
+    /* 🪜 G299 ③ 디딤판 길이(가장 많은 무리의 길이 = 계단 폭) — 마감 계단 챌판 넓이(폭 × 층 높이)에 씀 */
+    for (const [key, n] of 무리) if (n > 수.계단) { 수.계단 = n; 수.디딤L = +key.split('|')[1] * 50 }
+  }
+  return 수
+}
+/** 방들을 상자가 d 안으로 붙은 무리(층 하나)로 — [{상자, 방들}] */
+function 무리짓기(방들, d) {
+  const 무 = 방들.map((r) => ({ 상자: [...r.b], 방들: [r] }))
+  for (let 바뀜 = true; 바뀜;) {
+    바뀜 = false
+    for (let i = 0; i < 무.length && !바뀜; i++) for (let j = i + 1; j < 무.length; j++) {
+      const a = 무[i].상자, b = 무[j].상자
+      if (a[0] - d > b[2] || b[0] - d > a[2] || a[1] - d > b[3] || b[1] - d > a[3]) continue
+      무[i] = { 상자: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])], 방들: [...무[i].방들, ...무[j].방들] }
+      무.splice(j, 1); 바뀜 = true; break
+    }
+  }
+  return 무
+}
 export function 실찾기(모델, o = {}) {
   const { T, E } = 모델
   const k = o.k || 1
@@ -225,13 +286,18 @@ export function 실찾기(모델, o = {}) {
   const 아는 = o.실이름들 ? new Set([...o.실이름들].map(실키)) : null
   const 제목 = []
   for (let i = 0; i < T.s.length; i++) { const f = 평면층(T.s[i]); if (f) 제목.push({ f, x: T.x[i], y: T.y[i] }) }
-  // 실 이름 글자 자리 (먼저 모두) — 한 닫힌 선이 이름을 셋 넘게 품으면 층 외곽선으로 봄
-  const 이름자리 = []
+  /* 실 이름 글 — 보이는 글 + 🧱 G298 숨은 층(Defpoints 등)의 글(설계자가 실 이름을 인쇄 안 하는 층에 적은 평면도) */
+  const 이름들 = []
   for (let i = 0; i < T.s.length; i++) {
     const e = T.e[i]
-    if (E.t[e] !== 종류.글자 || 끈.has(E.ly[e]) || 표글자.has(i) || !실이름인가(T.s[i], 아는)) continue
-    이름자리.push([T.x[i] + 글자폭(T, i) / 2 * Math.cos(T.a[i]), T.y[i] + T.h[i] / 2])
+    if (E.t[e] !== 종류.글자) continue
+    if (E.sc && (E.sc[e] < 0.5 || E.sc[e] > 2)) continue     // 🧭 G132 축소 사본(위치도) 글자는 뺌
+    if (끈.has(E.ly[e]) || 표글자.has(i) || !실이름인가(T.s[i], 아는)) continue
+    이름들.push({ s: 글(T.s[i]), x: T.x[i] + 글자폭(T, i) / 2 * Math.cos(T.a[i]), y: T.y[i] + T.h[i] / 2, i })
   }
+  if (o.숨은글 !== false) for (const q of 모델.숨은글 || []) if (실이름인가(q.s, 아는)) 이름들.push({ s: 글(q.s), x: q.x, y: q.y, i: -1, 숨음: true })
+  // 실 이름 글자 자리 (먼저 모두) — 한 닫힌 선이 이름을 셋 넘게 품으면 층 외곽선으로 봄
+  const 이름자리 = 이름들.map((n) => [n.x, n.y])
   const 외곽판 = new Map()
   const 외곽 = (d) => {
     let v = 외곽판.get(d.e)
@@ -241,27 +307,198 @@ export function 실찾기(모델, o = {}) {
     v = n >= 3; 외곽판.set(d.e, v); return v
   }
   const 모음 = new Map()
-  for (let i = 0; i < T.s.length; i++) {
-    const e = T.e[i]
-    if (E.t[e] !== 종류.글자) continue
-    if (E.sc && (E.sc[e] < 0.5 || E.sc[e] > 2)) continue     // 🧭 G132 축소 사본(위치도) 글자는 뺌
-    if (끈.has(E.ly[e])) continue
-    if (!실이름인가(T.s[i], 아는)) continue
-    if (표글자.has(i)) continue
-    const cx = T.x[i] + 글자폭(T, i) / 2 * Math.cos(T.a[i]), cy = T.y[i] + T.h[i] / 2
-    const d = 품은(모델, 도형들, cx, cy, 0.8, 1500, (x) => (!주석층.test(x.층) || /실|ROOM|AREA|면적/i.test(x.층)) && !외곽(x))
+  for (const nm of 이름들) {
+    const cx = nm.x, cy = nm.y
+    const d = 품은(모델, 도형들, cx, cy, 0.8, 1500, (x) => (!주석층.test(x.층) || /실|ROOM|AREA|면적/i.test(x.층)) && !/HID|숨은|HIDDEN/i.test(x.층 || '') && !외곽(x))     /* 🏠 G298 숨은선 층의 닫힌 선(위층 뚫린 곳 · 천장 윤곽)은 방 경계가 아님 */
     if (!d) continue
     const a = 모음.get(d.e)
-    if (a) { if (!a.이름.split('·').includes(글(T.s[i]))) a.이름 += '·' + 글(T.s[i]); a.글자.push(i); continue }
+    /* 같은 방에 보이는 이름이 있으면 숨은 이름은 덧붙이지 않음(같은 이름을 두 층에 적은 도면) */
+    if (a) { if (!a.이름.split('·').includes(nm.s) && !(nm.숨음 && a.보임)) a.이름 += '·' + nm.s; if (nm.i >= 0) { a.글자.push(nm.i); a.보임 = true } continue }
     let 층 = ''
     if (제목.length) {
       let best = Infinity
       for (const t of 제목) { const dd = Math.hypot(t.x - cx, t.y - cy); if (dd < best) { best = dd; 층 = t.f } }
     }
-    모음.set(d.e, { 이름: 글(T.s[i]), 층, 면적: d.A, 둘레: d.L, e: d.e, x: cx, y: cy, 글자: [i], 해치: d.해치, 레이어: d.층, qs: d.qs, b: d.b })
+    모음.set(d.e, { 이름: nm.s, 층, 면적: d.A, 둘레: d.L, e: d.e, x: cx, y: cy, 글자: nm.i >= 0 ? [nm.i] : [], 보임: nm.i >= 0, ...(nm.숨음 ? { 숨은이름: true } : {}), 해치: d.해치, 레이어: d.층, qs: d.qs, b: d.b })
+  }
+  /* 🧱 G298 벽으로 방 찾기 — 닫힌 선이 없는 이름(벽 선만 그린 평면도) · 면적 표시 층(AREA)의 선만 품은 이름(벽 중심 면적선 — 마감은 안목) */
+  let 막토 = null
+  const 막토막 = () => {
+    if (막토) return 막토
+    const 막 = 막는도형(모델)
+    let 수 = 0
+    for (let e = 0; e < 막.length; e++) if (막[e]) 수++
+    막토 = { 수, 토: 수 >= 50 ? 막는토막(모델, 막, k) : null }
+    return 막토
+  }
+  if (o.벽 !== false) {
+    const 면적선 = (r) => /AREA|면적/i.test(r.레이어 || '')
+    const 찾을 = []
+    const 있는 = new Map()             /* 이름 → 그 이름이 든 모음 열쇠 */
+    for (const [key, r] of 모음) if (면적선(r)) for (const nm of 이름들) if (nm.x === r.x && nm.y === r.y) 있는.set(nm, key)
+    const 든 = new Set([...모음.values()].map((r) => r.x + ',' + r.y))
+    for (const nm of 이름들) {
+      const 안든 = ![...모음.values()].some((r) => (r.다각형 ? 고리안(r.다각형, nm.x, nm.y) : (nm.x >= r.b[0] && nm.x <= r.b[2] && nm.y >= r.b[1] && nm.y <= r.b[3] && 안인가(모델, r.qs, nm.x, nm.y))))
+      if (안든 || 있는.has(nm)) 찾을.push(nm)
+    }
+    void 든
+    if (찾을.length) {
+      const { 토 } = 막토막()
+      if (토) {
+        const R = 벽방찾기(모델, 찾을, { 토막: 토, 칸: 25 / k, 창들: [30000 / k, 60000 / k], 최대넓이: 1500e6 / (k * k) })
+        const 벽모음 = new Map()           /* 찾은 다각형(같은 방) → 모음 줄 */
+        R.forEach((w, n) => {
+          if (!w) return
+          const nm = 찾을[n]
+          const A = w.넓이 * k * k / 1e6
+          if (A < 0.8) return
+          const 옛키 = 있는.get(nm)
+          const 옛 = 옛키 !== undefined ? 모음.get(옛키) : null
+          /* 면적선 방: 벽으로 찾은 안목이 면적선의 60 ~ 105 % 일 때만 바꿈(새면 면적선 그대로) */
+          if (옛 && !(A >= 옛.면적 * 0.6 && A <= 옛.면적 * 1.05)) return
+          let 줄 = 벽모음.get(w.점)
+          if (!줄 && w.같은) for (const [점, r] of 벽모음) if (r.넓이 === w.넓이 && 점.length === w.점.length) { 줄 = r; break }
+          if (줄) { if (!줄.이름.split('·').includes(nm.s)) 줄.이름 += '·' + nm.s; if (nm.i >= 0) 줄.글자.push(nm.i); if (옛키 !== undefined) 모음.delete(옛키); return }
+          let 층 = 옛 ? 옛.층 : ''
+          if (!층 && 제목.length) { let best = Infinity; for (const t of 제목) { const dd = Math.hypot(t.x - nm.x, t.y - nm.y); if (dd < best) { best = dd; 층 = t.f } } }
+          const 새 = { 이름: nm.s, 층, 면적: A, 둘레: w.둘레 * k / 1000, e: -1, x: nm.x, y: nm.y, 글자: nm.i >= 0 ? [nm.i] : [], 보임: nm.i >= 0, ...(nm.숨음 ? { 숨은이름: true } : {}),
+            해치: false, 레이어: '', 다각형: w.점, b: w.상자, 넓이: w.넓이, 방법: '벽', ...(옛 ? { 면적선: 옛.면적, 면적선e: 옛.e } : {}) }
+          if (옛키 !== undefined) 모음.delete(옛키)
+          모음.set('w' + n, 새)
+          벽모음.set(w.점, 새)
+        })
+      }
+    }
+  }
+  /* 방 안의 글 — 설계자 면적 글(«35.42 m2» → 검산) · 천장고 글(«CH=2.70» · «2.40») — 보이는 글 + 숨은 글 */
+  const 수글들 = []
+  for (let i = 0; i < T.s.length; i++) 수글들.push({ s: T.s[i], x: T.x[i] + 글자폭(T, i) / 2 * Math.cos(T.a[i]), y: T.y[i] + T.h[i] / 2 })
+  for (const q of 모델.숨은글 || []) 수글들.push(q)
+  /* 🏠 G298 ② 층 통째로 — 벽 중심 넓이(설계 «면적» 과 견줌) · 이름 없는 공간(복도 · 화장실 · 계단실 …)도 실로 */
+  if (o.벽 !== false && o.빈방 !== false) {
+    const 벽방 = [...모음.values()].filter((r) => r.방법 === '벽')
+    const { 토 } = 벽방.length ? 막토막() : {}
+    if (토) {
+      let 빈n = 0
+      for (const g of 무리짓기(벽방, 5000 / k)) {
+        /* 층 상자 = 이름 든 방들 상자를 벽 선이 이어진 데까지 넓힘(가장자리 방 · 화장실 · 계단이 잘리지 않게) */
+        const 상 = 벽상자(토, g.상자, 2000 / k)
+        if ((상[2] - 상[0]) * k > 200000 || (상[3] - 상[1]) * k > 200000) continue
+        const F = 층방들(모델, 상, { 토막: 토, 칸: 25 / k, 여유: 3000 / k, 최소넓이: 0.8e6 / (k * k), 벽반: 120 / k, 깎기: 150 / k })
+        const 쓴 = new Set()
+        const 덩방 = new Map()                 /* 덩이 → 그 안에 이름이 든 방들 */
+        for (const r of 모음.values()) {
+          const id = F.어디(r.x, r.y)
+          if (id < 0) continue
+          쓴.add(id)
+          const l = 덩방.get(id); if (l) l.push(r); else 덩방.set(id, [r])
+          const f = F.방들[id]
+          if (r.방법 === '벽' && Math.abs(f.넓이 - r.넓이) <= 0.03 * r.넓이) r.중심면적 = f.중심넓이 * k * k / 1e6
+        }
+        /* 열린 공간 안에 면적 선(AREA)으로만 그은 방(«개방형 공간») — 벽으로 찾은 큰 방에서 그만큼 뺌(두 번 안 셈) */
+        for (const l of 덩방.values()) {
+          const 큰 = l.filter((r) => r.방법 === '벽')
+          if (큰.length !== 1) continue
+          const R = 큰[0]
+          for (const r of l) {
+            if (r === R || r.방법 === '벽' || !/AREA|면적/i.test(r.레이어 || '') || !(r.면적 > 0)) continue
+            if (R.면적 - r.면적 < R.면적 * 0.2) continue
+            R.면적 -= r.면적
+            if (R.중심면적) R.중심면적 -= r.면적
+            R.뺀 = [...(R.뺀 || []), { 이름: r.이름, 면적: r.면적 }]
+          }
+        }
+        const 층들 = new Map()
+        for (const r of g.방들) if (r.층) 층들.set(r.층, (층들.get(r.층) || 0) + 1)
+        const 층 = [...층들].sort((a, b) => b[1] - a[1])[0]?.[0] || ''
+        /* 이름 든 방에서 벽 하나 건너(상자 1 m 안)로 이어진 공간만 — 이어진 것의 이어진 것도(떨어진 다른 그림 · 건물은 안 셈) */
+        const 닿음 = new Set(쓴)
+        const 붙 = (a, b) => !(a[2] < b[0] - 1000 / k || a[0] > b[2] + 1000 / k || a[3] < b[1] - 1000 / k || a[1] > b[3] + 1000 / k)
+        for (let 바뀜 = true; 바뀜;) {
+          바뀜 = false
+          F.방들.forEach((f, id) => { if (!닿음.has(id) && [...닿음].some((j) => 붙(f.상자, F.방들[j].상자))) { 닿음.add(id); 바뀜 = true } })
+        }
+        const 곁 = 3000 / k, gb = g.상자
+        F.방들.forEach((f, id) => {
+          if (쓴.has(id)) return
+          const A = f.넓이 * k * k / 1e6
+          if (A < 1 || f.폭 * k < 600) return
+          if (!닿음.has(id)) return
+          /* 이미 찾은 방(닫힌 선 방) 안이면 뺌 */
+          if ([...모음.values()].some((r) => 방안(모델, r, f.씨[0], f.씨[1]))) return
+          const 안글 = []
+          let 빈곳 = false
+          for (const q of 수글들) {
+            if (q.x < f.상자[0] || q.x > f.상자[2] || q.y < f.상자[1] || q.y > f.상자[3]) continue
+            const t = 붙임(q.s)
+            if (!t || t.length > 14 || !/[가-힣A-Za-z]/.test(t) || /^[A-Z]{0,2}\d|[*ø∅Ø×]|^\d|m2$|㎡$/i.test(t)) continue
+            if (!고리안(f.점, q.x, q.y)) continue
+            if (/^(OPEN|오픈|VOID|보이드)$/i.test(t)) { 빈곳 = [q.x, q.y]; continue }     /* 뚫린 곳 글 — 이름으로는 안 씀(복도 · 화장실과 한 덩이일 수 있음) */
+            if (실아님.test(t)) continue
+            if (!안글.includes(t)) 안글.push(t)
+          }
+          /* 이름이 없으면 안의 것으로 짐작 — 위생기구(변기 · 세면기) → 화장실 · 승강기 선 → 승강로 · 계단 선 → 계단실 */
+          let 짐작 = '', 디딤 = 0
+          if (안글.length && 안글.some((t) => /계단/.test(t))) { const 수2 = 안것(모델, f, 토); if (수2.계단 >= 6) 디딤 = 수2.디딤L * k / 1000 }
+          if (!안글.length) {
+            const 수 = 안것(모델, f, 토)
+            if (수.계단 >= 6) 디딤 = 수.디딤L * k / 1000
+            /* 복도 — 좁고 긴 공간(가장 넓은 폭 2.5 m 아래 · 넓이가 폭² 의 세 배 넘음 · 5 ㎡ 넘음) */
+            const 폭 = f.폭 * k / 1000
+            짐작 = 수.위생 >= 2 ? '화장실(추정)' : 수.승강 >= 3 ? '승강로(추정)' : 수.계단 >= 6 ? '계단실(추정)' : A >= 5 && 폭 > 0.6 && 폭 <= 2.5 && A >= 3 * 폭 * 폭 ? '복도(추정)' : ''
+          }
+          const 밖 = f.상자[2] < gb[0] - 곁 || f.상자[0] > gb[2] + 곁 || f.상자[3] < gb[1] - 곁 || f.상자[1] > gb[3] + 곁
+          빈n++
+          모음.set('u' + 빈n + '_' + id, { ...(밖 ? { 밖: true } : {}), 이름: 안글.length ? 안글.slice(0, 2).join('·') : 짐작 || '이름 없는 공간 ' + 빈n + (빈곳 ? ' (OPEN)' : ''), 층, ...(짐작 ? { 짐작: true } : {}), ...(짐작 === '승강로(추정)' ? { 마감없음: true } : {}), 면적: A, 둘레: f.둘레 * k / 1000, e: -1, x: f.씨[0], y: f.씨[1], 글자: [], 보임: false,
+            해치: false, 레이어: '', 다각형: f.점, b: f.상자, 넓이: f.넓이, 방법: '벽', 이름없음: !안글.length, ...(디딤 > 0.5 && 디딤 < 4 ? { 디딤 } : {}), ...(빈곳 ? { 오픈: true, 오픈점: 빈곳 } : {}), 중심면적: f.중심넓이 * k * k / 1e6 })
+        })
+      }
+    }
+  }
+  /* 글 하나는 그 글을 품은 가장 작은 방 몫(열린 공간 속 면적 선 방의 글을 큰 방이 가져가지 않게) */
+  const 방들0 = [...모음.values()]
+  for (const q of 수글들) {
+    const t = 붙임(q.s)
+    const ma = /^([\d.]+)(m2|㎡|M2|m²)$/.exec(t)
+    const mc = /^(?:CH|C\.H|천장고)?[=:]?(\d\.\d{1,2})(?:m|M)?$/.exec(t)
+    if (!ma && !mc) continue
+    let r = null
+    for (const x of 방들0) {
+      if (q.x < x.b[0] || q.x > x.b[2] || q.y < x.b[1] || q.y > x.b[3]) continue
+      if (!방안(모델, x, q.x, q.y)) continue
+      if (!r || x.면적 < r.면적) r = x
+    }
+    if (!r) continue
+    if (ma && !r.도면면적) r.도면면적 = +ma[1]
+    else if (mc && !ma) { const v = +mc[1]; if (v >= 2.1 && v <= 6 && !r.도면천장고) r.도면천장고 = v }
+  }
+  /* 🏠 G298 OPEN(뚫린 곳) — 판 제목(«1층평면도» · «2층평면도») 자리로 층끼리 겹쳐 봄:
+     이 층 OPEN 공간 아래층 같은 자리에 방이 있고, 위층 같은 자리가 OPEN 이 아니면 → 뚫린 곳(바닥 없음 · 실에서 뺌)
+     위층 같은 자리도 OPEN 이면 → 이 층은 두 층 높이 공간의 바닥(그대로 · «위가 뚫림») */
+  const 층닻 = new Map()             /* 층 → 그 층 판 제목들(같은 층 이름이 여러 판 — «지하1층/pit» · «지하1층구조평면도») */
+  for (const t of 제목) { const l = 층닻.get(t.f); if (l) l.push(t); else 층닻.set(t.f, [t]) }
+  const 가까운닻 = (f, x, y) => { let b = null, bd = Infinity; for (const t of 층닻.get(f) || []) { const d = Math.hypot(t.x - x, t.y - y); if (d < bd) { bd = d; b = t } } return b }
+  const 층차례 = (f) => (/^B(\d+)/.test(f) ? -Number(f.slice(1)) : /^\d+$/.test(f) ? Number(f) : f === 'RF' || f === 'PH' ? 99 : NaN)
+  const 옆층 = (f, d) => { const n = 층차례(f) + d; for (const [g] of 층닻) if (층차례(g) === n || (n === 0 && 층차례(g) === -1 && d < 0)) return g; return null }
+  const 그층방 = (f, x, y) => 방들0.filter((r) => r.층 === f && x >= r.b[0] && x <= r.b[2] && y >= r.b[1] && y <= r.b[3] && 방안(모델, r, x, y))
+  for (const r of 방들0) { const t = 가까운닻(r.층, r.x, r.y); if (t) r.닻 = [t.x, t.y] }     /* 3D — 층마다 (가까운) 판 제목 자리로 맞춤 */
+  for (const r of 방들0) {
+    if (!r.오픈 || !r.닻) continue
+    const 닻 = { x: r.닻[0], y: r.닻[1] }
+    const [ox, oy] = r.오픈점 || [r.x, r.y]           /* OPEN 글 자리로 견줌(공간이 크면 가장 안쪽 점은 뚫린 곳 밖일 수 있음) */
+    /* 그 층 판 제목마다 옮겨 보고 그 층 방에 드는 것 */
+    const 그자리방 = (g) => { for (const b of 층닻.get(g) || []) { const l = 그층방(g, ox - 닻.x + b.x, oy - 닻.y + b.y); if (l.length) return l } return [] }
+    const 위 = 옆층(r.층, 1), 아래 = 옆층(r.층, -1)
+    if (위 && 그자리방(위).some((o) => o.오픈)) { r.위뚫림 = true; continue }
+    if (아래 && 그자리방(아래).length) r.뚫림 = true
+  }
+  for (const [key, r] of 모음) if (r.뚫림) 모음.delete(key)
+  /* 🚪 G298 ③ 벽으로 찾은 방에 붙은 문(문 열림 호) — 마감 벽 · 걸레받이 공제용(문 폭 · 높이는 2.1 m 로 봄) */
+  if (막토 && 막토.토 && 막토.토.문들 && 막토.토.문들.length) {
+    for (const r of 모음.values()) if (r.다각형) { const w = 방문들(r.다각형, 막토.토.문들, 300 / k); if (w.length) r.문들 = w.map((v) => Math.round((v * k) / 50) * 50) }
   }
   // 한 닫힌 선이 실 이름을 셋 넘게 품으면 방이 아니라 층 외곽선 — 뺌 (방이 선으로만 그려진 평면도)
-  return [...모음.values()].filter((r) => r.이름.split('·').length <= 2).sort((a, b) => (a.층 || '').localeCompare(b.층 || '', 'ko', { numeric: true }) || a.이름.localeCompare(b.이름, 'ko', { numeric: true }))
+  return [...모음.values()].filter((r) => r.방법 === '벽' || r.이름.split('·').length <= 2).sort((a, b) => (a.층 || '').localeCompare(b.층 || '', 'ko', { numeric: true }) || a.이름.localeCompare(b.이름, 'ko', { numeric: true }))
 }
 
 /* ───────────────────────────── 실내재료마감표 — 칸이 여러 줄인 큰 표 */
@@ -467,7 +704,7 @@ export function 모두(모델, o = {}) {
       for (const a of 기호) {
         if (!창표.has(a.기호)) continue
         let n = 0
-        for (const [x, y] of a.자리) if (안인가(모델, r.qs, x, y)) n++
+        for (const [x, y] of a.자리) if (방안(모델, r, x, y)) n++
         if (n) 창.push(n === 1 ? a.기호 : a.기호 + '*' + n)
       }
       const 줄 = { 층: r.층, 실명: r.이름, 개수: '1', 면적: 짧(r.면적), 둘레: Number.isFinite(r.둘레) ? 짧(r.둘레) : '', 천장고: m.천장고 || '', 창호: 창.join(' ') }
@@ -533,15 +770,27 @@ export function 마감자동(모델, o = {}) {
   const 새마감 = new Map()
   const 부위칸 = [['바닥', '바닥', 'm2'], ['걸레받이', '걸레받이', 'm'], ['벽', '벽', 'm2'], ['천장', '천장', 'm2']]
   let 맞춘 = 0
+  const 자동문 = new Set()
   const 실줄 = 실.map((r) => {
     const 창 = []
     for (const [기호, 점들] of 자리) {
       let n = 0
-      for (const [x, y] of 점들) if (x >= r.b[0] && x <= r.b[2] && y >= r.b[1] && y <= r.b[3] && 안인가(모델, r.qs, x, y)) n++
+      for (const [x, y] of 점들) if (x >= r.b[0] && x <= r.b[2] && y >= r.b[1] && y <= r.b[3] && 방안(모델, r, x, y)) n++
       if (n) 창.push(n === 1 ? 기호 : 기호 + '*' + n)
     }
-    const 줄 = { 층: r.층 || '', 실명: r.이름, 개수: '1', 면적: 짧(r.면적), 둘레: Number.isFinite(r.둘레) ? 짧(r.둘레) : '', 천장고: '', 창호: 창.sort().join(' '),
-      _찍음: { 면적: [{ e: r.e, v: r.면적 }], ...(Number.isFinite(r.둘레) ? { 둘레: [{ e: r.e, v: r.둘레 }] } : {}) }, _도면: o.이름 || '' }
+    /* 🚪 G298 ③ 창호 기호가 없는 방 — 도면 문 열림 호로 찾은 문(폭마다 «문900» 같은 기호 · 높이 2.1 m)으로 벽 · 걸레받이 공제 */
+    if (!창.length && r.문들 && r.문들.length && !샤프트말.test(붙임(r.이름))) {
+      const 폭수 = new Map()
+      for (const w of r.문들) 폭수.set(w, (폭수.get(w) || 0) + 1)
+      for (const [w, n] of [...폭수].sort((a, b) => a[0] - b[0])) { 자동문.add(w); 창.push('문' + w + (n > 1 ? '*' + n : '')) }
+    }
+    const 줄 = { 층: r.층 || '', 실명: r.이름, 개수: '1', 면적: 짧(r.면적), 둘레: Number.isFinite(r.둘레) ? 짧(r.둘레) : '', 천장고: r.도면천장고 ? String(r.도면천장고) : '', 창호: 창.sort().join(' '),
+      ...(r.e >= 0 ? { _찍음: { 면적: [{ e: r.e, v: r.면적 }], ...(Number.isFinite(r.둘레) ? { 둘레: [{ e: r.e, v: r.둘레 }] } : {}) } } : { _자리: [{ n: o.이름 || '', r: r.b }] }),
+      _도면: o.이름 || '',
+      /* 🧱 G298 검산 · 3D — 찾은 길(닫힌 선 · 벽) · 설계자 면적 글 · 면적선(벽 중심) · 방 다각형(도면 단위) */
+      _방: { 길: r.방법 === '벽' ? '벽' : '선', ...(r.도면면적 ? { 도면면적: r.도면면적 } : {}), ...(r.면적선 ? { 면적선: 짧(r.면적선) } : {}), ...(r.숨은이름 ? { 숨은이름: true } : {}), ...(r.중심면적 ? { 중심면적: 짧(r.중심면적) } : {}), ...(r.이름없음 ? { 이름없음: true } : {}), ...(r.오픈 ? { 오픈: true } : {}), ...(r.위뚫림 ? { 위뚫림: true } : {}), ...(r.짐작 ? { 짐작: true } : {}), ...(r.마감없음 ? { 마감없음: true } : {}), ...(r.뺀 ? { 뺀: r.뺀.map((x) => ({ 이름: x.이름, 면적: 짧(x.면적) })) } : {}), ...(샤프트말.test(붙임(r.이름)) ? { 샤프트: true } : {}), ...(r.닻 ? { 닻: r.닻.map((v) => Math.round(v)) } : {}), ...(r.디딤 ? { 디딤: 짧(r.디딤) } : {}), ...(k !== 1 ? { k } : {}), 점: 방점(모델, r) } }
+    const 덧 = 방덧말(r)
+    if (덧) 줄.비고 = 덧
     const m = 표.get(실키(r.이름.split('·')[0]))
     if (m) {
       맞춘++
@@ -560,6 +809,7 @@ export function 마감자동(모델, o = {}) {
     return 줄
   })
   const 창호 = [...(옛.창호 || [])]
+  for (const w of [...자동문].sort((a, b) => a - b)) if (!창호.some((x) => String(x.기호 || '') === '문' + w)) 창호.push({ 기호: '문' + w, 구분: '문', 폭: String(w / 1000), 높이: '2.1', 비고: '도면 문 열림 호로 찾음(자동 · 높이 2.1 m 로 봄 — 고쳐 쓰십시오)' })
   for (const w of 창호표) if (!옛창.has(w.기호)) 창호.push({ 기호: w.기호, 구분: w.구분, 폭: w.폭, 높이: w.높이, 비고: w.수량 ? '도면 수량 ' + w.수량 : '' })
   const 공사 = {
     ...옛, 이름: 옛.이름 || '도면에서 자동 — ' + (o.이름 || ''),
@@ -568,6 +818,29 @@ export function 마감자동(모델, o = {}) {
     외벽: 옛.외벽 || [], 묶음: 옛.묶음 || [], 조합: 옛.조합 || [], 치환: 옛.치환 || [], 창호조합: 옛.창호조합 || [],
   }
   return { 공사, 말: { 실: 실줄.length, 마감표: 마감표.length, 맞춘, 창호표: 창호표.length, 새마감: 새마감.size } }
+}
+
+const 샤프트말 = /^(EPS|PS|TPS|AD|DA|DS|DUCT|덕트|샤프트|SHAFT|AV)$/i
+/** 🏠 G298 실 줄 «비고» — 자동으로 찾은 방에 사람이 볼 것 */
+function 방덧말(r) {
+  const 말 = []
+  if (r.짐작) 말.push(/화장실/.test(r.이름) ? '이름 추정(위생기구)' : /계단/.test(r.이름) ? '이름 추정(계단 디딤판)' : /복도/.test(r.이름) ? '이름 추정(좁고 긴 공간)' : '이름 추정(승강기 선) — 마감 없으면 지우십시오')
+  else if (r.이름없음) 말.push('도면에 실 이름 없음 — 이름을 적으십시오')
+  if (r.위뚫림) 말.push('위층이 뚫린 두 층 높이(OPEN) — 천장고 확인')
+  else if (r.오픈) 말.push('OPEN 글 — 뚫린 곳이면 지우십시오')
+  if (샤프트말.test(붙임(r.이름))) 말.push('샤프트 — 마감 없으면 지우십시오')
+  if (r.밖) 말.push('이름 든 방들 밖(연결 통로 · 옆 건물?) — 이 공사 것이 아니면 지우십시오')
+  if (r.뺀) 말.push('열린 공간 속 «' + r.뺀.map((x) => x.이름.split('·')[0]).join('·') + '» 면적을 뺌')
+  if (r.방법 !== '벽' && /AREA|면적/i.test(r.레이어 || '')) 말.push('면적 선(벽 중심)으로 셈 — 안목보다 조금 큼')
+  return 말.join(' · ')
+}
+/** 방 다각형(도면 단위 · 꼭짓점 300 개까지) — 벽으로 찾은 방은 그 다각형 · 닫힌 선 방은 그 선의 첫 조각 */
+function 방점(모델, r) {
+  let 점 = r.다각형
+  if (!점 && r.qs && r.qs.length) { const { Q, P } = 모델; const q = r.qs[0], s0 = Q.p0[q], n = Q.pn[q]; 점 = []; for (let k = 0; k < n; k++) 점.push([P[(s0 + k) * 2], P[(s0 + k) * 2 + 1]]) }
+  if (!점) return null
+  const 줄임 = 점.length > 300 ? Math.ceil(점.length / 300) : 1
+  return 점.filter((_, i) => i % 줄임 === 0).map(([x, y]) => [Math.round(x), Math.round(y)])
 }
 
 /** 산출서에 넣을 줄의 수량을 엑셀 식으로 (소수 셋째 자리) */

@@ -5,7 +5,7 @@
  *   머리가 두 줄(합계 → 단가 · 금액)이고, 공종 줄은 굵게, 변경 줄은 붉게, 수량은 «있는 자리수만큼» 보여야
  *   현장에서 받아 줍니다. 그래서 따로 둡니다(qtoxlsx 를 건드리면 수량산출서 · 비율 도구가 흔들립니다).
  *
- * 시트: { 이름, 너비:[칸 너비], 제목, 머리:[[..],[..]], 병합:['A3:A4', ..], 줄:[[칸..]], 고정열, 가로, 숨김열:[번호] }
+ * 시트: { 이름, 너비:[칸 너비], 제목, 머리:[[..],[..]], 병합:['A3:A4', ..], 줄:[[칸..]], 고정열, 가로, 숨김열:[번호], 숨김(시트 숨김 · G296) }
  * 칸  : null | 숫자 | 글 | { v, s } | { f, s }   (s = 아래 꼴 이름. 숫자는 s 가 없으면 자리수에 맞춰 고릅니다)
  */
 import { zipSync, strToU8 } from 'fflate'
@@ -237,7 +237,7 @@ export function 변경엑셀(시트들) {
   files['xl/workbook.xml'] = strToU8('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' +
     'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' +
-    시트들.map((s, i) => '<sheet name="' + esc(s.이름) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>').join('') +
+    시트들.map((s, i) => '<sheet name="' + esc(s.이름) + '" sheetId="' + (i + 1) + '"' + (s.숨김 ? ' state="hidden"' : '') + ' r:id="rId' + (i + 1) + '"/>').join('') +
     '</sheets>' + (이름정의 ? '<definedNames>' + 이름정의 + '</definedNames>' : '') +
     '<calcPr calcId="0" fullCalcOnLoad="1"/></workbook>')
   files['xl/_rels/workbook.xml.rels'] = strToU8('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +

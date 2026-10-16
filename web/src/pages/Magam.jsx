@@ -31,6 +31,7 @@ import { use도면, 도면판, 도면상태줄 } from '../도면판.jsx'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { askAfter } from '../AskComment'
 import { use화면상태 } from '../lib/길기록.js'
+import 마감방판 from '../마감방판.jsx'
 
 import { 단위보기, 단위풀이 } from '../lib/단위.js'
 const 저장열쇠 = 'kcm.magam.v1'
@@ -385,6 +386,9 @@ export default function Magam() {
         )}
         {표채움 && <div className="gg-say" style={{ marginTop: 8 }}>{표채움}</div>}
       </div>
+
+      {/* 🏠 G298 도면에서 찾은 방 — 🎯 내역 대조 · 📐 설계 면적 검산 · 🧊 3D */}
+      <마감방판 공사={공사} set공사={set공사} />
 
       <div className="tp-tabs no-print" role="tablist">
         {Object.entries(탭이름).map(([kk, t]) => (

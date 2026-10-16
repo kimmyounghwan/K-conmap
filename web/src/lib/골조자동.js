@@ -25,6 +25,7 @@ import { 도곽찾기3d, 박스제목들 } from './도곽3d.js'
 import { 판목록, 배치판목록 } from './판펼치기.js'
 import { 지시선끝 } from './지시선.js'
 import { 구조물읽기 } from './구조물판.js'
+import { 레벨범례, 입면경사 } from './지붕높이.js'
 
 const 글 = (x) => String(x ?? '').trim()
 const 붙 = (s) => String(s ?? '').replace(/\s+/g, '')
@@ -92,9 +93,27 @@ export function 평면기호(s) {
   const r = 기호풀이(s)
   if (r) return r
   const m = /^(\s*)([A-Za-z0-9]{2,6})\s*[(\[]?\s*\d{3,4}\s*[Xx×*]\s*\d{3,4}(?:\s*[Xx×*]\s*\d{3,4})?\s*[)\]]?\s*$/.exec(String(s ?? ''))
-  if (!m) return null
+  if (!m) {
+    /* 🧭 G299 뒤 괄호 주기 — «G1(상, 하)»(위 · 아래 두 보) · «G3A(ROOF, PHF 동일보), 상부덧살H=Var»(두 평면에 같이 그린 한 보 — 앞에 적힌 평면에서만 셈).
+         현장 4 지붕 평면: 못 읽어 경사 지붕 단차의 보가 어느 평면에서도 안 셈해졌음 */
+    const m2 = /^(\s*)([A-Za-z0-9]{2,6})\s*[(（]([^)）]{1,30})[)）]\s*(?:[,·]\s*[^,·]{0,30})?$/.exec(String(s ?? ''))
+    if (!m2 || !/상|하|동일|ROOF|PHF|지붕|옥탑/i.test(m2[3])) return null
+    const r3 = 기호풀이(m2[2])
+    if (!r3 || r3.종류 !== '보') return null
+    const 동일 = /동일/.test(m2[3]) ? m2[3].split(/[,\s·]+/).map((w) => w.trim()).filter((w) => w && !/동일/.test(w)) : null
+    const 위아래 = /^\s*상\s*[,·/]\s*하\s*$/.test(m2[3])
+    if (!동일 && !위아래) return null
+    return { ...r3, 앞: m2[1].length, 길이: m2[2].length, ...(동일 && 동일.length ? { 동일 } : {}), ...(위아래 ? { 위아래: true } : {}) }
+  }
   const r2 = 기호풀이(m[2])
   return r2 ? { ...r2, 앞: m[1].length, 길이: m[2].length } : null     // 앞 · 길이 — 글자 안에서 기호가 차지한 자리(가운데를 기호 쪽으로)
+}
+/** 🧭 G299 «(ROOF, PHF 동일보)» 의 첫 평면 이름이 이 평면 제목인가 — ROOF · RF · 지붕 ↔ 지붕 · ROOF 제목 · PH(F) ↔ PH · 옥탑 · 그 밖은 글이 제목에 들었나 */
+export function 동일첫판(w, 제목) {
+  const W = String(w || '').toUpperCase(), T = String(제목 || '').toUpperCase().replace(/\s+/g, '')
+  if (/^(ROOF|RF|R|지붕)$/.test(W)) return /ROOF|지붕|^RF|^R구조/.test(T) && !/PH|옥탑/.test(T)
+  if (/^PH/.test(W) || /옥탑/.test(W)) return /PH|옥탑/.test(T)
+  return T.includes(W)
 }
 /** 🧭 G246 동(구조물) 꼬리 — 판 이름 끝 «[미생물 처리장]» · «[쓰레기 처리장]» → 그 구조물 이름(없으면 '').
     한 도면 묶음에 본 건물과 딴 구조물(처리장 · 관리동)이 같이 있으면 같은 기호(C1)가 서로 다른 부재 — 현장 C 건축: 처리장의 «C1 ㅁ-100x100» 철골이
@@ -2765,6 +2784,7 @@ function 골조읽기0(도면들0, o = {}) {
 
   /* 평면 기호 → 평면(제목)으로 */
   const 기호글자 = []
+  const 위아래글 = []          // 🧭 G299 «G1(상, 하)» 글 — 그 자리 보 줄은 두 개(QT × 2)
   for (const D of 도면들) {
     /* 🧭 G245 겹쳐 찍힌 같은 «기둥 · 기초» 기호 글자(같은 글 · 글자 높이 반 안 · 높이 비슷)는 하나 — 화면엔 한 글자로 보임.
        xref 를 겹쳐 끼운 도면(현장 B S-101: 제 글자 + xref 글자가 9 mm 어긋나 둘)에서 기둥이 둘로 셈해졌음(둘째 글자가 옆 모양 · 글자 자리에 기둥을 하나 더 세움).
@@ -2783,6 +2803,7 @@ function 골조읽기0(도면들0, o = {}) {
       const r = 평면기호(g.s)
       if (!r) continue
       if ((r.종류 === '기둥' || r.종류 === '기초') && 겹침(g)) continue
+      if (r.위아래) 위아래글.push({ D, g, 기호: r.기호 })
       if (r.길이 != null) {
         /* 「G1(400X700)」 — 글자 가운데가 아니라 «G1» 부분의 가운데를 기호 자리로 (기둥·보 찾는 거리가 어긋나지 않게) */
         const 앞폭 = 폭짐작(g.s.slice(0, r.앞), g.h), 몸폭 = 폭짐작(g.s.slice(r.앞, r.앞 + r.길이), g.h)
@@ -2797,6 +2818,8 @@ function 골조읽기0(도면들0, o = {}) {
   const 제목없음 = { g: null, f: ['2'], 없음: true, 이름: '' }
   for (const x of 기호글자) {
     let best = 제목찾기(x.D, x.g)
+    /* 🧭 G299 «(ROOF, PHF 동일보)» — 앞에 적힌 평면(ROOF)에서만 셈 · 다른 평면(PHF)의 같은 글은 건너뜀(한 보를 두 번 안 셈) */
+    if (x.r.동일 && best && !동일첫판(x.r.동일[0], best.이름)) continue
     if (!best) {
       if (제목들.some((t) => t.D === x.D)) continue       // 제목이 있는 도면인데 어느 평면에도 안 걸림(상세·단면 속 글자)
       /* 🧭 G241 판 이름(표제란 도면명)이 있는데 구조 평면이 아닌 판(현장 A «종 골구도 - 1» · 단면 · 상세 · 일람표)의 기호는 평면 부재가 아님
@@ -3660,15 +3683,27 @@ function 골조읽기0(도면들0, o = {}) {
   for (const f of [...층들.keys()].sort(층차례)) {
     const c = 층들.get(f)
     const 홑 = new Map()
+    /* 🧭 G299 «G1(상, 하)» 글 곁(2 m 안 · 같은 기호 · 같은 도면)의 보 = 위 · 아래 둘 → 그 줄 QT × 2(3D 는 한 자리) */
+    const 겹수 = (x) => {
+      if (!위아래글.length || !x.자리 || !x.자리.r) return 1
+      const D0 = 도면들.find((D) => D.이름 === x.자리.n)
+      if (!D0) return 1
+      const [x0, y0, x1, y1] = x.자리.r.map((v) => v * D0.k)
+      /* 글 자리에서 보 띠(네모)까지 1.5 m 안 — 가장 가까운 같은 기호 보 하나만 */
+      const 거리 = (w) => Math.hypot(Math.max(x0 - w.g.x, 0, w.g.x - x1), Math.max(y0 - w.g.y, 0, w.g.y - y1))
+      const 몸 = (k) => (기호풀이(k) || {}).몸 || k
+      return 위아래글.some((w) => w.D === D0 && 몸(w.기호) === 몸(x.기호) && 거리(w) <= 1500 && !c.보.some((줄2) => 줄2.some((y) => y !== x && y.자리 && y.자리.n === x.자리.n && 몸(y.기호) === 몸(x.기호) && (() => { const [a0, b0, a1, b1] = y.자리.r.map((v) => v * D0.k); return Math.hypot(Math.max(a0 - w.g.x, 0, w.g.x - a1), Math.max(b0 - w.g.y, 0, w.g.y - b1)) < 거리(w) })()))) ? 2 : 1
+    }
     for (const 줄 of c.보) {
       if (줄.length === 1) {
         const x = 줄[0]
-        const key = x.기호 + '|' + (x.안목 + x.좌 + x.우) + '|' + x.좌 + '|' + x.우
-        const h = 홑.get(key); if (h) { h.QT++; h._자리.push(x.자리) } else 홑.set(key, { 층: f, 열: '', 기호: x.기호, 길이: String(x.안목 + x.좌 + x.우), 좌단: x.좌 ? String(x.좌) : '', 우단: x.우 ? String(x.우) : '', S: '', QT: 1, C: '', F: '', 공제F: '', R: '', _자리: [x.자리] })
+        const 겹 = 겹수(x)
+        const key = x.기호 + '|' + (x.안목 + x.좌 + x.우) + '|' + x.좌 + '|' + x.우 + (겹 > 1 ? '|겹' : '')
+        const h = 홑.get(key); if (h) { h.QT += 겹; h._자리.push(x.자리) } else 홑.set(key, { 층: f, 열: '', 기호: x.기호, 길이: String(x.안목 + x.좌 + x.우), 좌단: x.좌 ? String(x.좌) : '', 우단: x.우 ? String(x.우) : '', S: '', QT: 겹, C: '', F: '', 공제F: '', R: '', _자리: [x.자리], ...(겹 > 1 ? { _위아래: true } : {}) })
         continue
       }
       열번++
-      줄.forEach((x, i) => 주.보.push({ 층: f, 열: i === 0 ? 'A' + 열번 : i === 줄.length - 1 ? 'E' : '', 기호: x.기호, 길이: String(x.안목 + x.좌 + x.우), 좌단: x.좌 ? String(x.좌) : '', 우단: x.우 ? String(x.우) : '', S: '', QT: '1', C: '', F: '', 공제F: '', R: '', _자리: [x.자리] }))
+      줄.forEach((x, i) => { const 겹 = 겹수(x); 주.보.push({ 층: f, 열: i === 0 ? 'A' + 열번 : i === 줄.length - 1 ? 'E' : '', 기호: x.기호, 길이: String(x.안목 + x.좌 + x.우), 좌단: x.좌 ? String(x.좌) : '', 우단: x.우 ? String(x.우) : '', S: '', QT: String(겹), C: '', F: '', 공제F: '', R: '', _자리: [x.자리], ...(겹 > 1 ? { _위아래: true } : {}) }) })
     }
     for (const h of 홑.values()) 주.보.push({ ...h, QT: String(h.QT) })
     const i = 이야기층.indexOf(f)
@@ -3882,11 +3917,43 @@ function 골조읽기0(도면들0, o = {}) {
       r.만든 = '클로드: 단차부 철근 = 구역 둘레 ' + (Math.round(z.둘레 / 10) / 100) + ' m · ' + dk + '@' + z.s + '(MAT 아래 철근과 같은 지름 · 간격) ' + Math.round(가닥) + '가닥 × (단차 ' + z.깊이 + ' + 정착 ' + ld + ' × 2) = ' + Math.round(길) + ' m' + (단차글 ? ' — 일반사항 «' + 단차글 + '»' : ' — 흔한 상세(MAT 아래 철근이 꺾여 내려감)')
     }
   }
+  /* 🏔 G299 지붕 높이 구역 — 지붕 평면 «FL 레벨» 범례(견본 무늬 ↔ «1FL +8,400» · «경사 지붕 1»)의 같은 무늬 해치 = 구역(평면 자리 p) ·
+       골조입면 · 단면의 경사 지붕 사슬. BIM 모델이 그 층 벽 · 기둥을 지붕까지 올림(현장 4: 2층 벽 · 기둥이 RF 7,600 에서 잘려 경사 지붕 아래 몫이 빠졌음) */
+  const 지붕구역 = [], 지붕사슬 = []
+  try {
+    for (const D of 도면들) {
+      const 줄 = 레벨범례(D)
+      if (!줄.length) continue
+      const 견본 = new Set(줄.map((r) => r.견본))
+      const 쓴 = new Set()
+      for (const r of 줄) {
+        const tL = 제목찾기(D, r.g)
+        if (!tL) continue
+        for (const h of D.해치) {
+          if (견본.has(h) || 쓴.has(h) || h.무늬 !== r.무늬) continue
+          const tz = 제목찾기(D, { x: (h.b[0] + h.b[2]) / 2, y: (h.b[1] + h.b[3]) / 2, h: r.g.h })
+          if (!tz || tz.이름 !== tL.이름) continue
+          쓴.add(h)
+          const 고 = h.고리.slice().sort((p, q) => 고리넓이(q) - 고리넓이(p))
+          const 섬 = 고.filter((q, k2) => !고.some((o, j) => j < k2 && 고리넓이(o) > 고리넓이(q) && 점안(q[0], o)))
+          for (const q of 섬) {
+            if (고리넓이(q) < 1e6) continue
+            const xs = q.map((p) => p[0]), ys = q.map((p) => p[1])
+            const mx = (Math.min(...xs) + Math.max(...xs)) / 2, my = (Math.min(...ys) + Math.max(...ys)) / 2
+            const lp = D.도곽 && D.도곽.length ? D.도곽번(mx, my) : -1
+            지붕구역.push({ p: D.번 + '|' + tz.판 + '|' + tz.이름 + '|' + lp, 판: q.map((p) => [반올림(p[0] / D.k, 1), 반올림(p[1] / D.k, 1)]), ...(r.경사 ? { 경사: true } : { 높이: r.높이 }), 이름: String(r.g.s).trim() })
+          }
+        }
+      }
+    }
+    for (const D of 도면들) for (const s2 of 입면경사(D)) 지붕사슬.push({ ...s2, 번: D.번 })
+  } catch (e) { /* 범례 · 입면이 없으면 그대로 */ }
   return {
     공사: P, 경고: 경고들, 근거, 있음: 셈수 > 0, 정착표: 정착읽음, 정착표들: 정착표들.filter((c) => c.표.줄.some((z) => z.부재 || z.fy != null)).length ? 정착표들.filter((c) => c.표.줄.some((z) => z.부재 || z.fy != null)) : (정착읽음 ? [정착읽음] : []),
     읽음: {
       배근: Object.fromEntries(Object.entries(P.배근).map(([k2, v]) => [k2, v])),
       평면: 평면목록, 높이: Object.fromEntries(높이), 층고짐작: 짐작층,
+      지붕구역, 지붕사슬,             // 🏔 G299
       일람,                      // 🧭 G291 {표있음, 짐작, 전체, 큰:[글]} — 화면 알림 띠
       /* 🧭 G246 판 펼치기 — 파일마다 판(쪽) 목록: 번호 · 도면명 · 테두리 · 글자 수(화면 «판 목록») */
       판: 도면들.map((D) => ({ 파일: D.이름, k: D.k, 판: 판목록(D).map((x) => ({ ...x, 쓰임: 쓰임표.get(D.번 + '|' + x.p) || null })), 배치판: (() => { try { return 배치판목록(D.모델) } catch (e) { return [] } })(), 덜읽음: !!(D.모델 && D.모델.stats && D.모델.stats.capped) })),

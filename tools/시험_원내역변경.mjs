@@ -88,12 +88,12 @@ eq(R.신규단가({ 설계: { 노무비: 10000 }, 기준: '협의', 협의율: 0
 console.log('6) 엑셀 — 원본 시트 그대로 + 새 시트')
 const r = await R.엑셀만들기(바이트, 원, 편, 1, Object.keys(책))
 eq(r.붙임, true, '.xlsx 는 원본에 붙임')
-eq(r.시트이름들, ['변경내역서', '변경원가계산서', '공사비증감대비표', '공사비물량대비표', '내역서총괄표', '신규비목단가산출서', '단가적용근거표', '설계변경사유서', '검산'], '새 시트 9장')
+eq(r.시트이름들, ['변경내역서', '변경원가계산서', '조정계산서', '공사비증감대비표', '공사비물량대비표', '내역서총괄표', '신규비목단가산출서', '단가적용근거표', '설계변경사유서', '검산'], '새 시트 10장(G296 조정계산서 더함)')
 const z = unzipSync(r.바이트)
 const wb = strFromU8(z['xl/workbook.xml'])
 const 이름들 = [...wb.matchAll(/<sheet [^>]*name="([^"]+)"/g)].map((m) => m[1])
 eq(이름들.slice(0, 2), ['원가계산서', '내역서'], '원본 시트 두 장이 앞에 그대로')
-eq(이름들.length, 11, '모두 11장')
+eq(이름들.length, 12, '모두 12장')
 참(/fullCalcOnLoad="1"/.test(wb), '열 때 다시 셈')
 eq((wb.match(/<definedNames[\s>/]/g) || []).length, 1, 'definedNames 한 덩이(빈 <definedNames/> 를 채움 — 두 개면 엑셀이 못 엶)')
 참([...wb.matchAll(/<sheet [^>]*kcmr:id="[^"]+"[^>]*>/g)].every((m) => /xmlns:kcmr="/.test(m[0])), '새 <sheet> 마다 관계 이름표를 스스로 밝힘(원본이 시트마다 밝힌 파일도)')
@@ -105,7 +105,7 @@ let 최대 = 0
 for (const k of Object.keys(z)) if (/kcmchg\d+\.xml$/.test(k)) for (const m of strFromU8(z[k]).matchAll(/<c [^>]*s="(\d+)"/g)) 최대 = Math.max(최대, Number(m[1]))
 참(최대 < xf실, '새 시트의 꼴 번호가 모두 있는 꼴', `${최대} < ${xf실}`)
 const ct = strFromU8(z['[Content_Types].xml'])
-eq((ct.match(/kcmchg\d+\.xml/g) || []).length, 9, '새 시트 9장 모두 등록')
+eq((ct.match(/kcmchg\d+\.xml/g) || []).length, 10, '새 시트 10장 모두 등록')
 const 원가xml = strFromU8(z[Object.keys(z).find((k) => /kcmchg2\.xml$/.test(k))])
 참(/'변경내역서'!\$/.test(원가xml), '변경 원가계산서가 변경내역서 칸을 가리킴')
 /* 원본 시트 바이트가 그대로인가 */
@@ -161,6 +161,21 @@ const 서 = (색, 더 = {}) => R.서류만들기(원, { ...편, ...더, 색 }, 1
   const zz = unzipSync(r.바이트)
   const 사xml = strFromU8(zz[Object.keys(zz).find((x) => /kcmchg\d+\.xml$/.test(x) && strFromU8(zz[x]).includes('설 계 변 경 사 유 서'))])
   참(/<row r="\d+" ht="\d+" customHeight="1">/.test(사xml), '사유서 시트에 줄 높이 적힘')
+}
+
+console.log('⑪ G298 한 벌 잇기 — 대비표 · 총괄표 · 근거표 · 사유서가 변경내역서 칸을 수식으로')
+{
+  const 시 = R.서류만들기(원, 편, 1, { 원이름들: Object.keys(책) }).시트들
+  const 내이름 = 시.find((t) => /^변경내역서/.test(t.이름)).이름
+  const 가리킴 = (t) => t.줄.flat().filter((c) => c && typeof c === 'object' && c.f && c.f.includes("'" + 내이름 + "'!")).length
+  for (const n of ['공사비증감대비표', '공사비물량대비표', '내역서총괄표', '단가적용근거표', '설계변경사유서']) {
+    const t = 시.find((x) => x.이름.startsWith(n))
+    참(t && 가리킴(t) > 0, n + ' — 변경내역서를 가리키는 칸 ' + (t ? 가리킴(t) : 0))
+  }
+  const 사 = 시.find((x) => x.이름.startsWith('설계변경사유서'))
+  참(사.줄.flat().some((c) => c && c.f && /변경원가계산서'!\$[A-Z]+\$\d+/.test(c.f)), '사유서 당초 · 변경 금액 = 변경원가계산서 칸')
+  const 물 = 시.find((x) => x.이름.startsWith('공사비물량대비표'))
+  참(물.줄.flat().every((c) => !(c && c.f && c.f.includes('!')) || c.v !== undefined), '이은 칸에도 미리 셈 값(v)이 있음(미리보기 · 한글)')
 }
 
 console.log(`\n${ok} 통과 · ${bad} 실패`)

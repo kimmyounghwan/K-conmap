@@ -6,7 +6,7 @@
  *   → 10/5 「시작해. 작업 완료 해줘」
  *
  * ■ 흐름: ① 원 내역서(.xlsx · .xls) → ② 차수 · 낙찰률 → ③ 줄마다 변경 수량 · 사유 → ④ 신규 비목(설계단가 × 낙찰률)
- *        → ⑤ 한눈에(순공사비 · 도급액 · 총공사비 당초 → 변경) → ⑥ 엑셀(원본 시트 그대로 + 뒤에 새 시트 9~11장) · 원클릭에 넣기
+ *        → ⑤ 한눈에(순공사비 · 도급액 · 총공사비 당초 → 변경) → ⑥ 엑셀(원본 시트 그대로 + 뒤에 새 시트 10~12장) · 한글(.hwpx · G296) · 원클릭에 넣기
  * ■ 셈 · 시트는 lib/원내역변경.js · 원가계산서는 lib/원가계산.js · 원본에 붙이기는 lib/시트붙이기.js
  * ■ 고친 것은 이 기기(브라우저)에 파일마다 남습니다. 파일은 서버로 올라가지 않습니다.
  * ■ 받는 엑셀에는 «수식» 이 들어갑니다 — 이용자 자기 파일을 바꿔 주는 도구라서(소장님 2026-10-01 원칙)
@@ -17,6 +17,8 @@ import { askAfter } from '../AskComment'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import 두줄색, { 두줄색상태 } from '../tools/두줄색.jsx'
 import { 현장나눔 } from '../lib/현장나눔.js'
+import { 세기 } from '../lib/받은수.jsx'
+import { 내역맡기기, 내역꺼내기 } from '../lib/내역한벌.js'
 
 const 원 = (n) => (typeof n === 'number' && Number.isFinite(n) ? Math.round(n).toLocaleString('ko-KR') : '—')
 const 증감글 = (n) => (typeof n === 'number' && Number.isFinite(n) ? (n > 0 ? '+' : '') + Math.round(n).toLocaleString('ko-KR') : '—')
@@ -24,6 +26,8 @@ const 수글 = (n) => (n === null || n === undefined || n === '' ? '—' : Numbe
 const 꼴맞음 = /\.(xlsx|xlsm|xls)$/i
 const 남김열쇠 = 'kcm.won.v1'
 const 쪽수 = 60
+/* 📄 G298 한글 — 설계변경 서류 한 벌(있는 장만 · 검산 빼고) · 누르면 그 장만 빼기 */
+const 한글장들 = ['변경내역서', '변경원가계산서', '조정계산서', '공사비증감대비표', '공사비물량대비표', '내역서총괄표', '신규비목단가산출서', '단가적용근거표', '설계변경사유서', '차수별대비표']
 
 function 남김읽기() { try { return JSON.parse(localStorage.getItem(남김열쇠) || '{}') || {} } catch { return {} } }
 function 남김쓰기(지문, 편집) {
@@ -49,6 +53,7 @@ export default function WonChange() {
   const [거르기, set거르기] = useState({ 공종: '', 찾기: '', 바뀐것만: false })
   const [보일수, set보일수] = useState(쪽수)
   const [예정가격, set예정가격] = useState('')
+  const [한글끔, set한글끔] = useState(() => new Set())
   const [두색, set두색원] = 두줄색상태()          /* 두 줄 글자색 — 이 기기에 남고 작업대와 같이 씀 */
   const set두색 = (f) => { set두색원(f); set결과(null) }
   const 칸 = useRef(null)
@@ -85,6 +90,12 @@ export default function WonChange() {
   }
   const 차 = 편집 && 편집.차수[c - 1]
   const 고치기차 = (바꿀) => set편집((e) => ({ ...e, 차수: e.차수.map((x, k) => (k === c - 1 ? 바꿀(x) : x)) }))
+
+  /* 📆 기성에서 넘겨 온 내역서(다시 올리지 않게 · G296) */
+  useEffect(() => {
+    const f = 내역꺼내기()
+    if (f) 열기([{ name: f.이름, size: f.크기, arrayBuffer: async () => f.바이트 }])
+  }, [])   // eslint-disable-line react-hooks/exhaustive-deps
 
   const 열기 = async (fs) => {
     const f = [...(fs || [])].find((x) => 꼴맞음.test(x.name))
@@ -186,6 +197,25 @@ export default function WonChange() {
       set오류(e?.message || '만들다가 멈췄습니다.')
     } finally { set바쁨('') }
   }
+  /* 📄 한글(.hwpx) — 설계변경 서류 한 벌(G296 넉 장 → G298 한 벌 · 고른 장만 · 검산 빼고) */
+  const 한글받기 = async () => {
+    if (!원읽은 || 원읽은.오류 || !편집) return
+    set바쁨('한글 문서를 만드는 중입니다…'); set오류('')
+    await new Promise((r) => setTimeout(r, 30))
+    try {
+      const [m, h] = await Promise.all([싣기(), import('../lib/시트한글.js')])
+      const r = m.서류만들기(원읽은, { ...편집, 색: 두색 }, c, {})
+      const 시트들 = r.시트들.filter((t) => t.이름 !== '검산' && !한글끔.has(t.이름))
+      if (!시트들.length) { set오류('한글에 넣을 장을 하나 이상 고르십시오'); return }
+      const 바 = h.시트들한글(시트들, { 제목: `설계변경 ${c}회 서류` })
+      const 이름 = 파일.이름.replace(/\.(xlsx|xlsm|xls)$/i, '') + `_설계변경${c}회.hwpx`
+      const url = URL.createObjectURL(new Blob([바], { type: 'application/hwp+zip' }))
+      const a = document.createElement('a'); a.href = url; a.download = 이름; document.body.appendChild(a); a.click(); a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 60000)
+      세기('|변경원내역|한글받기')
+      if (한글끔.size) 세기('|변경원내역|한글골라')
+    } catch (e) { set오류('한글 문서를 만들지 못했습니다 — ' + (e?.message || '')) } finally { set바쁨('') }
+  }
   const 받기 = () => {
     if (!결과) return
     const a = document.createElement('a')
@@ -221,11 +251,11 @@ export default function WonChange() {
         <h1 style={{ margin: 0, fontSize: 20 }}>🧾 원 내역서로 설계변경</h1>
         <p className="why2" style={{ marginBottom: 6 }}>
           <b>원 내역서(계약내역서)</b>를 올리고, 바뀐 <b>수량 · 사유 · 신규 비목</b>만 적으면 —
-          <b> 원본 시트는 그대로 두고 뒤에</b> 변경내역서(2줄) · <b>변경 원가계산서(원 요율 그대로)</b> · 공사비 증감대비표 · 물량대비표 ·
+          <b> 원본 시트는 그대로 두고 뒤에</b> 변경내역서(2줄) · <b>변경 원가계산서(원 요율 그대로)</b> · 보험료 조정계산서 · 공사비 증감대비표 · 물량대비표 ·
           총괄표 · 신규비목 단가산출서 · 단가 적용 근거표 · 설계변경 사유서 · 검산을 붙여 드립니다.
         </p>
         <p className="muted" style={{ margin: 0 }}>
-          <b>파일은 이 브라우저 안에서만 다룹니다.</b> 서버로 올라가지 않습니다. 적은 것은 이 기기에 파일마다 남습니다. 받은 엑셀에는 <b>살아 있는 수식</b>이 들어갑니다.
+          <b>파일은 이 브라우저 안에서만 다룹니다.</b> 서버로 올라가지 않습니다. 적은 것은 이 기기에 파일마다 남습니다. 받은 엑셀에는 <b>살아 있는 수식</b>이 들어갑니다 — 대비표 · 총괄표 · 근거표 · 사유서까지 변경내역서에 이어져 있어 엑셀에서 수량을 고치면 한 벌이 같이 바뀝니다. 서류 한 벌은 <b>한글(.hwpx)</b>로도 받습니다.
         </p>
       </div>
 
@@ -245,7 +275,9 @@ export default function WonChange() {
         {원읽은 && 원읽은.오류 && <div className="cwarn" style={{ marginTop: 8 }}>⚠️ {원읽은.오류}</div>}
         {원읽은 && !원읽은.오류 && (
           <div className="cw-file" style={{ marginTop: 10 }}>
-            <div className="cw-fh"><b>{파일.이름}</b><span className="muted">{원(파일.크기 / 1024)} KB</span></div>
+            <div className="cw-fh"><b>{파일.이름}</b><span className="muted">{원(파일.크기 / 1024)} KB</span>
+              <button type="button" className="btn line sm" style={{ width: 'auto', marginLeft: 'auto' }} onClick={() => { 내역맡기기(파일); 세기('|변경원내역|기성으로'); 이동('/change/gisung') }} title="같은 내역서로 기성 내역서를 — 다시 올리지 않아도 됩니다">📆 이 내역서로 기성 →</button>
+            </div>
             <div className="cw-fr">
               <label>내역서 시트{' '}
                 <select value={원읽은.고른} onChange={(e) => set시트(e.target.value)}>
@@ -257,10 +289,16 @@ export default function WonChange() {
               품목 <b>{원(원읽은.모형.품목수)}</b> · 공종 {원(공종들.length)} · 순공사비 <b>{원(원읽은.합)}</b>원
               <br />
               {원읽은.원가
-                ? <>원가계산서 «{원읽은.원가.시트}» — 줄 {원읽은.원가.줄.length}개 읽음{도급당초 ? <> · 당초 {(요.원가.도급액 ? '도급액' : '총공사비')} <b>{원(도급당초)}</b>원</> : null}</>
+                ? <>원가계산서 «{원읽은.원가.시트}» — 줄 {원읽은.원가.줄.length}개 읽음{원읽은.맞춘 && 원읽은.맞춘.분야 ? <> · <b>나열형</b>({원읽은.맞춘.분야.map((f) => f.이름).join(' · ')}) 분야마다 셈</> : null}{도급당초 ? <> · 당초 {(요.원가.도급액 ? '도급액' : '총공사비')} <b>{원(도급당초)}</b>원</> : null}</>
                 : <>원가계산서 시트가 없습니다 — 변경 원가계산서는 빼고 만듭니다</>}
               {!/\.(xlsx|xlsm)$/i.test(파일.이름) && <><br />⚠️ <b>.xls</b> 는 원본 시트를 그대로 붙일 수 없어 <b>새 시트만</b>(맨 앞에 당초내역서) 만듭니다. 원본째 받으려면 엑셀에서 .xlsx 로 저장해 올리십시오.</>}
             </div>
+            {편집 && lib && lib.고정비줄수(원읽은) > 0 && (
+              <label className="wn-fix muted">
+                <input type="checkbox" checked={편집.고정비 !== '그대로'} onChange={(e) => { set편집((x) => ({ ...x, 고정비: e.target.checked ? '' : '그대로' })); if (!e.target.checked) 세기('|변경원내역|고정비끔') }} />
+                <span>고정 금액 {lib.고정비줄(원읽은.맞춘).join(' · ')} — <b>대상액 증감 비율</b>로 조정(조정계산서) · 끄면 당초 그대로</span>
+              </label>
+            )}
             {원읽은.말.length > 0 && (
               <details className="wn-msg" open={원가확인 > 0}>
                 <summary>{원가확인 ? <>🔎 원가계산서 · 내역서에서 <b>확인하실 곳 {원가확인}</b></> : <>ℹ️ 읽으며 알게 된 것 {원읽은.말.length}가지</>}</summary>
@@ -437,7 +475,7 @@ export default function WonChange() {
 
           {/* ── ⑤ 한눈에 · 받기 ── */}
           <div className="card">
-            <div className="sec-title">⑤ 한눈에 · 엑셀 받기</div>
+            <div className="sec-title">⑤ 한눈에 · 엑셀 · 한글 받기</div>
             {요 && (
               <div className="cw-tiles">
                 <div><span>바뀐 품목</span><b>{원(요.바뀜수)}</b></div>
@@ -452,7 +490,15 @@ export default function WonChange() {
             <div className="btn-row" style={{ marginTop: 10 }}>
               <button className="btn primary" disabled={!!바쁨} onClick={만들기}>{바쁨 ? '만드는 중…' : `엑셀 만들기 (${c}회 변경)`}</button>
               {결과 && <button className="btn primary" onClick={받기}>⬇ {결과.이름} 받기</button>}
+              <button className="btn line" disabled={!!바쁨} onClick={한글받기} title="설계변경 서류 한 벌(아래에서 고른 장)을 한글 문서 하나로">📄 한글(.hwpx) 받기</button>
               <button className="btn ghost" disabled={!요} onClick={원클릭에} title="변경 금액 · 변경 준공기한을 공사서류 원클릭 칸에 넣고 넘어갑니다">⚡ 원클릭에 넣기</button>
+            </div>
+            <div className="cw-hwp">
+              <span className="cw-hwp-h">📄 한글에 넣을 장 <span className="muted">— 누르면 빼기 · 이번 차수에 있는 장만 들어갑니다</span></span>
+              {한글장들.map((n) => (
+                <button key={n} type="button" className={'chip' + (한글끔.has(n) ? '' : ' on')} aria-pressed={!한글끔.has(n)}
+                  onClick={() => set한글끔((S) => { const T = new Set(S); if (T.has(n)) T.delete(n); else T.add(n); return T })}>{한글끔.has(n) ? '' : '✓ '}{n}</button>
+              ))}
             </div>
             {결과 && (
               <div style={{ marginTop: 8 }}>
@@ -478,7 +524,11 @@ export default function WonChange() {
         <ul className="flist">
           <li><b>단가</b> — 국가계약법 시행령 제65조③: 1호 늘거나 준 물량은 <b>계약단가</b>(산출내역서 단가) · 2호 계약단가가 없는 <b>신규비목은 설계변경 당시 단가 × 낙찰률</b> · 3호 정부가 요구한 변경(계약상대자 책임 없음)은 설계변경 당시 단가와 그 단가 × 낙찰률 사이에서 <b>협의</b>(협의가 안 되면 둘을 더한 것의 50%).</li>
           <li><b>원가계산서</b> — 원 내역서의 원가계산서 산출근거(「B × 0.0356」 · 「(A + 4 + 6) × 0.004」 …)를 읽어 당초 금액이 정말 그렇게 나오는지 먼저 맞춰 보고, 같은 요율로 변경을 셉니다(제65조⑥ — 증감분의 일반관리비 · 이윤은 산출내역서의 율). 안 맞는 줄은 «당초 그대로» 두고 검산에 적습니다.</li>
-          <li><b>제비율제외공종 · 폐기물처리비 · 관급자재 · 사급자재</b>처럼 원가계산서에 따로 적힌 금액은, 같은 금액의 공종을 찾아 그 공종의 변경 합계로 잇습니다.</li>
+          <li><b>제비율제외공종 · 폐기물처리비 · 관급자재 · 사급자재</b>처럼 원가계산서에 따로 적힌 금액은, 같은 금액의 공종(이어진 공종 몇 개의 합도)을 찾아 그 공종의 변경 합계로 잇습니다.</li>
+          <li><b>산출근거가 없거나 이름으로 적힌 원가계산서</b>(「직접노무비 * 12.2%」 · 소계 · 공급가액에 식 없음)도 금액으로 식을 찾아 셉니다 — 당초 금액이 원 단위까지 똑같이 나오는 식만 씁니다.</li>
+          <li><b>나열형 원가계산서</b>(건축 · 토목 · 기계 칸 + 합계)는 분야마다 따로 셈해 합계를 냅니다. 분야는 직접노무비가 같은 공종 · 시트로 찾습니다.</li>
+          <li><b>고정 금액</b>으로 적힌 보험료 · 산업안전보건관리비(A값 등)는 <b>대상액 증감 비율</b>(변경 = 당초 + 당초 × 대상액 증감 비율)로 조정하고 <b>조정계산서</b> 시트에 근거를 적습니다. 끄면 당초 그대로.</li>
+          <li><b>📄 한글</b> — 설계변경 서류 <b>한 벌</b>(변경내역서 · 변경원가계산서 · 조정계산서 · 공사비증감대비표 · 공사비물량대비표 · 내역서총괄표 · 신규비목단가산출서 · 단가적용근거표 · 설계변경사유서 · 2회부터 차수별대비표)을 한글 문서(.hwpx) 하나로 받습니다. 빼고 싶은 장은 «한글에 넣을 장»에서 누르면 빠집니다(원가계산서는 세로, 표는 가로).</li>
           <li>셈 규칙 — 금액 = 수량 × 단가(<b>원 미만 버림</b>), 합계 = 노무비 + 재료비 + 경비. 신규비목 적용 단가도 갈래마다 원 미만 버림.</li>
           <li><b>2회 · 3회 변경</b>은 차수를 더해 이어 적으십시오. 견줄 기준을 «당초» 나 «직전 차수» 로 고를 수 있고, 2회부터 <b>차수별 대비표</b>가 붙습니다.</li>
           <li>도급액 천 원 맞춤(이윤 깎기 등)은 기관마다 달라 손으로 하십시오. 검산에 «조정값» 이 적힙니다.</li>

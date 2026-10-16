@@ -79,7 +79,6 @@ export function 쪽들한글(쪽들, 그림들, { 제목 = '' } = {}) {
   let 개체 = 1000
   let 문단번 = 0
   const 쪽0 = 쪽들[0] || { 폭: 210, 높이: 297, 안: { x: 12, y: 12, w: 186, h: 273 } }
-  const 가로 = 쪽0.폭 > 쪽0.높이
 
   const 본문 = []
   쪽들.forEach((쪽, pi) => {
@@ -132,35 +131,49 @@ export function 쪽들한글(쪽들, 그림들, { 제목 = '' } = {}) {
       + '<hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="LEFT" vertOffset="0" horzOffset="0"/>'
       + '<hp:outMargin left="0" right="0" top="0" bottom="0"/><hp:inMargin left="85" right="85" top="0" bottom="0"/>'
       + trs.join('') + '</hp:tbl>'
-    본문.push({ tbl, 첫: pi === 0 })
+    본문.push({ tbl, 쪽 })
   })
 
-  const 안 = 쪽0.안
-  const 위 = hu(안.y), 왼 = hu(안.x), 오 = hu(쪽0.폭 - 안.x - 안.w), 아래 = hu(Math.max(3, 쪽0.높이 - 안.y - 안.h - 2))
-  /* 한글은 가로 쪽도 «세로 크기 + NARROWLY» 로 적습니다 */
-  const 용지w = hu(Math.min(쪽0.폭, 쪽0.높이)), 용지h = hu(Math.max(쪽0.폭, 쪽0.높이))
-  const secPr = '<hp:secPr id="" textDirection="HORIZONTAL" spaceColumns="1134" tabStop="8000" tabStopVal="4000" tabStopUnit="HWPUNIT" outlineShapeIDRef="0" memoShapeIDRef="0" textVerticalWidthHead="0" masterPageCnt="0">'
-    + '<hp:grid lineGrid="0" charGrid="0" wonggojiFormat="0"/><hp:startNum pageStartsOn="BOTH" page="0" pic="0" tbl="0" equation="0"/>'
-    + '<hp:visibility hideFirstHeader="0" hideFirstFooter="0" hideFirstMasterPage="0" border="SHOW_ALL" fill="SHOW_ALL" hideFirstPageNum="0" hideFirstEmptyLine="0" showLineNumber="0"/>'
-    + '<hp:lineNumberShape restartType="0" countBy="0" distance="0" startNumber="0"/>'
-    + `<hp:pagePr landscape="${가로 ? 'NARROWLY' : 'WIDELY'}" width="${용지w}" height="${용지h}" gutterType="LEFT_ONLY">`
-    + `<hp:margin header="0" footer="0" gutter="0" left="${왼}" right="${오}" top="${위}" bottom="${아래}"/></hp:pagePr>`
-    + '<hp:footNotePr><hp:autoNumFormat type="DIGIT" userChar="" prefixChar="" suffixChar=")" supscript="0"/><hp:noteLine length="-1" type="SOLID" width="0.12 mm" color="#000000"/><hp:noteSpacing betweenNotes="283" belowLine="567" aboveLine="850"/><hp:numbering type="CONTINUOUS" newNum="1"/><hp:placement place="EACH_COLUMN" beneathText="0"/></hp:footNotePr>'
-    + '<hp:endNotePr><hp:autoNumFormat type="DIGIT" userChar="" prefixChar="" suffixChar=")" supscript="0"/><hp:noteLine length="14692344" type="SOLID" width="0.12 mm" color="#000000"/><hp:noteSpacing betweenNotes="0" belowLine="567" aboveLine="850"/><hp:numbering type="CONTINUOUS" newNum="1"/><hp:placement place="END_OF_DOCUMENT" beneathText="0"/></hp:endNotePr>'
-    + ['BOTH', 'EVEN', 'ODD'].map((t) => `<hp:pageBorderFill type="${t}" borderFillIDRef="1" textBorder="PAPER" headerInside="0" footerInside="0" fillArea="PAPER"><hp:offset left="1417" right="1417" top="1417" bottom="1417"/></hp:pageBorderFill>`).join('')
-    + '</hp:secPr>'
-  const 몸 = 본문.map(({ tbl, 첫 }) => `<hp:p id="${문단번++}" paraPrIDRef="4" styleIDRef="0" pageBreak="${첫 ? 0 : 1}" columnBreak="0" merged="0">`
-    + (첫 ? `<hp:run charPrIDRef="0">${secPr}<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT" colCount="1" sameSz="1" sameGap="0"/></hp:ctrl></hp:run>` : '')
-    + `<hp:run charPrIDRef="0">${tbl}<hp:t/></hp:run></hp:p>`).join('')
-  const 빈첫 = 본문.length ? '' : `<hp:p id="0" paraPrIDRef="0" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="0">${secPr}</hp:run><hp:run charPrIDRef="0"><hp:t/></hp:run></hp:p>`
-  const section = `${XML}<hs:sec ${NS}>${빈첫}${몸}</hs:sec>`
+  /* 구역 — 용지(가로 · 세로 · 크기 · 여백)가 바뀌는 곳마다 새 구역(section1.xml …) (G296 — 기성검사원은 세로 · 원가 표는 가로를 한 파일에) */
+  const 용지열쇠 = (p) => [p.폭, p.높이, p.안.x, p.안.y, p.안.w, p.안.h].map((v) => Math.round(v * 10)).join('|')
+  const 구역들 = []
+  for (const b of 본문) {
+    const k = 용지열쇠(b.쪽)
+    if (!구역들.length || 구역들[구역들.length - 1].열쇠 !== k) 구역들.push({ 열쇠: k, 쪽: b.쪽, 표들: [] })
+    구역들[구역들.length - 1].표들.push(b.tbl)
+  }
+  if (!구역들.length) 구역들.push({ 열쇠: '', 쪽: 쪽0, 표들: [] })
+  const 구역글 = (구) => {
+    const 쪽0 = 구.쪽
+    const 가로 = 쪽0.폭 > 쪽0.높이
+    const 안 = 쪽0.안
+    const 위 = hu(안.y), 왼 = hu(안.x), 오 = hu(쪽0.폭 - 안.x - 안.w), 아래 = hu(Math.max(3, 쪽0.높이 - 안.y - 안.h - 2))
+    /* 한글은 가로 쪽도 «세로 크기 + NARROWLY» 로 적습니다 */
+    const 용지w = hu(Math.min(쪽0.폭, 쪽0.높이)), 용지h = hu(Math.max(쪽0.폭, 쪽0.높이))
+    const secPr = '<hp:secPr id="" textDirection="HORIZONTAL" spaceColumns="1134" tabStop="8000" tabStopVal="4000" tabStopUnit="HWPUNIT" outlineShapeIDRef="0" memoShapeIDRef="0" textVerticalWidthHead="0" masterPageCnt="0">'
+      + '<hp:grid lineGrid="0" charGrid="0" wonggojiFormat="0"/><hp:startNum pageStartsOn="BOTH" page="0" pic="0" tbl="0" equation="0"/>'
+      + '<hp:visibility hideFirstHeader="0" hideFirstFooter="0" hideFirstMasterPage="0" border="SHOW_ALL" fill="SHOW_ALL" hideFirstPageNum="0" hideFirstEmptyLine="0" showLineNumber="0"/>'
+      + '<hp:lineNumberShape restartType="0" countBy="0" distance="0" startNumber="0"/>'
+      + `<hp:pagePr landscape="${가로 ? 'NARROWLY' : 'WIDELY'}" width="${용지w}" height="${용지h}" gutterType="LEFT_ONLY">`
+      + `<hp:margin header="0" footer="0" gutter="0" left="${왼}" right="${오}" top="${위}" bottom="${아래}"/></hp:pagePr>`
+      + '<hp:footNotePr><hp:autoNumFormat type="DIGIT" userChar="" prefixChar="" suffixChar=")" supscript="0"/><hp:noteLine length="-1" type="SOLID" width="0.12 mm" color="#000000"/><hp:noteSpacing betweenNotes="283" belowLine="567" aboveLine="850"/><hp:numbering type="CONTINUOUS" newNum="1"/><hp:placement place="EACH_COLUMN" beneathText="0"/></hp:footNotePr>'
+      + '<hp:endNotePr><hp:autoNumFormat type="DIGIT" userChar="" prefixChar="" suffixChar=")" supscript="0"/><hp:noteLine length="14692344" type="SOLID" width="0.12 mm" color="#000000"/><hp:noteSpacing betweenNotes="0" belowLine="567" aboveLine="850"/><hp:numbering type="CONTINUOUS" newNum="1"/><hp:placement place="END_OF_DOCUMENT" beneathText="0"/></hp:endNotePr>'
+      + ['BOTH', 'EVEN', 'ODD'].map((t) => `<hp:pageBorderFill type="${t}" borderFillIDRef="1" textBorder="PAPER" headerInside="0" footerInside="0" fillArea="PAPER"><hp:offset left="1417" right="1417" top="1417" bottom="1417"/></hp:pageBorderFill>`).join('')
+      + '</hp:secPr>'
+    const 몸 = 구.표들.map((tbl, i) => `<hp:p id="${문단번++}" paraPrIDRef="4" styleIDRef="0" pageBreak="${i === 0 ? 0 : 1}" columnBreak="0" merged="0">`
+      + (i === 0 ? `<hp:run charPrIDRef="0">${secPr}<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT" colCount="1" sameSz="1" sameGap="0"/></hp:ctrl></hp:run>` : '')
+      + `<hp:run charPrIDRef="0">${tbl}<hp:t/></hp:run></hp:p>`).join('')
+    const 빈첫 = 구.표들.length ? '' : `<hp:p id="${문단번++}" paraPrIDRef="0" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="0">${secPr}</hp:run><hp:run charPrIDRef="0"><hp:t/></hp:run></hp:p>`
+    return `${XML}<hs:sec ${NS}>${빈첫}${몸}</hs:sec>`
+  }
+  const 구역xml = 구역들.map(구역글)
 
   /* 머리 — 본문을 다 지은 뒤(쓴 모양만) */
   테번(true, '')
   const 테들 = [테바탕(1, false, ''), 테바탕(2, false, 'none')]
   for (const [k, id] of 테표) { if (id <= 2) continue; const [선, 바탕] = k.split('|'); 테들.push(테바탕(id, 선 === '1', 바탕)) }
   const 글들 = [...글표].map(([k, id]) => { const [크기, 굵, 색] = k.split('|'); return 글모양(id, +크기, 굵 === '1', 색) })
-  const header = `${XML}<hh:head ${NS} version="1.5" secCnt="1"><hh:beginNum page="1" footnote="1" endnote="1" pic="1" tbl="1" equation="1"/><hh:refList>`
+  const header = `${XML}<hh:head ${NS} version="1.5" secCnt="${구역xml.length}"><hh:beginNum page="1" footnote="1" endnote="1" pic="1" tbl="1" equation="1"/><hh:refList>`
     + 글꼴들()
     + `<hh:borderFills itemCnt="${테들.length}">${테들.join('')}</hh:borderFills>`
     + `<hh:charProperties itemCnt="${글들.length}">${글들.join('')}</hh:charProperties>`
@@ -176,21 +189,21 @@ export function 쪽들한글(쪽들, 그림들, { 제목 = '' } = {}) {
     + '<opf:meta name="creator" content="text">K-건설맵</opf:meta><opf:meta name="subject" content="text"/><opf:meta name="description" content="text"/>'
     + `<opf:meta name="lastsaveby" content="text">K-건설맵</opf:meta><opf:meta name="CreatedDate" content="text">${지금}</opf:meta><opf:meta name="ModifiedDate" content="text">${지금}</opf:meta>`
     + '<opf:meta name="keyword" content="text"/></opf:metadata><opf:manifest>'
-    + '<opf:item id="header" href="Contents/header.xml" media-type="application/xml"/><opf:item id="section0" href="Contents/section0.xml" media-type="application/xml"/>'
+    + '<opf:item id="header" href="Contents/header.xml" media-type="application/xml"/>' + 구역xml.map((_, i) => `<opf:item id="section${i}" href="Contents/section${i}.xml" media-type="application/xml"/>`).join('')
     + `<opf:item id="settings" href="settings.xml" media-type="application/xml"/>${사진항목}</opf:manifest>`
-    + '<opf:spine><opf:itemref idref="header" linear="yes"/><opf:itemref idref="section0" linear="yes"/></opf:spine></opf:package>'
+    + '<opf:spine><opf:itemref idref="header" linear="yes"/>' + 구역xml.map((_, i) => `<opf:itemref idref="section${i}" linear="yes"/>`).join('') + '</opf:spine></opf:package>'
 
   const 미리글 = 쪽들.flatMap((쪽) => 쪽.칸들.filter((k) => k.글).map((k) => k.글.replace(/\n/g, ' '))).join(' ').slice(0, 1000)
   const 파일 = {
     mimetype: [strToU8('application/hwp+zip'), { level: 0 }],
     'version.xml': strToU8(`${XML}<hv:HCFVersion xmlns:hv="http://www.hancom.co.kr/hwpml/2011/version" tagetApplication="WORDPROCESSOR" major="5" minor="1" micro="1" buildNumber="0" os="1" xmlVersion="1.5" application="Hancom Office Hangul" appVersion="12, 0, 0, 535 WIN32LEWindows_10"/>`),
     'Contents/header.xml': strToU8(header),
-    'Contents/section0.xml': strToU8(section),
+    ...Object.fromEntries(구역xml.map((x, i) => [`Contents/section${i}.xml`, strToU8(x)])),
     'Contents/content.hpf': strToU8(hpf),
     'settings.xml': strToU8(`${XML}<ha:HWPApplicationSetting xmlns:ha="http://www.hancom.co.kr/hwpml/2011/app" xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"><ha:CaretPosition listIDRef="0" paraIDRef="0" pos="0"/></ha:HWPApplicationSetting>`),
     'Preview/PrvText.txt': strToU8(미리글),
     'META-INF/container.xml': strToU8(`${XML}<ocf:container xmlns:ocf="urn:oasis:names:tc:opendocument:xmlns:container" xmlns:hpf="http://www.hancom.co.kr/schema/2011/hpf"><ocf:rootfiles><ocf:rootfile full-path="Contents/content.hpf" media-type="application/hwpml-package+xml"/><ocf:rootfile full-path="Preview/PrvText.txt" media-type="text/plain"/><ocf:rootfile full-path="META-INF/container.rdf" media-type="application/rdf+xml"/></ocf:rootfiles></ocf:container>`),
-    'META-INF/container.rdf': strToU8(`${XML}<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about=""><ns0:hasPart xmlns:ns0="http://www.hancom.co.kr/hwpml/2016/meta/pkg#" rdf:resource="Contents/header.xml"/></rdf:Description><rdf:Description rdf:about="Contents/header.xml"><rdf:type rdf:resource="http://www.hancom.co.kr/hwpml/2016/meta/pkg#HeaderFile"/></rdf:Description><rdf:Description rdf:about=""><ns0:hasPart xmlns:ns0="http://www.hancom.co.kr/hwpml/2016/meta/pkg#" rdf:resource="Contents/section0.xml"/></rdf:Description><rdf:Description rdf:about="Contents/section0.xml"><rdf:type rdf:resource="http://www.hancom.co.kr/hwpml/2016/meta/pkg#SectionFile"/></rdf:Description><rdf:Description rdf:about=""><rdf:type rdf:resource="http://www.hancom.co.kr/hwpml/2016/meta/pkg#Document"/></rdf:Description></rdf:RDF>`),
+    'META-INF/container.rdf': strToU8(`${XML}<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about=""><ns0:hasPart xmlns:ns0="http://www.hancom.co.kr/hwpml/2016/meta/pkg#" rdf:resource="Contents/header.xml"/></rdf:Description><rdf:Description rdf:about="Contents/header.xml"><rdf:type rdf:resource="http://www.hancom.co.kr/hwpml/2016/meta/pkg#HeaderFile"/></rdf:Description>${구역xml.map((_, i) => `<rdf:Description rdf:about=""><ns0:hasPart xmlns:ns0="http://www.hancom.co.kr/hwpml/2016/meta/pkg#" rdf:resource="Contents/section${i}.xml"/></rdf:Description><rdf:Description rdf:about="Contents/section${i}.xml"><rdf:type rdf:resource="http://www.hancom.co.kr/hwpml/2016/meta/pkg#SectionFile"/></rdf:Description>`).join('')}<rdf:Description rdf:about=""><rdf:type rdf:resource="http://www.hancom.co.kr/hwpml/2016/meta/pkg#Document"/></rdf:Description></rdf:RDF>`),
     'META-INF/manifest.xml': strToU8(`${XML}<odf:manifest xmlns:odf="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0"/>`),
   }
   for (const [열쇠, s] of 사진목록) 파일[s.경로] = [그림들.get(열쇠).바이트, { level: 0 }]

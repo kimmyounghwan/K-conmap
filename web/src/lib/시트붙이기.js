@@ -98,8 +98,9 @@ function 길찾기(zip) {
  * @param 새바이트 변경엑셀() 이 만든 .xlsx
  * @param 새이름들 새 시트 이름(차례대로) — 새 xlsx 의 시트 차례와 같아야
  * @param 머리줄들 [ [첫, 끝] | null ] — 인쇄할 때 쪽마다 되풀이할 줄(Print_Titles)
+ * @param 숨김들 [bool] — 숨길 시트(G296 기성 «_기성자료n» 처럼 다음에 읽을 자료)
  */
-export function 시트붙이기(원바이트, 새바이트, 새이름들, 머리줄들 = []) {
+export function 시트붙이기(원바이트, 새바이트, 새이름들, 머리줄들 = [], 숨김들 = []) {
   const A = unzipSync(new Uint8Array(원바이트))
   const B = unzipSync(new Uint8Array(새바이트))
   const { wb, 폴더, relsPath } = 길찾기(A)
@@ -143,7 +144,7 @@ export function 시트붙이기(원바이트, 새바이트, 새이름들, 머리
     rels = rels.replace(`</${rp}Relationships>`, `<${rp}Relationship Id="${rid}" Type="${시트형}" Target="worksheets/kcmchg${번}.xml"/></${rp}Relationships>`)
     ct = ct.replace('</Types>', `<Override PartName="/${길}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`)
     const 이름 = 새이름들[j] || `변경${j + 1}`
-    새시트줄.push(`<${pre}sheet xmlns:${r접두}="${관계ns}" name="${esc(이름)}" sheetId="${다음id++}" ${r접두}:id="${rid}"/>`)
+    새시트줄.push(`<${pre}sheet xmlns:${r접두}="${관계ns}" name="${esc(이름)}" sheetId="${다음id++}"${숨김들[j] ? ' state="hidden"' : ''} ${r접두}:id="${rid}"/>`)
     const 머 = 머리줄들[j]
     if (머 && 머[1] >= 머[0]) 새이름정의.push(`<${pre}definedName name="_xlnm.Print_Titles" localSheetId="${원시트수 + j}">'${esc(이름).replace(/'/g, "''")}'!$${머[0]}:$${머[1]}</${pre}definedName>`)
   })

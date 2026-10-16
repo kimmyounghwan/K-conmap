@@ -19,6 +19,7 @@ import { 도면준비 } from './골조자동.js'
 import { 통심기호, 통심옮김 } from './통심.js'
 export { 통심옮김 }
 import { 층떼기 } from './골조.js'
+import { 구역올림 } from './지붕높이.js'
 
 export const 종류들 = ['기초', '기둥', '벽', '보', '슬라브', '계단']
 export const 종류색 = { 기초: [0.72, 0.47, 0.32], 기둥: [0.52, 0.33, 0.84], 벽: [0.24, 0.74, 0.72], 보: [0.98, 0.76, 0.22], 슬라브: [0.80, 0.83, 0.88], 계단: [0.93, 0.50, 0.42] }   // 🎨 G232 BIM 프로그램처럼 또렷하게 — 기초 벽돌색 · 기둥 보라 · 벽 청록 · 보 노랑 · 슬래브 옅은 회청
@@ -911,6 +912,14 @@ export function 모델만들기(도면들, R, 옵션 = {}) {
     받침없음++
   }
   if (같은높이) 짐작.push('기초 평면의 기둥 · 벽 ' + 같은높이 + '개는 밑의 기초 · 지중보를 못 찾아 같은 기호(없으면 같은 종류)의 높이로 세웠습니다')
+  /* 🏔 G299 지붕 높이 구역 — 지붕 평면 «FL 레벨» 범례 구역 · 골조입면 경사 지붕 아래 벽 · 기둥을 그 층 위 바닥에서 지붕까지(산출서 줄도 높이마다 — 겹친것빼기) */
+  try {
+    const 읽 = R.읽음 || {}
+    if (읽.지붕구역 && 읽.지붕구역.length) {
+      const r2 = 구역올림(부재, 묶음들, 원점, 도면들, 읽.지붕구역, 읽.지붕사슬 || [], { 바닥, 위바닥, 다음층, 일층: 높이.has('1') ? 바닥('1') : 0 })
+      for (const w of r2.알림) 짐작.push(w)
+    }
+  } catch (e) { 경고.push('지붕 높이 구역을 못 읽었습니다 — ' + (e && e.message ? e.message : '')) }
   for (const o of 부재) {
     if (짐작층.has(o.층) && (o.종류 === '기둥' || o.종류 === '벽') && !o.받침높이) o.짐작.push(o.층 + '층 층고는 도면에 없어 짐작한 값')
     o.넓이 = 넓이(o.판)
@@ -1102,6 +1111,44 @@ export function 겹친것빼기(공사, 모델) {
   /* 🧭 G241 기초 평면의 기둥 · 벽(주각)은 3D 에서 잰 높이(밑 기초 · 지중보 윗면 ~ 1층 바닥)로 산출서 줄을 나눔 — 높이마다 한 줄 · 슬래브 공제 없음 */
   const 받침 = new Map()          // 표|i → [{kk, h}]
   for (const o of 모델.부재 || []) { if (!o.받침높이 || o.겹침) continue; const k = o.표 + '|' + o.i; const a = 받침.get(k) || []; a.push({ kk: o.kk, h: Math.round(o.z1 - o.z0) }); 받침.set(k, a) }
+  /* 🏔 G299 지붕 높이 구역으로 올린 벽 · 기둥 — 높이(10 mm)마다 줄을 나눔 · 슬래브 공제(S)는 그대로 */
+  const 올림 = new Map()          // 표|i → [{kk, h}]
+  for (const o of 모델.부재 || []) { if (!o.지붕올림 || o.겹침) continue; const k = o.표 + '|' + o.i; const a = 올림.get(k) || []; a.push({ kk: o.kk, h: Math.round((o.z1 - o.z0) / 10) * 10 }); 올림.set(k, a) }
+  /* 🧱 G299 벽 윗면 공제 — 도면에서 읽은 벽 높이 = 층고 − 슬래브 두께(적산 기준 · 내역서와 같은 셈). 전엔 층고 그대로라 벽 위 바닥판과 겹친 곳을 두 번 셈.
+       벽 가운데 줄 점 10 개마다 — 곁(300 mm)에 그 높이(±100 · 지붕까지 올린 벽은 지붕 평면)의 바닥판이 있으면 그 두께 · 위에 보만 있으면 그 층 슬래브 두께 · 둘 다 없으면 0(벽 위가 비었음) → 평균(10 mm).
+       벽 위 보와 겹친 몫(보 춤 − 슬래브)은 보 쪽에 그대로 둠 — 현장 4 계약내역서와 견줘 보면 내역서도 그렇게 셈(빼면 콘크리트 −4.7 % · 거푸집 −3.1 % · 안 빼면 −2.5 % · +2.6 %) */
+  const 상부값 = new Map()        // 표|i → Map(kk → 상부 mm)
+  const 층판 = new Map((공사.층 || []).map((f) => [String(f.이름), +f.슬라브 || 0]))
+  {
+    const 위것 = (모델.부재 || []).filter((q) => !q.겹침 && (q.종류 === '슬라브' || q.종류 === '보') && q.판 && q.판.length >= 3 && Number.isFinite(q.z1))
+    const 안2 = (p, 판) => { let c = false; for (let i = 0, j = 판.length - 1; i < 판.length; j = i++) { const a = 판[i], b = 판[j]; if ((a[1] > p[1]) !== (b[1] > p[1]) && p[0] < (b[0] - a[0]) * (p[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c } return c }
+    const 선거리2 = (p, a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1; const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)); return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy) }
+    const 곁2 = (p, 판, e) => 안2(p, 판) || (e > 0 && 판.some((q, k) => 선거리2(p, q, 판[(k + 1) % 판.length]) <= e))
+    const 상자2 = (판) => { let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const p of 판) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]) } return [x0, y0, x1, y1] }
+    const 위상자 = 위것.map((q) => 상자2(q.판))
+    for (const o of 모델.부재 || []) {
+      if (o.겹침 || o.종류 !== '벽' || o.표 !== '옹벽' || o.기초판 || o.받침높이 || !o.판 || !Number.isFinite(o.z1)) continue
+      const b = 상자2(o.판), 가로 = b[2] - b[0] >= b[3] - b[1]
+      const P = []
+      for (let k = 0; k < 10; k++) P.push(가로 ? [b[0] + (b[2] - b[0]) * (k + 0.5) / 10, (b[1] + b[3]) / 2] : [(b[0] + b[2]) / 2, b[1] + (b[3] - b[1]) * (k + 0.5) / 10])
+      const 맞는높이 = (q) => o.지붕올림 ? (q.지붕높이 && Math.abs(q.z1 - o.z1) <= 1500) : Math.abs(q.z1 - o.z1) <= 100
+      let 합 = 0
+      for (const p of P) {
+        let 보춤 = 0, 판두께 = 0
+        for (let j = 0; j < 위것.length; j++) {
+          const q = 위것[j], bb = 위상자[j]
+          if (p[0] < bb[0] - 300 || p[0] > bb[2] + 300 || p[1] < bb[1] - 300 || p[1] > bb[3] + 300 || !맞는높이(q)) continue
+          if (q.종류 === '보') { if (곁2(p, q.판, 30)) 보춤 = Math.max(보춤, +q.춤 || (q.z1 - q.z0)) }
+          else if (곁2(p, q.판, 300)) 판두께 = Math.max(판두께, +q.두께 || (q.z1 - q.z0))
+        }
+        합 += 보춤 > 0 ? Math.max(판두께, 층판.get(String(o.층)) || 0) : 판두께
+      }
+      const v = Math.round(합 / P.length / 10) * 10
+      if (!(v > 0) || v >= o.z1 - o.z0) continue
+      const k = o.표 + '|' + o.i
+      const m = 상부값.get(k) || new Map(); m.set(o.kk, v); 상부값.set(k, m)
+    }
+  }
   /* 🧭 G281 벽 줄마다 남은 토막의 벽 끝 몫(벽끝재기) — kk → 몫 · 줄의 «_단부끝» = 평균(셈: 단부 보강근 본수 × 이 몫) */
   const 벽끝 = new Map()          // 표|i → Map(kk → 몫)
   for (const o of 모델.부재 || []) { if (o.겹침 || !Number.isFinite(o.벽끝)) continue; const k = o.표 + '|' + o.i; const a = 벽끝.get(k) || new Map(); a.set(o.kk, o.벽끝); 벽끝.set(k, a) }
@@ -1112,7 +1159,7 @@ export function 겹친것빼기(공사, 모델) {
     return vs.length ? String(Math.round(vs.reduce((s, v) => s + v, 0) / vs.length * 1000) / 1000) : null
   }
   const 끝붙 = (r, k, kks) => { const v = 끝평균(k, kks); return v === null ? r : { ...r, _단부끝: v } }
-  if (!(모델.뺀 && 모델.뺀.length) && !받침.size && !벽끝.size) return 공사
+  if (!(모델.뺀 && 모델.뺀.length) && !받침.size && !벽끝.size && !올림.size && !상부값.size) return 공사
   const 뺄 = new Map()
   const 뺀본 = new Set()          // 🧭 G292 ⑥ 같은 부재(표 · 줄 · 자리)는 한 번만 셈
   for (const o of 모델.뺀 || []) { const u = o.표 + '|' + o.i + '|' + o.kk; if (뺀본.has(u)) continue; 뺀본.add(u); const k = o.표 + '|' + o.i; 뺄.set(k, (뺄.get(k) || 0) + 1) }
@@ -1135,6 +1182,24 @@ export function 겹친것빼기(공사, 모델) {
         const out = [...무리].sort((a, b) => b[1].length - a[1].length).map(([h, kks]) => 끝붙({ ...r, 높이: String(h), S: '0', QT: String(kks.length), _자리: kks.map((kk) => r._자리[kk]), _원줄: i, _원kk: kks }, 키, kks))
         if (남kk.length) out.push(끝붙({ ...r, QT: String(남kk.length), _자리: 남kk.map((kk) => r._자리[kk]), _원줄: i, _원kk: 남kk }, 키, 남kk))
         return out
+      }
+      /* 🏔 지붕까지 올린 높이 · 🧱 벽 윗면 공제(도면에서 읽은 벽 · 사람이 «상부» 를 안 적은 줄만) — 둘이 같은 자리끼리 한 줄 */
+      const 올 = 올림.get(키)
+      const 윗 = 표 === '옹벽' && r._양면 && !String(r.상부 ?? '').trim() ? 상부값.get(키) : null
+      if (전 && ((올 && 올.length) || (윗 && 윗.size))) {
+        const 뺀kk = new Set((모델.뺀 || []).filter((o) => o.표 === 표 && o.i === i).map((o) => o.kk))
+        const h올 = new Map((올 || []).map((x) => [x.kk, x.h]))
+        const 무리 = new Map()
+        for (let kk = 0; kk < 전; kk++) {
+          if (뺀kk.has(kk)) continue
+          const h = h올.has(kk) ? h올.get(kk) : '', u = 윗 && 윗.has(kk) ? 윗.get(kk) : ''
+          const key = h + '|' + u
+          const a = 무리.get(key) || []; a.push(kk); 무리.set(key, a)
+        }
+        return [...무리].sort((a, b) => b[1].length - a[1].length).map(([key, kks]) => {
+          const [h, u] = key.split('|')
+          return 끝붙({ ...r, ...(h ? { 높이: h, _지붕올림: true } : {}), ...(u ? { 상부: u, _윗공제: true } : {}), QT: String(kks.length), _자리: kks.map((kk) => r._자리[kk]), _원줄: i, _원kk: kks }, 키, kks)
+        })
       }
       if (!n) return [끝붙({ ...r, _원줄: i }, 키)]
       const qt = Number.isFinite(수(r.QT)) ? 수(r.QT) : 전

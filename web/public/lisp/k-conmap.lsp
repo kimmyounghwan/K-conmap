@@ -1,6 +1,6 @@
 ;;; ==========================================================================
 ;;;  K-건설맵 캐드 유틸        원본 파일 이름:  k-conmap.lsp
-;;;  버전 2.5   2026-09-14     https://k-conmap.com      무료로 쓰셔도 됩니다
+;;;  버전 2.6   2026-10-16     https://k-conmap.com      무료로 쓰셔도 됩니다
 ;;;
 ;;;  ------------------------ 만든 곳 · 이용 조건 ------------------------
 ;;;   만든 곳 : K-건설맵  https://k-conmap.com
@@ -8,9 +8,9 @@
 ;;;   조건    : 만든 곳 표시와 이 머리말은 지우지 마십시오.
 ;;;             내용을 고쳐서 배포하실 때에도 출처를 남겨 주십시오.
 ;;;   원본 파일 이름 : k-conmap.lsp   (최신판은 늘 위 주소에 있습니다)
-;;;   유효기간       : 받으신 날부터 30일입니다 (아래 kcm*exp 날짜).
-;;;                    지나면 k-conmap.com/cad 에서 새로 받아 덮어쓰시면 됩니다.
-;;;                    무료이고 10초면 끝납니다. 설정은 그대로 남습니다.
+;;;   쓰는 기간     : 제한 없습니다. 계속 쓰셔도 됩니다.
+;;;                    받으신 지 한 달쯤 지나면 캐드를 켤 때 「새 판 확인」 한 줄만 나옵니다
+;;;                    (k-conmap.com/cad · 멈추지 않습니다). 설정은 그대로 남습니다.
 ;;;   새 버전 확인   : 명령창에  KUPDATE
 ;;;   자동 등록      : 명령창에  KINSTALL  (캐드 켤 때마다 저절로 올라옵니다)
 ;;;  ---------------------------------------------------------------------
@@ -66,11 +66,11 @@
 (defun kcm:raw ( x prec ) (rtos x 2 prec))
 (defun kcm:digit ( c ) (and (= 1 (strlen c)) (>= (ascii c) 48) (<= (ascii c) 57)))
 (defun kcm:say ( s ) (princ (strcat "\n" s)))
-(setq kcm*ver "2.5")
-(setq kcm*exp  20261017)   ; [배포때찍음] 이 판을 쓸 수 있는 마지막 날
-(setq kcm*warn 20261010)   ; [배포때찍음] 이 날부터 미리 알려 줍니다
+(setq kcm*ver "2.6")
+(setq kcm*exp  20261017)   ; [배포때찍음] 이 날부터 「새 판 확인」 한 줄을 보입니다(쓰는 것은 안 막음)
+(setq kcm*warn 20261010)   ; [배포때찍음] (예전 판과 맞추려고 남겨 둔 값 - 쓰지 않음)
 ;; 위 두 줄은 사이트에 올릴 때 「받는 날 + 30일」 로 자동으로 다시 찍힙니다.
-;; 직접 받으신 판은 늘 30일이 남아 있습니다. k-conmap.com/cad 에서 받으십시오.
+;; 2.6 부터 기간 제한이 없습니다(소장님 2026-10-16 「날짜 제한없이」) - 날짜는 새 판 알림에만 씁니다.
 
 ;; 20270331 -> "2027-03-31"
 (defun kcm:dstr ( n / s )
@@ -80,21 +80,10 @@
 
 (defun kcm:today () (fix (getvar "CDATE")))
 
-;; 컴퓨터 날짜가 엉뚱하면(2020년 이전) 그냥 통과시킵니다
-(defun kcm:expired ()
+;; 새 판 확인을 권할 때인가 - 받은 지 한 달쯤(kcm*exp) 지났으면 T · 쓰는 것은 막지 않습니다
+;; 컴퓨터 날짜가 엉뚱하면(2020년 이전) 알리지 않습니다
+(defun kcm:oldver ()
   (and (>= (kcm:today) 20200101) (> (kcm:today) kcm*exp))
-)
-
-(defun kcm:expalert ()
-  (alert (strcat "K-건설맵 캐드 유틸 " kcm*ver "\n\n"
-                 "이 판은 " (kcm:dstr kcm*exp) " 까지 쓸 수 있습니다.\n"
-                 "기간이 지났습니다.\n\n"
-                 "최신판을 받으시면 됩니다.  무료이고 10초면 끝납니다.\n\n"
-                 "        https://k-conmap.com/cad\n\n"
-                 "받은 파일을 쓰시던 자리에 그대로 덮어쓰십시오.\n"
-                 "설정(도면 단위·좌표 표기)도, 자동 등록(KINSTALL)도 그대로입니다."))
-  (startapp "explorer" "https://k-conmap.com/cad")
-  (princ)
 )
 
 (defun kcm:remove1 ( x l / out done )
@@ -614,11 +603,6 @@
 ;;  hdr·rows  CSV (없으면 nil) / txt  도면에 적을 글 (없으면 nil)
 ;;  돌려주는 값이 "again" 이면 메뉴를 다시 엽니다.
 (defun kcm:result ( title sum lines hdr rows txt / act s )
-  (if (kcm:expired) (progn (kcm:expalert) (setq lines nil)))
-  (if (null lines) (setq lines (list "이 판은 기간이 지났습니다."
-                                     "최신판을 받아 주십시오 (무료)."
-                                     "" "   https://k-conmap.com/cad")
-                         hdr nil rows nil txt nil))
   (kcm:say (strcat "--- " title " ---"))
   (foreach l lines (kcm:say (strcat " " l)))
   (setq act (kcm:resdlg title lines (if rows T nil) (if txt T nil)))
@@ -1432,8 +1416,6 @@
 )
 
 (defun C:K ( / go pick act )
-  (if (kcm:expired)
-    (progn (kcm:expalert) (exit)))
   (kcm:u)
   (setq go T)
   (while go
@@ -1463,15 +1445,9 @@
 
 (kcm:autounit)
 (princ "\n=================================================================")
-(cond
-  ((kcm:expired)
-    (princ (strcat "\n [기간 지남] 이 판은 " (kcm:dstr kcm*exp) " 까지였습니다."))
-    (princ "\n             최신판을 받아 주십시오 -> k-conmap.com/cad"))
-  ((>= (kcm:today) kcm*warn)
-    (princ (strcat "\n [알림] 이 판은 " (kcm:dstr kcm*exp) " 까지입니다. 곧 끝납니다."))
-    (princ "\n        k-conmap.com/cad 에서 새로 받아 덮어쓰십시오. 10초면 됩니다. (KUPDATE)"))
-)
-(princ "\n K-건설맵 캐드 유틸 2.5  (k-conmap.lsp)   k-conmap.com")
+(if (kcm:oldver)
+  (princ "\n [새 판 확인] 받으신 지 한 달이 지났습니다. 새 기능이 있는지 -> k-conmap.com/cad (KUPDATE)"))
+(princ "\n K-건설맵 캐드 유틸 2.6  (k-conmap.lsp)   k-conmap.com")
 (princ "\n")
 (princ "\n     명령창에  K  만 치십시오.  단추 창이 뜹니다.")
 (princ "\n")

@@ -7448,3 +7448,71 @@ a.mc-key-in:hover { border-color: var(--accent-line); background: var(--accent-s
   .sc-zoom { top: auto; bottom: 5px; flex-direction: row; }
   .sc-zoom button { width: 36px; height: 34px; }
 }
+
+/* 📆 G296 기성 내역서 (/change/gisung) */
+.gs-row { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 4px 0 10px; font-size: 13.5px; }
+.gs-row label { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.gs-row input.ja-in { width: 150px; }
+.gs-row input.ja-num { width: 70px; }
+.gs-row input[type=date] { width: 150px; }
+.gs-chk { display: inline-flex !important; align-items: center; gap: 6px; white-space: nowrap; }
+.gs-chk input { width: auto !important; margin: 0; }
+/* G296 — 원 내역서 설계변경: 고정 금액 조정 켬 · 끔(긴 글은 줄바꿈) */
+.wn-fix { display: flex; align-items: flex-start; gap: 6px; margin-top: 6px; font-size: 13px; line-height: 1.5; }
+.wn-fix input { width: auto !important; margin: 3px 0 0; flex: none; }
+.gs-sheets { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
+.gs-t td, .gs-t th { white-space: nowrap; }
+.gs-t td:first-child { white-space: normal; min-width: 180px; }
+.gs-g td { background: var(--surface); }
+.gs-g.d0 td { font-weight: 700; }
+.gs-tg { display: inline-block; width: 22px; border: 0; background: none; color: var(--accent); cursor: pointer; font-size: 13px; padding: 0; }
+.gs-pct, .gs-q { width: 76px; text-align: right; }
+.gs-q.on { border-color: var(--accent); background: var(--accent-soft); }
+.gs-now { color: var(--accent); font-weight: 600; }
+.gs-over td { background: var(--bad-soft); }
+.gs-sum { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13.5px; margin-top: 4px; }
+.gs-ok { color: var(--good); font-weight: 600; } .gs-late { color: var(--bad); font-weight: 600; }
+.gs-book { margin-top: 8px; }
+.gs-info { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px 14px; }
+.gs-info label { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.gs-info label span { min-width: 92px; color: var(--muted); }
+.gs-info input { flex: 1; min-width: 0; }
+
+/* 🏠 G298 마감 — 도면에서 찾은 방(🎯 내역 대조 · 📐 검산 · 🧊 3D) */
+.mb-card { padding-top: 10px; padding-bottom: 10px; }
+.mb-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; width: 100%; background: none; border: 0; padding: 2px 0; text-align: left; cursor: pointer; color: inherit; font: inherit; }
+.mb-title { font-weight: 700; font-size: 15px; }
+.mb-title b { color: var(--accent); }
+.mb-sum { font-size: 13px; color: var(--text-2); min-width: 0; overflow-wrap: anywhere; }
+.mb-open { margin-left: auto; font-size: 12.5px; color: var(--accent); white-space: nowrap; }
+.mb-sec { margin-top: 8px; }
+.mb-best { margin: 10px 0 8px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); font-size: 14px; line-height: 1.55; }
+.mb-best.mb-ok { border-color: var(--good); background: var(--good-soft); }
+.mb-best.mb-mid { border-color: var(--warn); background: var(--warn-soft); }
+.mb-t td.mb-ok { color: var(--good); font-weight: 700; }
+.mb-t td.mb-mid { color: var(--warn); font-weight: 700; }
+.mb-t td.mb-bad { color: var(--danger, #c0392b); font-weight: 700; }
+.mb-t tr.mb-ref td { color: var(--muted); font-style: italic; }
+.mb-warn { color: var(--warn); font-size: 13px; }
+.mb-more { margin-top: 8px; font-size: 12.5px; }
+.mb-more summary { cursor: pointer; color: var(--accent); }
+.mb-grp { margin: 6px 0; line-height: 1.5; overflow-wrap: anywhere; }
+.mb-h { max-width: 130px; white-space: nowrap; letter-spacing: 0; }
+.mb-h input { width: 100%; }
+.mb-legend { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: var(--text-2); }
+.mb-legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+.mb-canvas { margin-top: 8px; height: min(62vh, 560px); min-height: 320px; }
+.mb-pick { margin-top: 8px; padding: 8px 10px; border: 1px solid var(--accent); border-radius: 10px; background: var(--accent-soft); font-size: 13.5px; }
+@media (max-width: 640px) { .mb-open { margin-left: 0; } .mb-canvas { height: 56vh; min-height: 280px; } }
+
+/* 📄 G298 설계변경 — 한글에 넣을 장(누르면 빼기) */
+.cw-hwp { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 10px; }
+.cw-hwp-h { width: 100%; font-size: 13px; font-weight: 600; }
+.cw-hwp-h .muted { font-weight: 400; font-size: 12px; }
+.cw-hwp .chip { font-size: 12.5px; }
+.cw-hwp .chip:not(.on) { text-decoration: line-through; opacity: 0.6; }
+
+.mb-ch { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 8px; font-size: 12.5px; }
+.mb-ch .btn { width: auto; }
+.mb-chsay { width: 100%; padding: 6px 10px; border-radius: 8px; background: var(--surface-2); font-size: 12.5px; line-height: 1.5; overflow-wrap: anywhere; }
+.mb-note { font-size: 12.5px; line-height: 1.6; margin: 8px 0 0; overflow-wrap: anywhere; }

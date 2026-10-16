@@ -83,6 +83,8 @@ export function 도면읽기(text, onProgress, opt = {}) {
   let 틀최소 = 0
   // 글자
   const Ts = [], Tx = new Grow(Float64Array), Ty = new Grow(Float64Array), Th = new Grow(Float64Array), Ta = new Grow(Float64Array), Te = new Grow(Int32Array)
+  /* 🧱 G298 숨은 층(끈 · 얼린 · Defpoints)의 글 — 그리지는 않고 자리만(마감: 실 이름을 Defpoints 에 적은 평면도) */
+  const 숨은글 = []
   /* 🧭 G246 범위 읽기 — 점이 다 찬 뒤 구조 판 밖 글(모양을 안 담은 판의 글)은 1 · 판 목록에만 씀(골조자동 준비 → 뒤글자) */
   const T밖 = 읽을범위 ? new Grow(Uint8Array) : null
   /* 🧭 G246 배치(종이) 공간 판 — 배치 탭마다 글 · 선 · 화면틀(모형 공간을 보는 창). 읽는 동안만 배치중 = 지금 배치 */
@@ -312,7 +314,27 @@ export function 도면읽기(text, onProgress, opt = {}) {
     /* 1 = 도형에 따로 준 끊어진 선(층은 실선 · 상세 경계 팔각형 등) · 2 = 층 꼴이 끊어진 선(숨은 기초선 층 — 기초 평면에서는 윤곽) */
     지금점선 = 점선꼴.test(lt) ? (층꼴 ? 2 : 1) : 0
     if (L.인쇄안함 && t !== 'INSERT') stats.인쇄안함++
-    if (L.hide && t !== 'INSERT') { stats.hidden++; return }
+    if (L.hide && t !== 'INSERT') {
+      stats.hidden++
+      if ((t === 'TEXT' || t === 'MTEXT') && !배치중 && 숨은글.length < 20000) {
+        let s
+        if (t === 'MTEXT') { let raw = ''; for (const [k, v] of g) if (k === 3) raw += v; raw += gs(g, 1); s = mtextLines(raw).join(' ') } else s = cadText(unesc(gs(g, 1)))
+        s = (s || '').trim()
+        if (s && s.length <= 40) {
+          const O = ext(g); const MM = O ? mul(M, O) : M
+          const h0 = g1(g, 40, 2.5), hj = g1(g, 72, 0), vj = g1(g, 73, 0)
+          let x = g1(g, 10), y = g1(g, 20), z = g1(g, 30)
+          if (t !== 'MTEXT' && (hj !== 0 || vj !== 0) && has(g, 11)) { x = g1(g, 11); y = g1(g, 21); z = g1(g, 31) }
+          const p = P(MM, x, y, z)
+          const sc = MM === I3 ? 1 : Math.hypot(MM[1], MM[5]) || 1
+          /* 가운데 · 오른쪽 맞춤 글은 글 가운데가 그 점 — 왼쪽 맞춤은 대충 반 폭 옮김 */
+          const 가운데 = t === 'MTEXT' ? ((g1(g, 71, 1) - 1) % 3) === 1 : (hj === 1 || hj === 4)
+          const dx = 가운데 ? 0 : s.length * h0 * sc * 0.45
+          숨은글.push({ s, x: p[0] + dx, y: p[1] + h0 * sc / 2, h: h0 * sc, ly: L.name })
+        }
+      }
+      return
+    }
     stats.ents++
     const rgb = 색(g, L, cx)
     const ins = cx.ins ?? -1
@@ -853,6 +875,7 @@ export function 도면읽기(text, onProgress, opt = {}) {
   for (let k = 0; k < xy.length; k += 2) { xy[k] -= ox; xy[k + 1] -= oy }
   for (let k = 0; k < tx.length; k++) { tx[k] -= ox; ty[k] -= oy }
   for (const I of inserts) { I.x -= ox; I.y -= oy }
+  for (const q of 숨은글) { q.x -= ox; q.y -= oy }
   const 참조 = 참조맞춤(참조들, 사전, 거르개, ox, oy)
   stats.글수 = Ts.length          /* 🧭 G246 이 파일 글자 수(xref 끼우면 뒤에 붙음 — 캡글 ~ 글수 = 점이 다 찬 뒤 읽은 글) */
   let 틀선 = null
@@ -864,7 +887,7 @@ export function 도면읽기(text, onProgress, opt = {}) {
     E, Q, P: xy, T, I: inserts, 무늬,
     layers: layerList.map((L) => ({ name: L.name, rgb: L.rgb, hide: L.hide, ...(L.인쇄안함 ? { 인쇄안함: true } : {}) })),
     box: [box[0] - ox, box[1] - oy, box[2] - ox, box[3] - oy], ox, oy,
-    units: header.insunits, stats, 참조, ...(틀선 ? { 틀선 } : {}), ...(배치.length ? { 배치: 배치.map((b) => ({ ...b, 화면: b.화면.map((v) => ({ ...v, mx: v.mx - ox, my: v.my - oy })) })) } : {}), ...(T밖 ? { T밖: T밖.done() } : {}),
+    units: header.insunits, stats, 참조, ...(숨은글.length ? { 숨은글 } : {}), ...(틀선 ? { 틀선 } : {}), ...(배치.length ? { 배치: 배치.map((b) => ({ ...b, 화면: b.화면.map((v) => ({ ...v, mx: v.mx - ox, my: v.my - oy })) })) } : {}), ...(T밖 ? { T밖: T밖.done() } : {}),
   }
 }
 

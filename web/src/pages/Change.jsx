@@ -559,6 +559,19 @@ export default function Change() {
         </div>
       </div>
 
+      {/* 📆 기성 내역서 — 2026-10-16(G296). 계약 내역서 + 공종마다 % → 기성내역서 · 기성 원가계산서 · 부분기성 · 다음 회 이어 가기 */}
+      <Link className="card fbook" to="/change/gisung">
+        <span className="fic">📆</span>
+        <div className="grow">
+          <div className="t">기성 내역서 <em>· 공종마다 % 만 · 다음 회는 파일만 다시</em></div>
+          <div className="d">
+            계약 내역서를 넣고 공종마다 <b>누계 몇 %</b> 했는지 적으면 <b>기성내역서</b>(계약 · 전회 · 금회 · 누계 · 잔여) · <b>공사기성부분 원가계산서</b>(계약 식 그대로) ·
+            <b>공사부분기성내역서</b> · 선금 공제 · 예정공정표 대비 공정률까지. 다음 회는 받은 파일만 다시 넣으면 전회가 이어집니다.
+          </div>
+        </div>
+        <span className="go">›</span>
+      </Link>
+
       {/* 🧾 원 내역서로 설계변경 — 2026-10-05(G131). 원본 시트 그대로 + 변경 시트 한 벌 */}
       <Link className="card fbook" to="/change/won">
         <span className="fic">🧾</span>

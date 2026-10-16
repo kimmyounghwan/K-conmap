@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { askAfter } from '../AskComment'
 import DATA from '../data/cad.json'
 import { Empty } from '../components.jsx'
@@ -19,9 +19,8 @@ import { JeoksanStrip } from './Jeoksan.jsx'
  * ⚠️ 명령 설명은 src/data/cad.json 한 곳에만 있습니다.
  *    화면(여기)과 미리굽기(prerender.py)가 모두 그 파일을 읽습니다.
  *
- * ⚠️ 리습에는 «받은 날 + 30일» 유효기간이 박혀 있습니다(tools/stamp_lisp.py 가 찍습니다).
- *    돌아다니는 사본이 멈추고 사람이 여기로 받으러 오게 하기 위한 것입니다.
- *    빌드 때 반드시 stamp 를 돌려야 합니다 — 안 돌리면 2099 년이 박혀 나갑니다.
+ * 리습 2.6(2026-10-16 소장님 「캐드 리습 날짜 제한없이 다운로드 할 수 있게」)부터 기간 제한이 없습니다.
+ *    tools/stamp_lisp.py 가 찍는 «받은 날 + 30일» 은 캐드를 켤 때 «새 판 확인» 한 줄(k-conmap.com/cad)을 보일 날로만 씁니다(안 멈춤).
  */
 
 const CMDS = DATA.cmds || []
@@ -45,7 +44,7 @@ function Download() {
       <a className="btn primary" href="/lisp/k-conmap.lsp" download
          onClick={() => dl('lsp')}>⬇ k-conmap.lsp 받기 (무료)</a>
       <div className="muted" style={{ fontSize: 12, marginTop: 8, lineHeight: 1.7 }}>
-        받으신 판은 <b>30일</b> 쓰실 수 있습니다. 지나면 여기서 새로 받아{' '}
+        <b>기간 제한 없이</b> 계속 쓰실 수 있습니다. 새 판은 명령창 <code>KUPDATE</code> 또는 여기서 받아{' '}
         <b>쓰시던 자리에 덮어쓰기</b>만 하면 됩니다. 설정도 자동 등록도 그대로 남습니다.
       </div>
       <div className="navrow" style={{ marginTop: 10 }}>

@@ -1320,8 +1320,8 @@ def _sheet_html(sheet):
 # ── 캐드 유틸 (/cad) ────────────────────────────────────────────
 #  소장님: 「무료 배포하자 . 따로 탭을 만들고, 설명서는 사이트에. 그래야 사람들이 더 들어오지」
 #  ⚠️ 내용은 web/src/data/cad.json 한 곳에만 있습니다(화면·여기가 같이 읽습니다).
-#  ⚠️ 리습에는 「받은 날 + 30일」 유효기간이 박힙니다 — tools/stamp_lisp.py 를
-#     빌드 전에 반드시 돌려야 합니다. 안 돌리면 2099 년이 박힌 채 나갑니다.
+#  리습 2.6(2026-10-16)부터 기간 제한 없음 — tools/stamp_lisp.py 가 찍는 「받은 날 + 30일」 은
+#     캐드를 켤 때 «새 판 확인» 한 줄을 보일 날로만 씁니다(안 멈춤).
 CAD_JSON = os.path.join(ROOT, "web", "src", "data", "cad.json")
 
 
@@ -1339,7 +1339,7 @@ def _cad_dl(where=""):
             '⬇ 캐드 유틸 받기 (무료)</a>'
             '<a class="btn ghost" href="/lisp/k-conmap_utf8.lsp" download>UTF-8 판</a></div>'
             '<div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.7">'
-            '받으신 판은 <b>30일</b> 쓰실 수 있습니다. 지나면 여기서 새로 받아 '
+            '<b>기간 제한 없이</b> 계속 쓰실 수 있습니다. 새 판은 명령창 KUPDATE 또는 여기서 받아 '
             '<b>쓰시던 자리에 덮어쓰기</b>만 하면 됩니다. 설정도 그대로 남습니다.</div>')
 
 
