@@ -12,6 +12,7 @@ import UserForms from '../UserForms.jsx'
 import { getNaeyeok, getNaeyeokAll, naeyeokRows } from '../lib/data.js'
 
 import { use남김 } from '../lib/길기록.js'
+import { 받은수 } from '../lib/받은수.jsx'   /* 👁 2026-10-17 서식 · 도구마다 받기 · 조회 */
 /**
  * /change · /change/{주제} · /change/calc — 「설계변경」 (2026-09-05)
  *
@@ -162,7 +163,8 @@ export function ChangeForms({ compact }) {
                 <span className="fic">{icon || '📄'}</span>
                 <div className="grow">
                   <Link className="ft" to={`/forms/${slug}`}>{title}</Link>
-                  {!compact && <div className="d">{short}</div>}
+                  {!compact ? <div className="d">{short} <받은수 파일={[`/forms/${slug}.xlsx`]} 봄={`/forms/${slug}`} /></div>
+                    : <div className="d"><받은수 파일={[`/forms/${slug}.xlsx`]} 봄={`/forms/${slug}`} /></div>}
                 </div>
                 <a className="fdl" href={`/forms/${slug}.xlsx`}
                    download={`${title}_양식.xlsx`} onClick={() => askAfter('forms')}>⬇ 엑셀</a>
@@ -234,14 +236,14 @@ export function ChangeBook() {
               <span className="fic">{icon || '📄'}</span>
               <div className="grow">
                 <Link className="ft" to={`/forms/${slug}`}>{title}</Link>
-                <div className="d">{short}</div>
+                <div className="d">{short} <받은수 파일={[`/forms/${slug}.xlsx`]} 봄={`/forms/${slug}`} /></div>
               </div>
               <a className="fdl" href={`/forms/${slug}.xlsx`} download={`${title}_양식.xlsx`} onClick={() => askAfter('forms')}>⬇ 엑셀</a>
             </div>
           )
         })}
         <div style={{ marginTop: 10 }}>
-          <Link className="btn ghost sm" to="/forms">건설 서식 105가지 전부 보기 →</Link>
+          <Link className="btn ghost sm" to="/forms">건설 서식 전부 보기 →</Link>
         </div>
       </div>
 
@@ -567,6 +569,7 @@ export default function Change() {
           <div className="d">
             계약 내역서를 넣고 공종마다 <b>누계 몇 %</b> 했는지 적으면 <b>기성내역서</b>(계약 · 전회 · 금회 · 누계 · 잔여) · <b>공사기성부분 원가계산서</b>(계약 식 그대로) ·
             <b>공사부분기성내역서</b> · 선금 공제 · 예정공정표 대비 공정률까지. 다음 회는 받은 파일만 다시 넣으면 전회가 이어집니다.
+            <받은수 쪽="/change/gisung" 봄="/change/gisung" className="dlcount tlx-dl" />
           </div>
         </div>
         <span className="go">›</span>
@@ -580,6 +583,7 @@ export default function Change() {
           <div className="d">
             원 내역서(계약내역서)를 올리고 바뀐 <b>수량 · 사유 · 신규 비목</b>만 적으면, 원본 시트 뒤에 <b>변경내역서(2줄) · 변경 원가계산서(원 요율)</b> ·
             증감 · 물량 대비표 · 신규비목 단가산출서(× 낙찰률) · 단가 근거표 · 사유서 · 검산을 붙여 드립니다. 2회 · 3회 차수도.
+            <받은수 쪽="/change/won" 봄="/change/won" className="dlcount tlx-dl" />
           </div>
         </div>
         <span className="go">›</span>
@@ -593,6 +597,7 @@ export default function Change() {
           <div className="d">
             변경내역서(.xlsx · .xls)를 올리면 <b>1줄 내역서</b>로, 당초 · 변경 두 파일을 올리면 <b>품목을 짝지어 2줄 변경내역서</b>로.
             <b>공사비증감대비표 · 물량대비표 · 총괄표 · 차수별 대비표</b>와 <b>검산</b>까지 한 번에. 파일은 서버로 올라가지 않습니다.
+            <받은수 쪽="/change/work" 봄="/change/work" className="dlcount tlx-dl" />
           </div>
         </div>
         <span className="go">›</span>
@@ -607,6 +612,7 @@ export default function Change() {
             공사 내역서 엑셀을 올리면 <b>당초 · 변경</b> 두 줄로 벌려 드립니다.
             <b>합계를 SUMIF 로 갈라</b> 당초 합계와 변경 합계를 따로 내고,
             <b>증감 줄</b>까지 넣을 수 있습니다. 파일은 서버로 올라가지 않습니다.
+            <받은수 쪽="/change/twoline" 봄="/change/twoline" className="dlcount tlx-dl" />
           </div>
         </div>
         <span className="go">›</span>
@@ -622,6 +628,7 @@ export default function Change() {
             발주처가 공고에 붙인 <b>설계내역서·공내역서</b>를 갈래별로 모았습니다.
             설계내역서에는 <b>설계 단가</b>가 들어 있고, 미리 받아 둔 것은{' '}
             <b>나라장터 로그인 없이 바로</b> 받습니다.
+            <받은수 쪽="/change/naeyeok" 봄="/change/naeyeok" className="dlcount tlx-dl" />
           </div>
         </div>
         <span className="go">→</span>

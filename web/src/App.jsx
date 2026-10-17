@@ -1,6 +1,6 @@
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import TitleSync from './TitleSync.jsx'
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { 나운영자 } from './lib/운영자.js'
 import { BasePriceProvider } from './BasePrice.jsx'
 import { InstallPill, InstallBar, AppWindowBar } from './Install.jsx'
@@ -100,6 +100,20 @@ const TABS = [
 
    ⚠️ 이용자 화면에는 «한 글자도» 나오지 않습니다.
       휴대폰을 소장님 기계로 만드시려면 한 번만: k-conmap.com/?op=<비밀말>  (lib/열쇠.js) */
+/* 🔢 2026-10-17 소장님 「일 카운트 하느거 바꾸자」 → «소장님만 보게» · 「실시간으로 바뀌게」 — 쓴 횟수 판(lib/쓴수판.jsx)
+   ⚠️ 이용자 브라우저는 이 파일을 받지도 않습니다(나운영자 일 때만 lazy) */
+const 쓴수판 = lazy(() => import('./lib/쓴수판.jsx'))
+function 쓴수자리() {
+  const [보임, set보임] = useState(false)
+  useEffect(() => {
+    let 살았나 = true
+    나운영자().then((v) => { if (살았나) set보임(!!v) }).catch(() => {})
+    return () => { 살았나 = false }
+  }, [])
+  if (!보임) return null
+  return <Suspense fallback={null}><쓴수판 /></Suspense>
+}
+
 function 운영자띠() {
   const [보임, set보임] = useState(false)
   useEffect(() => {
@@ -236,6 +250,7 @@ export default function App() {
                주소 이름은 Crumbs.jsx 의 NAME·LEAF 표 한 곳에만 적습니다. */}
         <Crumbs />
         <화면조회줄 />
+        <쓴수자리 />
         <Outlet />
         {/* 👋🙏 방문 인사 — 떠 있다가 5초 뒤 사라지는 쪽지(자리를 차지하지 않음) */}
         <인사 />

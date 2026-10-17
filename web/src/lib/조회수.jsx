@@ -47,7 +47,8 @@ function 받기(url) {
   const o = 받은것.get(url)
   if (o && (o.p || Date.now() - o.t < 5 * 60000)) return o
   const n = { v: o ? o.v : undefined, t: Date.now(), p: null }
-  n.p = fetch(url, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+  /* 👁 2026-10-17 — 못 읽음(네트워크 · 서버) = undefined · 읽었는데 아직 숫자 없음(새 화면) = null → 화면에서 0 */
+  n.p = fetch(url, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : undefined)).catch(() => undefined)
     .then((v) => { n.v = v; n.p = null; n.t = Date.now(); 알림() })
   받은것.set(url, n)
   return n
@@ -66,7 +67,10 @@ export function use화면조회(path) {
   useEffect(() => { if (url) 받기(url) }, [url])
   if (!url) return null
   const o = 받은것.get(url)
-  return o && typeof o.v === 'number' ? o.v : null
+  if (!o) return null
+  if (typeof o.v === 'number') return o.v
+  /* 👁 2026-10-17 소장님 「조회수는 보이게 해줘. 모든 도구 및 서식에는 다 보이게 해줘...항상」 — 읽었는데 아직 숫자가 없는 새 화면은 0 */
+  return !o.p && o.v === null ? 0 : null
 }
 /** 공고 조회 수 — 못 읽었으면 null (같은 묶음은 한 번만 받음) */
 export function use공고조회(no) {
@@ -147,7 +151,8 @@ export function 화면조회줄() {
   const 화면 = use화면조회(no || 숨김(pathname) ? null : pathname)
   const 공고 = use공고조회(no)
   const n = no ? 공고 : 화면
-  if (숨김(pathname) || !n) return null
+  /* 👁 2026-10-17 «항상» — 화면은 0 이어도 보임(못 읽었을 때만 안 그림) · 공고는 전처럼 숫자가 있을 때만 */
+  if (숨김(pathname) || n === null || n === undefined || (no && !n)) return null
   return (
     <div className="pvline">
       <span className="pvnum" title="이 화면을 연 횟수 (2026-09-15부터 · 구글 애널리틱스 · 30분마다 고침)">

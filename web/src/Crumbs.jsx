@@ -78,6 +78,7 @@ const LEAF = {
   '/tools/risk': '위험성평가 (별지 1~5)',
   '/tools/photo': '사진대지 · 영수증 정리',
   '/tools/sigong': '시공계획서 자동 만들기',
+  '/tools/jungcheo': '중대재해 안전보건관리체계 한 벌',
   '/tools/wonclick': '공사서류 원클릭',
   '/report/make': '성적표 만들기',
   '/report/agency': '발주기관 보고서 만들기',

@@ -3,6 +3,7 @@ import { askAfter } from '../AskComment'
 import DATA from '../data/cad.json'
 import { Empty } from '../components.jsx'
 import { JeoksanStrip } from './Jeoksan.jsx'
+import { 받은수 } from '../lib/받은수.jsx'   /* 👁 2026-10-17 명령마다 조회 */
 
 /**
  * /cad · /cad/{slug} — 「캐드 유틸」 (2026-09-14)
@@ -115,7 +116,7 @@ export default function Cad() {
               <b>{c.name}</b>
               <span className="chipmini">{c.cmd}</span>
             </div>
-            <div className="muted" style={{ fontSize: 12 }}>{c.what}</div>
+            <div className="muted" style={{ fontSize: 12 }}>{c.what} <받은수 봄={`/cad/${c.slug}`} /></div>
           </Link>
         ))}
       </div>

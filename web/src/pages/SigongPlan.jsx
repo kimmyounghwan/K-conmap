@@ -20,7 +20,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
-import { 세기 } from '../lib/받은수.jsx'
+import { 세기, 예시본수 } from '../lib/받은수.jsx'
 import { 현장나눔 } from '../lib/현장나눔.js'
 import { 글맞춤 } from '../lib/쪽문서.js'
 import { Row } from '../tools/calcs.jsx'
@@ -364,6 +364,7 @@ export default function SigongPlan() {
           <div className="sg-lock">
             <b>🔒 지금은 준비 중입니다</b> — 내 내역서를 올려 만들고 받는 것은 곧 엽니다.
             지금은 <button type="button" className="btn line sm" style={{ width: 'auto', margin: '0 2px' }} onClick={예시}>🧪 예시 내역서</button>로 어떻게 나오는지 미리 보실 수 있습니다.
+            {' '}<예시본수 열쇠="|시공계획|예시" />
             <details className="sg-more sg-more-sm" style={{ marginTop: 6 }}>
               <summary className="muted" style={{ fontSize: 12.5 }}>🔑 열쇠말이 있으신가요?</summary>
               <form style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }} onSubmit={async (e) => {

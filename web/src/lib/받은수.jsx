@@ -216,8 +216,28 @@ export function use받은수({ 쪽, 파일, 빼기 } = {}) {
 export function 받은수({ 쪽, 파일, 빼기, 봄, 앞 = '⬇ ', 글 = '회', className = 'dlcount' }) {
   const n = use받은수({ 쪽, 파일, 빼기 })
   const v = 봄 ? 조회합(봄, 빼기) : null
-  if (!n && !v) return null
+  /* 👁 2026-10-17 소장님 「모든 도구 및 서식에는 다 보이게 해줘...항상」 — 봄(화면)을 준 카드는 조회를 0 이어도 보임(못 읽었을 때만 안 그림) */
+  if (!n && (v === null || v === undefined)) return null
   const 받음글 = n ? <span title="이 사이트에서 받은 횟수 (2026-09-15부터)">{앞}{n.toLocaleString('ko-KR')}{글}</span> : null
-  const 조회글 = v ? <span className="pvcount" title="이 화면을 연 횟수 (2026-09-15부터 · 구글 애널리틱스 · 30분마다 고침)">조회 {v.toLocaleString('ko-KR')}</span> : null
+  const 조회글 = v !== null && v !== undefined ? <span className="pvcount" title="이 화면을 연 횟수 (2026-09-15부터 · 구글 애널리틱스 · 30분마다 고침)">조회 {v.toLocaleString('ko-KR')}</span> : null
   return <span className={className + ' dlc2'}>{받음글}{받음글 && 조회글 ? ' · ' : null}{조회글}</span>   /* dlc2 — 좁은 카드에선 «·» 에서 줄바꿈 */
+}
+
+/**
+ * 🧪 예시 본 수 — 2026-10-17 소장님 「올리는 모든 것은 이용자가 예시를 보면 조회수가 나오게 해줘야 내가 상품성이 있는지 알지」 · 「조회수는 보이게 해줘」
+ * 잠긴 도구(소장님만 씀 · 이용자는 🧪 예시만)에서 이용자가 예시를 연 수 — 세기('|…|예시') 가 dl/p 에 쌓은 숫자를 그대로 보입니다(소장님 · 로봇은 안 셈).
+ * 못 읽었으면 안 그림 · 아직 0 이면 0.
+ * @param 열쇠 예: '|시공계획|예시'
+ */
+export function 예시본수({ 열쇠, 앞 = '🧪 예시 본 수 ', className = 'dlcount exview' }) {
+  const [, 다시] = useState(0)
+  useEffect(() => {
+    const f = () => 다시((x) => x + 1)
+    듣는이.add(f)
+    읽기().catch(() => {})
+    return () => { 듣는이.delete(f) }
+  }, [])
+  if (!숫자) return null
+  const n = Number((숫자.p || {})[열쇠꼴(열쇠).slice(0, 80)]) || 0
+  return <span className={className} title="이용자가 예시를 연 횟수 (소장님 브라우저 · 로봇은 안 셈)">{앞}{n.toLocaleString('ko-KR')}</span>
 }
