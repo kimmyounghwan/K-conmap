@@ -494,7 +494,7 @@ export default function Safety() {
 
       {/* 준비 서류에 바로 쓰는 빈 서식 — /forms 에 이미 있는 것만 겁니다 */}
       <div className="card">
-        <div className="sec-title">바로 쓰는 빈 서식 <span className="muted">· 무료</span></div>
+        <div className="sec-title">바로 쓰는 빈 서식 <span className="muted">· 엑셀</span></div>
         <p className="muted" style={{ marginTop: 0 }}>
           위 준비 서류 가운데 건설맵 서식에 있는 것입니다. 발주처 서식이 따로 있으면 그것을 쓰십시오.
         </p>
@@ -572,7 +572,7 @@ export default function Safety() {
       {/* ── 값 ── */}
       <div className="card">
         <div className="sec-title">값은 어떻게 되나</div>
-        <p><b>이것은 값을 받습니다.</b> 건설맵의 나머지는 앞으로도 무료입니다.</p>
+        <p><b>이것은 값을 받습니다.</b> 건설맵의 나머지는 지금처럼 그대로 이용하실 수 있습니다.</p>
         <p>
           현장마다 규모도 공법도 달라서 <b>정찰가를 붙일 수 없습니다.</b>{' '}
           같은 금액이어도 항타기가 들어가면 그만큼 늘고, 터널이 끼면 또 달라집니다.
@@ -677,7 +677,7 @@ export default function Safety() {
       <div className="card">
         <div className="sec-title">그동안 쓰실 것</div>
         <p className="muted" style={{ marginTop: 0 }}>
-          착공 때 같이 내야 하는 것들입니다. <b>전부 무료입니다.</b>
+          착공 때 같이 내야 하는 것들입니다. <b>모두 바로 받으실 수 있습니다.</b>
         </p>
         <div className="btn-row">
           <Link className="btn primary" to="/forms">📄 건설 서식 — 착공계·안전점검표</Link>

@@ -148,10 +148,10 @@ class Page:
                 break
         half = min(half, self.pc - 1) if self.pc > 1 else 1
         if self.ex:
-            self.put(1, 1, half, "  K-건설맵  |  k-conmap.com  무료 건설 서식", kind="brand", wrap=False)
+            self.put(1, 1, half, "  K-건설맵  |  k-conmap.com  건설 서식", kind="brand", wrap=False)
             self.put(1, half + 1, self.pc, "작성 예시 (가상의 현장)  ", kind="brand_ex", wrap=False)
         else:
-            self.put(1, 1, half, "  K-건설맵  |  k-conmap.com  무료 건설 서식", kind="brand", wrap=False)
+            self.put(1, 1, half, "  K-건설맵  |  k-conmap.com  건설 서식", kind="brand", wrap=False)
             self.put(1, half + 1, self.pc, "← 이 1행을 지우고 쓰셔도 됩니다  ", kind="brand_r", wrap=False)
         self.ws.row_dimensions[1].height = 20
         self.r = 2

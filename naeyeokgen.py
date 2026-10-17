@@ -22,7 +22,7 @@ def A(h="center", w=False): return Alignment(horizontal=h, vertical="center", wr
 
 def title(ws, cols, text, sub=""):
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=cols)
-    c = ws.cell(row=1, column=1, value="  K-건설맵  |  k-conmap.com   무료 건설 서식")
+    c = ws.cell(row=1, column=1, value="  K-건설맵  |  k-conmap.com   건설 서식")
     c.font = F(9.5, True, "1A56DB"); c.alignment = A("left")
     ws.row_dimensions[1].height = 18
     ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=cols)
@@ -94,7 +94,7 @@ def build():
         "   연노랑 = 사람이 채우는 칸        연회색 = 수식이 자동으로 채우는 칸 (건드리지 마십시오)",
         "",
         "※ 발주처가 준 공내역서가 있으면 그것을 쓰십시오. 이 서식은 없을 때 쓰는 것입니다.",
-        "※ 양식 제공 : K-건설맵  k-conmap.com  —  공공 입찰 투찰금액 계산 · 개찰 결과 무료",
+        "※ 양식 제공 : K-건설맵  k-conmap.com  —  공공 입찰 투찰금액 계산 · 개찰 결과",
     ])
     ws.sheet_view.showGridLines = False
 

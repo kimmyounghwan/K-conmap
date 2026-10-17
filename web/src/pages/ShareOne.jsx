@@ -42,7 +42,7 @@ export default function ShareOne() {
           사무실 컴퓨터마다 깔아 두면 <b>폴더 하나가 모든 컴에서 똑같이 보입니다.</b>
         </p>
         <p className="muted" style={{ margin: 0 }}>
-          서버도, 회원가입도, 월 이용료도 없습니다. <b>완전 무료</b>입니다.
+          서버도, 회원가입도, 월 이용료도 없습니다. <b>받아서 바로 쓰시면 됩니다.</b>
         </p>
       </div>
 
@@ -50,7 +50,7 @@ export default function ShareOne() {
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 8px' }}>내려받기</div>
         <a className="btn primary" href={ZIP} onClick={() => dl('zip')}>
-          ⬇ 쉐어원 2.0 받기 (무료 · 25.2MB)
+          ⬇ 쉐어원 2.0 받기 (25.2MB)
         </a>
         <div className="navrow" style={{ marginTop: 10 }}>
           <a className="navi" href="/shareone/사용설명서.html" target="_blank" rel="noopener"
@@ -115,7 +115,7 @@ export default function ShareOne() {
         <p style={{ marginTop: 0, lineHeight: 1.85 }}>
           <b>K-건설맵을 알리려고 만들었습니다.</b> 쉐어원을 쓰시다가 폴더 안의
           <b> K-건설맵 바로가기</b>를 한 번 눌러 보시면 그것으로 충분합니다.
-          입찰 자료도, 서식도, 도구도 전부 무료입니다.
+          입찰 자료도, 서식도, 도구도 회원가입 없이 바로 이용하실 수 있습니다.
         </p>
         <div className="btn-row" style={{ justifyContent: 'flex-start' }}>
           <Link className="btn ghost" to="/">💰 바로투찰 — 얼마 넣을까</Link>
@@ -134,7 +134,7 @@ export function ShareOneStrip() {
     <Link className="card fbook" to="/shareone">
       <span className="fic">🗂️</span>
       <div className="grow">
-        <div className="t">쉐어원 — 사무실 공유폴더 <em>· 무료</em></div>
+        <div className="t">쉐어원 — 사무실 공유폴더 <em>· 바로 이용 가능</em></div>
         <div className="d">
           사무실 컴퓨터마다 깔면 <b>폴더 하나가 모든 컴에서 똑같이</b> 보입니다.
           서버도 월 이용료도 없습니다.

@@ -133,7 +133,7 @@ def build(form):
     #     마우스 우클릭 → 「행 삭제」 한 번이면 흔적 없이 사라집니다.
     #  ⚠️ 지울 수 있다는 것을 «그 줄에» 적습니다. 모르면 못 지웁니다.
     s.r = 1
-    s.merge(1, 12, "  K-건설맵   |   k-conmap.com   무료 건설 서식",
+    s.merge(1, 12, "  K-건설맵   |   k-conmap.com   건설 서식",
             bold=True, size=10.5, align="left", h=22, border=False)
     s.merge(13, COLS - 12, "← 이 1행을 지우고 쓰셔도 됩니다   ",
             size=8.5, align="right", border=False)

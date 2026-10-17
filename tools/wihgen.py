@@ -90,7 +90,7 @@ def 자리(spans):
 
 
 def 우리줄(ws, 끝):
-    글(ws, 1, 1, max(8, 끝 // 2), "  K-건설맵  |  k-conmap.com   무료 건설 서식",
+    글(ws, 1, 1, max(8, 끝 // 2), "  K-건설맵  |  k-conmap.com   건설 서식",
        굵=True, pt=9.5, 맞="left", 테=False, 높=18)
     글(ws, 1, max(8, 끝 // 2) + 1, 끝, "← 이 1행을 지우고 쓰셔도 됩니다   ",
        pt=8, 맞="center", 테=False)

@@ -144,7 +144,7 @@ export function ChangeForms({ compact }) {
     <div className="card">
       <div className="sec-title" style={{ margin: '0 0 2px' }}>
         📄 설계변경 서식 <span className="count">
-          {FORMSETS.reduce((n, g) => n + g.slugs.length, 0)}가지 · 엑셀 · 무료
+          {FORMSETS.reduce((n, g) => n + g.slugs.length, 0)}가지 · 엑셀 · 바로 이용 가능
         </span>
       </div>
       <div style={{ fontSize: 12, color: 'var(--muted)', margin: '0 0 10px' }}>

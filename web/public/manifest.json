@@ -5,7 +5,7 @@
   "display": "standalone",
   "background_color": "#f4f6f9",
   "theme_color": "#1d4ed8",
-  "description": "공고를 고르면 투찰금액이 바로 나옵니다. 오늘 넣을 공고 · 1순위 개찰 결과 · 곧 착공하는 현장. 무료.",
+  "description": "공고를 고르면 투찰금액이 바로 나옵니다. 오늘 넣을 공고 · 1순위 개찰 결과 · 곧 착공하는 현장. 회원가입 없이 바로 봅니다.",
   "icons": [
     {
       "src": "/icon-192.png",
