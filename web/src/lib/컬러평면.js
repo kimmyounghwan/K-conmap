@@ -106,6 +106,7 @@ export function 이름글들(모델) {
     const L = layers[E.ly[e]]
     if (L && L.hide && !끈층말.test(L.name || '')) continue
     if (!실이름인가(T.s[i])) continue
+    if (/^[(（［\[].*[)）］\]]$/.test(붙임(T.s[i]))) continue          /* «(개방형공간활용)» 같은 덧말 — 실 이름 아님 */
     const w = 글자폭(T, i)
     out.push({ s: 붙임(T.s[i]), x: T.x[i] + (w / 2) * Math.cos(T.a[i]) - (T.h[i] / 2) * Math.sin(T.a[i]), y: T.y[i] + (w / 2) * Math.sin(T.a[i]) + (T.h[i] / 2) * Math.cos(T.a[i]), h: T.h[i], i })
   }
@@ -147,9 +148,22 @@ export function 판들찾기(모델, k = 1) {
   }
   const out = []
   const 쓴제목 = new Set()
+  /* 같은 평면이 두 무리로 갈린 것(이름 사이가 6 m 넘게 떨어진 큰 홀) — 큰 무리의 «벽으로 넓힌 판» 안에 이름이 다 들면 합침 */
+  const 토 = 막토(모델, k)
+  const 큰들 = 무.filter((g) => g.들.length >= 2)
+  const 판상자 = new Map()
+  for (const g of 큰들) 판상자.set(g, 벽상자(토, g.상자, 2500 / k))
+  for (let i = 0; i < 큰들.length; i++) for (let j = 큰들.length - 1; j > i; j--) {
+    const A = 판상자.get(큰들[i]), b = 큰들[j]
+    if (!b.들.every((n) => n.x >= A[0] && n.x <= A[2] && n.y >= A[1] && n.y <= A[3])) continue
+    큰들[i].들.push(...b.들)
+    큰들[i].상자 = [Math.min(큰들[i].상자[0], b.상자[0]), Math.min(큰들[i].상자[1], b.상자[1]), Math.max(큰들[i].상자[2], b.상자[2]), Math.max(큰들[i].상자[3], b.상자[3])]
+    b.합침 = true
+    큰들.splice(j, 1)
+  }
   /* 실 이름 둘 넘는 무리 = 판 — 제목은 곁(판 크기 + 30 m 안)의 가장 가까운 «… 평면도» */
   for (const g of 무) {
-    if (g.들.length < 2) continue
+    if (g.들.length < 2 || g.합침) continue
     const { t, d, 반 } = 가까운제목(g)
     const 제목 = t && d < 반 * 1.6 + 30000 / k ? t.s : ''
     if (t && 제목) 쓴제목.add(t)
@@ -158,6 +172,8 @@ export function 판들찾기(모델, k = 1) {
   /* 실 이름이 하나뿐인 무리 — 가장 가까운 제목을 다른 판이 안 가졌을 때만(한 층 한 실 · 주차장 · 근린생활시설). 표 속 실 이름은 빠짐 */
   for (const g of 무) {
     if (g.들.length >= 2) continue
+    const n0 = g.들[0]
+    if (큰들.some((G) => { const A = 판상자.get(G); return n0.x >= A[0] && n0.x <= A[2] && n0.y >= A[1] && n0.y <= A[3] })) continue
     const { t, d } = 가까운제목(g)
     if (!t || 쓴제목.has(t) || d > 100000 / k) continue
     쓴제목.add(t)
@@ -503,9 +519,30 @@ export function 판읽기(모델, k, 판, o = {}) {
           for (let q = 0; q < 들.length; q++) { const a = 쓸[q]; if (a && a.A < 작 && 고리안(a.r, x, y)) { 작 = a.A; 고른 = q } }
           if (고른 >= 0) 표[cc] = 번들[고른]
         }
-        /* 면적선이 없는 이름 · 남은 칸 → 가까운 것(덩이 안 4 방향) */
+        /* 남은 칸(어느 면적선에도 안 든 곳) — 이어진 덩이마다: 면적선 없는 이름이 들었으면 그 실 · 0.8 ㎡ 넘으면 이름 없는 공간 ·
+           작은 틈(면적선과 벽 사이)은 곁의 실로 (예전에는 모두 가까운 이름으로 나눠 경계가 비스듬했음 — 진월면사무소 홀 · 라운지) */
+        const 남 = new Set(칸들.filter((cc) => 표[cc] < 0))
+        const 작은 = []
+        for (const s0 of 남) {
+          if (표[s0] !== -1 || !남.has(s0)) continue
+          const 덩칸 = [s0]; 남.delete(s0)
+          for (let q = 0; q < 덩칸.length; q++) {
+            const cc = 덩칸[q], i = cc % NX
+            for (const dd of [i > 0 ? cc - 1 : -1, i < NX - 1 ? cc + 1 : -1, cc - NX, cc + NX]) if (dd >= 0 && 남.has(dd)) { 남.delete(dd); 덩칸.push(dd) }
+          }
+          const 든 = []
+          const 덩표 = new Set(덩칸)
+          for (let q = 0; q < 들.length; q++) if (!쓸[q] && 덩표.has(들[q].cc)) 든.push(q)
+          if (든.length) {
+            const 번 = 번들[든[0]]
+            if (든.length > 1) 방들[번].이름 = 든.map((q) => 들[q].s).join('·')
+            for (const cc of 덩칸) 표[cc] = 번
+          } else if (덩칸.length * c * c * k * k >= 0.8e6) {
+            const 번 = 새방('', id, { 이름없음: true, 이름글: [] })
+            for (const cc of 덩칸) 표[cc] = 번
+          } else 작은.push(...덩칸)
+        }
         let h = 0, t = 0
-        for (let q = 0; q < 들.length; q++) if (!쓸[q] && 표[들[q].cc] < 0) { 표[들[q].cc] = 번들[q] }
         for (const cc of 칸들) if (표[cc] >= 0) 줄[t++] = cc
         while (h < t) {
           const cc = 줄[h++]
@@ -515,6 +552,7 @@ export function 판읽기(모델, k, 판, o = {}) {
             표[dd] = 표[cc]; 줄[t++] = dd
           }
         }
+        void 작은
         return
       }
       const 번 = 새방(들.map((n) => n.s).join('·'), id, { 이름글: 들 })
@@ -536,6 +574,18 @@ export function 판읽기(모델, k, 판, o = {}) {
     for (const cc of 칸들) 표[cc] = 번
   })
 
+  /* 칸이 하나도 없는 실(면적선 없는 이름이 다른 실에 먹힌 것 · 0 ㎡)은 뺌 — 번호 다시 */
+  {
+    const 셈칸 = new Int32Array(방들.length)
+    for (let cc = 0; cc < NN; cc++) if (표[cc] >= 0) 셈칸[표[cc]]++
+    const 새번 = new Int32Array(방들.length).fill(-1)
+    const 남방 = []
+    방들.forEach((R, i) => { if (셈칸[i] * c * c * k * k >= 0.3e6) { 새번[i] = 남방.length; R.번호 = 남방.length; 남방.push(R) } })
+    if (남방.length !== 방들.length) {
+      for (let cc = 0; cc < NN; cc++) if (표[cc] >= 0) 표[cc] = 새번[표[cc]] >= 0 ? 새번[표[cc]] : -1
+      방들.length = 0; 방들.push(...남방)
+    }
+  }
   /* 방마다 칸 수 · 테두리(막은 칸과 닿은 변 — 넓이를 선 가운데까지) · 상자 · 라벨 자리(가장 안쪽 칸) */
   const 범 = 방들.map(() => [NX, NY, -1, -1])
   for (let cc = 0; cc < NN; cc++) {
@@ -661,6 +711,19 @@ export function 판읽기(모델, k, 판, o = {}) {
     }
   }
 
+  /* 현관 · 방풍실 · 주출입구 이름의 실 — 자동문 · 미닫이(열림 호 없음)라 문으로 못 찾은 주 출입구 */
+  for (const R of 방들) {
+    if (!R.이름 || !/방풍|현관|주\s*출입|출입구|ENTR/i.test(R.이름)) continue
+    if (출구들.some((x) => Math.hypot(x.x - R.라벨[0], x.y - R.라벨[1]) < 3000 / k)) continue
+    출구들.push({ 종류: '출입구', 이름: R.이름, 방: R.번호, 방전체: true, x: R.라벨[0], y: R.라벨[1], 켬: true })
+  }
+  /* 바깥으로 난 문이 있는 층(지상 1층)에서는 계단이 출구가 아님 — 처음엔 꺼 둠(목록에서 켤 수 있음) */
+  if (출구들.some((x) => x.종류 === '출입구')) for (const x of 출구들) if (x.종류 === '계단') x.켬 = false
+  /* 가까운 출구(양여닫이 문 두 짝 · 같은 문) 하나로 */
+  for (let i = 0; i < 출구들.length; i++) for (let j = 출구들.length - 1; j > i; j--) {
+    const a = 출구들[i], b = 출구들[j]
+    if (a.종류 === b.종류 && Math.hypot(a.x - b.x, a.y - b.y) < 2500 / k) 출구들.splice(j, 1)
+  }
   return {
     k, 칸: c, x0, y0, NX, NY, 상자: B, 제목: 판.제목, 판번호: 판.번호,
     방들, 외곽, 발넓이, 선들, 문들, 장비들, 출구들,
@@ -780,7 +843,7 @@ class 더미 {          /* 작은 값 먼저 꺼내는 쌓기(이진 힙) */
 function 출구칸들(G, D, 출) {
   const { NX, NY, x0, y0, cp, 막 } = G
   const out = []
-  if (출.방 !== undefined && 출.방 >= 0 && 출.종류 === '계단') {
+  if (출.방 !== undefined && 출.방 >= 0 && (출.종류 === '계단' || 출.방전체)) {
     const 표 = D._.표
     for (let cc = 0; cc < NX * NY; cc++) {
       if (막[cc]) continue
@@ -947,7 +1010,7 @@ export function 길나무(G, 길들, 빼는방 = -1, 먼저칸들 = null) {
 export function 피난길들(G, D, 출구들, 방번호들, 장캐시 = new Map()) {
   const 켠 = 출구들.filter((x) => x.켬 !== false)
   const 장들 = 켠.map((x) => {
-    const 키 = [x.종류, x.방, Math.round(x.x), Math.round(x.y), x.밖x, x.밖y].join('|')
+    const 키 = [x.종류, x.방, x.방전체 ? 1 : 0, Math.round(x.x), Math.round(x.y), x.밖x, x.밖y].join('|')
     let 장 = 장캐시.get(키)
     if (!장) { 장 = 피난장(G, D, x); 장캐시.set(키, 장) }
     return 장

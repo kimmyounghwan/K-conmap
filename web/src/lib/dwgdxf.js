@@ -150,6 +150,7 @@ export function 레이어고치기(dxf, 레이어, 글꼴 = 'utf-8') {
  *  ⑧ 1001 없는 1000번대 칸이 든 XRECORD · ⑨ 보통 도형의 대리 그림(proxy graphics)
  *  ⑩ 닫히지 않은 WIPEOUT·IMAGE 다각형 경계 · ⑪ 구조가 깨진 HATCH · ⑫ 맞춤점 없는 스플라인 경계의 접선 · ⑬ 치수 기울기(52) 자리 · ⑭ 회전 치수의 빠진 회전각(50) · ⑮ 빠진 치수 종류(70)
  *  ⑯ 여러 줄 속성의 반쪽 묶음 · ⑰ 빈 글자 스타일(7) · ⑱ 쪼개진 그림 파일 경로(IMAGEDEF 3+1)
+ *  ⑲ 사전의 «핸들 없는 이름»(3 다음에 350 · 360 없음) · ⑳ 모양(shape) 글꼴 기록의 이름(«SHAPE|REF» — 이름이 있으면 AutoCAD 가 못 엶)
  * @returns {{ bytes: Uint8Array, 뺌: number, 속성: number, 물체: number, 긴글: number, 순서표: number, 수: number, 꼬리: number }}
  */
 export function 다듬기(u) {
@@ -470,7 +471,10 @@ export function 다듬기(u) {
     if (c === 0) { const t = 짧은값(k + 1, 24); 사전 = t === 'DICTIONARY' || t === 'ACDBDICTIONARYWDFLT'; continue }
     if (!사전 || c !== 3) continue
     const c2 = 코드(k + 2)
-    if (c2 !== 350 && c2 !== 360) continue
+    /* ⑲ 2026-10-17 «핸들 없는 이름» — 3 다음에 350·360 이 없음(엔진이 이름만 쓰고 핸들을 빠뜨림).
+          실제 현장 단면도(2010): 한 사전에 «3 이름» 만 수백 줄 → AutoCAD 「DICTIONARY … Handle (group code 350 or 360) expected — 도면이 취소됨」.
+          가리키는 것이 없는 이름이라 빼도 보이는 것은 같습니다. */
+    if (c2 !== 350 && c2 !== 360) { 뺄.push([시작[k], 시작[k + 2]]); 사전뺌++; continue }
     const h = 값글(k + 3)
     if (h && h !== '0' && !있음.has(h)) {
       뺄.push([시작[k], k + 4 < 줄수 ? 시작[k + 4] : u.length])
@@ -498,7 +502,22 @@ export function 다듬기(u) {
     }
     닫기(줄수 - 1)
   }
-  const 결과 = { 뺌: 사전뺌, 속성: 속성뺌, 물체: 물체뺌, 긴글: 긴글뺌, 순서표: 넣기.length, 수: 수고침, 꼬리: 꼬리뺌, 대리: 대리뺌, 기록: 기록뺌, 틀: 틀닫음, 해치: 해치뺌, 접선: 접선뺌, 치수: 치수넣음, 경로: 경로이음 }
+  /* ⑳ 2026-10-17 모양(shape) 글꼴 기록(STYLE 70 & 1)의 이름 — 실제 현장 단면도: 「STYLE 테이블에 오류 — 쉐이프 파일에 대한 문자 스타일 이름이 유효하지 않음:
+        "SHAPE|REF" — 도면이 취소됨」. AutoCAD 는 모양 파일 기록의 이름을 비워 둡니다 → 이름 글자만 지움(줄은 그대로). */
+  let 모양이름 = 0
+  {
+    let 안 = false, 이름줄 = -1, 꼴 = 0
+    const 닫기 = () => { if (안 && 이름줄 >= 0 && (꼴 & 1) && 끝(이름줄) > 시작[이름줄]) { 뺄.push([시작[이름줄], 끝(이름줄)]); 모양이름++ } 안 = false; 이름줄 = -1; 꼴 = 0 }
+    for (let k = 0; k + 1 < 줄수; k += 2) {
+      const c = 코드(k)
+      if (c === 0) { 닫기(); if (짧은값(k + 1, 12) === 'STYLE') 안 = true; continue }
+      if (!안) continue
+      if (c === 2 && 이름줄 < 0) 이름줄 = k + 1
+      else if (c === 70) 꼴 = Number(아스키(u, 시작[k + 1], 끝(k + 1)).trim()) || 0
+    }
+    닫기()
+  }
+  const 결과 = { 모양이름, 뺌: 사전뺌, 속성: 속성뺌, 물체: 물체뺌, 긴글: 긴글뺌, 순서표: 넣기.length, 수: 수고침, 꼬리: 꼬리뺌, 대리: 대리뺌, 기록: 기록뺌, 틀: 틀닫음, 해치: 해치뺌, 접선: 접선뺌, 치수: 치수넣음, 경로: 경로이음 }
   if (!뺄.length && !넣기.length && !바꿈.length) return { bytes: u, ...결과 }
   /* 빼기 [a, b] · 끼우기 [a, a, 바이트] 를 자리 순으로 한 번에 */
   const 모두 = 뺄.concat(넣기, 바꿈).sort((x, y) => x[0] - y[0] || x[1] - y[1])

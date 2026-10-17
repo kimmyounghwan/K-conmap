@@ -80,6 +80,7 @@ const LEAF = {
   '/tools/sigong': '시공계획서 자동 만들기',
   '/tools/jungcheo': '중대재해 안전보건관리체계 한 벌',
   '/tools/colorplan': '컬러 평면도 · 피난 안내도',
+  '/tools/cadfix': '캐드 버전 · 글꼴 고치기',
   '/tools/wonclick': '공사서류 원클릭',
   '/report/make': '성적표 만들기',
   '/report/agency': '발주기관 보고서 만들기',
