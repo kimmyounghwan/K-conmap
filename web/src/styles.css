@@ -7724,3 +7724,47 @@ details.sg-more-sm > summary::before { top: 5px; left: 10px; }
 .opcount-all ol { margin: 0; padding-left: 20px; max-height: 320px; overflow: auto; columns: 2 260px; }
 .opcount-all li { display: flex; justify-content: space-between; gap: 8px; break-inside: avoid; }
 .opcount-sub { display: flex; flex-wrap: wrap; gap: 2px 10px; margin-bottom: 4px; }
+/* ── 🎨 컬러 평면도 · 🚪 피난 안내도 (pages/ColorPlan.jsx · 2026-10-17) ── */
+.cpl-open { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.cpl-open .btn.on { background: var(--accent-soft); border-color: var(--accent); }
+.cpl-empty { font-size: 13.5px; line-height: 1.7; }
+.cpl-sum { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0 0 10px; }
+.cpl-sum > div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; }
+.cpl-sum span { display: block; font-size: 12px; color: var(--muted); }
+.cpl-sum b { font-size: 17px; font-variant-numeric: tabular-nums; }
+.cpl-grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 12px; align-items: start; }
+.cpl-main { min-width: 0; position: sticky; top: 8px; }
+.cpl-side > .card { margin-bottom: 10px; }
+.cpl-view { position: relative; width: 100%; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #eef0f3; }
+.cpl-view canvas { display: block; user-select: none; -webkit-user-select: none; }
+.cpl-zoom { position: absolute; right: 8px; top: 8px; display: flex; flex-direction: column; gap: 4px; z-index: 2; }
+.cpl-zoom button { width: 34px; height: 34px; border-radius: 8px; border: 1px solid #c9ced6; background: rgba(255,255,255,.94); font-size: 17px; font-weight: 800; color: #222; cursor: pointer; }
+.cpl-hint { position: absolute; left: 8px; top: 8px; z-index: 2; background: #111827; color: #fff; font-size: 12.5px; font-weight: 700; padding: 5px 9px; border-radius: 8px; }
+.cpl-dl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.cpl-checks { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; font-size: 13px; }
+.cpl-checks label { display: inline-flex; gap: 4px; align-items: center; cursor: pointer; }
+.cpl-rooms { display: flex; flex-direction: column; gap: 4px; max-height: 520px; overflow: auto; }
+.cpl-room { display: grid; grid-template-columns: minmax(0, 1fr) 104px 34px 92px; gap: 4px 6px; align-items: center; padding: 5px 6px; border: 1px solid transparent; border-radius: 8px; }
+.cpl-room.on { border-color: #e11d48; background: rgba(225, 29, 72, .05); }
+.cpl-room input.nm { padding: 5px 7px; font-size: 13px; min-width: 0; }
+.cpl-room select { padding: 4px 4px; font-size: 12.5px; min-width: 0; }
+.cpl-room input[type=color] { width: 34px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; }
+.cpl-room .ar { grid-column: 1 / 4; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cpl-room .hide { font-size: 12px; color: var(--muted); display: inline-flex; gap: 3px; align-items: center; justify-self: end; }
+.cpl-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.cpl-btns .btn { width: auto; }
+.cpl-btns .btn.on { background: #111827; color: #fff; border-color: #111827; }
+.cpl-exits { list-style: none; margin: 8px 0 0; padding: 0; font-size: 13px; display: flex; flex-direction: column; gap: 3px; }
+.cpl-check { list-style: none; margin: 0; padding: 0; font-size: 12.8px; display: flex; flex-direction: column; gap: 5px; }
+.cpl-check li { display: flex; gap: 6px; align-items: baseline; line-height: 1.45; }
+.cpl-check li > span { flex: none; width: 16px; font-weight: 800; }
+.cpl-check li.g > span { color: var(--good); }
+.cpl-check li.r > span { color: var(--bad); }
+.cpl-check li i { font-style: normal; color: var(--muted); font-size: 11.5px; margin-left: auto; white-space: nowrap; padding-left: 6px; }
+@media (max-width: 980px) { .cpl-grid { grid-template-columns: minmax(0, 1fr); } .cpl-main { position: static; } }
+@media (max-width: 640px) { .cpl-sum { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cpl-room { grid-template-columns: minmax(0, 1fr) 96px 34px; } .cpl-room select[title] { grid-column: 1 / 3; } }
+.cpl-checks input[type=checkbox], .cpl-exits input[type=checkbox], .cpl-room .hide input[type=checkbox] { width: 16px; height: 16px; min-width: 0; margin: 0; padding: 0; flex: none; }
+.cpl-checks label, .cpl-exits label { white-space: nowrap; }
+.cpl-exits label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.cpl-room .hide { white-space: nowrap; }
+@media (min-width: 981px) { .cpl-grid { grid-template-columns: minmax(0, 1fr) 340px; } }
