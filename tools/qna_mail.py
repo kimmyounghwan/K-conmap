@@ -108,6 +108,26 @@ def 답본문(qid, 제목, a):
     ])
 
 
+분야이름 = {"bid": "입찰·계약", "est": "적산·내역", "esc": "ESC(물가변동)", "civil": "토목", "arch": "건축", "elec": "전기·통신·소방", "safe": "안전·품질·노무"}
+공개이름 = {"all": "회사 + 이름", "name": "이름만", "co": "회사만"}
+
+
+def 명패본문(uid, r):
+    """🪪 G320 전문가 명패 신청 — 소장님이 «붙여» 하시면 운영자 브라우저로 붙입니다(명패는 운영자만 붙임 · 규칙)"""
+    return "\n".join([
+        "  ── 🪪 전문가 명패 신청 ──",
+        "  분야 : %s" % 분야이름.get(r.get("f"), r.get("f") or "?"),
+        "  회사 : %s" % (자르기(r.get("co"), 30) or "-"),
+        "  이름 : %s" % (자르기(r.get("nm"), 20) or "-"),
+        "  보일 것 : %s" % 공개이름.get(r.get("sh"), r.get("sh") or "?"),
+        "  소개 : %s" % (자르기(r.get("i"), 40) or "-"),
+        "  별명 : %s  (번호 %s…)" % (r.get("nick") or "익명", str(uid)[:6]),
+        "",
+        "  붙이기 : 맵톡 → 🙋 전문가 방 → «🛠 명패 신청 보기»(소장님 브라우저)",
+        "  %s/qna" % SITE,
+    ])
+
+
 def send(subject, text):
     if not (USER and PASS):
         print("메일 계정이 없습니다 — 보내지 않고 넘어갑니다")
@@ -136,6 +156,10 @@ def main():
     except Exception as e:
         print("맵톡을 읽지 못했습니다: %s" % type(e).__name__)
         return 0
+    try:
+        명패신청 = get("qna_pro_req", tok) or {}     # 🪪 G320 — 못 읽어도 글 · 답글 알림은 그대로
+    except Exception:
+        명패신청 = {}
 
     새것 = []          # (표시열쇠, 언제, 본문)
     for k, q in 글.items():
@@ -158,6 +182,14 @@ def main():
                 continue
             새것.append(("a:" + aid, a.get("at") or 0, 답본문(qid, 제목, a)))
 
+    for uid, r in (명패신청 or {}).items():
+        if not isinstance(r, dict):
+            continue
+        k = "p:%s:%s" % (uid, r.get("at") or 0)       # 고쳐 보내면(시각이 바뀌면) 한 번 더 알림
+        if alrdy(알림, k):
+            continue
+        새것.append((k, r.get("at") or 0, 명패본문(uid, r)))
+
     if not 새것:
         print("새 글·답글 없음 (글 %d건)" % len(글))
         return 0
@@ -167,8 +199,11 @@ def main():
     남은 = len(새것) - len(담을것)
 
     n글 = sum(1 for k, _, _ in 담을것 if k.startswith("q:"))
-    n답 = len(담을것) - n글
+    n명패 = sum(1 for k, _, _ in 담을것 if k.startswith("p:"))
+    n답 = len(담을것) - n글 - n명패
     제목조각 = []
+    if n명패:
+        제목조각.append("🪪 명패 신청 %d" % n명패)
     if n글:
         제목조각.append("새 글 %d" % n글)
     if n답:

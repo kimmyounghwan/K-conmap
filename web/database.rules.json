@@ -267,6 +267,39 @@
         }
       }
     },
+    // 🪪 G320 (2026-10-18) 전문가 명패 — 소장님 「전문가 이름을 넣고 싶거든 … 회사랑 이름」 → 「그 사람만 명패를 붙이는 걸로」 「클로드가 해야지」
+    //    qna_pro_req/{나} 신청: 본인만 쓰고 고치고 거둠(내 번호 — 되찾은 기기는 옛 번호) · 본인 · 운영자만 읽음(승인 전 이름이 남에게 안 보이게) · 운영자는 지우기만
+    //    qna_pro/{나} 명패: 운영자만 붙이고 고침(사칭 막기) · 누구나 읽음 · 본인은 내리기(지우기)만
+    "qna_pro_req": {
+      ".read": "auth != null && auth.uid === 'ZglL1g3X5UZFBA2590LirDnEnil1'",
+      "$who": {
+        ".read": "auth != null && ( $who === auth.uid || $who === root.child('qna_who').child(auth.uid).child('r').val() )",
+        ".write": "auth != null && $who.length <= 40 && ( ( ( root.child('qna_who').child(auth.uid).exists() && $who === root.child('qna_who').child(auth.uid).child('r').val() ) || ( !root.child('qna_who').child(auth.uid).exists() && $who === auth.uid ) ) || ( !newData.exists() && auth.uid === 'ZglL1g3X5UZFBA2590LirDnEnil1' ) )",
+        ".validate": "newData.hasChildren(['f','sh','ok','co','nm','at'])",
+        "f":    { ".validate": "newData.isString() && newData.val().matches(/^(bid|est|esc|civil|arch|elec|safe)$/)" },
+        "sh":   { ".validate": "newData.isString() && newData.val().matches(/^(all|name|co)$/)" },
+        "ok":   { ".validate": "newData.val() === true" },
+        "co":   { ".validate": "newData.isString() && newData.val().length <= 30" },
+        "nm":   { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "i":    { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40" },
+        "nick": { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "at":   { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
+        "$other": { ".validate": false }
+      }
+    },
+    "qna_pro": {
+      ".read": true,
+      "$who": {
+        ".write": "auth != null && $who.length <= 40 && ( auth.uid === 'ZglL1g3X5UZFBA2590LirDnEnil1' || ( !newData.exists() && ( ( root.child('qna_who').child(auth.uid).exists() && $who === root.child('qna_who').child(auth.uid).child('r').val() ) || ( !root.child('qna_who').child(auth.uid).exists() && $who === auth.uid ) ) ) )",
+        ".validate": "newData.hasChildren(['f','at']) && ( newData.child('co').exists() || newData.child('nm').exists() )",
+        "f":    { ".validate": "newData.isString() && newData.val().matches(/^(bid|est|esc|civil|arch|elec|safe)$/)" },
+        "co":   { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 30" },
+        "nm":   { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 20" },
+        "i":    { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40" },
+        "at":   { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
+        "$other": { ".validate": false }
+      }
+    },
     // 👁 2026-10-01 (G95) 조회수 — 소장님 「조회수 알 수 있지? 조회수도 넣어주고」
     //    글마다 숫자 하나(qna_v/{글번호}). **1씩만 올릴 수 있습니다** — 지우기 · 낮추기 · 아무 숫자 넣기는 막힘.
     //    사랑방은 이미 익명 로그인을 하므로 auth != null 로 충분합니다. 없는 글에는 못 붙입니다.

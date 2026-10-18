@@ -7894,6 +7894,58 @@ details.sg-more-sm > summary::before { top: 5px; left: 10px; }
 .mt-place-warn { padding: 6px 10px; border-radius: 10px; background: #fef9c3; color: #854d0e; }
 .mt-xrow b { color: #1d4ed8; }
 .mt-wait li button, .mt-meets li button { line-height: 1.55; }
+/* 🪪 G320 전문가 명패 — 별명 옆 «✅ 적산·내역 · ○○건설 홍길동» · 전문가 방 명단 · 신청 창 · 운영자 목록 */
+.mt-pro { display: inline-flex; align-items: center; max-width: 100%; margin-left: 6px; padding: 0 8px; border-radius: 6px; background: #dcfce7; color: #166534; font-size: 11.5px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; line-height: 1.7; }
+.mt-card-pro { display: flex; min-width: 0; margin: -2px 0 0; }
+.mt-card-pro .mt-pro { margin-left: 0; }
+.mt-who .mt-pro, .mt-ans-h .mt-pro { font-size: 12px; }
+.mt-pros { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: -2px 0 12px; padding: 8px 12px; border-radius: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; font-size: 13px; }
+.mt-pros-h { flex: none; white-space: nowrap; font-weight: 900; color: #166534; margin-right: 2px; }
+.mt-pros-empty { color: var(--text-2); font-size: 12.5px; }
+.mt-pros .mt-pro-btn { flex: none; min-height: 30px; padding: 0 12px; border-radius: 999px; border: 1.5px dashed #16a34a; background: #fff; color: #15803d; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+.mt-pros .mt-pro-btn.op { border-color: #64748b; color: #475569; }
+.mt-pro-card { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 999px; background: #fff; border: 1px solid #86efac; color: #14532d; font-weight: 800; }
+.mt-pro-card em { font-style: normal; font-weight: 600; color: #4b5563; margin-left: 2px; }
+.mt-prosheet .mt-pro-lead { margin: 4px 0 12px; font-size: 13.5px; line-height: 1.7; }
+.mt-pro-form { display: flex; flex-direction: column; gap: 10px; }
+.mt-pro-form > label { display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; font-weight: 800; color: var(--text-2); }
+.mt-pro-form .inp { min-height: 40px; font-size: 15px; }
+.mt-pro-sh { border: 1px solid var(--line, #e5e7eb); border-radius: 10px; padding: 6px 12px 10px; display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.mt-pro-sh legend { font-size: 13px; font-weight: 800; color: var(--text-2); padding: 0 4px; }
+.mt-pro-prev { font-size: 13px; color: var(--text-2); }
+.mt-pro-form > label.mt-chk { flex-direction: row; align-items: flex-start; gap: 8px; line-height: 1.5; }
+.mt-pro-form > label.mt-chk input { margin-top: 2px; }
+.mt-pro-opt { font-style: normal; font-weight: 600; }
+.mt-pro-note { font-size: 12.5px; line-height: 1.7; margin: 2px 0 0; }
+.mt-pro-msg { margin: 10px 0 0; font-weight: 800; font-size: 13.5px; }
+.mt-pro-now, .mt-pro-wait { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 12px; padding: 9px 12px; border-radius: 10px; background: #f0fdf4; border: 1px solid #bbf7d0; font-size: 13.5px; font-weight: 700; }
+.mt-pro-wait { background: #fefce8; border-color: #fde68a; }
+.mt-proadmin { margin: -2px 0 12px; padding: 10px 12px; border-radius: 12px; border: 1.5px dashed #64748b; background: var(--surface); font-size: 13px; }
+.mt-proadmin-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.mt-proadmin-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line, #e5e7eb); }
+.mt-proadmin-act { display: flex; gap: 6px; flex: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .mt-pro { background: rgba(22,163,74,.22); color: #86efac; }
+  :root:not([data-theme='light']) .mt-pros, :root:not([data-theme='light']) .mt-pro-now { background: rgba(22,163,74,.1); border-color: rgba(34,197,94,.35); }
+  :root:not([data-theme='light']) .mt-pros-h { color: #86efac; }
+  :root:not([data-theme='light']) .mt-pro-card { background: transparent; border-color: rgba(34,197,94,.45); color: #bbf7d0; }
+  :root:not([data-theme='light']) .mt-pro-card em { color: #cbd5e1; }
+  :root:not([data-theme='light']) .mt-pro-wait { background: rgba(234,179,8,.12); border-color: rgba(234,179,8,.35); }
+  :root:not([data-theme='light']) .mt-pros .mt-pro-btn { background: transparent; color: #86efac; }
+}
+:root[data-theme='dark'] .mt-pro { background: rgba(22,163,74,.22); color: #86efac; }
+:root[data-theme='dark'] .mt-pros, :root[data-theme='dark'] .mt-pro-now { background: rgba(22,163,74,.1); border-color: rgba(34,197,94,.35); }
+:root[data-theme='dark'] .mt-pros-h { color: #86efac; }
+:root[data-theme='dark'] .mt-pro-card { background: transparent; border-color: rgba(34,197,94,.45); color: #bbf7d0; }
+:root[data-theme='dark'] .mt-pro-card em { color: #cbd5e1; }
+:root[data-theme='dark'] .mt-pro-wait { background: rgba(234,179,8,.12); border-color: rgba(234,179,8,.35); }
+:root[data-theme='dark'] .mt-pros .mt-pro-btn { background: transparent; color: #86efac; }
+@media (max-width: 640px) {
+  .mt-pros { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: -6px -14px 10px; border-radius: 0; border-left: 0; border-right: 0; padding: 8px 14px; }
+  .mt-pro-card { flex: none; }
+  .mt-pros-empty { flex: none; white-space: nowrap; }
+  .mt-proadmin-row { flex-direction: column; }
+}
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .mt-sub.on { background: rgba(15,157,88,.18); color: #6ee7b7; }
   :root:not([data-theme='light']) .mt-ftag { background: rgba(29,78,216,.25); color: #93c5fd; }

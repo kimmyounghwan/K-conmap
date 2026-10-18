@@ -488,3 +488,61 @@ export function 방에드나(r, 방) {
   if (방.startsWith('x:')) return r.분야 === 방.slice(2)
   return true
 }
+
+/* 🪪 G320 (2026-10-18) 전문가 명패 — 소장님 「전문가 이름을 넣고 싶거든. 각 분야 전문가… 회사랑 이름」
+ *   → 「우선은 전문가 데려 오고, 그 사람만 명패를 붙이는 걸로」 「클로드가 해야지」(붙이는 일은 K-건설맵이)
+ *   ■ 신청: qna_pro_req/{나} = {f 분야, co 회사, nm 이름, i 한 줄 소개, sh 공개(all 회사+이름 · name 이름만 · co 회사만), ok 허락, nick, at}
+ *     — 본인만 쓰고 · 본인 · 운영자만 읽음(승인 전 이름이 남에게 안 보이게)
+ *   ■ 명패: qna_pro/{나} = {f, co?, nm?, i?, at} — 운영자만 붙임(사칭 막기) · 누구나 읽음 · 본인은 언제든 내림(지움)
+ *     공개 범위대로 «보일 것만» 옮겨 적음(이름만이면 회사는 명패에 안 들어감)
+ *   ■ 글 · 답글 별명 옆 «✅ 적산·내역 · ○○건설 홍길동» · 전문가 방 위 «🪪 이 분야 전문가» 줄 */
+export const 공개들 = [{ k: 'all', 이름: '회사 + 이름' }, { k: 'name', 이름: '이름만' }, { k: 'co', 이름: '회사만' }]
+const 짧게 = (s, n) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim().slice(0, n)
+/** 명패 한 줄 — «✅ 적산·내역 · ○○건설 홍길동» (회사 · 이름 없으면 분야만) */
+export function 명패글(p) {
+  if (!p || !분야이름[p.f]) return ''
+  const 누구 = [p.co, p.nm].map((x) => 짧게(x, 30)).filter(Boolean).join(' ')
+  return `✅ ${분야이름[p.f]}${누구 ? ' · ' + 누구 : ''}`
+}
+/** 신청 검사 — 틀리면 까닭 한 줄 · 맞으면 '' */
+export function 명패검사(x) {
+  if (!x || !분야이름[x.f]) return '분야를 골라 주세요.'
+  const sh = x.sh || 'all'
+  if (!공개들.some((p) => p.k === sh)) return '공개 범위를 골라 주세요.'
+  const co = 짧게(x.co, 99); const nm = 짧게(x.nm, 99)
+  if (sh !== 'name' && !co) return '회사 이름을 적어 주세요.'
+  if (sh !== 'co' && !nm) return '이름을 적어 주세요.'
+  if (co.length > 30) return '회사 이름은 30자까지입니다.'
+  if (nm.length > 20) return '이름은 20자까지입니다.'
+  if (짧게(x.i, 99).length > 40) return '한 줄 소개는 40자까지입니다.'
+  if (x.ok !== true) return '«맵톡에 보이는 데 동의합니다» 에 체크해 주세요.'
+  return ''
+}
+/** 신청 → 데이터베이스에 넣을 신청 값(규칙 칸 그대로) */
+export function 명패신청값(x, nick, at) {
+  const sh = x.sh || 'all'
+  return {
+    f: x.f, sh, ok: true, at,
+    co: 짧게(x.co, 30), nm: 짧게(x.nm, 20),
+    ...(짧게(x.i, 40) ? { i: 짧게(x.i, 40) } : {}),
+    nick: 짧게(nick || '익명', 20),
+  }
+}
+/** 신청 → 붙일 명패(공개 범위대로 보일 것만) */
+export function 명패만들기(req, at) {
+  if (!req || 명패검사(req)) return null
+  const sh = req.sh || 'all'
+  return {
+    f: req.f, at,
+    ...(sh !== 'name' ? { co: 짧게(req.co, 30) } : {}),
+    ...(sh !== 'co' ? { nm: 짧게(req.nm, 20) } : {}),
+    ...(짧게(req.i, 40) ? { i: 짧게(req.i, 40) } : {}),
+  }
+}
+/** 그 분야(없으면 모두) 명패 단 분들 — 붙인 차례 */
+export function 분야전문가(명패들, 분야 = null) {
+  return Object.entries(명패들 || {})
+    .filter(([, p]) => p && 분야이름[p.f] && (!분야 || p.f === 분야))
+    .sort((a, b) => (a[1].at || 0) - (b[1].at || 0))
+    .map(([uid, p]) => ({ uid, ...p }))
+}

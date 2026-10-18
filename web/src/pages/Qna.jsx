@@ -156,7 +156,8 @@ import { use화면상태, use남김 } from '../lib/길기록.js'
 /* 🗺 G147 (2026-10-05) 사랑방 → 맵톡 — 큰 지도 위 글쓰기 · 글 = 핀(시·군) · 방은 저절로(같은 주제 10개) · 사진 한 장 */
 import 맵톡지도 from '../tools/맵톡지도.jsx'
 import { 주제짐작, 글나누기, 제목내용, 자리짐작, 짧은이름, 곳찾기, 카드크기, 물음인가, 한마디인가, 사진줄이기, 사진크기한도, 답나무, 첫줄, 누적셈, 시도차례, 시도별, 곳기억읽기, 곳기억하기,
-  지역방들, 지역방이름, 글지역, 방표, 방색, 분야들, 분야이름, 분야짐작, 글분야, 모임, 모임날글, 이번주모임, 모임지남, 분야배지, 답기다리는질문, 방고름풀기, 방에드나, 공지인가, 시도지역방 } from '../lib/맵톡.js'   /* 🗺 G316 방 셋 · 공지 · 모임 */
+  지역방들, 지역방이름, 글지역, 방표, 방색, 분야들, 분야이름, 분야짐작, 글분야, 모임, 모임날글, 이번주모임, 모임지남, 분야배지, 답기다리는질문, 방고름풀기, 방에드나, 공지인가, 시도지역방,
+  공개들, 명패글, 명패검사, 명패신청값, 명패만들기, 분야전문가 } from '../lib/맵톡.js'   /* 🗺 G316 방 셋 · 공지 · 모임 · 🪪 G320 명패 */
 import { 세기 } from '../lib/받은수.jsx'
 import { 받는꼴, 파일검사, 압축검사, 확장자, 파일올리기, 크기글, 오늘올린수, 올린수더하기, 하루한도 } from '../lib/파일올리기.js'   /* 📎 G158 · 🗜 G196 압축검사 */
 
@@ -280,6 +281,9 @@ export default function Qna() {
   const [답좋아요, set답좋아요] = useState({})
   const [왕들, set왕들] = useState({})
   const [참석, set참석] = useState({})   /* 📅 G316 모임 참석 {글번호: {나: true}} — qna_go */
+  const [명패, set명패] = useState({})   /* 🪪 G320 전문가 명패 {번호: {f, co, nm, i, at}} — qna_pro(운영자만 붙임 · 누구나 읽음) */
+  const [명패창, set명패창] = useState(false)   /* 🪪 명패 신청 창 */
+  const [명패관리, set명패관리] = useState(false)   /* 🪪 운영자 — 신청 목록 */
   /* 📖 공지 — 처음 온 기기 · 바뀐 판에서만 펼친 채로 */
   const [공지열림, set공지열림] = useState(() => { try { return localStorage.getItem(공지열쇠) !== 공지판 } catch (e) { return true } })
   const [공지탭, set공지탭] = useState('활용')
@@ -386,6 +390,7 @@ export default function Qna() {
         듣기(ref(db, 'qna_a'), (v) => setAns(v || {}))
         듣기(ref(db, 'qna_del'), (v) => setDel(v || {}))
         듣기(ref(db, 'qna_top'), (v) => set고정(v || {}))
+        듣기(ref(db, 'qna_pro'), (v) => set명패(v || {}))   /* 🪪 G320 명패 — 붙이면 열어 둔 화면에도 바로 */
       } catch (e) { /* 듣기를 못 걸어도 ③으로 다시 읽음 */ }
     })()
     const 돌아옴 = () => { if (document.visibilityState === 'visible' && Date.now() - 마지막 > 60000) 다시() }
@@ -548,6 +553,10 @@ export default function Qna() {
     const [, 표] = 계급(점수[uid] || 0)
     return 표 ? 표 + ' ' : ''
   }
+  /* 🪪 G320 명패 — 별명 옆 «✅ 적산·내역 · ○○건설 홍길동» (운영자 글 · 명패 없는 분은 없음) */
+  const 명패표 = (uid) => <명패칸 p={uid && !isOp(uid) ? 명패[uid] : null} />
+  const 이분야 = 방고름.startsWith('x:') ? 방고름.slice(2) : null
+  const 명단 = useMemo(() => 분야전문가(명패, 이분야), [명패, 이분야])
   const n좋아요 = (id) => Object.keys(좋아요[id] || {}).length
   /* 👍 누르기·빼기 — 먼저 화면에 반영하고, 서버가 막으면 되돌립니다 */
   const 좋아요누름 = async (경로, 켬) => {
@@ -835,6 +844,8 @@ export default function Qna() {
             </span>
           )}
         </button>
+        {/* 🪪 G320 명패 — 카드는 좁아 별명 줄에 두면 잘림 → 제목 아래 한 줄 */}
+        {명패[r.uid] && !isOp(r.uid) && <div className="mt-card-pro">{명패표(r.uid)}</div>}
         <div className="mt-foot">
           {/* 숫자만 — 누르면 글이 열리고, 공감 · 답글은 그 안에서 */}
           <button type="button" className={'mt-act mt-cnt mt-heart' + (하트눌림(r.id) ? ' on' : '')} onClick={() => 카드하트(r)} aria-pressed={하트눌림(r.id)}
@@ -949,6 +960,20 @@ export default function Qna() {
             <span className="mt-sub-note">공감 받은 답이 5개를 넘으면 별명 옆에 «🏅 분야»</span>
           </nav>
         )}
+        {/* 🪪 G320 명패 — 전문가 방 위 한 줄: 제목 · 신청 단추(누구나 · 붙이는 건 K-건설맵) · 운영자 신청 목록 · 명패 단 분들(분야 방이면 그 분야만)
+            폰은 이 줄이 옆으로 밀리므로 단추를 앞에 둠(명단이 길어도 신청 단추는 늘 보이게) */}
+        {(방고름 === 'x' || 방고름.startsWith('x:')) && !onlyMine && (
+          <div className="mt-pros" aria-label="명패를 단 전문가">
+            <span className="mt-pros-h">🪪 {이분야 ? 분야이름[이분야] + ' ' : ''}전문가</span>
+            <button type="button" className="mt-pro-btn" onClick={() => { set명패창(true); 세기('|맵톡|명패신청열기') }}>명패 신청</button>
+            {나운영자 && <button type="button" className="mt-pro-btn op" onClick={() => set명패관리((v) => !v)}>🛠 명패 신청 보기</button>}
+            {명단.length
+              ? 명단.map((p) => <span key={p.uid} className="mt-pro-card" title={p.i || ''}>{명패글(p)}{p.i ? <em> — {p.i}</em> : null}</span>)
+              : <span className="mt-pros-empty">분야 전문가께서 신청하시면 별명 옆에 «✅ 분야 · 회사 · 이름» 을 달아 드립니다.</span>}
+          </div>
+        )}
+        {나운영자 && 명패관리 && (방고름 === 'x' || 방고름.startsWith('x:')) && <명패관리판 명패={명패} 닫기={() => set명패관리(false)} />}
+        {명패창 && <명패신청창 나={나} 명패={명패} 닫기={() => set명패창(false)} />}
 
         {/* 📢 G316 공지 상자 — 모든 방 맨 위에 늘(소장님 「맵톡 공지는 항상 제일 위에」 「공지가 계속 쌓이게 해야 해. 위쪽에」 → 고르심 «① 한 상자»)
             첫 줄 = 📖 안내(쓰는 법 · 보상 · 운영진 — 처음 온 기기 · 바뀐 판에서만 펼친 채로) · 그 아래 최근 공지 둘 · «공지 N개 모두 보기» = 그 자리에서 전부 펼침
@@ -983,6 +1008,7 @@ export default function Qna() {
               <li><b>🗺 맵톡 — 그냥 쓰세요.</b> 질문 · 현장 이야기 · 공동도급 구성원 구하기 · 구인·구직 · 건의 · 후기, 무엇이든 한 칸에 씁니다.
                 글을 올리면 <b>내 시·군에 핀</b>이 꽂히고 그 <b>📍 지역방</b>(서울 · 경기·인천 · 강원 · 충청 · 전라 · 경상 · 제주)에 모입니다 — 어떤 이야기든. 지역은 처음 한 번 고르면 기억합니다(안 고르면 접속한 곳으로 짐작 — 통신사에 따라 다른 곳으로 잡힐 수 있습니다). 지역 없이 쓰면 <b>💬 자유</b>.</li>
               <li><b>🙋 전문가 방</b> — 묻는 글은 «전문가 방에도» 를 켜면 분야(입찰·계약 · 적산·내역 · ESC(물가변동) · 토목 · 건축 · 전기·통신·소방 · 안전·품질·노무)에도 올라갑니다. 공감 받은 답이 5개를 넘으면 별명 옆에 <b>«🏅 분야»</b>.</li>
+              <li><b>🪪 전문가 명패</b> — 🙋 전문가 방의 <b>«🪪 전문가 명패 신청»</b> 에 분야 · 회사 · 이름을 적어 주시면, K-건설맵이 확인한 뒤 별명 옆에 <b>«✅ 분야 · 회사 · 이름»</b> 을 붙여 드립니다. 보이는 것은 고르신 것(회사 + 이름 · 이름만 · 회사만)뿐이고, 언제든 내리실 수 있습니다.</li>
               <li><b>📅 모임 글</b> — «모임 글» 을 켜고 날짜 · 장소를 적으면 오른쪽 <b>«이번 주 모임»</b> 에 뜹니다. 가실 분은 글을 열고 <b>«🙋 참석»</b>.</li>
               <li><b>📷 사진도 올릴 수 있습니다</b>(한 장 · 크게 찍은 사진은 줄여서 올립니다). 남의 얼굴 · 이름 · 전화번호가 보이는 사진은 올리지 마세요.</li>
               {/* 🩹 G196 소장님 「이상한 파일 이면...이런 거 말고, 그냥, 파일 올릴 수 있다. 이렇게 해줘」 — 막는 것 · 주의 글은 뺌(고를 때 안 되는 것은 그 자리에서 알림) */}
@@ -1146,9 +1172,9 @@ export default function Qna() {
                   <span className="mt-date">· {날시(창글.at, { 해: true, 요: true })} · {언제(창글.at)}{창글.e ? ' · 고침' : ''}</span>
                 </div>
                 <h2 className="mt-full">{가림(창글.t)}</h2>
-                <div className="mt-who">{배지(창글.uid)}{창글.nick || '익명'}{내것.has(창글.id) ? ' · 내 글' : ''}{창글.sb && 나운영자 ? ' · 🙈 몰래 차단' : ''}</div>
+                <div className="mt-who">{배지(창글.uid)}{창글.nick || '익명'}{내것.has(창글.id) ? ' · 내 글' : ''}{창글.sb && 나운영자 ? ' · 🙈 몰래 차단' : ''}{명패표(창글.uid)}</div>
                 {창글.p && <a href={창글.p} target="_blank" rel="noopener noreferrer"><img className="mt-bigphoto" src={창글.p} alt="올린 사진" /></a>}
-                <Detail row={창글} ans={ans[창글.id] || {}} mine={내것.has(창글.id)} 나운영자={나운영자} 분야뱃={분야뱃} 참석={참석[창글.id] || {}} 참석누름={참석누름}
+                <Detail row={창글} ans={ans[창글.id] || {}} mine={내것.has(창글.id)} 나운영자={나운영자} 분야뱃={분야뱃} 명패={명패} 참석={참석[창글.id] || {}} 참석누름={참석누름}
                   고정됨={!!고정[창글.id]} 나={나} 배지={배지} 조회수={조회[창글.id] || 0} 지도바탕={지도바탕}
                   좋아요={좋아요[창글.id] || {}} 답좋아요={답좋아요[창글.id] || {}} 좋아요누름={좋아요누름}
                   바로답={답하러 === 창글.id} 바로답끝={() => set답하러(null)}
@@ -1207,7 +1233,7 @@ function 왕정하기({ 모두, ans, 좋아요, 답좋아요, 왕들, onDone }) 
 }
 
 /* ── 질문 펼침 — 본문 + 답변들 + 답변 쓰기 ──────────────────────── */
-function Detail({ row, ans, mine, onChange, 나운영자, 안내 = false, 분야뱃 = {}, 참석 = {}, 참석누름 = null, 고정됨, 나, 배지 = () => '', 좋아요 = {}, 답좋아요 = {}, 좋아요누름, 조회수 = 0, 지도바탕 = null, 바로답 = false, 바로답끝 = () => {} }) {
+function Detail({ row, ans, mine, onChange, 나운영자, 안내 = false, 분야뱃 = {}, 명패 = {}, 참석 = {}, 참석누름 = null, 고정됨, 나, 배지 = () => '', 좋아요 = {}, 답좋아요 = {}, 좋아요누름, 조회수 = 0, 지도바탕 = null, 바로답 = false, 바로답끝 = () => {} }) {
   const [pin, setPin] = useState('')
   const [msg, setMsg] = useState('')
   /* ✏️ 고치기 · 🔑 되찾기 — 2026-09-27 */
@@ -1392,6 +1418,7 @@ function Detail({ row, ans, mine, onChange, 나운영자, 안내 = false, 분야
           {a.op
             ? <b style={{ color: 'var(--accent, #1a56db)' }}>K-건설맵</b>
             : <b>{배지(a.uid)}{a.nick || '익명'}{a.sb && 나운영자 ? ' · 🙈 몰래 차단' : ''}</b>}
+          {!a.op && <명패칸 p={명패[a.uid]} />}
           {분야상 && <span className="mt-fbadge" title={`${분야이름[row.분야]} 질문에 공감 받은 답이 많은 분`}>🏅 {분야이름[row.분야]}</span>}
           <span className="muted"> · {날시(a.at, { 요: true })}</span>
         </div>
@@ -2098,3 +2125,188 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
       「이 브라우저 번호 · …」 가 그대로 나옵니다(Admin.jsx).
       폰으로 k-conmap.com/admin 한 번 열면 끝입니다. 두 곳에 둘 이유가 없었습니다.
    📌 «나한테 필요한 것» 을 «모두가 보는 자리» 에 두지 않습니다. */
+
+/* 🪪 G320 (2026-10-18) 전문가 명패 — 소장님 「전문가 이름을 넣고 싶거든. 각 분야 전문가… 회사랑 이름」
+   → 「우선은 전문가 데려 오고, 그 사람만 명패를 붙이는 걸로」 「클로드가 해야지」(붙이는 일은 K-건설맵 · 운영자 브라우저)
+   ■ 신청(누구나 · 이 창): qna_pro_req/{나} — 본인 · 운영자만 읽음. 신청이 오면 소장님 메일(tools/qna_mail.py «🪪 명패 신청»)
+   ■ 명패(운영자만 붙임 · 규칙이 막음): qna_pro/{나} — 고른 공개 범위대로 보일 것만. 본인은 언제든 «명패 내리기»
+   ■ 쓴 횟수(소장님만): |맵톡|명패신청열기 · 명패신청 · 명패거둠 · 명패내림 */
+function 명패칸({ p }) {
+  const 글 = 명패글(p)
+  if (!글) return null
+  return <span className="mt-pro" title={p.i ? `${글} — ${p.i}` : 글}>{글}</span>
+}
+
+function 명패신청창({ 나, 명패, 닫기 }) {
+  const [뿌리, set뿌리] = useState(나)
+  const [신청, set신청] = useState(undefined)      // undefined = 읽는 중 · null = 없음
+  const [x, setX] = useState({ f: '', co: '', nm: '', i: '', sh: 'all', ok: false })
+  const [말, set말] = useState('')
+  const [바쁨, set바쁨] = useState(false)
+  const 상자 = useRef(null)
+  useEffect(() => {
+    let 살 = true
+    ;(async () => {
+      try {
+        const me = 나 || (await 뿌리찾기())
+        if (!살) return
+        set뿌리(me)
+        const { ref, get, db } = await loadFb()
+        const v = (await get(ref(db, `qna_pro_req/${me.r}`))).val()
+        if (!살) return
+        set신청(v || null)
+        if (v) setX({ f: v.f || '', co: v.co || '', nm: v.nm || '', i: v.i || '', sh: v.sh || 'all', ok: false })
+      } catch (e) { if (살) set신청(null) }
+    })()
+    const 키 = (e) => { if (e.key === 'Escape') 닫기() }
+    window.addEventListener('keydown', 키)
+    try { 상자.current && 상자.current.focus({ preventScroll: true }) } catch (e) { /* 옛 브라우저 */ }
+    return () => { 살 = false; window.removeEventListener('keydown', 키) }
+  }, [])   // eslint-disable-line react-hooks/exhaustive-deps
+  const 내명패 = 뿌리 ? 명패[뿌리.r] : null
+  const 바꿈 = (k) => (e) => setX((o) => ({ ...o, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
+  const 보낼 = async () => {
+    const 틀 = 명패검사(x)
+    if (틀) { set말('❗ ' + 틀); return }
+    set바쁨(true); set말('')
+    try {
+      const { ref, set, db, ensureAnon } = await loadFb()
+      await ensureAnon()
+      const me = 뿌리 || (await 뿌리찾기())
+      const 값 = 명패신청값(x, nickOf(me.r), Date.now())
+      await set(ref(db, `qna_pro_req/${me.r}`), 값)
+      set신청(값); set말('✅ 신청했습니다 — K-건설맵이 확인한 뒤 명패를 붙여 드립니다(보통 하루 안).')
+      세기('|맵톡|명패신청')
+    } catch (e) { set말('❗ 신청하지 못했습니다. 잠시 뒤 다시 해 주세요.') }
+    set바쁨(false)
+  }
+  const 거두기 = async () => {
+    set바쁨(true)
+    try {
+      const { ref, set, db } = await loadFb()
+      await set(ref(db, `qna_pro_req/${뿌리.r}`), null)
+      set신청(null); set말('신청을 거두었습니다.'); 세기('|맵톡|명패거둠')
+    } catch (e) { set말('❗ 거두지 못했습니다. 잠시 뒤 다시 해 주세요.') }
+    set바쁨(false)
+  }
+  const 내리기 = async () => {
+    set바쁨(true)
+    try {
+      const { ref, set, db } = await loadFb()
+      await set(ref(db, `qna_pro/${뿌리.r}`), null)
+      set말('명패를 내렸습니다 — 이제 별명만 보입니다.'); 세기('|맵톡|명패내림')
+    } catch (e) { set말('❗ 내리지 못했습니다. 잠시 뒤 다시 해 주세요.') }
+    set바쁨(false)
+  }
+  const 미리 = 명패글({ f: x.f, co: x.sh !== 'name' ? x.co : '', nm: x.sh !== 'co' ? x.nm : '' })
+  return (
+    <>
+      <button type="button" className="mt-back" onClick={닫기} aria-label="닫기" />
+      <div className="mt-sheet mt-prosheet" role="dialog" aria-modal="true" aria-label="전문가 명패 신청" tabIndex={-1} ref={상자}>
+        <span className="mt-grab" />
+        <button type="button" className="mt-x" onClick={닫기} aria-label="닫기">✕</button>
+        <h2 className="mt-full">🪪 전문가 명패 신청</h2>
+        <p className="muted mt-pro-lead">분야 · 회사 · 이름을 적어 주시면 <b>K-건설맵이 확인한 뒤</b> 내 별명 옆에 명패를 붙여 드립니다. 글 · 답글마다 저절로 보입니다.</p>
+        {내명패 && (
+          <div className="mt-pro-now">
+            <div>지금 내 명패 <명패칸 p={내명패} /></div>
+            <button type="button" className="btn sm line" disabled={바쁨} onClick={내리기}>명패 내리기</button>
+          </div>
+        )}
+        {신청 && (
+          <div className="mt-pro-wait">⏳ 신청해 두셨습니다 — {명패글({ f: 신청.f, co: 신청.sh !== 'name' ? 신청.co : '', nm: 신청.sh !== 'co' ? 신청.nm : '' })}
+            <button type="button" className="linkbtn" disabled={바쁨} onClick={거두기}>신청 거두기</button></div>
+        )}
+        {신청 === undefined ? <p className="muted">읽는 중…</p> : (
+          <div className="mt-pro-form">
+            <label>분야
+              <select className="inp" value={x.f} onChange={바꿈('f')}>
+                <option value="">— 고르기 —</option>
+                {분야들.map((f) => <option key={f.k} value={f.k}>{f.이름}</option>)}
+              </select>
+            </label>
+            <label>회사 <input className="inp" maxLength={30} value={x.co} onChange={바꿈('co')} placeholder="예: ○○건설" /></label>
+            <label>이름 <input className="inp" maxLength={20} value={x.nm} onChange={바꿈('nm')} placeholder="예: 홍길동 (직함은 소개에)" /></label>
+            <label><span>한 줄 소개 <em className="muted mt-pro-opt">(없어도 됩니다)</em></span><input className="inp" maxLength={40} value={x.i} onChange={바꿈('i')} placeholder="예: 공공 토목 적산 15년" /></label>
+            <fieldset className="mt-pro-sh">
+              <legend>맵톡에 보일 것</legend>
+              {공개들.map((p) => (
+                <label key={p.k} className="mt-chk"><input type="radio" name="mt-pro-sh" value={p.k} checked={x.sh === p.k} onChange={바꿈('sh')} />{p.이름}</label>
+              ))}
+            </fieldset>
+            {미리 && <div className="mt-pro-prev">이렇게 보입니다: <span className="mt-pro">{미리}</span></div>}
+            <label className="mt-chk mt-pro-ok"><input type="checkbox" checked={x.ok} onChange={바꿈('ok')} />위 회사 · 이름이 맵톡에 보이는 데 동의합니다 (언제든 내릴 수 있습니다)</label>
+            <button type="button" className="btn" disabled={바쁨} onClick={보낼}>{신청 ? '신청 고쳐 보내기' : '신청하기'}</button>
+            {말 && <p className="mt-pro-msg" role="status">{말}</p>}
+            <p className="muted mt-pro-note">· 폰과 PC 를 따로 쓰시면 각각 신청해 주세요(같은 명패로 붙여 드립니다). «🔑 내 글 되찾기» 로 이어 두셨으면 한 번이면 됩니다.<br />· 신청 내용은 K-건설맵만 봅니다. 명패에는 고르신 것만 들어갑니다.</p>
+          </div>
+        )}
+        {말 && 신청 === undefined && <p className="mt-pro-msg" role="status">{말}</p>}
+      </div>
+    </>
+  )
+}
+
+function 명패관리판({ 명패, 닫기 }) {
+  const [목록, set목록] = useState(null)
+  const [말, set말] = useState('')
+  const 읽기 = async () => {
+    try {
+      const { ref, get, db, ensureAnon } = await loadFb()
+      await ensureAnon()
+      set목록((await get(ref(db, 'qna_pro_req'))).val() || {})
+    } catch (e) { set목록({}); set말('❗ 신청 목록을 읽지 못했습니다(운영자 브라우저만 읽습니다).') }
+  }
+  useEffect(() => { 읽기() }, [])   // eslint-disable-line react-hooks/exhaustive-deps
+  const 붙이기 = async (uid, req) => {
+    const p = 명패만들기(req, Date.now())
+    if (!p) { set말('❗ 신청 내용이 모자랍니다 — 붙이지 않았습니다.'); return }
+    try {
+      const { ref, set, db } = await loadFb()
+      await set(ref(db, `qna_pro/${uid}`), p)
+      await set(ref(db, `qna_pro_req/${uid}`), null)
+      set말(`✅ 붙였습니다 — ${명패글(p)}`); 읽기()
+    } catch (e) { set말('❗ 붙이지 못했습니다.') }
+  }
+  const 거절 = async (uid) => {
+    try {
+      const { ref, set, db } = await loadFb()
+      await set(ref(db, `qna_pro_req/${uid}`), null)
+      set말('신청을 지웠습니다.'); 읽기()
+    } catch (e) { set말('❗ 지우지 못했습니다.') }
+  }
+  const 내리기 = async (uid) => {
+    try {
+      const { ref, set, db } = await loadFb()
+      await set(ref(db, `qna_pro/${uid}`), null)
+      set말('명패를 내렸습니다.')
+    } catch (e) { set말('❗ 내리지 못했습니다.') }
+  }
+  const 신청들 = Object.entries(목록 || {}).sort((a, b) => (b[1].at || 0) - (a[1].at || 0))
+  const 붙은 = 분야전문가(명패)
+  return (
+    <div className="mt-proadmin">
+      <div className="mt-proadmin-h"><b>🛠 명패 신청 {신청들.length}건</b> <button type="button" className="linkbtn" onClick={닫기}>닫기</button></div>
+      {목록 === null && <p className="muted">읽는 중…</p>}
+      {신청들.map(([uid, r]) => (
+        <div key={uid} className="mt-proadmin-row">
+          <div><b>{명패글({ f: r.f, co: r.co, nm: r.nm })}</b> <span className="muted">· 보일 것 {(공개들.find((p) => p.k === r.sh) || {}).이름} · {r.nick} · {uid.slice(0, 6)}… · {new Date(r.at || 0).toLocaleString('ko-KR')}</span>
+            {r.i && <div className="muted">소개: {r.i}</div>}
+            <div className="muted">붙이면: {명패글(명패만들기(r, 0)) || '—'}</div></div>
+          <div className="mt-proadmin-act">
+            <button type="button" className="btn sm" onClick={() => 붙이기(uid, r)}>붙이기</button>
+            <button type="button" className="btn sm line" onClick={() => 거절(uid)}>지우기</button>
+          </div>
+        </div>
+      ))}
+      {붙은.length > 0 && <div className="mt-proadmin-h" style={{ marginTop: 8 }}><b>붙은 명패 {붙은.length}</b></div>}
+      {붙은.map((p) => (
+        <div key={p.uid} className="mt-proadmin-row">
+          <div><명패칸 p={p} /> <span className="muted">· {p.uid.slice(0, 6)}…</span></div>
+          <div className="mt-proadmin-act"><button type="button" className="btn sm line" onClick={() => 내리기(p.uid)}>내리기</button></div>
+        </div>
+      ))}
+      {말 && <p className="mt-pro-msg" role="status">{말}</p>}
+    </div>
+  )
+}
