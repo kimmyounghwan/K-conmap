@@ -352,3 +352,139 @@ export function 곳기억읽기(바탕, 저장 = typeof localStorage !== 'undefi
 export function 곳기억하기(k, 저장 = typeof localStorage !== 'undefined' ? localStorage : null) {
   try { if (저장) { if (k) 저장.setItem(곳기억열쇠, String(k)); else 저장.removeItem(곳기억열쇠) } return true } catch (e) { return false }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   🗺 G316 (2026-10-18) 맵톡 방 셋 — 💬 자유 · 📍 지역방 7 · 🙋 전문가 방(분야 7) · 📌 공지 늘 맨 위 · 📅 모임 글
+   소장님: 「자유, 지역별 방, 전문가 방 이렇게만」 「서울이면 어떤 내용이든 그 방으로 … 그래야 자기들끼리 모임을 하든 토론을 하든」
+           「전문가 방에 esc가 없다. 넣어줘」 「맵톡 공지는 항상 제일 위에」 「복잡하지 않게 최대한 간편하면서 편하게」
+           고르심: 기존 글 = «접속 위치로 지역방» · 모임 글 = «이번에 같이» · 「(모임 날짜 · 장소 · 참석은) 쓰는 사람이 하는 거」
+   ■ 지역 = 글의 핀(g · 시·군 곳 번호 — 글 쓸 때 고르거나 접속 위치로 짐작 · 고치기에서 바꿈) → 시·도 → 지역방. 핀이 없으면 자유.
+   ■ 분야(x) = 글쓴이가 «🙋 전문가 방에도» 에서 고른 것('-' = 안 올림). x 가 없는 옛 글은 물음 글이면 낱말로 짐작.
+   ■ 모임(m) = {d 날짜, h 시각, w 장소} — 글쓴이가 적음. 참석은 읽는 사람이 누름(qna_go/{글}/{나} = true).
+   ══════════════════════════════════════════════════════════════ */
+export const 지역방들 = [
+  { k: 'seoul', 이름: '서울', 시도: ['서울'] },
+  { k: 'gyeonggi', 이름: '경기·인천', 시도: ['경기', '인천'] },
+  { k: 'gangwon', 이름: '강원', 시도: ['강원'] },
+  { k: 'chungcheong', 이름: '충청', 시도: ['충북', '충남', '대전', '세종'] },
+  { k: 'jeolla', 이름: '전라', 시도: ['전북', '전남', '광주'] },
+  { k: 'gyeongsang', 이름: '경상', 시도: ['경북', '경남', '부산', '대구', '울산'] },
+  { k: 'jeju', 이름: '제주', 시도: ['제주'] },
+]
+const 시도방 = Object.fromEntries(지역방들.flatMap((x) => x.시도.map((d) => [d, x.k])))
+export const 지역방이름 = Object.fromEntries(지역방들.map((x) => [x.k, x.이름]))
+/** 시·도 줄임(서울 · 전남 …) → 지역방 열쇠 · 모르면 null */
+export const 시도지역방 = (d) => 시도방[d] || null
+/** 글 → 지역방 열쇠 · 핀이 없거나 모르는 곳이면 'free'(자유) · 지도 바탕을 아직 못 받았으면 null */
+export function 글지역(r, 바탕) {
+  if (!r || !r.g) return 'free'
+  if (!바탕) return null
+  const p = 곳찾기(바탕, String(r.g))
+  return (p && 시도지역방(p.d)) || 'free'
+}
+/** 방 열쇠 → 화면 이름 · 색(카드 띠) */
+export const 방색 = { free: '#be185d', 지역: '#0b7a43', 분야: '#1d4ed8' }
+export function 방표(k) {
+  if (k === 'free' || !k) return { 이름: '자유', 색: 방색.free }
+  return { 이름: 지역방이름[k] || '자유', 색: 지역방이름[k] ? 방색.지역 : 방색.free }
+}
+
+export const 분야들 = [
+  { k: 'bid', 이름: '입찰·계약' }, { k: 'est', 이름: '적산·내역' }, { k: 'esc', 이름: 'ESC(물가변동)' },
+  { k: 'civil', 이름: '토목' }, { k: 'arch', 이름: '건축' }, { k: 'elec', 이름: '전기·통신·소방' }, { k: 'safe', 이름: '안전·품질·노무' },
+]
+export const 분야이름 = Object.fromEntries(분야들.map((x) => [x.k, x.이름]))
+/* 위에서부터 — ESC 를 먼저(«조정률» 이 입찰 · 적산 낱말과 겹침), 적산을 입찰보다 먼저(«공내역서 단가» 는 적산) */
+const 분야낱말 = [
+  ['esc', /ESC|에스컬|물가\s*변동|조정\s*률|지수\s*조정|품목\s*조정|물가\s*조정/i],
+  ['est', /적산|내역|단가|일위\s*대가|품셈|수량|물량|산출|견적|설계\s*변경/],
+  ['bid', /입찰|투찰|낙찰|개찰|사정률|적격|공고|하한율|기초\s*금액|예가|공동\s*도급|분담|PQ|계약|수의|시공\s*능력/i],
+  ['elec', /전기|통신|소방|배선|조명|전선|CCTV|수배전|정보\s*통신/i],
+  ['safe', /안전|품질|노무|4대\s*보험|산재|퇴직\s*공제|TBM|위험성|중대\s*재해|보험료|임금|근로|노임/i],
+  ['civil', /토목|도로|교량|터널|배수|하천|관로|포장|옹벽|흙막이|토공|상하수도|측량/],
+  ['arch', /건축|골조|마감|인테리어|방수|조적|창호|타일|도장|리모델링|철골/],
+]
+/** 글 내용 → 분야 열쇠 · 못 찾으면 null */
+export function 분야짐작(글) {
+  const s = String(글 || '')
+  for (const [k, re] of 분야낱말) if (re.test(s)) return k
+  return null
+}
+/** 글 → 분야(전문가 방) — 글쓴이가 고른 x 가 먼저('-' = 안 올림), x 가 없는 옛 글은 물음 글만 낱말로 짐작 · 아니면 null */
+export function 글분야(r) {
+  if (!r) return null
+  if (r.x === '-') return null
+  if (r.x) return 분야이름[r.x] ? r.x : null
+  const s = (r.t || '') + ' ' + (r.b || '')
+  return 물음인가(s) ? 분야짐작(s) : null
+}
+
+/** 모임 글 칸 → {d 'YYYY-MM-DD', h 'HH:MM' 또는 '', w 장소} · 꼴이 틀리면 null */
+export function 모임(r) {
+  const m = r && r.m
+  if (!m || typeof m !== 'object' || !/^\d{4}-\d{2}-\d{2}$/.test(String(m.d || ''))) return null
+  return { d: String(m.d), h: /^\d{2}:\d{2}$/.test(String(m.h || '')) ? String(m.h) : '', w: String(m.w || '').slice(0, 30) }
+}
+const 요일들 = ['일', '월', '화', '수', '목', '금', '토']
+/** '2026-10-24', '19:00' → '10/24(토) 19:00' */
+export function 모임날글(d, h = '') {
+  const [y, m, n] = String(d || '').split('-').map(Number)
+  if (!y || !m || !n) return ''
+  const 요 = 요일들[new Date(Date.UTC(y, m - 1, n)).getUTCDay()]
+  return `${m}/${n}(${요})${h ? ' ' + h : ''}`
+}
+const 한국날짜 = (t) => new Date(t + 9 * 3600000).toISOString().slice(0, 10)
+/** 이번 주 모임 — 오늘(한국)부터 날수(7)일 안 · 날짜 · 시각 차례 · [{r, m}] */
+export function 이번주모임(글들, 지금 = Date.now(), 날수 = 7) {
+  const 첫 = 한국날짜(지금), 끝 = 한국날짜(지금 + (날수 - 1) * 86400000)
+  return (글들 || []).map((r) => ({ r, m: 모임(r) }))
+    .filter((x) => x.m && x.m.d >= 첫 && x.m.d <= 끝)
+    .sort((a, b) => (a.m.d + (a.m.h || '99:99')).localeCompare(b.m.d + (b.m.h || '99:99')))
+}
+/** 모임 날짜가 지났나(한국 오늘보다 앞) */
+export const 모임지남 = (m, 지금 = Date.now()) => !!m && m.d < 한국날짜(지금)
+
+/** 🏅 분야 — 분야 글에 단 답 중 «공감 받은 답» 이 기준(5)개 이상인 분 → {uid: [분야 열쇠 …]} (운영자 답 · 지운 답은 뺌) */
+export function 분야배지(글들, 답들, 답좋아요, 기준 = 5) {
+  const 셈 = {}
+  for (const r of 글들 || []) {
+    const f = 글분야(r)
+    if (!f) continue
+    for (const [aid, a] of Object.entries((답들 || {})[r.id] || {})) {
+      if (!a || a.deleted || a.op || a.sb || !a.uid) continue
+      if (!Object.keys(((답좋아요 || {})[r.id] || {})[aid] || {}).length) continue
+      const m = (셈[a.uid] = 셈[a.uid] || {})
+      m[f] = (m[f] || 0) + 1
+    }
+  }
+  const out = {}
+  for (const [uid, m] of Object.entries(셈)) {
+    const 된 = 분야들.map((x) => x.k).filter((k) => (m[k] || 0) >= 기준)
+    if (된.length) out[uid] = 된
+  }
+  return out
+}
+/** 답 기다리는 질문 — 분야 글 중 살아 있는 답이 없는 것(최근 차례) */
+export function 답기다리는질문(글들, 답들) {
+  return (글들 || []).filter((r) => 글분야(r) && !Object.values((답들 || {})[r.id] || {}).some((a) => a && !a.deleted))
+}
+/** 📢 공지 글 — 운영자가 📌 고정한 글(qna_top) 이거나 말머리가 «K-건설맵»(소식)인 글
+ *  소장님 「공지글은 한 곳에 계속 쌓이게 하자...노출도 시키고, 한 곳에 쌓이게도 하고」 → 맨 위 공지 줄(최근 것) + «📢 공지» 방(전부 쌓임) */
+export const 공지인가 = (r, 고정 = {}) => !!r && (!!(고정 || {})[r.id] || r.c === 'K-건설맵')
+/** 방 고름 값 — 'all' · 'free' · 'r:{지역}' · 'x' · 'x:{분야}' · '공지' · '답기다림'(운영자) · 그 밖은 'all' */
+export function 방고름풀기(v) {
+  const s = String(v || '')
+  if (s === 'all' || s === 'free' || s === 'x' || s === '공지' || s === '답기다림') return s
+  if (s.startsWith('r:') && 지역방이름[s.slice(2)]) return s
+  if (s.startsWith('x:') && 분야이름[s.slice(2)]) return s
+  return 'all'
+}
+/** 글이 그 방에 드나 — 글에 방(지역) · 분야를 붙여 둔 것(r.방 · r.분야)으로 */
+export function 방에드나(r, 방) {
+  if (방 === 'all') return true
+  if (방 === 'free') return r.방 === 'free'
+  if (방.startsWith('r:')) return r.방 === 방.slice(2)
+  if (방 === 'x') return !!r.분야
+  if (방.startsWith('x:')) return r.분야 === 방.slice(2)
+  return true
+}

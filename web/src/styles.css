@@ -2760,6 +2760,11 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
 .noticepop-must { display: block; font-size: 28px; font-weight: 900; color: var(--bad); letter-spacing: -0.02em; line-height: 1.2; }
 .noticepop-sub { display: block; margin-top: 4px; font-size: 18px; font-weight: 800; color: var(--text); }
 .noticebar .noticebar-must { color: var(--bad); font-weight: 900; }
+/* 📢 G318 공지 — 굵게 강조 줄(맵톡 예의) · 묶음 머리 */
+.noticepop-strong { margin: 10px 0 12px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--bad) 8%, var(--surface)); border: 1.5px solid color-mix(in srgb, var(--bad) 35%, transparent); font-size: 16px; line-height: 1.6; }
+.noticepop-strong b { font-weight: 900; color: var(--text); }
+.noticepop-group { margin: 12px 0 4px; font-weight: 900; font-size: 15px; }
+.noticepop-b ul + p, .noticepop-group + ul { margin-top: 2px; }
 @media (max-width: 560px) { .noticepop-must { font-size: 24px; } .noticepop-sub { font-size: 16px; } }
 .noticepop-b { font-size: 14.5px; line-height: 1.75; word-break: keep-all; overflow-wrap: break-word; }
 .noticepop-b p { margin: 0 0 10px; }
@@ -6593,7 +6598,9 @@ span.mt-act { cursor: default; }
   .mt-chip::after { content: '사진'; }
   .mt-chip.mt-file::after { content: '파일'; }
   .mt-opfix-t { display: none; }
-  .mt-opfix::after { content: '📌 고정'; }
+  .mt-opfix::after { content: '📢 공지'; }
+  .mt-chip.mt-xchip::after { content: '전문가'; }
+  .mt-chip.mt-mchip::after { content: '모임'; }
   .mt-pin4 { width: 84px; padding: 0 8px; }
   .mt-send { padding: 0 16px; font-size: 15px; min-height: 46px; }
   .mt-plane { animation-name: mtflyup; }
@@ -7833,3 +7840,85 @@ details.sg-more-sm > summary::before { top: 5px; left: 10px; }
 :root[data-theme="dark"] .cfx-badge.cfx-mid { background: #3a2e12; color: #f5d08a; }
 :root[data-theme="dark"] .cfx-badge.cfx-ok, :root[data-theme="dark"] .cfx-good { background: #12301d; color: #9be3b1; }
 :root[data-theme="dark"] .cfx-bad { color: #f5b25b; }
+
+/* ── 🗺 G316 (2026-10-18) 맵톡 방 셋 — 💬 자유 · 📍 지역방 · 🙋 전문가 방 · 📢 공지(늘 맨 위 · 한 곳에 쌓임) · 📅 모임 ── */
+.mt-rooms2 { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: -4px 0 12px; padding: 9px 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
+.mt-sub { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font: inherit; font-size: 13.5px; font-weight: 700; color: var(--text-2); cursor: pointer; }
+.mt-sub em { font-style: normal; font-weight: 600; color: var(--muted); font-size: 12.5px; }
+.mt-sub:hover { border-color: #0f9d58; color: #0b7a43; }
+.mt-sub.on { background: #e7f6ee; border-color: #0f9d58; color: #0b7a43; }
+.mt-sub.on em { color: #0b7a43; }
+.mt-rooms2[aria-label='전문가 분야'] .mt-sub:hover { border-color: #1d4ed8; color: #1d4ed8; }
+.mt-rooms2[aria-label='전문가 분야'] .mt-sub.on { background: #e8f0ff; border-color: #1d4ed8; color: #1d4ed8; }
+.mt-rooms2[aria-label='전문가 분야'] .mt-sub.on em { color: #1d4ed8; }
+.mt-sub-note { margin-left: auto; font-size: 12.5px; color: var(--muted); }
+.mt-notice { margin: 0 0 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); overflow: hidden; }
+.mt-nrow { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 16px; border-top: 1px solid var(--line); cursor: pointer; font-size: 14.5px; color: var(--text); }
+.mt-nrow:first-child { border-top: 0; }
+.mt-nrow:hover, .mt-nrow:focus-visible { background: var(--surface-2); }
+.mt-nrow b { flex: 1 1 auto; min-width: 0; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mt-nt { flex: none; background: #e11d48; color: #fff; font-size: 12px; font-weight: 800; border-radius: 6px; padding: 1px 8px; }
+.mt-nr { flex: none; margin-left: auto; color: var(--muted); font-size: 12.5px; }
+.mt-nt.g { background: #b45309; }
+.mt-nnew { flex: none; background: #16a34a; color: #fff; font-size: 11px; font-weight: 800; border-radius: 5px; padding: 0 5px; }
+.mt-nhow.on { background: var(--surface-2); }
+.mt-nbody { padding: 4px 16px 14px; border-top: 1px solid var(--line); }
+.mt-nmore { all: unset; box-sizing: border-box; display: block; width: 100%; padding: 9px 16px; border-top: 1px solid var(--line); text-align: center; cursor: pointer; font-size: 13.5px; font-weight: 800; color: #e11d48; }
+.mt-nmore:hover, .mt-nmore:focus-visible { background: var(--surface-2); }
+.mt-ftag { display: inline-flex; align-items: center; flex: none; font-size: 11.5px; font-weight: 800; border-radius: 6px; padding: 0 7px; background: #e8f0ff; color: #1d4ed8; white-space: nowrap; margin-right: 6px; }
+.mt-meta .mt-ftag { margin-right: 0; }
+.mt-meet { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 2px; padding: 6px 10px; border-radius: 10px; background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; font-size: 13px; font-weight: 700; }
+.mt-meet em { font-style: normal; margin-left: auto; color: #c2410c; }
+.mt-meet.past, .mt-meetbox.past { opacity: .6; filter: grayscale(.5); }
+.mt-meetbox { margin: 10px 0 2px; padding: 11px 14px; border-radius: 14px; background: #fff7ed; border: 1px solid #fed7aa; }
+.mt-meetbox-h { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 15px; color: #9a3412; }
+.mt-meetbox-h em { font-style: normal; font-size: 12.5px; }
+.mt-meetbox-b { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 8px; font-size: 13px; color: var(--text-2); }
+.mt-go { min-height: 38px; padding: 0 16px; border-radius: 999px; border: 1.5px solid #ea580c; background: #ea580c; color: #fff; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
+.mt-go.on { background: #fff; color: #ea580c; }
+.mt-go.mine { display: inline-flex; align-items: center; cursor: default; background: transparent; color: #c2410c; border-style: dashed; }
+.mt-go:disabled { opacity: .6; }
+.mt-go-n b { color: #c2410c; }
+.mt-fbadge { display: inline-flex; margin-left: 6px; font-size: 11.5px; font-weight: 800; border-radius: 6px; padding: 0 7px; background: #fef3c7; color: #92400e; }
+.mt-ans.d2 { margin-left: 14px; }
+.mt-meta .mt-tag { flex: none; }
+.mt-meta .mt-tag i { flex: none; }
+.mt-meta .mt-ftag { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.mt-meta .mt-ftag ~ .mt-where { display: none; }   /* 분야 표가 있으면 곳 이름은 뺌(방 이름이 지역을 말함 · 좁은 카드에서 «📍..» 로 잘리지 않게) */
+.mt-chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 700; color: var(--text-2); cursor: pointer; }
+.mt-chk input { width: 17px; height: 17px; min-height: 0; margin: 0; padding: 0; flex: none; }
+.mt-meetedit { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 2px 2px 8px; }
+.mt-meetedit .inp, .mt-meetrow .inp { width: auto; min-height: 34px; padding: 0 9px; font-size: 14px; }
+.mt-meetrow > span:first-child { font-weight: 800; color: #c2410c; }
+.mt-meet-w { flex: 1 1 140px; min-width: 120px; }
+.mt-place-warn { padding: 6px 10px; border-radius: 10px; background: #fef9c3; color: #854d0e; }
+.mt-xrow b { color: #1d4ed8; }
+.mt-wait li button, .mt-meets li button { line-height: 1.55; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .mt-sub.on { background: rgba(15,157,88,.18); color: #6ee7b7; }
+  :root:not([data-theme='light']) .mt-ftag { background: rgba(29,78,216,.25); color: #93c5fd; }
+  :root:not([data-theme='light']) .mt-meet, :root:not([data-theme='light']) .mt-meetbox { background: rgba(234,88,12,.12); border-color: rgba(234,88,12,.4); color: #fdba74; }
+  :root:not([data-theme='light']) .mt-meetbox-h { color: #fdba74; }
+  :root:not([data-theme='light']) .mt-fbadge { background: rgba(245,158,11,.2); color: #fcd34d; }
+  :root:not([data-theme='light']) .mt-place-warn { background: rgba(234,179,8,.15); color: #fde68a; }
+}
+:root[data-theme='dark'] .mt-sub.on { background: rgba(15,157,88,.18); color: #6ee7b7; }
+:root[data-theme='dark'] .mt-ftag { background: rgba(29,78,216,.25); color: #93c5fd; }
+:root[data-theme='dark'] .mt-meet, :root[data-theme='dark'] .mt-meetbox { background: rgba(234,88,12,.12); border-color: rgba(234,88,12,.4); color: #fdba74; }
+:root[data-theme='dark'] .mt-meetbox-h { color: #fdba74; }
+:root[data-theme='dark'] .mt-fbadge { background: rgba(245,158,11,.2); color: #fcd34d; }
+:root[data-theme='dark'] .mt-place-warn { background: rgba(234,179,8,.15); color: #fde68a; }
+@media (max-width: 640px) {
+  .mt-rooms2 { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: -4px -14px 10px; border-radius: 0; border-left: 0; border-right: 0; padding: 8px 14px; }
+  .mt-sub { flex: none; }
+  .mt-sub-note { display: none; }
+  .mt-nrow { padding: 9px 12px; font-size: 13.5px; gap: 8px; align-items: flex-start; }
+  .mt-nrow b { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.45; }
+  .mt-nt, .mt-nnew { margin-top: 1px; }
+  .mt-nr { font-size: 11.5px; white-space: nowrap; margin-top: 2px; }
+  .mt-meetrow .inp { min-height: 36px; font-size: 15px; }
+  .mt-meetrow > span:first-child { flex: 1 1 auto; }
+  .mt-meetrow input[type=date] { flex: 1 1 140px; }
+  .mt-meetrow input[type=time] { flex: 1 1 110px; }
+  .mt-ans.d2 { margin-left: 8px; }
+}

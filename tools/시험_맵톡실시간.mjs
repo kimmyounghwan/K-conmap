@@ -62,8 +62,8 @@ for (const [이름, 크기] of [['PC', { width: 1440, height: 900 }], ['폰', { 
   let 답들어옴 = false
   try { await A.waitForFunction(([제, 앞]) => { const c = [...document.querySelectorAll('.mt-card')].find((e) => e.innerText.includes(제)); const m = c && c.innerText.match(/💬\s*(\d+)/); return m && +m[1] === 앞 + 1 }, ['둘째 글', 앞답], { timeout: 8000 }); 답들어옴 = true } catch (e) { /* */ }
   봄('③ 답글 수가 새로고침 없이 오름', 답들어옴, `(${앞답} → ${await 답수(A, '둘째 글')})`)
-  // ④ 답 기다림 (운영자 화면에서만 보이는 단추라 수는 셈 대신 화면 글에서) — 운영자 답(op)이 달리면 빠지는지: 운영자 단추가 없으면 건너뜀
-  const 기다림 = await A.evaluate(() => { const b = [...document.querySelectorAll('button.mt-room')].find((x) => x.innerText.includes('답 기다림')); return b ? +(b.querySelector('em')?.innerText || -1) : null })
+  // ④ 답 기다림 (⏳ — 운영자 화면에서만 보이는 단추 · G316 «🙋 전문가 방 · 답 기다림 N» 과 헷갈리지 않게 ⏳ 로 찾음 · 수는 셈 대신 화면 글에서) — 운영자 답(op)이 달리면 빠지는지: 운영자 단추가 없으면 건너뜀
+  const 기다림 = await A.evaluate(() => { const b = [...document.querySelectorAll('button.mt-room')].find((x) => x.innerText.includes('⏳ 답 기다림')); return b ? +(b.querySelector('em')?.innerText || -1) : null })
   if (기다림 !== null) 봄('④ 답 기다림 수', 기다림 >= 0, `(${기다림})`)
   // ⑤ 지움
   await B.evaluate((q) => { const d = JSON.parse(localStorage.getItem('mockdb')); d.qna_del = d.qna_del || {}; d.qna_del[q] = { at: Date.now(), by: 'u3' }; localStorage.setItem('mockdb', JSON.stringify(d)) }, 키(3))

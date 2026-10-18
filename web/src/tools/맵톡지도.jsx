@@ -10,7 +10,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { 지도주소, 지도이름표, 지도점들 } from '../lib/이용자지도.js'
-import { 주제들, 짧은이름, 곳찾기 } from '../lib/맵톡.js'
+import { 방표, 방색, 분야이름, 짧은이름, 곳찾기 } from '../lib/맵톡.js'
 
 const 퍼 = (v, 끝) => (v / 끝 * 100).toFixed(2) + '%'
 const 언제 = (ms) => {
@@ -136,7 +136,9 @@ export default function 맵톡지도({ 글들, 새글번호, 열기, 새방, 누
             </svg>
           )}
           {핀.map(({ r, p, x, y, 새 }) => {
-            const t = 주제들[r.주제] || 주제들.talk
+            /* 🗺 G316 핀 색 — 📢 공지 빨강 · 🙋 전문가 방 파랑 · 그 밖은 지역방 초록(핀이 없으면 자유 방이라 핀도 없음) */
+            const 공지 = r.c === 'K-건설맵'
+            const t = 공지 ? { 이름: '공지', 색: '#e11d48' } : r.분야 ? { 이름: '🙋 ' + 분야이름[r.분야], 색: 방색.분야 } : 방표(r.방 || 'free')
             return (
               <button key={r.id} type="button" className={'mt-pin' + (새 ? ' new' : '')} style={{ left: 퍼(x, w), top: 퍼(y, h), color: t.색 }}
                 onClick={() => 열기(r.id, '핀')} aria-label={`${짧은이름(p.n)} · ${t.이름} 글 열기`} title={`${짧은이름(p.n)} · ${r.t || ''}`}>

@@ -33,14 +33,22 @@
  *   → 옛 공지(용역 · 물품)를 빼고 «이용자 필독» 하나로. 판 = '2026-10-필독'(닫은 분에게도 한 번 뜸) · 10월 20일까지(올린 날 포함 8일).
  *   · 맵톡에도 같은 글을 «후기 · 건의» 와 «K-건설맵 소식» 두 방에 올림(운영자 크롬).
  */
+/*
+ * 📢 G318 (2026-10-18) 소장님 「새로운 공지 낼 것 있지 않아..우리가 고쳤거나, 새로 올린것, 요약해서 올리자.
+ *   그리고, (맵톡 예의를 갖추고 사용하자도 함께) 이건 문장은 찐하게 해줘.」
+ *   → 옛 공지(이용자 필독 · 10/20 까지)를 빼고 «새로 넣고 고친 것» 하나로(10/14 ~ 10/18 에 올린 것 요약 + 맵톡 방 셋).
+ *     맨 위 굵은 줄 = «맵톡은 여러 분이 함께 쓰는 곳입니다. 예의를 갖추고 이용해 주세요.» (띠에도 굵게)
+ *   · 판 = '2026-10-새것'(닫은 분에게도 한 번) · 보이는 날 = 올린 날 포함 8일(⚠️ 올리는 날이 바뀌면 «까지» 를 같이 고침).
+ *   · 맵톡에도 같은 글을 📢 공지로 올림(운영자 크롬 · 소장님 «올려» 뒤) — 공지 상자 맨 위에 쌓임.
+ */
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
 import { 로봇 as 로봇글 } from './lib/인사.js'
 import { 세기 } from './lib/받은수.jsx'
 
-const 판 = '2026-10-필독'         /* G284 — 이용자 필독 · G199 '2026-10-용역' · G186 '2026-10-고침2' · G176 '2026-10-고침' */
-const 까지 = '2026-10-20'          /* 이 날까지 보임 — 10/13 올리면 10/13~10/20 (올리는 날이 바뀌면 같이 고침) */
+const 판 = '2026-10-새것'         /* G318 — 새로 넣고 고친 것 · G284 '2026-10-필독' · G199 '2026-10-용역' · G186 '2026-10-고침2' · G176 '2026-10-고침' */
+const 까지 = '2026-10-25'          /* 이 날까지 보임 — 10/18 올리면 10/18~10/25 (올리는 날이 바뀌면 같이 고침) */
 const 열쇠 = 'kcm_notice_hide'      /* 다시 보지 않기(띠 ✕ 도 같음) — localStorage */
 const 본열쇠 = 'kcm_notice_seen'    /* 이번에 한 번 봤음 — sessionStorage(창을 닫으면 그 창 동안은 다시 안 띄움) */
 const 한국오늘 = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)
@@ -82,23 +90,38 @@ function 공지창({ 닫기 }) {
       <div className="noticepop-c" role="dialog" aria-modal="true" aria-labelledby="noticepop-h" tabIndex={-1} ref={상자}>
         <button type="button" className="noticepop-x" aria-label="공지 닫기" onClick={닫기}>✕</button>
         <div className="noticepop-tag">📢 공지</div>
-        <h2 id="noticepop-h" className="noticepop-h"><span className="noticepop-must">📢 이용자 필독</span><span className="noticepop-sub">맵톡 이용 안내 · 새로 올린 3D</span></h2>   {/* G284 소장님 「제목을 강조해줘」 */}
+        <h2 id="noticepop-h" className="noticepop-h"><span className="noticepop-must">📢 새로 넣고 고친 것</span><span className="noticepop-sub">10월 셋째 주 · 맵톡 방 · 새 도구</span></h2>
         <div className="noticepop-b">
-          <p>안녕하세요, K-건설맵입니다.</p>
-          <p><Link to="/qna" onClick={감}>🗺 맵톡</Link>은 누구나 자유롭게 쓰는 곳입니다. 질문, 현장 이야기, 구인 · 구직 등 어떤 말이든 좋습니다. 많이 이용해 주세요.</p>
-          <p>다만 여러 분이 함께 쓰는 곳이니 서로 예의를 지켜 주세요.</p>
+          <p>안녕하세요, K-건설맵입니다. 이번 주에 새로 넣고 고친 것을 알려 드립니다.</p>
+          {/* G318 소장님 「맵톡 예의를 갖추고 사용하자도 함께 · 이건 문장은 찐하게」 */}
+          <p className="noticepop-strong"><b>🗺 맵톡은 여러 분이 함께 쓰는 곳입니다. 예의를 갖추고 이용해 주세요.</b></p>
+          <p className="noticepop-group">🗺 맵톡</p>
           <ul>
-            <li>욕설 · 비방 · 장난 글은 지우고, 이런 글을 올리는 이용자는 차단합니다.</li>
+            <li>방이 셋이 됐습니다 — <b>💬 자유 · 📍 지역방(내 지역 이야기 · 모임) · 🙋 전문가 방(입찰 · 적산 · ESC · 토목 · 건축 · 전기 · 안전)</b></li>
+            <li>📅 모임 글 — 날짜 · 장소를 적으면 «이번 주 모임» 에 뜨고, «🙋 참석» 을 누를 수 있습니다.</li>
+            <li>공지는 늘 맨 위에 쌓입니다. 제목 · 내용 두 칸 쓰기 · 답글 칸 크게 · 답글에도 파일(zip) · 열어 둔 화면에도 새 글이 바로 들어옵니다.</li>
           </ul>
-          <p><b>🧊 새로 올린 3D — <Link to="/jeoksan/bim" onClick={감}>BIM 물량</Link></b><br />
-            캐드 도면을 넣으면 3D로 세우고 콘크리트 · 거푸집 · 철근 물량과 부재 일람표를 바로 냅니다(엑셀 받기 · 바로 이용 가능).</p>
-          <p>캐드 도면은 그리는 방식이 도면마다 달라 경우의 수가 많습니다. 아직 다 맞지 않을 수 있어 계속 고치고 있습니다. 안 맞는 곳은 <Link to="/qna" onClick={감}>맵톡</Link>에 남겨 주시면 반영하겠습니다.</p>
-          <p>늘 찾아 주셔서 감사합니다.</p>
+          <p className="noticepop-group">🆕 새로 올린 도구</p>
+          <ul>
+            <li><Link to="/tools/sajincad" onClick={감}>📷 사진 · 손그림 → 캐드</Link> — 도면 사진 · 손그림을 넣으면 치수까지 캐드(DXF)로</li>
+            <li><Link to="/tools/jungcheo" onClick={감}>🛡 중대재해 안전보건관리체계 한 벌</Link></li>
+            <li><Link to="/tools/colorplan" onClick={감}>🎨 컬러 평면도 · 피난 안내도</Link></li>
+            <li><Link to="/tools/cadfix" onClick={감}>🛠 캐드 버전 · 글꼴 고치기</Link> — 낮은 버전에서 안 열리거나 글자가 깨질 때</li>
+            <li><Link to="/change/gisung" onClick={감}>📋 기성 내역서</Link> — 설계변경 한 벌과 오가며</li>
+            <li><Link to="/tools/sigong" onClick={감}>📑 시공계획서 자동 만들기</Link> — 예시를 먼저 보실 수 있습니다</li>
+          </ul>
+          <p className="noticepop-group">🔧 고친 것</p>
+          <ul>
+            <li><Link to="/jeoksan/bim" onClick={감}>🧊 BIM 물량 · 3D</Link> — 골조 · 마감 3D · 판마다 층 · 지붕 높이 · 일람표 없는 도면 알림</li>
+            <li><Link to="/first" onClick={감}>🏆 1순위</Link> 검색이 맞게 나오도록 고쳤습니다.</li>
+            <li>👁 도구 · 서식마다 조회수가 늘 보입니다.</li>
+          </ul>
+          <p>안 맞는 곳은 <Link to="/qna" onClick={감}>맵톡</Link>에 남겨 주시면 반영하겠습니다. 늘 찾아 주셔서 감사합니다.</p>
           <p className="noticepop-sign">— K-건설맵</p>
         </div>
         <div className="noticepop-f">
           <Link className="btn line sm" to="/qna" onClick={감}>🗺 맵톡 가기</Link>
-          <Link className="btn line sm" to="/jeoksan/bim" onClick={감}>🧊 BIM 물량 해 보기</Link>
+          <Link className="btn line sm" to="/tools/sajincad" onClick={감}>📷 사진 → 캐드 해 보기</Link>
           <button type="button" className="btn sm" onClick={닫기}>닫기</button>
         </div>
       </div>
@@ -120,7 +143,7 @@ export default function 감사공지() {
   return (
     <>
       <div className="noticebar" role="note">
-        <span className="t">📢 <b className="noticebar-must">이용자 필독</b> — 맵톡은 자유롭게, 예의는 지켜 주세요 · 새로 올린 3D(BIM 물량)</span>
+        <span className="t">📢 <b className="noticebar-must">새로 넣고 고친 것</b> — <b>맵톡은 예의를 갖추고 이용해 주세요</b> · 맵톡 방 셋 · 사진→캐드 · 중대재해 한 벌 · 컬러 평면도</span>
         <button type="button" className="go" onClick={() => { 세기('|공지|보기'); set창(true) }}>공지 보기</button>
         {/* 🩹 G284 소장님 「사이트 접속자 모두에게 계속 보이도록 해줘.」 — 띠 ✕ 없앰(20일까지 모든 화면 위에 늘) */}
       </div>

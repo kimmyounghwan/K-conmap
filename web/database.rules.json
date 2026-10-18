@@ -99,6 +99,16 @@
         // 🩹 G211 (2026-10-09) 맵톡 방 — k: 글을 둔 방(방을 골라 둔 채 썼거나 ✏️ 고치기에서 옮김). 없으면 화면이 글 내용으로 짐작.
         //    «K-건설맵 소식»(kcm) 방은 운영자 번호만 (별명 K-건설맵 과 같은 규칙)
         "k":       { ".validate": "newData.isString() && newData.val().matches(/^(kcm|bid|ins|work|safe|equip|job|fb|talk)$/) && ( newData.val() !== 'kcm' || auth.uid === 'ZglL1g3X5UZFBA2590LirDnEnil1' )" },
+        // 🗺 G316 (2026-10-18) 맵톡 방 셋 — x: 🙋 전문가 방 분야(글쓴이가 고름 · '-' = 안 올림). 지역방은 핀(g)으로 정해지므로 칸이 없음.
+        //    m: 📅 모임 {d 날짜 YYYY-MM-DD · h 시각 HH:MM(없어도 됨) · w 장소 30자(없어도 됨)} — 글쓴이가 적음. 참석은 qna_go.
+        "x":       { ".validate": "newData.isString() && newData.val().matches(/^(bid|est|esc|civil|arch|elec|safe|-)$/)" },
+        "m": {
+          ".validate": "newData.hasChildren(['d'])",
+          "d": { ".validate": "newData.isString() && newData.val().matches(/^20[0-9]{2}-[01][0-9]-[0-3][0-9]$/)" },
+          "h": { ".validate": "newData.isString() && newData.val().matches(/^[0-2][0-9]:[0-5][0-9]$/)" },
+          "w": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 30" },
+          "$other": { ".validate": false }
+        },
         "$other":  { ".validate": false }
       }
     },
@@ -246,6 +256,17 @@
         }
       }
     },
+    // 📅 G316 (2026-10-18) 모임 참석 — qna_go/{글}/{나} = true. 공감(qna_like)과 같은 규칙 + 모임 글(m 이 있는 글)에만.
+    //    내 번호(되찾은 기기는 옛 번호)로만 · 내 글에는 못 누름 · 빼기는 지우기(null)
+    "qna_go": {
+      ".read": true,
+      "$id": {
+        "$who": {
+          ".write": "auth != null && ( ( root.child('qna_who').child(auth.uid).exists() && $who === root.child('qna_who').child(auth.uid).child('r').val() ) || ( !root.child('qna_who').child(auth.uid).exists() && $who === auth.uid ) ) && root.child('qna').child($id).child('m').exists() && root.child('qna').child($id).child('uid').val() !== auth.uid && root.child('qna').child($id).child('uid').val() !== root.child('qna_who').child(auth.uid).child('r').val()",
+          ".validate": "newData.val() === true"
+        }
+      }
+    },
     // 👁 2026-10-01 (G95) 조회수 — 소장님 「조회수 알 수 있지? 조회수도 넣어주고」
     //    글마다 숫자 하나(qna_v/{글번호}). **1씩만 올릴 수 있습니다** — 지우기 · 낮추기 · 아무 숫자 넣기는 막힘.
     //    사랑방은 이미 익명 로그인을 하므로 auth != null 로 충분합니다. 없는 글에는 못 붙입니다.
@@ -254,7 +275,8 @@
     "qna_v": {
       ".read": true,
       "$id": {
-        ".write": "auth != null && newData.exists() && root.child('qna').child($id).exists()",
+        // 📖 G316 맵톡 맨 위 안내(쓰는 법 · 보상 · 운영진)는 글이 아니지만 조회를 받음 — 번호 '_guide' 하나만
+        ".write": "auth != null && newData.exists() && ( root.child('qna').child($id).exists() || $id === '_guide' )",
         ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
       }
     },
