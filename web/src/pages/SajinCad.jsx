@@ -18,6 +18,7 @@ import { LineView } from '../lib/gl3d.js'
 import { 도면넘기기 } from '../lib/도면넘김.js'
 import { 세기 } from '../lib/받은수.jsx'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
+import { 꺼내기 as 찍은사진꺼내기, 사건이름 as 찍은사진사건 } from '../lib/찍은사진.js'   /* 📷 G322 옆 «+» 찍기 단추 */
 
 const 꼴들 = [
   { k: '도면', 아이콘: '📄', 이름: '도면 사진', 설명: '인쇄한 도면 · 모니터 화면을 찍은 사진 — 적힌 치수 숫자를 읽어 그대로 맞춤' },
@@ -115,6 +116,21 @@ export default function SajinCad() {
       set네모(r.네모); set믿음(r.믿음 || 0); set단계('모서리')
     } catch (e) { set오류('사진을 열지 못했습니다 — ' + e.message); set단계('고르기'); set진행(null) }
   }
+  /* 📷 G322 옆 «+» 단추(찍기단추.jsx)에서 찍고 «사진→캐드로 바꾸기» 를 고른 사진 — 그 사진으로 바로 시작 */
+  useEffect(() => {
+    const 받기찍은 = () => {
+      const f = 찍은사진꺼내기('캐드')
+      if (!f) return
+      세기('|사진캐드|찍기단추')
+      처음으로()
+      받기(f)
+      try { window.scrollTo({ top: 0, behavior: 'smooth' }) } catch (e) { /* */ }
+    }
+    받기찍은()
+    window.addEventListener(찍은사진사건, 받기찍은)     /* 이 화면에서 옆 단추로 찍었을 때 */
+    return () => window.removeEventListener(찍은사진사건, 받기찍은)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const 예시받기 = async () => {
     try {
       const b = await fetch(예시들[꼴]).then((x) => { if (!x.ok) throw new Error(x.status); return x.blob() })

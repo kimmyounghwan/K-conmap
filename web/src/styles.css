@@ -7996,3 +7996,29 @@ details.hdx-묶 > summary { cursor: pointer; padding: 9px 12px; line-height: 1.6
   .hdx-딱.읽음 { background: #183324; color: #a8e6bd; }
 }
 @media (max-width: 640px) { .hdx-칸들 { grid-template-columns: 1fr; padding: 4px 8px 10px; } }
+
+/* ── 📷 G322 옆에 붙은 «+» 찍기 단추 (찍기단추.jsx · 폰에서만) ──
+   소장님 「보내준 사진처럼 모양을 다르게 … 색도」 「비스듬하게」 → «기울어진 네모»(파랑) — 반쯤 화면 밖으로 숨은 둥근 네모 */
+.cam-tab { position: fixed; right: -18px; bottom: calc(var(--nav-h) * 2 + env(safe-area-inset-bottom) + 56px); z-index: 55;
+  width: 70px; height: 70px; padding: 0 16px 0 0; display: flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 22px; cursor: pointer; transform: rotate(-12deg);
+  background: linear-gradient(160deg, #4f8cff, #1d4ed8); color: #fff;
+  box-shadow: -6px 10px 24px rgba(15, 23, 42, .30), inset 1px 1px 0 rgba(255, 255, 255, .3); -webkit-tap-highlight-color: transparent;
+  transition: transform .12s ease-out; }
+.cam-tab:active { transform: rotate(-12deg) translateX(3px) scale(.97); }
+.cam-tab-plus { font-size: 34px; font-weight: 300; line-height: 1; transform: rotate(12deg); }
+.cam-tab-ic { display: none; }
+@media (min-width: 561px) { .cam-tab { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 56px); } }
+@media (min-width: 900px) { .cam-tab { bottom: 120px; } }
+.cam-dim { position: fixed; inset: 0; z-index: 70; background: rgba(15, 23, 42, .45); display: flex; align-items: flex-end; justify-content: center; }
+.cam-sheet { width: 100%; max-width: 560px; max-height: 92vh; overflow: auto; background: var(--surface); color: var(--text);
+  border-radius: 18px 18px 0 0; padding: 8px 16px calc(16px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 30px rgba(0, 0, 0, .25);
+  animation: cam-up .22s ease-out both; }
+.cam-grab { width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 4px auto 10px; }
+.cam-img { display: block; width: 100%; max-height: 42vh; object-fit: contain; border-radius: 12px; background: #0b0f17; }
+.cam-q { font-weight: 800; font-size: 16px; margin: 12px 0 8px; }
+.cam-btns { display: grid; gap: 8px; }
+.cam-btns .btn { width: 100%; }
+.cam-btns.sub { grid-template-columns: 1fr 1fr; margin-top: 8px; }
+.cam-note { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.55; }
+@keyframes cam-up { from { transform: translateY(30px); opacity: 0; } to { transform: none; opacity: 1; } }

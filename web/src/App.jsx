@@ -7,6 +7,8 @@ import { InstallPill, InstallBar, AppWindowBar } from './Install.jsx'
 import AskStrip from './AskComment'
 /* 👋🙏 2026-09-29 방문 인사 — 처음 «반갑습니다» · 다시 «다시 찾아 주셔서 고맙습니다» (인사.jsx · lib/인사.js) */
 import 인사 from './인사.jsx'
+/* 📷 G322 (2026-10-18) 옆에 붙은 «+» 찍기 단추 — 폰에서만 · 찍고 나서 맵톡 · 사진→캐드 고르기 (찍기단추.jsx) */
+import 찍기단추 from './찍기단추.jsx'
 /* 🔔 2026-09-30(G73) 사랑방 답글 알림 — 맨 위 종 · 본문 맨 위 띠 (알림종.jsx · lib/알림.js) */
 import { 알림종, 알림띠 } from './알림종.jsx'
 /* 🆕 G222 다시 오신 분께 — «지난번 오신 뒤 새 공고 N건» 한 줄(폰 알림 아님 · 사이트 안에서만) */
@@ -255,6 +257,7 @@ export default function App() {
         {/* 👋🙏 방문 인사 — 떠 있다가 5초 뒤 사라지는 쪽지(자리를 차지하지 않음) */}
         <인사 />
         <알림안내 />
+        <찍기단추 />
         <footer className="footer">
           <div>
             <a href="/about">소개</a><span className="dot">·</span>

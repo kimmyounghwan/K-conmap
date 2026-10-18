@@ -160,6 +160,7 @@ import { 주제짐작, 글나누기, 제목내용, 자리짐작, 짧은이름, �
   공개들, 명패글, 명패검사, 명패신청값, 명패만들기, 분야전문가 } from '../lib/맵톡.js'   /* 🗺 G316 방 셋 · 공지 · 모임 · 🪪 G320 명패 */
 import { 세기 } from '../lib/받은수.jsx'
 import { 받는꼴, 파일검사, 압축검사, 확장자, 파일올리기, 크기글, 오늘올린수, 올린수더하기, 하루한도 } from '../lib/파일올리기.js'   /* 📎 G158 · 🗜 G196 압축검사 */
+import { 꺼내기 as 찍은사진꺼내기, 사건이름 as 찍은사진사건 } from '../lib/찍은사진.js'   /* 📷 G322 옆 «+» 찍기 단추 */
 
 /* 🕰 G148 (2026-10-05) 소장님 「글을쓴 날짜 시간도 보이게 해주고」 — 카드 «10.05 22:47» · 글 창 «2026.10.05(월) 22:47 · 5분 전» · 답글 «10.05(월) 13:15».
    올해가 아니면 앞에 해(2025.12.30). 흐르는 띠 · 위 알림은 «5분 전» 그대로(살아 있게) */
@@ -1822,6 +1823,19 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
   const [공지로, set공지로] = useState(false)      // 📢 운영자 — 말머리 [K-건설맵] + 맨 위 고정
   const 칸 = useRef(null)
   const 핀칸 = useRef(null)
+  /* 📷 G322 옆 «+» 단추(찍기단추.jsx)에서 찍고 «맵톡에 올리기» 를 고른 사진 — 글쓰기에 붙이고 제목 칸으로(올리기는 직접 눌러야) */
+  useEffect(() => {
+    const 받기 = () => {
+      const f = 찍은사진꺼내기('맵톡')
+      if (!f) return
+      if (f.size > 25 * 1024 * 1024) { setMsg('사진이 너무 큽니다(25MB 넘음).'); return }
+      set사진({ 파일: f, 미리: URL.createObjectURL(f) }); setMsg('')
+      setTimeout(() => { const el = 칸.current; if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); try { el.focus({ preventScroll: true }) } catch (e) { /* */ } } }, 120)
+    }
+    받기()
+    window.addEventListener(찍은사진사건, 받기)
+    return () => window.removeEventListener(찍은사진사건, 받기)
+  }, [])
   /* 📍 G150 지역 — { 곳, 어떻게: '찾는중' | '짐작' | '고름' | '모름' } · 고르기: null | '시도' | 시·도 이름 */
   const [바탕, set바탕] = useState(null)
   const [자리, set자리] = useState({ 곳: null, 어떻게: '찾는중' })
