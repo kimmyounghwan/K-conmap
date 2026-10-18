@@ -221,11 +221,69 @@ def 해외묶기(rows):
     return {k: out.get(k, 0) for k in ("a", "t", "y")}
 
 
+# ── 👥 G315 (2026-10-18) 방문자 — 10/19 0시부터 건설맵이 직접 셈(web/src/lib/방문세기.js · 데이터베이스 vis) ──
+#   소장님: 「사이트 접속만 하면 세는 걸로 … 동일인은 한 번만」 「12시에 바뀌는 걸로」 「클로드가 세는 걸로 해서 누적도 올라가는 걸로」
+#   → 화면 누적 = 애널리틱스 9/15~10/18(바탕 · 여기서 그 날까지만 셈) + 직접 센 수(vis/a). 오늘 · 시·도 오늘도 직접 센 수(vis/d).
+#   · 10/19 부터 a(누적)는 «2026-10-18» 까지만 묻습니다 — 10/18 치는 애널리틱스가 늦게 굳으므로 회차마다 다시 물어 맞춤(오르기만 함).
+#   · 「리셋할 때는 애널리틱스랑 비교해서」 → 회차마다 어제(한국)를 fresh/vcmp/{어제} = {ga 애널리틱스 어제 사용자, me 건설맵이 센 어제, at} 로 적음
+#     (애널리틱스 어제 숫자도 늦게 굳으므로 하루 내내 다시 적음 · 화면에는 소장님 브라우저에만 보임)
+#   · 지금(30분 안) · 지도 점도 건설맵이 셈 — 브라우저가 5분마다 vis/on/{번호} = {t 서버 시각, k 곳 번호} · 여기서는 2시간 넘은 것을 회차마다 지움(지금정리)
+직접시작날 = "2026-10-19"
+바탕끝날 = "2026-10-18"
+
+
+def 누적끝(때=None):
+    """애널리틱스 누적(a)의 끝 날 — 10/19 전에는 'today' · 그 뒤로는 '2026-10-18' 로 멈춤"""
+    return "today" if (때 or 지금()).strftime("%Y-%m-%d") < 직접시작날 else 바탕끝날
+
+
+def 비교넣기(ctx, 새, dry=False):
+    """어제(한국) 건설맵이 센 수(vis/d/{어제}/n) · 애널리틱스 어제 사용자(w.y — 없으면 kr.y) → fresh/vcmp/{어제}"""
+    어제 = (지금() - timedelta(days=1)).strftime("%Y-%m-%d")
+    if 어제 < 직접시작날:
+        return None
+    tok = ctx["tok"]
+    q = requests.get(f"{DB}/vis/d/{어제}/n.json", headers={"Authorization": "Bearer " + tok}, timeout=20)
+    if q.status_code != 200:
+        raise RuntimeError(f"데이터베이스(방문 읽기) HTTP {q.status_code} {q.text[:120]}")
+    me = int(q.json() or 0)
+    ga = int(((새.get("w") or 새.get("kr") or {}).get("y")) or 0)
+    v = {"ga": ga, "me": me, "at": int(지금().timestamp() * 1000)}
+    적기(f"  · 어제({어제}) 건설맵 {me:,} · 애널리틱스 {ga:,}")
+    if dry:
+        return v
+    r = requests.put(f"{DB}/fresh/vcmp/{어제}.json", headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"},
+                     data=json.dumps(v).encode("utf-8"), timeout=20)
+    if r.status_code != 200:
+        raise RuntimeError(f"데이터베이스(비교) HTTP {r.status_code} {r.text[:120]}")
+    return v
+
+
+def 지금정리(ctx, dry=False):
+    """vis/on(지금 30분 안 «여기 있음») 중 2시간 넘은 것을 지움 — 한 번에 500개까지 · 지운 수"""
+    tok = ctx["tok"]
+    끝 = int(지금().timestamp() * 1000) - 2 * 3600 * 1000
+    q = requests.get(f"{DB}/vis/on.json", params={"orderBy": '"t"', "endAt": str(끝), "limitToFirst": "500"},
+                     headers={"Authorization": "Bearer " + tok}, timeout=20)
+    if q.status_code != 200:
+        raise RuntimeError(f"데이터베이스(지금 읽기) HTTP {q.status_code} {q.text[:120]}")
+    옛 = [k for k, v in (q.json() or {}).items()
+         if isinstance(v, dict) and isinstance(v.get("t"), (int, float)) and v["t"] <= 끝 and re.match(r"^[a-z0-9]{16}$", k)]
+    if 옛 and not dry:
+        r = requests.patch(f"{DB}/vis/on.json", headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"},
+                           data=json.dumps({k: None for k in 옛}).encode("utf-8"), timeout=20)
+        if r.status_code != 200:
+            raise RuntimeError(f"데이터베이스(지금 지우기) HTTP {r.status_code} {r.text[:120]}")
+    if 옛:
+        적기(f"  · 지금(30분) 옛 표시 {len(옛)}개 지움")
+    return len(옛)
+
+
 def _해외요청(tok):
     r = requests.post(
         f"https://analyticsdata.googleapis.com/v1beta/properties/{GA_PROPERTY}:runReport",
         headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"},
-        data=json.dumps({"dateRanges": [{"startDate": 조회시작, "endDate": "today", "name": "a"},
+        data=json.dumps({"dateRanges": [{"startDate": 조회시작, "endDate": 누적끝(), "name": "a"},
                                         {"startDate": "today", "endDate": "today", "name": "t"},
                                         {"startDate": "yesterday", "endDate": "yesterday", "name": "y"}],
                          "dimensions": [{"name": "countryId"}, {"name": "city"}],
@@ -275,7 +333,7 @@ def _지역요청(tok, 나눔):
     r = requests.post(
         f"https://analyticsdata.googleapis.com/v1beta/properties/{GA_PROPERTY}:runReport",
         headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"},
-        data=json.dumps({"dateRanges": [{"startDate": 조회시작, "endDate": "today", "name": "a"},
+        data=json.dumps({"dateRanges": [{"startDate": 조회시작, "endDate": 누적끝(), "name": "a"},
                                         {"startDate": "today", "endDate": "today", "name": "t"}]
                                        + ([] if 나눔 else [{"startDate": "yesterday", "endDate": "yesterday", "name": "y"}]),
                          "dimensions": [{"name": "countryId"}] + ([{"name": "region"}] if 나눔 else []),
@@ -300,6 +358,8 @@ def 지역넣기(ctx, dry=False):
     kr3 = {"a": kr.get("a", 0), "t": kr.get("t", 0), "y": kr.get("y", 0)}
     새 = {"at": int(지금().timestamp() * 1000), "from": 조회시작, "d": 지금().strftime("%Y-%m-%d"),
           "kr": kr3, "r": r or None}
+    if 누적끝() != "today":
+        새["e"] = 누적끝()                                 # 👥 G315 a 는 이 날까지(그 뒤는 화면이 vis 를 더함)
     if f is not None:
         새["f"] = f
         새["w"] = 합계(kr3, f)
@@ -311,6 +371,14 @@ def 지역넣기(ctx, dry=False):
                      data=json.dumps(새, ensure_ascii=False).encode("utf-8"), timeout=30)
     if q.status_code != 200:
         raise RuntimeError(f"데이터베이스(지역) HTTP {q.status_code} {q.text[:120]}")
+    try:                                                  # 👥 G315 어제 비교 — 못 해도 지역 숫자는 그대로
+        비교넣기(ctx, 새, dry)
+    except Exception as e:
+        적기(f"  ! 어제 비교 못 했습니다 ({type(e).__name__}: {str(e)[:120]})")
+    try:                                                  # 👥 G315 지금(30분) 옛 표시 지우기
+        지금정리(ctx, dry)
+    except Exception as e:
+        적기(f"  ! 지금 표시 정리 못 했습니다 ({type(e).__name__}: {str(e)[:120]})")
     return 새
 
 

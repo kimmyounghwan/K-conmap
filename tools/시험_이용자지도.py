@@ -87,6 +87,8 @@ def 가짜put(url, **k):
     보낸.append((url, k.get("data")))
     return 답(200, {})
 M.requests.post, M.requests.get, M.requests.put, M.requests.patch = 가짜post, 가짜get, 가짜put, 가짜put
+_진짜지금 = M.지금
+M.지금 = lambda: datetime(2026, 10, 18, 13, 0, tzinfo=KST)     # 👥 G315 — 10/19 0시 전 화면(아래 시험들은 이 시각 기준 · 시험을 언제 돌려도 같게)
 M.토큰 = lambda sa: "tok"
 ctx = {"sa": {}}
 M.한번(ctx)
@@ -187,5 +189,57 @@ r5 = lambda c, ev, n: {"dimensionValues": [{"value": c}, {"value": ev}], "metric
                    r5("(not set)", "user_engagement", 2), r5("Japan", "user_engagement", 2)]) == 3)
 m2 = M.합치기(None, {"Seoul": 2}, t, 3, 2)
 봄("합치기 — 지금 n = 전국 3 + 해외 2 · nf = 2 · 해외 모르면 nf None", m2["n"] == 5 and m2["nf"] == 2 and M.합치기(None, {}, t, 3)["nf"] is None, m2)
+# ── 👥 G315 (2026-10-18) 10/19 0시부터 방문자는 건설맵이 직접 셈 — 애널리틱스 누적은 10/18 까지 · 어제 비교 fresh/vcmp ──
+봄("누적끝 — 10/18 23:59 까지 today · 10/19 0시부터 2026-10-18",
+  M.누적끝(datetime(2026, 10, 18, 23, 59, tzinfo=KST)) == "today" and M.누적끝(datetime(2026, 10, 19, 0, 0, tzinfo=KST)) == "2026-10-18"
+  and M.누적끝(datetime(2026, 12, 1, 9, 0, tzinfo=KST)) == "2026-10-18")
+본몸.clear(); 보낸.clear(); 읽은 = []
+def 가짜get5(url, **k):
+    읽은.append(url)
+    if url.endswith("/vis/d/2026-10-19/n.json"):
+        return 답(200, 37)
+    return 답(200, None)
+M.requests.get = 가짜get5
+M.requests.post = 가짜post3
+M.지금 = lambda: datetime(2026, 10, 19, 0, 10, tzinfo=KST)
+M.한번({"sa": {}, "pv_t": __import__("time").time()})
+reg5 = [_j.loads(d.decode("utf-8")) for u, d in 보낸 if u.endswith("/fresh/reg.json")]
+a끝 = sorted({r["endDate"] for b in 본몸 for r in b["dateRanges"] if r["name"] == "a"})
+봄("10/19 0시 뒤 — 지역 · 전국 · 해외 요청 모두 누적(a)은 2026-10-18 까지 · 오늘(t)은 today 그대로",
+  len(본몸) == 3 and a끝 == ["2026-10-18"] and all({"startDate": "today", "endDate": "today", "name": "t"} in b["dateRanges"] for b in 본몸), 본몸)
+봄("fresh/reg 에 e = 2026-10-18 · d = 2026-10-19", len(reg5) == 1 and reg5[0].get("e") == "2026-10-18" and reg5[0]["d"] == "2026-10-19", reg5[:1])
+봄("10/19 0시 10분 — 어제(10/18)는 직접 세기 전이라 비교 안 적음", not any("/fresh/vcmp/" in u for u, _ in 보낸) and not any("/vis/d/" in u for u in 읽은), [u for u, _ in 보낸])
+본몸.clear(); 보낸.clear(); 읽은.clear()
+M.지금 = lambda: datetime(2026, 10, 20, 0, 20, tzinfo=KST)
+M.한번({"sa": {}, "pv_t": __import__("time").time()})
+비 = [(u, _j.loads(d.decode("utf-8"))) for u, d in 보낸 if "/fresh/vcmp/" in u]
+봄("10/20 — fresh/vcmp/2026-10-19 = {ga 애널리틱스 어제(w.y 13), me 건설맵 37, at}",
+  len(비) == 1 and 비[0][0] == M.DB + "/fresh/vcmp/2026-10-19.json" and 비[0][1]["ga"] == 13 and 비[0][1]["me"] == 37 and isinstance(비[0][1]["at"], int)
+  and M.DB + "/vis/d/2026-10-19/n.json" in 읽은, 비)
+봄("비교를 못 해도 지역 · 지도는 그대로 넣음", [u for u, _ in 보낸 if not "/fresh/vcmp/" in u] == [M.DB + "/fresh/reg.json", M.DB + "/fresh/map.json"], [u for u, _ in 보낸])
+보낸.clear()
+M.requests.get = lambda url, **k: 답(500, None, "고장") if "/vis/" in url else 답(200, None)
+M.한번({"sa": {}, "pv_t": __import__("time").time()})
+봄("방문 숫자 읽기가 고장 나면 비교만 빠짐(지역 · 지도 넣음)", [u for u, _ in 보낸] == [M.DB + "/fresh/reg.json", M.DB + "/fresh/map.json"], [u for u, _ in 보낸])
+# 지금(30분 안) 옛 표시 지우기 — 2시간 넘은 것만 · 번호 꼴(16자)만
+M.지금 = lambda: datetime(2026, 10, 19, 12, 0, tzinfo=KST)
+기준 = int(M.지금().timestamp() * 1000)
+받은인자 = []
+def 가짜get6(url, **k):
+    if url.endswith("/vis/on.json"):
+        받은인자.append(k.get("params"))
+        return 답(200, {"a" * 16: {"t": 기준 - 3 * 3600 * 1000, "k": "4111"}, "b" * 16: {"t": 기준 - 2 * 3600 * 1000 - 1}, "c" * 16: {"t": 기준 - 10 * 60000, "k": "11"},
+                        "BAD/x": {"t": 기준 - 5 * 3600 * 1000}, "d" * 16: 기준 - 5 * 3600 * 1000})
+    return 답(200, None)
+M.requests.get = 가짜get6
+보낸.clear()
+n = M.지금정리({"tok": "tok"})
+지운 = [(u, _j.loads(d.decode("utf-8"))) for u, d in 보낸 if u.endswith("/vis/on.json")]
+봄("지금정리 — 2시간 넘은 것만 지움(PATCH null) · 10분 전 것 · 이상한 열쇠 · 꼴 다른 값은 그대로 · 서버에 «t» 순 endAt 으로 물음",
+  n == 2 and len(지운) == 1 and 지운[0][1] == {"a" * 16: None, "b" * 16: None} and 받은인자 and 받은인자[0]["orderBy"] == '"t"'
+  and int(받은인자[0]["endAt"]) == 기준 - 2 * 3600 * 1000, (n, 지운, 받은인자))
+보낸.clear(); M.requests.get = lambda url, **k: 답(200, None)
+봄("지금정리 — 지울 것 없으면 아무것도 안 보냄", M.지금정리({"tok": "tok"}) == 0 and not 보낸)
+M.지금 = _진짜지금
 print("✓ 모두 맞음" if not 틀림 else f"✗ {틀림}개 틀림")
 sys.exit(1 if 틀림 else 0)

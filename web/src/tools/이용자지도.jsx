@@ -27,6 +27,7 @@ const 큰기억 = 'kcm.map.big'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { 지도주소, 지도이름표, 지도점들, 지도점크기, 지역주소, 지역줄들, 날째, 날글, 개설일, 누적시작, 오늘글, 기준글 } from '../lib/이용자지도.js'
 import { 세기 } from '../lib/받은수.jsx'
+import { 직접인가, 직접받기, 직접줄들, 직접점들, 셈듣기, 한국날 } from '../lib/방문세기.js'   /* 👥 G315 10/19 0시부터 방문자는 건설맵이 직접 셈 */
 
 const 쉼 = (n) => Math.round(n || 0).toLocaleString('ko-KR')
 let 셌다 = false
@@ -65,6 +66,8 @@ export default function 이용자지도({ 작게 = false }) {
   const [다봄, set다봄] = useState(false)       /* 폰: 시·도 6곳만 · 누르면 모두 · 다시 누르면 접기(G145) · PC 는 CSS 로 늘 다 펼침 · 단추 숨김(G145b) */
   const [때, set때] = useState(Date.now())
   const [화면, set화면] = useState(null)          // {w, h} — 그려진 지도 크기(px)
+  const [직접, set직접] = useState(null)          // 👥 G315 {a: vis/a, d: vis/d/오늘, 날, at} — 10/19 0시부터
+  const [비교, set비교] = useState(null)          // 📋 G315 소장님만 — 어제 건설맵이 센 수 · 애널리틱스 (fresh/vcmp/{어제})
   const 그림 = useRef(null)
 
   useEffect(() => {
@@ -83,6 +86,36 @@ export default function 이용자지도({ 작게 = false }) {
     return () => { 살 = false; clearInterval(틈) }
   }, [])
 
+  /* 👥 G315 (2026-10-18) 소장님 「사이트 접속만 하면 세는 걸로 … 동일인은 한 번만」 「12시에 바뀌는 걸로」 「누적도 올라가는 걸로」
+     10/19 0시부터 누적 · 오늘 · 시·도 · 해외는 건설맵이 직접 센 수(lib/방문세기.js) — 1분마다 · 이 브라우저가 세어지면 바로 다시 읽음.
+     «지금(30분 안)» · 지도 점(오늘 다녀간 곳 · 지금)도 건설맵이 셈(소장님 「30분 안 숫자. 지역 숫자. 오늘 숫자. 누적 모두」 「점도 바꾸자」).
+     0시 전에는 아무것도 안 바뀜(전과 같은 화면). */
+  useEffect(() => {
+    let 살 = true
+    const 받기 = async () => {
+      if (!직접인가(Date.now())) return
+      const v = await 직접받기(Date.now())
+      if (살 && v) { set직접(v); set때(Date.now()) }
+    }
+    받기()
+    const 틈 = setInterval(() => { if (document.visibilityState === 'visible') 받기() }, 60000)
+    const 끄기 = 셈듣기(받기)
+    return () => { 살 = false; clearInterval(틈); 끄기() }
+  }, [])
+
+  /* 📋 G315 소장님만 — 「리셋할 때는 애널리틱스랑 비교해서」 → 어제 건설맵이 센 수와 애널리틱스 수(깃허브 tools/이용자지도.py 가 fresh/vcmp 에 적음) */
+  useEffect(() => {
+    let 살 = true
+    if (!직접인가(Date.now() - 86400000)) return undefined
+    import('../lib/운영자.js').then((m) => m.나운영자()).then((op) => {
+      if (!op || !살) return
+      const 어제 = 한국날(Date.now() - 86400000)
+      fetch(`https://k-conmap-default-rtdb.firebaseio.com/fresh/vcmp/${어제}.json`, { cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : null)).then((v) => { if (살 && v) set비교({ ...v, 날: 어제 }) }).catch(() => {})
+    }).catch(() => {})
+    return () => { 살 = false }
+  }, [])
+
   /* 그려진 크기를 재서 점 크기를 «픽셀» 로 맞춤 — 창 크기가 바뀌면 다시 */
   useEffect(() => {
     const el = 그림.current
@@ -96,12 +129,16 @@ export default function 이용자지도({ 작게 = false }) {
   }, [바탕, 자료, 작게, 펼침])   /* G160 작은 상자 ↔ 큰 지도로 바뀌면 그림이 바뀌므로 다시 잼 */
 
   const 표 = useMemo(() => (바탕 ? 지도이름표(바탕.곳, 바탕.별) : null), [바탕])
-  const 점 = useMemo(() => (표 && 자료 ? 지도점들(자료, 표, 때) : []), [표, 자료, 때])
-  const 줄들 = useMemo(() => 지역줄들(지역, 때), [지역, 때])
+  /* 👥 G315 소장님 「점도 바꾸자. 다 하는게 좋지 않아...헷갈리잖아」 — 0시부터 점도 건설맵이 센 것(오늘 다녀간 곳 · 지금 30분) */
+  const 점 = useMemo(() => (직접인가(때) && 직접 ? 직접점들(직접, 바탕, 때) : (표 && 자료 ? 지도점들(자료, 표, 때) : [])), [표, 자료, 직접, 바탕, 때])
+  const 줄들 = useMemo(() => (직접인가(때) ? 직접줄들(지역, 직접, 때) : 지역줄들(지역, 때)), [지역, 직접, 때])
   if (!자료 || !바탕) return null
   const 지금수 = 점.filter((x) => x.지금).length
   const 새것 = typeof 자료.at === 'number' && 때 - 자료.at < 45 * 60000
-  const 지금사람 = 새것 && typeof 자료.n === 'number' ? 자료.n : null
+  /* 👥 G315 0시부터 «지금(30분 안)» 도 건설맵이 셈(최근 30분 안에 «여기 있음» 을 남긴 브라우저) — 못 받으면 전처럼 애널리틱스 */
+  const 직접지금 = 직접인가(때) && 직접 && typeof 직접.지금 === 'number' ? 직접.지금 : null
+  const 지금사람 = 직접지금 != null ? 직접지금 : (새것 && typeof 자료.n === 'number' ? 자료.n : null)
+  const 늦음 = !새것 && 직접지금 == null      /* 자료가 늦다는 글은 숫자가 애널리틱스일 때만 */
   const [w, h] = 바탕.vb
   const 크기 = 지도점크기(w, h, 화면)
   const 큰 = 줄들 && 줄들.줄.length ? Math.max(...줄들.줄.map((x) => x.a)) || 1 : 1
@@ -125,7 +162,7 @@ export default function 이용자지도({ 작게 = false }) {
           <span className="umap-mini-n"><i className="umap-dot now" /> 지금 <b>{지금사람 != null ? <><수 v={지금사람} />명</> : '—'}</b>
             {줄들 && 줄들.전국 && <> · 누적 <b><수 v={줄들.전국.a} />명</b> · 오늘 <b>+<수 v={줄들.전국.t} /></b></>}</span>
           {많은셋.length > 0 && <span className="umap-mini-top">{많은셋.map((x) => `${x.n} ${쉼(x.a)}`).join(' · ')}{줄들.줄.length > 3 ? ' …' : ''}</span>}
-          {!새것 && 기준글(자료.at) && <span className="umap-late">자료 {기준글(자료.at)} 기준</span>}
+          {늦음 && 기준글(자료.at) && <span className="umap-late">자료 {기준글(자료.at)} 기준</span>}
           <button type="button" className="umap-mini-b" onClick={() => { set펼침(true); try { localStorage.setItem(큰기억, '1') } catch (e) { /* 사생활 창 — 이번만 */ } 세기('|지도|크게') }}>지도 크게 보기 ▾</button>
         </div>
         {/* 넓은 화면(700px 넘음)은 남는 오른쪽에 많은 시·도 다섯 — 막대 · 누적 · 오늘 */}
@@ -177,7 +214,7 @@ export default function 이용자지도({ 작게 = false }) {
             <div className="umap-now-n">
               <i className="umap-dot now" /> 지금(30분 안) <b>{지금사람 != null ? <><수 v={지금사람} />명</> : '—'}</b>
               {/* 🩹 G153 — 자료가 45분 넘게 멈추면 «지금» 점이 다 사라져 «아무것도 안 뜬다» 로 보였습니다(10/6 아침). 늦어진 것을 그대로 알립니다 */}
-              {!새것 && 기준글(자료.at) && <span className="umap-late">자료가 늦어지고 있습니다 · {기준글(자료.at)} 기준</span>}
+              {늦음 && 기준글(자료.at) && <span className="umap-late">자료가 늦어지고 있습니다 · {기준글(자료.at)} 기준</span>}
             </div>
             <div className="umap-tot">
               <span>{줄들.합계 ? '전체' : '전국'} 누적 <b><수 v={줄들.전국.a} />명</b></span>
@@ -206,7 +243,8 @@ export default function 이용자지도({ 작게 = false }) {
         {고른
           ? <span>📍 <b>{고른.p.n}</b> ({고른.p.d}) — {고른.지금 ? '지금 쓰는 중' : '오늘 다녀감'}</span>
           : <span className="muted">{지금수 ? '점을 누르면 어느 도시인지 나옵니다.' : '지금은 조용합니다 — 옅은 점은 오늘 다녀간 곳입니다.'}</span>}
-        <span className="muted umap-src">{기준글(자료.at) && <>자료 {기준글(자료.at)} 기준 · </>}10분마다 새로 · 구글 애널리틱스(사용자 수 · 누적·오늘은 애널리틱스에 잡히는 대로 조금 늦게 올라갑니다)</span>
+        {/* 🩹 G315 소장님 「«구글 애널리틱스» 에서 «건설맵이 직접 셈 · 같은 브라우저 하루 한 번» ---- 삭제」 → 어디서 센 것인지 적은 글을 뺌 */}
+        {비교 && <span className="muted umap-src">📋 소장님만 · 어제({날글(비교.날).slice(6)}) 건설맵 {쉼(비교.me)}명 · 애널리틱스 {쉼(비교.ga)}명</span>}
       </div>
     </div>
   )

@@ -278,6 +278,59 @@
         }
       }
     },
+    // 👥 2026-10-18 (G315) 방문자 — 소장님 「사이트 접속만 하면 세는 걸로 … 동일인은 한 번만」 「12시에 바뀌는 걸로」 「누적도 올라가는 걸로」
+    //    10/19 0시부터 건설맵이 직접 셉니다(web/src/lib/방문세기.js). 숫자 하나씩 · **1씩만** 올릴 수 있습니다(지우기 · 낮추기 · 아무 숫자 막힘).
+    //    vis/d/{한국 날짜}/n · vis/d/{날짜}/r/{시·도} = 오늘(같은 브라우저 하루 한 번) · vis/a/n · vis/a/r/{시·도} = 누적(처음 온 브라우저만) · vis/on = 지금(30분 안).
+    //    시·도 열쇠는 아래 열아홉 개만(방문세기.js 시도열쇠 와 «똑같이» · f 해외 · x 모름). 로그인을 안 하므로 auth 를 묻지 않습니다(dl 과 같음).
+    //    ⚠️ 지우기는 .validate 를 안 거치므로 .write 에 newData.exists() 를 꼭 둡니다.
+    "vis": {
+      ".read": true,
+      "d": {
+        "$day": {
+          "n": {
+            ".write": "newData.exists() && $day.matches(/^20[0-9][0-9]-[01][0-9]-[0-3][0-9]$/)",
+            ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
+          },
+          // 오늘 다녀간 곳(지도 옅은 점) — 곳 번호마다 하루 한 번 +1
+          "c": {
+            "$k": {
+              ".write": "newData.exists() && $day.matches(/^20[0-9][0-9]-[01][0-9]-[0-3][0-9]$/) && $k.matches(/^[0-9]{2,5}$/)",
+              ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
+            }
+          },
+          "r": {
+            "$k": {
+              ".write": "newData.exists() && $day.matches(/^20[0-9][0-9]-[01][0-9]-[0-3][0-9]$/) && $k.matches(/^(seoul|busan|incheon|daegu|daejeon|gwangju|ulsan|sejong|gyeonggi|gangwon|chungbuk|chungnam|jeonbuk|jeonnam|gyeongbuk|gyeongnam|jeju|f|x)$/)",
+              ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
+            }
+          }
+        }
+      },
+      // 지금(30분 안) — 화면을 보는 브라우저가 5분마다 vis/on/{번호 16자} = {t 서버 시각({".sv":"timestamp"} · 다른 숫자 막힘), k 곳 번호(시·군 · 없어도 됨)}.
+      //    2시간 넘은 것은 깃허브(tools/이용자지도.py 지금정리)가 지움. 곳 번호 = web/src/data/한국지도.json 곳[].k (숫자 2~5자리).
+      "on": {
+        ".indexOn": "t",
+        "$id": {
+          ".write": "newData.exists() && $id.matches(/^[a-z0-9]{16}$/)",
+          ".validate": "newData.hasChildren(['t'])",
+          "t": { ".validate": "newData.isNumber() && newData.val() === now" },
+          "k": { ".validate": "newData.isString() && newData.val().matches(/^[0-9]{2,5}$/)" },
+          "$other": { ".validate": false }
+        }
+      },
+      "a": {
+        "n": {
+          ".write": "newData.exists()",
+          ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
+        },
+        "r": {
+          "$k": {
+            ".write": "newData.exists() && $k.matches(/^(seoul|busan|incheon|daegu|daejeon|gwangju|ulsan|sejong|gyeonggi|gangwon|chungbuk|chungnam|jeonbuk|jeonnam|gyeongbuk|gyeongnam|jeju|f|x)$/)",
+            ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
+          }
+        }
+      }
+    },
     "qna_alike": {
       ".read": true,
       "$qid": {
