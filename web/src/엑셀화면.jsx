@@ -165,8 +165,9 @@ export function 채움배율(시, 틀) {
  * @param 고침 · set고침  { '시트!B5': 값 } — 부모가 쥡니다(남기기는 부모 몫)
  * @param 머리행들  { 시트이름: 줄 } — 인쇄할 때 쪽마다 되풀이할 머리 줄(없으면 틀의 인쇄 제목)
  * @param 이름      인쇄할 때 브라우저 제목(= PDF 파일 이름)
+ * @param 인쇄함    false 면 인쇄 단추를 숨깁니다(🤝 G321 하도급 계약서류 예시 — 소장님 「보기만 가능 내려받기 없이」)
  */
-export default function 엑셀화면({ 책, 시트들, 고침, set고침, 머리행들 = {}, 이름 = 'K-건설맵', 고칠수 = true, 이름표 = null, 쪽채움 = false }) {
+export default function 엑셀화면({ 책, 시트들, 고침, set고침, 머리행들 = {}, 이름 = 'K-건설맵', 고칠수 = true, 이름표 = null, 쪽채움 = false, 인쇄함 = true }) {
   const 셈 = useMemo(() => 셈판(책, 고침 || {}), [책, 고침])
   const 보일 = useMemo(() => 책.시트들.filter((s) => 시트들.includes(s.이름)).sort((a, b) => 시트들.indexOf(a.이름) - 시트들.indexOf(b.이름)), [책, 시트들])
   const [지금, set지금] = useState(0)
@@ -246,8 +247,8 @@ export default function 엑셀화면({ 책, 시트들, 고침, set고침, 머리
         </div>
       )}
       <div className="xv-띠 no-print">
-        <button type="button" className="btn sm" onClick={() => set인쇄할([시.이름])}>🖨 이 장 인쇄</button>
-        {보일.length > 1 && <button type="button" className="btn ghost sm" onClick={() => set인쇄할(보일.map((s) => s.이름))}>🖨 {보일.length}장 모두 인쇄</button>}
+        {인쇄함 && <button type="button" className="btn sm" onClick={() => set인쇄할([시.이름])}>🖨 이 장 인쇄</button>}
+        {인쇄함 && 보일.length > 1 && <button type="button" className="btn ghost sm" onClick={() => set인쇄할(보일.map((s) => s.이름))}>🖨 {보일.length}장 모두 인쇄</button>}
         <button type="button" className="btn ghost sm" onClick={() => set크게((v) => !v)}>{크게 ? '🔍 화면에 맞추기' : '🔍 크게 보기'}</button>
         {고친수 > 0 && <button type="button" className="btn ghost sm" onClick={모두되돌리기}>↩ 고친 칸 {고친수}개 되돌리기</button>}
       </div>

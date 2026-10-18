@@ -249,6 +249,7 @@ function 쉼표(n, 자리) {
   const [a, b] = s.split('.')
   return (n < 0 && Number(s) !== 0 ? '-' : '') + a.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (b ? '.' + b : '')
 }
+const 오류봄 = new Set(['ISERROR', 'ISERR', 'ISNUMBER', 'ISTEXT', 'ISBLANK', 'COUNT', 'COUNTA'])
 const 함수들 = {
   SUM: (a) => { const n = 수들(a); return 오류인가(n) ? n : n.reduce((x, y) => x + y, 0) },
   MAX: (a) => { const n = 수들(a); return 오류인가(n) ? n : n.length ? Math.max(...n) : 0 },
@@ -315,6 +316,37 @@ const 함수들 = {
   },
   SUMIF: ([범, 조건, 합범]) => { const A = 퍼진(범), S = 합범 ? 퍼진(합범) : A; let s = 0; for (let i = 0; i < A.length; i++) if (조건맞나(A[i], 조건)) { const n = S[i]; if (typeof n === 'number') s += n } return s },
   COUNTIF: ([범, 조건]) => 퍼진(범).filter((x) => 조건맞나(x, 조건)).length,
+  /* 🤝 G321 하도급 계약서류 한 벌 — 원자료(G171) · 본보기 서식이 쓰는 함수 */
+  SUMIFS: ([합범, ...짝]) => {
+    const S = 퍼진(합범)
+    const 조 = []
+    for (let i = 0; i + 1 < 짝.length; i += 2) 조.push([퍼진(짝[i]), 짝[i + 1]])
+    let s = 0
+    for (let i = 0; i < S.length; i++) if (조.every(([A, c]) => 조건맞나(A[i], c))) { const n = S[i]; if (typeof n === 'number') s += n }
+    return s
+  },
+  SEARCH: ([찾을, 글, 부터]) => {
+    const a = 글로(찾을), b = 글로(글); if (오류인가(a)) return a; if (오류인가(b)) return b
+    const k = 부터 == null ? 1 : 수로(부터); if (오류인가(k)) return k
+    const i = b.toLowerCase().indexOf(a.toLowerCase(), Math.max(0, k - 1))
+    return i < 0 ? 오류('#VALUE!') : i + 1
+  },
+  FIND: ([찾을, 글, 부터]) => {
+    const a = 글로(찾을), b = 글로(글); if (오류인가(a)) return a; if (오류인가(b)) return b
+    const k = 부터 == null ? 1 : 수로(부터); if (오류인가(k)) return k
+    const i = b.indexOf(a, Math.max(0, k - 1))
+    return i < 0 ? 오류('#VALUE!') : i + 1
+  },
+  SUBSTITUTE: ([글, 옛, 새, 몇째]) => {
+    const s = 글로(글), a = 글로(옛), b = 글로(새); if (오류인가(s)) return s; if (오류인가(a)) return a; if (오류인가(b)) return b
+    if (a === '') return s
+    if (몇째 == null) return s.split(a).join(b)
+    const n = Math.floor(수로(몇째)); let i = -1
+    for (let k = 0; k < n; k++) { i = s.indexOf(a, i + 1); if (i < 0) return s }
+    return s.slice(0, i) + b + s.slice(i + a.length)
+  },
+  CHAR: ([x]) => 한수(x, (v) => String.fromCharCode(Math.floor(v))),
+  ISERR: ([x]) => 오류인가(x) && x.오류 !== '#N/A',
   N: ([x]) => (typeof x === 'number' ? x : typeof x === 'boolean' ? (x ? 1 : 0) : 0),
   T: ([x]) => (typeof x === 'string' ? x : ''),
 }
@@ -542,7 +574,10 @@ export function 셈판(책, 고침 = {}) {
         }
         const fn = 함수들[이]
         if (!fn) return 오류('#NAME?')
-        return fn(n.인자.map((x) => 풀이(x, 시이름)))
+        const 값들 = n.인자.map((x) => 풀이(x, 시이름))
+        /* 엑셀처럼 — 인자에 오류가 있으면 그 오류를 그대로(ISERROR · ISNUMBER … · COUNT 는 빼고) · G321 «FIND 가 못 찾으면 IFERROR 로» */
+        if (!오류봄.has(이)) { const e = 값들.find(오류인가); if (e) return e }
+        return fn(값들)
       }
       default: return 오류('#VALUE!')
     }

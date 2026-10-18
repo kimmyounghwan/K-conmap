@@ -2,10 +2,10 @@
 // 2026-09-27 · 셈은 리브레오피스와 대조했습니다(원클릭 389식 × 입력 3벌 · 수량산출서 118식 — 모두 같음).
 import fs from 'fs'
 import path from 'path'
-import { fileURLToPath } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
 const 여기 = path.dirname(fileURLToPath(import.meta.url))
 const W = path.join(여기, '..', 'web')
-const 가져 = (p) => import(path.join(W, p))
+const 가져 = (p) => import(pathToFileURL(path.join(W, p)).href)   /* 윈도에서도(c:\… 경로는 file:// 로) */
 const { 엑셀읽기 } = await 가져('src/lib/엑셀읽기.js')
 const { 셈판, 형식글, 수식짜기 } = await 가져('src/lib/엑셀수식.js')
 const { 고친엑셀 } = await 가져('src/lib/엑셀쓰기.js')

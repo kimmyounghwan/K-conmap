@@ -7974,3 +7974,25 @@ details.sg-more-sm > summary::before { top: 5px; left: 10px; }
   .mt-meetrow input[type=time] { flex: 1 1 110px; }
   .mt-ans.d2 { margin-left: 8px; }
 }
+
+/* 🤝 G321 하도급 계약서류 한 벌 (/tools/hado-docs) */
+details.hdx-묶 { border: 1px solid var(--line); border-radius: 10px; margin: 8px 0; background: var(--surface); }
+details.hdx-묶 > summary { cursor: pointer; padding: 9px 12px; line-height: 1.6; }
+.hdx-칸들 { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px 14px; padding: 4px 12px 12px; }
+.hdx-칸 { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.hdx-칸 > label { font-size: 13px; font-weight: 700; color: var(--text); }
+.hdx-칸 input, .hdx-칸 textarea, .hdx-칸 select { width: 100%; box-sizing: border-box; padding: 7px 9px; font-size: 14px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg, #fff); color: var(--text); }
+.hdx-고름 { display: flex; flex-wrap: wrap; gap: 4px; }
+.hdx-고름 .chip { font-size: 12px; padding: 3px 8px; }
+.hdx-율고름 { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 8px; vertical-align: middle; }
+.hdx-율고름 .chip { font-size: 12px; padding: 3px 9px; }
+.hdx-딱 { font-size: 12px; line-height: 1.5; border-radius: 6px; padding: 2px 6px; align-self: flex-start; max-width: 100%; overflow-wrap: anywhere; }
+.hdx-딱.없음 { background: #fdecec; color: #a01818; }
+.hdx-딱.제안 { background: #fff6d6; color: #7a5b00; }
+.hdx-딱.읽음 { background: #e8f5ec; color: #1f6b35; }
+@media (prefers-color-scheme: dark) {
+  .hdx-딱.없음 { background: #3a1d1d; color: #ffb4b4; }
+  .hdx-딱.제안 { background: #3a3218; color: #ffe08a; }
+  .hdx-딱.읽음 { background: #183324; color: #a8e6bd; }
+}
+@media (max-width: 640px) { .hdx-칸들 { grid-template-columns: 1fr; padding: 4px 8px 10px; } }
