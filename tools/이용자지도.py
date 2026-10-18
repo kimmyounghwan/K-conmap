@@ -6,7 +6,7 @@
           → 사랑방 맨 위에 지도(tools/이용자지도.jsx) · 숫자 없이 점만 · 깃허브가 24시간 10분마다(이용자지도.yml)
 
   ■ 받는 것: 애널리틱스 Data API runRealtimeReport (속성 552120206 = K-conmap · 2026-10-02 확인)
-      나라 · 도시별 활성 사용자, «최근 30분». 대한민국만 남깁니다.
+      나라 · 도시별 활성 사용자, «최근 30분». 지도 점은 대한민국만 · 사람 수에는 해외(로봇 뺌)도 더함(G311 · 2026-10-17).
   ■ 넣는 것: fresh/map = {at, now: {도시: 1~3}, day: {d: 'YYYY-MM-DD'(한국 날짜), c: {도시: 1}}}
       · now — 지금(30분 안) 쓰는 도시. 숫자 대신 크기 1(1명) · 2(2~4명) · 3(5명 이상) — «숫자는 나중에»
       · day — 오늘 다녀간 도시(회차마다 더함 · 날이 바뀌면 새로) — 밤에도 지도가 비지 않게
@@ -138,7 +138,7 @@ def 실시간전국(tok):
     return n
 
 
-def 합치기(옛, 도시들, 지금시각, 전국=None):
+def 합치기(옛, 도시들, 지금시각, 전국=None, 해외=None):
     """옛 fresh/map + 이번 도시들 → 새 fresh/map (인터넷 없이 시험: tools/시험_이용자지도.py)
     G144 — n: 지금(30분 안) 전국 사람 수(소장님 「애널리틱스 처럼 … 실시간으로」) · 못 받았으면 도시 합"""
     오늘 = 지금시각.strftime("%Y-%m-%d")
@@ -148,7 +148,8 @@ def 합치기(옛, 도시들, 지금시각, 전국=None):
         c[k] = 1
     return {"at": int(지금시각.timestamp() * 1000),
             "now": {k: 크기(n) for k, n in 도시들.items()} or None,
-            "n": int(전국) if 전국 is not None else sum(int(v) for v in 도시들.values()),
+            "n": (int(전국) if 전국 is not None else sum(int(v) for v in 도시들.values())) + int(해외 or 0),
+            "nf": int(해외) if 해외 is not None else None,
             "day": {"d": 오늘, "c": c or None}}
 
 
@@ -195,6 +196,81 @@ def 전국묶기(rows):
     return out
 
 
+# ── 🌏 해외 · 합계 (G311 · 2026-10-17) ─────────────────────────────
+#   소장님: 「에널리틱스 다른 나라도 같이 해줘. 출장 간 사람이 볼 수도 있는 거잖아. 로봇만 아니면 한국이랑 다른 나라도 추가해줘」 · 「건설맵 일별 방문자 합계」
+#   로봇 가리기 — 2026-10-14 애널리틱스 오늘 국가별: 한국 224 + 미국 19 · 미국 19명은 참여 세션 0 · 머문 시간 0초(자동 점검 로봇).
+#   → 대한민국 밖은 «참여 세션» 이 있는 사람만 셉니다: 나라 · 도시 · 기간 줄마다 min(사용자, 참여 세션) — 참여 세션 0 인 줄(로봇)은 0명.
+#     대한민국은 전처럼 애널리틱스 «사용자» 그대로(애널리틱스 화면 숫자와 같게).
+#   fresh/reg 에 더함: f = 해외 {a, t, y} · w = 합계(대한민국 + 해외) {a, t, y} — 화면은 w 를 씀(없으면 kr) · 시·도 줄 끝에 «해외».
+#   실시간(지금 30분): 대한민국 밖은 «user_engagement»(머문 시간을 보낸 사람) 사건이 있는 사용자만 — fresh/map.n = 대한민국 + 해외 · nf = 해외
+def 해외묶기(rows):
+    """[countryId, city, dateRange] · [activeUsers, engagedSessions] → {a, t, y} — 대한민국 밖 · 로봇(참여 세션 0)은 뺌"""
+    out = {}
+    for row in rows or []:
+        d = [x.get("value", "") for x in row.get("dimensionValues") or []]
+        m = [x.get("value", "0") for x in row.get("metricValues") or []]
+        if len(d) < 3 or not d[0] or d[0] == "KR" or d[2] not in ("a", "t", "y"):
+            continue
+        try:
+            사람, 참여 = int(float(m[0])), int(float(m[1] if len(m) > 1 else 0))
+        except Exception:
+            continue
+        n = min(사람, 참여)
+        if n > 0:
+            out[d[2]] = out.get(d[2], 0) + n
+    return {k: out.get(k, 0) for k in ("a", "t", "y")}
+
+
+def _해외요청(tok):
+    r = requests.post(
+        f"https://analyticsdata.googleapis.com/v1beta/properties/{GA_PROPERTY}:runReport",
+        headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"},
+        data=json.dumps({"dateRanges": [{"startDate": 조회시작, "endDate": "today", "name": "a"},
+                                        {"startDate": "today", "endDate": "today", "name": "t"},
+                                        {"startDate": "yesterday", "endDate": "yesterday", "name": "y"}],
+                         "dimensions": [{"name": "countryId"}, {"name": "city"}],
+                         "metrics": [{"name": "activeUsers"}, {"name": "engagedSessions"}],
+                         "dimensionFilter": {"notExpression": {"filter": {"fieldName": "countryId", "stringFilter": {"value": "KR"}}}},
+                         "limit": 10000}),
+        timeout=60)
+    if r.status_code != 200:
+        raise RuntimeError(f"애널리틱스(해외) HTTP {r.status_code} {r.text[:160]}")
+    return r.json().get("rows") or []
+
+
+def 합계(kr, f):
+    return {k: int((kr or {}).get(k, 0) or 0) + int((f or {}).get(k, 0) or 0) for k in ("a", "t", "y")}
+
+
+def 실시간해외(tok):
+    """지금(30분 안) 대한민국 밖 사람 수 — «user_engagement» 사건을 보낸 사용자만(로봇은 머문 시간이 없어 이 사건이 없음)"""
+    r = requests.post(
+        f"https://analyticsdata.googleapis.com/v1beta/properties/{GA_PROPERTY}:runRealtimeReport",
+        headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"},
+        data=json.dumps({"dimensions": [{"name": "country"}, {"name": "eventName"}], "metrics": [{"name": "activeUsers"}],
+                         "minuteRanges": [{"name": "30분", "startMinutesAgo": 29, "endMinutesAgo": 0}],
+                         "dimensionFilter": {"filter": {"fieldName": "eventName", "stringFilter": {"value": "user_engagement"}}},
+                         "limit": 100}),
+        timeout=30)
+    if r.status_code != 200:
+        raise RuntimeError(f"애널리틱스(실시간 해외) HTTP {r.status_code} {r.text[:160]}")
+    return 실시간해외묶기(r.json().get("rows") or [])
+
+
+def 실시간해외묶기(rows):
+    n = 0
+    for row in rows or []:
+        d = [x.get("value", "") for x in row.get("dimensionValues") or []]
+        m = [x.get("value", "0") for x in row.get("metricValues") or []]
+        if len(d) < 2 or not d[0] or d[0] in ("South Korea", "(not set)") or d[1] != "user_engagement":
+            continue
+        try:
+            n += int(float(m[0]))
+        except Exception:
+            pass
+    return n
+
+
 def _지역요청(tok, 나눔):
     r = requests.post(
         f"https://analyticsdata.googleapis.com/v1beta/properties/{GA_PROPERTY}:runReport",
@@ -216,9 +292,19 @@ def 지역넣기(ctx, dry=False):
     tok = ctx["tok"]
     r = 지역묶기(_지역요청(tok, True))
     kr = 전국묶기(_지역요청(tok, False))
+    try:                                              # 🌏 G311 해외(로봇 뺌) — 못 받아도 대한민국 숫자는 그대로
+        f = 해외묶기(_해외요청(tok))
+    except Exception as e:
+        f = None
+        적기(f"  ! 해외 못 했습니다 ({type(e).__name__}: {str(e)[:120]})")
+    kr3 = {"a": kr.get("a", 0), "t": kr.get("t", 0), "y": kr.get("y", 0)}
     새 = {"at": int(지금().timestamp() * 1000), "from": 조회시작, "d": 지금().strftime("%Y-%m-%d"),
-          "kr": {"a": kr.get("a", 0), "t": kr.get("t", 0), "y": kr.get("y", 0)}, "r": r or None}
-    적기(f"  · 지역 {len(r)}곳 · 전국 누적 {새['kr']['a']:,} · 오늘 {새['kr']['t']:,} · 어제 {새['kr']['y']:,}")
+          "kr": kr3, "r": r or None}
+    if f is not None:
+        새["f"] = f
+        새["w"] = 합계(kr3, f)
+    적기(f"  · 지역 {len(r)}곳 · 전국 누적 {새['kr']['a']:,} · 오늘 {새['kr']['t']:,} · 어제 {새['kr']['y']:,}"
+         + (f" · 해외 누적 {f['a']:,} · 오늘 {f['t']:,} · 합계 오늘 {새['w']['t']:,}" if f is not None else ""))
     if dry:
         return 새
     q = requests.put(f"{DB}/fresh/reg.json", headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"},
@@ -407,8 +493,13 @@ def 한번(ctx, dry=False):
     except Exception as e:
         전국 = None
         적기(f"  ! 실시간 전국 못 했습니다 ({type(e).__name__}: {str(e)[:120]})")
+    try:                                                  # 🌏 G311 지금 해외(로봇 뺌)
+        해외 = 실시간해외(ctx["tok"])
+    except Exception as e:
+        해외 = None
+        적기(f"  ! 실시간 해외 못 했습니다 ({type(e).__name__}: {str(e)[:120]})")
     옛 = requests.get(f"{DB}/fresh/map.json", timeout=20).json()
-    새 = 합치기(옛, 도시들, 지금(), 전국)
+    새 = 합치기(옛, 도시들, 지금(), 전국, 해외)
     적기(f"  · 지금 {len(도시들)}곳 · 오늘 {len((새['day'] or {}).get('c') or {})}곳")
     if dry:
         return 새

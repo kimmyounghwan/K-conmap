@@ -155,7 +155,8 @@ M.requests.post = 가짜post3
 M.한번(ctx)
 reg = [_j.loads(d.decode("utf-8")) for u, d in 보낸 if u.endswith("/fresh/reg.json")]
 mp = [_j.loads(d.decode("utf-8")) for u, d in 보낸 if u.endswith("/fresh/map.json")]
-지요청 = [b for b in 본몸 if b["dimensions"][0]["name"] == "countryId"]
+지요청 = [b for b in 본몸 if b["dimensions"][0]["name"] == "countryId" and b["dimensions"][-1]["name"] != "city"]
+해요청 = [b for b in 본몸 if [d["name"] for d in b["dimensions"]] == ["countryId", "city"]]
 _at = [{"startDate": "2026-09-15", "endDate": "today", "name": "a"}, {"startDate": "today", "endDate": "today", "name": "t"}]
 _y = [{"startDate": "yesterday", "endDate": "yesterday", "name": "y"}]
 봄("지역 요청 — 9/15~today(a) · today(t) · activeUsers · KR 거르기 · 전국에만 어제(y · G172)",
@@ -164,5 +165,27 @@ _y = [{"startDate": "yesterday", "endDate": "yesterday", "name": "y"}]
   and sorted(len(b["dimensions"]) for b in 지요청) == [1, 2], 지요청[:2])
 봄("fresh/reg 넣음 — {at, from, d, kr, r}", len(reg) == 1 and reg[0]["kr"] == {"a": 150, "t": 8, "y": 13} and reg[0]["r"] == {"Seoul": {"a": 120, "t": 7}} and reg[0]["from"] == "2026-09-15" and len(reg[0]["d"]) == 10, reg[:1])
 봄("fresh/map 에 지금 전국 n = 3", len(mp) == 1 and mp[0]["n"] == 3, mp[:1])
+
+# ── 🌏 G311 해외(로봇 뺌) · 합계 ──
+봄("해외 요청 — 나라 · 도시 · 사용자 + 참여 세션 · KR 뺌(notExpression) · a/t/y",
+  len(해요청) == 1 and 해요청[0]["metrics"] == [{"name": "activeUsers"}, {"name": "engagedSessions"}]
+  and 해요청[0]["dimensionFilter"]["notExpression"]["filter"]["stringFilter"]["value"] == "KR" and 해요청[0]["dateRanges"] == _at + _y, 해요청[:1])
+봄("해외 못 받았거나 0 이어도 reg 에 f · w (w = kr + f)", reg[0].get("f") == {"a": 0, "t": 0, "y": 0} and reg[0].get("w") == {"a": 150, "t": 8, "y": 13}, reg[0])
+r4 = lambda c, city, dr, n, e: {"dimensionValues": [{"value": c}, {"value": city}, {"value": dr}], "metricValues": [{"value": str(n)}, {"value": str(e)}]}
+해 = M.해외묶기([r4("US", "Ashburn", "t", 19, 0),        # 2026-10-14 미국 19명 — 참여 세션 0 = 로봇
+                 r4("US", "Ashburn", "a", 120, 0),
+                 r4("VN", "Hanoi", "t", 1, 2),            # 출장 — 사람 1 · 참여 세션 2 → 1명
+                 r4("VN", "Hanoi", "a", 3, 5),
+                 r4("JP", "Tokyo", "y", 4, 1),            # 사람 4 중 참여 세션 1 → 1명(로봇 섞임)
+                 r4("KR", "Seoul", "t", 50, 40),          # 대한민국은 여기서 안 셈
+                 r4("CN", "(not set)", "z", 9, 9)])       # 모르는 기간 이름
+봄("해외묶기 — 참여 세션 0 = 로봇은 0명 · min(사람, 참여 세션) · KR 뺌", 해 == {"a": 3, "t": 1, "y": 1}, 해)
+봄("합계 — kr + f", M.합계({"a": 150, "t": 8, "y": 13}, 해) == {"a": 153, "t": 9, "y": 14} and M.합계({"a": 5}, None) == {"a": 5, "t": 0, "y": 0})
+r5 = lambda c, ev, n: {"dimensionValues": [{"value": c}, {"value": ev}], "metricValues": [{"value": str(n)}]}
+봄("실시간 해외 — user_engagement 사람만 · 대한민국 · (not set) 뺌",
+  M.실시간해외묶기([r5("United States", "page_view", 19), r5("Vietnam", "user_engagement", 1), r5("South Korea", "user_engagement", 30),
+                   r5("(not set)", "user_engagement", 2), r5("Japan", "user_engagement", 2)]) == 3)
+m2 = M.합치기(None, {"Seoul": 2}, t, 3, 2)
+봄("합치기 — 지금 n = 전국 3 + 해외 2 · nf = 2 · 해외 모르면 nf None", m2["n"] == 5 and m2["nf"] == 2 and M.합치기(None, {}, t, 3)["nf"] is None, m2)
 print("✓ 모두 맞음" if not 틀림 else f"✗ {틀림}개 틀림")
 sys.exit(1 if 틀림 else 0)

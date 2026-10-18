@@ -180,7 +180,7 @@ export default function 이용자지도({ 작게 = false }) {
               {!새것 && 기준글(자료.at) && <span className="umap-late">자료가 늦어지고 있습니다 · {기준글(자료.at)} 기준</span>}
             </div>
             <div className="umap-tot">
-              <span>전국 누적 <b><수 v={줄들.전국.a} />명</b></span>
+              <span>{줄들.합계 ? '전체' : '전국'} 누적 <b><수 v={줄들.전국.a} />명</b></span>
               <span className="umap-today">오늘 {오늘글(때, false)} <b>+<수 v={줄들.전국.t} /></b></span>
             </div>
             <div className="umap-reg-h"><span>시·도</span><span>{날글(누적시작)}부터 누적 · 오늘({오늘글(때, false)})</span></div>

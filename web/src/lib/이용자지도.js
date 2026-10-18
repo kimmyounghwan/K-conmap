@@ -123,8 +123,12 @@ export function 지역줄들(자료, 지금시각 = Date.now()) {
   }
   const 줄 = [...묶음.values()].filter((x) => x.a > 0 || x.t > 0)
     .sort((x, y) => (x.n === '기타') - (y.n === '기타') || y.a - x.a || y.t - x.t || x.n.localeCompare(y.n, 'ko'))
-  const kr = 자료.kr || {}
-  return { 줄, 전국: { a: Number(kr.a) || 0, t: 오늘날 ? (Number(kr.t) || 0) : 0 }, 오늘날, at: 자료.at }
+  /* 🌏 G311 (2026-10-17) 소장님 「다른 나라도 같이 해줘 … 로봇만 아니면」 — 합계(w = 대한민국 + 해외 · 로봇 뺌) · 시·도 줄 끝에 «해외»
+     (옛 자료는 w 가 없음 → 전처럼 kr) */
+  const f = 자료.f
+  if (f && ((Number(f.a) || 0) > 0 || (오늘날 && (Number(f.t) || 0) > 0))) 줄.push({ n: '해외', a: Number(f.a) || 0, t: 오늘날 ? (Number(f.t) || 0) : 0, 해외: true })
+  const kr = 자료.w || 자료.kr || {}
+  return { 줄, 전국: { a: Number(kr.a) || 0, t: 오늘날 ? (Number(kr.t) || 0) : 0 }, 합계: !!자료.w, 오늘날, at: 자료.at }
 }
 
 /** 👥 G172 (2026-10-06) 소장님 「일 접속자 공개하는 사이트 많아」 → 「해줘」 — 모든 화면 위 · 바닥 «오늘 · 어제 · 누적»
@@ -134,7 +138,7 @@ export function 지역줄들(자료, 지금시각 = Date.now()) {
  *  · 자정을 넘겨 아직 새로 안 받았으면(d = 어제) 오늘 = null · 어제 = t (그날의 «오늘» 이 곧 어제)
  *  · 그보다 오래됐으면 누적만 · 누적이 0 이면 null(아무것도 안 그림) */
 export function 방문수(자료, 지금시각 = Date.now()) {
-  const kr = 자료 && 자료.kr
+  const kr = 자료 && (자료.w || 자료.kr)          /* 🌏 G311 합계(대한민국 + 해외 · 로봇 뺌) — 없으면 대한민국 */
   const a = kr ? Number(kr.a) || 0 : 0
   if (!(a > 0)) return null
   const 오늘 = 한국날(지금시각)
