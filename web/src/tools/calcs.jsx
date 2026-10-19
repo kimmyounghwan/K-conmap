@@ -40,6 +40,7 @@ export function use칸(필드, 초기) {
 }
 /* ⚠️ 낙찰하한율 규칙은 lib/engines.js 한 곳에만 있습니다. 여기서 다시 적지 않습니다. */
 import { lowerLimit } from '../lib/bidmath.js'
+import { 숫자, 물가조정 } from '../lib/물가셈.js'
 
 const won = (n) => (n > 0 ? Math.round(n).toLocaleString('ko-KR') + '원' : '—')
 const num = (v) => { const n = Number(String(v).replace(/[^0-9.]/g, '')); return isFinite(n) ? n : 0 }
@@ -263,31 +264,40 @@ export function QualifyScore({ ex = {} }) {
 
 /* ── 물가변동 조정금액 ────────────────────────────────────────── */
 export function PriceAdjust({ ex = {} }) {
+  /* 🩹 2026-10-20 G330 — 셈은 lib/물가셈.js(시험이 같이 봄) · 등락률 빼기표(감액) · 선금 공제(시행령 제64조③) */
   const [amt, setAmt] = use칸('amt', ex.amt ?? '')
   const [rate, setRate] = use칸('rate', ex.rate ?? '')
   const [days, setDays] = use칸('days', ex.days ?? '')
-  const a = num(amt), r = num(rate), d = num(days)
-  const ok90 = d >= 90, ok3 = Math.abs(r) >= 3
-  const adj = (ok90 && ok3) ? a * r / 100 : 0
+  const [adv, setAdv] = use칸('adv', ex.adv ?? '')
+  const a = 숫자(amt), r = 숫자(rate), d = 숫자(days), p = 숫자(adv)
+  const x = 물가조정({ 적용대가: a, 등락률: r, 경과일: d, 선금률: p })
+  const 원 = (n) => (n < 0 ? '−' + Math.round(-n).toLocaleString('ko-KR') + '원' : n > 0 ? won(n) : '0원')   /* won() 은 0 · 빼기를 «—» 로 찍어 감액이 안 보였음 */
   return (
     <div className="tool">
       <div className="tl-grid">
-        <Row label="조정대상금액" hint="원 · 아직 이행 안 한 부분">
+        <Row label="물가변동적용대가" hint="원 · 조정기준일 뒤에 할 부분(기성 받은 것 빼고)">
           <input inputMode="numeric" value={amt} onChange={(e) => setAmt(e.target.value)} placeholder="500,000,000" />
         </Row>
-        <Row label="등락률" hint="% · 지수 또는 품목">
-          <input inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="4.2" />
+        <Row label="등락률" hint="% · 품목조정률 또는 지수조정률 · 내렸으면 −">
+          <input inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="4.2 (내렸으면 -3.5)" />
         </Row>
-        <Row label="경과일수" hint="일 · 계약·직전조정일부터">
+        <Row label="경과일수" hint="일 · 계약한 날(또는 직전 조정기준일)부터">
           <input inputMode="numeric" value={days} onChange={(e) => setDays(e.target.value)} placeholder="120" />
+        </Row>
+        <Row label="선금률" hint="% · 조정기준일 전에 받은 선금 ÷ 계약금액 · 없으면 비움">
+          <input inputMode="decimal" value={adv} onChange={(e) => setAdv(e.target.value)} placeholder="30" />
         </Row>
       </div>
       <Out items={[
-        { k: '90일 요건', v: d > 0 ? (ok90 ? '충족' : '미달 (' + (90 - d) + '일 남음)') : '—' },
-        { k: '3% 요건', v: r !== 0 ? (ok3 ? '충족' : '미달') : '—' },
-        { k: '조정금액', v: adj ? won(adj) : (a > 0 ? '조정 불가' : '—'), big: true },
+        { k: '90일 요건', v: d > 0 ? (x.ok90 ? '충족' : '미달 (' + (90 - d) + '일 남음)') : '—' },
+        { k: '3% 요건', v: r !== 0 ? (x.ok3 ? '충족' : '미달') : '—' },
+        { k: x.감액 ? '감액 (적용대가 × 등락률)' : '증액 (적용대가 × 등락률)', v: x.된다 ? 원(x.증감) : '—' },
+        { k: '선금 공제', v: x.된다 && x.공제 ? '− ' + won(x.공제) : (x.된다 && p > 0 && x.감액 ? '감액이면 안 뺌' : '—') },
+        { k: x.감액 ? '조정금액 (감액)' : '조정금액', v: x.된다 ? 원(x.조정금액) : (a > 0 ? '조정 불가' : '—'), big: true },
       ]} />
-      <div className="hint">이미 기성검사를 받은 부분은 <b>조정대상에서 빠집니다.</b> 늦게 신청할수록 받을 금액이 줄어듭니다.</div>
+      <div className="hint">이미 기성검사를 받은 부분은 <b>조정대상에서 빠집니다.</b> 늦게 신청할수록 받을 금액이 줄어듭니다.
+        선금을 받았으면 증액에서 <b>적용대가 × 등락률 × 선금률</b> 을 뺍니다(국가계약법 시행령 제64조③ · 지방계약법 시행령 제73조).
+        물가가 내리면 발주기관이 <b>감액</b> 조정합니다. 특정 규격 자재 하나(공사비의 0.5% 초과)가 <b>15% 이상</b>(지방계약은 10% 이상) 증감하면 그 자재만 따로 조정할 수도 있습니다(국가 제64조⑥ · 지방 제73조⑥). 금액은 원 미만 버림.</div>
     </div>
   )
 }
@@ -482,7 +492,7 @@ export const EXAMPLES = {
   'rebar-weight': { 글: 'D16 철근 8m 짜리 120개 · 할증 3%', ex: { d: 'D16', len: '8', cnt: '120' } },
   'floor-rate': { 글: '추정가격 6억 3천만 원 공사', ex: { est: '630,000,000' } },
   'qualify-score': { 글: '배점표에서 읽은 항목 점수를 넣은 모습 (예시 점수 — 실제 배점은 공고서)', ex: { v: { '경영상태': '15', '시공경험': '13.5', '기술능력': '0', '신인도': '1.2', '자재·장비': '0', '기타': '68' } } },
-  'price-adjust': { 글: '남은 공사 5억 원 · 등락률 4.2% · 계약 뒤 120일', ex: { amt: '500,000,000', rate: '4.2', days: '120' } },
+  'price-adjust': { 글: '남은 공사 5억 원 · 등락률 4.2% · 계약 뒤 120일 · 선금 30%', ex: { amt: '500,000,000', rate: '4.2', days: '120', adv: '30' } },
   'soil-volume': { 글: '자연상태 흙 1,000㎥ 를 흐트러진·다짐 상태로', ex: { from: 'nat', vol: '1000' } },
   'concrete-volume': { 글: '보 0.4×0.6m, 길이 12m 짜리 8개', ex: { w: '0.4', h: '0.6', l: '12', n: '8' } },
   'formwork-area': { 글: '기둥 0.5×0.5m, 높이 3.6m 짜리 12개', ex: { kind: 'col', a: '0.5', b: '0.5', h: '3.6', n: '12' } },
