@@ -2992,6 +2992,8 @@ a.glink:hover { text-decoration: underline; }
 .kt-d{ font-size:12.5px; line-height:1.45; font-variant-numeric:tabular-nums; }
 .kt-d b{ font-size:14px; }
 .kt-d em{ display:block; font-style:normal; font-weight:800; color:var(--accent); font-size:12.5px; }
+/* 🩹 G328 기한이 쉬는 날이면 다음 평일 — 민법 제161조 */
+.kt-d .kt-m{ display:block; font-size:11.5px; font-weight:700; color:#b45309; margin-top:2px; }
 .kt-b{ min-width:0; }
 .kt-t{ font-size:14px; font-weight:700; line-height:1.4; }
 .kt-g{ font-size:12.5px; color:var(--text-2); line-height:1.55; margin-top:2px; }

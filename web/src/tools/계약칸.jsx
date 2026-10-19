@@ -224,7 +224,7 @@ export function AfterAward({ ex = {} }) {
           <div className="kt-list">
             {날있는.map((x) => (
               <div className={'kt-it' + ((날차(오늘(), x.날) ?? 0) < 0 ? ' past' : '')} key={x.열쇠}>
-                <div className="kt-d"><b>{x.날}</b> ({요일글(x.날)})<em>{디데이(x.날)}</em></div>
+                <div className="kt-d"><b>{x.날}</b> ({요일글(x.날)})<em>{디데이(x.날)}</em>{x.미룬날 && <small className="kt-m">쉬는 날 → {x.미룬날.slice(5)}({요일글(x.미룬날)})까지</small>}</div>
                 <div className="kt-b"><div className="kt-t">{x.제목}</div><div className="kt-g">{x.글}</div><div className="kt-law">📜 {x.근거}</div></div>
               </div>
             ))}

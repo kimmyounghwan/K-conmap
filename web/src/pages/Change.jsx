@@ -8,6 +8,7 @@ import FMIN from '../data/forms-min.json'
 import { ShareBtn } from './CorpPage.jsx'
 import { Empty, Skeleton } from '../components.jsx'
 import { won, num } from '../lib/fmt.js'
+import { calcRow } from '../lib/설계변경셈.js'
 import UserForms from '../UserForms.jsx'
 import { getNaeyeok, getNaeyeokAll, naeyeokRows } from '../lib/data.js'
 
@@ -721,38 +722,7 @@ export function ChangeTopic() {
   )
 }
 
-/* ── 계산 — 화면과 검사가 같이 쓰는 «한 벌» ──────
-   ⚠️ 규정을 코드로 옮긴 자리입니다. 바꾸려면 근거부터 다시 확인할 것.
-      증가 물량 = 계약단가(계약단가 > 예정가격단가면 예정가격단가)
-      신규 비목 = 설계변경 당시 단가 × 낙찰률
-      발주기관 요구 = 협의, 불성립 시 두 값의 중간 */
-export function calcRow(r, rate) {
-  const n = (v) => Number(String(v ?? '').replace(/[^0-9.-]/g, '')) || 0
-  const q0 = n(r.q0), q1 = n(r.q1)
-  const uc = n(r.upCtr), ue = n(r.upEst), un = n(r.upNow)
-  const owner = r.by === 'owner'
-  const mid = un * (1 + rate) / 2
-  if (r.kind === 'dec') {
-    const q = q1 - q0
-    return { qty: q, unit: uc, amt: q * uc, why: '감소분은 계약단가로 감액합니다.' }
-  }
-  if (r.kind === 'inc') {
-    const q = q1 - q0
-    if (owner) return { qty: q, unit: mid, amt: q * mid, owner: true,
-      why: '발주기관이 요구한 증가분 → 협의 대상입니다. 협의가 안 될 때의 기준(설계변경 당시 단가와 낙찰률 적용 단가의 중간)으로 계산했습니다.' }
-    const useEst = ue > 0 && uc > ue
-    const u = useEst ? ue : uc
-    return { qty: q, unit: u, amt: q * u,
-      why: useEst ? '계약단가가 예정가격단가보다 높아 예정가격단가를 적용했습니다.'
-                  : '증가분은 계약단가를 적용합니다. (낙찰률을 곱하지 않습니다)' }
-  }
-  const q = q1
-  if (owner) return { qty: q, unit: mid, amt: q * mid, owner: true,
-    why: '발주기관이 요구한 신규비목 → 협의 대상입니다. 협의 불성립 기준(중간값)으로 계산했습니다.' }
-  const u = un * rate
-  return { qty: q, unit: u, amt: q * u,
-    why: '신규비목은 «설계변경 당시 단가 × 낙찰률»입니다.' }
-}
+/* 계산(calcRow)은 lib/설계변경셈.js — 화면과 시험이 같이 씁니다(G328) */
 
 const BLANK = { name: '', kind: 'inc', unit: '', q0: '', q1: '',
                 upCtr: '', upEst: '', upNow: '', by: 'me' }
@@ -796,7 +766,7 @@ export function ChangeCalc() {
         + ` 수량 ${num(o.qty)}${r.unit || ''} × 단가 ${won(Math.round(o.unit))}`
         + ` = ${won(Math.round(o.amt))}`)
     })
-    L.push('', `조정 합계 ${won(Math.round(sum))}`)
+    L.push('', `조정 합계 ${won(Math.round(sum))} (직접공사비 증감 — 간접노무비 · 보험료 등 승율비용 · 일반관리비 · 이윤은 산출내역서 율로 더하고 부가세 별도 · 국가계약법 시행령 제65조⑥)`)
     if (ad) L.push('', 'K-건설맵 설계변경 계산기 · k-conmap.com')
     return L.join('\n')
   }
@@ -894,7 +864,7 @@ export function ChangeCalc() {
       <div className="card ctotal">
         <div><span>조정 합계</span><b>{won(Math.round(sum))}</b></div>
         {nn(ctr) > 0 && (
-          <div><span>변경 후 계약금액(예상)</span><b>{won(Math.round(nn(ctr) + sum))}</b></div>
+          <div><span>변경 후 계약금액(어림)</span><b>{won(Math.round(nn(ctr) + sum))}</b></div>
         )}
         <div className="btn-row" style={{ marginTop: 10 }}>
           <button className="btn primary" onClick={copy}>
@@ -907,10 +877,17 @@ export function ChangeCalc() {
         </div>
       </div>
 
+      <div className="note sm" style={{ margin: '-4px 4px 12px', lineHeight: 1.7 }}>
+        조정 합계는 <b>직접공사비(재료비 · 노무비 · 경비) 증감</b>입니다. 실제 계약금액 조정은 여기에
+        간접노무비 · 산재 · 고용보험료 같은 <b>승율비용과 일반관리비 · 이윤을 산출내역서의 율로</b> 더하고(국가계약법 시행령 제65조⑥)
+        부가가치세를 붙입니다 — 위 «변경 후 계약금액» 은 직접공사비만 더한 어림입니다. 단가 · 조정액은 원 미만 버림입니다.
+      </div>
+
       {hasOwner && (
         <div className="card fwarn">
           <b>⚠️ 「발주기관 요구」로 표시한 항목이 있습니다</b>
           <div>
+            정부(발주기관)가 설계변경을 요구한 경우 — 계약상대자에게 책임이 없는 사유로 바뀐 경우도 포함합니다(제65조③ 3호).
             이 경우 단가는 <b>협의로 정하는 것이 원칙</b>입니다. 여기 숫자는 협의가 안 될 때의
             기준(설계변경 당시 단가와 낙찰률 적용 단가의 중간)으로 계산한 값이라,
             협의 결과에 따라 달라집니다. 협의단가 산정서를 함께 내세요.
