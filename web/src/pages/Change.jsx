@@ -491,7 +491,7 @@ export function ChangeNaeyeok() {
         </div>
         <div className="note" style={{ marginTop: 8 }}>
           {PRICED.includes(kind)
-            ? '이 갈래에는 단가가 들어 있습니다. 받아 둔 파일은 실제로 열어 «단가 열에 숫자가 있는지» 확인했습니다.'
+            ? '이 갈래에는 단가가 들어 있습니다. 받아 둔 파일 가운데 열어 본 것은 «단가 확인됨» · «열어 보니 단가 없음» 으로 적었습니다(표시가 없는 것은 아직 안 열어 봄).'
             : '이 갈래는 단가가 비어 있습니다 — 수량과 공종만 봅니다(낙찰자가 단가를 채우는 서식).'}
         </div>
       </div>
@@ -536,7 +536,7 @@ export function ChangeNaeyeok() {
           단가는 <b>그 공고 시점의 값</b>이니, 지금 쓰실 때는{' '}
           <Link to="/change/unit" style={{ color: 'var(--accent)', fontWeight: 700 }}>2026년 품셈·시장단가</Link>로
           한 번 더 확인하시는 편이 안전합니다.
-          발주기관에서 <b>내려 달라</b>고 알려 주시면 바로 지웁니다(구인구직 탭 「K-건설맵 구인·구직」의 문의 창구).
+          발주기관에서 <b>내려 달라</b>고 <a href="/contact" style={{ color: 'var(--accent)', fontWeight: 700 }}>문의</a>로 알려 주시면 바로 지웁니다.
         </div>
       </div>
     </>
