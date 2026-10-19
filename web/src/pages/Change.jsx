@@ -73,11 +73,12 @@ function Blocks({ blocks }) {
     if (b.t === 'table') {
       return (
         <div className="fscroll" key={i}>
-          <table className="ctab">
+          {/* fit: 열이 적은 표는 접어 보임 · stk: 폰에서 줄마다 카드로 쌓음(머리 이름을 칸 위에) — prerender.py 와 같게(G331) */}
+          <table className={'ctab' + (b.fit ? ' fit' : '') + (b.stk ? ' stk' : '')}>
             <thead><tr>{b.cols.map((c, j) => <th key={j}>{c}</th>)}</tr></thead>
             <tbody>
               {b.rows.map((r, j) => (
-                <tr key={j}>{r.map((c, k) => <td key={k}>{md(c)}</td>)}</tr>
+                <tr key={j}>{r.map((c, k) => <td key={k} data-l={b.cols[k] || ''}>{md(c)}</td>)}</tr>
               ))}
             </tbody>
           </table>
@@ -146,7 +147,7 @@ export function ChangeForms({ compact }) {
     <div className="card">
       <div className="sec-title" style={{ margin: '0 0 2px' }}>
         📄 설계변경 서식 <span className="count">
-          {FORMSETS.reduce((n, g) => n + g.slugs.length, 0)}가지 · 엑셀 · 바로 이용 가능
+          {FORMSETS.reduce((n, g) => n + g.slugs.filter((x) => FMIN[x]).length, 0)}가지 · 엑셀 · 바로 이용 가능
         </span>
       </div>
       <div style={{ fontSize: 12, color: 'var(--muted)', margin: '0 0 10px' }}>
@@ -558,7 +559,7 @@ export default function Change() {
         </p>
         <div className="btn-row" style={{ marginTop: 10 }}>
           <Link className="btn primary" to="/change/calc">🧮 증감 계산기 열기</Link>
-          <a className="btn ghost" href="#seosik">📄 서식 19가지</a>
+          <a className="btn ghost" href="#seosik">📄 서식 {FORMSETS.reduce((n, g) => n + g.slugs.filter((x) => FMIN[x]).length, 0)}가지</a>
         </div>
       </div>
 

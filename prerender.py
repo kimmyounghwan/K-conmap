@@ -1696,11 +1696,12 @@ def _blocks_html(blocks):
             out.append("</div>")
         elif t == "table":
             # fit: 열이 적은 표는 폰에서 옆으로 밀지 않고 접어 보여 줍니다(G91 — 화면 Guide.jsx 와 같게)
-            out.append('<div class="fscroll"><table class="ctab' + (' fit' if b.get("fit") else '') + '"><thead><tr>')
+            # stk: 폰에서 줄마다 카드로 쌓고 머리 이름을 칸 위에 씁니다(G331 — 화면 Change.jsx 와 같게)
+            out.append('<div class="fscroll"><table class="ctab' + (' fit' if b.get("fit") else '') + (' stk' if b.get("stk") else '') + '"><thead><tr>')
             out.extend(f"<th>{esc(c)}</th>" for c in b["cols"])
             out.append("</tr></thead><tbody>")
             for r in b["rows"]:
-                out.append("<tr>" + "".join(f"<td>{_bold(c)}</td>" for c in r) + "</tr>")
+                out.append("<tr>" + "".join(f'<td data-l="{esc(b["cols"][k] if k < len(b["cols"]) else "")}">{_bold(c)}</td>' for k, c in enumerate(r)) + "</tr>")
             out.append("</tbody></table></div>")
         elif t == "src":
             # ⚖️ 2026-09-30 — 법·계약 글의 «근거 조문» — 법제처 원문으로 (화면 Guide.jsx 와 같은 모양)

@@ -2314,6 +2314,16 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
 @media (max-width: 430px) { .cstep { grid-template-columns: 1fr; gap: 3px; } }
 .ctab { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 420px; }
 .ctab.fit { min-width: 0; }   /* 열이 적은 표 — 폰에서 옆으로 밀지 않고 줄바꿈 (G91) */
+/* stk — 폰에서 표를 줄마다 카드로 쌓습니다. 옆으로 밀어야 보이던 «비고» 칸이 잘려 보이던 것(G331 · /change/price · esc) */
+@media (max-width: 600px) {
+  .ctab.stk { min-width: 0; }
+  .ctab.stk thead { display: none; }
+  .ctab.stk tbody, .ctab.stk tr, .ctab.stk td { display: block; width: auto; }
+  .ctab.stk tr { border: 1px solid var(--line); border-radius: 8px; margin: 0 0 8px; overflow: hidden; }
+  .ctab.stk td { border: 0; border-top: 1px solid var(--line); padding: 6px 10px; }
+  .ctab.stk td:first-child { border-top: 0; font-weight: 700; background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+  .ctab.stk td:not(:first-child):not([data-l=""])::before { content: attr(data-l); display: block; font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 1px; }
+}
 .ctab th, .ctab td { border: 1px solid var(--line); padding: 7px 9px; text-align: left; vertical-align: top; }
 .ctab th { background: color-mix(in srgb, var(--accent) 8%, var(--surface)); font-weight: 700; }
 
