@@ -2485,6 +2485,31 @@ function 강도글요약(fy규격, fy) {
   if (값들.length === 1) { const 작은 = ds.map((d) => +d.slice(1)).sort((a, b) => a - b)[0]; return 'D' + 작은 + ' 이상 fy ' + 값들[0] + ' (나머지 ' + fy + ')' }
   return ds.map((d) => d + ' ' + fy규격[d]).join(' · ')
 }
+/* 🧭 G332 (2026-10-20) 도면에서 읽은 벽 줄(_양면 · «높이» · «상부» 가 빈 줄 = 층고 그대로)은 위 슬래브 두께만큼 낮춤 —
+     기둥(층고 − 슬래브)과 같은 규칙 · BIM 화면(BIM모델.js 겹친것빼기의 «벽 윗면 공제»)과 같은 값. 파라펫 · 기타 벽 · 높이를 읽은 줄 · 사람이 «상부» 를 적은 줄은 그대로.
+     전엔 골조 · 도면 물량 자동 화면에서 벽이 층고 그대로라 슬래브와 겹친 몫(길이 × 두께 × 슬래브)을 두 번 셈 — 예시 W1 3.888 → 3.726 ㎥(BIM 3.726)
+     골조읽기 안에 넣지 않은 까닭: BIM 화면은 3D 로 벽 토막마다 위를 보고 공제하므로(빈 «상부» 를 봄) 그대로 둠 */
+export function 벽윗면공제(공사) {
+  if (!공사 || !Array.isArray(공사.동)) return 공사
+  const 판 = new Map((공사.층 || []).map((f) => [String(f.이름), +f.슬라브 || 0]))
+  const 구분 = new Map((((공사.배근 || {}).벽) || []).map((w) => [String(w.기호), String(w.구분 || '')]))
+  let n = 0
+  const 동 = 공사.동.map((d) => {
+    const rows = (d.주자료 || {}).옹벽
+    if (!Array.isArray(rows)) return d
+    const 새 = rows.map((r) => {
+      if (!r._양면 || String(r.상부 ?? '').trim() || String(r.높이 ?? '').trim()) return r
+      if (/파라|기타/.test(구분.get(String(r.기호)) || '')) return r
+      const t = 판.get(String(r.층)) || 0
+      if (!(t > 0)) return r
+      n++
+      return { ...r, 상부: String(t), _윗공제: true }
+    })
+    return { ...d, 주자료: { ...d.주자료, 옹벽: 새 } }
+  })
+  return n ? { ...공사, 동 } : 공사
+}
+
 export function 골조읽기(도면들0, o = {}) {
   try { return 골조읽기0(도면들0, o) } finally { 벽허용 = null; 데크허용 = false }
 }
@@ -2830,6 +2855,7 @@ function 골조읽기0(도면들0, o = {}) {
   }
   const 평면별 = new Map()     // 제목 → 기호글자들
   const 제목없음 = { g: null, f: ['2'], 없음: true, 이름: '' }
+  const 제목없는도면 = new Map()  // 🧭 G332 D → 안 센 기호들
   for (const x of 기호글자) {
     let best = 제목찾기(x.D, x.g)
     /* 🧭 G299 «(ROOF, PHF 동일보)» — 앞에 적힌 평면(ROOF)에서만 셈 · 다른 평면(PHF)의 같은 글은 건너뜀(한 보를 두 번 안 셈) */
@@ -2839,10 +2865,19 @@ function 골조읽기0(도면들0, o = {}) {
       /* 🧭 G241 판 이름(표제란 도면명)이 있는데 구조 평면이 아닌 판(현장 A «종 골구도 - 1» · 단면 · 상세 · 일람표)의 기호는 평면 부재가 아님
            — 예전엔 «제목 없는 평면(1층)» 으로 셈해 현장 A 골구도의 기호 726개가 1층 부재로 더해졌음 */
       if (x.D.도곽 && x.D.도곽.length) { const p = x.D.도곽번(x.g.x, x.g.y); const nm = p >= 0 ? (x.D.판제목 || [])[p] || '' : ''; if (nm && !제목층(nm)) continue }
+      /* 🧭 G332 (2026-10-20) 다른 도면에 구조평면도 제목이 있으면, 제목이 하나도 없는 도면(건축 평면 · 마감 · 창호 도면)의 기호는 부재가 아님 — 알리고 뺌.
+           /jeoksan/auto 예시 셋을 같이 넣으니 마감 평면의 실내재료마감표 기호(F1 바닥 · C1 천장 · W1 벽 · B1 걸레받이)가 «제목 없는 평면(1층)» 의
+           기초 · 기둥 · 벽 · 보로 셈해져 콘크리트 216.25 → 226.80 ㎥ · 철근 22.040 → 22.725 ton 으로 부풀었음(건축 · 구조 도면을 한꺼번에 넣는 일이 흔함) */
+      if (제목들.length) { const a = 제목없는도면.get(x.D); if (a) a.push(x.r.기호); else 제목없는도면.set(x.D, [x.r.기호]); continue }
       best = 제목없음
     }
     let a = 평면별.get(best); if (!a) { a = []; 평면별.set(best, a) }
     a.push(x)
+  }
+  for (const [D, 기들] of 제목없는도면) {
+    const 가지 = [...new Set(기들)]
+    경고.push('«' + (D.이름 || (D.번 + 1) + '번 도면') + '» 에는 구조평면도 제목이 없어 그 도면의 기호 ' + 기들.length + '개(' + 가지.slice(0, 6).join(' · ') + (가지.length > 6 ? ' …' : '') +
+      ')는 부재로 세지 않았습니다 — 건축 · 마감 도면이면 그대로 두십시오. 구조 평면이면 제목(예: «2층 구조평면도»)을 확인하거나 판 목록에서 층을 고르십시오')
   }
   if (평면별.has(제목없음) && !바닥차례.length) { 바닥차례.push('1', '2') }
   for (const 글들 of 평면별.values()) for (const x of 글들) { const o = 쓰임(x.D, x.g.x, x.g.y); if (o) o.기호[x.r.종류] = (o.기호[x.r.종류] || 0) + 1 }

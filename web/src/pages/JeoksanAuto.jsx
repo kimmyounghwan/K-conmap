@@ -41,11 +41,11 @@ import { 조각표만들기 } from '../lib/골조그림.js'
 import { 참조키, 부르는참조, 참조붙이기, 참조모음, 경계를B로 } from '../lib/외부참조.js'
 import * as 자 from '../lib/도면자동.js'
 import * as 전 from '../lib/도면전부.js'
-import { 내역읽기, 모으기 as 내역모으기, 대조 as 대조하기, 대조시트, 단위풀기, 한눈에 } from '../lib/내역대조.js'
+import { 내역읽기, 모으기 as 내역모으기, 대조 as 대조하기, 대조시트, 단위풀기, 한눈에, 점수 as 짝점수, 문턱 as 짝문턱 } from '../lib/내역대조.js'
 import { 철근표, 셈 as 골조셈, 엑셀 as 골조엑셀, 기준값 as 골조기준값 } from '../lib/골조.js'
 import { 골조보탬, 골조짝, 넣을것, 셀바꾸기, csv바꾸기 } from '../lib/내역채움.js'
 import { 내역넘기기 } from '../lib/도면넘김.js'
-import { 골조읽기, 골조시트들, 개수글 } from '../lib/골조자동.js'
+import { 골조읽기, 골조시트들, 개수글, 벽윗면공제 } from '../lib/골조자동.js'
 import { 플랜트다듬기, 플랜트공사 } from '../lib/플랜트기초.js'   // 🏭 G294 · G295 플랜트공사 = BIM 화면과 같은 3D 받침 높이
 import 셈방법칸, { 셈방법입히기 } from '../셈방법칸.jsx'
 import { 셈방법고르기 } from '../lib/셈방법.js'   // 🧮 G295 셈 방법(저절로 · 도면 그대로 · 내역서처럼)
@@ -77,6 +77,8 @@ function 전부(f) {
 const 자동키 = (종, 이름) => (종 === '길이' ? '층길이:' + 이름 : 종 === '면적' ? '층면적:' + 이름 : 종 === '블록' ? '블록:' + 이름 : '기호:' + 자.붙임(이름).toUpperCase())
 const 판색 = { 같음: 'good', '도면이 많음': 'bad', '도면이 적음': 'bad', '도면에서 못 찾음': 'mid', '내역 수량 없음': 'new', '다른 동·공종': 'mid' }
 const 쉼 = (n, d = 0) => new Intl.NumberFormat('ko-KR', { maximumFractionDigits: d, minimumFractionDigits: d }).format(n || 0)
+/* 🧭 G332 차이 — 0.0005 보다 작은데 0 이 아니면 자릿수를 늘림(전엔 «-0.000» · 차이율 −0.5% 와 따로 놀았음 — 철근 톤 줄) */
+const 차이글 = (v) => { if (!v) return 쉼(0, 3); const a = Math.abs(v); const d = a >= 0.0005 ? 3 : Math.min(6, Math.ceil(-Math.log10(a))); return (v > 0 ? '+' : '-') + 쉼(a, d) }
 const 종색 = { 철근: '#f59e0b', 수량: '#22c55e', 기타: '#94a3b8' }
 const 종이름 = { 철근: '철근 재료표', 수량: '수량표', 기타: '그 밖의 표' }
 let 번호 = 0
@@ -416,7 +418,8 @@ export default function JeoksanAuto() {
   }, [파일들])
   const 골공사기본 = useMemo(() => {
     if (!골 || !골.있음) return null
-    return { ...골.공사, 층: 골.공사.층.map((f) => (골고침[f.이름] ? { ...f, ...골고침[f.이름] } : f)) }
+    const P = { ...골.공사, 층: 골.공사.층.map((f) => (골고침[f.이름] ? { ...f, ...골고침[f.이름] } : f)) }
+    return 골.플랜트 ? P : 벽윗면공제(P)   // 🧭 G332 벽은 위 슬래브 두께만큼 낮춤(층 칸을 고치면 따라감 · BIM 과 같은 값)
   }, [골, 골고침])
   /* 🧮 G295 셈 방법 — 플랜트식 토목 기초 도면일 때만: 🤖 저절로(내역서를 넣으면 내역서 합계 — 철근 콘크리트 ㎥ · 거푸집 ㎡ — 와 더 가까운 쪽) · 📐 도면 그대로 · 📑 내역서처럼 */
   const 플랜트 = !!(골 && 골.플랜트)
@@ -1158,13 +1161,14 @@ export default function JeoksanAuto() {
                     </div>
                     <div className="ja-fill-o">
                       <label><input type="checkbox" checked={넣기옵션.빈만} onChange={(e) => set넣기옵션((o) => ({ ...o, 빈만: e.target.checked }))} /> 빈 수량 칸만 채우기 <span className="muted">(끄면 도면과 다른 수량도 도면 값으로 바꿈)</span></label>
-                      <label><input type="checkbox" checked={넣기옵션.할증} onChange={(e) => set넣기옵션((o) => ({ ...o, 할증: e.target.checked }))} /> 재료 줄(레미콘·철근)은 할증 넣은 값 <span className="muted">(타설·가공조립은 늘 할증 없이)</span></label>
+                      <label><input type="checkbox" checked={넣기옵션.할증} onChange={(e) => set넣기옵션((o) => ({ ...o, 할증: e.target.checked }))} /> 골조 재료 줄(레미콘·철근)은 할증 넣은 값 <span className="muted">(타설·가공조립은 늘 할증 없이 · 도면 표에서 읽은 철근 · 자재는 적힌 그대로)</span></label>
                       <label><input type="checkbox" checked={넣기옵션.약함} onChange={(e) => set넣기옵션((o) => ({ ...o, 약함: e.target.checked }))} /> 짝이 약한 줄도 넣기</label>
                     </div>
                     <div className="btn-row" style={{ flexWrap: 'wrap', marginTop: 8 }}>
                       <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={!넣 || !넣.바꿀.length || !내역.원본} onClick={넣은내역받기}>⬇ 물량 넣은 내역서 받기</button>
                       {!내역csv && <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!넣 || !넣.바꿀.length || !내역.원본} onClick={단가로}>📑 이어서 단가까지 채우기 →</button>}
                     </div>
+                    {넣 && !넣.셈.넣음 && 넣기옵션.빈만 && 넣.셈.있음 > 0 && <p className="muted" style={{ margin: '6px 0 0', fontSize: 12.5 }}>💡 이 내역서에는 빈 수량 칸이 없습니다 — 도면과 다른 수량 {넣.셈.있음}줄을 도면 값으로 바꾸려면 «빈 수량 칸만 채우기» 를 끄십시오.</p>}
                     {!내역.원본 && <p className="muted" style={{ margin: '6px 0 0' }}>예전에 넣은 내역서라 원래 파일이 없습니다 — 📑 다른 내역서로 한 번 더 넣어 주십시오.</p>}
                     {넣은말 && (넣은말.오류
                       ? <p className="gp-warn" style={{ margin: '6px 0 0' }}>⚠️ {넣은말.오류}</p>
@@ -1194,10 +1198,15 @@ export default function JeoksanAuto() {
                               {같은무리.filter((d) => !r.후보.some((c) => c.key === d.key)).map((d) => <option key={d.key} value={d.key}>{d.품명}{d.규격 ? ' ' + d.규격 : ''} · {쉼(d.수량, 3)} {d.단위}</option>)}
                             </select>
                             {r.도면 && <div className="note2" style={{ fontSize: 11 }}>{r.도면.구분} · {r.도면.근거}</div>}
+                            {!r.도면 && (() => {
+                              /* 🧭 G332 못 찾은 줄 — ① 에서 꺼 둔 줄(레이어 길이 · 흐린 줄)에 닮은 것이 있으면 알려 드림(예시: «L형 측구» ↔ 꺼 둔 «측구» 160 m) */
+                              const 꺼둔 = 산출.줄.filter((d) => !d.켬).map((d) => ({ d, s: 짝점수(d, n) })).filter((x) => x.s >= 짝문턱).sort((a, b) => b.s - a.s)[0]
+                              return 꺼둔 ? <div className="ja-trust weak">💡 ① 물량 전부에 꺼 둔 줄 «{꺼둔.d.품명}{꺼둔.d.규격 ? ' ' + 꺼둔.d.규격 : ''}» {쉼(꺼둔.d.수량, 3)} {단위보기(꺼둔.d.단위)} — 맞으면 ① 에서 켜십시오({꺼둔.d.구분})</div> : null
+                            })()}
                             {(r.믿음 || r.까닭) && <div className={'ja-trust ' + (r.믿음 === '확실' ? 'ok' : r.믿음 === '약함' ? 'weak' : '')}>{r.믿음 ? (r.믿음 === '확실' ? '✓ 확실' : '△ 약함') + ' · ' : ''}{r.까닭}</div>}
                           </td>
                           <td className="r">{r.도면 ? <b>{쉼(r.도면수량, 3)}</b> : '—'}{r.할증 ? <div className="note2" style={{ fontSize: 11 }}>할증 {r.할증}% → {쉼(r.할증수량, 3)}</div> : null}</td>
-                          <td className="r">{r.도면 ? (r.차이 > 0 ? '+' : '') + 쉼(r.차이, 3) : ''}</td>
+                          <td className="r">{r.도면 ? 차이글(r.차이) : ''}</td>
                           <td className="r">{r.율 === null || !r.도면 ? '' : (r.율 > 0 ? '+' : '') + r.율.toFixed(1) + '%'}</td>
                           <td><span className={'ja-badge ' + (판색[r.판정] || '')}>{r.판정}</span>{r.고친짝 ? <span className="muted" style={{ fontSize: 11 }}> (고친 짝)</span> : null}
                             {넣을 && <div className="ja-putv">📥 {쉼(넣을.값, 3)} 넣음</div>}</td>
