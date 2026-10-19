@@ -4746,6 +4746,9 @@ span.qna-like { cursor: default; }
 .gp-v { top: auto; bottom: 1px; height: 13px; font-size: 9.5px; color: #374151; }
 .gp-t.좁음 .gp-v { font-size: 8px; }
 .gp-t.좁음 .gp-cell { font-size: 9px; }
+/* 🧭 G333 칸이 많으면(순 · 주) 공정률 · 누계 숫자를 세로로 — «36.8» · «100.0» 이 칸(폰 12 ~ 16px)보다 넓어 «00.0» 처럼 잘려 보였음 */
+.gp-t.좁음 .gp-sum td, .gp-t.좁음 .gp-sum td .gp-lane { height: 40px; }
+.gp-t.좁음 .gp-sum .gp-cell { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 9px; letter-spacing: -0.2px; }
 .gp-sum td { background: #f9fafb; font-weight: 700; text-align: center; height: 24px; }
 .gp-sum td .gp-lane { height: 24px; }
 .gp-curve td { height: 150px; }
