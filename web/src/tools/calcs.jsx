@@ -344,7 +344,8 @@ export function SoilVolume({ ex = {} }) {
 export function ConcreteVolume({ ex = {} }) {
   const [w, setW] = use칸('w', ex.w ?? ''); const [h, setH] = use칸('h', ex.h ?? '')
   const [l, setL] = use칸('l', ex.l ?? ''); const [n, setN] = use칸('n', ex.n ?? '1')
-  const [loss, setLoss] = use칸('loss', '2')
+  /* 🧭 G335 기본 할증 2 → 1% — 표준품셈 재료 할증률: 레디믹스트 콘크리트 철근 구조물 1% · 무근 2% (골조 화면도 1%) */
+  const [loss, setLoss] = use칸('loss', '1')
   const v = num(w) * num(h) * num(l) * num(n)
   const vl = v * (1 + num(loss) / 100)
   return (
@@ -354,13 +355,13 @@ export function ConcreteVolume({ ex = {} }) {
         <Row label="세로(높이)" hint="m"><input inputMode="decimal" value={h} onChange={(e) => setH(e.target.value)} placeholder="0.6" /></Row>
         <Row label="길이" hint="m"><input inputMode="decimal" value={l} onChange={(e) => setL(e.target.value)} placeholder="12" /></Row>
         <Row label="개수" hint="개"><input inputMode="numeric" value={n} onChange={(e) => setN(e.target.value)} /></Row>
-        <Row label="손실" hint="% · 흘림·변형"><input inputMode="decimal" value={loss} onChange={(e) => setLoss(e.target.value)} /></Row>
+        <Row label="할증" hint="% · 철근 1 · 무근 2"><input inputMode="decimal" value={loss} onChange={(e) => setLoss(e.target.value)} /></Row>
       </div>
       <Out items={[
         { k: '산출 체적', v: v > 0 ? v.toFixed(3) + ' ㎥' : '—' },
-        { k: '손실 포함', v: vl > 0 ? vl.toFixed(3) + ' ㎥' : '—', big: true },
+        { k: '할증 포함', v: vl > 0 ? vl.toFixed(3) + ' ㎥' : '—', big: true },
       ]} />
-      <div className="hint">개구부·다른 부재와 겹치는 부분은 <b>빼서 넣으셔야</b> 합니다.</div>
+      <div className="hint">할증은 표준품셈 재료 할증률(레디믹스트 콘크리트 — 철근 구조물 1% · 무근 구조물 2%)입니다. 개구부·다른 부재와 겹치는 부분은 <b>빼서 넣으셔야</b> 합니다(예: 보는 춤에서 슬래브 두께를 빼고 · 기둥은 층고에서 슬래브 두께를 빼고).</div>
     </div>
   )
 }
@@ -370,11 +371,12 @@ export function FormworkArea({ ex = {} }) {
   const [kind, setKind] = use칸('kind', ex.kind ?? 'col')
   const [a, setA] = use칸('a', ex.a ?? ''); const [b, setB] = use칸('b', ex.b ?? '')
   const [h, setH] = use칸('h', ex.h ?? ''); const [n, setN] = use칸('n', ex.n ?? '1')
-  const A = num(a), B = num(b), H = num(h), N = num(n)
+  const [t, setT] = use칸('t', ex.t ?? '')   // 🧭 G335 보 위 슬래브 두께 — 옆면은 슬래브 밑까지(골조 화면과 같은 규칙)
+  const A = num(a), B = num(b), H = num(h), N = num(n), T = Math.max(0, Math.min(num(t), H))
   let area = 0, how = ''
   if (kind === 'col') { area = 2 * (A + B) * H * N; how = '둘레 × 높이 (네 옆면)' }
   else if (kind === 'wall') { area = A * H * 2 * N; how = '길이 × 높이 × 양면' }
-  else if (kind === 'beam') { area = (2 * H + B) * A * N; how = '(양 옆면 + 밑면) × 길이' }
+  else if (kind === 'beam') { area = (2 * (H - T) + B) * A * N; how = T > 0 ? '(양 옆면(춤 − 슬래브 ' + T + ') + 밑면) × 길이' : '(양 옆면 + 밑면) × 길이' }
   else { area = A * B * N; how = '슬래브 밑면' }
   return (
     <div className="tool">
@@ -394,13 +396,16 @@ export function FormworkArea({ ex = {} }) {
         {kind !== 'slab' && (
           <Row label="높이(춤)" hint="m"><input inputMode="decimal" value={h} onChange={(e) => setH(e.target.value)} /></Row>
         )}
+        {kind === 'beam' && (
+          <Row label="위 슬래브 두께" hint="m · 없으면 비움"><input inputMode="decimal" value={t} onChange={(e) => setT(e.target.value)} placeholder="0.15" /></Row>
+        )}
         <Row label="개수" hint="개"><input inputMode="numeric" value={n} onChange={(e) => setN(e.target.value)} /></Row>
       </div>
       <Out items={[
         { k: '계산 방식', v: how },
         { k: '거푸집 면적', v: area > 0 ? area.toFixed(2) + ' ㎡' : '—', big: true },
       ]} />
-      <div className="hint">바닥이나 다른 콘크리트에 닿는 면은 거푸집이 필요 없습니다. <b>개구부·접합부는 도면을 보고 조정</b>하세요.</div>
+      <div className="hint">바닥이나 다른 콘크리트에 닿는 면은 거푸집이 필요 없습니다 — 보 옆면은 슬래브 밑까지(위 슬래브 두께를 넣으면 뺍니다), 기둥 높이는 층고에서 슬래브 두께를 뺀 값. <b>개구부·접합부는 도면을 보고 조정</b>하세요.</div>
     </div>
   )
 }

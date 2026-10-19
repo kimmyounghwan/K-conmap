@@ -73,6 +73,9 @@ const 견본 = {
   건축: '/jeoksan/재료표_건축.xlsx',
 }
 const 치수견본 = '/jeoksan/치수표_견본.csv'
+/* 🧭 G335 (2026-10-20) 건축 재료표를 고르고 «견본 12줄» 을 누르면 토목 줄(땅깎기 …)이 들어와 ✕ 12가지 · 산출서 0줄이었음 → 재료표에 맞는 견본 줄 */
+const 치수견본건축 = '/jeoksan/치수표_견본_건축.csv'
+const 견본치수 = (book) => (book && (book.견본 === '건축' || (!book.견본 && (book.부재 || []).includes('기둥') && !(book.부재 || []).includes('땅깎기'))) ? 치수견본건축 : 치수견본)
 const 기본칸 = ['번호', '부재', '부호', '태그1', '태그2', '태그3', '개소', 'A1', 'A2', 'L', 'W', 'H', 'A', '비고']
 
 export default function JeoksanRun() {
@@ -205,7 +208,7 @@ function Run() {
     setErr('')
     try {
       const m = await loadLib()
-      const r = await fetch(치수견본)
+      const r = await fetch(견본치수(book))
       const text = decodeKo(await r.arrayBuffer())
       const us = m.readUnits(text)
       const 칸 = 기본칸.slice()
@@ -427,7 +430,7 @@ function Run() {
                 : <><b>＋ 치수표를 끌어 놓거나 누르십시오</b><span>.csv · .xlsx</span></>}
             </div>
             <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-              칸 모양이 궁금하시면: <a href={치수견본} download>치수표 견본(CSV)</a>
+              칸 모양이 궁금하시면: <a href={견본치수(book)} download>치수표 견본(CSV{견본치수(book) === 치수견본건축 ? ' · 건축' : ''})</a>
             </div>
           </>
         )}

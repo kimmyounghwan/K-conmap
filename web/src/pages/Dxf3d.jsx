@@ -818,7 +818,8 @@ export default function Dxf3d() {
       <div className="card">
         <div className="detail-h">못 읽는 것</div>
         <ul className="tl-p" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.9 }}>
-          <li><b>DWG</b> — <Link to="/tools/dwgdxf">DWG → DXF 바꾸기</Link> 에서 DXF 로 바꿔 놓아 주십시오 (캐드의 «다른 이름으로 저장 → DXF» 도 됩니다)</li>
+          {/* 🧭 G335 2026-09-27 부터 DWG 도 바로 받는데(이 브라우저 안에서 DXF 로 바꿈) «못 읽는 것: DWG» 로 남아 있었음 */}
+          <li><b>바뀌지 않는 DWG</b>(아주 새 판 · 깨진 파일) — DWG 는 바로 넣으시면 되지만, 못 바꾼 파일은 이름을 알려 드립니다. 그때는 캐드의 «다른 이름으로 저장 → DXF» 로</li>
           <li><b>바이너리 DXF</b> — 저장할 때 «ASCII» 로</li>
           <li><b>3DSOLID·면(REGION)</b> — 속이 암호라 못 읽습니다. 메쉬로 바꾸면 보입니다</li>
           <li><b>글자·해치(채우기)·그림</b> — 3D 에서는 오히려 가려서 뺍니다. 몇 개를 뺐는지는 위에 적습니다</li>
