@@ -69,27 +69,31 @@ export function Out({ items }) {
    요율은 «참고용 기본값» 입니다. 공고서 값이 있으면 그것이 우선입니다.
    📅 2026-09-30 — 국민연금 기본값을 2026년 요율(사업주 4.75%, 2025년 4.5%)에 맞춤: 2.49 → 2.63
       (건강 1.99 · 장기요양 0.26 이 2026년 요율 3.595% · 0.4724% 의 55% 꼴이라 같은 비율로). 2027년은 5% → 약 2.77 */
+/* 🧭 G336 (2026-10-20) 기본값을 «조달청이 준 실제 A값» 의 중앙값으로 — 2026년 공사 공고 11,504건(기초금액 5천만 원 이상 · 항목이 있는 공고)
+     항목마다 기초금액 대비: 산안 1.742 · 건강 1.126 · 연금 1.483 · 장기요양 0.148 · 퇴직공제 0.706(7,936건) · 품질 0.437(1,703건)%.
+     전 기본값(1.97 · 1.99 · 2.63 · 0.26 · 2.30 · 0.70 = 9.85%)은 «직접노무비 = 기초금액의 55%» 로 짐작한 값이라 실제(합계 중앙 5.2%)의 두 배 가까웠고,
+     퇴직공제는 요율(직노 × 2.3%)을 기초금액에 그대로 곱해 더 컸음(실제 퇴직/연금 = 0.484 = 2.3/4.75). 이 화면 글의 «실효 하한 +0.566%p» 와도 맞음. */
 const A_PARTS = [
-  { k: 'safe', n: '산업안전보건관리비', r: 1.97 },
-  { k: 'heal', n: '국민건강보험료', r: 1.99 },
-  { k: 'pens', n: '국민연금보험료', r: 2.63 },
-  { k: 'care', n: '노인장기요양보험료', r: 0.26 },
-  { k: 'reti', n: '퇴직공제부금비', r: 2.30 },
-  { k: 'qual', n: '품질관리비', r: 0.70 },
+  { k: 'safe', n: '산업안전보건관리비', r: 1.74 },
+  { k: 'heal', n: '국민건강보험료', r: 1.13 },
+  { k: 'pens', n: '국민연금보험료', r: 1.48 },
+  { k: 'care', n: '노인장기요양보험료', r: 0.15 },
+  { k: 'reti', n: '퇴직공제부금비', r: 0.71 },
+  { k: 'qual', n: '품질관리비', r: 0.44 },
 ]
 /* 📅 2026-09-30 — 요율은 «이용자가 직접 바꾼 칸만» 기억합니다(rate2).
    전에는 요율 여섯 칸을 통째로 브라우저에 남겨서(rate), 한 번 연 사람은 기본값을 고쳐도(국민연금 2.49 → 2.63)
    옛 값을 계속 봤습니다. 이제 안 바꾼 칸은 늘 새 기본값입니다.
    옛 저장(rate)에서 «그때 기본값과 다른 칸» 만 건져 옮깁니다 — 손으로 고친 값은 잃지 않습니다. */
-const A_OLD_DEF = { pens: '2.49' }            // 바꾸기 전 기본값(나머지는 지금과 같음)
+const A_OLD_DEF = { safe: ['1.97'], heal: ['1.99'], pens: ['2.49', '2.63'], care: ['0.26'], reti: ['2.30', '2.3'], qual: ['0.70', '0.7'] }   // 예전 기본값들(손으로 고친 값으로 보지 않음)
 function A덮어건지기(old) {
   const out = {}
   if (!old || typeof old !== 'object') return out
   for (const p of A_PARTS) {
     const v = old[p.k]
     if (v == null || v === '') continue
-    const 그때 = A_OLD_DEF[p.k] ?? String(p.r)
-    if (String(v) !== 그때 && String(v) !== String(p.r)) out[p.k] = String(v)
+    const 옛 = A_OLD_DEF[p.k] || []
+    if (!옛.includes(String(v)) && String(v) !== String(p.r)) out[p.k] = String(v)
   }
   return out
 }
@@ -125,7 +129,7 @@ export function AValue({ ex = {} }) {
         { k: 'A값 합계', v: won(total), big: true },
         { k: '기초금액 대비', v: b > 0 ? (total / b * 100).toFixed(2) + '%' : '—' },
       ]} />
-      <div className="hint">요율은 참고용 기본값입니다. <b>공고서(산출내역서)의 값을 확인</b>하세요.</div>
+      <div className="hint">기본 요율은 2026년 공사 공고 11,504건에서 조달청이 준 A값의 <b>중앙값</b>(기초금액 대비)입니다 — 퇴직공제는 1억 원 이상 등 대상 공사만, 품질관리비는 «A값 대상» 공고만 들어갑니다. <b>공고서(산출내역서)의 값을 확인</b>하세요.</div>
     </div>
   )
 }
@@ -437,7 +441,8 @@ export function RemiconTruck({ ex = {} }) {
 /* ── 아스팔트 톤수 ────────────────────────────────────────────── */
 export function AsphaltTonnage({ ex = {} }) {
   const [area, setArea] = use칸('area', ex.area ?? ''); const [t, setT] = use칸('t', '5')
-  const [den, setDen] = use칸('den', '2.35'); const [loss, setLoss] = use칸('loss', '3')
+  /* 🧭 G336 기본 할증 3 → 2% — 표준품셈 재료 할증률 «아스팔트 콘크리트 포설(현장플랜트 포함) 2%» */
+  const [den, setDen] = use칸('den', '2.35'); const [loss, setLoss] = use칸('loss', '2')
   const v = num(area) * (num(t) / 100)
   const ton = v * num(den) * (1 + num(loss) / 100)
   return (
@@ -446,27 +451,28 @@ export function AsphaltTonnage({ ex = {} }) {
         <Row label="포장 면적" hint="㎡"><input inputMode="decimal" value={area} onChange={(e) => setArea(e.target.value)} placeholder="1200" /></Row>
         <Row label="두께" hint="cm"><input inputMode="decimal" value={t} onChange={(e) => setT(e.target.value)} /></Row>
         <Row label="밀도" hint="t/㎥"><input inputMode="decimal" value={den} onChange={(e) => setDen(e.target.value)} /></Row>
-        <Row label="손실" hint="%"><input inputMode="decimal" value={loss} onChange={(e) => setLoss(e.target.value)} /></Row>
+        <Row label="할증" hint="% · 포설 2"><input inputMode="decimal" value={loss} onChange={(e) => setLoss(e.target.value)} /></Row>
       </div>
       <Out items={[
         { k: '체적', v: v > 0 ? v.toFixed(2) + ' ㎥' : '—' },
         { k: '아스콘 소요량', v: ton > 0 ? ton.toFixed(2) + ' 톤' : '—', big: true },
       ]} />
-      <div className="hint">밀도는 혼합물 종류·다짐도에 따라 다릅니다. <b>시방서나 배합설계 값이 있으면 그것을 넣으세요.</b></div>
+      <div className="hint">할증은 표준품셈 재료 할증률(아스팔트 콘크리트 포설 2%)입니다. 밀도는 혼합물 종류·다짐도에 따라 다릅니다. <b>시방서나 배합설계 값이 있으면 그것을 넣으세요.</b></div>
     </div>
   )
 }
 
 /* ── 벽돌·블록 수량 ───────────────────────────────────────────── */
+/* 🧭 G336 할증을 쌓는 것마다 — 표준품셈 재료 할증률: 시멘트벽돌 5% · 붉은벽돌 3% · 블록 4% (전엔 모두 4%) */
 const BRICK = [
-  ['0.5B 쌓기', 75], ['1.0B 쌓기', 149], ['1.5B 쌓기', 224], ['2.0B 쌓기', 298],
-  ['콘크리트블록', 12.5],
+  ['0.5B 쌓기', 75, 5], ['1.0B 쌓기', 149, 5], ['1.5B 쌓기', 224, 5], ['2.0B 쌓기', 298, 5],
+  ['콘크리트블록', 12.5, 4],
 ]
 export function BrickCount({ ex = {} }) {
   const [area, setArea] = use칸('area', ex.area ?? ''); const [kind, setKind] = use칸('kind', '1.0B 쌓기')
-  const [per, setPer] = use칸('per', '149'); const [loss, setLoss] = use칸('loss', '4')
+  const [per, setPer] = use칸('per', '149'); const [loss, setLoss] = use칸('loss', '5')
   const cnt = num(area) * num(per) * (1 + num(loss) / 100)
-  const pick = (k) => { setKind(k); const f = BRICK.find((x) => x[0] === k); if (f) setPer(String(f[1])) }
+  const pick = (k) => { setKind(k); const f = BRICK.find((x) => x[0] === k); if (f) { setPer(String(f[1])); setLoss(String(f[2])) } }
   return (
     <div className="tool">
       <div className="tl-grid">
@@ -483,7 +489,7 @@ export function BrickCount({ ex = {} }) {
         { k: '산출 수량', v: num(area) > 0 ? Math.round(num(area) * num(per)).toLocaleString('ko-KR') + ' 매' : '—' },
         { k: '할증 포함', v: cnt > 0 ? Math.ceil(cnt).toLocaleString('ko-KR') + ' 매' : '—', big: true },
       ]} />
-      <div className="hint">표준형 시멘트벽돌(190×90×57, 줄눈 10mm) 기준입니다. <b>규격이나 줄눈이 다르면 ㎡당 장수를 고쳐 넣으세요.</b></div>
+      <div className="hint">표준형 시멘트벽돌(190×90×57, 줄눈 10mm) 기준입니다. 할증은 표준품셈 재료 할증률(시멘트벽돌 5% · 붉은벽돌 3% · 블록 4%) — 쌓기 방식을 고르면 바뀝니다. <b>규격이나 줄눈이 다르면 ㎡당 장수를 고쳐 넣으세요.</b></div>
     </div>
   )
 }
