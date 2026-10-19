@@ -14,6 +14,7 @@
  */
 export const OPS = [
   'ZglL1g3X5UZFBA2590LirDnEnil1',      // 소장님 (사무실 크롬, 2026-09-17 등록)
+  'Mk7VznW9UZaRpycYErDsuILmVfl1',      // 소장님 (LG 노트북 엣지, 2026-10-19 등록 · G324) — 「맵톡글을 쓸때 붙게 해줘」 · 10/19 19:48 답글부터 이 번호로 올라와 «K-건설맵» 이 안 붙었음(소장님 확인)
 ]
 
 export const isOp = (uid) => !!uid && OPS.includes(uid)

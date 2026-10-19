@@ -62,7 +62,7 @@ def hash32(s):
 def nick(uid):
     h = hash32(str(uid))
     return f"{ADJ[h % 16]} {NOUN[(h // 16) % 16]}{(h // 256) % 1000:03d}"
-OP = "ZglL1g3X5UZFBA2590LirDnEnil1"
+OP = ("ZglL1g3X5UZFBA2590LirDnEnil1", "Mk7VznW9UZaRpycYErDsuILmVfl1")   # 소장님 기기들(web/src/lib/운영자.js OPS 와 같게)
 print("\n── 사람마다 (별명 · 켠 알림) ──")
 담은 = collections.Counter()
 if isinstance(watch, dict):
@@ -84,6 +84,6 @@ for r in 사람:
     if isinstance(last, dict) and r in last:
         무엇.append("📨받아 봄")
     t = c.get("at") if isinstance(c, dict) and isinstance(c.get("at"), (int, float)) else 0
-    줄.append((t, ("👑 소장님 " if r == OP else "") + nick(r), " · ".join(무엇)))
+    줄.append((t, ("👑 소장님 " if r in OP else "") + nick(r), " · ".join(무엇)))
 for t, n, w in sorted(줄, reverse=True):
     print(f"  {n} — {w}" + (f" (조건 {때(t)})" if t else ""))

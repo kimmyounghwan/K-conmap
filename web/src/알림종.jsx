@@ -9,6 +9,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { 켤까닭, 알림읽기, 봤음, 알림글 } from './lib/알림.js'
 import { 알림꺼짐, 알림끄기 } from './lib/저절로알림.js'   /* 🔕 G222 */
 import { 조건알림켜짐 } from './lib/관심알림.js'
+import { 세기 } from './lib/받은수.jsx'   /* 📊 G323 종 열기 · 닫기 셈 */
 
 /* ── 둘(종 · 띠)이 같이 쓰는 작은 저장소 ── */
 const 곳 = { 목록: [], 읽음: 0 }
@@ -82,30 +83,38 @@ function 알림끄기줄() {
   )
 }
 
-/** 맨 위 막대의 종 — 안 본 답글이 있을 때만 보입니다 */
+/** 맨 위 막대의 종 — 안 본 답글이 있을 때만 보입니다
+ *  🩹 G323 소장님 「펼쳐진 것에서 휠을 아래로 해도 안 움직이고 제일 아래에 닫기도 없다고」(PC · 사이트 맨 위 종)
+ *     ← PC 창에 높이 한도가 없어 화면 아래로 넘쳤고, 맨 위 막대가 따라붙어(sticky) 페이지를 굴려도 아래가 안 보였음
+ *     → 창 높이를 화면 안으로 · 목록만 창 안에서 휠로 굴러감 · 위 ✕ · 맨 아래 늘 보이는 «닫기» · Esc 로도 닫힘 */
 export function 알림종() {
   const s = use알림()
   const nav = useNavigate()
   const [열림, set열림] = useState(false)
   const 칸 = useRef(null)
   const 안본 = s.목록.filter((x) => !x.seen)
+  const 닫기 = (어떻게) => { set열림(false); 세기('|알림|종' + 어떻게) }
   useEffect(() => {
     if (!열림) return undefined
     const 밖 = (e) => { if (칸.current && !칸.current.contains(e.target)) set열림(false) }
+    const 키 = (e) => { if (e.key === 'Escape') 닫기('닫기') }
     document.addEventListener('pointerdown', 밖)
-    return () => document.removeEventListener('pointerdown', 밖)
+    document.addEventListener('keydown', 키)
+    return () => { document.removeEventListener('pointerdown', 밖); document.removeEventListener('keydown', 키) }
   }, [열림])
   if (!안본.length && !열림) return null
   return (
     <div className="noti-bell" ref={칸}>
-      <button className="notibtn" onClick={() => set열림((v) => !v)} aria-label={`새 알림 ${안본.length}개`} title="새 알림 — 맵톡 답글 · 담은 공고 1순위 · 내 조건 새 공고">
+      <button className="notibtn" onClick={() => { if (!열림) 세기('|알림|종열기'); set열림((v) => !v) }} aria-label={`새 알림 ${안본.length}개`} aria-expanded={열림} title="새 알림 — 맵톡 답글 · 담은 공고 1순위 · 내 조건 새 공고">
         🔔{안본.length > 0 && <span className="noti-n">{안본.length > 9 ? '9+' : 안본.length}</span>}
       </button>
       {열림 && (
         <div className="noti-pop" role="dialog" aria-label="새 알림">
-          <div className="noti-ph"><b>🔔 알림</b>
+          <div className="noti-ph noti-top"><b>🔔 알림</b>
             {안본.length > 0 && <button className="noti-all" onClick={() => 봤다(s.목록)}>모두 읽음</button>}
+            <button className="noti-close" aria-label="알림 닫기" title="닫기" onClick={() => 닫기('닫기')}>✕</button>
           </div>
+          <div className="noti-list">
           {s.목록.slice(0, 10).map((x) => (
             <button key={x.r + x.id} className={'noti-it' + (x.seen ? ' seen' : '')}
               onClick={() => { set열림(false); 봤다(s.목록.filter((y) => (x.q ? y.q === x.q : y.id === x.id))); nav(x.u || `/qna/${encodeURIComponent(x.q)}${x.to ? '#' + encodeURIComponent(x.id) : ''}`) }}>
@@ -114,7 +123,11 @@ export function 알림종() {
             </button>
           ))}
           {!s.목록.length && <div className="noti-empty muted">새 알림이 없습니다.</div>}
-          <알림끄기줄 />
+          </div>
+          <div className="noti-foot">
+            <알림끄기줄 />
+            <button className="noti-shut" onClick={() => 닫기('닫기')}>닫기</button>
+          </div>
         </div>
       )}
     </div>

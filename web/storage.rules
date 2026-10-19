@@ -38,7 +38,7 @@ service firebase.storage {
     //   쓰기는 Actions 의 tools/운영자자료.py(서비스 계정 = 규칙 밖)만 — 화면에서는 아무도 못 씀.
     //   ⚠️ 이 규칙이 «먼저» 올라가 있어야 합니다(push 전에 firebase deploy --only storage). 없으면 성적표 화면이 못 받고 파일 고르기로 넘어감.
     match /op/{file} {
-      allow read: if request.auth != null && request.auth.uid == 'ZglL1g3X5UZFBA2590LirDnEnil1';
+      allow read: if request.auth != null && request.auth.uid in ['ZglL1g3X5UZFBA2590LirDnEnil1', 'Mk7VznW9UZaRpycYErDsuILmVfl1'];   // 🩹 G324 노트북 엣지 번호 더함
       allow write: if false;
     }
     match /{allPaths=**} {

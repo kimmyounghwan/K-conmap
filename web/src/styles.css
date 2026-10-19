@@ -5211,12 +5211,33 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 @media (prefers-reduced-motion: reduce) { .notibtn { animation: none; } }
 .noti-pop { position: absolute; right: 0; top: calc(100% + 8px); z-index: 80; width: min(340px, calc(100vw - 24px));
   background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 12px;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, .22); padding: 6px; }
-/* 🩹 G222 폰 — 종이 오른쪽 끝이 아니라(새로고침 · 테마 단추 왼쪽) 창이 화면 왼쪽 밖으로 잘리던 것 → 화면 양쪽 12px 안에 고정 */
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .22); padding: 6px;
+  /* 🩹 G323 PC — 높이 한도가 없어 화면 아래로 넘치던 것 → 화면 안으로 · 목록(.noti-list)만 창 안에서 굴러감 · 아래 «닫기» 늘 보임 */
+  display: flex; flex-direction: column; max-height: calc(100vh - 84px); max-height: calc(100dvh - 84px); }
+/* 아래 탭이 있는 너비(900px 아래)는 탭 높이만큼 더 줄임 — 탭이 창 아래를 덮지 않게 */
+@media (max-width: 899px) {
+  .noti-pop { max-height: calc(100vh - 84px - var(--nav-h) - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - 84px - var(--nav-h) - env(safe-area-inset-bottom, 0px)); }
+}
+/* 🩹 G222 폰 — 종이 오른쪽 끝이 아니라(새로고침 · 테마 단추 왼쪽) 창이 화면 왼쪽 밖으로 잘리던 것 → 화면 양쪽 12px 안에 고정
+   🩹 G323 폰 아래 탭은 두 줄 → 두 줄 높이만큼 비움 */
 @media (max-width: 560px) {
   .noti-pop { position: fixed; left: 12px; right: 12px; top: calc(env(safe-area-inset-top, 0px) + 58px); width: auto;
-    max-height: calc(100vh - 90px); overflow-y: auto; }
+    max-height: calc(100vh - 70px - var(--nav-h) * 2 - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - 70px - var(--nav-h) * 2 - env(safe-area-inset-bottom, 0px)); }
 }
+/* 🩹 G323 들어오자마자 뜨는 인사 쪽지(.insa z 60 · 8초)가 창 아래 «닫기» 를 덮던 것 → 종 창이 열려 있는 동안만 맨 위 막대를 그 위로 */
+.topbar:has(.noti-pop) { z-index: 70; }
+.noti-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.noti-foot { flex: none; border-top: 1px solid var(--line); margin-top: 4px; }
+.noti-foot .noti-ph { border-top: 0 !important; }
+.noti-shut { display: block; width: 100%; margin-top: 4px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text);
+  border-radius: 9px; padding: 9px 10px; font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; }
+.noti-shut:hover { border-color: var(--accent); color: var(--accent); }
+.noti-close { flex: none; margin-left: auto; border: 0; background: none; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+.noti-all + .noti-close { margin-left: 0; }
+.noti-close:hover { color: var(--text); background: var(--surface-2); }
+.noti-top { flex: none; }
 .noti-ph { display: flex; align-items: center; gap: 8px; padding: 6px 8px 8px; font-size: 13.5px; }
 .noti-all { margin-left: auto; border: 0; background: none; color: var(--accent); font-size: 12.5px; font-weight: 700; cursor: pointer; }
 .noti-it { display: grid; gap: 2px; width: 100%; text-align: left; border: 0; background: var(--bad-soft); color: var(--text);

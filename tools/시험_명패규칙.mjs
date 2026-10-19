@@ -120,6 +120,18 @@ eq(분야전문가({ a: { f: 'est', nm: 'A', at: 2 }, b: { f: 'bid', nm: 'B', at
 eq(공개들.map((x) => x.k).join('|'), 'all|name|co', '화면 공개 범위 = 규칙 sh')
 eq(분야들.map((x) => x.k).join('|'), 'bid|est|esc|civil|arch|elec|safe', '화면 분야 = 규칙 f')
 
+console.log('⑤ G324 (2026-10-19) 두 번째 운영자 기기(노트북 엣지) — 소장님 「맵톡글을 쓸때 붙게 해줘」 「관리자 탭이 없이」')
+const OP2 = { uid: 'Mk7VznW9UZaRpycYErDsuILmVfl1' }
+eq(쓰기('qna_pro', 'u_gap', 패, OP2), true, '노트북 엣지도 명패를 붙임')
+eq(읽기('qna_pro_req', null, OP2), true, '노트북 엣지도 신청 목록을 읽음')
+eq(쓰기('qna_pro', 'u_gap', 패, 을), false, '보통 이용자는 여전히 못 붙임')
+const 둘 = (글.match(/auth\.uid === 'ZglL1g3X5UZFBA2590LirDnEnil1' \|\| auth\.uid === 'Mk7VznW9UZaRpycYErDsuILmVfl1'/g) || []).length
+eq(둘 > 0 && 둘 === (글.match(/auth\.uid === 'ZglL1g3X5UZFBA2590LirDnEnil1'/g) || []).length, true, '규칙의 운영자 자리마다 두 기기가 다 있음')
+const 창고 = readFileSync(new URL('../web/storage.rules', import.meta.url), 'utf8')
+eq(창고.includes("request.auth.uid in ['ZglL1g3X5UZFBA2590LirDnEnil1', 'Mk7VznW9UZaRpycYErDsuILmVfl1']"), true, '성적표 재료(op/)도 두 기기 다 읽음')
+const 목록 = readFileSync(new URL('../web/src/lib/운영자.js', import.meta.url), 'utf8')
+eq(목록.includes("'ZglL1g3X5UZFBA2590LirDnEnil1'") && 목록.includes("'Mk7VznW9UZaRpycYErDsuILmVfl1'"), true, '화면 운영자 목록에도 두 기기')
+
 console.log('④ 화면이 이렇게 쓰는지')
 const 화면 = readFileSync(new URL('../web/src/pages/Qna.jsx', import.meta.url), 'utf8')
 eq(/qna_pro_req\/\$\{me\.r\}/.test(화면), true, '신청은 내 번호(되찾은 기기는 옛 번호) 칸에')

@@ -120,6 +120,14 @@ const 두번 = [1, 2].reduce((r) => A.나중에기록(r, 지금), null)
 
 const 꾸밈 = 읽기('../web/src/styles.css')
 봄('⑦ 폰 — 🔔 창이 화면 밖으로 안 잘림(560px 아래는 양쪽 12px 고정)', /@media \(max-width: 560px\) \{\s*\.noti-pop \{ position: fixed; left: 12px; right: 12px;/.test(꾸밈))
+// ⑨ G323 (2026-10-19) 소장님 「펼쳐진 것에서 휠을 아래로 해도 안 움직이고 제일 아래에 닫기도 없다고」(PC · 맨 위 🔔) — 다시 안 고치게 잠금
+const 팝 = (꾸밈.match(/\.noti-pop \{ position: absolute;[\s\S]*?\}/) || [''])[0]
+봄('⑨ 🔔 창 높이가 화면 안(PC도) · 세로로 쌓음', /max-height: calc\(100dvh - 84px\)/.test(팝) && /display: flex; flex-direction: column;/.test(팝))
+봄('⑨ 아래 탭 한 줄(900px 아래) · 두 줄(폰) 만큼 더 줄임', /@media \(max-width: 899px\) \{\s*\.noti-pop \{ max-height: calc\(100vh - 84px - var\(--nav-h\)/.test(꾸밈) && /max-height: calc\(100dvh - 70px - var\(--nav-h\) \* 2/.test(꾸밈))
+봄('⑨ 목록만 창 안에서 굴러감 · 끝에 닿아도 뒤 페이지 안 굴러감', /\.noti-list \{[^}]*overflow-y: auto;[^}]*overscroll-behavior: contain;/.test(꾸밈) && 종.includes('<div className="noti-list">'))
+봄('⑨ 위 ✕ · 맨 아래 «닫기» · Esc 로 닫힘', 종.includes('className="noti-close"') && /className="noti-shut" onClick=\{\(\) => 닫기\('닫기'\)\}>닫기<\/button>/.test(종) && 종.includes("e.key === 'Escape'"))
+봄('⑨ 인사 쪽지(z 60)가 «닫기» 를 덮지 않게 — 창이 열려 있을 때 맨 위 막대가 위로', /\.topbar:has\(\.noti-pop\) \{ z-index: 70; \}/.test(꾸밈) && /\.insa \{[^}]*z-index: 60;/.test(꾸밈))
+봄('⑨ 숨은 누적(종열기 · 종닫기)', 종.includes("세기('|알림|종열기')") && 종.includes("세기('|알림|종' + 어떻게)") && 종.includes("닫기('닫기')"))
 
 console.log(`\n${셈}개 중 틀림 ${틀림}`)
 process.exit(틀림 ? 1 : 0)
