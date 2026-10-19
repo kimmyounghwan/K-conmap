@@ -20,7 +20,7 @@
  *
  * ■ 안 하는 것 (거짓말하지 않기 위해 적어 둡니다)
  *    · 구형 .xls(97-2003) — xlsx 로 저장해서 올려야 합니다
- *    · 다른 시트에서 이 시트를 가리키는 수식
+ *    · (G327 부터) 안 벌린 시트에서 이 시트를 가리키는 수식은 «당초» 줄로만 옮깁니다 — 변경 금액은 그 시트도 같이 벌려야
  *    · 차트가 가리키는 범위
  */
 import { unzipSync, zipSync, strToU8, strFromU8 } from 'fflate'
@@ -233,6 +233,9 @@ class Styler {
 /* ══════════════════════════════════════════════════════════
    ① 파일 살펴보기 — 시트 목록과 자료 구간 짐작
    ══════════════════════════════════════════════════════════ */
+/* 머리 줄에만 나오는 말 — 이것뿐인 줄은 자료가 아닙니다 */
+const HEAD_WORD = /^(단\s*가|금\s*액|수\s*량|단\s*위|재\s*료\s*비|노\s*무\s*비|경\s*비|합\s*계|비\s*고|규\s*격|품\s*명|공\s*종|공\s*종\s*명|명\s*칭|산\s*출\s*근\s*거|코\s*드|번\s*호)$/
+
 export function analyze(buf) {
   const zip = unzipSync(new Uint8Array(buf))
   const has = (p) => Object.prototype.hasOwnProperty.call(zip, p)
@@ -269,6 +272,15 @@ export function analyze(buf) {
       if (cells >= 2) { if (!first) first = rn; last = rn }
     }
     let gs2 = first ? first + 1 : 2
+    /* 🩹 G327 머리가 두 줄(«단 가 · 금 액» 아랫줄)이면 그 줄도 머리입니다 — 벌리면 머리가 세 벌이 됩니다 */
+    if (first) {
+      for (const row of readGrid(zip, path, gs2, gs2 + 2, 40).rows) {
+        if (row.r !== gs2) break
+        const vals = row.cells.map((v) => String(v).trim()).filter(Boolean)
+        if (vals.length >= 2 && !row.nums.some(Boolean) && vals.every((v) => HEAD_WORD.test(v))) gs2++
+        else break
+      }
+    }
     let ge2 = last || maxRow
     if (ge2 < gs2) { gs2 = Math.min(gs2, maxRow || 1); ge2 = maxRow || gs2 }
     /* «자기 합계 열쇠» 를 쓰는 시트는 줄을 벌릴 수 없습니다 — 화면에서 미리 막습니다.
@@ -314,6 +326,12 @@ export function convert(buf, opts) {
   } = opts || {}
 
   const zip = unzipSync(new Uint8Array(buf))
+  /* 🩹 G327 공유수식은 먼저 풉니다 — 따라가는 칸이 값만 남지 않게 */
+  for (const p of Object.keys(zip)) {
+    if (!/^xl\/worksheets\/[^/]+\.xml$/.test(p)) continue
+    const x = strFromU8(zip[p])
+    if (/\st="shared"/.test(x)) zip[p] = strToU8(unshareFormulas(x))
+  }
   /* ⚠️ 마지막 빗장 — 화면을 거치지 않고 불러도 «틀린 총액» 을 내보내지 않게 합니다 */
   for (const o of (sheetOpts || [])) {
     if (!zip[o.path]) continue
@@ -369,6 +387,20 @@ export function convert(buf, opts) {
     report.sheets.push({ path, ...res.stat })
     lastRowOf[path] = res.stat.lastRow
     for (const w of res.warns) report.warns.push({ path, ...w })
+  }
+
+  /* 🩹 G327 안 벌린 시트(원가계산서 등)가 벌린 시트를 가리키면 «당초» 줄로 옮깁니다 */
+  const chosenPaths = new Set(jobs.map((j) => j.path))
+  for (const [p, nm] of Object.entries(nameOf)) {
+    if (chosenPaths.has(p) || !zip[p]) continue
+    const r = remapOtherSheet(strFromU8(zip[p]), { plans, selfName: nm, labels, gs })
+    if (r.n) zip[p] = strToU8(r.xml)
+    for (const w of r.warns) report.warns.push({ path: p, ...w })
+  }
+  /* 같은 칸 · 같은 말은 한 번만(당초 · 변경 줄이 같은 말을 두 번 냅니다) */
+  {
+    const seen = new Set()
+    report.warns = report.warns.filter((w) => { const key = `${w.path}|${w.ref}|${w.msg}`; if (seen.has(key)) return false; seen.add(key); return true })
   }
 
   /* 인쇄영역 · 반복할 행 — 워크북의 이름 정의에 들어 있습니다 */
@@ -655,7 +687,7 @@ function rewriteFormula(cInner, ctx) {
       if (labelCol) {
         const L = labelCol.toUpperCase()
         const word = labels[k] || labels[0]
-        const nf = `SUMIF($${L}$${n1}:$${L}$${n2},"${word}",${c1}${n1}:${c2}${n2})`
+        const nf = 줄합식({ dup }, r1, r2, word, labels, gs, `${c1}${n1}:${c2}${n2}`, `$${L}$${n1}:$${L}$${n2}`)
         return cInner.replace(/<f\b[^>]*(?:\/>|>[\s\S]*?<\/f>)/, `<f>${esc(nf)}</f>`)
       }
       warns.push({ ref, msg: `합계가 당초·변경을 모두 더합니다 — 라벨 열을 지정하면 줄별로 갈라 드립니다 (${plain})` })
@@ -664,9 +696,250 @@ function rewriteFormula(cInner, ctx) {
     }
   }
 
-  const nf = mapFormulaRows(ftext, mapRow, sheetRow)
+  /* 🩹 G327 — 식 «안» 의 SUM(범위)도 줄별로 가릅니다(조달수수료 · 공구손료 같은 %줄) */
+  const o = { k, isDup: dup.has(srcRow), self: { dup, mapBase, labelCol }, selfName, plans, labels, gs, warns, ref, holes: [],
+    mapText: (t) => mapFormulaRows(t, mapRow, sheetRow) }
+  const t1 = sumInside(ftext, o)
+  rangeWarn(t1, o)
+  let nf = mapFormulaRows(t1, mapRow, sheetRow)
+  nf = nf.replace(/"§(\d+)§"/g, (_, n) => o.holes[+n])
   /* 공유수식은 풀어서 보통 수식으로 저장합니다 (원본 si/ref 를 버립니다) */
   return cInner.replace(/<f\b[^>]*(?:\/>|>[\s\S]*?<\/f>)/, `<f>${esc(nf)}</f>`)
+}
+
+/* ══════════════════════════════════════════════════════════
+   🩹 2026-10-20 G327 — 식 «안» 의 SUM(범위) · 안 벌린 시트 · 공유수식
+   소장님 「내역서 부터 차례 차례 검증하자」 — 실제 내역서를 넣어 보니 셋이 틀렸습니다.
+   ① 조달수수료 =IF($E36=0,0,ROUNDDOWN((SUM(G34:G35)+G37)*0.0054/$E36,0)) 를 벌리면
+      G34:G35 가 G98:G101(당초 · 변경 · 증감 · 당초)이 되어 «두 번» 셉니다
+      → 당초 직접재료비 +432,462원 · 아무것도 안 바꿨는데 도급액 증감 −511,048원.
+      (전에는 식 «전체» 가 SUM(범위)일 때만 SUMIF 로 갈랐습니다)
+   ② 원가계산서를 같이 안 고르면(화면 기본) =내역서!$G$54 가 옛 행을 가리킨 채 남아
+      다시 셈하면 직접재료비 0원 · 도급액 0원 — 그런데 화면은 «고치지 못한 수식은 없습니다».
+      → 안 벌린 시트의 수식도 «당초» 줄을 보게 옮기고, 그렇게 했다고 알립니다.
+   ③ 공유수식(엑셀이 «아래로 채우기» 를 줄여 적은 것)의 따라가는 칸은 값만 남겨
+      변경 수량을 고쳐도 금액이 안 바뀌었습니다 → 벌리기 전에 보통 수식으로 풉니다.
+   ══════════════════════════════════════════════════════════ */
+const RANGE_SCAN = /^(?:('(?:[^']|'')*'|[A-Za-z0-9_.ㄱ-힝]+)!)?(\$?)([A-Za-z]{1,3})(\$?)(\d{1,7}):(\$?)([A-Za-z]{1,3})(\$?)(\d{1,7})(?![0-9A-Za-z_.(])/
+const 시트이름풀기 = (p) => (p ? (p.startsWith("'") ? p.slice(1, -1).replace(/''/g, "'") : p) : '')
+
+/* 범위가 «벌린 행» 을 둘 넘게 품는가 */
+function 범위품음(pl, r1, r2) {
+  if (!pl || r2 <= r1) return false
+  for (const d of pl.dup) if (d >= r1 && d <= r2) return true
+  return false
+}
+/* 이 범위가 가리키는 시트의 계획 — 제 시트면 self, 남의 시트면 plans 에서 */
+function 범위계획(m, o) {
+  const name = m[1] ? 시트이름풀기(m[1]) : ''
+  if (!name || name === o.selfName) return o.self
+  return (o.plans && o.plans.get(name)) || null
+}
+
+/* 벌린 범위에서 «이 줄(word)» 만 더하는 식.
+   범위 안에 안 벌린 행(머리 · 빈 줄 · 구간 밖 줄)이 있으면 그 행은 라벨이 없어 SUMIF(…,"당초") 에서 빠집니다
+   → 그때는 «전체 − 다른 줄» 로 셉니다(안 벌린 행은 그대로 들어갑니다).
+   sumR · labR 은 다 옮긴 범위 글, crit 은 SUMIFS 에 덧붙일 «,조건범위,조건» */
+function 줄합식(pl, r1, r2, word, labels, gs, sumR, labR, crit = '') {
+  let 모두 = r2 - r1 <= 100000
+  if (모두) for (let r = r1; r <= r2; r++) if (!pl.dup.has(r)) { 모두 = false; break }
+  if (모두) return crit ? `SUMIFS(${sumR}${crit},${labR},"${word}")` : `SUMIF(${labR},"${word}",${sumR})`
+  const others = labels.slice(0, gs).filter((w) => w !== word)
+  const all = crit ? `SUMIFS(${sumR}${crit})` : `SUM(${sumR})`
+  return '(' + all + others.map((w) => (crit ? `-SUMIFS(${sumR}${crit},${labR},"${w}")` : `-SUMIF(${labR},"${w}",${sumR})`)).join('') + ')'
+}
+
+/* 여는 괄호 바로 뒤(pos)부터 인자를 나눕니다 — 글자 · 안쪽 괄호는 건너뜁니다. 못 닫히면 null */
+function splitArgs(f, pos) {
+  let j = pos, depth = 0, start = pos
+  const args = []
+  while (j < f.length) {
+    const c = f[j]
+    if (c === '"' || c === "'") {
+      const q = c; j++
+      while (j < f.length) { if (f[j] === q) { if (f[j + 1] === q) j += 2; else { j++; break } } else j++ }
+      continue
+    }
+    if (c === '(') depth++
+    else if (c === ')') { if (depth === 0) { args.push([start, j]); return { args, end: j } } depth-- }
+    else if (c === ',' && depth === 0) { args.push([start, j]); start = j + 1 }
+    j++
+  }
+  return null
+}
+
+/* SUM( … ) 의 인자 가운데 «한 열 범위» 가 벌린 행을 품으면 SUMIF(라벨 열, "당초|변경|증감", 범위) 로 바꿉니다.
+   바꾼 글은 mapFormulaRows 가 다시 손대지 않게 "§n§" 자리표로 두고 o.holes 에 담습니다. */
+export function sumInside(f, o) {
+  let out = ''
+  let i = 0
+  while (i < f.length) {
+    const ch = f[i]
+    if (ch === '"') {
+      let j = i + 1
+      while (j < f.length) { if (f[j] === '"') { if (f[j + 1] === '"') j += 2; else { j++; break } } else j++ }
+      out += f.slice(i, j); i = j; continue
+    }
+    const prev = i > 0 ? f[i - 1] : ''
+    /* SUMIF(조건범위, 조건, 합범위) — 범위가 벌린 행을 품으면 SUMIFS(…, 라벨 열, "당초") 로
+       (원가계산서 A값 =SUMIF($D$3:$D$22,"O",$B$3:$B$22) · 관급 =SUMIF(내역서!N:N,"관급",…) 같은 것) */
+    const ifm = !/[A-Za-z0-9_.$!]/.test(prev) && /^SUMIF\(/i.exec(f.slice(i, i + 6))
+    if (ifm) {
+      const a = splitArgs(f, i + 6)
+      if (a && (a.args.length === 2 || a.args.length === 3)) {
+        const t = a.args.map(([x, y]) => f.slice(x, y).trim())
+        const m1 = RANGE_SCAN.exec(t[0]), m3 = RANGE_SCAN.exec(t[2] ?? t[0])
+        const full = (m, s) => m && m[0].length === s.length
+        if (full(m1, t[0]) && full(m3, t[2] ?? t[0])) {
+          const pl = 범위계획(m1, o), pl3 = 범위계획(m3, o)
+          const r1 = +m1[5], r2 = +m1[9], q1 = +m3[5], q2 = +m3[9]
+          const 한열 = m1[3].toUpperCase() === m1[7].toUpperCase() && m3[3].toUpperCase() === m3[7].toUpperCase()
+          if (pl && pl === pl3 && pl.labelCol && 한열 && r1 === q1 && r2 === q2 && 범위품음(pl, r1, r2) && o.mapText) {
+            const word = o.isDup ? (o.labels[o.k] || o.labels[0]) : o.labels[0]
+            const L = pl.labelCol.toUpperCase()
+            const n1 = pl.mapBase(r1), n2 = pl.mapBase(r2) + (pl.dup.has(r2) ? o.gs - 1 : 0)
+            const rg = (m) => `${m[1] ? m[1] + '!' : ''}${m[2]}${m[3]}${m[4]}${n1}:${m[6]}${m[7]}${m[8]}${n2}`
+            const p = m1[1] ? m1[1] + '!' : ''
+            o.holes.push(줄합식(pl, r1, r2, word, o.labels, o.gs, rg(m3), `${p}$${L}$${n1}:$${L}$${n2}`, `,${rg(m1)},${o.mapText(t[1])}`))
+            out += `"§${o.holes.length - 1}§"`
+            i = a.end + 1
+            continue
+          }
+        }
+      }
+    }
+    if (!/[A-Za-z0-9_.$!]/.test(prev) && /^SUM\(/i.test(f.slice(i, i + 4))) {
+      let j = i + 4, depth = 0, start = j
+      const args = []
+      while (j < f.length) {
+        const c = f[j]
+        if (c === '"' || c === "'") {
+          const q = c; j++
+          while (j < f.length) { if (f[j] === q) { if (f[j + 1] === q) j += 2; else { j++; break } } else j++ }
+          continue
+        }
+        if (c === '(') depth++
+        else if (c === ')') { if (depth === 0) break; depth-- }
+        else if (c === ',' && depth === 0) { args.push([start, j]); start = j + 1 }
+        j++
+      }
+      if (j >= f.length) { out += f.slice(i); break }      /* 괄호가 안 닫힘 — 그대로 둡니다 */
+      args.push([start, j])
+      const parts = args.map(([a, b]) => {
+        const raw = f.slice(a, b)
+        const s = raw.trim()
+        const m = RANGE_SCAN.exec(s)
+        if (!m || m[0].length !== s.length) return sumInside(raw, o)    /* 범위가 아니면 안쪽을 다시 봅니다 */
+        const pl = 범위계획(m, o)
+        const c1 = m[3].toUpperCase(), c2 = m[7].toUpperCase(), r1 = +m[5], r2 = +m[9]
+        if (!범위품음(pl, r1, r2)) return raw
+        if (c1 !== c2 || !pl.labelCol) return raw             /* 못 가름 — rangeWarn 이 알립니다 */
+        const word = o.isDup ? (o.labels[o.k] || o.labels[0]) : o.labels[0]
+        if (!o.isDup && pl === o.self) {
+          o.warns.push({ ref: o.ref, msg: `합계 칸이 자료 구간 밖이라 범위 ${s} 는 «당초» 만 더했습니다 — 이 행까지 구간에 넣으면 줄별로 갈라집니다` })
+        }
+        const L = pl.labelCol.toUpperCase()
+        const n1 = pl.mapBase(r1)
+        const n2 = pl.mapBase(r2) + (pl.dup.has(r2) ? o.gs - 1 : 0)
+        const p = m[1] ? m[1] + '!' : ''
+        o.holes.push(줄합식(pl, r1, r2, word, o.labels, o.gs, `${p}${m[2]}${c1}${m[4]}${n1}:${m[6]}${c2}${m[8]}${n2}`, `${p}$${L}$${n1}:$${L}$${n2}`))
+        return `"§${o.holes.length - 1}§"`
+      })
+      out += f.slice(i, i + 4) + parts.join(',') + ')'
+      i = j + 1
+      continue
+    }
+    out += ch; i++
+  }
+  return out
+}
+
+/* SUMIF 로 못 가른 범위가 벌린 행을 품으면 «숨기지 않고» 알립니다 */
+function rangeWarn(f, o) {
+  let i = 0
+  while (i < f.length) {
+    const ch = f[i]
+    if (ch === '"') {
+      let j = i + 1
+      while (j < f.length) { if (f[j] === '"') { if (f[j + 1] === '"') j += 2; else { j++; break } } else j++ }
+      i = j; continue
+    }
+    const prev = i > 0 ? f[i - 1] : ''
+    if (!/[A-Za-z0-9_.$!]/.test(prev)) {
+      const m = RANGE_SCAN.exec(f.slice(i))
+      if (m) {
+        if (범위품음(범위계획(m, o), +m[5], +m[9])) {
+          o.warns.push({ ref: o.ref, msg: `범위 ${m[0]} 가 당초 · 변경 줄을 함께 봅니다 — 줄별로 못 갈랐습니다. 이 칸은 손으로 확인해 주십시오` })
+          return
+        }
+        i += m[0].length; continue
+      }
+    }
+    i++
+  }
+}
+
+/* 안 벌린 시트(보통 원가계산서)의 수식이 벌린 시트를 가리키면 «당초» 줄을 보게 옮깁니다 */
+function remapOtherSheet(xml, o) {
+  const { plans, selfName, labels, gs } = o
+  const warns = []
+  const targets = new Set()
+  let n = 0
+  const names = [...plans.keys()].filter((nm) => nm !== selfName)
+  if (!names.length) return { xml, n, warns }
+  const out = xml.replace(/<c\b[^>]*?(?:\/>|>[\s\S]*?<\/c>)/g, (c) => {
+    const fm = /<f\b([^>]*)>([\s\S]*?)<\/f>/.exec(c)
+    if (!fm || !fm[2]) return c
+    const ftext = unesc(fm[2])
+    let hit = false
+    for (const nm of names) {
+      if (ftext.includes(nm + '!') || ftext.includes(`'${nm.replace(/'/g, "''")}'!`)) { hit = true; targets.add(nm) }
+    }
+    if (!hit) return c
+    n++
+    const ref = attr(/<c\b[^>]*?(\/?)>/.exec(c)[0], 'r') || ''
+    const sheetRow = (name) => {
+      if (!name || name === selfName) return null
+      const pl = plans.get(name)
+      return pl ? (r) => pl.mapBase(r) : null
+    }
+    const oo = { k: 0, isDup: false, self: null, selfName, plans, labels, gs, warns, ref, holes: [],
+      mapText: (t) => mapFormulaRows(t, (r) => r, sheetRow) }
+    const t1 = sumInside(ftext, oo)
+    rangeWarn(t1, oo)
+    let nf = mapFormulaRows(t1, (r) => r, sheetRow)
+    nf = nf.replace(/"§(\d+)§"/g, (_, i) => oo.holes[+i])
+    if (nf === ftext) return c
+    return c.replace(fm[0], `<f${fm[1]}>${esc(nf)}</f>`)
+  })
+  if (n) {
+    warns.unshift({ ref: '', msg: `이 시트의 수식 ${n}칸이 «${[...targets].join(' · ')}» 를 가리킵니다 — 벌린 뒤의 «당초» 줄을 보게 했습니다(값은 원본과 같습니다). 변경 · 증감 금액도 이 시트에서 보시려면 이 시트도 같이 골라 바꾸십시오` })
+  }
+  return { xml: out, n, warns }
+}
+
+/* 공유수식을 보통 수식으로 풉니다 — 따라가는 칸은 원본 칸의 식을 자리만큼 옮겨 씁니다 */
+export function unshareFormulas(xml) {
+  const cellRe = /<c\b[^>]*?(?:\/>|>[\s\S]*?<\/c>)/g
+  const masters = new Map()
+  for (const m of xml.matchAll(cellRe)) {
+    const c = m[0]
+    const fm = /<f\b([^>]*)>([\s\S]*?)<\/f>/.exec(c)
+    if (!fm || !/\st="shared"/.test(fm[1]) || !fm[2]) continue
+    const si = attr(`<f${fm[1]}>`, 'si')
+    const sp = splitRef(attr(/<c\b[^>]*?(\/?)>/.exec(c)[0], 'r') || '')
+    if (si != null && sp) masters.set(si, { text: unesc(fm[2]), row: sp.row, col: colToNum(sp.col) })
+  }
+  if (!masters.size) return xml
+  return xml.replace(cellRe, (c) => {
+    const fm = /<f\b([^>]*?)(\/>|>([\s\S]*?)<\/f>)/.exec(c)
+    if (!fm || !/\st="shared"/.test(fm[1])) return c
+    if (fm[3]) return c.replace(fm[0], `<f>${fm[3]}</f>`)          /* 원본 칸 — 본문 그대로, 공유 표시만 뗍니다 */
+    const ms = masters.get(attr(`<f${fm[1]}>`, 'si'))
+    const sp = splitRef(attr(/<c\b[^>]*?(\/?)>/.exec(c)[0], 'r') || '')
+    if (!ms || !sp) return c
+    return c.replace(fm[0], `<f>${esc(shiftFormula(ms.text, sp.row - ms.row, colToNum(sp.col) - ms.col))}</f>`)
+  })
 }
 
 function mapRange(ref, dup, mapBase, gs) {
