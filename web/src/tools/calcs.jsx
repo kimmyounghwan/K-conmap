@@ -38,6 +38,22 @@ export function use칸(필드, 초기) {
   }, [v])   // eslint-disable-line react-hooks/exhaustive-deps
   return [v, setV]
 }
+/* 🩹 G337 (2026-10-20) 기본값을 바꾼 칸 — 전에 이 계산기를 쓴 기기에는 «그때 기본값» 이 남아 새 기본값이 안 보였습니다
+     (10/20 실제 사이트: 아스콘 할증 3 · 콘크리트 2 · 벽돌 4 가 그대로인데 바로 아래 글은 «포설 2%»).
+   → 새 칸 이름(loss2)으로 남기고, 옛 칸 값이 «그때 기본값» 이면 새 기본값으로 · 손으로 고친 값은 그대로 옮깁니다
+     (A값 rate → rate2 와 같은 방식). 예시로 해 보기 중에는 새 기본값. */
+export function use바뀐기본(새필드, 옛필드, 옛기본들, 새기본) {
+  const c = useContext(칸창고)
+  return use칸(새필드, () => {
+    const 새 = typeof 새기본 === 'function' ? 새기본() : 새기본
+    if (!c || (c.ex && Object.keys(c.ex).length)) return 새
+    try {
+      const m = JSON.parse(localStorage.getItem(c.열쇠) || '{}')
+      const 옛 = m ? m[옛필드] : null
+      return 옛 == null || 옛 === '' || 옛기본들.includes(String(옛)) ? 새 : String(옛)
+    } catch (e) { return 새 }
+  })
+}
 /* ⚠️ 낙찰하한율 규칙은 lib/engines.js 한 곳에만 있습니다. 여기서 다시 적지 않습니다. */
 import { lowerLimit } from '../lib/bidmath.js'
 import { 숫자, 물가조정 } from '../lib/물가셈.js'
@@ -349,7 +365,7 @@ export function ConcreteVolume({ ex = {} }) {
   const [w, setW] = use칸('w', ex.w ?? ''); const [h, setH] = use칸('h', ex.h ?? '')
   const [l, setL] = use칸('l', ex.l ?? ''); const [n, setN] = use칸('n', ex.n ?? '1')
   /* 🧭 G335 기본 할증 2 → 1% — 표준품셈 재료 할증률: 레디믹스트 콘크리트 철근 구조물 1% · 무근 2% (골조 화면도 1%) */
-  const [loss, setLoss] = use칸('loss', '1')
+  const [loss, setLoss] = use바뀐기본('loss2', 'loss', ['2'], '1')   /* 🩹 G337 옛 기본값 2 가 남은 기기도 1 */
   const v = num(w) * num(h) * num(l) * num(n)
   const vl = v * (1 + num(loss) / 100)
   return (
@@ -442,7 +458,7 @@ export function RemiconTruck({ ex = {} }) {
 export function AsphaltTonnage({ ex = {} }) {
   const [area, setArea] = use칸('area', ex.area ?? ''); const [t, setT] = use칸('t', '5')
   /* 🧭 G336 기본 할증 3 → 2% — 표준품셈 재료 할증률 «아스팔트 콘크리트 포설(현장플랜트 포함) 2%» */
-  const [den, setDen] = use칸('den', '2.35'); const [loss, setLoss] = use칸('loss', '2')
+  const [den, setDen] = use칸('den', '2.35'); const [loss, setLoss] = use바뀐기본('loss2', 'loss', ['3'], '2')   /* 🩹 G337 옛 기본값 3 */
   const v = num(area) * (num(t) / 100)
   const ton = v * num(den) * (1 + num(loss) / 100)
   return (
@@ -470,7 +486,9 @@ const BRICK = [
 ]
 export function BrickCount({ ex = {} }) {
   const [area, setArea] = use칸('area', ex.area ?? ''); const [kind, setKind] = use칸('kind', '1.0B 쌓기')
-  const [per, setPer] = use칸('per', '149'); const [loss, setLoss] = use칸('loss', '5')
+  /* 🩹 G337 옛 기본값 4(모든 쌓기) → 고른 쌓기의 할증(벽돌 5 · 블록 4) */
+  const [per, setPer] = use칸('per', '149')
+  const [loss, setLoss] = use바뀐기본('loss2', 'loss', ['4'], () => { const f = BRICK.find((x) => x[0] === kind); return f ? String(f[2]) : '5' })
   const cnt = num(area) * num(per) * (1 + num(loss) / 100)
   const pick = (k) => { setKind(k); const f = BRICK.find((x) => x[0] === k); if (f) { setPer(String(f[1])); setLoss(String(f[2])) } }
   return (
