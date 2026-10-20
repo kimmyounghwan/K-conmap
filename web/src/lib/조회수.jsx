@@ -15,7 +15,7 @@
  *   ■ 10/21 0시(조회직접시작)부터 화면을 열 때마다 건설맵이 데이터베이스 pv 에 1 을 더합니다(규칙 «1씩만» — database.rules.json "pv"):
  *       pv/a/{전체열쇠}(화면 위 «이 화면 조회») · pv/c/{화면열쇠}(도구 · 서식 카드 «조회 N» — lib/받은수.jsx) · pv/n/{공고번호 앞 8자}/{공고번호}(공고 조회 · 목록에서 펼침도)
  *   ■ 보이는 숫자 = 시작값(애널리틱스 2026-09-15 ~ 10-20 · fresh/pvp · fresh/pv · fresh/nv — 이용자지도.py 가 끝날을 10-20 으로 묶어 계속 채움) + 건설맵이 센 것.
- *   ■ 셈: 열 때마다 1(새로 고침도 — 애널리틱스 조회수와 같은 셈) · 안 셈: 소장님 브라우저 · 자동 브라우저(webdriver · bot).
+ *   ■ 셈: 🔢 G347 같은 브라우저 · 같은 화면(공고)은 하루(한국 시각) 한 번(10/21 07시 무렵까지는 열 때마다 1 이었음) · 안 셈: 소장님 브라우저 · 자동 브라우저(webdriver · bot).
  *   ■ 비용: 화면 하나 열 때 작은 요청 2~4번(읽고 · 1 더하기 · ETag 로 겹침 막음).
  */
 import { useEffect, useState } from 'react'
@@ -119,6 +119,28 @@ async function 더하기(url) {
   }
   return false
 }
+/* 🔢 G347 (2026-10-21) 소장님 「입찰 분석실이 계속 카운팅 되는데, 브라우저 하나당 한번 아니야???」 → 고르심 «하루 한 번»
+   같은 브라우저가 같은 화면 · 같은 공고를 하루(한국 시각)에 여러 번 열어도(새로 고침 · 다시 열기) 1 만 — 다음 날 다시 오면 또 1.
+   이 기기(localStorage)에 «오늘 센 것» 만 적어 둡니다(날이 바뀌면 통째로 새로). 못 쓰는 창(사생활 등)은 이 탭 동안만 기억. */
+const 본날열쇠 = 'kcm.pv.본날'
+const 한국날 = (t = Date.now()) => new Date(t + 9 * 3600e3).toISOString().slice(0, 10)
+let 본날메모 = null
+export function 오늘처음(열쇠, 지금 = Date.now()) {
+  const d = 한국날(지금)
+  try {
+    const o = JSON.parse(localStorage.getItem(본날열쇠) || 'null')
+    const 표 = o && o.d === d && o.k && typeof o.k === 'object' ? o.k : {}
+    if (표[열쇠]) return false
+    표[열쇠] = 1
+    localStorage.setItem(본날열쇠, JSON.stringify({ d, k: 표 }))
+    return true
+  } catch (e) {
+    if (!본날메모 || 본날메모.d !== d) 본날메모 = { d, k: {} }
+    if (본날메모.k[열쇠]) return false
+    본날메모.k[열쇠] = 1
+    return true
+  }
+}
 let 운영자확인 = null
 const 운영자인가 = () => (운영자확인 || (운영자확인 = import('./운영자.js').then((m) => m.나운영자()).then((v) => !!v).catch(() => false)))
 /** 시험에서 바꿔 끼움 */
@@ -139,9 +161,11 @@ export async function 조회세기(path, 지금 = Date.now()) {
       const c = 화면열쇠(path)
       if (c) 일.push(직접카드주소(c))
     }
-    const 됨 = await Promise.all(일.map((u) => 더하기(u).catch(() => false)))
-    if (no) 다시받게(직접묶음주소(no)); else 다시받게(일[0])
-    return 일.filter((_, i) => 됨[i])
+    const 셀 = 일.filter((u) => 오늘처음(u, 지금))      /* 🔢 G347 하루 한 번 — 오늘 이 브라우저가 이미 센 화면 · 공고는 안 더함 */
+    if (!셀.length) return []
+    const 됨 = await Promise.all(셀.map((u) => 더하기(u).catch(() => false)))
+    if (no) 다시받게(직접묶음주소(no)); else 다시받게(셀[0])
+    return 셀.filter((_, i) => 됨[i])
   } catch (e) { return [] /* 세는 것 때문에 화면이 막히면 안 됩니다 */ }
 }
 /** App.jsx 에 한 번 — 주소(pathname)가 바뀔 때마다 */
@@ -157,14 +181,15 @@ export async function 공고봄(no, 이름) {
     no = String(no || '')
     if (!공고모양.test(no) || 봇() || typeof window === 'undefined') return
     const k = 'kcm_nv_' + no
-    try { if (sessionStorage.getItem(k)) return; sessionStorage.setItem(k, '1') } catch (e) { /* 사생활 창 — 그냥 보냄 */ }
+    let 탭처음 = true
+    try { if (sessionStorage.getItem(k)) 탭처음 = false; else sessionStorage.setItem(k, '1') } catch (e) { /* 사생활 창 — 그냥 보냄 */ }
     if (운영자 === null) {
       try { const m = await import('./운영자.js'); 운영자 = !!(await m.나운영자()) } catch (e) { 운영자 = false }
     }
     if (운영자) return
-    /* 🔢 G342 — 10/21 0시부터 건설맵이 직접 +1(공고 화면을 연 것과 같은 숫자) */
-    if (조회직접인가()) 더하기(직접공고주소(no)).then(() => 다시받게(직접묶음주소(no))).catch(() => {})
-    if (!window.gtag) return
+    /* 🔢 G342 — 10/21 0시부터 건설맵이 직접 +1(공고 화면을 연 것과 같은 숫자) · G347 같은 브라우저는 하루 한 번(공고 화면을 연 것과 같은 열쇠) */
+    if (조회직접인가() && 오늘처음(직접공고주소(no))) 더하기(직접공고주소(no)).then(() => 다시받게(직접묶음주소(no))).catch(() => {})
+    if (!탭처음 || !window.gtag) return
     window.gtag('event', 'page_view', {
       page_location: `${location.origin}/notice/${encodeURIComponent(no)}`,
       page_title: `${이름 || no} — 목록에서 펼침 | K-건설맵`,
