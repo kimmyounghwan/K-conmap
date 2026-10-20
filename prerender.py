@@ -1309,6 +1309,12 @@ def _sheet_html(sheet):
             for head, body in b["items"]:
                 out.append(f'<div class="fcl"><b>{esc(head)}</b>'
                            + (f"<p>{esc(body)}</p>" if body else "") + "</div>")
+        elif t == "chk":      # ✍️ G346 점검 항목(양호 · 불량 · 해당없음) — 화면 tools/서식작성.jsx 와 같은 항목 전부
+            out.append('<table class="fgrid"><thead><tr><th>번호</th>'
+                       f'<th>{esc(b.get("head") or "점검 항목")}</th><th>결과</th><th>조치 사항</th></tr></thead><tbody>')
+            for j, it in enumerate(b.get("items") or []):
+                out.append(f"<tr><td>{j + 1}</td><td>{esc(it)}</td><td></td><td></td></tr>")
+            out.append("</tbody></table>")
         elif t == "sign":
             who = " · ".join(b.get("who") or [])
             out.append(f'<div class="fsign"><div class="fdate">년   월   일</div>'
@@ -1434,8 +1440,10 @@ FORMS_TAB_JSON = os.path.join(ROOT, "web", "src", "data", "forms_tab.json")
 
 def _fm_card(f, origset):
     """서식 칸 — 화면 Forms.jsx 서식칸 과 같은 글"""
-    ex = f.get("gen") == "forms2" or f.get("re")
+    ex = f.get("gen") == "forms2" or f.get("re") or f.get("ex")
+    웹 = f.get("group") == "안전" or f.get("gen") == "web"     # ✍️ G346 — 화면 서식칸 «✍️ 사이트 작성» 과 같음
     tags = ('<em class="tlx-new fm-pg">🧰 바로 쓰기</em>' if f.get("prog") else "") + (
+        '<em class="tlx-new fm-w">✍️ 사이트 작성</em>' if 웹 else "") + (
         '<em class="tlx-new fm-ex">✍ 작성 예시</em>' if ex else ('<em class="tlx-new fm-orig">원본 틀</em>' if f["slug"] in origset else ""))
     return (f'<a class="tlx-card fm-card" href="/forms/{esc(f["slug"])}"><span class="tlx-ic">{esc(f.get("icon") or "")}</span>'
             f'<span class="tlx-body"><span class="tlx-t">{esc(f["title"])}</span>'
@@ -1470,11 +1478,11 @@ def forms_index(shell, forms, image=None, ogroups=(), orig=()):
     n_all = len(forms) + len(orig)
     n_new = sum(1 for f in list(forms) + list(orig) if f.get("gen") == "forms2" or f.get("re"))
     title = "건설 서식 양식 엑셀 다운로드 — 착공계·기성청구서·작업일보 | K-건설맵"
-    desc = (f"건설 서식 {n_all}가지를 엑셀로 드립니다. 공사 차례(계약·착공·시공계획서·공사 중·검측·안전·노무·기성·준공)로 "
+    desc = (f"건설 서식 {n_all}가지 — 공무 서식은 엑셀로, 안전서류(작업계획서·작업허가서 등)는 사이트에서 작성해 PDF로. 공사 차례(계약·착공·시공계획서·공사 중·검측·안전·노무·기성·준공)로 "
             "골라 쓰고, 착공·하도급·기성·설계변경·준공 때 한 번에 내는 서류를 꾸러미로 모았습니다. "
             f"{n_new}가지는 수식과 작성 예시를 넣어 새로 만들었습니다. 회원가입 없음.")
     out = ['<div class="card lead-card"><h1 style="margin:0;font-size:20px">📄 건설 서식 — 공사가 어디쯤인지 고르시면 낼 서류가 나옵니다</h1>'
-           f'<p class="why2" style="margin-bottom:0">서식 <b>{n_all}가지</b>, 모두 엑셀 · 회원가입 없이 <b>바로 이용 가능</b>. '
+           f'<p class="why2" style="margin-bottom:0">서식 <b>{n_all}가지</b> — 공무 서식은 엑셀 · <b>안전서류는 사이트에서 작성 → PDF</b> · 회원가입 없이 <b>바로 이용 가능</b>. '
            f'{n_new}가지는 현장에서 쓰던 틀(칸·차례·결재란)을 그대로 두고 <b>수식과 작성 예시</b>를 넣어 새로 만들었습니다. '
            '<b>사이트에서 바로 쓰는 프로그램</b>이 있는 일은 그것부터 보여 드립니다.</p></div>']
     pick = ['<div class="card ny-pick"><div class="sec-title" style="margin-top:0">지금 무엇을 하십니까?</div><div class="ny-pick-row">']
@@ -1495,7 +1503,9 @@ def forms_index(shell, forms, image=None, ogroups=(), orig=()):
                    f'{esc(st["ic"])} {esc(st["h"])}</div><div class="ny-sit-w">{esc(st.get("언제") or "")}</div>')
         if st.get("progs"):
             out.append('<div class="tlx-grid">' + "".join(_fm_prog(p) for p in st["progs"]) + '</div>')
-        out.append(f'<div class="fm-sub">서식 {len(st["slugs"])}가지 — 엑셀</div><div class="tlx-grid fm-grid">'
+        _웹수 = sum(1 for k in st["slugs"] if k in by and (by[k].get("group") == "안전" or by[k].get("gen") == "web"))   # ✍️ G346 — 화면 Forms.jsx 와 같은 말
+        _파일말 = "사이트에서 작성 → PDF" if _웹수 and _웹수 == sum(1 for k in st["slugs"] if k in by) else (f"엑셀 · ✍️ 사이트 작성 {_웹수}가지" if _웹수 else "엑셀")
+        out.append(f'<div class="fm-sub">서식 {len(st["slugs"])}가지 — {_파일말}</div><div class="tlx-grid fm-grid">'
                    + "".join(_fm_card(by[k], origset) for k in st["slugs"] if k in by) + '</div></div>')
     if packs:
         out.append('<div class="card" id="fm-packs"><div class="sec-title" style="margin-top:0">📦 서류 꾸러미 — 이때 이것들을 한 번에</div>'
@@ -1590,14 +1600,24 @@ def form_page(shell, f, others, image=None):
     #    파일은 .xlsx 라서 «xls» 만 쓰면 사실과 다릅니다 — «엑셀(xlsx)» 로 적습니다.
     #    ✂ 2026-10-17 소장님 「무료라는 단어 제거하라고 했는데, 지금도 보인다」 → 제목 · 설명 · 본문 · 공유 카드에서 «무료» 를 모두 뺐습니다.
     g = f.get("guide") or {}
-    title = f'{f["title"]} 양식 엑셀(xlsx) 다운로드 | K-건설맵'
-    desc = ((f'{f["title"]}(' + ' · '.join(또[:2]) + ') 양식 엑셀 다운로드. ') if 또 else
-            f'{f["title"]} 양식 엑셀 다운로드. ') + \
-        (g.get("what") or f'{f.get("short") or ""} {f.get("when") or ""}').strip()
+    # ✍️ G346 (2026-10-21) 소장님 「안전서류 = 사이트에서 작성 → PDF(엑셀 안 줌)」 — 화면 Forms.jsx 웹서식() 과 같은 갈래
+    웹 = f.get("group") == "안전" or f.get("gen") == "web"
+    if 웹:
+        title = f'{f["title"]} 양식 — 사이트에서 작성 · PDF 저장 | K-건설맵'
+        desc = ((f'{f["title"]}(' + ' · '.join(또[:2]) + ') 양식 — 사이트에서 작성해 PDF 저장. ') if 또 else
+                f'{f["title"]} 양식 — 사이트에서 작성해 PDF 저장. ') + \
+            (g.get("what") or f'{f.get("short") or ""} {f.get("when") or ""}').strip()
+        lead = (f'{f["title"]} 양식을 이 화면에서 바로 채우고 PDF로 저장 · 인쇄할 수 있습니다. '
+                f'회원가입이 필요 없고, 쓴 내용은 내 기기에만 남습니다.')
+    else:
+        title = f'{f["title"]} 양식 엑셀(xlsx) 다운로드 | K-건설맵'
+        desc = ((f'{f["title"]}(' + ' · '.join(또[:2]) + ') 양식 엑셀 다운로드. ') if 또 else
+                f'{f["title"]} 양식 엑셀 다운로드. ') + \
+            (g.get("what") or f'{f.get("short") or ""} {f.get("when") or ""}').strip()
+        # 검색하는 말 그대로 한 문장 — 억지로 낱말을 늘어놓지 않고 자연스럽게 씁니다.
+        lead = (f'{f["title"]} 양식을 엑셀(xlsx) 파일로 다운로드할 수 있습니다. '
+                f'회원가입이 필요 없고, 인쇄해서 바로 쓸 수 있습니다.')
     desc = desc.strip()[:150]
-    # 검색하는 말 그대로 한 문장 — 억지로 낱말을 늘어놓지 않고 자연스럽게 씁니다.
-    lead = (f'{f["title"]} 양식을 엑셀(xlsx) 파일로 다운로드할 수 있습니다. '
-            f'회원가입이 필요 없고, 인쇄해서 바로 쓸 수 있습니다.')
     또줄 = (f'<p style="font-size:12px;color:var(--muted);margin:6px 0 0">'
             f'이렇게도 부릅니다 — {esc(" · ".join(또))}</p>') if 또 else ''
     out = [f'<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">'
@@ -1607,9 +1627,14 @@ def form_page(shell, f, others, image=None):
            f'<p style="font-size:12.5px;margin:8px 0 0">{esc(lead)}</p>'
            f'{또줄}'
            f'<div class="btn-row" style="margin-top:12px">'
-           f'<a class="btn primary" href="/forms/{esc(f["slug"])}.xlsx" download>⬇ 엑셀 내려받기</a>'
-           + (f'<a class="btn ghost" href="{esc(f["pdf"])}" target="_blank" rel="noopener">🖨 인쇄용 PDF</a>' if f.get("pdf") else '')
-           + "</div></div>", _prog_html(f.get("prog")), _guide_html(f)]
+           + ((f'<a class="btn primary" href="#작성">✍️ 사이트에서 작성 → PDF</a>'
+               + (f'<a class="btn ghost" href="{esc(f["pdf"])}" target="_blank" rel="noopener">🖨 빈 서식 PDF</a>'
+                  if f.get("pdf") and f.get("gen") != "wihgen" else '')) if 웹 else
+              (f'<a class="btn primary" href="/forms/{esc(f["slug"])}.xlsx" download>⬇ 엑셀 내려받기</a>'
+               + (f'<a class="btn ghost" href="{esc(f["pdf"])}" target="_blank" rel="noopener">🖨 인쇄용 PDF</a>' if f.get("pdf") else '')))
+           + "</div>"
+           + (f'<div style="font-size:12px;color:var(--muted);margin-top:8px">근거 · {esc(f["law"])}</div>' if f.get("law") else '')
+           + "</div>", _prog_html(f.get("prog")), _guide_html(f)]
     if f.get("when"):
         out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">언제 내나</div>'
                    f'<div class="fwhen">{bold_md(esc(f["when"]))}</div></div>')
@@ -1648,7 +1673,7 @@ def form_page(shell, f, others, image=None):
          "inLanguage": "ko", "isAccessibleForFree": True,
          "genre": f.get("group") or "건설 서식",
          "url": f'{SITE}/forms/{f["slug"]}',
-         "encodingFormat": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+         "encodingFormat": ("application/pdf" if 웹 else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
          "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}}]}
     return page(shell, f'/forms/{f["slug"]}', title, desc, "".join(out), image, ld)
 

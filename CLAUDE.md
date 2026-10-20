@@ -219,7 +219,7 @@ cd web && firebase deploy --only hosting        (또는 --only database)
 | `/notice/{공고번호}` | 공고 · 개찰 한 건 — 마감 전이면 🏛 기관 최근 사정률 · 🧾 투찰 조건 · 일정 · 공동도급 · 첨부(공고 카드와 같은 칸, 8절 129) | `NoticePage.jsx` · `공고자세히.jsx` |
 | `/daily` · `/daily/{날짜}` | 그날 개찰 성적표 | `DailyPage.jsx` |
 | `/lic` | 면허별 경쟁도 | `LicStat.jsx` |
-| `/forms` · `/forms/{slug}` | 건설 서식 138장 | `Forms.jsx` |
+| `/forms` · `/forms/{slug}` | 건설 서식 188장(+ 원본 틀 47) · **✍️ G346 사이트에서 작성 → PDF**(`tools/서식작성.jsx` — 모든 서식 칸을 그대로 펴서 채우고 인쇄 · 이 기기에만 남음). 소장님 고르심: **안전서류(묶음 «안전» · gen web)는 엑셀 고리 없이 작성 → PDF · 공무 서식은 엑셀 그대로 + 작성 단추**. 새 안전서식 35가지(작업계획서 12 · 작업허가서 6 · 관리감독자 · 도급 · 시설 · 장비 · 교육 · 재해 · MSDS)의 원본은 `tools/forms_web/안전서식.py` → `python3 tools/forms_web/더하기.py`(검사 `--check`) 로 forms.json · forms_tab.json 에 넣음 — forms.json 을 손으로 고치지 말 것 | `Forms.jsx` |
 | `/change` · `/change/{주제}` | 설계변경 알아보기 | `Change.jsx` |
 | `/change/calc` | 설계변경 계산기 | `Change.jsx` |
 | `/change/excel` | 설계변경 자동계산 엑셀(시트 11장) | `Change.jsx` |

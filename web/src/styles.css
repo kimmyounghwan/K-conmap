@@ -5117,7 +5117,8 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 .tlx-new.fm-ex { background: #059669; }
 .tlx-new.fm-orig { background: #6b7280; }
 .tlx-new.fm-pg { background: var(--accent, #2563eb); }
-.tlx-new.fm-ex, .tlx-new.fm-orig, .tlx-new.fm-pg { display: inline-block; white-space: nowrap; }
+.tlx-new.fm-w { background: #c2410c; }   /* ✍️ G346 사이트에서 작성 → PDF */
+.tlx-new.fm-ex, .tlx-new.fm-orig, .tlx-new.fm-pg, .tlx-new.fm-w { display: inline-block; white-space: nowrap; }
 .tlx-card.fm-prog { border: 1.5px solid var(--accent); background: var(--accent-soft); }
 .fm-prog-k { font-size: 11px; font-weight: 800; color: var(--accent); }
 .fm-sub { font-size: 12.5px; font-weight: 800; color: var(--muted); margin-top: 12px; }
@@ -8481,3 +8482,101 @@ button.gd-gonggo:hover { background: var(--accent-soft); color: var(--accent); }
   .cf-filt .cf-q { grid-column: 1 / -1; }
   .cf-sel select, .cf-sel input { font-size: 16px; }   /* 폰 — 누르면 확대되지 않게 */
 }
+
+/* ══ ✍️ G346 서식 «사이트에서 작성 → PDF» (tools/서식작성.jsx) ══
+   화면 = 칸(입력) · 인쇄 = #fw-인쇄(몸에 바로 붙인 종이)만 — 소장님 「사이트에서 직접 만들게 … pdf로 줘야」 */
+.fw { scroll-margin-top: 70px; }
+.fw-top { display: grid; gap: 4px; margin-bottom: 10px; }
+.fw-sub { line-height: 1.55; word-break: keep-all; }
+.fw-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0 10px; }
+.fw-bar.bottom { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--line); }
+.fw-bar .btn.on { border-color: var(--accent); color: var(--accent); }
+.fw-say { margin: 0 0 10px; padding: 8px 10px; border-radius: 8px; background: var(--accent-soft); font-size: 13px; word-break: keep-all; }
+.fw-list { display: grid; gap: 6px; margin: 0 0 12px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+.fw-li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 13px; }
+.fw-li .nm { font-weight: 700; flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
+.fw-li .at { font-size: 12px; }
+.fw-form { border: 1px solid var(--line); border-radius: 12px; padding: 14px; background: var(--surface); display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; }
+.fw-form > *, .fw-kvs > *, .fw-chks > *, .fw-tblw { min-width: 0; }   /* 넓은 표가 칸 전체를 밀어 폰에서 오른쪽이 잘리던 것 — 표만 옆으로 밀어 봄 */
+.fw-head { text-align: center; font-size: 17px; font-weight: 800; letter-spacing: 2px; word-break: keep-all; }
+.fw-kvs { display: grid; gap: 8px; }
+.fw-kvr { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 8px; align-items: start; }
+.fw-lb { font-size: 13px; font-weight: 700; color: var(--text-2, var(--text)); padding-top: 8px; word-break: keep-all; }
+.fw-in { width: 100%; min-width: 0; box-sizing: border-box; font: inherit; font-size: 14px; color: var(--text); padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); resize: none; line-height: 1.5; overflow: hidden; }
+textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 — 한 줄 칸은 한 줄로 · 칠수록 늘어남 */
+.fw-in.long { min-height: 72px; overflow: auto; }
+.fw-in:focus { outline: 2px solid var(--accent-line, var(--accent)); outline-offset: 0; border-color: var(--accent); }
+.fw-cap { font-size: 13px; font-weight: 800; margin: 0 0 6px; word-break: keep-all; }
+.fw-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.fw-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.fw-tbl th { background: var(--surface-2); padding: 6px; border: 1px solid var(--line); font-weight: 700; word-break: keep-all; }
+.fw-tbl td { padding: 3px; border: 1px solid var(--line); vertical-align: top; }
+.fw-tbl .fw-in { border: 0; border-radius: 4px; padding: 5px 6px; font-size: 13px; }
+.fw-rowbtn { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.fw-chks { display: grid; gap: 6px; }
+.fw-ck { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; }
+.fw-ck.bad { border-color: var(--bad); box-shadow: inset 3px 0 0 var(--bad); }
+.fw-ck-t { font-size: 13.5px; line-height: 1.5; word-break: keep-all; min-width: 0; }
+.fw-ck-r { display: flex; gap: 4px; }
+.fw-pick { font: inherit; font-size: 12.5px; padding: 5px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer; white-space: nowrap; }
+.fw-pick.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.fw-ck.bad .fw-pick.on { background: var(--bad); border-color: var(--bad); }
+.fw-ck-m { grid-column: 1 / -1; }
+.fw-cls { display: grid; gap: 6px; }
+.fw-clr { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.55; word-break: keep-all; }
+.fw-clr input { margin-top: 4px; flex: none; }
+.fw-clr small { display: block; color: var(--muted); font-size: 12px; }
+.fw-tx { margin: 0; line-height: 1.6; word-break: keep-all; }
+.fw-signs { display: grid; gap: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.fw-lawb { line-height: 1.6; word-break: keep-all; }
+@media (max-width: 640px) {
+  .fw-form { padding: 10px; }
+  .fw-kvr { grid-template-columns: minmax(0, 1fr); gap: 3px; }
+  .fw-lb { padding-top: 0; }
+  .fw-in { font-size: 16px; }              /* 폰 — 누르면 확대되지 않게 */
+  .fw-tbl .fw-in { font-size: 15px; }
+  .fw-ck { grid-template-columns: minmax(0, 1fr); }
+  .fw-ck-r { flex-wrap: wrap; }
+  .fw-bar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; }
+  .fw-bar .btn { width: 100%; padding-left: 6px; padding-right: 6px; }
+  .fw-bar .btn.primary { grid-column: 1 / -1; }
+  .fw-bar.bottom { grid-template-columns: minmax(0, 1fr); }
+  .fw-bar.bottom .muted { text-align: center; }
+}
+/* 인쇄 종이 — A4 세로 · 화면엔 안 보임 */
+#fw-인쇄 { display: none; }
+@media print {
+  @page { size: A4 portrait; margin: 12mm 12mm 14mm; }
+  body.fw-인쇄중 > *:not(#fw-인쇄) { display: none !important; }
+  html.fw-인쇄중, body.fw-인쇄중 { background: #fff !important; margin: 0 !important; padding: 0 !important; }
+  body.fw-인쇄중 #fw-인쇄 { display: block; }
+}
+#fw-인쇄 .fw-paper { color: #111; font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Pretendard", sans-serif; font-size: 10.5pt; line-height: 1.45; }
+#fw-인쇄 .fw-mark { text-align: right; font-size: 7.5pt; color: #8a94a6; margin-bottom: 2mm; }
+#fw-인쇄 .fw-h { text-align: center; font-size: 17pt; font-weight: 800; letter-spacing: 3px; margin: 0 0 4mm; }
+#fw-인쇄 table { width: 100%; border-collapse: collapse; margin: 0 0 4mm; table-layout: fixed; }
+#fw-인쇄 th, #fw-인쇄 td { border: 0.6pt solid #333; padding: 1.3mm 2mm; vertical-align: top; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; word-break: keep-all; }
+#fw-인쇄 tr { break-inside: avoid; page-break-inside: avoid; }
+#fw-인쇄 thead { display: table-header-group; }
+#fw-인쇄 .fw-kv th { width: 26%; background: #f1f4f9; font-weight: 700; }
+#fw-인쇄 .fw-kv tr td { height: 6mm; }
+#fw-인쇄 .fw-kv tr.long td { height: 12mm; }
+#fw-인쇄 .fw-grid th { background: #eef2f8; text-align: center; font-weight: 700; }
+#fw-인쇄 .fw-grid td { height: 6.5mm; }
+#fw-인쇄 .fw-grid caption { caption-side: top; text-align: left; font-weight: 800; font-size: 10.5pt; padding: 0 0 1.5mm; }
+#fw-인쇄 .fw-grid td.c { text-align: center; }
+#fw-인쇄 .fw-chk td { height: auto; }
+#fw-인쇄 table.keep, #fw-인쇄 .fw-chk { break-inside: avoid; page-break-inside: avoid; }   /* 짧은 표는 통째로 — 머리줄만 쪽 끝에 남지 않게 */
+#fw-인쇄 .fw-sign .fw-law { margin-top: 3mm; }
+#fw-인쇄 .fw-cl { margin: 0 0 4mm; }
+#fw-인쇄 .fw-cl-i { margin: 0 0 2mm; break-inside: avoid; }
+#fw-인쇄 .fw-cl-i p { margin: 0.5mm 0 0 5mm; font-size: 9.5pt; color: #333; }
+#fw-인쇄 .fw-text { font-size: 9pt; color: #333; margin: 0 0 3mm; white-space: pre-wrap; }
+#fw-인쇄 .fw-sign { margin-top: 4mm; break-inside: avoid; }
+#fw-인쇄 .fw-date { text-align: center; letter-spacing: 1px; margin-bottom: 3mm; }
+#fw-인쇄 .fw-who { display: flex; justify-content: flex-end; align-items: baseline; gap: 4mm; margin-bottom: 2.2mm; }
+#fw-인쇄 .fw-who b { font-weight: 700; }
+#fw-인쇄 .fw-who .nm { min-width: 35mm; border-bottom: 0.6pt solid #555; text-align: center; padding: 0 2mm; }
+#fw-인쇄 .fw-who .si { color: #666; font-size: 9pt; }
+#fw-인쇄 .fw-note { font-size: 8.5pt; color: #666; text-align: right; }
+#fw-인쇄 .fw-law { margin-top: 4mm; font-size: 7.5pt; color: #777; border-top: 0.4pt solid #ccc; padding-top: 1.5mm; }
