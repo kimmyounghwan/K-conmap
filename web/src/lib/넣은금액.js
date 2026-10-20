@@ -58,7 +58,8 @@ export function 넣은지우기(no) {
 export function 넣은결과남기기(no, 성) {
   const k = String(no || '')
   const m = 넣은들()
-  if (!m[k] || !성 || 성.상태 === '모름') return
+  if (!m[k] || !성) return
+  if (성.상태 === '모름' && !성.예정) return     /* 개찰 자료가 아직 없는 «모름» 은 안 남김(개찰 전) · 하한을 몰라 못 센 «모름» 은 남김(🩹 G339) */
   const o = { s: 성.상태, k: 성.순위 ? 성.순위[0] : null, k2: 성.순위 ? 성.순위[1] : null, d: 성.차이 }
   if (JSON.stringify(m[k].o) === JSON.stringify(o)) return
   m[k] = { ...m[k], o }
@@ -87,25 +88,31 @@ export function 내성적(r, 금액, 낮은곳) {
   }
   if (!(llr > 0)) return { 상태: '모름', 왜: '낙찰하한율을 알 수 없습니다(100억 이상 · 종합심사 등)' }
   let 하한 = Math.ceil((예정 - A) * (llr / 100) + A)
-  if (하한 > amt) 하한 = amt          /* 1순위는 하한 위였음 — 추정 하한율이 높게 잡혔으면 1순위 금액을 하한으로 봄 */
+  /* 1순위는 하한 위였음 — 공고에 실린 하한율로 셈한 하한이 1순위를 몇 원 넘으면(원 단위 · A값 차이) 1순위 금액을 하한으로 봄.
+     🩹 G339 (2026-10-20 실제 사이트) 하한율을 «규모로 짐작» 했는데 1순위보다 높으면 짐작이 틀린 공고(적격심사가 아님 — 예: 1순위 투찰률 64%)
+        → 하한을 «모름» 으로: 1순위보다 높은 금액은 통과(1순위가 하한 위였으니) · 낮은 금액은 셀 수 없다고 밝힘. 전엔 1순위 금액을 하한이라 적었음. */
+  let 하한모름 = false
+  if (하한 > amt) { if (하한추정) { 하한모름 = true; 하한 = null } else 하한 = amt }
   const 사정률 = base > 0 ? (예정 / base) * 100 : null
   const 내버팀 = base > 0 ? breakEvenSj(base, llr, A, 내) : null
   const 차이 = 내 - amt
   const 차이율 = (차이 / 예정) * 100       // 투찰률로 몇 %p
-  const 공통 = { 예정: Math.round(예정), 하한, 하한추정, A모름, llr, 사정률, 내버팀, 차이, 차이율 }
-  if (내 < 하한) return { ...공통, 상태: '실격', 모자람: 하한 - 내, 순위: null, 순위말: '낙찰하한 아래' }
+  const 공통 = { 예정: Math.round(예정), 하한, 하한추정, 하한모름, A모름, llr: 하한모름 ? null : llr, 사정률, 내버팀: 하한모름 ? null : 내버팀, 차이, 차이율 }
+  if (하한모름 && 내 < amt) return { ...공통, 상태: '모름', 왜: '이 공고는 낙찰하한율이 안 실려 왔고, 금액 규모로 짐작한 하한이 1순위 금액보다 높아 맞지 않습니다(적격심사 방식이 아닌 공고일 수 있음) — 1순위보다 낮은 금액은 하한을 넘었는지 알 수 없습니다' }
+  const 바닥 = 하한모름 ? amt : 하한          // 등수 셈의 아래 끝(하한을 모르면 1순위 금액 — 그 아래는 실격이었던 투찰)
+  if (!하한모름 && 내 < 하한) return { ...공통, 상태: '실격', 모자람: 하한 - 내, 순위: null, 순위말: '낙찰하한 아래' }
   if (내 < amt) return { ...공통, 상태: '일순', 순위: [1, 1], 순위말: '1순위' }
   if (내 === amt) return { ...공통, 상태: '같음', 순위: [1, 1], 순위말: '1순위와 같은 금액(추첨)' }
   /* 그 위 — 낮게 쓴 곳 안이면 바로 셈 */
   const 금액들 = (Array.isArray(낮은곳) && 낮은곳.length ? 낮은곳 : (Array.isArray(r.amts) ? r.amts : []))
     .map((c) => Number(Array.isArray(c) ? c[1] : c) || 0).filter((x) => x > 0).sort((x, y) => x - y)
   const 모두 = Math.max(Number(r.nrank) || 0, Number(r.np) || 0, 금액들.length)
-  const 아래수 = 금액들.filter((x) => x < 내 && x >= 하한).length
+  const 아래수 = 금액들.filter((x) => x < 내 && x >= 바닥).length
   if (금액들.length && (내 <= 금액들[금액들.length - 1] || 금액들.length >= 모두)) {
     const k = 아래수 + 1
     return { ...공통, 상태: '통과', 순위: [k, k], 순위말: `${k}위쯤${모두 ? ` (참가 ${모두.toLocaleString('ko-KR')}곳)` : ''}` }
   }
-  const 사다리 = rankBracket(r.rq, 내, 하한)
+  const 사다리 = rankBracket(r.rq, 내, 바닥)
   if (사다리) {
     const [lo, hi] = 사다리
     return { ...공통, 상태: '통과', 순위: [lo, hi], 순위말: hi && hi !== lo ? `${lo}~${hi}위` : `${lo}위 넘게` }
@@ -117,7 +124,7 @@ export function 내성적(r, 금액, 낮은곳) {
 export function 넣은모음() {
   const m = 넣은들()
   const 줄 = Object.entries(m).map(([no, v]) => ({ no, ...v }))
-  const 셈 = { 적음: 줄.length, 봄: 0, 일순: 0, 통과: 0, 실격: 0 }
+  const 셈 = { 적음: 줄.length, 봄: 0, 일순: 0, 통과: 0, 실격: 0, 모름: 0 }
   for (const x of 줄) {
     const s = x.o && x.o.s
     if (!s) continue
@@ -125,6 +132,7 @@ export function 넣은모음() {
     if (s === '일순' || s === '같음') 셈.일순++
     else if (s === '통과') 셈.통과++
     else if (s === '실격') 셈.실격++
+    else if (s === '모름') 셈.모름++
   }
   줄.sort((a, b) => String(b.t || '').localeCompare(String(a.t || '')))
   return { 셈, 줄 }

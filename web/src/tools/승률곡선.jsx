@@ -70,6 +70,13 @@ export default function 승률곡선({ 표, 칸, 금액대이름, enp, base, llr
   const 지금z = (() => { const s = breakEvenSj(base, llr, aval, 지금금액); return s == null || !(sd > 0) ? null : (s - 표.p50) / sd })()
   const 지금i = 지금z == null ? -1 : 점들.reduce((b, p, i) => (Math.abs(p.z - 지금z) < Math.abs(점들[b].z - 지금z) ? i : b), 0)
   const 지금밖 = 지금z != null && (지금z < 보는자리[0] - 0.05 || 지금z > 보는자리[1] + 0.05)
+  /* 🩹 G339 (2026-10-20 실제 사이트) «가장 높은 자리» 가 잡음일 때가 많았음 — 참가 30~99곳 3,812건: 7분위 2.7%(실격 93%) vs 다른 자리 1.9~2.4%.
+     → 지금 금액 자리(없으면 50분위)와 견줘 «건수로 보아 우연 범위 밖»(2 × 표준오차 넘게 높음)일 때만 가장 높은 자리를 짚고 고르기 단추를 둠.
+       아니면 «자리마다 비슷합니다(○~○%)» 라고만 적음 — 잡음을 «여기 넣으면 더 이긴다» 로 내밀지 않음. */
+  const 견줌i = 지금i >= 0 && !지금밖 ? 지금i : 점들.reduce((b, p, i) => (Math.abs(p.z) < Math.abs(점들[b].z) ? i : b), 0)
+  const pb = 최고점.일순 / c.n, pn = 점들[견줌i].일순 / c.n
+  const 뚜렷 = 최고 !== 견줌i && pb - pn > 2 * Math.sqrt((pb * (1 - pb) + pn * (1 - pn)) / c.n)
+  const 견줌말 = 지금i >= 0 && !지금밖 ? '지금 금액' : '50분위'
   const 눈금 = (W >= 480 ? [10, 25, 50, 75, 90, 95, 99] : [10, 50, 90, 99]).map((q) => ({ q, z: 분위z(q) }))
   const 가까운 = (e) => {
     const r = e.currentTarget.getBoundingClientRect()
@@ -100,13 +107,19 @@ export default function 승률곡선({ 표, 칸, 금액대이름, enp, base, llr
         </div>
       )}
       <p className="wrc-say">
-        {이름} 지난 개찰 <b>{c.n.toLocaleString('ko-KR')}건</b>에서 1순위가 가장 많이 나온 자리는
-        {' '}<b>{분위of(최고점.z)}분위</b>{최고금액 ? <> (이번 공고 {won(최고금액.amt)})</> : null} — <b>{퍼(최고점.일순).toFixed(1)}%</b> · 그 자리 실격 {퍼(최고점.실격).toFixed(0)}%
+        {뚜렷 ? (<>
+          {이름} 지난 개찰 <b>{c.n.toLocaleString('ko-KR')}건</b>에서 1순위가 가장 많이 나온 자리는
+          {' '}<b>{분위of(최고점.z)}분위</b>{최고금액 ? <> (이번 공고 {won(최고금액.amt)})</> : null} — <b>{퍼(최고점.일순).toFixed(1)}%</b> · 그 자리 실격 <b>{퍼(최고점.실격).toFixed(0)}%</b>
+          {' '}· {견줌말} 자리({퍼(점들[견줌i].일순).toFixed(1)}%)보다 건수로 보아 뚜렷이 높습니다
+        </>) : (<>
+          {이름} 지난 개찰 <b>{c.n.toLocaleString('ko-KR')}건</b> — 1순위가 가장 높게 나온 {분위of(최고점.z)}분위({퍼(최고점.일순).toFixed(1)}% · 실격 {퍼(최고점.실격).toFixed(0)}%)와
+          {' '}{견줌말} 자리(<b>{퍼(점들[견줌i].일순).toFixed(1)}%</b>)의 차이는 건수로 보면 <b>우연 범위</b>입니다 — 자리를 옮긴다고 더 이긴다고 보기 어렵습니다
+        </>)}
         {enp > 0 ? <span className="muted"> · 이 공고 예상 참가 {enp.toLocaleString('ko-KR')}곳</span> : null}
       </p>
       <div className="wrc-box" ref={판}>
         <svg className="wrc-svg" width={W} height={높이} viewBox={`0 0 ${W} ${높이}`} role="img"
-          aria-label={`${이름} 자리별 1순위 비율 곡선 — 가장 높은 자리 ${분위of(최고점.z)}분위 ${퍼(최고점.일순).toFixed(1)}%`}
+          aria-label={`${이름} 자리별 1순위 비율 곡선 — ${뚜렷 ? `가장 높은 자리 ${분위of(최고점.z)}분위 ${퍼(최고점.일순).toFixed(1)}%` : `가장 높은 자리와 ${견줌말} 자리의 차이는 우연 범위`}`}
           onPointerMove={(e) => set위(가까운(e))} onPointerLeave={() => set위(null)} onClick={(e) => { const k = 가까운(e); set위(k); 고름(k) }}>
           {/* 위 그림 — 1순위가 된 비율 */}
           <text className="wrc-t" x={왼} y={12}>1순위가 된 비율</text>
@@ -130,9 +143,9 @@ export default function 승률곡선({ 표, 칸, 금액대이름, enp, base, llr
           {눈금.map(({ q, z }) => (
             <text key={'x' + q} className="wrc-ax" x={x(z)} y={높이 - 6} textAnchor={x(z) > W - 오른 - 22 ? 'end' : 'middle'}>{q}분위</text>
           ))}
-          {/* 가장 높은 자리 */}
-          <line className="wrc-best" x1={x(최고점.z)} x2={x(최고점.z)} y1={y1(퍼(최고점.일순))} y2={y2(0)} />
-          <circle className="wrc-dot best" cx={x(최고점.z)} cy={y1(퍼(최고점.일순))} r={5} />
+          {/* 가장 높은 자리 — 뚜렷할 때만 */}
+          {뚜렷 && <line className="wrc-best" x1={x(최고점.z)} x2={x(최고점.z)} y1={y1(퍼(최고점.일순))} y2={y2(0)} />}
+          {뚜렷 && <circle className="wrc-dot best" cx={x(최고점.z)} cy={y1(퍼(최고점.일순))} r={5} />}
           {/* 지금 고른 금액 */}
           {지금i >= 0 && !지금밖 && (
             <g>
@@ -156,11 +169,11 @@ export default function 승률곡선({ 표, 칸, 금액대이름, enp, base, llr
         {h ? <><b>{분위of(h.z)}분위</b>{h금액 ? <> · {won(h금액.amt)}</> : null} · 1순위 <b>{퍼(h.일순).toFixed(1)}%</b> · 실격 <b>{퍼(h.실격).toFixed(0)}%</b> <span className="muted">· 누르면 이 금액으로</span></>
           : <span className="muted">그림을 가리키거나 누르면 그 자리의 금액 · 1순위 · 실격이 여기 나옵니다.</span>}
       </div>
-      <div className="wrc-key"><span className="wrc-k now" /> 지금 금액 <span className="wrc-k best" /> 1순위가 가장 많이 나온 자리</div>
+      <div className="wrc-key"><span className="wrc-k now" /> 지금 금액{뚜렷 ? <> <span className="wrc-k best" /> 1순위가 가장 많이 나온 자리</> : null}</div>
       <div className="wrc-btns">
-        {최고금액 && (
+        {뚜렷 && 최고금액 && (
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 고름(최고)}>
-            가장 높은 자리({분위of(최고점.z)}분위 · {won(최고금액.amt)})로 고르기</button>
+            1순위가 가장 많이 나온 자리({분위of(최고점.z)}분위 · {won(최고금액.amt)} · 실격 {퍼(최고점.실격).toFixed(0)}%)로 고르기</button>
         )}
         {지금밖 && <span className="muted">지금 금액은 그림 밖(5~99분위 밖) 자리입니다.</span>}
       </div>
