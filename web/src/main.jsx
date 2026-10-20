@@ -56,6 +56,8 @@ const lazyPage = (load) => lazy(() => load()
 /* 구인구직만 Firebase 를 씁니다. 이 탭을 열기 전에는 firebase 덩어리(약 73KB)를
    아예 내려받지 않도록 따로 떼어둡니다 — 전송량이 곧 요금이라서. */
 const Jobs = lazyPage(() => import('./pages/Jobs.jsx'))
+/* 📊 G340 입찰 분석실 — 바로투찰(첫 덩어리)은 그대로 · 분석 칸 · 목록만 따로 받습니다 */
+const Bunseok = lazyPage(() => import('./pages/Bunseok.jsx'))
 
 /* 서식은 목록 자료(약 24KB)를 안고 있습니다. 서식 탭을 열기 전에는
    내려받지 않도록 따로 뗍니다 — 첫 화면 전송량에 얹지 않기 위해서입니다. */
@@ -190,6 +192,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           {/* 바로투찰이 이 사이트의 첫 화면입니다 */}
           <Route path="/" element={<BaroBid />} />
           <Route path="/calc" element={<BaroBid />} />
+          <Route path="/bunseok" element={<Suspense fallback={<Loading />}><Bunseok /></Suspense>} />
           <Route path="/first" element={<FirstBoard />} />
           <Route path="/live" element={<LiveBoard />} />
           <Route path="/ext" element={<Suspense fallback={<Loading />}><ExtBoard /></Suspense>} />

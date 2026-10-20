@@ -2065,6 +2065,189 @@ def build_pre(src_dir=None, out_dir=None, now=None):
     return len(rows)
 
 
+# ══════════════════════════════════════════════════════════════
+#  📊 입찰 분석실 재료 — G340 (2026-10-20) 소장님 「입찰 프로그램, 이렇게 만들 수는 없을까」(비드프로 화면) ·
+#     「대표적인 프로그램이 하나씩 있잖아 … 그걸 만들고 싶어」 · 「이용자 입장에서 편하게 … 그러면서 다 되게」
+#
+#  ① agency/sjl/{통}.json — 기관마다 사정률을 아는 개찰 최신 SJL_N건(긴 흐름 그림 · 분포 · 적중 검사)
+#       한 기관: {s: 시도(collect._head_sido · 여럿이면 쉼표 · 모르면 ""), c: [[yymmdd, 사정률, 1순위 투찰률, 참가수, 기초금액(만원), 예가범위(3 · 2 · 0=그 밖), 1순위 업체, 공고명], …] 최신이 앞}
+#       통 번호 = sjr_bucket() (화면 lib/분석판.js 통번호 = lib/기관사정률.js 와 같은 셈)
+#  ② agency/sjd.json — 비교 분포와 «고르는 방법» 적중 검사(전국)
+#       b: [첫 칸 %, 칸 폭 %, 칸 수] · all: {예가범위: [칸마다 건수]} · sido/amt: {시도 · 금액대 번호: {예가범위: [...]}}
+#       sr: 시도마다 최신 SJL_N건 [yymmdd, 사정률, 예가범위, 기관] · hit: {예가범위: {n, 방법: 적중 %}} · corr: {예가범위: 상관}
+#  ⚠️ 사정률 = 1순위 금액 ÷ 투찰률 ÷ 기초금액(«사정률 역산» · 2026-04 이후 · 95~105% 밖은 버림)
+#  ⚠️ 적중 검사의 방법은 모두 «폭 1%p 창» 으로 견줍니다(가장 많은 두 칸 0.5 × 2 · 앞 공고 ±0.5 · 최근 10건 평균 ±0.5 ·
+#     전국 가운데값 ±0.5) — 폭이 다르면 넓은 쪽이 더 맞는 것처럼 보입니다. 화면 lib/분석판.js 적중검사 와 같은 셈.
+#     2026-10-20 잰 것(개찰 8,557건): 기관 흐름 두 칸 42.0% < 전국 두 칸 46.3%(±3%) · 앞뒤 상관 0.013 — 화면도 숫자 그대로 적습니다.
+# ══════════════════════════════════════════════════════════════
+SJL_N = 60                      # 기관 · 시도마다 흐름 건수
+SJL_NAME = 18                   # 공고명 길이
+SJL_CORP = 10                   # 1순위 업체 이름 길이
+SJD_LO, SJD_STEP, SJD_N = 96.0, 0.1, 80     # 분포 칸: 96.0 ~ 103.9
+SJD_AMT = [1e8, 2e8, 3e8, 4e8, 5e8, 6e8, 7e8, 8e8, 9e8, 1e9, 1.5e9, 2e9, 3e9, 5e9, 1e10]   # 화면 lib/금액대성적.js 금액대들 의 위끝
+
+
+def _sjd_amt(b):
+    """기초금액 → 금액대 번호(«1억 이하» = 1억까지) — 화면 금액대of 와 같은 셈. 100억 넘으면 -1"""
+    if not (b and b > 0):
+        return -1
+    for i, hi in enumerate(SJD_AMT):
+        if b <= hi:
+            return i
+    return -1
+
+
+def _sjd_rng(lo, hi):
+    """예가범위 → «3»(±3%) · «2»(±2%) · «x»(그 밖). 안 실려 온 줄은 «3»(조달청 기본 ±3%)."""
+    try:
+        lo = float(lo); hi = float(hi)
+    except Exception:
+        return "3"
+    if math.isnan(lo) or math.isnan(hi):
+        return "3"
+    if abs(lo + 3) < 0.01 and abs(hi - 3) < 0.01:
+        return "3"
+    if abs(lo + 2) < 0.01 and abs(hi - 2) < 0.01:
+        return "2"
+    return "x"
+
+
+def _top2(vals):
+    """0.5 폭 칸(칸 번호 = floor(v/0.5)) 중 가장 많은 두 칸 — 같으면 낮은 칸 먼저"""
+    c = Counter(math.floor(v / 0.5) for v in vals)
+    return [b for b, _ in sorted(c.items(), key=lambda t: (-t[1], t[0]))[:2]]
+
+
+def sjd_hit(seqs, all_top2, med):
+    """적중 검사 — seqs: 기관마다 옛것부터 사정률 줄. 앞 10건 이상 쌓인 다음 공고마다 방법을 대 봅니다.
+    all_top2: 전국 가장 많은 두 칸(칸 번호) · med: 전국 가운데값 → {n, flow2, all2, prev, avg10, med} (%)"""
+    n = 0
+    h = {"flow2": 0, "all2": 0, "prev": 0, "avg10": 0, "med": 0}
+    for L in seqs:
+        for k in range(10, len(L)):
+            x = L[k]
+            nb = math.floor(x / 0.5)
+            n += 1
+            h["flow2"] += nb in _top2(L[max(0, k - 30):k])
+            h["all2"] += nb in all_top2
+            h["prev"] += abs(x - L[k - 1]) <= 0.5
+            h["avg10"] += abs(x - sum(L[k - 10:k]) / 10) <= 0.5
+            h["med"] += abs(x - med) <= 0.5
+    return {"n": n, **{k: (round(v / n * 100, 1) if n else None) for k, v in h.items()}}
+
+
+def _corr(pairs):
+    if len(pairs) < 10:
+        return None
+    xs = [a for a, _ in pairs]; ys = [b for _, b in pairs]
+    mx = sum(xs) / len(xs); my = sum(ys) / len(ys)
+    sx = math.sqrt(sum((a - mx) ** 2 for a in xs)); sy = math.sqrt(sum((b - my) ** 2 for b in ys))
+    if not sx or not sy:
+        return None
+    return round(sum((a - mx) * (b - my) for a, b in pairs) / (sx * sy), 3)
+
+
+def build_sjl(df):
+    """📊 입찰 분석실 재료(위 설명). 실패해도 사이트 집계는 계속합니다(main 에서 try)."""
+    try:
+        from collect import _head_sido
+    except Exception:
+        def _head_sido(s):
+            return ""
+    if "sj" not in df.columns:
+        log("⚠️ 분석실 재료 — 사정률 칸이 없습니다(기초금액 없는 자료)")
+        return 0
+    g = df[df["sj"].notna() & (df["발주기관"] != "")].copy()
+    if not len(g):
+        log("⚠️ 분석실 재료 — 사정률을 아는 개찰이 없습니다")
+        return 0
+    g["__b"] = g["기초금액"].map(to_amt) if "기초금액" in g.columns else 0
+    lo = g["예가하한"] if "예가하한" in g.columns else pd.Series([None] * len(g), index=g.index)
+    hi = g["예가상한"] if "예가상한" in g.columns else pd.Series([None] * len(g), index=g.index)
+    g["__r"] = [_sjd_rng(a, b) for a, b in zip(lo, hi)]
+    g = g.sort_values("dt", ascending=True, kind="stable")
+    has_np = "np" in g.columns
+
+    def ymd(d):
+        return d.strftime("%y%m%d") if pd.notna(d) else ""
+
+    def rng_code(r):
+        return 3 if r == "3" else 2 if r == "2" else 0
+
+    buckets = [{} for _ in range(SJR_BUCKETS)]
+    h_all, h_sido, h_amt = {}, {}, {}
+    sido_rows = defaultdict(list)
+    seqs = defaultdict(list)          # 예가범위 → 기관마다 옛것부터 사정률
+    pairs = defaultdict(list)
+
+    def add(d, rng, v):
+        i = int(math.floor((v - SJD_LO) / SJD_STEP + 1e-9))
+        if 0 <= i < SJD_N:
+            d.setdefault(rng, [0] * SJD_N)[i] += 1
+
+    for name, gg in g.groupby("발주기관", sort=False):
+        rows = []
+        by_rng = defaultdict(list)
+        sds = [s for s in str(_head_sido(name) or "").split(",") if s in SIDO_KAN]
+        for _, r in gg.iterrows():
+            v = float(r["sj"]); rng = r["__r"]; b = float(r["__b"] or 0)
+            npv = r["np"] if has_np else None
+            rows.append([
+                ymd(r["dt"]), round(v, 3),
+                (round(float(r["rate"]), 3) if r["rate"] is not None and not pd.isna(r["rate"]) else None),
+                (int(npv) if (npv is not None and not pd.isna(npv)) else None),
+                int(round(b / 10000)), rng_code(rng),
+                str(r["1순위업체"] or "")[:SJL_CORP], str(r["공고명"] or "")[:SJL_NAME],
+            ])
+            add(h_all, rng, v)
+            k = _sjd_amt(b)
+            if k >= 0:
+                add(h_amt.setdefault(str(k), {}), rng, v)
+            for s in sds:
+                add(h_sido.setdefault(s, {}), rng, v)
+                sido_rows[s].append((r["dt"], [ymd(r["dt"]), round(v, 3), rng_code(rng), str(name)[:12]]))
+            by_rng[rng].append(v)
+        buckets[sjr_bucket(name)][name] = {"s": ",".join(sds), "c": rows[::-1][:SJL_N]}
+        for rng, L in by_rng.items():
+            seqs[rng].append(L)
+            pairs[rng].extend(zip(L, L[1:]))
+
+    hit, corr = {}, {}
+    for rng in ("3", "2"):
+        cnt = h_all.get(rng)
+        if not cnt:
+            continue
+        vals = []
+        for i, n in enumerate(cnt):
+            vals.extend([SJD_LO + i * SJD_STEP + SJD_STEP / 2] * n)
+        vals.sort()
+        top2 = _top2(vals)
+        med = vals[len(vals) // 2]
+        hit[rng] = {**sjd_hit(seqs[rng], top2, med), "top2": [b * 0.5 for b in sorted(top2)], "m": round(med, 2)}
+        corr[rng] = _corr(pairs[rng])
+    _t0 = pd.Timestamp(0)
+    sr = {}
+    for s, lst in sido_rows.items():
+        lst.sort(key=lambda t: (t[0] if pd.notna(t[0]) else _t0))
+        sr[s] = [x for _, x in lst[::-1][:SJL_N]]
+    out = {
+        "v": 1,
+        "t": (datetime.now(timezone.utc) + timedelta(hours=9)).strftime("%Y-%m-%d %H:%M"),
+        "f": g["dt"].min().strftime("%Y-%m-%d") if g["dt"].notna().any() else "",
+        "n": int(len(g)),
+        "b": [SJD_LO, SJD_STEP, SJD_N],
+        "all": h_all, "sido": h_sido, "amt": h_amt,
+        "sr": sr, "hit": hit, "corr": corr,
+    }
+    written = 0
+    for i, b in enumerate(buckets):
+        written += write_json(f"agency/sjl/{i}.json", b)
+    written += write_json("agency/sjd.json", out)
+    log(f"📊 분석실 재료 — 기관 {sum(len(b) for b in buckets):,}곳 · 개찰 {len(g):,}건 · 시도 {len(sr)} · "
+        f"적중 검사 ±3 {hit.get('3', {}).get('n', 0):,}번 → agency/sjl {SJR_BUCKETS}통 + sjd ({written / 1024:.0f}KB)")
+    return written
+
+
 def main():
     t0 = datetime.now()
     print("=" * 52)
@@ -2079,6 +2262,11 @@ def main():
 
     df = load_all()
     n_ag = build_agency(df)
+    # 📊 입찰 분석실 재료 (G340 · 2026-10-20) — 실패해도 사이트 집계는 계속합니다
+    try:
+        build_sjl(df)
+    except Exception as e:
+        log(f"⚠️ 분석실 재료를 못 만들었습니다 — {e}")
     # 🏛 발주기관 정밀 보고서의 숫자 (2026-09-28) — 운영자 화면(/report/agency)만 읽습니다.
     #    ⚠️ build_agency «뒤» 입니다 — agency/names.json 의 묶음 번호를 그대로 씁니다.
     #    실패해도 사이트 집계는 계속합니다(보고서 하나 때문에 사이트가 멈추면 안 됩니다).

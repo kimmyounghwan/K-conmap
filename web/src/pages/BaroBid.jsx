@@ -246,7 +246,11 @@ function ScenTable({ sc, amtLabel, pctile, realNote }) {
   )
 }
 
-export default function BaroBid() {
+/* 📊 G340 (2026-10-20) 입찰 분석실(/bunseok) — 같은 계산을 «오른쪽 투찰 칸» 으로 씁니다(pages/Bunseok.jsx).
+   분석실 = 왼쪽 공고 목록 · 가운데 분석(분석판.jsx) · 오른쪽 이 화면. 금액 셈은 한 벌(여기)뿐 — 분석실이 따로 셈하지 않습니다.
+   분석실에서는: 맨 위 지도 · 내역서 띠 · 오늘의 기준 · 성적 띠 · 곧 나올 공사 · 오늘 넣을 것 · 검색 칸 · 안내 글 묶음을 빼고(왼쪽 목록이 대신),
+   주소 ?no= 가 바뀔 때마다 그 공고를 고르고, 고른 공고 · 금액 · 사정률 분포를 «알림» 으로 분석실에 알려 줍니다(가운데 분석 · 아래 금액 띠). */
+export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
   const [sp] = useSearchParams()
   const [idx, setIdx] = useState(undefined)
   const [없는공고, set없는공고] = useState('')   /* 🩹 G166 주소로 왔는데 목록에 없는 공고번호 */
@@ -434,11 +438,26 @@ export default function BaroBid() {
      기초금액·A값·면허·지역·낙찰하한율이 전부 따라옵니다.
      (예전에는 사용자가 공고번호를 적어 와서 다시 검색해야 했습니다) */
   const autoPicked = useRef(false)
+  /* 📊 G340 분석실 «💰 바로투찰로» — 분석에서 «이 금액으로 고르기»(직접 투찰률)로 고른 것을 ?r= 로 들고 옵니다.
+     그 공고를 고른 뒤 한 번만 «직접» 으로 넣습니다. ⚠️ 고름() 을 부르지 않습니다 — 고름은 기억한 분위(kcm_qtile)를 지웁니다. */
+  const 들고온율 = useRef(null)
+  useEffect(() => {
+    if (분석실) return
+    const v = Number(sp.get('r'))
+    const no = (sp.get('no') || '').trim().toUpperCase()
+    if (!(v >= 60 && v <= 110) || !no) return
+    if (!picked || String(picked.no).toUpperCase() !== no || 들고온율.current === no) return
+    들고온율.current = no
+    rateTouched.current = true
+    setOwnRate(v.toFixed(3)); setPickRate('own')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [분석실, sp, picked])
   useEffect(() => {
     if (autoPicked.current || picked) return
     /* 🧭 2026-09-27 — 고른 공고를 이 탭에 적어 둡니다. 다른 화면에 갔다가 뒤로 오면 그 공고가 다시 골라집니다
        (주소에 아무것도 안 달고 들어왔을 때만 — 주소로 온 공고가 늘 먼저입니다). */
-    const 주소없음 = !sp.get('no') && !sp.get('name') && !sp.get('base') && sp.get('sc') !== '1'
+    /* 📊 G340 분석실은 주소(?no=)가 고른 공고의 전부입니다 — 이 탭에 적어 둔 공고를 되살리지 않습니다(분석실이 따로 기억) */
+    const 주소없음 = !분석실 && !sp.get('no') && !sp.get('name') && !sp.get('base') && sp.get('sc') !== '1'
     let 남은 = ''
     try { 남은 = 주소없음 ? (sessionStorage.getItem('kcm.baro.no') || '') : '' } catch (e) { /* 없음 */ }
     const no = (sp.get('no') || 남은).trim().toUpperCase()
@@ -540,6 +559,18 @@ export default function BaroBid() {
     setPicked(null); setQ(''); setInst(''); setBase(0)
     setBudgetIn(''); setAIn(''); setAAuto(false); setPickRate('rec'); setOwnRate('')
   }
+
+  /* 📊 G340 분석실 — 왼쪽 목록을 누르면 주소 ?no= 만 바뀝니다. 바뀔 때마다 그 공고를 고릅니다(같은 pick — 금액 · A값 · 하한율이 다 따라옴).
+     ?no= 가 빠지면(«◀ 공고 목록») 고른 것을 비웁니다. 분석실이 아니면 아무것도 안 합니다(첫 화면 바로투찰은 예전 그대로). */
+  useEffect(() => {
+    if (!분석실 || !rows.length) return
+    const no = (sp.get('no') || '').trim().toUpperCase()
+    if (!no) { if (picked) clear(); return }
+    if (picked && String(picked.no).toUpperCase() === no) return
+    const hit = rows.find((r) => String(r.no).toUpperCase() === no)
+    if (hit) { autoPicked.current = true; pick(hit) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [분석실, sp, rows])
 
   /* ── 계산 ─────────────────────────────── */
   /* ⚠️ 공고의 «예산» 칸(budget)을 추정가격으로 쓰면 안 됩니다.
@@ -1052,6 +1083,22 @@ export default function BaroBid() {
       : (base > 0 ? { base, est: estimate, lo, hi, inst, name: q } : null))
   ), [picked, res, base, estimate, lo, hi, inst, q])
 
+  /* 📊 G340 분석실에 알려 줄 것 — 가운데 분석(그 사정률이면 금액 · 내 금액 하한선)과 폰 아래 금액 띠가 씁니다.
+     직접 · 복사 는 늘 «지금» 함수를 부르게 ref 로 넘깁니다(고름 · copy 는 그릴 때마다 새로 만들어짐). */
+  const 분석직접 = useRef(null)
+  분석직접.current = (rate) => { setOwnRate(Number(rate).toFixed(3)); 고름('own') }
+  const 분석복사 = useRef(null)
+  분석복사.current = copy
+  const 분석길 = useRef({ 직접: (rate) => 분석직접.current && 분석직접.current(rate), 복사: () => 분석복사.current && 분석복사.current() })
+  useEffect(() => {
+    if (!분석실 || typeof 알림 !== 'function') return
+    알림({
+      picked, base, llr: ll?.rate || 0, aval: a, sjMid, sjSd, main, myRate, ag, lo, hi, bag: bag.length,
+      ready: !!picked && isReady(picked), pass, copied, pickRate, ...분석길.current,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [분석실, picked, base, ll?.rate, a, sjMid, sjSd, main, myRate, ag, lo, hi, bag, pass, copied, pickRate])
+
   const dd = picked ? dday(picked.close) : null
   const topMax = hot?.top?.length ? Math.max(...hot.top.map((t) => t[1])) : 1
 
@@ -1060,15 +1107,15 @@ export default function BaroBid() {
       {/* 🗺 G144 맨 위 지도 — 공고를 골라 셈하러 온 화면(?bid=)과 검증 화면에서는 맨 위에 안 띄움(셈이 먼저)
           → G160 (2026-10-06) 소장님 「공고에서 바로투찰을 클릭하면 지도가 사라져 이것도 같이 고쳐줘」: 공고에서 온 화면도 맨 위에 — 다만 작은 상자로 */}
       {/* G160 소장님 「공간을 너무 많이 차지하지 않고 공간 활용을 잘 해서 배치 해줘」 → 골라 온 화면은 맨 위에 «작은 상자»(지도 크게 보기 ▾) */}
-      {!verifyMode && <지도지킴><이용자지도 작게={!!picked} /></지도지킴>}
+      {!verifyMode && !분석실 && <지도지킴><이용자지도 작게={!!picked} /></지도지킴>}
 
       {/* 📋 투찰금액을 정하러 온 사람 = 곧 내역서가 필요해질 사람입니다. */}
-      <NaeyeokStrip tone="bid" />
+      {!분석실 && <NaeyeokStrip tone="bid" />}
 
       {/* ── 오늘의 기준 ──
           검증 화면에서는 «그 공고의 규모»를 기준으로 보여줍니다.
           위에서는 10억 미만이라 하고 아래 채점표는 10억~50억이라 하면 서로 어긋납니다. */}
-      {hot?.mode != null && !verifyMode && !picked && (
+      {hot?.mode != null && !verifyMode && !picked && !분석실 && (
         <div className="todaybar">
           <div>
             <div className="k">
@@ -1092,7 +1139,7 @@ export default function BaroBid() {
           → «가상 시뮬레이션» 이 공고 찾기·투찰 조건 밑, 화면 세 장 아래에 있어 안 보였습니다.
             맨 위에 성적 한 줄을 두고, 누르면 그 자리로 내려갑니다.
             숫자는 sim.json 그대로입니다 — 여기서 새로 셈하지 않습니다(아래 SimBlock 과 같은 값). */}
-      {bt && !verifyMode && !picked && base <= 0 && (
+      {bt && !verifyMode && !picked && base <= 0 && !분석실 && (
         <button type="button" className="simstrip"
           onClick={() => {
             const el = document.getElementById('sim')
@@ -1111,11 +1158,19 @@ export default function BaroBid() {
       )}
 
       {/* ⭐ 담아 둔 «곧 나올 공사» 가 공고로 나왔으면 맨 위 한 줄 — 누르면 그 공고로 바로투찰 (2026-10-05 G135) */}
-      {!verifyMode && !picked && !q && <곧나올줄 kind="got" />}
+      {!verifyMode && !picked && !q && !분석실 && <곧나올줄 kind="got" />}
 
       {/* ⚡ 오늘 넣을 것 — «내 면허·내 지역» 의 마감 전 공고 (MyToday.jsx 머리말 참고) */}
-      {!verifyMode && !picked && !q && (
+      {!verifyMode && !picked && !q && !분석실 && (
         <MyToday rows={rows} idx={idx} p50={ov?.sjq?.p50 ?? P50_FALLBACK} onPick={pick} />
+      )}
+      {/* 📊 G340 입찰 분석실 들어가는 길 — 공고 목록 · 투찰 금액 · 기관 흐름 · 분포를 한 화면에(PC 에서 특히) */}
+      {!verifyMode && !picked && !분석실 && (
+        <Link className="bsr-cta" to="/bunseok" onClick={() => { try { 세기('|분석실|첫화면에서') } catch (e) { /* 없음 */ } }}>
+          <span className="t"><em>NEW</em> 📊 <b>입찰 분석실</b></span>
+          <span className="d">공고 목록 · 투찰 금액 · 이 기관 사정률 흐름 · 분포 · «최고 · 차순» 적중 검사를 한 화면에</span>
+          <span className="go">열기 →</span>
+        </Link>
       )}
 
       {/* 100억 이상은 종합심사라 이 계산기가 통하지 않습니다 */}
@@ -1181,6 +1236,10 @@ export default function BaroBid() {
       <>
       {/* ── 1. 공고 찾기 ── */}
       <div className="card">
+        {분석실 && !picked && (
+          <div className="bsr-wait">👈 <b>왼쪽 목록에서 공고를 고르세요</b> — 고르면 여기에 투찰 금액이, 가운데에 이 기관 사정률 흐름 · 분포 · 적중 검사가 나옵니다.</div>
+        )}
+        {!분석실 && (<>
         <div className="field">
           <label>
             공고 찾기
@@ -1263,6 +1322,7 @@ export default function BaroBid() {
             마감 전 공사 공고 중에는 없습니다. <b>공고서의 기초금액을 그대로 넣으면</b> 바로 계산됩니다.
           </div>
         )}
+        </>)}
 
         {picked && (
           <div className="pickedbar">
@@ -1284,11 +1344,15 @@ export default function BaroBid() {
             주소는 조달청이 준 것(bidNtceDtlUrl)을 그대로 씁니다 — 차수를 손으로
             만들면 001·002 공고에서 엉뚱한 곳으로 갑니다. */}
         {picked && (
-          <div className="picklinks">
+          <div className={'picklinks' + (분석실 ? '' : ' bsr-wrap')}>
             <a className="btn ghost sm" target="_blank" rel="noreferrer"
               href={picked.url || 'https://www.g2b.go.kr'}>
               나라장터에서 이 공고 열기 ↗
             </a>
+            {/* 📊 G340 분석실로 — 고른 공고 그대로(주소 ?no=) */}
+            {!분석실 && picked.no && (
+              <Link className="btn sm bsr-btn" to={`/bunseok?no=${encodeURIComponent(picked.no)}`} onClick={() => { try { 세기('|분석실|고른칸에서') } catch (e) { /* 없음 */ } }}>📊 분석실에서 보기</Link>
+            )}
             <button className="btn ghost sm" onClick={clear}>지우기</button>
           </div>
         )}
@@ -1644,7 +1708,7 @@ export default function BaroBid() {
       )}
 
       {/* ── 가상 시뮬레이션 — 지난 개찰에 우리 방식을 대본 결과 ── */}
-      {bt && base <= 0 && <SimBlock bt={bt} open={btOpen} setOpen={setBtOpen} />}
+      {bt && base <= 0 && !분석실 && <SimBlock bt={bt} open={btOpen} setOpen={setBtOpen} />}
 
       {/* 종합심사 대상이면 계산을 아예 하지 않습니다. 0원을 보여주는 건 사고입니다. */}
       {picked && !isReady(picked) ? null : base > 0 && band && band.rec == null ? (
@@ -1737,6 +1801,7 @@ export default function BaroBid() {
                   {bag.includes(String(picked.no)) ? '★ 담음' : '☆ 담기'}
                 </button>
               )}
+
               {/* ⚠️ 2026-09-06 — 여기 있던 「나라장터 공고 →」 를 뺐습니다.
                   소장님: 「왜 나라장터 공고로 가지? 금액이 나오면 투찰할 수 있는 창으로 가야지.
                            바로투찰에서는 … 이미 다른 데에 공고보기가 많이 있잖아」 — 맞습니다.
@@ -1746,6 +1811,11 @@ export default function BaroBid() {
                   «공고» 쪽을 누르게 되고, 그건 투찰이 아닙니다.
                   → 투찰 버튼(.gobid) 하나만 바로 아래에 둡니다. */}
             </div>
+            {/* 📊 G340 분석실 — 금액 바로 아래(가장 먼저 보는 자리) · 한 줄 단추 */}
+            {picked?.no && !분석실 && (
+              <Link className="bsr-hbtn" to={`/bunseok?no=${encodeURIComponent(picked.no)}`} onClick={() => { try { 세기('|분석실|금액칸에서') } catch (e) { /* 없음 */ } }}>
+                📊 <b>입찰 분석실</b>에서 이 기관 사정률 흐름 · 분포 보기 →</Link>
+            )}
             {/* 📝 G338 넣은 금액 — 이 기기에 적어 두면 개찰 뒤 1순위 카드에서 몇 위였는지 · 적으면 ⭐ 담기도 같이(1순위 알림) */}
             {picked?.no && (
               <내금액 no={picked.no} 이름={picked.name} 금액={main}
@@ -1985,7 +2055,14 @@ export default function BaroBid() {
 
           {/* 🏛 ⏳ 이 기관 최근 사정률 · 아직 개찰 안 된 공고 (2026-10-05 — 공고 카드·공고 화면과 같은 상자)
               🎯 이 칸에 누가 넣나 — 우리 금액이 버티는 사정률(판정 상자의 그 값) 칸과 그 칸의 지난 투찰 */}
-          {picked?.inst && <기관사정률 inst={picked.inst} />}
+          {picked?.inst && !분석실 && <기관사정률 inst={picked.inst} />}
+          {/* 📊 G340 입찰 분석실로 — 이 기관 긴 흐름 · 분포 · 적중 검사 · 지난 1순위를 크게(같은 공고 · 같은 금액 셈) */}
+          {picked?.no && !분석실 && (
+            <Link className="bsr-go" to={`/bunseok?no=${encodeURIComponent(picked.no)}`} onClick={() => { try { 세기('|분석실|바로투찰에서') } catch (e) { /* 없음 */ } }}>
+              <span>📊 <b>입찰 분석실</b>에서 크게 보기</span>
+              <i>이 기관 사정률 흐름 60건 · 분포 · «최고 · 차순» 적중 검사 · 지난 1순위 — 공고 목록과 한 화면</i>
+            </Link>
+          )}
           {pp && pp.sj > 0 && <칸누가 sj={pp.sj} sido={picked?.sido || ''} lic={picked?.lic || []} />}
 
           {/* ── 여기부터는 «근거» 입니다. 기본은 접어 둡니다. ── */}
@@ -2307,7 +2384,7 @@ export default function BaroBid() {
           자료가 개찰마다 낮은 30곳뿐이라 많은 회사가 «기록 없음». 수집을 넓히면 tools/확보예가.jsx 의 사업자확보예가 를 여기 다시 넣으면 됩니다. */}
 
       {/* 📚 5편 전체 — 금액이 나오든 안 나오든 화면 맨 아래에 늘 있습니다. */}
-      <GuideBox />
+      {!분석실 && <GuideBox />}
     </>
   )
 }
