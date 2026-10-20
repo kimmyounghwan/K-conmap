@@ -14,6 +14,7 @@ import { breakEvenSj, limitAmount, shownBid } from '../lib/bidmath.js'
 import { 금액대of, 금액대들, 자리성적, 넓게, 분위z } from '../lib/금액대성적.js'
 import { 세기 } from '../lib/받은수.jsx'
 import { won } from '../lib/fmt.js'
+import 승률곡선 from './승률곡선.jsx'   /* 📈 G338 */
 
 let 표약속 = null
 function 표받기() {
@@ -47,12 +48,12 @@ const 퍼 = (k, n) => (n > 0 ? `${(k / n * 100).toFixed(1)}%` : '-')
 
 const 분위들 = [20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95]
 /**
- * props: base · llr · aval · p50(바로투찰 가운데 사정률 sjMid) · sd(그 공고 σ) · aKnown · 지금금액(main) · 지금(pickRate)
+ * props: base · llr · aval · p50(바로투찰 가운데 사정률 sjMid) · sd(그 공고 σ) · aKnown · 지금금액(main) · 지금(pickRate) · enp(예상 참가 · 📈 G338 곡선의 참가 띠)
  *        고르기(k) — 'rec' · 'qNN' · 'own' / 직접(투찰률) — 분위표에 없는 자리를 «직접» 으로
  *        q후보: { qNN: { rate, 금액 } } · 권장: { rate, 금액 } | null — 바로투찰이 실제로 쓰는 금액 그대로
  */
 export default function 금액고르기(props) { return <지킴><안 {...props} /></지킴> }
-function 안({ base, llr, aval, p50, sd, aKnown, 지금금액, 지금, 고르기, 직접, q후보, 권장 }) {
+function 안({ base, llr, aval, p50, sd, aKnown, 지금금액, 지금, 고르기, 직접, q후보, 권장, enp = 0 }) {
   const 자리 = useRef(null)
   const 켜짐 = base > 0 && llr > 0 && sd > 0 && p50 > 0
   const 보임 = 보이면(자리, 켜짐)
@@ -118,6 +119,8 @@ function 안({ base, llr, aval, p50, sd, aKnown, 지금금액, 지금, 고르기
             <div className="gm-now">지금 고른 금액 <b>{won(지금금액)}</b> — 이 자리에 넣었다면 1순위 <b>{퍼(지금성적.일순, 지금성적.n)}</b> · 실격 <b>{퍼(지금성적.실격, 지금성적.n)}</b>
               {지금성적.밖 ? <span className="muted"> (표 끝 자리로 셈)</span> : null}</div>
           )}
+          <승률곡선 표={표} 칸={칸} 금액대이름={금액대들[i][2]} enp={Number(enp) || 0} base={base} llr={llr} aval={aval} p50={p50} sd={sd}
+            지금금액={지금금액} 직접={직접} />
           <div className="tp-scroll">
             <table className="tbl gm-tbl">
               <thead><tr><th className="l">자리</th><th>투찰 금액</th><th>1순위</th><th>실격</th></tr></thead>

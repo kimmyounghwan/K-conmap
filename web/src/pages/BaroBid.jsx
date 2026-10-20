@@ -25,6 +25,7 @@ import 칸누가 from '../칸누가.jsx'
 import 곧나올줄 from '../곧나올줄.jsx'
 import { 확보예가미리 } from '../tools/확보예가.jsx'   /* 🎯 G181 · (🔎 G189 사업자번호로 — G191 에서 뺌: 낮은 30곳만 받아 «기록 없음» 이 많음) */
 import 금액고르기 from '../tools/금액고르기.jsx'   /* 💰 G185 */
+import 내금액 from '../내금액.jsx'   /* 📝 G338 넣은 금액 */
 /* 🗺 G144 (2026-10-05) 지금 K-건설맵을 쓰는 곳 — 사랑방에서 옮겨 옴(소장님 「실시간 지도를 바로입찰 상단에 … 여기가 조회수가 가장 많으니까」)
    화면이 뜬 뒤에 받습니다(지도 바탕 37KB · 자료 1KB) — 투찰 셈을 늦추지 않게 */
 /* 🩹 2026-10-06 (G166) 소장님 「공고에서 바로투찰로 계산하기 누르면 계산기가 아예 안떠, 권장금액도 안뜨고」
@@ -1745,6 +1746,11 @@ export default function BaroBid() {
                   «공고» 쪽을 누르게 되고, 그건 투찰이 아닙니다.
                   → 투찰 버튼(.gobid) 하나만 바로 아래에 둡니다. */}
             </div>
+            {/* 📝 G338 넣은 금액 — 이 기기에 적어 두면 개찰 뒤 1순위 카드에서 몇 위였는지 · 적으면 ⭐ 담기도 같이(1순위 알림) */}
+            {picked?.no && (
+              <내금액 no={picked.no} 이름={picked.name} 금액={main}
+                적으면={() => { if (!bag.includes(String(picked.no))) setBag(toggleBasket(picked.no)) }} />
+            )}
             {/* ⚠️ 옮길 수 없는 것은 «옮길 수 없다» 고 적습니다.
                 최저·중간·직접 입력한 금액은 주소에 담을 수 없어, 받는 쪽은 권장(자동) 금액을 봅니다.
                 말 안 하면 «같은 공고인데 금액이 다르다» 가 됩니다 (CLAUDE.md). */}
@@ -1833,7 +1839,7 @@ export default function BaroBid() {
               이 공고 금액대의 지난 개찰로 «20~95분위(5분위마다) · 권장 · 직접» 의 투찰 금액 · 1순위 · 실격 비율을 보여 주고 고르게 함(소장님 「저런식을 금액제시해서 자세히 · 비용안들어 가게」).
               누르면 위 고르기(pickRate)와 같은 것이 바뀝니다 — 금액 셈은 바로투찰 그대로 · 숫자는 /data/kb/gm.json(수 KB · tools/금액고르기.jsx). */}
           {qchoices.length > 0 && (
-            <금액고르기 base={base} llr={ll?.rate} aval={a} p50={sjMid} sd={sjSd} 지금금액={main} 지금={pickRate} aKnown={aKnown}
+            <금액고르기 base={base} llr={ll?.rate} aval={a} p50={sjMid} sd={sjSd} 지금금액={main} 지금={pickRate} aKnown={aKnown} enp={enpHere}
               고르기={(k) => { 고름(k); if (k === 'own') 직접칸으로() }}
               직접={(rate) => { setOwnRate(Number(rate).toFixed(3)); 고름('own') }}
               q후보={Object.fromEntries(qchoices.map((c) => [c.k, { rate: c.rate, 금액: bidAmount(base, sjMid, c.rate) }]))}

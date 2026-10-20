@@ -23,6 +23,7 @@ import { use남김 } from '../lib/길기록.js'
 import 밖공고줄 from '../밖공고줄.jsx'
 import { 공고봄 } from '../lib/조회수.jsx'   /* 👁 G121 — 펼치면 그 공고 조회 1 */
 import { 검색어기억 } from '../lib/저절로알림.js'   /* 🔔 G222 찾은 말 → 하루 두 번 알림(다 친 뒤 2.5초) */
+import { 내금액모음 } from '../내금액.jsx'   /* 📝 G338 적어 둔 금액 모아 보기 */
 
 const PAGE = 20
 const KIND = 'con'   // 공사만 다룹니다 (용역 제외)
@@ -197,6 +198,8 @@ export default function FirstBoard() {
             onClick={() => { setEditLic(false); setMine(lics.length > 0) }}>완료</button>
         </div>
       )}
+
+      <내금액모음 />
 
       <RangeBar info={info} loaded={all.length} done={done} busy={busy} filtering={filtering} count={count} />
 

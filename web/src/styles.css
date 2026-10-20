@@ -6906,6 +6906,58 @@ span.mt-act { cursor: default; }
 .gm-st small { color: var(--muted); }
 .gm-why { color: var(--muted); font-size: 12.5px; }
 @media print { .gm-card { display: none !important; } }
+/* 📈 G338 승률 곡선(tools/승률곡선.jsx) — 그림 두 장이 가로를 같이 씀 · 색은 사이트 낱말(밝은 · 어두운 화면 같이) */
+.wrc { margin: 4px 0 12px; }
+.wrc-h { font-weight: 700; font-size: 13.5px; margin: 0 0 6px; }
+.wrc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; }
+.wrc-chip { all: unset; box-sizing: border-box; cursor: pointer; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-size: 12.5px; line-height: 1.4; }
+.wrc-chip small { color: var(--muted); }
+.wrc-chip.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.wrc-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrc-say { margin: 0 0 6px; font-size: 13px; line-height: 1.6; }
+.wrc-box { position: relative; width: 100%; overflow: hidden; }
+.wrc-svg { display: block; max-width: 100%; height: auto; cursor: pointer; touch-action: pan-y; }
+.wrc-grid { stroke: var(--line); stroke-width: 1; }
+.wrc-ax { fill: var(--muted); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.wrc-t { fill: var(--muted); font-size: 11px; font-weight: 600; }
+.wrc-l1 { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.wrc-l2 { fill: none; stroke: var(--bad); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.wrc-best { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 3; opacity: .7; }
+.wrc-now { stroke: var(--text); stroke-width: 1.5; opacity: .55; }
+.wrc-cross { stroke: var(--muted); stroke-width: 1; }
+.wrc-dot { stroke: var(--surface); stroke-width: 2; }
+.wrc-dot.best { fill: var(--accent); }
+.wrc-dot.now { fill: var(--text); }
+.wrc-dot.hov { fill: var(--accent); }
+.wrc-dot.hov2 { fill: var(--bad); }
+.wrc-lab { fill: var(--text); font-size: 10.5px; font-weight: 600; }
+.wrc-read { min-height: 21px; margin-top: 2px; font-size: 12.5px; line-height: 1.6; font-variant-numeric: tabular-nums; }
+.wrc-key { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 12px; color: var(--muted); margin-top: 2px; }
+.wrc-k { display: inline-block; width: 14px; height: 0; border-top: 2px solid var(--text); opacity: .6; margin-left: 6px; }
+.wrc-k:first-child { margin-left: 0; }
+.wrc-k.best { border-top: 2px dashed var(--accent); opacity: 1; }
+.wrc-btns { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 6px; font-size: 12.5px; }
+/* 📝 G338 넣은 금액(내금액.jsx) */
+.ngm { margin-top: 10px; }
+.ngm-after { margin: 10px 0 4px; }
+.ngm-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 10px; font-size: 13.5px; }
+.ngm-top b { font-variant-numeric: tabular-nums; }
+.ngm-acts { display: inline-flex; gap: 10px; }
+.ngm .linkbtn, .ngm-sum .linkbtn { all: unset; cursor: pointer; color: var(--accent); font-size: 12.5px; text-decoration: underline; text-underline-offset: 2px; }
+.ngm .linkbtn:focus-visible, .ngm-sum .linkbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ngm-form { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ngm-form input { flex: 1 1 180px; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); font-size: 15px; font-variant-numeric: tabular-nums; }
+.ngm-note { font-size: 12.5px; margin-top: 4px; line-height: 1.5; }
+.ngm-res { margin-top: 6px; padding: 9px 11px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); font-size: 13.5px; line-height: 1.55; }
+.ngm-res .ngm-d { color: var(--muted); font-size: 12.5px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.ngm-일순, .ngm-같음 { border-color: var(--good); background: var(--good-soft); }
+.ngm-통과 { border-color: var(--accent-line); background: var(--accent-soft); }
+.ngm-실격 { border-color: var(--bad); background: var(--bad-soft); }
+.ngm-sum { margin-bottom: 10px; }
+.ngm-sum-h { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 10px; font-size: 14px; }
+.ngm-list { margin: 8px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.7; }
+.ngm-list a { color: var(--text); }
+@media print { .ngm, .ngm-sum { display: none !important; } }
 .gm-tbl { font-size: 13px; }
 .gm-tbl th, .gm-tbl td { white-space: nowrap; font-variant-numeric: tabular-nums; padding: 7px 6px; }
 .gm-tbl .l { text-align: left; }

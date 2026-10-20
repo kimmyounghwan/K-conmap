@@ -105,6 +105,13 @@ def rank_bracket(ladder, my_amt, limit=0, beat=False):
     lad = sorted([x for x in (ladder or []) if x and x[0] > 0 and x[1] > 0])
     if not lad:
         return None
+    # 🩹 G338 (2026-10-20) 꼬리 자르기 — 하한 아래 투찰이 순위 없이 맨 뒤에 붙어 옴 → 금액이 처음 작아지는 칸부터 뗌 (화면 bidmath.js rankBracket 과 같음)
+    tail = 0
+    for i in range(1, len(lad)):
+        if lad[i][1] < lad[i - 1][1]:
+            tail = lad[i][0]
+            lad = lad[:i]
+            break
     dq_known = max([r for r, amt in lad if amt < limit] or [0])
     lo_r, hi_r = None, None
     for i, (r, amt) in enumerate(lad):
@@ -113,6 +120,8 @@ def rank_bracket(ladder, my_amt, limit=0, beat=False):
             hi_r = lad[i + 1][0] if i + 1 < len(lad) else None
     if lo_r is None:
         lo_r = 1
+    if hi_r is None and tail > 0:
+        hi_r = tail - 1
     lo_r = max(2, lo_r - dq_known)
     hi_r = None if hi_r is None else max(lo_r, hi_r - dq_known)
     return (lo_r, hi_r)

@@ -255,16 +255,23 @@ export function passProb({ base, llRate, aVal, amt, p50, sd }) {
    돌려주는 것: [최소등수, 최대등수(모르면 null)] · 좁힐 수 없으면 null */
 export function rankBracket(ladder, myAmt, limit = 0, beat = false) {
   if (beat) return [1, 1]
-  const lad = (Array.isArray(ladder) ? ladder : [])
+  let lad = (Array.isArray(ladder) ? ladder : [])
     .filter((x) => Array.isArray(x) && x[0] > 0 && x[1] > 0)
     .sort((x, y) => (x[0] - y[0]) || (x[1] - y[1]))
   if (!lad.length) return null
+  /* 🩹 G338 (2026-10-20) 꼬리 자르기 — 실제 사다리는 하한 아래(실격) 투찰이 «순위 없이» 맨 뒤에 붙어 옵니다
+     (collect.py openg_ranks 가 순위 없는 줄을 9999 로 뒤에 둠 · 10/14 판 사다리 1,471건 중 1,211건이 뒤에서 금액이 작아짐).
+     그 꼬리가 «내 금액 ≥» 에 걸려 등수가 «2위 넘게» 로 무너졌습니다 → 금액이 처음 작아지는 칸부터 떼고,
+     그 칸 앞까지를 «하한 이상 마지막 등수» 로 봅니다. 오름차순 사다리(검사 304번 등)는 그대로. 파이썬 짝 tools/bidmath.py rank_bracket 도 같이. */
+  let 꼬리 = 0
+  for (let i = 1; i < lad.length; i++) if (lad[i][1] < lad[i - 1][1]) { 꼬리 = lad[i][0]; lad = lad.slice(0, i); break }
   const dqKnown = lad.reduce((m, x) => (x[1] < limit ? Math.max(m, x[0]) : m), 0)
   let lo = null, hi = null
   for (let i = 0; i < lad.length; i++) {
     if (myAmt >= lad[i][1]) { lo = lad[i][0]; hi = lad[i + 1] ? lad[i + 1][0] : null }
   }
   if (lo == null) lo = 1
+  if (hi == null && 꼬리 > 0) hi = 꼬리 - 1
   const rankLo = Math.max(2, lo - dqKnown)
   return [rankLo, hi == null ? null : Math.max(rankLo, hi - dqKnown)]
 }

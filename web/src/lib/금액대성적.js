@@ -36,9 +36,21 @@ export function 자리금액(base, llr, a, p50, sd, z) {
   return s ? s.amt : m
 }
 
+/* 📈 G338 (2026-10-20) 참가 띠 — 소장님 「바로입찰 업그레이드」 ① 승률 곡선
+   참가업체수가 1순위율을 가장 크게 가릅니다(10/14 판 4,606건: 2~9곳 가장 높은 자리 21.9% · 300곳 넘게 1.7%).
+   그래서 금액대와 따로, 참가 띠마다 같은 자리 성적을 하나 더 굽습니다(띠 다섯 × 101칸 × 2 — 2KB 남짓).
+   띠를 고르는 값은 개찰 때 실제 참가업체수(np) — 화면은 그 공고의 «예상 참가»(bidmath enp) 로 띠를 찾습니다. */
+export const 참가띠들 = [[2, 9, '2~9곳'], [10, 29, '10~29곳'], [30, 99, '30~99곳'], [100, 299, '100~299곳'], [300, 1e9, '300곳 넘게']]
+/** 참가업체수 → 띠 번호(2곳 미만 · 모르면 −1) */
+export function 참가띠of(np) {
+  const n = Number(np) || 0
+  return 참가띠들.findIndex(([lo, hi]) => n >= lo && n <= hi)
+}
+
 /** 굽기 — 개찰 줄들 → { v, p50, 기간, z0, dz, b: [{ k, n, np, rec: [실격, 1순위], dq: [자리마다 실격 건], win: [자리마다 1순위 건] }] } */
 export function 성적만들기(rows, p50) {
   const 칸 = 금액대들.map(([, , k]) => ({ k, n: 0, nps: [], rec: [0, 0], dq: new Array(ZN).fill(0), win: new Array(ZN).fill(0) }))
+  const 띠 = 참가띠들.map(([, , k]) => ({ k, n: 0, dq: new Array(ZN).fill(0), win: new Array(ZN).fill(0) }))
   let 처음 = '', 끝 = ''
   for (const r of rows || []) {
     const base = Number(r && r.base), amt = Number(r && r.amt), rate = Number(r && r.rate), llr = Number(r && r.llr)
@@ -53,11 +65,13 @@ export function 성적만들기(rows, p50) {
     const 판정 = (m) => (m < lim ? 1 : m < amt ? 2 : 0)
     const c = 칸[i]
     c.n++; c.nps.push(Number(r.np))
+    const t = 띠[참가띠of(r.np)]
+    if (t) t.n++
     const q = B.quickBid(r, p50)
     if (q && q.amt > 0) { const v = 판정(q.amt); if (v === 1) c.rec[0]++; if (v === 2) c.rec[1]++ }
     for (let j = 0; j < ZN; j++) {
       const v = 판정(자리금액(base, llr, a, p50, sd, Z0 + j * DZ))
-      if (v === 1) c.dq[j]++; else if (v === 2) c.win[j]++
+      if (v === 1) { c.dq[j]++; if (t) t.dq[j]++ } else if (v === 2) { c.win[j]++; if (t) t.win[j]++ }
     }
     const d = String(r.dt || '').slice(0, 10)
     if (d && (!처음 || d < 처음)) 처음 = d
@@ -66,12 +80,31 @@ export function 성적만들기(rows, p50) {
   return {
     v: 판, p50, 기간: [처음, 끝], z0: Z0, dz: DZ,
     b: 칸.map(({ nps, ...c }) => ({ ...c, np: nps.length ? nps.sort((x, y) => x - y)[nps.length >> 1] : 0 })),
+    p: 띠,   /* 📈 G338 참가 띠마다(100억 이하 금액대 모두) — 옛 화면은 이 칸을 안 읽어 그대로 */
   }
 }
 
 /** 읽기 — 그 금액대 · 그 자리(z)의 { n, 실격, 일순 } (건수 · 이웃 두 칸 사이를 곧게 이음 · 표 밖이면 끝 칸) */
 export function 자리성적(표, i, z) {
-  const c = 표 && 표.v === 판 && 표.b ? 표.b[i] : null
+  return 칸읽기(표, 표 && 표.v === 판 && 표.b ? 표.b[i] : null, z)
+}
+/** 📈 G338 읽기 — 그 참가 띠 · 그 자리(z) (자리성적과 같은 모양) · 옛 gm.json(띠 없음)이면 null */
+export function 띠성적(표, k, z) {
+  return 칸읽기(표, 표 && 표.v === 판 && Array.isArray(표.p) ? 표.p[k] : null, z)
+}
+/** 📈 G338 곡선 — 칸(금액대 하나 또는 띠 하나)의 101자리 { z, n, 일순, 실격 } (건수).
+ *  1순위는 칸마다 몇 건뿐이라 이웃 ±펴기 칸(기본 3칸 = ±0.15 자리)을 고르게 폅니다 · 실격은 그대로(이미 매끈함). */
+export function 곡선점들(표, c, 펴기 = 3) {
+  if (!표 || !c || !(c.n > 0) || !Array.isArray(c.win)) return []
+  const out = []
+  for (let j = 0; j < ZN; j++) {
+    let s = 0, m = 0
+    for (let d = -펴기; d <= 펴기; d++) { const k = j + d; if (k >= 0 && k < ZN) { s += c.win[k]; m++ } }
+    out.push({ z: Math.round((표.z0 + j * 표.dz) * 1000) / 1000, n: c.n, 일순: s / m, 실격: c.dq[j] })
+  }
+  return out
+}
+function 칸읽기(표, c, z) {
   if (!c || !(c.n > 0) || z == null || !isFinite(z)) return null
   const x = (z - 표.z0) / 표.dz
   const 밖 = x < -0.5 || x > ZN - 1 + 0.5

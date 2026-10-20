@@ -7,6 +7,7 @@ import { won, wonShort, pct, num, dateFull, dateTime, normCorp } from './lib/fmt
 import { winGrade } from './lib/winodds.js'
 import { 개찰몫들 } from './lib/투찰자리.js'   /* 🎯 G181 */
 import { useP50 } from './tools/확보예가.jsx'
+import 내금액 from './내금액.jsx'   /* 📝 G338 넣은 금액이면 몇 위였나 */
 
 /* ============================================================
    개찰 카드를 펼쳤을 때 나오는 상세 화면
@@ -273,6 +274,9 @@ function BidTab({ r }) {
           )}
         </div>
       )}
+
+      {/* 📝 G338 내가 넣은 금액이면 — 적어 둔 금액(또는 지금 적는 금액)으로 하한 통과 · 몇 위 · 1순위와 차이 */}
+      {r.no && <내금액 no={r.no} 이름={r.name} r={r} corps={rankWait ? null : corps} />}
 
       {/* 개찰이 끝난 공고는 «채점»이 됩니다 —
           우리 권장 투찰률로 넣었으면 이 자리를 가져갔을지 바로 봅니다.
