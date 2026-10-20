@@ -52,7 +52,7 @@ WINDOW_YEARS = int(os.environ.get("WINDOW_YEARS", "3"))
 #   200개씩 담으면 한 번에 139KB(압축 30KB), 50개씩이면 그 1/4 입니다.
 #   파일 수는 늘지만 Firebase 저장 한도(10GB)에 견주면 아무것도 아니고,
 #   전송량(월 10GB)이 실제 비용이 걸리는 곳이라 이쪽을 아낍니다.
-CORP_TOP = 6000        # 페이지를 굽고 사이트맵에 낼 업체 수 (건수 상위부터)
+CORP_TOP = 20000       # 페이지를 굽고 사이트맵에 낼 업체 수 (건수 상위부터) · 🏢 G343 6,000 → 20,000 (소장님 고르심 «낙찰 3건 이상 18,286곳» — CORP_TOP_MIN 3 이 실제 끝)
 CORP_TOP_MIN = 3      # 낙찰 3건 미만은 페이지를 만들지 않습니다 — 빈 페이지는 색인에 해롭습니다
 CHUNK = 50
 MIN_ROWS = 2         # 이보다 적으면 통계가 무의미해서 상세를 만들지 않음
@@ -959,6 +959,142 @@ def load_corp_hide():
         return set()
 
 
+# ══════════════════════════════════════════════════════════════
+#  🏢 G343 (2026-10-20) 업체 찾기 — 지역 · 면허로 «같이 넣을 업체» 찾기
+#   소장님 「업체 찾기도 만들자. 페이지 다 넣어서 … 검색되게」 → 고르심 «둘 다»(상호로 실적 + 지역 · 면허로 공동도급 상대)
+#   재료: 구성원 장부(load_partner_evidence — 조달청 개찰 결과의 투찰 업체 전부 · 3년) — 낙찰 없는 업체도 들어갑니다.
+#   ⚠️ 지역 · 면허는 «그 업체가 실제로 넣은 공고(지역 제한 · 면허 제한)» 근거입니다. 본점 소재지 · 등록 업종 그 자체가 아닙니다
+#      (화면에 그대로 적습니다 — 공동도급 지역업체는 «공고일 90일 전부터 본점» 이라 키스콘에서 꼭 확인).
+#   🏢 법인만 사업자번호 · 대표 · 전화 · 주소(소장님 「사업자 대표 전화번호 다 넣어 … 주소까지 · 어차피 다 오픈 된 정보야」 → 고르심 «법인만 넣기»)
+#      — 개인사업자(사업자번호 가운데 두 자리 01~79 등 · 실측 5.4%)는 대표 이름 · 휴대폰이 곧 개인정보일 수 있어 안 실음.
+#      전화 · 주소는 줄에 안 넣고 corp/con/{번호 앞 3자리}.json 에(누를 때 그 업체 조각만 받음 💸) · 자료 = 조달청 낙찰자 정보(낙찰받은 법인).
+#      빼 달라는 업체는 data/seed/corp_hide.json(이름 또는 이름#번호) — 업체 페이지 · 업체 찾기 둘 다에서 빠짐.
+#   💸 소장님 「업체 페이지 비용 절감 방향으로 … 검색 업체만 불러오게 … 비용최소로」 — 한 지역을 통째로 받지 않습니다(조각):
+#     corp/find/{시도}/_top.json = {"at", "n" 그 지역 전체, "ln" {면허: 이름}, "lc" {면허: 수}, "sc" {시군: 수}, "rows" 앞 100줄}  ← 처음 열 때(몇 KB)
+#     corp/find/{시도}/l/{면허}.json · corp/find/{시도}/s/{시군}.json = {"at", "n", "rows" 앞 CORP_FIND_MAX 줄}  ← 면허 · 시군을 고를 때만
+#     corp/find/_list.json = {"at", "n": {시도: 업체 수}}
+#     줄 = [상호, 페이지키, 낙찰, 시군, [면허…], 최근(YYYYMMDD), 사업자번호(법인만 · 아니면 ''), 대표(법인만)]  (보낼 때는 사이트가 br 로 압축 — 실측 19KB → 5KB)
+#     corp/con/{앞 3자리}.json = {사업자번호: [전화, 주소]} — 법인 · 값 있는 것만
+# ══════════════════════════════════════════════════════════════
+CORP_FIND_DAYS = 365          # 최근 1년 안에 넣은 기록이 있는 업체만(문 닫은 업체를 덜 보이게)
+CORP_FIND_LIVE = 180          # 반년 안에 넣은 업체를 위로
+CORP_FIND_LIC = 8             # 업체마다 면허 근거 최대 8개(최근 순)
+CORP_FIND_TOP = 100           # 처음 보이는 조각(_top) 줄 수
+CORP_FIND_MAX = 3000          # 면허 · 시군 조각 한 파일 최대 줄 · 넘으면 «n» 에 전체 수를 적고 화면이 «앞 N곳» 이라고 알림
+
+
+def 법인번호(b):
+    """사업자번호 가운데 두 자리(4·5째)가 법인(81 · 85 · 86 · 87 · 88)인가 — collect.법인번호 와 같음"""
+    b = re.sub(r"[^0-9]", "", str(b or ""))
+    return len(b) == 10 and b[3:5] in ("81", "85", "86", "87", "88")
+
+
+def corp_find_rows(agg, pl, hide=(), now=None):
+    """→ {시도: [줄…]}, {면허코드: 이름}. 줄 = [상호, 페이지키, 낙찰, 시군, [면허…], 최근, 사업자번호(법인만), 대표(법인만)]"""
+    if not isinstance(pl, dict) or not pl:
+        return {}, {}
+    hide = set(hide or ())
+    now = now or datetime.now(timezone(timedelta(hours=9)))
+    cut = (now - timedelta(days=CORP_FIND_DAYS)).strftime("%Y%m%d")
+    live = (now - timedelta(days=CORP_FIND_LIVE)).strftime("%Y%m%d")
+    ln_all = pl.get("__ln__") or {}
+    by, ln = defaultdict(list), {}
+    for b, e in pl.items():
+        if b == "__ln__" or not isinstance(e, dict):
+            continue
+        nm = str(e.get("n") or "").strip()[:40]
+        k = norm_corp(nm)
+        if not k or k in hide or f"{k}#{b}" in hide:
+            continue
+        rs = {s: str(d) for s, d in (e.get("r") or {}).items() if s in REGIONS and d}
+        if not rs:
+            continue
+        lic = {str(c): str(d) for c, d in (e.get("l") or {}).items() if c and d}
+        sub, top = agg.get(f"{k}#{b}"), agg.get(k)
+        # 낙찰 수 — 이 법인 하나의 기록(이름#번호)이 있으면 그것 · 같은 이름에 법인이 하나뿐이면 이름 기록 · 아니면 0(남의 실적을 붙이지 않음)
+        n = int(sub["n"]) if sub else (int(top["n"]) if top and int(top.get("bzn", 0) or 0) <= 1 else 0)
+        page = k if top else ""
+        codes = [c for c, _ in sorted(lic.items(), key=lambda x: x[1], reverse=True) if "_" not in c][:CORP_FIND_LIC]
+        for c in codes:
+            ln[c] = str(ln_all.get(c) or (e.get("ln") or {}).get(c) or c)[:30]
+        sg = {str(x): str(d) for x, d in (e.get("s") or {}).items() if d}
+        법 = 법인번호(b)
+        bn = b if 법 else ""
+        ceo = ""
+        if 법:
+            _c = e.get("c")
+            ceo = str(_c[0])[:12] if isinstance(_c, list) and _c and _c[0] else ""
+            if not ceo and sub:
+                ceo = str(sub.get("ceo") or "")[:12]
+            if not ceo and top:
+                _f = next((f for f in (top.get("bz") or []) if isinstance(f, list) and f and str(f[0]) == b), None)
+                ceo = str(_f[1] or "")[:12] if _f and len(_f) > 1 else ""
+        for sido, d in rs.items():
+            if d < cut:
+                continue
+            cand = sorted(((dd, x) for x, dd in sg.items() if x.startswith(sido + " ")), reverse=True)
+            sgn = cand[0][1].split(" ", 1)[1][:12] if cand else ""
+            by[sido].append([nm, page, n, sgn, codes, d[:8], bn, ceo])
+    for sido in by:
+        by[sido].sort(key=lambda r: (r[5] < live, -r[2], -int(r[5] if r[5].isdigit() else 0), r[0]))   # 반년 안 → 낙찰 많은 → 최근
+    return dict(by), ln
+
+
+def corp_con_rows(pl, hide=()):
+    """→ {앞 3자리: {사업자번호: [전화, 주소]}} — 법인 · 값 있는 것만(누를 때 그 조각만 받음)"""
+    out = defaultdict(dict)
+    hide = set(hide or ())
+    for b, e in (pl or {}).items():
+        if b == "__ln__" or not isinstance(e, dict) or not 법인번호(b):
+            continue
+        k = norm_corp(str(e.get("n") or ""))
+        if not k or k in hide or f"{k}#{b}" in hide:
+            continue
+        t, a = e.get("t"), e.get("a")
+        tel = str(t[0])[:20] if isinstance(t, list) and t and t[0] else ""
+        adr = str(a[0])[:80] if isinstance(a, list) and a and a[0] else ""
+        if tel or adr:
+            out[b[:3]][b] = [tel, adr]
+    return dict(out)
+
+
+def build_corp_find(agg, pl, hide=()):
+    by, ln = corp_find_rows(agg, pl, hide)
+    at = datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d %H:%M")
+    written, files = 0, 0
+    safe = lambda s: bool(s) and not re.search(r'[\\/:*?"<>|#%.\x00-\x1f]', s)   # noqa: E731  파일 이름으로 써도 되는 시군 · 면허만
+    for sido, rows in by.items():
+        lc, sc = Counter(), Counter()
+        for r in rows:
+            lc.update(r[4])
+            if r[3]:
+                sc[r[3]] += 1
+        top = rows[:CORP_FIND_TOP]
+        written += write_json(f"corp/find/{sido}/_top.json", {
+            "at": at, "n": len(rows), "ln": {c: ln.get(c, c) for c in sorted(lc)},
+            "lc": dict(lc.most_common()), "sc": {s: n for s, n in sc.most_common() if safe(s)}, "rows": top})
+        files += 1
+        for c in lc:
+            if not safe(c):
+                continue
+            part = [r for r in rows if c in r[4]]
+            written += write_json(f"corp/find/{sido}/l/{c}.json", {"at": at, "n": len(part), "rows": part[:CORP_FIND_MAX]})
+            files += 1
+        for s in sc:
+            if not safe(s):
+                continue
+            part = [r for r in rows if r[3] == s]
+            written += write_json(f"corp/find/{sido}/s/{s}.json", {"at": at, "n": len(part), "rows": part[:CORP_FIND_MAX]})
+            files += 1
+    written += write_json("corp/find/_list.json", {"at": at, "n": {s: len(r) for s, r in sorted(by.items(), key=lambda x: REGIONS.index(x[0]))}})
+    con = corp_con_rows(pl, hide)
+    for k3, v in con.items():
+        written += write_json(f"corp/con/{k3}.json", v)
+        files += 1
+    log(f"🏢 업체 찾기 — 시·도 {len(by)}곳 · 줄 {sum(len(r) for r in by.values()):,} · 조각 {files:,}개 · {written / 1024 / 1024:.1f}MB")
+    return written
+
+
 def build_corp(df):
     log("업체 집계 중...")
     idx = defaultdict(dict)
@@ -1117,6 +1253,12 @@ def build_corp(df):
         for k in _gone:
             agg.pop(k, None)
         log(f"🙅 내려 달라고 한 업체 {len(_hide)}곳 → 자료에서 뺀 칸 {len(_gone)}개 (data/seed/corp_hide.json)")
+
+    # 🏢 G343 업체 찾기 — 시·도마다 «그 지역 공고에 넣어 본 업체» (agg 가 아래에서 비워지기 전에)
+    try:
+        written += build_corp_find(agg, _pl, _hide)
+    except Exception as e:                      # 업체 찾기가 고장 나도 업체 자료는 그대로
+        log(f"⚠️ 업체 찾기 자료를 못 만들었습니다 — {type(e).__name__}: {e}")
 
     disp = {}          # 색인용 이름표 (URL 은 정규화된 key, 화면 제목은 원래 이름)
     for key in sorted(agg, key=lambda k: (first_key(k), k)):

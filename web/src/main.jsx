@@ -59,6 +59,7 @@ const Jobs = lazyPage(() => import('./pages/Jobs.jsx'))
 /* 📊 G340 입찰 분석실 — 바로투찰(첫 덩어리)은 그대로 · 분석 칸 · 목록만 따로 받습니다 */
 const Bunseok = lazyPage(() => import('./pages/Bunseok.jsx'))
 const Gongdong = lazyPage(() => import('./pages/Gongdong.jsx'))   /* 🤝 G341 공동도급 마당 */
+const CorpFind = lazyPage(() => import('./pages/CorpFind.jsx'))   /* 🏢 G343 업체 찾기 */
 
 /* 서식은 목록 자료(약 24KB)를 안고 있습니다. 서식 탭을 열기 전에는
    내려받지 않도록 따로 뗍니다 — 첫 화면 전송량에 얹지 않기 위해서입니다. */
@@ -212,6 +213,8 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/agency/:name" element={<AgencyPage />} />
           {/* ★ 업체 성적표 — 분석 탭 안에 갇혀 있던 화면에 주소를 준 것 (2026-09-04) */}
           <Route path="/corp/:name" element={<CorpPage />} />
+          {/* 🏢 G343 업체 찾기 — 상호로 실적 · 지역 · 면허로 같이 넣을 업체 (firebase.json rewrites · prerender TABS · sitemap 과 넷이 같이) */}
+          <Route path="/corp" element={<Suspense fallback={<Loading />}><CorpFind /></Suspense>} />
           {/* ★ 공고·개찰 한 건 — 검색 수요가 가장 큰 자리 (2026-09-04) */}
           <Route path="/notice/:no" element={<NoticePage />} />
           {/* ★ 「어제의 개찰 성적표」 — 자료는 미리 구운 HTML 안의 ddata 하나뿐이라

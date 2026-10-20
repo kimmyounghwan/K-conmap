@@ -1141,6 +1141,13 @@ def _code_ok(c):
     return bool(re.fullmatch(r"[0-9A-Za-z]{1,12}(_[0-9A-Za-z]{1,12}){0,5}", str(c or "")))
 
 
+def 법인번호(b):
+    """🏢 G343 사업자번호 가운데 두 자리(4·5째)가 법인(81 · 85 · 86 · 87 · 88)인가 — 실측 투찰 업체 68,461곳 중 94.4%.
+    개인사업자(01~79 등)는 대표 이름 · 전화 · 주소가 곧 개인정보일 수 있어 업체 찾기 연락처에 싣지 않습니다(소장님 고르심 «법인만 넣기»)."""
+    b = re.sub(r"[^0-9]", "", str(b or ""))
+    return len(b) == 10 and b[3:5] in ("81", "85", "86", "87", "88")
+
+
 def partner_evidence(first, live):
     """개찰 저장소(+ 같은 공고의 공고 줄)에서 업체마다 면허·지역 근거를 뽑습니다.
 
@@ -1189,6 +1196,11 @@ def partner_evidence(first, live):
             seen.add(b)
             e = ev.setdefault(b, {"n": "", "l": {}, "ln": {}, "r": {}, "s": {}})
             e["n"] = str(c[0] or "").strip()[:40] or e["n"]
+            # 🏢 G343 법인만 대표자(개찰 결과 5째 칸) — 소장님 고르심 «법인만 넣기»(개인사업자는 대표 이름이 개인정보일 수 있어 안 받음)
+            if 법인번호(b) and len(c) > 4 and str(c[4] or "").strip():
+                _ce = str(c[4]).strip()[:12]
+                if (e.get("c") or ["", ""])[1] <= d:
+                    e["c"] = [_ce, d]
             for code, nm in lic_ok:
                 if e["l"].get(code, "") < d:
                     e["l"][code] = d
@@ -1203,6 +1215,14 @@ def partner_evidence(first, live):
         if len(wb) == 10:
             if wb in cnt:
                 cnt[wb][1] += 1
+            # 🏢 G343 법인만 — 낙찰자 대표 · 전화 · 주소(조달청 낙찰자 정보 bidwinnrCeoNm · TelNo · Adrs) = [값, 날짜] · 늦은 날짜 쪽
+            if 법인번호(wb):
+                ew = ev.setdefault(wb, {"n": str(r.get("win") or "")[:40], "l": {}, "ln": {}, "r": {}, "s": {}})
+                for _k, _v in (("c", str(r.get("ceo") or "").strip()[:12]),
+                               ("t", re.sub(r"[^0-9-]", "", str(r.get("tel") or ""))[:20]),
+                               ("a", str(r.get("adr") or "").strip()[:80])):
+                    if _v and (ew.get(_k) or ["", ""])[1] <= d:
+                        ew[_k] = [_v, d]
             ab = _head_sido(str(r.get("adr") or ""))
             if ab and "," not in ab:
                 e = ev.setdefault(wb, {"n": str(r.get("win") or "")[:40], "l": {}, "ln": {}, "r": {}, "s": {}})
@@ -1231,6 +1251,11 @@ def export_partners(first, live, out_dir=None, ledger_path=None, log=print):
             for key, d in e.get(k, {}).items():
                 if cur[k].get(key, "") < d:
                     cur[k][key] = d
+        # 🏢 G343 법인만 대표 c · 전화 t · 주소 a = [값, 날짜] — 늦은 날짜 쪽(장부에 3년 보관 · 업체 찾기만 씀 · 면허 파일엔 안 실음)
+        for k in ("c", "t", "a"):
+            v = e.get(k)
+            if 법인번호(b) and isinstance(v, list) and len(v) == 2 and v[0] and (cur.get(k) or ["", ""])[1] <= v[1]:
+                cur[k] = v
         names.update(e["ln"])
     cut = (datetime.now(KST) - timedelta(days=PARTNER_KEEP_DAYS)).strftime("%Y%m%d")
     for b in list(comp):

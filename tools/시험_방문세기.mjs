@@ -14,7 +14,7 @@ const 곳간 = new Map()
 globalThis.window = globalThis
 globalThis.localStorage = { getItem: (k) => (곳간.has(k) ? 곳간.get(k) : null), setItem: (k, v) => 곳간.set(k, String(v)), removeItem: (k) => 곳간.delete(k), key: () => null, length: 0 }
 globalThis.document = { visibilityState: 'visible', cookie: '', addEventListener: () => {} }
-let 막힌저장 = false, 지금고장 = false, 서버시각 = 0
+let 막힌저장 = false, 지금고장 = false, 어제고장 = false, 서버시각 = 0
 if (!globalThis.crypto) globalThis.crypto = (await import('crypto')).webcrypto
 const 원getItem = localStorage.getItem
 /* 가짜 데이터베이스 — 규칙 vis 그대로(1씩만 · 날짜 · 시·도 열쇠) · ETag */
@@ -58,6 +58,7 @@ globalThis.fetch = async (url, o = {}) => {
       for (const [k, v] of 디비) if (k.startsWith(앞)) { const 뒤 = k.slice(앞.length).split('/'); if (뒤.length === 1) 묶[뒤[0]] = v; else { 묶[뒤[0]] = 묶[뒤[0]] || {}; 묶[뒤[0]][뒤[1]] = v } }
       return 응답(200, Object.keys(묶).length ? 묶 : null)
     }
+    if (어제고장 && /^d\/[^/]+\/n$/.test(길)) return 응답(500, null)
     const v = 디비.has(길) ? 디비.get(길) : null
     return 응답(200, v, { etag: 'e' + (v ?? 'null') })
   }
@@ -182,6 +183,22 @@ const 막4 = await fetch('https://k-conmap-default-rtdb.firebaseio.com/vis/on/' 
 봄('가짜 디비 규칙 — 지금 표시에 아무 숫자 · 이상한 곳 번호 · 다른 칸 막힘', 막3.status === 401 && 막4.status === 401)
 봄('자리풀기 — 지역 이름 없이 도시만(광양) → 전남 · 46230 / 해외는 곳 없음', JSON.stringify(await B.자리풀기({ country_code: 'KR', region: '', city: 'Gwangyang' }, 지도바탕)) === JSON.stringify({ s: 'jeonnam', k: '46230' })
   && JSON.stringify(await B.자리풀기({ country_code: 'US', city: 'Ashburn' }, 지도바탕)) === JSON.stringify({ s: 'f', k: null }))
+
+/* 📅 G343 어제 방문 — 큰 지도 «전체 누적 · 오늘» 상자 아래 «어제 N명» (vis/d/{어제}/n) */
+const 어1 = await B.직접받기(KST('2026-10-19T10:00:00'))
+봄('어제 — 직접 세기 전 날(10/18)은 없음(null)', 어1 && 어1.어제 === null, JSON.stringify(어1 && 어1.어제))
+디비.set('d/2026-10-21/n', 42)
+const 어2 = await B.직접받기(KST('2026-10-22T09:00:00'))
+봄('어제 — 10/22 에 보면 vis/d/2026-10-21/n = 42', 어2 && 어2.어제 && 어2.어제.날 === '2026-10-21' && 어2.어제.n === 42, JSON.stringify(어2 && 어2.어제))
+디비.set('d/2026-10-21/n', 50)
+const 어3 = await B.직접받기(KST('2026-10-22T09:01:00'))
+봄('어제 — 30분 안에는 다시 안 받음(42 그대로 · 읽기 줄임)', 어3 && 어3.어제 && 어3.어제.n === 42, JSON.stringify(어3 && 어3.어제))
+const 어4 = await B.직접받기(KST('2026-10-23T09:00:00'))
+봄('어제 — 어제가 바뀌면 새로 받음 · 숫자 없으면 0명', 어4 && 어4.어제 && 어4.어제.날 === '2026-10-22' && 어4.어제.n === 0, JSON.stringify(어4 && 어4.어제))
+어제고장 = true
+const 어5 = await B.직접받기(KST('2026-10-25T09:00:00'))
+봄('어제 — 못 받으면 어제만 null(누적 · 오늘은 그대로)', 어5 && 어5.어제 === null && 어5.a && 어5.a.n === 디비.get('a/n'), JSON.stringify(어5 && [어5.어제, 어5.a]))
+어제고장 = false
 
 /* ── ③ 규칙 파일 ── */
 const 규 = fs.readFileSync(path.join(여기, '..', 'web', 'database.rules.json'), 'utf8')

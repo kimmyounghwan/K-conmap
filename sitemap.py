@@ -41,12 +41,12 @@ if _ROBOTS and SITE != _ROBOTS:
           f"— robots.txt 쪽으로 맞춥니다")
     SITE = _ROBOTS
 LIMIT = int(os.environ.get("SITEMAP_AGENCIES", "800"))   # 색인 상황 보며 올릴 것
-CORP = int(os.environ.get("SITEMAP_CORPS", "1000"))      # 업체도 천천히 — 처음엔 300곳 → 2026-09-30 1,000곳
+CORP = int(os.environ.get("SITEMAP_CORPS", "20000"))     # 업체도 천천히 — 처음엔 300곳 → 2026-09-30 1,000곳 → 🏢 G343 20,000(낙찰 3건 이상 전부 · PRERENDER_CORP 와 같게)
 #   (소장님 「업체 실적페이지 … 필요한 것 지금 작업해줘」 — 페이지마다 투찰률 칸 · 순위 기록 · 상대 · 성적표 신청을 더한 뒤 올림.
 #    서치콘솔에서 색인 비율을 보고 3,000(=PRERENDER_CORP)까지 한 단계씩. PRERENDER_CORP 보다 크면 안 됨)
 NOTICE = int(os.environ.get("SITEMAP_NOTICES", "500"))   # 공고·개찰. 매일 570건씩 느니 천천히
 MIN_ROWS = 15                                            # 얄팍한 페이지는 아예 넣지 않음
-MIN_CORP = 8                                             # 낙찰 8건 미만 업체는 넣지 않음
+MIN_CORP = 3                                             # 낙찰 3건 미만 업체는 넣지 않음 (🏢 G343 8 → 3 · build_json CORP_TOP_MIN 과 같게)
 
 # (2026-09-06) /calc 를 뺐습니다. 라우터에서 «/» 와 같은 화면(BaroBid)이라
 #    서버가 돌려주는 문서가 홈과 **바이트까지 같습니다**(실측 2,853B · canonical 도 «/»).
@@ -76,7 +76,8 @@ STATIC = [("/", "1.0", "hourly"), ("/first", "0.9", "hourly"), ("/live", "0.9", 
           # 🔎 G341 (2026-10-20) 소장님 「지금 만드는거 다 페이지 넣었지? … 검색되게」 — prerender TABS · firebase.json 과 셋이 같이
           ("/bunseok", "0.9", "daily"), ("/gongdong", "0.8", "daily"),
           ("/ext", "0.8", "daily"), ("/pre", "0.8", "daily"),
-          ("/naeyeok/hado", "0.8", "monthly"), ("/change/gisung", "0.8", "monthly")]
+          ("/naeyeok/hado", "0.8", "monthly"), ("/change/gisung", "0.8", "monthly"),
+          ("/corp", "0.8", "daily")]   # 🏢 G343 업체 찾기
 
 # 건설 서식 — 변하지 않는 자료라 changefreq 는 yearly.
 # ⚠️ prerender.py 가 forms.json 의 서식을 «전부» 굽습니다. 그래서 여기서도 전부 냅니다

@@ -219,6 +219,10 @@ export default function 이용자지도({ 작게 = false }) {
             <div className="umap-tot">
               <span>{줄들.합계 ? '전체' : '전국'} 누적 <b><수 v={줄들.전국.a} />명</b></span>
               <span className="umap-today">오늘 {오늘글(때, false)} <b>+<수 v={줄들.전국.t} /></b></span>
+              {/* 📅 G343 소장님 「여기에 전날 방문수 띄울 수 있어. 여기만…」 — 큰 지도의 이 상자에만(작은 상자 · 다른 화면엔 안 넣음) */}
+              {직접인가(때) && 직접 && 직접.어제 && 직접.어제.날 === 한국날(때 - 86400000) && (
+                <span className="umap-yday">어제 {오늘글(때 - 86400000, false)} <b><수 v={직접.어제.n} />명</b></span>
+              )}
             </div>
             <div className="umap-reg-h"><span>시·도</span><span>{날글(누적시작)}부터 누적 · 오늘({오늘글(때, false)})</span></div>
             <ol className={'umap-rows' + (다봄 ? ' all' : '')}>

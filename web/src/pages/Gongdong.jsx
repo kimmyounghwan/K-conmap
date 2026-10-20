@@ -148,6 +148,8 @@ export default function Gongdong() {
         </div>
         <div className="bsr-tools">
           {no && <button type="button" className="bsr-back" onClick={목록으로}>◀ 목록</button>}
+          {/* 🔎 G343 업체 찾기 — 소장님 「연결이 되어야 하잖아.. 이용자가 편하게」 · 우리 회사 지역을 골라 둔 채 */}
+          <Link className="bsr-tool" to={'/corp' + (명함.rgn ? '?r=' + encodeURIComponent(명함.rgn) : '')} onClick={() => 세기('|업체찾기|마당에서')}>🔎 업체 찾기</Link>
           <button type="button" className={'bsr-tool' + (명함열림 ? ' on' : '')} onClick={() => set명함열림(!명함열림)}>🏢 우리 회사{명함.co ? ` · ${명함.co}` : ''}</button>
           <button type="button" className={'bsr-tool' + (설명 ? ' on' : '')} aria-expanded={설명}
             onClick={() => { if (!설명) 세기('|공동|설명열기'); set설명(!설명) }}>📖 사용법</button>

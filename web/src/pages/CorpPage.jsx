@@ -100,7 +100,7 @@ export default function CorpPage() {
   return (
     <>
       <div className="btn-row" style={{ paddingTop: 14, marginBottom: 10 }}>
-        <Link to="/analysis?m=corp" className="btn ghost sm">← 다른 업체 찾기</Link>
+        <Link to="/corp" className="btn ghost sm">← 다른 업체 찾기</Link>
         <ShareBtn />
       </div>
       {/* 🚨 2026-09-18 — «어느 법인» 인지 여기에 적습니다. 같은 이름이 네 곳이면

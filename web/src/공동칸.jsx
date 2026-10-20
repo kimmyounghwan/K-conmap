@@ -53,6 +53,7 @@ export function 공동칸({ r, 나, 맵톡 = true }) {
       </div>
 
       <구성원찾기 r={r} 판={판} 나={나} />
+      <업체찾기길 r={r} 판={판} 나={나} />
 
       {맵톡 && (
       <div className="jbtns">
@@ -69,6 +70,28 @@ export function 공동칸({ r, 나, 맵톡 = true }) {
         실적·시공능력(시평액) 제한 공고면 <b>공동이행</b>으로 구성원 것을 합산할 수 있고, 적격심사 점수도 지분대로 합산합니다 —
         기준은 공고서와 계약예규(공동계약운용요령)로 확인하세요. <b>투찰 금액은 구성원 밖 업체와 이야기하지 마십시오</b> — 입찰담합입니다.
       </div>
+    </div>
+  )
+}
+
+/* 🏢 G343 업체 찾기(/corp)로 — 소장님 「연결이 되어야 하잖아.. 이용자가 편하게」
+   이 공고의 의무 지역(없으면 제한 지역 → 우리 지역)과 면허(첫 하나)를 «골라 둔 채» 엽니다 — 이용자가 다시 고르지 않게. 숨은 누적 |업체찾기|공고칸에서 */
+export function 업체찾기주소(r, 판, 나) {
+  const 재 = (판 && 판.재료) || {}
+  const 시도 = (재.의무시도 || [])[0] || (재.제한시도 || [])[0] || (나 && 나.지역) || ''
+  const 면허 = (면허키들(r && r.lic).find((k) => !k.includes('_')) || '')
+  const q = new URLSearchParams()
+  if (REGIONS.includes(시도) && 시도 !== '전국') q.set('r', 시도)
+  if (면허) q.set('l', 면허)
+  return { 주소: '/corp' + (q.toString() ? '?' + q.toString() : ''), 시도: q.get('r') || '', 면허 }
+}
+function 업체찾기길({ r, 판, 나 }) {
+  const { 주소, 시도 } = 업체찾기주소(r, 판, 나)
+  return (
+    <div className="jfind">
+      <Link className="btn line sm" to={주소} onClick={() => 세기('|업체찾기|공고칸에서')}>
+        🏢 이 공고 {시도 ? `${시도} · ` : ''}면허 업체 찾기 →</Link>
+      <span className="muted sm"> 지역 · 면허를 골라 둔 채 업체 찾기가 열립니다(상호 · 시 · 군 · 낙찰 실적 · 법인 연락처)</span>
     </div>
   )
 }

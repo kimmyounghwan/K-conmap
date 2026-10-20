@@ -1966,6 +1966,7 @@ b.money { white-space: nowrap; }
 .jointbox .jcl { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .jointbox .jcl em { font-style: normal; color: var(--muted); font-size: 11.5px; }
 .jointbox .jbtns { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.jointbox .jfind { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 6px 0; }   /* 🏢 G343 이 공고 지역 · 면허 업체 찾기 */
 /* 👥 같이 넣을 수 있는 회사 */
 .jointbox .jpair { font-size: 13px; line-height: 1.65; margin: 4px 0 8px; }
 .jointbox .jlist { border: 1px solid var(--line); border-radius: 9px; background: var(--surface); margin: 6px 0; }
@@ -5575,6 +5576,12 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 .xl-t b { font-size: 14px; }
 .xl-t i { font-style: normal; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .xl-go { flex: none; font-size: 13px; font-weight: 800; color: var(--accent); }
+/* 🤝 G343 가는 줄 묶음 — 넓은 화면은 나란히(빈 띠 없이) · 폰은 한 줄씩 */
+.xlinks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 8px 10px; margin: 0 0 10px; }
+.xlinks:empty { display: none; }
+.xlinks .xlink { margin: 0; min-width: 0; }
+.xlink.xlink-jv { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 4px 0 0 var(--accent); }
+.xlink.xlink-jv .xl-t b { color: var(--accent); }
 
 .xsrc {
   display: inline-block; margin-right: 6px; padding: 1px 7px; border-radius: 6px; vertical-align: 2px;
@@ -6065,6 +6072,9 @@ button.sk-mini { color: var(--accent); padding: 0; text-align: left; }
   border-radius: 10px; background: var(--accent-soft); }
 .umap-tot b { font-size: 16px; }
 .umap-today b, .umap-rt.up { color: var(--accent); }
+/* 📅 G343 어제 방문 — 상자 안 둘째 줄 오른쪽(오늘 바로 아래) · 오늘보다 작게 */
+.umap-yday { flex-basis: 100%; text-align: right; font-size: 12.5px; color: var(--muted); }
+.umap-yday b { font-size: 14px; color: var(--text); }
 .umap-reg-h { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); padding: 0 2px 4px; border-bottom: 1px solid var(--line, #e5e7eb); }
 .umap-rows { list-style: none; margin: 0; padding: 0; }
 .umap-rows li { display: grid; grid-template-columns: 2.6em minmax(0, 1fr) auto 3.2em; align-items: center; gap: 8px; padding: 4px 2px;
@@ -8429,3 +8439,45 @@ button.gd-gonggo:hover { background: var(--accent-soft); color: var(--accent); }
 .gd-agreeline { font-size: 12.5px; line-height: 1.55; color: var(--text-2); background: var(--surface-2); border-radius: 10px; padding: 8px 11px; }
 .gd-write .gd-row .btn.gd-go { width: 100%; padding: 12px 16px; font-size: 15px; }
 @media (max-width: 560px) { .gd-want input { font-size: 16px; } .gd-roles button b { font-size: 13.5px; } }
+
+/* ══ 🏢 G343 업체 찾기 /corp (pages/CorpFind.jsx) ══ */
+.cf-h { font-size: 14.5px; font-weight: 800; margin: 12px 2px 8px; }
+.cf-h .muted { font-weight: 500; font-size: 12.5px; }
+.cf-box { display: grid; gap: 10px; min-width: 0; }
+.cf-sido { margin: 0; }
+.cf-sido .chip em.cf-n { font-style: normal; font-size: 11px; opacity: .7; margin-left: 4px; }
+.cf-filt { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.cf-sel { display: grid; gap: 3px; font-size: 12px; color: var(--muted); min-width: 0; }
+.cf-sel select, .cf-sel input { width: 100%; min-width: 0; font: inherit; font-size: 14px; color: var(--text); padding: 8px 9px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.cf-sum { font-size: 13.5px; }
+.cf-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.cf-row { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; min-width: 0; }
+.cf-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-width: 0; }
+.cf-nm { font-size: 15px; overflow-wrap: anywhere; }
+.cf-at { font-size: 12.5px; color: var(--muted); }
+.cf-lic { display: flex; flex-wrap: wrap; gap: 4px; }
+.cf-chip { font-size: 11.5px; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--text); }
+.cf-chip.on { background: var(--accent); color: #fff; }
+.cf-chip.more { background: transparent; border: 1px dashed var(--line); color: var(--muted); }
+.cf-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; font-size: 13px; }
+.cf-go { margin-left: auto; font-weight: 700; text-decoration: none; }
+.cf-more { width: 100%; }
+.cf-more-h { color: var(--accent); }
+.cf-id { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; font-size: 12.5px; color: var(--muted); }
+.cf-con-b { font: inherit; font-size: 12.5px; font-weight: 700; color: var(--accent); background: none; border: 1px solid var(--accent-line); border-radius: 999px; padding: 2px 10px; cursor: pointer; }
+.cf-con { display: inline-flex; flex-wrap: wrap; gap: 2px 10px; font-size: 12.5px; color: var(--text); }
+.cf-con a { font-weight: 700; text-decoration: none; }
+.cf-adr { overflow-wrap: anywhere; }
+.cf-out { margin: 10px 2px 0; font-size: 12.5px; line-height: 1.7; color: var(--muted); }
+.cf-empty { padding: 14px 4px; font-size: 13.5px; }
+.cf-note { margin: 0; font-size: 12.5px; line-height: 1.7; }
+.cf-jv { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-top: 12px; font-size: 13.5px; }
+/* 🩹 G343 폰에서 «우리 회/사» · «낙/찰» · «연/락합니다» 처럼 낱말 가운데서 끊기던 것 — 소장님 「단어 배치 신경써서」. 띄어쓰기 없는 긴 상호는 위 안전망(overflow-wrap)이 그 자리에서만 끊습니다 */
+.cf-box, .cf-h, .cf-out, .cf-empty, .cf-note, .cf-jv, .jointbox, .bsr-title { word-break: keep-all; }
+@media (min-width: 900px) { .cf-list { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }   /* PC — 두 줄로(목록이 너무 길지 않게) */
+@media (max-width: 640px) {
+  .cf-filt { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .cf-filt .cf-q { grid-column: 1 / -1; }
+  .cf-sel select, .cf-sel input { font-size: 16px; }   /* 폰 — 누르면 확대되지 않게 */
+}

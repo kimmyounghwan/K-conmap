@@ -43,7 +43,7 @@ const NAME = {
   '/qna': '맵톡',
   '/how': '보는 방법',
   '/agency': '발주기관',
-  '/corp': '업체',
+  '/corp': '업체 찾기',
   '/pdf': 'PDF 도구',
   '/admin': '관리자',
   '/notice': '공고',
@@ -102,6 +102,7 @@ const PARENT = {
   '/lic': '/', '/guide': '/', '/how': '/',
   '/pre': '/live',
   '/gongdong': '/live',          /* 🤝 G341 공동도급 마당 → «← 공고» */
+  '/corp': '/analysis',          /* 🏢 G343 업체 찾기 → «← 낙찰 분석» */
   /* 🩹 G198 소장님 「용역, 물품 에서 클릭해서 들어가면 뒤로가야 하는데 뒤로가기 버튼이 없어?」 —
      계산기를 주소(카톡 링크 · 즐겨찾기)로 바로 열어도 맨 위 «←» 가 그 방 공고로 */
   '/svc/calc': '/svc', '/goods/calc': '/goods',
@@ -124,7 +125,7 @@ const TOP = new Set(['/', '/calc', '/first', '/live', '/analysis', '/jobs', '/my
       → 사이트 안에서 걸어 들어왔으면 **들어온 곳으로 기록을 되감습니다**(보던 자리·검색어 그대로).
         이름도 «들어온 곳» 이름입니다(도구에서 골조로 왔으면 «← 도구», 적산에서 왔으면 «← K-적산»).
       → 검색·주소창으로 바로 들어왔으면 지금처럼 «그 화면이 속한 곳» 으로 갑니다. */
-const 뿌리로 = { '/notice': '/live', '/agency': '/analysis', '/corp': '/analysis', '/report': '/' }
+const 뿌리로 = { '/notice': '/live', '/agency': '/analysis', '/corp': '/corp', '/report': '/' }   /* 🏢 G343 /corp 업체 찾기가 생겨 업체 페이지 «←» 는 업체 찾기로 */
 /* /daily 는 미리 구운 HTML 안의 자료로만 그려집니다(DailyPage.jsx) — 사이트 안 이동(Link)으로 가면 빈 화면. 통째로 불러옵니다. */
 const 정적 = new Set(['/daily'])
 const 길 = ({ to, className, children, ...남 }) => (정적.has(to)

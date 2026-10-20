@@ -35,6 +35,7 @@
       { "source": "/analysis", "destination": "/index.html" },
       { "//": "📊 입찰 분석실 G340 · 🤝 공동도급 마당 G341 — 2026-10-20 빠져 있어 404 장으로 나갔음(구운 bunseok.html · gongdong.html 이 먼저 나가고, 못 구웠을 때 여기)", "source": "/bunseok", "destination": "/index.html" },
       { "source": "/gongdong", "destination": "/index.html" },
+      { "//": "🏢 G343 업체 찾기 — 구운 corp.html 이 먼저 나가고, 못 구웠을 때 여기(/corp/** 는 업체 한 곳)", "source": "/corp", "destination": "/index.html" },
       { "source": "/jobs", "destination": "/index.html" },
       { "source": "/daily", "destination": "/index.html" },
       { "source": "/forms", "destination": "/index.html" },

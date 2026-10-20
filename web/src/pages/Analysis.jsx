@@ -31,6 +31,7 @@ export default function Analysis() {
   const mode = sp.get('m') === 'corp' ? 'corp' : 'agency'
   const setMode = (m) => setSp(m === 'corp' ? { m: 'corp' } : {}, { replace: true })
   const 방 = use지금종류()
+  const 가기 = useNavigate()
 
   return (
     <>
@@ -41,8 +42,16 @@ export default function Analysis() {
       <div className="seg">
         <button className={mode === 'agency' ? 'on' : ''} onClick={() => setMode('agency')}>발주기관 분석</button>
         <button className={mode === 'corp' ? 'on' : ''} onClick={() => setMode('corp')}>업체 자가진단</button>
+        {/* 🏢 G343 업체 찾기 — 소장님 「업체 조회는 어디에 두지?? … 연결이 되어야 하잖아.. 이용자가 편하게」 */}
+        <button onClick={() => { 분석세기('|업체찾기|분석탭'); 가기('/corp') }}>🏢 업체 찾기</button>
       </div>
       {mode === 'agency' ? <AgencyTab /> : <CorpTab />}
+      {/* 🏢 G343 — 지역 · 면허로 같이 넣을 업체 찾기(공동도급 상대) */}
+      {mode === 'corp' && (
+        <div className="note" style={{ margin: '8px 2px 0' }}>
+          📍 지역 · 면허로 <b>같이 넣을 업체</b>를 찾으시나요? <Link to="/corp" onClick={() => 분석세기('|업체찾기|분석에서')}>🏢 업체 찾기 →</Link>
+        </div>
+      )}
 
       {/* 📊 2026-09-19 — 소장님: 「분석에서 업체 분석글 pdf 없어졌고, 내가 신청을 받아서
           pdf만들 수 있는 탭도 사라졌어」
@@ -87,7 +96,9 @@ function AgencyTab() {
 }
 
 /* ── 업체 자가진단 ────────────────────── */
-function CorpTab() {
+/* 🏢 G343 (2026-10-20) 업체 찾기(/corp, pages/CorpFind.jsx) 도 이 «상호로 찾기» 상자를 그대로 씁니다(두 벌로 만들면 어긋남).
+   찾기만 = 아래 «내 회사 이름을 넣어보세요» 안내 칸을 빼고(업체 찾기 화면은 자기 안내가 있음) · 고름 셈을 |업체찾기|상호고름 으로. */
+export function CorpTab({ 찾기만 = false }) {
   const [q, setQ] = useState('')
   const [list, setList] = useState([])
   const [open, setOpen] = useState(false)
@@ -130,7 +141,7 @@ function CorpTab() {
      아이폰 사파리: 한글을 치는 중(마지막 글자 조합 중)에 목록을 누르면 «click» 이 안 옵니다 — 키보드가 그대로라 다시 눌러도 같음.
      → 목록 단추는 손가락을 떼는 순간(touchend) 고릅니다(lib/손끝고르기.js). 숨은 누적 |자가진단|고름 · |손끝고름|업체 */
   const pick = (item) => {
-    분석세기('|자가진단|고름')
+    분석세기(찾기만 ? '|업체찾기|상호고름' : '|자가진단|고름')
     setOpen(false)
     const base = String(item.key).split('#')[0]
     navigate('/corp/' + encodeURIComponent(base),
@@ -228,7 +239,7 @@ function CorpTab() {
             <b> 낙찰이 한 건도 없어도 나옵니다.</b> 값은 받지 않습니다.
           </p>
         </div>
-      ) : (
+      ) : 찾기만 ? null : (
         <Empty icon="🏢">
           내 회사 이름을 넣어보세요.<br />
           어느 지역 · 어느 기관에서 강한지, 평균 투찰률이 얼마인지 보여드립니다.

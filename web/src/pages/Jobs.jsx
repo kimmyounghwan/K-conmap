@@ -17,34 +17,25 @@ import { useBoard } from '../lib/useBoard.js'
 import Sites from '../Sites.jsx'
 import { pinHash } from '../lib/pin.js'
 import { loadRegion } from '../lib/lic.js'
-import { wnUrl, WN_TRADES, WN_REGION_PAGE } from '../lib/worknet.js'
 import { use화면상태 } from '../lib/길기록.js'
 
 /* ══════════════════════════════════════════════════════════════
-   💼 구인·구직 — 워크넷과 우리 게시판을 «한 화면»에 (2026-09-14)
+   💼 구인·구직 (2026-09-14 · 🔌 G343 2026-10-20 워크넷 연결 뺌)
 
-   소장님: 「구인구직하고 워크넷을 합쳐야지… 따로 두면 안 되지.
-            그리고 워크넷을 클릭하면 아무것도 없어… 구인 구직이 없어.
-            구인구직을 없애고 워크넷으로 통합해줘. 그 안에서 건설맵에서 구인 구직 할 수 있게.」
-
-   ■ 그래서 갈래를 **둘**로 줄였습니다: 🏗 낙찰 현장 · 💼 구인·구직
+   ■ 갈래 둘: 🏗 낙찰 현장 · 💼 구인·구직
      「💼 구인·구직」 한 화면 안에 —
-       ① 지역 칩 + 직종 칩 (하나로 **둘 다** 거릅니다)
-       ② K-건설맵 구인·구직 글 (회원가입 없이 바로 올림)
-       ③ 고용24(워크넷) 채용정보 화면
+       ① 지역 칩 + 직종 칩 (하나로 같이 거릅니다)
+       ② 사람 구할 현장(낙찰 자료) · K-건설맵 구인·구직 글 (회원가입 없이 바로 올림)
 
-   ■ ⚠️ 「눌렀는데 아무것도 없다」 를 만들지 말 것 —
-     전에는 직종을 고르기 전까지 워크넷 칸이 아예 안 떴습니다. 이제는 **처음부터 떠 있습니다**
-     (직종 기본값 「전체」 = 워크넷 검색어 «건설»).
+   ■ 🔌 2026-10-20 소장님 「우리 워크넷 연결되어 있잖아. 그것 제거 해도 돼?」 → 「제거 하는 걸로 하자」
+     고용24(워크넷) 채용정보 칸(화면 안에 띄우기 · 새 창 열기)과 lib/worknet.js 를 뺐습니다.
+     워크넷 자료는 처음부터 받지도 저장하지도 않았습니다(링크 · 화면 띄우기만) — 빼도 남는 자료가 없습니다.
 
-   ■ 직종 목록은 `lib/worknet.js` 의 `WN_TRADES` **하나뿐**입니다.
-     글에 저장되는 값이기도 하므로 이름을 바꾸면 옛 글이 안 걸립니다. 늘리는 건 괜찮습니다.
-
-   ■ 워크넷 자료는 **가져오지 않습니다.** 화면을 그대로 불러와 보여 줄 뿐이고,
-     누르는 것은 모두 워크넷으로 갑니다. 이유는 lib/worknet.js 머리말 참고.
+   ■ 직종 목록(TRADES)은 글에 저장되는 값입니다. 이름을 바꾸면 옛 글이 안 걸립니다. 늘리는 건 괜찮습니다.
+     (워크넷 때 쓰던 목록 그대로 — 이름만 옮겨 왔습니다)
    ══════════════════════════════════════════════════════════════ */
 
-const TRADES = WN_TRADES.map((t) => t.name)
+const TRADES = ['현장관리', '공무/견적', '토목', '건축', '철근·콘크리트', '설비', '전기', '용접', '조경', '중장비', '안전관리', '보통인부', '기타']
 
 /* 🏗 사람 구할 현장 을 직종으로 거를 때 쓰는 낱말.
    ⚠️ 여기 «없는» 직종(현장관리·철근·용접·중장비·보통인부·안전관리…)은 **일부러 안 거릅니다.**
@@ -89,7 +80,7 @@ export default function Jobs() {
         {mode === 'sites' ? '🏗 곧 착공하는 현장' : '💼 건설 구인·구직'}
         <span className="count">{mode === 'sites'
           ? '· 최근 낙찰된 공사와 낙찰업체 연락처 · 사람·장비 구하고 찾기'
-          : '· 워크넷 채용정보 + 회원가입 없는 우리 게시판, 한 화면에서'}</span>
+          : '· 사람 구할 현장 + 회원가입 없는 구인·구직 글, 한 화면에서'}</span>
       </div>
 
       <div className="seg" style={{ marginBottom: 12 }}>
@@ -103,7 +94,7 @@ export default function Jobs() {
   )
 }
 
-/* ── 💼 구인·구직 — 우리 글 + 워크넷을 한 화면에 ──────────────── */
+/* ── 💼 구인·구직 — 사람 구할 현장 + 우리 글 ──────────────── */
 function WorkBoard({ onSeeAll }) {
   const [posts, setPosts] = useState(null)
   const [err, setErr] = useState('')
@@ -113,21 +104,6 @@ function WorkBoard({ onSeeAll }) {
   const [region, setRegion] = useState(() => { try { return loadRegion() } catch { return '전국' } })
   const [trade, setTrade] = useState('전체')
   const [type, setType] = useState('전체')
-
-  /* 워크넷 화면은 PC 에서만 싣습니다 — 고용24 화면이 PC 용이라
-     작은 화면에 우겨넣으면 못 씁니다. 휴대폰은 새 창으로 보냅니다. */
-  const [wide, setWide] = useState(() => {
-    try { return window.matchMedia('(min-width: 760px)').matches } catch { return true }
-  })
-  useEffect(() => {
-    let mq, on
-    try {
-      mq = window.matchMedia('(min-width: 760px)')
-      on = (e) => setWide(e.matches)
-      mq.addEventListener('change', on)
-    } catch { /* 아주 옛 브라우저 - 처음 값 그대로 */ }
-    return () => { try { if (mq && on) mq.removeEventListener('change', on) } catch { /* noop */ } }
-  }, [])
 
   const load = async () => {
     setPosts(null); setErr('')
@@ -159,14 +135,9 @@ function WorkBoard({ onSeeAll }) {
       (trade === '전체' || p.trade === trade))
   }, [posts, type, region, trade])
 
-  const url = wnUrl(trade, region)
-  const wnLog = () => {
-    try { if (window.gtag) window.gtag('event', 'worknet_open', { trade, region }) } catch (e) { /* noop */ }
-  }
-
   return (
     <>
-      {/* ── 지역·직종: 이 둘이 우리 글과 워크넷을 «같이» 거릅니다 ── */}
+      {/* ── 지역·직종: 이 둘이 사람 구할 현장과 우리 글을 «같이» 거릅니다 ── */}
       <div className="chips">
         {REGIONS.map((r) => (
           <button key={r} className={'chip' + (region === r ? ' on' : '')}
@@ -212,7 +183,7 @@ function WorkBoard({ onSeeAll }) {
         <Empty icon="🪧">
           {region === '전국' && trade === '전체' && type === '전체'
             ? <>아직 올라온 글이 없습니다.<br />첫 글을 올리시면 이 자리 맨 위에 뜹니다.</>
-            : <>이 조건에는 올라온 글이 없습니다.<br />아래 워크넷 채용정보를 보시거나, 직접 올려보세요.</>}
+            : <>이 조건에는 올라온 글이 없습니다.<br />지역 · 직종을 넓혀 보시거나, 직접 올려보세요.</>}
         </Empty>
       ) : (
         view.map((p) => (
@@ -225,72 +196,6 @@ function WorkBoard({ onSeeAll }) {
         연락처는 그대로 공개되니 개인 휴대폰보다 업무용 번호를 권합니다. 허위·광고성 글은 예고 없이 삭제될 수 있습니다.
       </div>
 
-      {/* ── ③ 워크넷 ── */}
-      <div className="sec-title" style={{ marginTop: 18 }}>
-        🔎 고용24(워크넷) 채용정보
-        <span className="count">{region} · {trade === '전체' ? '건설 전체' : trade}</span>
-        <span style={{ flex: 1 }} />
-        <a className="btn sm" style={{ textDecoration: 'none' }}
-          href={url} target="_blank" rel="noopener noreferrer" onClick={wnLog}>워크넷에서 열기 ↗</a>
-      </div>
-
-      {/* ⚠️ 2026-09-15 — 소장님: 「구인구직에서 로그인이 안돼」 → 그 뒤 직접 해 보시고
-          「워크넷에서 로그인 하면 건설맵에서 사용 가능. 단지 보기만 하는 건 건설맵에서도 가능」.
-          그래서 안내를 고쳤습니다. 확인한 것은 이렇습니다.
-            · 로그인 **화면**을 이 칸 안에 실으면 «일시적인 문제가 발생했습니다» 가 뜹니다 → 이건 못 고칩니다.
-            · 그런데 워크넷에 **새 창에서 한 번 로그인**해 두면, 그 뒤로는 이 칸 안에서도 그대로 됩니다
-              (같은 브라우저라 로그인 표가 이어집니다).
-            · 그냥 **보기**는 로그인 없이도 됩니다.
-          → 「안 됩니다」 가 아니라 「한 번 로그인해 두세요」 로 적습니다. 앞 문장은 사람을 돌려보냈습니다. */}
-      <div className="note" style={{
-        marginBottom: 8, padding: '9px 11px', borderRadius: 8,
-        background: 'var(--warn-soft)', border: '1px solid var(--line)', color: 'var(--text)',
-      }}>
-        <b>보는 것은 로그인 없이 그냥 됩니다.</b> 지원하기·이력서까지 쓰시려면 위 <b>「워크넷에서 열기 ↗」</b>{' '}
-        로 워크넷에 <b>한 번만 로그인</b>해 두세요. 그 뒤로는 이 칸 안에서 그대로 쓰시면 됩니다.
-        (로그인 창 자체만 이 칸 안에서 안 열립니다.)
-      </div>
-
-      {wide ? (
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <iframe
-            key={url}
-            title={`고용24 채용정보 — ${region} ${trade}`}
-            src={url}
-            loading="lazy"
-            style={{ display: 'block', width: '100%', height: 860, border: 0, background: '#fff' }}
-          />
-          <div className="note" style={{ padding: '10px 12px', borderTop: '1px solid var(--line)' }}>
-            <b>칸 안에서 조금 내리시면 채용 목록이 나옵니다</b> — 고용24 화면이 「검색 조건」부터 열리기 때문입니다.
-            시·군까지 좁히시려면 그 안에서 「지역별」을 누르시면 됩니다.
-            <b>워크넷에 한 번 로그인해 두시면 이 칸 안에서도 지원까지 됩니다</b> — 로그인 창만
-            위 「워크넷에서 열기」 로 여세요.<br />
-            이 칸은 고용24 화면을 그대로 불러온 것입니다. K-건설맵이 목록을 옮겨 적은 것이 아니며,
-            누르시는 것은 모두 워크넷으로 이어집니다. 칸이 비어 보이면 위 「새 창으로 크게」 로 여세요.
-          </div>
-        </div>
-      ) : (
-        <div className="card">
-          <div className="note" style={{ marginBottom: 10 }}>
-            워크넷 화면은 PC 용이라 휴대폰 안에 넣으면 보기 어렵습니다. 새 창으로 여세요.
-            새 창에서 한 번 로그인해 두시면 지원하기까지 이어서 하실 수 있습니다.
-          </div>
-          <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
-            <a className="btn" style={{ textDecoration: 'none' }}
-              href={url} target="_blank" rel="noopener noreferrer" onClick={wnLog}>
-              워크넷에서 {region} {trade === '전체' ? '건설' : trade} 일자리 보기 ↗
-            </a>
-            <a className="btn ghost" style={{ textDecoration: 'none' }}
-              href={WN_REGION_PAGE} target="_blank" rel="noopener noreferrer">지역별로 고르기 ↗</a>
-          </div>
-        </div>
-      )}
-
-      <div className="note" style={{ marginTop: 10 }}>
-        워크넷에 공고를 올리려면 <b>사업자등록번호로 기업회원 가입</b>을 해야 하고 승인도 기다려야 합니다.
-        급하시면 위 <b>✏️ K-건설맵 구인·구직</b> 에 올리세요 — 바로 올라갑니다.<br />
-        자료 출처: <b>고용24(워크넷) · 한국고용정보원</b>.
-      </div>
     </>
   )
 }
@@ -298,8 +203,7 @@ function WorkBoard({ onSeeAll }) {
 /* ── 🏗 사람 구할 현장 — 낙찰 자료를 «구인» 으로 읽는다 ────────────
    소장님: 「건설맵에 구인 구직을 띄우는 거야. 한 개 한 개씩…」
 
-   워크넷 공고는 한 개씩 옮겨 그릴 수 없습니다(제4유형 · 기업회원 전용 API).
-   그런데 **한 개씩 그려도 되는 자료가 이미 있습니다** — 조달청 낙찰 자료입니다.
+   한 개씩 그려도 되는 자료가 이미 있습니다 — 조달청 낙찰 자료입니다.
    낙찰 = 곧 착공 = 곧 사람·장비가 필요하다. 하루 570건씩 저절로 찹니다.
    그래서 여기서는 «공사» 가 아니라 **«사람 구할 회사»** 를 앞에 세웁니다
    (같은 자료를 공사 중심으로 보는 화면은 🏗 낙찰 현장 갈래에 그대로 있습니다).

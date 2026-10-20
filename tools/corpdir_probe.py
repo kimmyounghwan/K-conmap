@@ -61,8 +61,11 @@ def key_of():
                 line = line.strip()
                 if line and not line.startswith("#") and "=" in line:
                     k, v = line.split("=", 1)
-                    env[k.strip()] = v.strip()
+                    env[k.strip()] = v.strip().strip('"').strip("'")
     k = env.get("CONS_API_KEY") or env.get("G2B_API_KEY") or os.environ.get("G2B_API_KEY")
+    if k:
+        import urllib.parse
+        k = urllib.parse.unquote(k)          # 인코딩 키를 적어 둔 경우(requests 가 다시 인코딩함) — collect.api_key 와 같게
     if not k:
         print("⛔ .env 에 CONS_API_KEY(또는 G2B_API_KEY)가 없습니다.")
         sys.exit(1)
@@ -73,7 +76,9 @@ def call(op, key, s_date, e_date, rows=10, page=1):
     """한 번 부르고 «무슨 일이 있었는지» 를 그대로 돌려줍니다."""
     url = f"{BASE}/{op}"
     params = {
-        "ServiceKey": key, "pageNo": str(page), "numOfRows": str(rows),
+        # 🩹 G343 (2026-10-20) 공공데이터포털 안내 「실제 API 를 호출할 때는 serviceKey 파라미터의 첫 글자를 소문자로」 —
+        #   대문자(ServiceKey)로 불러 «SERVICE KEY IS NOT REGISTERED» 가 났습니다(같은 열쇠 · 소문자로 코드 00 확인).
+        "serviceKey": key, "pageNo": str(page), "numOfRows": str(rows),
         "sDate": s_date, "eDate": e_date, "_type": "json",
     }
     out = {"url": url, "sDate": s_date, "eDate": e_date}
@@ -109,7 +114,7 @@ def call(op, key, s_date, e_date, rows=10, page=1):
         out["fields"] = sorted(one.keys())
         # ⚠️ 첫 줄을 통째로 남깁니다 — 항목 «이름»만 보고 뜻을 짐작하면 또 틀립니다.
         #    다만 개인정보로 보이는 값은 가려서 남깁니다.
-        MASK = {"ncrGsMaster", "ncrOffTel", "ncrMasterNum"}
+        MASK = {"ncrGsMaster", "ncrOffTel", "ncrMasterNum", "ncrBytranMaster", "ncrTranMaster"}   # 대표 · 전화 · 사업자번호(양도신고는 양도 · 양수 대표)
         out["sample"] = {k: ("***가림***" if k in MASK else str(v)[:60])
                          for k, v in one.items()}
     else:

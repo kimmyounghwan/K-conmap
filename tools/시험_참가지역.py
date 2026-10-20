@@ -10,6 +10,7 @@
   돌리기: python tools/시험_참가지역.py   (올리기 bat 이 올리기 전에 돌립니다 — 틀리면 멈춤)
 """
 import io
+import json
 import os
 import re
 import sys
@@ -96,6 +97,29 @@ if C is not None:
         v = C.load_json(led, {})
         봄("③ 옛 장부(s 없음)에 시 · 군 근거를 붙여 쌓음", v["c"]["3333333333"].get("s") == {"전남 여수시": "20261003"}
            and v["c"]["2222222222"].get("s") == {"전남 장흥군": "20261002"}, str(v["c"]["3333333333"]))
+
+    # ④ 🏢 G343 법인만 대표 · 전화 · 주소(소장님 고르심 «법인만 넣기») — 가운데 81 법인 · 00 개인 · 지어낸 값
+    first2 = {"con": {
+        "F": {"dt": "20261005", "corps": [["가상법인건설(주)", "", "", "1238100001", "김가상"], ["가상개인건설", "", "", "1230000002", "이가상"]],
+              "bno": "1238100001", "win": "가상법인건설(주)", "ceo": "김가상", "tel": "061-000-0000", "adr": "전남 순천시 가상로 1"},
+        "G": {"dt": "20261006", "corps": [["가상개인건설", "", "", "1230000002", "이가상"]],
+              "bno": "1230000002", "win": "가상개인건설", "ceo": "이가상", "tel": "010-0000-0000", "adr": "전남 가상군 가상리"},
+    }}
+    ev2, _ = C.partner_evidence(first2, {"con": {}})
+    법, 개 = ev2.get("1238100001", {}), ev2.get("1230000002", {})
+    봄("④ 법인 — 대표 · 전화 · 주소 [값, 날짜]", 법.get("c") == ["김가상", "20261005"] and 법.get("t") == ["061-000-0000", "20261005"]
+       and 법.get("a") == ["전남 순천시 가상로 1", "20261005"], str(법))
+    봄("④ 개인사업자 — 대표 · 전화 · 주소 안 받음", not any(k in 개 for k in ("c", "t", "a")), str(개))
+    봄("④ 법인번호 — 81 · 85 · 86 · 87 · 88 만", C.법인번호("123-81-00001") and C.법인번호("1238800001") and not C.법인번호("1230100001") and not C.법인번호("12381"))
+    with tempfile.TemporaryDirectory() as d:
+        led = os.path.join(d, "partners.json")
+        C.save_json(led, {"v": 1, "c": {"1238100001": {"n": "가상법인건설(주)", "l": {}, "r": {"전남": "20261001"}, "c": ["옛대표", "20261001"]}}, "ln": {}})
+        C.export_partners(first2, {"con": {}}, out_dir=os.path.join(d, "p"), ledger_path=led, log=lambda *a: None)
+        v = C.load_json(led, {})
+        봄("④ 장부 — 법인 대표는 늦은 날짜 것으로 · 전화 · 주소 쌓임 · 개인은 없음", v["c"]["1238100001"].get("c") == ["김가상", "20261005"]
+           and v["c"]["1238100001"].get("t") == ["061-000-0000", "20261005"] and not any(k in v["c"].get("1230000002", {}) for k in ("c", "t", "a")), str(v["c"]))
+        pf = [json.load(io.open(os.path.join(d, "p", f), encoding="utf-8")) for f in os.listdir(os.path.join(d, "p"))]
+        봄("④ 면허 파일(data/partners)엔 전화 · 주소 안 실림", "061-000-0000" not in json.dumps(pf, ensure_ascii=False))
 
 print(f"\n{셈[0]}개 중 틀림 {len(틀림)}")
 sys.exit(1 if 틀림 else 0)

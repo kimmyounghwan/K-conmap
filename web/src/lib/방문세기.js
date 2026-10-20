@@ -221,14 +221,29 @@ export function 방문켜기() {
   재기()
 }
 
-/** 지도 화면이 읽는 직접 센 숫자 — {a: vis/a, d: vis/d/오늘, 지금: 30분 안 브라우저 수(못 받으면 null), 지금곳: {곳 번호: 수}, 날, at}
+/* 📅 G343 (2026-10-20) 소장님 「여기에 전날 방문수 띄울 수 있어. 여기만…」 — 큰 지도의 «전체 누적 · 오늘» 상자 아래 «어제 N명».
+   어제 하루 방문 = vis/d/{어제}/n (오늘 +N 과 같은 셈 · 같은 브라우저 하루 한 번). 어제 숫자는 거의 안 바뀌므로
+   30분 동안 다시 안 받음(1분마다 읽는 지도에 작은 읽기 하나 · 30분에 한 번). 직접 세기 전 날(10/18 까지)은 null. 못 받아도 null(상자만 안 뜸). */
+const 어제기억 = { 날: '', n: null, t: 0 }
+export function 어제받기(지금, 받) {
+  const 어제날 = 한국날(지금 - 86400000)
+  if (!직접인가(Date.parse(어제날 + 'T00:00:00+09:00'))) return Promise.resolve(null)
+  if (어제기억.날 === 어제날 && typeof 어제기억.n === 'number' && Date.now() - 어제기억.t < 30 * 60000) return Promise.resolve({ 날: 어제날, n: 어제기억.n })
+  return 받(`${DB}/vis/d/${어제날}/n.json`).then((v) => {
+    const n = v !== null && isFinite(Number(v)) ? Math.max(0, Number(v)) : 0
+    Object.assign(어제기억, { 날: 어제날, n, t: Date.now() })
+    return { 날: 어제날, n }
+  }).catch(() => null)
+}
+
+/** 지도 화면이 읽는 직접 센 숫자 — {a: vis/a, d: vis/d/오늘, 지금: 30분 안 브라우저 수(못 받으면 null), 지금곳: {곳 번호: 수}, 날, at, 어제: {날, n} | null}
  *  누적 · 오늘을 못 받으면 null */
 export async function 직접받기(지금 = Date.now()) {
   const 날 = 한국날(지금)
   const 받 = (u) => fetch(u, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
   const 지금주소 = `${DB}/vis/on.json?orderBy=${encodeURIComponent('"t"')}&startAt=${지금 - 지금틈}`
   try {
-    const [a, d, on] = await Promise.all([받(`${DB}/vis/a.json`), 받(`${DB}/vis/d/${날}.json`), 받(지금주소).catch(() => undefined)])
+    const [a, d, on, 어제] = await Promise.all([받(`${DB}/vis/a.json`), 받(`${DB}/vis/d/${날}.json`), 받(지금주소).catch(() => undefined), 어제받기(지금, 받)])
     let 수 = null; const 지금곳 = {}
     if (on !== undefined) {
       수 = 0
@@ -238,7 +253,7 @@ export async function 직접받기(지금 = Date.now()) {
         if (typeof v.k === 'string' && v.k) 지금곳[v.k] = (지금곳[v.k] || 0) + 1
       }
     }
-    return { a: a || {}, d: d || {}, 지금: 수, 지금곳, 날, at: Date.now() }
+    return { a: a || {}, d: d || {}, 지금: 수, 지금곳, 날, at: Date.now(), 어제: 어제 || null }
   } catch (e) { return null }
 }
 
