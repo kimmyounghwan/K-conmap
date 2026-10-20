@@ -279,6 +279,29 @@ def 지금정리(ctx, dry=False):
     return len(옛)
 
 
+def 공동정리(ctx, dry=False):
+    """🤝 G341 공동도급 마당(jv) — 끝(end: 협정 · 입찰 마감 · 명부 90일)이 지나고 7일 넘은 글을 지움(비밀번호 · 지움 · 신고 · 답글 comments/jv-{키} 도 함께) ·
+    한 번에 200개까지 · 지운 수. 화면은 끝이 지나면 바로 안 보여 줍니다(lib/공동판.js 보일글) — 여기는 전화 · 이메일을 오래 두지 않으려는 것."""
+    tok = ctx["tok"]
+    끝 = int(지금().timestamp() * 1000) - 7 * 86400 * 1000
+    q = requests.get(f"{DB}/jv.json", params={"orderBy": '"end"', "endAt": str(끝), "limitToFirst": "200"},
+                     headers={"Authorization": "Bearer " + tok}, timeout=20)
+    if q.status_code != 200:
+        raise RuntimeError(f"데이터베이스(공동 읽기) HTTP {q.status_code} {q.text[:120]}")
+    옛 = [k for k, v in (q.json() or {}).items()
+         if isinstance(v, dict) and isinstance(v.get("end"), (int, float)) and v["end"] <= 끝 and re.match(r"^[-0-9A-Za-z_]{1,24}$", k)]
+    if 옛 and not dry:
+        몸 = {f"{칸}/{k}": None for k in 옛 for 칸 in ("jv", "jv_pins", "jv_del", "jv_flag")}
+        몸.update({f"{칸}/jv-{k}": None for k in 옛 for 칸 in ("comments", "comment_pins", "comment_del")})   # 💬 그 글의 답글(대화)도
+        r = requests.patch(f"{DB}/.json", headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"},
+                           data=json.dumps(몸).encode("utf-8"), timeout=20)
+        if r.status_code != 200:
+            raise RuntimeError(f"데이터베이스(공동 지우기) HTTP {r.status_code} {r.text[:120]}")
+    if 옛:
+        적기(f"  · 공동도급 마당 끝난 글 {len(옛)}개 지움")
+    return len(옛)
+
+
 def _해외요청(tok):
     r = requests.post(
         f"https://analyticsdata.googleapis.com/v1beta/properties/{GA_PROPERTY}:runReport",
@@ -384,6 +407,15 @@ def 지역넣기(ctx, dry=False):
 
 # ── 👁 화면 조회수 (G119) ─────────────────────────────────────────
 조회시작 = "2026-09-15"          # 애널리틱스 측정 ID 를 고친 날 — 받은수_시작.json 과 같은 시작
+# 🔢 G342 (2026-10-20) 소장님 「건설맵이 직접 세는 걸로 하자 … 자정 12시 부터」 — 10/21 0시부터 조회수는 화면이 직접 셈(pv · lib/조회수.jsx).
+#   애널리틱스 조회수는 «시작값» 으로만: 그때부터 끝날을 10-20 으로 묶어(오늘 자료가 늦게 차는 만큼 하루 이틀 더 채워짐) fresh/pv · pvp · nv 에 넣습니다.
+조회직접 = datetime(2026, 10, 21, 0, 0, tzinfo=KST)
+조회끝날 = "2026-10-20"
+
+
+def 조회끝(때=None):
+    """애널리틱스 조회수를 어디까지 셀지 — 10/21 0시 전엔 «today» · 그 뒤엔 2026-10-20"""
+    return "today" if (때 or 지금()) < 조회직접 else 조회끝날
 조회틈 = 30 * 60                 # 30분마다 한 번(지도는 10분마다)
 두마디 = {"forms", "tools", "cad", "jeoksan", "naeyeok", "change"}
 _열쇠바꿈 = str.maketrans({"#": "_", "$": "_", "[": "_", "]": "_"})
@@ -435,7 +467,7 @@ def 조회묶기(rows):
     return out
 
 
-첫마디들 = {"agency", "analysis", "bunseok", "cad", "calc", "change", "corp", "daily", "ext", "first", "forms", "goods", "guide", "how", "jeoksan", "jobs",
+첫마디들 = {"agency", "analysis", "bunseok", "gongdong", "cad", "calc", "change", "corp", "daily", "ext", "first", "forms", "goods", "guide", "how", "jeoksan", "jobs",
            "lic", "live", "my", "naeyeok", "pdf", "qna", "report", "safety", "shareone", "svc", "tools", "about", "privacy", "terms", "contact"}
 # 🔢 G205 (2026-10-08) «my» 더함 — 마이컨맵(/my)도 다른 화면처럼 «👁 이 화면 조회 N»(누적). 공개 페이지 /@주소 는 안 넣음(화면에 안 보이게).
 #   ⚠️ web/src/lib/조회수.jsx 첫마디들 과 «똑같이»
@@ -516,7 +548,7 @@ def 조회수(tok):
     r = requests.post(
         f"https://analyticsdata.googleapis.com/v1beta/properties/{GA_PROPERTY}:runReport",
         headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"},
-        data=json.dumps({"dateRanges": [{"startDate": 조회시작, "endDate": "today"}],
+        data=json.dumps({"dateRanges": [{"startDate": 조회시작, "endDate": 조회끝()}],
                          "dimensions": [{"name": "hostName"}, {"name": "pagePath"}],
                          "metrics": [{"name": "screenPageViews"}],
                          "limit": 100000}),
@@ -530,7 +562,7 @@ def 조회넣기(ctx, dry=False):
     rows = 조회수(ctx["tok"])
     p, pp, nv = 조회묶기(rows), 화면묶기(rows), 공고묶기(rows)
     at = int(지금().timestamp() * 1000)
-    새 = {"pv": {"at": at, "from": 조회시작, "p": p or None}, "pvp": pp or None, "nv": nv or None}
+    새 = {"pv": {"at": at, "from": 조회시작, "to": 조회끝(), "p": p or None}, "pvp": pp or None, "nv": nv or None}
     적기(f"  · 조회수 {len(p)}곳 · 합 {sum(p.values()):,} · 화면 {len(pp)} · 공고 {sum(len(g) for g in nv.values())}건")
     if dry:
         return 새
@@ -555,6 +587,12 @@ def 한번(ctx, dry=False):
         지역넣기(ctx, dry)
     except Exception as e:
         적기(f"  ! 지역 못 했습니다 ({type(e).__name__}: {str(e)[:200]})")
+    if time.time() - ctx.get("jv_t", 0) >= 3600:          # 🤝 G341 공동도급 마당 끝난 글 — 한 시간에 한 번 · 지도와 따로 실패
+        ctx["jv_t"] = time.time()
+        try:
+            공동정리(ctx, dry)
+        except Exception as e:
+            적기(f"  ! 공동도급 글 정리 못 했습니다 ({type(e).__name__}: {str(e)[:200]})")
     도시들 = 실시간(ctx["tok"])
     try:
         전국 = 실시간전국(ctx["tok"])

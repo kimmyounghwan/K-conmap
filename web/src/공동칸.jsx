@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom'
 import { 공동판정, 협정남은, 구성원글, 면허키들, 회사합치기, 회사나누기 } from './lib/공동.js'
 import { getJSON } from './lib/data.js'
 import { REGIONS, num } from './lib/fmt.js'
+import { 세기 } from './lib/받은수.jsx'
 
 /** 카드 딱지 — 공동이 안 되는 공고는 아무것도 안 그립니다 */
 export function 공동딱지({ r, 나 }) {
@@ -26,7 +27,9 @@ export function 공동딱지({ r, 나 }) {
 }
 
 /** 펼친 칸 — 방식 · 판정 · 협정서 마감 · 의무 지역 · 구성원 후보 · 사랑방 */
-export function 공동칸({ r, 나 }) {
+export function 공동칸({ r, 나, 맵톡 = true }) {
+  /* 🤝 G341 — 공동도급 마당(/gongdong) 안에서는 맵톡 단추 대신 마당의 «이 공고 글» 을 씁니다(맵톡={false}).
+     공고 탭 · 바로투찰에서는 맨 위에 «🤝 공동도급 마당에서 구성원 찾기 →» 가 붙습니다. */
   const 판 = 공동판정(r, 나)
   if (!판.허용) return null
   const 재 = 판.재료
@@ -51,14 +54,17 @@ export function 공동칸({ r, 나 }) {
 
       <구성원찾기 r={r} 판={판} 나={나} />
 
+      {맵톡 && (
       <div className="jbtns">
-        <Link className="btn sm" to="/qna" state={{ 새글: { c: '후기·건의', t: 초안.t, b: 초안.b } }}>✏️ 맵톡에 구성원 구하는 글 쓰기</Link>
+        <Link className="btn sm" to={`/gongdong?no=${encodeURIComponent(r.no || '')}`} onClick={() => 세기('|공동|공고칸에서')}>🤝 공동도급 마당에서 구성원 찾기 · 글 쓰기 →</Link>
+        <Link className="btn ghost sm" to="/qna" state={{ 새글: { c: '후기·건의', t: 초안.t, b: 초안.b } }}>✏️ 맵톡에 구성원 구하는 글 쓰기</Link>
         {/* 🩹 2026-09-28 소장님 「이 공고글 보기 클릭하면 사랑방으로 가는데」 — «공고문 보기» 로 읽혔습니다. 사랑방 글이라는 것을 이름에 밝히고,
             가서 글이 없으면 «이 공고로 첫 글 쓰기» 를 바로 보여 줍니다(초안을 같이 넘김). */}
         <Link className="btn ghost sm" to="/qna"
           state={{ 찾기: String(r.no || ''), 찾기이름: String(r.name || ''), 초안: { c: '후기·건의', t: 초안.t, b: 초안.b } }}>
           💬 맵톡에 올라온 이 공고 구성원 글</Link>
       </div>
+      )}
       <div className="note sm" style={{ marginBottom: 0 }}>
         실적·시공능력(시평액) 제한 공고면 <b>공동이행</b>으로 구성원 것을 합산할 수 있고, 적격심사 점수도 지분대로 합산합니다 —
         기준은 공고서와 계약예규(공동계약운용요령)로 확인하세요. <b>투찰 금액은 구성원 밖 업체와 이야기하지 마십시오</b> — 입찰담합입니다.

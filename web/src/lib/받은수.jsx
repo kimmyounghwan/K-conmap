@@ -29,6 +29,7 @@
 import { useEffect, useState } from 'react'
 
 const DB = 'https://k-conmap-default-rtdb.firebaseio.com'
+const 조회직접시작 = Date.parse('2026-10-21T00:00:00+09:00')   /* 🔢 G342 — lib/조회수.jsx 와 같은 때(서로 불러오지 않게 한 줄 둠) */
 export const 파일끝 = /\.(xlsx|xlsm|xls|pdf|hwp|hwpx|docx|doc|zip|dwg|dxf|lsp|csv|pptx)$/i
 const 두마디 = new Set(['forms', 'tools', 'cad', 'jeoksan', 'naeyeok', 'change'])
 
@@ -159,9 +160,13 @@ function 읽기() {
     fetch(`${DB}/dl.json`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
     시작 ? Promise.resolve(시작) : import('../data/받은수_시작.json').then((m) => (시작 = m.default || m)).catch(() => ({})),
     fetch(`${DB}/fresh/pv/p.json`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-  ]).then(([d, , v]) => {
+    /* 🔢 G342 — 10/21 0시부터 건설맵이 직접 센 카드 조회(pv/c · lib/조회수.jsx 조회세기) — 시작값(애널리틱스 9/15~10/20)에 더함 */
+    Date.now() >= 조회직접시작 ? fetch(`${DB}/pv/c.json`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null) : Promise.resolve(null),
+  ]).then(([d, , v, c]) => {
     숫자 = { f: (d && d.f) || {}, p: (d && d.p) || {} }
-    조회 = v && typeof v === 'object' ? { p: v } : null
+    const 합침 = { ...((v && typeof v === 'object') ? v : {}) }
+    if (c && typeof c === 'object') for (const [k, x] of Object.entries(c)) 합침[k] = (Number(합침[k]) || 0) + (Number(x) || 0)
+    조회 = (v && typeof v === 'object') || (c && typeof c === 'object') ? { p: 합침 } : null
     듣는이.forEach((f) => f())
     return 숫자
   })
@@ -219,7 +224,7 @@ export function 받은수({ 쪽, 파일, 빼기, 봄, 앞 = '⬇ ', 글 = '회',
   /* 👁 2026-10-17 소장님 「모든 도구 및 서식에는 다 보이게 해줘...항상」 — 봄(화면)을 준 카드는 조회를 0 이어도 보임(못 읽었을 때만 안 그림) */
   if (!n && (v === null || v === undefined)) return null
   const 받음글 = n ? <span title="이 사이트에서 받은 횟수 (2026-09-15부터)">{앞}{n.toLocaleString('ko-KR')}{글}</span> : null
-  const 조회글 = v !== null && v !== undefined ? <span className="pvcount" title="이 화면을 연 횟수 (2026-09-15부터 · 구글 애널리틱스 · 30분마다 고침)">조회 {v.toLocaleString('ko-KR')}</span> : null
+  const 조회글 = v !== null && v !== undefined ? <span className="pvcount" title={Date.now() >= 조회직접시작 ? "이 화면을 연 횟수 (2026-09-15 ~ 10-20 애널리틱스 + 10-21부터 건설맵이 직접 셈)" : "이 화면을 연 횟수 (2026-09-15부터 · 구글 애널리틱스 · 30분마다 고침)"}>조회 {v.toLocaleString('ko-KR')}</span> : null
   return <span className={className + ' dlc2'}>{받음글}{받음글 && 조회글 ? ' · ' : null}{조회글}</span>   /* dlc2 — 좁은 카드에선 «·» 에서 줄바꿈 */
 }
 

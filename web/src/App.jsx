@@ -18,7 +18,7 @@ import 알림안내 from './알림안내.jsx'
 import FirstBar from './FirstBar.jsx'
 import RefreshBtn from './Refresh.jsx'
 import Crumbs, { BackBtn } from './Crumbs.jsx'
-import { 화면조회줄 } from './lib/조회수.jsx'   /* 👁 G121 — 모든 화면 위 «이 화면 조회 N» · 👥 G172 방문자 바닥글은 G199 에서 뺌(바로투찰 지도에만) */
+import { 화면조회줄, use조회세기 } from './lib/조회수.jsx'   /* 👁 G121 — 모든 화면 위 «이 화면 조회 N» · 👥 G172 방문자 바닥글은 G199 에서 뺌(바로투찰 지도에만) */
 import { use길지킴이 } from './lib/길기록.js'
 import { 쓴곳기록 } from './lib/마이쓴곳.js'   /* 🪪 G188 마이컨맵 «내 도구 · 서식» — 연 도구 · 서식을 이 브라우저에만 셈 */
 
@@ -52,7 +52,7 @@ const TABS = [
   { to: '/', ic: '💰', label: '바로투찰', also: ['/bunseok'] },   /* 📊 G340 입찰 분석실도 이 탭에 불(탭 10개 한도) */
   /* 🏠 G194c — «1순위 · 공고» 두 탭은 지금 방(종류띠.jsx)을 따라갑니다: 용역 방이면 /svc/first · /svc (App 안에서 바꿔 끼움) */
   { to: '/first', ic: '🏆', label: '1순위', also: ['/svc/first', '/goods/first'] },
-  { to: '/live', ic: '📋', label: '공고', also: ['/pre', '/svc$', '/goods$'] },   /* 📣 곧 나올 공사(/pre)도 공고 탭에 불 (2026-10-05 G135) */
+  { to: '/live', ic: '📋', label: '공고', also: ['/pre', '/svc$', '/goods$', '/gongdong'] },   /* 📣 곧 나올 공사(/pre)도 공고 탭에 불 (2026-10-05 G135) · 🤝 G341 공동도급 마당도 */
   /* 📄🧰 2026-09-16 — 소장님: 「서식·도구를 하나의 탭으로 하고, 적산도 하나의 탭으로」
      서식과 도구를 한 탭으로 묶어 자리를 비우고 그 자리에 적산을 넣었습니다. 탭은 10개 그대로.
      ⚠️ /tools 와 /cad 주소는 살아 있습니다 — 서식 138장과 도구 13가지가
@@ -146,6 +146,8 @@ export default function App() {
      앞으로 가면 맨 위, 뒤로 오면 «보던 자리» (자료가 늦게 와도 기다렸다가). 칸마다 주소도 적어 둡니다 → Crumbs 의 «← 들어온 곳». lib/길기록.js */
   use길지킴이()
   useEffect(() => { 쓴곳기록(pathname) }, [pathname])
+  /* 🔢 G342 — 10/21 0시부터 조회수도 건설맵이 직접(화면을 열 때마다 1 · 소장님 · 로봇 뺌) — lib/조회수.jsx */
+  use조회세기()
   /* 🪪 G188 마이컨맵 «그 일로 바로» 단축키 — 주소 끝 #go-… 면 그 칸이 그려질 때까지(4초) 기다렸다 그 자리로 · 글 칸이면 커서
      (#go-mt-say 처럼 id 가 go- 없이 있어도 찾음) · 다른 # 은 건드리지 않음 */
   const { hash } = useLocation()

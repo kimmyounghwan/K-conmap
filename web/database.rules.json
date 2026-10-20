@@ -333,6 +333,34 @@
         }
       }
     },
+    // 🔢 2026-10-20 (G342) 조회수 — 소장님 「다른 것도, 건설맵이 조회수 모두 관리하면 안돼?」 「일반적으로 사이트 조회하는 방법으로 … 자정 12시 부터」
+    //    10/21 0시부터 화면을 열 때마다 1(web/src/lib/조회수.jsx 조회세기). dl 과 같은 문 — **1씩만** · 지우기 · 아무 숫자 막힘 · 로그인 안 물음.
+    //    pv/a/{전체열쇠} = 화면 위 «이 화면 조회»(주소 세 마디까지) · pv/c/{화면열쇠} = 도구 · 서식 카드(두 마디까지 — dl/p 와 같은 꼴) ·
+    //    pv/n/{공고번호 앞 8자}/{공고번호} = 공고 조회. 보이는 숫자 = 애널리틱스 9/15~10/20(fresh) + 이것.
+    //    ⚠️ 정규식은 문서에 적힌 것만(* + ? · 묶음 · 글자칸) — 묶음 뒤 {0,2} 는 문서에 없어 «마디» 를 ? 두 번으로 적음(같은 뜻).
+    "pv": {
+      ".read": true,
+      "a": {
+        "$k": {
+          ".write": "newData.exists() && $k.length <= 120 && $k.matches(/^[|]([^|]+([|][^|]+)?([|][^|]+)?)?$/)",
+          ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
+        }
+      },
+      "c": {
+        "$k": {
+          ".write": "newData.exists() && $k.length <= 80 && $k.matches(/^[|][^|]*([|][^|]+)?$/)",
+          ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
+        }
+      },
+      "n": {
+        "$g": {
+          "$no": {
+            ".write": "newData.exists() && $g.length >= 6 && $g.length <= 8 && $no.length >= 6 && $no.length <= 30 && $no.matches(/^[A-Za-z0-9-]+$/) && $no.beginsWith($g)",
+            ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
+          }
+        }
+      }
+    },
     // 👥 2026-10-18 (G315) 방문자 — 소장님 「사이트 접속만 하면 세는 걸로 … 동일인은 한 번만」 「12시에 바뀌는 걸로」 「누적도 올라가는 걸로」
     //    10/19 0시부터 건설맵이 직접 셉니다(web/src/lib/방문세기.js). 숫자 하나씩 · **1씩만** 올릴 수 있습니다(지우기 · 낮추기 · 아무 숫자 막힘).
     //    vis/d/{한국 날짜}/n · vis/d/{날짜}/r/{시·도} = 오늘(같은 브라우저 하루 한 번) · vis/a/n · vis/a/r/{시·도} = 누적(처음 온 브라우저만) · vis/on = 지금(30분 안).
@@ -581,6 +609,53 @@
       ".read": true,
       "$id": {
         ".write": "auth != null && !data.exists() && newData.isString() && newData.val() === root.child('job_pins').child($id).val()"
+      }
+    },
+
+    // ───── 🤝 공동도급 마당 (G341 · 2026-10-20, 소장님: 「자유롭게 연결될 수 있는 장」 「연락처 넣어도 돼, 이메일도」) ─────
+    // 글 한 칸에 셋: kind «구함»(구성원 구함) · «참여»(같이 하고 싶음) — 공고번호(no)가 있음 · «명부»(업체 명부 · 공고 없음 · 90일).
+    // 문은 구인구직(jobs)과 같습니다 — 익명 로그인 · 자기 글만 고침 · 삭제는 비밀번호 해시(jv_pins → jv_del) · 신고 jv_flag(한 사람 한 번).
+    // end = 글을 내릴 때(협정 마감 · 입찰 마감 · 명부 90일) — 100일 넘게는 못 적음. 끝난 글은 tools/이용자지도.py 가 7일 뒤 지웁니다(서비스 계정).
+    // 화면(lib/공동판저장.js)은 orderBy end(목록) · orderBy no(공고 하나)로만 읽습니다 → .indexOn.
+    "jv": {
+      ".read": true,
+      ".indexOn": ["end", "no"],
+      "$id": {
+        ".write": "auth != null && newData.exists() && ( !data.exists() || data.child('uid').val() === auth.uid )",
+        ".validate": "newData.hasChildren(['kind','co','rgn','uid','at','end']) && $id.length <= 24 && (newData.child('tel').exists() || newData.child('email').exists())",
+        "kind":  { ".validate": "newData.isString() && (newData.val() === '구함' || newData.val() === '참여' || newData.val() === '명부')" },
+        "no":    { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40" },
+        "name":  { ".validate": "newData.isString() && newData.val().length <= 80" },
+        "inst":  { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "co":    { ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 40" },
+        "rgn":   { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 10" },
+        "lic":   { ".validate": "newData.isString() && newData.val().length <= 80" },
+        "share": { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "sipy":  { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "want":  { ".validate": "newData.isString() && newData.val().length <= 60" },
+        "body":  { ".validate": "newData.isString() && newData.val().length <= 500" },
+        "tel":   { ".validate": "newData.isString() && newData.val().length >= 8 && newData.val().length <= 20 && newData.val().matches(/^[0-9-]+$/)" },
+        "email": { ".validate": "newData.isString() && newData.val().length >= 6 && newData.val().length <= 60 && newData.val().matches(/^[^ @]+@[^ @]+[.][^ @]+$/)" },
+        "who":   { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "uid":   { ".validate": "newData.isString() && newData.val() === auth.uid" },
+        "at":    { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
+        "end":   { ".validate": "newData.isNumber() && newData.val() <= (now + 8640000000)" },
+        "deleted": { ".validate": "newData.isBoolean()" },
+        "$other": { ".validate": false }
+      }
+    },
+    "jv_pins": {
+      ".read": false,
+      "$id": { ".write": "auth != null && !data.exists()", ".validate": "newData.isString() && newData.val().length === 64" }
+    },
+    "jv_del": {
+      ".read": true,
+      "$id": { ".write": "auth != null && !data.exists() && newData.isString() && newData.val() === root.child('jv_pins').child($id).val()" }
+    },
+    "jv_flag": {
+      ".read": true,
+      "$id": {
+        "$uid": { ".write": "auth != null && auth.uid === $uid && !data.exists()", ".validate": "newData.isBoolean()" }
       }
     },
 

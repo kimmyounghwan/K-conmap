@@ -27,6 +27,7 @@ const NAME = {
   '/live': '입찰 공고',
   '/analysis': '낙찰 분석',
   '/jobs': '구인구직',
+  '/gongdong': '공동도급 마당',
   '/daily': '개찰 성적표',
   '/forms': '건설 서식',
   '/change': '설계변경',
@@ -100,6 +101,7 @@ const PARENT = {
   '/daily': '/first',
   '/lic': '/', '/guide': '/', '/how': '/',
   '/pre': '/live',
+  '/gongdong': '/live',          /* 🤝 G341 공동도급 마당 → «← 공고» */
   /* 🩹 G198 소장님 「용역, 물품 에서 클릭해서 들어가면 뒤로가야 하는데 뒤로가기 버튼이 없어?」 —
      계산기를 주소(카톡 링크 · 즐겨찾기)로 바로 열어도 맨 위 «←» 가 그 방 공고로 */
   '/svc/calc': '/svc', '/goods/calc': '/goods',

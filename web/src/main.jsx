@@ -58,6 +58,7 @@ const lazyPage = (load) => lazy(() => load()
 const Jobs = lazyPage(() => import('./pages/Jobs.jsx'))
 /* 📊 G340 입찰 분석실 — 바로투찰(첫 덩어리)은 그대로 · 분석 칸 · 목록만 따로 받습니다 */
 const Bunseok = lazyPage(() => import('./pages/Bunseok.jsx'))
+const Gongdong = lazyPage(() => import('./pages/Gongdong.jsx'))   /* 🤝 G341 공동도급 마당 */
 
 /* 서식은 목록 자료(약 24KB)를 안고 있습니다. 서식 탭을 열기 전에는
    내려받지 않도록 따로 뗍니다 — 첫 화면 전송량에 얹지 않기 위해서입니다. */
@@ -193,6 +194,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/" element={<BaroBid />} />
           <Route path="/calc" element={<BaroBid />} />
           <Route path="/bunseok" element={<Suspense fallback={<Loading />}><Bunseok /></Suspense>} />
+          <Route path="/gongdong" element={<Suspense fallback={<Loading />}><Gongdong /></Suspense>} />
           <Route path="/first" element={<FirstBoard />} />
           <Route path="/live" element={<LiveBoard />} />
           <Route path="/ext" element={<Suspense fallback={<Loading />}><ExtBoard /></Suspense>} />

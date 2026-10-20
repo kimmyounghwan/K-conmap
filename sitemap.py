@@ -72,7 +72,11 @@ STATIC = [("/", "1.0", "hourly"), ("/first", "0.9", "hourly"), ("/live", "0.9", 
           ("/jeoksan/magam", "0.8", "monthly"),   # 🧱 2026-09-27 마감 수량산출
           ("/jeoksan/auto", "0.8", "monthly"),    # ⚡ 2026-09-27 도면 물량 자동
           ("/safety", "0.9", "monthly"),
-          ("/shareone", "0.8", "monthly")]
+          ("/shareone", "0.8", "monthly"),
+          # 🔎 G341 (2026-10-20) 소장님 「지금 만드는거 다 페이지 넣었지? … 검색되게」 — prerender TABS · firebase.json 과 셋이 같이
+          ("/bunseok", "0.9", "daily"), ("/gongdong", "0.8", "daily"),
+          ("/ext", "0.8", "daily"), ("/pre", "0.8", "daily"),
+          ("/naeyeok/hado", "0.8", "monthly"), ("/change/gisung", "0.8", "monthly")]
 
 # 건설 서식 — 변하지 않는 자료라 changefreq 는 yearly.
 # ⚠️ prerender.py 가 forms.json 의 서식을 «전부» 굽습니다. 그래서 여기서도 전부 냅니다

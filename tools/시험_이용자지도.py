@@ -240,6 +240,41 @@ n = M.지금정리({"tok": "tok"})
   and int(받은인자[0]["endAt"]) == 기준 - 2 * 3600 * 1000, (n, 지운, 받은인자))
 보낸.clear(); M.requests.get = lambda url, **k: 답(200, None)
 봄("지금정리 — 지울 것 없으면 아무것도 안 보냄", M.지금정리({"tok": "tok"}) == 0 and not 보낸)
+# 🤝 G341 공동도급 마당 — 끝나고 7일 넘은 글만 지움(jv · jv_pins · jv_del · jv_flag 한 번에) · 열쇠 꼴 · 꼴 다른 값은 그대로
+받은인자.clear()
+def 가짜get7(url, **k):
+    if url.endswith("/jv.json"):
+        받은인자.append(k.get("params"))
+        return 답(200, {"-OaAAAAAAAAAAAAAAAAA": {"end": 기준 - 8 * 86400000, "kind": "구함"}, "-ObBBBBBBBBBBBBBBBBB": {"end": 기준 - 7 * 86400000},
+                        "-OcCCCCCCCCCCCCCCCCC": {"end": 기준 - 6 * 86400000}, "bad/key": {"end": 0}, "-OdDDDDDDDDDDDDDDDDD": "글"})
+    return 답(200, None)
+M.requests.get = 가짜get7
+보낸.clear()
+n = M.공동정리({"tok": "tok"})
+지운 = [(u, _j.loads(d.decode("utf-8"))) for u, d in 보낸 if u.endswith("/.json")]
+want = {f"{칸}/{k}": None for k in ("-OaAAAAAAAAAAAAAAAAA", "-ObBBBBBBBBBBBBBBBBB") for 칸 in ("jv", "jv_pins", "jv_del", "jv_flag")}
+want.update({f"{칸}/jv-{k}": None for k in ("-OaAAAAAAAAAAAAAAAAA", "-ObBBBBBBBBBBBBBBBBB") for 칸 in ("comments", "comment_pins", "comment_del")})
+봄("공동정리 — 7일 넘은 글만 · 넷 칸 + 답글 셋 칸 한 번에 지움 · «end» 순 endAt 으로 물음",
+  n == 2 and len(지운) == 1 and 지운[0][1] == want and 받은인자 and 받은인자[0]["orderBy"] == '"end"' and int(받은인자[0]["endAt"]) == 기준 - 7 * 86400000, (n, 지운, 받은인자))
+보낸.clear(); M.requests.get = lambda url, **k: 답(200, None)
+봄("공동정리 — 지울 것 없으면 아무것도 안 보냄", M.공동정리({"tok": "tok"}) == 0 and not 보낸)
+M.requests.get = lambda url, **k: 답(500, None, "고장") if "/jv.json" in url else 답(200, None)
+보낸.clear(); _c = {"sa": {}, "pv_t": __import__("time").time()}
+M.한번(_c)
+봄("공동정리가 고장 나도 지도는 넣음 · 한 시간 뒤 다시", M.DB + "/fresh/map.json" in [u for u, _ in 보낸] and _c.get("jv_t", 0) > 0, [u for u, _ in 보낸])
+# 🔢 G342 — 10/21 0시 전엔 애널리틱스 조회수를 «today» 까지 · 그 뒤엔 10-20 까지(시작값으로 묶음)
+봄("조회끝 — 10/20 23:59 today · 10/21 0시 2026-10-20",
+  M.조회끝(datetime(2026, 10, 20, 23, 59, tzinfo=KST)) == "today" and M.조회끝(datetime(2026, 10, 21, 0, 0, tzinfo=KST)) == "2026-10-20"
+  and M.조회끝(datetime(2026, 12, 1, 9, 0, tzinfo=KST)) == "2026-10-20")
+_보낸요청 = []
+def 가짜post9(url, **k):
+    _보낸요청.append(_j.loads(k["data"]))
+    return 답(200, {"rows": []})
+M.requests.post = 가짜post9
+M.지금 = lambda: datetime(2026, 10, 21, 0, 30, tzinfo=KST)
+_n = M.조회넣기({"tok": "tok"}, dry=True)
+봄("조회넣기 — 0시 뒤엔 애널리틱스에 10-20 까지만 물음 · fresh/pv 에 to 적음",
+  _보낸요청 and _보낸요청[-1]["dateRanges"][0]["endDate"] == "2026-10-20" and _n["pv"]["to"] == "2026-10-20", (_보낸요청[-1:], _n["pv"]))
 M.지금 = _진짜지금
 print("✓ 모두 맞음" if not 틀림 else f"✗ {틀림}개 틀림")
 sys.exit(1 if 틀림 else 0)
