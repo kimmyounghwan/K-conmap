@@ -67,6 +67,9 @@ for (const f of 파일들) {
     줄.요약 = (await p.locator('.sc-sum').innerText().catch(() => '')).replace(/\s+/g, ' ')
     await 치우기(p); await p.locator('.sc-view').scrollIntoViewIfNeeded(); await p.waitForTimeout(300)
     await p.screenshot({ path: `${캡처}/${이름}_2결과.png` })
+    // 📏 G360 알림 띠(크기를 모릅니다 · 문 폭으로 짐작 · 벽만)가 있으면 그 자리도 한 장
+    const 띠 = p.locator('.sc-banner, .sc-note')
+    if (await 띠.count()) { 줄.알림 = (await 띠.allInnerTexts()).map((x) => x.replace(/\s+/g, ' ').slice(0, 60)).join(' / '); await 띠.first().evaluate((e) => e.scrollIntoView({ block: 'start' })); await p.evaluate(() => scrollBy(0, -70)); await p.waitForTimeout(200); await p.screenshot({ path: `${캡처}/${이름}_3알림.png` }) }
     const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 15000 }).catch(() => null), p.locator('button', { hasText: '⬇ DXF 받기' }).click()])
     if (dl) { const 길 = `${캡처}/${이름}.dxf`; await dl.saveAs(길); const t = fs.readFileSync(길, 'utf8'); 줄.DXF = `${(t.length / 1024).toFixed(0)}KB 선${(t.match(/\nLINE\r?\n/g) || []).length} 치수${(t.match(/\nDIMENSION\r?\n/g) || []).length}` }
   } else {

@@ -174,6 +174,8 @@ export default function SajinCad() {
     if (쓸결과.건물 && !풀.축척모름) 풀.치수들 = [...풀.치수들, ...건물치수(쓸결과, 풀)]
     return 풀
   }, [쓸결과, 사람치수, 끈치수, 고친값, 건물척])
+  /* 📏 G360 치수를 못 읽어 문 폭으로 크기를 짐작한 번 — 읽을 때마다 한 번(사람이 길이를 넣어 바뀐 것은 안 셈) */
+  useEffect(() => { if (결과 && 풀이 && 풀이.축척추정) 세기('|사진캐드|문폭짐작') }, [결과])   // eslint-disable-line react-hooks/exhaustive-deps
 
   const 그림만들기 = () => {
     const 보낼 = { ...쓸결과, 도형: 쓸결과.도형.filter((s) => !s.지움) }
@@ -343,6 +345,7 @@ export default function SajinCad() {
               return 가 && 세 ? <div className="muted sm" style={{ marginTop: 6 }}>📐 적힌 전체 치수(가로 {쉼(가.mm)} · 세로 {쉼(세.mm)})가 그림의 가로 : 세로와 달라 <b>적힌 숫자대로</b> 맞췄습니다(세로가 그림의 {풀이.비율차.toFixed(2)}배) — 그림이 축척대로 안 그려졌거나 비스듬히 찍혔을 수 있습니다.</div> : null
             })()}
             {풀이.축척모름 && <div className="sc-banner">📏 <b>크기를 모릅니다.</b> 길이를 아는 선(문 높이 · 벽 길이 · 치수선)을 눌러 실제 길이(mm)를 넣어 주세요 — 하나면 전체 크기가 맞습니다.</div>}
+            {풀이.축척추정 && <div className="sc-banner">📏 <b>치수 숫자를 못 읽어 크기는 문 폭(900 mm · 문 {풀이.축척추정.개}개)으로 짐작했습니다.</b> 길이를 아는 선(치수선 · 벽 길이)을 눌러 실제 길이(mm)를 넣으면 정확해집니다.</div>}
             <결과판 결과={쓸결과} 미리={미리} 풀이={풀이} 고른선={고른선} 고른숫자={고른숫자} 보기켬={보기켬}
               누름={(t) => { set넣는값(''); if (t && t.선 != null) { set고른선(t.선); set고른숫자(null) } else if (t && t.숫자 != null) { set고른숫자(t.숫자); set고른선(null) } else { set고른선(null); set고른숫자(null) } }} />
             <div className="sc-row sc-toggles">
