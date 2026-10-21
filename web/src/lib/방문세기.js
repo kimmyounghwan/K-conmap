@@ -306,14 +306,26 @@ export function 세션줄(직접, 바탕, 지금시각 = Date.now()) {
 
 /** 지도 화면이 읽는 직접 센 숫자 — {a: vis/a, d: vis/d/오늘, 지금: 30분 안 브라우저 수(못 받으면 null), 지금곳: {곳 번호: 수}, 날, at, 어제: {날, n} | null}
  *  누적 · 오늘을 못 받으면 null */
-export async function 직접받기(지금 = Date.now()) {
+/* ⏱ 2026-10-21 소장님 「새로고침을 하면 반응이 느려」 — 데이터베이스 요청 여럿을 한꺼번에 보내면 몇 개가 1.5 ~ 7초 걸림(실제 사이트에서 잼 · 새 연결을 열 때).
+   누적 · 오늘(vis/a · vis/d/오늘)은 꼭 기다리고, 곁 숫자(지금 30분 · 어제 · 세션)는 4초 넘으면 끊고 «못 받음» — 화면은 앞서 받은 값을 그대로 둠(이용자지도.jsx 합치기) ·
+   끊으면 연결도 놓아 다른 요청이 줄을 서지 않게 */
+export const 곁기다림 = 4000
+const 받기 = (u, ms) => {
+  const 멈춤 = ms && typeof AbortController !== 'undefined' ? new AbortController() : null
+  const 시계 = 멈춤 ? setTimeout(() => 멈춤.abort(), ms) : 0
+  return fetch(u, { cache: 'no-store', ...(멈춤 ? { signal: 멈춤.signal } : {}) })
+    .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+    .finally(() => { if (시계) clearTimeout(시계) })
+}
+export async function 직접받기(지금 = Date.now(), o = {}) {
   const 날 = 한국날(지금)
-  const 받 = (u) => fetch(u, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+  const 받 = (u) => 받기(u)
+  const 곁 = (u) => 받기(u, o.곁기다림 ?? 곁기다림)
   const 지금주소 = `${DB}/vis/on.json?orderBy=${encodeURIComponent('"t"')}&startAt=${지금 - 지금틈}`
   try {
-    const [a, d, on, 어제, sa, 어제s] = await Promise.all([받(`${DB}/vis/a.json`), 받(`${DB}/vis/d/${날}.json`), 받(지금주소).catch(() => undefined), 어제받기(지금, 받),
-      방문인가(지금) ? 받(`${DB}/vis/sa/n.json`).then((v) => Number(v) || 0).catch(() => undefined) : Promise.resolve(null),       // 🔁 세션 누적(건설맵 몫) · 못 받음 undefined
-      어제세션받기(지금, 받)])
+    const [a, d, on, 어제, sa, 어제s] = await Promise.all([받(`${DB}/vis/a.json`), 받(`${DB}/vis/d/${날}.json`), 곁(지금주소).catch(() => undefined), 어제받기(지금, 곁),
+      방문인가(지금) ? 곁(`${DB}/vis/sa/n.json`).then((v) => Number(v) || 0).catch(() => undefined) : Promise.resolve(null),       // 🔁 세션 누적(건설맵 몫) · 못 받음 undefined
+      어제세션받기(지금, 곁)])
     let 수 = null; const 지금곳 = {}
     if (on !== undefined) {
       수 = 0
@@ -325,6 +337,19 @@ export async function 직접받기(지금 = Date.now()) {
     }
     return { a: a || {}, d: d || {}, 지금: 수, 지금곳, 날, at: Date.now(), 어제: 어제 || null, sa, 어제s }
   } catch (e) { return null }
+}
+
+/** 새로 받은 건설맵 숫자에 «못 받은 곁 칸» 이 있으면 앞 값 그대로(같은 날일 때만) */
+export function 직접합치기(옛, 새) {
+  if (!새) return 옛
+  if (!옛 || 옛.날 !== 새.날) return 새
+  const 나 = { ...새 }
+  if (새.지금 == null && 옛.지금 != null && 새.at - (옛.지금때 || 옛.at) < 10 * 60000) { 나.지금 = 옛.지금; 나.지금곳 = 옛.지금곳; 나.지금때 = 옛.지금때 || 옛.at }
+  else if (새.지금 != null) 나.지금때 = 새.at
+  if (!새.어제 && 옛.어제) 나.어제 = 옛.어제
+  if (새.sa === undefined && 옛.sa !== undefined) 나.sa = 옛.sa
+  if (!새.어제s && 옛.어제s) 나.어제s = 옛.어제s
+  return 나
 }
 
 /** 지도 점 — 직접 센 것 → [{p 자리, 지금 0~3, 오늘 bool}] (lib/이용자지도.js 지도점들 과 같은 꼴 · 크기 1명 · 2~4명 · 5명 넘게) */

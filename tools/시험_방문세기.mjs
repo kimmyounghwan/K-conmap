@@ -15,7 +15,7 @@ const 곳간 = new Map()
 globalThis.window = globalThis
 globalThis.localStorage = { getItem: (k) => (곳간.has(k) ? 곳간.get(k) : null), setItem: (k, v) => 곳간.set(k, String(v)), removeItem: (k) => 곳간.delete(k), key: () => null, length: 0 }
 globalThis.document = { visibilityState: 'visible', cookie: '', addEventListener: () => {} }
-let 막힌저장 = false, 지금고장 = false, 어제고장 = false, 서버시각 = 0
+let 막힌저장 = false, 지금고장 = false, 어제고장 = false, 서버시각 = 0, 지금느림 = false
 if (!globalThis.crypto) globalThis.crypto = (await import('crypto')).webcrypto
 const 원getItem = localStorage.getItem
 /* 가짜 데이터베이스 — 규칙 vis 그대로(1씩만 · 날짜 · 시·도 열쇠) · ETag */
@@ -42,6 +42,7 @@ globalThis.fetch = async (url, o = {}) => {
   const 길 = m[1]
   if (길 === 'on' && (!o.method || o.method === 'GET')) {   // 지금(30분) — orderBy="$value"&startAt= (규칙 .indexOn 있어야 됨)
     if (지금고장) return 응답(400, { error: 'Index not defined' })
+    if (지금느림) return new Promise((res, rej) => { const 시 = setTimeout(() => res(응답(200, null)), 10000); if (o.signal) o.signal.addEventListener('abort', () => { clearTimeout(시); rej(new Error('abort')) }) })   // ⏱ 아주 늦는 연결
     const q = new URLSearchParams(물음 || '')
     if (q.get('orderBy') !== '"t"') return 응답(400, { error: 'orderBy' })
     const 앞 = Number(q.get('startAt')); const 묶 = {}
@@ -181,6 +182,20 @@ const 점수원 = 점.find((x) => x.p.k === 수원), 점광양 = 점.find((x) =>
 const 지2 = await B.직접받기(KST('2026-10-20T14:25:00'))
 봄('직접받기 — 지금을 못 받아도 누적 · 오늘은 받고 지금 = null(화면은 애널리틱스로)', 지2 && 지2.지금 === null && 지2.a.n === 디비.get('a/n'), JSON.stringify(지2))
 지금고장 = false
+/* ⏱ 2026-10-21 새로고침 느림 — 곁 숫자(지금 30분)가 아주 늦으면 기다리지 않고 끊음 · 누적 · 오늘은 그대로 · 못 받은 칸은 앞 값 그대로(직접합치기) */
+지금느림 = true
+const 느t0 = Date.now()
+const 느 = await B.직접받기(KST('2026-10-20T14:25:00'), { 곁기다림: 300 })
+const 느걸림 = Date.now() - 느t0
+지금느림 = false
+봄(`직접받기 — 지금(30분)이 10초 걸려도 ${느걸림}ms 만에 끊고 누적 · 오늘은 받음 · 지금 = null`, 느 && 느.지금 === null && 느.a.n === 디비.get('a/n') && 느걸림 < 2000, JSON.stringify(느 && [느.지금, 느.a.n]))
+봄('직접받기 — 기본 곁 기다림 4초', B.곁기다림 === 4000)
+const 옛직 = { 날: '2026-10-20', a: { n: 1 }, d: { n: 2 }, 지금: 3, 지금곳: { 11: 3 }, at: KST('2026-10-20T14:20:00'), 어제: { 날: '2026-10-19', n: 7 }, sa: 9, 어제s: { 날: '2026-10-19', n: 11 } }
+const 새직 = { 날: '2026-10-20', a: { n: 5 }, d: { n: 6 }, 지금: null, 지금곳: {}, at: KST('2026-10-20T14:21:00'), 어제: null, sa: undefined, 어제s: null }
+const 합직 = B.직접합치기(옛직, 새직)
+봄('직접합치기 — 못 받은 곁 칸(지금 · 어제 · 세션)은 앞 값 · 누적 · 오늘은 새 값', 합직.a.n === 5 && 합직.d.n === 6 && 합직.지금 === 3 && 합직.지금곳[11] === 3 && 합직.어제.n === 7 && 합직.sa === 9 && 합직.어제s.n === 11, JSON.stringify(합직))
+봄('직접합치기 — 앞 «지금» 이 10분 넘었으면 안 씀 · 날이 바뀌면 새 것 그대로 · 새 «지금» 이 오면 새 값',
+  B.직접합치기(옛직, { ...새직, at: KST('2026-10-20T14:31:00') }).지금 === null && B.직접합치기(옛직, { ...새직, 날: '2026-10-21' }).어제 === null && B.직접합치기(옛직, { ...새직, 지금: 8 }).지금 === 8)
 const 막3 = await fetch('https://k-conmap-default-rtdb.firebaseio.com/vis/on/' + 'x'.repeat(16) + '.json', { method: 'PUT', body: '{"t":123}' })
 const 막4 = await fetch('https://k-conmap-default-rtdb.firebaseio.com/vis/on/' + 'x'.repeat(16) + '.json', { method: 'PUT', body: '{"t":{".sv":"timestamp"},"k":"서울","x":1}' })
 봄('가짜 디비 규칙 — 지금 표시에 아무 숫자 · 이상한 곳 번호 · 다른 칸 막힘', 막3.status === 401 && 막4.status === 401)
