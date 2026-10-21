@@ -20,6 +20,7 @@ import RefreshBtn from './Refresh.jsx'
 import Crumbs, { BackBtn } from './Crumbs.jsx'
 import { 화면조회줄, use조회세기 } from './lib/조회수.jsx'   /* 👁 G121 — 모든 화면 위 «이 화면 조회 N» · 👥 G172 방문자 바닥글은 G199 에서 뺌(바로투찰 지도에만) */
 import { use길지킴이 } from './lib/길기록.js'
+import { use씀세기 } from './lib/씀세기.js'   /* ✍ 2026-10-21 화면 안에서 처음 손댄 횟수 — 소장님 판에만(아래 <Outlet /> 앞뒤 표시) */
 import { 쓴곳기록 } from './lib/마이쓴곳.js'   /* 🪪 G188 마이컨맵 «내 도구 · 서식» — 연 도구 · 서식을 이 브라우저에만 셈 */
 
 import { use떨굼막기 } from './끌어놓기.jsx'
@@ -148,6 +149,7 @@ export default function App() {
   useEffect(() => { 쓴곳기록(pathname) }, [pathname])
   /* 🔢 G342 — 10/21 0시부터 조회수도 건설맵이 직접(화면을 열 때마다 1 · 소장님 · 로봇 뺌) — lib/조회수.jsx */
   use조회세기()
+  use씀세기()
   /* 🪪 G188 마이컨맵 «그 일로 바로» 단축키 — 주소 끝 #go-… 면 그 칸이 그려질 때까지(4초) 기다렸다 그 자리로 · 글 칸이면 커서
      (#go-mt-say 처럼 id 가 go- 없이 있어도 찾음) · 다른 # 은 건드리지 않음 */
   const { hash } = useLocation()
@@ -255,7 +257,9 @@ export default function App() {
         <Crumbs />
         <화면조회줄 />
         <쓴수자리 />
+        <span id="씀-앞" hidden />
         <Outlet />
+        <span id="씀-뒤" hidden />
         {/* 👋🙏 방문 인사 — 떠 있다가 5초 뒤 사라지는 쪽지(자리를 차지하지 않음) */}
         <인사 />
         <알림안내 />

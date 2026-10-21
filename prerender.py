@@ -1627,7 +1627,8 @@ def form_page(shell, f, others, image=None):
            f'<p style="font-size:12.5px;margin:8px 0 0">{esc(lead)}</p>'
            f'{또줄}'
            f'<div class="btn-row" style="margin-top:12px">'
-           + ((f'<a class="btn primary" href="#작성">✍️ 사이트에서 작성 → PDF</a>'
+           + (((f'<a class="btn primary" href="/tools/risk">✍️ 사이트에서 작성 → PDF (위험성평가 도구 · 별지 1~5)</a>' if f.get("gen") == "wihgen"
+                 else f'<a class="btn primary" href="#작성">✍️ 사이트에서 작성 → PDF</a>')
                + (f'<a class="btn ghost" href="{esc(f["pdf"])}" target="_blank" rel="noopener">🖨 빈 서식 PDF</a>'
                   if f.get("pdf") and f.get("gen") != "wihgen" else '')) if 웹 else
               (f'<a class="btn primary" href="/forms/{esc(f["slug"])}.xlsx" download>⬇ 엑셀 내려받기</a>'

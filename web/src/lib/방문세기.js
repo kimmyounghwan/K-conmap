@@ -25,6 +25,12 @@
      «여기 있음» 은 올린 때부터 바로 남기고(0시에 비어 보이지 않게) 화면 숫자만 0시에 바뀜. 2시간 넘은 것은 깃허브(tools/이용자지도.py)가 지움.
    ■ 0시 — 열어 둔 화면도 1분마다 날짜를 봅니다. 날이 바뀌면(화면이 보일 때) 새 날로 한 번 셉니다.
    ■ 비용: 새 사람 하루 한 번 작은 요청 4~8번 · 지도 화면은 1분마다 작은 읽기 둘(vis/a · vis/d/오늘)
+   ■ 🔁 세션 — 2026-10-21 소장님 「그냥 지금처럼 두고 당일 세션만 추가」 → 「세션 누적 세션 당일 이렇게 추가하자」 · 고르심 «표 꼴»
+     사람 셈(위 전부 · 방문자 줄)은 그대로 · 지도 상자에 세션 줄(누적 · 오늘 · 어제)을 더함. 10/22 0시부터(방문시작).
+     세션 누적 = 애널리틱스 세션 9/15~10/21(fresh/ses — tools/이용자지도.py) + vis/sa/n · 어제 = 10/22 엔 fresh/ses.y · 10/23 부터 vis/d/{어제}/s.
+     다른 사이트(애널리틱스 «세션» · 네이버 «방문수»)와 같은 잣대: 화면을 보다가 30분 넘게 안 보았다가 다시 보면 1번 더 · 0시 지나면 새 날 1번.
+     vis/d/{날짜}/s · vis/sa/n — 1씩만(규칙). 시·도별 세션은 안 셈. 마지막으로 본 때 kcm.vis.s = {t, d} — 화면이 보이는 동안 1분마다 고침(탭 여럿 · 새로 고침도 한 방문).
+     안 세는 것은 사람 셈과 같음(운영자 · 로봇 · 5초 안 나감 · 숨은 탭). 비용: 세션마다 작은 요청 4번(두 곳 · 읽고 1 더하기).
    ══════════════════════════════════════════════════════════════ */
 import { 시도찾기 } from './이용자지도.js'
 /** 자동 브라우저 — 받은수.jsx 봇() 과 같은 셈(그쪽은 .jsx 라 시험(node)에서 못 불러 여기 한 줄 둠) */
@@ -162,6 +168,42 @@ export async function 세어보기(지금 = Date.now()) {
   } finally { 도는중 = false }
 }
 
+/* ── 🔁 오늘 방문(세션) — 10/22 0시부터 · vis/d/{날}/s 하나만 ── */
+export const 방문시작 = Date.parse('2026-10-22T00:00:00+09:00')
+export const 방문인가 = (t = Date.now()) => t >= 방문시작
+export const 쉼틈 = 30 * 60000
+const 방문열쇠 = 'kcm.vis.s'
+/** 새 방문인가 — 마지막으로 본 때 {t, d} · 지금 → 처음 · 날이 바뀜 · 30분 넘게 쉼이면 true */
+export function 새방문(옛, 지금) {
+  if (!옛 || typeof 옛.t !== 'number' || !isFinite(옛.t)) return true
+  if (옛.d !== 한국날(지금)) return true
+  return 지금 - 옛.t >= 쉼틈
+}
+let 방문도는중 = false
+/** 화면이 보이면 «마지막으로 본 때» 를 고치고, 새 방문이면 오늘 방문에 1 더함. 돌려줌: 센 길(시험용) 또는 null */
+export async function 방문보기(지금 = Date.now()) {
+  if (typeof document !== 'undefined' && document.visibilityState && document.visibilityState !== 'visible') return null
+  if (봇() || 방문도는중) return null
+  let 옛
+  try { 옛 = JSON.parse(localStorage.getItem(방문열쇠) || 'null') } catch (e) { return null }
+  const 새 = 새방문(옛, 지금)
+  const 날 = 한국날(지금)
+  const 값 = JSON.stringify({ t: 지금, d: 날 })
+  try { localStorage.setItem(방문열쇠, 값); if (localStorage.getItem(방문열쇠) !== 값) return null } catch (e) { return null }   // 기억을 못 쓰면 세지 않음(1분마다 또 세지 않게)
+  if (!새 || !방문인가(지금)) return null
+  방문도는중 = true
+  try {
+    if (운영자 === null) {
+      try { const o = await import('./운영자.js'); 운영자 = !!(await o.나운영자()) } catch (e) { 운영자 = false }
+    }
+    if (운영자) return null
+    const 길 = [`d/${날}/s`, 'sa/n']
+    const 됨 = await Promise.all(길.map((p) => 하나더(p).catch(() => false)))
+    if (됨.some(Boolean)) 듣는이.forEach((f) => { try { f() } catch (e) { /* 무시 */ } })
+    return 길
+  } finally { 방문도는중 = false }
+}
+
 /* ── 지금(30분 안) — «여기 있음» ── */
 const 번호열쇠 = 'kcm.vis.id'
 export const 숨틈 = 5 * 60000
@@ -202,7 +244,7 @@ export function 방문켜기() {
   if (typeof window === 'undefined' || window.__방문) return
   window.__방문 = true
   let 본 = 0, 시작 = null, 끝 = false
-  const 다시 = () => { 세어보기().catch(() => {}); 숨쉬기().catch(() => {}) }
+  const 다시 = () => { 세어보기().catch(() => {}); 방문보기().catch(() => {}); 숨쉬기().catch(() => {}) }
   const 재기 = () => {
     if (끝) return
     if (document.visibilityState === 'visible') { if (시작 == null) 시작 = Date.now() } else if (시작 != null) { 본 += Date.now() - 시작; 시작 = null }
@@ -236,6 +278,32 @@ export function 어제받기(지금, 받) {
   }).catch(() => null)
 }
 
+/* 🔁 어제 세션(건설맵) — 어제가 10/22 이후일 때만 vis/d/{어제}/s (30분 기억 · 어제 사람 수와 같은 꼴) · 그 전 날이면 null(화면이 애널리틱스 어제 세션을 씀) */
+const 어제s기억 = { 날: '', n: null, t: 0 }
+export function 어제세션받기(지금, 받) {
+  const 어제날 = 한국날(지금 - 86400000)
+  if (!방문인가(Date.parse(어제날 + 'T00:00:00+09:00'))) return Promise.resolve(null)
+  if (어제s기억.날 === 어제날 && typeof 어제s기억.n === 'number' && Date.now() - 어제s기억.t < 30 * 60000) return Promise.resolve({ 날: 어제날, n: 어제s기억.n })
+  return 받(`${DB}/vis/d/${어제날}/s.json`).then((v) => {
+    const n = v !== null && isFinite(Number(v)) ? Math.max(0, Number(v)) : 0
+    Object.assign(어제s기억, { 날: 어제날, n, t: Date.now() })
+    return { 날: 어제날, n }
+  }).catch(() => null)
+}
+
+/** 🔁 세션 줄 — 직접 받은 것 · 애널리틱스 세션 바탕(fresh/ses) → {누적, 오늘, 어제} (모르는 칸은 null) · 10/21 까지는 null(줄을 안 그림) */
+export function 세션줄(직접, 바탕, 지금시각 = Date.now()) {
+  if (!방문인가(지금시각) || !직접 || 직접.날 !== 한국날(지금시각)) return null
+  const 수 = (v) => (isFinite(Number(v)) ? Math.max(0, Number(v)) : 0)
+  const 바 = 바탕 && typeof 바탕.kr === 'number' ? 수(바탕.kr) + 수(바탕.f) : null
+  const 누적 = 바 != null && typeof 직접.sa === 'number' ? 바 + 직접.sa : null
+  const 어제날 = 한국날(지금시각 - 86400000)
+  let 어제 = null
+  if (직접.어제s && 직접.어제s.날 === 어제날) 어제 = 직접.어제s.n
+  else if (바탕 && 바탕.yd === 어제날 && 바탕.y) 어제 = 수(바탕.y.kr) + 수(바탕.y.f)
+  return { 누적, 오늘: 수(직접.d && 직접.d.s), 어제 }
+}
+
 /** 지도 화면이 읽는 직접 센 숫자 — {a: vis/a, d: vis/d/오늘, 지금: 30분 안 브라우저 수(못 받으면 null), 지금곳: {곳 번호: 수}, 날, at, 어제: {날, n} | null}
  *  누적 · 오늘을 못 받으면 null */
 export async function 직접받기(지금 = Date.now()) {
@@ -243,7 +311,9 @@ export async function 직접받기(지금 = Date.now()) {
   const 받 = (u) => fetch(u, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
   const 지금주소 = `${DB}/vis/on.json?orderBy=${encodeURIComponent('"t"')}&startAt=${지금 - 지금틈}`
   try {
-    const [a, d, on, 어제] = await Promise.all([받(`${DB}/vis/a.json`), 받(`${DB}/vis/d/${날}.json`), 받(지금주소).catch(() => undefined), 어제받기(지금, 받)])
+    const [a, d, on, 어제, sa, 어제s] = await Promise.all([받(`${DB}/vis/a.json`), 받(`${DB}/vis/d/${날}.json`), 받(지금주소).catch(() => undefined), 어제받기(지금, 받),
+      방문인가(지금) ? 받(`${DB}/vis/sa/n.json`).then((v) => Number(v) || 0).catch(() => undefined) : Promise.resolve(null),       // 🔁 세션 누적(건설맵 몫) · 못 받음 undefined
+      어제세션받기(지금, 받)])
     let 수 = null; const 지금곳 = {}
     if (on !== undefined) {
       수 = 0
@@ -253,7 +323,7 @@ export async function 직접받기(지금 = Date.now()) {
         if (typeof v.k === 'string' && v.k) 지금곳[v.k] = (지금곳[v.k] || 0) + 1
       }
     }
-    return { a: a || {}, d: d || {}, 지금: 수, 지금곳, 날, at: Date.now(), 어제: 어제 || null }
+    return { a: a || {}, d: d || {}, 지금: 수, 지금곳, 날, at: Date.now(), 어제: 어제 || null, sa, 어제s }
   } catch (e) { return null }
 }
 

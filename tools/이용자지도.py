@@ -237,19 +237,24 @@ def 누적끝(때=None):
     return "today" if (때 or 지금()).strftime("%Y-%m-%d") < 직접시작날 else 바탕끝날
 
 
-def 비교넣기(ctx, 새, dry=False):
-    """어제(한국) 건설맵이 센 수(vis/d/{어제}/n) · 애널리틱스 어제 사용자(w.y — 없으면 kr.y) → fresh/vcmp/{어제}"""
+def 비교넣기(ctx, 새, dry=False, ses=None):
+    """어제(한국) 건설맵이 센 수(vis/d/{어제}/n) · 애널리틱스 어제 사용자(w.y — 없으면 kr.y) → fresh/vcmp/{어제}
+       🔁 방문(세션): 건설맵 어제 방문(vis/d/{어제}/s → ms) · 애널리틱스 어제 세션(ses.y → gs) 도 같이"""
     어제 = (지금() - timedelta(days=1)).strftime("%Y-%m-%d")
     if 어제 < 직접시작날:
         return None
     tok = ctx["tok"]
-    q = requests.get(f"{DB}/vis/d/{어제}/n.json", headers={"Authorization": "Bearer " + tok}, timeout=20)
+    q = requests.get(f"{DB}/vis/d/{어제}.json", headers={"Authorization": "Bearer " + tok}, timeout=20)
     if q.status_code != 200:
         raise RuntimeError(f"데이터베이스(방문 읽기) HTTP {q.status_code} {q.text[:120]}")
-    me = int(q.json() or 0)
+    하루 = q.json() or {}
+    me = int((하루.get("n") if isinstance(하루, dict) else 0) or 0)
     ga = int(((새.get("w") or 새.get("kr") or {}).get("y")) or 0)
     v = {"ga": ga, "me": me, "at": int(지금().timestamp() * 1000)}
-    적기(f"  · 어제({어제}) 건설맵 {me:,} · 애널리틱스 {ga:,}")
+    if ses and ses.get("yd") == 어제:
+        v["gs"] = int(ses["y"]["kr"]) + int(ses["y"]["f"])
+        v["ms"] = int((하루.get("s") if isinstance(하루, dict) else 0) or 0)
+    적기(f"  · 어제({어제}) 건설맵 {me:,} · 애널리틱스 {ga:,}" + (f" · 방문 건설맵 {v['ms']:,} · 애널리틱스 세션 {v['gs']:,}" if "gs" in v else ""))
     if dry:
         return v
     r = requests.put(f"{DB}/fresh/vcmp/{어제}.json", headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"},
@@ -257,6 +262,73 @@ def 비교넣기(ctx, 새, dry=False):
     if r.status_code != 200:
         raise RuntimeError(f"데이터베이스(비교) HTTP {r.status_code} {r.text[:120]}")
     return v
+
+
+# ── 🔁 세션 바탕 (2026-10-21) ─────────────────────────────────
+#   소장님: 「다른 사이트 카운팅할때 세션으로 세잖아 …」 → 여러 번 고쳐 정함: 「그냥 지금처럼 두고 당일 세션만 추가」 →
+#          「세션 누적 세션 당일 이렇게 추가하자」 · 고르심 «표 꼴»(방문자 줄 그대로 + 세션 줄 — 누적 · 오늘 · 어제)
+#   → 사람 셈(방문자)은 전과 같음. 10/22 0시부터 세션 줄: 누적 = 애널리틱스 세션 9/15~10/21(여기 · fresh/ses) + 건설맵이 센 세션(vis/sa/n)
+#      오늘 = vis/d/{오늘}/s · 어제 = 10/22 엔 애널리틱스 어제 세션(fresh/ses.y · yd) · 10/23 부터 vis/d/{어제}/s
+#   · 대한민국 = 애널리틱스 «세션» 그대로 · 대한민국 밖 = 참여 세션이 있는 줄(나라·지역·도시)의 세션만(로봇 뺌 — 해외묶기와 같은 뜻)
+#   · 끝날을 10/21 로 묶어 둠 → 애널리틱스가 그 날 치를 다 채우면 더 안 바뀜. 요청 하나(10분마다) · 무료.
+#   fresh/ses = {at, from, e, kr, f, r: {지역(영어): 세션}, y: {kr, f}, yd}
+방문바탕끝날 = "2026-10-21"
+
+
+def 세션묶기(rows):
+    """[countryId, region, city, dateRange] · [sessions, engagedSessions] → {kr: {a, y}, f: {a, y}, r: {지역: a}}"""
+    out = {"kr": {"a": 0, "y": 0}, "f": {"a": 0, "y": 0}, "r": {}}
+    for row in rows or []:
+        d = [x.get("value", "") for x in row.get("dimensionValues") or []]
+        m = [x.get("value", "0") for x in row.get("metricValues") or []]
+        if len(d) < 4 or not d[0] or d[3] not in ("a", "y"):
+            continue
+        try:
+            세션, 참여 = int(float(m[0])), int(float(m[1] if len(m) > 1 else 0))
+        except Exception:
+            continue
+        if 세션 <= 0:
+            continue
+        if d[0] == "KR":
+            out["kr"][d[3]] += 세션
+            if d[3] == "a":
+                k = (d[1] or "").strip()
+                k = "notset" if (not k or k.startswith("(")) else k.translate(나쁜글자)[:60]
+                out["r"][k] = out["r"].get(k, 0) + 세션
+        elif 참여 > 0:
+            out["f"][d[3]] += 세션
+    return out
+
+
+def _세션요청(tok):
+    r = requests.post(
+        f"https://analyticsdata.googleapis.com/v1beta/properties/{GA_PROPERTY}:runReport",
+        headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"},
+        data=json.dumps({"dateRanges": [{"startDate": 조회시작, "endDate": 방문바탕끝날, "name": "a"},
+                                        {"startDate": "yesterday", "endDate": "yesterday", "name": "y"}],
+                         "dimensions": [{"name": "countryId"}, {"name": "region"}, {"name": "city"}],
+                         "metrics": [{"name": "sessions"}, {"name": "engagedSessions"}],
+                         "limit": 20000}),
+        timeout=60)
+    if r.status_code != 200:
+        raise RuntimeError(f"애널리틱스(세션) HTTP {r.status_code} {r.text[:160]}")
+    return r.json().get("rows") or []
+
+
+def 세션넣기(ctx, dry=False):
+    tok = ctx["tok"]
+    g = 세션묶기(_세션요청(tok))
+    새 = {"at": int(지금().timestamp() * 1000), "from": 조회시작, "e": 방문바탕끝날,
+          "kr": g["kr"]["a"], "f": g["f"]["a"], "r": g["r"] or None,
+          "y": {"kr": g["kr"]["y"], "f": g["f"]["y"]}, "yd": (지금() - timedelta(days=1)).strftime("%Y-%m-%d")}
+    적기(f"  · 세션 누적(~{방문바탕끝날}) 대한민국 {새['kr']:,} · 해외 {새['f']:,} · 시·도 {len(g['r'])}곳 · 어제 {새['y']['kr'] + 새['y']['f']:,}")
+    if dry:
+        return 새
+    q = requests.put(f"{DB}/fresh/ses.json", headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"},
+                     data=json.dumps(새, ensure_ascii=False).encode("utf-8"), timeout=30)
+    if q.status_code != 200:
+        raise RuntimeError(f"데이터베이스(세션) HTTP {q.status_code} {q.text[:120]}")
+    return 새
 
 
 def 지금정리(ctx, dry=False):
@@ -394,8 +466,13 @@ def 지역넣기(ctx, dry=False):
                      data=json.dumps(새, ensure_ascii=False).encode("utf-8"), timeout=30)
     if q.status_code != 200:
         raise RuntimeError(f"데이터베이스(지역) HTTP {q.status_code} {q.text[:120]}")
+    ses = None
+    try:                                                  # 🔁 방문(세션) 바탕 — 못 해도 지역 숫자는 그대로
+        ses = 세션넣기(ctx, dry)
+    except Exception as e:
+        적기(f"  ! 세션 못 했습니다 ({type(e).__name__}: {str(e)[:120]})")
     try:                                                  # 👥 G315 어제 비교 — 못 해도 지역 숫자는 그대로
-        비교넣기(ctx, 새, dry)
+        비교넣기(ctx, 새, dry, ses)
     except Exception as e:
         적기(f"  ! 어제 비교 못 했습니다 ({type(e).__name__}: {str(e)[:120]})")
     try:                                                  # 👥 G315 지금(30분) 옛 표시 지우기

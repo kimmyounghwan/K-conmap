@@ -19,6 +19,7 @@ import {
   하자표, 하자찾기, 보증금률표, 하자보증,
 } from '../lib/계약셈.js'
 import { loadBasket } from '../lib/basket.js'
+import { 쉬는날 } from '../lib/해마다.js'
 import { getBidIndex, indexRows } from '../lib/data.js'
 
 const num = (v) => { const n = Number(String(v ?? '').replace(/[^0-9.]/g, '')); return isFinite(n) ? n : 0 }
@@ -116,7 +117,7 @@ export function SubcontractCheck({ ex = {} }) {
       ]} />
       <div className="hint kt-hint">
         비율: {직접시공표.map((x) => `${x.글} ${x.율}%`).join(' · ')}. 발주자가 품질·능률을 위해 서면으로 승낙했거나, 특허·신기술 부분을 그 기술을 가진 업체에 하도급하면 예외입니다.
-        {' '}직접시공계획은 계약한 날부터 30일 안에 발주자에게 통보합니다(전문공사를 전문업종으로 받은 경우, 4천만 원 미만·30일 이내 공사는 제외).
+        {' '}직접시공계획은 계약한 날부터 30일 안에 발주자에게 통보합니다. 통보하지 않아도 되는 것: 전문공사를 그 전문업종으로 받은 경우 · 1건 도급금액 4천만 원 미만<b>이면서</b> 공사기간 30일 이내인 공사(둘 다 맞아야 함).
       </div>
       <근거줄>건설산업기본법 제28조의2 · 시행령 제30조의2</근거줄>
       <div className="kt-next">하도급 통보(30일)·지급보증서(30일)·대금 지급(15일) 날짜는 <Link to="/tools/after-award">📅 낙찰 뒤 할 일 달력</Link>에서 한 번에 뽑습니다.</div>
@@ -270,7 +271,15 @@ export function DelayPenalty({ ex = {} }) {
   const [기한, set기한] = use칸('기한', ex.기한 ?? '')
   const [합격, set합격] = use칸('합격', ex.합격 ?? '')
   const [기한안, set기한안] = use칸('기한안', ex.기한안 ?? false)
-  const [공휴, set공휴] = use칸('공휴', ex.공휴 ?? false)
+  const [공휴옛] = use칸('공휴', ex.공휴 ?? false)
+  /* 🩹 2026-10-21 소장님 «도구 점검» — 준공기한이 토 · 일 · 공휴일이면 «마지막 날이 공휴일» 칸을 저절로 켭니다(전엔 손으로 켜야 해서 잊으면 하루 더 셈).
+     손으로 누르면 그 값이 이깁니다(발주기관 휴무일이 다를 수 있어서) · 날짜를 바꾸면 다시 저절로. 쉬는 날 표 = lib/해마다.js(공휴일에 관한 법률 · 월력요항) */
+  const [공휴손, set공휴손] = use칸('공휴손', ex.공휴 ?? null)
+  const [손날, set손날] = use칸('공휴손날', '')
+  const 쉼 = /^\d{4}-\d{2}-\d{2}$/.test(기한 || '') ? 쉬는날(기한) : false
+  const 손맞음 = 공휴손 != null && 손날 === 기한
+  const 공휴 = 손맞음 ? !!공휴손 : (쉼 || 공휴옛 === true)
+  const set공휴 = (v) => { set공휴손(!!v); set손날(기한) }
   const [뺄, set뺄] = use칸('뺄', ex.뺄 ?? '')
   const [직접일, set직접일] = use칸('직접일', ex.직접일 ?? '')
   const 표 = 지체율표[곳] || null
@@ -309,7 +318,7 @@ export function DelayPenalty({ ex = {} }) {
       </div>
       <div className="kt-chks">
         <label className="kt-chk"><input type="checkbox" checked={!!기한안} onChange={(e) => set기한안(e.target.checked)} /> <span>준공기한 안에 준공신고서를 냈음 (검사 기간은 지체가 아님)</span></label>
-        <label className="kt-chk"><input type="checkbox" checked={!!공휴} onChange={(e) => set공휴(e.target.checked)} /> <span>준공기한 마지막 날이 공휴일·발주기관 휴무일 (그 다음 다음 날부터 셈)</span></label>
+        <label className="kt-chk"><input type="checkbox" checked={!!공휴} onChange={(e) => set공휴(e.target.checked)} /> <span>준공기한 마지막 날이 공휴일·발주기관 휴무일 (그 다음 다음 날부터 셈){쉼 && !손맞음 ? <b className="kt-auto"> — {기한}({'일월화수목금토'[new Date(기한 + 'T00:00:00').getDay()]})은 쉬는 날이라 저절로 켰습니다</b> : null}</span></label>
       </div>
       <Out items={[
         { k: '지체일수', v: 일.날 != null ? `${일.날}일` : '—' },
@@ -375,6 +384,7 @@ export function DefectPeriod({ ex = {} }) {
         <b>{x.갈래}</b> · {x.이름}. 여러 공종이 섞인 공사는 <b>세부 공종마다</b> 이 기간을 따로 씁니다(책임을 나눌 수 없으면 주된 공종).
         {' '}보증금률은 계약담당공무원이 공종에 따라 네 칸(5·4·3·2%) 가운데서 정합니다 — 위 값은 공종으로 짚어 본 것이니 <b>공고·계약서에 적힌 율을 쓰십시오.</b>
         {' '}끝나는 날은 보증서에 적힌 보증기간이 기준입니다. 해체공사·단순 암반 절취·모래자갈 채취처럼 하자보수가 필요 없는 공사는 보증금이 없습니다.
+        {' '}<b>이 표에 없는 것</b>: 공동주택(아파트 등) 건설공사는 «공동주택관리법 시행령» [별표 4], 문화재(국가유산) 수리공사는 그 수리 법령 시행령 [별표 9]의 기간을 따릅니다(국가계약법 시행규칙 제70조①3호·7호).
       </div>
       <근거줄>{x.법} · 국가계약법 시행령 제60조·제62조, 시행규칙 제70조·제72조 / 지방계약법 시행령 제69조·제71조, 시행규칙 제68조·제70조</근거줄>
       <details className="kt-all">

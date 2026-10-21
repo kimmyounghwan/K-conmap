@@ -165,8 +165,9 @@ export function ChangeForms({ compact }) {
                 <span className="fic">{icon || '📄'}</span>
                 <div className="grow">
                   <Link className="ft" to={`/forms/${slug}`}>{title}</Link>
-                  {!compact ? <div className="d">{short} <받은수 파일={[`/forms/${slug}.xlsx`]} 봄={`/forms/${slug}`} /></div>
-                    : <div className="d"><받은수 파일={[`/forms/${slug}.xlsx`]} 봄={`/forms/${slug}`} /></div>}
+                  {/* 🩹 2026-10-21 도구 점검 — ⬇ · 👁 숫자가 설명 한 줄 끝(«…» 자름)에 붙어 폰에서 안 보였음 → 제 줄로 */}
+                  {!compact && <div className="d">{short}</div>}
+                  <받은수 파일={[`/forms/${slug}.xlsx`]} 봄={`/forms/${slug}`} className="dlcount fcnt" />
                 </div>
                 <a className="fdl" href={`/forms/${slug}.xlsx`}
                    download={`${title}_양식.xlsx`} onClick={() => askAfter('forms')}>⬇ 엑셀</a>
@@ -238,7 +239,8 @@ export function ChangeBook() {
               <span className="fic">{icon || '📄'}</span>
               <div className="grow">
                 <Link className="ft" to={`/forms/${slug}`}>{title}</Link>
-                <div className="d">{short} <받은수 파일={[`/forms/${slug}.xlsx`]} 봄={`/forms/${slug}`} /></div>
+                <div className="d">{short}</div>
+                <받은수 파일={[`/forms/${slug}.xlsx`]} 봄={`/forms/${slug}`} className="dlcount fcnt" />
               </div>
               <a className="fdl" href={`/forms/${slug}.xlsx`} download={`${title}_양식.xlsx`} onClick={() => askAfter('forms')}>⬇ 엑셀</a>
             </div>

@@ -386,7 +386,19 @@
               ".write": "newData.exists() && $day.matches(/^20[0-9][0-9]-[01][0-9]-[0-3][0-9]$/) && $k.matches(/^(seoul|busan|incheon|daegu|daejeon|gwangju|ulsan|sejong|gyeonggi|gangwon|chungbuk|chungnam|jeonbuk|jeonnam|gyeongbuk|gyeongnam|jeju|f|x)$/)",
               ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
             }
+          },
+          // 🔁 2026-10-21 오늘 세션 — 소장님 «세션 누적 세션 당일» · 10/22 0시부터. 30분 넘게 쉬었다 다시 보면 +1 (lib/방문세기.js 방문보기). 1씩만.
+          "s": {
+            ".write": "newData.exists() && $day.matches(/^20[0-9][0-9]-[01][0-9]-[0-3][0-9]$/)",
+            ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
           }
+        }
+      },
+      // 🔁 2026-10-21 세션 누적(건설맵 몫) — 소장님 «세션 누적 세션 당일» · 10/22 0시부터 세션마다 +1 (화면 누적 = 애널리틱스 세션 9/15~10/21 fresh/ses + 이것)
+      "sa": {
+        "n": {
+          ".write": "newData.exists()",
+          ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
         }
       },
       // 지금(30분 안) — 화면을 보는 브라우저가 5분마다 vis/on/{번호 16자} = {t 서버 시각({".sv":"timestamp"} · 다른 숫자 막힘), k 곳 번호(시·군 · 없어도 됨)}.

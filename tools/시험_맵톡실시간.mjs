@@ -7,7 +7,7 @@
  *
  *   ① 글 3개로 연 화면(PC 1440 · 폰 430) → ② 다른 탭에서 새 글을 쓰면 «새로고침 없이» 몇 초 안에 맨 위에 보이나
  *   ③ 다른 탭에서 답글을 달면 그 글의 답글 수가 올라가나 ④ «⏳ 답 기다림» 수가 맞게 바뀌나(운영자 답이면 빠짐)
- *   ⑤ 글 지움(qna_del)이 바로 빠지나 ⑥ 듣기는 4개만(맨 끝 글 1 · 답글 · 지움 · 고정) — 글 전체를 듣지 않음(요금)
+ *   ⑤ 글 지움(qna_del)이 바로 빠지나 ⑥ 듣기는 5개만(맨 끝 글 1 · 답글 · 지움 · 고정 · 명패 G320) — 글 전체를 듣지 않음(요금)
  *   ⑦ 다른 창에 갔다 오면(visibilitychange) 다시 읽음
  */
 import { createRequire } from 'module'
@@ -42,7 +42,8 @@ for (const [이름, 크기] of [['PC', { width: 1440, height: 900 }], ['폰', { 
   // «지금까지 글 N» 은 올라가며 세는 숫자(움직임) — 멈출 때까지 기다렸다 읽음
   const 글수 = async (p) => { let 앞 = -2; for (let i = 0; i < 30; i++) { const v = await p.evaluate(() => { const m = document.body.innerText.match(/지금까지\s*글\s*(\d+)/); return m ? +m[1] : -1 }); if (v === 앞 && v >= 0) return v; 앞 = v; await p.waitForTimeout(250) } return 앞 }
   봄('① 처음 글 3개', (await 글수(A)) === 3, `(${await 글수(A)})`)
-  봄('⑥ 듣기 4개(맨 끝 글 · 답글 · 지움 · 고정)', (await A.evaluate(() => window.__듣기수 || 0)) === 4, `(${await A.evaluate(() => window.__듣기수 || 0)})`)
+  /* 🩹 2026-10-21 — G320 명패(qna_pro)를 열어 둔 화면에도 바로 붙이려고 듣기가 하나 늘었는데 이 시험만 4 로 남아 있었음 → 5(명패 · 작은 칸) */
+  봄('⑥ 듣기 5개(맨 끝 글 · 답글 · 지움 · 고정 · 명패)', (await A.evaluate(() => window.__듣기수 || 0)) === 5, `(${await A.evaluate(() => window.__듣기수 || 0)})`)
   // ② 다른 탭에서 새 글
   const B = await 판.newPage()
   await B.goto(주소 + '/', { waitUntil: 'domcontentloaded' })

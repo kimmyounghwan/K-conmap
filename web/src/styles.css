@@ -2369,7 +2369,8 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
   padding: 8px 2px; border-bottom: 1px solid var(--line);
 }
 .frow:last-child { border-bottom: 0; }
-.frow .grow { min-width: 0; }
+.frow .grow { flex: 1; min-width: 0; }   /* 🩹 2026-10-21 단추가 설명 길이 따라 들쑥날쑥 → 오른쪽 끝에 */
+.frow .fcnt { display: block; margin-top: 2px; font-size: 11px; }   /* ⬇ · 👁 은 제 줄 — 폰에서도 보이게 */
 .frow .ft {
   font-size: 13.5px; font-weight: 700; color: var(--text);
   text-decoration: none; display: block;
@@ -2993,6 +2994,7 @@ a.glink:hover { text-decoration: underline; }
 .kt-law{ font-size:11.5px; color:var(--text-2); line-height:1.5; }
 .kt-next{ font-size:12.5px; color:var(--text-2); padding:8px 10px; border-radius:8px; background:var(--surface-2); }
 .kt-chks{ display:flex; flex-direction:column; gap:6px; }
+.kt-auto { font-weight: 700; color: var(--accent); }   /* 🩹 2026-10-21 지체상금 — 쉬는 날이라 저절로 켬 */
 .kt-chk{ display:flex; gap:8px; align-items:flex-start; font-size:13px; line-height:1.45; cursor:pointer; }
 .kt-chk input{ width:18px; height:18px; margin-top:1px; flex:0 0 auto; }
 .kt-list{ display:flex; flex-direction:column; gap:1px; border-radius:10px; overflow:hidden;
@@ -6076,6 +6078,18 @@ button.sk-mini { color: var(--accent); padding: 0; text-align: left; }
 /* 📅 G343 어제 방문 — 상자 안 둘째 줄 오른쪽(오늘 바로 아래) · 오늘보다 작게 */
 .umap-yday { flex-basis: 100%; text-align: right; font-size: 12.5px; color: var(--muted); }
 .umap-yday b { font-size: 14px; color: var(--text); }
+/* 🔁 2026-10-21 세션 — 소장님 고르심 «표 꼴»: 방문자 줄(사람 셈 그대로) · 세션 줄 — 누적 · 오늘 · 어제 (10/22 0시부터 · 폰에서도 두 줄) */
+.umap-tbl { margin: 6px 0 8px; padding: 6px 10px 7px; border-radius: 10px; background: var(--accent-soft); font-variant-numeric: tabular-nums; }
+.umap-tbl-h, .umap-tbl-r { display: grid; grid-template-columns: 3.6em repeat(3, minmax(0, 1fr)); align-items: baseline; gap: 0 6px; }
+.umap-tbl-h { font-size: 11.5px; color: var(--muted); padding-bottom: 3px; border-bottom: 1px solid var(--accent-line); }
+.umap-tbl-h > span, .umap-tbl-r > :not([role=rowheader]) { text-align: right; white-space: nowrap; }
+.umap-tbl-r { padding-top: 4px; }
+.umap-tbl-r [role=rowheader] { font-size: 12.5px; font-weight: 600; color: var(--text-2, var(--text)); }
+.umap-tbl-r b { font-size: 16px; }
+.umap-tbl-r .up b { color: var(--accent); }
+.umap-tbl-r .umap-no { color: var(--muted); font-weight: 400; }
+.umap-tbl-r > b:last-child { font-size: 15px; color: var(--text); }   /* 어제는 전처럼 검은 글씨 · 조금 작게 */
+@media (max-width: 360px) { .umap-tbl { padding: 6px 8px 7px; } .umap-tbl-h { font-size: 10.5px; } .umap-tbl-r b { font-size: 15px; } .umap-tbl-r > b:last-child { font-size: 14px; } }
 .umap-reg-h { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); padding: 0 2px 4px; border-bottom: 1px solid var(--line, #e5e7eb); }
 .umap-rows { list-style: none; margin: 0; padding: 0; }
 .umap-rows li { display: grid; grid-template-columns: 2.6em minmax(0, 1fr) auto 3.2em; align-items: center; gap: 8px; padding: 4px 2px;
@@ -8546,6 +8560,8 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 }
 /* 인쇄 종이 — A4 세로 · 화면엔 안 보임 */
 #fw-인쇄 { display: none; }
+/* 🩹 2026-10-21 T1 · T2 — 인쇄 직전 종이 높이를 재는 동안만(화면 밖 · 안 보임 · 인쇄 폭 186mm 그대로) */
+@media screen { #fw-인쇄.fw-재기 { display: block; position: absolute; left: -10000px; top: 0; width: 186mm; visibility: hidden; pointer-events: none; } }
 @media print {
   @page { size: A4 portrait; margin: 12mm 12mm 14mm; }
   body.fw-인쇄중 > *:not(#fw-인쇄) { display: none !important; }
@@ -8561,6 +8577,8 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 #fw-인쇄 thead { display: table-header-group; }
 #fw-인쇄 .fw-kv th { width: 26%; background: #f1f4f9; font-weight: 700; }
 #fw-인쇄 .fw-kv tr td { height: 6mm; }
+/* 🩹 2026-10-21 T1 — 쪽을 채우려고 높인 줄은 글을 가운데로(긴 글 칸은 그대로 위에서부터) */
+#fw-인쇄 .fw-kv tr:not(.long):not([data-grow]) > *, #fw-인쇄 table[data-fix] tbody td { vertical-align: middle; }
 #fw-인쇄 .fw-kv tr.long td { height: 12mm; }
 #fw-인쇄 .fw-grid th { background: #eef2f8; text-align: center; font-weight: 700; }
 #fw-인쇄 .fw-grid td { height: 6.5mm; }

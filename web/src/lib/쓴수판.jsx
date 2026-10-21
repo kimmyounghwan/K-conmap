@@ -12,6 +12,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { 화면열쇠 } from './받은수.jsx'
+import { 씀열쇠 } from './씀열쇠.js'   /* ✍ 2026-10-21 화면 안에서 처음 손댄 횟수(모든 화면 한 곳에서 셈) */
 
 const DB = 'https://k-conmap-default-rtdb.firebaseio.com'
 /* 화면 주소(앞에서부터 맞춤 · 긴 것 먼저) → 그 화면의 셈 열쇠 머리 */
@@ -91,10 +92,13 @@ export default function 쓴수판() {
   const 모두 = useMemo(() => Object.entries(묶음).map(([k, v]) => [k.replace(/,/g, '.'), Number(v) || 0]).sort((a, b) => b[1] - a[1]), [묶음])
   if (p === undefined) return <div className="opcount"><span className="opcount-t">🔢 쓴 횟수 · 소장님만</span> <span className="muted">받는 중…</span></div>
   const 받음 = Number(묶음[화면]) || 0
+  const 씀k = 씀열쇠(pathname)
+  const 씀 = 씀k ? Number(묶음[씀k]) || 0 : null
   const 걸러 = 찾기.trim() ? 모두.filter(([k]) => k.includes(찾기.trim())) : 모두
   return (
     <div className="opcount" title="소장님 브라우저에만 보입니다 · 이용자 · 소장님 · 로봇 중 이용자만 셉니다 · 누르면 바로 오름">
       <span className="opcount-t">🔢 쓴 횟수 · 소장님만</span>
+      {씀 != null && <span title="이 화면에 들어와 칸 · 단추 · 고르기를 처음 손댄 횟수(들어올 때마다 한 번)">✍ 써 봄 <b>{쉼(씀)}</b></span>}
       <span>⬇ 이 화면에서 받음 <b>{쉼(받음)}</b></span>
       {이화면.length > 0 ? 이화면.slice(0, 12).map(([이름, n, k]) => <span key={k}>{이름} <b>{쉼(n)}</b></span>) : (머리.length ? <span className="muted">이 화면 셈 아직 0</span> : null)}
       <details className="opcount-all">

@@ -2,6 +2,7 @@
 //   ① 시·도 고르기(geojs) · 애널리틱스 쿠키 «처음 온 시각» · 직접줄들(바탕 + 직접 센 것)
 //   ② 세어보기 — 가짜 데이터베이스(규칙 vis 와 같은 꼴 · 1씩만 · 열쇠 묶음)에 0시 전 · 0시 뒤 · 하루 한 번 · 처음 온 사람만 누적 · 옛사람 · 운영자 · 봇 · 숨은 탭
 //   ③ 규칙 파일(web/database.rules.json vis)의 시·도 열쇠 = 방문세기.js 시도열쇠 + f · x
+//   ④ 🔁 세션(10/22 0시부터 · vis/d/{날}/s · vis/sa/n) — 30분 쉼 · 날 바뀜 · 숨은 탭 · 저장소 막힘 · 운영자 · 탭 둘 · 사람 셈 그대로 · 세션 줄(누적 · 오늘 · 어제)
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -26,6 +27,8 @@ function 규칙맞나(길) {
   if (p[0] === 'd' && p.length === 3 && p[2] === 'n') return 날꼴.test(p[1])
   if (p[0] === 'd' && p.length === 4 && p[2] === 'r') return 날꼴.test(p[1]) && 열쇠꼴.test(p[3])
   if (p[0] === 'd' && p.length === 4 && p[2] === 'c') return 날꼴.test(p[1]) && /^[0-9]{2,5}$/.test(p[3])
+  if (p[0] === 'd' && p.length === 3 && p[2] === 's') return 날꼴.test(p[1])                       // 🔁 오늘 세션
+  if (p[0] === 'sa' && p.length === 2 && p[1] === 'n') return true                                  // 🔁 세션 누적(건설맵 몫)
   if (p[0] === 'a' && p.length === 2 && p[1] === 'n') return true
   if (p[0] === 'a' && p.length === 3 && p[1] === 'r') return 열쇠꼴.test(p[2])
   return false
@@ -200,6 +203,66 @@ const 어5 = await B.직접받기(KST('2026-10-25T09:00:00'))
 봄('어제 — 못 받으면 어제만 null(누적 · 오늘은 그대로)', 어5 && 어5.어제 === null && 어5.a && 어5.a.n === 디비.get('a/n'), JSON.stringify(어5 && [어5.어제, 어5.a]))
 어제고장 = false
 
+/* ── ④ 🔁 오늘 방문(세션) — 10/22 0시부터 · 누적 · 시·도 · 어제 방문은 없음 ── */
+봄('방문시작 — 10/21 23:59:59 아님 · 10/22 0시부터', !B.방문인가(KST('2026-10-21T23:59:59')) && B.방문인가(KST('2026-10-22T00:00:00')))
+봄('새방문 — 처음 · 29분 쉼은 같은 방문 · 30분 쉼은 새 방문 · 날 바뀌면 새 방문 · 이상한 기억은 새 방문',
+  B.새방문(null, KST('2026-10-22T10:00:00')) && !B.새방문({ t: KST('2026-10-22T10:00:00'), d: '2026-10-22' }, KST('2026-10-22T10:29:00'))
+  && B.새방문({ t: KST('2026-10-22T10:00:00'), d: '2026-10-22' }, KST('2026-10-22T10:30:00')) && B.새방문({ t: KST('2026-10-21T23:59:00'), d: '2026-10-21' }, KST('2026-10-22T00:00:30'))
+  && B.새방문({ t: 'x', d: '2026-10-22' }, KST('2026-10-22T10:00:00')))
+곳간.clear(); 쓴 = []; 지오 = { country_code: 'KR', region: 'Seoul' }
+const B4 = await import('../web/src/lib/방문세기.js?방문')
+r = await B4.방문보기(KST('2026-10-21T23:59:00'))
+봄('방문 — 0시 전에는 안 셈 · 마지막으로 본 때만 적음', r === null && 쓴.length === 0 && 곳간.get('kcm.vis.s') === JSON.stringify({ t: KST('2026-10-21T23:59:00'), d: '2026-10-21' }), 곳간.get('kcm.vis.s'))
+r = await B4.방문보기(KST('2026-10-22T00:00:30'))
+봄('방문 — 0시 지나 보고 있던 사람은 새 날 세션 1 · 오늘 s · 누적 sa/n (시·도 · 자리 묻기 없음)', JSON.stringify([...쓴].sort()) === JSON.stringify(['d/2026-10-22/s', 'sa/n']) && 디비.get('d/2026-10-22/s') === 1 && 디비.get('sa/n') === 1, JSON.stringify(쓴))
+쓴 = []
+for (const m of [1, 2, 3, 10, 20, 39]) await B4.방문보기(KST('2026-10-22T00:00:30') + m * 60000)
+봄('방문 — 화면을 보는 동안(1분마다) 같은 방문 · 안 셈', 쓴.length === 0 && 디비.get('d/2026-10-22/s') === 1, JSON.stringify(쓴))
+document.visibilityState = 'hidden'
+r = await B4.방문보기(KST('2026-10-22T01:00:00'))
+봄('방문 — 숨은 탭은 안 셈 · 마지막으로 본 때도 안 고침', r === null && JSON.parse(곳간.get('kcm.vis.s')).t === KST('2026-10-22T00:39:30'))
+document.visibilityState = 'visible'
+r = await B4.방문보기(KST('2026-10-22T01:09:29'))
+봄('방문 — 29분 59초 쉬고 다시 봄 = 같은 방문', r === null && 쓴.length === 0)
+r = await B4.방문보기(KST('2026-10-22T01:40:00'))
+봄('방문 — 30분 넘게 쉬고 다시 봄 = 새 세션(오늘 2 · 누적 2)', 디비.get('d/2026-10-22/s') === 2 && 디비.get('sa/n') === 2, JSON.stringify(쓴))
+봄('방문 — 사람 셈(n · r · c · a)은 건드리지 않음', 쓴.every((x) => x === 'd/2026-10-22/s' || x === 'sa/n'), JSON.stringify(쓴))
+쓴 = []; localStorage.getItem = () => { throw new Error('막힘') }
+r = await B4.방문보기(KST('2026-10-22T05:00:00'))
+봄('방문 — 저장소가 막힌 창은 안 셈(1분마다 또 세지 않게)', r === null && 쓴.length === 0)
+localStorage.getItem = 원getItem
+const 원set = localStorage.setItem; localStorage.setItem = () => {}
+r = await B4.방문보기(KST('2026-10-22T06:00:00'))
+봄('방문 — 저장이 안 남는 창도 안 셈', r === null && 쓴.length === 0)
+localStorage.setItem = 원set
+곳간.clear(); 쓴 = []
+await Promise.all([B4.방문보기(KST('2026-10-22T09:00:00')), B4.방문보기(KST('2026-10-22T09:00:00'))])
+봄('방문 — 같은 브라우저 탭 둘이 동시에 — 한 번만', 쓴.filter((x) => x === 'd/2026-10-22/s').length === 1 && 쓴.filter((x) => x === 'sa/n').length === 1, JSON.stringify(쓴))
+곳간.set('kcm_op', '1'); 쓴 = []
+const B5 = await import('../web/src/lib/방문세기.js?방문운영자')
+곳간.delete('kcm.vis.s')
+r = await B5.방문보기(KST('2026-10-22T12:00:00'))
+봄('방문 — 운영자(소장님) 브라우저는 안 셈', r === null && 쓴.length === 0, JSON.stringify(쓴))
+곳간.delete('kcm_op')
+const 받방 = await B.직접받기(KST('2026-10-22T13:00:00'))
+봄('직접받기 — 오늘 묶음에 방문 s 도 들어옴(지도가 읽음)', 받방 && 받방.d && 받방.d.s === 디비.get('d/2026-10-22/s'), JSON.stringify(받방 && 받방.d))
+봄('직접받기 — 10/22 부터 세션 누적(건설맵 몫 vis/sa/n)도 받음 · 10/21 까지는 null', 받방.sa === 디비.get('sa/n') && (await B.직접받기(KST('2026-10-21T13:00:00'))).sa === null, JSON.stringify([받방.sa, 디비.get('sa/n')]))
+const 세바 = { kr: 5540, f: 48, y: { kr: 405, f: 2 }, yd: '2026-10-21' }
+const 세1 = B.세션줄({ 날: '2026-10-22', d: { s: 187 }, sa: 260, 어제s: null }, 세바, KST('2026-10-22T13:00:00'))
+봄('세션줄 — 10/22: 누적 = 애널리틱스 5,588 + 건설맵 260 · 오늘 187 · 어제(10/21) = 애널리틱스 어제 세션 407', 세1 && 세1.누적 === 5848 && 세1.오늘 === 187 && 세1.어제 === 407, JSON.stringify(세1))
+const 세2 = B.세션줄({ 날: '2026-10-23', d: { s: 50 }, sa: 700, 어제s: { 날: '2026-10-22', n: 412 } }, { ...세바, yd: '2026-10-22', y: { kr: 999, f: 0 } }, KST('2026-10-23T09:00:00'))
+봄('세션줄 — 10/23: 어제(10/22) = 건설맵이 센 세션 412(애널리틱스보다 먼저)', 세2 && 세2.어제 === 412 && 세2.누적 === 5588 + 700, JSON.stringify(세2))
+const 세3 = B.세션줄({ 날: '2026-10-22', d: {}, sa: undefined }, null, KST('2026-10-22T00:01:00'))
+봄('세션줄 — 바탕(fresh/ses) · vis/sa 를 못 받으면 누적 · 어제는 모름(null — 화면은 «—») · 오늘 0', 세3 && 세3.누적 === null && 세3.어제 === null && 세3.오늘 === 0, JSON.stringify(세3))
+봄('세션줄 — 10/21 까지는 null(줄 없음 · 전과 같은 상자) · 자정 지나 아직 새로 안 받은 자료도 null', B.세션줄({ 날: '2026-10-21', d: { s: 3 }, sa: 1 }, 세바, KST('2026-10-21T22:00:00')) === null
+  && B.세션줄({ 날: '2026-10-21', d: { s: 3 }, sa: 1 }, 세바, KST('2026-10-22T00:00:30')) === null)
+디비.set('d/2026-10-22/s', 412)
+const B7 = await import('../web/src/lib/방문세기.js?어제세션')
+const 어s = await B7.직접받기(KST('2026-10-23T10:00:00'))
+봄('직접받기 — 10/23 에 보면 어제(10/22) 세션 vis/d/2026-10-22/s = 412 · 10/22 에 보면 어제(10/21)는 null', 어s && 어s.어제s && 어s.어제s.날 === '2026-10-22' && 어s.어제s.n === 412 && (await B7.직접받기(KST('2026-10-22T10:00:00'))).어제s === null, JSON.stringify(어s && 어s.어제s))
+const 줄방 = B.직접줄들(바탕, { ...직, d: { ...직.d, s: 99 }, 날: '2026-10-22' }, KST('2026-10-22T09:00:00'))
+봄('직접줄들 — 방문을 세도 누적 · 오늘(사람) · 시·도는 그대로', 줄방.전국.a === 1896 && 줄방.전국.t === 9, JSON.stringify(줄방.전국))
+
 /* ── ③ 규칙 파일 ── */
 const 규 = fs.readFileSync(path.join(여기, '..', 'web', 'database.rules.json'), 'utf8')
 const 규쓴 = JSON.parse(규.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n')).rules.vis
@@ -210,6 +273,9 @@ const 규열쇠 = (/\$k\.matches\(\/\^\(([a-z|]+)\)\$\/\)/.exec(묶음글) || []
   규쓴['.read'] === true && 규쓴.on['.indexOn'] === 't' && 규쓴.on.$id.t['.validate'] === 'newData.isNumber() && newData.val() === now' && /\{16\}/.test(규쓴.on.$id['.write'])
   && 규쓴.on.$id.$other['.validate'] === false && /\[0-9\]\{2,5\}/.test(규쓴.on.$id.k['.validate']) && /\[0-9\]\{2,5\}/.test(규쓴.d.$day.c.$k['.write'])
   && [규쓴.d.$day.n, 규쓴.d.$day.r.$k, 규쓴.d.$day.c.$k, 규쓴.a.n, 규쓴.a.r.$k].every((x) => /newData\.exists\(\)/.test(x['.write']) && x['.validate'] === "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"))
+봄('규칙 vis — 🔁 오늘 세션 s · 세션 누적 sa/n 도 «1씩만» · 지우기 막음 · 날짜 꼴 · 시·도 세션 칸은 없음',
+  /newData\.exists\(\)/.test(규쓴.d.$day.s['.write']) && /\$day\.matches/.test(규쓴.d.$day.s['.write']) && 규쓴.d.$day.s['.validate'] === "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
+  && /newData\.exists\(\)/.test(규쓴.sa.n['.write']) && 규쓴.sa.n['.validate'] === 규쓴.d.$day.s['.validate'] && Object.keys(규쓴.sa).join() === 'n' && !규쓴.d.$day.sr)
 
 console.log(`\n방문세기 ${통과}/${통과 + 실패}`)
 process.exit(실패 ? 1 : 0)

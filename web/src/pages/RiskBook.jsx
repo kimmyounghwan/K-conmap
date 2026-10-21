@@ -222,7 +222,7 @@ export default function RiskBook() {
           <li>다 되면 <b>🖨 인쇄</b> — 결재·서명은 종이에 받습니다. 보관용으로 <b>📗 엑셀(값만)</b>도 받습니다 — 종이와 같은 칸 · 결재란 그대로, 수식은 없습니다(고칠 때는 여기서).</li>
         </ol>
         <p className="note sm" style={{ marginBottom: 0 }}>
-          빈 서식이 필요하면 <Link to="/forms/wih-choego">📄 위험성평가 서식(엑셀)</Link>도 그대로 있습니다.
+          빈 서식 종이만 필요하면 <Link to="/forms/wih-choego">📄 위험성평가 서식</Link>에서 별지마다 «빈 서식 인쇄» 를 누르십시오.
           사전의 문장은 흔한 예일 뿐입니다 — 현장 여건에 맞게 고쳐 쓰십시오.
         </p>
       </div>

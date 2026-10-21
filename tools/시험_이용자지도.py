@@ -116,7 +116,7 @@ pv = [x["pv"] for x in pa]
 봄("지도도 넣음", any(u.endswith("/fresh/map.json") for u, _ in 보낸))
 보낸.clear()
 M.한번(ctx)
-봄("30분 안 다음 회차 — 조회수는 안 넣음(지역 · 지도만)", [u for u, _ in 보낸] == [M.DB + "/fresh/reg.json", M.DB + "/fresh/map.json"], [u for u, _ in 보낸])
+봄("30분 안 다음 회차 — 조회수는 안 넣음(지역 · 세션 · 지도만)", [u for u, _ in 보낸] == [M.DB + "/fresh/reg.json", M.DB + "/fresh/ses.json", M.DB + "/fresh/map.json"], [u for u, _ in 보낸])
 
 
 # ── 👁 화면마다 · 공고마다 (G121) — web/src/lib/조회수.jsx 와 같은 답 ──
@@ -147,6 +147,11 @@ def 가짜post3(url, **k):
             return 답(200, {"rows": [{"dimensionValues": [{"value": "South Korea"}], "metricValues": [{"value": "3"}]}]})
         return 답(200, {"rows": [{"dimensionValues": [{"value": "South Korea"}, {"value": "Seoul"}], "metricValues": [{"value": "2"}]}]})
     b = _j.loads(k["data"]); 본몸.append(b)
+    if b["metrics"][0]["name"] == "sessions":            # 🔁 방문(세션) 바탕
+        r6 = lambda c, g, city, dr, n, e: {"dimensionValues": [{"value": c}, {"value": g}, {"value": city}, {"value": dr}], "metricValues": [{"value": str(n)}, {"value": str(e)}]}
+        return 답(200, {"rows": [r6("KR", "Seoul", "Seoul", "a", 300, 200), r6("KR", "(not set)", "(not set)", "a", 5, 0), r6("KR", "Jeollanam-do", "Gwangyang-si", "a", 0, 0),
+                                 r6("US", "Virginia", "Ashburn", "a", 50, 0), r6("VN", "Hanoi", "Hanoi", "a", 4, 3),
+                                 r6("KR", "Seoul", "Seoul", "y", 40, 30), r6("JP", "Tokyo", "Tokyo", "y", 2, 1), r6("US", "Virginia", "Ashburn", "y", 9, 0), r6("KR", "Busan", "Busan", "t", 7, 7)]})
     if [d["name"] for d in b["dimensions"]] == ["countryId", "region"]:
         return 답(200, {"rows": [r3("KR", "Seoul", "a", 120), r3("KR", "Seoul", "t", 7)]})
     if [d["name"] for d in b["dimensions"]] == ["countryId"]:
@@ -157,7 +162,9 @@ M.requests.post = 가짜post3
 M.한번(ctx)
 reg = [_j.loads(d.decode("utf-8")) for u, d in 보낸 if u.endswith("/fresh/reg.json")]
 mp = [_j.loads(d.decode("utf-8")) for u, d in 보낸 if u.endswith("/fresh/map.json")]
-지요청 = [b for b in 본몸 if b["dimensions"][0]["name"] == "countryId" and b["dimensions"][-1]["name"] != "city"]
+지요청 = [b for b in 본몸 if b["dimensions"][0]["name"] == "countryId" and b["dimensions"][-1]["name"] != "city" and b["metrics"][0]["name"] != "sessions"]
+세요청 = [b for b in 본몸 if b["metrics"][0]["name"] == "sessions"]
+세 = [_j.loads(d.decode("utf-8")) for u, d in 보낸 if u.endswith("/fresh/ses.json")]
 해요청 = [b for b in 본몸 if [d["name"] for d in b["dimensions"]] == ["countryId", "city"]]
 _at = [{"startDate": "2026-09-15", "endDate": "today", "name": "a"}, {"startDate": "today", "endDate": "today", "name": "t"}]
 _y = [{"startDate": "yesterday", "endDate": "yesterday", "name": "y"}]
@@ -167,6 +174,14 @@ _y = [{"startDate": "yesterday", "endDate": "yesterday", "name": "y"}]
   and sorted(len(b["dimensions"]) for b in 지요청) == [1, 2], 지요청[:2])
 봄("fresh/reg 넣음 — {at, from, d, kr, r}", len(reg) == 1 and reg[0]["kr"] == {"a": 150, "t": 8, "y": 13} and reg[0]["r"] == {"Seoul": {"a": 120, "t": 7}} and reg[0]["from"] == "2026-09-15" and len(reg[0]["d"]) == 10, reg[:1])
 봄("fresh/map 에 지금 전국 n = 3", len(mp) == 1 and mp[0]["n"] == 3, mp[:1])
+# ── 🔁 방문(세션) 바탕 — 애널리틱스 세션 9/15~10/21 · 어제 ──
+봄("세션 요청 — 9/15~2026-10-21(a) · 어제(y) · 나라 · 지역 · 도시 · sessions + engagedSessions · 거르기 없음",
+  len(세요청) == 1 and 세요청[0]["dateRanges"] == [{"startDate": "2026-09-15", "endDate": "2026-10-21", "name": "a"}, {"startDate": "yesterday", "endDate": "yesterday", "name": "y"}]
+  and [d["name"] for d in 세요청[0]["dimensions"]] == ["countryId", "region", "city"] and 세요청[0]["metrics"] == [{"name": "sessions"}, {"name": "engagedSessions"}]
+  and "dimensionFilter" not in 세요청[0], 세요청[:1])
+봄("fresh/ses — 대한민국 세션 그대로(305 · 참여 0 이어도) · 해외는 참여 세션 있는 줄만(로봇 Ashburn 뺌 → 4) · 시·도 · 0 뺌 · 오늘(t) 안 셈 · 어제 · yd",
+  len(세) == 1 and 세[0]["kr"] == 305 and 세[0]["f"] == 4 and 세[0]["r"] == {"Seoul": 300, "notset": 5} and 세[0]["y"] == {"kr": 40, "f": 2}
+  and 세[0]["e"] == "2026-10-21" and 세[0]["from"] == "2026-09-15" and 세[0]["yd"] == (M.지금() - __import__("datetime").timedelta(days=1)).strftime("%Y-%m-%d"), 세[:1])
 
 # ── 🌏 G311 해외(로봇 뺌) · 합계 ──
 봄("해외 요청 — 나라 · 도시 · 사용자 + 참여 세션 · KR 뺌(notExpression) · a/t/y",
@@ -196,8 +211,8 @@ m2 = M.합치기(None, {"Seoul": 2}, t, 3, 2)
 본몸.clear(); 보낸.clear(); 읽은 = []
 def 가짜get5(url, **k):
     읽은.append(url)
-    if url.endswith("/vis/d/2026-10-19/n.json"):
-        return 답(200, 37)
+    if url.endswith("/vis/d/2026-10-19.json"):
+        return 답(200, {"n": 37, "s": 52, "c": {"11": 3}})
     return 답(200, None)
 M.requests.get = 가짜get5
 M.requests.post = 가짜post3
@@ -205,22 +220,36 @@ M.지금 = lambda: datetime(2026, 10, 19, 0, 10, tzinfo=KST)
 M.한번({"sa": {}, "pv_t": __import__("time").time()})
 reg5 = [_j.loads(d.decode("utf-8")) for u, d in 보낸 if u.endswith("/fresh/reg.json")]
 a끝 = sorted({r["endDate"] for b in 본몸 for r in b["dateRanges"] if r["name"] == "a"})
-봄("10/19 0시 뒤 — 지역 · 전국 · 해외 요청 모두 누적(a)은 2026-10-18 까지 · 오늘(t)은 today 그대로",
-  len(본몸) == 3 and a끝 == ["2026-10-18"] and all({"startDate": "today", "endDate": "today", "name": "t"} in b["dateRanges"] for b in 본몸), 본몸)
+_사람 = [b for b in 본몸 if b["metrics"][0]["name"] != "sessions"]
+a끝 = sorted({r["endDate"] for b in _사람 for r in b["dateRanges"] if r["name"] == "a"})
+봄("10/19 0시 뒤 — 지역 · 전국 · 해외 요청 모두 누적(a)은 2026-10-18 까지 · 오늘(t)은 today 그대로 (세션 요청은 따로 10-21)",
+  len(_사람) == 3 and a끝 == ["2026-10-18"] and all({"startDate": "today", "endDate": "today", "name": "t"} in b["dateRanges"] for b in _사람)
+  and len(본몸) == 4, 본몸)
 봄("fresh/reg 에 e = 2026-10-18 · d = 2026-10-19", len(reg5) == 1 and reg5[0].get("e") == "2026-10-18" and reg5[0]["d"] == "2026-10-19", reg5[:1])
 봄("10/19 0시 10분 — 어제(10/18)는 직접 세기 전이라 비교 안 적음", not any("/fresh/vcmp/" in u for u, _ in 보낸) and not any("/vis/d/" in u for u in 읽은), [u for u, _ in 보낸])
 본몸.clear(); 보낸.clear(); 읽은.clear()
 M.지금 = lambda: datetime(2026, 10, 20, 0, 20, tzinfo=KST)
 M.한번({"sa": {}, "pv_t": __import__("time").time()})
 비 = [(u, _j.loads(d.decode("utf-8"))) for u, d in 보낸 if "/fresh/vcmp/" in u]
-봄("10/20 — fresh/vcmp/2026-10-19 = {ga 애널리틱스 어제(w.y 13), me 건설맵 37, at}",
+봄("10/20 — fresh/vcmp/2026-10-19 = {ga 애널리틱스 어제(w.y 13), me 건설맵 37, gs 애널리틱스 어제 세션(40+2), ms 건설맵 어제 방문 52, at}",
   len(비) == 1 and 비[0][0] == M.DB + "/fresh/vcmp/2026-10-19.json" and 비[0][1]["ga"] == 13 and 비[0][1]["me"] == 37 and isinstance(비[0][1]["at"], int)
-  and M.DB + "/vis/d/2026-10-19/n.json" in 읽은, 비)
-봄("비교를 못 해도 지역 · 지도는 그대로 넣음", [u for u, _ in 보낸 if not "/fresh/vcmp/" in u] == [M.DB + "/fresh/reg.json", M.DB + "/fresh/map.json"], [u for u, _ in 보낸])
+  and 비[0][1].get("gs") == 42 and 비[0][1].get("ms") == 52 and M.DB + "/vis/d/2026-10-19.json" in 읽은, 비)
+봄("비교를 못 해도 지역 · 세션 · 지도는 그대로 넣음", [u for u, _ in 보낸 if not "/fresh/vcmp/" in u] == [M.DB + "/fresh/reg.json", M.DB + "/fresh/ses.json", M.DB + "/fresh/map.json"], [u for u, _ in 보낸])
 보낸.clear()
 M.requests.get = lambda url, **k: 답(500, None, "고장") if "/vis/" in url else 답(200, None)
 M.한번({"sa": {}, "pv_t": __import__("time").time()})
-봄("방문 숫자 읽기가 고장 나면 비교만 빠짐(지역 · 지도 넣음)", [u for u, _ in 보낸] == [M.DB + "/fresh/reg.json", M.DB + "/fresh/map.json"], [u for u, _ in 보낸])
+봄("방문 숫자 읽기가 고장 나면 비교만 빠짐(지역 · 세션 · 지도 넣음)", [u for u, _ in 보낸] == [M.DB + "/fresh/reg.json", M.DB + "/fresh/ses.json", M.DB + "/fresh/map.json"], [u for u, _ in 보낸])
+# 🔁 세션 요청만 고장 — 지역 · 지도 · 비교(사람)는 그대로 · ses 는 안 적음
+def 가짜post8(url, **k):
+    if "runReport" in url and "Realtime" not in url and _j.loads(k["data"])["metrics"][0]["name"] == "sessions":
+        return 답(500, None, "세션 고장")
+    return 가짜post3(url, **k)
+M.requests.post = 가짜post8; M.requests.get = 가짜get5; 보낸.clear()
+M.한번({"sa": {}, "pv_t": __import__("time").time()})
+_비8 = [_j.loads(d.decode("utf-8")) for u, d in 보낸 if "/fresh/vcmp/" in u]
+봄("세션만 고장 나면 ses 만 빠짐 · 비교는 사람만(gs · ms 없음)", [u for u, _ in 보낸 if "/fresh/vcmp/" not in u] == [M.DB + "/fresh/reg.json", M.DB + "/fresh/map.json"]
+  and len(_비8) == 1 and "gs" not in _비8[0] and _비8[0]["me"] == 37, ([u for u, _ in 보낸], _비8))
+M.requests.post = 가짜post3
 # 지금(30분 안) 옛 표시 지우기 — 2시간 넘은 것만 · 번호 꼴(16자)만
 M.지금 = lambda: datetime(2026, 10, 19, 12, 0, tzinfo=KST)
 기준 = int(M.지금().timestamp() * 1000)

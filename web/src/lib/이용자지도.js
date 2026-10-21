@@ -85,6 +85,8 @@ export function 지도점들(자료, 표, 지금시각 = Date.now()) {
    ■ fresh/map.n — 지금(30분 안) 전국 사람 수
    ══════════════════════════════════════════════════════════════ */
 export const 지역주소 = 'https://k-conmap-default-rtdb.firebaseio.com/fresh/reg.json'
+/** 🔁 2026-10-21 세션 바탕 — 애널리틱스 세션 9/15~10/21 · 어제 세션 (tools/이용자지도.py 세션넣기) · 10/22 0시부터 세션 누적 = 이것 + vis/sa/n */
+export const 세션주소 = 'https://k-conmap-default-rtdb.firebaseio.com/fresh/ses.json'
 export const 개설일 = '2026-08-30'          // 지금 K-건설맵(새 사이트)이 문을 연 날 — k-conmap.com 연결
 export const 누적시작 = '2026-09-15'        // 애널리틱스로 세기 시작한 날(tools/이용자지도.py 조회시작 과 같음)
 

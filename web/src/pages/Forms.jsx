@@ -754,7 +754,11 @@ export function FormPage() {
   }
   const xlsx = `/forms/${f.slug}.xlsx`
   const 웹 = 웹서식(f)
-  const 작성칸 = <Suspense fallback={<div className="card muted">작성 칸을 불러오는 중…</div>}><서식작성 f={f} key={f.slug} /></Suspense>
+  /* 🩹 2026-10-21 서식 점검 — ① 위험성평가(wih-*)는 «표 하나 + 안내 한 줄» 뿐이라 결재 · 공종 · 일시를 쓸 칸이 없었음 → 별지 1~5 가 다 있는 위험성평가 도구로
+     ② 쓸 칸이 없는 서식(차례 · 안내 글뿐 — 시공계획서 · 예정공정표 등)은 «사이트에서 작성» 을 숨김(PDF 에 안내 글만 찍혔음) → 엑셀(자동 계산)이 진짜 서류 */
+  const 위험성 = f.gen === 'wihgen'
+  const 쓸칸 = !위험성 && ((f.sheet && f.sheet.blocks) || []).some((b) => b.t === 'kv' || b.t === 'table' || b.t === 'chk' || b.t === 'cl')
+  const 작성칸 = 쓸칸 ? <Suspense fallback={<div className="card muted">작성 칸을 불러오는 중…</div>}><서식작성 f={f} key={f.slug} /></Suspense> : null
   const 작성가기 = () => { const el = document.getElementById('작성'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
   return (
     <>
@@ -780,7 +784,9 @@ export function FormPage() {
           {웹 ? (
             /* ✍️ G346 안전서류 — 엑셀 없이 «사이트에서 작성 → PDF» (소장님 「엑셀로 주면 다시 안오잖아」) */
             <>
-              <button type="button" className="btn primary" onClick={작성가기}>✍️ 사이트에서 작성 → PDF</button>
+              {위험성
+                ? <Link className="btn primary" to="/tools/risk">✍️ 사이트에서 작성 → PDF (위험성평가 도구 · 별지 1~5)</Link>
+                : <button type="button" className="btn primary" onClick={작성가기}>✍️ 사이트에서 작성 → PDF</button>}
               {f.gen !== 'wihgen' && f.pdf && <a className="btn ghost" href={f.pdf} target="_blank" rel="noopener">🖨 빈 서식 PDF</a>}
             </>
           ) : (
@@ -793,7 +799,7 @@ export function FormPage() {
               {f.gen !== 'wihgen' && (f.pdf
                 ? <a className="btn ghost" href={f.pdf} target="_blank" rel="noopener">🖨 인쇄용 PDF</a>
                 : <button className="btn ghost" onClick={() => window.print()}>🖨 인쇄 · PDF</button>)}
-              <button type="button" className="btn ghost" onClick={작성가기}>✍️ 사이트에서 작성</button>
+              {쓸칸 && <button type="button" className="btn ghost" onClick={작성가기}>✍️ 사이트에서 작성</button>}
             </>
           )}
           <받은수 파일={[xlsx, f.pdf, `/forms/w/${f.slug}.pdf`]} 앞="지금까지 " 글="번 받았습니다" className="dlcount big" />
