@@ -9,7 +9,7 @@
  */
 
 import { 종이찾기, 펴는틀, 펴기, 줄이기, 소실점펴기, 곱 } from './사진캐드_펴기.js'
-import { 잉크뽑기, 덩이, 거리, 뼈대, 길따기 } from './사진캐드_잉크.js'
+import { 잉크뽑기, 덩이, 거리, 뼈대, 길따기, 칠한평면, 벽뽑기 } from './사진캐드_잉크.js'
 import { 길맞추기, 반듯하게, 선분찾기 } from './사진캐드_선.js'
 import { 글자가르기 } from './사진캐드_글자.js'
 import { 낱말읽기, 무게있음 } from './사진캐드_숫자.js'
@@ -45,6 +45,14 @@ export function 도면읽기(편, o = {}) {
   // 글 읽기가 찾은 치수 숫자 자리 — 흐린 가는 치수선을 살리는 단서
   const 글자리 = o.글목록 && o.글목록.length ? o.글목록.filter((r) => r.믿음 >= 0.5 && 치수글풀기(r.글)) : null
   const 잉 = 잉크뽑기(편, { 세기: o.세기 || 1, 손그림: 손, 글자리 })
+  // 🧱 칠한 평면도(바닥 · 가구 · 방 번호가 칠해진 분양 · 홍보 그림) → 벽만 (o.벽만: true 늘 · false 안 함 · 그 밖 = 저절로)
+  const 칠 = 손 ? { 덮임: 0, 가운데: 0, 칠함: false } : 칠한평면(잉)
+  const 벽만 = !손 && (o.벽만 === true || (o.벽만 !== false && 칠.칠함))
+  //   치수 숫자는 또렷한(0.8 넘게) · 치수다운(100 넘거나 소수 · 단위) 것만 — 방 번호 원 속 글자(«6실» → «769») 는 빼려고
+  if (벽만) {
+    const 또렷 = (글자리 || []).filter((r) => { const p = r.믿음 >= 0.8 && 치수글풀기(r.글); return p && (p.값 >= 100 || p.소수 || p.단위) })
+    잉.mask = 벽뽑기(잉, { 글자리: 또렷 }).mask
+  }
   // 종이 가장자리(사진 테두리 찌꺼기) 비우기
   const 테 = Math.max(3, Math.round(0.004 * Math.max(w, h)))
   {
@@ -164,7 +172,9 @@ export function 도면읽기(편, o = {}) {
     } else 글씨낱말.push({ ...n, c })
   }
   if (글상자.length) 글숫자합치기(숫자, 글상자, (p) => 돌림점(p, 반.가운데, 반.돌림각), 손)
-  const 치수 = 치수짝짓기(숫자, 반.도형, 반.빗금, { 굵, 크기: Math.max(w, h) })
+  // 🧱 칠한 평면도: 방 번호 원 속 글자(«6실» 을 «769» 로) · 가구 무늬를 숫자로 잘못 읽은 것은 치수로 안 씀 — 또렷한(0.8 넘게) 치수다운 숫자만(인쇄 치수는 또렷이 읽힘)
+  if (벽만) for (let i = 숫자.length - 1; i >= 0; i--) { const n = 숫자[i]; if (!((n.믿음 ?? 0) >= 0.8 && (n.값 >= 100 || n.소수))) 숫자.splice(i, 1) }
+  const 치수 = 치수짝짓기(숫자, 반.도형, 반.빗금, { 굵, 크기: Math.max(w, h), 끊긴선: 벽만 })
   // 글씨 그림(TEXT 레이어): 글자 뼈대를 짧은 꺾은선으로
   const 글길 = 길따기(글뼈, w, h, { 가지: 0 })
   const 글씨줄 = 글길.map((g) => 줄이기선(g.p.map((p) => 돌림점(p, 반.가운데, 반.돌림각)), 0.8)).filter((p) => p.length >= 2)
@@ -172,7 +182,7 @@ export function 도면읽기(편, o = {}) {
   return {
     w, h, 굵, 손그림: 손, 돌림각: 반.돌림각, 가운데: 반.가운데,
     도형: 반.도형, 빗금: 반.빗금, 숫자, 치수, 글씨줄, 글씨낱말,
-    잉크문턱: 잉.T,
+    잉크문턱: 잉.T, 벽만, 칠함: 칠.칠함,
   }
 }
 
@@ -319,7 +329,11 @@ export function 맞추기(결과, 사람치수 = [], o = {}) {
   }
   // 손그림은 치수선 끝(보조선)이 몇 픽셀씩 어긋나게 그려짐 → 같은 자리로 묶는 폭을 넓힘(부분 치수 합 = 전체 치수 검산이 되게)
   const 묶폭 = 결과.손그림 ? Math.max(4, 2 * 굵, 0.008 * Math.max(결과.w || 0, 결과.h || 0)) : Math.max(4, 2 * 굵)
-  const 풀 = 치수풀기([...자동, ...손], { 손그림: 결과.손그림, 허용: 묶폭, 척: o.척, 크기px: Math.max(결과.w || 0, 결과.h || 0) || undefined })
+  // 그림 둘레(선들의 가로 · 세로 폭) — «전체 치수»(둘레 거의 끝에서 끝까지 걸친 치수)를 알아보려고
+  let X0 = Infinity, X1 = -Infinity, Y0 = Infinity, Y1 = -Infinity
+  for (const s of 결과.도형) if (s.t === 'L' && !s.지움) { X0 = Math.min(X0, s.a[0], s.b[0]); X1 = Math.max(X1, s.a[0], s.b[0]); Y0 = Math.min(Y0, s.a[1], s.b[1]); Y1 = Math.max(Y1, s.a[1], s.b[1]) }
+  const 범위 = isFinite(X0) ? { H: X1 - X0, V: Y1 - Y0 } : null
+  const 풀 = 치수풀기([...자동, ...손], { 손그림: 결과.손그림, 허용: 묶폭, 척: o.척, 크기px: Math.max(결과.w || 0, 결과.h || 0) || undefined, 범위 })
   if (!풀.척x) { const s = o.척 || 1; 풀.척x = 풀.척y = s; 풀.x = (v) => v * s; 풀.y = (v) => v * s; 풀.축척모름 = !o.척 }
   return 풀
 }
@@ -331,7 +345,7 @@ function 치수꾸밈(결과, 풀) {
   const 나 = new Set()
   const 도 = 결과.도형
   const 짝 = new Set()
-  for (const d of 풀.치수들 || []) if (d.쓰임 && d.선 >= 0 && !d.손넣음) 짝.add(d.선)
+  for (const d of 풀.치수들 || []) if (d.쓰임 && d.선 >= 0 && !d.손넣음) { 짝.add(d.선); if (d.선2 >= 0) 짝.add(d.선2) }
   if (!짝.size) return 나
   let X0 = Infinity, Y0 = Infinity, X1 = -Infinity, Y1 = -Infinity
   for (const s of 도) if (s.t === 'L' && !s.지움) { X0 = Math.min(X0, s.a[0], s.b[0]); X1 = Math.max(X1, s.a[0], s.b[0]); Y0 = Math.min(Y0, s.a[1], s.b[1]); Y1 = Math.max(Y1, s.a[1], s.b[1]) }
@@ -368,7 +382,7 @@ export function 결과그림(결과, 풀, o = {}) {
   const P = (p) => [X(p[0]), Y(p[1])]
   const 그림 = { 선: [], 호: [], 원: [], 줄: [], 글: [], 치수: [] }
   const 원래치수선 = new Set()
-  if (!결과.손그림) for (const d of 풀.치수들) if (d.쓰임 && d.선 >= 0 && !d.손넣음) 원래치수선.add(d.선)
+  if (!결과.손그림) for (const d of 풀.치수들) if (d.쓰임 && d.선 >= 0 && !d.손넣음) { 원래치수선.add(d.선); if (d.선2 >= 0) 원래치수선.add(d.선2) }
   const 꾸밈 = 치수꾸밈(결과, 풀)
   결과.도형.forEach((s, i) => {
     if (s.t === 'L') 그림.선.push({ a: P(s.a), b: P(s.b), 층: s.점선 ? 'DASH' : 원래치수선.has(i) ? 'DIM_SRC' : 'LINE', ...(꾸밈.has(i) ? { 꾸밈: true } : {}) })

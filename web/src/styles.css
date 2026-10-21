@@ -7544,6 +7544,8 @@ a.mc-key-in:hover { border-color: var(--accent-line); background: var(--accent-s
 .sc-warn { color: var(--warn); }
 .sc-bad { color: var(--bad); }
 .sc-ok { color: var(--good); font-weight: 700; }
+.sc-note { margin-top: 8px; padding: 9px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); font-size: 13.5px; line-height: 1.6; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.sc-note .btn { width: auto; flex: none; }
 .sc-banner { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: var(--warn-soft); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent); color: var(--warn); font-size: 13.5px; }
 .sc-pick { margin-top: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); font-size: 14px; }
 .sc-pick em { color: var(--muted); font-style: normal; }

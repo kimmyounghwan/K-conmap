@@ -73,6 +73,7 @@ export default function SajinCad() {
   const [믿음, set믿음] = useState(0)
   const [종이, set종이] = useState('')
   const [세기값, set세기값] = useState(1)
+  const [벽만값, set벽만값] = useState(undefined)   // 🧱 칠한 평면도 → 벽 · 치수만: undefined 저절로 · true · false(사람이 고름)
   const [진행, set진행] = useState(null)
   const [오류, set오류] = useState('')
   const [결과, set결과] = useState(null)
@@ -92,7 +93,7 @@ export default function SajinCad() {
   const 예시로 = useRef(false)
 
   const 처음으로 = () => {
-    set단계('고르기'); set사진(null); set네모(null); set결과(null); set미리(null); set오류(''); set진행(null)
+    set단계('고르기'); set사진(null); set네모(null); set결과(null); set미리(null); set오류(''); set진행(null); set벽만값(undefined)
     set사람치수([]); set지운선(new Set()); set끈치수(new Set()); set고친값(new Map()); set고른선(null); set고른숫자(null); set되돌림([]); set건물척(null)
   }
 
@@ -138,15 +139,18 @@ export default function SajinCad() {
     } catch (e) { set오류('예시를 받지 못했습니다') }
   }
 
-  const 읽기 = async (네모값 = 네모) => {
+  const 읽기 = async (네모값 = 네모, 벽 = 벽만값) => {
     set오류(''); set단계('처리'); set진행({ 글: '읽는 중', p: 0.05 })
     try {
-      const r = await 일꾼부르기({ 일: '읽기', 꼴, 네모: 네모값, 종이: 종이 || undefined, 세기: 세기값 }, [], (j) => set진행(j))
+      const r = await 일꾼부르기({ 일: '읽기', 꼴, 네모: 네모값, 종이: 종이 || undefined, 세기: 세기값, ...(벽 != null ? { 벽만: 벽 } : {}) }, [], (j) => set진행(j))
       set결과(r.결과); set미리(r.미리); set단계('결과'); set진행(null)
       set사람치수([]); set지운선(new Set()); set끈치수(new Set()); set고친값(new Map()); set고른선(null); set고른숫자(null); set되돌림([])
       if (r.결과 && r.결과.글읽기) 세기('|사진캐드|글읽기' + r.결과.글읽기)   // 켬 · 못씀 · 끔 — 화면에는 안 보임
+      if (r.결과 && r.결과.벽만 && 벽 == null) 세기('|사진캐드|벽만자동')
     } catch (e) { set오류('읽지 못했습니다 — ' + e.message); set단계(꼴 === '건물' ? '건물네모' : '모서리'); set진행(null) }
   }
+  /* 🧱 벽 · 치수만 ↔ 가구 · 무늬까지 — 같은 모서리로 다시 읽음 */
+  const 벽만바꾸기 = (v) => { set벽만값(v); 세기(v ? '|사진캐드|벽만켬' : '|사진캐드|벽만끔'); 읽기(네모, v) }
   const 건물네모로 = async () => {
     const 가로 = Number(String(건물네모값.가로).replace(/[^\d.]/g, '')), 세로 = Number(String(건물네모값.세로).replace(/[^\d.]/g, ''))
     set오류(''); set단계('처리'); set진행({ 글: '펴는 중', p: 0.2 })
@@ -176,7 +180,7 @@ export default function SajinCad() {
     // 선 번호가 바뀌므로 치수의 선(원래 치수선 표시)은 다시 맞춤
     const 새번 = new Map(); let k = 0
     쓸결과.도형.forEach((s, i) => { if (!s.지움) 새번.set(i, k++) })
-    const 풀 = { ...풀이, 치수들: 풀이.치수들.map((d) => ({ ...d, 선: 새번.has(d.선) ? 새번.get(d.선) : -1 })) }
+    const 풀 = { ...풀이, 치수들: 풀이.치수들.map((d) => ({ ...d, 선: 새번.has(d.선) ? 새번.get(d.선) : -1, ...(d.선2 != null ? { 선2: 새번.has(d.선2) ? 새번.get(d.선2) : -1 } : {}) })) }
     return 결과그림(보낼, 풀, { 글씨: 보기켬.글씨 })
   }
   const DXF받기 = () => {
@@ -327,6 +331,17 @@ export default function SajinCad() {
               </div>
             )}
             {결과.글읽기 === '못씀' && <div className="muted sm" style={{ marginTop: 6 }}>🔤 글 읽기(PaddleOCR)를 불러오지 못해 이 사이트 숫자망으로만 읽었습니다 — 인터넷 연결을 확인하고 «모서리 다시» 로 한 번 더 해 보세요.</div>}
+            {!결과.건물 && !결과.손그림 && (결과.벽만 ? (
+              <div className="sc-note"><span>🧱 {결과.칠함 && 벽만값 == null ? <>바닥 · 가구가 칠해진 평면도라 <b>벽 · 치수만</b> 뽑았습니다(가구 · 바닥 무늬 · 방 번호 원은 뺌).</> : <><b>벽 · 치수만</b> 뽑았습니다.</>}</span>
+                <button type="button" className="btn line sm" onClick={() => 벽만바꾸기(false)}>가구 · 무늬까지 다 뽑기</button></div>
+            ) : (결과.칠함 || (요약 && 요약.선 > 400)) ? (
+              <div className="sc-note"><span>🧱 가구 · 바닥 무늬까지 선으로 나왔나요? 가구 · 무늬 · 방 번호 원을 빼고 벽과 치수만 뽑을 수도 있습니다.</span>
+                <button type="button" className="btn line sm" onClick={() => 벽만바꾸기(true)}>벽 · 치수만 뽑기</button></div>
+            ) : null)}
+            {풀이.비율차 && (() => {
+              const 가 = 풀이.치수들.find((d) => d.전체 && d.쓰임 && d.꼴 === 'H'), 세 = 풀이.치수들.find((d) => d.전체 && d.쓰임 && d.꼴 === 'V')
+              return 가 && 세 ? <div className="muted sm" style={{ marginTop: 6 }}>📐 적힌 전체 치수(가로 {쉼(가.mm)} · 세로 {쉼(세.mm)})가 그림의 가로 : 세로와 달라 <b>적힌 숫자대로</b> 맞췄습니다(세로가 그림의 {풀이.비율차.toFixed(2)}배) — 그림이 축척대로 안 그려졌거나 비스듬히 찍혔을 수 있습니다.</div> : null
+            })()}
             {풀이.축척모름 && <div className="sc-banner">📏 <b>크기를 모릅니다.</b> 길이를 아는 선(문 높이 · 벽 길이 · 치수선)을 눌러 실제 길이(mm)를 넣어 주세요 — 하나면 전체 크기가 맞습니다.</div>}
             <결과판 결과={쓸결과} 미리={미리} 풀이={풀이} 고른선={고른선} 고른숫자={고른숫자} 보기켬={보기켬}
               누름={(t) => { set넣는값(''); if (t && t.선 != null) { set고른선(t.선); set고른숫자(null) } else if (t && t.숫자 != null) { set고른숫자(t.숫자); set고른선(null) } else { set고른선(null); set고른숫자(null) } }} />
@@ -381,6 +396,7 @@ export default function SajinCad() {
           <li><b>사진 펴기</b> — 종이 네 모서리를 0.1 픽셀까지 찾고, 비스듬히 찍어 줄어든 쪽까지 <b>진짜 가로 : 세로</b>를 사진기 초점에서 거꾸로 셈(Zhang). 건물은 세로 · 가로선이 모이는 두 점(소실점)으로 정면을 폅니다</li>
           <li><b>선 찾기</b> — 그림자 · 얼룩을 빼고 잉크만 → 1픽셀 뼈대 → 곧은 선 · 원 · 호로 맞춤(점 전체 최소제곱)</li>
           <li><b>반듯하게</b> — 거의 가로 · 세로 · 45° 인 선은 딱 맞추고, 끊긴 선은 잇고, 모서리 · T 자리는 만나게</li>
+          <li><b>칠한 평면도</b> — 분양 · 홍보용처럼 바닥 · 가구 · 방 번호 원이 칠해진 그림은 저절로 알아보고 <b>가장 진하고 길게 곧은 벽 띠</b>와 치수만 뽑습니다(가구 · 바닥 무늬는 뺌 · 단추 하나로 다 뽑기도). 적힌 전체 치수(가로 · 세로)가 그림 비율과 달라도 적힌 숫자대로 맞춥니다</li>
           <li><b>치수 숫자대로</b> — 도면 · 손그림에 적힌 숫자를 이 기기 안에서 읽어(인쇄 · 손글씨 · «12,000» «3.6» «0.8m» «12'-6"» 처럼 단위까지) 치수선 양 끝에 맞춥니다. 부분 치수 합이 전체 치수와 안 맞으면 짚어 드리고, 잘못 읽은 숫자는 둥근 수 · 둘레 치수로 고쳐 봅니다</li>
           <li><b>건물 정면 치수</b> — 길이 하나(건물 폭 · 창 폭)만 넣으면 아래에 창 · 문 자리 치수와 전체 폭, 옆에 층 · 창 높이 치수와 전체 높이가 저절로 들어갑니다(DXF 치수 그대로)</li>
           <li><b>3D</b> — 평면의 벽 선을 벽 높이만큼 세워 돌려 보고, <b>3D DXF</b>(AutoCAD · ZWCAD) · <b>OBJ</b>(스케치업 · 블렌더)로 받습니다</li>
@@ -394,6 +410,7 @@ export default function SajinCad() {
           <li>건물 사진은 <b>한 면(정면)</b> 만 정확합니다. 튀어나온 발코니 · 다른 면은 같은 평면이 아니라 틀립니다</li>
           <li>손글씨 숫자는 흘려 쓰면 틀리게 읽을 수 있습니다 — 노란 숫자(믿음 낮음)는 눌러 확인해 주세요</li>
           <li>사진이 흐리거나 어두우면 «선 진하기» 를 왼쪽으로 · 얼룩이 선으로 나오면 오른쪽으로</li>
+          <li>사진에 다른 그림 · 제목 딱지가 함께 찍혔으면 «모서리 다시» 로 도면만 들어오게 파란 점을 옮기면 더 깔끔합니다</li>
         </ul>
       </div>
       <div className="card">
@@ -572,7 +589,7 @@ function 결과판({ 결과, 미리, 풀이, 고른선, 고른숫자, 보기켬,
     const 선굵 = Math.max(1.4, 2.2 / s) , 한px = 1 / s
     // 글씨 그림
     if (보기켬.글씨) { g.strokeStyle = '#2a9d4b'; g.lineWidth = 1.4 * 한px; for (const pl of 결과.글씨줄 || []) { g.beginPath(); pl.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke() } }
-    const 원래치수선 = new Set(풀이.치수들.filter((d) => d.쓰임 && !d.손넣음 && d.선 >= 0).map((d) => d.선))
+    const 원래치수선 = new Set(풀이.치수들.filter((d) => d.쓰임 && !d.손넣음 && d.선 >= 0).flatMap((d) => (d.선2 >= 0 ? [d.선, d.선2] : [d.선])))
     결과.도형.forEach((sh, i) => {
       if (sh.지움) return
       const 골 = i === 고른선

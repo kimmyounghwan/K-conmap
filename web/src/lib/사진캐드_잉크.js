@@ -165,6 +165,192 @@ export function 잉크뽑기(판, o = {}) {
   return { mask, w, h, T, 대비: 대, 흐린선: o.흐린선수 || 0 }
 }
 
+/**
+ * 🧱 칠한 평면도인가 (2026-10-21 소장님 폰 사진 「사진을 캐드로 하니까 이렇게 나와」)
+ *   분양 · 홍보용 평면도(바닥 · 가구 · 변기 · 방 번호 원이 회색 · 색으로 칠해진 그림)를 찍으면 잉크가 종이 안쪽 절반 넘게를 덮고
+ *   바탕(바닥)도 어두움 → 선 따기가 가구 · 무늬 가장자리를 조각조각 따라가 선 1000 개 넘게 엉킴.
+ *   시험 사진: 선 도면 · 손그림 = 대비 가운데값 0 ~ 11 · 덮임 0.03 ~ 0.20 / 칠한 평면도 = 가운데값 31 ~ 41 · 덮임 0.51 ~ 0.56 (지어낸 그림 51 · 0.20)
+ *   → 바닥까지 어두운 것(가운데값 20 넘게)이 첫째 · 잉크가 너무 적은 그림(덮임 0.15 아래)은 아님
+ */
+export function 칠한평면(잉) {
+  const { mask, w, h } = 잉, d = 잉.대비.d
+  const x0 = Math.round(0.08 * w), x1 = Math.round(0.92 * w), y0 = Math.round(0.08 * h), y1 = Math.round(0.92 * h)
+  let n = 0, 안 = 0
+  const hist = new Uint32Array(256)
+  for (let y = y0; y < y1; y += 2) for (let x = x0; x < x1; x += 2) { const i = y * w + x; 안++; if (mask[i]) n++; hist[d[i]]++ }
+  let a = 0, 가운데 = 0
+  for (let k = 0; k < 256; k++) { a += hist[k]; if (a >= 안 / 2) { 가운데 = k; break } }
+  const 덮임 = 안 ? n / 안 : 0
+  return { 덮임, 가운데, 칠함: 가운데 >= 20 && 덮임 >= 0.15 }
+}
+
+/** 세 갈래 오츠 — 가장 진한(대비 큰) 무리가 시작하는 문턱 */
+function 오츠셋(hist) {
+  let 전 = 0
+  for (let i = 0; i < 256; i++) 전 += hist[i]
+  if (!전) return 128
+  const om = new Float64Array(256), mu = new Float64Array(256)
+  let o = 0, m = 0
+  for (let i = 0; i < 256; i++) { o += hist[i] / 전; m += (i * hist[i]) / 전; om[i] = o; mu[i] = m }
+  const mt = mu[255]
+  let 최 = -1, T = 128
+  for (let t1 = 1; t1 < 250; t1++) {
+    const w0 = om[t1]; if (w0 <= 0) continue
+    const m0 = mu[t1] / w0
+    for (let t2 = t1 + 2; t2 < 254; t2++) {
+      const w1 = om[t2] - w0, w2 = 1 - om[t2]
+      if (w1 <= 0 || w2 <= 0) continue
+      const m1 = (mu[t2] - mu[t1]) / w1, m2 = (mt - mu[t2]) / w2
+      const s = w0 * (m0 - mt) ** 2 + w1 * (m1 - mt) ** 2 + w2 * (m2 - mt) ** 2
+      if (s > 최) { 최 = s; T = t2 }
+    }
+  }
+  return T
+}
+
+/**
+ * 🧱 벽만 뽑기 — 칠한 평면도에서 «가장 진하고 · 가로 · 세로로 길게 곧은 띠» 만 벽으로 남김
+ *   ① 대비가 가장 진한 무리(세 갈래 오츠)만 ② 가로 · 세로로 길게(긴 변의 4 % 넘게) 이어진 줄만
+ *   ③ 덩이마다 길이가 두께의 5 배 넘고 · 두께가 벽 두께(가운데값)의 3 배 안인 것만 → 방 번호 원 · 칠한 가구 · 굵은 딱지는 빠짐
+ *   ④ 글 읽기가 찾은 치수 숫자: 그 글씨와 곁의 가는 치수선(숫자 방향으로 긴 줄)은 원래 잉크에서 살림
+ * @param 잉 잉크뽑기 결과 { mask, w, h, T, 대비 }
+ * @param o { 글자리: 치수로 읽힌 글 상자들 }
+ * @returns { mask, 두께, T } — 새 잉크(벽 띠 + 치수선 + 치수 숫자)
+ */
+export function 벽뽑기(잉, o = {}) {
+  const { w, h } = 잉, d = 잉.대비.d
+  const hist = new Float64Array(256)
+  for (let i = 0; i < d.length; i += 2) if (d[i] > 14) hist[d[i]]++
+  const T = Math.max(잉.T, 오츠셋(hist))
+  const m = new Uint8Array(w * h)
+  for (let i = 0; i < d.length; i++) if (d[i] >= T) m[i] = 1
+  const 긴 = Math.max(w, h)
+  const Lmin = Math.max(20, Math.round(0.04 * 긴))
+  const 틈 = Math.max(1, Math.round(0.0015 * 긴))   // 줄 안의 작은 끊김(사진 티끌)은 이어 봄
+  const 줄뽑기 = (가로) => {
+    const M = new Uint8Array(w * h)
+    const A = 가로 ? h : w, B = 가로 ? w : h
+    for (let a = 0; a < A; a++) {
+      const 칸 = (b) => (가로 ? a * w + b : b * w + a)
+      let b = 0
+      while (b < B) {
+        if (!m[칸(b)]) { b++; continue }
+        let e = b, 끝 = b
+        while (e < B) { if (m[칸(e)]) { 끝 = e; e++ } else if (e - 끝 <= 틈) e++; else break }
+        if (끝 - b + 1 >= Lmin) for (let k = b; k <= 끝; k++) M[칸(k)] = 1
+        b = e
+      }
+    }
+    // 덩이 거르기: 길이(줄 방향) · 두께 = 진한 잉크(m)의 «옆으로 잰 폭» 의 3/4 자리값
+    //   (방 번호 원 · 칠한 딱지(흰 글씨가 든 제목 띠)를 가로지르는 줄은 옆도 거의 진함 → 두껍게 재어져 빠짐 ·
+    //    벽은 다른 벽과 만나는 몇 자리만 옆이 길어 3/4 자리값은 벽 두께 그대로)
+    const { lab, 덩이들 } = 덩이(M, w, h)
+    const 잰폭 = 덩이들.map(() => [])
+    const 걸음 = Math.max(3, Math.round(Lmin / 8))
+    const 옆끝 = (가로 ? h : w) - 1
+    for (let a = 0; a < A; a++) for (let b = 0; b < B; b += 걸음) {
+      const p = 가로 ? a * w + b : b * w + a
+      const L = lab[p]
+      if (L < 0) continue
+      // 이 덩이의 이 자리(b)에서 처음 만난 점만 — 같은 자리를 두 번 재지 않게(띠의 위쪽 끝에서 잼)
+      const 앞 = 가로 ? (a > 0 ? lab[p - w] : -1) : (a > 0 ? lab[p - 1] : -1)
+      if (앞 === L) continue
+      let n = 0
+      for (let q = a; q <= 옆끝 && m[가로 ? q * w + b : b * w + q]; q++) n++
+      for (let q = a - 1; q >= 0 && m[가로 ? q * w + b : b * w + q]; q--) n++
+      잰폭[L].push(n)
+    }
+    const 정 = 덩이들.map((b, L) => {
+      const 길 = 가로 ? b.x1 - b.x0 + 1 : b.y1 - b.y0 + 1
+      const 폭 = 잰폭[L].sort((p, q) => p - q)
+      return { 길, 두: 폭.length ? 폭[Math.min(폭.length - 1, Math.floor(0.75 * 폭.length))] : b.n / 길 }
+    })
+    const 목 = 정.filter((x) => x.길 >= Lmin).sort((p, q) => p.두 - q.두)
+    let 전 = 0, 합 = 0, 중 = 0
+    for (const x of 목) 전 += x.길
+    for (const x of 목) { 합 += x.길; if (합 >= 전 / 2) { 중 = x.두; break } }
+    const 남 = 정.map((x) => x.길 >= Lmin && x.길 >= 5 * x.두 && x.두 <= 3 * Math.max(중, 2))
+    for (let i = 0; i < M.length; i++) if (M[i] && !남[lab[i]]) M[i] = 0
+    return { M, 중 }
+  }
+  const 가 = 줄뽑기(true), 세 = 줄뽑기(false)
+  const mask = new Uint8Array(w * h)
+  for (let i = 0; i < mask.length; i++) if (가.M[i] || 세.M[i]) mask[i] = 1
+  const 두께 = Math.max(가.중, 세.중, 1)
+  // ④ 치수 숫자 글씨 · 곁의 가는 치수선(원래 잉크에서)
+  const 원 = 잉.mask
+  const 띠 = new Uint8Array(mask)      // 벽 띠만(아래에서 더하는 글씨 · 치수선 빼고)
+  const 덧 = new Uint8Array(w * h)     // 더한 글씨 · 치수선
+  const 치선 = []                       // 찾은 치수선 자리 [{가로, 줄}]
+  for (const b of o.글자리 || []) {
+    if (!b || !(b.L > 0) || !(b.W > 0)) continue
+    const 가로 = Math.abs(b.u[0]) >= 0.9, 세로 = Math.abs(b.u[1]) >= 0.9
+    // 글씨: 상자(조금 넓게) 안 원래 잉크
+    const hx = (Math.abs(b.u[0]) * b.L + Math.abs(b.u[1]) * b.W) / 2 + 2, hy = (Math.abs(b.u[1]) * b.L + Math.abs(b.u[0]) * b.W) / 2 + 2
+    for (let y = Math.max(0, Math.floor(b.c[1] - hy)); y <= Math.min(h - 1, Math.ceil(b.c[1] + hy)); y++) for (let x = Math.max(0, Math.floor(b.c[0] - hx)); x <= Math.min(w - 1, Math.ceil(b.c[0] + hx)); x++) {
+      const dx = x - b.c[0], dy = y - b.c[1]
+      if (Math.abs(dx * b.u[0] + dy * b.u[1]) <= b.L / 2 + 2 && Math.abs(-dx * b.u[1] + dy * b.u[0]) <= b.W / 2 + 2 && 원[y * w + x]) { mask[y * w + x] = 1; 덧[y * w + x] = 1 }
+    }
+    if (!가로 && !세로) continue
+    // 치수선: 숫자 방향으로 긴(글 길이 넘게 · 긴 변의 2 % 넘게) 가는 줄 — 숫자 둘레(옆으로 글 높이 2.2 배 · 앞뒤로 글 길이만큼)에 걸친 것
+    const k = 가로 ? 0 : 1, j = 1 - k
+    const 옆끝 = (가로 ? h : w) - 1, B = 가로 ? w : h
+    const 옆0 = Math.max(0, Math.floor(b.c[j] - 2.2 * b.W)), 옆1 = Math.min(옆끝, Math.ceil(b.c[j] + 2.2 * b.W))
+    const 앞0 = b.c[k] - b.L - b.W, 앞1 = b.c[k] + b.L + b.W
+    const 얇음 = Math.max(4, 0.3 * b.W)
+    const 칸 = (a, t) => (가로 ? a * w + t : t * w + a)
+    const 잡은줄 = []
+    for (let a = 옆0; a <= 옆1; a++) {
+      let t = 0
+      while (t < B) {
+        if (!원[칸(a, t)]) { t++; continue }
+        let e = t, 끝 = t
+        while (e < B) { if (원[칸(a, e)]) { 끝 = e; e++ } else if (e - 끝 <= 틈) e++; else break }
+        const 길 = 끝 - t + 1
+        if (길 >= Math.max(b.L, 0.02 * 긴) && 끝 >= 앞0 && t <= 앞1) {
+          // 가늘어야(칠한 바닥 · 벽 띠가 아님): 몇 군데에서 옆 두께를 잼
+          let 굵은 = 0, 잰 = 0
+          for (let s = t; s <= 끝; s += Math.max(1, (길 / 9) | 0)) {
+            let n = 0
+            for (let q = a; q >= 0 && 원[칸(q, s)]; q--) n++
+            for (let q = a + 1; q <= 옆끝 && 원[칸(q, s)]; q++) n++
+            잰++; if (n > 얇음) 굵은++
+          }
+          if (굵은 <= 0.3 * 잰) 잡은줄.push({ a, t, 끝 })
+        }
+        t = e
+      }
+    }
+    // 숫자 하나에 치수선 하나: 숫자 가운데에 가장 가까운 줄(과 그 두께만큼 곁 줄)만 — 곁의 다른 가는 테두리(제목 딱지 가장자리)는 안 넣음
+    if (잡은줄.length) {
+      const 가장 = 잡은줄.reduce((p, q) => (Math.abs(q.a - b.c[j]) < Math.abs(p.a - b.c[j]) ? q : p))
+      const 폭 = Math.max(3, 0.3 * b.W)   // 비스듬히 찍혀 숫자 위아래 토막이 몇 픽셀 어긋나도 함께
+      for (const { a, t, 끝 } of 잡은줄) if (Math.abs(a - 가장.a) <= 폭) for (let s = t; s <= 끝; s++) if (원[칸(a, s)]) { mask[칸(a, s)] = 1; 덧[칸(a, s)] = 1 }
+      치선.push({ 가로, 줄: 가장.a })
+    }
+  }
+  // ⑤ 바깥 치수선 «너머» 의 띠는 도면이 아님(옆에 붙은 제목 딱지 · 다른 그림 가장자리):
+  //    치수선을 가로지르는 벽 띠가 하나도 없고(= 도면 밖 치수선) · 너머 쪽 띠가 적으면(30 % 아래) 너머에 «통째로» 있는 띠 덩이를 지움
+  //    (도면 안 치수선은 벽이 가로지르므로 그대로)
+  if (치선.length) {
+    const { lab, 덩이들 } = 덩이(띠, w, h)
+    const 덤 = Math.max(6, Math.round(0.006 * 긴))
+    for (const { 가로, 줄 } of 치선) {
+      const 범 = 덩이들.map((b) => (가로 ? [b.y0, b.y1] : [b.x0, b.x1]))
+      if (범.some(([p0, p1]) => p0 < 줄 - 덤 && p1 > 줄 + 덤)) continue
+      let 앞 = 0, 뒤 = 0
+      덩이들.forEach((b, L) => { const [p0, p1] = 범[L]; if (p1 < 줄 - 덤) 앞 += b.n; else if (p0 > 줄 + 덤) 뒤 += b.n })
+      const 전 = 앞 + 뒤
+      if (!전) continue
+      const 쪽 = 앞 <= 0.3 * 전 ? -1 : 뒤 <= 0.3 * 전 ? 1 : 0
+      if (!쪽) continue
+      const 지울 = 범.map(([p0, p1]) => (쪽 < 0 ? p1 < 줄 - 덤 : p0 > 줄 + 덤))
+      for (let i = 0; i < 띠.length; i++) if (띠[i] && !덧[i] && 지울[lab[i]]) mask[i] = 0
+    }
+  }
+  return { mask, 두께, T }
+}
+
 /** 이어진 덩이 (8이웃) → { lab: Int32Array(-1=바탕), 덩이들: [{n,x0,y0,x1,y1}] } */
 export function 덩이(mask, w, h) {
   const lab = new Int32Array(w * h).fill(-1)
