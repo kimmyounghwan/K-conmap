@@ -174,7 +174,9 @@ export function 도면읽기(편, o = {}) {
   if (글상자.length) 글숫자합치기(숫자, 글상자, (p) => 돌림점(p, 반.가운데, 반.돌림각), 손)
   // 🧱 칠한 평면도: 방 번호 원 속 글자(«6실» 을 «769» 로) · 가구 무늬를 숫자로 잘못 읽은 것은 치수로 안 씀 — 또렷한(0.8 넘게) 치수다운 숫자만(인쇄 치수는 또렷이 읽힘)
   if (벽만) for (let i = 숫자.length - 1; i >= 0; i--) { const n = 숫자[i]; if (!((n.믿음 ?? 0) >= 0.8 && (n.값 >= 100 || n.소수))) 숫자.splice(i, 1) }
-  const 치수 = 치수짝짓기(숫자, 반.도형, 반.빗금, { 굵, 크기: Math.max(w, h), 끊긴선: 벽만 })
+  let 치수 = 치수짝짓기(숫자, 반.도형, 반.빗금, { 굵, 크기: Math.max(w, h), 끊긴선: 벽만 })
+  // 🧱 G358 벽만: 벽 그물에 안 붙은 짧은 토막(침대 · 싱크대 · 가구 테두리)을 뺌 — 치수에 쓰인 선은 그대로
+  if (벽만) { const 뺀 = 떠있는토막빼기(반.도형, 치수, { 굵, 크기: Math.max(w, h) }); 반.도형 = 뺀.도형; 치수 = 뺀.치수 }
   // 글씨 그림(TEXT 레이어): 글자 뼈대를 짧은 꺾은선으로
   const 글길 = 길따기(글뼈, w, h, { 가지: 0 })
   const 글씨줄 = 글길.map((g) => 줄이기선(g.p.map((p) => 돌림점(p, 반.가운데, 반.돌림각)), 0.8)).filter((p) => p.length >= 2)
@@ -184,6 +186,55 @@ export function 도면읽기(편, o = {}) {
     도형: 반.도형, 빗금: 반.빗금, 숫자, 치수, 글씨줄, 글씨낱말,
     잉크문턱: 잉.T, 벽만, 칠함: 칠.칠함,
   }
+}
+
+/**
+ * 🧱 G358 (2026-10-21) 벽만 — 떠 있는 짧은 토막 빼기
+ *   소장님 원룸 평면: 방 안 침대 · 싱크대 · 가구 테두리가 «짧은 가로줄» 로 남아 벽처럼 보임.
+ *   선끼리 끝이 다른 선에 닿으면(굵기 1.2 배 · 긴 변의 0.6 % 안) 한 무리로 묶고, 무리에 긴 선(긴 변의 15 % 넘게)이 없고
+ *   무리 크기(대각선)도 긴 변의 25 % 안이면 뺌. 치수에 쓰인 선(선 · 선2)은 남김 · 호(문 열림)는 남은 벽에 닿은 것만 남김.
+ * @returns { 도형, 치수 } — 치수의 선 · 선2 번호를 새 도형 차례로 고침
+ */
+export function 떠있는토막빼기(도형, 치수, o = {}) {
+  const 크기 = o.크기 || 1000, r = Math.max(1.2 * (o.굵 || 2), 0.006 * 크기)   // 벽 중심선끼리 T · 모서리로 «만나는» 거리(곁에 나란히 붙은 침대 테두리는 안 묶음)
+  const 선번 = []
+  도형.forEach((s, i) => { if (s.t === 'L') 선번.push(i) })
+  const 부모 = new Map(선번.map((i) => [i, i]))
+  const 뿌리 = (i) => { while (부모.get(i) !== i) { 부모.set(i, 부모.get(부모.get(i))); i = 부모.get(i) } return i }
+  const 점선거리 = (p, s) => {
+    const dx = s.b[0] - s.a[0], dy = s.b[1] - s.a[1], L2 = dx * dx + dy * dy
+    const t = L2 ? Math.max(0, Math.min(1, ((p[0] - s.a[0]) * dx + (p[1] - s.a[1]) * dy) / L2)) : 0
+    return Math.hypot(p[0] - s.a[0] - t * dx, p[1] - s.a[1] - t * dy)
+  }
+  const 닿음 = (s, q) => 점선거리(s.a, q) <= r || 점선거리(s.b, q) <= r || 점선거리(q.a, s) <= r || 점선거리(q.b, s) <= r
+  for (let x = 0; x < 선번.length; x++) for (let y = x + 1; y < 선번.length; y++) {
+    const i = 선번[x], j = 선번[y]
+    if (뿌리(i) !== 뿌리(j) && 닿음(도형[i], 도형[j])) 부모.set(뿌리(i), 뿌리(j))
+  }
+  const 무리 = new Map()
+  for (const i of 선번) {
+    const k = 뿌리(i), s = 도형[i], L = Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1])
+    const m = 무리.get(k) || { 최: 0, x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }
+    m.최 = Math.max(m.최, L)
+    for (const p of [s.a, s.b]) { m.x0 = Math.min(m.x0, p[0]); m.y0 = Math.min(m.y0, p[1]); m.x1 = Math.max(m.x1, p[0]); m.y1 = Math.max(m.y1, p[1]) }
+    무리.set(k, m)
+  }
+  const 남김무리 = new Set([...무리].filter(([, m]) => m.최 >= 0.15 * 크기 || Math.hypot(m.x1 - m.x0, m.y1 - m.y0) >= 0.25 * 크기).map(([k]) => k))
+  const 치수선 = new Set()
+  for (const d of 치수 || []) { if (d.선 >= 0) 치수선.add(d.선); if (d.선2 >= 0) 치수선.add(d.선2) }
+  const 남 = 도형.map((s, i) => (s.t === 'L' ? 치수선.has(i) || 남김무리.has(뿌리(i)) : null))
+  // 호 · 원: 남은 선에 끝(또는 가운데 둘레)이 닿은 것만
+  도형.forEach((s, i) => {
+    if (s.t === 'L') return
+    const 점들 = s.t === 'A' ? [[s.c[0] + s.r * Math.cos(s.a0), s.c[1] + s.r * Math.sin(s.a0)], [s.c[0] + s.r * Math.cos(s.a1), s.c[1] + s.r * Math.sin(s.a1)]] : [s.c]
+    const 멀 = s.t === 'A' ? r : s.r + r
+    남[i] = 도형.some((q, j) => q.t === 'L' && 남[j] && 점들.some((p) => 점선거리(p, q) <= 멀))
+  })
+  const 새번 = new Map(), 새도형 = []
+  도형.forEach((s, i) => { if (남[i]) { 새번.set(i, 새도형.length); 새도형.push(s) } })
+  if (새도형.length === 도형.length) return { 도형, 치수 }
+  const 새치수 = (치수 || []).map((d) => ({ ...d, 선: d.선 >= 0 ? (새번.has(d.선) ? 새번.get(d.선) : -1) : d.선, ...(d.선2 != null ? { 선2: d.선2 >= 0 ? (새번.has(d.선2) ? 새번.get(d.선2) : -1) : d.선2 } : {}) }))
+  return { 도형: 새도형, 치수: 새치수 }
 }
 
 /* ───────── 글 읽기(PaddleOCR) 숫자와 숫자망 숫자 합치기 ───────── */
