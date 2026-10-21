@@ -53,7 +53,7 @@ const 분위들 = [20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 9
  *        q후보: { qNN: { rate, 금액 } } · 권장: { rate, 금액 } | null — 바로투찰이 실제로 쓰는 금액 그대로
  */
 export default function 금액고르기(props) { return <지킴><안 {...props} /></지킴> }
-function 안({ base, llr, aval, p50, sd, aKnown, 지금금액, 지금, 고르기, 직접, q후보, 권장, enp = 0 }) {
+function 안({ base, llr, aval, pc = 0, p50, sd, aKnown, 지금금액, 지금, 고르기, 직접, q후보, 권장, enp = 0 }) {
   const 자리 = useRef(null)
   const 켜짐 = base > 0 && llr > 0 && sd > 0 && p50 > 0
   const 보임 = 보이면(자리, 켜짐)
@@ -69,13 +69,13 @@ function 안({ base, llr, aval, p50, sd, aKnown, 지금금액, 지금, 고르기
   if (!켜짐) return <div ref={자리} />
   const i = 금액대of(base)
   const 칸 = 표 && i >= 0 ? 표.b[i] : null
-  const z = (m) => { const s = breakEvenSj(base, llr, aval, m); return s == null || !표 ? null : (s - 표.p50) / sd }
+  const z = (m) => { const s = breakEvenSj(base, llr, aval, m, pc); return s == null || !표 ? null : (s - 표.p50) / sd }
   /* 줄 — 분위표에 있는 자리는 바로투찰 금액 그대로, 없는 자리는 같은 길(사정률 → 하한 올림 → 투찰률 올림)로 셈 */
   const 줄들 = 분위들.map((q) => {
     const k = `q${q}`
     if (q후보 && q후보[k]) return { k, q, 이름: `${q}분위`, rate: q후보[k].rate, 금액: q후보[k].금액, 표에있음: true }
     const sj = Math.round((p50 + 분위z(q) * sd) * 1000) / 1000
-    const sb = shownBid(base, p50, Math.ceil(limitAmount(base, sj, llr, aval)))
+    const sb = shownBid(base, p50, Math.ceil(limitAmount(base, sj, llr, aval, pc)))
     return sb ? { k: `z${q}`, q, 이름: `${q}분위`, rate: sb.rate, 금액: sb.amt, 표에있음: false } : null
   }).filter(Boolean)
   if (권장 && 권장.금액 > 0) {
@@ -119,7 +119,7 @@ function 안({ base, llr, aval, p50, sd, aKnown, 지금금액, 지금, 고르기
             <div className="gm-now">지금 고른 금액 <b>{won(지금금액)}</b> — 이 자리에 넣었다면 1순위 <b>{퍼(지금성적.일순, 지금성적.n)}</b> · 실격 <b>{퍼(지금성적.실격, 지금성적.n)}</b>
               {지금성적.밖 ? <span className="muted"> (표 끝 자리로 셈)</span> : null}</div>
           )}
-          <승률곡선 표={표} 칸={칸} 금액대이름={금액대들[i][2]} enp={Number(enp) || 0} base={base} llr={llr} aval={aval} p50={p50} sd={sd}
+          <승률곡선 표={표} 칸={칸} 금액대이름={금액대들[i][2]} enp={Number(enp) || 0} base={base} llr={llr} aval={aval} pc={pc} p50={p50} sd={sd}
             지금금액={지금금액} 직접={직접} />
           <div className="tp-scroll">
             <table className="tbl gm-tbl">

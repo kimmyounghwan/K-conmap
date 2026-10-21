@@ -77,8 +77,8 @@ def _row(fields, d):
             for k in fields]
 
 
-def notice(no, name, base, aval, ayn, lo, hi, llr, est, close):
-    return _row(IDX_F, {
+def notice(no, name, base, aval, ayn, lo, hi, llr, est, close, pc=0):
+    return _row(IDX_F, {"pc": pc,
         "no": no, "name": name, "inst": "검사용 발주기관", "base": base,
         "budget": int(est * 1.1), "close": close, "lo": lo, "hi": hi, "llr": llr,
         "est": est, "lic": ["토목공사업"], "aval": aval, "gmtrl": 0, "ayn": ayn,
@@ -106,21 +106,29 @@ def build_cases(p50=None):
         ("R26CHK0000103", "±3% · A값 미적용", 450_000_000, 0, "N", -3, 3, 89.745),
         ("R26CHK0000104", "10~50억 · A값 있음", 2_000_000_000, 120_000_000, "Y", -3, 3, 88.745),
         ("R26CHK0000105", "50~100억 · A값 있음", 7_000_000_000, 400_000_000, "Y", -3, 3, 87.495),
+        # ⚖ G356 순공사원가 98 % 선 — ① 선이 낙찰하한보다 높아 금액을 올림 ② 낮아 그대로 ③ 예정가격 100억 넘으면 없음
+        ("R26CHK0000106", "순공사원가 98% 선이 하한보다 높음", 450_000_000, 22_000_000, "Y", -3, 3, 89.745, 420_000_000),
+        ("R26CHK0000107", "순공사원가 98% 선이 하한보다 낮음", 450_000_000, 22_000_000, "Y", -3, 3, 89.745, 380_000_000),
+        ("R26CHK0000108", "예정가격 100억 바로 아래 → 98% 선 있음", 9_950_000_000, 400_000_000, "Y", -3, 3, 87.495, 9_400_000_000),
+        ("R26CHK0000110", "예정가격 100억 걸침 → 100억 아래로 나올 때 98% 선까지", 10_000_000_000, 400_000_000, "Y", -3, 3, 87.495, 9_400_000_000),
+        ("R26CHK0000111", "예정가격 늘 100억 넘음 → 98% 선 없음", 10_500_000_000, 400_000_000, "Y", -3, 3, 87.495, 9_900_000_000),
+        ("R26CHK0000109", "순공사원가 · A값 미적용 · ±2%", 300_000_000, 0, "N", -2, 2, 89.745, 285_000_000),
     ]
-    for no, nm, base, aval, ayn, lo, hi, llr in live:
+    for no, nm, base, aval, ayn, lo, hi, llr, *rest in live:
+        pc = rest[0] if rest else 0
         est = round(base / 1.1)
-        idx.append(notice(no, nm, base, aval, ayn, lo, hi, llr, est, fut))
+        idx.append(notice(no, nm, base, aval, ayn, lo, hi, llr, est, fut, pc))
         a_known = (ayn == "N") or aval > 0
-        r = B.recommend(base, llr, aval if ayn != "N" else 0, a_known, p50, lo=lo, hi=hi)
+        r = B.recommend(base, llr, aval if ayn != "N" else 0, a_known, p50, lo=lo, hi=hi, pc=pc)
         sh = B.shown(base, r["amt"], p50)
         want.append({"no": no, "kind": "live", "name": nm,
                      "amt": sh["amt"], "rate": sh["rate"], "sj": r["sj"],
                      "pctile": r["pctile"], "yeje": sh["yeje"],
                      "input": {"base": base, "llr": llr,
                                "a": (aval if ayn != "N" else 0), "aKnown": a_known,
-                               "lo": lo, "hi": hi, "ptot": 15, "pdrw": 4,
+                               "lo": lo, "hi": hi, "ptot": 15, "pdrw": 4, "pc": pc,
                                "row": {"base": base, "llr": llr, "aval": aval,
-                                       "ayn": ayn, "ptot": 15, "pdrw": 4}}})
+                                       "ayn": ayn, "ptot": 15, "pdrw": 4, "pc": pc}}})
 
     # ── ② 계산을 «거부»해야 하는 공고 ──────────────────────────
     idx.append(notice("R26CHK0000201", "낙찰하한율 없음", 450_000_000, 22_000_000, "Y",
@@ -146,13 +154,13 @@ def build_cases(p50=None):
                                    "ayn": "", "ptot": 15, "pdrw": 4}}})
 
     # ── ③ 개찰 채점 — 실격 / 1순위 / 밀림 ──────────────────────
-    def add_score(no, nm, base, aval, ayn, lo, hi, llr, sj_real, win_off, ladder=None):
+    def add_score(no, nm, base, aval, ayn, lo, hi, llr, sj_real, win_off, ladder=None, pc=0):
         a = 0 if ayn == "N" else aval
         yeje = round(base * sj_real / 100)
-        low = math.ceil((yeje - a) * llr / 100 + a)
+        low = max(math.ceil((yeje - a) * llr / 100 + a), B.pc_line(base, yeje, pc))   # 실제 1순위는 실제 하한 위
         win = low + win_off
         rate = round(win / yeje * 100, 3)
-        sc = B.score(base, a, (ayn == "N") or aval > 0, llr, win, rate, p50, lo=lo, hi=hi)
+        sc = B.score(base, a, (ayn == "N") or aval > 0, llr, win, rate, p50, lo=lo, hi=hi, pc=pc)
         res[no] = _row(RES_F, {
             "win": "검사건설(주)", "amt": win, "rate": rate,
             "np": (ladder[-1][0] if ladder else 0), "base": base, "dt": past,
@@ -164,7 +172,7 @@ def build_cases(p50=None):
             "nrank": (ladder[-1][0] if ladder else 0), "lo": lo, "hi": hi,
             "lic": ["토목공사업"],
             # ★ 공고서의 낙찰하한율 — 채점이 이걸 써야 바로투찰과 같은 금액이 됩니다 (2026-09-03)
-            "llr": llr, "est": 0,
+            "llr": llr, "est": 0, "pc": pc,
         })
         w = {"no": no, "kind": "score", "name": nm,
              "our": sc["our"], "limit": sc["limit"], "win": win,
@@ -173,9 +181,9 @@ def build_cases(p50=None):
             w["bracket"] = B.rank_bracket(ladder, sc["our"], sc["limit"], sc["beat"])
         w["input"] = {"base": base, "llr": llr, "a": a,
                       "aKnown": (ayn == "N") or aval > 0,
-                      "lo": lo, "hi": hi, "ptot": 15, "pdrw": 4,
+                      "lo": lo, "hi": hi, "ptot": 15, "pdrw": 4, "pc": pc,
                       "row": {"base": base, "llr": llr, "aval": aval, "ayn": ayn,
-                              "ptot": 15, "pdrw": 4},
+                              "ptot": 15, "pdrw": 4, "pc": pc},
                       "score": {"win": win, "rate": rate, "ladder": ladder}}
         want.append(w)
 
@@ -199,6 +207,11 @@ def build_cases(p50=None):
     #   채점이 규모 추정으로 되돌아가면 «우리 금액» 이 3.7% 어긋나 여기서 잡힙니다.
     add_score("R26CHK0000305", "공고서 하한율(86.245)", 450_000_000, 22_000_000, "Y",
               -3, 3, 86.245, 99.90, 130_000)
+    # ⚖ G356 — 순공사원가 98 % 선이 실제 하한이 되는 개찰: 낙찰하한만 보면 «통과» 인 금액도 98 % 선 아래면 실격
+    add_score("R26CHK0000306", "순공사원가 98% 선 실격", 450_000_000, 22_000_000, "Y",
+              -3, 3, 89.745, 101.30, 130_000, pc=420_000_000)
+    add_score("R26CHK0000307", "순공사원가 98% 선 · 1순위", 450_000_000, 22_000_000, "Y",
+              -3, 3, 89.745, 99.30, 9_000_000, pc=420_000_000)
     return idx, res, want
 
 

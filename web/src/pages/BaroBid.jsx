@@ -12,7 +12,7 @@ import { bidAmount, limitAmount, limitRate, r3, c3,
          sjSigma, recommend, buildScen, missingOf, isReady,
          digits, toNum, P50_FALLBACK, shownBid, passProb, QTILES, QTILE_N, quantileBid,
          smartBid, autoRule, canBid, nowStamp, stamp14, lowerLimit,
-         rankBracket } from '../lib/bidmath.js'
+         rankBracket, pcLine } from '../lib/bidmath.js'
 import { loadBasket, toggleBasket } from '../lib/basket.js'
 /* 🤝 공동도급 (2026-09-27) — 공고 탭과 같은 판정(lib/공동.js)·같은 딱지 */
 import { load우리지역 } from '../lib/공동.js'
@@ -296,6 +296,8 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
   /* A값이 «우리가 추정해 넣은 값»인지 «진짜 아는 값»인지 구별합니다.
      추정값으로 «A값을 안다» 고 판단하면 안 됩니다 — 사정률 분위가 달라집니다. */
   const [aAuto, setAAuto] = useState(false)
+  /* ⚖ G356 «기초금액 중 순공사원가» — 공고에 실려 오면 채우고, 없으면 공고문을 보고 손으로 넣습니다(98 % 선) */
+  const [pcIn, setPcIn] = useState('')
   const [pickRate, setPickRate] = useState(() => {
     try { const q = localStorage.getItem('kcm_qtile'); return q ? `q${q}` : 'rec' } catch { return 'rec' }
   })   // rec | limit | safe | own | q50..q95
@@ -427,6 +429,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
            바로투찰(공고 화면)과 다른 금액이 나옵니다. */
         llr: a[21] != null ? Number(a[21]) : 0, est: Number(a[22]) || 0,
         enp: Number(a[23]) || 0, enpn: Number(a[24]) || 0,
+        pc: Number(a[26]) || 0,                     // ⚖ G356 기초금액 중 순공사원가 (a[25] = enpb)
       } : fromUrl)
     })
     return () => { ok = false }
@@ -538,6 +541,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
        안 거르면 하한을 실제보다 높게 잡아 «통과인데 실격» 이라고 겁을 줍니다. */
     setAIn(r.ayn === 'N' ? '' : (r.aval ? String(r.aval) : ''))
     setAAuto(false)
+    setPcIn(r.pc > 0 ? String(r.pc) : '')
     setSjPick(null)
     /* 💬 2026-09-17 — 「바로투찰을 한 번 썼다」 는 **여기** 입니다.
      *
@@ -557,7 +561,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
   const clear = () => {
     try { sessionStorage.removeItem('kcm.baro.no'); sessionStorage.removeItem('kcm.baro.q') } catch (e) { /* 없음 */ }
     setPicked(null); setQ(''); setInst(''); setBase(0)
-    setBudgetIn(''); setAIn(''); setAAuto(false); setPickRate('rec'); setOwnRate('')
+    setBudgetIn(''); setAIn(''); setAAuto(false); setPcIn(''); setPickRate('rec'); setOwnRate('')
   }
 
   /* 📊 G340 분석실 — 왼쪽 목록을 누르면 주소 ?no= 만 바뀝니다. 바뀔 때마다 그 공고를 고릅니다(같은 pick — 금액 · A값 · 하한율이 다 따라옴).
@@ -606,6 +610,9 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
       ? { rate: band.llr, note: `추정가격 ${band.label}` }
       : lowerLimit(estimate)
   const a = toNum(aIn)
+  /* ⚖ G356 순공사원가 — 기초금액보다 크면 잘못 넣은 값이라 안 씀(98 % 선 없음) */
+  const pcRaw = toNum(pcIn)
+  const pcv = pcRaw > 0 && base > 0 && pcRaw <= base ? pcRaw : 0
   const lo = picked?.lo ?? -3
   const hi = picked?.hi ?? 3
 
@@ -687,12 +694,12 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
      승률이 같다면 실격이 적은 쪽이 답입니다. 그래서 95분위 하나로 고정합니다. */
   const recOut = recommend({
     base, llRate: ll?.rate, aVal: a, aKnown,
-    p50: ov?.sjq?.p50 ?? P50_FALLBACK, sd: sjSd,
+    p50: ov?.sjq?.p50 ?? P50_FALLBACK, sd: sjSd, pc: pcv,
   })
   const sj95 = recOut ? recOut.sj
     : (aKnown ? (ov?.sjq?.p75 ?? null) : (ov?.sjq?.p95 ?? null))  // 없으면 전국값
   const recAmt = recOut ? recOut.amt
-    : ((base > 0 && ll?.rate && sj95) ? Math.ceil(limitAmount(base, sj95, ll.rate, a) * SJ_MARGIN) : 0)
+    : ((base > 0 && ll?.rate && sj95) ? Math.ceil(limitAmount(base, sj95, ll.rate, a, pcv) * SJ_MARGIN) : 0)
   const rec95 = recAmt ? shownBid(base, sjMid, recAmt).rate : null
 
   /* ★ 공고별 자동 분위 — 예상 참가(enp)를 알면 그 자리 실측에서 가장 많이 이긴 분위 (bidmath.autoRule) */
@@ -700,7 +707,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
   const enpN = Number(picked?.enpn || res?.enpn) || 0
   const aRule = autoRule(enpHere)
   const autoOut = (aRule && ll?.rate && base > 0 && sjSd > 0)
-    ? smartBid({ base, llRate: ll.rate, aVal: a, aKnown, p50: sjMid, sd: sjSd, enp: enpHere }) : null
+    ? smartBid({ base, llRate: ll.rate, aVal: a, aKnown, p50: sjMid, sd: sjSd, enp: enpHere, pc: pcv }) : null
   const choices = []
   if (autoOut && autoOut.mode === 'auto') {
     choices.push({ k: 'auto', label: `자동 ${aRule.q}분위`, rate: autoOut.rate, why: '이 공고 자리 실측' })
@@ -712,7 +719,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
   }
   if (ll?.rate) {
     /* A값이 있으면 «명목 하한율»로 넣으면 실격입니다. 실효 하한으로 올려서 보여줍니다. */
-    const lr = base > 0 ? c3(limitRate(base, sjMid, ll.rate, a)) : ll.rate
+    const lr = base > 0 ? c3(limitRate(base, sjMid, ll.rate, a, pcv)) : ll.rate
     /* 중앙 사정률 기준 하한입니다. 사정률이 그보다 높게 나오면 실격입니다.
        역검증에서 이 근처를 노리면 실격이 절반 가까이 났습니다. 이름으로 알려줍니다. */
     choices.push({ k: 'limit', label: '최저', rate: lr, why: '사정률 높으면 실격' })
@@ -723,7 +730,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
      고른 분위는 브라우저에 기억합니다(다음 공고에서도 그 분위로 시작). */
   const qchoices = (ll?.rate && base > 0 && sjSd > 0)
     ? QTILES.map((t) => {
-        const qb = quantileBid({ base, llRate: ll.rate, aVal: a, p50: sjMid, sd: sjSd, q: t.q })
+        const qb = quantileBid({ base, llRate: ll.rate, aVal: a, p50: sjMid, sd: sjSd, q: t.q, pc: pcv })
         return qb ? { k: `q${t.q}`, q: t.q, label: `${t.q}분위`, rate: qb.rate, dq: t.dq, win: t.win } : null
       }).filter(Boolean)
     : []
@@ -731,7 +738,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
   const qpick = qchoices.find((c) => c.k === pickRate) || null
   /* 어떤 투찰률이든 «이 공고에서 살아남을 확률» 로 색을 정합니다. 칩·분위 칸 모두 이 함수 하나. */
   const rateTone = (rate) => riskTone(
-    passProb({ base, llRate: ll?.rate, aVal: a, amt: bidAmount(base, sjMid, rate), p50: sjMid, sd: sjSd })?.p
+    passProb({ base, llRate: ll?.rate, aVal: a, amt: bidAmount(base, sjMid, rate), p50: sjMid, sd: sjSd, pc: pcv })?.p
   )
   const myRate = pickRate === 'own' ? (Number(ownRate) || 0) : (chosen?.rate ?? rec ?? 0)
 
@@ -741,22 +748,26 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
 
   /* 하한 판정은 «명목 하한율»이 아니라 «A값을 반영한 실효 하한 투찰률»과 견줍니다.
      A값이 있는 공고에서 명목 하한율만 보면 통과인 줄 알고 실격합니다. */
-  const llEff = ll?.rate ? c3(limitRate(base, sjMid, ll.rate, a)) : null
+  const llEff = ll?.rate ? c3(limitRate(base, sjMid, ll.rate, a, pcv)) : null
+  /* ⚖ G356 중앙 사정률에서 두 선 — 낙찰하한(A값 반영)과 순공사원가 98 % 선. 큰 쪽이 실제 하한 */
+  const 하한1 = ll?.rate && base > 0 ? limitAmount(base, sjMid, ll.rate, a) : 0
+  const 선98 = base > 0 ? pcLine(base, base * (sjMid / 100), pcv) : 0
+  const 선98이하한 = 선98 > 0 && 선98 > 하한1
   /* 최종 판정은 «금액» 으로 합니다. 비율 비교만 하면 소수점에서 새어 나갑니다. */
   const pass = ll?.rate && base > 0
-    ? main >= limitAmount(base, sjMid, ll.rate, a)
+    ? main >= limitAmount(base, sjMid, ll.rate, a, pcv)
     : (llEff ? myRate >= llEff : null)
   const margin = llEff ? r3(myRate - llEff) : null
   /* ★ «실격» 은 사정률이 나와 봐야 압니다 — 이 금액이 하한을 넘길 확률과 그 경계 사정률 */
   const pp = (ll?.rate && base > 0 && main > 0)
-    ? passProb({ base, llRate: ll.rate, aVal: a, amt: main, p50: sjMid, sd: sjSd }) : null
+    ? passProb({ base, llRate: ll.rate, aVal: a, amt: main, p50: sjMid, sd: sjSd, pc: pcv }) : null
 
   /* ★ 앞으로 넣을 공고에도 «채점과 같은 표» 를 그립니다.
      내가 넣을 금액(main)이 사정률 추첨에 따라 어떻게 갈리는지 미리 봅니다.
      채점이 쓰는 buildScen 을 그대로 부릅니다 — 두 화면이 어긋날 수 없습니다. */
   const scLive = buildScen({
     base, llRate: ll?.rate, aVal: a,
-    p50: ov?.sjq?.p50 ?? P50_FALLBACK, sd: sjSd, myAmt: main,
+    p50: ov?.sjq?.p50 ?? P50_FALLBACK, sd: sjSd, myAmt: main, pc: pcv,
   })
 
   /* ⚠️ A값이 있는 공고에서는 전국 권장값이 실효 하한 아래일 수 있습니다.
@@ -909,11 +920,13 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
     const guess = !realA && res.ayn !== 'N'
     const st = bstatOf(bd)
     const A = realA || (guess && st ? Math.round(b * st.ar) : 0)
+    /* ⚖ G356 개찰 자료의 «기초금액 중 순공사원가» — 있으면 98 % 선도 채점에 (화면과 같은 함수) */
+    const rpc = Number(res.pc) > 0 && Number(res.pc) <= b ? Number(res.pc) : 0
 
     /* ★ 추천 화면과 «같은 함수» 로 금액을 만듭니다 */
     const ro = recommend({ base: b, llRate: h, aVal: A,
                            aKnown: res.ayn === 'N' || (res.aval || 0) > 0,
-                           p50: ov?.sjq?.p50 ?? P50_FALLBACK, sd: rSd })
+                           p50: ov?.sjq?.p50 ?? P50_FALLBACK, sd: rSd, pc: rpc })
     if (!ro) return { yeje, est, band: bd, skip: true }
     const sj95v = ro.sj
     /* 원인 ②: 채점은 recommend() 의 금액을 그대로 썼는데, 바로투찰 화면은 그 금액을
@@ -924,9 +937,10 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
     const pmid = ov?.sjq?.p50 ?? P50_FALLBACK
     /* 예상 참가를 알던 공고면 그날 화면도 자동 분위였다 — 채점도 같은 금액(smartBid)으로 (2026-09-03) */
     const sb = smartBid({ base: b, llRate: h, aVal: A, aKnown: res.ayn === 'N' || (res.aval || 0) > 0,
-                          p50: pmid, sd: rSd, enp: Number(res.enp) || 0 }) || { amt: shownBid(b, pmid, ro.amt).amt, mode: 'rec', rule: null }
+                          p50: pmid, sd: rSd, enp: Number(res.enp) || 0, pc: rpc }) || { amt: shownBid(b, pmid, ro.amt).amt, mode: 'rec', rule: null }
     const M = sb.amt                                              // 바로투찰이 준 금액
-    const L = Math.ceil((yeje - A) * (h / 100) + A)                // 실제 낙찰하한금액
+    const L = Math.max(Math.ceil((yeje - A) * (h / 100) + A),      // 실제 낙찰하한금액
+                       pcLine(b, yeje, rpc))                      // ⚖ 순공사원가 98 % 선이 더 높으면 그 선
     const dq = M < L
     const beat = !dq && M < res.amt
 
@@ -940,7 +954,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
        정확히 반반. 실격한 날 낙찰가와의 거리는 0.4% 가 아니라 «그 자리에 없음» 입니다.
        그런데 채점 화면은 실격한 날에도 «가까웠다» 고 보여줘서 최저를 좋게 보이게 했습니다.
        그래서 세 금액의 «이 개찰에서의 운명»을 나란히 적습니다. */
-    const lrMid = c3(limitRate(b, pmid, h, A))
+    const lrMid = c3(limitRate(b, pmid, h, A, rpc))
     const three = [
       { k: '최저', amt: bidAmount(b, pmid, lrMid),            dq: 47.1, won: 29.7 },
       { k: '중간', amt: bidAmount(b, pmid, r3(lrMid + 0.3)),  dq: 31.3, won: 21.9 },
@@ -1010,7 +1024,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
 
     const realSj = hasBase ? r3(yeje / b * 100) : null
     const sc = buildScen({ base: b, llRate: h, aVal: A, p50: ov?.sjq?.p50 ?? P50_FALLBACK,
-                           sd: rSd, myAmt: M, realSj, realLimit: L })
+                           sd: rSd, myAmt: M, realSj, realLimit: L, pc: rpc })
     const scen = sc ? sc.rows : []
     const passN = sc ? sc.passN : 0
 
@@ -1065,6 +1079,16 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [res])
 
+  /* ⚖ G356 개찰 자료에 순공사원가가 있으면 칸을 채움(공고를 고르지 않고 번호로 왔을 때) */
+  const pcFromRes = useRef(false)
+  useEffect(() => {
+    if (pcFromRes.current || pcIn) return
+    if (!res || !(res.pc > 0)) return
+    pcFromRes.current = true
+    setPcIn(String(res.pc))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [res])
+
   const aFromRes = useRef(false)
   useEffect(() => {
     if (aFromRes.current || aIn) return
@@ -1093,11 +1117,11 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
   useEffect(() => {
     if (!분석실 || typeof 알림 !== 'function') return
     알림({
-      picked, base, llr: ll?.rate || 0, aval: a, sjMid, sjSd, main, myRate, ag, lo, hi, bag: bag.length,
+      picked, base, llr: ll?.rate || 0, aval: a, pc: pcv, sjMid, sjSd, main, myRate, ag, lo, hi, bag: bag.length,
       ready: !!picked && isReady(picked), pass, copied, pickRate, ...분석길.current,
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [분석실, picked, base, ll?.rate, a, sjMid, sjSd, main, myRate, ag, lo, hi, bag, pass, copied, pickRate])
+  }, [분석실, picked, base, ll?.rate, a, pcv, sjMid, sjSd, main, myRate, ag, lo, hi, bag, pass, copied, pickRate])
 
   const dd = picked ? dday(picked.close) : null
   const topMax = hot?.top?.length ? Math.max(...hot.top.map((t) => t[1])) : 1
@@ -1396,6 +1420,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
             기초 {wonShort(base)}
             {' · '}예가 {lo}%~{hi}%
             {a > 0 ? ` · A값 ${wonShort(a)}` : (picked.ayn === 'N' ? ' · A값 없음' : '')}
+            {pcv > 0 ? ` · 순공사원가 ${wonShort(pcv)}` : ''}
           </span>
           <span className="e">값 고치기 ▾</span>
         </button>
@@ -1478,6 +1503,24 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
               )}
             </div>
           )}
+        </div>
+
+        {/* ⚖ G356 순공사원가 — 예정가격 100억 미만 공사는 «예정가격 중 순공사원가» 의 98 % 미만이면 심사 제외 */}
+        <div className="field">
+          <label>순공사원가 (원) <span className="hint">
+            {pcRaw > 0 && base > 0 && pcRaw > base ? '— 기초금액보다 커서 쓰지 않습니다. 공고문 값을 다시 확인해 주세요'
+              : picked?.pc > 0 && pcv === picked.pc ? '— 공고에서 자동으로 가져온 값(기초금액 중)'
+              : '— 공고문의 «기초금액 중 순공사원가»(재료비 · 노무비 · 경비 + 부가세)'}
+          </span></label>
+          <input inputMode="numeric"
+            value={pcIn ? Number(pcIn).toLocaleString('ko-KR') : ''}
+            onChange={(e) => { setPcIn(digits(e.target.value)); setCopied(false) }}
+            placeholder="모르면 비워 두세요" />
+          <div className="note sm">
+            예정가격 100억 원 미만 공사는 투찰금액이 <b>예정가격 중 순공사원가의 98%</b>보다 낮으면 심사에서 빠집니다
+            {' '}(순공사원가 × 예정가격 ÷ 기초금액 × 98%, 원 미만 올림). 넣으면 이 선과 낙찰하한 중 <b>높은 쪽</b>으로 금액 · 확률을 셉니다.
+            <br />근거: 조달청 시설공사 적격심사세부기준 제5조 · 지방자치단체 입찰시 낙찰자 결정기준 제2장 제4절 (2026.7.1. 시행)
+          </div>
         </div>
       </div>
       )}
@@ -1909,7 +1952,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
               이 공고 금액대의 지난 개찰로 «20~95분위(5분위마다) · 권장 · 직접» 의 투찰 금액 · 1순위 · 실격 비율을 보여 주고 고르게 함(소장님 「저런식을 금액제시해서 자세히 · 비용안들어 가게」).
               누르면 위 고르기(pickRate)와 같은 것이 바뀝니다 — 금액 셈은 바로투찰 그대로 · 숫자는 /data/kb/gm.json(수 KB · tools/금액고르기.jsx). */}
           {qchoices.length > 0 && (
-            <금액고르기 base={base} llr={ll?.rate} aval={a} p50={sjMid} sd={sjSd} 지금금액={main} 지금={pickRate} aKnown={aKnown} enp={enpHere}
+            <금액고르기 base={base} llr={ll?.rate} aval={a} pc={pcv} p50={sjMid} sd={sjSd} 지금금액={main} 지금={pickRate} aKnown={aKnown} enp={enpHere}
               고르기={(k) => { 고름(k); if (k === 'own') 직접칸으로() }}
               직접={(rate) => { setOwnRate(Number(rate).toFixed(3)); 고름('own') }}
               q후보={Object.fromEntries(qchoices.map((c) => [c.k, { rate: c.rate, 금액: bidAmount(base, sjMid, c.rate) }]))}
@@ -1972,7 +2015,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
                 <div>
                   <span>{pct(ll.rate - 2, 3)} 이면</span>
                   <b className="hi">
-                    {won(Math.ceil(limitAmount(base, sj95 ?? sjMid, ll.rate - 2, a)))}
+                    {won(Math.ceil(limitAmount(base, sj95 ?? sjMid, ll.rate - 2, a, pcv)))}
                   </b>
                 </div>
               </div>
@@ -2013,10 +2056,14 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
                 </div>
               )}
               <div className="sub">
-                {a > 0 && llEff && (
+                {선98이하한 ? (
+                  <>⚖ 순공사원가 {won(pcv)}의 98% 선 <b>{won(선98)}</b>이 낙찰하한 {won(하한1)}보다 높아,
+                    {' '}이 선이 실제 하한입니다(예정가격 100억 미만 — 순공사원가 98% 미만은 심사 제외). · </>
+                ) : a > 0 && llEff ? (
                   <>공고 하한율 {pct(ll.rate, 3)} + A값 {won(a)} → 실효 하한 {pct(llEff, 3)}.
                     {' '}A값이 있으면 명목 하한율보다 높아집니다. · </>
-                )}
+                ) : null}
+                {선98 > 0 && !선98이하한 && <>순공사원가 98% 선 {won(선98)}은 낙찰하한보다 낮아 영향이 없습니다. · </>}
                 {ll.note}
                 {ll.given ? ' · 이 공고에 실제로 적힌 값입니다.'
                   : ' · 일반공사 적격심사 기준으로 추정한 값입니다. 공고서를 꼭 확인하세요.'}
@@ -2051,7 +2098,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
           {/* 🎯 G181 (2026-10-07) 확보 예가 미리 보기 — 소장님 「원래 이게 어디에 있어야 가장 효과가 크지?」 → 바로투찰 · 「예가만 추가해」
               지난 개찰 자료로 셉니다(tools/확보예가.jsx). 위 금액 · 권장 · 실격 확률은 그대로입니다.
               🩹 G201 (2026-10-08) 소장님 「고쳐줘」 — 나라장터 단추 바로 아래에서 «판정 · 등급 아래 · 참고 자료 맨 앞» 으로 옮김(고르기 칸이 금액 곁으로 돌아옴). 고른 금액(main)을 그대로 받음. */}
-          <확보예가미리 base={base} llr={ll?.rate} aval={a} amt={main} 공고={picked} p50={ov?.sjq?.p50 ?? P50_FALLBACK} />
+          <확보예가미리 base={base} llr={ll?.rate} aval={a} pc={pcv} amt={main} 공고={picked} p50={ov?.sjq?.p50 ?? P50_FALLBACK} />
 
           {/* 🏛 ⏳ 이 기관 최근 사정률 · 아직 개찰 안 된 공고 (2026-10-05 — 공고 카드·공고 화면과 같은 상자)
               🎯 이 칸에 누가 넣나 — 우리 금액이 버티는 사정률(판정 상자의 그 값) 칸과 그 칸의 지난 투찰 */}
@@ -2089,7 +2136,10 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
                   <b>{ll?.rate ? pct(ll.rate, 3) : '별도 기준'}
                     {a > 0 && llEff ? <span className="sub2"> · 실효 {pct(llEff, 3)}</span> : null}</b></div>
                 {ll?.rate > 0 && (
-                  <div><span>하한 금액</span><b>{won(limitAmount(base, sjMid, ll.rate, a))}</b></div>
+                  <div><span>하한 금액</span><b>{won(limitAmount(base, sjMid, ll.rate, a, pcv))}</b></div>
+                )}
+                {pcv > 0 && (
+                  <div><span>순공사원가</span><b>{won(pcv)}{선98 > 0 ? <span className="sub2"> · 98% 선 {won(선98)}</span> : null}</b></div>
                 )}
                 <div><span>A값</span>
                   <b>{a > 0 ? won(a) : (picked.aval ? won(picked.aval) : '공고서 확인')}</b></div>
@@ -2284,7 +2334,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
                   {steps.map((sv) => {
                     const yeje = base * (sv / 100)
                     const r2 = yeje > 0 ? (main / yeje) * 100 : 0
-                    const ok = ll?.rate ? main >= limitAmount(base, sv, ll.rate, a) : true
+                    const ok = ll?.rate ? main >= limitAmount(base, sv, ll.rate, a, pcv) : true
                     return (
                       <tr key={sv} className={Math.abs(sv - sjMid) < 0.26 ? 'on' : ''}>
                         <td>{sv.toFixed(1)}%</td>

@@ -36,14 +36,14 @@ function 너비재기(ref) {
 const 퍼 = (v, d = 1) => (v == null ? '—' : `${Number(v).toFixed(d)}%`)
 
 /** 그 사정률이면 — 금액 · 투찰률 · 하한을 넘을 확률 · [고르기] */
-function 그사정률({ sj, 덧, base, llr, aval, sjMid, sjSd, 직접, 지금금액 }) {
+function 그사정률({ sj, 덧, base, llr, aval, pc = 0, sjMid, sjSd, 직접, 지금금액 }) {
   if (!(sj > 0)) return null
   if (!(base > 0 && llr > 0 && sjMid > 0)) {
     return <div className="bsr-pick"><b>사정률 {sj.toFixed(2)}%</b>{덧 ? <> · {덧}</> : null} — 기초금액 · 하한율이 있어야 금액을 셉니다</div>
   }
-  const sb = shownBid(base, sjMid, Math.ceil(limitAmount(base, sj, llr, aval)))
+  const sb = shownBid(base, sjMid, Math.ceil(limitAmount(base, sj, llr, aval, pc)))
   if (!sb) return null
-  const pp = passProb({ base, llRate: llr, aVal: aval, amt: sb.amt, p50: sjMid, sd: sjSd })
+  const pp = passProb({ base, llRate: llr, aVal: aval, amt: sb.amt, p50: sjMid, sd: sjSd, pc })
   const 같음 = 지금금액 > 0 && sb.amt === 지금금액
   return (
     <div className="bsr-pick">
@@ -169,7 +169,7 @@ function 분포그림({ 칸들, 비교, 두칸, 하한선, 고른, 고르기, lo
   )
 }
 
-export default function 분석판({ inst, lo, hi, base, llr, aval, sjMid, sjSd, 지금금액, 직접, ag }) {
+export default function 분석판({ inst, lo, hi, base, llr, aval, pc = 0, sjMid, sjSd, 지금금액, 직접, ag }) {
   const [흐름, set흐름] = useState(undefined)
   const [분포, set분포] = useState(undefined)
   const [보기, set보기] = useState('기관')
@@ -204,7 +204,7 @@ export default function 분석판({ inst, lo, hi, base, llr, aval, sjMid, sjSd, 
   const 줄 = 지금보기 === '시도' ? 시도줄 : 기관줄
   const 옛것부터 = useMemo(() => 줄.map((x) => x.sj).reverse(), [줄])
   const 가운데값 = 가운데(옛것부터)
-  const 하한선 = (base > 0 && llr > 0 && 지금금액 > 0) ? breakEvenSj(base, llr, aval, 지금금액) : null
+  const 하한선 = (base > 0 && llr > 0 && 지금금액 > 0) ? breakEvenSj(base, llr, aval, 지금금액, pc) : null
   const 넘은수 = 하한선 != null ? 옛것부터.filter((v) => v > 하한선).length : 0
   const 최근10 = 옛것부터.slice(-10)
   const 최근10평균 = 최근10.length ? 최근10.reduce((s, v) => s + v, 0) / 최근10.length : null
@@ -227,7 +227,7 @@ export default function 분석판({ inst, lo, hi, base, llr, aval, sjMid, sjSd, 
   const 보기바꿈 = (k) => { set보기(k); set고른(null); if (k === '시도') 세기('|분석판|보기시도') }
   const 비교바꿈 = (k) => { set비교(k); if (k === 'amt') 세기('|분석판|비교금액대') }
   const 상자 = (from) => (고른 && 고른.from === from ? (
-    <그사정률 sj={고른.sj} base={base} llr={llr} aval={aval} sjMid={sjMid} sjSd={sjSd} 직접={직접} 지금금액={지금금액}
+    <그사정률 sj={고른.sj} base={base} llr={llr} aval={aval} pc={pc} sjMid={sjMid} sjSd={sjSd} 직접={직접} 지금금액={지금금액}
       덧={고른.from === '칸' ? `${칸이름(고른.칸)}% 칸 가운데` : 고른.줄 ? `${짧은날(고른.줄.d)}${고른.줄.inst ? ' · ' + 고른.줄.inst : ''}${고른.줄.rate ? ` · 1순위 ${고른.줄.rate.toFixed(3)}%` : ''}${고른.줄.np ? ` · 참가 ${고른.줄.np}곳` : ''}` : ''} />
   ) : null)
 

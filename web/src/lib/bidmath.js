@@ -25,18 +25,48 @@ export function bidAmount(base, sajeong, rate) {
   return Math.ceil(base * (sajeong / 100) * (rate / 100))
 }
 
-/** 낙찰하한금액 = (예정가격 − A) × 하한율 + A — 적격심사 규정 */
-export function limitAmount(base, sajeong, llRate, aVal) {
+/* ══════════════════════════════════════════════════════════════
+   ⚖ 순공사원가 98 % 선 (G356 · 2026-10-21)
+
+   근거(원문 확인):
+     · 「조달청 시설공사 적격심사세부기준」 제5조 [조달청지침 제6481호 · 2026.7.1. 시행]
+     · 「지방자치단체 입찰시 낙찰자 결정기준」 제2장 제4절 1. [행정안전부예규 제373호 · 2026.7.1. 시행]
+     · 「(계약예규) 적격심사기준」 제7조① 단서
+   예정가격 100억 원 미만 공사는 입찰금액이 «예정가격 중 순공사원가» 의 98 % 미만이면 심사에서 빠집니다.
+     ① 예정가격 중 순공사원가 = (기초금액 중 재료비 · 노무비 · 경비 + 부가세) × (예정가격 ÷ 기초금액)
+     ② 그 98 %                = ① × 98/100          — ① · ② 모두 소수점 첫째 자리 이하 올림
+   pc = «기초금액 중 순공사원가»(조달청 bssAmtPurcnstcst · 공고문). 모르면 0 → 이 선은 없음(전과 같음).
+   실제 하한 = max(낙찰하한금액, 이 선). 파이썬 짝 tools/bidmath.py pc_line 도 같이 고칠 것.
+   ══════════════════════════════════════════════════════════════ */
+export const PC_LIMIT = 1e10          // 예정가격 100억 원 미만만
+/** 예정가격 yeje 에서의 «순공사원가 98 %» 금액 — 걸리지 않으면 0 */
+export function pcLine(base, yeje, pc) {
+  const p = Number(pc) || 0
+  if (!(p > 0) || !(base > 0) || p > base || !(yeje > 0) || !(yeje < PC_LIMIT)) return 0   // 기초금액보다 크면 잘못 온 값
+  return Math.ceil(Math.ceil(p * yeje / base) * 98 / 100)
+}
+
+/** 낙찰하한금액 = (예정가격 − A) × 하한율 + A — 적격심사 규정. pc(기초금액 중 순공사원가)를 주면 98 % 선과 큰 쪽 */
+export function limitAmount(base, sajeong, llRate, aVal, pc = 0) {
   if (!base || !llRate) return 0
   const yeje = base * (sajeong / 100)
-  return Math.ceil((yeje - aVal) * (llRate / 100) + aVal)
+  return Math.max(Math.ceil((yeje - aVal) * (llRate / 100) + aVal), pcLine(base, yeje, pc))
+}
+
+/** 사정률이 s «까지» 어디로 나와도 넘어야 하는 하한 — 금액을 낼 때(권장 · 분위) 씁니다.
+ *  보통은 limitAmount(s) 와 같습니다(하한이 사정률 따라 오르기만 하므로). 다만 98 % 선은 예정가격 100억에서 끊깁니다:
+ *  s 에서 예정가격이 100억 이상이어도, 그보다 낮게 나와 100억 «아래» 가 되면 98 % 선이 걸립니다 → 그 바로 아래 값까지 넘게. */
+export function limitUpTo(base, sajeong, llRate, aVal, pc = 0) {
+  const v = limitAmount(base, sajeong, llRate, aVal, pc)
+  if (!v || !(Number(pc) > 0) || !(base * (sajeong / 100) >= PC_LIMIT)) return v
+  return Math.max(v, pcLine(base, PC_LIMIT - 1, pc))
 }
 
 /** 그 하한금액을 «투찰률»로 환산한 값. A가 있으면 명목 하한율보다 높습니다. */
-export function limitRate(base, sajeong, llRate, aVal) {
+export function limitRate(base, sajeong, llRate, aVal, pc = 0) {
   const yeje = base * (sajeong / 100)
   if (!yeje || !llRate) return 0
-  return (limitAmount(base, sajeong, llRate, aVal) / yeje) * 100
+  return (limitAmount(base, sajeong, llRate, aVal, pc) / yeje) * 100
 }
 
 export const digits = (s) => String(s || '').replace(/[^0-9]/g, '')
@@ -99,9 +129,9 @@ export const SCEN_Z = [[5, -1.6449], [15, -1.0364], [25, -0.6745], [35, -0.3853]
  *  투찰금액(myAmt)은 하나로 고정하고, 사정률만 바꿔가며 그때의 하한을 구합니다.
  *  ⚠️ 전국 사정률 10분위(ov.sjc)를 쓰면 안 됩니다 — ±2%와 ±3% 공고가 섞여 있어
  *     ±2% 공고에 있지도 않은 넓은 흔들림을 보여주게 됩니다. 그 공고의 σ 로 만듭니다. */
-export function buildScen({ base, llRate, aVal, p50, sd, myAmt, realSj, realLimit }) {
+export function buildScen({ base, llRate, aVal, p50, sd, myAmt, realSj, realLimit, pc = 0 }) {
   if (!(base > 0) || !llRate || sd == null || !(myAmt > 0)) return null
-  const lowOf = (v) => Math.ceil((base * (v / 100) - aVal) * (llRate / 100) + aVal)
+  const lowOf = (v) => limitAmount(base, v, llRate, aVal, pc)
   const rows = SCEN_Z.map(([q, z]) => {
     const sj = Math.round((p50 + z * sd) * 1000) / 1000
     const low = lowOf(sj)
@@ -117,14 +147,13 @@ export function buildScen({ base, llRate, aVal, p50, sd, myAmt, realSj, realLimi
 }
 
 /** 바로투찰이 실제로 내는 금액. 추천 화면과 채점이 이 하나만 씁니다. */
-export function recommend({ base, llRate, aVal, aKnown, p50, sd }) {
+export function recommend({ base, llRate, aVal, aKnown, p50, sd, pc = 0 }) {
   if (!(base > 0) || !llRate || sd == null || !p50) return null
   const K = aKnown ? 0.674 : 1.63        // 75분위 : 95분위
   const margin = aKnown ? 1.003 : 1.0    // 75분위에는 0.3% 여유
   const sj = Math.round((p50 + K * sd) * 1000) / 1000
-  const yeje = base * (sj / 100)
   return { sj, K, margin, pctile: aKnown ? 75 : 95,
-           amt: Math.ceil(Math.ceil((yeje - aVal) * (llRate / 100) + aVal) * margin) }
+           amt: Math.ceil(limitUpTo(base, sj, llRate, aVal, pc) * margin) }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -179,11 +208,13 @@ export function quickBid(r, p50, q) {
   /* ⚠️ 바로투찰 화면과 «같은 길»로 갑니다 — 금액 → 투찰률(소수 3자리, 올림) → 다시 금액 (shownBid).
      처음엔 recommend().amt 를 그대로 냈다가 selfcheck 에 잡혔습니다: 카드 408,999,841 vs 화면 409,002,195.
      예상 참가(enp)를 알면 공고별 자동 분위, 모르면 권장 — smartBid 하나로 (2026-09-03). */
+  /* ⚖ G356 — 공고에 «기초금액 중 순공사원가»(r.pc)가 실려 오면 98 % 선까지 (기초금액보다 크면 잘못 온 값 → 안 씀) */
+  const pc = Number(r.pc) > 0 && Number(r.pc) <= base ? Number(r.pc) : 0
   if (q) {
-    const qb = quantileBid({ base, llRate: Number(r.llr), aVal, p50, sd, q: Number(q) })
+    const qb = quantileBid({ base, llRate: Number(r.llr), aVal, p50, sd, q: Number(q), pc })
     if (qb) return { ...qb, mode: 'pick', rule: null, pctile: Number(q), aKnown }
   }
-  return smartBid({ base, llRate: Number(r.llr), aVal, aKnown, p50, sd, enp: Number(r.enp) || 0 })
+  return smartBid({ base, llRate: Number(r.llr), aVal, aKnown, p50, sd, enp: Number(r.enp) || 0, pc })
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -220,11 +251,19 @@ export function pickOdds(r, pick, qbAmt) {
    화면이 «이대로 넣으면 실격입니다» 라고 단정했는데, 그건 «사정률이 중앙값이면» 의 얘기였습니다.
    금액 M 은 고정이고 하한 L(s) 은 사정률 s 로 움직입니다. M ≥ L(s) ⇔ s ≤ s*.
    그래서 «통과가 되는 사정률 경계 s*» 와 «그 아래로 나올 확률» 을 같이 말합니다. */
-export function breakEvenSj(base, llRate, aVal, amt) {
+export function breakEvenSj(base, llRate, aVal, amt, pc = 0) {
   if (!(base > 0) || !llRate || !(amt > 0)) return null
   const A = Number(aVal) || 0
   // (base·s/100 − A)·llr/100 + A ≤ M  →  s ≤ ((M − A)·100/llr + A) / base · 100
-  return ((amt - A) * 100 / llRate + A) / base * 100
+  const s1 = ((amt - A) * 100 / llRate + A) / base * 100
+  /* ⚖ G356 순공사원가 98 % 선: pc·s/100·0.98 ≤ M → s ≤ M·10000/(98·pc). 두 선 모두 넘어야 통과 → 작은 쪽.
+     그 사정률에서 예정가격이 100억 이상이면 98 % 선은 걸리지 않음 → 낙찰하한 쪽 그대로 */
+  const p = Number(pc) || 0
+  if (p > 0) {
+    const s2 = amt * 10000 / (98 * p)
+    if (s2 < s1 && base * (s2 / 100) < PC_LIMIT) return s2
+  }
+  return s1
 }
 /** 표준정규 누적분포 — Abramowitz-Stegun 7.1.26 (오차 1.5e-7) */
 export function normCdf(z) {
@@ -234,10 +273,15 @@ export function normCdf(z) {
   return z >= 0 ? 1 - p : p
 }
 /** 이 금액이 하한을 넘길 확률 (사정률이 s* 아래로 나올 확률) — 0~1, 계산 불가면 null */
-export function passProb({ base, llRate, aVal, amt, p50, sd }) {
-  const s = breakEvenSj(base, llRate, aVal, amt)
+export function passProb({ base, llRate, aVal, amt, p50, sd, pc = 0 }) {
+  const s = breakEvenSj(base, llRate, aVal, amt, pc)
   if (s == null || !(sd > 0) || !(p50 > 0)) return null
-  return { sj: Math.round(s * 1000) / 1000, p: normCdf((s - p50) / sd) }
+  let p = normCdf((s - p50) / sd)
+  /* ⚖ 98 % 선에서 먼저 걸렸다면(s < 100억 경계) — 예정가격이 100억 이상으로 나오면 98 % 선이 없어져 낙찰하한까지는 다시 통과 */
+  const s1 = breakEvenSj(base, llRate, aVal, amt)
+  const thr = PC_LIMIT / base * 100
+  if (Number(pc) > 0 && s < s1 && thr < s1) p += Math.max(0, normCdf((s1 - p50) / sd) - normCdf((thr - p50) / sd))
+  return { sj: Math.round(s * 1000) / 1000, p }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -294,11 +338,11 @@ export const QTILES = [
 ]
 export const QTILE_N = 8406
 /** 분위 q 로 낸 금액 (여유 0%) — 권장(75분위+0.3%)과 같은 길: 하한금액 → 투찰률 올림 → 금액 */
-export function quantileBid({ base, llRate, aVal, p50, sd, q }) {
+export function quantileBid({ base, llRate, aVal, p50, sd, q, pc = 0 }) {
   const t = QTILES.find((x) => x.q === q)
   if (!t || !(base > 0) || !llRate || !(sd > 0) || !(p50 > 0)) return null
   const sj = Math.round((p50 + t.z * sd) * 1000) / 1000
-  const amt = Math.ceil(limitAmount(base, sj, llRate, aVal))
+  const amt = Math.ceil(limitUpTo(base, sj, llRate, aVal, pc))
   return { q, sj, amt, ...shownBid(base, p50, amt) }
 }
 
@@ -359,13 +403,13 @@ export function autoRule(enp) {
   return AUTO_RULE.find((r) => enp < r.maxNp) || null
 }
 /** 공고 한 줄이 «실제로 낼» 금액 — 예상 참가를 알면 자동 분위, 모르면 권장. 화면·원클릭·채점이 전부 이것 하나. */
-export function smartBid({ base, llRate, aVal, aKnown, p50, sd, enp }) {
+export function smartBid({ base, llRate, aVal, aKnown, p50, sd, enp, pc = 0 }) {
   const rule = autoRule(enp)
   if (rule) {
-    const qb = quantileBid({ base, llRate, aVal, p50, sd, q: rule.q })
+    const qb = quantileBid({ base, llRate, aVal, p50, sd, q: rule.q, pc })
     if (qb) return { ...qb, mode: 'auto', rule, pctile: rule.q, aKnown }
   }
-  const out = recommend({ base, llRate, aVal, aKnown, p50, sd })
+  const out = recommend({ base, llRate, aVal, aKnown, p50, sd, pc })
   if (!out || !(out.amt > 0)) return null
   return { ...shownBid(base, p50, out.amt), sj: out.sj, mode: 'rec', rule: null, pctile: out.pctile, aKnown }
 }

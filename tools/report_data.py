@@ -83,7 +83,8 @@ def one(row, bno, p50):
     if base and llr and win_amt and win_rate:
         sc = B.score(base, a, a_known, llr, win_amt, win_rate, p50,
                      row.get("lo") or -3, row.get("hi") or 3,
-                     row.get("ptot") or 15, row.get("pdrw") or 4)
+                     row.get("ptot") or 15, row.get("pdrw") or 4,
+                     row.get("pc") or 0)          # ⚖ G356 순공사원가 98 % 선 (성적표.js 와 같이)
         if sc:
             br = B.rank_bracket(row.get("rq"), sc["our"], sc["limit"], sc["beat"])
             out["limit"] = sc["limit"]
@@ -185,7 +186,8 @@ def next_five(recs, p50, n=5):
         a_known = str(r.get("ayn") or "").upper() == "Y"
         ro = B.recommend(base, llr, a, a_known, p50,
                          r.get("lo") or -3, r.get("hi") or 3,
-                         r.get("ptot") or 15, r.get("pdrw") or 4)
+                         r.get("ptot") or 15, r.get("pdrw") or 4,
+                         r.get("pc") or 0)
         if not ro:
             continue
         sh = B.shown(base, ro["amt"], p50)

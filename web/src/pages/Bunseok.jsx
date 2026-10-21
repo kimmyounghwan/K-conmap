@@ -95,7 +95,7 @@ export default function Bunseok() {
       </section>
       <section className="bsr-mid" aria-label="분석">
         {p ? (
-          <분석판 inst={p.inst} lo={p.lo} hi={p.hi} base={상태.base} llr={상태.llr} aval={상태.aval}
+          <분석판 inst={p.inst} lo={p.lo} hi={p.hi} base={상태.base} llr={상태.llr} aval={상태.aval} pc={상태.pc || 0}
             sjMid={상태.sjMid} sjSd={상태.sjSd} 지금금액={상태.ready ? 상태.main : 0} 직접={상태.직접} ag={상태.ag} />
         ) : (
           <div className="bsr-box bsr-empty">

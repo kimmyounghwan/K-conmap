@@ -85,14 +85,14 @@ class 예가지킴 extends Component {
 
 /** ① 바로투찰 — 권장 금액 아래 «이 금액의 확보 예가 미리 보기» (펼친 채 · 화면에 들어오면 셈 — G183) */
 export function 확보예가미리(props) { return <예가지킴><미리안 {...props} /></예가지킴> }
-function 미리안({ base, llr, aval, amt, 공고, p50 }) {
+function 미리안({ base, llr, aval, pc = 0, amt, 공고, p50 }) {
   const 자리 = useRef(null)
-  const 내s = base > 0 && llr > 0 && amt > 0 ? breakEvenSj(base, llr, aval, amt) : null
+  const 내s = base > 0 && llr > 0 && amt > 0 ? breakEvenSj(base, llr, aval, amt, pc) : null
   const 보임 = useBo임(자리, 내s != null)
   const 셌음 = useRef(false)
   const [상태, set상태] = useState('')          // '' | 'ing' | 'err'
   const [결과, set결과] = useState(null)
-  const 키 = `${base}|${llr}|${aval}|${amt}|${공고?.inst || ''}`
+  const 키 = `${base}|${llr}|${aval}|${pc}|${amt}|${공고?.inst || ''}`
   useEffect(() => {
     set결과(null)
     if (!보임 || 내s == null) return

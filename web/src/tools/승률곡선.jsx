@@ -36,7 +36,7 @@ function 너비재기(ref) {
 /**
  * props: 표(gm.json) · 칸(이 금액대 칸) · 금액대이름 · enp(예상 참가 · 모르면 0) · base · llr · aval · p50 · sd · 지금금액 · 직접(rate)
  */
-export default function 승률곡선({ 표, 칸, 금액대이름, enp, base, llr, aval, p50, sd, 지금금액, 직접 }) {
+export default function 승률곡선({ 표, 칸, 금액대이름, enp, base, llr, aval, pc = 0, p50, sd, 지금금액, 직접 }) {
   const 띠있음 = Array.isArray(표 && 표.p) && 표.p.length === 참가띠들.length
   const 예상띠 = enp > 0 ? 참가띠of(enp) : -1
   const [보기, set보기] = useState(() => (띠있음 && 예상띠 >= 0 && 표.p[예상띠].n >= 150 ? 예상띠 : 'm'))
@@ -52,7 +52,7 @@ export default function 승률곡선({ 표, 칸, 금액대이름, enp, base, llr
   const 퍼 = (k) => (k / c.n) * 100
   const 금액of = (z) => {
     const sj = Math.round((p50 + z * sd) * 1000) / 1000
-    return shownBid(base, p50, Math.ceil(limitAmount(base, sj, llr, aval)))
+    return shownBid(base, p50, Math.ceil(limitAmount(base, sj, llr, aval, pc)))
   }
   const 왼 = 34, 오른 = 10, H1 = 132, H2 = 54, 틈 = 26, 아래 = 22
   const 안W = W - 왼 - 오른
@@ -67,7 +67,7 @@ export default function 승률곡선({ 표, 칸, 금액대이름, enp, base, llr
   const 최고 = 점들.reduce((b, p, i) => (p.일순 > 점들[b].일순 ? i : b), 0)
   const 최고점 = 점들[최고]
   const 최고금액 = 금액of(최고점.z)
-  const 지금z = (() => { const s = breakEvenSj(base, llr, aval, 지금금액); return s == null || !(sd > 0) ? null : (s - 표.p50) / sd })()
+  const 지금z = (() => { const s = breakEvenSj(base, llr, aval, 지금금액, pc); return s == null || !(sd > 0) ? null : (s - 표.p50) / sd })()
   const 지금i = 지금z == null ? -1 : 점들.reduce((b, p, i) => (Math.abs(p.z - 지금z) < Math.abs(점들[b].z - 지금z) ? i : b), 0)
   const 지금밖 = 지금z != null && (지금z < 보는자리[0] - 0.05 || 지금z > 보는자리[1] + 0.05)
   /* 🩹 G339 (2026-10-20 실제 사이트) «가장 높은 자리» 가 잡음일 때가 많았음 — 참가 30~99곳 3,812건: 7분위 2.7%(실격 93%) vs 다른 자리 1.9~2.4%.

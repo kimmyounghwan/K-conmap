@@ -20,15 +20,16 @@ import * as M from '../web/src/lib/bidmath.js'
 const cases = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
 const out = cases.map((c) => {
   const sd = M.sjSigma(c.lo, c.hi, c.ptot, c.pdrw)
+  const pc = Number(c.pc) || 0                    // ⚖ G356 기초금액 중 순공사원가 (없으면 0)
   const ro = M.recommend({ base: c.base, llRate: c.llr, aVal: c.a,
-                           aKnown: c.aKnown, p50: c.p50, sd })
+                           aKnown: c.aKnown, p50: c.p50, sd, pc })
   const r = { no: c.no, sd, ready: M.isReady(c.row || {}), missing: M.missingOf(c.row || {}) }
   if (ro) {
     r.sj = ro.sj; r.pctile = ro.pctile; r.recAmt = ro.amt
     const sh = M.shownBid(c.base, c.p50, ro.amt)
     r.rate = sh.rate
     r.shownAmt = sh.amt
-    r.limitAtMid = M.limitAmount(c.base, c.p50, c.llr, c.a)
+    r.limitAtMid = M.limitAmount(c.base, c.p50, c.llr, c.a, pc)
   }
   /* ★ 원클릭(공고 카드) 금액 — quickBid 가 같은 답을 내는지.
      카드는 «공고 한 줄»만 받으므로 입력을 그 모양으로 만들어 넣습니다. */
@@ -39,7 +40,7 @@ const out = cases.map((c) => {
   }
   if (c.score) {                                  // 채점
     const yeje = Math.round(c.score.win / (c.score.rate / 100))
-    const L = Math.ceil((yeje - c.a) * (c.llr / 100) + c.a)
+    const L = Math.max(Math.ceil((yeje - c.a) * (c.llr / 100) + c.a), M.pcLine(c.base, yeje, pc))
     /* 채점의 «우리 금액» 도 화면이 띄우는 금액(shownBid) — 2026-09-03 */
     const our = ro ? M.shownBid(c.base, c.p50, ro.amt).amt : 0
     r.score = { yeje, limit: L, our,
@@ -47,7 +48,7 @@ const out = cases.map((c) => {
                 beat: ro ? (our >= L && our < c.score.win) : null }
     if (c.score.ladder) {
       const sc = M.buildScen({ base: c.base, llRate: c.llr, aVal: c.a,
-                               p50: c.p50, sd, myAmt: our })
+                               p50: c.p50, sd, myAmt: our, pc })
       r.score.passN = sc ? sc.passN : null
     }
   }

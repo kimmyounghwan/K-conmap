@@ -106,13 +106,14 @@ export function 한건(row, bno, p50) {
     const lo = row.lo != null ? Number(row.lo) : -3
     const hi = row.hi != null ? Number(row.hi) : 3
     const sd = B.sjSigma(lo, hi, row.ptot || 15, row.pdrw || 4)
-    const ro = B.recommend({ base, llRate: llr, aVal: a, aKnown: a_known, p50, sd })
+    const pc = Number(row.pc) || 0                 // ⚖ G356 기초금액 중 순공사원가 — 98 % 선 (report_data.py 와 같이)
+    const ro = B.recommend({ base, llRate: llr, aVal: a, aKnown: a_known, p50, sd, pc })
     if (ro) {
       /* ★ 채점의 «우리 금액» 은 화면이 실제로 띄우는 금액(shownBid)이어야 합니다.
          recommend 의 금액을 그대로 쓰면 바로투찰 화면과 어긋납니다. */
       const our = B.shownBid(base, p50, ro.amt)?.amt || 0
       const yeje = Math.round(win_amt / (win_rate / 100))
-      const limit = Math.ceil((yeje - a) * (llr / 100) + a)
+      const limit = Math.max(Math.ceil((yeje - a) * (llr / 100) + a), B.pcLine(base, yeje, pc))
       const dq = our < limit
       const beat = our >= limit && our < win_amt
       const br = B.rankBracket(row.rq, our, limit, beat)
@@ -192,7 +193,7 @@ export function 다음자리(recs, live, p50, n = 5) {
     const a_known = String(r.ayn || '').toUpperCase() === 'Y'
     const sd = B.sjSigma(r.lo != null ? Number(r.lo) : -3, r.hi != null ? Number(r.hi) : 3,
                          r.ptot || 15, r.pdrw || 4)
-    const ro = B.recommend({ base, llRate: llr, aVal: a, aKnown: a_known, p50, sd })
+    const ro = B.recommend({ base, llRate: llr, aVal: a, aKnown: a_known, p50, sd, pc: Number(r.pc) || 0 })
     if (!ro) continue
     const sh = B.shownBid(base, p50, ro.amt)
     if (!sh) continue

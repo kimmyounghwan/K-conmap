@@ -15,6 +15,9 @@ bidmath.py — 화면과 **따로** 쓴 계산기 (교차검증용)
   권장금액      = ceil( 낙찰하한금액(P50 + K·σ) × 여유 )
                   K = 0.674(A값 알면) / 1.63(모르면)
                   여유 = 1.003(A값 알면) / 1.0(모르면)
+  ⚖ 순공사원가 98 % 선 (2026-10-21 · 조달청 적격심사세부기준 제5조 · 지자체 낙찰자 결정기준 제2장 제4절)
+    예정가격 100억 미만이면 실제 하한 = max(낙찰하한금액, 올림(올림(순공사원가 × 예정가격 ÷ 기초금액) × 98/100))
+    순공사원가 = 기초금액 중 재료비·노무비·경비 + 부가세 (모르면 0 → 이 선 없음)
 """
 import math
 
@@ -49,13 +52,29 @@ def band_of(est):
     return None
 
 
-def limit_amount(base, sj, ll, a):
-    """낙찰하한금액 — 규정대로 A값을 뺀 뒤 곱하고 다시 더합니다"""
+def pc_line(base, yeje, pc):
+    """순공사원가 98 % 선 — 예정가격 100억 미만 · 순공사원가를 알 때만. 아니면 0"""
+    if not pc or pc <= 0 or not base or base <= 0 or pc > base or yeje <= 0 or yeje >= 1e10:
+        return 0
+    return math.ceil(math.ceil(pc * yeje / base) * 98 / 100)
+
+
+def limit_amount(base, sj, ll, a, pc=0):
+    """낙찰하한금액 — 규정대로 A값을 뺀 뒤 곱하고 다시 더합니다. 순공사원가를 알면 98 % 선과 큰 쪽"""
     yeje = base * (sj / 100.0)
-    return math.ceil((yeje - a) * (ll / 100.0) + a)
+    return max(math.ceil((yeje - a) * (ll / 100.0) + a), pc_line(base, yeje, pc))
 
 
-def recommend(base, ll, a, a_known, p50=P50_DEFAULT, lo=-3, hi=3, ptot=15, pdrw=4):
+def limit_up_to(base, sj, ll, a, pc=0):
+    """사정률이 sj «까지» 어디로 나와도 넘어야 하는 하한 — 98 % 선은 예정가격 100억에서 끊기므로,
+       sj 에서 100억 이상이면 100억 바로 아래(9,999,999,999원)의 98 % 선까지 넘게 합니다."""
+    v = limit_amount(base, sj, ll, a, pc)
+    if pc and pc > 0 and base * (sj / 100.0) >= 1e10:
+        v = max(v, pc_line(base, 1e10 - 1, pc))
+    return v
+
+
+def recommend(base, ll, a, a_known, p50=P50_DEFAULT, lo=-3, hi=3, ptot=15, pdrw=4, pc=0):
     """바로투찰이 내는 금액. 화면과 같은 답이 나와야 합니다."""
     sd = sigma(lo, hi, ptot, pdrw)
     if not base or not ll or sd is None:
@@ -63,7 +82,7 @@ def recommend(base, ll, a, a_known, p50=P50_DEFAULT, lo=-3, hi=3, ptot=15, pdrw=
     k = 0.674 if a_known else 1.63
     margin = 1.003 if a_known else 1.0
     sj = r3(p50 + k * sd)
-    amt = math.ceil(limit_amount(base, sj, ll, a) * margin)
+    amt = math.ceil(limit_up_to(base, sj, ll, a, pc) * margin)
     return {"sj": sj, "k": k, "margin": margin, "pctile": 75 if a_known else 95,
             "amt": amt, "sd": sd}
 
@@ -78,17 +97,17 @@ def shown(base, rec_amt, p50=P50_DEFAULT):
 
 
 def score(base, a, a_known, ll, win_amt, win_rate, p50=P50_DEFAULT,
-          lo=-3, hi=3, ptot=15, pdrw=4):
+          lo=-3, hi=3, ptot=15, pdrw=4, pc=0):
     """개찰이 끝난 공고 채점."""
     yeje = round(win_amt / (win_rate / 100.0))
-    ro = recommend(base, ll, a, a_known, p50, lo, hi, ptot, pdrw)
+    ro = recommend(base, ll, a, a_known, p50, lo, hi, ptot, pdrw, pc)
     if ro is None:
         return None
     # ★ 2026-09-03 — 채점의 «우리 금액» 은 화면이 실제로 띄우는 금액(shown) 이어야 합니다.
     #   recommend 의 금액을 그대로 쓰면 바로투찰 화면과 몇 원~몇십만 원 어긋납니다
     #   (소장님: 「바로투찰하고 1순위 채점에서 권장투찰가 금액이 달라」).
     m = shown(base, ro["amt"], p50)["amt"]
-    l = math.ceil((yeje - a) * (ll / 100.0) + a)
+    l = max(math.ceil((yeje - a) * (ll / 100.0) + a), pc_line(base, yeje, pc))
     return {"yeje": yeje, "our": m, "limit": l,
             "sj_real": r3(yeje / base * 100.0) if base else None,
             "dq": m < l, "beat": (m >= l) and (m < win_amt),
