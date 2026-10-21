@@ -313,12 +313,24 @@ export default function 서식작성({ f }) {
   }
   const 지우기 = (x) => set저장들(저장들.filter((y) => y.id !== x.id))
   const 비우기 = () => { setV(빈값(s, 읽기(공통열쇠, {}))); set말('🧹 빈 서식으로 돌렸습니다(현장명 · 회사명은 남김)') }
-  const 예시 = () => {
-    if (!f.ex || !맞는꼴(s, f.ex)) return
-    setV(JSON.parse(JSON.stringify(f.ex))); 세기('|서식작성|예시')
+  /* ✍ 2026-10-21 옛 서식(엑셀 서식)도 «예시 채우기» — 소장님 「편하게 해줘 이용자 입장에서」
+     엑셀 «작성 예시» 시트와 같은 가상 값(계산 칸까지)을 tools/forms2/웹예시.py 가 /forms/ex/{slug}.json 으로 만들어 둠(f.wex).
+     누를 때만 받음(forms.json 이 커지지 않게) · 모양이 서식과 다르면 쓰지 않음 */
+  const [예받는중, set예받는중] = useState(false)
+  const 예시넣기 = (x) => {
+    setV(JSON.parse(JSON.stringify(x))); 세기('|서식작성|예시')
     set말('✍ 가상의 현장으로 채운 작성 예시입니다 — 고쳐 쓰시거나 «빈칸으로» 를 누르세요')
   }
-  const 예시있음 = !!(f.ex && 맞는꼴(s, f.ex))
+  const 예시 = () => {
+    if (f.ex && 맞는꼴(s, f.ex)) { 예시넣기(f.ex); return }
+    if (!f.wex || 예받는중) return
+    set예받는중(true)
+    fetch(`/forms/ex/${f.slug}.json`, { cache: 'force-cache' }).then((r) => (r.ok ? r.json() : null))
+      .then((x) => { if (x && 맞는꼴(s, x)) 예시넣기(x); else set말('예시를 받지 못했습니다 — 잠시 뒤 다시 눌러 주세요') })
+      .catch(() => set말('예시를 받지 못했습니다 — 인터넷을 확인하고 다시 눌러 주세요'))
+      .finally(() => set예받는중(false))
+  }
+  const 예시있음 = !!((f.ex && 맞는꼴(s, f.ex)) || f.wex)
 
   return (
     <div className="card fw" id="작성">
@@ -330,7 +342,7 @@ export default function 서식작성({ f }) {
         <button type="button" className="btn primary" onClick={PDF}>🖨 PDF 저장 · 인쇄</button>
         <button type="button" className="btn ghost" onClick={저장}>💾 저장</button>
         <button type="button" className={'btn ghost' + (목록 ? ' on' : '')} onClick={() => set목록(!목록)} aria-expanded={목록}>📂 저장한 것 {저장들.length}</button>
-        {예시있음 && <button type="button" className="btn ghost" onClick={예시}>✍ 예시 채우기</button>}
+        {예시있음 && <button type="button" className="btn ghost" onClick={예시} disabled={예받는중}>{예받는중 ? '예시 받는 중…' : '✍ 예시 채우기'}</button>}
         <button type="button" className="btn ghost" onClick={비우기}>🧹 빈칸으로</button>
       </div>
       {말 && <div className="fw-say" role="status">{말}</div>}

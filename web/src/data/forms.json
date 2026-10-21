@@ -127,7 +127,8 @@
    "also": [
     "니어미스 보고서",
     "아차사고 신고서"
-   ]
+   ],
+   "wex": 1
   },
   {
    "slug": "anjeon-gyehoek",
@@ -264,7 +265,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/anjeon-gyehoek.pdf"
+   "pdf": "/forms/v2/anjeon-gyehoek.pdf",
+   "wex": 1
   },
   {
    "slug": "anjeon-gyoyuk",
@@ -418,7 +420,8 @@
    "also": [
     "안전교육일지",
     "안전보건교육 일지"
-   ]
+   ],
+   "wex": 1
   },
   {
    "slug": "anjeon-hwangyeong-bi",
@@ -781,7 +784,8 @@
    "also": [
     "안전보건협의체 회의록",
     "산업안전보건 협의체 회의록"
-   ]
+   ],
+   "wex": 1
   },
   {
    "slug": "anjeon-jijeong",
@@ -903,7 +907,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/anjeon-jijeong.pdf"
+   "pdf": "/forms/v2/anjeon-jijeong.pdf",
+   "wex": 1
   },
   {
    "slug": "anjeonbi-gyehoek",
@@ -1097,7 +1102,8 @@
     "to": "/tools/sanan",
     "t": "🦺 산안비 계상기 · 사용 계획",
     "d": "공사 종류와 재료비·직접노무비(모르면 총공사금액)를 넣으면 고시 별표1로 계상액 — 관급자재 비교·보건관리자 대상·설계변경 조정까지. 항목별 계상액(계획)을 나눠 적으면 사용내역서 쪽마다 그대로 들어갑니다."
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "anjeonbi-naeyeok",
@@ -1253,7 +1259,8 @@
     "to": "/tools/sanan",
     "t": "🦺 산안비 사용내역서 바로 만들기",
     "d": "쓴 돈을 항목별로 적으면 별지 제1호서식(총괄 + 항목별 9쪽)이 서식 칸 그대로 채워집니다 — 금월·전월까지·누계 저절로, 한도(본사 1/20 · 위험성평가 15% · 스마트장비 20%)와 공정률별 사용 기준 점검. A4 인쇄 · 값만 엑셀."
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "balsong",
@@ -1373,7 +1380,8 @@
      ]
     ],
     "at": "2026-10-01"
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "bigye-check",
@@ -1541,7 +1549,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/bigye-check.pdf"
+   "pdf": "/forms/v2/bigye-check.pdf",
+   "wex": 1
   },
   {
    "slug": "bisan",
@@ -1682,7 +1691,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/bisan.pdf"
+   "pdf": "/forms/v2/bisan.pdf",
+   "wex": 1
   },
   {
    "slug": "bisang-yeonrak",
@@ -1816,7 +1826,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/bisang-yeonrak.pdf"
+   "pdf": "/forms/v2/bisang-yeonrak.pdf",
+   "wex": 1
   },
   {
    "slug": "bohogu",
@@ -1906,7 +1917,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/bohogu.pdf"
+   "pdf": "/forms/v2/bohogu.pdf",
+   "wex": 1
   },
   {
    "slug": "chakgong",
@@ -2150,7 +2162,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/chamyeoja-silmyeongbu.pdf"
+   "pdf": "/forms/v2/chamyeoja-silmyeongbu.pdf",
+   "wex": 1
   },
   {
    "slug": "cheolgeun",
@@ -2335,7 +2348,8 @@
      ]
     ],
     "at": "2026-10-01"
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "cheongryeom",
@@ -2444,7 +2458,8 @@
    "also": [
     "청렴서약서",
     "청렴계약 서약서"
-   ]
+   ],
+   "wex": 1
   },
   {
    "slug": "chg-chongwal",
@@ -2561,7 +2576,8 @@
     "to": "/change/work",
     "t": "🧰 설계변경 작업대 — 변경내역서 엑셀을 올리면",
     "d": "2줄→1줄 · 당초/변경 두 파일 짝짓기(2줄 변경내역서) · 공사비증감대비표 · 물량대비표 · 총괄표 · 차수별 대비표 · 검산까지. .xls 도 됩니다. 파일은 서버로 올라가지 않습니다."
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "chg-ganjeopbi",
@@ -2725,7 +2741,8 @@
    "also": [
     "간접비 산출서",
     "공기연장 간접비"
-   ]
+   ],
+   "wex": 1
   },
   {
    "slug": "chg-hyeobui",
@@ -2833,7 +2850,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/chg-hyeobui.pdf"
+   "pdf": "/forms/v2/chg-hyeobui.pdf",
+   "wex": 1
   },
   {
    "slug": "chg-mulga-san",
@@ -2996,7 +3014,8 @@
     "to": "/tools/price-adjust",
     "t": "📈 물가변동 조정금액 계산기",
     "d": "계약금액과 등락률을 넣으면 조정할 수 있는지(90일·3%)와 증감액이 나옵니다."
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "chg-naeyeok",
@@ -3133,7 +3152,8 @@
     "to": "/change/work",
     "t": "🧰 설계변경 작업대 — 변경내역서 엑셀을 올리면",
     "d": "2줄→1줄 · 당초/변경 두 파일 짝짓기(2줄 변경내역서) · 공사비증감대비표 · 물량대비표 · 총괄표 · 차수별 대비표 · 검산까지. .xls 도 됩니다. 파일은 서버로 올라가지 않습니다."
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "chulyeok-ilbo",
@@ -3217,7 +3237,8 @@
     "to": "/tools/tuipbi",
     "t": "🏗 현장 투입비 · 공사일보 — 날마다 누르기만",
     "d": "날마다 출역 · 장비 · 자재만 누르면 공사일보와 누적 투입비 · 공정률, 달마다 노무비(4대보험 공제 자동) · 장비 · 자재 청구내역서까지 인쇄. 현장 코드+비밀번호로 여러 기기에서 같이."
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "daeriin",
@@ -3332,7 +3353,8 @@
     "to": "/tools/wonclick",
     "t": "⚡ 공사서류 원클릭 — 이 서류를 사이트에서 바로",
     "d": "공사명 · 계약금액 · 기간 · 대표자를 한 번만 적으면 이 서류와 함께 착공 · 기성 · 준공 · 하자 서류 34가지가 채워집니다. 화면에서 A4 그대로 보고 칸을 고쳐 인쇄 · 엑셀로도. 관급 · 민간 모두."
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "daeriin-byeongyeong",
@@ -3432,7 +3454,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/daeriin-byeongyeong.pdf"
+   "pdf": "/forms/v2/daeriin-byeongyeong.pdf",
+   "wex": 1
   },
   {
    "slug": "doseo-pyoji",
@@ -3520,7 +3543,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/doseo-pyoji.pdf"
+   "pdf": "/forms/v2/doseo-pyoji.pdf",
+   "wex": 1
   },
   {
    "slug": "gangdo",
@@ -3604,7 +3628,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gangdo.pdf"
+   "pdf": "/forms/v2/gangdo.pdf",
+   "wex": 1
   },
   {
    "slug": "gaseoljeongi",
@@ -3701,7 +3726,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gaseoljeongi.pdf"
+   "pdf": "/forms/v2/gaseoljeongi.pdf",
+   "wex": 1
   },
   {
    "slug": "geomcheuk",
@@ -3829,7 +3855,8 @@
      ]
     ],
     "at": "2026-10-01"
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "geomcheuk-baesu",
@@ -4221,7 +4248,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/geomcheuk-baesu.pdf"
+   "pdf": "/forms/v2/geomcheuk-baesu.pdf",
+   "wex": 1
   },
   {
    "slug": "geomcheuk-budae",
@@ -4539,7 +4567,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/geomcheuk-budae.pdf"
+   "pdf": "/forms/v2/geomcheuk-budae.pdf",
+   "wex": 1
   },
   {
    "slug": "geomcheuk-concrete",
@@ -5447,7 +5476,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/geomcheuk-concrete.pdf"
+   "pdf": "/forms/v2/geomcheuk-concrete.pdf",
+   "wex": 1
   },
   {
    "slug": "geomcheuk-gujomul",
@@ -7381,7 +7411,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/geomcheuk-gujomul.pdf"
+   "pdf": "/forms/v2/geomcheuk-gujomul.pdf",
+   "wex": 1
   },
   {
    "slug": "geomcheuk-malttuk",
@@ -8345,7 +8376,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/geomcheuk-malttuk.pdf"
+   "pdf": "/forms/v2/geomcheuk-malttuk.pdf",
+   "wex": 1
   },
   {
    "slug": "geomcheuk-pojang",
@@ -8639,7 +8671,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/geomcheuk-pojang.pdf"
+   "pdf": "/forms/v2/geomcheuk-pojang.pdf",
+   "wex": 1
   },
   {
    "slug": "geomcheuk-psc-gang",
@@ -10969,7 +11002,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/geomcheuk-psc-gang.pdf"
+   "pdf": "/forms/v2/geomcheuk-psc-gang.pdf",
+   "wex": 1
   },
   {
    "slug": "geomcheuk-togong",
@@ -13037,7 +13071,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/geomcheuk-togong.pdf"
+   "pdf": "/forms/v2/geomcheuk-togong.pdf",
+   "wex": 1
   },
   {
    "slug": "geomcheuk-yocheong",
@@ -13156,7 +13191,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/geomcheuk-yocheong.pdf"
+   "pdf": "/forms/v2/geomcheuk-yocheong.pdf",
+   "wex": 1
   },
   {
    "slug": "geunroja-myeongbu",
@@ -13241,7 +13277,8 @@
     "to": "/tools/ilyong-boheom",
     "t": "🛡 일용직 4대보험 가입 판단기",
     "d": "명부에 적은 근로자의 출역으로 국민연금 · 건강보험 가입 대상 · 취득일 · 상실일 · 보험료 달 · 신고 기한을 확인합니다."
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "gijunjeom",
@@ -13339,7 +13376,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gijunjeom.pdf"
+   "pdf": "/forms/v2/gijunjeom.pdf",
+   "wex": 1
   },
   {
    "slug": "giseong-daebipyo",
@@ -13534,7 +13572,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gisulin-jungbok.pdf"
+   "pdf": "/forms/v2/gisulin-jungbok.pdf",
+   "wex": 1
   },
   {
    "slug": "gisung-cheonggu",
@@ -13702,7 +13741,8 @@
    "also": [
     "기성청구서",
     "기성대가 청구서"
-   ]
+   ],
+   "wex": 1
   },
   {
    "slug": "gisung-geomsa",
@@ -13800,7 +13840,8 @@
     "to": "/tools/wonclick",
     "t": "⚡ 공사서류 원클릭 — 이 서류를 사이트에서 바로",
     "d": "공사명 · 계약금액 · 기간 · 대표자를 한 번만 적으면 이 서류와 함께 착공 · 기성 · 준공 · 하자 서류 34가지가 채워집니다. 화면에서 A4 그대로 보고 칸을 고쳐 인쇄 · 엑셀로도. 관급 · 민간 모두."
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "gonggi-yeonjang",
@@ -13953,7 +13994,8 @@
     "계약기간 연장 신청서",
     "공사기간 연장 신청서",
     "공기연장 요청서"
-   ]
+   ],
+   "wex": 1
   },
   {
    "slug": "gongjeong-bogo",
@@ -14056,7 +14098,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gongjeong-bogo.pdf"
+   "pdf": "/forms/v2/gongjeong-bogo.pdf",
+   "wex": 1
   },
   {
    "slug": "gongjeong-inryeok",
@@ -14201,7 +14244,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gongjeong-jugan-wolgan.pdf"
+   "pdf": "/forms/v2/gongjeong-jugan-wolgan.pdf",
+   "wex": 1
   },
   {
    "slug": "gongjeong-manhoe",
@@ -14307,7 +14351,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gongjeong-manhoe.pdf"
+   "pdf": "/forms/v2/gongjeong-manhoe.pdf",
+   "wex": 1
   },
   {
    "slug": "gongjeongpyo",
@@ -14493,7 +14538,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gongmun.pdf"
+   "pdf": "/forms/v2/gongmun.pdf",
+   "wex": 1
   },
   {
    "slug": "gongnaeyeok-hanbeol",
@@ -14687,7 +14733,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gongsa-jungji.pdf"
+   "pdf": "/forms/v2/gongsa-jungji.pdf",
+   "wex": 1
   },
   {
    "slug": "gulchak",
@@ -14784,7 +14831,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gulchak.pdf"
+   "pdf": "/forms/v2/gulchak.pdf",
+   "wex": 1
   },
   {
    "slug": "gy-byeongyeong",
@@ -14960,7 +15008,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gy-byeongyeong.pdf"
+   "pdf": "/forms/v2/gy-byeongyeong.pdf",
+   "wex": 1
   },
   {
    "slug": "gy-dogeup",
@@ -15215,7 +15264,8 @@
      ]
     ],
     "at": "2026-10-01"
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "gy-gakseo",
@@ -15333,7 +15383,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gy-gakseo.pdf"
+   "pdf": "/forms/v2/gy-gakseo.pdf",
+   "wex": 1
   },
   {
    "slug": "gy-haja-gakseo",
@@ -15448,7 +15499,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gy-haja-gakseo.pdf"
+   "pdf": "/forms/v2/gy-haja-gakseo.pdf",
+   "wex": 1
   },
   {
    "slug": "gy-gongdong",
@@ -15593,7 +15645,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gy-gongdong.pdf"
+   "pdf": "/forms/v2/gy-gongdong.pdf",
+   "wex": 1
   },
   {
    "slug": "gy-hadogeup",
@@ -15868,7 +15921,8 @@
      ]
     ],
     "at": "2026-09-30"
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "gy-haeji",
@@ -16023,7 +16077,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gy-haeji.pdf"
+   "pdf": "/forms/v2/gy-haeji.pdf",
+   "wex": 1
   },
   {
    "slug": "gy-ilyong",
@@ -16271,7 +16326,8 @@
     "to": "/tools/ilyong-boheom",
     "t": "🛡 일용직 4대보험 가입 판단기",
     "d": "일한 날만 누르면 국민연금 · 건강보험 가입 대상인지, 취득일 · 상실일, 보험료가 나오는 달과 신고 기한이 나옵니다. 근로계약서가 1개월 이상 · 월 8일 이상인 경우도 고를 수 있습니다."
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "gy-imdae",
@@ -16504,7 +16560,8 @@
      ]
     ],
     "at": "2026-09-30"
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "gy-jajae",
@@ -16693,7 +16750,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gy-jajae.pdf"
+   "pdf": "/forms/v2/gy-jajae.pdf",
+   "wex": 1
   },
   {
    "slug": "gy-jikbul",
@@ -16980,7 +17038,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gy-nda.pdf"
+   "pdf": "/forms/v2/gy-nda.pdf",
+   "wex": 1
   },
   {
    "slug": "gy-pyegimul",
@@ -17146,7 +17205,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gy-pyegimul.pdf"
+   "pdf": "/forms/v2/gy-pyegimul.pdf",
+   "wex": 1
   },
   {
    "slug": "gy-sangyong",
@@ -17396,7 +17456,8 @@
      ]
     ],
     "at": "2026-09-30"
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "gy-unban",
@@ -17571,7 +17632,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gy-unban.pdf"
+   "pdf": "/forms/v2/gy-unban.pdf",
+   "wex": 1
   },
   {
    "slug": "gy-yongyeok",
@@ -17734,7 +17796,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gy-yongyeok.pdf"
+   "pdf": "/forms/v2/gy-yongyeok.pdf",
+   "wex": 1
   },
   {
    "slug": "gyejwa-ipgeum",
@@ -17866,7 +17929,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gyejwa-ipgeum.pdf"
+   "pdf": "/forms/v2/gyejwa-ipgeum.pdf",
+   "wex": 1
   },
   {
    "slug": "gyogeong",
@@ -17942,7 +18006,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gyogeong.pdf"
+   "pdf": "/forms/v2/gyogeong.pdf",
+   "wex": 1
   },
   {
    "slug": "hadogeup-daegeum",
@@ -18080,7 +18145,8 @@
    "also": [
     "하도급대금 등 지급 확인서",
     "하도급대금 지급내역서"
-   ]
+   ],
+   "wex": 1
   },
   {
    "slug": "hadogeup-gyehoek",
@@ -18191,7 +18257,8 @@
     "to": "/tools/subcontract-check",
     "t": "⚖️ 하도급 적정성 판정 — 82% · 64%",
     "d": "하도급금액을 넣으면 적정성 심사 대상인지, 넘기려면 얼마 이상이어야 하는지 나옵니다."
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "hadogeup-tongbo",
@@ -18332,7 +18399,8 @@
     "to": "/tools/subcontract-check",
     "t": "⚖️ 하도급 적정성 판정 — 82% · 64%",
     "d": "하도급금액을 넣으면 적정성 심사 대상인지, 넘기려면 얼마 이상이어야 하는지 나옵니다."
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "haja-wanryo",
@@ -18425,7 +18493,8 @@
     "to": "/tools/defect-period",
     "t": "🛡 하자담보책임기간 · 하자보수보증금 찾기",
     "d": "공사 종류를 고르면 책임기간(1~10년)과 끝나는 날, 보증금률(2~5%)과 금액이 나옵니다."
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "hasugwangeo-sigong",
@@ -18857,7 +18926,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/hokseo.pdf"
+   "pdf": "/forms/v2/hokseo.pdf",
+   "wex": 1
   },
   {
    "slug": "hyeonhwangpan",
@@ -19009,7 +19079,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/hyeonhwangpan.pdf"
+   "pdf": "/forms/v2/hyeonhwangpan.pdf",
+   "wex": 1
   },
   {
    "slug": "hyeonjang-gaeseol",
@@ -19148,7 +19219,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/hyeonjang-gaeseol.pdf"
+   "pdf": "/forms/v2/hyeonjang-gaeseol.pdf",
+   "wex": 1
   },
   {
    "slug": "hyeonjang-jojikdo",
@@ -19300,7 +19372,8 @@
    "also": [
     "현장 조직도",
     "비상 조직도"
-   ]
+   ],
+   "wex": 1
   },
   {
    "slug": "ilil-anjeon",
@@ -19523,7 +19596,8 @@
    "also": [
     "일일 안전점검표",
     "안전점검 체크리스트"
-   ]
+   ],
+   "wex": 1
   },
   {
    "slug": "ilwidaega",
@@ -19689,7 +19763,8 @@
    },
    "also": [
     "일위대가"
-   ]
+   ],
+   "wex": 1
   },
   {
    "slug": "imdaeryo-jeongsan",
@@ -19802,7 +19877,8 @@
     "to": "/tools/equip",
     "t": "🚜 장비 임대료·수금 장부 — 정산을 사이트에서 바로",
     "d": "기사 · 장비 단가와 거래처를 한 번 등록하고 날마다 사용 시간만 적으면 거래처별 임대료 · 받은 돈 · 미수금과 A4 청구서가 저절로. 장부 코드+비밀번호로 폰 · PC 어디서든."
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "imgeum-daejang",
@@ -19944,7 +20020,8 @@
     "to": "/tools/nomubi",
     "t": "👷 일용 노무비 계산기 · 지급명세서",
     "d": "이름·직종·일당을 적고 일한 날을 누르면 소득세·지방소득세·고용·국민연금·건강·장기요양 공제와 실지급액, A4 가로 지급명세서와 근로내용 확인신고 집계가 나옵니다."
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "inssu-ingye",
@@ -20030,7 +20107,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/inssu-ingye.pdf"
+   "pdf": "/forms/v2/inssu-ingye.pdf",
+   "wex": 1
   },
   {
    "slug": "jajae-banchul",
@@ -20168,7 +20246,8 @@
    "also": [
     "자재 반출증",
     "관급자재 반출 승인서"
-   ]
+   ],
+   "wex": 1
   },
   {
    "slug": "jajae-geomsu",
@@ -20253,7 +20332,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/jajae-geomsu.pdf"
+   "pdf": "/forms/v2/jajae-geomsu.pdf",
+   "wex": 1
   },
   {
    "slug": "jajae-gonggeupwon",
@@ -20386,7 +20466,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/jajae-gonggeupwon.pdf"
+   "pdf": "/forms/v2/jajae-gonggeupwon.pdf",
+   "wex": 1
   },
   {
    "slug": "jajae-seungin",
@@ -20472,7 +20553,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/jajae-seungin.pdf"
+   "pdf": "/forms/v2/jajae-seungin.pdf",
+   "wex": 1
   },
   {
    "slug": "jajae-subulbu",
@@ -20743,7 +20825,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/jajae-balju.pdf"
+   "pdf": "/forms/v2/jajae-balju.pdf",
+   "wex": 1
   },
   {
    "slug": "jakeop-heoga",
@@ -20914,7 +20997,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/jakeop-heoga.pdf"
+   "pdf": "/forms/v2/jakeop-heoga.pdf",
+   "wex": 1
   },
   {
    "slug": "jakeop-ilbo",
@@ -21118,7 +21202,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/janggi-banip.pdf"
+   "pdf": "/forms/v2/janggi-banip.pdf",
+   "wex": 1
   },
   {
    "slug": "janggi-gadong",
@@ -21199,7 +21284,8 @@
     "to": "/tools/tuipbi",
     "t": "🏗 현장 투입비 · 공사일보 — 날마다 누르기만",
     "d": "날마다 출역 · 장비 · 자재만 누르면 공사일보와 누적 투입비 · 공정률, 달마다 노무비(4대보험 공제 자동) · 장비 · 자재 청구내역서까지 인쇄. 현장 코드+비밀번호로 여러 기기에서 같이."
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "jibul-gyehoekseo",
@@ -21307,7 +21393,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/jibul-gyehoekseo.pdf"
+   "pdf": "/forms/v2/jibul-gyehoekseo.pdf",
+   "wex": 1
   },
   {
    "slug": "jibul-hwaginseo",
@@ -21412,7 +21499,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/jibul-hwaginseo.pdf"
+   "pdf": "/forms/v2/jibul-hwaginseo.pdf",
+   "wex": 1
   },
   {
    "slug": "jiche-gammyeon",
@@ -21508,7 +21596,8 @@
     "to": "/tools/delay-penalty",
     "t": "⏱ 지체상금 계산기",
     "d": "준공기한과 합격일, 계약금액을 넣으면 지체일수·지체상금·30% 한도까지 나옵니다."
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "jikjeop-nomubi",
@@ -21620,7 +21709,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/jikjeop-nomubi.pdf"
+   "pdf": "/forms/v2/jikjeop-nomubi.pdf",
+   "wex": 1
   },
   {
    "slug": "jikjeop-sigong-gyehoek",
@@ -21901,7 +21991,8 @@
      ]
     ],
     "at": "2026-10-01"
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "jugan-hyeonhwang",
@@ -22239,7 +22330,8 @@
    },
    "also": [
     "준공신고서"
-   ]
+   ],
+   "wex": 1
   },
   {
    "slug": "jungong-daega",
@@ -22356,7 +22448,8 @@
     "to": "/tools/wonclick",
     "t": "⚡ 공사서류 원클릭 — 이 서류를 사이트에서 바로",
     "d": "공사명 · 계약금액 · 기간 · 대표자를 한 번만 적으면 이 서류와 함께 착공 · 기성 · 준공 · 하자 서류 34가지가 채워집니다. 화면에서 A4 그대로 보고 칸을 고쳐 인쇄 · 엑셀로도. 관급 · 민간 모두."
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "gongsa-daegeum",
@@ -22497,7 +22590,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gongsa-daegeum.pdf"
+   "pdf": "/forms/v2/gongsa-daegeum.pdf",
+   "wex": 1
   },
   {
    "slug": "jungong-jeongsan",
@@ -22620,7 +22714,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/jungong-jeongsan.pdf"
+   "pdf": "/forms/v2/jungong-jeongsan.pdf",
+   "wex": 1
   },
   {
    "slug": "gongsa-wanryo",
@@ -22753,7 +22848,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/gongsa-wanryo.pdf"
+   "pdf": "/forms/v2/gongsa-wanryo.pdf",
+   "wex": 1
   },
   {
    "slug": "minwon",
@@ -22882,7 +22978,8 @@
    "also": [
     "민원처리대장",
     "민원 관리대장"
-   ]
+   ],
+   "wex": 1
   },
   {
    "slug": "mulga",
@@ -23042,7 +23139,8 @@
     "to": "/tools/price-adjust",
     "t": "📈 물가변동 조정금액 계산기",
     "d": "계약금액과 등락률을 넣으면 조정할 수 있는지(90일·3%)와 증감액이 나옵니다."
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "ncr",
@@ -23150,7 +23248,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/ncr.pdf"
+   "pdf": "/forms/v2/ncr.pdf",
+   "wex": 1
   },
   {
    "slug": "nomubi",
@@ -23239,7 +23338,8 @@
     "to": "/tools/nomubi",
     "t": "👷 일용 노무비 계산기 · 지급명세서",
     "d": "이름·직종·일당을 적고 일한 날을 누르면 소득세·지방소득세·고용·국민연금·건강·장기요양 공제와 실지급액, A4 가로 지급명세서와 근로내용 확인신고 집계가 나옵니다."
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "nomubi-gubun-haeui",
@@ -23579,7 +23679,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/pumjil-gwanri-gyehoek.pdf"
+   "pdf": "/forms/v2/pumjil-gwanri-gyehoek.pdf",
+   "wex": 1
   },
   {
    "slug": "pumjil-gyehoek",
@@ -23658,7 +23759,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/pumjil-gyehoek.pdf"
+   "pdf": "/forms/v2/pumjil-gyehoek.pdf",
+   "wex": 1
   },
   {
    "slug": "pyegimul",
@@ -23753,7 +23855,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/pyegimul.pdf"
+   "pdf": "/forms/v2/pyegimul.pdf",
+   "wex": 1
   },
   {
    "slug": "remicon",
@@ -23858,7 +23961,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/remicon.pdf"
+   "pdf": "/forms/v2/remicon.pdf",
+   "wex": 1
   },
   {
    "slug": "sago-bogo",
@@ -24024,7 +24128,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/sago-bogo.pdf"
+   "pdf": "/forms/v2/sago-bogo.pdf",
+   "wex": 1
   },
   {
    "slug": "sajin-daeji",
@@ -24162,7 +24267,8 @@
     "사진대지",
     "공사사진 대지",
     "현장 사진대지"
-   ]
+   ],
+   "wex": 1
   },
   {
    "slug": "sanchul-naeyeok",
@@ -24278,7 +24384,8 @@
     "to": "/tools/gyeonjeok",
     "t": "🧾 내역으로 견적서 만들기",
     "d": "품명·규격·수량·단가를 적거나 엑셀 표를 붙여 넣으면 공종별 합계와 원가계산서, 견적금액(한글)까지 — 견적서·내역서를 A4로 인쇄합니다."
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "sayonginmgye",
@@ -24418,7 +24525,8 @@
    "also": [
     "사용 인감계",
     "사용인감 신고서"
-   ]
+   ],
+   "wex": 1
   },
   {
    "slug": "seolgye-anjeon-daejang",
@@ -24530,7 +24638,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/seolgye-anjeon-daejang.pdf"
+   "pdf": "/forms/v2/seolgye-anjeon-daejang.pdf",
+   "wex": 1
   },
   {
    "slug": "seolgye-byeongyeong",
@@ -24691,7 +24800,8 @@
    },
    "also": [
     "설계변경 신청서"
-   ]
+   ],
+   "wex": 1
   },
   {
    "slug": "seongeum",
@@ -24782,7 +24892,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/seongeum.pdf"
+   "pdf": "/forms/v2/seongeum.pdf",
+   "wex": 1
   },
   {
    "slug": "seongeum-gyehoek",
@@ -24858,7 +24969,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/seongeum-gyehoek.pdf"
+   "pdf": "/forms/v2/seongeum-gyehoek.pdf",
+   "wex": 1
   },
   {
    "slug": "sigong-gyehoek",
@@ -25034,7 +25146,8 @@
      ]
     ],
     "at": "2026-10-01"
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "sigong-sangse",
@@ -25157,7 +25270,8 @@
      ]
     ],
     "at": "2026-10-01"
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "siheom-uiroe",
@@ -25245,7 +25359,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/siheom-uiroe.pdf"
+   "pdf": "/forms/v2/siheom-uiroe.pdf",
+   "wex": 1
   },
   {
    "slug": "silhaeng-daebipyo",
@@ -25345,7 +25460,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/silhaeng-daebipyo.pdf"
+   "pdf": "/forms/v2/silhaeng-daebipyo.pdf",
+   "wex": 1
   },
   {
    "slug": "siljeong-bogo",
@@ -25497,7 +25613,8 @@
    "also": [
     "실정보고",
     "현장 실정보고서"
-   ]
+   ],
+   "wex": 1
   },
   {
    "slug": "soeum",
@@ -25635,7 +25752,8 @@
    "also": [
     "소음진동 측정 기록부",
     "소음 측정 기록"
-   ]
+   ],
+   "wex": 1
   },
   {
    "slug": "suryang",
@@ -25733,7 +25851,8 @@
     "to": "/jeoksan/run",
     "t": "🧮 수량산출서 만들기 — 재료표 + 도면 눌러 채우기",
     "d": "재료표는 토목 · 건축 견본 그대로, 치수표 칸을 누르고 도면을 누르면 값이 들어갑니다(직접 적어도 됨). 산출서 · 집계 · 검산을 화면에서 보고 고쳐 인쇄, 엑셀로도."
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "takssu",
@@ -25865,7 +25984,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/takssu.pdf"
+   "pdf": "/forms/v2/takssu.pdf",
+   "wex": 1
   },
   {
    "slug": "taseol-check",
@@ -26036,7 +26156,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/taseol-check.pdf"
+   "pdf": "/forms/v2/taseol-check.pdf",
+   "wex": 1
   },
   {
    "slug": "taseol-silmyeongbu",
@@ -26172,7 +26293,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/taseol-silmyeongbu.pdf"
+   "pdf": "/forms/v2/taseol-silmyeongbu.pdf",
+   "wex": 1
   },
   {
    "slug": "tbm",
@@ -26313,7 +26435,8 @@
      ]
     ],
     "at": "2026-09-30"
-   }
+   },
+   "wex": 1
   },
   {
    "slug": "ugi-daechaek",
@@ -26481,7 +26604,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/ugi-daechaek.pdf"
+   "pdf": "/forms/v2/ugi-daechaek.pdf",
+   "wex": 1
   },
   {
    "slug": "wih-choego",
@@ -26923,7 +27047,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/wiheom-pyeongga.pdf"
+   "pdf": "/forms/v2/wiheom-pyeongga.pdf",
+   "wex": 1
   },
   {
    "slug": "wiimjang",
@@ -27057,7 +27182,8 @@
    "also": [
     "입찰 위임장",
     "계약 위임장"
-   ]
+   ],
+   "wex": 1
   },
   {
    "slug": "wolgan-bogoseo",
@@ -27219,7 +27345,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/wolgan-bogoseo.pdf"
+   "pdf": "/forms/v2/wolgan-bogoseo.pdf",
+   "wex": 1
   },
   {
    "slug": "wonga",
@@ -27512,7 +27639,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/yagan-jakeop.pdf"
+   "pdf": "/forms/v2/yagan-jakeop.pdf",
+   "wex": 1
   },
   {
    "slug": "yangsaeng",
@@ -27603,7 +27731,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/yangsaeng.pdf"
+   "pdf": "/forms/v2/yangsaeng.pdf",
+   "wex": 1
   },
   {
    "slug": "yuhae-gyehoek",
@@ -27744,7 +27873,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/yuhae-gyehoek.pdf"
+   "pdf": "/forms/v2/yuhae-gyehoek.pdf",
+   "wex": 1
   },
   {
    "slug": "yuryu",
@@ -27827,7 +27957,8 @@
     "빈 서식",
     "작성 예시"
    ],
-   "pdf": "/forms/v2/yuryu.pdf"
+   "pdf": "/forms/v2/yuryu.pdf",
+   "wex": 1
   },
   {
    "slug": "jg-charyang-geonseol",
