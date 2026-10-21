@@ -153,20 +153,37 @@ let 읽는중 = null
 let 시작 = null
 let 읽은때 = 0
 let 조회 = null             // { p: {} } — fresh/pv (애널리틱스 조회수 · 못 읽으면 null)
+/* 🩹 G362 (2026-10-21) 소장님 폰 「조회수가 왜 이렇지??? 빨리 고쳐줘」(서식 «많이 받은 서식» 실정보고서 ⬇ 10회 — 실제 72) → 곧 「다시 정상」
+   까닭: dl.json 을 못 받으면(폰 망 · 잠깐 끊김) 빈 값으로 두고 «시작값(9/15 앞 옛 숫자)만» 더해 작은 숫자를 보였고, 그 실패를 5분 동안 기억했음.
+   → 못 받으면 1.5초 뒤 한 번 더 · 그래도 못 받으면 숫자를 «안 보임»(틀린 작은 숫자 대신) · 20초 뒤 다시 읽어 숫자가 오면 그때 보임.
+   조회(👁)도 같음 — 애널리틱스(fresh/pv/p) · 직접 센 것(pv/c) 둘 중 하나라도 못 받으면 안 보임(반쪽 숫자를 보이지 않게). */
+const 받기 = (u) => fetch(u, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+const 두번받기 = (u) => 받기(u).catch(() => new Promise((r) => setTimeout(r, 1500)).then(() => 받기(u))).catch(() => undefined)   // undefined = 못 받음 · null = 비어 있음
+let 다시시계 = null
 function 읽기() {
   if (읽는중 && Date.now() - 읽은때 < 5 * 60000) return 읽는중
   읽은때 = Date.now()
+  const 직접 = Date.now() >= 조회직접시작
   읽는중 = Promise.all([
-    fetch(`${DB}/dl.json`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    두번받기(`${DB}/dl.json`),
     시작 ? Promise.resolve(시작) : import('../data/받은수_시작.json').then((m) => (시작 = m.default || m)).catch(() => ({})),
-    fetch(`${DB}/fresh/pv/p.json`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    두번받기(`${DB}/fresh/pv/p.json`),
     /* 🔢 G342 — 10/21 0시부터 건설맵이 직접 센 카드 조회(pv/c · lib/조회수.jsx 조회세기) — 시작값(애널리틱스 9/15~10/20)에 더함 */
-    Date.now() >= 조회직접시작 ? fetch(`${DB}/pv/c.json`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null) : Promise.resolve(null),
+    직접 ? 두번받기(`${DB}/pv/c.json`) : Promise.resolve(null),
   ]).then(([d, , v, c]) => {
-    숫자 = { f: (d && d.f) || {}, p: (d && d.p) || {} }
-    const 합침 = { ...((v && typeof v === 'object') ? v : {}) }
-    if (c && typeof c === 'object') for (const [k, x] of Object.entries(c)) 합침[k] = (Number(합침[k]) || 0) + (Number(x) || 0)
-    조회 = (v && typeof v === 'object') || (c && typeof c === 'object') ? { p: 합침 } : null
+    const 못받음 = d === undefined || v === undefined || (직접 && c === undefined)
+    if (d !== undefined) 숫자 = { f: (d && d.f) || {}, p: (d && d.p) || {} }
+    else if (!숫자) 숫자 = null          // 앞서 받은 숫자가 있으면 그대로 · 처음부터 못 받았으면 안 보임
+    if (v !== undefined && !(직접 && c === undefined)) {
+      const 합침 = { ...((v && typeof v === 'object') ? v : {}) }
+      if (c && typeof c === 'object') for (const [k, x] of Object.entries(c)) 합침[k] = (Number(합침[k]) || 0) + (Number(x) || 0)
+      조회 = { p: 합침 }
+    }
+    if (못받음) {
+      읽은때 = 0                       // 다음에 부르면 다시 읽음
+      clearTimeout(다시시계)
+      다시시계 = setTimeout(() => { if (!읽은때 && 듣는이.size) 읽기().catch(() => {}) }, 20000)
+    }
     듣는이.forEach((f) => f())
     return 숫자
   })
