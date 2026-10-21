@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { 판단, 신고할일, 달규칙, 달더하기, 짧은날, 달글, 한달되는날, 달, 전날, 회사규모, 사업주몫, 생일풀기, 만나이, 긴날, 취득날, 현장들셈, 다른합치기, 다른현장최대, 금액읽기 } from '../lib/ilyong4.js'
-import { 공제셈 } from '../lib/gongje.js'
+import { 공제셈, 연금상하한, 요율, 열원 } from '../lib/gongje.js'
 import { 링크만들기, 링크읽기, 기간날들 } from '../lib/ilyong4link.js'
 import G from '../data/ilyong_guide.json'
 
@@ -40,6 +40,14 @@ const 지난달 = () => { const t = new Date(); t.setDate(1); t.setMonth(t.getMo
 const 쓴링크열쇠 = 'kcm_ilyong_link'
 const 달날수 = (ym) => new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), 0).getDate()
 const 첫요일 = (ym) => new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1, 1).getDay()
+/* 🩹 G361 (2026-10-21) 국민연금이 기준소득월액 상한 · 하한에 걸린 달은 그렇다고 — 세 예시 검증(예3 7월 생일 앞 720만 → 상한 659만)에서 «왜 313,020 인지» 가 안 보였음 */
+function 연금끝(r) {
+  if (!(r.np > 0)) return ''
+  const [lo, up] = 연금상하한(r.ym), R = 요율(r.ym)
+  if (r.np === 열원(up * R.np)) return `(상한 ${Math.round(up / 10000)}만)`
+  if (r.np === 열원(lo * R.np)) return `(하한 ${Math.round(lo / 10000)}만)`
+  return ''
+}
 export function 굵게(s) { return String(s).split(/\*\*(.+?)\*\*/g).map((x, i) => (i % 2 ? <b key={i}>{x}</b> : x)) }
 
 const 빈것 = () => ({ 일당: '', 시작: 지난달(), 달수: 3, 날: [], 달돈: {}, 다른: {}, 현장들: [], 옵션: {}, 이름: '' })
@@ -567,7 +575,7 @@ export default function Ilyong4() {
                   <div key={r.ym} className="iy-payr">
                     {r.빈 ? <div className="iy-pay1"><b>{달글(r.ym)}</b> · {r.n}일 · <span className="muted">받은 돈 0원 — 달력 아래 «받은 돈» 을 넣으면 나옵니다</span></div> : <>
                     <div className="iy-pay1"><b>{달글(r.ym)}</b> · {r.n}일 · {원(r.돈)}원 → 공제 <b>{원(r.합)}</b> · 실지급 <b className="iy-net">{원(r.돈 - r.합)}</b></div>
-                    <div className="iy-pay2">소득세 {원(r.it)} · 지방 {원(r.lt)} · 고용 {원(r.ei)} · 연금 {원(r.np)} · 건강 {원(r.hi)} · 요양 {원(r.lc)}</div></>}
+                    <div className="iy-pay2">소득세 {원(r.it)} · 지방 {원(r.lt)} · 고용 {원(r.ei)} · 연금 {원(r.np)}{연금끝(r)} · 건강 {원(r.hi)} · 요양 {원(r.lc)}</div></>}
                   </div>
                 ))}
               </div>

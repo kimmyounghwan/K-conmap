@@ -19,8 +19,13 @@ const 묶음색 = ['#2563eb', '#0d9488', '#d97706', '#7c3aed', '#e11d48', '#16a3
 const 위험성미리 = lazy(() => import('../tools/위험성미리.jsx'))
 /* ✍️ G346 «사이트에서 작성 → PDF» — 소장님 「안전서류 = 사이트에서 작성 → PDF(엑셀 안 줌) · 공무 서식 = 엑셀 그대로」 (tools/서식작성.jsx) */
 const 서식작성 = lazy(() => import('../tools/서식작성.jsx'))
+/* ✍️ G361 (2026-10-21) 엑셀로 굽던 서식(gen forms2 · 원본 틀 다시 만든 것) = «종이에 바로 쓰기»(엑셀 칸 그대로 · 자동 계산 · 그림 PDF) · 엑셀은 빈 틀만
+   소장님 「사이트에서 작업이 가능하게 해야 해 … 이게 내 밥 줄」 · 「서식도 사이트에서… 값 없이… 작업하려면 다시 사이트 찾게」 · 「pdf로 해도 엑셀로 전환 가능하지 않아??」 */
+const 격자작성 = lazy(() => import('../tools/격자작성.jsx'))
 /** 안전서류(묶음 «안전») 와 새로 만든 웹 서식(gen web)은 엑셀 없이 «사이트에서 작성 → PDF» 만 */
 export const 웹서식 = (f) => !!f && (f.group === '안전' || f.gen === 'web')
+/** ✍️ G361 사이트에서 작성(자동 계산 · 그림 PDF) — 안전 · 웹 서식 + 엑셀로 굽던 서식(forms2) + 다시 만든 원본 틀 */
+export const 사이트작성 = (f) => 웹서식(f) || (!!f && (f.gen === 'forms2' || (!!f.re && String(f.slug || '').startsWith('o-'))))
 
 /** 🧰 2026-09-29 «사이트에서 바로 쓰기» — forms.json / forms_orig.json 의 prog {to, t, d} (prerender.py 도 같은 칸을 굽습니다)
  *  소장님: 「좀 이상해 봐줘 … 되도록 사이트내에서 사용 할 수 있는 프로그램으로 만들어 줘」 */
@@ -207,7 +212,7 @@ const 거르기들 = [
   { k: 'all', t: '전체', ok: () => true },
   { k: 'prog', t: '🧰 바로 쓰기', ok: (f) => !!(f.prog && f.prog.to) },
   { k: 'pdf', t: '🖨 인쇄용 PDF', ok: (f) => !!f.pdf },
-  { k: 'web', t: '✍️ 사이트 작성', ok: (f) => 웹서식(f) },
+  { k: 'web', t: '✍️ 사이트 작성', ok: (f) => 사이트작성(f) },
   { k: 'ex', t: '✍ 작성 예시', ok: (f) => f.gen === 'forms2' || !!f.re || !!f.ex },
   { k: 'orig', t: '원본 틀', ok: (f) => ORIGSET.has(f.slug) },
 ]
@@ -300,7 +305,7 @@ function 서식칸({ f }) {
         {/* 🎨 2026-10-16 표(작성 예시 · 바로 쓰기)와 받은 횟수를 한 줄에 — 표가 제목 밑에 한 줄 더 차지하던 빈 곳을 줄임 */}
         <span className="fm-meta">
           {f.prog && <em className="tlx-new fm-pg">🧰 바로 쓰기</em>}
-          {웹서식(f) && <em className="tlx-new fm-w">✍️ 사이트 작성</em>}
+          {사이트작성(f) && <em className="tlx-new fm-w">✍️ 사이트 작성</em>}
           {예시 ? <em className="tlx-new fm-ex">✍ 작성 예시</em> : ORIGSET.has(f.slug) ? <em className="tlx-new fm-orig">원본 틀</em> : null}
           <받은수 파일={서식파일(f)} 봄={`/forms/${f.slug}`} className="dlcount tlx-dl" />
         </span>
@@ -388,8 +393,8 @@ export default function Forms() {
       <div className="card lead-card" style={{ marginTop: 14 }}>
         <h1 style={{ margin: 0, fontSize: 20 }}>📄 건설 서식 — 공사가 어디쯤인지 고르시면 낼 서류가 나옵니다</h1>
         <p className="why2" style={{ marginBottom: 0 }}>
-          서식 <b>{FORMS.length + ORIG.length}가지</b> — 공무 서식은 엑셀 · <b>안전서류는 사이트에서 작성 → PDF</b> · 회원가입 없이 <b>바로 이용 가능</b>.{' '}
-          {새로}가지는 현장에서 쓰던 틀(칸·차례·결재란)을 그대로 두고 <b>수식과 작성 예시</b>를 넣어 새로 만들었습니다.{' '}
+          서식 <b>{FORMS.length + ORIG.length}가지</b> — <b>사이트에서 바로 작성 · 자동 계산 → PDF</b> · 엑셀은 손으로 쓸 빈 틀 · 회원가입 없이 <b>바로 이용 가능</b>.{' '}
+          {새로}가지는 현장에서 쓰던 틀(칸·차례·결재란)을 그대로 두고 <b>자동 계산과 작성 예시</b>를 넣어 새로 만들었습니다.{' '}
           <b>사이트에서 바로 쓰는 프로그램</b>이 있는 일은 그것부터 보여 드립니다.
         </p>
         {/* 🔎 서식이 많아져서 — 이름·다른 이름·설명으로 찾습니다 (띄어쓰기 무시) */}
@@ -490,7 +495,7 @@ export default function Forms() {
               {s.progs.map((p) => <프로그램칸 p={p} key={p.to} />)}
             </div>
           )}
-          <div className="fm-sub">서식 {s.보일.length}가지 — {((n) => (n === s.보일.length ? '사이트에서 작성 → PDF' : n ? `엑셀 · ✍️ 사이트 작성 ${n}가지` : '엑셀'))(s.보일.filter(웹서식).length)}{거름 !== 'all' ? ` · ${거름이름}` : ''}</div>
+          <div className="fm-sub">서식 {s.보일.length}가지 — {((n) => (n === s.보일.length ? '사이트에서 작성 → PDF' : n ? `엑셀 · ✍️ 사이트 작성 ${n}가지` : '엑셀'))(s.보일.filter(사이트작성).length)}{거름 !== 'all' ? ` · ${거름이름}` : ''}</div>
           <div className="tlx-grid fm-grid">
             {s.보일.map((f) => <서식칸 f={f} key={f.slug} />)}
           </div>
@@ -512,9 +517,10 @@ export default function Forms() {
         <div className="sec-title" style={{ marginTop: 0 }}>서식은 어떻게 만들었나</div>
         <ul className="flist" style={{ marginBottom: 0 }}>
           <li><b>틀은 현장 원본 그대로</b> — 칸 · 차례 · 결재란을 바꾸지 않았습니다. 받은 서식의 사람·회사 이름, 공사명, 전화번호는 모두 지웠습니다.</li>
-          <li><b>수식</b> — 합계 · 금액 한글 표기 · 날짜·일수 · 비율이 저절로 나옵니다. <span className="fm-key y">노란 칸</span> 은 요율·기준값(발주기관 기준으로 고쳐 씀),{' '}
+          <li><b>자동 계산</b> — 사이트에서 칸을 채우면 합계 · 금액 한글 표기 · 날짜·일수 · 비율이 저절로 나옵니다. <span className="fm-key y">노란 칸</span> 은 요율·기준값(발주기관 기준으로 고쳐 씀),{' '}
             <span className="fm-key b">옅은 하늘색 칸</span> 은 자동 계산입니다.</li>
-          <li><b>작성 예시</b> — 엑셀 뒤 시트에 가상의 현장으로 다 채운 모습이 들어 있습니다. 서식 화면의 미리보기에서도 볼 수 있습니다.</li>
+          <li><b>작성 예시</b> — 서식 화면에서 <b>«✍ 예시 채우기»</b> 를 누르면 가상의 현장으로 다 채운 모습이 종이에 들어갑니다.</li>
+          <li><b>PDF · 인쇄</b> — 쓴 종이를 그대로 그림으로 저장합니다. 내려받는 엑셀은 손으로 쓸 빈 틀(계산 없음)입니다.</li>
           <li>맨 윗줄의 K-건설맵 표시는 1행을 지우면 없어집니다. <b>발주기관이 정한 서식이 있으면 그 서식이 우선</b>입니다.</li>
         </ul>
       </div>
@@ -587,8 +593,8 @@ const 출처말 = {
 /* ✍️ 2026-09-29 서식 다시 만들기(tools/forms2) — 원본 틀(칸·차례·결재란)은 두고 내용·수식을 새로 넣은 것(forms_orig.json re:true)
  *    ⚠️ prerender.py orig_form_page 와 같은 글이어야 합니다(크롤러와 사람이 보는 글이 같게). */
 export const 새틀말 = [
-  '현장에서 쓰던 원본의 틀(칸·차례·결재란)은 그대로 두고, K-건설맵이 내용과 수식을 새로 넣어 다시 만들었습니다.',
-  '엑셀 뒤 시트에 «작성 예시» 가 들어 있습니다 — 가상의 현장으로 다 채운 모습입니다. 노란 칸은 요율·기준값(발주기관 기준으로 고쳐 씀), 옅은 하늘색 칸은 자동 계산입니다.',
+  '현장에서 쓰던 원본의 틀(칸·차례·결재란)은 그대로 두고, K-건설맵이 내용과 자동 계산을 새로 넣어 다시 만들었습니다.',
+  '위 «종이에 바로 쓰기» 에서 칸을 채우면 저절로 계산되고, «✍ 예시 채우기» 로 가상의 현장으로 다 채운 모습을 볼 수 있습니다. 노란 칸은 요율·기준값(발주기관 기준으로 고쳐 씀), 옅은 하늘색 칸은 자동 계산입니다. 내려받는 엑셀은 손으로 쓸 빈 틀(계산 없음)입니다.',
 ]
 export const 첫줄말 = '맨 윗줄의 K-건설맵 표시는 1행을 지우면 없어집니다 (마우스 오른쪽 → 행 삭제). 그림이 아니라 글자라서 흔적이 남지 않습니다.'
 
@@ -631,17 +637,26 @@ function OrigFormPage({ f }) {
         <div className="ometa">
           <span>📂 {f.group}</span>
           {f.re ? <span>원본 틀 · 새로 만듦</span> : <span>원본 틀 그대로</span>}
-          {f.re ? <span>수식 · 작성 예시</span> : <span>{f.from} 원본 → 엑셀</span>}
+          {f.re ? <span>자동 계산 · 작성 예시</span> : <span>{f.from} 원본 → 엑셀</span>}
           {f.pages ? <span>인쇄 {f.pages}쪽</span> : null}
           {f.sheets ? <span>시트 {f.sheets}장</span> : null}
           <span>{크기}</span>
         </div>
         <div className="btn-row" style={{ marginTop: 12 }}>
-          <a className="btn primary" href={f.file} download={`${f.title}.xlsx`}
-            onClick={() => askAfter('forms')}>⬇ 엑셀 내려받기</a>
-          <받은수 파일={[f.file]} 앞="지금까지 " 글="번 받았습니다" className="dlcount big" />
+          {f.re ? (
+            <>
+              <button type="button" className="btn primary" onClick={() => { const el = document.getElementById('작성'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}>✍️ 종이에 바로 쓰기 → PDF</button>
+              <a className="btn ghost" href={f.file} download={`${f.title}_빈틀.xlsx`} onClick={() => askAfter('forms')}>⬇ 빈 틀 엑셀</a>
+            </>
+          ) : (
+            <a className="btn primary" href={f.file} download={`${f.title}.xlsx`}
+              onClick={() => askAfter('forms')}>⬇ 엑셀 내려받기</a>
+          )}
+          <받은수 파일={[f.file, `/forms/w/${f.slug}.pdf`]} 앞="지금까지 " 글="번 받았습니다" className="dlcount big" />
         </div>
       </div>
+
+      {f.re && <Suspense fallback={<div className="card muted" id="작성">✍️ 종이를 펴는 중…</div>}><격자작성 slug={f.slug} title={f.title} 빈틀={f.file} key={f.slug} /></Suspense>}
 
       <프로그램카드 p={f.prog} />
 
@@ -650,7 +665,7 @@ function OrigFormPage({ f }) {
           <div className="sec-title" style={{ margin: '0 0 8px' }}>미리보기</div>
           <그림들 f={f} />
           <div className="note sm" style={{ marginTop: 8 }}>
-            {f.re ? '내려받은 엑셀을 인쇄하면 이 모양으로 나옵니다. 작성 예시는 엑셀 뒤 시트에 들어 있습니다.'
+            {f.re ? '인쇄하면 이 모양으로 나옵니다. 작성 예시는 위 «✍ 예시 채우기» 를 누르세요.'
               : `내려받은 엑셀을 인쇄하면 이 모양으로 나옵니다 (앞 ${f.prev.length}쪽).`}
           </div>
         </div>
@@ -758,7 +773,9 @@ export function FormPage() {
      ② 쓸 칸이 없는 서식(차례 · 안내 글뿐 — 시공계획서 · 예정공정표 등)은 «사이트에서 작성» 을 숨김(PDF 에 안내 글만 찍혔음) → 엑셀(자동 계산)이 진짜 서류 */
   const 위험성 = f.gen === 'wihgen'
   const 쓸칸 = !위험성 && ((f.sheet && f.sheet.blocks) || []).some((b) => b.t === 'kv' || b.t === 'table' || b.t === 'chk' || b.t === 'cl')
-  const 작성칸 = 쓸칸 ? <Suspense fallback={<div className="card muted">작성 칸을 불러오는 중…</div>}><서식작성 f={f} key={f.slug} /></Suspense> : null
+  const 격자 = f.gen === 'forms2'
+  const 작성칸 = 격자 ? <Suspense fallback={<div className="card muted" id="작성">✍️ 종이를 펴는 중…</div>}><격자작성 slug={f.slug} title={f.title} 빈틀={xlsx} key={f.slug} /></Suspense>
+    : 쓸칸 ? <Suspense fallback={<div className="card muted">작성 칸을 불러오는 중…</div>}><서식작성 f={f} key={f.slug} /></Suspense> : null
   const 작성가기 = () => { const el = document.getElementById('작성'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
   return (
     <>
@@ -789,6 +806,12 @@ export function FormPage() {
                 : <button type="button" className="btn primary" onClick={작성가기}>✍️ 사이트에서 작성 → PDF</button>}
               {f.gen !== 'wihgen' && f.pdf && <a className="btn ghost" href={f.pdf} target="_blank" rel="noopener">🖨 빈 서식 PDF</a>}
             </>
+          ) : 격자 ? (
+            <>
+              <button type="button" className="btn primary" onClick={작성가기}>✍️ 종이에 바로 쓰기 → PDF</button>
+              <a className="btn ghost" href={xlsx} download={`${f.title}_빈틀.xlsx`} onClick={() => askAfter('forms')}>⬇ 빈 틀 엑셀</a>
+              {f.pdf && <a className="btn ghost" href={f.pdf} target="_blank" rel="noopener">🖨 빈 서식 PDF</a>}
+            </>
           ) : (
             <>
               {/* 정적 파일이라 <a download> 하나면 됩니다 — 라이브러리도, 전송량도 없습니다 */}
@@ -807,7 +830,7 @@ export function FormPage() {
         {f.law && <div className="muted sm" style={{ marginTop: 8, lineHeight: 1.6, wordBreak: 'keep-all' }}>근거 · {f.law}</div>}
       </div>
 
-      {웹 && 작성칸}
+      {(웹 || 격자) && 작성칸}
 
       <프로그램카드 p={f.prog} />
 
@@ -859,7 +882,7 @@ export function FormPage() {
       </div>
       )}
 
-      {!웹 && 작성칸}
+      {!웹 && !격자 && 작성칸}
 
       <div className="card fwarn">
         <b>⚠️ 발주기관 서식이 우선입니다</b>

@@ -1152,10 +1152,23 @@ def _prog_html(p):
             + '<span class="go">열기 →</span></a>')
 
 
+def _쓰기안내_html():
+    """✍️ G361 «종이에 바로 쓰기» 쓰는 방법 — 화면 tools/격자작성.jsx 와 같은 글(web/src/data/서식쓰기안내.json 한 곳)"""
+    d = json.loads(open(os.path.join(ROOT, "web", "src", "data", "서식쓰기안내.json"), "rb").read().decode("utf-8"))
+    return ('<div class="card" id="작성"><details class="gx-how" open><summary><b>' + esc(d["제목"]) + '</b> <span class="muted">— '
+            + esc(d["한줄"]) + '</span></summary><ol>' + "".join(f'<li><b>{esc(a)}</b> — {esc(b)}</li>' for a, b in d["차례"])
+            + '</ol></details></div>')
+
+
+def _사이트작성(f):
+    """✍️ G361 — 화면 Forms.jsx 사이트작성() 과 같은 갈래(안전 · 웹 서식 + 엑셀로 굽던 서식 + 다시 만든 원본 틀)"""
+    return f.get("group") == "안전" or f.get("gen") in ("web", "forms2") or (bool(f.get("re")) and str(f.get("slug") or "").startswith("o-"))
+
+
 # ✍️ 2026-09-29 서식 다시 만들기(tools/forms2) — 화면 Forms.jsx 의 새틀말·첫줄말과 «같은 글»
 NEW_FRAME = [
-    "현장에서 쓰던 원본의 틀(칸·차례·결재란)은 그대로 두고, K-건설맵이 내용과 수식을 새로 넣어 다시 만들었습니다.",
-    "엑셀 뒤 시트에 «작성 예시» 가 들어 있습니다 — 가상의 현장으로 다 채운 모습입니다. 노란 칸은 요율·기준값(발주기관 기준으로 고쳐 씀), 옅은 하늘색 칸은 자동 계산입니다.",
+    "현장에서 쓰던 원본의 틀(칸·차례·결재란)은 그대로 두고, K-건설맵이 내용과 자동 계산을 새로 넣어 다시 만들었습니다.",
+    "위 «종이에 바로 쓰기» 에서 칸을 채우면 저절로 계산되고, «✍ 예시 채우기» 로 가상의 현장으로 다 채운 모습을 볼 수 있습니다. 노란 칸은 요율·기준값(발주기관 기준으로 고쳐 씀), 옅은 하늘색 칸은 자동 계산입니다. 내려받는 엑셀은 손으로 쓸 빈 틀(계산 없음)입니다.",
 ]
 FIRST_ROW = "맨 윗줄의 K-건설맵 표시는 1행을 지우면 없어집니다 (마우스 오른쪽 → 행 삭제). 그림이 아니라 글자라서 흔적이 남지 않습니다."
 
@@ -1219,7 +1232,7 @@ def orig_form_page(shell, f, orig, image=None):
     desc = desc.strip()[:150]
     kb = f.get("kb") or 0
     크기 = f'{kb / 1024:.1f}MB' if kb >= 1024 else f'{kb}KB'
-    chips = ([f'📂 {f.get("group") or ""}', "원본 틀 · 새로 만듦", "수식 · 작성 예시"] if f.get("re") else
+    chips = ([f'📂 {f.get("group") or ""}', "원본 틀 · 새로 만듦", "자동 계산 · 작성 예시"] if f.get("re") else
              [f'📂 {f.get("group") or ""}', "원본 틀 그대로", f'{f.get("from") or "엑셀"} 원본 → 엑셀'])
     if f.get("pages"):
         chips.append(f'인쇄 {f["pages"]}쪽')
@@ -1234,11 +1247,13 @@ def orig_form_page(shell, f, orig, image=None):
            f'{또줄}'
            '<div class="ometa">' + "".join(f'<span>{esc(c)}</span>' for c in chips) + '</div>'
            f'<div class="btn-row" style="margin-top:12px">'
-           f'<a class="btn primary" href="{esc(f["file"])}" download="{esc(f["title"])}.xlsx">⬇ 엑셀 내려받기</a>'
-           '</div></div>', _prog_html(f.get("prog"))]
+           + ((f'<a class="btn primary" href="#작성">✍️ 종이에 바로 쓰기 → PDF</a>'      # ✍️ G361 화면 Forms.jsx OrigFormPage 와 같은 단추
+               f'<a class="btn ghost" href="{esc(f["file"])}" download="{esc(f["title"])}_빈틀.xlsx">⬇ 빈 틀 엑셀</a>') if f.get("re") else
+              f'<a class="btn primary" href="{esc(f["file"])}" download="{esc(f["title"])}.xlsx">⬇ 엑셀 내려받기</a>')
+           + '</div></div>', _쓰기안내_html() if f.get("re") else "", _prog_html(f.get("prog"))]
     prev = f.get("prev") or []
     if prev:
-        말 = ('내려받은 엑셀을 인쇄하면 이 모양으로 나옵니다. 작성 예시는 엑셀 뒤 시트에 들어 있습니다.' if f.get("re")
+        말 = ('인쇄하면 이 모양으로 나옵니다. 작성 예시는 위 «✍ 예시 채우기» 를 누르세요.' if f.get("re")
              else f'내려받은 엑셀을 인쇄하면 이 모양으로 나옵니다 (앞 {len(prev)}쪽).')
         out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">미리보기</div>' + _prev_html(f)
                    + f'<div class="note sm" style="margin-top:8px">{esc(말)}</div></div>')
@@ -1441,7 +1456,7 @@ FORMS_TAB_JSON = os.path.join(ROOT, "web", "src", "data", "forms_tab.json")
 def _fm_card(f, origset):
     """서식 칸 — 화면 Forms.jsx 서식칸 과 같은 글"""
     ex = f.get("gen") == "forms2" or f.get("re") or f.get("ex")
-    웹 = f.get("group") == "안전" or f.get("gen") == "web"     # ✍️ G346 — 화면 서식칸 «✍️ 사이트 작성» 과 같음
+    웹 = _사이트작성(f)     # ✍️ G346 · G361 — 화면 서식칸 «✍️ 사이트 작성» 과 같음
     tags = ('<em class="tlx-new fm-pg">🧰 바로 쓰기</em>' if f.get("prog") else "") + (
         '<em class="tlx-new fm-w">✍️ 사이트 작성</em>' if 웹 else "") + (
         '<em class="tlx-new fm-ex">✍ 작성 예시</em>' if ex else ('<em class="tlx-new fm-orig">원본 틀</em>' if f["slug"] in origset else ""))
@@ -1478,12 +1493,12 @@ def forms_index(shell, forms, image=None, ogroups=(), orig=()):
     n_all = len(forms) + len(orig)
     n_new = sum(1 for f in list(forms) + list(orig) if f.get("gen") == "forms2" or f.get("re"))
     title = "건설 서식 양식 엑셀 다운로드 — 착공계·기성청구서·작업일보 | K-건설맵"
-    desc = (f"건설 서식 {n_all}가지 — 공무 서식은 엑셀로, 안전서류(작업계획서·작업허가서 등)는 사이트에서 작성해 PDF로. 공사 차례(계약·착공·시공계획서·공사 중·검측·안전·노무·기성·준공)로 "
+    desc = (f"건설 서식 {n_all}가지 — 사이트에서 바로 작성하면 자동 계산되고 PDF로 저장, 엑셀은 손으로 쓸 빈 틀. 공사 차례(계약·착공·시공계획서·공사 중·검측·안전·노무·기성·준공)로 "
             "골라 쓰고, 착공·하도급·기성·설계변경·준공 때 한 번에 내는 서류를 꾸러미로 모았습니다. "
-            f"{n_new}가지는 수식과 작성 예시를 넣어 새로 만들었습니다. 회원가입 없음.")
+            f"{n_new}가지는 자동 계산과 작성 예시를 넣어 새로 만들었습니다. 회원가입 없음.")
     out = ['<div class="card lead-card"><h1 style="margin:0;font-size:20px">📄 건설 서식 — 공사가 어디쯤인지 고르시면 낼 서류가 나옵니다</h1>'
-           f'<p class="why2" style="margin-bottom:0">서식 <b>{n_all}가지</b> — 공무 서식은 엑셀 · <b>안전서류는 사이트에서 작성 → PDF</b> · 회원가입 없이 <b>바로 이용 가능</b>. '
-           f'{n_new}가지는 현장에서 쓰던 틀(칸·차례·결재란)을 그대로 두고 <b>수식과 작성 예시</b>를 넣어 새로 만들었습니다. '
+           f'<p class="why2" style="margin-bottom:0">서식 <b>{n_all}가지</b> — <b>사이트에서 바로 작성 · 자동 계산 → PDF</b> · 엑셀은 손으로 쓸 빈 틀 · 회원가입 없이 <b>바로 이용 가능</b>. '
+           f'{n_new}가지는 현장에서 쓰던 틀(칸·차례·결재란)을 그대로 두고 <b>자동 계산과 작성 예시</b>를 넣어 새로 만들었습니다. '
            '<b>사이트에서 바로 쓰는 프로그램</b>이 있는 일은 그것부터 보여 드립니다.</p></div>']
     pick = ['<div class="card ny-pick"><div class="sec-title" style="margin-top:0">지금 무엇을 하십니까?</div><div class="ny-pick-row">']
     for st in stages:
@@ -1503,7 +1518,7 @@ def forms_index(shell, forms, image=None, ogroups=(), orig=()):
                    f'{esc(st["ic"])} {esc(st["h"])}</div><div class="ny-sit-w">{esc(st.get("언제") or "")}</div>')
         if st.get("progs"):
             out.append('<div class="tlx-grid">' + "".join(_fm_prog(p) for p in st["progs"]) + '</div>')
-        _웹수 = sum(1 for k in st["slugs"] if k in by and (by[k].get("group") == "안전" or by[k].get("gen") == "web"))   # ✍️ G346 — 화면 Forms.jsx 와 같은 말
+        _웹수 = sum(1 for k in st["slugs"] if k in by and _사이트작성(by[k]))   # ✍️ G346 · G361 — 화면 Forms.jsx 사이트작성() 과 같은 말
         _파일말 = "사이트에서 작성 → PDF" if _웹수 and _웹수 == sum(1 for k in st["slugs"] if k in by) else (f"엑셀 · ✍️ 사이트 작성 {_웹수}가지" if _웹수 else "엑셀")
         out.append(f'<div class="fm-sub">서식 {len(st["slugs"])}가지 — {_파일말}</div><div class="tlx-grid fm-grid">'
                    + "".join(_fm_card(by[k], origset) for k in st["slugs"] if k in by) + '</div></div>')
@@ -1524,9 +1539,10 @@ def forms_index(shell, forms, image=None, ogroups=(), orig=()):
         out.append('</div></div>')
     out.append('<div class="card"><div class="sec-title" style="margin-top:0">서식은 어떻게 만들었나</div><ul class="flist" style="margin-bottom:0">'
                '<li><b>틀은 현장 원본 그대로</b> — 칸 · 차례 · 결재란을 바꾸지 않았습니다. 받은 서식의 사람·회사 이름, 공사명, 전화번호는 모두 지웠습니다.</li>'
-               '<li><b>수식</b> — 합계 · 금액 한글 표기 · 날짜·일수 · 비율이 저절로 나옵니다. <span class="fm-key y">노란 칸</span> 은 요율·기준값(발주기관 기준으로 고쳐 씀), '
+               '<li><b>자동 계산</b> — 사이트에서 칸을 채우면 합계 · 금액 한글 표기 · 날짜·일수 · 비율이 저절로 나옵니다. <span class="fm-key y">노란 칸</span> 은 요율·기준값(발주기관 기준으로 고쳐 씀), '
                '<span class="fm-key b">옅은 하늘색 칸</span> 은 자동 계산입니다.</li>'
-               '<li><b>작성 예시</b> — 엑셀 뒤 시트에 가상의 현장으로 다 채운 모습이 들어 있습니다. 서식 화면의 미리보기에서도 볼 수 있습니다.</li>'
+               '<li><b>작성 예시</b> — 서식 화면에서 <b>«✍ 예시 채우기»</b> 를 누르면 가상의 현장으로 다 채운 모습이 종이에 들어갑니다.</li>'
+               '<li><b>PDF · 인쇄</b> — 쓴 종이를 그대로 그림으로 저장합니다. 내려받는 엑셀은 손으로 쓸 빈 틀(계산 없음)입니다.</li>'
                '<li>맨 윗줄의 K-건설맵 표시는 1행을 지우면 없어집니다. <b>발주기관이 정한 서식이 있으면 그 서식이 우선</b>입니다.</li></ul></div>')
     # 갈래별 전부 — 접어 둠(화면과 같음). 크롤러는 접힌 안의 링크도 읽습니다
     allh = [f'<details class="card js-more"><summary class="sec-title">갈래별로 전부 보기 — {n_all}가지</summary>']
@@ -1615,7 +1631,9 @@ def form_page(shell, f, others, image=None):
                 f'{f["title"]} 양식 엑셀 다운로드. ') + \
             (g.get("what") or f'{f.get("short") or ""} {f.get("when") or ""}').strip()
         # 검색하는 말 그대로 한 문장 — 억지로 낱말을 늘어놓지 않고 자연스럽게 씁니다.
-        lead = (f'{f["title"]} 양식을 엑셀(xlsx) 파일로 다운로드할 수 있습니다. '
+        lead = (f'{f["title"]} 양식을 이 화면에서 바로 채우면 합계 · 금액이 저절로 계산되고, PDF로 저장 · 인쇄할 수 있습니다. '
+                f'손으로 쓸 빈 양식은 엑셀(xlsx)로 다운로드할 수 있고, 회원가입이 필요 없습니다.') if f.get("gen") == "forms2" else \
+               (f'{f["title"]} 양식을 엑셀(xlsx) 파일로 다운로드할 수 있습니다. '
                 f'회원가입이 필요 없고, 인쇄해서 바로 쓸 수 있습니다.')
     desc = desc.strip()[:150]
     또줄 = (f'<p style="font-size:12px;color:var(--muted);margin:6px 0 0">'
@@ -1631,11 +1649,14 @@ def form_page(shell, f, others, image=None):
                  else f'<a class="btn primary" href="#작성">✍️ 사이트에서 작성 → PDF</a>')
                + (f'<a class="btn ghost" href="{esc(f["pdf"])}" target="_blank" rel="noopener">🖨 빈 서식 PDF</a>'
                   if f.get("pdf") and f.get("gen") != "wihgen" else '')) if 웹 else
-              (f'<a class="btn primary" href="/forms/{esc(f["slug"])}.xlsx" download>⬇ 엑셀 내려받기</a>'
-               + (f'<a class="btn ghost" href="{esc(f["pdf"])}" target="_blank" rel="noopener">🖨 인쇄용 PDF</a>' if f.get("pdf") else '')))
+              ((f'<a class="btn primary" href="#작성">✍️ 종이에 바로 쓰기 → PDF</a>'          # ✍️ G361 화면 Forms.jsx 와 같은 단추
+                f'<a class="btn ghost" href="/forms/{esc(f["slug"])}.xlsx" download>⬇ 빈 틀 엑셀</a>'
+                + (f'<a class="btn ghost" href="{esc(f["pdf"])}" target="_blank" rel="noopener">🖨 빈 서식 PDF</a>' if f.get("pdf") else '')) if f.get("gen") == "forms2" else
+               (f'<a class="btn primary" href="/forms/{esc(f["slug"])}.xlsx" download>⬇ 엑셀 내려받기</a>'
+               + (f'<a class="btn ghost" href="{esc(f["pdf"])}" target="_blank" rel="noopener">🖨 인쇄용 PDF</a>' if f.get("pdf") else ''))))
            + "</div>"
            + (f'<div style="font-size:12px;color:var(--muted);margin-top:8px">근거 · {esc(f["law"])}</div>' if f.get("law") else '')
-           + "</div>", _prog_html(f.get("prog")), _guide_html(f)]
+           + "</div>", _쓰기안내_html() if f.get("gen") == "forms2" else "", _prog_html(f.get("prog")), _guide_html(f)]
     if f.get("when"):
         out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">언제 내나</div>'
                    f'<div class="fwhen">{bold_md(esc(f["when"]))}</div></div>')
@@ -2445,7 +2466,7 @@ def tools_index(shell, tools, cats, image=None, pages=None):
         out.append("</div>")
     out.append('<a class="card fbook" href="/forms"><span class="fic">📄</span><div class="grow">'
                '<div class="t">서식은 «서식» 탭에 <em>· 착공부터 준공까지</em></div>'
-               '<div class="d">계약·공무·공사·안전·품질·환경·노무·장비 서류를 엑셀로 바로 받습니다.</div></div>'
+               '<div class="d">계약·공무·공사·안전·품질·환경·노무·장비 서류를 사이트에서 바로 쓰고(자동 계산) PDF로 저장합니다.</div></div>'
                '<span class="go">→</span></a>')
     out.append('<div class="card"><div class="note sm">표준품셈·물가정보 단가·노임단가는 '
                '유료 자료라 싣지 않습니다. 계산기는 <b>수량과 금액 구조만</b> 냅니다.</div></div>')
@@ -4102,7 +4123,7 @@ def main():
             "도구는 지금도 고쳐 나가는 중입니다. 바라는 것은 하나입니다 — 건설맵을 풍성하게 할 말 한마디. "
             "쓰시다가 고칠 점이 보이면 맵톡에 한 줄 남겨 주십시오. 그 한 줄로 다음 판을 고칩니다.",
             "처음이시면 넷부터 보십시오. ① 투찰금액 정하기(바로투찰) "
-            "② 개찰 결과 보기(1순위) ③ 도면 물량 뽑기(적산 — 도면을 넣으면 물량이 엑셀로) ④ 서식 받기.",
+            "② 개찰 결과 보기(1순위) ③ 도면 물량 뽑기(적산 — 도면을 넣으면 물량이 엑셀로) ④ 서식 쓰기(사이트에서 바로 · 자동 계산 → PDF).",
             "바로투찰: 공고를 고르면 권장 투찰금액이 바로 나옵니다. 투찰률 고르기(최저·중간·사정률 분위)나 "
             "금액 고르기 표(자리마다 지난 개찰 1순위·실격)로 넣을 자리를 직접 고르고, «금액 복사하고 나라장터 열기»로 "
             "복사와 이동이 한 번에 됩니다. 용역·물품은 맨 위 «공사 · 용역 · 물품» 띠에서 고릅니다.",

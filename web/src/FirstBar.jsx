@@ -45,7 +45,7 @@ export default function FirstBar() {
     <div className="firstbar">
       <div className="t">
         <b>처음이세요?</b> 어디서 뭘 하는지 <b>한 장</b>으로 적어 두었습니다 —
-        투찰금액 정하기 · 개찰 결과 보기 · 서식 받기.
+        투찰금액 정하기 · 개찰 결과 보기 · 서식 쓰기.
       </div>
       <Link className="go" to="/how" onClick={mark}>📖 보는 방법</Link>
       <button className="x" onClick={close} aria-label="닫기">✕</button>

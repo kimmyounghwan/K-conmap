@@ -185,7 +185,7 @@ export default function ToolsIndex() {
         <span className="fic">📄</span>
         <div className="grow">
           <div className="t">서식은 «서식» 탭에 <em>· 착공부터 준공까지</em></div>
-          <div className="d">계약·공무·공사·안전·품질·환경·노무·장비 서류를 엑셀로 바로 받습니다.</div>
+          <div className="d">계약·공무·공사·안전·품질·환경·노무·장비 서류를 사이트에서 바로 쓰고(자동 계산) PDF로 저장합니다.</div>
         </div>
         <span className="go">→</span>
       </Link>

@@ -5,7 +5,8 @@ publish.py — 다시 만든 서식을 사이트 자리에 놓습니다 (run.py 
   python3 publish.py wonga chakgong …
 
 하는 일
-  ① 엑셀 → web/public/forms/{slug}.xlsx  (원본 틀은 web/public/forms/orig/{slug}.xlsx)
+  ① 빈 틀 엑셀(수식 · 작성 예시 없이 — G361) → web/public/forms/{slug}.xlsx  (원본 틀은 web/public/forms/orig/{slug}.xlsx)
+     + 사이트 «종이에 바로 쓰기» JSON → web/public/forms/g/{slug}.json (격자.py — 수식은 사이트가 풂)
   ② 미리보기 그림 → web/public/forms/v2/{slug}-{n}.webp  (서식마다 PREV = [(PDF쪽, 설명), …])
   ③ 일반 서식은 인쇄용 PDF(빈 서식만) → web/public/forms/v2/{slug}.pdf
   ⑤ 서식 목록 카드용 작은 그림 → web/public/forms/v2/t/{slug}.webp (thumbs.py)
@@ -26,6 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 from run import build, render  # noqa: E402
+import 격자  # noqa: E402  ✍️ G361
 
 PUB = os.path.join(ROOT, "web", "public", "forms")
 DATA = os.path.join(ROOT, "web", "src", "data")
@@ -100,7 +102,7 @@ def main():
             print(f"   그림 {os.path.basename(dst)} {size} {os.path.getsize(dst)//1024}KB — {c}")
         if m.WHERE == "orig":
             dst = os.path.join(PUB, "orig", f"{m.SLUG}.xlsx")
-            shutil.copy(path, dst)
+            격자.export(m.SLUG, None, blank_xlsx=True)     # ✍️ G361 사이트 «종이에 바로 쓰기» JSON(/forms/g) + 빈 틀 엑셀(수식 · 작성 예시 없이) — 소장님 고르심 «빈 틀만 엑셀»
             f = next(x for x in orig["forms"] if x["slug"] == m.SLUG)
             f["re"] = True
             f["kb"] = round(os.path.getsize(dst) / 1024)
@@ -113,7 +115,7 @@ def main():
                 f["note"] = m.NOTE
         else:
             dst = os.path.join(PUB, f"{m.SLUG}.xlsx")
-            shutil.copy(path, dst)
+            격자.export(m.SLUG, None, blank_xlsx=True)     # ✍️ G361 (위와 같음) — 수식 · 작성 예시가 든 엑셀은 사이트에 두지 않음
             f = next(x for x in forms["forms"] if x["slug"] == m.SLUG)
             f["gen"] = "forms2"
             f["prev"], f["prevcap"] = prev, cap

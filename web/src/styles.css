@@ -8630,3 +8630,59 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
   .jb-t thead th { white-space: normal; word-break: keep-all; line-height: 1.25; }
   .jb-t tbody th { white-space: normal; word-break: keep-all; min-width: 64px; }
 }
+
+/* ✍️ G361 (2026-10-21) 서식 «종이에 바로 쓰기» — tools/격자작성.jsx
+   종이 = 캔버스(엑셀 칸 그대로) · 칸을 누르면 아래 «쓰는 칸» · 인쇄 · PDF 는 같은 그림(#gx-인쇄 — 화면에는 안 보임) */
+.gx .fw-bar .gx-zoom { display: inline-flex; gap: 4px; margin-left: auto; }
+.gx .fw-bar .gx-zoom .btn { padding: 9px 12px; min-width: 40px; }
+.gx-sheets { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin: 0 0 10px; }
+.gx-sh { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px; font-size: 12.5px; background: var(--surface); }
+.gx-sh.on { border-color: var(--accent); }
+.gx-sh a { color: var(--text); text-decoration: none; font-weight: 700; }
+.gx-sh input { margin: 0; }
+.gx-wrap { display: grid; justify-items: center; gap: 0; min-width: 0; padding: 4px 0; background: var(--surface-2); border-radius: 10px; }
+.gx-wrap.zoomed { overflow-x: auto; justify-items: start; }
+.gx-sheet { display: grid; justify-items: center; gap: 12px; padding: 8px 0 4px; }
+.gx-wrap.zoomed .gx-sheet { justify-items: start; padding-left: 6px; padding-right: 6px; }
+.gx-sheet.off .gx-page { opacity: .5; }
+.gx-sname { font-weight: 800; font-size: 14px; justify-self: start; padding: 0 10px; }
+.gx-page { display: block; max-width: none; background: #fff; box-shadow: 0 1px 4px rgba(15, 23, 42, .18), 0 0 0 1px rgba(15, 23, 42, .06); cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+.gx-ed { position: fixed; left: 0; right: 0; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); z-index: 60; background: var(--surface); border-top: 2px solid var(--accent); box-shadow: 0 -6px 18px rgba(15, 23, 42, .16); padding: 10px 12px 12px; display: grid; gap: 8px; max-width: 920px; margin: 0 auto; border-radius: 12px 12px 0 0; }
+@media (min-width: 900px) { .gx-ed { bottom: 0; padding-bottom: calc(12px + env(safe-area-inset-bottom)); } }
+.gx-ed-h { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.gx-ed-n { font-size: 14.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gx-ed-p { font-size: 13px; color: var(--accent); font-weight: 700; white-space: nowrap; }
+.gx-ed-i { margin-left: auto; font-size: 12px; white-space: nowrap; }
+.gx-ed-x { border: 0; background: none; font-size: 18px; color: var(--muted); cursor: pointer; padding: 2px 6px; }
+.gx-ed-r { display: flex; gap: 8px; align-items: stretch; }
+.gx-ed-r .fw-in { font-size: 16px; padding: 9px 11px; }
+.gx-ed-r textarea.fw-in { min-height: 64px; resize: vertical; overflow: auto; }
+.gx-ed-r .btn { width: auto; white-space: nowrap; }
+.gx-ed-b { display: flex; gap: 8px; flex-wrap: wrap; }
+.gx-ed-b .btn { width: auto; padding: 9px 14px; font-size: 14px; }
+.gx-ed-b .btn.primary { margin-left: auto; }
+.gx-ed-ch { display: flex; flex-wrap: wrap; gap: 6px; }
+.gx-chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px; font-size: 14px; cursor: pointer; font-family: inherit; color: var(--text); }
+.gx-chip.on { border-color: var(--accent); color: var(--accent); font-weight: 800; }
+@media screen { #gx-인쇄 { display: none; } }
+@page gx-port { size: A4 portrait; margin: 0; }
+@page gx-land { size: A4 landscape; margin: 0; }
+@media print {
+  body.gx-쪽 > *:not(#gx-인쇄) { display: none !important; }
+  html, body.gx-쪽 { background: #fff !important; margin: 0 !important; padding: 0 !important; }
+  body.gx-쪽 #gx-인쇄 { display: block; }
+  #gx-인쇄 .gx-p { overflow: hidden; break-after: page; page-break-after: always; break-inside: avoid; }
+  #gx-인쇄 .gx-p:last-child { break-after: auto; page-break-after: auto; }
+  #gx-인쇄 .gx-p.port { page: gx-port; width: 210mm; height: 296.6mm; }
+  #gx-인쇄 .gx-p.land { page: gx-land; width: 297mm; height: 209.6mm; }
+  #gx-인쇄 .gx-p canvas { display: block; width: 100%; height: 100%; }
+}
+.gx .fw-bar .gx-range { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; }
+.gx .fw-bar .gx-range .inp { width: 170px; padding: 8px 10px; font-size: 14px; margin: 0; }
+.gx-how { margin: 0 0 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); padding: 8px 12px; }
+.gx-how > summary { cursor: pointer; font-size: 14px; line-height: 1.55; word-break: keep-all; }
+.gx-how > summary .muted { font-size: 12.5px; }
+.gx-how ol { margin: 8px 0 2px; padding-left: 20px; display: grid; gap: 6px; font-size: 13.5px; line-height: 1.6; word-break: keep-all; }
+.gx-how ol li b { color: var(--text); }
+.gx-sh { white-space: nowrap; }
+.gx-sh a { white-space: nowrap; }
