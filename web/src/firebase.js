@@ -31,9 +31,12 @@ export const db = getDatabase(app)
 export const auth = getAuth(app)
 
 let signing = null
-/** 글을 쓸 때만 익명 로그인한다 — 읽기만 하는 방문자는 인증 요청조차 하지 않음 */
-export function ensureAnon() {
-  if (auth.currentUser) return Promise.resolve(auth.currentUser)
+/** 글을 쓸 때만 익명 로그인한다 — 읽기만 하는 방문자는 인증 요청조차 하지 않음
+ *  ⏱ G357 (2026-10-21) — 기기에 남아 있는 로그인을 «다 불러온 뒤» 봅니다(authStateReady).
+ *     전에는 화면을 막 연 때 currentUser 가 아직 비어 있으면 익명 로그인을 새로 해서(서버 왕복 · 번호가 바뀔 수 있음) 늦었습니다. */
+export async function ensureAnon() {
+  try { if (auth.authStateReady) await auth.authStateReady() } catch (e) { /* 못 기다려도 아래대로 */ }
+  if (auth.currentUser) return auth.currentUser
   if (!signing) signing = signInAnonymously(auth).then((c) => c.user).finally(() => { signing = null })
   return signing
 }

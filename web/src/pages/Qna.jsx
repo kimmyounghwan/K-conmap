@@ -68,6 +68,28 @@ const 뿌리찾기 = async () => {
   return _뿌리
 }
 
+/* ⏱ G357 (2026-10-21) 소장님 「글을 올릴때 너무 느리게 올라가 왜 이러지??」 — «올리는 중…» 이 길던 까닭:
+   올리기를 누른 뒤에야 ① 로그인 확인 ② 옛 번호(qna_who) 읽기 ③ 몰래 차단(qna_block) 읽기 ④ 쓰기 를 «하나씩 차례로» 서버에 다녀왔습니다.
+   → 글 칸을 누를 때 ①~③ 을 미리 해 둡니다(미리데우기) · 남은 것도 같이(Promise.all) · 올릴 때는 ④ 하나만 기다림.
+   → 폰이 잠깐 잠들었다 깨면 끊긴 연결을 모른 채 기다릴 수 있어, 쓰기가 3초 넘게 안 끝나면 연결을 한 번 다시 잇습니다(쓰던 글은 그대로 다시 감). */
+let _데움 = null
+function 미리데우기() {
+  if (!_데움) {
+    _데움 = (async () => {
+      try { const { ensureAnon } = await loadFb(); await ensureAnon(); await Promise.all([뿌리찾기(), 몰래표()]) } catch (e) { /* 올릴 때 다시 합니다 */ }
+    })().finally(() => { setTimeout(() => { _데움 = null }, 60000) })
+  }
+  return _데움
+}
+async function 늦으면다시잇기(약속, 늦음) {
+  let 끝 = false
+  const 시계 = setTimeout(async () => {
+    if (끝) return
+    try { if (늦음) 늦음(); const { goOffline, goOnline, db } = await loadFb(); goOffline(db); goOnline(db); 세기('|맵톡|다시잇기') } catch (e) { /* 그냥 기다림 */ }
+  }, 3000)
+  try { return await 약속 } finally { 끝 = true; clearTimeout(시계) }
+}
+
 /* 🎁 2026-09-27 보상(명예) — 소장님: 「글을 쓴 사람에게 보상은 없어?」 → 고르심: «명예만»
    · 👍 도움됐어요 — 글(qna_like/{글}/{나}) · 답글(qna_alike/{글}/{답}/{나}). 한 사람 한 번, 내 글엔 못 누름(규칙).
      «나» = 이어진 옛 번호(r)가 있으면 그것 — 기기 두 대로 두 번 못 누르게.
@@ -139,7 +161,7 @@ const 봇같음 = () => {
    **사랑방 화면을 통째로 끌고 갔기** 때문입니다.
    여기서 다시 내보내는 것은 옛 길(`from './Qna.jsx'`)을 깨뜨리지 않기 위함입니다. */
 import { OPS, isOp } from '../lib/운영자.js'
-import { 몰래표 } from '../lib/차단.js'
+import { 몰래표, 몰래표잊기 } from '../lib/차단.js'
 export { OPS, isOp }
 
 const when = (ms) => {
@@ -1654,6 +1676,7 @@ function AnswerForm({ qid, onDone, to = null, 받는이 = '', 인용 = '', 열�
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const [나운영자, set나운영자] = useState(false)
+  const [다시잇는중, set다시잇는중] = useState(false)   /* ⏱ G357 쓰기가 3초 넘게 걸리면 «연결을 다시 잇는 중…» */
   /* 📎 2026-10-16 답글에도 파일 한 개 — 소장님 「파일 올리는 란이 없는 것 같아..계속 답글을 쓰면..고쳐줘」
      (이용자가 답글로 «파일 올리고 싶은데 어떻게» 를 묻고 있었음) · 글쓰기와 같은 검사 · 같은 자리(user_forms/{기기}) · 같은 하루 한도 */
   const [첨부, set첨부] = useState(null)
@@ -1697,8 +1720,8 @@ function AnswerForm({ qid, onDone, to = null, 받는이 = '', 인용 = '', 열�
       /* ⚠️ 여기서 다시 봅니다 — 위의 나운영자는 «보여 주기» 용입니다.
          실제로 올릴 때 쓰는 값은 그때 받은 uid 로 정합니다. */
       const op = isOp(user.uid)
-      /* 🔑 되찾은 기기면 옛 번호(r)로 — 별명이 같아집니다 */
-      const { r } = await 뿌리찾기()
+      /* 🔑 되찾은 기기면 옛 번호(r)로 — 별명이 같아집니다 · ⏱ G357 몰래표와 같이(칸을 누를 때 미리 읽어 둠) */
+      const [{ r }, 몰래] = await Promise.all([뿌리찾기(), 몰래표()])
       /* 📎 파일 먼저(10MB 넘으면 답글을 올리지 않고 그 자리에서 알림 · 칸은 그대로) */
       let f = null, 파일말 = ''
       if (첨부) {
@@ -1710,7 +1733,7 @@ function AnswerForm({ qid, onDone, to = null, 받는이 = '', 인용 = '', 열�
       const 글 = b.trim() || (f ? '📎 ' + f.n : '')
       if (글.length < 2) { setBusy(false); return setMsg('답글을 적어 주세요.' + 파일말) }
       const slot = push(ref(db, `qna_a/${qid}`))
-      await set(slot, {
+      const 답값 = {
         b: 글.slice(0, 2000),
         nick: (op ? 'K-건설맵' : nickOf(r)).slice(0, 20),
         op,
@@ -1718,8 +1741,16 @@ function AnswerForm({ qid, onDone, to = null, 받는이 = '', 인용 = '', 열�
         at: Date.now(),
         ...(to ? { to } : {}),   /* ↩ G148 — 누구에게(규칙: 이 글에 있는 답글 번호만) */
         ...(f ? { f } : {}),     /* 📎 답글 파일(규칙: 이 기기의 user_forms 주소만) */
-        ...(await 몰래표()),     /* 🙈 몰래 차단 기기면 sb — 규칙이 강제합니다 */
-      })
+        ...몰래,                 /* 🙈 몰래 차단 기기면 sb — 규칙이 강제합니다 */
+      }
+      try { await 늦으면다시잇기(set(slot, 답값), () => set다시잇는중(true)) } catch (e) {
+        /* 🙈 기억해 둔 10분 사이에 막힌 기기면 규칙이 sb 없는 답을 받지 않음 → 다시 읽어 sb 를 붙여 한 번 더 */
+        if (몰래.sb) throw e
+        몰래표잊기()
+        const 새 = await 몰래표()
+        if (!새.sb) throw e
+        await set(slot, { ...답값, ...새 })
+      }
       setB(''); set첨부(null)
       세기('|맵톡|답글'); if (to) 세기('|맵톡|누구에게')
       if (f) { 세기('|맵톡|답글파일'); if (확장자(f.n) === 'zip') 세기('|맵톡|압축파일'); 올린수더하기() }
@@ -1729,7 +1760,7 @@ function AnswerForm({ qid, onDone, to = null, 받는이 = '', 인용 = '', 열�
       onDone()
     } catch (e) {
       setMsg('올리지 못했습니다. 잠시 뒤 다시 해 주세요.')
-    } finally { setBusy(false) }
+    } finally { setBusy(false); set다시잇는중(false) }
   }
 
   return (
@@ -1741,7 +1772,7 @@ function AnswerForm({ qid, onDone, to = null, 받는이 = '', 인용 = '', 열�
           {인용 && <span className="mt-af-q">«{인용}»</span>}
         </div>
       )}
-      <textarea ref={칸} className="inp mt-af-t" value={b} onChange={(e) => setB(e.target.value)} rows={5}
+      <textarea ref={칸} className="inp mt-af-t" value={b} onChange={(e) => setB(e.target.value)} onFocus={미리데우기} rows={5}
         placeholder={받는이 ? `${받는이} 님에게 — 아무 말이나` : '답글 — 아무 말이나'}
         style={{ width: '100%', boxSizing: 'border-box', minHeight: 150, fontSize: 16, lineHeight: 1.6, resize: 'vertical' }} maxLength={2000} />
       {첨부 && (
@@ -1759,7 +1790,7 @@ function AnswerForm({ qid, onDone, to = null, 받는이 = '', 인용 = '', 열�
           <input type="file" accept={받는꼴} onChange={파일고름} className="sr-only" aria-label="답글에 파일 붙이기 — 한글 · 엑셀 · 워드 · PDF · PPT · 압축(zip)" />
         </label>
         <button className="btn primary" onClick={submit} disabled={busy}>
-          {busy ? '올리는 중…' : (받는이 && !원글 ? `${받는이} 님에게 답글 올리기` : '답글 올리기')}
+          {busy ? (다시잇는중 ? '연결을 다시 잇는 중…' : '올리는 중…') : (받는이 && !원글 ? `${받는이} 님에게 답글 올리기` : '답글 올리기')}
         </button>
         {/* 🔑 운영자 브라우저일 때만 — 「이 답에는 표가 붙습니다」 를 미리 알려 줍니다.
             ⚠️ 이용자에게는 아무것도 안 보입니다. 비번 칸이 있던 자리입니다. */}
@@ -1811,6 +1842,7 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
   const [첨부, set첨부] = useState(null)        // 📎 G158 File
   const [busy, setBusy] = useState(false)
   const [날기, set날기] = useState(false)
+  const [다시잇는중, set다시잇는중] = useState(false)   /* ⏱ G357 쓰기가 3초 넘게 걸리면 «연결을 다시 잇는 중…» */
   const [흔들, set흔들] = useState(0)
   const [msg, setMsg] = useState('')
   /* 🗺 G316 (2026-10-18) 방(k) 고르기는 뺌 — 글은 «📍 핀 자리» 의 지역방(핀 없이 = 💬 자유)으로 · 🙋 전문가 방(x) · 📅 모임(m) 은 글쓴이가 켬
@@ -1923,7 +1955,8 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
     try {
       const { ref, set, push, db, ensureAnon, serverTimestamp } = await loadFb()
       const u = await ensureAnon()
-      const { r } = await 뿌리찾기()
+      /* ⏱ G357 옛 번호 · 몰래표를 같이(칸을 누를 때 미리 읽어 둠) */
+      const [{ r }, 몰래] = await Promise.all([뿌리찾기(), 몰래표()])
       const slot = push(ref(db, 'qna'))
       const id = slot.key
       /* 📎 파일 — 눌러도 10MB 넘으면 글을 올리지 않습니다(칸은 그대로 · 핀 열쇠보다 먼저 올려 봅니다) */
@@ -1934,7 +1967,8 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
           파일말 = ' · 파일은 못 올렸습니다(글만 올라갔습니다)'
         }
       }
-      if (pin.length === 4) await set(ref(db, `qna_pins/${id}`), await pinHash(id, pin))
+      /* ⏱ G357 핀 열쇠는 사진 올리기 · 자리 찾기와 «같이» 보내고, 글을 쓰기 직전에만 기다립니다(글보다 먼저 들어가는 차례는 그대로) */
+      const 핀약속 = pin.length === 4 ? pinHash(id, pin).then((h) => set(ref(db, `qna_pins/${id}`), h)) : null
       let p = '', 사진말 = ''
       if (사진) {
         try {
@@ -1962,12 +1996,16 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
         ...(곳 ? { g: String(곳.k) } : {}),
         ...(p ? { p } : {}),
         ...(f ? { f } : {}),
-        ...(await 몰래표()),     /* 🙈 몰래 차단 기기면 sb — 규칙이 강제합니다 */
+        ...몰래,                 /* 🙈 몰래 차단 기기면 sb — 규칙이 강제합니다 */
       }
+      if (핀약속) await 늦으면다시잇기(핀약속, () => set다시잇는중(true))
       /* 🗺 G316 — 분야(x) · 모임(m) 규칙이 아직 안 올라간 때(사이트가 먼저 바뀐 몇 분)에도 글은 올라가게: 둘을 빼고 한 번 더 */
-      try { await set(slot, 글값) } catch (e) {
+      try { await 늦으면다시잇기(set(slot, 글값), () => set다시잇는중(true)) } catch (e) {
         const { x, m, ...둘없이 } = 글값   // eslint-disable-line no-unused-vars
-        await set(slot, 둘없이)
+        /* 🙈 기억해 둔 10분 사이에 막힌 기기면 sb 를 붙여서(규칙이 sb 없는 글을 안 받음) */
+        let 더 = {}
+        if (!몰래.sb) { 몰래표잊기(); 더 = await 몰래표() }
+        await set(slot, { ...둘없이, ...더 })
       }
       if (분야) 세기('|맵톡|전문가물음')
       if (모값) 세기('|맵톡|모임글')
@@ -1984,17 +2022,17 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
       onDone(id)
     } catch (e) {
       setMsg('올리지 못했습니다. 잠시 뒤 다시 해 주세요.')
-    } finally { setBusy(false); setTimeout(() => set날기(false), 800) }
+    } finally { setBusy(false); set다시잇는중(false); setTimeout(() => set날기(false), 800) }
   }
 
   return (
     <div className={'mt-compose' + (흔들 ? (흔들 % 2 ? ' shkA' : ' shkB') : '')}>
       <label className="sr-only" htmlFor="mt-title">맵톡 글 제목</label>
-      <input id="mt-title" className="mt-title" ref={칸} value={제목} onChange={(e) => set제목(e.target.value)} maxLength={70}
+      <input id="mt-title" className="mt-title" ref={칸} value={제목} onChange={(e) => set제목(e.target.value)} onFocus={미리데우기} maxLength={70}
         placeholder="제목" enterKeyHint="next" autoComplete="off"
         onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); try { document.getElementById('mt-say').focus() } catch (er) { /* 없음 */ } } }} />
       <label className="sr-only" htmlFor="mt-say">맵톡 글 내용</label>
-      <textarea id="mt-say" className="mt-body" value={내용} onChange={(e) => set내용(e.target.value)} maxLength={2000} rows={3}
+      <textarea id="mt-say" className="mt-body" value={내용} onChange={(e) => set내용(e.target.value)} onFocus={미리데우기} maxLength={2000} rows={3}
         placeholder="내용 — 질문, 현장 이야기, 구인 · 구직 등 어떤 말이든 좋아요" />
       {사진 && (
         <div className="mt-att"><img src={사진.미리} alt="" />사진 1장<button type="button" onClick={() => set사진(null)}>빼기</button></div>
@@ -2118,7 +2156,7 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
               onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} placeholder="🔑 4자리" title="🔑 꼭 적어 두세요 — 내 글을 지우고 되찾는 열쇠입니다" />}
         <button type="button" className="mt-send" onClick={submit} disabled={busy}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 3 3 10.5l7 2.5 2.5 7z" /><path d="M21 3 10 13" /></svg>
-          {busy ? '올리는 중…' : '올리기'}
+          {busy ? (다시잇는중 ? '연결을 다시 잇는 중…' : '올리는 중…') : '올리기'}
           {날기 && <span className="mt-plane" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 3 3 10.5l7 2.5 2.5 7z" /><path d="M21 3 10 13" /></svg></span>}
         </button>
       </div>
