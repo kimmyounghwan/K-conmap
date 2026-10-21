@@ -30,6 +30,7 @@ import { askAfter } from '../AskComment'
 import { 세기 } from '../lib/받은수.jsx'   /* 🏷 G169 */
 
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
+import { 요율불러오기 } from '../tools/제비율칸.jsx'
 const fmt = (n) => new Intl.NumberFormat('ko-KR').format(Math.round(n || 0))
 const pct = (r) => (Math.round(r * 1000000) / 10000).toLocaleString('ko-KR') + '%'
 const kb = (n) => new Intl.NumberFormat('ko-KR').format(Math.round(n / 1024))
@@ -64,6 +65,7 @@ export default function Ratio() {
   const [일감, set일감] = useState('하도급 내역서')
 
   const [out, setOut] = useState(null)        /* {url, name, 말} */
+  const [기준요율, set기준요율] = useState(null) /* 📋 G350 «조달청 기준 요율로 채우기» — 원가계산서 없는 파일의 새 엑셀 원가계산서에만 */
   const inputRef = useRef(null)
 
   const loadLib = useCallback(async () => {
@@ -172,6 +174,7 @@ export default function Ratio() {
         try { n = await import('../lib/낙찰맞추기.js') } catch (e) { n = null }
         let 파일원가 = null
         bytes = lib.toBiyulXlsx(읽은, R, { 단수조정, 원본이름: file.name, 일감,
+          요율: 기준요율 ? { 간노: 기준요율.간노 / 100, 기타: 기준요율.기타 / 100, 일관: 기준요율.일관 / 100, 이윤: 기준요율.이윤 / 100 } : null,
           원가식: n ? (쪽, 관쪽) => n.원가식시트(file.buf, 읽은, R, { 쪽, 관쪽 }) : null,
           알림: (x) => { 파일원가 = x } })
         name = '내역서_' + (Math.round(R.비율 * 10000) / 100) + '%_원가계산서.xlsx'
@@ -183,7 +186,8 @@ export default function Ratio() {
           ['원가계산서', 파일원가
             ? '올리신 파일 «' + 파일원가.시트 + '» 의 요율 · 산출근거 그대로입니다(' + fmt(파일원가.줄) + '줄 · 수식 ' + fmt(파일원가.수식줄) + '줄) — 재료비·노무비·경비는 내역서에서 «수식으로» 받아 비율을 바꾸면 같이 바뀝니다.'
             : 읽은.셋있나
-              ? '올리신 파일에 원가계산서가 없어 «기본 요율(예시)» 로 채웠습니다 — 노란 칸을 발주처 원가계산서 요율로 고치십시오. 재료비·노무비·경비는 내역서에서 «수식으로» 받습니다.'
+              ? (기준요율 ? '올리신 파일에 원가계산서가 없어 «조달청 기준 요율» 로 채웠습니다 — ' + 기준요율.요약 + ' · 나머지 법정 요율은 예시값(노란 칸). 재료비·노무비·경비는 내역서 합계 그대로입니다.' : '')
+              || '올리신 파일에 원가계산서가 없어 «기본 요율(예시)» 로 채웠습니다 — 노란 칸을 발주처 원가계산서 요율로 고치십시오. 재료비·노무비·경비는 내역서에서 «수식으로» 받습니다.'
               : '재료비·노무비·경비 갈래가 없어 «0» 으로 두었습니다 — 손으로 넣으십시오.'],
           ['맞출 금액', '「비율」 시트 B3 에 금액을 넣으시면 「단수조정」 줄이 차액을 먹어 총액이 딱 맞습니다.' +
             (R.관급줄 ? ' — 관급을 뺀 금액입니다.' : '')],
@@ -631,6 +635,10 @@ export default function Ratio() {
             <b>새 엑셀 한 벌</b> — 우리 서식입니다. <b>원가계산서</b>와 <b>당초↔비율 대비표</b>가 같이 나옵니다.
             검산하실 때, 그리고 원가계산서가 필요하실 때.
           </div>
+          {/* 📋 G350 — 원가계산서가 없는 파일이면 «새 엑셀 한 벌» 원가계산서의 간접노무비 · 기타경비 · 일반관리비 · 이윤을 조달청 기준으로 */}
+          <요율불러오기 처음={{ 직: R && R.합 ? String(Math.round(R.합)) : '' }} 글="새 엑셀 원가계산서에 이 요율 쓰기"
+            onApply={(r) => { set기준요율({ 간노: r.간노, 기타: r.기타, 일관: r.일관, 이윤: r.이윤, 요약: r.요약 }); setOut(null) }} />
+          {기준요율 && <div className="muted sm">📋 새 엑셀 한 벌 원가계산서(올리신 파일에 원가계산서가 없을 때)에 씀: {기준요율.요약} <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={() => { set기준요율(null); setOut(null) }}>예시값으로 되돌리기</button></div>}
           {out && (
             <div style={{ marginTop: 12 }}>
               <a className="btn primary" href={out.url} download={out.name}>⬇ {out.name}</a>

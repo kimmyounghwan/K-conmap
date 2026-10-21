@@ -18,6 +18,7 @@ import { CALCS as 셈CALCS, EXAMPLES as 셈EXAMPLES, 칸창고 } from '../tools/
 import { 계약CALCS, 계약EXAMPLES } from '../tools/계약칸.jsx'
 import { 미불CALCS, 미불EXAMPLES } from '../tools/미불칸.jsx'
 import { 공정CALCS, 공정EXAMPLES } from '../tools/공정칸.jsx'
+import { 제비율CALCS, 제비율EXAMPLES } from '../tools/제비율칸.jsx'   /* 📋 G350 간접공사비(제비율) 요율 찾기 */
 import NotFound from './NotFound.jsx'
 import { use남김 } from '../lib/길기록.js'
 /* ⬇ 2026-10-01 (G96) 도구마다 «받은 횟수» — 그 화면에서 받은 파일(만든 PDF · 엑셀 포함). 아래 화면이 따로 카드면 빼고 셉니다 */
@@ -31,8 +32,8 @@ const 묶음색 = ['#2563eb', '#0d9488', '#d97706', '#7c3aed', '#e11d48', '#16a3
 const TOOLS = DATA.tools || []
 /* 📑 2026-09-28 — 계약·공사 관리 도구 4가지(tools/계약칸.jsx)를 같은 판에 얹습니다. slug 는 tools.json 과 짝 */
 /* 💸 2026-09-28 — 미불금 받기 4가지(tools/미불칸.jsx). 넷이 칸을 같이 씁니다(tools.json "store") */
-const CALCS = { ...셈CALCS, ...계약CALCS, ...미불CALCS, ...공정CALCS }     // 📈 2026-09-28 예정공정표·S커브(tools/공정칸.jsx)
-const EXAMPLES = { ...셈EXAMPLES, ...계약EXAMPLES, ...미불EXAMPLES, ...공정EXAMPLES }
+const CALCS = { ...셈CALCS, ...계약CALCS, ...미불CALCS, ...공정CALCS, ...제비율CALCS }     // 📈 2026-09-28 예정공정표·S커브(tools/공정칸.jsx)
+const EXAMPLES = { ...셈EXAMPLES, ...계약EXAMPLES, ...미불EXAMPLES, ...공정EXAMPLES, ...제비율EXAMPLES }
 /* 설명 글의 **굵게** 를 진짜 굵은 글씨로 — 전에는 별표가 그대로 보였습니다(서식 화면 Forms.jsx 굵게 와 같음) */
 function 굵게(s) {
   return String(s).split(/\*\*(.+?)\*\*/g).map((x, i) => (i % 2 ? <b key={i}>{x}</b> : x))

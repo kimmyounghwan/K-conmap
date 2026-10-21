@@ -100,6 +100,7 @@ _kcm_찌꺼기/
 # indexnow.json : 검색엔진에 이미 알린 주소 목록. 같은 이유로 넣지 않습니다.
 data/store/health.json
 data/store/indexnow.json
+data/store/jebi_watch.json
 # 📣 사전공고(발주계획 · 사전규격) 수집분 (2026-10-05) — 회차 사이 보관은 Actions 의 cache(pre-*) 가 맡습니다.
 data/pre/
 

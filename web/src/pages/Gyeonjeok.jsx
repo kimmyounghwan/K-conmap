@@ -4,6 +4,7 @@ import {
   읽기, 쓰기, 빈견적, 새번호, 셈, 산안표, 법정, 기본요율, 켜기본, 원, 한글금액, 날더하기, 예시, 예시나, 오늘, 목표맞추기,
 } from '../lib/gyeonjeok.js'
 import { 세기 } from '../lib/받은수.jsx'
+import { 요율불러오기 } from '../tools/제비율칸.jsx'
 import 이어쓰기 from '../tools/이어쓰기.jsx'
 import { 앞모습두기 } from '../lib/이어쓰기.js'
 
@@ -32,7 +33,12 @@ const 공공칸 = [
 ]
 const 법정칸 = new Set(Object.keys(법정))
 const 끌칸 = new Set(['간노', '산재', '고용', '건강', '연금', '요양', '퇴직', '환경', '기타'])
-const 태그 = (k) => (법정칸.has(k) ? <span className="gj-tag law">2026 법정</span> : k === '부가' ? <span className="gj-tag law">법정 10%</span> : <span className="gj-tag ex">예시값 — 고쳐 씀</span>)
+/* 📋 G350 — «조달청 기준 요율로 채우기» 로 넣은 칸(값이 그대로면)은 «조달청 기준» 표 */
+const 태그 = (k, 견) => {
+  const 기 = 견 && 견.공공 && 견.공공.기준
+  if (기 && 기.값 && 기.값[k] != null && String(기.값[k]) === String((견.공공.요율 || {})[k])) return <span className="gj-tag law" title={기.요약 || ''}>📋 조달청 {기.판 || '기준'}</span>
+  return 법정칸.has(k) ? <span className="gj-tag law">2026 법정</span> : k === '부가' ? <span className="gj-tag law">법정 10%</span> : <span className="gj-tag ex">예시값 — 고쳐 씀</span>
+}
 const 날글 = (s) => { const [y, m, d] = String(s || '').split('-'); return y ? `${y}년 ${Number(m)}월 ${Number(d)}일` : '' }
 
 /** 엑셀에서 복사한 표 → 내역 줄 (탭으로 나뉜 칸: 공종 · 품명 · 규격 · 단위 · 수량 · 재료비 · 노무비 · 경비 · 비고) */
@@ -251,6 +257,9 @@ export default function Gyeonjeok() {
           </div>
         ) : (
           <div className="gj-rates">
+            {/* 📋 G350 — 조달청 간접공사비(제비율) 적용기준으로 간접노무비 · 기타경비 · 일반관리비 · 이윤 채우기(tools/제비율칸.jsx) · 추정가격은 지금 총원가로 먼저 채움 */}
+            <div className="gj-wide"><요율불러오기 처음={{ 직: S.L ? String((S.L.재 || 0) + (S.L.노 || 0) + (S.L.경 || 0) || '') : '', 추: String(S.총원가 || ''), 날: 견.견적일 }}
+              onApply={(r) => 바꿈((c) => ({ ...c, 공공: { ...c.공공, 요율: { ...c.공공.요율, 간노: String(r.간노), 기타: String(r.기타), 일관: String(r.일관), 이윤: String(r.이윤) }, 기준: { 판: r.판.이름.replace(' 판', ''), 요약: r.요약, 값: { 간노: String(r.간노), 기타: String(r.기타), 일관: String(r.일관), 이윤: String(r.이윤) } } } }))} /></div>
             <label>산업안전보건관리비 — 공사 종류<select className="inp" value={견.공공.산안종류} onChange={(e) => 공공칸바꿈('산안종류', e.target.value)}>{산안표.map((t) => <option key={t.k} value={t.k}>{t.이름}</option>)}</select></label>
             <label>끝전 버림<select className="inp" value={String(견.공공.절사)} onChange={(e) => 공공칸바꿈('절사', Number(e.target.value))}>{단위들.map((u) => <option key={u} value={u}>{u === '1' ? '안 버림' : `${Number(u).toLocaleString()}원 아래`}</option>)}</select></label>
             <div className="tp-scroll gj-wide">
@@ -260,10 +269,10 @@ export default function Gyeonjeok() {
                   {공공칸.map(([k, 이름, 근]) => (
                     <tr key={k}>
                       <td className="c">{끌칸.has(k) ? <input type="checkbox" checked={견.공공.켜[k] !== false} onChange={(e) => 켜칸(k, e.target.checked)} aria-label={`${이름} 넣기`} /> : '—'}</td>
-                      <td className="gj-name"><span className="nw">{이름}</span><div className="gj-m gj-small">{근} {태그(k)}</div></td>
+                      <td className="gj-name"><span className="nw">{이름}</span><div className="gj-m gj-small">{근} {태그(k, 견)}</div></td>
                       <td><input className="inp gj-in gj-num" inputMode="decimal" value={견.공공.요율[k] ?? ''} onChange={(e) => 요율칸(k, e.target.value.replace(/[^\d.]/g, ''))} aria-label={`${이름} 요율`} /></td>
                       <td className="gj-small gj-d">{근}</td>
-                      <td className="nw gj-d">{태그(k)}</td>
+                      <td className="nw gj-d">{태그(k, 견)}</td>
                     </tr>
                   ))}
                   <tr>

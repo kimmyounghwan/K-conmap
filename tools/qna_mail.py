@@ -160,6 +160,7 @@ def main():
         명패신청 = get("qna_pro_req", tok) or {}     # 🪪 G320 — 못 읽어도 글 · 답글 알림은 그대로
     except Exception:
         명패신청 = {}
+    제비율알림(tok)     # 📋 G350 — 조달청 간접공사비(제비율) 새 글(6시간에 한 번 · 못 해도 맵톡 알림은 그대로)
 
     새것 = []          # (표시열쇠, 언제, 본문)
     for k, q in 글.items():
@@ -233,6 +234,36 @@ def main():
         except Exception:
             pass
     return 0
+
+
+def 제비율알림(tok):
+    """📋 G350 조달청 «간접공사비(제비율) 적용기준» 새 글 — 6시간에 한 번 자료실을 보고(jebiwatch.py),
+    새 글이면 메일 한 통 · 같은 글로 두 번 안 보냄(jebi_mail/{글번호}). 이 작업은 10분마다 돌아서 «언제 봤나» 를 RTDB 에 둡니다."""
+    try:
+        import sys as _sys
+        import time as _time
+        _sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        import jebiwatch
+        표 = get("jebi_mail", tok) or {}
+        if _time.time() - float(표.get("_t") or 0) < jebiwatch.쉼:
+            return
+        st = jebiwatch.보기(억지=True)
+        put("jebi_mail/_t", tok, int(_time.time()))
+        새것 = [x for x in (st.get("새것") or []) if not 표.get(x["sn"])]
+        if not 새것:
+            print("📋 제비율 — 새 글 없음 (%s)" % ("읽음" if st.get("ok") else "자료실 못 읽음"))
+            return
+        try:
+            send("[K-건설맵] 📋 조달청 새 간접공사비 기준 글 %d" % len(새것), jebiwatch.메일글(새것))
+        except Exception as e:
+            print("📋 제비율 메일 못 보냄: %s" % type(e).__name__)
+        for x in 새것:
+            try:
+                put("jebi_mail/%s" % x["sn"], tok, True)
+            except Exception:
+                pass
+    except Exception as e:
+        print("📋 제비율 지킴 건너뜀: %s" % type(e).__name__)
 
 
 def alrdy(알림, k):

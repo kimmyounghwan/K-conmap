@@ -8581,3 +8581,32 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 #fw-인쇄 .fw-who .si { color: #666; font-size: 9pt; }
 #fw-인쇄 .fw-note { font-size: 8.5pt; color: #666; text-align: right; }
 #fw-인쇄 .fw-law { margin-top: 4mm; font-size: 7.5pt; color: #777; border-top: 0.4pt solid #ccc; padding-top: 1.5mm; }
+
+/* ── 📋 G350 간접공사비(제비율) 요율 찾기 — tools/제비율칸.jsx ── */
+.jb .jb-pan { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font-size: 13px; line-height: 1.6; word-break: keep-all; }
+.jb-warn { margin-top: 6px; color: var(--warn); }
+.jb-new { margin-top: 8px; padding: 8px 10px; border-radius: 8px; background: var(--warn-soft); color: var(--text); border: 1px solid var(--warn); }
+.jb-tw { overflow-x: auto; margin-top: 10px; -webkit-overflow-scrolling: touch; }
+.jb-t { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.jb-t caption { text-align: left; font-weight: 700; padding: 4px 0 6px; font-size: 13px; word-break: keep-all; }
+.jb-t th, .jb-t td { border: 1px solid var(--line); padding: 6px 8px; text-align: center; white-space: nowrap; }
+.jb-t thead th { background: var(--line-soft); font-weight: 600; }
+.jb-t tbody th { text-align: left; font-weight: 600; background: var(--line-soft); }
+.jb-t .on, .jb-t tr.on th, .jb-t th.on { background: var(--accent-soft); }
+.jb-t td.hit { background: var(--accent); color: #fff; font-weight: 800; }
+.jb-t.sm { margin-top: 8px; }
+.jb-t.sm td, .jb-t.sm th { white-space: normal; word-break: keep-all; text-align: left; }
+.jb-days { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -2px 0 8px; }
+.jb-days input { width: auto; min-width: 0; }
+.jb-more { margin-top: 12px; }
+.jb-more summary { cursor: pointer; font-weight: 700; font-size: 14px; }
+.jb-mini { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; padding: 8px 10px; border: 1px dashed var(--accent-line); border-radius: 10px; background: var(--accent-soft); word-break: keep-all; }
+.jb-mini.open { display: block; border-style: solid; background: var(--surface); }
+.jb-mini-h { display: flex; justify-content: space-between; align-items: center; font-weight: 800; margin-bottom: 6px; }
+.jb-mini .tl-out { margin: 8px 0; }
+.jb-ok { flex-basis: 100%; font-size: 12px; color: var(--good); }
+@media (max-width: 560px) {
+  .jb-t th, .jb-t td { padding: 5px 3px; font-size: 12px; }
+  .jb-t thead th { white-space: normal; word-break: keep-all; line-height: 1.25; }
+  .jb-t tbody th { white-space: normal; word-break: keep-all; min-width: 64px; }
+}

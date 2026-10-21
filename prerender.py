@@ -1843,7 +1843,7 @@ STATIC_NEW = ["/change", "/change/naeyeok", "/change/excel", "/change/twoline", 
               "/safety", "/shareone", "/pdf", "/naeyeok/ratio", "/tools/photo", "/tools/earthcheck", "/jeoksan/bim",
               # 🔎 G341 (2026-10-20) 구운 장이 없던 화면들 — TABS 머리말
               "/bunseok", "/gongdong", "/ext", "/pre", "/naeyeok/hado", "/change/gisung",
-              "/corp"] + [   # 🏢 G343 업체 찾기
+              "/corp", "/tools/jebiyul"] + [   # 🏢 G343 업체 찾기 · 📋 G350 간접공사비 요율 찾기
     "/cad/" + _c["slug"] for _c in (load_cad().get("cmds") or [])] + [
     "/change/naeyeok/" + quote(_k, safe="") for _k, _d in NY_KINDS]
 
@@ -3573,6 +3573,12 @@ def main():
         sent = indexnow.send(quiet=True)
     except Exception as e:
         print(f"  · IndexNow 건너뜀 ({type(e).__name__}: {e})")
+    # 📋 G350 조달청 간접공사비(제비율) 새 글 지키기 — /data/jebi_watch.json (/tools/jebiyul «새 기준이 올라왔습니다» · 6시간에 한 번)
+    try:
+        import jebiwatch
+        jebiwatch.굽기(DIST)
+    except Exception as e:
+        print(f"  · 제비율 지킴 건너뜀 ({type(e).__name__})")
     og = OgMaker(DIST, FONT, {"won_short": won_short, "pct": pct,
                               "num": num, "date_full": date_full})
     og.default()
