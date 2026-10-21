@@ -223,7 +223,7 @@ def pick_fresh(rows, part0, known=None):
 
 
 # ── 덧붙이기 (조달청 호출 없음) ─────────────────────────────────────
-JOIN = ("llr", "est", "ptot", "pdrw", "base", "lo", "hi", "aval", "ayn", "aparts", "gmtrl", "lic", "site")
+JOIN = ("llr", "est", "ptot", "pdrw", "base", "lo", "hi", "aval", "ayn", "aparts", "gmtrl", "lic", "site", "pc")   # ⚖ pc 순공사원가(2026-10-21)
 
 
 def _empty(v):
@@ -237,7 +237,7 @@ def enrich_first(rows, live_store, first_store):
     n = 0
     for r in rows:
         prev = fs.get(r["no"]) or {}
-        for f in ("base", "lo", "hi", "lic", "aval", "aparts", "ayn", "gmtrl", "llr", "est", "ptot", "pdrw"):
+        for f in ("base", "lo", "hi", "lic", "aval", "aparts", "ayn", "gmtrl", "llr", "est", "ptot", "pdrw", "pc"):
             if _empty(r.get(f)) and not _empty(prev.get(f)):
                 r[f] = prev[f]
         src = lv.get(r["no"])
@@ -377,7 +377,7 @@ def once(key, ctx, dry=False):
             lv = (ctx["live"] or {}).get("con") or {}
             for r in fr:
                 prev = lv.get(r["no"]) or {}
-                for f in ("base", "lo", "hi", "lic", "aval", "ayn"):
+                for f in ("base", "lo", "hi", "lic", "aval", "ayn", "pc"):
                     if _empty(r.get(f)) and not _empty(prev.get(f)):
                         r[f] = prev[f]
             nl = 0

@@ -430,11 +430,19 @@ def bsis_row(it):
     base = to_int(pick(it, "bssamt", "bssAmt", "bsisAmt", "BssAmt", "basisAmt"))
     if not base:
         return None
-    return {
+    out = {
         "base": base,
         "lo": to_f(pick(it, "rsrvtnPrceRngBgnRate", "rsrvtnPrceRngBgnRt")),
         "hi": to_f(pick(it, "rsrvtnPrceRngEndRate", "rsrvtnPrceRngEndRt")),
     }
+    # ⚖ 2026-10-21 기초금액 중 순공사원가(재료비 · 노무비 · 경비 + 부가세) — 조달청 bssAmtPurcnstcst.
+    #   「조달청 시설공사 적격심사세부기준」 제5조(조달청지침 제6481호 · 2026.7.1.): 예정가격 100억 미만 공사는
+    #   입찰금액이 «예정가격 중 순공사원가»(= 이 값 × 예정가격 ÷ 기초금액 · 올림)의 98 %(올림) 미만이면 심사 제외.
+    #   공고마다 실려 오지 않을 수 있어 «있을 때만» 적습니다(0 · 빈칸은 안 적음 — 뒤 회차가 채울 수 있게).
+    pc = to_int(pick(it, "bssAmtPurcnstcst", "bssamtPurcnstcst"))
+    if 0 < pc <= base:
+        out["pc"] = pc
+    return out
 
 
 # ── A값(법정경비) 항목들 ────────────────────────
@@ -2914,7 +2922,7 @@ def main():
                     # 이미 받아둔 기초금액을 덮어쓰지 않는다
                     for f in ("base", "lo", "hi", "lic",
                               "aval", "aparts", "ayn", "gmtrl", "np",
-                              "llr", "est", "ptot", "pdrw"):
+                              "llr", "est", "ptot", "pdrw", "pc"):
                         if prev.get(f) is not None:
                             r[f] = prev[f]
                     # ⚠️ 2026-09-03 — 순위 조회로 채운 것을 개찰목록 수집이 덮어쓰면 안 됩니다.
@@ -2966,7 +2974,7 @@ def main():
                         #    응답에 이미 실려 온 값인데 버리고 있었던 것입니다.
                         #    («조달청이 주는 값은 그대로 쓴다» — 버리는 것도 안 쓰는 것입니다)
                         hit = False
-                        for f in ("lo", "hi", "aval", "aparts", "ayn", "gmtrl", "lic"):
+                        for f in ("lo", "hi", "aval", "aparts", "ayn", "gmtrl", "lic", "pc"):
                             if row.get(f) is None and b.get(f) is not None:
                                 row[f] = b[f]
                                 hit = True
@@ -3311,7 +3319,7 @@ def main():
             #   개찰 화면의 «지역 못 정함» 이 13.0% → 7.0% 로 줄어듭니다 (실측 11,638건).
             for f in ("llr", "est", "ptot", "pdrw",
                       "base", "lo", "hi", "aval", "ayn", "aparts", "gmtrl", "lic",
-                      "site"):
+                      "site", "pc"):
                 if (r.get(f) in (None, "", 0, [])) and src.get(f) not in (None, "", 0, []):
                     r[f] = src[f]
                     joined += 1
@@ -4083,6 +4091,8 @@ def main():
                 # 🗺 G221 참가가능지역 열쇠(«전남» · «전남 장흥군» · «?») — 비면 지역 제한 정보 없음.
                 #   업체 화면 «참여할 수 있는 공고» 가 씀. rgnb(판단기준)는 수의계약에만 와서 지역을 못 가립니다.
                 r.get("rgk") or rgn_keys(r.get("rgn")),
+                # ⚖ 2026-10-21 기초금액 중 순공사원가(조달청 bssAmtPurcnstcst · 없으면 0) — 바로투찰 «순공사원가 98 %» 선
+                int(r.get("pc") or 0),
             ])
         rows.sort(key=lambda x: re.sub(r"[^0-9]", "", str(x[5])))
         out = {"built": built,
@@ -4090,13 +4100,15 @@ def main():
                      "llr", "est", "lic", "aval", "gmtrl",
                      "ayn", "ptot", "pdrw", "url",
                      "site", "rgnb", "joint", "mthd", "swin", "rebid",
-                     "enp", "enpn", "dt", "sido", "dsn", "enpb", "jnt", "tg", "nt", "licg", "rgs"],
+                     "enp", "enpn", "dt", "sido", "dsn", "enpb", "jnt", "tg", "nt", "licg", "rgs", "pc"],
                "pick": pick,
                "r": rows}
         path = os.path.join(OUT, "bidindex.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
         have = sum(1 for x in rows if x[3] > 0)
+        _pc = sum(1 for x in rows if x[-1] > 0)
+        print(f"  · 순공사원가(기초금액 중) 실린 마감 전 공고 {_pc:,}건 / 기초금액 있는 {have:,}건")
         # ── 면허별 경쟁도 (2026-09-14) — 작은 파일 하나로 따로 냅니다.
         #    첫 화면에 안 얹습니다: 면허를 고를 때와 /lic 페이지에서만 받습니다.
         #    [이름, 개찰건수, 참가중앙, 10곳미만%] · 20건 이상인 면허만.
@@ -4224,13 +4236,15 @@ def main():
                        # ★ 예상 참가 — 그날 바로투찰이 «자동 분위» 였는지 채점이 알아야 같은 금액이 나옵니다 (2026-09-03)
                        enp_of(r, enp_map)[0],
                        enp_of(r, enp_map)[1],
-                       enp_of(r, enp_map)[2]]
+                       enp_of(r, enp_map)[2],
+                       # ⚖ 2026-10-21 기초금액 중 순공사원가(없으면 0) — 채점도 «순공사원가 98 %» 선을 알게
+                       int(r.get("pc") or 0)]
         path = os.path.join(OUT, "bidresult.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump({"built": built, "f": ["win", "amt", "rate", "np", "base", "dt",
                              "tel", "ceo", "bno", "adr", "tsrc", "name", "inst",
                              "aval", "ayn", "amts", "rq", "nrank", "lo", "hi", "lic",
-                             "llr", "est", "enp", "enpn", "enpb"],
+                             "llr", "est", "enp", "enpn", "enpb", "pc"],
                        "r": out}, f, ensure_ascii=False, separators=(",", ":"))
         print(f"  → bidresult 최근 7일 개찰 {len(out):,}건 "
               f"({os.path.getsize(path)/1024:.0f}KB)")
