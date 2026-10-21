@@ -383,6 +383,7 @@ export default function JeoksanAuto() {
   const 상자 = (f) => { let b = 상자들.current.get(f.id); if (!b) { b = 자.도형상자(f.모델); 상자들.current.set(f.id, b) } return b }
   const 세기결과 = (f) => 자.세기(f.모델, { 네모: 세기네모[f.id] || null, 끈층: f.끈층, k: (f.단위 && f.단위.k) || 1, 상자: 상자(f) })
   const 세 = useMemo(() => (cur && 탭 === '세기' ? 세기결과(cur) : null), [cur, 탭, 세기네모])  // eslint-disable-line react-hooks/exhaustive-deps
+  const 세블록 = useMemo(() => (세 ? 전.블록모음(세) : []), [세])
 
   /* ── 골조·마감 화면에서 이 브라우저에 적어 둔 것 (대조용으로 같이 넣을 수 있게) ── */
   const 딴저장 = useMemo(() => {
@@ -493,7 +494,7 @@ export default function JeoksanAuto() {
       const 범위 = 세기네모[f.id] ? '네모 안' : '도면 전체'
       if (s.종 === '길이') { const a = R.층.find((x) => x.이름 === s.이름); v = a ? a.길이m : 0; 구분 = '레이어 선 길이 (고름)'; 단위 = 'm'; 근거 = '레이어 «' + s.이름 + '» 선 ' + (a ? a.선수 : 0) + '개 길이 합 (' + 범위 + ')' }
       if (s.종 === '면적') { const a = R.층.find((x) => x.이름 === s.이름); v = a ? a.면적m2 : 0; 구분 = '레이어 닫힌 면적 (고름)'; 단위 = 'm²'; 근거 = '레이어 «' + s.이름 + '» 닫힌 도형 ' + (a ? a.면수 : 0) + '개 면적 합 (' + 범위 + ')' }
-      if (s.종 === '블록') { const a = R.블록.find((x) => x.이름 === s.이름); v = a ? a.수 : 0; 구분 = '블록 개수 (고름)'; 단위 = '개'; 근거 = '블록 «' + s.이름 + '» ' + v + '개 (' + 범위 + ')' }
+      if (s.종 === '블록') { const a = 전.블록모음(R).find((x) => x.이름 === s.이름); v = a ? a.수 : 0; 구분 = '블록 개수 (고름)'; 단위 = '개'; 근거 = '블록 «' + s.이름 + '» ' + v + '개 (' + 범위 + ')' }
       if (s.종 === '글자') { const a = R.글.find((x) => x.글 === s.이름); v = a ? a.수 : 0; 구분 = '글자 개수 (고름)'; 단위 = '개'; 근거 = '글자 «' + s.이름 + '» ' + v + '개 (' + 범위 + ')' }
       줄.push({ key: '세:' + key, 켬: true, 구분, 품명: s.이름, 규격: '', 단위, 수량: v, 근거, 도면: f.이름 })
       세기줄.push({ 구분, 이름: s.이름, 단위, 수량: v, 범위, 도면: f.이름 })
@@ -929,11 +930,12 @@ export default function JeoksanAuto() {
                   )
                 })}</tbody>
               </table></div>
-              <div className="detail-h" style={{ marginTop: 12 }}>블록 ({세.블록.length}종)</div>
-              {!세.블록.length && <p className="muted">블록이 없습니다.</p>}
-              {세.블록.length > 0 && <div className="gg-wrap ja-tbl"><table className="gg-r">
+              <div className="detail-h" style={{ marginTop: 12 }}>블록 ({세블록.length}종)</div>
+              {!세블록.length && <p className="muted">블록이 없습니다.</p>}
+              {세블록.length > 0 && <div className="gg-wrap ja-tbl"><table className="gg-r">
                 <thead><tr><th>넣기</th><th>블록 이름</th><th>개수</th><th>레이어</th></tr></thead>
-                <tbody>{세.블록.map((b) => { const 뜻 = 전.블록뜻(b.이름); return <tr key={b.이름}><td><input type="checkbox" {...세칸('블록', b.이름)} /></td><td>{b.이름}{뜻.주석 ? <span className="muted" style={{ fontSize: 11 }}> (주석으로 봄)</span> : 뜻.품명 && 뜻.품명 !== b.이름 ? <span className="ja-kind" style={{ marginLeft: 6, borderColor: '#22c55e', color: '#22c55e' }}>{뜻.품명}</span> : null}</td><td className="r"><b>{b.수}</b></td><td className="note2">{b.층}</td></tr> })}</tbody>
+                {/* 🧭 G363 개수 = ① 물량 전부와 같은 셈(묶음 블록 안에 든 것 · MINSERT 포함) */}
+                <tbody>{세블록.map((b) => { const 뜻 = b.뜻; const 안수 = b.안 ? [...b.안.values()].reduce((t, n) => t + n, 0) : 0; return <tr key={b.이름}><td><input type="checkbox" {...세칸('블록', b.이름)} /></td><td>{b.이름}{뜻.주석 ? <span className="muted" style={{ fontSize: 11 }}> (주석으로 봄)</span> : 뜻.품명 && 뜻.품명 !== b.이름 ? <span className="ja-kind" style={{ marginLeft: 6, borderColor: '#22c55e', color: '#22c55e' }}>{뜻.품명}</span> : null}{b.묶음 ? <div className="ja-bnote">묶음 — 안에 든 것({b.묶음})을 따로 셈</div> : null}</td><td className="r"><b>{b.수}</b>{안수 ? <div className="ja-bnote">묶음 안 {안수}</div> : null}</td><td className="note2">{b.층}</td></tr> })}</tbody>
               </table></div>}
               <div className="detail-h" style={{ marginTop: 12 }}>글자 (기호) 개수</div>
               <input className="ja-search" value={글찾기} placeholder="찾을 글자 (예: WD, C1, 맨홀) — 비우면 두 번 넘게 나온 짧은 글자" onChange={(e) => set글찾기(e.target.value)} />

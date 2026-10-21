@@ -305,6 +305,11 @@ export function 철근모으기(표들) {
     if (jd < 0) continue
     let 소계길이 = 0
     let 앞d = ''
+    /* 🧭 G363 총길이 칸 단위는 따로 — «길이(mm) · 총길이(m)» 처럼 섞인 표가 흔함(전엔 총길이도 ×0.001 로 읽어 줄마다 «≠» 를 잘못 알렸음)
+         머리에 (M)·(MM) 이 있으면 그것, 없으면 줄마다 길이×개수에 가까운 쪽 */
+    const 총머 = jt >= 0 ? String(표.머리[s0 + jt] || '').toUpperCase() : ''
+    const 총배고정 = /\(MM\)/.test(총머) ? 0.001 : /\(M\)/.test(총머) ? 1 : 0
+    let 총배 = 총배고정 || 배
     for (const r0 of 표.줄) {
       const r = r0.slice(s0, e0)
       const 첫 = 붙임(r[0] || '') + 붙임(r[jg] || '')
@@ -314,7 +319,7 @@ export function 철근모으기(표들) {
         /* 🧭 G290 소계는 판 · 이어진 표(«재료표» 두 장)에 걸쳐 있기도 함 — 줄마다 견주지 않고 끝에서 직경마다 «적힌 소계 합 ↔ 읽은 줄 합» 으로 견줌
              (실제 토목 배근도: 오른쪽 판 · 다음 표의 소계를 그 판 줄만으로 견주어 맞는데도 틀렸다고 6줄 알렸음) */
         const 소d = 규격(앞d)
-        if (Number.isFinite(적힌) && 소계길이 > 0 && !/총|합/.test(첫) && 소d) 소계들.push({ d: 소d, 길이: 적힌 * 배, 제목: 표.제목 })
+        if (Number.isFinite(적힌) && 소계길이 > 0 && !/총|합/.test(첫) && 소d) 소계들.push({ d: 소d, 길이: 적힌 * 총배, 제목: 표.제목 })
         소계길이 = 0
         continue
       }
@@ -323,7 +328,9 @@ export function 철근모으기(표들) {
       const L = 칸숫자(r[jl]) * 배
       const n = 칸숫자(r[jn])
       let 총 = Number.isFinite(L) && Number.isFinite(n) ? L * n : NaN
-      const 적힌총 = jt >= 0 ? 칸숫자(r[jt]) * 배 : NaN
+      const 총값 = jt >= 0 ? 칸숫자(r[jt]) : NaN
+      if (!총배고정 && Number.isFinite(총값) && 총값 > 0 && Number.isFinite(총) && 총 > 0) 총배 = Math.abs(총값 - 총) <= Math.abs(총값 * 0.001 - 총) ? 1 : 0.001
+      const 적힌총 = 총값 * 총배
       if (Number.isFinite(적힌총)) {
         if (Number.isFinite(총) && Math.abs(총 - 적힌총) > 0.01 + 적힌총 * 0.002) 검산.push(표.제목 + ' ' + (r[jg] || '') + ': 길이×개수 ' + 총.toFixed(3) + ' ≠ 적힌 총길이 ' + r[jt])
         if (!Number.isFinite(총)) 총 = 적힌총
@@ -729,11 +736,27 @@ export function 세기(모델, o = {}) {
     if (네모 && (ins.x < 네모[0] || ins.x > 네모[2] || ins.y < 네모[1] || ins.y > 네모[3])) continue
     const key = ins.name
     const b = 블.get(key) || { 이름: key, 수: 0, 층: new Map(), 참조수: 0 }
-    b.수++
-    if (ins.참조) b.참조수++
+    const n = ins.수 || 1                         // 🧭 G363 MINSERT 는 줄 × 칸 만큼
+    b.수 += n
+    if (ins.참조) b.참조수 += n
     const ln = layers[ins.ly] ? layers[ins.ly].name : ''
-    b.층.set(ln, (b.층.get(ln) || 0) + 1)
+    b.층.set(ln, (b.층.get(ln) || 0) + n)
     블.set(key, b)
+  }
+  /* 🧭 G363 블록 안에 든 블록 — 바깥 블록(조상)마다 따로 모아 돌려줌(셈에 넣을지는 도면전부.모두 가 정함) · 위치도(0.5배 미만 사본) 안은 뺌 */
+  const 안블 = new Map()
+  for (const ins of 모델.I안 || []) {
+    if (!ins || /^\*/.test(ins.name) || ins.축소) continue
+    if (끈.has(ins.ly)) continue
+    if (네모 && (ins.x < 네모[0] || ins.x > 네모[2] || ins.y < 네모[1] || ins.y > 네모[3])) continue
+    const 길 = ins.조상.join('>')
+    const key = ins.name + '\u0001' + 길
+    const a = 안블.get(key) || { 이름: ins.name, 조상: ins.조상, 수: 0, 참조수: 0, 층: new Set() }
+    const n = ins.수 || 1
+    a.수 += n
+    if (ins.참조) a.참조수 += n
+    if (layers[ins.ly]) a.층.add(layers[ins.ly].name)
+    안블.set(key, a)
   }
   const 글 = new Map()
   for (let i = 0; i < T.s.length; i++) {
@@ -751,6 +774,7 @@ export function 세기(모델, o = {}) {
     블록: [...블.values()].map((b) => ({ 이름: b.이름, 수: b.수, 참조수: b.참조수, 층이름: [...b.층.keys()], 층: [...b.층.entries()].map(([n, c]) => n + (b.층.size > 1 ? '(' + c + ')' : '')).join(', ') })).sort((a, b) => b.수 - a.수),
     글: [...글.entries()].map(([s, n]) => ({ 글: s, 수: n, 숫자: 숫자인가(s) })).sort((a, b) => b.수 - a.수 || a.글.localeCompare(b.글)),
     뺀사본,
+    안블록: [...안블.values()].map((a) => ({ ...a, 층: [...a.층] })),
   }
 }
 

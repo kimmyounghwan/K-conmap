@@ -4457,6 +4457,9 @@ span.qna-like { cursor: default; }
 .ja-chk { display: inline-flex; align-items: center; }
 .ja-tbl { max-height: 420px; overflow: auto; margin-top: 8px; }
 .ja-tbl .gg-r th { position: sticky; top: 0; z-index: 1; }
+/* 🧭 G363 블록 이름 · 개수 칸의 덧말(묶음 블록) — 줄바꿈해 폰에서도 개수 칸이 화면 안에 */
+.ja-bnote { white-space: normal; word-break: keep-all; max-width: 15em; font-size: 11px; color: var(--muted); line-height: 1.35; }
+.gg-r td.r .ja-bnote { white-space: nowrap; }
 .ja-tot td { font-weight: 700; background: var(--surface-2); }
 .ja-put { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; font-weight: 700; margin-right: 6px; }
 .ja-put input, .ja-chk input, .gg-r td input[type=checkbox] { width: auto; min-width: 0; margin: 0; }

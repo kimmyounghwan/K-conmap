@@ -91,6 +91,7 @@ export function 도면읽기(text, onProgress, opt = {}) {
   let 배치중 = null
   const 활성배치 = [], 배치목록 = []      // ENTITIES 의 67=1 도형 · OBJECTS 의 LAYOUT {이름, 탭, rec}
   const inserts = []
+  const 안넣음 = []          // 🧭 G363 블록 안에 든 블록(개수 세기용 · INSERT 쪽 설명)
   /* 🧭 G132 — 외부참조(XREF) 넣은 자리: 블록이 비어 있어(딴 파일) 그 파일을 같이 넣으면 화면이 끼워 넣습니다 */
   const 참조들 = []
   const 사전 = new Map(), 거르개 = new Map()     // OBJECTS — DICTIONARY · SPATIAL_FILTER (XCLIP)
@@ -204,6 +205,21 @@ export function 도면읽기(text, onProgress, opt = {}) {
     const n = Math.max(2, Math.min(90, Math.ceil(Math.abs(th) / (Math.PI / 45))))
     const R2 = Math.abs(r)
     for (let i = 1; i < n; i++) { const t = a0 + (th * i) / n; arr.push([cx + R2 * Math.cos(t), cy + R2 * Math.sin(t), z]) }
+  }
+  /** 🧭 G363 볼록 토막이 든 닫힌 선의 참 면적 — 신발끈 넓이 + 토막마다 활꼴 r²/2·(θ − sinθ) (θ = 4·atan(볼록) · 부호대로 더하고 뺌) */
+  function 볼록면적(vs) {
+    let S = 0
+    for (let i = 0; i < vs.length; i++) {
+      const a = vs[i], c = vs[(i + 1) % vs.length]
+      S += a[0] * c[1] - c[0] * a[1]
+      const b = a[2]
+      if (!b) continue
+      const d = Math.hypot(c[0] - a[0], c[1] - a[1])
+      if (d < 1e-12) continue
+      const th = 4 * Math.atan(b), r = d / (2 * Math.sin(th / 2))
+      S += r * r * (th - Math.sin(th))
+    }
+    return Math.abs(S) / 2
   }
   /** 볼록 토막 하나의 참 길이 */
   function bulgeLen(a, c, bulge) {
@@ -381,7 +397,8 @@ export function 도면읽기(text, onProgress, opt = {}) {
         if (!조각(id, MM, pts)) return
         const s = 배율(MM)
         Elen.a[id] = s !== null ? len * s : 토막길이(q)
-        if (closed) Earea.a[id] = Math.abs(토막면적(q))
+        /* 🧭 G363 볼록(bulge) 호가 든 닫힌 선은 참 면적(꼭짓점 넓이 + 토막마다 활꼴) — 전엔 4° 꺾은선 넓이라 반원 끝 포장이 0.01% 적었음 */
+        if (closed) Earea.a[id] = s !== null && vs.some((a) => a[2]) ? 볼록면적(vs) * s * s : Math.abs(토막면적(q))
         return
       }
       case 'CIRCLE': case 'ARC': {
@@ -577,6 +594,15 @@ export function 도면읽기(text, onProgress, opt = {}) {
         const bl = blocks.get(name.toUpperCase())
         let myIns = ins
         if (top) { myIns = inserts.length; inserts.push({ name, x: 0, y: 0, ly: L.i }) }
+        /* 🧭 G363 개수 — MINSERT(줄 × 칸으로 여러 개 넣기)는 그 수만큼 · 블록 안에 든 블록(수목군 안의 이팝나무 · 화장실 세트 안의 대변기)은
+             I(모형 공간에 바로 넣은 것) 와 따로 I안 에 적음 — 조상(바깥 블록 이름들) · 축소(0.5배 미만 사본 = 위치도 안) */
+        const 몇개 = Math.max(1, g1(g, 70, 1)) * Math.max(1, g1(g, 71, 1))
+        if (top && 몇개 > 1) inserts[myIns].수 = 몇개
+        if (!top && !배치중 && ins >= 0) {
+          const w = P(M, g1(g, 10), g1(g, 20), g1(g, 30))
+          안넣음.push({ name, x: w[0], y: w[1], ly: L.i, 조상: cx.조상 || [], 수: 몇개, 축소: M !== I3 && Math.sqrt(Math.abs(M[0] * M[5] - M[1] * M[4])) < 0.5 })
+        }
+        const 조상 = [...(cx.조상 || []), name]
         /* 🧭 G132 — 블록 속성(ATTRIB) 이름표와 값도 적어 둠(횡단면 수량표 블록: 측점 · 터파기 · 모래부설 …) */
         if (top && e.att && e.att.length) inserts[myIns].속성 = e.att.map((a) => [unesc(gs(a.g, 2)), cadText(unesc(gs(a.g, 1)))])
         if (e.att) for (const a of e.att) draw(a, M, { ...cx, ly: lyName, rgb, ins: myIns, lt }, depth + 1, false)
@@ -612,7 +638,7 @@ export function 도면읽기(text, onProgress, opt = {}) {
             0, 0, sz, -sz * bz + iz]
           if (O) Lm = mul(O, Lm)
           const X = mul(M, Lm)
-          for (const s of bl.ents) { draw(s, X, { ...cx, ly: lyName, rgb, ins: myIns, lt }, depth + 1, false) }
+          for (const s of bl.ents) { draw(s, X, { ...cx, ly: lyName, rgb, ins: myIns, lt, 조상 }, depth + 1, false) }
         }
         return
       }
@@ -875,6 +901,7 @@ export function 도면읽기(text, onProgress, opt = {}) {
   for (let k = 0; k < xy.length; k += 2) { xy[k] -= ox; xy[k + 1] -= oy }
   for (let k = 0; k < tx.length; k++) { tx[k] -= ox; ty[k] -= oy }
   for (const I of inserts) { I.x -= ox; I.y -= oy }
+  for (const I of 안넣음) { I.x -= ox; I.y -= oy }
   for (const q of 숨은글) { q.x -= ox; q.y -= oy }
   const 참조 = 참조맞춤(참조들, 사전, 거르개, ox, oy)
   stats.글수 = Ts.length          /* 🧭 G246 이 파일 글자 수(xref 끼우면 뒤에 붙음 — 캡글 ~ 글수 = 점이 다 찬 뒤 읽은 글) */
@@ -887,7 +914,7 @@ export function 도면읽기(text, onProgress, opt = {}) {
     E, Q, P: xy, T, I: inserts, 무늬,
     layers: layerList.map((L) => ({ name: L.name, rgb: L.rgb, hide: L.hide, ...(L.인쇄안함 ? { 인쇄안함: true } : {}) })),
     box: [box[0] - ox, box[1] - oy, box[2] - ox, box[3] - oy], ox, oy,
-    units: header.insunits, stats, 참조, ...(숨은글.length ? { 숨은글 } : {}), ...(틀선 ? { 틀선 } : {}), ...(배치.length ? { 배치: 배치.map((b) => ({ ...b, 화면: b.화면.map((v) => ({ ...v, mx: v.mx - ox, my: v.my - oy })) })) } : {}), ...(T밖 ? { T밖: T밖.done() } : {}),
+    units: header.insunits, stats, 참조, ...(안넣음.length ? { I안: 안넣음 } : {}), ...(숨은글.length ? { 숨은글 } : {}), ...(틀선 ? { 틀선 } : {}), ...(배치.length ? { 배치: 배치.map((b) => ({ ...b, 화면: b.화면.map((v) => ({ ...v, mx: v.mx - ox, my: v.my - oy })) })) } : {}), ...(T밖 ? { T밖: T밖.done() } : {}),
   }
 }
 

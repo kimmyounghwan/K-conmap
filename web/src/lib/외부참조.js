@@ -157,6 +157,7 @@ export function 참조붙이기(A, B, 키) {
   const PX = new 늘(Float64Array, A.P.length * 2); PX.붙(A.P)
   const T = { s: A.T.s.slice(), x: Array.from(A.T.x), y: Array.from(A.T.y), h: Array.from(A.T.h), a: Array.from(A.T.a), e: Array.from(A.T.e) }
   const I = A.I.map((x) => ({ ...x }))
+  const I안 = (A.I안 || []).map((x) => ({ ...x }))      // 🧭 G363 블록 안에 든 블록(개수 세기)
   const layers = A.layers.map((L) => ({ ...L }))
   const 층찾기 = new Map(layers.map((L, i) => [L.name.toUpperCase(), i]))
   const 층맞춤 = B.layers.map((L) => {
@@ -280,6 +281,11 @@ export function 참조붙이기(A, B, 키) {
       const [nx, ny] = 옮(b.x, b.y)
       I.push({ ...b, x: nx, y: ny, ly: 층맞춤[b.ly] ?? b.ly, 참조: 이름 })
     }
+    for (const b of B.I안 || []) {
+      if (자르개 && (b.x < 상[0] || b.x > 상[2] || b.y < 상[1] || b.y > 상[3] || !안(b.x, b.y, 자르개))) continue
+      const [nx, ny] = 옮(b.x, b.y)
+      I안.push({ ...b, x: nx, y: ny, ly: 층맞춤[b.ly] ?? b.ly, 참조: 이름 })
+    }
     붙은++
   }
 
@@ -291,7 +297,7 @@ export function 참조붙이기(A, B, 키) {
     E: { t: Et.done(), ly: Ely.done(), rgb: Ergb.done(), len: Elen.done(), area: Earea.done(), val: Eval.done(), ins: Eins.done(), sc: Esc.done() },
     Q: { e: Qe.done(), p0: Q0.done(), pn: Qn.done() },
     P, T: { s: T.s, x: Tx, y: Ty, h: Float64Array.from(T.h), a: Float64Array.from(T.a), e: Int32Array.from(T.e) },
-    I, layers, box,
+    I, ...(I안.length ? { I안 } : {}), layers, box,
     stats: { ...A.stats, verts: P.length >> 1 },
     붙은참조: [...(A.붙은참조 || []), { 이름, 키, 자리: 붙은, 건너뜀 }],
   }
@@ -389,6 +395,7 @@ export function 참조모음(B, 경계들, 배율, 이름) {
   const 글살 = []
   for (let i = 0; i < B.T.s.length; i++) if (안에(B.T.x[i], B.T.y[i])) { 글살.push(i); 살[B.T.e[i]] = 1 }
   const I = B.I.filter((b) => b && 안에(b.x, b.y)).map((b) => ({ ...b, 참조: 이름 }))
+  const I안 = (B.I안 || []).filter((b) => b && 안에(b.x, b.y)).map((b) => ({ ...b, 참조: 이름 }))
   /* 살아남은 것만 담은 모델 (조각은 그대로 — 셈만 하는 모델) */
   const 남 = []
   for (let e = 0; e < n; e++) if (살[e]) 남.push(e)
@@ -400,7 +407,7 @@ export function 참조모음(B, 경계들, 배율, 이름) {
   }
   const T = { s: 글살.map((i) => B.T.s[i]), x: Float64Array.from(글살, (i) => B.T.x[i]), y: Float64Array.from(글살, (i) => B.T.y[i]), h: Float64Array.from(글살, (i) => B.T.h[i] * sc), a: Float64Array.from(글살, (i) => B.T.a[i]), e: Int32Array.from(글살, (i) => 새.get(B.T.e[i])) }
   return {
-    ...B, E, Q: { e: new Uint32Array(0), p0: new Uint32Array(0), pn: new Uint32Array(0) }, P: new Float64Array(0), T, I,
+    ...B, E, Q: { e: new Uint32Array(0), p0: new Uint32Array(0), pn: new Uint32Array(0) }, P: new Float64Array(0), T, I, I안,
     layers: B.layers.map((L) => ({ ...L, name: 이름 + '|' + L.name })),
     모음: { 이름, 자리: 경계들.length, 통째 },
   }
