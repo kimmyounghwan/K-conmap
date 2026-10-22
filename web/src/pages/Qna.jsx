@@ -6,7 +6,7 @@ let _fb = null
 const loadFb = async () => {
   if (!_fb) {
     const [d, f] = await Promise.all([import('firebase/database'), import('../firebase.js')])
-    _fb = { ...d, db: f.db, ensureAnon: f.ensureAnon }
+    _fb = { ...d, db: f.db, ensureAnon: f.ensureAnon, auth: f.auth }
   }
   return _fb
 }
@@ -63,7 +63,10 @@ const 뿌리찾기 = async () => {
   const u = await ensureAnon()
   if (_뿌리 && _뿌리.uid === u.uid) return _뿌리
   let r = u.uid
-  try { const w = (await get(ref(db, `qna_who/${u.uid}`))).val(); if (w && w.r) r = String(w.r) } catch (e) { /* 규칙 전 · 막힘 */ }
+  /* ⏱ G370 — 웹소켓(get) 대신 HTTPS 한 번(qna_who 는 누구나 읽기) · 2.5초 안에 못 받으면 예전처럼 get */
+  const 바로 = await REST읽기(`qna_who/${u.uid}`)
+  if (바로.ok) { if (바로.v && 바로.v.r) r = String(바로.v.r) }
+  else { try { const w = (await get(ref(db, `qna_who/${u.uid}`))).val(); if (w && w.r) r = String(w.r) } catch (e) { /* 규칙 전 · 막힘 */ } }
   _뿌리 = { uid: u.uid, r }
   return _뿌리
 }
@@ -80,6 +83,43 @@ function 미리데우기() {
     })().finally(() => { setTimeout(() => { _데움 = null }, 60000) })
   }
   return _데움
+}
+/* ⏱ G370 (2026-10-22) 소장님 「맵톡 답글 쓸때 연결하기라고 뜨면서 좀 느려...고친거 아니였어?」
+   G357 은 쓰기가 3초 넘게 안 끝나면 «연결을 다시 잇는 중…» 을 띄우고 웹소켓을 다시 이었는데, 폰이 잠들었다 깬 뒤엔
+   다시 잇기(웹소켓 · 로그인 표)에 또 몇 초가 걸렸습니다 — 쓰기가 웹소켓 하나에만 매달려 있던 것이 뿌리.
+   → 쓰기가 1.2초 안에 안 끝나면 같은 자리 · 같은 값을 «HTTPS 한 번(REST · 로그인 표 붙임)» 으로도 보냅니다. 먼저 끝나는 쪽으로 끝.
+     같은 값이라 두 번 써도 같고(규칙도 같은 규칙 · 공동도급 마당이 이미 이렇게 씀 lib/공동판저장.js), REST 가 규칙에 막히면
+     원래 쓰기의 결과(몰래표 다시 붙이기 등)를 그대로 기다립니다. 3초 넘으면 전처럼 웹소켓도 다시 잇습니다.
+   → 쓰기 앞에 읽던 것(옛 번호 qna_who · 몰래표 qna_block)도 HTTPS 로 읽습니다(웹소켓이 멈춰 있어도 안 기다림). */
+const DB주소 = 'https://k-conmap-default-rtdb.firebaseio.com'
+async function REST읽기(경로, 열쇠 = '') {
+  const 멈춤 = typeof AbortController !== 'undefined' ? new AbortController() : null
+  const 시계 = 멈춤 ? setTimeout(() => 멈춤.abort(), 2500) : null
+  try {
+    const r = await fetch(`${DB주소}/${경로}.json${열쇠 ? '?auth=' + encodeURIComponent(열쇠) : ''}`, { cache: 'no-store', ...(멈춤 ? { signal: 멈춤.signal } : {}) })
+    if (!r.ok) return { ok: false }
+    return { ok: true, v: await r.json() }
+  } catch (e) { return { ok: false } } finally { if (시계) clearTimeout(시계) }
+}
+async function 빨리쓰기(경로, slot, 값, 늦음) {
+  const fb = await loadFb()
+  const sdk = fb.set(slot, 값)
+  sdk.catch(() => { /* REST 가 먼저 끝난 뒤의 실패(같은 값 다시 쓰기 막힘 등)는 조용히 — 기다리는 쪽은 아래 race */ })
+  let 끝 = false
+  const rest = new Promise((ok) => {
+    setTimeout(async () => {
+      if (끝) return
+      try {
+        const u = fb.auth && fb.auth.currentUser
+        if (!u) return
+        const t = await u.getIdToken()
+        if (끝) return
+        const r = await fetch(`${DB주소}/${경로}.json?print=silent&auth=${encodeURIComponent(t)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(값) })
+        if (r.ok && !끝) { 세기('|맵톡|바로쓰기'); ok('rest') }
+      } catch (e) { /* 원래 쓰기를 기다림 */ }
+    }, 1200)
+  })
+  try { return await 늦으면다시잇기(Promise.race([sdk, rest]), 늦음) } finally { 끝 = true }
 }
 async function 늦으면다시잇기(약속, 늦음) {
   let 끝 = false
@@ -1743,7 +1783,7 @@ function AnswerForm({ qid, onDone, to = null, 받는이 = '', 인용 = '', 열�
         ...(f ? { f } : {}),     /* 📎 답글 파일(규칙: 이 기기의 user_forms 주소만) */
         ...몰래,                 /* 🙈 몰래 차단 기기면 sb — 규칙이 강제합니다 */
       }
-      try { await 늦으면다시잇기(set(slot, 답값), () => set다시잇는중(true)) } catch (e) {
+      try { await 빨리쓰기(`qna_a/${qid}/${slot.key}`, slot, 답값, () => set다시잇는중(true)) } catch (e) {
         /* 🙈 기억해 둔 10분 사이에 막힌 기기면 규칙이 sb 없는 답을 받지 않음 → 다시 읽어 sb 를 붙여 한 번 더 */
         if (몰래.sb) throw e
         몰래표잊기()
@@ -1968,7 +2008,7 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
         }
       }
       /* ⏱ G357 핀 열쇠는 사진 올리기 · 자리 찾기와 «같이» 보내고, 글을 쓰기 직전에만 기다립니다(글보다 먼저 들어가는 차례는 그대로) */
-      const 핀약속 = pin.length === 4 ? pinHash(id, pin).then((h) => set(ref(db, `qna_pins/${id}`), h)) : null
+      const 핀약속 = pin.length === 4 ? pinHash(id, pin).then((h) => 빨리쓰기(`qna_pins/${id}`, ref(db, `qna_pins/${id}`), h, () => set다시잇는중(true))) : null   /* ⏱ G370 */
       let p = '', 사진말 = ''
       if (사진) {
         try {
@@ -1998,9 +2038,9 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
         ...(f ? { f } : {}),
         ...몰래,                 /* 🙈 몰래 차단 기기면 sb — 규칙이 강제합니다 */
       }
-      if (핀약속) await 늦으면다시잇기(핀약속, () => set다시잇는중(true))
+      if (핀약속) await 핀약속   /* ⏱ G370 빨리쓰기 안에서 늦으면 다시 잇기까지 */
       /* 🗺 G316 — 분야(x) · 모임(m) 규칙이 아직 안 올라간 때(사이트가 먼저 바뀐 몇 분)에도 글은 올라가게: 둘을 빼고 한 번 더 */
-      try { await 늦으면다시잇기(set(slot, 글값), () => set다시잇는중(true)) } catch (e) {
+      try { await 빨리쓰기(`qna/${slot.key}`, slot, 글값, () => set다시잇는중(true)) } catch (e) {
         const { x, m, ...둘없이 } = 글값   // eslint-disable-line no-unused-vars
         /* 🙈 기억해 둔 10분 사이에 막힌 기기면 sb 를 붙여서(규칙이 sb 없는 글을 안 받음) */
         let 더 = {}

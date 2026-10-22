@@ -17,7 +17,17 @@ export async function 몰래표() {
     const u = f.auth.currentUser
     if (!u) return {}
     if (_몰래 && _몰래.uid === u.uid && Date.now() - _몰래.t < 600000) return _몰래.v
-    const v = (await d.get(d.ref(f.db, `qna_block/${u.uid}`))).exists() ? { sb: true } : {}
+    /* ⏱ G370 — 웹소켓(get) 대신 HTTPS 한 번(자기 칸만 읽기 · 로그인 표) · 2.5초 안에 못 받으면 예전처럼 get */
+    let v = null
+    try {
+      const t = await u.getIdToken()
+      const 멈춤 = typeof AbortController !== 'undefined' ? new AbortController() : null
+      const 시계 = 멈춤 ? setTimeout(() => 멈춤.abort(), 2500) : null
+      const r = await fetch(`https://k-conmap-default-rtdb.firebaseio.com/qna_block/${u.uid}.json?auth=${encodeURIComponent(t)}`, { cache: 'no-store', ...(멈춤 ? { signal: 멈춤.signal } : {}) })
+      if (시계) clearTimeout(시계)
+      if (r.ok) v = (await r.json()) != null ? { sb: true } : {}
+    } catch (e) { /* 아래 get */ }
+    if (v === null) v = (await d.get(d.ref(f.db, `qna_block/${u.uid}`))).exists() ? { sb: true } : {}
     _몰래 = { uid: u.uid, v, t: Date.now() }
     return v
   } catch (e) {

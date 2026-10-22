@@ -18,6 +18,8 @@ const 결과 = {}
 for (const [이름, w] of [['PC', 1280], ['폰', 430]]) {
   const 판 = await 브.newContext({ viewport: { width: w, height: 900 } })
   await 판.route(/googletagmanager|google-analytics|pagead2|adsbygoogle|geojs/, (r) => r.fulfill({ status: 200, body: '' }))
+  /* ⏱ G370 뒤 — 이 시험은 «REST 가 안 되는 때» (웹소켓만) 그대로 봅니다. REST 로 빨리 끝나는 것은 tools/시험_맵톡빨리쓰기.mjs */
+  await 판.route(/firebaseio\.com/, (r) => r.fulfill({ status: 503, body: 'down' }))
   await 판.addInitScript(([s, ms]) => {
     if (!sessionStorage.getItem('씨앗됨')) { localStorage.setItem('mockdb', JSON.stringify(s)); sessionStorage.setItem('씨앗됨', '1') }
     localStorage.setItem('mock지연', String(ms)); localStorage.setItem('kcm_notice_seen', '2026-10-필독')
