@@ -22,7 +22,19 @@ import { Link } from 'react-router-dom'
 import { askAfter } from '../AskComment'
 
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
+import { 세기 } from '../lib/받은수.jsx'   /* 🔢 G377 쓴 횟수 — |2줄|2줄 · |2줄|3줄 · |2줄|xlsm · |2줄|멈춤 (받은 것은 받은수가 따로 셈) */
 const LABELS = ['당초', '변경', '증감']
+/* 🩹 G377 (2026-10-22) 매크로 든 내역서(.xlsm)를 «_2줄.xlsx» 로 내보내면 엑셀이 «파일 형식 또는 확장명이 잘못되었다» 며 안 엽니다
+   (안의 통합 문서 종류는 그대로 «매크로 사용» 이라 이름과 안이 어긋남). 안을 보고 같은 확장자 · 종류로 내보냅니다. */
+const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+const XLSM = 'application/vnd.ms-excel.sheet.macroEnabled.12'
+function 매크로인가(zip, 이름 = '') {
+  try {
+    const ct = zip && zip['[Content_Types].xml'] ? new TextDecoder().decode(zip['[Content_Types].xml']) : ''
+    if (ct) return /macroEnabled\.main\+xml/i.test(ct)
+  } catch { /* 이름으로 */ }
+  return /\.xlsm$/i.test(이름)
+}
 
 function fmt(n) { return new Intl.NumberFormat('ko-KR').format(n) }
 
@@ -129,14 +141,16 @@ export default function TwoLine() {
         })),
         lines, color, diffFormula: diff, labels: LABELS,
       })
-      const blob = new Blob([res.data], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      })
+      const 매크로 = 매크로인가(book && book.zip, file.name)
+      const blob = new Blob([res.data], { type: 매크로 ? XLSM : XLSX })
       const url = URL.createObjectURL(blob)
       const base = file.name.replace(/\.(xlsx|xlsm)$/i, '')
-      setOut({ url, name: `${base}_${lines}줄.xlsx`, report: res.report })
+      setOut({ url, name: `${base}_${lines}줄.${매크로 ? 'xlsm' : 'xlsx'}`, report: res.report })
+      세기('|2줄|' + lines + '줄')
+      if (매크로) 세기('|2줄|xlsm')
     } catch (e) {
       setErr(e?.message || '바꾸다가 멈췄습니다. 파일을 한 번 더 확인해 주십시오.')
+      세기('|2줄|멈춤')
     } finally { setBusy('') }
   }
 
@@ -273,7 +287,8 @@ export default function TwoLine() {
               <tbody>
                 {preview.map((r, i) => (
                   <tr key={i} className={r.k === 1 ? 'tlchg' : r.k === 2 ? 'tldif' : ''}>
-                    {r.cells.slice(0, 9).map((c, j) => <td key={j}>{String(c).slice(0, 18)}</td>)}
+                    {/* 🩹 G377 긴 수식은 «…» 로 — 전엔 18자에서 그냥 잘려 «=ROUNDDOWN(E5*F5,0» 처럼 괄호가 빠진 «깨진 수식» 으로 보였음 */}
+                    {r.cells.slice(0, 9).map((c, j) => { const t = String(c); return <td key={j} title={t.length > 18 ? t : undefined}>{t.length > 18 ? t.slice(0, 17) + '…' : t}</td> })}
                   </tr>
                 ))}
               </tbody>
