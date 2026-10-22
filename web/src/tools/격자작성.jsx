@@ -114,9 +114,13 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
   const [저장들, set저장들] = useState(() => { const a = (읽기(쓴열쇠, {})[slug] || {}).saved; return Array.isArray(a) ? a : [] })
   const [목록, set목록] = useState(false)
   const [말, set말] = useState('')
-  /* 「자세히 설명해줘. 이용자가 알게」 — 처음 온 기기에서는 펴 두고, 한 번 본 뒤에는 접어 둠 */
-  const [안내열림, set안내열림] = useState(() => { try { return !localStorage.getItem('kcm.격자안내') } catch (e) { return true } })
-  const 안내토글 = (열림) => { set안내열림(열림); try { localStorage.setItem('kcm.격자안내', '1') } catch (e) { /* */ } }
+  /* 「자세히 설명해줘. 이용자가 알게」 — 전엔 처음 온 기기에서 펴 두었는데(접기 전까지 늘 펴짐), 열 줄 설명이 종이를 화면 아래로 밀어
+     소장님 「사이트에서 쓰게 되어 있어야 하는데 … 어디서 작성하는 거지?」(10/22) → 늘 접어 둠 · 종이가 바로 보이게(G369) */
+  const [안내열림, set안내열림] = useState(false)
+  const 안내토글 = (열림) => set안내열림(열림)
+  /* 🏷 G369 소장님 「건설맵 주소를 제거할 수 있게 해줘야 하잖아」 — 맨 위 «K-건설맵 | k-conmap.com» 줄을 넣고 뺌(화면 · 인쇄 · PDF) · 이 기기에 기억(모든 서식) */
+  const [건설맵, set건설맵] = useState(() => { try { return localStorage.getItem('kcm.격자건설맵') !== '0' } catch (e) { return true } })
+  const 건설맵바꿈 = (on) => { set건설맵(on); try { localStorage.setItem('kcm.격자건설맵', on ? '1' : '0') } catch (e) { /* */ } 세기(on ? '|서식격자|건설맵넣기' : '|서식격자|건설맵빼기') }
   const [확대, set확대] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 700 ? 1.5 : 1))   // 폰은 처음부터 크게(옆으로 밀어 봄)
   const [폭, set폭] = useState(0)
   const [인쇄할, set인쇄할] = useState(() => doc.sheets.map(() => true))
@@ -223,7 +227,7 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
         if (cv.width !== W) cv.width = W
         if (cv.height !== H) cv.height = H
         const ctx = cv.getContext('2d')
-        쪽그리기(ctx, { sheet, si, 판, 쪽번호: pi, k, 책, doc, 화면: true, 고른칸: 고른칸 && 고른칸.si === si ? 고른칸.x[0] + ',' + 고른칸.x[1] : null, 그림들: 그림들.current })
+        쪽그리기(ctx, { sheet, si, 판, 쪽번호: pi, k, 책, doc, 화면: true, 고른칸: 고른칸 && 고른칸.si === si ? 고른칸.x[0] + ',' + 고른칸.x[1] : null, 그림들: 그림들.current, 건설맵빼기: !건설맵 })
       })
     })
   })
@@ -326,7 +330,7 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
     const 판 = 판들[si]
     const cv = document.createElement('canvas')
     cv.width = Math.round(판.W * k); cv.height = Math.round(판.H * k)
-    쪽그리기(cv.getContext('2d'), { sheet: doc.sheets[si], si, 판, 쪽번호: pi, k, 책, doc, 화면: false, 그림들: 그림들.current })
+    쪽그리기(cv.getContext('2d'), { sheet: doc.sheets[si], si, 판, 쪽번호: pi, k, 책, doc, 화면: false, 그림들: 그림들.current, 건설맵빼기: !건설맵 })
     return cv
   }
   const 인쇄채우기 = useCallback(() => {
@@ -486,6 +490,9 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
         <button type="button" className={'btn ghost' + (목록 ? ' on' : '')} onClick={() => set목록(!목록)} aria-expanded={목록}>📂 저장한 것 {저장들.length}</button>
         {예시있음 && <button type="button" className="btn ghost" onClick={예시}>✍ 예시 채우기</button>}
         <button type="button" className="btn ghost" onClick={비우기}>🧹 빈칸으로</button>
+        <label className="gx-brand" title="종이 맨 위 «K-건설맵 | k-conmap.com 건설 서식» 줄 — 끄면 화면 · 인쇄 · PDF 에서 빠집니다">
+          <input type="checkbox" checked={건설맵} onChange={(e) => 건설맵바꿈(e.target.checked)} /> 맨 위 건설맵 주소 넣기
+        </label>
         {쪽수 > 10 && (
           <label className="gx-range">쪽 <input className="inp" value={쪽고름} onChange={(e) => set쪽고름(e.target.value.replace(/[^\d,\-~ ，]/g, ''))} placeholder={`전부 ${쪽수}쪽 · 예: 1-3, 7`} aria-label="PDF · 인쇄할 쪽" inputMode="numeric" /></label>
         )}

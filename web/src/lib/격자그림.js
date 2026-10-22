@@ -65,6 +65,9 @@ function 선(ctx, code, x1, y1, x2, y2, k, s) {
   ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
 }
 
+/** 🏷 G369 맨 위 «K-건설맵 | k-conmap.com 건설 서식» 칸(서식 355장 모두 1행 1열 · 글 칸) — 소장님 「건설맵 주소를 제거할 수 있게」 */
+export const 건설맵칸 = (x) => !!x && x[5] === 0 && typeof x[6] === 'string' && /k-conmap\.com/.test(x[6])
+
 /** 칸에 보일 값과 글 */
 export function 칸글(책, si, x) {
   const [r, c, , , , k, v, , nf] = x
@@ -129,6 +132,7 @@ export function 쪽그리기(ctx, o) {
     const [r, c, rs, cs] = x
     if (c > 판.pc) continue
     if (r > r2 || r + rs - 1 < r1) continue
+    if (o.건설맵빼기 && 건설맵칸(x)) continue   /* 🏷 G369 화면 · 인쇄 · PDF 같이 */
     const ra = Math.max(r, r1), rb = Math.min(r + rs - 1, r2)
     const cb = Math.min(c + cs - 1, 판.pc)
     보일.push({ x, x0: px(판.X[c - 1]), x1: px(판.X[cb]), y0: py(판.Y[ra - 1]), y1: py(판.Y[rb]), 잘림: ra !== r })

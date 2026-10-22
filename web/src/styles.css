@@ -8648,6 +8648,18 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 /* ✍️ G361 (2026-10-21) 서식 «종이에 바로 쓰기» — tools/격자작성.jsx
    종이 = 캔버스(엑셀 칸 그대로) · 칸을 누르면 아래 «쓰는 칸» · 인쇄 · PDF 는 같은 그림(#gx-인쇄 — 화면에는 안 보임) */
 .gx .fw-bar .gx-zoom { display: inline-flex; gap: 4px; margin-left: auto; }
+.gx-brand { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; white-space: nowrap; }   /* 🏷 G369 */
+.gx-brand input { width: 16px; height: 16px; margin: 0; }
+@media (max-width: 640px) {
+  /* 📱 G369 폰 — 단추 다섯 줄이 종이를 화면 아래로 밀었음 → 작은 단추 세 칸씩(PDF 저장만 한 줄) */
+  .gx .fw-bar { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+  .gx .fw-bar .btn { padding: 7px 4px; font-size: 13px; min-height: 0; }
+  .gx .fw-bar .btn.primary { padding: 10px 6px; font-size: 14.5px; }
+  .gx .fw-bar .gx-zoom { margin-left: 0; justify-content: flex-end; }
+  .gx .fw-bar .gx-zoom .btn { min-width: 0; flex: 1; padding: 7px 0; }
+  .gx .fw-bar .gx-brand { grid-column: 1 / -1; justify-content: center; padding: 2px 0; font-size: 12.5px; order: 9; }   /* 맨 아래 한 줄(－ ＋ 는 «빈칸으로» 옆) */
+  .gx .fw-top .fw-sub { font-size: 12px; }
+}
 .gx .fw-bar .gx-zoom .btn { padding: 9px 12px; min-width: 40px; }
 .gx-sheets { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin: 0 0 10px; }
 .gx-sh { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px; font-size: 12.5px; background: var(--surface); }
