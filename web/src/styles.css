@@ -8404,10 +8404,21 @@ button.gd-gonggo:hover { background: var(--accent-soft); color: var(--accent); }
 .gd-tbl .num { text-align: right; }
 .gd-mok { font-size: 12.5px; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gd-tr .lnk { color: var(--muted); text-decoration: none; }
+.gd-f { display: block; min-width: 0; }
+.gd-f .inp { width: 100%; }
+.gd-fl { display: none; }
 @media (max-width: 560px) {
+  /* 📱 G368 폰 한 사람 = 회사 ✕ / 지역 · 지분 % / 시평액(억) · 몫 — 전엔 시평액 칸이 22px 칸에 눌림 */
   .gd-tr { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 22px; }
-  .gd-tr > :nth-child(1) { grid-column: 1 / 3; }
+  .gd-tr > :nth-child(1) { grid-column: 1 / 3; grid-row: 1; }
   .gd-tr > :nth-child(6) { grid-column: 3; grid-row: 1; }
+  .gd-tr > :nth-child(2) { grid-column: 1; grid-row: 2; }
+  .gd-tr > :nth-child(3) { grid-column: 2 / 4; grid-row: 2; }
+  .gd-tr > :nth-child(4) { grid-column: 1; grid-row: 3; }
+  .gd-tr > :nth-child(5) { grid-column: 2 / 4; grid-row: 3; text-align: right; }
+  .gd-f { display: flex; align-items: center; gap: 6px; }
+  .gd-fl { display: inline; font-style: normal; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+  .gd-tr .gd-mok::before { content: '몫 '; color: var(--muted); font-size: 11.5px; }
   .gd-th { display: none; }
   .gd-tr { padding: 8px; border: 1px solid var(--line-soft); border-radius: 10px; }
   .gd-tr .num::placeholder { color: var(--muted); }

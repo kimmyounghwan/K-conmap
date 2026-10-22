@@ -6,8 +6,8 @@
  * ■ 숨은 누적: |공동|지분짜기(처음 고칠 때 한 번)
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { 기본규칙, 지분검사, 몫나누기, 시평합 } from './lib/공동판.js'
-import { REGIONS, won, wonShort } from './lib/fmt.js'
+import { 기본규칙, 지분검사, 몫나누기, 시평합, 억만 } from './lib/공동판.js'
+import { REGIONS, won } from './lib/fmt.js'
 import { 세기 } from './lib/받은수.jsx'
 
 const 시도들 = REGIONS.filter((x) => x !== '전국')
@@ -57,9 +57,10 @@ export default function 공동판짜기({ r, 권장금액 = 0, 명함 = {} }) {
               <option value="">지역</option>
               {시도들.map((x) => <option key={x} value={x}>{x}{의무.includes(x) ? ' ★' : ''}</option>)}
             </select>
-            <input className="inp num" aria-label={`${i + 1}번째 지분`} inputMode="decimal" value={m.share} placeholder="0" onChange={(e) => 줄고침(i, 'share', e.target.value.replace(/[^0-9.]/g, '').slice(0, 5))} />
-            <input className="inp num" aria-label={`${i + 1}번째 시평액`} inputMode="decimal" value={m.sipy} placeholder="—" onChange={(e) => 줄고침(i, 'sipy', e.target.value.replace(/[^0-9.]/g, '').slice(0, 8))} />
-            <span className="gd-mok">{몫[i] > 0 ? wonShort(몫[i]) : '—'}</span>
+            {/* 📱 G368 폰 — 칸 이름(머리줄)이 숨어 지분 · 시평액이 무슨 칸인지 몰랐고, 시평액 칸이 22px 로 눌려 «35.5» 가 «5» 로 보였음 → 칸마다 작은 이름(폰에서만) */}
+            <label className="gd-f"><i className="gd-fl">지분 %</i><input className="inp num" aria-label={`${i + 1}번째 지분`} inputMode="decimal" value={m.share} placeholder="0" onChange={(e) => 줄고침(i, 'share', e.target.value.replace(/[^0-9.]/g, '').slice(0, 5))} /></label>
+            <label className="gd-f"><i className="gd-fl">시평액(억)</i><input className="inp num" aria-label={`${i + 1}번째 시평액`} inputMode="decimal" value={m.sipy} placeholder="—" onChange={(e) => 줄고침(i, 'sipy', e.target.value.replace(/[^0-9.]/g, '').slice(0, 8))} /></label>
+            <span className="gd-mok" title={몫[i] > 0 ? won(몫[i]) : ''}>{몫[i] > 0 ? 억만(몫[i]) : '—'}</span>
             {s.줄.length > 2
               ? <button type="button" className="lnk" aria-label={`${i + 1}번째 빼기`} onClick={() => 고침((o) => ({ ...o, 줄: o.줄.filter((_, j) => j !== i) }))}>✕</button>
               : <span />}

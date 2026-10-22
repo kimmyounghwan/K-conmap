@@ -70,7 +70,10 @@ export default function Gongdong() {
   const [답수표, set답수표] = useState({})        // 💬 글 키 → 답글 수
   const [본, set본] = useState(본수읽기)          // 🔔 내 글 답글을 어디까지 봤나
   const [펼칠글, set펼칠글] = useState('')        // 🔔 에서 누른 글 — 답글을 펼쳐 둠
-  const 지금 = useMemo(() => Date.now(), [다시, idx])   // eslint-disable-line react-hooks/exhaustive-deps
+  /* ⏱ G368 창을 열어 둔 채면 «협정 N시간 남음» 이 처음 연 때에 멈춰 있었음(지난 공고도 남음) — 1분마다 시계만 다시(받는 것 없음 · 다시 는 글을 다시 받으니 따로) */
+  const [틱, set틱] = useState(0)
+  useEffect(() => { const t = setInterval(() => set틱((n) => n + 1), 60000); return () => clearInterval(t) }, [])
+  const 지금 = useMemo(() => Date.now(), [다시, idx, 틱])   // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { getBidIndex().then((v) => setIdx(v || null)).catch(() => setIdx(null)) }, [])
   useEffect(() => { getOverview().then(setOv).catch(() => {}) }, [])
@@ -226,7 +229,7 @@ export default function Gongdong() {
                   <span className="t">{r.name}</span>
                   <span className="d">{r.inst} · <b>{wonShort(r.base || r.budget || 0)}</b>{r.sido ? ` · ${r.sido}` : ''}</span>
                   <span className="e">
-                    <공동딱지 r={r} 나={나} />
+                    <공동딱지 r={r} 나={나} 협정={false} />
                     {m != null && <span className={'badge ' + (m < 86400000 ? 'r' : 'n')}>협정 {남은말(m)}</span>}
                     {수 && (수.구함 + 수.참여) > 0 && <span className="badge g">🙋 {수.구함} · 🤝 {수.참여}</span>}
                   </span>

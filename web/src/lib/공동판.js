@@ -85,12 +85,23 @@ export function 몫나누기(금액, 구성원) {
   return 몫
 }
 
-/** 시평액(원) 합 — 공동이행은 «구성원 모두의 것을 합산» · 적힌 것만 더하고 몇 곳이 비었는지 알려 줌 */
+/** 🧮 G368 몫 글 — «억 · 만» 까지(만 원 반올림). 전엔 1.1억 / 1.1억(51% · 49%)이 똑같아 보였음.
+ *  114,980,053 → «1억 1,498만» · 100,004,000 → «1억» · 54,321,000 → «5,432만» · 8,000 → «8,000원» · 0 → «—» */
+export function 억만(v) {
+  const n = Number(v) || 0
+  if (n < 1e4) return n > 0 ? `${Math.round(n).toLocaleString('ko-KR')}원` : '—'
+  const 만 = Math.round(n / 1e4)
+  const 억자리 = Math.floor(만 / 1e4), 나머지 = 만 % 1e4
+  return 억자리 ? `${억자리.toLocaleString('ko-KR')}억${나머지 ? ' ' + 나머지.toLocaleString('ko-KR') + '만' : ''}` : `${나머지.toLocaleString('ko-KR')}만`
+}
+
+/** 시평액(원) 합 — 공동이행은 «구성원 모두의 것을 합산» · 적힌 것만 더하고 몇 곳이 비었는지 알려 줌
+ *  🧮 G368 구성원 = 이름이나 지분을 적은 줄(지분검사와 같은 셈) — 전엔 이름 칸이 빈 둘째 줄을 안 세어 둘 다 비었는데 «1곳» */
 export function 시평합(구성원) {
   let 합 = 0, 빈 = 0
   for (const m of 구성원 || []) {
     const v = 수(m.sipy)
-    if (v > 0) 합 += v; else if (String(m.co || '').trim()) 빈++
+    if (v > 0) 합 += v; else if (String(m.co || '').trim() || 수(m.share) > 0) 빈++
   }
   return { 합, 빈 }
 }

@@ -10,7 +10,7 @@ import { REGIONS, num } from './lib/fmt.js'
 import { 세기 } from './lib/받은수.jsx'
 
 /** 카드 딱지 — 공동이 안 되는 공고는 아무것도 안 그립니다 */
-export function 공동딱지({ r, 나 }) {
+export function 공동딱지({ r, 나, 협정 = true }) {   /* 🤝 G368 협정={false} — 공동도급 마당 목록은 빨간 «협정 N시간 남음» 딱지가 따로 있어 두 번 나오던 것 */
   const 판 = 공동판정(r, 나)
   if (!판.허용) return null
   const 남 = 협정남은(판.재료.협정마감)
@@ -21,7 +21,7 @@ export function 공동딱지({ r, 나 }) {
   else if (판.재료.의무) 글 = '🤝 지역의무 공동'
   return (
     <span className={'jbadge' + 결} title={판.방식}>
-      {글}{남 && 남 !== '마감됨' ? <em> · 협정 {남}</em> : null}
+      {글}{협정 && 남 && 남 !== '마감됨' ? <em> · 협정 {남}</em> : null}
     </span>
   )
 }
