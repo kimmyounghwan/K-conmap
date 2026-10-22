@@ -181,13 +181,29 @@ function splitItems(inner, tag) {
   return inner.match(re) || []
 }
 
+/* 🇰🇷 G377 한셀은 글꼴 · 셀 서식을 <mc:AlternateContent><mc:Choice Requires="hs"><font hs:…>…</mc:Choice><mc:Fallback><font>…</mc:Fallback></mc:AlternateContent> 로 씁니다.
+   엑셀은 hs 를 몰라 Fallback 을 씁니다 — 하나로 세어야 번호(fontId · s)가 안 밀립니다.
+   전엔 Choice · Fallback 을 둘 다 세고 감싼 것을 버려 번호가 밀리고(글꼴 · 서식이 엉뚱하게) hs 이름표가 풀려 XML 이 깨졌습니다.
+   → 고칠 때만(Styler.build) 감싼 것을 Fallback 하나로 바꿔 씁니다(Fallback 이 없으면 Choice 에서 남의 이름표를 뗀 것). */
+function 대안풀기(inner, tag) {
+  if (!/AlternateContent/.test(inner)) return inner
+  return inner.replace(/<([A-Za-z_][\w.-]*):AlternateContent\b[\s\S]*?<\/\1:AlternateContent>/g, (blk) => {
+    const fb = /<[A-Za-z_][\w.-]*:Fallback\b[^>]*>([\s\S]*?)<\/[A-Za-z_][\w.-]*:Fallback>/.exec(blk)
+    if (fb && new RegExp('<' + tag + '\\b').test(fb[1])) return fb[1]
+    const ch = /<[A-Za-z_][\w.-]*:Choice\b[^>]*>([\s\S]*?)<\/[A-Za-z_][\w.-]*:Choice>/.exec(blk)
+    return ch ? ch[1].replace(/\s[A-Za-z_][\w.-]*:[\w.-]+="[^"]*"/g, '').replace(/<[A-Za-z_][\w.-]*:[^>]*\/>/g, '').replace(/<([A-Za-z_][\w.-]*):[\w.-]+\b[^>]*>[\s\S]*?<\/\1:[\w.-]+>/g, '') : blk
+  })
+}
+
 class Styler {
   constructor(xml) {
     this.xml = xml
     this.fontsBlk = sliceList(xml, 'fonts')
     this.xfsBlk = sliceList(xml, 'cellXfs')
-    this.fonts = this.fontsBlk ? splitItems(this.fontsBlk.inner, 'font') : []
-    this.xfs = this.xfsBlk ? splitItems(this.xfsBlk.inner, 'xf') : []
+    /* 🇰🇷 G377 한셀은 글꼴을 <mc:AlternateContent><mc:Choice Requires="hs"><font hs:…>…</mc:Choice><mc:Fallback><font>…</mc:Fallback></mc:AlternateContent> 로 씁니다.
+       엑셀은 hs 를 몰라 Fallback 을 씁니다 — 하나로 세어야 글꼴 번호(fontId)가 안 밀립니다. 전엔 둘 다 세고 감싼 것을 버려 번호가 밀리고 hs 이름표가 풀려(XML 깨짐) 났습니다. */
+    this.fonts = this.fontsBlk ? splitItems(대안풀기(this.fontsBlk.inner, 'font'), 'font') : []
+    this.xfs = this.xfsBlk ? splitItems(대안풀기(this.xfsBlk.inner, 'xf'), 'xf') : []
     this.cache = new Map()
     this.touched = false
   }
@@ -236,8 +252,27 @@ class Styler {
 /* 머리 줄에만 나오는 말 — 이것뿐인 줄은 자료가 아닙니다 */
 const HEAD_WORD = /^(단\s*가|금\s*액|수\s*량|단\s*위|재\s*료\s*비|노\s*무\s*비|경\s*비|합\s*계|비\s*고|규\s*격|품\s*명|공\s*종|공\s*종\s*명|명\s*칭|산\s*출\s*근\s*거|코\s*드|번\s*호)$/
 
+/* 🇰🇷 G377 (2026-10-22) 한셀(한컴)이 만든 xlsx 는 본 이름공간 태그에 «이름표» 를 붙입니다 — <x:workbook> <x:sheet> <x:row> <x:c> <x:v> …
+   우리 정규식이 하나도 안 걸려 «시트 0개» 로 나와 아무것도 못 바꿨습니다(실제 설계내역서 30부 중 2부 · styles 에 xmlns:hs=haansoft).
+   읽기만 하는 qtoxlsx 는 모든 이름표를 떼지만, 여기는 «다시 씁니다» — 그래서 본 이름공간(spreadsheetml main)의 이름표만 떼고
+   그 이름공간을 기본(xmlns=)으로 선언합니다. 다른 이름공간(r: · mc: · x14: …)과 이름표 선언(xmlns:x)은 그대로 둡니다. */
+const MAIN_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'
+export function 이름표풀기(zip) {
+  const nsRe = new RegExp('xmlns:([A-Za-z_][\\w.-]*)="' + MAIN_NS.replace(/[.]/g, '\\.') + '"')
+  for (const p of Object.keys(zip)) {
+    if (!/^xl\/.*\.xml$/.test(p)) continue
+    let x = strFromU8(zip[p])
+    const m = nsRe.exec(x)
+    if (!m || !x.includes('<' + m[1] + ':')) continue
+    x = x.replace(new RegExp('<(/?)' + m[1] + ':', 'g'), '<$1')
+    if (!/\sxmlns="[^"]*"/.test(x.slice(0, x.indexOf('>', x.indexOf(m[0])) + 1))) x = x.replace(m[0], 'xmlns="' + MAIN_NS + '" ' + m[0])
+    zip[p] = strToU8(x)
+  }
+  return zip
+}
+
 export function analyze(buf) {
-  const zip = unzipSync(new Uint8Array(buf))
+  const zip = 이름표풀기(unzipSync(new Uint8Array(buf)))
   const has = (p) => Object.prototype.hasOwnProperty.call(zip, p)
   if (!has('xl/workbook.xml')) {
     throw new Error('엑셀 파일(xlsx)이 아닙니다. 구형 .xls 는 엑셀에서 «다른 이름으로 저장 → xlsx» 한 뒤 올려 주십시오.')
@@ -325,7 +360,7 @@ export function convert(buf, opts) {
     skipEmpty = true,          /* 빈 행은 벌리지 않습니다 */
   } = opts || {}
 
-  const zip = unzipSync(new Uint8Array(buf))
+  const zip = 이름표풀기(unzipSync(new Uint8Array(buf)))   /* 🇰🇷 G377 한셀 이름표 */
   /* 🩹 G327 공유수식은 먼저 풉니다 — 따라가는 칸이 값만 남지 않게 */
   for (const p of Object.keys(zip)) {
     if (!/^xl\/worksheets\/[^/]+\.xml$/.test(p)) continue
@@ -613,7 +648,9 @@ function convertSheet(xml, o, styler) {
         }
       }
 
-      outRows.push(`${newOpen}${newCells.join('')}</row>`)
+      /* 🩹 G377 (2026-10-22) 빈 줄이 «<row … />» (닫힌 꼴)로 적힌 시트 — 전에는 그 뒤에 «</row>» 를 또 붙여 XML 이 깨졌습니다
+         (실제 설계내역서 30부 중에서 나옴 — 엑셀은 «내용에 문제가 있다» 며 고치고 줄을 버림). 닫힌 꼴이면 여는 꼴로 바꿔 씁니다. */
+      outRows.push(`${selfClose ? newOpen.replace(/\s*\/>$/, '>') : newOpen}${newCells.join('')}</row>`)
       made++
     }
   }
@@ -661,6 +698,22 @@ function rewriteFormula(cInner, ctx) {
     if (!dup.has(r)) return mapBase(r)
     return mapBase(r) + k
   }
+  /* 🩹 G377 (2026-10-22) 배열 수식(<f t="array" ref="F3">)은 «배열» 표시와 ref 를 그 줄로 옮겨 남깁니다.
+     전에는 <f> 로만 다시 써 보통 수식이 되어 =시트!AA12:AE12 같은 가로 범위가 #VALUE! 가 됐습니다(실제 설계예산내역서 총액 칸 · 2억 원이 #VALUE!). */
+  const nr = dup.has(srcRow) ? mapBase(srcRow) + k : mapBase(srcRow)
+  const 새f = (nf) => {
+    let at = ''
+    if (/\st="array"/.test(fAttrs)) {
+      const 태그 = '<f' + fAttrs.replace(/\/$/, '') + '>'
+      const rf = attr(태그, 'ref') || ''
+      const d = nr - srcRow
+      const nrf = rf.replace(/([A-Za-z]{1,3})(\d+)/g, (_, c, r) => c + (+r + d))
+      at = ' t="array"' + (nrf ? ` ref="${nrf}"` : '')
+      const aca = attr(태그, 'aca')
+      if (aca) at += ` aca="${aca}"`
+    }
+    return cInner.replace(/<f\b[^>]*(?:\/>|>[\s\S]*?<\/f>)/, `<f${at}>${esc(nf)}</f>`)
+  }
   /* 다른 시트를 가리키는 참조 — «같은 줄끼리» 짝을 맞춥니다.
      당초 줄은 상대의 당초 줄을, 변경 줄은 상대의 변경 줄을 봅니다.
      안 벌린 시트면 null 을 돌려 손대지 않습니다. */
@@ -688,11 +741,11 @@ function rewriteFormula(cInner, ctx) {
         const L = labelCol.toUpperCase()
         const word = labels[k] || labels[0]
         const nf = 줄합식({ dup }, r1, r2, word, labels, gs, `${c1}${n1}:${c2}${n2}`, `$${L}$${n1}:$${L}$${n2}`)
-        return cInner.replace(/<f\b[^>]*(?:\/>|>[\s\S]*?<\/f>)/, `<f>${esc(nf)}</f>`)
+        return 새f(nf)
       }
       warns.push({ ref, msg: `합계가 당초·변경을 모두 더합니다 — 라벨 열을 지정하면 줄별로 갈라 드립니다 (${plain})` })
       const nf = `SUM(${c1}${n1}:${c2}${n2})`
-      return cInner.replace(/<f\b[^>]*(?:\/>|>[\s\S]*?<\/f>)/, `<f>${esc(nf)}</f>`)
+      return 새f(nf)
     }
   }
 
@@ -704,7 +757,7 @@ function rewriteFormula(cInner, ctx) {
   let nf = mapFormulaRows(t1, mapRow, sheetRow)
   nf = nf.replace(/"§(\d+)§"/g, (_, n) => o.holes[+n])
   /* 공유수식은 풀어서 보통 수식으로 저장합니다 (원본 si/ref 를 버립니다) */
-  return cInner.replace(/<f\b[^>]*(?:\/>|>[\s\S]*?<\/f>)/, `<f>${esc(nf)}</f>`)
+  return 새f(nf)
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -781,6 +834,44 @@ export function sumInside(f, o) {
       out += f.slice(i, j); i = j; continue
     }
     const prev = i > 0 ? f[i - 1] : ''
+    /* 🩹 G377 (2026-10-22) COUNTIF · COUNTIFS · SUMIFS — 범위가 벌린 행을 품으면 «라벨 열 = 이 줄» 조건을 하나 더 붙입니다.
+       실제 설계내역서: 총괄표 «세부항목수» =COUNTIF('공종별 내역서'!$B$4:$B$754,B10) 가 벌린 뒤 두 배(48 → 96)로 셌습니다(전엔 «손으로 확인» 알림만). */
+    const ifsm = !/[A-Za-z0-9_.$!]/.test(prev) && /^(COUNTIFS?|SUMIFS)\(/i.exec(f.slice(i, i + 9))
+    if (ifsm && o.mapText) {
+      const fn = ifsm[1].toUpperCase()
+      const a = splitArgs(f, i + fn.length + 1)
+      const t = a ? a.args.map(([x, y]) => f.slice(x, y).trim()) : []
+      /* 범위 자리: COUNTIF = 0 · COUNTIFS = 0,2,4… · SUMIFS = 0(합), 1,3,5… */
+      const 범위자리 = fn === 'COUNTIF' ? (t.length === 2 ? [0] : null)
+        : fn === 'COUNTIFS' ? (t.length >= 2 && t.length % 2 === 0 ? t.map((_, k) => k).filter((k) => k % 2 === 0) : null)
+          : (t.length >= 3 && t.length % 2 === 1 ? t.map((_, k) => k).filter((k) => k === 0 || k % 2 === 1) : null)
+      if (a && 범위자리) {
+        const ms = 범위자리.map((k) => RANGE_SCAN.exec(t[k]))
+        const 다범위 = ms.every((m, j) => m && m[0].length === t[범위자리[j]].length)
+        const pl = 다범위 ? 범위계획(ms[0], o) : null
+        const r1 = 다범위 ? +ms[0][5] : 0, r2 = 다범위 ? +ms[0][9] : 0
+        const 같은줄 = 다범위 && ms.every((m) => 범위계획(m, o) === pl && +m[5] === r1 && +m[9] === r2 && m[3].toUpperCase() === m[7].toUpperCase())
+        if (pl && pl.labelCol && 같은줄 && 범위품음(pl, r1, r2)) {
+          const word = o.isDup ? (o.labels[o.k] || o.labels[0]) : o.labels[0]
+          const L = pl.labelCol.toUpperCase()
+          const n1 = pl.mapBase(r1), n2 = pl.mapBase(r2) + (pl.dup.has(r2) ? o.gs - 1 : 0)
+          const rg = (m) => `${m[1] ? m[1] + '!' : ''}${m[2]}${m[3]}${m[4]}${n1}:${m[6]}${m[7]}${m[8]}${n2}`
+          const p = ms[0][1] ? ms[0][1] + '!' : ''
+          const labR = `${p}$${L}$${n1}:$${L}$${n2}`
+          const 새인자 = t.map((x, k) => { const j = 범위자리.indexOf(k); return j >= 0 ? rg(ms[j]) : o.mapText(x) }).join(',')
+          let 모두 = r2 - r1 <= 100000
+          if (모두) for (let r = r1; r <= r2; r++) if (!pl.dup.has(r)) { 모두 = false; break }
+          const others = o.labels.slice(0, o.gs).filter((w) => w !== word)
+          let 식
+          if (fn === 'SUMIFS') 식 = 모두 ? `SUMIFS(${새인자},${labR},"${word}")` : '(' + `SUMIFS(${새인자})` + others.map((w) => `-SUMIFS(${새인자},${labR},"${w}")`).join('') + ')'
+          else 식 = 모두 ? `COUNTIFS(${새인자},${labR},"${word}")` : '(' + `${fn}(${새인자})` + others.map((w) => `-COUNTIFS(${새인자},${labR},"${w}")`).join('') + ')'
+          o.holes.push(식)
+          out += `"§${o.holes.length - 1}§"`
+          i = a.end + 1
+          continue
+        }
+      }
+    }
     /* SUMIF(조건범위, 조건, 합범위) — 범위가 벌린 행을 품으면 SUMIFS(…, 라벨 열, "당초") 로
        (원가계산서 A값 =SUMIF($D$3:$D$22,"O",$B$3:$B$22) · 관급 =SUMIF(내역서!N:N,"관급",…) 같은 것) */
     const ifm = !/[A-Za-z0-9_.$!]/.test(prev) && /^SUMIF\(/i.exec(f.slice(i, i + 6))
@@ -972,6 +1063,19 @@ function fixMerges(xml, dup, mapBase, gs) {
     }
     const n1 = mapBase(r1)
     const n2 = mapBase(r2) + (dup.has(r2) ? gs - 1 : 0)
+    /* 🩹 G378 (2026-10-22) — 품목 «자기» 세로 병합(그 품목 줄 + 아래 빈 줄 — 칸을 두 줄 높이로 보이게 한 꼴)은
+         벌린 줄마다 따로 둡니다. 전엔 당초 · 변경을 한 병합으로 덮어 «변경» 줄 값이 병합 안에 숨었습니다
+         (실측: 산림 설계내역서 총괄 — 모든 품목이 두 줄 세로 병합). 당초(· 변경)는 한 줄, 마지막 줄이 아래 빈 줄까지 병합.
+         여러 품목을 덮는 병합(공종 이름을 세로로 합친 것)은 전처럼 늘립니다. */
+    if (r2 > r1 && dup.has(r1)) {
+      let 벌린 = 0
+      for (let r = r1; r <= r2; r++) if (dup.has(r)) 벌린++
+      if (벌린 === 1) {
+        for (let k = 0; k < gs - 1; k++) if (m[1] !== m[3]) out.push(`<mergeCell ref="${m[1]}${n1 + k}:${m[3]}${n1 + k}"/>`)
+        out.push(`<mergeCell ref="${m[1]}${n1 + gs - 1}:${m[3]}${n2}"/>`)
+        continue
+      }
+    }
     out.push(`<mergeCell ref="${m[1]}${n1}:${m[3]}${n2}"/>`)
   }
   return xml.slice(0, blk.start) + `<mergeCells count="${out.length}">${out.join('')}</mergeCells>` + xml.slice(blk.end)
@@ -1074,10 +1178,23 @@ export function suggestLabelCol(zip, path, from, to, maxCol = 16) {
   for (const row of g.rows) row.cells.forEach((v, i) => { if (String(v).trim()) used[i]++ })
   let lastUsed = 0
   used.forEach((n, i) => { if (n) lastUsed = i + 1 })
+  /* 🩹 G378 (2026-10-22) — 자료 구간에서 «가로로 병합된» 칸은 빼고 고릅니다.
+       병합 칸 안(맨 왼쪽이 아닌 칸)에 쓴 «당초 · 변경» 은 엑셀 · 한셀에서 안 보이고, 맨 왼쪽 칸이면 글이 옆 칸까지 퍼집니다
+       (실측: 내역 시트 없이 갑지 · 원가계산서만 든 실제 설계내역서 — 첫 시트 갑지가 골라져 라벨이 모두 병합 칸 안에 들어감). */
+  const 덮인 = new Set()
+  if (zip[path]) {
+    const mx = strFromU8(zip[path])
+    const re = /<mergeCell\b[^>]*\bref="\$?([A-Z]{1,3})\$?(\d+):\$?([A-Z]{1,3})\$?(\d+)"/g
+    let m
+    while ((m = re.exec(mx))) {
+      const c1 = colToNum(m[1]), c2 = colToNum(m[3]), r1 = +m[2], r2 = +m[4]
+      if (c2 > c1 && Math.max(r1, from) <= Math.min(r2, to)) for (let c = c1; c <= c2; c++) 덮인.add(c - 1)
+    }
+  }
   /* ① 자료 구간 안에서 비어 있고, «시트 어디에도» 안 쓰인 칸 */
-  for (let i = 0; i < lastUsed; i++) if (used[i] === 0 && everUsed[i] === 0) return numToCol(i + 1)
+  for (let i = 0; i < lastUsed; i++) if (used[i] === 0 && everUsed[i] === 0 && !덮인.has(i)) return numToCol(i + 1)
   /* ② 없으면 시트 전체에서 처음으로 비어 있는 칸 */
-  for (let i = lastUsed; i < WIDE_COL; i++) if (!everUsed[i]) return numToCol(i + 1)
+  for (let i = lastUsed; i < WIDE_COL; i++) if (!everUsed[i] && !덮인.has(i)) return numToCol(i + 1)
   return numToCol(WIDE_COL)
 }
 

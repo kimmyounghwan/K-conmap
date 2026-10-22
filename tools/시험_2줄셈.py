@@ -317,6 +317,175 @@ if rC:
     봄("C 조건부 서식 남음(전기)", len(e.conditional_formatting) > 0)
     봄("C 숫자 꼴 #,##0 남음", t["M4"].number_format == "#,##0", t["M4"].number_format)
 
+# ── 🔒 실제 설계내역서 30부에서 찾아 고친 셋 잠금(G377 · 2026-10-22) — 같은 꼴을 작게 지어 다시 안 틀리게 ─────────────
+print("■ 고친 셋 잠금(실제 내역서에서 찾은 꼴)")
+import re as _re
+import zipfile as _zf
+from xml.etree import ElementTree as _ET
+
+
+def XML온전(p):
+    bad = []
+    with _zf.ZipFile(p) as z:
+        for n in z.namelist():
+            if n.endswith(".xml") or n.endswith(".rels"):
+                try:
+                    _ET.fromstring(z.read(n))
+                except _ET.ParseError as e:
+                    bad.append(f"{n}: {e}")
+    return bad
+
+
+def 고쳐쓰기(src, dst, 고침):
+    with _zf.ZipFile(src) as zi, _zf.ZipFile(dst, "w", _zf.ZIP_DEFLATED) as zo:
+        for it in zi.infolist():
+            b = zi.read(it.filename)
+            if it.filename in 고침:
+                b = 고침[it.filename](b.decode("utf-8")).encode("utf-8")
+            zo.writestr(it, b)
+
+
+A0 = os.path.join(곳, "잠금_A.xlsx")
+짓기A(A0)
+# ① 빈 줄이 닫힌 꼴 <row … /> — 전엔 뒤에 </row> 를 또 붙여 XML 이 깨졌음
+A1 = os.path.join(곳, "잠금_빈줄.xlsx")
+고쳐쓰기(A0, A1, {"xl/worksheets/sheet1.xml": lambda x: x.replace("</sheetData>", '<row r="13" ht="9" customHeight="1"/></sheetData>', 1)})
+out1 = os.path.join(곳, "잠금_빈줄_2줄.xlsx")
+봄("닫힌 빈 줄 <row/> 있는 내역서 바꾸기", "err" not in 바꾸기(A1, out1, 2, ["내역서", "원가계산서"]))
+봄("닫힌 빈 줄 — 바꾼 파일 XML 온전", not XML온전(out1), XML온전(out1))
+# ② 한셀 꼴 — 본 이름공간에 x: 이름표 + 글꼴 · 셀서식 mc:AlternateContent(hs)
+MAIN = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+
+
+def 이름표달기(x):
+    x = _re.sub(r"<(/?)(?![?!])([A-Za-z][\w]*)(?=[\s/>])", r"<\1x:\2", x)
+    return x.replace(f'xmlns="{MAIN}"', f'xmlns:x="{MAIN}"', 1)
+
+
+def 한셀글꼴(x):
+    x = 이름표달기(x)
+    m = _re.search(r"<x:font>[\s\S]*?</x:font>", x)
+    f0 = m.group(0)
+    choice = f0.replace("<x:font>", '<x:font hs:extension="1">', 1).replace("</x:font>", '<hs:size val="100"/></x:font>')
+    alt = ('<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:hs="http://schemas.haansoft.com/office/spreadsheet/8.0">'
+           f'<mc:Choice Requires="hs">{choice}</mc:Choice><mc:Fallback>{f0}</mc:Fallback></mc:AlternateContent>')
+    x = x.replace(f0, alt, 1)
+    m2 = _re.search(r"<x:cellXfs[^>]*>(<x:xf\b[^>]*?(?:/>|>[\s\S]*?</x:xf>))", x)
+    xf0 = m2.group(1)
+    xfc = _re.sub(r"<x:xf\b", '<x:xf hs:applyExtension="1"', xf0, 1)
+    alt2 = ('<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:hs="http://schemas.haansoft.com/office/spreadsheet/8.0">'
+            f'<mc:Choice Requires="hs">{xfc}</mc:Choice><mc:Fallback>{xf0}</mc:Fallback></mc:AlternateContent>')
+    return x.replace(xf0, alt2, 1)
+
+
+A2 = os.path.join(곳, "잠금_한셀.xlsx")
+with _zf.ZipFile(A0) as z:
+    부분 = [n for n in z.namelist() if _re.match(r"xl/(workbook|styles|sharedStrings|worksheets/sheet\d+)\.xml$", n)]
+고쳐쓰기(A0, A2, {n: (한셀글꼴 if n == "xl/styles.xml" else 이름표달기) for n in 부분})
+T한 = 셈(A2, "한셀_원")
+out2 = os.path.join(곳, "잠금_한셀_2줄.xlsx")
+r2 = 바꾸기(A2, out2, 2, ["내역서", "원가계산서"])
+봄("한셀 꼴(x: 이름표 · AlternateContent) 내역서 바꾸기 — 전엔 시트 0개", "err" not in r2 and r2.get("고른") == 2, r2)
+봄("한셀 꼴 — 바꾼 파일 XML 온전(hs 이름표 · 글꼴 번호)", not XML온전(out2), XML온전(out2))
+S한 = 셈(out2, "한셀_2줄")
+ws_, lc_ = S한["내역서"], 라벨열(S한["내역서"])
+r당 = 줄찾기(ws_, "B", "합    계", "당초", lc_)
+봄("한셀 꼴 — 다시 셈 당초 합계 = 원본", r당 is not None and 같다(ws_[f"M{r당}"].value, T한["내역서"]["M11"].value), (r당 and ws_[f"M{r당}"].value, T한["내역서"]["M11"].value))
+# ③ 안 고른 시트의 COUNTIF(벌린 범위) — 전엔 두 배(48 → 96)
+A3 = os.path.join(곳, "잠금_셈수.xlsx")
+wb_ = openpyxl.load_workbook(A0)
+wb_["원가계산서"].append(["품목 수(㎥)", '=COUNTIF(내역서!$D$4:$D$9,"㎥")'])
+wb_["원가계산서"].append(["㎥ 금액", '=SUMIFS(내역서!$M$4:$M$9,내역서!$D$4:$D$9,"㎥")'])
+wb_.save(A3)
+T셈 = 셈(A3, "셈수_원")
+out3 = os.path.join(곳, "잠금_셈수_2줄.xlsx")
+봄("COUNTIF · SUMIFS 든 원가계산서(안 고름) 바꾸기", "err" not in 바꾸기(A3, out3, 2, ["내역서"]))
+S셈 = 셈(out3, "셈수_2줄")
+봄("안 고른 시트 COUNTIF = 원본(2 — 두 배 아님)", 같다(S셈["원가계산서"]["B8"].value, T셈["원가계산서"]["B8"].value), (S셈["원가계산서"]["B8"].value, T셈["원가계산서"]["B8"].value))
+봄("안 고른 시트 SUMIFS = 원본", 같다(S셈["원가계산서"]["B9"].value, T셈["원가계산서"]["B9"].value), (S셈["원가계산서"]["B9"].value, T셈["원가계산서"]["B9"].value))
+
+# ④ 배열 수식(<f t="array">) — 전엔 보통 수식으로 다시 써 가로 범위가 #VALUE!(실제 설계예산내역서 총액 칸)
+A4 = os.path.join(곳, "잠금_배열.xlsx")
+wb_ = openpyxl.load_workbook(A0)
+wb_["원가계산서"]["D1"] = 777
+wb_["원가계산서"]["E1"] = 888
+wb_.save(A4)
+고쳐쓰기(A4, A4 + ".x.xlsx", {"xl/worksheets/sheet1.xml": lambda x: _re.sub(r'<c r="N4"[^>]*/>|<c r="N4"[^>]*>[\s\S]*?</c>', '', x).replace(
+    '<c r="M4"', '<c r="N4" t="n"><f t="array" ref="N4">원가계산서!D1:E1</f><v>777</v></c><c r="M4"', 1) if '<c r="M4"' in x else x})
+# 열 차례(M 앞에 N)가 어긋나지 않게 M 칸 뒤로 옮김
+고쳐쓰기(A4 + ".x.xlsx", A4, {"xl/worksheets/sheet1.xml": lambda x: _re.sub(r'(<c r="N4" t="n"><f t="array" ref="N4">[^<]*</f><v>777</v></c>)(<c r="M4"[^>]*?(?:/>|>[\s\S]*?</c>))', r'\2\1', x)})
+out4 = os.path.join(곳, "잠금_배열_2줄.xlsx")
+봄("배열 수식 든 내역서 바꾸기", "err" not in 바꾸기(A4, out4, 2, ["내역서", "원가계산서"]))
+with _zf.ZipFile(out4) as z:
+    x4 = z.read("xl/worksheets/sheet1.xml").decode("utf-8")
+배열들 = _re.findall(r'<f t="array" ref="N(\d+)">([^<]*)</f>', x4)
+봄("배열 수식은 «배열» 표시와 ref 를 그 줄로 옮겨 남김(당초 · 변경 두 칸)", len(배열들) == 2 and all(r != "4" or True for r, _ in 배열들), 배열들)
+S4 = 셈(out4, "배열_2줄")
+값들 = [S4["내역서"][f"N{r}"].value for r, _ in 배열들]
+봄("배열 수식 다시 셈 = 777 (#VALUE! 아님)", 값들 and all(같다(v, 777) for v in 값들), 값들)
+
+# ⑤ 🩹 G378 — 라벨 칸을 «가로 병합» 안에 고르지 않음(실제 설계내역서: 내역 시트 없이 갑지만 — 라벨이 병합 칸 안에 숨어 안 보였음)
+A5 = os.path.join(곳, "잠금_병합.xlsx")
+wb_ = openpyxl.load_workbook(A0)
+wb_["내역서"].merge_cells("N4:P4")          # 자료 줄에 비고 칸부터 옆 빈 칸까지 병합 — 전엔 O(병합 안)가 라벨 칸
+wb_["내역서"].merge_cells("N9:Q9")
+wb_.save(A5)
+out5 = os.path.join(곳, "잠금_병합_2줄.xlsx")
+r5 = 바꾸기(A5, out5, 2, ["내역서"])
+봄("가로 병합 든 내역서 바꾸기", "err" not in r5, r5)
+S5 = 셈(out5, "병합_2줄")
+ws5 = S5["내역서"]
+lc5 = 라벨열(ws5)
+덮인5 = set()
+for 범 in ws5.merged_cells.ranges:
+    if 범.max_col > 범.min_col:
+        for c in range(범.min_col, 범.max_col + 1):
+            덮인5.add(openpyxl.utils.get_column_letter(c))
+당5 = sum(1 for r in range(1, ws5.max_row + 1) if lc5 and ws5[f"{lc5}{r}"].value == "당초")
+변5 = sum(1 for r in range(1, ws5.max_row + 1) if lc5 and ws5[f"{lc5}{r}"].value == "변경")
+봄("라벨 칸이 병합 밖(N:Q 아님 — 전엔 O)", lc5 is not None and lc5 not in 덮인5 and lc5 not in "NOPQ", (lc5, sorted(덮인5)))
+봄("병합 든 내역서 — 다시 셈 뒤에도 «당초 · 변경» 라벨이 다 보임(같은 수)", 당5 == 변5 and 당5 >= 6, (당5, 변5))
+
+# ⑥ 🩹 G378 — 품목마다 «두 줄 세로 병합»(품목 줄 + 아래 빈 줄) 인 내역서(실제 산림 설계내역서 총괄 꼴)
+#     전엔 병합을 당초 · 변경 둘 다 덮게 늘려 «변경» 줄 값이 병합 안에 숨었음(엑셀에서 빈칸으로 보임)
+for 줄수 in (2, 3):
+    A6 = os.path.join(곳, f"잠금_두줄병합.xlsx")
+    wb_ = openpyxl.Workbook()
+    w6 = wb_.active
+    w6.title = "내역서"
+    w6.append(["가상 숲가꾸기 — 설계내역서(총괄)"])
+    w6.append(["구분", None, "수량", "단위", "단가", "금액"])
+    품목 = [("가상 솎아베기", 20, "ha", 1500000), ("가상 산물수집", 3.2, "ha", 820000), ("가상 작업로", 310, "m", 12000)]
+    for i, (이, 수, 단, 가) in enumerate(품목):
+        r = 3 + i * 2
+        w6[f"A{r}"] = 이; w6[f"C{r}"] = 수; w6[f"D{r}"] = 단; w6[f"E{r}"] = 가; w6[f"F{r}"] = f"=C{r}*E{r}"
+        for a, b in (("A", "B"), ("C", "C"), ("D", "D"), ("E", "E"), ("F", "F")):
+            w6.merge_cells(f"{a}{r}:{b}{r + 1}")
+    끝6 = 3 + len(품목) * 2
+    w6[f"A{끝6}"] = "합    계"
+    w6[f"F{끝6}"] = f"=SUM(F3:F{끝6 - 1})"
+    wb_.save(A6)
+    T6 = 셈(A6, f"두줄병합_원{줄수}")
+    out6 = os.path.join(곳, f"잠금_두줄병합_{줄수}줄.xlsx")
+    r6 = 바꾸기(A6, out6, 줄수, ["내역서"])
+    봄(f"두 줄 세로 병합 내역서 {줄수}줄 바꾸기", "err" not in r6, r6)
+    봄(f"두 줄 세로 병합 {줄수}줄 — XML 온전", not XML온전(out6), XML온전(out6))
+    S6 = 셈(out6, f"두줄병합_{줄수}줄")
+    ws6 = S6["내역서"]
+    lc6 = 라벨열(ws6)
+    보임 = {"당초": [], "변경": [], "증감": []}
+    for r in range(1, ws6.max_row + 1):
+        lab = ws6[f"{lc6}{r}"].value if lc6 else None
+        if lab in 보임 and str(ws6[f"A{r}"].value or "").strip() != "합    계" and not (lab != "당초" and str(ws6[f"A{r - 1}"].value or "").strip() == "합    계") and not (lab == "증감" and str(ws6[f"A{r - 2}"].value or "").strip() == "합    계"):
+            보임[lab].append((ws6[f"A{r}"].value, ws6[f"C{r}"].value, ws6[f"F{r}"].value))
+    원값 = [(이, 수, T6["내역서"][f"F{3 + i * 2}"].value) for i, (이, 수, 단, 가) in enumerate(품목)]
+    봄(f"두 줄 세로 병합 {줄수}줄 — 다시 셈 뒤 «당초» 줄 품명 · 수량 · 금액 = 원본", [(a, b, round(c or 0)) for a, b, c in 보임["당초"]] == [(a, b, round(c)) for a, b, c in 원값], 보임["당초"])
+    봄(f"두 줄 세로 병합 {줄수}줄 — «변경» 줄 값이 병합에 안 숨음(품명 · 수량 · 금액 보임 — 전엔 빈칸)", [(b, round(c or 0)) for a, b, c in 보임["변경"]] == [(b, round(c)) for a, b, c in 원값], 보임["변경"])
+    if 줄수 == 3:
+        봄("두 줄 세로 병합 3줄 — «증감» 줄 금액 0", len(보임["증감"]) == 3 and all(abs(c or 0) < 0.5 for a, b, c in 보임["증감"]), 보임["증감"])
+    합줄 = next((r for r in range(1, ws6.max_row + 1) if str(ws6[f"A{r}"].value or "").strip() == "합    계" and ws6[f"{lc6}{r}"].value == "당초"), None)
+    봄(f"두 줄 세로 병합 {줄수}줄 — 당초 합계 = 원본 합계", 합줄 is not None and 같다(ws6[f"F{합줄}"].value, T6["내역서"][f"F{끝6}"].value), (합줄 and ws6[f"F{합줄}"].value, T6["내역서"][f"F{끝6}"].value))
+
 shutil.rmtree(곳, ignore_errors=True)
 print("\n%s 2줄 다시 셈 시험 %d개 중 %d 맞음 · %d 틀림" % ("❌" if 실패 else "✅", 통과 + 실패, 통과, 실패))
 sys.exit(1 if 실패 else 0)

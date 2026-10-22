@@ -25,16 +25,9 @@ import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { 세기 } from '../lib/받은수.jsx'   /* 🔢 G377 쓴 횟수 — |2줄|2줄 · |2줄|3줄 · |2줄|xlsm · |2줄|멈춤 (받은 것은 받은수가 따로 셈) */
 const LABELS = ['당초', '변경', '증감']
 /* 🩹 G377 (2026-10-22) 매크로 든 내역서(.xlsm)를 «_2줄.xlsx» 로 내보내면 엑셀이 «파일 형식 또는 확장명이 잘못되었다» 며 안 엽니다
-   (안의 통합 문서 종류는 그대로 «매크로 사용» 이라 이름과 안이 어긋남). 안을 보고 같은 확장자 · 종류로 내보냅니다. */
-const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-const XLSM = 'application/vnd.ms-excel.sheet.macroEnabled.12'
-function 매크로인가(zip, 이름 = '') {
-  try {
-    const ct = zip && zip['[Content_Types].xml'] ? new TextDecoder().decode(zip['[Content_Types].xml']) : ''
-    if (ct) return /macroEnabled\.main\+xml/i.test(ct)
-  } catch { /* 이름으로 */ }
-  return /\.xlsm$/i.test(이름)
-}
+   (안의 통합 문서 종류는 그대로 «매크로 사용» 이라 이름과 안이 어긋남). 안을 보고 같은 확장자 · 종류로 내보냅니다.
+   G378 — 80% 비율도 같은 꼴이라 lib/엑셀종류.js 한 곳으로 옮김 */
+import { XLSX, XLSM, 매크로인가 } from '../lib/엑셀종류.js'
 
 function fmt(n) { return new Intl.NumberFormat('ko-KR').format(n) }
 

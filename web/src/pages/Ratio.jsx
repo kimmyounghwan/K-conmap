@@ -31,6 +31,7 @@ import { 세기 } from '../lib/받은수.jsx'   /* 🏷 G169 */
 
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { 요율불러오기 } from '../tools/제비율칸.jsx'
+import { XLSX, 엑셀종류 } from '../lib/엑셀종류.js'   /* 🩹 G378 .xlsm 은 .xlsm 으로 */
 const fmt = (n) => new Intl.NumberFormat('ko-KR').format(Math.round(n || 0))
 const pct = (r) => (Math.round(r * 1000000) / 10000).toLocaleString('ko-KR') + '%'
 const kb = (n) => new Intl.NumberFormat('ko-KR').format(Math.round(n / 1024))
@@ -144,11 +145,14 @@ export default function Ratio() {
     setOut(null)
     await new Promise((r) => setTimeout(r, 40))
     try {
-      let bytes, name, 말 = []
+      let bytes, name, 말 = [], 종류 = XLSX
       if (어느 === '원본') {
         const got = lib.원본고치기(file.buf, 읽은, R)
         bytes = got.bytes
-        name = file.name.replace(/\.(xlsx|xlsm)$/i, '') + '_' + (Math.round(R.비율 * 10000) / 100) + '%.xlsx'
+        /* 🩹 G378 — 매크로 든 내역서(.xlsm)는 .xlsm 으로(안의 종류 그대로 · .xlsx 로 내면 엑셀이 안 엶) */
+        const 꼴 = 엑셀종류(file.buf, file.name)
+        종류 = 꼴.type
+        name = file.name.replace(/\.(xlsx|xlsm)$/i, '') + '_' + (Math.round(R.비율 * 10000) / 100) + '%.' + 꼴.끝
         말 = [
           ['⭐ 「' + got.비율시트 + '」 시트가 붙었습니다',
             '그 시트의 노란 칸(B2)에 숫자만 고치시면 — 80 이면 80% — 내역서가 «그 자리에서» 다시 셈됩니다. ' +
@@ -194,9 +198,7 @@ export default function Ratio() {
           ...(R.관급줄 ? [['🏛 관급자재', fmt(R.관급줄) + '줄 · ' + fmt(R.관급합) + '원은 그대로 — 내역서 «관급» 칸 · 원가계산서 «관급자재비»(도급액 밖)']] : []),
         ]
       }
-      const url = URL.createObjectURL(new Blob([bytes], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      }))
+      const url = URL.createObjectURL(new Blob([bytes], { type: 종류 }))
       setOut({ url, name, 말 })
       try { askAfter('biyul') } catch (e) { /* 사생활 보호 모드 */ }
     } catch (e) {
@@ -223,7 +225,8 @@ export default function Ratio() {
         낙찰금액: 낙찰, 비율: 모드 === '낙찰' ? 0 : R.비율 * 100,
       })
       const 밑 = file.name.replace(/\.(xlsx|xlsm)$/i, '')
-      const name = 모드 === '낙찰' ? 밑 + '_낙찰' + 낙찰 + '원.xlsx' : 밑 + '_' + (Math.round(got.비율 * 10000) / 100) + '%_그대로.xlsx'
+      const 꼴 = 엑셀종류(file.buf, file.name)      /* 🩹 G378 — .xlsm 은 .xlsm 으로 */
+      const name = 모드 === '낙찰' ? 밑 + '_낙찰' + 낙찰 + '원.' + 꼴.끝 : 밑 + '_' + (Math.round(got.비율 * 10000) / 100) + '%_그대로.' + 꼴.끝
       const 말 = []
       if (got.낙) {
         말.push(['도급액', fmt(got.낙.당초도급액) + '원 → ' + fmt(got.낙.도급액) + '원' + (got.낙.도급액 === 낙찰 ? ' — 낙찰금액과 딱 맞습니다' : ' — 낙찰금액과 ' + fmt(낙찰 - got.낙.도급액) + '원 다릅니다')])
@@ -235,7 +238,7 @@ export default function Ratio() {
       if (!got.원가시트) 말.push(['⚠️ 원가계산서', '원가계산서 시트(비목 · 금액)를 못 찾아 내역서만 고쳤습니다'])
       for (const w of got.경고.slice(0, 12)) 말.push(['⚠️ ' + w[0], w[1]])
       if (got.경고.length > 12) 말.push(['⚠️ 그 밖', fmt(got.경고.length - 12) + '건'])
-      const url = URL.createObjectURL(new Blob([got.bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+      const url = URL.createObjectURL(new Blob([got.bytes], { type: 꼴.type }))
       set틀({ url, name, 말, 원가줄: got.원가줄, 원가시트: got.원가시트 })
       try { 세기(모드 === '낙찰' ? '|비율|낙찰틀' : '|비율|틀그대로') } catch (e) { /* 지나갑니다 */ }
       try { askAfter('biyul') } catch (e) { /* 사생활 보호 모드 */ }
@@ -400,6 +403,14 @@ export default function Ratio() {
                 <b>수량 × 단가 ≠ 금액</b>인 줄이 {fmt(읽은.특수줄)}줄 있습니다 —
                 「공구손료 및 경장비의 기계경비」처럼 <b>수량 칸이 요율(%)</b>인 줄이거나 금액만 적힌 줄입니다.
                 그 줄은 다시 곱하지 않고 <b>금액에 바로</b> 비율을 곱했습니다.
+              </p>
+            )}
+            {/* 🔎 G378 — 원본 «합계» 칸이 재료비 + 노무비 + 경비와 다른 줄 */}
+            {읽은 && 읽은.합어긋 && 읽은.합어긋.length > 0 && (
+              <p className="note" style={{ margin: '0 0 6px', fontSize: 12.5, lineHeight: 1.8 }}>
+                ⚠️ 원본의 <b>«합계» 칸이 재료비 + 노무비 + 경비와 다른 줄</b>이 {fmt(읽은.합어긋.length)}줄 있습니다
+                ({읽은.합어긋.slice(0, 6).join(', ')}{읽은.합어긋.length > 6 ? ' …' : ''}) — 원본 합계 칸의 수식 · 값이 어긋난 것입니다.
+                새 값은 <b>셋을 더해</b> 만들므로 아래 «실제 비율» 이 넣으신 비율과 다르게 보일 수 있습니다. 엑셀에서 그 줄을 한 번 보십시오.
               </p>
             )}
             <div className="muted" style={{ fontSize: 12.5, lineHeight: 1.8 }}>
