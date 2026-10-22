@@ -3240,6 +3240,27 @@ def hadodocs_page(shell, image=None):
         '하도급 내역서 6장만은 <a href="/naeyeok/hado">하도급 내역서 만들기</a>, 82% · 64% 심사는 <a href="/tools/subcontract-check">하도급 적정성 판정</a>입니다.',
         "하도급 계약서류 한 벌")
 
+def safecard_page(shell, image=None):
+    """/tools/safecard — 🌏 현장 다국어 안전카드 (2026-10-22) — 화면 SafeCard.jsx · 문장 사전 web/src/lib/안전카드.js
+    소장님: 「현장 다국어 안전카드 … TBM, 안전수칙, 작업 지시를 중국어·베트남어·우즈벡어로 바로 바꿔 인쇄하게 … 이거 도구로 만들자.」"""
+    return _tool_page(shell, image, "/tools/safecard",
+        "현장 다국어 안전카드 — TBM · 안전수칙 · 작업 지시서를 중국어 · 베트남어 · 우즈벡어 · 러시아어로 | K-건설맵",
+        "외국인 건설근로자에게 작업 전 안전점검회의(TBM) · 안전수칙 · 작업 지시를 모국어로. 안전 문장 95가지 · 작업 31가지를 중국어(간체) · 베트남어 · 우즈벡어 · 러시아어 · 영어로 "
+        "미리 번역해 두고, 고른 문장을 한국어와 나란히 A4 종이로 인쇄합니다. 참석자 서명란 · 표지 꼴까지. 가입 없이 바로.",
+        "🌏 현장 다국어 안전카드 — TBM · 안전수칙 · 작업 지시",
+        ["문장을 고르면 <b>중국어(간체) · 베트남어 · 우즈벡어 · 러시아어 · 영어</b>가 한국어와 나란히 놓인 <b>A4 종이</b>로 바로 인쇄됩니다. 한 장에 세 가지 말까지.",
+         "외국인 건설근로자는 2024년 약 22만 5천 명 — 건설근로자 <b>7명 중 1명</b>입니다(고용노동부 · 건설근로자공제회). "
+         "기계 번역을 쓰지 않고, 미리 번역한 뒤 되번역으로 뜻을 확인한 문장만 씁니다. 직접 쓴 말은 번역하지 않고 «번역 안 됨» 이라고 적습니다."],
+        [("종이 세 가지", ["🗣 TBM 카드 — 오늘 작업 · 위험한 것과 지킬 것 · 보호구 확인 · 건강 확인 · 비상 연락 · 참석자 서명",
+                         "📌 안전수칙 — 목록 한 장, 또는 한 장에 하나 크게(표지 꼴 · 금지 · 주의 · 꼭 지키기 · 안내)",
+                         "📋 작업 지시서 — 오늘 작업 · 장소(동 · 층 · 구역을 말마다) · 시간 · 주의할 것 · 확인 서명"]),
+         ("문장 분류", ["보호구 · 추락 · 떨어지는 물건 · 장비 · 차량 · 크레인 · 양중 · 무너짐 · 전기 · 불 · 용접",
+                       "밀폐공간 · 질식(갈탄 보온 양생 일산화탄소) · 더위 · 추위 · 정리 · 통로 · 비상시 · 작업 지시 · 건강 확인 · 회의 진행"])],
+        '위험성평가 기록은 <a href="/tools/risk">위험성평가</a>, 회사 체계는 <a href="/tools/jungcheo">중대재해 안전보건관리체계</a>, '
+        '안전관리비는 <a href="/tools/sanan">산안비 계상기</a>입니다.',
+        "현장 다국어 안전카드", key="safecard")
+
+
 def photo_page(shell, image=None):
     """/tools/photo — 📷 사진대지 · 🧾 영수증 정리 (2026-09-30)
     소장님: imgsheet(사진대지 · 영수증) 캡처 → 「아이디어 더 해서 만들어줘. 프로그램으로」 — 화면 PhotoBook.jsx
@@ -3821,6 +3842,9 @@ def main():
     write("tools/jungcheo.html", jungcheo_page(shell,
           og.tab("tool-jungcheo", "중대재해 안전보건관리체계", "건설 도구", "서류 22가지 한 벌", "반기 점검 · 보고서까지") if og.available else None))
     print("  · 중대재해 안전보건관리체계 한 벌 페이지 1개 (/tools/jungcheo)")
+    write("tools/safecard.html", safecard_page(shell,
+          og.tab("tool-safecard", "현장 다국어 안전카드", "건설 도구", "TBM · 안전수칙 · 작업 지시", "중국어 · 베트남어 · 우즈벡어") if og.available else None))
+    print("  · 현장 다국어 안전카드 페이지 1개 (/tools/safecard)")
     write("tools/colorplan.html", colorplan_page(shell,
           og.tab("tool-colorplan", "컬러 평면도 · 피난 안내도", "건설 도구", "도면을 넣으면 저절로", "방 색 · 면적 · 비상구 길") if og.available else None))
     print("  · 컬러 평면도 · 피난 안내도 페이지 1개 (/tools/colorplan)")

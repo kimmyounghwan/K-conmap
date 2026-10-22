@@ -119,6 +119,7 @@ const Pdf = lazyPage(() => import('./pages/Pdf.jsx'))
 const PhotoBook = lazyPage(() => import('./pages/PhotoBook.jsx'))
 const SigongPlan = lazyPage(() => import('./pages/SigongPlan.jsx'))
 const Jungcheo = lazyPage(() => import('./pages/Jungcheo.jsx'))   /* 🛡 2026-10-17 중대재해 안전보건관리체계 한 벌(잠김 · 예시) */
+const SafeCard = lazyPage(() => import('./pages/SafeCard.jsx'))   /* 🌏 2026-10-22 현장 다국어 안전카드 */
 const ColorPlan = lazyPage(() => import('./pages/ColorPlan.jsx'))   /* 🎨 2026-10-17 컬러 평면도 · 피난 안내도(잠김 · 예시) */
 const CadFix = lazyPage(() => import('./pages/CadFix.jsx'))   /* 🛠 2026-10-17 캐드 버전 · 글꼴 고치기(잠김 · 예시) */
 const HadoDocs = lazyPage(() => import('./pages/HadoDocs.jsx'))   /* 🤝 2026-10-18 (G321) 하도급 계약서류 한 벌(잠김 · 예시 보기만) */
@@ -285,6 +286,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/tools/photo" element={<Suspense fallback={<Loading />}><PhotoBook /></Suspense>} />
           <Route path="/tools/sigong" element={<Suspense fallback={<Loading />}><SigongPlan /></Suspense>} />
           <Route path="/tools/jungcheo" element={<Suspense fallback={<Loading />}><Jungcheo /></Suspense>} />
+          <Route path="/tools/safecard" element={<Suspense fallback={<Loading />}><SafeCard /></Suspense>} />
           <Route path="/tools/colorplan" element={<Suspense fallback={<Loading />}><ColorPlan /></Suspense>} />
           <Route path="/tools/cadfix" element={<Suspense fallback={<Loading />}><CadFix /></Suspense>} />
           <Route path="/tools/hado-docs" element={<Suspense fallback={<Loading />}><HadoDocs /></Suspense>} />
