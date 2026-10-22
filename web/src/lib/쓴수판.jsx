@@ -20,7 +20,7 @@ const 자리표 = [
   ['/tools/jungcheo', ['|중처법']], ['/tools/safecard', ['|안전카드']], ['/tools/colorplan', ['|컬러평면']], ['/tools/cadfix', ['|캐드고침']], ['/tools/sigong', ['|시공계획']], ['/tools/nomubi', ['|노무비']], ['/tools/sajincad', ['|사진캐드']], ['/tools/hado-docs', ['|하도급서류']],
   ['/tools/dxf3d', ['|도면3d', '|3D활용', '|3D활용엑셀', '|3D활용탭']], ['/tools/earthcheck', ['|토공검산']], ['/tools/boheom-jeongsan', ['|보험정산']],
   ['/tools/wonclick', ['|원클릭']], ['/tools/gyeonjeok', ['|견적']], ['/jeoksan/bim', ['|BIM물량']], ['/jeoksan/magam', ['|마감']],
-  ['/jeoksan/golgo', ['|골조']], ['/jeoksan/auto', ['|적산자동']], ['/change/gisung', ['|기성']], ['/change/twoline', ['|2줄']], ['/change/won', ['|변경원내역']],
+  ['/jeoksan/golgo', ['|골조']], ['/jeoksan/auto', ['|적산자동']], ['/change/gisung', ['|기성']], ['/change/twoline', ['|2줄']], ['/change/won', ['|변경원내역']], ['/change/work', ['|작업대']], ['/naeyeok/ratio', ['|비율']],
   ['/naeyeok/hado', ['|하도급']], ['/analysis', ['|분석', '|자가진단', '|마감전공고']], ['/qna', ['|맵톡']], ['/my', ['|마이', '|명함']],
 ]
 const 딱자리 = { '/tools': ['|도구'], '/': ['|바로투찰', '|확보예가', '|금액고르기', '|지도', '|내조건', '|방문자'], '/calc': ['|바로투찰', '|확보예가', '|금액고르기'] }

@@ -14,6 +14,7 @@ import 두줄색, { 두줄색상태 } from '../tools/두줄색.jsx'
 import { Link } from 'react-router-dom'
 import { askAfter } from '../AskComment'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
+import { 세기 } from '../lib/받은수.jsx'   /* 🔢 G379 쓴 횟수 — |작업대|만듦 · |작업대|짝짓기 · |작업대|xls · |작업대|멈춤 */
 
 const 원 = (n) => (typeof n === 'number' && Number.isFinite(n) ? Math.round(n).toLocaleString('ko-KR') : '—')
 const 꼴맞음 = /\.(xlsx|xlsm|xls)$/i
@@ -35,8 +36,9 @@ export default function ChangeWork() {
 
   const 싣기 = async () => {
     if (lib) return lib
-    const [q, v] = await Promise.all([import('../lib/qtoxlsx.js'), import('../lib/변경내역.js')])
-    const m = { readWorkbook: q.readWorkbook, ...v }
+    /* 🩹 G379 — 1줄 내역서는 비율 도구 읽기(공종 머리 «1 식» · 요약표 · 합계 · 원가 줄을 품목에서 뺌)로 — 실제 설계내역서 110부에서 순공사비가 2~8배로 나오던 것 */
+    const [q, v, b, n] = await Promise.all([import('../lib/qtoxlsx.js'), import('../lib/변경내역.js'), import('../lib/비율.js'), import('../lib/낙찰맞추기.js')])
+    const m = { readWorkbook: q.readWorkbook, 비율읽기: b.격자로읽기, 원가표찾기: n.원가표찾기, ...v }
     setLib(m)
     return m
   }
@@ -53,8 +55,12 @@ export default function ChangeWork() {
       for (const f of 받을) {
         const buf = new Uint8Array(await f.arrayBuffer())
         try {
-          const 읽은 = m.파일읽기(m.readWorkbook(buf), f.name)
-          새.push({ id: ++번호.current, 이름: f.name, 크기: f.size, 읽은, 시트: 읽은.고른, 상태이름: '' })
+          const 책 = m.readWorkbook(buf)
+          const 읽은 = m.파일읽기(책, f.name, { 한줄보강: m.비율읽기 })
+          /* 🔎 G379 같은 파일의 원가계산서(있으면) — 읽은 노무비와 «직접노무비» 를 맞춰 봄 */
+          let 원가 = null
+          try { 원가 = m.원가표찾기(책, 읽은.시트들.filter((x) => !/원가/.test(x.시트)).map((x) => x.시트)) } catch { 원가 = null }   /* 원가계산서 시트도 «품목» 이 잡혀 시트 목록에 들 수 있어 — 이름에 «원가» 가 든 시트는 빼지 않음 */
+          새.push({ id: ++번호.current, 이름: f.name, 크기: f.size, 읽은, 시트: 읽은.고른, 상태이름: '', 원가 })
         } catch (e) {
           set오류(`${f.name} — ${e?.message || '읽지 못했습니다.'}`)
         }
@@ -131,7 +137,13 @@ export default function ChangeWork() {
       const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
       const base = 파일들.length === 1 ? 파일들[0].이름.replace(/\.(xlsx|xlsm|xls)$/i, '') : '설계변경'
       set결과({ url: URL.createObjectURL(blob), 이름: `${base}_작업대.xlsx`, 크기: bytes.length })
+      try {
+        세기('|작업대|만듦')
+        if (파일들.length > 1) 세기('|작업대|짝짓기')
+        if (파일들.some((f) => /\.xls$/i.test(f.이름))) 세기('|작업대|xls')
+      } catch { /* 지나갑니다 */ }
     } catch (e) {
+      try { 세기('|작업대|멈춤') } catch { /* 지나갑니다 */ }
       set오류(e?.message || '만들다가 멈췄습니다.')
     } finally { set바쁨('') }
   }
@@ -219,6 +231,14 @@ export default function ChangeWork() {
                     순공사비 {s.상태.map((st, k) => <span key={k}>{k ? ' · ' : ''}{s.상태.length > 1 ? st + ' ' : ''}<b>{원(합[k])}</b>원</span>)}
                     {s.별도 && s.별도.length > 0 && <><br />순공사비 밖으로 뺀 공종(관급자재 등): {s.별도.join(' · ')}</>}
                   </div>
+                  {(() => {
+                    const 대 = lib && lib.노무대조 ? lib.노무대조(s, f.원가) : null
+                    if (!대) return null
+                    return 대.다름
+                      ? <div className="cwarn" style={{ marginTop: 6 }}>⚠️ 읽은 노무비 <b>{원(대.읽은)}</b>원이 이 파일 원가계산서(«{대.원가시트}») 직접노무비 <b>{원(대.직노)}</b>원의 <b>{대.비 > 1 ? 대.비.toFixed(2) + '배' : Math.round(대.비 * 100) + '%'}</b>{대.비 > 1 ? '입니다' : '뿐입니다'} —
+                          공종 머리 줄(«1 식» 처럼 적힌 합계 줄)이 품목으로 들어갔거나 다른 시트가 섞였을 수 있습니다. 위 시트를 바꿔 보시거나 아래 «손으로 확인하실 곳» 을 보십시오.</div>
+                      : <div className="muted" style={{ marginTop: 4, fontSize: 12.5 }}>✓ 읽은 노무비가 원가계산서 직접노무비 {원(대.직노)}원과 맞습니다{Math.abs(대.비 - 1) > 0.0005 ? ` (${(Math.abs(대.비 - 1) * 100).toFixed(1)}% 차이 — 제비율 밖 공종 등)` : ''}</div>
+                  })()}
                 </div>
               )
             })}
