@@ -38,3 +38,24 @@ export function calcRow(r, rate) {
     why: '신규비목은 «설계변경 당시 단가 × 낙찰률»입니다.' }
 }
 
+
+/* 🧮 G371 (2026-10-22) 소장님 「편리하게」 — 계산기 «엑셀에서 붙여넣기» (화면 pages/Change.jsx · 시험 tools/시험_설계변경계산.mjs) */
+const 숫자만 = (v) => String(v ?? '').replace(/[^0-9]/g, '')
+/** 엑셀에서 복사한 줄(탭) → 항목들. 칸: 품명 | 단위 | 당초수량 | 변경수량 | 계약단가 | 예정가격단가 | 변경당시단가 | 발주기관요구(O · ○ · 요구)
+ *  구분: 당초 수량이 없으면 신규 · 변경 < 당초 감소 · 변경 > 당초 증가 · 같으면 뺌(증감 없음) · 머리줄(품명 · 구분 …)은 건너뜀 */
+export function 붙여읽기(글) {
+  const 줄들 = String(글 || '').replace(/\r/g, '').split('\n').map((l) => l.split('\t').map((x) => x.trim())).filter((c) => c.some(Boolean))
+  const out = [], 뺀 = []
+  const 수 = (v) => { const s = String(v ?? '').replace(/,/g, '').replace(/[^0-9.-]/g, ''); return s === '' ? null : Number(s) }
+  for (const c of 줄들) {
+    if (/품명|공종|구분/.test(c[0] || '') && !수(c[2]) && !수(c[3])) continue
+    const [name = '', unit = '', a, b, uc, ue, un, 요] = c
+    const q0 = 수(a), q1 = 수(b)
+    if (q1 === null) { 뺀.push(name || '(이름 없음)'); continue }
+    const kind = !q0 && !수(uc) ? 'new' : q1 < (q0 || 0) ? 'dec' : q1 > (q0 || 0) ? 'inc' : null
+    if (!kind) { 뺀.push(name || '(이름 없음)'); continue }
+    out.push({ name: name.slice(0, 60), kind, unit: unit.slice(0, 10), q0: kind === 'new' ? '' : String(q0 || 0), q1: String(q1),
+      upCtr: 숫자만(uc), upEst: 숫자만(ue), upNow: 숫자만(un), by: /^(o|○|요구|발주)/i.test(요 || '') ? 'owner' : 'me' })
+  }
+  return { rows: out, 뺀 }
+}

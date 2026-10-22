@@ -8,12 +8,12 @@ import FMIN from '../data/forms-min.json'
 import { ShareBtn } from './CorpPage.jsx'
 import { Empty, Skeleton } from '../components.jsx'
 import { won, num } from '../lib/fmt.js'
-import { calcRow } from '../lib/설계변경셈.js'
+import { calcRow, 붙여읽기 } from '../lib/설계변경셈.js'
 import UserForms from '../UserForms.jsx'
 import { getNaeyeok, getNaeyeokAll, naeyeokRows } from '../lib/data.js'
 
 import { use남김 } from '../lib/길기록.js'
-import { 받은수 } from '../lib/받은수.jsx'   /* 👁 2026-10-17 서식 · 도구마다 받기 · 조회 */
+import { 받은수, 세기 } from '../lib/받은수.jsx'   /* 👁 2026-10-17 서식 · 도구마다 받기 · 조회 · 🧮 G371 세기 */
 /**
  * /change · /change/{주제} · /change/calc — 「설계변경」 (2026-09-05)
  *
@@ -732,36 +732,91 @@ const BLANK = { name: '', kind: 'inc', unit: '', q0: '', q1: '',
 const KINDS = [['inc', '증가'], ['dec', '감소'], ['new', '신규비목']]
 
 /* ── /change/calc — 증감 계산기 ────────────────── */
+/* 🧮 G371 (2026-10-22) 소장님 「설계변경 잘 해줘.. 점검 철저히 해서… 편리하게」
+   · 돈 칸은 치는 대로 쉼표(870,000,000) · 낙찰률을 바로 넣기(예정가격을 모를 때)
+   · 제경비 · 부가세 «승율» 을 넣으면 총 증감(어림)과 변경 후 계약금액 · 86% 알림도 그 값으로
+     (승율 = 총공사비 ÷ 직접공사비 − 1 — 원가계산서 두 숫자를 넣으면 셈)
+   · 엑셀에서 줄을 복사해 붙여넣기(구분은 수량으로 저절로 · 증가 / 감소 / 신규) · 예시 채우기 · 값만 엑셀 받기
+   숨은 누적: |설계변경|예시 · |설계변경|붙여넣기 · |설계변경|엑셀 · |설계변경|낙찰률바로 · |설계변경|승율 */
+const 쉼 = (v) => { const d = String(v ?? '').replace(/[^0-9]/g, ''); return d ? Number(d).toLocaleString('ko-KR') : '' }
+const 숫자만 = (v) => String(v ?? '').replace(/[^0-9]/g, '')
+const 소수만 = (v) => { const s = String(v ?? '').replace(/[^0-9.]/g, ''); const i = s.indexOf('.'); return i < 0 ? s : s.slice(0, i + 1) + s.slice(i + 1).replace(/\./g, '') }
+export const 계산예시 = {
+  ctr: '870000000', est: '1000000000', 승율: '',
+  rows: [
+    { name: '가상 L형측구', kind: 'inc', unit: 'm', q0: '120', q1: '150', upCtr: '45000', upEst: '47500', upNow: '', by: 'me' },
+    { name: '가상 보도블록 철거', kind: 'dec', unit: '㎡', q0: '80', q1: '60', upCtr: '23456', upEst: '', upNow: '', by: 'me' },
+    { name: '가상 배수판', kind: 'new', unit: '㎡', q0: '', q1: '12.5', upCtr: '', upEst: '', upNow: '15000', by: 'me' },
+  ],
+}
 export function ChangeCalc() {
   const [ctr, setCtr] = useState('')
   const [est, setEst] = useState('')
+  const [바로, set바로] = useState(false)       // 🧮 G371 낙찰률을 바로 넣기
+  const [율글, set율글] = useState('')          // 낙찰률 % (바로 넣을 때)
+  const [승율, set승율] = useState('')          // 제경비 · 부가세 승율 %
+  const [승셈, set승셈] = useState(null)        // {총, 직} 원가계산서 두 숫자로 승율 셈
   const [rows, setRows] = useState([{ ...BLANK }])
   const [ad, setAd] = useState(true)          // 홍보 문구 — 끌 수 있습니다
   const [copied, setCopied] = useState(false)
+  const [붙임, set붙임] = useState(null)        // 붙여넣기 칸 글
+  const [말, set말] = useState('')
 
   useEffect(() => {
     try {
       const v = JSON.parse(localStorage.getItem(KEY) || 'null')
-      if (v && Array.isArray(v.rows)) { setCtr(v.ctr || ''); setEst(v.est || ''); setRows(v.rows) }
+      if (v && Array.isArray(v.rows)) {
+        setCtr(숫자만(v.ctr)); setEst(숫자만(v.est)); setRows(v.rows)
+        if (v.바로) set바로(true)
+        if (v.율글) set율글(v.율글)
+        if (v.승율) set승율(v.승율)
+      }
     } catch { /* 저장된 게 없거나 못 읽어도 그냥 빈 화면으로 시작합니다 */ }
   }, [])
   useEffect(() => {
-    try { localStorage.setItem(KEY, JSON.stringify({ ctr, est, rows })) } catch { /* 무시 */ }
-  }, [ctr, est, rows])
+    try { localStorage.setItem(KEY, JSON.stringify({ ctr, est, rows, 바로, 율글, 승율 })) } catch { /* 무시 */ }
+  }, [ctr, est, rows, 바로, 율글, 승율])
 
   const nn = (v) => Number(String(v ?? '').replace(/[^0-9.]/g, '')) || 0
-  const rate = nn(est) > 0 ? nn(ctr) / nn(est) : 0
+  const rate = 바로 ? (nn(율글) > 0 && nn(율글) <= 100 ? nn(율글) / 100 : 0) : (nn(est) > 0 ? nn(ctr) / nn(est) : 0)
   const out = useMemo(() => rows.map((r) => calcRow(r, rate)), [rows, rate])
   const sum = out.reduce((a, b) => a + (b.amt || 0), 0)
   const hasOwner = out.some((x) => x.owner)
+  const 승 = nn(승율) > 0 && nn(승율) < 300 ? nn(승율) / 100 : 0
+  const 총증감 = 승 ? Math.floor(Math.round(Math.abs(sum) * (1 + 승) * 1e4) / 1e4) * Math.sign(sum) : sum   /* 원 미만 버림 · 1.4286 같은 소수 곱의 오차(…25.99999)를 먼저 바로잡음 */
+  const 율표 = rate > 0 ? `${(rate * 100).toFixed(3)}%` : '—'
 
   const set = (i, k, v) => setRows(rows.map((r, j) => (j === i ? { ...r, [k]: v } : r)))
   const add = () => setRows([...rows, { ...BLANK }])
   const del = (i) => setRows(rows.length > 1 ? rows.filter((_, j) => j !== i) : [{ ...BLANK }])
+  const 빈화면 = rows.length === 1 && !rows[0].name && !rows[0].q1 && !ctr && !est && !율글
+  const 예시 = () => { setCtr(계산예시.ctr); setEst(계산예시.est); set바로(false); set율글(''); set승율(''); setRows(계산예시.rows.map((r) => ({ ...r }))); set말('✍ 가상의 예시를 채웠습니다 — 숫자를 고쳐 보시거나 «처음부터» 를 누르세요'); 세기('|설계변경|예시') }
+  const 처음부터 = () => { setCtr(''); setEst(''); set율글(''); set승율(''); setRows([{ ...BLANK }]); set말('') }
+  const 붙여넣기 = () => {
+    const { rows: 새, 뺀 } = 붙여읽기(붙임 || '')
+    if (!새.length) { set말('읽은 줄이 없습니다 — 엑셀에서 «품명 · 단위 · 당초수량 · 변경수량 · 계약단가 · 예정가격단가 · 변경당시단가» 칸 차례로 복사해 붙여 주세요.'); return }
+    const 빈줄 = rows.length === 1 && !rows[0].name && !rows[0].q1
+    setRows([...(빈줄 ? [] : rows), ...새])
+    const 셈 = (k) => 새.filter((r) => r.kind === k).length
+    set말(`📋 ${새.length}줄을 넣었습니다 — 증가 ${셈('inc')} · 감소 ${셈('dec')} · 신규 ${셈('new')}${뺀.length ? ` · 증감이 없거나 수량이 없어 뺀 줄 ${뺀.length}(${뺀.slice(0, 3).join(', ')}${뺀.length > 3 ? ' …' : ''})` : ''}. 구분이 다르면 칩을 눌러 고치세요.`)
+    set붙임(null); 세기('|설계변경|붙여넣기')
+  }
+  const 엑셀받기 = async () => {
+    const { 값엑셀받기, 수칸, 굵은칸 } = await import('../lib/값엑셀.js')
+    const 이름 = (k) => (KINDS.find((x) => x[0] === k) || ['', ''])[1]
+    const 줄 = rows.map((r, i) => { const o = out[i]; return [i + 1, 이름(r.kind) + (r.by === 'owner' ? '(발주기관 요구)' : ''), r.name, r.unit, r.kind === 'new' ? '' : nn(r.q0), nn(r.q1), o.qty, 수칸(o.unit), 수칸(o.amt), o.why] })
+    줄.push(['', 굵은칸('조정 합계(직접공사비)'), '', '', '', '', '', '', 수칸(sum), ''])
+    if (승) 줄.push(['', 굵은칸(`총 증감 어림(제경비 · 부가세 ${nn(승율)}%)`), '', '', '', '', '', '', 수칸(총증감), ''])
+    if (nn(ctr) > 0) 줄.push(['', 굵은칸('변경 후 계약금액(어림)'), '', '', '', '', '', '', 수칸(nn(ctr) + 총증감), ''])
+    값엑셀받기('설계변경_증감계산', [{ name: '증감 계산', head: ['No', '구분', '품명 · 규격', '단위', '당초 수량', '변경 수량', '증감 수량', '적용 단가', '조정액', '단가 근거(국가계약법 시행령 제65조)'], rows: 줄, widths: [5, 16, 26, 7, 10, 10, 10, 12, 14, 60] },
+      { name: '조건', head: ['항목', '값'], rows: [['계약금액', 수칸(nn(ctr))], ['예정가격', 바로 ? '(낙찰률을 바로 넣음)' : 수칸(nn(est))], ['낙찰률', 율표], ['제경비 · 부가세 승율', 승 ? `${nn(승율)}%` : '(안 넣음 — 직접공사비만)']], widths: [24, 30] }],
+    { 주소: '/change/calc', 글: '설계변경 증감 계산 — K-건설맵 계산기에서 셈한 값입니다(수식 없음). 다시 셀 때는 k-conmap.com/change/calc' })
+    세기('|설계변경|엑셀')
+  }
 
   const text = () => {
     const L = ['설계변경 계약금액 조정 계산',
-      `계약금액 ${won(nn(ctr))} · 예정가격 ${won(nn(est))} · 낙찰률 ${(rate * 100).toFixed(3)}%`, '']
+      (바로 ? `계약금액 ${won(nn(ctr))} · 낙찰률 ${율표}(바로 넣음)` : `계약금액 ${won(nn(ctr))} · 예정가격 ${won(nn(est))} · 낙찰률 ${율표}`), '']
     rows.forEach((r, i) => {
       const o = out[i]
       if (!o.amt && !r.name) return
@@ -770,6 +825,7 @@ export function ChangeCalc() {
         + ` = ${won(Math.round(o.amt))}`)
     })
     L.push('', `조정 합계 ${won(Math.round(sum))} (직접공사비 증감 — 간접노무비 · 보험료 등 승율비용 · 일반관리비 · 이윤은 산출내역서 율로 더하고 부가세 별도 · 국가계약법 시행령 제65조⑥)`)
+    if (승) L.push(`총 증감 어림 ${won(총증감)} (제경비 · 부가세 승율 ${nn(승율)}%)`)
     if (ad) L.push('', 'K-건설맵 설계변경 계산기 · k-conmap.com')
     return L.join('\n')
   }
@@ -777,6 +833,7 @@ export function ChangeCalc() {
     try { navigator.clipboard?.writeText(text()) } catch { /* 무시 */ }
     setCopied(true); setTimeout(() => setCopied(false), 1800)
   }
+  const 증액비 = nn(ctr) > 0 ? 총증감 / nn(ctr) : 0
 
   return (
     <>
@@ -789,18 +846,48 @@ export function ChangeCalc() {
         <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>
           증가·감소·신규비목을 규정대로 나누어 계산합니다
         </div>
-        <div className="kv" style={{ marginTop: 10 }}>
+        <div className="btn-row chg-quick" style={{ marginTop: 10 }}>
+          {빈화면
+            ? <button type="button" className="btn ghost sm" onClick={예시}>✍ 예시 채우기</button>
+            : <button type="button" className="btn ghost sm" onClick={처음부터}>🧹 처음부터</button>}
+          <button type="button" className={'btn ghost sm' + (붙임 !== null ? ' on' : '')} onClick={() => set붙임(붙임 === null ? '' : null)}>📋 엑셀에서 붙여넣기</button>
+          <button type="button" className="btn ghost sm" onClick={엑셀받기} disabled={!out.some((o) => o.amt)}>📗 값만 엑셀 받기</button>
+        </div>
+        {붙임 !== null && (
+          <div className="chg-paste">
+            <div className="note sm" style={{ margin: '6px 0' }}>
+              엑셀에서 <b>품명 · 단위 · 당초수량 · 변경수량 · 계약단가 · 예정가격단가 · 변경당시단가 · 발주기관요구(O)</b> 칸을 이 차례로 골라 복사(Ctrl+C) 한 뒤 아래에 붙이세요.
+              구분은 수량으로 저절로 나눕니다 — 당초 수량이 없으면 <b>신규</b> · 줄면 <b>감소</b> · 늘면 <b>증가</b>.
+            </div>
+            <textarea className="cin" rows={5} value={붙임} onChange={(e) => set붙임(e.target.value)} placeholder={'가상 L형측구\tm\t120\t150\t45,000\t47,500\n가상 배수판\t㎡\t\t12.5\t\t\t15,000'} aria-label="엑셀에서 복사한 줄" style={{ width: '100%', fontFamily: 'inherit' }} />
+            <div className="btn-row" style={{ marginTop: 6 }}>
+              <button type="button" className="btn primary sm" onClick={붙여넣기}>이 줄들 넣기</button>
+              <button type="button" className="btn ghost sm" onClick={() => set붙임(null)}>그만두기</button>
+            </div>
+          </div>
+        )}
+        {말 && <div className="note sm" role="status" style={{ marginTop: 8 }}>{말}</div>}
+        <div className="kv kv3" style={{ marginTop: 10 }}>
           <div><span>계약금액</span>
-            <input className="cin" inputMode="numeric" value={ctr} placeholder="예: 870000000"
-              onChange={(e) => setCtr(e.target.value)} /></div>
-          <div><span>예정가격</span>
-            <input className="cin" inputMode="numeric" value={est} placeholder="예: 1000000000"
-              onChange={(e) => setEst(e.target.value)} /></div>
+            <input className="cin" inputMode="numeric" value={쉼(ctr)} placeholder="예: 870,000,000" aria-label="계약금액"
+              onChange={(e) => setCtr(숫자만(e.target.value))} /></div>
+          {바로 ? (
+            <div><span>낙찰률(%)</span>
+              <input className="cin" inputMode="decimal" value={율글} placeholder="예: 87.745" aria-label="낙찰률"
+                onChange={(e) => set율글(소수만(e.target.value).slice(0, 10))} /></div>
+          ) : (
+            <div><span>예정가격</span>
+              <input className="cin" inputMode="numeric" value={쉼(est)} placeholder="예: 1,000,000,000" aria-label="예정가격"
+                onChange={(e) => setEst(숫자만(e.target.value))} /></div>
+          )}
           <div><span>낙찰률</span>
-            <b className="hi">{rate > 0 ? `${(rate * 100).toFixed(3)}%` : '—'}</b></div>
+            <b className="hi">{율표}</b></div>
         </div>
         <div className="note sm" style={{ marginTop: 6 }}>
-          낙찰률 = 계약금액 ÷ 예정가격. <b>신규비목</b>에만 곱합니다.
+          낙찰률 = 계약금액 ÷ 예정가격. <b>신규비목</b>에만 곱합니다.{' '}
+          <button type="button" className="lnk" onClick={() => { set바로(!바로); if (!바로) 세기('|설계변경|낙찰률바로') }}>
+            {바로 ? '예정가격으로 셈하기' : '예정가격을 모르면 — 낙찰률을 바로 넣기'}
+          </button>
         </div>
       </div>
 
@@ -829,25 +916,25 @@ export function ChangeCalc() {
               {r.kind !== 'new' && (
                 <label><span>당초 수량</span>
                   <input className="cin" inputMode="decimal" value={r.q0}
-                    onChange={(e) => set(i, 'q0', e.target.value)} /></label>
+                    onChange={(e) => set(i, 'q0', 소수만(e.target.value))} /></label>
               )}
               <label><span>{r.kind === 'new' ? '수량' : '변경 수량'}</span>
                 <input className="cin" inputMode="decimal" value={r.q1}
-                  onChange={(e) => set(i, 'q1', e.target.value)} /></label>
+                  onChange={(e) => set(i, 'q1', 소수만(e.target.value))} /></label>
               {r.kind !== 'new' && (
                 <label><span>계약단가</span>
-                  <input className="cin" inputMode="numeric" value={r.upCtr}
-                    onChange={(e) => set(i, 'upCtr', e.target.value)} /></label>
+                  <input className="cin" inputMode="numeric" value={쉼(r.upCtr)}
+                    onChange={(e) => set(i, 'upCtr', 숫자만(e.target.value))} /></label>
               )}
               {r.kind === 'inc' && r.by !== 'owner' && (
                 <label><span>예정가격단가</span>
-                  <input className="cin" inputMode="numeric" value={r.upEst}
-                    onChange={(e) => set(i, 'upEst', e.target.value)} /></label>
+                  <input className="cin" inputMode="numeric" value={쉼(r.upEst)}
+                    onChange={(e) => set(i, 'upEst', 숫자만(e.target.value))} /></label>
               )}
               {(r.kind === 'new' || r.by === 'owner') && (
                 <label><span>변경 당시 단가</span>
-                  <input className="cin" inputMode="numeric" value={r.upNow}
-                    onChange={(e) => set(i, 'upNow', e.target.value)} /></label>
+                  <input className="cin" inputMode="numeric" value={쉼(r.upNow)}
+                    onChange={(e) => set(i, 'upNow', 숫자만(e.target.value))} /></label>
               )}
             </div>
             <div className={'cres' + (o.amt < 0 ? ' minus' : '')}>
@@ -866,8 +953,26 @@ export function ChangeCalc() {
 
       <div className="card ctotal">
         <div><span>조정 합계</span><b>{won(Math.round(sum))}</b></div>
+        <div className="chg-seung">
+          <label><span>제경비 · 부가세 승율(%)</span>
+            <input className="cin" inputMode="decimal" value={승율} placeholder="예: 42.86 (안 넣어도 됨)" aria-label="제경비 부가세 승율"
+              onChange={(e) => set승율(소수만(e.target.value).slice(0, 7))} onBlur={() => { if (nn(승율) > 0) 세기('|설계변경|승율') }} /></label>
+          <button type="button" className="lnk" onClick={() => set승셈(승셈 ? null : { 총: '', 직: '' })}>{승셈 ? '닫기' : '원가계산서 두 숫자로 셈하기'}</button>
+          {승셈 && (
+            <div className="chg-seung-calc">
+              <label><span>총공사비(부가세 포함)</span><input className="cin" inputMode="numeric" value={쉼(승셈.총)} aria-label="총공사비" onChange={(e) => set승셈({ ...승셈, 총: 숫자만(e.target.value) })} /></label>
+              <label><span>직접공사비(재료비 + 직접노무비 + 경비)</span><input className="cin" inputMode="numeric" value={쉼(승셈.직)} aria-label="직접공사비" onChange={(e) => set승셈({ ...승셈, 직: 숫자만(e.target.value) })} /></label>
+              {nn(승셈.총) > nn(승셈.직) && nn(승셈.직) > 0 && (
+                <button type="button" className="btn ghost sm" onClick={() => { set승율(((nn(승셈.총) / nn(승셈.직) - 1) * 100).toFixed(2)); set승셈(null) }}>
+                  승율 {((nn(승셈.총) / nn(승셈.직) - 1) * 100).toFixed(2)}% 넣기
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        {승 > 0 && <div><span>총 증감 어림(제경비 · 부가세 포함)</span><b>{won(총증감)}</b></div>}
         {nn(ctr) > 0 && (
-          <div><span>변경 후 계약금액(어림)</span><b>{won(Math.round(nn(ctr) + sum))}</b></div>
+          <div><span>변경 후 계약금액(어림)</span><b>{won(Math.round(nn(ctr) + 총증감))}</b></div>
         )}
         <div className="btn-row" style={{ marginTop: 10 }}>
           <button className="btn primary" onClick={copy}>
@@ -883,8 +988,22 @@ export function ChangeCalc() {
       <div className="note sm" style={{ margin: '-4px 4px 12px', lineHeight: 1.7 }}>
         조정 합계는 <b>직접공사비(재료비 · 노무비 · 경비) 증감</b>입니다. 실제 계약금액 조정은 여기에
         간접노무비 · 산재 · 고용보험료 같은 <b>승율비용과 일반관리비 · 이윤을 산출내역서의 율로</b> 더하고(국가계약법 시행령 제65조⑥)
-        부가가치세를 붙입니다 — 위 «변경 후 계약금액» 은 직접공사비만 더한 어림입니다. 단가 · 조정액은 원 미만 버림입니다.
+        부가가치세를 붙입니다 — {승 > 0 ? <>위 «총 증감» 은 넣으신 승율 {nn(승율)}% 를 한 번에 곱한 <b>어림</b>입니다(비목마다 율이 달라 실제와 조금 다를 수 있음).</> : <>위 «변경 후 계약금액» 은 직접공사비만 더한 어림입니다 — 원가계산서의 승율을 넣으면 제경비 · 부가세까지 더해 봅니다.</>} 단가 · 조정액은 원 미만 버림입니다.
       </div>
+
+      {/* ⚖ G371 (2026-10-22) 낙찰률 86% 미만 공사의 증액 — 국가 제65조② · 지방 제74조③ (원문 확인 · 시행 2026.6.3)
+         주제 «계약금액 조정 단가 기준» 에만 있던 알림을 계산기에도 — 승율을 넣으면 총 증감으로, 아니면 직접공사비만으로 % */}
+      {rate > 0 && rate < 0.86 && sum > 0 && nn(ctr) > 0 && (
+        <div className="card fwarn" data-k="86">
+          <b>⚠️ 낙찰률 {(rate * 100).toFixed(3)}% — 예정가격의 86% 미만으로 낙찰된 공사의 증액입니다</b>
+          <div>
+            증액 조정금액(2차부터는 앞선 감액 · 증액을 모두 합친 금액)이 <b>당초 계약금액의 10% 이상</b>이면
+            심의를 거쳐 <b>승인</b>을 받아야 합니다 — 국가 공사는 소속 중앙관서의 장(국가계약법 시행령 제65조②),
+            지방 공사는 지방자치단체의 장(지방계약법 시행령 제74조③). 승인에 시간이 걸리니 미리 알려 두세요.
+            지금 {승 > 0 ? <b>총 증감 어림(승율 {nn(승율)}%)이 당초 계약금액의 {(증액비 * 100).toFixed(2)}%</b> : <><b>직접공사비 증액만 당초 계약금액의 {(sum / nn(ctr) * 100).toFixed(2)}%</b>입니다 — 제경비 · 부가세를 더하면 더 커집니다</>}{승 > 0 ? (증액비 >= 0.1 ? ' — 10% 이상입니다.' : ' — 아직 10% 아래입니다(앞선 차수 증감도 합쳐 보세요).') : '.'}
+          </div>
+        </div>
+      )}
 
       {hasOwner && (
         <div className="card fwarn">
