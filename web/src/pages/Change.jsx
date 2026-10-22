@@ -293,6 +293,19 @@ const ADKEY = 'kcm_nyad'
    ■ 누를 때만 받습니다
      목록에는 «줄 수»만 싣고, 실제 줄은 /naeyeok-rows/{열쇠}.json 에서
      그 줄을 누를 때만 받아옵니다. 전송량이 곧 요금이라 그렇게 했습니다. */
+/* 🩹 G374 (2026-10-22) 같은 «품명 · 규격 · 단위 · 단가» 는 한 번만 — 일위대가 · 단가대비표에 되풀이된 줄(실측 한 부 871줄 중 608줄).
+   새로 뽑는 줄은 collect.py 가 이미 한 번씩만 내지만, 전에 뽑아 둔 파일도 같게 보이도록 여기서도 거릅니다. */
+function 한번씩(v) {
+  const 본 = new Set()
+  return v.filter((a) => {
+    if (!Array.isArray(a)) return false
+    const k = [a[0], a[1], a[2], a[3]].join('\u0001')
+    if (본.has(k)) return false
+    본.add(k)
+    return true
+  })
+}
+
 function 단가판({ rk, 닫기 }) {
   const [줄, set줄] = useState(null)      // null 받는 중 · false 실패
   const [q, setQ] = useState('')
@@ -302,7 +315,7 @@ function 단가판({ rk, 닫기 }) {
     let 살았나 = true
     fetch('/naeyeok-rows/' + rk + '.json')
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-      .then((v) => { if (살았나) set줄(Array.isArray(v) ? v : false) })
+      .then((v) => { if (살았나) set줄(Array.isArray(v) ? 한번씩(v) : false) })
       .catch(() => { if (살았나) set줄(false) })
     return () => { 살았나 = false }
   }, [rk, 줄])
@@ -339,9 +352,11 @@ function 단가판({ rk, 닫기 }) {
               </table>
             </div>
             <div className="note" style={{ marginTop: 8 }}>
-              {보임.length < 줄.length
-                ? <>{num(줄.length)}줄 가운데 {num(보임.length)}줄만 보입니다 — 찾기 칸에 품명을 적어 보십시오.</>
-                : <>{num(줄.length)}줄 전부입니다.</>}{' '}
+              {q.trim()
+                ? <>{num(줄.length)}줄 가운데 «{q.trim()}» 이 든 {num(보임.length)}줄{보임.length >= 300 ? '(300줄까지 보임)' : ''}입니다.</>
+                : 보임.length < 줄.length
+                  ? <>{num(줄.length)}줄 가운데 {num(보임.length)}줄만 보입니다 — 찾기 칸에 품명을 적어 보십시오.</>
+                  : <>{num(줄.length)}줄 전부입니다.</>}{' '}
               <b>그 공고 시점의 단가</b>입니다. 원본 엑셀은 위 링크에서 받으십시오.
             </div>
           </>
@@ -466,7 +481,7 @@ export function ChangeNaeyeok() {
         <h1 style={{ fontSize: 19, fontWeight: 800, margin: 0 }}>공사 내역서 모음 — 2026년</h1>
         <p className="cp" style={{ marginTop: 8 }}>
           조달청이 공고에 붙여 공개한 <b>내역서</b>를 갈래별로 모았습니다.
-          {meta ? <> 지금 <b>{num(meta.n)}개</b>.</> : null}{' '}
+          {meta ? <> 모두 <b>{num(meta.total || meta.n)}개</b>(최근 {num(meta.days || 365)}일치) — 목록에는 갈래마다 최근 것부터 싣습니다.</> : null}{' '}
           <b>설계내역서</b>에는 발주처가 잡은 <b>설계 단가</b>가 들어 있어 설계변경 단가를 세울 때 견줄 수 있습니다.
         </p>
         <div className="cwarn" style={{ marginTop: 8 }}>
@@ -482,7 +497,7 @@ export function ChangeNaeyeok() {
         <div className="chips">
           {kinds.map(([k, n]) => (
             <button key={k} className={'chip' + (kind === k ? ' on' : '')} onClick={() => setKind(k)}>
-              {k}<em className="licn"> {num(n)}</em>
+              {k}<em className="licn"> {num((meta && meta.all && meta.all[k]) || n)}</em>
             </button>
           ))}
         </div>
@@ -500,6 +515,10 @@ export function ChangeNaeyeok() {
 
       <div className="sec-title">
         {kind} <span className="count">· {rows ? `${num(total)}개` : '불러오는 중…'}</span>
+        {/* 🩹 G374 칩은 «모두» 인데 목록은 최근 것만 — 숫자가 다른 까닭을 적습니다(공내역서 모두 5,537 · 목록 2,000) */}
+        {rows && meta && meta.all && meta.kinds && (meta.all[kind] || 0) > (meta.kinds[kind] || 0)
+          ? <span className="count"> (모두 {num(meta.all[kind])}개 가운데 최근 {num(meta.kinds[kind])}개 — 찾기도 이 안에서)</span>
+          : null}
       </div>
 
       {!rows ? <Skeleton /> : total === 0 ? (

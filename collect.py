@@ -2446,7 +2446,48 @@ NAEYEOK_ROWS_DIR = os.path.join(STORE, "naeyeok_rows")
 NAEYEOK_ROWS_MB = int(os.environ.get("NAEYEOK_ROWS_MB", "100"))
 NAEYEOK_ROWS_BUDGET_S = int(os.environ.get("NAEYEOK_ROWS_BUDGET_S", "120"))
 NAEYEOK_ROWS_MAX = int(os.environ.get("NAEYEOK_ROWS_MAX", "4000"))   # 한 부에서 뽑는 줄 상한
+NAEYEOK_ROWS_VER = 2   # 🩹 G374 뽑는 법 판 — 올리면 원본이 남은 것은 다시 뽑습니다(두 줄 머리 «재료비/단가» · 시트 고르기)
 NAEYEOK_FETCH = int(os.environ.get("NAEYEOK_FETCH", "100"))     # 한 회차에 새로 받는 개수
+
+
+def _내림기록(v):
+    """🩹 G374 보관 상한으로 원본을 내릴 때 남길 기록 — 열어 본 결과(priced) · 뽑은 줄(rows · rv) · 날짜는 남기고 다시 받지 않음(perm · cap)."""
+    return dict({"skip": "보관 상한(%dMB) 초과로 내림" % NAEYEOK_KEEP_MB, "perm": True, "cap": True},
+                **{x_: v[x_] for x_ in ("dt", "priced", "rows", "rv") if x_ in v})
+
+
+def _줄기록되살림(book, rows_dir, dt_of):
+    """🩹 G374 전에 상한으로 내리며 기록이 지워진 것 — 줄 파일이 남아 있으면 줄 수를 되살립니다.
+       옛 뽑는 법(rv 1)으로 적어 두므로 _다시뽑을 이 원본을 한 번 더 받아 새로 뽑게 합니다. 되살린 수를 돌려줍니다."""
+    n = 0
+    if not os.path.isdir(rows_dir):
+        return 0
+    for fn_ in os.listdir(rows_dir):
+        k_ = fn_[:-5]
+        b_ = book.get(k_) or {}
+        if not fn_.endswith(".json") or b_.get("file") or b_.get("rows") is not None:
+            continue
+        try:
+            n_ = len(load_json(os.path.join(rows_dir, fn_), []) or [])
+        except Exception:
+            continue
+        book[k_] = dict(b_, skip=b_.get("skip") or "보관 상한(%dMB) 초과로 내림" % NAEYEOK_KEEP_MB,
+                        perm=True, cap=True, rows=n_, rv=1, priced=n_ >= 5, dt=b_.get("dt") or dt_of.get(k_, ""))
+        n += 1
+    return n
+
+
+def _더나은줄(새, 앞):
+    """🩹 G374 같은 공고 · 같은 파일 이름이 두 번 실렸을 때(정정 공고) 뒤엣것이 더 나은가 — 단가 줄 › 받아 둔 파일 › 단가 확인됨.
+       줄 꼴: [kind, file, url, name, inst, dt, no, purl, local, priced, nrow, rk]"""
+    return (bool(새[11]), bool(새[8]), 새[9] == 1) > (bool(앞[11]), bool(앞[8]), 앞[9] == 1)
+
+
+def _다시뽑을(b):
+    """🩹 G374 — 보관 상한으로 내린 것(perm · cap) 가운데 «단가 든 것인데 옛 뽑는 법으로 뽑았거나 못 뽑은 것» 은 한 번 더 받습니다.
+       새로 뽑고(rv = NAEYEOK_ROWS_VER) 다시 내리면 그다음부터는 안 받습니다 — 끝없이 받고 내리는 일은 없습니다."""
+    return bool(b.get("cap")) and b.get("priced") is True and b.get("rows") != -1 \
+        and (b.get("rows") is None or int(b.get("rv") or 1) < NAEYEOK_ROWS_VER)
 #   40 → 100 (2026-09-06). 실측 40개에 155.7초였으니 100개면 약 390초.
 #   회차 전체가 14분이고 상한이 45분이라 여유가 있습니다.
 NAEYEOK_MAXBYTES = int(os.environ.get("NAEYEOK_MAXBYTES", str(8 * 1024 * 1024)))
@@ -2473,48 +2514,23 @@ def save_json(path, obj):
 
 
 def xlsx_has_price(path):
-    """엑셀을 열어 «단가에 값이 들어 있는지» 확인합니다.
+    """엑셀을 열어 «품목 단가가 들어 있는지» 확인합니다.
 
     ⚠️ 이름으로 짐작하지 않습니다 — 「(무단가) 설계내역서」처럼
        이름은 설계내역서인데 단가가 빈 것이 실제로 16개 있었습니다.
-    머리글에 «단가» 가 든 열을 찾아, 그 열에 숫자가 몇 개나 있는지 셉니다.
+    🩹 G374 (2026-10-22) — 전에는 «단가» 머리글 아래 숫자가 5개면 됐는데, «공사설정» 시트의 단가 칸이나
+       깨진 수식(#REF!)만 있는 입찰용 내역서도 «단가 확인됨» 으로 나왔습니다(동작초 바닥 개선 · F-302).
+       → 단가판과 같은 길(xlsx_price_rows)로 «품명 · 단가가 든 줄» 을 5줄 이상 찾을 때만 True.
     """
-    try:
-        from openpyxl import load_workbook
-    except Exception:
+    got = xlsx_price_rows(path, 5)
+    if got is None:
         return None
-    try:
-        wb = load_workbook(path, read_only=True, data_only=True)
-    except Exception:
-        return None
-    try:
-        for ws in wb.worksheets:
-            cols, n = [], 0
-            for row in ws.iter_rows(max_row=400, values_only=True):
-                if not row:
-                    continue
-                if not cols:
-                    for i, v in enumerate(row):
-                        if isinstance(v, str) and "단가" in v:
-                            cols.append(i)
-                    continue
-                for i in cols:
-                    if i < len(row) and isinstance(row[i], (int, float)) and row[i] > 0:
-                        n += 1
-                if n >= 5:
-                    return True
-        return False
-    except Exception:
-        return None
-    finally:
-        try:
-            wb.close()
-        except Exception:
-            pass
+    return len(got) >= 5
 
 
 # ── 🧾 내역서에서 «품명·규격·단위·단가» 뽑기 (2026-09-20) ─────────────
-_칸이름 = ("품명", "공종", "명칭", "품목", "자재명", "품명및규격", "공정", "규격및품명", "품목명")
+_칸이름 = ("품명", "공종", "명칭", "품목", "자재명", "품명및규격", "공정", "규격및품명", "품목명",
+          "공종명", "품명규격", "명칭및규격", "공종및규격")   # 🩹 G374 «공 종 명» 머리글(취수장 내역서)도
 _칸규격 = ("규격", "형식", "규격및단위")
 _칸단위 = ("단위", "수량단위")
 _버릴시트 = re.compile(r"표지|목차|안내|설명|일람표|제출|서식|입찰안내|공고문")
@@ -2538,7 +2554,20 @@ def _naeyeok_head(row):
             pc.append(i)
     if nm is None or not pc:
         return None
+    # 🩹 G374 (2026-10-22) «단가대비표» 꼴(조달청 표준) — 재료비 [조달 · 물가자료 · 물가정보 · 유통 · 조사 …] 적용단가 | 노무비 | 경비 [… 시설단가 …] 적용단가.
+    #    «단가» 가 든 칸을 다 더하면 견줘 본 값(조사단가 · 조달단가 · 시설단가)까지 들어가 두세 배가 됩니다(현수막 70,000 → 140,000).
+    #    → 적용단가가 있으면 «적용단가 칸들 + 노무비 칸 하나» 만 더합니다(잔토처리 196 + 361 + 247 = 804).
+    t_ = lambda i: re.sub(r"\s+", "", row[i]) if isinstance(row[i], str) else ""
+    ap = [i for i in pc if "적용단가" in t_(i)]
+    if ap:
+        nb = [i for i, v in enumerate(row) if isinstance(v, str) and re.sub(r"\s+", "", v) in ("노무비", "노무비단가", "노임")]
+        pc = sorted(ap + nb[:1])
+        return nm, sp, un, _더하기칸(pc)
     return nm, sp, un, pc
+
+
+class _더하기칸(list):
+    """«그냥 더하는» 단가 칸 묶음(단가대비표 적용단가 + 노무비) — 두 번 세기 막기를 하지 않습니다."""
 
 
 def _naeyeok_price(row, pc):
@@ -2555,10 +2584,21 @@ def _naeyeok_price(row, pc):
                 vals.append(float(v))
     if not vals:
         return 0.0
+    if isinstance(pc, _더하기칸):
+        # 단가대비표의 «노임» 품목(품질관리활동비 · 품목구분 «노임 13»)은 같은 노임이 노무비 · 경비 두 칸에 함께 적힙니다 → 하나만(실측 111부 8,432줄 중 1줄).
+        #   (재료 8,000 + 노무 8,000 처럼 «자재» 품목에서 두 값이 같은 것은 진짜 합이라 그대로 더합니다)
+        nz = [x for x in vals if x]
+        if len(nz) == 2 and nz[0] == nz[1] and any(isinstance(c, str) and c.strip().startswith("노임") for c in row):
+            return nz[0]
+        return sum(vals)
     if len(vals) >= 2:
         head = sum(vals[:-1])
         if head > 0 and abs(vals[-1] - head) <= max(1.0, 0.02 * abs(vals[-1])):
             return vals[-1]
+        # 🩹 G374 — «계 단가» 가 맨 앞에 오는 꼴(계 · 노무 · 재료 · 경비)도 두 번 세지 않게
+        tail = sum(vals[1:])
+        if tail > 0 and abs(vals[0] - tail) <= max(1.0, 0.02 * abs(vals[0])):
+            return vals[0]
         return sum(vals)
     return vals[0]
 
@@ -2568,18 +2608,50 @@ _원가말 = ("재료비", "노무비", "경비", "합계", "소계", "계", "�
           "재  료  비", "노  무  비")
 
 
+# 🩹 G374 — 「가. 공사비」 「Ⅷ. 지급자재비」 「1. 경부선 …」 「1-2.중수선공장」 「0101  01.신갈역」 은 공종 묶음 머리(단위 «식» · 빈칸)이지 품목이 아닙니다.
+#    (단위가 «대 · SET» 인 에스컬레이터 · 분기기처럼 값이 큰 진짜 품목은 그대로 둡니다)
+#    「[BP01 소블록]」 「[제 1호] 인력터파기」 처럼 대괄호로 시작하는 묶음 머리(식 · 빈칸)도 같습니다.
+_공종머리 = re.compile(r"^\s*(?:[가-하]\.|[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]+\.|\d+(?:-\d+)*\.|\d{2,}\s{2,}|\[)")
+
+
 def _두줄머리(r1, r2):
     """머리글이 «두 줄에 걸쳐» 있는 내역서가 많습니다.
        위 줄에 「품명·규격·단위」, 아래 줄에 「단가·금액」 이 놓입니다(재료비/노무비/경비 아래로).
        두 줄을 칸끼리 포개어 한 줄처럼 보고 다시 찾습니다. 이걸 안 하면 본문 내역서를
-       통째로 지나칩니다 — 실측에서 한 부 평균 63줄밖에 못 건졌습니다."""
+       통째로 지나칩니다 — 실측에서 한 부 평균 63줄밖에 못 건졌습니다.
+
+    🩹 G374 (2026-10-22) — 위 줄 «재  료  비» 아래 «단  가» 처럼 **위에 이름 · 아래에 단가** 인 칸은
+       전에는 위 줄(재료비)만 남아 «단가» 를 못 찾았습니다(조달청 표준 내역서 꼴 — 공종별내역서를 통째로 지나침).
+       아래 줄이 단가 · 금액이면 «재료비단가» 처럼 둘을 이어 씁니다."""
     n = max(len(r1 or ()), len(r2 or ()))
     out = []
     for i in range(n):
         a_ = r1[i] if r1 and i < len(r1) else None
         b_ = r2[i] if r2 and i < len(r2) else None
-        out.append(a_ if isinstance(a_, str) and a_.strip() else b_)
+        at = re.sub(r"\s+", "", a_) if isinstance(a_, str) else ""
+        bt = re.sub(r"\s+", "", b_) if isinstance(b_, str) else ""
+        if bt and ("단가" in bt or "금액" in bt):
+            out.append((at + bt) if (at and at not in bt) else bt)
+        else:
+            out.append(a_ if at else b_)
     return out
+
+
+# 🩹 G374 — 시트가 많은 내역서(시방서 · 야장 · 조서 수십 장 뒤에 «설계내역서»)에서 앞 16장만 보면 본문을 놓칩니다.
+#    단가가 들 만한 이름(내역 · 단가 · 일위 · 자재 · 노임 · 중기 · 산출)을 먼저 보고, 시방서 · 야장 따위는 건너뜁니다.
+_먼저볼시트 = re.compile(r"내역|단가|일위|대가|자재|노임|중기|산출|견적")
+_안볼시트 = re.compile(r"시방|야장|조서|개요|설명|공정표|좌표|분석|기능구분|간지|사진|도면|설정|집계표|총괄")   # 🩹 «공종별집계표 · 총괄표» 는 공종 합계(식)라 품목 단가가 아닙니다   # «공사설정» 시트의 단가 칸은 품목이 아닙니다
+
+
+def _볼시트(wb, n=16):
+    def 볼까(t):
+        if _버릴시트.search(t):
+            return False
+        # «자재조서» 처럼 단가가 들 만한 이름이면 «조서» 가 붙어도 봅니다
+        return bool(_먼저볼시트.search(t)) or not _안볼시트.search(t)
+    ws_ = [ws for ws in wb.worksheets if 볼까(str(ws.title or ""))]
+    ws_.sort(key=lambda ws: 0 if _먼저볼시트.search(str(ws.title or "")) else 1)   # 안정 정렬 — 같은 무리 안 차례는 그대로
+    return ws_[:n]
 
 
 def _cell(row, i, n):
@@ -2602,10 +2674,9 @@ def xlsx_price_rows(path, cap=4000):
     except Exception:
         return None
     got = []
+    겹 = set()       # 🩹 G374 같은 «품명 · 규격 · 단위 · 단가» 는 한 번만(실측: 한 부 871줄 중 608줄이 같은 줄 — 일위대가 · 단가대비표에 되풀이)
     try:
-        for ws in wb.worksheets[:16]:
-            if _버릴시트.search(str(ws.title or "")):
-                continue
+        for ws in _볼시트(wb, 16):
             buf = list(ws.iter_rows(max_row=1500, values_only=True))
             h, hi = None, -1
             for i in range(min(len(buf), 80)):
@@ -2631,11 +2702,19 @@ def xlsx_price_rows(path, cap=4000):
                     continue
                 if re.sub(r"\s+", "", nm) in [re.sub(r"\s+", "", x) for x in _원가말]:
                     continue
+                단위_ = re.sub(r"\s+", "", _cell(row, un_i, 10))
+                if _공종머리.match(nm) and 단위_ in ("", "식"):
+                    continue
+                if 단위_ == "%":
+                    continue            # «조달수수료 · 재료비의 % » 같은 요율 줄 — 품목 단가가 아닙니다(실측 1억 원대 «%» 줄)
                 pr = _naeyeok_price(row, pc)
                 if pr <= 0 or pr > 5e9:
                     continue
-                got.append([nm, _cell(row, sp_i, 40), _cell(row, un_i, 10),
-                            round(float(pr), 2), str(ws.title or "")[:16]])
+                줄 = [nm, _cell(row, sp_i, 40), _cell(row, un_i, 10), round(float(pr), 2), str(ws.title or "")[:16]]
+                if tuple(줄[:4]) in 겹:
+                    continue
+                겹.add(tuple(줄[:4]))
+                got.append(줄)
                 if len(got) >= cap:
                     return got
     except Exception:
@@ -3678,7 +3757,8 @@ def main():
             nonlocal_streak[0] += 1
             if len(firsts) < 3:
                 firsts.append({"why": why, "url": url[:120], "head": head[:200]})
-            book[key] = {"why": why, "try": int(b0.get("try") or 0) + 1, "at": built}
+            book[key] = dict({"why": why, "try": int(b0.get("try") or 0) + 1, "at": built},
+                             **{x_: b0[x_] for x_ in ("dt", "priced", "rows", "rv", "cap", "perm", "skip") if x_ in b0})   # 🩹 G374 내렸던 것의 결과는 남김
             return book[key]
 
         for dt, r, fname, furl, i in want:
@@ -3692,7 +3772,7 @@ def main():
             if b0.get("file") and os.path.exists(path):
                 got += 1
                 continue
-            if b0.get("perm") or int(b0.get("try") or 0) >= 5:
+            if (b0.get("perm") and not _다시뽑을(b0)) or int(b0.get("try") or 0) >= 5:
                 continue                                   # 다섯 번 해 보고 그만둡니다
             if new >= NAEYEOK_FETCH:
                 break
@@ -3720,7 +3800,7 @@ def main():
                       body[:200].decode("utf-8", "replace"))
                 continue
             if len(body) > NAEYEOK_MAXBYTES:
-                _fail(key, b0, "너무 큼 %.1fMB" % (len(body) / 1024 / 1024), furl)["perm"] = True
+                _fail(key, b0, "너무 큼 %.1fMB" % (len(body) / 1024 / 1024), furl).update(perm=True, cap=False)
                 continue
             # ⚠️ 200 이라고 엑셀이 아닙니다 — 로그인 안내 HTML 이 200 으로 올 수 있습니다.
             #    확장자만 믿고 저장하면 «열리지 않는 xlsx» 를 사용자에게 내밀게 됩니다.
@@ -3754,13 +3834,20 @@ def main():
         #    ⚠️ 반드시 «크기 상한으로 버리기 전에» 돕니다.
         #       버린 뒤에 뽑으려 하면 파일이 이미 없습니다.
         os.makedirs(NAEYEOK_ROWS_DIR, exist_ok=True)
+        # 🩹 G374 — 전에 상한으로 내리며 기록이 지워진 것: 줄 파일이 남아 있으면 줄 수를 되살립니다(옛 뽑는 법 rv 1 → 원본을 한 번 더 받아 새로 뽑음)
+        dt_of = {"%s_%d" % (str(r_.get("no") or ""), i_): dt_ for dt_, r_, _f, _u, i_ in want}
+        되살림 = _줄기록되살림(book, NAEYEOK_ROWS_DIR, dt_of)
         t1, 뽑음, 줄계, 못뽑음 = time.time(), 0, 0, 0
         for k, v in sorted(book.items(), key=lambda kv: (kv[1].get("dt") or ""), reverse=True):
-            if not v.get("file") or v.get("priced") is not True or v.get("rows") is not None:
+            # 🩹 G374 — 뽑는 법을 고치면(NAEYEOK_ROWS_VER) 원본이 남아 있는 것은 다시 뽑습니다(«내렸음» -1 은 그대로)
+            if not v.get("file") or v.get("priced") is not True or v.get("rows") == -1:
+                continue
+            if v.get("rows") is not None and int(v.get("rv") or 1) >= NAEYEOK_ROWS_VER:
                 continue
             src_ = os.path.join(NAEYEOK_DIR, v["file"])
             if not os.path.exists(src_) or not src_.lower().endswith((".xlsx", ".xlsm")):
                 v["rows"] = 0          # .xls 는 openpyxl 이 못 엽니다 — 다시 안 봅니다
+                v["rv"] = NAEYEOK_ROWS_VER
                 continue
             if time.time() - t1 > NAEYEOK_ROWS_BUDGET_S:
                 break                  # 다음 회차가 이어받습니다
@@ -3769,6 +3856,9 @@ def main():
                 못뽑음 += 1
                 continue               # 열다 실패 — 다음 회차에 다시
             v["rows"] = len(got)
+            v["rv"] = NAEYEOK_ROWS_VER
+            if len(got) < 5:
+                v["priced"] = False    # 품목 단가 줄이 5줄도 안 나오면 «열어 보니 단가 없음» (xlsx_has_price 와 같은 기준)
             if got:
                 save_json(os.path.join(NAEYEOK_ROWS_DIR, k + ".json"), got)
                 뽑음 += 1
@@ -3791,7 +3881,10 @@ def main():
                     os.remove(p)
             except Exception:
                 continue
-            book[k] = {"skip": "보관 상한(%dMB) 초과로 내림" % NAEYEOK_KEEP_MB}
+            # 🩹 G374 (2026-10-22) 전에는 여기서 기록을 통째로 지웠습니다 → ① 뽑아 둔 단가 줄 파일은 남아 있는데 목록에서 «💰 단가 보기» 가
+            #    사라지고(실측: 9/22 공고 R26BK01741297 — 줄 파일 21줄 있음 · 목록엔 없음 · 720부 중 17부만 보임) ② «아직 안 열어 봄» 으로 되돌아가고
+            #    ③ 다음 회차에 같은 파일을 또 받아 또 내리는 헛수고를 했습니다. → 결과는 남기고 «다시 받지 않음» 표시.
+            book[k] = _내림기록(v)
             dropped += 1
         # ── 뽑은 줄 상한 — 넘으면 오래된 것부터 (원본과 따로 셉니다) ──────
         rkeep, rused, rdrop = [], 0, 0
@@ -3831,7 +3924,7 @@ def main():
             "줄 뽑은 부수": sum(1 for v in book.values() if (v.get("rows") or 0) > 0),
             "이번에 뽑은 부수": 뽑음, "이번에 뽑은 줄": 줄계, "못 뽑은 것": 못뽑음,
             "줄 쓴MB": round(rused / 1024 / 1024, 1), "줄 상한MB": NAEYEOK_ROWS_MB,
-            "줄 내린 것": rdrop,
+            "줄 내린 것": rdrop, "줄 기록 되살림": 되살림,
         }
         if aged:
             print("    보관 기간(%d일)이 지난 파일 %d개를 내렸습니다"
@@ -3963,6 +4056,7 @@ def main():
         # ── 3) 화면에 낼 것만 골라 냅니다 ────────────────────────────
         rows_p, rows_a = [], []
         seen = set()
+        같은것 = {}      # 🩹 G374 (공고번호, 파일 이름) → 이미 넣은 줄 — 정정 공고로 같은 파일이 두 번 실림(실측: 단가 갈래 7쌍 · 나머지 61쌍)
         # 최신 공고가 위로 (dt 내림차순)
         for key, v in sorted(idx.items(), key=lambda kv: kv[1][5] or "", reverse=True):
             kind, fname, furl, nm, inst, dt, no, purl = v
@@ -3983,9 +4077,17 @@ def main():
             priced = 1 if b.get("priced") is True else (0 if b.get("priced") is False else -1)
             # 🧾 뽑아 둔 단가 줄 — 원본이 빠져도 이것만은 남습니다
             nrow = int(b.get("rows") or 0)
-            rk = key if (nrow > 0 and key in rows_live) else ""
-            (rows_p if kind in NAEYEOK_PRICED else rows_a).append(
-                [kind, fname, furl, nm, inst, dt, no, purl, local, priced, nrow if rk else 0, rk])
+            # 🩹 G374 옛 뽑는 법(rv 1)으로 뽑은 줄은 단가대비표 값을 두세 배로 더한 것이 있어 새로 뽑을 때까지 안 보입니다
+            rk = key if (nrow > 0 and key in rows_live and int(b.get("rv") or 1) >= NAEYEOK_ROWS_VER) else ""
+            줄_ = [kind, fname, furl, nm, inst, dt, no, purl, local, priced, nrow if rk else 0, rk]
+            짝 = (str(no or ""), fname)
+            if no and 짝 in 같은것:
+                앞 = 같은것[짝]                 # 최신이 먼저 들어와 있습니다 — 뒤엣것이 단가 줄 · 받아 둔 파일이 있을 때만 바꿉니다
+                if _더나은줄(줄_, 앞):
+                    앞[:] = 줄_
+                continue
+            같은것[짝] = 줄_
+            (rows_p if kind in NAEYEOK_PRICED else rows_a).append(줄_)
 
         # 갈래마다 상한 — 전송량을 지키는 자리입니다
         kept, cap = {}, []
