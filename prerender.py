@@ -3889,6 +3889,7 @@ def main():
         if len(row) >= 3 and safe(row[0]):
             by_chunk.setdefault(row[2], []).append(row[0])
     n_co = 0
+    corp_done = []      # 🔎 G364 구운 업체 장 — 낙찰 많은 차례(ctop) 그대로 · 네이버 · 빙 «바로 알림» 에 조금씩
     for ch, keys in sorted(by_chunk.items()):
         dat = load(f"corp/dat/{ch}.json") or {}
         for k in keys:
@@ -3900,6 +3901,7 @@ def main():
                 #   넣으면 업체 장 1만 8천 장이 회차마다 «바뀐 파일» 이 되어 다 다시 올라갑니다(배포 시간 · 보관 용량).
                 #   화면(앱)은 그대로 최신 숫자를 보여 줍니다.
                 write(f"corp/{k}.html", corp_page(shell, k, c, img, L, pool=0))
+                corp_done.append(k)
                 made += 1
 
     # ── 「어제의 개찰 성적표」 ── (공고 페이지보다 먼저: first 를 여기서 한 번 읽습니다)
@@ -3997,11 +3999,16 @@ def main():
         ny_new, ny_left = indexnow.take_once("naeyeok", ny_paths)
         # 💬 사랑방 글 — 처음 구운 글만 한 번 알립니다(답글이 붙어도 다시 찌르지 않습니다 — 사이트맵 lastmod 가 알립니다)
         qn_new, _ = indexnow.take_once("qna", [f"/qna/{p['id']}" for p in qna_ps])
-        paths += st_new + ny_new + qn_new
+        # 🔎 G364 업체 장(1만 8천) — 소장님 「검색되게」. 사이트맵(구글)에는 다 있지만 네이버 · 빙 «바로 알림» 은 /corp 한 장뿐이었습니다.
+        #   한꺼번에 찌르면 스팸이라 회차마다 DRIP(120)장씩 · 낙찰 많은 업체부터 · 한 번 알린 장은 다시 안 보냄(구운 장은 이미 배포됨).
+        _rank = {k: i for i, k in enumerate(r[0] for r in ctop[:N_CORP] if r)}
+        co_paths = [f"/corp/{quote(k, safe='')}" for k in sorted(corp_done, key=lambda k: _rank.get(k, 1 << 30))]
+        co_new, co_left = indexnow.take_once("corp", co_paths)
+        paths += st_new + ny_new + qn_new + co_new
         n_q = indexnow.queue(paths, mark=mark)
         print(f"  · IndexNow 다음 회차에 알릴 주소 {n_q:,}개 "
               f"(새 개찰 {len(fresh):,} · 처음 알리는 정적 {len(st_new):,} · "
-              f"내역서 {len(ny_new):,} · 내역서 남은 것 {ny_left:,})")
+              f"내역서 {len(ny_new):,} · 내역서 남은 것 {ny_left:,} · 업체 {len(co_new):,} · 업체 남은 것 {co_left:,})")
         # 로그를 못 볼 때를 대비해 결과를 사이트에 남깁니다 → /indexnow-status.json
         # (robots.txt 가 /data/ 를 막고 있어 뿌리에 둡니다 — 확인 도구가 못 읽었습니다)
         indexnow.write_report(DIST, sent, {"n": n_q, "새개찰": len(fresh),
@@ -4009,6 +4016,7 @@ def main():
                                            "내역서": len(ny_new),
                                            "내역서남은것": ny_left,
                                            "맵톡": len(qn_new),
+                                           "업체": len(co_new), "업체남은것": co_left,
                                            "예": paths[:5]})
     except Exception as e:
         print(f"  · IndexNow 목록 만들기 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
