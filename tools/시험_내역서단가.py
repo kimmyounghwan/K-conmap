@@ -278,6 +278,34 @@ b3 = 책()
 진단 = 판["DIAG"].get("naeyeok_fetch") or {}
 봄("진단에 «줄 기록 되살림» 칸", "줄 기록 되살림" in 진단, 진단)
 
+# ── 목록 내기 흉내 — main() 안 export_naeyeok(+ publish 둘)을 꺼내 위 회차의 보관 기록으로 목록을 냅니다 ─────
+print("목록 내기 흉내(겹침 · 셈 · 단가 보기)")
+for 이름_ in ("publish_naeyeok_files", "publish_naeyeok_rows", "export_naeyeok"):
+    f_ = [n for n in ast.walk(main_) if isinstance(n, ast.FunctionDef) and n.name == 이름_][0]
+    exec(compile(textwrap.dedent("\n".join(원문.splitlines()[f_.lineno - 1:f_.end_lineno])), 이름_, "exec"), 판)
+뿌리_ = os.path.join(곳, "뿌리")
+os.makedirs(os.path.join(뿌리_, "web", "public"))
+판.update(ROOT=뿌리_, OUT=os.path.join(뿌리_, "web", "public", "data"), NAEYEOK_INDEX=os.path.join(st, "naeyeok_index.json"),
+         NAEYEOK_SHOW_TOP=800, NAEYEOK_SHOW=2000, NAEYEOK_KEEP_DAYS=36500)
+os.makedirs(판["OUT"])
+가게2 = json.loads(json.dumps(가게))
+for k_, r_ in 가게2["con"].items():
+    r_.update(name="가상 공사 " + k_[-1], inst="가상군", url="")
+# 정정 공고: 6번 공고에 같은 파일 이름이 주소만 바꿔 한 번 더 붙음(단가 줄이 없는 쪽) · 공내역서 둘(겹침 하나)
+가게2["con"]["R26BK9000006"]["docs"].append(["가상 설계내역서 6.xlsx", "https://g2b.invalid/6b"])
+가게2["con"]["R26BK9000005"]["docs"] += [["가상 공내역서.xlsx", "https://g2b.invalid/e1"], ["가상 공내역서.xlsx", "https://g2b.invalid/e2"]]
+판["export_naeyeok"](가게2)
+내1 = json.load(open(os.path.join(판["OUT"], "naeyeok.json"), encoding="utf-8"))
+내2 = json.load(open(os.path.join(판["OUT"], "naeyeok-all.json"), encoding="utf-8"))
+줄들 = [dict(zip(내1["f"], x)) for x in 내1["r"]]
+봄("정정 겹침 하나로: 설계내역서 여섯 줄", len(줄들) == 6, [(x["no"], x["url"]) for x in 줄들])
+봄("남은 6번 줄은 단가 줄 · 받아 둔 파일이 있는 쪽", [x for x in 줄들 if x["no"] == "R26BK9000006"][0]["rk"] == "R26BK9000006_0", [x for x in 줄들 if x["no"] == "R26BK9000006"])
+봄("상한으로 내린 1~3번도 «💰 단가 보기» (줄 8 · 단가 확인됨)", all(x["rk"] and x["nrow"] == 8 and x["priced"] == 1 for x in 줄들), [(x["no"], x["rk"], x["nrow"], x["priced"]) for x in 줄들])
+봄("내린 것은 «바로 받기» 없음 · 남은 것은 있음", sorted(x["no"][-1] for x in 줄들 if x["local"]) == ["4", "5", "6"], [(x["no"], x["local"]) for x in 줄들])
+봄("칩 «모두» = 목록(상한 안 걸림 · 겹침 뺀 수) — 설계내역서 6 · 공내역서 1", 내1["all"].get("설계내역서") == 6 == 내1["kinds"].get("설계내역서")
+   and 내1["all"].get("공내역서") == 1 == 내1["kinds"].get("공내역서") and len(내2["r"]) == 1, {"all": 내1["all"], "kinds": 내1["kinds"]})
+봄("머리 «모두 N개» = 겹침 뺀 합 7", 내1["total"] == 7, 내1["total"])
+
 shutil.rmtree(곳, ignore_errors=True)
 print("\n%s 내역서 단가 시험 %d개 중 %d 맞음 · %d 틀림" % ("❌" if 실패 else "✅", 통과 + 실패, 통과, 실패))
 sys.exit(1 if 실패 else 0)

@@ -4089,6 +4089,13 @@ def main():
             같은것[짝] = 줄_
             (rows_p if kind in NAEYEOK_PRICED else rows_a).append(줄_)
 
+        # 「전부」 — 🩹 G376 (2026-10-22) 겹침(같은 파일 · 정정 공고)을 뺀 «목록에 오를 수 있는 것» 으로 셉니다.
+        #    전엔 색인(idx) 줄 수라 겹친 것까지 들어가, 상한에 안 걸린 설계내역서도 «모두 638 · 목록 631» 로 달라 보였습니다
+        #    (화면이 «모두 638개 가운데 최근 631개» 라고 잘못 적음 — 실제 사이트 10/22 18:40 판).
+        allcnt = {}
+        for x in rows_p + rows_a:
+            allcnt[x[0]] = allcnt.get(x[0], 0) + 1
+
         # 갈래마다 상한 — 전송량을 지키는 자리입니다
         kept, cap = {}, []
         for v, lim in ((rows_p, NAEYEOK_SHOW_TOP), (rows_a, NAEYEOK_SHOW)):
@@ -4102,10 +4109,7 @@ def main():
             cap.append(out)
         rows_p, rows_a = cap
 
-        # 「전부」와 「보여주는 것」 을 갈래마다 함께 냅니다 — 화면이 정직하게 적을 수 있도록
-        allcnt = {}
-        for v in idx.values():
-            allcnt[v[0]] = allcnt.get(v[0], 0) + 1
+        # 「전부」(위 allcnt)와 「보여주는 것」 을 갈래마다 함께 냅니다 — 화면이 정직하게 적을 수 있도록
         cnt = {}
         for x in rows_p + rows_a:
             cnt[x[0]] = cnt.get(x[0], 0) + 1
@@ -4115,7 +4119,7 @@ def main():
         meta = {"built": built, "f": fields, "n": len(rows_p) + len(rows_a),
                 "kinds": cnt, "all": allcnt,
                 "show": NAEYEOK_SHOW, "showTop": NAEYEOK_SHOW_TOP,
-                "days": NAEYEOK_KEEP_DAYS, "total": len(idx)}
+                "days": NAEYEOK_KEEP_DAYS, "total": sum(allcnt.values())}   # 🩹 G376 겹침 뺀 수(전엔 len(idx))
         for fn_, rows in (("naeyeok.json", rows_p), ("naeyeok-all.json", rows_a)):
             path = os.path.join(OUT, fn_)
             with open(path, "w", encoding="utf-8") as f:
