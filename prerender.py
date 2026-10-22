@@ -20,8 +20,9 @@ prerender.py — 주소마다 «진짜 HTML 파일» 을 굽습니다.  (2026-09
       크롤러는 글자를 봅니다.
 
 ■ Firebase 가 이걸 실제로 주는 근거
-    firebase.json 의 rewrites(`**` → /index.html)는 **일치하는 파일이 없을 때만**
-    적용됩니다. dist/agency/경주시.html 이 있으면 그 파일이 먼저 나갑니다.
+    firebase.json 의 rewrites(라우트별 → /app.html)는 **일치하는 파일이 없을 때만**
+    적용됩니다. 🔎 G375(2026-10-22) app.html = 빌드가 만드는 «홈 canonical · og:url 을 뺀» 껍데기 —
+    전엔 /index.html(구운 홈 · canonical 홈)이라 굽지 않은 주소가 구글에 «홈의 사본» 으로 보였습니다. dist/agency/경주시.html 이 있으면 그 파일이 먼저 나갑니다.
     cleanUrls:true 라 `.html` 을 뗀 주소로 서비스됩니다.
     ⚠️ 이건 배포 뒤 브라우저로 직접 확인할 것 — 문서만 믿지 않습니다.
 

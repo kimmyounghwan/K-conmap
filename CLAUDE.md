@@ -5465,3 +5465,11 @@ canonical 이중 인코딩 · 개찰 시각 문구 · 성적표 칸 · 등수 �
 - 화면(Change.jsx): 단가판도 같은 줄 한 번씩(`한번씩` — 옛 줄 파일 대비) · 칩 숫자 = «모두»(meta.all — 미리 구운 갈래 쪽과 같은 숫자) · 목록이 상한에 걸린 갈래는 «(모두 5,537개 가운데 최근 2,000개 — 찾기도 이 안에서)» · 머리 «모두 N개(최근 365일치)» · 단가판 찾기 «N줄 가운데 «말» 이 든 M줄».
 - 시험: `python tools/시험_내역서단가.py`(53 — 가상 내역서 A 표준 · B 한 줄 머리 · C 시트 많음 + 보관 기록 + **회차 흉내**: main() 안 fetch_naeyeok_files 를 꺼내 가짜 나라장터로 4회차 — 내린 것 안 받음 · 지워진 기록 되살려 한 번만 다시 받음) · 화면 `node tools/시험_내역서모음화면.mjs`(PC · 폰 29).
 - ⚠️ 뽑는 법을 또 고치면 `NAEYEOK_ROWS_VER` 를 올리고(옛 줄은 안 보이고 원본을 한 번 더 받아 새로 뽑음) 실제 내역서 대조(옛 길 ↔ 새 길 · 잃은 줄은 바로잡힘인지 하나씩)를 다시 할 것.
+
+### 272. 🔎 굽지 않은 주소의 껍데기 = app.html(홈 canonical 없음) · 끝 «/» 는 301 (2026-10-22 G375, 소장님 서치 콘솔 알림 «적절한 표준 태그가 포함된 대체 페이지» → 「1,2번으로 고쳐」)
+- 까닭(실측 10/22 17:12): 공고 페이지는 최신 8,000건만 굽습니다(prerender N_NOTICE). 그 밖(공고 목록 대략 10/1 이전 · 1순위 9/30 이전) · 막 올라온 맵톡 글 · 없는 업체 · 기관은
+  rewrites 로 **index.html** 을 받았는데, 그건 prerender 가 홈 본문까지 구운 «홈» 이라 canonical 홈 · og:url 홈 → 구글 «홈의 사본». 끝 «/»(/first/ · /tools/safecard/)도 같은 껍데기. 사이트맵 주소 546곳은 모두 정상이었음.
+- 고침: ① `web/vite.config.js` 앱껍데기 — 빌드가 dist/index.html 에서 canonical · og:url 을 뺀 **dist/app.html** 을 만듦(prerender 가 실패해도 늘 있음 — 없으면 rewrites 가 모두 404).
+  `web/firebase.json` rewrites 45곳 destination `/index.html` → `/app.html`. ② `"trailingSlash": false` — 끝 «/» 는 301 로 «/» 없는 주소.
+- ⚠️ main.jsx 에 라우트를 새로 만들면 firebase.json rewrites 에 **`/app.html`** 로 넣을 것(`/index.html` 로 넣으면 그 주소가 다시 «홈의 사본» 이 됩니다).
+- 시험: 파이어베이스 호스팅 에뮬레이터(firebase-tools 15.34.0 · 진짜 규칙) — `node tools/시험_껍데기주소.mjs`(16: 안 구운 공고 200 · canonical 없음 · 홈 본문 없음 / 구운 공고 · 홈 그대로 / 끝 «/» 301 / 없는 주소 404 · noindex / 화면 1순위 · 안전카드 · 공고 · 앱 안 옮겨 가기). 사이트 훑기 111곳(에뮬레이터 ↔ 옛 판) 새 문제 0.

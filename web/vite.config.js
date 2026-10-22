@@ -73,9 +73,32 @@ function 판번호() {
   }
 }
 
+/* 🔎 G375 (2026-10-22) 소장님 서치 콘솔 알림 «적절한 표준 태그가 포함된 대체 페이지» → 「1,2번으로 고쳐」
+   미리 굽지 않은 주소(최신 8,000건 밖 공고 · 막 올라온 맵톡 글 · 업체 · 기관 …)는 firebase rewrites 로 «껍데기» 를 받습니다.
+   전에는 그 껍데기가 index.html(홈)이라 canonical 이 «홈(/)» 이었습니다 → 구글이 «홈의 사본» 으로 보고 색인을 안 했습니다
+   (실측 10/22: 9/3~9/30 공고 페이지 · 화면은 멀쩡히 열림). 게다가 prerender 가 index.html 에 홈 본문까지 구워서 내용도 홈과 같았습니다.
+   → 빌드 때 «홈 canonical · og:url 을 뺀» app.html 을 따로 만들고, rewrites 는 모두 그쪽으로(web/firebase.json).
+   ⚠️ prerender 가 실패해도(continue-on-error) app.html 은 빌드가 만들므로 늘 있습니다 — 없으면 rewrites 가 모두 404 가 됩니다. */
+function 앱껍데기() {
+  let 낼곳 = 'dist'
+  return {
+    name: '앱껍데기',
+    configResolved(c) { 낼곳 = c.build.outDir },
+    closeBundle() {
+      const 안 = path.resolve(낼곳, 'index.html')
+      if (!fs.existsSync(안)) return
+      const h = fs.readFileSync(안, 'utf8')
+        .replace(/[ \t]*<link rel="canonical"[^>]*>\r?\n?/, '')
+        .replace(/[ \t]*<meta property="og:url"[^>]*>\r?\n?/, '')
+      if (/rel="canonical"|property="og:url"/.test(h)) throw new Error('app.html 에 canonical · og:url 이 남았습니다')
+      fs.writeFileSync(path.resolve(낼곳, 'app.html'), h)
+    },
+  }
+}
+
 export default defineConfig({
   define: { __BUILD__: JSON.stringify(BUILD), __CODE__: JSON.stringify(CODE) },
-  plugins: [react(), pdfjs자료(), 판번호()],
+  plugins: [react(), pdfjs자료(), 판번호(), 앱껍데기()],
   build: {
     outDir: 'dist',
     // public/data 는 수천 개 JSON이라 인라인 금지
