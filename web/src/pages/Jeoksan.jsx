@@ -23,7 +23,9 @@
    ⚠️ 단가표 숫자는 «사이트의 단가 채우기가 지금 쓰는 표» 입니다(PC K-적산웹\functions\core_목록.json «만든때» · 같은품목표 _갱신기록.md).
       PC 는 저녁마다 더 쌓지만 G1 함수 올리기를 해야 사이트에 들어갑니다 — 함수를 다시 올리면 아래 단가표 도 같이 고치십시오.
    ⚠️ «🧪 예시 있음» 은 그 화면에 «예시로 해 보기» 단추가 실제로 있는 것만(도면 물량 자동 · 골조 · 마감). */
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { 나운영자 } from '../lib/운영자.js'
 import { 받은수, 화면열쇠 } from '../lib/받은수.jsx'   /* ⬇ 2026-10-01 (G109) 소장님 「내역서 및 적산 탭 안에 … 받기 숫자가 하나도 없는데?」 — 도구 탭과 같은 숫자 */
 import { PriceStance } from '../components.jsx'
 
@@ -141,9 +143,37 @@ function 작업대() {
   )
 }
 
+/* 🏗 G392 (2026-10-24) K-적산컨맵 — 소장님 「이게 최종 이잖아. 눈에 띄게 뭘 해야 하지 않을까」 → 적산 첫 화면 맨 위 큰 카드(고르심) ·
+   🔒 열기는 소장님만(운영자) · 남에게는 «준비 중» (고르심 «소장님만 · 남에게는 준비 중 카드») — 그림은 가상 예시 건물(실제 현장 아님) */
+function 컨맵카드() {
+  const [운영자, set운영자] = useState(false)
+  useEffect(() => { let 살 = true; 나운영자().then((v) => { if (살 && v) set운영자(true) }).catch(() => {}); return () => { 살 = false } }, [])
+  return (
+    <div className="card kcm-hero" aria-label="K-적산컨맵">
+      <div>
+        <span className="kcm-hero-k">🏗 K-적산컨맵</span>
+        <h2>도면을 넣으면 건물이 서고, 물량까지</h2>
+        <ul>
+          <li>📐 구조도면을 모두 넣으면 <b>좌표대로</b> 기초 · 기둥 · 보 · 벽 · 슬라브가 섭니다</li>
+          <li>📚 도면함에서 평면을 <b>아래층부터 한 장씩</b> — 한꺼번에 세운 것과 물량이 같습니다</li>
+          <li>🧭 세우는 차례를 게임처럼 알려 드리고 · 🙋 모자란 도면을 짚어 드립니다</li>
+          <li>🚶 3D 안을 걸으며 층마다 확인 · 🟨 건설맵이 먼저 세운 곳은 ✓ 확인만</li>
+          <li>📊 콘크리트 · 거푸집 · 철근 산출서를 엑셀로</li>
+        </ul>
+        {운영자
+          ? <Link className="btn kcm-hero-go" to="/jeoksan/model?ws=1">🖥 K-적산컨맵 열기 →</Link>
+          : <span className="kcm-hero-soon">🔧 준비 중 — 실제 현장 도면으로 시험을 마치는 대로 엽니다</span>}
+        <받은수 쪽="/jeoksan/model" 봄="/jeoksan/model" className="dlcount" />
+      </div>
+      <img className="kcm-hero-img" src="/jeoksan/kconmap_hero.jpg" alt="K-적산컨맵 3D 화면 — 가상 예시 건물 안을 걷는 사람" width="960" height="540" loading="lazy" />
+    </div>
+  )
+}
+
 export default function Jeoksan() {
   return (
     <>
+      <컨맵카드 />
       <div className="card lead-card">
         <h1 style={{ margin: 0, fontSize: 20 }}>🧮 K-적산 — 도면을 넣으면 물량, 내역서 수량 칸까지</h1>
         {/* ⏸ 2026-09-25 — 소장님: 「그럼 작성대행도 안돼고, 적산도 안되는 거잖아. 근데, 사이트에는 된다고 해놓서」

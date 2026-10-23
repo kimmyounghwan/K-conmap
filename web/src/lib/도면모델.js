@@ -89,6 +89,7 @@ export function 도면에서모델(BIM, R, 옵션 = {}) {
   const 점들 = []      // 기둥 · 기초 {o, 종류, 층, gx, gy, a(x 너비), b(y 너비), 덧}
   const 선들 = []      // 보 · 벽 {o, 종류, 층, 가로, 줄, 축자리, s0, s1, 폭, 덧}
   const 판들 = []      // 슬라브 {o, 층, a, b, c, d}
+  const 판기초들 = []  // 🟨 G392 MAT · 부정형 기초 {o, 층, 부호, 판, 두께} — 건설맵이 도면 외곽선대로 먼저 세움(제안 · 사람이 ✓)
   /* 🚶 G390 못 옮긴 것도 도면 자리(판 mm · 높이 mm)를 남김 — 작업 화면 3D 에 빨갛게(«빠진 곳») */
   const 자리글 = (o) => (Array.isArray(o.판) && o.판.length >= 3 && o.판.length <= 64 ? { 판: o.판.map((p) => [Math.round(p[0]), Math.round(p[1])]), 높: Math.max(Math.round((+o.z1 || 0) - (+o.z0 || 0)), 0) } : {})
   const 빼 = (o, 까닭) => 못옮김.push({ 종류: o.종류, 층: o.층, 기호: 글(o.기호), 까닭, id: o.id, 키: 평면키(o), ...자리글(o) })
@@ -96,7 +97,11 @@ export function 도면에서모델(BIM, R, 옵션 = {}) {
     const 기호 = 글(o.기호)
     const [a, b, c, d] = 상자(o.판)
     if (o.종류 === '기둥' || o.종류 === '기초') {
-      if (o.종류 === '기초' && (/^M(AT|F)/i.test(기호) || o.부정형 || !곧은판(o.판) || 넓이(o.판) > 60e6)) { 빼(o, 'MAT · 부정형 기초(손으로 · 골조 수량산출 표)'); continue }
+      if (o.종류 === '기초' && (/^M(AT|F)/i.test(기호) || o.부정형 || !곧은판(o.판) || 넓이(o.판) > 60e6)) {
+        const 두 = Math.round((+o.z1 || 0) - (+o.z0 || 0))
+        if (넓이(o.판) > 0 && 두 > 0) { 판기초들.push({ o, 층: o.층, 부호: 기호, 판: o.판.map((p) => [Math.round(p[0]), Math.round(p[1])]), 두께: 두 }); continue }
+        빼(o, 'MAT · 부정형 기초(손으로 · 골조 수량산출 표)'); continue
+      }
       const cx = (a + c) / 2, cy = (b + d) / 2, 반 = Math.max(c - a, d - b) / 2
       점들.push({ o, 종류: o.종류, 층: o.층, 부호: 기호, gx: X.얻기(cx, 반 + 100), gy: Y.얻기(cy, 반 + 100), a: c - a, b: d - b, 덧: o.종류 === '기둥' ? 높이들(o) : {} })
       continue
@@ -216,7 +221,7 @@ export function 도면에서모델(BIM, R, 옵션 = {}) {
   /* ⑤ 부재 — 같은 자리 · 같은 종류는 하나 */
   const 부재들 = []
   let id = 1
-  const 열쇠 = (o) => o.종류 + '|' + o.층 + '|' + JSON.stringify(o.점 || o.칸) + '|' + JSON.stringify(o.끝 || '')
+  const 열쇠 = (o) => o.종류 + '|' + o.층 + '|' + JSON.stringify(o.점 || o.칸 || o.판) + '|' + JSON.stringify(o.끝 || '')
   const 본키 = new Map()
   const 넣기 = (o) => {
     const k = 열쇠(o), 앞 = 본키.get(k)
@@ -240,6 +245,21 @@ export function 도면에서모델(BIM, R, 옵션 = {}) {
       const A = 줄들[마디[k]], B = 줄들[마디[k + 1]]
       넣기({ 종류: m.종류, 층: m.층, 부호: m.부호, 점: m.가로 ? [A.id, m.줄.id] : [m.줄.id, A.id], 끝: m.가로 ? [B.id, m.줄.id] : [m.줄.id, B.id], ...m.덧, ...출처(m.o) })
     }
+  }
+  /* 🟨 G392 MAT · 부정형 기초 — 도면 외곽선 그대로 · 두께 = 도면 높이 · 일람에 없으면 «부정형» 배근을 만들어 둠(철근은 비어 확인 받음) */
+  /* 윗면 = 도면 높이(z1)에서 FT 기초 가장 높은 윗면을 뺀 값(MAT 밑 깊은 곳 · 피트는 MAT 바닥 밑에 — 겹쳐 그리지 않게) */
+  const 기초윗 = 판기초들.reduce((a, t) => Math.max(a, +t.o.z1 || -Infinity), -Infinity)
+  for (const t of 판기초들) {
+    const 윗 = Number.isFinite(기초윗) && Number.isFinite(+t.o.z1) ? Math.round(+t.o.z1 - 기초윗) : 0
+    if (윗 < 0) t.윗면 = 윗
+    const 일 = (배근.기초 || []).find((r) => 글(r.기호).toUpperCase() === t.부호.toUpperCase())
+    const 일두 = 일 ? 수(일.두께, 0) : 0
+    const 덧글 = []
+    if (!일) {
+      배근.기초.push({ 기호: t.부호, 종류: '부정형', 두께: String(t.두께), 단위철근: '', 만든: '건설맵 제안 — 일람표에 없는 기호 · 두께 = 도면 높이 · 철근은 비었음(확인)' })
+      덧글.push('일람표에 없어 철근이 비었음')
+    } else if (일두 > 0 && Math.abs(일두 - t.두께) > 1) 덧글.push('일람 두께 ' + 일두 + ' 와 다름')
+    넣기({ 종류: '기초', 층: t.층, 부호: t.부호, 판: t.판, 두께: t.두께, ...(t.윗면 ? { 윗면: t.윗면 } : {}), 제안: '도면 외곽선 그대로 · 두께 = 도면 높이 ' + t.두께 + ' mm' + (덧글.length ? ' · ' + 덧글.join(' · ') : ''), ...출처(t.o) })
   }
   for (const s of 판들) {
     if (일람밖({ 종류: '슬라브', 층: s.층, 부호: s.부호, o: s.o })) continue
@@ -275,7 +295,7 @@ export function 도면에서모델(BIM, R, 옵션 = {}) {
     다음: id,
     도면에서: { 부재: 판든.length, 못옮김: 못옮김.length },
   }
-  return { M, 못옮김, 옮김: 부재들.length, 보조: X.줄.filter((g) => !g.본).length + Y.줄.filter((g) => !g.본).length }
+  return { M, 못옮김, 옮김: 부재들.length, 제안: 부재들.filter((o) => o.제안).length, 보조: X.줄.filter((g) => !g.본).length + Y.줄.filter((g) => !g.본).length }
 }
 
 /**
@@ -326,7 +346,7 @@ export function 평면가져오기(M, 전체, 키들) {
     }
     통심[ax] = 줄.sort((p, q) => p.자리 - q.자리)
   }
-  const 열쇠 = (o) => o.종류 + '|' + o.층 + '|' + JSON.stringify(o.점 || o.칸) + '|' + JSON.stringify(o.끝 || '')
+  const 열쇠 = (o) => o.종류 + '|' + o.층 + '|' + JSON.stringify(o.점 || o.칸 || o.판) + '|' + JSON.stringify(o.끝 || '')
   const 있는 = new Set((M.부재 || []).map(열쇠))
   const 쓴id = new Set((M.부재 || []).map((o) => o.id))
   let 다음 = Math.max(M.다음 || 1, 전체.다음 || 1, ...(M.부재 || []).map((o) => (+o.id || 0) + 1), ...전체.부재.map((o) => (+o.id || 0) + 1))

@@ -4,9 +4,11 @@
 //   ② 새로 → 통심 3×2 칸 · 1층: 교점 누름 = 기둥 · 교점 둘 = 보(칸마다 나뉨) · 칸 누름 = 슬라브 · «모든 교점에» · 층 더하기 → 층 복사 → 2층 부재 수 같음(14)
 //   ③ 고르기 → 누른 보의 물량이 나옴 · 지우기 → 하나 줄어듦 · 되돌리기 → 다시 늘어남
 //   ④ 엑셀 받기 → 시트(산출서 · 집계 · 부재별 · 모델) · 산출서 수량 칸 합(콘크리트) = lib
-//   ⑤ 새로고침해도 모델이 남음(이 브라우저 저장) · 화면 오류 없음 · 폰 가로 넘침 없음
+//   ⑤ 새로고침해도 모델이 남음(이 브라우저 저장) · 🔧 G392 보조 통심 더하기(빈칸 알림 · «3,500 mm» · 같은 자리) · 화면 오류 없음 · 폰 가로 넘침 없음
 //   ⑥ 🖥 G388 작업 화면(🔒 운영자만) — 남에게는 단추 · ?ws=1 모두 없음 · 운영자: 열면 왼쪽 도구 · 가운데 3D(PC 화면 폭 절반 넘게) · 오른쪽 물량 ·
 //      그 안에서 기둥 세우기 · 고르기 · 평면 / 나란히 · 나가면 주소 ?ws=1 지움 · 폰 가로 넘침 없음
+//   ⑩ 🟨 G392 건설맵 제안(MAT) — 모델 열기 → «🟨 건설맵이 먼저 세운 것 1곳» · 하나씩 보기 → 제안 카드(두께) · ✓ 이대로 → 줄 사라짐 · 합 그대로 ·
+//      다시 열고 🚶 둘러보기 → FT MAT 위에서 «❓ … 맞나요?» 퀘스트 → ✓ 맞음 → 빨간 곳 0
 //   ⑨ 📚 G391 도면함 — 평면 다 세움 · 🧹 비우고 · ▶ 가장 아래층부터 · 📥 하나씩 = 한꺼번에(합) · 📤 빼기 · 다시 가져오기 · 🔄 다시 · 폰 넘침 없음
 //   ⑦ 📐 G389 작업 화면 «도면 넣기»(🔒 운영자만) — 가상 예시 도면(BIM_예시_3층.dxf)을 넣으면 좌표대로 세움:
 //      부재 수 · 화면 합 = lib(골조읽기 → BIM 모델 → 도면에서모델 → 모델셈) · 견줌표(도면 셈) · 못 옮긴 것 없음 · 되돌리기 → 전 모델 · 오류 없음 · 폰 넘침 없음
@@ -132,7 +134,11 @@ for (const 기기 of 기기들) {
   await A.getByRole('button', { name: '＋ 위로 층 더하기' }).click()
   await A.getByRole('tab', { name: '③ 세우기 · 3D' }).click()
   await A.locator('.gmd-bar.small label', { hasText: '2층' }).locator('input').check()
-  await A.getByRole('button', { name: '복사', exact: true }).click()
+  /* 🔧 G392 체크하면 «복사하면 얼마나 늘어나는지» 미리 · 단추 «📋 2층에 복사»(소장님 「체크하면 변해야 하는 거 아니야」) */
+  await A.waitForTimeout(600)
+  const 미리 = await A.locator('.gmd-copyprev[role=status]').innerText().catch(() => '')
+  봐(/부재 \+14개/.test(미리) && /콘크리트 \+/.test(미리) && /체크만으로는/.test(미리), `${기기} 층 복사 미리 — 체크하면 «부재 +14개 · 콘크리트 +…» 보임`, 미리)
+  await A.getByRole('button', { name: '📋 2층에 복사' }).click()
   const 층글 = await A.locator('.gmd-build select').first().locator('option').allInnerTexts()
   봐(층글.some((t) => /^2층 · 14$/.test(t.trim())) && 층글.some((t) => /^1층 · 14$/.test(t.trim())), `${기기} 층 복사 → 2층 부재 14(기둥 6 · 보 6 · 슬라브 2 — 1층과 같음)`, 층글.join(' | '))
   const s2 = await 합안정()
@@ -143,6 +149,24 @@ for (const 기기 of 기기들) {
   await A.getByRole('tab', { name: '③ 세우기 · 3D' }).click()
   const s3 = await 합안정()
   봐(s2 && s3 && s2.콘 === s3.콘 && s2.콘 > 0, `${기기} 새로고침해도 모델 남음(콘크리트 ${s3 && s3.콘})`, JSON.stringify([s2, s3]))
+  /* 🔧 G392 보조 통심 더하기(소장님 폰 「더하기가 안돼」) — 빈칸이면 알림 · 3500 → «X1+3500»(첫 줄에서) · 같은 자리는 알림 */
+  {
+    await A.getByRole('tab', { name: /통심/ }).first().click()
+    await A.waitForTimeout(300)
+    const 더 = A.getByRole('button', { name: '더하기', exact: true })
+    await 더.click()
+    const 알1 = (await A.locator('[role=status]').allInnerTexts()).join(' ')
+    await A.locator('input[placeholder="첫 줄에서 거리 mm"]').fill('3,500 mm')
+    await 더.click()
+    await A.waitForTimeout(300)
+    const 알2 = (await A.locator('[role=status]').allInnerTexts()).join(' ')
+    const 이름들 = await A.locator('input.gmd-in').evaluateAll((a) => a.map((x) => x.value))
+    await A.locator('input[placeholder="첫 줄에서 거리 mm"]').fill('3500')
+    await 더.click()
+    await A.waitForTimeout(300)
+    const 알3 = (await A.locator('[role=status]').allInnerTexts()).join(' ')
+    봐(/숫자로/.test(알1) && /X1\+3500/.test(알2) && 이름들.includes('X1+3500') && /이미/.test(알3), `${기기} 보조 통심 더하기 — 빈칸 알림 · «3,500 mm» → X1+3500 · 같은 자리 알림`, [알1, 알2, 알3].join(' / '))
+  }
   봐(오류.length === 0, `${기기} 화면 오류 없음`, 오류.join(' | '))
   if (기기 === '폰') {
     const 넘침 = await A.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
@@ -301,6 +325,40 @@ for (const 기기 of 기기들) {
   const 수1 = await B.locator('svg.gmd-svg g.gmd-m').count()
   const 합4 = await B.locator('.gmd-ws-right .gmd-sum').innerText()
   봐(/보|벽/.test(고른글) && 수1 === 수0 + 1 && 합4 === 합3, `${기기} ✂ 둘로(${고른글}) — 부재 ${수0} → ${수1} · 합 그대로(${합4.replace(/\n/g, ' ')})`, 합3 + ' → ' + 합4)
+  /* ⑩ 🟨 건설맵 제안(MAT) */
+  {
+    let MM = L.예시모델()
+    MM = { ...MM, 부재: MM.부재.filter((o) => o.종류 !== '기초'), 배근: { ...MM.배근, 기초: [...MM.배근.기초, { 기호: 'MF1', 종류: 'MAT', 두께: 800, 하부가로: 'D22@200', 하부세로: 'D22@200', 상부가로: 'D22@200', 상부세로: 'D22@200' }] } }
+    MM = { ...MM, 다음: MM.다음 + 1, 부재: [...MM.부재, { id: MM.다음, 종류: '기초', 층: 'FT', 부호: 'MF1', 판: [[-1000, -1000], [22000, -1000], [22000, 13000], [-1000, 13000]], 두께: 800, 제안: '도면 외곽선 그대로 · 두께 = 도면 높이 800 mm' }] }
+    const 매트파일 = path.join(os.tmpdir(), 'kcm_g392_mat.json')
+    fs.writeFileSync(매트파일, JSON.stringify(MM))
+    const S매트 = L.모델셈(MM)
+    const 열기 = async () => { B.once('dialog', (d) => d.accept()); await B.locator('.gmd-ws input[type=file][accept*="json"]').first().setInputFiles(매트파일); await B.waitForTimeout(900) }
+    await 열기()
+    const 줄 = await B.locator('.gmd-prop-sum').innerText().catch(() => '')
+    봐(/1곳/.test(줄) && (await B.locator('.gmd-ws-right .gmd-sum').innerText()).includes(S매트.합.콘크리트.toLocaleString('ko-KR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })), `${기기} 🟨 건설맵이 먼저 세운 것 1곳 · 합 = lib(${S매트.합.콘크리트.toFixed(3)} ㎥ · MAT 포함)`, 줄)
+    await B.locator('.gmd-prop-sum button', { hasText: '하나씩 보기' }).click()
+    await B.waitForTimeout(500)
+    const 카드 = await B.locator('.gmd-pick .gmd-prop').innerText().catch(() => '')
+    봐(/건설맵 제안/.test(카드) && (await B.locator('.gmd-pick .gmd-prop input').first().inputValue()) === '800', `${기기} 제안 카드 — 두께 800 · ✓ 이대로 · ✕ 빼기`, 카드)
+    const 합전 = await B.locator('.gmd-ws-right .gmd-sum').innerText()
+    await B.locator('.gmd-pick .gmd-prop button', { hasText: '✓ 이대로' }).click()
+    await B.waitForTimeout(600)
+    봐((await B.locator('.gmd-prop-sum').count()) === 0 && (await B.locator('.gmd-ws-right .gmd-sum').innerText()) === 합전, `${기기} ✓ 이대로 → 🟨 줄 사라짐 · 합 그대로`)
+    await 열기()
+    await B.locator('.gmd-walkbtn').click()
+    await B.waitForTimeout(400)
+    if (await B.locator('.gwk-pick').count()) { await B.locator('.gwk-go').click() }
+    await B.waitForSelector('.gwk-quest', { timeout: 8000 }).catch(() => {})
+    const 퀘 = await B.locator('.gwk-quest').innerText().catch(() => '')
+    const 허 = await B.locator('.gwk-hud').innerText()
+    봐(/맞나요/.test(퀘) && /MF1/.test(퀘) && /빨간 곳 1/.test(허.replace(/\s+/g, ' ')), `${기기} 🎮 퀘스트 — FT MAT 위에서 «❓ MF1 맞나요?» · 빨간 곳 1`, 퀘 + ' / ' + 허)
+    await B.locator('.gwk-quest button', { hasText: '✓ 맞음' }).click()
+    await B.waitForTimeout(700)
+    봐((await B.locator('.gwk-quest').count()) === 0 && /빨간 곳 0/.test((await B.locator('.gwk-hud').innerText()).replace(/\s+/g, ' ')), `${기기} ✓ 맞음 → 퀘스트 끝 · 빨간 곳 0`)
+    if (기기 === '폰') 봐((await B.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 1, `폰 퀘스트 가로 넘침 없음`)
+    await B.getByRole('button', { name: '✕ 그만' }).click()
+  }
   봐(오류2.length === 0, `${기기} 작업 화면 오류 없음`, 오류2.join(' | '))
   await 판2.close()
 }

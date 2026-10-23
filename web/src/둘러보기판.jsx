@@ -12,14 +12,15 @@
  *   VRoid 샘플 AvatarSample_D · E · F · G(CC0 · 파일 안 조건도 누구나 · 상업 · 고침 · 재배포 됨) · public/jeoksan/char/{d,e,f,g}.vrm(tools/vrm_싣기.py 로 줄임 · 한 명 3 MB 안팎)
  *   고를 때 받음(lib/사람vrm.js 캐릭터받기) · 받는 동안은 사람 안 그림 · 못 받으면 코드로 짠 사람(lib/사람3d.js) · «🎮 다른 캐릭터 파일 넣기» = 이 PC 의 VRM(이 화면을 여는 동안만)
  *   👁 눈 깜빡임(2 ~ 5 초마다) · 🖱 3D 를 누르면 그리로 걸어감(부재 = 그 앞 · 바닥 = 그 자리 — lib/둘러보기.js 누른곳길 · bim3d 바닥점)
- * ■ 📊 숨은 누적 |골조모델|둘러보기 · |골조모델|점검사항 · |골조모델|나누기 · |골조모델|캐릭터파일 · |골조모델|누른곳걷기
+ * ■ 🎮 G392 퀘스트 카드 — 가까운 🟨 제안(건설맵이 도면대로 먼저 세운 것)은 «✓ 맞음 · ✏ 고치기 · ✕ 빼기» · 가까운 🟥 빨간 곳은 «📝 점검사항 · 넘어가기» · 빨간 곳 수 = 손으로 할 곳 + 확인 전 제안
+ * ■ 📊 숨은 누적 |골조모델|둘러보기 · |골조모델|점검사항 · |골조모델|나누기 · |골조모델|캐릭터파일 · |골조모델|누른곳걷기 · |골조모델|퀘스트확인
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { 세기 } from './lib/받은수.jsx'
 import { 사람몸, 놓기 } from './lib/사람3d.js'
 import { 사람모델읽기, 사람자세, 사람놓기, 캐릭터들, 캐릭터받기 } from './lib/사람vrm.js'
-import { 층판, 첫자리, 걷기, 가까운것, 확인들, 자동길, 자동입력, 자동막힘, 밀어내기, 누른곳길 } from './lib/둘러보기.js'
-import { 층높이, 부재나누기, 부재글, FT층 } from './lib/골조모델.js'
+import { 층판, 첫자리, 걷기, 가까운것, 확인들, 자동길, 자동입력, 자동막힘, 밀어내기, 누른곳길, 가까운빠짐 } from './lib/둘러보기.js'
+import { 층높이, 부재나누기, 부재글, FT층, 제안확인, 제안빼기, 판넓이 } from './lib/골조모델.js'
 
 const 기억열쇠 = 'kcm.walker'
 const 각차 = (a, b) => { let d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d }
@@ -41,6 +42,8 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
   const [가까이, set가까이] = useState(null)          // {id, 종류, 부호, d}
   const [알림, set알림] = useState('')
   const [메모, set메모] = useState(null)               // null | 글
+  const [퀘, set퀘] = useState(null)                   // 🎮 G392 퀘스트 — {종: '제안', id} 건설맵이 세운 것 확인 · {종: '빨강', k} 손으로 할 곳
+  const 넘김Ref = useRef(new Set())
   const [모델, set모델] = useState(null)               // 🎮 VRM {모, 이름, 키 | 내파일} — 있으면 그 사람이 걸음
   const [모델상태, set모델상태] = useState('')
   const [못받음, set못받음] = useState(false)          // 캐릭터 파일을 못 받으면 코드로 짠 사람(lib/사람3d.js)으로
@@ -81,6 +84,7 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
   const 사람Ref = useRef(사람); 사람Ref.current = 사람
   const 고른Ref = useRef(고른); 고른Ref.current = 고른
   const 확인Ref = useRef(확인); 확인Ref.current = 확인
+  const MRef = useRef(M); MRef.current = M
   const 다시 = useRef(true)
 
   /* 처음 · 층이 바뀌면 — 자리(처음엔 건물 앞) · 막힌 곳에서 밀어냄 */
@@ -177,6 +181,14 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
           if (든.some((id) => !옛 || !옛.has(id))) {
             const n = new Map(확인Ref.current); const 새 = new Set(옛 || []); for (const id of 든) 새.add(id); n.set(판0.층, 새); set확인(n)
           }
+          /* 🎮 G392 퀘스트 — 가까운 🟨 제안(건설맵이 세운 것 · 확인 전) · 없으면 가까운 🟥 빨간 곳(넘긴 것은 빼고) */
+          {
+            const MM = MRef.current
+            const 제o = 가까운것(s, 판0).map((r) => r.o).find((o) => { const m = MM.부재.find((x) => x.id === o.id); return m && m.제안 })
+            const 빨 = 제o ? null : 가까운빠짐(s, MM.빠짐, 판0.층)
+            const 새 = 제o ? { 종: '제안', id: 제o.id } : 빨 && !넘김Ref.current.has(판0.층 + '|' + 빨.k) ? { 종: '빨강', k: 빨.k } : null
+            set퀘((p) => (JSON.stringify(p) === JSON.stringify(새) ? p : 새))
+          }
           if (감 || 돌았) {
             const g = 가까운것(s, 판0)[0]
             const 새가 = g ? { id: g.o.id, 종류: g.o.종류, 부호: g.o.부호, d: g.d } : null
@@ -197,7 +209,11 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
   const 층바꿈 = (d) => { const n = 차례[k층 + d]; if (n === undefined) return; set층(n); set고른(null); set알림((d > 0 ? '⬆ ' : '⬇ ') + 층글(n) + '으로 옮겼습니다') }
   const 이층수 = 판.부재.length
   const 본수 = (확인.get(층) || new Set()).size
-  const 빠짐 = (M.빠짐 || []).filter((x) => x.층 === 층).length
+  const 빠짐 = (M.빠짐 || []).filter((x) => x.층 === 층).length + M.부재.filter((o) => o.층 === 층 && o.제안).length   // 🟥 손으로 할 곳 + 🟨 확인 전 제안
+  const 퀘제 = 퀘 && 퀘.종 === '제안' ? M.부재.find((o) => o.id === 퀘.id && o.제안) : null
+  const 퀘빨 = 퀘 && 퀘.종 === '빨강' ? (M.빠짐 || [])[퀘.k] : null
+  const 퀘확인 = () => { if (!퀘제) return; setM((P) => 제안확인(P, 퀘제.id, 지금때())); 세기('|골조모델|퀘스트확인'); set알림('✓ ' + 층글(퀘제.층) + ' ' + 퀘제.종류 + ' ' + 퀘제.부호 + ' — 건설맵이 세운 대로 확인했습니다'); set퀘(null) }
+  const 퀘빼기 = () => { if (!퀘제) return; setM((P) => 제안빼기(P, 퀘제.id)); set알림('✕ ' + 퀘제.종류 + ' ' + 퀘제.부호 + ' 을(를) 빼서 빨간 곳(손으로)으로 돌렸습니다'); set퀘(null) }
   const 겹 = ((S && S.검사 && (S.검사.find((z) => z.겹친) || {}).겹친) || []).filter((x) => x.ids.some((id) => 판.부재.some((o) => o.id === id))).length
   const 다봄 = 이층수 > 0 && 본수 >= 이층수
   const 자동켜기 = () => {
@@ -278,6 +294,28 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
         <button type="button" onClick={() => set메모('')}>📝 점검사항에 넣기</button>
         <button type="button" className="gwk-x" onClick={끝내기}>✕ 그만</button>
       </div>
+      {퀘제 && (
+        <div className="gwk-quest" role="dialog" aria-label="퀘스트 — 건설맵이 세운 것 확인">
+          <b>❓ {층글(퀘제.층)} {퀘제.종류} {퀘제.부호} — 맞나요?</b>
+          <div>🟨 건설맵이 도면대로 먼저 세웠습니다{Array.isArray(퀘제.판) ? <> — 두께 <b>{퀘제.두께}</b> mm · 넓이 <b>{(판넓이(퀘제.판) / 1e6).toFixed(1)}</b> ㎡</> : null}</div>
+          <div className="muted">{퀘제.제안}{퀘제.근거 && 퀘제.근거.평면 ? ' · 📄 ' + 퀘제.근거.평면 : ''}</div>
+          <div className="gwk-qbtns">
+            <button type="button" className="on" onClick={퀘확인}>✓ 맞음</button>
+            <button type="button" onClick={() => set고른(퀘제.id)}>✏ 고치기(오른쪽)</button>
+            <button type="button" onClick={퀘빼기}>✕ 빼기</button>
+          </div>
+        </div>
+      )}
+      {!퀘제 && 퀘빨 && (
+        <div className="gwk-quest red" role="dialog" aria-label="퀘스트 — 빨간 곳">
+          <b>🟥 {층글(퀘빨.층)} {퀘빨.종류} {퀘빨.기호}</b>
+          <div>{퀘빨.까닭}</div>
+          <div className="gwk-qbtns">
+            <button type="button" onClick={() => set메모('손으로: ' + 퀘빨.종류 + ' ' + (퀘빨.기호 || '') + ' — ' + 퀘빨.까닭)}>📝 점검사항에 넣기</button>
+            <button type="button" onClick={() => { 넘김Ref.current.add(층 + '|' + 퀘.k); set퀘(null) }}>넘어가기</button>
+          </div>
+        </div>
+      )}
       {가까이 && <div className="gwk-near">{가까이.종류} <b>{가까이.부호}</b> · {가까이.d < 0.05 ? '바로 앞' : 가까이.d.toFixed(1) + ' m'} <span className="muted">— 오른쪽에 크기 · 물량</span></div>}
       {모델상태 && !사람.고름 && <div className="gwk-msg">{모델상태}</div>}
       {알림 && <div className="gwk-msg">{알림}<button type="button" onClick={() => set알림('')} aria-label="닫기">✕</button></div>}

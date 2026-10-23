@@ -25,12 +25,18 @@ export function 네모거리(x, y, b) { const dx = Math.max(b[0] - x, 0, x - b[2
 export function 층판(덩, H, 층) {
   const f = H.표.get(층)
   const 이층 = 덩.filter((d) => d.층 === 층)
-  /* FT(기초) = 터파기 바닥 — 그 층 기초 밑면 가장 낮은 곳에 섬(기초가 둘레에 덩어리로 보이게) · 나머지는 그 층 바닥 */
+  /* FT(기초) = 터파기 바닥 — 그 층 기초 밑면 가장 낮은 곳에 섬(기초가 둘레에 덩어리로 보이게) · 나머지는 그 층 바닥
+     🟨 G392 MAT(자유 모양 · 넓은 판 기초)가 있으면 그 윗면에 섬(MAT 은 밟는 바닥 — 막지 않음) */
+  const 판넓 = (P) => { let a = 0; for (let i = 0; i < P.length; i++) { const p = P[i], q = P[(i + 1) % P.length]; a += p[0] * q[1] - q[0] * p[1] } return Math.abs(a) / 2 }
+  const MAT인가 = (d) => d.종류 === '기초' && Array.isArray(d.판) && (d.판.length !== 4 || 판넓(d.판) > 60e6)
+  const 매트 = 이층.filter(MAT인가)
   const ft밑 = 이층.filter((d) => d.종류 === '기초').reduce((a, d) => Math.min(a, d.z0), Infinity)
-  const 바닥 = f ? (f.FT ? (Number.isFinite(ft밑) ? ft밑 : 0) : f.z0) / 1000 : 0
+  const 매트위 = 매트.reduce((a, d) => Math.max(a, d.z1), -Infinity)
+  const 바닥 = f ? (f.FT ? (Number.isFinite(매트위) ? 매트위 : Number.isFinite(ft밑) ? ft밑 : 0) : f.z0) / 1000 : 0
   const 막 = []
   for (const d of 덩) {
     if (d.종류 !== '기둥' && d.종류 !== '벽' && d.종류 !== '기초') continue
+    if (MAT인가(d)) continue
     const z0 = d.z0 / 1000, z1 = d.z1 / 1000
     if (z1 <= 바닥 + 0.3 || z0 >= 바닥 + 1.7) continue       // 사람 키와 안 겹침
     막.push({ id: d.id, b: 상자(d.판) })
@@ -177,4 +183,16 @@ export function 자동막힘(A, 사, dt) {
   else { A.가장 = d; A.막 = 0 }
   if (A.막 > 0.5 && !(A.옆때 > 0) && (A.옆번 || 0) < 3) { A.옆때 = 0.7; A.옆쪽 = (A.옆번 || 0) % 2 ? -1 : 1; A.옆번 = (A.옆번 || 0) + 1 }
   if (A.막 > 2.5) { if (!점.재) A.길.push({ ...점, 재: true }); A.k++; A.막 = 0; A.옆때 = 0; A.옆번 = 0; A.가장 = Infinity }
+}
+
+/** 🟥 가까운 빨간 곳(도면에서 못 옮긴 것 · M.빠짐) — 그 층 · 둘레 네모에서 거리 안 · 가까운 차례 첫째 { x, k, d } */
+export function 가까운빠짐(사, 빠짐, 층, 거리 = 고름거리) {
+  let best = null
+  ;(빠짐 || []).forEach((x, k) => {
+    if (x.층 !== 층 || !Array.isArray(x.판) || x.판.length < 3) return
+    const b = 상자(x.판)
+    const d = 네모거리(사.x, 사.y, b)
+    if (d <= 거리 && (!best || d < best.d)) best = { x, k, d }
+  })
+  return best
 }

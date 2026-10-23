@@ -8,7 +8,9 @@
  * ■ 모델 = { 이름, 통심: {x:[{id, 이름, 자리(mm)}], y:[…]}, 층: [{이름, 층고, 슬라브, 내림?}], 배근(골조.js 와 같은 꼴), 기준, 부재: […], 다음 }
  *   부재 = { id, 종류: 기둥|기초|보|벽|슬라브, 층, 부호, 점: [xid, yid], 끝?: [xid, yid](보 · 벽), 칸?: [x0, y0, x1, y1](슬라브 · 통심 id),
  *            구멍?(벽 OPEN «900x2100» · 슬라브 ㎡), 한면?(벽 거푸집 한 면만), 돌림?(기둥 가로 · 세로 바꿈),
- *            높이?(기둥 · 벽 mm — 그 층 바닥에서 윗면까지 · 비면 층고 · 🧭 G389 도면 단면 · 지붕 높이) , 상부?(벽 mm — 위에서 뺄 몫 · 비면 규칙) }
+ *            높이?(기둥 · 벽 mm — 그 층 바닥에서 윗면까지 · 비면 층고 · 🧭 G389 도면 단면 · 지붕 높이) , 상부?(벽 mm — 위에서 뺄 몫 · 비면 규칙),
+ *            🟨 G392 판?(기초 — 자유 모양 꼭짓점 [[x, y]] mm · 통심 좌표와 같음 → MAT · 부정형 기초 = 면적 × 두께 · 둘레 × 두께 · m²당 철근) · 두께?(판 기초 mm · 비면 일람) · 윗면?(mm ≤ 0 — 기초 윗면에서 내려간 깊이 · MAT 밑 피트)
+ *            제안?(글 — 건설맵이 도면대로 먼저 세운 것 · 사람이 «✓ 이대로» 누르기 전 · 셈에는 넣고 노랗게) · 확인?(✓ 누른 때) }
  * ■ 층: 맨 앞 FT층(기초 · 지중보 · 맨 아래 바닥 — 윗면 높이 0) 다음 아래층부터. n층 = n층 기둥 · 벽 + 그 위 바닥(보 · 슬라브) — 골조 셈과 같음.
  *   FT «내림»(mm) = 맨 아래 바닥 윗면에서 기초 윗면까지 깊이(맨 아래층 기둥이 그만큼 내려감).
  * ■ 셈 규칙은 골조 셈 그대로(보 = 폭×(춤−슬라브)×안목 · 기둥 = 단면×(층고−슬라브) · 슬라브 = 칸×두께 · 벽 = (길이−단부)×(높이−상부)×두께 …).
@@ -37,9 +39,33 @@ const 수 = (x, d = null) => {
   return Number.isFinite(n) ? n : d
 }
 const 둥 = (v) => Math.round(v * 1000) / 1000
+/* 🟨 G392 자유 모양(판) — 넓이 mm² · 둘레 mm · 둘러싼 네모 · 점이 안에 있나 · 네모로 자른 넓이(겹침 검사) */
+export const 판넓이 = (P) => { let a = 0; for (let i = 0; i < P.length; i++) { const p = P[i], q = P[(i + 1) % P.length]; a += p[0] * q[1] - q[0] * p[1] } return Math.abs(a) / 2 }
+export const 판둘레 = (P) => { let l = 0; for (let i = 0; i < P.length; i++) { const p = P[i], q = P[(i + 1) % P.length]; l += Math.hypot(q[0] - p[0], q[1] - p[1]) } return l }
+const 판상자 = (P) => { let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; for (const p of P) { a = Math.min(a, p[0]); b = Math.min(b, p[1]); c = Math.max(c, p[0]); d = Math.max(d, p[1]) } return [a, b, c, d] }
+export const 판안 = (P, x, y) => { let 안 = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const [xi, yi] = P[i], [xj, yj] = P[j]; if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) 안 = !안 } return 안 }
+function 네모로자름(P, x0, y0, x1, y1) {
+  let 점 = P
+  const 자름 = (안, 교) => { const out = []; for (let i = 0; i < 점.length; i++) { const a = 점[i], b = 점[(i + 1) % 점.length]; const ia = 안(a), ib = 안(b); if (ia) out.push(a); if (ia !== ib) out.push(교(a, b)) } 점 = out }
+  const x에서 = (v) => (a, b) => [v, a[1] + ((b[1] - a[1]) * (v - a[0])) / (b[0] - a[0])]
+  const y에서 = (v) => (a, b) => [a[0] + ((b[0] - a[0]) * (v - a[1])) / (b[1] - a[1]), v]
+  자름((p) => p[0] >= x0, x에서(x0)); if (!점.length) return 0
+  자름((p) => p[0] <= x1, x에서(x1)); if (!점.length) return 0
+  자름((p) => p[1] >= y0, y에서(y0)); if (!점.length) return 0
+  자름((p) => p[1] <= y1, y에서(y1))
+  return 점.length >= 3 ? 판넓이(점) : 0
+}
+const 네모판 = (P) => P.length === 4 && new Set(P.map((p) => p[0])).size === 2 && new Set(P.map((p) => p[1])).size === 2
+/** 간격 배근(D19@200 …) → m²당 철근 «D19:5 D22:5»(플랜트 기초와 같은 셈) */
+export function 간격단위(칸들) {
+  const 합 = new Map()
+  for (const c of 칸들) { const m = /D\s*(\d{2})\s*@\s*(\d{2,4})/i.exec(String(c || '')); if (!m || !(+m[2] > 0)) continue; const d = 'D' + m[1]; 합.set(d, (합.get(d) || 0) + 1000 / +m[2]) }
+  return [...합].map(([d, v]) => d + ':' + (Math.round(v * 1000) / 1000)).join(' ')
+}
 
 export const 종류들 = ['기둥', '보', '벽', '슬라브', '기초']
 export const 종류색 = { 기둥: [0.80, 0.42, 0.30], 보: [0.30, 0.55, 0.85], 벽: [0.62, 0.62, 0.55], 슬라브: [0.78, 0.80, 0.84], 기초: [0.55, 0.47, 0.38] }
+export const 제안색 = [0.96, 0.78, 0.18]      // 🟨 G392 건설맵이 먼저 세운 것(확인 전)
 export const 종류표 = { 기둥: '기둥', 보: '보', 벽: '벽', 슬라브: '슬라브', 기초: '기초' }
 /** 배근표 칸 이름(골조.js 배근 열쇠) */
 const 배근열쇠 = { 기둥: '기둥', 보: '보', 벽: '벽', 슬라브: '슬라브', 기초: '기초' }
@@ -299,7 +325,7 @@ export function 기하(M0) {
   const 기 = new Map()
   const 층의 = new Map()                 // 층 → {기둥: Map(점키 → o), 보: [], 벽: [], 슬라브: []}
   const 점키 = (p) => p[0] + '|' + p[1]
-  const 판 = (층) => { if (!층의.has(층)) 층의.set(층, { 기둥: new Map(), 기초: new Map(), 보: [], 벽: [], 슬라브: [] }); return 층의.get(층) }
+  const 판 = (층) => { if (!층의.has(층)) 층의.set(층, { 기둥: new Map(), 기초: new Map(), 판기초: [], 보: [], 벽: [], 슬라브: [] }); return 층의.get(층) }
   const 이름표 = (o) => 종류표[o.종류] + ' ' + 글(o.부호) + ' (' + o.층 + '층' + (o.점 ? ' · ' + 이름(o.점[0]) + '-' + 이름(o.점[1]) : '') + ')'
 
   for (const o of M.부재) {
@@ -307,8 +333,21 @@ export function 기하(M0) {
     const r = 일람(M, o.종류, o.부호)
     if (!r) { 경고.push(이름표(o) + ' — 부호 «' + 글(o.부호) + '» 가 ' + 종류표[o.종류] + ' 일람에 없습니다'); continue }
     const g = { o, r, id: o.id }
+    if (o.종류 === '기초' && Array.isArray(o.판) && o.판.length >= 3) {
+      /* 🟨 G392 자유 모양 기초(MAT · 부정형) — 꼭짓점 그대로 · 두께 = 부재 두께(도면 높이) · 없으면 일람 두께 */
+      if (!FT층(M.층.find((f) => f.이름 === o.층))) 경고.push(이름표(o) + ' — 기초는 FT 층에 둡니다(셈은 그대로 함)')
+      const P = o.판.map((p) => [수(p && p[0], NaN), 수(p && p[1], NaN)])
+      if (!P.every((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]))) { 경고.push(이름표(o) + ' — 모양 꼭짓점이 숫자가 아닙니다'); continue }
+      const [a, b, c, d] = 판상자(P)
+      g.판 = P; g.넓 = 판넓이(P); g.둘 = 판둘레(P); g.x = (a + c) / 2; g.y = (b + d) / 2; g.a = c - a; g.b = d - b
+      g.t = 수(o.두께, 0) || 수(r.두께, 0) || 0
+      if (!(g.넓 > 0 && g.t > 0)) { 경고.push(이름표(o) + ' — 넓이 · 두께가 없습니다'); continue }
+      판(o.층).판기초.push(g)
+      기.set(o.id, g)
+      continue
+    }
     if (o.종류 === '기둥' || o.종류 === '기초') {
-      if (!(X.has(o.점[0]) && Y.has(o.점[1]))) { 경고.push(이름표(o) + ' — 통심이 없어 뺐습니다'); continue }
+      if (!o.점 || !(X.has(o.점[0]) && Y.has(o.점[1]))) { 경고.push(이름표(o) + ' — 통심이 없어 뺐습니다'); continue }
       g.x = X.get(o.점[0]); g.y = Y.get(o.점[1])
       if (o.종류 === '기둥') {
         const D = 수(r.지름, 0) || 0
@@ -474,9 +513,10 @@ export function 기하(M0) {
       const 위기둥 = 위 && 층의.get(위) ? 층의.get(위).기둥.get(k) : null
       c.연결 = 위기둥 ? 글(위기둥.o.부호) : 'R'
       const ftP = M.층.find(FT층) ? 층의.get(M.층.find(FT층).이름) : null
-      c.기초 = 층 === H.맨아래 && ftP ? ftP.기초.get(k) || null : null
+      c.기초 = 층 === H.맨아래 && ftP ? ftP.기초.get(k) || ftP.판기초.find((d) => 판안(d.판, c.x, c.y)) || null : null      // 🟨 G392 MAT 위 기둥 = 그 판 기초에 정착
     }
     for (const [, d] of P.기초) { d.z1 = -H.내림; d.z0 = d.z1 - d.t }
+    for (const d of P.판기초) { d.z1 = -H.내림 + Math.min(수(d.o.윗면, 0) || 0, 0); d.z0 = d.z1 - d.t }      // 윗면(≤ 0 mm) = MAT 밑 깊은 곳 · 피트
   }
   /* FT 바닥 슬라브(흙 위)를 맨 아래층 기둥이 뚫고 내려감(내림 > 0) — 겹친 몫 = 기둥 단면 ∩ 슬라브 × min(내림, 두께) → 슬라브 «개구부» 로 뺌 */
   const ftF = M.층.find(FT층)
@@ -534,12 +574,37 @@ export function 공사로(M0) {
   const 흙기호 = (층, 부호) => (층 === ftN && 위부호.has(부호) ? 부호 + '(바닥)' : 부호)
   const 배근 = { ...M.배근, 슬라브: (M.배근.슬라브 || []).map((r) => (바닥부호.has(글(r.기호)) && !위부호.has(글(r.기호)) ? { ...r, _흙: '1' } : r)) }
   for (const r of M.배근.슬라브 || []) if (바닥부호.has(글(r.기호)) && 위부호.has(글(r.기호))) 배근.슬라브.push({ ...r, 기호: 글(r.기호) + '(바닥)', _흙: '1' })
+  /* 🟨 G392 판 기초(MAT · 부정형) — 모양마다 골조 셈 «부정형» 배근(면적 · 둘레 · 두께 · m²당 철근)을 만듦
+       같은 부호에 모양이 하나이고 점 기초(독립)가 그 부호를 안 쓰면 이름 그대로 · 아니면 «부호·1 · 부호·2» */
+  const 판들 = [...G.층의.values()].flatMap((P) => P.판기초)
+  if (판들.length) {
+    배근.기초 = [...(M.배근.기초 || [])]
+    const 점부호 = new Set(M.부재.filter((o) => o.종류 === '기초' && !Array.isArray(o.판)).map((o) => 글(o.부호)))
+    const 모양 = new Map()                  // 부호 → Map(모양 키 → 배근)
+    for (const d of 판들) {
+      const 부 = 글(d.o.부호), r0 = d.r
+      const 단위 = 글(r0.단위철근) || 간격단위([r0.하부가로, r0.하부세로, r0.상부가로, r0.상부세로, r0.단변하부, r0.단변상부, r0.장변하부, r0.장변상부])
+      const e = { ...r0, 종류: '부정형', 면적: String(Math.round(d.넓 / 1e3) / 1e3), 둘레: String(Math.round(d.둘) / 1e3), 두께: String(Math.round(d.t)), 단위철근: 단위, _길x: String(Math.round(d.a)), _길y: String(Math.round(d.b)) }
+      const 키 = JSON.stringify([e.면적, e.둘레, e.두께, e.단위철근])
+      if (!모양.has(부)) 모양.set(부, new Map())
+      if (!모양.get(부).has(키)) 모양.get(부).set(키, e)
+      d.셈배근 = 모양.get(부).get(키)
+    }
+    for (const [부, 들] of 모양) {
+      const 목록 = [...들.values()]
+      if (목록.length === 1 && !점부호.has(부)) { 목록[0].기호 = 부; 배근.기초 = 배근.기초.filter((r) => 글(r.기호) !== 부) }
+      else 목록.forEach((e, k) => { e.기호 = 부 + '·' + (k + 1) })
+      배근.기초.push(...목록)
+      if (!목록.some((e) => 글(e.단위철근))) 경고.push('기초 ' + 부 + ' — 철근(m²당 · 간격)이 일람에 없어 철근을 못 셌습니다(오른쪽에서 넣으십시오)')
+    }
+    for (const d of 판들) d.셈기호 = d.셈배근.기호
+  }
 
   for (const [층, P] of 층별) {
     /* 기둥 */
     묶기('기둥', [...P.기둥.values()].sort((a, b) => a.x - b.x || a.y - b.y).map((c) => ({
       id: c.id,
-      row: { 층, 기호: 글(c.o.부호), 높이: c.높이 ? String(c.높이) : '', 내림: c.내림 ? String(c.내림) : '', S: String(c.S), FT: c.기초 ? 글(c.기초.o.부호) : '', 연결: c.연결, C: '', F: '', 원형F: '', R: '', ...(c.o.돌림 ? { _돌림: 1 } : {}) },
+      row: { 층, 기호: 글(c.o.부호), 높이: c.높이 ? String(c.높이) : '', 내림: c.내림 ? String(c.내림) : '', S: String(c.S), FT: c.기초 ? c.기초.셈기호 || 글(c.기초.o.부호) : '', 연결: c.연결, C: '', F: '', 원형F: '', R: '', ...(c.o.돌림 ? { _돌림: 1 } : {}) },
     })))
     /* 보 — 같은 통심 위 이어진 보를 열로(축 · 줄 · 자리 차례) */
     const 열들 = []
@@ -609,9 +674,9 @@ export function 공사로(M0) {
       return g.length > 1 ? { row, ids: g.map((w) => w.id), 몫: new Map(g.map((w) => [w.id, w.L])) } : { id: a.id, row }
     }))
     /* 기초 */
-    묶기('기초', [...P.기초.values()].sort((a, b) => a.x - b.x || a.y - b.y).map((d) => ({
+    묶기('기초', [...P.기초.values(), ...P.판기초].sort((a, b) => a.x - b.x || a.y - b.y).map((d) => ({
       id: d.id,
-      row: { 층, 기호: 글(d.o.부호), 줄기초: '', MAT단변: '', MAT장변: '', 형틀공제: '', 추가: '', 단부공제: '', C: '', F: '', 공제F: '', R: '' },
+      row: { 층, 기호: d.셈기호 || 글(d.o.부호), 줄기초: '', MAT단변: '', MAT장변: '', 형틀공제: '', 추가: '', 단부공제: '', C: '', F: '', 공제F: '', R: '' },
     })))
   }
 
@@ -710,7 +775,8 @@ export function 덩어리(G) {
     if (g.o.종류 === '기둥') {
       if (g.원) { 판 = Array.from({ length: 24 }, (_, k) => [g.x + g.원 / 2 * Math.cos(k * Math.PI / 12), g.y + g.원 / 2 * Math.sin(k * Math.PI / 12)]); 넓이 = Math.PI / 4 * g.원 * g.원 }
       else { 판 = 네모(g.x - g.a / 2, g.y - g.b / 2, g.x + g.a / 2, g.y + g.b / 2); 넓이 = g.a * g.b }
-    } else if (g.o.종류 === '기초') { 판 = 네모(g.x - g.a / 2, g.y - g.b / 2, g.x + g.a / 2, g.y + g.b / 2); 넓이 = g.a * g.b }
+    } else if (g.o.종류 === '기초' && g.판) { 판 = g.판; 넓이 = g.넓 }                  // 🟨 G392 자유 모양
+    else if (g.o.종류 === '기초') { 판 = 네모(g.x - g.a / 2, g.y - g.b / 2, g.x + g.a / 2, g.y + g.b / 2); 넓이 = g.a * g.b }
     else if (g.o.종류 === '보' || g.o.종류 === '벽') {
       const w = (g.W || g.T) / 2, s0 = g.s0 + g.좌.값, s1 = g.s1 - g.우.값
       if (!(s1 > s0)) continue
@@ -726,7 +792,7 @@ export function 덩어리(G) {
     }
     if (g.o.종류 === '슬라브' && 수(g.o.구멍, 0) > 0) 부피 -= 수(g.o.구멍, 0) * g.t / 1000
     if (g.o.종류 === '슬라브' && g.기둥빼기) 부피 -= g.기둥빼기 * g.t / 1e9
-    out.push({ id, 판, z0, z1, 색, 부피, 종류: g.o.종류, 층: g.o.층, 부호: 글(g.o.부호), ...(g.기둥빼기 ? { FT빼기: true } : {}) })
+    out.push({ id, 판, z0, z1, 색: g.o.제안 ? 제안색 : 색, 부피, 종류: g.o.종류, 층: g.o.층, 부호: 글(g.o.부호), ...(g.기둥빼기 ? { FT빼기: true } : {}), ...(g.o.제안 ? { 제안: true } : {}) })
   }
   return out
 }
@@ -763,7 +829,9 @@ export function 검사(G, 덩, 합, R) {
     if ((A.d.종류 === '기둥' && B.d.종류 === '슬라브' && B.d.FT빼기) || (B.d.종류 === '기둥' && A.d.종류 === '슬라브' && A.d.FT빼기)) continue   // FT 바닥 슬라브에서 이미 뺀 기둥 몫
     const dx = Math.min(A.x1, B.x1) - Math.max(A.x0, B.x0), dy = Math.min(A.y1, B.y1) - Math.max(A.y0, B.y0), dz = Math.min(A.d.z1, B.d.z1) - Math.max(A.d.z0, B.d.z0)
     if (dx > 0.5 && dy > 0.5 && dz > 0.5) {
-      const v = dx * dy * dz / 1e9
+      /* 🟨 G392 자유 모양(판 기초)은 네모 상자가 아니라 모양으로 겹친 넓이 */
+      const 겹넓 = !네모판(A.d.판) ? 네모로자름(A.d.판, B.x0, B.y0, B.x1, B.y1) : !네모판(B.d.판) ? 네모로자름(B.d.판, A.x0, A.y0, A.x1, A.y1) : dx * dy
+      const v = 겹넓 * dz / 1e9
       if (v >= 0.0005 && ((A.d.종류 === '보' && 정상부(B.d)) || (B.d.종류 === '보' && 정상부(A.d)))) { 벽보 += v; 벽보n++; continue }
       if (v >= 0.0005) 겹친.push({ ids: [A.d.id, B.d.id], 부피: v, 글: A.d.층 + '층 ' + A.d.종류 + ' ' + A.d.부호 + ' ↔ ' + B.d.층 + '층 ' + B.d.종류 + ' ' + B.d.부호 + ' — ' + v.toFixed(3) + ' ㎥' })
     }
@@ -771,6 +839,16 @@ export function 검사(G, 덩, 합, R) {
   겹친.sort((a, b) => b.부피 - a.부피)
   if (겹친.length) 줄.push({ 좋음: false, 글: '겹친 곳 ' + 겹친.length + '군데(같은 콘크리트를 두 번 셈 · 합 ' + 겹친.reduce((a, x) => a + x.부피, 0).toFixed(3) + ' ㎥) — 아래 목록을 눌러 3D 에서 보십시오', 겹친 })
   else 줄.push({ 좋음: true, 글: '겹친 덩어리 없음(같은 콘크리트를 두 번 세지 않음)' })
+  /* 🔧 G392 빈 층 — 위에 부재가 있는데 비어 있는 층(소장님 폰: B3 · B2 · B1 을 더하고 비워 둠 → 1층이 떠서 기둥이 기초에 안 닿음 · 물량이 슬쩍 줄어듦) */
+  {
+    const 위 = G.M.층.filter((f) => !FT층(f)).map((f) => f.이름)
+    const 있 = new Set(G.M.부재.map((o) => o.층))
+    const 빈 = 위.filter((f, k) => !있.has(f) && 위.slice(k + 1).some((u) => 있.has(u)))
+    if (빈.length) {
+      const 맨 = 위[0], 첫찬 = 위.find((f) => 있.has(f))
+      줄.push({ 좋음: false, 빈층: 빈, 글: '빈 층 ' + 빈.map((f) => f + '층').join(' · ') + ' — 위층이 떠 있습니다' + (빈.includes(맨) && G.M.부재.some((o) => o.종류 === '기초') ? '(' + 첫찬 + '층 기둥이 기초에 안 닿아 기둥 내림 · 기초 정착이 빠짐)' : '') + ' · «층 복사» 로 채우거나 ① 통심 · 층에서 그 층을 빼십시오' })
+    }
+  }
   if (벽보n) 줄.push({ 좋음: true, 알림: true, 글: '벽 위 보 ' + 벽보n + '군데 ' + 벽보.toFixed(3) + ' ㎥ 는 벽과 보에 둘 다 셈 — 도면 셈(내역서식: 벽 높이 = 층고 − 슬라브)대로 둔 벽 · 벽에서 빼려면 그 벽의 «위에서 뺄 몫» 을 비우십시오' })
   return 줄
 }
@@ -778,6 +856,11 @@ export function 검사(G, 덩, 합, R) {
 /** 부재 이름(화면 · 엑셀) */
 export function 부재글(M, o) {
   const 이름 = (id) => (M.통심.x.find((g) => g.id === id) || M.통심.y.find((g) => g.id === id) || {}).이름 || id
+  if (Array.isArray(o.판) && o.판.length >= 3) {          // 🟨 G392 자유 모양 — 둘러싼 네모에 가까운 통심
+    const [a, b, c, d] = 판상자(o.판.map((p) => [수(p[0], 0), 수(p[1], 0)]))
+    const 가 = (줄, v) => (줄.length ? 줄.reduce((m, g) => (Math.abs(g.자리 - v) < Math.abs(m.자리 - v) ? g : m)).이름 : '')
+    return '자유 모양 ' + 가(M.통심.x, a) + '~' + 가(M.통심.x, c) + ' / ' + 가(M.통심.y, b) + '~' + 가(M.통심.y, d)
+  }
   if (o.칸) return 이름(o.칸[0]) + '~' + 이름(o.칸[2]) + ' / ' + 이름(o.칸[1]) + '~' + 이름(o.칸[3])
   if (o.끝) return 이름(o.점[0]) + '-' + 이름(o.점[1]) + ' ~ ' + 이름(o.끝[0]) + '-' + 이름(o.끝[1])
   return 이름(o.점[0]) + '-' + 이름(o.점[1])
@@ -792,7 +875,7 @@ export function 모델시트(M0, S, ST) {
     const q = S.부재별.get(o.id) || {}
     const g = S.G.기.get(o.id)
     const 높글 = g.높이 ? ' · 높이 ' + g.높이 : ''
-    const 크기 = g.o.종류 === '기둥' ? (g.원 ? 'Ø' + g.원 : g.a + '×' + g.b) + 높글 : g.o.종류 === '보' ? g.W + '×' + g.H + ' · 안목 ' + Math.round(g.안) : g.o.종류 === '벽' ? 'T' + g.T + ' · 길이 ' + Math.round(g.안) + 높글 : g.o.종류 === '슬라브' ? Math.round(g.X1 - g.X0) + '×' + Math.round(g.Y1 - g.Y0) + ' · T' + g.t : g.a + '×' + g.b + '×' + g.t
+    const 크기 = g.o.종류 === '기둥' ? (g.원 ? 'Ø' + g.원 : g.a + '×' + g.b) + 높글 : g.o.종류 === '보' ? g.W + '×' + g.H + ' · 안목 ' + Math.round(g.안) : g.o.종류 === '벽' ? 'T' + g.T + ' · 길이 ' + Math.round(g.안) + 높글 : g.o.종류 === '슬라브' ? Math.round(g.X1 - g.X0) + '×' + Math.round(g.Y1 - g.Y0) + ' · T' + g.t : g.판 ? '자유 모양 ' + (g.넓 / 1e6).toFixed(2) + '㎡ · T' + g.t + (g.o.제안 ? ' · 🟨 제안(확인 전)' : '') : g.a + '×' + g.b + '×' + g.t
     return [i + 1, o.층, o.종류, 글(o.부호), 부재글(M, o), 크기,
       { v: +(q.콘크리트 || 0).toFixed(4), st: ST.QTY }, { v: +(q.거푸집 || 0).toFixed(3), st: ST.QTY }, { v: +((q.철근 || 0) / 1000).toFixed(4), st: ST.QTY }, o.id]
   })
@@ -813,4 +896,27 @@ export function 모델시트(M0, S, ST) {
     widths: [14, 120],
   })
   return 시트
+}
+
+/* ───────────────────────────── 🟨 G392 건설맵 제안(먼저 세운 것) — 확인 · 빼기 */
+/** 제안 하나 «✓ 이대로» — 제안 글을 걷고 확인 때를 남김(값은 그대로) */
+export function 제안확인(M, id, 때 = '') {
+  return { ...M, 부재: M.부재.map((o) => { if (o.id !== id || !o.제안) return o; const n = { ...o, 확인: 때 || '확인' }; delete n.제안; return n }) }
+}
+/** 제안 모두 «✓ 이대로» */
+export function 제안모두확인(M, 때 = '') { let N = M; for (const o of M.부재) if (o.제안) N = 제안확인(N, o.id, 때); return N }
+/** 제안 «✕ 빼기» — 부재를 빼고 그 자리를 빨강(손으로 할 곳 · M.빠짐)으로 되돌림 */
+export function 제안빼기(M, id) {
+  const o = M.부재.find((x) => x.id === id)
+  if (!o) return M
+  const 빠 = Array.isArray(o.판) ? [{ 종류: o.종류, 층: o.층, 기호: 글(o.부호), 까닭: 'MAT · 부정형 기초(건설맵 제안을 뺌 — 손으로)', 판: o.판, 높: 수(o.두께, 0) || 0, ...(o.근거 && o.근거.키 ? { 키: o.근거.키 } : {}) }] : []
+  return { ...M, 부재: M.부재.filter((x) => x.id !== id), 빠짐: [...(M.빠짐 || []), ...빠] }
+}
+/** 판 기초 철근을 간격으로(상 · 하부 양방향 같은 간격 «D19@200») — 그 부호 일람에 넣음 */
+export function 기초철근넣기(M, 부호, 간격) {
+  const t = 글(간격).toUpperCase().replace(/\s/g, '')
+  const 단위 = 간격단위([t, t, t, t])
+  if (!단위) return M
+  const 목록 = (M.배근.기초 || []).map((r) => (글(r.기호).toUpperCase() === 글(부호).toUpperCase() ? { ...r, 하부가로: t, 하부세로: t, 상부가로: t, 상부세로: t, 단위철근: 단위 } : r))
+  return { ...M, 배근: { ...M.배근, 기초: 목록 } }
 }
