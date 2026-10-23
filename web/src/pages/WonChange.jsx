@@ -60,15 +60,16 @@ export default function WonChange() {
 
   const 싣기 = async () => {
     if (lib) return lib
-    const [q, w] = await Promise.all([import('../lib/qtoxlsx.js'), import('../lib/원내역변경.js')])
-    const m = { readWorkbook: q.readWorkbook, ...w }
+    /* 🩹 G382 — 1줄 설계내역서는 80% 비율 도구 읽기로 보강(작업대 G379 와 같은 길) — 전엔 공종 합계 줄을 품목으로 읽어 2 ~ 6배 · 일위대가 시트를 고른 파일이 있었음 */
+    const [q, w, b] = await Promise.all([import('../lib/qtoxlsx.js'), import('../lib/원내역변경.js'), import('../lib/비율.js')])
+    const m = { readWorkbook: q.readWorkbook, ...w, 비율읽기: b.격자로읽기 }
     setLib(m)
     return m
   }
 
   const 원읽은 = useMemo(() => {
     if (!lib || !파일) return null
-    try { return lib.원읽기(파일.책, 파일.이름, 시트 || null) } catch (e) { return { 오류: e?.message || '읽지 못했습니다.' } }
+    try { return lib.원읽기(파일.책, 파일.이름, 시트 || null, { 한줄보강: lib.비율읽기 }) } catch (e) { return { 오류: e?.message || '읽지 못했습니다.' } }
   }, [lib, 파일, 시트])
 
   /* 파일(지문)마다 남긴 편집을 되살림 */
@@ -387,6 +388,8 @@ export default function WonChange() {
                         onChange={(e) => 고치기차((y) => ({ ...y, 사유: { ...y.사유, [x.i]: e.target.value } }))} />
                     )}
                     {x.특수 && <div className="muted wn-note">ℹ️ 수량 칸이 비율인 줄(공구손료 · 잡재료 등)입니다 — 바꾸면 «수량 × 단가» 로 다시 셉니다</div>}
+                    {/* 🩹 G382 — % 줄(조달수수료 «재료비의 0.54 %» 등): 금액 = 수량 × 단가 ÷ 100 · 단가는 위 품목 금액의 합을 따라감 */}
+                    {x.율 && <div className="muted wn-note">ℹ️ 수량이 % 인 줄입니다 — 금액 = 수량 × 단가 ÷ 100{x.율.바탕 ? ` · 단가는 위 품목 ${x.율.바탕}줄의 ${x.율.갈래} 합이라 그 수량을 바꾸면 따라 바뀝니다` : ' · 단가(바탕 금액)는 당초 그대로 둡니다'}</div>}
                   </div>
                 )
               })}

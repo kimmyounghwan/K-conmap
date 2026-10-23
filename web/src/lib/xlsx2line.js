@@ -455,7 +455,7 @@ export function convert(buf, opts) {
         (all, a, r1, mid, b, r2) => `${a}${r1}${mid}${b}${Math.max(+r2, lr)}`)
       if (nb === body) return tag
       changed = true
-      return tag.replace(body, nb)
+      return tag.replace(body, () => nb)
     })
     if (changed) zip['xl/workbook.xml'] = strToU8(wb)
   }
@@ -712,7 +712,7 @@ function rewriteFormula(cInner, ctx) {
       const aca = attr(태그, 'aca')
       if (aca) at += ` aca="${aca}"`
     }
-    return cInner.replace(/<f\b[^>]*(?:\/>|>[\s\S]*?<\/f>)/, `<f${at}>${esc(nf)}</f>`)
+    return cInner.replace(/<f\b[^>]*(?:\/>|>[\s\S]*?<\/f>)/, () => `<f${at}>${esc(nf)}</f>`)
   }
   /* 다른 시트를 가리키는 참조 — «같은 줄끼리» 짝을 맞춥니다.
      당초 줄은 상대의 당초 줄을, 변경 줄은 상대의 변경 줄을 봅니다.
@@ -1001,7 +1001,7 @@ function remapOtherSheet(xml, o) {
     let nf = mapFormulaRows(t1, (r) => r, sheetRow)
     nf = nf.replace(/"§(\d+)§"/g, (_, i) => oo.holes[+i])
     if (nf === ftext) return c
-    return c.replace(fm[0], `<f${fm[1]}>${esc(nf)}</f>`)
+    return c.replace(fm[0], () => `<f${fm[1]}>${esc(nf)}</f>`)
   })
   if (n) {
     warns.unshift({ ref: '', msg: `이 시트의 수식 ${n}칸이 «${[...targets].join(' · ')}» 를 가리킵니다 — 벌린 뒤의 «당초» 줄을 보게 했습니다(값은 원본과 같습니다). 변경 · 증감 금액도 이 시트에서 보시려면 이 시트도 같이 골라 바꾸십시오` })
@@ -1025,11 +1025,11 @@ export function unshareFormulas(xml) {
   return xml.replace(cellRe, (c) => {
     const fm = /<f\b([^>]*?)(\/>|>([\s\S]*?)<\/f>)/.exec(c)
     if (!fm || !/\st="shared"/.test(fm[1])) return c
-    if (fm[3]) return c.replace(fm[0], `<f>${fm[3]}</f>`)          /* 원본 칸 — 본문 그대로, 공유 표시만 뗍니다 */
+    if (fm[3]) return c.replace(fm[0], () => `<f>${fm[3]}</f>`)          /* 원본 칸 — 본문 그대로, 공유 표시만 뗍니다 */
     const ms = masters.get(attr(`<f${fm[1]}>`, 'si'))
     const sp = splitRef(attr(/<c\b[^>]*?(\/?)>/.exec(c)[0], 'r') || '')
     if (!ms || !sp) return c
-    return c.replace(fm[0], `<f>${esc(shiftFormula(ms.text, sp.row - ms.row, colToNum(sp.col) - ms.col))}</f>`)
+    return c.replace(fm[0], () => `<f>${esc(shiftFormula(ms.text, sp.row - ms.row, colToNum(sp.col) - ms.col))}</f>`)
   })
 }
 

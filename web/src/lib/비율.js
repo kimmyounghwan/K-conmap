@@ -1311,7 +1311,7 @@ function 공유풀기(xml, P, 손댈칸) {
     if (!a || !b) return cell
     const 식 = 수식옮기기(주.식, +a[2] - +b[2], 칸수(a[1]) - 칸수(b[1]))
     푼칸++
-    return cell.replace(fm[0], '<' + P + 'f>' + xesc(식) + '</' + P + 'f>')
+    return cell.replace(fm[0], () => '<' + P + 'f>' + xesc(식) + '</' + P + 'f>')
   })
   return { xml: 새, 푼칸 }
 }

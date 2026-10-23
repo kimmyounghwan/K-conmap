@@ -455,6 +455,49 @@ export function 품목셈(v, 갈래) {
   return { 수량: q, 단가, 금액, 특수 }
 }
 
+/* 🩹 G382 (2026-10-23) — 수량이 «%» 인 줄(«조달수수료 | 재료비의 | 0.54 | %»): 금액 = 수량 × 단가 ÷ 100 · 단가 = 위 품목(관급자재) 금액의 합.
+     전엔 이 줄 수량을 바꾸면 «수량 × 단가» 로 셈해 100배(실측 0.54 → 0.594: 353,422원 → 38,876,…원) · 위 자재 수량을 바꿔도 수수료는 당초 그대로였습니다.
+     실제 설계내역서 439부 중 12부 31줄(모두 단위 «%») — 단가가 위 품목 금액의 합과 원 단위까지 같은 줄을 찾아 «바탕» 으로 잡습니다.
+     바탕을 못 찾으면(원본 바탕 품목이 0 인 틀 등) 단가는 그대로 · 금액만 ÷ 100 으로 셉니다. */
+export const 율끝수 = { 버림: (v) => 버림(v), 그대로: (v) => v, 반올림: (v) => Math.round(v) }
+export function 율줄찾기(줄, 갈래) {
+  const 셋 = 세갈래.filter((k) => 갈래.includes(k))
+  const 셈갈래 = 셋.length ? 셋 : 갈래.filter((k) => k === '합계')
+  const 바탕후보 = [...셈갈래, ...(셋.length && 갈래.includes('합계') ? ['합계'] : [])]
+  let n = 0
+  줄.forEach((x, i) => {
+    if (x.꼴 !== '품목' || !x.값 || !x.값[0] || !/^[%％]$/.test(String(x.단위 || '').trim())) return
+    const v = x.값[0], q = v.수량
+    if (!q) return
+    for (const k of 셈갈래) {
+      const g = v.g[k]
+      if (!g || !g.단가 || g.금액 === null || g.금액 === undefined) continue
+      const u = g.단가, a = g.금액, p = (u * q) / 100
+      if (Math.abs(a - 버림(u * q)) <= 1 && Math.abs(a - p) > 1) continue      /* 단위만 % 인 보통 줄 */
+      const 끝수 = Math.abs(a - p) < 0.01 ? '그대로' : a === 버림(p) ? '버림' : a === Math.round(p) ? '반올림' : null
+      if (!끝수) continue
+      /* 바탕: 바로 위 품목부터 거슬러 올라가며 더함(아래 공종 머리는 건너뜀 · 맨 위 공종 머리 · 다른 % 줄에서 멈춤) — 가장 짧게 맞는 것 */
+      const 합 = Object.fromEntries(바탕후보.map((b) => [b, 0]))
+      const 바탕 = []
+      let 찾 = null
+      for (let j = i - 1; j >= 0 && !찾; j--) {
+        const y = 줄[j]
+        if (y.꼴 === '공종') { if ((y.깊이 || 0) === 0) break; continue }
+        if (y.꼴 !== '품목') continue
+        if (y.율) break
+        const c = 품목셈(y.값 && y.값[0], 갈래)
+        if (!c) continue
+        바탕.unshift(y)
+        for (const b of 바탕후보) { 합[b] += c.금액[b] || 0; if (!찾 && 합[b] !== 0 && Math.abs(합[b] - u) < 0.01) 찾 = b }
+      }
+      x.율 = { 갈래: k, 끝수, 바탕갈래: 찾, 바탕줄: 찾 ? 바탕 : null }
+      n++
+      break
+    }
+  })
+  return n
+}
+
 /** 모형 → 공종마다 상태별 합(갈래별) · 전체 합 */
 export function 모으기(모형) {
   const { 줄, 상태, 갈래 } = 모형
@@ -893,6 +936,19 @@ export function 내역시트(모형, 고른, { 제목 = '내 역 서', 이름 = 
     for (let j = i + 1; j < 줄.length; j++) if (줄[j].꼴 === '공종' && 줄[j].깊이 <= d) return 행[j] - 1
     return 끝행
   }
+  /* 🩹 G382 — % 줄의 단가 = 바탕 품목들의 금액 칸 합(같은 상태 줄) · 바탕이 시트에 없으면(0 줄 빼기로 빠진 줄은 금액 0) 건너뜀 · 금액이 있는데 없으면 수식 안 씀 */
+  const 줄자리 = new Map(줄.map((z, j) => [z, j]))
+  const 율바탕식 = (율, k, s) => {
+    if (!율.바탕줄 || !율.바탕갈래 || 갈래.indexOf(율.바탕갈래) < 0) return null
+    const col = 열글(값칸시작 + 갈래.indexOf(율.바탕갈래) * 2 + 2)
+    const 칸 = []
+    for (const b of 율.바탕줄) {
+      const j = 줄자리.get(b)
+      if (j === undefined || 행[j] < 0) { const cb = 품목셈(b.값 && b.값[s], 갈래); if (cb && (cb.금액[율.바탕갈래] || 0) !== 0) return null; continue }
+      칸.push(col + (행[j] + k))
+    }
+    return 칸.length ? 칸.join('+') : null
+  }
   const 라벨 = (s, i) => (i !== undefined && 별도아래[i] ? 'X' : 'S') + s
   const 선 = (k) => (K === 1 ? '' : k === 0 ? '_위' : k === K - 1 ? '_아래' : '')
   const 꾸밈 = (k) => (빨(k) ? '빨' : '')
@@ -966,6 +1022,14 @@ export function 내역시트(모형, 고른, { 제목 = '내 역 서', 이름 = 
           const 단가그대로 = (빈단가 && u) || Math.abs(u - 단가합) > 0.5
           row.push(단가그대로 ? { v: u, s: 수꼴(u) + 꾸밈(k) + 선(k) } : { f: 단가식, v: u, s: 수꼴(u) + 꾸밈(k) + 선(k) },
             합그대로 ? { v: a, s: '금확인' + 선(k) } : { f: 금액식, v: a, s: '금' + 꾸밈(k) + 선(k) })
+        } else if (x.율 && g === x.율.갈래) {
+          /* 🩹 G382 — % 줄: 단가 = 위 품목 금액의 합(수식 — 엑셀에서 자재 수량을 고쳐도 따라감) · 금액 = 수량 × 단가 ÷ 100(원본 끝수 그대로) */
+          const 바 = 율바탕식(x.율, k, s)
+          const 곱 = `${수량칸}*${열글(uc)}${R}/100`
+          const 금식 = { 버림: `TRUNC(${곱})`, 그대로: 곱, 반올림: `ROUND(${곱},0)` }[x.율.끝수]
+          row.push(바 ? { f: 바, v: u, s: 수꼴(u) + 꾸밈(k) + 선(k) } : { v: u, s: 수꼴(u) + 꾸밈(k) + 선(k) }, { f: 금식, v: a, s: '금' + 꾸밈(k) + 선(k) })
+        } else if (x.율) {
+          row.push({ v: u, s: 수꼴(u) + 꾸밈(k) + 선(k) }, { v: a, s: '금' + 꾸밈(k) + 선(k) })
         } else if (c.특수) {
           row.push({ v: u, s: 수꼴(u) + 꾸밈(k) + 선(k) }, { v: a, s: '금확인' + 선(k) })
         } else if ((c.단가[g] === null || c.단가[g] === undefined) && a !== 0) {
@@ -983,7 +1047,7 @@ export function 내역시트(모형, 고른, { 제목 = '내 역 서', 이름 = 
           row.push({ v: u, s: 수꼴(u) + 꾸밈(k) + 선(k) }, 꼴식 ? { f: 꼴식, v: a, s: '금' + 꾸밈(k) + 선(k) } : { v: a, s: '금확인' + 선(k) })
         }
       })
-      const 비고 = [v && v.비고, c.특수 ? '수량 칸이 비율 — 값 그대로' : '', !c.특수 && c.수량 === null && 갈래.some((g) => (c.금액[g] || 0) !== 0) ? '수량 없음 — 금액 그대로' : ''].filter(Boolean).join(' · ')
+      const 비고 = [v && v.비고, x.율 ? (x.율.바탕줄 ? `위 품목 ${x.율.바탕갈래} 합 × ${q}%` : `단가 × ${q}%`) : c.특수 ? '수량 칸이 비율 — 값 그대로' : '', !c.특수 && c.수량 === null && 갈래.some((g) => (c.금액[g] || 0) !== 0) ? '수량 없음 — 금액 그대로' : ''].filter(Boolean).join(' · ')
       row.push({ v: 비고, s: 칠('글' + 선(k), k) }, { v: 라벨(s, i), s: '작은글' })
       줄들.push(row)
     }

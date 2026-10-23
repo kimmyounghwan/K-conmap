@@ -33,6 +33,9 @@ function 개수고침(속성, n) {
 }
 
 /** 원본 styles.xml 에 새 꼴을 덧붙이고, 새 꼴 번호를 어떻게 밀지 돌려줍니다 */
+/* 🩹 G382 (2026-10-23) — 원본 꼴 조각을 다시 넣을 때 String.replace 의 «글자» 바꿈을 쓰면 «$&» · «$'» 가 특수 기호로 풀립니다.
+     원본 숫자 형식에 「"$"#,##0」(달러 표시)가 있으면 «$&» 자리에 묶음 전체가 한 번 더 끼어 styles.xml 이 깨짐 → 엑셀이 파일을 못 엶(실측: 실제 설계내역서 1부 · 다시 셈 도구가 «속성 값에 '<'» 로 멈춤).
+     바꿀 것은 늘 함수로 넘깁니다(() => 새묶음). */
 function 꼴합치기(원, 새) {
   const pre = 이름표(원, 'styleSheet')
   let out = 원
@@ -55,11 +58,11 @@ function 꼴합치기(원, 새) {
     if (원nb) {
       const 수 = 낱셈(원nb.안, pre, 'numFmt') + 형식조각.length
       const 새묶음 = `<${pre}numFmts${개수고침(원nb.속성, 수)}>${원nb.안}${붙임표(형식조각.join(''), pre)}</${pre}numFmts>`
-      out = out.replace(원nb.전체, 새묶음)
+      out = out.replace(원nb.전체, () => 새묶음)
     } else {
       const 뿌리 = out.match(new RegExp(`<${pre}styleSheet[^>]*>`))
       const 넣 = `<${pre}numFmts count="${형식조각.length}">${붙임표(형식조각.join(''), pre)}</${pre}numFmts>`
-      out = out.replace(뿌리[0], 뿌리[0] + 넣)
+      out = out.replace(뿌리[0], () => 뿌리[0] + 넣)
     }
   }
   const 덧붙 = (태그, 낱태그, 조각들) => {
@@ -67,7 +70,7 @@ function 꼴합치기(원, 새) {
     if (!b) throw new Error('원본 꼴(styles.xml)에 ' + 태그 + ' 이 없습니다')
     const 원수 = 낱셈(b.안, pre, 낱태그)
     const 새묶음 = `<${pre}${태그}${개수고침(b.속성, 원수 + 조각들.length)}>${b.닫힘 ? '' : b.안}${붙임표(조각들.join(''), pre)}</${pre}${태그}>`
-    out = out.replace(b.전체, 새묶음)
+    out = out.replace(b.전체, () => 새묶음)
     return 원수
   }
   const 글꼴밀기 = 덧붙('fonts', 'font', 새글꼴)
@@ -121,8 +124,8 @@ export function 시트붙이기(원바이트, 새바이트, 새이름들, 머리
     /* 꼴 파일이 없는 원본(드묾) — 우리 것을 그대로 넣음 */
     A[폴더 + 'styles.xml'] = B['xl/styles.xml']
     const rp = 이름표(rels, 'Relationships')
-    rels = rels.replace(`</${rp}Relationships>`, `<${rp}Relationship Id="rIdKcmStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></${rp}Relationships>`)
-    if (!/PartName="\/[^"]*styles\.xml"/.test(ct)) ct = ct.replace('</Types>', `<Override PartName="/${폴더}styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`)
+    rels = rels.replace(`</${rp}Relationships>`, () => `<${rp}Relationship Id="rIdKcmStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></${rp}Relationships>`)
+    if (!/PartName="\/[^"]*styles\.xml"/.test(ct)) ct = ct.replace('</Types>', () => `<Override PartName="/${폴더}styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`)
   }
   /* 시트 이름표 · 관계 이름표 */
   const pre = 이름표(책, 'workbook')
@@ -141,18 +144,18 @@ export function 시트붙이기(원바이트, 새바이트, 새이름들, 머리
     const xml = strFromU8(B[k]).replace(/(<c\b[^>]*?\ss=")(\d+)(")/g, (_, a, n, c) => a + (Number(n) + 꼴밀기) + c)
     A[길] = strToU8(xml)
     const rid = `rIdKcm${번}`
-    rels = rels.replace(`</${rp}Relationships>`, `<${rp}Relationship Id="${rid}" Type="${시트형}" Target="worksheets/kcmchg${번}.xml"/></${rp}Relationships>`)
-    ct = ct.replace('</Types>', `<Override PartName="/${길}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`)
+    rels = rels.replace(`</${rp}Relationships>`, () => `<${rp}Relationship Id="${rid}" Type="${시트형}" Target="worksheets/kcmchg${번}.xml"/></${rp}Relationships>`)
+    ct = ct.replace('</Types>', () => `<Override PartName="/${길}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`)
     const 이름 = 새이름들[j] || `변경${j + 1}`
     새시트줄.push(`<${pre}sheet xmlns:${r접두}="${관계ns}" name="${esc(이름)}" sheetId="${다음id++}"${숨김들[j] ? ' state="hidden"' : ''} ${r접두}:id="${rid}"/>`)
     const 머 = 머리줄들[j]
     if (머 && 머[1] >= 머[0]) 새이름정의.push(`<${pre}definedName name="_xlnm.Print_Titles" localSheetId="${원시트수 + j}">'${esc(이름).replace(/'/g, "''")}'!$${머[0]}:$${머[1]}</${pre}definedName>`)
   })
-  책 = 책.replace(`</${pre}sheets>`, 새시트줄.join('') + `</${pre}sheets>`)
+  책 = 책.replace(`</${pre}sheets>`, () => 새시트줄.join('') + `</${pre}sheets>`)
   if (새이름정의.length) {
     const 빈칸 = 책.match(new RegExp(`<${pre}definedNames\\s*/>`))
-    if (책.includes(`</${pre}definedNames>`)) 책 = 책.replace(`</${pre}definedNames>`, 새이름정의.join('') + `</${pre}definedNames>`)
-    else if (빈칸) 책 = 책.replace(빈칸[0], `<${pre}definedNames>${새이름정의.join('')}</${pre}definedNames>`)
+    if (책.includes(`</${pre}definedNames>`)) 책 = 책.replace(`</${pre}definedNames>`, () => 새이름정의.join('') + `</${pre}definedNames>`)
+    else if (빈칸) 책 = 책.replace(빈칸[0], () => `<${pre}definedNames>${새이름정의.join('')}</${pre}definedNames>`)
     else {
       const 뒤 = ['calcPr', 'oleSize', 'customWorkbookViews', 'pivotCaches', 'smartTagPr', 'smartTagTypes', 'webPublishing', 'fileRecoveryPr', 'webPublishObjects', 'extLst']
       const 블록 = `<${pre}definedNames>${새이름정의.join('')}</${pre}definedNames>`
@@ -161,7 +164,7 @@ export function 시트붙이기(원바이트, 새바이트, 새이름들, 머리
         const m = 책.match(new RegExp(`<${pre}${t}(?=[\\s>/])`))
         if (m) { 책 = 책.slice(0, m.index) + 블록 + 책.slice(m.index); 넣음 = true; break }
       }
-      if (!넣음) 책 = 책.replace(`</${pre}workbook>`, 블록 + `</${pre}workbook>`)
+      if (!넣음) 책 = 책.replace(`</${pre}workbook>`, () => 블록 + `</${pre}workbook>`)
     }
   }
   /* 열 때 다시 셈 */
@@ -169,14 +172,14 @@ export function 시트붙이기(원바이트, 새바이트, 새이름들, 머리
   if (셈) {
     if (!/fullCalcOnLoad=/.test(셈[0])) {
       const 고친 = 셈[0].endsWith('/>') ? 셈[0].replace(/\s*\/>$/, ' fullCalcOnLoad="1"/>') : 셈[0].replace(/>$/, ' fullCalcOnLoad="1">')
-      책 = 책.replace(셈[0], 고친)
+      책 = 책.replace(셈[0], () => 고친)
     }
   } else {
     const 뒤 = ['oleSize', 'customWorkbookViews', 'pivotCaches', 'smartTagPr', 'smartTagTypes', 'webPublishing', 'fileRecoveryPr', 'webPublishObjects', 'extLst']
     const 넣을 = `<${pre}calcPr calcId="0" fullCalcOnLoad="1"/>`
     let 넣음 = false
     for (const t of 뒤) { const m = 책.match(new RegExp(`<${pre}${t}(?=[\\s>/])`)); if (m) { 책 = 책.slice(0, m.index) + 넣을 + 책.slice(m.index); 넣음 = true; break } }
-    if (!넣음) 책 = 책.replace(`</${pre}workbook>`, 넣을 + `</${pre}workbook>`)
+    if (!넣음) 책 = 책.replace(`</${pre}workbook>`, () => 넣을 + `</${pre}workbook>`)
   }
   A[wb] = strToU8(책)
   A[relsPath] = strToU8(rels)
