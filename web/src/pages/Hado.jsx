@@ -16,6 +16,9 @@ const fmt = (n) => new Intl.NumberFormat('ko-KR').format(Math.round(n || 0))
 const kb = (n) => new Intl.NumberFormat('ko-KR').format(Math.round(n / 1024))
 const 칸꼴 = (w) => ({ width: w, height: 'auto', padding: '5px 8px', fontSize: 13.5, textAlign: 'right', border: '1px solid var(--line)', borderRadius: 7, background: 'var(--surface)', color: 'var(--text)', flex: '0 0 auto' })
 const 글칸 = (w) => ({ ...칸꼴(w), textAlign: 'left' })
+/* 🩹 G384 (2026-10-23 · 실제 설계내역서 484부) 단가가 빈 공내역서 — 80% 비율 도구 글(«비율을 맞출 금액이 없습니다») 대신 하도급 말로 */
+const 공내역말 = '단가 · 금액이 «비어 있는» 공내역서입니다 — 하도급 내역서는 단가가 채워진 내역서(설계 · 도급 · 산출 · 변경내역서)로 만듭니다.'
+const 오류말 = (e) => { const m = (e && e.message) || '읽지 못했습니다.'; if (!/공내역서/.test(m)) return m; const k = m.lastIndexOf('  ('); return 공내역말 + (k >= 0 ? m.slice(k) : '') }
 
 export default function Hado() {
   const [libs, setLibs] = useState(null)        /* { m: 비율.js, h: 하도급내역.js, v: 변경내역.js, q: qtoxlsx.js } */
@@ -38,6 +41,7 @@ export default function Hado() {
   const [찾기, set찾기] = useState('')
   const [out, setOut] = useState(null)
   const inputRef = useRef(null)
+  useEffect(() => { 세기('|하도급|열기') }, [])
 
   const loadLibs = useCallback(async () => {
     if (libs) return libs
@@ -63,7 +67,8 @@ export default function Hado() {
       set상태들(여럿 ? 알 : null); set상태번호(n)
       펴서읽기(L, 책0, 여럿, n, f.name)
       set공사명((v) => v || f.name.replace(/\.(xlsx|xlsm|xls)$/i, '').replace(/^R\d{2}BK\d{8}_?/, '').replace(/[_]+/g, ' ').slice(0, 60))
-    } catch (e) { setErr((e && e.message) || '읽지 못했습니다.') } finally { setBusy('') }
+      세기('|하도급|파일')
+    } catch (e) { const m = 오류말(e); setErr(m); if (m.startsWith(공내역말)) 세기('|하도급|공내역서') } finally { setBusy('') }
   }, [loadLibs])
 
   /* 고른 상태로 펴서 다시 읽기 — 시트 · 직접시공 줄도 새로 */
@@ -78,16 +83,23 @@ export default function Hado() {
   const 상태고르기 = (n) => {
     if (!libs || !file || !상태들) return
     set상태번호(n); setErr('')
-    try { 펴서읽기(libs, file.책0, true, n, file.name) } catch (e) { setErr((e && e.message) || '읽지 못했습니다.') }
+    try { 펴서읽기(libs, file.책0, true, n, file.name) } catch (e) { setErr(오류말(e)) }
   }
 
   const 읽은 = useMemo(() => (온것 && libs && 고른시트.length ? libs.m.시트고르기(온것, 고른시트) : null), [온것, libs, 고른시트])
+  /* 🩹 G384 공내역서 — 고른 시트 품목 금액이 다 0(내역 시트는 비고 집계 · 일위대가에만 숫자가 있는 꼴 포함) · 아무 시트도 못 고른 채 «공내역서» 시트가 있으면 */
+  const 공내역 = useMemo(() => {
+    if (!온것) return false
+    if (읽은) return !읽은.rows.some((r) => Math.abs(r.총금액 || 0) >= 1)
+    return /공내역서/.test((온것.시트말 || []).join(' '))
+  }, [온것, 읽은])
+  useEffect(() => { if (공내역) 세기('|하도급|공내역서') }, [공내역, file])
   const 율 = Number(String(율글).replace(/[^\d.]/g, '')) || 0
   const 옵션 = useMemo(() => ({ 율, 단수꼴, 관급그대로: true, 관급끔, 직접 }), [율, 단수꼴, 관급끔, 직접])
   const 셈 = useMemo(() => {
-    if (!읽은 || !libs || !(율 > 0 && 율 <= 100)) return null
+    if (!읽은 || 공내역 || !libs || !(율 > 0 && 율 <= 100)) return null
     try { return libs.h.하도급셈(읽은, 옵션) } catch (e) { return null }
-  }, [읽은, libs, 옵션, 율])
+  }, [읽은, 공내역, libs, 옵션, 율])
   useEffect(() => { setOut(null) }, [율글, 단수꼴, 직접, 관급끔, 고른시트, 공사명, 발주처, 원사, 하사, 상태번호])
 
   const 관급들 = useMemo(() => (읽은 ? 읽은.rows.filter((x) => x.관급) : []), [읽은])
@@ -132,8 +144,8 @@ export default function Hado() {
   const 전 = 셈 && 셈.전체
   const 원가값 = useMemo(() => {
     if (!읽은 || !libs || !(율 > 0 && 율 <= 100)) return null
-    try { return libs.h.원가미리(책, 읽은, 율) } catch (e) { return null }
-  }, [읽은, libs, 책, 율])
+    try { return libs.h.원가미리(책, 읽은, 율, 옵션) } catch (e) { return null }
+  }, [읽은, libs, 책, 율, 옵션])
 
   return (
     <div className="wrap">
@@ -164,12 +176,12 @@ export default function Hado() {
         {err && <div className="cwarn" style={{ marginTop: 8 }}>⚠️ {err}</div>}
         {온것 && (
           <div style={{ marginTop: 10 }}>
-            {읽은 ? (
+            {공내역 ? <p className="cwarn" style={{ margin: '0 0 6px' }}>⚠️ {공내역말}{읽은 ? ' 고르신 시트의 품목 금액이 모두 0원입니다.' : ''}</p> : 읽은 ? (
               <p style={{ margin: '0 0 6px' }}>
                 내역 <b>{fmt(읽은.rows.length)}줄</b> · {상태들 ? <>«{상태들.상태[상태번호]}» </> : ''}합계 <b>{fmt(읽은.합)}원</b>
                 {읽은.셋있나 ? <span> · <b>노무비 · 재료비 · 경비</b>가 갈려 있습니다</span> : <span className="muted"> · 갈래(노무 · 재료 · 경비)가 없어 합계로만 셉니다</span>}
               </p>
-            ) : <p className="cwarn" style={{ margin: '0 0 6px' }}>⚠️ 쓸 시트를 하나 이상 켜 주십시오.</p>}
+            ) : <p className="cwarn" style={{ margin: '0 0 6px' }}>⚠️ 내역서로 보이는 시트를 못 찾았습니다 — 아래에서 쓸 시트를 켜 주십시오.</p>}
             {상태들 && (
               <div className="note" style={{ margin: '4px 0 10px' }}>
                 <div style={{ marginBottom: 6 }}>📑 품목마다 <b>{상태들.상태.length}줄</b>({상태들.상태.join(' · ')})로 적힌 <b>{상태들.꼴}</b> 내역서입니다 — 하도급은 <b>어느 줄 금액</b>으로 만들까요?</div>
@@ -181,7 +193,7 @@ export default function Hado() {
                 <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>고른 줄로 <b>한 줄씩</b> 펴서 만듭니다. 원가계산서도 같은 줄 금액으로 읽습니다.</div>
               </div>
             )}
-            {온것.시트들.length > 1 && (
+            {(온것.시트들.length > 1 || !고른시트.length) && (
               <div className="tlsheets" style={{ marginBottom: 8 }}>
                 {온것.시트들.map((x) => {
                   const 켬 = 고른시트.indexOf(x.시트) >= 0
@@ -199,7 +211,7 @@ export default function Hado() {
       </div>
 
       {/* ② 율 · 이름 */}
-      {읽은 && (
+      {읽은 && !공내역 && (
         <div className="card">
           <div className="sec-title">② 하도급율 · 공사명 · 발주처</div>
           <div className="tlopts">
@@ -221,7 +233,7 @@ export default function Hado() {
       )}
 
       {/* ③ 하도급에서 뺄 줄 */}
-      {읽은 && (
+      {읽은 && !공내역 && (
         <div className="card">
           <div className="sec-title">③ 하도급에서 뺄 줄 — 원도급 «직접시공» · 관급</div>
           <p className="muted" style={{ margin: '0 0 8px', fontSize: 13, lineHeight: 1.8 }}>
@@ -276,7 +288,7 @@ export default function Hado() {
             <table className="tbl left">
               <tbody>
                 {원가값 && 원가값.도급액 !== null && (
-                  <tr><th style={{ width: 150 }}>원가계산서 도급액</th><td><b>{fmt(원가값.도급액)}</b> 원 → <b style={{ fontSize: 17 }}>하도급 도급액 {fmt(원가값.하도급액)}</b> 원 <span className="muted">— 미리 보기: 원도급 총원가 × {Math.round(율 * 100) / 100}% «만원 미만 정리» + 부가가치세(본보기 방식 · 첫 장 대비표 맨 아래 줄 · 총원가 줄이 없으면 도급액 × 율)</span></td></tr>
+                  <tr><th style={{ width: 150 }}>원가계산서 도급액</th><td><b>{fmt(원가값.도급액)}</b> 원 → <b style={{ fontSize: 17 }}>하도급 도급액 {fmt(원가값.하도급액)}</b> 원 <span className="muted">— 첫 장 대비표 맨 아래 줄과 같은 셈 · {원가값.맞춤 ? <>원도급 총원가 × {Math.round(율 * 100) / 100}% «만원 미만 정리» + 부가가치세(본보기 방식)</> : <>원가계산서 줄마다 산출근거대로(총원가 · 이윤 줄을 다 못 찾아 만원 정리는 안 함)</>}</span></td></tr>
                 )}
                 <tr><th style={{ width: 150 }}>내역 합계(도급)</th><td><b>{fmt(전.원.합계)}</b> 원 <span className="muted">— 내역서 품목을 다 더한 것(관급 포함)</span></td></tr>
                 <tr><th>하도급 대상</th><td>{fmt(전.대상)} 원 <span className="muted">— 직접시공 {셈.직접수}줄 · 관급 {셈.관급수}줄 뺀 것</span></td></tr>

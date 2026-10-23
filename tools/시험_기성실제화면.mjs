@@ -50,7 +50,7 @@ for (const 기기 of 기기들) {
     const 글 = await A.locator('.cw-fs').first().innerText()
     봐(글.includes('순공사비 ' + 원(e.합) + '원'), `${기기} ${이름} 화면 순공사비 = lib ${원(e.합)}`, 글.slice(0, 200))
     const 몸 = await A.locator('body').innerText()
-    봐(e.공 === 몸.includes('공내역서)입니다'), `${기기} ${이름} 공내역서 알림 ${e.공 ? '뜸' : '안 뜸'}`)
+    봐(e.공 ? 몸.split('공내역서)입니다').length - 1 === 1 : !몸.includes('공내역서)입니다'), `${기기} ${이름} 공내역서 알림 ${e.공 ? '한 번만 뜸(G384)' : '안 뜸'}`, String(몸.split('공내역서)입니다').length - 1))
     if (!e.공) {
       await A.locator('label', { hasText: '전체 한 번에 누계' }).locator('input').first().fill(String(율))
       await A.waitForTimeout(700)

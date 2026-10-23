@@ -182,7 +182,8 @@ export default function Gisung() {
 
   const 요 = 결과 && !결과.오류 ? 결과.요약 : null
   const 장부목록 = Object.entries(장부).sort((a, b) => Math.max(...b[1].회차들.map((x) => x.at || 0)) - Math.max(...a[1].회차들.map((x) => x.at || 0)))
-  const 확인말 = 결과 && !결과.오류 ? [...읽은.말, ...결과.말].filter((m) => m.무게 === '확인') : []
+  /* 🩹 G384 — 공내역서 알림은 위(① 읽은 칸)에 한 번만(실제 사이트에서 같은 글이 두 번 보였음) */
+  const 확인말 = 결과 && !결과.오류 ? [...읽은.말, ...결과.말].filter((m) => m.무게 === '확인' && !m.공내역서) : []
 
   return (
     <>
