@@ -1410,6 +1410,19 @@ function 일람표읽기(도면들, 경고0) {
         if (Math.abs(hd.g.x - g.x) > Math.max(g.w, hd.g.w) / 2 + g.h) continue
         if (dy < bdu) { bdu = dy; bu = hd }
       }
+      /* 🧭 G387 먼 칸 머리 — 머리(THK)에서 30 글자 높이 넘게 아래 줄도, 같은 칸(세로)에 글자가 띄엄띄엄(15 글자 높이 안) 이어져 머리까지 닿으면 그 칸.
+           현장 A S-301 슬래브 일람 아래 두 줄 «R CS1» · «RaS1» 의 두께(150 · 200)를 못 읽어 «흔한 두께» 150 으로 채웠음 */
+      if (!bu) {
+        const 같은칸 = (o, hw) => Math.abs(o.g.x - g.x) <= Math.max(g.w, hw) / 2 + g.h
+        for (const hd of 머리) {
+          const dy = hd.g.y - g.y
+          if (dy <= 30 * g.h || dy > 150 * g.h || !같은칸(hd, hd.g.w) || dy >= bdu) continue
+          const ys = 토.filter((o) => o !== t && o.g.y > g.y && o.g.y < hd.g.y && 같은칸(o, o.g.w)).map((o) => o.g.y).sort((p, q) => p - q)
+          let y = g.y, 이어 = true
+          for (const v of ys) { if (v - y > 15 * g.h) { 이어 = false; break } y = v }
+          if (이어 && hd.g.y - y <= 30 * g.h) { bdu = dy; bu = hd }
+        }
+      }
       for (const hd of [bl, bu]) if (hd) for (const x of hd.역) r.add(x)
       return r
     }
@@ -2740,6 +2753,23 @@ function 골조읽기0(도면들0, o = {}) {
     }
     return null
   }
+  /* 🧭 G387 겹몸 — 일람표에 «층 붙은 기호»(1S1A · RG1)가 있고, 같은 몸의 층 범위 정의(2~4 S1A · …)로 «층 + 몸» 이름을 붙이면 그 기호와 같은 이름이 다른 층을 가리키게 되는 몸 */
+  const 겹몸표 = new Map()
+  const 겹몸 = (종, 몸) => {
+    const key = 종 + '|' + 몸
+    if (겹몸표.has(key)) return 겹몸표.get(key)
+    let v = false
+    const 층들 = new Set((층정의[종].get(몸) || []).flatMap((d) => [...d.층들]))
+    for (const [k] of 전역[종]) {
+      const kr = 기호풀이(k)
+      if (!kr || kr.몸 !== 몸 || !kr.층표) continue
+      const 제층 = 층말(kr.층표)
+      if (!제층) continue
+      for (const f of 층들) if (f + 몸 === k && 아래층(제층) !== f) v = true
+    }
+    겹몸표.set(key, v)
+    return v
+  }
   const 기호정하기 = (r, f0) => {
     const 종 = r.종류
     let f = f0
@@ -2757,7 +2787,18 @@ function 골조읽기0(도면들0, o = {}) {
       const 바탕 = 전역[종].get(r.기호) || (층표것 && 전역[종].get(층표것)) || 전역[종].get(r.몸) || {}
       let m = { ...바탕 }
       for (const d of 층것.slice().reverse()) m = 합(d.r, m)
-      const 이름 = 층표것 || ((f === 'FT' ? 'FT' : f) + r.몸)
+      let 이름 = 층표것 || ((f === 'FT' ? 'FT' : f) + r.몸)
+      /* 🧭 G387 이름 겹침 — «층 + 몸» 이름(1S1A = 1층 위 바닥)이 일람표의 «층 붙은 기호»(1S1A = 1층 바닥 · 다른 층)와 같아지는 몸(겹몸)은
+           그 몸 전부를 바닥 층 이름(1층 위 바닥 → 2S1A · 2층 위 → 3S1A)으로 — 일람표 이름과 같은 꼴. 그 이름의 일람 줄이 있으면 그것을 바탕으로.
+           현장 A S-301: «1S1A»(1층 바닥 HD13@200) 와 «2~4 S1A»(HD10@150 · 300) — 1층 위 바닥이 «1S1A» 로 이름 붙어 1층 바닥 철근을 덮었음.
+           현장 B: 지붕 보 «RG1» 과 옥탑 바닥 보(층 R + G1 = RG1)가 한 줄을 같이 써 RG1 일람 철근이 빠지고(같은 몸 2G1 것을 빌림) 옥탑 PHG1 일람을 안 썼음 */
+      if (!층표것 && 바닥종(종) && f !== 'FT' && 겹몸(종, r.몸)) {
+        const i = 바닥차례.indexOf(f)
+        if (i >= 0 && i + 1 < 바닥차례.length) {
+          이름 = 바닥차례[i + 1] + r.몸
+          if (전역[종].has(이름)) { m = { ...전역[종].get(이름) }; for (const d of 층것.slice().reverse()) m = 합(d.r, m) }
+        }
+      }
       m.기호 = 이름
       배근행[종].set(이름, m)
       return 이름
@@ -3364,6 +3405,7 @@ function 골조읽기0(도면들0, o = {}) {
     }
   }
   const 이은벽 = new Map()
+  const 아래배경 = []          // 🧭 G387 [벽, 층, 아래층 벽 이름] — 위층 평면에 바탕으로 깐 아래층 벽(셈에서 뺌)
   {
     const 기둥판별 = new Map()
     for (const c of 기둥표) { const a = 기둥판별.get(c.판) || []; a.push(c); 기둥판별.set(c.판, a) }
@@ -3384,8 +3426,9 @@ function 골조읽기0(도면들0, o = {}) {
       옮김표.set(key, res)
       return res
     }
-    const 이름벽 = []
-    for (const [, c] of 층들) for (const 줄 of c.벽) for (const x of 줄) if (!x._미표기 && !x._모서리 && !x._같은줄 && x._축 && x._몸) 이름벽.push(x)
+    const 이름벽 = [], 이름벽층 = new Map()
+    const 맨아래0 = 바닥차례.find((f) => f !== 'FT') || '1'
+    for (const [f0, c] of 층들) for (const 줄 of c.벽) for (const x of 줄) if (!x._미표기 && !x._모서리 && !x._같은줄 && x._축 && x._몸) { 이름벽.push(x); 이름벽층.set(x, f0 === 'FT' ? 맨아래0 : f0) }
     if (이름벽.length) for (const [f, c] of 층들) for (const 줄 of c.벽) for (const x of 줄) {
       if (!x._미표기 || !x._축) continue
       const [ax, ay, bx, by, g] = x._축
@@ -3418,6 +3461,61 @@ function 골조읽기0(도면들0, o = {}) {
       x.기호 = 기
       x._미표기 = false
       이은벽.set(앞 + ' → ' + best._몸, (이은벽.get(앞 + ' → ' + best._몸) || 0) + 1)
+    }
+    /* 🧭 G387 위층 평면 바탕에 깐 아래층 벽 — 이름 없이 읽은 벽(미표기)이 아래층 이름 붙은 벽(이어 붙인 토막 포함)과 같은 자리 · 같은 두께이고
+         그 자리의 이름 붙은 벽 어느 것도 벽 일람표에 이 층 줄이 없으면 «후보». 한 평면(판)의 이 층 벽 길이의 반 넘게가 후보면 그 평면은
+         아래층 벽을 바탕으로 그린 것 → 후보만 셈에서 뺌(일람표에 이 층 줄이 있는 코어 벽 · 같은 자리 이름 이은 벽은 그대로).
+         소장님 현장 A «지상1층 주심도»: 지하 외벽 BW1 · BW2 둘레 · 수조 · 램프 벽을 1층 벽(W300 · W200)으로 또 셈(약 110 m) —
+         건축 1층 평면은 커튼월 · 골구도 1층 띠에 바깥벽 없음 · 1층 주심도엔 벽 이름표가 하나도 없음 */
+    {
+      const 차 = (k) => 바닥차례.indexOf(k === 'FT' ? 맨아래0 : k)
+      const 모든 = []
+      for (const [f0, c] of 층들) for (const 줄 of c.벽) for (const x of 줄) if (!x._미표기 && x._축 && x._몸) 모든.push([x, f0])
+      const 층있음 = (몸, f) => (층정의.벽.get(몸) || []).some((d) => d.층들 && d.층들.has(f))
+      const 같은자리 = (x, L) => {
+        const [ax, ay, bx, by, g] = x._축, [la, lb, lc, ld, lg] = L._축
+        if (Math.abs(lg - g) > 15) return false
+        const T = 옮김(x._판, L._판)
+        if (!T) return false
+        const Lw = Math.hypot(bx - ax, by - ay), Ll = Math.hypot(lc - la, ld - lb)
+        if (!(Lw > 0) || !(Ll > 0)) return false
+        const ux = (bx - ax) / Lw, uy = (by - ay) / Lw, vx = (lc - la) / Ll, vy = (ld - lb) / Ll
+        if (Math.abs(ux * vy - uy * vx) > 0.02) return false
+        const px = ax + T[0], py = ay + T[1], qx = bx + T[0], qy = by + T[1]
+        if (Math.abs((px - la) * vy - (py - lb) * vx) > 80 || Math.abs((qx - la) * vy - (qy - lb) * vx) > 80) return false
+        const t0 = (px - la) * vx + (py - lb) * vy, t1 = (qx - la) * vx + (qy - lb) * vy
+        return Math.min(Math.max(t0, t1), Ll) - Math.max(Math.min(t0, t1), 0) >= 0.5 * Math.min(Lw, Ll)
+      }
+      const 판별 = new Map()           // 층|판 → { 전체(mm), 후보: [[x, 아래 이름]] }
+      for (const [f, c] of 층들) {
+        if (f === 'FT' || 차(f) < 0) continue
+        for (const 줄 of c.벽) for (const x of 줄) {
+          if (!x._축) continue
+          const k = f + '|' + x._판
+          let v = 판별.get(k); if (!v) { v = { 전체: 0, 후보: [] }; 판별.set(k, v) }
+          const [ax, ay, bx, by] = x._축
+          v.전체 += Math.hypot(bx - ax, by - ay)
+          if (!x._미표기) continue
+          const 겹 = 모든.filter(([L, fl]) => 차(fl) >= 0 && 차(fl) < 차(f) && 같은자리(x, L))
+          if (!겹.length || 겹.some(([L]) => 층있음(L._몸, f))) continue
+          v.후보.push([x, 겹[0][0]._몸])
+        }
+      }
+      for (const [k, v] of 판별) {
+        const 후 = v.후보.reduce((a, [x]) => { const [ax, ay, bx, by] = x._축; return a + Math.hypot(bx - ax, by - ay) }, 0)
+        if (!(후 > 0.5 * v.전체)) continue
+        for (const [x, m] of v.후보) 아래배경.push([x, k.split('|')[0], m])
+      }
+    }
+    if (아래배경.length) {
+      const 뺄 = new Set(아래배경.map((v) => v[0]))
+      for (const [, c] of 층들) {
+        for (const 줄 of c.벽) for (let i = 줄.length - 1; i >= 0; i--) if (뺄.has(줄[i])) 줄.splice(i, 1)
+        for (let i = c.벽.length - 1; i >= 0; i--) if (!c.벽[i].length) c.벽.splice(i, 1)
+      }
+      const 모 = new Map()
+      for (const [, f, m] of 아래배경) { const k = (/^B\d/.test(f) ? '지하' + f.slice(1) + '층' : f === 'R' ? '지붕층' : f + '층') + ' ' + m; 모.set(k, (모.get(k) || 0) + 1) }
+      경고.push('위층 평면에 바탕으로 그린 아래층 벽 ' + 아래배경.length + '곳은 셈에서 뺐습니다(같은 자리 · 같은 두께의 아래층 벽 · 벽 일람표에 이 층 줄 없음 · 그 평면 벽의 반 넘게가 그러함): ' + [...모].map(([k, n]) => k + ' ' + n).join(' · '))
     }
   }
   /* 🧭 G241 «SC1 · SG1 · SB1»(Steel Column · Girder · Beam) 꼴인데 철골 목록이 없으면 — 철골 부재(규격이 도면에 없음)로 알림(현장 C · D 토목 «SC1» 2개 · 건축공사분) */
