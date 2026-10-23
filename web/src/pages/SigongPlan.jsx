@@ -186,8 +186,8 @@ export default function SigongPlan() {
   useEffect(() => { 싣기().catch(() => {}) }, [])   // eslint-disable-line react-hooks/exhaustive-deps
   const 싣기 = async () => {
     if (lib) return lib
-    const [q, s] = await Promise.all([import('../lib/qtoxlsx.js'), import('../lib/시공계획.js')])
-    const m = { readWorkbook: q.readWorkbook, ...s }
+    const [q, s, b] = await Promise.all([import('../lib/qtoxlsx.js'), import('../lib/시공계획.js'), import('../lib/비율.js')])
+    const m = { readWorkbook: q.readWorkbook, ...s, 비율읽기: b.격자로읽기 }
     setLib(m)
     return m
   }
@@ -218,7 +218,7 @@ export default function SigongPlan() {
           set바쁨(`${f.name} — 내역서를 읽는 중…`); await 숨()
           try {
             const 책 = m.readWorkbook(new Uint8Array(await f.arrayBuffer()))
-            const 자료 = m.내역읽기(책, f.name)
+            const 자료 = m.내역읽기(책, f.name, { 한줄보강: m.비율읽기 })   /* 🩹 G385 1줄 설계내역서 보강 */
             set내역({ 이름: f.name, 자료 }); set고른(null); set공정고침(null)
             채우기(자료.머리, 자료.머리.공기일)
             새말.push(`📊 ${f.name} — 품목 ${자료.품목들.length}개${자료.금액있음 ? '' : ' (금액이 없는 공내역서 — 보할은 품목 수로 나눕니다)'}`)
