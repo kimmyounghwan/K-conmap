@@ -35,6 +35,8 @@ import { XLSX, 엑셀종류 } from '../lib/엑셀종류.js'   /* 🩹 G378 .xlsm
 const fmt = (n) => new Intl.NumberFormat('ko-KR').format(Math.round(n || 0))
 const pct = (r) => (Math.round(r * 1000000) / 10000).toLocaleString('ko-KR') + '%'
 const kb = (n) => new Intl.NumberFormat('ko-KR').format(Math.round(n / 1024))
+/* 🩹 G381 — 구형 엑셀(.xls · 바이트가 zip «PK» 로 시작하지 않음)인가. 이름이 .xls 여도 안이 .xlsx 면 새 꼴로 봅니다 */
+const lib구형 = (buf) => { try { const u = new Uint8Array(buf, 0, 2); return !(u[0] === 0x50 && u[1] === 0x4b) } catch (e) { return false } }
 
 /* ⚠️ styles.css 의 «.tlopts label input { width:15px }» 는 라디오·체크상자용입니다.
    글자 칸까지 15px 로 눌러 버려서 «44,000,000» 이 «44» 로 보였습니다 — 여기서 되돌립니다. */
@@ -80,12 +82,9 @@ export default function Ratio() {
   const openFile = useCallback(async (f) => {
     if (!f) return
     setErr(''); setOut(null); set틀(null); set온것(null); set고른시트([]); setFile(null); set관급끔(new Set()); set원가(null)
-    if (!/\.(xlsx|xlsm)$/i.test(f.name)) {
-      setErr(/\.xls$/i.test(f.name)
-        ? '구형 엑셀(.xls)은 아직 못 읽습니다. 엑셀에서 «다른 이름으로 저장 → Excel 통합 문서(.xlsx)» 한 뒤 올려 주십시오.'
-        : '엑셀 파일(.xlsx / .xlsm)만 됩니다.')
-      return
-    }
+    /* 🩹 G381 — 구형 엑셀(.xls)도 읽습니다(실제 설계내역서 엑셀 484부 중 48부가 .xls · 전엔 «못 읽습니다» 로 돌려보냄).
+         받기는 «새 엑셀 한 벌» 만 — 올린 엑셀 그대로 · 비율 시트 붙여 수식으로는 .xlsx 꼴(zip)이어야 해서 화면이 알립니다. */
+    if (!/\.(xlsx|xlsm|xls)$/i.test(f.name)) { setErr('엑셀 파일(.xlsx · .xlsm · .xls)만 됩니다.'); return }
     setBusy('내역서를 읽는 중입니다…')
     try {
       const m = await loadLib()
@@ -95,7 +94,9 @@ export default function Ratio() {
       /* 🔎 G380 — 같은 파일 원가계산서의 직접노무비(읽은 품목 노무비와 맞춰 봄 · 못 찾으면 맞춰 보기만 건너뜁니다) */
       let 원 = null
       try { const n = await import('../lib/낙찰맞추기.js'); 원 = n.원가표찾기(책, g.시트들.filter((s) => !/원가/.test(s.시트)).map((s) => s.시트)) } catch (e) { 원 = null }
-      setFile({ name: f.name, size: f.size, buf })
+      const 구형 = lib구형(buf)
+      setFile({ name: f.name, size: f.size, buf, 구형 })
+      if (구형) { try { 세기('|비율|xls') } catch (e) { /* 지나갑니다 */ } }
       set온것(g)
       set원가(원)
       set고른시트(m.고를만한시트(g.시트들))
@@ -154,6 +155,7 @@ export default function Ratio() {
 
   const 만들기 = async (어느) => {
     if (!R || !file || !lib) return
+    if (어느 === '원본' && file.구형) return              /* G381 — .xls 는 «새 엑셀 한 벌» 만 */
     setBusy('엑셀을 만드는 중입니다…'); setErr('')
     if (out && out.url) { try { URL.revokeObjectURL(out.url) } catch (e) { /* 지나갑니다 */ } }
     setOut(null)
@@ -214,6 +216,7 @@ export default function Ratio() {
       }
       const url = URL.createObjectURL(new Blob([bytes], { type: 종류 }))
       setOut({ url, name, 말 })
+      try { 세기(어느 === '원본' ? '|비율|수식' : '|비율|새엑셀'); if (file.구형) 세기('|비율|xls만듦') } catch (e) { /* 지나갑니다 */ }
       try { askAfter('biyul') } catch (e) { /* 사생활 보호 모드 */ }
     } catch (e) {
       setErr((e && e.message) || '만들지 못했습니다.')
@@ -222,7 +225,7 @@ export default function Ratio() {
 
   /* 🏷 G169 — 올린 엑셀 «틀 그대로» (값으로 · 원가계산서 · 총괄표까지) */
   const 틀만들기 = async () => {
-    if (!file || !읽은) return
+    if (!file || !읽은 || file.구형) return
     const 낙찰 = 모드 === '낙찰' ? Number(String(낙찰글).replace(/[^\d]/g, '')) : 0
     if (모드 === '낙찰' && !(낙찰 > 0)) { setErr('낙찰금액(도급액 · 부가세 포함)을 넣어 주십시오.'); return }
     if (모드 !== '낙찰' && !R) return
@@ -287,13 +290,13 @@ export default function Ratio() {
           onClick={() => inputRef.current?.click()}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => { e.preventDefault(); openFile(e.dataTransfer?.files?.[0]) }}>
-          <input ref={inputRef} type="file" accept=".xlsx,.xlsm" hidden
+          <input ref={inputRef} type="file" accept=".xlsx,.xlsm,.xls" hidden
             onChange={(e) => openFile(e.target.files?.[0])} />
-          <끌어놓기판 글="내역서(엑셀)를 놓으면 엽니다" 길들={[{ 꼴: /\.(xlsx|xlsm)$/i, 받기: (fs) => openFile(fs[0]) }]} />
+          <끌어놓기판 글="내역서(엑셀)를 놓으면 엽니다" 길들={[{ 꼴: /\.(xlsx|xlsm|xls)$/i, 받기: (fs) => openFile(fs[0]) }]} />
           {file
             ? <><b>{file.name}</b><span>{kb(file.size)} KB · 다른 파일을 올리려면 누르십시오</span></>
             : <><b>＋ 내역서를 끌어 놓거나 누르십시오</b>
-              <span>.xlsx · .xlsm — 단가가 «채워진» 내역서라야 합니다 (공내역서는 곱할 것이 없습니다)</span></>}
+              <span>.xlsx · .xlsm · .xls — 단가가 «채워진» 내역서라야 합니다 (공내역서는 곱할 것이 없습니다)</span></>}
         </div>
         {busy && <div className="muted" style={{ marginTop: 8 }}>{busy}</div>}
         {err && <div className="cwarn" style={{ marginTop: 8 }}>⚠️ {err}</div>}
@@ -626,7 +629,16 @@ export default function Ratio() {
       {읽은 && (R || 모드 === '낙찰') && (
         <div className="card">
           <div className="sec-title">③ 내려받기</div>
+          {/* 🩹 G381 — 구형 엑셀(.xls): 읽기 · 셈 · «새 엑셀 한 벌» 까지 · 원본 꼴을 고치는 두 길은 .xlsx 로 저장해 올려야 함 */}
+          {file && file.구형 && (
+            <div className="note" style={{ margin: '0 0 10px', fontSize: 12.5, lineHeight: 1.8 }}>
+              📎 <b>구형 엑셀(.xls)</b>입니다 — 읽기 · 비율 셈은 그대로 되고, 아래 <b>«새 엑셀 한 벌»</b>로 받으실 수 있습니다.{' '}
+              <b>올린 엑셀 그대로</b> · <b>비율 시트 붙여 수식으로</b>{모드 === '낙찰' ? ' · 낙찰금액으로 맞추기' : ''}는 원본 파일을 그대로 고치는 길이라
+              엑셀에서 <b>«다른 이름으로 저장 → Excel 통합 문서(.xlsx)»</b> 한 뒤 다시 올려 주십시오.
+            </div>
+          )}
           {/* 🏷 G169 — 올린 엑셀 틀 그대로 · 값으로 (먼저) */}
+          {!(file && file.구형) && (<>
           <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
             <button className="btn primary" disabled={!!busy} onClick={틀만들기}>
               📄 올린 엑셀 그대로 (원가계산서까지 · 값으로)
@@ -636,6 +648,7 @@ export default function Ratio() {
             올리신 엑셀과 <b>같은 시트 · 같은 칸 · 같은 서식</b>에 <b>숫자만</b> 새 값으로 넣습니다. 시트를 덧붙이지 않습니다.
             원가계산서 · 총괄표도 <b>원본의 요율 · 산출근거</b>로 다시 셉니다.
           </div>
+          </>)}
           {틀 && (
             <div style={{ marginTop: 12 }}>
               <a className="btn primary" href={틀.url} download={틀.name}>⬇ {틀.name}</a>
@@ -667,22 +680,26 @@ export default function Ratio() {
           {모드 !== '낙찰' && R && (<>
           <div className="sec-title" style={{ marginTop: 16, fontSize: 14 }}>다른 꼴로 받기</div>
           <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+            {!(file && file.구형) && (
             <button className="btn ghost" disabled={!!busy} onClick={() => 만들기('원본')}>
               📄 올린 엑셀에 «비율» 시트 붙여 수식으로
             </button>
+            )}
             <button className="btn ghost" disabled={!!busy} onClick={() => 만들기('새것')}>
               📊 새 엑셀 한 벌 (내역서 · 대비표 · 원가계산서)
             </button>
           </div>
           <div className="note" style={{ marginTop: 10 }}>
-            ⭐ <b>이 두 파일에는 「비율」 시트가 들어 있습니다.</b> 그 시트의 <b>노란 칸에 숫자만 고치시면</b>
+            ⭐ <b>{file && file.구형 ? '이 파일에는' : '이 두 파일에는'} 「비율」 시트가 들어 있습니다.</b> 그 시트의 <b>노란 칸에 숫자만 고치시면</b>
             — 80 이라고 적으면 80% — <b>단가·금액·원가계산서가 그 자리에서 전부 다시 셈됩니다.</b>
             비율을 바꾸려고 여기 다시 오실 필요가 없습니다.
           </div>
           <div className="muted" style={{ fontSize: 12.5, marginTop: 8, lineHeight: 1.85 }}>
+            {!(file && file.구형) && (<>
             <b>비율 시트 붙여 수식으로</b> — 서식·인쇄영역·병합·매크로가 남습니다. 비율을 엑셀에서 바꿔 가며 보실 때.
             단가 칸이 <b>「비율」 시트를 보는 수식</b>으로 바뀌고, 당초 단가는 그 시트에 남습니다.
             <br />
+            </>)}
             <b>새 엑셀 한 벌</b> — 우리 서식입니다. <b>원가계산서</b>와 <b>당초↔비율 대비표</b>가 같이 나옵니다.
             검산하실 때, 그리고 원가계산서가 필요하실 때.
           </div>

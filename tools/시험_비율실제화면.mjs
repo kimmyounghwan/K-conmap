@@ -18,7 +18,8 @@ const 캡 = process.env.CAP || ''
 if (캡) fs.mkdirSync(캡, { recursive: true })
 if (!process.env.REAL) { console.log('REAL=폴더 를 주십시오'); process.exit(2) }
 const 파일들 = []
-for (const 폴 of process.env.REAL.split(',')) for (const n of fs.readdirSync(폴).filter((f) => /\.(xlsx|xlsm)$/i.test(f)).sort()) 파일들.push(path.join(폴, n))
+/* G381 — 구형 엑셀(.xls)도(전엔 화면이 «못 읽습니다» 로 돌려보냄) */
+for (const 폴 of process.env.REAL.split(',')) for (const n of fs.readdirSync(폴).filter((f) => /\.(xlsx|xlsm|xls)$/i.test(f)).sort()) 파일들.push(path.join(폴, n))
 const 원 = (n) => Math.round(n).toLocaleString('ko-KR')
 let ok = 0, bad = 0
 const 봐 = (c, m, 더 = '') => { if (c) ok++; else bad++; console.log(c ? '✓' : '✗', m, c ? '' : String(더).slice(0, 300)) }
@@ -39,7 +40,7 @@ for (const 기기 of 기기들) {
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36' })
   await 판.route(/googletagmanager|google-analytics|pagead2|adsbygoogle|geojs/, (r) => r.fulfill({ status: 200, body: '' }))
   await 판.route(/firebaseio\.com/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: 'null' }))
-  await 판.addInitScript(() => { localStorage.setItem('kcm_notice_seen', '2026-10-필독'); try { sessionStorage.setItem('kcm_notice_seen', '2026-10-업체') } catch (e) {}; Object.defineProperty(navigator, 'webdriver', { get: () => false }) })
+  await 판.addInitScript(() => { localStorage.setItem('kcm_notice_seen', '2026-10-필독'); try { sessionStorage.setItem('kcm_notice_seen', '2026-10-업체'); sessionStorage.setItem('kcm_visit_s', '1'); const d = new Date(), 두 = (n) => String(n).padStart(2, '0'), 날 = `${d.getFullYear()}-${두(d.getMonth() + 1)}-${두(d.getDate())}`, h = d.getHours(); localStorage.setItem('kcm_visit', JSON.stringify({ n: 5, first: 0, last: Date.now(), day: 날, slot: 날 + ' ' + (h < 12 ? '오전' : h < 18 ? '오후' : '저녁') })) } catch (e) {};   /* 인사 쪽지가 캡처를 덮지 않게 */ Object.defineProperty(navigator, 'webdriver', { get: () => false }) })
   const A = await 판.newPage()
   const 오류 = []
   A.on('pageerror', (e) => 오류.push(String(e).slice(0, 160)))
@@ -62,6 +63,12 @@ for (const 기기 of 기기들) {
       봐(말, `${기기} ${이름} 노무비 ↔ 직노 ${n.다름 ? '«다름» 알림' : '«맞음»(' + n.맞음 + ')'} ${(n.비 * 100).toFixed(1)}%`, 글.slice(0, 400))
     } else 봐(!/직접노무비 [\d,]+원(의|과)/.test(글), `${기기} ${이름} 원가계산서 직노를 못 찾은 파일 — 노무비 알림 없음`, 글.slice(0, 300))
     봐(!!e.첫뺌 === 글.includes('첫 품목을 빼고'), `${기기} ${이름} 첫 품목 뺀 머리 알림 ${e.첫뺌 ? e.첫뺌 + '곳' : '없음'}`)
+    if (/\.xls$/i.test(e.p)) {
+      const 몸 = await A.locator('body').innerText()
+      봐(몸.includes('구형 엑셀(.xls)입니다') && await A.locator('button', { hasText: '올린 엑셀 그대로' }).count() === 0 && await A.locator('button', { hasText: '새 엑셀 한 벌' }).count() === 1,
+        `${기기} ${이름} 구형 엑셀 — 알림 · «새 엑셀 한 벌» 만`, 몸.slice(0, 200))
+      if (캡 && 기기 === 'PC') await A.locator('.note', { hasText: '구형 엑셀' }).first().screenshot({ path: path.join(캡, `PC_예${e.k + 1}_xls.png`) })
+    }
     if (캡 && 기기 === 'PC') {
       /* 알림 줄만 — 파일 이름 · 시트 칩 · 품목표는 찍지 않습니다 */
       const 줄들 = A.locator('.card', { hasText: '① 내역서 올리기' }).first().locator('p', { hasText: /당초 합계|직접노무비|첫 품목을 빼고/ })

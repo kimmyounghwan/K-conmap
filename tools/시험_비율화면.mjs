@@ -3,6 +3,7 @@
 //   ① 붙은 머리글(재료단가 · 재료금액 …) 내역서가 읽힘 — 당초 982,683 · 80% 비율 합계
 //   ② 매크로 사용 꼴(.xlsm): «올린 엑셀 그대로» → _80%_그대로.xlsm · «비율 시트 붙여 수식으로» → _80%.xlsm (안의 종류 = 확장자 · 전엔 .xlsx 라 엑셀이 안 엶)
 //      «새 엑셀 한 벌» 은 늘 .xlsx · 보통 .xlsx 올리면 _80%.xlsx
+//   ③ G381 구형 엑셀(.xls · tools/시험자료/붙은머리_예시.xls): 읽힘 · 알림 · «새 엑셀 한 벌» 만
 //   + 👁 이 화면 조회 · 폰 가로 넘침 없음 · 화면 오류 없음
 import { createRequire } from 'module'
 import fs from 'fs'
@@ -72,6 +73,16 @@ for (const 기기 of 기기들) {
   await 올리기('붙은머리_예시.xlsx', '가상_붙은머리.xlsx')
   await 받기('«비율» 시트 붙여 수식으로', '가상_붙은머리_80%.xlsx', false)
   await 받기('올린 엑셀 그대로', '가상_붙은머리_80%_그대로.xlsx', false)
+  /* 🩹 G381 — 구형 엑셀(.xls · 가상 붙은머리_예시.xls = 위 .xlsx 를 LibreOffice 로 .xls 로 저장한 것): 읽고 «새 엑셀 한 벌» 만 받음 */
+  await 올리기('붙은머리_예시.xls', '가상_붙은머리.xls')
+  const 글x = await A.locator('body').innerText()
+  봐(/982,683/.test(글x) && !/구형 엑셀\(\.xls\)은 아직 못 읽습니다/.test(글x), `${기기} .xls 도 읽힘 — 당초 982,683 (전엔 «구형 엑셀은 아직 못 읽습니다»)`, 글x.slice(0, 200))
+  봐(/구형 엑셀\(\.xls\)<?\/?b?>?입니다|구형 엑셀\(\.xls\)입니다/.test(글x) && /Excel 통합 문서\(\.xlsx\)/.test(글x), `${기기} .xls 알림 — «새 엑셀 한 벌» 로 · 원본 꼴은 .xlsx 로 저장해 올리기`)
+  봐(await A.locator('button', { hasText: '올린 엑셀 그대로' }).count() === 0 && await A.locator('button', { hasText: '«비율» 시트 붙여 수식으로' }).count() === 0, `${기기} .xls 는 «올린 엑셀 그대로» · «수식으로» 단추 없음`)
+  z = await 받기('새 엑셀 한 벌', '내역서_80%_원가계산서.xlsx', false)
+  봐(/name="비율"/.test(strFromU8(z['xl/workbook.xml'])), `${기기} .xls → 새 엑셀 한 벌에 «비율» 시트`)
+  await A.locator('a[download]', { hasText: '원가계산서.xlsx' }).scrollIntoViewIfNeeded()
+  await A.screenshot({ path: `${폴더}/${기기}_3_xls_새엑셀.png` })
   봐(await A.locator('text=이 화면 조회').count() > 0, `${기기} 👁 이 화면 조회 보임`)
   if (기기 === '폰') 봐(await 넘침() <= 1, `${기기} 가로 넘침 없음`, await 넘침())
   봐(오류.length === 0, `${기기} 화면 오류 없음`, 오류.join(' | '))
