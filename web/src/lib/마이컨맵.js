@@ -328,6 +328,7 @@ export const 작업목록 = [
   ['kcm.wonclick.v1', '공사서류 원클릭', '⚡', '/tools/wonclick', () => ''],
   ['kcm.calc.schedule', '예정공정표 · S커브', '📈', '/tools/schedule', () => ''],
   ['kcm.golgo.v1', '골조 수량산출', '🏗', '/jeoksan/golgo', () => ''],
+  ['kcm.model.v1', '골조 모델', '🧱', '/jeoksan/model', (v) => (v && Array.isArray(v.부재) && v.부재.length ? `부재 ${v.부재.length}개` : '')],
   ['kcm.magam.v1', '마감 수량산출', '🧱', '/jeoksan/magam', () => ''],
   ['kcm.run.v1', '수량산출서 만들기', '🧮', '/jeoksan/run', () => ''],
 ]

@@ -420,8 +420,10 @@ export class 부재보기 {
 
   _loop() {
     if (this._dead) return
-    const 폭맞나 = this.cv.width === Math.round(this.cv.clientWidth * Math.min(window.devicePixelRatio || 1, 2))
-    if (this._dirty || !폭맞나) { this._dirty = false; this.draw() }
+    /* 🩹 G386 높이도 봄 — 폭은 그대로인데 칸 높이만 바뀌면(폰에서 칸이 늦게 자리 잡음 · «크게») 예전 판 크기로 남아 아래가 검게 비던 것 */
+    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    const 맞나 = this.cv.width === Math.round(this.cv.clientWidth * dpr) && this.cv.height === Math.max(1, Math.round(this.cv.clientHeight * dpr))
+    if (this._dirty || !맞나) { this._dirty = false; this.draw() }
     this._raf = requestAnimationFrame(this._loop)
   }
   png() { this.draw(); return this.cv.toDataURL('image/png') }

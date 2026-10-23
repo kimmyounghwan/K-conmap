@@ -71,6 +71,7 @@ STATIC = [("/", "1.0", "hourly"), ("/first", "0.9", "hourly"), ("/live", "0.9", 
           ("/jeoksan/golgo", "0.8", "monthly"),   # 🏗 2026-09-26 골조 수량산출 — 라우트·prerender 와 셋이 같이
           ("/jeoksan/magam", "0.8", "monthly"),   # 🧱 2026-09-27 마감 수량산출
           ("/jeoksan/auto", "0.8", "monthly"),    # ⚡ 2026-09-27 도면 물량 자동
+          ("/jeoksan/model", "0.8", "monthly"),   # 🧱 2026-10-23 G386 골조 모델(세우면 물량) — 라우트 · prerender 와 같이
           ("/safety", "0.9", "monthly"),
           ("/shareone", "0.8", "monthly"),
           # 🔎 G341 (2026-10-20) 소장님 「지금 만드는거 다 페이지 넣었지? … 검색되게」 — prerender TABS · firebase.json 과 셋이 같이
