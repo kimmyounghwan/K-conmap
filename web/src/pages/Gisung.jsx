@@ -54,15 +54,16 @@ export default function Gisung() {
 
   const 싣기 = async () => {
     if (lib) return lib
-    const [q, k, g] = await Promise.all([import('../lib/qtoxlsx.js'), import('../lib/기성.js'), import('../lib/공정.js')])
-    const m = { readWorkbook: q.readWorkbook, ...k, 공정: g }
+    /* 🩹 G383 — 1줄 설계내역서는 80% 비율 도구 읽기로 보강(원 내역서 G382 · 작업대 G379 와 같은 길) */
+    const [q, k, g, b] = await Promise.all([import('../lib/qtoxlsx.js'), import('../lib/기성.js'), import('../lib/공정.js'), import('../lib/비율.js')])
+    const m = { readWorkbook: q.readWorkbook, ...k, 공정: g, 비율읽기: b.격자로읽기 }
     setLib(m)
     return m
   }
 
   const 읽은 = useMemo(() => {
     if (!lib || !파일) return null
-    try { return lib.기성읽기(파일.책, 파일.이름, 고를) } catch (e) { return { 오류: e?.message || '읽지 못했습니다.' } }
+    try { return lib.기성읽기(파일.책, 파일.이름, 고를, { 한줄보강: lib.비율읽기 }) } catch (e) { return { 오류: e?.message || '읽지 못했습니다.' } }
   }, [lib, 파일, 고를])
   const 지문 = 읽은 && !읽은.오류 ? 읽은.원읽은.지문.split('|').slice(1).join('|') : ''
 
@@ -229,6 +230,8 @@ export default function Gisung() {
               {읽은.원가쓸 ? <>원가계산서 «{읽은.원읽은.원가.시트}» 읽음</> : 읽은.원읽은.원가 ? <>원가계산서가 이 시트와 안 맞아 순공사비로 셉니다</> : <>원가계산서 없음 — 순공사비로 셉니다</>}
               {읽은.지난 && <><br />🔁 <b>지난 기성 {읽은.지난.회차}회</b>{읽은.지난.날짜 ? ` (${읽은.지난.날짜})` : ''}에서 이어 갑니다 — 이번은 <b>{읽은.지난.회차 + 1}회</b></>}
             </div>
+            {/* 🩹 G383 — 공내역서(단가 · 금액 빈 칸)는 바로 알림 */}
+            {읽은.말.some((m) => m.공내역서) && <div className="cwarn" style={{ marginTop: 8 }}>⚠️ {읽은.말.find((m) => m.공내역서).무엇}</div>}
           </div>
         )}
       </div>

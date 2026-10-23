@@ -294,6 +294,8 @@ export default function WonChange() {
                 : <>원가계산서 시트가 없습니다 — 변경 원가계산서는 빼고 만듭니다</>}
               {!/\.(xlsx|xlsm)$/i.test(파일.이름) && <><br />⚠️ <b>.xls</b> 는 원본 시트를 그대로 붙일 수 없어 <b>새 시트만</b>(맨 앞에 당초내역서) 만듭니다. 원본째 받으려면 엑셀에서 .xlsx 로 저장해 올리십시오.</>}
             </div>
+            {/* 🩹 G383 — 공내역서(단가 · 금액 빈 칸)는 바로 알림 */}
+            {원읽은.말.some((m) => m.공내역서) && <div className="cwarn" style={{ marginTop: 8 }}>⚠️ {원읽은.말.find((m) => m.공내역서).무엇}</div>}
             {편집 && lib && lib.고정비줄수(원읽은) > 0 && (
               <label className="wn-fix muted">
                 <input type="checkbox" checked={편집.고정비 !== '그대로'} onChange={(e) => { set편집((x) => ({ ...x, 고정비: e.target.checked ? '' : '그대로' })); if (!e.target.checked) 세기('|변경원내역|고정비끔') }} />

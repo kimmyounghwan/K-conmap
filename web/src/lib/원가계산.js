@@ -167,7 +167,7 @@ export function 식셈(n, 값, 코드차례) {
 /** 식 나무 → 엑셀 식 (칸(코드) → 칸 주소) */
 export function 식엑셀(n, 칸, 코드차례) {
   switch (n.op) {
-    case '수': return String(n.v)
+    case '수': return n.엑셀 || String(n.v)          /* G383 — 기성: «모름» 수를 «(수*기성률)» 로 적을 때 */
     case '코드': return 칸(n.v)
     case '범위': { const cs = 범위코드(n.부터, n.까지, 코드차례).map(칸); return cs.length ? '(' + cs.join('+') + ')' : '0' }
     case 'neg': return '-(' + 식엑셀(n.a, 칸, 코드차례) + ')'
@@ -692,7 +692,7 @@ function 배움식(규, 코드of) {
         case '수': return { op: '수', v: e.값 }
         case '코드': { const y = 규.코드줄.get(e.코드); const c = y && 코드of(y); return c ? { op: '코드', v: c } : null }
         case '요율': return 규.율 === null || 규.율 === undefined ? null : { op: '수', v: 규.율 }
-        case '모름': return { op: '수', v: 규.X || 0 }
+        case '모름': return { op: '수', v: 규.X || 0, 모름: true }          /* G383 — 원가계산서에 없는 바탕(관급 K/1.1 등)을 당초 금액으로 풀어 넣은 수 · 기성은 기성률로 줄임 */
         case '빼기': { const a = 바꿈(e.값); return a ? { op: 'neg', a } : null }
         case '범위': return null
         default: { const a = 바꿈(e.a), b = 바꿈(e.b); return a && b ? { op: e.꼴, a, b } : null }
