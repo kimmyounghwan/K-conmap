@@ -116,6 +116,10 @@ export function 정돈(m0) {
     부재: Array.isArray(m.부재) ? m.부재.filter((o) => o && 종류들.includes(o.종류)) : [],
     다음: Math.max(수(m.다음, 1) || 1, 1),
   }
+  /* 🚶 G390 점검사항(둘러보기에서 넣은 것) · 빠짐(도면에서 못 옮긴 것 — 3D 빨강) — 있을 때만 */
+  if (Array.isArray(m.점검) && m.점검.length) M.점검 = m.점검.filter((x) => x && typeof x === 'object')
+  if (Array.isArray(m.빠짐) && m.빠짐.length) M.빠짐 = m.빠짐.filter((x) => x && Array.isArray(x.판))
+  if (m.도면에서 && typeof m.도면에서 === 'object') M.도면에서 = m.도면에서
   if (!FT층(M.층[0])) M.층 = [{ 이름: 'FT', 층고: 0, 슬라브: 0, 내림: 0 }, ...M.층]
   for (const k of Object.keys(d.배근)) if (!Array.isArray(M.배근[k])) M.배근[k] = []
   const 큰 = M.부재.reduce((a, o) => Math.max(a, 수(o.id, 0) || 0), 0)
@@ -186,6 +190,36 @@ export function 부재빼기(M, ids) {
 }
 export function 부재고치기(M, id, 고칠) {
   return { ...M, 부재: M.부재.map((o) => (o.id === id ? { ...o, ...고칠 } : o)) }
+}
+
+/**
+ * ✂ G390 보 · 벽을 한 자리에서 둘로 — 자리 = 그 부재 축 위 mm(통심 자리와 같은 좌표) · 그 자리에 보조 통심을 더함(이미 있으면 그 줄)
+ *   두 토막은 같은 줄로 곧게 이어져 «이어짐»(공제 0) — 콘크리트 · 거푸집 합은 그대로 · 보는 한 열(주근 이어짐)
+ *   끝에서 50 mm 안 · 가로 · 세로가 아닌 것은 그대로 돌려줌 · 문 · 창(구멍)은 앞 토막에 남김
+ */
+export function 부재나누기(M, id, 자리) {
+  const o = M.부재.find((x) => x.id === id)
+  if (!o || !(o.종류 === '보' || o.종류 === '벽') || !o.점 || !o.끝) return M
+  const 가로 = o.점[1] === o.끝[1] && o.점[0] !== o.끝[0], 세로 = o.점[0] === o.끝[0] && o.점[1] !== o.끝[1]
+  if (!가로 && !세로) return M
+  const 축 = 가로 ? 'x' : 'y', 칸 = 가로 ? 0 : 1
+  const 줄 = M.통심[축]
+  const a = (줄.find((g) => g.id === o.점[칸]) || {}).자리, b = (줄.find((g) => g.id === o.끝[칸]) || {}).자리
+  const v = Math.round(수(자리, NaN) / 5) * 5
+  if (!Number.isFinite(a) || !Number.isFinite(b) || !(v > Math.min(a, b) + 50 && v < Math.max(a, b) - 50)) return M
+  let N = M
+  let g = 줄.find((u) => Math.abs(u.자리 - v) < 0.5)
+  if (!g) {
+    const 본 = 줄.filter((u) => !/[+−-]\d+$/.test(글(u.이름)) && u.자리 < v).pop()
+    const 이름 = 본 ? 글(본.이름) + '+' + Math.round(v - 본.자리) : ''
+    N = 통심더하기(N, 축, v, 이름)
+    g = N.통심[축].find((u) => Math.abs(u.자리 - v) < 0.5 && !줄.includes(u))
+  }
+  const 중 = 가로 ? [g.id, o.점[1]] : [o.점[0], g.id]
+  const [id2, N2] = 새번호(N)
+  const 앞 = { ...o, 끝: 중 }, 뒤 = { ...o, id: id2, 점: 중 }
+  delete 뒤.구멍
+  return { ...N2, 부재: N2.부재.flatMap((x) => (x.id === id ? [앞, 뒤] : [x])) }
 }
 
 /** 층 복사 — 가져올 층의 부재를 받을 층(들)에 그대로(받을 층에 있던 같은 종류 부재는 지우고) · 종류들 = 옮길 종류 */
@@ -427,7 +461,9 @@ export function 기하(M0) {
       w.z0 = f.z0; w.z1 = (w.높이 ? f.z0 + w.높이 : zt) - w.상부
       const 이음끝 = [이어짐(P.벽, w, 0), 이어짐(P.벽, w, 1)]
       w.X정착 = 이음끝.filter((v) => !v).length
-      w.단부끝 = [0, 1].reduce((a, k) => a + (이음끝[k] ? 0 : (k ? w.우 : w.좌).기둥 || /끝/.test((k ? w.우 : w.좌).무엇) ? 1 : 0.5), 0)
+      w.이음끝 = 이음끝
+      w.단부끝들 = [0, 1].map((k) => (이음끝[k] ? 0 : (k ? w.우 : w.좌).기둥 || /끝/.test((k ? w.우 : w.좌).무엇) ? 1 : 0.5))
+      w.단부끝 = w.단부끝들[0] + w.단부끝들[1]
     }
     for (const [k, c] of P.기둥) {
       c.S = 점슬(c.x, c.y)
@@ -471,17 +507,20 @@ export function 공사로(M0) {
   const 경고 = [...G.경고]
   const 주 = { 보: [], 기둥: [], 슬라브: [], 옹벽: [], 계단: [], 기초: [], 드라이에리어: [], 보강: [], 보강근: [] }
   const 곳들 = new Map()
-  const 묶기 = (표, 줄들) => {            // 줄들: [{row, id}] — 같은 줄(QT 뺀 모든 칸)은 하나로
+  const 묶기 = (표, 줄들) => {            // 줄들: [{row, id}] 또는 [{row, ids, 몫(Map id → 길이)}](이어 붙인 부재) — 같은 줄(QT 뺀 모든 칸)은 하나로
     const m = new Map()
-    for (const { row, id } of 줄들) {
+    for (const { row, id, ids, 몫 } of 줄들) {
       const 키 = JSON.stringify(row)
-      if (!m.has(키)) m.set(키, { row, ids: [] })
-      m.get(키).ids.push(id)
+      if (!m.has(키)) m.set(키, { row, ids: [], qt: 0, 몫: null })
+      const e = m.get(키)
+      e.qt++
+      if (ids) { e.ids.push(...ids); e.몫 = e.몫 || new Map(); for (const [k, v] of 몫) e.몫.set(k, v) }
+      else { e.ids.push(id); if (e.몫) e.몫.set(id, 1) }
     }
-    for (const { row, ids } of m.values()) {
+    for (const { row, ids, qt, 몫 } of m.values()) {
       const i = 주[표].length
-      주[표].push({ ...row, QT: ids.length })
-      곳들.set(표 + '|' + i, { ids })
+      주[표].push({ ...row, QT: qt })
+      곳들.set(표 + '|' + i, 몫 ? { ids, 몫 } : { ids })
     }
   }
   const 거푸집 = 글(M.기준 && M.기준.거푸집) || 기준값().거푸집
@@ -511,11 +550,15 @@ export function 공사로(M0) {
       if (끝 && 끝.축 === b.축 && 끝.c === b.c && 끝.s1 === b.s0) 앞.push(b)
       else 열들.push([b])
     }
+    /* 🧭 G390 받침 없는 이음(양쪽 «이어짐» — 기둥 · 가로지르는 보 · 벽 없음)에서 곧게 이어진 같은 보는 한 줄로 셈
+         (✂ 나눈 보 · 통심마다 나눠 넣은 보 — 늑근 단부 · 정착이 토막마다 갈리지 않게 · 부재별 물량은 길이 몫) */
+    const 같은보 = (a, b) => 글(a.o.부호) === 글(b.o.부호) && a.W === b.W && a.H === b.H && a.S === b.S && a.우.무엇 === '이어짐' && b.좌.무엇 === '이어짐'
+    const 마디들 = 열들.map((열) => { const out = []; for (const b of 열) { const 끝 = out[out.length - 1]; if (끝 && 같은보(끝[끝.length - 1], b)) 끝.push(b); else out.push([b]) } return out })
     const 열묶 = new Map()
-    for (const 열 of 열들) {
-      const rows = 열.map((b) => ({ 층, 기호: 글(b.o.부호), 길이: String(둥(b.L)), 좌단: String(둥(b.좌.값)), 우단: String(둥(b.우.값)), S: String(b.S), ...빈보 }))
+    for (const 열 of 마디들) {
+      const rows = 열.map((g) => ({ 층, 기호: 글(g[0].o.부호), 길이: String(둥(g.reduce((a, b) => a + b.L, 0))), 좌단: String(둥(g[0].좌.값)), 우단: String(둥(g[g.length - 1].우.값)), S: String(g[0].S), ...빈보 }))
       const 키 = JSON.stringify(rows)
-      const 줄이름 = (M.통심[열[0].축 === 'x' ? 'y' : 'x'].find((g) => g.id === 열[0].줄) || {}).이름 || ''
+      const 줄이름 = (M.통심[열[0][0].축 === 'x' ? 'y' : 'x'].find((g) => g.id === 열[0][0].줄) || {}).이름 || ''
       if (!열묶.has(키)) 열묶.set(키, { rows, 열: [], 이름: [] })
       열묶.get(키).열.push(열); 열묶.get(키).이름.push(줄이름)
     }
@@ -525,7 +568,8 @@ export function 공사로(M0) {
         const i = 주.보.length
         const 열칸 = n === 1 ? '' : k === 0 ? (이름.join('·') || 'L') : k === n - 1 ? 'E' : ''
         주.보.push({ 층: row.층, 열: 열칸, 기호: row.기호, 길이: row.길이, 좌단: row.좌단, 우단: row.우단, S: row.S, QT: 열.length, ...빈보 })
-        곳들.set('보|' + i, { ids: 열.map((l) => l[k].id) })
+        const 토막 = 열.flatMap((l) => l[k])
+        곳들.set('보|' + i, 토막.length > 열.length ? { ids: 토막.map((b) => b.id), 몫: new Map(토막.map((b) => [b.id, b.L])) } : { ids: 토막.map((b) => b.id) })
       })
     }
     /* 슬라브 */
@@ -549,13 +593,20 @@ export function 공사로(M0) {
     const 마 = P.슬라브.filter((s) => s.마구리 > 0)
     if (마.length) 층마구리.set(층, 마)
     /* 벽 */
-    묶기('옹벽', [...P.벽].sort((a, b) => (a.축 === b.축 ? 0 : a.축 === 'x' ? -1 : 1) || a.c - b.c || a.s0 - b.s0).map((w) => {
-      const 위 = G.H.위층[G.H.위층.indexOf(층) + 1]
-      const 위벽 = 위 && G.층의.get(위) ? G.층의.get(위).벽.some((u) => u.축 === w.축 && u.c === w.c && u.s0 === w.s0 && u.s1 === w.s1) : false
-      return {
-        id: w.id,
-        row: { 층, 기호: 글(w.o.부호), 길이: String(둥(w.L)), 높이: w.높이 ? String(w.높이) : '', 하부: '', 상부: String(둥(w.상부)), 단부: String(둥(w.좌.값 + w.우.값)), X정착: w.X정착, 상부이음: 위벽 ? '1' : 'A', OPEN: 글(w.o.구멍), C: '', F: '', F2: w.o.한면 ? '' : 거푸집, R: '', _단부끝: w.단부끝 },
-      }
+    /* 🧭 G390 벽도 받침 없는 이음(양쪽 «이어짐»)에서 곧게 이어진 같은 벽(부호 · 두께 · 높이 · 상부 · 한 면)은 한 줄로 — 문 · 창(OPEN)은 한 줄에 하나까지 */
+    const 위층 = G.H.위층[G.H.위층.indexOf(층) + 1]
+    const 위벽 = (w) => (위층 && G.층의.get(위층) ? G.층의.get(위층).벽.some((u) => u.축 === w.축 && u.c === w.c && u.s0 === w.s0 && u.s1 === w.s1) : false)
+    const 같은벽 = (a, b) => a.축 === b.축 && a.c === b.c && a.s1 === b.s0 && 글(a.o.부호) === 글(b.o.부호) && a.T === b.T && a.상부 === b.상부 && a.높이 === b.높이 && !!a.o.한면 === !!b.o.한면 && a.우.무엇 === '이어짐' && b.좌.무엇 === '이어짐'
+    const 벽마디 = []
+    for (const w of [...P.벽].sort((a, b) => (a.축 === b.축 ? 0 : a.축 === 'x' ? -1 : 1) || a.c - b.c || a.s0 - b.s0)) {
+      const g = 벽마디[벽마디.length - 1], p = g && g[g.length - 1]
+      if (p && 같은벽(p, w) && !(글(w.o.구멍) && g.some((u) => 글(u.o.구멍)))) g.push(w)
+      else 벽마디.push([w])
+    }
+    묶기('옹벽', 벽마디.map((g) => {
+      const a = g[0], z = g[g.length - 1]
+      const row = { 층, 기호: 글(a.o.부호), 길이: String(둥(g.reduce((t, w) => t + w.L, 0))), 높이: a.높이 ? String(a.높이) : '', 하부: '', 상부: String(둥(a.상부)), 단부: String(둥(a.좌.값 + z.우.값)), X정착: (a.이음끝[0] ? 0 : 1) + (z.이음끝[1] ? 0 : 1), 상부이음: g.every(위벽) ? '1' : 'A', OPEN: 글((g.find((w) => 글(w.o.구멍)) || a).o.구멍), C: '', F: '', F2: a.o.한면 ? '' : 거푸집, R: '', _단부끝: a.단부끝들[0] + z.단부끝들[1] }
+      return g.length > 1 ? { row, ids: g.map((w) => w.id), 몫: new Map(g.map((w) => [w.id, w.L])) } : { id: a.id, row }
     }))
     /* 기초 */
     묶기('기초', [...P.기초.values()].sort((a, b) => a.x - b.x || a.y - b.y).map((d) => ({
@@ -746,6 +797,8 @@ export function 모델시트(M0, S, ST) {
       { v: +(q.콘크리트 || 0).toFixed(4), st: ST.QTY }, { v: +(q.거푸집 || 0).toFixed(3), st: ST.QTY }, { v: +((q.철근 || 0) / 1000).toFixed(4), st: ST.QTY }, o.id]
   })
   const 시트 = [{ name: '부재별', head: ['번호', '층', '부재', '부호', '자리(통심)', '크기(mm)', '콘크리트(㎥)', '거푸집(㎡)', '철근(ton)', '부재 번호'], rows, widths: [6, 6, 7, 8, 26, 26, 12, 12, 12, 9], freeze: 1 }]
+  /* 🚶 G390 점검사항(둘러보기에서 넣은 것) */
+  if (M.점검 && M.점검.length) 시트.push({ name: '점검사항', head: ['번호', '층', '부재', '부호', '자리(통심)', '내용', '넣은 때', '부재 번호'], rows: M.점검.map((x, i) => [i + 1, x.층 === 'FT' ? 'FT' : 글(x.층) + '층', 글(x.종류), 글(x.부호), 글(x.자리), 글(x.글), 글(x.때), x.id ?? '']), widths: [6, 6, 7, 8, 24, 60, 18, 9], freeze: 1 })
   시트.push({
     name: '모델',
     head: ['구분', '내용'],

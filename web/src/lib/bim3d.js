@@ -6,6 +6,7 @@
  * ■ 부재 고르기는 «색 번호 판»(보이지 않는 판에 부재마다 다른 색으로 그려 누른 점의 색을 읽음) — 겹친 부재도 앞에 보이는 것을 정확히.
  * ■ 좌표: 부재 모델(mm) → 화면은 m 로 (큰 건물도 떨리지 않게)
  * 조작: 끌기 = 돌리기 · 오른쪽 끌기/Shift+끌기/두 손가락 = 옮기기 · 휠/벌리기 = 확대 · 짧게 누르기 = 부재 고르기
+ * ■ 🚶 G390 둘러보기 — set사람(세모 · m) 로 걷는 사람을 그림(고르기 안 됨) · 눈(눈모드 = 그 사람 눈으로 · 끌기 = 고개 돌리기) · 가까이(가까운 · 먼 면 따로)
  */
 
 const VS = `
@@ -38,6 +39,14 @@ void main(){ gl_Position = vec4(p, 0.9999, 1.0); t = p.y * 0.5 + 0.5; }`
 const FSB = `
 precision mediump float; varying float t; uniform vec3 T; uniform vec3 B;
 void main(){ gl_FragColor = vec4(mix(B, T, t), 1.0); }`
+/* 🚶 G390 그림 입힌 사람(VRM) — 그림 × 색 × 만화풍 빛(밝은 쪽 · 어두운 쪽 두 단계 + 부드러운 이음) · 알파 자름 */
+const VST = `
+attribute vec3 p; attribute vec3 n; attribute vec2 u; uniform mat4 M; uniform vec3 L1; varying vec2 vu; varying float vl;
+void main(){ gl_Position = M * vec4(p, 1.0); vu = u; vec3 N = normalize(n);
+  float d = dot(N, L1); float t = smoothstep(-0.15, 0.25, d); vl = mix(0.78, 1.04, t) + 0.06 * N.z; }`
+const FST = `
+precision mediump float; varying vec2 vu; varying float vl; uniform sampler2D T; uniform vec4 C; uniform float tex; uniform float cut;
+void main(){ vec4 c = (tex > 0.5 ? texture2D(T, vu) : vec4(1.0)) * C; if (c.a < cut) discard; gl_FragColor = vec4(min(c.rgb * vl, vec3(1.0)), c.a); }`
 const VSP = `
 attribute vec3 p; attribute vec3 c; uniform mat4 M; varying vec3 v;
 void main(){ gl_Position = M * vec4(p, 1.0); v = c; }`
@@ -66,6 +75,30 @@ function look(e, c, u) {
   l = Math.hypot(xx, xy, xz) || 1; xx /= l; xy /= l; xz /= l
   const yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx
   return [xx, yx, zx, 0, xy, yy, zy, 0, xz, yz, zz, 0, -(xx * e[0] + xy * e[1] + xz * e[2]), -(yx * e[0] + yy * e[1] + yz * e[2]), -(zx * e[0] + zy * e[1] + zz * e[2]), 1]
+}
+/** 4×4 역행렬(열 우선) — 못 풀면 null */
+function 역4(m) {
+  const a = m, o = new Array(16)
+  o[0] = a[5] * a[10] * a[15] - a[5] * a[11] * a[14] - a[9] * a[6] * a[15] + a[9] * a[7] * a[14] + a[13] * a[6] * a[11] - a[13] * a[7] * a[10]
+  o[4] = -a[4] * a[10] * a[15] + a[4] * a[11] * a[14] + a[8] * a[6] * a[15] - a[8] * a[7] * a[14] - a[12] * a[6] * a[11] + a[12] * a[7] * a[10]
+  o[8] = a[4] * a[9] * a[15] - a[4] * a[11] * a[13] - a[8] * a[5] * a[15] + a[8] * a[7] * a[13] + a[12] * a[5] * a[11] - a[12] * a[7] * a[9]
+  o[12] = -a[4] * a[9] * a[14] + a[4] * a[10] * a[13] + a[8] * a[5] * a[14] - a[8] * a[6] * a[13] - a[12] * a[5] * a[10] + a[12] * a[6] * a[9]
+  o[1] = -a[1] * a[10] * a[15] + a[1] * a[11] * a[14] + a[9] * a[2] * a[15] - a[9] * a[3] * a[14] - a[13] * a[2] * a[11] + a[13] * a[3] * a[10]
+  o[5] = a[0] * a[10] * a[15] - a[0] * a[11] * a[14] - a[8] * a[2] * a[15] + a[8] * a[3] * a[14] + a[12] * a[2] * a[11] - a[12] * a[3] * a[10]
+  o[9] = -a[0] * a[9] * a[15] + a[0] * a[11] * a[13] + a[8] * a[1] * a[15] - a[8] * a[3] * a[13] - a[12] * a[1] * a[11] + a[12] * a[3] * a[9]
+  o[13] = a[0] * a[9] * a[14] - a[0] * a[10] * a[13] - a[8] * a[1] * a[14] + a[8] * a[2] * a[13] + a[12] * a[1] * a[10] - a[12] * a[2] * a[9]
+  o[2] = a[1] * a[6] * a[15] - a[1] * a[7] * a[14] - a[5] * a[2] * a[15] + a[5] * a[3] * a[14] + a[13] * a[2] * a[7] - a[13] * a[3] * a[6]
+  o[6] = -a[0] * a[6] * a[15] + a[0] * a[7] * a[14] + a[4] * a[2] * a[15] - a[4] * a[3] * a[14] - a[12] * a[2] * a[7] + a[12] * a[3] * a[6]
+  o[10] = a[0] * a[5] * a[15] - a[0] * a[7] * a[13] - a[4] * a[1] * a[15] + a[4] * a[3] * a[13] + a[12] * a[1] * a[7] - a[12] * a[3] * a[5]
+  o[14] = -a[0] * a[5] * a[14] + a[0] * a[6] * a[13] + a[4] * a[1] * a[14] - a[4] * a[2] * a[13] - a[12] * a[1] * a[6] + a[12] * a[2] * a[5]
+  o[3] = -a[1] * a[6] * a[11] + a[1] * a[7] * a[10] + a[5] * a[2] * a[11] - a[5] * a[3] * a[10] - a[9] * a[2] * a[7] + a[9] * a[3] * a[6]
+  o[7] = a[0] * a[6] * a[11] - a[0] * a[7] * a[10] - a[4] * a[2] * a[11] + a[4] * a[3] * a[10] + a[8] * a[2] * a[7] - a[8] * a[3] * a[6]
+  o[11] = -a[0] * a[5] * a[11] + a[0] * a[7] * a[9] + a[4] * a[1] * a[11] - a[4] * a[3] * a[9] - a[8] * a[1] * a[7] + a[8] * a[3] * a[5]
+  o[15] = a[0] * a[5] * a[10] - a[0] * a[6] * a[9] - a[4] * a[1] * a[10] + a[4] * a[2] * a[9] + a[8] * a[1] * a[6] - a[8] * a[2] * a[5]
+  const det = a[0] * o[0] + a[1] * o[4] + a[2] * o[8] + a[3] * o[12]
+  if (!det || !Number.isFinite(det)) return null
+  for (let i = 0; i < 16; i++) o[i] /= det
+  return o
 }
 function mm(a, b) { const r = new Array(16); for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) r[j * 4 + i] = a[i] * b[j * 4] + a[4 + i] * b[j * 4 + 1] + a[8 + i] * b[j * 4 + 2] + a[12 + i] * b[j * 4 + 3]; return r }
 
@@ -106,6 +139,7 @@ export class 부재보기 {
     if (!gl) throw new Error('webgl')
     this.gl = gl
     this.pF = prog(gl, VS, FS); this.pL = prog(gl, VSL, FSL); this.pP = prog(gl, VSP, FSP); this.pB = prog(gl, VSB, FSB)
+    this.uint = !!gl.getExtension('OES_element_index_uint')
     this.Bg = { p: gl.getAttribLocation(this.pB, 'p'), T: gl.getUniformLocation(this.pB, 'T'), B: gl.getUniformLocation(this.pB, 'B'), buf: gl.createBuffer() }
     gl.bindBuffer(gl.ARRAY_BUFFER, this.Bg.buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1]), gl.STATIC_DRAW)
     const loc = (p, a) => gl.getAttribLocation(p, a), uni = (p, a) => gl.getUniformLocation(p, a)
@@ -120,6 +154,8 @@ export class 부재보기 {
     this.t = [0, 0, 0]; this.d = 50; this.yaw = -Math.PI / 3; this.pit = 0.5
     this.높이배 = 1; this.zc = 0
     this.B = null; this.BG = null
+    this.사람 = null                // 🚶 G390 {p, nn, c, n} — 세상 m
+    this.눈 = null                  // 🚶 G390 눈모드 {E:[x,y,z] m, h(방향), p(위아래)} — 있으면 그 사람 눈으로 봄
     this.고른 = new Set()
     this._dirty = true
     this._bind()
@@ -201,7 +237,7 @@ export class 부재보기 {
     this.zc = this.틀 ? (this.틀[2] + this.틀[5]) / 2 : 0
     // 바닥 판(살짝 아래) — 건물이 땅에 선 느낌
     if (o.바닥 !== false && this.틀) {
-      const m = Math.max(x1 - x0, y1 - y0) * 0.12 + 1, z = z0 - 0.02
+      const m = Math.max(x1 - x0, y1 - y0) * 0.12 + 1, z = Number.isFinite(o.바닥z) ? o.바닥z / 1000 - 0.004 : z0 - 0.02     // 🚶 G390 바닥z(mm) — 둘러보기 맨 아래층 땅 높이
       const g = o.바닥색 || [0.86, 0.88, 0.90]
       const q = [[x0 - m, y0 - m], [x1 + m, y0 - m], [x1 + m, y1 + m], [x0 - m, y1 + m]]
       for (const k of [0, 1, 2, 0, 2, 3]) { 단.위.push(q[k][0], q[k][1], z); 단.노.push(0, 0, 1); 단.색.push(...g); 단.고.push(0); 단.번.push(0, 0, 0); 단.알.push(1) }
@@ -235,6 +271,97 @@ export class 부재보기 {
     this.BG = { p: b, n: a.length / 3, 색, 알 }
     this.dirty()
   }
+  /** 🚶 G390 걷는 사람 — {위, 노, 색}(Float32Array · m · 세상 좌표) 또는 그림 입힌 모델 {부분: [{위, 노, 부분: {uv, 색인, 재}}]} · null 이면 지움 */
+  set사람(몸) {
+    const gl = this.gl
+    if (몸 && Array.isArray(몸.부분)) { this._사람그림(몸.부분); return }
+    if (this.사람그림) this._사람그림(null)
+    if (!몸 || !몸.위 || !몸.위.length) { if (this.사람) { for (const k of ['p', 'nn', 'c']) gl.deleteBuffer(this.사람[k]); this.사람 = null } this.dirty(); return }
+    const 올 = (buf, arr) => { gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, arr, gl.DYNAMIC_DRAW) }
+    if (!this.사람) this.사람 = { p: gl.createBuffer(), nn: gl.createBuffer(), c: gl.createBuffer(), n: 0 }
+    올(this.사람.p, 몸.위); 올(this.사람.nn, 몸.노); 올(this.사람.c, 몸.색)
+    this.사람.n = 몸.위.length / 3
+    this.dirty()
+  }
+  /** 🚶 G390 그림 입힌 사람 — 부분마다 uv · 색인 · 그림은 한 번만 올리고(같은 부분이면 다시 안 씀) 위 · 노만 매번 */
+  _사람그림(부분들) {
+    const gl = this.gl
+    if (!this.pT) {
+      this.pT = prog(gl, VST, FST)
+      this.Tp = { p: gl.getAttribLocation(this.pT, 'p'), n: gl.getAttribLocation(this.pT, 'n'), u: gl.getAttribLocation(this.pT, 'u'), M: gl.getUniformLocation(this.pT, 'M'), L1: gl.getUniformLocation(this.pT, 'L1'), T: gl.getUniformLocation(this.pT, 'T'), C: gl.getUniformLocation(this.pT, 'C'), tex: gl.getUniformLocation(this.pT, 'tex'), cut: gl.getUniformLocation(this.pT, 'cut') }
+      this._그림판 = new Map()     // 그림(이미지) → 텍스처
+    }
+    const 옛 = this.사람그림 || []
+    /* 부분들이 같은 꼭짓점 배열을 나눠 쓰면(VRoid) GPU 칸도 나눠 씀 — 지울 때는 한 번만 */
+    const 다지움 = (목록) => { const 본 = new Set(); for (const r of 목록) for (const k of ['p', 'n', 'u', 'i']) if (r[k] && !본.has(r[k])) { 본.add(r[k]); gl.deleteBuffer(r[k]) } }
+    if (!부분들) { 다지움(옛); for (const t of this._그림판.values()) gl.deleteTexture(t); this._그림판.clear(); this.사람그림 = null; this.dirty(); return }
+    const 같음 = 옛.length === 부분들.length && 옛.every((r, k) => r.원 === 부분들[k].부분)
+    if (!같음) {
+      다지움(옛)
+      const 나눔 = new Map()        // 원본 꼭짓점 배열(q.위치) → {p, n} · uv 배열 → u
+      const 나눔u = new Map()
+      this.사람그림 = 부분들.map(({ 부분: q }) => {
+        const 키 = q.위치 || q, 덧 = q.노드 + '|' + q.스킨번
+        if (!나눔.has(키)) 나눔.set(키, new Map())
+        if (!나눔.get(키).has(덧)) 나눔.get(키).set(덧, { p: gl.createBuffer(), n: gl.createBuffer() })
+        const 칸 = 나눔.get(키).get(덧)
+        const r = { 원: q, p: 칸.p, n: 칸.n, u: null, i: gl.createBuffer(), 수: q.색인.length, 큰: false, 재: q.재 }
+        if (q.uv) { if (!나눔u.has(q.uv)) { const u = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, u); gl.bufferData(gl.ARRAY_BUFFER, q.uv, gl.STATIC_DRAW); 나눔u.set(q.uv, u) } r.u = 나눔u.get(q.uv) }
+        let 최대 = 0; for (let k = 0; k < q.색인.length; k++) if (q.색인[k] > 최대) 최대 = q.색인[k]
+        r.큰 = 최대 > 65535
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.i); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, r.큰 ? q.색인 : Uint16Array.from(q.색인), gl.STATIC_DRAW)
+        if (r.큰 && !this.uint) r.수 = 0
+        const 그림 = q.재 && q.재.그림
+        if (그림 && !this._그림판.has(그림)) {
+          const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t)
+          try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, 그림) } catch (e) { /* 못 올림 — 색만 */ }
+          const 두제곱 = (v) => v > 0 && (v & (v - 1)) === 0
+          const w = 그림.width || 0, h = 그림.height || 0
+          if (두제곱(w) && 두제곱(h)) { gl.generateMipmap(gl.TEXTURE_2D); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR) }
+          else { gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE) }
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+          this._그림판.set(그림, t)
+        }
+        r.t = 그림 ? this._그림판.get(그림) : null
+        return r
+      })
+    }
+    const 올림 = new Set()
+    this.사람그림.forEach((r, k) => {
+      if (올림.has(r.p)) return
+      올림.add(r.p)
+      gl.bindBuffer(gl.ARRAY_BUFFER, r.p); gl.bufferData(gl.ARRAY_BUFFER, 부분들[k].위, gl.DYNAMIC_DRAW)
+      gl.bindBuffer(gl.ARRAY_BUFFER, r.n); gl.bufferData(gl.ARRAY_BUFFER, 부분들[k].노, gl.DYNAMIC_DRAW)
+    })
+    if (this.사람) { for (const k of ['p', 'nn', 'c']) gl.deleteBuffer(this.사람[k]); this.사람 = null }
+    this.dirty()
+  }
+  _사람그림그리기(M) {
+    const gl = this.gl, T = this.Tp
+    gl.useProgram(this.pT)
+    gl.uniformMatrix4fv(T.M, false, M); gl.uniform3f(T.L1, 0.38, -0.62, 0.69); gl.uniform1i(T.T, 0)
+    gl.activeTexture(gl.TEXTURE0)
+    const 그리기 = (r) => {
+      if (!r.수) return
+      gl.bindBuffer(gl.ARRAY_BUFFER, r.p); gl.enableVertexAttribArray(T.p); gl.vertexAttribPointer(T.p, 3, gl.FLOAT, false, 0, 0)
+      gl.bindBuffer(gl.ARRAY_BUFFER, r.n); gl.enableVertexAttribArray(T.n); gl.vertexAttribPointer(T.n, 3, gl.FLOAT, false, 0, 0)
+      if (r.u && T.u >= 0) { gl.bindBuffer(gl.ARRAY_BUFFER, r.u); gl.enableVertexAttribArray(T.u); gl.vertexAttribPointer(T.u, 2, gl.FLOAT, false, 0, 0) } else if (T.u >= 0) { gl.disableVertexAttribArray(T.u); gl.vertexAttrib2f(T.u, 0, 0) }
+      const c = (r.재 && r.재.색) || [1, 1, 1, 1]
+      gl.uniform4f(T.C, c[0], c[1], c[2], c[3] ?? 1)
+      gl.uniform1f(T.tex, r.t ? 1 : 0); if (r.t) gl.bindTexture(gl.TEXTURE_2D, r.t)
+      gl.uniform1f(T.cut, r.재 && r.재.알파 === 'MASK' ? (r.재.자름 ?? 0.5) : r.재 && r.재.알파 === 'BLEND' ? 0.02 : -1)
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.i)
+      gl.drawElements(gl.TRIANGLES, r.수, r.큰 ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT, 0)
+    }
+    gl.disable(gl.BLEND); gl.depthMask(true)
+    for (const r of this.사람그림) if (!(r.재 && r.재.알파 === 'BLEND')) 그리기(r)
+    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false)
+    for (const r of this.사람그림) if (r.재 && r.재.알파 === 'BLEND') 그리기(r)
+    gl.depthMask(true); gl.disable(gl.BLEND)
+    for (const loc of [T.p, T.n, T.u]) if (loc >= 0) gl.disableVertexAttribArray(loc)
+  }
+  /** 🚶 G390 눈모드 — e = {E:[x,y,z](m), h, p} · null 이면 보통(돌려 보기) */
+  set눈(e) { this.눈 = e ? { E: e.E.slice(), h: +e.h || 0, p: +e.p || 0 } : null; this.dirty() }
   /** 높이 키우기(넓은 토목 현장에서 높낮이가 잘 보이게) — 1 = 그대로 */
   set높이배(k) { this.높이배 = Math.max(1, Math.min(20, +k || 1)); this.dirty() }
 
@@ -297,12 +424,15 @@ export class 부재보기 {
   }
 
   dirty() { this._dirty = true }
-  _cam() { const cp = Math.cos(this.pit); return [this.t[0] + this.d * cp * Math.cos(this.yaw), this.t[1] + this.d * cp * Math.sin(this.yaw), this.t[2] + this.d * Math.sin(this.pit)] }
+  _cam() { if (this.눈) return this.눈.E; const cp = Math.cos(this.pit); return [this.t[0] + this.d * cp * Math.cos(this.yaw), this.t[1] + this.d * cp * Math.sin(this.yaw), this.t[2] + this.d * Math.sin(this.pit)] }
   _M(w, h) {
-    const P = persp(Math.PI / 4, w / h, this.d / 400, this.d * 60)
-    const k = this.높이배 || 1
+    const 눈 = this.눈
+    /* 🚶 G390 눈모드 · 걷기 — 가까운 면 5 cm · 먼 면 3 km(건물 안에서도 먼 끝까지) */
+    const P = 눈 ? persp(Math.PI / 3, w / h, 0.05, 3000) : persp(Math.PI / 4, w / h, this.가까이 ? Math.min(this.d / 400, 0.03) : this.d / 400, this.가까이 ? Math.max(this.d * 60, 1500) : this.d * 60)
+    const k = 눈 ? 1 : (this.높이배 || 1)
     /* 높이 키우기 — z' = zc + (z − zc)·k */
     const S = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, k, 0, 0, 0, this.zc * (1 - k), 1]
+    if (눈) { const cp = Math.cos(눈.p); const T = [눈.E[0] + Math.cos(눈.h) * cp, 눈.E[1] + Math.sin(눈.h) * cp, 눈.E[2] + Math.sin(눈.p)]; return mm(mm(P, look(눈.E, T, [0, 0, 1])), S) }
     return mm(mm(P, look(this._cam(), this.t, [0, 0, 1])), S)
   }
 
@@ -349,6 +479,15 @@ export class 부재보기 {
       if (!this.투명) gl.depthMask(true)
     }
     for (const loc of [this.F.p, this.F.n, this.F.c, this.F.s, this.F.q]) gl.disableVertexAttribArray(loc)
+    /* 🚶 G390 걷는 사람 — 단단히(비침 · 투명 보기에서도 또렷하게) */
+    if (this.사람그림 && this.사람그림.length) { this._사람그림그리기(M); gl.useProgram(this.pF) }
+    if (this.사람 && this.사람.n) {
+      gl.disable(gl.BLEND); gl.depthMask(true); gl.uniform1f(this.F.a, 1)
+      붙(this.F.p, this.사람.p, 3); 붙(this.F.n, this.사람.nn, 3); 붙(this.F.c, this.사람.c, 3)
+      gl.disableVertexAttribArray(this.F.s); gl.vertexAttrib1f(this.F.s, 0); gl.disableVertexAttribArray(this.F.q); gl.vertexAttrib1f(this.F.q, 1)
+      gl.drawArrays(gl.TRIANGLES, 0, this.사람.n)
+      for (const loc of [this.F.p, this.F.n, this.F.c]) gl.disableVertexAttribArray(loc)
+    }
     /* 모서리 · 바탕 선 */
     gl.useProgram(this.pL)
     gl.uniformMatrix4fv(this.Lp.M, false, M)
@@ -370,6 +509,21 @@ export class 부재보기 {
   }
 
   /** 화면 (clientX, clientY) 의 부재 id — 없으면 -1 */
+  /** 🖱 G390 누른 화면 자리 → 높이 z 바닥 위 점(m) — 하늘을 누르면 null (둘러보기 «누른 곳으로 걷기») */
+  바닥점(cx, cy, z = 0) {
+    const cv = this.cv, r = cv.getBoundingClientRect()
+    const w = cv.width || 1, h = cv.height || 1
+    const nx = ((cx - r.left) / Math.max(1, r.width)) * 2 - 1, ny = 1 - ((cy - r.top) / Math.max(1, r.height)) * 2
+    const I = 역4(this._M(w, h))
+    if (!I) return null
+    const 풀 = (zn) => { const o = [0, 1, 2, 3].map((i) => I[i] * nx + I[4 + i] * ny + I[8 + i] * zn + I[12 + i]); return [o[0] / o[3], o[1] / o[3], o[2] / o[3]] }
+    const a = 풀(-1), b = 풀(1), dz = b[2] - a[2]
+    if (Math.abs(dz) < 1e-12) return null
+    const t = (z - a[2]) / dz
+    if (!(t >= 0 && t <= 1)) return null
+    return { x: a[0] + (b[0] - a[0]) * t, y: a[1] + (b[1] - a[1]) * t }
+  }
+
   고르기(cx, cy) {
     if (!this.B || !this.B.단.n) return -1
     const gl = this.gl, cv = this.cv
@@ -435,8 +589,11 @@ export class 부재보기 {
     this.t[0] += (-dx * rx + dy * ux) * k; this.t[1] += (-dx * ry + dy * uy) * k; this.t[2] += (dy * uz) * k
     this.dirty()
   }
-  _rot(dx, dy) { this.yaw -= dx * 0.006; this.pit = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 1e-3, this.pit + dy * 0.006)); this.dirty() }
-  _zoom(f) { this.d = Math.max(0.5, Math.min(5000, this.d * f)); this.dirty() }
+  _rot(dx, dy) {
+    if (this.눈) { this.눈.h -= dx * 0.005; this.눈.p = Math.max(-1.2, Math.min(1.2, this.눈.p - dy * 0.005)); if (this.onLook) this.onLook(this.눈.h, this.눈.p); this.dirty(); return }   // 🚶 G390 눈모드 = 고개 돌리기
+    this.yaw -= dx * 0.006; this.pit = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 1e-3, this.pit + dy * 0.006)); this.dirty()
+  }
+  _zoom(f) { if (this.눈) return; this.d = Math.max(this.가까이 ? 1.2 : 0.5, Math.min(5000, this.d * f)); this.dirty() }
 
   _bind() {
     const cv = this.cv
@@ -454,7 +611,7 @@ export class 부재보기 {
       const dx = e.clientX - p.x, dy = e.clientY - p.y
       if (ps.size === 1) {
         const 옮 = p.b === 2 || p.b === 1 || p.s || e.shiftKey
-        if (this.끌어옮기기 ? !옮 : 옮) this._pan(dx, dy); else this._rot(dx, dy)
+        if ((this.끌어옮기기 ? !옮 : 옮) && !this.눈 && !this.가까이) this._pan(dx, dy); else this._rot(dx, dy)
       }
       p.x = e.clientX; p.y = e.clientY
       if (ps.size === 2 && pinch) {
@@ -499,6 +656,8 @@ export class 부재보기 {
     this._지움()
     const gl = this.gl
     if (this.BG) { gl.deleteBuffer(this.BG.p); this.BG = null }
+    if (this.사람) { for (const k of ['p', 'nn', 'c']) gl.deleteBuffer(this.사람[k]); this.사람 = null }
+    if (this.사람그림) this._사람그림(null)
     if (this._fb) { gl.deleteFramebuffer(this._fb); gl.deleteTexture(this._ft); gl.deleteRenderbuffer(this._fr) }
   }
 }

@@ -7,8 +7,11 @@
 //   ⑤ 새로고침해도 모델이 남음(이 브라우저 저장) · 화면 오류 없음 · 폰 가로 넘침 없음
 //   ⑥ 🖥 G388 작업 화면(🔒 운영자만) — 남에게는 단추 · ?ws=1 모두 없음 · 운영자: 열면 왼쪽 도구 · 가운데 3D(PC 화면 폭 절반 넘게) · 오른쪽 물량 ·
 //      그 안에서 기둥 세우기 · 고르기 · 평면 / 나란히 · 나가면 주소 ?ws=1 지움 · 폰 가로 넘침 없음
+//   ⑨ 📚 G391 도면함 — 평면 다 세움 · 🧹 비우고 · ▶ 가장 아래층부터 · 📥 하나씩 = 한꺼번에(합) · 📤 빼기 · 다시 가져오기 · 🔄 다시 · 폰 넘침 없음
 //   ⑦ 📐 G389 작업 화면 «도면 넣기»(🔒 운영자만) — 가상 예시 도면(BIM_예시_3층.dxf)을 넣으면 좌표대로 세움:
 //      부재 수 · 화면 합 = lib(골조읽기 → BIM 모델 → 도면에서모델 → 모델셈) · 견줌표(도면 셈) · 못 옮긴 것 없음 · 되돌리기 → 전 모델 · 오류 없음 · 폰 넘침 없음
+//   ⑧ 🚶 G390 둘러보기(🔒 운영자만) — 캐릭터 넷 고르기(수아 · 얼굴 그림 · 파일 받음) · 걷기(방향키) · ⬆ 층 · 🖱 누르면 그리로 · ▶ 자동(확인 늘어남) · 👁 눈으로 · 📝 점검사항 · ✕ 그만 · 고른 사람 기억 ·
+//      ✂ 둘로(고른 보) → 부재 하나 늘고 콘크리트 · 거푸집 · 철근 합 그대로 · 오류 없음 · 폰 넘침 없음
 import { createRequire } from 'module'
 import fs from 'fs'
 import path from 'path'
@@ -209,9 +212,95 @@ for (const 기기 of 기기들) {
   const 층수 = await B.locator('.gmd-ws-floor').count()
   봐(층수 === 도면예.M.층.length, `${기기} 도면 층 ${층수}개 = lib`, 층수)
   if (기기 === '폰') 봐((await B.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 1, `폰 도면 넣은 뒤 가로 넘침 없음`)
-  await B.getByTitle('되돌리기').click()
-  await B.waitForTimeout(800)
+  /* ⑨ 📚 G391 도면함 — 비우고 · 아래층부터 하나씩 가져오기 → 합 = 한꺼번에 · 빼기 → 줄고 · 다시 가져오면 그대로 · 🔄 다시 → 그대로 */
+  const 함 = B.locator('.gmd-box')
+  const 함글0 = await 함.innerText()
+  const 장 = +(함글0.match(/세운 \d+ \/ (\d+)장/) || [])[1]
+  봐(장 > 0 && new RegExp('세운 ' + 장 + ' / ' + 장 + '장').test(함글0), `${기기} 📚 도면함 — 평면 ${장}장 모두 세움`, 함글0.slice(0, 160))
+  B.once('dialog', (d) => d.accept())
+  await 함.getByRole('button', { name: '🧹 비우고 하나씩' }).click()
+  await B.waitForTimeout(500)
+  봐(/세운 0 \//.test(await 함.innerText()) && (await 함.locator('li.next').count()) === 1, `${기기} 🧹 비우고 — 세운 0장 · ▶ 다음 하나`)
+  const 첫다음 = await 함.locator('li.next').innerText()
+  봐(!도면예.M.층.some((f) => f.이름 === 'FT') || /기초/.test(첫다음), `${기기} ▶ 다음 = 가장 아래층(기초)부터 — ${첫다음.split('\n')[0]}`, 첫다음)
+  let 가져옴 = 0
+  for (let i = 0; i < 장 + 2 && (await 함.locator('li.next').count()); i++) { await 함.locator('li.next button', { hasText: '가져오기' }).click(); await B.waitForTimeout(500); 가져옴++ }
+  const 합5 = await B.locator('.gmd-ws-right .gmd-sum').innerText()
+  봐(가져옴 === 장 && 합5 === 합2 && new RegExp('세운 ' + 장 + ' / ' + 장 + '장').test(await 함.innerText()), `${기기} 📥 하나씩 ${가져옴}장 → 합 = 한꺼번에(${합5.replace(/\n/g, ' ')})`, 합2 + ' → ' + 합5)
+  await 함.locator('li').first().getByRole('button', { name: '📤 빼기' }).click()
+  await B.waitForTimeout(500)
+  const 합6 = await B.locator('.gmd-ws-right .gmd-sum').innerText()
+  await 함.locator('li.next button', { hasText: '가져오기' }).click()
+  await B.waitForTimeout(500)
+  const 합7 = await B.locator('.gmd-ws-right .gmd-sum').innerText()
+  봐(합6 !== 합2 && 합7 === 합2, `${기기} 📤 빼기 → 줄고 · 📥 다시 가져오면 그대로`, [합6, 합7].join(' | '))
+  await 함.locator('li').nth(1).getByRole('button', { name: '🔄 다시' }).click()
+  await B.waitForTimeout(500)
+  봐((await B.locator('.gmd-ws-right .gmd-sum').innerText()) === 합2, `${기기} 🔄 다시 — 합 그대로`)
+  if (기기 === '폰') 봐((await B.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 1, `폰 도면함 가로 넘침 없음`)
+  for (let i = 0; i < 30 && !/212\.014/.test(await B.locator('.gmd-ws-right .gmd-sum').innerText()) && (await B.getByTitle('되돌리기').isEnabled()); i++) { await B.getByTitle('되돌리기').click(); await B.waitForTimeout(250) }
+  await B.waitForTimeout(500)
   봐(/212\.014/.test(await B.locator('.gmd-ws-right .gmd-sum').innerText()), `${기기} 되돌리기 → 도면 넣기 전 모델(예시 212.014)`)
+  /* ⑧ 🚶 둘러보기 */
+  await B.locator('.gmd-walkbtn').click()
+  await B.waitForSelector('.gwk-pick', { timeout: 15000 })
+  const 카드 = await B.locator('.gwk-card').allInnerTexts()
+  봐(카드.length === 4 && ['수아', '리나', '하나', '유나'].every((k, i) => 카드[i].startsWith(k)), `${기기} 둘러보기 — 캐릭터 넷(수아 · 리나 · 하나 · 유나 · 여자만)`, 카드.join(' / '))
+  봐((await B.locator('.gwk-thumb').evaluateAll((a) => a.filter((im) => im.complete && im.naturalWidth > 0).length)) === 4, `${기기} 캐릭터 얼굴 그림 넷 보임`)
+  await B.locator('.gwk-card', { hasText: '수아' }).click()
+  await B.locator('.gwk-go').click()
+  await B.waitForFunction(() => !/불러오는 중|받지 못했/.test((document.querySelector('.gwk') || {}).innerText || ''), null, { timeout: 30000 }).catch(() => {})
+  봐(!/받지 못했/.test(await B.locator('.gwk').innerText()), `${기기} 캐릭터(수아 · /jeoksan/char/f.vrm) 받음`)
+  await B.waitForTimeout(600)
+  const 허1 = await B.locator('.gwk-hud').innerText()
+  봐(/🧭/.test(허1) && /확인/.test(허1) && (await B.locator('.gwk-pick').count()) === 0, `${기기} 둘러보기 시작 — ${허1.replace(/\n/g, ' ')}`)
+  await B.locator('canvas').first().focus().catch(() => {})
+  await B.keyboard.down('ArrowUp'); await B.waitForTimeout(1500); await B.keyboard.up('ArrowUp')
+  await B.waitForTimeout(500)
+  봐((await B.locator('.gwk-near').count()) > 0 || /확인 [1-9]/.test(await B.locator('.gwk-hud').innerText()), `${기기} 걸으면 가까운 부재 · 확인`)
+  const 층1 = (await B.locator('.gwk-hud b').first().innerText())
+  await B.locator('.gwk-acts button', { hasText: '⬆' }).click()
+  await B.waitForTimeout(500)
+  const 층2 = (await B.locator('.gwk-hud b').first().innerText())
+  봐(층1 !== 층2, `${기기} ⬆ 위층 — ${층1} → ${층2}`)
+  /* 🖱 누른 곳으로 걷기 — 3D 가운데 아래(사람 앞 바닥)를 누름 → «🖱» 알림 · 걸어감(확인 · 가까운 부재 바뀜) */
+  {
+    const cv = B.locator('.gmd-ws .gmd-3d canvas').first(), bx = await cv.boundingBox()
+    const 확0 = await B.locator('.gwk-hud').innerText()
+    await B.mouse.click(bx.x + bx.width * 0.7, bx.y + bx.height * 0.62)
+    await B.waitForTimeout(300)
+    const 알 = (await B.locator('.gwk-msg').allInnerTexts()).join(' ')
+    await B.waitForTimeout(2500)
+    봐(/🖱/.test(알), `${기기} 🖱 3D 를 누르면 그리로 걸어감 — «${알.replace(/\n|✕/g, '').trim()}»`, 알 + ' / ' + 확0)
+  }
+  await B.getByRole('button', { name: '▶ 자동' }).click()
+  await B.waitForTimeout(4500)
+  봐(/확인 [1-9]/.test(await B.locator('.gwk-hud').innerText()), `${기기} ▶ 자동 — 확인 늘어남`, await B.locator('.gwk-hud').innerText())
+  await B.getByRole('button', { name: /멈춤/ }).click().catch(() => {})
+  await B.getByRole('button', { name: '👁 눈으로' }).click()
+  await B.waitForTimeout(300)
+  봐((await B.getByRole('button', { name: '🎥 뒤에서' }).count()) === 1, `${기기} 👁 눈으로 ↔ 🎥 뒤에서`)
+  await B.getByRole('button', { name: '📝 점검사항에 넣기' }).click()
+  await B.locator('.gwk-memo input').fill('보 춤 도면과 확인')
+  await B.locator('.gwk-memo input').press('Enter')
+  await B.waitForTimeout(400)
+  봐(/점검사항 1개/.test(await B.locator('.gmd-chk summary').innerText().catch(() => '')), `${기기} 📝 점검사항 1개(오른쪽)`)
+  if (기기 === '폰') 봐((await B.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 1, `폰 둘러보기 가로 넘침 없음`)
+  await B.getByRole('button', { name: '✕ 그만' }).click()
+  await B.waitForTimeout(400)
+  봐((await B.locator('.gwk').count()) === 0 && (await B.evaluate(() => JSON.parse(localStorage.getItem('kcm.walker') || '{}').키)) === '수아', `${기기} ✕ 그만 · 고른 사람(수아) 기억`)
+  /* ✂ 고른 보를 둘로 — 합 그대로 */
+  const 합3 = await B.locator('.gmd-ws-right .gmd-sum').innerText()
+  await B.getByRole('button', { name: '📐 평면' }).click()
+  await B.getByRole('button', { name: '👆 고르기' }).click()
+  const 수0 = await B.locator('svg.gmd-svg g.gmd-m').count()
+  await B.locator('svg.gmd-svg g.gmd-m[data-k^="보"]').nth(1).click({ force: true })        // 보 · 벽이 겹친 자리 — 고른 것(보 또는 벽)을 나눔
+  const 고른글 = (await B.locator('.gmd-ws-right .gmd-pick b').first().innerText()).trim()
+  await B.getByRole('button', { name: '✂ 둘로' }).click()
+  await B.waitForTimeout(900)
+  const 수1 = await B.locator('svg.gmd-svg g.gmd-m').count()
+  const 합4 = await B.locator('.gmd-ws-right .gmd-sum').innerText()
+  봐(/보|벽/.test(고른글) && 수1 === 수0 + 1 && 합4 === 합3, `${기기} ✂ 둘로(${고른글}) — 부재 ${수0} → ${수1} · 합 그대로(${합4.replace(/\n/g, ' ')})`, 합3 + ' → ' + 합4)
   봐(오류2.length === 0, `${기기} 작업 화면 오류 없음`, 오류2.join(' | '))
   await 판2.close()
 }

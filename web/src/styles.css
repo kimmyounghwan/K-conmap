@@ -8998,3 +8998,72 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gmd .gmd-dwglist .muted { font-size: 12px; word-break: keep-all; overflow-wrap: anywhere; }
 .gmd .gmd-gl.aux { stroke: #cbd5e1; stroke-dasharray: 2 4; }
 .gmd .gmd-gt.aux { fill: var(--muted, #64748b); font-weight: 500; }
+/* 🚶 G390 둘러보기(작업 화면 3D 위) */
+.gwk { position: absolute; inset: 0; pointer-events: none; font-size: 13px; }
+.gwk > * { pointer-events: auto; }
+.gwk-hud { position: absolute; left: 10px; top: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: calc(100% - 20px - 330px); background: color-mix(in srgb, var(--card, #fff) 88%, transparent); border: 1px solid var(--line, #d0d5dd); border-radius: 10px; padding: 6px 10px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.gwk-bar { display: inline-block; width: 90px; height: 7px; border-radius: 4px; background: var(--line, #e4e7ec); overflow: hidden; }
+.gwk-bar i { display: block; height: 100%; background: #16a34a; transition: width .3s; }
+.gwk-red, .gmd .gwk-red { color: #dc2626; }
+.gwk-next { border: 0; border-radius: 8px; padding: 4px 10px; background: #16a34a; color: #fff; font-weight: 700; cursor: pointer; animation: gwk-shine 1.4s ease-in-out infinite; }
+@keyframes gwk-shine { 50% { box-shadow: 0 0 0 4px rgba(22,163,74,.25); } }
+.gwk-acts { position: absolute; right: 10px; top: 10px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 320px; }
+.gwk-acts button, .gwk-memo button, .gwk-msg button { border: 1px solid var(--line, #d0d5dd); background: var(--card, #fff); color: var(--text, #111); border-radius: 8px; padding: 5px 9px; font-size: 12.5px; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.gwk-acts button.on { background: var(--accent, #2563eb); color: #fff; border-color: transparent; }
+.gwk-acts button:disabled { opacity: .45; cursor: default; }
+.gwk-acts .gwk-x { font-weight: 700; }
+.gwk-near { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); background: rgba(15,23,42,.82); color: #fff; border-radius: 999px; padding: 6px 14px; white-space: nowrap; }
+.gwk-near .muted { color: #cbd5e1; }
+.gwk-msg { position: absolute; left: 10px; top: 54px; max-width: min(520px, calc(100% - 350px)); background: color-mix(in srgb, var(--card, #fff) 94%, transparent); border: 1px solid var(--line, #d0d5dd); border-radius: 10px; padding: 6px 10px; display: flex; gap: 8px; align-items: center; }
+.gwk-msg button { padding: 1px 7px; box-shadow: none; }
+.gwk-memo { position: absolute; left: 50%; bottom: 56px; transform: translateX(-50%); width: min(520px, calc(100% - 24px)); background: var(--card, #fff); border: 1px solid var(--line, #d0d5dd); border-radius: 12px; padding: 10px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; box-shadow: 0 6px 20px rgba(0,0,0,.18); }
+.gwk-memo input { flex: 1 1 220px; min-width: 0; border: 1px solid var(--line, #d0d5dd); border-radius: 8px; padding: 6px 8px; font-size: 14px; background: var(--bg, #fff); color: var(--text, #111); }
+.gwk-joy { position: absolute; left: 14px; bottom: 14px; width: 110px; height: 110px; border-radius: 50%; background: rgba(15,23,42,.16); border: 2px solid rgba(255,255,255,.7); touch-action: none; display: flex; align-items: center; justify-content: center; cursor: grab; }
+.gwk-joy i { width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,.92); box-shadow: 0 2px 6px rgba(0,0,0,.25); transition: transform .05s; }
+.gwk-help { position: absolute; right: 10px; bottom: 10px; font-size: 11.5px; color: var(--muted, #64748b); background: color-mix(in srgb, var(--card, #fff) 80%, transparent); border-radius: 6px; padding: 2px 6px; }
+.gwk-pick { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100% - 24px)); background: var(--card, #fff); border: 1px solid var(--line, #d0d5dd); border-radius: 14px; padding: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.22); display: flex; flex-direction: column; gap: 10px; }
+.gwk-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.gwk-card { display: flex; flex-direction: column; align-items: center; gap: 4px; border: 2px solid var(--line, #d0d5dd); border-radius: 12px; padding: 10px 6px; background: var(--bg, #fff); color: var(--text, #111); cursor: pointer; text-align: center; }
+.gwk-card.on { border-color: var(--accent, #2563eb); }
+.gwk-card small { color: var(--muted, #64748b); font-size: 11.5px; line-height: 1.35; }
+.gwk-thumb { width: 96px; max-width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 10px; background: #e8ecf2; }
+.gwk-credit { margin: 0; font-size: 11px; }
+.gwk-go { align-self: flex-end; border: 0; border-radius: 10px; padding: 8px 14px; background: var(--accent, #2563eb); color: #fff; font-weight: 700; cursor: pointer; }
+.gmd .gmd-walkbtn { margin-left: 6px; }
+.gmd .gmd-src { font-size: 12.5px; line-height: 1.6; background: color-mix(in srgb, var(--accent, #2563eb) 6%, transparent); border-radius: 8px; padding: 6px 8px; margin: 6px 0; }
+@media (max-width: 760px) {
+  .gwk-hud { left: 8px; top: 8px; max-width: calc(100% - 16px); font-size: 12px; padding: 4px 8px; gap: 6px; }
+  .gwk-bar { width: 60px; }
+  .gwk-acts { top: 44px; left: 8px; right: 8px; max-width: none; justify-content: flex-start; gap: 5px; }
+  .gwk-acts button { padding: 4px 7px; font-size: 12px; }
+  .gwk-help { display: none; }
+  .gwk-near { left: 132px; right: 8px; bottom: 12px; transform: none; white-space: normal; font-size: 11.5px; border-radius: 10px; padding: 5px 9px; }
+  .gwk-near .muted { display: none; }
+  .gwk-msg { left: 8px; top: auto; bottom: 132px; max-width: calc(100% - 16px); font-size: 12px; }
+  .gwk-memo { bottom: 132px; }
+  .gwk-cards { grid-template-columns: 1fr 1fr; }
+  .gwk-card small { display: none; }
+}
+.gwk-vrm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12.5px; }
+.gwk-vrm > button { border: 1px dashed var(--accent, #2563eb); background: transparent; color: var(--accent, #2563eb); border-radius: 8px; padding: 5px 10px; cursor: pointer; font-weight: 600; }
+/* 🙋 G391 건설맵 도우미 · 🧭 길잡이 */
+.gmd .gmd-help { margin: 8px 0; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, #f59e0b 9%, var(--card, #fff)); border: 1px solid color-mix(in srgb, #f59e0b 35%, transparent); font-size: 12.5px; line-height: 1.6; }
+.gmd .gmd-help ul { margin: 4px 0 0; padding-left: 16px; }
+.gmd .gmd-tag { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 6px; padding: 0 6px; }
+.gmd .gmd-tag.must { background: #dc2626; color: #fff; }
+.gmd .gmd-tag.opt { background: var(--line, #e4e7ec); color: var(--text, #111); }
+.gmd .gmd-guide { border: 1px solid var(--line, #d0d5dd); border-radius: 10px; padding: 6px 8px; margin-bottom: 8px; background: var(--card, #fff); font-size: 12.5px; }
+.gmd .gmd-guide summary { cursor: pointer; font-weight: 700; }
+.gmd .gmd-guide ol { margin: 6px 0 2px; padding-left: 0; list-style: none; }
+.gmd .gmd-guide li { display: flex; gap: 6px; align-items: flex-start; padding: 3px 4px; border-radius: 6px; cursor: pointer; }
+.gmd .gmd-guide li.done { color: var(--muted, #64748b); }
+.gmd .gmd-guide li.now { background: color-mix(in srgb, var(--accent, #2563eb) 12%, transparent); font-weight: 700; animation: gwk-shine 1.6s ease-in-out infinite; }
+.gmd .gmd-guide li i { font-style: normal; width: 18px; flex: 0 0 18px; text-align: center; }
+/* 📚 G391 도면함 */
+.gmd .gmd-box { border: 1px solid var(--line, #d0d5dd); border-radius: 10px; padding: 8px 10px; margin: 8px 0; background: var(--card, #fff); }
+.gmd .gmd-box .gmd-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.gmd .gmd-box-list li { padding: 5px 4px; border-bottom: 1px dashed var(--line, #e4e7ec); list-style: none; }
+.gmd .gmd-box-list { padding-left: 0; max-height: 420px; overflow-y: auto; margin: 6px 0; }
+.gmd .gmd-box-list li.none { opacity: 0.6; }
+.gmd .gmd-box-list li.next { background: color-mix(in srgb, var(--accent, #2563eb) 9%, transparent); border-radius: 8px; }
+.gmd .gmd-nextmsg { color: var(--accent, #2563eb); }

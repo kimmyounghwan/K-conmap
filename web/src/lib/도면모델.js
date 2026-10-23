@@ -11,6 +11,9 @@
  * ■ 못 옮기는 것(«못옮김» 에 까닭): 비스듬한 보 · 벽 · 네모가 아닌 슬라브 · MAT(부정형) 기초 · 계단 · 기호가 일람에 없는 것 — 작업 화면에서 손으로
  */
 const 글 = (x) => String(x ?? '').trim()
+/** 📚 평면 열쇠 — '도면 번호|제목(빈칸 뺌)' (BIM 부재 o.평면 = '번|…|제목|…' · 골조읽기 읽음.평면 = {도면, 제목}) */
+export const 평면키 = (o) => { const a = String((o && o.평면) || '').split('|'); return (a[0] || '0') + '|' + String(a[2] || '').replace(/\s+/g, '') }
+export const 읽은평면키 = (p) => (p && Number.isInteger(p.도면) ? p.도면 : 0) + '|' + String((p && p.제목) || '').replace(/\s+/g, '')
 const 수 = (x, d = 0) => { const v = Number(String(x ?? '').replace(/,/g, '')); return Number.isFinite(v) ? v : d }
 const 상자 = (판) => { let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; for (const p of 판 || []) { a = Math.min(a, p[0]); b = Math.min(b, p[1]); c = Math.max(c, p[0]); d = Math.max(d, p[1]) } return [a, b, c, d] }
 const 넓이 = (판) => { let s = 0; for (let i = 0; i < 판.length; i++) { const p = 판[i], q = 판[(i + 1) % 판.length]; s += p[0] * q[1] - q[0] * p[1] } return Math.abs(s) / 2 }
@@ -32,14 +35,18 @@ function 줄묶음(축) {
 /**
  * @param {object} BIM  모델만들기(…) (+ 플랜트모델) 결과 — {부재, 통심, …}
  * @param {object} R    {공사} — 골조읽기 → 층고바꾸기 → 겹친것빼기 뒤의 공사(층 · 배근 · 셈 줄)
- * @param {object} 옵션 { 이름 }
+ * @param {object} 옵션 { 이름, 평면들?: Set('번|제목'(빈칸 뺌)) — 그 평면 부재만(📚 도면함 «가져오기»), 기존?: 골조 모델 — 그 통심 · id 를 그대로 이어 씀 }
  * @returns {{ M: object, 못옮김: {종류, 층, 기호, 까닭}[], 옮김: number, 보조: number }}
  */
 export function 도면에서모델(BIM, R, 옵션 = {}) {
   const 못옮김 = []
-  const 부재 = ((BIM && BIM.부재) || []).filter((o) => !o.겹침)
+  const 거른평면 = 옵션.평면들 instanceof Set && 옵션.평면들.size ? 옵션.평면들 : null
+  const 부재 = ((BIM && BIM.부재) || []).filter((o) => !o.겹침 && (!거른평면 || 거른평면.has(평면키(o))))
   const X = 줄묶음('x'), Y = 줄묶음('y')
   const 공 = (R && R.공사) || {}
+  /* ⓪ 📚 기존 모델의 통심(가져오기 — id · 이름 그대로) */
+  const 기존 = 옵션.기존 && 옵션.기존.통심 ? 옵션.기존 : null
+  if (기존) for (const [G, 줄] of [[X, 기존.통심.x], [Y, 기존.통심.y]]) for (const g of 줄 || []) G.줄.push({ 자리: g.자리, 이름: g.이름, 본: !/[+−-]\d+$/.test(글(g.이름)), id: g.id, 옛: true })
   /* ① 도면 통심(세로 줄 = x · 가로 줄 = y) */
   for (const g of (BIM && BIM.통심) || []) {
     const [x0, y0, x1, y1] = g.끝 || []
@@ -82,7 +89,9 @@ export function 도면에서모델(BIM, R, 옵션 = {}) {
   const 점들 = []      // 기둥 · 기초 {o, 종류, 층, gx, gy, a(x 너비), b(y 너비), 덧}
   const 선들 = []      // 보 · 벽 {o, 종류, 층, 가로, 줄, 축자리, s0, s1, 폭, 덧}
   const 판들 = []      // 슬라브 {o, 층, a, b, c, d}
-  const 빼 = (o, 까닭) => 못옮김.push({ 종류: o.종류, 층: o.층, 기호: 글(o.기호), 까닭, id: o.id })
+  /* 🚶 G390 못 옮긴 것도 도면 자리(판 mm · 높이 mm)를 남김 — 작업 화면 3D 에 빨갛게(«빠진 곳») */
+  const 자리글 = (o) => (Array.isArray(o.판) && o.판.length >= 3 && o.판.length <= 64 ? { 판: o.판.map((p) => [Math.round(p[0]), Math.round(p[1])]), 높: Math.max(Math.round((+o.z1 || 0) - (+o.z0 || 0)), 0) } : {})
+  const 빼 = (o, 까닭) => 못옮김.push({ 종류: o.종류, 층: o.층, 기호: 글(o.기호), 까닭, id: o.id, 키: 평면키(o), ...자리글(o) })
   for (const o of 판든) {
     const 기호 = 글(o.기호)
     const [a, b, c, d] = 상자(o.판)
@@ -173,11 +182,13 @@ export function 도면에서모델(BIM, R, 옵션 = {}) {
     for (const g of G.줄) if (g.본 && !g.이름) g.이름 = 머리 + (++k)
     const 본들 = G.줄.filter((g) => g.본)
     const 쓴 = new Set()
+    for (const g of G.줄) if (g.옛) 쓴.add(g.id)
     G.줄.forEach((g, i) => {
       if (!g.이름) {
         const 아래 = [...본들].reverse().find((q) => q.자리 < g.자리)
         g.이름 = 아래 ? 아래.이름 + '+' + Math.round(g.자리 - 아래.자리) : (본들[0] ? 본들[0].이름 + '−' + Math.round(본들[0].자리 - g.자리) : 머리 + (i + 1))
       }
+      if (g.옛) return                       // 기존 줄은 id 그대로
       let id = G.축 + (i + 1)
       while (쓴.has(id)) id += '_'
       쓴.add(id)
@@ -193,6 +204,15 @@ export function 도면에서모델(BIM, R, 옵션 = {}) {
   for (const k of ['기둥', '보', '슬라브', '벽', '기초', '계단', '보강근']) 배근[k] = Array.isArray(배근0[k]) ? 배근0[k].map((r) => ({ ...r })) : []
   const 있음 = (종, 부호) => (배근[종] || []).some((r) => 글(r.기호).toUpperCase() === 글(부호).toUpperCase())
 
+  /* 🚶 G390 근거 도면 — 부재마다 «자리 · 길이» 를 읽은 평면(파일 · 도곽 제목) · 짐작한 값(도면에 없음) */
+  const 출처 = (o) => {
+    const 덧 = {}
+    const 파일 = 글(o && o.근거 && o.근거.n).replace(/\.(dwg|dxf)$/i, '')
+    const 제목 = 글(String((o && o.평면) || '').split('|')[2])
+    if (파일 || 제목) 덧.근거 = { 평면: [파일, 제목].filter(Boolean).join(' · '), 키: 평면키(o) }
+    if (o && Array.isArray(o.짐작) && o.짐작.length) 덧.짐작 = o.짐작.map(글).filter(Boolean).join(' · ').slice(0, 300)
+    return 덧
+  }
   /* ⑤ 부재 — 같은 자리 · 같은 종류는 하나 */
   const 부재들 = []
   let id = 1
@@ -203,8 +223,8 @@ export function 도면에서모델(BIM, R, 옵션 = {}) {
     if (앞) { if (글(앞.부호) !== 글(o.부호)) 못옮김.push({ 종류: o.종류, 층: o.층, 기호: o.부호, 까닭: '같은 자리에 «' + 앞.부호 + '» 가 있어 겹침(도면에 두 번 그려짐 · 확인)' }); return }
     const n = { id: id++, ...o }; 본키.set(k, n); 부재들.push(n)
   }
-  const 일람밖 = (t) => { if (있음(t.종류, t.부호)) return false; 못옮김.push({ 종류: t.종류, 층: t.층, 기호: t.부호, 까닭: '일람표에 없는 기호' }); return true }
-  for (const p of 점들) { if (일람밖(p)) continue; 넣기({ 종류: p.종류, 층: p.층, 부호: p.부호, 점: [p.gx.id, p.gy.id], ...p.덧 }) }
+  const 일람밖 = (t) => { if (있음(t.종류, t.부호)) return false; 못옮김.push({ 종류: t.종류, 층: t.층, 기호: t.부호, 까닭: '일람표에 없는 기호', ...(t.o ? { 키: 평면키(t.o), ...자리글(t.o) } : {}) }); return true }
+  for (const p of 점들) { if (일람밖(p)) continue; 넣기({ 종류: p.종류, 층: p.층, 부호: p.부호, 점: [p.gx.id, p.gy.id], ...p.덧, ...출처(p.o) }) }
   for (const m of 선들) {
     if (일람밖(m)) continue
     const I = m.가로 ? xi : yi, 줄들 = m.가로 ? X.줄 : Y.줄
@@ -218,11 +238,11 @@ export function 도면에서모델(BIM, R, 옵션 = {}) {
     마디.push(j)
     for (let k = 0; k + 1 < 마디.length; k++) {
       const A = 줄들[마디[k]], B = 줄들[마디[k + 1]]
-      넣기({ 종류: m.종류, 층: m.층, 부호: m.부호, 점: m.가로 ? [A.id, m.줄.id] : [m.줄.id, A.id], 끝: m.가로 ? [B.id, m.줄.id] : [m.줄.id, B.id], ...m.덧 })
+      넣기({ 종류: m.종류, 층: m.층, 부호: m.부호, 점: m.가로 ? [A.id, m.줄.id] : [m.줄.id, A.id], 끝: m.가로 ? [B.id, m.줄.id] : [m.줄.id, B.id], ...m.덧, ...출처(m.o) })
     }
   }
   for (const s of 판들) {
-    if (일람밖({ 종류: '슬라브', 층: s.층, 부호: s.부호 })) continue
+    if (일람밖({ 종류: '슬라브', 층: s.층, 부호: s.부호, o: s.o })) continue
     let i0 = xi.get(s.gx0), i1 = xi.get(s.gx1), j0 = yi.get(s.gy0), j1 = yi.get(s.gy1)
     if (i0 > i1) [i0, i1] = [i1, i0]
     if (j0 > j1) [j0, j1] = [j1, j0]
@@ -243,7 +263,7 @@ export function 도면에서모델(BIM, R, 옵션 = {}) {
     const 가로들 = 안줄(false, Y.줄[j0].자리, Y.줄[j1].자리, X.줄[i0].자리, X.줄[i1].자리)
     const xs = [i0]; for (let k = i0 + 1; k < i1; k++) if (세로들.has(X.줄[k])) xs.push(k); xs.push(i1)
     const ys = [j0]; for (let k = j0 + 1; k < j1; k++) if (가로들.has(Y.줄[k])) ys.push(k); ys.push(j1)
-    for (let a = 0; a + 1 < xs.length; a++) for (let b = 0; b + 1 < ys.length; b++) 넣기({ 종류: '슬라브', 층: s.층, 부호: s.부호, 칸: [X.줄[xs[a]].id, Y.줄[ys[b]].id, X.줄[xs[a + 1]].id, Y.줄[ys[b + 1]].id] })
+    for (let a = 0; a + 1 < xs.length; a++) for (let b = 0; b + 1 < ys.length; b++) 넣기({ 종류: '슬라브', 층: s.층, 부호: s.부호, 칸: [X.줄[xs[a]].id, Y.줄[ys[b]].id, X.줄[xs[a + 1]].id, Y.줄[ys[b + 1]].id], ...출처(s.o) })
   }
   for (const o of 부재들) if (!층.some((f) => f.이름 === o.층)) 층.push({ 이름: o.층, 층고: 3300, 슬라브: 150 })
   const M = {
@@ -256,4 +276,85 @@ export function 도면에서모델(BIM, R, 옵션 = {}) {
     도면에서: { 부재: 판든.length, 못옮김: 못옮김.length },
   }
   return { M, 못옮김, 옮김: 부재들.length, 보조: X.줄.filter((g) => !g.본).length + Y.줄.filter((g) => !g.본).length }
+}
+
+/**
+ * 📚 도면함 목록 — 읽은 평면(골조읽기 R.읽음.평면) + 부재 · 못 옮긴 것이 나온 평면 가운데 목록에 없는 것(기초 평면 — 플랜트 길 등)
+ *   평면마다 {제목, 파일, 층, 기호수, 키, 도면부재(BIM), 부재(세운 모델), 못옮김} — 작업 화면 도면함 · 시험이 같이 씀(빠지는 평면이 없게)
+ */
+export function 도면함목록(R, BIM, M, 못옮김 = [], 파일 = []) {
+  const 목록 = [], 키별 = new Map()
+  const 더 = (키, e) => { if (!키별.has(키)) { const x = { ...e, 키 }; 키별.set(키, x); 목록.push(x) } return 키별.get(키) }
+  for (const p of (R && R.읽음 && R.읽음.평면) || []) 더(읽은평면키(p), { 제목: p.제목, 파일: 파일[p.도면] || '', 층: p.층 || [], 기호수: p.기호수 || 0 })
+  const 층차 = ((M && M.층) || []).map((f) => f.이름)
+  const 덧층 = new Map()
+  const 보탬 = (키, 평면, 층) => {
+    if (!키별.has(키)) { const a = String(평면 || '').split('|'); 더(키, { 제목: a[2] || '', 파일: 파일[+a[0]] || '', 층: [], 기호수: 0, 덧: true }) }
+    if (키별.get(키).덧 && 층) { if (!덧층.has(키)) 덧층.set(키, new Set()); 덧층.get(키).add(String(층)) }
+  }
+  for (const o of (BIM && BIM.부재) || []) if (!o.겹침) 보탬(평면키(o), o.평면, o.층)
+  for (const x of 못옮김 || []) if (x.키) 보탬(x.키, x.키.replace('|', '|0|'), x.층)
+  for (const [키, 들] of 덧층) 키별.get(키).층 = [...들].sort((a, b) => 층차.indexOf(a) - 층차.indexOf(b))
+  for (const e of 목록) {
+    e.도면부재 = ((BIM && BIM.부재) || []).filter((o) => !o.겹침 && 평면키(o) === e.키).length
+    e.부재 = ((M && M.부재) || []).filter((o) => o.근거 && o.근거.키 === e.키).length
+    e.못옮김 = (못옮김 || []).filter((x) => x.키 === e.키).length
+    delete e.덧
+  }
+  return 목록
+}
+
+/**
+ * 📚 도면함 «가져오기» — 한꺼번에 세운 모델(전체 — 모든 도면으로 받침 · 끝 · 슬라브 변을 맞춤)에서 고른 평면(근거.키)의 부재만 지금 모델에 더함
+ *   → 하나씩 가져와도 한꺼번에와 똑같음(G391 · 실제 현장에서 평면마다 따로 세우면 다른 평면의 기둥 · 보에 끝을 못 맞춰 물량이 달라짐 — 그래서 이 길)
+ *   ■ 통심: id 로 합침(같은 id 가 다른 자리면 다른 모델 → 안 함) · 층: 없는 층만(전체 차례) · 배근: 없는 기호만 · 빠짐(못 옮긴 것): 그 평면 것
+ *   ■ 같은 자리 · 같은 종류가 이미 있으면 안 더함 · id 는 비어 있으면 그대로(비우고 다시 가져오면 처음과 같음)
+ * @param {object} M 지금 모델 · @param {object} 전체 한꺼번에 세운 모델(정돈 뒤) · @param {Set<string>|string[]|string} 키들 평면 키(읽은평면키)
+ * @returns {{M, 더함: number, 틀림?: string}}
+ */
+export function 평면가져오기(M, 전체, 키들) {
+  const 고른 = 키들 instanceof Set ? 키들 : new Set([].concat(키들))
+  if (!전체 || !Array.isArray(전체.부재) || !전체.통심) return { M, 더함: 0, 틀림: '도면에서 세운 모델이 없습니다 — 📐 도면 넣기를 다시 해 주세요' }
+  const 통심 = {}
+  for (const ax of ['x', 'y']) {
+    const 줄 = ((M.통심 && M.통심[ax]) || []).map((g) => ({ ...g }))
+    const 있 = new Map(줄.map((g) => [g.id, g]))
+    for (const g of 전체.통심[ax] || []) {
+      const a = 있.get(g.id)
+      if (a) { if (Math.abs(+a.자리 - +g.자리) > 1) return { M, 더함: 0, 틀림: '지금 모델은 이 도면에서 세운 모델이 아닙니다(통심이 다름) — 📐 도면 넣기를 다시 해 주세요' } }
+      else 줄.push({ ...g })
+    }
+    통심[ax] = 줄.sort((p, q) => p.자리 - q.자리)
+  }
+  const 열쇠 = (o) => o.종류 + '|' + o.층 + '|' + JSON.stringify(o.점 || o.칸) + '|' + JSON.stringify(o.끝 || '')
+  const 있는 = new Set((M.부재 || []).map(열쇠))
+  const 쓴id = new Set((M.부재 || []).map((o) => o.id))
+  let 다음 = Math.max(M.다음 || 1, 전체.다음 || 1, ...(M.부재 || []).map((o) => (+o.id || 0) + 1), ...전체.부재.map((o) => (+o.id || 0) + 1))
+  const 더할 = []
+  for (const o of 전체.부재) {
+    if (!(o.근거 && 고른.has(o.근거.키))) continue
+    const k = 열쇠(o)
+    if (있는.has(k)) continue
+    있는.add(k)
+    const id = 쓴id.has(o.id) ? 다음++ : o.id
+    쓴id.add(id)
+    더할.push({ ...o, id })
+  }
+  const 배근 = { ...(M.배근 || {}) }
+  for (const [종, 줄] of Object.entries(전체.배근 || {})) {
+    const 있 = new Set((배근[종] || []).map((r) => String(r.기호).toUpperCase()))
+    배근[종] = [...(배근[종] || []), ...(줄 || []).filter((r) => !있.has(String(r.기호).toUpperCase()))]
+  }
+  const 층 = [...(M.층 || [])]
+  for (const f of 전체.층 || []) if (!층.some((x) => x.이름 === f.이름)) 층.push({ ...f })
+  const 차 = new Map((전체.층 || []).map((f, i) => [f.이름, i]))
+  층.sort((a, b) => (차.get(a.이름) ?? 99) - (차.get(b.이름) ?? 99))
+  const 빠짐키 = new Set((M.빠짐 || []).map((x) => x.키 + '|' + x.종류 + '|' + x.층 + '|' + JSON.stringify(x.판)))
+  const 빠짐 = [...(M.빠짐 || []), ...(전체.빠짐 || []).filter((x) => 고른.has(x.키) && !빠짐키.has(x.키 + '|' + x.종류 + '|' + x.층 + '|' + JSON.stringify(x.판)))]
+  return { M: { ...M, 통심, 층, 배근, 부재: [...(M.부재 || []), ...더할], 다음, 빠짐, 도면에서: M.도면에서 || 전체.도면에서 }, 더함: 더할.length }
+}
+/** 📚 도면함 «빼기» — 그 평면에서 온 부재(근거.키) · 못 옮긴 것(빠짐.키)을 뺌 */
+export function 평면빼기(M, 키) {
+  const 남 = (M.부재 || []).filter((o) => !(o.근거 && o.근거.키 === 키))
+  return { M: { ...M, 부재: 남, 빠짐: (M.빠짐 || []).filter((x) => x.키 !== 키) }, 뺌: (M.부재 || []).length - 남.length }
 }

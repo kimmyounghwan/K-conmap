@@ -17,7 +17,7 @@ import { 셈방법입히기 } from '../web/src/lib/셈방법.js'
 import { 셈 } from '../web/src/lib/골조.js'
 import { 모델만들기, 층고바꾸기, 겹친것빼기 } from '../web/src/lib/BIM모델.js'
 import { 참조끼우기 } from '../web/src/lib/골조끼움.js'
-import { 도면에서모델 } from '../web/src/lib/도면모델.js'
+import { 도면에서모델, 평면가져오기, 도면함목록 } from '../web/src/lib/도면모델.js'
 import { 모델셈 } from '../web/src/lib/골조모델.js'
 
 const 기대 = JSON.parse(fs.readFileSync(new URL('./시험자료/현장회귀.json', import.meta.url), 'utf8'))
@@ -43,7 +43,15 @@ export function 현장셈(폴더, 거름 = '') {
   const G = 모델셈(변.M)
   const 종 = {}
   for (const x of G.R.줄) if (x.항목 === '콘크리트' && !/버림/.test(x.비고 || '')) 종[x.부재] = (종[x.부재] || 0) + x.수량
-  return { 합, 파일: 파일.length, 부재: 모델.부재.length, 모델: { 종, 옮김: 변.옮김, 못옮김: 변.못옮김.length } }
+  /* 📚 G391 도면함 — 평면을 하나씩(아래층부터) 가져와도 한꺼번에와 같아야 함(실제 현장: 평면마다 따로 세우면 다른 평면 받침을 못 맞춰 달라졌음 → 한꺼번에 세운 모델에서 꺼내 옴) */
+  const 차 = 변.M.층.map((f) => f.이름)
+  const 키들 = 도면함목록(R, 모델, 변.M, 변.못옮김).sort((a, b) => 차.indexOf((a.층 || [])[0]) - 차.indexOf((b.층 || [])[0])).map((p) => p.키)     // 작업 화면 도면함과 같은 목록
+  const 전체 = { ...변.M, 빠짐: 변.못옮김.filter((x) => Array.isArray(x.판)).map((x) => ({ 종류: x.종류, 층: x.층, 기호: x.기호, 까닭: x.까닭, 판: x.판, 높: x.높, 키: x.키 })) }   // 화면(Model.jsx)과 같음
+  let Mb = { ...변.M, 부재: [], 빠짐: [] }
+  for (const k of 키들) Mb = 평면가져오기(Mb, 전체, new Set([k])).M
+  const 둥 = (H) => JSON.stringify(Object.fromEntries(Object.entries(H).map(([k, x]) => [k, Math.round(x * 1e6) / 1e6])))
+  const 하나씩 = { 같음: Mb.부재.length === 변.M.부재.length && 둥(모델셈(Mb).합) === 둥(G.합) && Mb.빠짐.length === 전체.빠짐.length, 부재: Mb.부재.length, 평면: 키들.length, 빨강: Mb.빠짐.length + ' / ' + 전체.빠짐.length }
+  return { 합, 파일: 파일.length, 부재: 모델.부재.length, 모델: { 종, 옮김: 변.옮김, 못옮김: 변.못옮김.length, 하나씩 } }
 }
 for (const [키, v] of Object.entries(기대)) {
   const 변수 = 'SITE_' + 키.slice(-1)
@@ -57,6 +65,7 @@ for (const [키, v] of Object.entries(기대)) {
   if (v.모델) {
     ok(`작업 화면 옮김 ${v.모델.옮김} · 못옮김 ${v.모델.못옮김}`, r.모델.옮김 === v.모델.옮김 && r.모델.못옮김 === v.모델.못옮김, [r.모델.옮김, r.모델.못옮김])
     for (const [종, 값] of Object.entries(v.모델.종)) ok(`작업 화면 ${종} 콘크리트 ${값}`, Math.abs((r.모델.종[종] || 0) - 값) < 0.01, +(r.모델.종[종] || 0).toFixed(3))
+    ok(`📚 도면함 — 평면 ${r.모델.하나씩.평면}장 하나씩 가져와도 한꺼번에와 같음(부재 ${r.모델.하나씩.부재} · 빨강 ${r.모델.하나씩.빨강})`, r.모델.하나씩.같음, r.모델.하나씩)
   } else console.log('  · 작업 화면 값(기록용):', JSON.stringify({ 옮김: r.모델.옮김, 못옮김: r.모델.못옮김, 종: Object.fromEntries(Object.entries(r.모델.종).map(([k, x]) => [k, +x.toFixed(3)])) }))
 }
 console.log(!본 ? '\n(본 현장 없음 — 환경 변수로 폴더를 주세요)' : bad ? `\n✗ ${bad} 틀림` : '\n✓ 모두 맞음')
