@@ -8937,3 +8937,53 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
   .gmd .gmd-canvas { height: 56vh; min-height: 300px; }
   .gmd .gmd-svg { max-height: none; }
 }
+
+/* 🖥 G388 골조 모델 작업 화면 — 왼쪽 도구 · 가운데 3D(크게) · 오른쪽 물량 · 🔒 지금은 운영자(소장님 브라우저)만 */
+.gmd .gmd-ws { position: fixed; inset: 0; z-index: 1200; background: var(--bg); display: flex; flex-direction: column; overflow: hidden; }
+.gmd .gmd-ws-top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--line); flex: 0 0 auto; }
+.gmd .gmd-ws-name { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+.gmd .gmd-ws-tabs { display: inline-flex; gap: 4px; overflow-x: auto; flex: 1 1 auto; min-width: 0; }
+.gmd .gmd-ws-tabs .gmd-tab { padding: 6px 11px; font-size: 13px; }
+.gmd .gmd-ws-acts { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
+.gmd .gmd-ws-acts .btn { width: auto; }
+.gmd .gmd-ws-note { margin: 6px 12px 0; display: flex; gap: 8px; align-items: flex-start; }
+.gmd .gmd-ws-page { flex: 1 1 auto; overflow: auto; padding: 10px 12px 24px; }
+.gmd .gmd-ws-body { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 236px minmax(0, 1fr) 300px; gap: 10px; padding: 10px 12px; }
+.gmd .gmd-ws-left, .gmd .gmd-ws-right { overflow-y: auto; min-height: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+.gmd .gmd-ws-center { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+.gmd .gmd-ws-floors { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.gmd .gmd-ws-floor { display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: 13.5px; cursor: pointer; }
+.gmd .gmd-ws-floor small { color: var(--muted); font-size: 11.5px; }
+.gmd .gmd-ws-floor.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.gmd .gmd-ws-floor.on small { color: rgba(255, 255, 255, .85); }
+.gmd .gmd-ws-tools > .gmd-kv:first-child { display: none; }           /* 층 고르기는 위 층 단추로 */
+.gmd .gmd-ws-tools .gmd-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; width: 100%; }
+.gmd .gmd-ws-tools .gmd-tool { text-align: left; }
+.gmd .gmd-ws-left .gmd-bar.small { flex-direction: column; align-items: stretch; }
+.gmd .gmd-ws-left .gmd-bar.small .btn { width: 100%; }
+.gmd .gmd-ws-views { display: inline-flex; gap: 4px; flex: 0 0 auto; }
+.gmd .gmd-ws-center .gmd-work { flex: 1 1 auto; min-height: 0; grid-template-rows: minmax(0, 1fr); }
+.gmd .gmd-ws-center .gmd-3d { display: flex; flex-direction: column; min-height: 0; }
+.gmd .gmd-ws-center .gmd-canvas { flex: 1 1 auto; height: auto; min-height: 320px; }
+.gmd .gmd-ws-center .gmd-bigbtn { display: none; }
+.gmd .gmd-ws-center .gmd-plan { align-self: stretch; overflow: auto; }
+.gmd .gmd-ws-center .gmd-svg { max-height: none; height: 100%; }
+.gmd .gmd-ws-body.view-3D .gmd-work { grid-template-columns: minmax(0, 1fr); }
+.gmd .gmd-ws-body.view-3D .gmd-plan { display: none; }
+.gmd .gmd-ws-body.view-평면 .gmd-work { grid-template-columns: minmax(0, 1fr); }
+.gmd .gmd-ws-body.view-평면 .gmd-3d { display: none; }
+.gmd .gmd-ws-right .gmd-sum { flex-direction: column; align-items: flex-start; gap: 4px; }
+.gmd .gmd-ws-right .gmd-pick { margin-top: 8px; }
+@media (max-width: 1100px) { .gmd .gmd-ws-body { grid-template-columns: 210px minmax(0, 1fr); } .gmd .gmd-ws-right { grid-column: 1 / -1; max-height: 34vh; } }
+@media (max-width: 760px) {
+  .gmd .gmd-ws { overflow-y: auto; }
+  .gmd .gmd-ws-body { display: flex; flex-direction: column; padding: 8px; flex: 0 0 auto; min-height: auto; }
+  .gmd .gmd-ws-body > * { flex: 0 0 auto; }
+  .gmd .gmd-ws-left, .gmd .gmd-ws-right { max-height: none; overflow: visible; }
+  .gmd .gmd-ws-center .gmd-work { flex: 0 0 auto; }
+  .gmd .gmd-ws-floors { flex-direction: row; overflow-x: auto; }
+  .gmd .gmd-ws-floor { flex: 0 0 auto; gap: 6px; }
+  .gmd .gmd-ws-center .gmd-canvas { height: 62vh; flex: 0 0 auto; }
+  .gmd .gmd-ws-name { max-width: 100%; flex: 1 1 100%; }
+  .gmd .gmd-ws-acts { margin-left: 0; }
+}

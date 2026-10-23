@@ -5,6 +5,8 @@
 //   ③ 고르기 → 누른 보의 물량이 나옴 · 지우기 → 하나 줄어듦 · 되돌리기 → 다시 늘어남
 //   ④ 엑셀 받기 → 시트(산출서 · 집계 · 부재별 · 모델) · 산출서 수량 칸 합(콘크리트) = lib
 //   ⑤ 새로고침해도 모델이 남음(이 브라우저 저장) · 화면 오류 없음 · 폰 가로 넘침 없음
+//   ⑥ 🖥 G388 작업 화면(🔒 운영자만) — 남에게는 단추 · ?ws=1 모두 없음 · 운영자: 열면 왼쪽 도구 · 가운데 3D(PC 화면 폭 절반 넘게) · 오른쪽 물량 ·
+//      그 안에서 기둥 세우기 · 고르기 · 평면 / 나란히 · 나가면 주소 ?ws=1 지움 · 폰 가로 넘침 없음
 import { createRequire } from 'module'
 import fs from 'fs'
 import path from 'path'
@@ -117,7 +119,56 @@ for (const 기기 of 기기들) {
     const 넘침 = await A.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
     봐(넘침 <= 1, `${기기} 가로 넘침 없음`, 넘침)
   }
+  /* ⑥ 작업 화면 — 남(운영자 아님)에게는 없음 */
+  봐((await A.locator('.gmd-ws-open').count()) === 0, `${기기} 남에게 «작업 화면» 단추 없음`)
+  await A.goto(주소 + '/jeoksan/model?ws=1', { waitUntil: 'domcontentloaded' }); await A.waitForSelector('.gmd-tabs'); await A.waitForTimeout(800)
+  봐((await A.locator('.gmd-ws').count()) === 0, `${기기} 남에게 ?ws=1 로도 안 열림`)
   await 판.close()
+  /* ⑥ 운영자(소장님 브라우저 표식 kcm_op) */
+  const 판2 = await 브.newContext({ viewport: { width: 기기 === '폰' ? 390 : 1440, height: 900 }, locale: 'ko-KR', hasTouch: 기기 === '폰' })
+  await 판2.route(/googletagmanager|google-analytics|pagead2|adsbygoogle|geojs/, (r) => r.fulfill({ status: 200, body: '' }))
+  await 판2.route(/firebaseio\.com/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: 'null' }))
+  await 판2.addInitScript(() => { localStorage.setItem('kcm_notice_seen', '2026-10-필독'); localStorage.setItem('kcm_op', '1'); try { sessionStorage.setItem('kcm_notice_seen', '2026-10-업체'); sessionStorage.setItem('kcm_visit_s', '1') } catch (e) {} })
+  const B = await 판2.newPage()
+  const 오류2 = []
+  B.on('pageerror', (e) => 오류2.push(String(e).slice(0, 200)))
+  await B.goto(주소 + '/jeoksan/model', { waitUntil: 'domcontentloaded' })
+  await B.waitForSelector('text=골조 모델 — 세우면 물량', { timeout: 30000 })
+  await B.getByText('가상 예시(2층 라멘조)로 해 보기').click()
+  await B.locator('.gmd-ws-open').click()
+  await B.waitForSelector('.gmd-ws canvas', { timeout: 30000 })
+  await B.waitForTimeout(800)
+  const 재 = await B.evaluate(() => { const c = document.querySelector('.gmd-ws canvas').getBoundingClientRect(); return { cw: c.width, w: innerWidth, 넘침: document.documentElement.scrollWidth - innerWidth, q: location.search, 왼: !!document.querySelector('.gmd-ws-left'), 오른: !!document.querySelector('.gmd-ws-right .gmd-sum') } })
+  봐(재.왼 && 재.오른 && 재.q === '?ws=1', `${기기} 작업 화면 — 왼쪽 도구 · 오른쪽 물량 · 주소 ?ws=1`, JSON.stringify(재))
+  if (기기 === 'PC') 봐(재.cw > 0.55 * 재.w, `PC 작업 화면 3D 폭 ${Math.round(재.cw)} > 화면 55 %`, JSON.stringify(재))
+  else 봐(재.넘침 <= 1, `폰 작업 화면 가로 넘침 없음`, 재.넘침)
+  const 합1 = await B.locator('.gmd-ws-right .gmd-sum').innerText()
+  봐(/212\.014/.test(합1), `${기기} 작업 화면 합 = 예시(212.014 ㎥)`, 합1)
+  /* 2층 · 평면 · 고르기 */
+  await B.locator('.gmd-ws-floor', { hasText: '2층' }).click()
+  await B.getByRole('button', { name: '📐 평면' }).click()
+  await B.getByRole('button', { name: '👆 고르기' }).click()
+  await B.locator('svg.gmd-svg g.gmd-m[data-k^="보"]').nth(2).click({ force: true })
+  봐(/2층 보 G1/.test(await B.locator('.gmd-ws-right .gmd-pick').innerText().catch(() => '')), `${기기} 작업 화면 고르기 → 오른쪽에 2층 보 G1`)
+  /* 새 층에 기둥 하나 — 1층 · 기둥 · 교점 */
+  await B.locator('.gmd-ws-floor', { hasText: '1층' }).click()
+  await B.getByRole('button', { name: '✕ 지우기' }).click()
+  const n0 = await B.locator('svg.gmd-svg g.gmd-m').count()
+  await B.locator('svg.gmd-svg rect.gmd-m, svg.gmd-svg circle.gmd-m').first().click({ force: true })
+  const n1 = await B.locator('svg.gmd-svg g.gmd-m, svg.gmd-svg rect.gmd-m, svg.gmd-svg circle.gmd-m').count()
+  await B.getByRole('button', { name: '▣ 기둥' }).click()
+  await B.locator('svg.gmd-svg g.gmd-nodeg[data-node="X1-Y1"]').click()
+  const n2 = await B.locator('svg.gmd-svg g.gmd-m, svg.gmd-svg rect.gmd-m, svg.gmd-svg circle.gmd-m').count()
+  봐(n2 === n1 + 1, `${기기} 작업 화면 — 지운 기둥 자리에 다시 세움(${n1} → ${n2})`, [n0, n1, n2])
+  await B.getByRole('button', { name: '◫ 나란히' }).click()
+  봐((await B.locator('.gmd-ws .gmd-plan').isVisible()) && (await B.locator('.gmd-ws .gmd-3d').isVisible()), `${기기} 나란히 — 평면 · 3D 둘 다`)
+  await B.getByRole('button', { name: '✕ 나가기' }).click()
+  봐((await B.locator('.gmd-ws').count()) === 0 && (await B.evaluate(() => location.search)) === '', `${기기} 나가기 — 작업 화면 닫힘 · 주소 ?ws 지움`)
+  await B.goto(주소 + '/jeoksan/model?ws=1', { waitUntil: 'domcontentloaded' })
+  await B.waitForSelector('.gmd-ws', { timeout: 30000 })
+  봐(true, `${기기} 운영자는 ?ws=1 로 바로 작업 화면`)
+  봐(오류2.length === 0, `${기기} 작업 화면 오류 없음`, 오류2.join(' | '))
+  await 판2.close()
 }
 await 브.close()
 console.log(`\n${ok} 맞음 · ${bad} 틀림`)

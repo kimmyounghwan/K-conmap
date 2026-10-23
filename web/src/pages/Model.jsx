@@ -10,14 +10,19 @@
  * ■ 🔒 이용권 확인 자리 lib/이용권.js — 꺼 둠(모두 통과 · 화면에 말 없음 · 소장님 「이런 설명을 사이트에 넣지마」)
  * ■ 📊 숨은 누적: |골조모델|열기 · 예시 · 세움(그 판 첫 번) · 층복사 · 엑셀 · 저장 · 열기파일 · 3D고름
  * ■ 시험: node tools/시험_골조모델.mjs (lib) · tools/시험_골조모델화면.mjs (화면 PC · 폰)
+ * ■ 🖥 G388 작업 화면(적산컨맵 첫걸음 · 2026-10-23) — 소장님 「지금 화면은 작잖아...크게 해주면 안돼?」 · 「잠가놓고 시험해줘. 그리고 내가 볼 수 있게」
+ *   🔒 운영자(소장님 브라우저 · lib/운영자.js 나운영자)만 «🖥 작업 화면» 단추 · ?ws=1 로 열림 — 남에게는 단추 · 글 · 주소 모두 없음. 소장님 «열어» 뒤 잠금 풂.
+ *   꼴: 위 막대(이름 · 탭 · 되돌리기 · 예시 · 저장 · 열기 · 엑셀 · ⛶ 전체 화면 · 나가기) / 왼쪽(층 단추 · 도구 · 부호 · 한꺼번에 · 층 복사) / 가운데(🧊 3D · 📐 평면 · ◫ 나란히) / 오른쪽(합 · 고른 부재 · 이 층 표).
+ *   3D 바닥에 지금 층 통심을 깖(set배경) — 도면 위에 세우듯. 📊 숨은 누적 |골조모델|작업화면.
  */
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { 세기 } from '../lib/받은수.jsx'
 import { 배근칸, 정착표, 기준값, 엑셀 as 골조엑셀 } from '../lib/골조.js'
-import { 새모델, 예시모델, 정돈, 기둥넣기, 선넣기, 칸넣기, 부재빼기, 부재고치기, 층복사, 통심더하기, 통심빼기, 통심간격, 모델셈, 종류색, 부재글, 모델시트, FT층 } from '../lib/골조모델.js'
+import { 새모델, 예시모델, 정돈, 기둥넣기, 선넣기, 칸넣기, 부재빼기, 부재고치기, 층복사, 통심더하기, 통심빼기, 통심간격, 모델셈, 종류색, 부재글, 모델시트, FT층, 층높이 } from '../lib/골조모델.js'
 import { 부재보기 } from '../lib/bim3d.js'
 import { 확인 as 이용권확인 } from '../lib/이용권.js'
+import { 나운영자 } from '../lib/운영자.js'
 
 const 저장열쇠 = 'kcm.model.v1'
 const 수글 = (n, k = 3) => (Number.isFinite(n) ? n.toLocaleString('ko-KR', { minimumFractionDigits: k, maximumFractionDigits: k }) : '')
@@ -54,6 +59,29 @@ export default function Model() {
   const [받는중, set받는중] = useState('')
   const [glErr, setGlErr] = useState('')
   const [크게, set크게] = useState(false)
+  /* 🖥 G388 작업 화면(크게 · 왼쪽 도구 · 가운데 3D · 오른쪽 물량) — 🔒 지금은 소장님 브라우저(운영자)에서만 보임 · 소장님이 «열어» 하시면 잠금을 풂 */
+  const [운영자, set운영자] = useState(false)
+  const [작업, set작업0] = useState(false)
+  const 작업Ref = useRef(null)
+  useEffect(() => {
+    let 살 = true
+    나운영자().then((v) => { if (!살 || !v) return; set운영자(true); try { if (new URLSearchParams(window.location.search).get('ws') === '1') set작업0(true) } catch (e) { /* 주소 못 읽음 */ } }).catch(() => {})
+    return () => { 살 = false }
+  }, [])
+  const set작업 = (v) => {
+    set작업0(v)
+    try { const u = new URL(window.location.href); if (v) u.searchParams.set('ws', '1'); else u.searchParams.delete('ws'); window.history.replaceState(window.history.state, '', u.pathname + u.search + u.hash) } catch (e) { /* 주소 못 바꿈 */ }
+    if (!v && document.fullscreenElement) { try { document.exitFullscreen() } catch (e) { /* 무시 */ } }
+  }
+  useEffect(() => {
+    if (!작업) return
+    세기('|골조모델|작업화면')
+    const 전 = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    if (탭 === '통심' && M.부재.length) set탭('세우기')
+    return () => { document.body.style.overflow = 전 }
+  }, [작업])  // eslint-disable-line react-hooks/exhaustive-deps
+  const 전체화면 = () => { const el = 작업Ref.current; try { if (document.fullscreenElement) document.exitFullscreen(); else if (el && el.requestFullscreen) el.requestFullscreen() } catch (e) { /* 막힘 */ } }
   const 센것 = useRef(new Set())
   const 한번세기 = (k) => { if (센것.current.has(k)) return; 센것.current.add(k); 세기(k) }
   useEffect(() => { 세기('|골조모델|열기'); 이용권확인('골조모델').catch(() => {}) }, [])
@@ -125,6 +153,46 @@ export default function Model() {
     } catch (e) { set알림('엑셀을 만들지 못했습니다 — ' + (e.message || e)) } finally { set받는중('') }
   }
 
+  const 세움칸 = (작업판) => (
+    <세우기칸 M={M} setM={setM} S={S} 층={층} set층={set층} 도구={도구} set도구={set도구} 쓸도구={쓸도구} 부호={부호} set부호={set부호}
+      첫점={첫점} set첫점={set첫점} 고른={고른} set고른={set고른} 고른것={고른것} 보일층={보일층} set보일층={set보일층}
+      glErr={glErr} setGlErr={setGlErr} 크게={크게} set크게={set크게} 한번세기={한번세기} 작업={작업판} />
+  )
+  if (작업 && 운영자) {
+    return (
+      <div className="page gmd">
+        <div className="gmd-ws" ref={작업Ref} role="dialog" aria-label="골조 모델 작업 화면">
+          <div className="gmd-ws-top">
+            <b className="gmd-ws-name">🧱 {M.이름 || '골조 모델'}</b>
+            <span className="gmd-ws-tabs" role="tablist">
+              {[['세우기', '세우기 · 3D'], ['통심', '통심 · 층'], ['일람', '부호 일람'], ['물량', '물량 · 엑셀']].map(([k, t]) => (
+                <button key={k} type="button" role="tab" aria-selected={탭 === k} className={'gmd-tab' + (탭 === k ? ' on' : '')} onClick={() => set탭(k)}>{t}</button>
+              ))}
+            </span>
+            <span className="gmd-ws-acts">
+              <button type="button" className="btn line sm" onClick={되돌리기} disabled={!되돌림.length} title="되돌리기">↶</button>
+              <button type="button" className="btn line sm" onClick={예시열기}>🧪 예시</button>
+              <button type="button" className="btn line sm" onClick={모델저장} title="모델 파일 저장">💾</button>
+              <button type="button" className="btn line sm" onClick={() => 파일Ref.current && 파일Ref.current.click()} title="모델 파일 열기">📂</button>
+              <button type="button" className="btn line sm" onClick={엑셀받기} disabled={!!받는중 || !M.부재.length}>{받는중 ? '…' : '📊 엑셀'}</button>
+              <button type="button" className="btn line sm" onClick={전체화면} title="전체 화면">⛶</button>
+              <button type="button" className="btn sm" onClick={() => set작업(false)}>✕ 나가기</button>
+            </span>
+            <input ref={파일Ref} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={(e) => { 모델열기(e.target.files && e.target.files[0]); e.target.value = '' }} />
+          </div>
+          {알림 && <div className="gmd-note gmd-ws-note">{알림}<button type="button" className="gmd-x" onClick={() => set알림('')} aria-label="닫기">✕</button></div>}
+          {탭 === '세우기' ? 세움칸(true) : (
+            <div className="gmd-ws-page">
+              {탭 === '통심' && <통심칸 M={M} setM={setM} />}
+              {탭 === '일람' && <일람칸들 M={M} setM={setM} />}
+              {탭 === '물량' && <물량칸 M={M} S={S} 엑셀받기={엑셀받기} 받는중={받는중} set탭={set탭} set고른={set고른} set층={set층} />}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="page gmd">
       <div className="card">
@@ -135,6 +203,7 @@ export default function Model() {
         </p>
         <div className="gmd-top">
           <button type="button" className="btn sm" onClick={예시열기}>🧪 가상 예시(2층 라멘조)로 해 보기</button>
+          {운영자 && <button type="button" className="btn sm gmd-ws-open" onClick={() => set작업(true)}>🖥 작업 화면</button>}
           <button type="button" className="btn line sm" onClick={새로}>새로</button>
           <button type="button" className="btn line sm" onClick={되돌리기} disabled={!되돌림.length}>↶ 되돌리기</button>
           <button type="button" className="btn line sm" onClick={모델저장}>💾 모델 파일 저장</button>
@@ -153,11 +222,7 @@ export default function Model() {
 
       {탭 === '통심' && <통심칸 M={M} setM={setM} />}
       {탭 === '일람' && <일람칸들 M={M} setM={setM} />}
-      {탭 === '세우기' && (
-        <세우기칸 M={M} setM={setM} S={S} 층={층} set층={set층} 도구={도구} set도구={set도구} 쓸도구={쓸도구} 부호={부호} set부호={set부호}
-          첫점={첫점} set첫점={set첫점} 고른={고른} set고른={set고른} 고른것={고른것} 보일층={보일층} set보일층={set보일층}
-          glErr={glErr} setGlErr={setGlErr} 크게={크게} set크게={set크게} 한번세기={한번세기} />
-      )}
+      {탭 === '세우기' && 세움칸(false)}
       {탭 === '물량' && <물량칸 M={M} S={S} 엑셀받기={엑셀받기} 받는중={받는중} set탭={set탭} set고른={set고른} set층={set층} />}
     </div>
   )
@@ -332,7 +397,8 @@ function 일람칸들({ M, setM }) {
 
 /* ───────────────────────── ③ 세우기 · 평면 + 3D */
 function 세우기칸(p) {
-  const { M, setM, S, 층, set층, 도구, set도구, 쓸도구, 부호, set부호, 첫점, set첫점, 고른, set고른, 고른것, 보일층, set보일층, glErr, setGlErr, 크게, set크게, 한번세기 } = p
+  const { M, setM, S, 층, set층, 도구, set도구, 쓸도구, 부호, set부호, 첫점, set첫점, 고른, set고른, 고른것, 보일층, set보일층, glErr, setGlErr, 크게, set크게, 한번세기, 작업 = false } = p
+  const [보기, set보기] = useState('3D')                // 🖥 G388 작업 화면 가운데: 3D · 평면 · 나란히
   const 위층 = M.층.filter((f) => !FT층(f)).map((f) => f.이름)
   const 맨아래 = 위층[0]
   const 이층 = M.부재.filter((o) => o.층 === 층)
@@ -482,6 +548,17 @@ function 세우기칸(p) {
     v.onPick = (id) => { if (id >= 0) { set고른(id); 한번세기('|골조모델|3D고름') } else set고른(null) }
   }, [보일])  // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (보기Ref.current) 보기Ref.current.set고름(고른 !== null ? [고른] : []) }, [고른])
+  /* 🖥 G388 바닥에 이 층 통심을 깖(3D 에서 지금 세우는 층 높이) — 도면 위에 세우듯 */
+  const 바닥선 = useMemo(() => {
+    if (!xs.length || !ys.length) return []
+    let z = 0
+    try { const h = 층높이(M).표.get(층); z = h ? (h.FT ? h.z0 : h.z0) : 0 } catch (e) { z = 0 }
+    const 넉 = 큰 * 0.08 + 600, a = []
+    for (const g of xs) a.push(g.자리, Y0 - 넉, z, g.자리, Y1 + 넉, z)
+    for (const g of ys) a.push(X0 - 넉, g.자리, z, X1 + 넉, g.자리, z)
+    return a
+  }, [xs, ys, 층, M.층, X0, X1, Y0, Y1, 큰])  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (보기Ref.current) 보기Ref.current.set배경(바닥선, 어두움() ? [0.55, 0.6, 0.68] : [0.3, 0.36, 0.45], 0.55) }, [바닥선, 보일])
   useEffect(() => () => { if (보기Ref.current) { 보기Ref.current.dispose(); 보기Ref.current = null } }, [])
   useEffect(() => { if (보기Ref.current) setTimeout(() => 보기Ref.current && 보기Ref.current.dirty(), 50) }, [크게])
 
@@ -489,9 +566,9 @@ function 세우기칸(p) {
   const 고른기하 = 고른것 ? G.get(고른것.id) : null
   const 도움말 = { 기둥: '통심 교점을 누르면 기둥', 기초: '통심 교점을 누르면 기초(기둥 밑)', 보: 첫점 ? '같은 줄의 다른 교점을 누르면 그 사이 칸마다 보 — 이어서 누르면 계속' : '교점 하나를 누르고, 같은 줄의 다른 교점을 누릅니다', 벽: 첫점 ? '같은 줄의 다른 교점을 누르면 그 사이 칸마다 벽' : '교점 하나를 누르고, 같은 줄의 다른 교점을 누릅니다', 슬라브: '통심 사이 칸을 누르면 슬라브', 고르기: '부재를 누르면 크기 · 물량', 지우기: '누른 부재를 지웁니다' }[도구]
 
-  return (
-    <div className="card gmd-build">
-      <div className="gmd-bar">
+  /* 🖥 G388 작업 화면 — 같은 조각을 왼쪽 도구 · 가운데 3D(크게) · 오른쪽 정보로 놓음(작업 = true) · 아니면 예전 차례 그대로 */
+  const 도구판 = (
+      <div className={'gmd-bar' + (작업 ? ' gmd-ws-tools' : '')}>
         <label className="gmd-kv">층 <select className="gmd-in" value={층} onChange={(e) => { set층(e.target.value); set고른(null) }}>
           {[...M.층].reverse().map((f) => <option key={f.이름} value={f.이름}>{FT층(f) ? 'FT (기초 · 지중보)' : f.이름 + '층'} · {M.부재.filter((o) => o.층 === f.이름).length}</option>)}
         </select></label>
@@ -505,7 +582,11 @@ function 세우기칸(p) {
         )}
         {종 && !부호목록.length && <span className="gmd-warn">② 부호 일람에 {종} 부호를 먼저 적으십시오</span>}
       </div>
+  )
+  const 도움판 = (
       <div className="gmd-hint">{도움말}{첫점 && <button type="button" className="gmd-link" onClick={() => set첫점(null)}>그만</button>}</div>
+  )
+  const 한꺼번에판 = (<>
       {종 && 지금부호 && (
         <div className="gmd-bar small">
           <span className="muted">이 층 한꺼번에:</span>
@@ -515,7 +596,8 @@ function 세우기칸(p) {
           {도구 === '슬라브' && <button type="button" className="btn line sm" onClick={() => 모두('칸')}>모든 칸에 {지금부호}</button>}
         </div>
       )}
-      <div className={'gmd-work' + (크게 ? ' big' : '')}>
+  </>)
+  const 평면판 = (
         <div className="gmd-plan">
           <svg ref={svgRef} viewBox={vb} className={'gmd-svg tool-' + 도구} role="img" aria-label={층 + '층 평면'}>
             {/* 칸(슬라브 누르기) */}
@@ -539,6 +621,8 @@ function 세우기칸(p) {
           </svg>
           <div className="gmd-legend">{['기둥', '보', '벽', '슬라브', '기초'].map((k) => <span key={k}><i style={{ background: rgb(종류색[k]) }} />{k} {이층.filter((o) => o.종류 === k).length}</span>)}</div>
         </div>
+  )
+  const 삼차원판 = (
         <div className="gmd-3d">
           <div className="gmd-bar small">
             <select className="gmd-in" value={보일층} onChange={(e) => set보일층(e.target.value)} aria-label="3D 에 보일 층">
@@ -546,15 +630,15 @@ function 세우기칸(p) {
             </select>
             <button type="button" className="btn line sm" onClick={() => 보기Ref.current && 보기Ref.current.fit('tilt')}>↗</button>
             <button type="button" className="btn line sm" onClick={() => 보기Ref.current && 보기Ref.current.fit('top')}>⬇ 위</button>
-            <button type="button" className={'btn line sm' + (크게 ? ' on' : '')} onClick={() => set크게((v) => !v)}>{크게 ? '⊟ 작게' : '⛶ 크게'}</button>
+            <button type="button" className={'btn line sm gmd-bigbtn' + (크게 ? ' on' : '')} onClick={() => set크게((v) => !v)}>{크게 ? '⊟ 작게' : '⛶ 크게'}</button>
           </div>
           <div className="bim-canvas gmd-canvas">
             {glErr ? <div className="dx3-warn" style={{ margin: 12 }}>{glErr}</div> : <canvas ref={판Ref} />}
             <div className="bim-hint">끌기 = 돌리기 · 오른쪽 끌기(두 손가락) = 옮기기 · 휠(벌리기) = 확대 · <b>누르기 = 물량</b></div>
           </div>
         </div>
-      </div>
-
+  )
+  const 고름판 = (<>
       {고른것 && (
         <div className="gmd-pick">
           <div className="gmd-pick-h">
@@ -601,6 +685,8 @@ function 세우기칸(p) {
         </div>
       )}
 
+  </>)
+  const 층복사판 = (
       <div className="gmd-bar small">
         <span className="muted">층 복사:</span>
         <span>{층 === M.층[0].이름 ? 'FT 는 복사하지 않습니다' : <>{층}층의 기둥 · 보 · 벽 · 슬라브를 →</>}</span>
@@ -611,6 +697,55 @@ function 세우기칸(p) {
         <button type="button" className="btn line sm" onClick={() => { if (이층.length && window.confirm((층FT(M, 층) ? 'FT' : 층 + '층') + ' 부재 ' + 이층.length + '개를 지울까요?')) 모두('지움') }}>이 층 비우기</button>
         <span className="muted">· 층 더하기는 ① 통심 · 층에서</span>
       </div>
+  )
+  if (작업) {
+    return (
+      <div className={'gmd-ws-body view-' + 보기}>
+        <aside className="gmd-ws-left" aria-label="도구">
+          <div className="gmd-ws-floors" role="group" aria-label="층">
+            {[...M.층].reverse().map((f) => <button key={f.이름} type="button" className={'gmd-ws-floor' + (f.이름 === 층 ? ' on' : '')} aria-pressed={f.이름 === 층} onClick={() => { set층(f.이름); set고른(null) }}>{FT층(f) ? 'FT' : f.이름 + '층'}<small>{M.부재.filter((o) => o.층 === f.이름).length}</small></button>)}
+          </div>
+          {도구판}
+          {도움판}
+          {한꺼번에판}
+          {층복사판}
+        </aside>
+        <section className="gmd-ws-center">
+          <div className="gmd-ws-views" role="group" aria-label="보기">
+            {[['3D', '🧊 3D'], ['평면', '📐 평면'], ['나란히', '◫ 나란히']].map(([k, t]) => <button key={k} type="button" className={'gmd-tool' + (보기 === k ? ' on' : '')} aria-pressed={보기 === k} onClick={() => set보기(k)}>{t}</button>)}
+          </div>
+          <div className="gmd-work">
+            {평면판}
+            {삼차원판}
+          </div>
+        </section>
+        <aside className="gmd-ws-right" aria-label="물량">
+          {S && !S.오류 && <요약줄 S={S} />}
+          {고른것 ? 고름판 : <p className="muted gmd-p">👆 «고르기» 로 부재를 누르면 크기 · 물량 · 산출 줄이 여기에 나옵니다.</p>}
+          {S && !S.오류 && S.층별 && S.층별.length > 0 && (
+            <div className="gmd-tablewrap"><table className="gmd-table small">
+              <thead><tr><th>층</th><th>부재</th><th>개수</th><th>콘크리트 ㎥</th></tr></thead>
+              <tbody>{S.층별.filter((r) => r.층 === 층).map((r, i) => <tr key={i}><td>{r.층 === 'FT' ? 'FT' : r.층 + '층'}</td><td>{r.종류}</td><td className="num">{r.개수}</td><td className="num">{수글(r.콘크리트)}</td></tr>)}</tbody>
+            </table></div>
+          )}
+        </aside>
+      </div>
+    )
+  }
+
+  return (
+    <div className="card gmd-build">
+      {도구판}
+      {도움판}
+      {한꺼번에판}
+      <div className={'gmd-work' + (크게 ? ' big' : '')}>
+        {평면판}
+        {삼차원판}
+      </div>
+
+      {고름판}
+
+      {층복사판}
       {S && !S.오류 && <요약줄 S={S} />}
     </div>
   )
