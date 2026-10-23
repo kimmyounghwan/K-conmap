@@ -7,12 +7,24 @@
 //   ⑤ 새로고침해도 모델이 남음(이 브라우저 저장) · 화면 오류 없음 · 폰 가로 넘침 없음
 //   ⑥ 🖥 G388 작업 화면(🔒 운영자만) — 남에게는 단추 · ?ws=1 모두 없음 · 운영자: 열면 왼쪽 도구 · 가운데 3D(PC 화면 폭 절반 넘게) · 오른쪽 물량 ·
 //      그 안에서 기둥 세우기 · 고르기 · 평면 / 나란히 · 나가면 주소 ?ws=1 지움 · 폰 가로 넘침 없음
+//   ⑦ 📐 G389 작업 화면 «도면 넣기»(🔒 운영자만) — 가상 예시 도면(BIM_예시_3층.dxf)을 넣으면 좌표대로 세움:
+//      부재 수 · 화면 합 = lib(골조읽기 → BIM 모델 → 도면에서모델 → 모델셈) · 견줌표(도면 셈) · 못 옮긴 것 없음 · 되돌리기 → 전 모델 · 오류 없음 · 폰 넘침 없음
 import { createRequire } from 'module'
 import fs from 'fs'
 import path from 'path'
 import * as L from '../web/src/lib/골조모델.js'
 import { readWorkbook } from '../web/src/lib/qtoxlsx.js'
 import { calc } from '../web/src/lib/susik.js'
+import os from 'os'
+import { decodeBytes } from '../web/src/lib/dxf3d.js'
+import { 도면읽기끝까지 } from '../web/src/lib/끝까지읽기.js'
+import { 단위배율 } from '../web/src/lib/골조도면.js'
+import { 골조읽기 } from '../web/src/lib/골조자동.js'
+import { 플랜트다듬기, 플랜트모델 } from '../web/src/lib/플랜트기초.js'
+import { 셈방법입히기 } from '../web/src/lib/셈방법.js'
+import { 모델만들기, 층고바꾸기, 겹친것빼기 } from '../web/src/lib/BIM모델.js'
+import { 참조끼우기 } from '../web/src/lib/골조끼움.js'
+import { 도면에서모델 } from '../web/src/lib/도면모델.js'
 const require = createRequire('/tmp/g10/pw/package.json')
 const { chromium } = require('playwright')
 const 주소 = process.env.B || 'http://127.0.0.1:4998'
@@ -21,6 +33,20 @@ let ok = 0, bad = 0
 const 봐 = (c, m, 더 = '') => { if (c) ok++; else bad++; console.log(c ? '✓' : '✗', m, c ? '' : String(더).slice(0, 300)) }
 const 숫 = (t) => Number(String(t).replace(/,/g, ''))
 const 예 = L.모델셈(L.예시모델())
+/* ⑦ 가상 예시 도면 — lib 로 같은 길(작업 화면 lib/도면넣기.js 와 같음) · 한글 경로는 setInputFiles 가 조용히 실패해 영문 사본 */
+const 예도면 = path.join(os.tmpdir(), 'kcm_g389_ex3.dxf')
+fs.copyFileSync(new URL('../web/public/jeoksan/BIM_예시_3층.dxf', import.meta.url), 예도면)
+const 도면예 = (() => {
+  const b = fs.readFileSync(예도면)
+  const D = 도면읽기끝까지(decodeBytes(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)), () => {})
+  let 들 = [{ 모델: D, 이름: 'kcm_g389_ex3.dxf', k: 단위배율(D.units, D.box, D.ox, D.oy).k || 1 }]
+  try { 들 = 참조끼우기(들).들 } catch (e) { /* 그대로 */ }
+  const R = 플랜트다듬기(들, 골조읽기(들))
+  const 모델 = 플랜트모델(모델만들기(들, R, { 높이: {} }), R)
+  const 공사 = 셈방법입히기(겹친것빼기(층고바꾸기(R.공사, {}, R.읽음 && R.읽음.높이), 모델), '도면')
+  const r = 도면에서모델(모델, { 공사 })
+  return { ...r, S: L.모델셈(r.M) }
+})()
 
 const 브 = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'], env: { ...process.env, LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8' } })
 for (const 기기 of 기기들) {
@@ -121,6 +147,7 @@ for (const 기기 of 기기들) {
   }
   /* ⑥ 작업 화면 — 남(운영자 아님)에게는 없음 */
   봐((await A.locator('.gmd-ws-open').count()) === 0, `${기기} 남에게 «작업 화면» 단추 없음`)
+  봐((await A.locator('.gmd-ws-dwg, .gmd-ws-dwgin').count()) === 0 && !(await A.content()).includes('도면 넣기'), `${기기} 남에게 «도면 넣기» 없음`)
   await A.goto(주소 + '/jeoksan/model?ws=1', { waitUntil: 'domcontentloaded' }); await A.waitForSelector('.gmd-tabs'); await A.waitForTimeout(800)
   봐((await A.locator('.gmd-ws').count()) === 0, `${기기} 남에게 ?ws=1 로도 안 열림`)
   await 판.close()
@@ -167,6 +194,24 @@ for (const 기기 of 기기들) {
   await B.goto(주소 + '/jeoksan/model?ws=1', { waitUntil: 'domcontentloaded' })
   await B.waitForSelector('.gmd-ws', { timeout: 30000 })
   봐(true, `${기기} 운영자는 ?ws=1 로 바로 작업 화면`)
+  /* ⑦ 📐 도면 넣기 — 가상 예시 도면 → 좌표대로 세움 */
+  B.once('dialog', (d) => d.accept())
+  await B.locator('.gmd-ws-dwgin').setInputFiles(예도면)
+  await B.waitForSelector('.gmd-dwgres', { timeout: 60000 })
+  await B.waitForTimeout(1200)
+  const 결 = await B.locator('.gmd-dwgres').innerText()
+  봐(new RegExp('부재 ' + 도면예.옮김 + '개').test(결) && 도면예.옮김 > 100, `${기기} 도면 넣기 — 부재 ${도면예.옮김}개 세움`, 결.slice(0, 200))
+  const 합2 = await B.locator('.gmd-ws-right .gmd-sum').innerText()
+  봐(합2.includes(도면예.S.합.콘크리트.toLocaleString('ko-KR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })), `${기기} 도면 넣기 — 화면 합 = lib(${도면예.S.합.콘크리트.toFixed(3)} ㎥)`, 합2)
+  봐(도면예.못옮김.length === 0 && !/못 옮긴 것/.test(결), `${기기} 가상 예시 도면 — 못 옮긴 것 없음`, 결)
+  봐(/기둥/.test(결) && /도면 셈/.test(결) && (await B.locator('.gmd-dwgres tbody tr').count()) >= 4, `${기기} 견줌표(도면 셈 ↔ 이 모델) 보임`)
+  봐(도면예.S.검사.every((z) => z.좋음), `가상 예시 도면 모델 검사 모두 ✓(덩어리 = 산출서 · 겹침 없음)`, 도면예.S.검사.map((z) => z.글).join(' / '))
+  const 층수 = await B.locator('.gmd-ws-floor').count()
+  봐(층수 === 도면예.M.층.length, `${기기} 도면 층 ${층수}개 = lib`, 층수)
+  if (기기 === '폰') 봐((await B.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 1, `폰 도면 넣은 뒤 가로 넘침 없음`)
+  await B.getByTitle('되돌리기').click()
+  await B.waitForTimeout(800)
+  봐(/212\.014/.test(await B.locator('.gmd-ws-right .gmd-sum').innerText()), `${기기} 되돌리기 → 도면 넣기 전 모델(예시 212.014)`)
   봐(오류2.length === 0, `${기기} 작업 화면 오류 없음`, 오류2.join(' | '))
   await 판2.close()
 }

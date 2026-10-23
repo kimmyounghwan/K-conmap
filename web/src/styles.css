@@ -8987,3 +8987,14 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
   .gmd .gmd-ws-name { max-width: 100%; flex: 1 1 100%; }
   .gmd .gmd-ws-acts { margin-left: 0; }
 }
+/* 📐 G389 작업 화면 «도면 넣기» — 도면에서 세움(견줌표 · 못 옮긴 것) */
+.gmd .gmd-ws-dwg { white-space: nowrap; }
+.gmd .gmd-warnbox { border-color: #f59e0b; background: color-mix(in srgb, #f59e0b 10%, var(--card, #fff)); }
+.gmd .gmd-dwgres { border: 1px solid var(--line, #d0d5dd); border-radius: 8px; padding: 8px 10px; margin: 8px 0; background: var(--card, #fff); }
+.gmd .gmd-dwgres .gmd-row { display: flex; align-items: center; gap: 6px; }
+.gmd .gmd-dwgres .gmd-x { margin-left: auto; }
+.gmd .gmd-dwglist { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; line-height: 1.6; }
+.gmd .gmd-dwglist li { margin-bottom: 4px; }
+.gmd .gmd-dwglist .muted { font-size: 12px; word-break: keep-all; overflow-wrap: anywhere; }
+.gmd .gmd-gl.aux { stroke: #cbd5e1; stroke-dasharray: 2 4; }
+.gmd .gmd-gt.aux { fill: var(--muted, #64748b); font-weight: 500; }

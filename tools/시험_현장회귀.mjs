@@ -4,6 +4,7 @@
  *   실제 도면은 저장소에 넣지 않음 — 소장님 PC «현장별 자료» 의 DWG 를 DXF 로 바꾼 폴더를 환경 변수로 줌(없는 현장은 건너뜀)
  *   기대값 tools/시험자료/현장회귀.json(현장 이름 대신 A · B · G) — 도면 근거로 고쳐 값이 바뀌면 까닭을 CLAUDE.md · 기록에 적고 JSON 도 고침
  *   길: 도면읽기끝까지 → 참조끼우기 → 플랜트다듬기(골조읽기) → 층고바꾸기 → 모델만들기 → 플랜트모델 → 겹친것빼기 → 셈방법입히기(도면) → 셈
+ *   📐 G389 + 작업 화면 «도면 넣기» 길(도면에서모델 → 모델셈) — 부재 종류별 콘크리트 · 옮긴 부재 수 · 못 옮긴 수(«모델» 칸)
  */
 import fs from 'fs'
 import path from 'path'
@@ -16,6 +17,8 @@ import { 셈방법입히기 } from '../web/src/lib/셈방법.js'
 import { 셈 } from '../web/src/lib/골조.js'
 import { 모델만들기, 층고바꾸기, 겹친것빼기 } from '../web/src/lib/BIM모델.js'
 import { 참조끼우기 } from '../web/src/lib/골조끼움.js'
+import { 도면에서모델 } from '../web/src/lib/도면모델.js'
+import { 모델셈 } from '../web/src/lib/골조모델.js'
 
 const 기대 = JSON.parse(fs.readFileSync(new URL('./시험자료/현장회귀.json', import.meta.url), 'utf8'))
 let bad = 0, 본 = 0
@@ -31,10 +34,16 @@ export function 현장셈(폴더, 거름 = '') {
   const R = 플랜트다듬기(들, 골조읽기(들))
   const 공사0 = 층고바꾸기(R.공사, {}, R.읽음 && R.읽음.높이)
   const 모델 = 플랜트모델(모델만들기(들, R, { 높이: {} }), R)
-  const S = 셈(셈방법입히기(겹친것빼기(공사0, 모델), '도면'))
+  const 공사 = 셈방법입히기(겹친것빼기(공사0, 모델), '도면')
+  const S = 셈(공사)
   const 합 = {}
   for (const x of S.줄) { const 항 = /거푸집/.test(x.항목) ? '거푸집' : x.항목; 합[항] = (합[항] || 0) + x.수량 }
-  return { 합, 파일: 파일.length, 부재: 모델.부재.length }
+  /* 📐 G389 작업 화면 «도면 넣기» — 좌표대로 골조 모델로 옮겨 셈 */
+  const 변 = 도면에서모델(모델, { 공사 })
+  const G = 모델셈(변.M)
+  const 종 = {}
+  for (const x of G.R.줄) if (x.항목 === '콘크리트' && !/버림/.test(x.비고 || '')) 종[x.부재] = (종[x.부재] || 0) + x.수량
+  return { 합, 파일: 파일.length, 부재: 모델.부재.length, 모델: { 종, 옮김: 변.옮김, 못옮김: 변.못옮김.length } }
 }
 for (const [키, v] of Object.entries(기대)) {
   const 변수 = 'SITE_' + 키.slice(-1)
@@ -45,6 +54,10 @@ for (const [키, v] of Object.entries(기대)) {
   const r = 현장셈(폴더, v.거름)
   ok(`도면 ${v.파일}장`, r.파일 === v.파일, r.파일)
   for (const [항, 값] of Object.entries(v.합)) ok(`${항} ${값}`, Math.abs((r.합[항] || 0) - 값) < 0.01, +(r.합[항] || 0).toFixed(3))
+  if (v.모델) {
+    ok(`작업 화면 옮김 ${v.모델.옮김} · 못옮김 ${v.모델.못옮김}`, r.모델.옮김 === v.모델.옮김 && r.모델.못옮김 === v.모델.못옮김, [r.모델.옮김, r.모델.못옮김])
+    for (const [종, 값] of Object.entries(v.모델.종)) ok(`작업 화면 ${종} 콘크리트 ${값}`, Math.abs((r.모델.종[종] || 0) - 값) < 0.01, +(r.모델.종[종] || 0).toFixed(3))
+  } else console.log('  · 작업 화면 값(기록용):', JSON.stringify({ 옮김: r.모델.옮김, 못옮김: r.모델.못옮김, 종: Object.fromEntries(Object.entries(r.모델.종).map(([k, x]) => [k, +x.toFixed(3)])) }))
 }
 console.log(!본 ? '\n(본 현장 없음 — 환경 변수로 폴더를 주세요)' : bad ? `\n✗ ${bad} 틀림` : '\n✓ 모두 맞음')
 if (bad) process.exit(1)

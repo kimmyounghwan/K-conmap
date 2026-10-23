@@ -14,6 +14,9 @@
  *   🔒 운영자(소장님 브라우저 · lib/운영자.js 나운영자)만 «🖥 작업 화면» 단추 · ?ws=1 로 열림 — 남에게는 단추 · 글 · 주소 모두 없음. 소장님 «열어» 뒤 잠금 풂.
  *   꼴: 위 막대(이름 · 탭 · 되돌리기 · 예시 · 저장 · 열기 · 엑셀 · ⛶ 전체 화면 · 나가기) / 왼쪽(층 단추 · 도구 · 부호 · 한꺼번에 · 층 복사) / 가운데(🧊 3D · 📐 평면 · ◫ 나란히) / 오른쪽(합 · 고른 부재 · 이 층 표).
  *   3D 바닥에 지금 층 통심을 깖(set배경) — 도면 위에 세우듯. 📊 숨은 누적 |골조모델|작업화면.
+ * ■ 📐 G389 «도면 넣기»(작업 화면 · 🔒 운영자만) — 소장님 「캐드 도면 넣으면 … 하나씩 채워가면서」 · 「좌표로 하는 거잖아」
+ *   BIM 물량 화면과 같은 길로 읽어(lib/도면넣기.js) 좌표 그대로 골조 모델로 옮김(lib/도면모델.js) · 못 옮긴 것 · 도면 셈과 견줌표는 오른쪽 «📐 도면에서 세움».
+ *   📊 숨은 누적 |골조모델|도면넣기.
  */
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -59,6 +62,9 @@ export default function Model() {
   const [받는중, set받는중] = useState('')
   const [glErr, setGlErr] = useState('')
   const [크게, set크게] = useState(false)
+  const [도면상태, set도면상태] = useState(null)       // 📐 G389 {k: busy|err, 글}
+  const [도면결과, set도면결과] = useState(null)       // 📐 G389 {못옮김, 도면: {합, 종}, 부재수, 경고, 이름}
+  const 도면Ref = useRef(null)
   /* 🖥 G388 작업 화면(크게 · 왼쪽 도구 · 가운데 3D · 오른쪽 물량) — 🔒 지금은 소장님 브라우저(운영자)에서만 보임 · 소장님이 «열어» 하시면 잠금을 풂 */
   const [운영자, set운영자] = useState(false)
   const [작업, set작업0] = useState(false)
@@ -141,6 +147,28 @@ export default function Model() {
     } catch (e) { set알림('열지 못했습니다 — ' + (e.message || e)) }
   }
 
+  /* ── 📐 G389 도면 넣기 → 좌표대로 세우기(BIM 물량 화면과 같은 길로 읽음) ── */
+  const 도면넣기 = async (files) => {
+    const list = [...(files || [])].filter((f) => /\.(dxf|dwg)$/i.test(f.name))
+    if (!list.length) { set도면상태({ k: 'err', 글: 'DXF · DWG 도면 파일을 넣어 주십시오.' }); return }
+    if (M.부재.length && !window.confirm('지금 모델 대신 도면에서 세울까요? (↶ 되돌리기로 돌아올 수 있습니다)')) return
+    set도면상태({ k: 'busy', 글: '파일 여는 중' })
+    try {
+      const 넣기 = await import('../lib/도면넣기.js')
+      const 쓸 = list.filter((f) => f.size <= 넣기.큰파일), 큰 = list.filter((f) => f.size > 넣기.큰파일)
+      if (!쓸.length) throw new Error(큰.map((f) => f.name).join(', ') + ' — 이 기기에서 읽기에 너무 큰 도면입니다')
+      const 목록 = await Promise.all(쓸.map(async (f) => ({ 이름: f.name, buf: await f.arrayBuffer() })))
+      const r = await 넣기.도면읽어모델(목록, (글) => set도면상태({ k: 'busy', 글 }))
+      const N = 정돈(r.M)
+      setM(N); set층((N.층.find((f) => !FT층(f)) || N.층[0]).이름); set탭('세우기'); set고른(null)
+      set도면결과({ 못옮김: r.못옮김, 도면: r.도면, 부재수: r.부재수, 경고: r.경고, 이름: r.이름 })
+      const 빠진 = [r.틀림, 큰.length ? 큰.map((f) => f.name).join(', ') + ' — 너무 큼' : ''].filter(Boolean).join(' · ')
+      set도면상태(빠진 ? { k: 'err', 글: '읽지 못한 도면: ' + 빠진 } : null)
+      set알림('도면에서 부재 ' + r.부재수.toLocaleString('ko-KR') + '개를 좌표대로 세웠습니다' + (r.못옮김.length ? ' — 못 옮긴 ' + r.못옮김.length + '개는 오른쪽 «📐 도면에서 세움» 에서 보고 손으로 세우십시오.' : '.'))
+      세기('|골조모델|도면넣기')
+    } catch (e) { set도면상태({ k: 'err', 글: '도면에서 세우지 못했습니다 — ' + ((e && e.message) || e) }) }
+  }
+
   /* ── 엑셀 ── */
   const 엑셀받기 = async () => {
     if (!S || S.오류 || !M.부재.length) return
@@ -156,7 +184,7 @@ export default function Model() {
   const 세움칸 = (작업판) => (
     <세우기칸 M={M} setM={setM} S={S} 층={층} set층={set층} 도구={도구} set도구={set도구} 쓸도구={쓸도구} 부호={부호} set부호={set부호}
       첫점={첫점} set첫점={set첫점} 고른={고른} set고른={set고른} 고른것={고른것} 보일층={보일층} set보일층={set보일층}
-      glErr={glErr} setGlErr={setGlErr} 크게={크게} set크게={set크게} 한번세기={한번세기} 작업={작업판} />
+      glErr={glErr} setGlErr={setGlErr} 크게={크게} set크게={set크게} 한번세기={한번세기} 작업={작업판} 도면결과={도면결과} set도면결과={set도면결과} />
   )
   if (작업 && 운영자) {
     return (
@@ -171,6 +199,7 @@ export default function Model() {
             </span>
             <span className="gmd-ws-acts">
               <button type="button" className="btn line sm" onClick={되돌리기} disabled={!되돌림.length} title="되돌리기">↶</button>
+              <button type="button" className="btn sm gmd-ws-dwg" onClick={() => 도면Ref.current && 도면Ref.current.click()} disabled={!!(도면상태 && 도면상태.k === 'busy')}>📐 도면 넣기</button>
               <button type="button" className="btn line sm" onClick={예시열기}>🧪 예시</button>
               <button type="button" className="btn line sm" onClick={모델저장} title="모델 파일 저장">💾</button>
               <button type="button" className="btn line sm" onClick={() => 파일Ref.current && 파일Ref.current.click()} title="모델 파일 열기">📂</button>
@@ -179,7 +208,9 @@ export default function Model() {
               <button type="button" className="btn sm" onClick={() => set작업(false)}>✕ 나가기</button>
             </span>
             <input ref={파일Ref} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={(e) => { 모델열기(e.target.files && e.target.files[0]); e.target.value = '' }} />
+            <input ref={도면Ref} className="gmd-ws-dwgin" type="file" accept=".dxf,.dwg" multiple style={{ display: 'none' }} onChange={(e) => { 도면넣기(e.target.files); e.target.value = '' }} />
           </div>
+          {도면상태 && <div className={'gmd-note gmd-ws-note' + (도면상태.k === 'err' ? ' gmd-warnbox' : '')} role="status">{도면상태.k === 'busy' ? '⏳ ' : '⚠ '}{도면상태.글}{도면상태.k !== 'busy' && <button type="button" className="gmd-x" onClick={() => set도면상태(null)} aria-label="닫기">✕</button>}</div>}
           {알림 && <div className="gmd-note gmd-ws-note">{알림}<button type="button" className="gmd-x" onClick={() => set알림('')} aria-label="닫기">✕</button></div>}
           {탭 === '세우기' ? 세움칸(true) : (
             <div className="gmd-ws-page">
@@ -397,7 +428,7 @@ function 일람칸들({ M, setM }) {
 
 /* ───────────────────────── ③ 세우기 · 평면 + 3D */
 function 세우기칸(p) {
-  const { M, setM, S, 층, set층, 도구, set도구, 쓸도구, 부호, set부호, 첫점, set첫점, 고른, set고른, 고른것, 보일층, set보일층, glErr, setGlErr, 크게, set크게, 한번세기, 작업 = false } = p
+  const { M, setM, S, 층, set층, 도구, set도구, 쓸도구, 부호, set부호, 첫점, set첫점, 고른, set고른, 고른것, 보일층, set보일층, glErr, setGlErr, 크게, set크게, 한번세기, 작업 = false, 도면결과 = null, set도면결과 = () => {} } = p
   const [보기, set보기] = useState('3D')                // 🖥 G388 작업 화면 가운데: 3D · 평면 · 나란히
   const 위층 = M.층.filter((f) => !FT층(f)).map((f) => f.이름)
   const 맨아래 = 위층[0]
@@ -460,6 +491,11 @@ function 세우기칸(p) {
   const 큰 = Math.max(폭, 높)
   const 여 = 큰 * 0.12 + 800
   const r점 = 큰 / 90 + 60, 글크기 = 큰 / 38 + 120
+  /* 📐 G389 보조 통심 — 이름이 «X1+3600» 꼴(도면에서 옮길 때 생김) · 글은 «+3600» 만 작게 · 이웃 글과 겹치면 줄만 */
+  const 보조줄 = (g) => String(g.이름 || '').length > 3 && /[+−-]\d+$/.test(String(g.이름 || ''))
+  const 보조글 = (t) => { const m = String(t).match(/([+−-]\d+)$/); return m ? m[1] : t }
+  const 글자리 = (줄, 틈) => { const s = new Set(); let 앞 = -Infinity; for (const g of 줄) { if (!보조줄(g)) { 앞 = g.자리; continue } if (g.자리 - 앞 >= 틈) { s.add(g.id); 앞 = g.자리 } } return s }
+  const x글 = 글자리(xs, 글크기 * 2.4), y글 = 글자리(ys, 글크기 * 0.9)
   /* 📱 누르는 자리 — 화면에서 손가락 크기(반지름 14px)는 되게(폰에서 평면이 작아져도) */
   const svgRef = useRef(null)
   const [판px, set판px] = useState(600)
@@ -605,8 +641,9 @@ function 세우기칸(p) {
               <rect key={gx.id + gy.id} className="gmd-cell" x={gx.자리} y={-ys[j + 1].자리} width={xs[i + 1].자리 - gx.자리} height={ys[j + 1].자리 - gy.자리} onClick={() => 칸누름(gx.id, gy.id, xs[i + 1].id, ys[j + 1].id)} />
             )))}
             {/* 통심 */}
-            {xs.map((g) => <g key={g.id}><line className="gmd-gl" x1={g.자리} y1={-(Y1 + 여 * 0.55)} x2={g.자리} y2={-(Y0 - 여 * 0.55)} /><circle className="gmd-gb" cx={g.자리} cy={-(Y1 + 여 * 0.7)} r={글크기 * 0.9} /><text className="gmd-gt" x={g.자리} y={-(Y1 + 여 * 0.7)} fontSize={글크기} textAnchor="middle" dominantBaseline="central">{g.이름}</text></g>)}
-            {ys.map((g) => <g key={g.id}><line className="gmd-gl" x1={X0 - 여 * 0.55} y1={-g.자리} x2={X1 + 여 * 0.55} y2={-g.자리} /><circle className="gmd-gb" cx={X0 - 여 * 0.7} cy={-g.자리} r={글크기 * 0.9} /><text className="gmd-gt" x={X0 - 여 * 0.7} y={-g.자리} fontSize={글크기} textAnchor="middle" dominantBaseline="central">{g.이름}</text></g>)}
+            {/* 📐 G389 보조 통심(도면에서 옮길 때 생긴 «X1+3600» 꼴 · 긴 이름) — 점선 · 작은 글 · 이웃 글과 겹치면 글은 빼고 줄만 */}
+            {xs.map((g) => { const 보 = 보조줄(g); const 글보임 = !보 || x글.has(g.id); return <g key={g.id}><line className={'gmd-gl' + (보 ? ' aux' : '')} x1={g.자리} y1={-(Y1 + 여 * 0.55)} x2={g.자리} y2={-(Y0 - 여 * 0.55)} />{!보 && <circle className="gmd-gb" cx={g.자리} cy={-(Y1 + 여 * 0.7)} r={글크기 * 0.9} />}{글보임 && <text className={'gmd-gt' + (보 ? ' aux' : '')} x={g.자리} y={-(Y1 + 여 * (보 ? 0.45 : 0.7))} fontSize={보 ? 글크기 * 0.62 : 글크기} textAnchor="middle" dominantBaseline="central">{보 ? 보조글(g.이름) : g.이름}</text>}</g> })}
+            {ys.map((g) => { const 보 = 보조줄(g); const 글보임 = !보 || y글.has(g.id); return <g key={g.id}><line className={'gmd-gl' + (보 ? ' aux' : '')} x1={X0 - 여 * 0.55} y1={-g.자리} x2={X1 + 여 * 0.55} y2={-g.자리} />{!보 && <circle className="gmd-gb" cx={X0 - 여 * 0.7} cy={-g.자리} r={글크기 * 0.9} />}{글보임 && <text className={'gmd-gt' + (보 ? ' aux' : '')} x={X0 - 여 * (보 ? 0.6 : 0.7)} y={-g.자리} fontSize={보 ? 글크기 * 0.62 : 글크기} textAnchor="middle" dominantBaseline="central">{보 ? 보조글(g.이름) : g.이름}</text>}</g> })}
             {/* 아래층 기둥(흐리게) */}
             {아래기둥.map((o) => 그림(o, true))}
             {판부재.map((o) => 그림(o, false))}
@@ -721,6 +758,7 @@ function 세우기칸(p) {
         </section>
         <aside className="gmd-ws-right" aria-label="물량">
           {S && !S.오류 && <요약줄 S={S} />}
+          {도면결과 && <도면결과판 R={도면결과} S={S} 닫기={() => set도면결과(null)} />}
           {고른것 ? 고름판 : <p className="muted gmd-p">👆 «고르기» 로 부재를 누르면 크기 · 물량 · 산출 줄이 여기에 나옵니다.</p>}
           {S && !S.오류 && S.층별 && S.층별.length > 0 && (
             <div className="gmd-tablewrap"><table className="gmd-table small">
@@ -751,6 +789,32 @@ function 세우기칸(p) {
   )
 }
 const 층FT = (M, 층) => FT층(M.층.find((f) => f.이름 === 층))
+
+/** 📐 G389 도면에서 세움 — 도면 셈(BIM 물량 화면과 같은 셈) ↔ 이 모델 · 못 옮긴 것(까닭별) */
+function 도면결과판({ R, S, 닫기 }) {
+  const 모 = {}
+  if (S && !S.오류) for (const x of S.R.줄) if (x.항목 === '콘크리트' && !/버림/.test(x.비고 || '')) 모[x.부재] = (모[x.부재] || 0) + x.수량
+  const 종들 = [...new Set([...Object.keys(R.도면.종 || {}), ...Object.keys(모)])].sort((a, b) => ['기초', '기둥', '벽', '보', '슬라브', '계단'].indexOf(a) - ['기초', '기둥', '벽', '보', '슬라브', '계단'].indexOf(b))
+  const 까닭 = new Map()
+  for (const x of R.못옮김) { if (!까닭.has(x.까닭)) 까닭.set(x.까닭, []); 까닭.get(x.까닭).push(x) }
+  const 층글 = (f) => (f === 'FT' ? 'FT' : f + '층')
+  return (
+    <div className="gmd-dwgres" aria-label="도면에서 세움">
+      <div className="gmd-row"><b>📐 도면에서 세움</b> <span className="muted">부재 {R.부재수.toLocaleString('ko-KR')}개</span><button type="button" className="gmd-x" onClick={닫기} aria-label="닫기">✕</button></div>
+      <div className="gmd-tablewrap"><table className="gmd-table small">
+        <thead><tr><th>부재</th><th>도면 셈 ㎥</th><th>이 모델 ㎥</th><th>차</th></tr></thead>
+        <tbody>{종들.map((k) => { const a = (R.도면.종 || {})[k] || 0, b = 모[k] || 0; return <tr key={k}><td>{k}</td><td className="num">{수글(a, 1)}</td><td className="num">{수글(b, 1)}</td><td className={'num' + (Math.abs(b - a) > Math.max(1, a * 0.05) ? ' gmd-warn' : '')}>{b === 0 && a > 0 ? '손으로' : (b - a >= 0 ? '+' : '') + 수글(b - a, 1)}</td></tr> })}</tbody>
+      </table></div>
+      <p className="muted gmd-p">도면 셈 = BIM 물량 화면과 같은 셈. 이 모델은 바깥 보 · 벽 위 슬라브를 바깥 면까지 셉니다.</p>
+      {까닭.size > 0 && (
+        <details className="gmd-lines-d" open>
+          <summary>못 옮긴 것 {R.못옮김.length}개 — 손으로 세우거나 확인</summary>
+          <ul className="gmd-dwglist">{[...까닭.entries()].map(([k, 들]) => <li key={k}><b>{k}</b> <span className="muted">{들.length}개</span><div className="muted">{들.slice(0, 12).map((x) => 층글(x.층) + ' ' + x.종류 + ' ' + (x.기호 || '')).join(' · ')}{들.length > 12 ? ' …' : ''}</div></li>)}</ul>
+        </details>
+      )}
+    </div>
+  )
+}
 
 function 요약줄({ S }) {
   return (
