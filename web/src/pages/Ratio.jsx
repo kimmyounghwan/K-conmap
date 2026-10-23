@@ -51,6 +51,7 @@ export default function Ratio() {
   const [file, setFile] = useState(null)      /* {name, size, buf} */
   const [온것, set온것] = useState(null)       /* 파일에서 읽은 것 전부 */
   const [고른시트, set고른시트] = useState([]) /* 그 가운데 «쓸» 시트 */
+  const [원가, set원가] = useState(null)       /* 🔎 G380 같은 파일 원가계산서(직접노무비 맞춰 보기) */
 
   const [모드, set모드] = useState('비율')     /* '비율' | '금액' | '낙찰' (G169 — 도급액을 낙찰금액에) */
   const [낙찰글, set낙찰글] = useState('')
@@ -78,7 +79,7 @@ export default function Ratio() {
 
   const openFile = useCallback(async (f) => {
     if (!f) return
-    setErr(''); setOut(null); set틀(null); set온것(null); set고른시트([]); setFile(null); set관급끔(new Set())
+    setErr(''); setOut(null); set틀(null); set온것(null); set고른시트([]); setFile(null); set관급끔(new Set()); set원가(null)
     if (!/\.(xlsx|xlsm)$/i.test(f.name)) {
       setErr(/\.xls$/i.test(f.name)
         ? '구형 엑셀(.xls)은 아직 못 읽습니다. 엑셀에서 «다른 이름으로 저장 → Excel 통합 문서(.xlsx)» 한 뒤 올려 주십시오.'
@@ -89,9 +90,14 @@ export default function Ratio() {
     try {
       const m = await loadLib()
       const buf = await f.arrayBuffer()
-      const g = m.readNaeyeok(buf, f.name)
+      const 책 = m.책읽기(buf)
+      const g = m.격자로읽기(책, f.name)
+      /* 🔎 G380 — 같은 파일 원가계산서의 직접노무비(읽은 품목 노무비와 맞춰 봄 · 못 찾으면 맞춰 보기만 건너뜁니다) */
+      let 원 = null
+      try { const n = await import('../lib/낙찰맞추기.js'); 원 = n.원가표찾기(책, g.시트들.filter((s) => !/원가/.test(s.시트)).map((s) => s.시트)) } catch (e) { 원 = null }
       setFile({ name: f.name, size: f.size, buf })
       set온것(g)
+      set원가(원)
       set고른시트(m.고를만한시트(g.시트들))
     } catch (e) {
       setErr((e && e.message) || '읽지 못했습니다.')
@@ -120,11 +126,19 @@ export default function Ratio() {
     } catch (e) { return { 값: null, 탈: (e && e.message) || '셈하지 못했습니다.' } }
   }, [읽은, lib, 모드, 비율글, 목표글, 단수꼴, 노무고정, 관급그대로, 관급끔])
 
+  /* 🔎 G380 — 읽은 노무비 ↔ 원가계산서 직접노무비(10% 넘게 다르면 알림 · 켠 시트가 바뀌면 다시) */
+  const 노무 = useMemo(() => { try { return lib && 읽은 && 원가 && lib.노무맞대기 ? lib.노무맞대기(읽은, 원가) : null } catch (e) { return null } }, [lib, 읽은, 원가])
+  const 노무센 = useRef('')
+  useEffect(() => {
+    const k = 노무 && 노무.다름 && file ? file.name + '|' + file.size : ''
+    if (k && 노무센.current !== k) { 노무센.current = k; try { 세기('|비율|노무다름') } catch (e) { /* 지나갑니다 */ } }
+  }, [노무, file])
+
   /* 🧮 품목에서 뺀 합계 · 소계 · 머리 · 원가 줄 (G124) */
   const 모음들 = useMemo(() => (읽은 && 읽은.모음들 ? 읽은.모음들 : []), [읽은])
   const 모음셈 = useMemo(() => 모음들.reduce((a, x) => { a[x.모음꼴] = (a[x.모음꼴] || 0) + 1; return a }, {}), [모음들])
   const 모음말 = (x) => (x.모음꼴 === '합계' ? '합계 · 소계 줄'
-    : x.모음꼴 === '머리' ? '공종 머리 — 아래 ' + fmt((x.아이줄 || []).length) + '줄의 합' + (x.근사 ? '(원본 숫자가 조금 다름)' : '')
+    : x.모음꼴 === '머리' ? '공종 머리 — 아래 ' + fmt((x.아이줄 || []).length) + '줄의 합' + (x.첫뺌 ? '(원본 금액은 첫 품목 ' + (x.아이줄 || [])[0] + '행을 뺀 합)' : x.근사 ? '(원본 숫자가 조금 다름)' : '')
     : x.모음꼴 === '원가' ? '원가계산 줄'
     : x.모음꼴 === '중복' ? '위 요약에 한 번 더 적힌 줄'
     : x.모음꼴 === '총괄' ? '공사명 총괄(전체 총액) 줄' : x.모음꼴)
@@ -413,6 +427,32 @@ export default function Ratio() {
                 새 값은 <b>셋을 더해</b> 만들므로 아래 «실제 비율» 이 넣으신 비율과 다르게 보일 수 있습니다. 엑셀에서 그 줄을 한 번 보십시오.
               </p>
             )}
+            {/* 🩹 G380 — 원본 머리 금액이 첫 품목을 뺀 합(원본 SUM 범위가 한 줄 밀림) */}
+            {모음들.some((x) => x.첫뺌) && (
+              <p className="note" style={{ margin: '0 0 6px', fontSize: 12.5, lineHeight: 1.8 }}>
+                ⚠️ 원본의 <b>공종 머리 {fmt(모음들.filter((x) => x.첫뺌).length)}곳</b> 금액이 <b>첫 품목을 빼고</b> 더한 값입니다
+                ({모음들.filter((x) => x.첫뺌).slice(0, 4).map((x) => x.시트 + ' ' + x.줄 + '행(빠진 품목 ' + x.아이줄[0] + '행)').join(', ')}) — 원본 합계 수식(SUM) 범위가 한 줄 밀린 것으로 보입니다.
+                당초 합계에는 그 품목도 넣었으니, 원가계산서 금액과 다르면 원본 수식을 한 번 보십시오.
+              </p>
+            )}
+            {/* 🔎 G380 — 읽은 노무비 ↔ 원가계산서 직접노무비 */}
+            {노무 && (노무.다름 ? (
+              <p className="note" style={{ margin: '0 0 6px', fontSize: 12.5, lineHeight: 1.8 }}>
+                ⚠️ 읽은 품목의 <b>노무비 {fmt(노무.읽은)}원</b>이 이 파일 원가계산서(«{노무.원가시트}») <b>직접노무비 {fmt(노무.직노)}원</b>의{' '}
+                <b>{노무.비 > 1 ? 노무.비.toFixed(2) + '배' : Math.round(노무.비 * 100) + '%'}</b>{노무.비 > 1 ? '입니다' : '뿐입니다'} —{' '}
+                {노무.비 > 1
+                  ? '공종 머리 · 요약 줄이 품목으로 들어갔거나 다른 공사 시트가 함께 켜졌을 수 있습니다.'
+                  : '빠진 품목 줄이 있거나, 원가계산서가 내역서와 다른 판(심사 전 · 요청 등)이거나, 원본 엑셀 숫자가 서로 안 맞는 파일일 수 있습니다.'}
+                {' '}위에서 켠 시트와 아래 «품목에서 뺀 줄» 을 한 번 보십시오. 이대로 두면 «맞출 금액» 으로 셈한 비율이 틀어질 수 있습니다.
+              </p>
+            ) : (
+              <p className="muted" style={{ margin: '0 0 6px', fontSize: 12.5, lineHeight: 1.8 }}>
+                ✓ 읽은 노무비가 원가계산서(«{노무.원가시트}») 직접노무비 {fmt(노무.직노)}원과 맞습니다
+                {노무.맞음 === '경비몫' ? ' — 원가계산서가 «경비» 로 따로 넣은 운반비 · 안전관리비 같은 묶음의 노무비 ' + fmt(노무.경비몫) + '원 빼고'
+                  : 노무.맞음 === '시트' ? ' — «' + 노무.맞는시트 + '» 시트 몫입니다(원가계산서가 그 시트 것 · 켜 둔 다른 시트도 당초 합계에 함께 들어 있으니 같은 공사인지 한 번 보십시오)'
+                  : Math.abs(노무.비 - 1) > 0.0005 ? ' (' + (Math.abs(노무.비 - 1) * 100).toFixed(1) + '% 차이)' : ''}
+              </p>
+            ))}
             <div className="muted" style={{ fontSize: 12.5, lineHeight: 1.8 }}>
               {온것.시트말.slice(0, 10).join(' / ')}
             </div>
