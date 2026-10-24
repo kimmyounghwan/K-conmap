@@ -9157,3 +9157,80 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 /* 🧭 G395 ⟋ 비스듬히 */
 .gmd-check-l { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; margin: 2px 6px 2px 0; cursor: pointer; }
 .gmd-svg .slant.prop polygon { stroke-width: 30; }
+
+/* 🛣 G396 K-적산컨맵 작업 화면 — 🏢 건축 | 🛣 토목 · 토목 탭(토목판.jsx) */
+.gmd .gmd-ws-field { display: inline-flex; gap: 0; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; flex: 0 0 auto; }
+.gmd .gmd-field { padding: 6px 12px; font-size: 13px; font-weight: 700; border: 0; background: var(--surface); color: var(--text-2); cursor: pointer; white-space: nowrap; }
+.gmd .gmd-field + .gmd-field { border-left: 1px solid var(--line); }
+.gmd .gmd-field.on { background: var(--accent); color: #fff; }
+.gmd .tmk-body { grid-template-columns: 250px minmax(0, 1fr) 340px; }
+.gmd .tmk-left, .gmd .tmk-right { display: flex; flex-direction: column; gap: 10px; }
+.gmd .tmk-steps { list-style: none; padding: 0; margin: 6px 0 0; display: flex; flex-direction: column; gap: 4px; }
+.gmd .tmk-step { display: flex; gap: 6px; align-items: flex-start; font-size: 12.5px; padding: 5px 6px; border-radius: 7px; }
+.gmd .tmk-step b { display: block; font-size: 12.5px; }
+.gmd .tmk-step small { display: block; color: var(--muted); font-size: 11.5px; line-height: 1.45; }
+.gmd .tmk-step.s-now { background: var(--accent-soft); }
+.gmd .tmk-step.s-need { background: #fff7ed; }
+.gmd .tmk-mark { flex: 0 0 18px; text-align: center; font-weight: 800; }
+.gmd .tmk-step.s-ok .tmk-mark { color: #16a34a; }
+.gmd .tmk-box { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid var(--line); padding-top: 8px; }
+.gmd .tmk-box summary { cursor: pointer; font-size: 12.5px; color: var(--text-2); }
+.gmd .tmk-dws { list-style: none; padding: 0; margin: 2px 0; display: flex; flex-direction: column; gap: 3px; }
+.gmd .tmk-dw { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 6px; font-size: 12px; padding: 4px 6px; border-radius: 6px; background: var(--surface-2); }
+.gmd .tmk-dw small { grid-column: 1 / -1; color: var(--muted); font-size: 11px; }
+.gmd .tmk-dwn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gmd .tmk-kind { font-weight: 700; color: var(--accent); white-space: nowrap; }
+.gmd .tmk-dw.s-기준 { outline: 2px solid #eab308; }
+.gmd .tmk-dw.s-옆, .gmd .tmk-dw.s-꺼둠 { opacity: .75; }
+.gmd .tmk-center .tmk-views { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.gmd .tmk-body.view-나란히 .tmk-views { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.gmd .tmk-plan, .gmd .tmk-3d { position: relative; min-height: 360px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); }
+.gmd .tmk-canvas, .gmd .tmk-canvas3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+.gmd .tmk-canvas3d { cursor: grab; }
+.gmd .tmk-planbar { position: absolute; left: 8px; top: 8px; display: flex; gap: 4px; }
+.gmd .tmk-planbar .btn { width: auto; background: var(--surface); }
+.gmd .tmk-card { display: flex; flex-direction: column; gap: 5px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.gmd .tmk-card select { width: 100%; padding: 6px; border-radius: 7px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: 13px; }
+.gmd .tmk-card small { font-size: 11.5px; line-height: 1.5; }
+.gmd .tmk-ll { font-size: 12.5px; }
+.gmd .tmk-kv { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.gmd .tmk-kv th { text-align: left; color: var(--muted); font-weight: 600; padding: 2px 6px 2px 0; white-space: nowrap; width: 1%; }
+.gmd .tmk-kv td { padding: 2px 0; text-align: right; font-variant-numeric: tabular-nums; }
+.gmd .tmk-near { display: flex; flex-direction: column; gap: 1px; padding: 5px 6px; border-radius: 7px; background: var(--surface-2); font-size: 12.5px; }
+.gmd .tmk-lines ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.gmd .tmk-line { width: 100%; text-align: left; display: flex; flex-direction: column; gap: 1px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); color: var(--text); cursor: pointer; font-size: 12.5px; }
+.gmd .tmk-line small { color: var(--muted); font-size: 11.5px; }
+.gmd .tmk-line.on { border-color: #f97316; background: #fff7ed; }
+.gmd .tmk-tablewrap { max-height: 300px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.gmd .tmk-table { width: 100%; border-collapse: collapse; font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.gmd .tmk-table th { position: sticky; top: 0; background: var(--surface-2); text-align: right; padding: 4px 5px; white-space: nowrap; font-weight: 700; }
+.gmd .tmk-table td { text-align: right; padding: 3px 5px; border-top: 1px solid var(--line-soft); white-space: nowrap; }
+.gmd .tmk-table th:first-child, .gmd .tmk-table td:first-child { text-align: left; }
+.gmd .tmk-table tr.cut td { font-weight: 700; }
+.gmd .tmk-table tr.sign td { background: #fef3c7; }
+.gmd .tmk-table tr.diff td { background: #fee2e2; }
+.gmd .tmk-csv { width: auto; align-self: flex-start; }
+.gmd .tmk-cmpg summary { cursor: pointer; font-size: 12.5px; padding: 3px 0; }
+.gmd .tmk-cmpg.bad summary { color: #b45309; font-weight: 700; }
+.gmd .tmk-perline { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+.gmd .tmk-perline small { color: var(--muted); }
+.gmd .tmk-empty { max-width: 760px; margin: 12px auto; }
+.gmd .tmk-need { line-height: 1.8; padding-left: 20px; }
+@media (prefers-color-scheme: dark) {
+  .gmd .tmk-step.s-need { background: rgba(251, 146, 60, .12); }
+  .gmd .tmk-line.on { background: rgba(249, 115, 22, .14); }
+  .gmd .tmk-table tr.sign td { background: rgba(234, 179, 8, .18); }
+  .gmd .tmk-table tr.diff td { background: rgba(239, 68, 68, .18); }
+}
+@media (max-width: 1100px) { .gmd .tmk-body { grid-template-columns: 220px minmax(0, 1fr); } }
+@media (max-width: 760px) {
+  .gmd .tmk-body.view-나란히 .tmk-views { grid-template-columns: minmax(0, 1fr); }
+  .gmd .tmk-plan, .gmd .tmk-3d { min-height: 0; height: 58vh; }
+  .gmd .gmd-ws-field { order: 2; }
+  .gmd .tmk-center { order: 1; } .gmd .tmk-right { order: 2; } .gmd .tmk-left { order: 3; }   /* 폰: 평면 먼저 · 자리 · 노선 · 길잡이는 아래 */
+}
+.gmd .tmk-table tr.out td { opacity: .6; font-style: italic; }
+.gmd .tmk-center > .tmk-sta { flex: 0 0 auto; }
+.gmd .tmk-center > .tmk-sta .tmk-tablewrap { max-height: 28vh; }
+.gmd .tmk-stahead { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 760px) { .gmd .tmk-center > .tmk-sta .tmk-tablewrap { max-height: 50vh; } }

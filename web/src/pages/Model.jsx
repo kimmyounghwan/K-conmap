@@ -20,7 +20,7 @@
  * ■ 🚶 G390 «둘러보기»(작업 화면 가운데 · 🔒 운영자만) — 3D 안을 사람(셋 가운데 고름)이 걸으며 부재 확인 · ✂ 나누기 · 📝 점검사항(둘러보기판.jsx)
  *   도면에서 못 옮긴 것(M.빠짐)은 3D 에 빨갛게 · 고른 부재에 «📄 근거 도면»(자리를 읽은 평면) · «짐작»(도면에 없던 값) · ✂ 자리(mm)로 나누기.
  */
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { 세기 } from '../lib/받은수.jsx'
 import { 배근칸, 정착표, 기준값, 엑셀 as 골조엑셀 } from '../lib/골조.js'
@@ -32,6 +32,9 @@ import { 길잡이 } from '../lib/도우미.js'
 import { 부재보기 } from '../lib/bim3d.js'
 import { 확인 as 이용권확인 } from '../lib/이용권.js'
 import { 나운영자 } from '../lib/운영자.js'
+/* 🛣 G396 작업 화면 «토목» 탭 — 노선(STA) · TM 좌표 · EL · 측량점 파일 · 좌표계(따로 불러옴 — 건축만 쓰면 안 받음) */
+const 토목판 = lazy(() => import('../토목판.jsx'))
+const 분야열쇠 = 'kcm.ws.field'
 
 const 저장열쇠 = 'kcm.model.v1'
 const 되돌림열쇠 = 'kcm.model.undo.v1'
@@ -113,6 +116,9 @@ export default function Model() {
     if (탭 === '통심' && M.부재.length) set탭('세우기')
     return () => { document.body.style.overflow = 전 }
   }, [작업])  // eslint-disable-line react-hooks/exhaustive-deps
+  /* 🛣 G396 🏢 건축 | 🛣 토목 — 같은 작업 화면 · 고른 것은 이 브라우저에 기억 */
+  const [분야, set분야0] = useState(() => { try { return localStorage.getItem(분야열쇠) === '토목' ? '토목' : '건축' } catch (e) { return '건축' } })
+  const set분야 = (v) => { set분야0(v); try { localStorage.setItem(분야열쇠, v) } catch (e) { /* 막힘 */ } if (v === '토목') 세기('|토목탭|탭') }
   const 전체화면 = () => { const el = 작업Ref.current; try { if (document.fullscreenElement) document.exitFullscreen(); else if (el && el.requestFullscreen) el.requestFullscreen() } catch (e) { /* 막힘 */ } }
   const 센것 = useRef(new Set())
   const 한번세기 = (k) => { if (센것.current.has(k)) return; 센것.current.add(k); 세기(k) }
@@ -226,11 +232,30 @@ export default function Model() {
       엑셀받음={엑셀받음} 걷기요청={걷기요청} 길행동={길행동} 원료Ref={원료Ref} 도면열기={() => 도면Ref.current && 도면Ref.current.click()} />
   )
   if (작업 && 운영자) {
+    const 분야칸 = (
+      <>
+        <b className="gmd-ws-name"><span className="gmd-ws-brand">🏗 K-적산컨맵</span> <span className="gmd-ws-model">{분야 === '토목' ? '토목' : M.이름 || '골조 모델'}</span></b>
+        <span className="gmd-ws-field" role="tablist" aria-label="분야">
+          {[['건축', '🏢 건축'], ['토목', '🛣 토목']].map(([k, t]) => <button key={k} type="button" role="tab" aria-selected={분야 === k} className={'gmd-field' + (분야 === k ? ' on' : '')} onClick={() => set분야(k)}>{t}</button>)}
+        </span>
+      </>
+    )
+    if (분야 === '토목') {
+      return (
+        <div className="page gmd">
+          <div className="gmd-ws tmk" ref={작업Ref} role="dialog" aria-label="K-적산컨맵 작업 화면 — 토목">
+            <Suspense fallback={<div className="gmd-ws-top">{분야칸}<span className="muted">토목 화면 여는 중…</span></div>}>
+              <토목판 전체화면={전체화면} 나가기={() => set작업(false)} 분야칸={분야칸} />
+            </Suspense>
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="page gmd">
         <div className="gmd-ws" ref={작업Ref} role="dialog" aria-label="K-적산컨맵 작업 화면">
           <div className="gmd-ws-top">
-            <b className="gmd-ws-name"><span className="gmd-ws-brand">🏗 K-적산컨맵</span> <span className="gmd-ws-model">{M.이름 || '골조 모델'}</span></b>
+            {분야칸}
             <span className="gmd-ws-tabs" role="tablist">
               {[['세우기', '세우기 · 3D'], ['통심', '통심 · 층'], ['일람', '부호 일람'], ['물량', '물량 · 엑셀']].map(([k, t]) => (
                 <button key={k} type="button" role="tab" aria-selected={탭 === k} className={'gmd-tab' + (탭 === k ? ' on' : '')} onClick={() => set탭(k)}>{t}</button>

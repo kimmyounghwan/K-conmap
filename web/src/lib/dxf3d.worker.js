@@ -127,6 +127,79 @@ function 곱하기(out, k) {
   for (const [, b] of out) for (const arr of [b.pos, b.pts]) for (let i = 0; i < arr.n; i++) arr.a[i] *= k
 }
 const 선수 = (out) => { let n = 0; for (const [, b] of out) n += b.pos.n / 6 + b.pts.n / 3; return n }
+/**
+ * 🛰 G396 측량 도면 안 «먼 곳 사본» 떼기 — 높이 든 점(측량점)을 1 km 칸으로 이어 무더기로 나누고,
+ *   기준점 이름(TBM · BM · 도근 · «○○-1» 꼴)이 가장 많이 든 무더기(같으면 점이 많은 것)를 «측량 자리» 로 삼아
+ *   그 둘레(1.5 km 또는 그 크기의 반) 밖 그림은 떼어 새 그룹(꺼 둠 · 같은 글자 맞춤 바탕에서 뺌)으로.
+ *   현장 S GPS 도면: 모형 공간에 측량이 세 벌 더 — 4.3 km 남쪽에 같은 측량 한 벌(기준점 이름 없음) · 10~15 km 동쪽 종이 사본 ·
+ *   445 km 밖 사업계획평면도 사본(지번 2,642개). 다른 평면도가 사본 글자에 «꼭 맞아» 엉뚱한 곳에 놓이고 그 노선 · 측점도 거기 섰음.
+ *   측량점이 한 무더기뿐이고 먼 그림도 없으면 그대로(null).
+ * @returns 뗀 그룹 또는 null
+ */
+export function 먼곳떼기(g, 표본, 상자, 다른들 = []) {
+  if (!g || !g.out) return null
+  const 점 = []
+  for (const [name, b] of g.out) {
+    const ly = name.slice(name.indexOf('\u0001') + 1)
+    if (/defpoints/i.test(ly) || !b.pts.n) continue
+    const a = b.pts.a
+    for (let i = 0; i < b.pts.n; i += 3) if (Math.abs(a[i + 2]) > 1 && Math.abs(a[i + 2]) < 3e6) 점.push(a[i], a[i + 1])
+  }
+  if (점.length < 24) return null
+  /* 1 km 칸 → 이웃 칸(8방)끼리 이은 무더기 */
+  const 칸 = 1e6, 칸수 = new Map()
+  for (let i = 0; i < 점.length; i += 2) { const k = Math.floor(점[i] / 칸) + ',' + Math.floor(점[i + 1] / 칸); 칸수.set(k, (칸수.get(k) || 0) + 1) }
+  const 무 = new Map(), 들 = []
+  for (const k0 of 칸수.keys()) {
+    if (무.has(k0)) continue
+    const d = { 칸: [], n: 0, 이름: 0, x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }
+    const 쌓 = [k0]; 무.set(k0, d)
+    while (쌓.length) {
+      const k = 쌓.pop(); d.칸.push(k); d.n += 칸수.get(k)
+      const [cx, cy] = k.split(',').map(Number)
+      for (let p = -1; p <= 1; p++) for (let q = -1; q <= 1; q++) { const kk = (cx + p) + ',' + (cy + q); if (칸수.has(kk) && !무.has(kk)) { 무.set(kk, d); 쌓.push(kk) } }
+    }
+    들.push(d)
+  }
+  for (let i = 0; i < 점.length; i += 2) {
+    const d = 무.get(Math.floor(점[i] / 칸) + ',' + Math.floor(점[i + 1] / 칸))
+    d.x0 = Math.min(d.x0, 점[i]); d.y0 = Math.min(d.y0, 점[i + 1]); d.x1 = Math.max(d.x1, 점[i]); d.y1 = Math.max(d.y1, 점[i + 1])
+  }
+  const 작은 = 들.filter((d) => d.n >= 12)
+  if (!작은.length) return null
+  for (const p of g.글 || []) {
+    if (p.종 !== '기준점') continue
+    for (const d of 작은) if (p.x >= d.x0 - 2e5 && p.x <= d.x1 + 2e5 && p.y >= d.y0 - 2e5 && p.y <= d.y1 + 2e5) { d.이름++; break }
+  }
+  /* 다른 도면(다른 파일)이 이미 그 자리에 그려져 있으면(좌표로 그린 계획평면도 · 성과표) 그 무더기가 진짜 — 같은 측량이 두 벌이면 이것으로 가림 */
+  for (const h of 다른들) {
+    if (!h || h === g || !h.표본 || (h.파일번 != null && h.파일번 === g.파일번) || (h.파일 && g.파일 && h.파일[0] === g.파일[0])) continue
+    const { xs, ys, ws } = h.표본
+    for (const d of 작은) { let w = 0; for (let i = 0; i < xs.length; i++) if (xs[i] >= d.x0 - 3e5 && xs[i] <= d.x1 + 3e5 && ys[i] >= d.y0 - 3e5 && ys[i] <= d.y1 + 3e5) w += ws[i]; if (w > 0) d.다른 = (d.다른 || 0) + 1 }
+  }
+  작은.sort((a, b) => (b.다른 || 0) - (a.다른 || 0) || b.이름 - a.이름 || b.n - a.n)
+  if (globalThis.process && process.env && process.env.DBG) console.error('DBG먼곳', g.제목, g.파일[0], 작은.map((d) => [d.n, d.이름, d.다른 || 0, d.x0 / 1e6 | 0, d.y0 / 1e6 | 0, d.x1 / 1e6 | 0, d.y1 / 1e6 | 0].join(' ')).join(' | '), (g.글 || []).filter((p) => p.종 === '기준점').slice(0, 12).map((p) => p.s + '@' + (p.x / 1e6).toFixed(1) + ',' + (p.y / 1e6).toFixed(1)).join(' '))
+  const 본 = 작은[0]
+  const m = Math.max(1.5e6, 0.5 * Math.max(본.x1 - 본.x0, 본.y1 - 본.y0))
+  const 안 = (x, y) => x >= 본.x0 - m && x <= 본.x1 + m && y >= 본.y0 - m && y <= 본.y1 + m
+  let 밖수 = 0
+  for (const [, b] of g.out) { const a = b.pos.a; for (let i = 0; i < b.pos.n; i += 6) if (!안((a[i] + a[i + 3]) / 2, (a[i + 1] + a[i + 4]) / 2)) 밖수++ }
+  const 밖글 = (g.글 || []).filter((p) => !안(p.x, p.y)).length
+  if (밖수 < 50 && 밖글 < 20) return null
+  const 키 = `${g.층들[0]}·먼곳`
+  const out = 그림떼기(g.out, (x, y) => (안(x, y) ? -1 : 0), 0, () => 키, 새버킷)
+  if (g.글) g.글 = g.글.filter((p) => 안(p.x, p.y))
+  if (g.글자) g.글자 = g.글자.filter((t) => 안(t.x, t.y))
+  g.표본 = 표본(g.out); g.상자 = 상자(g.표본)
+  const 이름 = g.제목 && g.제목 !== '도곽 밖' ? g.제목 : g.파일[0].replace(/\.dxf$/i, '')
+  /* 무리 · 파일번 없음 = 어느 무리에도 안 붙고(켜지지 않음) · 끼움(xref) 자르기에도 안 씀 */
+  const h = { 종류: '밖', 파일: g.파일, 파일번: null, 제목: `${이름} — 측량 자리에서 먼 곳(사본)`, out, 층들: [키], 켬: false, 평면: false, 무리: null, 그림: true, 먼곳: true,
+    자리: { how: '기준', 기준밖: true, 먼곳: true, 선: 밖수, 글: 밖글, 무더기: 작은.length } }
+  h.표본 = 표본(out); h.상자 = 상자(h.표본)
+  return h
+}
+/* 🛰 G396 좌표계 글자 */
+const 좌표꼴 = /GRS\s*-?\s*80|GES\s*80|bessel|베셀|세계\s*측지|동경\s*측지|(서부|중부|동부|동해)\s*원점|EPSG|TM\s*좌표/i
 const 평면꼴 = new Set(['측량', '평면', '종평', '밖'])
 const 끔꼴 = new Set(['종단', '횡단못', '상세', '표', '기타', '건축'])
 
@@ -137,6 +210,7 @@ self.onmessage = async (ev) => {
   try {
     const 읽은 = []
     const 못읽은 = []
+    const 좌표글 = new Set()
     for (let i = 0; i < files.length; i++) {
       const f = files[i]
       const 앞 = i / Math.max(1, files.length), 폭 = 0.7 / Math.max(1, files.length)
@@ -151,6 +225,8 @@ self.onmessage = async (ev) => {
       if (!/(^|\n)\s*0\s*\r?\n\s*SECTION/.test(text.slice(0, 20000))) { 못읽은.push({ 이름: f.name, 까닭: 'notdxf' }); continue }
       let raw = parseDxf(text, (p) => self.postMessage({ type: 'prog', p: 0.02 + (앞 + p * 폭 / 0.7) * 0.7, msg: `${f.name} 선 세우는 중` }), { raw: true })
       if (!raw.stats.ents && !raw.texts.length) { 못읽은.push({ 이름: f.name, 까닭: 'empty' }); continue }
+      /* 🛰 G396 좌표계 글자(«GRS80좌표계» · «Bessel» · «중부원점» · «세계측지계») — 토목 탭 좌표계 짐작에 */
+      for (const t of raw.texts) { const s = String(t.s || ''); if (좌표글.size < 20 && s.length < 80 && 좌표꼴.test(s)) 좌표글.add(s) }
       /* 🧭 G239 선이 너무 많아(300만 개) 끊긴 통합본 — 글자는 끝까지 읽었으니, 층 평면도 제목 둘레만 선을 다시 읽음(겹치는 순서 0 포장 펴기)
            소장님 현장 C · D 식당 건축 통합본: 선 2,465만 개 · 앞 300만 개에 층 평면이 없어 건물이 안 섰음 */
       if (raw.stats.capped) {
@@ -613,14 +689,16 @@ self.onmessage = async (ev) => {
       const 표에 = (L) => { for (const p of L) { let a = 표.get(p.k); if (!a) { a = []; 표.set(p.k, a) } if (a.length < 8) a.push(p) } }
       표에(pool)
       const 그대로맞음 = (L) => {
-        let n = 0, w = 0
+        let n = 0, w = 0, 기준 = 0
         const 본 = new Set()
         for (const p of L) {
           if (본.has(p.k)) continue
           const a = 표.get(p.k)
-          if (a && a.some((q) => Math.abs(q.x - p.x) <= 2500 && Math.abs(q.y - p.y) <= 2500)) { 본.add(p.k); n++; w += p.w }
+          /* 🛰 G396 기준점 이름은 점 옆에 적힌 글자라 10 m 까지(현장 S: 성과표 기준점 넷과 GPS 도면 이름 글자가 모두 4 m 옆) */
+          const 틈 = p.종 === '기준점' ? 10000 : 2500
+          if (a && a.some((q) => Math.abs(q.x - p.x) <= 틈 && Math.abs(q.y - p.y) <= 틈)) { 본.add(p.k); n++; w += p.w; if (p.종 === '기준점') 기준++ }
         }
-        return { n, w }
+        return { n, w, 기준 }
       }
       const 넣기 = (g) => { if (g.글 && g.종류 !== '밖') { const v = 보이는(g.글); pool = pool.concat(v); 표에(v) } 들.push(g) }
       let 바뀜 = true, 판 = 0
@@ -638,6 +716,16 @@ self.onmessage = async (ev) => {
           g.무리 = 머리.무리
           g.자리 = { how: '끼움', 길: k.길.slice(0, 3), 회전: 회전도(k.T) }
           if (g.종류 === '밖') g.켬 = 기준위(g)
+          넣기(g); 바뀜 = true
+        }
+        /* ㉠-0 🛰 G396 성과표 기준점 이름 셋 넘게가 이미 제자리(이름 글자 10 m 안)인 측량 도면은 «그대로» 를 먼저 — 다른 도면이 성과표 네 점에만 맞춰
+              조금 돌아간 채(0.04°) 먼저 붙고, 제자리 측량 도면이 그것을 따라 같이 돌아가지 않게(현장 S) */
+        if (머리.성과표) for (const g of 남은) {
+          if (g.무리 != null || g.종류 !== '측량' || !g.글 || !g.글.length) continue
+          const 그대 = 그대로맞음(g.글)
+          if (그대.기준 < 3) continue
+          g.무리 = 머리.무리
+          g.자리 = { how: '좌표', n: 그대.n, 확인: true, 기준점: 그대.기준 }
           넣기(g); 바뀜 = true
         }
         /* ㉠ 같은 글자로 — 이미 제자리(좌표가 같음)인 도면은 옮기지 않습니다.
@@ -702,6 +790,8 @@ self.onmessage = async (ev) => {
       기준g = 기준후보[0]
       기준g.기준 = true
       기준g.자리 = { how: '기준' }
+      /* 🛰 G396 측량 도면 안 «먼 곳 사본» 은 떼어 꺼 둠(먼곳떼기) — 기준이든 붙일 것이든, 다른 도면이 그 사본 글자에 맞아 엉뚱한 곳에 놓이지 않게 */
+      for (const g of 평들) if (g.종류 === '측량' && !g.성과표) { const 뗀 = 먼곳떼기(g, 표본, 상자, 평들); if (뗀) 그룹.push(뗀) }
       붙이기(기준g, 평들.filter((g) => g !== 기준g))
       /* 성과표가 아무 도면과도 안 이어지면 — 도면끼리 따로 맞추고(두 번째 기준), 성과표 점은 처음엔 꺼 둡니다 */
       if (기준g.성과표 && 무리들[0].들.length === 1) {
@@ -1547,6 +1637,7 @@ self.onmessage = async (ev) => {
     r.활용 = 활용
     r.파일 = 읽은.map((x) => x.이름)
     r.못읽은 = 못읽은
+    r.좌표글 = [...좌표글]
     const tr = []
     if (활용.땅) tr.push(활용.땅.점.buffer, 활용.땅.삼.buffer)
     for (const L of 활용.노선) tr.push(L.줄.buffer)

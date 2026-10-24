@@ -30,9 +30,10 @@ const 머리꼴 = {
   이름: /^(점\s*명|점\s*번\s*호?|측\s*점|번\s*호|NO\.?|POINT|PT\.?|PNO|NAME|ID|기준점|도근점|점의\s*명칭|명\s*칭)$/i,
   N: /^(N|NORTH(ING)?|북|북\s*좌표|X\s*\(\s*N\s*\)|N\s*\(\s*X\s*\))$/i,
   E: /^(E|EAST(ING)?|동|동\s*좌표|Y\s*\(\s*E\s*\)|E\s*\(\s*Y\s*\))$/i,
-  X: /^(X|X\s*좌표|좌표\s*X|X\s*\(\s*M\s*\))$/i,
-  Y: /^(Y|Y\s*좌표|좌표\s*Y|Y\s*\(\s*M\s*\))$/i,
-  Z: /^(Z|H|EL\.?|ELEV(ATION)?|표\s*고|높\s*이|지\s*반\s*고|표고\s*\(\s*M\s*\)|H\s*\(\s*M\s*\)|Z\s*\(\s*M\s*\))$/i,
+  /* 🛰 G396 «X - LIST» · «Y - LIST»(측량 성과표 꼴) · «G.H» · «GH»(지반고) 도 — 현장 S 시공측량 결과 «측량성과표» 시트 */
+  X: /^(X|X\s*좌표|좌표\s*X|X\s*\(\s*M\s*\)|X\s*-?\s*LIST)$/i,
+  Y: /^(Y|Y\s*좌표|좌표\s*Y|Y\s*\(\s*M\s*\)|Y\s*-?\s*LIST)$/i,
+  Z: /^(Z|H|EL\.?|ELEV(ATION)?|표\s*고|높\s*이|지\s*반\s*고|표고\s*\(\s*M\s*\)|H\s*\(\s*M\s*\)|Z\s*\(\s*M\s*\)|G\.?\s*H\.?)$/i,
 }
 
 /**
