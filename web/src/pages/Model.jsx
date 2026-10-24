@@ -25,7 +25,7 @@ import { Link } from 'react-router-dom'
 import { 세기 } from '../lib/받은수.jsx'
 import { 배근칸, 정착표, 기준값, 엑셀 as 골조엑셀 } from '../lib/골조.js'
 import { 도면함끄기, 도면함켜기, 도면함넣어둠 } from '../lib/도면모델.js'
-import { 새모델, 예시모델, 작업예시모델, 정돈, 기둥넣기, 선넣기, 칸넣기, 계단넣기, 부재옮기기, 구간넣기, 구간빼기, 구간고치기, 구간물량, 구간선자르기, 구간색들, 부재빼기, 부재고치기, 부재나누기, 층복사, 통심더하기, 통심빼기, 통심간격, 모델셈, 종류색, 부재글, 모델시트, FT층, 층높이, 제안확인, 제안모두확인, 제안빼기, 기초철근넣기, 계단글 } from '../lib/골조모델.js'
+import { 새모델, 예시모델, 작업예시모델, 정돈, 겹침둠, 겹침남기기, 기둥넣기, 선넣기, 칸넣기, 계단넣기, 부재옮기기, 구간넣기, 구간빼기, 구간고치기, 구간물량, 구간선자르기, 구간색들, 부재빼기, 부재고치기, 부재나누기, 층복사, 통심더하기, 통심빼기, 통심간격, 모델셈, 종류색, 부재글, 모델시트, FT층, 층높이, 제안확인, 제안모두확인, 제안빼기, 기초철근넣기, 계단글 } from '../lib/골조모델.js'
 import 둘러보기판 from '../둘러보기판.jsx'
 import { 층판 } from '../lib/둘러보기.js'
 import { 길잡이 } from '../lib/도우미.js'
@@ -1035,6 +1035,16 @@ function 세우기칸(p) {
           {고른것 && 고름판}
           {S && !S.오류 && 도구 === '구간' && <구간판 M={M} S={S} setM={setM} 구간색={구간색} set구간색={set구간색} 층={층} />}
           {S && !S.오류 && <제안줄 M={M} S={S} setM={setM} set고른={set고른} set층={set층} />}
+          {S && !S.오류 && <겹침판 M={M} S={S} setM={setM} 세기={한번세기} 겹보기={(e) => {
+            const o = M.부재.find((u) => u.id === e.ids[0]); if (!o) return
+            set층(o.층); set고른(o.id); if (보기 === '3D') set보기('나란히'); set보일층('까지'); set도구('고르기')
+            const [a, b, z0, c, d, z1] = e.상자 || [0, 0, 0, 0, 0, 0]
+            setTimeout(() => {
+              set평면확대([a - 3000, b - 3000, c + 3000, d + 3000])
+              try { if (보기Ref.current) 보기Ref.current.fit('tilt', [(a - 3000) / 1000, (b - 3000) / 1000, (z0 - 1500) / 1000, (c + 3000) / 1000, (d + 3000) / 1000, (z1 + 1500) / 1000]) } catch (err) { /* 3D 없음 */ }
+            }, 120)
+            한번세기('|골조모델|겹침보기')
+          }} />}
           <도면함판 M={M} setM={setM} 원료Ref={원료Ref} set층={set층} 도면열기={도면열기} />
           {S && !S.오류 && 도구 !== '구간' && M.구간 && M.구간.length > 0 && <구간판 M={M} S={S} setM={setM} 구간색={구간색} set구간색={set구간색} 층={층} />}
           {S && !S.오류 && <층대조판 M={M} S={S} 층={층} 빨고름={빨고름} 빨보기={(k) => {
@@ -1223,6 +1233,41 @@ function 구간판({ M, S, setM, 구간색, set구간색, 층 }) {
  *   층마다: 도면 부재 n = 세움 m + 🟥 손으로 k + 한 번만 셈(같은 자리 두 번 · 다른 평면에도 그림) · 🟨 확인할 제안 · 콘크리트 도면 셈 ↔ 이 모델
  *   🟥 을 누르면 그 층 평면 · 3D 에 그 자리를 밝게
  */
+/** 🧩 G394 겹친 곳 — 같은 것을 두 번 그린 곳(❓ 어느 것을 남길까요?) · 그 밖에 조금 걸친 곳 */
+function 겹침판({ M, S, setM, 세기, 겹보기 }) {
+  const 겹 = (S.검사.find((z) => z.겹친) || {}).겹친 || []
+  const 둔 = (M.겹침둠 || []).length
+  if (!겹.length && !둔) return null
+  const 둘 = 겹.filter((e) => e.종 === '둘'), 남 = 겹.filter((e) => e.종 !== '둘')
+  const 합 = 겹.reduce((a, e) => a + e.부피, 0)
+  const 부 = (id) => M.부재.find((u) => u.id === id)
+  const 짧 = (e, k) => { const o = 부(e.ids[k]); return (o ? String(o.부호 || '') || o.종류 : '#' + e.ids[k]) + ' · ' + 수글((e.부피들 || [])[k] || 0) + ' ㎥' }
+  return (
+    <details className="gmd-box gmd-ovl" open={둘.length > 0} aria-label="겹친 곳">
+      <summary><b>🧩 겹친 곳 {겹.length}</b> <span className="muted">— ❓ 어느 것을 남길까요? {둘.length}곳 · 합 {수글(합)} ㎥{둔 ? ' · 둘 다 맞음 ' + 둔 : ''}</span></summary>
+      {둘.length > 0 && <p className="muted gmd-p">같은 자리에 두 번 그린 것입니다(도면 두 장 · 같은 줄에 다른 부호 · 칸이 겹침). 남길 것을 누르면 다른 것을 뺍니다 — ↶ 되돌리기로 돌아옵니다. 둘 다 맞으면 «둘 다 맞음».</p>}
+      <ul className="gmd-ovllist">{둘.slice(0, 40).map((e) => (
+        <li key={e.ids.join('|')}>
+          <button type="button" className="gmd-link" onClick={() => 겹보기(e)}>🔍 {e.머리}</button> <span className="muted">겹친 몫 {수글(e.부피)} ㎥</span>
+          <div className="gmd-row gmd-wrap">
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { setM((P) => 겹침남기기(P, e.ids[0], e.ids[1])); 세기('|골조모델|겹침남기기') }}>✓ {짧(e, 0)} 남기기</button>
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { setM((P) => 겹침남기기(P, e.ids[1], e.ids[0])); 세기('|골조모델|겹침남기기') }}>✓ {짧(e, 1)} 남기기</button>
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { setM((P) => 겹침둠(P, e.ids[0], e.ids[1])); 세기('|골조모델|겹침둘다') }}>둘 다 맞음</button>
+          </div>
+        </li>
+      ))}</ul>
+      {둘.length > 40 && <p className="muted gmd-p">… {둘.length - 40}곳 더(위에서 고르면 다음 것이 나옵니다)</p>}
+      {남.length > 0 && (
+        <details className="gmd-lines-d">
+          <summary>그 밖에 조금 걸친 곳 {남.length} — 합 {수글(남.reduce((a, e) => a + e.부피, 0))} ㎥</summary>
+          <ul className="gmd-dwglist">{남.slice(0, 30).map((e) => <li key={e.ids.join('|')}><button type="button" className="gmd-link" onClick={() => 겹보기(e)}>🔍 {e.글}</button></li>)}</ul>
+        </details>
+      )}
+      {둔 > 0 && <p className="muted gmd-p">«둘 다 맞음» 으로 둔 겹침 {둔}곳은 둘 다 셉니다. <button type="button" className="gmd-link" onClick={() => setM((P) => ({ ...P, 겹침둠: [] }))}>다시 묻기</button></p>}
+    </details>
+  )
+}
+
 function 층대조판({ M, S, 층, 빨고름, 빨보기 }) {
   const 대 = M.대조 || null
   const 층들 = [...M.층].reverse().map((f) => f.이름)
@@ -1376,7 +1421,7 @@ function 물량칸({ M, S, 엑셀받기, 받는중, set탭, set고른, set층 })
       <h2 className="gmd-h">검사</h2>
       <ul className="gmd-check">
         {S.검사.map((z, i) => <li key={i} className={z.좋음 ? 'ok' : 'bad'}>{z.좋음 ? '✓' : '⚠'} {z.글}</li>)}
-        {겹친.slice(0, 30).map((x, i) => <li key={'k' + i} className="bad sub"><button type="button" className="gmd-link" onClick={() => { const o = M.부재.find((u) => u.id === x.ids[0]); if (o) { set층(o.층); set고른(o.id); set탭('세우기') } }}>{x.글}</button></li>)}
+        {겹친.slice(0, 30).map((x, i) => <li key={'k' + i} className="bad sub"><button type="button" className="gmd-link" onClick={() => { const o = M.부재.find((u) => u.id === x.ids[0]); if (o) { set층(o.층); set고른(o.id); set탭('세우기') } }}>{x.종 === '둘' ? '❓ ' : ''}{x.글}</button></li>)}
       </ul>
       {S.경고.length > 0 && (<>
         <h2 className="gmd-h">경고 {S.경고.length}</h2>

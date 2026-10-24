@@ -467,8 +467,18 @@ for (const 기기 of 기기들) {
       const 구 = (await B.locator('.gmd-zonelist input').evaluateAll((a) => a.map((e) => e.value)).catch(() => [])).join(' ')
       봐(/A팀/.test(구) && /B팀/.test(구), `${기기} ▭ 구간 A팀 · B팀`, 구.replace(/\n/g, ' ').slice(0, 120))
       봐(/골조에 안 쓴 도면|안 쓴/.test(await B.locator('#gmd-dwgbox').innerText()), `${기기} 🗂 골조에 안 쓴 도면(건축 · 토목) 목록`)
-      const 검 = await B.locator('.gmd-ws-right').innerText()
-      봐(!/겹친 곳 \d/.test(검), `${기기} 예시 — 겹친 곳 없음(안쪽 모서리 한 번만)`)
+      /* 🧩 G394 두 번 그린 벽 — «❓ 어느 것을 남길까요?» 1곳 → 남기기 → 겹침 없음 · 합 214.833 */
+      const 겹판 = await B.locator('.gmd-ovl').innerText().catch(() => '')
+      봐(/겹친 곳 1/.test(겹판) && /어느 것을 남길까요\? 1곳/.test(겹판) && /W1 ↔ 1층 벽 W1/.test(겹판), `${기기} 🧩 겹친 곳 — ❓ 두 번 그린 벽 W1 1곳(안쪽 모서리는 한 번만이라 안 나옴)`, 겹판.replace(/\n/g, ' ').slice(0, 160))
+      const 남버튼 = B.locator('.gmd-ovllist li').first().locator('button', { hasText: '남기기' }).first()
+      await 남버튼.scrollIntoViewIfNeeded().catch(() => {}); await 남버튼.click(); await B.waitForTimeout(900)
+      const 합남 = await B.locator('.gmd-ws-right .gmd-sum').innerText()
+      봐((await B.locator('.gmd-ovl').count()) === 0 && /214\.833/.test(합남), `${기기} ✓ 남기기 → 겹친 곳 없음 · 합 214.833 ㎥`, 합남.replace(/\n/g, ' '))
+      await B.getByRole('button', { name: /되돌리기/ }).first().click(); await B.waitForTimeout(700)
+      봐((await B.locator('.gmd-ovl').count()) === 1, `${기기} ↶ 되돌리기 → 두 번 그린 벽 다시(겹친 곳 1)`)
+      await B.locator('.gmd-ovllist li').first().locator('button', { hasText: '둘 다 맞음' }).click(); await B.waitForTimeout(700)
+      const 겹판2 = await B.locator('.gmd-ovl').innerText().catch(() => '')
+      봐(!/어느 것을 남길까요\? 1곳/.test(겹판2) && /둘 다 맞음 1/.test(겹판2), `${기기} 둘 다 맞음 → 묻지 않고 둘 다 셈(«다시 묻기» 있음)`, 겹판2.replace(/\n/g, ' ').slice(0, 120))
     }
     if (기기 === '폰') 봐((await B.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 1, `폰 계단 · 옮기기 · 큰 모델 · 예시 — 가로 넘침 없음`)
   }

@@ -9148,3 +9148,9 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gwk-bubble::after { content: ''; position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); border: 6px solid transparent; border-top-color: rgba(15, 23, 42, 0.88); border-bottom: 0; }
 .gwk-conc b { color: #15803d; }
 .gwk-done { color: #15803d; font-weight: 700; }
+/* 🧩 G394 겹친 곳 — ❓ 어느 것을 남길까요? */
+.gmd-ovl summary b { color: #9a3412; }
+.gmd-ovllist { list-style: none; margin: 6px 0 0; padding: 0; }
+.gmd-ovllist li { padding: 6px 0; border-top: 1px dashed var(--line, #e5e7eb); }
+.gmd-ovllist li:first-child { border-top: 0; }
+.gmd-ovllist .gmd-row { margin-top: 4px; gap: 6px; }
