@@ -673,7 +673,7 @@ export default function Bim() {
           <b> 3D 로 세우고</b>, 같은 모델로 <b>물량</b>을 냅니다. 건축 · 토목 도면을 <b>한꺼번에</b> 넣으셔도 됩니다. 3D 에서 누르면 그 덩어리의 물량이 나옵니다.
           <b> 도면은 고치지 않습니다</b> — 읽기만 합니다.
         </div>
-        <div className="pdfsafe">🔒 <b>파일은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 읽고 셉니다 · 회원가입 없이 바로 이용 가능.</div>
+        <div className="pdfsafe">🔒 <b>파일은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 읽고 셉니다 · 회원가입 없음 · 무료.</div>
         <div className="bim-put">
           <button type="button" className="btn" onClick={() => 칸Ref.current && 칸Ref.current.click()} disabled={상태.k === 'busy'}>📂 도면 넣기 (여러 장)</button>
           <input ref={칸Ref} type="file" multiple accept=".dxf,.DXF,.dwg,.DWG" className="sr-only" tabIndex={-1} onChange={(e) => { 파일받기(e.target.files); e.target.value = '' }} />

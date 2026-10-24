@@ -374,7 +374,7 @@ export default function Naeyeok() {
           {/* ⚠️ .hero 는 파란 바탕입니다. 여기에 .muted(회색)를 쓰면 글이 묻혀 안 읽힙니다. */}
           <div style={{ marginTop: 6, lineHeight: 1.75, color: 'rgba(255,255,255,.92)', fontSize: 13.5 }}>
             견적서 · 입찰 산출내역서 · 실행내역 · 설계변경 · 기성 — <b style={{ color: '#fff' }}>내역 일이면 다 합니다.</b>
-            <span style={{ opacity: .9 }}> 이 화면 말고 K-건설맵의 나머지는 회원가입 없이 바로 이용하실 수 있습니다.</span>
+            <span style={{ opacity: .9 }}> 이 화면 말고 K-건설맵의 나머지는 전부 무료입니다.</span>
           </div>
         </div>
       ) : (
@@ -436,7 +436,7 @@ export default function Naeyeok() {
           맡기실 것이 아니라 «직접 하실 것» 이라 여기 위쪽에 답니다.
           대행을 보러 온 분이 «이건 내가 하면 되겠다» 하는 일이면 그렇게 하시는 게 맞습니다. */}
       <div className="card" style={{ borderLeft: '5px solid #2e7d32' }}>
-        <div className="sec-title" style={{ marginTop: 0 }}>직접 하실 수 있는 것 — 바로 이용 가능</div>
+        <div className="sec-title" style={{ marginTop: 0 }}>직접 하실 수 있는 것 — 무료</div>
         <p style={{ margin: '0 0 10px', lineHeight: 1.85 }}>
           <b>이미 있는 내역서를 «비율»로만 맞추는 일</b>이라면 직접 하실 수 있습니다.
           내역서를 올리고 <b>80%</b> 같은 비율이나 맞출 금액만 넣으시면
@@ -648,7 +648,7 @@ export default function Naeyeok() {
         <div className="sec-title">어떻게 되나</div>
         <ol style={{ margin: 0, paddingLeft: 20, lineHeight: 2.1 }}>
           <li><b>보내 주십니다</b> — 공사명·금액·납기, 그리고 물량이나 설계서가 있으면 함께</li>
-          <li><b>하루 안에 답 드립니다</b> — 값·납기·무엇을 드릴지. 견적만 받아 보셔도 됩니다</li>
+          <li><b>하루 안에 답 드립니다</b> — 값·납기·무엇을 드릴지. 여기까지 무료입니다</li>
           <li><b>만듭니다</b> — 중간에 한 번 보여 드리고 고칠 것을 받습니다</li>
           <li><b>검수 후 결제</b> — 받아 보시고 맞는지 확인하신 뒤에 결제하십니다</li>
         </ol>
@@ -669,7 +669,7 @@ export default function Naeyeok() {
             같은 발주처·같은 공종의 최근 내역과 <b>맞춰 보고</b> 드립니다.
           </li>
           <li>
-            <b>개찰 자료 15만여 건</b>을 세어 만든 사이트입니다. 이 화면 말고 나머지는 회원가입 없이 바로 이용하실 수 있습니다 —
+            <b>개찰 자료 15만여 건</b>을 세어 만든 사이트입니다. 이 화면 말고 나머지는 전부 무료입니다 —
             <Link to="/"> 바로투찰</Link> · <Link to="/first">1순위</Link> · <Link to="/forms">서식</Link> ·
             <Link to="/change"> 설계변경</Link> · <Link to="/jobs">구인구직</Link> · <Link to="/cad">캐드</Link>.
             써 보시고 판단하십시오.

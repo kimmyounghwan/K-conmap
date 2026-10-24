@@ -125,7 +125,7 @@ export default function Sanan() {
         </p>
         <div className="nm-badges">
           <span>근거: {고시}</span>
-          <span>회원가입 없이 바로 이용 가능</span>
+          <span>회원가입 없음 · 무료</span>
           <span>💾 이 브라우저에 저장 · 🔗 코드로 폰·PC 이어 쓰기 {저장됨 ? '' : <b className="nm-warn">— 지금 저장이 막혀 있습니다(사생활 보호 창 등)</b>}</span>
         </div>
         <이어쓰기 ns="sn" 이름="산안비 계상기" 파일="산안비" st={st} setSt={setSt} 읽기={읽기} 쓰기={쓰기} />

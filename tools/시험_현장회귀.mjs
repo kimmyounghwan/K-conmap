@@ -36,6 +36,10 @@ export function 현장셈(폴더, 거름 = '') {
   const 모델 = 플랜트모델(모델만들기(들, R, { 높이: {} }), R)
   const 공사 = 셈방법입히기(겹친것빼기(공사0, 모델), '도면')
   const S = 셈(공사)
+  /* 🪜 G393 계단 — 도면 셈(BIM) 계단 줄 합 · 작업 화면 계단 합 */
+  const 계합 = (줄) => { const m = { 콘크리트: 0, 거푸집: 0, 철근: 0 }; for (const x of 줄) if (x.부재 === '계단') { const k = /거푸집/.test(x.항목) ? '거푸집' : x.항목; if (k in m) m[k] += x.수량 } return m }
+  const 계도 = 계합(S.줄)
+  const 기철 = (줄) => 줄.filter((x) => x.부재 === '기초' && x.항목 === '철근').reduce((a, x) => a + x.수량, 0)
   const 합 = {}
   for (const x of S.줄) { const 항 = /거푸집/.test(x.항목) ? '거푸집' : x.항목; 합[항] = (합[항] || 0) + x.수량 }
   /* 📐 G389 작업 화면 «도면 넣기» — 좌표대로 골조 모델로 옮겨 셈 */
@@ -51,7 +55,8 @@ export function 현장셈(폴더, 거름 = '') {
   for (const k of 키들) Mb = 평면가져오기(Mb, 전체, new Set([k])).M
   const 둥 = (H) => JSON.stringify(Object.fromEntries(Object.entries(H).map(([k, x]) => [k, Math.round(x * 1e6) / 1e6])))
   const 하나씩 = { 같음: Mb.부재.length === 변.M.부재.length && 둥(모델셈(Mb).합) === 둥(G.합) && Mb.빠짐.length === 전체.빠짐.length, 부재: Mb.부재.length, 평면: 키들.length, 빨강: Mb.빠짐.length + ' / ' + 전체.빠짐.length }
-  return { 합, 파일: 파일.length, 부재: 모델.부재.length, 모델: { 종, 옮김: 변.옮김, 못옮김: 변.못옮김.length, 하나씩 } }
+  const 계모 = 계합(G.R.줄)
+  return { 합, 파일: 파일.length, 부재: 모델.부재.length, 모델: { 종, 옮김: 변.옮김, 못옮김: 변.못옮김.length, 하나씩, 계도, 계모, 계단수: 변.M.부재.filter((o) => o.종류 === '계단').length, 기철도: 기철(S.줄), 기철모: 기철(G.R.줄), 철모: G.합.철근 } }
 }
 for (const [키, v] of Object.entries(기대)) {
   const 변수 = 'SITE_' + 키.slice(-1)
@@ -66,6 +71,12 @@ for (const [키, v] of Object.entries(기대)) {
     ok(`작업 화면 옮김 ${v.모델.옮김} · 못옮김 ${v.모델.못옮김}`, r.모델.옮김 === v.모델.옮김 && r.모델.못옮김 === v.모델.못옮김, [r.모델.옮김, r.모델.못옮김])
     for (const [종, 값] of Object.entries(v.모델.종)) ok(`작업 화면 ${종} 콘크리트 ${값}`, Math.abs((r.모델.종[종] || 0) - 값) < 0.01, +(r.모델.종[종] || 0).toFixed(3))
     ok(`📚 도면함 — 평면 ${r.모델.하나씩.평면}장 하나씩 가져와도 한꺼번에와 같음(부재 ${r.모델.하나씩.부재} · 빨강 ${r.모델.하나씩.빨강})`, r.모델.하나씩.같음, r.모델.하나씩)
+    /* 🪜 G393 계단 — 건설맵이 먼저 세운 계단 물량 = 도면 셈(콘크리트 · 거푸집 · 철근) · 🔧 기초 철근(MAT 추가 보강근 덧줄 · 도면 정착표) */
+    if (v.모델.계단 !== undefined) {
+      const 같 = (a, b) => Math.abs(a - b) < 0.01
+      ok(`🪜 작업 화면 계단 ${v.모델.계단}곳 — 콘크리트 · 거푸집 · 철근 = 도면 셈(${r.모델.계도.콘크리트.toFixed(3)} ㎥ · ${r.모델.계도.거푸집.toFixed(3)} ㎡ · ${(r.모델.계도.철근 / 1000).toFixed(3)} t)`, r.모델.계단수 === v.모델.계단 && 같(r.모델.계모.콘크리트, r.모델.계도.콘크리트) && 같(r.모델.계모.거푸집, r.모델.계도.거푸집) && 같(r.모델.계모.철근, r.모델.계도.철근), [r.모델.계단수, r.모델.계모, r.모델.계도])
+    }
+    if (v.모델.기초철근 !== undefined) ok(`🔧 작업 화면 기초 철근 ${v.모델.기초철근} t(도면 셈 ${(r.모델.기철도 / 1000).toFixed(3)} t) · 철근 합 ${v.모델.철근} t`, Math.abs(r.모델.기철모 / 1000 - v.모델.기초철근) < 0.001 && Math.abs(r.모델.철모 / 1000 - v.모델.철근) < 0.001, [r.모델.기철모 / 1000, r.모델.철모 / 1000])
   } else console.log('  · 작업 화면 값(기록용):', JSON.stringify({ 옮김: r.모델.옮김, 못옮김: r.모델.못옮김, 종: Object.fromEntries(Object.entries(r.모델.종).map(([k, x]) => [k, +x.toFixed(3)])) }))
 }
 console.log(!본 ? '\n(본 현장 없음 — 환경 변수로 폴더를 주세요)' : bad ? `\n✗ ${bad} 틀림` : '\n✓ 모두 맞음')

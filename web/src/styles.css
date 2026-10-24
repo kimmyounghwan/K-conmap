@@ -9090,3 +9090,61 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .kcm-hero-img { width: 100%; height: auto; border-radius: 12px; display: block; box-shadow: 0 6px 20px rgba(0,0,0,.14); }
 @media (max-width: 760px) { .kcm-hero { grid-template-columns: 1fr; } .kcm-hero h2 { font-size: 19px; } .kcm-hero-img { order: -1; } }
 .gmd .gmd-copyprev { flex-basis: 100%; font-size: 13px; padding: 6px 10px; border-radius: 8px; background: color-mix(in srgb, var(--accent, #2563eb) 10%, var(--surface, #fff)); border: 1px solid color-mix(in srgb, var(--accent, #2563eb) 35%, transparent); }
+
+/* ── 🪜 G393 계단 · ✋ 옮기기 · 📚 도면함 ☑ · 🔧 둘러보기 빨간 곳 나눔 ───────────────── */
+.gmd .gmd-m.st rect, .gmd .gmd-m.st line { vector-effect: non-scaling-stroke; stroke-width: 1.6; }
+.gmd .gmd-m.st text { fill: var(--text, #1f2937); pointer-events: none; }
+.gmd .gmd-st-land { fill: none; stroke: #5ca875; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; stroke-width: 1.2; }
+.gmd .gmd-m.st.prop .gmd-st-land { stroke: #d89b00; }
+.gmd .gmd-st-edit .gmd-in.num { width: 72px; }
+.gmd .tool-옮기기 { touch-action: none; }
+.gmd .tool-옮기기 .gmd-m:not(.ghost) { cursor: grab; }
+.gmd .tool-옮기기.dragging, .gmd .tool-옮기기.dragging .gmd-m { cursor: grabbing; }
+.gmd .gmd-dragg { opacity: 0.72; }
+.gmd .gmd-dragtxt { fill: #b45309; font-weight: 700; paint-order: stroke; stroke: var(--surface, #fff); stroke-width: 4px; pointer-events: none; }
+.gmd .gmd-dwgchk { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; }
+.gmd .gmd-dwgchk input { width: 18px; height: 18px; margin-top: 2px; flex: none; accent-color: var(--accent, #2563eb); }
+.gmd .gmd-box-list li { display: flex; align-items: flex-start; gap: 6px; }
+.gmd .gmd-box-list li .gmd-dwgchk { flex: 1; }
+.gmd .gmd-box-list li.on b { color: var(--text, #1f2937); }
+.gmd .gmd-box-list li:not(.on) b { color: var(--muted, #667085); }
+.gmd .gmd-redo { flex: none; font-size: 12px; }
+.gmd .gmd-box.flash { animation: gmd-flash 1.4s ease-out 1; }
+@keyframes gmd-flash { 0% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent, #2563eb) 55%, transparent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.gmd .gmd-box-empty { border-style: dashed; }
+.gmd .gmd-addrows { background: var(--surface-2, #f6f7f9); border-radius: 8px; padding: 6px 10px; }
+.gwk-prop, .gmd .gwk-prop { color: #b45309; }
+/* 🧾 G393 층별 대조 · 🟥 빨간 곳 목록 · 평면 빨간 곳 */
+.gmd .gmd-cmp summary { cursor: pointer; }
+.gmd .gmd-cmp tr.now td { background: color-mix(in srgb, var(--accent, #2563eb) 8%, transparent); }
+.gmd .gmd-redlist { list-style: none; padding: 0; margin: 6px 0; display: grid; gap: 4px; }
+.gmd .gmd-redlist li { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.gmd .gmd-redbtn { border: 1px solid #f1a7a7; background: color-mix(in srgb, #dc2626 7%, var(--surface, #fff)); color: var(--text, #1f2937); border-radius: 8px; padding: 2px 8px; font-size: 12px; cursor: pointer; }
+.gmd .gmd-redbtn.on { border-color: #dc2626; box-shadow: 0 0 0 2px #dc262655; }
+.gmd .gmd-redbtn small { color: var(--muted, #667085); }
+.gmd .gmd-redspot polygon { fill: rgba(220, 38, 38, 0.16); stroke: #dc2626; stroke-dasharray: 8 5; vector-effect: non-scaling-stroke; stroke-width: 1.4; }
+.gmd .gmd-redspot text { fill: #b91c1c; font-weight: 700; pointer-events: none; }
+.gmd .gmd-redspot.on polygon { fill: rgba(220, 38, 38, 0.42); stroke-width: 3; animation: gmd-redblink 1s ease-in-out 3; }
+@keyframes gmd-redblink { 50% { fill: rgba(220, 38, 38, 0.1); } }
+.gmd .gmd-undo { white-space: nowrap; }
+.gmd .gmd-warnbox { background: color-mix(in srgb, #f59e0b 14%, var(--surface, #fff)); border: 1px solid #f59e0b; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.gmd .gmd-plan { position: relative; }
+.gmd .gmd-planall { position: absolute; top: 6px; right: 6px; z-index: 2; width: auto; }
+.gmd .gmd-redring { fill: none; stroke: #dc2626; stroke-width: 2.5; vector-effect: non-scaling-stroke; animation: gmd-redblink2 1s ease-in-out 4; pointer-events: none; }
+@keyframes gmd-redblink2 { 50% { stroke-opacity: 0.2; } }
+.gmd .gmd-redspot { pointer-events: none; }
+/* ▭ G393 구간 */
+.gmd .gmd-zone { pointer-events: none; }
+.gmd .gmd-zone rect { stroke-width: 2; stroke-dasharray: 10 6; vector-effect: non-scaling-stroke; }
+.gmd .gmd-zone text { font-weight: 700; paint-order: stroke; stroke: var(--surface, #fff); stroke-width: 3px; }
+.gmd .gmd-zone-new { fill: rgba(37, 99, 235, 0.08); stroke: var(--accent, #2563eb); stroke-width: 2; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; pointer-events: none; }
+.gmd .tool-구간 { touch-action: none; cursor: crosshair; }
+.gmd .gmd-zonelist { list-style: none; padding: 0; margin: 6px 0; display: grid; gap: 4px; }
+.gmd .gmd-zonelist li { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.gmd .gmd-zonelist .gmd-in { width: 120px; }
+.gmd .gmd-zonebox tfoot td { font-weight: 700; border-top: 1px solid var(--line, #d0d5dd); }
+/* 💬 G393 둘러보기 말풍선 · 🟩 확인 콘크리트 · 끝 */
+.gwk-bubble { position: absolute; left: 0; top: 0; background: rgba(15, 23, 42, 0.88); color: #fff; border-radius: 10px; padding: 5px 10px; font-size: 12px; line-height: 1.35; white-space: nowrap; pointer-events: none; box-shadow: 0 4px 14px rgba(0,0,0,.25); will-change: transform; }
+.gwk-bubble::after { content: ''; position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); border: 6px solid transparent; border-top-color: rgba(15, 23, 42, 0.88); border-bottom: 0; }
+.gwk-conc b { color: #15803d; }
+.gwk-done { color: #15803d; font-weight: 700; }

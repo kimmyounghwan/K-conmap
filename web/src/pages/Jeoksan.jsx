@@ -180,7 +180,7 @@ export default function Jeoksan() {
             «산출내역서와 원가계산서까지 만듭니다» 는 아직 사실이 아닙니다. 되는 것과 안 되는 것을 그대로 적습니다(아래 «어디까지» 표). */}
         <p className="why2" style={{ marginBottom: 0 }}>
           <b>무엇을 가지고 계신지 고르시면 쓸 도구가 나옵니다.</b> 골조 · 마감까지 도면만 넣으면 저절로, 엑셀로 — 치수를 손으로 적지 않습니다.
-          물량 도구는 가입도 설치도 없이 <b>바로 이용 가능</b>합니다. 도면은 <b>이 브라우저 안에서만</b> 읽습니다.
+          물량 도구는 <b>무료</b>, 가입도 설치도 없습니다. 도면은 <b>이 브라우저 안에서만</b> 읽습니다.
         </p>
       </div>
 
@@ -204,7 +204,7 @@ export default function Jeoksan() {
               <td><b>① 물량</b><br /><span className="muted">수량산출서</span></td>
               <td>무엇이 얼마나 들어가나. <b>도면 물량 자동</b>·<b>골조</b>·<b>마감</b>은 도면만 넣으면 저절로(골조는 구조평면도 + 일람표, 마감은 평면도 + 마감표),
                 수량산출서는 도면을 눌러 채웁니다. 산출근거가 살아 있는 수식으로 남습니다</td>
-              <td style={{ whiteSpace: 'nowrap' }}><b>됩니다</b><br /><span className="muted">바로 이용</span></td>
+              <td style={{ whiteSpace: 'nowrap' }}><b>됩니다</b><br /><span className="muted">무료</span></td>
             </tr>
             <tr>
               <td><b>② 단가</b><br /><span className="muted">공내역서 채우기</span></td>
@@ -400,7 +400,7 @@ export default function Jeoksan() {
 
       <div className="card">
         <div className="sec-title">값은 어떻게 되나</div>
-        <p><b>물량 도구 넷(도면 물량 자동 · 골조 · 마감 · 수량산출서)은 모두 바로 이용 가능합니다.</b></p>
+        <p><b>물량 도구 넷(도면 물량 자동 · 골조 · 마감 · 수량산출서)은 모두 무료입니다.</b></p>
         <p className="muted" style={{ marginBottom: 0 }}>
           현장마다 재료표를 맞춰 드리거나 도면을 같이 보는 일처럼 <b>사람 손이 들어가는 일</b>은 따로입니다.
           그런 일은 아직 받지 않고, 받게 되면 값을 이 화면에 먼저 적겠습니다.{' '}
@@ -431,7 +431,7 @@ export function JeoksanStrip() {
       <div className="grow">
         <div className="t">K-적산 <em>· 도면에서 물량을 뽑습니다</em></div>
         <div className="d">
-          <b>도면을 넣으면 물량</b>이 나옵니다 — 골조·마감까지 저절로, 엑셀로. 내역서를 넣으면 수량 칸까지 채웁니다. 고칠 곳만 도면을 눌러 바꿉니다. 깔 것도 가입도 없이 바로 이용 가능합니다.
+          <b>도면을 넣으면 물량</b>이 나옵니다 — 골조·마감까지 저절로, 엑셀로. 내역서를 넣으면 수량 칸까지 채웁니다. 고칠 곳만 도면을 눌러 바꿉니다. 무료 · 깔 것도 가입도 없습니다.
           산출근거가 <b>살아 있는 엑셀 수식</b>이라 감리가 칸을 눌러 봅니다.
         </div>
       </div>

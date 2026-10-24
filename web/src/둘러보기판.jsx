@@ -20,7 +20,7 @@ import { 세기 } from './lib/받은수.jsx'
 import { 사람몸, 놓기 } from './lib/사람3d.js'
 import { 사람모델읽기, 사람자세, 사람놓기, 캐릭터들, 캐릭터받기 } from './lib/사람vrm.js'
 import { 층판, 첫자리, 걷기, 가까운것, 확인들, 자동길, 자동입력, 자동막힘, 밀어내기, 누른곳길, 가까운빠짐 } from './lib/둘러보기.js'
-import { 층높이, 부재나누기, 부재글, FT층, 제안확인, 제안빼기, 판넓이 } from './lib/골조모델.js'
+import { 층높이, 부재나누기, 부재글, FT층, 제안확인, 제안빼기, 판넓이, 구간물량 } from './lib/골조모델.js'
 
 const 기억열쇠 = 'kcm.walker'
 const 각차 = (a, b) => { let d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d }
@@ -33,13 +33,16 @@ function 읽은사람() {
 }
 const 그림읽기 = typeof createImageBitmap === 'function' ? (b) => createImageBitmap(b) : async (b) => { const im = new Image(); im.src = URL.createObjectURL(b); await im.decode(); return im }
 
-export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층, set층, 고른, set고른, setM, 끝내기, on눈 = () => {}, on확인 = () => {} }) {
+export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층, set층, 고른, set고른, setM, 끝내기, on눈 = () => {}, on확인 = () => {}, on확인들 = () => {} }) {
   const [사람, set사람0] = useState(읽은사람)
   const set사람 = (v) => { set사람0(v); try { localStorage.setItem(기억열쇠, JSON.stringify({ 키: v.키 })) } catch (e) { /* 저장 못 함 */ } }
   const [눈, set눈] = useState(false)
   const [자동, set자동] = useState(false)
   const [확인, set확인] = useState(() => new Map())   // 층 → Set(id)
   const [가까이, set가까이] = useState(null)          // {id, 종류, 부호, d}
+  const 가까이Ref = useRef(null); 가까이Ref.current = 가까이
+  const 말풍선Ref = useRef(null)                       // 💬 G393 가까운 부재 위에 떠서 따라오는 물량
+  const 구간Ref = useRef(-2)                           // ▭ G393 지금 서 있는 구간(바뀌면 알림)
   const [알림, set알림] = useState('')
   const [메모, set메모] = useState(null)               // null | 글
   const [퀘, set퀘] = useState(null)                   // 🎮 G392 퀘스트 — {종: '제안', id} 건설맵이 세운 것 확인 · {종: '빨강', k} 손으로 할 곳
@@ -85,6 +88,9 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
   const 고른Ref = useRef(고른); 고른Ref.current = 고른
   const 확인Ref = useRef(확인); 확인Ref.current = 확인
   const MRef = useRef(M); MRef.current = M
+  const 덩Ref = useRef(덩); 덩Ref.current = 덩
+  const 구간Q = useMemo(() => (M.구간 && M.구간.length && S && !S.오류 ? 구간물량(M, S) : null), [M, S])
+  const 구간QRef = useRef(구간Q); 구간QRef.current = 구간Q
   const 다시 = useRef(true)
 
   /* 처음 · 층이 바뀌면 — 자리(처음엔 건물 앞) · 막힌 곳에서 밀어냄 */
@@ -108,6 +114,8 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
     return () => { v.가까이 = false; v.onLook = null; v.set눈(null); v.set사람(null); try { v.fit('tilt') } catch (e) { /* 무시 */ } }
   }, [])  // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { on눈(눈) }, [눈])  // eslint-disable-line react-hooks/exhaustive-deps
+  /* 🟩 G393 확인한 부재(모든 층) → 작업 화면 3D 에서 초록으로 */
+  useEffect(() => { const t = new Set(); for (const ids of 확인.values()) for (const id of ids) t.add(id); on확인들(t) }, [확인])  // eslint-disable-line react-hooks/exhaustive-deps
   /* 🧭 길잡이 — 층마다 확인 비율을 위로 */
   useEffect(() => {
     const 덩 = (S && S.덩어리) || []
@@ -166,11 +174,28 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
           if (VM) { const 자 = 사람자세(VM.모, { 걸음: s.φ, 가는중: 감 || !!s.φ, 감음: 깜.값 }); 몸 = { 키: 자.키 }; v.set사람({ 부분: 사람놓기(자, s.x, s.y, 판0.바닥, s.방향) }) }
           else if (못받음Ref.current) { 몸 = 사람몸('하나', { 옷: 0, 걸음: s.φ, 가는중: 감 || !!s.φ }); v.set사람(놓기(몸, s.x, s.y, 판0.바닥, s.방향)) }   // 파일을 못 받으면 코드로 짠 사람
           else { 몸 = { 키: 1.6 }; v.set사람(null) }                                                                                                      // 받는 중
-          if (눈Ref.current) v.set눈({ E: [s.x + Math.cos(s.방향) * 0.12, s.y + Math.sin(s.방향) * 0.12, 판0.바닥 + 몸.키 * 0.93], h: s.방향, p: v.눈 ? v.눈.p : -0.08 })
+          /* 🔧 G393 눈으로 볼 때는 내 몸(머리카락 · 얼굴)을 그리지 않음 — 소장님 「눈으로 보기 하면, 중간에 이상한게 떠」: 눈 자리가 머리 안이라 머리카락 · 얼굴 조각이 회색 띠로 보였음 */
+          if (눈Ref.current) { v.set사람(null); v.set눈({ E: [s.x + Math.cos(s.방향) * 0.12, s.y + Math.sin(s.방향) * 0.12, 판0.바닥 + 몸.키 * 0.93], h: s.방향, p: v.눈 ? v.눈.p : -0.08 }) }
           else {
             v.t = [s.x, s.y, 판0.바닥 + 1.0]
             if (감 && 입.앞 > 0) v.yaw += 각차(s.방향 + Math.PI, v.yaw) * Math.min(1, dt * 2.2)
             v.dirty()
+          }
+        }
+        /* 💬 G393 말풍선 — 가까운 부재 위(윗면 + 20 cm)에 떠서 따라옴(카메라를 돌려도) */
+        {
+          const el = 말풍선Ref.current, g = 가까이Ref.current
+          if (el) {
+            const d = g ? 덩Ref.current.find((x) => x.id === g.id) : null
+            let p = null
+            if (d && d.판 && d.판.length) {
+              /* 사람에게 가장 가까운 부재 자리(둘레 네모 안 가장 가까운 점) — 큰 슬라브 · 벽도 화면 안에 들게 · 그래도 밖이면 가운데 */
+              const xs = d.판.map((q) => q[0]), ys = d.판.map((q) => q[1])
+              const gx = Math.max(Math.min(...xs), Math.min(Math.max(...xs), s.x * 1000)), gy = Math.max(Math.min(...ys), Math.min(Math.max(...ys), s.y * 1000))
+              const zt = Math.min(d.z1 / 1000, 판0.바닥 + 2.4) + 0.2
+              p = v.화면점(gx / 1000, gy / 1000, zt) || v.화면점(xs.reduce((a, q) => a + q, 0) / xs.length / 1000, ys.reduce((a, q) => a + q, 0) / ys.length / 1000, zt)
+            }
+            if (p) { el.style.display = 'block'; el.style.transform = 'translate(' + Math.round(p.x) + 'px,' + Math.round(p.y) + 'px) translate(-50%, -100%)' } else el.style.display = 'none'
           }
         }
         늦 += dt
@@ -180,6 +205,22 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
           const 옛 = 확인Ref.current.get(판0.층)
           if (든.some((id) => !옛 || !옛.has(id))) {
             const n = new Map(확인Ref.current); const 새 = new Set(옛 || []); for (const id of 든) 새.add(id); n.set(판0.층, 새); set확인(n)
+          }
+          /* ▭ G393 구간 — 선을 넘어 들어서면 알림(이 층 · 구간 전체 콘크리트) */
+          {
+            const Q = 구간QRef.current
+            if (Q && Q.줄.length) {
+              const X = s.x * 1000, Y = s.y * 1000
+              const k = Q.줄.findIndex((r) => X >= r.z.판[0] && X <= r.z.판[2] && Y >= r.z.판[1] && Y <= r.z.판[3])
+              if (k !== 구간Ref.current) {
+                const 처음 = 구간Ref.current === -2
+                구간Ref.current = k
+                if (!처음 || k >= 0) {
+                  if (k >= 0) { const r = Q.줄[k], f = r.층별.get(판0.층); set알림('▭ ' + r.z.이름 + ' — ' + 층글(판0.층) + ' 콘크리트 ' + (f ? f.콘크리트 : 0).toFixed(3) + ' ㎥ · 구간 전체 ' + r.콘크리트.toFixed(3) + ' ㎥'); 세기('|골조모델|구간들어섬') }
+                  else set알림('▭ 구간 밖으로 나왔습니다')
+                }
+              }
+            }
           }
           /* 🎮 G392 퀘스트 — 가까운 🟨 제안(건설맵이 세운 것 · 확인 전) · 없으면 가까운 🟥 빨간 곳(넘긴 것은 빼고) */
           {
@@ -209,13 +250,16 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
   const 층바꿈 = (d) => { const n = 차례[k층 + d]; if (n === undefined) return; set층(n); set고른(null); set알림((d > 0 ? '⬆ ' : '⬇ ') + 층글(n) + '으로 옮겼습니다') }
   const 이층수 = 판.부재.length
   const 본수 = (확인.get(층) || new Set()).size
-  const 빠짐 = (M.빠짐 || []).filter((x) => x.층 === 층).length + M.부재.filter((o) => o.층 === 층 && o.제안).length   // 🟥 손으로 할 곳 + 🟨 확인 전 제안
+  /* 🔧 G393 소장님 「빨강....너무 많지 않아 … 뭘 고쳐야 하는지?」 — 겹친 곳(셈 검사)은 빼고 🟥 손으로 할 곳 · 🟨 확인할 제안만 셈(겹침은 건설맵이 먼저 정리 · 남는 것만 따로) */
+  const 빨수 = (M.빠짐 || []).filter((x) => x.층 === 층).length, 제수 = M.부재.filter((o) => o.층 === 층 && o.제안).length
   const 퀘제 = 퀘 && 퀘.종 === '제안' ? M.부재.find((o) => o.id === 퀘.id && o.제안) : null
   const 퀘빨 = 퀘 && 퀘.종 === '빨강' ? (M.빠짐 || [])[퀘.k] : null
   const 퀘확인 = () => { if (!퀘제) return; setM((P) => 제안확인(P, 퀘제.id, 지금때())); 세기('|골조모델|퀘스트확인'); set알림('✓ ' + 층글(퀘제.층) + ' ' + 퀘제.종류 + ' ' + 퀘제.부호 + ' — 건설맵이 세운 대로 확인했습니다'); set퀘(null) }
   const 퀘빼기 = () => { if (!퀘제) return; setM((P) => 제안빼기(P, 퀘제.id)); set알림('✕ ' + 퀘제.종류 + ' ' + 퀘제.부호 + ' 을(를) 빼서 빨간 곳(손으로)으로 돌렸습니다'); set퀘(null) }
-  const 겹 = ((S && S.검사 && (S.검사.find((z) => z.겹친) || {}).겹친) || []).filter((x) => x.ids.some((id) => 판.부재.some((o) => o.id === id))).length
   const 다봄 = 이층수 > 0 && 본수 >= 이층수
+  const 수1 = (v) => (Math.round(v * 10) / 10).toLocaleString('ko-KR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+  const 층콘 = ((S && S.층별) || []).filter((r) => r.층 === 층).reduce((a, r) => a + r.콘크리트, 0)
+  const 본콘 = [...(확인.get(층) || [])].reduce((a, id) => a + ((((S && S.부재별.get(id)) || {}).콘크리트) || 0), 0)
   const 자동켜기 = () => {
     if (자동) { 자동Ref.current = null; set자동(false); return }
     const s = 사Ref.current; if (!s) return
@@ -280,9 +324,12 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
       <div className="gwk-hud" role="status">
         <b>🧭 {층글(층)}</b>
         <span>확인 <b>{본수}</b> / {이층수}</span>
-        <span className={빠짐 + 겹 ? 'gwk-red' : ''}>빨간 곳 <b>{빠짐 + 겹}</b></span>
+        <span className="gwk-conc" title="지나가며 확인한 부재의 콘크리트 / 이 층 전체">🟩 <b>{수1(본콘)}</b> / {수1(층콘)} ㎥</span>
+        <span className={빨수 ? 'gwk-red' : ''} title="도면에서 못 옮겨 손으로 세울 곳">🟥 손으로 <b>{빨수}</b></span>
+        {제수 > 0 && <span className="gwk-prop" title="건설맵이 도면대로 먼저 세운 것 — 확인">🟨 확인 <b>{제수}</b></span>}
         <span className="gwk-bar" aria-hidden="true"><i style={{ width: (이층수 ? Math.min(100, (본수 / 이층수) * 100) : 0) + '%' }} /></span>
-        {다봄 && k층 + 1 < 차례.length && <button type="button" className="gwk-next" onClick={() => 층바꿈(1)}>✓ 다 봤습니다 — ⬆ {층글(차례[k층 + 1])}</button>}
+        {다봄 && k층 + 1 < 차례.length && <button type="button" className="gwk-next" onClick={() => 층바꿈(1)}>✓ {층글(층)} 확인 끝(콘크리트 {수1(층콘)} ㎥) — ⬆ {층글(차례[k층 + 1])}</button>}
+        {다봄 && k층 + 1 >= 차례.length && <span className="gwk-done">✓ {층글(층)} 확인 끝 · 콘크리트 {수1(층콘)} ㎥</span>}
       </div>
       <div className="gwk-acts">
         <button type="button" onClick={() => 층바꿈(1)} disabled={k층 + 1 >= 차례.length} title="위층">⬆</button>
@@ -297,7 +344,7 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
       {퀘제 && (
         <div className="gwk-quest" role="dialog" aria-label="퀘스트 — 건설맵이 세운 것 확인">
           <b>❓ {층글(퀘제.층)} {퀘제.종류} {퀘제.부호} — 맞나요?</b>
-          <div>🟨 건설맵이 도면대로 먼저 세웠습니다{Array.isArray(퀘제.판) ? <> — 두께 <b>{퀘제.두께}</b> mm · 넓이 <b>{(판넓이(퀘제.판) / 1e6).toFixed(1)}</b> ㎡</> : null}</div>
+          <div>🟨 건설맵이 도면대로 먼저 세웠습니다{퀘제.종류 === '계단' ? <> — 판 <b>{퀘제.판수 || 2}</b> · 길이 <b>{퀘제.길이}</b> · 폭 <b>{퀘제.폭}</b> · 단수 <b>{퀘제.단수 || '자동'}</b></> : Array.isArray(퀘제.판) ? <> — 두께 <b>{퀘제.두께}</b> mm · 넓이 <b>{(판넓이(퀘제.판) / 1e6).toFixed(1)}</b> ㎡</> : null}</div>
           <div className="muted">{퀘제.제안}{퀘제.근거 && 퀘제.근거.평면 ? ' · 📄 ' + 퀘제.근거.평면 : ''}</div>
           <div className="gwk-qbtns">
             <button type="button" className="on" onClick={퀘확인}>✓ 맞음</button>
@@ -316,6 +363,7 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
           </div>
         </div>
       )}
+      <div ref={말풍선Ref} className="gwk-bubble" style={{ display: 'none' }} aria-hidden="true">{가까이 && S && (() => { const q = S.부재별.get(가까이.id) || {}; const o = M.부재.find((x) => x.id === 가까이.id); return <>{o && o.제안 ? '🟨 ' : ''}{가까이.종류} <b>{가까이.부호}</b><br />{(q.콘크리트 || 0).toFixed(3)} ㎥ · {(q.거푸집 || 0).toFixed(2)} ㎡ · {((q.철근 || 0) / 1000).toFixed(3)} t</> })()}</div>
       {가까이 && <div className="gwk-near">{가까이.종류} <b>{가까이.부호}</b> · {가까이.d < 0.05 ? '바로 앞' : 가까이.d.toFixed(1) + ' m'} <span className="muted">— 오른쪽에 크기 · 물량</span></div>}
       {모델상태 && !사람.고름 && <div className="gwk-msg">{모델상태}</div>}
       {알림 && <div className="gwk-msg">{알림}<button type="button" onClick={() => set알림('')} aria-label="닫기">✕</button></div>}

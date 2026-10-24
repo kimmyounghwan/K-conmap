@@ -453,7 +453,7 @@ export default function Golgo() {
           <b>구조평면도 + 부재 일람표를 넣으면 저절로</b> 배근표·주자료(골조산출양식 칸 그대로)를 채워 <b>콘크리트 · 거푸집 · 철근</b>을 층별·부재별로 셉니다 → <b>엑셀</b>.
           고칠 곳만 표의 칸을 누르고 <b>도면의 선·치수·글자를 누르면</b> 값이 바뀝니다(치수를 손으로 옮겨 적지 않습니다).
         </div>
-        <div className="pdfsafe">🔒 <b>도면은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 읽고 셉니다 · 회원가입 없이 바로 이용 가능</div>
+        <div className="pdfsafe">🔒 <b>도면은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 읽고 셉니다 · 회원가입 없음 · 무료</div>
         <div className="btn-row gg-top">
           <button type="button" className="btn sm" onClick={() => 자동칸.current?.click()}>⚡ 도면 넣고 자동으로 (여러 장)</button>
           <button type="button" className="btn line sm" onClick={() => 파일칸.current?.click()}>📂 도면만 열기 (찍기)</button>

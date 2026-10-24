@@ -9,9 +9,10 @@
 //      그 안에서 기둥 세우기 · 고르기 · 평면 / 나란히 · 나가면 주소 ?ws=1 지움 · 폰 가로 넘침 없음
 //   ⑩ 🟨 G392 건설맵 제안(MAT) — 모델 열기 → «🟨 건설맵이 먼저 세운 것 1곳» · 하나씩 보기 → 제안 카드(두께) · ✓ 이대로 → 줄 사라짐 · 합 그대로 ·
 //      다시 열고 🚶 둘러보기 → FT MAT 위에서 «❓ … 맞나요?» 퀘스트 → ✓ 맞음 → 빨간 곳 0
-//   ⑨ 📚 G391 도면함 — 평면 다 세움 · 🧹 비우고 · ▶ 가장 아래층부터 · 📥 하나씩 = 한꺼번에(합) · 📤 빼기 · 다시 가져오기 · 🔄 다시 · 폰 넘침 없음
+//   ⑨ 📚 G391 → G393 도면함 ☑ — 평면 다 ☑ · ☐ 모두 빼고 · ▶ 가장 아래층부터 · ☑ 하나씩 = 한꺼번에(합) · ☐ 빼기(넣어 둠) · ☑ 다시 · 🔄 다시 · 새로고침해도 ☑ · ↶ 남음 · 폰 넘침 없음
 //   ⑦ 📐 G389 작업 화면 «도면 넣기»(🔒 운영자만) — 가상 예시 도면(BIM_예시_3층.dxf)을 넣으면 좌표대로 세움:
 //      부재 수 · 화면 합 = lib(골조읽기 → BIM 모델 → 도면에서모델 → 모델셈) · 견줌표(도면 셈) · 못 옮긴 것 없음 · 되돌리기 → 전 모델 · 오류 없음 · 폰 넘침 없음
+//   ⑪ 🪜 G393 계단(칸 누름 → 카드 · 참 넣으면 합 = lib) · ✋ 옮기기(끌기 → 보조 통심) · ▭ 구간(끌어 긋기 · 합 ✓ · ✂ 자르기 · 🎨 색) · «모든 교점에» 는 도면 통심만 · 큰 저장 모델 물음 · 🧾 층별 대조(도면 = 세움 + 🟥 + 한 번만)
 //   ⑧ 🚶 G390 둘러보기(🔒 운영자만) — 캐릭터 넷 고르기(수아 · 얼굴 그림 · 파일 받음) · 걷기(방향키) · ⬆ 층 · 🖱 누르면 그리로 · ▶ 자동(확인 늘어남) · 👁 눈으로 · 📝 점검사항 · ✕ 그만 · 고른 사람 기억 ·
 //      ✂ 둘로(고른 보) → 부재 하나 늘고 콘크리트 · 거푸집 · 철근 합 그대로 · 오류 없음 · 폰 넘침 없음
 import { createRequire } from 'module'
@@ -236,31 +237,47 @@ for (const 기기 of 기기들) {
   const 층수 = await B.locator('.gmd-ws-floor').count()
   봐(층수 === 도면예.M.층.length, `${기기} 도면 층 ${층수}개 = lib`, 층수)
   if (기기 === '폰') 봐((await B.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 1, `폰 도면 넣은 뒤 가로 넘침 없음`)
-  /* ⑨ 📚 G391 도면함 — 비우고 · 아래층부터 하나씩 가져오기 → 합 = 한꺼번에 · 빼기 → 줄고 · 다시 가져오면 그대로 · 🔄 다시 → 그대로 */
-  const 함 = B.locator('.gmd-box')
+  /* 🧾 G393 층별 대조 — 층마다 도면 = 세움 + 🟥 + 한 번만 */
+  {
+    const 대 = await B.locator('.gmd-cmp tbody tr').evaluateAll((trs) => trs.map((tr) => [...tr.children].map((td) => td.firstChild ? String(td.firstChild.textContent || '') : '')))
+    const n = (v) => Number(String(v || '0').replace(/[^0-9]/g, '') || 0)
+    const 맞 = 대.length > 0 && 대.every((c) => c.length >= 6 && n(c[1]) === n(c[2]) + n(c[3]) + n(c[5]))
+    봐(맞, `${기기} 🧾 층별 대조 ${대.length}층 — 도면 = 세움 + 🟥 + 한 번만`, JSON.stringify(대))
+  }
+  /* ⑨ 📚 G391 → G393 도면함 ☑ — 모두 빼고(넣어 둠) · 아래층부터 하나씩 ☑ → 합 = 한꺼번에 · ☐ 빼기 → 줄고 · ☑ 다시 → 그대로 · 🔄 다시 → 그대로 · 새로고침해도 ☑ · ↶ */
+  const 함 = B.locator('#gmd-dwgbox')
   const 함글0 = await 함.innerText()
-  const 장 = +(함글0.match(/세운 \d+ \/ (\d+)장/) || [])[1]
-  봐(장 > 0 && new RegExp('세운 ' + 장 + ' / ' + 장 + '장').test(함글0), `${기기} 📚 도면함 — 평면 ${장}장 모두 세움`, 함글0.slice(0, 160))
+  const 장 = +(함글0.match(/☑ \d+ \/ (\d+)장/) || [])[1]
+  봐(장 > 0 && new RegExp('☑ ' + 장 + ' / ' + 장 + '장').test(함글0) && (await 함.locator('input[type=checkbox]:checked').count()) === 장, `${기기} 📚 도면함 — 평면 ${장}장 모두 ☑`, 함글0.slice(0, 160))
   B.once('dialog', (d) => d.accept())
-  await 함.getByRole('button', { name: '🧹 비우고 하나씩' }).click()
+  await 함.getByRole('button', { name: '☐ 모두 빼고 하나씩' }).click()
   await B.waitForTimeout(500)
-  봐(/세운 0 \//.test(await 함.innerText()) && (await 함.locator('li.next').count()) === 1, `${기기} 🧹 비우고 — 세운 0장 · ▶ 다음 하나`)
+  봐(/☑ 0 \//.test(await 함.innerText()) && (await 함.locator('li.next').count()) === 1 && (await 함.locator('input[type=checkbox]:checked').count()) === 0, `${기기} ☐ 모두 빼고 — ☑ 0장 · ▶ 다음 하나`)
   const 첫다음 = await 함.locator('li.next').innerText()
   봐(!도면예.M.층.some((f) => f.이름 === 'FT') || /기초/.test(첫다음), `${기기} ▶ 다음 = 가장 아래층(기초)부터 — ${첫다음.split('\n')[0]}`, 첫다음)
   let 가져옴 = 0
-  for (let i = 0; i < 장 + 2 && (await 함.locator('li.next').count()); i++) { await 함.locator('li.next button', { hasText: '가져오기' }).click(); await B.waitForTimeout(500); 가져옴++ }
+  for (let i = 0; i < 장 + 2 && (await 함.locator('li.next').count()); i++) { await 함.locator('li.next input[type=checkbox]').check(); await B.waitForTimeout(500); 가져옴++ }
   const 합5 = await B.locator('.gmd-ws-right .gmd-sum').innerText()
-  봐(가져옴 === 장 && 합5 === 합2 && new RegExp('세운 ' + 장 + ' / ' + 장 + '장').test(await 함.innerText()), `${기기} 📥 하나씩 ${가져옴}장 → 합 = 한꺼번에(${합5.replace(/\n/g, ' ')})`, 합2 + ' → ' + 합5)
-  await 함.locator('li').first().getByRole('button', { name: '📤 빼기' }).click()
+  봐(가져옴 === 장 && 합5 === 합2 && new RegExp('☑ ' + 장 + ' / ' + 장 + '장').test(await 함.innerText()), `${기기} ☑ 하나씩 ${가져옴}장 → 합 = 한꺼번에(${합5.replace(/\n/g, ' ')})`, 합2 + ' → ' + 합5)
+  await 함.locator('li').first().locator('input[type=checkbox]').uncheck()
   await B.waitForTimeout(500)
   const 합6 = await B.locator('.gmd-ws-right .gmd-sum').innerText()
-  await 함.locator('li.next button', { hasText: '가져오기' }).click()
+  봐(/넣어 둠/.test(await 함.locator('li').first().innerText()), `${기기} ☐ 뺀 평면 — «넣어 둠»`)
+  await 함.locator('li').first().locator('input[type=checkbox]').check()
   await B.waitForTimeout(500)
   const 합7 = await B.locator('.gmd-ws-right .gmd-sum').innerText()
-  봐(합6 !== 합2 && 합7 === 합2, `${기기} 📤 빼기 → 줄고 · 📥 다시 가져오면 그대로`, [합6, 합7].join(' | '))
+  봐(합6 !== 합2 && 합7 === 합2, `${기기} ☐ 빼기 → 줄고 · ☑ 다시 → 그대로`, [합6, 합7].join(' | '))
   await 함.locator('li').nth(1).getByRole('button', { name: '🔄 다시' }).click()
   await B.waitForTimeout(500)
   봐((await B.locator('.gmd-ws-right .gmd-sum').innerText()) === 합2, `${기기} 🔄 다시 — 합 그대로`)
+  /* 🔧 G393 새로고침 — 도면함 목록 · ☑ 빼고 넣기(원본 도면 없이) · ↶ 되돌리기가 남음 */
+  await B.reload({ waitUntil: 'domcontentloaded' }); await B.waitForSelector('.gmd-ws', { timeout: 30000 }); await B.waitForTimeout(1500)
+  const 함r = B.locator('#gmd-dwgbox')
+  봐(new RegExp('☑ ' + 장 + ' / ' + 장 + '장').test(await 함r.innerText()) && (await B.getByTitle('되돌리기').isEnabled()), `${기기} 새로고침 — 도면함 ☑ ${장}장 · ↶ 되돌리기 남음`, (await 함r.innerText()).slice(0, 80))
+  await 함r.locator('li').first().locator('input[type=checkbox]').uncheck(); await B.waitForTimeout(600)
+  const 합8 = await B.locator('.gmd-ws-right .gmd-sum').innerText()
+  await 함r.locator('li').first().locator('input[type=checkbox]').check(); await B.waitForTimeout(600)
+  봐(합8 !== 합2 && (await B.locator('.gmd-ws-right .gmd-sum').innerText()) === 합2, `${기기} 새로고침 뒤에도 ☐ 빼고 ☑ 넣기 — 합 그대로`, 합8)
   if (기기 === '폰') 봐((await B.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 1, `폰 도면함 가로 넘침 없음`)
   for (let i = 0; i < 30 && !/212\.014/.test(await B.locator('.gmd-ws-right .gmd-sum').innerText()) && (await B.getByTitle('되돌리기').isEnabled()); i++) { await B.getByTitle('되돌리기').click(); await B.waitForTimeout(250) }
   await B.waitForTimeout(500)
@@ -352,12 +369,108 @@ for (const 기기 of 기기들) {
     await B.waitForSelector('.gwk-quest', { timeout: 8000 }).catch(() => {})
     const 퀘 = await B.locator('.gwk-quest').innerText().catch(() => '')
     const 허 = await B.locator('.gwk-hud').innerText()
-    봐(/맞나요/.test(퀘) && /MF1/.test(퀘) && /빨간 곳 1/.test(허.replace(/\s+/g, ' ')), `${기기} 🎮 퀘스트 — FT MAT 위에서 «❓ MF1 맞나요?» · 빨간 곳 1`, 퀘 + ' / ' + 허)
+    봐(/맞나요/.test(퀘) && /MF1/.test(퀘) && /🟨 확인 1/.test(허.replace(/\s+/g, ' ')) && /🟥 손으로 0/.test(허.replace(/\s+/g, ' ')), `${기기} 🎮 퀘스트 — FT MAT 위에서 «❓ MF1 맞나요?» · 🟥 손으로 0 · 🟨 확인 1`, 퀘 + ' / ' + 허)
     await B.locator('.gwk-quest button', { hasText: '✓ 맞음' }).click()
     await B.waitForTimeout(700)
-    봐((await B.locator('.gwk-quest').count()) === 0 && /빨간 곳 0/.test((await B.locator('.gwk-hud').innerText()).replace(/\s+/g, ' ')), `${기기} ✓ 맞음 → 퀘스트 끝 · 빨간 곳 0`)
+    봐((await B.locator('.gwk-quest').count()) === 0 && /🟥 손으로 0/.test((await B.locator('.gwk-hud').innerText()).replace(/\s+/g, ' ')) && !/🟨 확인/.test(await B.locator('.gwk-hud').innerText()), `${기기} ✓ 맞음 → 퀘스트 끝 · 🟥 0 · 🟨 없음`)
     if (기기 === '폰') 봐((await B.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 1, `폰 퀘스트 가로 넘침 없음`)
     await B.getByRole('button', { name: '✕ 그만' }).click()
+  }
+  /* ⑪ 🪜 G393 계단 손으로 · ✋ 옮기기 · «모든 교점에» 는 도면 통심만 · 큰 저장 모델 물음 */
+  {
+    const 모델읽기 = async () => { await B.waitForTimeout(700); return JSON.parse(await B.evaluate(() => localStorage.getItem('kcm.model.v1'))) }
+    let MS = L.예시모델()
+    MS = { ...MS, 배근: { ...MS.배근, 계단: [{ 기호: 'ST1', 두께: '150', 주근: 'D13@150', 배력근: 'D10@200', 단높이: '170' }] } }
+    MS = L.통심더하기(L.통심더하기(MS, 'x', 3500, 'X1+3500'), 'y', 3000, 'Y1+3000')
+    const 계파일 = path.join(os.tmpdir(), 'kcm_g393_st.json')
+    fs.writeFileSync(계파일, JSON.stringify(MS))
+    B.once('dialog', (d) => d.accept()); await B.locator('.gmd-ws input[type=file][accept*="json"]').first().setInputFiles(계파일); await B.waitForTimeout(900)
+    await B.locator('.gmd-ws-floor', { hasText: '1층' }).click()
+    await B.locator('.gmd-ws-views button', { hasText: '평면' }).click()
+    await B.locator('.gmd-tool', { hasText: '🪜 계단' }).click()
+    await B.locator('.gmd-cell').first().click({ force: true })
+    await B.waitForTimeout(900)
+    const 카 = await B.locator('.gmd-pick').innerText().catch(() => '')
+    const M1 = await 모델읽기()
+    const 계 = M1.부재.filter((o) => o.종류 === '계단')
+    봐(계.length === 1 && /계단 ST1/.test(카) && /판 2/.test(카) && (await B.locator('.gmd-st-edit input').count()) === 6, `${기기} 🪜 계단 — 칸 누르면 계단(판 2) · 오른쪽 맨 위 카드에 판 수 · 길이 · 폭 · 참 · 단수`, 카.slice(0, 160))
+    await B.locator('.gmd-st-edit input[data-st="하단참"]').fill('1200'); await B.locator('.gmd-st-edit input[data-st="상단참"]').fill('1200')
+    await B.waitForTimeout(900)
+    const M2 = await 모델읽기(), S2 = L.모델셈(M2)
+    const 화합 = await B.locator('.gmd-ws-right .gmd-sum').innerText()
+    봐(M2.부재.find((o) => o.종류 === '계단').하단참 === 1200 && 화합.includes(S2.합.콘크리트.toLocaleString('ko-KR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })) && S2.검사[0].좋음, `${기기} 계단 참 1,200 넣음 → 화면 합 = lib(${S2.합.콘크리트.toFixed(3)} ㎥) · 덩어리 = 산출서`, 화합)
+    /* ✋ 옮기기 — 보를 끌어 위로 */
+    await B.locator('.gmd-tool', { hasText: '✋ 옮기기' }).click()
+    const 보 = M2.부재.find((o) => o.종류 === '보' && o.층 === '1' && o.점[1] === 'y2' && o.끝[1] === 'y2')
+    const 칸 = B.locator(`[data-mid="${보.id}"]`)
+    await 칸.scrollIntoViewIfNeeded(); await B.waitForTimeout(300)
+    const bb = await 칸.boundingBox()
+    if (process.env.DBG) { console.log('bb', JSON.stringify(bb)); await B.screenshot({ path: '/tmp/g10/g393/cap/dbg_move_' + 기기 + '.png' }) }
+    if (bb) { await B.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await B.mouse.down(); await B.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2 - 30, { steps: 6 }); await B.mouse.up() }
+    const M3 = await 모델읽기()
+    const 옮 = M3.부재.find((o) => o.id === 보.id)
+    봐(!!bb && 옮 && 옮.점[1] !== 'y2' && 옮.점[1] === 옮.끝[1] && M3.통심.y.length === M2.통심.y.length + 1, `${기기} ✋ 옮기기 — 보를 끌어 위로 → 보조 통심에 섬(양 끝 같이)`, 옮 && JSON.stringify([옮.점, 옮.끝, M3.통심.y.map((g) => g.이름)]))
+    /* ▭ 구간 — 평면에서 끌어 긋기 → 구간별 물량(합 = 전체 ✓) · ✂ 구간 선에서 자르기 → 콘크리트 합 그대로 */
+    await B.locator('.gmd-tool', { hasText: '▭ 구간' }).click()
+    const pb = await B.locator('.gmd-plan svg').boundingBox()
+    if (pb) { await B.mouse.move(pb.x + pb.width * 0.08, pb.y + pb.height * 0.15); await B.mouse.down(); await B.mouse.move(pb.x + pb.width * 0.5, pb.y + pb.height * 0.85, { steps: 8 }); await B.mouse.up() }
+    await B.waitForTimeout(900)
+    const 구 = await B.locator('.gmd-zonebox').innerText().catch(() => '')
+    const MZ = await 모델읽기()
+    봐(MZ.구간 && MZ.구간.length === 1 && /1구간/.test(구) && /✓ = 전체/.test(구), `${기기} ▭ 구간 — 평면에서 끌어 «1구간» · 구간별 물량 합 ✓ = 전체`, 구.slice(0, 200))
+    const 합z = await B.locator('.gmd-ws-right .gmd-sum').innerText()
+    await B.getByRole('button', { name: '✂ 구간 선에서 자르기' }).click(); await B.waitForTimeout(900)
+    const 구2 = await B.locator('.gmd-zonebox').innerText().catch(() => '')
+    const 콘 = (t) => (t.match(/콘크리트\s*([\d,.]+)/) || [])[1]
+    봐(/✂ 구간 선에서 \d+곳/.test(구2) && Math.abs(숫(콘(await B.locator('.gmd-ws-right .gmd-sum').innerText())) - 숫(콘(합z))) < 0.01 && /✓ = 전체/.test(구2), `${기기} ✂ 구간 선에서 자르기 — 콘크리트 합 그대로 · 구간 합 ✓`, 구2.slice(0, 240))
+    await B.getByRole('checkbox', { name: /3D 구간 색/ }).check(); await B.waitForTimeout(400)
+    봐(오류2.length === 0, `${기기} 🎨 3D 구간 색 — 오류 없음`, 오류2.join(' | '))
+    /* 💬 둘러보기 — 말풍선 물량 · 🟩 확인 콘크리트 · ▭ 구간 알림 */
+    await B.locator('.gmd-walkbtn').click(); await B.waitForTimeout(500)
+    if (await B.locator('.gwk-pick').count()) await B.locator('.gwk-go').click()
+    await B.waitForTimeout(1500)
+    await B.getByRole('button', { name: '▶ 자동' }).click(); await B.waitForTimeout(6000)
+    await B.getByRole('button', { name: /멈춤/ }).click().catch(() => {})
+    await B.waitForTimeout(600)
+    const 허2 = (await B.locator('.gwk-hud').innerText()).replace(/\s+/g, ' ')
+    const 풍 = await B.locator('.gwk-bubble').evaluate((e) => [e.style.display, e.innerText])
+    봐(/🟩 [\d.,]+ \/ [\d.,]+ ㎥/.test(허2) && 풍[0] === 'block' && /㎥ · .*㎡ · .* t/.test(풍[1]), `${기기} 💬 둘러보기 — 말풍선 «${풍[1].replace(/\n/g, ' ')}» · HUD ${허2.match(/🟩[^🟥]*/)}`, 허2 + ' / ' + 풍.join(' '))
+    await B.getByRole('button', { name: '✕ 그만' }).click(); await B.waitForTimeout(300)
+    await B.locator('.gmd-ws-views button', { hasText: '평면' }).click()
+    /* «모든 교점에» 는 도면 통심만(보조 통심 X1+3500 · Y1+3000 은 뺌) */
+    await B.locator('.gmd-tool', { hasText: '▣ 기둥' }).click()
+    B.once('dialog', (d) => d.accept())
+    await B.getByRole('button', { name: /모든 교점에/ }).click(); await B.waitForTimeout(600)
+    const M4 = await 모델읽기()
+    봐(M4.부재.filter((o) => o.종류 === '기둥' && o.층 === '1').length === 12 && !M4.부재.some((o) => o.종류 === '기둥' && o.층 === '1' && /n/.test(o.점.join())), `${기기} «모든 교점에 C1» — 도면 통심 교점 12곳만(보조 통심 교점 빼고)`)
+    /* 큰 저장 모델 — 열기 전에 물음 */
+    const 큰 = { ...L.예시모델(), 부재: [...L.예시모델().부재, ...Array.from({ length: 6500 }, (_, i) => ({ id: 10000 + i, 종류: '기둥', 층: '1', 부호: 'C1', 점: ['x1', 'y1'] }))], 다음: 20000 }
+    await B.evaluate((t) => { localStorage.setItem('kcm.model.v1', t); sessionStorage.removeItem('kcm.model.undo.v1') }, JSON.stringify(큰))
+    await B.reload({ waitUntil: 'domcontentloaded' }); await B.waitForSelector('.gmd-ws', { timeout: 30000 }); await B.waitForTimeout(800)
+    const 경 = await B.locator('.gmd-warnbox').innerText().catch(() => '')
+    봐(/6,5\d\d개/.test(경) && /많은 것만 빼고 열기/.test(경), `${기기} 큰 저장 모델(부재 6,500여 개) — 열기 전에 «많은 것만 빼고 · 그대로 · 비우고» 물음`, 경.slice(0, 120))
+    await B.getByRole('button', { name: '많은 것만 빼고 열기' }).click(); await B.waitForTimeout(900)
+    const M5 = await 모델읽기()
+    봐(M5.부재.length === L.예시모델().부재.length - 12 && (await B.locator('.gmd-warnbox').count()) === 0, `${기기} 많은 것만 빼고 열기 → 1층 기둥(6,5xx개)만 빼고 엶`, M5.부재.length)
+    /* 🧪 G393 작업 화면 «🧪 예시» — 새 기능이 다 든 가상 예시(계단 · MAT 제안 · 빨간 곳 · 도면함 · 층별 대조 · 구간 · 덧줄) */
+    {
+      const 예버튼 = B.getByRole('button', { name: '🧪 예시', exact: true })
+      await 예버튼.scrollIntoViewIfNeeded().catch(() => {}); await 예버튼.click(); await B.waitForTimeout(1200)
+      const 작 = L.모델셈(L.작업예시모델())
+      const 합예 = await B.locator('.gmd-ws-right .gmd-sum').innerText()
+      봐(합예.includes(작.합.콘크리트.toFixed(3)) && !/212\.014/.test(합예), `${기기} 🧪 예시(작업 화면) — 새 예시 합 ${작.합.콘크리트.toFixed(3)} ㎥(= lib 작업예시모델)`, 합예.replace(/\n/g, ' '))
+      const 제 = await B.locator('.gmd-prop-sum').innerText().catch(() => '')
+      봐(/먼저 세운 것 2곳/.test(제), `${기기} 🟨 제안 2곳(계단 · MAT)`, 제.slice(0, 80))
+      봐((await B.locator('#gmd-dwgbox input[type=checkbox]').count()) === 4, `${기기} 📚 도면함 — 가상 평면 넷 ☑`)
+      const 대 = await B.locator('.gmd-cmp').innerText().catch(() => '')
+      봐(/🟥 손으로 2/.test(대) && /FT/.test(대) && /2층/.test(대), `${기기} 🧾 층별 대조 — 🟥 2 · 층마다`, 대.replace(/\n/g, ' ').slice(0, 160))
+      const 구 = (await B.locator('.gmd-zonelist input').evaluateAll((a) => a.map((e) => e.value)).catch(() => [])).join(' ')
+      봐(/A팀/.test(구) && /B팀/.test(구), `${기기} ▭ 구간 A팀 · B팀`, 구.replace(/\n/g, ' ').slice(0, 120))
+      봐(/골조에 안 쓴 도면|안 쓴/.test(await B.locator('#gmd-dwgbox').innerText()), `${기기} 🗂 골조에 안 쓴 도면(건축 · 토목) 목록`)
+      const 검 = await B.locator('.gmd-ws-right').innerText()
+      봐(!/겹친 곳 \d/.test(검), `${기기} 예시 — 겹친 곳 없음(안쪽 모서리 한 번만)`)
+    }
+    if (기기 === '폰') 봐((await B.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 1, `폰 계단 · 옮기기 · 큰 모델 · 예시 — 가로 넘침 없음`)
   }
   봐(오류2.length === 0, `${기기} 작업 화면 오류 없음`, 오류2.join(' | '))
   await 판2.close()

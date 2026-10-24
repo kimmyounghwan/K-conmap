@@ -393,7 +393,7 @@ export default function Forms() {
       <div className="card lead-card" style={{ marginTop: 14 }}>
         <h1 style={{ margin: 0, fontSize: 20 }}>📄 건설 서식 — 공사가 어디쯤인지 고르시면 낼 서류가 나옵니다</h1>
         <p className="why2" style={{ marginBottom: 0 }}>
-          서식 <b>{FORMS.length + ORIG.length}가지</b> — <b>사이트에서 바로 작성 · 자동 계산 → PDF</b> · 엑셀은 손으로 쓸 빈 틀 · 회원가입 없이 <b>바로 이용 가능</b>.{' '}
+          서식 <b>{FORMS.length + ORIG.length}가지</b> — <b>사이트에서 바로 작성 · 자동 계산 → PDF</b> · 엑셀은 손으로 쓸 빈 틀 · <b>무료</b> · 회원가입 없음.{' '}
           {새로}가지는 현장에서 쓰던 틀(칸·차례·결재란)을 그대로 두고 <b>자동 계산과 작성 예시</b>를 넣어 새로 만들었습니다.{' '}
           <b>사이트에서 바로 쓰는 프로그램</b>이 있는 일은 그것부터 보여 드립니다.
         </p>

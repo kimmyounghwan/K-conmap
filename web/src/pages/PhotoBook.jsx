@@ -146,7 +146,7 @@ function 내보내기줄({ 바쁨, 할, 용량, set용량, 수 }) {
       <div className="pb-outs">
         {Object.entries(형식표).map(([k, [이름, , 확장]]) => (
           <button key={k} type="button" className={'pb-fmt f-' + k} disabled={!!바쁨 || !수} onClick={() => 할(k)}>
-            <span className="pb-fi">{확장.slice(1).toUpperCase()}</span><b>{이름}</b><span className="pb-free">이용 가능</span>
+            <span className="pb-fi">{확장.slice(1).toUpperCase()}</span><b>{이름}</b><span className="pb-free">무료</span>
           </button>
         ))}
       </div>
@@ -925,7 +925,7 @@ export default function PhotoBook() {
     <div className="pb">
       <div className="card pb-head">
         <h1>📷 사진대지 · 🧾 영수증 정리</h1>
-        <p>현장 사진은 <b>사진대지</b>로, 영수증은 <b>지출결의서 · 명세서 · 증빙자료</b>로 — <b>PDF · 엑셀 · 한글 · 워드 모두 바로 이용 가능</b>, 가입 없음.
+        <p>현장 사진은 <b>사진대지</b>로, 영수증은 <b>지출결의서 · 명세서 · 증빙자료</b>로 — <b>PDF · 엑셀 · 한글 · 워드 모두 무료</b>, 가입 없음.
           사진과 영수증은 <b>이 브라우저 밖으로 나가지 않습니다</b>.</p>
         <div className="pb-tabs" role="tablist">
           <button type="button" role="tab" aria-selected={탭 === '사진'} className={탭 === '사진' ? 'on' : ''} onClick={() => set탭('사진')}>📷 사진대지</button>

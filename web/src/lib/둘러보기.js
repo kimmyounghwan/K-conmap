@@ -35,6 +35,8 @@ export function 층판(덩, H, 층) {
   const 바닥 = f ? (f.FT ? (Number.isFinite(매트위) ? 매트위 : Number.isFinite(ft밑) ? ft밑 : 0) : f.z0) / 1000 : 0
   const 막 = []
   for (const d of 덩) {
+    /* 🪜 G393 계단 — 단 · 참 조각마다(낮은 첫 단은 밟고 넘고 높은 단은 막음) */
+    if (d.종류 === '계단' && Array.isArray(d.조각)) { for (const x of d.조각) { const z0 = x.z0 / 1000, z1 = x.z1 / 1000; if (z1 <= 바닥 + 0.3 || z0 >= 바닥 + 1.7) continue; 막.push({ id: d.id, b: 상자(x.판) }) } continue }
     if (d.종류 !== '기둥' && d.종류 !== '벽' && d.종류 !== '기초') continue
     if (MAT인가(d)) continue
     const z0 = d.z0 / 1000, z1 = d.z1 / 1000

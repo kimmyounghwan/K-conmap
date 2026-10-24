@@ -111,7 +111,7 @@ export default function ToolsIndex() {
   return (
     <div className="wrap">
       <div className="card">
-        <h1 className="tl-h1" style={{ marginTop: 0 }}>🧰 건설 도구 <span className="count">· {모두}가지 · 모두 바로 이용 가능</span></h1>
+        <h1 className="tl-h1" style={{ marginTop: 0 }}>🧰 건설 도구 <span className="count">· {모두}가지 · 전부 무료</span></h1>
         <div className="note sm">
           <b>K-건설맵이 만든 도구를 여기 한 곳에 다 모았습니다.</b> 회원가입 없이 바로 쓰십시오.
           {' '}<b>{모두}가지 가운데 {사이트몫}가지는 이 사이트 안에서 바로 됩니다</b> — 깔 것이 없고, 넣으신 파일은 밖으로 나가지 않습니다.

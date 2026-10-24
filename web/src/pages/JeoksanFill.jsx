@@ -289,7 +289,7 @@ function Fill({ 운영자 = false }) {
   return (
     <div className="wrap">
       <div className="card lead-card">
-        <div className="sec-title">🧮 공내역서 단가 채우기 <span className="count">{운영자 ? '소장님 — 한도 없음' : '시험판 · 바로 이용 가능'}</span></div>
+        <div className="sec-title">🧮 공내역서 단가 채우기 <span className="count">{운영자 ? '소장님 — 한도 없음' : '시험판 · 무료'}</span></div>
         {!운영자 && (
           <div className="fill-beta">
             <b>⚠️ 시험판 — 채운 단가는 참고용입니다. 제출 전에 한 줄씩 꼭 확인하십시오.</b>

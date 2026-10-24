@@ -508,6 +508,18 @@ export class 부재보기 {
     gl.disable(gl.BLEND); gl.depthMask(true)
   }
 
+  /** 💬 G393 3D 점(m) → 캔버스 안 화면 자리(CSS px) · 뒤 · 화면 밖이면 null (둘러보기 말풍선) */
+  화면점(x, y, z) {
+    const cv = this.cv, w = cv.width || 1, h = cv.height || 1
+    const m = this._M(w, h)
+    const o = [0, 1, 2, 3].map((i) => m[i] * x + m[4 + i] * y + m[8 + i] * z + m[12 + i])
+    if (!(o[3] > 1e-6)) return null
+    const nx = o[0] / o[3], ny = o[1] / o[3]
+    if (Math.abs(nx) > 1.05 || Math.abs(ny) > 1.05) return null
+    const r = cv.getBoundingClientRect()
+    return { x: ((nx + 1) / 2) * r.width, y: ((1 - ny) / 2) * r.height }
+  }
+
   /** 화면 (clientX, clientY) 의 부재 id — 없으면 -1 */
   /** 🖱 G390 누른 화면 자리 → 높이 z 바닥 위 점(m) — 하늘을 누르면 null (둘러보기 «누른 곳으로 걷기») */
   바닥점(cx, cy, z = 0) {

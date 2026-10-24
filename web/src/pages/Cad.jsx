@@ -43,7 +43,7 @@ function Download() {
     <div className="card">
       <div className="sec-title" style={{ margin: '0 0 8px' }}>내려받기</div>
       <a className="btn primary" href="/lisp/k-conmap.lsp" download
-         onClick={() => dl('lsp')}>⬇ k-conmap.lsp 받기</a>
+         onClick={() => dl('lsp')}>⬇ k-conmap.lsp 받기 (무료)</a>
       <div className="muted" style={{ fontSize: 12, marginTop: 8, lineHeight: 1.7 }}>
         <b>기간 제한 없이</b> 계속 쓰실 수 있습니다. 새 판은 명령창 <code>KUPDATE</code> 또는 여기서 받아{' '}
         <b>쓰시던 자리에 덮어쓰기</b>만 하면 됩니다. 설정도 자동 등록도 그대로 남습니다.
@@ -83,7 +83,7 @@ export default function Cad() {
   return (
     <div className="wrap">
       <div className="card hero">
-        <h1 style={{ margin: 0, fontSize: 20 }}>캐드 유틸 — 받아서 바로 쓰기</h1>
+        <h1 style={{ margin: 0, fontSize: 20 }}>캐드 유틸 — 무료</h1>
         <div className="muted" style={{ marginTop: 6, lineHeight: 1.7 }}>
           파일 <b>하나</b>를 캐드에 올리면 길이·면적·수량·좌표가 <b>단추 한 번</b>으로 끝납니다.
           회원가입 없습니다.

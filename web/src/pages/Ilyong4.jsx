@@ -336,7 +336,7 @@ export default function Ilyong4() {
         <p className="cp" style={{ margin: '6px 0 0' }}>
           일한 날만 누르면 <b>국민연금 · 건강보험 · 고용보험을 떼는지, 얼마 떼는지</b> 바로 나옵니다. 여러 날은 <b>«기간»</b> 으로 첫날 · 끝날만 누르면 됩니다.
         </p>
-        <div className="iy-small">회원가입 없이 바로 이용 · 💾 이 브라우저에만 저장{저장됨 ? '' : <b className="nm-warn"> — 지금 저장이 막혀 있습니다</b>} · 공단 실무안내 사례와 같게 나옴</div>
+        <div className="iy-small">회원가입 없음 · 무료 · 💾 이 브라우저에만 저장{저장됨 ? '' : <b className="nm-warn"> — 지금 저장이 막혀 있습니다</b>} · 공단 실무안내 사례와 같게 나옴</div>
         <details className="iy-exd">
           <summary>👀 예시로 해 보기 ({G.cases.length}가지)</summary>
           <div className="iy-ex">

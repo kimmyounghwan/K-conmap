@@ -68,7 +68,7 @@ export default function CorpPage() {
     const reg = c ? Object.keys(c.reg || {})[0] : null
     const desc = c
       ? `${nm}의 조달청 개찰 기록 ${num(c.n)}건. 평균 투찰률 ${pct(c.s?.avg, 2)}`
-        + (reg ? `, 주력 지역 ${reg}` : '') + '. 지역·기관별 낙찰 분포와 최근 낙찰 내역을 회원가입 없이 봅니다.'
+        + (reg ? `, 주력 지역 ${reg}` : '') + '. 지역·기관별 낙찰 분포와 최근 낙찰 내역을 무료로 봅니다.'
       : '업체 낙찰 실적 분석'
     document.title = title
     setMeta('description', desc)
@@ -127,7 +127,7 @@ export default function CorpPage() {
         <div className="sec-title" style={{ margin: '0 0 6px' }}>📄 우리 회사 입찰 성적표</div>
         <p className="cp" style={{ margin: '0 0 8px' }}>
           이 화면은 <b>낙찰(1순위) 기록</b> 중심입니다. 넣었다가 떨어진 것 · 하한 아래로 떨어진 것 · 아깝게 놓친 것까지 본
-          {' '}<b>A4 성적표</b>는 따로 신청받습니다.
+          {' '}<b>A4 성적표</b>는 무료로 신청받습니다.
         </p>
         <div className="btn-row">
           <a className="btn primary" href="/report-sample.pdf" target="_blank" rel="noopener">📄 성적표 견본 보기</a>

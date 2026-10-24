@@ -305,13 +305,13 @@ function Run() {
   return (
     <>
       <div className="card lead-card">
-        <h1 style={{ margin: 0, fontSize: 20 }}>🧮 수량산출서 만들기 <span className="count">· 바로 이용 가능</span></h1>
+        <h1 style={{ margin: 0, fontSize: 20 }}>🧮 수량산출서 만들기 <span className="count">· 무료</span></h1>
         <p className="why2" style={{ marginBottom: 6 }}>
           <b>재료표</b>를 고르고 <b>치수</b>를 적으면 <b>수량산출서 엑셀</b>이 나옵니다.
           산출근거가 <b>살아 있는 엑셀 수식</b>이라 감리가 칸을 눌러 봅니다.
         </p>
         <p className="muted" style={{ margin: 0 }}>
-          회원가입 없이 여기서 바로 끝납니다. <b>넣으신 것은 이 브라우저 밖으로 나가지 않습니다</b> —
+          회원가입 없이 무료로 여기서 끝납니다. <b>넣으신 것은 이 브라우저 밖으로 나가지 않습니다</b> —
           셈은 쓰시는 컴퓨터(휴대폰) 안에서 합니다.
         </p>
         {/* 💾 G113 — 적은 치수표 · 고른 재료표 · 올린 치수표를 파일 하나로 옮겨 다른 기기에서 이어 합니다(서버로 안 감) */}

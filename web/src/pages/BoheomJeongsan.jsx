@@ -114,7 +114,7 @@ export default function BoheomJeongsan() {
         </p>
         <div className="nm-badges">
           <span>근거: <a href={근거주소} target="_blank" rel="noopener">{근거}</a></span>
-          <span>회원가입 없이 바로 이용 가능</span>
+          <span>회원가입 없음 · 무료</span>
           <span>💾 이 브라우저에 저장 · 🔗 코드로 폰·PC 이어 쓰기 {저장됨 ? '' : <b className="nm-warn">— 지금 저장이 막혀 있습니다(사생활 보호 창 등)</b>}</span>
         </div>
         <이어쓰기 ns="bj" 이름="보험료 정산 청구서" 파일="보험료정산" st={st} setSt={setSt} 읽기={읽기} 쓰기={쓰기} />

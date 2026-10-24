@@ -224,5 +224,22 @@ const FT판 = 층판(S.덩어리, H, 'FT')
   const r = 철.배근.기초.find((x) => x.기호 === 'MF1')
   봐(r.하부가로 === 'D19@150' && /D19:26\.667/.test(r.단위철근), `기초 철근 넣기 — D19@150 상 · 하부 양방향 → m²당 ${r.단위철근}`)
 }
+console.log('⑩ 🪜 G393 계단 — 높은 단은 막고 낮은 첫 단은 밟고 넘음 · 🔧 눈으로 볼 때 내 몸을 안 그림(회색 띠)')
+{
+  let M = { ...L.새모델(), 층: [{ 이름: 'FT', 층고: 0, 슬라브: 0, 내림: 0 }, { 이름: '1', 층고: 3400, 슬라브: 150 }, { 이름: '2', 층고: 3300, 슬라브: 150 }] }
+  M = { ...M, 배근: { ...M.배근, 계단: [{ 기호: 'ST1', 두께: '150', 주근: 'D13@150', 배력근: 'D10@200', 단높이: '170' }] } }
+  M = L.계단넣기(M, '1', 'ST1', 'x1', 'y1', 'x2', 'y2')
+  const S = L.모델셈(M), H = L.층높이(M)
+  const 판 = 층판(S.덩어리, H, '1')
+  const 계 = S.덩어리.find((d) => d.종류 === '계단')
+  봐(판.막.filter((x) => x.id === 계.id).length > 0 && 판.막.filter((x) => x.id === 계.id).length < 계.조각.length, '계단 조각 일부만 막음(첫 단 몇 개는 넘음) — ' + 판.막.filter((x) => x.id === 계.id).length + ' / ' + 계.조각.length)
+  const fs = await import('fs')
+  const 판글 = fs.readFileSync(new URL('../web/src/둘러보기판.jsx', import.meta.url), 'utf8')
+  봐(/if \(눈Ref\.current\) \{ v\.set사람\(null\)/.test(판글), '🔒 눈으로 볼 때 v.set사람(null) — 머리카락 · 얼굴 조각이 회색 띠로 보이던 것(소장님 10/24) 다시 안 생기게')
+  봐(/🟥 손으로/.test(판글) && !/빨간 곳 <b>/.test(판글), '🔒 HUD — 겹침 뺀 🟥 손으로 · 🟨 확인(«빨간 곳 156» 처럼 겹침까지 세지 않음)')
+  봐(/화면점\(/.test(판글) && /gwk-bubble/.test(판글) && /🟩/.test(판글) && /구간 전체/.test(판글), '💬 말풍선(화면점) · 🟩 확인 콘크리트 · ▭ 구간 들어서면 알림 — 들어 있음')
+  const B3 = await import('../web/src/lib/bim3d.js')
+  봐(typeof B3.부재보기.prototype.화면점 === 'function', 'bim3d 화면점(3D → 화면) 있음')
+}
 console.log(`\n${ok} 통과 · ${bad} 실패`)
 if (bad) process.exit(1)

@@ -370,6 +370,8 @@ export function 모델만들기(도면들, R, 옵션 = {}) {
           const [x0, y0, x1, y1] = z.r.map((v) => v * kd)
           o.판 = 네모판(x0, y0, x1, y1)
           o.두께 = 수(b && b.두께) || 150
+          if (z.가로 !== undefined) o.가로 = !!z.가로          // 🪜 G393 오르는 방향 · 중간참 쪽(작업 화면 계단 3D)
+          if (z.참끝 !== undefined) o.참끝 = z.참끝 ? 1 : 0
         } else if (종 === '슬라브') {
           const [x0, y0, x1, y1] = z.r.map((v) => v * kd)
           o.판 = 네모판(x0, y0, x1, y1)

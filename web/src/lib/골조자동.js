@@ -2375,19 +2375,19 @@ function 계단판찾기(D, g) {
   }
   const 가 = (a) => a.reduce((t, v) => t + v, 0) / a.length
   const L = Math.round(가(무리.map((p) => p.L))), W = Math.round(가(무리.map((p) => p.W)))
-  let 하단참 = 0, 상단참 = 0
+  let 하단참 = 0, 상단참 = 0, 중끝 = true
   if (무리.length >= 2) {
     const 끝값 = (p, 끝) => (!씨.가로 ? (끝 ? p.y1 : p.y0) : (끝 ? p.x1 : p.x0))
     const 맞 = (끝) => Math.max(...무리.map((p) => 끝값(p, 끝))) - Math.min(...무리.map((p) => 끝값(p, 끝))) <= 100
     const 깊 = (끝) => { const ds = 무리.map((p) => 끝거리(p, 끝)); return ds.some((d) => d === null) ? null : 가(ds) }
     const d0 = 깊(false), d1 = 깊(true)
     /* 판 끝이 나란히 맞은 쪽 = 중간참(둘 다 맞으면 깊은 쪽) */
-    const 중끝 = 맞(true) && !맞(false) ? true : 맞(false) && !맞(true) ? false : (d1 ?? 0) >= (d0 ?? 0)
+    중끝 = 맞(true) && !맞(false) ? true : 맞(false) && !맞(true) ? false : (d1 ?? 0) >= (d0 ?? 0)
     상단참 = Math.round((중끝 ? d1 : d0) ?? W)
     하단참 = Math.round((중끝 ? d0 : d1) ?? 0)
   }
   const 상자 = [Math.min(...무리.map((p) => p.x0)), Math.min(...무리.map((p) => p.y0)), Math.max(...무리.map((p) => p.x1)), Math.max(...무리.map((p) => p.y1))]
-  return { 판: 무리, 가로: 씨.가로, L, W, 하단참, 상단참, 상자 }
+  return { 판: 무리, 가로: 씨.가로, L, W, 하단참, 상단참, 상자, 중끝 }
 }
 
 /* ───────────────────────────── 🧭 G273 깊은 칸(지하수조 · 저수조 · 정화조 …) — 단면의 깊이 · 벽 · 바닥판 + 건축 평면의 안 크기 */
@@ -3354,7 +3354,8 @@ function 골조읽기0(도면들0, o = {}) {
       const 계단줄 = 계단칸.map((x) => {
         const 상자 = x.st.상자.map((v) => v / x.D.k)
         근거.push({ 번: x.D.번, 상자, 글: '계단 ' + x.기 + ' ' + x.st.판.length + '판 ' + x.st.L + '×' + x.st.W })
-        return { 기호: x.기, L: x.st.L, W: x.st.W, 판수: x.st.판.length, 하단참: x.st.하단참, 상단참: x.st.상단참, 자리: 자리만들기(x.D.이름, 상자) }
+        /* 🪜 G393 오르는 방향(가로 = x 로 오름) · 중간참 쪽(참끝 1 = x · y 큰 쪽) — 작업 화면(골조 모델) 3D 계단 · 셈에는 안 씀 */
+        return { 기호: x.기, L: x.st.L, W: x.st.W, 판수: x.st.판.length, 하단참: x.st.하단참, 상단참: x.st.상단참, 자리: { ...자리만들기(x.D.이름, 상자), 가로: !!x.st.가로, 참끝: x.st.중끝 ? 1 : 0 } }
       })
       for (const x of 슬칸) if (x.씨) { 바닥씨칸++; 바닥씨넓 += x.단변 * x.장변 / 1e6; if (typeof x.씨 === 'object') 바닥씨단면.add(x.씨); if (x.채움) { 바닥채움++; 바닥채움넓 += x.단변 * x.장변 / 1e6 } }
       /* 🧭 G245 자리마다 «어느 평면(제목 · 판)에서 읽었나»(p) — BIM 이 같은 층 평면을 무리로 나눌 때 거리(6 m 칸) 대신 이것으로 나눔.
