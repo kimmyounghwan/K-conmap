@@ -139,6 +139,9 @@ for (const 기기 of 기기들) {
   봐((await p.locator('.tmk-canvas3d').count()) === 1 && (await p.locator('.tmk-canvas').count()) === 1, `${기기} ◫ 나란히 — 평면 + 3D`)
   await p.click('button:has-text("📐 평면")')
   if (기기 === 'PC') await p.screenshot({ path: path.join(임시, 'PC.png') })
+  /* 📖 G401 도면 보는 차례 — 도면함 아래(docs/도면보는순서.md) */
+  const 차례글 = await p.evaluate(() => [...document.querySelectorAll('.tmk-order li')].map((li) => li.textContent.replace(/\s+/g, ' ').trim()))
+  봐(차례글.length === 7 && /^건축/.test(차례글[0]) && /^토목 ③ 측량/.test(차례글[2]) && /^토목 ④ .*계획평면도/.test(차례글[3]) && /^토목 ⑫/.test(차례글[6]), `${기기} 📖 G401 도면 보는 차례 — 예시 7장(건축 평면 → 토목 ③ 측량 → ④ 계획평면 → … → ⑫ 흙막이)`, JSON.stringify(차례글))
   /* 📑 G398 내역 대조 — 🧪 예시 내역서 */
   봐(!(await p.locator('.tmk-nybtn').isDisabled()) && (await p.locator('.tmk-nyex').count()) === 1, `${기기} 📑 내역 대조 단추 켜짐 · 카드에 🧪 예시 내역서`)
   await p.click('.tmk-nyex')
@@ -212,6 +215,8 @@ for (const 기기 of 기기들) {
   const 이3 = Object.keys(책3)
   const 대시 = 책3['내역 대조'] || [], 품시 = 책3['내역 품목 판정'] || []
   봐(이3[0] === '함께 합' && 이3[1] === '내역 대조' && 이3[2] === '내역 품목 판정' && 대시.filter((r) => r && r.length).length === 15 && 품시.filter((r) => r && r.length).length === 21 && new Set(이3).size === 이3.length, `${기기} 엑셀 — 함께 합 다음 «내역 대조» 14줄 · «내역 품목 판정» 20줄`, JSON.stringify([이3.slice(0, 4), 대시.length, 품시.length]))
+  const 제시 = 책3['변경 수량 제안'] || []
+  봐(이3[3] === '변경 수량 제안' && 제시.filter((r) => r && r.length).length === 13 && 제시.some((r) => r && r[2] === '성토' && Math.abs(+r[6] - 37.8) < 0.05), `${기기} 📤 G401 엑셀 «변경 수량 제안» — 견준 품목 12줄(성토 52 → 37.8)`, JSON.stringify([이3, 제시.length]))
   await p.click('.tmk-nycard button[title="내역 대조 지우기"]'); await p.waitForTimeout(500)
   봐(!(await p.locator('.tmk-nyt').count()) && (await p.locator('.tmk-nyex').count()) === 1 && !/내역 대조/.test(await p.locator('.gmd-ws-views button.on').textContent()), `${기기} 카드 ✕ → 내역 대조 지움 · 평면으로`)
   await p.reload({ waitUntil: 'domcontentloaded' })

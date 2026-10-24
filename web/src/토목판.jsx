@@ -19,6 +19,7 @@ import { 넣기 as 기억넣기, 꺼내기 as 기억꺼내기, 지우기 as 기�
 import { 파일한도 } from './lib/파일한도.js'
 import { 층높이 } from './lib/골조모델.js'
 import { 건설맵묶음, 맞대기, 갈래이름, 갈래단위, 판정글, 상태갈래 } from './lib/토목내역.js'
+import { 차례정렬, 도면차례 } from './lib/도면차례.js'
 
 /* 🧪 예시 — BIM 물량 화면 «가상 배수로 · 배수장 + 관리동 · 건물 · 흙막이 한꺼번에» 와 같은 도면(가상) + 측점 성과 CSV — 🛣🏢 G397 골조(3층)도 같이 */
 const 예시파일 = ['BIM예시_측량도면.dxf', 'BIM예시_계획평면도.dxf', 'BIM예시_종횡단면도.dxf', 'BIM예시_배수장일반도.dxf', 'BIM예시_관리동평면도.dxf', 'BIM_예시_3층.dxf', 'BIM예시_흙막이도.dxf', 'BIM예시_측점성과.csv']
@@ -369,7 +370,7 @@ function 내역대조칸({ 대조, 내역, 상태번, set상태번, 바꾸기, �
         return <li key={i}>{x.고침 ? '✋ ' : ''}{x.이름} · {갈래이름[x.갈래]} {쉼2(x.값, x.갈래 === '철근' ? 3 : 1)} {갈래단위[x.갈래]}{갈곳.length > 0 && <select className="tmk-nypair" value="" onChange={(e) => { if (e.target.value !== '') 짝고치기(x.키 + '|' + x.갈래, +e.target.value) }} aria-label={x.이름 + ' 맞댈 공종'}><option value="">→ 맞댈 공종 고르기</option>{갈곳.map((u) => <option key={u.키} value={u.공종i}>{(u.길.length > 1 ? u.길.slice(1) : u.길).slice(-2).join(' > ') || u.공종}</option>)}</select>}</li>
       })}</ul></details>}
       {대조.뺀단위 > 0 && <small className="muted tmk-nyzero">이 상태({대조.상태})에서 내역 수량이 비었거나 0 인 공종 · 갈래 {대조.뺀단위}개는 견줄 것이 없어 뺐습니다{내역.나무.상태.length > 1 ? ' — 위에서 상태를 바꿔 보십시오' : ''}.</small>}
-      <small className="muted">공종마다(자리 말 — 배수장 · 유수지 · 배수로 …) 같은 갈래 품목을 더해 건설맵 묶음과 맞댐 · ✓ 3 % 안 · △ 10 % 안 · ✗ 넘음 — «다름» 은 곧 «틀림» 이 아닙니다(넣은 도면이 당초인지 변경인지 · 산출서의 셈 · 할증). 줄을 누르면 내역 품목과 근거가 나옵니다.</small>
+      <small className="muted">공종마다(자리 말 — 배수장 · 유수지 · 배수로 …) 같은 갈래 품목을 더해 건설맵 묶음과 맞댐 · ✓ 3 % 안 · △ 10 % 안 · ✗ 넘음 — «다름» 은 곧 «틀림» 이 아닙니다(넣은 도면이 당초인지 변경인지 · 산출서의 셈 · 할증). 줄을 누르면 내역 품목과 근거가 나옵니다. 📤 엑셀의 «변경 수량 제안» 시트 = 견준 품목마다 건설맵 비율로 나눈 변경 수량(설계변경 작업대에 옮겨 쓰기 — 확인 후).</small>
     </div>
   )
 }
@@ -445,7 +446,23 @@ function 도면함칸({ 함, T }) {
       {높이.length > 0 && <details><summary>종단 · 상세 · 표 {높이.length}</summary><ul className="tmk-dws">{높이.map(줄)}</ul></details>}
       {옆.length > 0 && <details><summary>못 놓음 · 꺼 둠 {옆.length}</summary><ul className="tmk-dws">{옆.map(줄)}</ul></details>}
       {(T.못읽은 || []).length > 0 && <small className="gmd-warn">읽지 못함: {T.못읽은.map((x) => x.이름).join(', ')}</small>}
+      {(T.파일 || []).length > 1 && <보는차례 파일={T.파일} />}
     </div>
+  )
+}
+
+/* ── 📖 G401 도면 보는 차례 — docs/도면보는순서.md (건축: 목록 → 개요 → 배치 → 구조 일반 → 기초 → 지하 → 1층 → … → 지붕 → 옥탑 → 일람표 → 계단 → 데크 → 단면 → 창호 · 토목: 목차 → 사업계획 → 측량 → … → 노선 → 구조물 → 배근도 → … → 수량표) ── */
+const 동그라미 = ['', '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩', '⑪', '⑫', '⑬', '⑭']
+function 보는차례({ 파일 }) {
+  const 순 = 차례정렬(파일)
+  const 셈 = { 건축: 0, 토목: 0 }
+  for (const n of 파일) { const c = 도면차례(n); if (셈[c.무리] !== undefined) 셈[c.무리]++ }
+  const 많은 = 셈.토목 > 셈.건축 ? '토목' : 셈.건축 ? '건축' : null
+  return (
+    <details className="tmk-order">
+      <summary>📖 보는 차례 — 건축은 기초에서 위층으로 · 토목은 목차 → 좌표 → 노선 → 구조물 → 검산</summary>
+      <ol>{순.map((n, i) => { const c0 = 도면차례(n), c = c0.무리 === '모름' && 많은 ? 도면차례(n, 많은) : c0; return <li key={i}><span className="tmk-kind">{c.무리 === '공통' ? '표지' : c.무리}</span> <b>{동그라미[c.차례] || '·'}</b> {c.갈래}{c.층 !== null && c.층 !== undefined && c.차례 >= 5 && c.차례 <= 9 ? ` (${c.층 === -100 ? '기초' : c.층 >= 950 ? '옥탑' : c.층 >= 900 ? '지붕' : c.층 < 0 ? '지하 ' + -c.층 + '층' : c.층 + '층'})` : ''} — <span title={n}>{n}</span></li> })}</ol>
+    </details>
   )
 }
 

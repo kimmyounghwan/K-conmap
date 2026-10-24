@@ -9262,6 +9262,9 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gmd .tmk-nyc.c-없음 { background: var(--surface-2); color: var(--muted); }
 .gmd .tmk-nyc.c-부분 { background: #e0e7ff; border-color: #a5b4fc; color: #3730a3; }
 .gmd .tmk-nypart { display: block; margin: 4px 0 6px; }
+.gmd .tmk-order { margin-top: 6px; font-size: 12px; }
+.gmd .tmk-order ol { margin: 4px 0 0; padding-left: 18px; }
+.gmd .tmk-order li { margin: 2px 0; overflow-wrap: anywhere; }
 .gmd .tmk-nytable { display: flex; flex-direction: column; gap: 8px; padding: 10px; flex: 1 1 auto; min-height: 0; }
 .gmd .tmk-nyhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .gmd .tmk-nyhead b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
