@@ -9249,3 +9249,59 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gmd .tmk-3dn { align-self: center; padding: 2px 8px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-size: 11.5px; color: var(--text-2); }
 .gmd .tmk-said { line-height: 1.6; }
 @media (prefers-color-scheme: dark) { .gmd .tmk-step.tmk-gstep b { color: #c4b5fd; } }
+/* 📑 G398 토목 탭 «내역 대조» — 내역서 ↔ 건설맵 물량(✓ 맞음 · △ 비슷 · ✗ 다름 · — 없음) */
+.gmd .tmk-nycard { border-color: #60a5fa; }
+.gmd .tmk-nyfile { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gmd .tmk-nycount { display: flex; flex-wrap: wrap; gap: 4px; }
+.gmd .tmk-nyc { display: inline-flex; align-items: center; gap: 3px; width: auto; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text-2); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.gmd button.tmk-nyc { cursor: pointer; }
+.gmd button.tmk-nyc.on { outline: 2px solid var(--accent); outline-offset: 1px; }
+.gmd .tmk-nyc.c-맞음 { background: #dcfce7; border-color: #86efac; color: #166534; }
+.gmd .tmk-nyc.c-비슷 { background: #fef9c3; border-color: #fde047; color: #854d0e; }
+.gmd .tmk-nyc.c-다름 { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+.gmd .tmk-nyc.c-없음 { background: var(--surface-2); color: var(--muted); }
+.gmd .tmk-nytable { display: flex; flex-direction: column; gap: 8px; padding: 10px; flex: 1 1 auto; min-height: 0; }
+.gmd .tmk-nyhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.gmd .tmk-nyhead b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gmd .tmk-nyopts { display: flex; gap: 6px; align-items: center; }
+.gmd .tmk-nyopts select { padding: 5px 6px; border-radius: 7px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: 12.5px; }
+.gmd .tmk-nyopts .btn { width: auto; }
+.gmd .tmk-nytable .tmk-nywrap { max-height: none; flex: 1 1 auto; min-height: 220px; }
+.gmd .tmk-nyt tr.tmk-nyrow td:nth-child(2) { max-width: 260px; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.gmd .tmk-nyt th:nth-child(2) { text-align: left; }
+.gmd .tmk-nyrow { cursor: pointer; }
+.gmd .tmk-nyrow:hover td { background: var(--surface-2); }
+.gmd .tmk-nyrow.p-맞음 .tmk-nyp { color: #15803d; font-weight: 700; }
+.gmd .tmk-nyrow.p-비슷 .tmk-nyp { color: #a16207; font-weight: 700; }
+.gmd .tmk-nyrow.p-다름 td { background: #fef2f2; }
+.gmd .tmk-nyrow.p-다름 .tmk-nyp { color: #b91c1c; font-weight: 700; }
+.gmd .tmk-nyrow.p-없음 td { color: var(--muted); }
+.gmd .tmk-nyrow.open td { font-weight: 700; }
+.gmd .tmk-nydetail td { white-space: normal; text-align: left; line-height: 1.55; font-size: 12px; background: var(--surface-2); padding: 6px 8px; }
+.gmd .tmk-nydetail td > div + div { margin-top: 3px; }
+.gmd .tmk-nywhy { color: #1d4ed8; }
+.gmd .tmk-nyleft summary { cursor: pointer; font-size: 12.5px; color: var(--text-2); }
+.gmd .tmk-nyleft ul { margin: 4px 0 0; padding-left: 18px; font-size: 12px; line-height: 1.6; }
+@media (prefers-color-scheme: dark) {
+  .gmd .tmk-nyc.c-맞음 { background: rgba(34, 197, 94, .16); border-color: rgba(34, 197, 94, .4); color: #86efac; }
+  .gmd .tmk-nyc.c-비슷 { background: rgba(234, 179, 8, .16); border-color: rgba(234, 179, 8, .4); color: #fde047; }
+  .gmd .tmk-nyc.c-다름 { background: rgba(239, 68, 68, .16); border-color: rgba(239, 68, 68, .4); color: #fca5a5; }
+  .gmd .tmk-nyrow.p-맞음 .tmk-nyp { color: #86efac; }
+  .gmd .tmk-nyrow.p-비슷 .tmk-nyp { color: #fde047; }
+  .gmd .tmk-nyrow.p-다름 td { background: rgba(239, 68, 68, .12); }
+  .gmd .tmk-nyrow.p-다름 .tmk-nyp { color: #fca5a5; }
+  .gmd .tmk-nywhy { color: #93c5fd; }
+}
+@media (max-width: 760px) { .gmd .tmk-nytable .tmk-nywrap { max-height: 60vh; } }
+.gmd .tmk-nyt th.tmk-nym, .gmd .tmk-nyt td.tmk-nym { width: 1%; text-align: center; font-weight: 800; padding-right: 2px; }
+.gmd .tmk-nyrow.p-맞음 .tmk-nym { color: #15803d; } .gmd .tmk-nyrow.p-비슷 .tmk-nym { color: #a16207; } .gmd .tmk-nyrow.p-다름 .tmk-nym { color: #b91c1c; } .gmd .tmk-nyrow.p-없음 .tmk-nym { color: var(--muted); }
+.gmd .tmk-nyt .tmk-nyg { display: none; }
+.gmd .tmk-nyt td.tmk-nyg2 { text-align: right; }
+@media (prefers-color-scheme: dark) { .gmd .tmk-nyrow.p-맞음 .tmk-nym { color: #86efac; } .gmd .tmk-nyrow.p-비슷 .tmk-nym { color: #fde047; } .gmd .tmk-nyrow.p-다름 .tmk-nym { color: #fca5a5; } }
+@media (max-width: 760px) {
+  .gmd .tmk-nyt { font-size: 11px; }
+  .gmd .tmk-nyt th, .gmd .tmk-nyt td { padding: 3px 3px; }
+  .gmd .tmk-nyt .tmk-nyg2, .gmd .tmk-nyt .tmk-nyp, .gmd .tmk-nyt .tmk-nyu { display: none; }
+  .gmd .tmk-nyt .tmk-nyg { display: block; color: var(--muted); font-size: 10.5px; }
+  .gmd .tmk-nyt tr.tmk-nyrow td:nth-child(2) { max-width: 120px; }
+}

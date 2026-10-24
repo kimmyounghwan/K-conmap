@@ -261,11 +261,28 @@ export function 단면면적(조각, 땅인가, 높, 배, cx) {
   const 무리번 = new Int32Array(N).fill(-1)   // 🧭 G251 제품 아닌 구조물 속 칸의 무리(레이어마다 닫힌 곳) — 뒷채움 띠 가려내기
   let 무리기준 = 0
   const 언제나 = () => true
+  const 제품인층 = (ly) => 제품층.test(ly) && !/기초|콘크리트|CONC|버림|FOUND|천단/i.test(ly)       // «블럭기초» 는 현장 콘크리트
+  /* 🧱 G398 블록(제품) 선도 다른 층의 «닫는 벽» 으로 — 현장 S 1호(중앙)배수로 블록 호안: 기초 콘크리트(0.8 × 0.5 · 턱)와 천단 콘크리트(1.0 × 0.1)는
+       «0» 층 선과 블록 밑 · 옆 선(«제품» 층)이 같이 닫는 모양이라 «0» 층 혼자로는 안 닫혀 콘크리트에서 빠졌음(1,043 m 에 334 ㎥ — 수량산출서 945 ㎥).
+       블록 속(제품끼리 닫은 곳)은 그 층 구조물로 안 셈 */
+  let 제품벽 = null, 제품속 = null
+  for (const [ly, arr] of 층별) {
+    if (arr.length < 3 || 흙층.test(ly) || !제품인층(ly)) continue
+    if (!제품벽) 제품벽 = new Uint8Array(N)
+    for (const s of arr) 그리기(제품벽, s, 1)
+  }
+  if (제품벽) {
+    const 밖 = 붓기(언제나, 제품벽)
+    제품속 = new Uint8Array(N)
+    for (let k = 0; k < N; k++) if (!밖[k] && !제품벽[k]) 제품속[k] = 1
+  }
   for (const [ly, arr] of 층별) {
     if (arr.length < 3 || 흙층.test(ly)) continue
-    const 제품 = 제품층.test(ly) && !/기초|콘크리트|CONC|버림|FOUND|천단/i.test(ly)       // «블럭기초» 는 현장 콘크리트
+    const 제품 = 제품인층(ly)
     const 층벽 = new Uint8Array(N)
     for (const s of arr) 그리기(층벽, s, 1)
+    const 자기벽 = 제품벽 && !제품 ? 층벽.slice() : 층벽
+    if (제품벽 && !제품) for (let k = 0; k < N; k++) if (제품벽[k]) 층벽[k] = 1
     const 닿 = 붓기(언제나, 층벽)
     let 있 = 0
     for (let k = 0; k < N; k++) if (!닿[k] && !층벽[k]) { 있 = 1; break }
@@ -328,6 +345,7 @@ export function 단면면적(조각, 땅인가, 높, 배, cx) {
     const 빔 = 빈속빼기(깊, 무, 무수, 층벽, 닿, nx, ny, cw * 배, ch * kz)
     for (let k = 0; k < N; k++) {
       if (닿[k]) continue
+      if (제품속 && !제품 && (제품속[k] || (층벽[k] && !자기벽[k]))) continue      // 🧱 G398 블록 속 · 블록 선 칸은 이 층 구조물이 아님
       if (!층벽[k]) { if (깊[k] % 2 === 1) { if (빔 && 빔[무[k]]) { if (!S[k]) S[k] = 2 } else { S[k] = 1; if (제품) P[k] = 1; else if (무리번[k] < 0) 무리번[k] = 무리기준 + 무[k] } } continue }
       /* 닫힌 모양의 테두리 선 칸도 구조물로(안쪽(홀수) 칸과 붙은 것만) */
       const i = k % nx
@@ -339,6 +357,7 @@ export function 단면면적(조각, 땅인가, 높, 배, cx) {
   /* 🧭 G251 블록 옹벽 뒤 «뒷채움» 띠 — 제품(블록)이 있는 단면에서, 블록에서 1 m 안에 있는 «얇고(두께 0.7 m 아래) 긴(1.5 m 넘게)» 닫힌 곳은
        뒷채움 잡석 · 필터층(현장 콘크리트 아님 — 현장 E 08 상세 «뒷채움잡석») · 블록 밑 기초 콘크리트(0.8 × 0.5) · 천단 콘크리트는 짧아서 그대로 콘크리트 */
   const 채움 = new Uint8Array(N)
+  const 캡상자 = []                            // 🧱 G398 블록 맨 위에 얹힌 얇은 천단 콘크리트(칸 상자) — 거푸집 없음
   let 제품있 = false
   for (let k = 0; k < N; k++) if (P[k]) { 제품있 = true; break }
   if (제품있 && 무리기준) {
@@ -385,6 +404,50 @@ export function 단면면적(조각, 땅인가, 높, 배, cx) {
     for (const [r, n] of 넓) {
       const t = 큰D.get(r) || 0, A = n * dx * dy
       if (곁.get(r) && t <= 0.35 && t > 0 && A / (2 * t) >= 1.5) 띠무리.add(r)
+    }
+    /* 🧱 G398 블록 선을 벽으로 쓰면 생기는 것 — ① 계단꼴 블록 뒤와 뒷채움 선 사이 작은 틈(0.08 ㎡ 안 · 블록에 닿음) = 뒷채움
+         ② 블록 호안 기초 콘크리트 밑에 깐 얇은 판(두께 0.25 m 안 · 위에 다른 콘크리트 무리가 올라앉음 · 그보다 넓음) = 잡석 기초(현장 S 1호 «잡석» 1.0 × 0.2 — 단면 상세도) */
+    const 칸범위 = new Map()
+    for (let k = 0; k < N; k++) {
+      const r = 무리번[k]
+      if (r < 0 || P[k]) continue
+      const i = k % nx, j = (k / nx) | 0
+      let b0 = 칸범위.get(r); if (!b0) { b0 = [i, j, i, j]; 칸범위.set(r, b0) }
+      if (i < b0[0]) b0[0] = i; if (j < b0[1]) b0[1] = j; if (i > b0[2]) b0[2] = i; if (j > b0[3]) b0[3] = j
+    }
+    for (const [r, n] of 넓) {
+      if (띠무리.has(r)) continue
+      const A = n * dx * dy
+      let 닿음 = false
+      for (let k = 0; k < N && !닿음; k++) if (무리번[k] === r && 가까[k] <= Math.max(2 * dd, 0.06)) 닿음 = true
+      const t = 큰D.get(r) || 0, b0 = 칸범위.get(r)
+      if (닿음 && A < 0.08 && b0) {
+        /* 블록 무더기 맨 위(곁 1.5 m 안 블록 칸의 가장 높은 줄)보다 밑이 낮은 틈만 — 맨 위에 얹힌 천단은 남김 */
+        const 곁칸 = Math.ceil(1.5 / dx)
+        let 블록위 = -1
+        for (let j = ny - 1; j >= 0 && 블록위 < 0; j--) for (let i = Math.max(0, b0[0] - 곁칸); i <= Math.min(nx - 1, b0[2] + 곁칸); i++) if (P[j * nx + i]) { 블록위 = j; break }
+        if (블록위 >= 0 && b0[1] < 블록위 - 1) { 띠무리.add(r); continue }      // 밑이 블록 맨 위보다 낮으면 틈(천단은 맨 위에 얹힘)
+      }
+      if (b0 && (b0[3] - b0[1] + 1) * dy <= 0.2) {
+        const 곁칸2 = Math.ceil(1.5 / dx)
+        let 블록위2 = -1
+        for (let j = ny - 1; j >= 0 && 블록위2 < 0; j--) for (let i = Math.max(0, b0[0] - 곁칸2); i <= Math.min(nx - 1, b0[2] + 곁칸2); i++) if (P[j * nx + i]) { 블록위2 = j; break }
+        if (블록위2 >= 0 && b0[1] >= 블록위2 - 1) 캡상자.push([b0[0] - 1, b0[1] - 1, b0[2] + 1, b0[3] + 1])
+      }
+      if (!b0 || !(t > 0 && t <= 0.125) || (b0[2] - b0[0] + 1) * dx < 0.6) continue
+      /* 윗변 바로 위(3 칸 안)가 다른 구조물 무리인 열 */
+      let 열 = 0, 위무리 = new Map()
+      for (let i = b0[0]; i <= b0[2]; i++) {
+        let 맨위 = -1
+        for (let j = b0[3]; j >= b0[1]; j--) if (무리번[j * nx + i] === r) { 맨위 = j; break }
+        if (맨위 < 0) continue
+        열++
+        for (let jj = 맨위 + 1; jj <= Math.min(ny - 1, 맨위 + 4); jj++) { const r2 = 무리번[jj * nx + i]; if (r2 >= 0 && r2 !== r && !P[jj * nx + i]) { 위무리.set(r2, (위무리.get(r2) || 0) + 1); break } }
+      }
+      let 큰 = null
+      for (const [r2, c] of 위무리) if (!큰 || c > 큰[1]) 큰 = [r2, c]
+      const b2 = 큰 ? 칸범위.get(큰[0]) : null
+      if (큰 && 큰[1] >= 0.6 * 열 && b2 && (b2[2] - b2[0]) < (b0[2] - b0[0]) && !띠무리.has(큰[0])) 띠무리.add(r)
     }
     if (띠무리.size) for (let k = 0; k < N; k++) if (무리번[k] >= 0 && 띠무리.has(무리번[k]) && !P[k]) 채움[k] = 1
   }
@@ -454,6 +517,9 @@ export function 단면면적(조각, 땅인가, 높, 배, cx) {
       return (i > 0 && 속콘(k - 1)) || (i < nx - 1 && 속콘(k + 1)) || (k >= nx && 속콘(k - nx)) || (k < N - nx && 속콘(k + nx))
     }
     const 세로변 = ch * kz, 가로변 = cw * 배
+    /* 🧱 G398 블록 호안 — 블록(제품) · 뒷채움 · 블록 테두리 선에 닿은 옆면은 거푸집 아님(블록이 거푸집 몫) · 블록 맨 위 얇은 천단(두께 0.15 m 안)은 거푸집 없음(현장 S 수량산출서: 호안 거푸집 = 기초 옆면만 1 ㎡/m) */
+    const 블록곁 = (kk) => 제품있 && (P[kk] || 채움[kk] || (벽[kk] && ((kk % nx > 0 && P[kk - 1]) || (kk % nx < nx - 1 && P[kk + 1]) || (kk >= nx && P[kk - nx]) || (kk < N - nx && P[kk + nx]))))
+    const 캡속 = (i, j) => 캡상자.some((b) => i >= b[0] && i <= b[2] && j >= b[1] && j <= b[3])
     for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
       const k = j * nx + i
       if (!콘인가(k)) continue
@@ -465,8 +531,9 @@ export function 단면면적(조각, 땅인가, 높, 배, cx) {
       if (o > 구조폭[1]) 구조폭[1] = o
       if (z < 구조높[0]) 구조높[0] = z
       if (z > 구조높[1]) 구조높[1] = z
-      if (i === 0 || !콘인가(k - 1)) 거푸집 += 세로변
-      if (i === nx - 1 || !콘인가(k + 1)) 거푸집 += 세로변
+      if (캡상자.length && 캡속(i, j)) continue
+      if (i === 0 || (!콘인가(k - 1) && !블록곁(k - 1))) 거푸집 += 세로변
+      if (i === nx - 1 || (!콘인가(k + 1) && !블록곁(k + 1))) 거푸집 += 세로변
       if (j > 0 && !콘인가(k - nx)) {
         const kk = k - nx
         const 흙 = E[kk] || 아래(i, j - 1)          // 아래가 터파기 · 원지반이면 흙에 닿은 바닥

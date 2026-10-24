@@ -17,6 +17,7 @@ import { 부재보기 } from './lib/bim3d.js'
 import { 토목상태 } from './lib/토목읽기.js'
 import { 파일한도 } from './lib/파일한도.js'
 import { 층높이 } from './lib/골조모델.js'
+import { 건설맵묶음, 맞대기, 갈래이름, 갈래단위, 판정글 } from './lib/토목내역.js'
 
 /* 🧪 예시 — BIM 물량 화면 «가상 배수로 · 배수장 + 관리동 · 건물 · 흙막이 한꺼번에» 와 같은 도면(가상) + 측점 성과 CSV — 🛣🏢 G397 골조(3층)도 같이 */
 const 예시파일 = ['BIM예시_측량도면.dxf', 'BIM예시_계획평면도.dxf', 'BIM예시_종횡단면도.dxf', 'BIM예시_배수장일반도.dxf', 'BIM예시_관리동평면도.dxf', 'BIM_예시_3층.dxf', 'BIM예시_흙막이도.dxf', 'BIM예시_측점성과.csv']
@@ -40,6 +41,9 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
   const [고른부재, set고른부재] = useState(null)
   const [골조같이, set골조같이] = useState(null)       // null = 같이 넣은 것이면 같이(묶음) · true/false = 고름
   const [예시닫음, set예시닫음] = useState(false)
+  const [내역, set내역] = useState(null)               // 📑 G398 내역 대조 — { 나무, 파일 } (이 화면에서만 · 저장 안 함)
+  const [내역상태번, set내역상태번] = useState(null)
+  const 내역Ref = useRef(null)
   const 파일Ref = useRef(null)
   const 센 = useRef(new Set())
   const 앞묶음 = useRef(묶음열쇠(토목상태.얻기()))
@@ -85,6 +89,14 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
   const 뺄번 = 자 && (자.방법 === '통심' || 자.방법 === '발자국') ? 자.번 : -1
   const 골조부재 = useMemo(() => (골조보기 && 자 ? 골조덩어리옮기기(S.덩어리, 자, 골조ID) : []), [골조보기, 자, S])
   const 함께 = useMemo(() => (골조보기 || 토 ? 함께합(골조보기 ? S.합 : null, 토, 뺄번) : null), [골조보기, S, 토, 뺄번])
+  /* 📑 G398 내역 대조 — 내역서 품목 ↔ 건설맵 묶음(노선 · 구조물 · 건물 평면 · 골조) */
+  const 내대 = useMemo(() => {
+    if (!내역 || (!토 && !골조보기)) return null
+    try {
+      const 묶 = 건설맵묶음(토, 골조보기 && 함께 ? 함께.골조 : null, { 뺄건물: 뺄번, 골조이름: M && M.이름 })
+      return 맞대기(내역.나무, 묶, { 상태번: Number.isInteger(내역상태번) ? 내역상태번 : undefined })
+    } catch (e) { return { 틀림: (e && e.message) || String(e) } }
+  }, [내역, 내역상태번, 토, 골조보기, 함께, 뺄번, M])
 
   /* ── 넣기 — 🛣🏢 G397 작업 화면의 «함께 넣기»(골조 · 토목 같이) ── */
   const 파일넣기 = async (files) => {
@@ -114,6 +126,26 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
     if (!T) return
     await 토목상태.넣기({ ...T, 좌표계고름: k })
     세기('|토목탭|좌표계')
+  }
+
+  /* ── 📑 내역 대조 — 내역서(설계 · 변경 · .xls · .xlsx) 넣기 ── */
+  const 내역넣기 = async (f) => {
+    if (!f) return
+    set상태({ k: 'busy', 글: '내역서 읽는 중 — ' + f.name })
+    try {
+      const { 내역열기 } = await import('./lib/토목내역.js')
+      const 나무 = 내역열기(new Uint8Array(await f.arrayBuffer()), f.name)
+      set내역({ 나무, 파일: f.name }); set내역상태번(null); set보기('내역'); set상태(null)
+      세기('|토목탭|내역대조')
+    } catch (e) { set상태({ k: 'err', 글: '내역서를 읽지 못했습니다 — ' + ((e && e.message) || e) }) }
+  }
+  const 예시내역 = async () => {
+    try {
+      const res = await fetch('/jeoksan/' + encodeURIComponent('BIM예시_내역서.xlsx'))
+      if (!res.ok) throw new Error('예시 내역서를 받지 못함')
+      await 내역넣기(new File([await res.blob()], 'BIM예시_내역서.xlsx'))
+      세기('|토목탭|내역예시')
+    } catch (e) { set상태({ k: 'err', 글: (e && e.message) || String(e) }) }
   }
 
   /* ── 엑셀 · CSV ── */
@@ -148,6 +180,7 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
           ]))
       }
       if (함께 && 골조보기) sheets.unshift(시.함께시트(함께, ST, 자))
+      if (내대 && !내대.틀림) { const { 내역대조시트 } = await import('./lib/토목내역.js'); sheets.splice(함께 && 골조보기 ? 1 : 0, 0, ...내역대조시트(내대, 내역.나무, ST)) }
       내려주기(new Blob([writeWorkbook(sheets)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), (골조보기 && T ? '골조토목_' : 골조보기 ? '골조_' : '토목_') + 파일이름 + '.xlsx')
       세기('|토목탭|엑셀')
     } catch (e) { set상태({ k: 'err', 글: '엑셀을 만들지 못했습니다 — ' + ((e && e.message) || e) }) } finally { set받는중(false) }
@@ -160,7 +193,7 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
 
   const 바쁨 = !!(상태 && 상태.k === 'busy')
   const 열림 = !!(T || 골조보기)
-  const 보기쓸 = T ? 보기 : '3D'
+  const 보기쓸 = 보기 === '내역' && 내역 ? '내역' : T ? (보기 === '내역' ? '평면' : 보기) : '3D'
   const 넣기단추 = (cls) => <button type="button" className={cls} onClick={() => 파일Ref.current && 파일Ref.current.click()} disabled={바쁨}>📐 도면 넣기(골조 · 토목 함께)</button>
   const 뺄ids = useMemo(() => (토 && 뺄번 >= 0 && 토.건물들[뺄번] ? new Set(토.건물들[뺄번].ids || []) : null), [토, 뺄번])
   return (
@@ -170,12 +203,14 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
         <span className="gmd-ws-acts">
           {넣기단추('btn sm gmd-ws-dwg tmk-dwg')}
           <button type="button" className="btn line sm tmk-ex" onClick={예시열기} disabled={바쁨}>🧪 예시</button>
+          <button type="button" className="btn line sm tmk-nybtn" onClick={() => 내역Ref.current && 내역Ref.current.click()} disabled={!열림 || 바쁨} title="내역서(설계 · 변경 · .xls · .xlsx)를 넣어 건설맵 물량과 맞대 봅니다">📑 내역 대조</button>
           <button type="button" className="btn line sm tmk-xlsx" onClick={엑셀받기} disabled={!열림 || 받는중 || 바쁨}>{받는중 ? '…' : '📊 엑셀'}</button>
           <button type="button" className="btn line sm" onClick={비우기} disabled={!T || 바쁨} title="이 브라우저에 저장한 토목 결과 지우기(🏢 골조 모델은 그대로)">🗑</button>
           <button type="button" className="btn line sm" onClick={전체화면} title="전체 화면">⛶</button>
           <button type="button" className="btn sm" onClick={나가기}>✕ 나가기</button>
         </span>
         <input ref={파일Ref} className="tmk-in" type="file" accept=".dxf,.dwg,.xlsx,.xls,.csv,.txt" multiple style={{ display: 'none' }} onChange={(e) => { 파일넣기(e.target.files); e.target.value = '' }} />
+        <input ref={내역Ref} className="tmk-nyin" type="file" accept=".xls,.xlsx,.csv" style={{ display: 'none' }} onChange={(e) => { 내역넣기(e.target.files && e.target.files[0]); e.target.value = '' }} />
       </div>
       {상태 && <div className={'gmd-note gmd-ws-note tmk-state' + (상태.k === 'err' ? ' gmd-warnbox' : '')} role="status">{상태.k === 'busy' ? '⏳ ' : '⚠ '}{상태.글}{상태.k !== 'busy' && <button type="button" className="gmd-x" onClick={() => set상태(null)} aria-label="닫기">✕</button>}</div>}
       {알림 && !바쁨 && <div className="gmd-note gmd-ws-note tmk-said">{알림}<button type="button" className="gmd-x" onClick={() => set알림('')} aria-label="닫기">✕</button></div>}
@@ -213,17 +248,34 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
             {T && <도면함칸 함={함} T={T} />}
           </aside>
           <section className="gmd-ws-center tmk-center">
-            {T && <div className="gmd-ws-views" role="group" aria-label="보기">
-              {[['평면', '📐 평면'], ['3D', '🧊 3D'], ['나란히', '◫ 나란히']].map(([k, t]) => <button key={k} type="button" className={'btn line sm' + (보기 === k ? ' on' : '')} aria-pressed={보기 === k} onClick={() => { set보기(k); if (k !== '평면') 한번('|토목탭|3D') }}>{t}</button>)}
+            {(T || 내역) && <div className="gmd-ws-views" role="group" aria-label="보기">
+              {[...(T ? [['평면', '📐 평면'], ['3D', '🧊 3D'], ['나란히', '◫ 나란히']] : [['3D', '🧊 3D']]), ['내역', '📑 내역 대조']].map(([k, t]) => <button key={k} type="button" className={'btn line sm' + (보기쓸 === k ? ' on' : '')} aria-pressed={보기쓸 === k} onClick={() => { if (k === '내역' && !내역) { 내역Ref.current && 내역Ref.current.click(); return } set보기(k); if (k === '3D' || k === '나란히') 한번('|토목탭|3D') }}>{t}</button>)}
             </div>}
-            <div className="tmk-views">
+            {보기쓸 === '내역' && <내역대조칸 대조={내대} 내역={내역} 상태번={내대 && Number.isInteger(내대.상태번) ? 내대.상태번 : 0} set상태번={(i) => { set내역상태번(i); 한번('|토목탭|내역상태') }} 바꾸기={() => 내역Ref.current && 내역Ref.current.click()} />}
+            {보기쓸 !== '내역' && <div className="tmk-views">
               {T && 보기쓸 !== '3D' && <평면칸 T={T} 고른노선={고른노선} 자리={자리} 누름={(x, y) => { set자리({ x, y }); 한번('|토목탭|자리') }} 노선누름={(n) => { set고른노선(n); 한번('|토목탭|노선') }} 골조={골조보기 ? 골조부재 : null} 골조원점={토 ? 토.원점 : null} />}
               {보기쓸 !== '평면' && <삼디칸 T={T} 토={토} 뺄ids={뺄ids} 골조부재={골조부재} set고른부재={set고른부재} />}
-            </div>
-            {T && 고른노선 && <측점표칸 이름={고른노선} 표={표} CSV받기={CSV받기} />}
+            </div>}
+            {T && 고른노선 && 보기쓸 !== '내역' && <측점표칸 이름={고른노선} 표={표} CSV받기={CSV받기} />}
           </section>
           <aside className="gmd-ws-right tmk-right" aria-label="좌표 · 노선 · 물량">
             <함께칸 함께={함께} 자={자} T={T} M={M} 골조있음={골조있음} 골조보기={골조보기} 같이넣음={같이넣음} set골조같이={(v) => { set골조같이(v); if (v) 한번('|토목탭|골조같이') }} 건축으로={건축으로} />
+            <div className="tmk-card tmk-nycard">
+              <b>📑 내역 대조</b>
+              {내역 && 내대 && !내대.틀림 ? (
+                <>
+                  <small className="tmk-nyfile" title={내역.파일}>{내역.파일} · {내역.나무.시트} · {내대.상태}</small>
+                  <div className="tmk-nycount">{['맞음', '비슷', '다름', '없음'].map((k) => <span key={k} className={'tmk-nyc c-' + k}>{판정글[k].split(' ')[0]} {내대.단셈[k] || 0}</span>)}</div>
+                  <small className="muted">견준 품목 {내대.셈.견준} / 내역 품목 {내대.셈.품목} — 나머지는 건설맵이 아직 안 내는 품목</small>
+                  <div className="gmd-top"><button type="button" className="btn line sm" onClick={() => set보기('내역')}>📑 대조 표 보기</button><button type="button" className="btn line sm" onClick={() => { set내역(null); if (보기 === '내역') set보기('평면') }} title="내역 대조 지우기">✕</button></div>
+                </>
+              ) : 내역 && 내대 && 내대.틀림 ? <small className="gmd-warn">⚠ {내대.틀림}</small> : (
+                <>
+                  <small className="muted">내역서(설계 · 변경 2줄 · .xls · .xlsx)를 넣으면 공종마다 터파기 · 되메우기 · 성토 · 콘크리트 · 거푸집 · 철근을 건설맵 물량과 맞대 ✓ 맞음 · △ 비슷 · ✗ 다름 · — 건설맵에 아직 없음 으로 보여 줍니다.</small>
+                  <div className="gmd-top"><button type="button" className="btn line sm" onClick={() => 내역Ref.current && 내역Ref.current.click()}>📑 내역서 넣기</button>{T && T.예시 && <button type="button" className="btn line sm tmk-nyex" onClick={예시내역}>🧪 예시 내역서</button>}</div>
+                </>
+              )}
+            </div>
             {T && <div className="tmk-card tmk-crs">
               <b>📍 좌표계</b>
               {활.실좌표 ? (
@@ -249,6 +301,62 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
           </aside>
         </div>
       )}
+    </>
+  )
+}
+
+/* ── 📑 G398 내역 대조 표 ── */
+function 내역대조칸({ 대조, 내역, 상태번, set상태번, 바꾸기 }) {
+  const [거름, set거름] = useState('')
+  const [연것, set연것] = useState(null)
+  if (!대조) return <div className="card tmk-nytable"><small className="muted">도면을 넣으면 내역서와 맞대 봅니다.</small></div>
+  if (대조.틀림) return <div className="card tmk-nytable"><small className="gmd-warn">⚠ {대조.틀림}</small></div>
+  const 나무 = 내역.나무
+  const 줄 = 대조.단위들.filter((d) => !거름 || d.판정 === 거름)
+  const 쉼2 = (v, d = 1) => (Number.isFinite(v) ? Number(v).toLocaleString('ko-KR', { maximumFractionDigits: d, minimumFractionDigits: d }) : '—')
+  return (
+    <div className="card tmk-nytable">
+      <div className="tmk-nyhead">
+        <b>📑 내역 대조 — {내역.파일}</b>
+        <span className="tmk-nyopts">
+          {나무.상태.length > 1 && <select value={상태번} onChange={(e) => set상태번(+e.target.value)} aria-label="내역 상태">{나무.상태.map((t, i) => <option key={i} value={i}>{t}</option>)}</select>}
+          <button type="button" className="btn line sm" onClick={바꾸기}>내역서 바꾸기</button>
+        </span>
+      </div>
+      <div className="tmk-nycount" role="group" aria-label="판정 거르기">
+        <button type="button" className={'tmk-nyc' + (!거름 ? ' on' : '')} onClick={() => set거름('')}>모두 {대조.단위들.length}</button>
+        {['맞음', '비슷', '다름', '없음'].map((k) => <button key={k} type="button" className={'tmk-nyc c-' + k + (거름 === k ? ' on' : '')} onClick={() => set거름(거름 === k ? '' : k)}>{판정글[k]} {대조.단셈[k] || 0}</button>)}
+      </div>
+      <div className="tmk-tablewrap tmk-nywrap">
+        <table className="tmk-table tmk-nyt">
+          <thead><tr><th className="tmk-nym" aria-label="판정"></th><th>공종</th><th className="tmk-nyg2">갈래</th><th>내역({대조.상태})</th><th>건설맵</th><th>차이</th><th className="tmk-nyp">판정</th></tr></thead>
+          <tbody>{줄.map((d) => (
+            <FragmentRow key={d.키} d={d} 열림={연것 === d.키} 누름={() => set연것(연것 === d.키 ? null : d.키)} 나무={나무} 상태번={대조.상태번} 쉼2={쉼2} />
+          ))}</tbody>
+        </table>
+      </div>
+      {대조.남은.length > 0 && <details className="tmk-nyleft"><summary>내역 공종과 짝을 못 찾은 건설맵 물량 {대조.남은.length}</summary><ul>{대조.남은.map((x, i) => <li key={i}>{x.이름} · {갈래이름[x.갈래]} {쉼2(x.값)} {갈래단위[x.갈래]}</li>)}</ul></details>}
+      {대조.뺀단위 > 0 && <small className="muted tmk-nyzero">이 상태({대조.상태})에서 내역 수량이 비었거나 0 인 공종 · 갈래 {대조.뺀단위}개는 견줄 것이 없어 뺐습니다{내역.나무.상태.length > 1 ? ' — 위에서 상태를 바꿔 보십시오' : ''}.</small>}
+      <small className="muted">공종마다(자리 말 — 배수장 · 유수지 · 배수로 …) 같은 갈래 품목을 더해 건설맵 묶음과 맞댐 · ✓ 3 % 안 · △ 10 % 안 · ✗ 넘음 — «다름» 은 곧 «틀림» 이 아닙니다(넣은 도면이 당초인지 변경인지 · 산출서의 셈 · 할증). 줄을 누르면 내역 품목과 근거가 나옵니다.</small>
+    </div>
+  )
+}
+function FragmentRow({ d, 열림, 누름, 나무, 상태번, 쉼2 }) {
+  const 율 = Number.isFinite(d.율) ? (d.율 > 0 ? '+' : '') + d.율.toFixed(1) + ' %' : '—'
+  return (
+    <>
+      <tr className={'tmk-nyrow p-' + d.판정 + (열림 ? ' open' : '')} onClick={누름} tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') 누름() }}>
+        <td className="tmk-nym" title={판정글[d.판정]}>{판정글[d.판정].split(' ')[0]}</td>
+        <td title={d.길.join(' > ')}>{(d.길.length > 1 ? d.길.slice(1) : d.길).slice(-2).join(' > ') || d.공종}<small className="tmk-nyg">{갈래이름[d.갈래]}</small></td><td className="tmk-nyg2">{갈래이름[d.갈래]}</td>
+        <td>{d.줄수 ? 쉼2(d.내역, d.갈래 === '철근' ? 3 : 1) : '—'} <small className="tmk-nyu">{갈래단위[d.갈래]}</small></td>
+        <td>{d.건설맵 > 0 ? 쉼2(d.건설맵, d.갈래 === '철근' ? 3 : 1) : '—'}</td><td>{d.판정 === '없음' ? '' : 율}</td><td className="tmk-nyp">{판정글[d.판정]}</td>
+      </tr>
+      {열림 && <tr className="tmk-nydetail"><td colSpan={7}>
+        {d.묶음.length > 0 && <div><b>건설맵</b> — {d.묶음.map((b) => `${b.이름} ${갈래이름[b.갈래] === 갈래이름[d.갈래] ? '' : '(' + 갈래이름[b.갈래] + ') '}${쉼2(b.값)}`).join(' · ')}</div>}
+        {(d.뺀묶음 || []).length > 0 && <div className="muted">견줌에서 뺀 것 — {d.뺀묶음.map((b) => `${b.이름} ${쉼2(b.값)}`).join(' · ')}</div>}
+        <div><b>내역 품목</b> — {d.품목.map((pi) => { const p = 나무.품목[pi]; const q = p.수량[상태번]; return `${p.행}행 ${p.이름}${p.규격 ? ' ' + p.규격 : ''} ${q === null || q === undefined ? '(빈칸)' : 쉼2(q, 3)} ${p.단위}` }).join(' · ')}</div>
+        {d.까닭.length > 0 && <div className="tmk-nywhy">ⓘ {d.까닭.join(' · ')}</div>}
+      </td></tr>}
     </>
   )
 }

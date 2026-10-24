@@ -10,6 +10,8 @@
 //   🛣🏢 G397 함께 세우기 — 예시 7장(배수로 · 배수장 · 관리동 · 3층 골조 · 흙막이) + 측점 성과 한 번에 → 🏢 골조도 같이 세움(건축 탭 모델 바뀜)
 //     · 함께 합(골조 = 건축 탭 합 · 토목 · 건물 평면 = lib) · 3D 에 골조 + 토목 · 같이 보기 끄고 켜기 · 엑셀 한 권(함께 합 · 골조 산출서 · 토목)
 //     · 토목 도면만 다시 넣으면 골조는 그대로(같이 보기 꺼짐 — 다른 때 세운 골조) · 토목을 지우면 빈 화면 → «골조만 여기서 보기»
+//   📑 G398 내역 대조 — 빈 화면에선 단추 꺼짐 · 예시 → 🧪 예시 내역서 → 공종 · 갈래 14줄(✓ 7 · △ 3 · ✗ 2 · — 2 = lib 맞대기) · 건설맵 값 = lib
+//     · ✗ 거르기 · 줄 펼침(내역 품목 행 · 근거) · 3D 갔다 돌아오기 · 엑셀에 «내역 대조»(식) · «내역 품목 판정» 시트 · 카드 ✕ 로 지우기 · 폰 가로 넘침 없음
 import { createRequire } from 'module'
 import fs from 'fs'
 import path from 'path'
@@ -17,6 +19,7 @@ import os from 'os'
 import * as T from '../web/src/lib/토목작업.js'
 import { 토목모델 } from '../web/src/lib/BIM토목.js'
 import { readWorkbook } from '../web/src/lib/qtoxlsx.js'
+import { 내역열기, 건설맵묶음, 맞대기 } from '../web/src/lib/토목내역.js'
 const require = createRequire('/tmp/g10/pw/package.json')
 const { chromium } = require('playwright')
 const 주소 = process.env.B || 'http://127.0.0.1:4998'
@@ -38,6 +41,7 @@ const 땅 = T.땅찾개(D.활용)
 const 표 = T.측점표(D.활용, '가상 배수로', { 땅 })
 const 토 = 토목모델(D.활용, D.center, { 뺄건물: ['BIM_예시_3층.dxf'] })     // 골조로 세운 도면은 건물 평면 덩어리에서 뺌
 const 건콘 = 토.건물들.reduce((a, b) => a + b.합.콘크리트, 0)
+const 예내역 = 내역열기(new Uint8Array(fs.readFileSync(new URL('BIM예시_내역서.xlsx', 공))), 'BIM예시_내역서.xlsx')     // 📑 G398
 /* 내 도면으로 넣을 사본(영문 이름 — setInputFiles 한글 경로) */
 const 임시 = fs.mkdtempSync(path.join(os.tmpdir(), 'kcm_g396_'))
 const 사본 = 예이름.map((n, i) => { const p = path.join(임시, `civ${i + 1}.dxf`); fs.copyFileSync(new URL(n, 공), p); return p })
@@ -60,6 +64,7 @@ for (const 기기 of 기기들) {
   await p.waitForSelector('.tmk-empty', { timeout: 30000 })
   봐((await p.locator('.tmk-need li').count()) === 5 && (await p.locator('.gmd-ws-tabs').count()) === 0 && /골조도 같이 세워/.test(await p.locator('.tmk-empty').innerText()), `${기기} 토목 빈 화면 — 넣을 자료 다섯(🏢 건축 평면 · 일람표 포함) 안내 · 골조 탭 없음`)
   봐(await p.evaluate(() => localStorage.getItem('kcm.ws.field')) === '토목', `${기기} 고른 분야 기억(토목)`)
+  봐(await p.evaluate(() => { const b = document.querySelector('.tmk-nybtn'); return !!b && b.disabled && !document.querySelector('.tmk-nycard') }), `${기기} 📑 내역 대조 단추 — 빈 화면에선 꺼짐`)
   /* ② 예시 */
   await p.click('.tmk-ex')
   await p.waitForSelector('.tmk-body', { timeout: 90000 })
@@ -132,6 +137,39 @@ for (const 기기 of 기기들) {
   봐((await p.locator('.tmk-canvas3d').count()) === 1 && (await p.locator('.tmk-canvas').count()) === 1, `${기기} ◫ 나란히 — 평면 + 3D`)
   await p.click('button:has-text("📐 평면")')
   if (기기 === 'PC') await p.screenshot({ path: path.join(임시, 'PC.png') })
+  /* 📑 G398 내역 대조 — 🧪 예시 내역서 */
+  봐(!(await p.locator('.tmk-nybtn').isDisabled()) && (await p.locator('.tmk-nyex').count()) === 1, `${기기} 📑 내역 대조 단추 켜짐 · 카드에 🧪 예시 내역서`)
+  await p.click('.tmk-nyex')
+  await p.waitForSelector('.tmk-nyt tbody tr.tmk-nyrow', { timeout: 30000 })
+  const 기대 = 맞대기(예내역, 건설맵묶음(토, { 콘크리트: 골조합.콘, 거푸집: 골조합.틀, 철근: 골조합.철, 버림: 0 }, {}), {})
+  const 내 = await p.evaluate(() => ({
+    줄: [...document.querySelectorAll('.tmk-nyt tbody tr.tmk-nyrow')].map((tr) => [...tr.children].map((td) => td.textContent)),
+    셈: [...document.querySelectorAll('.tmk-nytable .tmk-nycount button')].map((b) => b.textContent),
+    카드: (document.querySelector('.tmk-nycard') || {}).innerText || '',
+    on: (document.querySelector('.gmd-ws-views button.on') || {}).textContent || '',
+  }))
+  봐(내.줄.length === 기대.단위들.length && 기대.단위들.length === 14 && 기대.단셈.맞음 === 7 && 기대.단셈.비슷 === 3 && 기대.단셈.다름 === 2 && 기대.단셈.없음 === 2 && ['맞음 7', '비슷 3', '다름 2', '없음 2'].every((t) => 내.셈.some((x) => x.includes(t))), `${기기} 📑 대조 표 14줄 · ✓ 7 · △ 3 · ✗ 2 · — 2 = lib 맞대기`, JSON.stringify([내.셈, 기대.단셈]))
+  봐(내.줄.every((r, i) => { const d = 기대.단위들[i]; const 건 = 숫(r[4]); return r[0] === ({ 맞음: '✓', 비슷: '△', 다름: '✗', 없음: '—' })[d.판정] && (d.건설맵 > 0 ? Math.abs(건 - d.건설맵) < (d.갈래 === '철근' ? 0.0006 : 0.06) : r[4] === '—') }), `${기기} 줄마다 판정 · 건설맵 값 = lib(배수로 터파기 ${기대.단위들[0].건설맵.toFixed(1)} …)`, JSON.stringify(내.줄.slice(0, 3)))
+  봐(/내역 대조/.test(내.on) && /✓ 7/.test(내.카드) && /견준 품목 12 \/ 내역 품목 20/.test(내.카드) && /· 수량/.test(내.카드), `${기기} 보기 «📑 내역 대조» 켜짐 · 카드(✓ 7 · 견준 12 / 20 · 상태 «수량»)`, 내.카드)
+  await p.click('.tmk-nytable .tmk-nycount button.c-다름')
+  const 거른 = await p.locator('.tmk-nyt tbody tr.tmk-nyrow').count()
+  await p.click('.tmk-nytable .tmk-nycount button.c-다름')
+  봐(거른 === 2 && (await p.locator('.tmk-nyt tbody tr.tmk-nyrow').count()) === 14, `${기기} ✗ 다름만 거르기 2줄 → 다시 모두 14줄`, 거른)
+  await p.click('.tmk-nyrow.p-다름 >> nth=0')
+  const 펼 = await p.locator('.tmk-nydetail').innerText().catch(() => '')
+  봐(/건설맵 — 가상 배수로/.test(펼) && /내역 품목 — \d+행 성토/.test(펼) && /ⓘ/.test(펼), `${기기} 줄 펼침 — 건설맵 묶음 · 내역 품목(행) · 근거`, 펼)
+  if (기기 === '폰') 봐((await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)) <= 1, `${기기} 내역 대조 표 — 가로 넘침 없음`)
+  await p.click('.gmd-ws-views button:has-text("3D")'); await p.waitForTimeout(800)
+  const 삼 = await p.evaluate(() => !document.querySelector('.tmk-nyt') && !!document.querySelector('.tmk-canvas3d'))
+  await p.click('.gmd-ws-views button:has-text("내역 대조")'); await p.waitForTimeout(500)
+  봐(삼 && (await p.locator('.tmk-nyt tbody tr.tmk-nyrow').count()) === 14, `${기기} 3D 갔다가 «📑 내역 대조» 로 돌아옴(표 그대로)`)
+  const [받3] = await Promise.all([p.waitForEvent('download', { timeout: 30000 }), p.click('.tmk-xlsx')])
+  const 책3 = readWorkbook(new Uint8Array(fs.readFileSync(await 받3.path())))
+  const 이3 = Object.keys(책3)
+  const 대시 = 책3['내역 대조'] || [], 품시 = 책3['내역 품목 판정'] || []
+  봐(이3[0] === '함께 합' && 이3[1] === '내역 대조' && 이3[2] === '내역 품목 판정' && 대시.filter((r) => r && r.length).length === 15 && 품시.filter((r) => r && r.length).length === 21 && new Set(이3).size === 이3.length, `${기기} 엑셀 — 함께 합 다음 «내역 대조» 14줄 · «내역 품목 판정» 20줄`, JSON.stringify([이3.slice(0, 4), 대시.length, 품시.length]))
+  await p.click('.tmk-nycard button[title="내역 대조 지우기"]'); await p.waitForTimeout(500)
+  봐(!(await p.locator('.tmk-nyt').count()) && (await p.locator('.tmk-nyex').count()) === 1 && !/내역 대조/.test(await p.locator('.gmd-ws-views button.on').textContent()), `${기기} 카드 ✕ → 내역 대조 지움 · 평면으로`)
   await p.reload({ waitUntil: 'domcontentloaded' })
   await p.waitForSelector('.tmk-empty', { timeout: 30000 })
   봐(true, `${기기} 예시는 저장 안 함 — 새로고침하면 빈 화면(토목 분야는 기억)`)
