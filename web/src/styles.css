@@ -9260,6 +9260,8 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gmd .tmk-nyc.c-비슷 { background: #fef9c3; border-color: #fde047; color: #854d0e; }
 .gmd .tmk-nyc.c-다름 { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
 .gmd .tmk-nyc.c-없음 { background: var(--surface-2); color: var(--muted); }
+.gmd .tmk-nyc.c-부분 { background: #e0e7ff; border-color: #a5b4fc; color: #3730a3; }
+.gmd .tmk-nypart { display: block; margin: 4px 0 6px; }
 .gmd .tmk-nytable { display: flex; flex-direction: column; gap: 8px; padding: 10px; flex: 1 1 auto; min-height: 0; }
 .gmd .tmk-nyhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .gmd .tmk-nyhead b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -9286,6 +9288,7 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
   .gmd .tmk-nyc.c-맞음 { background: rgba(34, 197, 94, .16); border-color: rgba(34, 197, 94, .4); color: #86efac; }
   .gmd .tmk-nyc.c-비슷 { background: rgba(234, 179, 8, .16); border-color: rgba(234, 179, 8, .4); color: #fde047; }
   .gmd .tmk-nyc.c-다름 { background: rgba(239, 68, 68, .16); border-color: rgba(239, 68, 68, .4); color: #fca5a5; }
+  .gmd .tmk-nyc.c-부분 { background: rgba(99, 102, 241, .16); border-color: rgba(99, 102, 241, .4); color: #a5b4fc; }
   .gmd .tmk-nyrow.p-맞음 .tmk-nyp { color: #86efac; }
   .gmd .tmk-nyrow.p-비슷 .tmk-nyp { color: #fde047; }
   .gmd .tmk-nyrow.p-다름 td { background: rgba(239, 68, 68, .12); }

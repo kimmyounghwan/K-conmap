@@ -106,9 +106,18 @@ function 창선(raw, W) {
 }
 
 /** 표 가르기 — 두 자리 목록이 가장 많이 겹치는 옮김 */
-function 겹침(ts, xs, 틈 = 60) {
+/** 선들(평선 [층, x1, y1, x2, y2 …])의 가운데점 좌표(k = 1 x · 2 y)를 길이로 무게 준 가운데값 */
+function 가중가운데(선, k) {
+  const a = 선.map((s) => [(s[k] + s[k + 2]) / 2, Math.hypot(s[3] - s[1], s[4] - s[2])]).filter((q) => q[1] > 0).sort((p, q) => p[0] - q[0])
+  const 합 = a.reduce((t, q) => t + q[1], 0)
+  let 누 = 0
+  for (const q of a) { 누 += q[1]; if (누 >= 합 / 2) return q[0] }
+  return a.length ? a[a.length - 1][0] : 0
+}
+function 겹침(ts, xs, 틈 = 60, 창 = null) {
   const 표 = new Map()
   for (const t of ts) for (const x of xs) {
+    if (창 && (t - x < 창[0] || t - x > 창[1])) continue          // 🧾 G400 종단은 두 끝이 맞는 자리 둘레만
     const d = Math.round((t - x) / 틈)
     표.set(d, (표.get(d) || 0) + 1)
   }
@@ -272,6 +281,7 @@ export function 구조세우기(raw, 새버킷, 머리 = '') {
   const zP = 평면EL * 1000
   for (const s of 평선) 넣기(평키, s[0], s[1], s[2], zP, s[3], s[4], zP, s[5], s[6], s[7])
   const 결과단면 = [{ 층: 평키, 이름: '평면도', 놓임: `G.L ${평면EL.toFixed(2)} m 에 눕힘`, EL: [평면EL, 평면EL], 맞춤: '' }]
+  const 본단면 = []                                            // 🧾 G400 같은 단면 두 번 — 앞 단면들(이름 · 표시 · 벽 점)
   const 긴쪽x = px1 - px0 >= py1 - py0
   for (const d of 단면들) {
     const 글 = d.이름.split('-')[0]
@@ -284,14 +294,26 @@ export function 구조세우기(raw, 새버킷, 머리 = '') {
       P = [a.x, a.y]; Q = [b.x, b.y]; 놓임 = `평면의 ${글} ─ ${글} 선`
     } else if (d.x1 - d.x0 > 0.6 * Math.max(px1 - px0, py1 - py0)) {
       /* 짝이 없는 긴 단면(종단) — 평면 긴 쪽 가운데 줄 */
-      const c = 긴쪽x ? (py0 + py1) / 2 : (px0 + px1) / 2
+      /* 🧾 G400 가운데 줄 = 평면 선들의 길이 가중 가운데값(창 끝의 단면 표시 · 화살표 같은 먼 선에 안 끌리게 — 현장 S 배수장은 줄이 구조물 밖으로 나갔음) */
+      const c = 가중가운데(평선, 긴쪽x ? 2 : 1)
       P = 긴쪽x ? [px0, c] : [c, py0]; Q = 긴쪽x ? [px1, c] : [c, py1]; 놓임 = '평면 긴 쪽 가운데 줄(종단)'
     } else { 빠짐.push(`${d.이름}(평면에 ${글} ─ ${글} 자르는 선 없음)`); continue }
     const { out: 자리, L } = 지나는자리(P, Q)
     /* 단면 가로 = 자르는 선 방향. 옮김·방향은 벽 자리 겹침으로 (못 맞추면 가운데끼리) */
-    const 앞 = 겹침(자리, d.세로.map((x) => x - d.x0))
-    const 뒤 = 겹침(자리.map((t) => L - t), d.세로.map((x) => x - d.x0))
-    let 뒤집 = false, 옮 = (L - (d.x1 - d.x0)) / 2, 맞춤 = '가운데끼리'
+    /* 🧾 G400 짝 없는 종단이 평면과 길이가 거의 같으면(10 % 안) 두 끝을 맞춘 자리 둘레(±2 % · 1.5 m 넘게)에서만 벽 겹침을 찾음
+         — 펌프 칸막이처럼 같은 간격 벽이 많으면 엉뚱한 자리(현장 S 배수장 2.2 m 어긋남)에서도 «15곳 겹침» 이 나옴 */
+    const 가운데 = (L - (d.x1 - d.x0)) / 2
+    /* 🧾 G400 종단은 «평면에서 벽을 처음 · 마지막 지나는 자리» 와 «단면 첫 · 끝 세로선» 을 맞춘 둘레(±2 % · 1.5 m 넘게)에서만 벽 겹침을 찾음
+         — 펌프 칸막이처럼 같은 간격 벽이 많으면 엉뚱한 자리(현장 S 배수장 2.2 m 어긋남)에서도 «15곳 겹침» 이 나옴 */
+    const 끝창 = (ts) => {
+      if (!/종단/.test(놓임) || ts.length < 2 || d.세로.length < 2) return null
+      const o = Math.min(...ts) - (Math.min(...d.세로) - d.x0), w = Math.max(1500, 0.02 * L)
+      return [o - w, o + w]
+    }
+    const 뒤자리 = 자리.map((t) => L - t)
+    const 앞 = 겹침(자리, d.세로.map((x) => x - d.x0), 60, 끝창(자리))
+    const 뒤 = 겹침(뒤자리, d.세로.map((x) => x - d.x0), 60, 끝창(뒤자리))
+    let 뒤집 = false, 옮 = 가운데, 맞춤 = '가운데끼리'
     if (Math.max(앞.n, 뒤.n) >= 3) {
       if (뒤.n > 앞.n) { 뒤집 = true; 옮 = 뒤.d } else 옮 = 앞.d
       맞춤 = `벽 ${Math.round(Math.max(앞.n, 뒤.n))}곳 겹침`
@@ -332,15 +354,47 @@ export function 구조세우기(raw, 새버킷, 머리 = '') {
         }
         return v
       }
-      d.높이점 = [...모음.values()].filter((o) => o.길 >= 1.5).map((o) => { const [x, y] = 자리xy(o.x); return { x, y, 위: +o.위.toFixed(3), 아래: +낮은(o).toFixed(3), 방향: [+ux.toFixed(4), +uy.toFixed(4)] } })
+      const 쓸점 = [...모음.values()].filter((o) => o.길 >= 1.5)
+      /* 🧾 G400 같은 단면을 두 번 그린 도면(«A1-A1» · «A1-A1 (2)» 모양이 같음) — 벽 자리 맞춤이 둘째 것만 15 m 어긋나 펌프장 벽에 토출수조 높이가 붙었음 → 앞의 것만 씀 */
+      const 작 = 쓸점.length ? Math.min(...쓸점.map((o) => o.x)) : 0
+      const 내점 = 쓸점.map((o) => [(o.x - 작) / m, o.위])                      // m · EL
+      const 같은 = 쓸점.length >= 4 && 본단면.find((e) => e.이름 === d.이름 && e.점.length === 내점.length &&
+        내점.filter(([x, v]) => e.점.some(([x2, v2]) => Math.abs(x - x2) <= 0.15 && Math.abs(v - v2) <= 0.1)).length >= 0.8 * 내점.length)
+      if (같은) { d.높이점 = []; d.같은단면 = 같은.표시 }
+      else {
+        if (쓸점.length >= 4) 본단면.push({ 이름: d.이름, 표시: d.표시, 점: 내점 })
+        d.높이점 = 쓸점.map((o) => { const [x, y] = 자리xy(o.x); return { x, y, 위: +o.위.toFixed(3), 아래: +낮은(o).toFixed(3), 방향: [+ux.toFixed(4), +uy.toFixed(4)] } })
+        /* 🧾 G400 종단 윤곽 — 짝 없는 긴 단면은 0.25 m 마다 «그 자리 가장 높은 구조 선» (뒤로 보이는 벽 위끝 · 경사 벽 포함) → 구조물면이 단면 점에서 먼 벽의 높이를 이 아래로 */
+        if (/종단/.test(놓임)) {
+          const 거름 = /pile|파일|말뚝|phc|기계|mech|pump|펌프|철근|bar|배관|pipe|전기|elec|hatch|해치|지시|치수|dim|text|글|난간|hand|rail|중심|cen|cntl|창호|door|win/i
+          const 걸음 = 0.25 * m, 표 = []
+          const 폭 = d.x1 - d.x0
+          const 다선 = d.선.filter((t) => !거름.test(t[0]) && !(Math.abs(t[2] - t[4]) < 0.003 * m && Math.abs(t[3] - t[1]) > 0.5 * 폭))   // 단면 반 넘게 긴 가로선(지반선 · G.L) 은 뺌
+          /* 구조 레이어(토목구조물 · 구조 · CONC …)가 넉넉하면 그것만 — «1» · «0» 같은 레이어의 땅 선(구조물 사이 G.L) · 그레이팅 무늬가 윤곽을 올림 */
+          const 구조선 = 다선.filter((t) => /구조|콘크리트|conc|wall|벽|토목|str|옹벽|box|박스/i.test(t[0]))
+          const 쓸선 = 구조선.length >= 20 && 구조선.length >= 0.3 * 다선.length ? 구조선 : 다선
+          for (let x = d.x0; x <= d.x1 + 1e-9; x += 걸음) {
+            let 위 = -Infinity
+            for (const t of 쓸선) {
+              const a = Math.min(t[1], t[3]), b = Math.max(t[1], t[3])
+              if (x < a - 걸음 / 2 || x > b + 걸음 / 2) continue
+              const y = b - a < 1e-9 ? Math.max(t[2], t[4]) : t[2] + (t[4] - t[2]) * Math.min(1, Math.max(0, (x - t[1]) / (t[3] - t[1])))
+              위 = Math.max(위, d.EL(y))
+            }
+            if (위 > -Infinity) { const [px, py] = 자리xy(x); 표.push({ x: px, y: py, 위: +위.toFixed(3) }) }
+          }
+          d.윤곽 = 표.length >= 4 ? { u: [+ux.toFixed(4), +uy.toFixed(4)], 점: 표 } : null
+        }
+      }
     }
-    결과단면.push({ 층: 키, 이름: `단면 ${d.표시}`, 놓임, EL: [d.lo, d.hi], 맞춤: `${맞춤} · EL 글자 ${d.맞음}/${d.표수} 맞음`, 높이점: d.높이점 || [], 자름: 쌍 && 쌍.length >= 2 ? 글 : '' })
+    결과단면.push({ 층: 키, 이름: `단면 ${d.표시}`, 놓임, EL: [d.lo, d.hi], 맞춤: `${맞춤} · EL 글자 ${d.맞음}/${d.표수} 맞음${d.같은단면 ? ` · «${d.같은단면}» 과 같은 단면이라 높이는 그것만 씀` : ''}`, 높이점: d.높이점 || [], 윤곽: d.윤곽 || null, 자름: 쌍 && 쌍.length >= 2 ? 글 : '' })
   }
   if (결과단면.length < 2) return null
   /* m 로 그린 도면(기울기 1)이면 가로·세로도 mm 로 */
   if (단면들.every((d) => d.기울 === 1)) {
     for (const [, b] of 새) for (let i = 0; i < b.pos.n; i += 3) { b.pos.a[i] *= 1000; b.pos.a[i + 1] *= 1000 }
     for (const d of 결과단면) for (const q of d.높이점 || []) { q.x *= 1000; q.y *= 1000 }
+    for (const d of 결과단면) if (d.윤곽) for (const q of d.윤곽.점) { q.x *= 1000; q.y *= 1000 }
   }
   return { out: 새, 단면: 결과단면, 평면EL, 빠짐, 제목: 평제.s }
 }

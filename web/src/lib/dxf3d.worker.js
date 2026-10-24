@@ -526,7 +526,7 @@ self.onmessage = async (ev) => {
         if (!후보.length) continue
         const raw = 후보.length === 1 ? 후보[0].raw : 도면합치기(후보.map((it) => it.raw))
         let r = null
-        try { r = 구조세우기(raw, 새버킷, (구조.length + 1) + '· 구조 ') } catch (e) { r = null }
+        try { r = 구조세우기(raw, 새버킷, (구조.length + 1) + '· 구조 ') } catch (e) { if (globalThis.__구조디버그) console.log('구조세우기 오류', e); r = null }
         if (!r) continue
         for (const it of 후보) it.쓴 = '구조'
         const 이름 = 후보[0].파일
@@ -1179,7 +1179,8 @@ self.onmessage = async (ev) => {
         const 벽선 = 누운선(g.out, { 골라: (키, ly) => 키 === g.층들[0] && !꺼진.get(ly) && /구조|콘크리트|conc|wall|벽|토목|str|옹벽|box|박스/i.test(ly) && !/철근|bar|rebar|지시|치수|dim|기계|mech|pump|펌프|배관|pipe|전기|text|글/i.test(ly) })
         /* 📐 G234 평면 자르는 선에 세운 단면의 벽 면 높이 점 → 높이별 벽 · 바닥(구조물면) */
         const 높이 = g.구조r.단면.slice(1).flatMap((d) => d.높이점 || [])
-        const 면 = 구조물면(평선, 벽선.length >= 64 ? 벽선 : null, 높이.length >= 2 ? { 높이 } : {})
+        const 윤곽 = g.구조r.단면.slice(1).map((d) => d.윤곽).filter(Boolean)           /* 🧾 G400 종단 윤곽 */
+        const 면 = 구조물면(평선, 벽선.length >= 64 ? 벽선 : null, 높이.length >= 2 ? { 높이, 윤곽 } : {})
         if (면 && 면.바닥.length) {
           const 첫 = 면.바닥[0]
           const cx = 첫.reduce((a, q) => a + q[0], 0) / 첫.length, cy = 첫.reduce((a, q) => a + q[1], 0) / 첫.length
@@ -1565,7 +1566,8 @@ self.onmessage = async (ev) => {
           Object.assign(o, { 바닥판: 옮(e.면.바닥), 벽판: 옮(e.면.벽), 면넓이: { 바닥: e.면.넓이.바닥 * 배 * 배, 벽: e.면.넓이.벽 * 배 * 배 }, 면둘레: { 바닥: e.면.둘레.바닥 * 배, 벽: e.면.둘레.벽 * 배 },
             두께: e.면.두께 * 배, 방: e.면.방, 칸: e.면.칸, 자리: 뒤.자리 ? 뒤.자리.how : o.자리,
             벽들: 높옮(e.면.벽들), 바닥들: 높옮(e.면.바닥들),            /* 📐 G234 높이별(단면 자르는 선) */
-            자름: g.구조r.단면.slice(1).map((d) => ({ 이름: d.이름, 자름: d.자름 || '', 높이점: (d.높이점 || []).length, EL: d.EL })) })
+            바닥판두께: e.면.바닥판두께 || null,                            /* 🧾 G400 단면에서 읽은 바닥판 두께(m) */
+            자름: g.구조r.단면.slice(1).map((d) => ({ 이름: d.이름, 자름: d.자름 || '', 높이점: (d.높이점 || []).length, EL: d.EL, 놓임: d.놓임 || '', 맞춤: d.맞춤 || '' })) })
         }
         return o
       })

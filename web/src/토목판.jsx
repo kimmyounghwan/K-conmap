@@ -18,7 +18,7 @@ import { 토목상태 } from './lib/토목읽기.js'
 import { 넣기 as 기억넣기, 꺼내기 as 기억꺼내기, 지우기 as 기억지우기 } from './lib/기억자료.js'
 import { 파일한도 } from './lib/파일한도.js'
 import { 층높이 } from './lib/골조모델.js'
-import { 건설맵묶음, 맞대기, 갈래이름, 갈래단위, 판정글 } from './lib/토목내역.js'
+import { 건설맵묶음, 맞대기, 갈래이름, 갈래단위, 판정글, 상태갈래 } from './lib/토목내역.js'
 
 /* 🧪 예시 — BIM 물량 화면 «가상 배수로 · 배수장 + 관리동 · 건물 · 흙막이 한꺼번에» 와 같은 도면(가상) + 측점 성과 CSV — 🛣🏢 G397 골조(3층)도 같이 */
 const 예시파일 = ['BIM예시_측량도면.dxf', 'BIM예시_계획평면도.dxf', 'BIM예시_종횡단면도.dxf', 'BIM예시_배수장일반도.dxf', 'BIM예시_관리동평면도.dxf', 'BIM_예시_3층.dxf', 'BIM예시_흙막이도.dxf', 'BIM예시_측점성과.csv']
@@ -292,7 +292,7 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
               {내역 && 내대 && !내대.틀림 ? (
                 <>
                   <small className="tmk-nyfile" title={내역.파일}>{내역.파일} · {내역.나무.시트} · {내대.상태}</small>
-                  <div className="tmk-nycount">{['맞음', '비슷', '다름', '없음'].map((k) => <span key={k} className={'tmk-nyc c-' + k}>{판정글[k].split(' ')[0]} {내대.단셈[k] || 0}</span>)}</div>
+                  <div className="tmk-nycount">{['맞음', '비슷', '다름', '없음', '부분'].filter((k) => k !== '부분' || 내대.단셈.부분).map((k) => <span key={k} className={'tmk-nyc c-' + k}>{판정글[k].split(' ')[0]} {내대.단셈[k] || 0}</span>)}</div>
                   <small className="muted">견준 품목 {내대.셈.견준} / 내역 품목 {내대.셈.품목} — 나머지는 건설맵이 아직 안 내는 품목</small>
                   <div className="gmd-top"><button type="button" className="btn line sm" onClick={() => set보기('내역')}>📑 대조 표 보기</button><button type="button" className="btn line sm" onClick={() => { set내역(null); set내역고침({}); 기억지우기(내역열쇠).catch(() => {}); if (보기 === '내역') set보기('평면') }} title="내역 대조 지우기">✕</button></div>
                 </>
@@ -346,15 +346,16 @@ function 내역대조칸({ 대조, 내역, 상태번, set상태번, 바꾸기, �
       <div className="tmk-nyhead">
         <b>📑 내역 대조 — {내역.파일}</b>
         <span className="tmk-nyopts">
-          {나무.상태.length > 1 && <select value={상태번} onChange={(e) => set상태번(+e.target.value)} aria-label="내역 상태">{나무.상태.map((t, i) => <option key={i} value={i}>{t}</option>)}</select>}
+          {나무.상태.length > 1 && <select value={상태번} onChange={(e) => set상태번(+e.target.value)} aria-label="내역 상태">{나무.상태.map((t, i) => <option key={i} value={i}>{t}{상태갈래(t) === '부분' ? ' (부분 물량)' : ''}</option>)}</select>}
           {대조.고침수 > 0 && <button type="button" className="btn line sm tmk-nyreset" onClick={짝처음} title="사람이 고친 짝 · 값을 모두 처음(건설맵이 짝짓고 센 대로)으로">↺ 고친 것 처음대로 {대조.고침수}</button>}
           <button type="button" className="btn line sm" onClick={바꾸기}>내역서 바꾸기</button>
         </span>
       </div>
       <div className="tmk-nycount" role="group" aria-label="판정 거르기">
         <button type="button" className={'tmk-nyc' + (!거름 ? ' on' : '')} onClick={() => set거름('')}>모두 {대조.단위들.length}</button>
-        {['맞음', '비슷', '다름', '없음'].map((k) => <button key={k} type="button" className={'tmk-nyc c-' + k + (거름 === k ? ' on' : '')} onClick={() => set거름(거름 === k ? '' : k)}>{판정글[k]} {대조.단셈[k] || 0}</button>)}
+        {['맞음', '비슷', '다름', '없음', '부분'].filter((k) => k !== '부분' || 대조.단셈.부분).map((k) => <button key={k} type="button" className={'tmk-nyc c-' + k + (거름 === k ? ' on' : '')} onClick={() => set거름(거름 === k ? '' : k)}>{판정글[k]} {대조.단셈[k] || 0}</button>)}
       </div>
+      {대조.부분 && <small className="gmd-warn tmk-nypart">◇ «{대조.상태}» 은 차수 · 잔여 같은 부분 물량이라 건설맵(도면 전체 물량)과 견주지 않습니다 — 견주려면 위에서 «총괄» 상태(당초 · 변경)를 고르십시오.</small>}
       <div className="tmk-tablewrap tmk-nywrap">
         <table className="tmk-table tmk-nyt">
           <thead><tr><th className="tmk-nym" aria-label="판정"></th><th>공종</th><th className="tmk-nyg2">갈래</th><th>내역({대조.상태})</th><th>건설맵</th><th>차이</th><th className="tmk-nyp">판정</th></tr></thead>
@@ -380,7 +381,7 @@ function FragmentRow({ d, 열림, 누름, 나무, 상태번, 쉼2, 묶음들, �
         <td className="tmk-nym" title={판정글[d.판정]}>{판정글[d.판정].split(' ')[0]}</td>
         <td title={d.길.join(' > ')}>{(d.길.length > 1 ? d.길.slice(1) : d.길).slice(-2).join(' > ') || d.공종}<small className="tmk-nyg">{갈래이름[d.갈래]}</small></td><td className="tmk-nyg2">{갈래이름[d.갈래]}</td>
         <td>{d.줄수 ? 쉼2(d.내역, d.갈래 === '철근' ? 3 : 1) : '—'} <small className="tmk-nyu">{갈래단위[d.갈래]}</small></td>
-        <td>{d.건설맵 > 0 ? 쉼2(d.건설맵, d.갈래 === '철근' ? 3 : 1) : '—'}</td><td>{d.판정 === '없음' ? '' : 율}</td><td className="tmk-nyp">{판정글[d.판정]}</td>
+        <td>{d.건설맵 > 0 ? 쉼2(d.건설맵, d.갈래 === '철근' ? 3 : 1) : '—'}</td><td>{d.판정 === '없음' || d.판정 === '부분' ? '' : 율}</td><td className="tmk-nyp">{판정글[d.판정]}</td>
       </tr>
       {열림 && <tr className="tmk-nydetail"><td colSpan={7}>
         {d.묶음.length > 0 && <div className="tmk-nypairs"><b>건설맵</b> — {d.묶음.map((b) => <span key={b.키 + b.갈래} className={'tmk-nychip' + (b.고침 ? ' fix' : '')}>{b.고침 ? '✋ ' : ''}{b.이름} {갈래이름[b.갈래] === 갈래이름[d.갈래] ? '' : '(' + 갈래이름[b.갈래] + ') '}{쉼2(b.값, d.갈래 === '철근' ? 3 : 1)}<button type="button" className="tmk-nyx" onClick={() => 짝고치기(b.키 + '|' + b.갈래, null)} title="이 묶음을 이 공종과 맞대지 않기" aria-label={b.이름 + ' 빼기'}>✕</button></span>)}</div>}
