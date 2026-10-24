@@ -149,5 +149,29 @@ const S = L.모델셈(M)
   봐(/꼭:보 일람표/.test(글) && /꼭:단면도/.test(글) && /있으면:구조 일반사항/.test(글) && 필[0].급 === '꼭', '도우미 — 일람표 밖 기호 · 짐작한 높이 · 일반사항 · «꼭» 먼저', 글)
   봐(필요한도면({ 읽음: {}, 공사: { 층: [] } }, [], null)[0].무엇 === '구조평면도', '도우미 — 평면이 하나도 없으면 «구조평면도»')
 }
+
+/* 🛡 G397 좌표가 망가진 점(DWG 바꾸기에서 1e210 같은 값 — 현장 Y 흙막이 도면 248곳)이 섞여도 멈추지 않고 같은 물량
+     (전: 원점이 망가진 값으로 잡혀 모든 좌표가 1e210 → 골조 읽기 칸 나눔 i++ 가 2^53 넘어 안 늘어 끝없이 돎 — 화면이 멈춤) */
+console.log('— 좌표가 망가진 점이 섞인 도면')
+{
+  const 원 = fs.readFileSync(new URL('../web/public/jeoksan/BIM_예시_3층.dxf', import.meta.url), 'utf8').replace(/\r\n/g, '\n')     // PC(윈도) 는 줄 끝이 CRLF 일 수 있음
+  const 망선 = (x, y) => `  0\nLINE\n  8\n0\n 10\n${x}\n 20\n${y}\n 30\n0\n 11\n${x}\n 21\n${y}\n 31\n0\n`
+  const 망 = 원.replace('  2\nENTITIES\n', '  2\nENTITIES\n' + 망선('4.72e210', '-1.89e211') + 망선('1.7e308', '1e300') + `  0\nTEXT\n  8\n0\n 10\n5e250\n 20\n5e250\n 30\n0\n 40\n300\n  1\nC1\n` + 망선('-3e15', '2e19'))
+  const 셈해 = (txt) => {
+    const b = Buffer.from(txt, 'utf8')
+    const D = 도면읽기끝까지(decodeBytes(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)), () => {})
+    const 들 = [{ 모델: D, 이름: 'a.dxf', k: 단위배율(D.units, D.box, D.ox, D.oy).k || 1 }]
+    const t0 = Date.now()
+    const R = 플랜트다듬기(들, 골조읽기(들))
+    const 모델 = 플랜트모델(모델만들기(들, R, { 높이: {} }), R)
+    const 공사 = 셈방법입히기(겹친것빼기(층고바꾸기(R.공사, {}, R.읽음 && R.읽음.높이), 모델), '도면')
+    let 큰 = 0; for (let i = 0; i < D.P.length; i++)큰 = Math.max(큰, Math.abs(D.P[i]))
+    return { D, 초: (Date.now() - t0) / 1000, 합: 종합(셈(공사).줄), 큰 }
+  }
+  봐(망.length > 원.length + 200, '망가진 선 · 글을 도면에 넣음(ENTITIES 첫머리)', 망.length - 원.length)
+  const 가 = 셈해(원), 나 = 셈해(망)
+  봐(나.D.stats.멀리 >= 5 && 나.큰 < 1e12 && Math.abs(나.D.ox - 가.D.ox) < 1 && Math.abs(나.D.oy - 가.D.oy) < 1, `망가진 점 ${나.D.stats.멀리}곳 뺌 — 남은 좌표 1e12 안 · 원점 그대로`, JSON.stringify({ 멀리: 나.D.stats.멀리, 큰: 나.큰, ox: [가.D.ox, 나.D.ox] }))
+  봐(나.초 < 30 && ['기둥', '보', '벽', '슬라브', '기초'].every((k) => Math.abs((나.합[k] || 0) - (가.합[k] || 0)) < 1e-6) && (가.합.기둥 || 0) > 0, `🔒 섞여도 멈추지 않음(${나.초.toFixed(1)}초) · 물량 같음(기둥 ${(나.합.기둥 || 0).toFixed(3)} · 보 ${(나.합.보 || 0).toFixed(3)} ㎥)`, JSON.stringify([가.합, 나.합]))
+}
 console.log(`\n${ok} 통과 · ${bad} 실패`)
 if (bad) process.exit(1)

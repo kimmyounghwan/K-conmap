@@ -188,28 +188,51 @@ export default function Model() {
     } catch (e) { set알림('열지 못했습니다 — ' + (e.message || e)) }
   }
 
-  /* ── 📐 G389 도면 넣기 → 좌표대로 세우기(BIM 물량 화면과 같은 길로 읽음) ── */
-  const 도면넣기 = async (files) => {
-    const list = [...(files || [])].filter((f) => /\.(dxf|dwg)$/i.test(f.name))
-    if (!list.length) { set도면상태({ k: 'err', 글: 'DXF · DWG 도면 파일을 넣어 주십시오.' }); return }
-    if (M.부재.length && !window.confirm('지금 모델 대신 도면에서 세울까요? (↶ 되돌리기로 돌아올 수 있습니다)')) return
+  /* ── 📐 G389 도면 넣기 → 좌표대로 세우기(BIM 물량 화면과 같은 길로 읽음)
+        🛣🏢 G397 «함께 넣기» — 도면을 한 번 넣으면 골조(이 탭)와 토목(🛣 토목 탭)을 같이 읽음(lib/토목읽기.js 함께읽기 — DWG 한 번 바꿈 · 골조 읽기와 도면 3D 일꾼을 같이)
+        소장님 「토목하고 건축도 함께 세우는 거지? 골조 물량은 나오는 거고..」 · 「빔 할때 만든거 참고 하고 있지?」 ── */
+  const 함께넣기 = async (목록, 옵 = {}) => {
     set도면상태({ k: 'busy', 글: '파일 여는 중' })
     try {
-      const 넣기 = await import('../lib/도면넣기.js')
-      const 쓸 = list.filter((f) => f.size <= 넣기.큰파일), 큰 = list.filter((f) => f.size > 넣기.큰파일)
-      if (!쓸.length) throw new Error(큰.map((f) => f.name).join(', ') + ' — 이 기기에서 읽기에 너무 큰 도면입니다')
-      const 목록 = await Promise.all(쓸.map(async (f) => ({ 이름: f.name, buf: await f.arrayBuffer() })))
-      const r = await 넣기.도면읽어모델(목록, (글) => set도면상태({ k: 'busy', 글 }))
-      const N = 정돈({ ...r.M, 빠짐: r.못옮김.filter((x) => Array.isArray(x.판)).map((x) => ({ 종류: x.종류, 층: x.층, 기호: x.기호, 까닭: x.까닭, 판: x.판, 높: x.높, 키: x.키 })), 도면함: r.평면 || [], 대조: r.대조 || null, 도면따로: r.따로 || [] })   // 📚 G393 도면함 목록 · 🧾 층별 대조도 모델에(다시 열어도 ☑ 로 빼고 넣음)
-      setM(N); set층((N.층.find((f) => !FT층(f)) || N.층[0]).이름); set탭('세우기'); set고른(null)
-      원료Ref.current = { 넣기, 전체: N }       // 📚 도면함 — 한꺼번에 세운 모델에서 평면마다 꺼내 옴(하나씩 = 한꺼번에)
-      set도면결과({ 못옮김: r.못옮김, 도면: r.도면, 부재수: r.부재수, 경고: r.경고, 이름: r.이름, 필요: r.필요 || [], 평면: r.평면 || [], 높이: r.높이 || {} })
-      const 빠진 = [r.틀림, 큰.length ? 큰.map((f) => f.name).join(', ') + ' — 너무 큼' : ''].filter(Boolean).join(' · ')
-      set도면상태(빠진 ? { k: 'err', 글: '읽지 못한 도면: ' + 빠진 } : null)
-      const 제안수 = N.부재.filter((o) => o.제안).length
-      set알림('도면에서 부재 ' + r.부재수.toLocaleString('ko-KR') + '개를 좌표대로 세웠습니다' + (제안수 ? ' · 🟨 MAT · 계단 ' + 제안수 + '곳은 건설맵이 도면대로 먼저 세웠습니다(노랑 — 확인해 주세요)' : '') + (r.못옮김.length ? ' — 못 옮긴 ' + r.못옮김.length + '개는 오른쪽 «📐 도면에서 세움» 에서 보고 손으로 세우십시오.' : '.'))
+      const [넣기, 읽] = await Promise.all([import('../lib/도면넣기.js'), import('../lib/토목읽기.js')])
+      const r0 = await 읽.함께읽기(목록, { 알려: (글) => set도면상태({ k: 'busy', 글 }), 예시: !!옵.예시, 이름: 옵.이름 })
+      const 말 = []
+      let 세움 = false
+      const r = r0.골조
+      if (r && r.부재수 > 0) {
+        if (!M.부재.length || 옵.묻지않음 || window.confirm(옵.물음 || '지금 모델 대신 도면에서 세울까요? (↶ 되돌리기로 돌아올 수 있습니다)')) {
+          const N = 정돈({ ...r.M, 빠짐: r.못옮김.filter((x) => Array.isArray(x.판)).map((x) => ({ 종류: x.종류, 층: x.층, 기호: x.기호, 까닭: x.까닭, 판: x.판, 높: x.높, 키: x.키 })), 도면함: r.평면 || [], 대조: r.대조 || null, 도면따로: r.따로 || [], 묶음: r0.묶음 })   // 📚 G393 도면함 목록 · 🧾 층별 대조도 모델에 · 🛣🏢 G397 묶음(같이 넣은 토목과 짝)
+          setM(N); set층((N.층.find((f) => !FT층(f)) || N.층[0]).이름); if (분야 === '건축') set탭('세우기'); set고른(null)
+          원료Ref.current = { 넣기, 전체: N }       // 📚 도면함 — 한꺼번에 세운 모델에서 평면마다 꺼내 옴(하나씩 = 한꺼번에)
+          set도면결과({ 못옮김: r.못옮김, 도면: r.도면, 부재수: r.부재수, 경고: r.경고, 이름: r.이름, 필요: r.필요 || [], 평면: r.평면 || [], 높이: r.높이 || {} })
+          const 제안수 = N.부재.filter((o) => o.제안).length
+          말.push('도면에서 부재 ' + r.부재수.toLocaleString('ko-KR') + '개를 좌표대로 세웠습니다' + (제안수 ? ' · 🟨 MAT · 계단 ' + 제안수 + '곳은 건설맵이 도면대로 먼저 세웠습니다(노랑 — 확인해 주세요)' : '') + (r.못옮김.length ? ' — 못 옮긴 ' + r.못옮김.length + '개는 오른쪽 «📐 도면에서 세움» 에서 보고 손으로 세우십시오' : ''))
+          세움 = true
+        } else 말.push('🏢 골조 모델은 그대로 두었습니다')
+      } else 말.push('🏢 골조: ' + (r0.골조틀림 || '골조(평면 · 일람표)를 찾지 못했습니다'))
+      if (r0.토목) {
+        r0.토목.골조파일 = r && 세움 ? [...new Set((r.평면 || []).map((p) => p.파일).filter(Boolean))] : []
+        r0.토목.골조묶음 = 세움 ? r0.묶음 : null
+        await 읽.토목상태.넣기(r0.토목)
+        const 활 = r0.토목.활용
+        말.push('🛣 토목 — 노선 ' + (활.노선 || []).length + ' · 횡단 ' + (활.횡단 || []).reduce((n, t) => n + (t.노선 ? t.단면.length : 0), 0) + ' · 구조물 ' + (활.구조 || []).length + ' · 건물 ' + (활.건물 || []).length + (활.땅 ? ' · 측량점 ' + (활.땅.점.length / 3).toLocaleString('ko-KR') : '') + (분야 === '건축' ? ' (🛣 토목 탭에서 함께 봄)' : ''))
+      } else if (r0.토목틀림) 말.push('🛣 ' + r0.토목틀림)
+      set알림(말.join(' · ') + '.')
+      set도면상태(r0.못.length ? { k: 'err', 글: '읽지 못한 도면: ' + r0.못.join(', ') } : null)
       세기('|골조모델|도면넣기')
-    } catch (e) { set도면상태({ k: 'err', 글: '도면에서 세우지 못했습니다 — ' + ((e && e.message) || e) }) }
+      if (세움 && r0.토목) 세기('|골조모델|함께넣기')
+      return { ...r0, 세움 }
+    } catch (e) { set도면상태({ k: 'err', 글: '도면에서 세우지 못했습니다 — ' + ((e && e.message) || e) }); return null }
+  }
+  const 도면넣기 = async (files) => {
+    const list = [...(files || [])].filter((f) => /\.(dxf|dwg|xlsx?|csv|txt)$/i.test(f.name))
+    if (!list.some((f) => /\.(dxf|dwg)$/i.test(f.name))) { set도면상태({ k: 'err', 글: 'DXF · DWG 도면 파일을 넣어 주십시오.' }); return }
+    const { 파일한도 } = await import('../lib/파일한도.js')
+    const 한 = 파일한도(), 큰 = list.filter((f) => /\.(dxf|dwg)$/i.test(f.name) && f.size > 한)
+    if (큰.length && 큰.length === list.filter((f) => /\.(dxf|dwg)$/i.test(f.name)).length) { set도면상태({ k: 'err', 글: 큰.map((f) => f.name).join(', ') + ' — 이 기기에서 읽기에 너무 큰 도면입니다' }); return }
+    const 쓸 = list.filter((f) => !큰.includes(f))
+    await 함께넣기(await Promise.all(쓸.map(async (f) => ({ 이름: f.name, buf: await f.arrayBuffer() }))))
+    if (큰.length) set도면상태({ k: 'err', 글: '읽지 못한 도면: ' + 큰.map((f) => f.name).join(', ') + ' — 너무 큼' })
   }
 
   /* ── 엑셀 ── */
@@ -245,7 +268,7 @@ export default function Model() {
         <div className="page gmd">
           <div className="gmd-ws tmk" ref={작업Ref} role="dialog" aria-label="K-적산컨맵 작업 화면 — 토목">
             <Suspense fallback={<div className="gmd-ws-top">{분야칸}<span className="muted">토목 화면 여는 중…</span></div>}>
-              <토목판 전체화면={전체화면} 나가기={() => set작업(false)} 분야칸={분야칸} />
+              <토목판 전체화면={전체화면} 나가기={() => set작업(false)} 분야칸={분야칸} M={M} S={S} 함께넣기={함께넣기} 도면상태={도면상태} set도면상태={set도면상태} 알림={알림} set알림={set알림} 건축으로={() => { set분야('건축'); set탭('세우기') }} />
             </Suspense>
           </div>
         </div>
@@ -273,7 +296,7 @@ export default function Model() {
               <button type="button" className="btn sm" onClick={() => set작업(false)}>✕ 나가기</button>
             </span>
             <input ref={파일Ref} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={(e) => { 모델열기(e.target.files && e.target.files[0]); e.target.value = '' }} />
-            <input ref={도면Ref} className="gmd-ws-dwgin" type="file" accept=".dxf,.dwg" multiple style={{ display: 'none' }} onChange={(e) => { 도면넣기(e.target.files); e.target.value = '' }} />
+            <input ref={도면Ref} className="gmd-ws-dwgin" type="file" accept=".dxf,.dwg,.xlsx,.xls,.csv,.txt" multiple style={{ display: 'none' }} onChange={(e) => { 도면넣기(e.target.files); e.target.value = '' }} />
           </div>
           {도면상태 && <div className={'gmd-note gmd-ws-note' + (도면상태.k === 'err' ? ' gmd-warnbox' : '')} role="status">{도면상태.k === 'busy' ? '⏳ ' : '⚠ '}{도면상태.글}{도면상태.k !== 'busy' && <button type="button" className="gmd-x" onClick={() => set도면상태(null)} aria-label="닫기">✕</button>}</div>}
 {큰저장 && <div className="gmd-note gmd-warnbox" role="alert">⚠ 저장된 모델의 부재가 <b>{큰저장.부재.length.toLocaleString('ko-KR')}개</b>로 아주 많습니다({[...new Set(큰저장.부재.map((o) => o.층))].map((f) => f + '층 ' + 큰저장.부재.filter((o) => o.층 === f).length.toLocaleString('ko-KR')).join(' · ')}) — 열면 화면이 멈출 수 있습니다. <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => { const m = 큰저장; const 층들 = new Map(); for (const o of m.부재) 층들.set(o.종류 + '|' + o.층, (층들.get(o.종류 + '|' + o.층) || 0) + 1); const 큰 = [...층들].filter(([, n]) => n > 2000).map(([k]) => k); setM0({ ...m, 부재: m.부재.filter((o) => !큰.includes(o.종류 + '|' + o.층)) }); set큰저장(null); set알림('너무 많던 ' + 큰.map((k) => k.split('|')[1] + '층 ' + k.split('|')[0]).join(' · ') + ' 만 빼고 열었습니다') }}>많은 것만 빼고 열기</button> <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { setM0(큰저장); set큰저장(null) }}>그대로 열기</button> <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { set큰저장(null); set알림('새 모델로 시작합니다') }}>비우고 시작</button></div>}

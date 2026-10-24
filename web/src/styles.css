@@ -9234,3 +9234,18 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gmd .tmk-center > .tmk-sta .tmk-tablewrap { max-height: 28vh; }
 .gmd .tmk-stahead { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 @media (max-width: 760px) { .gmd .tmk-center > .tmk-sta .tmk-tablewrap { max-height: 50vh; } }
+/* 🛣🏢 G397 함께 세우기 — 골조 + 토목 같은 3D · 물량 합 */
+.gmd .tmk-both { border-color: #a78bfa; }
+.gmd .tmk-chk { display: flex; gap: 6px; align-items: flex-start; font-size: 12.5px; line-height: 1.45; cursor: pointer; }
+.gmd .tmk-chk input[type="checkbox"] { width: 16px; height: 16px; min-width: 16px; margin: 1px 0 0; padding: 0; flex: 0 0 auto; }
+.gmd .tmk-chk span { flex: 1 1 auto; min-width: 0; }
+.gmd .tmk-bothq th, .gmd .tmk-bothq td { font-size: 12px; }
+.gmd .tmk-bothq thead th { text-align: right; color: var(--muted); font-weight: 600; width: auto; }
+.gmd .tmk-bothq thead th:first-child { width: 1%; }
+.gmd .tmk-bothq tbody th { color: var(--text-2); }
+.gmd .tmk-bothq tr.sum th, .gmd .tmk-bothq tr.sum td { font-weight: 800; color: var(--text); border-top: 1px solid var(--line); padding-top: 4px; }
+.gmd .tmk-toarch { width: auto; align-self: flex-start; }
+.gmd .tmk-step.tmk-gstep b { color: #6d28d9; }
+.gmd .tmk-3dn { align-self: center; padding: 2px 8px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-size: 11.5px; color: var(--text-2); }
+.gmd .tmk-said { line-height: 1.6; }
+@media (prefers-color-scheme: dark) { .gmd .tmk-step.tmk-gstep b { color: #c4b5fd; } }

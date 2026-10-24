@@ -303,6 +303,8 @@ export function 정돈(m0) {
   /* 📚 G393 도면함(넣은 평면 목록 — ☑ 체크로 빼고 넣음) · 도면원(☐ 뺀 평면의 부재 · 빨간 곳을 넣어 둔 곳 — 셈에 안 들어감) */
   if (Array.isArray(m.도면함) && m.도면함.length) M.도면함 = m.도면함.filter((p) => p && 글(p.키)).map((p) => ({ 키: 글(p.키), 제목: 글(p.제목), 파일: 글(p.파일), 층: Array.isArray(p.층) ? p.층.map(글) : [], 부재: 수(p.부재, 0) || 0, 못옮김: 수(p.못옮김, 0) || 0 }))
   if (m.도면원 && (Array.isArray(m.도면원.부재) || Array.isArray(m.도면원.빠짐))) M.도면원 = { 부재: (m.도면원.부재 || []).filter((o) => o && 종류들.includes(o.종류)), 빠짐: (m.도면원.빠짐 || []).filter((x) => x && Array.isArray(x.판)) }
+  /* 🛣🏢 G397 같이 넣은 토목과 짝(묶음 — 도면 넣기 한 번의 때) · 토목 탭 3D 에 골조를 함께 세울 때 봄 */
+  if (Number.isFinite(+m.묶음) && +m.묶음 > 0) M.묶음 = +m.묶음
   /* 🧩 G394 «둘 다 맞음» 으로 고른 겹침 짝('id|id') — 있는 부재끼리만 */
   if (Array.isArray(m.겹침둠) && m.겹침둠.length) { const 있 = new Set(M.부재.map((o) => String(o.id))); M.겹침둠 = [...new Set(m.겹침둠.map(String))].filter((k) => k.split('|').every((x) => 있.has(x))) }
   /* 🪜 G393 도면 덧줄(골조 셈 보강 · 보강근 · Dry Area 줄 — MAT 추가 보강근 · 구조물 판) */

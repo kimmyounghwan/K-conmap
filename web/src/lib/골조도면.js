@@ -97,6 +97,9 @@ export function 도면읽기(text, onProgress, opt = {}) {
   const 사전 = new Map(), 거르개 = new Map()     // OBJECTS — DICTIONARY · SPATIAL_FILTER (XCLIP)
 
   const P = (M, x, y, z) => M === I3 ? [x, y] : [M[0] * x + M[1] * y + M[2] * z + M[3], M[4] * x + M[5] * y + M[6] * z + M[7]]
+  /* 🛡 G397 망가진 좌표(DWG 바꾸기에서 1e210 같은 값 — 현장 Y 흙막이 도면) — 3D 읽기(dxf3d.js 1e12)처럼 버림.
+       안 버리면 골조 읽기 칸 나눔(칸 번호 i++)이 2^53 넘는 수에서 안 늘어 끝없이 돌아 화면이 멈췄음 */
+  const 멀리 = (w) => !(Math.abs(w[0]) < 1e12 && Math.abs(w[1]) < 1e12)
   function g1(g, c, d = 0) { for (const [k, v] of g) if (k === c) return num(v); return d }
   function has(g, c) { for (const [k] of g) if (k === c) return true; return false }
   function gs(g, c, d = '') { for (const [k, v] of g) if (k === c) return v.trim(); return d }
@@ -123,7 +126,7 @@ export function 도면읽기(text, onProgress, opt = {}) {
     if (n < 2) return 0
     if (배치중) {                  /* 배치 공간 — 선 토막만 모음(판 테두리 찾기) */
       let a = null
-      for (const q of pts) { const w = P(M, q[0], q[1], q[2] || 0); if (a && Number.isFinite(w[0] + w[1])) { 배치중.선.need(6); 배치중.선.a.set([a[0], a[1], 0, w[0], w[1], 0], 배치중.선.n); 배치중.선.n += 6 } a = w }
+      for (const q of pts) { const w = P(M, q[0], q[1], q[2] || 0); if (멀리(w)) { a = null; continue } if (a && Number.isFinite(w[0] + w[1])) { 배치중.선.need(6); 배치중.선.a.set([a[0], a[1], 0, w[0], w[1], 0], 배치중.선.n); 배치중.선.n += 6 } a = w }
       return 0
     }
     if (!stats.capped && stats.verts + n > MAX_V) { stats.capped = true; stats.캡글 = Ts.length }
@@ -134,6 +137,7 @@ export function 도면읽기(text, onProgress, opt = {}) {
       const q = pts[i]
       const w = P(M, q[0], q[1], q[2] || 0)
       if (!Number.isFinite(w[0] + w[1])) continue
+      if (멀리(w)) { stats.멀리 = (stats.멀리 || 0) + 1; continue }
       if (w[0] === lx && w[1] === ly) continue
       PX.push2(w[0], w[1]); lx = w[0]; ly = w[1]; cnt++
     }
@@ -154,6 +158,7 @@ export function 도면읽기(text, onProgress, opt = {}) {
     let a = null
     for (const q of pts) {
       const w = P(M, q[0], q[1], q[2] || 0)
+      if (멀리(w)) { a = null; continue }
       if (a && Number.isFinite(w[0] + w[1])) {
         const dx = Math.abs(w[0] - a[0]), dy = Math.abs(w[1] - a[1])
         if ((dy <= 1e-7 * dx || dx <= 1e-7 * dy) && dx + dy > 틀최소) { 틀.need(4); 틀.a[틀.n++] = a[0]; 틀.a[틀.n++] = a[1]; 틀.a[틀.n++] = w[0]; 틀.a[틀.n++] = w[1] }
@@ -262,6 +267,7 @@ export function 도면읽기(text, onProgress, opt = {}) {
     const hj = g1(g, 72, 0), vj = g1(g, 73, 0)
     if (!isM && (hj !== 0 || vj !== 0) && has(g, 11)) { x = g1(g, 11); y = g1(g, 21); z = g1(g, 31) }
     const p = P(MM, x, y, z)
+    if (멀리(p)) { stats.멀리 = (stats.멀리 || 0) + 1; return }
     let a
     if (isM && has(g, 11)) { const d = [g1(g, 11), g1(g, 21)]; const w = M === I3 ? d : [M[0] * d[0] + M[1] * d[1], M[4] * d[0] + M[5] * d[1]]; a = Math.atan2(w[1], w[0]) }
     else { const r = g1(g, 50, 0) * D2R; const w = MM === I3 ? [Math.cos(r), Math.sin(r)] : [MM[0] * Math.cos(r) + MM[1] * Math.sin(r), MM[4] * Math.cos(r) + MM[5] * Math.sin(r)]; a = Math.atan2(w[1], w[0]) }
@@ -346,7 +352,7 @@ export function 도면읽기(text, onProgress, opt = {}) {
           /* 가운데 · 오른쪽 맞춤 글은 글 가운데가 그 점 — 왼쪽 맞춤은 대충 반 폭 옮김 */
           const 가운데 = t === 'MTEXT' ? ((g1(g, 71, 1) - 1) % 3) === 1 : (hj === 1 || hj === 4)
           const dx = 가운데 ? 0 : s.length * h0 * sc * 0.45
-          숨은글.push({ s, x: p[0] + dx, y: p[1] + h0 * sc / 2, h: h0 * sc, ly: L.name })
+          if (!멀리(p)) 숨은글.push({ s, x: p[0] + dx, y: p[1] + h0 * sc / 2, h: h0 * sc, ly: L.name })
         }
       }
       return
@@ -600,7 +606,7 @@ export function 도면읽기(text, onProgress, opt = {}) {
         if (top && 몇개 > 1) inserts[myIns].수 = 몇개
         if (!top && !배치중 && ins >= 0) {
           const w = P(M, g1(g, 10), g1(g, 20), g1(g, 30))
-          안넣음.push({ name, x: w[0], y: w[1], ly: L.i, 조상: cx.조상 || [], 수: 몇개, 축소: M !== I3 && Math.sqrt(Math.abs(M[0] * M[5] - M[1] * M[4])) < 0.5 })
+          if (!멀리(w)) 안넣음.push({ name, x: w[0], y: w[1], ly: L.i, 조상: cx.조상 || [], 수: 몇개, 축소: M !== I3 && Math.sqrt(Math.abs(M[0] * M[5] - M[1] * M[4])) < 0.5 })
         }
         const 조상 = [...(cx.조상 || []), name]
         /* 🧭 G132 — 블록 속성(ATTRIB) 이름표와 값도 적어 둠(횡단면 수량표 블록: 측점 · 터파기 · 모래부설 …) */

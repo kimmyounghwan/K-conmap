@@ -62,7 +62,12 @@ export async function 도면읽어모델(목록, 알려 = () => {}) {
   알려('골조(평면 · 일람표 · 단면)를 읽는 중')
   await new Promise((r) => setTimeout(r, 30))
   const R = 플랜트다듬기(들2, 골조읽기(들2))
-  if (!R || !R.있음) throw new Error((R && R.경고 && R.경고[0]) || '도면에서 골조(평면 · 일람표)를 찾지 못했습니다')
+  if (!R || !R.있음) {
+    /* 🛡 G397 좌표가 망가진 도면(DWG 바꾸기에서 아주 먼 값 — 골조도면.js «멀리» 로 뺌)이면 그 까닭도 */
+    const 망 = 들2.filter((d) => d.모델 && d.모델.stats && d.모델.stats.멀리 > 0)
+    const 망글 = 망.length ? ' (' + 망.map((d) => `${d.이름}: 좌표가 망가진 점 ${d.모델.stats.멀리.toLocaleString('ko-KR')}곳(아주 먼 값)은 빼고 읽음`).join(' · ') + ')' : ''
+    throw new Error(((R && R.경고 && R.경고[0]) || '도면에서 골조(평면 · 일람표)를 찾지 못했습니다') + 망글)
+  }
   알려('좌표대로 세우는 중')
   await new Promise((r) => setTimeout(r, 30))
   const 공사0 = 층고바꾸기(R.공사, {}, R.읽음 && R.읽음.높이)

@@ -7,6 +7,9 @@
 //   ⑤ 🧊 3D · ◫ 나란히 — 캔버스 · 오류 없음 / 예시는 저장 안 함(새로고침 → 빈 화면)
 //   ⑥ «내 도면» 으로 넣으면(예시 도면 파일 넣기) 이 브라우저에 저장 → 새로고침해도 남음 → 🗑 지우면 빈 화면
 //   ⑦ 🏢 건축으로 돌아가면 골조 탭 그대로 · 폰 가로 넘침 없음 · 화면 오류 없음
+//   🛣🏢 G397 함께 세우기 — 예시 7장(배수로 · 배수장 · 관리동 · 3층 골조 · 흙막이) + 측점 성과 한 번에 → 🏢 골조도 같이 세움(건축 탭 모델 바뀜)
+//     · 함께 합(골조 = 건축 탭 합 · 토목 · 건물 평면 = lib) · 3D 에 골조 + 토목 · 같이 보기 끄고 켜기 · 엑셀 한 권(함께 합 · 골조 산출서 · 토목)
+//     · 토목 도면만 다시 넣으면 골조는 그대로(같이 보기 꺼짐 — 다른 때 세운 골조) · 토목을 지우면 빈 화면 → «골조만 여기서 보기»
 import { createRequire } from 'module'
 import fs from 'fs'
 import path from 'path'
@@ -27,17 +30,19 @@ let 끝 = null
 globalThis.self = { postMessage: (m) => { if (m.type !== 'prog') 끝 = m } }
 await import('../web/src/lib/dxf3d.worker.js')
 const 예이름 = ['BIM예시_측량도면.dxf', 'BIM예시_계획평면도.dxf', 'BIM예시_종횡단면도.dxf', 'BIM예시_배수장일반도.dxf']
-await self.onmessage({ data: { files: 예이름.map((n) => { const b = fs.readFileSync(new URL(n, 공)); return { name: n, buf: b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) } }) } })
+const 예이름7 = [...예이름, 'BIM예시_관리동평면도.dxf', 'BIM_예시_3층.dxf', 'BIM예시_흙막이도.dxf']     // 🛣🏢 G397 화면 예시 = 일곱 장 같이(골조 + 토목)
+await self.onmessage({ data: { files: 예이름7.map((n) => { const b = fs.readFileSync(new URL(n, 공)); return { name: n, buf: b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) } }) } })
 const 성 = await T.측점성과읽기('BIM예시_측점성과.csv', fs.readFileSync(new URL('BIM예시_측점성과.csv', 공)))
 const D = T.토목자료(끝.r, { 측점성과: 성 })
 const 땅 = T.땅찾개(D.활용)
 const 표 = T.측점표(D.활용, '가상 배수로', { 땅 })
-const 토 = 토목모델(D.활용, D.center, {})
+const 토 = 토목모델(D.활용, D.center, { 뺄건물: ['BIM_예시_3층.dxf'] })     // 골조로 세운 도면은 건물 평면 덩어리에서 뺌
+const 건콘 = 토.건물들.reduce((a, b) => a + b.합.콘크리트, 0)
 /* 내 도면으로 넣을 사본(영문 이름 — setInputFiles 한글 경로) */
 const 임시 = fs.mkdtempSync(path.join(os.tmpdir(), 'kcm_g396_'))
 const 사본 = 예이름.map((n, i) => { const p = path.join(임시, `civ${i + 1}.dxf`); fs.copyFileSync(new URL(n, 공), p); return p })
 
-const 브 = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'] })
+const 브 = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'], env: { ...process.env, LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8' } })   // 한글 받은 이름(시험 기계 locale)
 for (const 기기 of 기기들) {
   const 판 = await 브.newContext({ viewport: { width: 기기 === '폰' ? 390 : 1440, height: 900 }, locale: 'ko-KR', acceptDownloads: true, hasTouch: 기기 === '폰' })
   await 판.route(/googletagmanager|google-analytics|pagead2|adsbygoogle|geojs/, (r) => r.fulfill({ status: 200, body: '' }))
@@ -53,7 +58,7 @@ for (const 기기 of 기기들) {
   봐((await p.locator('.gmd-field').count()) === 2 && (await p.locator('.gmd-field.on').innerText()).includes('건축'), `${기기} 작업 화면에 🏢 건축 | 🛣 토목 · 처음은 건축`)
   await p.click('.gmd-field:has-text("토목")')
   await p.waitForSelector('.tmk-empty', { timeout: 30000 })
-  봐((await p.locator('.tmk-need li').count()) === 4 && (await p.locator('.gmd-ws-tabs').count()) === 0, `${기기} 토목 빈 화면 — 넣을 자료 넷 안내 · 골조 탭 없음`)
+  봐((await p.locator('.tmk-need li').count()) === 5 && (await p.locator('.gmd-ws-tabs').count()) === 0 && /골조도 같이 세워/.test(await p.locator('.tmk-empty').innerText()), `${기기} 토목 빈 화면 — 넣을 자료 다섯(🏢 건축 평면 · 일람표 포함) 안내 · 골조 탭 없음`)
   봐(await p.evaluate(() => localStorage.getItem('kcm.ws.field')) === '토목', `${기기} 고른 분야 기억(토목)`)
   /* ② 예시 */
   await p.click('.tmk-ex')
@@ -67,8 +72,20 @@ for (const 기기 of 기기들) {
     대조: [...document.querySelectorAll('.tmk-cmpg summary')].map((x) => x.textContent),
     합: [...document.querySelectorAll('.tmk-sum .tmk-kv td')].map((x) => x.textContent),
     예시: !!document.querySelector('.tmk-exnote'),
+    함: [...document.querySelectorAll('.tmk-bothq tbody tr')].map((tr) => [...tr.children].map((td) => td.textContent)),
+    켬: !!(document.querySelector('.tmk-both input') || {}).checked,
+    함글: (document.querySelector('.tmk-both') || {}).innerText || '',
+    말: (document.querySelector('.tmk-said') || {}).innerText || '',
   }))
-  봐(화.길 === '✓✓✓✓✓✓▶', `${기기} 길잡이 ✓ 6 · ▶ 물량`, 화.길)
+  봐(화.길 === '✓✓✓✓✓✓▶⚠', `${기기} 길잡이 ✓ 6 · ▶ 물량 · ⚠ 🏢 골조(같은 건물 자리 못 찾아 옆 — 배치도 없음)`, 화.길)
+  봐(/부재 \d+개를 좌표대로 세웠습니다/.test(화.말) && /노선 1/.test(화.말), `${기기} 한 번 넣기 → 🏢 골조 세움 + 🛣 토목(알림)`, 화.말)
+  const 함행 = (k) => 화.함.find((r) => r[0].includes(k))
+  const 골행 = 함행('골조'), 토행 = 함행('토목'), 건행 = 함행('건물'), 합행 = 함행('합')
+  const 골조합 = 골행 ? { 콘: 숫(골행[1]), 틀: 숫(골행[2]), 철: 숫(골행[3]) } : null
+  봐(화.켬 && /같이 넣은 도면/.test(화.함글) && 골행 && 토행 && 건행 && 합행 && 화.함.length === 4, `${기기} 함께 합 — 같이 넣은 골조 같이 봄 · 골조 · 토목 · 건물 평면 · 합 네 줄`, JSON.stringify(화.함))
+  봐(토행 && Math.abs(숫(토행[1]) - 토.합.콘크리트) < 0.006 && Math.abs(숫(토행[2]) - 토.합.거푸집) < 0.06 && 건행 && Math.abs(숫(건행[1]) - 건콘) < 0.006, `${기기} 함께 합 토목 = lib(콘크리트 ${토.합.콘크리트.toFixed(2)}) · 건물 평면(관리동) = lib(${건콘.toFixed(2)}) · 3층 골조 도면은 덩어리에서 뺌`, JSON.stringify([토행, 건행]))
+  봐(골조합 && 골조합.콘 > 0 && 골조합.철 > 0 && Math.abs(숫(합행[1]) - (골조합.콘 + 숫(토행[1]) + 숫(건행[1]))) < 0.02 && Math.abs(숫(합행[3]) - 골조합.철) < 0.0006, `${기기} 합 = 골조 + 토목 + 건물 · 철근 = 골조`, JSON.stringify(합행))
+  봐(/오른쪽 20 m/.test(화.함글), `${기기} 골조 자리 — 같은 건물을 못 찾아 토목 오른쪽 20 m · 땅 높이(BIM 물량 화면과 같음)`, 화.함글)
   봐(화.노선.length === 1 && /가상 배수로/.test(화.노선[0]) && /평면 노선 밖 7곳/.test(화.노선[0]) && 화.예시, `${기기} 노선 1(가상 배수로 · 밖 7곳) · 예시 알림`, 화.노선.join(' | '))
   봐(화.표.length === 표.length && 화.밖 === 7 && 화.표.every((r, i) => r[0] === 표[i].측글 && Math.abs(숫(r[2]) - 표[i].X) < 0.0006 && Math.abs(숫(r[3]) - 표[i].Y) < 0.0006), `${기기} 측점표 ${화.표.length}줄 = lib(측점 · X · Y)`, JSON.stringify(화.표.slice(0, 2)))
   봐(화.대조.length === 1 && /같음 26\/26/.test(화.대조[0]) && /0\.03 m/.test(화.대조[0]), `${기기} 측점 성과 ↔ 종단 26/26 · 시공 − 설계 최대 0.03`, 화.대조.join(' | '))
@@ -94,12 +111,23 @@ for (const 기기 of 기기들) {
   const 이름들 = Object.keys(책)
   const 측시 = 책['측점표 가상 배수로']
   봐(['토목 집계', '측점표 가상 배수로', '측점 성과 대조', '좌표계'].every((n) => 이름들.includes(n)) && 측시 && 측시.filter((r) => r && r.length).length === 27, `${기기} 엑셀 — 토목 집계 · 측점표 · 측점 성과 대조 · 좌표계 · 측점표 26줄`, 이름들.join(' / '))
+  봐(이름들[0] === '함께 합' && ['산출서', '집계', '모델'].every((n) => 이름들.includes(n)) && new Set(이름들).size === 이름들.length && /^골조토목_/.test(받.suggestedFilename()), `${기기} 엑셀 한 권 — 첫 장 «함께 합» · 🏢 골조 산출서 · 집계 · 모델 + 🛣 토목(${이름들.length}장 · 이름 안 겹침)`, 받.suggestedFilename() + ' ' + 이름들.join(' / '))
+  const 함시 = 책['함께 합'] || []
+  봐(함시.some((r) => r && String(r[0]).includes('골조')) && 함시.some((r) => r && r[0] === '합계') && 함시.some((r) => r && r[0] === '골조 자리'), `${기기} 함께 합 시트 — 골조 · 토목 · 합계 · 골조 자리`, JSON.stringify(함시.map((r) => r && r[0])))
   const [받2] = await Promise.all([p.waitForEvent('download', { timeout: 30000 }), p.click('.tmk-csv')])
   const csv = fs.readFileSync(await 받2.path(), 'utf8').replace(/^﻿/, '').trim().split(/\r?\n/)
-  봐(csv.length === 27 && csv[0].startsWith('노선,측점,STA'), `${기기} 측점표 CSV 27줄(머리 + 26)`, csv.length)
+  봐(csv.length === 27 && csv[0].startsWith('노선,측점,STA') && 받2.suggestedFilename() === '측점표_가상_배수로.csv', `${기기} 측점표 CSV 27줄(머리 + 26) · 받은 이름 «${받2.suggestedFilename()}»`, csv.length)
   /* ⑤ 3D · 나란히 */
   await p.click('button:has-text("🧊 3D")'); await p.waitForTimeout(1500)
   봐((await p.locator('.tmk-canvas3d').count()) === 1 && (await p.locator('.tmk-canvas').count()) === 0, `${기기} 🧊 3D 캔버스`)
+  const 셈글 = await p.locator('.tmk-3dn').innerText().catch(() => '')
+  봐(/골조 \d{2,}/.test(셈글) && /토목 \d+/.test(셈글), `${기기} 3D 에 🏢 골조 + 🛣 토목 같이`, 셈글)
+  /* 같이 보기 끄고 켜기 */
+  await p.click('.tmk-both input'); await p.waitForTimeout(800)
+  const 끈 = await p.evaluate(() => ({ 줄: [...document.querySelectorAll('.tmk-bothq tbody tr th')].map((x) => x.textContent), 셈: document.querySelectorAll('.tmk-3dn').length, 길: [...document.querySelectorAll('.tmk-mark')].map((x) => x.textContent).join('') }))
+  봐(!끈.줄.some((t) => t.includes('골조')) && 끈.셈 === 0 && 끈.길 === '✓✓✓✓✓✓▶·', `${기기} 같이 보기 끔 → 골조 줄 · 3D 골조 빠짐(토목만)`, JSON.stringify(끈))
+  await p.click('.tmk-both input'); await p.waitForTimeout(800)
+  봐((await p.locator('.tmk-3dn').count()) === 1, `${기기} 다시 켬 → 골조 같이`)
   await p.click('button:has-text("◫ 나란히")'); await p.waitForTimeout(1200)
   봐((await p.locator('.tmk-canvas3d').count()) === 1 && (await p.locator('.tmk-canvas').count()) === 1, `${기기} ◫ 나란히 — 평면 + 3D`)
   await p.click('button:has-text("📐 평면")')
@@ -112,6 +140,8 @@ for (const 기기 of 기기들) {
   await p.waitForSelector('.tmk-body', { timeout: 90000 })
   await p.waitForTimeout(800)
   봐(!(await p.locator('.tmk-exnote').count()) && (await p.locator('.tmk-line').count()) === 1, `${기기} 내 도면(예시 사본 4장) 넣기 → 노선 1 · 예시 알림 없음`)
+  const 뒤 = await p.evaluate(() => ({ 켬: !!(document.querySelector('.tmk-both input') || {}).checked, 글: (document.querySelector('.tmk-both') || {}).innerText || '', 말: (document.querySelector('.tmk-said') || {}).innerText || '' }))
+  봐(!뒤.켬 && /다른 때 세운 골조/.test(뒤.글) && /골조/.test(뒤.말) && /노선 1/.test(뒤.말), `${기기} 토목 도면만 넣으면 🏢 골조 모델은 그대로 · 같이 보기 꺼짐(다른 때 세운 골조 — 켜면 같이)`, JSON.stringify(뒤))
   await p.waitForTimeout(800)
   await p.reload({ waitUntil: 'domcontentloaded' })
   await p.waitForSelector('.tmk-body', { timeout: 30000 }).catch(() => {})
@@ -121,10 +151,20 @@ for (const 기기 of 기기들) {
   await p.reload({ waitUntil: 'domcontentloaded' })
   await p.waitForSelector('.tmk-empty', { timeout: 30000 }).catch(() => {})
   봐((await p.locator('.tmk-empty').count()) === 1, `${기기} 🗑 지우면 새로고침해도 빈 화면`)
+  /* 토목 없이 골조만 */
+  await p.click('.tmk-empty .gmd-link')
+  await p.waitForSelector('.tmk-body.tmk-only', { timeout: 10000 })
+  const 만 = await p.evaluate(() => ({ 캔: document.querySelectorAll('.tmk-canvas3d').length, 평: document.querySelectorAll('.tmk-canvas').length, 줄: [...document.querySelectorAll('.tmk-bothq tbody tr')].map((tr) => [...tr.children].map((td) => td.textContent)) }))
+  봐(만.캔 === 1 && 만.평 === 0 && 만.줄.length === 2 && 만.줄[0][0].includes('골조') && 골조합 && Math.abs(숫(만.줄[0][1]) - 골조합.콘) < 0.006, `${기기} «골조만 여기서 보기» — 3D 골조 · 함께 합 골조 줄(같은 값)`, JSON.stringify(만))
+  await p.click('.tmk-both input')
+  await p.waitForSelector('.tmk-empty', { timeout: 10000 })
+  봐(true, `${기기} 같이 보기 끄면 다시 빈 화면`)
   /* ⑦ 건축으로 */
   await p.click('.gmd-field:has-text("건축")')
   await p.waitForSelector('.gmd-ws-tabs', { timeout: 30000 })
   봐((await p.locator('.gmd-ws-tabs .gmd-tab').count()) === 4, `${기기} 🏢 건축 — 골조 탭 넷 그대로`)
+  const 건합 = await p.evaluate(() => [...document.querySelectorAll('.gmd-sum b')].slice(0, 3).map((x) => x.textContent))
+  봐(골조합 && 건합.length === 3 && Math.abs(숫(건합[0]) - 골조합.콘) < 0.006 && Math.abs(숫(건합[1]) - 골조합.틀) < 0.06 && Math.abs(숫(건합[2]) - 골조합.철) < 0.0006, `${기기} 🏢 건축 탭 합 = 토목 탭 «함께 합» 골조 줄(같은 모델)`, JSON.stringify([건합, 골조합]))
   const 넘 = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
   봐(넘 <= 1, `${기기} 가로 넘침 없음`, 넘)
   const 진짜 = 오류.filter((x) => !/favicon|Failed to load resource|WebGL|GPU stall/i.test(x))
