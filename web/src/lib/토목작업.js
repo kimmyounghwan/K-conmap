@@ -515,3 +515,27 @@ export function 함께합(골합, 토, 뺄건물번 = -1) {
   const 합 = { 콘크리트: (골 ? 골.콘크리트 : 0) + (토목 ? 토목.콘크리트 : 0) + 건.콘크리트, 거푸집: (골 ? 골.거푸집 : 0) + (토목 ? 토목.거푸집 : 0) + 건.거푸집, 철근: 골 ? 골.철근 : 0 }
   return { 골조: 골, 토목, 건물: 건.수 ? 건 : null, 합 }
 }
+
+/**
+ * 📐 G399 배근도 «철근 재료표» → 파일마다 철근 톤(도면자동.js 표찾기 · 철근모으기 — /jeoksan/auto 와 같은 셈)
+ *   «1m당» 표(표준도 — 연장을 곱해야 하는 단위 수량)는 합에 안 넣고 수만 셈(현장 S 모음 도면 «철근재료표(1m당)»)
+ * @returns [{파일, t, 직경:[{d, t}], 표, 미터당, 검산:[글]}]
+ */
+export const 미터당표 = (t) => /(1\s*m|미터|M)\s*당/i.test(String(t.제목 || '') + ' ' + (t.머리 || []).join(' '))
+export async function 재료표철근(들) {
+  const 자 = await import('./도면자동.js')
+  const 결과 = []
+  const 미터당 = 미터당표
+  for (const d of 들 || []) {
+    if (!d || !d.모델) continue
+    let 표 = []
+    try { 표 = 자.표찾기(d.모델) } catch (e) { continue }
+    const 철 = 표.filter((t) => t.종류 === '철근')
+    if (!철.length) continue
+    const 쓸 = 철.filter((t) => !미터당(t))
+    const r = 쓸.length ? 자.철근모으기(쓸) : { 합: [], 검산: [] }
+    const kg = r.합.reduce((a, x) => a + x.kg, 0)
+    결과.push({ 파일: d.이름, t: kg / 1000, 직경: r.합.map((x) => ({ d: x.d, t: x.kg / 1000 })), 표: 쓸.length, 미터당: 철.length - 쓸.length, 검산: (r.검산 || []).slice(0, 5) })
+  }
+  return 결과
+}

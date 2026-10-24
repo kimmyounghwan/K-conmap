@@ -36,7 +36,7 @@ export function 셈합(줄) {
  * @param {(글: string) => void} 알려  진행 글
  * @returns {Promise<{M, 못옮김, 틀림: string, 도면: {합, 종}, 경고: string[], 부재수: number, 이름: string}>}
  */
-export async function 도면읽어모델(목록, 알려 = () => {}) {
+export async function 도면읽어모델(목록, 알려 = () => {}, 옵 = {}) {
   let 틀림 = ''
   const 바꾼 = []
   for (const { 이름: nm, buf } of 목록) {
@@ -58,6 +58,9 @@ export async function 도면읽어모델(목록, 알려 = () => {}) {
   }
   if (!들.length) throw new Error(틀림.trim() || '도면을 읽지 못했습니다')
   let 들2 = 들
+  /* 📐 G399 읽은 도면(모델)을 부른 쪽에 먼저 넘김 — 토목 탭이 배근도 «철근 재료표» 를 읽음(골조가 없어 아래에서 멈춰도 넘어감)
+       🔒 외부참조 끼우기 «전» 의 도면 그대로 — 끼우기는 xref 로 쓴 파일을 빈 모델로 바꿔(같은 골조 두 번 안 읽게) 그 파일의 재료표가 사라졌음(현장 S 배수장 구조도 135 t) */
+  if (옵.들받기) { try { await 옵.들받기(들) } catch (e) { /* 재료표만 빠짐 */ } }
   try { 들2 = 참조끼우기(들).들 } catch (e) { /* 끼우기 실패 — 따로 읽은 그대로 */ }
   알려('골조(평면 · 일람표 · 단면)를 읽는 중')
   await new Promise((r) => setTimeout(r, 30))

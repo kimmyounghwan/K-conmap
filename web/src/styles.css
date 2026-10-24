@@ -9305,3 +9305,19 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
   .gmd .tmk-nyt .tmk-nyg { display: block; color: var(--muted); font-size: 10.5px; }
   .gmd .tmk-nyt tr.tmk-nyrow td:nth-child(2) { max-width: 120px; }
 }
+/* ✋ G399 내역 대조 — 짝 고치기 · 📐 도면 철근 재료표 */
+.gmd .tmk-nypairs { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.gmd .tmk-nychip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 4px 1px 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-size: 11.5px; }
+.gmd .tmk-nychip.fix { border-color: #a78bfa; }
+.gmd .tmk-nyx { width: auto; min-width: 0; padding: 0 5px; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; line-height: 1.6; border-radius: 999px; }
+.gmd .tmk-nyx:hover { background: #fee2e2; color: #b91c1c; }
+.gmd .tmk-nyadd { margin-top: 4px; }
+.gmd select.tmk-nypair { max-width: 100%; padding: 3px 6px; border-radius: 7px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: 12px; }
+.gmd .tmk-nyleft li select.tmk-nypair { margin-left: 6px; }
+.gmd .tmk-nyreset { white-space: nowrap; }
+.gmd .tmk-rebar { color: var(--text-2); }
+@media (prefers-color-scheme: dark) { .gmd .tmk-nyx:hover { background: rgba(239, 68, 68, .18); color: #fca5a5; } }
+@media (max-width: 760px) { .gmd select.tmk-nypair { width: 100%; margin: 4px 0 0 !important; } }
+.gmd .tmk-nyfix { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.gmd input.tmk-nyin2 { width: 92px; padding: 3px 6px; border-radius: 7px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: 12px; text-align: right; }
+.gmd .tmk-nyfix .btn { width: auto; }

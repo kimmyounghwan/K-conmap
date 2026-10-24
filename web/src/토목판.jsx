@@ -15,6 +15,7 @@ import { 노선목록, 측점표, 측점표CSV, 자리읽기, 땅찾개, 좌표�
 import { 토목모델, 토목색, 토목비침 } from './lib/BIM토목.js'
 import { 부재보기 } from './lib/bim3d.js'
 import { 토목상태 } from './lib/토목읽기.js'
+import { 넣기 as 기억넣기, 꺼내기 as 기억꺼내기, 지우기 as 기억지우기 } from './lib/기억자료.js'
 import { 파일한도 } from './lib/파일한도.js'
 import { 층높이 } from './lib/골조모델.js'
 import { 건설맵묶음, 맞대기, 갈래이름, 갈래단위, 판정글 } from './lib/토목내역.js'
@@ -32,6 +33,7 @@ const 내려주기 = (blob, 이름) => {
 }
 const 골조ID = 3000000                     // 3D 고르기 번호 — 골조 덩어리는 이 위
 const 묶음열쇠 = (t) => (t ? String(t.묶음 || '') + '|' + (t.파일 || []).join(',') : null)
+const 내역열쇠 = 'kcm.civil.ny.v1'       // 📑 G399 내역 대조 — 이 브라우저 IndexedDB(토목 결과 옆 · 예시는 저장 안 함)
 
 export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, 함께넣기, 도면상태: 상태, set도면상태: set상태, 알림, set알림, 건축으로 }) {
   const [T, setT0] = useState(() => 토목상태.얻기())
@@ -41,8 +43,10 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
   const [고른부재, set고른부재] = useState(null)
   const [골조같이, set골조같이] = useState(null)       // null = 같이 넣은 것이면 같이(묶음) · true/false = 고름
   const [예시닫음, set예시닫음] = useState(false)
-  const [내역, set내역] = useState(null)               // 📑 G398 내역 대조 — { 나무, 파일 } (이 화면에서만 · 저장 안 함)
+  const [내역, set내역] = useState(null)               // 📑 G398 내역 대조 — { 나무, 파일 } · G399 이 브라우저에 저장(예시는 안 함)
   const [내역상태번, set내역상태번] = useState(null)
+  const [내역고침, set내역고침] = useState({})          // ✋ G399 사람이 고친 짝 {'묶음키|갈래': 공종i | null}
+  const 내역읽음 = useRef(false)
   const 내역Ref = useRef(null)
   const 파일Ref = useRef(null)
   const 센 = useRef(new Set())
@@ -59,6 +63,7 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
       if (새 === 앞묶음.current) return
       앞묶음.current = 새
       set자리(null); set고른부재(null); set골조같이(null); set예시닫음(false); set고른노선(t && t.활용.노선.length ? t.활용.노선[0].이름 : '')
+      set내역고침({})                                 // 묶음 번호가 바뀌니 고친 짝은 처음대로(내역서는 그대로)
     })
     토목상태.열기()
     return 끊
@@ -93,10 +98,23 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
   const 내대 = useMemo(() => {
     if (!내역 || (!토 && !골조보기)) return null
     try {
-      const 묶 = 건설맵묶음(토, 골조보기 && 함께 ? 함께.골조 : null, { 뺄건물: 뺄번, 골조이름: M && M.이름 })
-      return 맞대기(내역.나무, 묶, { 상태번: Number.isInteger(내역상태번) ? 내역상태번 : undefined })
+      const 철근표 = (T && T.철근표) || []
+      const 묶 = 건설맵묶음(토, 골조보기 && 함께 ? 함께.골조 : null, { 뺄건물: 뺄번, 골조이름: M && M.이름, 철근표 })
+      return 맞대기(내역.나무, 묶, { 상태번: Number.isInteger(내역상태번) ? 내역상태번 : undefined, 고침: 내역고침, 미터당: 철근표.reduce((a, x) => a + (x.미터당 || 0), 0) })
     } catch (e) { return { 틀림: (e && e.message) || String(e) } }
-  }, [내역, 내역상태번, 토, 골조보기, 함께, 뺄번, M])
+  }, [내역, 내역상태번, 내역고침, 토, 골조보기, 함께, 뺄번, M, T])
+  /* 📑 G399 내역 대조 저장 — 처음 한 번 꺼냄 · 바뀌면 넣음(예시 도면이면 저장 안 함) */
+  useEffect(() => {
+    if (내역읽음.current || !T) return
+    내역읽음.current = true
+    if (T.예시) return
+    기억꺼내기(내역열쇠).then((v) => { if (v && v.나무 && !내역) { set내역({ 나무: v.나무, 파일: v.파일 }); if (Number.isInteger(v.상태번)) set내역상태번(v.상태번); if (v.묶음 === 묶음열쇠(T) && v.고침) set내역고침(v.고침) } }).catch(() => {})
+  }, [T])   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!내역읽음.current || !T || T.예시 || !내역) return
+    const h = setTimeout(() => { 기억넣기(내역열쇠, { 나무: 내역.나무, 파일: 내역.파일, 상태번: 내역상태번, 고침: 내역고침, 묶음: 묶음열쇠(T) }).catch(() => {}) }, 400)
+    return () => clearTimeout(h)
+  }, [내역, 내역상태번, 내역고침, T])
 
   /* ── 넣기 — 🛣🏢 G397 작업 화면의 «함께 넣기»(골조 · 토목 같이) ── */
   const 파일넣기 = async (files) => {
@@ -121,6 +139,7 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
   const 비우기 = async () => {
     if (!window.confirm('토목 탭에 넣은 도면 결과를 이 브라우저에서 지울까요? (🏢 건축 탭 골조 모델은 그대로)')) return
     await 토목상태.지우기()
+    set내역(null); set내역고침({}); try { await 기억지우기(내역열쇠) } catch (e) { /* 없음 */ }
   }
   const 좌표계고르기 = async (k) => {
     if (!T) return
@@ -135,7 +154,7 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
     try {
       const { 내역열기 } = await import('./lib/토목내역.js')
       const 나무 = 내역열기(new Uint8Array(await f.arrayBuffer()), f.name)
-      set내역({ 나무, 파일: f.name }); set내역상태번(null); set보기('내역'); set상태(null)
+      set내역({ 나무, 파일: f.name }); set내역상태번(null); set내역고침({}); 내역읽음.current = true; set보기('내역'); set상태(null)
       세기('|토목탭|내역대조')
     } catch (e) { set상태({ k: 'err', 글: '내역서를 읽지 못했습니다 — ' + ((e && e.message) || e) }) }
   }
@@ -180,6 +199,14 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
           ]))
       }
       if (함께 && 골조보기) sheets.unshift(시.함께시트(함께, ST, 자))
+      /* 📐 G399 배근도 철근 재료표(파일 · 직경마다 톤) — 합은 SUM 식 */
+      const 철표 = ((T && T.철근표) || []).filter((x) => x.t > 0)
+      if (철표.length) {
+        const 줄 = []
+        for (const x of 철표) x.직경.forEach((d, j) => 줄.push([x.파일.replace(/\.(dxf|dwg)$/i, ''), d.d, { v: +d.t.toFixed(3), st: ST.QTY }, j === 0 && x.검산.length ? '표 검산 ' + x.검산.length + '곳 — ' + x.검산.join(' · ') : '']))
+        줄.push(['합계', '', { f: `SUM(C2:C${줄.length + 1})`, st: ST.QTY }, ((T && T.철근표) || []).some((x) => x.미터당) ? '«1m당» 철근표는 연장을 곱해야 해서 뺌' : ''])
+        sheets.push({ name: '도면 철근 재료표', head: ['도면', '직경', '철근(t)', '비고'], rows: 줄, widths: [40, 8, 12, 60], freeze: 1 })
+      }
       if (내대 && !내대.틀림) { const { 내역대조시트 } = await import('./lib/토목내역.js'); sheets.splice(함께 && 골조보기 ? 1 : 0, 0, ...내역대조시트(내대, 내역.나무, ST)) }
       내려주기(new Blob([writeWorkbook(sheets)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), (골조보기 && T ? '골조토목_' : 골조보기 ? '골조_' : '토목_') + 파일이름 + '.xlsx')
       세기('|토목탭|엑셀')
@@ -251,7 +278,7 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
             {(T || 내역) && <div className="gmd-ws-views" role="group" aria-label="보기">
               {[...(T ? [['평면', '📐 평면'], ['3D', '🧊 3D'], ['나란히', '◫ 나란히']] : [['3D', '🧊 3D']]), ['내역', '📑 내역 대조']].map(([k, t]) => <button key={k} type="button" className={'btn line sm' + (보기쓸 === k ? ' on' : '')} aria-pressed={보기쓸 === k} onClick={() => { if (k === '내역' && !내역) { 내역Ref.current && 내역Ref.current.click(); return } set보기(k); if (k === '3D' || k === '나란히') 한번('|토목탭|3D') }}>{t}</button>)}
             </div>}
-            {보기쓸 === '내역' && <내역대조칸 대조={내대} 내역={내역} 상태번={내대 && Number.isInteger(내대.상태번) ? 내대.상태번 : 0} set상태번={(i) => { set내역상태번(i); 한번('|토목탭|내역상태') }} 바꾸기={() => 내역Ref.current && 내역Ref.current.click()} />}
+            {보기쓸 === '내역' && <내역대조칸 대조={내대} 내역={내역} 상태번={내대 && Number.isInteger(내대.상태번) ? 내대.상태번 : 0} set상태번={(i) => { set내역상태번(i); 한번('|토목탭|내역상태') }} 바꾸기={() => 내역Ref.current && 내역Ref.current.click()} 짝고치기={(k, v) => { set내역고침((P) => { const N = { ...P }; if (v === undefined) delete N[k]; else N[k] = v; return N }); 세기(/^(율|값)\|/.test(k) ? '|토목탭|값고침' : '|토목탭|짝고침') }} 짝처음={() => set내역고침({})} />}
             {보기쓸 !== '내역' && <div className="tmk-views">
               {T && 보기쓸 !== '3D' && <평면칸 T={T} 고른노선={고른노선} 자리={자리} 누름={(x, y) => { set자리({ x, y }); 한번('|토목탭|자리') }} 노선누름={(n) => { set고른노선(n); 한번('|토목탭|노선') }} 골조={골조보기 ? 골조부재 : null} 골조원점={토 ? 토.원점 : null} />}
               {보기쓸 !== '평면' && <삼디칸 T={T} 토={토} 뺄ids={뺄ids} 골조부재={골조부재} set고른부재={set고른부재} />}
@@ -267,7 +294,7 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
                   <small className="tmk-nyfile" title={내역.파일}>{내역.파일} · {내역.나무.시트} · {내대.상태}</small>
                   <div className="tmk-nycount">{['맞음', '비슷', '다름', '없음'].map((k) => <span key={k} className={'tmk-nyc c-' + k}>{판정글[k].split(' ')[0]} {내대.단셈[k] || 0}</span>)}</div>
                   <small className="muted">견준 품목 {내대.셈.견준} / 내역 품목 {내대.셈.품목} — 나머지는 건설맵이 아직 안 내는 품목</small>
-                  <div className="gmd-top"><button type="button" className="btn line sm" onClick={() => set보기('내역')}>📑 대조 표 보기</button><button type="button" className="btn line sm" onClick={() => { set내역(null); if (보기 === '내역') set보기('평면') }} title="내역 대조 지우기">✕</button></div>
+                  <div className="gmd-top"><button type="button" className="btn line sm" onClick={() => set보기('내역')}>📑 대조 표 보기</button><button type="button" className="btn line sm" onClick={() => { set내역(null); set내역고침({}); 기억지우기(내역열쇠).catch(() => {}); if (보기 === '내역') set보기('평면') }} title="내역 대조 지우기">✕</button></div>
                 </>
               ) : 내역 && 내대 && 내대.틀림 ? <small className="gmd-warn">⚠ {내대.틀림}</small> : (
                 <>
@@ -306,7 +333,7 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
 }
 
 /* ── 📑 G398 내역 대조 표 ── */
-function 내역대조칸({ 대조, 내역, 상태번, set상태번, 바꾸기 }) {
+function 내역대조칸({ 대조, 내역, 상태번, set상태번, 바꾸기, 짝고치기, 짝처음 }) {
   const [거름, set거름] = useState('')
   const [연것, set연것] = useState(null)
   if (!대조) return <div className="card tmk-nytable"><small className="muted">도면을 넣으면 내역서와 맞대 봅니다.</small></div>
@@ -320,6 +347,7 @@ function 내역대조칸({ 대조, 내역, 상태번, set상태번, 바꾸기 })
         <b>📑 내역 대조 — {내역.파일}</b>
         <span className="tmk-nyopts">
           {나무.상태.length > 1 && <select value={상태번} onChange={(e) => set상태번(+e.target.value)} aria-label="내역 상태">{나무.상태.map((t, i) => <option key={i} value={i}>{t}</option>)}</select>}
+          {대조.고침수 > 0 && <button type="button" className="btn line sm tmk-nyreset" onClick={짝처음} title="사람이 고친 짝 · 값을 모두 처음(건설맵이 짝짓고 센 대로)으로">↺ 고친 것 처음대로 {대조.고침수}</button>}
           <button type="button" className="btn line sm" onClick={바꾸기}>내역서 바꾸기</button>
         </span>
       </div>
@@ -331,17 +359,20 @@ function 내역대조칸({ 대조, 내역, 상태번, set상태번, 바꾸기 })
         <table className="tmk-table tmk-nyt">
           <thead><tr><th className="tmk-nym" aria-label="판정"></th><th>공종</th><th className="tmk-nyg2">갈래</th><th>내역({대조.상태})</th><th>건설맵</th><th>차이</th><th className="tmk-nyp">판정</th></tr></thead>
           <tbody>{줄.map((d) => (
-            <FragmentRow key={d.키} d={d} 열림={연것 === d.키} 누름={() => set연것(연것 === d.키 ? null : d.키)} 나무={나무} 상태번={대조.상태번} 쉼2={쉼2} />
+            <FragmentRow key={d.키} d={d} 열림={연것 === d.키} 누름={() => set연것(연것 === d.키 ? null : d.키)} 나무={나무} 상태번={대조.상태번} 쉼2={쉼2} 묶음들={대조.묶음들 || []} 짝고치기={짝고치기} />
           ))}</tbody>
         </table>
       </div>
-      {대조.남은.length > 0 && <details className="tmk-nyleft"><summary>내역 공종과 짝을 못 찾은 건설맵 물량 {대조.남은.length}</summary><ul>{대조.남은.map((x, i) => <li key={i}>{x.이름} · {갈래이름[x.갈래]} {쉼2(x.값)} {갈래단위[x.갈래]}</li>)}</ul></details>}
+      {대조.남은.length > 0 && <details className="tmk-nyleft"><summary>내역 공종과 짝을 못 찾은 건설맵 물량 {대조.남은.length} — 공종을 골라 맞댈 수 있습니다</summary><ul>{대조.남은.map((x, i) => {
+        const 갈곳 = 대조.단위들.filter((u) => u.갈래 === x.갈래)
+        return <li key={i}>{x.고침 ? '✋ ' : ''}{x.이름} · {갈래이름[x.갈래]} {쉼2(x.값, x.갈래 === '철근' ? 3 : 1)} {갈래단위[x.갈래]}{갈곳.length > 0 && <select className="tmk-nypair" value="" onChange={(e) => { if (e.target.value !== '') 짝고치기(x.키 + '|' + x.갈래, +e.target.value) }} aria-label={x.이름 + ' 맞댈 공종'}><option value="">→ 맞댈 공종 고르기</option>{갈곳.map((u) => <option key={u.키} value={u.공종i}>{(u.길.length > 1 ? u.길.slice(1) : u.길).slice(-2).join(' > ') || u.공종}</option>)}</select>}</li>
+      })}</ul></details>}
       {대조.뺀단위 > 0 && <small className="muted tmk-nyzero">이 상태({대조.상태})에서 내역 수량이 비었거나 0 인 공종 · 갈래 {대조.뺀단위}개는 견줄 것이 없어 뺐습니다{내역.나무.상태.length > 1 ? ' — 위에서 상태를 바꿔 보십시오' : ''}.</small>}
       <small className="muted">공종마다(자리 말 — 배수장 · 유수지 · 배수로 …) 같은 갈래 품목을 더해 건설맵 묶음과 맞댐 · ✓ 3 % 안 · △ 10 % 안 · ✗ 넘음 — «다름» 은 곧 «틀림» 이 아닙니다(넣은 도면이 당초인지 변경인지 · 산출서의 셈 · 할증). 줄을 누르면 내역 품목과 근거가 나옵니다.</small>
     </div>
   )
 }
-function FragmentRow({ d, 열림, 누름, 나무, 상태번, 쉼2 }) {
+function FragmentRow({ d, 열림, 누름, 나무, 상태번, 쉼2, 묶음들, 짝고치기 }) {
   const 율 = Number.isFinite(d.율) ? (d.율 > 0 ? '+' : '') + d.율.toFixed(1) + ' %' : '—'
   return (
     <>
@@ -352,10 +383,19 @@ function FragmentRow({ d, 열림, 누름, 나무, 상태번, 쉼2 }) {
         <td>{d.건설맵 > 0 ? 쉼2(d.건설맵, d.갈래 === '철근' ? 3 : 1) : '—'}</td><td>{d.판정 === '없음' ? '' : 율}</td><td className="tmk-nyp">{판정글[d.판정]}</td>
       </tr>
       {열림 && <tr className="tmk-nydetail"><td colSpan={7}>
-        {d.묶음.length > 0 && <div><b>건설맵</b> — {d.묶음.map((b) => `${b.이름} ${갈래이름[b.갈래] === 갈래이름[d.갈래] ? '' : '(' + 갈래이름[b.갈래] + ') '}${쉼2(b.값)}`).join(' · ')}</div>}
+        {d.묶음.length > 0 && <div className="tmk-nypairs"><b>건설맵</b> — {d.묶음.map((b) => <span key={b.키 + b.갈래} className={'tmk-nychip' + (b.고침 ? ' fix' : '')}>{b.고침 ? '✋ ' : ''}{b.이름} {갈래이름[b.갈래] === 갈래이름[d.갈래] ? '' : '(' + 갈래이름[b.갈래] + ') '}{쉼2(b.값, d.갈래 === '철근' ? 3 : 1)}<button type="button" className="tmk-nyx" onClick={() => 짝고치기(b.키 + '|' + b.갈래, null)} title="이 묶음을 이 공종과 맞대지 않기" aria-label={b.이름 + ' 빼기'}>✕</button></span>)}</div>}
         {(d.뺀묶음 || []).length > 0 && <div className="muted">견줌에서 뺀 것 — {d.뺀묶음.map((b) => `${b.이름} ${쉼2(b.값)}`).join(' · ')}</div>}
         <div><b>내역 품목</b> — {d.품목.map((pi) => { const p = 나무.품목[pi]; const q = p.수량[상태번]; return `${p.행}행 ${p.이름}${p.규격 ? ' ' + p.규격 : ''} ${q === null || q === undefined ? '(빈칸)' : 쉼2(q, 3)} ${p.단위}` }).join(' · ')}</div>
         {d.까닭.length > 0 && <div className="tmk-nywhy">ⓘ {d.까닭.join(' · ')}</div>}
+        <div className="tmk-nyfix" key={d.키 + JSON.stringify(d.사람값)}>✋ 값 고치기 — 할증 <input type="number" step="0.01" inputMode="decimal" className="tmk-nyin2" defaultValue={d.사람값 && Number.isFinite(d.사람값.율) ? d.사람값.율 : ''} placeholder="0" aria-label="할증 %" onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }} onBlur={(e) => { const v = e.currentTarget.value.trim(); const 전 = d.사람값 && Number.isFinite(d.사람값.율) ? String(d.사람값.율) : ''; if (v !== 전) 짝고치기('율|' + d.키, v === '' ? undefined : +v) }} /> % · 값 직접 <input type="number" step="0.001" inputMode="decimal" className="tmk-nyin2" defaultValue={d.사람값 && Number.isFinite(d.사람값.값) ? d.사람값.값 : ''} placeholder={d.건설맵 > 0 ? d.건설맵.toFixed(d.갈래 === '철근' ? 3 : 1) : ''} aria-label="건설맵 값 직접" onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }} onBlur={(e) => { const v = e.currentTarget.value.trim(); const 전 = d.사람값 && Number.isFinite(d.사람값.값) ? String(d.사람값.값) : ''; if (v !== 전) 짝고치기('값|' + d.키, v === '' ? undefined : +v) }} /> {갈래단위[d.갈래]}
+          {d.사람값 && <button type="button" className="btn line sm tmk-nyunfix" onClick={() => { 짝고치기('율|' + d.키, undefined); 짝고치기('값|' + d.키, undefined) }}>✕ 고친 값 지우기</button>}
+          {d.침하 !== undefined && !d.사람값 && <button type="button" className="btn line sm tmk-nysink" onClick={() => 짝고치기('율|' + d.키, +(d.침하 * 100).toFixed(2))}>침하율 {(d.침하 * 100).toFixed(2)} % 넣기</button>}
+        </div>
+        {(() => {
+          const 있 = new Set(d.묶음.map((b) => b.키 + '|' + b.갈래))
+          const 붙일 = 묶음들.filter((b) => b.값[d.갈래] > 0 && !있.has(b.키 + '|' + d.갈래))
+          return 붙일.length > 0 && <div className="tmk-nyadd">✋ 짝 고치기 — <select className="tmk-nypair" value="" onChange={(e) => { if (e.target.value) 짝고치기(e.target.value + '|' + d.갈래, d.공종i) }} aria-label="이 공종과 맞댈 건설맵 묶음 더하기"><option value="">＋ 이 공종과 맞댈 건설맵 묶음 더하기</option>{붙일.map((b) => <option key={b.키} value={b.키}>{b.이름} · {쉼2(b.값[d.갈래], d.갈래 === '철근' ? 3 : 1)} {갈래단위[d.갈래]}</option>)}</select> <small className="muted">(고친 짝은 이 브라우저에 남음 · ↺ 로 처음대로)</small></div>
+        })()}
       </td></tr>}
     </>
   )
@@ -381,6 +421,7 @@ function 함께칸({ 함께, 자, T, M, 골조있음, 골조보기, 같이넣음
         </table>
       )}
       {함께 && 함께.토목 && <small>토공 — 터파기 {쉼(함께.토목.터파기, 1)} · 되메우기 {쉼(함께.토목.되메우기, 1)} · 성토 {쉼(함께.토목.성토, 1)} ㎥</small>}
+      {T && (T.철근표 || []).some((x) => x.t > 0) && (() => { const 쓴 = T.철근표.filter((x) => x.t > 0), 미터 = T.철근표.reduce((a, x) => a + (x.미터당 || 0), 0); return <small className="tmk-rebar" title={쓴.map((x) => x.파일 + ' ' + x.t.toFixed(3) + ' t').join('\n')}>📐 도면 철근 재료표 — {쉼(쓴.reduce((a, x) => a + x.t, 0), 3)} t(도면 {쓴.length}장{미터 ? ` · 1m당 표 ${미터}개는 연장을 곱해야 해서 뺌` : ''}) — 합에는 안 넣고 📑 내역 대조에서 견줌</small> })()}
       {골조보기 && 자 && <small className={자.방법 === '옆' ? 'gmd-warn' : 'muted'}>📍 골조 자리 — {자.글}</small>}
       {골조보기 && 함께 && 함께.골조 && <small className="muted">철근은 골조만(토목 · 건물 평면은 개략 콘크리트 · 거푸집) · 같은 건물의 평면 덩어리는 두 번 안 셈</small>}
       {골조있음 && <button type="button" className="btn line sm tmk-toarch" onClick={건축으로}>🏢 건축 탭에서 골조 보기 · 고치기</button>}

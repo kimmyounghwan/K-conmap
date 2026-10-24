@@ -6,7 +6,7 @@
  * ■ 화면 줄기(브라우저)에서만 씀 — 일꾼 · DWG 바꾸기. 셈은 lib/토목작업.js.
  * ■ 토목 결과 저장소(토목상태) — 작업 화면(Model.jsx)과 토목 탭(토목판.jsx)이 같이 봄 · 이 브라우저 IndexedDB «kcm.civil.v1»(예시는 저장 안 함)
  */
-import { 토목열쇠, 토목자료 } from './토목작업.js'
+import { 토목열쇠, 토목자료, 재료표철근 } from './토목작업.js'
 import { 넣기 as 기억넣기, 꺼내기 as 기억꺼내기, 지우기 as 기억지우기 } from './기억자료.js'
 import { 멈춤감시, 멈춤글 } from './파일한도.js'
 
@@ -101,6 +101,7 @@ export async function 함께읽기(목록, 옵 = {}) {
   if (!바꾼.length) throw new Error('읽을 도면이 없습니다 — DWG 를 바꾸지 못함: ' + 못.join(', '))
   const 묶음 = Date.now()
   let 골조알림 = '', 토목알림 = ''
+  let 철근표 = []                           // 📐 G399 배근도 «철근 재료표» — 골조 읽기가 읽은 도면에서(골조가 없어도)
   const 둘 = () => 알려([골조알림 && '🏢 ' + 골조알림, 토목알림 && '🛣 ' + 토목알림].filter(Boolean).join('  ·  '))
   /* 같이 돌림 — 토목 일꾼에는 사본(먼저 떠 둠) · 골조 읽기에는 원본(BIM 물량 화면과 같음) */
   const 토목목록 = 바꾼.map((x) => ({ 이름: x.이름, buf: x.buf.slice(0) }))
@@ -111,7 +112,7 @@ export async function 함께읽기(목록, 옵 = {}) {
   const 골조일 = 옵.골조 === false ? Promise.resolve({ 없음: true }) : (async () => {
     try {
       const 넣 = await import('./도면넣기.js')
-      const r = await 넣.도면읽어모델(바꾼.map((x) => ({ 이름: x.이름, buf: x.buf })), (g) => { 골조알림 = g; 둘() })
+      const r = await 넣.도면읽어모델(바꾼.map((x) => ({ 이름: x.이름, buf: x.buf })), (g) => { 골조알림 = g; 둘() }, { 들받기: async (들) => { 철근표 = await 재료표철근(들) } })
       골조알림 = `골조 다 읽음(부재 ${(r.부재수 || 0).toLocaleString('ko-KR')})`; 둘()       // 토목이 더 걸릴 때 «세우는 중» 이 남지 않게
       return { r }
     } catch (e) { 골조알림 = '골조 없음'; 둘(); return { 틀림: (e && e.message) || String(e) } }
@@ -123,6 +124,7 @@ export async function 함께읽기(목록, 옵 = {}) {
       const 이름 = 옵.이름 || (바꾼[0].이름.replace(/\.dxf$/i, '') + (바꾼.length > 1 ? ` 외 ${바꾼.length - 1}장` : ''))
       T = 토목자료(t.r, { 이름, 예시: !!옵.예시, 성과, 측점성과, 좌표글: t.r.좌표글 || [] })
       T.묶음 = 묶음
+      T.철근표 = 철근표
     } else {
       const { 못찾음글 } = await import('./토목작업.js')
       토목틀림 = '토목(노선 · 횡단 · 구조물 · 측량 땅)을 찾지 못했습니다 — ' + 못찾음글(t.r, { 골조됨: !!(g.r && g.r.부재수 > 0) })
