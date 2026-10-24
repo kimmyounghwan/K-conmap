@@ -25,7 +25,7 @@ import { Link } from 'react-router-dom'
 import { 세기 } from '../lib/받은수.jsx'
 import { 배근칸, 정착표, 기준값, 엑셀 as 골조엑셀 } from '../lib/골조.js'
 import { 도면함끄기, 도면함켜기, 도면함넣어둠 } from '../lib/도면모델.js'
-import { 새모델, 예시모델, 작업예시모델, 정돈, 겹침둠, 겹침남기기, 기둥넣기, 선넣기, 칸넣기, 계단넣기, 부재옮기기, 구간넣기, 구간빼기, 구간고치기, 구간물량, 구간선자르기, 구간색들, 부재빼기, 부재고치기, 부재나누기, 층복사, 통심더하기, 통심빼기, 통심간격, 모델셈, 종류색, 부재글, 모델시트, FT층, 층높이, 제안확인, 제안모두확인, 제안빼기, 기초철근넣기, 계단글 } from '../lib/골조모델.js'
+import { 새모델, 예시모델, 작업예시모델, 정돈, 겹침둠, 겹침남기기, 사선넣기, 사선끝, 띠판, 기둥넣기, 선넣기, 칸넣기, 계단넣기, 부재옮기기, 구간넣기, 구간빼기, 구간고치기, 구간물량, 구간선자르기, 구간색들, 부재빼기, 부재고치기, 부재나누기, 층복사, 통심더하기, 통심빼기, 통심간격, 모델셈, 종류색, 부재글, 모델시트, FT층, 층높이, 제안확인, 제안모두확인, 제안빼기, 기초철근넣기, 계단글 } from '../lib/골조모델.js'
 import 둘러보기판 from '../둘러보기판.jsx'
 import { 층판 } from '../lib/둘러보기.js'
 import { 길잡이 } from '../lib/도우미.js'
@@ -491,6 +491,7 @@ function 일람칸들({ M, setM }) {
 function 세우기칸(p) {
   const { M, setM, S, 층, set층, 도구, set도구, 쓸도구, 부호, set부호, 첫점, set첫점, 고른, set고른, 고른것, 보일층, set보일층, glErr, setGlErr, 크게, set크게, 한번세기, 작업 = false, 도면결과 = null, set도면결과 = () => {}, 엑셀받음 = false, 걷기요청 = 0, 길행동 = () => {}, 원료Ref = null, 도면열기 = () => {} } = p
   const [보기, set보기] = useState('3D')                // 🖥 G388 작업 화면 가운데: 3D · 평면 · 나란히
+  const [빗그리기, set빗그리기] = useState(false)          // 🧭 G395 ⟋ 비스듬히 — 가로 · 세로가 다른 교점을 누르면 비스듬한 보 · 벽
   const [걷기, set걷기0] = useState(false)             // 🚶 G390 둘러보기(작업 화면만)
   const [걷기눈, set걷기눈] = useState(false)          // 🚶 눈으로 보는 중(천장도 보임) · 뒤에서 보면 지금 층 천장(보 · 슬라브)은 걷어 냄
   const 걸어봄 = useRef(false)
@@ -529,7 +530,16 @@ function 세우기칸(p) {
       if (!지금부호) return
       if (!첫점) { set첫점([xid, yid]); return }
       if (첫점[0] === xid && 첫점[1] === yid) { set첫점(null); return }
-      if (첫점[0] !== xid && 첫점[1] !== yid) { set첫점([xid, yid]); return }
+      if (첫점[0] !== xid && 첫점[1] !== yid) {
+        if (!빗그리기) { set첫점([xid, yid]); return }
+        /* 🧭 G395 비스듬한 보 · 벽 — 두 교점 자리(mm)를 두 끝으로 */
+        const X = (id) => (M.통심.x.find((g) => g.id === id) || {}).자리, Y = (id) => (M.통심.y.find((g) => g.id === id) || {}).자리
+        const a = 첫점
+        세움((P) => 사선넣기(P, 도구, 층, 지금부호, [X(a[0]), Y(a[1])], [X(xid), Y(yid)]))
+        한번세기('|골조모델|비스듬')
+        set첫점([xid, yid])
+        return
+      }
       const a = 첫점
       세움((P) => 선넣기(P, 도구, 층, 지금부호, a, [xid, yid]))
       set첫점([xid, yid])            // 이어 그리기
@@ -680,6 +690,14 @@ function 세우기칸(p) {
       if (o.종류 === '기둥' && Number(r.지름) > 0) return <circle key={o.id} className={cls} cx={x} cy={-y} r={Number(r.지름) / 2} fill={색} onClick={손} />
       return <rect key={o.id} className={cls + (o.종류 === '기초' ? ' ft' : '')} x={x - a / 2} y={-y - b / 2} width={a} height={b} fill={o.종류 === '기초' ? 'none' : 색} stroke={색} onClick={손} />
     }
+    /* 🧭 G395 비스듬한 보 · 벽 — 받침 면 사이 띠(셈과 같은 모양) · 제안은 노랗게 */
+    const 빗 = (o.종류 === '보' || o.종류 === '벽') ? 사선끝(M, o) : null
+    if (빗) {
+      const r = 일(o.종류, o.부호)
+      const w = Number(o.종류 === '보' ? r.폭 : r.두께) || 300
+      const P = g && g.판 ? g.판 : 띠판(빗[0], 빗[1], w)
+      return <g key={o.id} className={cls + ' slant' + (o.제안 ? ' prop' : '')} onClick={손} data-k={o.종류 + o.id}><polygon points={P.map((q) => q[0] + ',' + (-q[1])).join(' ')} fill={o.제안 ? 'rgba(245,199,46,.55)' : 색} stroke={o.제안 ? '#d89b00' : 'none'} />{!흐림 && 집기 && <line className="gmd-hitl" x1={빗[0][0]} y1={-빗[0][1]} x2={빗[1][0]} y2={-빗[1][1]} />}</g>
+    }
     if (o.종류 === '보' || o.종류 === '벽') {
       const ax = 자리X(o.점[0]), ay = 자리Y(o.점[1]), bx = 자리X(o.끝[0]), by = 자리Y(o.끝[1])
       if ([ax, ay, bx, by].some((v) => v === undefined)) return null
@@ -786,7 +804,7 @@ function 세우기칸(p) {
 
   const 고른물량 = 고른것 && S && S.부재별 ? S.부재별.get(고른것.id) : null
   const 고른기하 = 고른것 ? G.get(고른것.id) : null
-  const 도움말 = { 기둥: '통심 교점을 누르면 기둥', 기초: '통심 교점을 누르면 기초(기둥 밑)', 보: 첫점 ? '같은 줄의 다른 교점을 누르면 그 사이 칸마다 보 — 이어서 누르면 계속' : '교점 하나를 누르고, 같은 줄의 다른 교점을 누릅니다', 벽: 첫점 ? '같은 줄의 다른 교점을 누르면 그 사이 칸마다 벽' : '교점 하나를 누르고, 같은 줄의 다른 교점을 누릅니다', 슬라브: '통심 사이 칸을 누르면 슬라브', 계단: '통심 사이 칸을 누르면 그 칸에 계단(오르는 판 자리 · 긴 쪽으로 오름 · 판 2) — 길이 · 폭 · 참 · 단수는 오른쪽에서', 고르기: '부재를 누르면 크기 · 물량', 옮기기: '부재를 눌러 끌면 옮겨집니다 — 가까운 통심(10 cm 안)에 붙고 없으면 그 자리에 보조 통심 · 나눈 보 · 벽도 한 토막만 떼어 옮김', 구간: '평면에서 네모를 끌어 구간을 긋습니다(팀별 · 기성 — 가까운 통심에 붙음 · 모든 층 같은 자리) · 이름 · 물량은 오른쪽 «▭ 구간별 물량»', 지우기: '누른 부재를 지웁니다' }[도구]
+  const 도움말 = { 기둥: '통심 교점을 누르면 기둥', 기초: '통심 교점을 누르면 기초(기둥 밑)', 보: 첫점 ? (빗그리기 ? '다른 교점을 누르면 — 같은 줄이면 칸마다 보 · 아니면 ⟋ 비스듬한 보(끝은 받침 면까지)' : '같은 줄의 다른 교점을 누르면 그 사이 칸마다 보 — 이어서 누르면 계속') : '교점 하나를 누르고, 같은 줄의 다른 교점을 누릅니다' + (빗그리기 ? '(⟋ 비스듬히 — 아무 교점)' : ''), 벽: 첫점 ? (빗그리기 ? '다른 교점을 누르면 — 같은 줄이면 칸마다 벽 · 아니면 ⟋ 비스듬한 벽' : '같은 줄의 다른 교점을 누르면 그 사이 칸마다 벽') : '교점 하나를 누르고, 같은 줄의 다른 교점을 누릅니다' + (빗그리기 ? '(⟋ 비스듬히 — 아무 교점)' : ''), 슬라브: '통심 사이 칸을 누르면 슬라브', 계단: '통심 사이 칸을 누르면 그 칸에 계단(오르는 판 자리 · 긴 쪽으로 오름 · 판 2) — 길이 · 폭 · 참 · 단수는 오른쪽에서', 고르기: '부재를 누르면 크기 · 물량', 옮기기: '부재를 눌러 끌면 옮겨집니다 — 가까운 통심(10 cm 안)에 붙고 없으면 그 자리에 보조 통심 · 나눈 보 · 벽도 한 토막만 떼어 옮김', 구간: '평면에서 네모를 끌어 구간을 긋습니다(팀별 · 기성 — 가까운 통심에 붙음 · 모든 층 같은 자리) · 이름 · 물량은 오른쪽 «▭ 구간별 물량»', 지우기: '누른 부재를 지웁니다' }[도구]
 
   /* 🖥 G388 작업 화면 — 같은 조각을 왼쪽 도구 · 가운데 3D(크게) · 오른쪽 정보로 놓음(작업 = true) · 아니면 예전 차례 그대로 */
   const 도구판 = (
@@ -814,6 +832,7 @@ function 세우기칸(p) {
           <span className="muted">이 층 한꺼번에:</span>
           {(도구 === '기둥' || 도구 === '기초') && <button type="button" className="btn line sm" onClick={() => 모두('교점')}>모든 교점에 {지금부호}</button>}
           {도구 === '기초' && <button type="button" className="btn line sm" onClick={() => 모두('기둥밑')}>{맨아래}층 기둥 밑마다 {지금부호}</button>}
+          {(도구 === '보' || 도구 === '벽') && <label className="gmd-check-l" title="켜면 가로 · 세로가 다른 두 교점을 누를 때 비스듬한 보 · 벽(끝은 기둥 · 보 · 벽 면까지 비스듬히)"><input type="checkbox" checked={빗그리기} onChange={(e) => set빗그리기(e.target.checked)} /> ⟋ 비스듬히</label>}
           {(도구 === '보' || 도구 === '벽') && <><button type="button" className="btn line sm" onClick={() => 모두('둘레')}>바깥 둘레에 {지금부호}</button><button type="button" className="btn line sm" onClick={() => 모두('모든줄')}>모든 통심에 {지금부호}</button></>}
           {도구 === '슬라브' && <button type="button" className="btn line sm" onClick={() => 모두('칸')}>모든 칸에 {지금부호}</button>}
         </div>
@@ -899,6 +918,7 @@ function 세우기칸(p) {
           )}
           {고른기하 && (
             <div className="muted gmd-p">
+              {고른기하.사선 && <>⟋ 비스듬 {고른기하.각}° · </>}
               {고른것.종류 === '보' && <>폭 {고른기하.W} × 춤 {고른기하.H} · 길이 {Math.round(고른기하.L)} − 왼쪽 {Math.round(고른기하.좌.값)}({고른기하.좌.무엇}) − 오른쪽 {Math.round(고른기하.우.값)}({고른기하.우.무엇}) = 안목 {Math.round(고른기하.안)} · 슬라브 {고른기하.S}</>}
               {고른것.종류 === '벽' && <>두께 {고른기하.T} · 길이 {Math.round(고른기하.L)} → {Math.round(고른기하.안)}(왼쪽 {고른기하.좌.무엇} · 오른쪽 {고른기하.우.무엇}) · 위 {고른기하.상부}({고른기하.상부까닭})</>}
               {고른것.종류 === '기둥' && <>{고른기하.원 ? '지름 ' + 고른기하.원 : 고른기하.a + ' × ' + 고른기하.b} · 슬라브 {고른기하.S}{고른기하.내림 ? ' · 내림 ' + 고른기하.내림 : ''} · 위층 {고른기하.연결 === 'R' ? '없음(최상층 정착)' : 고른기하.연결 + ' 와 이음'}{고른기하.기초 ? ' · 기초 ' + 고른기하.기초.o.부호 : ''}</>}
@@ -946,8 +966,8 @@ function 세우기칸(p) {
           )}
           {(고른것.종류 === '보' || 고른것.종류 === '벽') && 고른기하 && (
             <div className="gmd-row gmd-wrap">
-              <label className="gmd-kv">✂ 나누기 — {고른기하.축 === 'x' ? '왼' : '아래'} 끝에서 <input className="gmd-in num" inputMode="numeric" value={나눌자리} placeholder={String(Math.round(고른기하.L / 2))} onChange={(e) => set나눌자리(e.target.value.replace(/[^0-9]/g, ''))} /> mm</label>
-              <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { const d = Number(나눌자리 || Math.round(고른기하.L / 2)); const N = 부재나누기(M, 고른것.id, 고른기하.s0 + d); if (N !== M) { setM(N); 세기('|골조모델|나누기'); set나눌자리('') } }}>✂ 둘로</button>
+              <label className="gmd-kv">✂ 나누기 — {고른기하.사선 ? '앞' : 고른기하.축 === 'x' ? '왼' : '아래'} 끝에서 <input className="gmd-in num" inputMode="numeric" value={나눌자리} placeholder={String(Math.round(고른기하.L / 2))} onChange={(e) => set나눌자리(e.target.value.replace(/[^0-9]/g, ''))} /> mm</label>
+              <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { const d = Number(나눌자리 || Math.round(고른기하.L / 2)); const N = 부재나누기(M, 고른것.id, 고른기하.사선 ? d : 고른기하.s0 + d); if (N !== M) { setM(N); 세기('|골조모델|나누기'); set나눌자리('') } }}>✂ 둘로</button>
             </div>
           )}
           <div className="gmd-row gmd-wrap">

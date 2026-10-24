@@ -298,7 +298,7 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
   const 나누기 = () => {
     const s = 사Ref.current, g = 나눌것 && S && S.G && S.G.기.get(나눌것.id)
     if (!s || !g) return
-    const 자리 = (g.축 === 'x' ? s.x : s.y) * 1000
+    const 자리 = g.사선 ? (s.x * 1000 - g.p0[0]) * g.d[0] + (s.y * 1000 - g.p0[1]) * g.d[1] : (g.축 === 'x' ? s.x : s.y) * 1000      // 🧭 G395 비스듬한 것은 앞 끝에서 선 자리까지
     const N = 부재나누기(M, 나눌것.id, 자리)
     if (N === M) { set알림('✂ 끝에 너무 가까워 나누지 않았습니다(끝에서 50 mm 넘게 떨어진 자리에서)'); return }
     setM(N)

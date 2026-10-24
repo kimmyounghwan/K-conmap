@@ -9154,3 +9154,6 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gmd-ovllist li { padding: 6px 0; border-top: 1px dashed var(--line, #e5e7eb); }
 .gmd-ovllist li:first-child { border-top: 0; }
 .gmd-ovllist .gmd-row { margin-top: 4px; gap: 6px; }
+/* 🧭 G395 ⟋ 비스듬히 */
+.gmd-check-l { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; margin: 2px 6px 2px 0; cursor: pointer; }
+.gmd-svg .slant.prop polygon { stroke-width: 30; }

@@ -15,6 +15,21 @@ export const 고름거리 = 2.6
 const 상자 = (판) => { let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; for (const p of 판) { a = Math.min(a, p[0]); b = Math.min(b, p[1]); c = Math.max(c, p[0]); d = Math.max(d, p[1]) } return [a / 1000, b / 1000, c / 1000, d / 1000] }
 /** 점(x, y) → 네모 [x0, y0, x1, y1] 거리(m · 안이면 0) */
 export function 네모거리(x, y, b) { const dx = Math.max(b[0] - x, 0, x - b[2]), dy = Math.max(b[1] - y, 0, y - b[3]); return Math.hypot(dx, dy) }
+/** 🧭 G395 비스듬한 띠(네 꼭짓점 · 보 · 벽) → 짧은 토막 네모들(m) — 둘러싼 큰 네모 하나로 막거나 «가깝다» 하지 않게 */
+function 띠토막(판) {
+  if (!Array.isArray(판) || 판.length !== 4) return null
+  const xs = new Set(판.map((p) => Math.round(p[0]))), ys = new Set(판.map((p) => Math.round(p[1])))
+  if (xs.size <= 2 && ys.size <= 2) return null                 // 가로 · 세로 네모
+  const [P0, P1, P2, P3] = 판
+  const 짧 = Math.hypot(P1[0] - P0[0], P1[1] - P0[1]) <= Math.hypot(P3[0] - P0[0], P3[1] - P0[1])
+  const [a0, a1, b0, b1] = 짧 ? [P0, P1, P3, P2] : [P0, P3, P1, P2]      // a0 → b0 · a1 → b1 이 긴 변
+  const L = Math.hypot(b0[0] - a0[0], b0[1] - a0[1]), w = Math.hypot(a1[0] - a0[0], a1[1] - a0[1])
+  const n = Math.max(1, Math.min(60, Math.ceil(L / Math.max(w, 300))))
+  const 점 = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]
+  const out = []
+  for (let i = 0; i < n; i++) out.push(상자([점(a0, b0, i / n), 점(a0, b0, (i + 1) / n), 점(a1, b1, i / n), 점(a1, b1, (i + 1) / n)]))
+  return out
+}
 
 /**
  * 층 판 — 덩어리 · 층높이 표로 그 층에서 걸을 판
@@ -41,9 +56,11 @@ export function 층판(덩, H, 층) {
     if (MAT인가(d)) continue
     const z0 = d.z0 / 1000, z1 = d.z1 / 1000
     if (z1 <= 바닥 + 0.3 || z0 >= 바닥 + 1.7) continue       // 사람 키와 안 겹침
+    const 토 = d.종류 === '벽' ? 띠토막(d.판) : null
+    if (토) { for (const b of 토) 막.push({ id: d.id, b }); continue }
     막.push({ id: d.id, b: 상자(d.판) })
   }
-  const 부재 = 이층.map((d) => ({ id: d.id, 종류: d.종류, 부호: d.부호, b: 상자(d.판), z0: d.z0 / 1000, z1: d.z1 / 1000 }))
+  const 부재 = 이층.map((d) => { const 토 = (d.종류 === '보' || d.종류 === '벽') ? 띠토막(d.판) : null; return { id: d.id, 종류: d.종류, 부호: d.부호, b: 상자(d.판), ...(토 ? { 토 } : {}), z0: d.z0 / 1000, z1: d.z1 / 1000 } })
   /* 건물 둘레(모든 층) */
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
   for (const d of 덩) { const b = 상자(d.판); x0 = Math.min(x0, b[0]); y0 = Math.min(y0, b[1]); x1 = Math.max(x1, b[2]); y1 = Math.max(y1, b[3]) }
@@ -97,10 +114,11 @@ export function 걷기(사, 입력, dt, 판, 빠르기 = 1.6) {
 
 /** 가까운 부재(그 층) — 거리 차례 · 거리 안 것만 */
 export function 가까운것(사, 판, 거리 = 고름거리) {
-  return 판.부재.map((o) => ({ o, d: 네모거리(사.x, 사.y, o.b) })).filter((r) => r.d <= 거리).sort((a, b) => a.d - b.d || (a.o.종류 === '슬라브') - (b.o.종류 === '슬라브'))
+  return 판.부재.map((o) => ({ o, d: 거리재기(사, o) })).filter((r) => r.d <= 거리).sort((a, b) => a.d - b.d || (a.o.종류 === '슬라브') - (b.o.종류 === '슬라브'))
 }
+const 거리재기 = (사, o) => (o.토 ? Math.min(...o.토.map((b) => 네모거리(사.x, 사.y, b))) : 네모거리(사.x, 사.y, o.b))      // 🧭 G395 비스듬한 것은 토막마다
 /** 이 자리에서 확인되는 부재 id(그 층 · 확인거리 안) */
-export function 확인들(사, 판) { return 판.부재.filter((o) => 네모거리(사.x, 사.y, o.b) <= 확인거리).map((o) => o.id) }
+export function 확인들(사, 판) { return 판.부재.filter((o) => 거리재기(사, o) <= 확인거리).map((o) => o.id) }
 
 /** 부재 둘레에서 사람이 설 곳 — 지금 쪽 변에서 0.9 m 밖 · 긴 벽 · 보(반 > 3 m)는 가장 가까운 면에서 1.2 m 앞 */
 function 설곳(p, 지금) {

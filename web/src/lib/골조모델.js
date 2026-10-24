@@ -112,6 +112,43 @@ function 볼록자름(P, W) {
   return 점.length >= 3 ? 판넓이(점) : 0
 }
 export const 판겹넓 = (P, Q) => 세모나눔(Q).reduce((s, w) => s + 볼록자름(P, w), 0)
+/* 🧭 G395 비스듬한 보 · 벽 — 안 점에서 반직선이 볼록 다각형을 빠져나가는 거리 · 선분이 네모 안에 든 길이 · 가운데 줄 → 네 꼭짓점 */
+function 나감(P, d, Q) {
+  let t = Infinity
+  for (let i = 0; i < Q.length; i++) {
+    const a = Q[i], b = Q[(i + 1) % Q.length], ex = b[0] - a[0], ey = b[1] - a[1]
+    const den = d[0] * ey - d[1] * ex
+    if (Math.abs(den) < 1e-12) continue
+    const wx = a[0] - P[0], wy = a[1] - P[1]
+    const tt = (wx * ey - wy * ex) / den, u = (wx * d[1] - wy * d[0]) / den
+    if (tt > 1e-9 && u >= -1e-9 && u <= 1 + 1e-9) t = Math.min(t, tt)
+  }
+  return t
+}
+function 선분네모(p, q, x0, x1, y0, y1) {
+  let t0 = 0, t1 = 1
+  const dx = q[0] - p[0], dy = q[1] - p[1]
+  for (const [분모, 분자] of [[-dx, p[0] - x0], [dx, x1 - p[0]], [-dy, p[1] - y0], [dy, y1 - p[1]]]) {
+    if (Math.abs(분모) < 1e-12) { if (분자 < 0) return 0; continue }
+    const r = 분자 / 분모
+    if (분모 < 0) t0 = Math.max(t0, r); else t1 = Math.min(t1, r)
+    if (t0 > t1) return 0
+  }
+  return (t1 - t0) * Math.hypot(dx, dy)
+}
+export function 띠판(a, b, w) {
+  const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, nx = -(b[1] - a[1]) / L * w / 2, ny = (b[0] - a[0]) / L * w / 2
+  return [[a[0] + nx, a[1] + ny], [b[0] + nx, b[1] + ny], [b[0] - nx, b[1] - ny], [a[0] - nx, a[1] - ny]]
+}
+/** 도면 네 꼭짓점(비스듬한 띠) → 가운데 줄 두 끝 · 폭(짧은 변 가운데끼리) */
+export function 띠줄(판) {
+  if (!Array.isArray(판) || 판.length < 4) return null
+  const P = 판.slice(0, 4), 변 = [0, 1, 2, 3].map((i) => Math.hypot(P[(i + 1) % 4][0] - P[i][0], P[(i + 1) % 4][1] - P[i][1]))
+  const k = 변[0] + 변[2] <= 변[1] + 변[3] ? 0 : 1           // 짧은 변 차례(0 → 0 · 2 변 / 1 → 1 · 3 변)
+  const 가 = (i) => [(P[i][0] + P[(i + 1) % 4][0]) / 2, (P[i][1] + P[(i + 1) % 4][1]) / 2]
+  const a = 가(k), b = 가(k + 2)
+  return { 선: [[Math.round(a[0]), Math.round(a[1])], [Math.round(b[0]), Math.round(b[1])]], 폭: Math.round((변[k] + 변[k + 2]) / 2) }
+}
 /** 간격 배근(D19@200 …) → m²당 철근 «D19:5 D22:5»(플랜트 기초와 같은 셈) */
 export function 간격단위(칸들) {
   const 합 = new Map()
@@ -185,9 +222,9 @@ export function 예시모델() {
 
 /**
  * 🧪 G393 작업 화면 예시(가상 — 실제 현장 아님) — 소장님 「이걸로 예시를 해줘」: 예시 2층 라멘조에 새 기능을 다 넣어 한 번에 해 보게
- *   🪜 계단(1층 · X3~X4 / Y2~Y3 칸 — 그 칸 1층 바닥 슬라브는 계단 구멍으로 뺌) 🟨 제안 · 🟨 MAT(EV 피트 MF1) 제안 · 🟥 빨간 곳 둘(비스듬한 보 · 일람에 없는 벽) ·
+ *   🪜 계단(1층 · X3~X4 / Y2~Y3 칸 — 그 칸 1층 바닥 슬라브는 계단 구멍으로 뺌) 🟨 제안 · 🟨 MAT(EV 피트 MF1) 제안 · 🟥 빨간 곳(일람에 없는 벽 W9) ·
  *   📚 도면함(가상 평면 넷 · ☑) · 🧾 층별 대조 · ▭ 구간 둘(A팀 · B팀) · 📄 도면 덧줄(MAT 추가 보강근 한 줄) · 🗂 골조에 안 쓴 도면(건축 · 토목) ·
- *   🧩 G394 두 번 그린 벽 하나(계단 확대평면도에도 1층 W1 — «❓ 어느 것을 남길까요?»)
+ *   🧩 G394 두 번 그린 벽 하나(계단 확대평면도에도 1층 W1 — «❓ 어느 것을 남길까요?») · 🧭 G395 비스듬한 보 2B5(지붕 X1-Y1 ~ X2-Y2 · 🟨 제안 — 전엔 🟥 손으로)
  */
 export function 작업예시모델() {
   let M = 예시모델()
@@ -202,6 +239,9 @@ export function 작업예시모델() {
   const 판 = (x0, y0, x1, y1) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]
   let id = M.다음
   M.부재.push({ id: id++, 종류: '계단', 층: '1', 부호: 'ST1', 판: 판(15500, 7000, 19500, 10000), 판수: 2, 길이: 4000, 폭: 1500, 하단참: 1500, 상단참: 1500, L정착: 2, W정착: 0, 가로: true, 참끝: 1, 제안: '도면 계단판 자리 그대로 · 판 2 · 길이 4000 · 폭 1500 · 참 1500 / 1500 · 단수 = 층고 ÷ 판 수 ÷ 단 높이 175(도면에 없음 — 단수 확인)' })
+  /* 🧭 G395 비스듬한 보(가상) — 2층(지붕) X1-Y1 ~ X2-Y2 기둥 사이 2B5 · 끝은 기둥 면까지 비스듬히 · 🟨 제안(도면 띠 가운데 줄) */
+  M.배근 = { ...M.배근, 보: [...M.배근.보, { 기호: '2B5', 폭: 300, 춤: 600, 상부: '3-D19', 하부: '3-D19', 늑근단부: 'D10@150', 늑근중앙: 'D10@250', 부근: '' }] }
+  M.부재.push({ id: id++, 종류: '보', 층: '2', 부호: '2B5', 선: [[0, 0], [7000, 6000]], 제안: '비스듬한 보(41°) — 도면 띠 가운데 줄 그대로 · 폭 · 춤은 일람 · 끝은 받침 면까지 비스듬히' })
   /* 🧩 G394 두 번 그린 벽(가상) — 계단 확대평면도에도 1층 W1(Y1 줄 X2~X3)이 그려져 한 번 더 옮겨짐 → «❓ 어느 것을 남길까요?» */
   const W1 = M.부재.find((o) => o.종류 === '벽' && o.층 === '1')
   if (W1) M.부재.push({ ...W1, id: id++, 두번: true })
@@ -218,7 +258,6 @@ export function 작업예시모델() {
   M.부재 = M.부재.map((o) => { const p = 키(o); const { 두번, ...r } = o; void 두번; return { ...r, 근거: { 평면: p.파일.replace(/\.dwg$/, '') + ' · ' + p.제목, 키: p.키, 원: o.id } } })
   /* 🟥 빨간 곳 — 손으로 할 곳 둘 */
   M.빠짐 = [
-    { 종류: '보', 층: '2', 기호: '2B5', 까닭: '비스듬한 보', 판: [[1000, 1200], [1250, 1000], [6250, 4800], [6000, 5000]], 높: 600, 키: 함[2].키 },
     { 종류: '벽', 층: '1', 기호: 'W9', 까닭: '일람표에 없는 기호', 판: 판(6900, 1500, 7100, 4500), 높: 3600, 키: 함[1].키 },
   ]
   M.도면함 = 함.map((p) => ({ ...p, 부재: M.부재.filter((o) => o.근거.키 === p.키).length, 못옮김: M.빠짐.filter((x) => x.키 === p.키).length }))
@@ -371,8 +410,40 @@ export function 부재고치기(M, id, 고칠) {
  *   두 토막은 같은 줄로 곧게 이어져 «이어짐»(공제 0) — 콘크리트 · 거푸집 합은 그대로 · 보는 한 열(주근 이어짐)
  *   끝에서 50 mm 안 · 가로 · 세로가 아닌 것은 그대로 돌려줌 · 문 · 창(구멍)은 앞 토막에 남김
  */
+/** 🧭 G395 비스듬한 보 · 벽의 두 끝(mm) — o.선 · 또는 가로 · 세로가 둘 다 다른 통심 두 교점 · 아니면 null */
+export function 사선끝(M, o) {
+  if (!o || !(o.종류 === '보' || o.종류 === '벽')) return null
+  if (Array.isArray(o.선) && o.선.length === 2) return o.선.map((p) => [수(p[0], 0), 수(p[1], 0)])
+  if (o.점 && o.끝 && o.점[0] !== o.끝[0] && o.점[1] !== o.끝[1]) {
+    const X = (id) => (M.통심.x.find((g) => g.id === id) || {}).자리, Y = (id) => (M.통심.y.find((g) => g.id === id) || {}).자리
+    const r = [[X(o.점[0]), Y(o.점[1])], [X(o.끝[0]), Y(o.끝[1])]]
+    return r.flat().every(Number.isFinite) ? r : null
+  }
+  return null
+}
+/** 🧭 G395 비스듬한 보 · 벽 넣기 — 두 끝(mm) */
+export function 사선넣기(M, 종류, 층, 부호, p0, p1) {
+  if (!(종류 === '보' || 종류 === '벽')) return M
+  const 선 = [[Math.round(p0[0]), Math.round(p0[1])], [Math.round(p1[0]), Math.round(p1[1])]]
+  if (!(Math.hypot(선[1][0] - 선[0][0], 선[1][1] - 선[0][1]) > 100)) return M
+  if (M.부재.some((o) => o.종류 === 종류 && o.층 === 층 && Array.isArray(o.선) && JSON.stringify(o.선) === JSON.stringify(선))) return { ...M, 부재: M.부재.map((o) => (o.종류 === 종류 && o.층 === 층 && JSON.stringify(o.선) === JSON.stringify(선) ? { ...o, 부호 } : o)) }
+  const [id, N] = 새번호(M)
+  return { ...N, 부재: [...N.부재, { id, 종류, 층, 부호, 선 }] }
+}
 export function 부재나누기(M, id, 자리) {
   const o = M.부재.find((x) => x.id === id)
+  /* 🧭 G395 비스듬한 보 · 벽 — 앞 끝에서 «자리» mm 에서 둘로 */
+  const 빗 = 사선끝(M, o)
+  if (빗) {
+    const [p0, p1] = 빗, L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), v = Math.round(수(자리, NaN) / 5) * 5
+    if (!(v > 50 && v < L - 50)) return M
+    const m = [Math.round(p0[0] + (p1[0] - p0[0]) * v / L), Math.round(p0[1] + (p1[1] - p0[1]) * v / L)]
+    const [id2, N2] = 새번호(M)
+    const 앞 = { ...o, 선: [p0, m] }, 뒤 = { ...o, id: id2, 선: [m, p1] }
+    for (const x of [앞, 뒤]) { delete x.점; delete x.끝 }
+    delete 뒤.구멍
+    return { ...N2, 부재: N2.부재.flatMap((x) => (x.id === id ? [앞, 뒤] : [x])) }
+  }
   if (!o || !(o.종류 === '보' || o.종류 === '벽') || !o.점 || !o.끝) return M
   const 가로 = o.점[1] === o.끝[1] && o.점[0] !== o.끝[0], 세로 = o.점[0] === o.끝[0] && o.점[1] !== o.끝[1]
   if (!가로 && !세로) return M
@@ -411,6 +482,9 @@ export function 부재옮기기(M, id, dx, dy, 붙음 = 100) {
     const 판 = o.판.map((p) => [둥5(수(p[0], 0) + ddx), 둥5(수(p[1], 0) + ddy)])
     return { ...M, 부재: M.부재.map((x) => (x.id === id ? { ...x, 판 } : x)) }
   }
+  /* 🧭 G395 비스듬한 보 · 벽 — 두 끝을 그대로 옮김(5 mm 맞춤 · 통심 교점에 놓였던 것도 mm 두 끝으로) */
+  const 선 = 사선끝(M, o)
+  if (선) return { ...M, 부재: M.부재.map((x) => { if (x.id !== id) return x; const n = { ...x, 선: 선.map((p) => [둥5(p[0] + ddx), 둥5(p[1] + ddy)]) }; delete n.점; delete n.끝; return n }) }
   let N = M
   const 옮긴줄 = (축, gid, d) => {
     if (!d) return gid
@@ -513,7 +587,7 @@ export function 기하(M0) {
   const 기 = new Map()
   const 층의 = new Map()                 // 층 → {기둥: Map(점키 → o), 보: [], 벽: [], 슬라브: []}
   const 점키 = (p) => p[0] + '|' + p[1]
-  const 판 = (층) => { if (!층의.has(층)) 층의.set(층, { 기둥: new Map(), 기초: new Map(), 판기초: [], 보: [], 벽: [], 슬라브: [], 계단: [] }); return 층의.get(층) }
+  const 판 = (층) => { if (!층의.has(층)) 층의.set(층, { 기둥: new Map(), 기초: new Map(), 판기초: [], 보: [], 벽: [], 슬라브: [], 계단: [], 사선: [] }); return 층의.get(층) }
   const 이름표 = (o) => 종류표[o.종류] + ' ' + 글(o.부호) + ' (' + o.층 + '층' + (o.점 ? ' · ' + 이름(o.점[0]) + '-' + 이름(o.점[1]) : '') + ')'
 
   for (const o of M.부재) {
@@ -586,6 +660,23 @@ export function 기하(M0) {
         if (!(g.a > 0 && g.t > 0)) { 경고.push(이름표(o) + ' — 일람에 가로 · 두께가 없습니다'); continue }
         판(o.층).기초.set(점키(o.점), g)
       }
+    } else if ((o.종류 === '보' || o.종류 === '벽') && (Array.isArray(o.선) || (o.점 && o.끝 && o.점[0] !== o.끝[0] && o.점[1] !== o.끝[1]))) {
+      /* 🧭 G395 비스듬한 보 · 벽 — 두 끝(mm · 도면 그대로) 또는 통심 두 교점(가로 · 세로가 둘 다 다름) */
+      let p0, p1
+      if (Array.isArray(o.선)) {
+        p0 = [수(o.선[0] && o.선[0][0], NaN), 수(o.선[0] && o.선[0][1], NaN)]; p1 = [수(o.선[1] && o.선[1][0], NaN), 수(o.선[1] && o.선[1][1], NaN)]
+        if (![...p0, ...p1].every(Number.isFinite)) { 경고.push(이름표(o) + ' — 두 끝 자리가 숫자가 아닙니다'); continue }
+      } else {
+        if (!(X.has(o.점[0]) && Y.has(o.점[1]) && X.has(o.끝[0]) && Y.has(o.끝[1]))) { 경고.push(이름표(o) + ' — 통심이 없어 뺐습니다'); continue }
+        p0 = [X.get(o.점[0]), Y.get(o.점[1])]; p1 = [X.get(o.끝[0]), Y.get(o.끝[1])]
+      }
+      g.L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1])
+      if (!(g.L > 0)) { 경고.push(이름표(o) + ' — 길이가 0 입니다'); continue }
+      g.사선 = true; g.p0 = p0; g.p1 = p1; g.d = [(p1[0] - p0[0]) / g.L, (p1[1] - p0[1]) / g.L]
+      g.각 = Math.round((((Math.atan2(g.d[1], g.d[0]) * 180 / Math.PI) % 180) + 180) % 180 * 10) / 10          // 줄 방향(0 ~ 180°)
+      if (o.종류 === '보') { g.W = 수(r.폭, 0) || 0; g.H = 수(r.춤, 0) || 0; if (!(g.W > 0 && g.H > 0)) { 경고.push(이름표(o) + ' — 일람에 폭 · 춤이 없습니다'); continue } }
+      else { g.T = 수(r.두께, 0) || 0; if (!(g.T > 0)) { 경고.push(이름표(o) + ' — 일람에 두께가 없습니다'); continue } }
+      판(o.층).사선.push(g)
     } else if (o.종류 === '보' || o.종류 === '벽') {
       if (!o.끝 || !(X.has(o.점[0]) && Y.has(o.점[1]) && X.has(o.끝[0]) && Y.has(o.끝[1]))) { 경고.push(이름표(o) + ' — 통심이 없어 뺐습니다'); continue }
       let p = o.점, q = o.끝
@@ -822,21 +913,90 @@ export function 기하(M0) {
       c.기초 = 층 === H.맨아래 && ftP ? ftP.기초.get(k) || ftP.판기초.find((d) => !d.위판 && 판안(d.판, c.x, c.y)) || ftP.판기초.find((d) => 판안(d.판, c.x, c.y)) || null : null      // 🟨 G392 MAT 위 기둥 = 그 판 기초에 정착(🧩 G394 단차부 말고 맨 위 판)
     }
     for (const [, d] of P.기초) { d.z1 = -H.내림; d.z0 = d.z1 - d.t }
+    /* 🧭 G395 바닥 모양(다각형) — 기둥(원형은 0.4 D 네모) · 점 기초 · 보 · 벽(받침 면 사이) · 비스듬한 것(띠) */
+    const 기둥발 = (c) => { const ha = c.원 ? c.원 * 0.4 : c.a / 2, hb = c.원 ? c.원 * 0.4 : c.b / 2; return [[c.x - ha, c.y - hb], [c.x + ha, c.y - hb], [c.x + ha, c.y + hb], [c.x - ha, c.y + hb]] }
+    const 발 = (u) => {
+      if (u.사선) return u.판 || 띠판(u.p0, u.p1, u.W || u.T)
+      if (u.축) { const w = u.W || u.T, lo = u.s0 + (u.좌 ? u.좌.값 : 0), hi = u.s1 - (u.우 ? u.우.값 : 0); return u.축 === 'x' ? [[lo, u.c - w / 2], [hi, u.c - w / 2], [hi, u.c + w / 2], [lo, u.c + w / 2]] : [[u.c - w / 2, lo], [u.c + w / 2, lo], [u.c + w / 2, hi], [u.c - w / 2, hi]] }
+      if (u.a > 0 && u.b > 0 && Number.isFinite(u.x)) return 기둥발(u)
+      return null
+    }
+    const 사선판 = (g) => { const a = [g.p0[0] + g.d[0] * g.좌.값, g.p0[1] + g.d[1] * g.좌.값], b = [g.p1[0] - g.d[0] * g.우.값, g.p1[1] - g.d[1] * g.우.값]; g.판 = 띠판(a, b, g.W || g.T); g.a0 = a; g.a1 = b; return g.판 }
+    /* 🧭 G395 비스듬한 보 · 벽 — 끝은 그 끝이 든 기둥(먼저) · 보 · 벽 면까지(비스듬히 빠져나가는 거리) · 보 위 = 안목 절반 넘게 덮는 슬라브 · 벽 위 = 같은 줄 비스듬한 보 춤 → 슬라브 */
+    for (const g of P.사선) {
+      const 목 = g.o.종류 === '보' ? [...P.보, ...P.벽] : [...P.벽]
+      const 끝 = (k) => {
+        const Pt = k ? g.p1 : g.p0, dir = k ? [-g.d[0], -g.d[1]] : g.d
+        for (const c of 받침기둥.values()) {
+          const Q = 기둥발(c)
+          if (판안(Q, Pt[0], Pt[1])) { const t = 나감(Pt, dir, Q); if (t < g.L) return { 값: t, 무엇: '기둥 ' + 글(c.o.부호) + ' 면', 기둥: true } }
+        }
+        let best = null
+        for (const u of [...목, ...P.사선.filter((v) => v !== g && v.o.종류 === g.o.종류 && v.좌)]) {
+          const Q = 발(u)
+          if (!Q || !판안(Q, Pt[0], Pt[1])) continue
+          const t = 나감(Pt, dir, Q)
+          if (t < g.L && (!best || t > best.값)) best = { 값: t, 무엇: u.o.종류 + ' ' + 글(u.o.부호) + ' 면' }
+        }
+        return best || { 값: 0, 무엇: '끝(받침 없음)' }
+      }
+      g.좌 = 끝(0); g.우 = 끝(1)
+      if (g.좌.값 + g.우.값 >= g.L) { g.좌 = { 값: 0, 무엇: '끝(받침 없음)' }; g.우 = { 값: 0, 무엇: '끝(받침 없음)' } }
+      g.안 = g.L - g.좌.값 - g.우.값
+      const a = [g.p0[0] + g.d[0] * g.좌.값, g.p0[1] + g.d[1] * g.좌.값], b = [g.p1[0] - g.d[0] * g.우.값, g.p1[1] - g.d[1] * g.우.값]
+      let 덮 = 0, 덮t = 0
+      for (const s2 of P.슬라브) { if (s2.빈) continue; const l = 선분네모(a, b, s2.X0, s2.X1, s2.Y0, s2.Y1); if (l > 0.5) { 덮 += l; 덮t = Math.max(덮t, s2.t) } }
+      const 슬 = 덮 >= 0.5 * g.안 ? 덮t : 0
+      if (g.o.종류 === '보') { g.S = 슬; g.z0 = zt - g.H; g.z1 = zt - g.S }
+      else {
+        const 정 = 수(g.o.상부, null)
+        const 위보 = P.사선.filter((u) => u.o.종류 === '보' && Math.abs((u.p0[0] - g.p0[0]) * g.d[1] - (u.p0[1] - g.p0[1]) * g.d[0]) < 150 && Math.abs(u.d[0] * g.d[1] - u.d[1] * g.d[0]) < 0.02)
+        g.상부 = 정 !== null && 정 >= 0 ? 정 : 위보.length ? Math.max(...위보.map((u) => u.H)) : 슬
+        g.상부까닭 = 정 !== null && 정 >= 0 ? '정한 값' : 위보.length ? '위 보 ' + 글(위보[0].o.부호) + ' 춤' : g.상부 ? '슬라브 두께' : '위에 보 · 슬라브 없음'
+        g.높이 = 수(g.o.높이, 0) > 0 ? 수(g.o.높이, 0) : 0
+        g.z0 = f.z0; g.z1 = (g.높이 ? f.z0 + g.높이 : zt) - g.상부
+        g.이음끝 = [false, false]; g.X정착 = 2
+        g.단부끝들 = [0, 1].map((k) => ((k ? g.우 : g.좌).기둥 || /끝/.test((k ? g.우 : g.좌).무엇) ? 1 : 0.5)); g.단부끝 = g.단부끝들[0] + g.단부끝들[1]
+      }
+      사선판(g)
+    }
     /* 🧩 G394 옆에 걸친 기둥 · 기초 · 큰 보 — 보 · 벽 몸이 먼저 셈하는 부재(기둥 · 기초 > 큰 보 > 작은 보 · 벽) 단면에 옆으로 걸친 몫을
        «같은 부피만큼» 가까운 끝에서 뺌(끝이 그 면에 닿으면 위 끝공제가 이미 뺌 · 통심에서 비켜 선 부재 · 원형 기둥은 0.4 D 로 봄) — 3D 도 그만큼 짧게 · 검사는 그 짝을 안 봄 */
     {
       const 앞셈 = [...받침기둥.values(), ...(f.FT ? [...P.기초.values()] : [])]
       const 상자글 = (c) => { const r = c.원 ? c.원 * 0.4 : null; return [c.x - (r || c.a / 2), c.y - (r || c.b / 2), c.x + (r || c.a / 2), c.y + (r || c.b / 2)] }
+      const 다각상자 = (Q) => { const [a, b, c, d] = 판상자(Q); return [a, b, c, d] }
+      /* 🧭 G395 비스듬한 것이 끼면 네모 대신 다각형 겹친 넓이(판겹넓) · 몫은 가까운 끝(앞셈 가운데를 축에 내림) */
       const 걸침 = (b, 앞들) => {
         const W = b.W || b.T, Hh = b.z1 - b.z0
         if (!(W > 0 && Hh > 0)) return
         for (const [c, 상] of 앞들) {
           if (c === b || !(c.z1 > c.z0)) continue
+          const 높 = 겹(b.z0, b.z1, c.z0, c.z1)
+          if (!(높 > 0.5)) continue
+          if (b.사선 || 상.length > 4 || (상.length === 4 && Array.isArray(상[0]))) {
+            const Q = Array.isArray(상[0]) ? 상 : [[상[0], 상[1]], [상[2], 상[1]], [상[2], 상[3]], [상[0], 상[3]]]
+            const B = 발(b), [bx0, by0, bx1, by1] = 판상자(B), [qx0, qy0, qx1, qy1] = 다각상자(Q)
+            if (!(겹(bx0, bx1, qx0, qx1) > 0.5 && 겹(by0, by1, qy0, qy1) > 0.5)) continue
+            const 넓 = 판겹넓(B, Q)
+            if (!(넓 > 1000)) continue
+            const d = 넓 * 높 / (W * Hh)
+            const cx = Q.reduce((t, p) => t + p[0], 0) / Q.length, cy = Q.reduce((t, p) => t + p[1], 0) / Q.length
+            const t = b.사선 ? (cx - b.p0[0]) * b.d[0] + (cy - b.p0[1]) * b.d[1] : (b.축 === 'x' ? cx : cy) - b.s0
+            const e = t <= b.L / 2 ? b.좌 : b.우
+            if (!(d < b.안)) continue
+            e.값 += d
+            e.무엇 = e.무엇 + ' + 옆에 걸친 ' + c.o.종류 + ' ' + 글(c.o.부호) + ' 몫 ' + Math.round(d)
+            b.안 -= d
+            ;(b.규칙짝 = b.규칙짝 || []).push(c.o.id)
+            if (b.사선) 사선판(b)
+            continue
+          }
           const lo = b.s0 + b.좌.값, hi = b.s1 - b.우.값
           const [x0, y0, x1, y1] = 상
           const [cl, ch, dl, dh] = b.축 === 'x' ? [x0, x1, y0, y1] : [y0, y1, x0, x1]
-          const 길 = 겹(lo, hi, cl, ch), 폭 = 겹(b.c - W / 2, b.c + W / 2, dl, dh), 높 = 겹(b.z0, b.z1, c.z0, c.z1)
-          if (!(길 > 0.5 && 폭 > 0.5 && 높 > 0.5)) continue
+          const 길 = 겹(lo, hi, cl, ch), 폭 = 겹(b.c - W / 2, b.c + W / 2, dl, dh)
+          if (!(길 > 0.5 && 폭 > 0.5)) continue
           const d = 길 * 폭 * 높 / (W * Hh)
           const 가운데 = (Math.max(lo, cl) + Math.min(hi, ch)) / 2
           const e = 가운데 - lo <= hi - 가운데 ? b.좌 : b.우
@@ -848,16 +1008,17 @@ export function 기하(M0) {
         }
       }
       const 큰 = (b) => (b.W || b.T || 0) * (b.H || 0)
-      for (const b of [...P.보, ...P.벽]) 걸침(b, 앞셈.map((c) => [c, 상자글(c)]))
-      /* 가로지르는 보끼리 — 작은 보가 큰 보에 걸친 몫(같으면 세로가 가로에) */
-      for (const b of P.보) {
-        const 큰보 = P.보.filter((u) => u !== b && u.축 !== b.축 && (큰(u) > 큰(b) || (큰(u) === 큰(b) && b.축 === 'y')))
-        걸침(b, 큰보.map((u) => { const lo = u.s0 + u.좌.값, hi = u.s1 - u.우.값; return [u, u.축 === 'x' ? [lo, u.c - u.W / 2, hi, u.c + u.W / 2] : [u.c - u.W / 2, lo, u.c + u.W / 2, hi]] }))
+      const 빗보 = P.사선.filter((u) => u.o.종류 === '보'), 빗벽 = P.사선.filter((u) => u.o.종류 === '벽')
+      for (const b of [...P.보, ...P.벽, ...P.사선]) 걸침(b, 앞셈.map((c) => [c, b.사선 ? 기둥발(c) : 상자글(c)]))
+      /* 가로지르는 보끼리 — 작은 보가 큰 보에 걸친 몫(같으면 세로가 가로에 · 비스듬한 보와는 큰 쪽이 먼저 · 같으면 비스듬한 쪽이 내줌) */
+      for (const b of [...P.보, ...빗보]) {
+        const 큰보 = [...P.보, ...빗보].filter((u) => u !== b && (u.사선 || b.사선 ? 큰(u) > 큰(b) || (큰(u) === 큰(b) && b.사선 && !u.사선) || (큰(u) === 큰(b) && b.사선 && u.사선 && u.id < b.id && Math.abs(u.d[0] * b.d[1] - u.d[1] * b.d[0]) > 0.02) : u.축 !== b.축 && (큰(u) > 큰(b) || (큰(u) === 큰(b) && b.축 === 'y'))))
+        걸침(b, 큰보.map((u) => [u, u.사선 ? u.판 : (() => { const lo = u.s0 + u.좌.값, hi = u.s1 - u.우.값; return u.축 === 'x' ? [lo, u.c - u.W / 2, hi, u.c + u.W / 2] : [u.c - u.W / 2, lo, u.c + u.W / 2, hi] })()]))
       }
-      /* 가로지르는 벽끼리 — 얇은 벽이 두꺼운 벽에 걸친 몫(같으면 세로가 가로에 — 모서리 규칙과 같게) */
-      for (const w of P.벽) {
-        const 앞벽 = P.벽.filter((u) => u !== w && u.축 !== w.축 && (u.T > w.T || (u.T === w.T && w.축 === 'y')))
-        걸침(w, 앞벽.map((u) => { const lo = u.s0 + u.좌.값, hi = u.s1 - u.우.값; return [u, u.축 === 'x' ? [lo, u.c - u.T / 2, hi, u.c + u.T / 2] : [u.c - u.T / 2, lo, u.c + u.T / 2, hi]] }))
+      /* 가로지르는 벽끼리 — 얇은 벽이 두꺼운 벽에 걸친 몫(같으면 세로가 가로에 — 모서리 규칙과 같게 · 비스듬한 벽은 같으면 내줌) */
+      for (const w of [...P.벽, ...빗벽]) {
+        const 앞벽 = [...P.벽, ...빗벽].filter((u) => u !== w && (u.사선 || w.사선 ? u.T > w.T || (u.T === w.T && w.사선 && !u.사선) || (u.T === w.T && w.사선 && u.사선 && u.id < w.id && Math.abs(u.d[0] * w.d[1] - u.d[1] * w.d[0]) > 0.02) : u.축 !== w.축 && (u.T > w.T || (u.T === w.T && w.축 === 'y'))))
+        걸침(w, 앞벽.map((u) => [u, u.사선 ? u.판 : (() => { const lo = u.s0 + u.좌.값, hi = u.s1 - u.우.값; return u.축 === 'x' ? [lo, u.c - u.T / 2, hi, u.c + u.T / 2] : [u.c - u.T / 2, lo, u.c + u.T / 2, hi] })()]))
       }
     }
     for (const d of P.판기초) { d.z1 = -H.내림 + Math.min(수(d.o.윗면, 0) || 0, 0); d.z0 = d.z1 - d.t }      // 윗면(≤ 0 mm) = MAT 밑 깊은 곳 · 피트
@@ -974,6 +1135,8 @@ export function 공사로(M0) {
       if (!열묶.has(키)) 열묶.set(키, { rows, 열: [], 이름: [] })
       열묶.get(키).열.push(열); 열묶.get(키).이름.push(줄이름)
     }
+    /* 🧭 G395 비스듬한 보 — 한 개씩 한 줄(같은 줄은 QT 로 묶음) · 길이 = 비스듬한 길이 · 좌단 · 우단 = 비스듬히 잰 받침 면까지 */
+    묶기('보', P.사선.filter((g) => g.o.종류 === '보').map((g) => ({ id: g.id, row: { 층, 열: '', 기호: 글(g.o.부호), 길이: String(둥(g.L)), 좌단: String(둥(g.좌.값)), 우단: String(둥(g.우.값)), S: String(g.S), ...빈보 } })))
     for (const { rows, 열, 이름 } of 열묶.values()) {
       const n = rows.length
       rows.forEach((row, k) => {
@@ -1020,6 +1183,11 @@ export function 공사로(M0) {
       const row = { 층, 기호: 글(a.o.부호), 길이: String(둥(g.reduce((t, w) => t + w.L, 0))), 높이: a.높이 ? String(a.높이) : '', 하부: '', 상부: String(둥(a.상부)), 단부: String(둥(a.좌.값 + z.우.값)), X정착: (a.이음끝[0] ? 0 : 1) + (z.이음끝[1] ? 0 : 1), 상부이음: g.every(위벽) ? '1' : 'A', OPEN: 글((g.find((w) => 글(w.o.구멍)) || a).o.구멍), C: '', F: '', F2: a.o.한면 ? '' : 거푸집, R: '', _단부끝: a.단부끝들[0] + z.단부끝들[1] }
       return g.length > 1 ? { row, ids: g.map((w) => w.id), 몫: new Map(g.map((w) => [w.id, w.L])) } : { id: a.id, row }
     }))
+    /* 🧭 G395 비스듬한 벽 — 한 개씩(같은 줄은 QT) */
+    묶기('옹벽', P.사선.filter((g) => g.o.종류 === '벽').map((g) => ({
+      id: g.id,
+      row: { 층, 기호: 글(g.o.부호), 길이: String(둥(g.L)), 높이: g.높이 ? String(g.높이) : '', 하부: '', 상부: String(둥(g.상부)), 단부: String(둥(g.좌.값 + g.우.값)), X정착: g.X정착, 상부이음: 'A', OPEN: 글(g.o.구멍), C: '', F: '', F2: g.o.한면 ? '' : 거푸집, R: '', _단부끝: g.단부끝 },
+    })))
     /* 기초 */
     묶기('기초', [...P.기초.values(), ...P.판기초].sort((a, b) => a.x - b.x || a.y - b.y).map((d) => ({
       id: d.id,
@@ -1219,7 +1387,10 @@ export function 덩어리(G) {
       else { 판 = 네모(g.x - g.a / 2, g.y - g.b / 2, g.x + g.a / 2, g.y + g.b / 2); 넓이 = g.a * g.b }
     } else if (g.o.종류 === '기초' && g.판) { 판 = g.판; 넓이 = g.넓 }                  // 🟨 G392 자유 모양
     else if (g.o.종류 === '기초') { 판 = 네모(g.x - g.a / 2, g.y - g.b / 2, g.x + g.a / 2, g.y + g.b / 2); 넓이 = g.a * g.b }
-    else if (g.o.종류 === '보' || g.o.종류 === '벽') {
+    else if ((g.o.종류 === '보' || g.o.종류 === '벽') && g.사선) {         // 🧭 G395 비스듬한 띠
+      if (!(g.안 > 0)) continue
+      판 = g.판; 넓이 = g.안 * (g.W || g.T)
+    } else if (g.o.종류 === '보' || g.o.종류 === '벽') {
       const w = (g.W || g.T) / 2, s0 = g.s0 + g.좌.값, s1 = g.s1 - g.우.값
       if (!(s1 > s0)) continue
       판 = g.축 === 'x' ? 네모(s0, g.c - w, s1, g.c + w) : 네모(g.c - w, s0, g.c + w, s1)
@@ -1311,7 +1482,7 @@ export function 검사(G, 덩, 합, R) {
         const 층말 = (f) => (f === 'FT' ? 'FT ' : f + '층 ')
         const 머리 = 층말(A.d.층) + A.d.종류 + ' ' + A.d.부호 + ' ↔ ' + 층말(B.d.층) + B.d.종류 + ' ' + B.d.부호
         /* 🧩 G394 같은 종류(보 · 벽은 같은 방향) · 기초끼리 · 작은 쪽 절반 넘게 겹침 = 같은 것을 두 번 그림 → «어느 것을 남길까요?» */
-        const 축 = (d) => { const g = G.기.get(d.id); return g && g.축 }
+        const 축 = (d) => { const g = G.기.get(d.id); return g && (g.사선 ? '빗' + Math.round(g.각 / 2) : g.축) }
         const e = { ids: [A.d.id, B.d.id], 부피: v, 부피들: [A.d.부피, B.d.부피], 종: (A.d.종류 === B.d.종류 && ((A.d.종류 !== '보' && A.d.종류 !== '벽') || 축(A.d) === 축(B.d))) || v >= 0.5 * Math.min(A.d.부피 || Infinity, B.d.부피 || Infinity) ? '둘' : '남음', 머리, 글: 머리 + ' — ' + v.toFixed(3) + ' ㎥', 상자: [Math.max(A.x0, B.x0), Math.max(A.y0, B.y0), Math.min(A.d.z1, B.d.z1) > Math.max(A.d.z0, B.d.z0) ? Math.max(A.d.z0, B.d.z0) : 0, Math.min(A.x1, B.x1), Math.min(A.y1, B.y1), Math.min(A.d.z1, B.d.z1)] }
         쌍표.set(쌍, e); 겹친.push(e)
       }
@@ -1354,6 +1525,13 @@ export function 부재글(M, o) {
     return (o.종류 === '계단' ? '계단 ' : '자유 모양 ') + 가(M.통심.x, a) + '~' + 가(M.통심.x, c) + ' / ' + 가(M.통심.y, b) + '~' + 가(M.통심.y, d)
   }
   if (o.칸) return 이름(o.칸[0]) + '~' + 이름(o.칸[2]) + ' / ' + 이름(o.칸[1]) + '~' + 이름(o.칸[3])
+  if (Array.isArray(o.선) && o.선.length === 2) {          // 🧭 G395 비스듬한 보 · 벽 — 두 끝에 가까운 통심
+    const 가 = (줄, v) => (줄.length ? 줄.reduce((m, g) => (Math.abs(g.자리 - v) < Math.abs(m.자리 - v) ? g : m)).이름 : '')
+    const 끝 = (p) => 가(M.통심.x, 수(p[0], 0)) + '-' + 가(M.통심.y, 수(p[1], 0))
+    return '⟋ ' + 끝(o.선[0]) + ' ~ ' + 끝(o.선[1])
+  }
+  if (o.끝 && o.점 && o.점[0] !== o.끝[0] && o.점[1] !== o.끝[1]) return '⟋ ' + 이름(o.점[0]) + '-' + 이름(o.점[1]) + ' ~ ' + 이름(o.끝[0]) + '-' + 이름(o.끝[1])
+  if (!o.점) return ''
   if (o.끝) return 이름(o.점[0]) + '-' + 이름(o.점[1]) + ' ~ ' + 이름(o.끝[0]) + '-' + 이름(o.끝[1])
   return 이름(o.점[0]) + '-' + 이름(o.점[1])
 }
@@ -1374,6 +1552,7 @@ export const 구간빼기 = (M, id) => ({ ...M, 구간: (M.구간 || []).filter(
 export const 구간고치기 = (M, id, 고칠) => ({ ...M, 구간: (M.구간 || []).map((z) => (z.id === id ? { ...z, ...고칠 } : z)) })
 /** 부재 평면 가운데(mm) — 기하(G.기) 한 칸 */
 export function 부재가운데(g) {
+  if (g.사선) return [(g.p0[0] + g.p1[0]) / 2, (g.p0[1] + g.p1[1]) / 2]
   if (g.o.종류 === '보' || g.o.종류 === '벽') { const m = (g.s0 + g.s1) / 2; return g.축 === 'x' ? [m, g.c] : [g.c, m] }
   if (g.o.종류 === '슬라브') return [(g.X0 + g.X1) / 2, (g.Y0 + g.Y1) / 2]
   return [g.x, g.y]
@@ -1391,6 +1570,7 @@ export function 구간물량(M, S) {
   const 겹1 = (a0, a1, b0, b1) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0))
   const 몫 = (g, z) => {
     const [a, b, c, d] = z.판
+    if (g.사선) return g.L > 0 ? 선분네모(g.p0, g.p1, a, c, b, d) / g.L : 0          // 🧭 G395 비스듬한 보 · 벽 — 구간 네모에 든 길이 몫
     if (g.o.종류 === '보' || g.o.종류 === '벽') {
       const L = g.s1 - g.s0
       if (g.축 === 'x') return g.c >= b && g.c <= d && L > 0 ? 겹1(g.s0, g.s1, a, c) / L : 0
