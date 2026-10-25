@@ -312,6 +312,7 @@ export function 모델만들기(도면들, R, 옵션 = {}) {
   const 이야기 = 층목록.filter((n) => n && n !== 'FT')
   const 높이 = new Map()
   let 누적 = 0
+  const 짐작층 = new Set((R.읽음 && R.읽음.층고짐작) || [])
   for (const f of 공사.층 || []) {
     const n = 글(f.이름)
     if (n === 'FT') continue
@@ -319,9 +320,8 @@ export function 모델만들기(도면들, R, 옵션 = {}) {
     const 고친 = 옵션.높이 ? 옵션.높이[n] : undefined
     const v = Number.isFinite(+고친) && 고친 !== '' && 고친 !== null ? +고친 : (Number.isFinite(+읽은) && 읽은 !== null && 읽은 !== undefined ? +읽은 : 누적)
     높이.set(n, v)
-    누적 = v + (수(f.층고) || 0)
+    누적 = v + (수(f.층고) || (짐작층.has(n) ? 3300 : 0))       // 🧭 G405 층고가 도면에 없는 층(❓ 층고 0 — 셈 안 함)은 3D 그림만 3,300
   }
-  const 짐작층 = new Set((R.읽음 && R.읽음.층고짐작) || [])
   const 다음층 = (n) => { const i = 이야기.indexOf(n); return i >= 0 && i + 1 < 이야기.length ? 이야기[i + 1] : null }
   const 바닥 = (n) => (높이.has(n) ? 높이.get(n) : 0)
   const 위바닥 = (n) => {
@@ -365,7 +365,7 @@ export function 모델만들기(도면들, R, 옵션 = {}) {
             o.판 = 네모판(x0, y0, x1, y1)
             o.길이 = Math.max(x1 - x0, y1 - y0); o.폭 = Math.min(x1 - x0, y1 - y0)
           }
-          if (종 === '보') { o.춤 = 수(b && b.춤); if (!(o.춤 > 0)) { o.춤 = 600; o.짐작.push('보 춤이 일람표에 없어 600 mm 로 그림') } }
+          if (종 === '보') { o.춤 = 수(b && b.춤); if (!(o.춤 > 0)) { o.춤 = 600; o.짐작.push('❓ 보 춤이 도면에 없음 — 3D 는 600 mm 로 그림만(물량에 안 셈)') } }
         } else if (종 === '계단') {
           const [x0, y0, x1, y1] = z.r.map((v) => v * kd)
           o.판 = 네모판(x0, y0, x1, y1)
@@ -376,7 +376,7 @@ export function 모델만들기(도면들, R, 옵션 = {}) {
           const [x0, y0, x1, y1] = z.r.map((v) => v * kd)
           o.판 = 네모판(x0, y0, x1, y1)
           o.두께 = 수(b && b.두께)
-          if (!(o.두께 > 0)) { o.두께 = 150; o.짐작.push('슬래브 두께가 일람표에 없어 150 mm 로 그림') }
+          if (!(o.두께 > 0)) { o.두께 = 150; o.짐작.push('❓ 슬래브 두께가 도면에 없음 — 3D 는 150 mm 로 그림만(물량에 안 셈)') }
         } else if (종 === '기초' && z.판 && z.판.length >= 3) {
           /* 🧱 G233 MAT(온통) 기초 — 골조자동이 읽은 테두리 · 두꺼운 구역 모양 그대로(내림 = 기본 두께 아래로 더) */
           o.판 = z.판.map((p) => [p[0] * kd, p[1] * kd])
@@ -404,7 +404,7 @@ export function 모델만들기(도면들, R, 옵션 = {}) {
             if (!o.중복기호) o.짐작.push((종 === '기둥' ? '기둥' : '기초') + ' 모양(닫힌 선)을 기호 곁에서 못 찾아 글자 자리에 일람표 크기로 그림')
             o.글자자리 = true
           }
-          if (종 === '기초') { o.두께 = 수(b && b.두께); if (!(o.두께 > 0)) { o.두께 = 600; o.짐작.push('기초 두께가 일람표에 없어 600 mm 로 그림') } }
+          if (종 === '기초') { o.두께 = 수(b && b.두께); if (!(o.두께 > 0)) { o.두께 = 600; o.짐작.push('❓ 기초 두께가 도면에 없음 — 3D 는 600 mm 로 그림만(물량에 안 셈)') } }
         }
         넣기(o)
         묶(번, 층, o)
@@ -923,14 +923,14 @@ export function 모델만들기(도면들, R, 옵션 = {}) {
     }
   } catch (e) { 경고.push('지붕 높이 구역을 못 읽었습니다 — ' + (e && e.message ? e.message : '')) }
   for (const o of 부재) {
-    if (짐작층.has(o.층) && (o.종류 === '기둥' || o.종류 === '벽') && !o.받침높이) o.짐작.push(o.층 + '층 층고는 도면에 없어 짐작한 값')
+    if (짐작층.has(o.층) && (o.종류 === '기둥' || o.종류 === '벽') && !o.받침높이) { o.층고짐작 = true; o.짐작.push('❓ ' + o.층 + '층 층고가 도면에 없음 — 3D 는 3,300 으로 그림만(물량에 안 셈)') }
     o.넓이 = 넓이(o.판)
     o.부피 = o.넓이 * (o.z1 - o.z0) / 1e9      // m³
     const c = 가운데(o.판)
     o.자리 = [반(c[0], 0), 반(c[1], 0)]
   }
   /* 그 층 기둥 · 벽이 모두 받침 높이로 세워졌으면(기초 평면의 주각뿐) 층고 짐작 알림은 뺌 */
-  for (const n of 짐작층) { const 쓴 = 부재.filter((o) => o.층 === n && (o.종류 === '기둥' || o.종류 === '벽') && !o.겹침); if (쓴.length && 쓴.every((o) => o.받침높이)) continue; 짐작.push(n + '층 층고: 도면의 FL 글자가 없어 짐작했습니다 — 아래 «층 높이» 칸에서 바꿀 수 있습니다') }
+  for (const n of 짐작층) { const 쓴 = 부재.filter((o) => o.층 === n && (o.종류 === '기둥' || o.종류 === '벽') && !o.겹침); if (쓴.length && 쓴.every((o) => o.받침높이)) continue; 짐작.push('❓ ' + n + '층 층고: 도면에 높이(FL · 레벨) 글자가 없어 그 층 기둥 · 벽은 셈에서 뺐습니다(짐작 안 함) — 아래 «층 높이» 칸에 적으면 셈합니다') }
   if (받침없음) 짐작.push('기초 평면의 기둥 · 벽 ' + 받침없음 + '개는 밑의 기초 · 지중보를 못 찾아 1층 높이로 세웠습니다')
 
   /* ⑤ 틀 · 층 */
@@ -1115,7 +1115,7 @@ export function 겹친것빼기(공사, 모델) {
   for (const o of 모델.부재 || []) { if (!o.받침높이 || o.겹침) continue; const k = o.표 + '|' + o.i; const a = 받침.get(k) || []; a.push({ kk: o.kk, h: Math.round(o.z1 - o.z0) }); 받침.set(k, a) }
   /* 🏔 G299 지붕 높이 구역으로 올린 벽 · 기둥 — 높이(10 mm)마다 줄을 나눔 · 슬래브 공제(S)는 그대로 */
   const 올림 = new Map()          // 표|i → [{kk, h}]
-  for (const o of 모델.부재 || []) { if (!o.지붕올림 || o.겹침) continue; const k = o.표 + '|' + o.i; const a = 올림.get(k) || []; a.push({ kk: o.kk, h: Math.round((o.z1 - o.z0) / 10) * 10 }); 올림.set(k, a) }
+  for (const o of 모델.부재 || []) { if (!o.지붕올림 || o.겹침 || o.층고짐작) continue; const k = o.표 + '|' + o.i; const a = 올림.get(k) || []; a.push({ kk: o.kk, h: Math.round((o.z1 - o.z0) / 10) * 10 }); 올림.set(k, a) }
   /* 🧱 G299 벽 윗면 공제 — 도면에서 읽은 벽 높이 = 층고 − 슬래브 두께(적산 기준 · 내역서와 같은 셈). 전엔 층고 그대로라 벽 위 바닥판과 겹친 곳을 두 번 셈.
        벽 가운데 줄 점 10 개마다 — 곁(300 mm)에 그 높이(±100 · 지붕까지 올린 벽은 지붕 평면)의 바닥판이 있으면 그 두께 · 위에 보만 있으면 그 층 슬래브 두께 · 둘 다 없으면 0(벽 위가 비었음) → 평균(10 mm).
        벽 위 보와 겹친 몫(보 춤 − 슬래브)은 보 쪽에 그대로 둠 — 현장 4 계약내역서와 견줘 보면 내역서도 그렇게 셈(빼면 콘크리트 −4.7 % · 거푸집 −3.1 % · 안 빼면 −2.5 % · +2.6 %) */
@@ -1129,7 +1129,7 @@ export function 겹친것빼기(공사, 모델) {
     const 상자2 = (판) => { let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const p of 판) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]) } return [x0, y0, x1, y1] }
     const 위상자 = 위것.map((q) => 상자2(q.판))
     for (const o of 모델.부재 || []) {
-      if (o.겹침 || o.종류 !== '벽' || o.표 !== '옹벽' || o.기초판 || o.받침높이 || !o.판 || !Number.isFinite(o.z1)) continue
+      if (o.겹침 || o.종류 !== '벽' || o.표 !== '옹벽' || o.기초판 || o.받침높이 || o.층고짐작 || !o.판 || !Number.isFinite(o.z1)) continue
       const b = 상자2(o.판), 가로 = b[2] - b[0] >= b[3] - b[1]
       const P = []
       for (let k = 0; k < 10; k++) P.push(가로 ? [b[0] + (b[2] - b[0]) * (k + 0.5) / 10, (b[1] + b[3]) / 2] : [(b[0] + b[2]) / 2, b[1] + (b[3] - b[1]) * (k + 0.5) / 10])
@@ -1343,13 +1343,17 @@ export function 검사(모델, Q) {
   // 부피 ↔ 산출서
   if (Q) {
     for (const 종 of 종류들) {
-      const 판 = 부.filter((o) => o.종류 === 종)
-      if (!판.length) continue
+      /* 🧭 G405 ❓ 도면에 없는 크기로 «그림만» 그린 부재(보 춤 600 · 슬래브 150 · 층고 3,300)는 3D 부피에서 뺌 — 산출서엔 없으니 «겹친 곳» 차이로 보이지 않게 */
+      const 그림만 = (o) => (o.짐작 || []).some((w) => /^❓ .*그림만/.test(w))
+      const 판0 = 부.filter((o) => o.종류 === 종)
+      const 판 = 판0.filter((o) => !그림만(o))
+      if (!판0.length) continue
+      const 뺀 = 판0.length - 판.length
       const v3 = 판.reduce((s, o) => s + o.부피, 0)
       const vq = 판.reduce((s, o) => s + ((Q.부재.get(o.id) || {}).콘크리트 || 0), 0)
       const 비 = v3 > 0 ? vq / v3 : 0
       const 이름 = 종 === '슬라브' ? '슬래브' : 종
-      줄.push({ 좋음: true, 정보: true, 종, 글: 이름 + ' — 3D 부피 ' + v3.toFixed(2) + ' ㎥ · 산출서 콘크리트 ' + vq.toFixed(2) + ' ㎥' + (vq > 0 ? (Math.abs(비 - 1) < 0.005 ? ' (같음)' : ' (산출서는 겹치는 곳을 빼서 ' + (비 * 100).toFixed(0) + '%)') : '') })
+      줄.push({ 좋음: true, 정보: true, 종, 글: 이름 + ' — 3D 부피 ' + v3.toFixed(2) + ' ㎥ · 산출서 콘크리트 ' + vq.toFixed(2) + ' ㎥' + (vq > 0 ? (Math.abs(비 - 1) < 0.005 ? ' (같음)' : ' (산출서는 겹치는 곳을 빼서 ' + (비 * 100).toFixed(0) + '%)') : '') + (뺀 ? ' · ❓ 도면에 없는 크기로 그림만 그린 ' + 뺀 + '개는 뺌' : '') })
     }
   }
   return 줄

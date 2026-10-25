@@ -1009,7 +1009,7 @@ export default function JeoksanAuto() {
                       <td>{f.이름}층</td>
                       <td><input className="ja-in ja-num" inputMode="numeric" value={f.층고} onChange={(e) => set골고침((P) => ({ ...P, [f.이름]: { ...(P[f.이름] || {}), 층고: +e.target.value.replace(/[^\d]/g, '') || 0 } }))} aria-label={f.이름 + '층 층고'} /></td>
                       <td><input className="ja-in ja-num" inputMode="numeric" value={f.슬라브} onChange={(e) => set골고침((P) => ({ ...P, [f.이름]: { ...(P[f.이름] || {}), 슬라브: +e.target.value.replace(/[^\d]/g, '') || 0 } }))} aria-label={f.이름 + '층 슬래브 두께'} /></td>
-                      <td className="note2">{골고침[f.이름] ? '✏️ 고친 값' : 골.읽음.층고짐작.includes(f.이름) ? <span className="ja-badge mid">짐작 3,300 — 고쳐 주세요</span> : '도면의 층 높이 글자(FL)'}</td>
+                      <td className="note2">{골고침[f.이름] ? '✏️ 고친 값' : 골.읽음.층고짐작.includes(f.이름) ? <span className="ja-badge mid">❓ 도면에 없음 — 적어 주세요</span> : '도면의 층 높이 글자(FL)'}</td>
                     </tr>
                   ))}</tbody>
                 </table></div>

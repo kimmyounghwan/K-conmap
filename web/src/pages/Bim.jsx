@@ -24,7 +24,7 @@ import 읽기점검칸 from '../읽기점검칸.jsx'
 import 판목록칸 from '../판목록칸.jsx'
 import { DWG바꾸기 } from '../lib/dwg바꾸기.js'
 import { 단위배율 } from '../lib/골조도면.js'
-import { 골조읽기 } from '../lib/골조자동.js'
+import { 골조읽기, 같음입히기 } from '../lib/골조자동.js'
 import { 플랜트다듬기, 플랜트모델 } from '../lib/플랜트기초.js'   // 🏭 G294 플랜트식 토목 기초(바닥판 · 기초 · 지중보 윤곽 그대로)
 import 셈방법칸, { 셈방법입히기 } from '../셈방법칸.jsx'   // 🧮 G295 셈 방법(도면 그대로 · 내역서처럼)
 import { 셈, 엑셀 as 골조엑셀 } from '../lib/골조.js'
@@ -43,6 +43,8 @@ import { 일람표만들기, 일람표시트 } from '../lib/부재일람표.js'
 import { 멈춤감시, 멈춤글 } from '../lib/파일한도.js'
 
 const 예시 = [['/jeoksan/BIM_예시_3층.dxf', 'BIM_예시_3층.dxf']]
+/** 🧭 G405 «만든 값» 칸 글의 표시 — ❓ 도면에 없음 · 📐 잰 값 · 📄 도면의 다른 표 */
+const 근거표 = (m) => (/^\s*(건설맵:\s*)?(❓|📐|📄|📌)/.test(String(m)) ? '' : /❓/.test(String(m)) ? '❓' : /📐/.test(String(m)) ? '📐' : /📄/.test(String(m)) ? '📄' : '🤖')       // 글이 그 표시로 시작하면 또 붙이지 않음
 /* 🏛 G284 (2026-10-13) 가상 청사 — 지하 1층 둘레 옹벽 · 층 머리 부재 이름 · 끝이 빈 벽(단부 보강근) · 일람표에 크기가 빈 보(🤖 같은 몸) · «180mm» 두께
    소장님 「진월 거 하면 어때?」 → 남의 도면은 안 올리고 비슷한 꼴을 지어냄(tools/BIM_예시_청사.py) */
 const 예시청사 = [['/jeoksan/BIM예시_청사.dxf', 'BIM예시_청사.dxf']]
@@ -121,7 +123,7 @@ const 기억 = { 도면들: null, R: null, 이름: '', 높이: {}, 예시: false
 
 export default function Bim() {
   const [도면들, set도면들] = useState(기억.도면들)
-  const [R, setR] = useState(기억.R)
+  const [R원, setR] = useState(기억.R)          // 도면에서 읽은 그대로 — 화면은 사람 결정(📌 같은 부재)을 입힌 R
   const [이름, set이름] = useState(기억.이름)
   const [높이, set높이] = useState(기억.높이)
   const [토목, set토목] = useState(기억.토목)          // { 활용, center, 바탕 } — 도면 3D 일꾼 결과 중 쓰는 것만
@@ -154,7 +156,7 @@ export default function Bim() {
   const 토목맞춤 = useRef(false)
   const [glErr, setGlErr] = useState('')
 
-  useEffect(() => { Object.assign(기억, { 도면들, R, 이름, 높이, 토목, 두께, 건물두께, 흙할증 }) }, [도면들, R, 이름, 높이, 토목, 두께, 건물두께, 흙할증])
+  useEffect(() => { Object.assign(기억, { 도면들, R: R원, 이름, 높이, 토목, 두께, 건물두께, 흙할증 }) }, [도면들, R원, 이름, 높이, 토목, 두께, 건물두께, 흙할증])
   useEffect(() => () => { if (일꾼Ref.current) { 일꾼Ref.current.terminate(); 일꾼Ref.current = null } }, [])
 
   /* ── 토목 · 구조물 · 땅 — 도면 3D 일꾼으로(좌표로 읽기) ── */
@@ -279,6 +281,30 @@ export default function Bim() {
   }
 
   /* ── 셈 — 골조 ── */
+  /* 🔎 G280 검수 — 확인함 · 뺌(부재 열쇠 = 표|줄|자리 번호 · 파일 이름마다 이 브라우저에 기억) · 뺀 부재는 3D · 산출서 · 엑셀에서 빠짐(겹친 것과 같은 길)
+       📌 G406 같음 — 사람이 «같은 부재» 로 고른 일람 줄({ '슬라브|DS1': { 기호: 'UDS1', 때 } }) · 같은 기억 칸 */
+  const [검수, set검수] = useState(() => ({ 이름: '', 확인: new Set(), 뺌: new Set(), 같음: {} }))
+  const 검키 = (o) => o.표 + '|' + o.i + '|' + o.kk
+  const 검수저장 = (새) => { try { localStorage.setItem('k-bim-검수|' + 새.이름, JSON.stringify({ 확인: [...새.확인], 뺌: [...새.뺌], 같음: 새.같음 || {} })) } catch (e) { /* 저장 못 함 */ } }
+  useEffect(() => {
+    let 확 = [], 뺌 = [], 같음 = {}
+    try { const s = JSON.parse(localStorage.getItem('k-bim-검수|' + 이름) || 'null'); if (s) { 확 = s.확인 || []; 뺌 = s.뺌 || []; 같음 = s.같음 && typeof s.같음 === 'object' ? s.같음 : {} } } catch (e) { /* 기억 없음 */ }
+    set검수({ 이름, 확인: new Set(확), 뺌: new Set(뺌), 같음 })
+  }, [이름])
+  const 검수바꾸기 = (칸, 키, 켬) => set검수((s) => {
+    const n = new Set(s[칸]); if (켬) n.add(키); else n.delete(키)
+    const 새 = { ...s, [칸]: n }
+    검수저장(새)
+    return 새
+  })
+  const 같음바꾸기 = (키, 기호) => set검수((s) => {
+    const 같음 = { ...(s.같음 || {}) }
+    if (기호) { const d = new Date(); 같음[키] = { 기호, 때: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') } } else delete 같음[키]
+    const 새 = { ...s, 같음 }
+    검수저장(새)
+    return 새
+  })
+  const R = useMemo(() => { try { return 같음입히기(R원, 검수.같음) } catch (e) { return R원 } }, [R원, 검수.같음])
   const 있음 = !!(R && R.있음)
   const 공사0 = useMemo(() => (있음 ? 층고바꾸기(R.공사, 높이, R.읽음 && R.읽음.높이) : null), [R, 높이, 있음])
   const 모델0 = useMemo(() => { if (!있음 || !도면들) return null; try { return 플랜트모델(모델만들기(도면들, R, { 높이 }), R) } catch (e) { return { 부재: [], 층: [], 바닥들: [], 맞춤: [], 짐작: [], 경고: ['3D 로 세우다 멈췄습니다: ' + e.message] } } }, [도면들, R, 높이, 있음])
@@ -287,20 +313,6 @@ export default function Bim() {
   const 토목재료 = !!(토목 && 토목.활용 && ((토목.활용.횡단 || []).length || (토목.활용.구조 || []).length))
   const 골조뺌 = !!(모델0 && 모델0.부재.length > 0 && 모델0.부재.length < 5 && !모델0.부재.some((o) => o.종류 === '기둥') && 토목재료)
   const 모델1 = 골조뺌 ? null : 모델0
-  /* 🔎 G280 검수 — 확인함 · 뺌(부재 열쇠 = 표|줄|자리 번호 · 파일 이름마다 이 브라우저에 기억) · 뺀 부재는 3D · 산출서 · 엑셀에서 빠짐(겹친 것과 같은 길) */
-  const [검수, set검수] = useState(() => ({ 이름: '', 확인: new Set(), 뺌: new Set() }))
-  const 검키 = (o) => o.표 + '|' + o.i + '|' + o.kk
-  useEffect(() => {
-    let 확 = [], 뺌 = []
-    try { const s = JSON.parse(localStorage.getItem('k-bim-검수|' + 이름) || 'null'); if (s) { 확 = s.확인 || []; 뺌 = s.뺌 || [] } } catch (e) { /* 기억 없음 */ }
-    set검수({ 이름, 확인: new Set(확), 뺌: new Set(뺌) })
-  }, [이름])
-  const 검수바꾸기 = (칸, 키, 켬) => set검수((s) => {
-    const n = new Set(s[칸]); if (켬) n.add(키); else n.delete(키)
-    const 새 = { ...s, [칸]: n }
-    try { localStorage.setItem('k-bim-검수|' + s.이름, JSON.stringify({ 확인: [...새.확인], 뺌: [...새.뺌] })) } catch (e) { /* 저장 못 함 */ }
-    return 새
-  })
   const 모델 = useMemo(() => {
     if (!모델1 || !검수.뺌.size) return 모델1
     const 뺄 = new Set(모델1.부재.filter((o) => 검수.뺌.has(검키(o))))
@@ -535,7 +547,7 @@ export default function Bim() {
     const 찾 = (표, 기호) => (배[표 === '옹벽' ? '벽' : 표] || []).find((b) => String(b.기호 || '').trim() === String(기호 || '').trim())
     return 모델1.부재.map((o) => {
       const b = 찾(o.표, o.기호)
-      const 까닭 = [...(b && b.만든 ? ['🤖 ' + String(b.만든).replace(/^(클로드|건설맵):\s*/, '')] : []), ...(o.짐작 || []).map((w) => '💭 ' + w)]
+      const 까닭 = [...(b && b.만든 ? [(근거표(b.만든) ? 근거표(b.만든) + ' ' : '') + String(b.만든).replace(/^(클로드|건설맵):\s*/, '')] : []), ...(o.짐작 || []).map((w) => '💭 ' + w)]
       return { o, 키: 검키(o), 까닭 }
     }).filter((x) => x.까닭.length)
   }, [모델1, 공사0])  // eslint-disable-line react-hooks/exhaustive-deps
@@ -609,7 +621,7 @@ export default function Bim() {
         <details className="bim-how">
           <summary>📘 어떤 도면을 넣으면 되나요</summary>
           <ul>
-            <li><b>건축 골조</b> — 구조평면도(부재 기호 C1 · G1 · S1 · W1 · F1) + <b>부재 일람표</b>(400X700 · 4-HD22 · THK150) + 층 높이 글자(FL+3,600 · 없으면 3,300 짐작 · 아래 칸에서 바꿈)</li>
+            <li><b>건축 골조</b> — 구조평면도(부재 기호 C1 · G1 · S1 · W1 · F1) + <b>부재 일람표</b>(400X700 · 4-HD22 · THK150) + 층 높이 글자(FL+3,600 · 없으면 ❓ 그 층 기둥 · 벽은 셈에서 빠짐 — 아래 칸에 적으면 셈) · 도면에 없는 크기 · 철근은 짐작하지 않고 «❓ 도면에 없음» 으로 알림</li>
             <li><b>배수로 · 수로 · 박스</b> — <b>평면도</b>(노선 · 측점 NO.) + <b>종단면도</b> + <b>횡단면도</b>(단면마다 지반선 · 계획선 · 구조물 선 · STA 글자) → 단면 모양을 노선 따라 세우고 평균단면법으로 콘크리트 · 거푸집 · 터파기 · 되메우기 · 성토</li>
             <li><b>공장식 토목 기초</b> — FOUNDATION · FOOTING · BEAM PLAN 판 → 바닥판 · 기초 · 지중보 · 맨홀 · 피트 · 외부참조(.dwg)도 같이 넣기 · <b>🧮 셈 방법</b>으로 도면 그대로 / 내역서처럼</li>
             <li><b>구조물(배수장 · 집수정)</b> — <b>일반도</b>(평면 + 단면 A-A · EL 글자) → 평면 겹선 사이를 벽으로, 단면 EL 로 높이 · 바닥판 두께는 짐작(칸에서 바꿈)</li>
@@ -649,8 +661,8 @@ export default function Bim() {
           <div className="card">
             {일람알림 && 건축켬 && (
               <div className="dx3-warn bim-ilam-alert" style={{ marginTop: 0, marginBottom: 10 }} data-ilam={일람알림.없음 ? '없음' : '많음'}>
-                📋 <b>{일람알림.없음 ? '부재 일람표가 없습니다' : '일람표에 없는 부재가 많습니다'}</b> — 물량은 넣었지만, 부재 {일람알림.짐작}가지{일람알림.없음 ? '' : '(' + 일람알림.전체 + '가지 가운데)'}의 크기 · 철근은 평면 그림의 두 선과 흔한 설계 값으로 <b>짐작한 값</b>이라 실제와 크게 다를 수 있습니다. 구조 일람표(보 · 기둥 · 벽 · 슬래브 · 기초)를 같이 넣어 주세요.
-                {일람알림.큰.length > 0 && <div style={{ marginTop: 6 }}>꼭 확인할 짐작 크기: {일람알림.큰.slice(0, 8).join(' · ')}{일람알림.큰.length > 8 ? ' 외 ' + (일람알림.큰.length - 8) + '가지' : ''}</div>}
+                📋 <b>{일람알림.없음 ? '부재 일람표가 없습니다' : '일람표에 없는 값이 많습니다'}</b> — 부재 {일람알림.짐작}가지{일람알림.없음 ? '' : '(' + 일람알림.전체 + '가지 가운데)'}는 크기 · 두께 · 철근이 <b>도면에 없어(❓) 그 물량을 셈에서 뺐습니다</b>(짐작 안 함). 평면에서 잰 폭 · 두께만 썼습니다 — 일람표 도면을 같이 넣거나, 아래 배근표 빈칸에 적어 주세요.
+                {일람알림.큰.length > 0 && <div style={{ marginTop: 6 }}>꼭 확인할 잰 크기: {일람알림.큰.slice(0, 8).join(' · ')}{일람알림.큰.length > 8 ? ' 외 ' + (일람알림.큰.length - 8) + '가지' : ''}</div>}
               </div>
             )}
             {플랜트 && <셈방법칸 값={셈방법} 바꾸기={(k) => { set셈방법(k); 세기('|BIM물량|셈방법|' + k) }} />}
@@ -763,7 +775,7 @@ export default function Bim() {
                     )}
                     <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>📄 읽은 도면: {고른.근거 && 고른.근거.n}</div>
                     {고른.짐작.map((w, i) => <div key={i} className="bim-guess">💭 {w}</div>)}
-                    {고른검 && 고른검.까닭.filter((w) => w.startsWith('🤖')).map((w, i) => <div key={'m' + i} className="bim-guess">{w}</div>)}
+                    {고른검 && 고른검.까닭.filter((w) => /^(🤖|❓|📐|📄)/.test(w)).map((w, i) => <div key={'m' + i} className="bim-guess">{w}</div>)}
                     {고른검 && (
                       <div className="bim-btns bim-rv-btns">
                         <button type="button" className={'btn sm' + (검수.확인.has(고른검.키) ? '' : ' line')} onClick={() => { 검수바꾸기('확인', 고른검.키, !검수.확인.has(고른검.키)); 세기('|BIM물량|검수') }}>{검수.확인.has(고른검.키) ? '✓ 확인함' : '확인함'}</button>
@@ -894,13 +906,17 @@ export default function Bim() {
           {골조수 > 0 && 일람표.length > 0 && (() => {
             const 지금 = 일람표.find((t) => t.종류 === 일람종) || 일람표[0]
             const 만든수 = (t) => t.줄.filter((z) => z.만든).length
+            /* 🧭 G406 머리 수 — 📐 잰 값 · 📌 사람 확인 · ❓ 도면에 없음을 따로(예전엔 «만든» 줄 모두를 ❓ 로 셈) */
+            const 표수 = (t, re) => t.줄.filter((z) => re.test(z.만든 || '')).length
+            const 없수 = (t) => t.줄.filter((z) => /❓/.test(z.만든 || '') && !/^\s*📌/.test(z.만든 || '')).length
             const 모든줄 = 일람표.reduce((n, t) => n + t.줄.length, 0), 모든만든 = 일람표.reduce((n, t) => n + 만든수(t), 0)
+            const 모든잰 = 일람표.reduce((n, t) => n + 표수(t, /📐/), 0), 모든사람 = 일람표.reduce((n, t) => n + 표수(t, /📌/), 0), 모든없 = 일람표.reduce((n, t) => n + 없수(t), 0)
             return (
               <div className="card bim-ilam">
-                <h2 className="bim-h2">📋 부재 일람표 <span className="muted">— 도면에서 읽어 만든 일람 {쉼(모든줄)}줄 · 📄 도면 {쉼(모든줄 - 모든만든)} · 🤖 건설맵이 만든 값 {쉼(모든만든)}</span></h2>
+                <h2 className="bim-h2">📋 부재 일람표 <span className="muted">— 도면에서 읽어 만든 일람 {쉼(모든줄)}줄 · 📄 도면 {쉼(모든줄 - 모든만든)}{모든잰 ? ' · 📐 잰 값 ' + 쉼(모든잰) : ''}{모든사람 ? ' · 📌 사람 확인 ' + 쉼(모든사람) : ''} · ❓ 도면에 없음 {쉼(모든없)}</span></h2>
                 <div className="bim-rv-top">
                   <span className="bim-chips">
-                    {일람표.map((t) => <button key={t.종류} type="button" className={'bim-chip' + (지금 === t ? ' on' : '')} onClick={() => { set일람종(t.종류); 세기('|BIM물량|일람') }}>{t.이름} {쉼(t.줄.length)}{만든수(t) ? ' · 🤖 ' + 쉼(만든수(t)) : ''}</button>)}
+                    {일람표.map((t) => <button key={t.종류} type="button" className={'bim-chip' + (지금 === t ? ' on' : '')} onClick={() => { set일람종(t.종류); 세기('|BIM물량|일람') }}>{t.이름} {쉼(t.줄.length)}{없수(t) ? ' · ❓ ' + 쉼(없수(t)) : ''}</button>)}
                   </span>
                 </div>
                 <div className="bim-tblwrap">
@@ -912,13 +928,22 @@ export default function Bim() {
                           <th>{z.기호}</th>
                           {z.칸.map((v, i) => <td key={i}>{v || <span className="muted">—</span>}</td>)}
                           <td>{z.쓰임 ? 쉼(z.쓰임) : <span className="muted">—</span>}</td>
-                          <td className="il-why">{z.만든 ? <>🤖 {z.만든}</> : <span className="muted">📄 도면</span>}</td>
+                          <td className="il-why">{z.만든 ? <>{근거표(z.만든) ? 근거표(z.만든) + ' ' : ''}{z.만든}</> : <span className="muted">📄 도면</span>}
+                            {/* 📌 G406 같은 부재 고르기 — 건설맵은 잇지 않음(짐작 금지) · 사람이 도면을 보고 고른 것만 · 고른 날짜를 적고 되돌릴 수 있음 */}
+                            {(z.후보 || z.사람) && (
+                              <span className="il-same" onClick={(e) => e.stopPropagation()}>
+                                {z.사람
+                                  ? <button type="button" className="btn line sm" title="같은 부재로 본 것을 되돌림 — 다시 ❓ 도면에 없음" onClick={() => { 같음바꾸기(지금.종류 + '|' + z.기호, null); 세기('|BIM물량|같음되돌림') }}>↩ 되돌리기</button>
+                                  : z.후보.map((k) => <button key={k} type="button" className="btn line sm" title={'도면을 보고 «' + z.기호 + '» 와 «' + k + '» 가 같은 부재일 때만 누르세요 — 그 줄 값으로 셈하고 📌 사람 확인으로 적습니다'} onClick={() => { 같음바꾸기(지금.종류 + '|' + z.기호, k); 세기('|BIM물량|같음') }}>📌 «{k}» 같은 부재</button>)}
+                              </span>
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-                <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>🤖 = 도면 일람표에 없거나 빈 칸이라 건설맵이 채운 값(어디서 가져왔는지 «근거» 에) · 3D = 이 기호로 세운 부재 수(— 는 일람표에만 있음) · 줄을 누르면 그 부재들이 3D 에서 파랗게 · 엑셀 수량산출서 «부재 일람표» 시트에도 들어갑니다.</div>
+                <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>📐 = 도면에서 잰 값(평면 두 선 · 그림) · ❓ = 도면에 없는 값(짐작 안 함 — 그 물량은 셈에서 빠짐 · 배근표에 적으면 셈) · 📌 = 도면을 보고 «같은 부재» 를 고른 값(«📌 … 같은 부재» 단추 · 이 브라우저에 파일 이름마다 기억 · 되돌리기) · 3D = 이 기호로 세운 부재 수(— 는 일람표에만 있음) · 줄을 누르면 그 부재들이 3D 에서 파랗게 · 엑셀 수량산출서 «부재 일람표» 시트에도 들어갑니다.</div>
               </div>
             )
           })()}
@@ -1150,14 +1175,14 @@ export default function Bim() {
 
           {골조수 > 0 && (
             <div className="card">
-              <h2 className="bim-h2">📏 층 높이 <span className="muted">— 도면 글자에서 읽은 값 · 짐작한 층만 바꾸시면 됩니다(도면은 그대로)</span></h2>
+              <h2 className="bim-h2">📏 층 높이 <span className="muted">— 도면 글자에서 읽은 값 · ❓ 도면에 없는 층은 높이를 적으시면 그 층 기둥 · 벽을 셈합니다(도면은 그대로)</span></h2>
               <div className="bim-floors">
                 {(모델.바닥들 || []).map((f) => (
                   <label key={f.이름} className={f.짐작 ? 'guess' : ''}>
                     <span>{층말(f.이름)} 바닥</span>
                     <input className="inp" inputMode="numeric" value={높이[f.이름] !== undefined ? 높이[f.이름] : String(Math.round(f.높이))}
                            onChange={(e) => { const v = e.target.value.replace(/[^\d\-]/g, ''); set높이((h) => ({ ...h, [f.이름]: v })) }} />
-                    <em>mm{f.읽음 ? ' · 도면' : f.짐작 ? ' · 짐작' : ''}</em>
+                    <em>mm{f.읽음 ? ' · 도면' : f.짐작 ? ' · ❓ 도면에 없음(그림만)' : ''}</em>
                   </label>
                 ))}
                 {Object.keys(높이).length > 0 && <button type="button" className="btn line sm" onClick={() => set높이({})}>↩ 도면 값으로</button>}
