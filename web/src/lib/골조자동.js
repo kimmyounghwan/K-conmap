@@ -38,6 +38,7 @@ const 자리만들기 = (이름, r) => ({ n: 이름 || '', r: r.map((v) => 반�
 /** 🧭 G249 이번 읽기에서 벽으로 볼 기호(벽체 일람표의 이름 열) — 골조읽기 동안만 */
 let 벽허용 = null
 let 데크허용 = false
+let 띠근거 = null      // 🧭 G418 다른 층 같은 자리 이름표 · 골구도 단면 이름표(골조읽기0 안에서만)
 /** 벽체 일람표(머리 «NAME · MEMBER · 부호» + 벽 표: 판 이름 · 표 이름에 벽 · WALL, 또는 같은 줄에 수직 · 수평 머리) 이름 열의 «…W숫자» 기호들 */
 function 벽표기호(도면들) {
   const 허 = new Set()
@@ -1914,7 +1915,7 @@ function 방향(D, s) { const dx = D.sx1[s] - D.sx0[s], dy = D.sy1[s] - D.sy0[s]
  * 기호 글자 곁의 «나란한 두 선» 띠 찾기
  * @returns {ux, uy, nx, ny, px, py(축 위 한 점), g(폭), 층들:Set, 점수} | null
  */
-function 띠찾기(D, g, 폭, 최대폭 = 1500, 빼기 = null) {
+function 띠찾기(D, g, 폭, 최대폭 = 1500, 빼기 = null, 보만 = false) {
   const R = Math.max(2000, (폭 || 600) * 3, 12 * g.h)
   const S = Math.max(1500, 4 * g.h)
   const 가까운 = D.찾기(g.x - R, g.y - R, g.x + R, g.y + R)
@@ -1935,7 +1936,10 @@ function 띠찾기(D, g, 폭, 최대폭 = 1500, 빼기 = null) {
       const 선들 = new Map()
       for (const s of 가까운) {
         /* 🧭 G411 빼기로 다시 찾을 때는 구조 도면 제 선만 — 끼운 건축 평면(«…$0$…» 층 · 건축 벽 선)이 만든 띠는 안 고름(현장 A 1층 바닥 G2 가 건축 벽 선 300 을 잡았음) */
-        if (빼기 && /\$0\$/.test(((D.layers || [])[D.sly[s]] || {}).name || '')) continue
+        if ((빼기 || 보만) && /\$0\$/.test(((D.layers || [])[D.sly[s]] || {}).name || '')) continue
+        /* 🧭 G418 다시 찾을 때는 아래층 부재 선(«@DOWN» — 아래층 벽 · 기둥을 점선으로 그린 층) · 중심선 · 통심 층도 안 봄 — 현장 Y 지상2층 G15 띠(GIRDER 400) 속에
+             아래층 벽 선(@DOWN 300)이 지나 «속에 선 있는 짝» 으로 빠지고 벽 선 300 띠를 잡았음 · 지상1층 G2 띠 속 통심 X5 */
+        if ((빼기 || 보만) && /DOWN|아래|CEN|GRID|AXIS|중심|통심/i.test(((D.layers || [])[D.sly[s]] || {}).name || '')) continue
         const [dx, dy] = 방향(D, s)
         if (Math.abs(dx * uy - dy * ux) > 0.012) continue
         const o = ((D.sx0[s] + D.sx1[s]) / 2 - g.x) * nx + ((D.sy0[s] + D.sy1[s]) / 2 - g.y) * ny
@@ -1963,10 +1967,15 @@ function 띠찾기(D, g, 폭, 최대폭 = 1500, 빼기 = null) {
         const 거리 = os[i] <= 0 && os[j] >= 0 ? 0 : Math.min(Math.abs(os[i]), Math.abs(os[j]))
         if (거리 > Math.max(1200, 5 * g.h)) continue
         // 글자 방향에서 벗어난 만큼 조금 불리하게
-        let 틀어짐 = Math.abs(((a - g.a) % Math.PI + Math.PI) % Math.PI); 틀어짐 = Math.min(틀어짐, Math.PI - 틀어짐); 틀어짐 = Math.min(틀어짐, Math.abs(틀어짐 - Math.PI / 2))
-        const 점수 = 거리 + (폭 ? Math.abs(gap - 폭) * (넓게 ? 2 : 10) : 0) + 틀어짐 * 2000
+        let 틀어짐 = Math.abs(((a - g.a) % Math.PI + Math.PI) % Math.PI); 틀어짐 = Math.min(틀어짐, Math.PI - 틀어짐)
+        /* 🧭 G418 보 이름표는 글자와 나란한 띠를 조금 먼저(250 mm) — 가로 글자 «G14» 가 0.6 m 위 가로 띠 대신 0.6 m 곁 세로 띠(B7)를 잡았음(현장 Y 지상2층) ·
+             세로 글자 «G4» 가 가로 띠를 잡았음(지상3층). 세로 보에 가로 글자를 쓴 도면도 띠가 250 mm 넘게 가까우면 그대로 */
+        const 직각 = 보만 && Math.abs(틀어짐 - Math.PI / 2) < 0.35
+        틀어짐 = Math.min(틀어짐, Math.abs(틀어짐 - Math.PI / 2))
+        const 점수 = 거리 + (폭 ? Math.abs(gap - 폭) * (넓게 ? 2 : 10) : 0) + 틀어짐 * 2000 + (직각 ? 250 : 0)
         /* 🧭 G411 빼기 — 다른 이름표의 띠로 본 것(같은 방향 · 가운데 줄 40 mm 안)은 안 고름 */
-        if (빼기 && 빼기.some((e) => Math.abs(e.ux * uy - e.uy * ux) < 0.01 && Math.abs((g.x + nx * (os[i] + os[j]) / 2 - e.px) * e.nx + (g.y + ny * (os[i] + os[j]) / 2 - e.py) * e.ny) < 40)) continue
+        /* 🧭 G418 같은 줄이라도 이 이름표에서 축 방향으로 3 m 넘게 먼 곳의 띠(다른 칸 · 다른 보)는 빼지 않음 — 현장 Y 지상1층 G2 세로 띠(X5 줄)를 같은 줄 먼 칸의 이름표 띠 때문에 못 찾았음 */
+        if (빼기 && 빼기.some((e) => Math.abs(e.ux * uy - e.uy * ux) < 0.01 && Math.abs((g.x + nx * (os[i] + os[j]) / 2 - e.px) * e.nx + (g.y + ny * (os[i] + os[j]) / 2 - e.py) * e.ny) < 40 && Math.abs((e.px - g.x) * ux + (e.py - g.y) * uy) <= 3000)) continue
         if (!best || 점수 < best.점수) {
           const oc = (os[i] + os[j]) / 2
           best = { ux, uy, nx, ny, px: g.x + nx * oc, py: g.y + ny * oc, g: gap, 점수, 층들: new Set([...A, ...B].map((x) => D.sly[x.s])), 다른폭: 넓게 }
@@ -2074,6 +2083,63 @@ function 격자글(D, 판) {
   return out
 }
 
+/** 🧭 G418 판의 통심 이름 → 자리 {X: Map(이름 → x), Y: Map(이름 → y)} (평면 판 — X 는 가로로, Y 는 세로로 늘어선 동그라미) */
+function 격자표(D, 판) {
+  const 들 = 격자글(D, 판)
+  const X = new Map(), Y = new Map()
+  for (const q of 들) { if (q.n[0] === 'X' && !X.has(q.n)) X.set(q.n, q.x); if (q.n[0] === 'Y' && !Y.has(q.n)) Y.set(q.n, q.y) }
+  return { X, Y }
+}
+/** 🧭 G418 두 평면 판 사이 옮김 {dx, dy} — 같은 통심 이름이 X · Y 둘 이상씩 있고 옮김 값이 고르면(50 mm 안) */
+function 판옮김(A, B) {
+  const 값 = (m1, m2) => { const v = []; for (const [n, a] of m1) if (m2.has(n)) v.push(m2.get(n) - a); return v }
+  const dx = 값(A.X, B.X), dy = 값(A.Y, B.Y)
+  if (dx.length < 2 || dy.length < 2) return null
+  if (Math.max(...dx) - Math.min(...dx) > 50 || Math.max(...dy) - Math.min(...dy) > 50) return null
+  return { dx: dx.reduce((p, q) => p + q, 0) / dx.length, dy: dy.reduce((p, q) => p + q, 0) / dy.length }
+}
+/** 🧭 G418 골구도 · 단면에 잘린 보의 이름표 «6B13» + 크기 «500X850» → [{D, 판, x(단면 가로 자리), 몸, f(보 층), 폭, 춤}]
+ *  (판층 = 이름표 바로 위 층 이름 글 «지상 6층» — 보 층은 그 아래층(골조읽기0 의 아래층) · 단면춤재기와 같은 규칙) */
+function 단면이름표(도면들) {
+  const out = []
+  for (const D of 도면들) {
+    const 판번 = (x, y) => (D.도곽 && D.도곽.length ? D.도곽번(x, y) : -1)
+    const 레벨 = []
+    for (const g of D.글자) { const t = 붙(g.s); if (단면층꼴.test(t)) { const f = (제목층(t + ' 구조평면도') || [])[0]; if (f) 레벨.push({ f, y: g.y, 판: 판번(g.x, g.y) }) } }
+    if (레벨.length < 3) continue
+    const 크기들 = D.글자.filter((t) => /^\d{3,4}X\d{3,4}$/.test(붙(t.s).toUpperCase()))
+    for (const g of D.글자) {
+      const r = 기호풀이(g.s)
+      if (!r || r.종류 !== '보') continue
+      const 판 = 판번(g.x, g.y)
+      const 판레 = 레벨.filter((L) => L.판 === 판)
+      if (판레.length < 3) continue
+      const 크 = 크기들.find((t) => 판번(t.x, t.y) === 판 && Math.abs(t.x - g.x) <= Math.max(450, 2 * g.h) && g.y - t.y > 0 && g.y - t.y <= Math.max(450, 3 * g.h))
+      if (!크) continue
+      const m = /^(\d{3,4})X(\d{3,4})$/.exec(붙(크.s).toUpperCase())
+      const 위 = 판레.filter((L) => L.y >= g.y - 300 && L.y - g.y <= 2500).sort((p, q) => (p.y - g.y) - (q.y - g.y))[0]
+      if (!위) continue
+      out.push({ D, 판, x: g.x, 몸: r.몸 || r.기호, 판층: 위.f, 폭: +m[1], 춤: +m[2] })
+    }
+  }
+  return out
+}
+/** 🧭 G418 단면 이름표를 평면 판 자리로 — {몸, 세로: true(종골구도 = 남북 보 · 평면 x) | false(동서 보 · 평면 y), c, 폭, 춤} */
+function 단면을평면에(z, PD, 판i) {
+  const 단 = 격자글(z.D, z.판), 평 = 격자글(PD, 판i)
+  const 짝 = 단.map((s0) => ({ s0, p0: 평.find((q) => q.n === s0.n) })).filter((v) => v.p0)
+  if (짝.length < 2) return null
+  const 글자 = 짝[0].s0.n[0]
+  const 맞 = 짝.filter((v) => v.s0.n[0] === 글자).sort((p, q) => p.s0.x - q.s0.x)
+  if (맞.length < 2) return null
+  let i = 0; while (i < 맞.length - 2 && 맞[i + 1].s0.x < z.x) i++
+  const A = 맞[i], B = 맞[i + 1]
+  if (Math.abs(B.s0.x - A.s0.x) < 1) return null
+  const 세로 = 글자 === 'X'
+  const pa = 세로 ? A.p0.x : A.p0.y, pb = 세로 ? B.p0.x : B.p0.y
+  return { 몸: z.몸, 세로, c: pa + (z.x - A.s0.x) * (pb - pa) / (B.s0.x - A.s0.x), 폭: z.폭, 춤: z.춤 }
+}
+
 function 단면춤재기(도면들, 보들) {
   const out = []
   if (!보들.length) return out
@@ -2151,7 +2217,7 @@ function 단면춤재기(도면들, 보들) {
 /** 띠의 축을 따라 두 선이 같이 있는 구간 → 받침(기둥·걸친 보)에서 끊은 토막들 */
 /* 🧭 G245 찾는 범위 = 첫 글자 ±60 m → [lo, hi](그 띠의 모든 기호 글자 앞뒤 20 m 까지) — 줄이 60 m 넘게 긴 보 줄(현장 D 지중보 80 m)은
    첫 글자에서 먼 끝 구간을 못 찾아, 표제란 제목에 붙은 글자가 따로 그 구간을 셌음 */
-function 띠토막(D, 띠, 기둥층, lo = -60000, hi = 60000) {
+function 띠토막(D, 띠, 기둥층, lo = -60000, hi = 60000, 보만 = false) {
   const { ux, uy, nx, ny, px, py, g } = 띠
   const x0 = px + ux * lo, y0 = py + uy * lo, x1 = px + ux * hi, y1 = py + uy * hi
   const pad = g + 100
@@ -2170,6 +2236,8 @@ function 띠토막(D, 띠, 기둥층, lo = -60000, hi = 60000) {
       if (Math.abs(o + g / 2) < 2) A.push([Math.min(ta, tb), Math.max(ta, tb)])
       else if (Math.abs(o - g / 2) < 2) B.push([Math.min(ta, tb), Math.max(ta, tb)])
     } else if (Math.min(oa, ob) <= -g / 2 + 1 && Math.max(oa, ob) >= g / 2 - 1) {
+      /* 🧭 G418 보 띠는 끼운 건축 평면(«…$0$…» 층 — 건축 벽 두 선) · 계단 선(@ST)을 걸친 보로 안 봄 — 현장 Y 지상2층 G15(3.8 m)가 건축 벽 두 선 · 계단 선에서 끊겨 0.95 m 만 셌음(벽은 예전대로 — 현장 B 벽 이름 · 미표기 이음이 바뀜) */
+      if (보만 && /\$0\$|^@?ST$|STAIR|계단/i.test(((D.layers || [])[D.sly[s]] || {}).name || '')) continue
       /* 🧭 G258 띠 면 밖으로 나간 길이(한쪽이라도) — 띠 끝을 닫는 선(마구리)은 0 */
       가로지름.push({ t: (ta + tb) / 2, ly: D.sly[s], 밖: Math.max(-g / 2 - Math.min(oa, ob), Math.max(oa, ob) - g / 2) })
     }
@@ -2668,7 +2736,7 @@ export function 벽윗면공제(공사) {
 }
 
 export function 골조읽기(도면들0, o = {}) {
-  try { return 골조읽기0(도면들0, o) } finally { 벽허용 = null; 데크허용 = false }
+  try { return 골조읽기0(도면들0, o) } finally { 벽허용 = null; 데크허용 = false; 띠근거 = null }
 }
 function 골조읽기0(도면들0, o = {}) {
   const 경고 = []
@@ -2791,6 +2859,15 @@ function 골조읽기0(도면들0, o = {}) {
     if (i <= 0) return 'FT'
     return 바닥차례[i - 1]
   }
+  /* 🧭 G418 다른 층 같은 자리 이름표 · 골구도 단면 이름표 — 밀린 보 이름표의 제 띠를 다시 찾을 때 근거(그린 폭이 일람과 달라도) */
+  try {
+    const 판키 = (D, x, y) => D.번 + '|' + (D.도곽 && D.도곽.length ? D.도곽번(x, y) : -1)
+    const 단면판 = new Set()
+    for (const D of 도면들) { const n = new Map(); for (const g of D.글자) if (단면층꼴.test(붙(g.s))) { const k = 판키(D, g.x, g.y); n.set(k, (n.get(k) || 0) + 1) } for (const [k, v] of n) if (v >= 3) 단면판.add(k) }
+    const 이름표들 = []
+    for (const D of 도면들) for (const g of D.글자) { const r = 기호풀이(g.s); if (!r || r.종류 !== '보') continue; const k = 판키(D, g.x, g.y); if (단면판.has(k) || k.endsWith('|-1')) continue; 이름표들.push({ 키: k, D, 몸: r.몸 || r.기호, x: g.x, y: g.y }) }
+    띠근거 = { 단면들: 단면이름표(도면들).map((z) => ({ ...z, f: 아래층(z.판층) })), 이름표들, 격자: new Map() }
+  } catch (e) { 띠근거 = null }
   /** 범위 → 이름들 */
   const 펼치기 = (범) => {
     if (!범) return null
@@ -3385,7 +3462,7 @@ function 골조읽기0(도면들0, o = {}) {
         else if (r.종류 === '기초') { 기초수.set(기, (기초수.get(기) || 0) + 1); 근거.push({ 번: D.번, i: g.i, 글: r.기호 }); 더하기(기초자리, 기, 글상자()) }
         else if (r.종류 === '보' || r.종류 === '벽') {
           let 폭 = +(r.종류 === '보' ? b.폭 : b.두께) || 0
-          let 띠 = 띠찾기(D, g, 폭)
+          let 띠 = 띠찾기(D, g, 폭, 1500, null, r.종류 === '보')
           /* 🧭 G255 고른 정의(층 붙은 2B0 400 × 700 — 평면 범례)의 폭으로 두 선이 없으면, 같은 몸의 다른 정의(일람표 B0 200 × 600) 폭으로 — 그 폭 두 선이 곁에 있으면 그 정의
                (현장 B 2층 평면 «B0» 12곳이 «폭 400 두 선 못 찾음» 으로 빠졌음 — 도면 두 선은 200) */
           if (!띠) {
@@ -3573,8 +3650,8 @@ function 골조읽기0(도면들0, o = {}) {
           슬들.push({ D: s2.D, g: s2.g, r: { 기호: 기, 종류: '슬라브', 몸: 기, 층표: '' }, b: 배근행.슬라브.get(기), 씨: s2.단면 })
         }
       }
-      const { 보칸, 벽칸, 슬칸 } = 평면부재(보띠, 벽띠, 슬들, 기둥층, 보층, 벽층, 배근행, 경고, 근거)
-      const 보칸하 = 보띠하.length ? 평면부재(보띠하, [], [], 기둥층, 보층, 벽층, 배근행, 경고, 근거).보칸 : []
+      const { 보칸, 벽칸, 슬칸 } = 평면부재(보띠, 벽띠, 슬들, 기둥층, 보층, 벽층, 배근행, 경고, 근거, f)
+      const 보칸하 = 보띠하.length ? 평면부재(보띠하, [], [], 기둥층, 보층, 벽층, 배근행, 경고, 근거, 아래층(f)).보칸 : []
       /* 🧭 G274 한 계단에 기호가 둘(판마다)이면 한 번만 */
       const 계단칸 = []
       for (const x of 계단들) {
@@ -4579,7 +4656,7 @@ function 모서리벽(벽띠, 기둥층) {
 }
 
 /** 한 평면·한 층의 보·벽 토막과 슬래브 칸 */
-function 평면부재(보띠, 벽띠, 슬들, 기둥층, 보층, 벽층, 배근행, 경고, 근거) {
+function 평면부재(보띠, 벽띠, 슬들, 기둥층, 보층, 벽층, 배근행, 경고, 근거, 이층 = null) {
   const 빼앗김 = []
   const 토막들 = (띠들, 종) => {
     const 묶음 = new Map()
@@ -4607,7 +4684,7 @@ function 평면부재(보띠, 벽띠, 슬들, 기둥층, 보층, 벽층, 배근�
     const 칸들 = []
     for (const m2 of 묶음.values()) {
       const ts = m2.이름표.map((n) => n.t)
-      m2.토막 = 띠토막(m2.D, m2.띠, m2.기층, Math.min(-60000, Math.min(...ts) - 20000), Math.max(60000, Math.max(...ts) + 20000))
+      m2.토막 = 띠토막(m2.D, m2.띠, m2.기층, Math.min(-60000, Math.min(...ts) - 20000), Math.max(60000, Math.max(...ts) + 20000), 종 === '보')
       const P = m2.토막
       /* 🧭 G258 꺾인 데 잇기(G252)로 지어 붙인 이름표뿐인 띠는 알림 안 함(도면에 적힌 이름표가 아님) */
       if (!P.length) { if (!m2.이름표.every((n) => n.r._모서리)) 경고.push(종 + ' «' + m2.이름표[0].r.기호 + '» 의 두 선 구간을 못 잡았습니다'); continue }
@@ -4617,9 +4694,15 @@ function 평면부재(보띠, 벽띠, 슬들, 기둥층, 보층, 벽층, 배근�
       for (const n2 of m2.이름표) {
         let bi = -1, bd = Infinity
         P.forEach((p, i) => { const d = n2.t < p.t0 ? p.t0 - n2.t : n2.t > p.t1 ? n2.t - p.t1 : 0; if (d < bd) { bd = d; bi = i } })
-        if (bi >= 0 && bd < 1500) 짝들.push({ n2, bi, bd })
+        /* 🧭 G418 띠에서 떨어진 거리(법선) — 축 방향 거리(bd)가 같으면(둘 다 토막 안) 띠에 더 가까운 이름표가 가짐.
+             현장 Y 6층 세로 띠 12.33 m: 곁 0.3 m «B13» 과 1.7 m 떨어진 «G14» 가 둘 다 토막 안이라 먼저 읽은 G14 가 가졌음(골조단면 네 곳 «6B13 500X850») */
+        const on = Math.abs((n2.g.x - m2.띠.px) * m2.띠.nx + (n2.g.y - m2.띠.py) * m2.띠.ny)
+        /* 글자 방향이 띠와 나란(20° 안)한 이름표가 먼저 — 세로 보 이름표를 세로 글자로 쓴 도면(현장 Y «B13» · «B8» 90°)에서
+             가로 보 이름표(«CG1» 0°)가 세로 띠 곁 0.3 m 에 있다고 세로 보를 가져가지 않게 */
+        let 틀 = Math.abs(((Math.atan2(m2.띠.uy, m2.띠.ux) - (n2.g.a || 0)) % Math.PI + Math.PI) % Math.PI); 틀 = Math.min(틀, Math.PI - 틀)
+        if (bi >= 0 && bd < 1500) 짝들.push({ n2, bi, bd, on, 나란: 틀 < 0.35 ? 0 : 1 })
       }
-      if (종 === '보') 짝들.sort((p, q) => p.bd - q.bd)
+      if (종 === '보') 짝들.sort((p, q) => (Math.abs(p.bd - q.bd) > 1 ? p.bd - q.bd : p.나란 !== q.나란 ? p.나란 - q.나란 : p.on - q.on))
       for (const { n2, bi } of 짝들) if (!주인[bi]) 주인[bi] = n2
       /* 밀린 이름표(다른 이름 · 같은 이름표가 이 띠에 따로 없음) — 알림만(짐작으로 다른 자리로 옮기지 않음) */
       if (종 === '보') for (const { n2, bi } of 짝들) if (주인[bi] !== n2 && 주인[bi] && (주인[bi].r.몸 || 주인[bi].r.기호) !== (n2.r.몸 || n2.r.기호) && !m2.이름표.some((k) => k !== n2 && k.r.기호 === n2.r.기호 && 주인.includes(k))) 빼앗김.push({ 기호: n2.r.기호, 임자: 주인[bi].r.기호, 번: m2.D.번, x: n2.x })
@@ -4666,7 +4749,7 @@ function 평면부재(보띠, 벽띠, 슬들, 기둥층, 보층, 벽층, 배근�
           const 자리 = { ...자리만들기(D.이름, 상자), 축: [a[0] / k, a[1] / k, b[0] / k, b[1] / k, 띠.g / k].map((v) => 반올림(v, 1)) }
           /* 🧭 G251 벽 이름 잇기용 — 미표기(이름 없는 두 선) · 몸 · 축(mm) · 판 */
           const 판 = D.도곽 && D.도곽.length ? D.도곽번((a[0] + b[0]) / 2, (a[1] + b[1]) / 2) : -1
-          return { 기호: 주인[i].r.기호, 안목: Math.round(안목), 좌: Math.round(좌), 우: Math.round(우), 물림: !!주인[i].물림, 자리, _미표기: !!주인[i].r._미표기, _모서리: !!주인[i].r._모서리, _같은줄: !!주인[i].같은줄, _바탕: !!주인[i].r._바탕, _다시: !!(주인[i].x && 주인[i].x._다시), _범례밖: !!주인[i].r._범례밖, _한면: !!주인[i].r._한면, _몸: 주인[i].r.몸, _축: [a[0], a[1], b[0], b[1], 띠.g], _판: D.번 + '|' + 판 }
+          return { 기호: 주인[i].r.기호, 안목: Math.round(안목), 좌: Math.round(좌), 우: Math.round(우), 물림: !!주인[i].물림, 자리, _미표기: !!주인[i].r._미표기, _모서리: !!주인[i].r._모서리, _같은줄: !!주인[i].같은줄, _바탕: !!주인[i].r._바탕, _다시: !!(주인[i].x && 주인[i].x._다시), _근: (주인[i].x && 주인[i].x._근) || '', _범례밖: !!주인[i].r._범례밖, _한면: !!주인[i].r._한면, _몸: 주인[i].r.몸, _축: [a[0], a[1], b[0], b[1], 띠.g], _판: D.번 + '|' + 판 }
         })
         칸들.push(줄)
       }
@@ -4683,20 +4766,68 @@ function 평면부재(보띠, 벽띠, 슬들, 기둥층, 보층, 벽층, 배근�
   const 다시찾음 = []
   if (빼앗김.length) {
     const 새띠 = new Map()
+    const 밀린것 = new Set(빼앗김.map((v) => v.x).filter(Boolean))
     for (const v of 빼앗김) {
       const x = v.x
       if (!x || 새띠.has(x)) continue
       const b = 배근행.보.get(x.r.기호) || {}
       const 폭 = +b.폭 || 0
-      const 남띠 = 보띠.filter((y) => y.D === x.D && (y.r.몸 || y.r.기호) !== (x.r.몸 || x.r.기호)).map((y) => y.띠)
+      /* 🧭 G418 다른 이름표가 고른 띠는 빼되, 그 이름표도 밀린 것(제 띠를 못 가진 것)이면 그 띠는 안 뺌 */
+      const 남띠 = 보띠.filter((y) => y.D === x.D && (y.r.몸 || y.r.기호) !== (x.r.몸 || x.r.기호) && !밀린것.has(y)).map((y) => y.띠)
       const 띠2 = 띠찾기(x.D, x.g, 폭, 1500, [x.띠, ...남띠])
       const 나2 = 띠2 ? Math.abs((x.g.x - 띠2.px) * 띠2.nx + (x.g.y - 띠2.py) * 띠2.ny) : Infinity
       const 맞폭 = 띠2 && 폭 > 0 && (Math.abs(띠2.g - 폭) <= Math.max(3, 0.03 * 폭) || (띠2.g >= 0.75 * 폭 && 띠2.g < 폭 && 띠2.층들.size === 1))
-      if (띠2 && 맞폭 && 나2 <= 1500) 새띠.set(x, 띠2)
+      if (띠2 && 맞폭 && 나2 <= 1500) { 새띠.set(x, 띠2); continue }
+      /* 🧭 G418 그린 폭이 일람과 다른(0.6 ~ 1.6 배) 곁 띠(1 m 안 · 속에 다른 선 · 슬래브 글자 없음)도 근거가 있으면 그 이름 — 물량은 일람 크기(📐 알림):
+           ① 골구도 · 단면에 잘린 같은 이름 보(«6G5 600X700»)가 통심 이름으로 옮긴 그 자리(띠 가운데 폭/2 + 250 안)
+           ② 다른 층 평면의 같은 자리(통심 이름으로 맞춘 판 옮김)에 같은 이름표(띠에서 1 m · 이 이름표에서 3 m 안)
+           현장 Y 지상6층 G5(그린 500 · 일람 600 · 단면 «6G5») · 지상2층 G15 · G12 · G3 · 지상5층 G12(위아래층 같은 자리 같은 이름) */
+      if (!(폭 > 0) || !띠근거) continue
+      const 띠3 = 띠찾기(x.D, x.g, 0, 1500, [x.띠, ...남띠])
+      if (!띠3) continue
+      const 나3 = Math.abs((x.g.x - 띠3.px) * 띠3.nx + (x.g.y - 띠3.py) * 띠3.ny)
+      if (!(띠3.g >= 0.6 * 폭 && 띠3.g <= 1.6 * 폭) || 나3 > 1000) continue
+      const D = x.D, 몸 = x.r.몸 || x.r.기호
+      const 판i = D.도곽 && D.도곽.length ? D.도곽번(x.g.x, x.g.y) : -1
+      if (판i < 0) continue
+      /* 띠 속(두 면 사이 · 이름표 앞뒤 3 m)에 슬래브 글자가 있으면 슬래브 칸(두 보 사이 틈)이지 보가 아님 */
+      if (D.글자.some((t) => { const rr = 기호풀이(t.s); if (!rr || rr.종류 !== '슬라브') return false; const o = (t.x - 띠3.px) * 띠3.nx + (t.y - 띠3.py) * 띠3.ny, tt = (t.x - x.g.x) * 띠3.ux + (t.y - x.g.y) * 띠3.uy; return Math.abs(o) < 띠3.g / 2 && Math.abs(tt) < 3000 })) continue
+      const 세로띠 = Math.abs(띠3.ux) < Math.abs(띠3.uy)
+      let 근 = null
+      for (const z of 띠근거.단면들) {
+        if (z.몸 !== 몸 || (이층 && z.f !== 이층)) continue
+        const m = 단면을평면에(z, D, 판i)
+        if (!m || m.세로 !== 세로띠) continue
+        if (Math.abs((세로띠 ? 띠3.px : 띠3.py) - m.c) <= 띠3.g / 2 + 250) { 근 = '골구도 단면 «' + z.몸 + ' ' + z.폭 + 'X' + z.춤 + '»'; break }
+      }
+      if (!근) {
+        const 키 = D.번 + '|' + 판i
+        const 격 = (k, DD, pp) => { if (!띠근거.격자.has(k)) 띠근거.격자.set(k, 격자표(DD, pp)); return 띠근거.격자.get(k) }
+        const 나표 = 격(키, D, 판i)
+        const 곳 = new Set()
+        for (const y of 띠근거.이름표들) {
+          if (y.몸 !== 몸 || y.키 === 키) continue
+          const [번2, 판2] = y.키.split('|').map(Number)
+          const 옮 = 판옮김(나표, 격(y.키, y.D, 판2))
+          if (!옮) continue
+          const yx = y.x - 옮.dx, yy = y.y - 옮.dy
+          const o = Math.abs((yx - 띠3.px) * 띠3.nx + (yy - 띠3.py) * 띠3.ny), tt = Math.abs((yx - x.g.x) * 띠3.ux + (yy - x.g.y) * 띠3.uy)
+          if (o <= Math.max(1000, 띠3.g / 2 + 600) && tt <= 3000) 곳.add(y.키)
+        }
+        if (곳.size) 근 = '다른 층 평면 같은 자리 이름표 «' + 몸 + '» ' + 곳.size + '곳'
+      }
+      /* ③ 그 띠 곁(1 m 안 · 이름표 앞뒤 3 m)에 다른 보 · 벽 이름표가 하나도 없고 이 이름표뿐 — 그 띠를 가리킬 이름표는 이것뿐(현장 Y 지상1층 G2 세로 띠 500 · 일람 400) */
+      if (!근) {
+        const 틀각 = (aa) => { let d = Math.abs(((Math.atan2(띠3.uy, 띠3.ux) - (aa || 0)) % Math.PI + Math.PI) % Math.PI); return Math.min(d, Math.PI - d) }
+        const 나란글 = 틀각(x.g.a) < 0.35          // 이 이름표가 띠와 나란한 글자면, 띠와 직각인 다른 글자(다른 방향 보 이름표)는 이 띠 것이 아님
+        const 곁글 = D.글자.filter((t) => { if (t === x.g) return false; if (나란글 && 틀각(t.a) > 1.2) return false; const rr = 기호풀이(String(t.s).replace(/\(.*\)\s*$/, '')); if (!rr || (rr.종류 !== '보' && rr.종류 !== '벽')) return false; const o = Math.abs((t.x - 띠3.px) * 띠3.nx + (t.y - 띠3.py) * 띠3.ny), tt = Math.abs((t.x - x.g.x) * 띠3.ux + (t.y - x.g.y) * 띠3.uy); return o <= Math.max(1500, 띠3.g / 2 + 1000) && tt <= 3000 })
+        if (!곁글.length) 근 = '띠 곁 이름표는 «' + 몸 + '» 하나뿐'
+      }
+      if (근) 새띠.set(x, { ...띠3, _근: 근 + ' · 그린 폭 ' + Math.round(띠3.g) + ' ↔ 일람 ' + 폭 })
     }
     if (새띠.size) {
       근거.length = 근거0; 경고.length = 경고0; 빼앗김.length = 0
-      const 보띠2 = 보띠.map((x) => (새띠.has(x) ? { ...x, 띠: 새띠.get(x), _다시: true } : x))
+      const 보띠2 = 보띠.map((x) => (새띠.has(x) ? { ...x, 띠: 새띠.get(x), _다시: true, _근: 새띠.get(x)._근 || '' } : x))
       보칸 = 토막들(보띠2, '보')
       for (const 줄 of 보칸) for (const t of 줄) if (t._다시) 다시찾음.push(t)
     }
@@ -4710,7 +4841,7 @@ function 평면부재(보띠, 벽띠, 슬들, 기둥층, 보층, 벽층, 배근�
   }
   if (다시찾음.length) {
     const 셈 = new Map()
-    for (const t of 다시찾음) { const k = t.기호 + '(' + String(t._판).split('|')[0] + '번 도면)'; 셈.set(k, (셈.get(k) || 0) + t.안목) }
+    for (const t of 다시찾음) { const k = t.기호 + '(' + String(t._판).split('|')[0] + '번 도면' + (t._근 ? ' · ' + t._근 : '') + ')'; 셈.set(k, (셈.get(k) || 0) + t.안목) }
     경고.push('📐 다른 이름표 띠를 가리키던 보 이름표 — 그 띠를 빼고 곁의 구조 선 두 줄(제 띠)로 다시 찾아 셈: ' + [...셈].map(([k, L]) => k + ' ' + (L / 1000).toFixed(1) + ' m').join(' · ') + ' — 3D 에서 자리를 한 번 보아 주세요')
   }
   /* 🧭 G252 이름 붙은 벽의 꺾인 데 잇기 — 이름 붙은 벽(지하 바깥벽 BW1 …) 토막 끝에서 같은 층 · 같은 두께로 꺾여 이어지는 이름 없는 두 선(대각 · 직각)은
