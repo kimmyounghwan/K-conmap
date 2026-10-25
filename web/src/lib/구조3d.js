@@ -13,6 +13,7 @@
  * ■ 도면은 1:1(mm)로 그린 모델 공간을 봅니다 — EL 두 개 이상이면 기울기로 확인합니다. 좌표는 mm 로 냅니다.
  * ■ 짐작으로 높이를 지어내지 않습니다. EL 글자가 없는 단면·짝을 못 찾은 단면은 «못 세운 것» 으로 알립니다.
  */
+import { 관지름 } from './구조물면.js'
 
 const 붙 = (s) => String(s ?? '').replace(/\s+/g, '')
 const 빼는층 = /^[_#!★\-\s]*(text|글|문자|dim|치수|hatch|해치|defpoints|도곽|sheet|border|form|title|table|테이블|tick|지번|tex$|tit|sym)/i
@@ -240,6 +241,8 @@ export function 구조세우기(raw, 새버킷, 머리 = '') {
     const 띠 = 줄.가.filter((q) => q[2] > PW[1] && q[2] < PW[1] + 0.15 * (PW[3] - PW[1]) && q[0] <= 평제.x && q[1] >= 평제.x).map((q) => q[2])
     if (띠.length) PW[1] = Math.max(...띠)
   }
+  /* 🧾 G402 평면 창 안의 관 글자(D2,000mm …) — 구조물면이 그 사이 관 테두리 선을 벽으로 안 읽게 */
+  const 관글 = (raw.texts || []).filter((t) => t.x > PW[0] && t.x < PW[2] && t.y > PW[1] && t.y < PW[3]).map((t) => ({ x: t.ax ?? t.x, y: t.ay ?? t.y, D: 관지름(t.s) })).filter((t) => t.D)
   const 평선 = 창선(raw, PW).filter((s) => !단면들.some((d) => { const mx = (s[1] + s[3]) / 2, my = (s[2] + s[4]) / 2; return mx > d.W[0] && mx < d.W[2] && my > d.W[1] && my < d.W[3] }))
   디('평면창', PW.map(Math.round), '평선', 평선.length)
   if (평선.length < 20) return null
@@ -374,14 +377,15 @@ export function 구조세우기(raw, 새버킷, 머리 = '') {
           const 구조선 = 다선.filter((t) => /구조|콘크리트|conc|wall|벽|토목|str|옹벽|box|박스/i.test(t[0]))
           const 쓸선 = 구조선.length >= 20 && 구조선.length >= 0.3 * 다선.length ? 구조선 : 다선
           for (let x = d.x0; x <= d.x1 + 1e-9; x += 걸음) {
-            let 위 = -Infinity
+            let 위 = -Infinity, 아래 = Infinity
             for (const t of 쓸선) {
               const a = Math.min(t[1], t[3]), b = Math.max(t[1], t[3])
               if (x < a - 걸음 / 2 || x > b + 걸음 / 2) continue
               const y = b - a < 1e-9 ? Math.max(t[2], t[4]) : t[2] + (t[4] - t[2]) * Math.min(1, Math.max(0, (x - t[1]) / (t[3] - t[1])))
-              위 = Math.max(위, d.EL(y))
+              const y아 = b - a < 1e-9 ? Math.min(t[2], t[4]) : y                    // 🧾 G402 가장 낮은 선(바닥판 아랫면) 도 — 구조물면 이 벽 · 바닥 아래로 씀
+              위 = Math.max(위, d.EL(y)); 아래 = Math.min(아래, d.EL(y아))
             }
-            if (위 > -Infinity) { const [px, py] = 자리xy(x); 표.push({ x: px, y: py, 위: +위.toFixed(3) }) }
+            if (위 > -Infinity) { const [px, py] = 자리xy(x); 표.push({ x: px, y: py, 위: +위.toFixed(3), 아래: +아래.toFixed(3) }) }
           }
           d.윤곽 = 표.length >= 4 ? { u: [+ux.toFixed(4), +uy.toFixed(4)], 점: 표 } : null
         }
@@ -395,6 +399,7 @@ export function 구조세우기(raw, 새버킷, 머리 = '') {
     for (const [, b] of 새) for (let i = 0; i < b.pos.n; i += 3) { b.pos.a[i] *= 1000; b.pos.a[i + 1] *= 1000 }
     for (const d of 결과단면) for (const q of d.높이점 || []) { q.x *= 1000; q.y *= 1000 }
     for (const d of 결과단면) if (d.윤곽) for (const q of d.윤곽.점) { q.x *= 1000; q.y *= 1000 }
+    for (const q of 관글) { q.x *= 1000; q.y *= 1000 }
   }
-  return { out: 새, 단면: 결과단면, 평면EL, 빠짐, 제목: 평제.s }
+  return { out: 새, 단면: 결과단면, 평면EL, 빠짐, 제목: 평제.s, 관글 }
 }

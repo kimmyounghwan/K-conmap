@@ -265,6 +265,50 @@ const 줄넓이 = (r) => { let A = 0; for (let i = 0; i < r.length; i++) { const
  * @returns {null | {바닥:number[][][], 벽:number[][][], 넓이:{바닥:number, 벽:number}, 둘레:{바닥:number, 벽:number}, 두께:number, 방:number, 칸:number}}
  *   바닥 · 벽 = 다각형들([[x, y] mm …]) — 바깥 줄 반시계 · 구멍(빈 곳) 시계 · 넓이 ㎡ · 둘레 m · 두께 m
  */
+/** 🧾 G402 관 글자(«D2,000mm» · «(=D2,032mm)» · «Φ900» — {x, y, D mm}) 를 사이에 두고 간격 D 로 나란한 두 선 = 관 테두리 → 벽 · 바닥 선에서 뺌
+     (현장 S 토출 관: D2,000 관 둘 사이 0.4 m 틈을 벽으로 읽어 길이 12 m · 높이 2 m 벽이 섰음 · 관 밑을 바닥판으로) — 글자 자리를 지나는 선만(같은 줄의 BOX 벽은 그대로) */
+export function 관선빼기(선, 관글) {
+  if (!관글 || !관글.length || !선 || 선.length < 8) return 선
+  const 뺄 = new Set()
+  for (const p of 관글) {
+    const D = p.D
+    if (!(D >= 200 && D <= 4000)) continue
+    const 후보 = []
+    for (let i = 0; i + 3 < 선.length; i += 4) {
+      const ax = 선[i], ay = 선[i + 1], bx = 선[i + 2], by = 선[i + 3]
+      const L = Math.hypot(bx - ax, by - ay)
+      if (!(L >= D)) continue
+      const ux = (bx - ax) / L, uy = (by - ay) / L
+      const t = (p.x - ax) * ux + (p.y - ay) * uy
+      if (t < -D || t > L + D) continue
+      const d = -(p.x - ax) * uy + (p.y - ay) * ux
+      if (Math.abs(d) > D * 1.2) continue
+      후보.push({ i, ux, uy, d })
+    }
+    let 좋 = null
+    for (const a of 후보) for (const b of 후보) {
+      if (a === b || Math.abs(a.ux * b.uy - a.uy * b.ux) > 0.02) continue
+      const db = a.ux * b.ux + a.uy * b.uy > 0 ? b.d : -b.d
+      if (!(a.d < 0 && db > 0)) continue
+      if (Math.abs(db - a.d - D) > Math.max(0.04 * D, 60)) continue
+      const 치 = Math.abs((a.d + db) / 2)
+      if (!좋 || 치 < 좋.치) 좋 = { a, b, 치 }
+    }
+    if (좋) { 뺄.add(좋.a.i); 뺄.add(좋.b.i) }
+  }
+  if (!뺄.size) return 선
+  const 새 = []
+  for (let i = 0; i + 3 < 선.length; i += 4) if (!뺄.has(i)) 새.push(선[i], 선[i + 1], 선[i + 2], 선[i + 3])
+  return 새
+}
+/** 글자 → 관 지름(mm) — «D2,000mm» · «(=D2,032mm)» · «Φ900» · «%%c600» · «D900» */
+export function 관지름(s) {
+  const m = String(s || '').trim().match(/^\(?=?\s*(?:[DΦφ∅Ø]|%%[cC])\s*([\d,]{3,6})\s*(?:mm|MM)?\s*\)?$/)
+  if (!m) return null
+  const D = +m[1].replace(/,/g, '')
+  return D >= 200 && D <= 4000 ? D : null
+}
+
 export function 구조물면(선, 벽선 = null, o = {}) {
   /* 벽 레이어 선만으로 벽이 거의 안 나오면(벽이 «0» 레이어에 그려진 도면 — 관리동 판넬 벽) 모든 선으로 한 번 더 */
   const r = 구조물면1(선, 벽선, o)
@@ -275,6 +319,7 @@ export function 구조물면(선, 벽선 = null, o = {}) {
   return r
 }
 function 구조물면1(선, 벽선 = null, o = {}) {
+  if (o.관글 && o.관글.length) { 선 = 관선빼기(선, o.관글); if (벽선) 벽선 = 관선빼기(벽선, o.관글) }
   if (!선 || 선.length < 16) return null
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
   for (let i = 0; i < 선.length; i += 2) { x0 = Math.min(x0, 선[i]); x1 = Math.max(x1, 선[i]); y0 = Math.min(y0, 선[i + 1]); y1 = Math.max(y1, 선[i + 1]) }
@@ -387,7 +432,7 @@ function 구조물면1(선, 벽선 = null, o = {}) {
   /* 📐 G234 높이별 벽 · 바닥 — 평면 자르는 선(A ─ A …)에 세운 단면의 벽 면 «위 · 아래 EL» 점(o.높이 [{x, y, 위, 아래}] mm · m)
        칸마다 가장 가까운 점(12 m 안 · 1 m 칸 표로 찾음)의 위 높이(5 cm 맞춤)로 무리 → 무리마다 벽 다각형 · 그 무리 점들의 가장 낮은 아래 = 바닥판 아래
        멀어서 점이 없는 칸은 «기본»(무리 −1 — 일꾼이 주는 단면 가운데 아래 ~ G.L) */
-  let 벽들 = null, 바닥들 = null, 바닥판두께 = null
+  let 벽들 = null, 바닥들 = null, 바닥판두께 = null, 덮개들 = null
   if (o.높이 && o.높이.length >= 2) {
     /* 🧾 G400 바닥판 두께 — 같은 벽 두 면(1.6 m 안 · 위 같음)의 아래 차이(안쪽 면 = 바닥판 윗면 · 바깥 면 = 아랫면)가 가장 흔한 값(0.25 ~ 1.5 m · 두 번 넘게) */
     {
@@ -406,7 +451,8 @@ function 구조물면1(선, 벽선 = null, o = {}) {
       let 아래 = q.아래
       for (const r of o.높이) {
         if (r === q || !q.방향 || !r.방향 || Math.abs(q.방향[0] * r.방향[0] + q.방향[1] * r.방향[1]) < 0.99) continue
-        if (Math.hypot(r.x - q.x, r.y - q.y) <= 1600 && r.위 >= q.위 - 0.05 && r.아래 < 아래) 아래 = r.아래
+        /* 🧾 G402 두 면 아래 차이가 바닥판 두께(1.5 m)보다 크면 서로 다른 선(현장 S 토출수조 앞벽: 바깥 면 EL 1.63 · 안쪽은 옆벽 끝 선이 −2.17 까지) — 제 것을 씀 */
+        if (Math.hypot(r.x - q.x, r.y - q.y) <= 1600 && r.위 >= q.위 - 0.05 && r.아래 < 아래 && q.아래 - r.아래 <= 1.5) 아래 = r.아래
       }
       return 아래 === q.아래 ? q : { ...q, 아래 }
     })
@@ -432,8 +478,25 @@ function 구조물면1(선, 벽선 = null, o = {}) {
       const [ux, uy] = w.u, p0 = w.점[0]
       const T = w.점.map((q) => (q.x - p0.x) * ux + (q.y - p0.y) * uy)
       const 순 = T.map((t, i) => i).sort((a, b) => T[a] - T[b])
-      return { ux, uy, p0, T: 순.map((i) => T[i]), V: 순.map((i) => w.점[i].위) }
+      return { ux, uy, p0, T: 순.map((i) => T[i]), V: 순.map((i) => w.점[i].위), B: 순.map((i) => w.점[i].아래) }
     })
+    /* 🧾 G402 종단 윤곽의 «그 자리 가장 낮은 구조 선»(바닥판 아랫면) — ±0.5 m 안 가장 낮은 값 */
+    const 윤밑 = (cx, cy) => {
+      let 밑 = null
+      for (const w of 윤들) {
+        if (!w.B.every(Number.isFinite)) continue
+        const t = (cx - w.p0.x) * w.ux + (cy - w.p0.y) * w.uy
+        let lo = 0, hi = w.T.length - 1
+        while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (w.T[mid] < t) lo = mid; else hi = mid }
+        const j = Math.abs(w.T[lo] - t) <= Math.abs(w.T[hi] - t) ? lo : hi
+        if (Math.abs(w.T[j] - t) > 700) continue
+        let v = Infinity
+        for (let k = j; k >= 0 && w.T[j] - w.T[k] <= 500; k--) v = Math.min(v, w.B[k])
+        for (let k = j; k < w.T.length && w.T[k] - w.T[j] <= 500; k++) v = Math.min(v, w.B[k])
+        밑 = 밑 === null ? v : Math.min(밑, v)
+      }
+      return 밑
+    }
     const 윤높 = (cx, cy) => {
       let 높 = null
       for (const w of 윤들) {
@@ -450,10 +513,11 @@ function 구조물면1(선, 벽선 = null, o = {}) {
       return 높
     }
     const 덮키 = new Map()
-    const 덮무리 = (위, 아래) => {
-      const k = `${위키(위)}|${Math.round(아래 / 0.05)}`
+    const 무리밑면 = []                                               // 🧾 G402 아래가 바닥판 아랫면(윤곽)인 무리 — BIM토목 이 바닥판 두께를 더해 벽을 세움
+    const 덮무리 = (위, 아래, 밑면 = false) => {
+      const k = `${위키(위)}|${Math.round(아래 / 0.05)}${밑면 ? '|b' : ''}`
       let i = 덮키.get(k)
-      if (i === undefined) { i = 무리위.length; 덮키.set(k, i); 무리위.push(Math.round(위 / 0.05) * 0.05); 무리아래.push(아래) } else 무리아래[i] = Math.min(무리아래[i], 아래)
+      if (i === undefined) { i = 무리위.length; 덮키.set(k, i); 무리위.push(Math.round(위 / 0.05) * 0.05); 무리아래.push(아래); 무리밑면[i] = 밑면 } else 무리아래[i] = Math.min(무리아래[i], 아래)
       return i
     }
     const 큰칸 = 1000, GW = Math.ceil((x1 - x0) / 큰칸) + 1, GH = Math.ceil((y1 - y0) / 큰칸) + 1
@@ -482,12 +546,28 @@ function 구조물면1(선, 벽선 = null, o = {}) {
       let g = -1
       if (벽칸이냐) g = 가로길[i] >= 세로길[i] ? 가로표[gk] : 세로표[gk]
       if (g < 0) g = 모든표[gk]
-      if (g >= 0 && 벽칸이냐 && 윤들.length) {
+      if (g >= 0 && 윤들.length) {
         const cx = x0 + (x + 0.5) * 칸, cy = y0 + (y + 0.5) * 칸
-        if (Math.hypot(P[g].x - cx, P[g].y - cy) > 3000) {
+        let 위 = P[g].위, 아래 = P[g].아래, 바뀜 = false, 밑면 = false
+        /* 🧾 G402 윤곽이 그 단면 점 자리에서 점 높이를 보면(같거나 높음) 칸 자리 윤곽도 믿음 — 3 m 안이라도 낮춤
+             (현장 S 토출수조 → 깔때기 벽: 10.5 m 점에서 1 ~ 3 m 떨어진 깔때기 벽(4.2 m)이 10.5 m 로 섰음) */
+        if (벽칸이냐) {
           const 덮 = 윤높(cx, cy)
-          if (덮 !== null && 덮 < P[g].위 - 0.1) return 덮무리(덮, P[g].아래)
+          if (덮 !== null && 덮 < 위 - 0.1) {
+            const 제 = 윤높(P[g].x, P[g].y)
+            if (Math.hypot(P[g].x - cx, P[g].y - cy) > 3000 || (제 !== null && 제 >= 위 - 0.1)) { 위 = 덮; 바뀜 = true }
+          }
         }
+        /* 🧾 G402 바닥도 윤곽으로 — 칸 자리의 가장 낮은 구조 선(바닥판 아랫면) → 그 자리 바닥(벽은 바닥판 위부터)
+             · 위를 윤곽으로 낮춘 칸(점과 다른 자리): 점 자리 윤곽 바닥과 0.3 m 넘게 다르면 칸 자리 바닥(앞벽 아래 1.63 옆 수로 벽 → 수로 바닥)
+             · 그 밖: 칸 자리 바닥이 점 아래보다 0.3 m 넘게 높고 점 자리에선 윤곽이 점 아래를 볼 때만 올림
+             (현장 S 토출 BOX: 끝벽 EL −3.02 를 따라 BOX 벽이 EL −3.02 부터 섰음 → BOX 바닥 −1.17) */
+        {
+          const 밑 = 윤밑(cx, cy), 제밑 = 윤밑(P[g].x, P[g].y)
+          const 다른자리 = 위 < P[g].위 - 0.1
+          if (밑 !== null && 제밑 !== null && (다른자리 ? Math.abs(밑 - 제밑) > 0.3 : 밑 > 아래 + 0.3 && 제밑 <= 아래 + 0.3)) { 아래 = 밑 + (벽칸이냐 && 바닥판두께 ? 바닥판두께 : 0); 밑면 = 벽칸이냐 && !바닥판두께; 바뀜 = true }
+        }
+        if (바뀜 && 위 - 아래 >= 0.2) return 덮무리(위, 아래, 밑면)                  // 위가 아래 밑으로 가면(윤곽이 엉뚱) 고치지 않음
       }
       return g < 0 ? -1 : 점무리[g]
     }
@@ -504,13 +584,43 @@ function 구조물면1(선, 벽선 = null, o = {}) {
         const x = i % W
         for (const j of [x < W - 1 ? i + 1 : -1, i < W * (H - 1) ? i + W : -1]) { if (j < 0) continue; const b = 라벨[j]; if (b < 0 || b === a) continue; 접[a].set(b, (접[a].get(b) || 0) + 1); 접[b].set(a, (접[b].get(a) || 0) + 1) }
       }
-      return 키.map((c, k) => { const A = 칸들.get(c); let n = 0; for (let i = 0; i < W * H; i++) n += A[i]; const 판 = 꼴(A); return { 무리: c, 위: c >= 0 ? 무리위[c] : null, 아래: c >= 0 ? 무리아래[c] : null, 판, 넓이: n * 칸 * 칸 / 1e6, 둘레: 둘(판), 맞닿음: [...접[k]].map(([b, m]) => ({ 무리: 키[b], 길이: m * 칸 / 1000 })) } }).filter((x) => x.판.length)
+      return 키.map((c, k) => { const A = 칸들.get(c); let n = 0; for (let i = 0; i < W * H; i++) n += A[i]; const 판 = 꼴(A); return { 무리: c, 위: c >= 0 ? 무리위[c] : null, 아래: c >= 0 ? 무리아래[c] : null, ...(c >= 0 && 무리밑면[c] ? { 밑면: true } : {}), 판, 넓이: n * 칸 * 칸 / 1e6, 둘레: 둘(판), 맞닿음: [...접[k]].map(([b, m]) => ({ 무리: 키[b], 길이: m * 칸 / 1000 })) } }).filter((x) => x.판.length)
     }
     벽들 = 벽칸 ? 나눔(C) : []
     바닥들 = 나눔(F)
+    /* 🧾 G402 덮개 슬래브 — 같은 단면 줄에서 바깥 면 위가 안쪽 면 위보다 0.15 ~ 0.6 m 높으면 그 사이가 덮개 두께(안쪽 면 위 = 덮개 밑면)
+         · 같은 줄에서 위가 그 밑면과 같은 점(칸막이 두 면)도 덮개 밑 · 벽이 아닌 바닥 칸 중 가장 가까운 점이 덮개 밑이면 덮인 칸(밑면 거푸집 · 두께만큼 콘크리트)
+         · 종단 윤곽이 있으면 그 자리에 덮개 윗면 높이의 선이 있을 때만
+         (현장 S 펌프장: 바깥벽 EL 4.22 · 안쪽 면 · 칸막이 3.92 → 덮개 0.3 m — 설계사 산출서 «상부슬래브» 밑면 126.9 ㎡ 를 안 셌음) */
+    {
+      const 같은줄 = (q, r) => q.방향 && r.방향 && Math.abs(q.방향[0] * r.방향[0] + q.방향[1] * r.방향[1]) >= 0.99 && Math.abs((r.x - q.x) * q.방향[1] - (r.y - q.y) * q.방향[0]) < 300
+      const 짝들 = []
+      for (const q of P) for (const r of P) {
+        if (r === q || !같은줄(q, r) || !(Math.hypot(r.x - q.x, r.y - q.y) <= 1600)) continue
+        const d = r.위 - q.위
+        if (d >= 0.15 && d <= 0.6) 짝들.push({ q, 밑: q.위, 두께: Math.round(d / 0.05) * 0.05 })
+      }
+      const 덮점 = P.map((q) => 짝들.find((m) => 같은줄(m.q, q) && Math.abs(m.밑 - q.위) <= 0.05) || null)
+      const 덮칸 = new Map()                                           // 키 → { 밑, 두께, A: 칸 표 }
+      if (덮점.some(Boolean)) {
+        for (let i = 0; i < W * H; i++) {
+          if (!F[i] || C[i]) continue
+          const x = i % W, y = (i / W) | 0
+          const gi = Math.min(GW - 1, Math.floor((x * 칸) / 큰칸)), gj = Math.min(GH - 1, Math.floor((y * 칸) / 큰칸))
+          const g = 모든표[gj * GW + gi]
+          const m = g >= 0 ? 덮점[g] : null
+          if (!m) continue
+          if (윤들.length) { const 덮 = 윤높(x0 + (x + 0.5) * 칸, y0 + (y + 0.5) * 칸); if (덮 !== null && 덮 < m.밑 + m.두께 - 0.1) continue }
+          const k = `${Math.round(m.밑 / 0.05)}|${Math.round(m.두께 / 0.05)}`
+          let e = 덮칸.get(k); if (!e) { e = { 밑: Math.round(m.밑 / 0.05) * 0.05, 두께: m.두께, A: new Uint8Array(W * H) }; 덮칸.set(k, e) }
+          e.A[i] = 1
+        }
+      }
+      덮개들 = [...덮칸.values()].map((e) => { let n = 0; for (let i = 0; i < W * H; i++) n += e.A[i]; return { 밑: e.밑, 두께: e.두께, 판: 꼴(e.A), 넓이: n * 칸 * 칸 / 1e6 } }).filter((e) => e.판.length && e.넓이 >= 1)
+    }
   }
   return {
-    바닥, 벽, 벽들, 바닥들, 바닥판두께,
+    바닥, 벽, 벽들, 바닥들, 바닥판두께, 덮개들,
     넓이: { 바닥: 발 * 칸 * 칸 / 1e6, 벽: 벽넓이 },
     둘레: { 바닥: 둘(바닥.filter((r) => 줄넓이(r) > 0)), 벽: 벽둘레 },
     두께: 벽둘레 > 0 ? (2 * 벽넓이) / 벽둘레 : 0,
