@@ -27,6 +27,11 @@
  *    · 하도급계약 통보서(건설산업기본법 시행규칙 별지 제23호서식 앞·뒤쪽) · 하도급대금 지급확인 · 계약금액 조정 신청.
  *    입력 칸은 맨 뒤(10.~13.)에만 붙여 예전 칸 주소 그대로. 서류 번호가 바뀌어(«06 착공신고서» → «08 …») 예전에 골라 둔 서류 ·
  *    화면에서 고친 칸은 «서류 이름» 으로 옮겨 읽습니다(시트옮김). «뒤쪽» 장은 앞쪽에 딸려 같이 골라지고 따로 세지 않습니다.
+ *
+ * ■ 🔒 2026-10-25 (G403) 소장님 「공사서류 한벌도 예시만 보게 해줘. 잠가」 — 시공계획서 · 중처법 · 하도급 서류와 같은 방식
+ *    씀 = 소장님 브라우저(lib/운영자.js) · 열쇠말(lib/gate.js). 그 밖의 분은 🧪 예시(지어낸 공사 · 회사 ○○)로 칸 · 서류 고르기 · 화면에서 보기까지만.
+ *    칸 고치기 · 화면에서 고치기 · 엑셀 받기 · 현장 나누기 · 이어 쓰기는 잠김(«준비 중») · 이 기기에 적어 둔 것은 지우지 않음(열면 그대로).
+ *    숨은 누적: |원클릭|잠금(잠긴 것을 누름) · |원클릭|열쇠(열쇠말로 엶)
  */
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import META from '../data/wonclick.json'
@@ -36,6 +41,8 @@ import { 앞모습두기 } from '../lib/이어쓰기.js'
 import { 현장나눔 } from '../lib/현장나눔.js'   /* 🏗 G179 현장별로 나눠 쓰기 */
 import 현장틀 from '../tools/현장틀.jsx'
 import { 세기 } from '../lib/받은수.jsx'
+import { isOpen, tryOpen } from '../lib/gate.js'
+import { 나운영자 } from '../lib/운영자.js'
 /* 📄 2026-09-27 — 서류를 화면에서 보고·고치고·인쇄 (엑셀화면.jsx). 무거운 셈은 열 때만 받습니다. */
 const 엑셀화면 = lazy(() => import('../엑셀화면.jsx'))
 const 고침열쇠 = 'kcm.wonclick.고침.v1'
@@ -131,9 +138,9 @@ function Field({ inp, v, set }) {
 }
 
 /* 🏗 G179 원클릭 한 벌 = 현장(공사) 하나 — 현장을 바꾸면 key 로 통째로 새로 그림 */
-function 원클릭({ 현장id, 현장줄, 이름바뀜 }) {
-  const [vals, setVals] = useState(() => load(현장id))
-  const [pick, setPick] = useState(() => 고른것읽기(load(현장id)))
+function 원클릭({ 현장id, 현장줄, 이름바뀜, 잠금 = null }) {
+  const [vals, setVals] = useState(() => (잠금 ? { ...예시값 } : load(현장id)))
+  const [pick, setPick] = useState(() => (잠금 ? 모두() : 고른것읽기(load(현장id))))
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [done, setDone] = useState('')
@@ -142,8 +149,8 @@ function 원클릭({ 현장id, 현장줄, 이름바뀜 }) {
   const [틀, set틀] = useState(null)
   const [책, set책] = useState(null)
   const [보기오류, set보기오류] = useState('')
-  const [고침, set고침원] = useState(() => 고침읽기(현장id))
-  const set고침 = (v) => { set고침원(v); 고침쓰기(현장id, v) }
+  const [고침, set고침원] = useState(() => (잠금 ? {} : 고침읽기(현장id)))
+  const set고침 = (v) => { if (잠금) { 잠금.잠김('화면에서 칸 고치기는'); return } set고침원(v); 고침쓰기(현장id, v) }
   const [지움물음, set지움물음] = useState(false)
   useEffect(() => {
     if (!보기) return undefined
@@ -169,11 +176,11 @@ function 원클릭({ 현장id, 현장줄, 이름바뀜 }) {
   }, [보기, vals, 틀])   // eslint-disable-line react-hooks/exhaustive-deps
   const 보일서류 = useMemo(() => META.docs.map((d) => d.sheet).filter((x) => pick.includes(x)), [pick])
 
-  useEffect(() => { save(현장id, { ...vals, __pick: pick, __pv: 2 }) }, [vals, pick])  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!잠금) save(현장id, { ...vals, __pick: pick, __pv: 2 }) }, [vals, pick])  // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (이름바뀜) 이름바뀜() }, [vals.공사명])  // eslint-disable-line react-hooks/exhaustive-deps
   const 고른수 = useMemo(() => pick.filter((s) => { const d = META.docs.find((x) => x.sheet === s); return d && !d.with }).length, [pick])
 
-  const set = (k, v) => { setVals((o) => ({ ...o, [k]: v })); setDone('') }
+  const set = (k, v) => { if (잠금) { 잠금.잠김('칸 채우기는'); return } setVals((o) => ({ ...o, [k]: v })); setDone('') }
   const secs = useMemo(() => META.sections.map((s) => [s, META.inputs.filter((i) => i.sec === s)]), [])
   const 빈칸 = META.required.filter((k) => !String(vals[k] ?? '').trim())
   const 이름 = {
@@ -193,6 +200,7 @@ function 원클릭({ 현장id, 현장줄, 이름바뀜 }) {
   const 고르기 = (fn) => setPick(딸림붙임(서류들.filter(fn).map((d) => d.sheet)))
 
   async function 받기() {
+    if (잠금) { 잠금.잠김('엑셀 받기는'); return }
     setErr(''); setDone(''); setBusy(true)
     try {
       if (!pick.length) throw new Error('서류를 하나 이상 골라 주세요.')
@@ -258,6 +266,7 @@ function 원클릭({ 현장id, 현장줄, 이름바뀜 }) {
           공사명·계약금액·날짜를 서류마다 옮겨 적지 않아도 됩니다. 관급·민간 <b>모든 현장</b>에 쓰고,
           회원가입 없이 무료입니다.
         </div>
+        {잠금 && 잠금.띠}
         <ul className="wc-up">
           <li><b>저절로 계산</b> — 일금 …원정 한글 금액, 공사기간 일수, 계약·하자보수보증금, 하자기간 끝나는 날, 지체일수·지체상금, 기성 누계·기성률, 준공금 청구액.</li>
           <li><b>공사 중 서류까지</b> — 선금 신청·사용계획, 인력·장비 투입계획, 월간 공정보고, 노무비 청구내역, 산안비 사용계획·사용내역(고시 별지 제1호서식),
@@ -269,10 +278,11 @@ function 원클릭({ 현장id, 현장줄, 이름바뀜 }) {
 
       <div className="card">
         <div className="detail-h">① 칸 채우기 <span className="count">· 모르는 칸은 비워 두세요 — 서류에서 그 자리만 빈칸이 됩니다</span></div>
-        <div className="note sm">입력한 내용은 <b>이 기기(브라우저)에</b> 저장됩니다. 폰·PC 어디서든 이어 쓰려면 아래 <b>«🔗 코드 만들기»</b>(코드 + 비밀번호 · 잠가서 서버에 — 저희도 못 읽음).
-          요율(보증금률·지체상금률·하자기간)은 <b>계약서·공고서에 적힌 값</b>을 넣으세요.</div>
-        {현장줄}
-        <이어쓰기 ns="wc" 자리={원나눔.연결자리(현장id)} 이름="공사서류 원클릭" 파일="공사서류원클릭" st={잇는상태} setSt={잇기받기} 읽기={잇기읽기} 쓰기={잇기쓰기} />
+        {!잠금 && <div className="note sm">입력한 내용은 <b>이 기기(브라우저)에</b> 저장됩니다. 폰·PC 어디서든 이어 쓰려면 아래 <b>«🔗 코드 만들기»</b>(코드 + 비밀번호 · 잠가서 서버에 — 저희도 못 읽음).
+          요율(보증금률·지체상금률·하자기간)은 <b>계약서·공고서에 적힌 값</b>을 넣으세요.</div>}
+        {!잠금 && 현장줄}
+        {!잠금 && <이어쓰기 ns="wc" 자리={원나눔.연결자리(현장id)} 이름="공사서류 원클릭" 파일="공사서류원클릭" st={잇는상태} setSt={잇기받기} 읽기={잇기읽기} 쓰기={잇기쓰기} />}
+        {잠금 && <div className="note sm" style={{ marginTop: 6 }}>🧪 아래 칸은 <b>예시</b>(지어낸 공사 · 회사 ○○)입니다 — 서류 고르기 · ③ 화면에서 보기로 어떤 서류가 나오는지 보실 수 있습니다.</div>}
         {secs.map(([s, list]) => {
           const 늦게 = 늦게펼침.some((p) => s.startsWith(p))
           const 채움 = list.some((i) => String(vals[i.key] ?? '').trim())
@@ -350,9 +360,9 @@ function 원클릭({ 현장id, 현장줄, 이름바뀜 }) {
         )}
         <div className="btn-row" style={{ marginTop: 8 }}>
           <button className="btn primary" onClick={받기} disabled={busy}>
-            {busy ? '만드는 중…' : `⬇ 엑셀로 받기 (서류 ${고른수}가지)`}
+            {busy ? '만드는 중…' : `⬇ 엑셀로 받기 (서류 ${고른수}가지)`}{잠금 ? ' 🔒' : ''}
           </button>
-          {!지움물음 && <button className="btn ghost sm" style={{ whiteSpace: 'nowrap' }} onClick={() => set지움물음(true)}>입력 지우기</button>}
+          {!잠금 && !지움물음 && <button className="btn ghost sm" style={{ whiteSpace: 'nowrap' }} onClick={() => set지움물음(true)}>입력 지우기</button>}
           {지움물음 && (
             <span className="nm-ask">이 현장에 적은 칸을 모두 지웁니다(지우기 전 모습은 «🔗 이어 쓰기 → 💾 백업 · 더 보기 → ↩ 되돌리기» 로 한 번 되살림).
               <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={지우기}>지우기</button>
@@ -363,6 +373,7 @@ function 원클릭({ 현장id, 현장줄, 이름바뀜 }) {
         {Object.keys(고침).length > 0 && <div className="note sm" style={{ marginTop: 8 }}>✏️ 화면에서 고친 칸 {Object.keys(고침).length}개도 엑셀에 그대로 들어갑니다.</div>}
         {done && <div className="note sm" style={{ marginTop: 8 }}>✔ {done} 셈한 값이 든 엑셀입니다(수식 없음) — 고칠 때는 여기서 고쳐 다시 받으십시오. 인쇄는 서류 한 가지가 A4 한 장입니다.</div>}
         {err && <div className="note sm" style={{ marginTop: 8, color: 'var(--bad, #c62828)' }}>⚠ {err}</div>}
+        {잠금 && 잠금.말 && <div className="cwarn" style={{ marginTop: 8 }}>{잠금.말}</div>}
       </div>
 
       <div className="card">
@@ -399,7 +410,46 @@ function 원클릭({ 현장id, 현장줄, 이름바뀜 }) {
  *   숨은 누적: |원클릭|현장추가 · 현장바꿈 · 현장뺌 · 현장되살림 · 현장가져옴
  */
 const 회사칸 = META.inputs.filter((i) => String(i.sec || '').startsWith('3.')).map((i) => i.key)
+/* 🔒 G403 예시 — 지어낸 공사 · 회사(○○) · 사람 이름 없음 */
+const 예시값 = {
+  공사명: '○○동 ○○시설 개보수공사', 현장위치: '○○시 ○○구 ○○로 00', 공사개요: '내부 마감 개보수, 설비 교체', 계약번호: '제2026-000호', 계약방법: '제한경쟁',
+  계약일: '2026-03-02', 착공일: '2026-03-05', 준공기한: '2026-06-30', 계약금액: '123,456,000',
+  발주기관: '○○시', 받는사람: '○○시장', 상호: '○○건설㈜', 대표자: '○○○', 업체주소: '○○시 ○○구 ○○로 00', 대리인: '○○○',
+  계약보증률: '10', 하자보증률: '3', 하자년: '2', 지체율: '0.5',
+}
 export default function WonClick() {
+  const [씀, set씀] = useState(() => isOpen())
+  const [말, set말] = useState('')
+  const [열쇠말, set열쇠말] = useState('')
+  const [열쇠틀림, set열쇠틀림] = useState(false)
+  useEffect(() => {
+    let 살 = true
+    나운영자().then((v) => { if (살 && v) set씀(true) }).catch(() => {})
+    return () => { 살 = false }
+  }, [])
+  if (!씀) {
+    const 잠김 = (무엇) => { set말(`🔒 ${무엇} 지금 준비 중입니다 — 🧪 예시로 어떤 서류가 나오는지 보실 수 있습니다.`); 세기('|원클릭|잠금') }
+    const 띠 = (
+      <div className="sg-lock">
+        <b>🔒 지금은 준비 중입니다</b> — 우리 공사로 칸을 채우고 엑셀로 받는 것은 곧 엽니다.
+        지금은 아래 <b>🧪 예시</b>로 서류를 고르고 <b>③ 화면에서 보기</b>로 어떻게 나오는지 보실 수 있습니다.
+        <details className="sg-more sg-more-sm" style={{ marginTop: 6 }}>
+          <summary className="muted" style={{ fontSize: 12.5 }}>🔑 열쇠말이 있으신가요?</summary>
+          <form style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }} onSubmit={async (e) => {
+            e.preventDefault()
+            const ok = await tryOpen(열쇠말)
+            set열쇠틀림(!ok)
+            if (ok) { set씀(true); set말(''); 세기('|원클릭|열쇠') }
+          }}>
+            <input type="password" value={열쇠말} onChange={(e) => { set열쇠말(e.target.value); set열쇠틀림(false) }} placeholder="열쇠말" style={{ flex: '1 1 160px', padding: '8px 10px' }} />
+            <button className="btn line sm" type="submit" style={{ width: 'auto' }}>열기</button>
+          </form>
+          {열쇠틀림 && <div className="cwarn" style={{ marginTop: 6 }}>열쇠말이 다릅니다.</div>}
+        </details>
+      </div>
+    )
+    return <원클릭 key="예시" 현장id="예시" 현장줄={null} 이름바뀜={null} 잠금={{ 잠김, 띠, 말 }} />
+  }
   return (
     <현장틀 나={원나눔} 머리="|원클릭|" 가져오기글="우리 회사 정보(상호 · 대표자 · 주소 · 계좌 등) 가져오기"
       이름읽기={(id) => load(id).공사명}
