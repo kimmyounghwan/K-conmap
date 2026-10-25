@@ -2019,6 +2019,31 @@ function 한선띠찾기(D, g, 폭) {
  * @param 보들 [{몸, 폭}] · @returns [{몸, 판층(평면 제목 층 «5»), 춤, 근거, 치수}]
  */
 const 단면층꼴 = /^(?:(지하|지상)\s*(\d{1,2})\s*층|(옥상|옥탑)\s*(지붕)?|PH\s*층?|RF)$/
+/**
+ * 🧭 G410 골구도 · 단면 판(층 이름 글 셋 넘게)의 벽 이름 글(«W400» · «W200» …)이 든 층 — 그 글 바로 아래 층 이름 글의 층(층 띠).
+ * @returns Map('층|이름' → '판 제목 · 층 글')
+ */
+function 단면벽이름(도면들) {
+  const out = new Map()
+  for (const D of 도면들) {
+    const 판번 = (x, y) => (D.도곽 && D.도곽.length ? D.도곽번(x, y) : -1)
+    const 레벨 = []
+    for (const g of D.글자) { const t = 붙(g.s); if (단면층꼴.test(t)) { const f = (제목층(t + ' 구조평면도') || [])[0]; if (f) 레벨.push({ f, y: g.y, x: g.x, 판: 판번(g.x, g.y), 글: g.s.trim() }) } }
+    if (레벨.length < 3) continue
+    for (const g of D.글자) {
+      const t = 붙(g.s).toUpperCase()
+      if (!/^[A-Z]{0,2}W\d{3}$/.test(t)) continue
+      const 판 = 판번(g.x, g.y)
+      const 판레 = 레벨.filter((L) => L.판 === 판)
+      if (판레.length < 3) continue
+      const 밑 = 판레.filter((L) => L.y <= g.y + 0.5 * g.h).sort((a, b) => b.y - a.y)[0]
+      if (!밑) continue
+      const k = 밑.f + '|' + t
+      if (!out.has(k)) out.set(k, ((D.판제목 || [])[판] || D.이름 || '') + ' · ' + 밑.글 + ' 띠')
+    }
+  }
+  return out
+}
 function 단면춤재기(도면들, 보들) {
   const out = []
   if (!보들.length) return out
@@ -3442,18 +3467,18 @@ function 골조읽기0(도면들0, o = {}) {
                   if (Math.abs(o - oc) > b.g / 2 + 30) continue
                   const ta = x0 * b.ux + y0 * b.uy, tb = x1 * b.ux + y1 * b.uy
                   const c0 = Math.max(b.t0, Math.min(ta, tb)), c1 = Math.min(b.t1, Math.max(ta, tb))
-                  if (c1 > c0) 구간.push([c0, c1])
+                  if (c1 > c0) 구간.push([c0, c1, Math.abs(o - oc) < 5 ? 2 : o < oc ? 0 : 1])
                 }
-                구간.sort((p2, q2) => p2[0] - q2[0])
-                let 덮음 = 0, e = -Infinity
-                for (const [c0, c1] of 구간) { if (c1 <= e) continue; 덮음 += c1 - Math.max(c0, e); e = c1 }
-                if (덮음 > 0.3 * L) continue
+                const 덮 = (쪽s) => { const 들 = 구간.filter((v) => 쪽s.includes(v[2])).sort((p2, q2) => p2[0] - q2[0]); let d = 0, e = -Infinity; for (const [c0, c1] of 들) { if (c1 <= e) continue; d += c1 - Math.max(c0, e); e = c1 } return d }
+                /* 🧭 G410 지상층 · 평면 미표기 범례에 없는 두께(일람표에만 있는 «W400»)는 구조 선이 두 면을 다 따라갈 때만 뺌 — 한 면만이면 슬래브 끝 선(@SL)이 바깥벽 바깥 면과
+                     겹친 것(현장 Y 6층 강당 W400 · 2 · 5층 바깥벽). 지하 주심도는 한 면만 따라가도 뺌(지하 바깥벽은 지하 구조평면도의 이름 붙은 벽 · 1층 바탕 벽과 엉킴) */
+                if (표.has(b.g) && /^B\d/.test(fw) ? 덮([0, 1, 2]) > 0.3 * L : Math.min(덮([0, 2]), 덮([1, 2])) > 0.3 * L) continue
               }
               let 기0 = 표.get(b.g) || ('W' + b.g)
               const r = { 기호: 기0, 몸: 기0, 층표: '', 종류: '벽' }
               let 기 = 기호정하기(r, fw)
               if (!기) { if (!배근행.벽.has(기0)) 배근행.벽.set(기0, { 기호: 기0, 두께: String(b.g), 수직: '', 수평: '', 배근: '복배근', 구분: '구조벽', 단부보강: '', 상부보강: '', 단부전단: '', 단위철근: '', 동: '' }); 기 = 기0 }
-              벽띠.push({ D, g: { x: b.px, y: b.py, h: 0, w: 0, a: Math.atan2(b.uy, b.ux), i: -1, s: 기0 }, r: { ...r, 기호: 기, _미표기: true, _바탕: true }, 띠: b })
+              벽띠.push({ D, g: { x: b.px, y: b.py, h: 0, w: 0, a: Math.atan2(b.uy, b.ux), i: -1, s: 기0 }, r: { ...r, 기호: 기, _미표기: true, _바탕: true, ...(표.has(b.g) ? {} : { _범례밖: true }) }, 띠: b })
             }
           }
         }
@@ -3538,7 +3563,8 @@ function 골조읽기0(도면들0, o = {}) {
     }
   }
   const 이은벽 = new Map()
-  const 바탕셈 = [], 바탕뺌 = []   // 🧭 G409 건축 바탕 벽 [벽, 층, 이웃층|까닭]
+  const 바탕셈 = [], 바탕뺌 = []   // 🧭 G409 건축 바탕 벽 [벽, 층, 이웃층|까닭(, 골구도 곳)]
+  let 단면벽 = null              // 🧭 G410 골구도 벽 이름 층(필요할 때 한 번)
   const 아래배경 = []          // 🧭 G387 [벽, 층, 아래층 벽 이름] — 위층 평면에 바탕으로 깐 아래층 벽(셈에서 뺌)
   {
     const 기둥판별 = new Map()
@@ -3652,6 +3678,11 @@ function 골조읽기0(도면들0, o = {}) {
           if (구조벽.some(([L, fl]) => 차(fl) === 차(f) && 같은자리(x, L))) { 바탕뺌.push([x, f, '같음']); continue }
           const 이웃 = 구조벽.filter(([L, fl]) => Math.abs(차(fl) - 차(f)) === 1 && 같은자리(x, L))
           if (이웃.length) { 바탕셈.push([x, f, 이웃[0][1]]); continue }
+          /* 🧭 G410 위아래층 증거가 없고 평면 미표기 범례에 없는 두께(일람표에만 있는 «W400»)면 골구도 · 단면의 그 층 띠에 같은 벽 이름이 있는지
+               (W200 · W300 처럼 여러 층 · 여러 곳에 쓰는 이름은 자리를 못 맞춰 ❓ 그대로) */
+          if (단면벽 === null) { try { 단면벽 = 단면벽이름(도면들) } catch (e) { 단면벽 = new Map() } }
+          const 단면곳 = x._범례밖 ? 단면벽.get(f + '|' + String(x.기호).toUpperCase()) : null
+          if (단면곳) { 바탕셈.push([x, f, null, 단면곳]); continue }
           바탕뺌.push([x, f, ''])
         }
       }
@@ -3671,9 +3702,14 @@ function 골조읽기0(도면들0, o = {}) {
     const 층글 = (f) => (/^B\d/.test(f) ? '지하' + f.slice(1) + '층' : f === 'R' ? '지붕층' : f + '층')
     const 길이 = (x) => Math.hypot(x._축[2] - x._축[0], x._축[3] - x._축[1])
     const 모음 = (arr) => { const m = new Map(); for (const [x, f] of arr) { const k = 층글(f) + ' ' + x.기호; m.set(k, (m.get(k) || 0) + 길이(x)) } return [...m].map(([k, v]) => k + ' ' + (v / 1000).toFixed(1) + ' m').join(' · ') }
-    if (바탕셈.length) {
-      const 이웃 = [...new Set(바탕셈.map(([, , g]) => 층글(g)))].join(' · ')
-      경고.push('📐 건축 바탕(주심도에 끼운 건축 평면)으로만 그린 벽을 셈 — ' + 모음(바탕셈) + ' — 바로 위 · 아래층(' + 이웃 + ') 주심도에 같은 자리 · 같은 두께 구조 벽이 있음(길이 = 건축 바탕 두 선을 잼)')
+    const 쌓임 = 바탕셈.filter((v) => v[2] !== null), 단면확인 = 바탕셈.filter((v) => v[2] === null)
+    if (쌓임.length) {
+      const 이웃 = [...new Set(쌓임.map(([, , g]) => 층글(g)))].join(' · ')
+      경고.push('📐 건축 바탕(주심도에 끼운 건축 평면)으로만 그린 벽을 셈 — ' + 모음(쌓임) + ' — 바로 위 · 아래층(' + 이웃 + ') 주심도에 같은 자리 · 같은 두께 구조 벽이 있음(길이 = 건축 바탕 두 선을 잼)')
+    }
+    if (단면확인.length) {
+      const 곳 = [...new Set(단면확인.map((v) => v[3]))].join(' / ')
+      경고.push('📐 건축 바탕으로만 그린 벽을 골구도로 확인해 셈 — ' + 모음(단면확인) + ' — 위아래층에 같은 벽은 없지만 골구도 그 층 띠에 같은 벽 이름이 있음(' + 곳 + ') · 길이 = 건축 바탕 두 선을 잼')
     }
     const 뺌 = 바탕뺌.filter(([, , w]) => w !== '같음')
     if (뺌.length) 경고.push('❓ 건축 바탕에만 있는 벽 — 위 · 아래층에 같은 자리 구조 벽이 없어 셈에서 뺐습니다(구조 벽인지 도면에 없음): ' + 모음(뺌) + ' — 철근콘크리트 벽이면 골조 화면 벽 줄에 적어 주세요')
@@ -4462,7 +4498,7 @@ function 평면부재(보띠, 벽띠, 슬들, 기둥층, 보층, 벽층, 배근�
           const 자리 = { ...자리만들기(D.이름, 상자), 축: [a[0] / k, a[1] / k, b[0] / k, b[1] / k, 띠.g / k].map((v) => 반올림(v, 1)) }
           /* 🧭 G251 벽 이름 잇기용 — 미표기(이름 없는 두 선) · 몸 · 축(mm) · 판 */
           const 판 = D.도곽 && D.도곽.length ? D.도곽번((a[0] + b[0]) / 2, (a[1] + b[1]) / 2) : -1
-          return { 기호: 주인[i].r.기호, 안목: Math.round(안목), 좌: Math.round(좌), 우: Math.round(우), 물림: !!주인[i].물림, 자리, _미표기: !!주인[i].r._미표기, _모서리: !!주인[i].r._모서리, _같은줄: !!주인[i].같은줄, _바탕: !!주인[i].r._바탕, _몸: 주인[i].r.몸, _축: [a[0], a[1], b[0], b[1], 띠.g], _판: D.번 + '|' + 판 }
+          return { 기호: 주인[i].r.기호, 안목: Math.round(안목), 좌: Math.round(좌), 우: Math.round(우), 물림: !!주인[i].물림, 자리, _미표기: !!주인[i].r._미표기, _모서리: !!주인[i].r._모서리, _같은줄: !!주인[i].같은줄, _바탕: !!주인[i].r._바탕, _범례밖: !!주인[i].r._범례밖, _몸: 주인[i].r.몸, _축: [a[0], a[1], b[0], b[1], 띠.g], _판: D.번 + '|' + 판 }
         })
         칸들.push(줄)
       }
