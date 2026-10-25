@@ -413,7 +413,7 @@ function 준비(모델, k, 번) {
       let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
       for (let j = 0; j < n; j++) { const x = P[(s + j) * 2] * k, y = P[(s + j) * 2 + 1] * k; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y }
       const 큰 = t === 종류.닫힌폴리선 && ((x1 - x0) * (y1 - y0) > 2e7 || (보강층[ly] && (x1 - x0) * (y1 - y0) > 5e5))     // 🧱 G233 20 ㎡ 넘는 닫힌 선은 점도(MAT 기초 테두리) · 🧭 G254 보강 층 구역(0.5 ㎡ 넘게)도
-      닫힌.push({ e, ly, b: [x0, y0, x1, y1], 원: t === 종류.원, 점: 큰 ? Array.from({ length: n }, (_, j) => [P[(s + j) * 2] * k, P[(s + j) * 2 + 1] * k]) : null })
+      닫힌.push({ e, ly, b: [x0, y0, x1, y1], 원: t === 종류.원, n: t === 종류.원 ? 0 : n, 점: 큰 ? Array.from({ length: n }, (_, j) => [P[(s + j) * 2] * k, P[(s + j) * 2 + 1] * k]) : null })
     }
     if (t === 종류.원) continue
     const 끝 = t === 종류.닫힌폴리선 ? n : n - 1
@@ -472,7 +472,13 @@ function 준비(모델, k, 번) {
       const 짧 = Math.min(w, h)
       let 틀 = false
       for (let i = Math.floor(c.b[0] / 칸2); i <= Math.floor(c.b[2] / 칸2) && !틀; i++) for (let j = Math.floor(c.b[1] / 칸2); j <= Math.floor(c.b[3] / 칸2) && !틀; j++) {
-        for (const g of 글칸.get(i * 100003 + j) || []) if (g.x > c.b[0] && g.x < c.b[2] && g.y > c.b[1] && g.y < c.b[3] && g.h * 2.5 >= 짧) { 틀 = true; break }
+        for (const g of 글칸.get(i * 100003 + j) || []) {
+          if (!(g.x > c.b[0] && g.x < c.b[2] && g.y > c.b[1] && g.y < c.b[3])) continue
+          if (g.h * 2.5 >= 짧) { 틀 = true; break }
+          /* 🧭 G415 여섯모 이름표(기둥 기호를 가운데 두고 둘러싼 육각형 — 현장 Y «0-SJ-TCB» C22 1,559 × 1,350 · 글자 400)도 글자 틀 — 기둥 층으로 잡혀
+               슬래브 광선이 육각형 위 · 아래 변을 «보 띠» 로 보고 칸을 끊었음(지상5층 C22 곁 슬래브 9.9 ㎡ 빠짐) */
+          if ((c.n === 6 || c.n === 7) && /^(\d+|B\d+)?(SRC|C)\d+[A-Z]?$/.test(g.u) && g.h * 5 >= 짧 && Math.abs(g.x - (c.b[0] + c.b[2]) / 2) <= 0.25 * w && Math.abs(g.y - (c.b[1] + c.b[3]) / 2) <= 0.25 * h) { 틀 = true; break }      // 기둥 기호만(현장 P «F-NO» 기초 번호 여섯모는 예전대로)
+        }
       }
       if (틀) c.글틀 = true
     }
@@ -2052,6 +2058,22 @@ function 단면벽이름(도면들) {
   }
   return out
 }
+/** 🧭 G416 통심 이름 동그라미 글(«X» · «Y» + 곁 숫자, 또는 «X3» · «Y4») — 판 안 · [{n, x, y}] */
+function 격자글(D, 판) {
+  const 판번 = (x, y) => (D.도곽 && D.도곽.length ? D.도곽번(x, y) : -1)
+  const 들 = D.글자.filter((g) => 판번(g.x, g.y) === 판)
+  const out = []
+  for (const g of 들) {
+    const t = 붙(g.s).toUpperCase()
+    let m = /^([XY])(\d{1,2}[A-Z]?)$/.exec(t)
+    if (m) { out.push({ n: m[1] + m[2], x: g.x, y: g.y }); continue }
+    if (t !== 'X' && t !== 'Y') continue
+    const 숫 = 들.find((u) => /^\d{1,2}$/.test(붙(u.s)) && u.x > g.x && u.x - g.x < 1.5 * g.h + g.w && Math.abs(u.y - g.y) < 1.2 * g.h)
+    if (숫) out.push({ n: t + 붙(숫.s), x: g.x, y: g.y })
+  }
+  return out
+}
+
 function 단면춤재기(도면들, 보들) {
   const out = []
   if (!보들.length) return out
@@ -2120,7 +2142,7 @@ function 단면춤재기(도면들, 보들) {
         if (/^\d{3,4}X\d{3,4}$/.test(u)) 곁.push({ 크기: u, dx: t.x - cx })
         else if (rr && rr.종류 === '보' && rr.몸 !== b.몸) 곁.push({ 몸: rr.몸, dx: t.x - cx })
       }
-      out.push({ 몸: b.몸, 판층: 레.f, 레벨글: 레.글, 춤: 치 ? +String(치.s).replace(/,/g, '') : 춤, 잰춤: 춤, 치수: 치 ? 치.s.trim() : '', 단면폭: 쌍.넓게 ? 쌍.폭 : 0, 곁, 근거: (D.이름 || '') + (판 >= 0 ? ' 판 ' + (판 + 1) : '') + (판이름 ? ' «' + 판이름 + '»' : '') + ' ' + 레.글 + ' 밑' })
+      out.push({ 몸: b.몸, 판층: 레.f, 레벨글: 레.글, 춤: 치 ? +String(치.s).replace(/,/g, '') : 춤, 잰춤: 춤, 치수: 치 ? 치.s.trim() : '', 단면폭: 쌍.넓게 ? 쌍.폭 : 0, 곁, D, 판, cx, 근거: (D.이름 || '') + (판 >= 0 ? ' 판 ' + (판 + 1) : '') + (판이름 ? ' «' + 판이름 + '»' : '') + ' ' + 레.글 + ' 밑' })
     }
   }
   return out
@@ -3618,6 +3640,10 @@ function 골조읽기0(도면들0, o = {}) {
   }
   const 이은벽 = new Map()
   const 바탕셈 = [], 바탕뺌 = []   // 🧭 G409 건축 바탕 벽 [벽, 층, 이웃층|까닭(, 골구도 곳)]
+  /* 📌 G417 사람 결정 — 구조 근거가 없어 ❓ 로 뺀 건축 바탕 벽을 «철근콘크리트 벽으로 셈»({ '6|W200': { 때 } } · 화면 BIM 물량 «📌 셈» 단추 · 되돌릴 수 있음) */
+  const 바탕결정 = (o && o.바탕셈 && typeof o.바탕셈 === 'object') ? o.바탕셈 : {}
+  const 바탕결정셈 = []
+  const 바탕물음 = []
   let 단면벽 = null              // 🧭 G410 골구도 벽 이름 층(필요할 때 한 번)
   const 아래배경 = []          // 🧭 G387 [벽, 층, 아래층 벽 이름] — 위층 평면에 바탕으로 깐 아래층 벽(셈에서 뺌)
   {
@@ -3738,6 +3764,8 @@ function 골조읽기0(도면들0, o = {}) {
           /* 🧭 G411 건물 둘레 벽(한 면이 슬래브 끝 선)도 — 현장 Y 6층 강당 북쪽 W300(건축 횡단면도 A-405 «콘타입 노출콘크리트» · 골구도 6층 «W300») */
           const 단면곳 = x._범례밖 || x._한면 ? 단면벽.get(f + '|' + String(x.기호).toUpperCase()) : null
           if (단면곳) { 바탕셈.push([x, f, null, 단면곳]); continue }
+          const 결 = 바탕결정[f + '|' + String(x.기호).toUpperCase()] || 바탕결정[f + '|' + x.기호]
+          if (결) { 바탕결정셈.push([x, f, 글(결.때)]); continue }
           바탕뺌.push([x, f, ''])
         }
       }
@@ -3767,7 +3795,18 @@ function 골조읽기0(도면들0, o = {}) {
       경고.push('📐 건축 바탕으로만 그린 벽을 골구도로 확인해 셈 — ' + 모음(단면확인) + ' — 위아래층에 같은 벽은 없지만 골구도 그 층 띠에 같은 벽 이름이 있음(' + 곳 + ') · 길이 = 건축 바탕 두 선을 잼')
     }
     const 뺌 = 바탕뺌.filter(([, , w]) => w !== '같음')
-    if (뺌.length) 경고.push('❓ 건축 바탕에만 있는 벽 — 위 · 아래층에 같은 자리 구조 벽이 없어 셈에서 뺐습니다(구조 벽인지 도면에 없음): ' + 모음(뺌) + ' — 철근콘크리트 벽이면 골조 화면 벽 줄에 적어 주세요')
+    if (뺌.length) 경고.push('❓ 건축 바탕에만 있는 벽 — 위 · 아래층에 같은 자리 구조 벽이 없어 셈에서 뺐습니다(구조 벽인지 도면에 없음): ' + 모음(뺌) + ' — 철근콘크리트 벽이면 «📌 셈» 을 누르거나 골조 화면 벽 줄에 적어 주세요')
+    if (바탕결정셈.length) {
+      const 때들 = [...new Set(바탕결정셈.map((v) => v[2]).filter(Boolean))].join(' · ')
+      경고.push('📌 사람이 철근콘크리트 벽으로 정한 건축 바탕 벽 — ' + 모음(바탕결정셈) + (때들 ? '(' + 때들 + ')' : '') + ' — 구조 도면 근거는 없고 사람 결정으로 셈(되돌릴 수 있음 · 길이 = 건축 바탕 두 선을 잼)')
+    }
+    /* 화면 «📌 셈» 단추 — ❓ 로 뺀 것 · 사람이 셈으로 정한 것을 층 · 기호마다(길이 m) */
+    {
+      const m = new Map()
+      for (const [x, f] of 뺌) { const k = f + '|' + x.기호; const v = m.get(k) || { 키: k, 층: f, 층글: 층글(f), 기호: x.기호, 길이: 0, 셈: false }; v.길이 += 길이(x) / 1000; m.set(k, v) }
+      for (const [x, f] of 바탕결정셈) { const k = f + '|' + x.기호; const v = m.get(k) || { 키: k, 층: f, 층글: 층글(f), 기호: x.기호, 길이: 0, 셈: true }; v.길이 += 길이(x) / 1000; v.셈 = true; m.set(k, v) }
+      바탕물음.push(...[...m.values()].map((v) => ({ ...v, 길이: Math.round(v.길이 * 10) / 10 })))
+    }
   }
   /* 🧭 G241 «SC1 · SG1 · SB1»(Steel Column · Girder · Beam) 꼴인데 철골 목록이 없으면 — 철골 부재(규격이 도면에 없음)로 알림(현장 C · D 토목 «SC1» 2개 · 건축공사분) */
   if (한선보.size) 경고.push('📐 한 선으로만 그린 보 ' + [...한선보].map(([k2, 곳]) => k2 + ' ' + 곳.size + '곳').join(' · ') + ' — 평면에 나란한 두 선이 없고 슬래브 끝 선 하나뿐이라 그 선을 보 한 면으로 보고 일람표 폭으로 셈했습니다(길이 = 도면 선을 잼) — 3D 에서 자리를 한 번 보아 주세요')
@@ -4017,7 +4056,70 @@ function 골조읽기0(도면들0, o = {}) {
       const 근 = zs.map((z) => z.근거 + ' ' + z.잰춤.toLocaleString('en-US') + (z.치수 ? '(치수 글 ' + z.치수 + ')' : '') + (z.단면폭 ? ' · 단면 그림 폭 ' + z.단면폭 + '(범례 ' + b.r.폭 + ' 과 다름 — 물량은 범례 폭)' : '')).join(' · ')
       /* 곳마다 다른 춤 — 평면의 어느 보가 어느 단면인지 맞출 근거(단면 곁 보 이름 · 거리)가 아직 약해(현장 Y 평면 LB2 를 다 못 읽음 — 범례 300 ↔ 그림 200) 그 층은 ❓ + 잰 값 알림.
            💡 다음: 평면 LB2 읽기(그림 폭 200) 고친 뒤 단면 곁 보(이름 «5B10» · 거리)로 맞추기 — z.곁 에 모아 둠 */
-      if (!같음) { 다른글.push(b.r.기호 + ' ' + f + '층(' + zs[0].레벨글 + ' 슬래브 밑) ' + 값.map((v) => v.toLocaleString('en-US')).join(' · ')); continue }
+      if (!같음) {
+        /* 🧭 G416 곳마다 다른 춤 — 단면 판 아래 통심 이름(«Y3 · Y4 …») 과 평면 통심 이름으로 단면 자리를 평면 줄로 옮겨, 그 줄(같은 방향 · 띠 가운데 폭/2 + 200 안)의 토막에만 잰 춤.
+             한 줄에 잰 값이 둘 넘게 다르면 작은 값(📌 소장님 결정 2026-10-25 «잰 값 중 작은 값» · 현장 Y LB2 지상4층 1,150 · 1,300 / 5층 1,650 · 1,800) · 꺾여 이어진 같은 이름 토막도 그 줄 · 단면이 안 지나는 줄은 ❓ 그대로 */
+        const c = 층들.get(f)
+        const 토막들 = []
+        if (c) for (const 줄0 of c.보) for (const x of (Array.isArray(줄0) ? 줄0 : [줄0])) if (x && x.기호 === b.r.기호 && x._축) 토막들.push(x)
+        const 줄값 = []          // {가로, 자리, 값들:[], zs:[]}
+        for (const z of zs) {
+          const 단 = 격자글(z.D, z.판)
+          for (const x of 토막들) {
+            const [번, 판i] = String(x._판 || '').split('|').map(Number)
+            const PD = 도면들.find((d) => d.번 === 번)
+            if (!PD) continue
+            const 평 = 격자글(PD, 판i)
+            /* 단면 통심(가로로 늘어선 동그라미) 이름 ↔ 평면 같은 이름: 평면에서 그 글자 무리가 세로로 늘어서 있으면 가로 줄(y) · 가로로 늘어서 있으면 세로 줄(x) */
+            const 짝 = 단.map((s0) => ({ s0, p0: 평.find((q) => q.n === s0.n) })).filter((v) => v.p0)
+            if (짝.length < 2) continue
+            const 글자 = 짝[0].s0.n[0]
+            const 같은글 = 평.filter((q) => q.n[0] === 글자)
+            const ys = 같은글.map((q) => q.y), xs = 같은글.map((q) => q.x)
+            const 가로줄 = Math.max(...ys) - Math.min(...ys) > Math.max(...xs) - Math.min(...xs)
+            const 맞 = 짝.filter((v) => v.s0.n[0] === 글자).sort((p, q) => p.s0.x - q.s0.x)
+            let i = 0; while (i < 맞.length - 2 && 맞[i + 1].s0.x < z.cx) i++
+            const A = 맞[i], B = 맞[i + 1]
+            if (!B || Math.abs(B.s0.x - A.s0.x) < 1) continue
+            const pa = 가로줄 ? A.p0.y : A.p0.x, pb = 가로줄 ? B.p0.y : B.p0.x
+            const 자리 = pa + (z.cx - A.s0.x) * (pb - pa) / (B.s0.x - A.s0.x)
+            const [ax, ay, bx, by, w] = x._축
+            const 가로띠 = Math.abs(bx - ax) >= Math.abs(by - ay)
+            if (가로띠 !== 가로줄) continue
+            const 가 = 가로띠 ? (ay + by) / 2 : (ax + bx) / 2
+            if (Math.abs(가 - 자리) > w / 2 + 200) continue
+            let L = 줄값.find((v) => v.가로 === 가로줄 && Math.abs(v.자리 - 가) <= w / 2 + 200)
+            if (!L) { L = { 가로: 가로줄, 자리: 가, 값들: [], zs: new Set(), 토막: new Set() }; 줄값.push(L) }
+            L.zs.add(z); L.토막.add(x)
+          }
+        }
+        for (const L of 줄값) L.값들 = [...new Set([...L.zs].map((z) => z.춤))].sort((p, q) => p - q)
+        /* 꺾여 이어진 같은 이름 토막(끝이 맞닿음 · 50 mm) — 그 줄 */
+        for (const L of 줄값) for (let n = 0; n < 4; n++) for (const x of 토막들) {
+          if (줄값.some((M) => M.토막.has(x))) continue
+          const [ax, ay, bx, by] = x._축
+          if ([...L.토막].some((y) => { const [cx0, cy0, cx1, cy1] = y._축; return [[ax, ay], [bx, by]].some(([px, py]) => [[cx0, cy0], [cx1, cy1]].some(([qx, qy]) => Math.hypot(px - qx, py - qy) <= y._축[4] / 2 + x._축[4] / 2 + 50)) })) L.토막.add(x)
+        }
+        let 줄번 = 0
+        const 쓴줄 = []
+        for (const L of 줄값) {
+          if (!L.토막.size) continue
+          줄번++
+          const 키 = (f === 'FT' ? 'FT' : f) + 몸 + (줄값.length > 1 ? '-' + 줄번 : '')
+          const v = L.값들[0]
+          const 근2 = [...L.zs].map((z) => z.근거 + ' ' + z.잰춤.toLocaleString('en-US') + (z.치수 ? '(치수 글 ' + z.치수 + ')' : '')).join(' · ')
+          const 작은 = L.값들.length > 1 ? ' · 같은 줄 잰 값 ' + L.값들.map((u) => u.toLocaleString('en-US')).join(' · ') + ' — 작은 값(📌 소장님 결정 2026-10-25)' : ''
+          const 줄 = { ...b.r, 기호: 키, 춤: String(v), _없음: undefined, 만든: '건설맵: 📐 직접 잰 값 — 춤 ' + v.toLocaleString('en-US') + ' (골구도 · 단면에 잘린 ' + b.r.기호 + ' 을 잼 — 단면이 지나는 줄(통심 이름으로 맞춤)의 토막만: ' + 근2 + 작은 + ') · 폭 ' + b.r.폭 + ' = ' + (b.r.만든 ? '범례 · 일람' : '일람표') }
+          delete 줄._없음
+          P.배근.보.push(줄); 배근행.보.set(키, 줄)
+          for (const x of L.토막) x.기호 = 키
+          쓴줄.push(키 + ' ' + v.toLocaleString('en-US') + '(' + L.토막.size + '곳' + (L.값들.length > 1 ? ' · 잰 값 ' + L.값들.map((u) => u.toLocaleString('en-US')).join(' · ') + ' 중 작은 값' : '') + ')')
+        }
+        const 남 = 토막들.filter((x) => x.기호 === b.r.기호).length
+        if (쓴줄.length) 쓴글.push(...쓴줄.map((t) => t + (남 ? '' : '')))
+        if (!쓴줄.length || 남) 다른글.push(b.r.기호 + ' ' + f + '층(' + zs[0].레벨글 + ' 슬래브 밑) ' + 값.map((v) => v.toLocaleString('en-US')).join(' · ') + (쓴줄.length ? ' — 단면이 안 지나는 ' + 남 + '곳' : ''))
+        continue
+      }
       const 키 = (f === 'FT' ? 'FT' : f) + 몸
       const 줄 = { ...b.r, 기호: 키, 춤: String(값[0]), _없음: undefined, 만든: '건설맵: 📐 직접 잰 값 — 춤 ' + 값[0].toLocaleString('en-US') + ' (골구도 · 단면에 잘린 ' + b.r.기호 + ' 을 잼: ' + 근 + ') · 폭 ' + b.r.폭 + ' = ' + (b.r.만든 ? '범례 · 일람' : '일람표') }
       delete 줄._없음          // _춤글(«건축치수») 은 남김 — 이름 비슷한 다른 부재를 후보로 안 냄
@@ -4028,7 +4130,7 @@ function 골조읽기0(도면들0, o = {}) {
       쓴글.push(키 + ' ' + 값[0].toLocaleString('en-US') + '(' + n + '곳)')
     }
     if (쓴글.length) 경고.push('📐 직접 잰 보 춤 — 일람 · 범례에 춤이 없어 골구도 · 단면에 잘린 그림을 쟀습니다: ' + 쓴글.join(' · ') + ' — 배근표 «만든 값» 칸에 어느 도면 · 판 · 층을 쟀는지 적혀 있습니다')
-    if (다른글.length) 경고.push('📐 잰 보 춤이 곳마다 다름 — ' + 다른글.join(' / ') + ' — 평면의 어느 곳이 어느 단면인지 아직 못 맞춰 그 층은 셈에서 뺐습니다(❓ · 잰 값을 배근표에 적으면 셈)')
+    if (다른글.length) 경고.push('📐 잰 보 춤이 곳마다 다름 — ' + 다른글.join(' / ') + ' — 단면이 지나는 줄(통심 이름으로 맞춤)만 셈 · 나머지 곳은 어느 단면인지 도면에 없어 ❓(잰 값을 배근표에 적으면 셈)')
   }
   /* 🧭 G250 빈 크기 · 철근은 클로드가 채움(«만든» 칸) — 평면 부재가 쓰는 줄만 알림 */
   const 채운 = 일람채우기(P.배근).filter((x) => (배근행[x.종] || new Map()).has(x.기호))
@@ -4399,6 +4501,7 @@ function 골조읽기0(도면들0, o = {}) {
       평면: 평면목록, 높이: Object.fromEntries(높이), 층고짐작: 짐작층,
       지붕구역, 지붕사슬,             // 🏔 G299
       일람,                      // 🧭 G291 {표있음, 짐작, 전체, 큰:[글]} — 화면 알림 띠
+      바탕물음,                  // 📌 G417 ❓ 건축 바탕 벽(층 · 기호 · 길이 m · 셈 여부) — 화면 «📌 셈» 단추
       /* 🧭 G246 판 펼치기 — 파일마다 판(쪽) 목록: 번호 · 도면명 · 테두리 · 글자 수(화면 «판 목록») */
       판: 도면들.map((D) => ({ 파일: D.이름, 번: D.번, k: D.k, 판: 판목록(D).map((x) => { const 안 = 제목들.filter((t) => t.D === D && t.판 === x.p); return { ...x, 쓰임: 쓰임표.get(D.번 + '|' + x.p) || null, 층: [...new Set(안.flatMap((t) => t.f))], ...(안.some((t) => t.고름) ? { 고른층: 안.find((t) => t.고름).고름 } : {}) } }), 배치판: (() => { try { return 배치판목록(D.모델) } catch (e) { return [] } })(), 덜읽음: !!(D.모델 && D.모델.stats && D.모델.stats.capped) })),
       철골: [...철골.values()].map((x) => ({ 기호: x.기호, 종류: x.종류, 규격: x.규격, 수: 철골수.get(x.기호) || 0, ...(x.동 ? { 동: x.동 } : {}) })),

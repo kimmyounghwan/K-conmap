@@ -153,6 +153,7 @@ export default function Bim() {
   const 칸Ref = useRef(null)
   const 일꾼Ref = useRef(null)
   const 처음맞춤 = useRef(false)
+  const 읽은바탕 = useRef('{}')      // 📌 G417 지금 R 을 읽을 때 쓴 «바탕셈» 결정(JSON)
   const 토목맞춤 = useRef(false)
   const [glErr, setGlErr] = useState('')
 
@@ -231,6 +232,7 @@ export default function Bim() {
     let r
     try { r = 플랜트다듬기(들, 골조읽기(들)) } catch (e) { r = { 있음: false, 경고: ['도면에서 골조를 읽다 멈췄습니다 (' + e.message + ')'] } }
     처음맞춤.current = false
+    읽은바탕.current = '{}'          // 📌 G417 처음 읽기는 결정 없이 — 기억된 결정이 있으면 이름이 바뀐 뒤 다시 읽음
     set도면들(들); setR(r); set셈방법('도면'); set높이({}); set선택(null); set묶음(null); set층만(''); set두께({}); set건물두께({}); set높이배(1)
     set이름(목록.length === 1 ? 목록[0].이름 : 목록[0].이름 + ' 외 ' + (목록.length - 1) + '장')
     set보이는것(불러오는Ref.current || (목록.length === 1 ? 목록[0].이름 : 목록[0].이름 + ' 외 ' + (목록.length - 1) + '장'))
@@ -246,7 +248,7 @@ export default function Bim() {
     set상태({ k: 'busy', 글: '고른 층으로 골조를 다시 읽는 중' })
     setTimeout(() => {
       let r
-      try { r = 플랜트다듬기(도면들, 골조읽기(도면들, { 판층: 새 })) } catch (e) { set상태({ k: 'err', 글: '고른 층으로 다시 읽다 멈췄습니다 (' + e.message + ')' }); return }
+      try { r = 플랜트다듬기(도면들, 골조읽기(도면들, { 판층: 새, 바탕셈: 검수.바탕셈 || {} })) } catch (e) { set상태({ k: 'err', 글: '고른 층으로 다시 읽다 멈췄습니다 (' + e.message + ')' }); return }
       처음맞춤.current = false
       setR(r); set선택(null); set묶음(null)
       set상태({ k: 'ok' })
@@ -283,13 +285,13 @@ export default function Bim() {
   /* ── 셈 — 골조 ── */
   /* 🔎 G280 검수 — 확인함 · 뺌(부재 열쇠 = 표|줄|자리 번호 · 파일 이름마다 이 브라우저에 기억) · 뺀 부재는 3D · 산출서 · 엑셀에서 빠짐(겹친 것과 같은 길)
        📌 G406 같음 — 사람이 «같은 부재» 로 고른 일람 줄({ '슬라브|DS1': { 기호: 'UDS1', 때 } }) · 같은 기억 칸 */
-  const [검수, set검수] = useState(() => ({ 이름: '', 확인: new Set(), 뺌: new Set(), 같음: {} }))
+  const [검수, set검수] = useState(() => ({ 이름: '', 확인: new Set(), 뺌: new Set(), 같음: {}, 바탕셈: {} }))
   const 검키 = (o) => o.표 + '|' + o.i + '|' + o.kk
-  const 검수저장 = (새) => { try { localStorage.setItem('k-bim-검수|' + 새.이름, JSON.stringify({ 확인: [...새.확인], 뺌: [...새.뺌], 같음: 새.같음 || {} })) } catch (e) { /* 저장 못 함 */ } }
+  const 검수저장 = (새) => { try { localStorage.setItem('k-bim-검수|' + 새.이름, JSON.stringify({ 확인: [...새.확인], 뺌: [...새.뺌], 같음: 새.같음 || {}, 바탕셈: 새.바탕셈 || {} })) } catch (e) { /* 저장 못 함 */ } }
   useEffect(() => {
-    let 확 = [], 뺌 = [], 같음 = {}
-    try { const s = JSON.parse(localStorage.getItem('k-bim-검수|' + 이름) || 'null'); if (s) { 확 = s.확인 || []; 뺌 = s.뺌 || []; 같음 = s.같음 && typeof s.같음 === 'object' ? s.같음 : {} } } catch (e) { /* 기억 없음 */ }
-    set검수({ 이름, 확인: new Set(확), 뺌: new Set(뺌), 같음 })
+    let 확 = [], 뺌 = [], 같음 = {}, 바탕셈 = {}
+    try { const s = JSON.parse(localStorage.getItem('k-bim-검수|' + 이름) || 'null'); if (s) { 확 = s.확인 || []; 뺌 = s.뺌 || []; 같음 = s.같음 && typeof s.같음 === 'object' ? s.같음 : {}; 바탕셈 = s.바탕셈 && typeof s.바탕셈 === 'object' ? s.바탕셈 : {} } } catch (e) { /* 기억 없음 */ }
+    set검수({ 이름, 확인: new Set(확), 뺌: new Set(뺌), 같음, 바탕셈 })
   }, [이름])
   const 검수바꾸기 = (칸, 키, 켬) => set검수((s) => {
     const n = new Set(s[칸]); if (켬) n.add(키); else n.delete(키)
@@ -304,6 +306,28 @@ export default function Bim() {
     검수저장(새)
     return 새
   })
+  /* 📌 G417 ❓ 건축 바탕 벽 «철근콘크리트 벽으로 셈» — 사람 결정(같은 기억 칸 · 되돌릴 수 있음) · 바뀌면 그 결정으로 골조를 다시 읽음 */
+  const 바탕셈바꾸기 = (키, 켬) => set검수((s) => {
+    const 바탕셈 = { ...(s.바탕셈 || {}) }
+    if (켬) { const d = new Date(); 바탕셈[키] = { 때: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') } } else delete 바탕셈[키]
+    const 새 = { ...s, 바탕셈 }
+    검수저장(새)
+    return 새
+  })
+  useEffect(() => {
+    const 지금 = JSON.stringify(검수.바탕셈 || {})
+    if (!도면들 || !도면들.length || 지금 === 읽은바탕.current) return
+    읽은바탕.current = 지금
+    set상태({ k: 'busy', 글: '사람 결정(📌 셈)으로 골조를 다시 읽는 중' })
+    const t = setTimeout(() => {
+      let r
+      try { r = 플랜트다듬기(도면들, 골조읽기(도면들, { 판층, 바탕셈: 검수.바탕셈 || {} })) } catch (e) { set상태({ k: 'err', 글: '다시 읽다 멈췄습니다 (' + e.message + ')' }); return }
+      처음맞춤.current = false
+      setR(r); set선택(null); set묶음(null)
+      set상태({ k: 'ok' })
+    }, 30)
+    return () => clearTimeout(t)
+  }, [검수.바탕셈, 도면들])      // eslint-disable-line react-hooks/exhaustive-deps
   const R = useMemo(() => { try { return 같음입히기(R원, 검수.같음) } catch (e) { return R원 } }, [R원, 검수.같음])
   const 있음 = !!(R && R.있음)
   const 공사0 = useMemo(() => (있음 ? 층고바꾸기(R.공사, 높이, R.읽음 && R.읽음.높이) : null), [R, 높이, 있음])
@@ -1206,6 +1230,14 @@ export default function Bim() {
               {(모델 ? 모델.짐작 : []).map((w, i) => <li key={'g' + i} className="guess">💭 {w}</li>)}
               {토목있음 && 토.짐작.map((w, i) => <li key={'tg' + i} className="guess">💭 {w}</li>)}
               {토목있음 && 토.경고.map((w, i) => <li key={'tw' + i} className="warn">⚠️ {w}</li>)}
+              {R && R.읽음 && (R.읽음.바탕물음 || []).map((q) => (
+                <li key={'bq' + q.키} className={q.셈 ? 'ok' : 'warn'}>
+                  {q.셈 ? '📌' : '❓'} 건축 바탕에만 있는 벽 {q.층글} {q.기호} {q.길이} m — {q.셈 ? '사람 결정으로 철근콘크리트 벽으로 셈' + ((검수.바탕셈 || {})[q.키] && 검수.바탕셈[q.키].때 ? '(' + 검수.바탕셈[q.키].때 + ')' : '') : '구조 도면 근거가 없어 셈에서 뺌'}{' '}
+                  {q.셈
+                    ? <button type="button" className="btn line sm" title="사람 결정을 되돌림 — 다시 ❓ 셈에서 뺌" onClick={() => { 바탕셈바꾸기(q.키, false); 세기('|BIM물량|바탕셈되돌림') }}>↩ 되돌리기</button>
+                    : <button type="button" className="btn line sm" title="건축 도면(평면 · 단면)을 보고 철근콘크리트 벽일 때만 누르세요 — 그 층 그 벽을 셈하고 📌 사람 결정으로 적습니다" onClick={() => { 바탕셈바꾸기(q.키, true); 세기('|BIM물량|바탕셈') }}>📌 철근콘크리트 벽으로 셈</button>}
+                </li>
+              ))}
               {R && (R.경고 || []).slice(0, 8).map((w, i) => <li key={'w' + i} className="warn">⚠️ {w}</li>)}
               {R && (R.경고 || []).length > 8 && (
                 <li className="warn"><details><summary>⚠️ 읽기 경고 {R.경고.length - 8}개 더 보기</summary>{R.경고.slice(8).map((w, i) => <div key={i}>· {w}</div>)}</details></li>

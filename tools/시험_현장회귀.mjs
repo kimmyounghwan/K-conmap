@@ -23,7 +23,7 @@ import { 모델셈 } from '../web/src/lib/골조모델.js'
 const 기대 = JSON.parse(fs.readFileSync(new URL('./시험자료/현장회귀.json', import.meta.url), 'utf8'))
 let bad = 0, 본 = 0
 const ok = (이름, c, got) => { if (!c) bad++; console.log((c ? '  ✓ ' : '  ✗ ') + 이름 + (got !== undefined && !c ? ' = ' + JSON.stringify(got) : '')) }
-export function 현장셈(폴더, 거름 = '', 같음 = null) {
+export function 현장셈(폴더, 거름 = '', 같음 = null, 바탕셈 = null) {
   const 파일 = fs.readdirSync(폴더).filter((f) => /\.dxf$/i.test(f) && (!거름 || new RegExp(거름).test(f))).sort()
   let 들 = 파일.map((f) => {
     const b = fs.readFileSync(path.join(폴더, f))
@@ -51,6 +51,16 @@ export function 현장셈(폴더, 거름 = '', 같음 = null) {
     for (const x of S2.줄) { const 항 = /거푸집/.test(x.항목) ? '거푸집' : x.항목; 합2[항] = (합2[항] || 0) + x.수량 }
     같음셈 = { 합: 합2, 배근: R2.공사.배근, 경고: R2.경고 || [] }
   }
+  /* 📌 G417 사람이 «철근콘크리트 벽으로 셈» 으로 정한 건축 바탕 벽 — 그 결정으로 다시 읽어 셈(화면 «📌 셈» 단추와 같은 길) */
+  let 바탕셈셈 = null
+  if (바탕셈) {
+    const R3 = 플랜트다듬기(들, 골조읽기(들, { 바탕셈 }))
+    const 모델3 = 플랜트모델(모델만들기(들, R3, { 높이: {} }), R3)
+    const S3 = 셈(셈방법입히기(겹친것빼기(층고바꾸기(R3.공사, {}, R3.읽음 && R3.읽음.높이), 모델3), '도면'))
+    const 합3 = {}
+    for (const x of S3.줄) { const 항 = /거푸집/.test(x.항목) ? '거푸집' : x.항목; 합3[항] = (합3[항] || 0) + x.수량 }
+    바탕셈셈 = { 합: 합3, 경고: R3.경고 || [], 물음: (R3.읽음 && R3.읽음.바탕물음) || [] }
+  }
   /* 📐 G389 작업 화면 «도면 넣기» — 좌표대로 골조 모델로 옮겨 셈 */
   const 변 = 도면에서모델(모델, { 공사 })
   const G = 모델셈(변.M)
@@ -65,7 +75,7 @@ export function 현장셈(폴더, 거름 = '', 같음 = null) {
   const 둥 = (H) => JSON.stringify(Object.fromEntries(Object.entries(H).map(([k, x]) => [k, Math.round(x * 1e6) / 1e6])))
   const 하나씩 = { 같음: Mb.부재.length === 변.M.부재.length && 둥(모델셈(Mb).합) === 둥(G.합) && Mb.빠짐.length === 전체.빠짐.length, 부재: Mb.부재.length, 평면: 키들.length, 빨강: Mb.빠짐.length + ' / ' + 전체.빠짐.length }
   const 계모 = 계합(G.R.줄)
-  return { 합, 같음셈, 배근: 공사.배근, 경고: R.경고 || [], 파일: 파일.length, 부재: 모델.부재.length, 모델: { 종, 옮김: 변.옮김, 못옮김: 변.못옮김.length, 하나씩, 계도, 계모, 계단수: 변.M.부재.filter((o) => o.종류 === '계단').length, 기철도: 기철(S.줄), 기철모: 기철(G.R.줄), 철모: G.합.철근 } }
+  return { 합, 같음셈, 바탕셈셈, 물음: (R.읽음 && R.읽음.바탕물음) || [], 배근: 공사.배근, 경고: R.경고 || [], 파일: 파일.length, 부재: 모델.부재.length, 모델: { 종, 옮김: 변.옮김, 못옮김: 변.못옮김.length, 하나씩, 계도, 계모, 계단수: 변.M.부재.filter((o) => o.종류 === '계단').length, 기철도: 기철(S.줄), 기철모: 기철(G.R.줄), 철모: G.합.철근 } }
 }
 for (const [키, v] of Object.entries(기대)) {
   const 변수 = 'SITE_' + 키.slice(-1)
@@ -73,7 +83,7 @@ for (const [키, v] of Object.entries(기대)) {
   if (!폴더 || !fs.existsSync(폴더)) { console.log(`■ ${키} — 폴더 없음(환경 변수 ${변수}) · 건너뜀`); continue }
   본++
   console.log(`■ ${키} (${v.말})`)
-  const r = 현장셈(폴더, v.거름, v.같음 ? v.같음.정함 : null)
+  const r = 현장셈(폴더, v.거름, v.같음 ? v.같음.정함 : null, v.바탕셈 ? v.바탕셈.정함 : null)
   ok(`도면 ${v.파일}장`, r.파일 === v.파일, r.파일)
   for (const [항, 값] of Object.entries(v.합)) ok(`${항} ${값}`, Math.abs((r.합[항] || 0) - 값) < 0.01, +(r.합[항] || 0).toFixed(3))
   /* 🧭 G405 도면 근거 잠금 — 배근표 줄의 칸 값(도면 어디서 읽었는지 «근거») · ❓ 도면에 없음(짐작 안 함) */
@@ -88,6 +98,13 @@ for (const [키, v] of Object.entries(기대)) {
     for (const [항, 값] of Object.entries(v.같음.합)) ok(`📌 ${v.같음.말} → ${항} ${값}`, Math.abs((g.합[항] || 0) - 값) < 0.01, +(g.합[항] || 0).toFixed(3))
     for (const [종, 기호, 칸, 값] of v.같음.배근 || []) { const z = (g.배근[종] || []).find((x) => x.기호 === 기호); const got = z ? String(z[칸] ?? '') : '(줄 없음)'; ok(`📌 ${종} ${기호} ${칸} = «${값}»`, 칸 === '만든' ? new RegExp(값).test(got) : got === 값, got) }
     ok('📌 알림 «사람이 같은 부재로 본 것» · ❓ 알림에서 그 기호 빠짐', g.경고.some((w) => /^📌 사람이 같은 부재로 본 것/.test(w)) && !g.경고.some((w) => /^❓ 도면에 없음/.test(w) && Object.keys(v.같음.정함).some((k) => new RegExp('[(·] ' + k.split('|')[1] + ' ').test(' ' + w.replace('(', '( ')))), g.경고.filter((w) => /❓|📌/.test(w)))
+  }
+  /* 📌 G417 사람 결정(❓ 건축 바탕 벽 → 철근콘크리트 벽으로 셈) 뒤 값 · 화면 단추 목록(층 · 기호 · 길이) */
+  if (v.바탕셈) {
+    const g = r.바탕셈셈
+    for (const [항, 값] of Object.entries(v.바탕셈.합)) ok(`📌 ${v.바탕셈.말} → ${항} ${값}`, Math.abs((g.합[항] || 0) - 값) < 0.01, +(g.합[항] || 0).toFixed(3))
+    ok('📌 알림 «사람이 철근콘크리트 벽으로 정한 건축 바탕 벽» · ❓ 목록에서 빠짐', g.경고.some((w) => new RegExp(v.바탕셈.알림).test(w)) && g.물음.every((q) => q.셈 === Object.prototype.hasOwnProperty.call(v.바탕셈.정함, q.키)), [g.경고.filter((w) => /📌|❓ 건축/.test(w)).map((w) => w.slice(0, 100)), g.물음])
+    ok('📌 결정 전 화면 단추 목록(❓ 층 · 기호 · 길이)', JSON.stringify(r.물음.map((q) => [q.키, q.길이, q.셈])) === JSON.stringify(v.바탕셈.물음), r.물음.map((q) => [q.키, q.길이, q.셈]))
   }
   for (const [re, 말, 없] of v.경고 || []) ok(`알림 ${말}`, 없 ? !r.경고.some((w) => new RegExp(re).test(w)) : r.경고.some((w) => new RegExp(re).test(w)), r.경고.filter((w) => /❓|📐|🤖/.test(w)).map((w) => w.slice(0, 120)))
   if (v.모델) {
