@@ -28,6 +28,7 @@ export function 오류글(k, more) {
   if (k === 'stall') return 멈춤글 + '.'
   if (k === 'mem') return '도면이 너무 커서 이 기기의 기억 공간이 모자랍니다. PC 에서 열어 주십시오.'
   if (k === 'readmem') return '변환 엔진이 이 DWG 를 읽다 기억이 넘쳐 건너뛰었습니다(나머지 도면은 그대로) — 캐드에서 «다른 이름으로 저장 → DXF» 로 넣어 주십시오.'
+  if (k === 'dwg2007') return 'AutoCAD 2007 판 DWG 라 바꾸지 못했습니다(공개 변환 엔진이 이 판의 일부를 못 엶) — 캐드에서 이 도면만 «다른 이름으로 저장 → DXF»(또는 2013 · 2018 판 DWG)로 저장해 넣어 주십시오.'
   return '도면을 읽지 못했습니다' + (more ? ' (' + more + ')' : '') + '. 캐드에서 DXF(ASCII)로 다시 저장해 보십시오.'
 }
 
@@ -47,7 +48,8 @@ export async function 도면읽어오기(buf, name, 알려 = () => {}, 사본남
       dxf = r.dxf
       원본 = (r.info && r.info.원본) || null      /* 🧭 G245 DWG 원본 도형 개수 — 읽기 점검이 «바꾸며 빠진 것» 을 견줌 */
     } catch (e) {
-      throw Object.assign(new Error((e && e.message) || 'DWG 바꾸기 실패'), { kind: e && (e.kind === 'mem' || e.kind === 'readmem') ? e.kind : e && e.kind === 'timeout' ? 'stall' : 'fail' })
+      /* 🧭 G406 AutoCAD 2007 판(AC1021) DWG 는 공개 변환 엔진이 못 여는 것이 많음(현장 Y 건축 평면 · 단면 · 코어 도면 모두) — 무엇을 하면 되는지 바로 */
+      throw Object.assign(new Error((e && e.message) || 'DWG 바꾸기 실패'), { kind: e && (e.kind === 'mem' || e.kind === 'readmem') ? e.kind : e && e.kind === 'timeout' ? 'stall' : 머리 === 'AC1021' ? 'dwg2007' : 'fail' })
     }
   }
   const 사본 = 사본남김 ? dxf.slice(0) : null

@@ -44,7 +44,7 @@ export async function 도면읽어모델(목록, 알려 = () => {}, 옵 = {}) {
     if (/^AC10\d\d/.test(머리)) {
       알려(nm + ' — DWG → DXF 바꾸는 중 (큰 도면은 30초~1분)')
       try { const r0 = await DWG바꾸기(buf, nm, (d) => 알려(nm + ' — DWG → DXF: ' + (d.msg || ''))); 바꾼.push({ 이름: nm, dxf: r0.dxf, 원본: (r0.info && r0.info.원본) || null }) }
-      catch (e) { 틀림 += nm + ' — ' + 오류글(e && (e.kind === 'mem' || e.kind === 'readmem') ? e.kind : e && e.kind === 'timeout' ? 'stall' : 'fail', e && e.message) + ' ' }
+      catch (e) { 틀림 += nm + ' — ' + 오류글(e && (e.kind === 'mem' || e.kind === 'readmem') ? e.kind : e && e.kind === 'timeout' ? 'stall' : 머리 === 'AC1021' ? 'dwg2007' : 'fail', e && e.message) + ' ' }   // 🧭 G406 2007 판 DWG
     } else 바꾼.push({ 이름: nm, dxf: buf })
   }
   const 들 = []
