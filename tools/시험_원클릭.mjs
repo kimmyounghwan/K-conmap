@@ -76,6 +76,8 @@ for (const 기기 of 기기들) {
     await 판.route(/googletagmanager|google-analytics|pagead2|adsbygoogle|geojs/, (r) => r.fulfill({ status: 200, body: '' }))
     await 판.route(/firebaseio\.com/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: 'null' }))
     await 판.addInitScript(() => { localStorage.setItem('kcm_notice_seen', '2026-10-필독'); try { sessionStorage.setItem('kcm_notice_seen', '2026-10-업체') } catch (e) {} })
+    /* 🔒 G403 원클릭은 남에게 예시만(잠금) — 이 시험은 쓰는 사람(열쇠말을 연 브라우저)의 기능을 봄 · 잠긴 화면은 시험_원클릭잠금화면.mjs */
+    await 판.addInitScript(() => { try { localStorage.setItem('kcm_lab_ok', '198d0951f2337d02ab42668d11ae45be65998e0f0684bc18d070c302e40751ab') } catch (e) {} })
     const A = await 판.newPage()
     const 오류 = []
     A.on('pageerror', (e) => 오류.push(String(e).slice(0, 200)))

@@ -9327,3 +9327,65 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gmd .tmk-nyfix { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
 .gmd input.tmk-nyin2 { width: 92px; padding: 3px 6px; border-radius: 7px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: 12px; text-align: right; }
 .gmd .tmk-nyfix .btn { width: auto; }
+
+/* 🔎 G404 빠른 찾기(빠른찾기.jsx) — 맨 위 단추 · «/» · Ctrl+K · 창 */
+/* 넓은 화면 — 머리줄 가운데 «찾는 칸» 모양(글칸이 아니라 단추 · 누르면 창) */
+.qsbtn {
+  flex: 0 1 340px; min-width: 150px; margin-left: 14px;
+  display: inline-flex; align-items: center; gap: 8px;
+  border: 1px solid rgba(255,255,255,.22); background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,.72); border-radius: 9px; padding: 6px 10px;
+  font-size: 12.5px; font-weight: 600; font-family: inherit; text-align: left;
+  white-space: nowrap; overflow: hidden; cursor: pointer; line-height: 1.2;
+}
+.qsbtn:hover { background: rgba(255,255,255,.14); color: #fff; }
+.qsbtn .qsic { font-size: 13px; flex: none; }
+.qsbtn .qslong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.qsbtn .qskbd { flex: none; font-size: 11px; font-family: inherit; color: rgba(255,255,255,.7); border: 1px solid rgba(255,255,255,.3); border-radius: 4px; padding: 0 5px; line-height: 1.5; }
+/* 좁은 화면 — 오른쪽 단추 줄 맨 앞 🔎 알약 하나(다른 알약과 같은 결) */
+@media (max-width: 860px) {
+  .qsbtn {
+    flex: none; min-width: 0; margin-left: auto; gap: 0;
+    border-color: rgba(255,255,255,.28); background: rgba(255,255,255,.10); color: #fff;
+    border-radius: 999px; padding: 5px 9px; font-weight: 800;
+  }
+  .qsbtn .qslong, .qsbtn .qskbd { display: none; }
+  .qsbtn + .topbar-r { margin-left: -4px; }          /* 머리줄 틈(10) → 알약 사이 틈(6)과 같게 */
+}
+.qs-back {
+  position: fixed; inset: 0; z-index: 1200; background: rgba(15, 23, 42, .45);
+  display: flex; justify-content: center; align-items: flex-start; padding: 7vh 12px 12px;
+}
+.qs-box {
+  width: 100%; max-width: 640px; max-height: 80vh; display: flex; flex-direction: column;
+  background: var(--surface); color: var(--text); border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.28); overflow: hidden;
+}
+.qs-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.qs-mag { font-size: 18px; }
+.qs-in {
+  flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text);
+  font-size: 16px; font-family: inherit; padding: 6px 2px;
+}
+.qs-x { border: 0; background: var(--surface-2); color: var(--text-2); border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 13px; }
+.qs-list { overflow-y: auto; padding: 6px; -webkit-overflow-scrolling: touch; }
+.qs-row {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  border: 0; background: transparent; color: var(--text); border-radius: 10px; padding: 8px 10px; cursor: pointer; font-family: inherit;
+}
+.qs-row.on { background: var(--accent-soft); }
+.qs-ic { width: 24px; text-align: center; font-size: 17px; flex: none; }
+.qs-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.qs-t { font-size: 14.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qs-d { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
+.qs-g { flex: none; font-size: 11px; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 999px; padding: 2px 8px; }
+.qs-tip { padding: 12px 10px; color: var(--text-2); font-size: 13px; line-height: 1.7; }
+.qs-key { margin-top: 6px; color: var(--muted); font-size: 12px; }
+.qs-key kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; font-size: 11px; background: var(--surface-2); }
+@media (max-width: 560px) { .qs-back { padding: 0; } .qs-box { max-width: none; max-height: none; height: 100%; border-radius: 0; } .qs-key { display: none; } }
+/* 🔎 G404 아주 좁은 폰(≤ 360px) — 🔎 를 더해도 머리줄이 넘치지 않게 틈 · 알약 안쪽만 줄임(글자 · 단추는 그대로) */
+@media (max-width: 360px) {
+  .topbar-in { gap: 5px; padding-left: 10px; padding-right: 10px; }
+  .topbar-r { gap: 3px; }
+  .qsbtn + .topbar-r { margin-left: -2px; }
+  .qsbtn, .rfbtn, .sisbtn, .installbtn, .topback { padding-left: 6px !important; padding-right: 6px !important; }
+}

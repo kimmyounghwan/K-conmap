@@ -1,3 +1,4 @@
+import { 빠른찾기단추 } from './빠른찾기.jsx'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import TitleSync from './TitleSync.jsx'
 import { lazy, Suspense, useEffect, useState } from 'react'
@@ -192,6 +193,9 @@ export default function App() {
           </NavLink>
           {/* 🌊 자매 사이트 사라사 — 소장님(09-06): 「클릭하면 사라사 사이트로. 페이지마다」.
               이 막대는 모든 페이지 위에 있으므로 여기 한 번이면 페이지마다 붙습니다. 새 탭으로 엽니다(건설맵을 떠나지 않게). */}
+          {/* 🔎 G404 빠른 찾기 — 소장님 「건설맵에 빠른 검색기능 넣을 수 있을까?」 · 「배치 잘해줘. 이상하지 않게」
+              넓은 화면: 머리줄 가운데 «찾는 칸» 모양(누르면 창) · 좁은 화면: 오른쪽 단추 줄 맨 앞 🔎 하나 · 어디서나 «/» · Ctrl+K (빠른찾기.jsx) */}
+          <빠른찾기단추 탭={TABS} />
           <div className="topbar-r">
             {/* 🔄 2026-09-17 — 소장님: 「건설맵 제일 위 쪽에 새로고침 만들어 줘」
                 왜 여기인가: 「자료가 멈춘 것 같다」 는 생각이 드는 순간이 곧 «위를 보는» 순간입니다.
