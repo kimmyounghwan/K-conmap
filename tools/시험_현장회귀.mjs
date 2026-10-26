@@ -1,6 +1,6 @@
 /**
  * 🧭 G387 실제 현장 도면 회귀 — BIM 물량 화면(/jeoksan/bim)과 같은 길로 셈해 기록한 값과 견줌 (2026-10-23)
- *   SITE_A=<DXF 폴더> SITE_B=<DXF 폴더> SITE_G=<DXF 폴더> SITE_P=<DXF 폴더> SITE_H=<현장 A + 건축 A-201 DXF> node --max-old-space-size=12000 tools/시험_현장회귀.mjs
+ *   SITE_A=<DXF 폴더> SITE_B=<DXF 폴더> SITE_G=<DXF 폴더> SITE_P=<DXF 폴더> SITE_Q=<P② 폴더 — 🔧 G426> SITE_H=<현장 A + 건축 A-201 DXF> node --max-old-space-size=12000 tools/시험_현장회귀.mjs
  *   실제 도면은 저장소에 넣지 않음 — 소장님 PC «현장별 자료» 의 DWG 를 DXF 로 바꾼 폴더를 환경 변수로 줌(없는 현장은 건너뜀)
  *   기대값 tools/시험자료/현장회귀.json(현장 이름 대신 A · B · G) — 도면 근거로 고쳐 값이 바뀌면 까닭을 CLAUDE.md · 기록에 적고 JSON 도 고침
  *   길: 도면읽기끝까지 → 참조끼우기 → 플랜트다듬기(골조읽기) → 층고바꾸기 → 모델만들기 → 플랜트모델 → 겹친것빼기 → 셈방법입히기(도면) → 셈

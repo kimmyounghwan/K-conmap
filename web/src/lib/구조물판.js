@@ -27,6 +27,10 @@
  * ■ 개수: 평면 이름 곁(글 높이 4 배 위아래 · 15 배 옆)의 «-6EA» «(10EA)» «( 보도내-8EA)» «(2EA)» · 없으면 판의 «(Q'TY:2EA)».
  * ■ 윗판 구멍: 평면에 «200 | 600 | 200» 처럼 합이 속 크기인 세 칸 줄이 있으면 가운데(600)를 맨홀 구멍으로 윗판 콘크리트에서 뺌.
  * ■ 🏭 G295 밑판 아래 버림(무근) «F-버림» — 판 글 «버림 … T=50» 두께(없으면 50) · 밑판보다 사방 100 넓게.
+ * ■ 🔧 G426 (현장 P① · P② «오수 MANHOLE DETAILS» · «배수로 점검구 DETAIL-1 ~ 3» 이 «아직 못 셈»)
+ *   - 상세 판(«… DETAILS» — 뚜껑 · 바닥 모양 · 손잡이)은 상자가 없음: 같은 이름 «… PLAN & SECTION» 판이 따로 있으면 «몸체는 그 판에서 셈» 으로(못 셈 아님).
+ *   - 보수 상세(기존 배수로에 점검구 — 벽 깨기 · 복구 · 철판 덮개): 판 안 «PLATE COVER DETAIL» 그림의 바깥 치수(가로 · 세로) · 두께 글(«PLATE COVER -30t»)
+ *     × 평면 이름 곁 개수(«-7EA») = 철판 덮개 무게(«기타-철판(PL-30t)» 보강 줄 · 철골 kg). 깨기 · 복구 콘크리트 · 앵글 · 철근은 단면마다 달라 ❓(아직 못 셈 · 알림).
  * ■ 속 높이 치수가 없는 낮은 판(가스충전소 · 처리장 바닥 — 턱 100 · 가장자리 두꺼움): 단면 레벨 글자(+100 · −100 · −350)로
  *     가장자리 두께(맨 위 − 맨 아래) · 가운데 두께(맨 위 − 둘째 아래)의 평균 × 평면 넓이 · 거푸집 = 둘레 × 가장자리 두께. 짐작으로 알림.
  */
@@ -164,13 +168,72 @@ function 레벨(u) {
 
 const m = (mm) => String(Math.round(mm) / 1000)
 
+/** 🔧 G426 «… DETAILS» 상세 판(상자 없음) — 같은 파일에 같은 이름 «… PLAN & SECTION» 판이 있으면 몸체는 그 판에서 셈 → 상세 목록에 넣고 true */
+function 상세판(x, 이름, 판, 상세) {
+  if (!/DETAILS?\s*$/i.test(이름.trim()) && !/상세도?\s*$/.test(이름.trim())) return false
+  const 몸 = 붙(이름).replace(/(DETAILS?|상세도?)$/, '')
+  if (몸.length < 2) return false
+  const 짝 = (판 || []).find((y) => y !== x && 붙(y.이름).startsWith(몸) && /PLAN|SECTION|평면|단면/i.test(String(y.이름 || '').slice(몸.length - 1)))
+  if (!짝) return false
+  상세.push({ p: x.p, 이름, 까닭: '상세 판(뚜껑 · 바닥 모양 · 손잡이 — 상자 없음) — 몸체는 «' + 짝.이름 + '» 판에서 셈' })
+  return true
+}
+/** 🔧 G426 보수 상세 판의 철판 덮개 — «PLATE COVER DETAIL» 그림 이름 위 치수(가로 줄 · 세로 줄의 가장 큰 바깥 값) · 두께 «-30t» · 평면 이름(«배수로 점검구-A») 곁 «-7EA» */
+function 보수상세(D, x, 글) {
+  const 그림 = 글.find((g) => /PLATECOVERDETAIL$/.test(g.u))
+  if (!그림) return null
+  const 판높이 = Math.abs((x.r[3] - x.r[1]) || 1), 판폭 = Math.abs((x.r[2] - x.r[0]) || 1)
+  /* 그림 이름 바로 위(판 높이 30 % · 가로 판 폭 15 % 안)의 치수 글 */
+  const 수 = 글.filter((g) => /^\d{2,5}$/.test(g.u) && g.y > 그림.y && g.y - 그림.y < 0.3 * 판높이 && Math.abs(g.x - 그림.x) < 0.15 * 판폭)
+  const 가로 = 수.filter((g) => Math.abs(Math.sin(g.a)) < 0.1), 세로 = 수.filter((g) => Math.abs(Math.cos(g.a)) < 0.1)
+  /* 줄마다 합 · 가운데 — 그림 이름에서 그 줄 크기의 3 배 안(그림에 붙은 치수)만 · 그중 가장 큰 바깥 값(«1590» 또는 «500 | 590 | 500» 의 합) */
+  const 바깥 = (a, 세) => {
+    if (!a.length) return 0
+    let best = 0
+    for (const z of 줄들(a, 세)) {
+      const 합 = z.v.reduce((s2, v) => s2 + (v > 0 ? v : 0), 0), 큰 = Math.max(...z.v.filter((v) => v > 0))
+      const gs = a.filter((g) => Math.abs((세 ? g.x : g.y) - z.k) <= 0.6 * g.h)
+      const cx = gs.reduce((s2, g) => s2 + g.x, 0) / (gs.length || 1), cy = gs.reduce((s2, g) => s2 + g.y, 0) / (gs.length || 1)
+      if (Math.hypot(cx - 그림.x, cy - 그림.y) > 3 * Math.max(합, 500)) continue
+      best = Math.max(best, 합, 큰)
+    }
+    return best
+  }
+  const 가 = 바깥(가로, false), 세 = 바깥(세로, true)
+  if (!(가 >= 200 && 가 <= 6000 && 세 >= 200 && 세 <= 6000)) return null
+  /* 두께 — 그림 곁 «PLATE COVER» 글 바로 밑 «-30t» (가장 가까운 것) */
+  let t = 0, bd = Infinity
+  for (const g of 글) {
+    const k = /^-?(\d{1,2})T$/.exec(g.u)
+    if (!k) continue
+    const 곁 = 글.find((p) => /^PLATECOVER$/.test(p.u) && Math.abs(p.x - g.x) < 6 * p.h && p.y > g.y && p.y - g.y < 3 * p.h)
+    if (!곁) continue
+    const d = Math.hypot(g.x - 그림.x, g.y - 그림.y)
+    if (d < bd) { bd = d; t = +k[1] }
+  }
+  if (!(t >= 3 && t <= 60)) return null
+  /* 개수 — 판 안 구조물 이름 글(«배수로 점검구-A») 곁 «-7EA» */
+  let n = 0, n글 = '', 이름 = ''
+  for (const g of 글) {
+    if (!구조물이름.test(g.s) || g.u.length > 30 || /DETAIL/.test(g.u)) continue
+    for (const q of 글) {
+      if (q === g || Math.abs(q.y - g.y) > 4 * g.h || Math.abs(q.x - g.x) > 15 * g.h) continue
+      const k = /^-?\(?(\d{1,3})EA\)?$/.exec(q.u)
+      if (k && +k[1] > 0) { n = +k[1]; n글 = q.s.trim(); 이름 = g.s.trim(); break }
+    }
+    if (n) break
+  }
+  if (!n) return null
+  return { 가, 세, t, n, n글, 이름 }
+}
+
 /**
  * @param D 골조자동 준비(…) 한 파일
  * @param 판 판목록(D) — [{p, 번호, 이름, r}]
  * @returns {줄: [보강 줄], 읽음: [{p, 이름, 콘크리트(㎥), 글}], 못읽음: [{p, 이름, 까닭}]}
  */
 export function 구조물읽기(D, 판) {
-  const 줄 = [], 읽음 = [], 못읽음 = []
+  const 줄 = [], 읽음 = [], 못읽음 = [], 상세 = []
   for (const x of 판 || []) {
     const 이름 = String(x.이름 || '')
     if (!구조물이름.test(이름) || 빼는이름.test(이름)) continue
@@ -182,7 +245,17 @@ export function 구조물읽기(D, 판) {
     const 글 = D.글자.filter((g) => D.도곽번(g.x, g.y) === x.p)
     const 제목 = 글.filter((g) => g.u.length <= 24 && /(PLAN|평면도?|SECTION|단면도?)$/.test(g.u) && !/&/.test(g.s))
     const 평면들 = 제목.filter((g) => /(PLAN|평면도?)$/.test(g.u)), 단면들 = 제목.filter((g) => /(SECTION|단면도?)$/.test(g.u))
-    if (!평면들.length || !단면들.length) { 못읽음.push({ p: x.p, 이름, 까닭: '평면 · 단면 그림 이름을 못 찾음' }); continue }
+    /* 🔧 G426 보수 상세(«배수로 점검구 DETAIL-1») — 철판 덮개 그림(«PLATE COVER DETAIL») 치수 · 두께 × 개수 */
+    const 덮개 = 보수상세(D, x, 글)
+    if (덮개) {
+      const 자리 = [{ n: D.이름 || '', r: [x.r[0] / D.k, x.r[1] / D.k, x.r[2] / D.k, x.r[3] / D.k], 판: true }]
+      const 동 = (x.번호 ? x.번호 + ' ' : '') + 이름
+      줄.push({ 동, 층: 'FT', 부재: '기타-철판(PL-' + 덮개.t + 't)', 산출식: m(덮개.가) + '*' + m(덮개.세) + '*' + m(덮개.t) + (덮개.n > 1 ? '*' + 덮개.n : ''), _자리: 자리 })
+      const kg = 덮개.가 * 덮개.세 * 덮개.t / 1e9 * 7850 * 덮개.n
+      읽음.push({ p: x.p, 이름, 콘크리트: 0, 철판kg: kg, 보수: true, 글: `${덮개.이름} 철판 덮개 ${덮개.가}×${덮개.세}×${덮개.t}t × ${덮개.n}개(${덮개.n글}) = ${Math.round(kg).toLocaleString('en-US')} kg — 깨기 · 복구 콘크리트 · 앵글 · 철근은 ❓ 아직 못 셈` })
+      continue
+    }
+    if (!평면들.length || !단면들.length) { if (!상세판(x, 이름, 판, 상세)) 못읽음.push({ p: x.p, 이름, 까닭: '평면 · 단면 그림 이름을 못 찾음' }); continue }
     /* 치수 글 → 바로 아래(가까운) 그림 이름 · «VAR» 도 같이(세운 글) */
     const 수 = 글.filter((g) => (/^\d{2,5}$/.test(g.u) || VAR말.test(g.u)) && (Math.abs(Math.sin(g.a)) < 0.1 || Math.abs(Math.cos(g.a)) < 0.1))
     const 그림번 = (g) => {
@@ -248,7 +321,7 @@ export function 구조물읽기(D, 판) {
       }
       읽은무리.push({ 무, X, Y, H, 판꼴, 짐 })
     }
-    if (!읽은무리.length) { 못읽음.push({ p: x.p, 이름, 까닭: 까닭 || '평면 벽 두께 치수 줄(«300 | 4000 | 300»)을 못 찾음' }); continue }
+    if (!읽은무리.length) { if (!상세판(x, 이름, 판, 상세)) 못읽음.push({ p: x.p, 이름, 까닭: 까닭 || '평면 벽 두께 치수 줄(«300 | 4000 | 300»)을 못 찾음' }); continue }
     /* 철근 — 판의 간격 글(가장 많이 나온 것 = 한 방향 · 다음 것 = 다른 방향) */
     const 셈 = new Map()
     for (const g of 글) { const mm = /^H?D(\d{2})@(\d{2,4})$/.exec(g.u); if (mm) { const k = mm[1] + '@' + mm[2]; 셈.set(k, (셈.get(k) || 0) + 1) } }
@@ -304,5 +377,5 @@ export function 구조물읽기(D, 판) {
     if (!글들.length) { 못읽음.push({ p: x.p, 이름, 까닭: '벽 두께가 바깥 크기와 안 맞음' }); continue }
     읽음.push({ p: x.p, 이름, 콘크리트: 콘합, 글: 글들.join(' / '), 짐작: 읽은무리.some((z) => z.판꼴 || (z.H && z.H.잰)) })
   }
-  return { 줄, 읽음, 못읽음 }
+  return { 줄, 읽음, 못읽음, 상세 }
 }

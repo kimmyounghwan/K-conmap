@@ -51,10 +51,11 @@ export function 판물량(판, 공사, S) {
     if (!m) continue
     for (const [k, w] of m) {
       let o = out.get(k)
-      if (!o) { o = { 콘크리트: 0, 버림: 0, 거푸집: 0, 철근: 0 }; out.set(k, o) }
+      if (!o) { o = { 콘크리트: 0, 버림: 0, 거푸집: 0, 철근: 0, 철골: 0 }; out.set(k, o) }
       if (x.항목 === '콘크리트') { if (/^버림/.test(String(x.비고 || ''))) o.버림 += x.수량 * w; else o.콘크리트 += x.수량 * w }
       else if (x.항목 === '거푸집') o.거푸집 += x.수량 * w
       else if (x.항목 === '철근') o.철근 += x.수량 * w
+      else if (x.항목 === '철골') o.철골 += x.수량 * w          // 🔧 G426 보수 상세 철판 덮개 · 🏗 G425 철골
     }
   }
   return out
@@ -72,11 +73,13 @@ export function 판상태(x, q) {
   if (u.바닥철근) 읽은.push('바닥 철근 글 ' + u.바닥철근)
   if (u.구조물) 읽은.push('구조물 ' + u.구조물)
   if (u.구조물못) 읽은.push('구조물 못 읽음 — ' + u.구조물못)
-  const 물 = q && (q.콘크리트 > 0.05 || q.철근 > 1)
+  if (u.구조물상세) 읽은.push(u.구조물상세)
+  const 물 = q && (q.콘크리트 > 0.05 || q.철근 > 1 || (q.철골 || 0) > 1)
   const 이름 = String(x.이름 || '')
   let 종류
   if (물) 종류 = '물량'
   else if (u.구조물못) 종류 = '못셈'
+  else if (u.구조물상세) 종류 = '정의'          // 🔧 G426 «… DETAILS» 상세 판 — 몸체는 같은 이름 PLAN & SECTION 판에서 셈
   else if (정의 || u.바닥단면 || u.바닥철근) 종류 = '정의'
   else if (밖말.test(이름) && !/FOUNDATION|FOOTING|기초|BEAM|COLUMN|SLAB|WALL/i.test(이름)) 종류 = '밖'
   else if ((u.철근글 || 0) > 0 || 구조물말.test(이름)) 종류 = '못셈'
