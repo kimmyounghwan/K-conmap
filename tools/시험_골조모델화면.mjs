@@ -466,6 +466,9 @@ for (const 기기 of 기기들) {
       await B.reload({ waitUntil: 'domcontentloaded' }); await B.waitForSelector('.gmd-ws', { timeout: 30000 }); await B.waitForTimeout(2500)
       const 정 = await B.locator('.gmd-tidy').innerText().catch(() => '')
       봐(/🧹 정리할 것/.test(정) && /1층 기둥 412개/.test(정) && /보조 통심 교점 400곳/.test(정) && /겹친 곳 [\d,]+곳의 원인/.test(정), `${기기} 🧹 G431 정리판 — «1층 기둥 412개 · 도면 근거 없이 손으로 세운 무더기(보조 통심 교점 400곳) · 겹친 곳 n곳의 원인»`, 정.replace(/\n/g, ' ').slice(0, 220))
+      /* 🧾 G432 층별 대조 — 무더기 층의 «+손 n» 은 빨강(⚠) */
+      const 손칸 = await B.locator('.gmd-cmp').evaluate((e) => { const tr = [...e.querySelectorAll('tbody tr')].find((t) => (t.children[0] || {}).textContent === '1층'); const w = tr && tr.querySelector('small.gmd-warn'); return w ? w.textContent : '' }).catch(() => '')
+      봐(/\+손 [\d,]+ ⚠/.test(손칸) && parseInt(손칸.replace(/[^\d]/g, ''), 10) >= 412, `${기기} 🧾 G432 층별 대조 1층 «+손 n ⚠» 빨강(도면 근거 없는 무더기 412 포함)`, 손칸)
       await B.locator('.gmd-tidy button', { hasText: '이것만 빼기' }).first().click(); await B.waitForTimeout(1500)
       const M6 = JSON.parse(await B.evaluate(() => localStorage.getItem('kcm.model.v1')))
       const 정2 = await B.locator('.gmd-tidy').innerText().catch(() => '')
@@ -481,6 +484,31 @@ for (const 기기 of 기기들) {
       const 제 = await B.locator('.gmd-prop-sum').innerText().catch(() => '')
       봐(/먼저 세운 것 3곳/.test(제), `${기기} 🟨 제안 3곳(계단 · MAT · 비스듬한 보)`, 제.slice(0, 80))
       봐((await B.locator('#gmd-dwgbox input[type=checkbox]').count()) === 4, `${기기} 📚 도면함 — 가상 평면 넷 ☑`)
+      /* 👁 G433 도면함 «☑ 체크 = 👁 보기» — 체크한 도면(평면)만 3D · 평면에 · 여러 장 · 물량은 그대로 · «모두 보기» 로 돌아옴 */
+      {
+        const 합전 = await B.locator('.gmd-ws-right .gmd-sum').innerText()
+        await B.locator('.gmd-ws-floor', { hasText: '1층' }).first().click(); await B.waitForTimeout(300)
+        const 판전 = await B.locator('svg.gmd-svg g.gmd-m').count()
+        await B.locator('#gmd-dwgbox .gmd-dwgmode button', { hasText: '보기' }).click(); await B.waitForTimeout(400)
+        const 줄 = B.locator('#gmd-dwgbox ul.gmd-box-list > li')
+        const 제목들 = await 줄.evaluateAll((a) => a.map((li) => li.innerText.split('\n')[0]))
+        /* 1층 평면 하나만 남기고 끔(여러 장 중 하나) */
+        const 남길 = 제목들.findIndex((t) => /1층/.test(t) && !/손으로/.test(t))
+        for (let i = 0; i < 제목들.length; i++) if (i !== 남길) { const c = 줄.nth(i).locator('input[type=checkbox]'); if (await c.isChecked()) await c.uncheck() }
+        await B.waitForTimeout(800)
+        const 띠 = await B.locator('.gmd-viewband').innerText().catch(() => '')
+        const 판후 = await B.locator('svg.gmd-svg g.gmd-m').count()
+        const 합후 = await B.locator('.gmd-ws-right .gmd-sum').innerText()
+        봐(남길 >= 0 && /체크한 도면 1장만 보는 중/.test(띠) && 판후 > 0 && 판후 < 판전 && 합후 === 합전, `${기기} 👁 G433 «보기» — 1층 평면 1장만 체크 → 평면 부재 ${판전} → ${판후} · 띠 «체크한 도면 1장만 보는 중» · 물량 그대로`, JSON.stringify([제목들, 띠, 판전, 판후]))
+        /* 두 장 체크 → 2장 */
+        const 둘째 = 제목들.findIndex((t, i) => i !== 남길 && !/손으로/.test(t))
+        await 줄.nth(둘째).locator('input[type=checkbox]').check(); await B.waitForTimeout(500)
+        봐(/체크한 도면 2장만 보는 중/.test(await B.locator('.gmd-viewband').innerText().catch(() => '')), `${기기} 👁 여러 장(2장) 체크 → «2장만 보는 중»`)
+        await B.locator('.gmd-viewband button', { hasText: '모두 보기' }).click(); await B.waitForTimeout(600)
+        봐((await B.locator('.gmd-viewband').count()) === 0 && (await B.locator('svg.gmd-svg g.gmd-m').count()) === 판전, `${기기} 👁 «모두 보기» → 띠 사라지고 평면 부재 그대로(${판전})`)
+        await B.locator('#gmd-dwgbox .gmd-dwgmode button', { hasText: '세움' }).click(); await B.waitForTimeout(300)
+        봐((await B.locator('#gmd-dwgbox input[type=checkbox]').count()) === 4, `${기기} ☑ 체크 = 세움 으로 돌아옴(체크 넷)`)
+      }
       const 대 = await B.locator('.gmd-cmp').innerText().catch(() => '')
       봐(/🟥 손으로 1/.test(대) && /FT/.test(대) && /2층/.test(대), `${기기} 🧾 층별 대조 — 🟥 1 · 층마다`, 대.replace(/\n/g, ' ').slice(0, 160))
       const 구 = (await B.locator('.gmd-zonelist input').evaluateAll((a) => a.map((e) => e.value)).catch(() => [])).join(' ')
@@ -490,6 +518,13 @@ for (const 기기 of 기기들) {
       /* 🧹 G431 정리판 — 작업 예시: 겹친 곳 1 · 🟨 제안 3 · 🟥 1 을 원인별 한 줄씩 · «🧩 겹친 곳 목록» 누르면 그 상자가 열림 */
       const 정예 = await B.locator('.gmd-tidy').innerText().catch(() => '')
       봐(/겹친 곳 1곳/.test(정예) && /확인할 제안 3곳/.test(정예) && /손으로 할 곳 1곳/.test(정예) && !/무더기/.test(정예), `${기기} 🧹 정리판(작업 예시) — 겹친 곳 1 · 🟨 3 · 🟥 1 · 무더기 없음`, 정예.replace(/\n/g, ' ').slice(0, 200))
+      /* 🧾 G432 층별 대조 — 🧩 칸(층마다 겹친 곳) · 줄을 누르면 그 층으로 */
+      const 대표 = await B.locator('.gmd-cmp').evaluate((e) => { e.open = true; const 머 = [...e.querySelectorAll('thead th')].map((t) => t.innerText.trim()); const i = 머.indexOf('🧩'); const 줄 = [...e.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map((td) => td.innerText.trim())); return { 머, i, 줄 } })
+      const 일 = 대표.줄.find((r) => r[0] === '1층')
+      봐(대표.i > 0 && 일 && 일[대표.i] === '1', `${기기} 🧾 G432 층별 대조 «🧩» 칸 — 1층 겹친 곳 1`, JSON.stringify(대표).slice(0, 300))
+      await B.locator('.gmd-cmp tbody tr', { hasText: '2층' }).first().click(); await B.waitForTimeout(500)
+      봐(/2층/.test(await B.locator('.gmd-ws-floor.on').first().innerText()), `${기기} 🧾 층별 대조 2층 줄을 누르면 2층으로`)
+      await B.locator('.gmd-ws-floor', { hasText: '1층' }).first().click(); await B.waitForTimeout(300)
       await B.locator('.gmd-tidy button', { hasText: '🧩 겹친 곳 목록' }).click(); await B.waitForTimeout(600)
       봐(await B.locator('.gmd-ovl').evaluate((e) => e.open), `${기기} «🧩 겹친 곳 목록» → 겹친 곳 상자 열림`)
       const 겹판 = await B.locator('.gmd-ovl').innerText().catch(() => '')

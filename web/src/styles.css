@@ -9119,6 +9119,10 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gmd .gmd-tidylist { margin: 6px 0 2px; padding-left: 4px; list-style: none; }
 .gmd .gmd-tidylist li { margin: 6px 0; line-height: 1.55; }
 .gmd .gmd-tidylist li .gmd-row { margin-top: 3px; }
+.gmd .gmd-cmp tr.gmd-rowgo { cursor: pointer; }   /* 🧾 G432 층별 대조 줄 → 그 층 */
+.gmd .gmd-viewband { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0; border-left: 3px solid var(--accent, #2563eb); }   /* 👁 G433 체크한 도면만 보는 중 */
+.gmd .gmd-dwgmode { gap: 4px; margin-bottom: 6px; }
+.gmd .gmd-cmp tr.gmd-rowgo:hover td { background: color-mix(in srgb, var(--accent, #2563eb) 7%, transparent); }
 .gmd .gmd-addrows { background: var(--surface-2, #f6f7f9); border-radius: 8px; padding: 6px 10px; }
 .gwk-prop, .gmd .gwk-prop { color: #b45309; }
 /* 🧾 G393 층별 대조 · 🟥 빨간 곳 목록 · 평면 빨간 곳 */
