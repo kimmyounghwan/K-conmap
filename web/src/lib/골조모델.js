@@ -395,9 +395,34 @@ export function 겹침둠(M, a, b) {
   const k = a < b ? a + '|' + b : b + '|' + a
   return { ...M, 겹침둠: [...new Set([...(M.겹침둠 || []), k])] }
 }
-/** 🧩 G394 겹친 두 부재 중 하나만 남김(다른 것을 뺌) */
+/** 🧩 G394 겹친 두 부재 중 하나만 남김(다른 것을 뺌)
+ *   🧩 G430 두 부재가 지금 모델에 다 있을 때만 — 이미 고른 짝(한쪽이 빠짐)을 다시 누르면 그대로(셈이 늦게 따라와 같은 물음이 또 보일 때 다른 쪽을 눌러 둘 다 빠지던 것) */
 export function 겹침남기기(M, 남길, 뺄) {
+  if (String(남길) === String(뺄) || !M.부재.some((o) => o.id === 남길) || !M.부재.some((o) => o.id === 뺄)) return M
   return { ...M, 부재: M.부재.filter((o) => o.id !== 뺄), 겹침둠: (M.겹침둠 || []).filter((k) => !k.split('|').includes(String(뺄))) }
+}
+/** 🧩 G430 아직 물을 겹침 짝인지 — 두 부재가 지금 모델(M)에 다 있고 «둘 다 맞음»(M.겹침둠)이 아님
+ *   셈(S · 겹친 곳 목록)은 화면에서 늦게 따라오므로(useDeferredValue) 고른 뒤 옛 목록의 그 짝을 다시 묻지 않게 M 으로 거름
+ *   (소장님 「이게 클릭을 해도 계속 떠」 — 둘러보기 «❓ B1층 같은 자리에 두 번 그렸습니다» 를 눌러도 다시 떴음) */
+export function 겹침물을짝(e, M) {
+  if (!e || !Array.isArray(e.ids) || e.ids.length !== 2) return false
+  const 있 = (id) => M.부재.some((o) => o.id === id)
+  const [a, b] = e.ids
+  const k = a < b ? a + '|' + b : b + '|' + a
+  return 있(a) && 있(b) && !(M.겹침둠 || []).map(String).includes(k)
+}
+/**
+ * 🔧 G430 저장된 모델이 너무 클 때(«많은 것만 빼고 열기») — 한 층 한 종류가 문턱(2,000개)을 넘는 무리에서 손으로 세운 것만 뺌 · 도면에서 온 것(근거)은 남김
+ *   (소장님 모델: B1 기둥 10,000개 = 도면 3 + «모든 교점에» 로 보조 통심 100 × 100 교점마다 세운 9,997 — 전에는 무리를 통째로 빼 도면 기둥 3개도 빠졌음)
+ * @returns {{ M, 무리: [{ 종류, 층, 모두, 도면, 뺌 }] }}
+ */
+export function 큰무리빼기(M, 문턱 = 2000) {
+  const 셈 = new Map()
+  for (const o of M.부재) { const k = o.종류 + '|' + o.층; 셈.set(k, (셈.get(k) || 0) + 1) }
+  const 큰 = new Set([...셈].filter(([, n]) => n > 문턱).map(([k]) => k))
+  const 뺄 = (o) => 큰.has(o.종류 + '|' + o.층) && !o.근거
+  const 무리 = [...큰].map((k) => { const [종류, 층] = k.split('|'); const 도면 = M.부재.filter((o) => o.종류 === 종류 && o.층 === 층 && o.근거).length; return { 종류, 층, 모두: 셈.get(k), 도면, 뺌: 셈.get(k) - 도면 } })
+  return { M: { ...M, 부재: M.부재.filter((o) => !뺄(o)) }, 무리 }
 }
 export function 부재빼기(M, ids) {
   const s = new Set([].concat(ids))

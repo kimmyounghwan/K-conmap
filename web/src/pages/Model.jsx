@@ -25,7 +25,7 @@ import { Link } from 'react-router-dom'
 import { 세기 } from '../lib/받은수.jsx'
 import { 배근칸, 정착표, 기준값, 엑셀 as 골조엑셀 } from '../lib/골조.js'
 import { 도면함끄기, 도면함켜기, 도면함넣어둠 } from '../lib/도면모델.js'
-import { 새모델, 예시모델, 작업예시모델, 정돈, 겹침둠, 겹침남기기, 사선넣기, 사선끝, 띠판, 기둥넣기, 선넣기, 칸넣기, 계단넣기, 부재옮기기, 구간넣기, 구간빼기, 구간고치기, 구간물량, 구간선자르기, 구간색들, 부재빼기, 부재고치기, 부재나누기, 층복사, 통심더하기, 통심빼기, 통심간격, 모델셈, 종류색, 부재글, 모델시트, FT층, 층높이, 제안확인, 제안모두확인, 제안빼기, 기초철근넣기, 계단글 } from '../lib/골조모델.js'
+import { 새모델, 예시모델, 작업예시모델, 정돈, 겹침둠, 겹침남기기, 겹침물을짝, 큰무리빼기, 사선넣기, 사선끝, 띠판, 기둥넣기, 선넣기, 칸넣기, 계단넣기, 부재옮기기, 구간넣기, 구간빼기, 구간고치기, 구간물량, 구간선자르기, 구간색들, 부재빼기, 부재고치기, 부재나누기, 층복사, 통심더하기, 통심빼기, 통심간격, 모델셈, 종류색, 부재글, 모델시트, FT층, 층높이, 제안확인, 제안모두확인, 제안빼기, 기초철근넣기, 계단글 } from '../lib/골조모델.js'
 import 둘러보기판 from '../둘러보기판.jsx'
 import { 층판 } from '../lib/둘러보기.js'
 import { 길잡이 } from '../lib/도우미.js'
@@ -62,6 +62,7 @@ function 읽기() {
 const 큰모델 = 6000
 export default function Model() {
   const [큰저장, set큰저장] = useState(() => { const m = 읽기(); return m && m.부재.length > 큰모델 ? m : null })
+  const 큰무리 = useMemo(() => (큰저장 ? 큰무리빼기(큰저장).무리 : []), [큰저장])          // 🔧 G430 많은 무리마다 도면에서 온 것 · 손으로 세운 것
   const [M, setM0] = useState(() => { const m = 읽기(); return m && m.부재.length <= 큰모델 ? m : 새모델() })
   /* 🔧 G393 소장님 「뒤로가기가 없어」 — 되돌리기를 이 탭에 남김(새로고침해도 ↶ 로 돌아감 · 10번까지 · 큰 모델은 덜) */
   const [되돌림, set되돌림] = useState(() => { try { const t = sessionStorage.getItem(되돌림열쇠); const a = t ? JSON.parse(t) : []; return Array.isArray(a) ? a.filter((m) => m && Array.isArray(m.부재) && m.통심).map(정돈) : [] } catch (e) { return [] } })
@@ -299,7 +300,7 @@ export default function Model() {
             <input ref={도면Ref} className="gmd-ws-dwgin" type="file" accept=".dxf,.dwg,.xlsx,.xls,.csv,.txt" multiple style={{ display: 'none' }} onChange={(e) => { 도면넣기(e.target.files); e.target.value = '' }} />
           </div>
           {도면상태 && <div className={'gmd-note gmd-ws-note' + (도면상태.k === 'err' ? ' gmd-warnbox' : '')} role="status">{도면상태.k === 'busy' ? '⏳ ' : '⚠ '}{도면상태.글}{도면상태.k !== 'busy' && <button type="button" className="gmd-x" onClick={() => set도면상태(null)} aria-label="닫기">✕</button>}</div>}
-{큰저장 && <div className="gmd-note gmd-warnbox" role="alert">⚠ 저장된 모델의 부재가 <b>{큰저장.부재.length.toLocaleString('ko-KR')}개</b>로 아주 많습니다({[...new Set(큰저장.부재.map((o) => o.층))].map((f) => f + '층 ' + 큰저장.부재.filter((o) => o.층 === f).length.toLocaleString('ko-KR')).join(' · ')}) — 열면 화면이 멈출 수 있습니다. <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => { const m = 큰저장; const 층들 = new Map(); for (const o of m.부재) 층들.set(o.종류 + '|' + o.층, (층들.get(o.종류 + '|' + o.층) || 0) + 1); const 큰 = [...층들].filter(([, n]) => n > 2000).map(([k]) => k); setM0({ ...m, 부재: m.부재.filter((o) => !큰.includes(o.종류 + '|' + o.층)) }); set큰저장(null); set알림('너무 많던 ' + 큰.map((k) => k.split('|')[1] + '층 ' + k.split('|')[0]).join(' · ') + ' 만 빼고 열었습니다') }}>많은 것만 빼고 열기</button> <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { setM0(큰저장); set큰저장(null) }}>그대로 열기</button> <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { set큰저장(null); set알림('새 모델로 시작합니다') }}>비우고 시작</button></div>}
+{큰저장 && <div className="gmd-note gmd-warnbox" role="alert">⚠ 저장된 모델의 부재가 <b>{큰저장.부재.length.toLocaleString('ko-KR')}개</b>로 아주 많습니다({[...new Set(큰저장.부재.map((o) => o.층))].map((f) => f + '층 ' + 큰저장.부재.filter((o) => o.층 === f).length.toLocaleString('ko-KR')).join(' · ')}) — 열면 화면이 멈출 수 있습니다.{큰무리.length > 0 && <> 많은 곳: {큰무리.map((g) => `${g.층}층 ${g.종류} ${g.모두.toLocaleString('ko-KR')}개(도면에서 온 것 ${g.도면.toLocaleString('ko-KR')} · 손으로 세운 것 ${g.뺌.toLocaleString('ko-KR')})`).join(' · ')}.</>} <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => { const r = 큰무리빼기(큰저장); setM0(r.M); set큰저장(null); set알림('너무 많던 ' + r.무리.map((g) => g.층 + '층 ' + g.종류 + ' 손으로 세운 것 ' + g.뺌.toLocaleString('ko-KR') + '개').join(' · ') + ' 만 빼고 열었습니다(도면에서 온 것은 남김)') }}>많은 것만 빼고 열기</button> <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { setM0(큰저장); set큰저장(null) }}>그대로 열기</button> <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { set큰저장(null); set알림('새 모델로 시작합니다') }}>비우고 시작</button></div>}
           {알림 && <div className="gmd-note gmd-ws-note">{알림}<button type="button" className="gmd-x" onClick={() => set알림('')} aria-label="닫기">✕</button></div>}
           {탭 === '세우기' ? 세움칸(true) : (
             <div className="gmd-ws-page">
@@ -331,7 +332,7 @@ export default function Model() {
           <input ref={파일Ref} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={(e) => { 모델열기(e.target.files && e.target.files[0]); e.target.value = '' }} />
         </div>
         <label className="gmd-name">공사 이름 <input value={M.이름} placeholder="예: ○○ 근린생활시설 신축" onChange={(e) => { const v = e.target.value; setM0((P) => ({ ...P, 이름: v })) }} /></label>
-{큰저장 && <div className="gmd-note gmd-warnbox" role="alert">⚠ 저장된 모델의 부재가 <b>{큰저장.부재.length.toLocaleString('ko-KR')}개</b>로 아주 많습니다({[...new Set(큰저장.부재.map((o) => o.층))].map((f) => f + '층 ' + 큰저장.부재.filter((o) => o.층 === f).length.toLocaleString('ko-KR')).join(' · ')}) — 열면 화면이 멈출 수 있습니다. <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => { const m = 큰저장; const 층들 = new Map(); for (const o of m.부재) 층들.set(o.종류 + '|' + o.층, (층들.get(o.종류 + '|' + o.층) || 0) + 1); const 큰 = [...층들].filter(([, n]) => n > 2000).map(([k]) => k); setM0({ ...m, 부재: m.부재.filter((o) => !큰.includes(o.종류 + '|' + o.층)) }); set큰저장(null); set알림('너무 많던 ' + 큰.map((k) => k.split('|')[1] + '층 ' + k.split('|')[0]).join(' · ') + ' 만 빼고 열었습니다') }}>많은 것만 빼고 열기</button> <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { setM0(큰저장); set큰저장(null) }}>그대로 열기</button> <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { set큰저장(null); set알림('새 모델로 시작합니다') }}>비우고 시작</button></div>}
+{큰저장 && <div className="gmd-note gmd-warnbox" role="alert">⚠ 저장된 모델의 부재가 <b>{큰저장.부재.length.toLocaleString('ko-KR')}개</b>로 아주 많습니다({[...new Set(큰저장.부재.map((o) => o.층))].map((f) => f + '층 ' + 큰저장.부재.filter((o) => o.층 === f).length.toLocaleString('ko-KR')).join(' · ')}) — 열면 화면이 멈출 수 있습니다.{큰무리.length > 0 && <> 많은 곳: {큰무리.map((g) => `${g.층}층 ${g.종류} ${g.모두.toLocaleString('ko-KR')}개(도면에서 온 것 ${g.도면.toLocaleString('ko-KR')} · 손으로 세운 것 ${g.뺌.toLocaleString('ko-KR')})`).join(' · ')}.</>} <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => { const r = 큰무리빼기(큰저장); setM0(r.M); set큰저장(null); set알림('너무 많던 ' + r.무리.map((g) => g.층 + '층 ' + g.종류 + ' 손으로 세운 것 ' + g.뺌.toLocaleString('ko-KR') + '개').join(' · ') + ' 만 빼고 열었습니다(도면에서 온 것은 남김)') }}>많은 것만 빼고 열기</button> <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { setM0(큰저장); set큰저장(null) }}>그대로 열기</button> <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { set큰저장(null); set알림('새 모델로 시작합니다') }}>비우고 시작</button></div>}
         {알림 && <div className="gmd-note">{알림}</div>}
       </div>
 
@@ -938,6 +939,7 @@ function 세우기칸(p) {
             <select className="gmd-in" value={보일층} onChange={(e) => set보일층(e.target.value)} aria-label="3D 에 보일 층">
               <option value="모두">3D: 모든 층</option><option value="까지">3D: 이 층까지</option><option value="이층">3D: 이 층만</option><option value="벗김">3D: 이 층(천장 빼고)</option>
             </select>
+            {보일층 === '까지' && M.층.length > 1 && M.층[M.층.length - 1].이름 === 층 && <span className="muted gmd-topnote">맨 위층이라 «모든 층» 과 같음 — 이 층만 보려면 «이 층만»</span>}{/* 🔧 G430 소장님 「이층만해도, 모든층해도 다 똑같아」(PH 에서) */}
             <button type="button" className="btn line sm" onClick={() => 보기Ref.current && 보기Ref.current.fit('tilt')}>↗</button>
             <button type="button" className="btn line sm" onClick={() => 보기Ref.current && 보기Ref.current.fit('top')}>⬇ 위</button>
             <button type="button" className={'btn line sm gmd-bigbtn' + (크게 ? ' on' : '')} onClick={() => set크게((v) => !v)}>{크게 ? '⊟ 작게' : '⛶ 크게'}</button>
@@ -1306,7 +1308,8 @@ function 겹침판({ M, S, setM, 세기, 겹보기 }) {
   const 겹 = (S.검사.find((z) => z.겹친) || {}).겹친 || []
   const 둔 = (M.겹침둠 || []).length
   if (!겹.length && !둔) return null
-  const 둘 = 겹.filter((e) => e.종 === '둘'), 남 = 겹.filter((e) => e.종 !== '둘')
+  /* 🧩 G430 고른 짝(한쪽 뺌 · 둘 다 맞음)은 셈이 늦게 따라와도 바로 목록에서 뺌 — 같은 짝의 다른 쪽을 또 눌러 둘 다 빠지지 않게 */
+  const 둘 = 겹.filter((e) => e.종 === '둘' && 겹침물을짝(e, M)), 남 = 겹.filter((e) => e.종 !== '둘' && e.ids.every((id) => M.부재.some((o) => o.id === id)))
   const 합 = 겹.reduce((a, e) => a + e.부피, 0)
   const 부 = (id) => M.부재.find((u) => u.id === id)
   const 짧 = (e, k) => { const o = 부(e.ids[k]); return (o ? String(o.부호 || '') || o.종류 : '#' + e.ids[k]) + ' · ' + 수글((e.부피들 || [])[k] || 0) + ' ㎥' }

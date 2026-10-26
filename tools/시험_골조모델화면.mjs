@@ -448,7 +448,7 @@ for (const 기기 of 기기들) {
     await B.evaluate((t) => { localStorage.setItem('kcm.model.v1', t); sessionStorage.removeItem('kcm.model.undo.v1') }, JSON.stringify(큰))
     await B.reload({ waitUntil: 'domcontentloaded' }); await B.waitForSelector('.gmd-ws', { timeout: 30000 }); await B.waitForTimeout(800)
     const 경 = await B.locator('.gmd-warnbox').innerText().catch(() => '')
-    봐(/6,5\d\d개/.test(경) && /많은 것만 빼고 열기/.test(경), `${기기} 큰 저장 모델(부재 6,500여 개) — 열기 전에 «많은 것만 빼고 · 그대로 · 비우고» 물음`, 경.slice(0, 120))
+    봐(/6,5\d\d개/.test(경) && /많은 것만 빼고 열기/.test(경) && /1층 기둥 6,512개\(도면에서 온 것 0 · 손으로 세운 것 6,512\)/.test(경), `${기기} 큰 저장 모델(부재 6,500여 개) — 열기 전에 «많은 것만 빼고 · 그대로 · 비우고» 물음 · 🔒 G430 무리마다 «도면에서 온 것 · 손으로 세운 것»`, 경.slice(0, 260))
     await B.getByRole('button', { name: '많은 것만 빼고 열기' }).click(); await B.waitForTimeout(900)
     const M5 = await 모델읽기()
     봐(M5.부재.length === L.예시모델().부재.length - 12 && (await B.locator('.gmd-warnbox').count()) === 0, `${기기} 많은 것만 빼고 열기 → 1층 기둥(6,5xx개)만 빼고 엶`, M5.부재.length)

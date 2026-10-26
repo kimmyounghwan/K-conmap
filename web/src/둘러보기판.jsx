@@ -20,7 +20,7 @@ import { 세기 } from './lib/받은수.jsx'
 import { 사람몸, 놓기 } from './lib/사람3d.js'
 import { 사람모델읽기, 사람자세, 사람놓기, 캐릭터들, 캐릭터받기 } from './lib/사람vrm.js'
 import { 층판, 첫자리, 걷기, 가까운것, 확인들, 자동길, 자동입력, 자동막힘, 밀어내기, 누른곳길, 가까운빠짐 } from './lib/둘러보기.js'
-import { 층높이, 부재나누기, 부재글, FT층, 제안확인, 제안빼기, 판넓이, 구간물량, 겹침남기기, 겹침둠 } from './lib/골조모델.js'
+import { 층높이, 부재나누기, 부재글, FT층, 제안확인, 제안빼기, 판넓이, 구간물량, 겹침남기기, 겹침둠, 겹침물을짝 } from './lib/골조모델.js'
 
 const 기억열쇠 = 'kcm.walker'
 const 각차 = (a, b) => { let d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d }
@@ -230,7 +230,8 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
             /* 🧩 G394 가까운 부재가 «두 번 그린 곳(❓ 어느 것?)» 이면 그 퀘스트 — 제안 다음 · 빨간 곳 앞 */
             const 겹들 = ((SRef.current && SRef.current.검사 && SRef.current.검사.find((z) => z.겹친)) || {}).겹친 || []
             const 가ids = 제o ? [] : 가까운것(s, 판0).slice(0, 3).map((r) => r.o.id)
-            const 겹e = 제o ? null : 겹들.find((x) => x.종 === '둘' && x.ids.some((id) => 가ids.includes(id)) && !넘김Ref.current.has('겹|' + x.ids.join('|')))
+            /* 🧩 G430 지금 모델(MM)에 두 부재가 다 있고 «둘 다 맞음» 이 아닌 짝만 — 셈(S)은 늦게 따라와 옛 목록에 고른 짝이 남아 있음(소장님 「클릭을 해도 계속 떠」) */
+            const 겹e = 제o ? null : 겹들.find((x) => x.종 === '둘' && x.ids.some((id) => 가ids.includes(id)) && !넘김Ref.current.has('겹|' + x.ids.join('|')) && 겹침물을짝(x, MM))
             const 빨 = 제o || 겹e ? null : 가까운빠짐(s, MM.빠짐, 판0.층)
             const 새 = 제o ? { 종: '제안', id: 제o.id } : 겹e ? { 종: '겹침', 키: 겹e.ids.join('|') } : 빨 && !넘김Ref.current.has(판0.층 + '|' + 빨.k) ? { 종: '빨강', k: 빨.k } : null
             set퀘((p) => (JSON.stringify(p) === JSON.stringify(새) ? p : 새))
@@ -259,9 +260,9 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
   const 빨수 = (M.빠짐 || []).filter((x) => x.층 === 층).length, 제수 = M.부재.filter((o) => o.층 === 층 && o.제안).length
   const 퀘제 = 퀘 && 퀘.종 === '제안' ? M.부재.find((o) => o.id === 퀘.id && o.제안) : null
   const 퀘빨 = 퀘 && 퀘.종 === '빨강' ? (M.빠짐 || [])[퀘.k] : null
-  const 퀘겹 = 퀘 && 퀘.종 === '겹침' ? (((S && S.검사 && S.검사.find((z) => z.겹친)) || {}).겹친 || []).find((x) => x.ids.join('|') === 퀘.키) || null : null
+  const 퀘겹 = 퀘 && 퀘.종 === '겹침' ? (((S && S.검사 && S.검사.find((z) => z.겹친)) || {}).겹친 || []).find((x) => x.ids.join('|') === 퀘.키 && 겹침물을짝(x, M)) || null : null
   const 겹이름 = (k) => { const o = 퀘겹 && M.부재.find((x) => x.id === 퀘겹.ids[k]); return o ? o.종류 + ' ' + (o.부호 || '') + ' · ' + ((퀘겹.부피들 || [])[k] || 0).toFixed(3) + ' ㎥' : '' }
-  const 겹남김 = (k) => { if (!퀘겹) return; const 남 = 퀘겹.ids[k], 뺄 = 퀘겹.ids[1 - k]; const 글1 = 겹이름(k); setM((P) => 겹침남기기(P, 남, 뺄)); 세기('|골조모델|퀘스트겹침'); set알림('✓ ' + 글1 + ' 을(를) 남기고 다른 것을 뺐습니다(↶ 되돌리기 됨)'); set퀘(null) }
+  const 겹남김 = (k) => { if (!퀘겹) return; const 남 = 퀘겹.ids[k], 뺄 = 퀘겹.ids[1 - k]; const 글1 = 겹이름(k); setM((P) => 겹침남기기(P, 남, 뺄)); 세기('|골조모델|퀘스트겹침'); set알림('✓ ' + 글1 + ' 을(를) 남기고 다른 것을 뺐습니다(↶ 되돌리기 됨)'); 넘김Ref.current.add('겹|' + 퀘겹.ids.join('|')); set퀘(null) }
   const 퀘확인 = () => { if (!퀘제) return; setM((P) => 제안확인(P, 퀘제.id, 지금때())); 세기('|골조모델|퀘스트확인'); set알림('✓ ' + 층글(퀘제.층) + ' ' + 퀘제.종류 + ' ' + 퀘제.부호 + ' — 건설맵이 세운 대로 확인했습니다'); set퀘(null) }
   const 퀘빼기 = () => { if (!퀘제) return; setM((P) => 제안빼기(P, 퀘제.id)); set알림('✕ ' + 퀘제.종류 + ' ' + 퀘제.부호 + ' 을(를) 빼서 빨간 곳(손으로)으로 돌렸습니다'); set퀘(null) }
   const 다봄 = 이층수 > 0 && 본수 >= 이층수
@@ -368,7 +369,7 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
           <div className="gwk-qbtns">
             <button type="button" onClick={() => 겹남김(0)}>✓ {겹이름(0)}</button>
             <button type="button" onClick={() => 겹남김(1)}>✓ {겹이름(1)}</button>
-            <button type="button" onClick={() => { setM((P) => 겹침둠(P, 퀘겹.ids[0], 퀘겹.ids[1])); set알림('둘 다 맞음 — 둘 다 셉니다'); set퀘(null) }}>둘 다 맞음</button>
+            <button type="button" onClick={() => { setM((P) => 겹침둠(P, 퀘겹.ids[0], 퀘겹.ids[1])); set알림('둘 다 맞음 — 둘 다 셉니다'); 넘김Ref.current.add('겹|' + 퀘겹.ids.join('|')); set퀘(null) }}>둘 다 맞음</button>
             <button type="button" onClick={() => { 넘김Ref.current.add('겹|' + 퀘겹.ids.join('|')); set퀘(null) }}>넘어가기</button>
           </div>
         </div>

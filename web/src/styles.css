@@ -8885,6 +8885,7 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gmd .gmd-ilam { margin-top: 6px; }
 .gmd .gmd-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 4px 0 6px; }
 .gmd .gmd-bar.small { font-size: 12.5px; }
+.gmd .gmd-topnote { font-size: 12px; align-self: center; line-height: 1.4; }   /* 🔧 G430 맨 위층 «이 층까지» = 모든 층 */
 .gmd .gmd-bar .btn { width: auto; }
 .gmd .gmd-tools { display: inline-flex; flex-wrap: wrap; gap: 4px; }
 .gmd .gmd-tool { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: 13.5px; cursor: pointer; }
