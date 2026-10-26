@@ -515,6 +515,7 @@ export function 네모로나누기(raw, 네모들) {
     }
   }
   for (const t of raw.texts || []) { const k = 어디(t.x, t.y); (k < 0 ? 밖 : 조각[k]).texts.push(t) }
+  for (const c of raw.circles || []) { const k = 어디(c.x, c.y); const d = k < 0 ? 밖 : 조각[k]; if (!d.circles) d.circles = []; d.circles.push(c) }   /* 🧾 G424 원도 그 네모로 */
   return { 조각, 밖 }
 }
 
@@ -531,6 +532,7 @@ export function 도면합치기(목록) {
       for (let i = 0; i < b.pcol.n; i += 3) t.pcol.push3(b.pcol.a[i], b.pcol.a[i + 1], b.pcol.a[i + 2])
     }
     d.texts.push(...r.texts)
+    if (r.circles && r.circles.length) { if (!d.circles) d.circles = []; for (const c of r.circles) d.circles.push(c) }   /* 🧾 G424 원(덮개 펌프 구멍)도 합침 */
     d.stats.segs += r.stats.segs || 0; d.stats.pts += r.stats.pts || 0
   }
   return d
