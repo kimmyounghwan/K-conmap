@@ -23,7 +23,7 @@ import { 모델셈 } from '../web/src/lib/골조모델.js'
 const 기대 = JSON.parse(fs.readFileSync(new URL('./시험자료/현장회귀.json', import.meta.url), 'utf8'))
 let bad = 0, 본 = 0
 const ok = (이름, c, got) => { if (!c) bad++; console.log((c ? '  ✓ ' : '  ✗ ') + 이름 + (got !== undefined && !c ? ' = ' + JSON.stringify(got) : '')) }
-export function 현장셈(폴더, 거름 = '', 같음 = null, 바탕셈 = null) {
+export function 현장셈(폴더, 거름 = '', 같음 = null, 바탕셈 = null, 철골칸 = null) {
   const 파일 = fs.readdirSync(폴더).filter((f) => /\.dxf$/i.test(f) && (!거름 || new RegExp(거름).test(f))).sort()
   let 들 = 파일.map((f) => {
     const b = fs.readFileSync(path.join(폴더, f))
@@ -96,7 +96,11 @@ export function 현장셈(폴더, 거름 = '', 같음 = null, 바탕셈 = null) 
   const 깊은자리 = ((R.읽음 && R.읽음.깊은자리) || []).map((g) => [g.파일, g.셈.length, g.못.length, g.셈.map((x) => x.기호 + ' ' + x.곳).join(' | '), g.못.map((x) => x.곳).join(' | ')])
   const 없음목록 = ((R.읽음 && R.읽음.없음목록) || []).map((x) => x.기호 + ' ' + x.없음.join('·'))
   const 자리곳맞음 = [...((R.읽음 && R.읽음.바탕물음) || []), ...((R.읽음 && R.읽음.건축치수물음) || [])].every((q) => (q.자리곳 || []).length === (q.자리 || []).length)
-  return { 합, 같음셈, 바탕셈셈, 자리, 난간, 빈칸, 깊은자리, 없음목록, 자리곳맞음, 물음: (R.읽음 && R.읽음.바탕물음) || [], 춤물음: (R.읽음 && R.읽음.건축치수물음) || [], 배근: 공사.배근, 경고: R.경고 || [], 파일: 파일.length, 부재: 모델.부재.length, 모델: { 종, 옮김: 변.옮김, 못옮김: 변.못옮김.length, 하나씩, 계도, 계모, 계단수: 변.M.부재.filter((o) => o.종류 === '계단').length, 기철도: 기철(S.줄), 기철모: 기철(G.R.줄), 철모: G.합.철근 } }
+  /* 🏗 G425 철골 — 규격별 kg · ❓ 키 · 📌 칸 결정(입면 칸으로) 뒤 kg */
+  const 철골 = { 규격: {}, 물음: ((R.읽음 && R.읽음.철골물음) || []).map((q) => q.키), 칸kg: null }
+  for (const x of S.줄) if (x.항목 === '철골') 철골.규격[x.규격] = (철골.규격[x.규격] || 0) + x.수량
+  if (철골칸) 철골.칸kg = 셈(골조읽기(들, { 바탕셈: { [철골칸]: { 때: '2026-10-26' } } }).공사).줄.filter((x) => x.항목 === '철골').reduce((a, x) => a + x.수량, 0)
+  return { 합, 철골, 같음셈, 바탕셈셈, 자리, 난간, 빈칸, 깊은자리, 없음목록, 자리곳맞음, 물음: (R.읽음 && R.읽음.바탕물음) || [], 춤물음: (R.읽음 && R.읽음.건축치수물음) || [], 배근: 공사.배근, 경고: R.경고 || [], 파일: 파일.length, 부재: 모델.부재.length, 모델: { 종, 옮김: 변.옮김, 못옮김: 변.못옮김.length, 하나씩, 계도, 계모, 계단수: 변.M.부재.filter((o) => o.종류 === '계단').length, 기철도: 기철(S.줄), 기철모: 기철(G.R.줄), 철모: G.합.철근 } }
 }
 for (const [키, v] of Object.entries(기대)) {
   const 변수 = 'SITE_' + 키.slice(-1)
@@ -104,7 +108,14 @@ for (const [키, v] of Object.entries(기대)) {
   if (!폴더 || !fs.existsSync(폴더)) { console.log(`■ ${키} — 폴더 없음(환경 변수 ${변수}) · 건너뜀`); continue }
   본++
   console.log(`■ ${키} (${v.말})`)
-  const r = 현장셈(폴더, v.거름, v.같음 ? v.같음.정함 : null, v.바탕셈 ? v.바탕셈.정함 : null)
+  const r = 현장셈(폴더, v.거름, v.같음 ? v.같음.정함 : null, v.바탕셈 ? v.바탕셈.정함 : null, v.철골 && v.철골.칸 ? v.철골.칸.키 : null)
+  /* 🏗 G425 철골(평면 철골 선 · 입면 높이) — 규격별 kg · ❓(퍼린 · 칸) · 📌 칸 결정 뒤 */
+  if (v.철골) {
+    for (const [규, 값] of Object.entries(v.철골.규격)) ok(`🏗 철골 ${규} ${값} kg`, Math.abs((r.철골.규격[규] || 0) - 값) < 0.01, +(r.철골.규격[규] || 0).toFixed(3))
+    ok(`🏗 철골 규격 ${Object.keys(v.철골.규격).length}가지만`, Object.keys(r.철골.규격).length === Object.keys(v.철골.규격).length, Object.keys(r.철골.규격))
+    ok('🏗 철골 ❓ ' + v.철골.물음.join(' · '), JSON.stringify(r.철골.물음) === JSON.stringify(v.철골.물음), r.철골.물음)
+    if (v.철골.칸) ok(`📌 ${v.철골.칸.말} → 철골 ${v.철골.칸.kg} kg`, Math.abs(r.철골.칸kg - v.철골.칸.kg) < 0.01, r.철골.칸kg && +r.철골.칸kg.toFixed(3))
+  }
   ok(`도면 ${v.파일}장`, r.파일 === v.파일, r.파일)
   for (const [항, 값] of Object.entries(v.합)) ok(`${항} ${값}`, Math.abs((r.합[항] || 0) - 값) < 0.01, +(r.합[항] || 0).toFixed(3))
   /* 🧭 G405 도면 근거 잠금 — 배근표 줄의 칸 값(도면 어디서 읽었는지 «근거») · ❓ 도면에 없음(짐작 안 함) */
