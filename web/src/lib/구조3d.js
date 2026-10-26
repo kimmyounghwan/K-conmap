@@ -151,6 +151,53 @@ export function 자름짝(쌍, w) {
 /** 🧾 G424 단면의 덮개 열린 곳 — 덮개 두께(0.15 ~ 0.6 m)만큼만인 세로 선 짝(위 끝 · 아래 끝에 가로선이 지나감 · 아래로 이어진 벽 면이 아님)
  *  (현장 S 배수장 단면 B-B: 덮개 EL 3.92 ~ 4.22 에 1.8 · 1.8 · 1.8 · 1.5 m 짝 = 평면의 펌프 구멍 원 · C-C: 1.75 m 셋 · 1.35 m = 배관실 덮개 구멍)
  *  선 = [[ly, x1, y1, x2, y2], …] (단면 좌표) · EL(y) · m = 1(m 도면) | 1000(mm) → [{ x1, x2, 밑, 위 }] (x 는 단면 좌표) */
+/** 🧾 G424 단면의 중간 슬래브 — 벽 면 둘 사이를 잇는 가로선 둘(사이 0.15 ~ 0.6 m · 같은 끝 ±5 cm) · 두 벽 면이 그 자리에서 끊기고(슬래브 위 · 아래로 방) · 끝은 벽 면에 닿거나 45° 헌치 사선으로 닿음
+ *  (현장 S 배관실 — 단면 C-C: EL 0.895 ~ 1.295 가 벽 면 66,503 ~ 77,903 (11.4 m) · 종단 A1-A1: 2.6 m 가로선 + 양끝 0.2 헌치 = 벽 면 사이 3.0 m)
+ *  덮개(맨 위) · 바닥판(맨 아래)은 아님 — 위아래로 벽 면이 0.5 m 넘게 이어질 때만 → [{ x1, x2 (벽 면) · 밑 · 위 · 헌치: [{ 끝: '왼'|'오', 쪽: '위'|'아래', 다리 }] }] */
+export function 중간판찾기(선, EL, m = 1000) {
+  const 거름 = /pile|파일|말뚝|phc|기계|mech|pump|펌프|철근|bar|배관|pipe|전기|elec|hatch|해치|지시|치수|dim|text|글|난간|hand|rail|창호|door|win/i
+  const 쓸 = 선.filter((t) => !거름.test(t[0]))
+  const e = 0.003 * m, e2 = 0.05 * m
+  const 가 = [], 세 = [], 사 = []
+  for (const t of 쓸) {
+    const dx = t[3] - t[1], dy = t[4] - t[2]
+    if (Math.abs(dy) < e && Math.abs(dx) > e) 가.push({ a: Math.min(t[1], t[3]), b: Math.max(t[1], t[3]), y: t[2] })
+    else if (Math.abs(dx) < e && Math.abs(dy) > e) 세.push({ x: t[1], lo: Math.min(t[2], t[4]), hi: Math.max(t[2], t[4]) })
+    else if (Math.abs(Math.abs(dx) - Math.abs(dy)) <= 0.3 * Math.abs(dy) && Math.abs(dy) >= 0.1 * m && Math.abs(dy) <= 0.65 * m) 사.push(t)
+  }
+  /* 끝 자리(x, y)에서 벽 면 찾기 — 바로 닿거나(세로선 끝 · 몸통) · 45° 사선으로 바깥쪽(왼 끝은 왼쪽)으로 가서 닿음 */
+  const 면찾기 = (x, y, 쪽) => {
+    const 닿 = 세.find((v) => Math.abs(v.x - x) < e && v.lo <= y + e && v.hi >= y - e)
+    if (닿) return { x: v면(닿), 다리: 0 }
+    for (const t of 사) for (const [ax, ay, bx, by] of [[t[1], t[2], t[3], t[4]], [t[3], t[4], t[1], t[2]]]) {
+      if (Math.abs(ax - x) > e || Math.abs(ay - y) > e) continue
+      if ((쪽 === '왼' && bx >= ax) || (쪽 === '오' && bx <= ax)) continue
+      if (세.some((v) => Math.abs(v.x - bx) < e && v.lo <= by + e && v.hi >= by - e)) return { x: bx, 다리: Math.abs(by - ay) / m, 위로: by > ay }
+    }
+    return null
+  }
+  function v면(v) { return v.x }
+  const 판 = []
+  for (const A of 가) for (const B of 가) {
+    if (A === B || A.y <= B.y) continue
+    const 두 = EL(A.y) - EL(B.y)
+    if (두 < 0.15 || 두 > 0.6 || Math.abs(A.a - B.a) > e2 || Math.abs(A.b - B.b) > e2 || A.b - A.a < 0.5 * m) continue
+    const 왼위 = 면찾기(A.a, A.y, '왼'), 왼아 = 면찾기(B.a, B.y, '왼'), 오위 = 면찾기(A.b, A.y, '오'), 오아 = 면찾기(B.b, B.y, '오')
+    if (!왼위 || !왼아 || !오위 || !오아 || Math.abs(왼위.x - 왼아.x) > e || Math.abs(오위.x - 오아.x) > e) continue
+    const xl = 왼위.x, xr = 오위.x
+    /* 두 벽 면이 슬래브 자리에서 끊김(슬래브 띠를 가로지르는 세로선 없음) · 위 · 아래로 벽 면이 0.5 m 넘게 */
+    const 끊김 = (x) => !세.some((v) => Math.abs(v.x - x) < e && v.lo < B.y - e && v.hi > A.y + e)
+    const 위로 = (x) => 세.some((v) => Math.abs(v.x - x) < e && v.lo >= A.y - 0.7 * m && v.hi - Math.max(v.lo, A.y) > 0.5 * m)
+    const 아래로 = (x) => 세.some((v) => Math.abs(v.x - x) < e && v.hi <= B.y + 0.7 * m && Math.min(v.hi, B.y) - v.lo > 0.5 * m)
+    if (!끊김(xl) || !끊김(xr) || !위로(xl) || !위로(xr) || !아래로(xl) || !아래로(xr)) continue
+    if (판.some((q) => Math.abs(q.x1 - xl) < e2 && Math.abs(q.x2 - xr) < e2 && Math.abs(q.밑 - EL(B.y)) < 0.02)) continue
+    const 헌치 = []
+    for (const [끝, 쪽, r] of [['왼', '위', 왼위], ['왼', '아래', 왼아], ['오', '위', 오위], ['오', '아래', 오아]]) if (r.다리 > 0) 헌치.push({ 끝, 쪽, 다리: +r.다리.toFixed(3) })
+    판.push({ x1: xl, x2: xr, 밑: +EL(B.y).toFixed(3), 위: +EL(A.y).toFixed(3), 헌치 })
+  }
+  return 판
+}
+
 export function 열린곳찾기(선, EL, m = 1000) {
   const 거름 = /pile|파일|말뚝|phc|기계|mech|pump|펌프|철근|bar|배관|pipe|전기|elec|hatch|해치|지시|치수|dim|text|글|난간|hand|rail|창호|door|win/i
   const 쓸 = 선.filter((t) => !거름.test(t[0]))
@@ -412,9 +459,9 @@ export function 구조세우기(raw, 새버킷, 머리 = '') {
         const k = Math.round(s[1] / 칸)
         const lo = d.EL(Math.min(s[2], s[4])), hi = d.EL(Math.max(s[2], s[4]))
         const o = 모음.get(k)
-        const yh = Math.max(s[2], s[4])
-        if (!o) 모음.set(k, { x: s[1], 위: hi, 아래: lo, 길: hi - lo, y위: yh })
-        else { if (hi > o.위) { o.위 = hi; o.y위 = yh } o.아래 = Math.min(o.아래, lo); o.길 += hi - lo }
+        const yh = Math.max(s[2], s[4]), yl = Math.min(s[2], s[4])
+        if (!o) 모음.set(k, { x: s[1], 위: hi, 아래: lo, 길: hi - lo, y위: yh, y아래: yl })
+        else { if (hi > o.위) { o.위 = hi; o.y위 = yh } if (lo < o.아래) { o.아래 = lo; o.y아래 = yl } o.길 += hi - lo }
       }
       /* 🧾 G424 헌치 — 벽 면 세로선 위 끝에서 45° 사선(다리 0.1 ~ 0.65 m)이 위로 이어지면 그 사선 위 끝이 벽 면의 위(덮개 · 슬래브 밑)
            (현장 S 배관실 종단 A1-A1: 벽 면 위 3.72 + 헌치 0.2 = 덮개 밑 3.92 — 바깥 4.22 와 짝지어 덮개 0.5 m 로 읽던 것) */
@@ -426,7 +473,19 @@ export function 구조세우기(raw, 새버킷, 머리 = '') {
             if (Math.abs(ax - o.x) > e || Math.abs(ay - o.y위) > e) continue
             const dy = by - ay, dx = Math.abs(bx - ax)
             if (dy < 0.1 * m || dy > 0.65 * m || dx < 0.7 * dy || dx > 1.3 * dy) continue
+            /* 안쪽 헌치만(사선 위 끝 위 0.15 ~ 0.6 m 에 그 자리를 덮는 가로선 = 덮개 · 슬래브 윗면) — 받침 · 기초 모서리를 깎은 사선(바깥 모서리)은 아님 */
+            const 덮임 = d.선.some((u) => Math.abs(u[2] - u[4]) < e && Math.min(u[1], u[3]) <= Math.min(ax, bx) + e && Math.max(u[1], u[3]) >= Math.max(ax, bx) - e && u[2] - by >= 0.15 * m && u[2] - by <= 0.6 * m)
+            if (!덮임) continue
             if (d.EL(by) > o.위) { o.위 = d.EL(by); o.헌치 = +(dy / m).toFixed(3) }
+          }
+          /* 🧾 G424 바닥 헌치 — 벽 면 세로선 아래 끝에서 45° 사선이 아래로(바닥판 윗면까지) 이어지면 그 끝이 바닥판 윗면 · 다리 = 헌치 */
+          for (const [ax, ay, bx, by] of [[t[1], t[2], t[3], t[4]], [t[3], t[4], t[1], t[2]]]) {
+            if (Math.abs(ax - o.x) > e || Math.abs(ay - o.y아래) > e) continue
+            const dy = ay - by, dx = Math.abs(bx - ax)
+            if (dy < 0.1 * m || dy > 0.65 * m || dx < 0.7 * dy || dx > 1.3 * dy) continue
+            const 받침 = d.선.some((u) => Math.abs(u[2] - u[4]) < e && Math.min(u[1], u[3]) <= Math.min(ax, bx) + e && Math.max(u[1], u[3]) >= Math.max(ax, bx) - e && by - u[2] >= 0.15 * m && by - u[2] <= 1.5 * m)
+            if (!받침) continue
+            if (d.EL(by) < o.아래) { o.아래 = d.EL(by); o.헌치아래 = +(dy / m).toFixed(3) }
           }
         }
       }
@@ -443,6 +502,13 @@ export function 구조세우기(raw, 새버킷, 머리 = '') {
             if (e < v && e > o.아래 - 2) v = e
           }
         }
+        /* 🧾 G424 버림 — 가장 낮은 선 바로 위(0.04 ~ 0.16 m)에 이 자리를 지나는 가로선이 또 있으면 그 아래 띠는 버림 콘크리트(바닥판 아래 깔림)라 바닥판 아랫면은 그 위 선
+             (현장 S 배수장 단면 B-B: 바닥판 아랫면 EL −2.646 · 버림 −2.746 — 버림 밑을 바닥판 아래로 읽어 바닥판이 0.1 m 내려앉고 두께는 짐작 600 mm 였음) */
+        const 걸 = 0.003 * m
+        const 위선 = d.선.find((s) => !/pile|파일|말뚝|phc|기계|mech|pump|펌프|철근|bar|배관|pipe|전기|elec|hatch|해치|지시|치수|dim|text|글/i.test(s[0]) && Math.abs(s[2] - s[4]) < 걸 && Math.min(s[1], s[3]) <= o.x + 걸 && Math.max(s[1], s[3]) >= o.x - 걸 && d.EL(s[2]) - v > 0.04 && d.EL(s[2]) - v < 0.16)
+        if (위선) { o.버림 = +(d.EL(위선[2]) - v).toFixed(3); v = d.EL(위선[2]) }
+        /* 🧾 G424 바닥판 두께 — 바닥판 위에 선 벽 면(안쪽 면 · 세로선 아래 끝 = 바닥판 윗면)의 아래 끝 − 바닥판 아랫면(0.25 ~ 1.5 m) */
+        if (o.아래 - v >= 0.25 && o.아래 - v <= 1.5) o.바닥두께 = +(o.아래 - v).toFixed(3)
         return v
       }
       const 쓸점 = [...모음.values()].filter((o) => o.길 >= 1.5)
@@ -456,8 +522,9 @@ export function 구조세우기(raw, 새버킷, 머리 = '') {
         if (쓸점.length >= 4) 본단면.push({ 이름: d.이름, 표시: d.표시, 점: 내점 })
         /* 🧾 G424 덮개 열린 곳(단면의 덮개 두께만큼인 세로 선 짝) · 이 단면이 평면을 자르는 줄 → 구조물면이 평면의 닫힌 네모 · 원과 맞대 덮개에서 뺌 */
         d.열린곳 = 열린곳찾기(d.선, d.EL, m).map((q) => ({ a: 자리xy(q.x1), b: 자리xy(q.x2), 밑: q.밑, 위: q.위, 단면: d.표시 }))
+        d.중간판 = 중간판찾기(d.선, d.EL, m).map((q) => ({ a: 자리xy(q.x1), b: 자리xy(q.x2), 밑: q.밑, 위: q.위, 헌치: q.헌치, 단면: d.표시 }))   /* 🧾 G424 중간 슬래브 */
         d.자름선 = { a: 자리xy(d.x0), b: 자리xy(d.x1), 단면: d.표시 }
-        d.높이점 = 쓸점.map((o) => { const [x, y] = 자리xy(o.x); return { x, y, 위: +o.위.toFixed(3), 아래: +낮은(o).toFixed(3), 방향: [+ux.toFixed(4), +uy.toFixed(4)] } })
+        d.높이점 = 쓸점.map((o) => { const [x, y] = 자리xy(o.x), 아 = 낮은(o); return { x, y, 위: +o.위.toFixed(3), 아래: +아.toFixed(3), 방향: [+ux.toFixed(4), +uy.toFixed(4)], ...(o.바닥두께 ? { 바닥두께: o.바닥두께 } : {}), ...(o.버림 ? { 버림: o.버림 } : {}), ...(o.헌치 ? { 헌치위: o.헌치 } : {}), ...(o.헌치아래 ? { 헌치아래: o.헌치아래 } : {}) } })
         /* 🧾 G400 종단 윤곽 — 짝 없는 긴 단면은 0.25 m 마다 «그 자리 가장 높은 구조 선» (뒤로 보이는 벽 위끝 · 경사 벽 포함) → 구조물면이 단면 점에서 먼 벽의 높이를 이 아래로 */
         if (/종단/.test(놓임)) {
           const 거름 = /pile|파일|말뚝|phc|기계|mech|pump|펌프|철근|bar|배관|pipe|전기|elec|hatch|해치|지시|치수|dim|text|글|난간|hand|rail|중심|cen|cntl|창호|door|win/i
@@ -485,13 +552,16 @@ export function 구조세우기(raw, 새버킷, 머리 = '') {
             }
             /* 벽 자리 — 0.8 m 넘는 세로 구조선이 이 자리(±걸음 반)에 있음(구조물면이 덮개 띠 빈 곳을 메울 때 벽을 넘지 않게) */
             const 벽 = 위 > -Infinity && 쓸선.some((t) => Math.abs(t[1] - t[3]) < 0.003 * m && Math.abs(t[1] - x) <= 걸음 / 2 && Math.abs(t[2] - t[4]) >= 0.8 * m)
-            if (위 > -Infinity) { const [px, py] = 자리xy(x); 표.push({ x: px, y: py, 위: +위.toFixed(3), 아래: +아래.toFixed(3), 가, ...(벽 ? { 벽: true } : {}) }) }
+            /* 🧾 G424 구조 레이어 선이 이 자리를 둘 넘게 지나는지(구조물면이 «구조물 사이 빈 곳» 을 찾을 때 — 관 · 기계 선뿐이거나 관 이음 짧은 선 하나뿐인 자리는 빈 곳)
+                 (현장 S 펌프장 ~ 토출수조: 관 위 45° 짧은 «구조물» 선 하나 때문에 빈 곳이 3.5 m 로 끊겨 토출수조 바닥이 서쪽으로 1.3 m 더 섰음) */
+            const 구 = 구조선.filter((t) => Math.min(t[1], t[3]) <= x + 걸음 / 2 && Math.max(t[1], t[3]) >= x - 걸음 / 2).length >= 2    // 덩어리는 위 · 아래 테두리가 있음 — 짧은 선 하나(관 이음 표시 등)는 구조물 아님
+            if (위 > -Infinity) { const [px, py] = 자리xy(x); 표.push({ x: px, y: py, 위: +위.toFixed(3), 아래: +아래.toFixed(3), 가, ...(벽 ? { 벽: true } : {}), ...(구조선.length >= 20 && !구 ? { 구: false } : {}) }) }
           }
           d.윤곽 = 표.length >= 4 ? { u: [+ux.toFixed(4), +uy.toFixed(4)], 점: 표 } : null
         }
       }
     }
-    결과단면.push({ 층: 키, 이름: `단면 ${d.표시}`, 놓임, EL: [d.lo, d.hi], 맞춤: `${맞춤} · EL 글자 ${d.맞음}/${d.표수} 맞음${d.같은단면 ? ` · «${d.같은단면}» 과 같은 단면이라 높이는 그것만 씀` : ''}`, 높이점: d.높이점 || [], 윤곽: d.윤곽 || null, 열린곳: d.열린곳 || [], 자름선: d.자름선 || null, 자름: 쌍 && 쌍.length >= 2 ? 글 : '' })
+    결과단면.push({ 층: 키, 이름: `단면 ${d.표시}`, 놓임, EL: [d.lo, d.hi], 맞춤: `${맞춤} · EL 글자 ${d.맞음}/${d.표수} 맞음${d.같은단면 ? ` · «${d.같은단면}» 과 같은 단면이라 높이는 그것만 씀` : ''}`, 높이점: d.높이점 || [], 윤곽: d.윤곽 || null, 열린곳: d.열린곳 || [], 중간판: d.중간판 || [], 자름선: d.자름선 || null, 자름: 쌍 && 쌍.length >= 2 ? 글 : '' })
   }
   if (결과단면.length < 2) return null
   /* m 로 그린 도면(기울기 1)이면 가로·세로도 mm 로 */
@@ -499,9 +569,13 @@ export function 구조세우기(raw, 새버킷, 머리 = '') {
     for (const [, b] of 새) for (let i = 0; i < b.pos.n; i += 3) { b.pos.a[i] *= 1000; b.pos.a[i + 1] *= 1000 }
     for (const d of 결과단면) for (const q of d.높이점 || []) { q.x *= 1000; q.y *= 1000 }
     for (const d of 결과단면) if (d.윤곽) for (const q of d.윤곽.점) { q.x *= 1000; q.y *= 1000 }
-    for (const d of 결과단면) { for (const q of d.열린곳 || []) for (const p of [q.a, q.b]) { p[0] *= 1000; p[1] *= 1000 } if (d.자름선) for (const p of [d.자름선.a, d.자름선.b]) { p[0] *= 1000; p[1] *= 1000 } }
+    for (const d of 결과단면) { for (const q of [...(d.열린곳 || []), ...(d.중간판 || [])]) for (const p of [q.a, q.b]) { p[0] *= 1000; p[1] *= 1000 } if (d.자름선) for (const p of [d.자름선.a, d.자름선.b]) { p[0] *= 1000; p[1] *= 1000 } }
     for (const c of 평원) { c.x *= 1000; c.y *= 1000; c.r *= 1000 }
     for (const q of 관글) { q.x *= 1000; q.y *= 1000 }
   }
-  return { out: 새, 단면: 결과단면, 평면EL, 빠짐, 제목: 평제.s, 관글, 평원 }
+  /* 🧾 G424 계단 — 평면 창 안의 «계단» 글자 자리 · 계단상세도 글의 단 높이(«높이는 0.2m») · 연장 */
+  const 계단글 = (raw.texts || []).filter((t) => t.x > PW[0] && t.x < PW[2] && t.y > PW[1] && t.y < PW[3] && /계단/.test(t.s || '')).map((t) => ({ x: t.x * (단면들.every((d) => d.기울 === 1) ? 1000 : 1), y: t.y * (단면들.every((d) => d.기울 === 1) ? 1000 : 1), s: String(t.s).replace(/\s+/g, '') }))
+  let 계단말 = null
+  for (const t of raw.texts || []) { const m = /높이는\s*([\d.]+)\s*m/.exec(t.s || ''); if (m) { const 연 = /연장은\s*([\d.]+)\s*m/.exec(t.s || ''); 계단말 = { 높이: +m[1], 연장: 연 ? +연[1] : null, 글: String(t.s) }; break } }
+  return { out: 새, 단면: 결과단면, 평면EL, 빠짐, 제목: 평제.s, 관글, 평원, 계단글, 계단말 }
 }

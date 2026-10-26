@@ -369,6 +369,23 @@ function 구조물면1(선, 벽선 = null, o = {}) {
     const 문 = Math.max(4e6 / (칸 * 칸), 0.03 * 큰)
     for (let i = 0; i < W * H; i++) if (F[i] && (크기[번F[i]] < 문 || 가는[번F[i]])) F[i] = 0
   }
+  /* 🧾 G424 종단 윤곽(구조 선이 있는 자리 0.25 m 마다)이 1 m 넘게 빈 곳은 발자국에서 뺌 — 구조물 사이에 묻힌 관 · 관 테두리 선이 두 구조물을 이어 한 발자국이 됐음
+       (현장 S 펌프장 ~ 토출수조 사이 관 자리가 바닥판 · 벽으로 섰음 — 종단 A1-A1 그 자리엔 관 선(구조 레이어 아님)뿐) */
+  if (o.윤곽 && o.윤곽.length && o.높이 && o.높이.length) {
+    const 틈들 = []
+    for (const w of o.윤곽) {
+      const ts = w.점.filter((q) => q.구 !== false).map((q) => q.x * w.u[0] + q.y * w.u[1]).sort((p, q) => p - q)   // 구조 레이어 선이 없는 자리(관 · 기계 선뿐)는 빈 곳
+      for (let k = 0; k + 1 < ts.length; k++) if (ts[k + 1] - ts[k] > 1000) 틈들.push({ u: w.u, a: ts[k] + 125, b: ts[k + 1] - 125 })
+    }
+    if (틈들.length) {
+      let 뺌 = 0
+      for (let i = 0; i < W * H; i++) {
+        if (!F[i]) continue
+        const px = x0 + ((i % W) + 0.5) * 칸, py = y0 + (((i / W) | 0) + 0.5) * 칸
+        if (틈들.some((g) => { const t = px * g.u[0] + py * g.u[1]; return t > g.a && t < g.b })) { F[i] = 0; 뺌++ }
+      }
+    }
+  }
   let 발 = 0
   for (let i = 0; i < W * H; i++) 발 += F[i]
   if (발 * 칸 * 칸 < 2e6) return null                          // 2 ㎡ 아래 = 구조물 아님
@@ -424,6 +441,17 @@ function 구조물면1(선, 벽선 = null, o = {}) {
       }
     }
     if (뺄.size) { const n = []; for (let i = 0; i + 3 < 쓸선0.length; i += 4) if (!뺄.has(i)) n.push(쓸선0[i], 쓸선0[i + 1], 쓸선0[i + 2], 쓸선0[i + 3]); 쓸선 = n }
+    /* 🧾 G424 계단 — 디딤 줄 무리 옆의 긴 두 선(계단 옆 테두리) 길이 ÷ 디딤 간격 = 단 수(끝 선이 벽 면이라 안 잡혀도) · 평면 «계단» 글자가 2 m 안에 있는 무리만
+         (현장 S 펌프장 계단A: 옆 선 3.9 m ÷ 557 = 7 단 × 4 칸 = 28 · 토출 계단B: 3.7 m ÷ 411 = 9 단 × 2 = 18 — 산출서와 같음 · 220 간격 400 길이 무리는 글자가 없어 계단 아님) */
+    for (const z of 계단줄) {
+      const [rx0, ry0, rx1, ry1] = z.r
+      const 옆 = (z.세로 ? 가 : 세).filter((v) => (Math.abs(v.c - (z.세로 ? ry0 : rx0)) < 30 || Math.abs(v.c - (z.세로 ? ry1 : rx1)) < 30) && v.a <= (z.세로 ? rx0 : ry0) + 30 && v.b >= (z.세로 ? rx1 : ry1) - 30)
+      const L = 옆.length ? Math.max(...옆.map((v) => v.b - v.a)) : 0
+      z.단 = L > 0 ? Math.round(L / z.간격) : z.수 - 1
+      z.옆선 = Math.round(L)
+      const 글 = (o.계단글 || []).find((t) => t.x >= rx0 - 2000 && t.x <= rx1 + 2000 && t.y >= ry0 - 2000 && t.y <= ry1 + 2000)
+      z.이름 = 글 ? 글.s : ''
+    }
     o.계단줄 = 계단줄
   }
   for (let i = 0; i + 3 < 쓸선.length; i += 4) 선칠(L, W, H, (쓸선[i] - x0) / 칸, (쓸선[i + 1] - y0) / 칸, (쓸선[i + 2] - x0) / 칸, (쓸선[i + 3] - y0) / 칸, 1)
@@ -483,7 +511,7 @@ function 구조물면1(선, 벽선 = null, o = {}) {
   /* 📐 G234 높이별 벽 · 바닥 — 평면 자르는 선(A ─ A …)에 세운 단면의 벽 면 «위 · 아래 EL» 점(o.높이 [{x, y, 위, 아래}] mm · m)
        칸마다 가장 가까운 점(12 m 안 · 1 m 칸 표로 찾음)의 위 높이(5 cm 맞춤)로 무리 → 무리마다 벽 다각형 · 그 무리 점들의 가장 낮은 아래 = 바닥판 아래
        멀어서 점이 없는 칸은 «기본»(무리 −1 — 일꾼이 주는 단면 가운데 아래 ~ G.L) */
-  let 벽들 = null, 바닥들 = null, 바닥판두께 = null, 덮개들 = null, 덮개모름 = null
+  let 벽들 = null, 바닥들 = null, 바닥판두께 = null, 덮개들 = null, 덮개모름 = null, 중간판들 = null, 헌치들 = null
   if (o.높이 && o.높이.length >= 2) {
     /* 🧾 G400 바닥판 두께 — 같은 벽 두 면(1.6 m 안 · 위 같음)의 아래 차이(안쪽 면 = 바닥판 윗면 · 바깥 면 = 아랫면)가 가장 흔한 값(0.25 ~ 1.5 m · 두 번 넘게) */
     {
@@ -496,6 +524,11 @@ function 구조물면1(선, 벽선 = null, o = {}) {
       }
       const 젤 = [...셈].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]
       if (젤 && 젤[1] >= 2) 바닥판두께 = +젤[0].toFixed(2)
+      /* 🧾 G424 단면에서 바로 읽은 바닥판 두께(바닥판 위에 선 벽 면 아래 끝 − 바닥판 아랫면 · 버림 뺌)가 두 번 넘게 같으면 그것을 먼저 */
+      const 셈2 = new Map()
+      for (const q of o.높이) if (q.바닥두께) { const d = Math.round(q.바닥두께 / 0.05) * 0.05; 셈2.set(d, (셈2.get(d) || 0) + 1) }
+      const 젤2 = [...셈2].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]
+      if (젤2 && 젤2[1] >= 2) 바닥판두께 = +젤2[0].toFixed(2)
     }
     /* 🧾 G400 벽 두 면(같은 단면 · 1.6 m 안)의 아래는 둘 중 낮은 것 — 안쪽 면은 바닥판 윗면, 바깥 면은 아랫면에서 끝나 무리가 갈리지 않게 */
     const P = o.높이.map((q) => {
@@ -779,9 +812,128 @@ function 구조물면1(선, 벽선 = null, o = {}) {
       덮개모름 = { 꼴: 모름, 짝없음: 짝없음.filter((z) => !꼴목록.some((f) => 투영맞음(z, f))).map((z) => ({ 단면: z.단면, 폭: z.폭 })) }   // 평면 꼴로 설명되는 틈(뒤로 보이는 구멍)은 뺌
       덮개들 = 덮칸들.map((e) => { let n = 0; for (let i = 0; i < W * H; i++) n += e.A[i]; return { 밑: e.밑, 두께: e.두께, 판: 꼴(e.A), 넓이: n * 칸 * 칸 / 1e6, 열린: e.열린 } }).filter((e) => e.판.length && e.넓이 >= 1)
     }
+    /* 🧾 G424 중간 슬래브 — 단면의 중간판(벽 면 둘 사이 · 평면 위 두 점 a → b) → 그 가운데가 든 방(벽으로 막힌 칸 무리) 안에서
+         같은 밑 · 위의 중간판마다 그 줄 방향으로 두 벽 면 사이(±1 칸)인 칸 · 두 방향 단면이 다 있으면 네모 · 한 방향뿐이면 «한방향»
+         헌치(중간판 끝의 45° 사선) = 그 끝 벽 면을 따라 판 너비(다른 방향 길이)만큼 — 부피 ½ × 다리² × 길이 · 밑 헌치 자리는 밑면 거푸집에서 뺌
+         (현장 S 배관실: C-C 11.4 m · 종단 A1-A1 3.0 m(2.6 + 헌치 0.2 × 2) · EL 0.895 ~ 1.295 → 3.0 × 11.4 × 0.4 = 13.68 · 밑면 2.6 × 11.4 = 29.64 — 산출서와 같음) */
+    if ((o.중간판 || []).length) {
+      const 방 = new Int32Array(W * H).fill(-1), q2 = new Int32Array(W * H)
+      let n방 = 0
+      for (let s0 = 0; s0 < W * H; s0++) {
+        if (!F[s0] || C[s0] || 방[s0] >= 0) continue
+        let qh = 0, qt = 0; 방[s0] = n방; q2[qt++] = s0
+        while (qh < qt) { const i = q2[qh++], x = i % W; for (const j of [x > 0 ? i - 1 : -1, x < W - 1 ? i + 1 : -1, i >= W ? i - W : -1, i < W * (H - 1) ? i + W : -1]) if (j >= 0 && F[j] && !C[j] && 방[j] < 0) { 방[j] = n방; q2[qt++] = j } }
+        n방++
+      }
+      const 칸번 = (x, y) => { const i = Math.floor((x - x0) / 칸), j = Math.floor((y - y0) / 칸); return i >= 0 && j >= 0 && i < W && j < H ? j * W + i : -1 }
+      const 무리 = new Map()
+      for (const h of o.중간판) {
+        const k0 = 칸번((h.a[0] + h.b[0]) / 2, (h.a[1] + h.b[1]) / 2), r = k0 >= 0 ? 방[k0] : -1
+        if (r < 0) continue
+        const 키 = `${r}|${Math.round(h.밑 / 0.02)}|${Math.round(h.위 / 0.02)}`
+        let g = 무리.get(키); if (!g) { g = { r, 밑: h.밑, 위: h.위, 줄: [] }; 무리.set(키, g) }
+        const L = Math.hypot(h.b[0] - h.a[0], h.b[1] - h.a[1]); if (L < 300) continue
+        if (!g.줄.some((z) => Math.abs(z.ux * (h.b[0] - h.a[0]) / L + z.uy * (h.b[1] - h.a[1]) / L) > 0.99 && Math.abs(z.L - L) < 100)) g.줄.push({ a: h.a, ux: (h.b[0] - h.a[0]) / L, uy: (h.b[1] - h.a[1]) / L, L, 헌치: h.헌치 || [], 단면: h.단면 })
+      }
+      중간판들 = []
+      for (const g of 무리.values()) {
+        if (!g.줄.length) continue
+        const A = new Uint8Array(W * H)
+        let n = 0
+        for (let i = 0; i < W * H; i++) {
+          if (방[i] !== g.r) continue
+          const px = x0 + ((i % W) + 0.5) * 칸, py = y0 + (((i / W) | 0) + 0.5) * 칸
+          if (g.줄.every((z) => { const t = (px - z.a[0]) * z.ux + (py - z.a[1]) * z.uy; return t >= -칸 && t <= z.L + 칸 })) { A[i] = 1; n++ }
+        }
+        if (n * 칸 * 칸 < 1e6) continue
+        /* 헌치 — 줄마다 그 끝 벽 면을 따라 «다른 방향 판 길이» (판 칸을 이 줄에 직각으로 내린 폭) */
+        const 헌 = []
+        for (const z of g.줄) {
+          let lo = Infinity, hi = -Infinity
+          for (let i = 0; i < W * H; i++) if (A[i]) { const px = x0 + ((i % W) + 0.5) * 칸, py = y0 + (((i / W) | 0) + 0.5) * 칸, t = -(px - z.a[0]) * z.uy + (py - z.a[1]) * z.ux; if (t < lo) lo = t; if (t > hi) hi = t }
+          const 길 = (hi - lo + 칸) / 1000
+          for (const h of z.헌치) 헌.push({ 쪽: h.쪽, 다리: h.다리, 길이: +길.toFixed(3), 단면: z.단면 })
+        }
+        중간판들.push({ 밑: g.밑, 두께: +(g.위 - g.밑).toFixed(3), 판: 꼴(A), 넓이: n * 칸 * 칸 / 1e6, 단면: [...new Set(g.줄.map((z) => z.단면))], 한방향: g.줄.length < 2, 헌치: 헌 })
+      }
+    }
+    /* 🧾 G424 헌치 — ① 평면 45° 사선(다리 0.1 ~ 0.65 m · 두 끝이 벽 칸에 닿고 가운데는 방) = 벽 모서리 세로 헌치 · 높이 = 가까운 단면 점의 벽 면 위 − 바닥판 윗면
+         ② 단면 벽 면 위 · 아래 끝의 45° 사선(높이 점 헌치위 · 헌치아래) = 덮개 · 바닥판과 벽 사이 가로 헌치 · 길이 = 그 벽 면에 닿은 방이 벽 면을 따라 가는 길이
+         (현장 S 펌프장: 평면 0.2 사선 8 · 0.5 사선 1(유입부) · 배관실 종단 위 · 아래 0.2 × 11.4 — 산출서 «헌치» 와 같은 꼴) */
+    헌치들 = []
+    {
+      const 방2 = new Int32Array(W * H).fill(-1), q3 = new Int32Array(W * H)
+      let n2 = 0
+      for (let s0 = 0; s0 < W * H; s0++) {
+        if (!F[s0] || C[s0] || 방2[s0] >= 0) continue
+        let qh = 0, qt = 0; 방2[s0] = n2; q3[qt++] = s0
+        while (qh < qt) { const i = q3[qh++], x = i % W; for (const j of [x > 0 ? i - 1 : -1, x < W - 1 ? i + 1 : -1, i >= W ? i - W : -1, i < W * (H - 1) ? i + W : -1]) if (j >= 0 && F[j] && !C[j] && 방2[j] < 0) { 방2[j] = n2; q3[qt++] = j } }
+        n2++
+      }
+      const 칸번2 = (x, y) => { const i = Math.floor((x - x0) / 칸), j = Math.floor((y - y0) / 칸); return i >= 0 && j >= 0 && i < W && j < H ? j * W + i : -1 }
+      const 벽가까이 = (x, y) => { for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const k = 칸번2(x + dx * 칸, y + dy * 칸); if (k >= 0 && C[k]) return true } return false }
+      const 맑은높이 = (x, y) => {
+        let b = null, bd = Infinity
+        for (const q of o.높이) { const d = Math.hypot(q.x - x, q.y - y); if (d < bd && q.바닥두께) { bd = d; b = q } }
+        if (!b || bd > 12000) return null
+        return { 높이: +(b.위 - (b.아래 + b.바닥두께)).toFixed(3), 점: b }
+      }
+      /* ① 평면 사선 */
+      const 본 = []
+      for (let i = 0; i + 3 < 쓸선0.length; i += 4) {
+        const ax = 쓸선0[i], ay = 쓸선0[i + 1], bx = 쓸선0[i + 2], by = 쓸선0[i + 3], dx = Math.abs(bx - ax), dy = Math.abs(by - ay)
+        if (dx < 100 || dx > 650 || Math.abs(dx - dy) > 0.15 * dx) continue
+        const mx = (ax + bx) / 2, my = (ay + by) / 2
+        if (본.some((p) => Math.hypot(p[0] - mx, p[1] - my) < 60)) continue
+        if (!벽가까이(ax, ay) || !벽가까이(bx, by)) continue
+        /* 모서리 쪽(두 벽 면이 만나는 점)은 벽 칸 · 반대쪽(방 쪽)은 방 칸 */
+        const 벽점 = (x, y) => { let n = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const k = 칸번2(x + dx * 칸, y + dy * 칸); if (k >= 0 && C[k]) n++ } return n }
+        const n1 = 벽점(ax, by), n2 = 벽점(bx, ay)
+        const [kx, ky] = n1 >= 3 && n1 >= n2 ? [ax, by] : n2 >= 3 ? [bx, ay] : [NaN, NaN]
+        if (!Number.isFinite(kx)) continue                                   // 모서리 점이 벽 속이 아니면(바깥 모서리를 깎은 사선) 헌치 아님
+        const rx = mx + (mx - kx) * 0.6, ry = my + (my - ky) * 0.6, kr = 칸번2(rx, ry)
+        if (kr < 0 || C[kr]) continue                                        // 사선 너머(방 · 물길 쪽)는 벽이 아님
+        const h = 맑은높이(mx, my)
+        본.push([mx, my])
+        헌치들.push({ 쪽: '세로', 다리: +(dx / 1000).toFixed(3), 길이: h ? h.높이 : null, 자리: [mx, my], 모서리: [kx, ky], 끝: [[ax, ay], [bx, by]] })
+      }
+      /* ② 단면 가로 헌치 */
+      const 못쪽 = []
+      for (const q of o.높이) for (const [쪽, 다리] of [['위', q.헌치위], ['아래', q.헌치아래]]) {
+        if (!다리 || !q.방향) continue
+        const [ux, uy] = q.방향, nx = -uy, ny = ux
+        /* 벽 면에서 단면 줄 방향 양쪽 0.15 ~ 0.6 m 칸 — 방인 쪽 */
+        for (const 부호 of [1, -1]) {
+          /* 벽 면 바로 옆(0.05 ~ 0.2 m)이 방이어야 그쪽(벽 속을 지나 건너편 방을 잡지 않게) */
+          let r = -1, 벽쪽 = false
+          for (let t = 칸 / 2; t <= 200 && r < 0 && !벽쪽; t += 칸) { const k = 칸번2(q.x + 부호 * ux * t, q.y + 부호 * uy * t); if (k < 0) break; if (C[k]) 벽쪽 = true; else if (F[k] && 방2[k] >= 0) r = 방2[k] }
+          if (r < 0) continue
+          /* 그 방 칸 중 벽 면 띠(줄 방향 0 ~ 0.3 m) 안의 칸이 벽 면 방향(n)으로 덮는 길이(칸 줄 합 — 칸막이 벽 자리는 빠짐) */
+          const 덮음 = new Set()
+          let lo = Infinity, hi = -Infinity
+          for (let i = 0; i < W * H; i++) {
+            if (방2[i] !== r) continue
+            const px = x0 + ((i % W) + 0.5) * 칸 - q.x, py = y0 + (((i / W) | 0) + 0.5) * 칸 - q.y
+            const t = 부호 * (px * ux + py * uy); if (t < 0 || t > 300) continue
+            const v = px * nx + py * ny; 덮음.add(Math.round(v / 칸)); if (v < lo) lo = v; if (v > hi) hi = v
+          }
+          if (!덮음.size) continue
+          /* 벽 면 띠가 그 방 옆면을 거의 다(80 % 넘게) 덮을 때만 — 단면 점이 칸막이 · 다른 벽 끝에 걸쳐 방 한 귀퉁이만 닿은 것은 빼고 ❓ */
+          if (덮음.size * 칸 < 0.8 * (hi - lo + 칸) || 덮음.size * 칸 < 1000) { 못쪽.push({ q, 쪽, 다리 }); continue }
+          const 키 = `${r}|${쪽}|${Math.round((q.x * ux + q.y * uy) / 200)}`
+          if (헌치들.some((h) => h.키 === 키)) continue
+          let 방칸 = 0; for (let i = 0; i < W * H; i++) if (방2[i] === r) 방칸++
+          헌치들.push({ 쪽, 다리, 길이: +((덮음.size * 칸) / 1000).toFixed(3), 자리: [q.x, q.y], 방향: [nx, ny], 범위: [lo, hi], 키, 방넓이: 방칸 * 칸 * 칸 / 1e6 })
+        }
+      }
+      /* 한쪽도 못 정한 벽 면 끝 사선만 ❓ */
+      for (const m of 못쪽) if (!헌치들.some((h) => h.쪽 === m.쪽 && h.자리 && Math.hypot(h.자리[0] - m.q.x, h.자리[1] - m.q.y) < 1)) 헌치들.push({ 쪽: m.쪽, 다리: m.다리, 길이: null, 자리: [m.q.x, m.q.y], 키: '', 못: '벽 면 띠가 방 옆면을 다 안 덮음' })
+    }
   }
   return {
-    바닥, 벽, 벽들, 바닥들, 바닥판두께, 덮개들, 덮개모름, 닫힌네모, 계단줄: o.계단줄 || [],
+    바닥, 벽, 벽들, 바닥들, 바닥판두께, 덮개들, 덮개모름, 중간판들, 헌치들, 닫힌네모, 계단줄: o.계단줄 || [],
+    /* 🧾 G424 계단 — «계단» 글자가 있는 디딤 무리 · 높이(단 높이)는 계단상세도 글(«높이는 0.2m») — 없으면 높이 null(❓) */
+    계단들: (o.계단줄 || []).filter((z) => z.이름).map((z) => { const 높 = o.계단말 && o.계단말.높이 ? o.계단말.높이 : null, 너 = z.길이 / 1000, 런 = z.간격 / 1000; return { 이름: z.이름, 단: z.단, 간격: z.간격, 너비: 너, 높이: 높, r: z.r, 부피: 높 ? z.단 * 0.5 * 런 * 높 * 너 : 0, 거푸집: 높 ? z.단 * (높 * 너 + 런 * 높) : 0 } }),
     넓이: { 바닥: 발 * 칸 * 칸 / 1e6, 벽: 벽넓이 },
     둘레: { 바닥: 둘(바닥.filter((r) => 줄넓이(r) > 0)), 벽: 벽둘레 },
     두께: 벽둘레 > 0 ? (2 * 벽넓이) / 벽둘레 : 0,
