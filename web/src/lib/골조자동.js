@@ -2091,19 +2091,31 @@ function 격자표(D, 판) {
   return { X, Y }
 }
 /** 🧭 G428 📍 자리 글 — 토막(_판 «D번|판» · _축 mm)의 판 제목 + 통심 이름(«Y2 줄 X3 ~ X4» · 통심에서 떨어지면 «X3+1.2» m) — ❓ · 📌 줄이 도면 어디인지 */
+/** 📍 G428 통심 이름으로 자리 말하기 — 가장 가까운 통심(6 m 안) ± m(0.15 m 안은 그 줄) */
+function 통심말(m, v) {
+  let b = null
+  for (const [n, c] of m) if (!b || Math.abs(c - v) < Math.abs(b[1] - v)) b = [n, c]
+  if (!b || Math.abs(b[1] - v) > 6000) return null
+  const d = v - b[1]
+  return b[0] + (Math.abs(d) < 150 ? '' : (d > 0 ? '+' : '−') + (Math.abs(d) / 1000).toFixed(1))
+}
+/** 🧭 G421 칸 자리 글 — «지상4층구조평면도 · X1+0.5 ~ X2 · Y3 ~ Y4−1.0» */
+function 칸곳글(D, c) {
+  const 판 = D.도곽번 ? D.도곽번((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2) : -1
+  const 제목 = ((D.판제목 || [])[판] || D.이름 || '').replace(/\s+/g, '')
+  if (판 < 0) return 제목
+  const { X, Y } = 격자표(D, 판)
+  const 사이 = (m, a, b) => { const p = 통심말(m, a), q = 통심말(m, b); return p && q ? (p === q ? p : p + ' ~ ' + q) : '' }
+  const 글 = [사이(X, c.x0, c.x1), 사이(Y, c.y0, c.y1)].filter(Boolean).join(' · ')
+  return 제목 + (글 ? ' · ' + 글 : '')
+}
 function 곳글(도면들, x) {
   const [번, 판] = String((x && x._판) || '').split('|').map(Number)
   const D = 도면들.find((d) => d.번 === 번)
   if (!D || !x._축) return ''
   const 제목 = ((D.판제목 || [])[판] || D.이름 || '').replace(/\s+/g, '')
   const { X, Y } = 격자표(D, 판)
-  const 말 = (m, v) => {
-    let b = null
-    for (const [n, c] of m) if (!b || Math.abs(c - v) < Math.abs(b[1] - v)) b = [n, c]
-    if (!b || Math.abs(b[1] - v) > 6000) return null
-    const d = v - b[1]
-    return b[0] + (Math.abs(d) < 150 ? '' : (d > 0 ? '+' : '−') + (Math.abs(d) / 1000).toFixed(1))
-  }
+  const 말 = 통심말
   const [ax, ay, bx, by] = x._축
   const 가로 = Math.abs(bx - ax) >= Math.abs(by - ay)
   const 줄 = 가로 ? 말(Y, (ay + by) / 2) : 말(X, (ax + bx) / 2)
@@ -3035,6 +3047,7 @@ function 골조읽기0(도면들0, o = {}) {
   const 철골수 = new Map()
   const SRC짝 = new Map()        // 🧭 G290 평면 C 기호 → 그 층 SRC 정의
   const 근거 = []
+  const 빈칸 = []                // 🧭 G421 슬래브 글자 없는 칸(곁 칸 기호 · 자리 글 · 크기) — 평면부재가 판마다 돌려줌
 
   /* 층 높이 */
   const 높이 = new Map()
@@ -3926,7 +3939,8 @@ function 골조읽기0(도면들0, o = {}) {
           슬들.push({ D: s2.D, g: s2.g, r: { 기호: 기, 종류: '슬라브', 몸: 기, 층표: '' }, b: 배근행.슬라브.get(기), 씨: s2.단면 })
         }
       }
-      const { 보칸, 벽칸, 슬칸 } = 평면부재(보띠, 벽띠, 슬들, 기둥층, 보층, 벽층, 배근행, 경고, 근거, f)
+      const { 보칸, 벽칸, 슬칸, 빈칸: 빈칸1 } = 평면부재(보띠, 벽띠, 슬들, 기둥층, 보층, 벽층, 배근행, 경고, 근거, f)
+      if (빈칸1) 빈칸.push(...빈칸1)
       const 보칸하 = 보띠하.length ? 평면부재(보띠하, [], [], 기둥층, 보층, 벽층, 배근행, 경고, 근거, 아래층(f)).보칸 : []
       /* 🧭 G274 한 계단에 기호가 둘(판마다)이면 한 번만 */
       const 계단칸 = []
@@ -5070,6 +5084,11 @@ function 골조읽기0(도면들0, o = {}) {
     if (보기.length) 경고.push('❓ 도면에 없음 ' + 보기.length + '가지(' + 보기.slice(0, 10).join(' · ') + (보기.length > 10 ? ' …' : '') + ') — 일람표 · 평면 범례 · 단면 어디에도 값이 없어 그 물량은 셈에서 뺐습니다(짐작 안 함). 배근표 빈칸에 적으시면 셈합니다')
   }
   if (빈것.length) 경고.push('크기나 철근을 일람표에서 다 찾지 못한 기호 ' + 빈것.length + '개(' + 빈것.slice(0, 8).join(' · ') + (빈것.length > 8 ? ' …' : '') + ') — 그 부재는 철근(또는 물량)이 덜 나옵니다. 일람표 도면도 같이 넣거나 골조 화면 배근표에서 채워 주세요')
+  /* 🧭 G421 글자 없는 슬래브 칸 — 모든 층을 알림 하나로 */
+  if (빈칸.length) {
+    const 넓 = 빈칸.reduce((a2, x) => a2 + x.가로 * x.세로, 0) / 1e6
+    경고.push('📐 슬래브 글자가 없는 칸 ' + 빈칸.length + '칸 ' + 넓.toFixed(1) + ' ㎡ — LB(칸막이 밑 보 · «건축치수») 띠 하나 건너 곁 칸과 같은 슬래브로 셈: ' + 빈칸.map((x) => x.기호 + '(' + x.곳 + ' · ' + (x.가로 / 1000).toFixed(1) + ' × ' + (x.세로 / 1000).toFixed(1) + ' m)').join(' · ') + ' — LB 로만 나뉜 칸은 슬래브 글을 한 칸에만 적음 · 큰보로 나뉜 칸 · 구멍 · 계단 곁 · 다른 슬래브 글이 맞댄 칸은 셈 안 함 · 3D 에서 자리를 한 번 보아 주세요')
+  }
   const 모은경고 = []
   const 셈경고 = new Map()
   for (const w of 경고) { const key = w.replace(/ \(\d+번 도면\)$/, ''); if (셈경고.has(key)) 셈경고.set(key, 셈경고.get(key) + 1); else { 셈경고.set(key, 1); 모은경고.push(key) } }
@@ -5205,6 +5224,7 @@ function 골조읽기0(도면들0, o = {}) {
       지붕구역, 지붕사슬,             // 🏔 G299
       일람,                      // 🧭 G291 {표있음, 짐작, 전체, 큰:[글]} — 화면 알림 띠
       바탕물음,                  // 📌 G417 ❓ 건축 바탕 벽(층 · 기호 · 길이 m · 셈 여부) — 화면 «📌 셈» 단추
+      빈칸,                      // 🧭 G421 슬래브 글자 없는 칸 — LB 띠 건너 곁 칸 슬래브로 셈
       건축난간,                  // 🧭 G422 건축 평면 철근콘크리트 난간(두 선 · 두께 · 길이 · 높이)
       건축치수물음,              // 📌 G420 ❓ «건축치수» 보 춤(층 · 기호 · 길이 m · 계산 춤 · 셈 여부) — 화면 «📌 이 춤으로 셈» 단추
       /* 🧭 G246 판 펼치기 — 파일마다 판(쪽) 목록: 번호 · 도면명 · 테두리 · 글자 수(화면 «판 목록») */
@@ -5610,6 +5630,85 @@ function 평면부재(보띠, 벽띠, 슬들, 기둥층, 보층, 벽층, 배근�
       }
     }
   }
+  const 빈칸 = []
+  /* 🧭 G421 글자 없는 슬래브 칸 — 보통 층 평면에서 슬래브 글자가 없는 닫힌 칸이 LB(건축치수 보 — 칸막이 밑 작은 보) 띠 하나만 건너 글자 있는 칸과 맞대면 그 칸과 같은 슬래브.
+       소장님 «아직 못 잰 것도 해주고 … 잰 것도 도구로» · 현장 Y 지상4층 G5 · B3 사이 두 칸(LB2 아래 줄 밑) 7.2 + 7.8 ㎡ 등(손으로 잰 것).
+       큰보(G · B · WG …)로 나뉜 칸 · 구멍 · 계단(칸을 가로지르는 대각선) · 1 m 미만 띠 · 다른 슬래브 글자가 맞댄 칸은 그대로(❓ 셈 안 함) */
+  {
+    const LB들 = []
+    for (const 줄 of 보칸) for (const t of 줄) {
+      const z = t._축
+      if (!z || !/^LB\d*[A-Z]?$/.test(((기호풀이(t.기호) || {}).몸 || t.기호 || '').replace(/-[HP]\d+$/, ''))) continue
+      LB들.push({ 번: +String(t._판 || '').split('|')[0], ax: Math.min(z[0], z[2]), bx: Math.max(z[0], z[2]), ay: Math.min(z[1], z[3]), by: Math.max(z[1], z[3]), 세로: Math.abs(z[2] - z[0]) < Math.abs(z[3] - z[1]), 선: Math.abs(z[2] - z[0]) < Math.abs(z[3] - z[1]) ? (z[0] + z[2]) / 2 : (z[1] + z[3]) / 2, w: z[4] })
+    }
+    const 빈칸글 = []
+    for (const D of new Set(잰들.filter((a) => !a.x.씨 && !a.x.채움).map((a) => a.x.D))) {
+      const LB = LB들.filter((l) => l.번 === D.번)
+      if (!LB.length) continue
+      const 글칸 = 잰들.filter((a) => a.x.D === D && !a.x.씨 && !a.x.채움 && !a.x._빈칸)
+      if (!글칸.length) continue
+      const bx0 = Math.min(...글칸.map((a) => a.x0)), bx1 = Math.max(...글칸.map((a) => a.x1)), by0 = Math.min(...글칸.map((a) => a.y0)), by1 = Math.max(...글칸.map((a) => a.y1))
+      const 안 = (px, py) => 잰들.some((a) => a.x.D === D && px > a.x0 && px < a.x1 && py > a.y0 && py < a.y1)
+      /* 맞댄 글자 칸 — 사이 틈(LB 폭 + 100 안)에 LB 축이 맞대 변 절반 넘게 걸침 */
+      const LB건너 = (c) => {
+        const 짝 = []
+        for (const a of 글칸) {
+          const 겹y = Math.min(a.y1, c.y1) - Math.max(a.y0, c.y0), 겹x = Math.min(a.x1, c.x1) - Math.max(a.x0, c.x0)
+          for (const [틈0, 틈1, 세로, 겹, lo, hi] of [[a.x1, c.x0, true, 겹y, Math.max(a.y0, c.y0), Math.min(a.y1, c.y1)], [c.x1, a.x0, true, 겹y, Math.max(a.y0, c.y0), Math.min(a.y1, c.y1)], [a.y1, c.y0, false, 겹x, Math.max(a.x0, c.x0), Math.min(a.x1, c.x1)], [c.y1, a.y0, false, 겹x, Math.max(a.x0, c.x0), Math.min(a.x1, c.x1)]]) {
+            const 틈 = 틈1 - 틈0
+            if (틈 < -50 || 틈 > 700 || 겹 < 300) continue
+            const l = LB.find((l2) => l2.세로 === 세로 && l2.선 > 틈0 - 150 && l2.선 < 틈1 + 150 && Math.min(세로 ? l2.by : l2.bx, hi) - Math.max(세로 ? l2.ay : l2.ax, lo) >= 0.5 * 겹)
+            if (l) 짝.push(a)
+          }
+        }
+        return 짝
+      }
+      /* 칸 안을 비스듬히 지나는 선(칸 안 몫이 가로 · 세로 다 300 넘게) — 구멍 X 표시 · 계단 끊음 선 · 경사로 → 슬래브 칸 아님 */
+      const 대각 = (c) => D.찾기(c.x0, c.y0, c.x1, c.y1).some((s) => {
+        let x0 = D.sx0[s], y0 = D.sy0[s], x1 = D.sx1[s], y1 = D.sy1[s]
+        if (Math.abs(x1 - x0) < 1 || Math.abs(y1 - y0) < 1) return false
+        let t0 = 0, t1 = 1
+        const 자름 = (p, q) => { if (Math.abs(p) < 1e-9) return q >= 0; const r = q / p; if (p < 0) { if (r > t1) return false; if (r > t0) t0 = r } else { if (r < t0) return false; if (r < t1) t1 = r } return true }
+        const dx = x1 - x0, dy = y1 - y0
+        if (!(자름(-dx, x0 - c.x0) && 자름(dx, c.x1 - x0) && 자름(-dy, y0 - c.y0) && 자름(dy, c.y1 - y0))) return false
+        return Math.abs(dx) * (t1 - t0) >= 300 && Math.abs(dy) * (t1 - t0) >= 300
+      })
+      const 걸음 = 500
+      for (let py = by0 + 걸음 / 2; py < by1; py += 걸음) for (let px = bx0 + 걸음 / 2; px < bx1; px += 걸음) {
+        if (안(px, py)) continue
+        const g = { x: px, y: py, h: 0 }
+        const 잰 = 슬래브재기(D, g, 구조층.get(D.번) || null, 폭들, Math.max(bx1 - bx0, by1 - by0), 빗띠들.get(D.번) || null, 보벽층.get(D.번) || null)
+        if (잰.some((v) => !v)) continue
+        const c = { x0: px - 잰[1].d, x1: px + 잰[0].d, y0: py - 잰[3].d, y1: py + 잰[2].d }
+        /* 곁 칸과 얇게 겹치면(한쪽은 LB 가운데 · 한쪽은 LB 먼 면까지 잰 것 — 현장 Y 지상4층 3S1 두 칸 250 mm) 곁 칸 끝에서 자름(두 번 안 셈) */
+        for (const a of 잰들) {
+          if (a.x.D !== D) continue
+          const ix = Math.min(a.x1, c.x1) - Math.max(a.x0, c.x0), iy = Math.min(a.y1, c.y1) - Math.max(a.y0, c.y0)
+          if (ix <= 0 || iy <= 0 || (ix > 300 && iy > 300)) continue
+          if (ix <= iy) { if ((c.x0 + c.x1) / 2 < (a.x0 + a.x1) / 2) c.x1 = Math.min(c.x1, a.x0); else c.x0 = Math.max(c.x0, a.x1) }
+          else { if ((c.y0 + c.y1) / 2 < (a.y0 + a.y1) / 2) c.y1 = Math.min(c.y1, a.y0); else c.y0 = Math.max(c.y0, a.y1) }
+        }
+        const gx = (c.x0 + c.x1) / 2, gy = (c.y0 + c.y1) / 2
+        if (Math.min(c.x1 - c.x0, c.y1 - c.y0) < 1000 || (c.x1 - c.x0) * (c.y1 - c.y0) > 60e6 || c.x0 < bx0 - 100 || c.x1 > bx1 + 100 || c.y0 < by0 - 100 || c.y1 > by1 + 100) continue
+        if (잰들.some((a) => a.x.D === D && Math.min(a.x1, c.x1) - Math.max(a.x0, c.x0) > 300 && Math.min(a.y1, c.y1) - Math.max(a.y0, c.y0) > 300)) continue
+        if (D.글자.some((t) => t.x > c.x0 && t.x < c.x1 && t.y > c.y0 && t.y < c.y1 && /^(?:\d*[A-Z]{0,3}S\d|SS\d|OPEN|EV|E\.?V|PIT|D\.?A|DUCT|PS|AD|TPS)/i.test(붙(t.s)))) continue
+        if (대각(c)) continue
+        /* 계단 곁(계단 이름 글 «SS1» · «ST1» · «계단» 3 m 안) — 계단참 · 계단실 바닥일 수 있어 셈 안 함(계단은 따로 셈) */
+        if (D.글자.some((t) => /^\d*(?:SS|ST)\d|계단/i.test(붙(t.s)) && t.x > c.x0 - 3000 && t.x < c.x1 + 3000 && t.y > c.y0 - 3000 && t.y < c.y1 + 3000)) continue
+        const 짝 = LB건너(c)
+        const 기호들 = [...new Set(짝.map((a) => a.x.r.기호))]
+        if (기호들.length !== 1) continue
+        const 옆 = 짝[0]
+        const key = D.번 + '|' + Math.round((c.x0 + c.x1) / 2) + '|' + Math.round((c.y0 + c.y1) / 2)
+        if (판본.has(key)) continue
+        판본.add(key)
+        잰들.push({ x: { ...옆.x, g: { x: gx, y: gy, h: 0 }, _빈칸: true }, 오: { d: c.x1 - gx }, 왼: { d: gx - c.x0 }, 위: { d: c.y1 - gy }, 아래: { d: gy - c.y0 }, ...c })
+        빈칸글.push(옆.x.r.기호 + '(' + 칸곳글(D, c) + ' · ' + ((c.x1 - c.x0) / 1000).toFixed(1) + ' × ' + ((c.y1 - c.y0) / 1000).toFixed(1) + ' m)')
+        빈칸.push({ 기호: 옆.x.r.기호, 곳: 칸곳글(D, c), 가로: Math.round(c.x1 - c.x0), 세로: Math.round(c.y1 - c.y0), 파일: D.이름, 상자: [c.x0, c.y0, c.x1, c.y1].map((v) => Math.round(v)) })
+      }
+    }
+    void 빈칸글     // 알림은 골조읽기에서 모든 층을 한 번에(🧭 G421)
+  }
   /* 🧭 G248 바닥 슬래브 칸(높이 글 씨 · 채움 · T= 칸)끼리는 보 폭(0.8 m) 안에서 맞대도 이웃 — 칸마다 따로 잰 보 가운데가 조금 달라
        50 mm 안에 안 들어 칸마다 «정착 2변» 이 붙어 철근이 1.5 배로 나왔음(바닥 철근은 칸을 건너 이어짐) */
   const 바닥칸인가 = (a) => !!a.x.씨 || /^T\d/.test(a.x.r.기호)
@@ -5678,7 +5777,7 @@ function 평면부재(보띠, 벽띠, 슬들, 기둥층, 보층, 벽층, 배근�
     슬칸.push({ 기호: x.r.기호, 단변: Math.round(Math.min(Lx, Ly)), 장변: Math.round(Math.max(Lx, Ly)), 단정, 장정, 두께: +(x.b && x.b.두께) || 0, 자리: 자리만들기(x.D.이름, 상자), 안: [Math.round(x단 ? 안x : 안y), Math.round(x단 ? 안y : 안x)], ...(x.씨 ? { 씨: x.씨 } : {}), ...(x.채움 ? { 채움: true } : {}) })
   }
   if (띠속슬.length) 경고.push('📐 슬래브 글자가 보 · 벽 띠 안(두 면 사이)에 적혀 있어 띠 양쪽 칸으로 셈: ' + 띠속슬.join(' · ') + ' — 3D 에서 자리를 한 번 보아 주세요')
-  return { 보칸, 벽칸, 슬칸 }
+  return { 보칸, 벽칸, 슬칸, 빈칸 }
 }
 
 /**
