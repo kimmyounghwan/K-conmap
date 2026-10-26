@@ -3047,6 +3047,8 @@ function 골조읽기0(도면들0, o = {}) {
   const 철골수 = new Map()
   const SRC짝 = new Map()        // 🧭 G290 평면 C 기호 → 그 층 SRC 정의
   const 근거 = []
+  const 없음목록 = []            // 🗺 G429 ❓ 도면에 없음(기호 · 없는 것) — 화면이 3D 부재 자리로 도면에서 보기
+  const 깊은자리 = []            // 🗺 G429 깊은 구역(G423) 셈 토막 · ❓ 토막 — 평면 선(기준 판 좌표 mm) · 도면에서 보기
   const 빈칸 = []                // 🧭 G421 슬래브 글자 없는 칸(곁 칸 기호 · 자리 글 · 크기) — 평면부재가 판마다 돌려줌
 
   /* 층 높이 */
@@ -4171,7 +4173,7 @@ function 골조읽기0(도면들0, o = {}) {
     {
       const m = new Map()
       /* 📍 G428 자리 — 토막마다 도면 자리(3D 부재 찾기용 자리 · 판 제목 + 통심 글) */
-      const 더자리 = (v, x) => { v.자리 = v.자리 || []; v.자리글 = v.자리글 || []; if (x.자리) v.자리.push(x.자리); const t = 곳글(도면들, x); if (t && !v.자리글.includes(t)) v.자리글.push(t) }
+      const 더자리 = (v, x) => { v.자리 = v.자리 || []; v.자리글 = v.자리글 || []; v.자리곳 = v.자리곳 || []; const t = 곳글(도면들, x); if (x.자리) { v.자리.push(x.자리); v.자리곳.push(t || '') } if (t && !v.자리글.includes(t)) v.자리글.push(t) }     // 🗺 G429 자리곳 = 자리와 같은 차례(토막마다)
       for (const [x, f] of 뺌) { const k = f + '|' + x.기호; const v = m.get(k) || { 키: k, 층: f, 층글: 층글(f), 기호: x.기호, 길이: 0, 셈: false }; v.길이 += 길이(x) / 1000; 더자리(v, x); m.set(k, v) }
       for (const [x, f] of 바탕결정셈) { const k = f + '|' + x.기호; const v = m.get(k) || { 키: k, 층: f, 층글: 층글(f), 기호: x.기호, 길이: 0, 셈: true }; v.길이 += 길이(x) / 1000; v.셈 = true; 더자리(v, x); m.set(k, v) }
       바탕물음.push(...[...m.values()].map((v) => ({ ...v, 길이: Math.round(v.길이 * 10) / 10 })))
@@ -4636,7 +4638,7 @@ function 골조읽기0(도면들0, o = {}) {
         if (!(춤 >= Math.max(150, +v.b.폭)) || !(춤 < H)) continue
         const 결 = 결정[v.키]
         건축치수물음.push({ 키: v.키, 층: v.층, 층글: v.층글, 기호: v.기호, 길이: Math.round(v.길이 * 10) / 10, 곳: v.토막.length, 춤, 층고: H, 문, 마감, 셈: !!결, ...(결 && 결.때 ? { 때: 글(결.때) } : {}),
-          자리: v.토막.map((x) => x.자리).filter(Boolean), 자리글: [...new Set(v.토막.map((x) => 곳글(도면들, x)).filter(Boolean))] })
+          자리: v.토막.filter((x) => x.자리).map((x) => x.자리), 자리곳: v.토막.filter((x) => x.자리).map((x) => 곳글(도면들, x)), 자리글: [...new Set(v.토막.map((x) => 곳글(도면들, x)).filter(Boolean))] })
         if (!결) { 묻글.push(v.층글 + ' ' + v.기호 + ' ' + 춤.toLocaleString('en-US') + '(' + v.토막.length + '곳 · ' + v.길이.toFixed(1) + ' m)'); continue }
         const 키 = (v.층 === 'FT' ? 'FT' : v.층) + v.기호 + '-P' + 춤
         if (!배근행.보.has(키)) {
@@ -5008,6 +5010,11 @@ function 골조읽기0(도면들0, o = {}) {
         return best[0] + (Math.abs(d) < 50 ? '' : (d > 0 ? ' +' : ' −') + Math.abs(d).toLocaleString('en-US')) + ' 줄'
       }
       const 쪽말 = { 왼: '끝 벽 · 단차', 오: '끝 벽 · 단차', 안: '안 벽 · 단차' }
+      /* 🗺 G429 도면에서 보기 — 토막 선(세로 = x 선 · p ~ q 는 y) */
+      const 토선 = (x) => (Number.isFinite(x.p) && Number.isFinite(x.q) ? (x.세로 ? [x.선, x.p, x.선, x.q] : [x.p, x.선, x.q, x.선]).map((v) => Math.round(v)) : null)
+      if (R && (R.셈.length || R.못.length)) 깊은자리.push({ 파일: PD.이름, 판: 판0, 구역: R.구역 ? R.구역.이름 : '',
+        셈: R.셈.map((x, i) => ({ 기호: '깊은구역' + (i + 1), 선: 토선(x), 곳: 줄이름(x.세로, x.선), 부피: Math.round(x.부피 * 10) / 10 })).filter((x) => x.선),
+        못: R.못.map((x) => ({ 선: 토선(x), 곳: 줄이름(x.세로, x.선), 까닭: x.까닭 || '' })).filter((x) => x.선) })
       if (R && R.셈.length) {
         깊은구역됨 = true
         const 글들 = []
@@ -5081,6 +5088,7 @@ function 골조읽기0(도면들0, o = {}) {
   {
     const 쓴 = new Set(Object.values(주).flatMap((a2) => (Array.isArray(a2) ? a2 : []).map((r) => r.기호)))
     const 보기 = [...new Map(채운.filter((x) => 쓴.has(x.기호)).map((x) => [x.기호, x.기호 + ' ' + x.없음.map((w) => w.replace(/\(.*$/, '')).join('·')])).values()]
+    없음목록.push(...new Map(채운.filter((x) => 쓴.has(x.기호)).map((x) => [x.기호, { 기호: x.기호, 없음: [...new Set(x.없음.map((w) => w.replace(/\(.*$/, '')))] }])).values())     // 🗺 G429 기호마다 도면에서 보기
     if (보기.length) 경고.push('❓ 도면에 없음 ' + 보기.length + '가지(' + 보기.slice(0, 10).join(' · ') + (보기.length > 10 ? ' …' : '') + ') — 일람표 · 평면 범례 · 단면 어디에도 값이 없어 그 물량은 셈에서 뺐습니다(짐작 안 함). 배근표 빈칸에 적으시면 셈합니다')
   }
   if (빈것.length) 경고.push('크기나 철근을 일람표에서 다 찾지 못한 기호 ' + 빈것.length + '개(' + 빈것.slice(0, 8).join(' · ') + (빈것.length > 8 ? ' …' : '') + ') — 그 부재는 철근(또는 물량)이 덜 나옵니다. 일람표 도면도 같이 넣거나 골조 화면 배근표에서 채워 주세요')
@@ -5224,6 +5232,8 @@ function 골조읽기0(도면들0, o = {}) {
       지붕구역, 지붕사슬,             // 🏔 G299
       일람,                      // 🧭 G291 {표있음, 짐작, 전체, 큰:[글]} — 화면 알림 띠
       바탕물음,                  // 📌 G417 ❓ 건축 바탕 벽(층 · 기호 · 길이 m · 셈 여부) — 화면 «📌 셈» 단추
+      없음목록,                  // 🗺 G429 ❓ 도면에 없음 기호마다(기호 · 없는 것)
+      깊은자리,                  // 🗺 G429 깊은 구역 토막 선(셈 · ❓) — 도면에서 보기
       빈칸,                      // 🧭 G421 슬래브 글자 없는 칸 — LB 띠 건너 곁 칸 슬래브로 셈
       건축난간,                  // 🧭 G422 건축 평면 철근콘크리트 난간(두 선 · 두께 · 길이 · 높이)
       건축치수물음,              // 📌 G420 ❓ «건축치수» 보 춤(층 · 기호 · 길이 m · 계산 춤 · 셈 여부) — 화면 «📌 이 춤으로 셈» 단추
