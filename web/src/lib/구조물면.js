@@ -609,6 +609,10 @@ function 구조물면1(선, 벽선 = null, o = {}) {
         if (Math.abs(w.T[j] - t) > 700) { if (t > w.T[0] && t < w.T[w.T.length - 1]) r = null; continue }   // 종단 안인데 그 자리에 구조 선이 없음 = 덮개 없음
         const 여기 = w.D[j] ? 맞음(w.D[j]) : null
         if (여기) return 여기
+        /* 🧾 G424d 가까운 표본이 벽 자리(종단 벽)면 반대쪽 이웃 표본(걸음 안)의 종단 덮개 — 벽 면 바로 앞 칸이 벽 표본에 붙어 덮개가 벽 면까지 안 닿던 것(현장 S 토출수조 끝벽 앞 0.2 m)
+             단면에서 읽은 덮개(펌프장 139.6 ㎡ = 산출서 139.8)는 그대로 — 거기 넣으면 144.4 로 넘침 */
+        const j2 = j === lo ? hi : lo
+        if (w.W[j] && j2 !== j && Math.abs(w.T[j2] - t) <= 300 && w.D[j2]) { const q = 맞음(w.D[j2]); if (q && q.종단) return q }
         let 왼 = null, 오 = null
         for (let k = j - 1; k >= 0 && w.T[j] - w.T[k] <= 3000; k--) { const q = w.D[k] ? 맞음(w.D[k]) : null; if (q) { 왼 = q; break } }
         for (let k = j + 1; k < w.T.length && w.T[k] - w.T[j] <= 3000; k++) { const q = w.D[k] ? 맞음(w.D[k]) : null; if (q) { 오 = q; break } }
@@ -676,10 +680,34 @@ function 구조물면1(선, 벽선 = null, o = {}) {
       }
       return g < 0 ? -1 : 점무리[g]
     }
+    const 벽칸무리 = new Int32Array(W * H).fill(-9)                    // 🧾 G424d 벽 칸마다 무리(덮개가 닿은 벽 면 길이를 무리별로)
+    /* 🧾 G424d 덮개 · 중간 슬래브가 닿은 벽 면 길이(벽 무리마다) — 그 벽이 판 밑 ~ 윗면을 지나면 그 띠는 판 속이라 벽 거푸집이 아님(BIM토목 이 뺌)
+         덮개 테두리(다각형) 변을 0.1 m 마다 · 덮개 밖 쪽으로 0.2 m 안에 벽 칸이 있으면 그 벽 무리에 닿음(칸 가장자리 셈은 선 칸 · 사선에서 길이가 틀어짐) */
+    const 칸값 = (x, y) => { const i = Math.floor((x - x0) / 칸), j = Math.floor((y - y0) / 칸); return i >= 0 && j >= 0 && i < W && j < H ? j * W + i : -1 }
+    const 닿음셈 = (A, 판) => {
+      const 셈 = new Map()
+      for (const r of 판) for (let k = 0; k < r.length; k++) {
+        const [ax, ay] = r[k], [bx, by] = r[(k + 1) % r.length]
+        const L = Math.hypot(bx - ax, by - ay)
+        if (L < 1) continue
+        const nx = -(by - ay) / L, ny = (bx - ax) / L, n = Math.max(1, Math.round(L / 100))
+        for (let s = 0; s < n; s++) {
+          const px = ax + (bx - ax) * (s + 0.5) / n, py = ay + (by - ay) * (s + 0.5) / n
+          const 안 = (sg) => { const c = 칸값(px + sg * nx * 칸, py + sg * ny * 칸); return c >= 0 && A[c] }
+          const sg = 안(1) && !안(-1) ? -1 : !안(1) && 안(-1) ? 1 : 0
+          if (!sg) continue
+          for (const dd of [1, 2, 3, 4]) {
+            const c = 칸값(px + sg * nx * dd * 칸, py + sg * ny * dd * 칸)
+            if (c >= 0 && C[c] && 벽칸무리[c] !== -9) { 셈.set(벽칸무리[c], (셈.get(벽칸무리[c]) || 0) + L / n / 1000); break }
+          }
+        }
+      }
+      return [...셈].map(([무리, 길이]) => ({ 무리, 길이: +길이.toFixed(3) }))
+    }
     const 나눔 = (M) => {
       const 칸들 = new Map()
       const 벽이냐 = M === C
-      for (let i = 0; i < W * H; i++) { if (!M[i]) continue; const c = 무리칸(i, 벽이냐); let a = 칸들.get(c); if (!a) { a = new Uint8Array(W * H); 칸들.set(c, a) } a[i] = 1 }
+      for (let i = 0; i < W * H; i++) { if (!M[i]) continue; const c = 무리칸(i, 벽이냐); if (벽이냐) 벽칸무리[i] = c; let a = 칸들.get(c); if (!a) { a = new Uint8Array(W * H); 칸들.set(c, a) } a[i] = 1 }
       /* 🧭 G292 ⑤ 무리끼리 맞닿은 길이(m) — 높이가 달라 나눈 자리의 자른 면은 거푸집이 아님(높이 차만큼만 드러남 · BIM토목 이 씀) */
       const 라벨 = new Int32Array(W * H).fill(-9), 키 = [...칸들.keys()]
       키.forEach((c, k) => { const A = 칸들.get(c); for (let i = 0; i < W * H; i++) if (A[i]) 라벨[i] = k })
@@ -719,8 +747,30 @@ function 구조물면1(선, 벽선 = null, o = {}) {
         for (const p of [m.q, m.r]) { const t = p.x * g.u[0] + p.y * g.u[1]; g.lo = Math.min(g.lo, t); g.hi = Math.max(g.hi, t) }
       }
       const 옆안 = (k, cx, cy) => 옆범위.filter((g) => g.k === k && !윤들.some((w) => Math.abs(w.ux * g.u[0] + w.uy * g.u[1]) >= 0.99)).every((g) => { const t = cx * g.u[0] + cy * g.u[1]; return t >= g.lo - 300 && t <= g.hi + 300 })
+      /* 🧾 G424d 종단 윤곽의 덮개 띠로도 덮개 정의 — 그 자리 맨 위 선(윤곽 위)과 그 아래 0.15 ~ 0.6 m 선 둘 · 그 아래 0.5 m 넘게 빈 자리(방)
+           가로 단면이 안 지나는 덮개도 종단에 두 선이 그려져 있으면 셈(현장 S 토출수조: E-E 는 EL 글자가 없어 못 세우고 D-D 는 위가 열린 첫 방 —
+           종단 A1-A1 의 EL 2.03 · 1.63 두 선이 높은 벽 ~ 끝벽 14.5 m · 설계사 산출서 «상부슬래브»(깔때기 · 넓은 칸) · 토출부 2.03 · 1.63 / 2.08 · 1.78)
+           맨 위가 아닌 두 선(사선 · 턱 아래)이나 바로 아래가 막힌 두 선(바닥판 윗면 · 아랫면 · 버림)은 아님 */
+      let 윤정의수 = 0
+      const 단면정의 = 덮정의.slice()
+      /* 단면에서 읽은 덮개의 밑 · 윗면과 같은 높이 선을 끼고 · 3 m 안에 그 덮개 띠(두 선)가 있으면 그 덮개의 턱 · 두꺼운 곳
+           (현장 S 펌프 구멍 둘레 턱 4.37 — 4.37 · 3.92 를 0.45 덮개로 · 4.37 · 4.22 를 0.15 덮개로 읽었음) */
+      const 단면덮곁 = (w, j, v) => 단면정의.some((q) => (Math.abs(v - q.밑) <= 0.03 || Math.abs(v - (q.밑 + q.두께)) <= 0.03) &&
+        w.T.some((t, k) => Math.abs(t - w.T[j]) <= 3000 && w.D[k] && w.D[k].some((u) => Math.abs(u - q.밑) <= 0.03) && w.D[k].some((u) => Math.abs(u - (q.밑 + q.두께)) <= 0.03)))
+      for (const w of 윤들) for (let j = 0; j < w.T.length; j++) {
+        const 가 = w.D[j]
+        if (!가 || 가.length < 2 || Math.abs(가[0] - w.V[j]) > 0.03) continue
+        const d = 가[0] - 가[1]
+        if (d < 0.15 || d > 0.6) continue
+        const 아래선 = 가.length > 2 ? 가[2] : w.B[j]
+        if (!(가[1] - 아래선 >= 0.5)) continue
+        if (단면덮곁(w, j, 가[0]) || 단면덮곁(w, j, 가[1])) continue
+        const 두께 = Math.round(d / 0.05) * 0.05
+        if (덮정의.some((q) => Math.abs(q.밑 - 가[1]) < 0.03 && Math.abs(q.두께 - 두께) < 0.03)) continue
+        덮정의.push({ 밑: 가[1], 두께, 종단: true }); 윤정의수++
+      }
       const 맞음 = (가) => 덮정의.find((q) => 가.some((u) => Math.abs(u - q.밑) <= 0.03) && 가.some((u) => Math.abs(u - (q.밑 + q.두께)) <= 0.03)) || null
-      if (덮점.some(Boolean)) {
+      if (덮점.some(Boolean) || 윤정의수) {
         for (let i = 0; i < W * H; i++) {
           if (!F[i] || C[i]) continue
           const x = i % W, y = (i / W) | 0
@@ -738,7 +788,7 @@ function 구조물면1(선, 벽선 = null, o = {}) {
             if (윤들.length) { const 덮 = 윤높(x0 + (x + 0.5) * 칸, y0 + (y + 0.5) * 칸); if (덮 !== null && 덮 < m.밑 + m.두께 - 0.1) continue }
           }
           const k = `${Math.round(m.밑 / 0.05)}|${Math.round(m.두께 / 0.05)}`
-          let e = 덮칸.get(k); if (!e) { e = { 밑: Math.round(m.밑 / 0.05) * 0.05, 두께: m.두께, A: new Uint8Array(W * H) }; 덮칸.set(k, e) }
+          let e = 덮칸.get(k); if (!e) { e = { 밑: Math.round(m.밑 / 0.05) * 0.05, 두께: m.두께, A: new Uint8Array(W * H), ...(m.종단 ? { 종단: true } : {}) }; 덮칸.set(k, e) }
           e.A[i] = 1
         }
       }
@@ -746,8 +796,10 @@ function 구조물면1(선, 벽선 = null, o = {}) {
            그 줄에서 잘린 길이 · 가운데가 짝과 같은(±10 % · 0.1 m / 0.3 m) 꼴 → 덮개 칸에서 뺌(넓이 · 콘크리트) · 둘레 × 두께는 구멍 옆 거푸집
            단면이 안 지나는 덮개 아래 닫힌 꼴은 «❓ 구멍인지 도면으로 모름»(맨홀 · 피트 — 단면 · 상세가 있어야 앎) · 단면이 지나는데 구멍 짝이 없으면 구멍 아님
            (현장 S 배수장: 단면 B-B 1.8 × 3 · 1.5 = 평면 원 Ø1.8 · Ø1.5 · C-C 1.75 × 3 · 1.35 = 배관실 네모 2.5 × 1.75 · 2.2 × 1.35 — 설계사 산출서 상부슬래브 공제와 같음) */
+      /* 🧾 G424d 디딤 줄(계단줄)을 품은 닫힌 네모는 계단 테두리 — 덮개 구멍 꼴이 아님(현장 S 토출수조 계단B 3.7 × 1.0 이 덮개 아래 ❓ 로 뜨던 것) */
+      const 계단테 = (q) => (o.계단줄 || []).some((z) => z.r[0] >= q.r[0] - 50 && z.r[2] <= q.r[2] + 50 && z.r[1] >= q.r[1] - 50 && z.r[3] <= q.r[3] + 50)
       const 꼴목록 = [
-        ...닫힌네모.map((q) => ({ 꼴: '네모', x0: q.r[0], y0: q.r[1], x1: q.r[2], y1: q.r[3], cx: (q.r[0] + q.r[2]) / 2, cy: (q.r[1] + q.r[3]) / 2, 넓이: (q.w * q.h) / 1e6, 둘레: (2 * (q.w + q.h)) / 1000, 크기: `${(q.w / 1000).toFixed(2)} × ${(q.h / 1000).toFixed(2)}` })),
+        ...닫힌네모.filter((q) => !계단테(q)).map((q) => ({ 꼴: '네모', x0: q.r[0], y0: q.r[1], x1: q.r[2], y1: q.r[3], cx: (q.r[0] + q.r[2]) / 2, cy: (q.r[1] + q.r[3]) / 2, 넓이: (q.w * q.h) / 1e6, 둘레: (2 * (q.w + q.h)) / 1000, 크기: `${(q.w / 1000).toFixed(2)} × ${(q.h / 1000).toFixed(2)}` })),
         ...(o.원 || []).filter((c) => c.r >= 150 && c.r <= 2500).map((c) => ({ 꼴: '원', cx: c.x, cy: c.y, r: c.r, 넓이: (Math.PI * c.r * c.r) / 1e6, 둘레: (2 * Math.PI * c.r) / 1000, 크기: `Ø${(2 * c.r / 1000).toFixed(2)}` })),
       ]
       /* 줄(a → b, 길이 L) 이 꼴을 자르는 구간 [t0, t1] (줄 방향 거리 · 끝 없이) */
@@ -810,7 +862,7 @@ function 구조물면1(선, 벽선 = null, o = {}) {
         if (g) { if (!g.크기.includes(f.크기)) g.크기.push(f.크기); for (const v of 보임) if (!g.보임.includes(v)) g.보임.push(v) } else 모름.push({ 꼴: f.꼴, 크기: [f.크기], 자리: [f.cx, f.cy], 보임 })
       }
       덮개모름 = { 꼴: 모름, 짝없음: 짝없음.filter((z) => !꼴목록.some((f) => 투영맞음(z, f))).map((z) => ({ 단면: z.단면, 폭: z.폭 })) }   // 평면 꼴로 설명되는 틈(뒤로 보이는 구멍)은 뺌
-      덮개들 = 덮칸들.map((e) => { let n = 0; for (let i = 0; i < W * H; i++) n += e.A[i]; return { 밑: e.밑, 두께: e.두께, 판: 꼴(e.A), 넓이: n * 칸 * 칸 / 1e6, 열린: e.열린 } }).filter((e) => e.판.length && e.넓이 >= 1)
+      덮개들 = 덮칸들.map((e) => { let n = 0; for (let i = 0; i < W * H; i++) n += e.A[i]; const 판 = 꼴(e.A); return { 밑: e.밑, 두께: e.두께, 판, 넓이: n * 칸 * 칸 / 1e6, 열린: e.열린, 닿음: 닿음셈(e.A, 판), ...(e.종단 ? { 종단: true } : {}) } }).filter((e) => e.판.length && e.넓이 >= 1)
     }
     /* 🧾 G424 중간 슬래브 — 단면의 중간판(벽 면 둘 사이 · 평면 위 두 점 a → b) → 그 가운데가 든 방(벽으로 막힌 칸 무리) 안에서
          같은 밑 · 위의 중간판마다 그 줄 방향으로 두 벽 면 사이(±1 칸)인 칸 · 두 방향 단면이 다 있으면 네모 · 한 방향뿐이면 «한방향»
@@ -854,7 +906,8 @@ function 구조물면1(선, 벽선 = null, o = {}) {
           const 길 = (hi - lo + 칸) / 1000
           for (const h of z.헌치) 헌.push({ 쪽: h.쪽, 다리: h.다리, 길이: +길.toFixed(3), 단면: z.단면 })
         }
-        중간판들.push({ 밑: g.밑, 두께: +(g.위 - g.밑).toFixed(3), 판: 꼴(A), 넓이: n * 칸 * 칸 / 1e6, 단면: [...new Set(g.줄.map((z) => z.단면))], 한방향: g.줄.length < 2, 헌치: 헌 })
+        const 판 = 꼴(A)
+        중간판들.push({ 밑: g.밑, 두께: +(g.위 - g.밑).toFixed(3), 판, 넓이: n * 칸 * 칸 / 1e6, 단면: [...new Set(g.줄.map((z) => z.단면))], 한방향: g.줄.length < 2, 헌치: 헌, 닿음: 닿음셈(A, 판) })   /* 🧾 G424d 닿은 벽 면 */
       }
     }
     /* 🧾 G424 헌치 — ① 평면 45° 사선(다리 0.1 ~ 0.65 m · 두 끝이 벽 칸에 닿고 가운데는 방) = 벽 모서리 세로 헌치 · 높이 = 가까운 단면 점의 벽 면 위 − 바닥판 윗면
