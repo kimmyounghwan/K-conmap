@@ -424,6 +424,47 @@ export function 큰무리빼기(M, 문턱 = 2000) {
   const 무리 = [...큰].map((k) => { const [종류, 층] = k.split('|'); const 도면 = M.부재.filter((o) => o.종류 === 종류 && o.층 === 층 && o.근거).length; return { 종류, 층, 모두: 셈.get(k), 도면, 뺌: 셈.get(k) - 도면 } })
   return { M: { ...M, 부재: M.부재.filter((o) => !뺄(o)) }, 무리 }
 }
+/**
+ * 🧹 G431 정리판 — 작업 화면 맨 위 «정리할 것» 을 원인별로 한 줄씩(자세한 것은 🧩 겹친 곳 · 🟨 제안 · 🧾 층별 대조 로 이어 줌)
+ *   ① 무더기: 한 층 한 종류에서 도면 근거 없는 것이 300개 넘고 그 절반 넘게가 보조 통심(«X1+225» 꼴) 교점 · 또는 2,000개 넘음(«모든 교점에» 를 보조 통심까지 누른 것)
+ *   ② 겹친 곳 — 무더기가 낀 짝(무더기를 빼면 같이 없어짐) · 남는 짝은 층 · 종류 짝마다 몇 곳
+ *   ③ 🟨 확인할 제안 · 🟥 손으로 할 곳 수
+ *   (소장님 «간편하게 할 수 있는 방법 없을까? 전체를 보여 주돼» — B1 기둥 10,000 · 겹친 곳 90,874 를 하나씩 묻던 것)
+ * @returns {{ 무더기: [{ 종류, 층, 수, 보조 }], 겹: { 모두, 무더기때문, 남: [{ 층, 짝, 수 }] }, 제안, 빨, 있음 }}
+ */
+export function 정리할것(M, S) {
+  const 보조 = new Set([...((M.통심 && M.통심.x) || []), ...((M.통심 && M.통심.y) || [])].filter((g) => 글(g.이름).length > 3 && /[+−-]\d+$/.test(글(g.이름))).map((g) => g.id))
+  const 셈 = new Map()
+  for (const o of M.부재) {
+    if (o.근거) continue
+    const k = o.종류 + '|' + o.층
+    const e = 셈.get(k) || { 수: 0, 보조: 0 }
+    e.수++
+    if (Array.isArray(o.점) && o.점.some((g) => 보조.has(g))) e.보조++
+    셈.set(k, e)
+  }
+  const 무더기 = [...셈].filter(([, e]) => (e.수 > 300 && e.보조 > e.수 / 2) || e.수 > 2000).map(([k, e]) => { const [종류, 층] = k.split('|'); return { 종류, 층, 수: e.수, 보조: e.보조 } })
+  const 무키 = new Set(무더기.map((g) => g.종류 + '|' + g.층))
+  const 부 = new Map(M.부재.map((o) => [o.id, o]))
+  const 무더기것 = (id) => { const o = 부.get(id); return !!(o && !o.근거 && 무키.has(o.종류 + '|' + o.층)) }
+  const 겹친 = ((S && S.검사 && S.검사.find((z) => z.겹친)) || {}).겹친 || []
+  let 무더기때문 = 0
+  const 남 = new Map()
+  for (const e of 겹친) {
+    if (!e.ids.every((id) => 부.has(id))) continue
+    if (e.ids.some(무더기것)) { 무더기때문++; continue }
+    const [a, b] = e.ids.map((id) => 부.get(id))
+    const k = a.층 + '|' + [a.종류, b.종류].sort().join(' ↔ ')
+    남.set(k, (남.get(k) || 0) + 1)
+  }
+  const 남줄 = [...남].map(([k, 수]) => { const [층, 짝] = k.split('|'); return { 층, 짝, 수 } }).sort((p, q) => q.수 - p.수)
+  const 제안 = M.부재.filter((o) => o.제안).length, 빨 = (M.빠짐 || []).length
+  return { 무더기, 겹: { 모두: 무더기때문 + 남줄.reduce((t, r) => t + r.수, 0), 무더기때문, 남: 남줄 }, 제안, 빨, 있음: 무더기.length > 0 || 무더기때문 + 남줄.length > 0 || 제안 > 0 || 빨 > 0 }
+}
+/** 🧹 G431 무더기 빼기 — 그 층 그 종류에서 도면 근거 없는 것만(도면에서 온 것은 남김) */
+export function 무더기빼기(M, 종류, 층) {
+  return { ...M, 부재: M.부재.filter((o) => !(o.종류 === 종류 && o.층 === 층 && !o.근거)) }
+}
 export function 부재빼기(M, ids) {
   const s = new Set([].concat(ids))
   return { ...M, 부재: M.부재.filter((o) => !s.has(o.id)) }

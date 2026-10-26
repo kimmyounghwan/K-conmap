@@ -25,7 +25,7 @@ import { Link } from 'react-router-dom'
 import { 세기 } from '../lib/받은수.jsx'
 import { 배근칸, 정착표, 기준값, 엑셀 as 골조엑셀 } from '../lib/골조.js'
 import { 도면함끄기, 도면함켜기, 도면함넣어둠 } from '../lib/도면모델.js'
-import { 새모델, 예시모델, 작업예시모델, 정돈, 겹침둠, 겹침남기기, 겹침물을짝, 큰무리빼기, 사선넣기, 사선끝, 띠판, 기둥넣기, 선넣기, 칸넣기, 계단넣기, 부재옮기기, 구간넣기, 구간빼기, 구간고치기, 구간물량, 구간선자르기, 구간색들, 부재빼기, 부재고치기, 부재나누기, 층복사, 통심더하기, 통심빼기, 통심간격, 모델셈, 종류색, 부재글, 모델시트, FT층, 층높이, 제안확인, 제안모두확인, 제안빼기, 기초철근넣기, 계단글 } from '../lib/골조모델.js'
+import { 새모델, 예시모델, 작업예시모델, 정돈, 겹침둠, 겹침남기기, 겹침물을짝, 큰무리빼기, 정리할것, 무더기빼기, 사선넣기, 사선끝, 띠판, 기둥넣기, 선넣기, 칸넣기, 계단넣기, 부재옮기기, 구간넣기, 구간빼기, 구간고치기, 구간물량, 구간선자르기, 구간색들, 부재빼기, 부재고치기, 부재나누기, 층복사, 통심더하기, 통심빼기, 통심간격, 모델셈, 종류색, 부재글, 모델시트, FT층, 층높이, 제안확인, 제안모두확인, 제안빼기, 기초철근넣기, 계단글 } from '../lib/골조모델.js'
 import 둘러보기판 from '../둘러보기판.jsx'
 import { 층판 } from '../lib/둘러보기.js'
 import { 길잡이 } from '../lib/도우미.js'
@@ -1102,6 +1102,7 @@ function 세우기칸(p) {
         </section>
         <aside className="gmd-ws-right" aria-label="물량">
           {S && !S.오류 && <요약줄 S={S} />}
+          {S && !S.오류 && <정리판 M={M} S={S} setM={setM} 세기={한번세기} />}
           {고른것 && 고름판}
           {S && !S.오류 && 도구 === '구간' && <구간판 M={M} S={S} setM={setM} 구간색={구간색} set구간색={set구간색} 층={층} />}
           {S && !S.오류 && <제안줄 M={M} S={S} setM={setM} set고른={set고른} set층={set층} />}
@@ -1303,6 +1304,38 @@ function 구간판({ M, S, setM, 구간색, set구간색, 층 }) {
  *   층마다: 도면 부재 n = 세움 m + 🟥 손으로 k + 한 번만 셈(같은 자리 두 번 · 다른 평면에도 그림) · 🟨 확인할 제안 · 콘크리트 도면 셈 ↔ 이 모델
  *   🟥 을 누르면 그 층 평면 · 3D 에 그 자리를 밝게
  */
+/**
+ * 🧹 G431 정리판 — 작업 화면 맨 위 «정리할 것» 을 원인별로 한 줄씩 · 자세한 것은 아래 🧩 겹친 곳 · 🟨 제안 · 🧾 층별 대조(새 목록을 또 만들지 않음)
+ *   소장님 «간편하게 할 수 있는 방법 없을까? 전체를 보여 주돼» · «이용자 측면에서 1에서 2로 가는게 제일 좋은 것 같아. 반복되는 것은 없지?»
+ */
+function 정리판({ M, S, setM, 세기 }) {
+  const r = useMemo(() => 정리할것(M, S), [M, S])
+  if (!r.있음) return null
+  const 층글 = (f) => (f === 'FT' ? 'FT' : f + '층')
+  const 수 = (n) => n.toLocaleString('ko-KR')
+  const 가기 = (sel) => { const el = document.querySelector(sel); if (!el) return; if (el.tagName === 'DETAILS') el.open = true; try { el.scrollIntoView({ behavior: 'smooth', block: 'start' }) } catch (e) { el.scrollIntoView() } el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash') }
+  const 남수 = r.겹.남.reduce((t, x) => t + x.수, 0)
+  return (
+    <div className="gmd-box gmd-tidy" aria-label="정리할 것">
+      <div className="gmd-row"><b>🧹 정리할 것</b> <span className="muted">원인별로 한 줄씩 — 자세한 것은 아래</span></div>
+      <ul className="gmd-tidylist">
+        {r.무더기.map((g) => (
+          <li key={g.종류 + '|' + g.층}>⚠ <b>{층글(g.층)} {g.종류} {수(g.수)}개</b> — 도면 근거 없이 손으로 세운 무더기{g.보조 ? ` (보조 통심 교점 ${수(g.보조)}곳)` : ''}{r.겹.무더기때문 ? ` · 겹친 곳 ${수(r.겹.무더기때문)}곳의 원인` : ''}
+            <div className="gmd-row"><button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => { setM((P) => 무더기빼기(P, g.종류, g.층)); 세기('|골조모델|무더기빼기') }}>이것만 빼기</button> <small className="muted">도면에서 온 것은 남김 · ↶ 되돌리기 됨</small></div>
+          </li>
+        ))}
+        {r.겹.모두 > 0 && (
+          <li>🧩 <b>겹친 곳 {수(r.겹.모두)}곳</b>{r.겹.무더기때문 ? ` — 그중 ${수(r.겹.무더기때문)}곳은 위 무더기 때문(빼면 같이 없어짐)` : ''}{남수 ? `${r.겹.무더기때문 ? ` · 남는 ${수(남수)}곳:` : ' —'} ${r.겹.남.slice(0, 3).map((x) => `${층글(x.층)} ${x.짝} ${수(x.수)}`).join(' · ')}${r.겹.남.length > 3 ? ' …' : ''}` : ''}
+            {남수 > 0 && <div className="gmd-row"><button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 가기('.gmd-ovl')}>🧩 겹친 곳 목록</button></div>}
+          </li>
+        )}
+        {r.제안 > 0 && <li>🟨 <b>확인할 제안 {수(r.제안)}곳</b> — 건설맵이 먼저 세운 것 <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 가기('.gmd-prop-sum')}>보기</button></li>}
+        {r.빨 > 0 && <li>🟥 <b>손으로 할 곳 {수(r.빨)}곳</b> — 도면에서 못 옮긴 것 <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 가기('.gmd-cmp')}>🧾 층별 대조</button></li>}
+      </ul>
+    </div>
+  )
+}
+
 /** 🧩 G394 겹친 곳 — 같은 것을 두 번 그린 곳(❓ 어느 것을 남길까요?) · 그 밖에 조금 걸친 곳 */
 function 겹침판({ M, S, setM, 세기, 겹보기 }) {
   const 겹 = (S.검사.find((z) => z.겹친) || {}).겹친 || []

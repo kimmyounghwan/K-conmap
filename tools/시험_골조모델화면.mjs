@@ -452,6 +452,25 @@ for (const 기기 of 기기들) {
     await B.getByRole('button', { name: '많은 것만 빼고 열기' }).click(); await B.waitForTimeout(900)
     const M5 = await 모델읽기()
     봐(M5.부재.length === L.예시모델().부재.length - 12 && (await B.locator('.gmd-warnbox').count()) === 0, `${기기} 많은 것만 빼고 열기 → 1층 기둥(6,5xx개)만 빼고 엶`, M5.부재.length)
+    /* 🧹 G431 정리판 — 보조 통심 교점마다 손으로 세운 기둥 무더기(400) → 맨 위 «🧹 정리할 것» 한 줄 · «이것만 빼기» → 무더기 빠지고 줄 사라짐 */
+    {
+      let MD = L.예시모델()
+      for (let k = 1; k <= 20; k++) MD = L.통심더하기(MD, 'x', 400 * k, 'X1+' + 400 * k)
+      for (let k = 1; k <= 20; k++) MD = L.통심더하기(MD, 'y', 400 * k, 'Y1+' + 400 * k)
+      const 보x = MD.통심.x.filter((g) => /\+/.test(g.이름)).map((g) => g.id), 보y = MD.통심.y.filter((g) => /\+/.test(g.이름)).map((g) => g.id)
+      let nid = 50000
+      const 손 = []
+      for (const x of 보x) for (const y of 보y) 손.push({ id: nid++, 종류: '기둥', 층: '1', 부호: 'C1', 점: [x, y] })
+      MD = { ...MD, 부재: [...MD.부재, ...손], 다음: 60000 }
+      await B.evaluate((t) => { localStorage.setItem('kcm.model.v1', t); sessionStorage.removeItem('kcm.model.undo.v1') }, JSON.stringify(MD))
+      await B.reload({ waitUntil: 'domcontentloaded' }); await B.waitForSelector('.gmd-ws', { timeout: 30000 }); await B.waitForTimeout(2500)
+      const 정 = await B.locator('.gmd-tidy').innerText().catch(() => '')
+      봐(/🧹 정리할 것/.test(정) && /1층 기둥 412개/.test(정) && /보조 통심 교점 400곳/.test(정) && /겹친 곳 [\d,]+곳의 원인/.test(정), `${기기} 🧹 G431 정리판 — «1층 기둥 412개 · 도면 근거 없이 손으로 세운 무더기(보조 통심 교점 400곳) · 겹친 곳 n곳의 원인»`, 정.replace(/\n/g, ' ').slice(0, 220))
+      await B.locator('.gmd-tidy button', { hasText: '이것만 빼기' }).first().click(); await B.waitForTimeout(1500)
+      const M6 = JSON.parse(await B.evaluate(() => localStorage.getItem('kcm.model.v1')))
+      const 정2 = await B.locator('.gmd-tidy').innerText().catch(() => '')
+      봐(M6.부재.length === MD.부재.length - 412 && !/손으로 세운 무더기/.test(정2), `${기기} 🧹 «이것만 빼기» → 1층 기둥 412개 빠짐(근거 없는 것) · 정리판에서 그 줄 사라짐`, [M6.부재.length, 정2.replace(/\n/g, ' ').slice(0, 120)])
+    }
     /* 🧪 G393 작업 화면 «🧪 예시» — 새 기능이 다 든 가상 예시(계단 · MAT 제안 · 빨간 곳 · 도면함 · 층별 대조 · 구간 · 덧줄) */
     {
       const 예버튼 = B.getByRole('button', { name: '🧪 예시', exact: true })
@@ -468,6 +487,11 @@ for (const 기기 of 기기들) {
       봐(/A팀/.test(구) && /B팀/.test(구), `${기기} ▭ 구간 A팀 · B팀`, 구.replace(/\n/g, ' ').slice(0, 120))
       봐(/골조에 안 쓴 도면|안 쓴/.test(await B.locator('#gmd-dwgbox').innerText()), `${기기} 🗂 골조에 안 쓴 도면(건축 · 토목) 목록`)
       /* 🧩 G394 두 번 그린 벽 — «❓ 어느 것을 남길까요?» 1곳 → 남기기 → 겹침 없음 · 합 215.964(G395 비스듬한 보 2B5 더함) */
+      /* 🧹 G431 정리판 — 작업 예시: 겹친 곳 1 · 🟨 제안 3 · 🟥 1 을 원인별 한 줄씩 · «🧩 겹친 곳 목록» 누르면 그 상자가 열림 */
+      const 정예 = await B.locator('.gmd-tidy').innerText().catch(() => '')
+      봐(/겹친 곳 1곳/.test(정예) && /확인할 제안 3곳/.test(정예) && /손으로 할 곳 1곳/.test(정예) && !/무더기/.test(정예), `${기기} 🧹 정리판(작업 예시) — 겹친 곳 1 · 🟨 3 · 🟥 1 · 무더기 없음`, 정예.replace(/\n/g, ' ').slice(0, 200))
+      await B.locator('.gmd-tidy button', { hasText: '🧩 겹친 곳 목록' }).click(); await B.waitForTimeout(600)
+      봐(await B.locator('.gmd-ovl').evaluate((e) => e.open), `${기기} «🧩 겹친 곳 목록» → 겹친 곳 상자 열림`)
       const 겹판 = await B.locator('.gmd-ovl').innerText().catch(() => '')
       봐(/겹친 곳 1/.test(겹판) && /어느 것을 남길까요\? 1곳/.test(겹판) && /W1 ↔ 1층 벽 W1/.test(겹판), `${기기} 🧩 겹친 곳 — ❓ 두 번 그린 벽 W1 1곳(안쪽 모서리는 한 번만이라 안 나옴)`, 겹판.replace(/\n/g, ' ').slice(0, 160))
       const 남버튼 = B.locator('.gmd-ovllist li').first().locator('button', { hasText: '남기기' }).first()

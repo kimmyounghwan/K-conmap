@@ -9115,6 +9115,10 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gmd .gmd-box.flash { animation: gmd-flash 1.4s ease-out 1; }
 @keyframes gmd-flash { 0% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent, #2563eb) 55%, transparent); } 100% { box-shadow: 0 0 0 0 transparent; } }
 .gmd .gmd-box-empty { border-style: dashed; }
+.gmd .gmd-tidy { border-color: color-mix(in srgb, #f0b429 60%, var(--line, #d0d5dd)); background: color-mix(in srgb, #f0b429 8%, var(--surface, #fff)); }   /* 🧹 G431 정리판 */
+.gmd .gmd-tidylist { margin: 6px 0 2px; padding-left: 4px; list-style: none; }
+.gmd .gmd-tidylist li { margin: 6px 0; line-height: 1.55; }
+.gmd .gmd-tidylist li .gmd-row { margin-top: 3px; }
 .gmd .gmd-addrows { background: var(--surface-2, #f6f7f9); border-radius: 8px; padding: 6px 10px; }
 .gwk-prop, .gmd .gwk-prop { color: #b45309; }
 /* 🧾 G393 층별 대조 · 🟥 빨간 곳 목록 · 평면 빨간 곳 */
