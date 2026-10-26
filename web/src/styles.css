@@ -7536,6 +7536,7 @@ a.mc-key-in:hover { border-color: var(--accent-line); background: var(--accent-s
 .bim-il-tbl td.il-why { white-space: normal; min-width: 260px; max-width: 520px; font-size: 12px; color: var(--text-2); }
 .bim-il-tbl .il-same { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 6px; vertical-align: middle; }
 .bim-il-tbl .il-same .btn.sm { width: auto; padding: 2px 8px; font-size: 12px; min-height: 0; line-height: 1.5; }
+.bim-il-tbl .il-pick { width: auto; max-width: 180px; padding: 2px 6px; font-size: 12px; min-height: 0; border: 1px solid #93c5fd; border-radius: 6px; background: #eff6ff; color: #1d4ed8; }
 .bim-il-tbl tr.il-made td, .bim-il-tbl tr.il-made th { background: color-mix(in srgb, var(--accent-soft) 55%, transparent); }
 .bim-il-tbl tr.il-use { cursor: pointer; }
 .bim-il-tbl tr.il-use:hover td, .bim-il-tbl tr.il-use:hover th { background: var(--accent-soft); }

@@ -1021,6 +1021,16 @@ export default function Bim() {
                                   : z.후보.map((k) => <button key={k} type="button" className="btn line sm" title={'도면을 보고 «' + z.기호 + '» 와 «' + k + '» 가 같은 부재일 때만 누르세요 — 그 줄 값으로 셈하고 📌 사람 확인으로 적습니다'} onClick={() => { 같음바꾸기(지금.종류 + '|' + z.기호, k); 세기('|BIM물량|같음') }}>📌 «{k}» 같은 부재</button>)}
                               </span>
                             )}
+                            {/* 📌 G427 후보가 없거나 다른 줄이 맞으면 — 같은 종류 줄 가운데 사람이 고름(도면을 보고 · 고른 날짜 · 되돌리기) */}
+                            {!z.사람 && z.고를 && z.고를.length > 0 && (
+                              <span className="il-same" onClick={(e) => e.stopPropagation()}>
+                                <select className="il-pick" value="" title={'도면(일람 · 상세)을 보고 «' + z.기호 + '» 의 빈 칸이 고른 줄과 같을 때만 고르세요 — 그 줄 값으로 셈하고 📌 사람 확인(날짜)으로 적습니다 · ↩ 되돌리기 됨'}
+                                  onChange={(e) => { const k = e.target.value; if (!k) return; 같음바꾸기(지금.종류 + '|' + z.기호, k); 세기('|BIM물량|같음고름') }}>
+                                  <option value="">📌 다른 줄 값으로…</option>
+                                  {z.고를.map((k) => <option key={k} value={k}>{k}</option>)}
+                                </select>
+                              </span>
+                            )}
                           </td>
                         </tr>
                       ))}
