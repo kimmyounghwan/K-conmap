@@ -2702,6 +2702,261 @@ function 깊은칸찾기(도면들, 최저) {
   }
   return out
 }
+/* ───────────────────────────── 🧭 G423 깊은 구역(지하 깊은 바닥 · 벽 내림 · 단차 몸체) — 골구도 단면의 바닥 윤곽
+   소장님 «잰 방법을 도구에 넣기 — 다 도구화 해야 해» · 현장 Y 손으로 잰 것(종골구도-1 · -4 · 횡골구도-1: 바깥벽이 깊은 바닥까지 · 단차 몸체 ㎡/m × 평면 벽 길이) */
+const 구역덜층 = /CEN|SYM|AREA|LEADER|HID|DIM|TEXT|SITE|GRID|AXIS|HATCH|해치|치수|중심|PAPER|SOL|FIN|마감|TWB|\$0\$/i
+/**
+ * 단면 판(층 이름 글 셋 넘게)마다 맨 아래 층 바닥(MAT 윗면) 아래를 50 mm 마다 세로로 찔러 콘크리트 맨 아래 덩어리(밑 선 ~ 그 위 첫 선)를 읽음 — 그 위 덩어리(계단 몸 · 수조 덮개)는 뺌.
+ *   MAT 윗면 = 맨 아래 층 이름 글(가장 위 것) 아래 긴 가로선(판마다 · 없으면 같은 도면 다른 판의 글 ~ 선 간격)
+ *   깊은 바닥 = 윗면이 MAT 윗면보다 300 넘게 낮은 평평한 토막(폭 300 넘게 · 두께 100 ~ 3,000) · 구역 = 깊은 바닥이 1 m 넘게 든, 보통 바닥(MAT 윗면 · 평평 · 폭 500 넘게) 사이 칸
+ *   넘이(벽 내림 · 단차 몸체) = 구역 안 깊은 바닥이 아닌 곳의 (콘크리트 − 바탕) × 폭 — 바탕 = 도구가 센 MAT 두께(t0) · 곁 보통 바닥이 더 두꺼우면(두꺼운 구역 MAT) 그 두께
+ * @returns [{D, 판, 제목, yN, 깊: [{a, b, 위, 밑}], 넘이: [{a, b, 넓이(mm² — 단면 1 mm 길이당), 왼, 오, 밑}]}] (단면 가로 자리 · mm)
+ */
+function 깊은구역단면(도면들, t0) {
+  const out = []
+  for (const D of 도면들) {
+    if (!D.도곽 || !D.도곽.length) continue
+    const 끝이름 = (ly) => ((D.layers[ly] || {}).name || '')
+    const 레 = []
+    for (const g of D.글자) { const t = 붙(g.s); if (단면층꼴.test(t)) { const f = (제목층(t + ' 구조평면도') || [])[0]; if (f) 레.push({ f, y: g.y, x: g.x, h: g.h || 200, 판: D.도곽번(g.x, g.y) }) } }
+    const 판들 = [...new Set(레.map((L) => L.판))].filter((p) => p >= 0 && 레.filter((L) => L.판 === p).length >= 3)
+    if (!판들.length) continue
+    const 선들 = (b, y0, y1) => {
+      const r = []
+      for (const s of D.찾기(b[0], y0, b[2], y1)) {
+        if (구역덜층.test(끝이름(D.sly[s])) || 주석층.test(끝이름(D.sly[s]))) continue
+        const x0 = D.sx0[s], y0s = D.sy0[s], x1 = D.sx1[s], y1s = D.sy1[s]
+        const mx = (x0 + x1) / 2, my = (y0s + y1s) / 2
+        if (mx < b[0] || mx > b[2] || my < b[1] || my > b[3]) continue
+        r.push([x0, y0s, x1, y1s])
+      }
+      return r
+    }
+    const 판정 = []
+    for (const p of 판들) {
+      const b = D.도곽[p]
+      const 판레 = 레.filter((L) => L.판 === p)
+      const 맨 = 판레.reduce((m, L) => (L.y < m.y ? L : m))
+      const 위글 = 판레.filter((L) => L.f === 맨.f).reduce((m, L) => (L.y > m.y ? L : m))
+      const 가 = new Map()
+      for (const [x0, y0, x1, y1] of 선들(b, 위글.y - 1500, 위글.y + 300)) {
+        if (Math.abs(y1 - y0) > 1 || Math.abs(x1 - x0) < 100) continue
+        const y = Math.round((y0 + y1) / 2)
+        if (y < 위글.y - 1500 || y > 위글.y + 300) continue
+        가.set(y, (가.get(y) || 0) + Math.abs(x1 - x0))
+      }
+      const 긴 = [...가].sort((p2, q) => q[1] - p2[1])[0]
+      판정.push({ p, b, 위글, d: 긴 && 긴[1] >= 3000 ? 위글.y - 긴[0] : null })
+    }
+    const ds = 판정.map((x) => x.d).filter((v) => v !== null).sort((a, b) => a - b)
+    if (!ds.length) continue
+    const d0 = ds[Math.floor(ds.length / 2)]
+    for (const { p, b, 위글, d } of 판정) {
+      const yN = 위글.y - (d !== null && Math.abs(d - d0) <= 50 ? d : d0)
+      const 아래 = 선들(b, b[1], yN - 1).filter(([x0, y0, x1, y1]) => Math.min(y0, y1) < yN - 1)
+      if (!아래.length) continue
+      const 세 = 아래.filter(([x0, y0, x1, y1]) => Math.abs(x1 - x0) <= 1 && Math.abs(y1 - y0) >= 300)
+      if (!세.length) continue
+      const xa = Math.min(...세.map((s) => s[0])) - 100, xb = Math.max(...세.map((s) => s[0])) + 100
+      const 칸 = []
+      for (let x = xa + 25; x < xb; x += 50) {
+        const ys = []
+        for (const [x0, y0, x1, y1] of 아래) {
+          if (Math.abs(x1 - x0) <= 1e-6) continue
+          if (x <= Math.min(x0, x1) || x >= Math.max(x0, x1)) continue
+          const y = y0 + (x - x0) * (y1 - y0) / (x1 - x0)
+          if (y < yN - 1) ys.push(y)
+        }
+        ys.sort((a, c) => a - c)
+        const u = []
+        for (const y of ys) if (!u.length || y - u[u.length - 1] > 2) u.push(y)
+        if (!u.length) { 칸.push({ x, 빈: true }); continue }
+        const 밑 = u[0], 위 = u.length > 1 ? u[1] : yN
+        칸.push({ x, 밑, 위, c: 위 - 밑 })
+      }
+      /* 평평한 토막 */
+      const 토 = []
+      for (const k of 칸) {
+        const L = 토[토.length - 1]
+        if (L && !!L.빈 === !!k.빈 && (k.빈 || (Math.abs(L.밑 - k.밑) <= 5 && Math.abs(L.위 - k.위) <= 5))) { L.b = k.x; L.n++ ; continue }
+        토.push({ a: k.x, b: k.x, 밑: k.밑, 위: k.위, 빈: !!k.빈, n: 1 })
+      }
+      for (const t of 토) t.w = t.n * 50
+      /* 보통 바닥 = MAT 윗면 · 평평 · 폭 500 넘게 · 두께 t0 + 100 안(두꺼운 구역 MAT 은 폭 2 m 넘게) — 좁고 두꺼운 것은 벽 · 단차 */
+      const 보통 = (t) => !t.빈 && Math.abs(t.위 - yN) <= 30 && t.w >= 500 && (t.위 - t.밑 <= t0 + 100 || (t.w >= 2000 && t.위 - t.밑 <= 2500))
+      /* 깊은 바닥 = 윗면이 300 넘게 낮고 평평 · 폭 1 m 넘게(좁으면 두께 t0 + 100 안) · 두께 100 ~ 2,000 — 좁고 두꺼운 것(바닥까지 내려온 낮은 벽)은 넘이 */
+      const 깊음 = (t) => !t.빈 && t.위 < yN - 300 && t.위 - t.밑 >= 100 && t.위 - t.밑 <= 2000 && (t.w >= 1000 || (t.w >= 300 && t.위 - t.밑 <= t0 + 100))
+      const 깊 = [], 넘이 = []
+      let i = 0
+      while (i < 토.length) {
+        if (보통(토[i]) || 토[i].빈) { i++; continue }
+        let j = i
+        while (j + 1 < 토.length && !보통(토[j + 1]) && !토[j + 1].빈) j++
+        const 들 = 토.slice(i, j + 1)
+        const 깊폭 = 들.filter(깊음).reduce((s2, t) => s2 + t.w, 0)
+        if (깊폭 >= 1000) {
+          const 왼N = i > 0 && 보통(토[i - 1]) ? 토[i - 1] : null, 오N = j + 1 < 토.length && 보통(토[j + 1]) ? 토[j + 1] : null
+          const 첫깊 = 들.findIndex(깊음), 끝깊 = 들.length - 1 - [...들].reverse().findIndex(깊음)
+          let 조각 = []
+          들.forEach((t, q) => {
+            if (깊음(t)) { if (조각.length) { 넘이.push({ 들: 조각, q }); 조각 = [] } 깊.push({ a: t.a - 25, b: t.b + 25, 위: t.위, 밑: t.밑 }); return }
+            조각.push({ ...t, 쪽: q < 첫깊 ? '왼' : q > 끝깊 ? '오' : '안' })
+          })
+          if (조각.length) 넘이.push({ 들: 조각, q: 들.length })
+          for (const n of 넘이.filter((n2) => !n2.넓이 && n2.넓이 !== 0)) {
+            const 쪽 = n.들[0].쪽
+            const 바 = 쪽 === '왼' && 왼N && 왼N.위 - 왼N.밑 > t0 + 100 ? 왼N.위 - 왼N.밑 : 쪽 === '오' && 오N && 오N.위 - 오N.밑 > t0 + 100 ? 오N.위 - 오N.밑 : t0
+            let A = 0
+            for (const t of n.들) A += Math.max(0, t.위 - t.밑 - 바) * t.w
+            n.a = n.들[0].a - 25; n.b = n.들[n.들.length - 1].b + 25; n.넓이 = A; n.바탕 = 바; n.쪽 = 쪽
+            n.밑 = Math.min(...n.들.map((t) => t.밑)); delete n.들
+          }
+        }
+        i = j + 1
+      }
+      if (깊.length) out.push({ D, 판: p, 제목: (D.판제목 || [])[p] || '', yN, 깊, 넘이 })
+    }
+  }
+  return out
+}
+/**
+ * 🧭 G423 넘이를 평면 길이로 — 단면 가로 자리는 통심 이름으로 평면에 옮김(단면을평면에).
+ *   구역 = 바닥레벨 평면 해치 고리 중 단면의 «가장 깊은 바닥» 끝과 맞는 것(같은 방향 단면 하나라도 400 mm 안 · 있는 방향 모두)
+ *   단면 자리 = 구역을 단면 방향으로 자른 길이가 그 단면의 가장 깊은 바닥 길이와 맞는(400 mm 안) 줄 범위
+ *   줄 길이 = 구역 테두리가 그 줄에 놓이면 테두리 길이(깊은 바닥이 끝나는 곳 — 벽 · 단차) · 구역 안 벽이면 그 벽의 구역 안 길이 · 둘 다 없으면 ❓
+ *   한 줄 단면 넓이가 다 같으면(15 % 안) 줄 전체에 · 다르면 다른 방향 벽 · 테두리 꺾인 곳으로 토막을 나눠 단면 자리가 걸린 토막만(둘 넘게 걸리면 작은 값 — G416 소장님 결정과 같은 규칙) · 안 걸린 토막 ❓
+ *   어느 단면도 안 지나는 구역 테두리도 ❓ 로 알림
+ * @param 벽들 [{ax, ay, bx, by, g, 기호}] (기준 평면 자리 · mm) · @param 구역들 [{고리: [[x, y]…], 넓이, 이름}] (기준 평면 자리)
+ * @returns {셈: [{단면, 쪽, 선, 세로, p, q, 길이, 넓이, 높이, 부피, 벽, 테두리}], 못: [{단면, 쪽, 선, 세로, 길이, 넓이, 까닭}], 구역, 판들}
+ */
+function 깊은구역길이(단, 옮기, 벽들, 구역들) {
+  const 벽 = 벽들.map((w) => { const 세로 = Math.abs(w.bx - w.ax) < Math.abs(w.by - w.ay); return { ...w, 세로, 선: 세로 ? (w.ax + w.bx) / 2 : (w.ay + w.by) / 2, p: 세로 ? Math.min(w.ay, w.by) : Math.min(w.ax, w.bx), q: 세로 ? Math.max(w.ay, w.by) : Math.max(w.ax, w.bx) } })
+  const 판들 = []
+  for (const s of 단) {
+    const 맨위 = Math.min(...s.깊.map((k) => k.위))
+    const 맨 = s.깊.filter((k) => k.위 <= 맨위 + 50)
+    const m0 = 옮기(s, 맨[0].a), m1 = 옮기(s, 맨[맨.length - 1].b)
+    if (!m0 || !m1) continue
+    const 넘 = s.넘이.map((n) => { const m = 옮기(s, (n.a + n.b) / 2); return m ? { ...n, c: m.c, w: Math.abs(n.b - n.a) } : null }).filter(Boolean)
+    판들.push({ s, 세로: m0.세로, 깊lo: Math.min(m0.c, m1.c), 깊hi: Math.max(m0.c, m1.c), 넘 })
+  }
+  if (!판들.length) return null
+  const 상자 = (z) => { let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const r of z.고리) for (const [x, y] of r) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y) } return [x0, y0, x1, y1] }
+  let 구역 = null, 구역틀 = Infinity
+  for (const z of 구역들) {
+    const b = 상자(z)
+    let 틀 = 0, 맞음 = true
+    for (const 세로 of [true, false]) {
+      const 같 = 판들.filter((p) => p.세로 === 세로)
+      if (!같.length) continue
+      const lo = 세로 ? b[0] : b[1], hi = 세로 ? b[2] : b[3]
+      const e = Math.min(...같.map((p) => Math.max(Math.abs(p.깊lo - lo), Math.abs(p.깊hi - hi))))
+      if (e > 400) { 맞음 = false; break }
+      틀 = Math.max(틀, e)
+    }
+    if (맞음 && 틀 < 구역틀) { 구역 = { ...z, b }; 구역틀 = 틀 }
+  }
+  if (!구역) return { 셈: [], 못: [], 구역: null, 판들 }
+  /* 고리 안 — 선(세로면 x = v · 아니면 y = v) 위 구간들 */
+  const 줄안 = (세로, v) => {
+    const t = []
+    for (const r of 구역.고리) for (let i = 0; i < r.length; i++) {
+      const [x0, y0] = r[i], [x1, y1] = r[(i + 1) % r.length]
+      const a0 = 세로 ? x0 : y0, a1 = 세로 ? x1 : y1, b0 = 세로 ? y0 : x0, b1 = 세로 ? y1 : x1
+      if ((a0 <= v && a1 > v) || (a1 <= v && a0 > v)) t.push(b0 + (v - a0) * (b1 - b0) / (a1 - a0))
+    }
+    t.sort((a, b) => a - b)
+    const out = []
+    for (let i = 0; i + 1 < t.length; i += 2) out.push([t[i], t[i + 1]])
+    return out
+  }
+  const 겹 = (A, B) => { const out = []; for (const [a, b] of A) for (const [c, d] of B) { const lo = Math.max(a, c), hi = Math.min(b, d); if (hi - lo > 1) out.push([lo, hi]) } return out }
+  const 잇기 = (A) => { const s2 = [...A].sort((a, b) => a[0] - b[0]); const out = []; for (const [a, b] of s2) { const x = out[out.length - 1]; if (x && a - x[1] <= 50) x[1] = Math.max(x[1], b); else out.push([a, b]) } return out }
+  /* 테두리 변 (축과 나란한 것) */
+  const 변 = []
+  for (const r of 구역.고리) for (let i = 0; i < r.length; i++) {
+    const [x0, y0] = r[i], [x1, y1] = r[(i + 1) % r.length]
+    if (Math.abs(x1 - x0) <= 1 && Math.abs(y1 - y0) > 1) 변.push({ 세로: true, 선: (x0 + x1) / 2, p: Math.min(y0, y1), q: Math.max(y0, y1) })
+    else if (Math.abs(y1 - y0) <= 1 && Math.abs(x1 - x0) > 1) 변.push({ 세로: false, 선: (y0 + y1) / 2, p: Math.min(x0, x1), q: Math.max(x0, x1) })
+  }
+  const 꼭짓 = (세로) => [...new Set(구역.고리.flatMap((r) => r.map(([x, y]) => (세로 ? y : x))))].sort((a, b) => a - b)
+  /* 단면 자리 — 구역을 단면 방향으로 자른 길이 = 가장 깊은 바닥 길이(400 mm 안)인 줄 범위 */
+  for (const P of 판들) {
+    const 끝 = 꼭짓(P.세로)
+    const 자리 = []
+    for (let i = 0; i + 1 < 끝.length; i++) {
+      const v = (끝[i] + 끝[i + 1]) / 2
+      if (줄안(!P.세로, v).some(([a, b]) => Math.abs(a - P.깊lo) <= 400 && Math.abs(b - P.깊hi) <= 400)) 자리.push([끝[i], 끝[i + 1]])
+    }
+    P.자리 = 잇기(자리)
+  }
+  /* 줄 — 넘이를 테두리 변(넘이 폭/2 + 250 안) · 평면 벽(벽 폭/2 + 넘이 폭/2 + 150 안) 줄에 붙이고, 같은 방향 · 100 mm 안을 한 줄로 */
+  const 줄들 = []
+  for (const P of 판들) for (const t of P.넘) {
+    const e = 변.filter((x) => x.세로 === P.세로 && Math.abs(x.선 - t.c) <= t.w / 2 + 250).sort((x, y) => Math.abs(x.선 - t.c) - Math.abs(y.선 - t.c))[0]
+    const wv = 벽.filter((x) => x.세로 === P.세로 && Math.abs(x.선 - t.c) <= x.g / 2 + t.w / 2 + 150).sort((x, y) => Math.abs(x.선 - t.c) - Math.abs(y.선 - t.c))[0]
+    const 붙 = e ? e.선 : wv ? wv.선 : t.c
+    let L = 줄들.find((x) => x.세로 === P.세로 && Math.abs(x.c0 - 붙) <= 100)
+    if (!L) { L = { 세로: P.세로, c0: 붙, c: t.c, 넘: [] }; 줄들.push(L) }
+    L.넘.push({ ...t, P })
+  }
+  const 셈 = [], 못 = []
+  const 덮은변 = [], 쓴 = new Set()
+  const 이름들 = (xs) => [...new Set(xs.map((t) => t.P.s.제목.replace(/\s+/g, '')))].join(' · ')
+  for (const L of 줄들) {
+    const w = Math.max(...L.넘.map((t) => t.w))
+    const 테 = 변.filter((e) => e.세로 === L.세로 && L.넘.some((t) => Math.abs(e.선 - t.c) <= w / 2 + 250))
+    const 짝벽 = 벽.filter((x) => x.세로 === L.세로 && L.넘.some((t) => Math.abs(x.선 - t.c) <= x.g / 2 + w / 2 + 150))
+    const 안벽 = [].concat(...짝벽.map((x) => 겹([[x.p, x.q]], 줄안(L.세로, x.선))))
+    const 토 = 잇기([...테.map((e) => [e.p, e.q]), ...안벽])
+    const 선 = 테.length ? 테[0].선 : 짝벽.length ? 짝벽.reduce((s2, x) => s2 + x.선, 0) / 짝벽.length : L.c
+    const 벽이름 = [...new Set(짝벽.map((x) => x.기호))].join(' · ')
+    const 넓이들 = L.넘.map((t) => t.넓이)
+    const 같음 = Math.max(...넓이들) <= 1.15 * Math.min(...넓이들)
+    if (!토.length) { 못.push({ 단면: 이름들(L.넘), 쪽: L.넘[0].쪽, 선, 세로: L.세로, 길이: 0, 넓이: Math.min(...넓이들), 까닭: 짝벽.length ? '그 줄 벽이 깊은 구역 테두리 밖' : '평면에 그 줄 테두리 · 벽이 없음', 넘들: L.넘 }); continue }
+    for (const e of 테) 덮은변.push(e)
+    /* 끊는 곳 = 구역 꼭짓점(테두리가 꺾이는 곳 — 늘 끊음) · 이 줄에 닿는 다른 방향 벽(끝에서 300 mm 넘게 안쪽만) */
+    const 꼭 = 꼭짓(L.세로), 닿벽 = 벽.filter((x) => x.세로 !== L.세로 && x.p - x.g <= 선 && x.q + x.g >= 선).map((x) => x.선)
+    for (const [a, b] of 토) {
+      const 끊 = [...new Set([a, b, ...꼭.filter((v) => v > a + 1 && v < b - 1), ...닿벽.filter((v) => v > a + 300 && v < b - 300)])].sort((x, y) => x - y)
+      for (let i = 0; i + 1 < 끊.length; i++) {
+        const p = 끊[i], q = 끊[i + 1]
+        if (q - p < 50) continue
+        const 걸 = L.넘.filter((t) => t.P.자리.some(([u, v]) => Math.min(v, q) - Math.max(u, p) > 1))
+        const 씀 = 같음 ? L.넘 : 걸
+        if (!씀.length) { 못.push({ 단면: 이름들(L.넘), 쪽: L.넘[0].쪽, 선, 세로: L.세로, 길이: q - p, p, q, 넓이: Math.min(...넓이들), 까닭: '단면이 그 토막을 안 지남 (줄의 단면 넓이가 서로 다름)', 넘들: L.넘 }); continue }
+        const 고른 = 같음 ? null : 씀.reduce((m, t) => (t.넓이 < m.넓이 ? t : m))
+        const A = 같음 ? 씀.reduce((s2, t) => s2 + t.넓이, 0) / 씀.length : 고른.넓이
+        const H = 같음 ? 씀.reduce((s2, t) => s2 + (t.P.s.yN - t.바탕 - t.밑), 0) / 씀.length : 고른.P.s.yN - 고른.바탕 - 고른.밑
+        if (!(A > 1000)) continue
+        for (const t of (같음 ? 씀 : [고른])) 쓴.add(t)
+        for (const t of 걸) 쓴.add(t)
+        셈.push({ 단면: 이름들(같음 ? 씀 : [고른]), 쪽: (같음 ? 씀[0] : 고른).쪽, 선, 세로: L.세로, p, q, 길이: q - p, 넓이: A, 높이: H, 부피: A * (q - p) / 1e9, 벽: 벽이름, 테두리: 테.length > 0, 작은값: !같음 && 씀.length > 1 ? 씀.map((t) => t.넓이) : null })
+      }
+    }
+  }
+  /* 한 토막에도 안 쓰인 넘이(그 단면 자리에 구역 테두리 · 구역 안 벽이 없음 — 구역 밖 깊은 바닥 · 낮은 벽) */
+  for (const L of 줄들) for (const t of L.넘) {
+    if (쓴.has(t)) continue
+    if (못.some((x) => x.넘 === t || (x.넘들 && x.넘들.includes(t)))) continue
+    못.push({ 단면: t.P.s.제목.replace(/\s+/g, ''), 쪽: t.쪽, 선: t.c, 세로: L.세로, 길이: 0, 넓이: t.넓이, 까닭: '그 단면 자리에 구역 테두리 · 구역 안 벽이 없음', 넘: t })
+  }
+  /* 같은 줄 · 같은 단면 · 같은 넓이 토막은 한 줄로 */
+  const 모음 = []
+  for (const x of 셈) {
+    const m = 모음.find((y) => y.세로 === x.세로 && Math.abs(y.선 - x.선) <= 1 && y.단면 === x.단면 && Math.abs(y.넓이 - x.넓이) <= 1 && y.테두리 === x.테두리)
+    if (m) { m.길이 += x.길이; m.부피 += x.부피; m.p = Math.min(m.p, x.p); m.q = Math.max(m.q, x.q) } else 모음.push({ ...x })
+  }
+  셈.length = 0; 셈.push(...모음)
+  /* 어느 단면도 안 덮은 테두리 변 */
+  for (const e of 변) {
+    const 덮 = 잇기(덮은변.filter((d) => d.세로 === e.세로 && Math.abs(d.선 - e.선) <= 1).map((d) => [d.p, d.q]))
+    let 남 = e.q - e.p
+    for (const [a, b] of 덮) 남 -= Math.max(0, Math.min(b, e.q) - Math.max(a, e.p))
+    if (남 > 500) 못.push({ 단면: '', 쪽: '테두리', 선: e.선, 세로: e.세로, 길이: 남, p: e.p, q: e.q, 넓이: 0, 까닭: '구역 테두리인데 그 줄을 자른 단면이 없음' })
+  }
+  return { 셈, 못, 구역, 판들 }
+}
 const 높이글표 = (v) => (v > 0 ? '+' : v < 0 ? '−' : '±') + Math.abs(Math.round(v)).toLocaleString('en-US')
 /** 🧭 G270 {D16:500,…} → «D16 이상 fy 500 (나머지 400)» */
 function 강도글요약(fy규격, fy) {
@@ -4391,10 +4646,81 @@ function 골조읽기0(도면들0, o = {}) {
        현장 A: 골구도 단면 «지하수조» 안 폭 4,270 · 13,530 · 바닥 −7,350 · 벽 300 · 바닥판 600 + 건축 지하 평면 같은 이름 방 4.27 × 13.53 m — 내역 «합벽 지하 … 지하수조부» 가 있는데 우리는 안 셌음.
        철근 글이 없어 벽 = 맨 아래 층 같은 두께 벽(가장 긴 것) · 바닥판 = MAT 철근으로 «만든» 값 · 3D 에는 아직 안 그림(건축 평면 자리 맞춤 전)
        🧭 G406 짐작 금지 — 철근을 빌리지 않음: 벽 · 바닥판 철근 = ❓ 도면에 없음 · 같은 두께 벽 · MAT 은 «같은 부재» 후보로만(사람이 BIM 물량 일람표에서 📌) */
+  /* 🧭 G423 깊은 구역(지하 깊은 바닥 · 벽 내림 · 단차 몸체) — 골구도 단면 바닥 윤곽(깊은구역단면) × 평면 벽 길이(깊은구역길이).
+       MAT 은 구역 넓이 그대로(보통 높이 · 같은 두께로 이미 셈) · 더하는 것 = MAT 윗면 아래 콘크리트 − MAT 두께(바깥벽이 깊은 바닥까지 · 단차 몸체 · 낮은 벽).
+       단면이 안 지나는 토막 · 구역 테두리(바닥레벨 평면 해치)가 없으면 ❓ 도면에 없음 — 셈에서 뺌 · 철근 ❓(빌리지 않음) · 이게 셌으면 G273 깊은 칸은 건너뜀(두 번 안 셈) */
+  let 깊은구역됨 = false
+  {
+    const 맨층 = (P.층.find((f) => f.이름 !== 'FT') || {}).이름
+    const 매트 = (P.배근.기초 || []).find((b) => /부정/.test(b.종류 || '') && 주.기초.some((r) => r.층 === 'FT' && r.기호 === b.기호 && (r._자리 || []).some((z) => z.판)))
+    const t0 = 매트 ? Math.round(+매트.두께 || 0) : 0
+    let 단 = []
+    if (맨층 && t0 > 0) { try { 단 = 깊은구역단면(도면들, t0) } catch (e) { 단 = [] } }
+    const 벽0 = []
+    if (단.length) for (const f0 of ['FT', 맨층]) { const c = 층들.get(f0); if (c) for (const 줄 of c.벽) for (const x of 줄) if (x._축 && x._판) 벽0.push(x) }
+    const 판수 = new Map(); for (const x of 벽0) 판수.set(x._판, (판수.get(x._판) || 0) + 1)
+    const 기준 = [...판수].sort((a, b) => b[1] - a[1])[0]
+    if (기준) {
+      const [번0, 판0] = 기준[0].split('|').map(Number)
+      const PD = 도면들.find((d) => d.번 === 번0)
+      const 표0 = 격자표(PD, 판0)
+      const 옮김표 = new Map()
+      const 옮김 = (번, 판) => {
+        const k = 번 + '|' + 판
+        if (!옮김표.has(k)) { const D2 = 도면들.find((d) => d.번 === 번); 옮김표.set(k, 번 === 번0 && 판 === 판0 ? { dx: 0, dy: 0 } : D2 ? 판옮김(격자표(D2, 판), 표0) : null) }
+        return 옮김표.get(k)
+      }
+      const 벽들 = []
+      for (const x of 벽0) { const [번, 판] = x._판.split('|').map(Number); const o = 옮김(번, 판); if (!o) continue; const [ax, ay, bx, by, g] = x._축; 벽들.push({ ax: ax + o.dx, ay: ay + o.dy, bx: bx + o.dx, by: by + o.dy, g, 기호: x.기호 }) }
+      const 단판 = new Set(단.map((s) => s.D.번 + '|' + s.판))
+      const 구역들 = []
+      for (const D of 도면들) for (const h of D.해치 || []) {
+        if (!(h.넓이 >= 5e6) || !h.고리 || !h.고리.length || !D.도곽 || !D.도곽.length) continue
+        const 판 = D.도곽번((h.b[0] + h.b[2]) / 2, (h.b[1] + h.b[3]) / 2)
+        if (판 < 0 || 단판.has(D.번 + '|' + 판)) continue
+        const o = 옮김(D.번, 판)
+        if (!o) continue
+        구역들.push({ 고리: h.고리.map((r) => r.map(([x, y]) => [x + o.dx, y + o.dy])), 넓이: h.넓이, 이름: ((D.판제목 || [])[판] || D.이름 || '').replace(/\s+/g, '') + (h.무늬 ? ' «' + h.무늬 + '» 무늬' : '') })
+      }
+      const 옮기 = (s, x) => 단면을평면에({ D: s.D, 판: s.판, x, 몸: '', 폭: 0, 춤: 0 }, PD, 판0)
+      let R = null
+      try { R = 깊은구역길이(단, 옮기, 벽들, 구역들) } catch (e) { R = null }
+      const 줄이름 = (세로, v) => {
+        const m = 세로 ? 표0.X : 표0.Y
+        let best = null
+        for (const [n, c] of m) if (!best || Math.abs(c - v) < Math.abs(best[1] - v)) best = [n, c]
+        if (!best || Math.abs(best[1] - v) > 1500) return (세로 ? 'x ' : 'y ') + Math.round(v)
+        const d = Math.round(v - best[1])
+        return best[0] + (Math.abs(d) < 50 ? '' : (d > 0 ? ' +' : ' −') + Math.abs(d).toLocaleString('en-US')) + ' 줄'
+      }
+      const 쪽말 = { 왼: '끝 벽 · 단차', 오: '끝 벽 · 단차', 안: '안 벽 · 단차' }
+      if (R && R.셈.length) {
+        깊은구역됨 = true
+        const 글들 = []
+        let 합 = 0
+        R.셈.forEach((x, i) => {
+          const 기 = '깊은구역' + (i + 1)
+          const H = Math.max(100, Math.round(x.높이)), t = Math.max(50, Math.round(x.넓이 / H)), L = Math.round(x.길이)
+          const 벽같음 = t <= 600
+          const 근 = x.단면 + ' 단면 ' + (x.넓이 / 1e6).toFixed(2) + ' ㎡/m(' + 쪽말[x.쪽] + (x.작은값 ? ' · 같은 토막 단면 ' + x.작은값.map((v) => (v / 1e6).toFixed(2)).join(' / ') + ' 중 작은 값' : '') + ') × 평면 ' + 줄이름(x.세로, x.선) + (x.테두리 ? ' 깊은 구역 테두리' : ' 벽') + (x.벽 ? ' «' + x.벽 + '»' : '') + ' ' + (L / 1000).toFixed(2) + ' m'
+          P.배근.벽.push({ 배근: '복배근', 구분: '구조벽', 수직: '', 수평: '', 기호: 기, 두께: String(t), 동: '', _없음: ['철근'],
+            만든: '건설맵: 📐 ' + 근 + ' — 두께 ' + t + ' = 단면 넓이 ÷ 높이 ' + H + ' · ❓ 도면에 없음 — 철근' })
+          주.옹벽.push({ 층: 맨층, 기호: 기, 길이: String(L), 높이: String(H), 하부: '', 상부: '', 단부: '', X정착: '2', 상부이음: '', OPEN: '', QT: '1', C: '', F: '', F2: '', R: '', ...(벽같음 ? { _양면: true } : {}), _깊은구역: true })
+          합 += x.부피
+          글들.push(기 + ' ' + 근 + ' = ' + x.부피.toFixed(1) + ' ㎥')
+        })
+        const 못글 = R.못.filter((x) => x.넓이 > 20000 || x.쪽 === '테두리').map((x) => (x.단면 ? x.단면 + ' ' : '') + 줄이름(x.세로, x.선) + (x.넓이 ? ' ' + (x.넓이 / 1e6).toFixed(2) + ' ㎡/m' : '') + (x.길이 ? ' · ' + (x.길이 / 1000).toFixed(2) + ' m' : '') + ' (' + x.까닭 + ')')
+        경고.push('📐 깊은 구역(지하 깊은 바닥) — 골구도 단면 바닥 윤곽에서 MAT 윗면 아래 콘크리트 − MAT ' + t0 + ' 을 재어 평면 벽 길이(구역 = ' + R.구역.이름 + ' ' + (R.구역.넓이 / 1e6).toFixed(1) + ' ㎡)로 더함: ' + 글들.join(' · ') + ' — 합 ' + 합.toFixed(1) + ' ㎥ · MAT 은 구역 넓이 그대로' +
+          (못글.length ? ' · ❓ 도면에 없음(셈에서 뺌): ' + 못글.join(' · ') : '') + ' · 철근 ❓ 도면에 없음 · 3D 에는 아직 안 그림')
+      } else if (R && 단.length) {
+        경고.push('❓ 깊은 구역 — 골구도 단면에 MAT 윗면보다 낮은 바닥(' + [...new Set(단.map((s) => s.제목.replace(/\s+/g, '')))].join(' · ') + ')이 있으나 ' + (R.구역 ? '평면 벽 길이를 못 맞춤' : '평면 테두리(바닥레벨 해치)를 못 찾음') + ' — 셈에서 뺌(도면에 없음)')
+      }
+    }
+  }
   {
     const 맨층 = (P.층.find((f) => f.이름 !== 'FT') || {}).이름
     const L0 = 맨층 && 높이.has(맨층) ? 높이.get(맨층) : null
-    if (L0 !== null) {
+    if (L0 !== null && !깊은구역됨) {
       let 깊 = []
       try { 깊 = 깊은칸찾기(도면들, L0) } catch (e) { 깊 = [] }
       const 매트 = (P.배근.기초 || []).find((b) => /부정/.test(b.종류 || '') && 주.기초.some((r) => r.층 === 'FT' && r.기호 === b.기호 && (r._자리 || []).some((z) => z.판)))
@@ -4460,7 +4786,7 @@ function 골조읽기0(도면들0, o = {}) {
     const 쉼 = (v) => n(v).toLocaleString('ko-KR')
     const 큰 = []
     for (const { 종, r } of 잰) {
-      if (종 === '벽' && n(r.두께) > 600) 큰.push(r.기호 + ' 벽 두께 ' + 쉼(r.두께))
+      if (종 === '벽' && n(r.두께) > 600 && !/^깊은구역\d+$/.test(r.기호)) 큰.push(r.기호 + ' 벽 두께 ' + 쉼(r.두께))      // 🧭 G423 깊은 구역 단차 몸체(두께 = 단면 넓이 ÷ 높이)는 뺌
       else if (종 === '보' && (n(r.폭) > 1000 || n(r.춤) > 1500)) 큰.push(r.기호 + ' 보 ' + 쉼(r.폭) + ' × ' + 쉼(r.춤))
       else if (종 === '기둥' && Math.max(n(r.가로), n(r.세로), n(r.지름)) > 1500) 큰.push(r.기호 + ' 기둥 ' + (n(r.지름) ? '⌀' + 쉼(r.지름) : 쉼(r.가로) + ' × ' + 쉼(r.세로)))
       else if (종 === '슬라브' && n(r.두께) > 400) 큰.push(r.기호 + ' 슬래브 두께 ' + 쉼(r.두께))
@@ -5087,6 +5413,7 @@ export function _벽허용(도면들) { 벽허용 = 도면들 ? 벽표기호(도
 export const _슬래브재기 = 슬래브재기
 export const _미표기띠 = 미표기띠
 export const _깊은칸찾기 = 깊은칸찾기
+export const _깊은구역단면 = 깊은구역단면
 export const _계단일람찾기 = 계단일람찾기, _계단판찾기 = 계단판찾기
 /** 🧪 G253 시험용 — 배근표 빈 크기 · 철근 채우기 */
 export const _일람채우기 = 일람채우기
