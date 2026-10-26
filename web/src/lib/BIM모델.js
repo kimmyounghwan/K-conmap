@@ -1383,3 +1383,50 @@ export function 크기글(o) {
   if (o.종류 === '기초') return 쉼(w) + '×' + 쉼(h) + ' · 두께 ' + 쉼(o.두께)
   return (판.length > 8 ? 'Ø' + 쉼(w) : 쉼(w) + '×' + 쉼(h)) + ' · 높이 ' + 쉼(o.z1 - o.z0)
 }
+
+/* 📍 G428 ❓ · 📌 줄 «자리 보기» (2026-10-26 소장님 «도면에 없음 — 셈에서 뺌 … 도면도 보여주는 거야? 어느 부분인지?»)
+ *   q = 골조자동 R.읽음.바탕물음 · 건축치수물음 한 줄({층, 기호, 자리:[{n, r, p}], 춤?}) · 종 = '벽' | '보'
+ *   자리부재 — 같은 도면 · 같은 종류 · 같은 기호(📌 셈 줄 «5LB2-P1650» 도) · 토막 상자와 작은 쪽의 30 % 넘게 겹친 3D 부재 id
+ *     (겹침 틈만 보던 첫 판은 끝이 닿은 곁 보 3G5 · 3B3 · 곁 벽까지 골랐음)
+ *   자리상자 — 3D 에 안 그린 것(셈에서 뺀 바탕 벽 등): 같은 판(한 장에 평면 여럿 — 판마다 옮김이 다름) · 같은 종류 부재의
+ *     «3D 가운데 − 도면 가운데» 가운데 값으로 도면 → 3D 옮김을 재어 그 자리 상자 [{판, z0, z1}] (기둥은 자리가 기호 글자라 1 ~ 2 m 달라 벽 · 보로 잼)
+ *     현장 A: ❓ 6층 W200 13토막 상자 = 📌 셈했을 때 벽 자리(거리 0) */
+const 자리기호같음 = (o, q) => {
+  const g = String(o.기호 || ''), 떼 = q.층 && g.startsWith(q.층) ? g.slice(q.층.length) : g      // 층떼기는 «5LB2» 의 «5L» 을 층으로 봄
+  return [g, 떼, String(o.몸 || '')].some((m) => m === q.기호 || m.startsWith(q.기호 + '-'))
+}
+export function 자리부재(모델, 도면들, q, 종) {
+  if (!모델 || !q) return []
+  const 겹 = (a, b, t) => {
+    if (!a || !b) return false
+    const ix = Math.min(a[2], b[2]) - Math.max(a[0], b[0]) + t, iy = Math.min(a[3], b[3]) - Math.max(a[1], b[1]) + t
+    if (ix <= 0 || iy <= 0) return false
+    const 넓 = (r) => (r[2] - r[0] + t) * (r[3] - r[1] + t)
+    return (ix * iy) / Math.min(넓(a), 넓(b)) >= 0.3
+  }
+  return 모델.부재.filter((o) => o.종류 === 종 && 자리기호같음(o, q) && (q.자리 || []).some((z) => z && o.근거 && o.근거.n === z.n && 겹(o.근거.r, z.r, 50 / ((도면들 && 도면들[o.번] && 도면들[o.번].k) || 1)))).map((o) => o.id)
+}
+export function 자리상자(모델, 도면들, q, 종) {
+  if (!모델 || !도면들 || !q) return []
+  const 중 = (a) => { const b = [...a].sort((x, y) => x - y); return b[Math.floor(b.length / 2)] }
+  const 가 = (P) => { let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const p of P) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]) } return [(x0 + x1) / 2, (y0 + y1) / 2] }
+  const 층 = (모델.층 || []).find((f) => f.이름 === q.층)
+  const 상 = []
+  for (const z of q.자리 || []) {
+    if (!z || !z.r) continue
+    const 같 = 모델.부재.filter((o) => o.근거 && o.근거.n === z.n && (z.p ? o.평면 === z.p : o.층 === q.층) && o.근거.r && o.판 && o.판.length && !o.자리짐작)
+    if (!같.length) continue
+    const 같종 = 같.filter((o) => o.종류 === 종)
+    const 잴 = 같종.length ? 같종 : 같
+    const k = (도면들[같[0].번] && 도면들[같[0].번].k) || 1
+    const tx = 중(잴.map((o) => 가(o.판)[0] - ((o.근거.r[0] + o.근거.r[2]) / 2) * k)), ty = 중(잴.map((o) => 가(o.판)[1] - ((o.근거.r[1] + o.근거.r[3]) / 2) * k))
+    const z1 = 같종.length ? Math.max(...같종.map((o) => o.z1)) : 층 ? 층.위 : NaN
+    const z0 = 종 === '보' && q.춤 > 0 ? z1 - q.춤 : 같종.length ? Math.min(...같종.map((o) => o.z0)) : 층 ? 층.바닥 : NaN
+    if (![tx, ty, z0, z1].every(Number.isFinite) || !(z1 > z0)) continue
+    let x0 = z.r[0] * k + tx, y0 = z.r[1] * k + ty, x1 = z.r[2] * k + tx, y1 = z.r[3] * k + ty
+    if (x1 - x0 < 150) { const c = (x0 + x1) / 2; x0 = c - 75; x1 = c + 75 }
+    if (y1 - y0 < 150) { const c = (y0 + y1) / 2; y0 = c - 75; y1 = c + 75 }
+    상.push({ 판: [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], z0, z1 })
+  }
+  return 상
+}

@@ -2090,6 +2090,27 @@ function 격자표(D, 판) {
   for (const q of 들) { if (q.n[0] === 'X' && !X.has(q.n)) X.set(q.n, q.x); if (q.n[0] === 'Y' && !Y.has(q.n)) Y.set(q.n, q.y) }
   return { X, Y }
 }
+/** 🧭 G428 📍 자리 글 — 토막(_판 «D번|판» · _축 mm)의 판 제목 + 통심 이름(«Y2 줄 X3 ~ X4» · 통심에서 떨어지면 «X3+1.2» m) — ❓ · 📌 줄이 도면 어디인지 */
+function 곳글(도면들, x) {
+  const [번, 판] = String((x && x._판) || '').split('|').map(Number)
+  const D = 도면들.find((d) => d.번 === 번)
+  if (!D || !x._축) return ''
+  const 제목 = ((D.판제목 || [])[판] || D.이름 || '').replace(/\s+/g, '')
+  const { X, Y } = 격자표(D, 판)
+  const 말 = (m, v) => {
+    let b = null
+    for (const [n, c] of m) if (!b || Math.abs(c - v) < Math.abs(b[1] - v)) b = [n, c]
+    if (!b || Math.abs(b[1] - v) > 6000) return null
+    const d = v - b[1]
+    return b[0] + (Math.abs(d) < 150 ? '' : (d > 0 ? '+' : '−') + (Math.abs(d) / 1000).toFixed(1))
+  }
+  const [ax, ay, bx, by] = x._축
+  const 가로 = Math.abs(bx - ax) >= Math.abs(by - ay)
+  const 줄 = 가로 ? 말(Y, (ay + by) / 2) : 말(X, (ax + bx) / 2)
+  const a = 가로 ? 말(X, Math.min(ax, bx)) : 말(Y, Math.min(ay, by)), c = 가로 ? 말(X, Math.max(ax, bx)) : 말(Y, Math.max(ay, by))
+  const 글 = (줄 ? 줄 + ' 줄 ' : '') + (a && c ? (a === c ? a : a + ' ~ ' + c) : '')
+  return 제목 + (글.trim() ? ' · ' + 글.trim() : '')
+}
 /** 🧭 G418 두 평면 판 사이 옮김 {dx, dy} — 같은 통심 이름이 X · Y 둘 이상씩 있고 옮김 값이 고르면(50 mm 안) */
 function 판옮김(A, B) {
   const 값 = (m1, m2) => { const v = []; for (const [n, a] of m1) if (m2.has(n)) v.push(m2.get(n) - a); return v }
@@ -4135,8 +4156,10 @@ function 골조읽기0(도면들0, o = {}) {
     /* 화면 «📌 셈» 단추 — ❓ 로 뺀 것 · 사람이 셈으로 정한 것을 층 · 기호마다(길이 m) */
     {
       const m = new Map()
-      for (const [x, f] of 뺌) { const k = f + '|' + x.기호; const v = m.get(k) || { 키: k, 층: f, 층글: 층글(f), 기호: x.기호, 길이: 0, 셈: false }; v.길이 += 길이(x) / 1000; m.set(k, v) }
-      for (const [x, f] of 바탕결정셈) { const k = f + '|' + x.기호; const v = m.get(k) || { 키: k, 층: f, 층글: 층글(f), 기호: x.기호, 길이: 0, 셈: true }; v.길이 += 길이(x) / 1000; v.셈 = true; m.set(k, v) }
+      /* 📍 G428 자리 — 토막마다 도면 자리(3D 부재 찾기용 자리 · 판 제목 + 통심 글) */
+      const 더자리 = (v, x) => { v.자리 = v.자리 || []; v.자리글 = v.자리글 || []; if (x.자리) v.자리.push(x.자리); const t = 곳글(도면들, x); if (t && !v.자리글.includes(t)) v.자리글.push(t) }
+      for (const [x, f] of 뺌) { const k = f + '|' + x.기호; const v = m.get(k) || { 키: k, 층: f, 층글: 층글(f), 기호: x.기호, 길이: 0, 셈: false }; v.길이 += 길이(x) / 1000; 더자리(v, x); m.set(k, v) }
+      for (const [x, f] of 바탕결정셈) { const k = f + '|' + x.기호; const v = m.get(k) || { 키: k, 층: f, 층글: 층글(f), 기호: x.기호, 길이: 0, 셈: true }; v.길이 += 길이(x) / 1000; v.셈 = true; 더자리(v, x); m.set(k, v) }
       바탕물음.push(...[...m.values()].map((v) => ({ ...v, 길이: Math.round(v.길이 * 10) / 10 })))
     }
   }
@@ -4597,7 +4620,8 @@ function 골조읽기0(도면들0, o = {}) {
         const 춤 = H > 0 ? H - 문 - 마감 : null
         if (!(춤 >= Math.max(150, +v.b.폭)) || !(춤 < H)) continue
         const 결 = 결정[v.키]
-        건축치수물음.push({ 키: v.키, 층: v.층, 층글: v.층글, 기호: v.기호, 길이: Math.round(v.길이 * 10) / 10, 곳: v.토막.length, 춤, 층고: H, 문, 마감, 셈: !!결, ...(결 && 결.때 ? { 때: 글(결.때) } : {}) })
+        건축치수물음.push({ 키: v.키, 층: v.층, 층글: v.층글, 기호: v.기호, 길이: Math.round(v.길이 * 10) / 10, 곳: v.토막.length, 춤, 층고: H, 문, 마감, 셈: !!결, ...(결 && 결.때 ? { 때: 글(결.때) } : {}),
+          자리: v.토막.map((x) => x.자리).filter(Boolean), 자리글: [...new Set(v.토막.map((x) => 곳글(도면들, x)).filter(Boolean))] })
         if (!결) { 묻글.push(v.층글 + ' ' + v.기호 + ' ' + 춤.toLocaleString('en-US') + '(' + v.토막.length + '곳 · ' + v.길이.toFixed(1) + ' m)'); continue }
         const 키 = (v.층 === 'FT' ? 'FT' : v.층) + v.기호 + '-P' + 춤
         if (!배근행.보.has(키)) {

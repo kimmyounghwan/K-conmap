@@ -15,7 +15,7 @@ import { 골조읽기, 같음입히기 } from '../web/src/lib/골조자동.js'
 import { 플랜트다듬기, 플랜트모델 } from '../web/src/lib/플랜트기초.js'
 import { 셈방법입히기 } from '../web/src/lib/셈방법.js'
 import { 셈 } from '../web/src/lib/골조.js'
-import { 모델만들기, 층고바꾸기, 겹친것빼기 } from '../web/src/lib/BIM모델.js'
+import { 모델만들기, 층고바꾸기, 겹친것빼기, 자리부재, 자리상자 } from '../web/src/lib/BIM모델.js'
 import { 참조끼우기 } from '../web/src/lib/골조끼움.js'
 import { 도면에서모델, 평면가져오기, 도면함목록 } from '../web/src/lib/도면모델.js'
 import { 모델셈 } from '../web/src/lib/골조모델.js'
@@ -59,7 +59,20 @@ export function 현장셈(폴더, 거름 = '', 같음 = null, 바탕셈 = null) 
     const S3 = 셈(셈방법입히기(겹친것빼기(층고바꾸기(R3.공사, {}, R3.읽음 && R3.읽음.높이), 모델3), '도면'))
     const 합3 = {}
     for (const x of S3.줄) { const 항 = /거푸집/.test(x.항목) ? '거푸집' : x.항목; 합3[항] = (합3[항] || 0) + x.수량 }
-    바탕셈셈 = { 합: 합3, 경고: R3.경고 || [], 물음: (R3.읽음 && R3.읽음.바탕물음) || [], 춤물음: (R3.읽음 && R3.읽음.건축치수물음) || [] }
+    /* 📍 G428 ❓ 때 빨간 상자 자리 = 📌 셈했을 때 3D 부재 자리(가운데 거리 mm 가장 큰 값) */
+    const 가 = (P) => { const xs = P.map((p) => p[0]), ys = P.map((p) => p[1]); return [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2] }
+    let 상자거리 = 0, 상자본 = 0
+    for (const q of [...((R3.읽음 && R3.읽음.바탕물음) || []).map((q) => [q, '벽']), ...((R3.읽음 && R3.읽음.건축치수물음) || []).map((q) => [q, '보'])]) {
+      if (!q[0].셈) continue
+      const q0 = [...((R.읽음 && R.읽음.바탕물음) || []), ...((R.읽음 && R.읽음.건축치수물음) || [])].find((x) => x.키 === q[0].키)
+      const 상 = q0 ? 자리상자(모델, 들, q0, q[1]) : []
+      for (const id of 자리부재(모델3, 들, q[0], q[1])) {
+        const o = 모델3.부재.find((x) => x.id === id), c = 가(o.판)
+        const d = Math.min(Infinity, ...상.map((b) => Math.hypot(가(b.판)[0] - c[0], 가(b.판)[1] - c[1])))
+        상자거리 = Math.max(상자거리, d); 상자본++
+      }
+    }
+    바탕셈셈 = { 합: 합3, 경고: R3.경고 || [], 물음: (R3.읽음 && R3.읽음.바탕물음) || [], 춤물음: (R3.읽음 && R3.읽음.건축치수물음) || [], 상자거리, 상자본 }
   }
   /* 📐 G389 작업 화면 «도면 넣기» — 좌표대로 골조 모델로 옮겨 셈 */
   const 변 = 도면에서모델(모델, { 공사 })
@@ -75,7 +88,9 @@ export function 현장셈(폴더, 거름 = '', 같음 = null, 바탕셈 = null) 
   const 둥 = (H) => JSON.stringify(Object.fromEntries(Object.entries(H).map(([k, x]) => [k, Math.round(x * 1e6) / 1e6])))
   const 하나씩 = { 같음: Mb.부재.length === 변.M.부재.length && 둥(모델셈(Mb).합) === 둥(G.합) && Mb.빠짐.length === 전체.빠짐.length, 부재: Mb.부재.length, 평면: 키들.length, 빨강: Mb.빠짐.length + ' / ' + 전체.빠짐.length }
   const 계모 = 계합(G.R.줄)
-  return { 합, 같음셈, 바탕셈셈, 물음: (R.읽음 && R.읽음.바탕물음) || [], 춤물음: (R.읽음 && R.읽음.건축치수물음) || [], 배근: 공사.배근, 경고: R.경고 || [], 파일: 파일.length, 부재: 모델.부재.length, 모델: { 종, 옮김: 변.옮김, 못옮김: 변.못옮김.length, 하나씩, 계도, 계모, 계단수: 변.M.부재.filter((o) => o.종류 === '계단').length, 기철도: 기철(S.줄), 기철모: 기철(G.R.줄), 철모: G.합.철근 } }
+  /* 📍 G428 ❓ · 📌 줄마다 [키 · 토막 수 · 3D 에서 고른 수 · 빨간 상자 수 · 첫 자리 글] */
+  const 자리 = [...((R.읽음 && R.읽음.바탕물음) || []).map((q) => [q, '벽']), ...((R.읽음 && R.읽음.건축치수물음) || []).map((q) => [q, '보'])].map(([q, 종]) => [q.키, (q.자리 || []).length, 자리부재(모델, 들, q, 종).length, 자리상자(모델, 들, q, 종).length, (q.자리글 || [])[0] || ''])
+  return { 합, 같음셈, 바탕셈셈, 자리, 물음: (R.읽음 && R.읽음.바탕물음) || [], 춤물음: (R.읽음 && R.읽음.건축치수물음) || [], 배근: 공사.배근, 경고: R.경고 || [], 파일: 파일.length, 부재: 모델.부재.length, 모델: { 종, 옮김: 변.옮김, 못옮김: 변.못옮김.length, 하나씩, 계도, 계모, 계단수: 변.M.부재.filter((o) => o.종류 === '계단').length, 기철도: 기철(S.줄), 기철모: 기철(G.R.줄), 철모: G.합.철근 } }
 }
 for (const [키, v] of Object.entries(기대)) {
   const 변수 = 'SITE_' + 키.slice(-1)
@@ -109,6 +124,11 @@ for (const [키, v] of Object.entries(기대)) {
     if (v.바탕셈.춤물음) {
       ok('📌 G420 결정 전 «건축치수» 보 춤 단추 목록(키 · 길이 m · 춤 · 셈)', JSON.stringify(r.춤물음.map((q) => [q.키, q.길이, q.춤, q.셈])) === JSON.stringify(v.바탕셈.춤물음), r.춤물음.map((q) => [q.키, q.길이, q.춤, q.셈]))
       ok('📌 G420 결정 뒤 «건축치수» 보 춤 — 정한 것은 📌 셈', g.춤물음.length > 0 && g.춤물음.every((q) => q.셈 === Object.prototype.hasOwnProperty.call(v.바탕셈.정함, q.키)), g.춤물음.map((q) => [q.키, q.셈]))
+    }
+    /* 📍 G428 자리 보기 — 줄마다 토막 수 · 3D 에서 고른 수(❓ 바탕 벽은 3D 에 없어 0 · ❓ LB 는 600 그림만) · 빨간 상자 수 · 첫 자리 글 · ❓ 때 상자 = 📌 셈 때 부재 자리 */
+    if (v.바탕셈.자리) {
+      ok('📍 G428 ❓ · 📌 줄 자리(키 · 토막 · 3D 고름 · 빨간 상자 · 첫 자리 글)', JSON.stringify(r.자리) === JSON.stringify(v.바탕셈.자리), r.자리)
+      ok(`📍 G428 ❓ 때 빨간 상자 = 📌 셈 때 3D 부재 자리(${g.상자본}개 · 가장 먼 것 ${Math.round(g.상자거리)} mm)`, g.상자본 >= v.바탕셈.상자본 && g.상자거리 < 1, [g.상자본, g.상자거리])
     }
   }
   for (const [re, 말, 없] of v.경고 || []) ok(`알림 ${말}`, 없 ? !r.경고.some((w) => new RegExp(re).test(w)) : r.경고.some((w) => new RegExp(re).test(w)), r.경고.filter((w) => /❓|📐|🤖/.test(w)).map((w) => w.slice(0, 120)))

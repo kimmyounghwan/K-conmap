@@ -28,7 +28,7 @@ import { 골조읽기, 같음입히기 } from '../lib/골조자동.js'
 import { 플랜트다듬기, 플랜트모델 } from '../lib/플랜트기초.js'   // 🏭 G294 플랜트식 토목 기초(바닥판 · 기초 · 지중보 윤곽 그대로)
 import 셈방법칸, { 셈방법입히기 } from '../셈방법칸.jsx'   // 🧮 G295 셈 방법(도면 그대로 · 내역서처럼)
 import { 셈, 엑셀 as 골조엑셀 } from '../lib/골조.js'
-import { 모델만들기, 부재물량, 검사, 크기글, 층고바꾸기, 높이글, 종류들, 종류색, 겹친것빼기 } from '../lib/BIM모델.js'
+import { 모델만들기, 부재물량, 검사, 크기글, 층고바꾸기, 높이글, 종류들, 종류색, 겹친것빼기, 자리부재, 자리상자 } from '../lib/BIM모델.js'
 import { 토목모델, 토목종류, 토목색, 토목비침, 토목이름, 줄기 } from '../lib/BIM토목.js'
 import { 부재보기 } from '../lib/bim3d.js'
 import { 같은건물찾기 } from '../lib/건물겹치기.js'
@@ -61,6 +61,7 @@ const 종이름 = { 기초: '기초', 기둥: '기둥', 벽: '벽', 보: '보', 
 const 파일이름 = (s) => String(s || '현장').replace(/\.(dxf|dwg)$/i, '').replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 30)
 
 const 토목ID = 1000000                       // 3D 고르기 번호 — 토목 덩어리는 이 위
+const 표시ID = 5000000                       // 📍 G428 3D 에 안 그린 ❓ 부재 자리 — 빨간 상자(고르기 안 됨)
 /* 도면 선(바탕) 으로 보일 묶음 — 건물 평면은 BIM 건물과 자리가 달라 뺌
    🏭 G234 횡단 · 구조 단면(세워 놓은 단면도 선 — 눈금 막대 · 표 · 벽 세로선)과 종단 깃은 뺌: 3D 덩어리가 이미 그 모양이고, 세로 막대가 땅 위에 수백 개 섰음(소장님 현장 E) */
 const 바탕꼴 = new Set(['측량', '평면', '종평', '노선', '땅면', '측량점'])
@@ -142,6 +143,7 @@ export default function Bim() {
   const [보이는것, set보이는것] = useState('')    // 지금 화면 숫자 · 3D 가 어느 도면 것인지
   const [선택, set선택] = useState(null)          // 부재 id (토목은 토목ID 위)
   const [묶음, set묶음] = useState(null)          // {글, ids:Set}
+  const [표시, set표시] = useState(null)          // 📍 G428 [{판, z0, z1}] — 3D 에 안 그린 ❓ 부재 자리(빨간 상자)
   const [끔, set끔] = useState(() => new Set())  // 끈 종류
   const [층만, set층만] = useState('')            // '' = 모두
   const [투명, set투명] = useState(false)
@@ -233,7 +235,7 @@ export default function Bim() {
     try { r = 플랜트다듬기(들, 골조읽기(들)) } catch (e) { r = { 있음: false, 경고: ['도면에서 골조를 읽다 멈췄습니다 (' + e.message + ')'] } }
     처음맞춤.current = false
     읽은바탕.current = '{}'          // 📌 G417 처음 읽기는 결정 없이 — 기억된 결정이 있으면 이름이 바뀐 뒤 다시 읽음
-    set도면들(들); setR(r); set셈방법('도면'); set높이({}); set선택(null); set묶음(null); set층만(''); set두께({}); set건물두께({}); set높이배(1)
+    set도면들(들); setR(r); set셈방법('도면'); set높이({}); set선택(null); set묶음(null); set표시(null); set자리본(null); set층만(''); set두께({}); set건물두께({}); set높이배(1)
     set이름(목록.length === 1 ? 목록[0].이름 : 목록[0].이름 + ' 외 ' + (목록.length - 1) + '장')
     set보이는것(불러오는Ref.current || (목록.length === 1 ? 목록[0].이름 : 목록[0].이름 + ' 외 ' + (목록.length - 1) + '장'))
     set상태(틀림 ? { k: 'err', 글: '읽지 못한 도면: ' + 틀림.trim() } : { k: 'ok' })
@@ -426,6 +428,7 @@ export default function Bim() {
     v.set부재([
       ...보이는.map((o) => ({ id: o.id, 판: 옮판(o.판), z0: o.z0 + dz, z1: (o.종류 === '슬라브' || o.종류 === '기초' ? o.z1 : o.z1 - 3) + dz, 색: 종류색[o.종류] })),
       ...보이는토목.map((o) => ({ id: 토목ID + o.id, 면: o.면, 선: o.선, 색: o.색 || 토목색[o.종류], 비침: 토목비침[o.종류] || 0 })),
+      ...(표시 || []).map((b, i) => ({ id: 표시ID + i, 판: 옮판(b.판), z0: b.z0 + dz, z1: b.z1 + dz, 색: [0.92, 0.14, 0.1], 비침: 0.6 })),
     ], { 바닥: !토목있음, 바닥색: 어두움() ? [0.16, 0.18, 0.22] : [0.86, 0.88, 0.90] })
     v.set배경(도면선 && 바탕 ? 바탕 : null, 어두움() ? [0.62, 0.66, 0.72] : [0.36, 0.40, 0.46], 어두움() ? 0.18 : 0.16)     /* 🎨 G232 도면 선은 흐리게 — 덩어리가 먼저 보이게 */
     v.set높이배(높이배)
@@ -437,9 +440,9 @@ export default function Bim() {
     }
     v.set고름(선택 !== null ? [선택] : 묶음 ? [...묶음.ids] : [])
     v.onPick = (id) => {
-      if (id >= 0) { set선택(id); set묶음(null); 세기('|BIM물량|부재') } else set선택(null)
+      if (id >= 0 && id < 표시ID) { set선택(id); set묶음(null); 세기('|BIM물량|부재') } else set선택(null)
     }
-  }, [모델, 보이는, 보이는토목, 건물옮김, 도면선, 바탕, 그릴것])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [모델, 보이는, 보이는토목, 건물옮김, 도면선, 바탕, 그릴것, 표시])  // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (보기Ref.current) 보기Ref.current.set고름(선택 !== null ? [선택] : 묶음 ? [...묶음.ids] : []) }, [선택, 묶음])
   useEffect(() => { if (보기Ref.current) 보기Ref.current.set투명(투명) }, [투명])
   useEffect(() => { if (보기Ref.current) { 보기Ref.current.set높이배(높이배); 보기Ref.current.fit('tilt') } }, [높이배])
@@ -470,6 +473,31 @@ export default function Bim() {
     const ids = new Set((모델 ? 모델.부재 : []).filter(거르개).map((o) => o.id))
     set선택(null); set묶음(ids.size ? { 글, ids } : null)
     if (보기Ref.current && ids.size) 보기Ref.current.보기로([...ids])
+  }
+  /* 📍 G428 ❓ · 📌 줄 «자리 보기»(소장님 «도면에 없음 — 셈에서 뺌 … 어느 부분인지?») — 그 줄 토막과 겹치는 3D 부재를 파랑으로 고르고 · 토막 자리는 빨간 상자 · 그 층만 비쳐 보기 · 자리 글(판 제목 · 통심) */
+  const [자리본, set자리본] = useState(null)      // {키, 고름, 상자}
+  useEffect(() => { set표시(null); set자리본(null) }, [모델])     // 결정(📌 셈 · 되돌리기)으로 다시 읽으면 빨간 상자는 지움
+  const 자리보기 = (q, 글, 종) => {
+    const ids = new Set(자리부재(모델, 도면들, q, 종))
+    /* 빨간 상자 = 도면 토막 자리(그 판 · 같은 종류 부재로 도면 → 3D 옮김을 잼) — 3D 에 없는 것(셈에서 뺀 바탕 벽)도 · ❓ LB(3D 는 600 그림만)는 내민 춤으로 */
+    const 상 = 자리상자(모델, 도면들, q, 종)
+    set선택(null); set묶음(ids.size ? { 글, ids } : null); set표시(상.length ? 상 : null)
+    /* 검수 «그 자리로» 와 같이 — 그 층만 · 비쳐 보기(위층 · 슬래브에 가려 안 보였음) */
+    if (ids.size || 상.length) { set층만(모델 && (모델.층 || []).some((f) => f.이름 === q.층) ? q.층 : ''); set투명(true); setTimeout(() => { if (보기Ref.current) 보기Ref.current.보기로(상.length ? 상.map((_, i) => 표시ID + i) : [...ids], 14) }, 80) }
+    set자리본({ 키: q.키, 고름: ids.size, 상자: 상.length })
+    세기('|BIM물량|자리보기')
+  }
+  const 자리줄 = (q) => {
+    if (!q.자리글 || !q.자리글.length) return null
+    const 본 = 자리본 && 자리본.키 === q.키 ? 자리본 : null
+    const 글 = !본 ? '' : 본.상자 && !본.고름 ? ' — 3D 에는 안 그린 부재(셈에서 뺀 것) · 빨간 상자가 그 자리'
+      : 본.상자 ? ' — 빨간 상자가 그 자리' + (q.춤 && !q.셈 ? '(3D 는 춤 600 그림만 · 상자는 내민 춤 ' + 쉼(q.춤) + ')' : '')
+      : 본.고름 ? ' — 3D 에서 파랑으로 고름' : ' — 3D 에서 자리를 못 찾음 · 도면에서 이 자리를 보세요'
+    return (
+      <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>📍 {q.자리글.slice(0, 3).join(' / ')}{q.자리글.length > 3 ? ' 외 ' + (q.자리글.length - 3) + '곳' : ''}{글}
+        {본 && 본.상자 ? <>{' '}· 그 층만 비쳐 보기(층 고르기 «모두» 로 되돌림) <button type="button" className="btn line sm" onClick={() => { set표시(null); set자리본(null) }}>✕ 빨간 상자 끄기</button></> : null}
+      </div>
+    )
   }
   const 토목묶음 = (글, ids) => {
     const 들 = new Set((ids || []).map((i) => 토목ID + i).filter((i) => 토목표.has(i) && !끔.has(토목표.get(i).종류)))
@@ -1236,6 +1264,8 @@ export default function Bim() {
                   {q.셈
                     ? <button type="button" className="btn line sm" title="사람 결정을 되돌림 — 다시 ❓ 셈에서 뺌" onClick={() => { 바탕셈바꾸기(q.키, false); 세기('|BIM물량|바탕셈되돌림') }}>↩ 되돌리기</button>
                     : <button type="button" className="btn line sm" title="건축 도면(평면 · 단면)을 보고 철근콘크리트 벽일 때만 누르세요 — 그 층 그 벽을 셈하고 📌 사람 결정으로 적습니다" onClick={() => { 바탕셈바꾸기(q.키, true); 세기('|BIM물량|바탕셈') }}>📌 철근콘크리트 벽으로 셈</button>}
+                  {' '}<button type="button" className="btn line sm" title="이 벽 토막을 3D 에서 골라 그 자리로 갑니다(도면 자리 글도 보임)" onClick={() => 자리보기(q, q.층글 + ' ' + q.기호 + ' (건축 바탕 벽)', '벽')}>📍 자리 보기</button>
+                  {자리줄(q)}
                 </li>
               ))}
               {/* 📌 G420 «건축치수» 보 춤 — 단면이 안 지나 ❓ 로 남은 곳을 «층고 − 문 − 마감» 으로 셀지 사람이 정함(같은 기억 칸 · 되돌릴 수 있음) */}
@@ -1245,6 +1275,8 @@ export default function Bim() {
                   {q.셈
                     ? <button type="button" className="btn line sm" title="사람 결정을 되돌림 — 다시 ❓ 셈에서 뺌" onClick={() => { 바탕셈바꾸기(q.키, false); 세기('|BIM물량|춤결정되돌림') }}>↩ 되돌리기</button>
                     : <button type="button" className="btn line sm" title="건축 창호일람표 · 단면으로 그 층 문 높이와 마감을 확인했을 때만 누르세요 — 그 층 그 보를 이 춤으로 셈하고 📌 사람 결정으로 적습니다" onClick={() => { 바탕셈바꾸기(q.키, true); 세기('|BIM물량|춤결정') }}>📌 이 춤으로 셈</button>}
+                  {' '}<button type="button" className="btn line sm" title="이 보 토막을 3D 에서 골라 그 자리로 갑니다(도면 자리 글도 보임)" onClick={() => 자리보기(q, q.층글 + ' ' + q.기호 + ' (건축치수 보)', '보')}>📍 자리 보기</button>
+                  {자리줄(q)}
                 </li>
               ))}
               {R && (R.경고 || []).slice(0, 8).map((w, i) => <li key={'w' + i} className="warn">⚠️ {w}</li>)}
