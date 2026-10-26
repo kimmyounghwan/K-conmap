@@ -1037,7 +1037,7 @@ export default function Bim() {
                   </tbody>
                 </table>
               </div>
-              {Q && Q.기타 && (Q.기타.콘크리트 > 0.0005 || Q.기타.거푸집 > 0.0005) && <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>그 밖(자리 없는 줄 — 슬래브 마구리 · 깊은 구역 벽 내림 · 단차 등 · 3D 에는 아직 안 그림): 콘크리트 {쉼(Q.기타.콘크리트, 2)} ㎥ · 거푸집 {쉼(Q.기타.거푸집, 2)} ㎡ · 철근 {쉼(Q.기타.철근, 1)} kg</div>}
+              {Q && Q.기타 && (Q.기타.콘크리트 > 0.0005 || Q.기타.거푸집 > 0.0005) && <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>그 밖(자리 없는 줄 — 슬래브 마구리 · 깊은 구역 벽 내림 · 단차 · 건축 평면 난간 등 · 3D 에는 아직 안 그림): 콘크리트 {쉼(Q.기타.콘크리트, 2)} ㎥ · 거푸집 {쉼(Q.기타.거푸집, 2)} ㎡ · 철근 {쉼(Q.기타.철근, 1)} kg</div>}
               <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>물량은 <Link to="/jeoksan/golgo">골조 수량산출</Link>과 같은 셈(겹치는 곳 공제 · 철근 정착 · 이음)입니다 — 엑셀에 산출근거 식이 그대로 들어갑니다.</div>
             </div>
           )}
