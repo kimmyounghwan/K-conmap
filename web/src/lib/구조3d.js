@@ -133,6 +133,21 @@ function 겹침(ts, xs, 틈 = 60, 창 = null) {
 /**
  * @returns {null | {out, 단면:[{층, 이름, 놓임, EL:[lo,hi], 맞춤}], 평면EL, 빠짐:[], 제목}}
  */
+/** 🧾 G424 평면 자르는 선 짝 고르기 — 같은 글자(A … A) 여럿 중
+ *  가장 먼 두 글자. 단, 단면 폭 w(가로)의 0.7 ~ 2.5 배 거리인 짝이 있으면 그중 1.25 배에 가장 가까운 짝
+ *  (현장 S 배수장: 평면의 «℄»(C · L 따로 쓴 글) 이 «C» 로 잡혀 C-C 가 구조물 끝에서 끝까지 72 m 가로로 놓였음 — 화살표 C 두 개는 15.9 m 세로) */
+export function 자름짝(쌍, w) {
+  let a = 쌍[0], b = 쌍[1], m = -1
+  for (let i = 0; i < 쌍.length; i++) for (let j = i + 1; j < 쌍.length; j++) { const L = Math.hypot(쌍[i].x - 쌍[j].x, 쌍[i].y - 쌍[j].y); if (L > m) { m = L; a = 쌍[i]; b = 쌍[j] } }
+  let 고른 = null
+  for (let i = 0; i < 쌍.length; i++) for (let j = i + 1; j < 쌍.length; j++) {
+    const L = Math.hypot(쌍[i].x - 쌍[j].x, 쌍[i].y - 쌍[j].y)
+    if (w > 0 && L >= 0.7 * w && L <= 2.5 * w && (!고른 || Math.abs(L - 1.25 * w) < Math.abs(고른.L - 1.25 * w))) 고른 = { L, a: 쌍[i], b: 쌍[j] }
+  }
+  if (고른 && 고른.L < m - 1e-6) return { a: 고른.a, b: 고른.b, L: 고른.L }
+  return { a, b, L: m }
+}
+
 export function 구조세우기(raw, 새버킷, 머리 = '') {
   const T = (raw.texts || []).filter((t) => !t.a || Math.abs(((t.a % 180) + 180) % 180) < 3)
   const 평제 = T.filter((t) => 제목평면(t.s)).sort((a, b) => (b.h || 0) - (a.h || 0))[0]
@@ -254,7 +269,11 @@ export function 구조세우기(raw, 새버킷, 머리 = '') {
   const 평면EL = GL모음.size ? [...GL모음.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0][0] : Math.max(...단면들.map((d) => d.hi))
 
   /* ③ 자르는 선 — 평면 창 안의 같은 글자 짝(A…A) */
-  const 글자 = T.filter((t) => /^[A-Z]\d?$/.test(붙(t.s)) && t.x > PW[0] && t.x < PW[2] && t.y > PW[1] && t.y < PW[3])
+  const 글자0 = T.filter((t) => /^[A-Z]\d?$/.test(붙(t.s)) && t.x > PW[0] && t.x < PW[2] && t.y > PW[1] && t.y < PW[3])
+  /* 🧾 G424 «℄»(중심선 — C · L 글자를 겹쳐 따로 씀)의 C · L 은 자르는 선 글자가 아님(현장 S 배수장: C-C 가 ℄ 의 C 와 화살표 C 를 짝지어 비스듬히 놓였음 —
+       ℄ 두 개 짝이면 구조물 끝 ~ 끝 72 m 가로 · 단면 폭(17.2 m 창)의 1.25 배 짝 고르기만으로는 ℄ 의 C ~ 화살표 C 21.5 m 비스듬한 짝이 골라졌음) */
+  const 중심글 = (t) => { const k = 붙(t.s); if (k !== 'C' && k !== 'L') return false; const 짝글 = k === 'C' ? 'L' : 'C', h = t.h || 300; return 글자0.some((u) => 붙(u.s) === 짝글 && Math.hypot(u.x - t.x, u.y - t.y) < 1.5 * h) }
+  const 글자 = 글자0.filter((t) => !중심글(t))
   const 짝 = new Map()
   for (const t of 글자) { const k = 붙(t.s); if (!짝.has(k)) 짝.set(k, []); 짝.get(k).push(t) }
   /* 평면 선이 자르는 선을 지나는 자리들(시작점에서 거리) */
@@ -291,9 +310,9 @@ export function 구조세우기(raw, 새버킷, 머리 = '') {
     const 쌍 = 짝.get(글)
     let P, Q, 놓임
     if (쌍 && 쌍.length >= 2) {
-      /* 가장 먼 두 글자 */
-      let a = 쌍[0], b = 쌍[1], m = -1
-      for (let i = 0; i < 쌍.length; i++) for (let j = i + 1; j < 쌍.length; j++) { const L = Math.hypot(쌍[i].x - 쌍[j].x, 쌍[i].y - 쌍[j].y); if (L > m) { m = L; a = 쌍[i]; b = 쌍[j] } }
+      /* 가장 먼 두 글자 — 🧾 G424 단, 단면 폭(가로)의 0.7 ~ 2.5 배 거리인 짝이 있으면 그중 1.25 배에 가장 가까운 짝
+           (현장 S 배수장: 평면의 «℄»(C · L 따로 쓴 글) 이 «C» 로 잡혀 C-C 가 구조물 끝에서 끝까지 72 m 가로로 놓였음 — 화살표 C 두 개는 15.9 m 세로) */
+      const { a, b } = 자름짝(쌍, d.x1 - d.x0)
       P = [a.x, a.y]; Q = [b.x, b.y]; 놓임 = `평면의 ${글} ─ ${글} 선`
     } else if (d.x1 - d.x0 > 0.6 * Math.max(px1 - px0, py1 - py0)) {
       /* 짝이 없는 긴 단면(종단) — 평면 긴 쪽 가운데 줄 */

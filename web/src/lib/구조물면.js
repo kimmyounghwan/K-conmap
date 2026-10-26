@@ -374,7 +374,58 @@ function 구조물면1(선, 벽선 = null, o = {}) {
   if (발 * 칸 * 칸 < 2e6) return null                          // 2 ㎡ 아래 = 구조물 아님
   /* ② 방 나누기 — 가는 선(± 1 칸)으로 칠하고, 발자국 안의 빈 칸 무리마다 «넓이(가운데 거리)» */
   const L = new Uint8Array(W * H)
-  const 쓸선 = 벽선 && 벽선.length >= 16 ? 벽선 : 선
+  const 쓸선0 = 벽선 && 벽선.length >= 16 ? 벽선 : 선
+  /* 🧾 G424 방 안의 닫힌 네모(0.4 ~ 4 m · 네 변이 딱 그 길이 — 더 긴 선의 일부가 아님) — 덮개 구멍 · 받침 · 구멍 틀 · 피트 테두리. 벽이 아님
+       (현장 S 배관실: 덮개 구멍 2.5 × 1.75 세 개 · 2.2 × 1.35 사이 1.35 m 틈과 벽 면까지 0.25 m 틈을 겹선 벽 띠로 읽어 없는 벽 약 10 ㎡ 넓이가 섰음)
+       토목 구조물(단면 높이 점이 있는 것)만 — 건물 평면의 기둥 네모는 그대로 */
+  const 닫힌네모 = []
+  let 쓸선 = 쓸선0
+  if (o.높이 && o.높이.length) {
+    const 가 = [], 세 = []
+    for (let i = 0; i + 3 < 쓸선0.length; i += 4) {
+      const ax = 쓸선0[i], ay = 쓸선0[i + 1], bx = 쓸선0[i + 2], by = 쓸선0[i + 3]
+      if (Math.abs(by - ay) < 2 && Math.abs(bx - ax) > 100) 가.push({ i, a: Math.min(ax, bx), b: Math.max(ax, bx), c: ay })
+      else if (Math.abs(bx - ax) < 2 && Math.abs(by - ay) > 100) 세.push({ i, a: Math.min(ay, by), b: Math.max(ay, by), c: ax })
+    }
+    const 틈 = 30, 뺄 = new Set()
+    const 변 = (목록, c, lo, hi) => 목록.filter((v) => Math.abs(v.c - c) < 틈 && v.a <= lo + 틈 && v.b >= hi - 틈 && v.b - v.a <= hi - lo + 3 * 틈)
+    for (let p = 0; p < 가.length; p++) for (let q = p + 1; q < 가.length; q++) {
+      const A = 가[p], B = 가[q]
+      if (Math.abs(A.a - B.a) > 틈 || Math.abs(A.b - B.b) > 틈) continue
+      const w = A.b - A.a, lo = Math.min(A.c, B.c), hi = Math.max(A.c, B.c), h = hi - lo
+      if (w < 400 || w > 4000 || h < 400 || h > 4000) continue
+      const L = 변(세, A.a, lo, hi), R = 변(세, A.b, lo, hi)
+      if (!L.length || !R.length) continue
+      /* 네 변이 더 긴 선의 일부가 아님 — 같은 줄에 이어진 선(틈 30 안)이 없음 */
+      const 이어짐 = (목록, v) => 목록.some((u) => u !== v && Math.abs(u.c - v.c) < 2 && (Math.abs(u.a - v.b) < 틈 || Math.abs(u.b - v.a) < 틈))
+      if (이어짐(가, A) || 이어짐(가, B) || 이어짐(세, L[0]) || 이어짐(세, R[0])) continue
+      닫힌네모.push({ r: [A.a, lo, A.b, hi], w, h })
+      for (const v of [A, B, L[0], R[0]]) 뺄.add(v.i)
+    }
+    /* 🧾 G424 계단 디딤 줄 — 같은 길이(±30) · 같은 시작 · 끝(±30) 짧은 나란한 선(0.4 ~ 3 m) 넷 넘게가 같은 간격(0.15 ~ 0.7 m · ±30)으로 늘어선 것
+         (현장 S 펌프 칸 계단A: 디딤 557 마다 선 → 두 선 사이 557 를 겹선 벽 띠로 읽어 칸마다 없는 벽 셋씩 · 약 5 ㎡ 넓이가 섰음) */
+    const 계단줄 = []
+    for (const [목록, 세로] of [[가, false], [세, true]]) {
+      const 쓴 = new Set()
+      const 차 = [...목록].sort((p, q) => p.c - q.c)
+      for (let p = 0; p < 차.length; p++) {
+        if (쓴.has(차[p])) continue
+        const A = 차[p], 길 = A.b - A.a
+        if (길 < 400 || 길 > 3000) continue
+        const 무 = [A]
+        for (let q = p + 1; q < 차.length; q++) {
+          const B = 차[q], 끝 = 무[무.length - 1], 간 = B.c - 끝.c
+          if (간 > 750) break
+          if (Math.abs(B.a - A.a) > 30 || Math.abs(B.b - A.b) > 30 || 간 < 150) continue
+          if (무.length >= 2 && Math.abs(간 - (무[1].c - 무[0].c)) > 30) continue
+          무.push(B)
+        }
+        if (무.length >= 5) { for (const v of 무) { 쓴.add(v); 뺄.add(v.i) } 계단줄.push({ 세로, 수: 무.length, 간격: Math.round(무[1].c - 무[0].c), 길이: Math.round(길), r: 세로 ? [무[0].c, A.a, 무[무.length - 1].c, A.b] : [A.a, 무[0].c, A.b, 무[무.length - 1].c] }) }
+      }
+    }
+    if (뺄.size) { const n = []; for (let i = 0; i + 3 < 쓸선0.length; i += 4) if (!뺄.has(i)) n.push(쓸선0[i], 쓸선0[i + 1], 쓸선0[i + 2], 쓸선0[i + 3]); 쓸선 = n }
+    o.계단줄 = 계단줄
+  }
   for (let i = 0; i + 3 < 쓸선.length; i += 4) 선칠(L, W, H, (쓸선[i] - x0) / 칸, (쓸선[i + 1] - y0) / 칸, (쓸선[i + 2] - x0) / 칸, (쓸선[i + 3] - y0) / 칸, 1)
   const 빈 = new Uint8Array(W * H)
   for (let i = 0; i < W * H; i++) 빈[i] = F[i] && !L[i] ? 1 : 0
@@ -620,7 +671,7 @@ function 구조물면1(선, 벽선 = null, o = {}) {
     }
   }
   return {
-    바닥, 벽, 벽들, 바닥들, 바닥판두께, 덮개들,
+    바닥, 벽, 벽들, 바닥들, 바닥판두께, 덮개들, 닫힌네모, 계단줄: o.계단줄 || [],
     넓이: { 바닥: 발 * 칸 * 칸 / 1e6, 벽: 벽넓이 },
     둘레: { 바닥: 둘(바닥.filter((r) => 줄넓이(r) > 0)), 벽: 벽둘레 },
     두께: 벽둘레 > 0 ? (2 * 벽넓이) / 벽둘레 : 0,
