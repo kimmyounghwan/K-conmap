@@ -189,6 +189,100 @@ export function 사슬높이(사슬, u) {
 }
 
 /**
+ * ⑥ 🧱 G436 파라펫 — 골조입면도 · 단면 패널(«1FL +x» 레벨 글 기둥)에서 지붕 슬래브 윗면보다 위로 올라간 벽(파라펫)을 읽음.
+ *   (현장 B: 구조 평면엔 파라펫 선이 없고 건축 단면 XREF_SECTION.dwg 는 파일이 깨져 있음 — 골조입면도 끝마다 바깥 벽이 슬래브 위 800 ~ 1,300 · 두께 200)
+ *   벽 = 구조 층 세운 선 둘(사이 100 ~ 450 · 높이가 겹침) · 윗면 = 두 선 위끝이 같고(20 mm 안) 그 사이를 닫는 가로 선이 있음.
+ *   슬래브 = 벽 한쪽 면에 끝이 닿은(30 mm 안) 가로 선 가운데 벽 윗면보다 250 mm 넘게 낮은 것 중 가장 높은 것(1층 바닥 2.5 m 위).
+ *   반대쪽 면에 그 슬래브보다 높고 벽 윗면 근처까지 닿은 가로 선이 있으면 지붕 단차 벽(파라펫 아님).
+ *   → [{패널, 이름, 축, x, 높이(슬래브 윗면 위), 두께, 위, 슬래브}] · 길이(평면 자리)는 입면에 없음
+ */
+export function 파라펫읽기(D) {
+  const 글자 = D.글자 || []
+  const 레벨 = []
+  for (const g of 글자) { const r = 레벨글(g.s); if (r && r.높이 !== undefined) 레벨.push({ g, v: r.높이, x: g.x0 != null ? g.x0 : g.x }) }
+  if (레벨.length < 3 || !(D.sx0 || []).length) return []
+  const 기둥들 = []
+  for (const L of 레벨.slice().sort((p, q) => p.x - q.x)) {
+    const c = 기둥들.find((k) => Math.abs(k.x - L.x) <= 3 * (L.g.h || 200))
+    if (c) c.줄.push(L); else 기둥들.push({ x: L.x, 줄: [L] })
+  }
+  const 패널 = 기둥들.filter((c) => new Set(c.줄.map((L) => L.v)).size >= 3).sort((p, q) => p.x - q.x)
+  const 층이름 = (s) => (((D.layers || [])[D.sly[s]] || {}).name || '')
+  const 구조꼴 = /CON|콘크|구조|STR|SLAB|WALL|BEAM|GIRD/i
+  const 구조층있음 = (D.sly || []).some((_, s) => 구조꼴.test(층이름(s)))
+  const out = []
+  패널.forEach((c, pi) => {
+    const 점 = c.줄.map((L) => [레벨선y(D, L.g), L.v])
+    const n = 점.length, sy = 점.reduce((t, p) => t + p[0], 0), sv = 점.reduce((t, p) => t + p[1], 0)
+    const syy = 점.reduce((t, p) => t + p[0] * p[0], 0), syv = 점.reduce((t, p) => t + p[0] * p[1], 0)
+    const den = n * syy - sy * sy
+    if (!(Math.abs(den) > 1e-9)) return
+    const a = (n * syv - sy * sv) / den, b = (sv - a * sy) / n
+    if (!(a > 0.5 && a < 2)) return
+    const z = (y) => a * y + b
+    /* 레벨 값(글 · 높이 자리에 쓰는 것) — 가장 가까운 레벨 선에서 도면 길이만큼(입면은 실치수) */
+    const 레벨y = 점.map((p) => ({ y: p[0], v: p[1] }))
+    const 높 = (y) => { let best = 레벨y[0]; for (const q of 레벨y) if (Math.abs(q.y - y) < Math.abs(best.y - y)) best = q; return best.v + (y - best.y) }
+    const 맨위y = Math.max(...c.줄.map((L) => L.g.y)), 맨밑y = Math.min(...c.줄.map((L) => L.g.y))
+    const 오른끝 = pi + 1 < 패널.length ? 패널[pi + 1].x - 1000 : c.x + 200000
+    const h0 = c.줄[0].g.h || 200
+    let nx = 0, ny = 0
+    for (const g of 글자) {
+      const gx = g.x0 != null ? g.x0 : g.x
+      if (gx <= c.x || gx >= 오른끝 || g.y <= 맨위y) continue
+      const u = 붙(g.s).toUpperCase()
+      if (/^X\d{0,2}[A-Z]?$/.test(u)) nx++
+      else if (/^Y\d{0,2}[A-Z]?$/.test(u)) ny++
+    }
+    const 축 = nx > ny ? 'x' : ny > nx ? 'y' : ''
+    /* 패널 이름 — 패널 아래(맨 아래 레벨 글보다 밑) «…입면도 · 단면도 · ELEVATION · SECTION» 가운데 가장 큰 글 */
+    let 이름 = '', 큰 = 0
+    for (const g of 글자) {
+      const gx = g.x0 != null ? g.x0 : g.x
+      if (gx <= c.x || gx >= 오른끝 || g.y >= 맨밑y || !/입면도|단면도|ELEVATION|SECTION/i.test(g.s) || g.s.trim().length > 30) continue
+      if ((g.h || 0) > 큰) { 큰 = g.h || 0; 이름 = g.s.trim() }
+    }
+    const 가로 = [], 세로 = []
+    for (let s = 0; s < D.sx0.length; s++) {
+      const x0 = D.sx0[s], x1 = D.sx1[s], y0 = D.sy0[s], y1 = D.sy1[s]
+      if (Math.min(x0, x1) <= c.x + 2 * h0 || Math.max(x0, x1) >= 오른끝) continue
+      if (구조층있음 && !구조꼴.test(층이름(s))) continue
+      if (Math.abs(y1 - y0) <= 1 && Math.abs(x1 - x0) >= 100) 가로.push({ a: Math.min(x0, x1), b: Math.max(x0, x1), z: z((y0 + y1) / 2), y: (y0 + y1) / 2 })
+      else if (Math.abs(x1 - x0) <= 1 && Math.abs(y1 - y0) >= 200) 세로.push({ x: (x0 + x1) / 2, z0: Math.min(z(y0), z(y1)), z1: Math.max(z(y0), z(y1)), y1: Math.max(y0, y1) })
+    }
+    const 쓴 = new Set()
+    for (const L of 세로) for (const R of 세로) {
+      const t = R.x - L.x
+      if (!(t >= 100 && t <= 450)) continue
+      if (Math.abs(L.z1 - R.z1) > 20) continue
+      const 위 = Math.max(L.z1, R.z1)
+      if (위 < 2500) continue
+      const key = Math.round(L.x) + '|' + Math.round(R.x) + '|' + Math.round(위)
+      if (쓴.has(key)) continue
+      /* 윗면을 닫는 가로 선 */
+      if (!가로.some((g) => Math.abs(g.z - 위) <= 20 && g.a <= L.x + 20 && g.b >= R.x - 20)) continue
+      /* 사이에 다른 세운 선이 없어야(벽 하나) */
+      if (세로.some((m) => m !== L && m !== R && m.x > L.x + 20 && m.x < R.x - 20 && m.z1 > 위 - 300)) continue
+      for (const [면, 반대, 쪽] of [[L.x, R.x, '왼'], [R.x, L.x, '오른']]) {
+        const 닿 = (g, x) => (쪽 === '왼' ? Math.abs(g.b - x) <= 30 : Math.abs(g.a - x) <= 30)
+        const 닿반 = (g, x) => (쪽 === '왼' ? Math.abs(g.a - x) <= 30 : Math.abs(g.b - x) <= 30)
+        const 판 = 가로.filter((g) => 닿(g, 면) && (g.b - g.a) >= 600 && g.z < 위 - 120 && g.z >= 2500).sort((p, q) => q.z - p.z)[0]
+        if (!판) continue
+        /* 반대쪽 — 그 슬래브보다 높고 벽 윗면 300 안까지 닿은 가로 선(지붕 단차 벽) */
+        if (가로.some((g) => 닿반(g, 반대) && (g.b - g.a) >= 600 && g.z > 판.z + 50 && g.z >= 위 - 300)) continue
+        /* 높이 · 두께는 도면 길이 그대로(입면 · 단면은 실치수 — 레벨 맞춤 기울기 a 는 높이 자리 셈에만) */
+        const 높이 = Math.round(Math.max(L.y1, R.y1) - 판.y)
+        if (높이 < 150 || 높이 > 2500) continue
+        쓴.add(key)
+        out.push({ 패널: pi, 이름, 축, x: Math.round((L.x + R.x) / 2), 높이, 두께: Math.round(t), 위: Math.round(높(Math.max(L.y1, R.y1))), 슬래브: Math.round(높(판.y)), 쪽 })
+        break
+      }
+    }
+  })
+  return out
+}
+
+/**
  * ③ 경사 구역 높이 — 구역 상자 [x0, y0, x1, y1](모델 mm) · 사슬들 → {높이(x, y), 맞은: [{축, 길이}]} 또는 null.
  *   축 x(또는 모름) 사슬의 길이 ≈ 상자 가로(±4 %) → u = x − x0 · 축 y 사슬 ≈ 상자 세로 → u = y − y0. 맞는 사슬이 여럿이면 평균.
  */
