@@ -1075,7 +1075,7 @@ export default function Qna() {
               <li><b>📅 모임 글</b> — «모임 글» 을 켜고 날짜 · 장소를 적으면 오른쪽 <b>«이번 주 모임»</b> 에 뜹니다. 가실 분은 글을 열고 <b>«🙋 참석»</b>.</li>
               <li><b>📷 사진도 올릴 수 있습니다</b>(한 장 · 크게 찍은 사진은 줄여서 올립니다). 남의 얼굴 · 이름 · 전화번호가 보이는 사진은 올리지 마세요.</li>
               {/* 🩹 G196 소장님 「이상한 파일 이면...이런 거 말고, 그냥, 파일 올릴 수 있다. 이렇게 해줘」 — 막는 것 · 주의 글은 뺌(고를 때 안 되는 것은 그 자리에서 알림) */}
-              <li><b>📎 파일도 올릴 수 있습니다</b> — 한글 · 엑셀 · 워드 · PDF · PPT · 압축(zip).</li>
+              <li><b>📎 파일도 올릴 수 있습니다</b> — 한글 · 엑셀 · 워드 · PDF · PPT · 압축(zip — 도면 dwg · dxf 는 zip 으로 묶어서).</li>
               <li><b>누구나, 어떤 이야기든 좋습니다.</b> 가입·이름 없이 바로 씁니다. 별명은 저절로 붙고, 같은 기기면 늘 같은 별명입니다.</li>
               <li><b>답글은 누구나 답니다.</b> 아는 분이 먼저 답해 주세요 — 현장 경험 한 줄이 제일 큰 도움이 됩니다.
                 K-건설맵도 하루 안에 답을 다는 것을 목표로 합니다. K-건설맵이 단 답에는 <b>「K-건설맵」</b> 표가 붙습니다.
@@ -1824,7 +1824,7 @@ function AnswerForm({ qid, onDone, to = null, 받는이 = '', 인용 = '', 열�
         </div>
       )}
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-        <label className={'mt-chip mt-file mt-af-file' + (첨부 ? ' on' : '')} title="한글 · 엑셀 · 워드 · PDF · PPT (20MB 까지) · 압축 zip (10MB 까지)">
+        <label className={'mt-chip mt-file mt-af-file' + (첨부 ? ' on' : '')} title="한글 · 엑셀 · 워드 · PDF · PPT (20MB 까지) · 압축 zip (10MB 까지 · 도면 dwg · dxf 는 zip 으로)">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 11.5 12.5 20a5 5 0 0 1-7-7L14 4.5a3.3 3.3 0 0 1 4.7 4.7L10.2 17.7a1.7 1.7 0 0 1-2.4-2.4L15.5 7.6" /></svg>
           <span className="mt-chip-t">{첨부 ? '파일 바꾸기' : '파일 붙이기'}</span>
           <input type="file" accept={받는꼴} onChange={파일고름} className="sr-only" aria-label="답글에 파일 붙이기 — 한글 · 엑셀 · 워드 · PDF · PPT · 압축(zip)" />
@@ -2185,7 +2185,7 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
           <input type="file" accept="image/*" onChange={사진고름} className="sr-only" />
         </label>
         {/* 📎 G158 파일 한 개 — 한글 · 엑셀 · 워드 · PDF · PPT */}
-        <label className={'mt-chip mt-file' + (첨부 ? ' on' : '')} title="한글 · 엑셀 · 워드 · PDF · PPT (20MB 까지) · 압축 zip (10MB 까지)">
+        <label className={'mt-chip mt-file' + (첨부 ? ' on' : '')} title="한글 · 엑셀 · 워드 · PDF · PPT (20MB 까지) · 압축 zip (10MB 까지 · 도면 dwg · dxf 는 zip 으로)">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 11.5 12.5 20a5 5 0 0 1-7-7L14 4.5a3.3 3.3 0 0 1 4.7 4.7L10.2 17.7a1.7 1.7 0 0 1-2.4-2.4L15.5 7.6" /></svg>
           <span className="mt-chip-t">파일도 올려요</span>
           <input type="file" accept={받는꼴} onChange={파일고름} className="sr-only" aria-label="파일 올리기 — 한글 · 엑셀 · 워드 · PDF · PPT · 압축(zip)" />

@@ -26,6 +26,8 @@ const cp = await 이름바꿈(zip({ 'aaaa.hwp': 문서 }), 'aaaa.hwp', new Uint8
 const 목 = await 압축목차(cp)
 확인('한국 윈도우 zip 이름(cp949) 읽음 «가나.hwp»', 목.목록[0] && 목.목록[0].이름 === '가나.hwp', JSON.stringify(목))
 확인('한국 윈도우 zip → 통과', (await 압축검사(cp)) === '')
+확인('📐 G439 도면(dwg · dxf) 든 zip → 통과', (await 압축검사(zip({ '17. 메시형울타리 예시도.dwg': 문서, '상세/휀스.DXF': 문서, '설명.pdf': 문서 }))) === '')
+확인('📐 G439 dwg 를 바로 고르면 «zip 으로 묶어» 알림', /zip/.test(파일검사({ name: '휀스 상세도.dwg', size: 1000 })) && /zip/.test(파일검사({ name: 'a.DXF', size: 10 })))
 // ② 막는 것
 const 실행 = await 압축검사(zip({ '설치.exe': 문서, '설명.pdf': 문서 }))
 확인('실행 파일(exe) 막음 · 이름 보임', /받지 않는 파일/.test(실행) && /설치\.exe/.test(실행), 실행)

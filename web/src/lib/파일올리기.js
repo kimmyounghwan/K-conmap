@@ -17,9 +17,11 @@
  *         풀면 너무 커지는(합 300MB 넘는) zip 은 막음 · 맥에서 묶을 때 끼는 __MACOSX · .DS_Store · Thumbs.db 는 셈에서 뺌
  *       · zip 은 이미 눌린 파일이라 더 안 줄어듭니다 → 저장 한도(10MB)가 곧 zip 한도 — 고를 때 바로 알림
  *     ⚠️ 목차 보기는 브라우저에서 합니다. 화면을 거치지 않고 일부러 올리는 사람은 규칙(형식 · 10MB)만 막습니다 → 운영자 지우기.
+ * 📐 G439 (2026-10-27) 소장님 「파일 올리기 안되는데」(zip 안에 «… 예시도.dwg») — zip 안의 도면 dwg · dxf 도 받음.
+ *     dwg 를 바로 고르면 «zip 으로 묶어 주세요» 한 줄(바로 받으려면 storage.rules 를 새로 올려야 해서 안 바꿈 — zip 은 규칙 그대로 통과).
  */
 export const 파일종류 = ['hwp', 'hwpx', 'xlsx', 'xls', 'docx', 'doc', 'pdf', 'pptx', 'zip']   /* 🗜 G196 zip 더함 */
-export const 압축안종류 = ['hwp', 'hwpx', 'xlsx', 'xls', 'docx', 'doc', 'pdf', 'pptx', 'jpg', 'jpeg', 'png']
+export const 압축안종류 = ['hwp', 'hwpx', 'xlsx', 'xls', 'docx', 'doc', 'pdf', 'pptx', 'jpg', 'jpeg', 'png', 'dwg', 'dxf']   /* 📐 G439 도면(dwg · dxf) 더함 */
 export const 압축안개수한도 = 300
 export const 압축안크기한도 = 300 * 1024 * 1024
 export const 받는꼴 = 파일종류.map((x) => '.' + x).join(',')
@@ -35,6 +37,7 @@ export const 크기글 = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + 'MB' 
 export function 파일검사(f) {
   if (!f) return '파일을 고르세요.'
   const e = 확장자(f.name)
+  if (e === 'dwg' || e === 'dxf') return `도면(${e})은 압축(zip)으로 묶어서 올려 주세요 — zip 안의 dwg · dxf 는 받습니다(10MB 까지).`
   if (!파일종류.includes(e)) return `이 형식은 받지 않습니다${e ? `(${e})` : ''} — 한글 · 엑셀 · 워드 · PDF · PPT · 압축(zip) 만 됩니다(매크로 파일은 안 됨).`
   if (e === 'zip' && f.size > 저장한도) return `압축 파일이 너무 큽니다(${크기글(f.size)}) — 압축(zip)은 10MB 까지 올릴 수 있습니다.`
   if (f.size > 원본한도) return `파일이 너무 큽니다(${크기글(f.size)}) — 20MB 까지 올릴 수 있습니다.`
@@ -89,7 +92,7 @@ export async function 압축검사(f) {
   const 안됨 = 파일들.filter((x) => !압축안종류.includes(확장자(x.이름)))
   if (안됨.length) {
     const 보기 = 안됨.slice(0, 3).map((x) => x.이름.split('/').pop()).join(' · ')
-    return `🗜 압축 파일 안에 받지 않는 파일이 있습니다(${보기}${안됨.length > 3 ? ` 외 ${안됨.length - 3}개` : ''}) — 안에는 한글 · 엑셀 · 워드 · PDF · PPT · 사진(jpg · png)만 됩니다(실행 파일 · 매크로 · 압축 안의 압축은 안 됨).`
+    return `🗜 압축 파일 안에 받지 않는 파일이 있습니다(${보기}${안됨.length > 3 ? ` 외 ${안됨.length - 3}개` : ''}) — 안에는 한글 · 엑셀 · 워드 · PDF · PPT · 사진(jpg · png) · 도면(dwg · dxf)만 됩니다(실행 파일 · 매크로 · 압축 안의 압축은 안 됨).`
   }
   const 합 = 파일들.reduce((a, x) => a + x.크기, 0)
   if (합 > 압축안크기한도) return '🗜 풀면 너무 커지는 압축 파일입니다 — 나눠서 올려 주세요.'
