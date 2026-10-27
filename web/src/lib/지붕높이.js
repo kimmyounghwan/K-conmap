@@ -203,8 +203,143 @@ export function 경사높이(상자, 사슬들) {
   return {
     맞은: 맞은.map((m) => ({ 축: m.축, 길이: Math.round(m.s.길이), 낮: Math.min(...m.s.점.map((p) => p[1])), 높: Math.max(...m.s.점.map((p) => p[1])) })),
     높이: (x, y) => { let t = 0; for (const m of 맞은) t += 사슬높이(m.s, m.축 === 'x' ? (x - 상자[0]) * m.비 : (y - 상자[1]) * m.비); return t / 맞은.length },
+    /* 🏔 G434 축(x | y) 방향 평면 범위 [a, b](모델 mm)의 빗길이 ÷ 평면 길이 — 그 축 사슬 평균(그 축 사슬이 없으면 1 = 그 방향은 평평) */
+    빗: (축, a, b) => { const ms = 맞은.filter((m) => m.축 === 축); if (!ms.length || !(b > a)) return 1; let t = 0; for (const m of ms) { const o = 축 === 'x' ? 상자[0] : 상자[1]; t += 사슬빗(m.s, (a - o) * m.비, (b - o) * m.비) }; return t / ms.length },
+    /* 🏔 G434 그 범위가 지나는 경사선 기울기들(°) — 줄 비고 «기울기 19.4° · 8.7°» */
+    각: (축, a, b) => { const out = new Set(); for (const m of 맞은.filter((q) => q.축 === 축)) { const o = 축 === 'x' ? 상자[0] : 상자[1]; for (const v of 사슬각(m.s, (a - o) * m.비, (b - o) * m.비)) out.add(v) } return [...out].sort((p, q) => q - p) },
   }
 }
+
+/** 🏔 G434 사슬 가로 [u0, u1] 의 빗길이 ÷ 가로 길이(사슬 밖은 평평 — 사슬높이와 같음) */
+export function 사슬빗(사슬, u0, u1) {
+  const p = (사슬 && 사슬.점) || []
+  if (!(u1 > u0) || p.length < 2) return 1
+  let L = 0, 든 = 0
+  for (let i = 1; i < p.length; i++) {
+    const a = Math.max(u0, p[i - 1][0]), b = Math.min(u1, p[i][0])
+    if (!(b > a)) continue
+    const du = p[i][0] - p[i - 1][0]
+    L += (b - a) * Math.hypot(1, du > 0 ? (p[i][1] - p[i - 1][1]) / du : 0); 든 += b - a
+  }
+  return (L + (u1 - u0 - 든)) / (u1 - u0)
+}
+
+/** 🏔 G434 사슬 가로 [u0, u1] 이 지나는 경사 토막 기울기(0.1° · 1° 넘는 것 · 범위 2 % 넘게 겹친 것) */
+export function 사슬각(사슬, u0, u1) {
+  const p = (사슬 && 사슬.점) || [], out = new Set()
+  for (let i = 1; i < p.length; i++) {
+    const a = Math.max(u0, p[i - 1][0]), b = Math.min(u1, p[i][0]), du = p[i][0] - p[i - 1][0]
+    if (!(b - a > 0.02 * (u1 - u0)) || !(du > 0)) continue
+    const g = Math.round(Math.atan(Math.abs(p[i][1] - p[i - 1][1]) / du) * 1800 / Math.PI) / 10
+    if (g >= 1) out.add(g)
+  }
+  return [...out]
+}
+
+/**
+ * ⑤ 🏔 G434 경사 지붕 빗길이 — 경사 구역 안 슬래브 · 보를 평면 길이가 아니라 기울어진 길이(빗길이)로 셈(골조읽기가 부름 · 줄 값을 바꿈).
+ *   (현장 B «경사 지붕 1 · 2» — 골조입면도 경사선 19.4° · 8.7° 인데 평면 넓이로만 셈해 콘크리트 · 데크 · 철근이 모자랐음)
+ *   주: 주자료 · 구역들: R.읽음.지붕구역 · 사슬들: R.읽음.지붕사슬 · k번(번) → 그 도면 배율(_자리 r · 구역 판은 도면 단위)
+ *   ㉠ 줄 자리(_자리 r) 가운데가 같은 도면의 경사 구역 판 안이고 그 구역에 길이 맞는 입면 사슬(경사높이)이 있으면
+ *   ㉡ 사슬 축 방향 자리 범위의 빗길이 ÷ 평면 길이 = 비(용마루를 넘는 칸 · 사슬 밖 평평한 몫은 그대로 잼)
+ *   ㉢ 슬라브 — 그 축 방향 변(단변 | 장변 — 자리 폭에 가까운 쪽) × 비 · 개구부 넓이 × 비 · 데크 안목(_안) 그 변 × 비
+ *      보 — 그 축으로 놓인 보만 안목 × 비(길이 = 길이 + (길이 − 좌단 − 우단) × (비 − 1)) · 가로지른 보는 그대로(높이가 같음)
+ *   ㉣ 한 줄 자리마다 비가 다르면 줄을 나눔(나눈 줄은 표 끝에 — 앞 줄 차례 그대로) · 나눠야 하는데 QT 가 자리 수와 다른 줄은 손대지 않음(못 셈 수) · 비가 하나면 QT 와 상관없이 그 줄 그대로
+ *   돌려줌: {슬라브, 보, 못, 각: [지난 경사선 기울기 °]}
+ */
+export function 경사늘림(주, 구역들, 사슬들, k번) {
+  const 결과 = { 슬라브: 0, 보: 0, 못: 0, 각: [] }
+  const 구 = []
+  for (const z of 구역들 || []) {
+    if (!z.경사 || !Array.isArray(z.판) || z.판.length < 3) continue
+    const 번 = String(z.p).split('|')[0], k = k번(+번) || 1
+    const b = 상자(z.판.map((p) => [p[0] * k, p[1] * k]))
+    const 경 = 경사높이(b, 사슬들)
+    if (경) 구.push({ z, 번, k, 경 })
+  }
+  if (!구.length) return 결과
+  const 둥 = (v) => Math.round(v)
+  const 수 = (v) => { const n = parseFloat(String(v ?? '').replace(/,/g, '')); return Number.isFinite(n) ? n : null }
+  const 글수 = (v) => Math.round(v).toLocaleString('en-US')
+  /* 자리 하나 → {축, 비, 구역 이름} 또는 null */
+  const 비찾기 = (a, 보) => {
+    if (!a || !Array.isArray(a.r) || a.p == null) return null
+    const 번 = String(a.p).split('|')[0]
+    const c = [(a.r[0] + a.r[2]) / 2, (a.r[1] + a.r[3]) / 2]
+    const q = 구.find((g) => g.번 === 번 && 안(c, g.z.판))
+    if (!q) return null
+    const k = q.k
+    const x0 = a.r[0] * k, y0 = a.r[1] * k, x1 = a.r[2] * k, y1 = a.r[3] * k
+    let 축들 = ['x', 'y']
+    if (보) { const s = Array.isArray(a.축) && a.축.length >= 4 ? a.축 : [x0 / k, (y0 + y1) / 2 / k, x1 / k, (y0 + y1) / 2 / k]; 축들 = [Math.abs(s[2] - s[0]) >= Math.abs(s[3] - s[1]) ? 'x' : 'y'] }
+    const out = {}
+    let 있 = false
+    for (const 축 of 축들) {
+      const v = 축 === 'x' ? q.경.빗('x', x0, x1) : q.경.빗('y', y0, y1)
+      if (v > 1.0005) { out[축] = Math.round(v * 1e5) / 1e5; out['각' + 축] = 축 === 'x' ? q.경.각('x', x0, x1) : q.경.각('y', y0, y1); 있 = true }
+    }
+    return 있 ? { ...out, 폭x: x1 - x0, 폭y: y1 - y0, 이름: q.z.이름 } : null
+  }
+  for (const 표 of ['슬라브', '보']) {
+    const 줄 = 주[표] || []
+    const n0 = 줄.length
+    for (let i = 0; i < n0; i++) {
+      const r = 줄[i]
+      const 자 = Array.isArray(r._자리) ? r._자리 : []
+      if (!자.length) continue
+      const 비들 = 자.map((a) => 비찾기(a, 표 === '보'))
+      if (!비들.some(Boolean)) continue
+      const 무리 = new Map()
+      비들.forEach((v, kk) => { const key = v ? (v.x || 1) + '|' + (v.y || 1) : '-'; if (!무리.has(key)) 무리.set(key, []); 무리.get(key).push(kk) })
+      /* 줄을 나눠야 하는데(자리마다 비가 다름) QT 가 자리 수와 다르면(한 자리에 보 둘 — 현장 B RG1 QT 4 · 자리 2) 몇 개씩인지 몰라 손대지 않음 · 비가 하나면 줄 그대로 늘림 */
+      if (무리.size > 1 && 수(r.QT) !== 자.length) { 결과.못++; continue }
+      const 새줄 = []
+      for (const [key, kks] of 무리) {
+        const v = 비들[kks[0]]
+        const nr = 무리.size === 1 ? r : { ...r, QT: String(kks.length), _자리: kks.map((kk) => 자[kk]), ...(Array.isArray(r._안) ? { _안: kks.map((kk) => r._안[kk]).filter(Boolean) } : {}) }
+        if (key !== '-') {
+          if (표 === '슬라브') {
+            const Lx = 수(nr.단변), Ly = 수(nr.장변)
+            if (!(Lx > 0 && Ly > 0)) { 결과.못++; 새줄.push(nr); continue }
+            /* 자리 x 폭에 가까운 변 = x 방향 변 */
+            const x단 = Math.abs(v.폭x - Lx) + Math.abs(v.폭y - Ly) <= Math.abs(v.폭x - Ly) + Math.abs(v.폭y - Lx)
+            const 단비 = x단 ? (v.x || 1) : (v.y || 1), 장비 = x단 ? (v.y || 1) : (v.x || 1)
+            const 단 = 둥(Lx * 단비), 장 = 둥(Ly * 장비)
+            const 단각 = (x단 ? v.각x : v.각y) || [], 장각 = (x단 ? v.각y : v.각x) || []
+            const 말 = []
+            if (단비 > 1) 말.push('단변 ' + 글수(Lx) + ' → ' + 글수(단) + '(기울기 ' + 단각.map((a) => a + '°').join(' · ') + ')')
+            if (장비 > 1) 말.push('장변 ' + 글수(Ly) + ' → ' + 글수(장) + '(기울기 ' + 장각.map((a) => a + '°').join(' · ') + ')')
+            const 구멍 = 수(nr.개구부)
+            const 안cc = 글(nr._안cc) === 글(nr.단변) + '|' + 글(nr.장변)
+            Object.assign(nr, {
+              단변: String(단), 장변: String(장),
+              ...(구멍 > 0 ? { 개구부: String(Math.round(구멍 * 단비 * 장비 * 1e4) / 1e4) } : {}),
+              ...(Array.isArray(nr._안) && 안cc ? { _안: nr._안.map((t) => (Array.isArray(t) ? (t[0] <= t[1] ? [둥(t[0] * 단비), 둥(t[1] * 장비)] : [둥(t[0] * 장비), 둥(t[1] * 단비)]) : t)), _안cc: 단 + '|' + 장 } : {}),
+              _빗: '🏔 «' + v.이름 + '» 빗길이 — 평면 ' + 말.join(' · ') + ' (골조입면도 경사선)',
+            })
+            결과.슬라브 += kks.length
+            결과.각.push(...단각, ...장각)
+          } else {
+            const 비 = v.x || v.y
+            const L = 수(nr.길이), 좌 = 수(nr.좌단) || 0, 우 = 수(nr.우단) || 0
+            if (!(L > 0)) { 결과.못++; 새줄.push(nr); continue }
+            const Ln = L - 좌 - 우 > 0 ? L - 좌 - 우 : L
+            const L2 = 둥(L + Ln * (비 - 1))
+            const 보각 = (v.x ? v.각x : v.각y) || []
+            Object.assign(nr, { 길이: String(L2), _빗: '🏔 «' + v.이름 + '» 빗길이 — 평면 안목 ' + 글수(Ln) + ' → ' + 글수(Ln * 비) + '(기울기 ' + 보각.map((a) => a + '°').join(' · ') + ') · 길이 ' + 글수(L) + ' → ' + 글수(L2) + ' (골조입면도 경사선)' })
+            결과.보 += kks.length
+            결과.각.push(...보각)
+          }
+        }
+        새줄.push(nr)
+      }
+      if (새줄.length > 1) { 줄[i] = 새줄[0]; for (const t of 새줄.slice(1)) 줄.push(t) }
+    }
+  }
+  결과.각 = [...new Set(결과.각)].sort((a, b) => b - a)
+  return 결과
+}
+const 글 = (v) => String(v ?? '').trim()
 
 /* ── ④ BIM 모델에서 올림 ───────────────────────────────── */
 function 안(p, 판) {
