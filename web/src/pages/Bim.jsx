@@ -318,6 +318,20 @@ export default function Bim() {
     검수저장(새)
     return 새
   })
+  /* 📌 G435 ❓ 에 사람이 잰 값(퍼린 길이 합 m · 방수턱 길이 m · 점검구 앵글 m · 깨기 ㎥ …)을 넣어 셈 — 같은 기억 칸(바탕셈) · 되돌릴 수 있음 */
+  const 바탕값바꾸기 = (키, 값) => set검수((s) => {
+    const 바탕셈 = { ...(s.바탕셈 || {}) }
+    const v = Math.round(parseFloat(String(값 ?? '').replace(/,/g, '')) * 1000) / 1000
+    if (v > 0) { const d = new Date(); 바탕셈[키] = { 값: v, 때: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') } } else delete 바탕셈[키]
+    const 새 = { ...s, 바탕셈 }
+    검수저장(새)
+    return 새
+  })
+  const [넣을값, set넣을값] = useState({})
+  const 값넣기 = (q, 말) => (q.셈
+    ? <> <button type="button" className="btn line sm" title="사람이 넣은 값을 지움 — 다시 ❓ 셈에서 뺌" onClick={() => { 바탕값바꾸기(q.키, 0); 세기('|BIM물량|값되돌림') }}>↩ 되돌리기</button></>
+    : <> <input className="il-val" type="number" min="0" step="0.1" inputMode="decimal" aria-label={말 + '(' + q.단위 + ')'} placeholder={q.단위} value={넣을값[q.키] ?? ''} onChange={(e) => set넣을값((m) => ({ ...m, [q.키]: e.target.value }))} />
+      {' '}<button type="button" className="btn line sm" disabled={!(parseFloat(넣을값[q.키]) > 0)} title={'도면을 보고 직접 잰 ' + 말 + '(' + q.단위 + ')를 넣으면 그 값으로 셈하고 📌 사람 결정으로 적습니다'} onClick={() => { 바탕값바꾸기(q.키, 넣을값[q.키]); 세기('|BIM물량|값넣기') }}>📌 이 {말}로 셈</button></>)
   useEffect(() => {
     const 지금 = JSON.stringify(검수.바탕셈 || {})
     if (!도면들 || !도면들.length || 지금 === 읽은바탕.current) return
@@ -1307,6 +1321,21 @@ export default function Bim() {
                   {/^철골\|칸\|/.test(q.키) && (q.셈
                     ? <> <button type="button" className="btn line sm" title="사람 결정을 되돌림 — 다시 평면 선 길이로 셈" onClick={() => { 바탕셈바꾸기(q.키, false); 세기('|BIM물량|철골칸되돌림') }}>↩ 되돌리기</button></>
                     : <> <button type="button" className="btn line sm" title={'평면 · 입면 도면을 보고 입면 칸(' + 쉼(q.입) + ')이 맞을 때만 누르세요 — 그 칸을 가로지르는 철골보 · 가새를 입면 칸 길이로 셈하고 📌 사람 결정으로 적습니다'} onClick={() => { 바탕셈바꾸기(q.키, true); 세기('|BIM물량|철골칸') }}>📌 입면 칸 {쉼(q.입)} 으로 셈</button></>)}
+                  {q.단위 && 값넣기(q, '길이')}
+                </li>
+              ))}
+              {/* 🧱 G435 방수턱 상세(폭 · 높이 · 철근) — 놓인 길이가 평면에 없어 ❓ · 📌 사람이 잰 길이(m)로 셈(같은 기억 칸 · 되돌릴 수 있음) */}
+              {R && R.읽음 && (R.읽음.방수턱물음 || []).map((q) => (
+                <li key={'wq' + q.키} className={q.셈 ? 'ok' : 'warn'}>
+                  {q.셈 ? '📌' : '❓'} 🧱 {q.글}{q.셈 && (검수.바탕셈 || {})[q.키] && 검수.바탕셈[q.키].때 ? '(' + 검수.바탕셈[q.키].때 + ')' : ''}
+                  {q.단위 && 값넣기(q, '길이')}
+                </li>
+              ))}
+              {/* 📌 G435 보수 점검구 — 깨기 · 복구 콘크리트 · 앵글은 단면마다 달라 ❓ · 사람이 잰 한 곳 값 × 개수로 셈 */}
+              {R && R.읽음 && (R.읽음.점검구물음 || []).map((q) => (
+                <li key={'pq' + q.키} className={q.셈 ? 'ok' : 'warn'}>
+                  {q.셈 ? '📌' : '❓'} 🔧 {q.글}{q.셈 && (검수.바탕셈 || {})[q.키] && 검수.바탕셈[q.키].때 ? '(' + 검수.바탕셈[q.키].때 + ')' : ''}
+                  {q.단위 && 값넣기(q, q.말 || '값')}
                 </li>
               ))}
               {R && R.읽음 && (R.읽음.바탕물음 || []).map((q) => (
