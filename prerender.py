@@ -1626,6 +1626,13 @@ def form_page(shell, f, others, image=None):
             (g.get("what") or f'{f.get("short") or ""} {f.get("when") or ""}').strip()
         lead = (f'{f["title"]} 양식을 이 화면에서 바로 채우고 PDF로 저장 · 인쇄할 수 있습니다. '
                 f'회원가입이 필요 없고, 쓴 내용은 내 기기에만 남습니다.')
+    elif f.get("nofree"):        # ✂ 2026-10-24 소장님 «이제 만드는 것은 무료라는 단어 넣지 말고» — 새로 만든 서식(G437 ~)
+        title = f'{f["title"]} 양식 — 사이트에서 작성 · PDF 저장 · 빈 엑셀(xlsx) | K-건설맵'
+        desc = ((f'{f["title"]}(' + ' · '.join(또[:2]) + ') 양식 — 사이트에서 작성해 PDF 저장 · 빈 엑셀(xlsx) 다운로드. ') if 또 else
+                f'{f["title"]} 양식 — 사이트에서 작성해 PDF 저장 · 빈 엑셀(xlsx) 다운로드. ') + \
+            (g.get("what") or f'{f.get("short") or ""} {f.get("when") or ""}').strip()
+        lead = (f'{f["title"]} 양식을 이 화면에서 바로 채우면 합계 · 금액이 저절로 계산되고, PDF로 저장 · 인쇄할 수 있습니다. '
+                f'손으로 쓸 빈 양식은 엑셀(xlsx)로 다운로드할 수 있고, 회원가입이 필요 없습니다.')
     else:
         title = f'{f["title"]} 양식 엑셀(xlsx) 무료 다운로드 | K-건설맵'
         desc = ((f'{f["title"]}(' + ' · '.join(또[:2]) + ') 양식 엑셀 무료 다운로드. ') if 또 else

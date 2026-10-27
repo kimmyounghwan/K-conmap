@@ -64,6 +64,10 @@ def TR(x):
     return f"INT(ROUND({x},6))"
 
 
+# 1행 머리글 — 서식마다 draw() 첫머리에서 bk.brand 로 바꿀 수 있음(✂ 2026-10-24 «새로 만드는 것에는 무료 안 씀» — G437 부터 «건설 서식»)
+BRAND = "  K-건설맵  |  k-conmap.com  무료 건설 서식"
+
+
 class I:
     """입력칸. ex=예시 값(작성 예시 시트에만 들어감). blank=빈 서식에도 미리 넣어 두는 값(법정 요율 등)."""
 
@@ -148,10 +152,10 @@ class Page:
                 break
         half = min(half, self.pc - 1) if self.pc > 1 else 1
         if self.ex:
-            self.put(1, 1, half, "  K-건설맵  |  k-conmap.com  무료 건설 서식", kind="brand", wrap=False)
+            self.put(1, 1, half, getattr(self.book, "brand", BRAND), kind="brand", wrap=False)
             self.put(1, half + 1, self.pc, "작성 예시 (가상의 현장)  ", kind="brand_ex", wrap=False)
         else:
-            self.put(1, 1, half, "  K-건설맵  |  k-conmap.com  무료 건설 서식", kind="brand", wrap=False)
+            self.put(1, 1, half, getattr(self.book, "brand", BRAND), kind="brand", wrap=False)
             self.put(1, half + 1, self.pc, "← 이 1행을 지우고 쓰셔도 됩니다  ", kind="brand_r", wrap=False)
         self.ws.row_dimensions[1].height = 20
         self.r = 2
@@ -433,6 +437,7 @@ class Book:
         self.dv_defs = {}
         self.wb.properties.creator = "K-건설맵 (k-conmap.com)"
         self.wb.properties.title = title
+        self.brand = BRAND
 
     def page(self, logical, widths, *, ex, sheetname=None, **kw):
         if sheetname is None:

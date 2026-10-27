@@ -324,6 +324,7 @@ def jeomgeom(bk, ex):
 
 
 def draw(bk, ex):
+    bk.brand = "  K-건설맵  |  k-conmap.com  건설 서식"      # ✂ 새로 만든 서식 — «무료» 안 씀(2026-10-24 소장님)
     g.cover(bk, ex, "가설울타리 (EGI 휀스 · 방진망)", "가나지구 근린생활시설 신축공사", D(2026, 11, 1), "예시건설(주)")
     gaeyo(bk, ex)
     g.gongjeong_qty(bk, ex, "2.  예 정 공 정 표 (가설울타리)", GJ, D(2026, 11, 2), nd=30, n=10,
