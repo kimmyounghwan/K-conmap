@@ -497,7 +497,7 @@ def img(p, data, rows=8, row_h=20, c1=1, c2=None, caption=None):
 
 
 # ── 물량 기반 공정표(총수량 ÷ 1일 작업량 = 작업일수) ─────────────────────
-def gongjeong_qty(bk, ex, title, data, start_ex, nd=60, n=10):
+def gongjeong_qty(bk, ex, title, data, start_ex, nd=60, n=10, note=None):
     """data: [(공종, 총수량, 단위, 1일 작업량, 시작 일차)] → 작업일수 = 올림(총수량 ÷ 1일 작업량) · 종료 일차 · 일 단위 막대 · 총 공기"""
     Wg = [17, 7, 4.5, 6.5, 5, 5, 5] + [1.75] * nd + [6]
     nc = len(Wg)
@@ -533,7 +533,7 @@ def gongjeong_qty(bk, ex, title, data, start_ex, nd=60, n=10):
         Rule(type="expression", dxf=DifferentialStyle(fill=BAR),
              formula=[f"AND(N($F{r0})>0,N($G{r0})>=N($F{r0}),{CL(C0)}${hr}>=$F{r0},{CL(C0)}${hr}<=$G{r0})"]))
     d.done(p)
-    p.after_note(["하늘색 칸 = 자동(작업일수 = 총수량 ÷ 1일 작업량 올림 · 종료 일차 · 날짜 · 총 공기). 공종 이름 · 단위는 원본 차례를 넣어 두었습니다."] if not ex else
+    p.after_note([note or "하늘색 칸 = 자동(작업일수 = 총수량 ÷ 1일 작업량 올림 · 종료 일차 · 날짜 · 총 공기). 공종 이름 · 단위는 원본 차례를 넣어 두었습니다."] if not ex else
                  ["이 시트는 작성 예시입니다(가상의 물량 · 일정)."])
     return p
 
