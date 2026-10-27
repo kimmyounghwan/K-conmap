@@ -11,7 +11,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { 세기 } from './lib/받은수.jsx'
-import { 노선목록, 측점표, 측점표CSV, 자리읽기, 땅찾개, 좌표계들, TM경위도, 지도주소, 토목길잡이, 도면함, 측점성과대조, STA글, 골조모양, 골조자리, 골조덩어리옮기기, 함께합 } from './lib/토목작업.js'
+import { 노선목록, 측점표, 측점표CSV, 자리읽기, 땅찾개, 좌표계들, TM경위도, 지도주소, 토목길잡이, 도면함, 파일함, 부재도면, 도면줄기, 측점성과대조, STA글, 골조모양, 골조자리, 골조덩어리옮기기, 함께합 } from './lib/토목작업.js'
 import { 토목모델, 토목색, 토목비침 } from './lib/BIM토목.js'
 import { 부재보기 } from './lib/bim3d.js'
 import { 토목상태 } from './lib/토목읽기.js'
@@ -44,6 +44,7 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
   const [고른부재, set고른부재] = useState(null)
   const [골조같이, set골조같이] = useState(null)       // null = 같이 넣은 것이면 같이(묶음) · true/false = 고름
   const [예시닫음, set예시닫음] = useState(false)
+  const [보는, set보는] = useState(null)            // 📚 G440 도면함 «그 도면만 보기» — null = 모두 · Set(도면 줄기)
   const [내역, set내역] = useState(null)               // 📑 G398 내역 대조 — { 나무, 파일 } · G399 이 브라우저에 저장(예시는 안 함)
   const [내역상태번, set내역상태번] = useState(null)
   const [내역고침, set내역고침] = useState({})          // ✋ G399 사람이 고친 짝 {'묶음키|갈래': 공종i | null}
@@ -65,6 +66,7 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
       앞묶음.current = 새
       set자리(null); set고른부재(null); set골조같이(null); set예시닫음(false); set고른노선(t && t.활용.노선.length ? t.활용.노선[0].이름 : '')
       set내역고침({})                                 // 묶음 번호가 바뀌니 고친 짝은 처음대로(내역서는 그대로)
+      set보는(null)                                   // 📚 G440 새 도면이면 모두 보기로
     })
     토목상태.열기()
     return 끊
@@ -75,6 +77,18 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
   const 노선들 = useMemo(() => (활 ? 노선목록(활) : []), [활])
   const 길 = useMemo(() => 토목길잡이(T), [T])
   const 함 = useMemo(() => (T ? 도면함(T.그룹) : []), [T])
+  const 파일들 = useMemo(() => (T ? 파일함(T) : []), [T])     // 📚 G440 넣은 파일마다 한 줄
+  /* 📚 G440 그 도면만 — 평면에 그릴 것이 없고(단면 · 구조물 일반도) 3D 에만 있으면 3D 로 바로 */
+  const 선수 = useMemo(() => { const m = new Map(); const F = T && T.바탕파일; if (F) for (const f of F) m.set(f, (m.get(f) || 0) + 1); return m }, [T])
+  const 땅보임 = !보는 || 파일들.some((x) => 보는.has(x.줄기) && (x.갈래['측량'] || x.갈래['측량 성과표']))
+  const 보기세기 = (v) => {
+    set보는(v); 한번('|토목탭|도면만보기')
+    if (!v || !v.size || !T) return
+    const 고 = 파일들.filter((x) => v.has(x.줄기))
+    const 평 = 고.some((x) => (선수.get(x.i) || 0) > 0 || (T.활용.구조 || []).some((q) => q.자리 !== '옆' && 도면줄기((q.파일 || [])[0]) === x.줄기))
+    const 삼 = 고.some((x) => x.구조 || x.횡단 || x.건물)
+    if (!평 && 삼 && 보기 === '평면') set보기('3D')
+  }
   const 표 = useMemo(() => (활 && 고른노선 ? 측점표(활, 고른노선, { 땅 }) : []), [활, 고른노선, 땅])
   const 대조 = useMemo(() => (활 && T.측점성과 && T.측점성과.length ? 측점성과대조(활, T.측점성과) : []), [활, T])
   const 읽은자리 = useMemo(() => (활 && 자리 ? 자리읽기(활, 자리.x, 자리.y, 땅) : null), [활, 자리, 땅])
@@ -224,6 +238,8 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
   const 보기쓸 = 보기 === '내역' && 내역 ? '내역' : T ? (보기 === '내역' ? '평면' : 보기) : '3D'
   const 넣기단추 = (cls) => <button type="button" className={cls} onClick={() => 파일Ref.current && 파일Ref.current.click()} disabled={바쁨}>📐 도면 넣기(골조 · 토목 함께)</button>
   const 뺄ids = useMemo(() => (토 && 뺄번 >= 0 && 토.건물들[뺄번] ? new Set(토.건물들[뺄번].ids || []) : null), [토, 뺄번])
+  /* 📚 G440 «그 도면만 보기» — 골조는 골조로 세운 도면을 골랐을 때만 */
+  const 보는골조 = useMemo(() => (!보는 ? 골조부재 : ((T && T.골조파일) || []).some((f) => 보는.has(도면줄기(f))) ? 골조부재 : []), [보는, 골조부재, T])
   return (
     <>
       <div className="gmd-ws-top tmk-top">
@@ -265,15 +281,15 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
       ) : (
         <div className={'gmd-ws-body tmk-body view-' + 보기쓸 + (T ? '' : ' tmk-only')}>
           <aside className="gmd-ws-left tmk-left" aria-label="토목 길잡이 · 도면함">
-            <div className="gmd-guide tmk-guide">
-              <b>🧭 {T ? '토목 길잡이' : '골조만 — 토목 도면 없음'}</b>
+            <details className="gmd-guide tmk-guide" open={!T || 길.some((x) => x.상태 === '⚠')}>
+              <summary><b>🧭 {T ? '토목 길잡이' : '골조만 — 토목 도면 없음'}</b> <small className="muted">✓ {길.filter((x) => x.상태 === '✓').length} / {길.length}</small></summary>
               <ul className="tmk-steps">
                 {길.map((x) => <li key={x.k} className={'tmk-step s-' + (x.상태 === '✓' ? 'ok' : x.상태 === '▶' ? 'now' : x.상태 === '⚠' ? 'need' : 'opt')}><span className="tmk-mark">{x.상태}</span><span><b>{x.이름}</b><small>{x.글}</small></span></li>)}
                 {골조있음 && <li className={'tmk-step tmk-gstep s-' + (골조보기 ? (자 && 자.방법 === '옆' ? 'need' : 'ok') : 'opt')}><span className="tmk-mark">{골조보기 ? (자 && 자.방법 === '옆' ? '⚠' : '✓') : '·'}</span><span><b>🏢 골조</b><small>{골조보기 ? `부재 ${M.부재.length.toLocaleString('ko-KR')} · ${자 ? 자.글 : ''}` : '건축 탭 골조 — 오른쪽 «같이 보기» 를 켜면 같은 3D · 엑셀에'}</small></span></li>}
               </ul>
               {!T && <small className="muted">측량 · 계획평면 · 종횡단 도면을 같이 넣으면 노선 · 좌표 · 토공이 같은 3D 에 섭니다.</small>}
-            </div>
-            {T && <도면함칸 함={함} T={T} />}
+            </details>
+            {T && <도면함칸 함={함} 들={파일들} T={T} 보는={보는} set보는={보기세기} />}
           </aside>
           <section className="gmd-ws-center tmk-center">
             {(T || 내역) && <div className="gmd-ws-views" role="group" aria-label="보기">
@@ -281,13 +297,13 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
             </div>}
             {보기쓸 === '내역' && <내역대조칸 대조={내대} 내역={내역} 상태번={내대 && Number.isInteger(내대.상태번) ? 내대.상태번 : 0} set상태번={(i) => { set내역상태번(i); 한번('|토목탭|내역상태') }} 바꾸기={() => 내역Ref.current && 내역Ref.current.click()} 짝고치기={(k, v) => { set내역고침((P) => { const N = { ...P }; if (v === undefined) delete N[k]; else N[k] = v; return N }); 세기(/^(율|값)\|/.test(k) ? '|토목탭|값고침' : '|토목탭|짝고침') }} 짝처음={() => set내역고침({})} />}
             {보기쓸 !== '내역' && <div className="tmk-views">
-              {T && 보기쓸 !== '3D' && <평면칸 T={T} 고른노선={고른노선} 자리={자리} 누름={(x, y) => { set자리({ x, y }); 한번('|토목탭|자리') }} 노선누름={(n) => { set고른노선(n); 한번('|토목탭|노선') }} 골조={골조보기 ? 골조부재 : null} 골조원점={토 ? 토.원점 : null} />}
-              {보기쓸 !== '평면' && <삼디칸 T={T} 토={토} 뺄ids={뺄ids} 골조부재={골조부재} set고른부재={set고른부재} />}
+              {T && 보기쓸 !== '3D' && <평면칸 T={T} 보는={보는} 땅보임={땅보임} 고른노선={고른노선} 자리={자리} 누름={(x, y) => { set자리({ x, y }); 한번('|토목탭|자리') }} 노선누름={(n) => { set고른노선(n); 한번('|토목탭|노선') }} 골조={골조보기 ? 골조부재 : null} 골조원점={토 ? 토.원점 : null} />}
+              {보기쓸 !== '평면' && <삼디칸 T={T} 토={토} 보는={보는} 땅보임={땅보임} 뺄ids={뺄ids} 골조부재={보는골조} set고른부재={set고른부재} />}
             </div>}
             {T && 고른노선 && 보기쓸 !== '내역' && <측점표칸 이름={고른노선} 표={표} CSV받기={CSV받기} />}
           </section>
           <aside className="gmd-ws-right tmk-right" aria-label="좌표 · 노선 · 물량">
-            <함께칸 함께={함께} 자={자} T={T} M={M} 골조있음={골조있음} 골조보기={골조보기} 같이넣음={같이넣음} set골조같이={(v) => { set골조같이(v); if (v) 한번('|토목탭|골조같이') }} 건축으로={건축으로} />
+            <함께칸 함께={함께} 토={토} 자={자} T={T} M={M} 골조있음={골조있음} 골조보기={골조보기} 같이넣음={같이넣음} set골조같이={(v) => { set골조같이(v); if (v) 한번('|토목탭|골조같이') }} 건축으로={건축으로} />
             <div className="tmk-card tmk-nycard">
               <b>📑 내역 대조</b>
               {내역 && 내대 && !내대.틀림 ? (
@@ -299,7 +315,7 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
                 </>
               ) : 내역 && 내대 && 내대.틀림 ? <small className="gmd-warn">⚠ {내대.틀림}</small> : (
                 <>
-                  <small className="muted">내역서(설계 · 변경 2줄 · .xls · .xlsx)를 넣으면 공종마다 터파기 · 되메우기 · 성토 · 콘크리트 · 거푸집 · 철근을 건설맵 물량과 맞대 ✓ 맞음 · △ 비슷 · ✗ 다름 · — 건설맵에 아직 없음 으로 보여 줍니다.</small>
+                  <small className="muted">내역서(.xls · .xlsx)를 넣으면 공종마다 건설맵 물량과 맞대 봅니다.</small>
                   <div className="gmd-top"><button type="button" className="btn line sm" onClick={() => 내역Ref.current && 내역Ref.current.click()}>📑 내역서 넣기</button>{T && T.예시 && <button type="button" className="btn line sm tmk-nyex" onClick={예시내역}>🧪 예시 내역서</button>}</div>
                 </>
               )}
@@ -309,7 +325,7 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
               {활.실좌표 ? (
                 <>
                   <select value={계.k} onChange={(e) => 좌표계고르기(e.target.value)} aria-label="좌표계">{좌표계들.map((c) => <option key={c.k} value={c.k}>{c.이름}</option>)}</select>
-                  <small className="muted">{T.좌표계.까닭}</small>
+                  <details className="tmk-why"><summary>왜 이 좌표계?</summary><small className="muted">{T.좌표계.까닭}</small></details>
                   {가운데경위 && <div className="tmk-ll">현장 가운데 위도 {가운데경위.위도.toFixed(5)}° · 경도 {가운데경위.경도.toFixed(5)}° <a href={지도주소(가운데경위.위도, 가운데경위.경도)} target="_blank" rel="noopener noreferrer">🗺 지도에서 보기</a></div>}
                 </>
               ) : <small className="muted">{T.좌표계.까닭}</small>}
@@ -404,7 +420,7 @@ function FragmentRow({ d, 열림, 누름, 나무, 상태번, 쉼2, 묶음들, �
 }
 
 /* ── 🏢 + 🛣 함께 — 골조 같이 보기 · 물량 합 ── */
-function 함께칸({ 함께, 자, T, M, 골조있음, 골조보기, 같이넣음, set골조같이, 건축으로 }) {
+function 함께칸({ 함께, 토 = null, 자, T, M, 골조있음, 골조보기, 같이넣음, set골조같이, 건축으로 }) {
   return (
     <div className="tmk-card tmk-both">
       <b>🏢 + 🛣 함께 — 물량 합</b>
@@ -417,6 +433,17 @@ function 함께칸({ 함께, 자, T, M, 골조있음, 골조보기, 같이넣음
           <tbody>
             {함께.골조 && <tr><th>🏢 골조</th><td>{쉼(함께.골조.콘크리트, 2)}</td><td>{쉼(함께.골조.거푸집, 1)}</td><td>{쉼(함께.골조.철근, 3)}</td></tr>}
             {함께.토목 && <tr><th>🛣 토목(노선 · 구조물)</th><td>{쉼(함께.토목.콘크리트, 2)}</td><td>{쉼(함께.토목.거푸집, 1)}</td><td>—</td></tr>}
+            {함께.토목 && 토 && (() => {
+              /* 📚 G440 토목을 노선 · 구조물로 나눠 보임 — 소장님 「구조물이 달라…왜 이런거지?」(구조물 일반도를 안 넣으면 구조물 0) */
+              const 더 = (a) => a.reduce((s, x) => ({ c: s.c + ((x.합 && x.합.콘크리트) || 0), f: s.f + ((x.합 && x.합.거푸집) || 0) }), { c: 0, f: 0 })
+              const 노 = 더(토.노선들 || []), 구 = 더(토.구조물들 || [])
+              const 남c = 함께.토목.콘크리트 - 노.c - 구.c, 남f = 함께.토목.거푸집 - 노.f - 구.f
+              return <>
+                <tr className="tmk-sub"><th>· 노선(배수로 · 횡단)</th><td>{쉼(노.c, 2)}</td><td>{쉼(노.f, 1)}</td><td /></tr>
+                <tr className={'tmk-sub' + ((토.구조물들 || []).length ? '' : ' none')}><th>· 구조물 {(토.구조물들 || []).length}{(토.구조물들 || []).length ? '' : ' — 구조물 일반도 없음'}</th><td>{쉼(구.c, 2)}</td><td>{쉼(구.f, 1)}</td><td /></tr>
+                {(Math.abs(남c) > 0.01 || Math.abs(남f) > 0.1) && <tr className="tmk-sub"><th>· 그 밖(흙막이 등)</th><td>{쉼(남c, 2)}</td><td>{쉼(남f, 1)}</td><td /></tr>}
+              </>
+            })()}
             {함께.건물 && <tr><th>건물 평면(개략) {함께.건물.수}</th><td>{쉼(함께.건물.콘크리트, 2)}</td><td>{쉼(함께.건물.거푸집, 1)}</td><td>—</td></tr>}
             <tr className="sum"><th>합</th><td>{쉼(함께.합.콘크리트, 2)}</td><td>{쉼(함께.합.거푸집, 1)}</td><td>{함께.골조 ? 쉼(함께.합.철근, 3) : '—'}</td></tr>
           </tbody>
@@ -432,21 +459,45 @@ function 함께칸({ 함께, 자, T, M, 골조있음, 골조보기, 같이넣음
   )
 }
 
-/* ── 📚 도면함 ── */
-function 도면함칸({ 함, T }) {
+/* ── 📚 도면함 — 📚 G440 넣은 도면(파일)마다 한 줄 · ☑ 보기 · 이름을 누르면 그 도면만 ── */
+function 도면함칸({ 함, 들, T, 보는, set보는 }) {
   const 쓴 = 함.filter((x) => ['기준', '맞춤', '그대로', '끼움'].includes(x.상태))
   const 높이 = 함.filter((x) => x.상태 === '높이만')
   const 옆 = 함.filter((x) => x.상태 === '옆' || x.상태 === '꺼둠')
   const 줄 = (x, i) => <li key={x.번 + '-' + i} className={'tmk-dw s-' + x.상태}><span className="tmk-kind">{x.종류}</span><span className="tmk-dwn" title={x.파일}>{x.이름}</span><small>{x.글}</small></li>
+  const 켬 = (x) => !보는 || 보는.has(x.줄기)
+  const 바꿈 = (x, v) => {
+    const n = new Set(보는 || 들.map((d) => d.줄기))
+    if (v) n.add(x.줄기); else n.delete(x.줄기)
+    set보는(n.size >= new Set(들.map((d) => d.줄기)).size ? null : n)
+  }
+  const 혼자 = !!(보는 && 보는.size === 1)
   return (
-    <div className="tmk-box">
-      <b>📚 도면함 — 넣은 도면 {(T.파일 || []).length}장</b>
-      <small className="muted">좌표에 놓인 것 {쓴.length} · 높이(표)만 {높이.length} · 못 놓음 · 꺼 둠 {옆.length}</small>
-      <ul className="tmk-dws">{쓴.map(줄)}</ul>
-      {높이.length > 0 && <details><summary>종단 · 상세 · 표 {높이.length}</summary><ul className="tmk-dws">{높이.map(줄)}</ul></details>}
-      {옆.length > 0 && <details><summary>못 놓음 · 꺼 둠 {옆.length}</summary><ul className="tmk-dws">{옆.map(줄)}</ul></details>}
+    <div className="tmk-box tmk-files">
+      <div className="tmk-fhead">
+        <b>📚 도면함 — {들.length}장</b>
+        {보는 && <button type="button" className="btn line sm tmk-fall" onClick={() => set보는(null)}>👁 모두 보기</button>}
+      </div>
+      <small className="muted">{보는 ? `${보는.size}장만 보는 중 — 물량은 넣은 도면 모두` : '이름을 누르면 그 도면만 보입니다'}</small>
+      <ul className="tmk-flist">
+        {들.map((x) => (
+          <li key={x.i} className={(켬(x) ? 'on' : 'off') + (혼자 && 켬(x) ? ' solo' : '') + (x.판 || x.구조 || x.횡단 ? '' : ' none')}>
+            <input type="checkbox" checked={켬(x)} onChange={(e) => 바꿈(x, e.target.checked)} aria-label={x.줄기 + ' 보기'} />
+            <button type="button" className="tmk-fnm" onClick={() => set보는(혼자 && 켬(x) ? null : new Set([x.줄기]))} title={x.이름 + (혼자 && 켬(x) ? ' — 다시 모두 보기' : ' — 이 도면만 보기')}>
+              <span>{x.줄기}</span>
+              <small>{x.글}</small>
+            </button>
+          </li>
+        ))}
+      </ul>
       {(T.못읽은 || []).length > 0 && <small className="gmd-warn">읽지 못함: {T.못읽은.map((x) => x.이름).join(', ')}</small>}
-      {(T.파일 || []).length > 1 && <보는차례 파일={T.파일} />}
+      <details className="tmk-more">
+        <summary>판 자세히 — 좌표에 놓인 판 {쓴.length} · 높이(표)만 {높이.length} · 못 놓음 {옆.length}</summary>
+        <ul className="tmk-dws">{쓴.map(줄)}</ul>
+        {높이.length > 0 && <><small className="muted">종단 · 상세 · 표</small><ul className="tmk-dws">{높이.map(줄)}</ul></>}
+        {옆.length > 0 && <><small className="muted">못 놓음 · 꺼 둠</small><ul className="tmk-dws">{옆.map(줄)}</ul></>}
+        {(T.파일 || []).length > 1 && <보는차례 파일={T.파일} />}
+      </details>
     </div>
   )
 }
@@ -468,7 +519,7 @@ function 보는차례({ 파일 }) {
 
 /* ── 📍 고른 자리 ── */
 function 자리칸({ 읽은, 계, 실좌표, 노선고르기 }) {
-  if (!읽은) return <div className="tmk-card tmk-spot"><b>📍 고른 자리</b><small className="muted">평면을 누르면 그 자리의 X(북) · Y(동) · 땅 면 EL · 가까운 노선 STA · 지반고 · 계획고가 나옵니다.</small></div>
+  if (!읽은) return <div className="tmk-card tmk-spot"><b>📍 고른 자리</b><small className="muted">평면을 누르면 그 자리 좌표 · EL · STA 가 나옵니다.</small></div>
   const 경 = 실좌표 && 계.원 ? TM경위도(읽은.X, 읽은.Y, 계.원) : null
   return (
     <div className="tmk-card tmk-spot">
@@ -544,11 +595,35 @@ function 토공칸({ 토 }) {
 }
 
 /* ── 📐 평면(캔버스) — 노선 · 측점 눈금 · 측량점 · 구조물 · 도면 선 · 누르면 자리 ── */
-function 평면칸({ T, 고른노선, 자리, 누름, 노선누름, 골조 = null, 골조원점 = null }) {
+function 평면칸({ T, 보는 = null, 땅보임 = true, 고른노선, 자리, 누름, 노선누름, 골조 = null, 골조원점 = null }) {
   const 판 = useRef(null), 틀Ref = useRef(null)
+  const 활 = T.활용
+  /* 📚 G440 «그 도면만 보기» — 선마다 도면 번호(T.바탕파일) · 옛 저장(번호 없음)은 모두 그림 */
+  const 줄기들 = useMemo(() => (T.파일 || []).map(도면줄기), [T])
+  const 선보임 = useMemo(() => {
+    const F = T.바탕파일
+    if (!보는 || !F || !T.바탕 || F.length * 4 !== T.바탕.length) return null
+    const 번 = new Set(); 줄기들.forEach((z, i) => { if (보는.has(z)) 번.add(i) })
+    const u = new Uint8Array(F.length); for (let i = 0; i < F.length; i++) u[i] = 번.has(F[i]) ? 1 : 0
+    return u
+  }, [T, 보는, 줄기들])
+  const 구조보임 = (q) => !보는 || 보는.has(도면줄기(Array.isArray(q.파일) ? q.파일[0] : q.파일))
+  /* 노선 ↔ 도면 — 그 노선의 횡단 · 종단이 든 도면(고른 도면과 닿은 노선은 진하게 · 나머지는 흐리게) */
+  const 노선파일 = useMemo(() => { const m = new Map(); for (const t of [...(활.횡단 || []), ...(활.종단 || [])]) { if (!t.노선) continue; if (!m.has(t.노선)) m.set(t.노선, new Set()); for (const f of [].concat(t.원파일 || t.파일 || [])) m.get(t.노선).add(도면줄기(f)) } return m }, [활])
+  const 노선닿음 = (L) => !보는 || [...(노선파일.get(L.이름) || [])].some((z) => 보는.has(z))
+  const 보는틀값 = useMemo(() => 보는틀(), [T, 보는, 선보임])  // eslint-disable-line react-hooks/exhaustive-deps
+  function 보는틀() {
+    if (!보는) return null
+    let b = [Infinity, Infinity, -Infinity, -Infinity], n = 0
+    const 넣 = (x, y) => { if (x < b[0]) b[0] = x; if (y < b[1]) b[1] = y; if (x > b[2]) b[2] = x; if (y > b[3]) b[3] = y; n++ }
+    const B = T.바탕, ox = T.원점[0], oy = T.원점[1]
+    if (선보임) for (let i = 0; i < 선보임.length; i++) if (선보임[i]) { 넣(B[i * 4] + ox, B[i * 4 + 1] + oy); 넣(B[i * 4 + 2] + ox, B[i * 4 + 3] + oy) }
+    for (const q of T.활용.구조 || []) if (q.자리 !== '옆' && 구조보임(q)) for (const r of q.바닥판 || []) for (const [x, y] of r) 넣(x, y)
+    for (const L of 활.노선 || []) if (노선닿음(L)) for (let i = 0; i < L.줄.length; i += 5) 넣(L.줄[i + 1], L.줄[i + 2])
+    return n ? b : null
+  }
   const 뷰 = useRef(null)                      // { cx, cy (mm 일꾼 좌표), k (px/mm) }
   const 그림 = useRef(0)
-  const 활 = T.활용
   const 전체틀 = () => {
     if (!골조 || !골조.length || !골조원점) return T.틀
     const b = [...T.틀]
@@ -574,7 +649,7 @@ function 평면칸({ T, 고른노선, 자리, 누름, 노선누름, 골조 = nul
     const dpr = window.devicePixelRatio || 1
     const w = cv.clientWidth, h = cv.clientHeight
     if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr) }
-    if (!뷰.current) 맞추기(전체틀())
+    if (!뷰.current) 맞추기((보는 && 보는틀값) || 전체틀())      // 📚 G440 «그 도면만» 으로 열면 그 도면 자리로
     const v = 뷰.current
     const c = cv.getContext('2d')
     c.setTransform(dpr, 0, 0, dpr, 0, 0)
@@ -584,13 +659,13 @@ function 평면칸({ T, 고른노선, 자리, 누름, 노선누름, 골조 = nul
     /* 도면 선(바탕) — 원점 기준 Float32 */
     const B = T.바탕, ox = T.원점[0], oy = T.원점[1]
     if (B && B.length) {
-      c.strokeStyle = 어 ? 'rgba(160,170,185,.28)' : 'rgba(80,90,105,.22)'; c.lineWidth = 1
+      c.strokeStyle = 선보임 ? (어 ? 'rgba(200,210,225,.75)' : 'rgba(30,41,59,.62)') : (어 ? 'rgba(160,170,185,.28)' : 'rgba(80,90,105,.22)'); c.lineWidth = 1
       c.beginPath()
-      for (let i = 0; i + 3 < B.length; i += 4) { const a = sx(B[i] + ox), b = sy(B[i + 1] + oy), d = sx(B[i + 2] + ox), e = sy(B[i + 3] + oy); if ((a < 0 && d < 0) || (a > w && d > w) || (b < 0 && e < 0) || (b > h && e > h)) continue; c.moveTo(a, b); c.lineTo(d, e) }
+      for (let i = 0; i + 3 < B.length; i += 4) { if (선보임 && !선보임[i >> 2]) continue; const a = sx(B[i] + ox), b = sy(B[i + 1] + oy), d = sx(B[i + 2] + ox), e = sy(B[i + 3] + oy); if ((a < 0 && d < 0) || (a > w && d > w) || (b < 0 && e < 0) || (b > h && e > h)) continue; c.moveTo(a, b); c.lineTo(d, e) }
       c.stroke()
     }
     /* 측량점 */
-    if (활.땅) {
+    if (활.땅 && 땅보임) {
       const P = 활.땅.점; c.fillStyle = 어 ? 'rgba(140,200,120,.55)' : 'rgba(70,140,60,.55)'
       const r = v.k * 1000 > 2 ? 1.6 : 1
       for (let i = 0; i + 2 < P.length; i += 3) { const a = sx(P[i]), b = sy(P[i + 1]); if (a < -2 || a > w + 2 || b < -2 || b > h + 2) continue; c.fillRect(a - r / 2, b - r / 2, r, r) }
@@ -598,7 +673,7 @@ function 평면칸({ T, 고른노선, 자리, 누름, 노선누름, 골조 = nul
     /* 구조물 바닥 */
     c.strokeStyle = 어 ? '#5fd3c8' : '#0d9488'; c.lineWidth = 1.5
     for (const q of 활.구조 || []) {
-      if (q.자리 === '옆') continue
+      if (q.자리 === '옆' || !구조보임(q)) continue
       for (const r of q.바닥판 || []) { c.beginPath(); r.forEach(([x, y], i) => (i ? c.lineTo(sx(x), sy(y)) : c.moveTo(sx(x), sy(y)))); c.closePath(); c.stroke() }
     }
     /* 🏢 G397 골조(같이 볼 때) — 부재 바닥 모양(토목 3D 자리 = 원점 기준 → 일꾼 좌표) */
@@ -612,6 +687,7 @@ function 평면칸({ T, 고른노선, 자리, 누름, 노선누름, 골조 = nul
     /* 노선 · 측점 눈금 */
     c.font = '11px system-ui, sans-serif'
     for (const L of 활.노선) {
+      c.globalAlpha = 노선닿음(L) ? 1 : 0.22
       const on = L.이름 === 고른노선
       c.strokeStyle = on ? '#f97316' : (어 ? '#60a5fa' : '#2563eb'); c.lineWidth = on ? 3 : 2
       c.beginPath()
@@ -637,6 +713,7 @@ function 평면칸({ T, 고른노선, 자리, 누름, 노선누름, 골조 = nul
       c.fillText(L.이름, sx(a[1]) + 6, sy(a[2]) - 8)
       c.font = '11px system-ui, sans-serif'
     }
+    c.globalAlpha = 1
     /* 좌표 성과점 */
     for (const p of 활.성과점 || []) {
       const x = 활.바꿈 ? p.N * 1000 : p.E * 1000, y = 활.바꿈 ? p.E * 1000 : p.N * 1000
@@ -658,8 +735,11 @@ function 평면칸({ T, 고른노선, 자리, 누름, 노선누름, 골조 = nul
   }
   useEffect(() => { 뷰.current = null; 다시() }, [T])  // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!고른노선) 뷰.current = null; 다시() }, [골조, 골조원점])  // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (고른노선) { const b = 노선틀(고른노선); if (b) 맞추기(b) } 다시() }, [고른노선])  // eslint-disable-line react-hooks/exhaustive-deps
+  const 막연 = useRef(true)      // 📚 G440 처음 그릴 때 «그 도면만» 이면 고른 노선보다 그 도면 자리로
+  useEffect(() => { const 첫 = 막연.current; 막연.current = false; if (첫 && 보는 && 보는틀값) 맞추기(보는틀값); else if (고른노선) { const b = 노선틀(고른노선); if (b) 맞추기(b) } 다시() }, [고른노선])  // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { 다시() }, [자리])  // eslint-disable-line react-hooks/exhaustive-deps
+  const 보는첫 = useRef(true)
+  useEffect(() => { if (보는첫.current) { 보는첫.current = false; return } const b = 보는틀값; if (b) 맞추기(b); else if (!보는) 맞추기(전체틀()); 다시() }, [보는, 선보임, 땅보임])  // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const cv = 판.current; if (!cv) return undefined
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => 다시()) : null
@@ -703,10 +783,12 @@ function 평면칸({ T, 고른노선, 자리, 누름, 노선누름, 골조 = nul
     cv.addEventListener('pointerdown', 아래); cv.addEventListener('pointermove', 이동); cv.addEventListener('pointerup', 위); cv.addEventListener('pointercancel', 위)
     cv.addEventListener('wheel', 바퀴, { passive: false })
     return () => { if (ro) ro.disconnect(); cv.removeEventListener('pointerdown', 아래); cv.removeEventListener('pointermove', 이동); cv.removeEventListener('pointerup', 위); cv.removeEventListener('pointercancel', 위); cv.removeEventListener('wheel', 바퀴); cancelAnimationFrame(그림.current) }
-  }, [T, 고른노선, 자리])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [T, 고른노선, 자리, 선보임, 땅보임])  // eslint-disable-line react-hooks/exhaustive-deps
+  const 빈 = !!(보는 && !보는틀값)
   return (
     <div className="tmk-plan" ref={틀Ref}>
       <canvas ref={판} className="tmk-canvas" aria-label="토목 평면 — 누르면 그 자리 좌표 · 끌면 옮김 · 바퀴 · 두 손가락으로 크게" />
+      {빈 && <div className="tmk-planempty">고른 도면은 평면 자리에 그릴 것이 없습니다(단면 · 상세 · 표 · 자리를 못 찾은 구조물) — 🧊 3D 를 보십시오.</div>}
       <div className="tmk-planbar">
         <button type="button" className="btn line sm" onClick={() => { 맞추기(전체틀()); 다시() }}>⤢ 현장 전체</button>
         {고른노선 && <button type="button" className="btn line sm" onClick={() => { const b = 노선틀(고른노선); if (b) { 맞추기(b); 다시() } }}>🛣 고른 노선</button>}
@@ -716,17 +798,21 @@ function 평면칸({ T, 고른노선, 자리, 누름, 노선누름, 골조 = nul
 }
 
 /* ── 🧊 3D — 토목(배수로 · 구조물 · 땅) + 🏢 G397 골조(같은 좌표) ── */
-function 삼디칸({ T, 토, 뺄ids = null, 골조부재 = [], set고른부재 }) {
+function 삼디칸({ T, 토, 보는 = null, 땅보임 = true, 뺄ids = null, 골조부재 = [], set고른부재 }) {
   const 판 = useRef(null), 보기 = useRef(null), 맞춤 = useRef('')
   const [glErr, setGlErr] = useState('')
+  /* 📚 G440 «그 도면만 보기» — 바탕 선 · 토목 부재를 고른 도면 것만(땅 면은 늘 깖) */
+  const 번들 = useMemo(() => { if (!보는 || !T) return null; const n = new Set(); (T.파일 || []).forEach((f, i) => { if (보는.has(도면줄기(f))) n.add(i) }); return n }, [T, 보는])
   const 바탕 = useMemo(() => {
     if (!T || !T.바탕 || !T.바탕.length || !토) return null
     const a = T.바탕, o = 토.원점 || [0, 0], dx = T.원점[0] - o[0], dy = T.원점[1] - o[1]
     const 깔 = Number.isFinite(토.땅높이) ? 토.땅높이 : 0
+    const F = 번들 && T.바탕파일 && T.바탕파일.length * 4 === a.length ? T.바탕파일 : null
     const f = new Float32Array(a.length / 4 * 6)
-    for (let i = 0, j = 0; i + 3 < a.length; i += 4, j += 6) { f[j] = a[i] + dx; f[j + 1] = a[i + 1] + dy; f[j + 2] = 깔; f[j + 3] = a[i + 2] + dx; f[j + 4] = a[i + 3] + dy; f[j + 5] = 깔 }
-    return f
-  }, [T, 토])
+    let j = 0
+    for (let i = 0; i + 3 < a.length; i += 4) { if (F && !번들.has(F[i >> 2])) continue; f[j] = a[i] + dx; f[j + 1] = a[i + 1] + dy; f[j + 2] = 깔; f[j + 3] = a[i + 2] + dx; f[j + 4] = a[i + 3] + dy; f[j + 5] = 깔; j += 6 }
+    return j === f.length ? f : f.slice(0, j)
+  }, [T, 토, 번들])
   const 있음 = !!((토 && 토.부재.length) || 골조부재.length)
   useEffect(() => {
     if (!판.current || !있음) return
@@ -735,20 +821,20 @@ function 삼디칸({ T, 토, 뺄ids = null, 골조부재 = [], set고른부재 }
       if (어두움()) { const v0 = 보기.current; v0.bg = [0.086, 0.102, 0.129]; v0.bgT = [0.15, 0.17, 0.21]; v0.bgB = [0.06, 0.07, 0.09]; v0.선색 = [0.03, 0.04, 0.05]; v0.선알 = 0.6 }
     }
     const v = 보기.current
-    const 토부 = 토 ? 토.부재.filter((o) => o.종류 !== '터파기' && o.종류 !== '성토' && !(뺄ids && 뺄ids.has(o.id))) : []
+    const 토부 = 토 ? 토.부재.filter((o) => o.종류 !== '터파기' && o.종류 !== '성토' && !(뺄ids && 뺄ids.has(o.id)) && (o.종류 === '지형' ? 땅보임 : !보는 || 보는.has(부재도면(o)))) : []
     v.set부재([
       ...토부.map((o) => ({ id: o.id, 면: o.면, 선: o.선, 색: o.색 || 토목색[o.종류], 비침: 토목비침[o.종류] || 0 })),
       ...골조부재.map((d) => (d.면 ? { id: d.id, 면: d.면, 선: d.선, 색: d.색 } : { id: d.id, 판: d.판, z0: d.z0, z1: d.z1, 색: d.색 })),
     ], { 바닥: !토부.length, 바닥색: 어두움() ? [0.16, 0.18, 0.22] : [0.86, 0.88, 0.90] })
     v.set배경(바탕, 어두움() ? [0.62, 0.66, 0.72] : [0.36, 0.40, 0.46], 어두움() ? 0.18 : 0.16)
     /* 처음 · 넣은 것이 바뀔 때만 전체 맞춤(고르기 · 같이 보기를 켜고 끌 때 시점은 그대로 두지 않음 — 덩어리가 늘면 다시 맞춤) */
-    const 열쇠 = (토 ? 토.부재.length : 0) + '|' + 골조부재.length
+    const 열쇠 = (토 ? 토.부재.length : 0) + '|' + 골조부재.length + '|' + (보는 ? [...보는].join(',') : '')
     if (맞춤.current !== 열쇠) { v.fit('tilt'); 맞춤.current = 열쇠 }
     v.onPick = (id) => {
       if (id >= 골조ID) { const d = 골조부재.find((u) => u.id === id); set고른부재(d ? { 이름: '🏢 ' + d.이름, 크기: Number.isFinite(d.부피) ? '콘크리트 ' + 쉼(d.부피, 3) + ' ㎥' : '' } : null); v.set고름(d ? [id] : []); return }
       const o = id >= 0 ? 토부.find((u) => u.id === id) : null; set고른부재(o ? { 이름: o.이름, 크기: o.크기, 몫: o.몫 } : null); v.set고름(o ? [o.id] : [])
     }
-  }, [토, 바탕, 골조부재, 뺄ids, 있음])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [토, 바탕, 골조부재, 뺄ids, 있음, 보는, 땅보임])  // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { if (보기.current) { 보기.current.dispose(); 보기.current = null } }, [])
   return (
     <div className="tmk-3d">

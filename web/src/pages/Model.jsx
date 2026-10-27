@@ -37,6 +37,7 @@ const 토목판 = lazy(() => import('../토목판.jsx'))
 const 분야열쇠 = 'kcm.ws.field'
 
 const 저장열쇠 = 'kcm.model.v1'
+const 넣은열쇠 = 'kcm.ws.lastfiles'       // 📚 G440 마지막으로 넣은 도면 이름(골조가 없어도 건축 도면함에 보임)
 const 되돌림열쇠 = 'kcm.model.undo.v1'
 const 수글 = (n, k = 3) => (Number.isFinite(n) ? n.toLocaleString('ko-KR', { minimumFractionDigits: k, maximumFractionDigits: k }) : '')
 const rgb = (c) => 'rgb(' + c.map((v) => Math.round(v * 255)).join(',') + ')'
@@ -47,6 +48,7 @@ const 일람칸 = {
   슬라브: ['기호', '두께', '단변하부', '단변상부', '장변하부', '장변상부'],
   벽: ['기호', '두께', '수직', '수평', '배근'],
   기초: ['기호', '가로', '세로', '두께', '하부가로', '하부세로', '상부가로', '상부세로'],
+  계단: ['기호', '두께', '주근', '배력근', '참주근', '참배력근', '배근'],   // 🩹 G440 계단 칸이 없어 «부호 일람» 탭이 늘 멈췄음(Cannot read … 'map')
 }
 const 칸이름 = (종, 속) => ((배근칸[종] || []).find((c) => c[1] === 속) || [속])[0]
 const 칸보기 = (종, 속) => ((배근칸[종] || []).find((c) => c[1] === 속) || [])[2] || ''
@@ -210,7 +212,7 @@ export default function Model() {
           말.push('도면에서 부재 ' + r.부재수.toLocaleString('ko-KR') + '개를 좌표대로 세웠습니다' + (제안수 ? ' · 🟨 MAT · 계단 ' + 제안수 + '곳은 건설맵이 도면대로 먼저 세웠습니다(노랑 — 확인해 주세요)' : '') + (r.못옮김.length ? ' — 못 옮긴 ' + r.못옮김.length + '개는 오른쪽 «📐 도면에서 세움» 에서 보고 손으로 세우십시오' : ''))
           세움 = true
         } else 말.push('🏢 골조 모델은 그대로 두었습니다')
-      } else 말.push('🏢 골조: ' + (r0.골조틀림 || '골조(평면 · 일람표)를 찾지 못했습니다'))
+      } else 말.push(r0.토목 ? '🏢 건축 골조 없음(구조평면 · 부재 일람표가 없는 도면)' : '🏢 골조: ' + (r0.골조틀림 || '골조(평면 · 일람표)를 찾지 못했습니다'))   // 📚 G440 토목 도면만 넣었을 때는 짧게
       if (r0.토목) {
         r0.토목.골조파일 = r && 세움 ? [...new Set((r.평면 || []).map((p) => p.파일).filter(Boolean))] : []
         r0.토목.골조묶음 = 세움 ? r0.묶음 : null
@@ -219,6 +221,8 @@ export default function Model() {
         말.push('🛣 토목 — 노선 ' + (활.노선 || []).length + ' · 횡단 ' + (활.횡단 || []).reduce((n, t) => n + (t.노선 ? t.단면.length : 0), 0) + ' · 구조물 ' + (활.구조 || []).length + ' · 건물 ' + (활.건물 || []).length + (활.땅 ? ' · 측량점 ' + (활.땅.점.length / 3).toLocaleString('ko-KR') : '') + (분야 === '건축' ? ' (🛣 토목 탭에서 함께 봄)' : ''))
       } else if (r0.토목틀림) 말.push('🛣 ' + r0.토목틀림)
       set알림(말.join(' · ') + '.')
+      /* 📚 G440 건축 도면함이 «넣은 도면 없음» 으로만 보이던 것 — 골조가 없어도 무엇을 넣었는지 남김(이 브라우저) */
+      if (!옵.예시) { try { localStorage.setItem(넣은열쇠, JSON.stringify({ 파일: r0.파일 || [], 토목: !!r0.토목, 골조: (r && r.부재수) || 0, 세움, 때: Date.now() })) } catch (e) { /* 막힘 */ } }
       set도면상태(r0.못.length ? { k: 'err', 글: '읽지 못한 도면: ' + r0.못.join(', ') } : null)
       세기('|골조모델|도면넣기')
       if (세움 && r0.토목) 세기('|골조모델|함께넣기')
@@ -250,7 +254,7 @@ export default function Model() {
   }
 
   const 세움칸 = (작업판) => (
-    <세우기칸 M={M} setM={setM} S={S} 층={층} set층={set층} 도구={도구} set도구={set도구} 쓸도구={쓸도구} 부호={부호} set부호={set부호}
+    <세우기칸 토목으로={() => set분야('토목')} M={M} setM={setM} S={S} 층={층} set층={set층} 도구={도구} set도구={set도구} 쓸도구={쓸도구} 부호={부호} set부호={set부호}
       첫점={첫점} set첫점={set첫점} 고른={고른} set고른={set고른} 고른것={고른것} 보일층={보일층} set보일층={set보일층}
       glErr={glErr} setGlErr={setGlErr} 크게={크게} set크게={set크게} 한번세기={한번세기} 작업={작업판} 도면결과={도면결과} set도면결과={set도면결과}
       엑셀받음={엑셀받음} 걷기요청={걷기요청} 길행동={길행동} 원료Ref={원료Ref} 도면열기={() => 도면Ref.current && 도면Ref.current.click()} />
@@ -514,11 +518,11 @@ function 일람칸들({ M, setM }) {
           <h2 className="gmd-h"><span className="gmd-dot" style={{ background: rgb(종류색[종]) }} />{종} 일람 <small className="muted">({M.부재.filter((o) => o.종류 === 종).length}개 세움)</small></h2>
           <div className="gmd-tablewrap">
             <table className="gmd-table">
-              <thead><tr>{일람칸[종].map((k) => <th key={k}>{칸이름(종, k)}</th>)}<th>쓴 수</th><th /></tr></thead>
+              <thead><tr>{(일람칸[종] || ['기호']).map((k) => <th key={k}>{칸이름(종, k)}</th>)}<th>쓴 수</th><th /></tr></thead>
               <tbody>
-                {M.배근[종].map((r, i) => (
+                {(M.배근[종] || []).map((r, i) => (
                   <tr key={i}>
-                    {일람칸[종].map((k) => (
+                    {(일람칸[종] || ['기호']).map((k) => (
                       <td key={k}><input className={'gmd-in ' + (/^(가로|세로|지름|폭|춤|두께)$/.test(k) ? 'num' : k === '기호' ? 'name' : 'bar')} value={r[k] ?? ''} placeholder={칸보기(종, k)} onChange={(e) => 줄고침(종, i, k, e.target.value)} aria-label={종 + ' ' + 칸이름(종, k)} /></td>
                     ))}
                     <td className="num">{M.부재.filter((o) => o.종류 === 종 && o.부호 === r.기호).length}</td>
@@ -1125,7 +1129,7 @@ function 세우기칸(p) {
             }, 120)
             한번세기('|골조모델|겹침보기')
           }} />}
-          <도면함판 M={M} setM={setM} 원료Ref={원료Ref} set층={set층} 도면열기={도면열기} 체크보기={체크보기} set체크보기={(v) => { set체크보기(v); if (!v) set도면보기(null) }} 도면보기={도면보기} set도면보기={set도면보기} />
+          <도면함판 토목으로={p.토목으로} M={M} setM={setM} 원료Ref={원료Ref} set층={set층} 도면열기={도면열기} 체크보기={체크보기} set체크보기={(v) => { set체크보기(v); if (!v) set도면보기(null) }} 도면보기={도면보기} set도면보기={set도면보기} />
           {S && !S.오류 && 도구 !== '구간' && M.구간 && M.구간.length > 0 && <구간판 M={M} S={S} setM={setM} 구간색={구간색} set구간색={set구간색} 층={층} />}
           {S && !S.오류 && <층대조판 M={M} S={S} 층={층} 빨고름={빨고름} 층가기={(f) => { set층(f); set고른(null) }} 빨보기={(k) => {
             const x = (M.빠짐 || [])[k]; if (!x) return
@@ -1180,10 +1184,23 @@ const 층FT = (M, 층) => FT층(M.층.find((f) => f.이름 === 층))
  *   🔧 G393 소장님 「도면함이 어디 있지 빼고 추가하고 v표시로 할 수 있게 되어 있어야 하잖아」 → 늘 보임(위 «📚 도면함» 단추) · ☑ 체크 = 세움 · ☐ = 뺌(넣어 둠 — 다시 체크하면 고친 그대로)
  *   목록 · 넣어 둔 것은 모델에(M.도면함 · M.도면원) — 화면을 다시 열어도 체크로 빼고 넣음 · 처음 세우기 · 🔄 다시(도면대로)는 원본 도면이 있을 때(이 화면에서 넣은 뒤)
  */
-function 도면함판({ M, setM, 원료Ref, set층, 도면열기, 체크보기 = false, set체크보기 = null, 도면보기 = null, set도면보기 = null }) {
+function 도면함판({ M, setM, 원료Ref, set층, 도면열기, 체크보기 = false, set체크보기 = null, 도면보기 = null, set도면보기 = null, 토목으로 = null }) {
   const [알, set알] = useState('')
   const 목록 = M.도면함 || []
   if (!목록.length) {
+    /* 📚 G440 소장님 「도면을 넣었는데 도면함에 없다고 나와」 — 넣은 도면에 골조(구조평면 · 일람표)가 없을 때(토목 도면) */
+    let 넣은 = null
+    try { 넣은 = JSON.parse(localStorage.getItem(넣은열쇠) || 'null') } catch (e) { 넣은 = null }
+    if (넣은 && Array.isArray(넣은.파일) && 넣은.파일.length && !넣은.세움) {
+      return (
+        <div className="gmd-box gmd-box-empty" id="gmd-dwgbox" aria-label="도면함">
+          <div className="gmd-row"><b>📚 도면함</b> <span className="muted">넣은 도면 {넣은.파일.length}장</span></div>
+          <p className="gmd-p">{넣은.골조 ? <>도면에서 골조 {넣은.골조}개를 읽었지만 지금 모델을 그대로 두었습니다 — 다시 <button type="button" className="gmd-link" onClick={도면열기}>📐 도면 넣기</button>로 세울 수 있습니다.</> : <>이 도면들에는 <b>골조(구조평면 · 부재 일람표)</b>가 없어 건축 탭에는 세울 것이 없습니다.</>}{넣은.토목 ? ' 토목(노선 · 횡단 · 구조물)은 🛣 토목 탭에 있습니다.' : ''}</p>
+          {넣은.토목 && 토목으로 && <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={토목으로}>🛣 토목 탭 도면함에서 보기</button>}
+          <details className="gmd-p"><summary>넣은 도면 이름</summary><ul className="gmd-names">{넣은.파일.map((n, i) => <li key={i}>{String(n).replace(/\.(dxf|dwg)$/i, '')}</li>)}</ul></details>
+        </div>
+      )
+    }
     return (
       <div className="gmd-box gmd-box-empty" id="gmd-dwgbox" aria-label="도면함">
         <div className="gmd-row"><b>📚 도면함</b> <span className="muted">넣은 도면 없음</span></div>

@@ -380,9 +380,16 @@ export function 못찾음글(r, 옵 = {}) {
 /** 일꾼 결과 → 바탕 선(Float32 · 원점 빼고 · 30만 줄까지) — BIM 물량 화면 바탕선만들기와 같은 고름 */
 const 바탕꼴 = new Set(['측량', '평면', '종평', '노선', '땅면', '측량점'])
 const 바탕뺄층 = /콘크리트$|땅 면$|계획 면$|측량점|종단 깃$/
-export function 바탕선(r, 원점, 한도 = 300000) {
+export function 바탕선(r, 원점, 한도 = 300000, 파일번 = null) {
   const 켠 = new Set()
-  for (const g of r.그룹 || []) if (g.켬 && 바탕꼴.has(g.종류) && !(g.자리 && g.자리.how === '옆')) for (const k of g.층들 || []) 켠.add(k)
+  /* 📚 G440 선마다 어느 도면(r.파일 번호)에서 왔나 — 도면함에서 «그 도면만 보기» 용(파일번 배열을 주면 채움 · 모르면 65535) */
+  const 줄기들 = (r.파일 || []).map(도면줄기)
+  const 층파일 = new Map()
+  for (const g of r.그룹 || []) {
+    const fi = 줄기들.indexOf(도면줄기((g.파일 || [])[0]))
+    for (const k of g.층들 || []) if (!층파일.has(k)) 층파일.set(k, fi >= 0 ? fi : 65535)
+    if (g.켬 && 바탕꼴.has(g.종류) && !(g.자리 && g.자리.how === '옆')) for (const k of g.층들 || []) 켠.add(k)
+  }
   const 고른 = []
   let 총 = 0
   for (const l of r.layers || []) {
@@ -395,14 +402,54 @@ export function 바탕선(r, 원점, 한도 = 300000) {
   let n = 0, k = 0
   for (const l of 고른) {
     const p = l.pos
+    const fi = 층파일.has(l.floor) ? 층파일.get(l.floor) : 65535
     for (let i = 0; i + 5 < p.length; i += 6) {
       if (k++ % 걸음) continue
       out[n++] = p[i] + c[0] - 원점[0]; out[n++] = p[i + 1] + c[1] - 원점[1]
       out[n++] = p[i + 3] + c[0] - 원점[0]; out[n++] = p[i + 4] + c[1] - 원점[1]
+      if (파일번) 파일번.push(fi)
     }
   }
   return out.slice(0, n)
 }
+
+/** 📚 G440 도면 이름 줄기 — 확장자(DWG 를 DXF 로 바꾼 이름도) · «이름 · 노선글» 의 뒤는 뺌 → 같은 도면 */
+export const 도면줄기 = (n) => String(n || '').split(' · ')[0].replace(/\.(dxf|dwg)$/i, '').trim()
+
+/**
+ * 📚 G440 도면함(파일마다) — 소장님 「도면함에서 도면을 선택하면 그 도면만 보여주게」 · 「최대한 간편하게」
+ *   넣은 파일 하나가 한 줄: { i, 이름, 줄기, 쓰임: [['구조물', 1], ['횡단', 12] …], 씀(쓴 판 수), 판(전체 판 수), 글 }
+ *   쓰임 = 이 도면에서 실제로 나온 것(노선 횡단 단면 · 구조물 · 건물 · 측량점) + 판 갈래(평면 · 종단 · 상세 …)
+ */
+export function 파일함(T) {
+  const 파일 = (T && T.파일) || []
+  const 들 = 파일.map((이름, i) => ({ i, 이름, 줄기: 도면줄기(이름), 갈래: {}, 씀: 0, 판: 0, 횡단: 0, 구조: 0, 건물: 0 }))
+  const 찾 = new Map(들.map((x) => [x.줄기, x]))
+  const 활 = (T && T.활용) || {}
+  for (const g of (T && T.그룹) || []) {
+    if (g.종류 === '땅면' || g.종류 === '노선') continue
+    const x = 찾.get(도면줄기((g.파일 || [])[0])); if (!x) continue
+    x.판++
+    const 종 = 종이름[g.종류] || g.종류
+    x.갈래[종] = (x.갈래[종] || 0) + 1
+    if (g.켬 !== false && !(g.자리 && g.자리.how === '옆')) x.씀++
+  }
+  for (const t of 활.횡단 || []) { if (!t.노선) continue; const x = 찾.get(도면줄기(t.원파일 || t.파일)); if (x) x.횡단 += (t.단면 || []).length }
+  for (const q of 활.구조 || []) { const x = 찾.get(도면줄기(Array.isArray(q.파일) ? q.파일[0] : q.파일)); if (x) x.구조++ }
+  for (const b of 활.건물 || []) { const x = 찾.get(도면줄기((b.파일 || [])[0] || b.이름)); if (x) x.건물++ }
+  for (const x of 들) {
+    const 쓰임 = []
+    if (x.구조) 쓰임.push(['구조물', x.구조])
+    if (x.횡단) 쓰임.push(['횡단 단면', x.횡단])
+    if (x.건물) 쓰임.push(['건물', x.건물])
+    for (const [k, n] of Object.entries(x.갈래).sort((a, b) => b[1] - a[1])) if (!(k === '횡단' && x.횡단) && !(k === '구조물' && x.구조) && !(k === '건물' && x.건물)) 쓰임.push([k, n])
+    x.쓰임 = 쓰임
+    x.글 = !x.판 && !x.구조 && !x.횡단 ? '읽을 것 없음(표지 · 목차 · 그림만)' : 쓰임.slice(0, 3).map(([k, n]) => k + ' ' + n).join(' · ')
+  }
+  return 들
+}
+/** 📚 G440 3D 부재(토목모델) · 구조물이 어느 도면에서 왔나 — 줄기(모르면 '') */
+export const 부재도면 = (o) => 도면줄기(o && (o.원파일 || o.파일))
 /** 현장 틀(mm) — 노선 · 땅 · 구조물 · 성과점 둘레(바탕 선은 안 봄 — 먼 곳 그림에 끌려가지 않게) */
 export function 현장틀(활) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
@@ -427,11 +474,12 @@ export function 토목자료(r, 덧 = {}) {
   const 틀 = 현장틀(활) || [0, 0, 0, 0]
   const 원점 = [Math.round((틀[0] + 틀[2]) / 2), Math.round((틀[1] + 틀[3]) / 2)]
   const 글들 = [...(덧.좌표글 || []), ...(r.파일 || []), ...(r.그룹 || []).map((g) => g.제목)]
+  const 바파 = []
   return {
     판: 1, 때: Date.now(), 이름: 덧.이름 || '', 예시: !!덧.예시,
     파일: r.파일 || [], 못읽은: r.못읽은 || [], center: r.center || [0, 0, 0],
     활용: 활, 겹노선: 정.겹, 그룹: (r.그룹 || []).map((g) => ({ 번: g.번, 종류: g.종류, 파일: g.파일, 제목: g.제목, 켬: g.켬, 기준: g.기준, 자리: g.자리 ? { how: g.자리.how, n: g.자리.n, 회전: g.자리.회전, 까닭: g.자리.까닭, 먼곳: g.자리.먼곳 } : null })),
-    필요: r.필요 || null, 틀, 원점, 바탕: 바탕선(r, 원점),
+    필요: r.필요 || null, 틀, 원점, 바탕: 바탕선(r, 원점, 300000, 바파), 바탕파일: Uint16Array.from(바파),
     성과: 덧.성과 ? { 파일: 덧.성과.파일, n: 덧.성과.점.length } : null,
     측점성과: 덧.측점성과 || [],
     좌표계: 좌표계짐작(!!활.실좌표, 글들),

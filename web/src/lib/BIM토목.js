@@ -569,7 +569,7 @@ export function 토목모델(활, 가운데 = [0, 0, 0], 옵 = {}) {
       const 이음z = (m) => { const v = 높이에(m) - 기준[i]; return Number.isFinite(v) ? v : 0 }
       const 틀들 = 점들.map((m) => 틀만들기(m, 이음z(m)))
       const 측글 = L.간격 === 1 && s.측 >= -0.005 ? `${Math.floor((s.측 + 1e-6) / 1000)}+${(s.측 - Math.floor((s.측 + 1e-6) / 1000) * 1000).toFixed(2).padStart(6, '0')}` : 측점글(s.측)      /* 🛣 G236 도로(km 꼴)는 «0+020.00» */
-      const 공통 = { 노선: 이름, 노선번: 노.번, 측: s.측, 측글, 범위: [a, b], 파일: t.파일, 면적: s.면적 }
+      const 공통 = { 노선: 이름, 노선번: 노.번, 측: s.측, 측글, 범위: [a, b], 파일: t.파일, 원파일: t.원파일 || '', 면적: s.면적 }   // 📚 G440 원파일 = 넣은 도면(«그 도면만 보기»)
       /* 덩어리 하나 — 짝이 있는 묶은 이어 세우고(앞 짝 → 이 단면 → 뒤 짝, 가운데까지), 나머지는 그대로 세움 */
       const 세우기 = (k, 선있음) => {
         const 묶 = 묶들[i][k]
@@ -796,6 +796,43 @@ export function 토목모델(활, 가운데 = [0, 0, 0], 옵 = {}) {
   if (!Number.isFinite(땅높이)) {
     const g = 노선들.flatMap((n) => (활.횡단 || []).filter((t) => (t.노선 || '') === n.이름).flatMap((t) => t.단면.map((s) => s.지반고))).filter(Number.isFinite)
     if (g.length) { g.sort((a, b) => a - b); 땅높이 = g[g.length >> 1] * 1000 }
+  }
+  /* 📚 G440 현장 자리를 못 찾은(옆) 구조물 — 일꾼 좌표 그대로면 현장에서 몇 km 떨어져(현장 S 배수장 3.5 km) 3D 「전체」 가 쪼그라듦
+       → 건물(아래 ④)처럼 토목 덩어리 오른쪽 20 m 에 나란히 옮김. 자리만 옮김 — 물량(넓이 · 두께 · 높이)은 그대로 */
+  {
+    const 옆구 = 구조물들.filter((q) => q.자리 === '옆' && (q.ids || []).length)
+    if (옆구.length) {
+      const 옆id = new Set(옆구.flatMap((q) => q.ids))
+      let b = null
+      for (const 땅도 of [false, true]) {
+        for (const o of 부재) {
+          if (옆id.has(o.id) || (o.종류 === '지형') !== 땅도) continue
+          const a = o.면 || []
+          for (let i = 0; i + 2 < a.length; i += 3) {
+            if (!b) b = [a[i], a[i + 1], a[i], a[i + 1]]
+            else { if (a[i] < b[0]) b[0] = a[i]; if (a[i + 1] < b[1]) b[1] = a[i + 1]; if (a[i] > b[2]) b[2] = a[i]; if (a[i + 1] > b[3]) b[3] = a[i + 1] }
+          }
+        }
+        if (b) break
+      }
+      if (b) {
+        const 쪽 = new Map(부재.map((o) => [o.id, o]))
+        let 오른 = b[2]
+        for (const q of 옆구) {
+          let x0 = Infinity, y0 = Infinity, x1 = -Infinity
+          for (const id of q.ids) { const a = (쪽.get(id) || {}).면 || []; for (let i = 0; i + 2 < a.length; i += 3) { if (a[i] < x0) x0 = a[i]; if (a[i] > x1) x1 = a[i]; if (a[i + 1] < y0) y0 = a[i + 1] } }
+          if (!Number.isFinite(x0)) continue
+          const dx = 오른 + 20000 - x0, dy = b[1] - y0
+          for (const id of q.ids) {
+            const o = 쪽.get(id); if (!o) continue
+            for (const k of ['면', '선']) { const a = o[k]; if (!a || !a.length) continue; for (let i = 0; i + 2 < a.length; i += 3) { a[i] += dx; a[i + 1] += dy } }
+          }
+          q.옮김 = [dx, dy]
+          오른 += 20000 + (x1 - x0)
+          짐작.push(`«${q.이름}» 은 평면에서 자리를 못 찾아 3D 에서는 토목 오른쪽 20 m 에 세움(자리만 — 물량은 그대로)`)
+        }
+      }
+    }
   }
   /* ④ 🏢 G228 건물(건축 평면 — 층마다 겹선으로 읽은 벽 · 바닥 모양) — 부재 일람표가 없어도 덩어리로 세움(개략) */
   const 건물들 = []
