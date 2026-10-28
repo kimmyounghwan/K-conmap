@@ -1442,7 +1442,9 @@ export default function Bim() {
             </div>
           </div>
           <div className="bim-view">
-            <div className="bim-canvas bim-ws-hello"><div>📂 위 <b>도면 넣기</b>로 캐드 도면(DXF · DWG)을 넣으면 여기에 3D 로 세웁니다<br /><span className="muted">끌어다 놓아도 됩니다 · 건축 · 토목 여러 장을 한꺼번에</span></div></div>
+            <div className="bim-canvas bim-ws-hello">{상태.k === 'busy' || 토목상태.k === 'busy'
+              ? <div>⏳ <b>도면을 읽는 중입니다</b> — 다 읽으면 여기에 3D 가 섭니다<br /><span className="muted">{(상태.k === 'busy' ? 상태.글 : 토목상태.글) || ''}{상태.k !== 'busy' && 토목상태.p ? ' ' + Math.round(토목상태.p * 100) + '%' : ''}</span></div>
+              : <div>📂 위 <b>도면 넣기</b>로 캐드 도면(DXF · DWG)을 넣으면 여기에 3D 로 세웁니다<br /><span className="muted">끌어다 놓아도 됩니다 · 건축 · 토목 여러 장을 한꺼번에</span></div>}</div>
             <div className="bim-side"><div className="muted" style={{ fontSize: 13 }}>👆 3D 에서 부재 · 덩어리를 누르면 크기 · 자리 · 물량이 여기에 나옵니다. 그 아래에 물량 표가 붙습니다.</div></div>
           </div>
         </div>
