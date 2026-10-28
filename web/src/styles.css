@@ -9523,3 +9523,37 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 }
 .bim .bim-ws > .bim-ws-l .bim-box-list { max-height: 34vh; overflow-y: auto; overscroll-behavior: contain; }   /* 도면함이 길어도 도구가 바로 보이게 */
 @media (max-width: 760px) { .bim .bim-ws > .bim-ws-l .bim-box-list { max-height: none; } }
+
+/* 🖥 G447 골조 수량산출 작업 화면(적산컨맵처럼) — 위 막대(단계 · 도면 넣기 · 예시 · 엑셀 · 전체 화면 · 나가기) · 왼쪽 도면 · 3D · 오른쪽 표 · 결과 · 보통 화면에서는 감싸개가 없는 것처럼 */
+.gg .gg-ws-body, .gg .gg-ws-l, .gg .gg-ws-r { display: contents; }
+.gg .gg-ws-open { width: auto; }
+.gg.gg-ws { position: fixed; inset: 0; z-index: 1200; max-width: none; width: auto; margin: 0; padding: 0; background: var(--bg); display: flex; flex-direction: column; overflow: hidden; }
+.gg.gg-ws > .gg-ws-top { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.gg .gg-ws-name { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px; min-width: 0; }
+.gg .gg-ws-brand { color: var(--accent, #2563eb); font-weight: 800; }
+.gg .gg-ws-file { font-weight: 600; }
+.gg .gg-ws-tabs { display: inline-flex; gap: 4px; overflow-x: auto; flex: 1 1 auto; min-width: 0; }
+.gg .gg-ws-tabs .tp-tab { padding: 6px 11px; font-size: 13px; white-space: nowrap; }
+.gg .gg-ws-acts { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
+.gg .gg-ws-acts .btn { width: auto; }
+.gg.gg-ws > .gg-ws-head { flex: 0 0 auto; max-height: 21vh; overflow-y: auto; overscroll-behavior: contain; margin: 8px 12px 0; padding: 6px 12px; font-size: 13px; }   /* 알림(자동으로 채움 · 묻기 · 읽기 점검)은 위에 얇게 — 넘치면 그 안에서 내림 */
+.gg.gg-ws > .gg-ws-head > .tl-h1, .gg.gg-ws > .gg-ws-head > .note, .gg.gg-ws > .gg-ws-head > .pdfsafe, .gg.gg-ws > .gg-ws-head > .gg-top { display: none; }
+.gg.gg-ws > .gg-ws-head.gg-ws-hide { display: none; }
+.gg.gg-ws > .tp-tabs { display: none; }
+.gg.gg-ws > .gg-ws-body { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 10px; padding: 8px 12px 12px; }
+.gg.gg-ws > .gg-ws-body.one { grid-template-columns: minmax(0, 1fr); }
+.gg.gg-ws > .gg-ws-body.one > .gg-ws-l { display: none; }
+.gg.gg-ws .gg-ws-l, .gg.gg-ws .gg-ws-r { display: block; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.gg.gg-ws .gg-ws-l > *, .gg.gg-ws .gg-ws-r > * { margin-bottom: 10px; }
+@media (max-width: 1100px) {
+  .gg.gg-ws > .gg-ws-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+  .gg.gg-ws > .gg-ws-body.one { grid-template-rows: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .gg.gg-ws { overflow-y: auto; }
+  .gg.gg-ws > .gg-ws-body { display: flex; flex-direction: column; flex: 0 0 auto; min-height: auto; padding: 8px; }
+  .gg.gg-ws .gg-ws-l, .gg.gg-ws .gg-ws-r { overflow: visible; }
+  .gg.gg-ws > .gg-ws-head { max-height: none; }
+  .gg .gg-ws-name { max-width: 100%; flex: 1 1 100%; }
+  .gg .gg-ws-acts { margin-left: 0; }
+}

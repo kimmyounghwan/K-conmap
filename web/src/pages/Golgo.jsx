@@ -41,6 +41,7 @@ import { 줄자리, 도형상자, 모은상자, 누른줄들 } from '../lib/도�
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import 골조3D칸 from '../골조3D칸.jsx'   // 🧊 2026-10-16 (가) ④ 결과 안 3D
 import { 세기 } from '../lib/받은수.jsx'
+import { 나운영자 } from '../lib/운영자.js'   // 🖥 G447 작업 화면(적산컨맵처럼 · 🔒 지금은 소장님 브라우저만)
 import { askAfter } from '../AskComment'
 import 받기검사판, { 엑셀내려주기 } from '../받기검사판.jsx'   // 📋 G444 받기 전 검사
 import { use화면상태 } from '../lib/길기록.js'
@@ -112,6 +113,28 @@ export default function Golgo() {
   const [보는중, set보는중] = useState(null)       // 마우스 올린 도형
   const 파일칸 = useRef(null)
   const 자동칸 = useRef(null)
+  /* 🖥 G447 작업 화면(적산컨맵 · BIM 물량처럼 화면 전체 — 위 막대 · 왼쪽 도면/3D · 오른쪽 표/결과) · 🔒 운영자(소장님 브라우저)만 단추 · ?ws=1 */
+  const [운영자, set운영자] = useState(false)
+  const [작업, set작업0] = useState(false)
+  const 작업Ref = useRef(null)
+  useEffect(() => {
+    let 살 = true
+    나운영자().then((v) => { if (!살 || !v) return; set운영자(true); try { if (new URLSearchParams(window.location.search).get('ws') === '1') set작업0(true) } catch (e) { /* 주소 못 읽음 */ } }).catch(() => {})
+    return () => { 살 = false }
+  }, [])
+  const set작업 = (v) => {
+    set작업0(v)
+    try { const u = new URL(window.location.href); if (v) u.searchParams.set('ws', '1'); else u.searchParams.delete('ws'); window.history.replaceState(window.history.state, '', u.pathname + u.search + u.hash) } catch (e) { /* 주소 못 바꿈 */ }
+    if (!v && document.fullscreenElement) { try { document.exitFullscreen() } catch (e) { /* 무시 */ } }
+  }
+  useEffect(() => {
+    if (!작업) return
+    세기('|골조|작업화면')
+    const 전 = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = 전 }
+  }, [작업])
+  const 전체화면 = () => { const el = 작업Ref.current; try { if (document.fullscreenElement) document.exitFullscreen(); else if (el && el.requestFullscreen) el.requestFullscreen() } catch (e) { /* 막힘 */ } }
   const [자동, set자동] = useState(null)           // ⚡ 도면에서 읽은 것 {R, 도면:[{이름, buf}], 묻기} — 적은 것이 있으면 바꿀지 여쭘
   const [자동상태, set자동상태] = useState({ k: 'idle' })
   const [점검들, set점검들] = useState(null)       // 🔎 G245 읽기 점검 — 자동으로 읽은 도면들(모델 · 이름)
@@ -447,10 +470,35 @@ export default function Golgo() {
   const 동으로 = (k) => { set동i(k); set선택(null) }
   const 합 = (항목) => 결과.집계.합.filter((x) => x.항목 === 항목).reduce((s, x) => s + x.산출, 0)
 
+  /* 🖥 G447 작업 화면 — 위 막대 · 왼쪽에 무엇이 있는지 · 첫 칸에 알릴 것이 있는지 */
+  const 결3D = !!(자동 && 자동.됨 && 자동.들 && 자동.R && 자동.R.있음)
+  const 결힌트 = (공사.동 || []).some((d) => Object.values(d.주자료 || {}).some((a) => Array.isArray(a) && a.length))
+  const 왼쪽있음 = 탭 === '주' || 탭 === '배' || 탭 === '유' || (탭 === '결과' && (결3D || 결힌트 || !!모델))
+  const 머리있음 = !!(지울까 || 예시묻기 || (자동상태.k !== 'idle' && 자동상태.k !== 'ok') || 도.도면상태 || 점검들 || 판들 || (자동 && (자동.묻기 || 자동.됨 || 자동.없음)))
+  const 작업막대 = (
+    <div className="gg-ws-top no-print">
+      <b className="gg-ws-name"><span className="gg-ws-brand">🏗 골조 수량산출</span> <span className="gg-ws-file">{공사.이름 || 도면이름 || ''}</span></b>
+      <span className="gg-ws-tabs" role="tablist" aria-label="단계">
+        {[['개요', '① 개요'], ['배', '② 배근표'], ['주', '③ 주자료'], ['유', 'unit'], ['결과', '④ 결과']].map(([k, t]) => (
+          <button key={k} type="button" role="tab" aria-selected={탭 === k} className={'tp-tab' + (탭 === k ? ' on' : '')} onClick={() => { set탭(k); set선택(null) }}>{t}</button>
+        ))}
+      </span>
+      <span className="gg-ws-acts">
+        <button type="button" className="btn sm" onClick={() => 자동칸.current?.click()}>⚡ 도면 넣기</button>
+        <button type="button" className="btn line sm" onClick={() => 파일칸.current?.click()}>📂 도면만 열기</button>
+        <button type="button" className="btn line sm" onClick={() => (비었나 ? 예시열기() : set예시묻기(true))}>🧪 예시</button>
+        <button type="button" className="btn line sm" onClick={엑셀받기} disabled={받는중}>{받는중 ? '만드는 중…' : '⬇ 엑셀'}</button>
+        <button type="button" className="btn line sm" onClick={전체화면} title="전체 화면(한 번 더 누르면 돌아옴)">⛶ 전체 화면</button>
+        <button type="button" className="btn sm" onClick={() => set작업(false)}>✕ 나가기</button>
+      </span>
+    </div>
+  )
+
   return (
-    <div className="wrap gg">
+    <div className={'wrap gg' + (작업 ? ' gg-ws' : '')} ref={작업 ? 작업Ref : undefined}>
+      {작업 && 작업막대}
       <받기검사판 검사={받기검사} 닫기={() => set받기검사(null)} 받기={() => { if (!받기검사) return; 엑셀내려주기(받기검사.바이트, 받기검사.이름); askAfter('jeoksan'); set받기검사({ ...받기검사, 알고: true }) }} />
-      <div className="card no-print">
+      <div className={'card no-print gg-ws-head' + (작업 && !머리있음 ? ' gg-ws-hide' : '')}>
         <h1 className="tl-h1" style={{ marginTop: 0 }}>🏗 골조 수량산출 <span className="count">· 도면을 넣으면 자동</span></h1>
         <div className="note sm">
           <b>구조평면도 + 부재 일람표를 넣으면 저절로</b> 배근표·주자료(골조산출양식 칸 그대로)를 채워 <b>콘크리트 · 거푸집 · 철근</b>을 층별·부재별로 셉니다 → <b>엑셀</b>.
@@ -463,6 +511,7 @@ export default function Golgo() {
           <button type="button" className="btn line sm" onClick={() => (비었나 ? 예시열기() : set예시묻기(true))}>🧪 예시로 해 보기</button>
           <button type="button" className="btn ghost sm" onClick={() => set탭('결과')}>📊 결과 보기</button>
           {!비었나 && <button type="button" className="btn ghost sm" onClick={() => set지울까(true)}>🗑 새로 시작</button>}
+          {운영자 && <button type="button" className="btn sm gg-ws-open" onClick={() => set작업(true)} title="적산컨맵처럼 화면 전체로 — 왼쪽 도면 · 3D, 오른쪽 표 · 결과">🖥 작업 화면</button>}
         </div>
         {지울까 && (
           <div className="gg-ask">
@@ -515,6 +564,10 @@ export default function Golgo() {
         ))}
       </div>
 
+      {/* 🖥 G447 작업 화면 — 왼쪽(도면 · 3D) · 오른쪽(표 · 결과) · 보통 화면에서는 감싸개가 없는 것처럼(display: contents) */}
+      <div className={'gg-ws-body' + (왼쪽있음 ? '' : ' one')}>
+      <div className="gg-ws-l">
+
       {(탭 === '주' || 탭 === '배' || 탭 === '유') && (
         <도면판 도={도} 강조={강조} 찍었다={찍었다} 두점={두점} set두점={set두점} 두점찍었다={두점찍었다} set보는중={set보는중}
           알림={알림} 열기={() => 파일칸.current?.click()} 빈글="구조평면도·일람표가 있는 도면을 여세요. 도면 없이 표에 직접 적어도 됩니다."
@@ -523,6 +576,21 @@ export default function Golgo() {
             : <>«{선택.key}» 칸은 도면에서 받지 않습니다 — 직접 적어 주십시오.</>)
             : <>아래 표에서 채울 칸을 누른 뒤, 도면을 누르십시오. <span className="muted">(끌면 옮기기 · 휠·두 손가락 = 확대)</span></>} />
       )}
+
+      {/* 🧊 2026-10-16 (가) 소장님 「골조는 왜 3D가 없지?」 — ⚡ 자동으로 읽은 도면이면 ④ 결과 안에서 3D · 부재 누르면 물량 · 산출서 줄 누르면 3D 에서 파랗게 */}
+      {탭 === '결과' && (자동 && 자동.됨 && 자동.들 && 자동.R && 자동.R.있음
+        ? <골조3D칸 들={자동.들} R={자동.R} 공사={공사} 짚음={짚음} />
+        : (공사.동 || []).some((d) => Object.values(d.주자료 || {}).some((a) => Array.isArray(a) && a.length)) && (
+          <div className="card no-print gz3-hint">🧊 <b>3D 로 보기</b> — 위 <b>⚡ 도면 넣으면 자동</b>으로 구조평면도 · 일람표를 넣으면 여기서 3D 로 보고, 부재를 누르면 그 부재 물량이 나옵니다. <Link to="/jeoksan/bim">🧊 BIM 물량</Link>에서도 됩니다.</div>
+        ))}
+      {탭 === '결과' && 모델 && (
+        <도면판 도={도} 강조={결과강조} 찍었다={결과찍었다} set보는중={set보는중} 붙음={!좁은화면()} 네모들={결과네모} 가볼곳={가볼} 두점단추={false}
+          알림={결과알림 ? 결과알림.글 : ''} 알림좋음={!(결과알림 && 결과알림.warn)} 열기={() => 파일칸.current?.click()}
+          덧단추={결과알림 && 결과알림.열도면 ? <button type="button" className="chip on" onClick={() => { const d = 결과알림.열도면; 도면열기(d.buf.slice(0), d.이름); set결과알림({ 글: '«' + d.이름 + '» 도면을 여는 중…' }) }}>📂 그 도면 열기</button> : null}
+          안내={<>🔗 <b>산출서 줄을 누르면</b> 도면에서 그 자리가 <b style={{ color: '#f97316' }}>주황색</b>으로 빛나고, <b>도면을 누르면</b> 그 자리에서 나온 산출서 줄이 <b style={{ color: '#2563eb' }}>파랗게</b> 칠해집니다.</>} />
+      )}
+      </div>
+      <div className="gg-ws-r">
 
       {탭 === '개요' && <개요 공사={공사} set공사={set공사} 기준고치기={기준고치기} 동k={동k} 동으로={동으로} 도={도} 열기={() => 파일칸.current?.click()} />}
 
@@ -606,18 +674,6 @@ export default function Golgo() {
         </div>
       )}
 
-      {/* 🧊 2026-10-16 (가) 소장님 「골조는 왜 3D가 없지?」 — ⚡ 자동으로 읽은 도면이면 ④ 결과 안에서 3D · 부재 누르면 물량 · 산출서 줄 누르면 3D 에서 파랗게 */}
-      {탭 === '결과' && (자동 && 자동.됨 && 자동.들 && 자동.R && 자동.R.있음
-        ? <골조3D칸 들={자동.들} R={자동.R} 공사={공사} 짚음={짚음} />
-        : (공사.동 || []).some((d) => Object.values(d.주자료 || {}).some((a) => Array.isArray(a) && a.length)) && (
-          <div className="card no-print gz3-hint">🧊 <b>3D 로 보기</b> — 위 <b>⚡ 도면 넣으면 자동</b>으로 구조평면도 · 일람표를 넣으면 여기서 3D 로 보고, 부재를 누르면 그 부재 물량이 나옵니다. <Link to="/jeoksan/bim">🧊 BIM 물량</Link>에서도 됩니다.</div>
-        ))}
-      {탭 === '결과' && 모델 && (
-        <도면판 도={도} 강조={결과강조} 찍었다={결과찍었다} set보는중={set보는중} 붙음={!좁은화면()} 네모들={결과네모} 가볼곳={가볼} 두점단추={false}
-          알림={결과알림 ? 결과알림.글 : ''} 알림좋음={!(결과알림 && 결과알림.warn)} 열기={() => 파일칸.current?.click()}
-          덧단추={결과알림 && 결과알림.열도면 ? <button type="button" className="chip on" onClick={() => { const d = 결과알림.열도면; 도면열기(d.buf.slice(0), d.이름); set결과알림({ 글: '«' + d.이름 + '» 도면을 여는 중…' }) }}>📂 그 도면 열기</button> : null}
-          안내={<>🔗 <b>산출서 줄을 누르면</b> 도면에서 그 자리가 <b style={{ color: '#f97316' }}>주황색</b>으로 빛나고, <b>도면을 누르면</b> 그 자리에서 나온 산출서 줄이 <b style={{ color: '#2563eb' }}>파랗게</b> 칠해집니다.</>} />
-      )}
       {탭 === '결과' && (
         <결과판 공사={공사} set공사={set공사} 결과={결과} 합={합} 엑셀받기={엑셀받기} 받는중={받는중} 짚기={모델 ? 짚기 : null} 짚음열쇠={곳열쇠(짚음)} 짚은={짚은} 가기={(곳) => {
           if (!곳) return
@@ -648,6 +704,8 @@ export default function Golgo() {
           <Link className="btn ghost sm" to="/tools/dxfpdf">📄 도면 PDF</Link>
           <Link className="btn ghost sm" to="/tools">🧰 도구 모두</Link>
         </div>
+      </div>
+      </div>
       </div>
     </div>
   )
