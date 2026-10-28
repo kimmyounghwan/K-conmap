@@ -37,10 +37,18 @@ function 시트판(s) {
 /**
  * @param sheets writeWorkbook 시트들(수식 칸 {f} 그대로 둬도 됨)
  * @param 맞댈 [{ 이름, 시트: '이름' | RegExp, 줄: '첫 칸 글', 열: '머리 글', 값: 화면 값, 오차: 0.01, 단위: '㎥', 자리: 2, 줄합: 첫 칸이 «줄» 인 줄을 모두 더함 }]
- * @param 옵 { 합계말: ['합계'] }
+ * @param 옵 { 합계말: ['합계'], 합계안봄: /시트 이름/ — 합계를 안 볼 시트(도면에서 읽은 표) }
  * @returns { 통과, 줄: [{ 됨, 글 }], 바이트(검사 결과 시트 붙인 파일) }
  */
 export function 받기전검사(sheets, 맞댈 = [], 옵 = {}) {
+  try { return 검사본(sheets, 맞댈, 옵) } catch (e) {
+    /* 📋 G444 검사가 멈춰도 받을 길은 남김 — 왜 멈췄는지 알리고 «알고 받기» 는 검사 없이 만든 파일 */
+    let 바이트 = null
+    try { 바이트 = writeWorkbook(sheets) } catch (e2) { /* 파일도 못 만듦 */ }
+    return { 통과: false, 줄: [{ 됨: false, 글: '받기 전 검사를 하다 멈췄습니다 — ' + String((e && e.message) || e).slice(0, 160) + (바이트 ? ' · «알고 받기» 를 누르면 검사 없이 만든 파일을 받습니다' : ' · 파일도 만들지 못했습니다') }], 바이트 }
+  }
+}
+function 검사본(sheets, 맞댈, 옵) {
   const 합계말 = 옵.합계말 || ['합계']
   const 원 = writeWorkbook(sheets)
   const 값판 = 값만으로(원)
@@ -57,6 +65,7 @@ export function 받기전검사(sheets, 맞댈 = [], 옵 = {}) {
   let 합본 = 0
   const 합틀 = []
   for (const 판 of 판들) {
+    if (옵.합계안봄 && 옵.합계안봄.test(판.이름)) continue        // 📋 G444 도면에서 읽은 표(«표 …»)의 합계는 도면 것 — 우리 셈이 아님
     for (let r = 2; r <= 판.끝행; r++) {
       if (!합계말.includes(글(판.값(r, 1)).trim())) continue
       for (let c = 2; c <= 판.끝열; c++) {
@@ -74,6 +83,26 @@ export function 받기전검사(sheets, 맞댈 = [], 옵 = {}) {
   /* ④ 맞댈 값 = 엑셀 값 */
   for (const m of 맞댈) {
     const 판 = 판들.find((p) => (m.시트 instanceof RegExp ? m.시트.test(p.이름) : p.이름 === m.시트))
+    if (m.여럿) {
+      /* 📋 G444 시트 줄 여럿 = 셈 결과(줄마다 앞 칸들 [항목, 규격, 단위] · [번호]) — 한 줄로 · 다른 것만 적음 */
+      if (!판) { 줄.push({ 됨: false, 글: `${m.이름} — 시트 «${m.시트 instanceof RegExp ? m.시트.source : m.시트}» 가 엑셀에 없음` }); continue }
+      const c = 판.머리.get(m.열)
+      const 칸수 = Math.max(1, ...m.여럿.map((x) => x.줄.length))
+      const 열쇠 = (a) => a.map((v) => String(v ?? '').trim()).join('\u0001')
+      const 자리표 = new Map()
+      for (let rr = 2; rr <= 판.끝행; rr++) { const k = 열쇠(Array.from({ length: 칸수 }, (_, j) => 글(판.값(rr, j + 1)))); if (!자리표.has(k)) 자리표.set(k, rr) }
+      const 틀 = [], 못 = []
+      for (const x of m.여럿) {
+        const 키 = [...x.줄, ...Array(칸수 - x.줄.length).fill('')]
+        const r = 자리표.get(열쇠(키)) || 0
+        const 이름 = x.줄.filter((z) => z !== '' && z != null).join(' ')
+        const 엑 = r && c ? 수(판.값(r, c)) : null
+        if (엑 === null) { 못.push(이름); continue }
+        if (Math.abs(엑 - x.값) > (x.오차 ?? m.오차 ?? 0.011)) 틀.push(`${이름} 엑셀 ${쉼(엑, 3)} ≠ 화면 ${쉼(x.값, 3)}`)
+      }
+      줄.push({ 됨: !틀.length && !못.length, 글: 틀.length || 못.length ? `${m.이름} — 다름 ${틀.length} · 못 찾음 ${못.length}: ${[...틀, ...못.map((z) => z + ' 줄 없음')].slice(0, 4).join(' · ')}${틀.length + 못.length > 4 ? ' …' : ''}` : `${m.이름} — ${m.여럿.length.toLocaleString('ko-KR')}줄 모두 화면 셈과 같음` })
+      continue
+    }
     const 자리 = m.자리 ?? 2, 단위 = m.단위 || ''
     if (!판) { 줄.push({ 됨: false, 글: `${m.이름} — 시트 «${m.시트}» 가 엑셀에 없음` }); continue }
     const c = 판.머리.get(m.열)
@@ -138,4 +167,36 @@ export function 토목맞댈(토, 함께, 옵 = {}) {
     줄.push({ 이름: '구조물 «' + q.이름 + '» 부분별 합 = 집계', 시트: '구조물(부분별)', 줄: q.이름, 열: '콘크리트(㎥)', 값: q.합.콘크리트, 단위: '㎥', 줄합: true, 오차: 0.011 + (q.ids || []).length * 0.00005 })
   }
   return 줄
+}
+
+/** 📋 G444 «집계» 시트(골조 · 마감 엑셀) 줄마다 = 셈 결과 집계 — 합: [{항목|재료, 규격, 단위, 산출|수량}] · 열 = 수량 칸 머리 · 줄은 [항목, 규격, 단위] 로 찾음 */
+export function 집계맞댈(합, 열 = '산출수량', 이름 = '«집계» 시트 = 화면 집계', 시트 = '집계') {
+  const 여럿 = (합 || []).map((x) => ({ 줄: [x.항목 ?? x.재료 ?? '', x.규격 ?? '', x.단위 ?? ''], 값: +(x.산출 ?? x.수량) })).filter((x) => Number.isFinite(x.값))
+  return 여럿.length ? [{ 이름, 시트, 열, 여럿 }] : []
+}
+/** 📋 G444 도면 물량 자동 «산출서» 줄마다 수량 = 화면 줄 수량(번호로 찾음 · 엑셀은 셋째 자리 반올림) */
+export function 산출서맞댈(줄들, 토공들 = [], 시트 = '산출서', 이름 = '«산출서» 줄마다 수량 = 화면') {
+  /* 토공 줄 = 토공 시트 합계(구간마다 셋째 자리 반올림 → 합) · 화면은 반올림 없이 더함 → 구간 수만큼 0.0005 */
+  const 토공오차 = (x) => (x.토공 && 토공들[x.토공.t] ? (토공들[x.토공.t].점 || []).length * 0.0005 : 0)
+  const 여럿 = (줄들 || []).map((x, i) => ({ 줄: [String(i + 1)], 값: +x.수량, 오차: 0.0011 + 토공오차(x) })).filter((x) => Number.isFinite(x.값))
+  return 여럿.length ? [{ 이름, 시트, 열: '수량', 여럿 }] : []
+}
+/** 📋 G444 내역서에 물량 넣은 파일(소장님 내역서 그대로 · 수량 칸만 바꿈) — 다시 열어 넣은 칸마다 = 화면 값인지
+ *   소장님 내역서의 식(금액 = 수량 × 단가 …)은 소장님 것이라 그대로 둠(숫자로 바꾸지 않음) · 넣은 칸 = { 시트, 줄(1부터), 칸(0부터), 값 }
+ */
+export function 넣은칸검사(바이트, 됨 = []) {
+  const 줄 = []
+  let 책 = null
+  try { 책 = 엑셀읽기(바이트) } catch (e) { 책 = null }
+  줄.push({ 됨: !!책, 글: 책 ? `만든 파일을 다시 열어 봄 — 시트 ${책.시트들.length}장` : '만든 파일을 다시 열지 못했습니다' })
+  if (책) {
+    const 다름 = []
+    for (const x of 됨) {
+      const 시 = 책.시트들.find((t) => String(t.이름).trim() === String(x.시트).trim())
+      const 엑 = 시 ? 수(시.칸.get(칸이름(x.줄, x.칸 + 1))) : null
+      if (엑 === null || Math.abs(엑 - x.값) > 0.0005) 다름.push(`${x.시트} ${칸이름(x.줄, x.칸 + 1)} ${x.품명 || ''} ${엑 === null ? '빈 칸' : 쉼(엑, 3)} ≠ 화면 ${쉼(x.값, 3)}`)
+    }
+    줄.push({ 됨: !다름.length, 글: 다름.length ? `넣은 칸이 화면과 다름 ${다름.length}곳 — ${다름.slice(0, 3).join(' · ')}${다름.length > 3 ? ' …' : ''}` : `넣은 수량 칸 ${됨.length.toLocaleString('ko-KR')}곳 모두 화면 값과 같음` })
+  }
+  return { 통과: 줄.every((x) => x.됨), 줄, 바이트 }
 }

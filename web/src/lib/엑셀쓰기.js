@@ -20,17 +20,20 @@ function 칸글(ref, s, v) {
   return `<c r="${ref}"${sa} t="inlineStr"><is><t xml:space="preserve">${싸기(v)}</t></is></c>`
 }
 
-/** 시트 xml 한 장에 칸 여럿 넣기 */
+/** 시트 xml 한 장에 칸 여럿 넣기
+ *   📋 G444 있는 칸은 한 번에 훑어 바꿈(전엔 칸마다 처음부터 찾고 글을 다시 이어 붙여 칸 1,500곳에 3초 넘게 — 받기 전 검사가 느렸음) · 없는 칸만 전처럼 끼움 */
 export function 시트고치기(xml, 칸들) {
-  let out = xml
-  for (const [ref, v] of 칸들) {
-    const re = new RegExp(`<c r="${ref}"(\\s[^>]*?)?(?:/>|>[\\s\\S]*?</c>)`)
-    const m = re.exec(out)
-    if (m) {
-      const sm = /\ss="(\d+)"/.exec(m[1] || '')
-      out = out.slice(0, m.index) + 칸글(ref, sm ? sm[1] : '', v) + out.slice(m.index + m[0].length)
-      continue
-    }
+  const 값표 = new Map()
+  for (const [ref, v] of 칸들) 값표.set(ref, v)
+  const 바꿈 = new Set()
+  let out = xml.replace(/<c r="([A-Z]+\d+)"(\s[^>]*?)?(?:\/>|>[\s\S]*?<\/c>)/g, (m, ref, 속) => {
+    if (!값표.has(ref)) return m
+    바꿈.add(ref)
+    const sm = /\ss="(\d+)"/.exec(속 || '')
+    return 칸글(ref, sm ? sm[1] : '', 값표.get(ref))
+  })
+  for (const [ref, v] of 값표) {
+    if (바꿈.has(ref)) continue
     const p = 주소풀기(ref)
     if (!p) continue
     const 새칸 = 칸글(ref, '', v)

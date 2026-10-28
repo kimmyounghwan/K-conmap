@@ -52,6 +52,7 @@ import { 셈방법고르기 } from '../lib/셈방법.js'   // 🧮 G295 셈 방�
 import { 세기 as 쓴수세기 } from '../lib/받은수.jsx'
 import { 셈 as 마감셈 } from '../lib/마감.js'
 import { askAfter } from '../AskComment'
+import 받기검사판, { 엑셀내려주기 } from '../받기검사판.jsx'   // 📋 G444 받기 전 검사
 import { use화면상태 } from '../lib/길기록.js'
 import * as 창고 from '../lib/기억자료.js'
 
@@ -534,10 +535,18 @@ export default function JeoksanAuto() {
     set넣은말({ 됨: r.됨.length, 안됨: r.안됨, 이름 })
     return { ...r, 이름 }
   }
-  const 넣은내역받기 = () => {
+  const 넣은내역받기 = async () => {
     try {
       const r = 넣은파일()
       if (!r) return
+      if (!내역csv) {
+        /* 📋 G444 받기 전 검사 — 만든 내역서를 다시 열어 넣은 수량 칸마다 = 화면 값 · 소장님 내역서의 식은 그대로 둠 */
+        const 받검 = await import('../lib/받기전검사.js')
+        const g = 받검.넣은칸검사(r.bytes, r.됨)
+        set받기검사({ ...g, 이름: r.이름 })
+        if (g.통과) { 엑셀내려주기(r.bytes, r.이름); askAfter('jeoksan') }
+        return
+      }
       const a = document.createElement('a')
       a.href = URL.createObjectURL(new Blob([r.bytes], { type: 내역csv ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
       a.download = r.이름
@@ -559,10 +568,11 @@ export default function JeoksanAuto() {
   /* ── 실·마감·창호 (지금 도면) ── */
   const 지금전부 = cur ? 전부(cur) : null
 
+  const [받기검사, set받기검사] = useState(null)      // 📋 G444 받기 전 검사 결과(이름 «검사» 는 이 화면에서 이미 씀)
   const 엑셀받기 = async () => {
     set받는중(true)
     try {
-      const { writeWorkbook, ST } = await import('../lib/qtoxlsx.js')
+      const { ST } = await import('../lib/qtoxlsx.js')
       const 추가 = []
       if (대조) for (const t of 대조시트(대조, ST)) 추가.push(t)
       for (const f of 파일들) {
@@ -574,13 +584,14 @@ export default function JeoksanAuto() {
         if (R.창호.length) 추가.push({ name: 앞 + '창호 대조', head: ['기호', '구분', '폭(m)', '높이(m)', '창호일람표 수량', '평면 기호 개수', '맞음'], rows: R.창호.map((w) => [w.기호, w.구분, +w.폭, +w.높이, w.표수 ?? '', w.도면, w.표수 === null ? '표에 수량 없음' : w.다름 ? '다름' : '같음']), widths: [8, 6, 8, 8, 14, 14, 12], freeze: 1 })
       }
       if (골결과) for (const t of 골조시트들(골공사, 골결과, ST)) 추가.push(t)
-      const bytes = 자.자동엑셀({ 줄: 산출.켠줄, 철근줄: 철.줄, 토공들: 산출.토공들, 표들: 모든표, 세기줄: 산출.세기줄, 추가 }, writeWorkbook, ST)
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
-      a.download = (대조 ? '도면물량_내역대조.xlsx' : '도면물량_수량산출서.xlsx')
-      document.body.appendChild(a); a.click(); a.remove()
-      setTimeout(() => URL.revokeObjectURL(a.href), 60000)
-      askAfter('jeoksan')
+      const sheets = 자.자동엑셀({ 줄: 산출.켠줄, 철근줄: 철.줄, 토공들: 산출.토공들, 표들: 모든표, 세기줄: 산출.세기줄, 추가 }, (s) => s, ST)
+      /* 📋 G444 받기 전 검사 — 한 번 더 셈해 보고(«산출서» 줄마다 수량 = 화면 · 골조 «집계» = 화면) 통과하면 받음 · 도면에서 읽은 표(«표 …»)의 합계는 도면 것이라 안 봄 */
+      const 받검 = await import('../lib/받기전검사.js')
+      await new Promise((ok) => setTimeout(ok, 30))
+      const r = 받검.받기전검사(sheets, [...받검.산출서맞댈(산출.켠줄, 산출.토공들), ...(골결과 ? 받검.집계맞댈(골결과.집계.합, '산출수량', '🏗 골조 «집계» 시트 줄마다 = 화면 집계', '골조 집계') : [])], { 합계안봄: /^표 / })
+      const 이름 = 대조 ? '도면물량_내역대조.xlsx' : '도면물량_수량산출서.xlsx'
+      set받기검사({ ...r, 이름 })
+      if (r.통과) { 엑셀내려주기(r.바이트, 이름); askAfter('jeoksan') }
     } finally { set받는중(false) }
   }
 
@@ -589,14 +600,14 @@ export default function JeoksanAuto() {
     if (!골결과) return
     set받는중(true)
     try {
-      const { writeWorkbook, ST } = await import('../lib/qtoxlsx.js')
-      const bytes = 골조엑셀(골공사, 골결과, writeWorkbook, ST)
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
-      a.download = '골조_수량산출서(도면 자동).xlsx'
-      document.body.appendChild(a); a.click(); a.remove()
-      setTimeout(() => URL.revokeObjectURL(a.href), 60000)
-      askAfter('jeoksan')
+      const { ST } = await import('../lib/qtoxlsx.js')
+      /* 📋 G444 받기 전 검사 — 골조 화면 엑셀과 같음(«집계» 시트 줄마다 = 화면 집계) */
+      const 받검 = await import('../lib/받기전검사.js')
+      await new Promise((ok) => setTimeout(ok, 30))
+      const r = 받검.받기전검사(골조엑셀(골공사, 골결과, (s) => s, ST), 받검.집계맞댈(골결과.집계.합, '산출수량', '🏗 골조 «집계» 시트 줄마다 = 화면 집계'))
+      const 이름 = '골조_수량산출서(도면 자동).xlsx'
+      set받기검사({ ...r, 이름 })
+      if (r.통과) { 엑셀내려주기(r.바이트, 이름); askAfter('jeoksan') }
     } finally { set받는중(false) }
   }
   /* 🏗 골조 화면에서 고치기 — 이 브라우저의 골조 화면(localStorage)에 넣고 그 화면으로. 적어 둔 것이 있으면 먼저 여쭘 */
@@ -696,6 +707,7 @@ export default function JeoksanAuto() {
 
   return (
     <div className="wrap gg ja">
+      <받기검사판 검사={받기검사} 닫기={() => set받기검사(null)} 받기={() => { if (!받기검사) return; 엑셀내려주기(받기검사.바이트, 받기검사.이름); askAfter('jeoksan'); set받기검사({ ...받기검사, 알고: true }) }} />
       <div className="card no-print">
         <h1 className="tl-h1" style={{ marginTop: 0 }}>⚡ 도면 물량 자동 <span className="count">· 도면에 그려진 · 적힌 물량 → 엑셀 · 내역서와 대조</span></h1>
         <div className="note sm">

@@ -42,6 +42,7 @@ import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import 골조3D칸 from '../골조3D칸.jsx'   // 🧊 2026-10-16 (가) ④ 결과 안 3D
 import { 세기 } from '../lib/받은수.jsx'
 import { askAfter } from '../AskComment'
+import 받기검사판, { 엑셀내려주기 } from '../받기검사판.jsx'   // 📋 G444 받기 전 검사
 import { use화면상태 } from '../lib/길기록.js'
 
 import { 단위보기, 단위풀이 } from '../lib/단위.js'
@@ -427,17 +428,18 @@ export default function Golgo() {
 
   /* ── 엑셀 · 인쇄 ── */
   const [받는중, set받는중] = useState(false)
+  const [받기검사, set받기검사] = useState(null)      // 📋 G444 받기 전 검사 결과(이름 «검사» 는 이 화면에서 이미 씀)
   const 엑셀받기 = async () => {
     set받는중(true)
     try {
-      const { writeWorkbook, ST } = await import('../lib/qtoxlsx.js')
-      const bytes = 엑셀(공사, 결과, writeWorkbook, ST)
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
-      a.download = '골조수량산출서_' + (공사.이름 || '현장').replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 30) + '.xlsx'
-      document.body.appendChild(a); a.click(); a.remove()
-      setTimeout(() => URL.revokeObjectURL(a.href), 60000)
-      askAfter('jeoksan')
+      const { ST } = await import('../lib/qtoxlsx.js')
+      /* 📋 G444 받기 전 검사 — 한 번 더 셈해 보고(«집계» 시트 줄마다 = 화면 집계) 통과하면 받음 · 못 통과면 알리고 «알고 받기» */
+      const 받검 = await import('../lib/받기전검사.js')
+      await new Promise((ok) => setTimeout(ok, 30))
+      const r = 받검.받기전검사(엑셀(공사, 결과, (s) => s, ST), 받검.집계맞댈(결과.집계.합, '산출수량', '«집계» 시트 줄마다 = 화면 집계'))
+      const 이름 = '골조수량산출서_' + (공사.이름 || '현장').replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 30) + '.xlsx'
+      set받기검사({ ...r, 이름 })
+      if (r.통과) { 엑셀내려주기(r.바이트, 이름); askAfter('jeoksan') }
     } finally { set받는중(false) }
   }
 
@@ -447,6 +449,7 @@ export default function Golgo() {
 
   return (
     <div className="wrap gg">
+      <받기검사판 검사={받기검사} 닫기={() => set받기검사(null)} 받기={() => { if (!받기검사) return; 엑셀내려주기(받기검사.바이트, 받기검사.이름); askAfter('jeoksan'); set받기검사({ ...받기검사, 알고: true }) }} />
       <div className="card no-print">
         <h1 className="tl-h1" style={{ marginTop: 0 }}>🏗 골조 수량산출 <span className="count">· 도면을 넣으면 자동</span></h1>
         <div className="note sm">

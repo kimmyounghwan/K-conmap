@@ -41,6 +41,7 @@ import { 흙막이물량 } from '../lib/흙막이.js'
 import { 측점글, 토목시트 } from '../lib/토목시트.js'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { askAfter } from '../AskComment'
+import 받기검사판, { 엑셀내려주기 } from '../받기검사판.jsx'   // 📋 G444 받기 전 검사
 import { 세기 } from '../lib/받은수.jsx'
 import { 일람표만들기, 일람표시트 } from '../lib/부재일람표.js'
 import { 멈춤감시, 멈춤글 } from '../lib/파일한도.js'
@@ -185,6 +186,7 @@ export default function Bim() {
   const [도면선, set도면선] = useState(true)
   const [높이배, set높이배] = useState(1)
   const [받는중, set받는중] = useState('')
+  const [받기검사, set받기검사] = useState(null)      // 📋 G444 받기 전 검사 결과(이름 «검사» 는 이 화면에서 이미 씀)
   const 판Ref = useRef(null)
   const 보기Ref = useRef(null)
   const 칸Ref = useRef(null)
@@ -698,7 +700,7 @@ export default function Bim() {
     if (!(S && 모델) && !토목있음) return
     set받는중('엑셀')
     try {
-      const { writeWorkbook, ST } = await import('../lib/qtoxlsx.js')
+      const { ST } = await import('../lib/qtoxlsx.js')
       const sheets = S && 모델 && 골조수 ? 골조엑셀(공사, S, (s) => s, ST) : []
       if (골조수 && 일람표.length) sheets.push(일람표시트(일람표, ST))          // 📋 G282 부재 일람표 시트
       if (모델 && 골조수) {
@@ -713,7 +715,8 @@ export default function Bim() {
           rows: 줄, widths: [6, 7, 7, 8, 28, 10, 10, 8, 8, 11, 13, 12, 12, 22, 40], freeze: 1,
         })
       }
-      if (토목있음 && (토.노선들.length || 토.구조물들.length || 토.부재.length)) for (const sh of 토목시트(토, ST, 참고건물)) sheets.push(sh)
+      const 토목넣음 = 토목있음 && (토.노선들.length || 토.구조물들.length || 토.부재.length)
+      if (토목넣음) for (const sh of 토목시트(토, ST, 참고건물)) sheets.push(sh)
       if (흙들.length) sheets.push(흙막이시트(흙들, 할증수, ST))
       sheets.push({
         name: '맞춤 · 검사',
@@ -728,9 +731,19 @@ export default function Bim() {
           ['도면', '원본 그대로 읽기만 함(고치지 않음) · K-건설맵 BIM 물량(k-conmap.com/jeoksan/bim)']],
         widths: [16, 120],
       })
-      const bytes = writeWorkbook(sheets)
-      받기(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 'BIM물량_' + 파일이름(이름) + '.xlsx')
-      세기('|BIM물량|엑셀'); askAfter('jeoksan')
+      /* 📋 G444 받기 전 검사 — 한 번 더 셈해 보고(골조 «집계» 줄마다 · 토목 집계 합계 · 노선 · 구조물 · 흙막이 강재 = 화면) 통과하면 받음 · 못 통과면 알리고 «알고 받기» */
+      const 받검 = await import('../lib/받기전검사.js')
+      await new Promise((ok) => setTimeout(ok, 30))
+      const 흙줄수 = 흙물.reduce((n, q) => n + q.줄.length, 0)
+      const 맞댈 = [
+        ...(S && 모델 && 골조수 ? 받검.집계맞댈(S.집계.합, '산출수량', '🏢 골조 «집계» 시트 줄마다 = 화면 집계') : []),
+        ...(토목넣음 ? 받검.토목맞댈(토, { 토목: 토.합, 건물: 셀건물.length ? 건물합 : null }) : []),
+        ...(흙들.length ? [{ 이름: '🧱 흙막이 강재(강재 합계) = 화면', 시트: '흙막이 · 가설', 줄: '강재 합계', 열: '중량(ton)', 값: 흙합.강재, 단위: 'ton', 자리: 3, 줄합: true, 오차: 0.002 + 흙줄수 * 0.0005 }] : []),
+      ]
+      const r = 받검.받기전검사(sheets, 맞댈)
+      const 받을이름 = 'BIM물량_' + 파일이름(이름) + '.xlsx'
+      set받기검사({ ...r, 이름: 받을이름 })
+      if (r.통과) { 엑셀내려주기(r.바이트, 받을이름); 세기('|BIM물량|엑셀'); askAfter('jeoksan') }
     } finally { set받는중('') }
   }
   const IFC받기 = async () => {
@@ -808,6 +821,7 @@ export default function Bim() {
 
   return (
     <div className="wrap bim">
+      <받기검사판 검사={받기검사} 닫기={() => set받기검사(null)} 받기={() => { if (!받기검사) return; 엑셀내려주기(받기검사.바이트, 받기검사.이름); 세기('|BIM물량|엑셀'); askAfter('jeoksan'); set받기검사({ ...받기검사, 알고: true }) }} />
       <끌어놓기판 글="도면(DXF·DWG)을 놓으면 3D 로 세우고 물량을 냅니다 — 건축(구조평면도 · 일람표 · 층 평면도) · 토목(평면 · 종횡단 · 구조물 일반도 · 측량) 여러 장을 한꺼번에" 여럿 받기={(fs) => 파일받기(fs)} />
       <div className="card">
         <h1 className="tl-h1" style={{ marginTop: 0 }}>🏗 BIM 물량 <span className="count">· 캐드 도면 넣으면 3D + 물량</span></h1>
@@ -855,6 +869,7 @@ export default function Bim() {
                   </li>
                 ))}
               </ul>
+              {!켠.length && <div className="dx3-warn" style={{ marginTop: 6 }}>☐ 체크한 도면이 없습니다 — 셀 도면을 <b>☑ 체크</b>하면 바로 셉니다.</div>}
               {횡단없음 && <div className="dx3-warn" style={{ marginTop: 6 }}>🏞 체크한 도면에 <b>횡단면도</b> 판이 없습니다 — 토목(배수로 · 수로)의 3D · 물량은 <b>평면(종평면) + 횡단면도</b>가 같이 있어야 나옵니다. 횡단면도가 든 도면(예: «… 종 · 횡단면도»)을 넣거나 체크하십시오.</div>}
               <div className="bim-box-foot">🔒 {함남김 ? '이 브라우저에만 남겨 둡니다 — 다시 열어도 그대로입니다(어디로도 안 올라감).' : '이 기기에는 남기지 못했습니다(저장 공간이 모자람) — 이 탭을 닫으면 다시 넣어야 합니다.'} 도면을 더 넣으면 도면함에 더해집니다.</div>
             </div>
