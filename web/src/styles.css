@@ -9557,3 +9557,23 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
   .gg .gg-ws-name { max-width: 100%; flex: 1 1 100%; }
   .gg .gg-ws-acts { margin-left: 0; }
 }
+/* 🖥 G448 작업 화면 위 알림 칸 — «예, 넣기 / 아니오» 묻기를 맨 위로(알림이 길면 칸 안에서 내려야 보이던 것 — G447 골조 사이트 확인에서 찾음) */
+.gg.gg-ws > .gg-ws-head { display: flex; flex-direction: column; }
+.gg.gg-ws > .gg-ws-head > * { flex: 0 0 auto; }
+.gg.gg-ws > .gg-ws-head > .gg-ask { order: -2; margin-top: 0; }
+.gg.gg-ws > .gg-ws-head > .gg-auto { order: -1; }
+/* 🖥 G448 작업 화면 ④ 결과 3D 가 왼쪽 칸에 맞게 — 3D 판이 칸보다 커서(창 1028 × 861 · 칸 275px) 부재가 칸 아래로 숨던 것(G447 골조 사이트 확인에서 찾음)
+   제목 · 도구 · 3D 판(+ 고른 부재 칸)이 칸 높이를 채우고 층별 표는 그 아래(칸 안에서 내림) · 휴대폰(760 아래)과 보통 화면은 그대로 */
+.gz3-top { display: contents; }
+@media (min-width: 761px) {
+  .gg.gg-ws .gg-ws-l { container-type: size; }
+  .gg.gg-ws .gg-ws-l .gz3-top.open { display: flex; flex-direction: column; height: calc(100cqh - 30px); min-height: 250px; }
+  .gg.gg-ws .gg-ws-l .gz3-top.open > * { flex: 0 0 auto; }
+  .gg.gg-ws .gg-ws-l .gz3-top.open > .bim-view { flex: 1 1 0; min-height: 150px; grid-template-columns: minmax(0, 1fr) 260px; grid-template-rows: minmax(0, 1fr); }
+  .gg.gg-ws .gg-ws-l .gz3-top.open .gz3-canvas { height: auto; min-height: 0; }
+  .gg.gg-ws .gg-ws-l .gz3-top.open .bim-side { max-height: none; min-height: 0; }
+}
+/* 🖥 G448 마감 수량산출 작업 화면 — 골조(G447)와 같은 꼴(.gg.gg-ws) · 🏠 도면에서 찾은 방(마감방판) 칸은 위에 얇게(펼치면 그 안에서 내림) */
+.gg.gg-ws > .mb-card { flex: 0 0 auto; max-height: 26vh; overflow-y: auto; overscroll-behavior: contain; margin: 8px 12px 0; padding: 6px 12px; }
+@media (max-width: 760px) { .gg.gg-ws > .mb-card { max-height: none; } }
+.gg.gg-ws .gg-ws-l .gg-draw { top: 0; }   /* 작업 화면 왼쪽 칸 안에서는 사이트 머리 막대가 없음 — 도면판이 52px 밀려 내려가던 것(G447 골조도) */

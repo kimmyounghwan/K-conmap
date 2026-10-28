@@ -98,6 +98,7 @@ export default function 골조3D칸({ 들, R, 공사, 짚음 = null }) {
 
   return (
     <div className="card no-print gz3-card">
+      <div className={'gz3-top' + (열림 ? ' open' : '')}>{/* 🖥 작업 화면에서 3D 가 왼쪽 칸 높이에 맞게(보통 화면에서는 없는 것처럼 — display: contents) */}
       <button type="button" className="mb-head" onClick={() => { set열림((v) => !v); if (!열림) 세기('|골조|3D열기') }} aria-expanded={열림}>
         <span className="mb-title">🧊 3D 로 보기 — 부재 <b>{모델.부재.length}</b>개</span>
         <span className="mb-sum">부재를 누르면 그 부재 물량 · 아래 산출서 줄을 누르면 3D 에서 파랗게</span>
@@ -176,6 +177,11 @@ export default function 골조3D칸({ 들, R, 공사, 짚음 = null }) {
               )}
             </div>
           </div>
+        </>
+      )}
+      </div>
+      {열림 && (
+        <>
           {Q && (
             <div className="gg-wrap" style={{ marginTop: 10 }}><table className="gg-r gz3-t">
               <thead><tr><th>층</th>{있는종류.map((k) => <th key={k} className="r">{종이름[k]} ㎥</th>)}</tr></thead>

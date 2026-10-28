@@ -35,6 +35,7 @@ import 받기검사판, { 엑셀내려주기 } from '../받기검사판.jsx'   /
 import { use화면상태 } from '../lib/길기록.js'
 import 마감방판 from '../마감방판.jsx'
 import { 세기 } from '../lib/받은수.jsx'
+import { 나운영자 } from '../lib/운영자.js'   // 🖥 G448 작업 화면(적산컨맵처럼 · 🔒 지금은 소장님 브라우저만)
 
 import { 단위보기, 단위풀이 } from '../lib/단위.js'
 const 저장열쇠 = 'kcm.magam.v1'
@@ -110,6 +111,28 @@ export default function Magam() {
   const [표채움, set표채움] = useState('')
   const 파일칸 = useRef(null)
   const 자동칸 = useRef(null)
+  /* 🖥 G448 작업 화면(적산컨맵 · BIM 물량 · 골조 수량산출처럼 화면 전체 — 위 막대 · 왼쪽 도면 · 오른쪽 표/결과) · 🔒 운영자(소장님 브라우저)만 단추 · ?ws=1 */
+  const [운영자, set운영자] = useState(false)
+  const [작업, set작업0] = useState(false)
+  const 작업Ref = useRef(null)
+  useEffect(() => {
+    let 살 = true
+    나운영자().then((v) => { if (!살 || !v) return; set운영자(true); try { if (new URLSearchParams(window.location.search).get('ws') === '1') set작업0(true) } catch (e) { /* 주소 못 읽음 */ } }).catch(() => {})
+    return () => { 살 = false }
+  }, [])
+  const set작업 = (v) => {
+    set작업0(v)
+    try { const u = new URL(window.location.href); if (v) u.searchParams.set('ws', '1'); else u.searchParams.delete('ws'); window.history.replaceState(window.history.state, '', u.pathname + u.search + u.hash) } catch (e) { /* 주소 못 바꿈 */ }
+    if (!v && document.fullscreenElement) { try { document.exitFullscreen() } catch (e) { /* 무시 */ } }
+  }
+  useEffect(() => {
+    if (!작업) return
+    세기('|마감|작업화면')
+    const 전 = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = 전 }
+  }, [작업])
+  const 전체화면 = () => { const el = 작업Ref.current; try { if (document.fullscreenElement) document.exitFullscreen(); else if (el && el.requestFullscreen) el.requestFullscreen() } catch (e) { /* 막힘 */ } }
   /* 🔗 결과 ↔ 도면 (2026-09-28) */
   const [짚음, set짚음] = useState(null)      // {표, i}
   const [짚은, set짚은] = useState([])        // '표|i'
@@ -377,10 +400,33 @@ export default function Magam() {
 
   const 바닥합 = 공사.실.reduce((s2, r) => { const A = parseFloat(String(r.면적 || '').replace(/,/g, '')); const n = parseFloat(String(r.개수 || '1')) || 1; return s2 + (A > 0 ? A * n : 0) }, 0)
 
+  /* 🖥 G448 작업 화면 — 위 막대 · 왼쪽에 도면이 있는지 · 첫 칸에 알릴 것이 있는지 */
+  const 왼쪽있음 = 탭 === '실' || 탭 === '외벽' || 탭 === '창호' || 탭 === '묶음' || (탭 === '결과' && !!모델)
+  const 머리있음 = !!(묻기 || 자동묻기 || 자동알림 || 도.도면상태 || 모델 || 표채움)
+  const 작업막대 = (
+    <div className="gg-ws-top no-print">
+      <b className="gg-ws-name"><span className="gg-ws-brand">🧱 마감 수량산출</span> <span className="gg-ws-file">{공사.이름 || ''}</span></b>
+      <span className="gg-ws-tabs" role="tablist" aria-label="단계">
+        {Object.entries(탭이름).map(([kk, t]) => (
+          <button key={kk} type="button" role="tab" aria-selected={탭 === kk} className={'tp-tab' + (탭 === kk ? ' on' : '')} onClick={() => { set탭(kk); set선택(null) }}>{t}</button>
+        ))}
+      </span>
+      <span className="gg-ws-acts">
+        <button type="button" className="btn sm" onClick={() => 자동칸.current?.click()}>⚡ 도면 넣기</button>
+        <button type="button" className="btn line sm" onClick={() => 파일칸.current?.click()}>📂 도면만 열기</button>
+        <button type="button" className="btn line sm" onClick={() => (비었나 ? 예시열기() : set묻기('예시'))}>🧪 예시</button>
+        <button type="button" className="btn line sm" onClick={엑셀받기} disabled={!결과.줄.length || 받는중}>{받는중 ? '만드는 중…' : '⬇ 엑셀'}</button>
+        <button type="button" className="btn line sm" onClick={전체화면} title="전체 화면(한 번 더 누르면 돌아옴)">⛶ 전체 화면</button>
+        <button type="button" className="btn sm" onClick={() => set작업(false)}>✕ 나가기</button>
+      </span>
+    </div>
+  )
+
   return (
-    <div className="wrap gg">
+    <div className={'wrap gg' + (작업 ? ' gg-ws' : '')} ref={작업 ? 작업Ref : undefined}>
+      {작업 && 작업막대}
       <받기검사판 검사={받기검사} 닫기={() => set받기검사(null)} 받기={() => { if (!받기검사) return; 엑셀내려주기(받기검사.바이트, 받기검사.이름); askAfter('jeoksan'); set받기검사({ ...받기검사, 알고: true }) }} />
-      <div className="card no-print">
+      <div className={'card no-print gg-ws-head' + (작업 && !머리있음 ? ' gg-ws-hide' : '')}>
         <h1 className="tl-h1" style={{ marginTop: 0 }}>🧱 마감 수량산출 <span className="count">· 방마다 바닥·벽·천장</span></h1>
         <div className="note sm">
           <b>평면도를 넣으면 저절로</b> — 방마다 <b>면적·둘레·창호</b>가 들어가고, 도면에 <b>실내재료마감표·창호일람표</b>가 있으면 마감 기호·천장고·창호표까지 채워 <b>재료별 수량</b>이 바로 나옵니다.
@@ -393,6 +439,7 @@ export default function Magam() {
           <button type="button" className="btn line sm" onClick={() => (비었나 ? 예시열기() : set묻기('예시'))}>🧪 예시로 해 보기</button>
           <button type="button" className="btn ghost sm" onClick={() => set탭('결과')}>📊 결과 보기</button>
           {!비었나 && <button type="button" className="btn ghost sm" onClick={() => set묻기('지우기')}>🗑 새로 시작</button>}
+          {운영자 && <button type="button" className="btn sm gg-ws-open" onClick={() => set작업(true)} title="적산컨맵처럼 화면 전체로 — 왼쪽 도면, 오른쪽 표 · 결과">🖥 작업 화면</button>}
         </div>
         {묻기 === '지우기' && (
           <div className="gg-ask">적은 것(마감표·창호표·실·외벽·묶음·조합·당초)을 모두 지우고 새로 시작할까요? 도면은 그대로 둡니다.
@@ -441,11 +488,21 @@ export default function Magam() {
         ))}
       </div>
 
+      {/* 🖥 G448 작업 화면 — 왼쪽(도면) · 오른쪽(표 · 결과) · 보통 화면에서는 감싸개가 없는 것처럼(display: contents) */}
+      <div className={'gg-ws-body' + (왼쪽있음 ? '' : ' one')}>
+      <div className="gg-ws-l">
       {(탭 === '실' || 탭 === '외벽' || 탭 === '창호' || 탭 === '묶음') && (
         <도면판 도={도} 강조={강조} 찍었다={찍었다} 두점={두점} set두점={set두점} 두점찍었다={두점찍었다} set보는중={set보는중}
           알림={알림.글} 알림좋음={알림.좋음} 안내={안내} 열기={() => 파일칸.current?.click()}
           빈글="평면도를 여세요 — 방이 닫힌 선이 아니어도 벽 · 창 · 문으로 막혀 있으면 방 안을 눌러 잽니다. 도면 없이 표에 직접 적어도 됩니다." />
       )}
+      {탭 === '결과' && 모델 && (
+        <도면판 도={도} 강조={결과강조} 찍었다={결과찍었다} set보는중={set보는중} 붙음={!좁은화면()} 가볼곳={가볼} 두점단추={false}
+          알림={결과알림 ? 결과알림.글 : ''} 알림좋음={!(결과알림 && 결과알림.warn)} 열기={() => 파일칸.current?.click()}
+          안내={<>🔗 <b>산출서 줄을 누르면</b> 도면에서 그 방(찍은 자리)이 <b style={{ color: '#f97316' }}>주황색</b>으로 빛나고, <b>방 안을 누르면</b> 그 방의 산출서 줄이 <b style={{ color: '#2563eb' }}>파랗게</b> 칠해집니다.</>} />
+      )}
+      </div>
+      <div className="gg-ws-r">
 
       {탭 === '마감' && <마감표판 공사={공사} set공사={set공사} 줄더하기={줄더하기} 줄빼기={줄빼기} />}
 
@@ -481,11 +538,6 @@ export default function Magam() {
 
       {탭 === '묶음' && <묶음판 공사={공사} 결과={결과} 셀={셀} 칸쓰기={칸쓰기} 줄더하기={줄더하기} 줄빼기={줄빼기} />}
 
-      {탭 === '결과' && 모델 && (
-        <도면판 도={도} 강조={결과강조} 찍었다={결과찍었다} set보는중={set보는중} 붙음={!좁은화면()} 가볼곳={가볼} 두점단추={false}
-          알림={결과알림 ? 결과알림.글 : ''} 알림좋음={!(결과알림 && 결과알림.warn)} 열기={() => 파일칸.current?.click()}
-          안내={<>🔗 <b>산출서 줄을 누르면</b> 도면에서 그 방(찍은 자리)이 <b style={{ color: '#f97316' }}>주황색</b>으로 빛나고, <b>방 안을 누르면</b> 그 방의 산출서 줄이 <b style={{ color: '#2563eb' }}>파랗게</b> 칠해집니다.</>} />
-      )}
       {탭 === '결과' && (
         <div className="card gg-print">
           <div className="gg-head">
@@ -530,6 +582,8 @@ export default function Magam() {
           <Link className="btn ghost sm" to="/jeoksan/run">🧮 수량산출서 만들기</Link>
           <Link className="btn ghost sm" to="/tools">🧰 도구 모두</Link>
         </div>
+      </div>
+      </div>
       </div>
     </div>
   )
