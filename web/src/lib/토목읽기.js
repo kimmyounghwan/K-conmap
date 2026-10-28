@@ -73,11 +73,14 @@ export async function 측량파일읽기(표들) {
 /** DWG → DXF(한 번) — [{이름, buf}] → { 바꾼: [{이름(.dxf), buf, 원본}], 못: [이름] } */
 export async function DWG들바꾸기(목록, 알려 = () => {}) {
   const 바꾼 = [], 못 = []
-  for (const f of 목록) {
+  const 전 = 목록.length
+  for (const [k, f] of 목록.entries()) {
     const 머리 = String.fromCharCode(...new Uint8Array(f.buf.slice(0, 6)))
     if (/^AC10\d\d/.test(머리)) {
-      알려(f.이름 + ' — DWG → DXF 바꾸는 중(큰 도면은 30초~1분)')
-      try { const { DWG바꾸기 } = await import('./dwg바꾸기.js'); const r0 = await DWG바꾸기(f.buf, f.이름, (d) => 알려(f.이름 + ' — DWG → DXF: ' + (d.msg || ''))); 바꾼.push({ 이름: f.이름.replace(/\.dwg$/i, '.dxf'), buf: r0.dxf, 원본: (r0.info && r0.info.원본) || null }) }
+      /* 🔰 G441 몇 장째인지(k / 전) — 여러 장이면 멈춘 줄 아는 일이 없게 */
+      const 앞 = '도면 여는 중' + (전 > 1 ? ` ${k + 1} / ${전}` : '') + ' — ' + f.이름
+      알려(앞 + ' (큰 도면은 30초~1분)')
+      try { const { DWG바꾸기 } = await import('./dwg바꾸기.js'); const r0 = await DWG바꾸기(f.buf, f.이름, (d) => 알려(앞 + (d.msg ? ' · ' + d.msg : ''))); 바꾼.push({ 이름: f.이름.replace(/\.dwg$/i, '.dxf'), buf: r0.dxf, 원본: (r0.info && r0.info.원본) || null }) }
       catch (e) { 못.push(f.이름) }
     } else 바꾼.push(f)
   }
@@ -115,7 +118,7 @@ export async function 함께읽기(목록, 옵 = {}) {
       const r = await 넣.도면읽어모델(바꾼.map((x) => ({ 이름: x.이름, buf: x.buf })), (g) => { 골조알림 = g; 둘() }, { 들받기: async (들) => { 철근표 = await 재료표철근(들) } })
       골조알림 = `골조 다 읽음(부재 ${(r.부재수 || 0).toLocaleString('ko-KR')})`; 둘()       // 토목이 더 걸릴 때 «세우는 중» 이 남지 않게
       return { r }
-    } catch (e) { 골조알림 = '골조 없음'; 둘(); return { 틀림: (e && e.message) || String(e) } }
+    } catch (e) { 골조알림 = ''; 둘(); return { 틀림: (e && e.message) || String(e) } }   // 🔰 G441 읽는 동안 «골조 없음» 을 앞에 띄우지 않음(토목만 넣은 분이 헷갈림) — 끝난 뒤 알림에서 말함
   })()
   const [g, t] = await Promise.all([골조일, 토목일])
   let T = null, 토목틀림 = t.틀림 || ''

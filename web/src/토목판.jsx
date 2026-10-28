@@ -356,7 +356,8 @@ function 내역대조칸({ 대조, 내역, 상태번, set상태번, 바꾸기, �
   if (!대조) return <div className="card tmk-nytable"><small className="muted">도면을 넣으면 내역서와 맞대 봅니다.</small></div>
   if (대조.틀림) return <div className="card tmk-nytable"><small className="gmd-warn">⚠ {대조.틀림}</small></div>
   const 나무 = 내역.나무
-  const 줄 = 대조.단위들.filter((d) => !거름 || d.판정 === 거름)
+  const 걸른 = 대조.단위들.filter((d) => !거름 || d.판정 === 거름)
+  const 줄 = 거름 ? 걸른 : [...걸른.filter((d) => d.판정 !== '없음'), ...걸른.filter((d) => d.판정 === '없음')]   // 🔰 G441 견준 줄(✓ △ ✗) 먼저 · «건설맵에 아직 없음» 은 아래로(회색 줄 사이에 묻히지 않게)
   const 쉼2 = (v, d = 1) => (Number.isFinite(v) ? Number(v).toLocaleString('ko-KR', { maximumFractionDigits: d, minimumFractionDigits: d }) : '—')
   return (
     <div className="card tmk-nytable">
@@ -386,7 +387,8 @@ function 내역대조칸({ 대조, 내역, 상태번, set상태번, 바꾸기, �
         return <li key={i}>{x.고침 ? '✋ ' : ''}{x.이름} · {갈래이름[x.갈래]} {쉼2(x.값, x.갈래 === '철근' ? 3 : 1)} {갈래단위[x.갈래]}{갈곳.length > 0 && <select className="tmk-nypair" value="" onChange={(e) => { if (e.target.value !== '') 짝고치기(x.키 + '|' + x.갈래, +e.target.value) }} aria-label={x.이름 + ' 맞댈 공종'}><option value="">→ 맞댈 공종 고르기</option>{갈곳.map((u) => <option key={u.키} value={u.공종i}>{(u.길.length > 1 ? u.길.slice(1) : u.길).slice(-2).join(' > ') || u.공종}</option>)}</select>}</li>
       })}</ul></details>}
       {대조.뺀단위 > 0 && <small className="muted tmk-nyzero">이 상태({대조.상태})에서 내역 수량이 비었거나 0 인 공종 · 갈래 {대조.뺀단위}개는 견줄 것이 없어 뺐습니다{내역.나무.상태.length > 1 ? ' — 위에서 상태를 바꿔 보십시오' : ''}.</small>}
-      <small className="muted">공종마다(자리 말 — 배수장 · 유수지 · 배수로 …) 같은 갈래 품목을 더해 건설맵 묶음과 맞댐 · ✓ 3 % 안 · △ 10 % 안 · ✗ 넘음 — «다름» 은 곧 «틀림» 이 아닙니다(넣은 도면이 당초인지 변경인지 · 산출서의 셈 · 할증). 줄을 누르면 내역 품목과 근거가 나옵니다. 📤 엑셀의 «변경 수량 제안» 시트 = 견준 품목마다 건설맵 비율로 나눈 변경 수량(설계변경 작업대에 옮겨 쓰기 — 확인 후).</small>
+      <small className="muted">✓ 3 % 안 · △ 10 % 안 · ✗ 넘음 — «다름» 은 곧 «틀림» 이 아닙니다 · 줄을 누르면 내역 품목과 근거가 나옵니다.</small>
+      <details className="tmk-nyhow"><summary>ⓘ 어떻게 맞대나</summary><small className="muted">공종마다(자리 말 — 배수장 · 유수지 · 배수로 …) 같은 갈래 품목을 더해 건설맵 묶음과 맞댐 — «다름» 은 넣은 도면이 당초인지 변경인지 · 산출서의 셈 · 할증 때문일 수 있습니다. «— 건설맵에 아직 없음» 은 넣은 도면에서 그 공종 물량을 아직 못 뽑은 것(그 공종 도면을 넣지 않았거나 건설맵이 아직 안 세는 품목). 📤 엑셀의 «변경 수량 제안» 시트 = 견준 품목마다 건설맵 비율로 나눈 변경 수량(설계변경 작업대에 옮겨 쓰기 — 확인 후).</small></details>
     </div>
   )
 }
@@ -421,36 +423,37 @@ function FragmentRow({ d, 열림, 누름, 나무, 상태번, 쉼2, 묶음들, �
 
 /* ── 🏢 + 🛣 함께 — 골조 같이 보기 · 물량 합 ── */
 function 함께칸({ 함께, 토 = null, 자, T, M, 골조있음, 골조보기, 같이넣음, set골조같이, 건축으로 }) {
+  /* 🔰 G441 처음 쓰는 분 눈으로 — 골조가 없으면 «철근 —» 칸은 빼고(늘 빈칸) 큰 수도 안 잘리게 */
+  const 철칸 = !!(함께 && 함께.골조)
   return (
     <div className="tmk-card tmk-both">
-      <b>🏢 + 🛣 함께 — 물량 합</b>
-      {골조있음
-        ? <label className="tmk-chk"><input type="checkbox" checked={!!골조보기} onChange={(e) => set골조같이(e.target.checked)} /><span>🏢 건축 탭 골조(부재 {M.부재.length.toLocaleString('ko-KR')}) 같이 보기{같이넣음 ? ' — 같이 넣은 도면' : ' — 다른 때 세운 골조'}</span></label>
-        : <small className="muted">🏢 건축 탭에 골조가 없습니다 — 건축 평면 · 부재 일람표 도면을 같이 넣으면 골조도 같은 3D 에 서고 물량이 합쳐집니다.</small>}
+      <b>{골조있음 ? '🏢 + 🛣 함께 — 물량 합' : '📊 물량 합'}</b>
+      {골조있음 && <label className="tmk-chk"><input type="checkbox" checked={!!골조보기} onChange={(e) => set골조같이(e.target.checked)} /><span>🏢 건축 탭 골조(부재 {M.부재.length.toLocaleString('ko-KR')}) 같이 보기{같이넣음 ? ' — 같이 넣은 도면' : ' — 다른 때 세운 골조'}</span></label>}
       {함께 && (
-        <table className="tmk-kv tmk-bothq">
-          <thead><tr><th /><th>콘크리트 ㎥</th><th>거푸집 ㎡</th><th>철근 t</th></tr></thead>
+        <table className={'tmk-kv tmk-bothq' + (철칸 ? '' : ' no-rebar')}>
+          <thead><tr><th /><th>콘크리트 ㎥</th><th>거푸집 ㎡</th>{철칸 && <th>철근 t</th>}</tr></thead>
           <tbody>
             {함께.골조 && <tr><th>🏢 골조</th><td>{쉼(함께.골조.콘크리트, 2)}</td><td>{쉼(함께.골조.거푸집, 1)}</td><td>{쉼(함께.골조.철근, 3)}</td></tr>}
-            {함께.토목 && <tr><th>🛣 토목(노선 · 구조물)</th><td>{쉼(함께.토목.콘크리트, 2)}</td><td>{쉼(함께.토목.거푸집, 1)}</td><td>—</td></tr>}
+            {함께.토목 && <tr><th>🛣 토목(노선 · 구조물)</th><td>{쉼(함께.토목.콘크리트, 2)}</td><td>{쉼(함께.토목.거푸집, 1)}</td>{철칸 && <td>—</td>}</tr>}
             {함께.토목 && 토 && (() => {
               /* 📚 G440 토목을 노선 · 구조물로 나눠 보임 — 소장님 「구조물이 달라…왜 이런거지?」(구조물 일반도를 안 넣으면 구조물 0) */
               const 더 = (a) => a.reduce((s, x) => ({ c: s.c + ((x.합 && x.합.콘크리트) || 0), f: s.f + ((x.합 && x.합.거푸집) || 0) }), { c: 0, f: 0 })
               const 노 = 더(토.노선들 || []), 구 = 더(토.구조물들 || [])
               const 남c = 함께.토목.콘크리트 - 노.c - 구.c, 남f = 함께.토목.거푸집 - 노.f - 구.f
               return <>
-                <tr className="tmk-sub"><th>· 노선(배수로 · 횡단)</th><td>{쉼(노.c, 2)}</td><td>{쉼(노.f, 1)}</td><td /></tr>
-                <tr className={'tmk-sub' + ((토.구조물들 || []).length ? '' : ' none')}><th>· 구조물 {(토.구조물들 || []).length}{(토.구조물들 || []).length ? '' : ' — 구조물 일반도 없음'}</th><td>{쉼(구.c, 2)}</td><td>{쉼(구.f, 1)}</td><td /></tr>
-                {(Math.abs(남c) > 0.01 || Math.abs(남f) > 0.1) && <tr className="tmk-sub"><th>· 그 밖(흙막이 등)</th><td>{쉼(남c, 2)}</td><td>{쉼(남f, 1)}</td><td /></tr>}
+                <tr className="tmk-sub"><th>· 노선(배수로 · 횡단)</th><td>{쉼(노.c, 2)}</td><td>{쉼(노.f, 1)}</td>{철칸 && <td />}</tr>
+                <tr className={'tmk-sub' + ((토.구조물들 || []).length ? '' : ' none')}><th>· 구조물 {(토.구조물들 || []).length}{(토.구조물들 || []).length ? '' : ' — 구조물 일반도 없음'}</th><td>{쉼(구.c, 2)}</td><td>{쉼(구.f, 1)}</td>{철칸 && <td />}</tr>
+                {(Math.abs(남c) > 0.01 || Math.abs(남f) > 0.1) && <tr className="tmk-sub"><th>· 그 밖(흙막이 등)</th><td>{쉼(남c, 2)}</td><td>{쉼(남f, 1)}</td>{철칸 && <td />}</tr>}
               </>
             })()}
-            {함께.건물 && <tr><th>건물 평면(개략) {함께.건물.수}</th><td>{쉼(함께.건물.콘크리트, 2)}</td><td>{쉼(함께.건물.거푸집, 1)}</td><td>—</td></tr>}
-            <tr className="sum"><th>합</th><td>{쉼(함께.합.콘크리트, 2)}</td><td>{쉼(함께.합.거푸집, 1)}</td><td>{함께.골조 ? 쉼(함께.합.철근, 3) : '—'}</td></tr>
+            {함께.건물 && <tr><th>건물 평면(개략) {함께.건물.수}</th><td>{쉼(함께.건물.콘크리트, 2)}</td><td>{쉼(함께.건물.거푸집, 1)}</td>{철칸 && <td>—</td>}</tr>}
+            <tr className="sum"><th>합</th><td>{쉼(함께.합.콘크리트, 2)}</td><td>{쉼(함께.합.거푸집, 1)}</td>{철칸 && <td>{쉼(함께.합.철근, 3)}</td>}</tr>
           </tbody>
         </table>
       )}
       {함께 && 함께.토목 && <small>토공 — 터파기 {쉼(함께.토목.터파기, 1)} · 되메우기 {쉼(함께.토목.되메우기, 1)} · 성토 {쉼(함께.토목.성토, 1)} ㎥</small>}
-      {T && (T.철근표 || []).some((x) => x.t > 0) && (() => { const 쓴 = T.철근표.filter((x) => x.t > 0), 미터 = T.철근표.reduce((a, x) => a + (x.미터당 || 0), 0); return <small className="tmk-rebar" title={쓴.map((x) => x.파일 + ' ' + x.t.toFixed(3) + ' t').join('\n')}>📐 도면 철근 재료표 — {쉼(쓴.reduce((a, x) => a + x.t, 0), 3)} t(도면 {쓴.length}장{미터 ? ` · 1m당 표 ${미터}개는 연장을 곱해야 해서 뺌` : ''}) — 합에는 안 넣고 📑 내역 대조에서 견줌</small> })()}
+      {T && (T.철근표 || []).some((x) => x.t > 0) && (() => { const 쓴 = T.철근표.filter((x) => x.t > 0), 미터 = T.철근표.reduce((a, x) => a + (x.미터당 || 0), 0); return <small className="tmk-rebar" title={쓴.map((x) => x.파일 + ' ' + x.t.toFixed(3) + ' t').join('\n') + (미터 ? `\n1m당 표 ${미터}개는 연장을 곱해야 해서 뺌` : '') + '\n합에는 안 넣고 📑 내역 대조에서 견줌'}>📐 도면 철근 재료표 {쉼(쓴.reduce((a, x) => a + x.t, 0), 3)} t <span className="muted">(도면 {쓴.length}장 · 참고 — 합에 안 넣음)</span></small> })()}
+      {!골조있음 && <small className="muted">🏢 건축 골조는 없음 — 구조평면 · 일람표 도면을 넣으면 여기 더해집니다.</small>}
       {골조보기 && 자 && <small className={자.방법 === '옆' ? 'gmd-warn' : 'muted'}>📍 골조 자리 — {자.글}</small>}
       {골조보기 && 함께 && 함께.골조 && <small className="muted">철근은 골조만(토목 · 건물 평면은 개략 콘크리트 · 거푸집) · 같은 건물의 평면 덩어리는 두 번 안 셈</small>}
       {골조있음 && <button type="button" className="btn line sm tmk-toarch" onClick={건축으로}>🏢 건축 탭에서 골조 보기 · 고치기</button>}
@@ -480,7 +483,7 @@ function 도면함칸({ 함, 들, T, 보는, set보는 }) {
       </div>
       <small className="muted">{보는 ? `${보는.size}장만 보는 중 — 물량은 넣은 도면 모두` : '이름을 누르면 그 도면만 보입니다'}</small>
       <ul className="tmk-flist">
-        {들.map((x) => (
+        {[...들].sort((a, b) => a.이름.localeCompare(b.이름, 'ko', { numeric: true })).map((x) => (   /* 🔰 G441 넣은 차례 말고 이름 차례(탐색기처럼 01 · 02 · 03 …) */
           <li key={x.i} className={(켬(x) ? 'on' : 'off') + (혼자 && 켬(x) ? ' solo' : '') + (x.판 || x.구조 || x.횡단 ? '' : ' none')}>
             <input type="checkbox" checked={켬(x)} onChange={(e) => 바꿈(x, e.target.checked)} aria-label={x.줄기 + ' 보기'} />
             <button type="button" className="tmk-fnm" onClick={() => set보는(혼자 && 켬(x) ? null : new Set([x.줄기]))} title={x.이름 + (혼자 && 켬(x) ? ' — 다시 모두 보기' : ' — 이 도면만 보기')}>

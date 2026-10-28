@@ -158,7 +158,8 @@ for (const 기기 of 기기들) {
     on: (document.querySelector('.gmd-ws-views button.on') || {}).textContent || '',
   }))
   봐(내.줄.length === 기대.단위들.length && 기대.단위들.length === 14 && 기대.단셈.맞음 === 7 && 기대.단셈.비슷 === 3 && 기대.단셈.다름 === 2 && 기대.단셈.없음 === 2 && ['맞음 7', '비슷 3', '다름 2', '없음 2'].every((t) => 내.셈.some((x) => x.includes(t))), `${기기} 📑 대조 표 14줄 · ✓ 7 · △ 3 · ✗ 2 · — 2 = lib 맞대기`, JSON.stringify([내.셈, 기대.단셈]))
-  봐(내.줄.every((r, i) => { const d = 기대.단위들[i]; const 건 = 숫(r[4]); return r[0] === ({ 맞음: '✓', 비슷: '△', 다름: '✗', 없음: '—' })[d.판정] && (d.건설맵 > 0 ? Math.abs(건 - d.건설맵) < (d.갈래 === '철근' ? 0.0006 : 0.06) : r[4] === '—') }), `${기기} 줄마다 판정 · 건설맵 값 = lib(배수로 터파기 ${기대.단위들[0].건설맵.toFixed(1)} …)`, JSON.stringify(내.줄.slice(0, 3)))
+  const 기대순 = [...기대.단위들.filter((d) => d.판정 !== '없음'), ...기대.단위들.filter((d) => d.판정 === '없음')]   // 🔰 G441 표는 견준 줄 먼저 · «없음» 은 아래
+  봐(내.줄.every((r, i) => { const d = 기대순[i]; const 건 = 숫(r[4]); return r[0] === ({ 맞음: '✓', 비슷: '△', 다름: '✗', 없음: '—' })[d.판정] && (d.건설맵 > 0 ? Math.abs(건 - d.건설맵) < (d.갈래 === '철근' ? 0.0006 : 0.06) : r[4] === '—') }), `${기기} 줄마다 판정 · 건설맵 값 = lib(배수로 터파기 ${기대.단위들[0].건설맵.toFixed(1)} …)`, JSON.stringify(내.줄.slice(0, 3)))
   봐(/내역 대조/.test(내.on) && /✓ 7/.test(내.카드) && /견준 품목 12 \/ 내역 품목 20/.test(내.카드) && /· 수량/.test(내.카드), `${기기} 보기 «📑 내역 대조» 켜짐 · 카드(✓ 7 · 견준 12 / 20 · 상태 «수량»)`, 내.카드)
   await p.click('.tmk-nytable .tmk-nycount button.c-다름')
   const 거른 = await p.locator('.tmk-nyt tbody tr.tmk-nyrow').count()
@@ -173,11 +174,11 @@ for (const 기기 of 기기들) {
   await p.click('.gmd-ws-views button:has-text("내역 대조")'); await p.waitForTimeout(500)
   봐(삼 && (await p.locator('.tmk-nyt tbody tr.tmk-nyrow').count()) === 14, `${기기} 3D 갔다가 «📑 내역 대조» 로 돌아옴(표 그대로)`)
   /* ✋ G399 짝 고치기 — «배수로공사 콘크리트»(✓) 줄을 펼쳐 «가상 배수로» 를 빼면 — 로 · 남은 물량에서 다시 그 공종으로 → ✓ · ↺ */
-  const 콘줄 = p.locator('.tmk-nyrow', { hasText: '콘크리트' }).first()
+  const 콘줄 = p.locator('.tmk-nyrow', { hasText: '콘크리트' }).filter({ hasText: '배수로공사' }).first()
   await 콘줄.click()
   await p.click('.tmk-nydetail .tmk-nyx')
   await p.waitForTimeout(400)
-  const 뺀뒤 = await p.evaluate(() => ({ 셈: [...document.querySelectorAll('.tmk-nytable .tmk-nycount button')].map((b) => b.textContent), 되돌: (document.querySelector('.tmk-nyreset') || {}).textContent || '', 남: [...document.querySelectorAll('.tmk-nyleft li')].map((x) => x.textContent), 첫: [...document.querySelectorAll('.tmk-nyrow')].find((r) => /콘크리트/.test(r.textContent)).children[0].textContent }))
+  const 뺀뒤 = await p.evaluate(() => ({ 셈: [...document.querySelectorAll('.tmk-nytable .tmk-nycount button')].map((b) => b.textContent), 되돌: (document.querySelector('.tmk-nyreset') || {}).textContent || '', 남: [...document.querySelectorAll('.tmk-nyleft li')].map((x) => x.textContent), 첫: [...document.querySelectorAll('.tmk-nyrow')].find((r) => /배수로공사/.test(r.textContent) && /콘크리트/.test(r.textContent)).children[0].textContent }))
   봐(뺀뒤.셈.some((x) => /맞음 6/.test(x)) && 뺀뒤.셈.some((x) => /없음 3/.test(x)) && /처음대로 1/.test(뺀뒤.되돌) && 뺀뒤.남.some((x) => /✋ 가상 배수로 · 콘크리트/.test(x)) && 뺀뒤.첫 === '—', `${기기} ✋ 묶음 빼기 → 배수로 콘크리트 «—» · ✓ 6 · 남은 물량에 ✋ · ↺ 1`, JSON.stringify(뺀뒤))
   await p.click('.tmk-nyleft summary')
   await p.selectOption('.tmk-nyleft li select.tmk-nypair', { label: '배수로공사' })

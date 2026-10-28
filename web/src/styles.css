@@ -9279,6 +9279,9 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gmd .tmk-bothq th, .gmd .tmk-bothq td { font-size: 12px; }
 .gmd .tmk-bothq thead th { text-align: right; color: var(--muted); font-weight: 600; width: auto; }
 .gmd .tmk-bothq thead th:first-child { width: 1%; }
+/* 🔰 G441 큰 수(2,867.60 · 8,959.4)도 안 잘리게 — 이름 칸은 줄바꿈 · 수 칸은 한 줄 */
+.gmd .tmk-bothq thead th:first-child, .gmd .tmk-bothq tbody th { white-space: normal; width: auto; min-width: 7.5em; }
+.gmd .tmk-bothq td { white-space: nowrap; padding-left: 6px; }
 .gmd .tmk-bothq tbody th { color: var(--text-2); }
 .gmd .tmk-bothq tr.sum th, .gmd .tmk-bothq tr.sum td { font-weight: 800; color: var(--text); border-top: 1px solid var(--line); padding-top: 4px; }
 .gmd .tmk-toarch { width: auto; align-self: flex-start; }
@@ -9323,6 +9326,8 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gmd .tmk-nydetail td > div + div { margin-top: 3px; }
 .gmd .tmk-nywhy { color: #1d4ed8; }
 .gmd .tmk-nyleft summary { cursor: pointer; font-size: 12.5px; color: var(--text-2); }
+.gmd .tmk-nyhow summary { cursor: pointer; font-size: 12px; color: var(--text-2); }   /* 🔰 G441 맞대는 법은 접어 둠 */
+.gmd .tmk-nyhow small { display: block; margin-top: 2px; }
 .gmd .tmk-nyleft ul { margin: 4px 0 0; padding-left: 18px; font-size: 12px; line-height: 1.6; }
 @media (prefers-color-scheme: dark) {
   .gmd .tmk-nyc.c-맞음 { background: rgba(34, 197, 94, .16); border-color: rgba(34, 197, 94, .4); color: #86efac; }
