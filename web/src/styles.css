@@ -9474,3 +9474,52 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
   .qsbtn + .topbar-r { margin-left: -2px; }
   .qsbtn, .rfbtn, .sisbtn, .installbtn, .topback { padding-left: 6px !important; padding-right: 6px !important; }
 }
+
+/* 🖥 G446 BIM 물량 작업 화면(적산컨맵처럼) — 위 막대 · 왼쪽(도면함 · 합 · 도구) · 가운데 3D · 오른쪽(고른 것 + 물량 표) · 보통 화면에서는 감싸개가 없는 것처럼 */
+.bim .bim-ws-l { display: contents; }
+.bim .bim-ws-more { display: contents; }
+.bim .bim-ws-open { width: auto; margin-left: auto; }
+.bim .bim-ws { position: fixed; inset: 0; z-index: 1200; margin: 0; border: 0; border-radius: 0; box-shadow: none; padding: 0; background: var(--bg); display: grid; grid-template-columns: 270px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); overflow: hidden; }
+.bim .bim-ws-top { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.bim .bim-ws-name { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 420px; min-width: 0; }
+.bim .bim-ws-brand { color: var(--accent, #2563eb); font-weight: 800; }
+.bim .bim-ws-file { font-weight: 600; }
+.bim .bim-ws-acts { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
+.bim .bim-ws-acts .btn { width: auto; }
+.bim .bim-ws > .bim-ws-l { display: block; grid-column: 1; grid-row: 2; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px; background: var(--surface); border-right: 1px solid var(--line); }
+.bim .bim-ws > .bim-ws-l { display: flex; flex-direction: column; gap: 8px; }
+.bim .bim-ws > .bim-ws-l > * { margin: 0; flex: 0 0 auto; }
+.bim .bim-ws > .bim-ws-l > .bim-box { order: -3; }        /* 왼쪽 차례: 도면함 → 건축 · 토목 → 도구 → 합 */
+.bim .bim-ws > .bim-ws-l > .bim-big { order: -2; }
+.bim .bim-ws > .bim-ws-l > .bim-tool { order: -1; }
+.bim .bim-ws .bim-sum { flex-direction: column; align-items: stretch; gap: 6px; }
+.bim .bim-ws .bim-tool { flex-direction: column; align-items: stretch; }
+.bim .bim-ws .bim-chips, .bim .bim-ws .bim-views { flex-wrap: wrap; }
+.bim .bim-ws .bim-big { flex-wrap: wrap; }
+.bim .bim-ws .bim-bigtoggle { display: none; }   /* 작업 화면은 늘 크게 */
+.bim .bim-ws > .bim-view { grid-column: 2; grid-row: 2; min-height: 0; padding: 10px; display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 10px; }
+.bim .bim-ws .bim-canvas { height: auto; min-height: 0; }
+.bim .bim-ws .bim-side { max-height: none; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.bim .bim-ws .bim-ws-more { display: block; margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px; }
+.bim .bim-ws .bim-ws-more .card { box-shadow: none; padding: 10px; margin-bottom: 8px; }
+.bim .bim-ws .bim-ws-more .bim-tblwrap { overflow-x: auto; }
+.bim .bim-ws > .bim-out { display: none; }
+.bim .bim-ws-hello { display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; font-size: 15px; line-height: 1.7; }
+.bim .bim-ws-ex { display: flex; flex-direction: column; gap: 6px; }
+.bim .bim-ws-ex .btn { width: 100%; text-align: left; }
+@media (max-width: 1100px) {
+  .bim .bim-ws { grid-template-columns: 230px minmax(0, 1fr); }
+  .bim .bim-ws > .bim-view { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 36vh; }
+}
+@media (max-width: 760px) {
+  .bim .bim-ws { display: flex; flex-direction: column; overflow-y: auto; }
+  .bim .bim-ws > .bim-ws-top { order: 0; }
+  .bim .bim-ws > .bim-view { display: contents; }          /* 폰: 3D → 도구(도면함 · 합) → 고른 것 · 물량 표 */
+  .bim .bim-ws .bim-canvas { order: 1; height: 62vh; flex: 0 0 auto; margin: 8px; }
+  .bim .bim-ws > .bim-ws-l { order: 2; border-right: 0; overflow: visible; flex: 0 0 auto; }
+  .bim .bim-ws .bim-side { order: 3; overflow: visible; flex: 0 0 auto; margin: 8px; }
+  .bim .bim-ws-name { max-width: 100%; flex: 1 1 100%; }
+  .bim .bim-ws-acts { margin-left: 0; }
+}
+.bim .bim-ws > .bim-ws-l .bim-box-list { max-height: 34vh; overflow-y: auto; overscroll-behavior: contain; }   /* 도면함이 길어도 도구가 바로 보이게 */
+@media (max-width: 760px) { .bim .bim-ws > .bim-ws-l .bim-box-list { max-height: none; } }

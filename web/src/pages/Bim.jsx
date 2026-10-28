@@ -44,6 +44,7 @@ import { askAfter } from '../AskComment'
 import 받기검사판, { 엑셀내려주기 } from '../받기검사판.jsx'   // 📋 G444 받기 전 검사
 import { 끊음펴기들 } from '../lib/조각맞춤.js'   // 🏭 G445
 import { 세기 } from '../lib/받은수.jsx'
+import { 나운영자 } from '../lib/운영자.js'   // 🖥 G446 작업 화면(적산컨맵처럼 · 🔒 지금은 소장님 브라우저만)
 import { 일람표만들기, 일람표시트 } from '../lib/부재일람표.js'
 import { 멈춤감시, 멈춤글 } from '../lib/파일한도.js'
 import { 함목록, 함몸, 함넣기, 함고치기, 함빼기, 함비우기 } from '../lib/도면함.js'   // 📚 G438 도면함(이 브라우저에 남김)
@@ -664,9 +665,9 @@ export default function Bim() {
       </div>
     )
   }
-  const 토목묶음 = (글, ids) => {
+  const 토목묶음 = (글, ids, 견 = null) => {      // 견 = ⚖ G445 견줌 줄(몫이 없어 합이 0 으로 보이던 것 — 견줌 값을 그대로 보임)
     const 들 = new Set((ids || []).map((i) => 토목ID + i).filter((i) => 토목표.has(i) && !끔.has(토목표.get(i).종류)))
-    set선택(null); set묶음(들.size ? { 글, ids: 들 } : null)
+    set선택(null); set묶음(들.size ? { 글, ids: 들, 견 } : null)
     if (보기Ref.current && 들.size) 보기Ref.current.보기로([...들])
   }
   const 있는종류 = 종류들.filter((k) => 모델 && 모델.부재.some((o) => o.종류 === k))
@@ -768,6 +769,30 @@ export default function Bim() {
   const 고른 = 선택 !== null && 선택 < 토목ID ? 부재표.get(선택) : null
   /* 🔎 G280 검수 목록 — 클로드가 짐작한 것(3D 💭) · 만든 일람 값(🤖 배근표 «만든 값»)이 든 부재 */
   const [크게, set크게] = useState(false)
+  /* 🖥 G446 작업 화면(적산컨맵처럼 — 위 막대 · 왼쪽 도면함 · 도구 · 가운데 3D 크게 · 오른쪽 고른 것 · 물량 표) · 🔒 운영자(소장님 브라우저)만 단추 · ?ws=1 */
+  const [운영자, set운영자] = useState(false)
+  const [작업, set작업0] = useState(false)
+  const 작업Ref = useRef(null)
+  useEffect(() => {
+    let 살 = true
+    나운영자().then((v) => { if (!살 || !v) return; set운영자(true); try { if (new URLSearchParams(window.location.search).get('ws') === '1') set작업0(true) } catch (e) { /* 주소 못 읽음 */ } }).catch(() => {})
+    return () => { 살 = false }
+  }, [])
+  const set작업 = (v) => {
+    set작업0(v)
+    try { const u = new URL(window.location.href); if (v) u.searchParams.set('ws', '1'); else u.searchParams.delete('ws'); window.history.replaceState(window.history.state, '', u.pathname + u.search + u.hash) } catch (e) { /* 주소 못 바꿈 */ }
+    if (!v && document.fullscreenElement) { try { document.exitFullscreen() } catch (e) { /* 무시 */ } }
+  }
+  useEffect(() => {
+    if (!작업) return
+    세기('|BIM물량|작업화면')
+    const 전 = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = 전 }
+  }, [작업])
+  /* 작업 화면에 들어가고 나올 때 3D 칸 크기가 바뀜 → 다시 맞춰 봄(물량은 그대로) */
+  useEffect(() => { const t = setTimeout(() => { try { if (보기Ref.current) 보기Ref.current.fit('tilt') } catch (e) { /* 아직 없음 */ } }, 150); return () => clearTimeout(t) }, [작업])  // eslint-disable-line react-hooks/exhaustive-deps
+  const 전체화면 = () => { const el = 작업Ref.current; try { if (document.fullscreenElement) document.exitFullscreen(); else if (el && el.requestFullscreen) el.requestFullscreen() } catch (e) { /* 막힘 */ } }
   const [검종, set검종] = useState('')
   const 검목록 = useMemo(() => {
     if (!모델1 || !공사0) return []
@@ -820,28 +845,8 @@ export default function Bim() {
     return 줄
   }
 
-  return (
-    <div className="wrap bim">
-      <받기검사판 검사={받기검사} 닫기={() => set받기검사(null)} 받기={() => { if (!받기검사) return; 엑셀내려주기(받기검사.바이트, 받기검사.이름); 세기('|BIM물량|엑셀'); askAfter('jeoksan'); set받기검사({ ...받기검사, 알고: true }) }} />
-      <끌어놓기판 글="도면(DXF·DWG)을 놓으면 3D 로 세우고 물량을 냅니다 — 건축(구조평면도 · 일람표 · 층 평면도) · 토목(평면 · 종횡단 · 구조물 일반도 · 측량) 여러 장을 한꺼번에" 여럿 받기={(fs) => 파일받기(fs)} />
-      <div className="card">
-        <h1 className="tl-h1" style={{ marginTop: 0 }}>🏗 BIM 물량 <span className="count">· 캐드 도면 넣으면 3D + 물량</span></h1>
-        <div className="note sm">
-          지금 쓰시는 <b>2D 캐드 도면(DXF · DWG)</b> 그대로 — <b>건축</b>(구조평면도 · 부재 일람표)은 기둥 · 보 · 슬래브 · 벽 · 기초를(일람표가 없는 <b>층 평면도</b>만 있어도 벽 · 바닥 덩어리로),
-          <b> 토목</b>(평면 · 종횡단면도 · 구조물 일반도 · 측량)은 배수로 · 구조물 · 터파기 · 성토 · 땅을, <b>가설 흙막이</b>는 H-PILE · 버팀보 강재 무게를 <b>좌표로 읽어</b> 스스로
-          <b> 3D 로 세우고</b>, 같은 모델로 <b>물량</b>을 냅니다. 건축 · 토목 도면을 <b>한꺼번에</b> 넣으셔도 됩니다. 3D 에서 누르면 그 덩어리의 물량이 나옵니다.
-          <b> 도면은 고치지 않습니다</b> — 읽기만 합니다.
-        </div>
-        <div className="pdfsafe">🔒 <b>파일은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 읽고 셉니다 · 회원가입 없음 · 무료.</div>
-        <div className="bim-put">
-          <button type="button" className="btn" onClick={() => 칸Ref.current && 칸Ref.current.click()} disabled={상태.k === 'busy'}>📂 도면 넣기 (여러 장)</button>
-          <input ref={칸Ref} type="file" multiple accept=".dxf,.DXF,.dwg,.DWG" className="sr-only" tabIndex={-1} onChange={(e) => { 파일받기(e.target.files); e.target.value = '' }} />
-          <span className="tlx-exd"><b>🧪 도면이 없으시면</b></span>
-          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 예시열기(예시)} disabled={상태.k === 'busy'}>🏢 가상 3층 건물로 해 보기</button>
-          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { 세기('|BIM물량|예시청사'); 예시열기(예시청사) }} disabled={상태.k === 'busy'}>🏛 가상 청사(지하 1층 · 옹벽)로 해 보기</button>
-          {예시토목 && <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 예시열기(예시토목)} disabled={상태.k === 'busy'}>🏞 가상 배수로 · 배수장 + 관리동 · 건물 · 흙막이 한꺼번에</button>}
-        </div>
-        {함.length > 0 && (() => {
+  /* 📚 G438 도면함 칸 — 첫 칸(보통 화면) · 작업 화면 왼쪽(같은 것) */
+  const 도면함칸 = 함.length > 0 && (() => {
           /* 📚 G438 도면함 — ☑ 체크한 도면만 셈 · ✕ 빼기 · 이 브라우저에 남김 */
           const 켠 = 함.filter((x) => x.켬)
           const 종합 = {}
@@ -875,7 +880,529 @@ export default function Bim() {
               <div className="bim-box-foot">🔒 {함남김 ? '이 브라우저에만 남겨 둡니다 — 다시 열어도 그대로입니다(어디로도 안 올라감).' : '이 기기에는 남기지 못했습니다(저장 공간이 모자람) — 이 탭을 닫으면 다시 넣어야 합니다.'} 도면을 더 넣으면 도면함에 더해집니다.</div>
             </div>
           )
-        })()}
+        })()
+  /* 🖥 G446 작업 화면 위 막대 — 이름 · 도면 넣기 · 엑셀 · IFC · 3D 사진 · 전체 화면 · 나가기 */
+  const 작업막대 = (
+    <div className="bim-ws-top">
+      <b className="bim-ws-name"><span className="bim-ws-brand">🏗 BIM 물량</span> <span className="bim-ws-file">{보이는것 || 이름 || '도면을 넣으십시오'}</span></b>
+      <span className="bim-ws-acts">
+        <button type="button" className="btn sm" onClick={() => 칸Ref.current && 칸Ref.current.click()} disabled={상태.k === 'busy'}>📂 도면 넣기</button>
+        <button type="button" className="btn line sm" onClick={엑셀받기} disabled={!!받는중 || !보임}>{받는중 === '엑셀' ? '만드는 중…' : '⬇ 엑셀'}</button>
+        <button type="button" className="btn line sm" onClick={IFC받기} disabled={!!받는중 || !그림있음}>{받는중 === 'IFC' ? '만드는 중…' : '⬇ IFC'}</button>
+        <button type="button" className="btn line sm" onClick={사진받기} disabled={!!glErr || !그림있음}>📷 3D 사진</button>
+        <button type="button" className="btn line sm" onClick={전체화면} title="전체 화면(한 번 더 누르면 돌아옴)">⛶ 전체 화면</button>
+        <button type="button" className="btn sm" onClick={() => set작업(false)}>✕ 나가기</button>
+      </span>
+    </div>
+  )
+  /* 🖥 G446 3D 아래 칸들(검수 · 일람 · 물량 표 · 경고) — 작업 화면에서는 오른쪽 칸(고른 것 아래)으로 */
+  const 더칸 = 보임 ? (
+    <>
+            {골조수 > 0 && 검목록.length > 0 && (() => {
+              const 끝 = 검목록.filter((x) => !검남(x)).length, 뺀수 = 검목록.filter((x) => 검수.뺌.has(x.키)).length
+              const 몫 = Math.round(끝 / 검목록.length * 100)
+              const 종들 = 종류들.filter((k) => 검목록.some((x) => x.o.종류 === k))
+              const 줄 = 검순.filter((x) => !검종 || x.o.종류 === 검종).sort((a, b) => (검남(b) ? 1 : 0) - (검남(a) ? 1 : 0))
+              const 다음 = 검다음(null)
+              return (
+                <div className="card bim-review">
+                  <h2 className="bim-h2">🔎 검수 <span className="muted">— 건설맵이 짐작하거나 만든 값이 든 부재 {쉼(검목록.length)}개 · 확인 {쉼(끝 - 뺀수)} · 뺌 {쉼(뺀수)} ({몫}%)</span></h2>
+                  <div className="bim-rv-bar" aria-label={'검수 ' + 몫 + '%'}><i style={{ width: 몫 + '%' }} /></div>
+                  <div className="bim-rv-top">
+                    <span className="bim-chips">
+                      <button type="button" className={'bim-chip' + (!검종 ? ' on' : '')} onClick={() => set검종('')}>모두 {쉼(검목록.filter(검남).length)}</button>
+                      {종들.map((k) => <button key={k} type="button" className={'bim-chip' + (검종 === k ? ' on' : '')} onClick={() => set검종(k)}><i style={{ background: 색글(종류색[k]) }} />{종이름[k]} {쉼(검목록.filter((x) => x.o.종류 === k && 검남(x)).length)}/{쉼(검목록.filter((x) => x.o.종류 === k).length)}</button>)}
+                    </span>
+                    {다음 ? <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => 검고르기(다음)}>▶ 다음 확인할 것 — {층말(다음.o.층)} {종이름[다음.o.종류]} {다음.o.몸 || 다음.o.기호}</button> : <span className="bim-rv-done">✓ 다 봤습니다</span>}
+                  </div>
+                  <div className="bim-tblwrap">
+                    <table className="bim-tbl bim-rv-tbl">
+                      <thead><tr><th>층</th><th>부재</th><th>크기(mm)</th><th>확인할 까닭</th><th>콘크리트</th><th></th></tr></thead>
+                      <tbody>
+                        {줄.slice(0, 300).map((x) => {
+                          const 뺐 = 검수.뺌.has(x.키), 확 = 검수.확인.has(x.키), q = Q && Q.부재.get(x.o.id)
+                          return (
+                            <tr key={x.키} className={(뺐 ? 'rv-out' : 확 ? 'rv-ok' : '') + (고른 === x.o ? ' rv-sel' : '')} onClick={() => 검고르기(x)}>
+                              <td>{층말(x.o.층)}</td>
+                              <td><i style={{ background: 색글(종류색[x.o.종류]) }} />{종이름[x.o.종류]} <b>{x.o.몸 || x.o.기호}</b></td>
+                              <td>{크기글(x.o)}</td>
+                              <td className="rv-why">{x.까닭.slice(0, 2).map((w, i) => <div key={i}>{w}</div>)}{x.까닭.length > 2 && <div className="muted">… {x.까닭.length - 2}가지 더</div>}</td>
+                              <td>{뺐 ? '—' : q ? 쉼(q.콘크리트, 2) + ' ㎥' : ''}</td>
+                              <td className="rv-btns" onClick={(e) => e.stopPropagation()}>
+                                {!뺐 && <button type="button" className={'btn sm' + (확 ? '' : ' line')} onClick={() => { 검수바꾸기('확인', x.키, !확); 세기('|BIM물량|검수') }}>{확 ? '✓ 확인함' : '확인'}</button>}
+                                <button type="button" className="btn line sm" onClick={() => { 검수바꾸기('뺌', x.키, !뺐); 세기('|BIM물량|검수'); if (!뺐 && 고른 === x.o) set선택(null) }}>{뺐 ? '되돌리기' : '빼기'}</button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {줄.length > 300 && <div className="muted" style={{ fontSize: 12.5 }}>… {쉼(줄.length - 300)}개 더 — 위 종류 단추로 나눠 보십시오</div>}
+                  <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>줄을 누르면 3D 가 크게 그 부재로 갑니다 · <b>빼기</b> 한 부재는 3D · 물량 · 엑셀에서 빠집니다(되돌리기 가능) · 확인 · 뺌은 이 브라우저에 파일 이름마다 기억합니다.</div>
+                </div>
+              )
+            })()}
+
+            {골조수 > 0 && 일람표.length > 0 && (() => {
+              const 지금 = 일람표.find((t) => t.종류 === 일람종) || 일람표[0]
+              const 만든수 = (t) => t.줄.filter((z) => z.만든).length
+              /* 🧭 G406 머리 수 — 📐 잰 값 · 📌 사람 확인 · ❓ 도면에 없음을 따로(예전엔 «만든» 줄 모두를 ❓ 로 셈) */
+              const 표수 = (t, re) => t.줄.filter((z) => re.test(z.만든 || '')).length
+              const 없수 = (t) => t.줄.filter((z) => /❓/.test(z.만든 || '') && !/^\s*📌/.test(z.만든 || '')).length
+              const 모든줄 = 일람표.reduce((n, t) => n + t.줄.length, 0), 모든만든 = 일람표.reduce((n, t) => n + 만든수(t), 0)
+              const 모든잰 = 일람표.reduce((n, t) => n + 표수(t, /📐/), 0), 모든사람 = 일람표.reduce((n, t) => n + 표수(t, /📌/), 0), 모든없 = 일람표.reduce((n, t) => n + 없수(t), 0)
+              return (
+                <div className="card bim-ilam">
+                  <h2 className="bim-h2">📋 부재 일람표 <span className="muted">— 도면에서 읽어 만든 일람 {쉼(모든줄)}줄 · 📄 도면 {쉼(모든줄 - 모든만든)}{모든잰 ? ' · 📐 잰 값 ' + 쉼(모든잰) : ''}{모든사람 ? ' · 📌 사람 확인 ' + 쉼(모든사람) : ''} · ❓ 도면에 없음 {쉼(모든없)}</span></h2>
+                  <div className="bim-rv-top">
+                    <span className="bim-chips">
+                      {일람표.map((t) => <button key={t.종류} type="button" className={'bim-chip' + (지금 === t ? ' on' : '')} onClick={() => { set일람종(t.종류); 세기('|BIM물량|일람') }}>{t.이름} {쉼(t.줄.length)}{없수(t) ? ' · ❓ ' + 쉼(없수(t)) : ''}</button>)}
+                    </span>
+                  </div>
+                  <div className="bim-tblwrap">
+                    <table className="bim-tbl bim-il-tbl">
+                      <thead><tr>{지금.머리.map((h) => <th key={h}>{h}</th>)}<th>3D</th><th>근거</th></tr></thead>
+                      <tbody>
+                        {지금.줄.map((z) => (
+                          <tr key={z.기호} className={(z.만든 ? 'il-made' : '') + (z.쓰임 ? ' il-use' : '')} onClick={() => { if (z.쓰임) 묶음고르기(지금.이름 + ' ' + z.기호, (o) => (o.표 === '옹벽' ? '벽' : o.표) === 지금.종류 && String(o.기호 || '').trim() === z.기호) }}>
+                            <th>{z.기호}</th>
+                            {z.칸.map((v, i) => <td key={i}>{v || <span className="muted">—</span>}</td>)}
+                            <td>{z.쓰임 ? 쉼(z.쓰임) : <span className="muted">—</span>}</td>
+                            <td className="il-why">{z.만든 ? <>{근거표(z.만든) ? 근거표(z.만든) + ' ' : ''}{z.만든}</> : <span className="muted">📄 도면</span>}
+                              {/* 📌 G406 같은 부재 고르기 — 건설맵은 잇지 않음(짐작 금지) · 사람이 도면을 보고 고른 것만 · 고른 날짜를 적고 되돌릴 수 있음 */}
+                              {(z.후보 || z.사람) && (
+                                <span className="il-same" onClick={(e) => e.stopPropagation()}>
+                                  {z.사람
+                                    ? <button type="button" className="btn line sm" title="같은 부재로 본 것을 되돌림 — 다시 ❓ 도면에 없음" onClick={() => { 같음바꾸기(지금.종류 + '|' + z.기호, null); 세기('|BIM물량|같음되돌림') }}>↩ 되돌리기</button>
+                                    : z.후보.map((k) => <button key={k} type="button" className="btn line sm" title={'도면을 보고 «' + z.기호 + '» 와 «' + k + '» 가 같은 부재일 때만 누르세요 — 그 줄 값으로 셈하고 📌 사람 확인으로 적습니다'} onClick={() => { 같음바꾸기(지금.종류 + '|' + z.기호, k); 세기('|BIM물량|같음') }}>📌 «{k}» 같은 부재</button>)}
+                                </span>
+                              )}
+                              {/* 📌 G427 후보가 없거나 다른 줄이 맞으면 — 같은 종류 줄 가운데 사람이 고름(도면을 보고 · 고른 날짜 · 되돌리기) */}
+                              {!z.사람 && z.고를 && z.고를.length > 0 && (
+                                <span className="il-same" onClick={(e) => e.stopPropagation()}>
+                                  <select className="il-pick" value="" title={'도면(일람 · 상세)을 보고 «' + z.기호 + '» 의 빈 칸이 고른 줄과 같을 때만 고르세요 — 그 줄 값으로 셈하고 📌 사람 확인(날짜)으로 적습니다 · ↩ 되돌리기 됨'}
+                                    onChange={(e) => { const k = e.target.value; if (!k) return; 같음바꾸기(지금.종류 + '|' + z.기호, k); 세기('|BIM물량|같음고름') }}>
+                                    <option value="">📌 다른 줄 값으로…</option>
+                                    {z.고를.map((k) => <option key={k} value={k}>{k}</option>)}
+                                  </select>
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>📐 = 도면에서 잰 값(평면 두 선 · 그림) · ❓ = 도면에 없는 값(짐작 안 함 — 그 물량은 셈에서 빠짐 · 배근표에 적으면 셈) · 📌 = 도면을 보고 «같은 부재» 를 고른 값(«📌 … 같은 부재» 단추 · 이 브라우저에 파일 이름마다 기억 · 되돌리기) · 3D = 이 기호로 세운 부재 수(— 는 일람표에만 있음) · 줄을 누르면 그 부재들이 3D 에서 파랗게 · 엑셀 수량산출서 «부재 일람표» 시트에도 들어갑니다.</div>
+                </div>
+              )
+            })()}
+
+            {골조수 > 0 && (
+              <div className="card">
+                <h2 className="bim-h2">📊 골조 물량 표 <span className="muted">— 칸을 누르면 3D 에서 그 부재들이 파랗게</span></h2>
+                <div className="bim-tblwrap">
+                  <table className="bim-tbl">
+                    <thead><tr><th>층</th>{있는종류.map((k) => <th key={k}><i style={{ background: 색글(종류색[k]) }} />{종이름[k]}</th>)}<th>층 합</th></tr></thead>
+                    <tbody>
+                      {층들.map((n) => {
+                        let 층합 = 0
+                        return (
+                          <tr key={n}>
+                            <th>{층말(n)}</th>
+                            {있는종류.map((k) => {
+                              const c = 칸(n, k)
+                              if (!c) return <td key={k} className="muted">—</td>
+                              층합 += c.콘크리트
+                              return (
+                                <td key={k} className="bim-cell" onClick={() => 묶음고르기(층말(n) + ' ' + 종이름[k], (o) => o.층 === n && o.종류 === k)}>
+                                  <b>{쉼(c.콘크리트, 2)}</b> ㎥<span>{c.개수}개 · 거푸집 {쉼(c.거푸집, 1)}㎡ · 철근 {쉼(c.철근 / 1000, 2)}t</span>
+                                </td>
+                              )
+                            })}
+                            <td><b>{쉼(층합, 2)}</b> ㎥</td>
+                          </tr>
+                        )
+                      })}
+                      <tr className="bim-total">
+                        <th>합계</th>
+                        {있는종류.map((k) => {
+                          const t = 층들.reduce((s, n) => s + ((칸(n, k) || {}).콘크리트 || 0), 0)
+                          return <td key={k} className="bim-cell" onClick={() => 묶음고르기('모든 ' + 종이름[k], (o) => o.종류 === k)}><b>{쉼(t, 2)}</b> ㎥</td>
+                        })}
+                        <td><b>{쉼(합.콘, 2)}</b> ㎥</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                {Q && Q.기타 && (Q.기타.콘크리트 > 0.0005 || Q.기타.거푸집 > 0.0005) && <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>그 밖(자리 없는 줄 — 슬래브 마구리 · 깊은 구역 벽 내림 · 단차 · 건축 평면 난간 등 · 3D 에는 아직 안 그림): 콘크리트 {쉼(Q.기타.콘크리트, 2)} ㎥ · 거푸집 {쉼(Q.기타.거푸집, 2)} ㎡ · 철근 {쉼(Q.기타.철근, 1)} kg</div>}
+                <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>물량은 <Link to="/jeoksan/golgo">골조 수량산출</Link>과 같은 셈(겹치는 곳 공제 · 철근 정착 · 이음)입니다 — 엑셀에 산출근거 식이 그대로 들어갑니다.</div>
+              </div>
+            )}
+
+            {토목물 && (
+              <div className="card">
+                <h2 className="bim-h2">🏞 토목 물량 표 <span className="muted">— 평균단면법 · 줄을 누르면 3D 에서 파랗게</span></h2>
+                <div className="bim-tblwrap">
+                  <table className="bim-tbl">
+                    <thead><tr><th>노선 · 구조물</th><th>연장</th><th><i style={{ background: 색글(토목색.수로) }} />콘크리트</th><th>거푸집</th><th><i style={{ background: 색글(토목색.터파기) }} />터파기</th>{절있음 && <th>흙깎기</th>}<th>되메우기</th><th><i style={{ background: 색글(토목색.성토) }} />성토</th></tr></thead>
+                    <tbody>
+                      {토.노선들.map((n) => (
+                        <tr key={'n' + n.번} className="bim-cell" onClick={() => 토목묶음(n.이름, n.ids)}>
+                          <th>{n.이름}<span className="muted" style={{ display: 'block', fontWeight: 400, fontSize: 11 }}>단면 {n.단면수}개 · {측점글(n.시작, n.간격)} ~ {측점글(n.끝, n.간격)}{n.세움 ? '' : ' · 3D 못 세움(노선 없음)'}</span>
+                            {표쓴노선.includes(n) && <span className="bim-pyo" title={'선으로 잰 값(맞춰 보기): 판 곳(터파기 + 흙깎기) ' + 쉼(n.선합.터파기, 1) + ' · 되메우기 ' + 쉼(n.선합.되메우기, 1) + ' · 성토 ' + 쉼(n.선합.성토, 1) + ' ㎥ — 도면 표: 터파기 + 흙깎기 ' + 쉼(n.합.터파기 + (n.합.절토 || 0), 1) + ' ㎥'}>📋 토공 = 도면 표 값 <em>· 선으로 잰 판 곳 {쉼(n.선합.터파기, 0)} ㎥(표 {쉼(n.합.터파기 + (n.합.절토 || 0), 0)})</em></span>}</th>
+                          <td>{쉼(n.길이, 1)} m</td>
+                          <td><b>{쉼(n.합.콘크리트, 2)}</b> ㎥</td>
+                          <td>{쉼(n.합.거푸집, 1)} ㎡</td>
+                          <td>{쉼(n.합.터파기, 1)} ㎥</td>
+                          {절있음 && <td>{쉼(n.합.절토 || 0, 1)} ㎥</td>}
+                          <td>{쉼(n.합.되메우기, 1)} ㎥</td>
+                          <td>{쉼(n.합.성토, 1)} ㎥</td>
+                        </tr>
+                      ))}
+                      {토.구조물들.map((q, qi) => (
+                        <tr key={'s' + qi} className="bim-cell" onClick={() => 토목묶음(q.이름, q.ids)}>
+                          <th>🏭 {q.이름}<span className="muted" style={{ display: 'block', fontWeight: 400, fontSize: 11 }}>개략 · 벽 {쉼(q.넓이.벽, 1)} ㎡ × {쉼(q.벽높, 2)} m + 바닥 {쉼(q.넓이.바닥, 1)} ㎡ × {q.바닥두께} mm</span></th>
+                          <td className="muted">—</td>
+                          <td><b>{쉼(q.합.콘크리트, 2)}</b> ㎥</td>
+                          <td>{쉼(q.합.거푸집, 1)} ㎡</td>
+                          <td className="muted">—</td>{절있음 && <td className="muted">—</td>}<td className="muted">—</td><td className="muted">—</td>
+                        </tr>
+                      ))}
+                      <tr className="bim-total">
+                        <th>합계</th><td />
+                        <td><b>{쉼(토목합.콘크리트, 2)}</b> ㎥</td><td>{쉼(토목합.거푸집, 1)} ㎡</td><td>{쉼(토목합.터파기, 1)} ㎥</td>{절있음 && <td>{쉼(토목합.절토, 1)} ㎥</td>}<td>{쉼(토목합.되메우기, 1)} ㎥</td><td>{쉼(토목합.성토, 1)} ㎥</td>
+                      </tr>
+                      {/* ⚖ G445 같은 구조물 견줌 — 같은 자리 횡단면도로 센 값(합에 안 넣음) · 누르면 3D 에서 그 옅은 덩어리 */}
+                      {토.구조물들.flatMap((q, qi) => (q.견줌 || []).map((g, gi) => {
+                        const 노 = 토.노선들.find((n) => n.이름 === g.노선)
+                        const ids = 노 ? 토.부재.filter((o) => (노.견ids || []).includes(o.id) && o.측 >= g.처음 - 1e-6 && o.측 <= g.끝 + 1e-6).map((o) => o.id) : []
+                        return (
+                          <tr key={'c' + qi + '-' + gi} className="bim-cell bim-cmp" title="누르면 3D 에서 그 옅은 덩어리를 파랗게" onClick={() => 토목묶음('⚖ 견줌 — ' + g.노선, ids, { 단면: g.단면, 콘크리트: g.콘크리트, 거푸집: g.거푸집, 구조물: q.이름, 일반도: q.합.콘크리트 })}>
+                            <th>⚖ 견줌(합에 안 넣음)<span className="muted" style={{ display: 'block', fontWeight: 400, fontSize: 11, whiteSpace: 'normal', maxWidth: 340 }}>«{g.노선}» {측점글(g.처음)} ~ {측점글(g.끝)} 횡단 {g.단면}개 — 같은 자리 구조물 «{q.이름}» 은 일반도로 셈(두 번 안 셈)</span></th>
+                            <td className="muted">—</td>
+                            <td>{쉼(g.콘크리트, 2)} ㎥</td><td>{쉼(g.거푸집, 1)} ㎡</td>
+                            <td className="muted">—</td>{절있음 && <td className="muted">—</td>}<td className="muted">—</td><td className="muted">—</td>
+                          </tr>
+                        )
+                      }))}
+                    </tbody>
+                  </table>
+                </div>
+                {토.구조물들.length > 0 && (
+                  <div className="bim-floors" style={{ marginTop: 10 }}>
+                    {토.구조물들.map((q, qi) => (
+                      <label key={'t' + qi} className={q.두께없음 ? 'guess' : ''}>
+                        <span>🏭 {q.이름} 바닥판 두께</span>
+                        <input className="inp" inputMode="numeric" placeholder={q.두께없음 ? '도면에 없음' : ''} value={두께[q.이름] !== undefined ? 두께[q.이름] : q.두께없음 ? '' : String(q.바닥두께)}
+                               onChange={(e) => { const v = e.target.value.replace(/[^\d]/g, ''); set두께((h) => ({ ...h, [q.이름]: v })) }} />
+                        <em>mm{q.두께없음 ? ' · ❓ 도면에 없음 — 넣으면 셈' : q.두께근거 ? ' · ' + q.두께근거.replace(/\(.*$/, '') : ''}</em>
+                      </label>
+                    ))}
+                    {Object.keys(두께).length > 0 && <button type="button" className="btn line sm" onClick={() => set두께({})}>↩ 처음대로</button>}
+                  </div>
+                )}
+                {토.노선들.map((n) => (
+                  <details key={'d' + n.번} className="bim-how">
+                    <summary>📐 {n.이름} — 평균단면 {n.줄.length}줄</summary>
+                    <div className="bim-tblwrap">
+                      <table className="bim-tbl" style={{ minWidth: 640 }}>
+                        <thead><tr><th>측점</th><th>거리(m)</th><th>콘크리트 ㎡</th><th>콘크리트 ㎥</th><th>터파기 ㎡{n.표씀 && n.표씀.터파기 ? ' (표)' : ''}</th>{n.선줄 && <th className="muted">선으로 잰 판 곳 ㎡</th>}<th>터파기 ㎥</th>{절있음 && <th>흙깎기 ㎥</th>}<th>되메우기 ㎥</th><th>성토 ㎥</th></tr></thead>
+                        <tbody>
+                          {n.줄.map((r, i) => (
+                            <tr key={i} className="bim-cell" title="누르면 이 단면의 덩어리를 3D 에서 파랗게 · 다가감"
+                                onClick={() => 토목묶음(n.이름 + ' ' + 측점글(r.측, n.간격), 토.부재.filter((o) => o.노선번 === n.번 && Math.abs(o.측 - r.측) < 1e-6).map((o) => o.id))}>
+                              <th>{측점글(r.측, n.간격)}</th><td>{쉼(r.거리, 2)}</td><td>{쉼(r.면적.콘크리트, 3)}</td><td>{쉼(r.부피.콘크리트, 2)}</td><td>{쉼(r.면적.터파기, 2)}</td>{n.선줄 && <td className="muted">{쉼(n.선줄[i] ? n.선줄[i].면적.터파기 : NaN, 2)}</td>}<td>{쉼(r.부피.터파기, 1)}</td>{절있음 && <td>{쉼(r.부피.절토 || 0, 1)}</td>}<td>{쉼(r.부피.되메우기, 1)}</td><td>{쉼(r.부피.성토, 1)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                ))}
+                <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>
+                  단면 둘 사이 = (앞 면적 + 뒤 면적) ÷ 2 × 거리 — <Link to="/tools/dxf3d">도면 3D 보기</Link> · 토공 화면과 같은 셈이고, 엑셀에 식이 그대로 들어갑니다.
+                  {표쓴노선.length > 0 && ' 📋 횡단면도 측점 표에 터파기 · 되메우기 · 흙쌓기 · 흙깎기 면적이 적혀 있으면 그 값(설계자 값)으로 셉니다 — 선으로 잰 값은 맞춰 보기용으로 옆에 둡니다.'}
+                  3D 덩어리 하나는 단면 하나가 앞뒤 반 칸씩 맡은 몫입니다(몫을 다 더하면 노선 합계와 같음).
+                </div>
+              </div>
+            )}
+
+            {건물들.length > 0 && (
+              <div className="card">
+                <h2 className="bim-h2">🏢 건물(건축 평면) 물량 표 <span className="muted">— 부재 일람표 없이 평면 겹선으로 세운 개략 · 줄을 누르면 3D 에서 파랗게</span></h2>
+                {참고건물 && <div className="dx3-warn" style={{ marginTop: 0 }}>ℹ️ «{참고건물}» 은 골조(구조평면도 · 일람표)와 같은 건물이라 <b>참고</b>로만 둡니다 — 위 요약 · 엑셀 합계 · IFC 에 안 넣었습니다. 물량은 골조 물량 표를 보십시오.</div>}
+                {건물들.map((b, bi) => {
+                  const 층몫 = (f) => 토.부재.filter((o) => o.건물 === b.이름 && o.층 === f.이름).reduce((a, o) => ({ 콘: a.콘 + (o.몫 ? o.몫.콘크리트 || 0 : 0), 틀: a.틀 + (o.몫 ? o.몫.거푸집 || 0 : 0), ids: [...a.ids, o.id] }), { 콘: 0, 틀: 0, ids: [] })
+                  return (
+                    <div key={'b' + bi} className="bim-tblwrap" style={{ marginBottom: 10 }}>
+                      <table className="bim-tbl">
+                        <thead><tr><th>{b.이름}{b.옆 ? <span className="muted" style={{ fontWeight: 400 }}> · 토목 옆</span> : b.자리 === '모양' ? <span className="muted" style={{ fontWeight: 400 }}> · 배치도 자리</span> : null}</th><th>높이(m)</th><th><i style={{ background: 색글(토목색.건물바닥) }} />바닥 넓이</th><th><i style={{ background: 색글(토목색.건물) }} />벽(평면)</th><th>벽 높이</th><th>콘크리트</th><th>거푸집</th></tr></thead>
+                        <tbody>
+                          {b.층.map((f, fi) => {
+                            const m = 층몫(f)
+                            return (
+                              <tr key={fi} className="bim-cell" onClick={() => 토목묶음(b.이름 + ' ' + f.이름, m.ids)}>
+                                <th>{f.이름}{f.지붕 && !/지붕/.test(f.이름) ? ' (지붕)' : ''}{f.뺀벽 ? <span className="muted" style={{ display: 'block', fontWeight: 400, fontSize: 11 }}>벽 안 세움 — 두께 {쉼(f.두께, 2)} m 로 읽힘</span> : null}</th>
+                                <td>{쉼(f.z0, 2)}{f.지붕 ? '' : ' ~ ' + 쉼(f.z1, 2)}</td>
+                                <td>{쉼(f.바닥, 1)} ㎡</td>
+                                <td>{f.벽 ? 쉼(f.벽, 1) + ' ㎡' : '—'}</td>
+                                <td>{f.벽높 ? 쉼(f.벽높, 2) + ' m' : '—'}</td>
+                                <td><b>{쉼(m.콘, 2)}</b> ㎥</td>
+                                <td>{쉼(m.틀, 1)} ㎡</td>
+                              </tr>
+                            )
+                          })}
+                          <tr className="bim-total bim-cell" onClick={() => 토목묶음(b.이름, b.ids)}>
+                            <th>합계 · 연면적 {쉼(b.연면적, 1)} ㎡</th><td /><td /><td /><td />
+                            <td><b>{쉼(b.합.콘크리트, 2)}</b> ㎥</td><td>{쉼(b.합.거푸집, 1)} ㎡</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                })}
+                <div className="bim-floors" style={{ marginTop: 4 }}>
+                  {건물들.map((b, bi) => (
+                    <label key={'bt' + bi} className={b.두께없음 ? 'guess' : ''}>
+                      <span>🏢 {b.이름} 바닥판 두께</span>
+                      <input className="inp" inputMode="numeric" placeholder={b.두께없음 ? '도면에 없음' : ''} value={건물두께[b.이름] !== undefined ? 건물두께[b.이름] : b.두께없음 ? '' : String(b.바닥두께)}
+                             onChange={(e) => { const v = e.target.value.replace(/[^\d]/g, ''); set건물두께((h) => ({ ...h, [b.이름]: v })) }} />
+                      <em>mm{b.두께없음 ? ' · ❓ 도면에 없음 — 넣으면 셈' : ' · 사람이 넣음'}</em>
+                    </label>
+                  ))}
+                  {Object.keys(건물두께).length > 0 && <button type="button" className="btn line sm" onClick={() => set건물두께({})}>↩ 처음대로</button>}
+                </div>
+                <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>
+                  층마다 평면의 겹선(두 줄 사이)을 벽으로, 바깥 테두리를 바닥판으로 읽었습니다. 벽은 층 바닥에서 윗층 바닥판 아래까지 세우고, 창 · 문 구멍과 기둥은 빼지 않은 <b>개략</b>입니다.
+                  부재 일람표(크기 표)가 든 구조 도면을 같이 넣으시면 골조로 정확히 셉니다.
+                </div>
+              </div>
+            )}
+
+            {흙들.length > 0 && (
+              <div className="card">
+                <h2 className="bim-h2">🧱 흙막이 · 가설 물량 표 <span className="muted">— 흙막이 평면도 · 전개도 · 도면 글자(규격 · 간격 · 굴착 깊이)에서 읽음</span></h2>
+                {흙들.map((h, hi) => {
+                  const q = 흙물[hi]
+                  if (!q) return null
+                  const 짧 = String(h.파일 || '흙막이').replace(/\.(dxf|dwg)$/i, '')
+                  return (
+                    <div key={'h' + hi} className="bim-tblwrap" style={{ marginBottom: 10 }}>
+                      <table className="bim-tbl bim-tbl-h">
+                        <thead><tr><th>{흙들.length > 1 ? 짧 : '공종'}</th><th className="bim-d">규격</th><th>수량</th><th>길이</th><th className="bim-d">단위무게</th><th>중량</th></tr></thead>
+                        <tbody>
+                          {q.줄.map((x, i) => (
+                            <tr key={i} className="bim-cell" title="누르면 3D 에서 파랗게" onClick={() => 토목묶음(x.공종, (h.ids || []).filter((id) => { const o = 토목표.get(토목ID + id); return o && o.부분 === x.부분 && (!x.단 || (o.단 || 1) === x.단) }))}>
+                              <th>{x.공종}<span className="bim-m muted">{x.규격 || '규격 못 읽음'}{x.kg ? ' · ' + 쉼(x.kg, 1) + ' kg/m' : ''}</span>{x.짐작 ? <span className="muted" style={{ display: 'block', fontWeight: 400, fontSize: 11 }}>{x.짐작}</span> : null}</th>
+                              <td className="bim-d bim-nw">{x.규격 || '—'}</td>
+                              <td className="bim-nw">{x.수량 != null ? 쉼(x.수량) + ' 본' : '—'}</td>
+                              <td className="bim-nw">{쉼(x.길이, 1)} m</td>
+                              <td className="bim-d bim-nw">{x.kg ? 쉼(x.kg, 1) + ' kg/m' : '—'}</td>
+                              <td><b>{쉼(x.중량, 2)}</b> ton</td>
+                            </tr>
+                          ))}
+                          <tr className="bim-total">
+                            <th>강재 합계 <span className="muted" style={{ fontWeight: 400 }}>(할증 {쉼(할증수, 1)}% 넣음)</span></th><td className="bim-d" /><td /><td className="bim-nw">{쉼(q.줄.reduce((n, x) => n + x.길이, 0), 1)} m</td><td className="bim-d" />
+                            <td className="bim-nw"><b>{쉼(q.강재, 2)}</b> ton</td>
+                          </tr>
+                          {q.토류판 && <tr className="bim-cell" onClick={() => 토목묶음('토류판', (h.ids || []).filter((id) => { const o = 토목표.get(토목ID + id); return o && o.부분 === '토류판' }))}><th>토류판(흙막이판)<span className="bim-m muted">{h.토류판.근거 === '전개도' ? '전개도' : '글자 깊이'}</span></th><td className="bim-d muted">{h.토류판.근거 === '전개도' ? '전개도' : '글자 깊이'}</td><td /><td>{쉼(q.토류판.길이, 1)} m × {쉼(q.토류판.깊이, 2)} m</td><td className="bim-d" /><td className="bim-nw"><b>{쉼(q.토류판.넓이, 1)}</b> ㎡</td></tr>}
+                          {q.터파기 && <tr className="bim-cell" onClick={() => { const ids = (h.ids || []).filter((id) => { const o = 토목표.get(토목ID + id); return o && o.종류 === '터파기' }).map((id) => 토목ID + id); set끔((s0) => { const n = new Set(s0); n.delete('터파기'); return n }); set선택(null); set묶음(ids.length ? { 글: '건물 터파기(흙막이 안)', ids: new Set(ids) } : null); setTimeout(() => { if (보기Ref.current && ids.length) 보기Ref.current.보기로(ids) }, 50) }}><th>건물 터파기<span className="bim-m muted">흙막이 안</span><span className="bim-d" style={{ display: 'inline' }}>(흙막이 안)</span></th><td className="bim-d" /><td /><td>{쉼(q.터파기.넓이, 1)} ㎡ × {쉼(q.터파기.깊이, 2)} m</td><td className="bim-d" /><td className="bim-nw"><b>{쉼(q.터파기.부피, 1)}</b> ㎥</td></tr>}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                })}
+                <div className="bim-floors" style={{ marginTop: 4 }}>
+                  <label>
+                    <span>🧱 강재 할증</span>
+                    <input className="inp" inputMode="decimal" value={흙할증} onChange={(e) => set흙할증(e.target.value.replace(/[^\d.]/g, '').slice(0, 5))} />
+                    <em>% · 도면 재료표 «Add 10%»</em>
+                  </label>
+                  {흙할증 !== '10' && <button type="button" className="btn line sm" onClick={() => set흙할증('10')}>↩ 10%</button>}
+                </div>
+                <details className="bim-how">
+                  <summary>📐 어떻게 셌나요</summary>
+                  <ul>
+                    {흙들.flatMap((h, hi) => (h.근거 || []).map((g, i) => <li key={hi + '-' + i}>{g}</li>))}
+                    <li><b>말뚝 개수</b> = 평면의 H 모양 수 — 1단 · 2단 · 공법 평면에 같은 말뚝을 또 그린 것은 한 번만(가장 많이 그린 한 장)</li>
+                    <li><b>띠장 · 버팀보 · 사보강 · 보강재</b> = 단(1단 · 2단) 평면마다 선 길이 — 두세 줄로 그린 H 형강 · 겹쳐 그린 선은 한 줄로</li>
+                    <li><b>단위무게</b> = 도면 글자의 H 형강 규격(«H-298x201x9/14» 등)으로 KS 넓이 × 7.85 t/㎥ · <b>중량</b> = 길이 × 단위무게 × (1 + 할증)</li>
+                  </ul>
+                </details>
+                <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>
+                  줄을 누르면 3D 에서 그 부재들이 파랗게 칠해집니다. 엑셀 «흙막이 · 가설» 시트에 식이 그대로 들어갑니다(노란 할증 칸을 바꾸면 다시 셈). 높이는 흙막이 단면도의 E.L 글자로 읽습니다(단면도가 없으면 짐작). 이음판 · 볼트 · 잭 · 복공(주형보 · 복공판)은 아직 안 셉니다.
+                </div>
+              </div>
+            )}
+
+            {골조수 > 0 && (
+              <div className="card">
+                <h2 className="bim-h2">📏 층 높이 <span className="muted">— 도면 글자에서 읽은 값 · ❓ 도면에 없는 층은 높이를 적으시면 그 층 기둥 · 벽을 셈합니다(도면은 그대로)</span></h2>
+                <div className="bim-floors">
+                  {(모델.바닥들 || []).map((f) => (
+                    <label key={f.이름} className={f.짐작 ? 'guess' : ''}>
+                      <span>{층말(f.이름)} 바닥</span>
+                      <input className="inp" inputMode="numeric" value={높이[f.이름] !== undefined ? 높이[f.이름] : String(Math.round(f.높이))}
+                             onChange={(e) => { const v = e.target.value.replace(/[^\d\-]/g, ''); set높이((h) => ({ ...h, [f.이름]: v })) }} />
+                      <em>mm{f.읽음 ? ' · 도면' : f.짐작 ? ' · ❓ 도면에 없음(그림만)' : ''}</em>
+                    </label>
+                  ))}
+                  {Object.keys(높이).length > 0 && <button type="button" className="btn line sm" onClick={() => set높이({})}>↩ 도면 값으로</button>}
+                </div>
+              </div>
+            )}
+
+            <div className="card">
+              <h2 className="bim-h2">🔍 스스로 검사 · 짐작</h2>
+              <ul className="bim-check">
+                {R && (R.읽음 && R.읽음.평면 || []).length > 0 && <li className="info">📄 읽은 평면 {R.읽음.평면.length}장: {R.읽음.평면.map((p) => p.제목 + ' → ' + p.층.map(층말).join('·')).join(' · ')}</li>}
+                {모델 && 모델.원점 && <li className="ok">📍 원점(0, 0): {모델.원점.글}</li>}
+                {(모델 ? 모델.맞춤 : []).map((m, i) => <li key={'m' + i} className={m.방법 === '테두리' ? 'warn' : 'ok'}>🧭 {층말(m.층)} 평면{m.종류 ? '(' + m.종류.replace('슬라브', '슬래브') + ' ' + m.수 + '개)' : ''} — {m.글}</li>)}
+                {검.map((z, i) => <li key={'c' + i} className={z.정보 ? 'info' : z.좋음 ? 'ok' : 'warn'}>{z.정보 ? '📦' : z.좋음 ? '✓' : '⚠️'} {z.글}</li>)}
+                {골조뺌 && <li className="warn">🧱 골조로 읽은 부재가 {모델0.부재.length}개({[...new Set(모델0.부재.map((o) => 종이름[o.종류] || o.종류))].join(' · ')})뿐이라 토목 도면의 표 · 글자를 잘못 읽은 것으로 보고 세우지 않았습니다 — 건물 골조는 구조평면도 · 부재 일람표를 넣어 주십시오.</li>}
+                {토목있음 && 토.노선들.map((n) => <li key={'tn' + n.번} className={n.세움 ? 'ok' : 'warn'}>🛣 {n.이름} — 단면 {n.단면수}개 {n.세움 ? '· 평면 노선을 따라 세움' : '· 평면 노선을 못 찾아 물량만'}</li>)}
+                {토목있음 && 토.구조물들.map((q, qi) => <li key={'tq' + qi} className="ok">🏭 {q.이름} — 평면 겹선으로 벽 {쉼(q.넓이.벽, 1)} ㎡(평균 두께 약 {쉼(q.두께, 2)} m) · 바닥 {쉼(q.넓이.바닥, 1)} ㎡ · EL {쉼(q.아래, 2)} ~ {쉼(q.위, 2)} m</li>)}
+                {같은건물 && <li className={같은건물.같음 ? 'ok' : 'info'}>🏢 골조 ↔ 건축 평면 «{건물들[같은건물.번].이름}» — {같은건물.방법 === '통심' ? `통심 ${같은건물.통심.글들.slice(0, 6).join(' · ')}(${같은건물.통심.줄수}줄 · 남는 차 ${같은건물.통심.최대} mm) · ` : ''}{층말(같은건물.층)} 발자국 {Math.round(같은건물.몫 * 100)}% 겹침 · 돌림 {(같은건물.θ * 180 / Math.PI).toFixed(1)}° {같은건물.같음 ? '→ 같은 건물: 골조를 그 자리에 놓고 건축 평면 덩어리는 참고' : !같은건물.층맞음 ? `→ 층 수가 달라(골조 ${같은건물.층수[0]}개 · 건축 평면 ${같은건물.층수[1]}개) 다른 건물로 봄` : '→ 55% 못 미쳐 다른 건물로 봄'}</li>}
+                {흙들.map((h, hi) => { const 전 = (h.제목들 || []).filter((t) => /전\s*개/.test(t)).length; const 단 = (h.제목들 || []).filter((t) => /단\s*면/.test(t)).length; const 규 = Object.values(h.규격 || {}).filter(Boolean).length; return <li key={'th' + hi} className={h.말뚝.개수 && 규 ? 'ok' : 'warn'}>🧱 가설 흙막이 — 평면 {(h.제목들 || []).length - 전 - 단}장 · 전개도 {전}장 · 단면도 {단}장{h.단면 ? '(높이 읽음)' : ''} · H-PILE {h.말뚝.개수}본{h.간격 ? ' · 간격 ' + 쉼(h.간격) + ' mm' : ''}{h.깊이 ? ' · 굴착 깊이 ' + 쉼(h.깊이.작, 2) + ' ~ ' + 쉼(h.깊이.큰, 2) + ' m' : ''} · 규격 {규 ? 규 + '종 읽음' : '못 읽음(H-300x300x10/15 같은 글자가 없음)'}</li> })}
+                {건물들.map((b, bi) => <li key={'tb' + bi} className={b.옆 ? 'warn' : 'ok'}>🏢 {b.이름}{b.이름 === 참고건물 ? '(참고)' : ''} — 건축 평면 {b.층.length}개 층 · 연면적 {쉼(b.연면적, 1)} ㎡ · {b.옆 ? '배치도에서 자리를 못 찾아 토목 오른쪽 20 m 에 놓음(배치도 · 계획평면도를 같이 넣어 주시면 자리를 찾습니다)' : b.자리 === '모양' ? '배치도의 같은 모양 자리에 놓음' + (b.방이름 ? '(같은 방 이름이 적힌 곳)' : '') : '이 도면이 자리의 기준'}{b.땅 != null ? ' · 땅 EL ' + 쉼(b.땅, 2) + ' m' : ''}</li>)}
+                {(모델 ? 모델.짐작 : []).map((w, i) => <li key={'g' + i} className="guess">💭 {w}</li>)}
+                {토목있음 && 토.짐작.map((w, i) => <li key={'tg' + i} className="guess">💭 {w}</li>)}
+                {토목있음 && 토.경고.map((w, i) => <li key={'tw' + i} className="warn">⚠️ {w}</li>)}
+                {/* 🏗 G425 철골 ❓ · 📌 — 퍼린(선 없음) · 이름 없는 선 · 평면 ↔ 입면 칸 다름(📌 입면 칸으로 셈 — 같은 기억 칸 · 되돌릴 수 있음) */}
+                {R && R.읽음 && (R.읽음.철골물음 || []).map((q) => (
+                  <li key={'sq' + q.키} className={q.셈 ? 'ok' : 'warn'}>
+                    {q.셈 ? '📌' : '❓'} 🏗 {q.글}{q.셈 && (검수.바탕셈 || {})[q.키] && 검수.바탕셈[q.키].때 ? '(' + 검수.바탕셈[q.키].때 + ')' : ''}
+                    {/^철골\|칸\|/.test(q.키) && (q.셈
+                      ? <> <button type="button" className="btn line sm" title="사람 결정을 되돌림 — 다시 평면 선 길이로 셈" onClick={() => { 바탕셈바꾸기(q.키, false); 세기('|BIM물량|철골칸되돌림') }}>↩ 되돌리기</button></>
+                      : <> <button type="button" className="btn line sm" title={'평면 · 입면 도면을 보고 입면 칸(' + 쉼(q.입) + ')이 맞을 때만 누르세요 — 그 칸을 가로지르는 철골보 · 가새를 입면 칸 길이로 셈하고 📌 사람 결정으로 적습니다'} onClick={() => { 바탕셈바꾸기(q.키, true); 세기('|BIM물량|철골칸') }}>📌 입면 칸 {쉼(q.입)} 으로 셈</button></>)}
+                    {q.단위 && 값넣기(q, '길이')}
+                  </li>
+                ))}
+                {/* 🧱 G435 방수턱 상세(폭 · 높이 · 철근) — 놓인 길이가 평면에 없어 ❓ · 📌 사람이 잰 길이(m)로 셈(같은 기억 칸 · 되돌릴 수 있음) */}
+                {R && R.읽음 && (R.읽음.방수턱물음 || []).map((q) => (
+                  <li key={'wq' + q.키} className={q.셈 ? 'ok' : 'warn'}>
+                    {q.셈 ? '📌' : '❓'} 🧱 {q.글}{q.셈 && (검수.바탕셈 || {})[q.키] && 검수.바탕셈[q.키].때 ? '(' + 검수.바탕셈[q.키].때 + ')' : ''}
+                    {q.단위 && 값넣기(q, '길이')}
+                  </li>
+                ))}
+                {/* 🧱 G436 파라펫 — 골조입면도에서 읽은 높이 × 두께마다 ❓(길이 · 평면 자리는 도면에 없음) · 📌 사람이 잰 길이(m)로 셈 */}
+                {R && R.읽음 && (R.읽음.파라펫물음 || []).map((q) => (
+                  <li key={'rq' + q.키} className={q.셈 ? 'ok' : 'warn'}>
+                    {q.셈 ? '📌' : '❓'} 🧱 {q.글}{q.셈 && (검수.바탕셈 || {})[q.키] && 검수.바탕셈[q.키].때 ? '(' + 검수.바탕셈[q.키].때 + ')' : ''}
+                    {q.단위 && 값넣기(q, '길이')}
+                  </li>
+                ))}
+                {/* 📌 G435 보수 점검구 — 깨기 · 복구 콘크리트 · 앵글은 단면마다 달라 ❓ · 사람이 잰 한 곳 값 × 개수로 셈 */}
+                {R && R.읽음 && (R.읽음.점검구물음 || []).map((q) => (
+                  <li key={'pq' + q.키} className={q.셈 ? 'ok' : 'warn'}>
+                    {q.셈 ? '📌' : '❓'} 🔧 {q.글}{q.셈 && (검수.바탕셈 || {})[q.키] && 검수.바탕셈[q.키].때 ? '(' + 검수.바탕셈[q.키].때 + ')' : ''}
+                    {q.단위 && 값넣기(q, q.말 || '값')}
+                  </li>
+                ))}
+                {R && R.읽음 && (R.읽음.바탕물음 || []).map((q) => (
+                  <li key={'bq' + q.키} className={q.셈 ? 'ok' : 'warn'}>
+                    {q.셈 ? '📌' : '❓'} 건축 바탕에만 있는 벽 {q.층글} {q.기호} {q.길이} m — {q.셈 ? '사람 결정으로 철근콘크리트 벽으로 셈' + ((검수.바탕셈 || {})[q.키] && 검수.바탕셈[q.키].때 ? '(' + 검수.바탕셈[q.키].때 + ')' : '') : '도면에 없음(구조 벽 표시) — 셈에서 뺌'}{' '}
+                    {q.셈
+                      ? <button type="button" className="btn line sm" title="사람 결정을 되돌림 — 다시 ❓ 셈에서 뺌" onClick={() => { 바탕셈바꾸기(q.키, false); 세기('|BIM물량|바탕셈되돌림') }}>↩ 되돌리기</button>
+                      : <button type="button" className="btn line sm" title="건축 도면(평면 · 단면)을 보고 철근콘크리트 벽일 때만 누르세요 — 그 층 그 벽을 셈하고 📌 사람 결정으로 적습니다" onClick={() => { 바탕셈바꾸기(q.키, true); 세기('|BIM물량|바탕셈') }}>📌 철근콘크리트 벽으로 셈</button>}
+                    {' '}<button type="button" className="btn line sm" title="이 벽 토막을 3D 에서 골라 그 자리로 갑니다(도면 자리 글도 보임)" onClick={() => 자리보기(q, q.층글 + ' ' + q.기호 + ' (건축 바탕 벽)', '벽')}>📍 자리 보기</button>
+                    {' '}<button type="button" className="btn line sm" title="이 벽 토막들을 도면 판 위에 네모로 보여 줍니다(◀ ▶ 로 하나씩)" onClick={() => 도면보기((q.셈 ? '📌 ' : '❓ ') + '건축 바탕에만 있는 벽 ' + q.층글 + ' ' + q.기호 + ' ' + q.길이 + ' m', q.셈 ? '#2563eb' : '#f97316', 자리들(q), '바탕')}>🗺 도면</button>
+                    {자리줄(q)}
+                  </li>
+                ))}
+                {/* 📌 G420 «건축치수» 보 춤 — 단면이 안 지나 ❓ 로 남은 곳을 «층고 − 문 − 마감» 으로 셀지 사람이 정함(같은 기억 칸 · 되돌릴 수 있음) */}
+                {R && R.읽음 && (R.읽음.건축치수물음 || []).map((q) => (
+                  <li key={'hq' + q.키} className={q.셈 ? 'ok' : 'warn'}>
+                    {q.셈 ? '📌' : '❓'} «건축치수» 보 {q.층글} {q.기호} {q.곳}곳 {q.길이} m — 춤 {쉼(q.춤)} = 층고 {쉼(q.층고)} − 문 {쉼(q.문)} − 마감 {쉼(q.마감)} {q.셈 ? '· 사람 결정으로 셈' + ((검수.바탕셈 || {})[q.키] && 검수.바탕셈[q.키].때 ? '(' + 검수.바탕셈[q.키].때 + ')' : '') : '· 도면에 없음(문 높이) — 셈에서 뺌'}{' '}
+                    {q.셈
+                      ? <button type="button" className="btn line sm" title="사람 결정을 되돌림 — 다시 ❓ 셈에서 뺌" onClick={() => { 바탕셈바꾸기(q.키, false); 세기('|BIM물량|춤결정되돌림') }}>↩ 되돌리기</button>
+                      : <button type="button" className="btn line sm" title="건축 창호일람표 · 단면으로 그 층 문 높이와 마감을 확인했을 때만 누르세요 — 그 층 그 보를 이 춤으로 셈하고 📌 사람 결정으로 적습니다" onClick={() => { 바탕셈바꾸기(q.키, true); 세기('|BIM물량|춤결정') }}>📌 이 춤으로 셈</button>}
+                    {' '}<button type="button" className="btn line sm" title="이 보 토막을 3D 에서 골라 그 자리로 갑니다(도면 자리 글도 보임)" onClick={() => 자리보기(q, q.층글 + ' ' + q.기호 + ' (건축치수 보)', '보')}>📍 자리 보기</button>
+                    {' '}<button type="button" className="btn line sm" title="이 보 토막들을 도면 판 위에 네모로 보여 줍니다(◀ ▶ 로 하나씩)" onClick={() => 도면보기((q.셈 ? '📌 ' : '❓ ') + '«건축치수» 보 ' + q.층글 + ' ' + q.기호 + ' ' + q.곳 + '곳 ' + q.길이 + ' m', q.셈 ? '#2563eb' : '#f97316', 자리들(q), '춤')}>🗺 도면</button>
+                    {자리줄(q)}
+                  </li>
+                ))}
+                {/* 🗺 G429 📐 손으로 잰 것을 도구화한 것 — 도면 판 위에 잰 자리(빨강 = 셈) */}
+                {/* 🗺 G429 ❓ 도면에 없음 — 기호마다 그 부재가 그려진 도면 자리(3D 부재의 근거 자리) */}
+                {R && R.읽음 && (R.읽음.없음목록 || []).length > 0 && 모델 && (
+                  <li className="warn">❓ 도면에 없음 {R.읽음.없음목록.length}가지 — 도면에서 보기:{' '}
+                    {R.읽음.없음목록.map((x) => {
+                      const 들 = 모델.부재.filter((o) => o.기호 === x.기호 && o.근거 && o.근거.n && o.근거.r).map((o) => ({ 파일: o.근거.n, r: o.근거.r, 글: x.기호, 곳: 층말(o.층) + ' ' + o.종류 + ' ' + x.기호 + ' — 도면에 없음: ' + x.없음.join(' · ') }))
+                      return <button key={x.기호} type="button" className="btn line sm" style={{ margin: '2px 3px 2px 0' }} disabled={!들.length} title={x.없음.join(' · ') + (들.length ? ' — 그 부재 ' + 들.length + '곳' : ' — 평면에 그려진 자리가 없음')} onClick={() => 도면보기('❓ ' + x.기호 + ' — 도면에 없음: ' + x.없음.join(' · ') + ' — 그 값은 셈에서 뺌', '#f97316', 들, '없음')}>🗺 {x.기호} {x.없음.join('·')}</button>
+                    })}
+                  </li>
+                )}
+                {R && R.읽음 && (R.읽음.깊은자리 || []).map((g, gi) => (
+                  <li key={'dz' + gi} className="info">📐 깊은 구역({g.구역}) 벽 내림 · 단차 {g.셈.length}토막 {쉼(g.셈.reduce((a, x) => a + x.부피, 0), 1)} ㎥{g.못.length ? ' · ❓ 셈에서 뺀 토막 ' + g.못.length : ''}{' '}
+                    <button type="button" className="btn line sm" title="토막마다 도면 판 위에(빨강 = 셈 · 주황 = ❓ · ◀ ▶ 로 하나씩)" onClick={() => 도면보기('📐 깊은 구역 — 골구도 단면 × 평면 길이', '#ef4444', [...g.셈.map((x) => ({ 파일: g.파일, r: 선네모(g.파일, x.선), 글: x.기호, 곳: x.곳 + ' · ' + x.부피 + ' ㎥', 색: '#ef4444' })), ...g.못.map((x) => ({ 파일: g.파일, r: 선네모(g.파일, x.선), 글: '❓', 곳: x.곳 + ' — ' + x.까닭 + ' — 셈에서 뺌', 색: '#f97316' }))], '깊은구역')}>🗺 도면에서 보기</button>
+                  </li>
+                ))}
+                {R && R.읽음 && (R.읽음.빈칸 || []).length > 0 && (
+                  <li className="info">📐 슬래브 글자 없는 칸 {R.읽음.빈칸.length}칸 {쉼(R.읽음.빈칸.reduce((a, x) => a + x.가로 * x.세로, 0) / 1e6, 1)} ㎡ — LB 띠 하나 건너 곁 칸 슬래브로 셈{' '}
+                    <button type="button" className="btn line sm" title="칸마다 도면 판 위에 네모로(◀ ▶ 로 하나씩)" onClick={() => 도면보기('📐 슬래브 글자 없는 칸 — 곁 칸 슬래브로 셈', '#ef4444', R.읽음.빈칸.map((x) => ({ 파일: x.파일, r: 원단위(x.파일, x.상자), 글: x.기호, 곳: x.곳 + ' · ' + (x.가로 / 1000).toFixed(1) + ' × ' + (x.세로 / 1000).toFixed(1) + ' m' })), '빈칸')}>🗺 도면에서 보기</button>
+                  </li>
+                )}
+                {R && R.읽음 && (R.읽음.건축난간 || []).map((x) => (
+                  <li key={'na' + x.기호} className="info">📐 건축 평면 철근콘크리트 난간 {x.제목} {(x.길이 / 1000).toFixed(2)} m × {x.두께} × {쉼(x.높이)} — 두 선 {x.짝}짝{' '}
+                    <button type="button" className="btn line sm" title="난간 두 선을 도면 판 위에(◀ ▶ 로 한 선씩)" onClick={() => 도면보기('📐 ' + x.제목 + ' 철근콘크리트 난간 ' + (x.길이 / 1000).toFixed(2) + ' m', '#ef4444', x.선.map((l, i) => ({ 파일: x.파일, r: 선네모(x.파일, l), 글: i === 0 ? x.기호 : '', 곳: x.제목 + ' · 선 ' + (i + 1) + ' / ' + x.선.length })), '난간')}>🗺 도면에서 보기</button>
+                  </li>
+                ))}
+                {R && (R.경고 || []).slice(0, 8).map((w, i) => <li key={'w' + i} className="warn">⚠️ {w}</li>)}
+                {R && (R.경고 || []).length > 8 && (
+                  <li className="warn"><details><summary>⚠️ 읽기 경고 {R.경고.length - 8}개 더 보기</summary>{R.경고.slice(8).map((w, i) => <div key={i}>· {w}</div>)}</details></li>
+                )}
+                {S && (S.경고 || []).slice(0, 10).map((w, i) => <li key={'s' + i} className="warn">⚠️ 셈: {w.글}</li>)}
+              </ul>
+              {도면본 && (() => {
+                const 지금 = 도면본.들[도면본.i]
+                const D = 도면들 && 도면들.find((d) => d.이름 === 지금.파일)
+                if (!D || !D.모델) return null
+                const r = 지금.r, k = D.k || 1, m = Math.max(Math.max(r[2] - r[0], r[3] - r[1]) * 0.3, 3500 / k)     // 긴 선(난간 · 벽 토막)도 끝까지 · 작은 칸은 둘레 3.5 m
+                const 네모들 = 도면본.들.map((x, i) => ({ x, i })).filter(({ x }) => x.파일 === 지금.파일).map(({ x, i }) => ({ r: x.r, color: x.색 || 도면본.색, w: i === 도면본.i ? 3 : 1.5, 글: i === 도면본.i ? x.글 : '' }))
+                const 색들 = new Set(도면본.들.map((x) => x.색 || 도면본.색))
+                const 색말 = [...색들].map((c) => (c === '#ef4444' ? '빨강 = 셈한 것' : c === '#2563eb' ? '파랑 = 📌 사람 결정으로 셈' : '주황 = ❓ 셈에서 뺀 것')).join(' · ')
+                return (
+                  <div ref={도면칸Ref} style={{ marginTop: 10 }}>
+                    <div className="bim-title">🗺 {도면본.제목} <span className="muted">{도면본.i + 1} / {도면본.들.length}</span>
+                      {도면본.들.length > 1 && <>{' '}<button type="button" className="btn line sm" onClick={() => 도면옮김(-1)}>◀</button>{' '}<button type="button" className="btn line sm" onClick={() => 도면옮김(1)}>▶</button></>}
+                      {' '}<button type="button" className="btn line sm" onClick={() => set도면본(null)}>✕ 닫기</button>
+                    </div>
+                    <div className="muted" style={{ fontSize: 12, margin: '2px 0 6px' }}>{지금.곳 ? '📍 ' + 지금.곳 + ' · ' : ''}{D.이름} — {색말} · 굵은 네모가 지금 것 · 끌면 옮기기 · 휠(두 손가락)로 확대</div>
+                    <도면판 도={{ 모델: D.모델, 도면이름: D.이름, 끈층: 도끈층, set끈층: set도끈층, 단위: { k, 글: '' }, set단위: () => {} }} 네모들={네모들} 가볼곳={{ n: 도면본.n, r: [r[0] - m, r[1] - m, r[2] + m, r[3] + m] }} 붙음={false} 두점단추={false} 안내="도면 판 그대로 — 네모가 셈 쪽이 잰 자리입니다" />
+                  </div>
+                )
+              })()}
+              {골조수 > 0 && <div className="muted" style={{ fontSize: 12.5 }}>3D 부피는 부재를 도면 크기 그대로 세운 값(겹침 공제 전)이고, 산출서 콘크리트는 겹치는 곳을 뺀 값이라 보 · 기둥은 조금 작게 나옵니다.</div>}
+              {토목물 && <div className="muted" style={{ fontSize: 12.5 }}>토목 3D 부피는 단면을 앞뒤 반 칸씩 그대로 세운 값이고, 물량은 평균단면법 값이라 단면이 바뀌는 곳에서 조금 다릅니다.</div>}
+            </div>
+    </>
+  ) : null
+
+  return (
+    <div className="wrap bim">
+      <받기검사판 검사={받기검사} 닫기={() => set받기검사(null)} 받기={() => { if (!받기검사) return; 엑셀내려주기(받기검사.바이트, 받기검사.이름); 세기('|BIM물량|엑셀'); askAfter('jeoksan'); set받기검사({ ...받기검사, 알고: true }) }} />
+      <끌어놓기판 글="도면(DXF·DWG)을 놓으면 3D 로 세우고 물량을 냅니다 — 건축(구조평면도 · 일람표 · 층 평면도) · 토목(평면 · 종횡단 · 구조물 일반도 · 측량) 여러 장을 한꺼번에" 여럿 받기={(fs) => 파일받기(fs)} />
+      <div className="card">
+        <h1 className="tl-h1" style={{ marginTop: 0 }}>🏗 BIM 물량 <span className="count">· 캐드 도면 넣으면 3D + 물량</span></h1>
+        <div className="note sm">
+          지금 쓰시는 <b>2D 캐드 도면(DXF · DWG)</b> 그대로 — <b>건축</b>(구조평면도 · 부재 일람표)은 기둥 · 보 · 슬래브 · 벽 · 기초를(일람표가 없는 <b>층 평면도</b>만 있어도 벽 · 바닥 덩어리로),
+          <b> 토목</b>(평면 · 종횡단면도 · 구조물 일반도 · 측량)은 배수로 · 구조물 · 터파기 · 성토 · 땅을, <b>가설 흙막이</b>는 H-PILE · 버팀보 강재 무게를 <b>좌표로 읽어</b> 스스로
+          <b> 3D 로 세우고</b>, 같은 모델로 <b>물량</b>을 냅니다. 건축 · 토목 도면을 <b>한꺼번에</b> 넣으셔도 됩니다. 3D 에서 누르면 그 덩어리의 물량이 나옵니다.
+          <b> 도면은 고치지 않습니다</b> — 읽기만 합니다.
+        </div>
+        <div className="pdfsafe">🔒 <b>파일은 어디로도 올라가지 않습니다.</b> 이 브라우저 안에서만 읽고 셉니다 · 회원가입 없음 · 무료.</div>
+        <div className="bim-put">
+          <button type="button" className="btn" onClick={() => 칸Ref.current && 칸Ref.current.click()} disabled={상태.k === 'busy'}>📂 도면 넣기 (여러 장)</button>
+          <input ref={칸Ref} type="file" multiple accept=".dxf,.DXF,.dwg,.DWG" className="sr-only" tabIndex={-1} onChange={(e) => { 파일받기(e.target.files); e.target.value = '' }} />
+          <span className="tlx-exd"><b>🧪 도면이 없으시면</b></span>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 예시열기(예시)} disabled={상태.k === 'busy'}>🏢 가상 3층 건물로 해 보기</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { 세기('|BIM물량|예시청사'); 예시열기(예시청사) }} disabled={상태.k === 'busy'}>🏛 가상 청사(지하 1층 · 옹벽)로 해 보기</button>
+          {예시토목 && <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 예시열기(예시토목)} disabled={상태.k === 'busy'}>🏞 가상 배수로 · 배수장 + 관리동 · 건물 · 흙막이 한꺼번에</button>}
+          {운영자 && <button type="button" className="btn sm bim-ws-open" onClick={() => set작업(true)} title="적산컨맵처럼 화면 전체로 — 왼쪽 도면함 · 도구, 가운데 3D, 오른쪽 물량">🖥 작업 화면</button>}
+        </div>
+        {!작업 && 도면함칸}
         {상태.k === 'busy' && <div className="bim-st">⏳ {상태.글}…</div>}
         {상태.k === 'err' && <div className="dx3-warn">⚠️ {상태.글}</div>}
         {토목상태.k === 'busy' && <div className="bim-st">🏞 {토목상태.글 || '토목 · 구조물 · 땅을 좌표로 읽는 중'} {토목상태.p ? Math.round(토목상태.p * 100) + '%' : ''}…{골조수 > 0 ? ' (골조는 먼저 보여 드립니다)' : ''}</div>}
@@ -896,6 +1423,30 @@ export default function Bim() {
           </ul>
         </details>
       </div>
+
+      {작업 && !보임 && (
+        <div className="card bim-ws bim-ws-empty" ref={작업Ref}>
+          {작업막대}
+          <div className="bim-ws-l">
+            {도면함칸}
+            {상태.k === 'busy' && <div className="bim-st">⏳ {상태.글}…</div>}
+            {상태.k === 'err' && <div className="dx3-warn">⚠️ {상태.글}</div>}
+            {토목상태.k === 'busy' && <div className="bim-st">🏞 {토목상태.글 || '토목 · 구조물 · 땅을 좌표로 읽는 중'} {토목상태.p ? Math.round(토목상태.p * 100) + '%' : ''}…</div>}
+            {토목상태.k === 'err' && <div className="dx3-warn">⚠️ {토목상태.글}</div>}
+            {R && !있음 && !토목있음 && 토목상태.k !== 'busy' && <div className="dx3-warn">⚠️ 넣은 도면에서 골조 부재도, 건물 층 평면도, 토목(횡단 · 구조물 · 측량점)도 찾지 못했습니다.</div>}
+            <div className="bim-ws-ex">
+              <b>🧪 도면이 없으시면</b>
+              <button type="button" className="btn line sm" onClick={() => 예시열기(예시)} disabled={상태.k === 'busy'}>🏢 가상 3층 건물로 해 보기</button>
+              <button type="button" className="btn line sm" onClick={() => { 세기('|BIM물량|예시청사'); 예시열기(예시청사) }} disabled={상태.k === 'busy'}>🏛 가상 청사(지하 1층 · 옹벽)로 해 보기</button>
+              {예시토목 && <button type="button" className="btn line sm" onClick={() => 예시열기(예시토목)} disabled={상태.k === 'busy'}>🏞 가상 배수로 · 배수장 + 관리동 · 건물 · 흙막이 한꺼번에</button>}
+            </div>
+          </div>
+          <div className="bim-view">
+            <div className="bim-canvas bim-ws-hello"><div>📂 위 <b>도면 넣기</b>로 캐드 도면(DXF · DWG)을 넣으면 여기에 3D 로 세웁니다<br /><span className="muted">끌어다 놓아도 됩니다 · 건축 · 토목 여러 장을 한꺼번에</span></div></div>
+            <div className="bim-side"><div className="muted" style={{ fontSize: 13 }}>👆 3D 에서 부재 · 덩어리를 누르면 크기 · 자리 · 물량이 여기에 나옵니다. 그 아래에 물량 표가 붙습니다.</div></div>
+          </div>
+        </div>
+      )}
 
       {R && !있음 && !토목있음 && 토목상태.k !== 'busy' && (
         <div className="card">
@@ -922,7 +1473,12 @@ export default function Bim() {
               </div>
             )
           })()}
-          <div className="card">
+          <div className={'card' + (작업 ? ' bim-ws' : '')} ref={작업 ? 작업Ref : undefined}>
+            {작업 && 작업막대}
+            <div className="bim-ws-l">
+            {작업 && 도면함칸}
+            {작업 && 상태.k === 'err' && <div className="dx3-warn">⚠️ {상태.글}</div>}
+            {작업 && 토목상태.k === 'err' && <div className="dx3-warn">⚠️ {토목상태.글}</div>}
             {일람알림 && 건축켬 && (
               <div className="dx3-warn bim-ilam-alert" style={{ marginTop: 0, marginBottom: 10 }} data-ilam={일람알림.없음 ? '없음' : '많음'}>
                 📋 <b>{일람알림.없음 ? '부재 일람표가 없습니다' : '일람표에 없는 값이 많습니다'}</b> — 부재 {일람알림.짐작}가지{일람알림.없음 ? '' : '(' + 일람알림.전체 + '가지 가운데)'}는 크기 · 두께 · 철근이 <b>도면에 없어(❓) 그 물량을 셈에서 뺐습니다</b>(짐작 안 함). 평면에서 잰 폭 · 두께만 썼습니다 — 일람표 도면을 같이 넣거나, 아래 배근표 빈칸에 적어 주세요.
@@ -962,13 +1518,13 @@ export default function Bim() {
               {건물들.length > 0 && 건축켬 && <div>연면적<b>{쉼(건물들.reduce((a, b) => a + b.연면적, 0), 1)} ㎡</b><span className="muted">건물(평면) {건물들.length}동 · {건물들.reduce((n, b) => n + b.층.filter((f) => !f.지붕).length, 0)}개 층{참고건물 ? ' · 건축 평면으로 잰 값' : ''}</span></div>}
             </div>
             {둘다 && !(건축켬 && 토목켬) && <div className="muted" style={{ fontSize: 12.5, margin: '-4px 0 8px' }}>{건축켬 ? '🏢 건축만 보는 중 — 요약에서 토목은 뺐습니다' : '🏞 토목만 보는 중 — 요약에서 건축은 뺐습니다'} · 엑셀 · IFC 는 모두 들어갑니다</div>}
-            {그림있음 ? (<>
-            {둘다 && (
+            {그림있음 && 둘다 && (
               <div className="bim-big" role="group" aria-label="건축 · 토목 켜고 끄기">
                 <button type="button" className={'bim-bigbtn' + (건축켬 ? ' on' : '')} aria-pressed={건축켬} onClick={() => 묶음켜끄기('건축', 건축칩, 건축켬)}>🏢 건축 {건축켬 ? '켬' : '끔'}</button>
                 <button type="button" className={'bim-bigbtn' + (토목켬 ? ' on' : '')} aria-pressed={토목켬} onClick={() => 묶음켜끄기('토목', 토목칩, 토목켬)}>🏞 토목 {토목켬 ? '켬' : '끔'}</button>
               </div>
             )}
+            {그림있음 && (
             <div className="bim-tool">
               <span className="bim-chips">
                 {있는종류.map((k) => (
@@ -1000,10 +1556,14 @@ export default function Bim() {
                 <button type="button" className="btn line sm" onClick={() => 보기('front')}>▭ 앞</button>
                 <button type="button" className="btn line sm" onClick={() => 보기('side')}>▯ 옆</button>
                 <label className="bim-chk"><input type="checkbox" checked={투명} onChange={(e) => set투명(e.target.checked)} /> 비쳐 보기</label>
-                <button type="button" className={'btn line sm' + (크게 ? ' on' : '')} aria-pressed={크게} onClick={() => set크게((v) => !v)}>{크게 ? '⊟ 3D 작게' : '⛶ 3D 크게'}</button>
+                <button type="button" className={'btn line sm bim-bigtoggle' + (크게 ? ' on' : '')} aria-pressed={크게} onClick={() => set크게((v) => !v)}>{크게 ? '⊟ 3D 작게' : '⛶ 3D 크게'}</button>
                 {못맞춘수 > 0 && <label className="bim-chk" title="층 평면 자리를 통심 기호 · 기둥으로 맞추지 못해 짐작한 부재 — 물량에는 들어 있습니다"><input type="checkbox" checked={못맞춘도} onChange={(e) => set못맞춘도(e.target.checked)} /> 자리 못 맞춘 {못맞춘수}개도</label>}
               </span>
             </div>
+            )}
+            {!그림있음 && <div className="muted" style={{ fontSize: 13, margin: '10px 0' }}>3D 로 세울 덩어리를 못 찾았습니다 — 물량은 아래 표와 엑셀로 보십시오.</div>}
+            </div>
+            {그림있음 && (
             <div className={'bim-view' + (크게 ? ' big' : '')}>
               <div className="bim-canvas">
                 {glErr ? <div className="dx3-warn" style={{ margin: 12 }}>{glErr}</div> : <canvas ref={판Ref} />}
@@ -1086,7 +1646,14 @@ export default function Bim() {
                 ) : 묶음 ? (
                   <div>
                     <div className="bim-title">🔵 {묶음.글}</div>
-                    {(() => {
+                    {묶음.견 ? (
+                      <table className="bim-kv"><tbody>
+                        <tr><th>개수</th><td><b>{묶음.ids.size}</b> 개 <span className="muted">(횡단 {묶음.견.단면}개)</span></td></tr>
+                        <tr><th>콘크리트</th><td><b>{쉼(묶음.견.콘크리트, 2)}</b> ㎥ <span className="muted">— 견줌 · 합에 안 넣음</span></td></tr>
+                        <tr><th>거푸집</th><td><b>{쉼(묶음.견.거푸집, 1)}</b> ㎡ <span className="muted">— 견줌</span></td></tr>
+                        <tr><th>합에는</th><td>구조물 «{묶음.견.구조물}» 일반도 {쉼(묶음.견.일반도, 2)} ㎥ <span className="muted">(두 번 안 셈)</span></td></tr>
+                      </tbody></table>
+                    ) : (() => {
                       const 줄 = [...묶음.ids].filter((id) => id < 토목ID).map((id) => ({ o: 부재표.get(id), q: (Q && Q.부재.get(id)) || {} })).filter((x) => x.o)
                       const 토줄 = [...묶음.ids].filter((id) => id >= 토목ID).map((id) => 토목표.get(id)).filter(Boolean)
                       const t = 줄.reduce((s, x) => ({ 콘: s.콘 + (x.q.콘크리트 || 0), 틀: s.틀 + (x.q.거푸집 || 0), 철: s.철 + (x.q.철근 || 0) }), { 콘: 0, 틀: 0, 철: 0 })
@@ -1113,9 +1680,10 @@ export default function Bim() {
                     {건물들.some((b) => b.자리 === '모양') && <><br /><br />🏢 건축 평면 건물은 배치도의 같은 모양 자리에 놓았습니다.</>}
                   </div>
                 )}
+                {작업 && <div className="bim-ws-more">{더칸}</div>}
               </div>
             </div>
-            </>) : <div className="muted" style={{ fontSize: 13, margin: '10px 0' }}>3D 로 세울 덩어리를 못 찾았습니다 — 물량은 아래 표와 엑셀로 보십시오.</div>}
+            )}
             <div className="bim-out">
               <button type="button" className="btn" onClick={엑셀받기} disabled={!!받는중}>{받는중 === '엑셀' ? '만드는 중…' : '⬇ 엑셀 수량산출서'}</button>
               <button type="button" className="btn line" onClick={IFC받기} disabled={!!받는중 || !그림있음}>{받는중 === 'IFC' ? '만드는 중…' : '⬇ IFC (레빗 · BIM 프로그램)'}</button>
@@ -1123,485 +1691,7 @@ export default function Bim() {
             </div>
           </div>
 
-          {골조수 > 0 && 검목록.length > 0 && (() => {
-            const 끝 = 검목록.filter((x) => !검남(x)).length, 뺀수 = 검목록.filter((x) => 검수.뺌.has(x.키)).length
-            const 몫 = Math.round(끝 / 검목록.length * 100)
-            const 종들 = 종류들.filter((k) => 검목록.some((x) => x.o.종류 === k))
-            const 줄 = 검순.filter((x) => !검종 || x.o.종류 === 검종).sort((a, b) => (검남(b) ? 1 : 0) - (검남(a) ? 1 : 0))
-            const 다음 = 검다음(null)
-            return (
-              <div className="card bim-review">
-                <h2 className="bim-h2">🔎 검수 <span className="muted">— 건설맵이 짐작하거나 만든 값이 든 부재 {쉼(검목록.length)}개 · 확인 {쉼(끝 - 뺀수)} · 뺌 {쉼(뺀수)} ({몫}%)</span></h2>
-                <div className="bim-rv-bar" aria-label={'검수 ' + 몫 + '%'}><i style={{ width: 몫 + '%' }} /></div>
-                <div className="bim-rv-top">
-                  <span className="bim-chips">
-                    <button type="button" className={'bim-chip' + (!검종 ? ' on' : '')} onClick={() => set검종('')}>모두 {쉼(검목록.filter(검남).length)}</button>
-                    {종들.map((k) => <button key={k} type="button" className={'bim-chip' + (검종 === k ? ' on' : '')} onClick={() => set검종(k)}><i style={{ background: 색글(종류색[k]) }} />{종이름[k]} {쉼(검목록.filter((x) => x.o.종류 === k && 검남(x)).length)}/{쉼(검목록.filter((x) => x.o.종류 === k).length)}</button>)}
-                  </span>
-                  {다음 ? <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => 검고르기(다음)}>▶ 다음 확인할 것 — {층말(다음.o.층)} {종이름[다음.o.종류]} {다음.o.몸 || 다음.o.기호}</button> : <span className="bim-rv-done">✓ 다 봤습니다</span>}
-                </div>
-                <div className="bim-tblwrap">
-                  <table className="bim-tbl bim-rv-tbl">
-                    <thead><tr><th>층</th><th>부재</th><th>크기(mm)</th><th>확인할 까닭</th><th>콘크리트</th><th></th></tr></thead>
-                    <tbody>
-                      {줄.slice(0, 300).map((x) => {
-                        const 뺐 = 검수.뺌.has(x.키), 확 = 검수.확인.has(x.키), q = Q && Q.부재.get(x.o.id)
-                        return (
-                          <tr key={x.키} className={(뺐 ? 'rv-out' : 확 ? 'rv-ok' : '') + (고른 === x.o ? ' rv-sel' : '')} onClick={() => 검고르기(x)}>
-                            <td>{층말(x.o.층)}</td>
-                            <td><i style={{ background: 색글(종류색[x.o.종류]) }} />{종이름[x.o.종류]} <b>{x.o.몸 || x.o.기호}</b></td>
-                            <td>{크기글(x.o)}</td>
-                            <td className="rv-why">{x.까닭.slice(0, 2).map((w, i) => <div key={i}>{w}</div>)}{x.까닭.length > 2 && <div className="muted">… {x.까닭.length - 2}가지 더</div>}</td>
-                            <td>{뺐 ? '—' : q ? 쉼(q.콘크리트, 2) + ' ㎥' : ''}</td>
-                            <td className="rv-btns" onClick={(e) => e.stopPropagation()}>
-                              {!뺐 && <button type="button" className={'btn sm' + (확 ? '' : ' line')} onClick={() => { 검수바꾸기('확인', x.키, !확); 세기('|BIM물량|검수') }}>{확 ? '✓ 확인함' : '확인'}</button>}
-                              <button type="button" className="btn line sm" onClick={() => { 검수바꾸기('뺌', x.키, !뺐); 세기('|BIM물량|검수'); if (!뺐 && 고른 === x.o) set선택(null) }}>{뺐 ? '되돌리기' : '빼기'}</button>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                {줄.length > 300 && <div className="muted" style={{ fontSize: 12.5 }}>… {쉼(줄.length - 300)}개 더 — 위 종류 단추로 나눠 보십시오</div>}
-                <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>줄을 누르면 3D 가 크게 그 부재로 갑니다 · <b>빼기</b> 한 부재는 3D · 물량 · 엑셀에서 빠집니다(되돌리기 가능) · 확인 · 뺌은 이 브라우저에 파일 이름마다 기억합니다.</div>
-              </div>
-            )
-          })()}
-
-          {골조수 > 0 && 일람표.length > 0 && (() => {
-            const 지금 = 일람표.find((t) => t.종류 === 일람종) || 일람표[0]
-            const 만든수 = (t) => t.줄.filter((z) => z.만든).length
-            /* 🧭 G406 머리 수 — 📐 잰 값 · 📌 사람 확인 · ❓ 도면에 없음을 따로(예전엔 «만든» 줄 모두를 ❓ 로 셈) */
-            const 표수 = (t, re) => t.줄.filter((z) => re.test(z.만든 || '')).length
-            const 없수 = (t) => t.줄.filter((z) => /❓/.test(z.만든 || '') && !/^\s*📌/.test(z.만든 || '')).length
-            const 모든줄 = 일람표.reduce((n, t) => n + t.줄.length, 0), 모든만든 = 일람표.reduce((n, t) => n + 만든수(t), 0)
-            const 모든잰 = 일람표.reduce((n, t) => n + 표수(t, /📐/), 0), 모든사람 = 일람표.reduce((n, t) => n + 표수(t, /📌/), 0), 모든없 = 일람표.reduce((n, t) => n + 없수(t), 0)
-            return (
-              <div className="card bim-ilam">
-                <h2 className="bim-h2">📋 부재 일람표 <span className="muted">— 도면에서 읽어 만든 일람 {쉼(모든줄)}줄 · 📄 도면 {쉼(모든줄 - 모든만든)}{모든잰 ? ' · 📐 잰 값 ' + 쉼(모든잰) : ''}{모든사람 ? ' · 📌 사람 확인 ' + 쉼(모든사람) : ''} · ❓ 도면에 없음 {쉼(모든없)}</span></h2>
-                <div className="bim-rv-top">
-                  <span className="bim-chips">
-                    {일람표.map((t) => <button key={t.종류} type="button" className={'bim-chip' + (지금 === t ? ' on' : '')} onClick={() => { set일람종(t.종류); 세기('|BIM물량|일람') }}>{t.이름} {쉼(t.줄.length)}{없수(t) ? ' · ❓ ' + 쉼(없수(t)) : ''}</button>)}
-                  </span>
-                </div>
-                <div className="bim-tblwrap">
-                  <table className="bim-tbl bim-il-tbl">
-                    <thead><tr>{지금.머리.map((h) => <th key={h}>{h}</th>)}<th>3D</th><th>근거</th></tr></thead>
-                    <tbody>
-                      {지금.줄.map((z) => (
-                        <tr key={z.기호} className={(z.만든 ? 'il-made' : '') + (z.쓰임 ? ' il-use' : '')} onClick={() => { if (z.쓰임) 묶음고르기(지금.이름 + ' ' + z.기호, (o) => (o.표 === '옹벽' ? '벽' : o.표) === 지금.종류 && String(o.기호 || '').trim() === z.기호) }}>
-                          <th>{z.기호}</th>
-                          {z.칸.map((v, i) => <td key={i}>{v || <span className="muted">—</span>}</td>)}
-                          <td>{z.쓰임 ? 쉼(z.쓰임) : <span className="muted">—</span>}</td>
-                          <td className="il-why">{z.만든 ? <>{근거표(z.만든) ? 근거표(z.만든) + ' ' : ''}{z.만든}</> : <span className="muted">📄 도면</span>}
-                            {/* 📌 G406 같은 부재 고르기 — 건설맵은 잇지 않음(짐작 금지) · 사람이 도면을 보고 고른 것만 · 고른 날짜를 적고 되돌릴 수 있음 */}
-                            {(z.후보 || z.사람) && (
-                              <span className="il-same" onClick={(e) => e.stopPropagation()}>
-                                {z.사람
-                                  ? <button type="button" className="btn line sm" title="같은 부재로 본 것을 되돌림 — 다시 ❓ 도면에 없음" onClick={() => { 같음바꾸기(지금.종류 + '|' + z.기호, null); 세기('|BIM물량|같음되돌림') }}>↩ 되돌리기</button>
-                                  : z.후보.map((k) => <button key={k} type="button" className="btn line sm" title={'도면을 보고 «' + z.기호 + '» 와 «' + k + '» 가 같은 부재일 때만 누르세요 — 그 줄 값으로 셈하고 📌 사람 확인으로 적습니다'} onClick={() => { 같음바꾸기(지금.종류 + '|' + z.기호, k); 세기('|BIM물량|같음') }}>📌 «{k}» 같은 부재</button>)}
-                              </span>
-                            )}
-                            {/* 📌 G427 후보가 없거나 다른 줄이 맞으면 — 같은 종류 줄 가운데 사람이 고름(도면을 보고 · 고른 날짜 · 되돌리기) */}
-                            {!z.사람 && z.고를 && z.고를.length > 0 && (
-                              <span className="il-same" onClick={(e) => e.stopPropagation()}>
-                                <select className="il-pick" value="" title={'도면(일람 · 상세)을 보고 «' + z.기호 + '» 의 빈 칸이 고른 줄과 같을 때만 고르세요 — 그 줄 값으로 셈하고 📌 사람 확인(날짜)으로 적습니다 · ↩ 되돌리기 됨'}
-                                  onChange={(e) => { const k = e.target.value; if (!k) return; 같음바꾸기(지금.종류 + '|' + z.기호, k); 세기('|BIM물량|같음고름') }}>
-                                  <option value="">📌 다른 줄 값으로…</option>
-                                  {z.고를.map((k) => <option key={k} value={k}>{k}</option>)}
-                                </select>
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>📐 = 도면에서 잰 값(평면 두 선 · 그림) · ❓ = 도면에 없는 값(짐작 안 함 — 그 물량은 셈에서 빠짐 · 배근표에 적으면 셈) · 📌 = 도면을 보고 «같은 부재» 를 고른 값(«📌 … 같은 부재» 단추 · 이 브라우저에 파일 이름마다 기억 · 되돌리기) · 3D = 이 기호로 세운 부재 수(— 는 일람표에만 있음) · 줄을 누르면 그 부재들이 3D 에서 파랗게 · 엑셀 수량산출서 «부재 일람표» 시트에도 들어갑니다.</div>
-              </div>
-            )
-          })()}
-
-          {골조수 > 0 && (
-            <div className="card">
-              <h2 className="bim-h2">📊 골조 물량 표 <span className="muted">— 칸을 누르면 3D 에서 그 부재들이 파랗게</span></h2>
-              <div className="bim-tblwrap">
-                <table className="bim-tbl">
-                  <thead><tr><th>층</th>{있는종류.map((k) => <th key={k}><i style={{ background: 색글(종류색[k]) }} />{종이름[k]}</th>)}<th>층 합</th></tr></thead>
-                  <tbody>
-                    {층들.map((n) => {
-                      let 층합 = 0
-                      return (
-                        <tr key={n}>
-                          <th>{층말(n)}</th>
-                          {있는종류.map((k) => {
-                            const c = 칸(n, k)
-                            if (!c) return <td key={k} className="muted">—</td>
-                            층합 += c.콘크리트
-                            return (
-                              <td key={k} className="bim-cell" onClick={() => 묶음고르기(층말(n) + ' ' + 종이름[k], (o) => o.층 === n && o.종류 === k)}>
-                                <b>{쉼(c.콘크리트, 2)}</b> ㎥<span>{c.개수}개 · 거푸집 {쉼(c.거푸집, 1)}㎡ · 철근 {쉼(c.철근 / 1000, 2)}t</span>
-                              </td>
-                            )
-                          })}
-                          <td><b>{쉼(층합, 2)}</b> ㎥</td>
-                        </tr>
-                      )
-                    })}
-                    <tr className="bim-total">
-                      <th>합계</th>
-                      {있는종류.map((k) => {
-                        const t = 층들.reduce((s, n) => s + ((칸(n, k) || {}).콘크리트 || 0), 0)
-                        return <td key={k} className="bim-cell" onClick={() => 묶음고르기('모든 ' + 종이름[k], (o) => o.종류 === k)}><b>{쉼(t, 2)}</b> ㎥</td>
-                      })}
-                      <td><b>{쉼(합.콘, 2)}</b> ㎥</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              {Q && Q.기타 && (Q.기타.콘크리트 > 0.0005 || Q.기타.거푸집 > 0.0005) && <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>그 밖(자리 없는 줄 — 슬래브 마구리 · 깊은 구역 벽 내림 · 단차 · 건축 평면 난간 등 · 3D 에는 아직 안 그림): 콘크리트 {쉼(Q.기타.콘크리트, 2)} ㎥ · 거푸집 {쉼(Q.기타.거푸집, 2)} ㎡ · 철근 {쉼(Q.기타.철근, 1)} kg</div>}
-              <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>물량은 <Link to="/jeoksan/golgo">골조 수량산출</Link>과 같은 셈(겹치는 곳 공제 · 철근 정착 · 이음)입니다 — 엑셀에 산출근거 식이 그대로 들어갑니다.</div>
-            </div>
-          )}
-
-          {토목물 && (
-            <div className="card">
-              <h2 className="bim-h2">🏞 토목 물량 표 <span className="muted">— 평균단면법 · 줄을 누르면 3D 에서 파랗게</span></h2>
-              <div className="bim-tblwrap">
-                <table className="bim-tbl">
-                  <thead><tr><th>노선 · 구조물</th><th>연장</th><th><i style={{ background: 색글(토목색.수로) }} />콘크리트</th><th>거푸집</th><th><i style={{ background: 색글(토목색.터파기) }} />터파기</th>{절있음 && <th>흙깎기</th>}<th>되메우기</th><th><i style={{ background: 색글(토목색.성토) }} />성토</th></tr></thead>
-                  <tbody>
-                    {토.노선들.map((n) => (
-                      <tr key={'n' + n.번} className="bim-cell" onClick={() => 토목묶음(n.이름, n.ids)}>
-                        <th>{n.이름}<span className="muted" style={{ display: 'block', fontWeight: 400, fontSize: 11 }}>단면 {n.단면수}개 · {측점글(n.시작, n.간격)} ~ {측점글(n.끝, n.간격)}{n.세움 ? '' : ' · 3D 못 세움(노선 없음)'}</span>
-                          {표쓴노선.includes(n) && <span className="bim-pyo" title={'선으로 잰 값(맞춰 보기): 판 곳(터파기 + 흙깎기) ' + 쉼(n.선합.터파기, 1) + ' · 되메우기 ' + 쉼(n.선합.되메우기, 1) + ' · 성토 ' + 쉼(n.선합.성토, 1) + ' ㎥ — 도면 표: 터파기 + 흙깎기 ' + 쉼(n.합.터파기 + (n.합.절토 || 0), 1) + ' ㎥'}>📋 토공 = 도면 표 값 <em>· 선으로 잰 판 곳 {쉼(n.선합.터파기, 0)} ㎥(표 {쉼(n.합.터파기 + (n.합.절토 || 0), 0)})</em></span>}</th>
-                        <td>{쉼(n.길이, 1)} m</td>
-                        <td><b>{쉼(n.합.콘크리트, 2)}</b> ㎥</td>
-                        <td>{쉼(n.합.거푸집, 1)} ㎡</td>
-                        <td>{쉼(n.합.터파기, 1)} ㎥</td>
-                        {절있음 && <td>{쉼(n.합.절토 || 0, 1)} ㎥</td>}
-                        <td>{쉼(n.합.되메우기, 1)} ㎥</td>
-                        <td>{쉼(n.합.성토, 1)} ㎥</td>
-                      </tr>
-                    ))}
-                    {토.구조물들.map((q, qi) => (
-                      <tr key={'s' + qi} className="bim-cell" onClick={() => 토목묶음(q.이름, q.ids)}>
-                        <th>🏭 {q.이름}<span className="muted" style={{ display: 'block', fontWeight: 400, fontSize: 11 }}>개략 · 벽 {쉼(q.넓이.벽, 1)} ㎡ × {쉼(q.벽높, 2)} m + 바닥 {쉼(q.넓이.바닥, 1)} ㎡ × {q.바닥두께} mm</span></th>
-                        <td className="muted">—</td>
-                        <td><b>{쉼(q.합.콘크리트, 2)}</b> ㎥</td>
-                        <td>{쉼(q.합.거푸집, 1)} ㎡</td>
-                        <td className="muted">—</td>{절있음 && <td className="muted">—</td>}<td className="muted">—</td><td className="muted">—</td>
-                      </tr>
-                    ))}
-                    <tr className="bim-total">
-                      <th>합계</th><td />
-                      <td><b>{쉼(토목합.콘크리트, 2)}</b> ㎥</td><td>{쉼(토목합.거푸집, 1)} ㎡</td><td>{쉼(토목합.터파기, 1)} ㎥</td>{절있음 && <td>{쉼(토목합.절토, 1)} ㎥</td>}<td>{쉼(토목합.되메우기, 1)} ㎥</td><td>{쉼(토목합.성토, 1)} ㎥</td>
-                    </tr>
-                    {/* ⚖ G445 같은 구조물 견줌 — 같은 자리 횡단면도로 센 값(합에 안 넣음) · 누르면 3D 에서 그 옅은 덩어리 */}
-                    {토.구조물들.flatMap((q, qi) => (q.견줌 || []).map((g, gi) => {
-                      const 노 = 토.노선들.find((n) => n.이름 === g.노선)
-                      const ids = 노 ? 토.부재.filter((o) => (노.견ids || []).includes(o.id) && o.측 >= g.처음 - 1e-6 && o.측 <= g.끝 + 1e-6).map((o) => o.id) : []
-                      return (
-                        <tr key={'c' + qi + '-' + gi} className="bim-cell bim-cmp" title="누르면 3D 에서 그 옅은 덩어리를 파랗게" onClick={() => 토목묶음('견줌 ' + g.노선, ids)}>
-                          <th>⚖ 견줌(합에 안 넣음)<span className="muted" style={{ display: 'block', fontWeight: 400, fontSize: 11, whiteSpace: 'normal', maxWidth: 340 }}>«{g.노선}» {측점글(g.처음)} ~ {측점글(g.끝)} 횡단 {g.단면}개 — 같은 자리 구조물 «{q.이름}» 은 일반도로 셈(두 번 안 셈)</span></th>
-                          <td className="muted">—</td>
-                          <td>{쉼(g.콘크리트, 2)} ㎥</td><td>{쉼(g.거푸집, 1)} ㎡</td>
-                          <td className="muted">—</td>{절있음 && <td className="muted">—</td>}<td className="muted">—</td><td className="muted">—</td>
-                        </tr>
-                      )
-                    }))}
-                  </tbody>
-                </table>
-              </div>
-              {토.구조물들.length > 0 && (
-                <div className="bim-floors" style={{ marginTop: 10 }}>
-                  {토.구조물들.map((q, qi) => (
-                    <label key={'t' + qi} className={q.두께없음 ? 'guess' : ''}>
-                      <span>🏭 {q.이름} 바닥판 두께</span>
-                      <input className="inp" inputMode="numeric" placeholder={q.두께없음 ? '도면에 없음' : ''} value={두께[q.이름] !== undefined ? 두께[q.이름] : q.두께없음 ? '' : String(q.바닥두께)}
-                             onChange={(e) => { const v = e.target.value.replace(/[^\d]/g, ''); set두께((h) => ({ ...h, [q.이름]: v })) }} />
-                      <em>mm{q.두께없음 ? ' · ❓ 도면에 없음 — 넣으면 셈' : q.두께근거 ? ' · ' + q.두께근거.replace(/\(.*$/, '') : ''}</em>
-                    </label>
-                  ))}
-                  {Object.keys(두께).length > 0 && <button type="button" className="btn line sm" onClick={() => set두께({})}>↩ 처음대로</button>}
-                </div>
-              )}
-              {토.노선들.map((n) => (
-                <details key={'d' + n.번} className="bim-how">
-                  <summary>📐 {n.이름} — 평균단면 {n.줄.length}줄</summary>
-                  <div className="bim-tblwrap">
-                    <table className="bim-tbl" style={{ minWidth: 640 }}>
-                      <thead><tr><th>측점</th><th>거리(m)</th><th>콘크리트 ㎡</th><th>콘크리트 ㎥</th><th>터파기 ㎡{n.표씀 && n.표씀.터파기 ? ' (표)' : ''}</th>{n.선줄 && <th className="muted">선으로 잰 판 곳 ㎡</th>}<th>터파기 ㎥</th>{절있음 && <th>흙깎기 ㎥</th>}<th>되메우기 ㎥</th><th>성토 ㎥</th></tr></thead>
-                      <tbody>
-                        {n.줄.map((r, i) => (
-                          <tr key={i} className="bim-cell" title="누르면 이 단면의 덩어리를 3D 에서 파랗게 · 다가감"
-                              onClick={() => 토목묶음(n.이름 + ' ' + 측점글(r.측, n.간격), 토.부재.filter((o) => o.노선번 === n.번 && Math.abs(o.측 - r.측) < 1e-6).map((o) => o.id))}>
-                            <th>{측점글(r.측, n.간격)}</th><td>{쉼(r.거리, 2)}</td><td>{쉼(r.면적.콘크리트, 3)}</td><td>{쉼(r.부피.콘크리트, 2)}</td><td>{쉼(r.면적.터파기, 2)}</td>{n.선줄 && <td className="muted">{쉼(n.선줄[i] ? n.선줄[i].면적.터파기 : NaN, 2)}</td>}<td>{쉼(r.부피.터파기, 1)}</td>{절있음 && <td>{쉼(r.부피.절토 || 0, 1)}</td>}<td>{쉼(r.부피.되메우기, 1)}</td><td>{쉼(r.부피.성토, 1)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </details>
-              ))}
-              <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>
-                단면 둘 사이 = (앞 면적 + 뒤 면적) ÷ 2 × 거리 — <Link to="/tools/dxf3d">도면 3D 보기</Link> · 토공 화면과 같은 셈이고, 엑셀에 식이 그대로 들어갑니다.
-                {표쓴노선.length > 0 && ' 📋 횡단면도 측점 표에 터파기 · 되메우기 · 흙쌓기 · 흙깎기 면적이 적혀 있으면 그 값(설계자 값)으로 셉니다 — 선으로 잰 값은 맞춰 보기용으로 옆에 둡니다.'}
-                3D 덩어리 하나는 단면 하나가 앞뒤 반 칸씩 맡은 몫입니다(몫을 다 더하면 노선 합계와 같음).
-              </div>
-            </div>
-          )}
-
-          {건물들.length > 0 && (
-            <div className="card">
-              <h2 className="bim-h2">🏢 건물(건축 평면) 물량 표 <span className="muted">— 부재 일람표 없이 평면 겹선으로 세운 개략 · 줄을 누르면 3D 에서 파랗게</span></h2>
-              {참고건물 && <div className="dx3-warn" style={{ marginTop: 0 }}>ℹ️ «{참고건물}» 은 골조(구조평면도 · 일람표)와 같은 건물이라 <b>참고</b>로만 둡니다 — 위 요약 · 엑셀 합계 · IFC 에 안 넣었습니다. 물량은 골조 물량 표를 보십시오.</div>}
-              {건물들.map((b, bi) => {
-                const 층몫 = (f) => 토.부재.filter((o) => o.건물 === b.이름 && o.층 === f.이름).reduce((a, o) => ({ 콘: a.콘 + (o.몫 ? o.몫.콘크리트 || 0 : 0), 틀: a.틀 + (o.몫 ? o.몫.거푸집 || 0 : 0), ids: [...a.ids, o.id] }), { 콘: 0, 틀: 0, ids: [] })
-                return (
-                  <div key={'b' + bi} className="bim-tblwrap" style={{ marginBottom: 10 }}>
-                    <table className="bim-tbl">
-                      <thead><tr><th>{b.이름}{b.옆 ? <span className="muted" style={{ fontWeight: 400 }}> · 토목 옆</span> : b.자리 === '모양' ? <span className="muted" style={{ fontWeight: 400 }}> · 배치도 자리</span> : null}</th><th>높이(m)</th><th><i style={{ background: 색글(토목색.건물바닥) }} />바닥 넓이</th><th><i style={{ background: 색글(토목색.건물) }} />벽(평면)</th><th>벽 높이</th><th>콘크리트</th><th>거푸집</th></tr></thead>
-                      <tbody>
-                        {b.층.map((f, fi) => {
-                          const m = 층몫(f)
-                          return (
-                            <tr key={fi} className="bim-cell" onClick={() => 토목묶음(b.이름 + ' ' + f.이름, m.ids)}>
-                              <th>{f.이름}{f.지붕 && !/지붕/.test(f.이름) ? ' (지붕)' : ''}{f.뺀벽 ? <span className="muted" style={{ display: 'block', fontWeight: 400, fontSize: 11 }}>벽 안 세움 — 두께 {쉼(f.두께, 2)} m 로 읽힘</span> : null}</th>
-                              <td>{쉼(f.z0, 2)}{f.지붕 ? '' : ' ~ ' + 쉼(f.z1, 2)}</td>
-                              <td>{쉼(f.바닥, 1)} ㎡</td>
-                              <td>{f.벽 ? 쉼(f.벽, 1) + ' ㎡' : '—'}</td>
-                              <td>{f.벽높 ? 쉼(f.벽높, 2) + ' m' : '—'}</td>
-                              <td><b>{쉼(m.콘, 2)}</b> ㎥</td>
-                              <td>{쉼(m.틀, 1)} ㎡</td>
-                            </tr>
-                          )
-                        })}
-                        <tr className="bim-total bim-cell" onClick={() => 토목묶음(b.이름, b.ids)}>
-                          <th>합계 · 연면적 {쉼(b.연면적, 1)} ㎡</th><td /><td /><td /><td />
-                          <td><b>{쉼(b.합.콘크리트, 2)}</b> ㎥</td><td>{쉼(b.합.거푸집, 1)} ㎡</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                )
-              })}
-              <div className="bim-floors" style={{ marginTop: 4 }}>
-                {건물들.map((b, bi) => (
-                  <label key={'bt' + bi} className={b.두께없음 ? 'guess' : ''}>
-                    <span>🏢 {b.이름} 바닥판 두께</span>
-                    <input className="inp" inputMode="numeric" placeholder={b.두께없음 ? '도면에 없음' : ''} value={건물두께[b.이름] !== undefined ? 건물두께[b.이름] : b.두께없음 ? '' : String(b.바닥두께)}
-                           onChange={(e) => { const v = e.target.value.replace(/[^\d]/g, ''); set건물두께((h) => ({ ...h, [b.이름]: v })) }} />
-                    <em>mm{b.두께없음 ? ' · ❓ 도면에 없음 — 넣으면 셈' : ' · 사람이 넣음'}</em>
-                  </label>
-                ))}
-                {Object.keys(건물두께).length > 0 && <button type="button" className="btn line sm" onClick={() => set건물두께({})}>↩ 처음대로</button>}
-              </div>
-              <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>
-                층마다 평면의 겹선(두 줄 사이)을 벽으로, 바깥 테두리를 바닥판으로 읽었습니다. 벽은 층 바닥에서 윗층 바닥판 아래까지 세우고, 창 · 문 구멍과 기둥은 빼지 않은 <b>개략</b>입니다.
-                부재 일람표(크기 표)가 든 구조 도면을 같이 넣으시면 골조로 정확히 셉니다.
-              </div>
-            </div>
-          )}
-
-          {흙들.length > 0 && (
-            <div className="card">
-              <h2 className="bim-h2">🧱 흙막이 · 가설 물량 표 <span className="muted">— 흙막이 평면도 · 전개도 · 도면 글자(규격 · 간격 · 굴착 깊이)에서 읽음</span></h2>
-              {흙들.map((h, hi) => {
-                const q = 흙물[hi]
-                if (!q) return null
-                const 짧 = String(h.파일 || '흙막이').replace(/\.(dxf|dwg)$/i, '')
-                return (
-                  <div key={'h' + hi} className="bim-tblwrap" style={{ marginBottom: 10 }}>
-                    <table className="bim-tbl bim-tbl-h">
-                      <thead><tr><th>{흙들.length > 1 ? 짧 : '공종'}</th><th className="bim-d">규격</th><th>수량</th><th>길이</th><th className="bim-d">단위무게</th><th>중량</th></tr></thead>
-                      <tbody>
-                        {q.줄.map((x, i) => (
-                          <tr key={i} className="bim-cell" title="누르면 3D 에서 파랗게" onClick={() => 토목묶음(x.공종, (h.ids || []).filter((id) => { const o = 토목표.get(토목ID + id); return o && o.부분 === x.부분 && (!x.단 || (o.단 || 1) === x.단) }))}>
-                            <th>{x.공종}<span className="bim-m muted">{x.규격 || '규격 못 읽음'}{x.kg ? ' · ' + 쉼(x.kg, 1) + ' kg/m' : ''}</span>{x.짐작 ? <span className="muted" style={{ display: 'block', fontWeight: 400, fontSize: 11 }}>{x.짐작}</span> : null}</th>
-                            <td className="bim-d bim-nw">{x.규격 || '—'}</td>
-                            <td className="bim-nw">{x.수량 != null ? 쉼(x.수량) + ' 본' : '—'}</td>
-                            <td className="bim-nw">{쉼(x.길이, 1)} m</td>
-                            <td className="bim-d bim-nw">{x.kg ? 쉼(x.kg, 1) + ' kg/m' : '—'}</td>
-                            <td><b>{쉼(x.중량, 2)}</b> ton</td>
-                          </tr>
-                        ))}
-                        <tr className="bim-total">
-                          <th>강재 합계 <span className="muted" style={{ fontWeight: 400 }}>(할증 {쉼(할증수, 1)}% 넣음)</span></th><td className="bim-d" /><td /><td className="bim-nw">{쉼(q.줄.reduce((n, x) => n + x.길이, 0), 1)} m</td><td className="bim-d" />
-                          <td className="bim-nw"><b>{쉼(q.강재, 2)}</b> ton</td>
-                        </tr>
-                        {q.토류판 && <tr className="bim-cell" onClick={() => 토목묶음('토류판', (h.ids || []).filter((id) => { const o = 토목표.get(토목ID + id); return o && o.부분 === '토류판' }))}><th>토류판(흙막이판)<span className="bim-m muted">{h.토류판.근거 === '전개도' ? '전개도' : '글자 깊이'}</span></th><td className="bim-d muted">{h.토류판.근거 === '전개도' ? '전개도' : '글자 깊이'}</td><td /><td>{쉼(q.토류판.길이, 1)} m × {쉼(q.토류판.깊이, 2)} m</td><td className="bim-d" /><td className="bim-nw"><b>{쉼(q.토류판.넓이, 1)}</b> ㎡</td></tr>}
-                        {q.터파기 && <tr className="bim-cell" onClick={() => { const ids = (h.ids || []).filter((id) => { const o = 토목표.get(토목ID + id); return o && o.종류 === '터파기' }).map((id) => 토목ID + id); set끔((s0) => { const n = new Set(s0); n.delete('터파기'); return n }); set선택(null); set묶음(ids.length ? { 글: '건물 터파기(흙막이 안)', ids: new Set(ids) } : null); setTimeout(() => { if (보기Ref.current && ids.length) 보기Ref.current.보기로(ids) }, 50) }}><th>건물 터파기<span className="bim-m muted">흙막이 안</span><span className="bim-d" style={{ display: 'inline' }}>(흙막이 안)</span></th><td className="bim-d" /><td /><td>{쉼(q.터파기.넓이, 1)} ㎡ × {쉼(q.터파기.깊이, 2)} m</td><td className="bim-d" /><td className="bim-nw"><b>{쉼(q.터파기.부피, 1)}</b> ㎥</td></tr>}
-                      </tbody>
-                    </table>
-                  </div>
-                )
-              })}
-              <div className="bim-floors" style={{ marginTop: 4 }}>
-                <label>
-                  <span>🧱 강재 할증</span>
-                  <input className="inp" inputMode="decimal" value={흙할증} onChange={(e) => set흙할증(e.target.value.replace(/[^\d.]/g, '').slice(0, 5))} />
-                  <em>% · 도면 재료표 «Add 10%»</em>
-                </label>
-                {흙할증 !== '10' && <button type="button" className="btn line sm" onClick={() => set흙할증('10')}>↩ 10%</button>}
-              </div>
-              <details className="bim-how">
-                <summary>📐 어떻게 셌나요</summary>
-                <ul>
-                  {흙들.flatMap((h, hi) => (h.근거 || []).map((g, i) => <li key={hi + '-' + i}>{g}</li>))}
-                  <li><b>말뚝 개수</b> = 평면의 H 모양 수 — 1단 · 2단 · 공법 평면에 같은 말뚝을 또 그린 것은 한 번만(가장 많이 그린 한 장)</li>
-                  <li><b>띠장 · 버팀보 · 사보강 · 보강재</b> = 단(1단 · 2단) 평면마다 선 길이 — 두세 줄로 그린 H 형강 · 겹쳐 그린 선은 한 줄로</li>
-                  <li><b>단위무게</b> = 도면 글자의 H 형강 규격(«H-298x201x9/14» 등)으로 KS 넓이 × 7.85 t/㎥ · <b>중량</b> = 길이 × 단위무게 × (1 + 할증)</li>
-                </ul>
-              </details>
-              <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>
-                줄을 누르면 3D 에서 그 부재들이 파랗게 칠해집니다. 엑셀 «흙막이 · 가설» 시트에 식이 그대로 들어갑니다(노란 할증 칸을 바꾸면 다시 셈). 높이는 흙막이 단면도의 E.L 글자로 읽습니다(단면도가 없으면 짐작). 이음판 · 볼트 · 잭 · 복공(주형보 · 복공판)은 아직 안 셉니다.
-              </div>
-            </div>
-          )}
-
-          {골조수 > 0 && (
-            <div className="card">
-              <h2 className="bim-h2">📏 층 높이 <span className="muted">— 도면 글자에서 읽은 값 · ❓ 도면에 없는 층은 높이를 적으시면 그 층 기둥 · 벽을 셈합니다(도면은 그대로)</span></h2>
-              <div className="bim-floors">
-                {(모델.바닥들 || []).map((f) => (
-                  <label key={f.이름} className={f.짐작 ? 'guess' : ''}>
-                    <span>{층말(f.이름)} 바닥</span>
-                    <input className="inp" inputMode="numeric" value={높이[f.이름] !== undefined ? 높이[f.이름] : String(Math.round(f.높이))}
-                           onChange={(e) => { const v = e.target.value.replace(/[^\d\-]/g, ''); set높이((h) => ({ ...h, [f.이름]: v })) }} />
-                    <em>mm{f.읽음 ? ' · 도면' : f.짐작 ? ' · ❓ 도면에 없음(그림만)' : ''}</em>
-                  </label>
-                ))}
-                {Object.keys(높이).length > 0 && <button type="button" className="btn line sm" onClick={() => set높이({})}>↩ 도면 값으로</button>}
-              </div>
-            </div>
-          )}
-
-          <div className="card">
-            <h2 className="bim-h2">🔍 스스로 검사 · 짐작</h2>
-            <ul className="bim-check">
-              {R && (R.읽음 && R.읽음.평면 || []).length > 0 && <li className="info">📄 읽은 평면 {R.읽음.평면.length}장: {R.읽음.평면.map((p) => p.제목 + ' → ' + p.층.map(층말).join('·')).join(' · ')}</li>}
-              {모델 && 모델.원점 && <li className="ok">📍 원점(0, 0): {모델.원점.글}</li>}
-              {(모델 ? 모델.맞춤 : []).map((m, i) => <li key={'m' + i} className={m.방법 === '테두리' ? 'warn' : 'ok'}>🧭 {층말(m.층)} 평면{m.종류 ? '(' + m.종류.replace('슬라브', '슬래브') + ' ' + m.수 + '개)' : ''} — {m.글}</li>)}
-              {검.map((z, i) => <li key={'c' + i} className={z.정보 ? 'info' : z.좋음 ? 'ok' : 'warn'}>{z.정보 ? '📦' : z.좋음 ? '✓' : '⚠️'} {z.글}</li>)}
-              {골조뺌 && <li className="warn">🧱 골조로 읽은 부재가 {모델0.부재.length}개({[...new Set(모델0.부재.map((o) => 종이름[o.종류] || o.종류))].join(' · ')})뿐이라 토목 도면의 표 · 글자를 잘못 읽은 것으로 보고 세우지 않았습니다 — 건물 골조는 구조평면도 · 부재 일람표를 넣어 주십시오.</li>}
-              {토목있음 && 토.노선들.map((n) => <li key={'tn' + n.번} className={n.세움 ? 'ok' : 'warn'}>🛣 {n.이름} — 단면 {n.단면수}개 {n.세움 ? '· 평면 노선을 따라 세움' : '· 평면 노선을 못 찾아 물량만'}</li>)}
-              {토목있음 && 토.구조물들.map((q, qi) => <li key={'tq' + qi} className="ok">🏭 {q.이름} — 평면 겹선으로 벽 {쉼(q.넓이.벽, 1)} ㎡(평균 두께 약 {쉼(q.두께, 2)} m) · 바닥 {쉼(q.넓이.바닥, 1)} ㎡ · EL {쉼(q.아래, 2)} ~ {쉼(q.위, 2)} m</li>)}
-              {같은건물 && <li className={같은건물.같음 ? 'ok' : 'info'}>🏢 골조 ↔ 건축 평면 «{건물들[같은건물.번].이름}» — {같은건물.방법 === '통심' ? `통심 ${같은건물.통심.글들.slice(0, 6).join(' · ')}(${같은건물.통심.줄수}줄 · 남는 차 ${같은건물.통심.최대} mm) · ` : ''}{층말(같은건물.층)} 발자국 {Math.round(같은건물.몫 * 100)}% 겹침 · 돌림 {(같은건물.θ * 180 / Math.PI).toFixed(1)}° {같은건물.같음 ? '→ 같은 건물: 골조를 그 자리에 놓고 건축 평면 덩어리는 참고' : !같은건물.층맞음 ? `→ 층 수가 달라(골조 ${같은건물.층수[0]}개 · 건축 평면 ${같은건물.층수[1]}개) 다른 건물로 봄` : '→ 55% 못 미쳐 다른 건물로 봄'}</li>}
-              {흙들.map((h, hi) => { const 전 = (h.제목들 || []).filter((t) => /전\s*개/.test(t)).length; const 단 = (h.제목들 || []).filter((t) => /단\s*면/.test(t)).length; const 규 = Object.values(h.규격 || {}).filter(Boolean).length; return <li key={'th' + hi} className={h.말뚝.개수 && 규 ? 'ok' : 'warn'}>🧱 가설 흙막이 — 평면 {(h.제목들 || []).length - 전 - 단}장 · 전개도 {전}장 · 단면도 {단}장{h.단면 ? '(높이 읽음)' : ''} · H-PILE {h.말뚝.개수}본{h.간격 ? ' · 간격 ' + 쉼(h.간격) + ' mm' : ''}{h.깊이 ? ' · 굴착 깊이 ' + 쉼(h.깊이.작, 2) + ' ~ ' + 쉼(h.깊이.큰, 2) + ' m' : ''} · 규격 {규 ? 규 + '종 읽음' : '못 읽음(H-300x300x10/15 같은 글자가 없음)'}</li> })}
-              {건물들.map((b, bi) => <li key={'tb' + bi} className={b.옆 ? 'warn' : 'ok'}>🏢 {b.이름}{b.이름 === 참고건물 ? '(참고)' : ''} — 건축 평면 {b.층.length}개 층 · 연면적 {쉼(b.연면적, 1)} ㎡ · {b.옆 ? '배치도에서 자리를 못 찾아 토목 오른쪽 20 m 에 놓음(배치도 · 계획평면도를 같이 넣어 주시면 자리를 찾습니다)' : b.자리 === '모양' ? '배치도의 같은 모양 자리에 놓음' + (b.방이름 ? '(같은 방 이름이 적힌 곳)' : '') : '이 도면이 자리의 기준'}{b.땅 != null ? ' · 땅 EL ' + 쉼(b.땅, 2) + ' m' : ''}</li>)}
-              {(모델 ? 모델.짐작 : []).map((w, i) => <li key={'g' + i} className="guess">💭 {w}</li>)}
-              {토목있음 && 토.짐작.map((w, i) => <li key={'tg' + i} className="guess">💭 {w}</li>)}
-              {토목있음 && 토.경고.map((w, i) => <li key={'tw' + i} className="warn">⚠️ {w}</li>)}
-              {/* 🏗 G425 철골 ❓ · 📌 — 퍼린(선 없음) · 이름 없는 선 · 평면 ↔ 입면 칸 다름(📌 입면 칸으로 셈 — 같은 기억 칸 · 되돌릴 수 있음) */}
-              {R && R.읽음 && (R.읽음.철골물음 || []).map((q) => (
-                <li key={'sq' + q.키} className={q.셈 ? 'ok' : 'warn'}>
-                  {q.셈 ? '📌' : '❓'} 🏗 {q.글}{q.셈 && (검수.바탕셈 || {})[q.키] && 검수.바탕셈[q.키].때 ? '(' + 검수.바탕셈[q.키].때 + ')' : ''}
-                  {/^철골\|칸\|/.test(q.키) && (q.셈
-                    ? <> <button type="button" className="btn line sm" title="사람 결정을 되돌림 — 다시 평면 선 길이로 셈" onClick={() => { 바탕셈바꾸기(q.키, false); 세기('|BIM물량|철골칸되돌림') }}>↩ 되돌리기</button></>
-                    : <> <button type="button" className="btn line sm" title={'평면 · 입면 도면을 보고 입면 칸(' + 쉼(q.입) + ')이 맞을 때만 누르세요 — 그 칸을 가로지르는 철골보 · 가새를 입면 칸 길이로 셈하고 📌 사람 결정으로 적습니다'} onClick={() => { 바탕셈바꾸기(q.키, true); 세기('|BIM물량|철골칸') }}>📌 입면 칸 {쉼(q.입)} 으로 셈</button></>)}
-                  {q.단위 && 값넣기(q, '길이')}
-                </li>
-              ))}
-              {/* 🧱 G435 방수턱 상세(폭 · 높이 · 철근) — 놓인 길이가 평면에 없어 ❓ · 📌 사람이 잰 길이(m)로 셈(같은 기억 칸 · 되돌릴 수 있음) */}
-              {R && R.읽음 && (R.읽음.방수턱물음 || []).map((q) => (
-                <li key={'wq' + q.키} className={q.셈 ? 'ok' : 'warn'}>
-                  {q.셈 ? '📌' : '❓'} 🧱 {q.글}{q.셈 && (검수.바탕셈 || {})[q.키] && 검수.바탕셈[q.키].때 ? '(' + 검수.바탕셈[q.키].때 + ')' : ''}
-                  {q.단위 && 값넣기(q, '길이')}
-                </li>
-              ))}
-              {/* 🧱 G436 파라펫 — 골조입면도에서 읽은 높이 × 두께마다 ❓(길이 · 평면 자리는 도면에 없음) · 📌 사람이 잰 길이(m)로 셈 */}
-              {R && R.읽음 && (R.읽음.파라펫물음 || []).map((q) => (
-                <li key={'rq' + q.키} className={q.셈 ? 'ok' : 'warn'}>
-                  {q.셈 ? '📌' : '❓'} 🧱 {q.글}{q.셈 && (검수.바탕셈 || {})[q.키] && 검수.바탕셈[q.키].때 ? '(' + 검수.바탕셈[q.키].때 + ')' : ''}
-                  {q.단위 && 값넣기(q, '길이')}
-                </li>
-              ))}
-              {/* 📌 G435 보수 점검구 — 깨기 · 복구 콘크리트 · 앵글은 단면마다 달라 ❓ · 사람이 잰 한 곳 값 × 개수로 셈 */}
-              {R && R.읽음 && (R.읽음.점검구물음 || []).map((q) => (
-                <li key={'pq' + q.키} className={q.셈 ? 'ok' : 'warn'}>
-                  {q.셈 ? '📌' : '❓'} 🔧 {q.글}{q.셈 && (검수.바탕셈 || {})[q.키] && 검수.바탕셈[q.키].때 ? '(' + 검수.바탕셈[q.키].때 + ')' : ''}
-                  {q.단위 && 값넣기(q, q.말 || '값')}
-                </li>
-              ))}
-              {R && R.읽음 && (R.읽음.바탕물음 || []).map((q) => (
-                <li key={'bq' + q.키} className={q.셈 ? 'ok' : 'warn'}>
-                  {q.셈 ? '📌' : '❓'} 건축 바탕에만 있는 벽 {q.층글} {q.기호} {q.길이} m — {q.셈 ? '사람 결정으로 철근콘크리트 벽으로 셈' + ((검수.바탕셈 || {})[q.키] && 검수.바탕셈[q.키].때 ? '(' + 검수.바탕셈[q.키].때 + ')' : '') : '도면에 없음(구조 벽 표시) — 셈에서 뺌'}{' '}
-                  {q.셈
-                    ? <button type="button" className="btn line sm" title="사람 결정을 되돌림 — 다시 ❓ 셈에서 뺌" onClick={() => { 바탕셈바꾸기(q.키, false); 세기('|BIM물량|바탕셈되돌림') }}>↩ 되돌리기</button>
-                    : <button type="button" className="btn line sm" title="건축 도면(평면 · 단면)을 보고 철근콘크리트 벽일 때만 누르세요 — 그 층 그 벽을 셈하고 📌 사람 결정으로 적습니다" onClick={() => { 바탕셈바꾸기(q.키, true); 세기('|BIM물량|바탕셈') }}>📌 철근콘크리트 벽으로 셈</button>}
-                  {' '}<button type="button" className="btn line sm" title="이 벽 토막을 3D 에서 골라 그 자리로 갑니다(도면 자리 글도 보임)" onClick={() => 자리보기(q, q.층글 + ' ' + q.기호 + ' (건축 바탕 벽)', '벽')}>📍 자리 보기</button>
-                  {' '}<button type="button" className="btn line sm" title="이 벽 토막들을 도면 판 위에 네모로 보여 줍니다(◀ ▶ 로 하나씩)" onClick={() => 도면보기((q.셈 ? '📌 ' : '❓ ') + '건축 바탕에만 있는 벽 ' + q.층글 + ' ' + q.기호 + ' ' + q.길이 + ' m', q.셈 ? '#2563eb' : '#f97316', 자리들(q), '바탕')}>🗺 도면</button>
-                  {자리줄(q)}
-                </li>
-              ))}
-              {/* 📌 G420 «건축치수» 보 춤 — 단면이 안 지나 ❓ 로 남은 곳을 «층고 − 문 − 마감» 으로 셀지 사람이 정함(같은 기억 칸 · 되돌릴 수 있음) */}
-              {R && R.읽음 && (R.읽음.건축치수물음 || []).map((q) => (
-                <li key={'hq' + q.키} className={q.셈 ? 'ok' : 'warn'}>
-                  {q.셈 ? '📌' : '❓'} «건축치수» 보 {q.층글} {q.기호} {q.곳}곳 {q.길이} m — 춤 {쉼(q.춤)} = 층고 {쉼(q.층고)} − 문 {쉼(q.문)} − 마감 {쉼(q.마감)} {q.셈 ? '· 사람 결정으로 셈' + ((검수.바탕셈 || {})[q.키] && 검수.바탕셈[q.키].때 ? '(' + 검수.바탕셈[q.키].때 + ')' : '') : '· 도면에 없음(문 높이) — 셈에서 뺌'}{' '}
-                  {q.셈
-                    ? <button type="button" className="btn line sm" title="사람 결정을 되돌림 — 다시 ❓ 셈에서 뺌" onClick={() => { 바탕셈바꾸기(q.키, false); 세기('|BIM물량|춤결정되돌림') }}>↩ 되돌리기</button>
-                    : <button type="button" className="btn line sm" title="건축 창호일람표 · 단면으로 그 층 문 높이와 마감을 확인했을 때만 누르세요 — 그 층 그 보를 이 춤으로 셈하고 📌 사람 결정으로 적습니다" onClick={() => { 바탕셈바꾸기(q.키, true); 세기('|BIM물량|춤결정') }}>📌 이 춤으로 셈</button>}
-                  {' '}<button type="button" className="btn line sm" title="이 보 토막을 3D 에서 골라 그 자리로 갑니다(도면 자리 글도 보임)" onClick={() => 자리보기(q, q.층글 + ' ' + q.기호 + ' (건축치수 보)', '보')}>📍 자리 보기</button>
-                  {' '}<button type="button" className="btn line sm" title="이 보 토막들을 도면 판 위에 네모로 보여 줍니다(◀ ▶ 로 하나씩)" onClick={() => 도면보기((q.셈 ? '📌 ' : '❓ ') + '«건축치수» 보 ' + q.층글 + ' ' + q.기호 + ' ' + q.곳 + '곳 ' + q.길이 + ' m', q.셈 ? '#2563eb' : '#f97316', 자리들(q), '춤')}>🗺 도면</button>
-                  {자리줄(q)}
-                </li>
-              ))}
-              {/* 🗺 G429 📐 손으로 잰 것을 도구화한 것 — 도면 판 위에 잰 자리(빨강 = 셈) */}
-              {/* 🗺 G429 ❓ 도면에 없음 — 기호마다 그 부재가 그려진 도면 자리(3D 부재의 근거 자리) */}
-              {R && R.읽음 && (R.읽음.없음목록 || []).length > 0 && 모델 && (
-                <li className="warn">❓ 도면에 없음 {R.읽음.없음목록.length}가지 — 도면에서 보기:{' '}
-                  {R.읽음.없음목록.map((x) => {
-                    const 들 = 모델.부재.filter((o) => o.기호 === x.기호 && o.근거 && o.근거.n && o.근거.r).map((o) => ({ 파일: o.근거.n, r: o.근거.r, 글: x.기호, 곳: 층말(o.층) + ' ' + o.종류 + ' ' + x.기호 + ' — 도면에 없음: ' + x.없음.join(' · ') }))
-                    return <button key={x.기호} type="button" className="btn line sm" style={{ margin: '2px 3px 2px 0' }} disabled={!들.length} title={x.없음.join(' · ') + (들.length ? ' — 그 부재 ' + 들.length + '곳' : ' — 평면에 그려진 자리가 없음')} onClick={() => 도면보기('❓ ' + x.기호 + ' — 도면에 없음: ' + x.없음.join(' · ') + ' — 그 값은 셈에서 뺌', '#f97316', 들, '없음')}>🗺 {x.기호} {x.없음.join('·')}</button>
-                  })}
-                </li>
-              )}
-              {R && R.읽음 && (R.읽음.깊은자리 || []).map((g, gi) => (
-                <li key={'dz' + gi} className="info">📐 깊은 구역({g.구역}) 벽 내림 · 단차 {g.셈.length}토막 {쉼(g.셈.reduce((a, x) => a + x.부피, 0), 1)} ㎥{g.못.length ? ' · ❓ 셈에서 뺀 토막 ' + g.못.length : ''}{' '}
-                  <button type="button" className="btn line sm" title="토막마다 도면 판 위에(빨강 = 셈 · 주황 = ❓ · ◀ ▶ 로 하나씩)" onClick={() => 도면보기('📐 깊은 구역 — 골구도 단면 × 평면 길이', '#ef4444', [...g.셈.map((x) => ({ 파일: g.파일, r: 선네모(g.파일, x.선), 글: x.기호, 곳: x.곳 + ' · ' + x.부피 + ' ㎥', 색: '#ef4444' })), ...g.못.map((x) => ({ 파일: g.파일, r: 선네모(g.파일, x.선), 글: '❓', 곳: x.곳 + ' — ' + x.까닭 + ' — 셈에서 뺌', 색: '#f97316' }))], '깊은구역')}>🗺 도면에서 보기</button>
-                </li>
-              ))}
-              {R && R.읽음 && (R.읽음.빈칸 || []).length > 0 && (
-                <li className="info">📐 슬래브 글자 없는 칸 {R.읽음.빈칸.length}칸 {쉼(R.읽음.빈칸.reduce((a, x) => a + x.가로 * x.세로, 0) / 1e6, 1)} ㎡ — LB 띠 하나 건너 곁 칸 슬래브로 셈{' '}
-                  <button type="button" className="btn line sm" title="칸마다 도면 판 위에 네모로(◀ ▶ 로 하나씩)" onClick={() => 도면보기('📐 슬래브 글자 없는 칸 — 곁 칸 슬래브로 셈', '#ef4444', R.읽음.빈칸.map((x) => ({ 파일: x.파일, r: 원단위(x.파일, x.상자), 글: x.기호, 곳: x.곳 + ' · ' + (x.가로 / 1000).toFixed(1) + ' × ' + (x.세로 / 1000).toFixed(1) + ' m' })), '빈칸')}>🗺 도면에서 보기</button>
-                </li>
-              )}
-              {R && R.읽음 && (R.읽음.건축난간 || []).map((x) => (
-                <li key={'na' + x.기호} className="info">📐 건축 평면 철근콘크리트 난간 {x.제목} {(x.길이 / 1000).toFixed(2)} m × {x.두께} × {쉼(x.높이)} — 두 선 {x.짝}짝{' '}
-                  <button type="button" className="btn line sm" title="난간 두 선을 도면 판 위에(◀ ▶ 로 한 선씩)" onClick={() => 도면보기('📐 ' + x.제목 + ' 철근콘크리트 난간 ' + (x.길이 / 1000).toFixed(2) + ' m', '#ef4444', x.선.map((l, i) => ({ 파일: x.파일, r: 선네모(x.파일, l), 글: i === 0 ? x.기호 : '', 곳: x.제목 + ' · 선 ' + (i + 1) + ' / ' + x.선.length })), '난간')}>🗺 도면에서 보기</button>
-                </li>
-              ))}
-              {R && (R.경고 || []).slice(0, 8).map((w, i) => <li key={'w' + i} className="warn">⚠️ {w}</li>)}
-              {R && (R.경고 || []).length > 8 && (
-                <li className="warn"><details><summary>⚠️ 읽기 경고 {R.경고.length - 8}개 더 보기</summary>{R.경고.slice(8).map((w, i) => <div key={i}>· {w}</div>)}</details></li>
-              )}
-              {S && (S.경고 || []).slice(0, 10).map((w, i) => <li key={'s' + i} className="warn">⚠️ 셈: {w.글}</li>)}
-            </ul>
-            {도면본 && (() => {
-              const 지금 = 도면본.들[도면본.i]
-              const D = 도면들 && 도면들.find((d) => d.이름 === 지금.파일)
-              if (!D || !D.모델) return null
-              const r = 지금.r, k = D.k || 1, m = Math.max(Math.max(r[2] - r[0], r[3] - r[1]) * 0.3, 3500 / k)     // 긴 선(난간 · 벽 토막)도 끝까지 · 작은 칸은 둘레 3.5 m
-              const 네모들 = 도면본.들.map((x, i) => ({ x, i })).filter(({ x }) => x.파일 === 지금.파일).map(({ x, i }) => ({ r: x.r, color: x.색 || 도면본.색, w: i === 도면본.i ? 3 : 1.5, 글: i === 도면본.i ? x.글 : '' }))
-              const 색들 = new Set(도면본.들.map((x) => x.색 || 도면본.색))
-              const 색말 = [...색들].map((c) => (c === '#ef4444' ? '빨강 = 셈한 것' : c === '#2563eb' ? '파랑 = 📌 사람 결정으로 셈' : '주황 = ❓ 셈에서 뺀 것')).join(' · ')
-              return (
-                <div ref={도면칸Ref} style={{ marginTop: 10 }}>
-                  <div className="bim-title">🗺 {도면본.제목} <span className="muted">{도면본.i + 1} / {도면본.들.length}</span>
-                    {도면본.들.length > 1 && <>{' '}<button type="button" className="btn line sm" onClick={() => 도면옮김(-1)}>◀</button>{' '}<button type="button" className="btn line sm" onClick={() => 도면옮김(1)}>▶</button></>}
-                    {' '}<button type="button" className="btn line sm" onClick={() => set도면본(null)}>✕ 닫기</button>
-                  </div>
-                  <div className="muted" style={{ fontSize: 12, margin: '2px 0 6px' }}>{지금.곳 ? '📍 ' + 지금.곳 + ' · ' : ''}{D.이름} — {색말} · 굵은 네모가 지금 것 · 끌면 옮기기 · 휠(두 손가락)로 확대</div>
-                  <도면판 도={{ 모델: D.모델, 도면이름: D.이름, 끈층: 도끈층, set끈층: set도끈층, 단위: { k, 글: '' }, set단위: () => {} }} 네모들={네모들} 가볼곳={{ n: 도면본.n, r: [r[0] - m, r[1] - m, r[2] + m, r[3] + m] }} 붙음={false} 두점단추={false} 안내="도면 판 그대로 — 네모가 셈 쪽이 잰 자리입니다" />
-                </div>
-              )
-            })()}
-            {골조수 > 0 && <div className="muted" style={{ fontSize: 12.5 }}>3D 부피는 부재를 도면 크기 그대로 세운 값(겹침 공제 전)이고, 산출서 콘크리트는 겹치는 곳을 뺀 값이라 보 · 기둥은 조금 작게 나옵니다.</div>}
-            {토목물 && <div className="muted" style={{ fontSize: 12.5 }}>토목 3D 부피는 단면을 앞뒤 반 칸씩 그대로 세운 값이고, 물량은 평균단면법 값이라 단면이 바뀌는 곳에서 조금 다릅니다.</div>}
-          </div>
+          {!작업 && 더칸}
         </>
       )}
 
