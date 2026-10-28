@@ -884,7 +884,7 @@ export default function Bim() {
   /* 🖥 G446 작업 화면 위 막대 — 이름 · 도면 넣기 · 엑셀 · IFC · 3D 사진 · 전체 화면 · 나가기 */
   const 작업막대 = (
     <div className="bim-ws-top">
-      <b className="bim-ws-name"><span className="bim-ws-brand">🏗 BIM 물량</span> <span className="bim-ws-file">{보이는것 || 이름 || '도면을 넣으십시오'}</span></b>
+      <b className="bim-ws-name"><span className="bim-ws-brand">🏗 BIM 물량</span> <span className="bim-ws-file">{보이는것 || 이름 || (상태.k === 'busy' || 토목상태.k === 'busy' ? '⏳ 도면 읽는 중…' : 함.length ? '📚 도면함 ' + 함.length + '장' : '도면을 넣으십시오')}</span></b>
       <span className="bim-ws-acts">
         <button type="button" className="btn sm" onClick={() => 칸Ref.current && 칸Ref.current.click()} disabled={상태.k === 'busy'}>📂 도면 넣기</button>
         <button type="button" className="btn line sm" onClick={엑셀받기} disabled={!!받는중 || !보임}>{받는중 === '엑셀' ? '만드는 중…' : '⬇ 엑셀'}</button>
