@@ -7376,6 +7376,23 @@ a.mc-key-in:hover { border-color: var(--accent-line); background: var(--accent-s
 .bim-put { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); border: 1px dashed var(--accent); }
 .bim-put .btn { width: auto; }
 .bim-st { margin-top: 8px; font-size: 13px; color: var(--text-2); }
+/* 📚 G438 BIM 물량 도면함 — ☑ 체크한 도면만 셈 */
+.bim-box { margin-top: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line, #d0d5dd); background: var(--surface, #fff); }
+.bim-box-h { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 14px; }
+.bim-box-h .muted { font-size: 13px; }
+.bim-box-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.bim-box-btns .btn { width: auto; }
+.bim-box-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+.bim-box-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; padding: 6px 8px; border-radius: 8px; background: var(--bg-2, rgba(127,127,127,.06)); }
+.bim-box-list li.on { background: var(--accent-soft); }
+.bim-box-nm { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 260px; cursor: pointer; font-size: 13.5px; font-weight: 600; }
+.bim-box-nm input { width: 18px; height: 18px; flex: none; accent-color: var(--accent); }
+.bim-box-nm span { overflow-wrap: anywhere; }
+.bim-box-list li:not(.on) .bim-box-nm span { color: var(--text-2); font-weight: 500; }
+.bim-box-info { font-size: 12px; color: var(--text-2); flex: 1 1 200px; }
+.bim-box-x { border: 0; background: transparent; color: var(--text-2); cursor: pointer; font-size: 15px; padding: 2px 6px; border-radius: 6px; margin-left: auto; }
+.bim-box-x:hover { background: rgba(220,38,38,.12); color: #dc2626; }
+.bim-box-foot { margin-top: 6px; font-size: 12px; color: var(--text-2); }
 .bim-how { margin-top: 10px; font-size: 13px; }
 .bim-how summary { cursor: pointer; font-weight: 600; color: var(--text-2); }
 .bim-how ul { margin: 6px 0 0; padding-left: 18px; line-height: 1.6; }

@@ -16,6 +16,7 @@
  *   - 내보내기: 엑셀(골조 수량산출 양식 + 부재별 3D + 토목 집계 · 노선별 평균단면 식) · IFC(레빗 등) · 3D 사진
  * ■ 파일은 이 브라우저 밖으로 안 나감 · 서버 없음 · 비용 0원.
  * ■ 📊 숨은 누적: |BIM물량|도면 · |BIM물량|예시 · |BIM물량|엑셀 · |BIM물량|IFC · |BIM물량|사진 · |BIM물량|부재 · |BIM물량|토목
+ *              · 📚 G438 도면함 |BIM물량|도면함넣기 · |BIM물량|도면함체크 · |BIM물량|도면함빼기 · |BIM물량|도면함비우기 · |BIM물량|도면함열기
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -43,6 +44,8 @@ import { askAfter } from '../AskComment'
 import { 세기 } from '../lib/받은수.jsx'
 import { 일람표만들기, 일람표시트 } from '../lib/부재일람표.js'
 import { 멈춤감시, 멈춤글 } from '../lib/파일한도.js'
+import { 함목록, 함몸, 함넣기, 함고치기, 함빼기, 함비우기 } from '../lib/도면함.js'   // 📚 G438 도면함(이 브라우저에 남김)
+import { 도면종류 } from '../lib/도곽3d.js'
 
 const 예시 = [['/jeoksan/BIM_예시_3층.dxf', 'BIM_예시_3층.dxf']]
 /** 🧭 G405 «만든 값» 칸 글의 표시 — ❓ 도면에 없음 · 📐 잰 값 · 📄 도면의 다른 표 */
@@ -122,7 +125,32 @@ function 흙막이시트(흙들, 할증, ST) {
 const 어두움 = () => { try { return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches } catch (e) { return false } }
 
 /* 화면을 옮겨 다녀와도 그대로(이 탭 메모리 — 새로고침하면 처음부터) */
-const 기억 = { 도면들: null, R: null, 이름: '', 높이: {}, 예시: false, 토목: null, 두께: {}, 건물두께: {}, 흙할증: '10' }
+const 기억 = { 도면들: null, R: null, 이름: '', 높이: {}, 예시: false, 토목: null, 두께: {}, 건물두께: {}, 흙할증: '10', 함: null, 몸: new Map(), 바꾼: new Map() }
+/* 📚 G438 바꾼 DXF 기억 — 체크를 바꿔도 DWG 를 다시 안 바꾸게(이 탭) · 기억이 모자라 탭이 죽지 않게 모두 120 MB 까지만(오래된 것부터 버림 · 40 MB 넘는 한 장은 안 담음) */
+const 바꾼한도 = 120 * 1048576, 바꾼한장 = 40 * 1048576
+function 바꾼담기(키, dxf, 원본) {
+  if (!dxf || dxf.byteLength > 바꾼한장) return
+  기억.바꾼.delete(키)
+  let 합 = dxf.byteLength
+  for (const v of 기억.바꾼.values()) 합 += v.dxf.byteLength
+  for (const k of [...기억.바꾼.keys()]) { if (합 <= 바꾼한도) break; 합 -= 기억.바꾼.get(k).dxf.byteLength; 기억.바꾼.delete(k) }
+  if (합 <= 바꾼한도) 기억.바꾼.set(키, { dxf: dxf.slice(0), 원본 })
+}
+/* 📚 G438 도면함 — 판 요약(파일마다 판 수 · 종류 수) · 보이는 글 */
+const 종짧 = { 측량: '측량', 평면: '평면', 종평: '종평면', 종단: '종단', 횡단: '횡단', 구조: '구조물', 건축: '건축 · 구조평면', 상세: '상세', 표: '표', 기타: '기타' }
+function 판요약들(r) {
+  const 판 = (r && r.읽음 && r.읽음.판) || []
+  const 들 = {}
+  for (const f of 판) {
+    if (!f || !f.판) continue
+    const 종 = {}
+    for (const x of f.판) { const k = 도면종류(x.이름 || '', f.파일 || ''); 종[k] = (종[k] || 0) + 1 }
+    들[f.파일] = { n: f.판.length, 종 }
+  }
+  return 들
+}
+const 요약글 = (q) => (!q ? '' : '판 ' + q.n + (Object.keys(q.종 || {}).length ? ' · ' + Object.entries(q.종).sort((a, b) => b[1] - a[1]).map(([k, n]) => (종짧[k] || k) + ' ' + n).join(' · ') : ''))
+const 용량글 = (b) => (b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB')
 
 export default function Bim() {
   const [도면들, set도면들] = useState(기억.도면들)
@@ -142,6 +170,11 @@ export default function Bim() {
   /* 📑 2026-10-16 (다) 판마다 고른 층 { '번|판': '2' } — 판 목록에서 고르면 골조를 다시 읽음(새 도면을 넣으면 비움) */
   const [판층, set판층] = useState({})
   const 불러오는Ref = useRef('')                 // 지금 읽는 것 이름(예시 이름 · 내 도면 파일 이름)
+  /* 📚 G438 도면함 — [{키, 이름, 크기, 때, 켬, 차례, 요약}] · 파일 몸은 기억.몸(이 탭) + IndexedDB(이 브라우저) · DWG → DXF 바꾼 것은 기억.바꾼(이 탭) */
+  const [함, set함] = useState(기억.함 || [])
+  const [함남김, set함남김] = useState(true)      // IndexedDB 에 남겼는지(용량 · 사생활 창이면 false)
+  const 셈번Ref = useRef(0)                       // 체크를 빨리 여러 번 바꾸면 마지막 것만 화면에
+  const 셈타Ref = useRef(null)
   const [보이는것, set보이는것] = useState('')    // 지금 화면 숫자 · 3D 가 어느 도면 것인지
   const [선택, set선택] = useState(null)          // 부재 id (토목은 토목ID 위)
   const [묶음, set묶음] = useState(null)          // {글, ids:Set}
@@ -161,7 +194,7 @@ export default function Bim() {
   const 토목맞춤 = useRef(false)
   const [glErr, setGlErr] = useState('')
 
-  useEffect(() => { Object.assign(기억, { 도면들, R: R원, 이름, 높이, 토목, 두께, 건물두께, 흙할증 }) }, [도면들, R원, 이름, 높이, 토목, 두께, 건물두께, 흙할증])
+  useEffect(() => { Object.assign(기억, { 도면들, R: R원, 이름, 높이, 토목, 두께, 건물두께, 흙할증, 함 }) }, [도면들, R원, 이름, 높이, 토목, 두께, 건물두께, 흙할증, 함])
   useEffect(() => () => { if (일꾼Ref.current) { 일꾼Ref.current.terminate(); 일꾼Ref.current = null } }, [])
 
   /* ── 토목 · 구조물 · 땅 — 도면 3D 일꾼으로(좌표로 읽기) ── */
@@ -201,23 +234,29 @@ export default function Bim() {
   /* 🧭 G241 순서 0 «큰 통합본은 한 번 읽어 3D · 골조가 같이 씀» — DWG → DXF 를 먼저 다 바꾸고, 3D 일꾼(토목 · 건물 · 땅)을 곧바로 띄워
        골조 읽기와 «같이» 돌림(전엔 골조를 다 읽은 뒤에 3D 일꾼을 띄워 두 번 기다렸음 — 현장 C · D 식당 7분) */
   const 읽기 = async (목록, 예시로 = false, 앞틀림 = '') => {
+    const 번 = ++셈번Ref.current       // 📚 G438 이 읽기 차례 — 뒤에 새 읽기가 시작되면 이 결과는 버림
+    const 지남 = () => 번 !== 셈번Ref.current
     const 들 = []
     let 틀림 = 앞틀림
     const 쓴이름 = new Set()
     if (일꾼Ref.current) { 일꾼Ref.current.terminate(); 일꾼Ref.current = null }
     set토목(null); set끔(new Set()); set판층({})
     const 바꾼 = []
-    for (const { 이름: nm0, buf } of 목록) {
+    for (const { 이름: nm0, buf, 키 } of 목록) {
+      if (지남()) return
       let nm = nm0
       for (let k = 2; 쓴이름.has(nm); k++) nm = nm0.replace(/(\.\w+)?$/, ' (' + k + ')$1')
       쓴이름.add(nm)
       const 머리 = String.fromCharCode(...new Uint8Array(buf.slice(0, 6)))
       if (/^AC10\d\d/.test(머리)) {
         set상태({ k: 'busy', 글: nm + ' — DWG → DXF 바꾸는 중 (큰 도면은 30초~1분)' })
-        try { const r0 = await DWG바꾸기(buf, nm, (d) => set상태({ k: 'busy', 글: nm + ' — DWG → DXF: ' + (d.msg || '') })); 바꾼.push({ 이름: nm, dxf: r0.dxf, 원본: (r0.info && r0.info.원본) || null }) }
+        const 앞것 = 키 ? 기억.바꾼.get(키) : null      // 📚 G438 도면함 — 한 번 바꾼 DWG 는 체크를 바꿔도 다시 안 바꿈(이 탭)
+        if (앞것) { 바꾼.push({ 이름: nm, dxf: 앞것.dxf.slice(0), 원본: 앞것.원본 }); continue }
+        try { const r0 = await DWG바꾸기(buf, nm, (d) => set상태({ k: 'busy', 글: nm + ' — DWG → DXF: ' + (d.msg || '') })); 바꾼.push({ 이름: nm, dxf: r0.dxf, 원본: (r0.info && r0.info.원본) || null }); if (키) 바꾼담기(키, r0.dxf, (r0.info && r0.info.원본) || null) }
         catch (e) { 틀림 += nm + ' — ' + 오류글(e && (e.kind === 'mem' || e.kind === 'readmem') ? e.kind : e && e.kind === 'timeout' ? 'stall' : 머리 === 'AC1021' ? 'dwg2007' : 'fail', e && e.message) + ' ' }   // 🧭 G406 2007 판 DWG
       } else 바꾼.push({ 이름: nm, dxf: buf })
     }
+    if (지남()) return
     /* 3D 일꾼은 바로(골조와 같이) — 일꾼에는 사본을 넘김(골조 읽기는 원본을 넘겨 씀) */
     토목읽기(바꾼.map((x) => ({ 이름: x.이름, dxf: x.dxf.slice(0) })))
     for (const { 이름: nm, dxf, 원본 } of 바꾼) {
@@ -228,6 +267,7 @@ export default function Bim() {
         들.push({ 모델: M, 이름: nm, k: 단위배율(M.units, M.box, M.ox, M.oy).k || 1 })
       } catch (e) { 틀림 += nm + ' — ' + 오류글(e.kind || 'fail', e.message) + ' ' }
     }
+    if (지남()) return
     if (!들.length) { set상태({ k: 'err', 글: 틀림.trim() || '도면을 읽지 못했습니다' }); return }
     /* 🔗 G237 xref 끼워 읽기(겹치는 순서 0) — 구조평면도에 끼운 XREF_S-PLAN 처럼 같이 올린 xref 는 그 자리에 넣어 한 장으로 · 끼워 쓴 xref 파일은 골조를 따로 안 읽음 */
     try { const r0 = 참조끼우기(들); 들.splice(0, 들.length, ...r0.들) } catch (e) { /* 끼우기 실패 — 따로 읽은 그대로 */ }
@@ -235,6 +275,12 @@ export default function Bim() {
     await new Promise((r) => setTimeout(r, 30))
     let r
     try { r = 플랜트다듬기(들, 골조읽기(들)) } catch (e) { r = { 있음: false, 경고: ['도면에서 골조를 읽다 멈췄습니다 (' + e.message + ')'] } }
+    if (지남()) return
+    /* 📚 G438 도면함 줄마다 판 요약(판 수 · 종류) — 체크를 풀어도 남김 */
+    if (!예시로) {
+      const 요 = 판요약들(r)
+      set함((P) => P.map((x) => { const q = 요[x.이름]; if (!q || JSON.stringify(q) === JSON.stringify(x.요약)) return x; const n = { ...x, 요약: q }; 함고치기(n); return n }))
+    }
     처음맞춤.current = false
     읽은바탕.current = '{}'          // 📌 G417 처음 읽기는 결정 없이 — 기억된 결정이 있으면 이름이 바뀐 뒤 다시 읽음
     set도면들(들); setR(r); set셈방법('도면'); set높이({}); set선택(null); set묶음(null); set표시(null); set자리본(null); set층만(''); set두께({}); set건물두께({}); set높이배(1)
@@ -259,6 +305,32 @@ export default function Bim() {
       세기('|BIM물량|판층')
     }, 30)
   }
+  /* 📚 G438 도면함 — ☑ 체크한 도면만 읽어 3D · 물량(체크를 바꾸면 0.7초 뒤 다시 셈 · 빨리 여러 번 바꾸면 마지막 것만) */
+  const 결과비우기 = () => {
+    ++셈번Ref.current
+    if (일꾼Ref.current) { 일꾼Ref.current.terminate(); 일꾼Ref.current = null }
+    set도면들(null); setR(null); set토목(null); set토목상태({ k: 'idle' }); set이름(''); set보이는것(''); set선택(null); set묶음(null); set표시(null)
+  }
+  const 함셈 = async (목록함, 앞틀림 = '') => {
+    clearTimeout(셈타Ref.current)
+    const 켠 = 목록함.filter((x) => x.켬)
+    if (!켠.length) { 결과비우기(); set상태(앞틀림 ? { k: 'err', 글: 앞틀림.trim() } : { k: 'idle' }); return }
+    set상태({ k: 'busy', 글: '도면함 도면 여는 중' })
+    const 번0 = 셈번Ref.current
+    const 넣을 = []
+    for (const x of 켠) {
+      /* 몸은 이 탭 기억(이 브라우저에 못 남긴 것 · 막 넣은 것)이면 사본을, 아니면 이 브라우저(IndexedDB)에서 새로 꺼냄 — 큰 도면 여러 장을 탭 기억에 늘 두지 않게 */
+      const m = 기억.몸.get(x.키)
+      const b = m ? m.slice(0) : await 함몸(x.키)
+      if (b) 넣을.push({ 이름: x.이름, buf: b, 키: x.키 }); else 앞틀림 += x.이름 + ' — 이 브라우저에서 파일을 찾지 못했습니다(다시 넣어 주십시오) '
+    }
+    if (번0 !== 셈번Ref.current) return
+    if (!넣을.length) { 결과비우기(); set상태({ k: 'err', 글: 앞틀림.trim() || '도면함 파일을 열지 못했습니다' }); return }
+    set보는예시('')
+    불러오는Ref.current = 넣을.length === 1 ? 넣을[0].이름 : 넣을[0].이름 + ' 외 ' + (넣을.length - 1) + '장'
+    await 읽기(넣을, false, 앞틀림)
+  }
+  const 함셈예약 = (목록함) => { clearTimeout(셈타Ref.current); 셈타Ref.current = setTimeout(() => 함셈(목록함), 700) }
   const 파일받기 = async (files) => {
     const list = [...(files || [])].filter((f) => /\.(dxf|dwg)$/i.test(f.name))
     if (!list.length) { set상태({ k: 'err', 글: 'DXF · DWG 도면 파일을 넣어 주십시오.' }); return }
@@ -267,10 +339,56 @@ export default function Bim() {
     const 큰글 = 큰.length ? 큰.map((f) => f.name).join(', ') + ' — ' + 오류글('big') + ' ' : ''
     if (!쓸.length) { set상태({ k: 'err', 글: 큰글.trim() }); return }
     set상태({ k: 'busy', 글: '파일 여는 중' })
-    set보는예시('')
-    불러오는Ref.current = 쓸.length === 1 ? 쓸[0].name : 쓸[0].name + ' 외 ' + (쓸.length - 1) + '장'
-    읽기(await Promise.all(쓸.map(async (f) => ({ 이름: f.name, buf: await f.arrayBuffer() }))), false, 큰글)
+    /* 📚 G438 넣은 도면은 도면함에(같은 이름은 새 것으로) · 체크해 둠 · 이 브라우저에 남김 */
+    const 지금 = Date.now()
+    const 새 = await Promise.all(쓸.map(async (f, i) => ({ 항목: { 키: f.name, 이름: f.name, 크기: f.size, 때: f.lastModified || 0, 켬: true, 차례: 지금 + i, 요약: null }, 몸: await f.arrayBuffer() })))
+    for (const n of 새) { 기억.몸.set(n.항목.키, n.몸); 기억.바꾼.delete(n.항목.키) }
+    const 새키 = new Set(새.map((n) => n.항목.키))
+    const 다음 = [...함.filter((x) => !새키.has(x.키)), ...새.map((n) => n.항목)]
+    set함(다음)
+    세기('|BIM물량|도면함넣기')
+    const 남김 = Promise.all(새.map((n) => 함넣기(n.항목, n.몸)))
+    const 셈 = 함셈(다음, 큰글)           // 몸 사본은 여기서 먼저 떠 감
+    남김.then((ok) => { set함남김(ok.every(Boolean)); 새.forEach((n, i) => { if (ok[i]) 기억.몸.delete(n.항목.키) }) })   // 이 브라우저에 남긴 것은 탭 기억에서 내려놓음
+    await 셈
   }
+  const 함체크 = (키, 켬) => {
+    const 다음 = 함.map((x) => (x.키 === 키 ? { ...x, 켬 } : x))
+    set함(다음); const n = 다음.find((x) => x.키 === 키); if (n) 함고치기(n)
+    세기('|BIM물량|도면함체크')
+    함셈예약(다음)
+  }
+  const 함모두 = (켬) => {
+    const 다음 = 함.map((x) => ({ ...x, 켬 }))
+    set함(다음); 다음.forEach((n) => 함고치기(n))
+    세기('|BIM물량|도면함체크')
+    함셈예약(다음)
+  }
+  const 함하나빼기 = (키) => {
+    const 다음 = 함.filter((x) => x.키 !== 키)
+    set함(다음); 기억.몸.delete(키); 기억.바꾼.delete(키); 함빼기(키)
+    세기('|BIM물량|도면함빼기')
+    함셈예약(다음)
+  }
+  const 함모두빼기 = () => {
+    if (!window.confirm('도면함의 도면을 모두 뺄까요? (이 브라우저에 남긴 파일도 지웁니다 — 원본 파일은 그대로)')) return
+    set함([]); 기억.몸.clear(); 기억.바꾼.clear(); 함비우기()
+    세기('|BIM물량|도면함비우기')
+    clearTimeout(셈타Ref.current); 결과비우기(); set상태({ k: 'idle' })
+  }
+  /* 📚 처음 열 때 — 이 브라우저에 남긴 도면함을 불러와 ☑ 체크한 것으로 바로 셈(이 탭에서 이미 셈한 결과가 있으면 그대로) */
+  useEffect(() => {
+    if (기억.함읽음) return      // 기억.함 은 위 useEffect 가 첫 그림 때 [] 로 채우므로 따로 표시(G438 시험에서 새로고침 뒤 0줄로 나온 까닭)
+    let 살아 = true
+    함목록().then((l) => {
+      기억.함읽음 = true
+      기억.함 = l
+      if (!살아 || !l.length) return
+      set함(l)
+      if (!기억.R && l.some((x) => x.켬)) { 세기('|BIM물량|도면함열기'); 함셈(l) }
+    })
+    return () => { 살아 = false }
+  }, [])   // eslint-disable-line react-hooks/exhaustive-deps
   const 예시열기 = async (q = 예시) => {
     set보는예시(q === 예시토목 ? '배수로' : q === 예시청사 ? '청사' : '3층')
     불러오는Ref.current = q === 예시토목 ? '가상 배수로' : q === 예시청사 ? '가상 청사' : '가상 3층 건물'
@@ -708,6 +826,40 @@ export default function Bim() {
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { 세기('|BIM물량|예시청사'); 예시열기(예시청사) }} disabled={상태.k === 'busy'}>🏛 가상 청사(지하 1층 · 옹벽)로 해 보기</button>
           {예시토목 && <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 예시열기(예시토목)} disabled={상태.k === 'busy'}>🏞 가상 배수로 · 배수장 + 관리동 · 건물 · 흙막이 한꺼번에</button>}
         </div>
+        {함.length > 0 && (() => {
+          /* 📚 G438 도면함 — ☑ 체크한 도면만 셈 · ✕ 빼기 · 이 브라우저에 남김 */
+          const 켠 = 함.filter((x) => x.켬)
+          const 종합 = {}
+          for (const x of 켠) for (const [k, n] of Object.entries((x.요약 && x.요약.종) || {})) 종합[k] = (종합[k] || 0) + n
+          const 다봄 = 켠.length > 0 && 켠.every((x) => x.요약)
+          const 횡단없음 = 다봄 && !종합.횡단 && ((종합.평면 || 0) + (종합.종평 || 0) + (종합.종단 || 0) + (종합.측량 || 0) + (종합.구조 || 0)) > 0
+          return (
+            <div className="bim-box" aria-label="도면함">
+              <div className="bim-box-h">
+                <b>📚 도면함</b> <span className="muted">☑ 체크한 도면만 셉니다 · <b>{켠.length}</b> / {함.length}장</span>
+                <span className="bim-box-btns">
+                  <button type="button" className="btn line sm" onClick={() => 함모두(true)} disabled={켠.length === 함.length}>☑ 모두</button>
+                  <button type="button" className="btn line sm" onClick={() => 함모두(false)} disabled={!켠.length}>☐ 모두 풀기</button>
+                  <button type="button" className="btn line sm" onClick={함모두빼기}>🗑 비우기</button>
+                </span>
+              </div>
+              <ul className="bim-box-list">
+                {함.map((x) => (
+                  <li key={x.키} className={x.켬 ? 'on' : ''}>
+                    <label className="bim-box-nm">
+                      <input type="checkbox" checked={!!x.켬} onChange={(e) => 함체크(x.키, e.target.checked)} aria-label={x.이름 + ' 체크'} />
+                      <span>{x.이름}</span>
+                    </label>
+                    <span className="bim-box-info">{용량글(x.크기)}{x.요약 ? ' · ' + 요약글(x.요약) : ''}</span>
+                    <button type="button" className="bim-box-x" title="도면함에서 빼기" aria-label={x.이름 + ' 빼기'} onClick={() => 함하나빼기(x.키)}>✕</button>
+                  </li>
+                ))}
+              </ul>
+              {횡단없음 && <div className="dx3-warn" style={{ marginTop: 6 }}>🏞 체크한 도면에 <b>횡단면도</b> 판이 없습니다 — 토목(배수로 · 수로)의 3D · 물량은 <b>평면(종평면) + 횡단면도</b>가 같이 있어야 나옵니다. 횡단면도가 든 도면(예: «… 종 · 횡단면도»)을 넣거나 체크하십시오.</div>}
+              <div className="bim-box-foot">🔒 {함남김 ? '이 브라우저에만 남겨 둡니다 — 다시 열어도 그대로입니다(어디로도 안 올라감).' : '이 기기에는 남기지 못했습니다(저장 공간이 모자람) — 이 탭을 닫으면 다시 넣어야 합니다.'} 도면을 더 넣으면 도면함에 더해집니다.</div>
+            </div>
+          )
+        })()}
         {상태.k === 'busy' && <div className="bim-st">⏳ {상태.글}…</div>}
         {상태.k === 'err' && <div className="dx3-warn">⚠️ {상태.글}</div>}
         {토목상태.k === 'busy' && <div className="bim-st">🏞 {토목상태.글 || '토목 · 구조물 · 땅을 좌표로 읽는 중'} {토목상태.p ? Math.round(토목상태.p * 100) + '%' : ''}…{골조수 > 0 ? ' (골조는 먼저 보여 드립니다)' : ''}</div>}
