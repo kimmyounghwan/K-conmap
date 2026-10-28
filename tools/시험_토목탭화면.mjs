@@ -42,6 +42,8 @@ const 땅 = T.땅찾개(D.활용)
 const 표 = T.측점표(D.활용, '가상 배수로', { 땅 })
 const 토 = 토목모델(D.활용, D.center, { 뺄건물: ['BIM_예시_3층.dxf'] })     // 골조로 세운 도면은 건물 평면 덩어리에서 뺌
 const 건콘 = 토.건물들.reduce((a, b) => a + b.합.콘크리트, 0)
+/* 🚫 G443 예시 관리동(건축 평면) 바닥판 두께는 도면에 없음 — 내역 대조 앞에서 200 을 넣고(사람이 넣음) 그 물량으로 기대 */
+const 토200 = 토목모델(D.활용, D.center, { 뺄건물: ['BIM_예시_3층.dxf'], 건물바닥: Object.fromEntries(토.건물들.map((b) => [b.이름, 200])) })
 const 예내역 = 내역열기(new Uint8Array(fs.readFileSync(new URL('BIM예시_내역서.xlsx', 공))), 'BIM예시_내역서.xlsx')     // 📑 G398
 /* 내 도면으로 넣을 사본(영문 이름 — setInputFiles 한글 경로) */
 const 임시 = fs.mkdtempSync(path.join(os.tmpdir(), 'kcm_g396_'))
@@ -149,9 +151,12 @@ for (const 기기 of 기기들) {
   봐(차례글.length === 7 && /^건축/.test(차례글[0]) && /^토목 ③ 측량/.test(차례글[2]) && /^토목 ④ .*계획평면도/.test(차례글[3]) && /^토목 ⑫/.test(차례글[6]), `${기기} 📖 G401 도면 보는 차례 — 예시 7장(건축 평면 → 토목 ③ 측량 → ④ 계획평면 → … → ⑫ 흙막이)`, JSON.stringify(차례글))
   /* 📑 G398 내역 대조 — 🧪 예시 내역서 */
   봐(!(await p.locator('.tmk-nybtn').isDisabled()) && (await p.locator('.tmk-nyex').count()) === 1, `${기기} 📑 내역 대조 단추 켜짐 · 카드에 🧪 예시 내역서`)
+  봐(await p.evaluate(() => [...document.querySelectorAll('.tmk-thick label.none')].some((l) => /관리동/.test(l.textContent) && /도면에 없음/.test(l.textContent))), `${기기} 🚫 G443 관리동 바닥판 «❓ 도면에 없음» 칸(짐작 200 안 넣음)`)
+  await p.evaluate(() => { const l = [...document.querySelectorAll('.tmk-thick label')].find((x) => /관리동/.test(x.textContent)); const i = l.querySelector('input'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(i, '200'); i.dispatchEvent(new Event('input', { bubbles: true })) })
+  await p.waitForTimeout(1200)
   await p.click('.tmk-nyex')
   await p.waitForSelector('.tmk-nyt tbody tr.tmk-nyrow', { timeout: 30000 })
-  const 기대 = 맞대기(예내역, 건설맵묶음(토, { 콘크리트: 골조합.콘, 거푸집: 골조합.틀, 철근: 골조합.철, 버림: 0 }, {}), {})
+  const 기대 = 맞대기(예내역, 건설맵묶음(토200, { 콘크리트: 골조합.콘, 거푸집: 골조합.틀, 철근: 골조합.철, 버림: 0 }, {}), {})
   const 내 = await p.evaluate(() => ({
     줄: [...document.querySelectorAll('.tmk-nyt tbody tr.tmk-nyrow')].map((tr) => [...tr.children].map((td) => td.textContent)),
     셈: [...document.querySelectorAll('.tmk-nytable .tmk-nycount button')].map((b) => b.textContent),

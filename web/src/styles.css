@@ -9268,6 +9268,13 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gmd .tmk-cmpg.bad summary { color: #b45309; font-weight: 700; }
 .gmd .tmk-perline { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
 .gmd .tmk-perline small { color: var(--muted); }
+/* 🚫 G443 바닥판 두께 칸(도면에 없으면 넣음) */
+.gmd .tmk-thick { display: grid; gap: 4px; margin: 4px 0 2px; }
+.gmd .tmk-thick label { display: grid; grid-template-columns: 1fr 78px; gap: 2px 6px; align-items: center; font-size: 12px; }
+.gmd .tmk-thick label span { overflow-wrap: anywhere; }
+.gmd .tmk-thick label .inp { padding: 3px 6px; font-size: 12.5px; text-align: right; min-height: 0; }
+.gmd .tmk-thick label em { grid-column: 1 / -1; font-style: normal; color: var(--muted); font-size: 11.5px; }
+.gmd .tmk-thick label.none span, .gmd .tmk-thick label.none em { color: var(--warn, #b45309); font-weight: 600; }
 .gmd .tmk-empty { max-width: 760px; margin: 12px auto; }
 .gmd .tmk-need { line-height: 1.8; padding-left: 20px; }
 @media (prefers-color-scheme: dark) {

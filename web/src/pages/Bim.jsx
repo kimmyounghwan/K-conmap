@@ -1289,14 +1289,14 @@ export default function Bim() {
               {토.구조물들.length > 0 && (
                 <div className="bim-floors" style={{ marginTop: 10 }}>
                   {토.구조물들.map((q, qi) => (
-                    <label key={'t' + qi} className={q.기본두께 ? 'guess' : ''}>
+                    <label key={'t' + qi} className={q.두께없음 ? 'guess' : ''}>
                       <span>🏭 {q.이름} 바닥판 두께</span>
-                      <input className="inp" inputMode="numeric" value={두께[q.이름] !== undefined ? 두께[q.이름] : String(q.바닥두께)}
+                      <input className="inp" inputMode="numeric" placeholder={q.두께없음 ? '도면에 없음' : ''} value={두께[q.이름] !== undefined ? 두께[q.이름] : q.두께없음 ? '' : String(q.바닥두께)}
                              onChange={(e) => { const v = e.target.value.replace(/[^\d]/g, ''); set두께((h) => ({ ...h, [q.이름]: v })) }} />
-                      <em>mm{q.기본두께 ? ' · 짐작' : ''}</em>
+                      <em>mm{q.두께없음 ? ' · ❓ 도면에 없음 — 넣으면 셈' : q.두께근거 ? ' · ' + q.두께근거.replace(/\(.*$/, '') : ''}</em>
                     </label>
                   ))}
-                  {Object.keys(두께).length > 0 && <button type="button" className="btn line sm" onClick={() => set두께({})}>↩ 짐작 값으로</button>}
+                  {Object.keys(두께).length > 0 && <button type="button" className="btn line sm" onClick={() => set두께({})}>↩ 처음대로</button>}
                 </div>
               )}
               {토.노선들.map((n) => (
@@ -1361,14 +1361,14 @@ export default function Bim() {
               })}
               <div className="bim-floors" style={{ marginTop: 4 }}>
                 {건물들.map((b, bi) => (
-                  <label key={'bt' + bi} className={b.기본두께 ? 'guess' : ''}>
+                  <label key={'bt' + bi} className={b.두께없음 ? 'guess' : ''}>
                     <span>🏢 {b.이름} 바닥판 두께</span>
-                    <input className="inp" inputMode="numeric" value={건물두께[b.이름] !== undefined ? 건물두께[b.이름] : String(b.바닥두께)}
+                    <input className="inp" inputMode="numeric" placeholder={b.두께없음 ? '도면에 없음' : ''} value={건물두께[b.이름] !== undefined ? 건물두께[b.이름] : b.두께없음 ? '' : String(b.바닥두께)}
                            onChange={(e) => { const v = e.target.value.replace(/[^\d]/g, ''); set건물두께((h) => ({ ...h, [b.이름]: v })) }} />
-                    <em>mm{b.기본두께 ? ' · 짐작' : ''}</em>
+                    <em>mm{b.두께없음 ? ' · ❓ 도면에 없음 — 넣으면 셈' : ' · 사람이 넣음'}</em>
                   </label>
                 ))}
-                {Object.keys(건물두께).length > 0 && <button type="button" className="btn line sm" onClick={() => set건물두께({})}>↩ 짐작 값으로</button>}
+                {Object.keys(건물두께).length > 0 && <button type="button" className="btn line sm" onClick={() => set건물두께({})}>↩ 처음대로</button>}
               </div>
               <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>
                 층마다 평면의 겹선(두 줄 사이)을 벽으로, 바깥 테두리를 바닥판으로 읽었습니다. 벽은 층 바닥에서 윗층 바닥판 아래까지 세우고, 창 · 문 구멍과 기둥은 빼지 않은 <b>개략</b>입니다.

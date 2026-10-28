@@ -104,7 +104,13 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
   const 골조있음 = !!(M && M.부재 && M.부재.length && S && !S.오류 && (S.덩어리 || []).length)
   const 같이넣음 = !!(골조있음 && T && M.묶음 && T.골조묶음 === M.묶음)
   const 골조보기 = 골조있음 && (골조같이 === null ? 같이넣음 : 골조같이)
-  const 토 = useMemo(() => { if (!활) return null; try { return 토목모델(활, T.center, { 뺄건물: 골조보기 && 같이넣음 ? T.골조파일 || [] : [] }) } catch (e) { return { 부재: [], 노선들: [], 구조물들: [], 건물들: [], 합: { 콘크리트: 0, 거푸집: 0, 터파기: 0, 되메우기: 0, 성토: 0, 절토: 0 }, 경고: ['3D 를 세우다 멈췄습니다: ' + e.message], 원점: [0, 0], 땅높이: NaN } } }, [활, T, 골조보기, 같이넣음])
+  /* 🚫 G443 바닥판 두께 — 도면에 없으면(단면에서 못 읽음 · 건축 평면) 사람이 넣은 값만 · 이 브라우저에 묶음마다 남김 */
+  const 두께열쇠 = T ? 'kcm.civil.thick.' + (T.묶음 || T.이름 || '') : ''
+  const [두께, set두께0] = useState({})
+  useEffect(() => { try { set두께(JSON.parse(localStorage.getItem(두께열쇠) || '{}') || {}) } catch (e) { set두께0({}) } }, [두께열쇠])   // eslint-disable-line react-hooks/exhaustive-deps
+  function set두께(v) { set두께0(v); try { if (두께열쇠) { if (Object.keys(v).length) localStorage.setItem(두께열쇠, JSON.stringify(v)); else localStorage.removeItem(두께열쇠) } } catch (e) { /* 막힘 */ } }
+  const 두께수 = useMemo(() => { const o = {}; for (const [k, v] of Object.entries(두께)) { const n = +v; if (n >= 100 && n <= 3000) o[k] = n } return o }, [두께])
+  const 토 = useMemo(() => { if (!활) return null; try { return 토목모델(활, T.center, { 뺄건물: 골조보기 && 같이넣음 ? T.골조파일 || [] : [], 바닥두께: 두께수, 건물바닥: 두께수 }) } catch (e) { return { 부재: [], 노선들: [], 구조물들: [], 건물들: [], 합: { 콘크리트: 0, 거푸집: 0, 터파기: 0, 되메우기: 0, 성토: 0, 절토: 0 }, 경고: ['3D 를 세우다 멈췄습니다: ' + e.message], 원점: [0, 0], 땅높이: NaN } } }, [활, T, 골조보기, 같이넣음, 두께수])
   const 골 = useMemo(() => { if (!골조보기) return null; try { return 골조모양(M, S.덩어리, 층높이(M)) } catch (e) { return null } }, [골조보기, M, S])
   const 자 = useMemo(() => { if (!골) return null; try { return 골조자리(골, 토) } catch (e) { return { θ: 0, tx: 0, ty: 0, dz: 0, 방법: '그대로', 글: '골조 자리를 찾다 멈춤 — 골조 그대로(' + ((e && e.message) || e) + ')' } } }, [골, 토])
   const 뺄번 = 자 && (자.방법 === '통심' || 자.방법 === '발자국') ? 자.번 : -1
@@ -350,7 +356,7 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
               {(T.겹노선 || []).map((x, i) => <small key={i} className="muted">ⓘ {x.이름}: {x.까닭}</small>)}
             </div>}
             {대조.length > 0 && <대조칸 대조={대조} />}
-            {토 && <토공칸 토={토} />}
+            {토 && <토공칸 토={토} 두께={두께} set두께={set두께} />}
           </aside>
         </div>
       )}
@@ -588,11 +594,22 @@ function 대조칸({ 대조 }) {
 }
 
 /* ── 📐 토공 · 구조물 합 ── */
-function 토공칸({ 토 }) {
+function 토공칸({ 토, 두께 = {}, set두께 = () => {} }) {
   const h = 토.합 || {}
+  /* 🚫 G443 바닥판 두께 칸 — 구조물(단면에서 잼 · 못 읽으면 도면에 없음) · 건물(평면엔 두께 없음) */
+  const 두께줄 = [...(토.구조물들 || []).map((q) => ({ 이름: q.이름, 종: '🏭', t: q.바닥두께, 없음: !!q.두께없음, 근거: q.두께근거 || '' })), ...(토.건물들 || []).map((b) => ({ 이름: b.이름, 종: '🏢', t: b.바닥두께, 없음: !!b.두께없음, 근거: b.두께없음 ? '도면에 없음' : '사람이 넣음' }))]
   return (
     <div className="tmk-card tmk-sum">
       <b>📐 토공 · 구조물(평균단면 · 개략)</b>
+      {두께줄.length > 0 && <div className="tmk-thick">
+        {두께줄.map((x) => (
+          <label key={x.이름} className={x.없음 ? 'none' : ''}>
+            <span>{x.종} {x.이름} 바닥판</span>
+            <input className="inp" inputMode="numeric" placeholder={x.없음 ? '도면에 없음' : String(x.t)} value={두께[x.이름] !== undefined ? 두께[x.이름] : ''} onChange={(e) => { const v = e.target.value.replace(/[^\d]/g, '').slice(0, 4); const n = { ...두께 }; if (v) n[x.이름] = v; else delete n[x.이름]; set두께(n) }} aria-label={x.이름 + ' 바닥판 두께(mm)'} />
+            <em>mm · {x.없음 ? '❓ 도면에 없음 — 넣으면 셈' : 두께[x.이름] ? '사람이 넣음' : x.근거.replace(/\(.*$/, '')}</em>
+          </label>
+        ))}
+      </div>}
       <table className="tmk-kv"><tbody>
         <tr><th>터파기</th><td>{쉼(h.터파기, 1)} ㎥</td></tr>
         <tr><th>되메우기</th><td>{쉼(h.되메우기, 1)} ㎥</td></tr>
