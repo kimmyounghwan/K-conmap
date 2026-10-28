@@ -162,6 +162,7 @@ export function IFC쓰기(모델, Q, 정보 = {}) {
     }
     const 담 = []
     for (const o of 토.부재) {
+      if (o.종류 === '견줌') continue          // ⚖ G445 견줌(같은 자리 횡단면 — 합에 안 넣음)은 IFC 에 안 넣음
       const m = o.면
       if (!m || m.length < 9) continue
       const 점번 = new Map(), 점들 = [], 세 = []

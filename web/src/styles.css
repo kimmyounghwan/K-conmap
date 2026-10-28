@@ -7457,6 +7457,7 @@ a.mc-key-in:hover { border-color: var(--accent-line); background: var(--accent-s
 .bim-cell:hover { background: var(--accent-soft); }
 .bim-cell span { display: block; font-size: 11px; color: var(--muted); white-space: nowrap; }
 .bim-total th, .bim-total td { border-top: 2px solid var(--line); background: var(--surface-2); }
+.bim-cmp th, .bim-cmp td { color: #92400e; background: rgba(245, 158, 11, .08); }   /* ⚖ G445 견줌 줄(합에 안 넣음) */
 .bim-floors { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: flex-end; }
 .bim-floors label { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; }
 .bim-floors label span { color: var(--text-2); font-weight: 600; }
@@ -9405,6 +9406,7 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gmd .tmk-nyleft li select.tmk-nypair { margin-left: 6px; }
 .gmd .tmk-nyreset { white-space: nowrap; }
 .gmd .tmk-rebar { color: var(--text-2); }
+.gmd .tmk-cmp { display: block; color: #92400e; background: rgba(245, 158, 11, .10); border-radius: 6px; padding: 3px 8px; margin-top: 4px; line-height: 1.5; }   /* ⚖ G445 같은 구조물 견줌 */
 @media (prefers-color-scheme: dark) { .gmd .tmk-nyx:hover { background: rgba(239, 68, 68, .18); color: #fca5a5; } }
 @media (max-width: 760px) { .gmd select.tmk-nypair { width: 100%; margin: 4px 0 0 !important; } }
 .gmd .tmk-nyfix { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }

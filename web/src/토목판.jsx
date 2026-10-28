@@ -21,6 +21,7 @@ import { 층높이 } from './lib/골조모델.js'
 import { 건설맵묶음, 맞대기, 갈래이름, 갈래단위, 판정글, 상태갈래 } from './lib/토목내역.js'
 import { 차례정렬, 도면차례 } from './lib/도면차례.js'
 import 받기검사판 from './받기검사판.jsx'
+import { 측점글 } from './lib/활용3d.js'      // ⚖ G445 견줌 줄
 
 /* 🧪 예시 — BIM 물량 화면 «가상 배수로 · 배수장 + 관리동 · 건물 · 흙막이 한꺼번에» 와 같은 도면(가상) + 측점 성과 CSV — 🛣🏢 G397 골조(3층)도 같이 */
 const 예시파일 = ['BIM예시_측량도면.dxf', 'BIM예시_계획평면도.dxf', 'BIM예시_종횡단면도.dxf', 'BIM예시_배수장일반도.dxf', 'BIM예시_관리동평면도.dxf', 'BIM_예시_3층.dxf', 'BIM예시_흙막이도.dxf', 'BIM예시_측점성과.csv']
@@ -467,6 +468,10 @@ function 함께칸({ 함께, 토 = null, 자, T, M, 골조있음, 골조보기, 
         </table>
       )}
       {함께 && 함께.토목 && <small>토공 — 터파기 {쉼(함께.토목.터파기, 1)} · 되메우기 {쉼(함께.토목.되메우기, 1)} · 성토 {쉼(함께.토목.성토, 1)} ㎥</small>}
+      {/* ⚖ G445 같은 구조물 — 구조물 일반도로 센 값 ↔ 같은 자리 횡단면도로 센 값(합에는 일반도 하나만) · 소장님 «한 번만 셈 + 둘 다 보여 견줌» */}
+      {토 && (토.구조물들 || []).flatMap((q) => (q.견줌 || []).map((g, i) => (
+        <small key={'cmp' + q.이름 + i} className="tmk-cmp">⚖ 같은 구조물 — «{q.이름}» 일반도 <b>{쉼(q.합.콘크리트, 2)} ㎥</b> ↔ 같은 자리 횡단면도(«{g.노선}» {측점글(g.처음)} ~ {측점글(g.끝)}) {쉼(g.콘크리트, 2)} ㎥ <span className="muted">· 합에는 일반도만(두 번 안 셈)</span></small>
+      )))}
       {T && (T.철근표 || []).some((x) => x.t > 0) && (() => { const 쓴 = T.철근표.filter((x) => x.t > 0), 미터 = T.철근표.reduce((a, x) => a + (x.미터당 || 0), 0); return <small className="tmk-rebar" title={쓴.map((x) => x.파일 + ' ' + x.t.toFixed(3) + ' t').join('\n') + (미터 ? `\n1m당 표 ${미터}개는 연장을 곱해야 해서 뺌` : '') + '\n합에는 안 넣고 📑 내역 대조에서 견줌'}>📐 도면 철근 재료표 {쉼(쓴.reduce((a, x) => a + x.t, 0), 3)} t <span className="muted">(도면 {쓴.length}장 · 참고 — 합에 안 넣음)</span></small> })()}
       {!골조있음 && <small className="muted">🏢 건축 골조는 없음 — 구조평면 · 일람표 도면을 넣으면 여기 더해집니다.</small>}
       {골조보기 && 자 && <small className={자.방법 === '옆' ? 'gmd-warn' : 'muted'}>📍 골조 자리 — {자.글}</small>}

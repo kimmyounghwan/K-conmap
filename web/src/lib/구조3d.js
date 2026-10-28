@@ -237,6 +237,48 @@ export function 열린곳찾기(선, EL, m = 1000) {
   return 열린
 }
 
+/**
+ * 📏 G445 평면의 «끊어 그린» 곳 — 치수에 적은 값이 잰 길이보다 훨씬 크면(현장 S 배수장: «52,600» 을 17.8 m 로 그림) 그 사이를 줄여 그린 것
+ *   단위 = 다른 치수들의 «적은 값 ÷ 잰 길이» 가운데값(mm 도면 1 · m 도면 1000) · 같은 곳을 품은 큰 치수(전체 길이)는 빼고 가장 짧은 것만
+ * @returns [{ P:[x,y], Q:[x,y], 더: 늘릴 길이(도면 단위), 적은: 값, 잰: 길이(적은 값 단위) }]
+ */
+export function 끊음찾기(dims, 창 = null, 뺄창 = []) {
+  const 수 = (s) => { const t = String(s || '').replace(/\s/g, ''); if (!/^\d{1,3}(,\d{3})+(\.\d+)?$|^\d+(\.\d+)?$/.test(t)) return NaN; return +t.replace(/,/g, '') }
+  const 안 = (W, x, y) => x > W[0] && x < W[2] && y > W[1] && y < W[3]
+  const 들 = []
+  for (const d of dims || []) {
+    const mx = (d.x1 + d.x2) / 2, my = (d.y1 + d.y2) / 2
+    if (창 && !안(창, mx, my)) continue
+    if (뺄창.some((W) => 안(W, mx, my))) continue
+    const 잰 = Math.abs((d.x2 - d.x1) * d.ux + (d.y2 - d.y1) * d.uy)
+    if (!(잰 > 0)) continue
+    들.push({ d, 잰, 적은: 수(d.s) })
+  }
+  const 비 = 들.filter((x) => Number.isFinite(x.적은) && x.적은 > 0).map((x) => x.적은 / x.잰).sort((a, b) => a - b)
+  if (비.length < 3) return []
+  const k = 비[Math.floor(비.length / 2)]
+  if (!(k > 0)) return []
+  const 후 = []
+  for (const x of 들) {
+    if (!Number.isFinite(x.적은)) continue
+    const 잰값 = x.잰 * k
+    if (!(x.적은 > 1.5 * 잰값 && x.적은 - 잰값 > 2000)) continue
+    const d = x.d
+    /* 재는 축 위 두 끝(13 점을 지나는 방향 줄로 내림) */
+    const t1 = 0, t2 = (d.x2 - d.x1) * d.ux + (d.y2 - d.y1) * d.uy
+    const P = [d.x1 + d.ux * Math.min(t1, t2), d.y1 + d.uy * Math.min(t1, t2)], Q = [d.x1 + d.ux * Math.max(t1, t2), d.y1 + d.uy * Math.max(t1, t2)]
+    후.push({ P, Q, 더: (x.적은 - 잰값) / k, 적은: x.적은, 잰: 잰값, ux: d.ux, uy: d.uy })
+  }
+  후.sort((a, b) => a.잰 - b.잰)
+  const 고른 = []
+  for (const c of 후) {
+    /* 이미 고른 끊음을 품은(같은 축 · 겹친) 큰 치수는 뺌 */
+    const 품음 = 고른.some((g) => Math.abs(g.ux * c.uy - g.uy * c.ux) < 0.02 && (() => { const a = (g.P[0] - c.P[0]) * c.ux + (g.P[1] - c.P[1]) * c.uy, b = (g.Q[0] - c.P[0]) * c.ux + (g.Q[1] - c.P[1]) * c.uy, L = Math.hypot(c.Q[0] - c.P[0], c.Q[1] - c.P[1]); return Math.min(a, b) > -1e-6 * L - 1 && Math.max(a, b) < L + 1 })())
+    if (!품음) 고른.push(c)
+  }
+  return 고른.map(({ P, Q, 더, 적은, 잰 }) => ({ P, Q, 더, 적은, 잰 }))
+}
+
 export function 구조세우기(raw, 새버킷, 머리 = '') {
   const T = (raw.texts || []).filter((t) => !t.a || Math.abs(((t.a % 180) + 180) % 180) < 3)
   const 평제 = T.filter((t) => 제목평면(t.s)).sort((a, b) => (b.h || 0) - (a.h || 0))[0]
@@ -577,5 +619,8 @@ export function 구조세우기(raw, 새버킷, 머리 = '') {
   const 계단글 = (raw.texts || []).filter((t) => t.x > PW[0] && t.x < PW[2] && t.y > PW[1] && t.y < PW[3] && /계단/.test(t.s || '')).map((t) => ({ x: t.x * (단면들.every((d) => d.기울 === 1) ? 1000 : 1), y: t.y * (단면들.every((d) => d.기울 === 1) ? 1000 : 1), s: String(t.s).replace(/\s+/g, '') }))
   let 계단말 = null
   for (const t of raw.texts || []) { const m = /높이는\s*([\d.]+)\s*m/.exec(t.s || ''); if (m) { const 연 = /연장은\s*([\d.]+)\s*m/.exec(t.s || ''); 계단말 = { 높이: +m[1], 연장: 연 ? +연[1] : null, 글: String(t.s) }; break } }
-  return { out: 새, 단면: 결과단면, 평면EL, 빠짐, 제목: 평제.s, 관글, 평원, 계단글, 계단말 }
+  /* 📏 G445 평면에서 끊어 그린 곳(치수 값 ≫ 잰 길이) — 3D 로 놓을 때 그 뒤 조각을 제 길이만큼 띄움(lib/조각맞춤.js) */
+  let 끊음 = []
+  try { 끊음 = 끊음찾기(raw.dims, PW, 단면들.map((d) => d.W)) } catch (e) { 끊음 = [] }
+  return { out: 새, 단면: 결과단면, 평면EL, 빠짐, 제목: 평제.s, 관글, 평원, 계단글, 계단말, 끊음 }
 }

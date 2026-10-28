@@ -334,6 +334,8 @@ export function parseDxf(text, onProgress, opt = {}) {
   const xrefs = []
   /* 🧭 G237 원(CIRCLE) 자리 — 통심 기호(원 안 X1 · Y1)를 찾으려고(lib/통심.js). 반지름 100 ~ 8000(큰 축척 판 · G240) · 20 만 개까지 */
   const circles = []
+  /* 📏 G445 치수(DIMENSION) — 재는 두 점(13/23 · 14/24) · 방향(50) · 적은 글(1). 일반도가 긴 관로를 «끊어» 줄여 그렸는지(적은 값 ≫ 잰 길이) 보려고 */
+  const dims = []
   const 자르기들 = []
   const 사전들 = new Map()
   /* A = 🛣 G236 맞춤점(가운데 · 오른쪽 맞춤 TEXT 의 11/21 — 캐드가 글자를 그리는 기준 자리). x · y 는 예전처럼 10/20(왼쪽 아래)을 둠 */
@@ -720,6 +722,16 @@ export function parseDxf(text, onProgress, opt = {}) {
       }
       case 'INSERT': case 'DIMENSION': {
         if (e.att) for (const a of e.att) draw(a, M, ly, rgb, depth + 1)   /* 속성 글자는 이미 제자리 좌표 */
+        if (t === 'DIMENSION' && opt.raw && dims.length < 50000 && g.some(([k]) => k === 13) && g.some(([k]) => k === 14)) {
+          const 꼴 = g1(g, 70, 0) & 7
+          if (꼴 === 0 || 꼴 === 1) {             // 0 돌린 · 1 맞춘(aligned) 선 치수만
+            const a2 = P(M, g1(g, 13), g1(g, 23), 0), a3 = P(M, g1(g, 14), g1(g, 24), 0)
+            let ux, uy
+            if (꼴 === 1) { const L = Math.hypot(a3[0] - a2[0], a3[1] - a2[1]); ux = L ? (a3[0] - a2[0]) / L : 1; uy = L ? (a3[1] - a2[1]) / L : 0 }
+            else { const r = (g1(g, 50, 0) * Math.PI) / 180, o = P(M, 0, 0, 0), q = P(M, Math.cos(r), Math.sin(r), 0), L = Math.hypot(q[0] - o[0], q[1] - o[1]) || 1; ux = (q[0] - o[0]) / L; uy = (q[1] - o[1]) / L }
+            if (Number.isFinite(a2[0] + a2[1] + a3[0] + a3[1] + ux + uy)) dims.push({ x1: a2[0], y1: a2[1], x2: a3[0], y2: a3[1], ux, uy, s: 글자다듬기(gs(g, 1) || ''), ly })
+          }
+        }
         const name = gs(g, 2)
         const bl = blocks.get(name)
         if (!bl) { if (t === 'INSERT') skip('없는 블록'); return }
@@ -942,7 +954,7 @@ export function parseDxf(text, onProgress, opt = {}) {
       }
     }
   }
-  if (opt.raw) return { out, layerInfo, stats, texts, xrefs, circles, 틀선: { a: 틀.a.subarray(0, 틀.n), n: 틀.n } }
+  if (opt.raw) return { out, layerInfo, stats, texts, xrefs, circles, dims, 틀선: { a: 틀.a.subarray(0, 틀.n), n: 틀.n } }
   const r = finish(out, layerInfo, stats)
   r.texts = texts
   return r

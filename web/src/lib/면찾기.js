@@ -57,15 +57,17 @@ export function 안점(r, 구멍 = []) {
   }
   return c
 }
-/** 넓이 가운데(무게 중심) */
+/** 넓이 가운데(무게 중심) — 첫 점 기준으로 빼고 셈(G445: 배치도 좌표 2.7억 mm 면 곱이 2^53 을 넘어 10 m 넘게 빗나감) */
 export function 가운데(r) {
+  if (!r.length) return [0, 0]
+  const o = r[0]
   let A = 0, cx = 0, cy = 0
   for (let i = 0, n = r.length; i < n; i++) {
-    const a = r[i], b = r[(i + 1) % n], w = a[0] * b[1] - b[0] * a[1]
-    A += w; cx += (a[0] + b[0]) * w; cy += (a[1] + b[1]) * w
+    const b = r[(i + 1) % n], ax = r[i][0] - o[0], ay = r[i][1] - o[1], bx = b[0] - o[0], by = b[1] - o[1], w = ax * by - bx * ay
+    A += w; cx += (ax + bx) * w; cy += (ay + by) * w
   }
   if (Math.abs(A) < 1e-9) { const b = 상자(r); return [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2] }
-  return [cx / (3 * A), cy / (3 * A)]
+  return [o[0] + cx / (3 * A), o[1] + cy / (3 * A)]
 }
 /** 점과 토막 사이 거리 */
 export function 토막거리(px, py, ax, ay, bx, by) {

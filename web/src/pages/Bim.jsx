@@ -42,6 +42,7 @@ import { 측점글, 토목시트 } from '../lib/토목시트.js'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { askAfter } from '../AskComment'
 import 받기검사판, { 엑셀내려주기 } from '../받기검사판.jsx'   // 📋 G444 받기 전 검사
+import { 끊음펴기들 } from '../lib/조각맞춤.js'   // 🏭 G445
 import { 세기 } from '../lib/받은수.jsx'
 import { 일람표만들기, 일람표시트 } from '../lib/부재일람표.js'
 import { 멈춤감시, 멈춤글 } from '../lib/파일한도.js'
@@ -221,7 +222,7 @@ export default function Bim() {
         const r = m.r || {}
         const 활 = r.활용 || null
         const 있 = !!(활 && ((활.횡단 || []).some((t) => (t.단면 || []).some((x) => x.면적)) || (활.구조 || []).length || (활.건물 || []).length || (활.흙막이 || []).length || 활.땅))
-        set토목(있 ? { 활용: 활, center: r.center || [0, 0, 0], 바탕: 바탕선만들기(r) } : null)
+        set토목(있 ? { 활용: 끊음펴기들(활), center: r.center || [0, 0, 0], 바탕: 바탕선만들기(r) } : null)     // 🏭 G445 끊어 그린 관로 뒤 조각 → 치수 값만큼
         토목맞춤.current = false
         set끔((s0) => new Set([...s0, '터파기', '성토']))     // 흙은 처음엔 꺼 둠(덩어리가 깔끔히 보이게) — 칩으로 켬
         set토목상태({ k: 'ok' })
@@ -521,7 +522,7 @@ export default function Bim() {
   const 흙합 = 흙물.reduce((a, q) => ({ 강재: a.강재 + q.강재, 토류판: a.토류판 + (q.토류판 ? q.토류판.넓이 : 0), 터파기: a.터파기 + (q.터파기 ? q.터파기.부피 : 0), 말뚝: a.말뚝 + q.줄.filter((x) => /측면말뚝/.test(x.공종)).reduce((n, x) => n + (x.수량 || 0), 0) }), { 강재: 0, 토류판: 0, 터파기: 0, 말뚝: 0 })
   const 토목있음 = !!(토 && (토.노선들.length || 토.구조물들.length || 토.부재.length || 흙들.length))
   const 토목표 = useMemo(() => new Map((토 ? 토.부재 : []).map((o) => [토목ID + o.id, o])), [토])
-  const 토목덩이 = 토 ? 토.부재.filter((o) => o.종류 !== '지형' && !(참고건물 && o.건물 === 참고건물)).length : 0
+  const 토목덩이 = 토 ? 토.부재.filter((o) => o.종류 !== '지형' && o.종류 !== '견줌' && !(참고건물 && o.건물 === 참고건물)).length : 0
   const 콘덩이 = 토 ? 토.부재.filter((o) => !['지형', '흙막이', '터파기', '성토'].includes(o.종류)).length : 0
   const 덩어리있음 = 골조수 + 콘덩이 > 0 || (!흙들.length && !철골있음)       // 🧱 흙막이 도면만 넣으면 «콘크리트 0 · 거푸집 0» 줄은 안 띄움 · 🏗 G425 철골만이어도
   const 그림있음 = 골조수 > 0 || !!(토 && 토.부재.length)          // 3D 로 세운 것(흙막이만이면 3D 칸 대신 알림)
@@ -948,7 +949,7 @@ export default function Bim() {
                 const 건덩 = 토 ? 토.부재.filter((o) => o.종류 === '건물' && !(참고건물 && o.건물 === 참고건물)).length : 0
                 const 수 = (건축켬 ? 골조수 + 건덩 : 0) + (토목켬 ? 토목덩이 - 건덩 : 0)
                 const 글 = [...(건축켬 ? 있는종류.map((k) => 종이름[k] + ' ' + 모델.부재.filter((o) => o.종류 === k).length) : []),
-                  ...있는토목.filter((k) => k !== '지형' && !(k === '건물' && 참고건물 && !셀건물.length) && (k === '건물' ? 건축켬 : 토목켬)).map((k) => 토목이름[k] + ' ' + 토.부재.filter((o) => o.종류 === k && !(참고건물 && o.건물 === 참고건물)).length)]
+                  ...있는토목.filter((k) => k !== '지형' && k !== '견줌' && !(k === '건물' && 참고건물 && !셀건물.length) && (k === '건물' ? 건축켬 : 토목켬)).map((k) => 토목이름[k] + ' ' + 토.부재.filter((o) => o.종류 === k && !(참고건물 && o.건물 === 참고건물)).length)]
                 return <div>부재 · 덩어리<b>{쉼(수)}</b><span className="muted">{글.join(' · ')}{참고건물 && 건축켬 ? ' · 건축 평면 덩어리는 참고' : ''}</span></div>
               })()}
               {덩어리있음 && ((건축켬 ? 합.콘 + 건물합.콘크리트 : 0) + (토목켬 ? 토목합.콘크리트 : 0) > 0 || !흙들.length) && <div>콘크리트<b>{쉼((건축켬 ? 합.콘 + 건물합.콘크리트 : 0) + (토목켬 ? 토목합.콘크리트 : 0), 2)} ㎥</b><span className="muted">{[골조수 && 건축켬 ? '골조 ' + 쉼(합.콘, 1) : '', 토목물 && 토목켬 ? '토목 ' + 쉼(토목합.콘크리트, 1) : '', 셀건물.length && 건축켬 ? '건물(평면 · 개략) ' + 쉼(건물합.콘크리트, 1) : ''].filter(Boolean).join(' · ')}</span></div>}
@@ -1298,6 +1299,19 @@ export default function Bim() {
                       <th>합계</th><td />
                       <td><b>{쉼(토목합.콘크리트, 2)}</b> ㎥</td><td>{쉼(토목합.거푸집, 1)} ㎡</td><td>{쉼(토목합.터파기, 1)} ㎥</td>{절있음 && <td>{쉼(토목합.절토, 1)} ㎥</td>}<td>{쉼(토목합.되메우기, 1)} ㎥</td><td>{쉼(토목합.성토, 1)} ㎥</td>
                     </tr>
+                    {/* ⚖ G445 같은 구조물 견줌 — 같은 자리 횡단면도로 센 값(합에 안 넣음) · 누르면 3D 에서 그 옅은 덩어리 */}
+                    {토.구조물들.flatMap((q, qi) => (q.견줌 || []).map((g, gi) => {
+                      const 노 = 토.노선들.find((n) => n.이름 === g.노선)
+                      const ids = 노 ? 토.부재.filter((o) => (노.견ids || []).includes(o.id) && o.측 >= g.처음 - 1e-6 && o.측 <= g.끝 + 1e-6).map((o) => o.id) : []
+                      return (
+                        <tr key={'c' + qi + '-' + gi} className="bim-cell bim-cmp" title="누르면 3D 에서 그 옅은 덩어리를 파랗게" onClick={() => 토목묶음('견줌 ' + g.노선, ids)}>
+                          <th>⚖ 견줌(합에 안 넣음)<span className="muted" style={{ display: 'block', fontWeight: 400, fontSize: 11, whiteSpace: 'normal', maxWidth: 340 }}>«{g.노선}» {측점글(g.처음)} ~ {측점글(g.끝)} 횡단 {g.단면}개 — 같은 자리 구조물 «{q.이름}» 은 일반도로 셈(두 번 안 셈)</span></th>
+                          <td className="muted">—</td>
+                          <td>{쉼(g.콘크리트, 2)} ㎥</td><td>{쉼(g.거푸집, 1)} ㎡</td>
+                          <td className="muted">—</td>{절있음 && <td className="muted">—</td>}<td className="muted">—</td><td className="muted">—</td>
+                        </tr>
+                      )
+                    }))}
                   </tbody>
                 </table>
               </div>
