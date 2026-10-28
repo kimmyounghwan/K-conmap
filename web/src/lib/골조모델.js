@@ -1321,9 +1321,10 @@ export function 모델셈(M0) {
   const 빈 = () => ({ 콘크리트: 0, 거푸집: 0, 철근: 0, 데크: 0, 버림: 0, 줄: [] })
   for (const id of G.기.keys()) 부재별.set(id, 빈())
   let 안나눔 = 0
+  const 안붙음 = []        // 📋 G442 부재에 안 붙은 산출 줄(기초 보강근 «보강» 표 등) — 엑셀 «부재별» 끝에 따로 적어 합이 맞게
   for (const x of R.줄) {
     const 곳 = x.곳 && 곳들.get(x.곳.표 + '|' + x.곳.i)
-    if (!곳 || !곳.ids.length) { 안나눔++; continue }
+    if (!곳 || !곳.ids.length) { 안나눔++; 안붙음.push(x); continue }
     const 열 = 항목열쇠(x)
     let 몫들
     if (곳.몫) { const 합 = [...곳.몫.values()].reduce((a, v) => a + v, 0) || 1; 몫들 = 곳.ids.map((id) => [id, 곳.몫.get(id) / 합]) }
@@ -1362,7 +1363,7 @@ export function 모델셈(M0) {
   /* 🪜 G393 도면 덧줄 몫(부재 아닌 줄 — 보강 · 보강근 · Dry Area 중 도면에서 옮긴 것) */
   const 덧 = { 줄: 덧수, 콘크리트: 0, 거푸집: 0, 철근: 0 }
   if (덧수) for (const x of R.줄) { const 곳 = x.곳 && 곳들.get(x.곳.표 + '|' + x.곳.i); if (곳 || !x.곳 || !['보강', '보강근', '드라이에리어'].includes(x.곳.표)) continue; const k = 항목열쇠(x); if (k in 덧) 덧[k] += x.수량 }
-  return { 공사, R, 부재별, 합, 층별, 부호별, 경고: [...경고, ...R.경고.map((w) => w.글)], 덩어리: 덩, 검사: 검, G, 안나눔, 덧 }
+  return { 공사, R, 부재별, 합, 층별, 부호별, 경고: [...경고, ...R.경고.map((w) => w.글)], 덩어리: 덩, 검사: 검, G, 안나눔, 안붙음, 덧 }
 }
 
 /**
@@ -1736,6 +1737,16 @@ export function 모델시트(M0, S, ST) {
     return [i + 1, o.층, o.종류, 글(o.부호), 부재글(M, o), 크기,
       { v: +(q.콘크리트 || 0).toFixed(4), st: ST.QTY }, { v: +(q.거푸집 || 0).toFixed(3), st: ST.QTY }, { v: +((q.철근 || 0) / 1000).toFixed(4), st: ST.QTY }, o.id]
   })
+  /* 📋 G442 부재에 안 붙은 산출 줄(기초 보강근 등)은 끝에 따로 · 맨 끝 «합계» = 화면 합(받기 전 검사가 맞대 봄) */
+  const 안 = new Map()
+  for (const x of S.안붙음 || []) {
+    const k = 항목열쇠(x); if (!['콘크리트', '거푸집', '철근'].includes(k)) continue
+    const 키 = (x.부재 || '') + '|' + ((x.곳 && x.곳.표) || '') + '|' + (x.항목 || '') + ' ' + (x.규격 || '')
+    if (!안.has(키)) 안.set(키, { 부재: x.부재 || '', 표: (x.곳 && x.곳.표) || '', 품: ((x.항목 || '') + ' ' + (x.규격 || '')).trim(), 콘크리트: 0, 거푸집: 0, 철근: 0 })
+    안.get(키)[k] += x.수량
+  }
+  for (const a of 안.values()) rows.push(['', '', a.부재, '', '부재에 안 붙은 산출 줄 — ' + a.품 + (a.표 ? ' («' + a.표 + '» 표 · 산출서 시트에 있음)' : ''), '', { v: +a.콘크리트.toFixed(4), st: ST.QTY }, { v: +a.거푸집.toFixed(3), st: ST.QTY }, { v: +(a.철근 / 1000).toFixed(4), st: ST.QTY }, ''])
+  rows.push(['합계', '', '', '', '', '', { v: +(S.합.콘크리트 || 0).toFixed(4), st: ST.QTY }, { v: +(S.합.거푸집 || 0).toFixed(3), st: ST.QTY }, { v: +((S.합.철근 || 0) / 1000).toFixed(4), st: ST.QTY }, ''])   // 합계 = 화면 합(줄은 넷째 자리 반올림)
   const 시트 = [{ name: '부재별', head: ['번호', '층', '부재', '부호', '자리(통심)', '크기(mm)', '콘크리트(㎥)', '거푸집(㎡)', '철근(ton)', '부재 번호'], rows, widths: [6, 6, 7, 8, 26, 26, 12, 12, 12, 9], freeze: 1 }]
   /* ▭ G393 구간별(구간 × 층 × 부재 종류) */
   if (M.구간 && M.구간.length) {

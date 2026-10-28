@@ -122,7 +122,8 @@ for (const 기기 of 기기들) {
   const 이름들 = Object.keys(책)
   const 측시 = 책['측점표 가상 배수로']
   봐(['토목 집계', '측점표 가상 배수로', '측점 성과 대조', '좌표계'].every((n) => 이름들.includes(n)) && 측시 && 측시.filter((r) => r && r.length).length === 27, `${기기} 엑셀 — 토목 집계 · 측점표 · 측점 성과 대조 · 좌표계 · 측점표 26줄`, 이름들.join(' / '))
-  봐(이름들[0] === '함께 합' && ['산출서', '집계', '모델'].every((n) => 이름들.includes(n)) && new Set(이름들).size === 이름들.length && /^골조토목_/.test(받.suggestedFilename()), `${기기} 엑셀 한 권 — 첫 장 «함께 합» · 🏢 골조 산출서 · 집계 · 모델 + 🛣 토목(${이름들.length}장 · 이름 안 겹침)`, 받.suggestedFilename() + ' ' + 이름들.join(' / '))
+  봐(이름들[0] === '검사 결과' && 이름들[1] === '함께 합' && ['산출서', '집계', '모델'].every((n) => 이름들.includes(n)) && new Set(이름들).size === 이름들.length && /^골조토목_/.test(받.suggestedFilename()), `${기기} 엑셀 한 권 — 첫 장 «함께 합» · 🏢 골조 산출서 · 집계 · 모델 + 🛣 토목(${이름들.length}장 · 이름 안 겹침)`, 받.suggestedFilename() + ' ' + 이름들.join(' / '))
+  봐(await p.evaluate(() => /받기 전 검사 \d+가지 모두 통과/.test((document.querySelector('.gmd-xlchk-toast') || {}).textContent || '')) && !(await p.$('.gmd-xlchk')), `${기기} 📋 G442 받기 전 검사 — 모두 통과 · 오른쪽 아래 알림(가운데 창 없음) · 첫 장 «검사 결과»`)
   const 함시 = 책['함께 합'] || []
   봐(함시.some((r) => r && String(r[0]).includes('골조')) && 함시.some((r) => r && r[0] === '합계') && 함시.some((r) => r && r[0] === '골조 자리'), `${기기} 함께 합 시트 — 골조 · 토목 · 합계 · 골조 자리`, JSON.stringify(함시.map((r) => r && r[0])))
   const [받2] = await Promise.all([p.waitForEvent('download', { timeout: 30000 }), p.click('.tmk-csv')])
@@ -219,9 +220,9 @@ for (const 기기 of 기기들) {
   const 책3 = readWorkbook(new Uint8Array(fs.readFileSync(await 받3.path())))
   const 이3 = Object.keys(책3)
   const 대시 = 책3['내역 대조'] || [], 품시 = 책3['내역 품목 판정'] || []
-  봐(이3[0] === '함께 합' && 이3[1] === '내역 대조' && 이3[2] === '내역 품목 판정' && 대시.filter((r) => r && r.length).length === 15 && 품시.filter((r) => r && r.length).length === 21 && new Set(이3).size === 이3.length, `${기기} 엑셀 — 함께 합 다음 «내역 대조» 14줄 · «내역 품목 판정» 20줄`, JSON.stringify([이3.slice(0, 4), 대시.length, 품시.length]))
+  봐(이3[0] === '검사 결과' && 이3[1] === '함께 합' && 이3[2] === '내역 대조' && 이3[3] === '내역 품목 판정' && 대시.filter((r) => r && r.length).length === 15 && 품시.filter((r) => r && r.length).length === 21 && new Set(이3).size === 이3.length, `${기기} 엑셀 — 함께 합 다음 «내역 대조» 14줄 · «내역 품목 판정» 20줄`, JSON.stringify([이3.slice(0, 4), 대시.length, 품시.length]))
   const 제시 = 책3['변경 수량 제안'] || []
-  봐(이3[3] === '변경 수량 제안' && 제시.filter((r) => r && r.length).length === 13 && 제시.some((r) => r && r[2] === '성토' && Math.abs(+r[6] - 37.8) < 0.05), `${기기} 📤 G401 엑셀 «변경 수량 제안» — 견준 품목 12줄(성토 52 → 37.8)`, JSON.stringify([이3, 제시.length]))
+  봐(이3[4] === '변경 수량 제안' && 제시.filter((r) => r && r.length).length === 13 && 제시.some((r) => r && r[2] === '성토' && Math.abs(+r[6] - 37.8) < 0.05), `${기기} 📤 G401 엑셀 «변경 수량 제안» — 견준 품목 12줄(성토 52 → 37.8)`, JSON.stringify([이3, 제시.length]))
   await p.click('.tmk-nycard button[title="내역 대조 지우기"]'); await p.waitForTimeout(500)
   봐(!(await p.locator('.tmk-nyt').count()) && (await p.locator('.tmk-nyex').count()) === 1 && !/내역 대조/.test(await p.locator('.gmd-ws-views button.on').textContent()), `${기기} 카드 ✕ → 내역 대조 지움 · 평면으로`)
   await p.reload({ waitUntil: 'domcontentloaded' })

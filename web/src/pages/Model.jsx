@@ -27,6 +27,7 @@ import { 배근칸, 정착표, 기준값, 엑셀 as 골조엑셀 } from '../lib/
 import { 도면함끄기, 도면함켜기, 도면함넣어둠 } from '../lib/도면모델.js'
 import { 새모델, 예시모델, 작업예시모델, 정돈, 겹침둠, 겹침남기기, 겹침물을짝, 큰무리빼기, 정리할것, 무더기빼기, 사선넣기, 사선끝, 띠판, 기둥넣기, 선넣기, 칸넣기, 계단넣기, 부재옮기기, 구간넣기, 구간빼기, 구간고치기, 구간물량, 구간선자르기, 구간색들, 부재빼기, 부재고치기, 부재나누기, 층복사, 통심더하기, 통심빼기, 통심간격, 모델셈, 종류색, 부재글, 모델시트, FT층, 층높이, 제안확인, 제안모두확인, 제안빼기, 기초철근넣기, 계단글 } from '../lib/골조모델.js'
 import 둘러보기판 from '../둘러보기판.jsx'
+import 받기검사판 from '../받기검사판.jsx'
 import { 층판 } from '../lib/둘러보기.js'
 import { 길잡이 } from '../lib/도우미.js'
 import { 부재보기 } from '../lib/bim3d.js'
@@ -88,6 +89,7 @@ export default function Model() {
   const 도면Ref = useRef(null)
   const 원료Ref = useRef(null)                          // 📚 G391 도면함 — 마지막으로 넣은 도면을 한꺼번에 세운 모델(전체) · 읽는 틀(이 화면을 여는 동안만)
   const [엑셀받음, set엑셀받음] = useState(false)        // 🧭 G391 길잡이 «엑셀 받기» ✓
+  const [검사, set검사] = useState(null)                // 📋 G442 받기 전 검사 결과
   const [걷기요청, set걷기요청] = useState(0)            // 🧭 길잡이에서 «둘러보기» 누름
   const 길행동 = (할곳) => {
     if (할곳 === '도면') { if (도면Ref.current) 도면Ref.current.click() }
@@ -254,11 +256,15 @@ export default function Model() {
     if (!S || S.오류 || !M.부재.length) return
     set받는중('엑셀')
     try {
-      const { writeWorkbook, ST } = await import('../lib/qtoxlsx.js')
+      const { ST } = await import('../lib/qtoxlsx.js')
       const sheets = [...골조엑셀(S.공사, S.R, (s) => s, ST), ...모델시트(M, S, ST)]
-      내려주기(new Blob([writeWorkbook(sheets)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), '골조모델_' + 파일이름 + '.xlsx')
-      세기('|골조모델|엑셀')
-      set엑셀받음(true)
+      /* 📋 G442 받기 전 검사 — 한 번 더 셈해 보고(화면 합 = 엑셀 «부재별» · «집계») 통과하면 받음 · 못 통과면 알리고 «알고 받기» */
+      const 검 = await import('../lib/받기전검사.js')
+      await new Promise((ok) => setTimeout(ok, 30))
+      const r = 검.받기전검사(sheets, 검.골조맞댈(S))
+      const 이름 = '골조모델_' + 파일이름 + '.xlsx'
+      set검사({ ...r, 이름 })
+      if (r.통과) { 내려주기(new Blob([r.바이트], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 이름); 세기('|골조모델|엑셀'); set엑셀받음(true) }
     } catch (e) { set알림('엑셀을 만들지 못했습니다 — ' + (e.message || e)) } finally { set받는중('') }
   }
 
@@ -291,6 +297,7 @@ export default function Model() {
     return (
       <div className="page gmd">
         <div className="gmd-ws" ref={작업Ref} role="dialog" aria-label="K-적산컨맵 작업 화면">
+          <받기검사판 검사={검사} 닫기={() => set검사(null)} 받기={() => { if (!검사) return; 내려주기(new Blob([검사.바이트], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 검사.이름); 세기('|골조모델|엑셀'); set엑셀받음(true); set검사({ ...검사, 알고: true }) }} />
           <div className="gmd-ws-top">
             {분야칸}
             <span className="gmd-ws-tabs" role="tablist">
@@ -329,6 +336,7 @@ export default function Model() {
 
   return (
     <div className="page gmd">
+      <받기검사판 검사={검사} 닫기={() => set검사(null)} 받기={() => { if (!검사) return; 내려주기(new Blob([검사.바이트], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 검사.이름); 세기('|골조모델|엑셀'); set엑셀받음(true); set검사({ ...검사, 알고: true }) }} />
       <div className="card">
         <h1 style={{ margin: 0, fontSize: 20 }}>🧱 골조 모델 — 세우면 물량</h1>
         <p className="muted" style={{ margin: '6px 0 0', lineHeight: 1.7 }}>
@@ -1552,7 +1560,7 @@ function 물량칸({ M, S, 엑셀받기, 받는중, set탭, set고른, set층 })
       <요약줄 S={S} />
       <div className="gmd-top">
         <button type="button" className="btn" style={{ width: 'auto' }} onClick={엑셀받기} disabled={!!받는중}>{받는중 ? '만드는 중…' : '📊 엑셀 산출서 받기'}</button>
-        <span className="muted gmd-p">산출서(산출식 · =ROUND(식,3)) · 집계 · 부재별 · 모델 시트 — 엑셀에서 다시 셉니다.</span>
+        <span className="muted gmd-p">산출서(산출식) · 집계 · 부재별 · 모델 시트 — 받기 전에 한 번 더 셈해 보고 받습니다.</span>
       </div>
       <h2 className="gmd-h">층별</h2>
       <div className="gmd-tablewrap"><table className="gmd-table">

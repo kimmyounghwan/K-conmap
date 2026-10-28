@@ -20,6 +20,7 @@ import { 파일한도 } from './lib/파일한도.js'
 import { 층높이 } from './lib/골조모델.js'
 import { 건설맵묶음, 맞대기, 갈래이름, 갈래단위, 판정글, 상태갈래 } from './lib/토목내역.js'
 import { 차례정렬, 도면차례 } from './lib/도면차례.js'
+import 받기검사판 from './받기검사판.jsx'
 
 /* 🧪 예시 — BIM 물량 화면 «가상 배수로 · 배수장 + 관리동 · 건물 · 흙막이 한꺼번에» 와 같은 도면(가상) + 측점 성과 CSV — 🛣🏢 G397 골조(3층)도 같이 */
 const 예시파일 = ['BIM예시_측량도면.dxf', 'BIM예시_계획평면도.dxf', 'BIM예시_종횡단면도.dxf', 'BIM예시_배수장일반도.dxf', 'BIM예시_관리동평면도.dxf', 'BIM_예시_3층.dxf', 'BIM예시_흙막이도.dxf', 'BIM예시_측점성과.csv']
@@ -184,12 +185,13 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
 
   /* ── 엑셀 · CSV ── */
   const [받는중, set받는중] = useState(false)
+  const [검사, set검사] = useState(null)       // 📋 G442 받기 전 검사 결과 {통과, 줄, 바이트, 이름}
   const 파일이름 = (T && T.이름 ? T.이름 : M && M.이름 ? M.이름 : '토목').replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 30)
   const 엑셀받기 = async () => {
     if (!T && !골조보기) return
     set받는중(true)
     try {
-      const { writeWorkbook, ST } = await import('./lib/qtoxlsx.js')
+      const { ST } = await import('./lib/qtoxlsx.js')
       const 시 = await import('./lib/토목시트.js')
       const 쓴 = new Set()
       const sheets = []
@@ -223,8 +225,14 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
         sheets.push({ name: '도면 철근 재료표', head: ['도면', '직경', '철근(t)', '비고'], rows: 줄, widths: [40, 8, 12, 60], freeze: 1 })
       }
       if (내대 && !내대.틀림) { const { 내역대조시트 } = await import('./lib/토목내역.js'); sheets.splice(함께 && 골조보기 ? 1 : 0, 0, ...내역대조시트(내대, 내역.나무, ST)) }
-      내려주기(new Blob([writeWorkbook(sheets)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), (골조보기 && T ? '골조토목_' : 골조보기 ? '골조_' : '토목_') + 파일이름 + '.xlsx')
-      세기('|토목탭|엑셀')
+      /* 📋 G442 받기 전 검사 — 한 번 더 셈해 보고(화면 · 3D 합 = 엑셀) 통과하면 받음 · 못 통과면 알리고 «알고 받기» */
+      const 검 = await import('./lib/받기전검사.js')
+      await new Promise((ok) => setTimeout(ok, 30))          // «…» 가 먼저 그려지게
+      const r = 검.받기전검사(sheets, [...(T && 토 ? 검.토목맞댈(토, 함께, { 함께시트: !!(함께 && 골조보기) }) : []), ...(골조보기 && S ? 검.골조맞댈(S) : [])])
+      const 이름 = (골조보기 && T ? '골조토목_' : 골조보기 ? '골조_' : '토목_') + 파일이름 + '.xlsx'
+      set검사({ ...r, 이름 })
+      if (r.통과) 내려주기(new Blob([r.바이트], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 이름)
+      if (r.통과) 세기('|토목탭|엑셀')
     } catch (e) { set상태({ k: 'err', 글: '엑셀을 만들지 못했습니다 — ' + ((e && e.message) || e) }) } finally { set받는중(false) }
   }
   const CSV받기 = () => {
@@ -242,6 +250,7 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
   const 보는골조 = useMemo(() => (!보는 ? 골조부재 : ((T && T.골조파일) || []).some((f) => 보는.has(도면줄기(f))) ? 골조부재 : []), [보는, 골조부재, T])
   return (
     <>
+      <받기검사판 검사={검사} 닫기={() => set검사(null)} 받기={() => { if (!검사) return; 내려주기(new Blob([검사.바이트], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 검사.이름); 세기('|토목탭|엑셀'); set검사({ ...검사, 알고: true }) }} />
       <div className="gmd-ws-top tmk-top">
         {분야칸}
         <span className="gmd-ws-acts">

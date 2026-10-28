@@ -9328,6 +9328,22 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gmd .tmk-nyleft summary { cursor: pointer; font-size: 12.5px; color: var(--text-2); }
 .gmd .tmk-nyhow summary { cursor: pointer; font-size: 12px; color: var(--text-2); }   /* 🔰 G441 맞대는 법은 접어 둠 */
 .gmd .tmk-nyhow small { display: block; margin-top: 2px; }
+/* 📋 G442 받기 전 검사 창(작업 화면 엑셀) */
+.gmd-xlchk { position: fixed; inset: 0; z-index: 2000; background: rgba(15, 23, 42, .45); display: grid; place-items: center; padding: 16px; }
+.gmd-xlchk-box { background: var(--surface, #fff); color: var(--text, #111827); border-radius: 12px; padding: 16px 18px; width: min(560px, 100%); max-height: calc(100vh - 32px); overflow: auto; display: grid; gap: 8px; box-shadow: 0 12px 40px rgba(0, 0, 0, .25); }
+.gmd-xlchk-h { font-size: 16px; }
+.gmd-xlchk-h.ok { color: #047857; }
+.gmd-xlchk-h.bad { color: #b91c1c; }
+.gmd-xlchk-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; line-height: 1.5; }
+.gmd-xlchk-list li { padding: 4px 8px; border-radius: 6px; background: rgba(4, 120, 87, .07); overflow-wrap: anywhere; }
+.gmd-xlchk-list li.bad { background: rgba(185, 28, 28, .09); color: #991b1b; font-weight: 600; }
+.gmd-xlchk-list li span { display: inline-block; width: 1.2em; }
+.gmd-xlchk-btns { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.gmd-xlchk-btns .btn { width: auto; }
+.gmd-xlchk-toast { position: fixed; right: 16px; bottom: 16px; z-index: 2000; max-width: min(520px, calc(100vw - 32px)); background: var(--surface, #fff); border: 1px solid #6ee7b7; border-left: 4px solid #059669; border-radius: 10px; padding: 8px 34px 8px 12px; box-shadow: 0 8px 28px rgba(0, 0, 0, .18); font-size: 13px; }
+.gmd-xlchk-toast summary { cursor: pointer; color: #047857; }
+.gmd-xlchk-toast .gmd-xlchk-list { margin-top: 6px; max-height: 40vh; overflow: auto; }
+.gmd-xlchk-toast .gmd-x { position: absolute; top: 6px; right: 6px; }
 .gmd .tmk-nyleft ul { margin: 4px 0 0; padding-left: 18px; font-size: 12px; line-height: 1.6; }
 @media (prefers-color-scheme: dark) {
   .gmd .tmk-nyc.c-맞음 { background: rgba(34, 197, 94, .16); border-color: rgba(34, 197, 94, .4); color: #86efac; }
