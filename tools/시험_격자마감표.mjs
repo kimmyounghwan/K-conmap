@@ -1,12 +1,16 @@
 /**
  * 🧱 G448b 칸 선(격자)으로 읽는 큰 실내재료마감표 — lib/도면전부.js 격자마감표 · 마감표모음 · 마감표짝 · 층키
- *   node tools/시험_격자마감표.mjs
+ *   node tools/시험_격자마감표.mjs   (⑤ G449b 모두 — 딴 도면의 마감표)
  * 가상 표(글 · 선을 손으로 놓음 — 실제 도면은 저장소에 두지 않음):
  *   위 머리 «바 닥 (F) · 걸레받이 (B) · 벽 (W) · 천 장 (C)» / 아래 머리 «바탕 · 마감 · 두께/높이 · 상세번호 · 천장고» 가 «실 명» 과 다른 줄
  *   지하1층(두 줄 글 «지하» «1층») 창고 · 1층 사무실(벽 W-02 · W-03 두 가지) · 1층 「화장실(남), (여)」(한 칸에 둘) · 빈 줄 · 1층 창고
  *   오른쪽에 나란한 딴 판(같은 꼴 머리)은 섞이지 않아야 함 · 아래 «외벽마감재료표» 에서 끝
  */
-import { 격자마감표, 마감표모음, 마감표짝, 층키 } from '../web/src/lib/도면전부.js'
+import fs from 'fs'
+import { 격자마감표, 마감표모음, 마감표짝, 층키, 모두 } from '../web/src/lib/도면전부.js'
+import { 도면읽기 } from '../web/src/lib/골조도면.js'
+import { decodeBytes } from '../web/src/lib/dxf3d.js'
+import { 표찾기 } from '../web/src/lib/도면자동.js'
 
 let bad = 0
 const ok = (이름, c, got) => { if (!c) bad++; console.log((c ? '  ✓ ' : '  ✗ ') + 이름 + (got !== undefined && !c ? ' = ' + JSON.stringify(got).slice(0, 600) : '')) }
@@ -91,6 +95,19 @@ console.log('④ 선이 없으면 — 격자 길은 쓰지 않음')
   const M = 모델만들기([0])
   const 빈 = { ...M, Q: { e: new Uint32Array(0), p0: new Uint32Array(0), pn: new Uint32Array(0) }, P: new Float64Array(0) }
   ok('선 없는 표 → []', 격자마감표(빈).length === 0)
+}
+console.log('⑤ 모두 — 이 도면에 마감표가 없으면 함께 넣은 딴 도면(마감표 장)의 것으로 (G449b)')
+{
+  const b = fs.readFileSync(new URL('../web/public/jeoksan/마감_예시.dxf', import.meta.url))
+  const M = 도면읽기(decodeBytes(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)))
+  const 밖 = [{ 실명: '사무실', 층: '1층', 바닥: 'F-06', 걸레받이: '', 벽: '', 천장: '', 천장고: '', 마감들: { 바닥: { 기호: 'F-06', 이름: 'Thk3 PVC타일', 재료: [{ 재료: 'Thk20 시멘트몰탈', 규격: '', 단위: 'm2', 계수: '1' }, { 재료: 'Thk3 PVC타일', 규격: '', 단위: 'm2', 계수: '1' }] } } }]
+  const R0 = 모두(M, { k: 1, 표들: [] })
+  const R = 모두(M, { k: 1, 표들: [], 밖마감표: 밖, 밖마감표이름: '마감표장.dwg' })
+  const 타일 = R.마감 && R.마감.결과.집계.합.find((a) => a.재료 === 'Thk3 PVC타일')
+  ok('제 마감표 없음(표들 비움) → 마감 없음 / 밖 마감표 → 사무실 바닥 F-06 재료 둘(도면 글 그대로) · 출처 이름', !R0.마감 && R.마감표출처 === '마감표장.dwg' && 타일 && 타일.수량 === 48 && R.마감.결과.집계.합.some((a) => a.재료 === 'Thk20 시멘트몰탈' && a.수량 === 48), [R0.마감, R.마감표출처, R.마감 && R.마감.결과.집계.합])
+  ok('① 물량 마감 줄 근거에 «마감표: 마감표장.dwg»', R.항목.some((x) => /^마감:/.test(x.key) && /마감표: 마감표장\.dwg/.test(x.근거)))
+  const R2 = 모두(M, { k: 1, 표들: 표찾기(M), 밖마감표: 밖, 밖마감표이름: '마감표장.dwg' })
+  ok('제 마감표가 있으면 밖 것은 안 씀', !R2.마감표출처 && R2.마감표.length === 3)
 }
 console.log(bad ? `✗ 틀림 ${bad}` : '✓ 모두 맞음')
 process.exit(bad ? 1 : 0)

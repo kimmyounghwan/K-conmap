@@ -64,17 +64,35 @@ const 골조예시 = ['/jeoksan/골조자동_예시.dxf', '골조자동_예시.d
 const 골조열쇠 = 'kcm.golgo.v1'
 /** 도면마다 «모두 자동» 결과 — 도면·끈 레이어·단위가 바뀌면(새 객체) 다시 셈 */
 const 전부캐시 = new WeakMap()
-function 전부(f) {
-  let r = 전부캐시.get(f)
-  if (!r) {
+/* 🧱 G449b 도면마다 실내재료마감표만(평면이 딴 파일인 실제 도면 — 마감표 장) */
+const 마감표캐시 = new WeakMap()
+function 마감표만(f) {
+  if (f.참조원 && f.모음) return []
+  let m = 마감표캐시.get(f)
+  if (!m) { m = 전.마감표모음(f.모델, f.표들); 마감표캐시.set(f, m) }
+  return m
+}
+/** 이 도면에 마감표가 없으면 함께 넣은 딴 도면의 마감표(가장 많이 읽은 것) */
+function 밖마감표(f, 파일들) {
+  if (!파일들 || 마감표만(f).length) return null
+  let 고른 = null
+  for (const g of 파일들) { if (g === f) continue; const m = 마감표만(g); if (m.length && (!고른 || m.length > 고른.m.length)) 고른 = { g, m } }
+  return 고른
+}
+function 전부(f, 파일들) {
+  const 밖 = 밖마감표(f, 파일들)
+  const 열쇠 = 밖 ? 밖.g.id : 0
+  let c = 전부캐시.get(f)
+  if (!c || c.열쇠 !== 열쇠) {
     /* 🧭 G132 — 외부참조 원본은 «도면들이 보여 주는 곳만 한 번» 센 모델(모음)로, 끼운 도면은 끼운 것을 빼고 셈 */
     const 원본 = f.참조원 && f.모음
     /* 종단 · 횡단면도(이름 또는 측점이 있는 도면)의 선 길이는 실제 연장이 아님 → 처음엔 꺼 둠 */
     const 단면 = !원본 && (/종단|횡단|종평면|단면도|PROFILE|SECTION/i.test(f.이름) || f.노선.some((g) => g.점.length >= 3))
-    r = 전.모두(원본 ? f.모음 : f.모델, { k: (f.단위 && f.단위.k) || 1, 끈층: f.끈층, 표들: 원본 ? [] : f.표들, 참조뺌: !원본, 단면 })
-    전부캐시.set(f, r)
+    const r = 전.모두(원본 ? f.모음 : f.모델, { k: (f.단위 && f.단위.k) || 1, 끈층: f.끈층, 표들: 원본 ? [] : f.표들, 참조뺌: !원본, 단면, ...(밖 && !원본 ? { 밖마감표: 밖.m, 밖마감표이름: 밖.g.이름 } : {}) })
+    c = { 열쇠, r }
+    전부캐시.set(f, c)
   }
-  return r
+  return c.r
 }
 const 자동키 = (종, 이름) => (종 === '길이' ? '층길이:' + 이름 : 종 === '면적' ? '층면적:' + 이름 : 종 === '블록' ? '블록:' + 이름 : '기호:' + 자.붙임(이름).toUpperCase())
 const 판색 = { 같음: 'good', '도면이 많음': 'bad', '도면이 적음': 'bad', '도면에서 못 찾음': 'mid', '내역 수량 없음': 'new', '다른 동·공종': 'mid' }
@@ -496,7 +514,7 @@ export default function JeoksanAuto() {
     }
     for (const f of 파일들) {
       const 원본글 = f.참조원 && f.모음 ? ' (외부참조 — 도면 ' + f.모음.모음.도면수 + '장이 보여 주는 곳, 겹친 곳은 한 번)' : ''
-      for (const x of 전부(f).항목) {
+      for (const x of 전부(f, 파일들).항목) {
         const key = 'all:' + f.id + ':' + x.key
         줄.push({ key, 켬: 켜(key, x.켬), 구분: x.구분, 품명: x.품명, 규격: x.규격, 단위: x.단위, 수량: x.수량, 근거: x.근거, 도면: f.이름 + 원본글 })
       }
@@ -589,7 +607,7 @@ export default function JeoksanAuto() {
   const 대조줄 = 대조 ? 대조.줄.filter((r) => 대조거르기 === '모두' || (대조거르기 === '다름' ? r.도면 && r.판정 !== '같음' : 대조거르기 === '같음' ? r.판정 === '같음' : !r.도면)) : []
 
   /* ── 실·마감·창호 (지금 도면) ── */
-  const 지금전부 = cur ? 전부(cur) : null
+  const 지금전부 = cur ? 전부(cur, 파일들) : null
 
   const [받기검사, set받기검사] = useState(null)      // 📋 G444 받기 전 검사 결과(이름 «검사» 는 이 화면에서 이미 씀)
   const 엑셀받기 = async () => {
@@ -599,7 +617,7 @@ export default function JeoksanAuto() {
       const 추가 = []
       if (대조) for (const t of 대조시트(대조, ST)) 추가.push(t)
       for (const f of 파일들) {
-        const R = 전부(f)
+        const R = 전부(f, 파일들)
         const 앞 = 파일들.length > 1 ? f.이름.replace(/\.dxf.*$|\.dwg.*$|\s*\(.*$/i, '') + ' ' : ''
         if (R.실.length) 추가.push({ name: 앞 + '실', head: ['층(짐작)', '실 이름', '면적(m²)', '둘레(m)', '레이어'], rows: R.실.map((r) => [r.층, r.이름, { v: Math.round(r.면적 * 1000) / 1000, st: ST.QTY }, Number.isFinite(r.둘레) ? { v: Math.round(r.둘레 * 1000) / 1000, st: ST.QTY } : '', r.레이어]), widths: [9, 22, 12, 12, 16], freeze: 1 })
         if (R.마감) 추가.push({ name: 앞 + '마감 실별', head: ['층', '실명', '부위', '마감', '재료', '단위', '산출근거', '수량', '비고'], rows: R.마감.결과.줄.filter((x) => x.부위 !== '창호').map((x) => [x.층, x.실명, x.부위, x.기호, x.재료, x.단위, { v: x.식, st: ST.BOX }, { f: 'ROUND(' + x.식 + ',3)', st: ST.QTY }, { v: x.비고, st: ST.GRAY }]), widths: [6, 14, 8, 8, 18, 6, 36, 12, 30], freeze: 1 })
@@ -835,7 +853,7 @@ export default function JeoksanAuto() {
         {파일들.length > 0 && (
           <div className="ja-sum">이 도면{파일들.length > 1 ? '들' : ''}에서 뽑은 물량 <b>{산출.켠줄.length}줄</b> ·{' '}<b>표 {표수}개</b>
             {표수 > 0 && <> (철근 재료표 {모든표.filter((t) => t.종류 === '철근').length} · 수량표 {모든표.filter((t) => t.종류 === '수량').length} · 그 밖 {모든표.filter((t) => t.종류 === '기타').length})</>}
-            {' · '}<b>측점 {측수}개</b> · <b>실 {파일들.reduce((a, f) => a + 전부(f).실.length, 0)}개</b>{cur ? <> · 레이어 {cur.모델.layers.length} · 블록 {new Set(cur.모델.I.map((i) => i.name).filter((n) => !/^\*/.test(n))).size}종</> : null}
+            {' · '}<b>측점 {측수}개</b> · <b>실 {파일들.reduce((a, f) => a + 전부(f, 파일들).실.length, 0)}개</b>{cur ? <> · 레이어 {cur.모델.layers.length} · 블록 {new Set(cur.모델.I.map((i) => i.name).filter((n) => !/^\*/.test(n))).size}종</> : null}
             {내역 && <> · 내역서 <b>{내역.줄.length}줄</b></>}
           </div>
         )}
@@ -1321,8 +1339,17 @@ export default function JeoksanAuto() {
                   ))}</tbody>
                 </table></div>
               )}
-              <div className="detail-h" style={{ marginTop: 14 }}>마감 — 실내재료마감표 {지금전부.마감표.length ? 지금전부.마감표.length + '줄' : '없음'}</div>
-              {!지금전부.마감 && <p className="muted">{지금전부.마감표.length ? (지금전부.실.length ? '실내재료마감표의 실 이름과 이 도면의 실 이름이 맞는 것이 없습니다.' : '실내재료마감표는 읽었습니다(아래). 실 면적이 있는 평면도(방이 닫힌 선)를 같이 넣으면 마감 면적까지 셉니다.') : '이 도면에서 «실내재료마감표» 를 찾지 못했습니다 — 마감 물량은 실 면적만 드립니다.'}</p>}
+              <div className="detail-h" style={{ marginTop: 14 }}>마감 — 실내재료마감표 {지금전부.마감표.length ? 지금전부.마감표.length + '줄' : '없음'}{지금전부.마감표출처 ? <span className="muted" style={{ fontSize: 12, fontWeight: 400 }}> (함께 넣은 «{지금전부.마감표출처}» 에서)</span> : null}</div>
+              {!지금전부.마감 && (() => {
+                /* 🧱 G449b 마감표 장(방 없음) — 함께 넣은 평면이 이 마감표로 셌으면 그 도면 이름을 알려 줌 */
+                const 쓴곳 = !지금전부.실.length && 지금전부.마감표.length ? 파일들.filter((g) => g !== cur && 전부(g, 파일들).마감표출처 === cur.이름 && 전부(g, 파일들).마감) : []
+                const 글 = 지금전부.마감표.length
+                  ? (지금전부.실.length ? '실내재료마감표의 실 이름과 이 도면의 실 이름이 맞는 것이 없습니다.'
+                    : 쓴곳.length ? '이 도면은 방이 아니라 실내재료마감표입니다 — 함께 넣은 «' + 쓴곳.map((g) => g.이름).join(' · ') + '» 의 실에 맞춰 마감 물량을 셉니다(그 도면을 고르면 보입니다).'
+                    : '실내재료마감표는 읽었습니다(아래). 실 면적이 있는 평면도(방이 닫힌 선)를 같이 넣으면 마감 면적까지 셉니다.')
+                  : '이 도면에서 «실내재료마감표» 를 찾지 못했습니다 — 마감 물량은 실 면적만 드립니다.'
+                return <p className="muted">{글}</p>
+              })()}
               {지금전부.마감표.length > 0 && (
                 <details className="ja-t" open={!지금전부.마감}>
                   <summary><b>읽은 실내재료마감표 {지금전부.마감표.length}줄</b> <span className="muted" style={{ fontSize: 12 }}>(실마다 바닥·걸레받이·벽·천장 마감 · 천장고)</span></summary>
