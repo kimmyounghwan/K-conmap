@@ -14,12 +14,16 @@
  *   👁 눈 깜빡임(2 ~ 5 초마다) · 🖱 3D 를 누르면 그리로 걸어감(부재 = 그 앞 · 바닥 = 그 자리 — lib/둘러보기.js 누른곳길 · bim3d 바닥점)
  * ■ 🎮 G392 퀘스트 카드 — 가까운 🟨 제안(건설맵이 도면대로 먼저 세운 것)은 «✓ 맞음 · ✏ 고치기 · ✕ 빼기» · 가까운 🟥 빨간 곳은 «📝 점검사항 · 넘어가기» · 빨간 곳 수 = 손으로 할 곳 + 확인 전 제안
  * ■ 📊 숨은 누적 |골조모델|둘러보기 · |골조모델|점검사항 · |골조모델|나누기 · |골조모델|캐릭터파일 · |골조모델|누른곳걷기 · |골조모델|퀘스트확인
+ * ■ 🔧 G454 (2026-10-29 소장님 «설명글이 사람을 다 가려» · «사람이 1층에서 2층으로 잘 가는 지도 봐줘» · «사람이 걸어가면 그 쪽을 잘 보여주는 지도 검토해줘»)
+ *   💬 말풍선이 사람과 겹치면 사람 옆(오른쪽 · 왼쪽) 또는 머리 위로 옮김 · 층을 바꾸면 옛 층 부재 말풍선을 바로 지우고 새 층에서 다시 찾음
+ *   🪜 계단을 걸어 오르내림(발 높이 = 단 윗면 · lib 디딤) — 다음 층 바닥에 닿으면 그 층으로 · 아래층 바닥 쪽으로 0.5 m 넘게 내려가면 아래층으로(|골조모델|계단층바꿈)
+ *   🎥 걷거나 돌면 카메라가 사람 뒤로 따라 돎(전엔 앞으로 걸을 때만 · 느리게) · 가는 쪽을 1 m 앞까지 보여 줌 · 기둥 · 벽이 가리면 위에서 내려다봄(lib 카메라맞춤)
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { 세기 } from './lib/받은수.jsx'
 import { 사람몸, 놓기 } from './lib/사람3d.js'
 import { 사람모델읽기, 사람자세, 사람놓기, 캐릭터들, 캐릭터받기 } from './lib/사람vrm.js'
-import { 층판, 첫자리, 걷기, 가까운것, 확인들, 자동길, 자동입력, 자동막힘, 밀어내기, 누른곳길, 가까운빠짐 } from './lib/둘러보기.js'
+import { 층판, 첫자리, 걷기, 가까운것, 확인들, 자동길, 자동입력, 자동막힘, 밀어내기, 누른곳길, 가까운빠짐, 막들, 디딤, 카메라맞춤 } from './lib/둘러보기.js'
 import { 층높이, 부재나누기, 부재글, FT층, 제안확인, 제안빼기, 판넓이, 구간물량, 겹침남기기, 겹침둠, 겹침물을짝 } from './lib/골조모델.js'
 
 const 기억열쇠 = 'kcm.walker'
@@ -42,8 +46,16 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
   const [가까이, set가까이] = useState(null)          // {id, 종류, 부호, d}
   const 가까이Ref = useRef(null); 가까이Ref.current = 가까이
   const 말풍선Ref = useRef(null)                       // 💬 G393 가까운 부재 위에 떠서 따라오는 물량
+  const 뿌리Ref = useRef(null)                         // 🔧 G454 data-pos(사람 자리 x · y · 발 높이 · 방향 — 시험이 읽음)
+  const 퀘Ref = useRef(null)                           // 🔧 G454 퀘스트 카드 — 사람과 겹치면 옆 · 아래로(data-place)
+  const 사람네모Ref = useRef(null)
+  const 퀘높Ref = useRef(0)
+  const UI네모Ref = useRef([])                          // 위 막대 · 단추 · 알림 · 손잡이 · 아래 줄 네모(판 안 px · 0.2 초마다)
+  const 올림Ref = useRef({ 목표: 0, 지금: 0 })           // 📱 폰에서 퀘스트 카드가 사람을 덮으면 사람을 화면 아래로(카메라 겨눔을 올림 · m)
   const 구간Ref = useRef(-2)                           // ▭ G393 지금 서 있는 구간(바뀌면 알림)
   const [알림, set알림] = useState('')
+  /* 🔧 G454 걷는 동안 알림(⬆ 층 옮김 · 구간 · 계단 …)은 8 초 뒤 저절로 닫음 — 폰에서 사람 발을 덮지 않게 */
+  useEffect(() => { if (!알림) return undefined; const t = setTimeout(() => set알림(''), 8000); return () => clearTimeout(t) }, [알림])
   const [메모, set메모] = useState(null)               // null | 글
   const [퀘, set퀘] = useState(null)                   // 🎮 G392 퀘스트 — {종: '제안', id} 건설맵이 세운 것 확인 · {종: '빨강', k} 손으로 할 곳
   const 넘김Ref = useRef(new Set())
@@ -93,13 +105,24 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
   const 구간Q = useMemo(() => (M.구간 && M.구간.length && S && !S.오류 ? 구간물량(M, S) : null), [M, S])
   const 구간QRef = useRef(구간Q); 구간QRef.current = 구간Q
   const 다시 = useRef(true)
+  const 계단으로Ref = useRef(null)                     // 🪜 G454 계단으로 바꾸는 층(그 층 판이 올 때까지 다시 안 바꿈)
+  const 새층Ref = useRef(false)                         // 층이 바뀌면 가까운 부재 · 말풍선을 바로 다시
+  const 카메라Ref = useRef(null)                        // 🎥 G454 사람이 고른 기울기 · 거리(가림 피해 바꾼 값과 따로) {pit, d, 놓은: {pit, d}}
+  const 층차례 = M.층.map((f) => f.이름)
+  const 층차례Ref = useRef(층차례); 층차례Ref.current = 층차례
+  const HRef = useRef(H); HRef.current = H
 
-  /* 처음 · 층이 바뀌면 — 자리(처음엔 건물 앞) · 막힌 곳에서 밀어냄 */
+  /* 처음 · 층이 바뀌면 — 자리(처음엔 건물 앞) · 막힌 곳에서 밀어냄 · 🪜 계단으로 온 것이 아니면 발은 그 층 바닥 */
   useEffect(() => {
     if (!사Ref.current) { const s0 = 첫자리(판); 사Ref.current = { ...s0, φ: 0 } }
     const s = 사Ref.current
-    ;[s.x, s.y] = 밀어내기(s.x, s.y, 판.막)
-    자동Ref.current = null; set자동(false)
+    const 계단 = 계단으로Ref.current === 판.층
+    계단으로Ref.current = null
+    if (!계단 || !Number.isFinite(s.z)) s.z = 판.바닥
+    ;[s.x, s.y] = 밀어내기(s.x, s.y, 막들(판, s.z))
+    if (!계단) s.z = 디딤(판, s.x, s.y, 판.바닥)
+    if (!계단) { 자동Ref.current = null; set자동(false) }
+    set가까이(null); 새층Ref.current = true
     다시.current = true
   }, [판])
   /* 켤 때 · 끌 때 — 3D 를 걷기 꼴로 */
@@ -108,7 +131,8 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
     if (!v) return undefined
     v.가까이 = true
     const s = 사Ref.current || { ...첫자리(판), φ: 0 }
-    v.눈 = null; v.t = [s.x, s.y, 판.바닥 + 1.0]; v.d = 6.5; v.pit = 0.42; v.yaw = s.방향 + Math.PI
+    v.눈 = null; v.t = [s.x, s.y, (Number.isFinite(s.z) ? s.z : 판.바닥) + 1.0]; v.d = 6.5; v.pit = 0.42; v.yaw = s.방향 + Math.PI
+    카메라Ref.current = { pit: 0.42, d: 6.5, 놓은: { pit: 0.42, d: 6.5 } }
     v.onLook = (h) => { if (사Ref.current) { 사Ref.current.방향 = h; 다시.current = true } }
     v.dirty()
     세기('|골조모델|둘러보기')
@@ -123,7 +147,7 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
     const 수 = new Map(); for (const d of 덩) 수.set(d.층, (수.get(d.층) || 0) + 1)
     on확인((옛) => { const n = new Map(옛); for (const [f, ids] of 확인) n.set(f, Math.max(n.get(f) || 0, 수.get(f) ? ids.size / 수.get(f) : 0)); return n })
   }, [확인])  // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { const v = 보기Ref.current; if (!v) return; if (!눈) { v.set눈(null); const s = 사Ref.current; if (s) { v.t = [s.x, s.y, 판Ref.current.바닥 + 1.0]; v.yaw = s.방향 + Math.PI; v.d = Math.max(v.d, 4) } } 다시.current = true }, [눈])  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { const v = 보기Ref.current; if (!v) return; if (!눈) { v.set눈(null); const s = 사Ref.current; if (s) { v.t = [s.x, s.y, (Number.isFinite(s.z) ? s.z : 판Ref.current.바닥) + 1.0]; v.yaw = s.방향 + Math.PI; v.d = Math.max(v.d, 4) } } 다시.current = true }, [눈])  // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { 다시.current = true }, [사람, 모델])
 
   /* 손 — 방향키 · WASD · QE */
@@ -160,10 +184,21 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
           if (!입2) { 자동Ref.current = null; set자동(false); if (!A.누름) set알림('▶ 자동 둘러보기 끝 — ' + 층글(판0.층) + ' 부재를 다 돌았습니다') }
           else 입 = 입2
         }
-        const r = (입.앞 || 입.돌 || 입.옆) ? 걷기(s, 입, dt, 판0, 자동중 ? 2.6 : 1.6) : { x: s.x, y: s.y, 방향: s.방향, 감: 0 }
+        const r = (입.앞 || 입.돌 || 입.옆) ? 걷기(s, 입, dt, 판0, 자동중 ? 2.6 : 1.6) : { x: s.x, y: s.y, z: s.z, 방향: s.방향, 감: 0 }
         if (자동중 && 자동Ref.current) 자동막힘(A, { x: r.x, y: r.y }, dt)     // 막혀서 못 가면 옆걸음 · 다음 부재로
         const 감 = r.감 > 1e-4
-        s.x = r.x; s.y = r.y
+        const 옛z = s.z
+        s.x = r.x; s.y = r.y; if (Number.isFinite(r.z)) s.z = r.z
+        /* 🪜 G454 계단 — 다음 층 바닥에 닿으면 그 층 · 이 층 바닥보다 0.5 m 넘게 내려가면 아래층(판이 올 때까지 한 번만) */
+        if (!계단으로Ref.current && Number.isFinite(s.z) && s.z !== 옛z) {
+          const 차 = 층차례Ref.current, k = 차.indexOf(판0.층), HH = HRef.current
+          const 위층 = 차[k + 1], 위f = 위층 !== undefined ? HH.표.get(위층) : null
+          const 아래층 = k > 0 ? 차[k - 1] : undefined
+          let 갈 = null
+          if (위f && !위f.FT && s.z >= 위f.z0 / 1000 - 0.25) 갈 = 위층
+          else if (아래층 !== undefined && s.z <= 판0.바닥 - 0.5) 갈 = 아래층
+          if (갈 !== null) { 계단으로Ref.current = 갈; set층(갈); set알림('🪜 계단으로 ' + 층글(갈) + (갈 === 위층 ? '에 올라왔습니다' : '으로 내려왔습니다')); 세기('|골조모델|계단층바꿈') }
+        }
         const 돌았 = Math.abs(각차(r.방향, s.방향)) > 1e-5
         s.방향 = r.방향
         if (감) s.φ += (r.감 / 0.62) * Math.PI
@@ -172,17 +207,43 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
           다시.current = false
           const P = 사람Ref.current, VM = 모델Ref.current
           let 몸
-          if (VM) { const 자 = 사람자세(VM.모, { 걸음: s.φ, 가는중: 감 || !!s.φ, 감음: 깜.값 }); 몸 = { 키: 자.키 }; v.set사람({ 부분: 사람놓기(자, s.x, s.y, 판0.바닥, s.방향) }) }
-          else if (못받음Ref.current) { 몸 = 사람몸('하나', { 옷: 0, 걸음: s.φ, 가는중: 감 || !!s.φ }); v.set사람(놓기(몸, s.x, s.y, 판0.바닥, s.방향)) }   // 파일을 못 받으면 코드로 짠 사람
+          const 발 = Number.isFinite(s.z) ? s.z : 판0.바닥        // 🪜 G454 계단 위면 단 윗면
+          if (VM) { const 자 = 사람자세(VM.모, { 걸음: s.φ, 가는중: 감 || !!s.φ, 감음: 깜.값 }); 몸 = { 키: 자.키 }; v.set사람({ 부분: 사람놓기(자, s.x, s.y, 발, s.방향) }) }
+          else if (못받음Ref.current) { 몸 = 사람몸('하나', { 옷: 0, 걸음: s.φ, 가는중: 감 || !!s.φ }); v.set사람(놓기(몸, s.x, s.y, 발, s.방향)) }   // 파일을 못 받으면 코드로 짠 사람
           else { 몸 = { 키: 1.6 }; v.set사람(null) }                                                                                                      // 받는 중
           /* 🔧 G393 눈으로 볼 때는 내 몸(머리카락 · 얼굴)을 그리지 않음 — 소장님 「눈으로 보기 하면, 중간에 이상한게 떠」: 눈 자리가 머리 안이라 머리카락 · 얼굴 조각이 회색 띠로 보였음 */
-          if (눈Ref.current) { v.set사람(null); v.set눈({ E: [s.x + Math.cos(s.방향) * 0.12, s.y + Math.sin(s.방향) * 0.12, 판0.바닥 + 몸.키 * 0.93], h: s.방향, p: v.눈 ? v.눈.p : -0.08 }) }
+          s.키 = 몸.키
+          if (눈Ref.current) { v.set사람(null); v.set눈({ E: [s.x + Math.cos(s.방향) * 0.12, s.y + Math.sin(s.방향) * 0.12, 발 + 몸.키 * 0.93], h: s.방향, p: v.눈 ? v.눈.p : -0.08 }) }
           else {
-            v.t = [s.x, s.y, 판0.바닥 + 1.0]
-            if (감 && 입.앞 > 0) v.yaw += 각차(s.방향 + Math.PI, v.yaw) * Math.min(1, dt * 2.2)
+            /* 🎥 G454 따라 보기 — 앞으로 걷거나 돌면 사람 뒤로(빠르게) · 걷는 동안은 가는 쪽 1 m 앞을 겨눔 · 뒤로 걸을 때 · 옆걸음은 그대로 */
+            const 앞감 = 감 && 입.앞 > 0
+            s.앞봄 = (s.앞봄 || 0) + ((앞감 ? 1 : 0) - (s.앞봄 || 0)) * Math.min(1, dt * 2.5)
+            if (앞감 || (돌았 && !(입.앞 < 0))) s.따름 = 0.9                                  // 돌기를 멈춘 뒤에도 0.9 초 더 따라 돌아 사람 바로 뒤로(돌 때 생긴 늦음을 메움)
+            if (s.따름 > 0) { s.따름 -= dt; const 차 = 각차(s.방향 + Math.PI, v.yaw); v.yaw += 차 * Math.min(1, dt * (돌았 && !감 ? 6 : 4)); if (Math.abs(차) > 0.003) 다시.current = true }
+            const 올 = 올림Ref.current
+            올.지금 += (올.목표 - 올.지금) * Math.min(1, dt * 4)
+            if (Math.abs(올.목표 - 올.지금) > 0.005) 다시.current = true
+            v.t = [s.x + Math.cos(s.방향) * s.앞봄, s.y + Math.sin(s.방향) * s.앞봄, 발 + 1.0 + 올.지금]
+            /* 🎥 기둥 · 벽이 사람을 가리면 위에서 내려다봄(사람이 휠 · 끌기로 바꾼 기울기 · 거리는 따로 기억) */
+            const K = 카메라Ref.current || (카메라Ref.current = { pit: v.pit, d: v.d, 놓은: { pit: v.pit, d: v.d } })
+            if (Math.abs(v.pit - K.놓은.pit) > 1e-6) K.pit = v.pit
+            if (Math.abs(v.d - K.놓은.d) > 1e-6) K.d = v.d
+            const 맞 = 카메라맞춤(판0, [s.x, s.y, 발 + 1.0], { yaw: v.yaw, pit: K.pit, d: K.d })
+            const 빠 = Math.min(1, dt * 4)
+            v.pit += (맞.pit - v.pit) * 빠; v.d += (맞.d - v.d) * 빠
+            K.놓은 = { pit: v.pit, d: v.d }
+            if (Math.abs(맞.pit - v.pit) > 0.005 || Math.abs(맞.d - v.d) > 0.02) 다시.current = true
             v.dirty()
           }
         }
+        /* 🔧 G454 사람 화면 네모(발 ~ 머리 위 · 판 안 px) — 말풍선 · 퀘스트 카드가 사람을 가리지 않게 */
+        let 사람네모 = null
+        if (!눈Ref.current) {
+          const 발 = Number.isFinite(s.z) ? s.z : 판0.바닥
+          const 머 = v.화면점(s.x, s.y, 발 + (s.키 || 1.6) + 0.12), 바 = v.화면점(s.x, s.y, 발)
+          if (머 && 바) { const 높 = Math.max(20, 바.y - 머.y), 폭 = Math.max(26, 높 * 0.5), cx = (머.x + 바.x) / 2; 사람네모 = [cx - 폭 / 2, 머.y, cx + 폭 / 2, 바.y] }
+        }
+        사람네모Ref.current = 사람네모
         /* 💬 G393 말풍선 — 가까운 부재 위(윗면 + 20 cm)에 떠서 따라옴(카메라를 돌려도) */
         {
           const el = 말풍선Ref.current, g = 가까이Ref.current
@@ -193,15 +254,72 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
               /* 사람에게 가장 가까운 부재 자리(둘레 네모 안 가장 가까운 점) — 큰 슬라브 · 벽도 화면 안에 들게 · 그래도 밖이면 가운데 */
               const xs = d.판.map((q) => q[0]), ys = d.판.map((q) => q[1])
               const gx = Math.max(Math.min(...xs), Math.min(Math.max(...xs), s.x * 1000)), gy = Math.max(Math.min(...ys), Math.min(Math.max(...ys), s.y * 1000))
-              const zt = Math.min(d.z1 / 1000, 판0.바닥 + 2.4) + 0.2
+              const 발 = Number.isFinite(s.z) ? s.z : 판0.바닥
+              const zt = Math.min(d.z1 / 1000, 발 + 2.4) + 0.2
               p = v.화면점(gx / 1000, gy / 1000, zt) || v.화면점(xs.reduce((a, q) => a + q, 0) / xs.length / 1000, ys.reduce((a, q) => a + q, 0) / ys.length / 1000, zt)
+              /* 🔧 G454 소장님 «설명글이 사람을 다 가려» — 사람(발 ~ 머리 위) 화면 네모와 겹치면 옆(오른쪽 · 왼쪽) · 머리 위로 */
+              if (p && 사람네모) {
+                {
+                  const P = 사람네모, cx = (P[0] + P[2]) / 2
+                  el.dataset.person = P.map((v2) => Math.round(v2)).join(',')
+                  const W = el.offsetWidth || 160, Hh = (el.offsetHeight || 40) + 6
+                  const 판폭 = el.parentElement ? el.parentElement.clientWidth : 9999, 판높 = el.parentElement ? el.parentElement.clientHeight : 9999
+                  const 막이 = [P, ...(UI네모Ref.current || [])]          // 사람 + 위 막대 · 단추 · 알림 · 손잡이(글자를 덮지 않게)
+                  const 겹 = (q) => 막이.some((B, i) => { const m = i ? 2 : 6; return !(q.x + W / 2 < B[0] - m || q.x - W / 2 > B[2] + m || q.y < B[1] - m || q.y - Hh > B[3] + m) })
+                  const 안 = (q) => q.x - W / 2 >= 4 && q.x + W / 2 <= 판폭 - 4 && q.y - Hh >= 4 && q.y <= 판높 - 4
+                  if (겹(p)) {
+                    const 후 = [{ x: P[2] + 12 + W / 2, y: Math.min(Math.max(p.y, P[1] + Hh), P[3]) }, { x: P[0] - 12 - W / 2, y: Math.min(Math.max(p.y, P[1] + Hh), P[3]) }, { x: cx, y: P[1] - 10 }, { x: cx, y: P[3] + Hh + 10 },
+                      { x: Math.min(Math.max(p.x, W / 2 + 4), 판폭 - W / 2 - 4), y: P[1] - 10 }, { x: P[2] + 12 + W / 2, y: P[1] + Hh }, { x: P[0] - 12 - W / 2, y: P[1] + Hh }]
+                    const 가까운차 = (a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y)
+                    const 사람겹 = (q) => !(q.x + W / 2 < P[0] - 6 || q.x - W / 2 > P[2] + 6 || q.y < P[1] - 6 || q.y - Hh > P[3] + 6)
+                    /* 사람 · 단추 둘 다 피하는 곳 → 없으면(폰처럼 좁으면) 사람만이라도 피하는 곳 */
+                    const 고 = 후.filter((q) => 안(q) && !겹(q)).sort(가까운차)[0] || (사람겹(p) ? 후.filter((q) => 안(q) && !사람겹(q)).sort(가까운차)[0] : null)
+                    if (고) { p = 고; el.classList.add('gwk-bubble-side') } else el.classList.remove('gwk-bubble-side')
+                  } else el.classList.remove('gwk-bubble-side')
+                }
+              }
             }
             if (p) { el.style.display = 'block'; el.style.transform = 'translate(' + Math.round(p.x) + 'px,' + Math.round(p.y) + 'px) translate(-50%, -100%)' } else el.style.display = 'none'
           }
         }
+        /* 🔧 G454 퀘스트 카드(❓ 맞나요? · 🟥) — 가운데 위가 사람을 덮으면 사람 옆(왼쪽 · 오른쪽 · 폭을 줄여) · 아래 · 그래도 겹치면 설명 줄을 접어 작게 */
+        {
+          const q = 퀘Ref.current, 판el = q && q.parentElement, P = 사람네모
+          if (q && 판el) {
+            const cw = 판el.clientWidth, ch = 판el.clientHeight, 폰 = cw <= 640, T0 = 폰 ? 118 : 104, B0 = 폰 ? 140 : 96
+            const W0 = Math.min(440, cw - 24)
+            if (!q.dataset.small && !q.style.width) 퀘높Ref.current = q.offsetHeight || 퀘높Ref.current
+            const H = 퀘높Ref.current || q.offsetHeight
+            let 곳 = '가운데', 폭 = '', 작게 = ''
+            if (P) {
+              const 겹세로 = (y0, y1) => !(y1 < P[1] - 8 || y0 > P[3] + 8), 겹가로 = (x0, x1) => !(x1 < P[0] - 8 || x0 > P[2] + 8)
+              if (겹가로(cw / 2 - W0 / 2, cw / 2 + W0 / 2) && 겹세로(T0, T0 + H)) {
+                const 왼 = P[0] - 18, 오 = cw - P[2] - 18
+                if (Math.max(왼, 오) >= 230) { 곳 = 왼 >= 오 ? '왼쪽' : '오른쪽'; 폭 = Math.round(Math.min(W0, Math.max(왼, 오))) + 'px' }
+                else if (!겹세로(ch - B0 - H, ch - B0)) 곳 = '아래'
+                else {
+                  /* 📱 좁은 화면 — 설명 줄을 접고(제목 · 단추만) 위에 두고, 그래도 머리에 닿으면 카메라 겨눔을 올려 사람을 아래로 */
+                  작게 = '1'; 곳 = '가운데'
+                  const 작높 = q.dataset.small ? q.offsetHeight : Math.min(H, 96)
+                  const 모자 = T0 + 작높 + 10 - P[1]
+                  const m당 = Math.max(20, P[3] - P[1]) / ((s.키 || 1.6) + 0.12)
+                  if (모자 > 0) { 올림Ref.current.목표 = Math.min(1.6, 올림Ref.current.목표 + 모자 / m당); 다시.current = true }
+                }
+              }
+            }
+            if ((q.dataset.place || '가운데') !== 곳) q.dataset.place = 곳
+            if (q.style.width !== 폭) q.style.width = 폭
+            if ((q.dataset.small || '') !== 작게) { if (작게) q.dataset.small = 작게; else delete q.dataset.small }
+          } else if (올림Ref.current.목표) { 올림Ref.current.목표 = 0; 다시.current = true }       // 카드가 없어지면 겨눔을 되돌림
+        }
         늦 += dt
         if (늦 > 0.2) {
           늦 = 0
+          if (뿌리Ref.current) {
+            const G = 뿌리Ref.current.getBoundingClientRect()
+            UI네모Ref.current = ['.gwk-hud', '.gwk-acts', '.gwk-msg', '.gwk-near', '.gwk-joy', '.gwk-quest'].map((k) => 뿌리Ref.current.querySelector(':scope > ' + k)).filter((e) => e && e.offsetParent !== null).map((e) => { const q = e.getBoundingClientRect(); return [q.left - G.left, q.top - G.top, q.right - G.left, q.bottom - G.top] })
+          }
+          if (뿌리Ref.current) { 뿌리Ref.current.dataset.pos = [s.x, s.y, Number.isFinite(s.z) ? s.z : 판0.바닥, s.방향, v.pit, v.d, v.yaw].map((q) => (+q).toFixed(3)).join(',') + ',' + 판0.층; 뿌리Ref.current.dataset.person = 사람네모Ref.current ? 사람네모Ref.current.map((q) => Math.round(q)).join(',') : '' }
           const 든 = 확인들(s, 판0)
           const 옛 = 확인Ref.current.get(판0.층)
           if (든.some((id) => !옛 || !옛.has(id))) {
@@ -236,7 +354,8 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
             const 새 = 제o ? { 종: '제안', id: 제o.id } : 겹e ? { 종: '겹침', 키: 겹e.ids.join('|') } : 빨 && !넘김Ref.current.has(판0.층 + '|' + 빨.k) ? { 종: '빨강', k: 빨.k } : null
             set퀘((p) => (JSON.stringify(p) === JSON.stringify(새) ? p : 새))
           }
-          if (감 || 돌았) {
+          if (감 || 돌았 || 새층Ref.current) {
+            새층Ref.current = false
             const g = 가까운것(s, 판0)[0]
             const 새가 = g ? { id: g.o.id, 종류: g.o.종류, 부호: g.o.부호, d: g.d } : null
             set가까이((p) => (p && 새가 && p.id === 새가.id ? p : 새가))
@@ -282,7 +401,7 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
     누름Ref.current = (id, e) => {
       const v = 보기Ref.current, s = 사Ref.current, 판0 = 판Ref.current
       if (!v || !s || !e) return
-      const 점 = v.바닥점 ? v.바닥점(e.clientX, e.clientY, 판0.바닥) : null
+      const 점 = v.바닥점 ? v.바닥점(e.clientX, e.clientY, Number.isFinite(s.z) ? s.z : 판0.바닥) : null
       const 길 = 누른곳길(판0, s, 점, id >= 0 ? id : null)
       if (!길.length) return
       if (id >= 0 && 길[0].id !== undefined) set고른(id)
@@ -329,7 +448,7 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
   const 손놓 = () => { 조이Ref.current = { 앞: 0, 돌: 0 }; set손위치(null) }
 
   return (
-    <div className="gwk" aria-label="둘러보기">
+    <div className="gwk" aria-label="둘러보기" ref={뿌리Ref}>
       <div className="gwk-hud" role="status">
         <b>🧭 {층글(층)}</b>
         <span>확인 <b>{본수}</b> / {이층수}</span>
@@ -351,7 +470,7 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
         <button type="button" className="gwk-x" onClick={끝내기}>✕ 그만</button>
       </div>
       {퀘제 && (
-        <div className="gwk-quest" role="dialog" aria-label="퀘스트 — 건설맵이 세운 것 확인">
+        <div className="gwk-quest" ref={퀘Ref} role="dialog" aria-label="퀘스트 — 건설맵이 세운 것 확인">
           <b>❓ {층글(퀘제.층)} {퀘제.종류} {퀘제.부호} — 맞나요?</b>
           <div>🟨 건설맵이 도면대로 먼저 세웠습니다{퀘제.종류 === '계단' ? <> — 판 <b>{퀘제.판수 || 2}</b> · 길이 <b>{퀘제.길이}</b> · 폭 <b>{퀘제.폭}</b> · 단수 <b>{퀘제.단수 || '자동'}</b></> : Array.isArray(퀘제.판) ? <> — 두께 <b>{퀘제.두께}</b> mm · 넓이 <b>{(판넓이(퀘제.판) / 1e6).toFixed(1)}</b> ㎡</> : null}</div>
           <div className="muted">{퀘제.제안}{퀘제.근거 && 퀘제.근거.평면 ? ' · 📄 ' + 퀘제.근거.평면 : ''}</div>
@@ -363,7 +482,7 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
         </div>
       )}
       {!퀘제 && 퀘겹 && (
-        <div className="gwk-quest" role="dialog" aria-label="퀘스트 — 두 번 그린 곳">
+        <div className="gwk-quest" ref={퀘Ref} role="dialog" aria-label="퀘스트 — 두 번 그린 곳">
           <b>❓ {층글(층)} 같은 자리에 두 번 그렸습니다 — 어느 것을 남길까요?</b>
           <div>{퀘겹.머리} · 겹친 몫 <b>{퀘겹.부피.toFixed(3)}</b> ㎥</div>
           <div className="gwk-qbtns">
@@ -375,7 +494,7 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
         </div>
       )}
       {!퀘제 && !퀘겹 && 퀘빨 && (
-        <div className="gwk-quest red" role="dialog" aria-label="퀘스트 — 빨간 곳">
+        <div className="gwk-quest red" ref={퀘Ref} role="dialog" aria-label="퀘스트 — 빨간 곳">
           <b>🟥 {층글(퀘빨.층)} {퀘빨.종류} {퀘빨.기호}</b>
           <div>{퀘빨.까닭}</div>
           <div className="gwk-qbtns">

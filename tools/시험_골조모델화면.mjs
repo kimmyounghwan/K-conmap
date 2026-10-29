@@ -222,9 +222,13 @@ for (const 기기 of 기기들) {
   await B.waitForSelector('.gmd-ws', { timeout: 30000 })
   봐(true, `${기기} 운영자는 ?ws=1 로 바로 작업 화면`)
   /* ⑦ 📐 도면 넣기 — 가상 예시 도면 → 좌표대로 세움 */
-  B.once('dialog', (d) => d.accept())
+  /* 🔧 G454 «지금 모델 대신 도면에서 세울까요?» 는 브라우저 창이 아니라 화면 안 물음(gmd-askbox) — «예, 바꾸기» */
+  let 창 = 0; const 창셈 = (d) => { 창++; d.accept() }; B.on('dialog', 창셈)
   await B.locator('.gmd-ws-dwgin').setInputFiles(예도면)
+  await B.locator('.gmd-askbox button', { hasText: '예, 바꾸기' }).click({ timeout: 60000 })
   await B.waitForSelector('.gmd-dwgres', { timeout: 60000 })
+  B.off('dialog', 창셈)
+  봐(창 === 0, `${기기} 도면 넣기 — 바꿀지 화면 안에서 물음(브라우저 창 안 뜸)`, 창)
   await B.waitForTimeout(1200)
   const 결 = await B.locator('.gmd-dwgres').innerText()
   봐(new RegExp('부재 ' + 도면예.옮김 + '개').test(결) && 도면예.옮김 > 100, `${기기} 도면 넣기 — 부재 ${도면예.옮김}개 세움`, 결.slice(0, 200))

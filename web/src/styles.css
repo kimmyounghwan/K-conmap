@@ -9102,6 +9102,12 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gwk-qbtns button { border: 1px solid var(--line, #d0d5dd); background: var(--surface, #fff); color: var(--text, #111); border-radius: 8px; padding: 5px 10px; cursor: pointer; font-size: 13px; }
 .gwk-qbtns button.on { background: var(--accent, #2563eb); color: #fff; border-color: var(--accent, #2563eb); }
 @media (max-width: 640px) { .gwk-quest { top: 118px; font-size: 12.5px; } }
+/* 🔧 G454 퀘스트 카드가 사람을 덮으면 옆 · 아래로(둘러보기판.jsx 가 data-place 를 고름) */
+.gwk-quest[data-place="왼쪽"] { left: 10px; transform: none; }
+.gwk-quest[data-place="오른쪽"] { left: auto; right: 10px; transform: none; }
+.gwk-quest[data-place="아래"] { top: auto; bottom: 96px; }
+@media (max-width: 640px) { .gwk-quest[data-place="아래"] { bottom: 140px; } }
+.gwk-quest[data-small="1"] > div:not(.gwk-qbtns) { display: none; }
 /* 🏗 G392 K-적산컨맵 — 작업 화면 이름 · 적산 첫 화면 큰 카드 */
 .gmd .gmd-ws-brand { color: var(--accent, #2563eb); font-weight: 800; white-space: nowrap; }
 .gmd .gmd-ws-model { font-weight: 600; opacity: .75; }
@@ -9180,6 +9186,7 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 /* 💬 G393 둘러보기 말풍선 · 🟩 확인 콘크리트 · 끝 */
 .gwk-bubble { position: absolute; left: 0; top: 0; background: rgba(15, 23, 42, 0.88); color: #fff; border-radius: 10px; padding: 5px 10px; font-size: 12px; line-height: 1.35; white-space: nowrap; pointer-events: none; box-shadow: 0 4px 14px rgba(0,0,0,.25); will-change: transform; }
 .gwk-bubble::after { content: ''; position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); border: 6px solid transparent; border-top-color: rgba(15, 23, 42, 0.88); border-bottom: 0; }
+.gwk-bubble.gwk-bubble-side::after { display: none; }   /* 🔧 G454 사람을 피해 옆 · 머리 위로 옮기면 꼬리(가리키는 세모)는 뗌 */
 .gwk-conc b { color: #15803d; }
 .gwk-done { color: #15803d; font-weight: 700; }
 /* 🧩 G394 겹친 곳 — ❓ 어느 것을 남길까요? */
@@ -9587,3 +9594,9 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .ratio-keep-btns { display: flex; gap: 8px; margin-top: 8px; }
 .ratio-keep-btns .btn { width: auto; }
 @media (max-width: 560px) { .ratio-keep-list { flex-direction: column; gap: 6px; } }
+
+/* 🔧 G454 K-적산컨맵 — 도면을 다 읽은 뒤 묻는 것(브라우저 창 대신 화면 안) */
+.gmd-askbox { position: fixed; top: 72px; left: 50%; transform: translateX(-50%); z-index: 60; width: min(520px, calc(100vw - 24px)); background: color-mix(in srgb, #f5c72e 14%, var(--surface, #fff)); border: 2px solid #e0b020; border-radius: 12px; padding: 12px 14px; box-shadow: 0 10px 28px rgba(0,0,0,.22); display: flex; flex-direction: column; gap: 10px; font-size: 14px; line-height: 1.6; color: var(--text, #111); }
+.gmd-askbox .gmd-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.gmd-askbox .btn { width: auto; }
+

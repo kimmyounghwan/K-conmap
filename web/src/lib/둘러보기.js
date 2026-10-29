@@ -7,7 +7,11 @@
  * ■ 층 차례 = 골조 모델 층 차례(FT = 기초 → 지하 → 1층 → …) · 사람이 서는 높이 = 그 층 바닥(층높이 z0 — FT 는 0).
  * ■ 부딪힘: 그 층 기둥 · 벽(사람 키 높이와 겹치는 것)의 네모(판의 둘레 상자)에서 밀어냄 · 건물 둘레 + 4 m 밖으로는 안 나감.
  * ■ 확인: 사람이 부재 네모에서 1.8 m 안에 들면 «확인» — 층마다 «확인 n / N».
+ * ■ 🪜 G454 (2026-10-29 소장님 «사람이 1층에서 2층으로 잘 가는 지도 봐줘») — 계단을 밟고 오르내림: 사람 높이(사.z)를 계단 단 · 참 윗면으로(한 걸음 0.45 m 까지) ·
+ *   막힘은 사람 높이에서 셈(밟을 수 있는 단은 안 막고 높은 단 · 머리에 닿는 위 판만 막음) · 층 바꿈은 화면(둘러보기판.jsx)이 사.z 로.
+ * ■ 🎥 G454 «사람이 걸어가면 그 쪽을 잘 보여주는지» — 카메라맞춤: 사람과 카메라 사이를 기둥 · 벽이 가리면 위에서 내려다보게(그래도 가리면 가까이).
  */
+export const 한걸음 = 0.45
 export const 사람반지름 = 0.25
 export const 확인거리 = 1.8
 export const 고름거리 = 2.6
@@ -48,10 +52,10 @@ export function 층판(덩, H, 층) {
   const ft밑 = 이층.filter((d) => d.종류 === '기초').reduce((a, d) => Math.min(a, d.z0), Infinity)
   const 매트위 = 매트.reduce((a, d) => Math.max(a, d.z1), -Infinity)
   const 바닥 = f ? (f.FT ? (Number.isFinite(매트위) ? 매트위 : Number.isFinite(ft밑) ? ft밑 : 0) : f.z0) / 1000 : 0
-  const 막 = []
+  const 막 = [], 계단 = []
   for (const d of 덩) {
-    /* 🪜 G393 계단 — 단 · 참 조각마다(낮은 첫 단은 밟고 넘고 높은 단은 막음) */
-    if (d.종류 === '계단' && Array.isArray(d.조각)) { for (const x of d.조각) { const z0 = x.z0 / 1000, z1 = x.z1 / 1000; if (z1 <= 바닥 + 0.3 || z0 >= 바닥 + 1.7) continue; 막.push({ id: d.id, b: 상자(x.판) }) } continue }
+    /* 🪜 G393 계단 — 단 · 참 조각마다 · 🪜 G454 모든 층 계단 조각을 따로 둠(사람 높이로 밟기 · 막기 — 막들 · 디딤) */
+    if (d.종류 === '계단' && Array.isArray(d.조각)) { for (const x of d.조각) 계단.push({ id: d.id, b: 상자(x.판), z0: x.z0 / 1000, z1: x.z1 / 1000 }); continue }
     if (d.종류 !== '기둥' && d.종류 !== '벽' && d.종류 !== '기초') continue
     if (MAT인가(d)) continue
     const z0 = d.z0 / 1000, z1 = d.z1 / 1000
@@ -65,7 +69,25 @@ export function 층판(덩, H, 층) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
   for (const d of 덩) { const b = 상자(d.판); x0 = Math.min(x0, b[0]); y0 = Math.min(y0, b[1]); x1 = Math.max(x1, b[2]); y1 = Math.max(y1, b[3]) }
   const 둘레 = Number.isFinite(x0) ? [x0 - 4, y0 - 4, x1 + 4, y1 + 4] : [-20, -20, 20, 20]
-  return { 층, 바닥, 막, 부재, 둘레 }
+  return { 층, 바닥, 막, 계단, 부재, 둘레 }
+}
+
+/** 🪜 G454 사람 높이 z(m)에서 막히는 것 — 기둥 · 벽(그 층) + 계단 조각 중 한 걸음보다 높고 머리(1.7 m)에 닿는 것 */
+export function 막들(판, z) {
+  const 높 = Number.isFinite(z) ? z : 판.바닥
+  const 계 = (판.계단 || []).filter((p) => p.z1 > 높 + 한걸음 && p.z0 < 높 + 1.7)
+  return 계.length ? 판.막.concat(계) : 판.막
+}
+/** 🪜 G454 (x, y) 에 선 사람의 발 높이 — 발밑 계단 단 · 참 윗면(지금 높이에서 한 걸음 위 ~ 0.7 m 아래) 가운데 가장 높은 것 · 없으면 그 층 바닥 */
+export function 디딤(판, x, y, z) {
+  const 높 = Number.isFinite(z) ? z : 판.바닥
+  let 위 = -Infinity
+  for (const p of 판.계단 || []) {
+    if (x < p.b[0] || x > p.b[2] || y < p.b[1] || y > p.b[3]) continue
+    if (p.z1 > 높 + 한걸음 || p.z1 < 높 - 0.7) continue
+    if (p.z1 > 위) 위 = p.z1
+  }
+  return Number.isFinite(위) ? 위 : 판.바닥
 }
 
 /** 처음 설 자리 — 그 층 부재 둘레의 가운데(막힌 곳이면 밀어냄) · 위쪽(+y)을 바라봄 · 부재가 없으면 건물 둘레 가운데 */
@@ -73,8 +95,8 @@ export function 첫자리(판) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
   for (const o of 판.부재) { x0 = Math.min(x0, o.b[0]); y0 = Math.min(y0, o.b[1]); x1 = Math.max(x1, o.b[2]); y1 = Math.max(y1, o.b[3]) }
   if (!Number.isFinite(x0)) [x0, y0, x1, y1] = 판.둘레
-  let [x, y] = 밀어내기((x0 + x1) / 2, (y0 + y1) / 2, 판.막)
-  return { x, y, 방향: Math.PI / 2 }
+  let [x, y] = 밀어내기((x0 + x1) / 2, (y0 + y1) / 2, 막들(판, 판.바닥))
+  return { x, y, z: 판.바닥, 방향: Math.PI / 2 }
 }
 
 /** 원(사람)을 막힌 네모에서 밀어냄 — 한 번에 여러 개 */
@@ -99,7 +121,7 @@ export function 밀어내기(x, y, 막, r = 사람반지름) {
 
 /**
  * 한 걸음 — 입력 {앞: -1~1, 돌: -1~1, 옆: -1~1} · dt 초 · 빠르기 m/s
- * @returns {{x, y, 방향, 감: number}} 감 = 실제로 간 거리(m)
+ * @returns {{x, y, z, 방향, 감: number}} 감 = 실제로 간 거리(m) · z = 발 높이(🪜 G454 계단을 밟으면 단 윗면)
  */
 export function 걷기(사, 입력, dt, 판, 빠르기 = 1.6) {
   const 방향 = 사.방향 + (입력.돌 || 0) * 1.9 * dt
@@ -107,9 +129,10 @@ export function 걷기(사, 입력, dt, 판, 빠르기 = 1.6) {
   const v = 빠르기 * (앞 < 0 ? 0.6 : 1)
   let x = 사.x + (Math.cos(방향) * 앞 - Math.sin(방향) * 옆) * v * dt
   let y = 사.y + (Math.sin(방향) * 앞 + Math.cos(방향) * 옆) * v * dt
-  ;[x, y] = 밀어내기(x, y, 판.막)
+  const z0 = Number.isFinite(사.z) ? 사.z : 판.바닥
+  ;[x, y] = 밀어내기(x, y, 막들(판, z0))
   x = Math.max(판.둘레[0], Math.min(판.둘레[2], x)); y = Math.max(판.둘레[1], Math.min(판.둘레[3], y))
-  return { x, y, 방향, 감: Math.hypot(x - 사.x, y - 사.y) }
+  return { x, y, z: 디딤(판, x, y, z0), 방향, 감: Math.hypot(x - 사.x, y - 사.y) }
 }
 
 /** 가까운 부재(그 층) — 거리 차례 · 거리 안 것만 */
@@ -141,12 +164,12 @@ export function 누른곳길(판, 사, 점, id = null) {
   if (o && o.종류 !== '슬라브') {
     const p = { x: (o.b[0] + o.b[2]) / 2, y: (o.b[1] + o.b[3]) / 2, b: o.b }
     let { x, y } = 설곳(p, 사)
-    ;[x, y] = 밀어내기(x, y, 판.막, 사람반지름 + 0.05)
+    ;[x, y] = 밀어내기(x, y, 막들(판, 사.z), 사람반지름 + 0.05)
     return [{ x, y, id: o.id, b: o.b, 누름: true }]
   }
   if (!점 || !Number.isFinite(점.x) || !Number.isFinite(점.y)) return []
   let x = Math.max(판.둘레[0], Math.min(판.둘레[2], 점.x)), y = Math.max(판.둘레[1], Math.min(판.둘레[3], 점.y))
-  ;[x, y] = 밀어내기(x, y, 판.막, 사람반지름 + 0.05)
+  ;[x, y] = 밀어내기(x, y, 막들(판, 사.z), 사람반지름 + 0.05)
   return [{ x, y, 누름: true }]
 }
 
@@ -215,4 +238,37 @@ export function 가까운빠짐(사, 빠짐, 층, 거리 = 고름거리) {
     if (d <= 거리 && (!best || d < best.d)) best = { x, k, d }
   })
   return best
+}
+
+/**
+ * 🎥 G454 카메라맞춤 — 사람(겨눔 T · m)과 카메라 사이를 그 층 기둥 · 벽(사람 키보다 높은 것)이 가리면
+ *   ① 같은 거리에서 위로(내려다보기 · 기울기를 0.12 씩 1.25 까지) ② 그래도 가리면 가리는 것 앞까지 가까이(1.6 m 까지)
+ * @param {{바닥, 부재}} 판 층판 · T [x, y, z] · 원 {yaw, pit, d} (사람이 고른 값)
+ * @returns {{pit, d, 가림: boolean}}
+ */
+export function 카메라맞춤(판, T, 원) {
+  const 상자들 = (판.부재 || []).filter((o) => (o.종류 === '기둥' || o.종류 === '벽') && o.z1 > 판.바닥 + 1.2).flatMap((o) => (o.토 || [o.b]).map((b) => [b[0] - 0.05, b[1] - 0.05, o.z0, b[2] + 0.05, b[3] + 0.05, o.z1]))
+  const 자리 = (pit, d) => { const cp = Math.cos(pit); return [T[0] + d * cp * Math.cos(원.yaw), T[1] + d * cp * Math.sin(원.yaw), T[2] + d * Math.sin(pit)] }
+  /* 선분 T → C 가 상자에 처음 드는 자리(0 ~ 1) — 사람 바로 옆(0.35 m 안)은 셈 안 함(사람이 기댄 벽) */
+  const 처음 = (C) => {
+    const D = [C[0] - T[0], C[1] - T[1], C[2] - T[2]], L = Math.hypot(...D) || 1, t0 = Math.min(0.9, 0.35 / L)
+    let best = Infinity
+    for (const b of 상자들) {
+      let a = t0, z = 1, ok = true
+      for (let k = 0; k < 3 && ok; k++) {
+        if (Math.abs(D[k]) < 1e-9) { if (T[k] < b[k] || T[k] > b[k + 3]) ok = false; continue }
+        let u = (b[k] - T[k]) / D[k], w = (b[k + 3] - T[k]) / D[k]
+        if (u > w) [u, w] = [w, u]
+        a = Math.max(a, u); z = Math.min(z, w)
+        if (a > z) ok = false
+      }
+      if (ok && a < best) best = a
+    }
+    return best
+  }
+  const 첫 = 처음(자리(원.pit, 원.d))
+  if (!Number.isFinite(첫)) return { pit: 원.pit, d: 원.d, 가림: false }
+  for (let pit = 원.pit + 0.12; pit <= 1.25 + 1e-9; pit += 0.12) if (!Number.isFinite(처음(자리(pit, 원.d)))) return { pit, d: 원.d, 가림: true }
+  const p2 = Math.max(원.pit, 1.25), t = 처음(자리(p2, 원.d))
+  return { pit: p2, d: Number.isFinite(t) ? Math.max(1.6, 원.d * t - 0.3) : 원.d, 가림: true }
 }

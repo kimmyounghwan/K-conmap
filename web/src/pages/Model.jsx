@@ -84,6 +84,16 @@ export default function Model() {
   const [glErr, setGlErr] = useState('')
   const [크게, set크게] = useState(false)
   const [도면상태, set도면상태] = useState(null)       // 📐 G389 {k: busy|err, 글}
+  /* 🔧 G454 (2026-10-29 소장님 캡처 «적산컨맵 왜 이러지?» — 토목 탭 예시에서 브라우저 창 «k-conmap.com의 메시지» 가 뜨고 띠는 «93%» 로 멈춰 보임)
+       도면을 다 읽은 뒤 «건축 탭 골조 모델도 바꿀까요?» 를 브라우저 창(window.confirm) 대신 화면 안에서 «예, 바꾸기 · 아니오, 그대로» 로 물음 */
+  const [물음, set물음] = useState(null)               // {글, 답}
+  const 묻기 = (글) => new Promise((res) => set물음({ 글, 답: (v) => { set물음(null); res(v) } }))
+  const 물음판 = 물음 && (
+    <div className="gmd-askbox" role="alertdialog" aria-label="물음">
+      <div>❓ {물음.글}</div>
+      <div className="gmd-row"><button type="button" className="btn sm" onClick={() => 물음.답(true)}>예, 바꾸기</button><button type="button" className="btn line sm" onClick={() => 물음.답(false)}>아니오, 그대로</button></div>
+    </div>
+  )
   const [도면결과, set도면결과] = useState(null)       // 📐 G389 {못옮김, 도면: {합, 종}, 부재수, 경고, 이름}
   const 도면Ref = useRef(null)
   const 원료Ref = useRef(null)                          // 📚 G391 도면함 — 마지막으로 넣은 도면을 한꺼번에 세운 모델(전체) · 읽는 틀(이 화면을 여는 동안만)
@@ -203,7 +213,13 @@ export default function Model() {
       if (r && r.부재수 > 0 && r0.토목) { try { 부스러기 = !(모델셈(정돈({ ...r.M })).합.콘크리트 > 0.001) } catch (e) { 부스러기 = false } }
       const 골조읽음 = !!(r && r.부재수 > 0 && !부스러기)
       if (골조읽음) {
-        if (!M.부재.length || 옵.묻지않음 || window.confirm(옵.물음 || '지금 모델 대신 도면에서 세울까요? (↶ 되돌리기로 돌아올 수 있습니다)')) {
+        let 바꿈 = !M.부재.length || !!옵.묻지않음
+        if (!바꿈) {
+          set도면상태({ k: 'busy', 글: '다 읽음(골조 부재 ' + r.부재수.toLocaleString('ko-KR') + (r0.토목 ? ' · 토목' : '') + ') — 위 물음에 답해 주십시오' })
+          바꿈 = await 묻기(옵.물음 || '지금 모델 대신 도면에서 세울까요? (↶ 되돌리기로 돌아올 수 있습니다)')
+          set도면상태({ k: 'busy', 글: '마무리하는 중' })
+        }
+        if (바꿈) {
           const N = 정돈({ ...r.M, 빠짐: r.못옮김.filter((x) => Array.isArray(x.판)).map((x) => ({ 종류: x.종류, 층: x.층, 기호: x.기호, 까닭: x.까닭, 판: x.판, 높: x.높, 키: x.키 })), 도면함: r.평면 || [], 대조: r.대조 || null, 도면따로: r.따로 || [], 묶음: r0.묶음 })   // 📚 G393 도면함 목록 · 🧾 층별 대조도 모델에 · 🛣🏢 G397 묶음(같이 넣은 토목과 짝)
           setM(N); set층((N.층.find((f) => !FT층(f)) || N.층[0]).이름); if (분야 === '건축') set탭('세우기'); set고른(null)
           원료Ref.current = { 넣기, 전체: N }       // 📚 도면함 — 한꺼번에 세운 모델에서 평면마다 꺼내 옴(하나씩 = 한꺼번에)
@@ -281,6 +297,7 @@ export default function Model() {
       return (
         <div className="page gmd">
           <div className="gmd-ws tmk" ref={작업Ref} role="dialog" aria-label="K-적산컨맵 작업 화면 — 토목">
+            {물음판}
             <Suspense fallback={<div className="gmd-ws-top">{분야칸}<span className="muted">토목 화면 여는 중…</span></div>}>
               <토목판 전체화면={전체화면} 나가기={() => set작업(false)} 분야칸={분야칸} M={M} S={S} 함께넣기={함께넣기} 도면상태={도면상태} set도면상태={set도면상태} 알림={알림} set알림={set알림} 건축으로={() => { set분야('건축'); set탭('세우기') }} />
             </Suspense>
@@ -291,6 +308,7 @@ export default function Model() {
     return (
       <div className="page gmd">
         <div className="gmd-ws" ref={작업Ref} role="dialog" aria-label="K-적산컨맵 작업 화면">
+          {물음판}
           <받기검사판 검사={검사} 닫기={() => set검사(null)} 받기={() => { if (!검사) return; 내려주기(new Blob([검사.바이트], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 검사.이름); 세기('|골조모델|엑셀'); set엑셀받음(true); set검사({ ...검사, 알고: true }) }} />
           <div className="gmd-ws-top">
             {분야칸}
@@ -330,6 +348,7 @@ export default function Model() {
 
   return (
     <div className="page gmd">
+      {물음판}
       <받기검사판 검사={검사} 닫기={() => set검사(null)} 받기={() => { if (!검사) return; 내려주기(new Blob([검사.바이트], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 검사.이름); 세기('|골조모델|엑셀'); set엑셀받음(true); set검사({ ...검사, 알고: true }) }} />
       <div className="card">
         <h1 style={{ margin: 0, fontSize: 20 }}>🧱 골조 모델 — 세우면 물량</h1>
@@ -829,6 +848,19 @@ function 세우기칸(p) {
   }, [M, 보일층, 층, 빨고름, 도면보기])  // eslint-disable-line react-hooks/exhaustive-deps
   const 보임id = useMemo(() => (도면보기 ? new Set(M.부재.filter(보임o).map((o) => o.id)) : null), [M, 도면보기])  // eslint-disable-line react-hooks/exhaustive-deps
   const 보일0 = useMemo(() => {
+    /* 🔧 G454 소장님 «3d 이층까지 이것도 다른 걸 선택하면 작동이 안되는 것 같아» — 뒤에서 보며 걷는 동안 넷이 다 다르게(전엔 «모든 층» · «이 층만» 이면 천장 · 위층이 사람을 덮어 파랗게만 · 맨 아래층은 셋이 같음):
+         모든 층 = 아래층 + 이 층은 그대로, 이 층 천장(보 · 슬라브) · 위층은 비쳐 보이게 / 이 층까지 = 아래층 + 이 층(천장 뺌) / 이 층만 = 이 층 + 발밑 판, 천장은 비쳐 / 이 층(천장 빼고) = 이 층 + 발밑 판 */
+    if (걷기 && 작업 && !걷기눈) {
+      const 천장 = (d) => d.층 === 층 && (d.종류 === '보' || d.종류 === '슬라브')
+      const k = M.층.findIndex((f) => f.이름 === 층)
+      const 아래까지 = new Set(M.층.slice(0, k + 1).map((f) => f.이름))
+      const 발밑층 = k > 0 ? M.층[k - 1].이름 : null
+      const 발밑 = (d) => d.층 === 발밑층 && d.종류 === '슬라브'
+      if (보일층 === '모두') return 덩.map((d) => (아래까지.has(d.층) && !천장(d) ? d : { ...d, 유령: true }))
+      if (보일층 === '이층') return 덩.filter((d) => d.층 === 층 || 발밑(d)).map((d) => (천장(d) ? { ...d, 유령: true } : d))
+      if (보일층 === '벗김') return 덩.filter((d) => (d.층 === 층 && !천장(d)) || 발밑(d))
+      return 덩.filter((d) => 아래까지.has(d.층) && !천장(d))
+    }
     if (보일층 === '모두') return 덩
     if (보일층 === '이층') return 덩.filter((d) => d.층 === 층)
     if (보일층 === '벗김') return 덩.filter((d) => d.층 === 층 && d.종류 !== '보' && d.종류 !== '슬라브')     // 🔍 G393 이 층 안이 보이게(천장 보 · 슬라브 빼고)
@@ -854,7 +886,7 @@ function 세우기칸(p) {
       if (걷기 && 작업 && 확인들.has(d.id) && !d.제안) return d.색.map((c, i) => c * 0.45 + 초[i] * 0.55)     // 🟩 확인한 부재는 초록 쪽으로
       return d.색
     }
-    v.set부재([...보일.map((d) => ({ id: d.id, 판: d.판, z0: d.z0, z1: d.종류 === '슬라브' || d.종류 === '기초' ? d.z1 : d.z1 - 3, 색: 구색(d), ...(d.면 ? { 면: d.면, 선: d.선 } : {}) })), ...빠짐덩], { 바닥: true, 바닥색: 어두움() ? [0.16, 0.18, 0.22] : [0.86, 0.88, 0.90], 바닥z: 걷기 && 작업 ? 걷는바닥 : undefined })
+    v.set부재([...보일.map((d) => ({ id: d.id, 판: d.판, z0: d.z0, z1: d.종류 === '슬라브' || d.종류 === '기초' ? d.z1 : d.z1 - 3, 색: 구색(d), ...(d.면 ? { 면: d.면, 선: d.선 } : {}), ...(d.유령 ? { 비침: 0.22 } : {}) })), ...빠짐덩], { 바닥: true, 바닥색: 어두움() ? [0.16, 0.18, 0.22] : [0.86, 0.88, 0.90], 바닥z: 걷기 && 작업 ? 걷는바닥 : undefined })
     if (!맞춤.current && 보일.length) { v.fit('tilt'); 맞춤.current = true }
     v.set고름(고른 !== null ? [고른] : [])
     v.onPick = (id, e) => { if (걷기누름Ref.current) { 걷기누름Ref.current(id, e); return } if (id >= 0) { set고른(id); 한번세기('|골조모델|3D고름') } else set고른(null) }   // 🖱 둘러보기 중에는 «누른 곳으로 걷기»
@@ -962,7 +994,9 @@ function 세우기칸(p) {
             <select className="gmd-in" value={보일층} onChange={(e) => set보일층(e.target.value)} aria-label="3D 에 보일 층">
               <option value="모두">3D: 모든 층</option><option value="까지">3D: 이 층까지</option><option value="이층">3D: 이 층만</option><option value="벗김">3D: 이 층(천장 빼고)</option>
             </select>
-            {보일층 === '까지' && M.층.length > 1 && M.층[M.층.length - 1].이름 === 층 && <span className="muted gmd-topnote">맨 위층이라 «모든 층» 과 같음 — 이 층만 보려면 «이 층만»</span>}{/* 🔧 G430 소장님 「이층만해도, 모든층해도 다 똑같아」(PH 에서) */}
+            {!(걷기 && 작업 && !걷기눈) && 보일층 === '까지' && M.층.length > 1 && M.층[M.층.length - 1].이름 === 층 && <span className="muted gmd-topnote">맨 위층이라 «모든 층» 과 같음 — 이 층만 보려면 «이 층만»</span>}
+            {걷기 && 작업 && !걷기눈 && (보일층 === '모두' || 보일층 === '이층') && <span className="muted gmd-topnote">걷는 동안 천장{보일층 === '모두' ? ' · 위층' : ''}은 비쳐 보입니다</span>}
+            {걷기 && 작업 && !걷기눈 && 보일층 === '까지' && M.층.findIndex((f) => f.이름 === 층) === 0 && <span className="muted gmd-topnote">맨 아래층이라 «이 층(천장 빼고)» 와 같음</span>}{/* 🔧 G430 소장님 「이층만해도, 모든층해도 다 똑같아」(PH 에서) */}
             <button type="button" className="btn line sm" onClick={() => 보기Ref.current && 보기Ref.current.fit('tilt')}>↗</button>
             <button type="button" className="btn line sm" onClick={() => 보기Ref.current && 보기Ref.current.fit('top')}>⬇ 위</button>
             <button type="button" className={'btn line sm gmd-bigbtn' + (크게 ? ' on' : '')} onClick={() => set크게((v) => !v)}>{크게 ? '⊟ 작게' : '⛶ 크게'}</button>
@@ -1279,7 +1313,7 @@ function 도면함판({ M, setM, 원료Ref, set층, 도면열기, 체크보기 =
       {(M.도면따로 || []).length > 0 && (
         <details className="gmd-lines-d gmd-other">
           <summary>🗂 골조에 안 쓴 도면 {M.도면따로.length}장 — {['토목', '건축', '그 밖'].map((k) => [k, M.도면따로.filter((d) => d.종 === k).length]).filter(([, n]) => n).map(([k, n]) => (k === '토목' ? '🛣 토목 ' : k === '건축' ? '🏠 건축 ' : '📄 ') + n + '장').join(' · ')}</summary>
-          <p className="muted gmd-p">🛣 토목 도면은 작업 화면 «🛣 토목» 탭(준비 중 — STA · TM 좌표 · EL)에서 씁니다 · 🏠 건축 도면은 골조 셈에 안 씀(읽는 시간만 걸림 — 다음엔 구조도면만 넣으셔도 됩니다)</p>
+          <p className="muted gmd-p">🛣 토목 도면은 작업 화면 «🛣 토목» 탭(STA · TM 좌표 · EL)에서 씁니다 · 🏠 건축 도면은 골조 셈에 안 씀(읽는 시간만 걸림 — 다음엔 구조도면만 넣으셔도 됩니다)</p>
           <ul className="gmd-dwglist">{M.도면따로.map((d) => <li key={d.이름} className="muted">{d.종 === '토목' ? '🛣' : d.종 === '건축' ? '🏠' : '📄'} {d.이름.replace(/\.(dwg|dxf)$/i, '')}</li>)}</ul>
         </details>
       )}
