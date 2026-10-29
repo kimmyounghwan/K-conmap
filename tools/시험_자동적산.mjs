@@ -119,10 +119,10 @@ for (const 기기 of 기기들) {
     let 틀 = 0
     산.forEach((r, k) => { const x = 켠[k]; if (!x || r[2] !== x.품명 || !같나(+r[6], x.수량)) { 틀++; if (틀 < 4) console.log('   엑셀', JSON.stringify(r.slice(1, 7)), '화면', x && [x.품명, x.수량]) } })
     봐(!틀, `${기기} ${벌} 엑셀 수량(다시 셈) = 화면 수량`, 틀 ? 틀 + '줄 다름' : '')
-    // 식이 있는 줄(철근 재료표 · 도면 수량표 · 토공)은 살아 있는 식, 도면에서 잰 줄(길이 · 면적 · 개수)은 값
+    // 엑셀은 받기 전 검사를 거쳐 값만으로 받음(식 없음 — 소장님 원칙) · 철근 재료표 · 도면 수량표 · 토공 줄도 값(G449 때 옛 «=식» 기대를 고침)
     const 식행 = 식.slice(1).filter((r) => r[0] !== null)
-    const 식틀 = 식행.filter((r) => /^(철근|도면 수량표|토공)/.test(r[1]) !== (typeof r[6] === 'string' && r[6].startsWith('=')))
-    봐(!식틀.length && 식행.length === 산.length, `${기기} ${벌} 엑셀 수량 칸 — 표·토공 줄은 =식 · 잰 줄은 값`, 식틀.slice(0, 3).map((r) => r[1] + ' ' + r[2] + ' ' + r[6]).join(' | '))
+    const 식틀 = 식행.filter((r) => typeof r[6] === 'string' && r[6].startsWith('='))
+    봐(!식틀.length && 식행.length === 산.length, `${기기} ${벌} 엑셀 수량 칸 — 모든 줄 값(식 없음)`, 식틀.slice(0, 3).map((r) => r[1] + ' ' + r[2] + ' ' + r[6]).join(' | '))
     if (벌 === 'A') {
       const 토 = Object.keys(값).find((n) => n.startsWith('토공'))
       const 합 = 토 && 값[토].find((r) => r[0] === '합계')

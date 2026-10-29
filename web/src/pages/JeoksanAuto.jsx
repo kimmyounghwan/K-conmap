@@ -50,6 +50,7 @@ import { 플랜트다듬기, 플랜트공사 } from '../lib/플랜트기초.js' 
 import 셈방법칸, { 셈방법입히기 } from '../셈방법칸.jsx'
 import { 셈방법고르기 } from '../lib/셈방법.js'   // 🧮 G295 셈 방법(저절로 · 도면 그대로 · 내역서처럼)
 import { 세기 as 쓴수세기 } from '../lib/받은수.jsx'
+import { 나운영자 } from '../lib/운영자.js'   // 🖥 G449 작업 화면(적산컨맵처럼 · 🔒 지금은 소장님 브라우저만)
 import { 셈 as 마감셈 } from '../lib/마감.js'
 import { askAfter } from '../AskComment'
 import 받기검사판, { 엑셀내려주기 } from '../받기검사판.jsx'   // 📋 G444 받기 전 검사
@@ -188,6 +189,28 @@ export default function JeoksanAuto() {
   const [골옮김, set골옮김] = useState('')                          // '' | '묻기' | '됨'
   const [골펼침, set골펼침] = useState('')
   const 파일칸 = useRef(null)
+  /* 🖥 G449 작업 화면(적산컨맵 · BIM 물량 · 골조 · 마감처럼 화면 전체 — 위 막대 · 왼쪽 도면 · 오른쪽 표/물량/대조) · 🔒 운영자(소장님 브라우저)만 단추 · ?ws=1 */
+  const [운영자, set운영자] = useState(false)
+  const [작업, set작업0] = useState(false)
+  const 작업Ref = useRef(null)
+  useEffect(() => {
+    let 살 = true
+    나운영자().then((v) => { if (!살 || !v) return; set운영자(true); try { if (new URLSearchParams(window.location.search).get('ws') === '1') set작업0(true) } catch (e) { /* 주소 못 읽음 */ } }).catch(() => {})
+    return () => { 살 = false }
+  }, [])
+  const set작업 = (v) => {
+    set작업0(v)
+    try { const u = new URL(window.location.href); if (v) u.searchParams.set('ws', '1'); else u.searchParams.delete('ws'); window.history.replaceState(window.history.state, '', u.pathname + u.search + u.hash) } catch (e) { /* 주소 못 바꿈 */ }
+    if (!v && document.fullscreenElement) { try { document.exitFullscreen() } catch (e) { /* 무시 */ } }
+  }
+  useEffect(() => {
+    if (!작업) return
+    쓴수세기('|적산자동|작업화면')
+    const 전 = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = 전 }
+  }, [작업])
+  const 전체화면 = () => { const el = 작업Ref.current; try { if (document.fullscreenElement) document.exitFullscreen(); else if (el && el.requestFullscreen) el.requestFullscreen() } catch (e) { /* 막힘 */ } }
   const 내역칸 = useRef(null)
   const 상자들 = useRef(new Map())
   const 원본들 = useRef((남은판 && 남은판.원본들) || new Map())   // id → {이름, buf} | {예시: 주소} — 창고에 넣을 도면 파일
@@ -705,10 +728,43 @@ export default function JeoksanAuto() {
   const 표수 = 모든표.length
   const 측수 = 파일들.reduce((s, f) => s + f.노선.reduce((t, g) => t + g.점.length, 0), 0)
 
+  /* 🖥 G449 단계(탭) — 보통 화면 · 작업 화면 위 막대가 같은 것을 씀 */
+  const 탭들 = [['산출', '① 물량 전부'], ['골조', '② 골조(보·기둥·슬래브)'], ['대조', '③ 내역 대조'], ['표', '④ 도면의 표'], ['토공', '⑤ 토공'], ['세기', '⑥ 레이어·블록·글자'], ['실', '⑦ 실·마감·창호']]
+  const 탭고르기 = (k) => {
+    set탭(k); set네모잡기(''); set알림({ 글: '' })
+    // 🏗 골조 탭 — 지금 도면에 읽은 부재가 없으면 가장 많이 읽은 도면(구조평면도)을 보여 줌
+    if (k === '골조' && 골 && 골.근거 && 골.근거.length) {
+      const 셈 = new Map(); for (const g of 골.근거) 셈.set(g.번, (셈.get(g.번) || 0) + 1)
+      if (!셈.get(지금)) { const 첫 = [...셈].sort((a, b) => b[1] - a[1])[0]; if (첫) set지금(첫[0]) }
+    }
+  }
+  const 왼쪽있음 = 탭 !== '산출' && 탭 !== '대조'
+  const 짧은탭 = { 산출: '① 물량', 골조: '② 골조', 대조: '③ 대조', 표: '④ 표', 토공: '⑤ 토공', 세기: '⑥ 레이어', 실: '⑦ 실' }   // 위 막대는 한 줄에 들게 짧게(누르면 같은 단계)
+  const 머리있음 = !!((상태 && 상태.k && 상태.k !== 'idle') || 파일들.length > 0 || 지울까)
+  const 작업막대 = (
+    <div className="gg-ws-top no-print">
+      <b className="gg-ws-name"><span className="gg-ws-brand">⚡ 도면 물량 자동</span> <span className="gg-ws-file">{파일들.length ? (파일들[0].이름 + (파일들.length > 1 ? ' 외 ' + (파일들.length - 1) + '장' : '')) : ''}</span></b>
+      <span className="gg-ws-tabs" role="tablist" aria-label="단계">
+        {탭들.map(([k, t]) => (
+          <button key={k} type="button" role="tab" aria-selected={탭 === k} title={t} className={'tp-tab' + (탭 === k ? ' on' : '')} onClick={() => 탭고르기(k)}>{짧은탭[k] || t}</button>
+        ))}
+      </span>
+      <span className="gg-ws-acts">
+        <button type="button" className="btn sm" onClick={() => 파일칸.current?.click()}>📂 도면 넣기</button>
+        <button type="button" className="btn line sm" onClick={() => 내역칸.current?.click()}>📑 내역서 넣기</button>
+        <button type="button" className="btn line sm" onClick={예시열기}>🧪 예시</button>
+        <button type="button" className="btn line sm" onClick={엑셀받기} disabled={!산출.켠줄.length || 받는중}>{받는중 ? '만드는 중…' : '⬇ 엑셀'}</button>
+        <button type="button" className="btn line sm" onClick={전체화면} title="전체 화면(한 번 더 누르면 돌아옴)">⛶ 전체 화면</button>
+        <button type="button" className="btn sm" onClick={() => set작업(false)}>✕ 나가기</button>
+      </span>
+    </div>
+  )
+
   return (
-    <div className="wrap gg ja">
+    <div className={'wrap gg ja' + (작업 ? ' gg-ws' : '')} ref={작업 ? 작업Ref : undefined}>
+      {작업 && 작업막대}
       <받기검사판 검사={받기검사} 닫기={() => set받기검사(null)} 받기={() => { if (!받기검사) return; 엑셀내려주기(받기검사.바이트, 받기검사.이름); askAfter('jeoksan'); set받기검사({ ...받기검사, 알고: true }) }} />
-      <div className="card no-print">
+      <div className={'card no-print gg-ws-head' + (작업 && !머리있음 ? ' gg-ws-hide' : '')}>
         <h1 className="tl-h1" style={{ marginTop: 0 }}>⚡ 도면 물량 자동 <span className="count">· 도면에 그려진 · 적힌 물량 → 엑셀 · 내역서와 대조</span></h1>
         <div className="note sm">
           <b>DWG · DXF 둘 다</b> 넣을 수 있습니다(여러 장). 도면을 «해석» 하지 않고, 파일 안의 <b>좌표 · 글자를 그대로 읽어</b> 셉니다 —
@@ -727,6 +783,7 @@ export default function JeoksanAuto() {
           <button type="button" className="btn sm" onClick={() => 내역칸.current?.click()}>📑 내역서 넣기 (대조 · xlsx·csv)</button>
           <button type="button" className="btn line sm" onClick={예시열기}>🧪 예시로 해 보기</button>
           {산출.켠줄.length > 0 && <button type="button" className="btn ghost sm" disabled={받는중} onClick={엑셀받기}>{받는중 ? '만드는 중…' : '⬇ 엑셀 받기'}</button>}
+          {운영자 && <button type="button" className="btn sm gg-ws-open" onClick={() => set작업(true)} title="적산컨맵처럼 화면 전체로 — 왼쪽 도면, 오른쪽 표 · 물량 · 대조">🖥 작업 화면</button>}
         </div>
         <input ref={파일칸} type="file" multiple accept=".dxf,.DXF,.dwg,.DWG" className="sr-only" tabIndex={-1}
           onChange={(e) => { 열기(e.target.files); e.target.value = '' }} />
@@ -785,26 +842,24 @@ export default function JeoksanAuto() {
       </div>
 
       {플랜트 && (탭 === '산출' || 탭 === '골조' || 탭 === '대조') && (
-        <div className="no-print"><셈방법칸 값={셈방법} 저절로 고른={저절로고른.방법} 까닭={내역 ? 저절로고른.까닭 : ''} 바꾸기={(k) => { set셈방법(k); 쓴수세기('|적산자동|셈방법|' + k) }} /></div>
+        <div className="no-print ja-ws-how"><셈방법칸 값={셈방법} 저절로 고른={저절로고른.방법} 까닭={내역 ? 저절로고른.까닭 : ''} 바꾸기={(k) => { set셈방법(k); 쓴수세기('|적산자동|셈방법|' + k) }} /></div>
       )}
       <div className="tp-tabs no-print" role="tablist">
-        {[['산출', '① 물량 전부'], ['골조', '② 골조(보·기둥·슬래브)'], ['대조', '③ 내역 대조'], ['표', '④ 도면의 표'], ['토공', '⑤ 토공'], ['세기', '⑥ 레이어·블록·글자'], ['실', '⑦ 실·마감·창호']].map(([k, t]) => (
-          <button key={k} type="button" role="tab" aria-selected={탭 === k} className={'tp-tab' + (탭 === k ? ' on' : '')} onClick={() => {
-            set탭(k); set네모잡기(''); set알림({ 글: '' })
-            // 🏗 골조 탭 — 지금 도면에 읽은 부재가 없으면 가장 많이 읽은 도면(구조평면도)을 보여 줌
-            if (k === '골조' && 골 && 골.근거 && 골.근거.length) {
-              const 셈 = new Map(); for (const g of 골.근거) 셈.set(g.번, (셈.get(g.번) || 0) + 1)
-              if (!셈.get(지금)) { const 첫 = [...셈].sort((a, b) => b[1] - a[1])[0]; if (첫) set지금(첫[0]) }
-            }
-          }}>{t}</button>
+        {탭들.map(([k, t]) => (
+          <button key={k} type="button" role="tab" aria-selected={탭 === k} className={'tp-tab' + (탭 === k ? ' on' : '')} onClick={() => 탭고르기(k)}>{t}</button>
         ))}
       </div>
 
+      {/* 🖥 G449 작업 화면 — 왼쪽(도면) · 오른쪽(표 · 물량 · 대조) · 보통 화면에서는 감싸개가 없는 것처럼(display: contents) */}
+      <div className={'gg-ws-body' + (왼쪽있음 ? '' : ' one')}>
+      <div className="gg-ws-l">
       {탭 !== '산출' && 탭 !== '대조' && (
         <도면판 도={도} 찍었다={찍었다} 강조={강조} 네모={!!네모잡기} 네모찍었다={네모찍었다} 네모들={네모들} 가볼곳={가볼곳}
           알림={알림.글} 알림좋음={알림.좋음} 안내={안내} 열기={() => 파일칸.current?.click()} 두점단추={false} 붙음={false}
           빈글="수량표·철근 재료표가 있는 도면, 횡단면도, 평면도를 여세요. 여러 장을 한꺼번에 열어도 됩니다." />
       )}
+      </div>
+      <div className="gg-ws-r">
 
       {탭 === '표' && (
         <div className="card no-print">
@@ -1324,6 +1379,8 @@ export default function JeoksanAuto() {
           <Link className="btn ghost sm" to="/tools/dwgdxf">🔁 DWG → DXF</Link>
           <Link className="btn ghost sm" to="/tools">🧰 도구 모두</Link>
         </div>
+      </div>
+      </div>
       </div>
     </div>
   )

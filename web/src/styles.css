@@ -9577,3 +9577,5 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gg.gg-ws > .mb-card { flex: 0 0 auto; max-height: 26vh; overflow-y: auto; overscroll-behavior: contain; margin: 8px 12px 0; padding: 6px 12px; }
 @media (max-width: 760px) { .gg.gg-ws > .mb-card { max-height: none; } }
 .gg.gg-ws .gg-ws-l .gg-draw { top: 0; }   /* 작업 화면 왼쪽 칸 안에서는 사이트 머리 막대가 없음 — 도면판이 52px 밀려 내려가던 것(G447 골조도) */
+/* 🖥 G449 도면 물량 자동 작업 화면 — 골조 · 마감(G447 · G448)과 같은 꼴(.gg.gg-ws) · 🧮 셈 방법 칸(플랜트)은 위에 얇게 */
+.gg.gg-ws > .ja-ws-how { flex: 0 0 auto; margin: 8px 12px 0; max-height: 18vh; overflow-y: auto; }
