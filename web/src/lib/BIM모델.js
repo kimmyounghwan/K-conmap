@@ -355,7 +355,13 @@ export function 모델만들기(도면들, R, 옵션 = {}) {
         if (종 === '보' || 종 === '벽') {
           const w = 수(종 === '보' ? b && b.폭 : b && b.두께)
           const 축 = z.축
-          if (축 && 축.length === 5) {
+          if (!(축 && 축.length === 5) && z.판 && z.판.length >= 3 && 종 === '벽') {
+            /* 🌙 G461 곡선 벽 — 부채꼴 판(도면 단위) · 길이 = 가운데 반지름 × 각 */
+            o.판 = z.판.map(([x, y]) => [x * kd, y * kd])
+            o.길이 = (수(z.길이) || 0) * kd
+            o.폭 = w > 0 ? w : 0
+            o.곡선 = true
+          } else if (축 && 축.length === 5) {
             const ww = w > 0 ? w : 축[4] * kd
             o.판 = 띠판(축[0] * kd, 축[1] * kd, 축[2] * kd, 축[3] * kd, ww)
             o.길이 = Math.hypot(축[2] - 축[0], 축[3] - 축[1]) * kd

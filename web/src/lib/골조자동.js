@@ -385,8 +385,27 @@ function 준비(모델, k, 번) {
   const 지 = { sx0: [], sy0: [], sx1: [], sy1: [], sly: [] }
   /* 📏 G460 치수(DIMENSION) 도형의 테두리(치수선 · 보조선 · 화살 — 글은 T) · 값(E.val) — 일람 단면 그림의 «세운 치수» 가 어느 높이를 재는지(벽 밑에서 ADD 끝까지 «1,370») */
   const 치수칸 = new Map()
+  /* 🌙 G461 호(ARC) — 가운데 · 반지름 · 시작 각 · 쓸린 각(반시계) · 층. 곡선 벽(램프 RaW1 — 두 호가 같은 가운데 · 반지름 차 = 두께)을 읽으려고 */
+  const 호 = []
   for (let q = 0; q < Q.e.length; q++) {
     const e = Q.e[q], t = E.t[e]
+    if (t === 종류.호 && Q.pn[q] >= 3) {
+      const s0 = Q.p0[q], n = Q.pn[q]
+      const p = (j) => [P[(s0 + j) * 2] * k, P[(s0 + j) * 2 + 1] * k]
+      const A = p(0), B = p(Math.floor(n / 2)), C = p(n - 1)
+      const d = 2 * (A[0] * (B[1] - C[1]) + B[0] * (C[1] - A[1]) + C[0] * (A[1] - B[1]))
+      if (Math.abs(d) > 1e-6) {
+        const a2 = A[0] * A[0] + A[1] * A[1], b2 = B[0] * B[0] + B[1] * B[1], c2 = C[0] * C[0] + C[1] * C[1]
+        const cx = (a2 * (B[1] - C[1]) + b2 * (C[1] - A[1]) + c2 * (A[1] - B[1])) / d, cy = (a2 * (C[0] - B[0]) + b2 * (A[0] - C[0]) + c2 * (B[0] - A[0])) / d
+        const r = Math.hypot(A[0] - cx, A[1] - cy)
+        const 각 = (Q2) => Math.atan2(Q2[1] - cy, Q2[0] - cx)
+        const TAU = 2 * Math.PI, 앞 = (x) => ((x % TAU) + TAU) % TAU
+        let a0 = 각(A), sw = 앞(각(C) - a0)
+        if (앞(각(B) - a0) > sw) { a0 = 각(C); sw = 앞(각(A) - a0) }     // 점 차례가 시계 방향이면 뒤집음
+        if (r >= 300 && r <= 200000 && sw * r >= 500) 호.push({ e, ly: E.ly[e], cx, cy, r, a0, sw })
+      }
+      continue
+    }
     if (t === 종류.치수) {
       const s = Q.p0[q], n = Q.pn[q]
       let r = 치수칸.get(e); if (!r) 치수칸.set(e, (r = [Infinity, Infinity, -Infinity, -Infinity]))
@@ -569,7 +588,7 @@ function 준비(모델, k, 번) {
   }
   const 치수 = []
   for (const [e, b] of 치수칸) { const v = E.val ? E.val[e] : NaN; if (Number.isFinite(v) && v > 0 && Number.isFinite(b[0] + b[3])) 치수.push({ e, v, b }) }
-  return { 번, k, 모델, sx0, sy0, sx1, sy1, sly, se, slt, 닫힌, 찾기, 글자, 뒤글자, layers, 도곽, 도곽번, 판제목, 해치, 주석가로, 주석세로, 지시D: 지, 치수 }
+  return { 번, k, 모델, sx0, sy0, sx1, sy1, sly, se, slt, 닫힌, 찾기, 글자, 뒤글자, layers, 도곽, 도곽번, 판제목, 해치, 주석가로, 주석세로, 지시D: 지, 치수, 호 }
 }
 
 /** 🧱 G260 열린 선들의 바깥 테두리 — 끝점 붙이기(tol) · 만나는 곳 · T 자리에서 나눔 → 평면 그래프 → 가장 큰 무리의 바깥 면을 오른쪽 돌기로 한 바퀴
@@ -1950,6 +1969,68 @@ function 방향(D, s) { const dx = D.sx1[s] - D.sx0[s], dy = D.sy1[s] - D.sy0[s]
  * 기호 글자 곁의 «나란한 두 선» 띠 찾기
  * @returns {ux, uy, nx, ny, px, py(축 위 한 점), g(폭), 층들:Set, 점수} | null
  */
+/**
+ * 🌙 G461 곡선 벽 — 이름표 곁 «같은 가운데 · 반지름 차 = 두께» 두 호(벽 두 면). 곧은 두 선을 못 찾은 벽 이름표만.
+ *   현장 Y 지하1층 램프 «RaW1»: 바깥 r 7,500 · 7,700 · 안 r 4,700 · 5,000 / 4,800 · 5,000(가운데 같음) — 예전엔 곧은 띠만 찾아 0.4 m 만 셈.
+ *   두 면이 다 있는 각(겹친 각)만 벽 — 가운데 반지름 × 각 = 길이. 같은 가운데 · 끝이 1.5 m 안으로 이어진 다음 짝(같은 두께 규칙)도 같은 벽(기둥에서 끊긴 곳).
+ *   두께: 일람표 값과 ±3 % 면 그대로 · 0.6 ~ 1.45 배면 «그린 폭이 다름»(물량은 일람표 두께 · 길이만 도면). 이름표는 호 띠에서 1.2 m(글자 5 배) 안 · 겹친 각 안(±1.5 m).
+ */
+function 호띠찾기(D, g, 폭) {
+  const 호들 = D.호 || []
+  if (!호들.length || !(폭 > 0)) return null
+  const TAU = 2 * Math.PI, 앞 = (x) => ((x % TAU) + TAU) % TAU
+  const R = Math.max(2000, 12 * g.h, 3 * 폭)
+  const 곁 = 호들.filter((a) => Math.abs(Math.hypot(g.x - a.cx, g.y - a.cy) - a.r) <= R + 폭)
+  const 맞폭 = (gap) => (Math.abs(gap - 폭) <= Math.max(3, 폭 * 0.03) ? 'ok' : gap >= 폭 * 0.6 && gap <= 폭 * 1.45 && gap >= 150 ? '넓게' : '')
+  const 겹각 = (A, B) => {   // A 시작 기준 [s, e] (반시계) — 둘이 같이 있는 각
+    const b0 = 앞(B.a0 - A.a0)
+    const s1 = b0, e1 = b0 + B.sw
+    const 구간 = []
+    for (const [p, q] of [[s1, e1], [s1 - TAU, e1 - TAU]]) { const a = Math.max(0, p), b = Math.min(A.sw, q); if (b > a) 구간.push([a, b]) }
+    if (!구간.length) return null
+    구간.sort((x, y) => (y[1] - y[0]) - (x[1] - x[0]))
+    return [앞(A.a0 + 구간[0][0]), 구간[0][1] - 구간[0][0]]
+  }
+  const 짝들 = (모) => {
+    const out = []
+    for (let i = 0; i < 모.length; i++) for (let j = i + 1; j < 모.length; j++) {
+      const A = 모[i], B = 모[j]
+      if (Math.hypot(A.cx - B.cx, A.cy - B.cy) > 20) continue
+      const gap = Math.abs(A.r - B.r), 꼴 = 맞폭(gap)
+      if (!꼴) continue
+      const o = 겹각(A, B)
+      if (!o) continue
+      const rm = (A.r + B.r) / 2
+      if (o[1] * rm < 500) continue
+      out.push({ A, B, cx: (A.cx + B.cx) / 2, cy: (A.cy + B.cy) / 2, r0: Math.min(A.r, B.r), r1: Math.max(A.r, B.r), rm, a0: o[0], sw: o[1], gap, 다른폭: 꼴 === '넓게', 층들: new Set([A.ly, B.ly]) })
+    }
+    return out
+  }
+  let best = null
+  for (const w of 짝들(곁)) {
+    const d = Math.hypot(g.x - w.cx, g.y - w.cy), 거리 = d >= w.r0 && d <= w.r1 ? 0 : Math.min(Math.abs(d - w.r0), Math.abs(d - w.r1))
+    if (거리 > Math.max(1200, 5 * g.h)) continue
+    const t = 앞(Math.atan2(g.y - w.cy, g.x - w.cx) - w.a0), 밖 = Math.min(t <= w.sw ? 0 : t - w.sw, TAU - t) * w.rm
+    if (밖 > 1500) continue
+    const 점수 = 거리 + 밖 + Math.abs(w.gap - 폭) * (w.다른폭 ? 2 : 10)
+    if (!best || 점수 < best.점수) best = { ...w, 점수 }
+  }
+  if (!best) return null
+  /* 같은 가운데 · 같은 두께 규칙의 이어진 짝(끝과 끝 1.5 m 안 — 기둥 · 문에서 끊긴 곳)도 같은 벽 */
+  const 모두 = 짝들(호들.filter((a) => Math.hypot(a.cx - best.cx, a.cy - best.cy) <= 20)).filter((w) => Math.abs(w.rm - best.rm) <= Math.max(400, 2 * 폭))
+  const 고른 = [best]
+  let 더 = true
+  while (더) {
+    더 = false
+    for (const w of 모두) {
+      if (고른.some((x) => x.A === w.A && x.B === w.B) || 고른.some((x) => 앞(w.a0 - x.a0) < x.sw - 1e-6 && 앞(w.a0 - x.a0) >= 0) || 고른.some((x) => 앞(x.a0 - w.a0) < w.sw - 1e-6)) continue
+      const 틈 = Math.min(...고른.map((x) => Math.min(앞(w.a0 - (x.a0 + x.sw)), 앞(x.a0 - (w.a0 + w.sw))))) * best.rm
+      if (틈 <= 1500) { 고른.push(w); 더 = true }
+    }
+  }
+  return { 짝: 고른, 다른폭: 고른.some((w) => w.다른폭), 층들: new Set(고른.flatMap((w) => [...w.층들])), 점수: best.점수 }
+}
+
 function 띠찾기(D, g, 폭, 최대폭 = 1500, 빼기 = null, 보만 = false) {
   const R = Math.max(2000, (폭 || 600) * 3, 12 * g.h)
   const S = Math.max(1500, 4 * g.h)
@@ -3752,6 +3833,7 @@ function 골조읽기0(도면들0, o = {}) {
       const 기둥수 = new Map(), 기초수 = new Map(), 기둥자리 = new Map(), 기초자리 = new Map()
       const 더하기 = (m, k2, v) => { const a = m.get(k2); if (a) a.push(v); else m.set(k2, [v]) }
       const 보띠 = [], 벽띠 = [], 슬들 = [], 계단들 = [], 보띠하 = []      // 🧭 G405 보띠하 = «(하부)» 보 — 한 층 아래 바닥 것
+      const 호벽 = []      // 🌙 G461 곡선 벽(두 호)
       for (const x of 쓸) {
         const { D, g } = x
         const r = x.r
@@ -3853,6 +3935,17 @@ function 골조읽기0(도면들0, o = {}) {
             }
           }
           if (!띠 && r.종류 === '보') { 띠 = 한선띠찾기(D, g, 폭); if (띠) { const 곳 = 한선보.get(r.기호) || new Set(); 곳.add(D.번 + ':' + Math.round(g.x / 100) + ':' + Math.round(g.y / 100)); 한선보.set(r.기호, 곳) } }
+          /* 🌙 G461 곡선 벽 — 곧은 띠를 찾았어도 이름표가 곡선 벽 두 호 곁이면 그 호도 같은 벽(곧은 토막 + 곡선 토막 · 현장 Y 안쪽 RaW1: 곧은 0.4 m 위 · 호 4,700 · 5,000) */
+          if (r.종류 === '벽') {
+            const 호띠 = 호띠찾기(D, g, 폭)
+            /* 같은 호 짝을 이름표 여럿이 잡으면 더 가까운(점수 작은) 이름표 몫 — 곧은 띠를 이미 가진 이름표(BW1)는 호 곁 다른 이름표(RaW1)에 밀림 */
+            const 이미 = 호띠 ? 호벽.findIndex((v) => v.D === D && v.호띠.짝.some((w) => 호띠.짝.some((u) => u.A === w.A && u.B === w.B))) : -1
+            const 내점수 = 호띠 ? 호띠.점수 + (띠 ? 1000 : 0) : Infinity
+            if (호띠 && 이미 < 0) 호벽.push({ D, g, r: { ...r, 기호: 기 }, 호띠, 폭, 점수: 내점수 })
+            else if (호띠 && 내점수 < 호벽[이미].점수) 호벽[이미] = { D, g, r: { ...r, 기호: 기 }, 호띠, 폭, 점수: 내점수 }
+            if (호띠) for (const l of 호띠.층들) 벽층.add(D.번 + ':' + l)
+            if (호띠 && !띠) continue
+          }
           if (!띠 && globalThis.__못찾음) globalThis.__못찾음.push({ 종: r.종류, 기호: r.기호, 기, 폭, x: g.x, y: g.y, h: g.h, 번: D.번, 제목: t.g ? t.g.s : '', f })
           if (!띠) { 경고.push((r.종류 === '보' ? '보' : '벽') + ' «' + r.기호 + '» 곁에서 폭 ' + (폭 || '?') + 'mm 의 나란한 두 선을 못 찾았습니다 (' + D.번 + '번 도면)'); continue }
           if (띠.다른폭) 경고.push((r.종류 === '보' ? '보' : '벽') + ' «' + r.기호 + '» — 도면의 폭 ' + Math.round(띠.g) + 'mm 가 일람표(' + 폭 + 'mm)와 달라 도면 선으로 길이만 쟀습니다(물량은 일람표 크기)')
@@ -3978,6 +4071,29 @@ function 골조읽기0(도면들0, o = {}) {
         }
       }
       const { 보칸, 벽칸, 슬칸, 빈칸: 빈칸1 } = 평면부재(보띠, 벽띠, 슬들, 기둥층, 보층, 벽층, 배근행, 경고, 근거, f)
+      /* 🌙 G461 곡선 벽 — 짝(두 면이 다 있는 각)마다 토막 하나 · 길이 = 가운데 반지름 × 각 · 3D 는 부채꼴 판(300 mm 마다 꺾음) */
+      if (호벽.length) {
+        const 줄 = [], 글 = []
+        for (const v of 호벽) {
+          const { D, r } = v, k = D.k
+          for (const w of v.호띠.짝) {
+            const 안목 = Math.round(w.rm * w.sw)
+            const n = Math.max(2, Math.ceil((w.sw * w.r1) / 300))
+            const 점 = []
+            for (let i = 0; i <= n; i++) { const a = w.a0 + (w.sw * i) / n; 점.push([w.cx + w.r1 * Math.cos(a), w.cy + w.r1 * Math.sin(a)]) }
+            for (let i = n; i >= 0; i--) { const a = w.a0 + (w.sw * i) / n; 점.push([w.cx + w.r0 * Math.cos(a), w.cy + w.r0 * Math.sin(a)]) }
+            const xs = 점.map((q) => q[0]), ys = 점.map((q) => q[1])
+            const 상자 = [Math.min(...xs) / k, Math.min(...ys) / k, Math.max(...xs) / k, Math.max(...ys) / k]
+            const am = w.a0 + w.sw / 2, mx = w.cx + w.rm * Math.cos(am), my = w.cy + w.rm * Math.sin(am)
+            const 판 = D.도곽 && D.도곽.length ? D.도곽번(mx, my) : -1
+            근거.push({ 번: D.번, 상자, 글: r.기호 + ' 곡선 안목 ' + 안목 })
+            줄.push({ 기호: r.기호, 안목, 좌: 0, 우: 0, 물림: false, 자리: { ...자리만들기(D.이름, 상자), 판: 점.map((q) => [반올림(q[0] / k, 1), 반올림(q[1] / k, 1)]), 길이: 반올림(안목 / k, 1) },
+              _미표기: false, _모서리: false, _같은줄: false, _바탕: false, _다시: false, _근: '', _범례밖: false, _한면: false, _몸: r.몸, _곡선: true, _판: D.번 + '|' + 판 })
+            글.push(r.기호 + ' 반지름 ' + Math.round(w.r0).toLocaleString('en-US') + ' · ' + Math.round(w.r1).toLocaleString('en-US') + ' · ' + Math.round((w.sw * 180) / Math.PI) + '° · ' + (안목 / 1000).toFixed(2) + ' m' + (w.다른폭 ? '(그린 두께 ' + Math.round(w.gap) + ' ↔ 일람 ' + v.폭 + ')' : ''))
+          }
+        }
+        if (줄.length) { 벽칸.push(줄); 경고.push('📐 곡선 벽(같은 가운데 두 호 = 벽 두 면) — ' + 글.join(' · ') + ' — 길이 = 가운데 반지름 × 각(두 면이 다 있는 곳만) · 두께는 일람표 · 3D 에서 자리를 한 번 보아 주세요') }
+      }
       if (빈칸1) 빈칸.push(...빈칸1)
       const 보칸하 = 보띠하.length ? 평면부재(보띠하, [], [], 기둥층, 보층, 벽층, 배근행, 경고, 근거, 아래층(f)).보칸 : []
       /* 🧭 G274 한 계단에 기호가 둘(판마다)이면 한 번만 */
