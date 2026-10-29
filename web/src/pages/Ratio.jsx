@@ -23,6 +23,8 @@
  *    → 「낙찰금액 맞추기」 → 「해줘」 — lib/낙찰맞추기.js 틀그대로():
  *    올린 엑셀의 시트 · 칸 · 서식 · 병합을 그대로 두고 «숫자만 값으로» 갈아 끼움(시트를 붙이지 않음) ·
  *    원가계산서 · 총괄표까지 원본의 요율 · 산출근거로 다시 셈 · 낙찰금액이면 도급액 = 낙찰금액(끝전은 이윤) · A값 · 관급 그대로
+ * ■ 🔧 G453 (2026-10-29 맵톡 «A값의 적용을 선택할 수는 없는지 · 현장마다 퇴직공제 · 환경보전비 등이 안 들어가는 경우») —
+ *    낙찰금액 맞추기에서 «설계금액 그대로» 둘 항목을 올린 원가계산서의 경비 항목마다 체크(처음엔 A값만 켬 · 다른 항목도 켤 수 있음)
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -57,7 +59,8 @@ export default function Ratio() {
 
   const [모드, set모드] = useState('비율')     /* '비율' | '금액' | '낙찰' (G169 — 도급액을 낙찰금액에) */
   const [낙찰글, set낙찰글] = useState('')
-  const [A값그대로, setA값그대로] = useState(true)
+  const [그대로후보, set그대로후보] = useState([])   /* 🔧 G453 원가계산서 경비 항목 [{꼴, 이름, 금액, A값}] */
+  const [그대로고름, set그대로고름] = useState(() => new Set())   /* 설계금액 그대로 둘 항목(꼴) */
   const [틀, set틀] = useState(null)          /* G169 틀그대로 결과 {url, name, 말, 원가줄, 낙} */
   const [비율글, set비율글] = useState('80')
   const [목표글, set목표글] = useState('')
@@ -81,7 +84,7 @@ export default function Ratio() {
 
   const openFile = useCallback(async (f) => {
     if (!f) return
-    setErr(''); setOut(null); set틀(null); set온것(null); set고른시트([]); setFile(null); set관급끔(new Set()); set원가(null)
+    setErr(''); setOut(null); set틀(null); set온것(null); set고른시트([]); setFile(null); set관급끔(new Set()); set원가(null); set그대로후보([]); set그대로고름(new Set())
     /* 🩹 G381 — 구형 엑셀(.xls)도 읽습니다(실제 설계내역서 엑셀 484부 중 48부가 .xls · 전엔 «못 읽습니다» 로 돌려보냄).
          받기는 «새 엑셀 한 벌» 만 — 올린 엑셀 그대로 · 비율 시트 붙여 수식으로는 .xlsx 꼴(zip)이어야 해서 화면이 알립니다. */
     if (!/\.(xlsx|xlsm|xls)$/i.test(f.name)) { setErr('엑셀 파일(.xlsx · .xlsm · .xls)만 됩니다.'); return }
@@ -93,12 +96,14 @@ export default function Ratio() {
       const g = m.격자로읽기(책, f.name)
       /* 🔎 G380 — 같은 파일 원가계산서의 직접노무비(읽은 품목 노무비와 맞춰 봄 · 못 찾으면 맞춰 보기만 건너뜁니다) */
       let 원 = null
-      try { const n = await import('../lib/낙찰맞추기.js'); 원 = n.원가표찾기(책, g.시트들.filter((s) => !/원가/.test(s.시트)).map((s) => s.시트)) } catch (e) { 원 = null }
+      let 후보 = []
+      try { const n = await import('../lib/낙찰맞추기.js'); 원 = n.원가표찾기(책, g.시트들.filter((s) => !/원가/.test(s.시트)).map((s) => s.시트)); 후보 = 원 ? n.그대로후보(원) : [] } catch (e) { 원 = null }
       const 구형 = lib구형(buf)
       setFile({ name: f.name, size: f.size, buf, 구형 })
       if (구형) { try { 세기('|비율|xls') } catch (e) { /* 지나갑니다 */ } }
       set온것(g)
       set원가(원)
+      set그대로후보(후보); set그대로고름(new Set(후보.filter((h) => h.A값).map((h) => h.꼴)))
       set고른시트(m.고를만한시트(g.시트들))
     } catch (e) {
       setErr((e && e.message) || '읽지 못했습니다.')
@@ -151,7 +156,7 @@ export default function Ratio() {
 
   const R = 결과 && 결과.값
   /* 설정이 바뀌면 전에 만든 파일(틀 그대로 · 수식 · 새 엑셀)은 내립니다 — 옛 비율 파일을 받지 않게 */
-  useEffect(() => { set틀(null); setOut(null) }, [모드, 비율글, 목표글, 낙찰글, 단수꼴, 노무고정, 관급그대로, 관급끔, 고른시트, A값그대로])
+  useEffect(() => { set틀(null); setOut(null) }, [모드, 비율글, 목표글, 낙찰글, 단수꼴, 노무고정, 관급그대로, 관급끔, 고른시트, 그대로고름])
 
   const 만들기 = async (어느) => {
     if (!R || !file || !lib) return
@@ -238,7 +243,7 @@ export default function Ratio() {
       try { n = await import('../lib/낙찰맞추기.js') } catch (e) { throw new Error('도구를 불러오지 못했습니다 — 화면을 한 번 새로고침해 주십시오.') }
       const got = n.틀그대로(file.buf, 읽은, {
         단수꼴, 노무고정, 관급그대로, 관급끔,
-        A값그대로: 모드 === '낙찰' ? A값그대로 : false,
+        ...(모드 === '낙찰' && 그대로후보.length ? { 그대로들: [...그대로고름] } : { A값그대로: 모드 === '낙찰' }),
         낙찰금액: 낙찰, 비율: 모드 === '낙찰' ? 0 : R.비율 * 100,
       })
       const 밑 = file.name.replace(/\.(xlsx|xlsm)$/i, '')
@@ -251,7 +256,8 @@ export default function Ratio() {
         if (got.낙.이윤덧 || got.낙.부가덧) 말.push(['끝전', (got.낙.이윤덧 ? '이윤 +' + fmt(got.낙.이윤덧) + '원' : '') + (got.낙.부가덧 ? (got.낙.이윤덧 ? ' · ' : '') + '부가세 ' + (got.낙.부가덧 > 0 ? '+' : '') + fmt(got.낙.부가덧) + '원' : '') + '으로 맞췄습니다'])
       } else 말.push(['비율', pct(got.비율)])
       말.push(['바꾼 칸', fmt(got.바꾼칸) + '칸 — 품목 ' + fmt(got.품목칸) + ' · 공종 머리 ' + fmt(got.머리칸) + ' · 원가 ' + fmt(got.원가칸) + (got.짝칸 ? ' · 총괄표 등 ' + fmt(got.짝칸) : '') + ' · 모두 «값» 으로'])
-      말.push(['그대로 둔 것', '시트 · 칸 · 서식 · 병합 · 인쇄영역 · 글자 칸' + (got.A값줄 ? ' · A값 묶음 품목 ' + fmt(got.A값줄) + '줄' : '') + (got.관급줄 ? ' · 관급 ' + fmt(got.관급줄) + '줄' : '')])
+      if (모드 === '낙찰' && 그대로후보.length) { const 든 = 그대로후보.filter((h) => 그대로고름.has(h.꼴)); 말.push(['설계금액 그대로', 든.length ? 든.map((h) => h.이름).join(' · ') : '없음 — 모든 항목에 비율을 곱했습니다']) }
+      말.push(['그대로 둔 것', '시트 · 칸 · 서식 · 병합 · 인쇄영역 · 글자 칸' + (got.A값줄 ? ' · 설계금액 그대로 둔 묶음의 품목 ' + fmt(got.A값줄) + '줄' : '') + (got.관급줄 ? ' · 관급 ' + fmt(got.관급줄) + '줄' : '')])
       if (!got.원가시트) 말.push(['⚠️ 원가계산서', '원가계산서 시트(비목 · 금액)를 못 찾아 내역서만 고쳤습니다'])
       for (const w of got.경고.slice(0, 12)) 말.push(['⚠️ ' + w[0], w[1]])
       if (got.경고.length > 12) 말.push(['⚠️ 그 밖', fmt(got.경고.length - 12) + '건'])
@@ -536,12 +542,25 @@ export default function Ratio() {
             <div className="note" style={{ marginTop: 10, lineHeight: 1.8 }}>
               🏷 <b>도급액(부가세 포함)이 낙찰금액이 되게</b> 품목 단가에 같은 비율을 곱하고, 원가계산서는 <b>올리신 파일의 요율 · 산출근거 그대로</b> 다시 셉니다.
               원 단위 끝전은 <b>이윤</b>에서 맞춥니다.
-              <div style={{ marginTop: 6 }}>
-                <label className="tlchk" style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-                  <input type="checkbox" checked={A값그대로} onChange={(e) => { setA값그대로(e.target.checked); set틀(null) }} />
-                  <span><b>A값</b>(국민연금 · 건강 · 노인장기요양 · 퇴직공제부금 · 산업안전보건관리비 · 안전관리비 · 품질관리비)은 <b>설계금액 그대로</b></span>
-                </label>
-              </div>
+              {그대로후보.length > 0 ? (
+                <div className="ratio-keep" style={{ marginTop: 6 }}>
+                  <div><b>설계금액 그대로 둘 항목</b> <span className="muted">— 체크한 항목은 비율을 곱하지 않습니다 · 처음엔 A값 항목만 켜 둡니다</span></div>
+                  <div className="ratio-keep-list">
+                    {그대로후보.map((h) => (
+                      <label key={h.꼴} className="tlchk ratio-keep-item">
+                        <input type="checkbox" checked={그대로고름.has(h.꼴)} onChange={(e) => { const on = e.target.checked; set그대로고름((P) => { const n = new Set(P); if (on) n.add(h.꼴); else n.delete(h.꼴); return n }); set틀(null) }} />
+                        <span>{h.이름}{h.A값 && <small className="ratio-keep-a">A값</small>} <span className="muted">{fmt(h.금액)}원</span></span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="ratio-keep-btns">
+                    <button type="button" className="btn line sm" onClick={() => { set그대로고름(new Set(그대로후보.filter((h) => h.A값).map((h) => h.꼴))); set틀(null) }}>A값만</button>
+                    <button type="button" className="btn line sm" onClick={() => { set그대로고름(new Set()); set틀(null) }}>모두 끄기</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="muted" style={{ marginTop: 6 }}>A값(국민연금 · 건강 · 노인장기요양 · 퇴직공제부금 · 산업안전보건관리비 · 안전관리비 · 품질관리비)은 <b>설계금액 그대로</b> 둡니다.</div>
+              )}
             </div>
           )}
           {노무고정 && (

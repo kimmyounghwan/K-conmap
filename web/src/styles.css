@@ -9579,3 +9579,11 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gg.gg-ws .gg-ws-l .gg-draw { top: 0; }   /* 작업 화면 왼쪽 칸 안에서는 사이트 머리 막대가 없음 — 도면판이 52px 밀려 내려가던 것(G447 골조도) */
 /* 🖥 G449 도면 물량 자동 작업 화면 — 골조 · 마감(G447 · G448)과 같은 꼴(.gg.gg-ws) · 🧮 셈 방법 칸(플랜트)은 위에 얇게 */
 .gg.gg-ws > .ja-ws-how { flex: 0 0 auto; margin: 8px 12px 0; max-height: 18vh; overflow-y: auto; }
+
+/* 🔧 G453 낙찰금액 맞추기 — 설계금액 그대로 둘 항목 고르기 */
+.ratio-keep-list { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 6px; }
+.ratio-keep-item { flex: 0 0 auto; }
+.ratio-keep-a { margin-left: 4px; padding: 0 5px; border-radius: 6px; font-size: 11px; background: var(--surface-2); border: 1px solid var(--line); color: var(--muted); }
+.ratio-keep-btns { display: flex; gap: 8px; margin-top: 8px; }
+.ratio-keep-btns .btn { width: auto; }
+@media (max-width: 560px) { .ratio-keep-list { flex-direction: column; gap: 6px; } }
