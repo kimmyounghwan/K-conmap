@@ -21,12 +21,12 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { 셈, 새공사, 예시공사, 실칸, 외벽칸, 창호칸, 재료칸, 창호재료칸, 묶음칸, 묶음종류, 조합칸, 치환칸, 창호조합칸, 부위들, 창호풀기, 창호글, 마감표읽기, 창호표읽기, 일괄바꾸기, 비교, 엑셀 } from '../lib/마감.js'
+import { 셈, 새공사, 예시공사, 실칸, 외벽칸, 창호칸, 재료칸, 창호재료칸, 묶음칸, 묶음종류, 조합칸, 치환칸, 창호조합칸, 부위들, 창호풀기, 창호글, 창호표읽기, 일괄바꾸기, 비교, 엑셀 } from '../lib/마감.js'
 import { 품은도형, 도형글자, 종류 } from '../lib/골조도면.js'
 import { 찍기, 두점더하기, 도움글, 수글 } from '../lib/찍기.js'
 import { 표찾기 } from '../lib/도면자동.js'
 import { 줄자리, 도형상자, 모은상자, 누른줄들 } from '../lib/도면오가기.js'
-import { 마감자동, 판닻, 도형점 } from '../lib/도면전부.js'
+import { 마감자동, 판닻, 도형점, 마감표모음, 마감표짝 } from '../lib/도면전부.js'
 import { 벽방찾기, 막는도형, 막는토막, 안 as 고리안 } from '../lib/방찾기.js'   // 🧊 2026-10-16 닫힌 선 없는 방도 눌러 재기
 import { use도면, 도면판, 도면상태줄 } from '../도면판.jsx'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
@@ -330,7 +330,7 @@ export default function Magam() {
 
   /* ── 도면의 표로 채우기 ── */
   const 도면표 = useMemo(() => (모델 ? 표찾기(모델) : []), [모델])
-  const 읽은마감 = useMemo(() => 마감표읽기(도면표), [도면표])
+  const 읽은마감 = useMemo(() => (모델 ? 마감표모음(모델, 도면표) : []), [모델, 도면표])   // 🧱 G448b 칸 선 격자 큰 표도(상세번호 기호 · 바탕 · 마감 재료)
   const 읽은창호 = useMemo(() => 창호표읽기(도면표), [도면표])
   useEffect(() => {
     if (!자동대기 || !모델 || 모델 === 자동대기.옛) return
@@ -338,7 +338,11 @@ export default function Magam() {
     set자동대기(null)
     let R
     try { R = 마감자동(모델, { k: (단위 && 단위.k) || 1, 끈층, 표들: 도면표, 이름: 도.도면이름, 옛: 공사 }) } catch (e) { set자동알림({ 글: '도면에서 방을 읽다 멈췄습니다 (' + e.message + ')', warn: true }); return }
-    if (!R.공사) { set자동알림({ 글: '이 도면에서 방(실 이름 글자를 품은 닫힌 선 · 벽으로 막힌 칸)을 찾지 못했습니다 — ③ 실에서 면적 칸을 누르고 방 안을 누르십시오.', warn: true }); set탭('실'); return }
+    if (!R.공사) {
+      /* 🧱 G448b 방은 없고 실내재료마감표만 있는 도면(마감표 장) — 앞서 넣은 평면의 같은 이름 방에 저절로 채움(빈 칸만 · 적어 둔 것은 그대로) */
+      if (읽은마감.length) { const 된 = 마감표로채우기(); set표채움(''); set자동알림({ 글: '⚡ 이 도면은 방이 아니라 실내재료마감표입니다 — ' + 된.말, warn: !된.맞춘 && !된.새줄 }); set탭(된.맞춘 ? '결과' : '실'); return }
+      set자동알림({ 글: '이 도면에서 방(실 이름 글자를 품은 닫힌 선 · 벽으로 막힌 칸)을 찾지 못했습니다 — ③ 실에서 면적 칸을 누르고 방 안을 누르십시오.', warn: true }); set탭('실'); return
+    }
     if (!예시로 && (공사.실 || []).some((r) => String(r.실명 || '').trim() || String(r.면적 || '').trim())) { set자동묻기({ R }); set자동알림(null); return }
     자동넣기(R)
   }, [자동대기, 모델])   // eslint-disable-line react-hooks/exhaustive-deps
@@ -352,19 +356,55 @@ export default function Magam() {
     set탭(m.마감표 ? '결과' : '실')
   }
   useEffect(() => { if (도.도면상태 && 도.도면상태.k === 'err') set자동대기(null) }, [도.도면상태])   // 못 읽은 도면이면 기다림을 거둠
+  /** 🧱 G448b 실내재료마감표 → ③ 실(같은 이름 방의 빈 칸만 · 같은 이름이 여러 층이면 층으로 고름 · 못 고르면 비움) + ① 마감표(새 기호 · 도면의 바탕 · 마감 재료)
+   *   ③ 실이 비었으면 표의 실을 줄로 더함(면적·둘레는 평면을 넣으면) · 셈 글을 돌려줌(그 자리에서 셈 — 예전엔 set공사 안에서 세어 늘 0 이라 적혔음) */
   const 마감표로채우기 = () => {
-    let 채움 = 0, 새줄 = 0
-    set공사((P) => {
-      const 실 = [...P.실]
-      for (const m of 읽은마감) {
-        const 같은 = 실.findIndex((r) => String(r.실명 || '').replace(/\s/g, '') === m.실명.replace(/\s/g, ''))
-        const 넣 = { 바닥: m.바닥, 걸레받이: m.걸레받이, 벽: m.벽, 천장: m.천장, 천장고: m.천장고 }
-        if (같은 >= 0) { const r = { ...실[같은] }; for (const [kk, v] of Object.entries(넣)) if (v && !String(r[kk] || '').trim()) { r[kk] = v; 채움++ } 실[같은] = r }
-        else { 실.push({ 층: m.층 || '', 실명: m.실명, 개수: '1', ...넣 }); 새줄++ }
+    const P = 공사
+    const 짝 = 마감표짝(읽은마감)
+    const 넣칸 = ['바닥', '걸레받이', '벽', '천장', '천장고']
+    const 실 = (P.실 || []).map((r) => ({ ...r }))
+    const 이름있음 = 실.some((r) => String(r.실명 || '').trim())
+    const 쓴 = new Set()
+    let 채움 = 0, 맞춘 = 0, 새줄 = 0
+    const 여럿 = []
+    if (이름있음) {
+      for (const r of 실) {
+        const 이름 = String(r.실명 || '').trim()
+        if (!이름) continue
+        const a = 짝(이름, r.층)
+        if (!a) continue
+        if (a.여럿) { 여럿.push(이름); for (const m of a.여럿) 쓴.add(m); continue }
+        const m = a.m
+        쓴.add(m); 맞춘++
+        for (const kk of 넣칸) if (m[kk] && !String(r[kk] || '').trim()) { r[kk] = m[kk]; 채움++ }
+        if (m.비고 && !String(r.비고 || '').includes(m.비고)) r.비고 = (String(r.비고 || '').trim() ? r.비고 + ' · ' : '') + m.비고
       }
-      return { ...P, 실 }
-    })
-    set표채움('실내재료마감표 ' + 읽은마감.length + '줄을 읽어 실 ' + 새줄 + '줄을 더하고 빈 칸 ' + 채움 + '개를 채웠습니다. 면적·둘레는 «⚡ 지금 연 도면으로 다시 자동 채우기» 를 누르면 방마다 저절로 들어갑니다.')
+    } else {
+      for (const m of 읽은마감) { 쓴.add(m); 실.push({ 층: m.층 || '', 실명: m.실명, 개수: '1', 바닥: m.바닥, 걸레받이: m.걸레받이, 벽: m.벽, 천장: m.천장, 천장고: m.천장고, ...(m.비고 ? { 비고: m.비고 } : {}) }); 새줄++ }
+    }
+    /* ① 마감표 — 쓴 줄의 새 기호만(적어 둔 기호는 그대로) */
+    const 마감 = [...(P.마감 || [])]
+    const 있는 = new Set(마감.map((x) => String(x.부위 || '') + '|' + String(x.기호 || '').toUpperCase()))
+    let 새기호 = 0
+    const 단위표 = { 바닥: 'm2', 걸레받이: 'm', 벽: 'm2', 천장: 'm2' }
+    for (const m of 쓴) for (const 부위 of ['바닥', '걸레받이', '벽', '천장']) {
+      const v = String(m[부위] || '').trim()
+      if (!v || /^[-—–]$/.test(v)) continue
+      const 열 = 부위 + '|' + v.toUpperCase()
+      if (있는.has(열)) continue
+      있는.add(열); 새기호++
+      const 표마감 = m.마감들 && m.마감들[부위]
+      마감.push(표마감 ? { 기호: v, 부위, 이름: 표마감.이름, 재료: 표마감.재료.map((x) => ({ ...x })) } : { 기호: v, 부위, 이름: v, 재료: [{ 재료: /^[A-Z]{1,3}-?\d{1,3}$/i.test(v) ? 부위 + ' 마감 ' + v : v, 규격: '', 단위: 단위표[부위], 계수: '1' }] })
+    }
+    set공사({ ...P, 실, 마감 })
+    const 표에만 = [...new Set(읽은마감.filter((m) => !쓴.has(m)).map((m) => m.실명))]
+    const 말 = 이름있음
+      ? '실내재료마감표 ' + 읽은마감.length + '줄을 읽어 ③ 실의 같은 이름 방 ' + 맞춘 + '곳에 빈 칸 ' + 채움 + '개를 채웠습니다' + (새기호 ? ' · ① 마감표에 새 기호 ' + 새기호 + '개(도면의 바탕 · 마감 재료)' : '') + '.' +
+        (여럿.length ? ' 같은 이름이 여러 층에 있어 못 고른 방 ' + 여럿.length + '곳(' + 여럿.slice(0, 6).join(' · ') + (여럿.length > 6 ? ' …' : '') + ') — ③ 실의 층 칸을 적고 다시 누르십시오.' : '') +
+        (표에만.length ? ' 평면에 없는 표의 실 ' + 표에만.length + '개(' + 표에만.slice(0, 6).join(' · ') + (표에만.length > 6 ? ' …' : '') + ')는 더하지 않았습니다.' : '')
+      : '실내재료마감표 ' + 읽은마감.length + '줄을 ③ 실에 더했습니다' + (새기호 ? ' · ① 마감표에 새 기호 ' + 새기호 + '개' : '') + '. 면적·둘레는 평면도를 «⚡ 도면 넣기» 로 넣으면 방마다 저절로 들어갑니다.'
+    set표채움(말)
+    return { 말, 맞춘, 새줄 }
   }
   const 창호표로채우기 = () => {
     let 더 = 0
@@ -470,7 +510,7 @@ export default function Magam() {
         {모델 && (읽은마감.length > 0 || 읽은창호.length > 0) && (
           <div className="ja-sum">
             📋 도면에서 찾은 표 —{' '}
-            {읽은마감.length > 0 && <>실내재료마감표 {읽은마감.length}줄 <button type="button" className="chip" onClick={마감표로채우기}>실 표 채우기</button></>}
+            {읽은마감.length > 0 && <>실내재료마감표 {읽은마감.length}줄 <button type="button" className="chip" onClick={() => 마감표로채우기()}>실 표 채우기</button></>}
             {읽은마감.length > 0 && 읽은창호.length > 0 && ' · '}
             {읽은창호.length > 0 && <>창호일람표 {읽은창호.length}개 <button type="button" className="chip" onClick={창호표로채우기}>창호표 채우기</button></>}
           </div>
