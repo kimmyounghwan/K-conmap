@@ -28,6 +28,7 @@ import { 도면함끄기, 도면함켜기, 도면함넣어둠 } from '../lib/도
 import { 새모델, 예시모델, 작업예시모델, 정돈, 겹침둠, 겹침남기기, 겹침물을짝, 큰무리빼기, 정리할것, 무더기빼기, 사선넣기, 사선끝, 띠판, 기둥넣기, 선넣기, 칸넣기, 계단넣기, 부재옮기기, 구간넣기, 구간빼기, 구간고치기, 구간물량, 구간선자르기, 구간색들, 부재빼기, 부재고치기, 부재나누기, 층복사, 통심더하기, 통심빼기, 통심간격, 모델셈, 종류색, 부재글, 모델시트, FT층, 층높이, 제안확인, 제안모두확인, 제안빼기, 기초철근넣기, 계단글 } from '../lib/골조모델.js'
 import 둘러보기판 from '../둘러보기판.jsx'
 import 받기검사판 from '../받기검사판.jsx'
+import 적산컨맵설명서 from '../적산컨맵설명서.jsx'
 import { 층판 } from '../lib/둘러보기.js'
 import { 길잡이 } from '../lib/도우미.js'
 import { 부재보기 } from '../lib/bim3d.js'
@@ -87,6 +88,15 @@ export default function Model() {
   /* 🔧 G454 (2026-10-29 소장님 캡처 «적산컨맵 왜 이러지?» — 토목 탭 예시에서 브라우저 창 «k-conmap.com의 메시지» 가 뜨고 띠는 «93%» 로 멈춰 보임)
        도면을 다 읽은 뒤 «건축 탭 골조 모델도 바꿀까요?» 를 브라우저 창(window.confirm) 대신 화면 안에서 «예, 바꾸기 · 아니오, 그대로» 로 물음 */
   const [물음, set물음] = useState(null)               // {글, 답}
+  /* 📘 G456 (2026-10-29 소장님 «적산컨맵 사용설명서 자세히 적어서 올려» · «펴기 접기 만들어서») — 작업 화면 위 막대 «📘 설명서» → 오른쪽 판 */
+  const [설명서, set설명서] = useState(false)
+  useEffect(() => { if (!설명서) return undefined; const k = (e) => { if (e.key === 'Escape') set설명서(false) }; window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k) }, [설명서])
+  const 설명서판 = 설명서 && (
+    <>
+      <div className="kcm-help-back" onClick={() => set설명서(false)} aria-hidden="true" />
+      <div className="kcm-help-dlg" role="dialog" aria-label="K-적산컨맵 사용설명서"><적산컨맵설명서 닫기={() => set설명서(false)} /></div>
+    </>
+  )
   const 묻기 = (글) => new Promise((res) => set물음({ 글, 답: (v) => { set물음(null); res(v) } }))
   const 물음판 = 물음 && (
     <div className="gmd-askbox" role="alertdialog" aria-label="물음">
@@ -111,6 +121,8 @@ export default function Model() {
   /* 🖥 G388 작업 화면(크게 · 왼쪽 도구 · 가운데 3D · 오른쪽 물량) */
   /* 🔓 G450 (2026-10-29 소장님 «오픈 하자») — 작업 화면을 모두에게 엶(전엔 소장님 브라우저만) · ?ws=1 로 바로 열림 */
   const [작업, set작업0] = useState(() => { try { return new URLSearchParams(window.location.search).get('ws') === '1' } catch (e) { return false } })
+  /* 📘 적산 첫 화면 «📘 사용설명서» (/jeoksan/model#kcm-help) — 보통 화면 아래 설명서 카드로 내려감 */
+  useEffect(() => { if (작업 || window.location.hash !== '#kcm-help') return undefined; const t = setTimeout(() => { const el = document.getElementById('kcm-help'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, 400); return () => clearTimeout(t) }, [작업])
   const 작업Ref = useRef(null)
   const set작업 = (v) => {
     set작업0(v)
@@ -291,6 +303,7 @@ export default function Model() {
         <span className="gmd-ws-field" role="tablist" aria-label="분야">
           {[['건축', '🏢 건축'], ['토목', '🛣 토목']].map(([k, t]) => <button key={k} type="button" role="tab" aria-selected={분야 === k} className={'gmd-field' + (분야 === k ? ' on' : '')} onClick={() => set분야(k)}>{t}</button>)}
         </span>
+        <button type="button" className="btn line sm gmd-helpbtn" onClick={() => set설명서(true)} title="K-적산컨맵 사용설명서">📘 설명서</button>
       </>
     )
     if (분야 === '토목') {
@@ -298,6 +311,7 @@ export default function Model() {
         <div className="page gmd">
           <div className="gmd-ws tmk" ref={작업Ref} role="dialog" aria-label="K-적산컨맵 작업 화면 — 토목">
             {물음판}
+            {설명서판}
             <Suspense fallback={<div className="gmd-ws-top">{분야칸}<span className="muted">토목 화면 여는 중…</span></div>}>
               <토목판 전체화면={전체화면} 나가기={() => set작업(false)} 분야칸={분야칸} M={M} S={S} 함께넣기={함께넣기} 도면상태={도면상태} set도면상태={set도면상태} 알림={알림} set알림={set알림} 건축으로={() => { set분야('건축'); set탭('세우기') }} />
             </Suspense>
@@ -309,6 +323,7 @@ export default function Model() {
       <div className="page gmd">
         <div className="gmd-ws" ref={작업Ref} role="dialog" aria-label="K-적산컨맵 작업 화면">
           {물음판}
+          {설명서판}
           <받기검사판 검사={검사} 닫기={() => set검사(null)} 받기={() => { if (!검사) return; 내려주기(new Blob([검사.바이트], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 검사.이름); 세기('|골조모델|엑셀'); set엑셀받음(true); set검사({ ...검사, 알고: true }) }} />
           <div className="gmd-ws-top">
             {분야칸}
@@ -380,6 +395,7 @@ export default function Model() {
       {탭 === '일람' && <일람칸들 M={M} setM={setM} />}
       {탭 === '세우기' && 세움칸(false)}
       {탭 === '물량' && <물량칸 M={M} S={S} 엑셀받기={엑셀받기} 받는중={받는중} set탭={set탭} set고른={set고른} set층={set층} />}
+      <div className="card kcm-help-card" id="kcm-help"><적산컨맵설명서 /></div>
     </div>
   )
 }

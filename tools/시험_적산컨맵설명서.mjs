@@ -1,0 +1,71 @@
+// 🧪 G456 (2026-10-29) K-적산컨맵 사용설명서 화면 시험 — 화면 빌드를 얹은 뒤  B=http://127.0.0.1:포트 node tools/시험_적산컨맵설명서.mjs [PC|폰]
+//   적산 첫 화면 «📘 사용설명서» 링크 — 보통 화면 카드 · 작업 화면 📘 설명서(건축 · 토목) · 펴기 · 접기 · 모두 펴기 · 모두 접기 · 닫기(✕ · Esc · 바깥) · 폰 넘침 없음
+import { createRequire } from 'module'
+import fs from 'fs'
+const require = createRequire('/tmp/g10/pw/package.json')
+const { chromium } = require('playwright')
+const 주소 = process.env.B || 'http://127.0.0.1:4998', 기기 = process.argv[2] || 'PC'
+const O = process.env.CAP || `/tmp/kcm_help_cap/${기기}`; fs.mkdirSync(O, { recursive: true })
+const 브 = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'] })
+const 폰 = 기기 === '폰'
+const c = await 브.newContext({ viewport: 폰 ? { width: 390, height: 844 } : { width: 1476, height: 812 }, locale: 'ko-KR', isMobile: 폰, hasTouch: 폰 })
+await c.route(/googletagmanager|google-analytics|pagead2|adsbygoogle|geojs|firebaseio/, (r) => r.fulfill({ status: 200, body: '' }))
+await c.addInitScript(() => { localStorage.setItem('kcm_notice_seen', '2026-10-필독'); try { sessionStorage.setItem('kcm_notice_seen', '2026-10-업체') } catch (e) {} })
+const p = await c.newPage(); const 오류 = []; p.on('pageerror', (e) => 오류.push(String(e).slice(0, 300)))
+let ok = 0, bad = 0; const 봐 = (cnd, 말, 더 = '') => { if (cnd) ok++; else bad++; console.log(cnd ? '✓' : '✗', 말, cnd ? '' : String(더).slice(0, 400)) }
+const 넘침 = () => p.evaluate(() => document.documentElement.scrollWidth - innerWidth)
+const 상태 = (sel) => p.evaluate((sel) => { const r = document.querySelector(sel); if (!r) return null; const d = [...r.querySelectorAll('details.kcm-help-sec')]; return { 수: d.length, 열림: d.filter((x) => x.open).length, 제목: d.map((x) => x.querySelector('summary').textContent) } }, sel)
+/* ⓪ 적산 첫 화면 «📘 사용설명서» → 설명서 카드로 내려감 */
+await p.goto(`${주소}/jeoksan`, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(2500)
+await p.locator('a.kcm-hero-help').click(); await p.waitForTimeout(2500)
+const 카 = await p.evaluate(() => { const e = document.getElementById('kcm-help'); if (!e) return null; const r = e.getBoundingClientRect(); return [Math.round(r.top), innerHeight, location.pathname + location.hash] })
+봐(카 && 카[0] >= -5 && 카[0] < 카[1] * 0.6 && /\/jeoksan\/model#kcm-help/.test(카[2]), `${기기} 적산 «📘 사용설명서» → 설명서 카드가 화면에(top ${카 && 카[0]})`, JSON.stringify(카))
+/* ① 보통 화면 */
+await p.goto(`${주소}/jeoksan/model`, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(3000)
+let s = await 상태('.kcm-help-card')
+봐(s && s.수 >= 15 && s.열림 === 0, `${기기} 보통 화면 — 설명서 꼭지 ${s && s.수}개 · 처음엔 모두 접힘`, JSON.stringify(s))
+console.log('    꼭지', s && s.제목.join(' / '))
+await p.locator('.kcm-help-card summary', { hasText: '🚶 둘러보기' }).click(); await p.waitForTimeout(300)
+s = await 상태('.kcm-help-card'); const 둘 = await p.evaluate(() => [...document.querySelectorAll('.kcm-help-card details')].find((d) => /둘러보기/.test(d.querySelector('summary').textContent)).innerText)
+봐(s.열림 === 1 && /계단을 걸어 올라가고 내려갑니다/.test(둘), `${기기} 꼭지 하나 누르면 펴짐(둘러보기 — 계단 오르내림 글)`, JSON.stringify(s))
+await p.locator('.kcm-help-card summary', { hasText: '🚶 둘러보기' }).click(); await p.waitForTimeout(300)
+s = await 상태('.kcm-help-card'); 봐(s.열림 === 0, `${기기} 다시 누르면 접힘`)
+await p.locator('.kcm-help-card button', { hasText: '모두 펴기' }).click(); await p.waitForTimeout(300)
+s = await 상태('.kcm-help-card'); 봐(s.열림 === s.수, `${기기} 모두 펴기 — ${s.열림}/${s.수}`)
+봐(await 넘침() <= 1, `${기기} 다 편 채 가로 넘침 없음`, await 넘침())
+const 글 = await p.evaluate(() => document.querySelector('.kcm-help-card').innerText)
+봐(!/무료|클로드|Claude|이용권|값만|수식 없이/.test(글), `${기기} 쓰지 않는 말(무료 · 클로드 · 이용권 · 값만) 없음`, (글.match(/무료|클로드|Claude|이용권|값만|수식 없이/g) || []).join(','))
+await p.locator('.kcm-help-card').screenshot({ path: `${O}/1_보통_모두펴기.png` })
+await p.locator('.kcm-help-card button', { hasText: '모두 접기' }).click(); await p.waitForTimeout(300)
+s = await 상태('.kcm-help-card'); 봐(s.열림 === 0, `${기기} 모두 접기`)
+/* ② 작업 화면(건축) — 📘 설명서 */
+await p.goto(`${주소}/jeoksan/model?ws=1`, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(3000)
+await p.locator('.gmd-ws .gmd-helpbtn').click(); await p.waitForTimeout(500)
+s = await 상태('.kcm-help-dlg'); 봐(s && s.수 >= 15, `${기기} 작업 화면 📘 설명서 → 오른쪽 판(꼭지 ${s && s.수})`)
+const 판 = await p.evaluate(() => { const r = document.querySelector('.kcm-help-dlg').getBoundingClientRect(); return [Math.round(r.left), Math.round(r.width), Math.round(r.height), innerWidth, innerHeight] })
+봐(판[1] <= 판[3] && 판[2] >= 판[4] - 2, `${기기} 판이 화면 안(폭 ${판[1]} · 높이 ${판[2]})`, JSON.stringify(판))
+await p.locator('.kcm-help-dlg summary', { hasText: '📐 도면 넣기' }).click(); await p.waitForTimeout(300)
+await p.screenshot({ path: `${O}/2_작업_설명서.png` })
+await p.keyboard.press('Escape'); await p.waitForTimeout(300)
+봐(!(await p.$('.kcm-help-dlg')), `${기기} Esc 로 닫힘`)
+if (!폰) {   /* 폰은 판이 화면 가득 — 바깥이 없음(✕ 닫기) */
+  await p.locator('.gmd-ws .gmd-helpbtn').click(); await p.waitForTimeout(300)
+  await p.mouse.click(10, 300); await p.waitForTimeout(300)
+  봐(!(await p.$('.kcm-help-dlg')), `${기기} 바깥을 누르면 닫힘`)
+}
+await p.locator('.gmd-ws .gmd-helpbtn').click(); await p.waitForTimeout(300)
+await p.locator('.kcm-help-dlg button', { hasText: '✕ 닫기' }).click(); await p.waitForTimeout(300)
+봐(!(await p.$('.kcm-help-dlg')), `${기기} ✕ 닫기`)
+/* ③ 토목 탭에서도 */
+await p.evaluate(() => [...document.querySelectorAll('.gmd-field')].find((b) => /토목/.test(b.textContent)).click()); await p.waitForTimeout(2500)
+await p.locator('.gmd-ws .gmd-helpbtn').click(); await p.waitForTimeout(500)
+s = await 상태('.kcm-help-dlg'); 봐(s && s.수 >= 15 && s.제목.some((t) => /토목 탭/.test(t)), `${기기} 토목 탭에서도 📘 설명서`)
+await p.locator('.kcm-help-dlg button', { hasText: '모두 펴기' }).click(); await p.waitForTimeout(300)
+s = await 상태('.kcm-help-dlg'); 봐(s.열림 === s.수, `${기기} 판에서 모두 펴기`)
+봐(await 넘침() <= 1, `${기기} 판 연 채 가로 넘침 없음`, await 넘침())
+await p.screenshot({ path: `${O}/3_토목_설명서.png` })
+await p.keyboard.press('Escape'); await p.waitForTimeout(300)
+봐(!오류.length, `${기기} 화면 오류 없음`, 오류.join(' | '))
+console.log(`${기기} · ${ok} 맞음 · ${bad} 틀림`)
+await 브.close()
+process.exit(bad ? 1 : 0)

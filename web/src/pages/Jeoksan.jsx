@@ -157,6 +157,7 @@ function 컨맵카드() {
           <li>📊 콘크리트 · 거푸집 · 철근 산출서를 엑셀로</li>
         </ul>
         <Link className="btn kcm-hero-go" to="/jeoksan/model?ws=1">🖥 K-적산컨맵 열기 →</Link>
+        <Link className="kcm-hero-help" to="/jeoksan/model#kcm-help">📘 사용설명서</Link>
         <받은수 쪽="/jeoksan/model" 봄="/jeoksan/model" className="dlcount" />
       </div>
       <img className="kcm-hero-img" src="/jeoksan/kconmap_hero.jpg" alt="K-적산컨맵 3D 화면 — 가상 예시 건물 안을 걷는 사람" width="960" height="540" loading="lazy" />

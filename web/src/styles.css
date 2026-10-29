@@ -9600,3 +9600,26 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gmd-askbox .gmd-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .gmd-askbox .btn { width: auto; }
 
+/* 📘 G456 K-적산컨맵 사용설명서 — 꼭지마다 펴기 · 접기 */
+.kcm-help { display: flex; flex-direction: column; gap: 6px; color: var(--text, #111); }
+.kcm-help-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.kcm-help-head > b { font-size: 16px; }
+.kcm-help-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.kcm-help-btns .btn { width: auto; }
+.kcm-help-sec { border: 1px solid var(--line, #d0d5dd); border-radius: 10px; background: var(--surface, #fff); }
+.kcm-help-sec > summary { cursor: pointer; padding: 9px 12px; font-weight: 700; font-size: 14px; list-style: none; display: flex; align-items: center; gap: 8px; }
+.kcm-help-sec > summary::-webkit-details-marker { display: none; }
+.kcm-help-sec > summary::before { content: '▸'; color: var(--muted, #64748b); transition: transform .15s; }
+.kcm-help-sec[open] > summary::before { transform: rotate(90deg); }
+.kcm-help-sec[open] > summary { border-bottom: 1px solid var(--line, #e5e7eb); }
+.kcm-help-body { padding: 8px 14px 10px; font-size: 13.5px; line-height: 1.75; }
+.kcm-help-body p { margin: 4px 0; }
+.kcm-help-body ul, .kcm-help-body ol { margin: 4px 0; padding-left: 20px; }
+.kcm-help-body li { margin: 3px 0; }
+.kcm-help-back { position: fixed; inset: 0; background: rgba(15, 23, 42, .28); z-index: 69; }
+.kcm-help-dlg { position: fixed; top: 0; right: 0; bottom: 0; width: min(600px, 100vw); overflow-y: auto; z-index: 70; background: var(--bg, #f6f7f9); box-shadow: -8px 0 28px rgba(0,0,0,.22); padding: 14px 14px 40px; }
+.gmd-helpbtn { width: auto; margin-left: 6px; }
+@media (max-width: 640px) { .kcm-help-dlg { padding: 10px 10px 40px; } .kcm-help-body { font-size: 13px; } }
+.kcm-hero-help { display: inline-block; margin-left: 12px; font-size: 13.5px; font-weight: 600; color: var(--accent, #2563eb); text-decoration: underline; text-underline-offset: 3px; }
+
+.kcm-help-card { scroll-margin-top: 72px; }
