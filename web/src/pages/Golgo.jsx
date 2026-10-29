@@ -41,7 +41,6 @@ import { 줄자리, 도형상자, 모은상자, 누른줄들 } from '../lib/도�
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import 골조3D칸 from '../골조3D칸.jsx'   // 🧊 2026-10-16 (가) ④ 결과 안 3D
 import { 세기 } from '../lib/받은수.jsx'
-import { 나운영자 } from '../lib/운영자.js'   // 🖥 G447 작업 화면(적산컨맵처럼 · 🔒 지금은 소장님 브라우저만)
 import { askAfter } from '../AskComment'
 import 받기검사판, { 엑셀내려주기 } from '../받기검사판.jsx'   // 📋 G444 받기 전 검사
 import { use화면상태 } from '../lib/길기록.js'
@@ -113,15 +112,10 @@ export default function Golgo() {
   const [보는중, set보는중] = useState(null)       // 마우스 올린 도형
   const 파일칸 = useRef(null)
   const 자동칸 = useRef(null)
-  /* 🖥 G447 작업 화면(적산컨맵 · BIM 물량처럼 화면 전체 — 위 막대 · 왼쪽 도면/3D · 오른쪽 표/결과) · 🔒 운영자(소장님 브라우저)만 단추 · ?ws=1 */
-  const [운영자, set운영자] = useState(false)
-  const [작업, set작업0] = useState(false)
+  /* 🖥 G447 작업 화면(적산컨맵 · BIM 물량처럼 화면 전체 — 위 막대 · 왼쪽 도면/3D · 오른쪽 표/결과) · 단추 · ?ws=1 */
+  /* 🔓 G450 (2026-10-29 소장님 «오픈 하자») — 작업 화면을 모두에게 엶(전엔 소장님 브라우저만) · ?ws=1 로 바로 열림 */
+  const [작업, set작업0] = useState(() => { try { return new URLSearchParams(window.location.search).get('ws') === '1' } catch (e) { return false } })
   const 작업Ref = useRef(null)
-  useEffect(() => {
-    let 살 = true
-    나운영자().then((v) => { if (!살 || !v) return; set운영자(true); try { if (new URLSearchParams(window.location.search).get('ws') === '1') set작업0(true) } catch (e) { /* 주소 못 읽음 */ } }).catch(() => {})
-    return () => { 살 = false }
-  }, [])
   const set작업 = (v) => {
     set작업0(v)
     try { const u = new URL(window.location.href); if (v) u.searchParams.set('ws', '1'); else u.searchParams.delete('ws'); window.history.replaceState(window.history.state, '', u.pathname + u.search + u.hash) } catch (e) { /* 주소 못 바꿈 */ }
@@ -511,7 +505,7 @@ export default function Golgo() {
           <button type="button" className="btn line sm" onClick={() => (비었나 ? 예시열기() : set예시묻기(true))}>🧪 예시로 해 보기</button>
           <button type="button" className="btn ghost sm" onClick={() => set탭('결과')}>📊 결과 보기</button>
           {!비었나 && <button type="button" className="btn ghost sm" onClick={() => set지울까(true)}>🗑 새로 시작</button>}
-          {운영자 && <button type="button" className="btn sm gg-ws-open" onClick={() => set작업(true)} title="적산컨맵처럼 화면 전체로 — 왼쪽 도면 · 3D, 오른쪽 표 · 결과">🖥 작업 화면</button>}
+          <button type="button" className="btn sm gg-ws-open" onClick={() => set작업(true)} title="적산컨맵처럼 화면 전체로 — 왼쪽 도면 · 3D, 오른쪽 표 · 결과">🖥 작업 화면</button>
         </div>
         {지울까 && (
           <div className="gg-ask">

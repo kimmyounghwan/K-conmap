@@ -11,7 +11,7 @@
  * ■ 📊 숨은 누적: |골조모델|열기 · 예시 · 세움(그 판 첫 번) · 층복사 · 엑셀 · 저장 · 열기파일 · 3D고름
  * ■ 시험: node tools/시험_골조모델.mjs (lib) · tools/시험_골조모델화면.mjs (화면 PC · 폰)
  * ■ 🖥 G388 작업 화면(적산컨맵 첫걸음 · 2026-10-23) — 소장님 「지금 화면은 작잖아...크게 해주면 안돼?」 · 「잠가놓고 시험해줘. 그리고 내가 볼 수 있게」
- *   🔒 운영자(소장님 브라우저 · lib/운영자.js 나운영자)만 «🖥 작업 화면» 단추 · ?ws=1 로 열림 — 남에게는 단추 · 글 · 주소 모두 없음. 소장님 «열어» 뒤 잠금 풂.
+ *   🔓 G450(2026-10-29 소장님 «오픈 하자») 모두에게 «🖥 작업 화면» 단추 · ?ws=1 로 열림(전엔 운영자 — 소장님 브라우저만).
  *   꼴: 위 막대(이름 · 탭 · 되돌리기 · 예시 · 저장 · 열기 · 엑셀 · ⛶ 전체 화면 · 나가기) / 왼쪽(층 단추 · 도구 · 부호 · 한꺼번에 · 층 복사) / 가운데(🧊 3D · 📐 평면 · ◫ 나란히) / 오른쪽(합 · 고른 부재 · 이 층 표).
  *   3D 바닥에 지금 층 통심을 깖(set배경) — 도면 위에 세우듯. 📊 숨은 누적 |골조모델|작업화면.
  * ■ 📐 G389 «도면 넣기»(작업 화면 · 🔒 운영자만) — 소장님 「캐드 도면 넣으면 … 하나씩 채워가면서」 · 「좌표로 하는 거잖아」
@@ -32,7 +32,6 @@ import { 층판 } from '../lib/둘러보기.js'
 import { 길잡이 } from '../lib/도우미.js'
 import { 부재보기 } from '../lib/bim3d.js'
 import { 확인 as 이용권확인 } from '../lib/이용권.js'
-import { 나운영자 } from '../lib/운영자.js'
 /* 🛣 G396 작업 화면 «토목» 탭 — 노선(STA) · TM 좌표 · EL · 측량점 파일 · 좌표계(따로 불러옴 — 건축만 쓰면 안 받음) */
 const 토목판 = lazy(() => import('../토목판.jsx'))
 const 분야열쇠 = 'kcm.ws.field'
@@ -99,15 +98,10 @@ export default function Model() {
     else if (할곳 === '둘러보기') { set탭('세우기'); set걷기요청((n) => n + 1) }
     else if (String(할곳).startsWith('층:')) { set탭('세우기'); set층(String(할곳).slice(2)); set고른(null) }
   }
-  /* 🖥 G388 작업 화면(크게 · 왼쪽 도구 · 가운데 3D · 오른쪽 물량) — 🔒 지금은 소장님 브라우저(운영자)에서만 보임 · 소장님이 «열어» 하시면 잠금을 풂 */
-  const [운영자, set운영자] = useState(false)
-  const [작업, set작업0] = useState(false)
+  /* 🖥 G388 작업 화면(크게 · 왼쪽 도구 · 가운데 3D · 오른쪽 물량) */
+  /* 🔓 G450 (2026-10-29 소장님 «오픈 하자») — 작업 화면을 모두에게 엶(전엔 소장님 브라우저만) · ?ws=1 로 바로 열림 */
+  const [작업, set작업0] = useState(() => { try { return new URLSearchParams(window.location.search).get('ws') === '1' } catch (e) { return false } })
   const 작업Ref = useRef(null)
-  useEffect(() => {
-    let 살 = true
-    나운영자().then((v) => { if (!살 || !v) return; set운영자(true); try { if (new URLSearchParams(window.location.search).get('ws') === '1') set작업0(true) } catch (e) { /* 주소 못 읽음 */ } }).catch(() => {})
-    return () => { 살 = false }
-  }, [])
   const set작업 = (v) => {
     set작업0(v)
     try { const u = new URL(window.location.href); if (v) u.searchParams.set('ws', '1'); else u.searchParams.delete('ws'); window.history.replaceState(window.history.state, '', u.pathname + u.search + u.hash) } catch (e) { /* 주소 못 바꿈 */ }
@@ -274,7 +268,7 @@ export default function Model() {
       glErr={glErr} setGlErr={setGlErr} 크게={크게} set크게={set크게} 한번세기={한번세기} 작업={작업판} 도면결과={도면결과} set도면결과={set도면결과}
       엑셀받음={엑셀받음} 걷기요청={걷기요청} 길행동={길행동} 원료Ref={원료Ref} 도면열기={() => 도면Ref.current && 도면Ref.current.click()} />
   )
-  if (작업 && 운영자) {
+  if (작업) {
     const 분야칸 = (
       <>
         <b className="gmd-ws-name"><span className="gmd-ws-brand">🏗 K-적산컨맵</span> <span className="gmd-ws-model">{분야 === '토목' ? '토목' : M.이름 || '골조 모델'}</span></b>
@@ -345,7 +339,7 @@ export default function Model() {
         </p>
         <div className="gmd-top">
           <button type="button" className="btn sm" onClick={예시열기}>🧪 가상 예시(2층 라멘조)로 해 보기</button>
-          {운영자 && <button type="button" className="btn sm gmd-ws-open" onClick={() => set작업(true)}>🖥 작업 화면</button>}
+          <button type="button" className="btn sm gmd-ws-open" onClick={() => set작업(true)}>🖥 작업 화면</button>
           <button type="button" className="btn line sm" onClick={새로}>새로</button>
           <button type="button" className="btn line sm" onClick={되돌리기} disabled={!되돌림.length}>↶ 되돌리기</button>
           <button type="button" className="btn line sm" onClick={모델저장}>💾 모델 파일 저장</button>

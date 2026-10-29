@@ -44,7 +44,6 @@ import { askAfter } from '../AskComment'
 import 받기검사판, { 엑셀내려주기 } from '../받기검사판.jsx'   // 📋 G444 받기 전 검사
 import { 끊음펴기들 } from '../lib/조각맞춤.js'   // 🏭 G445
 import { 세기 } from '../lib/받은수.jsx'
-import { 나운영자 } from '../lib/운영자.js'   // 🖥 G446 작업 화면(적산컨맵처럼 · 🔒 지금은 소장님 브라우저만)
 import { 일람표만들기, 일람표시트 } from '../lib/부재일람표.js'
 import { 멈춤감시, 멈춤글 } from '../lib/파일한도.js'
 import { 함목록, 함몸, 함넣기, 함고치기, 함빼기, 함비우기 } from '../lib/도면함.js'   // 📚 G438 도면함(이 브라우저에 남김)
@@ -769,15 +768,10 @@ export default function Bim() {
   const 고른 = 선택 !== null && 선택 < 토목ID ? 부재표.get(선택) : null
   /* 🔎 G280 검수 목록 — 클로드가 짐작한 것(3D 💭) · 만든 일람 값(🤖 배근표 «만든 값»)이 든 부재 */
   const [크게, set크게] = useState(false)
-  /* 🖥 G446 작업 화면(적산컨맵처럼 — 위 막대 · 왼쪽 도면함 · 도구 · 가운데 3D 크게 · 오른쪽 고른 것 · 물량 표) · 🔒 운영자(소장님 브라우저)만 단추 · ?ws=1 */
-  const [운영자, set운영자] = useState(false)
-  const [작업, set작업0] = useState(false)
+  /* 🖥 G446 작업 화면(적산컨맵처럼 — 위 막대 · 왼쪽 도면함 · 도구 · 가운데 3D 크게 · 오른쪽 고른 것 · 물량 표) · 단추 · ?ws=1 */
+  /* 🔓 G450 (2026-10-29 소장님 «오픈 하자») — 작업 화면을 모두에게 엶(전엔 소장님 브라우저만) · ?ws=1 로 바로 열림 */
+  const [작업, set작업0] = useState(() => { try { return new URLSearchParams(window.location.search).get('ws') === '1' } catch (e) { return false } })
   const 작업Ref = useRef(null)
-  useEffect(() => {
-    let 살 = true
-    나운영자().then((v) => { if (!살 || !v) return; set운영자(true); try { if (new URLSearchParams(window.location.search).get('ws') === '1') set작업0(true) } catch (e) { /* 주소 못 읽음 */ } }).catch(() => {})
-    return () => { 살 = false }
-  }, [])
   const set작업 = (v) => {
     set작업0(v)
     try { const u = new URL(window.location.href); if (v) u.searchParams.set('ws', '1'); else u.searchParams.delete('ws'); window.history.replaceState(window.history.state, '', u.pathname + u.search + u.hash) } catch (e) { /* 주소 못 바꿈 */ }
@@ -1400,7 +1394,7 @@ export default function Bim() {
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 예시열기(예시)} disabled={상태.k === 'busy'}>🏢 가상 3층 건물로 해 보기</button>
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { 세기('|BIM물량|예시청사'); 예시열기(예시청사) }} disabled={상태.k === 'busy'}>🏛 가상 청사(지하 1층 · 옹벽)로 해 보기</button>
           {예시토목 && <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 예시열기(예시토목)} disabled={상태.k === 'busy'}>🏞 가상 배수로 · 배수장 + 관리동 · 건물 · 흙막이 한꺼번에</button>}
-          {운영자 && <button type="button" className="btn sm bim-ws-open" onClick={() => set작업(true)} title="적산컨맵처럼 화면 전체로 — 왼쪽 도면함 · 도구, 가운데 3D, 오른쪽 물량">🖥 작업 화면</button>}
+          <button type="button" className="btn sm bim-ws-open" onClick={() => set작업(true)} title="적산컨맵처럼 화면 전체로 — 왼쪽 도면함 · 도구, 가운데 3D, 오른쪽 물량">🖥 작업 화면</button>
         </div>
         {!작업 && 도면함칸}
         {상태.k === 'busy' && <div className="bim-st">⏳ {상태.글}…</div>}

@@ -50,7 +50,6 @@ import { 플랜트다듬기, 플랜트공사 } from '../lib/플랜트기초.js' 
 import 셈방법칸, { 셈방법입히기 } from '../셈방법칸.jsx'
 import { 셈방법고르기 } from '../lib/셈방법.js'   // 🧮 G295 셈 방법(저절로 · 도면 그대로 · 내역서처럼)
 import { 세기 as 쓴수세기 } from '../lib/받은수.jsx'
-import { 나운영자 } from '../lib/운영자.js'   // 🖥 G449 작업 화면(적산컨맵처럼 · 🔒 지금은 소장님 브라우저만)
 import { 셈 as 마감셈 } from '../lib/마감.js'
 import { askAfter } from '../AskComment'
 import 받기검사판, { 엑셀내려주기 } from '../받기검사판.jsx'   // 📋 G444 받기 전 검사
@@ -207,15 +206,10 @@ export default function JeoksanAuto() {
   const [골옮김, set골옮김] = useState('')                          // '' | '묻기' | '됨'
   const [골펼침, set골펼침] = useState('')
   const 파일칸 = useRef(null)
-  /* 🖥 G449 작업 화면(적산컨맵 · BIM 물량 · 골조 · 마감처럼 화면 전체 — 위 막대 · 왼쪽 도면 · 오른쪽 표/물량/대조) · 🔒 운영자(소장님 브라우저)만 단추 · ?ws=1 */
-  const [운영자, set운영자] = useState(false)
-  const [작업, set작업0] = useState(false)
+  /* 🖥 G449 작업 화면(적산컨맵 · BIM 물량 · 골조 · 마감처럼 화면 전체 — 위 막대 · 왼쪽 도면 · 오른쪽 표/물량/대조) · 단추 · ?ws=1 */
+  /* 🔓 G450 (2026-10-29 소장님 «오픈 하자») — 작업 화면을 모두에게 엶(전엔 소장님 브라우저만) · ?ws=1 로 바로 열림 */
+  const [작업, set작업0] = useState(() => { try { return new URLSearchParams(window.location.search).get('ws') === '1' } catch (e) { return false } })
   const 작업Ref = useRef(null)
-  useEffect(() => {
-    let 살 = true
-    나운영자().then((v) => { if (!살 || !v) return; set운영자(true); try { if (new URLSearchParams(window.location.search).get('ws') === '1') set작업0(true) } catch (e) { /* 주소 못 읽음 */ } }).catch(() => {})
-    return () => { 살 = false }
-  }, [])
   const set작업 = (v) => {
     set작업0(v)
     try { const u = new URL(window.location.href); if (v) u.searchParams.set('ws', '1'); else u.searchParams.delete('ws'); window.history.replaceState(window.history.state, '', u.pathname + u.search + u.hash) } catch (e) { /* 주소 못 바꿈 */ }
@@ -801,7 +795,7 @@ export default function JeoksanAuto() {
           <button type="button" className="btn sm" onClick={() => 내역칸.current?.click()}>📑 내역서 넣기 (대조 · xlsx·csv)</button>
           <button type="button" className="btn line sm" onClick={예시열기}>🧪 예시로 해 보기</button>
           {산출.켠줄.length > 0 && <button type="button" className="btn ghost sm" disabled={받는중} onClick={엑셀받기}>{받는중 ? '만드는 중…' : '⬇ 엑셀 받기'}</button>}
-          {운영자 && <button type="button" className="btn sm gg-ws-open" onClick={() => set작업(true)} title="적산컨맵처럼 화면 전체로 — 왼쪽 도면, 오른쪽 표 · 물량 · 대조">🖥 작업 화면</button>}
+          <button type="button" className="btn sm gg-ws-open" onClick={() => set작업(true)} title="적산컨맵처럼 화면 전체로 — 왼쪽 도면, 오른쪽 표 · 물량 · 대조">🖥 작업 화면</button>
         </div>
         <input ref={파일칸} type="file" multiple accept=".dxf,.DXF,.dwg,.DWG" className="sr-only" tabIndex={-1}
           onChange={(e) => { 열기(e.target.files); e.target.value = '' }} />

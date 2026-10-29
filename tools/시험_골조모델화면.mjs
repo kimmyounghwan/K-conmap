@@ -5,7 +5,7 @@
 //   ③ 고르기 → 누른 보의 물량이 나옴 · 지우기 → 하나 줄어듦 · 되돌리기 → 다시 늘어남
 //   ④ 엑셀 받기 → 시트(산출서 · 집계 · 부재별 · 모델) · 산출서 수량 칸 합(콘크리트) = lib
 //   ⑤ 새로고침해도 모델이 남음(이 브라우저 저장) · 🔧 G392 보조 통심 더하기(빈칸 알림 · «3,500 mm» · 같은 자리) · 화면 오류 없음 · 폰 가로 넘침 없음
-//   ⑥ 🖥 G388 작업 화면(🔒 운영자만) — 남에게는 단추 · ?ws=1 모두 없음 · 운영자: 열면 왼쪽 도구 · 가운데 3D(PC 화면 폭 절반 넘게) · 오른쪽 물량 ·
+//   ⑥ 🖥 G388 작업 화면(🔓 G450 모두에게 엶 — 남에게도 단추 · ?ws=1) · 운영자: 열면 왼쪽 도구 · 가운데 3D(PC 화면 폭 절반 넘게) · 오른쪽 물량 ·
 //      그 안에서 기둥 세우기 · 고르기 · 평면 / 나란히 · 나가면 주소 ?ws=1 지움 · 폰 가로 넘침 없음
 //   ⑩ 🟨 G392 건설맵 제안(MAT) — 모델 열기 → «🟨 건설맵이 먼저 세운 것 1곳» · 하나씩 보기 → 제안 카드(두께) · ✓ 이대로 → 줄 사라짐 · 합 그대로 ·
 //      다시 열고 🚶 둘러보기 → FT MAT 위에서 «❓ … 맞나요?» 퀘스트 → ✓ 맞음 → 빨간 곳 0
@@ -173,11 +173,10 @@ for (const 기기 of 기기들) {
     const 넘침 = await A.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
     봐(넘침 <= 1, `${기기} 가로 넘침 없음`, 넘침)
   }
-  /* ⑥ 작업 화면 — 남(운영자 아님)에게는 없음 */
-  봐((await A.locator('.gmd-ws-open').count()) === 0, `${기기} 남에게 «작업 화면» 단추 없음`)
-  봐((await A.locator('.gmd-ws-dwg, .gmd-ws-dwgin').count()) === 0 && !(await A.content()).includes('도면 넣기'), `${기기} 남에게 «도면 넣기» 없음`)
-  await A.goto(주소 + '/jeoksan/model?ws=1', { waitUntil: 'domcontentloaded' }); await A.waitForSelector('.gmd-tabs'); await A.waitForTimeout(800)
-  봐((await A.locator('.gmd-ws').count()) === 0, `${기기} 남에게 ?ws=1 로도 안 열림`)
+  /* ⑥ 작업 화면 — 🔓 G450(2026-10-29 소장님 «오픈 하자») 남(운영자 아님)에게도 열림: 단추 · ?ws=1 · 도면 넣기 */
+  봐((await A.locator('.gmd-ws-open').count()) === 1, `${기기} 남에게도 «작업 화면» 단추`)
+  await A.goto(주소 + '/jeoksan/model?ws=1', { waitUntil: 'domcontentloaded' }); await A.waitForSelector('.gmd-ws', { timeout: 30000 }); await A.waitForTimeout(800)
+  봐((await A.locator('.gmd-ws').count()) === 1 && (await A.locator('.gmd-ws-dwgin').count()) === 1, `${기기} 남에게도 ?ws=1 로 바로 작업 화면 · «도면 넣기»`)
   await 판.close()
   /* ⑥ 운영자(소장님 브라우저 표식 kcm_op) */
   const 판2 = await 브.newContext({ viewport: { width: 기기 === '폰' ? 390 : 1440, height: 900 }, locale: 'ko-KR', hasTouch: 기기 === '폰' })

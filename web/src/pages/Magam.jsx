@@ -35,7 +35,6 @@ import 받기검사판, { 엑셀내려주기 } from '../받기검사판.jsx'   /
 import { use화면상태 } from '../lib/길기록.js'
 import 마감방판 from '../마감방판.jsx'
 import { 세기 } from '../lib/받은수.jsx'
-import { 나운영자 } from '../lib/운영자.js'   // 🖥 G448 작업 화면(적산컨맵처럼 · 🔒 지금은 소장님 브라우저만)
 
 import { 단위보기, 단위풀이 } from '../lib/단위.js'
 const 저장열쇠 = 'kcm.magam.v1'
@@ -111,15 +110,10 @@ export default function Magam() {
   const [표채움, set표채움] = useState('')
   const 파일칸 = useRef(null)
   const 자동칸 = useRef(null)
-  /* 🖥 G448 작업 화면(적산컨맵 · BIM 물량 · 골조 수량산출처럼 화면 전체 — 위 막대 · 왼쪽 도면 · 오른쪽 표/결과) · 🔒 운영자(소장님 브라우저)만 단추 · ?ws=1 */
-  const [운영자, set운영자] = useState(false)
-  const [작업, set작업0] = useState(false)
+  /* 🖥 G448 작업 화면(적산컨맵 · BIM 물량 · 골조 수량산출처럼 화면 전체 — 위 막대 · 왼쪽 도면 · 오른쪽 표/결과) · 단추 · ?ws=1 */
+  /* 🔓 G450 (2026-10-29 소장님 «오픈 하자») — 작업 화면을 모두에게 엶(전엔 소장님 브라우저만) · ?ws=1 로 바로 열림 */
+  const [작업, set작업0] = useState(() => { try { return new URLSearchParams(window.location.search).get('ws') === '1' } catch (e) { return false } })
   const 작업Ref = useRef(null)
-  useEffect(() => {
-    let 살 = true
-    나운영자().then((v) => { if (!살 || !v) return; set운영자(true); try { if (new URLSearchParams(window.location.search).get('ws') === '1') set작업0(true) } catch (e) { /* 주소 못 읽음 */ } }).catch(() => {})
-    return () => { 살 = false }
-  }, [])
   const set작업 = (v) => {
     set작업0(v)
     try { const u = new URL(window.location.href); if (v) u.searchParams.set('ws', '1'); else u.searchParams.delete('ws'); window.history.replaceState(window.history.state, '', u.pathname + u.search + u.hash) } catch (e) { /* 주소 못 바꿈 */ }
@@ -479,7 +473,7 @@ export default function Magam() {
           <button type="button" className="btn line sm" onClick={() => (비었나 ? 예시열기() : set묻기('예시'))}>🧪 예시로 해 보기</button>
           <button type="button" className="btn ghost sm" onClick={() => set탭('결과')}>📊 결과 보기</button>
           {!비었나 && <button type="button" className="btn ghost sm" onClick={() => set묻기('지우기')}>🗑 새로 시작</button>}
-          {운영자 && <button type="button" className="btn sm gg-ws-open" onClick={() => set작업(true)} title="적산컨맵처럼 화면 전체로 — 왼쪽 도면, 오른쪽 표 · 결과">🖥 작업 화면</button>}
+          <button type="button" className="btn sm gg-ws-open" onClick={() => set작업(true)} title="적산컨맵처럼 화면 전체로 — 왼쪽 도면, 오른쪽 표 · 결과">🖥 작업 화면</button>
         </div>
         {묻기 === '지우기' && (
           <div className="gg-ask">적은 것(마감표·창호표·실·외벽·묶음·조합·당초)을 모두 지우고 새로 시작할까요? 도면은 그대로 둡니다.
