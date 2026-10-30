@@ -108,6 +108,14 @@ export default function Magam() {
   const [보는중, set보는중] = useState(null)
   const [묻기, set묻기] = useState('')          // '' | '예시' | '지우기'
   const [표채움, set표채움] = useState('')
+  const [표에만줄, set표에만줄0] = useState([])     // 🅿 G470 실내재료마감표에만 있고 평면에 그 이름이 없는 실(짐작해 잇지 않음 — 사람이 골라 줄로 더해 평면을 누름)
+  const [표에만고른, set표에만고른] = useState(() => new Set())
+  /* 같은 층 · 이름 · 기호 줄은 하나로(표가 두 판에 같은 줄) */
+  const set표에만줄 = (a) => {
+    const 본 = new Set()
+    set표에만줄0((a || []).filter((m) => { const 열 = [m.층, m.실명, m.바닥, m.걸레받이, m.벽, m.천장, m.천장고].map((v) => String(v || '').trim()).join('|'); if (본.has(열)) return false; 본.add(열); return true }))
+    set표에만고른(new Set())
+  }
   const 파일칸 = useRef(null)
   const 자동칸 = useRef(null)
   /* 🖥 G448 작업 화면(적산컨맵 · BIM 물량 · 골조 수량산출처럼 화면 전체 — 위 막대 · 왼쪽 도면 · 오른쪽 표/결과) · 단추 · ?ws=1 */
@@ -342,6 +350,7 @@ export default function Magam() {
   }, [자동대기, 모델])   // eslint-disable-line react-hooks/exhaustive-deps
   const 자동넣기 = (R) => {
     set자동묻기(null)
+    set표에만줄(R.말.표에만 || [])
     set공사(R.공사); set선택(null); set짚음(null); set짚은([]); set결과알림(null)
     const m = R.말
     set자동알림({ 글: '⚡ 도면에서 자동으로 채웠습니다 — 방 ' + m.실 + '개(면적·둘레·창호)' + (m.마감표 ? ' · 실내재료마감표 ' + m.마감표 + '줄(맞춘 방 ' + m.맞춘 + ')' : ' · 실내재료마감표 없음') + (m.창호표 ? ' · 창호일람표 ' + m.창호표 + '개' : '') + '.' +
@@ -350,6 +359,36 @@ export default function Magam() {
     set탭(m.마감표 ? '결과' : '실')
   }
   useEffect(() => { if (도.도면상태 && 도.도면상태.k === 'err') set자동대기(null) }, [도.도면상태])   // 못 읽은 도면이면 기다림을 거둠
+  /** 🅿 G470 평면에 이름이 없는 표의 실(현장 Y «지하주차장» — 평면엔 «총 주차대수 16대» 만) → ③ 실에 줄로(마감 기호 · 천장고는 표 그대로 · 면적 · 둘레는 비움)
+   *   이름이 달라도 짐작해 잇지 않음 — 그 줄의 면적 칸을 누르고 평면의 그 자리(방 안)를 누르면 잼(닫힌 선 · 벽으로 막힌 칸) */
+  const 표에만더하기 = () => {
+    const 줄들 = 표에만줄.filter((_, i) => 표에만고른.has(i))
+    if (!줄들.length) return
+    set공사((P) => {
+      const 실 = [...(P.실 || [])]
+      const 마감 = [...(P.마감 || [])]
+      const 있는 = new Set(마감.map((x) => String(x.부위 || '') + '|' + String(x.기호 || '').toUpperCase()))
+      const 단위표 = { 바닥: 'm2', 걸레받이: 'm', 벽: 'm2', 천장: 'm2' }
+      for (const m of 줄들) {
+        실.push({ 층: m.층 || '', 실명: m.실명, 개수: '1', 면적: '', 둘레: '', 바닥: m.바닥 || '', 걸레받이: m.걸레받이 || '', 벽: m.벽 || '', 천장: m.천장 || '', 천장고: m.천장고 || '',
+          비고: '마감표에만 있음(평면에 이 이름 없음) — 면적 칸을 누르고 평면의 그 자리를 누르십시오' + (m.비고 ? ' · ' + m.비고 : '') })
+        for (const 부위 of ['바닥', '걸레받이', '벽', '천장']) {
+          const v = String(m[부위] || '').trim()
+          if (!v || /^[-—–]$/.test(v)) continue
+          const 열 = 부위 + '|' + v.toUpperCase()
+          if (있는.has(열)) continue
+          있는.add(열)
+          const 표마감 = m.마감들 && m.마감들[부위]
+          마감.push(표마감 ? { 기호: v, 부위, 이름: 표마감.이름, 재료: 표마감.재료.map((x) => ({ ...x })) } : { 기호: v, 부위, 이름: v, 재료: [{ 재료: /^[A-Z]{1,3}-?\d{1,3}$/i.test(v) ? 부위 + ' 마감 ' + v : v, 규격: '', 단위: 단위표[부위], 계수: '1' }] })
+        }
+      }
+      return { ...P, 실, 마감 }
+    })
+    set표에만줄(표에만줄.filter((_, i) => !표에만고른.has(i)))
+    set표채움('평면에 없는 표의 실 ' + 줄들.length + '개(' + 줄들.slice(0, 4).map((m) => m.실명).join(' · ') + (줄들.length > 4 ? ' …' : '') + ')를 ③ 실 끝에 줄로 더했습니다(면적 · 둘레 빈칸) — 줄의 면적 칸을 누르고 평면의 그 자리를 누르십시오.')
+    set탭('실'); set선택(null)
+    세기('|마감|표에만더하기')
+  }
   /** 🧱 G448b 실내재료마감표 → ③ 실(같은 이름 방의 빈 칸만 · 같은 이름이 여러 층이면 층으로 고름 · 못 고르면 비움) + ① 마감표(새 기호 · 도면의 바탕 · 마감 재료)
    *   ③ 실이 비었으면 표의 실을 줄로 더함(면적·둘레는 평면을 넣으면) · 셈 글을 돌려줌(그 자리에서 셈 — 예전엔 set공사 안에서 세어 늘 0 이라 적혔음) */
   const 마감표로채우기 = () => {
@@ -392,10 +431,11 @@ export default function Magam() {
     }
     set공사({ ...P, 실, 마감 })
     const 표에만 = [...new Set(읽은마감.filter((m) => !쓴.has(m)).map((m) => m.실명))]
+    set표에만줄(이름있음 ? 읽은마감.filter((m) => !쓴.has(m) && String(m.실명 || '').trim()) : [])
     const 말 = 이름있음
       ? '실내재료마감표 ' + 읽은마감.length + '줄을 읽어 ③ 실의 같은 이름 방 ' + 맞춘 + '곳에 빈 칸 ' + 채움 + '개를 채웠습니다' + (새기호 ? ' · ① 마감표에 새 기호 ' + 새기호 + '개(도면의 바탕 · 마감 재료)' : '') + '.' +
         (여럿.length ? ' 같은 이름이 여러 층에 있어 못 고른 방 ' + 여럿.length + '곳(' + 여럿.slice(0, 6).join(' · ') + (여럿.length > 6 ? ' …' : '') + ') — ③ 실의 층 칸을 적고 다시 누르십시오.' : '') +
-        (표에만.length ? ' 평면에 없는 표의 실 ' + 표에만.length + '개(' + 표에만.slice(0, 6).join(' · ') + (표에만.length > 6 ? ' …' : '') + ')는 더하지 않았습니다.' : '')
+        (표에만.length ? ' 평면에 없는 표의 실 ' + 표에만.length + '개(' + 표에만.slice(0, 6).join(' · ') + (표에만.length > 6 ? ' …' : '') + ')는 더하지 않았습니다 — 아래 목록에서 골라 «＋ 줄로 더하기» 로 넣고 평면에서 그 자리를 누르면 잽니다.' : '')
       : '실내재료마감표 ' + 읽은마감.length + '줄을 ③ 실에 더했습니다' + (새기호 ? ' · ① 마감표에 새 기호 ' + 새기호 + '개' : '') + '. 면적·둘레는 평면도를 «⚡ 도면 넣기» 로 넣으면 방마다 저절로 들어갑니다.'
     set표채움(말)
     return { 말, 맞춘, 새줄 }
@@ -510,6 +550,23 @@ export default function Magam() {
           </div>
         )}
         {표채움 && <div className="gg-say" style={{ marginTop: 8 }}>{표채움}</div>}
+        {표에만줄.length > 0 && (
+          <div className="gg-say mg-tblonly" style={{ marginTop: 8 }}>
+            <div>📋 평면에 이름이 없는 표의 실 <b>{표에만줄.length}줄</b> — 고르면 ③ 실 끝에 줄로 더합니다(면적 빈칸 → 그 줄의 면적 칸을 누르고 평면의 그 자리를 누름). 이름이 다르면(예: 평면엔 «총 주차대수» 만) 짐작해 잇지 않습니다.</div>
+            <div className="mg-tblonly-list">
+              {표에만줄.map((m, i) => (
+                <label key={i} className={'mg-tblonly-row' + (표에만고른.has(i) ? ' on' : '')} title={[['바닥', m.바닥], ['걸레받이', m.걸레받이], ['벽', m.벽], ['천장', m.천장], ['천장고', m.천장고], ['비고', m.비고]].filter(([, v]) => String(v || '').trim()).map(([k, v]) => k + ' ' + v).join('\n')}>
+                  <input type="checkbox" checked={표에만고른.has(i)} onChange={() => set표에만고른((S) => { const n = new Set(S); if (n.has(i)) n.delete(i); else n.add(i); return n })} />
+                  <span><b>{m.층 ? m.층 + ' ' : ''}{m.실명}</b><span className="muted">{[['바닥', m.바닥], ['벽', m.벽], ['천장', m.천장], ['천장고', m.천장고]].filter(([, v]) => String(v || '').trim()).map(([k, v]) => ' · ' + k + ' ' + (String(v).length > 22 ? String(v).slice(0, 22) + '…' : String(v))).join('')}</span></span>
+                </label>
+              ))}
+            </div>
+            <div className="btn-row" style={{ marginTop: 6 }}>
+              <button type="button" className="chip" disabled={!표에만고른.size} onClick={표에만더하기}>＋ 고른 {표에만고른.size}줄 더하기</button>
+              <button type="button" className="chip" onClick={() => set표에만줄([])}>닫기</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 🏠 G298 도면에서 찾은 방 — 🎯 내역 대조 · 📐 설계 면적 검산 · 🧊 3D */}
