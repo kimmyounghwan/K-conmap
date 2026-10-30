@@ -1,7 +1,7 @@
 import { 빠른찾기단추 } from './빠른찾기.jsx'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import TitleSync from './TitleSync.jsx'
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { 나운영자 } from './lib/운영자.js'
 import { BasePriceProvider } from './BasePrice.jsx'
 import { InstallPill, InstallBar, AppWindowBar } from './Install.jsx'
@@ -25,6 +25,7 @@ import { use씀세기 } from './lib/씀세기.js'   /* ✍ 2026-10-21 화면 안
 import { 쓴곳기록 } from './lib/마이쓴곳.js'   /* 🪪 G188 마이컨맵 «내 도구 · 서식» — 연 도구 · 서식을 이 브라우저에만 셈 */
 
 import { use떨굼막기 } from './끌어놓기.jsx'
+import { use맨위줄맞춤 } from './lib/맨위줄.js'   /* 🩹 G465 맨 위 줄이 넘치면 📲 → ← 차례로 뺌(🔔 생긴 날 폰에서 잘리던 것 · 🌊 사라사는 바닥글로) */
 import 새판 from './새판.jsx'
 import 감사공지 from './감사공지.jsx'   /* 🙏 G116 감사 공지 띠 — ✕ 로 닫으면 다시 안 뜸 */
 import 종류띠, { 종류물음, use종류기억, use지금종류, 종류찾기 } from './종류띠.jsx'   /* 🏠 G194c 한 집 세 방 — 맨 위 [공사 | 용역 | 물품] 띠 · 아래 탭이 방을 따라감 */
@@ -171,6 +172,8 @@ export default function App() {
   }, [pathname, hash])
   /* 📥 파일을 받지 않는 화면에 떨어뜨려도 사이트를 떠나지 않게 (끌어놓기.jsx) */
   use떨굼막기()
+  const 윗줄 = useRef(null)
+  use맨위줄맞춤(윗줄)
 
   return (
     <BasePriceProvider>
@@ -180,7 +183,7 @@ export default function App() {
           브라우저에 남아 1순위 목록마다 «6.3억» 같은 유령 금액을 띄웠습니다.
           입력칸이 없으니 지울 방법도 없었습니다. 한 번 비웁니다. */}
       <header className="topbar">
-        <div className="topbar-in">
+        <div className="topbar-in" ref={윗줄} data-tight="0">
           <NavLink to="/" className="brand">
             <span>🏗️</span><span>K-<b>건설맵</b></span>
           </NavLink>
@@ -191,8 +194,7 @@ export default function App() {
           <NavLink to="/how" className="brand-sub" title="처음이시면 여기부터 — 어디서 뭘 하는지 한 장으로">
             📖 <span className="bs-long">K-건설맵 </span>보는 방법
           </NavLink>
-          {/* 🌊 자매 사이트 사라사 — 소장님(09-06): 「클릭하면 사라사 사이트로. 페이지마다」.
-              이 막대는 모든 페이지 위에 있으므로 여기 한 번이면 페이지마다 붙습니다. 새 탭으로 엽니다(건설맵을 떠나지 않게). */}
+          {/* 🌊 자매 사이트 사라사 — 소장님(09-06): 「클릭하면 사라사 사이트로. 페이지마다」 → G465(10-30) 맨 위 줄에서 빼고 바닥글에만(모든 화면) */}
           {/* 🔎 G404 빠른 찾기 — 소장님 「건설맵에 빠른 검색기능 넣을 수 있을까?」 · 「배치 잘해줘. 이상하지 않게」
               넓은 화면: 머리줄 가운데 «찾는 칸» 모양(누르면 창) · 좁은 화면: 오른쪽 단추 줄 맨 앞 🔎 하나 · 어디서나 «/» · Ctrl+K (빠른찾기.jsx) */}
           <빠른찾기단추 탭={TABS} />
@@ -206,9 +208,7 @@ export default function App() {
             <알림종 />
             <BackBtn />
             <RefreshBtn />
-            <a className="sisbtn" href="https://sarasa.kr" target="_blank" rel="noopener"
-              title="자매 사이트 사라사 — 나노리치 실시간 신호판 · 경제 기사 · 여행">
-              🌊<span className="sislong"> 사라사</span></a>
+            {/* 🌊 G465 (2026-10-30 소장님 «아래에 있으니 사라사 빼자») — 맨 위 줄에서 뺌 · 바닥글 «🌊 자매 사이트 사라사» 는 그대로(모든 화면) */}
             <InstallPill />
           </div>
         </div>

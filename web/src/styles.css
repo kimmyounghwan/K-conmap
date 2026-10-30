@@ -9673,3 +9673,14 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gmd .gmd-cv-btns { flex-wrap: wrap; gap: 8px; align-items: center; }
 @media (max-width: 520px) { .gmd .gmd-cv-btns .btn { width: 100% !important; } }
 @media (max-width: 520px) { .gmd .gmd-cv-table th:nth-child(2), .gmd .gmd-cv-table td:nth-child(2), .gmd .gmd-cv-table th:nth-child(4), .gmd .gmd-cv-table td:nth-child(4), .gmd .gmd-cv-table td:nth-child(6) small { display: none; } .gmd .gmd-cv-table { font-size: 12.5px; } .gmd .gmd-cv-table td, .gmd .gmd-cv-table th { padding-left: 4px; padding-right: 4px; } .gmd .gmd-cv-table td.nm { min-width: 96px; } .gmd .gmd-cv-in { width: 76px; } }
+/* 🩹 G465 맨 위 줄 — 🌊 사라사는 뺌(바닥글에 있음 · 소장님 «아래에 있으니 사라사 빼자») · 폰(≤ 430px)에서 틈 · 안쪽 여백을 조금 줄이고 🔔 를 다른 알약과 같은 크기로 ·
+   그래도 넘치면 lib/맨위줄.js 가 data-tight 1 → 2 로 올려 📲 → ← 차례로 뺌(📖 보는 방법 · 🔎 · 🔔 · 🔄 는 안 뺌) */
+@media (max-width: 430px) {
+  .topbar-in { gap: 6px; padding-left: 10px; padding-right: 10px; }
+  .brand { gap: 5px; }
+  .topbar-r { gap: 4px; }
+  .qsbtn + .topbar-r { margin-left: -2px; }
+  .notibtn { font-size: 12.5px; padding: 5px 8px; }
+}
+.topbar-in[data-tight="1"] .installbtn, .topbar-in[data-tight="2"] .installbtn { display: none; }
+.topbar-in[data-tight="2"] .topback { display: none; }
