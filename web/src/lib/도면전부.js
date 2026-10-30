@@ -157,7 +157,7 @@ export function 실이름인가(s, 아는이름) {
   return 실말.test(t)
 }
 /** 실 이름 비교 열쇠 — 띄어쓰기·끝 번호·괄호 떼고 («침실2» ↔ «침실», «화장실(남)» ↔ «화장실») */
-export function 실키(s) { return 붙임(s).replace(/\(.*?\)/g, '').replace(/[-_]?\d+$/, '').replace(/[·.]/g, '').toUpperCase() }
+export function 실키(s) { return 붙임(s).replace(/\(.*?\)/g, '').replace(/[-_]?\d+$/, '').replace(/[·./]/g, '').toUpperCase() }   // 🧱 G462 «/» 도 뗌(«E/V HALL» ↔ «E.V HALL»)
 
 /** 점이 도형 e 의 안인가 (Q 조각들 짝홀) */
 function 안인가(모델, 조각, x, y) {
@@ -221,6 +221,26 @@ function 평면층(s) {
   if (/옥탑/.test(t)) return 'PH'
   if (/옥상|지붕/.test(t)) return 'RF'
   return null
+}
+
+/**
+ * 🧱 G462 판 제목 고르기 — 한 파일에 평면 여러 장(층마다 판 테두리)이면 «같은 판 테두리 안» 의 제목으로 층을 정함
+ *   (전엔 가장 가까운 제목 — 제목이 판 오른쪽 아래에 있어 왼쪽 방이 옆 판(아래층) 제목에 더 가까웠음: 현장 Y A-201 2층 E/V HALL → 1층)
+ *   판 테두리 = 제목을 품은 닫힌 도형 중 그 방 자리도 품은 가장 작은 것 · 없으면 예전처럼 가장 가까운 제목
+ */
+function 제목고르개(모델, 도형들, 제목) {
+  if (!제목.length) return () => null
+  const 큰 = []
+  for (const d of 도형들) {
+    if (d.A < 20) continue
+    const 든 = 제목.filter((t) => t.x >= d.b[0] && t.x <= d.b[2] && t.y >= d.b[1] && t.y <= d.b[3] && 안인가(모델, d.qs, t.x, t.y))
+    if (든.length) 큰.push({ d, 든 })
+  }
+  const 가깝 = (l, x, y) => { let best = Infinity, f = null; for (const t of l) { const dd = Math.hypot(t.x - x, t.y - y); if (dd < best) { best = dd; f = t } } return f }
+  return (x, y) => {
+    for (const c of 큰) { const b = c.d.b; if (x < b[0] || x > b[2] || y < b[1] || y > b[3] || !안인가(모델, c.d.qs, x, y)) continue; return 가깝(c.든, x, y) }
+    return 가깝(제목, x, y)
+  }
 }
 
 /**
@@ -289,6 +309,8 @@ export function 실찾기(모델, o = {}) {
   const 아는 = o.실이름들 ? new Set([...o.실이름들].map(실키)) : null
   const 제목 = []
   for (let i = 0; i < T.s.length; i++) { const f = 평면층(T.s[i]); if (f) 제목.push({ f, x: T.x[i], y: T.y[i] }) }
+  const 제목고르기 = 제목고르개(모델, 도형들, 제목)
+  const 층고르기 = (x, y) => { const t = 제목고르기(x, y); return t ? t.f : '' }
   /* 실 이름 글 — 보이는 글 + 🧱 G298 숨은 층(Defpoints 등)의 글(설계자가 실 이름을 인쇄 안 하는 층에 적은 평면도) */
   const 이름들 = []
   for (let i = 0; i < T.s.length; i++) {
@@ -296,7 +318,7 @@ export function 실찾기(모델, o = {}) {
     if (E.t[e] !== 종류.글자) continue
     if (E.sc && (E.sc[e] < 0.5 || E.sc[e] > 2)) continue     // 🧭 G132 축소 사본(위치도) 글자는 뺌
     if (끈.has(E.ly[e]) || 표글자.has(i) || !실이름인가(T.s[i], 아는)) continue
-    이름들.push({ s: 글(T.s[i]), x: T.x[i] + 글자폭(T, i) / 2 * Math.cos(T.a[i]), y: T.y[i] + T.h[i] / 2, i })
+    이름들.push({ s: 글(T.s[i]), x: T.x[i] + 글자폭(T, i) / 2 * Math.cos(T.a[i]), y: T.y[i] + T.h[i] / 2, i, w: 글자폭(T, i), h: T.h[i] || 0, a: T.a[i] || 0 })
   }
   if (o.숨은글 !== false) for (const q of 모델.숨은글 || []) if (실이름인가(q.s, 아는)) 이름들.push({ s: 글(q.s), x: q.x, y: q.y, i: -1, 숨음: true })
   // 실 이름 글자 자리 (먼저 모두) — 한 닫힌 선이 이름을 셋 넘게 품으면 층 외곽선으로 봄
@@ -312,16 +334,15 @@ export function 실찾기(모델, o = {}) {
   const 모음 = new Map()
   for (const nm of 이름들) {
     const cx = nm.x, cy = nm.y
-    const d = 품은(모델, 도형들, cx, cy, 0.8, 1500, (x) => (!주석층.test(x.층) || /실|ROOM|AREA|면적/i.test(x.층)) && !/HID|숨은|HIDDEN/i.test(x.층 || '') && !외곽(x))     /* 🏠 G298 숨은선 층의 닫힌 선(위층 뚫린 곳 · 천장 윤곽)은 방 경계가 아님 */
+    /* 🧱 G462 이름 글 네 귀 중 셋 넘게 밖인 닫힌 도형은 방이 아님 — 현장 Y «지하수조» 글(1.2 m)이 패널 물탱크 1 m 칸 · 400 받침 띠에 걸쳐 «지하수조 1 ㎡ · 1.4 ㎡» 로 잡혔음 */
+    const 귀 = nm.w > 0 && nm.h > 0 ? [[-0.45, -0.4], [0.45, -0.4], [-0.45, 0.4], [0.45, 0.4]].map(([u, v]) => [cx + u * nm.w * Math.cos(nm.a) - v * nm.h * Math.sin(nm.a), cy + u * nm.w * Math.sin(nm.a) + v * nm.h * Math.cos(nm.a)]) : null
+    const 글품음 = (x) => !귀 || 귀.filter(([ex, ey]) => ex >= x.b[0] && ex <= x.b[2] && ey >= x.b[1] && ey <= x.b[3] && 안인가(모델, x.qs, ex, ey)).length >= 3
+    const d = 품은(모델, 도형들, cx, cy, 0.8, 1500, (x) => (!주석층.test(x.층) || /실|ROOM|AREA|면적/i.test(x.층)) && !/HID|숨은|HIDDEN/i.test(x.층 || '') && !외곽(x) && 글품음(x))     /* 🏠 G298 숨은선 층의 닫힌 선(위층 뚫린 곳 · 천장 윤곽)은 방 경계가 아님 */
     if (!d) continue
     const a = 모음.get(d.e)
     /* 같은 방에 보이는 이름이 있으면 숨은 이름은 덧붙이지 않음(같은 이름을 두 층에 적은 도면) */
     if (a) { if (!a.이름.split('·').includes(nm.s) && !(nm.숨음 && a.보임)) a.이름 += '·' + nm.s; if (nm.i >= 0) { a.글자.push(nm.i); a.보임 = true } continue }
-    let 층 = ''
-    if (제목.length) {
-      let best = Infinity
-      for (const t of 제목) { const dd = Math.hypot(t.x - cx, t.y - cy); if (dd < best) { best = dd; 층 = t.f } }
-    }
+    const 층 = 층고르기(cx, cy)
     모음.set(d.e, { 이름: nm.s, 층, 면적: d.A, 둘레: d.L, e: d.e, x: cx, y: cy, 글자: nm.i >= 0 ? [nm.i] : [], 보임: nm.i >= 0, ...(nm.숨음 ? { 숨은이름: true } : {}), 해치: d.해치, 레이어: d.층, qs: d.qs, b: d.b })
   }
   /* 🧱 G298 벽으로 방 찾기 — 닫힌 선이 없는 이름(벽 선만 그린 평면도) · 면적 표시 층(AREA)의 선만 품은 이름(벽 중심 면적선 — 마감은 안목) */
@@ -363,7 +384,7 @@ export function 실찾기(모델, o = {}) {
           if (!줄 && w.같은) for (const [점, r] of 벽모음) if (r.넓이 === w.넓이 && 점.length === w.점.length) { 줄 = r; break }
           if (줄) { if (!줄.이름.split('·').includes(nm.s)) 줄.이름 += '·' + nm.s; if (nm.i >= 0) 줄.글자.push(nm.i); if (옛키 !== undefined) 모음.delete(옛키); return }
           let 층 = 옛 ? 옛.층 : ''
-          if (!층 && 제목.length) { let best = Infinity; for (const t of 제목) { const dd = Math.hypot(t.x - nm.x, t.y - nm.y); if (dd < best) { best = dd; 층 = t.f } } }
+          if (!층 && 제목.length) 층 = 층고르기(nm.x, nm.y)
           const 새 = { 이름: nm.s, 층, 면적: A, 둘레: w.둘레 * k / 1000, e: -1, x: nm.x, y: nm.y, 글자: nm.i >= 0 ? [nm.i] : [], 보임: nm.i >= 0, ...(nm.숨음 ? { 숨은이름: true } : {}),
             해치: false, 레이어: '', 다각형: w.점, b: w.상자, 넓이: w.넓이, 방법: '벽', ...(옛 ? { 면적선: 옛.면적, 면적선e: 옛.e } : {}) }
           if (옛키 !== undefined) 모음.delete(옛키)
@@ -604,6 +625,33 @@ export function 마감표찾기(모델) {
  *   칸 선이 없으면 [] (예전 마감표찾기 · 표찾기 길을 그대로 씀)
  * @returns [{실명, 층, 바닥, 걸레받이, 벽, 천장, 천장고, 표, 마감들:{부위:{기호, 이름, 재료:[{재료, 규격, 단위, 계수}]}}, 비고}]
  */
+/* 🧱 G462 «T153 무근콘크리트» 처럼 두께가 적힌 무근 · 버림 콘크리트 바닥 바탕은 부피(m³ = 넓이 × 두께) 줄도 — 레미콘(m³)과 견줄 수 있게 · 넓이(m²) 줄은 그대로 */
+const 무근말 = /(?:^|[\s/+(])T\s*(\d{2,3})\s*(?:mm)?\s*(무근|버림)\s*(콘크리트|CONC)/i
+export function 부피더하기(재료들, 부위) {
+  if (부위 !== '바닥') return 재료들
+  const out = []
+  for (const x of 재료들) {
+    out.push(x)
+    const m = 무근말.exec(' ' + x.재료)
+    if (m && x.단위 === 'm2' && !재료들.some((y) => y.재료 === x.재료 && y.단위 === 'm3')) out.push({ 재료: x.재료, 규격: x.규격, 단위: 'm3', 계수: String(+m[1] / 1000) })
+  }
+  return out
+}
+/* 🧱 G462 표 머리(x, y)를 품은 판 테두리(도곽) — 글 높이 hh 의 가로 100 배 · 세로 60 배 넘는 닫힌 도형 중 가장 작은 것의 상자 · 없으면 null */
+const 판테두리판 = new WeakMap()
+function 판테두리(모델, x, y, hh) {
+  let l = 판테두리판.get(모델)
+  if (!l) { l = 닫힌도형들(모델, null, 1); 판테두리판.set(모델, l) }
+  for (const d of l) {
+    const b = d.b
+    if (b[2] - b[0] < 100 * hh || b[3] - b[1] < 60 * hh) continue
+    if (x < b[0] || x > b[2] || y < b[1] || y > b[3]) continue
+    if (안인가(모델, d.qs, x, y)) return b
+  }
+  return null
+}
+/* 🧱 G462 층 칸 글 — 「지하」+「1층」 두 줄 · 한 글 «지하1층» «지상1층» · «B1» «1F» · «지상1~2층» «지상1,2층»(여러 층 한 칸) */
+const 층칸말 = /^(지하|지상|옥탑|옥상|지붕|(지하|지상)?\d{1,2}([~,·]\d{1,2})?층?|B\d{1,2}F?|PH\d?|RF|\d{1,2}F)$/i
 export function 격자마감표(모델) {
   const { T, Q, P } = 모델
   if (!Q || !P) return []
@@ -613,6 +661,7 @@ export function 격자마감표(모델) {
   const 수평글 = (i) => Math.abs(T.a[i] || 0) < 0.05
   const out = []
   const 쓴머리 = []
+  let 판밖 = 0
   for (let hi = 0; hi < n; hi++) {
     if (!/^실명(칭)?$/.test(붙(hi)) || !수평글(hi)) continue
     const hy = T.y[hi], hh = T.h[hi] || 1, hc = 가(hi)
@@ -698,7 +747,7 @@ export function 격자마감표(모델) {
       let 앞2 = 앞 === 0 ? 0 : (위선.length ? Math.min(...위선) : 머리밑 + 0.3 * hh)
       for (const y of 층선) {
         const 글들 = []
-        for (let i = 0; i < n; i++) { const c = 가(i); if (c >= 층칸.범위[0] && c <= 층칸.범위[1] && T.y[i] < 앞2 && T.y[i] > y && 수평글(i) && /^(지하|지상|옥탑|옥상|지붕|B?\d{1,2}층?|PH\d?|RF|B\d|\d{1,2}F)$/i.test(붙(i))) 글들.push(i) }
+        for (let i = 0; i < n; i++) { const c = 가(i); if (c >= 층칸.범위[0] && c <= 층칸.범위[1] && T.y[i] < 앞2 && T.y[i] > y && 수평글(i) && 층칸말.test(붙(i))) 글들.push(i) }
         글들.sort((a, b) => T.y[b] - T.y[a])
         const t = 글들.map((i) => 붙(i)).join('')
         if (t) 층들.push([y, 앞2, t])
@@ -706,6 +755,9 @@ export function 격자마감표(모델) {
       }
     }
     const 표X0 = 너비[0], 표X1 = 너비[1]
+    /* 🧱 G462 판 테두리(도곽) 밖의 줄은 인쇄되지 않는 줄 — 현장 Y A-171 은 «마감표 - 1» 판 아래(도곽 밖)에 옛 줄(지상2층 ~ 6층)이 남아 있어 «- 2 · - 3» 판 줄과 겹쳤음 */
+    const 판 = 판테두리(모델, hc, hy, hh)
+    if (판) { while (줄들.length && 줄들[줄들.length - 1][0] < 판[1]) { 줄들.pop(); 판밖++ } for (let j = 층들.length - 1; j >= 0; j--) if (층들[j][0] < 판[1] && 층들[j][1] <= 판[1]) 층들.splice(j, 1) }
     const 몸 = []
     for (let i = 0; i < n; i++) { if (T.y[i] >= 머리밑 || T.y[i] < 줄선[줄선.length - 1] || !수평글(i)) continue; const c = 가(i); if (c < 표X0 || c > 표X1) continue; 몸.push(i) }
     const 재료말 = /(몰탈|모르타르|시멘트|타일|페인트|방수|콘크리트|석고|도장|뿜칠|보드|합판|단열|THK|^T\d)/i
@@ -746,7 +798,7 @@ export function 격자마감표(모델) {
         if (!기호) continue
         줄[g.부] = 기호
         const 규격 = g.부 === '걸레받이' && 높이글 ? 'H' + 높이글 : ''
-        const 재료 = [...바탕글.map((t) => ({ 재료: t, 규격: '', 단위, 계수: '1' })), ...(이름 ? [{ 재료: 이름, 규격, 단위, 계수: '1' }] : [])]
+        const 재료 = 부피더하기([...바탕글.map((t) => ({ 재료: t, 규격: '', 단위, 계수: '1' })), ...(이름 ? [{ 재료: 이름, 규격, 단위, 계수: '1' }] : [])], g.부)
         줄.마감들[g.부] = { 기호, 이름: 이름 || 기호, 재료: 재료.length ? 재료 : [{ 재료: g.부 + ' 마감 ' + 기호, 규격: '', 단위, 계수: '1' }] }
       }
       const 층 = 층들.find(([a, b]) => 이름글.some((j) => T.y[j] < b && T.y[j] > a))
@@ -771,6 +823,7 @@ export function 격자마감표(모델) {
       if (k > 0) { const 새 = 원 + '(' + (k + 1) + ')'; r.마감들 = { ...r.마감들, [부]: { ...g, 기호: 새 } }; r[부] = 새 }
     }
   }
+  out.밖줄 = 판밖          // 🧱 G462 판 테두리 밖이라 뺀 줄 수 — 마감표모음이 다른 읽기와 견줄 때 같이 셈
   return out
 }
 
@@ -780,7 +833,7 @@ export function 마감표모음(모델, 표들) {
   const b = a.length ? [] : 마감표찾기(모델)
   const c = 격자마감표(모델)
   const 앞 = a.length ? a : b
-  return c.length > 앞.length ? c : 앞
+  return c.length + (c.밖줄 || 0) > 앞.length ? c : 앞       // 🧱 G462 판 밖 줄을 뺀 격자 표도 처음 읽은 수로 견줌(현장 Y A-171 — 빼고 나니 여러 줄 칸 읽기 쪽이 골라져 바탕이 안 나뉨)
 }
 
 /** 층 글 → 견줄 꼴 — 「지하1층」「B1」「B1F」→ B1 · 「1층」「1F」「1」→ 1 · 옥탑 · 옥상 · 지붕 · PH · RF → PH */
@@ -795,6 +848,20 @@ export function 층키(s) {
   return t
 }
 
+/** 🧱 G462 한 칸에 층이 여럿 — 「지상3층지상4층」(두 줄 한 칸) · 「지상1~2층」 · 「지상1,2층」 → ['3','4'] · ['1','2'] · 그 밖은 [층키] */
+export function 층키들(s) {
+  const t = 붙임(s).toUpperCase()
+  if (!t) return []
+  const out = new Set()
+  let m
+  const 범위 = /(지하|지상|B)?(\d{1,2})(?:층|F)?[~∼-](?:지하|지상|B)?(\d{1,2})(?:층|F)?/g
+  while ((m = 범위.exec(t))) { const a = +m[2], b = +m[3]; if (b >= a && b - a < 30) for (let i = a; i <= b; i++) out.add((m[1] === '지하' || m[1] === 'B' ? 'B' : '') + i) }
+  const 쉼표 = /(지하|지상)?(\d{1,2})((?:,\d{1,2})+)층/g
+  while ((m = 쉼표.exec(t))) for (const v of [m[2], ...m[3].split(',').filter(Boolean)]) out.add((m[1] === '지하' ? 'B' : '') + +v)
+  if (!out.size) { const 낱 = t.match(/(지하|지상)?\d{1,2}층/g); if (낱 && 낱.length > 1) for (const x of 낱) out.add(층키(x)) }
+  return out.size ? [...out] : [층키(s)]
+}
+
 /**
  * 🧱 G448b 마감표 줄 찾기 — 같은 이름(실키)이 여러 줄이면(창고가 지하1층 · 1층 · 2층에) 층으로 고르고,
  *   층으로도 못 고르고 마감이 서로 다르면 { 여럿 } (짐작해 넣지 않음)
@@ -804,12 +871,22 @@ export function 마감표짝(마감표) {
   const 더 = (k, m) => { if (!k) return; const a = 묶.get(k) || []; if (!a.includes(m)) a.push(m); 묶.set(k, a) }
   for (const m of 마감표 || []) { 더(실키(m.실명), m); if (m.원이름) 더(실키(m.원이름), m) }   // 「복도/라운지」 처럼 한 칸에 둘이던 실은 합친 이름으로도
   const 같은마감 = (a) => a.every((m) => ['바닥', '걸레받이', '벽', '천장', '천장고'].every((c) => 글(m[c]) === 글(a[0][c])))
+  /* 🧱 G462 평면 이름 → 표 줄: ① 한 방에 든 이름 글 모두 이은 것(«E/V»+«HALL» → EVHALL) ② 첫 글(예전) ③ 끝 «실» 만 다른 것(«감시제어반실» ↔ «감시제어반») */
+  const 찾 = (이름) => {
+    const t = String(이름 || '')
+    for (const k of [실키(t.replace(/·/g, '')), 실키(t.split('·')[0])]) {
+      if (!k) continue
+      const a = 묶.get(k) || (/실$/.test(k) ? 묶.get(k.slice(0, -1)) : 묶.get(k + '실'))
+      if (a) return a
+    }
+    return null
+  }
   return (이름, 층) => {
-    const a = 묶.get(실키(String(이름 || '').split('·')[0]))
+    const a = 찾(이름)
     if (!a) return null
     if (a.length === 1 || 같은마감(a)) return { m: a[0] }
     const 층k = 층키(층)
-    if (층k) { const b = a.filter((m) => 층키(m.층) === 층k); if (b.length === 1 || (b.length > 1 && 같은마감(b))) return { m: b[0] } }
+    if (층k) { const b = a.filter((m) => 층키들(m.층).includes(층k)); if (b.length === 1 || (b.length > 1 && 같은마감(b))) return { m: b[0] } }
     return { 여럿: a }
   }
 }
@@ -1117,11 +1194,14 @@ function 방덧말(r) {
 const 판닻판 = new WeakMap()
 /** 점(모델 좌표)에서 가장 가까운 판 제목(«1층 평면도» 등) — {f: 층, x, y} · 없으면 null */
 export function 판닻(모델, x, y) {
-  let l = 판닻판.get(모델)
-  if (!l) { l = []; const { T } = 모델; for (let i = 0; i < T.s.length; i++) { const f = 평면층(T.s[i]); if (f) l.push({ f, x: T.x[i], y: T.y[i] }) } 판닻판.set(모델, l) }
-  let b = null, bd = Infinity
-  for (const t of l) { const d = Math.hypot(t.x - x, t.y - y); if (d < bd) { bd = d; b = t } }
-  return b
+  let 고르개 = 판닻판.get(모델)
+  if (!고르개) {
+    const l = []; const { T } = 모델; for (let i = 0; i < T.s.length; i++) { const f = 평면층(T.s[i]); if (f) l.push({ f, x: T.x[i], y: T.y[i] }) }
+    /* 🧱 G462 같은 판 테두리 안의 제목(실찾기와 같은 규칙) */
+    고르개 = l.length ? 제목고르개(모델, 닫힌도형들(모델, null, 1), l) : () => null
+    판닻판.set(모델, 고르개)
+  }
+  return 고르개(x, y)
 }
 /** 닫힌 도형 e 의 모양(첫 조각 · 도면 단위 · 꼭짓점 300 개까지) */
 export function 도형점(모델, e) {
