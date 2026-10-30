@@ -3436,6 +3436,8 @@ ul.plainlist li { margin-bottom: 5px; }
   .oneclick .cbtn, .installbar .go, .firstbar .go { color: #0b1220; }
   .btn.ghost { color: var(--text-2); background: var(--surface); }
   .btn:disabled { color: #0b1220; }
+  /* 🧱 G471 테두리 · 흐린 단추가 꺼지면 바탕이 어두운데 글이 #0b1220 이라 안 보였음(소장님 폰 골조 모델 «복사») */
+  .btn.line:disabled, .btn.ghost:disabled { color: var(--text-2); }
 }
 
 /* 🧭 길 (Crumbs.jsx) — 안쪽 화면의 「뒤로」 ─────────────────────────────
@@ -8899,6 +8901,11 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gmd .gmd-x { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 2px 5px; }
 .gmd .gmd-kv { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; white-space: nowrap; }
 .gmd .gmd-kv input[type=checkbox] { width: auto; margin: 0; }
+/* 🧱 G471 골조 모델 체크 · 고르기 칸 — 온 사이트 input 규칙(width 100% · 안쪽 여백 11px)이 체크에도 걸려
+   아이폰에서 체크가 큼직한 흰 네모(층 복사)가 되고 «⟋ 비스듬히» 는 체크가 한 줄을 다 차지해 글이 오른쪽 끝에 세로로 밀려 나갔음(소장님 폰 10-30) */
+.gmd input[type=checkbox], .gmd input[type=radio] { width: 18px; height: 18px; min-width: 18px; padding: 0; margin: 0; flex: none; border-radius: 4px; }
+.gmd input[type=radio] { border-radius: 50%; }
+.gmd-check-l { flex-wrap: nowrap; white-space: nowrap; }
 .gmd .gmd-tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 4px 0 8px; }
 .gmd .gmd-table { border-collapse: collapse; font-size: 13px; min-width: 100%; }
 .gmd .gmd-table th, .gmd .gmd-table td { border-bottom: 1px solid var(--line); padding: 4px 6px; text-align: left; white-space: nowrap; }
