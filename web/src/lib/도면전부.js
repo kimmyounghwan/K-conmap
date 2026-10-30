@@ -706,6 +706,18 @@ function 판테두리(모델, x, y, hh) {
   }
   return null
 }
+/* 🧱 G472 «/» 로 나눔 — 괄호 안 «/»(«구배 1/100») 는 안 나눔 */
+function 빗금나누기(t) {
+  const out = []
+  let 깊이 = 0, 지금 = ''
+  for (const ch of String(t || '')) {
+    if (ch === '(' || ch === '（') 깊이++
+    else if ((ch === ')' || ch === '）') && 깊이 > 0) 깊이--
+    if (ch === '/' && 깊이 === 0) { out.push(지금.trim()); 지금 = '' } else 지금 += ch
+  }
+  out.push(지금.trim())
+  return out.filter(Boolean)
+}
 /* 🧱 G462 층 칸 글 — 「지하」+「1층」 두 줄 · 한 글 «지하1층» «지상1층» · «B1» «1F» · «지상1~2층» «지상1,2층»(여러 층 한 칸) */
 const 층칸말 = /^(지하|지상|옥탑|옥상|지붕|(지하|지상)?\d{1,2}([~,·]\d{1,2})?층?|B\d{1,2}F?|PH\d?|RF|\d{1,2}F)$/i
 export function 격자마감표(모델) {
@@ -717,7 +729,7 @@ export function 격자마감표(모델) {
   const 수평글 = (i) => Math.abs(T.a[i] || 0) < 0.05
   const out = []
   const 쓴머리 = []
-  let 판밖 = 0
+  let 판밖 = 0, 딴줄 = 0
   for (let hi = 0; hi < n; hi++) {
     if (!/^실명(칭)?$/.test(붙(hi)) || !수평글(hi)) continue
     const hy = T.y[hi], hh = T.h[hi] || 1, hc = 가(hi)
@@ -755,21 +767,43 @@ export function 격자마감표(모델) {
         const ax = P[(s0 + k) * 2], ay = P[(s0 + k) * 2 + 1], bx = P[(s0 + k + 1) * 2], by = P[(s0 + k + 1) * 2 + 1]
         if (Math.max(ax, bx) < X0 || Math.min(ax, bx) > X1 || Math.max(ay, by) < Ybot || Math.min(ay, by) > Ytop) continue
         const dx = Math.abs(ax - bx), dy = Math.abs(ay - by)
-        if (dy <= 0.02 * hh && dx > 0.5 * hh) 가로.push([Math.min(ax, bx), Math.max(ax, bx), (ay + by) / 2])
-        else if (dx <= 0.02 * hh && dy > 0.5 * hh) 세로.push([(ax + bx) / 2, Math.min(ay, by), Math.max(ay, by)])
+        const 넣은 = 모델.E.ins ? 모델.E.ins[Q.e[q]] : -1
+        if (dy <= 0.02 * hh && dx > 0.5 * hh) 가로.push([Math.min(ax, bx), Math.max(ax, bx), (ay + by) / 2, 넣은])
+        else if (dx <= 0.02 * hh && dy > 0.5 * hh) 세로.push([(ax + bx) / 2, Math.min(ay, by), Math.max(ay, by), 넣은])
       }
     }
     if (가로.length < 4 || 세로.length < 4) continue
-    /* 글 c 를 품은 칸 — 그 글 높이(y)를 지나는 세로 선 중 왼쪽 · 오른쪽 가장 가까운 것 */
-    const 칸 = (c, y) => {
+    /* 글 c 를 품은 칸 — 그 글 높이(y)를 지나는 세로 선 중 왼쪽 · 오른쪽 가장 가까운 것
+       🧱 G472 머리 글이 블록이면 같은 블록의 선을 먼저 — 현장 Y A-171 «마감표 - 2 · 3 · 4» 판은 몸 블록(표 전체를 넣고 판 테두리로 자른 것)의 세로 선이
+       머리 줄까지 올라와 «바닥» 머리 칸이 «마감» 칸 하나로 좁아져 바탕(T40 시멘트몰탈 등)을 못 읽었음(같은 1층 줄이 판마다 달라 «여럿» 으로 비움) */
+    const 칸 = (c, y, 넣은 = -1) => {
+      const 지남 = (y0, y1) => y0 <= y + 0.3 * hh && y1 >= y - 0.3 * hh
+      const 같은것 = 넣은 >= 0 && 세로.some(([x, y0, y1, k]) => k === 넣은 && 지남(y0, y1) && x < c) && 세로.some(([x, y0, y1, k]) => k === 넣은 && 지남(y0, y1) && x > c)
       let L = -Infinity, R = Infinity
-      for (const [x, y0, y1] of 세로) if (y0 <= y + 0.3 * hh && y1 >= y - 0.3 * hh) { if (x < c && x > L) L = x; if (x > c && x < R) R = x }
+      for (const [x, y0, y1, k] of 세로) if (지남(y0, y1) && (!같은것 || k === 넣은)) { if (x < c && x > L) L = x; if (x > c && x < R) R = x }
       if (!Number.isFinite(L) && Number.isFinite(R)) L = c - (R - c)        // 표 바깥 테두리 선이 없는 쪽 — 머리 글 가운데로 맞접음
       if (!Number.isFinite(R) && Number.isFinite(L)) R = c + (c - L)
       return [L, R]
     }
     /* 표 너비 = 머리 바로 아래 가로 선(«실 명» 칸을 지나는 것)과 이어진 선들 — 옆에 나란한 딴 판(마감표 -2)의 머리를 섞지 않게 */
     const 머리밑 = Math.min(...아래.map((i) => T.y[i])) - 0.3 * hh
+    /* 🧱 G472 표 몸 위에 겹쳐 넣은 «딴 표» 블록은 뺌 — 현장 Y A-171 «지상4층» 줄 위에 따로 넣은 «타일 접착» 표(바닥(자기질타일) 시멘트몰탈 · 벽체 에폭시)의
+       칸 선 · 글이 마감표 줄로 섞여 «바닥(포세린타일)» · «에폭시» 같은 줄이 생기고 줄이 나뉘었음.
+       딴 표 = 표 몸(머리 아래) 글 대부분이 든 블록 · 머리 블록이 아닌 블록 중 칸 선(가로 3 · 세로 2 넘게)이 머리 아래에만 있는 것. 모형 공간(-1)에 바로 그린 것은 그대로 */
+    const 딴표 = new Set()
+    if (모델.E.ins) {
+      const 넣음 = 모델.E.ins
+      const 몸셈 = new Map()
+      for (let i = 0; i < n; i++) { if (T.y[i] >= 머리밑 || T.y[i] < Ybot) continue; const c = 가(i); if (c < X0 || c > X1) continue; const k = 넣음[T.e[i]]; 몸셈.set(k, (몸셈.get(k) || 0) + 1) }
+      const 주 = [...몸셈].sort((a, b) => b[1] - a[1])[0]
+      const 머리블록 = 넣음[T.e[hi]]
+      const 선셈 = new Map()
+      for (const [, , y, k] of 가로) { const v = 선셈.get(k) || { 가: 0, 세: 0, 위: -Infinity }; v.가++; v.위 = Math.max(v.위, y); 선셈.set(k, v) }
+      for (const [, , y1, k] of 세로) { const v = 선셈.get(k) || { 가: 0, 세: 0, 위: -Infinity }; v.세++; v.위 = Math.max(v.위, y1); 선셈.set(k, v) }
+      for (const [k, v] of 선셈) if (k >= 0 && (!주 || k !== 주[0]) && k !== 머리블록 && v.가 >= 3 && v.세 >= 2 && v.위 < 머리밑) 딴표.add(k)
+      if (딴표.size) { for (let j = 가로.length - 1; j >= 0; j--) if (딴표.has(가로[j][3])) 가로.splice(j, 1); for (let j = 세로.length - 1; j >= 0; j--) if (딴표.has(세로[j][3])) 세로.splice(j, 1) }
+    }
+    const 딴블록 = (e) => 딴표.size > 0 && 딴표.has(모델.E.ins[e])
     const 지나는 = (c) => [...new Set(가로.filter(([x0, x1, y]) => x0 <= c && x1 >= c && y < 머리밑).map(([, , y]) => Math.round(y * 1000) / 1000))].sort((a, b) => b - a)
     const 줄선 = 지나는(hc)
     if (줄선.length < 3) continue
@@ -786,10 +820,11 @@ export function 격자마감표(모델) {
     }
     if (!너비) continue
     const 표안 = (c) => c >= 너비[0] && c <= 너비[1]
-    const 아래칸 = 아래.filter((i) => 표안(가(i))).map((i) => ({ i, 뜻: 붙(i), c: 가(i), 범위: 칸(가(i), T.y[i]) })).filter((a) => Number.isFinite(a.범위[0]) && Number.isFinite(a.범위[1]))
-    const 부위칸 = 부위글.filter((g) => 표안(가(g.i))).map((g) => ({ ...g, 범위: 칸(가(g.i), T.y[g.i]) })).filter((g) => Number.isFinite(g.범위[0]) && Number.isFinite(g.범위[1]))
+    const 넣은글 = (i) => (모델.E.ins ? 모델.E.ins[T.e[i]] : -1)
+    const 아래칸 = 아래.filter((i) => 표안(가(i))).map((i) => ({ i, 뜻: 붙(i), c: 가(i), 범위: 칸(가(i), T.y[i], 넣은글(i)) })).filter((a) => Number.isFinite(a.범위[0]) && Number.isFinite(a.범위[1]))
+    const 부위칸 = 부위글.filter((g) => 표안(가(g.i))).map((g) => ({ ...g, 범위: 칸(가(g.i), T.y[g.i], 넣은글(g.i)) })).filter((g) => Number.isFinite(g.범위[0]) && Number.isFinite(g.범위[1]))
     if (부위칸.length < 2 || 아래칸.filter((a) => a.뜻 === '마감').length < 2) continue
-    const 실범위 = 칸(hc, hy)
+    const 실범위 = 칸(hc, hy, 넣은글(hi))
     if (!Number.isFinite(실범위[0]) || !Number.isFinite(실범위[1])) continue
     const 층칸 = 아래칸.find((a) => /^(층별|층)$/.test(a.뜻) && a.범위[1] <= 실범위[0] + 0.2 * hh)
     const 위선 = 가로.filter(([x0, x1, y]) => x0 <= hc && x1 >= hc && y >= 머리밑 && y < hy).map(([, , y]) => y)
@@ -803,7 +838,7 @@ export function 격자마감표(모델) {
       let 앞2 = 앞 === 0 ? 0 : (위선.length ? Math.min(...위선) : 머리밑 + 0.3 * hh)
       for (const y of 층선) {
         const 글들 = []
-        for (let i = 0; i < n; i++) { const c = 가(i); if (c >= 층칸.범위[0] && c <= 층칸.범위[1] && T.y[i] < 앞2 && T.y[i] > y && 수평글(i) && 층칸말.test(붙(i))) 글들.push(i) }
+        for (let i = 0; i < n; i++) { const c = 가(i); if (c >= 층칸.범위[0] && c <= 층칸.범위[1] && T.y[i] < 앞2 && T.y[i] > y && 수평글(i) && 층칸말.test(붙(i)) && !딴블록(T.e[i])) 글들.push(i) }
         글들.sort((a, b) => T.y[b] - T.y[a])
         const t = 글들.map((i) => 붙(i)).join('')
         if (t) 층들.push([y, 앞2, t])
@@ -815,8 +850,10 @@ export function 격자마감표(모델) {
     const 판 = 판테두리(모델, hc, hy, hh)
     if (판) { while (줄들.length && 줄들[줄들.length - 1][0] < 판[1]) { 줄들.pop(); 판밖++ } for (let j = 층들.length - 1; j >= 0; j--) if (층들[j][0] < 판[1] && 층들[j][1] <= 판[1]) 층들.splice(j, 1) }
     const 몸 = []
-    for (let i = 0; i < n; i++) { if (T.y[i] >= 머리밑 || T.y[i] < 줄선[줄선.length - 1] || !수평글(i)) continue; const c = 가(i); if (c < 표X0 || c > 표X1) continue; 몸.push(i) }
+    for (let i = 0; i < n; i++) { if (T.y[i] >= 머리밑 || T.y[i] < 줄선[줄선.length - 1] || !수평글(i) || 딴블록(T.e[i])) continue; const c = 가(i); if (c < 표X0 || c > 표X1) continue; 몸.push(i) }
     const 재료말 = /(몰탈|모르타르|시멘트|타일|페인트|방수|콘크리트|석고|도장|뿜칠|보드|합판|단열|THK|^T\d)/i
+    /* 🧱 G472 뺀 딴 표 블록의 실명 칸 글 수 — 마감표모음이 다른 읽기(딴 표 글도 줄로 셈)와 견줄 때 같이 셈 */
+    if (딴표.size) for (let i = 0; i < n; i++) { if (!딴블록(T.e[i]) || T.y[i] >= 머리밑 || T.y[i] < 줄선[줄선.length - 1]) continue; const c = 가(i); if (c >= 실범위[0] && c <= 실범위[1] && !숫자인가(글(T.s[i]))) 딴줄++ }
     const 제목i = (() => { let b = -1, bd = Infinity; for (let i = 0; i < n; i++) { if (!/마감표/.test(붙(i)) || T.y[i] <= hy) continue; const d = Math.hypot(가(i) - hc, T.y[i] - hy); if (d < bd && d < 80 * hh) { bd = d; b = i } } return b })()
     const 표이름 = 제목i >= 0 ? 글(T.s[제목i]).replace(/\s+/g, ' ') : '실내재료마감표'
     let 읽은 = 0
@@ -842,7 +879,14 @@ export function 격자마감표(모델) {
         const 칸글 = (re) => { const a = 속.filter((x) => re.test(x.뜻)); return 안.filter((j) => a.some((x) => { const c = 가(j); return c >= x.범위[0] && c <= x.범위[1] })) }
         const 기호들 = [...new Set(칸글(/^(상세번호|상세)$/).map((j) => 붙임(T.s[j]).toUpperCase()).filter((t) => /^[A-Z]{1,3}-?\d{1,3}[A-Z]?$/.test(t)))]
         const 마감글 = 칸글(/^마감$/).map((j) => 글(T.s[j])).filter((t) => t && !/^[-—–]$/.test(t))
-        const 바탕글 = 칸글(/^바탕$/).map((j) => 글(T.s[j]).replace(/^[\s/]+|[\s/]+$/g, '')).filter((t) => t && !/^[-—–]$/.test(t))   // 줄이 넘친 «/ Thk47 시멘트몰탈» 의 앞뒤 «/» 는 뗌
+        /* 바탕 칸 — 줄마다 «/» 로 나눈 재료(괄호 안 «/» 는 그대로 — «구배 1/100») · 줄이 넘친 «/ Thk47 시멘트몰탈» 의 앞뒤 «/» 는 뗌
+           🧱 G472 «(» 로 시작하는 조각은 윗줄 재료에 붙은 말 — 현장 Y 화장실 벽 «T7 시멘트 액체방수 1종» + «(H=1,200) / 시멘트몰탈» → «… 1종 (H=1,200)» · «시멘트몰탈»
+              (전엔 «(H=1,200) / 시멘트몰탈» 이 재료 하나) · 지하 홀 «침투성 방수 / T45 배수판 /» → 둘 */
+        const 바탕글 = []
+        for (const j of 칸글(/^바탕$/)) {
+          const 조각 = 빗금나누기(글(T.s[j])).filter((x) => x && !/^[-—–]$/.test(x))
+          조각.forEach((x, n) => { if (n === 0 && /^\(/.test(x) && 바탕글.length) 바탕글[바탕글.length - 1] += ' ' + x; else 바탕글.push(x) })
+        }
         const 높이글 = 칸글(/^(높이|두께)$/).map((j) => 붙임(T.s[j]).replace(/,/g, '')).find((t) => /^\d+(\.\d+)?$/.test(t))
         if (g.부 === '천장') {
           const h = 칸글(/^(천장고|천정고|반자높이)$/).map((j) => 붙임(T.s[j]).replace(/,/g, '')).find((t) => /^\d+(\.\d+)?$/.test(t))
@@ -854,7 +898,9 @@ export function 격자마감표(모델) {
         if (!기호) continue
         줄[g.부] = 기호
         const 규격 = g.부 === '걸레받이' && 높이글 ? 'H' + 높이글 : ''
-        const 재료 = 부피더하기([...바탕글.map((t) => ({ 재료: t, 규격: '', 단위, 계수: '1' })), ...(이름 ? [{ 재료: 이름, 규격, 단위, 계수: '1' }] : [])], g.부)
+        /* 🧱 G472 벽 재료에 «(H=1,200)» — 그 높이까지만(방수 등): 계수 = Q × 1.2 / 천장고(H) — 문 · 창 공제도 같은 비율 */
+        const 높이몫 = (t) => { const m = g.부 === '벽' && /\(\s*H\s*=\s*([\d,.]+)\s*\)/i.exec(t); if (!m) return '1'; let h = +m[1].replace(/,/g, ''); if (h > 100) h /= 1000; return h > 0 ? 'Q*' + 짧(h) + '/H' : '1' }
+        const 재료 = 부피더하기([...바탕글.map((t) => ({ 재료: t, 규격: '', 단위, 계수: 높이몫(t) })), ...(이름 ? [{ 재료: 이름, 규격, 단위, 계수: 높이몫(이름) }] : [])], g.부)
         줄.마감들[g.부] = { 기호, 이름: 이름 || 기호, 재료: 재료.length ? 재료 : [{ 재료: g.부 + ' 마감 ' + 기호, 규격: '', 단위, 계수: '1' }] }
       }
       const 층 = 층들.find(([a, b]) => 이름글.some((j) => T.y[j] < b && T.y[j] > a))
@@ -880,6 +926,7 @@ export function 격자마감표(모델) {
     }
   }
   out.밖줄 = 판밖          // 🧱 G462 판 테두리 밖이라 뺀 줄 수 — 마감표모음이 다른 읽기와 견줄 때 같이 셈
+  out.딴줄 = 딴줄          // 🧱 G472 겹쳐 넣은 딴 표 블록이라 뺀 실명 칸 글 수
   return out
 }
 
@@ -889,7 +936,7 @@ export function 마감표모음(모델, 표들) {
   const b = a.length ? [] : 마감표찾기(모델)
   const c = 격자마감표(모델)
   const 앞 = a.length ? a : b
-  return c.length + (c.밖줄 || 0) > 앞.length ? c : 앞       // 🧱 G462 판 밖 줄을 뺀 격자 표도 처음 읽은 수로 견줌(현장 Y A-171 — 빼고 나니 여러 줄 칸 읽기 쪽이 골라져 바탕이 안 나뉨)
+  return c.length + (c.밖줄 || 0) + (c.딴줄 || 0) > 앞.length ? c : 앞       // 🧱 G462 판 밖 줄을 뺀 격자 표도 처음 읽은 수로 견줌(현장 Y A-171 — 빼고 나니 여러 줄 칸 읽기 쪽이 골라져 바탕이 안 나뉨) · G472 딴 표 블록 줄도
 }
 
 /** 층 글 → 견줄 꼴 — 「지하1층」「B1」「B1F」→ B1 · 「1층」「1F」「1」→ 1 · 옥탑 · 옥상 · 지붕 · PH · RF → PH */

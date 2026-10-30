@@ -162,6 +162,10 @@ export function 셈(공사) {
   const 경 = (곳, t) => { const k = (곳 ? 곳.표 + '|' + 곳.i : '') + '|' + t; if (본경고.has(k)) return; 본경고.add(k); 경고.push({ 곳, 글: t }) }
   const 마감표 = new Map()
   for (const m of 공사.마감 || []) if (글(m.기호)) 마감표.set(글(m.기호).toUpperCase(), m)
+  /* 🧱 G472 같은 기호가 부위마다 따로 있으면(상세번호 없는 마감표 — 마감 이름이 기호: «T10 지정 포세린 타일 (600 X 600 무광)» 이 지하 홀 바닥(무근 T145 · 배수판)이고
+     화장실 벽(타일만)이기도 함) 그 부위 것을 씀 — 전엔 기호 하나로만 찾아 뒤의 것이 이겨 화장실 벽 넓이에 바닥의 무근 T145 가 붙었음(현장 Y 353 ㎡) */
+  const 부위마감표 = new Map()
+  for (const m of 공사.마감 || []) if (글(m.기호) && 글(m.부위)) 부위마감표.set(글(m.부위) + '|' + 글(m.기호).toUpperCase(), m)
   const 창표 = new Map()
   for (const w of 공사.창호 || []) if (글(w.기호)) 창표.set(글(w.기호).toUpperCase(), w)
   const 치환표 = new Map()
@@ -208,7 +212,7 @@ export function 셈(공사) {
     const c = 글(기호)
     if (!c) return
     const { 곳 } = 판
-    const m = 마감표.get(c.toUpperCase())
+    const m = 부위마감표.get(부위 + '|' + c.toUpperCase()) || 마감표.get(c.toUpperCase())
     if (!m) { 경(곳, 부위 + ' 마감 «' + c + '» 가 마감표에 없습니다'); return }
     if (m.부위 && 부위 !== '외벽' && m.부위 !== 부위) 경(곳, '«' + c + '» 는 마감표에서 ' + m.부위 + ' 마감인데 ' + 부위 + ' 칸에 적혔습니다')
     const 재료 = (m.재료 || []).filter((r) => 글(r.재료))
