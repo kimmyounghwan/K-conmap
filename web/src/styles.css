@@ -9684,3 +9684,26 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 }
 .topbar-in[data-tight="1"] .installbtn, .topbar-in[data-tight="2"] .installbtn { display: none; }
 .topbar-in[data-tight="2"] .topback { display: none; }
+/* 🗓 G466 골조 공정 — 조건 · 공정표(막대) · 칸 공정 · 달마다 · 3D 재생 */
+.gmd .gmd-gj .gmd-gj-num { width: 64px; max-width: 22vw; text-align: right; }
+.gmd .gmd-gj .gmd-gj-num.on { border-color: #297aeb; background: rgba(41, 122, 235, .08); }
+.gmd .gmd-gj-rest, .gmd .gmd-gj-now { align-items: center; }
+.gmd .gmd-gj-state { white-space: nowrap; }
+.gmd .gmd-gj-chart { margin: 4px 0 8px; border: 1px solid var(--line, #d0d5dd); border-radius: 10px; }
+.gmd .gmd-gj-table td.gmd-gj-ord { white-space: nowrap; }
+.gmd .gmd-gj-table td.gmd-gj-ord > span { display: inline-block; min-width: 1.6em; }
+.gmd .gmd-gj-mv { border: 1px solid var(--line, #d0d5dd); background: var(--surface, #fff); color: inherit; border-radius: 6px; padding: 0 5px; margin-left: 2px; font-size: 11px; line-height: 20px; cursor: pointer; }
+.gmd .gmd-gj-mv:disabled { opacity: .35; cursor: default; }
+.gmd .gmd-gj-st { border-radius: 999px; padding: 1px 8px; font-size: 12px; border: 1px solid var(--line, #d0d5dd); }
+.gmd .gmd-gj-st.끝 { background: rgba(92, 133, 199, .16); border-color: rgba(92, 133, 199, .5); }
+.gmd .gmd-gj-st.중 { background: rgba(51, 179, 92, .16); border-color: rgba(51, 179, 92, .5); }
+.gmd .gmd-gj-month td.gmd-gj-cells { white-space: normal; min-width: 220px; max-width: 520px; }
+.gmd .gmd-gj-month tr.next td { background: rgba(230, 160, 20, .07); }
+.gmd .gmd-gj-tag { margin-left: 6px; font-size: 11px; padding: 1px 7px; }
+.gmd .gmd-gj-play { display: flex; flex-direction: column; gap: 4px; margin: 4px 0; }
+.gmd .gmd-gj-playbar { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.gmd .gmd-gj-playbar input[type="range"] { flex: 1 1 auto; min-width: 60px; }
+@media (max-width: 520px) { .gmd .gmd-gj-table th:nth-child(7), .gmd .gmd-gj-table td:nth-child(7) { display: none; } .gmd .gmd-gj-month td.gmd-gj-cells { min-width: 160px; } }
+/* 🗓 G466 작업 화면 탭이 여섯 — 320 px 폰에서 39 px 넘치던 것(칸 · 틈을 줄임) */
+@media (max-width: 380px) { .gmd .gmd-ws-top { padding: 8px 8px; } .gmd .gmd-ws-tabs { gap: 3px; } .gmd .gmd-ws-tabs .gmd-tab { padding: 6px 6px; font-size: 12.5px; } }
+.gmd .gmd-gj-playbar .btn { white-space: nowrap; flex: 0 0 auto; }

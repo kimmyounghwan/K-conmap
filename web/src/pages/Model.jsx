@@ -29,6 +29,8 @@ import { 새모델, 예시모델, 작업예시모델, 정돈, 겹침둠, 겹침�
 import 둘러보기판 from '../둘러보기판.jsx'
 import 골조기성판, { 기성색들, 칸상태 } from '../골조기성판.jsx'
 import 골조변경판 from '../골조변경판.jsx'      /* 📑 G464 내역서 대조 → 설계변경 */
+import 골조공정판, { 공정재생줄, 공정색들 } from '../골조공정판.jsx'   /* 🗓 G466 공정표 · 3D 재생 · 달마다 물량 */
+import { 공정셈, 공정시트, 칸날상태, 부재날상태 } from '../lib/골조공정.js'
 import 받기검사판 from '../받기검사판.jsx'
 import 적산컨맵설명서 from '../적산컨맵설명서.jsx'
 import { 층판 } from '../lib/둘러보기.js'
@@ -77,6 +79,8 @@ export default function Model() {
   }, [되돌림])
   const [탭, set탭] = useState(() => (읽기() && 읽기().부재.length ? '세우기' : '통심'))
   const [기성색, set기성색] = useState(false)          // 📆 G463 3D 를 기성(회차) 색으로
+  const [공정날, set공정날] = useState(null)          // 🗓 G466 3D 공정 재생 날(켜면 기성 색은 끔)
+  useEffect(() => { if (기성색) set공정날(null) }, [기성색])
   const [층, set층] = useState(() => { const m = 읽기() || 새모델(); return (m.층.find((f) => !FT층(f)) || m.층[0]).이름 })
   const [도구, set도구] = useState('기둥')
   const [부호, set부호] = useState({ 기둥: 'C1', 보: 'G1', 벽: 'W1', 슬라브: 'S1', 기초: 'F1' })
@@ -282,7 +286,9 @@ export default function Model() {
     set받는중('엑셀')
     try {
       const { ST } = await import('../lib/qtoxlsx.js')
-      const sheets = [...골조엑셀(S.공사, S.R, (s) => s, ST), ...모델시트(M, S, ST)]
+      /* 🗓 G466 공정이 다 정해졌으면 «골조공정표» · «월별예정» · «공정조건» 시트도 */
+      const 공R = M.공정 ? 공정셈(M, S) : null
+      const sheets = [...골조엑셀(S.공사, S.R, (s) => s, ST), ...모델시트(M, S, ST), ...(공R && 공R.다됨 ? 공정시트(M, S, ST, 공R) : [])]
       /* 📋 G442 받기 전 검사 — 한 번 더 셈해 보고(화면 합 = 엑셀 «부재별» · «집계») 통과하면 받음 · 못 통과면 알리고 «알고 받기» */
       const 검 = await import('../lib/받기전검사.js')
       await new Promise((ok) => setTimeout(ok, 30))
@@ -292,6 +298,12 @@ export default function Model() {
         const B = 기성셈(M, S)
         기맞.push({ 이름: '📆 기성 칸 콘크리트 합(기성칸)', 시트: /^기성칸/, 줄: '합계', 열: '콘크리트(㎥)', 값: B.Q.칸합.콘크리트, 단위: '㎥', 자리: 3, 오차: 0.011 + B.Q.칸.size * 0.0005 })
         if (B.금액.금회 > 0) 기맞.push({ 이름: '📆 기성 금회 금액(기성내역)', 시트: /^기성내역/, 줄: '합계', 열: '금회 금액(원)', 값: B.금액.금회, 단위: '원', 자리: 0, 오차: 1 })
+      }
+      if (공R && 공R.다됨) {
+        const 콘 = 공R.줄.reduce((a, c) => a + (c.합.콘크리트 || 0), 0)
+        기맞.push({ 이름: '🗓 공정표 콘크리트 합(골조공정표)', 시트: /^골조공정표/, 줄: '합계', 열: '콘크리트(㎥)', 값: 콘, 단위: '㎥', 자리: 3, 오차: 0.0011 })
+        기맞.push({ 이름: '🗓 달마다 콘크리트 합(월별예정)', 시트: /^월별예정/, 줄: '합계', 열: '콘크리트(㎥)', 값: 콘, 단위: '㎥', 자리: 3, 오차: 0.0011 })
+        기맞.push({ 이름: '🗓 달마다 작업일 합(월별예정)', 시트: /^월별예정/, 줄: '합계', 열: '작업일', 값: 공R.작업일, 단위: '일', 자리: 0, 오차: 0 })
       }
       const r = 검.받기전검사(sheets, [...검.골조맞댈(S), ...기맞])
       const 이름 = '골조모델_' + 파일이름 + '.xlsx'
@@ -304,9 +316,11 @@ export default function Model() {
     <세우기칸 토목으로={() => set분야('토목')} M={M} setM={setM} S={S} 층={층} set층={set층} 도구={도구} set도구={set도구} 쓸도구={쓸도구} 부호={부호} set부호={set부호}
       첫점={첫점} set첫점={set첫점} 고른={고른} set고른={set고른} 고른것={고른것} 보일층={보일층} set보일층={set보일층}
       glErr={glErr} setGlErr={setGlErr} 크게={크게} set크게={set크게} 한번세기={한번세기} 작업={작업판} 도면결과={도면결과} set도면결과={set도면결과}
-      엑셀받음={엑셀받음} 걷기요청={걷기요청} 길행동={길행동} 원료Ref={원료Ref} 도면열기={() => 도면Ref.current && 도면Ref.current.click()} 기성색={기성색} set기성색={set기성색} 기성으로={() => set탭('기성')} />
+      엑셀받음={엑셀받음} 걷기요청={걷기요청} 길행동={길행동} 원료Ref={원료Ref} 도면열기={() => 도면Ref.current && 도면Ref.current.click()} 기성색={기성색} set기성색={set기성색} 기성으로={() => set탭('기성')}
+      공정날={공정날} set공정날={set공정날} 공정으로={() => set탭('공정')} />
   )
   const 기성판 = <골조기성판 M={M} S={S} setM={setM} 층={층} 세기={세기} 엑셀받기={엑셀받기} 받는중={받는중} 기성색={기성색} set기성색={set기성색} 세우기로={() => set탭('세우기')} />
+  const 공정판 = <골조공정판 M={M} S={S} setM={setM} 세기={세기} 엑셀받기={엑셀받기} 받는중={받는중} 재생={(d) => { set기성색(false); set공정날(d); set보일층('모두'); set탭('세우기') }} 기성으로={() => set탭('기성')} />
   if (작업) {
     const 분야칸 = (
       <>
@@ -339,8 +353,8 @@ export default function Model() {
           <div className="gmd-ws-top">
             {분야칸}
             <span className="gmd-ws-tabs" role="tablist">
-              {/* 📆 G463 탭 다섯 — 좁은 화면(폰)에서는 뒤 글(· 3D · 층 · 엑셀 · 부호)을 숨겨 한 줄에 다 보임 */}
-              {[['세우기', '세우기', ' · 3D'], ['통심', '통심', ' · 층'], ['일람', '일람', '', '부호 '], ['물량', '물량', ' · 엑셀'], ['기성', '📆 기성', '']].map(([k, t, 뒤, 앞 = '']) => (
+              {/* 📆 G463 탭 다섯(🗓 G466 여섯) — 좁은 화면(폰)에서는 뒤 글(· 3D · 층 · 엑셀 · 부호)을 숨겨 한 줄에 다 보임 */}
+              {[['세우기', '세우기', ' · 3D'], ['통심', '통심', ' · 층'], ['일람', '일람', '', '부호 '], ['물량', '물량', ' · 엑셀'], ['공정', '🗓 공정', ''], ['기성', '📆 기성', '']].map(([k, t, 뒤, 앞 = '']) => (
                 <button key={k} type="button" role="tab" aria-label={앞 + t + 뒤} aria-selected={탭 === k} className={'gmd-tab' + (탭 === k ? ' on' : '')} onClick={() => set탭(k)}>{앞 && <span className="gmd-tl">{앞}</span>}{t}{뒤 && <span className="gmd-tl">{뒤}</span>}</button>
               ))}
             </span>
@@ -366,6 +380,7 @@ export default function Model() {
               {탭 === '통심' && <통심칸 M={M} setM={setM} />}
               {탭 === '일람' && <일람칸들 M={M} setM={setM} />}
               {탭 === '물량' && <물량칸 M={M} S={S} 엑셀받기={엑셀받기} 받는중={받는중} set탭={set탭} set고른={set고른} set층={set층} />}
+              {탭 === '공정' && 공정판}
               {탭 === '기성' && 기성판}
             </div>
           )}
@@ -399,7 +414,7 @@ export default function Model() {
       </div>
 
       <div className="gmd-tabs" role="tablist">
-        {[['통심', '① 통심', ' · 층'], ['일람', '② 부호 일람', ''], ['세우기', '③ 세우기', ' · 3D'], ['물량', '④ 물량', ' · 엑셀'], ['기성', '⑤ 📆 기성', '']].map(([k, t, 뒤]) => (
+        {[['통심', '① 통심', ' · 층'], ['일람', '② 부호 일람', ''], ['세우기', '③ 세우기', ' · 3D'], ['물량', '④ 물량', ' · 엑셀'], ['공정', '⑤ 🗓 공정', ''], ['기성', '⑥ 📆 기성', '']].map(([k, t, 뒤]) => (
           <button key={k} type="button" role="tab" aria-label={t + 뒤} aria-selected={탭 === k} className={'gmd-tab' + (탭 === k ? ' on' : '')} onClick={() => set탭(k)}>{t}{뒤 && <span className="gmd-tl">{뒤}</span>}</button>
         ))}
       </div>
@@ -408,6 +423,7 @@ export default function Model() {
       {탭 === '일람' && <일람칸들 M={M} setM={setM} />}
       {탭 === '세우기' && 세움칸(false)}
       {탭 === '물량' && <물량칸 M={M} S={S} 엑셀받기={엑셀받기} 받는중={받는중} set탭={set탭} set고른={set고른} set층={set층} />}
+      {탭 === '공정' && 공정판}
       {탭 === '기성' && 기성판}
       <div className="card kcm-help-card" id="kcm-help"><적산컨맵설명서 /></div>
     </div>
@@ -602,7 +618,7 @@ function 일람칸들({ M, setM }) {
 
 /* ───────────────────────── ③ 세우기 · 평면 + 3D */
 function 세우기칸(p) {
-  const { M, setM, S, 층, set층, 도구, set도구, 쓸도구, 부호, set부호, 첫점, set첫점, 고른, set고른, 고른것, 보일층, set보일층, glErr, setGlErr, 크게, set크게, 한번세기, 작업 = false, 도면결과 = null, set도면결과 = () => {}, 엑셀받음 = false, 걷기요청 = 0, 길행동 = () => {}, 원료Ref = null, 도면열기 = () => {}, 기성색 = false, set기성색 = null, 기성으로 = null } = p
+  const { M, setM, S, 층, set층, 도구, set도구, 쓸도구, 부호, set부호, 첫점, set첫점, 고른, set고른, 고른것, 보일층, set보일층, glErr, setGlErr, 크게, set크게, 한번세기, 작업 = false, 도면결과 = null, set도면결과 = () => {}, 엑셀받음 = false, 걷기요청 = 0, 길행동 = () => {}, 원료Ref = null, 도면열기 = () => {}, 기성색 = false, set기성색 = null, 기성으로 = null, 공정날 = null, set공정날 = null, 공정으로 = null } = p
   const [보기, set보기] = useState('3D')                // 🖥 G388 작업 화면 가운데: 3D · 평면 · 나란히
   const [빗그리기, set빗그리기] = useState(false)          // 🧭 G395 ⟋ 비스듬히 — 가로 · 세로가 다른 교점을 누르면 비스듬한 보 · 벽
   const [걷기, set걷기0] = useState(false)             // 🚶 G390 둘러보기(작업 화면만)
@@ -859,6 +875,10 @@ function 세우기칸(p) {
     for (const [id, k] of B.Q.어디) m.set(id, k ? 칸상태(B, k) : '안함')
     return m
   }, [기성색, S, M.기성, M.구간])  // eslint-disable-line react-hooks/exhaustive-deps
+  /* 🗓 G466 3D 공정 재생 — 그 날 칸 상태(끝 · 하는 중 · 아직)로 부재 색 · 아직은 비침(상태가 바뀔 때만 다시 그림) */
+  const 공정R = useMemo(() => (공정날 && S && !S.오류 && M.공정 ? 공정셈(M, S) : null), [!!공정날, S, M.공정, M.구간])  // eslint-disable-line react-hooks/exhaustive-deps
+  const 공정서명 = 공정R && 공정R.다됨 && 공정날 ? 공정R.줄.map((c) => 칸날상태(c, 공정날)).join('') : ''
+  const 공정어디 = useMemo(() => (공정서명 ? 부재날상태(공정R, 공정날) : null), [공정서명, 공정R])  // eslint-disable-line react-hooks/exhaustive-deps
   /* 🚶 G390 둘러보기 — 맨 아래층 · 기초에서는 땅(바닥 판)을 그 층 바닥 높이로(사람이 허공에 뜨지 않게) */
   const 걷는바닥 = useMemo(() => {
     if (!걷기 || !작업) return undefined
@@ -920,16 +940,17 @@ function 세우기칸(p) {
     /* 보 · 기둥 · 벽 윗면이 슬라브 밑면과 같은 높이라 겹친 면이 깜빡임 → 그림에서만 3 mm 낮춤(물량은 그대로) */
     const 초 = [0.30, 0.76, 0.42]
     const 구색 = (d) => {
+      if (공정어디) return 공정색들[공정어디.get(d.id) || '전']
       if (기성어디) return 기성색들[기성어디.get(d.id) || '안함']
       if (구간색 && 구간어디) { const k = 구간어디.get(d.id); return k >= 0 ? 구간색들[k % 구간색들.length] : [0.78, 0.79, 0.81] }
       if (걷기 && 작업 && 확인들.has(d.id) && !d.제안) return d.색.map((c, i) => c * 0.45 + 초[i] * 0.55)     // 🟩 확인한 부재는 초록 쪽으로
       return d.색
     }
-    v.set부재([...보일.map((d) => ({ id: d.id, 판: d.판, z0: d.z0, z1: d.종류 === '슬라브' || d.종류 === '기초' ? d.z1 : d.z1 - 3, 색: 구색(d), ...(d.면 ? { 면: d.면, 선: d.선 } : {}), ...(d.유령 ? { 비침: 0.22 } : {}) })), ...빠짐덩], { 바닥: true, 바닥색: 어두움() ? [0.16, 0.18, 0.22] : [0.86, 0.88, 0.90], 바닥z: 걷기 && 작업 ? 걷는바닥 : undefined })
+    v.set부재([...보일.map((d) => ({ id: d.id, 판: d.판, z0: d.z0, z1: d.종류 === '슬라브' || d.종류 === '기초' ? d.z1 : d.z1 - 3, 색: 구색(d), ...(d.면 ? { 면: d.면, 선: d.선 } : {}), ...(d.유령 ? { 비침: 0.22 } : 공정어디 && (공정어디.get(d.id) || '전') === '전' ? { 비침: 0.12 } : {}) })), ...빠짐덩], { 바닥: true, 바닥색: 어두움() ? [0.16, 0.18, 0.22] : [0.86, 0.88, 0.90], 바닥z: 걷기 && 작업 ? 걷는바닥 : undefined })
     if (!맞춤.current && 보일.length) { v.fit('tilt'); 맞춤.current = true }
     v.set고름(고른 !== null ? [고른] : [])
     v.onPick = (id, e) => { if (걷기누름Ref.current) { 걷기누름Ref.current(id, e); return } if (id >= 0) { set고른(id); 한번세기('|골조모델|3D고름') } else set고른(null) }   // 🖱 둘러보기 중에는 «누른 곳으로 걷기»
-  }, [보일, 빠짐덩, 걷는바닥, 구간색, 구간어디, 기성어디, 확인들, 걷기])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [보일, 빠짐덩, 걷는바닥, 구간색, 구간어디, 기성어디, 공정어디, 확인들, 걷기])  // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (보기Ref.current) 보기Ref.current.set고름(고른 !== null ? [고른] : []) }, [고른])
   /* 🖥 G388 바닥에 이 층 통심을 깖(3D 에서 지금 세우는 층 높이) — 도면 위에 세우듯 */
   const 바닥선 = useMemo(() => {
@@ -1040,6 +1061,7 @@ function 세우기칸(p) {
             <button type="button" className="btn line sm" onClick={() => 보기Ref.current && 보기Ref.current.fit('top')}>⬇ 위</button>
             <button type="button" className={'btn line sm gmd-bigbtn' + (크게 ? ' on' : '')} onClick={() => set크게((v) => !v)}>{크게 ? '⊟ 작게' : '⛶ 크게'}</button>
           </div>
+          {공정날 && <공정재생줄 R={공정R} 날={공정날} set날={set공정날} 끄기={() => set공정날 && set공정날(null)} 공정으로={공정으로} />}
           <div className="bim-canvas gmd-canvas">
             {glErr ? <div className="dx3-warn" style={{ margin: 12 }}>{glErr}</div> : <canvas ref={판Ref} />}
             {걷기 && 작업 && 보기Ref.current && S && !S.오류 ? <둘러보기판 보기Ref={보기Ref} 누름Ref={걷기누름Ref} M={M} S={S} 층={층} set층={set층} 고른={고른} set고른={set고른} setM={setM} 끝내기={() => set걷기(false)} on눈={set걷기눈} on확인={set확인비} on확인들={set확인들} />

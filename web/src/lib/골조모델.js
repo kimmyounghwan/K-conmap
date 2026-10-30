@@ -299,6 +299,9 @@ export function 정돈(m0) {
   /* 📆 G463 기성(회차마다 끝난 칸 «층|구간» · 갈래 · 단가) — 있을 때만 */
   const 기 = 기성정돈(m.기성)
   if (기) M.기성 = 기
+  /* 🗓 G466 공정(시작 날 · 칸 작업일 · 쉬는 날 · 차례) — 있을 때만 · 셈은 lib/골조공정.js */
+  const 공 = 공정정돈(m.공정)
+  if (공) M.공정 = 공
   /* 🛣 G393 골조에 안 쓴 도면(토목 · 건축 · 그 밖 — 이름만) */
   if (Array.isArray(m.도면따로) && m.도면따로.length) M.도면따로 = m.도면따로.filter((d) => d && 글(d.이름)).map((d) => ({ 이름: 글(d.이름), 종: 글(d.종) || '그 밖' }))
   /* 🧾 G393 층별 대조(도면 부재 수 · 겹쳐 한 번 · 도면 셈 콘크리트 — 도면 넣을 때) */
@@ -1701,6 +1704,26 @@ export function 기성정돈(g) {
   return { 회차, 갈래, 단가, ...(Number.isFinite(+g.고른) && 회차.some((r) => r.회 === +g.고른) ? { 고른: +g.고른 } : {}) }
 }
 const 기성빈 = () => ({ 회차: [], 갈래: 기성갈래이름.slice(0, 3), 단가: {} })
+/* ───────────────────────────── 🗓 G466 공정 — 칸(층 × 구간 · 기성과 같은 칸)마다 작업일 · 시작 날 · 쉬는 날 (셈은 lib/골조공정.js)
+   작업일은 소장님이 넣는 값(칸마다 같은 날 · 팀 하루 거푸집 ㎡ · 칸마다 고친 날) — 비면 비운 채로(짐작해서 채우지 않음) */
+export const 공정빈 = () => ({ 시작: '', 방법: '같은날', 기본: null, 하루: null, 일수: {}, 팀: false, 토쉼: false, 일쉼: true, 공휴쉼: true, 더쉼: [], 순서: [] })
+export function 공정정돈(p) {
+  if (!p || typeof p !== 'object') return null
+  const 날 = (t) => (/^\d{4}-\d{2}-\d{2}$/.test(글(t)) ? 글(t) : '')
+  const 양 = (x) => { const v = 수(x, null); return Number.isFinite(v) && v > 0 ? v : null }
+  const 날수 = (x) => { const v = 양(x); return v ? Math.min(999, Math.max(1, Math.round(v))) : null }
+  const 일수 = {}
+  if (p.일수 && typeof p.일수 === 'object') for (const [k, v] of Object.entries(p.일수)) { const n = 날수(v); if (/\|/.test(k) && n) 일수[k] = n }
+  const o = {
+    시작: 날(p.시작), 방법: p.방법 === '거푸집' ? '거푸집' : '같은날', 기본: 날수(p.기본), 하루: 양(p.하루), 일수,
+    팀: !!p.팀, 토쉼: !!p.토쉼, 일쉼: p.일쉼 !== false, 공휴쉼: p.공휴쉼 !== false,
+    더쉼: [...new Set((Array.isArray(p.더쉼) ? p.더쉼 : []).map(날).filter(Boolean))].sort(),
+    순서: [...new Set((Array.isArray(p.순서) ? p.순서 : []).map(글).filter((k) => /\|/.test(k)))],
+  }
+  const 빈 = 공정빈()
+  if (Object.keys(빈).every((k) => JSON.stringify(o[k]) === JSON.stringify(빈[k]))) return null
+  return o
+}
 /** 새 회차(끝 회차 + 1) — 날짜는 부르는 쪽(YYYY-MM-DD) */
 export function 기성회차더하기(M, 날짜 = '') {
   const g = M.기성 || 기성빈()
