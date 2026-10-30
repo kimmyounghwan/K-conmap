@@ -1583,11 +1583,54 @@ function 그림철근(D, c, 폭, 춤) {
  *   보조 대근 = 네모 안(가장자리 12 % 안쪽)을 70 % 넘게 가로지르는 곧은 선 — 세로 선 = 가로 가닥(길이 = 세로 변) · 가로 선 = 세로 가닥.
  *   크기를 알면 네모 가로 : 세로가 기둥 가로 : 세로와 25 % 안일 때만(단면 그림이 아닌 선 묶음은 안 봄)
  */
-function 단면가닥(D, c, 아래y, a, b) {
+/** 일람 칸 단면 그림을 찾을 칸들 — ① 이름 «아래»(현장 B S-401) ② 이름 «옆» 층 범위 칸의 주근 글 바로 위(현장 Y S-501) */
+function 단면창들(D, c, 아래y, 주g = null) {
   const h = c.g.h
   const 옆 = D.글자.filter((g) => g !== c.g && Math.abs(g.y - c.g.y) < 0.5 * h && Math.abs(g.h - h) < 0.3 * h && 기호칸(g.s)).map((g) => Math.abs(g.x - c.g.x)).filter((d) => d > 2 * h)
   const W = Math.min(15 * h, 옆.length ? Math.min(...옆) / 2 : 15 * h)
-  const x0 = c.g.x - W, x1 = c.g.x + W, y1 = c.g.y - h, y0 = Math.max(아래y, c.g.y - 40 * h)
+  const 창 = [[c.g.x - W, c.g.x + W, Math.max(아래y, c.g.y - 40 * h), c.g.y - h]]
+  if (주g && 주g.y < c.g.y - 2 * h) {
+    /* 🧭 G475 이름 «옆» 칸 그림 — 현장 Y S-501 기둥 일람: 맨 왼쪽 «구 분» 칸에 이름(C1)만 있고 층 범위 칸(B1F ~ 2F · 3F · 5F ~ 6F)마다 그 줄 높이에 단면 그림 · 그 아래 «주 근» 줄에 22-SHD22 …
+         → 그 층 범위 칸의 주근 글 바로 위(주근 글과 같은 칸 · 이름 줄 높이까지)에서 찾음. 칸 너비는 같은 줄 옆 글(다른 층 범위 주근 · «주 근» 머리)까지의 반 */
+    const hj = 주g.h || h
+    const 옆주 = D.글자.filter((g) => g !== 주g && Math.abs(g.y - 주g.y) < 0.5 * hj && Math.abs(g.h - hj) < 0.3 * hj).map((g) => Math.abs(g.x - 주g.x) - ((g.w || 0) + (주g.w || 0)) / 2).filter((d) => d > 2 * hj)
+    const W2 = Math.min(15 * h, 옆주.length ? Math.min(...옆주) / 2 + (주g.w || 0) / 2 : 15 * h)
+    창.push([주g.x - W2, 주g.x + W2, 주g.y + 주g.h, c.g.y + Math.max(4 * h, c.g.y - 주g.y)])
+  }
+  return 창
+}
+function 단면가닥(D, c, 아래y, a, b, 주g = null) {
+  for (const [x0, x1, y0, y1] of 단면창들(D, c, 아래y, 주g)) { const r = 가닥재기(D, c.g.h, x0, x1, y0, y1, a, b); if (r) return r }
+  return null
+}
+/** 🧭 G475 원형 기둥 단면 그림의 보조 대근 — 띠철근 원 안을 가로지르는 곧은 선(현) 하나하나의 길이(mm · 그림 바깥 원 = 지름으로 맞춤) → [길이…] 또는 null
+ *  현장 Y S-501 C2 ⌀1000 · C3 ⌀900: 원 안에 세로 셋 · 가로 셋(층 범위마다 수 · 자리가 다름 — 짐작하지 않고 그린 선 그대로) */
+function 원단면보조(D, c, 아래y, 지름, 주g = null) {
+  if (!(지름 > 0)) return null
+  for (const [x0, x1, y0, y1] of 단면창들(D, c, 아래y, 주g)) {
+    if (!(y1 - y0 > 2 * c.g.h)) continue
+    const 원들 = D.닫힌.filter((o) => o.원 && o.b[0] >= x0 && o.b[2] <= x1 && o.b[1] >= y0 && o.b[3] <= y1).map((o) => ({ x: (o.b[0] + o.b[2]) / 2, y: (o.b[1] + o.b[3]) / 2, d: o.b[2] - o.b[0] })).sort((p, q) => q.d - p.d)
+    const 밖 = 원들[0]
+    if (!밖 || !(밖.d > 4 * c.g.h)) continue
+    /* 띠철근 원 = 같은 가운데 · 바깥 원보다 조금 작은 원(바깥의 70% 넘게) — 없으면 바깥 원 */
+    const 띠 = 원들.slice(1).find((o) => Math.hypot(o.x - 밖.x, o.y - 밖.y) < 0.05 * 밖.d && o.d > 0.7 * 밖.d) || 밖
+    const R = 띠.d / 2, k = 지름 / 밖.d
+    const 선 = []
+    for (const s of D.찾기(밖.x - 밖.d / 2, 밖.y - 밖.d / 2, 밖.x + 밖.d / 2, 밖.y + 밖.d / 2)) {
+      const ax = D.sx0[s], ay = D.sy0[s], bx = D.sx1[s], by = D.sy1[s]
+      if (Math.hypot(ax - 띠.x, ay - 띠.y) > 1.04 * R || Math.hypot(bx - 띠.x, by - 띠.y) > 1.04 * R) continue
+      const L = Math.hypot(bx - ax, by - ay)
+      if (L < 0.4 * R) continue
+      /* 같은 선을 두 번 그린 것은 하나로 */
+      if (선.some((q) => Math.hypot(q.ax - ax, q.ay - ay) + Math.hypot(q.bx - bx, q.by - by) < 0.02 * R || Math.hypot(q.ax - bx, q.ay - by) + Math.hypot(q.bx - ax, q.by - ay) < 0.02 * R)) continue
+      선.push({ ax, ay, bx, by, L })
+    }
+    if (선.length) return 선.map((q) => Math.round(q.L * k))
+  }
+  return null
+}
+/** 칸(x0 · y0 ~ x1 · y1) 안 단면 그림의 띠철근 네모와 그 안을 가로지르는 곧은 선(보조 대근) → {가: 2 + 세로 선 수, 세: 2 + 가로 선 수} 또는 null */
+function 가닥재기(D, h, x0, x1, y0, y1, a, b) {
   if (!(y1 - y0 > 2 * h)) return null
   const 세선 = [], 가선 = []
   for (const s of D.찾기(x0, y0, x1, y1)) {
@@ -1721,7 +1764,7 @@ function 배근만들기(기, 값, c, 머리, 경고, D = null) {
     return r
   }
   if (기.종류 === '기둥') {
-    const r = { 기호: 기.기호, 가로: '', 세로: '', 지름: '', 주근: '', 대근단부: '', 대근중앙: '', 형태: '사각', 변수: '', 한변: '', 면적: '', 둘레: '', 대근가로: '', 대근세로: '', 대근형태: '띠', 동: '' }
+    const r = { 기호: 기.기호, 가로: '', 세로: '', 지름: '', 주근: '', 대근단부: '', 대근중앙: '', 형태: '사각', 변수: '', 한변: '', 면적: '', 둘레: '', 대근가로: '', 대근세로: '', 대근보조: '', 대근형태: '띠', 동: '' }
     // 층 범위가 여러 줄이면 맨 아래 줄(가장 낮은 층)을 대표로 — 나머지는 경고
     if (크기) { r.가로 = String(크기.a); r.세로 = String(크기.b) }
     else if (지[0]) { r.지름 = String(지[0].x.t); r.형태 = '원형' }
@@ -1739,8 +1782,11 @@ function 배근만들기(기, 값, c, 머리, 경고, D = null) {
     if (SRC) r.철골 = SRC
     /* 🧭 G281 일람 칸 단면 그림의 보조 대근(띠철근 네모 안을 가로지르는 곧은 선) — 현장 B S-401 기둥 일람 C1 · C2(가운데 세로 · 가로 한 가닥씩) */
     if (D && !(+r.지름 > 0) && r.형태 !== '원형') {
-      const 가닥 = 단면가닥(D, c, 주 && 주.g.y < c.g.y - 2 * c.g.h ? 주.g.y + 주.g.h : c.g.y - 30 * c.g.h, +r.가로 || 0, +r.세로 || 0)
+      const 가닥 = 단면가닥(D, c, 주 && 주.g.y < c.g.y - 2 * c.g.h ? 주.g.y + 주.g.h : c.g.y - 30 * c.g.h, +r.가로 || 0, +r.세로 || 0, 주 ? 주.g : null)
       if (가닥) { r.대근가로 = String(가닥.가); r.대근세로 = String(가닥.세) }
+    } else if (D && +r.지름 > 0) {
+      const 현 = 원단면보조(D, c, 주 && 주.g.y < c.g.y - 2 * c.g.h ? 주.g.y + 주.g.h : c.g.y - 30 * c.g.h, +r.지름, 주 ? 주.g : null)
+      if (현) r.대근보조 = 현.join('/')
     }
     return r
   }
