@@ -19,7 +19,7 @@ import { 종류 } from './골조도면.js'
 import { 세기, 도형상자, 글자폭, 붙임, 숫자인가 } from './도면자동.js'
 import { 마감표읽기, 창호표읽기, 셈 as 마감셈 } from './마감.js'
 import { 구간표읽기, 속성단면 } from './단면표.js'
-import { 벽방찾기, 막는도형, 막는토막, 층방들, 벽상자, 방문들, 안 as 고리안 } from './방찾기.js'
+import { 벽방찾기, 막는도형, 막는토막, 층방들, 벽상자, 방문들, 방나누기, 안 as 고리안 } from './방찾기.js'
 
 const 글 = (x) => String(x ?? '').trim()
 const 셋 = (v) => Math.round(v * 1000) / 1000
@@ -517,6 +517,62 @@ export function 실찾기(모델, o = {}) {
     if (아래 && 그자리방(아래).length) r.뚫림 = true
   }
   for (const [key, r] of 모음) if (r.뚫림) 모음.delete(key)
+  /* 🛗 G469 방에 함께 든 승강로 · 샤프트 — 승강기 문 자리엔 문짝 · 열림 호가 없어 홀 물 채우기가 승강로까지 들어감(현장 Y E/V HALL).
+     방 안에 «승강로 · 샤프트» 글이 있으면 그 글과 방 이름 글(가장 먼 것) 사이 가장 좁은 목(2 m 이하)에서 떼어 따로 둠(마감 없음 · 뗀 것은 방에 적음) */
+  if (막토 && 막토.토) {
+    const 떼글 = []
+    const 가운데 = (i) => ({ x: T.x[i] + 글자폭(T, i) / 2 * Math.cos(T.a[i]), y: T.y[i] + T.h[i] / 2 })
+    for (let i = 0; i < T.s.length; i++) {
+      const s = 글(T.s[i])
+      if (떼말.test(s) || s.split('/').every((w) => 샤프트말.test(w.trim()))) { 떼글.push({ s, ...가운데(i) }); continue }
+      /* «E/V» 글 묶음(위아래 줄)에 HALL · 홀 · 전실 · 로비가 없으면 승강기(승강로) 자리 — 현장 Y «E/V · 침상형 · (장애인 겸용)» */
+      if (!승강글.test(s)) continue
+      const c = 가운데(i), hh = T.h[i] || 0
+      if (!(hh > 0)) continue
+      const 곁 = []
+      for (let j = 0; j < T.s.length; j++) {
+        if (j === i) continue
+        const d = 가운데(j)
+        if (Math.abs(d.x - c.x) < hh * 5 && Math.abs(d.y - c.y) > hh * 0.3 && Math.abs(d.y - c.y) < hh * 4) 곁.push(글(T.s[j]))
+      }
+      if (곁.some((w) => 홀글.test(w))) continue
+      떼글.push({ s: '승강로(' + [s, ...곁.filter((w) => w && !/^\(.*\)$/.test(w))].slice(0, 2).join(' ') + ')', ...c })
+    }
+    let 뗀n = 0
+    if (떼글.length) for (const [key, r] of [...모음]) {
+      if (r.방법 !== '벽' || !r.다각형 || r.마감없음 || 떼말.test(붙임(r.이름)) || 샤프트말.test(붙임(r.이름))) continue
+      const 든 = 떼글.filter((q) => q.x >= r.b[0] && q.x <= r.b[2] && q.y >= r.b[1] && q.y <= r.b[3] && 고리안(r.다각형, q.x, q.y))
+      if (!든.length) continue
+      /* 방 씨앗 = 방 이름 글 가운데 떼어 낼 글들에서 가장 먼 것 */
+      const 후보 = (r.글자 || []).map((i) => 가운데(i)).concat([{ x: r.x, y: r.y }]).filter((p) => 고리안(r.다각형, p.x, p.y))
+      const 멀기 = (p) => Math.min(...든.map((q) => Math.hypot(p.x - q.x, p.y - q.y)))
+      후보.sort((a, b) => 멀기(b) - 멀기(a))
+      const 씨 = 후보[0]
+      if (!씨 || 멀기(씨) < 1000 / k) continue
+      const v = 방나누기(막토.토, r.다각형, 씨, 든, { 칸: 25 / k, 목: 2000 / k })
+      if (!v) continue
+      const 새들 = []
+      v.나들.forEach((w, n) => {
+        if (!w) return
+        const q = 든[n], 뗀면적 = w.넓이 * k * k / 1e6
+        r.뗀 = [...(r.뗀 || []), { 이름: q.s, 면적: 뗀면적 }]
+        새들.push({ 이름: q.s, 층: r.층, 면적: 뗀면적, 둘레: w.둘레 * k / 1000, e: -1, x: q.x, y: q.y, 글자: [], 보임: false, 해치: false, 레이어: '', 다각형: w.점, b: w.상자, 넓이: w.넓이, 방법: '벽', 마감없음: true })
+      })
+      if (!r.뗀) continue
+      r.다각형 = v.가.점; r.넓이 = v.가.넓이; r.면적 = v.가.넓이 * k * k / 1e6; r.둘레 = v.가.둘레 * k / 1000; r.b = v.가.상자; r.x = 씨.x; r.y = 씨.y
+      if (r.중심면적) delete r.중심면적
+      /* 떼어 낸 승강로 안에 있던 이름 글(«E/V» 등)은 홀 이름에서 뺌 — «E/V HALL·E/V» → «E/V HALL» (홀에 같은 글이 또 있으면 둠) */
+      const 남글 = (r.글자 || []).filter((i) => { const p = 가운데(i); return 고리안(r.다각형, p.x, p.y) })
+      if (남글.length && 남글.length < r.글자.length) {
+        const 남말 = new Set(남글.map((i) => 글(T.s[i])))
+        const 뺄말 = new Set(r.글자.filter((i) => !남글.includes(i)).map((i) => 글(T.s[i])).filter((w) => !남말.has(w)))
+        const 부분 = r.이름.split('·').filter((w) => !뺄말.has(w))
+        if (부분.length) r.이름 = 부분.join('·')
+        r.글자 = 남글
+      }
+      for (const x of 새들) 모음.set(key + '_뗌' + ++뗀n, { ...x, 뗌: r.이름 })
+    }
+  }
   /* 🚪 G298 ③ 벽으로 찾은 방에 붙은 문(문 열림 호) — 마감 벽 · 걸레받이 공제용(문 폭 · 높이는 2.1 m 로 봄) */
   if (막토 && 막토.토 && 막토.토.문들 && 막토.토.문들.length) {
     for (const r of 모음.values()) if (r.다각형) { const w = 방문들(r.다각형, 막토.토.문들, 300 / k); if (w.length) r.문들 = w.map((v) => Math.round((v * k) / 50) * 50) }
@@ -1135,7 +1191,7 @@ export function 마감자동(모델, o = {}) {
       ...(r.e >= 0 ? { _찍음: { 면적: [{ e: r.e, v: r.면적 }], ...(Number.isFinite(r.둘레) ? { 둘레: [{ e: r.e, v: r.둘레 }] } : {}) } } : { _자리: [{ n: o.이름 || '', r: r.b }] }),
       _도면: o.이름 || '',
       /* 🧱 G298 검산 · 3D — 찾은 길(닫힌 선 · 벽) · 설계자 면적 글 · 면적선(벽 중심) · 방 다각형(도면 단위) */
-      _방: { 길: r.방법 === '벽' ? '벽' : '선', ...(r.도면면적 ? { 도면면적: r.도면면적 } : {}), ...(r.면적선 ? { 면적선: 짧(r.면적선) } : {}), ...(r.숨은이름 ? { 숨은이름: true } : {}), ...(r.중심면적 ? { 중심면적: 짧(r.중심면적) } : {}), ...(r.이름없음 ? { 이름없음: true } : {}), ...(r.오픈 ? { 오픈: true } : {}), ...(r.위뚫림 ? { 위뚫림: true } : {}), ...(r.짐작 ? { 짐작: true } : {}), ...(r.마감없음 ? { 마감없음: true } : {}), ...(r.뺀 ? { 뺀: r.뺀.map((x) => ({ 이름: x.이름, 면적: 짧(x.면적) })) } : {}), ...(샤프트말.test(붙임(r.이름)) ? { 샤프트: true } : {}), ...(r.닻 ? { 닻: r.닻.map((v) => Math.round(v)) } : {}), ...(r.디딤 ? { 디딤: 짧(r.디딤) } : {}), ...(k !== 1 ? { k } : {}), 점: 방점(모델, r) } }
+      _방: { 길: r.방법 === '벽' ? '벽' : '선', ...(r.도면면적 ? { 도면면적: r.도면면적 } : {}), ...(r.면적선 ? { 면적선: 짧(r.면적선) } : {}), ...(r.숨은이름 ? { 숨은이름: true } : {}), ...(r.중심면적 ? { 중심면적: 짧(r.중심면적) } : {}), ...(r.이름없음 ? { 이름없음: true } : {}), ...(r.오픈 ? { 오픈: true } : {}), ...(r.위뚫림 ? { 위뚫림: true } : {}), ...(r.짐작 ? { 짐작: true } : {}), ...(r.마감없음 ? { 마감없음: true } : {}), ...(r.뺀 ? { 뺀: r.뺀.map((x) => ({ 이름: x.이름, 면적: 짧(x.면적) })) } : {}), ...(r.뗀 ? { 뗀: r.뗀.map((x) => ({ 이름: x.이름, 면적: 짧(x.면적) })) } : {}), ...(r.뗌 ? { 뗌: r.뗌 } : {}), ...(샤프트말.test(붙임(r.이름)) ? { 샤프트: true } : {}), ...(r.닻 ? { 닻: r.닻.map((v) => Math.round(v)) } : {}), ...(r.디딤 ? { 디딤: 짧(r.디딤) } : {}), ...(k !== 1 ? { k } : {}), 점: 방점(모델, r) } }
     const 덧 = 방덧말(r)
     if (덧) 줄.비고 = 덧
     const 찾음 = 짝(r.이름, r.층)
@@ -1173,6 +1229,9 @@ export function 마감자동(모델, o = {}) {
 }
 
 const 샤프트말 = /^(EPS|PS|TPS|AD|DA|DS|DUCT|덕트|샤프트|SHAFT|AV)$/i
+const 떼말 = /승강로|HOISTWAY|샤프트|SHAFT/i              /* 🛗 G469 방에서 떼어 낼 글 */
+const 승강글 = /^(E\/?V|ELEV|ELEVATOR|LIFT|승강기|엘리베이터)$/i
+const 홀글 = /HALL|홀|로비|LOBBY|전실|복도|대기|ROOM/i
 /** 🏠 G298 실 줄 «비고» — 자동으로 찾은 방에 사람이 볼 것 */
 function 방덧말(r) {
   const 말 = []
@@ -1183,6 +1242,8 @@ function 방덧말(r) {
   if (샤프트말.test(붙임(r.이름))) 말.push('샤프트 — 마감 없으면 지우십시오')
   if (r.밖) 말.push('이름 든 방들 밖(연결 통로 · 옆 건물?) — 이 공사 것이 아니면 지우십시오')
   if (r.뺀) 말.push('열린 공간 속 «' + r.뺀.map((x) => x.이름.split('·')[0]).join('·') + '» 면적을 뺌')
+  if (r.뗀) 말.push('승강기 문 자리에서 «' + r.뗀.map((x) => x.이름 + ' ' + x.면적.toFixed(2) + ' ㎡').join(' · ') + '» 를 떼어 냄')
+  if (r.뗌) 말.push('«' + r.뗌 + '» 에서 떼어 낸 승강로 · 샤프트 — 마감 없음')
   if (r.방법 !== '벽' && /AREA|면적/i.test(r.레이어 || '')) 말.push('면적 선(벽 중심)으로 셈 — 안목보다 조금 큼')
   return 말.join(' · ')
 }

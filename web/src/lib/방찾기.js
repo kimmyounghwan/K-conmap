@@ -527,3 +527,124 @@ export function 벽상자(토, 상자0, 틈 = 2000, 번 = 8) {
   }
   return b
 }
+
+/**
+ * 🛗 G469 한 방에 함께 든 승강로 · 샤프트 떼기 — 승강기 문 자리에는 문짝 · 열림 호가 없어 물 채우기가 승강로까지 들어감
+ *   (현장 Y 지하 E/V HALL 26.89 ㎡ 가 승강로 둘을 품음 — 바닥 해치는 홀만 12.45 ㎡)
+ *   방 씨앗과 떼어 낼 씨앗마다 «가장 좁은 목» 이 목(2 m) 이하이고 양쪽이 목보다 넉넉히 넓으면(1.4 배) 그 목에서 나눔
+ *   셈: 막는 선만으로 칸 판(25 mm) → 방 씨앗에서 물 채우기 → 칸마다 «벽까지 거리» → 씨앗끼리 잇는 길의 가장 좁은 곳(목) →
+ *       목보다 넓은 칸을 씨앗마다 따로 채우고 → 남은 좁은 칸은 모든 쪽에서 같이 불려 나눔(목 가운데에서 갈림)
+ * @param 토 막는 토막 [x0,y0,x1,y1, …] (모델 단위) · 점 방 다각형 · 가 방 씨앗 {x,y} · 나들 떼어 낼 씨앗 [{x,y}]
+ * @returns {{ 가: {점, 넓이, 둘레, 상자}, 나들: [{점, 넓이, 둘레, 상자, 목} | null] }} | null   (넓이 · 목 = 모델 단위 · 하나도 못 떼면 null)
+ */
+export function 방나누기(토, 점, 가, 나들, { 칸 = 25, 목 = 2000, 배 = 1.4 } = {}) {
+  const b = 상자(점)
+  const 여 = 6 * 칸
+  const x0 = b[0] - 여, y0 = b[1] - 여
+  const Nx = Math.ceil((b[2] - b[0] + 2 * 여) / 칸), Ny = Math.ceil((b[3] - b[1] + 2 * 여) / 칸)
+  if (Nx * Ny > 12e6 || Nx < 8 || Ny < 8) return null
+  const g = Nx, 판 = new Uint8Array(Nx * Ny)
+  const 긋2 = (ax, ay, bx, by) => {
+    const 길 = Math.max(Math.abs(bx - ax), Math.abs(by - ay)), n = Math.max(1, Math.ceil(길 * 2))
+    let pi = -1, pj = -1
+    for (let s = 0; s <= n; s++) {
+      const i = Math.floor(ax + ((bx - ax) * s) / n), j = Math.floor(ay + ((by - ay) * s) / n)
+      if (i === pi && j === pj) continue
+      if (pi >= 0 && i !== pi && j !== pj && i >= 0 && i < Nx && pj >= 0 && pj < Ny) 판[pj * g + i] = 1
+      if (i >= 0 && i < Nx && j >= 0 && j < Ny) 판[j * g + i] = 1
+      pi = i; pj = j
+    }
+  }
+  const X1 = x0 + Nx * 칸, Y1 = y0 + Ny * 칸
+  for (let i = 0; i + 3 < 토.length; i += 4) {
+    const a = 토[i], c = 토[i + 1], d = 토[i + 2], e = 토[i + 3]
+    if (Math.max(a, d) < x0 || Math.min(a, d) > X1 || Math.max(c, e) < y0 || Math.min(c, e) > Y1) continue
+    긋2((a - x0) / 칸, (c - y0) / 칸, (d - x0) / 칸, (e - y0) / 칸)
+  }
+  const 칸자리 = (p) => {
+    const i = Math.floor((p.x - x0) / 칸), j = Math.floor((p.y - y0) / 칸)
+    if (i < 1 || j < 1 || i >= Nx - 1 || j >= Ny - 1) return -1
+    if (!판[j * g + i]) return j * g + i
+    for (let r = 1; r <= 8; r++) for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) { const c = (j + dj) * g + i + di; if (c > 0 && c < 판.length && !판[c]) return c }
+    return -1
+  }
+  const ca = 칸자리(가)
+  if (ca < 0) return null
+  const cb0 = 나들.map((p) => 칸자리(p))       /* 물 채우기 전에(채운 칸은 2 라 «빈 칸» 찾기가 비켜 감) */
+  /* ① 방 씨앗에서 물 채우기(판 가장자리에 닿으면 샘 → 안 나눔) */
+  const 줄 = new Int32Array(Nx * Ny)
+  let h = 0, t = 0
+  줄[t++] = ca; 판[ca] = 2
+  while (h < t) {
+    const c = 줄[h++], i = c % g, j = (c / g) | 0
+    if (i <= 0 || j <= 0 || i >= Nx - 1 || j >= Ny - 1) return null
+    for (const d of [c - 1, c + 1, c - g, c + g]) if (판[d] === 0) { 판[d] = 2; 줄[t++] = d }
+  }
+  const 방칸 = t
+  const cb = cb0.map((c) => (c >= 0 && 판[c] === 2 ? c : -1))
+  if (!cb.some((c) => c >= 0)) return null
+  /* ② 칸마다 벽까지 거리(네 방향 걸음) */
+  const 거 = new Int32Array(Nx * Ny)
+  const 큐 = new Int32Array(방칸)
+  h = 0; t = 0
+  for (let q = 0; q < 방칸; q++) { const c = 줄[q]; if (판[c - 1] !== 2 || 판[c + 1] !== 2 || 판[c - g] !== 2 || 판[c + g] !== 2) { 거[c] = 1; 큐[t++] = c } }
+  while (h < t) { const c = 큐[h++]; for (const d of [c - 1, c + 1, c - g, c + g]) if (판[d] === 2 && 거[d] === 0) { 거[d] = 거[c] + 1; 큐[t++] = d } }
+  /* ③ 씨앗마다 방 씨앗과 처음 이어지는 거리(가장 좁은 목) — 거리 큰 칸부터 이어 붙임 */
+  let 큰거 = 0
+  for (let q = 0; q < 방칸; q++) if (거[줄[q]] > 큰거) 큰거 = 거[줄[q]]
+  const 무리 = new Int32Array(Nx * Ny).fill(-1)
+  const 뿌리 = (x) => { while (무리[x] !== x) { 무리[x] = 무리[무리[x]]; x = 무리[x] } return x }
+  const 묶음 = Array.from({ length: 큰거 + 1 }, () => [])
+  for (let q = 0; q < 방칸; q++) 묶음[거[줄[q]]].push(줄[q])
+  const 목거 = cb.map(() => -1)
+  for (let v = 큰거; v >= 1 && 목거.some((x, n) => x < 0 && cb[n] >= 0); v--) {
+    for (const c of 묶음[v]) { 무리[c] = c; for (const d of [c - 1, c + 1, c - g, c + g]) if (무리[d] >= 0) { const ra = 뿌리(c), rb = 뿌리(d); if (ra !== rb) 무리[ra] = rb } }
+    if (무리[ca] < 0) continue
+    const ra = 뿌리(ca)
+    cb.forEach((c, n) => { if (c >= 0 && 목거[n] < 0 && 무리[c] >= 0 && 뿌리(c) === ra) 목거[n] = v })
+  }
+  const 쓸 = cb.map((c, n) => c >= 0 && 목거[n] >= 1 && 목거[n] * 2 * 칸 <= 목 + 칸)
+  if (!쓸.some(Boolean)) return null
+  /* ④ 목보다 넓은 칸을 씨앗마다 따로 채움(떼어 낼 것 먼저 · 방은 가장 큰 목보다 넓은 칸) → 남은 칸은 모든 쪽에서 같이 불림 */
+  const 쪽 = new Uint8Array(Nx * Ny)
+  const 채우기 = (s, n, 문턱) => {
+    if (거[s] <= 문턱) {
+      let best = -1, bd = 1e9
+      const sx = s % g, sy = (s / g) | 0
+      for (let q = 0; q < 방칸; q++) { const c = 줄[q]; if (거[c] > 문턱 && !쪽[c]) { const dd = Math.abs(c % g - sx) + Math.abs(((c / g) | 0) - sy); if (dd < bd) { bd = dd; best = c } } }
+      if (best < 0) return 0
+      s = best
+    }
+    if (쪽[s]) return 0
+    let hh = 0, tt = 0, 큰 = 0
+    큐[tt++] = s; 쪽[s] = n
+    while (hh < tt) { const c = 큐[hh++]; if (거[c] > 큰) 큰 = 거[c]; for (const d of [c - 1, c + 1, c - g, c + g]) if (판[d] === 2 && !쪽[d] && 거[d] > 문턱) { 쪽[d] = n; 큐[tt++] = d } }
+    return 큰
+  }
+  const 큰나 = cb.map((c, n) => (쓸[n] ? 채우기(c, n + 2, 목거[n]) : 0))
+  cb.forEach((c, n) => { if (쓸[n] && 큰나[n] < 목거[n] * 배) 쓸[n] = false })
+  if (!쓸.some(Boolean)) return null
+  /* 못 쓸 씨앗 칸은 비움(방 쪽으로) */
+  for (let q = 0; q < 방칸; q++) { const c = 줄[q]; if (쪽[c] >= 2 && !쓸[쪽[c] - 2]) 쪽[c] = 0 }
+  const 문턱가 = Math.max(...목거.filter((x, n) => 쓸[n]))
+  const 큰가 = 채우기(ca, 1, 문턱가)
+  if (!큰가 || 큰가 < 문턱가 * 배) return null
+  h = 0; t = 0
+  for (let q = 0; q < 방칸; q++) if (쪽[줄[q]]) 큐[t++] = 줄[q]
+  while (h < t) { const c = 큐[h++]; for (const d of [c - 1, c + 1, c - g, c + g]) if (판[d] === 2 && !쪽[d]) { 쪽[d] = 쪽[c]; 큐[t++] = d } }
+  /* ⑤ 쪽마다 테두리 고리 · 넓이(칸 수 + 테두리 변 ÷ 2 — 벽방찾기와 같은 셈) */
+  const 한쪽 = (n) => {
+    const 임 = new Uint8Array(Nx * Ny)
+    let 수 = 0, 테 = 0, i0 = Nx, i1 = 0, j0 = Ny, j1 = 0
+    for (let q = 0; q < 방칸; q++) { const c = 줄[q]; if (쪽[c] === n) { 임[c] = 2; 수++; const i = c % g, j = (c / g) | 0; if (i < i0) i0 = i; if (i > i1) i1 = i; if (j < j0) j0 = j; if (j > j1) j1 = j } }
+    if (!수) return null
+    for (let q = 0; q < 방칸; q++) { const c = 줄[q]; if (임[c] !== 2) continue; if (임[c - 1] !== 2) 테++; if (임[c + 1] !== 2) 테++; if (임[c - g] !== 2) 테++; if (임[c + g] !== 2) 테++ }
+    const 고리 = 바깥고리(임, g, { i0, i1, j0, j1 })
+    if (!고리) return null
+    const 점2 = 고리.map(([i, j]) => [x0 + i * 칸, y0 + j * 칸])
+    return { 점: 점2, 넓이: (수 + 테 / 2) * 칸 * 칸, 둘레: 고리둘레(점2), 상자: 상자(점2) }
+  }
+  const A = 한쪽(1)
+  if (!A) return null
+  return { 가: A, 나들: cb.map((c, n) => { const p = 쓸[n] ? 한쪽(n + 2) : null; return p ? { ...p, 목: 목거[n] * 2 * 칸 } : null }) }
+}
