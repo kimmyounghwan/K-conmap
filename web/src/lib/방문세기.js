@@ -14,8 +14,13 @@
      · 화면에 보이는 누적 = 애널리틱스 9/15~10/18 + vis/a (lib/이용자지도.js 직접줄들)
    ■ 시·도 — get.geojs.io(맵톡 글쓰기와 같은 곳 · 무료 · 열쇠 없음) 의 지역 이름 → 시·도 열쇠
      (seoul … jeju) · 대한민국 밖 f · 모르면 x. 접속 주소는 어디에도 안 남깁니다(시·도 열쇠 하나만).
-   ■ 안 세는 것: 운영자(소장님) 브라우저 · 자동 브라우저(webdriver · bot) · 화면을 5초 넘게 보지 않고 나간 것(점검 로봇)
-     · 화면이 숨어 있는 탭(밤새 열어 둔 탭은 다음에 화면을 볼 때 셈)
+   ■ 안 세는 것: 운영자(소장님) 브라우저 · 자동 브라우저(webdriver · bot)
+     · 화면이 숨어 있는 탭(밤새 열어 둔 탭 · 미리 띄운 탭은 다음에 화면을 볼 때 셈)
+   ■ 📮 G474 (2026-10-31) 소장님 「너무 많이 차이가 나는데 일방문자」(10/30 애널리틱스 288명 · 건설맵 257명)
+     → ① 화면을 «5초 넘게» 본 뒤 세던 것을 «보자마자» 셈(애널리틱스처럼 · 처음 말씀 «사이트 접속만 하면 세는 걸로»)
+       ② 보내기 전에 «보낼 것» 을 이 브라우저에 적어 두고(kcm.vis.q) 다 가면 지움 — 다 가기 전에 화면을 닫아도
+          5분 지나 다음에 볼 때 마저 보냄(길에 날짜가 들어 있어 그날 숫자로 들어감 · 사흘 넘은 것은 버림).
+          전에는 «셌다» 를 먼저 적고 보내서, 보내는 중에 나가면 그날은 다시 와도 안 세졌음
    ■ 지도 점 — 소장님 「점도 바꾸자. 다 하는게 좋지 않아...헷갈리잖아」 → 점도 건설맵이 센 것으로(0시부터):
      geojs 도시 이름 · 위도 경도 → 시·군 곳 번호(맵톡 글쓰기와 같은 자리고르기 · data/한국지도.json) ·
      오늘 다녀간 곳 vis/d/{날짜}/c/{곳 번호}(하루 한 번) · 지금 점 = 최근 30분 «여기 있음» 의 곳 번호(1명 · 2~4명 · 5명 넘게 — 크기 셋, 전과 같음)
@@ -43,7 +48,6 @@ export const 직접시작 = Date.parse('2026-10-19T00:00:00+09:00')
 export const 직접인가 = (t = Date.now()) => t >= 직접시작
 export const 한국날 = (t) => new Date(t + 9 * 3600000).toISOString().slice(0, 10)
 const 기억열쇠 = 'kcm.vis'
-const 머물초 = 5000
 
 /** 시·도 줄임 이름 ↔ 데이터베이스 열쇠 (규칙 vis 와 «똑같이») */
 export const 시도열쇠 = { 서울: 'seoul', 부산: 'busan', 인천: 'incheon', 대구: 'daegu', 대전: 'daejeon', 광주: 'gwangju', 울산: 'ulsan', 세종: 'sejong',
@@ -77,19 +81,66 @@ function 기억쓰기(v) {
   try { localStorage.setItem(기억열쇠, JSON.stringify(v)); return localStorage.getItem(기억열쇠) === JSON.stringify(v) } catch (e) { return false }
 }
 
-/** 데이터베이스 숫자 하나에 1 더하기 — 읽고(ETag) 고쳐 쓰기 · 그 사이 누가 먼저 더했으면(412) 다시 */
+/** 데이터베이스 숫자 하나에 1 더하기 — 읽고(ETag) 고쳐 쓰기 · 그 사이 누가 먼저 더했으면(412) 다시
+ *  돌려줌: true 됨 · false 못 감(연결 · 서버 — 다음에 다시) · null 규칙이 막음(다시 보내도 안 됨 — 버림) */
 async function 하나더(길) {
   const url = `${DB}/vis/${길}.json`
   for (let i = 0; i < 5; i++) {
     const r = await fetch(url, { headers: { 'X-Firebase-ETag': 'true' }, cache: 'no-store' })
-    if (!r.ok) return false
+    if (!r.ok) return r.status >= 400 && r.status < 500 && r.status !== 408 && r.status !== 429 ? null : false
     const tag = r.headers.get('ETag')
     const v = Number(await r.json()) || 0
     const w = await fetch(url, { method: 'PUT', headers: { 'if-match': tag }, body: String(v + 1) })
     if (w.ok) return true
-    if (w.status !== 412) return false
+    if (w.status !== 412) return w.status >= 400 && w.status < 500 && w.status !== 408 && w.status !== 429 ? null : false
   }
   return false
+}
+
+/* ── 📮 G474 보낼 것 — {남: [길], t: 마지막으로 보내 본 때, f: 처음 넣은 때} ──
+   «@{날}» 은 그날 시·도 · 곳 칸(자리를 알아야 정해짐) · «@{날}+» 는 처음 온 사람이라 누적 시·도도 */
+const 큐열쇠 = 'kcm.vis.q'
+export const 다시보낼틈 = 5 * 60000
+const 큐버림 = 3 * 86400000
+const 길꼴 = /^(d\/20\d\d-[01]\d-[0-3]\d\/(n|s|r\/[a-z]{1,10}|c\/[0-9]{2,5})|a\/n|a\/r\/[a-z]{1,10}|sa\/n|@20\d\d-[01]\d-[0-3]\d\+?)$/
+function 큐읽기() {
+  try { const v = JSON.parse(localStorage.getItem(큐열쇠) || 'null'); return v && Array.isArray(v.남) ? v : { 남: [], t: 0, f: 0 } } catch (e) { return null }
+}
+function 큐쓰기(v) {
+  try { if (!v.남.length) localStorage.removeItem(큐열쇠); else localStorage.setItem(큐열쇠, JSON.stringify(v)) } catch (e) { /* 이번만 */ }
+}
+function 큐넣기(길들, 지금) { const q = 큐읽기(); if (!q) return; if (!q.남.length) q.f = 지금; q.남.push(...길들); q.t = 지금; 큐쓰기(q) }
+/** 보낼 것에서 길 하나를 빼고 그 자리에 새들을 넣음(빈 배열이면 빼기만) */
+function 큐바꾸기(옛, 새들 = []) { const q = 큐읽기(); if (!q) return; const i = q.남.indexOf(옛); if (i < 0) return; q.남.splice(i, 1, ...새들); 큐쓰기(q) }
+let 보내는수 = 0
+/** 길들을 보냄 — 날짜 · 사람 칸은 바로, «@날» 은 자리를 안 뒤 시·도 · 곳 칸으로 바꿔 보냄. 간 것(· 규칙이 막은 것)은 보낼 것에서 지움. 돌려줌: 실제 보낸 길들 */
+async function 보내기(길들, 지금) {
+  보내는수++
+  try {
+    const 보낸 = []
+    const 하나 = (p) => { 보낸.push(p); return 하나더(p).then((v) => { if (v !== false) 큐바꾸기(p); return v === true }, () => false) }
+    const 일 = 길들.filter((p) => p[0] !== '@').map(하나)
+    const 표 = 길들.filter((p) => p[0] === '@')
+    if (표.length) {
+      const 곳 = await 자리알기(지금)
+      for (const t of 표) {
+        const 날 = t.slice(1, 11), 새 = t.endsWith('+')
+        const 더 = [`d/${날}/r/${곳.s}`].concat(곳.k ? [`d/${날}/c/${곳.k}`] : [], 새 ? [`a/r/${곳.s}`] : [])
+        큐바꾸기(t, 더)
+        일.push(...더.map(하나))
+      }
+    }
+    const 됨 = await Promise.all(일)
+    if (됨.some(Boolean)) 듣는이.forEach((f) => { try { f() } catch (e) { /* 무시 */ } })
+    return 보낸
+  } finally { 보내는수-- }
+}
+let 운영자 = null
+async function 운영자인가() {
+  if (운영자 === null) {
+    try { const o = await import('./운영자.js'); 운영자 = !!(await o.나운영자()) } catch (e) { 운영자 = false }
+  }
+  return 운영자
 }
 
 /* ── 자리 — 시·도 열쇠(s) · 곳 번호(k · 시·군) — 하루 한 번만 물어 이 브라우저에 기억 ── */
@@ -141,9 +192,8 @@ const 듣는이 = new Set()
 /** 이 브라우저가 방금 세어졌을 때 부름(지도가 바로 다시 읽게) */
 export function 셈듣기(f) { 듣는이.add(f); return () => 듣는이.delete(f) }
 
-let 운영자 = null
 let 도는중 = false
-/** 한 번 세어 보기 — 이미 오늘 셌으면 아무것도 안 함. 돌려줌: 센 길들(시험용) 또는 null */
+/** 한 번 세어 보기 — 이미 오늘 셌으면 아무것도 안 함. 돌려줌: 보낸 길들(시험용) 또는 null */
 export async function 세어보기(지금 = Date.now()) {
   if (!직접인가(지금) || 도는중) return null
   if (typeof document !== 'undefined' && document.visibilityState && document.visibilityState !== 'visible') return null
@@ -152,20 +202,33 @@ export async function 세어보기(지금 = Date.now()) {
   const m = 기억읽기()
   if (!m || m.d === 날) return null                     // 기억을 못 쓰는 브라우저는 세지 않음(새로 고칠 때마다 또 세지 않게)
   const 새사람 = !m.a && !옛사람(typeof document !== 'undefined' ? document.cookie : '')
-  if (!기억쓰기({ d: 날, a: 1 })) return null           // 보내기 «전에» 적어 둠 — 탭 둘 · 새로 고침에도 두 번 안 셈
+  if (!기억쓰기({ d: 날, a: 1 })) return null           // «셌다» 를 먼저 적어 둠 — 탭 둘 · 새로 고침에도 두 번 안 셈
+  const 길 = [`d/${날}/n`].concat(새사람 ? ['a/n'] : [], ['@' + 날 + (새사람 ? '+' : '')])
+  큐넣기(길, 지금)                                       // 📮 G474 보낼 것도 같이 — 다 가기 전에 닫으면 다음에 마저
   도는중 = true
   try {
-    if (운영자 === null) {
-      try { const o = await import('./운영자.js'); 운영자 = !!(await o.나운영자()) } catch (e) { 운영자 = false }
-    }
-    if (운영자) return null
-    const 곳 = await 자리알기(지금)
-    const k = 곳.s
-    const 길 = [`d/${날}/n`, `d/${날}/r/${k}`].concat(곳.k ? [`d/${날}/c/${곳.k}`] : [], 새사람 ? ['a/n', `a/r/${k}`] : [])
-    await Promise.all(길.map((p) => 하나더(p).catch(() => false)))
-    듣는이.forEach((f) => { try { f() } catch (e) { /* 무시 */ } })
-    return 길
+    if (await 운영자인가()) { for (const p of 길) 큐바꾸기(p); return null }
+    return await 보내기(길, 지금)
   } finally { 도는중 = false }
+}
+
+let 큐도는중 = false
+/** 📮 G474 못 보낸 것 마저 보내기 — 마지막으로 보내 본 지 5분 넘은 것만(보내는 중인 다른 탭과 겹치지 않게). 돌려줌: 보낸 길들 또는 null */
+export async function 밀린것보내기(지금 = Date.now()) {
+  if (typeof document !== 'undefined' && document.visibilityState && document.visibilityState !== 'visible') return null
+  if (봇() || 큐도는중 || 보내는수 > 0) return null
+  const q = 큐읽기()
+  if (!q || !q.남.length) return null
+  if (Math.abs(지금 - (Number(q.t) || 0)) < 다시보낼틈) return null
+  if (지금 - (Number(q.f) || Number(q.t) || 0) > 큐버림) { 큐쓰기({ 남: [] }); return null }
+  const 길 = q.남.filter((p) => typeof p === 'string' && 길꼴.test(p))
+  큐쓰기({ 남: 길, t: 지금, f: q.f || 지금 })
+  if (!길.length) return null
+  큐도는중 = true
+  try {
+    if (await 운영자인가()) { 큐쓰기({ 남: [] }); return null }
+    return await 보내기(길, 지금)
+  } finally { 큐도는중 = false }
 }
 
 /* ── 🔁 오늘 방문(세션) — 10/22 0시부터 · vis/d/{날}/s 하나만 ── */
@@ -191,16 +254,12 @@ export async function 방문보기(지금 = Date.now()) {
   const 값 = JSON.stringify({ t: 지금, d: 날 })
   try { localStorage.setItem(방문열쇠, 값); if (localStorage.getItem(방문열쇠) !== 값) return null } catch (e) { return null }   // 기억을 못 쓰면 세지 않음(1분마다 또 세지 않게)
   if (!새 || !방문인가(지금)) return null
+  const 길 = [`d/${날}/s`, 'sa/n']
+  큐넣기(길, 지금)                                       // 📮 G474 보낼 것도 같이
   방문도는중 = true
   try {
-    if (운영자 === null) {
-      try { const o = await import('./운영자.js'); 운영자 = !!(await o.나운영자()) } catch (e) { 운영자 = false }
-    }
-    if (운영자) return null
-    const 길 = [`d/${날}/s`, 'sa/n']
-    const 됨 = await Promise.all(길.map((p) => 하나더(p).catch(() => false)))
-    if (됨.some(Boolean)) 듣는이.forEach((f) => { try { f() } catch (e) { /* 무시 */ } })
-    return 길
+    if (await 운영자인가()) { for (const p of 길) 큐바꾸기(p); return null }
+    return await 보내기(길, 지금)
   } finally { 방문도는중 = false }
 }
 
@@ -228,10 +287,7 @@ export async function 숨쉬기(지금 = Date.now()) {
   const id = 내번호()
   if (!id) return null
   마지막숨 = 지금
-  if (운영자 === null) {
-    try { const o = await import('./운영자.js'); 운영자 = !!(await o.나운영자()) } catch (e) { 운영자 = false }
-  }
-  if (운영자) return null
+  if (await 운영자인가()) return null
   try {
     const 곳 = await 자리알기(지금)
     const w = await fetch(`${DB}/vis/on/${id}.json`, { method: 'PUT', body: JSON.stringify({ t: { '.sv': 'timestamp' }, ...(곳.k ? { k: 곳.k } : {}) }) })
@@ -239,28 +295,15 @@ export async function 숨쉬기(지금 = Date.now()) {
   } catch (e) { return null }
 }
 
-/** 사이트를 열 때 한 번(main.jsx) — 화면을 5초 넘게 본 뒤 세고, 그 뒤 1분마다 · 화면이 다시 보일 때 날짜를 봄 */
+/** 사이트를 열 때 한 번(main.jsx) — 화면이 보이면 바로 세고(📮 G474 · 전에는 5초 넘게 본 뒤), 그 뒤 1분마다 · 화면이 다시 보일 때 날짜를 봄
+ *  숨은 탭(뒤에 연 탭 · 미리 띄운 탭)은 각 셈이 스스로 안 셈 — 화면을 볼 때(visibilitychange) 셈 */
 export function 방문켜기() {
   if (typeof window === 'undefined' || window.__방문) return
   window.__방문 = true
-  let 본 = 0, 시작 = null, 끝 = false
-  const 다시 = () => { 세어보기().catch(() => {}); 방문보기().catch(() => {}); 숨쉬기().catch(() => {}) }
-  const 재기 = () => {
-    if (끝) return
-    if (document.visibilityState === 'visible') { if (시작 == null) 시작 = Date.now() } else if (시작 != null) { 본 += Date.now() - 시작; 시작 = null }
-  }
-  const 틱 = setInterval(() => {
-    재기()
-    const 지금본 = 본 + (시작 != null ? Date.now() - 시작 : 0)
-    if (지금본 >= 머물초) {
-      끝 = true; clearInterval(틱)
-      다시()
-      setInterval(다시, 60000)
-      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') 다시() })
-    }
-  }, 500)
-  document.addEventListener('visibilitychange', 재기)
-  재기()
+  const 다시 = () => { 세어보기().catch(() => {}); 방문보기().catch(() => {}); 숨쉬기().catch(() => {}); 밀린것보내기().catch(() => {}) }
+  다시()
+  setInterval(다시, 60000)
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') 다시() })
 }
 
 /* 📅 G343 (2026-10-20) 소장님 「여기에 전날 방문수 띄울 수 있어. 여기만…」 — 큰 지도의 «전체 누적 · 오늘» 상자 아래 «어제 N명».

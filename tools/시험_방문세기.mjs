@@ -3,6 +3,7 @@
 //   ② 세어보기 — 가짜 데이터베이스(규칙 vis 와 같은 꼴 · 1씩만 · 열쇠 묶음)에 0시 전 · 0시 뒤 · 하루 한 번 · 처음 온 사람만 누적 · 옛사람 · 운영자 · 봇 · 숨은 탭
 //   ③ 규칙 파일(web/database.rules.json vis)의 시·도 열쇠 = 방문세기.js 시도열쇠 + f · x
 //   ④ 🔁 세션(10/22 0시부터 · vis/d/{날}/s · vis/sa/n) — 30분 쉼 · 날 바뀜 · 숨은 탭 · 저장소 막힘 · 운영자 · 탭 둘 · 사람 셈 그대로 · 세션 줄(누적 · 오늘 · 어제)
+//   ⑤ 📮 G474 못 보낸 것 마저 — 보내는 중에 닫힘 · 끊김 · 반만 감 · 다음 날 · 규칙이 막음 · 사흘 넘음 · 운영자 · 엉뚱한 길 · 세션 · 5분 안에는 안 겹침
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -16,6 +17,7 @@ globalThis.window = globalThis
 globalThis.localStorage = { getItem: (k) => (곳간.has(k) ? 곳간.get(k) : null), setItem: (k, v) => 곳간.set(k, String(v)), removeItem: (k) => 곳간.delete(k), key: () => null, length: 0 }
 globalThis.document = { visibilityState: 'visible', cookie: '', addEventListener: () => {} }
 let 막힌저장 = false, 지금고장 = false, 어제고장 = false, 서버시각 = 0, 지금느림 = false
+let 끊김 = null, 걸림 = false     // 📮 G474 끊김: 이 길 꼴(정규식)의 데이터베이스 요청은 연결 끊김 · 걸림: 데이터베이스 요청이 끝나지 않음(화면을 닫은 것처럼)
 if (!globalThis.crypto) globalThis.crypto = (await import('crypto')).webcrypto
 const 원getItem = localStorage.getItem
 /* 가짜 데이터베이스 — 규칙 vis 그대로(1씩만 · 날짜 · 시·도 열쇠) · ETag */
@@ -40,6 +42,8 @@ globalThis.fetch = async (url, o = {}) => {
   const m = /\/vis\/(.+)\.json$/.exec(주소)
   if (!m) return 응답(404, null)
   const 길 = m[1]
+  if (끊김 && 끊김.test(길)) throw new TypeError('Failed to fetch')
+  if (걸림) return new Promise(() => {})
   if (길 === 'on' && (!o.method || o.method === 'GET')) {   // 지금(30분) — orderBy="$value"&startAt= (규칙 .indexOn 있어야 됨)
     if (지금고장) return 응답(400, { error: 'Index not defined' })
     if (지금느림) return new Promise((res, rej) => { const 시 = setTimeout(() => res(응답(200, null)), 10000); if (o.signal) o.signal.addEventListener('abort', () => { clearTimeout(시); rej(new Error('abort')) }) })   // ⏱ 아주 늦는 연결
@@ -277,6 +281,117 @@ const 어s = await B7.직접받기(KST('2026-10-23T10:00:00'))
 봄('직접받기 — 10/23 에 보면 어제(10/22) 세션 vis/d/2026-10-22/s = 412 · 10/22 에 보면 어제(10/21)는 null', 어s && 어s.어제s && 어s.어제s.날 === '2026-10-22' && 어s.어제s.n === 412 && (await B7.직접받기(KST('2026-10-22T10:00:00'))).어제s === null, JSON.stringify(어s && 어s.어제s))
 const 줄방 = B.직접줄들(바탕, { ...직, d: { ...직.d, s: 99 }, 날: '2026-10-22' }, KST('2026-10-22T09:00:00'))
 봄('직접줄들 — 방문을 세도 누적 · 오늘(사람) · 시·도는 그대로', 줄방.전국.a === 1896 && 줄방.전국.t === 9, JSON.stringify(줄방.전국))
+
+/* ── ⑤ 📮 G474 못 보낸 것 마저 보내기 ── */
+const 큐 = () => JSON.parse(곳간.get('kcm.vis.q') || 'null')
+const 몇 = (p) => 쓴.filter((x) => x === p).length
+봄('다시보낼틈 = 5분', B.다시보낼틈 === 5 * 60000)
+/* 1) 보내는 중에 화면을 닫음 — 데이터베이스 요청이 안 끝남 */
+곳간.clear(); 쓴 = []; document.cookie = ''; 지오 = { country_code: 'KR', region: 'Seoul' }
+const C1 = await import('../web/src/lib/방문세기.js?닫힘1')
+걸림 = true
+C1.세어보기(KST('2026-10-31T09:00:00')); C1.방문보기(KST('2026-10-31T09:00:00'))
+await new Promise((res) => setTimeout(res, 50))
+걸림 = false
+봄('닫힘 — 셌다(kcm.vis)는 적었고 보낼 것(kcm.vis.q)에 사람 n · 누적 n · 시·도 둘(자리는 알았음) · 세션 s · sa 가 남음 · 아무것도 안 감',
+  JSON.parse(곳간.get('kcm.vis')).d === '2026-10-31' && 쓴.length === 0 && JSON.stringify([...큐().남].sort()) === JSON.stringify(['a/n', 'a/r/seoul', 'd/2026-10-31/n', 'd/2026-10-31/r/seoul', 'd/2026-10-31/s', 'sa/n']), JSON.stringify(큐()))
+const C2 = await import('../web/src/lib/방문세기.js?닫힘2')     // 다시 들어옴(새 화면)
+r = await C2.세어보기(KST('2026-10-31T09:03:00'))
+const r2 = await C2.밀린것보내기(KST('2026-10-31T09:03:00'))
+봄('닫힘 → 3분 뒤 다시 들어옴 — 오늘은 이미 셌고 · 보낼 것은 5분 안이라 아직 안 보냄(보내는 중인 다른 탭과 안 겹치게)', r === null && r2 === null && 쓴.length === 0 && 큐().남.length === 6)
+const r3 = await C2.밀린것보내기(KST('2026-10-31T09:06:00'))
+봄('닫힘 → 6분 뒤 — 마저 보냄: 오늘 n · 서울 · 누적 n · 누적 서울 · 세션 s · sa 한 번씩(6) · 보낼 것 비움',
+  쓴.length === 6 && 몇('d/2026-10-31/n') === 1 && 몇('d/2026-10-31/r/seoul') === 1 && 몇('a/n') === 1 && 몇('a/r/seoul') === 1 && 몇('d/2026-10-31/s') === 1 && 몇('sa/n') === 1 && !곳간.has('kcm.vis.q') && Array.isArray(r3), JSON.stringify([쓴, 큐()]))
+/* 1-2) 자리(geojs)를 알기 전에 닫힘 — «@날+» 표가 남았다가 다음에 자리를 알아 시·도로 */
+곳간.clear(); 쓴 = []; 지오 = { country_code: 'KR', region: 'Gyeonggi-do', city: 'Suwon-si' }
+const C1b = await import('../web/src/lib/방문세기.js?닫힘3')
+const 원fetch = globalThis.fetch
+globalThis.fetch = (u, o) => (/geojs|\/vis\//.test(u) ? new Promise(() => {}) : 원fetch(u, o))
+C1b.세어보기(KST('2026-10-31T11:00:00'))
+await new Promise((res) => setTimeout(res, 50))
+globalThis.fetch = 원fetch
+const 표큐 = 큐().남.slice().sort()
+const C1c = await import('../web/src/lib/방문세기.js?닫힘4'); C1c.시험바탕(지도바탕)     // 새 화면(지도 바탕은 사이트에선 처음 쓸 때 받음)
+await C1c.밀린것보내기(KST('2026-10-31T11:07:00'))
+봄('자리 전에 닫힘 — 보낼 것 «@2026-10-31+» 표 · 7분 뒤 자리를 알아 오늘 경기 · 수원 곳 · 누적 경기까지 한 번씩',
+  JSON.stringify(표큐) === JSON.stringify(['@2026-10-31+', 'a/n', 'd/2026-10-31/n']) && JSON.stringify([...쓴].sort()) === JSON.stringify(['a/n', 'a/r/gyeonggi', 'd/2026-10-31/c/' + 수원, 'd/2026-10-31/n', 'd/2026-10-31/r/gyeonggi'].sort()) && !곳간.has('kcm.vis.q'), JSON.stringify([표큐, 쓴]))
+쓴 = []
+봄('다 보낸 뒤 — 또 안 보냄 · 같은 날 다시 와도 안 셈', (await C2.밀린것보내기(KST('2026-10-31T10:00:00'))) === null && (await C2.세어보기(KST('2026-10-31T10:00:00'))) === null && 쓴.length === 0)
+/* 2) 반만 감 — 사람 n 은 갔는데 시·도 칸은 끊김 */
+곳간.clear(); 쓴 = []; 지오 = { country_code: 'KR', region: 'Busan' }
+const C3 = await import('../web/src/lib/방문세기.js?반')
+끊김 = /\/r\//
+await C3.세어보기(KST('2026-11-01T08:00:00'))
+끊김 = null
+봄('반만 감 — 오늘 n · 누적 n · 곳은 가고, 끊긴 시·도 두 칸만 보낼 것에 남음', 몇('d/2026-11-01/n') === 1 && 몇('a/n') === 1 && JSON.stringify([...큐().남].sort()) === JSON.stringify(['a/r/busan', 'd/2026-11-01/r/busan']), JSON.stringify([쓴, 큐()]))
+쓴 = []
+await C3.밀린것보내기(KST('2026-11-01T08:10:00'))
+봄('반만 감 → 마저 — 시·도 두 칸만(오늘 n · 누적 n 은 두 번 안 셈)', JSON.stringify([...쓴].sort()) === JSON.stringify(['a/r/busan', 'd/2026-11-01/r/busan']) && !곳간.has('kcm.vis.q'), JSON.stringify(쓴))
+/* 3) 연결이 끊긴 채 하루가 지남 — 어제 것은 어제 숫자로 · 오늘 것도 따로 */
+곳간.clear(); 쓴 = []; 지오 = { country_code: 'KR', region: 'Seoul' }
+const C4 = await import('../web/src/lib/방문세기.js?다음날')
+끊김 = /./
+await C4.세어보기(KST('2026-11-02T23:50:00'))
+끊김 = null
+const 앞큐 = 큐().남.slice()
+await C4.세어보기(KST('2026-11-03T09:00:00'))
+const 중간 = (await C4.밀린것보내기(KST('2026-11-03T09:01:00'))) === null
+await C4.밀린것보내기(KST('2026-11-03T09:06:00'))
+봄('다음 날 — 어제(11/2) 못 보낸 n · 서울이 11/2 숫자로 들어가고 · 오늘(11/3)도 1 · 누적은 처음 한 번만 · 오늘 것을 넣은 뒤 5분은 기다림',
+  중간 && JSON.stringify(앞큐.sort()) === JSON.stringify(['a/n', 'a/r/seoul', 'd/2026-11-02/n', 'd/2026-11-02/r/seoul']) && 몇('d/2026-11-02/n') === 1 && 몇('d/2026-11-02/r/seoul') === 1 && 몇('d/2026-11-03/n') === 1 && 몇('a/n') === 1 && !곳간.has('kcm.vis.q'), JSON.stringify([앞큐, 쓴, 큐()]))
+/* 4) 규칙이 막은 길은 버림(다시 보내도 안 됨) · 엉뚱한 길은 안 보냄 · 사흘 넘은 것은 버림 */
+곳간.clear(); 쓴 = []
+곳간.set('kcm.vis', JSON.stringify({ d: '2026-11-04', a: 1 }))
+곳간.set('kcm.vis.q', JSON.stringify({ 남: ['d/2026-11-04/r/tokyo', '../../users/x', 'fresh/map', 'd/2026-11-04/n'], t: KST('2026-11-04T08:00:00'), f: KST('2026-11-04T08:00:00') }))
+const C5 = await import('../web/src/lib/방문세기.js?막힘')
+await C5.밀린것보내기(KST('2026-11-04T08:10:00'))
+봄('규칙이 막은 칸(tokyo)은 버리고 · 엉뚱한 길(../ · fresh)은 안 보냄 · 맞는 것(n)만 감 · 보낼 것 비움', JSON.stringify(쓴) === JSON.stringify(['d/2026-11-04/n']) && !곳간.has('kcm.vis.q'), JSON.stringify([쓴, 큐()]))
+쓴 = []
+곳간.set('kcm.vis.q', JSON.stringify({ 남: ['d/2026-11-01/n'], t: KST('2026-11-01T08:00:00'), f: KST('2026-11-01T08:00:00') }))
+r = await C5.밀린것보내기(KST('2026-11-04T09:00:00'))
+봄('사흘 넘은 것은 안 보내고 버림', r === null && 쓴.length === 0 && !곳간.has('kcm.vis.q'))
+/* 5) 운영자 — 보낼 것이 있어도 안 보내고 비움 */
+곳간.set('kcm.vis.q', JSON.stringify({ 남: ['d/2026-11-04/n'], t: KST('2026-11-04T08:00:00'), f: KST('2026-11-04T08:00:00') }))
+곳간.set('kcm_op', '1'); 쓴 = []
+const C6 = await import('../web/src/lib/방문세기.js?운영자큐')
+r = await C6.밀린것보내기(KST('2026-11-04T09:00:00'))
+봄('운영자 — 보낼 것이 있어도 안 보내고 비움', r === null && 쓴.length === 0 && !곳간.has('kcm.vis.q'))
+곳간.delete('kcm_op')
+/* 6) 숨은 탭은 마저 보내기도 안 함 · 보내는 중(같은 탭)에는 안 겹침 */
+곳간.set('kcm.vis.q', JSON.stringify({ 남: ['d/2026-11-04/n'], t: KST('2026-11-04T08:00:00'), f: KST('2026-11-04T08:00:00') }))
+document.visibilityState = 'hidden'; 쓴 = []
+r = await C5.밀린것보내기(KST('2026-11-04T09:00:00'))
+document.visibilityState = 'visible'
+봄('숨은 탭은 마저 보내기도 안 함', r === null && 쓴.length === 0 && 큐().남.length === 1)
+곳간.clear(); 쓴 = []
+const C7 = await import('../web/src/lib/방문세기.js?겹침')
+걸림 = true
+C7.세어보기(KST('2026-11-05T09:00:00'))
+await new Promise((res) => setTimeout(res, 30))
+걸림 = false
+r = await C7.밀린것보내기(KST('2026-11-05T09:30:00'))
+봄('같은 탭에서 보내는 중이면 30분이 지나도 마저 보내기를 안 겹침', r === null && 쓴.length === 0)
+/* 7) 세션도 — 끊겼다 마저 */
+곳간.clear(); 쓴 = []
+const C8 = await import('../web/src/lib/방문세기.js?세션큐')
+끊김 = /^(d\/[^/]+\/s|sa\/n)$/
+await C8.방문보기(KST('2026-11-06T10:00:00'))
+끊김 = null
+const 세큐 = 큐() && 큐().남.slice().sort()
+await C8.방문보기(KST('2026-11-06T10:06:00'))
+await C8.밀린것보내기(KST('2026-11-06T10:06:00'))
+봄('세션 — 끊긴 s · sa 가 남았다가 6분 뒤 한 번씩 감(같은 방문이라 더 안 셈)', JSON.stringify(세큐) === JSON.stringify(['d/2026-11-06/s', 'sa/n']) && 몇('d/2026-11-06/s') === 1 && 몇('sa/n') === 1 && !곳간.has('kcm.vis.q'), JSON.stringify([세큐, 쓴]))
+/* 8) 방문켜기 — 화면이 보이면 바로 셈(5초 안 기다림) */
+곳간.clear(); 쓴 = []; 지오 = { country_code: 'KR', region: 'Seoul' }
+const 듣 = []; document.addEventListener = (n, f) => 듣.push([n, f])
+const 원si = globalThis.setInterval; const 틱들 = []; globalThis.setInterval = (f, ms) => { 틱들.push(ms); return 0 }
+delete globalThis.__방문
+const C9 = await import('../web/src/lib/방문세기.js?켜기')
+C9.방문켜기()
+await new Promise((res) => setTimeout(res, 80))
+globalThis.setInterval = 원si; document.addEventListener = () => {}
+const 오늘날 = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10)
+봄('방문켜기 — 열자마자(기다림 없이) 오늘 n · 세션 s 를 보냄 · 1분마다 다시 · 화면이 다시 보일 때 다시', 몇('d/' + 오늘날 + '/n') === 1 && 몇('d/' + 오늘날 + '/s') === 1 && 틱들.join() === '60000' && 듣.some(([n]) => n === 'visibilitychange'), JSON.stringify([쓴, 틱들, 듣.map((x) => x[0])]))
 
 /* ── ③ 규칙 파일 ── */
 const 규 = fs.readFileSync(path.join(여기, '..', 'web', 'database.rules.json'), 'utf8')
