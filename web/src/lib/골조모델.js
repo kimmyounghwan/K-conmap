@@ -296,6 +296,9 @@ export function 정돈(m0) {
   if (m.도면에서 && typeof m.도면에서 === 'object') M.도면에서 = m.도면에서
   /* ▭ G393 구간(팀별 · 기성 구간 — 평면 네모 mm) */
   if (Array.isArray(m.구간) && m.구간.length) M.구간 = m.구간.filter((z) => z && 글(z.id) && Array.isArray(z.판) && z.판.length === 4).map((z) => ({ id: 글(z.id), 이름: 글(z.이름) || 글(z.id), 판: z.판.map((v) => 수(v, 0)) }))
+  /* 📆 G463 기성(회차마다 끝난 칸 «층|구간» · 갈래 · 단가) — 있을 때만 */
+  const 기 = 기성정돈(m.기성)
+  if (기) M.기성 = 기
   /* 🛣 G393 골조에 안 쓴 도면(토목 · 건축 · 그 밖 — 이름만) */
   if (Array.isArray(m.도면따로) && m.도면따로.length) M.도면따로 = m.도면따로.filter((d) => d && 글(d.이름)).map((d) => ({ 이름: 글(d.이름), 종: 글(d.종) || '그 밖' }))
   /* 🧾 G393 층별 대조(도면 부재 수 · 겹쳐 한 번 · 도면 셈 콘크리트 — 도면 넣을 때) */
@@ -1626,6 +1629,25 @@ export function 부재가운데(g) {
   if (g.o.종류 === '슬라브') return [(g.X0 + g.X1) / 2, (g.Y0 + g.Y1) / 2]
   return [g.x, g.y]
 }
+const 겹1 = (a0, a1, b0, b1) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0))
+/** 부재(기하 g)가 구간 네모 z 에 든 비율(0 ~ 1) — 보 · 벽 = 길이 · 슬라브 = 넓이 · 기둥 · 기초 · 계단 = 가운데 · 자유 모양 = 둘레 네모 넓이 */
+export function 구간몫(g, z) {
+  const [a, b, c, d] = z.판
+  if (g.사선) return g.L > 0 ? 선분네모(g.p0, g.p1, a, c, b, d) / g.L : 0          // 🧭 G395 비스듬한 보 · 벽 — 구간 네모에 든 길이 몫
+  if (g.o.종류 === '보' || g.o.종류 === '벽') {
+    const L = g.s1 - g.s0
+    if (g.축 === 'x') return g.c >= b && g.c <= d && L > 0 ? 겹1(g.s0, g.s1, a, c) / L : 0
+    return g.c >= a && g.c <= c && L > 0 ? 겹1(g.s0, g.s1, b, d) / L : 0
+  }
+  if (g.o.종류 === '슬라브') { const A = (g.X1 - g.X0) * (g.Y1 - g.Y0); return A > 0 ? 겹1(g.X0, g.X1, a, c) * 겹1(g.Y0, g.Y1, b, d) / A : 0 }
+  if (Array.isArray(g.판) && g.o.종류 !== '계단') {
+    const xs = g.판.map((p) => p[0]), ys = g.판.map((p) => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys)
+    const A = (x1 - x0) * (y1 - y0)
+    return A > 0 ? 겹1(x0, x1, a, c) * 겹1(y0, y1, b, d) / A : 0
+  }
+  const [x, y] = 부재가운데(g)
+  return x >= a && x <= c && y >= b && y <= d ? 1 : 0
+}
 /**
  * 구간마다 물량 — 부재별 몫 × 그 구간에 든 비율(보 · 벽 = 길이 · 슬라브 = 넓이 · 기둥 · 기초 · 계단 = 가운데 · 자유 모양 = 둘레 네모 넓이)
  *   선에 걸친 부재도 자르지 않고 나눠 셈 → 구간 합 + 밖 + 덧줄 = 전체(한 자리도 안 다름) · 구간이 겹치면 먼저 그은 구간이 먼저
@@ -1636,24 +1658,7 @@ export function 구간물량(M, S) {
   const 밖 = 빈()
   const 어디 = new Map()
   const 더 = (t, k, q, w) => { if (!t.has(k)) t.set(k, { 콘크리트: 0, 거푸집: 0, 철근: 0, 개수: 0 }); const a = t.get(k); a.콘크리트 += (q.콘크리트 || 0) * w; a.거푸집 += (q.거푸집 || 0) * w; a.철근 += (q.철근 || 0) * w; a.개수++ }
-  const 겹1 = (a0, a1, b0, b1) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0))
-  const 몫 = (g, z) => {
-    const [a, b, c, d] = z.판
-    if (g.사선) return g.L > 0 ? 선분네모(g.p0, g.p1, a, c, b, d) / g.L : 0          // 🧭 G395 비스듬한 보 · 벽 — 구간 네모에 든 길이 몫
-    if (g.o.종류 === '보' || g.o.종류 === '벽') {
-      const L = g.s1 - g.s0
-      if (g.축 === 'x') return g.c >= b && g.c <= d && L > 0 ? 겹1(g.s0, g.s1, a, c) / L : 0
-      return g.c >= a && g.c <= c && L > 0 ? 겹1(g.s0, g.s1, b, d) / L : 0
-    }
-    if (g.o.종류 === '슬라브') { const A = (g.X1 - g.X0) * (g.Y1 - g.Y0); return A > 0 ? 겹1(g.X0, g.X1, a, c) * 겹1(g.Y0, g.Y1, b, d) / A : 0 }
-    if (Array.isArray(g.판) && g.o.종류 !== '계단') {
-      const xs = g.판.map((p) => p[0]), ys = g.판.map((p) => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys)
-      const A = (x1 - x0) * (y1 - y0)
-      return A > 0 ? 겹1(x0, x1, a, c) * 겹1(y0, y1, b, d) / A : 0
-    }
-    const [x, y] = 부재가운데(g)
-    return x >= a && x <= c && y >= b && y <= d ? 1 : 0
-  }
+  const 몫 = 구간몫
   for (const [id, q] of S.부재별) {
     const g = S.G.기.get(id)
     if (!g) continue
@@ -1676,6 +1681,166 @@ export function 구간물량(M, S) {
     어디.set(id, 큰)
   }
   return { 줄, 밖, 덧: S.덧 || { 줄: 0, 콘크리트: 0, 거푸집: 0, 철근: 0 }, 어디 }
+}
+
+/* ───────────────────────────── 📆 G463 기성 — 회차마다 «끝난 곳»(층 × 구간)을 고르면 그 곳 물량으로 기성 내역서
+   카페 글(받은자료/카페_JH골조플러그인_편한점_1025.png) ② «기성 때 갈래(거푸집만) 고르면 그 갈래만 든 기성 내역서» · ③ «구간별 기성 도면»
+   칸 = «층|구간 id» (구간이 없거나 구간 밖이면 «층|밖») · 칸 물량 = 부재별 몫 × 그 구간에 든 비율(구간물량과 같은 규칙 — 칸 합 + 자리 없음 = 전체)
+   회차 = [{ 회, 날짜, 칸: [열쇠] }] · 금회 = 그 회차에 처음 든 칸 · 전회 = 앞 회차들 · 누계 = 전회 + 금회 · 잔여 = 모델 전체 − 누계
+   금액 = 수량 × 단가(갈래마다 · 원 미만 버림) — 단가를 비우면 수량만. 셈 규칙은 골조 수량산출 그대로(새로 짐작하는 값 없음) */
+export const 기성갈래들 = [['콘크리트', '㎥', 1], ['거푸집', '㎡', 1], ['철근', 'ton', 0.001], ['데크', '㎡', 1]]
+const 기성갈래이름 = 기성갈래들.map((x) => x[0])
+export function 기성정돈(g) {
+  if (!g || typeof g !== 'object') return null
+  const 회차 = (Array.isArray(g.회차) ? g.회차 : []).filter((r) => r && Number.isFinite(+r.회) && +r.회 > 0).map((r) => ({ 회: +r.회, 날짜: 글(r.날짜), 칸: [...new Set((Array.isArray(r.칸) ? r.칸 : []).map(글).filter((k) => /\|/.test(k)))] })).sort((a, b) => a.회 - b.회)
+  const 갈래 = (Array.isArray(g.갈래) ? g.갈래 : 기성갈래이름.slice(0, 3)).map(글).filter((x) => 기성갈래이름.includes(x))
+  const 단가 = {}
+  for (const k of 기성갈래이름) { const v = 수(g.단가 && g.단가[k], null); if (Number.isFinite(v) && v > 0) 단가[k] = v }
+  const 기본갈래 = 갈래.length === 3 && 갈래.every((x, i) => x === 기성갈래이름[i])
+  if (!회차.length && !Object.keys(단가).length && 기본갈래) return null
+  return { 회차, 갈래, 단가, ...(Number.isFinite(+g.고른) && 회차.some((r) => r.회 === +g.고른) ? { 고른: +g.고른 } : {}) }
+}
+const 기성빈 = () => ({ 회차: [], 갈래: 기성갈래이름.slice(0, 3), 단가: {} })
+/** 새 회차(끝 회차 + 1) — 날짜는 부르는 쪽(YYYY-MM-DD) */
+export function 기성회차더하기(M, 날짜 = '') {
+  const g = M.기성 || 기성빈()
+  const n = g.회차.reduce((a, r) => Math.max(a, r.회), 0) + 1
+  return { ...M, 기성: { ...g, 회차: [...g.회차, { 회: n, 날짜: 글(날짜), 칸: [] }], 고른: n } }
+}
+/** 끝 회차만 뺌(앞 회차가 뒤 회차 칸을 품지 않게) */
+export function 기성회차빼기(M) {
+  const g = M.기성
+  if (!g || !g.회차.length) return M
+  const 끝 = g.회차[g.회차.length - 1].회
+  const 회차 = g.회차.filter((r) => r.회 !== 끝)
+  return { ...M, 기성: { ...g, 회차, 고른: 회차.length ? 회차[회차.length - 1].회 : undefined } }
+}
+export const 기성고치기 = (M, 고칠) => ({ ...M, 기성: { ...(M.기성 || 기성빈()), ...고칠 } })
+/** 칸들의 상태 — 열쇠 → 처음 든 회차 */
+export function 기성상태(M) {
+  const 상 = new Map()
+  for (const r of ((M.기성 && M.기성.회차) || [])) for (const k of r.칸) if (!상.has(k)) 상.set(k, r.회)
+  return 상
+}
+/** 칸 넣기 · 빼기(회차 회) — 앞 회차에 이미 든 칸은 그대로(돌려주는 M 같음) · 뒤 회차에 든 칸이면 뒤 회차에서 옮겨 옴은 안 함(그대로) */
+export function 기성칸바꾸기(M, 회, 열쇠들, 넣기 = null) {
+  const g = M.기성
+  if (!g) return M
+  const 상 = 기성상태(M)
+  const r = g.회차.find((x) => x.회 === 회)
+  if (!r) return M
+  const 지금 = new Set(r.칸)
+  const 바꿀 = 열쇠들.filter((k) => { const a = 상.get(k); return a === undefined || a === 회 })
+  if (!바꿀.length) return M
+  const 넣 = 넣기 === null ? 바꿀.some((k) => !지금.has(k)) : 넣기
+  for (const k of 바꿀) { if (넣) 지금.add(k); else 지금.delete(k) }
+  return { ...M, 기성: { ...g, 회차: g.회차.map((x) => (x.회 === 회 ? { ...x, 칸: [...지금] } : x)) } }
+}
+/**
+ * 칸마다 물량 — { 칸: Map(열쇠 → { 열쇠, 층, 구간, 구간이름, 양: Map(종류 → {콘크리트 · 거푸집 · 철근 · 데크}), 합 }) ,
+ *   어디: Map(부재 id → 가장 많이 든 칸 열쇠), 전체: {갈래 → 합(모델 셈)}, 칸합: {갈래 → 칸 합}, 없음: {갈래 → 자리 없는 물량(덧줄 · 부재에 안 붙은 줄)} }
+ */
+export function 기성칸물량(M, S) {
+  const 구간 = M.구간 || []
+  const 칸 = new Map()
+  const 어디 = new Map()
+  const 빈양 = () => ({ 콘크리트: 0, 거푸집: 0, 철근: 0, 데크: 0 })
+  const 칸얻기 = (층, z) => {
+    const 열쇠 = 층 + '|' + (z ? z.id : '밖')
+    let c = 칸.get(열쇠)
+    if (!c) { c = { 열쇠, 층, 구간: z ? z.id : '밖', 구간이름: z ? z.이름 : (구간.length ? '구간 밖' : '층 전체'), 양: new Map(), 합: 빈양() }; 칸.set(열쇠, c) }
+    return c
+  }
+  const 더 = (c, 종, q, w) => {
+    if (!c.양.has(종)) c.양.set(종, 빈양())
+    const a = c.양.get(종)
+    for (const k of 기성갈래이름) { const v = (q[k] || 0) * w; a[k] += v; c.합[k] += v }
+  }
+  for (const [id, q] of S.부재별) {
+    const g = S.G.기.get(id)
+    if (!g) continue
+    let 남 = 1, 큰 = null, 큰몫 = 0
+    for (const z of 구간) {
+      const w = Math.min(구간몫(g, z), 남)
+      if (!(w > 1e-9)) continue
+      남 -= w
+      const c = 칸얻기(g.o.층, z)
+      더(c, g.o.종류, q, w)
+      if (w > 큰몫) { 큰몫 = w; 큰 = c.열쇠 }
+    }
+    if (남 > 1e-9) { const c = 칸얻기(g.o.층, null); 더(c, g.o.종류, q, 남); if (남 > 큰몫) 큰 = c.열쇠 }
+    어디.set(id, 큰)
+  }
+  const 전체 = {}, 칸합 = {}, 없음 = {}
+  for (const k of 기성갈래이름) {
+    전체[k] = (S.합 && S.합[k]) || 0
+    칸합[k] = [...칸.values()].reduce((a, c) => a + c.합[k], 0)
+    없음[k] = Math.max(0, 전체[k] - 칸합[k])
+  }
+  return { 칸, 어디, 전체, 칸합, 없음 }
+}
+/** 칸 차례 — 층(모델 층 차례) · 구간(그은 차례) · 밖은 끝 */
+export function 기성칸차례(M, Q) {
+  const 층차 = M.층.map((f) => f.이름)
+  const 구차 = (M.구간 || []).map((z) => z.id)
+  return [...Q.칸.values()].sort((a, b) => 층차.indexOf(a.층) - 층차.indexOf(b.층) || (a.구간 === '밖' ? 1e9 : 구차.indexOf(a.구간)) - (b.구간 === '밖' ? 1e9 : 구차.indexOf(b.구간)))
+}
+/**
+ * 기성 내역 — 회차 회(없으면 끝 회차)의 줄(갈래 × 부재 종류) · 갈래 합 · 금액
+ * @returns { 회, 회차, 날짜, 줄: [{갈래, 종류, 단위, 전체, 전회, 금회, 누계, 잔여, 율, 단가, 금회금액, 누계금액, 자리없음?}], 합: {갈래 → {…}}, 금액: {금회, 누계}, 금회칸, 전회칸, 상태, Q }
+ */
+export function 기성셈(M, S, 회 = null) {
+  const g = M.기성 || 기성빈()
+  const Q = 기성칸물량(M, S)
+  const 상태 = 기성상태(M)
+  const 회차 = g.회차
+  const 고른 = 회 !== null ? 회 : (g.고른 || (회차.length ? 회차[회차.length - 1].회 : 0))
+  const 날짜 = (회차.find((r) => r.회 === 고른) || {}).날짜 || ''
+  const 금회칸 = [...상태].filter(([, n]) => n === 고른).map(([k]) => k).filter((k) => Q.칸.has(k))
+  const 전회칸 = [...상태].filter(([, n]) => n < 고른).map(([k]) => k).filter((k) => Q.칸.has(k))
+  const 합들 = (칸들, 종, 갈) => 칸들.reduce((a, k) => { const c = Q.칸.get(k); const q = c && c.양.get(종); return a + (q ? q[갈] : 0) }, 0)
+  const 종들 = [...new Set([...Q.칸.values()].flatMap((c) => [...c.양.keys()]))].sort((a, b) => 종류들.indexOf(a) - 종류들.indexOf(b))
+  const 줄 = []
+  const 합 = {}
+  let 금금 = 0, 누금 = 0
+  const 버 = (v) => Math.floor(v + 1e-6)
+  for (const [갈, 단위, 배] of 기성갈래들) {
+    if (!g.갈래.includes(갈)) continue
+    const 단가 = g.단가[갈] || 0
+    const 모든칸 = [...Q.칸.keys()]
+    const h = { 갈래: 갈, 단위, 전체: 0, 전회: 0, 금회: 0, 누계: 0, 잔여: 0, 금회금액: 0, 누계금액: 0 }
+    for (const 종 of 종들) {
+      const 전체 = 합들(모든칸, 종, 갈) * 배
+      if (!(전체 > 1e-9)) continue
+      const 전회 = 합들(전회칸, 종, 갈) * 배, 금회 = 합들(금회칸, 종, 갈) * 배, 누계 = 전회 + 금회
+      const r = { 갈래: 갈, 종류: 종, 단위, 전체, 전회, 금회, 누계, 잔여: 전체 - 누계, 율: 전체 > 0 ? 누계 / 전체 : 0, 단가, 금회금액: 단가 ? 버(금회 * 단가) : 0, 누계금액: 단가 ? 버(누계 * 단가) : 0 }
+      줄.push(r)
+      for (const k of ['전체', '전회', '금회', '누계', '잔여', '금회금액', '누계금액']) h[k] += r[k]
+    }
+    const 없 = (Q.없음[갈] || 0) * 배
+    if (없 > 1e-6) { 줄.push({ 갈래: 갈, 종류: '자리 없음', 단위, 전체: 없, 전회: 0, 금회: 0, 누계: 0, 잔여: 없, 율: 0, 단가, 금회금액: 0, 누계금액: 0, 자리없음: true }); h.전체 += 없; h.잔여 += 없 }
+    if (h.전체 > 1e-9) { h.율 = h.전체 > 0 ? h.누계 / h.전체 : 0; 합[갈] = h; 금금 += h.금회금액; 누금 += h.누계금액 }
+  }
+  return { 회: 고른, 회차, 날짜, 줄, 합, 금액: { 금회: 금금, 누계: 누금 }, 금회칸, 전회칸, 상태, Q, 갈래: g.갈래, 단가: g.단가 }
+}
+/** 엑셀 시트 — 기성 내역(n회) · 기성 칸(층 × 구간) · 기성 회차 */
+export function 기성시트(M, S, ST, 회 = null) {
+  if (!M.기성 || !M.기성.회차.length) return []
+  const B = 기성셈(M, S, 회)
+  const q = (v, d) => ({ v: +(+v || 0).toFixed(d), st: ST.QTY })
+  const 원 = (v) => ({ v: Math.round(v || 0), st: ST.QTY })
+  const 자 = (u) => (u === 'ton' ? 4 : 3)
+  const rows = B.줄.map((r) => [r.갈래, r.자리없음 ? '자리 없는 물량(덧줄 · 부재에 안 붙은 줄 — 칸에 안 듦)' : r.종류, r.단위, q(r.전체, 자(r.단위)), q(r.전회, 자(r.단위)), q(r.금회, 자(r.단위)), q(r.누계, 자(r.단위)), q(r.잔여, 자(r.단위)), r.자리없음 ? '' : +(r.율 * 100).toFixed(2), r.단가 ? 원(r.단가) : '', r.단가 ? 원(r.금회금액) : '', r.단가 ? 원(r.누계금액) : ''])
+  for (const [갈, h] of Object.entries(B.합)) rows.push([갈 + ' 소계', '', h.단위, q(h.전체, 자(h.단위)), q(h.전회, 자(h.단위)), q(h.금회, 자(h.단위)), q(h.누계, 자(h.단위)), q(h.잔여, 자(h.단위)), +(h.율 * 100).toFixed(2), '', '', ''])
+  rows.push(['합계', '', '', '', '', '', '', '', '', '', 원(B.금액.금회), 원(B.금액.누계)])
+  const 이름 = B.회 + '회'
+  const 시트 = [{ name: '기성내역(' + 이름 + ')', head: ['갈래', '부재', '단위', '모델 전체', '전회 누계', '금회', '누계', '잔여', '진도(%)', '단가(원)', '금회 금액(원)', '누계 금액(원)'], rows, widths: [11, 30, 6, 12, 12, 12, 12, 12, 9, 11, 14, 14], freeze: 1 }]
+  const 칸줄 = 기성칸차례(M, B.Q).map((c) => { const n = B.상태.get(c.열쇠); return [c.층 === 'FT' ? 'FT' : c.층 + '층', c.구간이름, n ? n + '회' + (n === B.회 ? ' (금회)' : n < B.회 ? ' (전회)' : ' (뒤 회차)') : '', q(c.합.콘크리트, 3), q(c.합.거푸집, 3), q(c.합.철근 / 1000, 4)] })
+  칸줄.push(['합계', '', '', q(B.Q.칸합.콘크리트, 3), q(B.Q.칸합.거푸집, 3), q(B.Q.칸합.철근 / 1000, 4)])
+  시트.push({ name: '기성칸(층×구간)', head: ['층', '구간', '끝난 회차', '콘크리트(㎥)', '거푸집(㎡)', '철근(ton)'], rows: 칸줄, widths: [8, 18, 14, 13, 13, 12], freeze: 1 })
+  const 회줄 = B.회차.map((r) => { const b = 기성셈(M, S, r.회); return [r.회 + '회', r.날짜, b.금회칸.length, 원(b.금액.금회), 원(b.금액.누계)] })
+  시트.push({ name: '기성회차', head: ['회차', '날짜', '금회 칸 수', '금회 금액(원)', '누계 금액(원)'], rows: 회줄, widths: [8, 12, 11, 15, 15] })
+  return 시트
 }
 /** ✂ 구간 선에서 자르기 — 구간 네모 변이 지나가는 보 · 벽(가로지름)은 그 자리에서 둘로 · 슬라브 칸은 그 줄에서 둘로(보조 통심) */
 export function 구간선자르기(M) {
@@ -1762,6 +1927,8 @@ export function 모델시트(M0, S, ST) {
   }
   /* 🚶 G390 점검사항(둘러보기에서 넣은 것) */
   if (M.점검 && M.점검.length) 시트.push({ name: '점검사항', head: ['번호', '층', '부재', '부호', '자리(통심)', '내용', '넣은 때', '부재 번호'], rows: M.점검.map((x, i) => [i + 1, x.층 === 'FT' ? 'FT' : 글(x.층) + '층', 글(x.종류), 글(x.부호), 글(x.자리), 글(x.글), 글(x.때), x.id ?? '']), widths: [6, 6, 7, 8, 24, 60, 18, 9], freeze: 1 })
+  /* 📆 G463 기성(회차가 있으면 — 고른 회차 · 없으면 끝 회차) */
+  시트.push(...기성시트(M, S, ST))
   시트.push({
     name: '모델',
     head: ['구분', '내용'],

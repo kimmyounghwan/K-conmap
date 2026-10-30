@@ -25,8 +25,9 @@ import { Link } from 'react-router-dom'
 import { 세기 } from '../lib/받은수.jsx'
 import { 배근칸, 정착표, 기준값, 엑셀 as 골조엑셀 } from '../lib/골조.js'
 import { 도면함끄기, 도면함켜기, 도면함넣어둠 } from '../lib/도면모델.js'
-import { 새모델, 예시모델, 작업예시모델, 정돈, 겹침둠, 겹침남기기, 겹침물을짝, 큰무리빼기, 정리할것, 무더기빼기, 사선넣기, 사선끝, 띠판, 기둥넣기, 선넣기, 칸넣기, 계단넣기, 부재옮기기, 구간넣기, 구간빼기, 구간고치기, 구간물량, 구간선자르기, 구간색들, 부재빼기, 부재고치기, 부재나누기, 층복사, 통심더하기, 통심빼기, 통심간격, 모델셈, 종류색, 부재글, 모델시트, FT층, 층높이, 제안확인, 제안모두확인, 제안빼기, 기초철근넣기, 계단글 } from '../lib/골조모델.js'
+import { 새모델, 예시모델, 작업예시모델, 정돈, 겹침둠, 겹침남기기, 겹침물을짝, 큰무리빼기, 정리할것, 무더기빼기, 사선넣기, 사선끝, 띠판, 기둥넣기, 선넣기, 칸넣기, 계단넣기, 부재옮기기, 구간넣기, 구간빼기, 구간고치기, 구간물량, 구간선자르기, 구간색들, 기성셈, 부재빼기, 부재고치기, 부재나누기, 층복사, 통심더하기, 통심빼기, 통심간격, 모델셈, 종류색, 부재글, 모델시트, FT층, 층높이, 제안확인, 제안모두확인, 제안빼기, 기초철근넣기, 계단글 } from '../lib/골조모델.js'
 import 둘러보기판 from '../둘러보기판.jsx'
+import 골조기성판, { 기성색들, 칸상태 } from '../골조기성판.jsx'
 import 받기검사판 from '../받기검사판.jsx'
 import 적산컨맵설명서 from '../적산컨맵설명서.jsx'
 import { 층판 } from '../lib/둘러보기.js'
@@ -74,6 +75,7 @@ export default function Model() {
     return () => clearTimeout(t)
   }, [되돌림])
   const [탭, set탭] = useState(() => (읽기() && 읽기().부재.length ? '세우기' : '통심'))
+  const [기성색, set기성색] = useState(false)          // 📆 G463 3D 를 기성(회차) 색으로
   const [층, set층] = useState(() => { const m = 읽기() || 새모델(); return (m.층.find((f) => !FT층(f)) || m.층[0]).이름 })
   const [도구, set도구] = useState('기둥')
   const [부호, set부호] = useState({ 기둥: 'C1', 보: 'G1', 벽: 'W1', 슬라브: 'S1', 기초: 'F1' })
@@ -283,7 +285,14 @@ export default function Model() {
       /* 📋 G442 받기 전 검사 — 한 번 더 셈해 보고(화면 합 = 엑셀 «부재별» · «집계») 통과하면 받음 · 못 통과면 알리고 «알고 받기» */
       const 검 = await import('../lib/받기전검사.js')
       await new Promise((ok) => setTimeout(ok, 30))
-      const r = 검.받기전검사(sheets, 검.골조맞댈(S))
+      /* 📆 G463 기성 시트가 들면 — 화면 «기성 칸 합» · 금회 금액 = 엑셀 */
+      const 기맞 = []
+      if (M.기성 && M.기성.회차.length) {
+        const B = 기성셈(M, S)
+        기맞.push({ 이름: '📆 기성 칸 콘크리트 합(기성칸)', 시트: /^기성칸/, 줄: '합계', 열: '콘크리트(㎥)', 값: B.Q.칸합.콘크리트, 단위: '㎥', 자리: 3, 오차: 0.011 + B.Q.칸.size * 0.0005 })
+        if (B.금액.금회 > 0) 기맞.push({ 이름: '📆 기성 금회 금액(기성내역)', 시트: /^기성내역/, 줄: '합계', 열: '금회 금액(원)', 값: B.금액.금회, 단위: '원', 자리: 0, 오차: 1 })
+      }
+      const r = 검.받기전검사(sheets, [...검.골조맞댈(S), ...기맞])
       const 이름 = '골조모델_' + 파일이름 + '.xlsx'
       set검사({ ...r, 이름 })
       if (r.통과) { 내려주기(new Blob([r.바이트], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 이름); 세기('|골조모델|엑셀'); set엑셀받음(true) }
@@ -294,8 +303,9 @@ export default function Model() {
     <세우기칸 토목으로={() => set분야('토목')} M={M} setM={setM} S={S} 층={층} set층={set층} 도구={도구} set도구={set도구} 쓸도구={쓸도구} 부호={부호} set부호={set부호}
       첫점={첫점} set첫점={set첫점} 고른={고른} set고른={set고른} 고른것={고른것} 보일층={보일층} set보일층={set보일층}
       glErr={glErr} setGlErr={setGlErr} 크게={크게} set크게={set크게} 한번세기={한번세기} 작업={작업판} 도면결과={도면결과} set도면결과={set도면결과}
-      엑셀받음={엑셀받음} 걷기요청={걷기요청} 길행동={길행동} 원료Ref={원료Ref} 도면열기={() => 도면Ref.current && 도면Ref.current.click()} />
+      엑셀받음={엑셀받음} 걷기요청={걷기요청} 길행동={길행동} 원료Ref={원료Ref} 도면열기={() => 도면Ref.current && 도면Ref.current.click()} 기성색={기성색} set기성색={set기성색} 기성으로={() => set탭('기성')} />
   )
+  const 기성판 = <골조기성판 M={M} S={S} setM={setM} 층={층} 세기={세기} 엑셀받기={엑셀받기} 받는중={받는중} 기성색={기성색} set기성색={set기성색} 세우기로={() => set탭('세우기')} />
   if (작업) {
     const 분야칸 = (
       <>
@@ -328,8 +338,9 @@ export default function Model() {
           <div className="gmd-ws-top">
             {분야칸}
             <span className="gmd-ws-tabs" role="tablist">
-              {[['세우기', '세우기 · 3D'], ['통심', '통심 · 층'], ['일람', '부호 일람'], ['물량', '물량 · 엑셀']].map(([k, t]) => (
-                <button key={k} type="button" role="tab" aria-selected={탭 === k} className={'gmd-tab' + (탭 === k ? ' on' : '')} onClick={() => set탭(k)}>{t}</button>
+              {/* 📆 G463 탭 다섯 — 좁은 화면(폰)에서는 뒤 글(· 3D · 층 · 엑셀 · 부호)을 숨겨 한 줄에 다 보임 */}
+              {[['세우기', '세우기', ' · 3D'], ['통심', '통심', ' · 층'], ['일람', '일람', '', '부호 '], ['물량', '물량', ' · 엑셀'], ['기성', '📆 기성', '']].map(([k, t, 뒤, 앞 = '']) => (
+                <button key={k} type="button" role="tab" aria-label={앞 + t + 뒤} aria-selected={탭 === k} className={'gmd-tab' + (탭 === k ? ' on' : '')} onClick={() => set탭(k)}>{앞 && <span className="gmd-tl">{앞}</span>}{t}{뒤 && <span className="gmd-tl">{뒤}</span>}</button>
               ))}
             </span>
             <span className="gmd-ws-acts">
@@ -354,6 +365,7 @@ export default function Model() {
               {탭 === '통심' && <통심칸 M={M} setM={setM} />}
               {탭 === '일람' && <일람칸들 M={M} setM={setM} />}
               {탭 === '물량' && <물량칸 M={M} S={S} 엑셀받기={엑셀받기} 받는중={받는중} set탭={set탭} set고른={set고른} set층={set층} />}
+              {탭 === '기성' && 기성판}
             </div>
           )}
         </div>
@@ -386,8 +398,8 @@ export default function Model() {
       </div>
 
       <div className="gmd-tabs" role="tablist">
-        {[['통심', '① 통심 · 층'], ['일람', '② 부호 일람'], ['세우기', '③ 세우기 · 3D'], ['물량', '④ 물량 · 엑셀']].map(([k, t]) => (
-          <button key={k} type="button" role="tab" aria-selected={탭 === k} className={'gmd-tab' + (탭 === k ? ' on' : '')} onClick={() => set탭(k)}>{t}</button>
+        {[['통심', '① 통심', ' · 층'], ['일람', '② 부호 일람', ''], ['세우기', '③ 세우기', ' · 3D'], ['물량', '④ 물량', ' · 엑셀'], ['기성', '⑤ 📆 기성', '']].map(([k, t, 뒤]) => (
+          <button key={k} type="button" role="tab" aria-label={t + 뒤} aria-selected={탭 === k} className={'gmd-tab' + (탭 === k ? ' on' : '')} onClick={() => set탭(k)}>{t}{뒤 && <span className="gmd-tl">{뒤}</span>}</button>
         ))}
       </div>
 
@@ -395,6 +407,7 @@ export default function Model() {
       {탭 === '일람' && <일람칸들 M={M} setM={setM} />}
       {탭 === '세우기' && 세움칸(false)}
       {탭 === '물량' && <물량칸 M={M} S={S} 엑셀받기={엑셀받기} 받는중={받는중} set탭={set탭} set고른={set고른} set층={set층} />}
+      {탭 === '기성' && 기성판}
       <div className="card kcm-help-card" id="kcm-help"><적산컨맵설명서 /></div>
     </div>
   )
@@ -588,7 +601,7 @@ function 일람칸들({ M, setM }) {
 
 /* ───────────────────────── ③ 세우기 · 평면 + 3D */
 function 세우기칸(p) {
-  const { M, setM, S, 층, set층, 도구, set도구, 쓸도구, 부호, set부호, 첫점, set첫점, 고른, set고른, 고른것, 보일층, set보일층, glErr, setGlErr, 크게, set크게, 한번세기, 작업 = false, 도면결과 = null, set도면결과 = () => {}, 엑셀받음 = false, 걷기요청 = 0, 길행동 = () => {}, 원료Ref = null, 도면열기 = () => {} } = p
+  const { M, setM, S, 층, set층, 도구, set도구, 쓸도구, 부호, set부호, 첫점, set첫점, 고른, set고른, 고른것, 보일층, set보일층, glErr, setGlErr, 크게, set크게, 한번세기, 작업 = false, 도면결과 = null, set도면결과 = () => {}, 엑셀받음 = false, 걷기요청 = 0, 길행동 = () => {}, 원료Ref = null, 도면열기 = () => {}, 기성색 = false, set기성색 = null, 기성으로 = null } = p
   const [보기, set보기] = useState('3D')                // 🖥 G388 작업 화면 가운데: 3D · 평면 · 나란히
   const [빗그리기, set빗그리기] = useState(false)          // 🧭 G395 ⟋ 비스듬히 — 가로 · 세로가 다른 교점을 누르면 비스듬한 보 · 벽
   const [걷기, set걷기0] = useState(false)             // 🚶 G390 둘러보기(작업 화면만)
@@ -837,6 +850,14 @@ function 세우기칸(p) {
   const 판Ref = useRef(null), 보기Ref = useRef(null), 맞춤 = useRef(false)
   const 덩 = S && S.덩어리 ? S.덩어리 : []
   const 구간어디 = useMemo(() => (S && !S.오류 && M.구간 && M.구간.length ? 구간물량(M, S).어디 : null), [S, M.구간])  // eslint-disable-line react-hooks/exhaustive-deps
+  /* 📆 G463 3D 기성 색 — 부재가 가장 많이 든 칸(층 × 구간)의 상태(금회 · 전회 · 뒤 회차 · 안 함) */
+  const 기성어디 = useMemo(() => {
+    if (!기성색 || !S || S.오류 || !M.기성 || !M.기성.회차.length) return null
+    const B = 기성셈(M, S)
+    const m = new Map()
+    for (const [id, k] of B.Q.어디) m.set(id, k ? 칸상태(B, k) : '안함')
+    return m
+  }, [기성색, S, M.기성, M.구간])  // eslint-disable-line react-hooks/exhaustive-deps
   /* 🚶 G390 둘러보기 — 맨 아래층 · 기초에서는 땅(바닥 판)을 그 층 바닥 높이로(사람이 허공에 뜨지 않게) */
   const 걷는바닥 = useMemo(() => {
     if (!걷기 || !작업) return undefined
@@ -898,6 +919,7 @@ function 세우기칸(p) {
     /* 보 · 기둥 · 벽 윗면이 슬라브 밑면과 같은 높이라 겹친 면이 깜빡임 → 그림에서만 3 mm 낮춤(물량은 그대로) */
     const 초 = [0.30, 0.76, 0.42]
     const 구색 = (d) => {
+      if (기성어디) return 기성색들[기성어디.get(d.id) || '안함']
       if (구간색 && 구간어디) { const k = 구간어디.get(d.id); return k >= 0 ? 구간색들[k % 구간색들.length] : [0.78, 0.79, 0.81] }
       if (걷기 && 작업 && 확인들.has(d.id) && !d.제안) return d.색.map((c, i) => c * 0.45 + 초[i] * 0.55)     // 🟩 확인한 부재는 초록 쪽으로
       return d.색
@@ -906,7 +928,7 @@ function 세우기칸(p) {
     if (!맞춤.current && 보일.length) { v.fit('tilt'); 맞춤.current = true }
     v.set고름(고른 !== null ? [고른] : [])
     v.onPick = (id, e) => { if (걷기누름Ref.current) { 걷기누름Ref.current(id, e); return } if (id >= 0) { set고른(id); 한번세기('|골조모델|3D고름') } else set고른(null) }   // 🖱 둘러보기 중에는 «누른 곳으로 걷기»
-  }, [보일, 빠짐덩, 걷는바닥, 구간색, 구간어디, 확인들, 걷기])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [보일, 빠짐덩, 걷는바닥, 구간색, 구간어디, 기성어디, 확인들, 걷기])  // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (보기Ref.current) 보기Ref.current.set고름(고른 !== null ? [고른] : []) }, [고른])
   /* 🖥 G388 바닥에 이 층 통심을 깖(3D 에서 지금 세우는 층 높이) — 도면 위에 세우듯 */
   const 바닥선 = useMemo(() => {
@@ -1176,6 +1198,7 @@ function 세우기칸(p) {
         </section>
         <aside className="gmd-ws-right" aria-label="물량">
           {S && !S.오류 && <요약줄 S={S} />}
+          {기성어디 && <div className="gmd-note gmd-gs-3dnote" role="status">📆 3D 기성 색 — <b style={{ color: 'rgb(41,122,235)' }}>■ 금회</b> · <b style={{ color: 'rgb(102,110,122)' }}>■ 전회</b> · <b style={{ color: 'rgb(168,133,230)' }}>■ 뒤 회차</b> · <b style={{ color: 'rgb(200,202,206)' }}>■ 안 함</b> <button type="button" className="gmd-link" onClick={() => set기성색 && set기성색(false)}>끄기</button>{기성으로 && <button type="button" className="gmd-link" onClick={기성으로}>📆 기성 →</button>}</div>}
           {S && !S.오류 && <정리판 M={M} S={S} setM={setM} 세기={한번세기} />}
           {고른것 && 고름판}
           {S && !S.오류 && 도구 === '구간' && <구간판 M={M} S={S} setM={setM} 구간색={구간색} set구간색={set구간색} 층={층} />}
@@ -1235,6 +1258,7 @@ function 세우기칸(p) {
 
       {층복사판}
       {S && !S.오류 && <요약줄 S={S} />}
+      {기성어디 && <div className="gmd-note gmd-gs-3dnote" role="status">📆 3D 기성 색 — <b style={{ color: 'rgb(41,122,235)' }}>■ 금회</b> · <b style={{ color: 'rgb(102,110,122)' }}>■ 전회</b> · <b style={{ color: 'rgb(168,133,230)' }}>■ 뒤 회차</b> · <b style={{ color: 'rgb(200,202,206)' }}>■ 안 함</b> <button type="button" className="gmd-link" onClick={() => set기성색 && set기성색(false)}>끄기</button>{기성으로 && <button type="button" className="gmd-link" onClick={기성으로}>📆 기성 →</button>}</div>}
     </div>
   )
 }

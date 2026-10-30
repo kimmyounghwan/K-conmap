@@ -9623,3 +9623,26 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .kcm-hero-help { display: inline-block; margin-left: 12px; font-size: 13.5px; font-weight: 600; color: var(--accent, #2563eb); text-decoration: underline; text-underline-offset: 3px; }
 
 .kcm-help-card { scroll-margin-top: 72px; }
+
+/* 📆 G463 골조 모델 기성 — 회차 · 갈래 · 단가 · 층 × 구간 칸 · 기성 내역 · 기성 도면 */
+.gmd .gmd-gs .gmd-gs-rounds { flex-wrap: wrap; gap: 6px; }
+.gmd .gmd-gs-chip { border: 1px solid var(--line, #d0d5dd); background: var(--surface, #fff); color: inherit; border-radius: 999px; padding: 4px 11px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.gmd .gmd-gs-chip.on { background: #297aeb; border-color: #297aeb; color: #fff; font-weight: 700; }
+.gmd .gmd-gs-kinds { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 8px 0; }
+.gmd .gmd-gs-kind { display: inline-flex; align-items: center; gap: 6px; }
+.gmd .gmd-gs-price { width: 128px; max-width: 42vw; }
+.gmd .gmd-gs-grid th, .gmd .gmd-gs-grid td { text-align: center; }
+.gmd .gmd-gs-cell { min-width: 64px; display: inline-flex; flex-direction: column; align-items: center; gap: 1px; padding: 4px 6px; border: 2px solid #c8cad0; border-radius: 8px; background: var(--surface, #fff); color: inherit; cursor: pointer; font-size: 12px; line-height: 1.25; }
+.gmd .gmd-gs-cell b { font-size: 13px; }
+.gmd .gmd-gs-cell.금회 { background: rgba(41, 122, 235, .14); }
+.gmd .gmd-gs-cell.전회 { background: rgba(102, 110, 122, .16); }
+.gmd .gmd-gs-cell.뒤 { background: rgba(168, 133, 230, .14); }
+.gmd .gmd-gs-table td, .gmd .gmd-gs-table th { white-space: nowrap; }
+.gmd .gmd-gs-table tr.sum td { font-weight: 700; border-top: 1px solid var(--line, #d0d5dd); }
+.gmd .gmd-gs-floors { flex-wrap: wrap; gap: 6px; }
+.gmd .gmd-gs-plan { border: 1px solid var(--line, #d0d5dd); border-radius: 10px; overflow: hidden; background: #fff; margin-top: 6px; }
+.gmd .gmd-gs-svg { display: block; width: 100%; height: auto; max-height: 70vh; }
+.gmd .gmd-gs-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+@media (max-width: 520px) { .gmd .gmd-ws-tabs .gmd-tl { display: none; } .gmd .gmd-ws-tabs .gmd-tab { padding: 6px 9px; } }
+@media (max-width: 520px) { .gmd .gmd-tabs { flex-wrap: wrap; overflow-x: visible; } .gmd .gmd-tabs .gmd-tl { display: none; } }
+@media (max-width: 520px) { .gmd .gmd-gs h2.gmd-h > span.muted { display: block; margin-top: 2px; } }
