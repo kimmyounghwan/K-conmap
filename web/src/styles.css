@@ -9645,4 +9645,31 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gmd .gmd-gs-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 @media (max-width: 520px) { .gmd .gmd-ws-tabs .gmd-tl { display: none; } .gmd .gmd-ws-tabs .gmd-tab { padding: 6px 9px; } }
 @media (max-width: 520px) { .gmd .gmd-tabs { flex-wrap: wrap; overflow-x: visible; } .gmd .gmd-tabs .gmd-tl { display: none; } }
-@media (max-width: 520px) { .gmd .gmd-gs h2.gmd-h > span.muted { display: block; margin-top: 2px; } }
+@media (max-width: 520px) { .gmd .gmd-gs h2.gmd-h, .gmd .gmd-cv h2.gmd-h { flex-wrap: wrap; row-gap: 2px; } .gmd .gmd-gs h2.gmd-h > span.muted, .gmd .gmd-cv h2.gmd-h > span.muted { display: block; flex-basis: 100%; margin-top: 2px; } }
+/* 📑 G464 골조 모델 내역서 대조 → 설계변경 */
+.gmd .gmd-cv { margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--line, #d0d5dd); }
+.gmd .gmd-cv-file { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 6px 0; min-width: 0; }
+.gmd .gmd-cv-file > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.gmd .gmd-cv-sheets { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.gmd .gmd-cv-act { white-space: nowrap; }
+.gmd .gmd-cv-sum { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 8px; }
+.gmd .gmd-cv-chip { border-radius: 999px; padding: 3px 10px; font-size: 13px; border: 1px solid var(--line, #d0d5dd); }
+.gmd .gmd-cv-chip.ok { background: rgba(34, 160, 90, .13); border-color: rgba(34, 160, 90, .45); }
+.gmd .gmd-cv-chip.mid { background: rgba(230, 160, 20, .13); border-color: rgba(230, 160, 20, .45); }
+.gmd .gmd-cv-chip.low { background: rgba(220, 60, 60, .12); border-color: rgba(220, 60, 60, .4); }
+.gmd .gmd-cv-table { width: auto; min-width: 0; }
+.gmd .gmd-cv-table td, .gmd .gmd-cv-table th { white-space: nowrap; padding-left: 6px; padding-right: 6px; }
+.gmd .gmd-cv-table td.nm { white-space: normal; min-width: 150px; max-width: 280px; }
+.gmd .gmd-cv-table td.c { text-align: center; }
+.gmd .gmd-cv-table tr.in td { background: rgba(41, 122, 235, .07); }
+.gmd .gmd-cv-table select { max-width: 190px; font-size: 12.5px; padding: 3px 4px; height: auto; min-height: 0; }
+.gmd .gmd-cv-in { width: 92px; text-align: right; font-size: 13px; padding: 3px 6px; height: auto; min-height: 0; }
+.gmd .gmd-cv-ok { color: #1e8e4e; }
+.gmd .gmd-cv-up { color: #c2410c; }
+.gmd .gmd-cv-dn { color: #1d5fd1; }
+.gmd .gmd-cv-warn { color: #c2410c; }
+.gmd .gmd-cv-rest { margin: 6px 0; }
+.gmd .gmd-cv-money { margin: 8px 0 4px; }
+.gmd .gmd-cv-btns { flex-wrap: wrap; gap: 8px; align-items: center; }
+@media (max-width: 520px) { .gmd .gmd-cv-btns .btn { width: 100% !important; } }
+@media (max-width: 520px) { .gmd .gmd-cv-table th:nth-child(2), .gmd .gmd-cv-table td:nth-child(2), .gmd .gmd-cv-table th:nth-child(4), .gmd .gmd-cv-table td:nth-child(4), .gmd .gmd-cv-table td:nth-child(6) small { display: none; } .gmd .gmd-cv-table { font-size: 12.5px; } .gmd .gmd-cv-table td, .gmd .gmd-cv-table th { padding-left: 4px; padding-right: 4px; } .gmd .gmd-cv-table td.nm { min-width: 96px; } .gmd .gmd-cv-in { width: 76px; } }

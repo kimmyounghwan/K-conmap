@@ -28,6 +28,7 @@ import { 도면함끄기, 도면함켜기, 도면함넣어둠 } from '../lib/도
 import { 새모델, 예시모델, 작업예시모델, 정돈, 겹침둠, 겹침남기기, 겹침물을짝, 큰무리빼기, 정리할것, 무더기빼기, 사선넣기, 사선끝, 띠판, 기둥넣기, 선넣기, 칸넣기, 계단넣기, 부재옮기기, 구간넣기, 구간빼기, 구간고치기, 구간물량, 구간선자르기, 구간색들, 기성셈, 부재빼기, 부재고치기, 부재나누기, 층복사, 통심더하기, 통심빼기, 통심간격, 모델셈, 종류색, 부재글, 모델시트, FT층, 층높이, 제안확인, 제안모두확인, 제안빼기, 기초철근넣기, 계단글 } from '../lib/골조모델.js'
 import 둘러보기판 from '../둘러보기판.jsx'
 import 골조기성판, { 기성색들, 칸상태 } from '../골조기성판.jsx'
+import 골조변경판 from '../골조변경판.jsx'      /* 📑 G464 내역서 대조 → 설계변경 */
 import 받기검사판 from '../받기검사판.jsx'
 import 적산컨맵설명서 from '../적산컨맵설명서.jsx'
 import { 층판 } from '../lib/둘러보기.js'
@@ -1628,6 +1629,7 @@ function 물량칸({ M, S, 엑셀받기, 받는중, set탭, set고른, set층 })
       <요약줄 S={S} />
       <div className="gmd-top">
         <button type="button" className="btn" style={{ width: 'auto' }} onClick={엑셀받기} disabled={!!받는중}>{받는중 ? '만드는 중…' : '📊 엑셀 산출서 받기'}</button>
+        <button type="button" className="btn line gmd-cv-jump" style={{ width: 'auto' }} onClick={() => { const e = document.querySelector('.gmd-cv'); if (e) e.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}>📑 내역서 대조 · 설계변경 ↓</button>
         <span className="muted gmd-p">산출서(산출식) · 집계 · 부재별 · 모델 시트 — 받기 전에 한 번 더 셈해 보고 받습니다.</span>
       </div>
       <h2 className="gmd-h">층별</h2>
@@ -1646,6 +1648,7 @@ function 물량칸({ M, S, 엑셀받기, 받는중, set탭, set고른, set층 })
         <thead><tr><th>항목</th><th>규격</th><th>단위</th><th>산출</th><th>할증 %</th><th>내역</th></tr></thead>
         <tbody>{합표.map((r, i) => <tr key={i}><td>{r.항목}</td><td>{r.규격}</td><td>{r.단위}</td><td className="num">{수글(r.산출)}</td><td className="num">{r.할증}</td><td className="num">{수글(r.내역)}</td></tr>)}</tbody>
       </table></div>
+      <골조변경판 M={M} S={S} 세기={세기} />
       <h2 className="gmd-h">검사</h2>
       <ul className="gmd-check">
         {S.검사.map((z, i) => <li key={i} className={z.좋음 ? 'ok' : 'bad'}>{z.좋음 ? '✓' : '⚠'} {z.글}</li>)}

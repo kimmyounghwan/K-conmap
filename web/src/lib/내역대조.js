@@ -38,7 +38,9 @@ function 머리찾기(grid) {
     const a = (grid[i] || []).map((x) => 붙(x))
     const b = (grid[i + 1] || []).map((x) => 붙(x))
     for (const c of [a, a.map((x, j) => x || b[j] || ''), a.map((x, j) => (b[j] && H_수량.test(b[j]) ? b[j] : x))]) {
-      const iN = c.findIndex((x) => H_품명.test(x))
+      /* 🩹 G464 «공종 | 품명 | 규격 …» 머리(설계변경 작업대가 만든 내역서 꼴) — «품명» 칸이 따로 있으면 그것(전엔 앞의 «공종» 번호 칸을 품명으로 읽어 줄이 0) */
+      const i품 = c.findIndex((x) => /^(품명|품명및규격|품명규격|규격및품명|품목|품목명|명칭)$/.test(x))
+      const iN = i품 >= 0 ? i품 : c.findIndex((x) => H_품명.test(x))
       if (iN < 0) continue
       // 수량 칸 — 「변경수량」 이 있으면 그것(지금 물량), 아니면 첫 수량
       let iQ = c.findIndex((x) => /^변경수량$/.test(x))
@@ -179,7 +181,8 @@ function 규격말(s) {
 /* 🔩 SH22·SHD22·UHD25(고강도) 도 지름으로 읽음 (2026-09-28 — 실제 공내역서에 «철근 SH22» 가 있음) */
 /* 🧭 G295 KS 지름(10 ~ 51)만 — «철근 SD40 D13» 의 SD40(강종)을 D40 으로 읽었음 */
 const KS지름 = new Set(['10', '13', '16', '19', '22', '25', '29', '32', '35', '38', '41', '51'])
-export const 철근지름 = (s) => { for (const m of 붙(s).toUpperCase().matchAll(/(?<![A-Z])(?:SHD|UHD|SH|HD|SD|D|H)(\d{2})(?!\d)/g)) if (KS지름.has(m[1])) return 'D' + m[1]; return '' }
+/* 🩹 G464 «HD-10» · «D-13»(조달청 계약내역서 «이형봉강(SD400), HD-10») 도 — 전엔 «지름이 안 적힌 철근 줄» 이 됐음 */
+export const 철근지름 = (s) => { for (const m of 붙(s).toUpperCase().matchAll(/(?<![A-Z])(?:SHD|UHD|SH|HD|SD|D|H)-?(\d{2})(?!\d)/g)) if (KS지름.has(m[1])) return 'D' + m[1]; return '' }
 /** 레미콘 규격 «25-24-150» · «25-30-15»(슬럼프 cm) · «25-240-15»(옛 kgf) → {골재, fck} */
 export function 콘크리트규격(s) {
   const m = 붙(s).match(/(?:^|[^\d])(\d{2})-(\d{2,3})-(\d{2,3})(?!\d)/)
