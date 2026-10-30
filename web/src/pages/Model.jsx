@@ -312,6 +312,21 @@ export default function Model() {
     } catch (e) { set알림('엑셀을 만들지 못했습니다 — ' + (e.message || e)) } finally { set받는중('') }
   }
 
+  /* 🧊 G467 IFC — 3D 덩어리 · 산출서 물량 · 부호 · 칸 · 공정(다 정해졌으면 과제 · 날짜)을 IFC4 로 · 받기 전에 다시 읽어 검사 */
+  const IFC받기 = async () => {
+    if (!S || S.오류 || !M.부재.length) return
+    set받는중('IFC')
+    try {
+      const { 골조IFC, 골조IFC검사 } = await import('../lib/골조IFC.js')
+      await new Promise((ok) => setTimeout(ok, 30))
+      const 이름 = '골조모델_' + 파일이름 + '.ifc'
+      const r = 골조IFC(M, S, { 이름: M.이름 || '골조 모델', 파일: 이름 })
+      const 검 = 골조IFC검사(r.글, r.셈, M, S)
+      const 바이트 = new TextEncoder().encode(r.글)
+      set검사({ ...검, 이름, 바이트, ifc: true })
+      if (검.통과) { 내려주기(new Blob([바이트], { type: 'application/x-step' }), 이름); 세기('|골조모델|IFC') }
+    } catch (e) { set알림('IFC 를 만들지 못했습니다 — ' + ((e && e.message) || e)) } finally { set받는중('') }
+  }
   const 세움칸 = (작업판) => (
     <세우기칸 토목으로={() => set분야('토목')} M={M} setM={setM} S={S} 층={층} set층={set층} 도구={도구} set도구={set도구} 쓸도구={쓸도구} 부호={부호} set부호={set부호}
       첫점={첫점} set첫점={set첫점} 고른={고른} set고른={set고른} 고른것={고른것} 보일층={보일층} set보일층={set보일층}
@@ -320,7 +335,7 @@ export default function Model() {
       공정날={공정날} set공정날={set공정날} 공정으로={() => set탭('공정')} />
   )
   const 기성판 = <골조기성판 M={M} S={S} setM={setM} 층={층} 세기={세기} 엑셀받기={엑셀받기} 받는중={받는중} 기성색={기성색} set기성색={set기성색} 세우기로={() => set탭('세우기')} />
-  const 공정판 = <골조공정판 M={M} S={S} setM={setM} 세기={세기} 엑셀받기={엑셀받기} 받는중={받는중} 재생={(d) => { set기성색(false); set공정날(d); set보일층('모두'); set탭('세우기') }} 기성으로={() => set탭('기성')} />
+  const 공정판 = <골조공정판 M={M} S={S} setM={setM} 세기={세기} 엑셀받기={엑셀받기} IFC받기={IFC받기} 받는중={받는중} 재생={(d) => { set기성색(false); set공정날(d); set보일층('모두'); set탭('세우기') }} 기성으로={() => set탭('기성')} />
   if (작업) {
     const 분야칸 = (
       <>
@@ -349,7 +364,7 @@ export default function Model() {
         <div className="gmd-ws" ref={작업Ref} role="dialog" aria-label="K-적산컨맵 작업 화면">
           {물음판}
           {설명서판}
-          <받기검사판 검사={검사} 닫기={() => set검사(null)} 받기={() => { if (!검사) return; 내려주기(new Blob([검사.바이트], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 검사.이름); 세기('|골조모델|엑셀'); set엑셀받음(true); set검사({ ...검사, 알고: true }) }} />
+          <받기검사판 검사={검사} 닫기={() => set검사(null)} 받기={() => { if (!검사) return; if (검사.ifc) { 내려주기(new Blob([검사.바이트], { type: 'application/x-step' }), 검사.이름); 세기('|골조모델|IFC'); set검사({ ...검사, 알고: true }); return } 내려주기(new Blob([검사.바이트], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 검사.이름); 세기('|골조모델|엑셀'); set엑셀받음(true); set검사({ ...검사, 알고: true }) }} />
           <div className="gmd-ws-top">
             {분야칸}
             <span className="gmd-ws-tabs" role="tablist">
@@ -379,7 +394,7 @@ export default function Model() {
             <div className="gmd-ws-page">
               {탭 === '통심' && <통심칸 M={M} setM={setM} />}
               {탭 === '일람' && <일람칸들 M={M} setM={setM} />}
-              {탭 === '물량' && <물량칸 M={M} S={S} 엑셀받기={엑셀받기} 받는중={받는중} set탭={set탭} set고른={set고른} set층={set층} />}
+              {탭 === '물량' && <물량칸 M={M} S={S} 엑셀받기={엑셀받기} IFC받기={IFC받기} 받는중={받는중} set탭={set탭} set고른={set고른} set층={set층} />}
               {탭 === '공정' && 공정판}
               {탭 === '기성' && 기성판}
             </div>
@@ -392,7 +407,7 @@ export default function Model() {
   return (
     <div className="page gmd">
       {물음판}
-      <받기검사판 검사={검사} 닫기={() => set검사(null)} 받기={() => { if (!검사) return; 내려주기(new Blob([검사.바이트], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 검사.이름); 세기('|골조모델|엑셀'); set엑셀받음(true); set검사({ ...검사, 알고: true }) }} />
+      <받기검사판 검사={검사} 닫기={() => set검사(null)} 받기={() => { if (!검사) return; if (검사.ifc) { 내려주기(new Blob([검사.바이트], { type: 'application/x-step' }), 검사.이름); 세기('|골조모델|IFC'); set검사({ ...검사, 알고: true }); return } 내려주기(new Blob([검사.바이트], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 검사.이름); 세기('|골조모델|엑셀'); set엑셀받음(true); set검사({ ...검사, 알고: true }) }} />
       <div className="card">
         <h1 style={{ margin: 0, fontSize: 20 }}>🧱 골조 모델 — 세우면 물량</h1>
         <p className="muted" style={{ margin: '6px 0 0', lineHeight: 1.7 }}>
@@ -422,7 +437,7 @@ export default function Model() {
       {탭 === '통심' && <통심칸 M={M} setM={setM} />}
       {탭 === '일람' && <일람칸들 M={M} setM={setM} />}
       {탭 === '세우기' && 세움칸(false)}
-      {탭 === '물량' && <물량칸 M={M} S={S} 엑셀받기={엑셀받기} 받는중={받는중} set탭={set탭} set고른={set고른} set층={set층} />}
+      {탭 === '물량' && <물량칸 M={M} S={S} 엑셀받기={엑셀받기} IFC받기={IFC받기} 받는중={받는중} set탭={set탭} set고른={set고른} set층={set층} />}
       {탭 === '공정' && 공정판}
       {탭 === '기성' && 기성판}
       <div className="card kcm-help-card" id="kcm-help"><적산컨맵설명서 /></div>
@@ -1638,7 +1653,7 @@ function 요약줄({ S }) {
 }
 
 /* ───────────────────────── ④ 물량 */
-function 물량칸({ M, S, 엑셀받기, 받는중, set탭, set고른, set층 }) {
+function 물량칸({ M, S, 엑셀받기, IFC받기, 받는중, set탭, set고른, set층 }) {
   if (!M.부재.length) return <div className="card"><p>아직 세운 부재가 없습니다. <button type="button" className="gmd-link" onClick={() => set탭('세우기')}>③ 세우기</button>에서 세우거나, 위의 «가상 예시» 로 해 보십시오.</p></div>
   if (!S || S.오류) return <div className="card"><p className="gmd-warn">셈을 하지 못했습니다 — {S && S.오류}</p></div>
   const 합표 = (S.R.집계 && S.R.집계.합) || []
@@ -1651,8 +1666,9 @@ function 물량칸({ M, S, 엑셀받기, 받는중, set탭, set고른, set층 })
       <요약줄 S={S} />
       <div className="gmd-top">
         <button type="button" className="btn" style={{ width: 'auto' }} onClick={엑셀받기} disabled={!!받는중}>{받는중 ? '만드는 중…' : '📊 엑셀 산출서 받기'}</button>
+        {IFC받기 && <button type="button" className="btn line gmd-ifcbtn" style={{ width: 'auto' }} onClick={IFC받기} disabled={!!받는중} title="레빗 · 나비스웍스 등 BIM 프로그램에서 여는 3D 파일(IFC4)">🧊 IFC 받기</button>}
         <button type="button" className="btn line gmd-cv-jump" style={{ width: 'auto' }} onClick={() => { const e = document.querySelector('.gmd-cv'); if (e) e.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}>📑 내역서 대조 · 설계변경 ↓</button>
-        <span className="muted gmd-p">산출서(산출식) · 집계 · 부재별 · 모델 시트 — 받기 전에 한 번 더 셈해 보고 받습니다.</span>
+        <span className="muted gmd-p">산출서(산출식) · 집계 · 부재별 · 모델 시트 — 받기 전에 한 번 더 셈해 보고 받습니다. 🧊 IFC 는 레빗 · 나비스웍스 등에서 여는 3D(부재마다 물량 · 부호 · 칸 · 공정).</span>
       </div>
       <h2 className="gmd-h">층별</h2>
       <div className="gmd-tablewrap"><table className="gmd-table">

@@ -31,12 +31,12 @@ export default function 받기검사판({ 검사, 닫기, 받기 }) {
     )
   }
   return (
-    <div className="gmd-xlchk" role="dialog" aria-label="엑셀 받기 전 검사" onClick={(e) => { if (e.target === e.currentTarget) 닫기() }}>
+    <div className="gmd-xlchk" role="dialog" aria-label={(검사.ifc ? 'IFC' : '엑셀') + ' 받기 전 검사'} onClick={(e) => { if (e.target === e.currentTarget) 닫기() }}>
       <div className="gmd-xlchk-box">
         <b className="gmd-xlchk-h bad">📋 받기 전 검사 — {검사.알고 ? `못 통과 ${틀린.length}가지를 알고 받았습니다` : `${검사.줄.length}가지 중 ${틀린.length}가지 못 통과`}</b>
         <small className="muted">{검사.이름}</small>
         {목록}
-        <small className="gmd-warn">못 통과한 것은 엑셀 맨 앞 «검사 결과» 시트에도 적힙니다.{검사.알고 ? '' : ' 확인하신 뒤 받으십시오.'}</small>
+        <small className="gmd-warn">{검사.ifc ? '' : '못 통과한 것은 엑셀 맨 앞 «검사 결과» 시트에도 적힙니다.'}{검사.알고 ? '' : (검사.ifc ? '' : ' ') + '확인하신 뒤 받으십시오.'}</small>
         <div className="gmd-xlchk-btns">
           {!검사.알고 && 검사.바이트 && <button type="button" className="btn" onClick={받기}>⬇ 알고 받기</button>}
           <button type="button" className="btn line" onClick={닫기}>{검사.알고 ? '닫기' : '받지 않기'}</button>

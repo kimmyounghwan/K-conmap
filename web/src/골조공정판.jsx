@@ -16,7 +16,7 @@ export const 공정색들 = { 끝: [0.36, 0.52, 0.78], 중: [0.20, 0.70, 0.36], 
 const css = (c, a = 1) => 'rgba(' + c.map((v) => Math.round(v * 255)).join(',') + ',' + a + ')'
 const 상태글 = { 끝: '끝', 중: '하는 중', 전: '아직' }
 
-export default function 골조공정판({ M, S, setM, 세기, 엑셀받기, 받는중, 재생, 기성으로 }) {
+export default function 골조공정판({ M, S, setM, 세기, 엑셀받기, IFC받기, 받는중, 재생, 기성으로 }) {
   const R = useMemo(() => (S && !S.오류 ? 공정셈(M, S) : null), [M, S])
   const [기준, set기준] = useState('')
   const [알, set알] = useState('')
@@ -137,7 +137,8 @@ export default function 골조공정판({ M, S, setM, 세기, 엑셀받기, 받�
       </>}
       <div className="gmd-top">
         <button type="button" className="btn" style={{ width: 'auto' }} onClick={엑셀받기} disabled={!!받는중 || !R.다됨}>{받는중 ? '만드는 중…' : '📊 엑셀(공정 시트 함께)'}</button>
-        <span className="muted gmd-p">모델 엑셀에 «골조공정표»(주마다 ■) · «월별예정» · «공정조건» 시트가 들어갑니다 — 받기 전에 한 번 더 셈해 보고 받습니다.</span>
+        {IFC받기 && <button type="button" className="btn line gmd-ifcbtn" style={{ width: 'auto' }} onClick={IFC받기} disabled={!!받는중 || !R.다됨} title="나비스웍스 TimeLiner 등 4D 프로그램이 읽는 공정(칸마다 과제 · 날짜)이 든 IFC4">🧊 IFC(공정 담김)</button>}
+        <span className="muted gmd-p">모델 엑셀에 «골조공정표»(주마다 ■) · «월별예정» · «공정조건» 시트가 들어갑니다 — 받기 전에 한 번 더 셈해 보고 받습니다. 🧊 IFC 에는 칸마다 과제(작업일 · 시작 · 끝)와 그 칸 부재가 묶여 들어갑니다.</span>
         {!처음 && <button type="button" className="btn line sm" style={{ width: 'auto', marginLeft: 'auto' }} onClick={비우기}>공정 비우기</button>}
       </div>
     </div>
