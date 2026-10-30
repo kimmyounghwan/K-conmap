@@ -9707,3 +9707,19 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 /* 🗓 G466 작업 화면 탭이 여섯 — 320 px 폰에서 39 px 넘치던 것(칸 · 틈을 줄임) */
 @media (max-width: 380px) { .gmd .gmd-ws-top { padding: 8px 8px; } .gmd .gmd-ws-tabs { gap: 3px; } .gmd .gmd-ws-tabs .gmd-tab { padding: 6px 6px; font-size: 12.5px; } }
 .gmd .gmd-gj-playbar .btn { white-space: nowrap; flex: 0 0 auto; }
+/* 💻 G468 PC 연결 — 작업 화면 띠 · PC 폴더 도면 창 */
+.gmd .gmd-pcbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.gmd .gmd-pcbar .muted { min-width: 0; overflow-wrap: anywhere; }
+.gmd .gmd-pcbar .gmd-pcbtn { white-space: nowrap; }
+.gmd .gmd-pcbox { width: min(720px, 94vw); max-height: 86vh; display: flex; flex-direction: column; gap: 6px; }
+.gmd .gmd-pc-folders, .gmd .gmd-pc-kinds { flex-wrap: wrap; gap: 6px; align-items: center; }
+.gmd .gmd-pc-list { overflow-y: auto; max-height: 46vh; border: 1px solid var(--line, #d0d5dd); border-radius: 8px; }
+.gmd .gmd-pc-file { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line, #eef0f3); cursor: pointer; min-width: 0; }
+.gmd .gmd-pc-file.on { background: rgba(41, 122, 235, .08); }
+.gmd .gmd-pc-name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.gmd .gmd-pc-meta { flex: 0 0 auto; font-size: 12px; white-space: nowrap; }
+@media (max-width: 520px) { .gmd .gmd-pc-file { flex-wrap: wrap; } .gmd .gmd-pc-meta { flex-basis: 100%; padding-left: 26px; } }
+.gmd .gmd-pc-file input[type="checkbox"] { width: auto; flex: 0 0 auto; margin: 0; }
+.gmd .gmd-pc-file .gmd-pc-name { flex: 1 1 0; }
+/* 🗓 G466 사이트 확인(10-30 18:0x) — 윈도우 글꼴(맑은 고딕)로 폭 320 이면 탭 여섯 줄이 7 px 넘침(폰 글꼴은 안 넘침) → 340 아래는 칸을 조금 더 줄임 */
+@media (max-width: 340px) { .gmd .gmd-ws-tabs { gap: 2px; } .gmd .gmd-ws-tabs .gmd-tab { padding: 6px 4px; font-size: 12px; } }

@@ -31,6 +31,8 @@ import 골조기성판, { 기성색들, 칸상태 } from '../골조기성판.jsx
 import 골조변경판 from '../골조변경판.jsx'      /* 📑 G464 내역서 대조 → 설계변경 */
 import 골조공정판, { 공정재생줄, 공정색들 } from '../골조공정판.jsx'   /* 🗓 G466 공정표 · 3D 재생 · 달마다 물량 */
 import { 공정셈, 공정시트, 칸날상태, 부재날상태 } from '../lib/골조공정.js'
+import PC연결판 from '../PC연결판.jsx'       /* 💻 G468 PC 연결 프로그램 */
+import { pc찾기, pc쓴적, pc기억, pc보낸, pc보낸파일, pc받음 } from '../lib/pc연결.js'
 import 받기검사판 from '../받기검사판.jsx'
 import 적산컨맵설명서 from '../적산컨맵설명서.jsx'
 import { 층판 } from '../lib/둘러보기.js'
@@ -269,6 +271,48 @@ export default function Model() {
       return { ...r0, 세움 }
     } catch (e) { set도면상태({ k: 'err', 글: '도면에서 세우지 못했습니다 — ' + ((e && e.message) || e) }); return null }
   }
+  /* 💻 G468 PC 연결 — «K-적산컨맵 연결» 프로그램이 연 주소(?pc=…)로 왔거나 전에 쓴 브라우저만 이 PC 를 찾아봄 · 캐드 KCM 으로 보낸 도면은 받아 넣음 */
+  const [pc연, setPc연] = useState(null)
+  const [pc띠, setPc띠] = useState(true)
+  const 보내는중 = useRef(false)
+  const 보낸넣기 = async (연) => {
+    if (보내는중.current) return
+    보내는중.current = true
+    try {
+      const l = await pc보낸(연)
+      if (!l.length) return
+      const 받은 = []
+      for (const x of l) { set도면상태({ k: 'busy', 글: '💻 캐드에서 보낸 도면 받는 중 — ' + x.이름 }); const r = await pc보낸파일(연, x.id); 받은.push({ 이름: x.이름, buf: r.buf }); await pc받음(연, x.id) }
+      세기('|골조모델|PC보냄')
+      if (탭 !== '세우기') set탭('세우기')
+      const r = await 함께넣기(받은)
+      if (r) set알림((a) => '💻 캐드에서 보낸 «' + 받은.map((x) => x.이름).join(' · ') + '» — ' + a)
+    } catch (e) { set도면상태({ k: 'err', 글: '💻 캐드에서 보낸 도면을 받지 못했습니다 — ' + ((e && e.message) || e) }) } finally { 보내는중.current = false }
+  }
+  const 보낸넣기Ref = useRef(보낸넣기)
+  보낸넣기Ref.current = 보낸넣기              // 3초 돌기는 늘 지금 모델로(옛 화면의 함께넣기를 쓰지 않게)
+  useEffect(() => {
+    if (!작업) return undefined
+    let 산 = true, 돌 = null
+    let q = null
+    try { q = new URLSearchParams(window.location.search).get('pc') } catch (e) { q = null }
+    if (!q && !pc쓴적()) return undefined
+    pc찾기().then(async (연) => {
+      if (!산) return
+      if (!연) { if (q) set도면상태({ k: 'err', 글: '💻 K-적산컨맵 연결 프로그램을 찾지 못했습니다 — PC 에서 프로그램을 켠 뒤 «🌐 적산컨맵 작업 화면 열기» 로 여십시오.' }); return }
+      pc기억(연.문); setPc연(연)
+      if (q) 세기('|골조모델|PC연결')
+      if (q === '보냄' || 연.보낸 > 0) await 보낸넣기Ref.current(연)
+      /* 켜진 동안 3초마다 — 캐드 KCM 으로 보낸 것이 있으면 이 화면이 받음(프로그램은 새 탭을 안 엶) · 꺼지면 띠를 내림 */
+      돌 = setInterval(async () => {
+        const n = await pc찾기({ 시간: 1500 })
+        if (!산) return
+        setPc연((p) => (n ? (p && p.문 === n.문 && p.폴더수 === n.폴더수 && p.보낸 === n.보낸 ? p : n) : null))
+        if (n && n.보낸 > 0) 보낸넣기Ref.current(n)
+      }, 3000)
+    })
+    return () => { 산 = false; if (돌) clearInterval(돌) }
+  }, [작업])  // eslint-disable-line react-hooks/exhaustive-deps
   const 도면넣기 = async (files) => {
     const list = [...(files || [])].filter((f) => /\.(dxf|dwg|xlsx?|csv|txt)$/i.test(f.name))
     if (!list.some((f) => /\.(dxf|dwg)$/i.test(f.name))) { set도면상태({ k: 'err', 글: 'DXF · DWG 도면 파일을 넣어 주십시오.' }); return }
@@ -387,6 +431,7 @@ export default function Model() {
             <input ref={파일Ref} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={(e) => { 모델열기(e.target.files && e.target.files[0]); e.target.value = '' }} />
             <input ref={도면Ref} className="gmd-ws-dwgin" type="file" accept=".dxf,.dwg,.xlsx,.xls,.csv,.txt" multiple style={{ display: 'none' }} onChange={(e) => { 도면넣기(e.target.files); e.target.value = '' }} />
           </div>
+          {pc연 && pc띠 && <PC연결판 연={pc연} 넣기={(l) => { set탭('세우기'); return 함께넣기(l) }} 세기={세기} 끄기={() => setPc띠(false)} />}
           {도면상태 && <div className={'gmd-note gmd-ws-note' + (도면상태.k === 'err' ? ' gmd-warnbox' : '')} role="status">{도면상태.k === 'busy' ? '⏳ ' : '⚠ '}{도면상태.글}{도면상태.k !== 'busy' && <button type="button" className="gmd-x" onClick={() => set도면상태(null)} aria-label="닫기">✕</button>}</div>}
 {큰저장 && <div className="gmd-note gmd-warnbox" role="alert">⚠ 저장된 모델의 부재가 <b>{큰저장.부재.length.toLocaleString('ko-KR')}개</b>로 아주 많습니다({[...new Set(큰저장.부재.map((o) => o.층))].map((f) => f + '층 ' + 큰저장.부재.filter((o) => o.층 === f).length.toLocaleString('ko-KR')).join(' · ')}) — 열면 화면이 멈출 수 있습니다.{큰무리.length > 0 && <> 많은 곳: {큰무리.map((g) => `${g.층}층 ${g.종류} ${g.모두.toLocaleString('ko-KR')}개(도면에서 온 것 ${g.도면.toLocaleString('ko-KR')} · 손으로 세운 것 ${g.뺌.toLocaleString('ko-KR')})`).join(' · ')}.</>} <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => { const r = 큰무리빼기(큰저장); setM0(r.M); set큰저장(null); set알림('너무 많던 ' + r.무리.map((g) => g.층 + '층 ' + g.종류 + ' 손으로 세운 것 ' + g.뺌.toLocaleString('ko-KR') + '개').join(' · ') + ' 만 빼고 열었습니다(도면에서 온 것은 남김)') }}>많은 것만 빼고 열기</button> <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { setM0(큰저장); set큰저장(null) }}>그대로 열기</button> <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { set큰저장(null); set알림('새 모델로 시작합니다') }}>비우고 시작</button></div>}
           {알림 && <div className="gmd-note gmd-ws-note">{알림}<button type="button" className="gmd-x" onClick={() => set알림('')} aria-label="닫기">✕</button></div>}
