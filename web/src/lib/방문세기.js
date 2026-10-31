@@ -123,7 +123,9 @@ async function 보내기(길들, 지금) {
     const 표 = 길들.filter((p) => p[0] === '@')
     if (표.length) {
       const 곳 = await 자리알기(지금)
-      for (const t of 표) {
+      /* 🗺 G488 자리를 못 알아냈으면 «@날» 을 보낼 것에 그대로 둠(5분 뒤 밀린것보내기가 다시 — 사흘까지) — 전엔 바로 r/x(기타)로 적어 그날 점이 영영 없었음 */
+      if (곳.s === 'x' && !곳.k) { 보낸.push(...표) }
+      else for (const t of 표) {
         const 날 = t.slice(1, 11), 새 = t.endsWith('+')
         const 더 = [`d/${날}/r/${곳.s}`].concat(곳.k ? [`d/${날}/c/${곳.k}`] : [], 새 ? [`a/r/${곳.s}`] : [])
         큐바꾸기(t, 더)
@@ -168,10 +170,12 @@ export async function 자리풀기(j, 바) {
   return { s, k }
 }
 let 자리실패 = 0
+export const 자리다시틈 = 3 * 60000                 // 🗺 G488 못 받았으면 3분 뒤 다시(전엔 10분)
 async function 자리알기(지금 = Date.now()) {
   const 날 = 한국날(지금)
-  try { const v = JSON.parse(localStorage.getItem(자리열쇠) || 'null'); if (v && v.d === 날 && typeof v.s === 'string') return v } catch (e) { /* 없음 */ }
-  if (Math.abs(지금 - 자리실패) < 10 * 60000) return { d: 날, s: 'x', k: null }      // 못 받았으면 10분은 다시 안 물음
+  let 옛실패 = false                                 // 🗺 G488 이 판 전에 «못 받음(x)» 을 그날 것으로 적어 둔 브라우저(이미 다녀간 사람) — 다시 물어 알아내면 그날 곳 점만 뒤늦게 찍음
+  try { const v = JSON.parse(localStorage.getItem(자리열쇠) || 'null'); if (v && v.d === 날 && typeof v.s === 'string') { if (!(v.s === 'x' && !v.k)) return v; 옛실패 = true } } catch (e) { /* 없음 */ }
+  if (Math.abs(지금 - 자리실패) < 자리다시틈) return { d: 날, s: 'x', k: null }
   let j = null
   try {
     const c = typeof AbortController === 'function' ? new AbortController() : null
@@ -184,7 +188,12 @@ async function 자리알기(지금 = Date.now()) {
   let 바 = null
   try { 바 = await 바탕받기() } catch (e) { 바 = null }
   const v = { d: 날, ...(await 자리풀기(j, 바)) }
+  /* 🗺 G488 (2026-11-01 소장님 «지도에 왜 표시가 안돼») — 자리를 못 알아낸 것(s 'x' · k 없음 · geojs 가 늦거나 막힘)은 «하루 내내» 기억하지 않음.
+     전엔 한 번 못 받으면 그날은 그 브라우저가 지도에 점으로 안 찍혔음(지금 · 오늘 둘 다). 10분 뒤(자리실패)에 다시 물음 */
+  if (v.s === 'x' && !v.k) { 자리실패 = 지금; return v }
   try { localStorage.setItem(자리열쇠, JSON.stringify(v)) } catch (e) { /* 이번만 */ }
+  /* 🗺 G488 (소장님 «이미 들어왔던 사람들도 찍히게») — 이 판 전에 오늘 «기타(x)» 로 이미 센 브라우저: 시·도는 못 옮기지만(두 번 세게 됨) 그날 «곳» 점은 지금이라도 찍음 */
+  if (옛실패 && v.k) { const 길 = `d/${날}/c/${v.k}`; const q = 큐읽기(); if (q && !q.남.includes(길)) { 큐넣기([길], 지금 - 다시보낼틈); 밀린것보내기(지금).catch(() => {}) } }
   return v
 }
 

@@ -126,7 +126,26 @@ r = await 처음(KST('2026-10-20T08:00:00'))
 봄('10/18 전에 왔던 사람(쿠키 처음 온 때 9/20) — 오늘만 · 누적 안 더함(애널리틱스 누적에 이미 있음)', JSON.stringify([...쓴].sort()) === JSON.stringify(['d/2026-10-20/n', 'd/2026-10-20/r/seoul']) && 디비.get('a/n') === 1, JSON.stringify(쓴))
 곳간.clear(); 쓴 = []; document.cookie = 새쿠키; 지오 = null
 r = await 처음(KST('2026-10-20T09:00:00'))
-봄('위치를 못 받으면 x(모름) · 새 사람이면 누적도', JSON.stringify([...쓴].sort()) === JSON.stringify(['a/n', 'a/r/x', 'd/2026-10-20/n', 'd/2026-10-20/r/x']) && 디비.get('d/2026-10-20/n') === 3, JSON.stringify(쓴))
+/* 🗺 G488 (11-01 «지도에 왜 표시가 안돼») — 위치를 못 받으면 바로 x(기타)로 적지 않고 «@날+» 를 보낼 것에 남겨 다시 물음 · 못 받은 자리는 하루 동안 기억하지 않음 */
+봄('위치를 못 받으면 — 사람 n · 누적 n 만 가고 «@2026-10-20+» 는 보낼 것에 남음(기타 x 로 안 적음) · 자리 기억 없음', JSON.stringify([...쓴].sort()) === JSON.stringify(['a/n', 'd/2026-10-20/n']) && 디비.get('d/2026-10-20/n') === 3
+  && JSON.stringify(JSON.parse(곳간.get('kcm.vis.q') || '{}').남) === JSON.stringify(['@2026-10-20+']) && !곳간.has('kcm.vis.loc'), JSON.stringify([쓴, 곳간.get('kcm.vis.q'), 곳간.get('kcm.vis.loc')]))
+쓴 = []; 지오 = { country_code: 'KR', region: 'Jeollanam-do', city: 'Gwangyang-si' }
+r = await B.밀린것보내기(KST('2026-10-20T09:04:00'))
+봄('4분 뒤엔 아직(5분 틈) — 보낼 것 그대로', r === null && 쓴.length === 0)
+r = await B.밀린것보내기(KST('2026-10-20T09:12:00'))
+봄('12분 뒤 geojs 가 되면 — 오늘 전남 · 광양 곳 · 누적 전남이 그제야 감 · 보낼 것 비움 · 자리 기억됨', JSON.stringify([...쓴].sort()) === JSON.stringify(['a/r/jeonnam', 'd/2026-10-20/c/46230', 'd/2026-10-20/r/jeonnam']) && !곳간.has('kcm.vis.q') && /46230/.test(곳간.get('kcm.vis.loc') || ''), JSON.stringify([쓴, 곳간.get('kcm.vis.q')]))
+쓴 = []; 곳간.delete('kcm.vis.loc'); 지오 = null
+r = await B.숨쉬기(KST('2026-10-20T09:20:00'))
+const 숨 = [...디비.keys()].filter((k) => k.startsWith('on/'))
+봄('여기 있음(숨쉬기) — 자리를 못 받으면 k 없이 남기고 자리는 기억 안 함', 숨.length >= 1 && !곳간.has('kcm.vis.loc'), JSON.stringify([숨, 곳간.get('kcm.vis.loc')]))
+/* 🗺 G488 이 판 전에 오늘 «못 받음(x)» 을 기억해 둔 브라우저(이미 다녀간 사람) — 다시 물어 알면 그날 곳 점만 뒤늦게 */
+쓴 = []; 곳간.set('kcm.vis.loc', JSON.stringify({ d: '2026-10-20', s: 'x', k: null })); 곳간.delete('kcm.vis.q'); 지오 = { country_code: 'KR', region: 'Jeollanam-do', city: 'Gwangyang-si' }
+r = await B.숨쉬기(KST('2026-10-20T09:40:00')); await new Promise((res) => setTimeout(res, 30))
+봄('옛 «x» 기억이 있는 브라우저 — 숨쉬기 때 다시 물어 광양 → 여기 있음에 k · 오늘 광양 곳 점(c) 만 보냄(시·도는 이미 기타로 셌으니 안 보냄) · 자리 기억 고침',
+  r && JSON.stringify([...쓴].sort()) === JSON.stringify(['d/2026-10-20/c/46230', 'on/' + r]) && /46230/.test(곳간.get('kcm.vis.loc') || '') && !곳간.has('kcm.vis.q'), JSON.stringify([r, 쓴, 곳간.get('kcm.vis.loc'), 곳간.get('kcm.vis.q')]))
+쓴 = []
+r = await B.숨쉬기(KST('2026-10-20T09:46:00'))
+봄('그 뒤 숨쉬기 — 여기 있음만 · 곳 점은 또 안 보냄', 쓴.length === 1 && /^on\//.test(쓴[0]), JSON.stringify(쓴))
 곳간.clear(); 쓴 = []; document.cookie = ''; 지오 = { country_code: 'JP', region: 'Tokyo' }
 r = await 처음(KST('2026-10-20T10:00:00'))
 봄('해외 — f', JSON.stringify([...쓴].sort()) === JSON.stringify(['a/n', 'a/r/f', 'd/2026-10-20/n', 'd/2026-10-20/r/f']), JSON.stringify(쓴))
