@@ -265,6 +265,8 @@ export default function 이용자지도({ 작게 = false }) {
           <div className="umap-reg">
             <div className="umap-now-n">
               <i className="umap-dot now" /> 지금(30분 안) <b>{지금사람 != null ? <><수 v={지금사람} />명</> : '—'}</b>
+              {/* 🗺 G489 (11-01 소장님 «지도에 왜 표시가 안돼» — 지금 13명인데 점 6개) — 점은 «위치를 아는 국내 브라우저» 뿐(해외 · 위치 모름은 숫자에만) → 몇 곳이 점으로 찍혔는지 같이 */}
+              {지금사람 != null && 직접지금 != null && 지금수 < 지금사람 && <span className="umap-dots-n">· 지도에 {지금수}곳(해외 · 위치 모름은 점 없음)</span>}
               {/* 🩹 G153 — 자료가 45분 넘게 멈추면 «지금» 점이 다 사라져 «아무것도 안 뜬다» 로 보였습니다(10/6 아침). 늦어진 것을 그대로 알립니다 */}
               {늦음 && 기준글(자료.at) && <span className="umap-late">자료가 늦어지고 있습니다 · {기준글(자료.at)} 기준</span>}
             </div>
