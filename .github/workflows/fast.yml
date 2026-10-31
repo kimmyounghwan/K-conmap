@@ -78,13 +78,18 @@ jobs:
 
       # 정기 수집(update.yml)이 캐시에 남긴 공고·개찰 저장소 — 1순위에 기초금액·면허 등을 덧붙이는 데만 씁니다.
       # ⚠️ «읽기만» 합니다(cache/restore). 여기서 저장하면 정기 수집의 캐시가 헷갈립니다.
-      - name: 지난 수집 기록 가져오기 (읽기만)
+      # ⚡ G481 (2026-10-31) — 172MB 통째(store-) 대신 공고 · 개찰 두 파일만 든 작은 캐시(lite-)를 받습니다.
+      #   10-31 12:05 정기 수집이 «Egress is over the account limit» 로 캐시를 못 받은 일 — 이 단계가 51분마다 172MB 를 받고 있었음.
+      #   (fast.py 가 쓰는 것은 first.json · live.json 뿐 · 없으면 collect.py 가 씨앗 data/seed 로 채움)
+      - name: 지난 수집 기록 가져오기 (읽기만 · 작은 것)
         if: steps.dup.outputs.skip != '1'
         uses: actions/cache/restore@v4
         with:
-          path: data/store
-          key: store-${{ github.run_id }}
-          restore-keys: store-
+          path: |
+            data/store/first.json
+            data/store/live.json
+          key: lite-${{ github.run_id }}
+          restore-keys: lite-
 
       - name: 빠른 수집 (10분마다 여섯 번 · 약 51분)
         id: run

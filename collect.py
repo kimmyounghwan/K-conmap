@@ -221,6 +221,8 @@ NET_RECOVERED = False        # 그 «한 번» 을 이미 썼는지
 #    (ReadTimeout «느리게 아픈 날» 은 다릅니다. 그건 성공이 섞이므로 8번 그대로 둡니다)
 NET_LIMIT_CONN = 4           # 연속 «연결 실패»가 이만큼이면 조달청이 죽은 것으로 봅니다
 NET_FAILS_CONN = 0           # 연속 «연결 실패»(ConnectionError) 횟수 — 성공하면 0 으로
+BASE_FLIP = None         # 🩹 G481 (http 꼴, https 꼴) — 한 번 다른 꼴로 받았으면 이번 회차 남은 호출도 그 꼴로
+SCHEME_NOTE = ""         # 🩹 G481 «조달청 주소를 https 로 바꿔 받았습니다» — 수집상태 · 상태 파일에 남김(코드 BASE 를 고칠 때)
 NET_HTML = 0             # 🩹 G480 자료 대신 웹페이지(HTML)가 온 호출 수 — 0건 회차를 «정상» 으로 넘기지 않게
 NET_FAILS_ALL = 0        # 누적 실패(연속 아님) — 로그에 «몇 번 기다렸나» 를 남기기 위한 것
 
@@ -252,13 +254,15 @@ def _quota_stop(tag, why_text):
                           "어디": tag, "말": str(why_text)[:160]}
 
 
-def fetch(url, key, day=None, extra=None, label="", why=None):
+def fetch(url, key, day=None, extra=None, label="", why=None, _flip=False):
     """why 에 dict 를 넘기면 실패 이유(HTTP·resultCode·resultMsg)를 담아 줍니다.
        진단에서 «응답 없음» 과 «필수값이 달라서 안 됨» 을 구별하기 위한 것입니다."""
     """조달청 공통 호출.
     예전에 기초금액이 '계속 실패'했던 건 대부분 조용히 삼켜서 원인이 안 보였기 때문이다.
     그래서 여기서는 HTTP 코드 / resultCode / 본문 앞머리를 반드시 찍는다."""
-    global NET_FAILS, NET_DOWN, NET_FAILS_ALL, NET_RECOVERED, NET_FAILS_CONN, NET_HTML
+    global NET_FAILS, NET_DOWN, NET_FAILS_ALL, NET_RECOVERED, NET_FAILS_CONN, NET_HTML, BASE_FLIP, SCHEME_NOTE
+    if BASE_FLIP and url.startswith(BASE_FLIP[0]):
+        url = BASE_FLIP[1] + url[len(BASE_FLIP[0]):]
     if NET_DOWN or QUOTA_OUT:
         return []
     if time.time() - NET_T0 > NET_BUDGET_S:
@@ -350,6 +354,19 @@ def fetch(url, key, day=None, extra=None, label="", why=None):
             return []
         if head.lstrip().lower().startswith(("<!doctype html", "<html")):
             NET_HTML += 1
+            # 🩹 G481 방지 — 주소 꼴(http ↔ https)이 바뀌어 자료 대신 웹페이지가 오면 한 번만 다른 꼴로 다시 부름(스스로 고침).
+            #   10-30 저녁 조달청 http 가 HTML 로 바뀌었을 때 이틀 동안 0건이었음(G480) — 다음에 또 바뀌어도 회차가 안 멈추게.
+            if not _flip and "://apis.data.go.kr/" in url:
+                a, b = ("http://", "https://") if url.startswith("http://") else ("https://", "http://")
+                alt = b + url[len(a):]
+                h0 = NET_HTML
+                out = fetch(alt, key, day=day, extra=extra, label=label, why=why, _flip=True)
+                if NET_HTML == h0:                 # 다른 꼴은 웹페이지가 아니었음 → 이번 회차는 그 꼴로
+                    BASE_FLIP = (a + "apis.data.go.kr/", b + "apis.data.go.kr/")
+                    NET_HTML -= 1                      # 되받았으니 «웹페이지만 옴» 에서 뺌
+                    SCHEME_NOTE = "조달청 주소를 %s 로 바꿔 받았습니다(%s 는 자료 대신 웹페이지) — collect.py BASE 를 고칠 것" % (b[:-3], a[:-3])
+                    print("    🩹 " + SCHEME_NOTE)
+                    return out
         print(f"    ! {tag} JSON 아님 → {head}")
         if why is not None:
             why.update({"http": r.status_code, "json": False, "body": head})
@@ -637,6 +654,7 @@ def write_health(first, live, added):
         "why": why,
         "fails": fails,
         "got": {"first": got_f, "live": got_l},
+        "note": SCHEME_NOTE,
         "newest": {"first": newest(first), "live": newest(live)},
         "n": {"first": len(first.get("con") or {}), "live": len(live.get("con") or {})},
         # 「누락이 있으면 안 돼」(소장님, 2026-09-12) — 회차가 아니라 «날짜» 로 봅니다.
@@ -2854,7 +2872,9 @@ def write_status(first):
         "|---|---|",
         "| 마지막 회차 | %s KST |" % datetime.now(KST).strftime("%Y-%m-%d %H:%M"),
         "| 조달청 호출 | %s |" % ("⛔ **일일 트래픽을 다 썼습니다**" if QUOTA_OUT
-                              else ("⚠️ 통신 차단기가 내려갔습니다" if NET_DOWN else "정상")),
+                              else ("⚠️ 통신 차단기가 내려갔습니다" if NET_DOWN
+                                    else ("⚠️ 자료 대신 웹페이지(HTML) %d번" % NET_HTML if NET_HTML else "정상"))
+                              + (" · 🩹 " + SCHEME_NOTE if SCHEME_NOTE else "")),
         "| 개찰 저장소 | %s건 |" % format(len(rows), ","),
         "| 순위 물어본 개찰 | %s건 (%.1f%%) |" % (format(asked, ","),
                                           asked / max(len(rows), 1) * 100),

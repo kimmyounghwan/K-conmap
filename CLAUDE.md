@@ -6359,6 +6359,15 @@ canonical 이중 인코딩 · 개찰 시각 문구 · 성적표 칸 · 등수 �
   ② 10-31 12:05 회차(#1634)가 «Failed to restore: Egress is over the account limit» 로 캐시(172MB)를 못 받아 저장소 코드 속 9월 사본(data/store/*.json · 공사 11,638 · 최신 09-03)으로 돌고
     actions/cache 가 끝에 그 사본을 새 캐시로 저장 → 다음 회차부터 개찰 18,344 → 3,008 · 3년치 순위 보관함 34달 → 2달. 씨앗(data/seed · 10-23) 복구는 «용역 줄 포함 줄 수» 로만 봐서 안 켜짐.
     → update.yml: 가져오기(cache/restore) · 확인(cache-matched-key 없으면 STORE_OK=0 → 수집 · 빌드 · 배포 · 저장 건너뜀 · 사이트 지난 판 그대로 · 낮이면 연속 실패 메일) · 저장(cache/save — 제대로 받은 회차만) 나눔 ·
-      한 번만: 공사 개찰 1만 건 밑이면 잃기 전 캐시 store-41159212256(#1633) 되살리기 · 캐시가 하나도 없을 땐 저장소 변수 STORE_BOOT=1.
+      한 번만: 공사 개찰 최신이 10-01 전이면 잃기 전 캐시 store-41159212256(#1633) 되살리기 · 캐시가 하나도 없을 땐 저장소 변수 STORE_BOOT=1.
     → collect.py load_store: 씨앗보다 공사 최신 날짜가 이르거나(낡음) 공사 줄이 절반 밑이면 씨앗으로 채움(저장소 줄이 이김).
   · 시험: tools/시험_수집복구.py(새 — https · 낡은 저장소 씨앗 채움 · 새 저장소 안 건드림 · HTML 만 → 실패) · 공통규칙 · 용역 · 참가지역 · 시도좁힘 · checkwf · checkimports · checklabels · checkops 통과.
+- 10-31 20:1x G481 — 🛡 같은 사고 «방지»(소장님 «방지 방안도 함께 마련해..고치는 것에 끝내지 말고»):
+  ① 주소 꼴 스스로 고침 — collect.fetch: 조달청(apis.data.go.kr)이 자료 대신 웹페이지(HTML)를 주면 http ↔ https 다른 꼴로 한 번 다시 부름 → 되면 이번 회차 나머지도 그 꼴(BASE_FLIP) ·
+     health «note» · 수집상태 «🩹 조달청 주소를 https 로 바꿔 받았습니다 — collect.py BASE 를 고칠 것». 둘 다 웹페이지면 그대로 실패(NET_HTML).
+  ② 줄 수 지킴 — update.yml «🛡 수집 뒤 줄 수 확인»(용역 수집 뒤 · 빌드 앞): 공사 개찰이 가져올 때(STORE_N0)보다 30 % 넘게 줄면 STORE_OK=0 · STORE_SAVE=0 → 빌드 · 배포 · 캐시 저장 건너뜀(사이트 지난 판 그대로 · 낮이면 메일) ·
+     «🛡 저장 전 줄 수 확인»(3년치 메우기 · 누적 반영 뒤) 한 번 더 → 줄면 캐시만 저장 안 함.
+  ③ 캐시 내려받기 줄임 — 빠른 수집(fast.yml · 51분마다)이 172MB 통째(store-) 대신 공고 · 개찰 두 파일만 든 작은 캐시(lite- · update.yml «빠른 수집용 작은 기록 보관»)를 받음.
+     fast.py 가 저장소에서 읽는 것은 first · live 뿐 · 작은 캐시가 아직 없으면 씨앗(data/seed)으로 채움. (10-31 12:05 «Egress is over the account limit» 대비)
+  · 시험: tools/시험_수집복구.py ⑤ 가짜 조달청(http → HTML · https → JSON) 스스로 고침 · 둘 다 HTML → 실패 / ⑥ 워크플로 단계 차례 · 조건 · lite path 같음 · 줄 수 확인 셈(26,000 → 18,300 저장 · 18,100 막음 · 3,008 막음)
+    (PyYAML 없이 읽음 · 로컬에선 PyYAML 과 같은지 맞춤 · 윈도에선 bash 셈 건너뜀) · 공통규칙 · 용역 · 참가지역 · 빠른길 · checkwf · checkimports · checklabels · checkops 통과.

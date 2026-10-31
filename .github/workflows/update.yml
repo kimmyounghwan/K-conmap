@@ -149,6 +149,7 @@ jobs:
           read N NEW <<< "$(python -c "import json,re;c=(json.load(open('data/store/first.json',encoding='utf-8')).get('con') or {});print(len(c), max((re.sub(r'\D','',str(r.get('dt') or ''))[:8] for r in c.values()), default='0'))" 2>/dev/null || echo '0 0')"
           if [ -n "$MATCHED" ]; then
             echo "STORE_OK=1" >> "$GITHUB_ENV"
+            echo "STORE_N0=${N}" >> "$GITHUB_ENV"
             echo "✓ 수집 기록 ${MATCHED} · 공사 개찰 ${N}건 · 최신 ${NEW}"
             # 🩹 G480 한 번만 — 10-31 낮부터 이어진 9월 사본(공사 개찰 최신 09-03)이면 잃기 전 캐시를 되살려 봄
             if [ "${NEW:-0}" \< "20261001" ]; then echo "STORE_SMALL=1" >> "$GITHUB_ENV"; echo "⚠ 공사 개찰 최신 ${NEW} — 10-31 11시 회차 수집 기록을 되살려 봅니다"; fi
@@ -209,6 +210,20 @@ jobs:
           NET_BUDGET_S: '360'
         run: |
           if [ "${NIGHT:-0}" = "1" ]; then python svc.py --catchup 3; else python svc.py; fi
+
+      # 🛡 G481 방지 (1) — 수집 직후 공사 개찰 줄 수가 가져올 때보다 30 % 넘게 줄었으면 이번 회차는 빌드 · 배포 · 캐시 저장을 안 함
+      #   (10-31 사고 — 작은 사본이 사이트에 배포되고 새 캐시가 되어 이어짐). 70일 넘은 줄 정리로 줄어드는 것은 하루 몇 %.
+      - name: 🛡 수집 뒤 줄 수 확인
+        if: ${{ env.STORE_OK == '1' }}
+        run: |
+          N1=$(python -c "import json;print(len((json.load(open('data/store/first.json',encoding='utf-8')).get('con') or {})))" 2>/dev/null || echo 0)
+          N0=${STORE_N0:-0}
+          echo "공사 개찰 가져올 때 ${N0}건 → 수집 뒤 ${N1}건"
+          if [ "${N0}" -gt 0 ] && [ $((N1 * 10)) -lt $((N0 * 7)) ]; then
+            echo "STORE_SAVE=0" >> "$GITHUB_ENV"
+            echo "STORE_OK=0" >> "$GITHUB_ENV"
+            echo "::warning::공사 개찰이 ${N0} → ${N1}건으로 30 % 넘게 줄었습니다 — 이번 회차는 빌드 · 배포 · 캐시 저장을 건너뜁니다(사이트는 지난 판 그대로)"
+          fi
 
       # 진단 — 투찰업체 «전체»(1~10위)를 주는 오퍼레이션이 있는지 한 번 두드려 봅니다.
       # 지금 쓰는 개찰결과는 1순위만 돌려줍니다. 결과를 보고 되는 게 있으면 본수집에 붙입니다.
@@ -441,13 +456,37 @@ jobs:
       #     (GitHub 이 실패한 워크플로를 메일로 알려줍니다 — 비밀키가 따로 필요 없습니다).
       #   ⚠️ 배포 «뒤» 에 둡니다. 수집이 실패해도 사이트는 올려야 하니까요.
       # ══════════════════════════════════════════════════════════════
+      # 🛡 G481 방지 (2) — 3년치 메우기 · 누적 반영 뒤 저장 직전에 한 번 더(줄면 캐시만 저장 안 함)
+      - name: 🛡 저장 전 줄 수 확인
+        if: ${{ success() && env.STORE_OK == '1' }}
+        run: |
+          N1=$(python -c "import json;print(len((json.load(open('data/store/first.json',encoding='utf-8')).get('con') or {})))" 2>/dev/null || echo 0)
+          N0=${STORE_N0:-0}
+          echo "공사 개찰 가져올 때 ${N0}건 → 지금 ${N1}건"
+          if [ "${N0}" -gt 0 ] && [ $((N1 * 10)) -lt $((N0 * 7)) ]; then
+            echo "STORE_SAVE=0" >> "$GITHUB_ENV"
+            echo "::warning::공사 개찰이 ${N0} → ${N1}건으로 30 % 넘게 줄어 캐시를 저장하지 않습니다(다음 회차는 지난 캐시로)"
+          fi
+
       # 🛡 G480 — 캐시 저장은 «제대로 받아 돈» 회차만(전엔 actions/cache 가 끝에 무조건 저장 → 작은 사본이 이어짐)
       - name: 수집 기록 보관 (캐시 저장)
-        if: ${{ success() && env.STORE_OK == '1' }}
+        if: ${{ success() && env.STORE_OK == '1' && env.STORE_SAVE != '0' }}
         uses: actions/cache/save@v4
         with:
           path: data/store
           key: store-${{ github.run_id }}
+
+      # ⚡ G481 방지 — 빠른 수집(fast.yml)이 쓰는 공고 · 개찰 두 파일만 따로 보관(172MB 통째 대신)해 캐시 내려받기 양을 줄임.
+      #   10-31 12:05 «Egress is over the account limit» — 빠른 수집이 51분마다 · 이 회차가 45분마다 172MB 를 통째로 받고 있었음.
+      - name: 빠른 수집용 작은 기록 보관
+        if: ${{ success() && env.STORE_OK == '1' && env.STORE_SAVE != '0' }}
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/store/first.json
+            data/store/live.json
+          key: lite-${{ github.run_id }}
 
       - name: 수집 상태 확인
         id: health
@@ -457,8 +496,10 @@ jobs:
           import json, os, datetime
           ok, fails, why = 0, 1, "수집 단계를 마치지 못했습니다"
           try:
+              if os.environ.get("STORE_SAVE") == "0":    # 🛡 G481 줄 수가 크게 줄어 저장(· 배포) 안 함 — 낮이면 메일
+                  raise SystemExit("공사 개찰 줄 수가 30 % 넘게 줄어 이번 회차 캐시는 저장하지 않았습니다(수집 뒤에 줄었으면 배포도 안 함 · 사이트는 지난 판 그대로)")
               if os.environ.get("STORE_OK") == "0":      # 🛡 G480 캐시를 못 받아 건너뛴 회차 — 낮이면 메일(연속 실패 2)
-                  raise SystemExit("store")
+                  raise SystemExit("수집 기록(캐시)을 못 받아 이번 회차는 건너뛰었습니다 — 사이트는 지난 판 그대로")
               h = json.load(open("data/store/health.json", encoding="utf-8"))
               at = datetime.datetime.strptime(h["at"], "%Y-%m-%d %H:%M")
               now = datetime.datetime.utcnow() + datetime.timedelta(hours=9)
@@ -470,8 +511,8 @@ jobs:
                   ok = 1 if h.get("ok") else 0
                   fails = int(h.get("fails") or 0)
                   why = h.get("why") or ""
-          except SystemExit:
-              fails, why = 2, "수집 기록(캐시)을 못 받아 이번 회차는 건너뛰었습니다 — 사이트는 지난 판 그대로"
+          except SystemExit as e:
+              fails, why = 2, str(e)
           except Exception as e:
               why = "상태 파일을 읽지 못했습니다 (%s)" % type(e).__name__
           print("ok=%d" % ok)
