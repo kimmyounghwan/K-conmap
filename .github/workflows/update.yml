@@ -149,12 +149,14 @@ jobs:
           read N NEW <<< "$(python -c "import json,re;c=(json.load(open('data/store/first.json',encoding='utf-8')).get('con') or {});print(len(c), max((re.sub(r'\D','',str(r.get('dt') or ''))[:8] for r in c.values()), default='0'))" 2>/dev/null || echo '0 0')"
           if [ -n "$MATCHED" ]; then
             echo "STORE_OK=1" >> "$GITHUB_ENV"
+            echo "STORE_SAVE=1" >> "$GITHUB_ENV"     # 🩹 G486 저장은 «1» 일 때만(아래 두 🛡 가 0 으로 바꿈) — 없는 값과 '0' 을 견주면 Actions 가 둘 다 0 으로 봄
             echo "STORE_N0=${N}" >> "$GITHUB_ENV"
             echo "✓ 수집 기록 ${MATCHED} · 공사 개찰 ${N}건 · 최신 ${NEW}"
             # 🩹 G480 한 번만 — 10-31 낮부터 이어진 9월 사본(공사 개찰 최신 09-03)이면 잃기 전 캐시를 되살려 봄
             if [ "${NEW:-0}" \< "20261001" ]; then echo "STORE_SMALL=1" >> "$GITHUB_ENV"; echo "⚠ 공사 개찰 최신 ${NEW} — 10-31 11시 회차 수집 기록을 되살려 봅니다"; fi
           elif [ "${BOOT}" = "1" ]; then
             echo "STORE_OK=1" >> "$GITHUB_ENV"
+            echo "STORE_SAVE=1" >> "$GITHUB_ENV"
             echo "▶ STORE_BOOT=1 — 캐시 없이 새로 시작합니다(씨앗 · 21일치)"
           else
             echo "STORE_OK=0" >> "$GITHUB_ENV"
@@ -469,8 +471,12 @@ jobs:
           fi
 
       # 🛡 G480 — 캐시 저장은 «제대로 받아 돈» 회차만(전엔 actions/cache 가 끝에 무조건 저장 → 작은 사본이 이어짐)
+      # 🩹 G486 (2026-10-31 23:5x) — G481 의 «env.STORE_SAVE != '0'» 은 STORE_SAVE 가 없을 때 «거짓» 이었음:
+      #   Actions 식은 종류가 다르면 숫자로 바꿔 견줌(없음 → 0 · '0' → 0) → 0 != 0 = 거짓 → #1647 ~ #1655 캐시 저장 · 작은 캐시가 «건너뜀».
+      #   (점검 중이라 새로 받은 것이 없어 잃은 자료는 없음) → 확인 단계가 STORE_SAVE=1 을 적고 여기선 == '1' 로 봄.
+      #   ⚠️ 규칙: 워크플로 if 에서 «없을 수 있는 env» 를 '0' 과 견주지 말 것(시험_수집복구 ⑥ 이 잡음).
       - name: 수집 기록 보관 (캐시 저장)
-        if: ${{ success() && env.STORE_OK == '1' && env.STORE_SAVE != '0' }}
+        if: ${{ success() && env.STORE_OK == '1' && env.STORE_SAVE == '1' }}
         uses: actions/cache/save@v4
         with:
           path: data/store
@@ -479,7 +485,7 @@ jobs:
       # ⚡ G481 방지 — 빠른 수집(fast.yml)이 쓰는 공고 · 개찰 두 파일만 따로 보관(172MB 통째 대신)해 캐시 내려받기 양을 줄임.
       #   10-31 12:05 «Egress is over the account limit» — 빠른 수집이 51분마다 · 이 회차가 45분마다 172MB 를 통째로 받고 있었음.
       - name: 빠른 수집용 작은 기록 보관
-        if: ${{ success() && env.STORE_OK == '1' && env.STORE_SAVE != '0' }}
+        if: ${{ success() && env.STORE_OK == '1' && env.STORE_SAVE == '1' }}
         continue-on-error: true
         uses: actions/cache/save@v4
         with:

@@ -265,7 +265,48 @@ by = lambda steps, n: next((s for s in steps if s.get("name") == n), None)
 ok("update.yml — 수집 뒤 확인이 용역 수집 뒤 · 빌드 앞", None not in (가드1, 빌드, 용역) and U.index(용역) < U.index(가드1) < U.index(빌드))
 ok("빌드 · 배포는 STORE_OK == '1' 일 때만(수집 뒤 확인이 0 으로 바꾸면 건너뜀)", all(s and "env.STORE_OK == '1'" in s.get("if", "") for s in (빌드, 배포)))
 ok("update.yml — 저장 전 확인이 저장 단계 앞", 가드 is not None and 저장 is not None and U.index(가드) < U.index(저장))
-ok("두 저장 모두 STORE_SAVE != '0' 일 때만", all(s and "STORE_SAVE != '0'" in s.get("if", "") for s in (저장, 작은저장)), [s and s.get("if") for s in (저장, 작은저장)])
+
+
+def 식(cond, env, ok_=True):
+    """🩹 G486 GitHub Actions if 식 흉내(이 워크플로에 쓰는 꼴만): success() · env.X == / != '값' · && · ||
+    종류가 다르면 숫자로 바꿔 견줌 — 없는 env 는 null → 0 · '0' → 0 · '1' → 1 · 글자 → NaN(무엇과도 같지 않음). (docs.github.com «Operators»)"""
+    c = cond.strip()
+    if c.startswith("${{"):
+        c = c[3:].rstrip("}").strip()
+
+    def 수(v):
+        if v is None:
+            return 0.0
+        try:
+            return float(v) if str(v).strip() != "" else 0.0
+        except ValueError:
+            return float("nan")
+
+    def 값(x):
+        x = x.strip()
+        if x == "success()":
+            return ok_
+        if x.startswith("!"):
+            return not 값(x[1:])
+        m = re.match(r"^env\.(\w+)\s*(==|!=)\s*'([^']*)'$", x)
+        if not m:
+            raise ValueError("모르는 식: " + x)
+        a, op, b = env.get(m.group(1)), m.group(2), m.group(3)
+        같 = (a == b) if isinstance(a, str) else (수(a) == 수(b))
+        return 같 if op == "==" else not 같
+    return any(all(값(y) for y in x.split("&&")) for x in c.split("||"))
+
+
+확인후 = {"STORE_OK": "1", "STORE_SAVE": "1", "STORE_N0": "18344"}
+ok("G486 — 캐시를 받은 회차(확인 단계가 STORE_SAVE=1)면 두 저장 모두 돎", all(저장 and 식(x["if"], 확인후) for x in (저장, 작은저장)), [x and x.get("if") for x in (저장, 작은저장)])
+ok("G486 — 줄 수 확인이 STORE_SAVE=0 이면 두 저장 모두 안 돎", not any(식(x["if"], dict(확인후, STORE_SAVE="0")) for x in (저장, 작은저장)))
+ok("G486 — 캐시를 못 받은 회차(STORE_OK=0)면 안 돎", not any(식(x["if"], {"STORE_OK": "0"}) for x in (저장, 작은저장)))
+ok("G486 — (교훈) 예전 식 «env.STORE_SAVE != '0'» 은 STORE_SAVE 가 없을 때 거짓이었음(#1647 ~ #1655 저장 건너뜀)", 식("${{ success() && env.STORE_OK == '1' && env.STORE_SAVE != '0' }}", {"STORE_OK": "1"}) is False)
+확인단계 = by(U, "🛡 수집 기록 확인 (못 받았으면 이번 회차는 자료를 안 바꿈)")
+ok("G486 — 확인 단계가 캐시를 받았을 때 · STORE_BOOT 일 때 STORE_SAVE=1 을 적음", 확인단계 and 확인단계["run"].count('echo "STORE_SAVE=1" >> "$GITHUB_ENV"') == 2)
+위험 = [(이름, st.get("name"), st.get("if")) for 이름, 들S in (("update.yml", U), ("fast.yml", F)) for st in 들S
+       if re.search(r"env\.\w+\s*[!=]=\s*'0'", str(st.get("if") or ""))]
+ok("G486 규칙 — 워크플로 if 에서 env 를 '0' 과 견주지 않음(없을 때 0 으로 봐 뜻이 뒤집힘)", not 위험, 위험)
 ok("작은 저장 key lite-run_id · 큰 저장 key store-run_id", 작은저장 and 작은저장["with"]["key"] == "lite-${{ github.run_id }}" and 저장["with"]["key"] == "store-${{ github.run_id }}")
 ok("fast.yml 은 store- 를 안 받고 lite- 만(읽기만)", 빠른받기 and 빠른받기["uses"].startswith("actions/cache/restore") and 빠른받기["with"]["restore-keys"].strip() == "lite-"
    and not any("store-" in str((s.get("with") or {}).get("restore-keys", "")) for s in F), 빠른받기)
