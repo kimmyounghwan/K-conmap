@@ -12,9 +12,19 @@
 
    판단은 이 파일 한 곳에만 적습니다 — 1순위·공고 두 화면이 같은 것을 씁니다.
    ========================================================== */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getHealth } from './lib/data.js'
 import { kstParts, firstNote } from './lib/freshnote.js'
+import { 새로열기 } from './새판.jsx'
+
+/* 🔄 G484 (2026-10-31) 새 «자료» 알아채기 — 소장님 20:4x «1순위 지금도 안보여»: 20:28 에 자료가 다시 채워졌는데
+   열어 둔 화면(홈 화면 앱 · 탭)은 19:28 에 받은 빈 목록을 들고 있었음. 새판.jsx 는 «화면(코드)» 이 바뀐 것만 보고,
+   자료만 바뀐 회차에는 판 번호가 안 바뀌어 그대로였음.
+   → health.json 의 «가장 최근 날짜(newest)» 가 처음 받은 것과 달라지면(새 날의 자료 · 비었다가 다시 채워짐) —
+     · 다른 앱에 갔다가 3분 넘어 돌아오면 바로 새로 엶(1순위 · 공고는 적는 칸이 없는 화면 — 새판.jsx «안전한곳» 과 같은 규칙)
+     · 보고 있는 중에는 저절로 열지 않고 한 줄만 «🔄 새 자료가 들어왔습니다 · 새로 보기»(새판.jsx 규칙 그대로)
+   회차마다(25분) 줄 수만 바뀌는 것으로는 안 띄움(낮엔 빠른 길이 10분마다 덧붙임 — 시끄럽지 않게). */
+export const 자료도장 = (h) => (h && h.newest ? String(h.newest.first || '') + '|' + String(h.newest.live || '') : '')
 
 /* 한국시간의 «시»와 «요일» 은 lib/freshnote.js 한 곳에서만 정합니다 (두 벌 금지). */
 const kst = kstParts
@@ -79,20 +89,51 @@ const ago = (m) => (m < 2 ? '방금' : elapsed(m).replace('째', ' 전'))
 export default function FreshBar({ kind = 'first', extra = '' }) {
   const [h, setH] = useState(null)
   const [, setTick] = useState(0)     // 1분마다 «N분째» 를 다시 그리기 위한 것뿐입니다
+  const 처음 = useRef('')              // 🔄 G484 이 화면을 열 때 자료 도장
+  const [새자료, set새자료] = useState(false)
 
   useEffect(() => {
     let alive = true
-    const load = () => getHealth().then((v) => { if (alive) setH(v) })
+    const load = () => getHealth().then((v) => {
+      if (!alive || !v) return v
+      const 도장 = 자료도장(v)
+      if (!처음.current) 처음.current = 도장
+      else if (도장 && 도장 !== 처음.current) set새자료(true)
+      setH(v)
+      return v
+    })
     load()
     // 탭을 열어 둔 채로 새 회차가 돌 수 있습니다. 200바이트짜리라 5분마다 받아도
     // 부담이 없습니다. 이걸 안 하면 열어둔 탭이 «멈췄다» 고 거짓말을 합니다.
     const t1 = setInterval(load, 5 * 60000)
     const t2 = setInterval(() => setTick((n) => n + 1), 60000)   // 경과 시간 다시 그리기
-    return () => { alive = false; clearInterval(t1); clearInterval(t2) }
+    /* 🔄 G484 다른 앱에 갔다가 3분 넘어 돌아오면 health 를 다시 보고, 자료 날짜가 바뀌었으면 바로 새로 엶 */
+    let 숨은때 = 0
+    const 볼때 = async () => {
+      if (document.visibilityState === 'hidden') { 숨은때 = Date.now(); return }
+      const 오래 = 숨은때 && Date.now() - 숨은때 > 3 * 60000
+      숨은때 = 0
+      if (!오래) return
+      const v = await load()
+      const 도장 = 자료도장(v)
+      if (도장 && 처음.current && 도장 !== 처음.current) 새로열기()
+    }
+    document.addEventListener('visibilitychange', 볼때)
+    return () => { alive = false; clearInterval(t1); clearInterval(t2); document.removeEventListener('visibilitychange', 볼때) }
   }, [])
 
   const v = readHealth(h)
   if (!v) return null
+  if (새자료) {
+    return (
+      <div className="freshbar fresh-new">
+        <b>🔄 새 자료가 들어왔습니다</b>
+        <span>이 화면은 그 전에 받은 목록입니다 —{' '}
+          <button type="button" className="fb-link" onClick={새로열기}>새로 보기</button>
+        </span>
+      </div>
+    )
+  }
 
   const newest = kind === 'live' ? v.newestLive : v.newestFirst
   const label = kind === 'live' ? '최신 공고' : '최신 개찰'
@@ -106,7 +147,8 @@ export default function FreshBar({ kind = 'first', extra = '' }) {
      소장님 10-31 «용역, 1순위, 공고, 물품 1순위 공고 다 안나와...왜 이런거야» — 이용자가 «사이트가 고장» 이 아니라 «조달청 점검» 임을 바로 알게. */
   if (v.maint) {
     return (
-      <div className="freshbar warn maint">
+      /* ⚠️ 09-07 결정 그대로 — 노란 경고는 «갱신이 도는 시간»(06~19시)에만 · 밤엔 담담한 한 줄(놀랄 일이 아닌 것을 놀라게 하지 않게) */
+      <div className={'freshbar maint' + (v.working ? ' warn' : '')}>
         <b>🛠 조달청(나라장터)이 지금 새 자료를 주지 않습니다</b>
         <span>
           조달청이 자료 대신 안내 페이지를 보내고 있습니다 — 나라장터 시스템 점검 때 이렇게 됩니다.

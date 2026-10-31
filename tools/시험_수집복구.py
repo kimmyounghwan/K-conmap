@@ -254,6 +254,11 @@ ok("fast.yml 은 store- 를 안 받고 lite- 만(읽기만)", 빠른받기 and �
    and not any("store-" in str((s.get("with") or {}).get("restore-keys", "")) for s in F), 빠른받기)
 ok("두 쪽 path 글이 똑같음(다르면 캐시를 못 찾음)", 작은저장 and 빠른받기 and 작은저장["with"]["path"] == 빠른받기["with"]["path"], (작은저장 or {}).get("with"))
 src = open(os.path.join(ROOT, "fast.py"), encoding="utf-8").read()
+메일 = by(U, "연속 실패 알림 (빨간불 = 메일)")
+상태 = by(U, "수집 상태 확인")
+ok("G484 — 조달청 점검(maint)이면 메일은 처음 한 번만(연속 3회째부터 exit 0) · 상태 단계가 maint 를 내보냄",
+   메일 and 상태 and 'steps.health.outputs.maint }}" = "1"' in 메일["run"] and 메일["run"].index("outputs.maint") < 메일["run"].index("::error::")
+   and 'print("maint=%d" % maint)' in 상태["run"] and 'maint = 1 if h.get("maint") else 0' in 상태["run"])
 ok("fast.py 가 저장소에서 읽는 것은 first · live 뿐", set(__import__("re").findall(r'load_store\("(\w+)"\)', src)) == {"first", "live"})
 
 

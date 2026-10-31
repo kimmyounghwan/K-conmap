@@ -1386,6 +1386,8 @@ b.money { white-space: nowrap; }
 /* 자료가 멈췄을 때. 색만으로 말하지 않습니다 — «N분째»를 글자로 같이 적습니다. */
 .freshbar.warn{background:var(--warn-soft);border-color:var(--warn)}
 .freshbar.warn b{color:var(--warn)}
+/* 🔄 G484 새 자료 알아채기 한 줄 · «새로 보기» */
+.freshbar .fb-link{border:0;background:none;color:var(--accent);cursor:pointer;text-decoration:underline;padding:0;font:inherit;font-weight:700}
 .freshbar.warn span{color:var(--text-2)}
 
 /* ==========================================================

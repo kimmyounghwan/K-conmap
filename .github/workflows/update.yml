@@ -494,7 +494,7 @@ jobs:
         run: |
           python - <<'PY' >> "$GITHUB_OUTPUT"
           import json, os, datetime
-          ok, fails, why = 0, 1, "수집 단계를 마치지 못했습니다"
+          ok, fails, why, maint = 0, 1, "수집 단계를 마치지 못했습니다", 0
           try:
               if os.environ.get("STORE_SAVE") == "0":    # 🛡 G481 줄 수가 크게 줄어 저장(· 배포) 안 함 — 낮이면 메일
                   raise SystemExit("공사 개찰 줄 수가 30 % 넘게 줄어 이번 회차 캐시는 저장하지 않았습니다(수집 뒤에 줄었으면 배포도 안 함 · 사이트는 지난 판 그대로)")
@@ -511,6 +511,7 @@ jobs:
                   ok = 1 if h.get("ok") else 0
                   fails = int(h.get("fails") or 0)
                   why = h.get("why") or ""
+                  maint = 1 if h.get("maint") else 0     # 🛠 G484 조달청 점검(안내 웹페이지만) — 메일은 한 번만
           except SystemExit as e:
               fails, why = 2, str(e)
           except Exception as e:
@@ -518,6 +519,7 @@ jobs:
           print("ok=%d" % ok)
           print("fails=%d" % fails)
           print("why=%s" % why.replace("\n", " "))
+          print("maint=%d" % maint)
           import sys
           print("== 수집 상태: %s / 연속 실패 %d회 / %s" % ("정상" if ok else "실패", fails, why or "-"),
                 file=sys.stderr)
@@ -539,6 +541,12 @@ jobs:
           if [ "$H" -lt 6 ] || [ "$H" -ge 19 ]; then
             echo "한국시간 $(TZ=Asia/Seoul date '+%m-%d(%a) %H:%M') — 갱신이 도는 시간이 아니라 메일은 보내지 않습니다."
             echo "연속 ${{ steps.health.outputs.fails }}회 비었습니다: ${{ steps.health.outputs.why }}"
+            exit 0
+          fi
+          # 🛠 G484 (2026-10-31) — 조달청 시스템 점검(안내 웹페이지만 옴)은 «처음 한 번»(연속 2회째)만 메일.
+          #   10-30 19:00 ~ 11-01 24:00 점검 때 낮 회차마다(25분) 빨간불 메일이 갈 뻔함 — 이유는 이미 알렸고 사이트에도 «🛠 점검» 띠가 있음.
+          if [ "${{ steps.health.outputs.maint }}" = "1" ] && [ "${{ steps.health.outputs.fails }}" -gt 2 ] 2>/dev/null; then
+            echo "조달청 점검 중(연속 ${{ steps.health.outputs.fails }}회) — 메일은 처음 한 번만 보냈습니다: ${{ steps.health.outputs.why }}"
             exit 0
           fi
           echo "::error::조달청 수집이 ${{ steps.health.outputs.fails }}회 연속 비었습니다 — ${{ steps.health.outputs.why }}"
