@@ -36,7 +36,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 KST = timezone(timedelta(hours=9))
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "data", "pre")
-BASE = "http://apis.data.go.kr/1230000"
+BASE = "https://apis.data.go.kr/1230000"   # 🩹 G480 https(10-30 저녁부터 http 로 부르면 HTML)
 KEEP_DAYS = 45          # 쌓아 두는 기간(등록일 기준)
 ROWS = 999
 TIMEOUT = 40

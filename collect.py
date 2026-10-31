@@ -84,7 +84,10 @@ ARCH_COLS = ["공고번호", "날짜", "발주기관", "공고명",
              "1순위업체", "사업자번호", "대표자", "투찰금액", "투찰률", "기초금액",
              "A값", "A값적용", "예가하한", "예가상한", "참가업체수"]
 
-BASE = "http://apis.data.go.kr/1230000"
+# 🩹 G480 (2026-10-31) — https 로. 10-30(금) 19시쯤부터 조달청 OpenAPI 가 «http://» 로 부르면 자료 대신
+#   한국어 웹페이지(HTML · HTTP 200)를 돌려줘 모든 호출이 «JSON 아님» 이었습니다(새 공고 · 개찰 0건 · 이틀째).
+#   같은 회차에 «https://apis.data.go.kr» 로 부르는 나라장터 밖 자료(LH · K-water · K-apt)는 정상으로 받았습니다.
+BASE = "https://apis.data.go.kr/1230000"
 ENDPOINTS = {
     ("first", "con"):  f"{BASE}/as/ScsbidInfoService/getOpengResultListInfoCnstwk",
     ("first", "serv"): f"{BASE}/as/ScsbidInfoService/getOpengResultListInfoServc",
@@ -218,6 +221,7 @@ NET_RECOVERED = False        # 그 «한 번» 을 이미 썼는지
 #    (ReadTimeout «느리게 아픈 날» 은 다릅니다. 그건 성공이 섞이므로 8번 그대로 둡니다)
 NET_LIMIT_CONN = 4           # 연속 «연결 실패»가 이만큼이면 조달청이 죽은 것으로 봅니다
 NET_FAILS_CONN = 0           # 연속 «연결 실패»(ConnectionError) 횟수 — 성공하면 0 으로
+NET_HTML = 0             # 🩹 G480 자료 대신 웹페이지(HTML)가 온 호출 수 — 0건 회차를 «정상» 으로 넘기지 않게
 NET_FAILS_ALL = 0        # 누적 실패(연속 아님) — 로그에 «몇 번 기다렸나» 를 남기기 위한 것
 
 
@@ -254,7 +258,7 @@ def fetch(url, key, day=None, extra=None, label="", why=None):
     """조달청 공통 호출.
     예전에 기초금액이 '계속 실패'했던 건 대부분 조용히 삼켜서 원인이 안 보였기 때문이다.
     그래서 여기서는 HTTP 코드 / resultCode / 본문 앞머리를 반드시 찍는다."""
-    global NET_FAILS, NET_DOWN, NET_FAILS_ALL, NET_RECOVERED, NET_FAILS_CONN
+    global NET_FAILS, NET_DOWN, NET_FAILS_ALL, NET_RECOVERED, NET_FAILS_CONN, NET_HTML
     if NET_DOWN or QUOTA_OUT:
         return []
     if time.time() - NET_T0 > NET_BUDGET_S:
@@ -344,6 +348,8 @@ def fetch(url, key, day=None, extra=None, label="", why=None):
         if _quota_msg(head):
             _quota_stop(tag, head)
             return []
+        if head.lstrip().lower().startswith(("<!doctype html", "<html")):
+            NET_HTML += 1
         print(f"    ! {tag} JSON 아님 → {head}")
         if why is not None:
             why.update({"http": r.status_code, "json": False, "body": head})
@@ -606,6 +612,9 @@ def write_health(first, live, added):
 
     if NET_DOWN:
         ok, why = False, "조달청에 연결하지 못했습니다"
+    elif NET_HTML and got_f + got_l == 0:
+        # 🩹 G480 — 주말 · 밤이어도 «정상» 이 아닙니다(10-30 금 저녁부터 이틀 동안 HTML 만 오는데 초록불이었음)
+        ok, why = False, "조달청이 자료 대신 웹페이지(HTML)를 돌려줍니다 — %d번" % NET_HTML
     elif got_f + got_l == 0 and weekday and 낮:
         ok, why = False, "조달청이 한 줄도 주지 않았습니다"
     else:
@@ -1612,7 +1621,14 @@ def load_store(name):
     #   200건 같은 고정 숫자로는 못 잡는다. 정상 저장소(70일치 ≈ 11,000건+)는 씨앗보다 크므로 안 건드린다.
     if name in ("first", "live") and os.path.exists(os.path.join(SEED, f"{name}.json.gz")):
         seed = _load_seed(name)
-        if seed and _store_rows(d) < _store_rows(seed) * 0.5:
+        # 🩹 G480 — «거의 비었다» 를 공사(con)로도 봅니다 · 씨앗보다 «낡은» 저장소도 복구.
+        #   10-31 12:05 회차가 캐시를 못 받아 저장소 코드 속 9월 사본(공사 3,008 + 용역 8,630 = 11,638건)으로 돌았는데,
+        #   용역 줄 때문에 «씨앗(17,375건)의 절반 넘음» 으로 보여 복구를 건너뛰었습니다(공사 최신 09-03 · 씨앗 최신 10-23).
+        def _con_newest(x):
+            return max((dt_digits(r.get("dt")) for r in (x.get("con") or {}).values()), default="")
+        _낡음 = bool(seed) and _con_newest(seed)[:8] > _con_newest(d)[:8]
+        _빔 = bool(seed) and len(d.get("con") or {}) < len(seed.get("con") or {}) * 0.5
+        if seed and (_store_rows(d) < _store_rows(seed) * 0.5 or _빔 or _낡음):
             for kind in ("con", "serv"):
                 merged = dict(seed.get(kind, {}))
                 merged.update(d.get(kind, {}))        # 지금 것이 씨앗보다 새것이면 그것이 이깁니다

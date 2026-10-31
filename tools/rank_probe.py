@@ -29,7 +29,7 @@ import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
-URL = ("http://apis.data.go.kr/1230000/as/ScsbidInfoService/"
+URL = ("https://apis.data.go.kr/1230000/as/ScsbidInfoService/"
        "getOpengResultListInfoOpengCompt")
 
 

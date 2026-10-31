@@ -29,7 +29,7 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-BASE = "http://apis.data.go.kr/1230000"
+BASE = "https://apis.data.go.kr/1230000"   # 🩹 G480 https
 HEAD = {"User-Agent": "Mozilla/5.0"}
 
 # 금액처럼 보이는 필드를 찾을 때 쓰는 힌트
