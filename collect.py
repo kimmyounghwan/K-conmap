@@ -259,6 +259,17 @@ def _quota_stop(tag, why_text):
                           "어디": tag, "말": str(why_text)[:160]}
 
 
+def _utf8글(r):
+    """🩹 G485 응답 본문을 UTF-8 로 — charset 없는 text/html 을 requests 가 latin-1 로 푼 것(글자 깨짐)을 바로잡음."""
+    b = getattr(r, "content", None)
+    if isinstance(b, (bytes, bytearray)):
+        try:
+            return b.decode("utf-8")
+        except UnicodeDecodeError:
+            pass
+    return getattr(r, "text", "") or ""
+
+
 def html_hint(text):
     """🛠 G482 자료 대신 온 웹페이지가 무엇인지 — <title> + «점검» 둘레 글(태그 · 스크립트 뺌) · 160자까지."""
     try:
@@ -377,7 +388,9 @@ def fetch(url, key, day=None, extra=None, label="", why=None, _flip=False):
         if head.lstrip().lower().startswith(("<!doctype html", "<html")):
             NET_HTML += 1
             if not HTML_HINT:
-                HTML_HINT = html_hint(r.text)
+                # 🩹 G485 — 조달청 안내 페이지는 Content-Type 에 charset 이 없어 requests 가 r.text 를 latin-1 로 풀었음(«ìì¤í  ì ê² ìë´»)
+                #   → 바이트(r.content)를 UTF-8 로 풀어 읽음(안 되면 r.text 그대로)
+                HTML_HINT = html_hint(_utf8글(r))
                 if HTML_HINT:
                     print(f"    · 웹페이지 내용: {HTML_HINT}")
             # 🩹 G481 방지 — 주소 꼴(http ↔ https)이 바뀌어 자료 대신 웹페이지가 오면 다른 꼴로 다시 불러 봄(스스로 고침).

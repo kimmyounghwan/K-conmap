@@ -145,8 +145,25 @@ print("⑦ G482 조달청 점검 — 안내 페이지 알아봄 · 연달아 오
 h = C.html_hint(점검)
 ok("html_hint — 제목 · «점검» 둘레 글(스크립트 · 태그 뺌) · 160자 안", h.startswith("조달청 시스템 점검 안내 · ") and h.count("조달청 시스템 점검 안내") == 1 and "실시합니다" in h and "점검기간" in h and "점검아님" not in h and "<" not in h and len(h) <= 160, h)
 ok("html_hint — 글이 없거나 깨져도 빈 글", C.html_hint("") == "" and C.html_hint(None) == "", C.html_hint(""))
+
+
+class 바이트응답:
+    """🩹 G485 조달청 실제처럼 — charset 없는 text/html: requests 는 .text 를 latin-1 로 풂(글자 깨짐) · .content 는 UTF-8 바이트"""
+    def __init__(self, html):
+        self.status_code = 200
+        self.content = html.encode("utf-8")
+        self.text = self.content.decode("latin-1")
+
+    def json(self):
+        return json.loads(self.text)
+
+
+r = 바이트응답(점검)
+ok("G485 — r.text 는 깨져 있음(시험 바탕 확인)", "점검" not in r.text and "ì" in r.text)
+ok("G485 — _utf8글 로 읽으면 «시스템 점검 안내» 가 바로 보임", C.html_hint(C._utf8글(r)).startswith("조달청 시스템 점검 안내"), C.html_hint(C._utf8글(r)))
+ok("G485 — 바이트가 UTF-8 이 아니면 r.text 그대로(오류 없음)", C._utf8글(type("R", (), {"content": b"\xff\xfe<html>", "text": "<html>"})()) == "<html>")
 부른.clear()
-C.requests.get = lambda url, params=None, **kw: (부른.append(url), 응답(점검))[1]
+C.requests.get = lambda url, params=None, **kw: (부른.append(url), 바이트응답(점검))[1]     # G485 실제처럼 charset 없는 응답
 C.NET_HTML, C.BASE_FLIP, C.SCHEME_NOTE, C.FLIP_TRIED, C.HTML_STREAK, C.HTML_HINT, C.NET_DOWN = 0, None, "", False, 0, "", False
 for i in range(30):
     C.fetch("https://apis.data.go.kr/1230000/x/y", "가상키", label="가상 점검 %d" % i)
