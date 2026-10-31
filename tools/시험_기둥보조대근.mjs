@@ -5,6 +5,7 @@
  *   C1 네모 600 × 800 — 띠철근 네모 안 세로 선 둘 · 가로 선 하나(TieBar) → 대근 가닥 가로 4 × 세로 3
  *   C2 원형 ⌀900 — 띠철근 원(r 410) 안 세로 현 둘(가운데 ± 200 → 716) · 가로 현 하나(가운데 → 820) → 보조 대근 716/716/820
  *   전에는 그림이 이름 «아래» 에 있는 일람(현장 B S-401 · G281)만 보아서 둘 다 빠졌음(현장 Y 기둥 보조 대근 D10 약 3.3 t)
+ * ③ 🧭 G476 표에 기둥이 C1 하나뿐 — 이름 아래 줄 머리(주 근 · HOOP (END)/(MID))까지가 제 칸(전엔 3 글자 높이만 보아 주근 · 띠를 못 읽었음)
  */
 import { 도면읽기 } from '../web/src/lib/골조도면.js'
 import { _일람표읽기, _준비 } from '../web/src/lib/골조자동.js'
@@ -14,7 +15,7 @@ let bad = 0
 const ok = (이름, c, got) => { if (!c) bad++; console.log((c ? '  ✓ ' : '  ✗ ') + 이름 + (got !== undefined && !c ? ' = ' + JSON.stringify(got) : '')) }
 
 /* 가상 도면 */
-function 일람(그림있음 = true) {
+function 일람(그림있음 = true, C2있음 = true) {
   const 줄 = []
   const 층 = ['LIST', 'Section', 'HoopBar', 'TieBar', 'TEXT']
   const L = (x0, y0, x1, y1, ly) => 줄.push('0', 'LINE', '8', ly, '10', x0, '20', y0, '30', 0, '11', x1, '21', y1, '31', 0)
@@ -38,7 +39,7 @@ function 일람(그림있음 = true) {
     if (그림있음) { L(cx - 90, cy - 360, cx - 90, cy + 360, 'TieBar'); L(cx + 90, cy - 360, cx + 90, cy + 360, 'TieBar'); L(cx - 260, cy, cx + 260, cy, 'TieBar') }
     T('600', cx - 100, cy + 500); T('800', cx - 420, cy - 100, 150, 90)
   })
-  판(-4000, 'C2', '20-SHD22', (cx, cy) => {
+  if (C2있음) 판(-4000, 'C2', '20-SHD22', (cx, cy) => {
     C(cx, cy, 450, 'Section'); C(cx, cy, 410, 'HoopBar')
     const 현 = (d, 세로) => { const h = Math.sqrt(410 * 410 - d * d); if (세로) L(cx + d, cy - h, cx + d, cy + h, 'TieBar'); else L(cx - h, cy + d, cx + h, cy + d, 'TieBar') }
     if (그림있음) { 현(-200, true); 현(200, true); 현(0, false) }
@@ -60,6 +61,13 @@ ok('C2 는 네모 가닥 칸 안 씀', !C2.대근가로 && !C2.대근세로, [C2
 const 정0 = 읽(일람(false))
 const C10 = (정0.find((d) => d.기호 === 'C1') || {}).r || {}, C20 = (정0.find((d) => d.기호 === 'C2') || {}).r || {}
 ok('보조 선이 안 그려진 그림 — 가닥 · 보조 빈칸(짐작 안 함)', !C10.대근가로 && !C10.대근세로 && !C20.대근보조 && C10.가로 === '600' && C20.지름 === '900', [C10.대근가로, C10.대근세로, C20.대근보조])
+
+console.log('③ 표에 기둥 하나뿐(G476)')
+{
+  const 하나 = 읽(일람(true, false))
+  const r = (하나.find((d) => d.기호 === 'C1') || {}).r || {}
+  ok('C1 하나뿐인 표 — 600 × 800 · 16-D22 · 띠 D10@150 / D10@300 · 가닥 4 × 3', 하나.length === 1 && r.주근 === '16-D22' && r.대근단부 === 'D10@150' && r.대근중앙 === 'D10@300' && r.대근가로 === '4' && r.대근세로 === '3' && r.가로 === '600', 하나.map((d) => d.r))
+}
 
 console.log('② 셈 — 보조 대근 줄')
 {

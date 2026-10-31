@@ -1332,7 +1332,18 @@ function 일람표읽기(도면들, 경고0) {
       else { const hs = 머리사이(c.g.y + 60 * h0, c.g.y); c.위 = hs.length ? hs[hs.length - 1].y + 0.5 * hs[hs.length - 1].h : c.g.y + 1.5 * h0 }
       if (뒤 && 첫줄(c, 뒤) && !머리사이(c.g.y, 뒤.g.y).length) c.아래 = 뒤.g.y + 0.6 * 뒤.g.h
       else if (뒤) { const hs = 머리사이(c.g.y, 뒤.g.y); c.아래 = hs.length ? hs[0].y + 0.5 * hs[0].h : (c.g.y + 뒤.g.y) / 2 }
-      else { const hs = 머리사이(c.g.y, c.g.y - 60 * h0); c.아래 = hs.length ? hs[0].y + 0.5 * hs[0].h : c.g.y - (앞 ? Math.min(20 * h0, (앞.g.y - c.g.y)) : 3 * h0) }
+      else {
+        const hs = 머리사이(c.g.y, c.g.y - 60 * h0)
+        /* 🧭 G476 표에 이름이 하나뿐(앞 · 뒤 기호 없음)이고 그 아래 줄들이 왼쪽 줄 머리(«주 근» · «HOOP» · «(END)» · «(MID)»)로 이어지면 그 줄들까지가 제 칸 —
+             현장 Y 꼴 기둥 일람(이름 줄이 높고 주근 · 띠 줄은 그 아래)에서 기둥이 C1 하나면 3 글자 높이만 보아 주근 · 띠를 하나도 못 읽었음(G475 사이트 확인 때 찾음) */
+        let 줄끝 = null
+        if (!앞 && !hs.length) {
+          const 줄머리 = 머리.filter((hd) => hd.g.y < c.g.y - 0.6 * h0 && hd.g.y > c.g.y - 20 * h0 && Math.abs(hd.g.x - c.g.x) <= 8 * h0 && !딴판(c, hd)).map((hd) => hd.g).sort((a, b) => b.y - a.y)
+          let y = c.g.y
+          for (const g of 줄머리) { if (y - g.y > (줄끝 === null ? 12 : 4) * h0) break; 줄끝 = g; y = g.y }
+        }
+        c.아래 = hs.length ? hs[0].y + 0.5 * hs[0].h : 줄끝 ? 줄끝.y - 0.6 * 줄끝.h : c.g.y - (앞 ? Math.min(20 * h0, (앞.g.y - c.g.y)) : 3 * h0)
+      }
     }
     const 왼쪽주인 = (t) => {
       let best = null, bd = Infinity
