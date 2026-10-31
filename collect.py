@@ -84,9 +84,10 @@ ARCH_COLS = ["공고번호", "날짜", "발주기관", "공고명",
              "1순위업체", "사업자번호", "대표자", "투찰금액", "투찰률", "기초금액",
              "A값", "A값적용", "예가하한", "예가상한", "참가업체수"]
 
-# 🩹 G480 (2026-10-31) — https 로. 10-30(금) 19시쯤부터 조달청 OpenAPI 가 «http://» 로 부르면 자료 대신
-#   한국어 웹페이지(HTML · HTTP 200)를 돌려줘 모든 호출이 «JSON 아님» 이었습니다(새 공고 · 개찰 0건 · 이틀째).
-#   같은 회차에 «https://apis.data.go.kr» 로 부르는 나라장터 밖 자료(LH · K-water · K-apt)는 정상으로 받았습니다.
+# 🩹 G480 (2026-10-31) — https 로. 10-30(금) 19시쯤부터 조달청 OpenAPI 가 자료 대신 한국어 웹페이지(HTML · HTTP 200)를 돌려줘
+#   모든 호출이 «JSON 아님» 이었습니다. 처음엔 http 탓으로 보았으나 ⚠️ G482 바로잡음 — https 로도 같았고,
+#   까닭은 «조달청 시스템 점검(10-30 19:00 ~ 11-01 24:00 · 차세대나라장터 등 조달청 전 업무)» 이었습니다.
+#   https 는 그대로 둡니다(해 없음). 점검 때 할 일은 G482: 안내 페이지를 알아보고 · 호출을 일찍 멈추고 · 화면에 «점검 중» 을 띄움.
 BASE = "https://apis.data.go.kr/1230000"
 ENDPOINTS = {
     ("first", "con"):  f"{BASE}/as/ScsbidInfoService/getOpengResultListInfoCnstwk",
@@ -224,6 +225,10 @@ NET_FAILS_CONN = 0           # 연속 «연결 실패»(ConnectionError) 횟수 
 BASE_FLIP = None         # 🩹 G481 (http 꼴, https 꼴) — 한 번 다른 꼴로 받았으면 이번 회차 남은 호출도 그 꼴로
 SCHEME_NOTE = ""         # 🩹 G481 «조달청 주소를 https 로 바꿔 받았습니다» — 수집상태 · 상태 파일에 남김(코드 BASE 를 고칠 때)
 NET_HTML = 0             # 🩹 G480 자료 대신 웹페이지(HTML)가 온 호출 수 — 0건 회차를 «정상» 으로 넘기지 않게
+FLIP_TRIED = False       # 🩹 G482 http ↔ https 다시 부르기는 회차에 한 번만(점검 땐 둘 다 웹페이지 — 호출이 두 배가 되지 않게)
+HTML_STREAK = 0          # 🛠 G482 연달아 웹페이지만 온 수 — HTML_STOP 번이면 이번 회차는 조달청 호출을 멈춤(점검 중 · 수백 번 헛부름 막기)
+HTML_STOP = 8
+HTML_HINT = ""           # 🛠 G482 그 웹페이지의 제목 · «점검» 둘레 글(상태 파일 · 화면에 «무슨 페이지였나» 를 남김)
 NET_FAILS_ALL = 0        # 누적 실패(연속 아님) — 로그에 «몇 번 기다렸나» 를 남기기 위한 것
 
 
@@ -254,13 +259,30 @@ def _quota_stop(tag, why_text):
                           "어디": tag, "말": str(why_text)[:160]}
 
 
+def html_hint(text):
+    """🛠 G482 자료 대신 온 웹페이지가 무엇인지 — <title> + «점검» 둘레 글(태그 · 스크립트 뺌) · 160자까지."""
+    try:
+        import html as _h
+        t = str(text or "")
+        m = re.search(r"<title[^>]*>(.*?)</title>", t, re.S | re.I)
+        title = " ".join(_h.unescape(m.group(1)).split()) if m else ""
+        plain = re.sub(r"<(script|style|head|title)\b.*?</\1>", " ", t, flags=re.S | re.I)
+        plain = " ".join(_h.unescape(re.sub(r"<[^>]+>", " ", plain)).split())
+        i = plain.find("점검")
+        near = plain[max(0, i - 40):i + 80].strip() if i >= 0 else ""
+        out = " · ".join(x for x in (title, near if near not in title else "") if x)
+        return out[:160]
+    except Exception:
+        return ""
+
+
 def fetch(url, key, day=None, extra=None, label="", why=None, _flip=False):
     """why 에 dict 를 넘기면 실패 이유(HTTP·resultCode·resultMsg)를 담아 줍니다.
        진단에서 «응답 없음» 과 «필수값이 달라서 안 됨» 을 구별하기 위한 것입니다."""
     """조달청 공통 호출.
     예전에 기초금액이 '계속 실패'했던 건 대부분 조용히 삼켜서 원인이 안 보였기 때문이다.
     그래서 여기서는 HTTP 코드 / resultCode / 본문 앞머리를 반드시 찍는다."""
-    global NET_FAILS, NET_DOWN, NET_FAILS_ALL, NET_RECOVERED, NET_FAILS_CONN, NET_HTML, BASE_FLIP, SCHEME_NOTE
+    global NET_FAILS, NET_DOWN, NET_FAILS_ALL, NET_RECOVERED, NET_FAILS_CONN, NET_HTML, BASE_FLIP, SCHEME_NOTE, FLIP_TRIED, HTML_STREAK, HTML_HINT
     if BASE_FLIP and url.startswith(BASE_FLIP[0]):
         url = BASE_FLIP[1] + url[len(BASE_FLIP[0]):]
     if NET_DOWN or QUOTA_OUT:
@@ -354,9 +376,14 @@ def fetch(url, key, day=None, extra=None, label="", why=None, _flip=False):
             return []
         if head.lstrip().lower().startswith(("<!doctype html", "<html")):
             NET_HTML += 1
-            # 🩹 G481 방지 — 주소 꼴(http ↔ https)이 바뀌어 자료 대신 웹페이지가 오면 한 번만 다른 꼴로 다시 부름(스스로 고침).
-            #   10-30 저녁 조달청 http 가 HTML 로 바뀌었을 때 이틀 동안 0건이었음(G480) — 다음에 또 바뀌어도 회차가 안 멈추게.
-            if not _flip and "://apis.data.go.kr/" in url:
+            if not HTML_HINT:
+                HTML_HINT = html_hint(r.text)
+                if HTML_HINT:
+                    print(f"    · 웹페이지 내용: {HTML_HINT}")
+            # 🩹 G481 방지 — 주소 꼴(http ↔ https)이 바뀌어 자료 대신 웹페이지가 오면 다른 꼴로 다시 불러 봄(스스로 고침).
+            #   ⚠️ G482 — 회차에 «한 번만»(FLIP_TRIED). 10-30 ~ 11-01 조달청 점검 땐 두 꼴 다 웹페이지라 호출만 두 배였음.
+            if not _flip and not FLIP_TRIED and "://apis.data.go.kr/" in url:
+                FLIP_TRIED = True
                 a, b = ("http://", "https://") if url.startswith("http://") else ("https://", "http://")
                 alt = b + url[len(a):]
                 h0 = NET_HTML
@@ -370,7 +397,16 @@ def fetch(url, key, day=None, extra=None, label="", why=None, _flip=False):
         print(f"    ! {tag} JSON 아님 → {head}")
         if why is not None:
             why.update({"http": r.status_code, "json": False, "body": head})
+        # 🛠 G482 — 연달아 웹페이지만 HTML_STOP 번이면 이번 회차는 조달청을 그만 부름(점검 중 수백 번 헛부르던 것 · 회차가 길어져 배포가 늦던 것).
+        #   못 받은 날은 «안 받음» 으로 적혀(fetch_paged → day_ok False) 점검이 끝난 뒤 회차가 다시 훑습니다(빠진 날 찾기).
+        if head.lstrip().lower().startswith(("<!doctype html", "<html")) and not _flip:
+            HTML_STREAK += 1
+            if HTML_STREAK >= HTML_STOP and not NET_DOWN:
+                NET_DOWN = True
+                print(f"    ⛔ 조달청이 {HTML_STREAK}번 연달아 자료 대신 안내 웹페이지를 줍니다(시스템 점검으로 보임) — "
+                      f"이번 회차는 조달청 호출을 멈춥니다(사이트는 누적 자료로 그대로 · 빠진 날은 점검 뒤 다시 훑음).")
         return []
+    HTML_STREAK = 0
     resp = j.get("response", {}) if isinstance(j, dict) else {}
     head = resp.get("header", {}) or {}
     code = str(head.get("resultCode", "")).strip()
@@ -627,11 +663,16 @@ def write_health(first, live, added):
     #    «한 줄도 안 옴» 이 정상입니다 — 실패로 세면 5분마다 다시 부르고 연속 실패가 쌓입니다.
     낮 = 6 <= now.hour < 19
 
-    if NET_DOWN:
-        ok, why = False, "조달청에 연결하지 못했습니다"
-    elif NET_HTML and got_f + got_l == 0:
+    maint = False
+    if NET_HTML and got_f + got_l == 0:
         # 🩹 G480 — 주말 · 밤이어도 «정상» 이 아닙니다(10-30 금 저녁부터 이틀 동안 HTML 만 오는데 초록불이었음)
-        ok, why = False, "조달청이 자료 대신 웹페이지(HTML)를 돌려줍니다 — %d번" % NET_HTML
+        # 🛠 G482 — 그것이 «조달청 시스템 점검» 이었음(10-30 19:00 ~ 11-01 24:00). 화면이 «점검 중» 을 띄우게 maint 를 적음.
+        #   (차단기 NET_DOWN 보다 먼저 봄 — 웹페이지가 연달아 와서 호출을 멈춘 것도 «연결 못 함» 이 아니라 점검)
+        maint = True
+        ok, why = False, ("조달청이 자료 대신 안내 웹페이지를 돌려줍니다(%d번) — 나라장터 시스템 점검 때 이렇게 됩니다" % NET_HTML
+                          + (" · «%s»" % HTML_HINT if HTML_HINT else ""))
+    elif NET_DOWN:
+        ok, why = False, "조달청에 연결하지 못했습니다"
     elif got_f + got_l == 0 and weekday and 낮:
         ok, why = False, "조달청이 한 줄도 주지 않았습니다"
     else:
@@ -655,6 +696,10 @@ def write_health(first, live, added):
         "fails": fails,
         "got": {"first": got_f, "live": got_l},
         "note": SCHEME_NOTE,
+        "maint": maint,                 # 🛠 G482 조달청이 안내 웹페이지만 줌(점검) — 화면 Fresh.jsx 가 «점검 중» 띠
+        "hint": HTML_HINT,
+        # 🛠 G482 마지막으로 조달청 자료를 실제로 받은 때(못 받은 회차는 지난 값 그대로) — 화면 «마지막으로 받은 때»
+        "lastok": now.strftime("%Y-%m-%d %H:%M") if got_f + got_l > 0 else str(prev.get("lastok") or ""),
         "newest": {"first": newest(first), "live": newest(live)},
         "n": {"first": len(first.get("con") or {}), "live": len(live.get("con") or {})},
         # 「누락이 있으면 안 돼」(소장님, 2026-09-12) — 회차가 아니라 «날짜» 로 봅니다.

@@ -56,6 +56,10 @@ export function readHealth(h, now = new Date()) {
        회차가 «성공» 이어도 며칠이 비어 있을 수 있어, 성공/실패와 따로 봅니다. */
     gapsFirst: (h.gaps && h.gaps.first) || [],
     gapsLive: (h.gaps && h.gaps.live) || [],
+    /* 🛠 G482 (2026-10-31) — 조달청이 자료 대신 안내 웹페이지만 줌(10-30 19:00 ~ 11-01 24:00 시스템 점검 때 그랬음).
+       collect.py 가 maint 를 적음 · lastok = 마지막으로 조달청 자료를 실제로 받은 때 */
+    maint: h.maint === true,
+    lastOk: String(h.lastok || ''),
   }
 }
 
@@ -97,6 +101,21 @@ export default function FreshBar({ kind = 'first', extra = '' }) {
      낮에는 「11시에 65%」. 숫자와 판단은 lib/freshnote.js 한 곳에만 있습니다.
      부르는 쪽에서 extra 를 주면 그게 이깁니다(다른 화면에서 쓸 여지). */
   const note = extra || (kind === 'first' ? firstNote() : '')
+
+  /* 🛠 G482 조달청 점검 — 빠진 날보다 먼저 말합니다(빈 날의 까닭이 점검이므로).
+     소장님 10-31 «용역, 1순위, 공고, 물품 1순위 공고 다 안나와...왜 이런거야» — 이용자가 «사이트가 고장» 이 아니라 «조달청 점검» 임을 바로 알게. */
+  if (v.maint) {
+    return (
+      <div className="freshbar warn maint">
+        <b>🛠 조달청(나라장터)이 지금 새 자료를 주지 않습니다</b>
+        <span>
+          조달청이 자료 대신 안내 페이지를 보내고 있습니다 — 나라장터 시스템 점검 때 이렇게 됩니다.
+          새 {kind === 'live' ? '공고는' : '개찰 결과는'} 점검이 끝나면 자동으로 다시 받아 빠진 날까지 채웁니다.
+          지금 목록은 {label} {mdd(newest) || '-'} 까지{v.lastOk ? ` · 마지막으로 받은 때 ${mdd(v.lastOk.slice(0, 10))} ${hhmm(v.lastOk)}` : ''}입니다.
+        </span>
+      </div>
+    )
+  }
 
   /* 빠진 날이 있으면 그것부터 말합니다 — 회차가 «성공» 이어도 며칠이 비어 있을 수 있습니다.
      실제로 2026-09-03 에 캐시가 비어 목록이 이틀치만 남은 적이 있는데, 그때도 «정상» 으로 보였습니다. */

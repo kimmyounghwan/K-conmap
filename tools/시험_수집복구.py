@@ -8,7 +8,8 @@
   ③ 저장소가 씨앗보다 새것이면 안 건드림
   ④ 자료 대신 HTML 만 오고 0건이면 주말 · 밤이어도 «실패» (전엔 초록불)
   ⑤ G481 방지 — http · https 중 한 꼴이 웹페이지만 주면 다른 꼴로 한 번 다시 부르고 이번 회차 나머지도 그 꼴로
-  ⑥ G481 방지 — 수집 뒤 공사 줄이 30 % 넘게 줄면 빌드 · 배포 · 저장 안 함(저장 직전 한 번 더) · 빠른 수집은 작은 캐시(lite-)만
+  ⑦ G482 조달청 점검 — 안내 페이지 제목 · 연달아 8번이면 이번 회차 호출 멈춤 · health maint · lastok
+  ⑥ G481 방지 — 수집 뒤 공사 줄 30 % 넘게 줄면 빌드 · 배포 · 저장 안 함(저장 직전 한 번 더) · 빠른 수집은 작은 캐시(lite-)만
 가상 자료만 씀(실제 저장소 · 조달청 안 부름).
 """
 import gzip
@@ -92,7 +93,7 @@ C.NET_DOWN = False
 C.NET_HTML = 12
 C.write_health(판(새공사), 판(새공사), {"first": 0, "live": 0})
 h = json.load(open(C.HEALTH_LOG, encoding="utf-8"))
-ok("ok = False · 까닭에 «웹페이지(HTML)» · 12번", h.get("ok") is False and "HTML" in (h.get("why") or "") and "12" in h.get("why"), h)
+ok("ok = False · 까닭에 «웹페이지» · 12번 · maint", h.get("ok") is False and "웹페이지" in (h.get("why") or "") and "12" in h.get("why") and h.get("maint") is True, h)
 C.NET_HTML = 0
 C.write_health(판(새공사), 판(새공사), {"first": 3, "live": 5})
 h = json.load(open(C.HEALTH_LOG, encoding="utf-8"))
@@ -121,17 +122,52 @@ def 가짜get(url, params=None, **kw):
 
 
 C.requests.get = 가짜get
-C.NET_HTML, C.BASE_FLIP, C.SCHEME_NOTE, C.NET_DOWN, C.QUOTA_OUT = 0, None, "", False, False
+C.NET_HTML, C.BASE_FLIP, C.SCHEME_NOTE, C.NET_DOWN, C.QUOTA_OUT, C.FLIP_TRIED, C.HTML_STREAK = 0, None, "", False, False, False, 0
 C.NET_T0 = __import__("time").time()
 out = C.fetch("http://apis.data.go.kr/1230000/as/ScsbidInfoService/getOpengResultListInfoCnstwk", "가상키", label="가상 1")
 ok("http 가 웹페이지면 https 로 다시 불러 1줄 받음", isinstance(out, list) and len(out) == 1, out)
 ok("이번 회차 남은 호출은 처음부터 https(부른 주소 http → https → https)", (C.fetch("http://apis.data.go.kr/1230000/x/y", "가상키", label="가상 2") or True) and [u.split(":")[0] for u in 부른] == ["http", "https", "https"], 부른)
 ok("되받은 것은 «웹페이지만 옴» 에서 뺌(NET_HTML 0) · 알림 글에 https", C.NET_HTML == 0 and "https" in C.SCHEME_NOTE, (C.NET_HTML, C.SCHEME_NOTE))
 부른.clear()
-C.NET_HTML, C.BASE_FLIP, C.SCHEME_NOTE = 0, None, ""
+C.NET_HTML, C.BASE_FLIP, C.SCHEME_NOTE, C.FLIP_TRIED, C.HTML_STREAK = 0, None, "", False, 0
 C.requests.get = lambda url, params=None, **kw: (부른.append(url), 응답(HTML))[1]
 out = C.fetch("https://apis.data.go.kr/1230000/x/y", "가상키", label="가상 3")
 ok("두 꼴 다 웹페이지면 빈 결과 · NET_HTML 2 · 주소 안 바꿈", out == [] and C.NET_HTML == 2 and C.BASE_FLIP is None and len(부른) == 2, (out, C.NET_HTML, C.BASE_FLIP, 부른))
+
+부른.clear()
+C.fetch("https://apis.data.go.kr/1230000/x/y", "가상키", label="가상 4")
+ok("G482 — 다른 꼴 다시 부르기는 회차에 한 번만(점검 땐 호출이 두 배가 되지 않게)", len(부른) == 1 and C.NET_HTML == 3, (부른, C.NET_HTML))
+
+print("⑦ G482 조달청 점검 — 안내 페이지 알아봄 · 연달아 오면 호출 멈춤 · 상태 파일 maint · 마지막으로 받은 때")
+점검 = ('<!DOCTYPE html> <html lang="ko"> <head> <meta charset="UTF-8"> <title>조달청 시스템 점검 안내</title>'
+      '<style>.a{color:red}</style><script>var x="점검아님";</script></head><body><div class="box"><p>보다 안정적인 서비스 제공을 위하여 '
+      '<b>시스템 점검</b>을 실시합니다.</p><p>점검기간 : 2026. 10. 30.(금) 19:00 ~ 11. 1.(일) 24:00</p></div></body></html>')
+h = C.html_hint(점검)
+ok("html_hint — 제목 · «점검» 둘레 글(스크립트 · 태그 뺌) · 160자 안", h.startswith("조달청 시스템 점검 안내 · ") and h.count("조달청 시스템 점검 안내") == 1 and "실시합니다" in h and "점검기간" in h and "점검아님" not in h and "<" not in h and len(h) <= 160, h)
+ok("html_hint — 글이 없거나 깨져도 빈 글", C.html_hint("") == "" and C.html_hint(None) == "", C.html_hint(""))
+부른.clear()
+C.requests.get = lambda url, params=None, **kw: (부른.append(url), 응답(점검))[1]
+C.NET_HTML, C.BASE_FLIP, C.SCHEME_NOTE, C.FLIP_TRIED, C.HTML_STREAK, C.HTML_HINT, C.NET_DOWN = 0, None, "", False, 0, "", False
+for i in range(30):
+    C.fetch("https://apis.data.go.kr/1230000/x/y", "가상키", label="가상 점검 %d" % i)
+ok("연달아 안내 페이지 %d번이면 호출 멈춤(30번 부르려 해도 실제로는 %d + 다른 꼴 1)" % (C.HTML_STOP, C.HTML_STOP), C.NET_DOWN and len(부른) == C.HTML_STOP + 1, (C.NET_DOWN, len(부른)))
+ok("멈춘 뒤 fetch_paged 는 «못 받음» 이유를 줌(그날은 점검 뒤 다시 훑음)", C.fetch_paged("https://apis.data.go.kr/1230000/x/y", "가상키", None)[1] == {"net": "down"})
+ok("HTML_HINT 에 안내 페이지 제목", C.HTML_HINT.startswith("조달청 시스템 점검 안내"), C.HTML_HINT)
+C.HEALTH_LOG = os.path.join(tmp, "health.json")
+json.dump({"at": "2026-10-30 18:40", "ok": True, "lastok": "2026-10-30 18:40", "fails": 0}, open(C.HEALTH_LOG, "w", encoding="utf-8"))
+C.write_health(판(새공사), 판(새공사), {"first": 0, "live": 0})
+h = json.load(open(C.HEALTH_LOG, encoding="utf-8"))
+ok("상태 파일 — 차단기가 내려가도 «연결 못 함» 이 아니라 maint · 까닭에 «점검» · 안내 제목", h.get("maint") is True and h.get("ok") is False and "점검" in h.get("why", "") and "조달청 시스템 점검 안내" in h.get("why", ""), h.get("why"))
+ok("마지막으로 받은 때는 지난 값 그대로(10-30 18:40)", h.get("lastok") == "2026-10-30 18:40", h.get("lastok"))
+C.NET_HTML, C.NET_DOWN, C.HTML_HINT = 0, False, ""
+C.write_health(판(새공사), 판(새공사), {"first": 4, "live": 9})
+h = json.load(open(C.HEALTH_LOG, encoding="utf-8"))
+ok("다시 받으면 maint 꺼짐 · 마지막으로 받은 때 = 지금", h.get("maint") is False and h.get("ok") is True and h.get("lastok") == h.get("at"), (h.get("maint"), h.get("lastok"), h.get("at")))
+C.NET_DOWN = True
+C.write_health(판(새공사), 판(새공사), {"first": 0, "live": 0})
+h = json.load(open(C.HEALTH_LOG, encoding="utf-8"))
+ok("웹페이지 없이 연결만 못 하면 예전처럼 «연결 못 함» (maint 아님)", h.get("maint") is False and "연결하지 못했습니다" in h.get("why", ""), h.get("why"))
+C.NET_DOWN = False
 
 print("⑥ 방지 — 줄 수가 크게 줄면 빌드 · 배포 · 캐시 저장 안 함 · 빠른 수집은 작은 캐시(lite-)만")
 import re
