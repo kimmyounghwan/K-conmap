@@ -1087,7 +1087,9 @@ function 일람표읽기(도면들, 경고0) {
     }
     if (!기후.length) continue
     // 표 안 기호(«MEMBER»·«부호»·«구 분» 머리 아래 기호 열) — 값을 못 읽어도 평면 기호로 세지 않음. 이런 기호는 «왼쪽 이름표»(줄·덩이의 왼쪽)
-    const 열머리 = 머리.filter((h) => h.역.has('부호') || h.역.has('위치')).map((h) => h.g)
+    /* 🧭 G477 «WALL NUMBER» 머리(현장 B S-401 W4 한 줄 표 — 값이 기호에서 50 글자 높이까지 벌어져 «둘레 값 둘» 에 못 들어 W4 철근을 «❓ 도면에 없음» 으로 뺐었음)도 열 머리.
+         역할(부호)로는 안 넣음 — 넣으면 W1 ~ W5 표가 격자 벽표로 읽혀 층 이름 · 지하 옹벽 이름이 바뀜 */
+    const 열머리 = [...머리.filter((h) => h.역.has('부호') || h.역.has('위치')).map((h) => h.g), ...D.글자.filter((g) => /^(WALL|BEAM|COLUMN|SLAB|GIRDER|FOOTING|MEMBER)NUMBER$/.test(붙(g.s).toUpperCase()))]
     const 같은열 = (h, c) => Math.abs(h.x - c.g.x) <= Math.max(h.w, c.g.w) / 2 + 6 * c.g.h || Math.abs(h.x0 - c.g.x0) <= 3 * c.g.h
     for (const c of 기후) {
       if (열머리.some((h) => h.y > c.g.y && h.y - c.g.y < 60 * c.g.h && 같은열(h, c))) { c.표안 = true; 쓴글자.add(D.번 + ':' + c.g.i) }
