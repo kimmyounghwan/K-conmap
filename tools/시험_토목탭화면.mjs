@@ -250,13 +250,14 @@ for (const 기기 of 기기들) {
   await p.waitForSelector('.tmk-nycard .tmk-nyfile', { timeout: 15000 }).catch(() => {})
   const 남은카드 = await p.evaluate(() => (document.querySelector('.tmk-nycard') || {}).innerText || '')
   봐(/예시내역\.xlsx/.test(남은카드) && /✓/.test(남은카드), `${기기} 📑 내 도면에서 넣은 내역서도 새로고침 뒤 남음(G399 저장) · ${내도면대조.slice(0, 40)}`, 남은카드)
-  await p.click('button[title^="이 브라우저에 저장한 토목"]')
+  await p.click('button[title^="도면함(넣은 도면)"]')     /* 📚 G483 🗑 = 도면함(쌓은 도면) + 토목 결과 — 단추 글 바뀜 */
   await p.waitForSelector('.tmk-empty', { timeout: 10000 })
   /* G463 지우기(IndexedDB)가 끝난 뒤 새로고침 — 바로 새로고침하면 폰에서 가끔 지우기 전에 다시 읽어 «빈 화면» 이 아니었음(시험 때 맞춤 · 화면 동작은 그대로) */
   for (let i = 0; i < 25; i++) { const 빔 = await p.evaluate(() => new Promise((res) => { const r = indexedDB.open('kcm_jeoksan'); r.onsuccess = () => { try { const q = r.result.transaction('자료').objectStore('자료').getAllKeys(); q.onsuccess = () => res(!q.result.some((k) => /^kcm\.civil\.(v1|ny\.v1)$/.test(String(k)))); q.onerror = () => res(true) } catch (e) { res(true) } }; r.onerror = () => res(true) })); if (빔) break; await p.waitForTimeout(200) }
   await p.reload({ waitUntil: 'domcontentloaded' })
   await p.waitForSelector('.tmk-empty', { timeout: 30000 }).catch(() => {})
   봐((await p.locator('.tmk-empty').count()) === 1, `${기기} 🗑 지우면 새로고침해도 빈 화면`)
+  봐(await p.evaluate(() => new Promise((res) => { const r = indexedDB.open('kcm-ws-dwgbox', 1); r.onsuccess = () => { try { const q = r.result.transaction('목록').objectStore('목록').count(); q.onsuccess = () => res(q.result === 0); q.onerror = () => res(false) } catch (e) { res(false) } }; r.onerror = () => res(false) })), `${기기} 📚 G483 🗑 → 쌓아 둔 도면(kcm-ws-dwgbox)도 0장`)
   봐(await p.evaluate(() => new Promise((res) => { const r = indexedDB.open('kcm_jeoksan'); r.onsuccess = () => { try { const db = r.result; const q = db.transaction('자료').objectStore('자료').get('kcm.civil.ny.v1'); q.onsuccess = () => res(q.result === undefined); q.onerror = () => res(false) } catch (e) { res(String(e)) } }; r.onerror = () => res(false) })) === true, `${기기} 🗑 이면 내역 대조 저장도 같이 지움`)
   /* 토목 없이 골조만 */
   await p.click('.tmk-empty .gmd-link')
@@ -269,7 +270,7 @@ for (const 기기 of 기기들) {
   /* ⑦ 건축으로 */
   await p.click('.gmd-field:has-text("건축")')
   await p.waitForSelector('.gmd-ws-tabs', { timeout: 30000 })
-  봐((await p.locator('.gmd-ws-tabs .gmd-tab').count()) === 5, `${기기} 🏢 건축 — 골조 탭 다섯 그대로(G463 📆 기성 더함)`)
+  봐((await p.locator('.gmd-ws-tabs .gmd-tab').count()) === 6, `${기기} 🏢 건축 — 골조 탭 여섯 그대로(G463 📆 기성 · G466 🗓 공정 더함 — G466 때 이 시험을 안 고쳐 «다섯» 이 남아 있었음)`)
   const 건합 = await p.evaluate(() => [...document.querySelectorAll('.gmd-sum b')].slice(0, 3).map((x) => x.textContent))
   봐(골조합 && 건합.length === 3 && Math.abs(숫(건합[0]) - 골조합.콘) < 0.006 && Math.abs(숫(건합[1]) - 골조합.틀) < 0.06 && Math.abs(숫(건합[2]) - 골조합.철) < 0.0006, `${기기} 🏢 건축 탭 합 = 토목 탭 «함께 합» 골조 줄(같은 모델)`, JSON.stringify([건합, 골조합]))
   const 넘 = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)

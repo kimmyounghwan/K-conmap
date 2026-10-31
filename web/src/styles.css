@@ -9242,6 +9242,10 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gmd .tmk-fhead .btn { width: auto; padding: 3px 9px; }
 .gmd .tmk-flist { list-style: none; padding: 0; margin: 4px 0; display: flex; flex-direction: column; gap: 3px; }
 .gmd .tmk-flist li { display: grid; grid-template-columns: 20px minmax(0, 1fr); align-items: start; gap: 4px; padding: 5px 6px; border-radius: 8px; background: var(--surface-2); border: 1px solid transparent; }
+/* 📚 G483 도면함 ✕ 빼기(작업 화면 토목 탭) — 줄 오른쪽 작은 단추 */
+.gmd .tmk-flist li:has(.tmk-fdel) { grid-template-columns: 20px minmax(0, 1fr) auto; }
+.gmd .tmk-fdel { all: unset; cursor: pointer; width: 22px; height: 22px; border-radius: 6px; text-align: center; line-height: 22px; font-size: 12px; color: var(--muted); }
+.gmd .tmk-fdel:hover, .gmd .tmk-fdel:focus-visible { color: var(--danger, #c0392b); background: var(--surface); outline: 1px solid var(--line, #ccc); }
 .gmd .tmk-flist li input { margin: 3px 0 0; width: 16px; height: 16px; cursor: pointer; }
 .gmd .tmk-flist li.off { opacity: .5; }
 .gmd .tmk-flist li.solo { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }

@@ -38,7 +38,7 @@ const 골조ID = 3000000                     // 3D 고르기 번호 — 골조 �
 const 묶음열쇠 = (t) => (t ? String(t.묶음 || '') + '|' + (t.파일 || []).join(',') : null)
 const 내역열쇠 = 'kcm.civil.ny.v1'       // 📑 G399 내역 대조 — 이 브라우저 IndexedDB(토목 결과 옆 · 예시는 저장 안 함)
 
-export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, 함께넣기, 도면상태: 상태, set도면상태: set상태, 알림, set알림, 건축으로 }) {
+export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, 함께넣기, 도면빼기 = null, 도면함비우기 = null, 도면상태: 상태, set도면상태: set상태, 알림, set알림, 건축으로 }) {
   const [T, setT0] = useState(() => 토목상태.얻기())
   const [보기, set보기] = useState('평면')
   const [고른노선, set고른노선] = useState(() => { const t = 토목상태.얻기(); return t && t.활용.노선.length ? t.활용.노선[0].이름 : '' })
@@ -160,8 +160,8 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
     } catch (e) { set상태({ k: 'err', 글: (e && e.message) || String(e) }) }
   }
   const 비우기 = async () => {
-    if (!window.confirm('토목 탭에 넣은 도면 결과를 이 브라우저에서 지울까요? (🏢 건축 탭 골조 모델은 그대로)')) return
-    await 토목상태.지우기()
+    if (!window.confirm('도면함(넣은 도면)과 토목 결과를 이 브라우저에서 지울까요? (🏢 건축 탭 골조 모델은 그대로)')) return
+    if (도면함비우기) await 도면함비우기(); else await 토목상태.지우기()      /* 📚 G483 쌓아 둔 도면도 같이 */
     set내역(null); set내역고침({}); try { await 기억지우기(내역열쇠) } catch (e) { /* 없음 */ }
   }
   const 좌표계고르기 = async (k) => {
@@ -265,7 +265,7 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
           <button type="button" className="btn line sm tmk-ex" onClick={예시열기} disabled={바쁨}>🧪 예시</button>
           <button type="button" className="btn line sm tmk-nybtn" onClick={() => 내역Ref.current && 내역Ref.current.click()} disabled={!열림 || 바쁨} title="내역서(설계 · 변경 · .xls · .xlsx)를 넣어 건설맵 물량과 맞대 봅니다">📑 내역 대조</button>
           <button type="button" className="btn line sm tmk-xlsx" onClick={엑셀받기} disabled={!열림 || 받는중 || 바쁨}>{받는중 ? '…' : '📊 엑셀'}</button>
-          <button type="button" className="btn line sm" onClick={비우기} disabled={!T || 바쁨} title="이 브라우저에 저장한 토목 결과 지우기(🏢 골조 모델은 그대로)">🗑</button>
+          <button type="button" className="btn line sm" onClick={비우기} disabled={!T || 바쁨} title="도면함(넣은 도면) · 토목 결과 지우기(🏢 골조 모델은 그대로)">🗑</button>
           <button type="button" className="btn line sm" onClick={전체화면} title="전체 화면">⛶</button>
           <button type="button" className="btn sm" onClick={나가기}>✕ 나가기</button>
         </span>
@@ -305,7 +305,7 @@ export default function 토목판({ 전체화면, 나가기, 분야칸, M, S, �
               </ul>
               {!T && <small className="muted">측량 · 계획평면 · 종횡단 도면을 같이 넣으면 노선 · 좌표 · 토공이 같은 3D 에 섭니다.</small>}
             </details>
-            {T && <도면함칸 함={함} 들={파일들} T={T} 보는={보는} set보는={보기세기} />}
+            {T && <도면함칸 함={함} 들={파일들} T={T} 보는={보는} set보는={보기세기} 빼기={도면빼기 && !T.예시 && !바쁨 ? async (x) => { if (!window.confirm('«' + x.줄기 + '» 를 도면함에서 뺄까요? 남은 도면으로 다시 읽습니다.')) return; const r = await 도면빼기([x.줄기]); if (r) 세기('|토목탭|도면빼기') } : null} />}
           </aside>
           <section className="gmd-ws-center tmk-center">
             {(T || 내역) && <div className="gmd-ws-views" role="group" aria-label="보기">
@@ -483,7 +483,7 @@ function 함께칸({ 함께, 토 = null, 자, T, M, 골조있음, 골조보기, 
 }
 
 /* ── 📚 도면함 — 📚 G440 넣은 도면(파일)마다 한 줄 · ☑ 보기 · 이름을 누르면 그 도면만 ── */
-function 도면함칸({ 함, 들, T, 보는, set보는 }) {
+function 도면함칸({ 함, 들, T, 보는, set보는, 빼기 = null }) {
   const 쓴 = 함.filter((x) => ['기준', '맞춤', '그대로', '끼움'].includes(x.상태))
   const 높이 = 함.filter((x) => x.상태 === '높이만')
   const 옆 = 함.filter((x) => x.상태 === '옆' || x.상태 === '꺼둠')
@@ -501,7 +501,7 @@ function 도면함칸({ 함, 들, T, 보는, set보는 }) {
         <b>📚 도면함 — {들.length}장</b>
         {보는 && <button type="button" className="btn line sm tmk-fall" onClick={() => set보는(null)}>👁 모두 보기</button>}
       </div>
-      <small className="muted">{보는 ? `${보는.size}장만 보는 중 — 물량은 넣은 도면 모두` : '이름을 누르면 그 도면만 보입니다'}</small>
+      <small className="muted">{보는 ? `${보는.size}장만 보는 중 — 물량은 넣은 도면 모두` : '이름을 누르면 그 도면만 보입니다'}{!T.예시 && ' · 📐 도면 넣기로 더 넣으면 여기에 쌓입니다'}</small>
       <ul className="tmk-flist">
         {[...들].sort((a, b) => a.이름.localeCompare(b.이름, 'ko', { numeric: true })).map((x) => (   /* 🔰 G441 넣은 차례 말고 이름 차례(탐색기처럼 01 · 02 · 03 …) */
           <li key={x.i} className={(켬(x) ? 'on' : 'off') + (혼자 && 켬(x) ? ' solo' : '') + (x.판 || x.구조 || x.횡단 ? '' : ' none')}>
@@ -510,6 +510,7 @@ function 도면함칸({ 함, 들, T, 보는, set보는 }) {
               <span>{x.줄기}</span>
               <small>{x.글}</small>
             </button>
+            {빼기 && <button type="button" className="tmk-fdel" onClick={() => 빼기(x)} title={x.줄기 + ' — 도면함에서 빼기'} aria-label={x.줄기 + ' 빼기'}>✕</button>}
           </li>
         ))}
       </ul>

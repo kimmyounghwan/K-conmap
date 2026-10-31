@@ -146,6 +146,13 @@ export default function Model() {
     if (탭 === '통심' && M.부재.length) set탭('세우기')
     return () => { document.body.style.overflow = 전 }
   }, [작업])  // eslint-disable-line react-hooks/exhaustive-deps
+  /* 📐 G483 (2026-10-31 소장님 «여기서는 도면을 어떻게 불러오지?» — 예전 화면엔 도면 넣기가 없었음) — 예전 화면 «📐 도면 넣기» → 작업 화면(건축)을 열고 파일 고르기를 바로 띄움 */
+  const [도면예약, set도면예약] = useState(false)
+  useEffect(() => {
+    if (!도면예약 || !작업) return undefined
+    const t = setTimeout(() => { set도면예약(false); if (도면Ref.current) 도면Ref.current.click() }, 120)
+    return () => clearTimeout(t)
+  }, [도면예약, 작업])
   /* 🛣 G396 🏢 건축 | 🛣 토목 — 같은 작업 화면 · 고른 것은 이 브라우저에 기억 */
   const [분야, set분야0] = useState(() => { try { return localStorage.getItem(분야열쇠) === '토목' ? '토목' : '건축' } catch (e) { return '건축' } })
   const set분야 = (v) => { set분야0(v); try { localStorage.setItem(분야열쇠, v) } catch (e) { /* 막힘 */ } if (v === '토목') 세기('|토목탭|탭') }
@@ -221,11 +228,19 @@ export default function Model() {
   /* ── 📐 G389 도면 넣기 → 좌표대로 세우기(BIM 물량 화면과 같은 길로 읽음)
         🛣🏢 G397 «함께 넣기» — 도면을 한 번 넣으면 골조(이 탭)와 토목(🛣 토목 탭)을 같이 읽음(lib/토목읽기.js 함께읽기 — DWG 한 번 바꿈 · 골조 읽기와 도면 3D 일꾼을 같이)
         소장님 「토목하고 건축도 함께 세우는 거지? 골조 물량은 나오는 거고..」 · 「빔 할때 만든거 참고 하고 있지?」 ── */
-  const 함께넣기 = async (목록, 옵 = {}) => {
+  /* 📚 G483 (2026-10-31 소장님 «도면을 넣고, 다시 또 도면을 넣으면 먼저 넣었던 도면이 사라지고 … 도면함에 계속 도면이 있어야 하는 거 아니야?»)
+        넣을 때마다 «이번 것만» 읽던 것 → 이 브라우저에 쌓아 둔 원본(lib/넣은도면.js · BIM 도면함 G438 과 같은 가게)과 합쳐 «모두» 다시 읽음.
+        옵.통째 = 목록이 도면함 전부(✕ 빼기) · 옵.예시 = 쌓지 않음 */
+  const 함께넣기 = async (목록0, 옵 = {}) => {
     set도면상태({ k: 'busy', 글: '파일 여는 중' })
     try {
-      const [넣기, 읽] = await Promise.all([import('../lib/도면넣기.js'), import('../lib/토목읽기.js')])
-      const r0 = await 읽.함께읽기(목록, { 알려: (글) => set도면상태({ k: 'busy', 글 }), 예시: !!옵.예시, 이름: 옵.이름 })
+      const [넣기, 읽, 쌓] = await Promise.all([import('../lib/도면넣기.js'), import('../lib/토목읽기.js'), import('../lib/넣은도면.js')])
+      const 앞 = 옵.예시 || 옵.통째 ? [] : await 쌓.쌓인것()
+      const 모두 = 옵.예시 ? 목록0 : 옵.통째 ? 목록0 : 쌓.합치기(앞, 목록0)
+      const 앞수 = 모두.length - 목록0.length            // 앞서 넣어 둔 것 중 이번에 같이 읽는 장 수
+      const 목록 = 옵.예시 ? 목록0 : 모두.map((f) => ({ 이름: f.이름, buf: f.buf.slice(0) }))   // 읽기는 사본으로(DWG 바꾸기 · 일꾼이 원본을 넘겨받아 비움) — 원본은 쌓아 둠
+      const 앞글 = 앞수 > 0 ? `📚 앞서 넣은 도면 ${앞수}장과 함께 · ` : ''
+      const r0 = await 읽.함께읽기(목록, { 알려: (글) => set도면상태({ k: 'busy', 글: 앞글 + 글 }), 예시: !!옵.예시, 이름: 옵.이름 })
       const 말 = []
       let 세움 = false
       const r = r0.골조
@@ -234,10 +249,12 @@ export default function Model() {
       if (r && r.부재수 > 0 && r0.토목) { try { 부스러기 = !(모델셈(정돈({ ...r.M })).합.콘크리트 > 0.001) } catch (e) { 부스러기 = false } }
       const 골조읽음 = !!(r && r.부재수 > 0 && !부스러기)
       if (골조읽음) {
-        let 바꿈 = !M.부재.length || !!옵.묻지않음
+        /* 📚 G483 지금 모델이 «쌓인 도면에서 세운 그대로»(손대지 않음)면 묻지 않고 합친 것으로 다시 세움 — 앞 도면 부재도 다시 들어 있음 */
+        const 그대로 = !!(원료Ref.current && 원료Ref.current.전체 === M)
+        let 바꿈 = !M.부재.length || !!옵.묻지않음 || ((앞수 > 0 || 옵.통째) && 그대로)
         if (!바꿈) {
           set도면상태({ k: 'busy', 글: '다 읽음(골조 부재 ' + r.부재수.toLocaleString('ko-KR') + (r0.토목 ? ' · 토목' : '') + ') — 위 물음에 답해 주십시오' })
-          바꿈 = await 묻기(옵.물음 || '지금 모델 대신 도면에서 세울까요? (↶ 되돌리기로 돌아올 수 있습니다)')
+          바꿈 = await 묻기(앞수 > 0 ? `🏢 앞서 넣은 도면 ${앞수}장과 새 도면 ${목록0.length}장을 합쳐 골조 모델을 다시 세울까요? (손으로 고친 것은 ↶ 되돌리기로 돌아올 수 있습니다)` : (옵.물음 || '지금 모델 대신 도면에서 세울까요? (↶ 되돌리기로 돌아올 수 있습니다)'))
           set도면상태({ k: 'busy', 글: '마무리하는 중' })
         }
         if (바꿈) {
@@ -260,6 +277,13 @@ export default function Model() {
         말.push('🛣 토목 — ' + 찾음.join(' · ') + (세움 && 분야 === '건축' ? ' (🛣 토목 탭에서 함께 봄)' : ''))
         if (!세움 && !골조읽음) 말.push('🏢 건축 골조는 없음(구조평면 · 일람표 도면이 아님' + (부스러기 ? ` — 골조처럼 읽힌 선 ${r.부재수}개는 물량이 0 이라 안 세움` : '') + ')')
       } else if (r0.토목틀림) 말.push('🛣 ' + r0.토목틀림)
+      /* 📚 G483 다 읽은 뒤에만 쌓음(읽다 틀리면 앞 것 그대로) · 못 읽은 DWG 는 안 쌓음 */
+      if (!옵.예시) {
+        const 못 = new Set(r0.못 || [])
+        const 남음 = await 쌓.쌓기(모두.filter((f) => !못.has(f.이름)), 옵.통째 ? [] : 목록0.map((f) => f.이름))
+        if (앞수 > 0) 말.unshift(`📚 도면함 ${모두.length - 못.size}장(앞서 넣은 ${앞수}장 + 새로 ${목록0.length}장)`)
+        if (!남음) 말.push('⚠ 도면이 아주 크거나 이 브라우저 저장소가 막혀 도면함을 이 탭에만 둡니다(새로고침하면 다시 넣어야 함)')
+      }
       set알림((r0.파일 && r0.파일.length ? '✓ 도면 ' + r0.파일.length + '장 읽음 — ' : '') + 말.join(' · ') + '.')
       /* 🔰 G441 건축 탭에서 토목 도면만 넣으면 빈 건축 화면에 남던 것 — 토목 탭으로 바로 */
       if (작업 && 분야 === '건축' && r0.토목 && !세움 && !골조읽음) set분야('토목')
@@ -270,6 +294,23 @@ export default function Model() {
       if (세움 && r0.토목) 세기('|골조모델|함께넣기')
       return { ...r0, 세움 }
     } catch (e) { set도면상태({ k: 'err', 글: '도면에서 세우지 못했습니다 — ' + ((e && e.message) || e) }); return null }
+  }
+  /* 📚 G483 도면함 ✕ — 그 도면(줄기)만 빼고 남은 것으로 다시 읽음 · 다 빠지면 비움 */
+  const 도면빼기 = async (줄기들) => {
+    const 쌓 = await import('../lib/넣은도면.js')
+    const 앞 = await 쌓.쌓인것()
+    const 남 = 쌓.빼기(앞, 줄기들)
+    if (남.length === 앞.length) { set도면상태({ k: 'err', 글: '이 도면의 원본이 이 브라우저에 없어 뺄 수 없습니다(이번 판 전에 넣은 것) — 🗑 로 비우고 다시 넣어 주십시오' }); return null }
+    세기('|골조모델|도면함빼기')
+    if (!남.some((f) => /\.(dxf|dwg)$/i.test(f.이름))) { await 도면함비우기(); set알림('📚 도면함을 비웠습니다'); return null }
+    return 함께넣기(남, { 통째: true })
+  }
+  /** 📚 G483 🗑 — 쌓아 둔 도면 · 토목 결과를 이 브라우저에서 지움(🏢 골조 모델은 그대로 — ↶ 되돌리기 · 새로 는 따로) */
+  const 도면함비우기 = async () => {
+    const [쌓, 읽] = await Promise.all([import('../lib/넣은도면.js'), import('../lib/토목읽기.js')])
+    await 쌓.비우기()
+    await 읽.토목상태.지우기()
+    try { localStorage.removeItem(넣은열쇠) } catch (e) { /* 막힘 */ }
   }
   /* 💻 G468 PC 연결 — «K-적산컨맵 연결» 프로그램이 연 주소(?pc=…)로 왔거나 전에 쓴 브라우저만 이 PC 를 찾아봄 · 캐드 KCM 으로 보낸 도면은 받아 넣음 */
   const [pc연, setPc연] = useState(null)
@@ -397,7 +438,7 @@ export default function Model() {
             {물음판}
             {설명서판}
             <Suspense fallback={<div className="gmd-ws-top">{분야칸}<span className="muted">토목 화면 여는 중…</span></div>}>
-              <토목판 전체화면={전체화면} 나가기={() => set작업(false)} 분야칸={분야칸} M={M} S={S} 함께넣기={함께넣기} 도면상태={도면상태} set도면상태={set도면상태} 알림={알림} set알림={set알림} 건축으로={() => { set분야('건축'); set탭('세우기') }} />
+              <토목판 전체화면={전체화면} 나가기={() => set작업(false)} 분야칸={분야칸} M={M} S={S} 함께넣기={함께넣기} 도면빼기={도면빼기} 도면함비우기={도면함비우기} 도면상태={도면상태} set도면상태={set도면상태} 알림={알림} set알림={set알림} 건축으로={() => { set분야('건축'); set탭('세우기') }} />
             </Suspense>
           </div>
         </div>
@@ -462,6 +503,7 @@ export default function Model() {
         <div className="gmd-top">
           <button type="button" className="btn sm" onClick={예시열기}>🧪 가상 예시(2층 라멘조)로 해 보기</button>
           <button type="button" className="btn sm gmd-ws-open" onClick={() => set작업(true)}>🖥 작업 화면</button>
+          <button type="button" className="btn sm gmd-ws-dwgopen" onClick={() => { set분야('건축'); set작업(true); set도면예약(true); 세기('|골조모델|예전화면도면넣기') }} title="작업 화면을 열고 도면(DWG · DXF)을 고릅니다 — 골조 · 토목 함께 읽고, 넣은 도면은 도면함에 쌓입니다">📐 도면 넣기</button>
           <button type="button" className="btn line sm" onClick={새로}>새로</button>
           <button type="button" className="btn line sm" onClick={되돌리기} disabled={!되돌림.length}>↶ 되돌리기</button>
           <button type="button" className="btn line sm" onClick={모델저장}>💾 모델 파일 저장</button>
