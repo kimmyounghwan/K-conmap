@@ -49,8 +49,18 @@ for (const s of ['투 찰 품 의 서', '222,498,175원', '91.067%', '권장 (75
 확인('공사명 · 공고번호 · 발주기관', 글들.includes('가상 ○○지구 배수로 정비공사') && 글들.includes('R26BK00000001') && 글들.includes('가상시 건설과'))
 
 console.log('③ 한글 금액')
-확인('222,498,175 → 일금 이억이천이백사십구만팔천백칠십오원정', 한글금액(222498175) === '일금 이억이천이백사십구만팔천백칠십오원정', 한글금액(222498175))
-확인('10,000 → 일금 일만원정 · 1,100 → 일금 천백원정', 한글금액(10000) === '일금 일만원정' && 한글금액(1100) === '일금 천백원정', [한글금액(10000), 한글금액(1100)])
+{
+  const 날칸 = 품의서쪽({ ...입력, 기관: { n: 3, med: 99.7, c: [['261002', 99.31, 89.77, 17, '가상'], ['261020', 99.6, 89.9, 3, '가상']] } }).칸들.map((k) => k.글)
+  확인('발주기관 표 날짜 — 10/2 는 «10.02»(10.20 과 안 헷갈림) · 10/20 은 «10.20»', 날칸.includes('10.02') && 날칸.includes('10.20') && !날칸.includes('10.2'), 날칸.filter((g) => /^10\./.test(String(g))))
+}
+/* 🩹 G503 «일십 · 일백 · 일천» 의 일도 적음 — 착공계 한글 금액 칸(DBNum4 · lib/엑셀꼴.js) · 하도급 서류(lib/하도급서류칸.js)와 같게 */
+확인('222,498,175 → 일금 이억이천이백사십구만팔천일백칠십오원정(착공계 한글 금액 칸과 같은 꼴)', 한글금액(222498175) === '일금 이억이천이백사십구만팔천일백칠십오원정', 한글금액(222498175))
+확인('10,000 → 일금 일만원정 · 1,100 → 일금 일천일백원정 · 1,010,010 → 일금 일백일만일십원정 · 100,000,000 → 일금 일억원정', 한글금액(10000) === '일금 일만원정' && 한글금액(1100) === '일금 일천일백원정' && 한글금액(1010010) === '일금 일백일만일십원정' && 한글금액(100000000) === '일금 일억원정', [한글금액(10000), 한글금액(1100), 한글금액(1010010), 한글금액(100000000)])
+{
+  const { 한글금액: 하도급한글 } = await import('../web/src/lib/하도급서류칸.js')
+  const 틀림 = [1, 10, 11, 100, 1100, 10000, 10010, 222498175, 1000000000, 1234567890, 2000000001].filter((n) => 한글금액(n) !== 하도급한글(n))
+  확인('하도급 서류의 한글 금액과 숫자마다 같음(1 · 10 · 11 · … · 20억 1)', !틀림.length, 틀림.map((n) => [n, 한글금액(n), 하도급한글(n)]))
+}
 확인('빈 값 → 빈 글', 한글금액(0) === '')
 
 console.log('④ PDF')
@@ -65,5 +75,25 @@ try { 뽑음 = execFileSync('pdftotext', ['-layout', tmp, '-']).toString() } cat
 const 빈 = 품의서쪽({ 공고: { name: '가상 공사' }, 금액: 0 })
 확인('값이 거의 없어도 깨지지 않음(— 로)', 빈.칸들.length > 20 && 빈.칸들.some((k) => k.글 === '—'))
 if (process.env.OUT) console.log('   PDF:', tmp)
+/* 🩹 G503 글꼴에 없는 글자 — 실제 공고 이름 · 기관 · 면허(data/store)를 글꼴글로 바꾼 뒤 KCM Gothic 에 없는 글자는 한자 넷뿐 */
+{
+  const { 글꼴글 } = await import('../web/src/lib/쪽pdf.js')
+  const { createRequire } = await import('node:module')
+  const fontkit = createRequire(path.join(여기, '..', 'web', 'package.json'))('@pdf-lib/fontkit')
+  const fk = fontkit.create(fs.readFileSync(path.join(여기, '..', 'web', 'public', 'fonts', 'KCMGothic.ttf')))
+  확인('글꼴글 — ․ ‧ ⋅ ˙ ⦁ ∙ → · · ｢ ｣ → 「 」 · 다른 글자는 그대로', 글꼴글('가․나‧다⋅라˙마⦁바∙사｢아｣ ㈜①Ⅱ') === '가·나·다·라·마·바·사「아」 ㈜①Ⅱ', 글꼴글('가․나‧다⋅라˙마⦁바∙사｢아｣ ㈜①Ⅱ'))
+  const 자리 = path.join(여기, '..', 'data', 'store')
+  if (fs.existsSync(path.join(자리, 'first.json'))) {
+    const 없는 = new Set()
+    for (const f of ['first.json', 'live.json']) {
+      if (!fs.existsSync(path.join(자리, f))) continue
+      for (const 묶 of Object.values(JSON.parse(fs.readFileSync(path.join(자리, f), 'utf8')))) for (const x of Object.values(묶 || {})) {
+        if (!x || typeof x !== 'object') continue
+        for (const 글 of [x.name, x.inst, ...(x.lic || [])]) for (const ch of 글꼴글(글 || '')) { const cp = ch.codePointAt(0); if (cp >= 0x20 && fk.glyphForCodePoint(cp).id === 0) 없는.add(ch) }
+      }
+    }
+    확인(`실제 공고 이름 · 기관 · 면허 — 바꾼 뒤 글꼴에 없는 글자는 드문 한자만(${[...없는].join(' ') || '없음'})`, [...없는].every((c) => /\p{Script=Han}/u.test(c)), [...없는])
+  }
+}
 console.log(실패 ? `✘ ${실패} 틀림 · ${통과} 맞음` : `✔ 모두 맞음(${통과})`)
 process.exit(실패 ? 1 : 0)

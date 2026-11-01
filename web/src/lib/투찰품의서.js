@@ -21,7 +21,7 @@ const 마감글 = (c) => {
   const d = String(c || '').replace(/[^0-9]/g, '')
   return d.length >= 12 ? `${d.slice(0, 4)}. ${Number(d.slice(4, 6))}. ${Number(d.slice(6, 8))}. ${d.slice(8, 10)}:${d.slice(10, 12)}` : (c || '—')
 }
-const 날짜짧게 = (s) => { const t = String(s || ''); return t.length === 6 ? `${Number(t.slice(2, 4))}.${Number(t.slice(4, 6))}` : t }
+const 날짜짧게 = (s) => { const t = String(s || ''); return t.length === 6 ? `${Number(t.slice(2, 4))}.${t.slice(4, 6)}` : t }   // 🩹 G503 «10.2» 는 10.20 과 헷갈림 → 날은 두 자리(10.02)
 
 /** 한글 금액(일금 … 원정) */
 export function 한글금액(n) {
@@ -33,7 +33,8 @@ export function 한글금액(n) {
     const 덩 = v % 10000
     if (덩) {
       let t = ''
-      String(덩).padStart(4, '0').split('').forEach((d, j) => { const k = Number(d); if (k) t += (k === 1 && j < 3 ? '' : 숫[k]) + 작[3 - j] })
+      /* 🩹 G503 «일십 · 일백 · 일천» 의 일도 적음 — 사이트 다른 곳(착공계 한글 금액 칸 · 하도급 서류 · 견적)과 같게 · 고쳐 쓰기 어렵게(전엔 «팔천백칠십오») */
+      String(덩).padStart(4, '0').split('').forEach((d, j) => { const k = Number(d); if (k) t += 숫[k] + 작[3 - j] })
       s = t + 큰[i] + s
     }
     v = Math.floor(v / 10000); i++
@@ -85,12 +86,15 @@ export function 품의서쪽(v) {
   긴줄('공 사 명', g.name || '—', 9, 10)
   짝줄([
     ['공고번호', g.no || '—'], ['발주기관', g.inst || '—'],
-    ['입찰 마감', 마감글(g.close)], ['면허 · 업종', (g.lic || []).map((x) => String(x).replace(/\/\d+$/, '')).join(' · ') || '—'],
+    ['입찰 마감', 마감글(g.close)], ['건설맵 관심', v.관심 > 0 ? `이 공고를 본 사람 ${쉼(v.관심)}명` : '—'],
     ['기초금액', 원(g.base)], ['추정가격', 원(g.est)],
     ['예가범위', g.lo != null && g.hi != null ? `${g.lo}% ~ +${g.hi}% (15개 중 4개 추첨)` : '—'], ['낙찰하한율', 퍼(g.llr)],
     ['A값', g.aval > 0 ? `${원(g.aval)}${g.aKnown ? '' : ' (추정)'}` : (g.aKnown ? '없음' : '모름')], ['순공사원가', g.pc > 0 ? `${원(g.pc)} (98% 선)` : '—'],
-    ['예상 참가', g.enp > 0 ? `${쉼(g.enp)}곳${g.enpWhy ? ` — ${g.enpWhy}` : ''}` : '—'], ['건설맵 관심', v.관심 > 0 ? `이 공고를 본 사람 ${쉼(v.관심)}명` : '—'],
   ])
+  /* 🩹 G503 면허 · 예상 참가는 한 줄 전체 — 반 칸이면 면허가 여럿인 공고(실제 19건 · 60~78자)가 «…» 로 잘렸음 */
+  const 면허글 = (g.lic || []).map((x) => String(x).replace(/\/\d+$/, '')).join(' · ') || '—'
+  긴줄('면허 · 업종', 면허글, 면허글.length > 58 ? 10 : 7)
+  긴줄('예상 참가', g.enp > 0 ? `${쉼(g.enp)}곳${g.enpWhy ? ` — ${g.enpWhy}` : ''}` : '—', 7)
   y += 4
 
   /* ── 2. 투찰 안 ── */

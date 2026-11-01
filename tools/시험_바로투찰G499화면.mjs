@@ -65,7 +65,7 @@ const NO = 'R26BK99990001'
 const f = ['no', 'name', 'inst', 'base', 'budget', 'close', 'lo', 'hi', 'llr', 'est', 'lic', 'aval', 'gmtrl', 'ayn', 'ptot', 'pdrw', 'url', 'site', 'rgnb', 'joint', 'mthd', 'swin', 'rebid', 'enp', 'enpn', 'dt', 'sido', 'dsn', 'enpb', 'jnt', 'tg', 'nt', 'licg']
 const 공고 = { no: NO, name: '가상 ○○지구 배수로 정비공사', inst: '가상시', base: 244600000, est: 222363636, close: 마감, lo: -3, hi: 3, llr: 89.745, lic: ['토목공사업/0001'], aval: 13940000, ayn: 'Y', ptot: 15, pdrw: 4, enp: 14, enpn: 68, enpb: 'ls', dt: '2026-10-30 15:00:00', sido: '경기', mthd: '전자입찰', joint: '(없음)공동수급불허', jnt: 0 }
 const 색인 = JSON.stringify({ f, r: [f.map((k) => (공고[k] === undefined ? null : 공고[k]))] })
-const UA = { PC: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36', 폰: 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36' }
+const UA = { PC: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36', 폰: 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36', 카톡: 'Mozilla/5.0 (Linux; Android 14; SM-S921N Build/UP1A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/130.0.0.0 Mobile Safari/537.36;KAKAOTALK 2610420', 네이버: 'Mozilla/5.0 (Linux; Android 14; SM-S921N; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/130.0.0.0 Mobile Safari/537.36 NAVER(inapp; search; 2000; 12.10.3)' }
 /* 개찰 끝난 가짜 공고 한 건(참가 2곳 · 1순위가 하한보다 꽤 위) — 작은 틀(⑤)과 진짜 화면(⑦)이 같이 씀 */
 const r = { no: 'R26BK99990002', name: '가상 ○○ 소화설비 정비', inst: '가상시', win: '가상1순위(주)', amt: 146278000, rate: 93.913, base: 155615000, aval: 7277751, ayn: 'Y', llr: 89.745, lo: -3, hi: 3, np: 2, enp: 14, pc: 0, amts: [146278000, 146370000], nrank: 2, rq: [[1, 146278000], [2, 146370000]], dt: '2026-10-26 11:00:00', close: '2026-10-26 10:00:00' }
 /* 사이트와 같은 꼴 — bidresult.json 의 r 는 {공고번호: [f 차례 값]} (G501: 배열로 흉내 내서 «찾지 못했습니다» 를 못 잡았었음) */
@@ -131,6 +131,22 @@ try { fs.writeFileSync('/tmp/g10/g499/품의서_화면.pdf', 바); 글 = execFil
 봐(글.includes('99.710%') && 글.includes('본 사람 2명'), 'PDF — 기관 최근 사정률(가운데 99.710%) · 관심(본 사람 2명)', 글.slice(0, 1200))
 const 폰품 = await B.p.evaluate(() => [...document.querySelectorAll('.hbtns button')].some((x) => /품의서/.test(x.textContent)))
 봐(폰품, '폰에도 «📄 품의서» 단추')
+봐(!(await A.p.evaluate(() => !!document.querySelector('.bc-app'))), '보통 크롬 — «앱 안 브라우저» 안내 없음')
+/* 📄 G503 카톡 · 네이버 앱 안 브라우저 — 받기는 해 보고 «크롬 · 사파리로 열기»(카톡은 kakaotalk://web/openExternal · 이 공고가 고른 채로) */
+for (const [기, 기대] of [['카톡', 'kakao'], ['네이버', '메뉴']]) {
+  const K = await 창(기)
+  await 고르기(K)
+  await K.p.evaluate(() => { const b = [...document.querySelectorAll('.hbtns button')].find((x) => /품의서/.test(x.textContent)); b && b.click() })
+  await K.p.waitForTimeout(4000)
+  const 안 = await K.p.evaluate(() => { const e = document.querySelector('.bc-app'); const a = e && e.querySelector('a'); return { 글: e ? e.innerText : '', href: a ? a.getAttribute('href') : '' } })
+  const 열주소 = 안.href.startsWith('kakaotalk://web/openExternal?url=') ? decodeURIComponent(안.href.split('url=')[1]) : ''
+  봐(기대 === 'kakao' ? (/크롬 · 사파리로 열기/.test(안.글) && 열주소 === `${주소}/?no=${NO}`) : (/다른 브라우저로 열기/.test(안.글) && !안.href),
+    `${기} 앱 안 — 품의서 누르면 안내${기대 === 'kakao' ? ` · 바깥 브라우저로 «${열주소.replace(주소, '')}»` : ' · ⋮ 메뉴 안내'}`, 안)
+  await K.c.close()
+}
+/* 바깥 브라우저로 연 주소(?no=)가 그 공고를 고른 채로 열림 */
+await A.p.goto(`${주소}/?no=${NO}`, { waitUntil: 'domcontentloaded' }); await A.p.waitForTimeout(3500)
+봐(await A.p.evaluate(() => [...document.querySelectorAll('.hbtns button')].some((x) => /품의서/.test(x.textContent))), '«/?no=공고번호» 로 열면 그 공고가 골라져 «📄 품의서» 가 바로 있음')
 
 console.log('■ ③ 사용 방법')
 await A.p.evaluate(() => sessionStorage.removeItem('kcm.baro.no'))   /* 고른 공고 기억을 지워 첫 화면으로 */
@@ -168,6 +184,14 @@ const 착 = await A.p.evaluate(() => {
 })
 봐(착.url === '/forms/chakgong' && 착.공사명 === '가상 ○○지구 배수로 정비공사' && 착.계약금액 === 222498175 && 착.상호 === '가상건설(주)', `착공계(종이) — 공사명 · 계약금액 숫자 ${착.계약금액} · 상호`, 착)
 봐(착.한글 === 222498175, `착공계 — 한글 금액 칸(=계약금액)도 숫자 ${착.한글} → «일금 …원정» 으로 그려짐`, 착.한글)
+/* 📄 G503 착공일 · 준공일(날짜 칸) → 착공계 날짜 칸이 «날짜» 로 들어가 공사기간(일수)까지 셈해지나 */
+await A.p.goto(`${주소}/forms/hanbeol?no=${NO}&n=${encodeURIComponent('가상 ○○지구 배수로 정비공사')}&i=${encodeURIComponent('가상시')}&a=222498175`, { waitUntil: 'domcontentloaded' }); await A.p.waitForTimeout(2000)
+await A.p.evaluate(() => { const 넣 = (re, v) => { const i = [...document.querySelectorAll('.hb-f')].find((l) => re.test(l.innerText)).querySelector('input'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, v); i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })) }; 넣(/착공일/, '2026-11-10'); 넣(/준공일/, '2027-03-09') })
+await A.p.evaluate(() => [...document.querySelectorAll('button')].find((b) => /이 값으로 서식에 채우기/.test(b.textContent)).click()); await A.p.waitForTimeout(300)
+await A.p.evaluate(() => { localStorage.removeItem('kcm.격자') })
+await A.p.goto(주소 + '/forms/chakgong', { waitUntil: 'domcontentloaded' }); await A.p.waitForTimeout(3500)
+const 날 = await A.p.evaluate(() => { const b = window.__격자; if (!b) return null; return { 착: b.책.값(0, 11, 3), 준: b.책.값(0, 12, 3), 기간: b.책.값(0, 10, 3) } })
+봐(날 && typeof 날.착 === 'number' && typeof 날.준 === 'number' && /2026\. 11\. 10\. ~ 2027\. 3\. 9\. \(120일\)/.test(String(날.기간)), `착공계 — 착공일 · 준공일이 날짜로 들어가 공사기간 «${날 && 날.기간}»`, 날)
 await A.p.goto(주소 + '/forms/jg-charyang-geonseol', { waitUntil: 'domcontentloaded' }); await A.p.waitForTimeout(2500)
 const 블 = await A.p.evaluate(() => { const l = [...document.querySelectorAll('.fw-form label.fw-kvr')]; const v = (re) => { const x = l.find((y) => re.test(y.querySelector('.fw-lb').textContent)); return x ? x.querySelector('textarea, input').value : null }; return { 공사명: v(/공\s*사\s*명/), 회사명: v(/회\s*사\s*명/) } })
 봐(블.공사명 === '가상 ○○지구 배수로 정비공사' && 블.회사명 === '가상건설(주)', '블록 서식(작업계획서)에도 공사명 · 회사명', 블)
@@ -211,6 +235,53 @@ await A.p.click('.qs-row'); await A.p.waitForTimeout(3500)
 const 찾간 = await A.p.evaluate(() => ({ 길: location.pathname, 못: /찾지 못했습니다/.test(document.body.innerText), 결과: /개찰 결과/.test(document.body.innerText), 복기: !!document.querySelector('.ngm-bk'), 한벌: !!document.querySelector('a.nd-hanbeol') }))
 봐(/공고 .* 열기/.test(찾첫) && 찾간.길 === '/notice/' + r.no && !찾간.못 && 찾간.결과 && 찾간.복기 && 찾간.한벌, `🔎 «${r.no}» → «${찾첫}» → 개찰 결과 · 복기 · 한 벌(앱 안에서 옮겨 가도 찾음)`, 찾간)
 
+console.log('■ ⑧ 어두운 화면(폰 · PC 다크 모드) — 새 칸 글자가 바탕과 구별되나(대비 3 이상) · G503')
+{
+  /* 글자 색 · 바탕 색(조상까지 올라가 처음 칠해진 것) 대비 — rgb() · color(srgb …) 둘 다 읽음 */
+  const 대비검사 = async (P, 고름) => P.p.evaluate((고름) => {
+    const 읽 = (c) => { const m = /rgba?\(([^)]+)\)/.exec(c); if (m) { const v = m[1].split(/[ ,/]+/).filter(Boolean).map(Number); return { r: v[0], g: v[1], b: v[2], a: v.length > 3 ? v[3] : 1 } }
+      const n = /color\(srgb ([^)]+)\)/.exec(c); if (n) { const v = n[1].split(/[ /]+/).filter(Boolean).map(Number); return { r: v[0] * 255, g: v[1] * 255, b: v[2] * 255, a: v.length > 3 ? v[3] : 1 } } return null }
+    const 밝 = ({ r, g, b }) => { const f = (x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4 }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b) }
+    const 바탕 = (el) => { for (let e = el; e; e = e.parentElement) { const c = 읽(getComputedStyle(e).backgroundColor); if (c && c.a > 0.5) return c } return 읽(getComputedStyle(document.body).backgroundColor) || { r: 255, g: 255, b: 255, a: 1 } }
+    const 나쁜 = []
+    let 본 = 0
+    for (const el of document.querySelectorAll(고름)) {
+      const 글 = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent.trim()).join('')
+      if (!글 || !el.getClientRects().length) continue
+      const cs = getComputedStyle(el); if (cs.visibility === 'hidden' || Number(cs.opacity) === 0) continue
+      const 글색 = 읽(cs.color), 바 = 바탕(el); if (!글색 || !바) continue
+      const a = 밝(글색), b = 밝(바), 비 = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+      본++
+      if (비 < 3) 나쁜.push(`${el.className || el.tagName}:${글.slice(0, 14)}=${비.toFixed(2)}`)
+    }
+    return { 본, 나쁜 }
+  }, 고름)
+  const 고름 = '.card.bth *, .bth-h, .bc-line, .bc-line *, .hero .hbtns .cbtn, .hb-head *, .hb-f, .hb-it *, .hb-sh, .ngm-bk *, .bcd *, .nd-hanbeol, .ngm-trend, .ngm-res *'
+  for (const [기기, 폭] of [['PC', 1280], ['폰', 390]]) {
+    const c = await 브.newContext({ viewport: { width: 폭, height: 900 }, colorScheme: 'dark', locale: 'ko-KR', userAgent: 기기 === '폰' ? UA.폰 : UA.PC, isMobile: 기기 === '폰', hasTouch: 기기 === '폰' })
+    await c.route(/googletagmanager|google-analytics|pagead2|adsbygoogle|geojs/, (r) => r.fulfill({ status: 200, body: '' }))
+    await c.route(/firebaseio\.com/, 디비)
+    await c.route(/\/data\/bidindex\.json/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: 색인 }))
+    await c.route(/\/data\/bidresult\.json/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: 결과자료 }))
+    await c.addInitScript(() => { try { localStorage.setItem('kcm_notice_seen', '2026-10-필독'); sessionStorage.setItem('kcm_notice_seen', '2026-10-업체'); sessionStorage.setItem('kcm_visit_s', '1') } catch (e) {}; Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false }) })
+    const P = { p: await c.newPage(), 기기 }; const 오 = []; P.p.on('pageerror', (e) => 오.push(String(e)))
+    await P.p.goto(주소 + '/', { waitUntil: 'domcontentloaded' }); await P.p.waitForTimeout(3000)
+    await P.p.evaluate(() => { const h = document.querySelector('.bth-h'); h && h.click() }); await P.p.waitForTimeout(300)
+    const a1 = await 대비검사(P, 고름)
+    await P.p.evaluate((nm) => { const b = [...document.querySelectorAll('button.pickrow')].find((x) => x.textContent.includes(nm)); b && b.click() }, '배수로 정비공사'); await P.p.waitForTimeout(3000)
+    const a2 = await 대비검사(P, 고름)
+    await P.p.goto(`${주소}/forms/hanbeol?no=${NO}&n=${encodeURIComponent('가상 ○○지구 배수로 정비공사')}&i=${encodeURIComponent('가상시')}&a=222498175`, { waitUntil: 'domcontentloaded' }); await P.p.waitForTimeout(2500)
+    const a3 = await 대비검사(P, 고름)
+    await P.p.evaluate((no) => { localStorage.setItem('kcm_mybid', JSON.stringify({ [no]: { a: 143000000, t: '2026-10-25 09:00', n: '가상' } })) }, r.no)
+    await P.p.goto(주소 + '/notice/' + r.no, { waitUntil: 'domcontentloaded' }); await P.p.waitForTimeout(3500)
+    const a4 = await 대비검사(P, 고름)
+    const 본 = a1.본 + a2.본 + a3.본 + a4.본, 나쁜 = [...a1.나쁜, ...a2.나쁜, ...a3.나쁜, ...a4.나쁜]
+    봐(본 > 40 && !나쁜.length && !오.length, `${기기} 다크 — 새 칸 글자 ${본}곳 대비 3 이상(첫 화면 사용 방법 · 금액 칸 · 한 벌 · 개찰 복기 · 이용자 자리) · 오류 0`, { 본, 나쁜: 나쁜.slice(0, 8), 오 })
+    if (process.env.CAP) { await P.p.evaluate(() => { const e = document.querySelector('.ngm-bk'); e && e.scrollIntoView({ block: 'center' }) }); await P.p.screenshot({ path: `${process.env.CAP}_다크_${기기}.png` }) }
+    await c.close()
+  }
+}
+
 console.log('■ ⑥ 넘침 · 오류')
 await B.p.evaluate(() => sessionStorage.removeItem('kcm.baro.no'))   /* 폰 첫 화면 = 사용 방법 펼친 채 */
 for (const [P, w들, 길] of [[B, [320, 360, 390], 주소 + '/'], [A, [320, 390, 860, 1280], `${주소}/forms/hanbeol?no=${NO}&n=${encodeURIComponent('가상 ○○지구 배수로 정비공사')}&i=${encodeURIComponent('가상시')}&a=222498175`], [A, [320, 390], 주소 + '/how'], [C, [320, 1280], 틀 + '/?m=1'], [C, [320, 390], 틀 + '/?r=' + encodeURIComponent(JSON.stringify(r))]]) {
@@ -233,7 +304,7 @@ for (const w of [320, 360, 390]) {
   봐(줄.length === 4 && 줄.every((x) => x.h <= 48 && x.sw <= 0), `폰 ${w}px 단추 넷 한 줄 글자(${줄.map((x) => x.t + ' ' + x.w + '×' + x.h).join(' · ')})`, 줄)
 }
 await 고르기(A)
-for (const w of [860, 1280]) {
+for (const w of [521, 600, 700, 860, 1280]) {   /* 🩹 G503 폰 2 × 2 가 끝나는 바로 위(521)까지 */
   await A.p.setViewportSize({ width: w, height: 900 }); await A.p.waitForTimeout(300)
   const 줄 = await 단추줄(A)
   봐(줄.length === 4 && 줄.every((x) => x.h <= 48 && x.sw <= 0) && new Set(줄.map((x) => x.h)).size === 1, `PC ${w}px 단추 넷 한 줄(${줄.map((x) => x.t + ' ' + x.w + '×' + x.h).join(' · ')})`, 줄)

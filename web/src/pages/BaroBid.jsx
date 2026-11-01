@@ -328,6 +328,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
   const [관심, set관심] = useState(null)        // 👥 G499 {n, 시간, 오늘} — 건설맵에서 이 공고 금액을 본 사람(마감 전엔 수만)
   const [품중, set품중] = useState('')           // 📄 G499 품의서 만드는 중 글
   const [품오류, set품오류] = useState('')
+  const [품앱, set품앱] = useState('')           // 📄 G503 카톡 같은 앱 안 브라우저 — PDF 받기가 막힐 수 있어 «크롬 · 사파리로 열기» (카톡이면 그 주소 · 아니면 '메뉴')
   const [bag, setBag] = useState(loadBasket)      // ⭐ 담은 공고 (브라우저 저장)
   const [sjPick, setSjPick] = useState(null)   // 사정률 후보를 직접 고른 경우
   const seeded = useRef(false)
@@ -846,7 +847,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
   }
   /* 👥 G499 경쟁 관심도 — 공고를 고르면 «봤다» 한 번(마감 전 · 금액 없음) · 본 사람 수는 1분마다 */
   useEffect(() => {
-    set관심(null)
+    set관심(null); set품앱(''); set품오류('')
     const no = picked?.no
     if (!no) return undefined
     let 살 = true
@@ -865,7 +866,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
   /* 📄 G499 투찰 품의서 — 화면이 셈한 숫자 그대로 한 장(lib/투찰품의서.js) · 소장님 바로투찰 아이디어 ② */
   const 품의서받기 = async () => {
     if (!picked || !(main > 0)) return
-    set품중('품의서 만드는 중…'); set품오류('')
+    set품중('품의서 만드는 중…'); set품오류(''); set품앱('')
     try {
       const 기관 = picked.inst ? await 기관사정률받기(picked.inst).catch(() => null) : null
       let 공통 = {}
@@ -892,6 +893,14 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
       document.body.appendChild(el); el.click(); el.remove()
       setTimeout(() => URL.revokeObjectURL(url), 5000)
       try { 세기('|바로투찰|품의서') } catch (e) { /* 없음 */ }
+      /* 📄 G503 (11-01 «안 될것 같은 것 까지») 카톡 · 네이버 · 밴드 같은 앱 안 브라우저는 만든 파일(blob) 받기를 막는 경우가 많음 →
+         받기는 해 보고, 안 받아지면 바깥 브라우저로 열 길을 바로 밑에(카톡은 kakaotalk://web/openExternal — 이 공고가 고른 채로 열림) */
+      const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || ''
+      if (/KAKAOTALK|NAVER\(inapp|Line\/|FBAN|FBAV|Instagram|BAND\/|everytimeApp|DaumApps/i.test(ua)) {
+        const 여기 = `${location.origin}/?no=${encodeURIComponent(picked.no)}`
+        set품앱(/KAKAOTALK/i.test(ua) ? `kakaotalk://web/openExternal?url=${encodeURIComponent(여기)}` : '메뉴')
+        try { 세기('|바로투찰|품의서앱안') } catch (e) { /* 없음 */ }
+      }
     } catch (e) {
       set품오류(`품의서를 만들지 못했습니다 — ${e && e.message ? e.message : e}`)
     } finally { set품중('') }
@@ -1925,6 +1934,11 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
                   → 투찰 버튼(.gobid) 하나만 바로 아래에 둡니다. */}
             </div>
             {품오류 && <div className="bc-err">{품오류}</div>}
+            {품앱 && (
+              <div className="bc-err bc-app">📄 앱 안 브라우저(카카오톡 등)에서는 PDF 가 안 받아질 수 있습니다 — {품앱 === '메뉴'
+                ? <>오른쪽 위 ⋮ 에서 «다른 브라우저로 열기» 를 누른 뒤</>
+                : <a href={품앱}>🌐 크롬 · 사파리로 열기</a>} 다시 «📄 품의서» 를 눌러 주십시오.</div>
+            )}
             {/* 📊 G340 분석실 — 금액 바로 아래(가장 먼저 보는 자리) · 한 줄 단추 */}
             {picked?.no && !분석실 && (
               <Link className="bsr-hbtn" to={`/bunseok?no=${encodeURIComponent(picked.no)}`} onClick={() => { try { 세기('|분석실|금액칸에서') } catch (e) { /* 없음 */ } }}>

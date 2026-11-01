@@ -19,6 +19,10 @@ async function 글꼴바이트() {
   return _글꼴
 }
 
+/** 🩹 G503 (11-01) 글꼴(KCM Gothic)에 없는 글자를 닮은 글자로 — 실제 공고 이름 · 기관 · 면허 63,019줄에서 찾은 것(․ ‧ ⋅ ˙ ⦁ ∙ → · · ｢ ｣ → 「 」)
+ *  (안 바꾸면 PDF 에 빈칸 · 네모로 찍힘 · 화면 글은 그대로) · 시험: tools/시험_투찰품의서.mjs «글꼴에 없는 글자» */
+export const 글꼴글 = (s) => String(s).replace(/[\u2024\u2027\u22C5\u02D9\u2981\u2219]/g, '·').replace(/\uFF62/g, '「').replace(/\uFF63/g, '」')
+
 const pt = (mm) => (mm * 72) / 25.4
 function 색(hex, rgb) {
   const n = parseInt(String(hex || '#000000').slice(1), 16) || 0
@@ -41,7 +45,7 @@ export async function 쪽들PDF(쪽들, 그림들, { 제목 = '' } = {}, 진도)
   doc.setCreator('K-건설맵 사진대지 · 영수증 정리 (브라우저 안에서 만듦 — 사진은 어디에도 올라가지 않았습니다)')
 
   /* ① 글 맞춤을 먼저 — 쓰는 글자를 모아 그 글자만 넣은 글꼴 */
-  const 맞춤들 = 쪽들.map((쪽) => 쪽.칸들.map((k) => (k.글 ? 글맞춤(k.글, k.w, k.h, k.크기 || 9, !!k.굵게) : null)))
+  const 맞춤들 = 쪽들.map((쪽) => 쪽.칸들.map((k) => (k.글 ? 글맞춤(글꼴글(k.글), k.w, k.h, k.크기 || 9, !!k.굵게) : null)))
   const 글자들 = new Set([0x2026, 0x20])
   for (const m of 맞춤들) for (const x of m) if (x) for (const 줄 of x.줄들) for (const ch of 줄) 글자들.add(ch.codePointAt(0))
   const fb = await 글꼴바이트()
