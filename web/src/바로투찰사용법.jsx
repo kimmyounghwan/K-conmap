@@ -27,12 +27,17 @@ export const 바로투찰물음 = [
   ['숫자는 어디서 오나요?', '조달청 개찰 3년치를 이 사이트가 직접 셉니다. 첫 화면 «📊 바로투찰 성적» 은 최근 30일 개찰에 그날 바로투찰이 냈을 금액을 대 본 결과입니다. 적격심사 점수(경영상태 · 실적)는 반영하지 못합니다.'],
 ]
 
+/* 🔎 G504 (11-01) 소장님 「오늘 만든 것 모두 검색 되게 했지???」 — 🔎 찾기(lib/빠른찾기.js 더화면)가 «보는 방법» 의 이 단계로 바로 감(/how#baro-pum 등).
+   주소 이름을 바꾸면 빠른찾기.js · 시험_빠른찾기 도 같이 */
+export const 단계주소표 = { '📄 품의서': 'baro-pum', '📝 넣은 금액 · ⭐ 담기': 'baro-bok', '👥 관심도': 'baro-gwan' }
+const 단계주소 = (t) => 단계주소표[t]
+
 /** 바로투찰 첫 화면 — 접힌 칸(처음엔 접힘) */
 export default function 바로투찰사용법({ 늘펼침 = false }) {
   const [편다, set편다] = useState(늘펼침)
   const 본문 = (
     <>
-      <ol className="bth-steps">{바로투찰차례.map(([t, d], i) => <li key={i}><b>{t}</b> — {d}</li>)}</ol>
+      <ol className="bth-steps">{바로투찰차례.map(([t, d], i) => <li key={i} id={늘펼침 ? 단계주소(t) : undefined}><b>{t}</b> — {d}</li>)}</ol>
       <div className="bth-qh">자주 묻는 것</div>
       <dl className="bth-qa">{바로투찰물음.map(([q, a], i) => <div key={i}><dt>{q}</dt><dd>{a}</dd></div>)}</dl>
       <p className="muted sm" style={{ margin: '6px 0 0' }}>더 자세한 근거는 아래 «📚 입찰 알아보기» 글(사정률 · 낙찰하한율 · 참가업체수 · 추첨번호 — 개찰 실측)에 있습니다. <Link to="/how">📖 K-건설맵 보는 방법</Link></p>

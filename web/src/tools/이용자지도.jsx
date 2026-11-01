@@ -25,6 +25,8 @@
  * ■ 👥 G494 (2026-11-01) 소장님 「지도 제거하고, 이것만 띄우는 걸로 하자」 「어차피 맵톡에 지도 있는데, 또 있는 건 아닌 것 같아」
  *   → 지도(점 · 바탕 그림 · 시·도 막대 · 크게/작게)는 뺌. 남는 것 = «지금(30분 안) N명» + 표(방문자 · 세션 — 누적 · 오늘 · 어제) + 개설일 줄.
  *     공고를 골라 온 화면(작게)은 한 줄(지금 · 누적 · 오늘). 숫자 셈 · 받는 길(lib/방문세기.js · fresh/map · fresh/reg · fresh/ses)은 그대로.
+ * ■ 👥 G504 (11-01 19:2x) 소장님 「이게 왜 이러지 ? 공고 선택 후도 같게 해줘 방문자 수.」 → 공고를 골라 온 화면도 첫 화면과 같은 표.
+ *   한 줄 상자(작게)는 뺌 — 앞서 «그대로 둬» 하셨던 것을 소장님이 바꾸심. 시험: 시험_바로투찰G499화면 ⑨(고른 뒤 표 = 첫 화면 표).
  *     이름은 그대로 이용자지도.jsx(App · BaroBid 가 쓰는 이름 · 지도는 맵톡(맵톡지도.jsx)에 있음).
  * ■ G496 → G498 (11-01 14:4x) «표 + 최근 7일 막대» 를 만들어 올렸다가 소장님 「방문자 · 지금 상태로 두자고」 → 막대 뺌(이 파일만 G494 로 되돌림).
  *   lib/방문세기.js 지난날들받기 · styles.css .umap-week 는 남겨 둠(다시 쓰려면 G496 커밋 5c1b2da8 의 이 파일).
@@ -90,7 +92,7 @@ function useCountUp(값) {
 
 function 수({ v }) { return <>{쉼(useCountUp(v))}</> }
 
-export default function 이용자지도({ 작게 = false }) {
+export default function 이용자지도() {
   const [기억] = useState(기억읽기)              // ⏱ 마지막에 받은 숫자(새로고침 때 바로 보이게)
   const [자료, set자료] = useState(() => (기억.자료 ? 기억.자료.v : null))
   const [지역, set지역] = useState(() => (기억.지역 ? 기억.지역.v : null))
@@ -161,19 +163,6 @@ export default function 이용자지도({ 작게 = false }) {
   const 늦음 = !기다림 && !새것 && 직접지금 == null      /* 자료가 늦다는 글은 숫자가 애널리틱스일 때만 */
   const 빈칸 = 기다림 ? '…' : '—'
   const 전국 = 줄들 && 줄들.전국
-
-  /* 👥 G160 · G494 작은 상자 — 공고를 골라 온 화면(금액이 먼저): 한 줄 */
-  if (작게) {
-    return (
-      <div className="card umap umap-mini umap-line">
-        <div className="umap-mini-r">
-          <span className="umap-mini-n"><b className="umap-mini-t">👥 K-건설맵 방문자</b> · <i className="umap-dot now" /> 지금 <b>{지금사람 != null ? <><수 v={지금사람} />명</> : 빈칸}</b>
-            {전국 && <> · 누적 <b><수 v={전국.a} />명</b> · 오늘 <b>+<수 v={전국.t} /></b></>}
-            {늦음 && 기준글(자료.at) && <span className="umap-late"> · 자료 {기준글(자료.at)} 기준</span>}</span>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="card umap umap-only">

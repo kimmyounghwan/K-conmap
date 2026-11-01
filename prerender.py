@@ -3248,6 +3248,45 @@ def hadodocs_page(shell, image=None):
         '하도급 내역서 6장만은 <a href="/naeyeok/hado">하도급 내역서 만들기</a>, 82% · 64% 심사는 <a href="/tools/subcontract-check">하도급 적정성 판정</a>입니다.',
         "하도급 계약서류 한 벌")
 
+def load_hanbeol():
+    """🏁 G504 /forms/hanbeol 차례 — web/src/lib/낙찰한벌.js 의 «한벌차례» 를 그대로 읽음(같은 목록 한 곳) → [(단계, 아이콘, [(이름, 설명, 주소)])]"""
+    try:
+        with open(os.path.join(ROOT, "web", "src", "lib", "낙찰한벌.js"), encoding="utf-8") as f:
+            s = f.read()
+        body = s.split("export const 한벌차례 = [", 1)[1].split("\n]\n", 1)[0]
+    except Exception:
+        return []
+    out = []
+    for g in re.finditer(r"\{ k: '([^']+)', ic: '([^']+)', 들: \[(.*?)\] \}", body, re.S):
+        items = []
+        for it in re.finditer(r"\{ (?:slug: '([^']+)'|to: '([^']+)'), t: '([^']+)', d: '([^']+)'", g.group(3)):
+            slug, to, t, d = it.groups()
+            items.append((t, d, "/forms/" + slug if slug else to))
+        out.append((g.group(1), g.group(2), items))
+    return out
+
+
+def hanbeol_page(shell, steps, image=None):
+    """/forms/hanbeol — 🏁 낙찰 서류 한 벌 (G499 화면 NakchalSet.jsx · 차례 lib/낙찰한벌.js) · 🔎 G504 소장님 「오늘 만든 것 모두 검색 되게 했지???」 → 구글에도 걸리게 미리 굽기"""
+    def 줄(t, d, to):
+        뒤 = d.split(" — ", 1)[-1] if " — " in d else d          # «착공계 — 착공일 · …» 는 뒤만 · 이름과 같으면(현장 개설 보고서) 안 붙임
+        return f'<a href="{esc(to)}">{esc(t)}</a>' + (f" — {esc(뒤)}" if 뒤 and 뒤 != t else "")
+    lis = [(f"{ic} {k}", [줄(t, d, to) for (t, d, to) in items]) for (k, ic, items) in steps]
+    n = sum(len(x[2]) for x in steps)
+    return _tool_page(shell, image, "/forms/hanbeol",
+        "낙찰 서류 한 벌 — 계약 · 착공 · 안전 · 공사 중 · 준공 서류를 차례대로 | K-건설맵",
+        f"낙찰(1순위)된 공고 하나로 계약 → 착공 → 안전 → 공사 중 → 돈 서류 {n}가지를 차례대로 엽니다. 공사명 · 발주기관 · 계약금액을 한 번 넣으면 "
+        "착공계 · 현장대리인계 · 공정표 · 안전 서류 · TBM · 작업일보 · 기성 · 준공계에 그대로 들어갑니다.",
+        "🏁 낙찰 서류 한 벌",
+        ["<b>1순위(낙찰)가 된 공고 하나</b>로 계약 → 착공 → 안전 → 공사 중 → 돈 서류를 <b>차례대로</b> 엽니다. "
+         "공사명 · 발주기관 · 계약금액(그리고 회사명 · 현장대리인 · 착공일 · 준공일 · 현장 위치)을 <b>한 번</b> 넣으면 서식마다 같은 칸에 그대로 들어갑니다.",
+         "1순위 화면 · 개찰 공고에서 <b>«🏁 낙찰 서류 한 벌»</b> 을 누르면 그 공고 값이 채워진 채로 열립니다. 날짜(언제까지)는 «낙찰 뒤 할 일 달력», 산출내역서는 내역서 탭에서 이어집니다. "
+         "적은 값은 이 기기에만 남습니다(서버로 보내지 않습니다)."],
+        lis,
+        '날짜는 <a href="/tools/after-award">낙찰 뒤 할 일 달력</a>, 하도급은 <a href="/tools/hado-docs">하도급 계약서류 한 벌</a>, 투찰금액은 <a href="/">바로투찰</a>입니다.',
+        "낙찰 서류 한 벌")
+
+
 def safecard_page(shell, image=None):
     """/tools/safecard — 🌏 현장 다국어 안전카드 (2026-10-22) — 화면 SafeCard.jsx · 문장 사전 web/src/lib/안전카드.js
     소장님: 「현장 다국어 안전카드 … TBM, 안전수칙, 작업 지시를 중국어·베트남어·우즈벡어로 바로 바꿔 인쇄하게 … 이거 도구로 만들자.」"""
@@ -3902,6 +3941,14 @@ def main():
     write("tools/hado-docs.html", hadodocs_page(shell,
           og.tab("tool-hado-docs", "하도급 계약서류 한 벌", "건설 도구", "통보서 · 계약서 · 계약조건", "빠진 자료까지 알려 드림") if og.available else None))
     print("  · 하도급 계약서류 한 벌 페이지 1개 (/tools/hado-docs)")
+    # 🏁 G504 낙찰 서류 한 벌 — 구글에도 걸리게(전에는 굽지 않아 /forms/hanbeol 이 빈 껍데기였음)
+    hb = load_hanbeol()
+    if sum(len(x[2]) for x in hb) >= 15:
+        write("forms/hanbeol.html", hanbeol_page(shell, hb,
+              og.tab("form-hanbeol", "낙찰 서류 한 벌", "건설 서식", "계약 → 착공 → 안전 → 공사 중 → 돈", "공사명 · 금액을 한 번만") if og.available else None))
+        print(f"  · 낙찰 서류 한 벌 페이지 1개 (/forms/hanbeol · 서류 {sum(len(x[2]) for x in hb)}가지)")
+    else:
+        print("  ⚠️ 낙찰 서류 한 벌 차례를 못 읽음(lib/낙찰한벌.js 꼴이 바뀜?) — /forms/hanbeol 안 구움")
 
     # ── 🪪 면허별 경쟁도 ──
     lrows, lmin = load_licstat()

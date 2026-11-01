@@ -50,6 +50,30 @@ console.log('③-2 서식 탭의 모든 서식이 찾기에 — G500 소장님 �
   봐((L.찾기(목, '화기작업', 3)[0] || {}).to === '/forms/hg-hwagi' && (L.찾기(목, '굴착 작업계획서', 3)[0] || {}).to === '/forms/jg-gulchak', '«화기작업» → 화기작업 허가서 · «굴착 작업계획서» → 굴착 작업계획서(사이트 작성 서식)', JSON.stringify([L.찾기(목, '화기작업', 3).map((x) => x.to), L.찾기(목, '굴착 작업계획서', 3).map((x) => x.to)]))
 }
 
+console.log('③-3 G504 오늘(G499) 만든 것 · 화면마다 찾기에 — 소장님 「오늘 만든 것 모두 검색 되게 했지???」')
+{
+  const 기능 = [['품의서', '/how#baro-pum'], ['투찰 품의서', '/how#baro-pum'], ['관심도', '/how#baro-gwan'], ['복기', '/how#baro-bok'], ['넣은 금액', '/how#baro-bok'],
+    ['낙찰 서류 한 벌', '/forms/hanbeol'], ['낙찰 서류', '/forms/hanbeol'], ['바로투찰 사용법', '/how#baro'], ['분석실', '/bunseok'], ['나라장터 밖', '/ext'], ['투찰', '/']]
+  const 틀림 = 기능.filter(([q, to]) => 맨위(q) !== to)
+  봐(!틀림.length, `오늘 만든 기능 · 없던 화면 ${기능.length}가지 말 → 맨 위가 그 자리(«투찰» 은 그대로 바로투찰)`, JSON.stringify(틀림.map(([q, to]) => [q, to, 맨위(q)])))
+  /* #주소가 화면에 정말 있음 — 바로투찰사용법.jsx 단계주소표 · How.jsx id="baro" */
+  const 사용법 = fs.readFileSync(path.join(여기, '..', 'web', 'src', '바로투찰사용법.jsx'), 'utf8')
+  const how = fs.readFileSync(path.join(여기, '..', 'web', 'src', 'pages', 'How.jsx'), 'utf8')
+  const 샵 = 목.filter((x) => x.to.includes('#')).map((x) => x.to)
+  const 없는샵 = 샵.filter((to) => { const [p, h] = to.split('#'); return !(p === '/how' && (h === 'baro' ? /id="baro"/.test(how) : new RegExp(`'${h}'`).test(사용법))) })
+  봐(샵.length >= 4 && !없는샵.length && /주소칸으로\(\)/.test(how), `#주소 ${샵.length}곳이 화면에 있음(보는 방법 단계 id) · 보는 방법이 #주소로 내려감`, 없는샵.join(' · '))
+  /* main.jsx 의 길(:값 없는 것)은 모두 찾기에 — 아니면 «뺌» 에 까닭과 함께. 새 화면을 만들고 찾기에 안 넣으면 여기서 막힘(재발 막기) */
+  const 뺌 = { '/calc': '바로투찰(/)과 같은 화면', '/svc': '/svc/live 와 같은 화면', '/goods': '/goods/live 와 같은 화면', '/report': '/ 로 넘김',
+    '/report/make': '소장님만(성적표 만들기)', '/report/agency': '소장님만(기관 보고서)', '/admin': '관리자', '/jeoksan/lab': '소장님 실험실(열쇠말)', '/tools/tuipbi/v': '업체가 받은 링크로만 여는 입력 화면' }
+  const main = fs.readFileSync(path.join(여기, '..', 'web', 'src', 'main.jsx'), 'utf8')
+  const 길 = [...main.matchAll(/<Route\s+path="([^"]+)"/g)].map((m) => m[1]).filter((p) => !p.includes(':') && p !== '*')
+  const 있 = new Set(목.map((x) => x.to.split('#')[0]))
+  const 빠 = 길.filter((p) => !있.has(p) && !뺌[p])
+  봐(길.length >= 80 && !빠.length, `화면 길 ${길.length}곳 — 모두 찾기에 있거나 «뺌»(까닭 적음)`, 빠.join(' · '))
+  const 남은뺌 = Object.keys(뺌).filter((p) => 있.has(p) || !길.includes(p))
+  봐(!남은뺌.length, '«뺌» 목록에 찾기에 이미 있거나 없어진 길이 남지 않음', 남은뺌.join(' · '))
+}
+
 console.log('④ 공고 번호')
 const 공 = L.찾기(목, 'r26bk01693749-000', 5)
 봐(공[0] && 공[0].갈래 === '공고' && 공[0].to === '/notice/R26BK01693749', '«r26bk01693749-000» → 맨 위 «공고 R26BK01693749 열기»(대문자 · 차수 뺌)', JSON.stringify(공[0]))

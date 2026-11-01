@@ -41,6 +41,13 @@ const 값 = (p) => { let o = DB; for (const k of 쪼(p)) { if (o == null || type
 const 넣 = (p, v) => { const ks = 쪼(p); let o = DB; for (let i = 0; i < ks.length - 1; i++) { if (o[ks[i]] == null || typeof o[ks[i]] !== 'object') o[ks[i]] = {}; o = o[ks[i]] } o[ks[ks.length - 1]] = v }
 const 서버시각 = (v) => JSON.parse(JSON.stringify(v), (k, x) => (x && typeof x === 'object' && x['.sv'] === 'timestamp' ? Date.now() : x))
 const 막힌읽기 = []
+/* 👥 G504 방문자 상자 자료(가짜) — 첫 화면 · 공고 고른 화면 둘 다 같은 표인지 보려고(⑨) */
+{
+  const 날 = (t) => new Date(t + 9 * 3600000).toISOString().slice(0, 10), 오늘 = 날(Date.now()), 어제 = 날(Date.now() - 86400000)
+  넣('/fresh/map', { at: Date.now(), now: {}, n: 3, day: { d: 오늘, c: {} } })
+  넣('/fresh/ses', { at: Date.now(), from: '2026-09-15', e: 어제, kr: 5540, f: 48, y: { kr: 405, f: 2 }, yd: 어제 })
+  넣('/fresh/reg', { at: Date.now(), from: '2026-09-15', d: 오늘, e: 어제, kr: { a: 2021, t: 0, y: 281 }, r: { Seoul: { a: 390 } }, f: { a: 21, t: 0, y: 0 }, w: { a: 2042, t: 0, y: 281 } })
+}
 async function 디비(route) {
   const req = route.request(), u = new URL(req.url())
   const p = decodeURIComponent(u.pathname.replace(/\.json$/, ''))
@@ -53,7 +60,7 @@ async function 디비(route) {
     const v = 서버시각(JSON.parse(req.postData() || 'null'))
     if (/^\/bc\/p\/[^/]+\/[^/]+$/.test(p)) { if (값(p) != null) return 거절(); if (Object.keys(v).sort().join() !== 'c,t') return 거절() }
     if (/^\/bc\/q\/[^/]+\/[^/]+$/.test(p) && !(Number.isInteger(v.q) && v.q >= 0 && v.q <= 100)) return 거절()
-    if (/^\/(bc)\//.test(p)) 넣(p, v)
+    if (/^\/(bc|vis)\//.test(p)) 넣(p, v)   /* 👥 G504 vis(방문자 셈)도 남겨 표가 숫자로 나오게 */
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(v) })
   }
   return route.fulfill({ status: 200, contentType: 'application/json', body: 'null' })
@@ -147,6 +154,18 @@ for (const [기, 기대] of [['카톡', 'kakao'], ['네이버', '메뉴']]) {
 /* 바깥 브라우저로 연 주소(?no=)가 그 공고를 고른 채로 열림 */
 await A.p.goto(`${주소}/?no=${NO}`, { waitUntil: 'domcontentloaded' }); await A.p.waitForTimeout(3500)
 봐(await A.p.evaluate(() => [...document.querySelectorAll('.hbtns button')].some((x) => /품의서/.test(x.textContent))), '«/?no=공고번호» 로 열면 그 공고가 골라져 «📄 품의서» 가 바로 있음')
+/* 👥 G504 소장님(폰 캡처 둘) 「이게 왜 이러지 ? 공고 선택 후도 같게 해줘 방문자 수.」 — 공고를 골라도 첫 화면과 같은 표(한 줄 상자 없음) */
+{
+  const 상자 = (p) => p.evaluate(() => { const c = document.querySelector('.umap'); return { 큰: !!document.querySelector('.umap-only'), 한줄: !!document.querySelector('.umap-line, .umap-mini'),
+    표: [...document.querySelectorAll('.umap-tbl [role=row]')].map((r) => r.innerText.replace(/\s+/g, ' ').trim()), 글: c ? c.innerText.replace(/\s+/g, ' ').replace(/지금\(30분 안\) \S+/, '') : '' } })
+  const 고른 = await 상자(A.p)
+  await A.p.evaluate(() => sessionStorage.removeItem('kcm.baro.no'))
+  await A.p.goto(`${주소}/`, { waitUntil: 'domcontentloaded' }); await A.p.waitForTimeout(3500)
+  const 첫 = await 상자(A.p)
+  봐(고른.큰 && !고른.한줄 && 고른.표.length === 3 && /^방문자 /.test(고른.표[1]) && /^세션 /.test(고른.표[2]) && 고른.글 === 첫.글 && JSON.stringify(고른.표) === JSON.stringify(첫.표),
+    `⑨ 공고를 골라도 방문자 상자가 첫 화면과 같은 표(방문자 · 세션 / 누적 · 오늘 · 어제) — «${고른.표.slice(1).join(' / ')}»`, { 고른, 첫 })
+  await A.p.goto(`${주소}/?no=${NO}`, { waitUntil: 'domcontentloaded' }); await A.p.waitForTimeout(3000)   /* 아래 차례 그대로(골라 둔 화면) */
+}
 
 console.log('■ ③ 사용 방법')
 await A.p.evaluate(() => sessionStorage.removeItem('kcm.baro.no'))   /* 고른 공고 기억을 지워 첫 화면으로 */

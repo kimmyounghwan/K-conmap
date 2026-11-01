@@ -78,6 +78,12 @@ for (const [기기, vp] of [['PC', { width: 1280, height: 860 }], ['폰', { widt
     await p.waitForTimeout(800)
     봐(!(await p.$('.qs-back')) && p.url() !== BASE + '/tools', `폰 누르면 → ${p.url().replace(BASE, '')}`)
   }
+  /* 🔎 G504 (11-01) 소장님 「오늘 만든 것 모두 검색 되게 했지???」 — «품의서» → 보는 방법의 그 단계로 내려가 잠깐 칠함(머리 띠에 안 가림) */
+  await p.goto(BASE + '/tools', { waitUntil: 'domcontentloaded' }); await p.waitForSelector('.qsbtn', { timeout: 20000 })
+  await p.click('.qsbtn'); await p.fill('.qs-in', '품의서'); await p.waitForTimeout(400); await p.keyboard.press('Enter')
+  await p.waitForTimeout(1600)
+  const 단 = await p.evaluate(() => { const el = document.getElementById('baro-pum'); if (!el) return null; const r = el.getBoundingClientRect(); return { top: Math.round(r.top), vh: innerHeight, hit: el.classList.contains('how-hit'), 글: el.textContent.slice(0, 12) } })
+  봐(/\/how#baro-pum$/.test(p.url()) && 단 && 단.top >= 40 && 단.top < 단.vh * 0.6 && 단.hit && /품의서/.test(단.글), `${기기} «품의서» → 보는 방법 «📄 품의서» 단계로 내려가 칠함(위에서 ${단 && 단.top}px)`, JSON.stringify({ url: p.url(), 단 }))
   봐(!오류.length, `${기기} 화면 오류 없음`, 오류.join(' | '))
   await p.close()
 }

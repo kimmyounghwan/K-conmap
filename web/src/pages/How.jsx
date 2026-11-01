@@ -43,8 +43,26 @@
  *   ⑤ 숫자(서식 가짓수·건수)는 그 화면이 바뀌면 틀어집니다 — 되도록 «~여 가지» 로 적습니다.
  *   ⑥ (G208) 같은 말은 한 화면에 한 번만. 칸으로 설명한 도구는 «하려는 일로 찾기» 표에 다시 넣지 않습니다.
  */
-import { Link } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import 바로투찰사용법 from '../바로투찰사용법.jsx'   /* 📖 G499 */
+
+/* 🔎 G504 (11-01) 찾기에서 «투찰 품의서 · 개찰 복기 · 관심도 · 바로투찰 사용 방법» 을 고르면 /how#baro-pum 처럼 옴 → 그 칸으로 내려가 잠깐 칠함 */
+function 주소칸으로() {
+  const { hash } = useLocation()
+  useEffect(() => {
+    const id = decodeURIComponent(String(hash || '').slice(1))
+    if (!id) return undefined
+    const t = setTimeout(() => {
+      const el = document.getElementById(id)
+      if (!el) return
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      el.classList.add('how-hit')
+      setTimeout(() => el.classList.remove('how-hit'), 2600)
+    }, 150)
+    return () => clearTimeout(t)
+  }, [hash])
+}
 
 /* 그 밖에 — 하려는 일로 찾기 [아이콘, 하려는 일, 주소, 탭(도구) 이름, 한 줄]
    ⚠️ G208 — 위에서 칸으로 설명한 것(바로투찰 · 적산 · 공사일보 · 원클릭 · 맵톡 · 분석)은 여기 다시 적지 않습니다(같은 말 두 번). */
@@ -96,6 +114,7 @@ const DO = [
 ]
 
 export default function How() {
+  주소칸으로()
   return (
     <>
       {/* ── 왜 만들었나 ── 기능 설명보다 이게 먼저입니다 (소장님 말씀 그대로) */}
@@ -169,7 +188,7 @@ export default function How() {
       </div>
 
       {/* ── 바로투찰 쓰는 법 ── 주력 기능이라 이것만 조금 길게. G208: 값 이야기는 위 칸에만 */}
-      <div className="card">
+      <div className="card" id="baro">
         <div className="sec-title">💰 바로투찰 — 이렇게 씁니다</div>
         {/* 📖 G499 소장님 「바로투찰 설명을 더 자세히」 — 바로투찰 첫 화면 접힘 칸과 같은 글(바로투찰사용법.jsx 한 곳) */}
         <바로투찰사용법 늘펼침 />

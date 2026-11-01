@@ -285,6 +285,10 @@ def main():
                 n_fm += 1
     except Exception as e:
         print(f"  · 현장 실무 서식 목록을 못 읽었습니다 ({type(e).__name__}) — 건너뜁니다")
+    # 🏁 G504 낙찰 서류 한 벌 — prerender.py 가 굽습니다(forms/hanbeol.html)
+    urls.append(f'  <url><loc>{SITE}/forms/hanbeol</loc><lastmod>{today}</lastmod>'
+                f'<changefreq>monthly</changefreq><priority>0.6</priority></url>')
+    n_fm += 1
 
     # ── 설계변경 ─────────────────────────────────
     n_cg = 0
