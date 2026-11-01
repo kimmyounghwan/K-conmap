@@ -26,13 +26,13 @@
  *   → 지도(점 · 바탕 그림 · 시·도 막대 · 크게/작게)는 뺌. 남는 것 = «지금(30분 안) N명» + 표(방문자 · 세션 — 누적 · 오늘 · 어제) + 개설일 줄.
  *     공고를 골라 온 화면(작게)은 한 줄(지금 · 누적 · 오늘). 숫자 셈 · 받는 길(lib/방문세기.js · fresh/map · fresh/reg · fresh/ses)은 그대로.
  *     이름은 그대로 이용자지도.jsx(App · BaroBid 가 쓰는 이름 · 지도는 맵톡(맵톡지도.jsx)에 있음).
- * ■ 📊 G496 (2026-11-01) 소장님 「배치가 좀 이상하지 않아. 오른쪽이 다 비어있잖아 · 아이디어 내봐」 → ②「표 + 최근 7일 막대」 고르심
- *   오른쪽에 «최근 7일 방문자» 막대(지난 6일 = vis/d/{날}/n · 오늘 = 표의 오늘 +N 그대로 · 오늘 막대는 진하게). 900px 아래(폰)는 표 아래에 쌓임.
+ * ■ G496 → G498 (11-01 14:4x) «표 + 최근 7일 막대» 를 만들어 올렸다가 소장님 「방문자 · 지금 상태로 두자고」 → 막대 뺌(이 파일만 G494 로 되돌림).
+ *   lib/방문세기.js 지난날들받기 · styles.css .umap-week 는 남겨 둠(다시 쓰려면 G496 커밋 5c1b2da8 의 이 파일).
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { 지도주소, 지역주소, 세션주소, 지역줄들, 날째, 날글, 개설일, 오늘글, 기준글 } from '../lib/이용자지도.js'
 import { 세기 } from '../lib/받은수.jsx'
-import { 직접인가, 직접받기, 직접줄들, 셈듣기, 한국날, 방문인가, 세션줄, 직접합치기, 지난날들받기 } from '../lib/방문세기.js'   /* 👥 G315 10/19 0시부터 방문자는 건설맵이 직접 셈 */
+import { 직접인가, 직접받기, 직접줄들, 셈듣기, 한국날, 방문인가, 세션줄, 직접합치기 } from '../lib/방문세기.js'   /* 👥 G315 10/19 0시부터 방문자는 건설맵이 직접 셈 */
 
 const 쉼 = (n) => Math.round(n || 0).toLocaleString('ko-KR')
 
@@ -99,7 +99,6 @@ export default function 이용자지도({ 작게 = false }) {
   const [직접, set직접] = useState(() => 기억직접(기억.직접))          // 👥 G315 {a: vis/a, d: vis/d/오늘, 날, at} — 10/19 0시부터
   const [직접못받음, set직접못받음] = useState(false)   // ⏱ 건설맵 숫자를 못 받음(인터넷 · 막힘) → 그때는 애널리틱스 숫자
   const [비교, set비교] = useState(null)          // 📋 G315 소장님만 — 어제 건설맵이 센 수 · 애널리틱스 (fresh/vcmp/{어제})
-  const [지난날, set지난날] = useState(null)      // 📊 G496 지난 6일 [{날, n}] — 30분마다(lib 이 기억)
 
   useEffect(() => {
     let 살 = true
@@ -133,13 +132,9 @@ export default function 이용자지도({ 작게 = false }) {
     받기()
     const 틈 = setInterval(() => { if (document.visibilityState === 'visible') 받기() }, 60000)
     const 끄기 = 셈듣기(받기)
-    /* 📊 G496 지난 6일 — 처음 한 번 · 30분마다(날이 바뀌면 열쇠가 달라져 새로 받음) */
-    const 지난받기 = () => { if (직접인가(Date.now())) 지난날들받기(Date.now()).then((들) => { if (살 && 들) set지난날(들) }).catch(() => {}) }
-    지난받기()
-    const 지난틈 = setInterval(() => { if (document.visibilityState === 'visible') 지난받기() }, 30 * 60000)
     // ⏱ 8초 넘게 안 오면(아주 느린 인터넷) «…» 대신 애널리틱스 숫자라도 — 건설맵 숫자가 오면 그때 바뀜
     const 늦은 = setTimeout(() => { if (살) set직접못받음(true) }, 8000)
-    return () => { 살 = false; clearInterval(틈); clearInterval(지난틈); clearTimeout(늦은); 끄기() }
+    return () => { 살 = false; clearInterval(틈); clearTimeout(늦은); 끄기() }
   }, [])
 
   /* 📋 G315 소장님만 — 「리셋할 때는 애널리틱스랑 비교해서」 → 어제 건설맵이 센 수와 애널리틱스 수(깃허브 tools/이용자지도.py 가 fresh/vcmp 에 적음) */
@@ -189,72 +184,46 @@ export default function 이용자지도({ 작게 = false }) {
           <span className="umap-open">{날글(개설일)} 문을 열었습니다 · 오늘 <b>{오늘글(때)}</b> · <b>{날째(때)}일째</b></span>
         </div>
       </div>
-      <div className="umap-body2">
-        {기다림 && (
-          <div className="umap-reg umap-wait" aria-busy="true">
-            <div className="umap-now-n"><i className="umap-dot now" /> 지금(30분 안) <b>…</b></div>
-            <div className="umap-tot"><span>전체 누적 <b>…</b></span><span className="umap-today">오늘 {오늘글(때, false)} <b>…</b></span></div>
+      {기다림 && (
+        <div className="umap-reg umap-wait" aria-busy="true">
+          <div className="umap-now-n"><i className="umap-dot now" /> 지금(30분 안) <b>…</b></div>
+          <div className="umap-tot"><span>전체 누적 <b>…</b></span><span className="umap-today">오늘 {오늘글(때, false)} <b>…</b></span></div>
+        </div>
+      )}
+      {!기다림 && 전국 && (
+        <div className="umap-reg">
+          <div className="umap-now-n">
+            <i className="umap-dot now" /> 지금(30분 안) <b>{지금사람 != null ? <><수 v={지금사람} />명</> : '—'}</b>
+            {/* 🩹 G153 — 자료가 45분 넘게 멈추면 «아무것도 안 뜬다» 로 보였습니다(10/6 아침). 늦어진 것을 그대로 알립니다 */}
+            {늦음 && 기준글(자료.at) && <span className="umap-late">자료가 늦어지고 있습니다 · {기준글(자료.at)} 기준</span>}
           </div>
-        )}
-        {!기다림 && 전국 && (
-          <div className="umap-reg">
-            <div className="umap-now-n">
-              <i className="umap-dot now" /> 지금(30분 안) <b>{지금사람 != null ? <><수 v={지금사람} />명</> : '—'}</b>
-              {/* 🩹 G153 — 자료가 45분 넘게 멈추면 «아무것도 안 뜬다» 로 보였습니다(10/6 아침). 늦어진 것을 그대로 알립니다 */}
-              {늦음 && 기준글(자료.at) && <span className="umap-late">자료가 늦어지고 있습니다 · {기준글(자료.at)} 기준</span>}
-            </div>
-            {/* 🔁 2026-10-21 소장님 「세션 누적 세션 당일 이렇게 추가하자」 · 고르심 «표 꼴» — 두 줄 표(방문자 = 사람 셈 그대로 · 세션 = 누적 · 오늘 · 어제) */}
-            {(() => {
-              const 어제 = 직접인가(때) && 직접 && 직접.어제 && 직접.어제.날 === 한국날(때 - 86400000) ? 직접.어제 : null
-              const 세 = 세션줄(직접, 세션, 때)
-              if (!세) {
-                return (
-                  <div className="umap-tot">
-                    <span>{줄들.합계 ? '전체' : '전국'} 누적 <b><수 v={전국.a} />명</b></span>
-                    <span className="umap-today">오늘 {오늘글(때, false)} <b>+<수 v={전국.t} /></b></span>
-                    {어제 && <span className="umap-yday">어제 {오늘글(때 - 86400000, false)} <b><수 v={어제.n} />명</b></span>}
-                  </div>
-                )
-              }
-              const 칸 = (n, 단위, 앞 = '') => (n == null ? <b className="umap-no">—</b> : <b>{앞}<수 v={n} />{단위}</b>)
+          {/* 🔁 2026-10-21 소장님 「세션 누적 세션 당일 이렇게 추가하자」 · 고르심 «표 꼴» — 두 줄 표(방문자 = 사람 셈 그대로 · 세션 = 누적 · 오늘 · 어제) */}
+          {(() => {
+            const 어제 = 직접인가(때) && 직접 && 직접.어제 && 직접.어제.날 === 한국날(때 - 86400000) ? 직접.어제 : null
+            const 세 = 세션줄(직접, 세션, 때)
+            if (!세) {
               return (
-                <div className="umap-tbl" role="table" aria-label="방문자 · 세션 — 누적 · 오늘 · 어제">
-                  <div className="umap-tbl-h" role="row"><span role="columnheader" /><span role="columnheader">누적</span>
-                    <span role="columnheader">오늘 {오늘글(때, false)}</span><span role="columnheader">어제 {오늘글(때 - 86400000, false)}</span></div>
-                  <div className="umap-tbl-r" role="row"><span role="rowheader">방문자</span>{칸(전국.a, '명')}
-                    <span className="up">{칸(전국.t, '', '+')}</span>{칸(어제 ? 어제.n : null, '명')}</div>
-                  <div className="umap-tbl-r" role="row"><span role="rowheader">세션</span>{칸(세.누적, '회')}
-                    <span className="up">{칸(세.오늘, '회')}</span>{칸(세.어제, '회')}</div>
+                <div className="umap-tot">
+                  <span>{줄들.합계 ? '전체' : '전국'} 누적 <b><수 v={전국.a} />명</b></span>
+                  <span className="umap-today">오늘 {오늘글(때, false)} <b>+<수 v={전국.t} /></b></span>
+                  {어제 && <span className="umap-yday">어제 {오늘글(때 - 86400000, false)} <b><수 v={어제.n} />명</b></span>}
                 </div>
               )
-            })()}
-          </div>
-        )}
-        {/* 📊 G496 최근 7일 막대 — 지난 6일 + 오늘(표의 오늘 +N) */}
-        {!기다림 && 전국 && 지난날 && 지난날.some((x) => x.n !== null) && (() => {
-          const 오늘날 = 한국날(때)
-          const 들 = [...지난날.filter((x) => x.날 !== 오늘날), { 날: 오늘날, n: 전국.t, 오늘: true }]
-          const 큰값 = Math.max(1, ...들.map((x) => (typeof x.n === 'number' ? x.n : 0)))
-          const 요일 = ['일', '월', '화', '수', '목', '금', '토']
-          return (
-            <div className="umap-week" role="img" aria-label={`최근 7일 방문자 — ${들.map((x) => `${x.날.slice(5).replace('-', '/')} ${x.n == null ? '없음' : x.n + '명'}`).join(' · ')}`}>
-              <div className="umap-week-h"><span>최근 7일 방문자</span><span className="muted">하루 한 번 센 사람 수</span></div>
-              <div className="umap-week-bars">
-                {들.map((x) => {
-                  const d = new Date(x.날 + 'T12:00:00+09:00')   /* 요일은 한국 날짜로(브라우저 시간대와 상관없이 — 정오 KST 의 UTC 요일) */
-                  return (
-                    <div key={x.날} className={'umap-wb' + (x.오늘 ? ' today' : '') + (x.n == null ? ' none' : '')} title={`${x.날} ${x.n == null ? '자료 없음' : x.n + '명'}`}>
-                      <span className="umap-wb-n">{x.n == null ? '—' : <수 v={x.n} />}</span>
-                      <span className="umap-wb-bar"><i style={{ height: `${x.n == null ? 0 : Math.max(3, Math.round((x.n / 큰값) * 100))}%` }} /></span>
-                      <span className="umap-wb-d">{Number(x.날.slice(8))}<small>{요일[d.getUTCDay()]}</small></span>
-                    </div>
-                  )
-                })}
+            }
+            const 칸 = (n, 단위, 앞 = '') => (n == null ? <b className="umap-no">—</b> : <b>{앞}<수 v={n} />{단위}</b>)
+            return (
+              <div className="umap-tbl" role="table" aria-label="방문자 · 세션 — 누적 · 오늘 · 어제">
+                <div className="umap-tbl-h" role="row"><span role="columnheader" /><span role="columnheader">누적</span>
+                  <span role="columnheader">오늘 {오늘글(때, false)}</span><span role="columnheader">어제 {오늘글(때 - 86400000, false)}</span></div>
+                <div className="umap-tbl-r" role="row"><span role="rowheader">방문자</span>{칸(전국.a, '명')}
+                  <span className="up">{칸(전국.t, '', '+')}</span>{칸(어제 ? 어제.n : null, '명')}</div>
+                <div className="umap-tbl-r" role="row"><span role="rowheader">세션</span>{칸(세.누적, '회')}
+                  <span className="up">{칸(세.오늘, '회')}</span>{칸(세.어제, '회')}</div>
               </div>
-            </div>
-          )
-        })()}
-      </div>
+            )
+          })()}
+        </div>
+      )}
       {비교 && (
         <div className="umap-foot">
           {/* 🩹 G315 소장님 「«구글 애널리틱스» 에서 «건설맵이 직접 셈 · 같은 브라우저 하루 한 번» ---- 삭제」 → 어디서 센 것인지 적은 글을 뺌 */}
