@@ -8,7 +8,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createCanvas } from '../web/node_modules/@napi-rs/canvas/index.js'
 import { unzipSync, strFromU8 } from '../web/node_modules/fflate/esm/index.mjs'
-import { exif읽기, 이름설명, 정렬하기, 표시하기, 사진대지쪽들, 지문, 지문거리, 선명도, 칸값, 기본설정, 항목꼴들 } from '../web/src/lib/사진정리.js'
+import { exif읽기, 이름설명, 정렬하기, 표시하기, 사진대지쪽들, 지문, 지문거리, 선명도, 칸값, 기본설정, 항목꼴들, 보드줄, 보드그리기 } from '../web/src/lib/사진정리.js'
 import { 격자로, 글맞춤, 공통가로 } from '../web/src/lib/쪽문서.js'
 import { 쪽들PDF, 환경 as pdf환경 } from '../web/src/lib/쪽pdf.js'
 import { 쪽들워드 } from '../web/src/lib/쪽워드.js'
@@ -299,6 +299,29 @@ console.log('⑤ 파일 쓰기 — PDF · 워드 · 한글 · 엑셀')
     fs.writeFileSync(path.join(OUT, '가로4.xlsx'), 엑셀책([쪽들시트(가로.쪽들, 가그림)], 가그림))
     fs.writeFileSync(path.join(OUT, '가로4.pdf'), await 쪽들PDF(가로.쪽들, 가그림, {}))
   }
+}
+
+/* 📋 G492 보드판 — 사진 위 공사명 · 공종 · 위치 · 일자 상자(소장님 «사진 대지도 도구화 … 빠진게 없는지») */
+{
+  const S = { ...기본설정, 공사명: '○○지구 배수로 정비공사', 위치: '○○리 일원', 보드: true }
+  const p = 가짜사진[0]
+  const 줄 = 보드줄(p, S)
+  확인('보드판 줄: 공사명 · 공 종(내용) · 위 치 · 일 자 — 빈 값은 뺌', 줄.length === 4 && 줄[0][0] === '공사명' && 줄[3][0] === '일 자' && /2026/.test(줄[3][1]), 줄)
+  확인('보드판 줄: 값이 없으면 줄 뺌', 보드줄({ ...p, 때: '', 파일때: 0, 이름: 'IMG_1.jpg' }, { ...S, 공사명: '', 위치: '', 이름을설명: true }).length === 0)
+  const r = 사진대지쪽들(가짜사진, { ...S, 한쪽에: 2 })
+  확인('보드판 켜면 그림 요청에 보드 줄 · 열쇠에 |b', [...r.그림요청.values()].every((x) => x.보드 && x.보드.length >= 3) && [...r.그림요청.keys()].every((k) => /\|b/.test(k)))
+  확인('보드판 끄면 그림 요청에 보드 없음', [...사진대지쪽들(가짜사진, { ...S, 보드: false }).그림요청.values()].every((x) => !x.보드))
+  const c = createCanvas(1600, 1200), g = c.getContext('2d')
+  g.fillStyle = '#4477aa'; g.fillRect(0, 0, 1600, 1200)
+  보드그리기(g, 1600, 1200, 줄)
+  const d = g.getImageData(60, 1200 - 60, 1, 1).data   // 왼쪽 아래 상자 안 — 흰 바탕
+  const e = g.getImageData(1500, 100, 1, 1).data        // 오른쪽 위 — 사진 그대로
+  확인('보드판은 왼쪽 아래에 흰 상자 · 다른 곳은 사진 그대로', d[0] > 230 && d[1] > 230 && e[0] < 100 && e[2] > 150, [...d, ...e])
+  const 긴 = 보드줄({ ...p, 값: { n: '아주 긴 설명 '.repeat(20) } }, S)
+  const c2 = createCanvas(800, 600), g2 = c2.getContext('2d'); g2.fillStyle = '#333'; g2.fillRect(0, 0, 800, 600)
+  보드그리기(g2, 800, 600, 긴)
+  const 오른 = g2.getImageData(799, 560, 1, 1).data
+  확인('긴 글은 … 로 줄여 상자가 사진 폭 70% 안', 오른[0] < 100, [...오른])
 }
 
 console.log(`\n${실패 ? '✘' : '✔'} 통과 ${통과} · 실패 ${실패}`)

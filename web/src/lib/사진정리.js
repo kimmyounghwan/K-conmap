@@ -187,6 +187,12 @@ export const 기본설정 = {
   번호: true, 쪽번호: true, 결재: [], 맞춤: '다보임',
   비교: false, 전이름: '시공 전', 후이름: '시공 후',
   날짜쪽: false, 이름을설명: true, 용량: '보통',
+  보드: false,   /* 📋 G492 보드판 — 사진 왼쪽 아래에 공사명 · 공종 · 위치 · 일자 상자(현장 보드판처럼 · 내려받는 파일에도 그대로) */
+}
+/** 📋 보드판 줄 — [['공사명', …], ['공 종', …], ['위 치', …], ['일 자', …]] 빈 값은 뺌 */
+export function 보드줄(p, S) {
+  const 줄 = [['공사명', S.공사명], ['공 종', 칸값(p, 'g', S) || 칸값(p, 'n', S)], ['위 치', 칸값(p, 'p', S) || S.위치], ['일 자', 칸값(p, 'd', S)]]
+  return 줄.map(([k, v]) => [k, String(v ?? '').trim()]).filter(([, v]) => v)
 }
 export const 한쪽에들 = [1, 2, 3, 4, 6, 8]
 
@@ -292,9 +298,10 @@ export function 사진대지쪽들(사진들, 설정) {
       const 그림칸 = (p, x, w, yy, h) => {
         if (!p) return 넣({ x, y: yy, w, h, 테: 1 })
         const 비율 = S.맞춤 === '채움' ? Math.round((w / h) * 1000) / 1000 : null
-        const 열쇠 = 비율 ? `${p.id}|${비율}` : p.id
-        그림요청.set(열쇠, { id: p.id, 비율 })
-        return 넣({ x, y: yy, w, h, 테: 1, 그림: 열쇠, 사진: p.id, 맞춤: S.맞춤, 그림여백: S.맞춤 === '채움' ? 0.4 : 1.2 })
+        const 보드 = S.보드 ? 보드줄(p, S) : null
+        const 열쇠 = (비율 ? `${p.id}|${비율}` : p.id) + (보드 && 보드.length ? '|b' + 보드.map((z) => z.join('=')).join(';') : '')
+        그림요청.set(열쇠, { id: p.id, 비율, 보드: 보드 && 보드.length ? 보드 : null })
+        return 넣({ x, y: yy, w, h, 테: 1, 그림: 열쇠, 사진: p.id, 맞춤: S.맞춤, 그림여백: S.맞춤 === '채움' ? 0.4 : 1.2, 보드: 보드 && 보드.length ? 보드 : undefined })
       }
       if (S.비교) {
         const 반 = 칸폭 / 2
@@ -427,7 +434,7 @@ export async function 사진돌리기(p, 도 = 90) {
 }
 
 /** 쪽에 붙일 그림 — 비율이 있으면 가운데를 그 비율로 잘라(채움) · 용량대로 줄여 JPEG */
-export async function 그림준비(p, 비율, 용량 = '보통') {
+export async function 그림준비(p, 비율, 용량 = '보통', 보드 = null) {
   const [긴쪽, 질] = 용량표[용량] || 용량표.보통
   let sx = 0, sy = 0, sw = p.너비, sh = p.높이
   if (비율) {
@@ -435,12 +442,33 @@ export async function 그림준비(p, 비율, 용량 = '보통') {
   }
   const s = Math.min(1, 긴쪽 / Math.max(sw, sh))
   const w = Math.max(1, Math.round(sw * s)), h = Math.max(1, Math.round(sh * s))
-  if (!비율 && s === 1 && 용량 === '선명하게') return { 바이트: p.작업본, w: p.너비, h: p.높이 }
+  if (!비율 && s === 1 && 용량 === '선명하게' && !(보드 && 보드.length)) return { 바이트: p.작업본, w: p.너비, h: p.높이 }
   const 원 = await 그림풀기(new Blob([p.작업본], { type: 'image/jpeg' }))
   const c = 캔버스(w, h)
   const g = c.getContext('2d')
   g.fillStyle = '#fff'; g.fillRect(0, 0, w, h)
   g.drawImage(원, sx, sy, sw, sh, 0, 0, w, h)
   if (원.close) 원.close()
+  if (보드 && 보드.length) 보드그리기(g, w, h, 보드)
   return { 바이트: await jpg(c, 질), w, h }
+}
+/** 📋 보드판 — 사진 왼쪽 아래 흰 상자(검은 테) · 글자 크기는 사진 폭에 비례(폰 사진도 PC 사진도 같은 비율로 보이게) */
+export function 보드그리기(g, w, h, 보드) {
+  const fs = Math.max(13, Math.round(Math.min(w, h) * 0.032))
+  const pad = Math.round(fs * 0.6), 줄높 = Math.round(fs * 1.4), 여백 = Math.round(fs * 0.9)
+  g.save()
+  g.font = `bold ${fs}px "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif`
+  const 이름폭 = Math.max(...보드.map(([k]) => g.measureText(k).width))
+  g.font = `${fs}px "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif`
+  const 최대 = Math.floor(w * 0.6)
+  const 값들 = 보드.map(([, v]) => { let t = v; while (t.length > 1 && g.measureText(t).width > 최대) t = t.slice(0, -1); return t === v ? v : t.slice(0, -1) + '…' })
+  const 값폭 = Math.max(...값들.map((v) => g.measureText(v).width))
+  const bw = Math.round(pad * 2 + 이름폭 + fs * 0.9 + 값폭), bh = Math.round(pad * 2 + 줄높 * 보드.length)
+  const x0 = 여백, y0 = h - 여백 - bh
+  g.fillStyle = 'rgba(255,255,255,0.93)'; g.fillRect(x0, y0, bw, bh)
+  g.lineWidth = Math.max(1, Math.round(fs * 0.09)); g.strokeStyle = '#222'; g.strokeRect(x0 + 0.5, y0 + 0.5, bw - 1, bh - 1)
+  g.textBaseline = 'middle'; g.fillStyle = '#111'
+  보드.forEach(([k], i) => { g.font = `bold ${fs}px "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif`; g.textAlign = 'left'; g.fillText(k, x0 + pad, y0 + pad + 줄높 * i + 줄높 / 2) })
+  값들.forEach((v, i) => { g.font = `${fs}px "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif`; g.textAlign = 'left'; g.fillText(': ' + v, x0 + pad + 이름폭 + fs * 0.25, y0 + pad + 줄높 * i + 줄높 / 2) })
+  g.restore()
 }

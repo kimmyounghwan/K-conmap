@@ -9,9 +9,20 @@
  *     작성일 · 서명일은 오늘 · 쓰던 것은 이 기기에 저절로 남음(서버로 안 감).
  *   ■ PDF · 인쇄 = 종이를 그림으로(글자 층 없음 → 변환 프로그램으로 엑셀이 안 나옴). 화면 인쇄(Ctrl+P)도 같은 그림.
  *   ■ 숨은 누적: |서식격자|열기 · |서식격자|PDF · |서식격자|인쇄 · |서식격자|예시 · |서식격자|저장 (PDF 는 받은 수 /forms/w/{slug}.pdf 에도 1)
+ *
+ * 📷 G492 (2026-11-01) 사진 칸 — 소장님 「사진 대지도 도구화 해줘. 내 컴퓨터에서 사진 불러 와서.. 편하게 .. 이용자 입장에서」
+ *   ■ 사진 칸 = 쓰는 칸인데 그 열 머리글에 «사진» 이 있고 높이가 25pt 넘는 빈 칸(공사 사진대지 «사진 (붙이는 칸)» 3칸). 종이에 «사진 넣기 — 칸을 누르면…» 안내.
+ *   ■ 칸을 누르면 아래 쓰는 칸에 «📷 사진 고르기»(여러 장을 고르면 그 칸부터 아래 사진 칸으로 차례로) · «📸 찍기»(폰 카메라) · «⟳ 돌리기» · «✕ 빼기».
+ *     종이에 사진 파일을 끌어다 놓아도 됩니다(놓은 칸부터 · 사진 칸이 아니면 빈 사진 칸부터).
+ *   ■ 사진은 lib/사진정리.js 사진열기(EXIF 방향대로 세움 · 긴 쪽 2000 · JPEG)로 읽고, 찍은 날(EXIF)이 있으면 같은 줄 «촬영일» 칸이 비었을 때 채웁니다.
+ *   ■ 화면 · PDF · 인쇄 모두 같은 그림(격자그림.js 쪽그리기 사진칸) · 사진은 서버로 안 가고 이 브라우저(IndexedDB · lib/격자사진.js)에 남습니다 — 쓰던 것(cur) · 💾 저장한 것(id).
+ *   ■ «✍ 예시 채우기» 는 사진 칸에도 가상 사진(lib/사진예시.js) · «🧹 빈칸으로» 는 사진도 뺌 · «복사해 새로» 는 사진 없이(새 날 사진).
+ *   ■ 숨은 누적: |서식격자|사진 (사진을 넣을 때 1)
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { 사진열기, 사진돌리기 } from '../lib/사진정리.js'
+import { 사진남기기, 사진꺼내기, 사진지우기, 그림으로 } from '../lib/격자사진.js'
 import { 책만들기, 자리글, 일련, 날짜로, 오늘일련 } from '../lib/엑셀셈.js'
 import { 꼴 } from '../lib/엑셀꼴.js'
 import { 판짜기, 쪽그리기, 칸찾기, 칸상자, 칸쪽, 칸이름 } from '../lib/격자그림.js'
@@ -25,6 +36,8 @@ const 공통열쇠 = 'kcm.서식공통'
 const 읽기 = (k, 없으면) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? 없으면 : v } catch (e) { return 없으면 } }
 const 쓰기 = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true } catch (e) { return false } }
 const 오늘글 = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)
+/* 📸 찍기는 폰(카메라 있는 기기)에서만 — 소장님 「찍기는 왜 있지?」(PC 엔 쓸 일 없음) */
+const 폰기기 = () => { try { return navigator.maxTouchPoints > 0 || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) } catch (e) { return false } }
 
 /* 한 번 쓰면 다른 서식에도 — 칸 이름(열쇠)으로 알아봄. 앞 셋은 블록 서식(서식작성.jsx)과 같은 열쇠 */
 const 공통칸 = [
@@ -108,6 +121,29 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
   }, [doc])
   const [판번, set판번] = useState(0)
   const [고른, set고른] = useState(null)       // 쓸칸 차례
+  /* 📷 G492 사진 칸 — 열 머리글(위로 올라가며 처음 만나는 글 있는 칸)에 «사진» · 높이 25pt 넘는 빈 쓰는 칸 */
+  const 덮는칸들 = useMemo(() => doc.sheets.map((sh) => { const m = new Map(); for (const x of sh.cells) for (let i = x[0]; i < x[0] + x[2]; i++) for (let j = x[1]; j < x[1] + x[3]; j++) m.set(i * 16384 + j, x); return m }), [doc])
+  const 사진칸표 = useMemo(() => {
+    const out = new Set()
+    doc.sheets.forEach((sh, si) => {
+      const 판 = 판들[si], 덮 = 덮는칸들[si]
+      for (const x of sh.cells) {
+        if (x[5] !== 1 || x[1] > sh.pc || Array.isArray(x[9]) || (x[6] !== null && x[6] !== undefined && x[6] !== '' && !자리글({ v: x[6], nf: x[8] }))) continue
+        if (판.Y[x[0] + x[2] - 1] - 판.Y[x[0] - 1] < 25) continue
+        let 머리 = null
+        for (let r = x[0] - 1; r >= 1; r--) { const y = 덮.get(r * 16384 + x[1]); if (!y || y === x) continue; if (y[5] === 1 || y[5] === 3) continue; const t = String(y[6] ?? '').trim(); if (t) { 머리 = t; break } }
+        if (머리 && /사진/.test(머리)) out.add(x)
+      }
+    })
+    return out
+  }, [doc, 판들, 덮는칸들])
+  const 사진칸인가 = useCallback((si, x) => 사진칸표.has(x), [사진칸표])
+  const 사진칸들 = useMemo(() => 쓸칸.map((q, i) => ({ ...q, i })).filter((q) => 사진칸표.has(q.x)), [쓸칸, 사진칸표])
+  const 사진들 = useRef(new Map())            // 'si|r,c' → { 그림, 바이트, w, h, 때 }
+  const [사진판, set사진판] = useState(0)
+  const 사진키 = (si, x) => `${si}|${x[0]},${x[1]}`
+  const [사진중, set사진중] = useState('')
+  const 사진파일칸 = useRef(null), 찍기칸 = useRef(null)
   const 고른R = useRef(null)                   // 빨리 칠 때 앞 칸에 쓰지 않게(상태보다 먼저 바뀜)
   const 고를때 = useRef(false)
   const [글, set글] = useState('')
@@ -142,6 +178,22 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
     set판번((x) => x + 1)
   }, [책])   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!셌다.current) { 셌다.current = true; 세기('|서식격자|열기') } }, [])
+  /* 📷 쓰던 사진 — 이 브라우저에서 */
+  useEffect(() => {
+    let 살 = true
+    if (!사진칸들.length) return undefined
+    사진꺼내기(slug, 'cur').then(async (들) => {
+      for (const p of 들) { if (!살) return; try { 사진들.current.set(p.칸, { 그림: await 그림으로(p.바이트), 바이트: p.바이트, w: p.w, h: p.h, 때: p.때 }) } catch (e) { /* 깨진 것은 뺌 */ } }
+      if (살 && 들.length) { set사진판((n) => n + 1); set판번((n) => n + 1) }
+    })
+    return () => { 살 = false }
+  }, [slug])   // eslint-disable-line react-hooks/exhaustive-deps
+  /* 📷 사진이 바뀌면 0.6초 뒤 남김 */
+  useEffect(() => {
+    if (!사진판) return undefined
+    const t = setTimeout(() => { 사진남기기(slug, 'cur', 사진들.current) }, 600)
+    return () => clearTimeout(t)
+  }, [사진판, slug])
   useEffect(() => { if (!말) return undefined; const t = setTimeout(() => set말(''), 4500); return () => clearTimeout(t) }, [말])
 
   function 공통채우기(오늘도) {
@@ -227,7 +279,7 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
         if (cv.width !== W) cv.width = W
         if (cv.height !== H) cv.height = H
         const ctx = cv.getContext('2d')
-        쪽그리기(ctx, { sheet, si, 판, 쪽번호: pi, k, 책, doc, 화면: true, 고른칸: 고른칸 && 고른칸.si === si ? 고른칸.x[0] + ',' + 고른칸.x[1] : null, 그림들: 그림들.current, 건설맵빼기: !건설맵 })
+        쪽그리기(ctx, { sheet, si, 판, 쪽번호: pi, k, 책, doc, 화면: true, 고른칸: 고른칸 && 고른칸.si === si ? 고른칸.x[0] + ',' + 고른칸.x[1] : null, 그림들: 그림들.current, 건설맵빼기: !건설맵, 사진칸: 사진들.current, 사진칸인가 })
       })
     })
   })
@@ -308,6 +360,79 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
     set판번((n) => n + 1)
   }
 
+  /* ── 📷 사진 칸 ── */
+  /** 파일들을 쓸칸 차례 i(사진 칸)부터 아래 사진 칸으로 차례로 */
+  const 사진넣기 = async (파일들, 시작i) => {
+    const 목록 = [...(파일들 || [])].filter((f) => /^image\//.test(f.type) || /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i.test(f.name))
+    if (!목록.length) { set말('사진 파일(JPG · PNG)만 넣을 수 있습니다'); return }
+    let k = 사진칸들.findIndex((q) => q.i === 시작i)
+    if (k < 0) k = 사진칸들.findIndex((q) => !사진들.current.has(사진키(q.si, q.x)))
+    if (k < 0) k = 0
+    let n = 0, 날 = 0, 틀림 = ''
+    set사진중(`사진 ${목록.length}장 읽는 중…`)
+    for (const f of 목록) {
+      const q = 사진칸들[k]
+      if (!q) break
+      try {
+        const p = await 사진열기(f)
+        const 그림 = await 그림으로(p.작업본)
+        사진들.current.set(사진키(q.si, q.x), { 그림, 바이트: p.작업본, w: p.너비, h: p.높이, 때: p.때 })
+        n++
+        /* 같은 줄의 «촬영일» 날짜 칸이 비었으면 찍은 날로 */
+        if (p.때) {
+          const sh = doc.sheets[q.si]
+          for (const y of sh.cells) {
+            if (y[0] !== q.x[0] || y === q.x || y[5] !== 1 || !날꼴인가(y[8]) || y[1] > sh.pc) continue
+            if (책.입력값(q.si, y[0], y[1]) !== undefined) continue
+            const v = 값읽기(p.때.slice(0, 10), y)
+            if (v !== null) { 책.넣기(q.si, y[0], y[1], v); 날++ }
+          }
+        }
+      } catch (e) { 틀림 += (e && e.message ? e.message : f.name) + ' ' }
+      k++
+      set판번((x) => x + 1)
+    }
+    set사진중('')
+    if (n) { 세기('|서식격자|사진'); set사진판((x) => x + 1) }
+    set판번((x) => x + 1)
+    const 남 = 목록.length - n
+    set말((n ? `📷 사진 ${n}장을 넣었습니다` + (날 ? ` · 촬영일 ${날}칸은 찍은 날로` : '') : '') + (틀림 ? ` · 못 넣음: ${틀림.trim().slice(0, 120)}` : '') + (!틀림 && 남 > 0 ? ` · 빈 사진 칸이 모자라 ${남}장은 넣지 못했습니다` : ''))
+  }
+  const 사진빼기 = () => {
+    const 지금 = 고른R.current !== null ? 쓸칸[고른R.current] : null
+    if (!지금) return
+    사진들.current.delete(사진키(지금.si, 지금.x))
+    set사진판((x) => x + 1); set판번((x) => x + 1)
+  }
+  const 사진돌림 = async () => {
+    const 지금 = 고른R.current !== null ? 쓸칸[고른R.current] : null
+    if (!지금) return
+    const key = 사진키(지금.si, 지금.x), p = 사진들.current.get(key)
+    if (!p) return
+    try {
+      const r = await 사진돌리기({ 작업본: p.바이트, 너비: p.w, 높이: p.h }, 90)
+      사진들.current.set(key, { ...p, 그림: await 그림으로(r.작업본), 바이트: r.작업본, w: r.너비, h: r.높이 })
+      set사진판((x) => x + 1); set판번((x) => x + 1)
+    } catch (e) { set말('사진을 돌리지 못했습니다') }
+  }
+  const 사진모두빼기 = () => { 사진들.current.clear(); 사진지우기(slug, 'cur'); set사진판((x) => x + 1) }
+  /** 종이에 끌어다 놓기 — 놓은 칸(사진 칸)부터 · 아니면 빈 사진 칸부터 */
+  const 놓기 = (e) => {
+    if (!사진칸들.length) return
+    const 파일들 = e.dataTransfer && e.dataTransfer.files
+    if (!파일들 || !파일들.length) return
+    e.preventDefault()
+    let 시작 = -1
+    const cv = e.target && e.target.closest ? e.target.closest('canvas.gx-page') : null
+    if (cv && cv.dataset.k) {
+      const [si, pi] = cv.dataset.k.split('-').map(Number)
+      const rect = cv.getBoundingClientRect(), 판 = 판들[si]
+      const x = 칸찾기(doc.sheets[si], 판, pi, (e.clientX - rect.left) / rect.width * 판.W, (e.clientY - rect.top) / rect.height * 판.H)
+      if (x && 사진칸표.has(x)) 시작 = 쓸칸.findIndex((q) => q.si === si && q.x === x)
+    }
+    사진넣기(파일들, 시작)
+  }
+
   /* ── 인쇄 · PDF ── */
   const 인쇄판 = useRef(null)
   const 쪽목록전부 = () => { const out = []; doc.sheets.forEach((s, si) => { if (!인쇄할[si]) return; 판들[si].쪽.forEach((_, pi) => out.push([si, pi])) }); return out }
@@ -330,7 +455,7 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
     const 판 = 판들[si]
     const cv = document.createElement('canvas')
     cv.width = Math.round(판.W * k); cv.height = Math.round(판.H * k)
-    쪽그리기(cv.getContext('2d'), { sheet: doc.sheets[si], si, 판, 쪽번호: pi, k, 책, doc, 화면: false, 그림들: 그림들.current, 건설맵빼기: !건설맵 })
+    쪽그리기(cv.getContext('2d'), { sheet: doc.sheets[si], si, 판, 쪽번호: pi, k, 책, doc, 화면: false, 그림들: 그림들.current, 건설맵빼기: !건설맵, 사진칸: 사진들.current })
     return cv
   }
   const 인쇄채우기 = useCallback(() => {
@@ -411,11 +536,16 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
   const 저장 = () => {
     const 공통 = 읽기(공통열쇠, {})
     const 이름 = String(공통.현장 || title).slice(0, 30) + ' · ' + new Date(Date.now() + 9 * 3600e3).toISOString().slice(5, 16).replace('T', ' ')
-    const 새 = [{ id: Date.now().toString(36), nm: 이름, at: Date.now(), v: 책.내보내기() }, ...저장들].slice(0, 30)
+    const id = Date.now().toString(36)
+    const 새 = [{ id, nm: 이름, at: Date.now(), v: 책.내보내기(), p: 사진들.current.size || 0 }, ...저장들].slice(0, 30)
+    if (사진들.current.size) 사진남기기(slug, id, 사진들.current)
     set저장들(새); 세기('|서식격자|저장')
     set말(`💾 «${이름}» 으로 저장했습니다 — 이 기기에만 남습니다`)
   }
-  const 불러오기 = (x) => { 책.들여오기(x.v); set목록(false); 고르기(null); set판번((n) => n + 1); set말(`📂 «${x.nm}» 을 불러왔습니다`) }
+  const 불러오기 = (x) => {
+    책.들여오기(x.v); set목록(false); 고르기(null); set판번((n) => n + 1); set말(`📂 «${x.nm}» 을 불러왔습니다`)
+    if (사진칸들.length) { 사진들.current.clear(); set사진판((n) => n + 1); 사진꺼내기(slug, x.id).then(async (들) => { for (const p of 들) { try { 사진들.current.set(p.칸, { 그림: await 그림으로(p.바이트), 바이트: p.바이트, w: p.w, h: p.h, 때: p.때 }) } catch (e) { /* */ } } set사진판((n) => n + 1); set판번((n) => n + 1) }) }
+  }
   /* «전일» 칸 — 엑셀에선 INDIRECT("'"&전날시트&"'!H"&ROW()) 로 어제 시트의 같은 줄을 끌어옴(작업일보) → 사이트에선 «복사해 새로» 때 어제 값으로 */
   const 전일칸 = useMemo(() => {
     const out = []
@@ -444,16 +574,27 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
       for (const [si, r, c] of 금일) 책.넣기(si, r, c, null)
     }
     doc.sheets.forEach((s, si) => { for (const c of s.cells) { const key = (s.keys || {})[`${열이름(c[1])}${c[0]}`]; if (오늘칸.test(열쇠이름(key)) && 날꼴인가(c[8])) 책.넣기(si, c[0], c[1], 오늘일련()); else if (열쇠이름(key) === '요일' && c[5] === 1) 책.넣기(si, c[0], c[1], '일월화수목금토'[new Date(Date.now() + 9 * 3600e3).getUTCDay()]) } })
+    사진모두빼기()
     set목록(false); set판번((n) => n + 1)
     set말(전 ? `📄 날짜는 오늘로 · 전일 ${전}칸은 «${x.nm}» 의 누계로 채우고 금일은 비웠습니다 — 오늘 한 일(금일)만 적으세요` : '📄 날짜만 오늘로 바꿔 새로 씁니다 — 고칠 곳만 고치세요')
   }
-  const 지우기 = (x) => set저장들(저장들.filter((y) => y.id !== x.id))
-  const 예시 = () => {
+  const 지우기 = (x) => { set저장들(저장들.filter((y) => y.id !== x.id)); if (x.p) 사진지우기(slug, x.id) }
+  const 예시 = async () => {
     책.들여오기(doc.ex || {})
     세기('|서식격자|예시'); 고르기(null); set판번((n) => n + 1)
     set말('✍ 가상의 현장으로 채운 작성 예시입니다 — 고쳐 쓰시거나 «🧹 빈칸으로» 를 누르세요')
+    if (사진칸들.length) {
+      try {
+        const { 예시사진파일들 } = await import('../lib/사진예시.js')
+        const 들 = await 예시사진파일들()
+        /* 공사 전 전경 · 관 부설 · 콘크리트 타설 = 착공 전 · 시공 중 · 준공 꼴(가상 그림) */
+        const 고름 = [들[0], 들[3], 들[6]].filter(Boolean).slice(0, 사진칸들.length)
+        사진들.current.clear()
+        await 사진넣기(고름, 사진칸들[0].i)
+      } catch (e) { /* 예시 사진은 못 그려도 글 예시는 그대로 */ }
+    }
   }
-  const 비우기 = () => { 책.모두지우기(); 공통채우기(true); 고르기(null); set판번((n) => n + 1); set말('🧹 빈 서식으로 돌렸습니다(공사명 · 회사 등은 남김)') }
+  const 비우기 = () => { 책.모두지우기(); 공통채우기(true); 고르기(null); 사진모두빼기(); set판번((n) => n + 1); set말('🧹 빈 서식으로 돌렸습니다(공사명 · 회사 등은 남김)') }
   const 예시있음 = doc.ex && Object.keys(doc.ex).length > 0
 
   /* 쓰는 칸 */
@@ -464,6 +605,8 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
   const 수칸 = 칸 && !날짜칸 && (수꼴인가(칸[8]) || typeof 칸[6] === 'number')
   const 고름말 = 칸 && Array.isArray(칸[9]) ? 칸[9] : null
   const 긴칸 = 칸 && !날짜칸 && !수칸 && !고름말 && ((doc.st[칸[4]] || {}).w || 칸[2] > 1)
+  const 사진칸 = !!(칸 && 사진칸표.has(칸))
+  const 든사진 = 사진칸 ? 사진들.current.get(사진키(고른칸.si, 칸)) : null
   const 미리 = 칸 ? (() => { const v = 책.값(고른칸.si, 칸[0], 칸[1]); return v === null || v === undefined || v === '' ? '' : 꼴(v, 칸[8]).t })() : ''
   const 키 = (e) => {
     const i = 고른R.current
@@ -532,7 +675,7 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
           <span className="muted sm">☑ = PDF · 인쇄에 넣음</span>
         </div>
       )}
-      <div className={'gx-wrap' + (확대 > 1 ? ' zoomed' : '')} ref={감싸개}>
+      <div className={'gx-wrap' + (확대 > 1 ? ' zoomed' : '')} ref={감싸개} onDragOver={(e) => { if (사진칸들.length && e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files')) e.preventDefault() }} onDrop={놓기}>
         {doc.sheets.map((s, si) => (
           <div key={si} id={`gx-s${si}`} className={'gx-sheet' + (인쇄할[si] ? '' : ' off')}>
             {doc.sheets.length > 1 && <div className="gx-sname">{si + 1}. {s.name} <span className="muted">· {판들[si].쪽.length}쪽</span></div>}
@@ -562,6 +705,20 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
               {고름말.map((w) => <button key={w} type="button" className={'gx-chip' + (글 === w ? ' on' : '')} onClick={() => { 넣기(w); 고르기(고른 + 1 < 쓸칸.length ? 고른 + 1 : null) }}>{w}</button>)}
             </div>
           )}
+          {사진칸 ? (
+            <div className="gx-ed-ph">
+              {든사진 ? <img className="gx-ed-th" src={URL.createObjectURL(new Blob([든사진.바이트], { type: 'image/jpeg' }))} alt="넣은 사진" onLoad={(e) => URL.revokeObjectURL(e.currentTarget.src)} /> : <div className="gx-ed-th gx-ed-th0">사진 없음</div>}
+              <div className="gx-ed-phb">
+                <button type="button" className="btn primary" onClick={() => 사진파일칸.current && 사진파일칸.current.click()} disabled={!!사진중}>{사진중 || '📷 사진 고르기'}</button>
+                {폰기기() && <button type="button" className="btn ghost" onClick={() => 찍기칸.current && 찍기칸.current.click()} disabled={!!사진중} title="카메라가 바로 열립니다">📸 찍기</button>}
+                {든사진 && <button type="button" className="btn ghost" onClick={사진돌림} disabled={!!사진중}>⟳ 돌리기</button>}
+                {든사진 && <button type="button" className="btn ghost" onClick={사진빼기} disabled={!!사진중}>✕ 빼기</button>}
+                <input ref={사진파일칸} type="file" accept="image/*" multiple className="sr-only" tabIndex={-1} onChange={(e) => { const f = [...(e.target.files || [])]; e.target.value = ''; 사진넣기(f, 고른R.current) }} />
+                <input ref={찍기칸} type="file" accept="image/*" capture="environment" className="sr-only" tabIndex={-1} onChange={(e) => { const f = [...(e.target.files || [])]; e.target.value = ''; 사진넣기(f, 고른R.current) }} />
+              </div>
+              <div className="muted sm gx-ed-phs">여러 장을 고르면 이 칸부터 아래 사진 칸으로 차례로 들어갑니다 · 종이에 끌어다 놓아도 됩니다 · 찍은 날(EXIF)이 있으면 촬영일도 채웁니다 · 사진은 서버로 가지 않습니다{든사진 && 든사진.때 ? <> · 찍은 때 {든사진.때}</> : null}</div>
+            </div>
+          ) : (
           <div className="gx-ed-r">
             {날짜칸 ? (
               <>
@@ -574,9 +731,10 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
               <input ref={칸글자} className="fw-in" inputMode={수칸 ? 'decimal' : 'text'} value={글} onChange={(e) => 넣기(e.target.value)} onKeyDown={키} aria-label={칸말} placeholder={수칸 ? (퍼센트꼴(칸[8]) ? '예: 3.5 (%)' : '숫자만') : '여기에 쓰세요'} />
             )}
           </div>
+          )}
           <div className="gx-ed-b">
             <button type="button" className="btn ghost" onClick={() => 고르기(고른 - 1)} disabled={고른 <= 0}>◀ 앞 칸</button>
-            <button type="button" className="btn ghost" onClick={() => 넣기('')}>지움</button>
+            {!사진칸 && <button type="button" className="btn ghost" onClick={() => 넣기('')}>지움</button>}
             {(칸[5] === 3 || (칸[6] !== null && 칸[6] !== undefined && !자리글({ v: 칸[6], nf: 칸[8] }))) && <button type="button" className="btn ghost" onClick={처음값}>처음 값</button>}
             <button type="button" className="btn primary" onClick={() => 고르기(고른 + 1 < 쓸칸.length ? 고른 + 1 : null)}>다음 칸 ▶</button>
           </div>

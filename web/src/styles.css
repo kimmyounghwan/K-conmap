@@ -8733,6 +8733,17 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gx-ed-r textarea.fw-in { min-height: 64px; resize: vertical; overflow: auto; }
 .gx-ed-r .btn { width: auto; white-space: nowrap; }
 .gx-ed-b { display: flex; gap: 8px; flex-wrap: wrap; }
+/* 📷 G492 사진 칸 쓰는 칸 */
+.gx-ed-ph { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: start; }
+.gx-ed-th { width: 92px; height: 69px; object-fit: contain; background: #f1f5f9; border: 1px solid var(--line); border-radius: 8px; grid-row: span 2; }
+.gx-ed-th0 { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 12px; }
+.gx-ed-phb { display: flex; gap: 6px; flex-wrap: wrap; }
+.gx-ed-phb .btn { width: auto; white-space: nowrap; }
+.gx-ed-phs { line-height: 1.5; }
+/* 📋 G492 사진대지 보드판 미리보기(내려받는 파일엔 사진에 그려 넣음 · .pb-rimg 는 이미 absolute) */
+.pb-board { position: absolute; left: 4%; bottom: 4%; background: rgba(255,255,255,0.93); border: 1px solid #222; color: #111; padding: 0.35em 0.5em; line-height: 1.4; white-space: nowrap; max-width: 70%; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.pb-board b { font-weight: 700; }
+@media (max-width: 480px) { .gx-ed-th { width: 72px; height: 54px; } }
 .gx-ed-b .btn { width: auto; padding: 9px 14px; font-size: 14px; }
 .gx-ed-b .btn.primary { margin-left: auto; }
 .gx-ed-ch { display: flex; flex-wrap: wrap; gap: 6px; }

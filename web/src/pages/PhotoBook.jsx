@@ -22,6 +22,9 @@ import {
 import { 기본설정 as 영수증기본, 과목들, 과목추천, 금액읽기, 쉼표, 날짜고르기, 모으기, 영수증쪽들, 한글금액, 영수증수식시트들 } from '../lib/영수증.js'
 import { 글맞춤 } from '../lib/쪽문서.js'
 import * as 보관 from '../lib/작업보관.js'
+import { 세기 } from '../lib/받은수.jsx'   /* 📋 G492 |사진대지|보드판 */
+/* 📸 찍기는 폰(카메라 있는 기기)에서만 — 소장님 「찍기는 왜 있지?」 */
+const 폰기기 = () => { try { return navigator.maxTouchPoints > 0 || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) } catch (e) { return false } }
 import 작업백업칸 from '../tools/작업백업칸.jsx'
 
 const 사진꼴 = /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i
@@ -80,6 +83,11 @@ function 쪽보기({ 쪽, 폭px, 그림찾기, 번호, 전체 }) {
             {주소 && (
               <div className="pb-rimg" style={{ inset: (k.그림여백 ?? 1.2) * 배 }}>
                 <img src={주소} alt="" draggable="false" style={{ objectFit: k.맞춤 === '채움' ? 'cover' : 'contain' }} />
+                {k.보드 && (   /* 📋 G492 보드판 미리보기 — 내려받는 파일엔 사진에 그려 넣음(그림준비 보드그리기) */
+                  <div className="pb-board" style={{ fontSize: Math.max(5, k.w * 배 * 0.034) }}>
+                    {k.보드.map(([n, v], j) => <div key={j}><b>{n}</b> : {v}</div>)}
+                  </div>
+                )}
               </div>
             )}
             {m && m.줄들.length > 0 && (
@@ -165,9 +173,9 @@ function 내보내기줄({ 바쁨, 할, 용량, set용량, 수 }) {
 const 사용글 = {
   사진: {
     차례: [
-      ['사진 올리기', '현장 사진을 끌어다 놓거나 눌러서 여러 장을 한 번에 고릅니다. 폴더째 골라도 됩니다. 폰에서는 앨범에서 여러 장을 고르십시오.'],
+      ['사진 올리기', '현장 사진을 끌어다 놓거나 눌러서 여러 장을 한 번에 고릅니다. 폴더째 골라도 됩니다. 폰에서는 앨범에서 여러 장을 고르거나 «📸 찍기» 로 바로 찍어 넣으십시오.'],
       ['저절로 정리', '찍은 시각 차례로 늘어섭니다. 흐린 사진 · 거의 같은 사진(연속 촬영) · 어두운 사진에는 표시가 붙습니다 → «표시된 것 빼기».'],
-      ['꾸미기', '공사명 · 위치 · 결재란 · 한 쪽에 몇 장 · 칸 구성을 고르면 오른쪽 미리보기가 바로 바뀝니다.'],
+      ['꾸미기', '공사명 · 위치 · 결재란 · 한 쪽에 몇 장 · 칸 구성을 고르면 오른쪽 미리보기가 바로 바뀝니다. «📋 보드판» 을 켜면 현장 보드판처럼 사진 왼쪽 아래에 공사명 · 공종 · 위치 · 일자 상자가 들어갑니다(내려받는 파일에도).'],
       ['내용 적기', '일자는 찍은 날이 저절로 들어갑니다. 내용은 적거나 «문구▾» 에서 고르고, «↓» 를 누르면 아래 사진 모두 같은 글이 됩니다. ↑↓ 차례 · ⟳ 돌리기 · «새 쪽».'],
       ['내려받기', 'PDF · 엑셀 · 한글 · 워드 중 고르십시오. 메일 · 나라장터에 올릴 것은 «사진 용량 › 가볍게».'],
     ],
@@ -224,7 +232,7 @@ function 사진대지판() {
   const [알림, set알림] = useState('')
   const [오류, set오류] = useState('')
   const [지난, set지난] = useState(null)       /* 지난번 작업(저장된 것) — 이어서? */
-  const 입력 = useRef(null), 폴더 = useRef(null)
+  const 입력 = useRef(null), 폴더 = useRef(null), 찍기 = useRef(null)
   const { 목록, 설정 } = s
   useEffect(() => { 기억.사진 = s }, [s])
 
@@ -349,7 +357,7 @@ function 사진대지판() {
         n += 1
         set바쁨(`사진을 알맞게 줄이는 중… ${n} / ${그림요청.size}`)
         await 숨()
-        그림들.set(열쇠, await 그림준비(찾.get(r.id), r.비율, 설정.용량))
+        그림들.set(열쇠, await 그림준비(찾.get(r.id), r.비율, 설정.용량, r.보드 || null))   /* 📋 G492 보드판은 사진에 그려 넣음(네 형식 모두) */
       }
       const 실 = 형식 === 'print' ? 'pdf' : 형식
       set바쁨(`${형식표[실][0]} 파일을 만드는 중…`)
@@ -393,8 +401,10 @@ function 사진대지판() {
           </div>
           <input ref={입력} type="file" accept="image/*" multiple hidden onChange={(e) => { 올리기(e.target.files); e.target.value = '' }} />
           <input ref={폴더} type="file" webkitdirectory="" directory="" multiple hidden onChange={(e) => { 올리기(e.target.files); e.target.value = '' }} />
+          <input ref={찍기} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { 올리기(e.target.files); e.target.value = '' }} />
           <div className="pb-row">
             <button type="button" className="btn ghost sm" onClick={() => 폴더.current && 폴더.current.click()}>📁 폴더째 고르기</button>
+            {폰기기() && <button type="button" className="btn ghost sm" onClick={() => 찍기.current && 찍기.current.click()} title="카메라가 바로 열립니다 — 찍은 사진이 바로 들어갑니다">📸 찍기</button>}
             <label className="pb-lab">차례 <select value={s.차례} onChange={(e) => 차례바꾸기(e.target.value)}>
               <option value="때">찍은 시각 차례</option><option value="이름">파일 이름 차례</option><option value="그대로">올린 차례(손으로)</option>
             </select></label>
@@ -444,6 +454,7 @@ function 사진대지판() {
             <label><input type="checkbox" checked={설정.날짜쪽} onChange={(e) => 설정바꾸기({ 날짜쪽: e.target.checked })} /> 날짜가 바뀌면 새 쪽</label>
             <label><input type="checkbox" checked={설정.이름을설명} onChange={(e) => 설정바꾸기({ 이름을설명: e.target.checked })} /> 파일 이름을 내용 칸에</label>
             <label><input type="checkbox" checked={설정.맞춤 === '채움'} onChange={(e) => 설정바꾸기({ 맞춤: e.target.checked ? '채움' : '다보임' })} /> 사진을 칸에 꽉 채우기(가장자리 잘림)</label>
+            <label title="현장 보드판처럼 사진 왼쪽 아래에 공사명 · 공종(내용) · 위치 · 일자 상자를 그려 넣습니다 — PDF · 엑셀 · 한글 · 워드에도 그대로"><input type="checkbox" checked={!!설정.보드} onChange={(e) => { 설정바꾸기({ 보드: e.target.checked }); if (e.target.checked) 세기('|사진대지|보드판') }} /> 📋 보드판(사진 위에 공사명 · 공종 · 위치 · 일자)</label>
             <label><input type="checkbox" checked={설정.비교} onChange={(e) => 설정바꾸기({ 비교: e.target.checked, 한쪽에: e.target.checked ? Math.min(3, 설정.한쪽에) : 설정.한쪽에 })} /> 시공 전·후 나란히(두 장씩 짝)</label>
           </div>
           {설정.비교 && (

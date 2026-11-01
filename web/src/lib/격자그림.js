@@ -114,7 +114,8 @@ function 줄나누기(ctx, text, w) {
 /**
  * 한 쪽 그리기
  * @param ctx 캔버스
- * @param {object} o { sheet, si, 판, 쪽번호, k(px/pt), 책, 화면(bool), 고른칸('r,c'), 그림들(Map 이름→Image), 빈칸보기 }
+ * @param {object} o { sheet, si, 판, 쪽번호, k(px/pt), 책, 화면(bool), 고른칸('r,c'), 그림들(Map 이름→Image), 빈칸보기,
+ *                     사진칸(Map 'si|r,c' → {그림, w, h} · G492 사진대지 칸에 넣은 사진), 사진칸인가(si, x) → bool(화면에서 빈 사진 칸 안내) }
  */
 export function 쪽그리기(ctx, o) {
   const { sheet, si, 판, k, 책 } = o
@@ -148,11 +149,39 @@ export function 쪽그리기(ctx, o) {
       ctx.fillRect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0)
     }
   }
+  // 1-2) 📷 사진 칸(G492 — 사진대지): 넣은 사진은 칸 안에 비율대로 가운데 · 화면에선 빈 사진 칸에 «사진 넣기» 안내
+  const 사진표 = o.사진칸 || null
+  const 사진든 = new Set()
+  if (사진표 || (o.화면 && o.사진칸인가)) for (const b of 보일) {
+    if (b.잘림) continue
+    const x = b.x
+    const p = 사진표 && 사진표.get(`${si}|${x[0]},${x[1]}`)
+    if (p && p.그림) {
+      const pad = 1.2 * s * k
+      const bw = b.x1 - b.x0 - pad * 2, bh = b.y1 - b.y0 - pad * 2
+      const iw = p.w || p.그림.width, ih = p.h || p.그림.height
+      const r = Math.min(bw / iw, bh / ih)
+      const w = iw * r, h = ih * r
+      ctx.save(); ctx.beginPath(); ctx.rect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0); ctx.clip()
+      try { ctx.drawImage(p.그림, b.x0 + pad + (bw - w) / 2, b.y0 + pad + (bh - h) / 2, w, h) } catch (e) { /* 그림이 아직이면 다음 그리기에 */ }
+      ctx.restore()
+      사진든.add(x)
+    } else if (o.화면 && o.사진칸인가 && o.사진칸인가(si, x)) {
+      const fs = Math.max(8, 9 * s * k)
+      ctx.font = `${fs}px ${글꼴}`
+      ctx.fillStyle = '#7b8798'; ctx.textAlign = 'center'
+      const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2
+      ctx.fillText('사진 넣기', cx, cy - fs * 0.2)
+      ctx.fillText('칸을 누르면 사진을 고르거나 찍습니다', cx, cy + fs * 1.15)
+      사진든.add(x)
+    }
+  }
   // 2) 글
   const 비었나 = (r, c) => !판.칸표.has(r * 16384 + c) && !판.덮임.has(r * 16384 + c)
   for (const b of 보일) {
     if (b.잘림) continue
     const x = b.x
+    if (사진든.has(x)) continue
     const S = st(x[4])
     const g = 칸글(책, si, x)
     if (!g.t) continue
