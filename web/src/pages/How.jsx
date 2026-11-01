@@ -58,7 +58,7 @@ function 주소칸으로() {
       if (!el) return
       el.scrollIntoView({ behavior: 'smooth', block: 'start' })
       el.classList.add('how-hit')
-      setTimeout(() => el.classList.remove('how-hit'), 2600)
+      setTimeout(() => el.classList.remove('how-hit'), 4000)   /* G505 2.6 → 4초(긴 쪽은 내려가는 데만 1초 넘게 걸림) */
     }, 150)
     return () => clearTimeout(t)
   }, [hash])

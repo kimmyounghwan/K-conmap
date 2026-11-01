@@ -583,6 +583,22 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [분석실, sp, rows])
 
+  /* 🩹 G505 (2026-11-01 소장님 「오늘 만든거 다시 한번 더 점검해」 중 찾음) 첫 화면(바로투찰)에 떠 있는 «/?no=» 링크
+     — 곧나올줄 «⭐ 담아 둔 공사가 공고로 나왔습니다 → 바로투찰» 등 — 를 누르면 같은 화면이라 주소만 바뀌고 그 공고가 안 골라졌음
+     (위 자동 고르기는 처음 한 번 · 분석실만 주소를 따라감). 처음 주소는 위가 맡고, 그 뒤 ?no= 가 «바뀌면» 그 공고를 고름. */
+  const 앞주소no = useRef(null)
+  useEffect(() => {
+    if (분석실 || !rows.length) return
+    const no = (sp.get('no') || '').trim().toUpperCase()
+    if (앞주소no.current === null || no === 앞주소no.current) { 앞주소no.current = no; return }
+    앞주소no.current = no
+    if (!no || (picked && String(picked.no).toUpperCase() === no)) return
+    const hit = rows.find((r) => String(r.no).toUpperCase() === no)
+    if (hit) { autoPicked.current = true; set없는공고(''); pick(hit) }
+    else set없는공고(no)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [분석실, sp, rows])
+
   /* ── 계산 ─────────────────────────────── */
   /* ⚠️ 공고의 «예산» 칸(budget)을 추정가격으로 쓰면 안 됩니다.
      조달청이 주는 값은 배정예산·총사업비라서 기초금액보다 큽니다.

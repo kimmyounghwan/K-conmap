@@ -164,6 +164,11 @@ await A.p.goto(`${주소}/?no=${NO}`, { waitUntil: 'domcontentloaded' }); await 
   const 첫 = await 상자(A.p)
   봐(고른.큰 && !고른.한줄 && 고른.표.length === 3 && /^방문자 /.test(고른.표[1]) && /^세션 /.test(고른.표[2]) && 고른.글 === 첫.글 && JSON.stringify(고른.표) === JSON.stringify(첫.표),
     `⑨ 공고를 골라도 방문자 상자가 첫 화면과 같은 표(방문자 · 세션 / 누적 · 오늘 · 어제) — «${고른.표.slice(1).join(' / ')}»`, { 고른, 첫 })
+  /* 🩹 G505 첫 화면에 떠 있는 «/?no=» 링크(곧나올줄 «⭐ 담아 둔 공사가 공고로 나왔습니다 → 바로투찰»)를 누른 것처럼 — 같은 화면에서 주소만 바뀌어도 그 공고가 골라짐 */
+  await A.p.evaluate((no) => { history.pushState(null, '', '/?no=' + no); dispatchEvent(new PopStateEvent('popstate')) }, NO)
+  await A.p.waitForTimeout(1500)
+  const 링크로 = await A.p.evaluate(() => ({ 단추: [...document.querySelectorAll('.hbtns button')].some((x) => /품의서/.test(x.textContent)), 기억: sessionStorage.getItem('kcm.baro.no') }))
+  봐(링크로.단추 && 링크로.기억 === NO, '⑩ 첫 화면에서 «/?no=» 링크를 누르면(같은 화면 · 주소만 바뀜) 그 공고가 골라짐 — «담아 둔 공사 → 바로투찰»', 링크로)
   await A.p.goto(`${주소}/?no=${NO}`, { waitUntil: 'domcontentloaded' }); await A.p.waitForTimeout(3000)   /* 아래 차례 그대로(골라 둔 화면) */
 }
 

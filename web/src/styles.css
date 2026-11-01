@@ -9843,7 +9843,7 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .bc-app a { color: #1d4ed8; font-weight: 800; text-decoration: underline; }
 /* 🔎 G504 찾기 → 보는 방법(/how#baro-pum 등) — 머리 띠에 안 가리게 · 잠깐 칠함 */
 #baro, .bth-steps li[id] { scroll-margin-top: 76px; }
-.how-hit { background: var(--accent-soft); border-radius: 8px; box-shadow: 0 0 0 4px var(--accent-soft); transition: background .6s, box-shadow .6s; }
+.how-hit { background: var(--accent-soft); border-radius: 8px; box-shadow: 0 0 0 4px var(--accent-soft), 0 0 0 6px var(--accent-line); transition: background .6s, box-shadow .6s; }   /* G505 PC 흰 바탕에서도 보이게 테두리 */
 /* 👥 G499 개찰 뒤 «이용자들이 고른 자리»(관심분포.jsx) */
 .bcd { margin-top: 10px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); font-size: 13px; }
 .bcd-small { font-size: 12.5px; }
