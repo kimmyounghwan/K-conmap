@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
-import { getBidIndex, indexRows, getResults, getOverview } from '../lib/data.js'
+import { getBidIndex, indexRows, getResults, getOverview, 결과한줄 } from '../lib/data.js'
 import NoticeDetail from '../NoticeDetail.jsx'
 import { ShareBtn } from './CorpPage.jsx'
 import { Skeleton, Empty } from '../components.jsx'
@@ -63,8 +63,7 @@ export default function NoticePage() {
       } catch { /* 다음 갈래로 */ }
       try {
         const res = await getResults()
-        const rows = res ? indexRows(res) : []
-        const hit = rows.find((x) => String(x.no) === key)
+        const hit = 결과한줄(res, key)   /* 🔁 G501 — bidresult 의 r 는 {공고번호: 줄} 꼴(indexRows 로는 늘 못 찾았음) */
         if (alive) setR(hit || null)
       } catch { if (alive) setR(null) }
     })()

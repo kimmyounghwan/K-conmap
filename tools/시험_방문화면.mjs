@@ -57,6 +57,15 @@ await pg.clock.runFor(61000); await pg.waitForTimeout(800)
 const 상자 = await pg.evaluate(() => [...document.querySelectorAll('.umap-tbl [role=row]')].map((r) => r.innerText.replace(/\s+/g, ' ').trim()))
 봐(상자.length === 3 && /^방문자 2,043명 \+1 0명$/.test(상자[1]) && /^세션 5,590회 2회 407회$/.test(상자[2]), `지도 표 — 방문자 «2,043명 +1» 그대로 · 세션 누적 5,588+2 · 오늘 2 · 어제(10/21 애널리틱스) 407 «${상자.join(' / ')}»`)
 
+/* 🔁 G502 소장님 «세션이 방문자보다 적다» «세션도 올라갔으면» — 세션은 손짓 기준(애널리틱스와 같은 잣대) */
+const 세앞 = 디비.get('vis/d/2026-10-22/s')
+await pg.clock.runFor(35 * 60000); await pg.waitForTimeout(600)     // 화면은 켜 둔 채 35분 손 안 댐(1분 틱만)
+봐(디비.get('vis/d/2026-10-22/s') === 세앞, `G502 화면만 켜 두고 35분 — 세션 그대로(${세앞})`, 디비.get('vis/d/2026-10-22/s'))
+await pg.mouse.move(100, 200); await pg.mouse.move(180, 260); await pg.clock.runFor(1500); await pg.waitForTimeout(800)
+봐(디비.get('vis/d/2026-10-22/s') === String(Number(세앞) + 1) && 디비.get('vis/d/2026-10-22/n') === '1', `G502 35분 쉬다 마우스 — 새 세션(${세앞} → ${디비.get('vis/d/2026-10-22/s')}) · 사람은 그대로 1`, JSON.stringify([디비.get('vis/d/2026-10-22/s'), 디비.get('vis/d/2026-10-22/n')]))
+await pg.mouse.move(220, 300); await pg.clock.runFor(70000); await pg.mouse.move(240, 320); await pg.clock.runFor(1500); await pg.waitForTimeout(600)
+봐(디비.get('vis/d/2026-10-22/s') === String(Number(세앞) + 1), 'G502 손짓이 이어지면 같은 세션', 디비.get('vis/d/2026-10-22/s'))
+
 // ✍ 써 본 횟수 — 도구 화면 안에서 처음 손댐 한 번
 await pg.evaluate(() => { history.pushState({}, '', '/tools/nomubi'); window.dispatchEvent(new PopStateEvent('popstate')) })
 await pg.clock.runFor(1500); await pg.waitForTimeout(1500)

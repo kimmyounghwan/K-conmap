@@ -314,6 +314,25 @@ export function indexRows(idx) {
   })
 }
 
+/** 🔁 G501 (11-01) 개찰 결과(bidresult.json) 한 건 → 공고 줄(indexRows 와 같은 꼴) · 없으면 null
+ *  ⚠️ bidresult.json 의 r 는 배열이 아니라 {공고번호: [f 차례 값]} 꼴 — indexRows 로 읽으면 늘 빈 목록이라
+ *     🔎 찾기 «공고 … 열기»(앱 안에서 옮겨 감)로 개찰 공고를 열면 «찾지 못했습니다» 였음(사이트에서 확인 · 새로 열면 구운 ndata 라 됐음).
+ *     옛 꼴(배열)도 그대로 읽음. 시험: tools/시험_결과한줄.mjs */
+export function 결과한줄(res, no) {
+  if (!res || !Array.isArray(res.f) || !res.r) return null
+  const key = String(no || '')
+  if (!key) return null
+  if (Array.isArray(res.r)) return indexRows(res).find((x) => String(x.no) === key) || null
+  const a = res.r[key]
+  if (!Array.isArray(a)) return null
+  const o = { no: key }
+  for (let i = 0; i < res.f.length; i++) o[res.f[i]] = a[i]
+  o.no = key
+  if (o.llr == null || o.llr === 0) o.llr = null
+  o.lic = Array.isArray(o.lic) ? o.lic : []
+  return o
+}
+
 /* ── 수집 상태(health.json) — 「지금 보고 있는 것이 언제 것인가」 ──────
    collect.py 가 «조달청에서 실제로 받았는가» 를 적어 둡니다. 200바이트쯤입니다.
    ⚠️ 위의 getJSON 캐시를 쓰면 안 됩니다. 캐시 열쇠가 배포 도장(?v=)이라

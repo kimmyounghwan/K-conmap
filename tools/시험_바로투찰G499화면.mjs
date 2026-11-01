@@ -68,7 +68,9 @@ const 색인 = JSON.stringify({ f, r: [f.map((k) => (공고[k] === undefined ? n
 const UA = { PC: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36', 폰: 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36' }
 /* 개찰 끝난 가짜 공고 한 건(참가 2곳 · 1순위가 하한보다 꽤 위) — 작은 틀(⑤)과 진짜 화면(⑦)이 같이 씀 */
 const r = { no: 'R26BK99990002', name: '가상 ○○ 소화설비 정비', inst: '가상시', win: '가상1순위(주)', amt: 146278000, rate: 93.913, base: 155615000, aval: 7277751, ayn: 'Y', llr: 89.745, lo: -3, hi: 3, np: 2, enp: 14, pc: 0, amts: [146278000, 146370000], nrank: 2, rq: [[1, 146278000], [2, 146370000]], dt: '2026-10-26 11:00:00', close: '2026-10-26 10:00:00' }
-const 결과자료 = JSON.stringify({ f: Object.keys(r), r: [Object.values(r)] })
+/* 사이트와 같은 꼴 — bidresult.json 의 r 는 {공고번호: [f 차례 값]} (G501: 배열로 흉내 내서 «찾지 못했습니다» 를 못 잡았었음) */
+const 결과f = Object.keys(r).filter((k) => k !== 'no')
+const 결과자료 = JSON.stringify({ built: '2026-11-01 16:00', f: 결과f, r: { [r.no]: 결과f.map((k) => r[k]) } })
 const 브 = await chromium.launch()
 async function 창(기기) {
   const 폰 = 기기 === '폰'
@@ -200,6 +202,14 @@ for (const w of [1280, 360]) {
   봐(진.한벌.some((h) => /a=143000000$/.test(h)) && 진.한벌.some((h) => /a=146278000$/.test(h)), `/notice ${w}px — 한 벌 금액: 내 1순위 금액 143,000,000 · 공고 1순위 146,278,000`, 진.한벌)
 }
 if (process.env.CAP) await A.p.screenshot({ path: process.env.CAP + '_notice_폰.png', fullPage: true })
+/* 🔁 G501 — 🔎 찾기 «공고 … 열기»(앱 안에서 옮겨 감)로 개찰 공고 — 전엔 «찾지 못했습니다» */
+await A.p.setViewportSize({ width: 1280, height: 900 })
+await A.p.goto(주소 + '/tools', { waitUntil: 'domcontentloaded' }); await A.p.waitForTimeout(2500)
+await A.p.click('.qsbtn'); await A.p.fill('.qs-in', r.no); await A.p.waitForTimeout(600)
+const 찾첫 = await A.p.$eval('.qs-row .qs-t', (e) => e.textContent).catch(() => '')
+await A.p.click('.qs-row'); await A.p.waitForTimeout(3500)
+const 찾간 = await A.p.evaluate(() => ({ 길: location.pathname, 못: /찾지 못했습니다/.test(document.body.innerText), 결과: /개찰 결과/.test(document.body.innerText), 복기: !!document.querySelector('.ngm-bk'), 한벌: !!document.querySelector('a.nd-hanbeol') }))
+봐(/공고 .* 열기/.test(찾첫) && 찾간.길 === '/notice/' + r.no && !찾간.못 && 찾간.결과 && 찾간.복기 && 찾간.한벌, `🔎 «${r.no}» → «${찾첫}» → 개찰 결과 · 복기 · 한 벌(앱 안에서 옮겨 가도 찾음)`, 찾간)
 
 console.log('■ ⑥ 넘침 · 오류')
 await B.p.evaluate(() => sessionStorage.removeItem('kcm.baro.no'))   /* 폰 첫 화면 = 사용 방법 펼친 채 */

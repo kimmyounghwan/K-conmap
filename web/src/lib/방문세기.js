@@ -85,7 +85,10 @@ function 기억쓰기(v) {
  *  돌려줌: true 됨 · false 못 감(연결 · 서버 — 다음에 다시) · null 규칙이 막음(다시 보내도 안 됨 — 버림) */
 async function 하나더(길) {
   const url = `${DB}/vis/${길}.json`
-  for (let i = 0; i < 5; i++) {
+  /* 🔁 G502 (11-01) 한꺼번에 몰린 접속(같은 숫자를 동시에 고침 → 412)이 5번 만에 포기하고 빠지던 것 — 10번 · 겹치면 조금씩 더 쉬었다(엇갈리게)
+     흉내(새 브라우저 8개씩 한꺼번에 × 4판): 32번 열림 중 22만 셈 → 고친 뒤 tools/시험_방문세기.mjs ⑥ */
+  for (let i = 0; i < 10; i++) {
+    if (i) await new Promise((res) => setTimeout(res, 30 + Math.random() * 120 * i))
     const r = await fetch(url, { headers: { 'X-Firebase-ETag': 'true' }, cache: 'no-store' })
     if (!r.ok) return r.status >= 400 && r.status < 500 && r.status !== 408 && r.status !== 429 ? null : false
     const tag = r.headers.get('ETag')
@@ -217,6 +220,8 @@ export async function 세어보기(지금 = Date.now()) {
   도는중 = true
   try {
     if (await 운영자인가()) { for (const p of 길) 큐바꾸기(p); return null }
+    /* 🔁 G502 세션을 보내는 중이면 그 뒤에 — 열자마자 닫히는 접속도 «방문자는 셌는데 세션은 못 셈» 이 안 되게(8초 넘으면 그냥) */
+    if (세션보냄) await Promise.race([세션보냄, new Promise((res) => setTimeout(res, 8000))])
     return await 보내기(길, 지금)
   } finally { 도는중 = false }
 }
@@ -252,24 +257,31 @@ export function 새방문(옛, 지금) {
   return 지금 - 옛.t >= 쉼틈
 }
 let 방문도는중 = false
-/** 화면이 보이면 «마지막으로 본 때» 를 고치고, 새 방문이면 오늘 방문에 1 더함. 돌려줌: 센 길(시험용) 또는 null */
-export async function 방문보기(지금 = Date.now()) {
+let 세션보냄 = null      // 🔁 G502 지금 보내는 세션(있으면 세어보기가 그 뒤에 보냄)
+/** 화면이 보이면 «마지막으로 쓴 때» 를 고치고, 새 방문이면 오늘 방문에 1 더함. 돌려줌: 센 길(시험용) 또는 null
+ *  🔁 G502 (11-01) 소장님 «세션도 올라갔으면» — 활동 = 손짓(열기 · 누르기 · 마우스 · 밀기 · 글쇠 · 탭으로 돌아옴).
+ *     1분 틱(활동 false)은 «날이 바뀌었나» 만 보고 마지막으로 쓴 때를 늘리지 않음 → 화면만 켜 두고 30분 넘게 손 안 대다 다시 쓰면 새 세션
+ *     (애널리틱스 세션과 같은 잣대 · 전에는 켜 두기만 해도 1분마다 늘어 한 세션으로 이어졌음) */
+export async function 방문보기(지금 = Date.now(), 활동 = true) {
   if (typeof document !== 'undefined' && document.visibilityState && document.visibilityState !== 'visible') return null
   if (봇() || 방문도는중) return null
   let 옛
   try { 옛 = JSON.parse(localStorage.getItem(방문열쇠) || 'null') } catch (e) { return null }
-  const 새 = 새방문(옛, 지금)
   const 날 = 한국날(지금)
+  const 새 = 활동 ? 새방문(옛, 지금) : (!옛 || typeof 옛.t !== 'number' || !isFinite(옛.t) || 옛.d !== 날)
+  if (!활동 && !새) return null                          // 손짓 없는 틱 — 같은 날이면 아무것도 안 고침
   const 값 = JSON.stringify({ t: 지금, d: 날 })
   try { localStorage.setItem(방문열쇠, 값); if (localStorage.getItem(방문열쇠) !== 값) return null } catch (e) { return null }   // 기억을 못 쓰면 세지 않음(1분마다 또 세지 않게)
   if (!새 || !방문인가(지금)) return null
   const 길 = [`d/${날}/s`, 'sa/n']
   큐넣기(길, 지금)                                       // 📮 G474 보낼 것도 같이
   방문도는중 = true
+  let 끝 = () => {}
+  세션보냄 = new Promise((res) => { 끝 = res })
   try {
     if (await 운영자인가()) { for (const p of 길) 큐바꾸기(p); return null }
     return await 보내기(길, 지금)
-  } finally { 방문도는중 = false }
+  } finally { 방문도는중 = false; 세션보냄 = null; 끝() }
 }
 
 /* ── 지금(30분 안) — «여기 있음» ── */
@@ -309,10 +321,23 @@ export async function 숨쉬기(지금 = Date.now()) {
 export function 방문켜기() {
   if (typeof window === 'undefined' || window.__방문) return
   window.__방문 = true
-  const 다시 = () => { 세어보기().catch(() => {}); 방문보기().catch(() => {}); 숨쉬기().catch(() => {}); 밀린것보내기().catch(() => {}) }
-  다시()
-  setInterval(다시, 60000)
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') 다시() })
+  /* 🔁 G502 세션(방문보기)을 먼저 — 세어보기는 세션을 보낸 뒤에 보냄(세어보기 안에서 기다림) */
+  const 다시 = (활동) => { 방문보기(Date.now(), 활동).catch(() => {}); 세어보기().catch(() => {}); 숨쉬기().catch(() => {}); 밀린것보내기().catch(() => {}) }
+  다시(true)                                              // 열기 = 손짓
+  setInterval(() => 다시(false), 60000)                   // 틱 — 날이 바뀌었나 · 사람 · 지금 · 밀린 것
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') 다시(true) })   // 탭으로 돌아옴 = 손짓
+  /* 🔁 G502 손짓 — 누르기 · 글쇠 · 휠 · 터치 · 마우스 움직임(1분에 한 번만 «마지막으로 쓴 때» 를 고침) */
+  let 마지막손 = 0
+  const 손 = (e) => {
+    if (e && e.isTrusted === false) return
+    const t = Date.now()
+    if (t - 마지막손 < 60000) return
+    마지막손 = t
+    방문보기(t, true).catch(() => {})
+  }
+  const 듣기 = { passive: true, capture: true }
+  for (const n of ['pointerdown', 'keydown', 'wheel', 'touchstart']) document.addEventListener(n, 손, 듣기)
+  document.addEventListener('pointermove', (e) => { if (!e || e.pointerType === 'mouse' || e.pointerType === 'pen') 손(e) }, 듣기)
 }
 
 /* 📅 G343 (2026-10-20) 소장님 「여기에 전날 방문수 띄울 수 있어. 여기만…」 — 큰 지도의 «전체 누적 · 오늘» 상자 아래 «어제 N명».
