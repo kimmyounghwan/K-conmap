@@ -22,12 +22,15 @@
  *   · «지도 크게 보기 ▾» 를 누르면 원래 지도로 펼침(📊 |지도|크게). 맨 위에 두어도 금액을 거의 밀어내지 않습니다(폰 약 170px).
  *   · 소장님 「그래, 그렇게 해줘」(Claude 의견: 한 번 «크게» 를 누른 분은 다음부터 계속 큰 지도) → 브라우저가 기억(localStorage kcm.map.big)
  *     · 큰 지도 머리에 «▴ 작게 보기» — 누르면 다시 작은 상자 · 기억도 지움(📊 |지도|작게).
+ * ■ 👥 G494 (2026-11-01) 소장님 「지도 제거하고, 이것만 띄우는 걸로 하자」 「어차피 맵톡에 지도 있는데, 또 있는 건 아닌 것 같아」
+ *   → 지도(점 · 바탕 그림 · 시·도 막대 · 크게/작게)는 뺌. 남는 것 = «지금(30분 안) N명» + 표(방문자 · 세션 — 누적 · 오늘 · 어제) + 개설일 줄.
+ *     공고를 골라 온 화면(작게)은 한 줄(지금 · 누적 · 오늘). 숫자 셈 · 받는 길(lib/방문세기.js · fresh/map · fresh/reg · fresh/ses)은 그대로.
+ *     이름은 그대로 이용자지도.jsx(App · BaroBid 가 쓰는 이름 · 지도는 맵톡(맵톡지도.jsx)에 있음).
  */
-const 큰기억 = 'kcm.map.big'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { 지도주소, 지도이름표, 지도점들, 지도점크기, 지역주소, 세션주소, 지역줄들, 날째, 날글, 개설일, 누적시작, 오늘글, 기준글 } from '../lib/이용자지도.js'
+import { 지도주소, 지역주소, 세션주소, 지역줄들, 날째, 날글, 개설일, 오늘글, 기준글 } from '../lib/이용자지도.js'
 import { 세기 } from '../lib/받은수.jsx'
-import { 직접인가, 직접받기, 직접줄들, 직접점들, 셈듣기, 한국날, 방문인가, 세션줄, 직접합치기 } from '../lib/방문세기.js'   /* 👥 G315 10/19 0시부터 방문자는 건설맵이 직접 셈 */
+import { 직접인가, 직접받기, 직접줄들, 셈듣기, 한국날, 방문인가, 세션줄, 직접합치기 } from '../lib/방문세기.js'   /* 👥 G315 10/19 0시부터 방문자는 건설맵이 직접 셈 */
 
 const 쉼 = (n) => Math.round(n || 0).toLocaleString('ko-KR')
 
@@ -60,8 +63,6 @@ function 기억직접(x) {
   return v
 }
 
-let 셌다 = false
-const 누름세기 = () => { if (!셌다) { 셌다 = true; 세기('|지도|누름') } }
 
 /** 숫자가 바뀌면 옛 값에서 새 값까지 올라가는 모습(0.9초) — 움직임 줄이기 설정이면 바로 */
 function useCountUp(값) {
@@ -88,25 +89,17 @@ function useCountUp(값) {
 function 수({ v }) { return <>{쉼(useCountUp(v))}</> }
 
 export default function 이용자지도({ 작게 = false }) {
-  const [펼침, set펼침] = useState(() => { try { return localStorage.getItem(큰기억) === '1' } catch (e) { return false } })
   const [기억] = useState(기억읽기)              // ⏱ 마지막에 받은 숫자(새로고침 때 바로 보이게)
-  const [바탕, set바탕] = useState(null)
   const [자료, set자료] = useState(() => (기억.자료 ? 기억.자료.v : null))
   const [지역, set지역] = useState(() => (기억.지역 ? 기억.지역.v : null))
   const [세션, set세션] = useState(() => (기억.세션 ? 기억.세션.v : null))          // 🔁 fresh/ses — 애널리틱스 세션 9/15~10/21 · 어제 세션 (10/22 0시부터 세션 줄의 바탕)
-  const [고른, set고른] = useState(null)
-  const [다봄, set다봄] = useState(false)       /* 폰: 시·도 6곳만 · 누르면 모두 · 다시 누르면 접기(G145) · PC 는 CSS 로 늘 다 펼침 · 단추 숨김(G145b) */
   const [때, set때] = useState(Date.now())
-  const [화면, set화면] = useState(null)          // {w, h} — 그려진 지도 크기(px)
   const [직접, set직접] = useState(() => 기억직접(기억.직접))          // 👥 G315 {a: vis/a, d: vis/d/오늘, 날, at} — 10/19 0시부터
   const [직접못받음, set직접못받음] = useState(false)   // ⏱ 건설맵 숫자를 못 받음(인터넷 · 막힘) → 그때는 애널리틱스 숫자
   const [비교, set비교] = useState(null)          // 📋 G315 소장님만 — 어제 건설맵이 센 수 · 애널리틱스 (fresh/vcmp/{어제})
-  const 그림 = useRef(null)
 
   useEffect(() => {
     let 살 = true
-    // ⏱ 적어 둔 자료로 바로 그릴 때는 바탕 그림도 바로 부름(새 자료를 기다리지 않게)
-    if (기억.자료) import('../data/한국지도.json').then((m) => { if (살) set바탕(m.default || m) }).catch(() => {})
     const 받기 = async () => {
       try {
         const [r, g, ss] = await Promise.all([fetch(지도주소, { cache: 'no-store' }), fetch(지역주소, { cache: 'no-store' }).catch(() => null),
@@ -115,8 +108,7 @@ export default function 이용자지도({ 작게 = false }) {
         const k = g && g.ok ? await g.json().catch(() => null) : null
         const se = ss && ss.ok ? await ss.json().catch(() => null) : null
         if (살) { set자료(j); set지역(k); if (se) set세션(se); set때(Date.now()); 기억쓰기('자료', j); 기억쓰기('지역', k); 기억쓰기('세션', se) }
-        if (j && 살) import('../data/한국지도.json').then((m) => { if (살) set바탕(m.default || m) }).catch(() => {})
-      } catch (e) { /* 인터넷 · 막힘 — 지도 없이 */ }
+      } catch (e) { /* 인터넷 · 막힘 — 숫자 없이 */ }
     }
     받기()
     const 틈 = setInterval(() => { if (document.visibilityState === 'visible') 받기() }, 3 * 60000)    /* G144 3분마다(자료는 10분마다 바뀜) */
@@ -124,9 +116,8 @@ export default function 이용자지도({ 작게 = false }) {
   }, [])
 
   /* 👥 G315 (2026-10-18) 소장님 「사이트 접속만 하면 세는 걸로 … 동일인은 한 번만」 「12시에 바뀌는 걸로」 「누적도 올라가는 걸로」
-     10/19 0시부터 누적 · 오늘 · 시·도 · 해외는 건설맵이 직접 센 수(lib/방문세기.js) — 1분마다 · 이 브라우저가 세어지면 바로 다시 읽음.
-     «지금(30분 안)» · 지도 점(오늘 다녀간 곳 · 지금)도 건설맵이 셈(소장님 「30분 안 숫자. 지역 숫자. 오늘 숫자. 누적 모두」 「점도 바꾸자」).
-     0시 전에는 아무것도 안 바뀜(전과 같은 화면). */
+     10/19 0시부터 누적 · 오늘 · 해외는 건설맵이 직접 센 수(lib/방문세기.js) — 1분마다 · 이 브라우저가 세어지면 바로 다시 읽음.
+     «지금(30분 안)» 도 건설맵이 셈(소장님 「30분 안 숫자. 지역 숫자. 오늘 숫자. 누적 모두」). */
   useEffect(() => {
     let 살 = true
     const 받기 = async () => {
@@ -157,171 +148,86 @@ export default function 이용자지도({ 작게 = false }) {
     return () => { 살 = false }
   }, [])
 
-  /* 그려진 크기를 재서 점 크기를 «픽셀» 로 맞춤 — 창 크기가 바뀌면 다시 */
-  useEffect(() => {
-    const el = 그림.current
-    if (!el) return
-    const 재기 = () => { const r = el.getBoundingClientRect(); if (r.width > 0) set화면({ w: r.width, h: r.height }) }
-    재기()
-    if (typeof ResizeObserver === 'undefined') { window.addEventListener('resize', 재기); return () => window.removeEventListener('resize', 재기) }
-    const ro = new ResizeObserver(재기)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [바탕, 자료, 작게, 펼침])   /* G160 작은 상자 ↔ 큰 지도로 바뀌면 그림이 바뀌므로 다시 잼 */
-
-  const 표 = useMemo(() => (바탕 ? 지도이름표(바탕.곳, 바탕.별) : null), [바탕])
-  /* 👥 G315 소장님 「점도 바꾸자. 다 하는게 좋지 않아...헷갈리잖아」 — 0시부터 점도 건설맵이 센 것(오늘 다녀간 곳 · 지금 30분) */
-  /* ⏱ 건설맵 숫자를 기다리는 중(적어 둔 것도 없음) — 애널리틱스 옛 숫자 · 점을 잠깐 보였다 바꾸지 않고 «…» */
+  /* ⏱ 건설맵 숫자를 기다리는 중(적어 둔 것도 없음) — 애널리틱스 옛 숫자를 잠깐 보였다 바꾸지 않고 «…» */
   const 기다림 = 직접인가(때) && !직접 && !직접못받음
-  const 점 = useMemo(() => (기다림 ? [] : 직접인가(때) && 직접 ? 직접점들(직접, 바탕, 때) : (표 && 자료 ? 지도점들(자료, 표, 때) : [])), [기다림, 표, 자료, 직접, 바탕, 때])
   const 줄들 = useMemo(() => (기다림 ? null : 직접인가(때) ? 직접줄들(지역, 직접, 때) : 지역줄들(지역, 때)), [기다림, 지역, 직접, 때])
-  if (!자료 || !바탕) return null
-  const 지금수 = 점.filter((x) => x.지금).length
+  if (!자료) return null
   const 새것 = typeof 자료.at === 'number' && 때 - 자료.at < 45 * 60000
   /* 👥 G315 0시부터 «지금(30분 안)» 도 건설맵이 셈(최근 30분 안에 «여기 있음» 을 남긴 브라우저) — 못 받으면 전처럼 애널리틱스 */
   const 직접지금 = 직접인가(때) && 직접 && typeof 직접.지금 === 'number' ? 직접.지금 : null
   const 지금사람 = 기다림 ? null : 직접지금 != null ? 직접지금 : (새것 && typeof 자료.n === 'number' ? 자료.n : null)
   const 늦음 = !기다림 && !새것 && 직접지금 == null      /* 자료가 늦다는 글은 숫자가 애널리틱스일 때만 */
   const 빈칸 = 기다림 ? '…' : '—'
-  const [w, h] = 바탕.vb
-  const 크기 = 지도점크기(w, h, 화면)
-  const 큰 = 줄들 && 줄들.줄.length ? Math.max(...줄들.줄.map((x) => x.a)) || 1 : 1
+  const 전국 = 줄들 && 줄들.전국
 
-  /* 🗺 G160 작은 상자 — 공고를 골라 온 화면(금액이 먼저) */
-  if (작게 && !펼침) {
-    const 많은셋 = 줄들 && 줄들.줄.length ? 줄들.줄.slice(0, 3) : []
+  /* 👥 G160 · G494 작은 상자 — 공고를 골라 온 화면(금액이 먼저): 한 줄 */
+  if (작게) {
     return (
-      <div className="card umap umap-mini">
-        <svg ref={그림} className="umap-svg" viewBox={`0 0 ${w} ${h}`} role="img" aria-label={`한국 지도 — 지금 K-건설맵을 쓰는 곳 ${지금수 ? '표시' : '없음'}`}>
-          {Object.entries(바탕.판).map(([k, d]) => <path key={k} d={d} className="umap-land" />)}
-          {점.map(({ p, 지금 }) => (
-            <g key={p.k} className={지금 ? 'umap-now' : 'umap-day'}>
-              {지금 > 0 && <circle cx={p.x} cy={p.y} r={크기.지금(지금) + 크기.고리} className="umap-ring" />}
-              <circle cx={p.x} cy={p.y} r={지금 ? 크기.지금(지금) : 크기.오늘}><title>{p.n}{지금 ? ' — 지금' : ' — 오늘'}</title></circle>
-            </g>
-          ))}
-        </svg>
+      <div className="card umap umap-mini umap-line">
         <div className="umap-mini-r">
-          <b className="umap-mini-t">🗺 지금 K-건설맵을 쓰는 곳</b>
-          <span className="umap-mini-n"><i className="umap-dot now" /> 지금 <b>{지금사람 != null ? <><수 v={지금사람} />명</> : 빈칸}</b>
-            {줄들 && 줄들.전국 && <> · 누적 <b><수 v={줄들.전국.a} />명</b> · 오늘 <b>+<수 v={줄들.전국.t} /></b></>}</span>
-          {많은셋.length > 0 && <span className="umap-mini-top">{많은셋.map((x) => `${x.n} ${쉼(x.a)}`).join(' · ')}{줄들.줄.length > 3 ? ' …' : ''}</span>}
-          {늦음 && 기준글(자료.at) && <span className="umap-late">자료 {기준글(자료.at)} 기준</span>}
-          <button type="button" className="umap-mini-b" onClick={() => { set펼침(true); try { localStorage.setItem(큰기억, '1') } catch (e) { /* 사생활 창 — 이번만 */ } 세기('|지도|크게') }}>지도 크게 보기 ▾</button>
+          <span className="umap-mini-n"><b className="umap-mini-t">👥 K-건설맵 방문자</b> · <i className="umap-dot now" /> 지금 <b>{지금사람 != null ? <><수 v={지금사람} />명</> : 빈칸}</b>
+            {전국 && <> · 누적 <b><수 v={전국.a} />명</b> · 오늘 <b>+<수 v={전국.t} /></b></>}
+            {늦음 && 기준글(자료.at) && <span className="umap-late"> · 자료 {기준글(자료.at)} 기준</span>}</span>
         </div>
-        {/* 넓은 화면(700px 넘음)은 남는 오른쪽에 많은 시·도 다섯 — 막대 · 누적 · 오늘 */}
-        {줄들 && 줄들.줄.length > 0 && (
-          <ol className="umap-rows umap-mini-reg" aria-label="시·도별 누적">
-            {줄들.줄.slice(0, 5).map((x) => (
-              <li key={x.n}>
-                <span className="umap-rn">{x.n}</span>
-                <span className="umap-bar"><i style={{ width: `${Math.max(2, (x.a / 큰) * 100)}%` }} /></span>
-                <span className="umap-ra"><수 v={x.a} />명</span>
-                <span className={'umap-rt' + (x.t > 0 ? ' up' : '')}>{x.t > 0 ? <>+<수 v={x.t} /></> : '·'}</span>
-              </li>
-            ))}
-          </ol>
-        )}
       </div>
     )
   }
 
   return (
-    <div className="card umap">
+    <div className="card umap umap-only">
       <div className="umap-head">
         <div className="umap-title">
-          <b>🗺 지금 K-건설맵을 쓰는 곳</b>
+          <b>👥 K-건설맵 방문자</b>
           {/* 📅 G151 소장님 「여기에 날짜가 없어」 — 오늘(한국) 날짜 · 요일 */}
           <span className="umap-open">{날글(개설일)} 문을 열었습니다 · 오늘 <b>{오늘글(때)}</b> · <b>{날째(때)}일째</b></span>
         </div>
-        <span className="umap-key"><i className="umap-dot now" /> 지금(30분 안) <i className="umap-dot day" /> 오늘 다녀간 곳
-          {작게 && <button type="button" className="umap-mini-b umap-less" onClick={() => { set펼침(false); try { localStorage.removeItem(큰기억) } catch (e) { /* 없음 */ } 세기('|지도|작게') }}>▴ 작게 보기</button>}
-        </span>
       </div>
-      <div className={'umap-body' + (기다림 || (줄들 && 줄들.줄.length) ? ' two' : '')}>
-        <div className="umap-mapcol">
-          <svg ref={그림} className="umap-svg" viewBox={`0 0 ${w} ${h}`} role="img" aria-label={`한국 지도 — 지금 K-건설맵을 쓰는 곳 ${지금수 ? '표시' : '없음'}, 오늘 다녀간 곳 표시`}
-               onClick={(e) => { if (e.target.tagName !== 'circle') set고른(null) }}>
-            {Object.entries(바탕.판).map(([k, d]) => <path key={k} d={d} className="umap-land" />)}
-            {점.map(({ p, 지금 }) => (
-              <g key={p.k} className={(지금 ? 'umap-now' : 'umap-day') + (고른 && 고른.p.k === p.k ? ' on' : '')} onClick={() => { set고른({ p, 지금 }); 누름세기() }}>
-                {지금 > 0 && <circle cx={p.x} cy={p.y} r={크기.지금(지금) + 크기.고리} className="umap-ring" />}
-                <circle cx={p.x} cy={p.y} r={지금 ? 크기.지금(지금) : 크기.오늘}>
-                  <title>{p.n}{지금 ? ' — 지금' : ' — 오늘'}</title>
-                </circle>
-              </g>
-            ))}
-          </svg>
+      {기다림 && (
+        <div className="umap-reg umap-wait" aria-busy="true">
+          <div className="umap-now-n"><i className="umap-dot now" /> 지금(30분 안) <b>…</b></div>
+          <div className="umap-tot"><span>전체 누적 <b>…</b></span><span className="umap-today">오늘 {오늘글(때, false)} <b>…</b></span></div>
         </div>
-        {기다림 && (
-          <div className="umap-reg umap-wait" aria-busy="true">
-            <div className="umap-now-n"><i className="umap-dot now" /> 지금(30분 안) <b>…</b></div>
-            <div className="umap-tot"><span>전체 누적 <b>…</b></span><span className="umap-today">오늘 {오늘글(때, false)} <b>…</b></span></div>
-            <div className="umap-reg-h"><span>시·도</span><span>숫자 받는 중 …</span></div>
-            <ol className="umap-rows">{[0, 1, 2, 3, 4, 5].map((i) => <li key={i}><span className="umap-rn">…</span><span className="umap-bar"><i style={{ width: '0%' }} /></span><span className="umap-ra">…</span><span className="umap-rt">·</span></li>)}</ol>
+      )}
+      {!기다림 && 전국 && (
+        <div className="umap-reg">
+          <div className="umap-now-n">
+            <i className="umap-dot now" /> 지금(30분 안) <b>{지금사람 != null ? <><수 v={지금사람} />명</> : '—'}</b>
+            {/* 🩹 G153 — 자료가 45분 넘게 멈추면 «아무것도 안 뜬다» 로 보였습니다(10/6 아침). 늦어진 것을 그대로 알립니다 */}
+            {늦음 && 기준글(자료.at) && <span className="umap-late">자료가 늦어지고 있습니다 · {기준글(자료.at)} 기준</span>}
           </div>
-        )}
-        {줄들 && 줄들.줄.length > 0 && (
-          <div className="umap-reg">
-            <div className="umap-now-n">
-              <i className="umap-dot now" /> 지금(30분 안) <b>{지금사람 != null ? <><수 v={지금사람} />명</> : '—'}</b>
-              {/* 🗺 G489 (11-01 소장님 «지도에 왜 표시가 안돼» — 지금 13명인데 점 6개) — 점은 «위치를 아는 국내 브라우저» 뿐(해외 · 위치 모름은 숫자에만) → 몇 곳이 점으로 찍혔는지 같이 */}
-              {지금사람 != null && 직접지금 != null && 지금수 < 지금사람 && <span className="umap-dots-n">· 지도에 {지금수}곳(해외 · 위치 모름은 점 없음)</span>}
-              {/* 🩹 G153 — 자료가 45분 넘게 멈추면 «지금» 점이 다 사라져 «아무것도 안 뜬다» 로 보였습니다(10/6 아침). 늦어진 것을 그대로 알립니다 */}
-              {늦음 && 기준글(자료.at) && <span className="umap-late">자료가 늦어지고 있습니다 · {기준글(자료.at)} 기준</span>}
-            </div>
-            {/* 🔁 2026-10-21 소장님 「세션 누적 세션 당일 이렇게 추가하자」 · 고르심 «표 꼴» — 10/22 0시부터 두 줄 표(방문자 = 사람 셈 그대로 · 세션 = 누적 · 오늘 · 어제)
-                · 그 전(오늘 밤까지)은 전과 같은 상자. 📅 G343 «어제» 는 큰 지도의 이 상자에만(작은 상자 · 다른 화면엔 안 넣음) */}
-            {(() => {
-              const 어제 = 직접인가(때) && 직접 && 직접.어제 && 직접.어제.날 === 한국날(때 - 86400000) ? 직접.어제 : null
-              const 세 = 세션줄(직접, 세션, 때)
-              if (!세) {
-                return (
-                  <div className="umap-tot">
-                    <span>{줄들.합계 ? '전체' : '전국'} 누적 <b><수 v={줄들.전국.a} />명</b></span>
-                    <span className="umap-today">오늘 {오늘글(때, false)} <b>+<수 v={줄들.전국.t} /></b></span>
-                    {어제 && <span className="umap-yday">어제 {오늘글(때 - 86400000, false)} <b><수 v={어제.n} />명</b></span>}
-                  </div>
-                )
-              }
-              const 칸 = (n, 단위, 앞 = '') => (n == null ? <b className="umap-no">—</b> : <b>{앞}<수 v={n} />{단위}</b>)
+          {/* 🔁 2026-10-21 소장님 「세션 누적 세션 당일 이렇게 추가하자」 · 고르심 «표 꼴» — 두 줄 표(방문자 = 사람 셈 그대로 · 세션 = 누적 · 오늘 · 어제) */}
+          {(() => {
+            const 어제 = 직접인가(때) && 직접 && 직접.어제 && 직접.어제.날 === 한국날(때 - 86400000) ? 직접.어제 : null
+            const 세 = 세션줄(직접, 세션, 때)
+            if (!세) {
               return (
-                <div className="umap-tbl" role="table" aria-label="방문자 · 세션 — 누적 · 오늘 · 어제">
-                  <div className="umap-tbl-h" role="row"><span role="columnheader" /><span role="columnheader">누적</span>
-                    <span role="columnheader">오늘 {오늘글(때, false)}</span><span role="columnheader">어제 {오늘글(때 - 86400000, false)}</span></div>
-                  <div className="umap-tbl-r" role="row"><span role="rowheader">방문자</span>{칸(줄들.전국.a, '명')}
-                    <span className="up">{칸(줄들.전국.t, '', '+')}</span>{칸(어제 ? 어제.n : null, '명')}</div>
-                  <div className="umap-tbl-r" role="row"><span role="rowheader">세션</span>{칸(세.누적, '회')}
-                    <span className="up">{칸(세.오늘, '회')}</span>{칸(세.어제, '회')}</div>
+                <div className="umap-tot">
+                  <span>{줄들.합계 ? '전체' : '전국'} 누적 <b><수 v={전국.a} />명</b></span>
+                  <span className="umap-today">오늘 {오늘글(때, false)} <b>+<수 v={전국.t} /></b></span>
+                  {어제 && <span className="umap-yday">어제 {오늘글(때 - 86400000, false)} <b><수 v={어제.n} />명</b></span>}
                 </div>
               )
-            })()}
-            <div className="umap-reg-h"><span>시·도</span><span>{날글(누적시작)}부터 누적 · 오늘({오늘글(때, false)})</span></div>
-            <ol className={'umap-rows' + (다봄 ? ' all' : '')}>
-              {줄들.줄.map((x) => (
-                <li key={x.n} onClick={누름세기}>
-                  <span className="umap-rn">{x.n}</span>
-                  <span className="umap-bar"><i style={{ width: `${Math.max(2, (x.a / 큰) * 100)}%` }} /></span>
-                  <span className="umap-ra"><수 v={x.a} />명</span>
-                  <span className={'umap-rt' + (x.t > 0 ? ' up' : '')}>{x.t > 0 ? <>+<수 v={x.t} /></> : '·'}</span>
-                </li>
-              ))}
-            </ol>
-            {줄들.줄.length > 6 && (     /* G145 소장님 「전국 누적 아래 접기 버튼 없어」 → 펴기 ↔ 접기 · G145b 「컴에서 접히면 이상하지 않아?」 → 단추는 폰에서만 보임(CSS) */
-              <button type="button" className="umap-more" aria-expanded={다봄} onClick={() => { set다봄((v) => !v); if (!다봄) 누름세기() }}>
-                {다봄 ? '▲ 접기' : `▼ 시·도 모두 보기 (${줄들.줄.length})`}
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-      <div className="umap-foot">
-        {고른
-          ? <span>📍 <b>{고른.p.n}</b> ({고른.p.d}) — {고른.지금 ? '지금 쓰는 중' : '오늘 다녀감'}</span>
-          : <span className="muted">{기다림 ? '지금 쓰는 곳을 받는 중 …' : 지금수 ? '점을 누르면 어느 도시인지 나옵니다.' : '지금은 조용합니다 — 옅은 점은 오늘 다녀간 곳입니다.'}</span>}
-        {/* 🩹 G315 소장님 「«구글 애널리틱스» 에서 «건설맵이 직접 셈 · 같은 브라우저 하루 한 번» ---- 삭제」 → 어디서 센 것인지 적은 글을 뺌 */}
-        {비교 && <span className="muted umap-src">📋 소장님만 · 어제({날글(비교.날).slice(6)}) 건설맵 {쉼(비교.me)}명 · 애널리틱스 {쉼(비교.ga)}명{typeof 비교.gs === 'number' && typeof 비교.ms === 'number' && 비교.ms > 0 && <> · 세션 건설맵 {쉼(비교.ms)}회 · 애널리틱스 {쉼(비교.gs)}회</>}</span>}
-      </div>
+            }
+            const 칸 = (n, 단위, 앞 = '') => (n == null ? <b className="umap-no">—</b> : <b>{앞}<수 v={n} />{단위}</b>)
+            return (
+              <div className="umap-tbl" role="table" aria-label="방문자 · 세션 — 누적 · 오늘 · 어제">
+                <div className="umap-tbl-h" role="row"><span role="columnheader" /><span role="columnheader">누적</span>
+                  <span role="columnheader">오늘 {오늘글(때, false)}</span><span role="columnheader">어제 {오늘글(때 - 86400000, false)}</span></div>
+                <div className="umap-tbl-r" role="row"><span role="rowheader">방문자</span>{칸(전국.a, '명')}
+                  <span className="up">{칸(전국.t, '', '+')}</span>{칸(어제 ? 어제.n : null, '명')}</div>
+                <div className="umap-tbl-r" role="row"><span role="rowheader">세션</span>{칸(세.누적, '회')}
+                  <span className="up">{칸(세.오늘, '회')}</span>{칸(세.어제, '회')}</div>
+              </div>
+            )
+          })()}
+        </div>
+      )}
+      {비교 && (
+        <div className="umap-foot">
+          {/* 🩹 G315 소장님 「«구글 애널리틱스» 에서 «건설맵이 직접 셈 · 같은 브라우저 하루 한 번» ---- 삭제」 → 어디서 센 것인지 적은 글을 뺌 */}
+          <span className="muted umap-src">📋 소장님만 · 어제({날글(비교.날).slice(6)}) 건설맵 {쉼(비교.me)}명 · 애널리틱스 {쉼(비교.ga)}명{typeof 비교.gs === 'number' && typeof 비교.ms === 'number' && 비교.ms > 0 && <> · 세션 건설맵 {쉼(비교.ms)}회 · 애널리틱스 {쉼(비교.gs)}회</>}</span>
+        </div>
+      )}
     </div>
   )
 }
