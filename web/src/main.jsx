@@ -119,6 +119,7 @@ const ShareOne = lazyPage(() => import('./pages/ShareOne.jsx'))
 const Pdf = lazyPage(() => import('./pages/Pdf.jsx'))
 const PhotoBook = lazyPage(() => import('./pages/PhotoBook.jsx'))
 const PhotoLive = lazyPage(() => import('./pages/PhotoLive.jsx'))   /* 📡 G493 실시간 사진대지 — 폰에서 찍으면 PC 에 바로 */
+const NakchalSet = lazyPage(() => import('./pages/NakchalSet.jsx'))   /* 🏁 G499 낙찰 서류 한 벌 */
 const SigongPlan = lazyPage(() => import('./pages/SigongPlan.jsx'))
 const Jungcheo = lazyPage(() => import('./pages/Jungcheo.jsx'))   /* 🛡 2026-10-17 중대재해 안전보건관리체계 한 벌(잠김 · 예시) */
 const SafeCard = lazyPage(() => import('./pages/SafeCard.jsx'))   /* 🌏 2026-10-22 현장 다국어 안전카드 */
@@ -244,6 +245,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
                  NotFound 는 noindex 를 겁니다 (CLAUDE.md soft 404). 반드시 짝을 맞춥니다. */}
           <Route path="/change/naeyeok/:kind" element={<Suspense fallback={<Loading />}><ChangeNaeyeok /></Suspense>} />
           <Route path="/change/:slug" element={<Suspense fallback={<Loading />}><ChangeTopic /></Suspense>} />
+          <Route path="/forms/hanbeol" element={<Suspense fallback={<Loading />}><NakchalSet /></Suspense>} />
           <Route path="/forms/:slug" element={<Suspense fallback={<Loading />}><FormPage /></Suspense>} />
           {/* 🧰 도구 — 목록과 개별 주소. prerender.py 가 같은 주소로 HTML 을 굽습니다 (2026-09-14) */}
           <Route path="/lic" element={<Suspense fallback={<Loading />}><LicStat /></Suspense>} />

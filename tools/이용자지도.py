@@ -374,6 +374,84 @@ def 공동정리(ctx, dry=False):
     return len(옛)
 
 
+# ── 👥 G499 (2026-11-01) 경쟁 관심도 — 마감이 지난 공고의 «고른 자리» 를 묶어 공개(web/src/lib/관심도.js) ──
+#   소장님 바로투찰 아이디어 ① · 마감 전엔 금액 자리를 아무도 못 읽음(bc/q .read 없음) → 마감 뒤 여기서 분위별 수만 fresh/bcq 로 · 낱개는 지움.
+#   마감 c 는 이용자 브라우저가 적은 값 — 가장 많이 적힌 값(같으면 늦은 쪽)을 씀(한 사람이 이른 마감을 적어 일찍 열게 하지 못하게).
+def 지금12(때=None):
+    t = 때 or 지금()
+    return int(t.strftime("%Y%m%d%H%M"))
+
+
+def 마감고르기(cs):
+    cs = [int(c) for c in cs if isinstance(c, (int, float)) and 202601010000 <= c <= 209912312359]
+    if not cs:
+        return None
+    셈 = {}
+    for c in cs:
+        셈[c] = 셈.get(c, 0) + 1
+    return max(셈.items(), key=lambda kv: (kv[1], kv[0]))[0]
+
+
+def 관심묶기(no, q들, p수, 지금값):
+    """q들: {번호: {q, c, t}} · p수: 본 사람 수 · 지금값: yyyymmddHHMM → (공개 값 | None(아직 마감 전)) — 순수(시험)"""
+    c = 마감고르기([(v or {}).get("c") for v in (q들 or {}).values() if isinstance(v, dict)])
+    if c is None or c > 지금값:
+        return None
+    h = {}
+    n = 0
+    for v in (q들 or {}).values():
+        q = (v or {}).get("q") if isinstance(v, dict) else None
+        if isinstance(q, (int, float)) and 0 <= q <= 100 and float(q).is_integer():
+            h[str(int(q))] = h.get(str(int(q)), 0) + 1
+            n += 1
+    return {"n": n, "h": h, "p": int(p수 or 0), "c": c}
+
+
+def 관심정리(ctx, dry=False):
+    """bc/q · bc/p 중 마감이 지난 공고를 묶어 fresh/bcq/{앞 8자}/{공고번호} 로 · 낱개는 지움 — 한 번에 200공고까지 · 묶은 수"""
+    tok = ctx["tok"]
+    머리 = {"Authorization": "Bearer " + tok}
+    지금값 = 지금12()
+    def 얕게(길):
+        r = requests.get(f"{DB}/{길}.json", params={"shallow": "true"}, headers=머리, timeout=20)
+        if r.status_code != 200:
+            raise RuntimeError(f"데이터베이스({길}) HTTP {r.status_code} {r.text[:120]}")
+        return r.json() or {}
+    공고들 = [k for k in 얕게("bc/q") if re.match(r"^[A-Za-z0-9-]{6,30}$", k)][:200]
+    본공고 = [k for k in 얕게("bc/p") if re.match(r"^[A-Za-z0-9-]{6,30}$", k)]
+    몸 = {}
+    묶음 = 0
+    for no in 공고들:
+        q들 = requests.get(f"{DB}/bc/q/{no}.json", headers=머리, timeout=20).json() or {}
+        p수 = len(얕게(f"bc/p/{no}")) if no in 본공고 else 0
+        v = 관심묶기(no, q들, p수, 지금값)
+        if v is None:
+            continue
+        v["at"] = int(지금().timestamp() * 1000)
+        몸[f"fresh/bcq/{no[:8]}/{no}"] = v
+        몸[f"bc/q/{no}"] = None
+        몸[f"bc/p/{no}"] = None
+        묶음 += 1
+    # 금액 자리를 아무도 안 남긴 공고(보기만) — 마감이 지났으면 본 사람 수만 남기고 지움
+    남은 = [k for k in 본공고 if k not in 공고들][:300]
+    for no in 남은:
+        p들 = requests.get(f"{DB}/bc/p/{no}.json", headers=머리, timeout=20).json() or {}
+        c = 마감고르기([(v or {}).get("c") for v in p들.values() if isinstance(v, dict)])
+        if c is None or c > 지금값:
+            continue
+        몸[f"fresh/bcq/{no[:8]}/{no}"] = {"n": 0, "h": {}, "p": len(p들), "c": c, "at": int(지금().timestamp() * 1000)}
+        몸[f"bc/p/{no}"] = None
+        묶음 += 1
+    if 몸 and not dry:
+        r = requests.patch(f"{DB}/.json", headers={**머리, "Content-Type": "application/json"},
+                           data=json.dumps(몸, ensure_ascii=False).encode("utf-8"), timeout=30)
+        if r.status_code != 200:
+            raise RuntimeError(f"데이터베이스(관심 묶기) HTTP {r.status_code} {r.text[:120]}")
+    if 묶음:
+        적기(f"  · 경쟁 관심도 마감 지난 공고 {묶음}건 묶어 공개")
+    return 묶음
+
+
 def _해외요청(tok):
     r = requests.post(
         f"https://analyticsdata.googleapis.com/v1beta/properties/{GA_PROPERTY}:runReport",
@@ -664,6 +742,12 @@ def 한번(ctx, dry=False):
         지역넣기(ctx, dry)
     except Exception as e:
         적기(f"  ! 지역 못 했습니다 ({type(e).__name__}: {str(e)[:200]})")
+    if time.time() - ctx.get("bc_t", 0) >= 1800:          # 👥 G499 경쟁 관심도 — 30분에 한 번 · 지도와 따로 실패
+        ctx["bc_t"] = time.time()
+        try:
+            관심정리(ctx, dry)
+        except Exception as e:
+            적기(f"  ! 경쟁 관심도 묶기 못 했습니다 ({type(e).__name__}: {str(e)[:200]})")
     if time.time() - ctx.get("jv_t", 0) >= 3600:          # 🤝 G341 공동도급 마당 끝난 글 — 한 시간에 한 번 · 지도와 따로 실패
         ctx["jv_t"] = time.time()
         try:

@@ -138,7 +138,7 @@ async function 보내기(길들, 지금) {
   } finally { 보내는수-- }
 }
 let 운영자 = null
-async function 운영자인가() {
+export async function 운영자인가() {
   if (운영자 === null) {
     try { const o = await import('./운영자.js'); 운영자 = !!(await o.나운영자()) } catch (e) { 운영자 = false }
   }
@@ -276,7 +276,7 @@ export async function 방문보기(지금 = Date.now()) {
 const 번호열쇠 = 'kcm.vis.id'
 export const 숨틈 = 5 * 60000
 export const 지금틈 = 30 * 60000
-function 내번호() {
+export function 내번호() {   /* 📡 G499 관심도(lib/관심도.js)도 같은 번호 */
   try {
     let v = localStorage.getItem(번호열쇠)
     if (!/^[a-z0-9]{16}$/.test(v || '')) {

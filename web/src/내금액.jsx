@@ -8,9 +8,53 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { 넣은of, 넣은적기, 넣은지우기, 넣은결과남기기, 내성적, 넣은모음, 넣은금액이름 } from './lib/넣은금액.js'
-import { getResults } from './lib/data.js'
+import { getResults, getOverview } from './lib/data.js'
 import { 세기 } from './lib/받은수.jsx'
 import { won } from './lib/fmt.js'
+import { 복기, 성향 } from './lib/개찰복기.js'   /* 🧭 G499 개찰 복기 */
+import { 기관사정률받기 } from './lib/기관사정률.js'
+import { P50_FALLBACK } from './lib/bidmath.js'
+import { Link } from 'react-router-dom'
+import { 한벌주소 } from './lib/낙찰한벌.js'   /* 🏁 G499 낙찰 서류 한 벌 */
+
+/* 전국 사정률 가운데값 — 바로투찰 분위와 같은 바탕(ov.sjq.p50) */
+function useP50() {
+  const [p50, setP50] = useState(P50_FALLBACK)
+  useEffect(() => { let 살 = true; getOverview().then((ov) => { const v = ov?.sjq?.p50; if (살 && v) setP50(Number(v)) }).catch(() => {}); return () => { 살 = false } }, [])
+  return p50
+}
+
+/** 🧭 G499 복기 칸 — 소장님 바로투찰 아이디어 ③ «왜 떨어졌나 · 다음엔» (숫자로 말할 수 있는 것만 · lib/개찰복기.js) */
+export function 복기칸({ r, 성, 금액, p50 }) {
+  const [기관, set기관] = useState(null)
+  const [편다, set편다] = useState(true)
+  useEffect(() => {
+    let 살 = true
+    if (r && r.inst) 기관사정률받기(r.inst).then((v) => { if (살) set기관(v || null) }).catch(() => {})
+    return () => { 살 = false }
+  }, [r && r.inst])   // eslint-disable-line react-hooks/exhaustive-deps
+  const b = useMemo(() => { try { return 복기(성, r, 금액, p50, 기관) } catch (e) { return null } }, [성, r, 금액, p50, 기관])
+  const 셌음 = useRef(false)
+  useEffect(() => { if (b && !셌음.current) { 셌음.current = true; 세기('|내금액|복기') } }, [b])
+  if (!b) return null
+  const 머리 = { 사정률: '🎲', 자리: '📍', 참가: '👥', 배움: '💡' }
+  return (
+    <div className="ngm-bk">
+      <button type="button" className="ngm-bk-h" onClick={() => set편다(!편다)} aria-expanded={편다}>🧭 복기 — 왜 이 자리였나 {편다 ? '▴' : '▾'}</button>
+      {편다 && (
+        <>
+          <ul className="ngm-bk-l">{b.줄들.map((x) => <li key={x.k}><span className="ngm-bk-i">{머리[x.k]}</span>{x.글}</li>)}</ul>
+          <div className="ngm-bk-bar" role="img" aria-label={`0~100분위 — 실격 · 1순위 자리 ${Math.round(b.자리.실격선)}~${Math.round(b.자리.일순끝)}분위 · 내 자리 ${Math.round(b.내분위)}분위`}>
+            <i className="ngm-bk-dq" style={{ width: `${b.자리.실격선}%` }} />
+            <i className="ngm-bk-win" style={{ left: `${b.자리.실격선}%`, width: `${Math.max(0.8, b.자리.일순끝 - b.자리.실격선)}%` }} />
+            <b className="ngm-bk-me" style={{ left: `${Math.min(99, Math.max(1, b.내분위))}%` }} title={`내 자리 ${Math.round(b.내분위)}분위`} />
+          </div>
+          <div className="ngm-bk-key muted"><span><i className="k dq" />실격 자리</span><span><i className="k win" />1순위 자리</span><span><i className="k me" />내 금액</span><span>0 ← 분위 → 100</span></div>
+        </>
+      )}
+    </div>
+  )
+}
 
 const 쉼표 = (v) => { const n = Number(String(v ?? '').replace(/[^0-9]/g, '')) || 0; return n > 0 ? n.toLocaleString('ko-KR') : '' }
 const 숫자 = (v) => Number(String(v ?? '').replace(/[^0-9]/g, '')) || 0
@@ -60,11 +104,14 @@ export default function 내금액({ no, 이름 = '', 금액 = 0, r = null, corps
   const [칸, set칸] = useState('')
   const 셌음 = useRef('')
   const 성 = useMemo(() => (r && 적은 ? 내성적(r, 적은.a, corps) : null), [r, 적은, corps])
+  const p50 = useP50()
   useEffect(() => {
     if (!성 || !no) return
-    넣은결과남기기(no, 성)
+    let 더 = null
+    try { const b = 복기(성, r, 적은 && 적은.a, p50); if (b) 더 = b.요약 } catch (e) { /* 복기 없이 */ }
+    넣은결과남기기(no, 성, 더)
     if (셌음.current !== String(no)) { 셌음.current = String(no); 세기('|내금액|봄') }
-  }, [성, no])
+  }, [성, no, p50])   // eslint-disable-line react-hooks/exhaustive-deps
   if (!no) return null
   const 열기 = () => { set칸(쉼표(적은 ? 적은.a : 금액)); set연다(true) }
   const 적기 = () => {
@@ -95,7 +142,10 @@ export default function 내금액({ no, 이름 = '', 금액 = 0, r = null, corps
               <button type="button" className="linkbtn" onClick={지우기}>지우기</button>
             </span>
           </div>
-          {r ? <내결과 성={성} 금액={적은.a} />
+          {r ? <><내결과 성={성} 금액={적은.a} /><복기칸 r={r} 성={성} 금액={적은.a} p50={p50} />
+              {성 && (성.상태 === '일순' || 성.상태 === '같음') && (
+                <Link className="btn sm ngm-hanbeol" to={한벌주소({ no, 이름: 이름 || r.name, 발주: r.inst, 금액: 적은.a })} onClick={() => 세기('|내금액|한벌')}>🏁 낙찰 서류 한 벌 열기 — 공사명 · 발주 · 계약금액이 채워진 채로</Link>
+              )}</>
             : <div className="ngm-note muted">개찰이 끝나면 «1순위» 탭에서 이 공고를 펼치면 몇 위였는지 · 1순위와 얼마 차이인지 바로 보입니다(⭐ 담아 두면 1순위가 나올 때 알림).</div>}
         </>
       ) : 연다 ? 입력 : (
@@ -120,8 +170,9 @@ export function 내금액모음() {
     window.addEventListener('storage', 다시)
     return () => { window.removeEventListener(넣은금액이름, 다시); window.removeEventListener('storage', 다시) }
   }, [])
-  /* 아직 셈 안 된 줄 — 최근 7일 개찰 색인에 있으면 거기서 셈(한 번만 받음) */
-  const 안본 = 모음.줄.filter((x) => !x.o).map((x) => x.no)
+  /* 아직 셈 안 된 줄 — 최근 7일 개찰 색인에 있으면 거기서 셈(한 번만 받음) · 🧭 G499 복기 요약(분위)이 없는 줄도 */
+  const 안본 = 모음.줄.filter((x) => !x.o || (x.o.s !== '모름' && typeof x.o.q !== 'number')).map((x) => x.no)
+  const p50 = useP50()
   useEffect(() => {
     if (!안본.length) return
     let 살아 = true
@@ -132,11 +183,16 @@ export function 내금액모음() {
         if (!Array.isArray(a)) continue
         const r = 줄로(d.f, a)
         const x = 넣은of(no)
-        if (x) 넣은결과남기기(no, 내성적(r, x.a, r.amts))
+        if (!x) continue
+        const 성 = 내성적(r, x.a, r.amts)
+        let 더 = null
+        try { const b = 복기(성, r, x.a, p50); if (b) 더 = b.요약 } catch (e) { /* 복기 없이 */ }
+        넣은결과남기기(no, 성, 더)
       }
     }).catch(() => { /* 못 받으면 그대로 */ })
     return () => { 살아 = false }
-  }, [안본.join('|')])   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [안본.join('|'), p50])   // eslint-disable-line react-hooks/exhaustive-deps
+  const 내성향 = useMemo(() => 성향(모음.줄), [모음])
   useEffect(() => { if (모음.셈.적음 && !셌음.current) { 셌음.current = true; 세기('|내금액|모아봄') } }, [모음.셈.적음])
   const { 셈, 줄 } = 모음
   if (!셈.적음) return null
@@ -148,12 +204,15 @@ export function 내금액모음() {
         <span>📝 내가 적어 둔 금액 <b>{셈.적음}건</b> — 개찰 확인 {셈.봄}건: 1순위 <b>{셈.일순}</b> · 하한 통과 <b>{셈.통과}</b> · 실격 <b>{셈.실격}</b>{셈.모름 ? <> · 셀 수 없음 {셈.모름}</> : null}</span>
         <button type="button" className="linkbtn" onClick={() => { set편다(!편다); if (!편다) 세기('|내금액|모아펼침') }}>{편다 ? '접기' : '하나씩 보기'}</button>
       </div>
+      {내성향 && (   /* 🧭 G499 성향 — 분위를 아는 3건 이상 */
+        <div className="ngm-trend">🧭 <b>내 성향</b> — 분위를 아는 {내성향.n}건 · 평균 <b>{Math.round(내성향.평균)}분위</b> · 실격 {내성향.실격} · 1순위 {내성향.일순} · 밀림 {내성향.밀림}<br /><span className="muted">{내성향.말}</span></div>
+      )}
       {편다 && (
         <ul className="ngm-list">
           {줄.slice(0, 30).map((x) => (
             <li key={x.no}>
               <a href={`/notice/${encodeURIComponent(x.no)}`}>{x.n || x.no}</a>
-              <span className="muted"> · {won(x.a)} · </span><b>{말(x.o)}</b>
+              <span className="muted"> · {won(x.a)} · </span><b>{말(x.o)}</b>{x.o && typeof x.o.q === 'number' ? <span className="muted"> · {Math.round(x.o.q)}분위{typeof x.o.lo === 'number' ? ` (1순위 자리 ${Math.round(x.o.lo)}~${Math.round(x.o.hi)})` : ''}</span> : null}
               {x.o && typeof x.o.d === 'number' && x.o.s !== '실격' ? <span className="muted"> ({x.o.d < 0 ? '−' : '+'}{won(Math.abs(x.o.d))})</span> : null}
             </li>
           ))}

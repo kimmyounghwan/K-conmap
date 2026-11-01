@@ -467,6 +467,38 @@
     //    묶음은 JSON 글자 한 덩이(rows/{first|live}/{i}) · 목록표(meta/{first|live}) = {at, built, n, p, h}
     "fresh": { ".read": true, ".write": false },
 
+    // 👥 G499 (2026-11-01) 경쟁 관심도 — lib/관심도.js · 소장님 바로투찰 아이디어 ① (마감 전 «금액 자리» 는 화면에서 못 읽음 — 신뢰 · 공정)
+    //    bc/p/{공고번호}/{브라우저 번호 16자} = {t 서버 시각, c 마감 yyyymmddHHMM} — 처음 한 번만 · 공고마다 읽기(목록 전체는 못 읽음)
+    //    bc/q/{공고번호}/{브라우저 번호} = {q 분위 0~100 정수, c 마감, t} — .read 없음(화면 · 운영자 화면 못 읽음) · 마감 뒤 깃허브 30분 작업(tools/이용자지도.py 관심정리)이
+    //    묶어 fresh/bcq/{공고번호 앞 8자}/{공고번호} = {n, h, p, c} 로 공개하고 낱개(bc/q · bc/p)는 지움
+    //    ⚠️ 분위 «정수» 는 규칙에서 안 봄(규칙 식의 % 지원이 문서로 확인 안 됨 → 배포 실패 막음) — 묶는 쪽(관심묶기)이 정수 아닌 것은 버림
+    "bc": {
+      "p": {
+        "$no": {
+          ".read": true,
+          "$id": {
+            ".write": "!data.exists() && newData.exists() && $no.matches(/^[A-Za-z0-9-]{6,30}$/) && $id.matches(/^[a-z0-9]{16}$/)",
+            ".validate": "newData.hasChildren(['t','c'])",
+            "t": { ".validate": "newData.isNumber() && newData.val() === now" },
+            "c": { ".validate": "newData.isNumber() && newData.val() >= 202601010000 && newData.val() <= 209912312359" },
+            "$other": { ".validate": false }
+          }
+        }
+      },
+      "q": {
+        "$no": {
+          "$id": {
+            ".write": "newData.exists() && $no.matches(/^[A-Za-z0-9-]{6,30}$/) && $id.matches(/^[a-z0-9]{16}$/)",
+            ".validate": "newData.hasChildren(['q','c','t'])",
+            "q": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
+            "c": { ".validate": "newData.isNumber() && newData.val() >= 202601010000 && newData.val() <= 209912312359" },
+            "t": { ".validate": "newData.isNumber() && newData.val() === now" },
+            "$other": { ".validate": false }
+          }
+        }
+      }
+    },
+
     // 🔔 2026-10-01 (G97) 다시 오게 — 소장님 「내 지역·면허를 한 번 정하면 … 관심 공고 결과가 나오면 알림을 보냅니다」
     //    watch/{공고번호}/{번호} = {at, t}         ☆ 담은 공고 — 1순위가 나오면 함수(freshNotify)가 한 번 알리고 지웁니다
     //    watch_cond/{번호}      = {rg, lic, none, at} 📍 내 조건 — 하루 두 번(8시 · 13시) 새 공고를 묶어 알림

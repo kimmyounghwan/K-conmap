@@ -305,5 +305,38 @@ _n = M.조회넣기({"tok": "tok"}, dry=True)
 봄("조회넣기 — 0시 뒤엔 애널리틱스에 10-20 까지만 물음 · fresh/pv 에 to 적음",
   _보낸요청 and _보낸요청[-1]["dateRanges"][0]["endDate"] == "2026-10-20" and _n["pv"]["to"] == "2026-10-20", (_보낸요청[-1:], _n["pv"]))
 M.지금 = _진짜지금
+
+# 👥 G499 경쟁 관심도 — 마감 지난 공고만 묶어 공개 · 마감은 가장 많이 적힌 값(한 사람이 이른 마감을 적어도 안 열림)
+봄("마감고르기 — 가장 많이 · 같으면 늦은 쪽 · 이상한 값은 뺌",
+  M.마감고르기([202611021000, 202611021000, 202610010000]) == 202611021000 and M.마감고르기([202611021000, 202611031000]) == 202611031000
+  and M.마감고르기([None, "x", 1]) is None)
+_q = {"aaaaaaaaaaaaaaa1": {"q": 75, "c": 202611021000, "t": 1}, "aaaaaaaaaaaaaaa2": {"q": 75, "c": 202611021000, "t": 2},
+      "aaaaaaaaaaaaaaa3": {"q": 40, "c": 202611021000, "t": 3}, "aaaaaaaaaaaaaaa4": {"q": 55.5, "c": 202611021000, "t": 4},
+      "aaaaaaaaaaaaaaa5": {"q": 90, "c": 202610010000, "t": 5}}
+봄("관심묶기 — 마감 전이면 None", M.관심묶기("R26BK0000001", _q, 9, 202611020959) is None)
+_v = M.관심묶기("R26BK0000001", _q, 9, 202611021000)
+봄("관심묶기 — 마감 지나면 분위별 수(정수만) · 본 사람 · 마감", _v == {"n": 4, "h": {"75": 2, "40": 1, "90": 1}, "p": 9, "c": 202611021000}, _v)
+봄("관심묶기 — 한 사람이 이른 마감(10-01)을 적어도 다수의 마감(11-02 10:00)이 기준", M.관심묶기("R26BK0000001", _q, 9, 202610020000) is None)
+보낸.clear()
+def 가짜get_bc(url, **k):
+    if url.endswith("/bc/q.json"): return 답(200, {"R26BK0000001": True, "R26BK0000002": True})
+    if url.endswith("/bc/p.json"): return 답(200, {"R26BK0000001": True, "R26BK0000003": True, "R26BK0000004": True})
+    if url.endswith("/bc/q/R26BK0000001.json"): return 답(200, _q)
+    if url.endswith("/bc/q/R26BK0000002.json"): return 답(200, {"bbbbbbbbbbbbbbb1": {"q": 60, "c": 209912312359, "t": 1}})
+    if url.endswith("/bc/p/R26BK0000001.json"): return 답(200, {"aaaaaaaaaaaaaaa1": True, "x": True})
+    if url.endswith("/bc/p/R26BK0000003.json"): return 답(200, {"c1": {"t": 1, "c": 202610311000}, "c2": {"t": 2, "c": 202610311000}})
+    if url.endswith("/bc/p/R26BK0000004.json"): return 답(200, {"d1": {"t": 1, "c": 209912312359}})
+    return 답(200, None)
+M.requests.get = 가짜get_bc
+M.지금 = lambda: datetime(2026, 11, 2, 10, 30, tzinfo=KST)
+_n = M.관심정리({"tok": "tok"})
+_몸 = [_j.loads(d.decode("utf-8")) for u, d in 보낸 if u.endswith("/.json")]
+_m = _몸[0] if _몸 else {}
+봄("관심정리 — 마감 지난 1 · 보기만 한 3 은 공개 · 마감 전 2 · 4 는 그대로 · 낱개 지움",
+  _n == 2 and _m.get("fresh/bcq/R26BK000/R26BK0000001", {}).get("n") == 4 and _m["fresh/bcq/R26BK000/R26BK0000001"]["p"] == 2
+  and _m.get("bc/q/R26BK0000001", 1) is None and _m.get("bc/p/R26BK0000001", 1) is None
+  and _m.get("fresh/bcq/R26BK000/R26BK0000003", {}).get("p") == 2 and _m["fresh/bcq/R26BK000/R26BK0000003"]["n"] == 0 and _m.get("bc/p/R26BK0000003", 1) is None
+  and not any("0000002" in k or "0000004" in k for k in _m), (_n, _m))
+M.지금 = _진짜지금
 print("✓ 모두 맞음" if not 틀림 else f"✗ {틀림}개 틀림")
 sys.exit(1 if 틀림 else 0)

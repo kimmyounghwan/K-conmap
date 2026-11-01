@@ -54,13 +54,15 @@ export function 넣은지우기(no) {
   delete m[String(no || '')]
   return 남기기(m)
 }
-/** 셈한 결과를 그 줄에 붙여 둠(같으면 안 씀) */
-export function 넣은결과남기기(no, 성) {
+/** 셈한 결과를 그 줄에 붙여 둠(같으면 안 씀) · 🧭 G499 더 = 복기 요약 {q 내 분위, lo 실격선, hi 1순위 자리 끝} — 성향(lib/개찰복기.js) */
+export function 넣은결과남기기(no, 성, 더 = null) {
   const k = String(no || '')
   const m = 넣은들()
   if (!m[k] || !성) return
   if (성.상태 === '모름' && !성.예정) return     /* 개찰 자료가 아직 없는 «모름» 은 안 남김(개찰 전) · 하한을 몰라 못 센 «모름» 은 남김(🩹 G339) */
   const o = { s: 성.상태, k: 성.순위 ? 성.순위[0] : null, k2: 성.순위 ? 성.순위[1] : null, d: 성.차이 }
+  if (더 && typeof 더.q === 'number') { o.q = 더.q; o.lo = 더.lo; o.hi = 더.hi }
+  else if (m[k].o && typeof m[k].o.q === 'number' && m[k].o.s === o.s) { o.q = m[k].o.q; o.lo = m[k].o.lo; o.hi = m[k].o.hi }   /* 복기를 못 센 화면이 지우지 않게 */
   if (JSON.stringify(m[k].o) === JSON.stringify(o)) return
   m[k] = { ...m[k], o }
   남기기(m)

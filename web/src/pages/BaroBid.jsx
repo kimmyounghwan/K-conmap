@@ -12,7 +12,10 @@ import { bidAmount, limitAmount, limitRate, r3, c3,
          sjSigma, recommend, buildScen, missingOf, isReady,
          digits, toNum, P50_FALLBACK, shownBid, passProb, QTILES, QTILE_N, quantileBid,
          smartBid, autoRule, canBid, nowStamp, stamp14, lowerLimit,
-         rankBracket, pcLine } from '../lib/bidmath.js'
+         rankBracket, pcLine, enpWhy } from '../lib/bidmath.js'
+import { 관심남기기, 자리남기기, 관심읽기 } from '../lib/관심도.js'   /* 👥 G499 경쟁 관심도(마감 전엔 «몇 명» 만) */
+import { 기관사정률받기 } from '../lib/기관사정률.js'   /* 📄 G499 품의서 — 기관 최근 사정률 */
+import 바로투찰사용법 from '../바로투찰사용법.jsx'   /* 📖 G499 */
 import { loadBasket, toggleBasket } from '../lib/basket.js'
 /* 🤝 공동도급 (2026-09-27) — 공고 탭과 같은 판정(lib/공동.js)·같은 딱지 */
 import { load우리지역 } from '../lib/공동.js'
@@ -322,6 +325,9 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
   const 직접칸으로 = () => { setTimeout(() => { try { 직접칸.current && 직접칸.current.focus() } catch (er) { /* 없음 */ } }, 0) }
   const [went, setWent] = useState(false)   // «복사하고 나라장터 열기» 를 눌렀나 (돌아왔을 때 보이라고 길게 둡니다)
   const [linked, setLinked] = useState(false)      // 「주소 복사」 눌렀나
+  const [관심, set관심] = useState(null)        // 👥 G499 {n, 시간, 오늘} — 건설맵에서 이 공고 금액을 본 사람(마감 전엔 수만)
+  const [품중, set품중] = useState('')           // 📄 G499 품의서 만드는 중 글
+  const [품오류, set품오류] = useState('')
   const [bag, setBag] = useState(loadBasket)      // ⭐ 담은 공고 (브라우저 저장)
   const [sjPick, setSjPick] = useState(null)   // 사정률 후보를 직접 고른 경우
   const seeded = useRef(false)
@@ -838,9 +844,57 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
     try { navigator.clipboard?.writeText(text) } catch { /* noop */ }
     return ok
   }
+  /* 👥 G499 경쟁 관심도 — 공고를 고르면 «봤다» 한 번(마감 전 · 금액 없음) · 본 사람 수는 1분마다 */
+  useEffect(() => {
+    set관심(null)
+    const no = picked?.no
+    if (!no) return undefined
+    let 살 = true
+    const 읽 = () => 관심읽기(no).then((v) => { if (살) set관심(v) }).catch(() => {})
+    관심남기기(no, picked?.close).catch(() => {}).finally(읽)
+    const t = setInterval(() => { if (document.visibilityState === 'visible') 읽() }, 60000)
+    return () => { 살 = false; clearInterval(t) }
+  }, [picked?.no])   // eslint-disable-line react-hooks/exhaustive-deps
+  /* 👥 G499 고른 자리(분위)를 남김 — 마감 전엔 화면 어디서도 못 읽고(규칙 — 깃허브 작업만 마감 뒤 묶으려 읽음) 마감 뒤 묶여 «이용자들이 고른 자리» 로만 공개 · 복사 · 나라장터 · 넣은 금액 적기 때 */
+  const 자리적기 = () => { try { if (picked?.no && pp && pp.p >= 0) 자리남기기(picked.no, picked.close, pp.p * 100) } catch (e) { /* 없음 */ } }
   const copy = () => {
     putClip(String(main))
     setCopied(true); setTimeout(() => setCopied(false), 1600)
+    자리적기()
+  }
+  /* 📄 G499 투찰 품의서 — 화면이 셈한 숫자 그대로 한 장(lib/투찰품의서.js) · 소장님 바로투찰 아이디어 ② */
+  const 품의서받기 = async () => {
+    if (!picked || !(main > 0)) return
+    set품중('품의서 만드는 중…'); set품오류('')
+    try {
+      const 기관 = picked.inst ? await 기관사정률받기(picked.inst).catch(() => null) : null
+      let 공통 = {}
+      try { 공통 = JSON.parse(localStorage.getItem('kcm.서식공통') || '{}') || {} } catch (e) { 공통 = {} }
+      const q = pp ? pp.p * 100 : null
+      const 가까운 = q != null ? QTILES.reduce((b, t) => (Math.abs(t.q - q) < Math.abs(b.q - q) ? t : b), QTILES[0]) : null
+      const 일순율 = qpick ? qpick.win : (pickRate === 'auto' && aRule) ? aRule.win : (가까운 ? 가까운.win : null)
+      const 지금 = new Date(Date.now() + 9 * 3600e3).toISOString()
+      const v = {
+        공고: { no: picked.no, name: picked.name, inst: picked.inst, close: stamp14(picked.close), lic: picked.lic || [], base, est: estimate, aval: a, aKnown,
+          llr: ll?.rate, lo, hi, pc: pcv, enp: enpHere, enpWhy: enpWhy(picked) || '' },
+        금액: main, 투찰률: myRate, 예정: Math.round(base * (sjMid / 100)), 사정률: sjMid, 범위: [bandLo, bandHi],
+        자리: { label: chosen?.label || (pickRate === 'own' ? '직접 입력' : '권장'), why: chosen?.why || '', q },
+        통과: pp ? pp.p : null, 버팀: pp ? pp.sj : null, 일순율,
+        성적: bt ? { n: bt.tested || bt.n, 일순: bt.win, 실격: bt.dq } : null, 관심: 관심 ? 관심.n : null,
+        기관, p50: ov?.sjq?.p50 ?? P50_FALLBACK, 결재: ['담당', '검토', '대표'], 회사: 공통.회사 || '', 작성: 공통.작성 || '',
+        때: 지금.slice(0, 10) + ' ' + 지금.slice(11, 16),
+      }
+      const { 품의서PDF } = await import('../lib/투찰품의서.js')
+      const 바이트 = await 품의서PDF(v)
+      const 이름 = `투찰품의서_${String(picked.name || picked.no).replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 30)}_${지금.slice(0, 10).replace(/-/g, '.')}.pdf`
+      const url = URL.createObjectURL(new Blob([바이트], { type: 'application/pdf' }))
+      const el = document.createElement('a'); el.href = url; el.download = 이름
+      document.body.appendChild(el); el.click(); el.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 5000)
+      try { 세기('|바로투찰|품의서') } catch (e) { /* 없음 */ }
+    } catch (e) {
+      set품오류(`품의서를 만들지 못했습니다 — ${e && e.message ? e.message : e}`)
+    } finally { set품중('') }
   }
   /* 💰 «금액 복사하고 나라장터 열기» — 소장님(2026-09-06):
        「금액복사하고 나라장터 열기로 가줘. 사용자가 로그인 후 바로 투찰 할 수 있게」
@@ -850,6 +904,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
         여기서는 onClick 에서 복사만 하고 이동은 브라우저가 합니다(차단 없음). */
   const copyAndGo = () => {
     putClip(String(main)); setWent(true); setTimeout(() => setWent(false), 2600)
+    자리적기()
     /* ⚠️ 2026-09-17 — 여기 있던 askAfter('bid') 를 pick() 으로 옮겼습니다.
        여기에 두면 «실제로 투찰하러 간 횟수» 를 세는 것이라 다섯 번을 채우는 사람이 없었습니다.
        그리고 여기는 pick() «뒤» 라, 남겨 두면 같은 공고를 두 번 세게 됩니다. */
@@ -1158,6 +1213,8 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
         </div>
       )}
 
+      {/* 📖 G499 바로투찰 사용 방법(접힘) — 소장님 「바로투찰 설명을 더 자세히 해주자」 · How.jsx 와 같은 글 */}
+      {!verifyMode && !picked && base <= 0 && !분석실 && <바로투찰사용법 />}
       {/* 📊 바로투찰 성적 한 줄 (2026-09-24)
           소장님: 「(성적) 공개 하잖아. 찾아봐. 너무 숨겨져 있나. 잘 보이게 해줘 봐」
           → «가상 시뮬레이션» 이 공고 찾기·투찰 조건 밑, 화면 세 장 아래에 있어 안 보였습니다.
@@ -1810,6 +1867,13 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
               투찰률 {pct(myRate, 3)} · 예정가격 {won(Math.round(base * (sjMid / 100)))}
             </div>
             <div className="range">사정률에 따라 {wonShort(bandLo)} ~ {wonShort(bandHi)}</div>
+            {/* 👥 G499 경쟁 관심도 — 마감 전엔 «몇 명» 만(금액 · 회사 · 이름은 안 남김 · 고른 분위는 규칙으로 화면 어디서도 못 읽음) · 마감 뒤 개찰 카드에 «이용자들이 고른 자리» */}
+            {picked?.no && 관심 && 관심.n > 0 && (
+              <div className="bc-line" title="몇 명이 이 공고 금액을 봤는지만 셉니다 — 금액 · 회사 · 이름은 남기지 않고, 고른 자리(분위)는 마감 전엔 사이트 어디서도(운영자 화면 포함) 볼 수 없습니다. 마감 뒤 개찰 카드에 «건설맵 이용자들이 고른 자리» 가 묶음으로만 나옵니다.">
+                👥 건설맵에서 이 공고 금액을 본 사람 <b>{관심.n.toLocaleString('ko-KR')}명</b>{관심.시간 > 0 ? <> · 최근 1시간 <b>{관심.시간}명</b></> : null}
+                {enpHere > 0 ? <span className="bc-sub"> · 예상 참가 {enpHere.toLocaleString('ko-KR')}곳</span> : null}
+              </div>
+            )}
             {pickRate === 'rec' && rec95 != null && (
               <div className="why95">
                 사정률 {sj95?.toFixed(2)}% 에서도 낙찰하한을 넘도록 잡은 금액입니다
@@ -1844,6 +1908,12 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
                   {bag.includes(String(picked.no)) ? '★ 담음' : '☆ 담기'}
                 </button>
               )}
+              {/* 📄 G499 투찰 품의서 — 결재받는 한 장(PDF) */}
+              {picked?.no && main > 0 && (
+                <button className="cbtn ghost" onClick={품의서받기} disabled={!!품중} title="공고 · 금액 · 근거 · 실격/1순위 확률 · 기관 사정률 · 결재란 — PDF 한 장">
+                  {품중 || '📄 품의서'}
+                </button>
+              )}
 
               {/* ⚠️ 2026-09-06 — 여기 있던 「나라장터 공고 →」 를 뺐습니다.
                   소장님: 「왜 나라장터 공고로 가지? 금액이 나오면 투찰할 수 있는 창으로 가야지.
@@ -1854,6 +1924,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
                   «공고» 쪽을 누르게 되고, 그건 투찰이 아닙니다.
                   → 투찰 버튼(.gobid) 하나만 바로 아래에 둡니다. */}
             </div>
+            {품오류 && <div className="bc-err">{품오류}</div>}
             {/* 📊 G340 분석실 — 금액 바로 아래(가장 먼저 보는 자리) · 한 줄 단추 */}
             {picked?.no && !분석실 && (
               <Link className="bsr-hbtn" to={`/bunseok?no=${encodeURIComponent(picked.no)}`} onClick={() => { try { 세기('|분석실|금액칸에서') } catch (e) { /* 없음 */ } }}>
@@ -1862,7 +1933,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
             {/* 📝 G338 넣은 금액 — 이 기기에 적어 두면 개찰 뒤 1순위 카드에서 몇 위였는지 · 적으면 ⭐ 담기도 같이(1순위 알림) */}
             {picked?.no && (
               <내금액 no={picked.no} 이름={picked.name} 금액={main}
-                적으면={() => { if (!bag.includes(String(picked.no))) setBag(toggleBasket(picked.no)) }} />
+                적으면={() => { if (!bag.includes(String(picked.no))) setBag(toggleBasket(picked.no)); 자리적기() }} />
             )}
             {/* ⚠️ 옮길 수 없는 것은 «옮길 수 없다» 고 적습니다.
                 최저·중간·직접 입력한 금액은 주소에 담을 수 없어, 받는 쪽은 권장(자동) 금액을 봅니다.

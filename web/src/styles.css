@@ -1014,6 +1014,12 @@ b.money { white-space: nowrap; }
 .hero .sub { font-size: 12.5px; opacity: .92; }
 .hero .range { font-size: 11.5px; opacity: .72; margin-top: 3px; }
 .hero .hbtns { display: flex; gap: 7px; margin-top: 13px; }
+/* G499 — 단추가 넷(복사 · 공유 · 담기 · 📄 품의서)이 되자 폰(360)에서 «금액 복 / 사» 로 글자가 끊김 → 폰은 두 줄(2 × 2) · 글자는 안 끊음 */
+.hero .hbtns .cbtn { white-space: nowrap; }
+@media (max-width: 520px) {
+  .hero .hbtns { flex-wrap: wrap; }
+  .hero .hbtns .cbtn { flex: 1 1 calc(50% - 4px); }
+}
 .hero .cbtn {
   flex: 1;
   border: 0; border-radius: 11px; padding: 11px 8px;
@@ -9789,3 +9795,71 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 /* 🗣 G497 (2026-11-01) 서식작성 — 다른 표를 따라오는 열(손으로 못 고침) */
 .fw-in.fw-ro { display: block; min-height: 2.1em; padding: 6px 8px; background: var(--surface-2); color: var(--text); cursor: default; white-space: pre-wrap; }
 .fw-in.fw-ro .muted { font-style: normal; font-size: 12px; }
+
+/* 🧭 G499 (2026-11-01) 개찰 복기 — 넣은 금액 칸(내금액.jsx) */
+.ngm-bk { margin-top: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); padding: 8px 10px; }
+.ngm-bk-h { border: 0; background: none; padding: 0; font: inherit; font-weight: 800; color: var(--text); cursor: pointer; }
+.ngm-bk-l { list-style: none; margin: 6px 0 4px; padding: 0; display: flex; flex-direction: column; gap: 5px; font-size: 13px; line-height: 1.55; }
+.ngm-bk-l li { display: grid; grid-template-columns: 1.4em minmax(0, 1fr); gap: 4px; }
+.ngm-bk-bar { position: relative; height: 14px; border-radius: 7px; background: color-mix(in srgb, var(--warn, #b45309) 14%, var(--surface)); overflow: visible; margin: 8px 2px 4px; }
+.ngm-bk-dq { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 7px 0 0 7px; background: color-mix(in srgb, var(--bad, #dc2626) 30%, var(--surface)); }
+.ngm-bk-win { position: absolute; top: -2px; bottom: -2px; border-radius: 3px; background: var(--good, #16a34a); }
+.ngm-bk-me { position: absolute; top: -5px; width: 4px; height: 24px; margin-left: -2px; border-radius: 2px; background: var(--accent); box-shadow: 0 0 0 2px var(--surface); }
+.ngm-bk-key { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11.5px; }
+.ngm-bk-key .k { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+.ngm-bk-key .k.dq { background: color-mix(in srgb, var(--bad, #dc2626) 30%, var(--surface)); }
+.ngm-bk-key .k.win { background: var(--good, #16a34a); }
+.ngm-bk-key .k.me { background: var(--accent); }
+.ngm-trend { margin: 6px 0; padding: 7px 10px; border-radius: 9px; background: var(--accent-soft); font-size: 13px; line-height: 1.55; }
+.ngm-hanbeol { display: block; width: 100%; margin-top: 8px; text-align: center; }
+.nd-hanbeol { display: block; margin-top: 8px; padding: 8px 10px; border-radius: 9px; border: 1px dashed var(--accent-line); color: var(--accent); font-size: 13px; font-weight: 700; text-decoration: none; }
+.nd-hanbeol:hover { background: var(--accent-soft); }
+
+/* 🏁 G499 낙찰 서류 한 벌(/forms/hanbeol · NakchalSet.jsx) */
+.hb > .card { margin-bottom: 12px; }
+.hb-head h1 { font-size: 19px; margin: 0 0 6px; }
+.hb-head p { margin: 0 0 6px; line-height: 1.6; }
+.hb-sh { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 15px; font-weight: 800; margin-bottom: 8px; }
+.hb-sh .muted { font-size: 12.5px; font-weight: 500; }
+.hb-no { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 999px; background: var(--text); color: var(--surface); font-size: 12px; }
+.hb-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px 12px; }
+.hb-f { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; font-weight: 700; color: var(--text-2, var(--text)); min-width: 0; }
+.hb-f input { width: 100%; box-sizing: border-box; font: inherit; font-weight: 500; font-size: 14px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); min-width: 0; }
+.hb-f.must input { border-color: var(--accent-line); }
+.hb-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 10px; }
+.hb-ok { color: var(--good, #16a34a); font-weight: 700; }
+.hb-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; }
+.hb-it { display: flex; flex-direction: column; gap: 2px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); color: var(--text); text-decoration: none; min-height: 100%; box-sizing: border-box; }
+.hb-it:hover { border-color: var(--accent); background: var(--accent-soft); }
+.hb-it b { font-size: 14px; }
+.hb-it span { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+.hb-it.tool { border-style: dashed; }
+/* 👥 G499 경쟁 관심도 · 📄 품의서 — 바로투찰 금액 칸(어두운 파랑 바탕) */
+.bc-line { margin-top: 6px; font-size: 12.5px; opacity: .95; }
+.bc-line b { font-weight: 800; }
+.bc-sub { opacity: .8; }
+.bc-err { margin-top: 6px; padding: 6px 9px; border-radius: 8px; background: rgba(255,255,255,.92); color: var(--bad, #b91c1c); font-size: 12.5px; font-weight: 700; }
+/* 👥 G499 개찰 뒤 «이용자들이 고른 자리»(관심분포.jsx) */
+.bcd { margin-top: 10px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); font-size: 13px; }
+.bcd-small { font-size: 12.5px; }
+.bcd-h { font-weight: 700; margin-bottom: 6px; }
+.bcd-h .muted { font-weight: 500; font-size: 12px; }
+.bcd-bars { position: relative; display: grid; grid-template-columns: repeat(20, minmax(0, 1fr)); gap: 2px; align-items: end; height: 54px; padding: 0 1px; border-bottom: 1px solid var(--line); }
+.bcd-b { display: block; border-radius: 3px 3px 0 0; background: color-mix(in srgb, var(--accent) 40%, var(--surface)); }
+.bcd-b.dq { background: color-mix(in srgb, var(--bad, #dc2626) 45%, var(--surface)); }
+.bcd-b.win { background: var(--good, #16a34a); }
+.bcd-line { position: absolute; top: -4px; bottom: -2px; width: 2px; margin-left: -1px; background: var(--bad, #dc2626); }
+.bcd-axis { display: flex; justify-content: space-between; font-size: 11px; margin-top: 2px; }
+.bcd-sum { margin-top: 4px; line-height: 1.55; }
+/* 📖 G499 바로투찰 사용 방법(바로투찰사용법.jsx) */
+.bth { padding: 10px 14px; }
+.bth-h { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 2px 0; font: inherit; font-size: 15px; font-weight: 800; color: var(--text); cursor: pointer; }
+.bth-h .muted { font-size: 12.5px; font-weight: 500; }
+.bth-t { float: right; font-size: 12.5px; color: var(--accent); font-weight: 700; }
+.bth-steps { margin: 8px 0 6px; padding-left: 20px; display: flex; flex-direction: column; gap: 5px; line-height: 1.6; font-size: 13.5px; }
+.bth-qh { font-weight: 800; margin: 10px 0 4px; font-size: 14px; }
+.bth-qa { margin: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; line-height: 1.6; }
+.bth-qa dt { font-weight: 700; }
+.bth-qa dd { margin: 0 0 0 12px; color: var(--text-2, var(--text)); }
+div.bth { padding: 0; }
+.card.bth { padding: 10px 14px; }
