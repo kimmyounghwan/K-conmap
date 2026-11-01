@@ -6,6 +6,7 @@
 //   ③ PC: 공사명 · 내용 적음 → 폰에도 같은 글 · 폰: 인터넷 끊김(mock끊김) 에서 1장 → ⏳ 올리기 전 · 📶 → 다시 되면 저절로 올라가 PC 3장
 //   ④ PC: 1장 빼기 → 폰도 2장(묘비) · PC: PDF 받기(%PDF) · PC 새로고침해도 이 기기 창고에서 그대로(2장 · 그림) · 끊기
 //   ⑤ 320 ~ 1280 가로 넘침 없음 · 화면 오류 없음 · 폰엔 📸 찍기 · PC 엔 끌어놓기
+//   ⑥ 세 번째 기기가 코드로 열면 사진 그림까지 바로(🩹 G495 — 사이트 시험에서 «↓ 받는 중» 멈춤을 잡아 고침)
 import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -123,6 +124,21 @@ await 폰.p.evaluate(() => { localStorage.setItem('mock끊김', '0'); window.dis
 const PC3 = await 기다림(PC.p, () => document.querySelectorAll('.pb-item .pb-thumb img').length === 3 ? 3 : 0, 40)
 봐(PC3 === 3, 'PC: 인터넷이 다시 되자 3번째 사진이 저절로 올라와 3장', await 사진수(PC.p))
 봐(!!(await 기다림(폰.p, () => [...document.querySelectorAll('.pl-st')].every((x) => x.textContent === '✓') && /폰 · PC 같음/.test(document.querySelector('.bk-bar')?.textContent || ''), 15)), '폰: 모두 ✓ · «폰 · PC 같음»')
+
+console.log('■ ⑥ 세 번째 기기(사무실 다른 PC)가 코드로 열면 사진 그림까지 받음 — 🩹 G495(사이트 시험에서 «↓ 받는 중» 멈춤)')
+{
+  const PC2 = await 새창(false)
+  await PC2.p.goto(주소 + '/tools/photo-live', { waitUntil: 'domcontentloaded' }); await PC2.p.waitForTimeout(2500)
+  봐(await 누름(PC2.p, /^코드로 열기$/), 'PC2: «코드로 열기» 누름'); await PC2.p.waitForTimeout(300)
+  await 채움(PC2.p, /코드 9자리/, 코드); await 채움(PC2.p, /^비밀번호/, 'test1234')
+  const t3 = Date.now(); 봐(await 누름(PC2.p, /^열기$/), 'PC2: «열기» 누름')
+  const r6 = await 기다림(PC2.p, () => document.querySelectorAll('.pb-item').length === 3 && document.querySelectorAll('.pb-item .pb-thumb img').length === 3 && [...document.querySelectorAll('.pl-st')].every((x) => x.textContent === '✓') ? 3 : 0, 30)
+  봐(r6 === 3, `PC2: 연 직후 사진 3장 그림까지 ✓ (${((Date.now() - t3) / 1000).toFixed(1)}초) — «↓ 받는 중» 에 멈추지 않음`, await 사진수(PC2.p))
+  봐((await 사진수(PC2.p)).쪽그림 >= 2, 'PC2: 미리보기에도 그림', await 사진수(PC2.p))
+  const 공 = await PC2.p.evaluate(() => (([...document.querySelectorAll('label')].find((x) => /^공사명/.test(x.textContent)) || { querySelector: () => ({}) }).querySelector('input') || {}).value)
+  봐(공 === '시험 공사', 'PC2: PC 가 적은 공사명도 그대로', 공)
+  await PC2.c.close()
+}
 
 console.log('■ ④ 빼기 → 묘비 · PDF · 새로고침 · 끊기')
 await PC.p.evaluate(() => document.querySelectorAll('.pb-item')[1].querySelector('.pb-del').click())

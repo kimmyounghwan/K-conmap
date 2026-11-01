@@ -205,13 +205,17 @@ export default function PhotoLive() {
   }, [올림])
 
   /* ── 서버에서 받기 ── */
-  const 사진받아오기 = useCallback(async (s) => {
-    const v = 연결r.current
+  /* 🩹 G495 (11-01 사이트 시험) — «코드로 열기» 직후엔 연결r 이 아직 비어 있어(set연결 뒤 다시 그리기 전) 사진 받기가 조용히 빠졌음 → 목록은 오는데 그림은 «↓ 받는 중» 그대로.
+     → 연(연결 정보)을 바로 넘겨 받고 · 판 지켜보기 효과가 시작될 때 · 30초마다 못 받은 사진이 있으면 다시 받음. 재발 방지: 시험_실시간사진대지화면 ⑥(세 번째 기기 열기) */
+  const 받는중r = useRef(false)
+  const 사진받아오기 = useCallback(async (s, 연 = null) => {
+    const v = 연 || 연결r.current
     if (!v) return
     const 열쇠 = 손.열쇠(v.c)
     if (!열쇠) return
     const 받을 = 받을사진(s.목록, 그림.current).filter((id) => !밀린r.current.includes(id))
-    if (!받을.length) return
+    if (!받을.length || 받는중r.current) return
+    받는중r.current = true
     set받는중(받을.length)
     let 남 = 받을.length
     for (const id of 받을) {
@@ -225,7 +229,7 @@ export default function PhotoLive() {
       } catch (e) { /* 다음 판에 다시 */ }
       남 -= 1; set받는중(남)
     }
-    set받는중(0)
+    set받는중(0); 받는중r.current = false
   }, [])
 
   const 받음 = useCallback(async (판) => {
@@ -253,10 +257,11 @@ export default function PhotoLive() {
     let 끄기 = null, 산 = true
     손.판지켜보기(연결.c, (판) => { if (산) 받음(판) }).then((f) => { if (산) 끄기 = f; else f() }).catch(() => {})
     if (연결.d || 밀린r.current.length) 올림(); else set저장((s) => (s === 'off' ? 'ok' : s))
+    사진받아오기(상태r.current, 연결)   /* 🩹 G495 열고 난 직후 · 새로고침 뒤 못 받은 사진 */
     const 온 = () => { if (산) 올림() }
     const 봄 = () => { if (산 && document.visibilityState === 'visible') { 손.판보기(연결.c).then((판) => 받음(판)).catch(() => {}); if (밀린r.current.length || (연결r.current && 연결r.current.d)) 올림() } }
     window.addEventListener('online', 온); document.addEventListener('visibilitychange', 봄)
-    const 째 = setInterval(() => { if (밀린r.current.length || (연결r.current && 연결r.current.d)) 올림() }, 30000)
+    const 째 = setInterval(() => { if (밀린r.current.length || (연결r.current && 연결r.current.d)) 올림(); if (연결r.current && 받을사진(상태r.current.목록, 그림.current).length) 사진받아오기(상태r.current) }, 30000)
     return () => { 산 = false; if (끄기) 끄기(); window.removeEventListener('online', 온); document.removeEventListener('visibilitychange', 봄); clearInterval(째) }
   }, [연결 && 연결.c, 연것])  // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -410,7 +415,7 @@ export default function PhotoLive() {
       set화면(''); set폼((f) => ({ ...f, pw: '' }))
       set알림(`«${x.이름 || 코드보기(c)}» 을(를) 열었습니다 — 사진 ${합.목록.length}장.`)
       세기('|실시간사진대지|열기')
-      if (서버상태) 사진받아오기(합)
+      if (서버상태) 사진받아오기(합, { c, r: (x.서버 && x.서버.r) || 0 })   /* 🩹 G495 연결r 이 잡히기 전이라 연결을 바로 넘김 */
     } catch (e) {
       set오류(e && e.code === '비번' ? '비밀번호가 틀립니다.' : /permission|PERMISSION|없음/.test(String(e && (e.code || e.message))) ? '코드 또는 비밀번호가 틀립니다.' : '열지 못했습니다 — 인터넷을 확인하고 다시 해 보십시오.')
     } finally { set바쁨('') }
@@ -469,7 +474,7 @@ export default function PhotoLive() {
             {!연결 && <button type="button" className="btn sm" onClick={() => { 처음으로(); set화면('make') }}>현장 만들기</button>}
             {!연결 && <button type="button" className="btn line sm" onClick={() => { 처음으로(); set화면('open') }}>코드로 열기</button>}
             {연결 && <button type="button" className="btn line sm" onClick={복사}>{복사됨 ? '✓ 복사했습니다' : '📋 코드 · 주소 복사'}</button>}
-            {연결 && <button type="button" className="btn ghost sm" onClick={() => { set오류(''); 손.판보기(연결.c).then((판) => { if (판 === (연결r.current && 연결r.current.r)) set알림('서버와 같습니다.'); else 받음(판) }).catch(() => set오류('받지 못했습니다 — 인터넷을 확인해 주십시오.')); 올림() }} disabled={!!바쁨}>⟳ 새로 받기</button>}
+            {연결 && <button type="button" className="btn ghost sm" onClick={() => { set오류(''); 손.판보기(연결.c).then((판) => { if (판 === (연결r.current && 연결r.current.r)) { set알림('서버와 같습니다.'); 사진받아오기(상태r.current) } else 받음(판) }).catch(() => set오류('받지 못했습니다 — 인터넷을 확인해 주십시오.')); 올림() }} disabled={!!바쁨}>⟳ 새로 받기</button>}
             {연결 && <button type="button" className="btn ghost sm bk-cut" onClick={끊기} disabled={!!바쁨}>{한번더 === '끊기' ? '한 번 더 누르면 끊습니다' : '끊기'}</button>}
           </span>
         </div>
