@@ -56,6 +56,12 @@ DB = os.environ.get("RTDB_URL") or "https://k-conmap-default-rtdb.firebaseio.com
 #   sn 산안비 · sk 손익 장부 · ib 작업일보 · nm 노무비 · jm 지명원 · gj 견적서 · sc 예정공정표 · wc 공사서류 원클릭 · bj 보험료 정산(G146)
 for _ns in ["sn", "sk", "ib", "nm", "jm", "gj", "sc", "wc", "bj"]:
     묶음들.append({"ns": _ns, "책": _ns + "_books", "통": None, "자리": [_ns + "_books", _ns + "_doc"], "딸림": {}})
+# 📡 2026-11-01 (G493) — 실시간 사진대지(pb · web/src/lib/사진잇기.js): 상태는 pb_doc(백업함) · 사진은 pb_pic/{코드}/{사진id} 한 장씩.
+#   사진은 백업하지 않고(크고 · 7일짜리) 비우기에서 «id 앞 토막(36진 ms)» 이 사진둘날(7일) 지난 것을 지웁니다 — 내려받지 않고 얕은 목록(shallow)만 봅니다.
+#   현장(pb_books/del)을 30일 지나 통째로 지울 때는 pb_pic 도 같이(딸림자리).
+묶음들.append({"ns": "pb", "책": "pb_books", "통": None, "자리": ["pb_books", "pb_doc"], "딸림": {}, "딸림자리": ["pb_pic"]})
+사진자리 = "pb_pic"
+사진둘날 = 7                      # web/src/lib/사진잇기.js 의 사진둘날 과 같게
 자리들 = [x for g in 묶음들 for x in [g["ns"] + "_pins", g["ns"] + "_keys"] + g["자리"]] + ["cost_vlink", "cost_vin", "cost_day"]
 자리들 = list(dict.fromkeys(자리들))
 휴지통날 = 30                     # web/src/lib/tuipbi.js 의 휴지통날 과 같게
@@ -113,10 +119,10 @@ def 토큰(sa):
     return c.token
 
 
-def 요청(방법, 길, tok, 몸=None):
-    """토큰은 주소가 아니라 머리(Authorization)에 넣습니다 — 주소는 기록에 남을 수 있습니다"""
+def 요청(방법, 길, tok, 몸=None, 물음=""):
+    """토큰은 주소가 아니라 머리(Authorization)에 넣습니다 — 주소는 기록에 남을 수 있습니다. 물음 = '?shallow=true' 같은 것"""
     data = None if 몸 is None else json.dumps(몸, ensure_ascii=False).encode("utf-8")
-    r = urllib.request.Request("%s/%s.json" % (DB, 길), data=data, method=방법,
+    r = urllib.request.Request("%s/%s.json%s" % (DB, 길, 물음), data=data, method=방법,
                                headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json"})
     with urllib.request.urlopen(r, timeout=60) as x:
         return json.loads(x.read().decode("utf-8") or "null")
@@ -153,11 +159,33 @@ def 비울목록(자료, 지금ms):
         for 현장, s in (n.get(g["책"]) or {}).items():
             d = s.get("del") if isinstance(s, dict) else None
             if isinstance(d, (int, float)) and 지금ms - d >= 휴지통날 * 하루:
-                for 자리 in g["자리"] + [g["ns"] + "_keys", g["ns"] + "_pins"]:
+                for 자리 in g["자리"] + g.get("딸림자리", []) + [g["ns"] + "_keys", g["ns"] + "_pins"]:
                     지울["%s/%s" % (자리, 현장)] = None
     # 현장째 지우는 것 안의 휴지통 낱개는 겹치므로 뺍니다
     통째 = {k for k in 지울 if k.count("/") == 1}
     return {k: v for k, v in 지울.items() if not any(k.startswith(t + "/") for t in 통째)}
+
+
+def 사진id때(id):
+    """실시간 사진대지 사진 id «때(36진 ms)-기기차례난수» → ms (모르는 꼴이면 None)"""
+    앞 = str(id).split("-")[0]
+    if not 앞 or "-" not in str(id) or not all(c in "0123456789abcdefghijklmnopqrstuvwxyz" for c in 앞):
+        return None
+    try:
+        return int(앞, 36)
+    except Exception:
+        return None
+
+
+def 오래된사진(얕은, 지금ms):
+    """{코드: {사진id: True}} (shallow) → {pb_pic/코드/사진id: None} — 사진둘날(7일) 지난 것. 때를 모르는 id 는 그대로 둠"""
+    지울 = {}
+    for 코드, ids in (얕은 or {}).items():
+        for id in (ids or {}):
+            t = 사진id때(id)
+            if t is not None and 지금ms - t >= 사진둘날 * 하루:
+                지울["%s/%s/%s" % (사진자리, 코드, id)] = None
+    return 지울
 
 
 def 되살릴것(자료, 현장):
@@ -201,16 +229,27 @@ def 비우기():
         for 자리 in (g["책"], g["통"]):
             if 자리:
                 자료["nodes"][자리] = 요청("GET", 자리, tok)
-    지울 = 비울목록(자료, int(time.time() * 1000))
+    지금 = int(time.time() * 1000)
+    지울 = 비울목록(자료, 지금)
     통들 = {g["통"] for g in 묶음들 if g["통"]}
     책들 = {g["책"] for g in 묶음들}
     낱개 = sum(1 for k in 지울 if k.split("/")[0] in 통들 and k.count("/") == 2)
     현장 = len({k for k in 지울 if k.split("/")[0] in 책들})
+    # 📡 실시간 사진대지 — 7일 지난 사진(얕은 목록으로 id 만 봄 · 사진은 안 받음)
+    사진 = {}
+    try:
+        얕은 = {}
+        for 코드 in (요청("GET", 사진자리, tok, 물음="?shallow=true") or {}):
+            얕은[코드] = 요청("GET", "%s/%s" % (사진자리, 코드), tok, 물음="?shallow=true") or {}
+        사진 = 오래된사진(얕은, 지금)
+    except Exception as e:
+        print("⚠️ 사진 목록을 못 봄 — %s" % type(e).__name__)
+    지울.update({k: v for k, v in 사진.items() if not any(k.startswith(t + "/") for t in {x for x in 지울 if x.startswith(사진자리 + "/")})})
     if not 지울:
         print("🗑 비울 것 없음")
         return
     요청("PATCH", "", tok, 지울)
-    print("🗑 비움 — 휴지통 %d개 · 지운 지 %d일 지난 현장·장부 %d곳" % (낱개, 휴지통날, 현장))
+    print("🗑 비움 — 휴지통 %d개 · 지운 지 %d일 지난 현장·장부 %d곳 · %d일 지난 실시간 사진 %d장" % (낱개, 휴지통날, 현장, 사진둘날, len(사진)))
 
 
 def 백업받기(이름):

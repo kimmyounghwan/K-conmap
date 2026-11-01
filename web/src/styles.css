@@ -9753,3 +9753,13 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gmd .gmd-pc-file .gmd-pc-name { flex: 1 1 0; }
 /* 🗓 G466 사이트 확인(10-30 18:0x) — 윈도우 글꼴(맑은 고딕)로 폭 320 이면 탭 여섯 줄이 7 px 넘침(폰 글꼴은 안 넘침) → 340 아래는 칸을 조금 더 줄임 */
 @media (max-width: 340px) { .gmd .gmd-ws-tabs { gap: 2px; } .gmd .gmd-ws-tabs .gmd-tab { padding: 6px 4px; font-size: 12px; } }
+
+/* 📡 G493 (2026-11-01) 실시간 사진대지(/tools/photo-live · PhotoLive.jsx) — 폰 찍기 단추 · 사진마다 올림 상태 */
+.pl-shoot { display: flex; flex-direction: column; gap: 8px; }
+.pl-shoot .pb-note { margin: 0; }
+.pl-shootb { font-size: 20px; padding: 16px 12px; font-weight: 800; }
+.pl-st { position: absolute; right: 4px; top: 4px; padding: 1px 5px; border-radius: 5px; font-size: 10.5px; font-weight: 800; color: #fff; background: #16a34a; max-width: calc(100% - 34px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-st.ing { background: #2563eb; }
+.pl-st.wait { background: #b45309; }
+.pl-wait { width: 100%; height: 100%; display: grid; place-items: center; color: #64748b; font-size: 22px; font-weight: 800; background: repeating-linear-gradient(45deg, #e5e7eb 0 8px, #f3f4f6 8px 16px); }
+.bk .chip { padding: 3px 9px; font-size: 12px; }

@@ -82,5 +82,28 @@ except SystemExit:
 봄("세기: 장비 장부 2 · 위험성 서류 1", 센2["장비장부"] == 2 and 센2["위험성서류"] == 1, 센2)
 센 = M.세기(자료)
 봄("세기(로그엔 개수만)", 센["현장"] == 3 and 센["지운현장"] == 2 and 센["적은줄"] == 2 and 센["휴지통"] == 3, 센)
-print("✗ %d" % 틀림 if 틀림 else "✓ 모두 맞음")
+# 📡 2026-11-01 (G493) 실시간 사진대지(pb) — 상태(pb_doc)는 백업 · 사진(pb_pic)은 백업 안 함 · 7일 지난 사진 id 로 비움 · 현장째 지울 때 사진도
+def _b36(n):
+    d = "0123456789abcdefghijklmnopqrstuvwxyz"; s = ""
+    while n: s = d[n % 36] + s; n //= 36
+    return s
+자료3 = {"nodes": {
+    "pb_pins": {"PPPPPPPPP": "p" * 64}, "pb_keys": {"PPPPPPPPP": {"u3": "p" * 64}},
+    "pb_books": {"PPPPPPPPP": {"name": "가상 현장", "at": 1}, "QQQQQQQQQ": {"name": "끝난 현장", "at": 1, "del": 지금 - 31 * 하루}},
+    "pb_doc": {"PPPPPPPPP": {"s": "v1.a.b", "r": 3, "at": 1, "by": "폰"}},
+}}
+지울3 = M.비울목록(자료3, 지금)
+봄("실시간 사진대지: 지운 지 31일 된 현장은 상태 · 사진(pb_pic) · 핀 · 열쇠까지", all(("%s/QQQQQQQQQ" % x) in 지울3 for x in ["pb_books", "pb_doc", "pb_pic", "pb_pins", "pb_keys"]), sorted(지울3))
+봄("실시간 사진대지: 살아 있는 현장은 그대로", not any("PPPPPPPPP" in x for x in 지울3))
+얕은 = {"PPPPPPPPP": {_b36(지금 - 8 * 하루) + "-m1abc": True, _b36(지금 - 6 * 하루) + "-p2xyz": True, _b36(지금 - 7 * 하루) + "-m3q": True, "이상한id": True}}
+오래 = M.오래된사진(얕은, 지금)
+봄("실시간 사진: 7일 이상 지난 사진만(8일 · 꼭 7일) · 6일은 그대로 · 모르는 id 는 그대로",
+   len(오래) == 2 and ("pb_pic/PPPPPPPPP/%s-m1abc" % _b36(지금 - 8 * 하루)) in 오래 and not any("p2xyz" in k or "이상한" in k for k in 오래), sorted(오래))
+봄("사진 id 때 읽기 · 틀린 꼴은 None", M.사진id때("abc-m1") == int("abc", 36) and M.사진id때("ABC-m1") is None and M.사진id때("") is None and M.사진id때("nodash") is None)
+봄("백업 자리에 pb_books · pb_doc 은 있고 pb_pic(크고 7일짜리)은 없음", "pb_books" in M.자리들 and "pb_doc" in M.자리들 and "pb_pic" not in M.자리들)
+쓸4, 핀4, 키4, ns4 = M.되살릴것(자료3, "PPPPPPPPP")
+봄("되살리기: 실시간 사진대지 상태(pb_doc)를 되살림 · 묶음 pb", ns4 == "pb" and 쓸4["pb_doc/PPPPPPPPP"]["r"] == 3 and 핀4 == "p" * 64)
+
+print("✗ %d 틀림" % 틀림 if 틀림 else "✓ 모두 맞음")
 sys.exit(1 if 틀림 else 0)
+

@@ -167,7 +167,7 @@ SITENAV = [("/", "바로투찰"), ("/first", "1순위 개찰"), ("/live", "입�
            ("/cad", "캐드 유틸"), ("/pdf", "PDF 도구"), ("/jeoksan", "K-적산"),
            ("/shareone", "쉐어원 공유폴더"),
            ("/safety", "안전관리계획서 · 유해위험방지계획서"),
-           ("/naeyeok", "내역서 — 산출내역서 · 하도급 · 설계변경"), ("/tools/dxf3d", "도면 3D 보기"), ("/tools/earthcheck", "토공 검산"), ("/tools/dxfpdf", "도면 PDF 만들기"), ("/tools/dwgdxf", "DWG → DXF 바꾸기"), ("/tools/sajincad", "사진 · 손그림 → 캐드"), ("/jeoksan/bim", "BIM 물량 · 3D + 물량"), ("/jeoksan/model", "골조 모델 · 세우면 물량"), ("/jeoksan/golgo", "골조 수량산출"), ("/jeoksan/magam", "마감 수량산출"), ("/jeoksan/auto", "도면 물량 자동"), ("/tools/tuipbi", "현장 투입비 · 공사일보"), ("/tools/risk", "위험성평가"), ("/tools/equip", "장비 임대료·수금 장부"), ("/tools/photo", "사진대지 · 영수증 정리"), ("/tools/sigong", "시공계획서 자동 만들기"), ("/qna", "맵톡"),
+           ("/naeyeok", "내역서 — 산출내역서 · 하도급 · 설계변경"), ("/tools/dxf3d", "도면 3D 보기"), ("/tools/earthcheck", "토공 검산"), ("/tools/dxfpdf", "도면 PDF 만들기"), ("/tools/dwgdxf", "DWG → DXF 바꾸기"), ("/tools/sajincad", "사진 · 손그림 → 캐드"), ("/jeoksan/bim", "BIM 물량 · 3D + 물량"), ("/jeoksan/model", "골조 모델 · 세우면 물량"), ("/jeoksan/golgo", "골조 수량산출"), ("/jeoksan/magam", "마감 수량산출"), ("/jeoksan/auto", "도면 물량 자동"), ("/tools/tuipbi", "현장 투입비 · 공사일보"), ("/tools/risk", "위험성평가"), ("/tools/equip", "장비 임대료·수금 장부"), ("/tools/photo", "사진대지 · 영수증 정리"), ("/tools/photo-live", "실시간 사진대지"), ("/tools/sigong", "시공계획서 자동 만들기"), ("/qna", "맵톡"),
            ("/how", "보는 방법")]
 
 
@@ -1870,7 +1870,7 @@ NY_KINDS = [
 #   새로 만든 화면들입니다. 사이트맵에도 있지만 크롤러가 스스로 올 때까지 기다리지 않습니다.
 STATIC_NEW = ["/change", "/change/naeyeok", "/change/excel", "/change/twoline", "/change/work", "/change/won", "/forms", "/guide",
               "/cad", "/naeyeok", "/qna", "/how", "/jeoksan", "/jeoksan/run", "/jeoksan/golgo", "/jeoksan/magam", "/jeoksan/auto",
-              "/safety", "/shareone", "/pdf", "/naeyeok/ratio", "/tools/photo", "/tools/earthcheck", "/jeoksan/bim", "/jeoksan/model",
+              "/safety", "/shareone", "/pdf", "/naeyeok/ratio", "/tools/photo", "/tools/photo-live", "/tools/earthcheck", "/jeoksan/bim", "/jeoksan/model",
               # 🔎 G341 (2026-10-20) 구운 장이 없던 화면들 — TABS 머리말
               "/bunseok", "/gongdong", "/ext", "/pre", "/naeyeok/hado", "/change/gisung",
               "/corp", "/tools/jebiyul"] + [   # 🏢 G343 업체 찾기 · 📋 G350 간접공사비 요율 찾기
@@ -3305,6 +3305,34 @@ def photo_page(shell, image=None):
                 _app_ld("사진대지 · 영수증 정리", desc, "/tools/photo"))
 
 
+def photo_live_page(shell, image=None):
+    """/tools/photo-live — 📡 실시간 사진대지 (G493 · 2026-11-01) — 폰에서 찍으면 PC 에 바로. 화면 PhotoLive.jsx
+    소장님: 「현장에서 사진을 찍으면 실시간으로 pc에서 사진대지가 완성된다는 거야?」 → 「이건 실시간으로 되는 것으로 해줘」 · 사진대지(/tools/photo)와 «따로»
+    ⚠️ 여기 글은 화면이 그리는 것과 «같은 내용»입니다(React 가 덮어씀)."""
+    title = "실시간 사진대지 — 폰에서 찍으면 PC 사진대지에 바로 (현장 코드 · 비밀번호 잠금 · PDF · 엑셀 · 한글 · 워드) | K-건설맵"
+    desc = ("현장 코드 + 비밀번호로 폰과 PC 를 이으면 폰으로 찍은 사진이 몇 초 안에 PC 사진대지에 들어가고, PC 에서 적은 내용은 폰에도. "
+            "사진 · 글은 비밀번호로 잠가 올려 운영자도 못 봄 · 인터넷이 끊기면 모였다가 올라감 · PDF · 엑셀 · 한글 · 워드 · 가입 없음.")[:160]
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">📡 실시간 사진대지 — 폰에서 찍으면 PC 에 바로</h1>'
+           '<p class="cp" style="margin-top:8px">현장에서 폰으로 찍은 사진이 <b>몇 초 안에 사무실 PC 의 사진대지</b>에 들어갑니다. '
+           '현장 코드 + 비밀번호로 폰과 PC 를 잇고, 사진 · 글은 <b>비밀번호로 잠가 올려</b> 운영자도 못 봅니다. 가입 없음 · PDF · 엑셀 · 한글 · 워드.</p></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">📖 사용 방법</div><ol class="flist">'
+           '<li><b>PC 에서 현장 만들기</b> — «현장 만들기» → 현장 이름 · 비밀번호 → 코드 9자리. 코드와 비밀번호를 적어 두십시오</li>'
+           '<li><b>폰에서 열기</b> — 폰으로 이 주소를 열고 «코드로 열기» → 코드 · 비밀번호. PC 의 «📋 코드 · 주소 복사» 를 카톡으로 보내면 폰에서 누르기만 하면 코드가 채워져 있습니다</li>'
+           '<li><b>폰에서 찍기</b> — «📸 찍기» → 찍으면 바로 올라갑니다(사진마다 ✓). 앨범 사진은 «📷 고르기». 일자는 찍은 때가 저절로</li>'
+           '<li><b>PC 에서 보기 · 적기</b> — 몇 초 안에 미리보기에 들어옵니다. 공사명 · 위치 · 내용을 적거나 차례를 바꾸면 폰에도 그대로</li>'
+           '<li><b>내려받기</b> — PDF · 엑셀 · 한글 · 워드 · 인쇄. 메일 · 나라장터는 «사진 용량 › 가볍게»</li></ol></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">알아 두실 것</div><ul class="flist">'
+           '<li>인터넷이 끊기면 폰에 모였다가 연결되면 저절로 올라갑니다 — 찍기는 계속하셔도 됩니다</li>'
+           '<li>같은 코드 · 비밀번호로 폰 여러 대 · PC 여러 대가 함께 씁니다</li>'
+           '<li>서버의 사진은 7일 뒤 지워집니다(각 기기에는 남음). 끝난 현장은 «끊기»</li>'
+           '<li>사진은 1600px 로 줄여 올립니다(A4 한 쪽 8장까지 선명). 비밀번호를 잊으면 열 수 없습니다(잠가 두므로 운영자도 못 봄)</li>'
+           '<li>폰 ↔ PC 가 필요 없을 때(이 기기에서만)는 <a href="/tools/photo">📷 사진대지 도구</a> — 사진이 서버로 가지 않습니다</li></ul>'
+           '<div class="btn-row" style="margin-top:10px"><a class="btn ghost" href="/tools/photo">📷 사진대지 · 영수증 정리</a>'
+           '<a class="btn ghost" href="/tools">🧰 건설 도구</a><a class="btn ghost" href="/qna">💬 맵톡</a></div></div>']
+    return page(shell, "/tools/photo-live", title, desc, "".join(out) + nav_html("/tools/photo-live"), image,
+                _app_ld("실시간 사진대지", desc, "/tools/photo-live"))
+
+
 def risk_page(shell, image=None):
     title = "위험성평가 프로그램 — 최초·정기·수시(4주·1주·1일)·회의·교육·성과측정표 별지 1~5 | K-건설맵"
     desc = ("건설현장 위험성평가 별지 1~5를 사이트에서 바로 씁니다. 위험요인 사전에서 골라 넣고 위험등급(빈도×강도)·관리기간·"
@@ -3853,6 +3881,9 @@ def main():
     write("tools/photo.html", photo_page(shell,
           og.tab("tool-photo", "사진대지 · 영수증 정리", "건설 도구", "PDF · 엑셀 · 한글 · 워드", "모두 무료") if og.available else None))
     print("  · 사진대지 · 영수증 정리 페이지 1개 (/tools/photo)")
+    write("tools/photo-live.html", photo_live_page(shell,
+          og.tab("tool-photo-live", "실시간 사진대지", "건설 도구", "폰에서 찍으면 PC 에 바로", "현장 코드 · 잠금") if og.available else None))
+    print("  · 실시간 사진대지 페이지 1개 (/tools/photo-live)")
     write("tools/sigong.html", sigong_page(shell,
           og.tab("tool-sigong", "시공계획서 자동 만들기", "건설 도구", "내역서만 올리면 한 벌", "PDF · 한글 · 워드 · 엑셀") if og.available else None))
     print("  · 시공계획서 자동 만들기 페이지 1개 (/tools/sigong)")

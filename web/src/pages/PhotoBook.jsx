@@ -24,35 +24,35 @@ import { 글맞춤 } from '../lib/쪽문서.js'
 import * as 보관 from '../lib/작업보관.js'
 import { 세기 } from '../lib/받은수.jsx'   /* 📋 G492 |사진대지|보드판 */
 /* 📸 찍기는 폰(카메라 있는 기기)에서만 — 소장님 「찍기는 왜 있지?」 */
-const 폰기기 = () => { try { return navigator.maxTouchPoints > 0 || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) } catch (e) { return false } }
+export const 폰기기 = () => { try { return navigator.maxTouchPoints > 0 || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) } catch (e) { return false } }
 import 작업백업칸 from '../tools/작업백업칸.jsx'
 
-const 사진꼴 = /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i
+export const 사진꼴 = /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i
 const 영수증꼴 = /\.(jpe?g|png|webp|gif|bmp|heic|heif|pdf)$/i
-const 숨 = () => new Promise((r) => setTimeout(r, 0))
-const 오늘 = () => { const d = new Date(Date.now() + 9 * 3600e3); return d.toISOString().slice(0, 10).replace(/-/g, '.') }
-const 파일이름 = (s) => String(s || '').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40)
+export const 숨 = () => new Promise((r) => setTimeout(r, 0))
+export const 오늘 = () => { const d = new Date(Date.now() + 9 * 3600e3); return d.toISOString().slice(0, 10).replace(/-/g, '.') }
+export const 파일이름 = (s) => String(s || '').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40)
 
 /* 화면을 옮겨 다녀와도 그대로(이 탭) — 창을 닫았다 열면 작업보관(IndexedDB)에서 */
 const 기억 = { 탭: '사진', 사진: null, 영수증: null }
 
 /* ── 작업본 → 화면 주소(한 번만 만듦) ── */
 const 주소표 = new WeakMap()
-function 그림주소(바이트) {
+export function 그림주소(바이트) {
   if (!바이트) return ''
   let u = 주소표.get(바이트)
   if (!u) { u = URL.createObjectURL(new Blob([바이트], { type: 'image/jpeg' })); 주소표.set(바이트, u) }
   return u
 }
 
-function 저장하기(이름, 바이트, 타입) {
+export function 저장하기(이름, 바이트, 타입) {
   const a = document.createElement('a')
   const url = URL.createObjectURL(new Blob([바이트], { type: 타입 }))
   a.href = url; a.download = 이름
   document.body.appendChild(a); a.click(); a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 5000)
 }
-const 형식표 = {
+export const 형식표 = {
   pdf: ['PDF', 'application/pdf', '.pdf'],
   xlsx: ['엑셀', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '.xlsx'],
   hwpx: ['한글', 'application/hwp+zip', '.hwpx'],
@@ -60,7 +60,7 @@ const 형식표 = {
 }
 
 /** 쪽 모형들 + 그림들 → 파일 바이트 */
-async function 파일만들기(형식, 쪽들, 그림들, 제목, 더시트 = []) {
+export async function 파일만들기(형식, 쪽들, 그림들, 제목, 더시트 = []) {
   if (형식 === 'pdf') { const m = await import('../lib/쪽pdf.js'); return m.쪽들PDF(쪽들, 그림들, { 제목 }) }
   if (형식 === 'xlsx') { const m = await import('../lib/쪽엑셀.js'); return m.엑셀책([...더시트, m.쪽들시트(쪽들, 그림들, 더시트.length ? '인쇄용' : 제목)], 그림들) }
   if (형식 === 'hwpx') { const m = await import('../lib/쪽한글.js'); return m.쪽들한글(쪽들, 그림들, { 제목 }) }
@@ -103,7 +103,7 @@ function 쪽보기({ 쪽, 폭px, 그림찾기, 번호, 전체 }) {
   )
 }
 
-function 미리보기판({ 쪽들, 그림찾기, 제목 = '미리보기' }) {
+export function 미리보기판({ 쪽들, 그림찾기, 제목 = '미리보기' }) {
   const 틀 = useRef(null)
   const [폭, set폭] = useState(420)
   const [배율, set배율] = useState(1)
@@ -148,7 +148,7 @@ function 미리보기판({ 쪽들, 그림찾기, 제목 = '미리보기' }) {
 }
 
 /* ══════════════════════ 내보내기 단추 ══════════════════════ */
-function 내보내기줄({ 바쁨, 할, 용량, set용량, 수 }) {
+export function 내보내기줄({ 바쁨, 할, 용량, set용량, 수 }) {
   return (
     <div className="pb-out">
       <div className="pb-outs">
@@ -222,6 +222,58 @@ function 사용법({ 종류, 예시, 바쁨, 처음 }) {
         </>
       )}
     </div>
+  )
+}
+
+/* ══════════════════════ ② 꾸미기 — 사진대지 · 📡 실시간 사진대지(PhotoLive.jsx · G493)가 같이 씀 ══════════════════════ */
+export function 꾸미기칸({ 설정, 설정바꾸기, 번호 = 2, 셈머리 = '|사진대지' }) {
+  const 결재글 = (설정.결재 || []).join(', ')
+  return (
+    <section className="card pb-step">
+          <div className="pb-sh"><span className="pb-no">{번호}</span>꾸미기 <span className="count">· {설정.한쪽에}장씩 · {설정.용지}</span></div>
+          <div className="pb-two">
+            <label className="pb-f"><span>제목</span><input value={설정.제목} onChange={(e) => 설정바꾸기({ 제목: e.target.value })} list="pb-titles" /></label>
+            <datalist id="pb-titles"><option value="사진대지" /><option value="공사 사진대지" /><option value="검측 사진대지" /><option value="준공 사진대지" /><option value="안전점검 사진대지" /><option value="시공 전·후 사진대지" /></datalist>
+            <label className="pb-f"><span>공사명</span><input value={설정.공사명} placeholder="○○지구 배수로 정비공사" onChange={(e) => 설정바꾸기({ 공사명: e.target.value })} /></label>
+            <label className="pb-f"><span>위치</span><input value={설정.위치} placeholder="○○리 일원 (비우면 안 나옴)" onChange={(e) => 설정바꾸기({ 위치: e.target.value })} /></label>
+            <label className="pb-f"><span>결재란</span><input value={결재글} placeholder="담당, 소장 (비우면 없음)" onChange={(e) => 설정바꾸기({ 결재: e.target.value.split(/[,，·]/).map((x) => x.trim()).filter(Boolean).slice(0, 4) })} /></label>
+          </div>
+          <div className="pb-seg">
+            <span className="pb-segl">용지</span>
+            {['세로', '가로'].map((v) => <button key={v} type="button" className={'chip' + (설정.용지 === v ? ' on' : '')} onClick={() => 설정바꾸기({ 용지: v })}>{v === '세로' ? '▯ 세로' : '▭ 가로'}</button>)}
+          </div>
+          <div className="pb-seg">
+            <span className="pb-segl">한 쪽에</span>
+            {(설정.비교 ? [1, 2, 3] : 한쪽에들).map((n) => <button key={n} type="button" className={'chip' + (설정.한쪽에 === n ? ' on' : '')} onClick={() => 설정바꾸기({ 한쪽에: n })}>{n}{설정.비교 ? '짝' : '장'}</button>)}
+          </div>
+          <label className="pb-f"><span>칸 구성</span>
+            <select value={설정.항목꼴} onChange={(e) => 설정바꾸기({ 항목꼴: e.target.value, 항목줄: 항목꼴들[e.target.value] })}>
+              {Object.keys(항목꼴들).map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+          </label>
+          <div className="pb-names">
+            <span className="muted">칸 이름 바꾸기</span>
+            {설정.항목줄.flat().map((f) => (
+              <input key={f.id} value={f.이름} aria-label="칸 이름" onChange={(e) => 설정바꾸기({ 항목줄: 설정.항목줄.map((줄) => 줄.map((x) => (x.id === f.id ? { ...x, 이름: e.target.value } : x))) })} />
+            ))}
+          </div>
+          <div className="pb-checks">
+            <label><input type="checkbox" checked={설정.번호} onChange={(e) => 설정바꾸기({ 번호: e.target.checked })} /> 사진 번호</label>
+            <label><input type="checkbox" checked={설정.쪽번호} onChange={(e) => 설정바꾸기({ 쪽번호: e.target.checked })} /> 쪽 번호</label>
+            <label><input type="checkbox" checked={설정.날짜쪽} onChange={(e) => 설정바꾸기({ 날짜쪽: e.target.checked })} /> 날짜가 바뀌면 새 쪽</label>
+            <label><input type="checkbox" checked={설정.이름을설명} onChange={(e) => 설정바꾸기({ 이름을설명: e.target.checked })} /> 파일 이름을 내용 칸에</label>
+            <label><input type="checkbox" checked={설정.맞춤 === '채움'} onChange={(e) => 설정바꾸기({ 맞춤: e.target.checked ? '채움' : '다보임' })} /> 사진을 칸에 꽉 채우기(가장자리 잘림)</label>
+            <label title="현장 보드판처럼 사진 왼쪽 아래에 공사명 · 공종(내용) · 위치 · 일자 상자를 그려 넣습니다 — PDF · 엑셀 · 한글 · 워드에도 그대로"><input type="checkbox" checked={!!설정.보드} onChange={(e) => { 설정바꾸기({ 보드: e.target.checked }); if (e.target.checked) 세기(셈머리 + '|보드판') }} /> 📋 보드판(사진 위에 공사명 · 공종 · 위치 · 일자)</label>
+            <label><input type="checkbox" checked={설정.비교} onChange={(e) => 설정바꾸기({ 비교: e.target.checked, 한쪽에: e.target.checked ? Math.min(3, 설정.한쪽에) : 설정.한쪽에 })} /> 시공 전·후 나란히(두 장씩 짝)</label>
+          </div>
+          {설정.비교 && (
+            <div className="pb-two">
+              <label className="pb-f"><span>왼쪽</span><input value={설정.전이름} onChange={(e) => 설정바꾸기({ 전이름: e.target.value })} /></label>
+              <label className="pb-f"><span>오른쪽</span><input value={설정.후이름} onChange={(e) => 설정바꾸기({ 후이름: e.target.value })} /></label>
+              <p className="pb-note" style={{ gridColumn: '1 / -1' }}>1·2번, 3·4번 … 이 한 짝입니다. 차례는 ③ 에서 ↑↓ 로 맞추십시오.</p>
+            </div>
+          )}
+    </section>
   )
 }
 
@@ -377,7 +429,6 @@ function 사진대지판() {
     } finally { set바쁨('') }
   }
 
-  const 결재글 = (설정.결재 || []).join(', ')
   return (
     <div className="pb-grid">
       <div className="pb-left">
@@ -419,52 +470,7 @@ function 사진대지판() {
           <p className="pb-note">🔒 사진은 이 브라우저 안에서만 다룹니다 — 서버로 올라가지 않습니다. 적은 것은 이 브라우저에 저절로 남아 창을 닫았다 열어도 이어서 합니다.</p>
         </section>
 
-        {/* ② 꾸미기 */}
-        <section className="card pb-step">
-          <div className="pb-sh"><span className="pb-no">2</span>꾸미기 <span className="count">· {설정.한쪽에}장씩 · {설정.용지}</span></div>
-          <div className="pb-two">
-            <label className="pb-f"><span>제목</span><input value={설정.제목} onChange={(e) => 설정바꾸기({ 제목: e.target.value })} list="pb-titles" /></label>
-            <datalist id="pb-titles"><option value="사진대지" /><option value="공사 사진대지" /><option value="검측 사진대지" /><option value="준공 사진대지" /><option value="안전점검 사진대지" /><option value="시공 전·후 사진대지" /></datalist>
-            <label className="pb-f"><span>공사명</span><input value={설정.공사명} placeholder="○○지구 배수로 정비공사" onChange={(e) => 설정바꾸기({ 공사명: e.target.value })} /></label>
-            <label className="pb-f"><span>위치</span><input value={설정.위치} placeholder="○○리 일원 (비우면 안 나옴)" onChange={(e) => 설정바꾸기({ 위치: e.target.value })} /></label>
-            <label className="pb-f"><span>결재란</span><input value={결재글} placeholder="담당, 소장 (비우면 없음)" onChange={(e) => 설정바꾸기({ 결재: e.target.value.split(/[,，·]/).map((x) => x.trim()).filter(Boolean).slice(0, 4) })} /></label>
-          </div>
-          <div className="pb-seg">
-            <span className="pb-segl">용지</span>
-            {['세로', '가로'].map((v) => <button key={v} type="button" className={'chip' + (설정.용지 === v ? ' on' : '')} onClick={() => 설정바꾸기({ 용지: v })}>{v === '세로' ? '▯ 세로' : '▭ 가로'}</button>)}
-          </div>
-          <div className="pb-seg">
-            <span className="pb-segl">한 쪽에</span>
-            {(설정.비교 ? [1, 2, 3] : 한쪽에들).map((n) => <button key={n} type="button" className={'chip' + (설정.한쪽에 === n ? ' on' : '')} onClick={() => 설정바꾸기({ 한쪽에: n })}>{n}{설정.비교 ? '짝' : '장'}</button>)}
-          </div>
-          <label className="pb-f"><span>칸 구성</span>
-            <select value={설정.항목꼴} onChange={(e) => 설정바꾸기({ 항목꼴: e.target.value, 항목줄: 항목꼴들[e.target.value] })}>
-              {Object.keys(항목꼴들).map((k) => <option key={k} value={k}>{k}</option>)}
-            </select>
-          </label>
-          <div className="pb-names">
-            <span className="muted">칸 이름 바꾸기</span>
-            {설정.항목줄.flat().map((f) => (
-              <input key={f.id} value={f.이름} aria-label="칸 이름" onChange={(e) => 설정바꾸기({ 항목줄: 설정.항목줄.map((줄) => 줄.map((x) => (x.id === f.id ? { ...x, 이름: e.target.value } : x))) })} />
-            ))}
-          </div>
-          <div className="pb-checks">
-            <label><input type="checkbox" checked={설정.번호} onChange={(e) => 설정바꾸기({ 번호: e.target.checked })} /> 사진 번호</label>
-            <label><input type="checkbox" checked={설정.쪽번호} onChange={(e) => 설정바꾸기({ 쪽번호: e.target.checked })} /> 쪽 번호</label>
-            <label><input type="checkbox" checked={설정.날짜쪽} onChange={(e) => 설정바꾸기({ 날짜쪽: e.target.checked })} /> 날짜가 바뀌면 새 쪽</label>
-            <label><input type="checkbox" checked={설정.이름을설명} onChange={(e) => 설정바꾸기({ 이름을설명: e.target.checked })} /> 파일 이름을 내용 칸에</label>
-            <label><input type="checkbox" checked={설정.맞춤 === '채움'} onChange={(e) => 설정바꾸기({ 맞춤: e.target.checked ? '채움' : '다보임' })} /> 사진을 칸에 꽉 채우기(가장자리 잘림)</label>
-            <label title="현장 보드판처럼 사진 왼쪽 아래에 공사명 · 공종(내용) · 위치 · 일자 상자를 그려 넣습니다 — PDF · 엑셀 · 한글 · 워드에도 그대로"><input type="checkbox" checked={!!설정.보드} onChange={(e) => { 설정바꾸기({ 보드: e.target.checked }); if (e.target.checked) 세기('|사진대지|보드판') }} /> 📋 보드판(사진 위에 공사명 · 공종 · 위치 · 일자)</label>
-            <label><input type="checkbox" checked={설정.비교} onChange={(e) => 설정바꾸기({ 비교: e.target.checked, 한쪽에: e.target.checked ? Math.min(3, 설정.한쪽에) : 설정.한쪽에 })} /> 시공 전·후 나란히(두 장씩 짝)</label>
-          </div>
-          {설정.비교 && (
-            <div className="pb-two">
-              <label className="pb-f"><span>왼쪽</span><input value={설정.전이름} onChange={(e) => 설정바꾸기({ 전이름: e.target.value })} /></label>
-              <label className="pb-f"><span>오른쪽</span><input value={설정.후이름} onChange={(e) => 설정바꾸기({ 후이름: e.target.value })} /></label>
-              <p className="pb-note" style={{ gridColumn: '1 / -1' }}>1·2번, 3·4번 … 이 한 짝입니다. 차례는 ③ 에서 ↑↓ 로 맞추십시오.</p>
-            </div>
-          )}
-        </section>
+        <꾸미기칸 설정={설정} 설정바꾸기={설정바꾸기} />
 
         {/* ③ 내용 */}
         <section className="card pb-step">
