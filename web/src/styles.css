@@ -9769,3 +9769,20 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .umap-line .umap-mini-n { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 4px; }
 .umap-only .umap-reg { max-width: 560px; padding-top: 4px; }
 .umap-only .umap-foot { margin-top: 2px; }
+/* 📊 G496 (2026-11-01) 방문자 상자 — 표 + 최근 7일 막대(소장님 「오른쪽이 다 비어있잖아」 → ② 고르심) */
+.umap-body2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px 22px; align-items: start; }
+@media (min-width: 900px) { .umap-body2 { grid-template-columns: minmax(0, 560px) minmax(240px, 1fr); } .umap-only .umap-reg { max-width: none; } }
+.umap-week { padding-top: 6px; min-width: 0; font-variant-numeric: tabular-nums; }
+.umap-week-h { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--text-2, var(--text)); padding: 0 2px 4px; }
+.umap-week-h .muted { font-weight: 500; font-size: 11.5px; }
+.umap-week-bars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; align-items: end; height: 118px; padding: 4px 4px 0; border-radius: 10px; background: var(--accent-soft); }
+.umap-wb { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
+.umap-wb-n { font-size: 11.5px; font-weight: 700; color: var(--text-2, var(--text)); line-height: 1.2; white-space: nowrap; }
+.umap-wb-bar { display: flex; align-items: flex-end; width: 100%; max-width: 34px; height: 64px; margin-top: 2px; }
+.umap-wb-bar i { display: block; width: 100%; border-radius: 5px 5px 2px 2px; background: color-mix(in srgb, var(--accent) 45%, #fff); transition: height .5s ease; }
+.umap-wb.today .umap-wb-bar i { background: var(--accent); }
+.umap-wb.today .umap-wb-n, .umap-wb.today .umap-wb-d { color: var(--accent); }
+.umap-wb-d { font-size: 11.5px; color: var(--muted); margin-top: 3px; line-height: 1.1; text-align: center; }
+.umap-wb-d small { display: block; font-size: 10px; }
+.umap-wb.none .umap-wb-n { color: var(--muted); font-weight: 400; }
+@media (prefers-reduced-motion: reduce) { .umap-wb-bar i { transition: none; } }

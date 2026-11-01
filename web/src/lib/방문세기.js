@@ -330,6 +330,21 @@ export function 어제받기(지금, 받) {
   }).catch(() => null)
 }
 
+/* 📊 G496 (2026-11-01) 소장님 「(지도 뺀 상자) 오른쪽이 다 비어있잖아 · 아이디어 내봐」 → ②「표 + 최근 7일 막대」
+   지난 6일(오늘은 화면의 «오늘 +N» 그대로)의 하루 방문 = vis/d/{날}/n — 어제받기와 같은 셈 · 30분 기억 · 직접 세기 전 날(10/18 까지)은 null(막대 없이 «—»).
+   받 = 받기 함수(시험에서 가짜로 바꿈) */
+const 지난날기억 = { 열쇠: '', 들: null, t: 0 }
+export function 지난날들받기(지금, 받0 = null, 날수 = 7) {
+  const 받 = 받0 || ((u) => 받기(u, 곁기다림))
+  const 날들 = Array.from({ length: 날수 - 1 }, (_, i) => 한국날(지금 - (날수 - 1 - i) * 86400000))
+  const 열쇠 = 날들.join(',')
+  if (지난날기억.열쇠 === 열쇠 && 지난날기억.들 && Date.now() - 지난날기억.t < 30 * 60000) return Promise.resolve(지난날기억.들)
+  return Promise.all(날들.map((날) => {
+    if (!직접인가(Date.parse(날 + 'T00:00:00+09:00'))) return Promise.resolve({ 날, n: null })
+    return 받(`${DB}/vis/d/${날}/n.json`).then((v) => ({ 날, n: v !== null && isFinite(Number(v)) ? Math.max(0, Number(v)) : 0 })).catch(() => ({ 날, n: null }))
+  })).then((들) => { if (들.some((x) => x.n !== null)) Object.assign(지난날기억, { 열쇠, 들, t: Date.now() }); return 들 })
+}
+
 /* 🔁 어제 세션(건설맵) — 어제가 10/22 이후일 때만 vis/d/{어제}/s (30분 기억 · 어제 사람 수와 같은 꼴) · 그 전 날이면 null(화면이 애널리틱스 어제 세션을 씀) */
 const 어제s기억 = { 날: '', n: null, t: 0 }
 export function 어제세션받기(지금, 받) {
