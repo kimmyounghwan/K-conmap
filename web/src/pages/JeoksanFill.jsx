@@ -78,10 +78,12 @@ export default function JeoksanFill() {
     let el = document.head.querySelector('meta[name="robots"]')
     if (!el) { el = document.createElement('meta'); el.setAttribute('name', 'robots'); document.head.appendChild(el) }
     el.setAttribute('content', 'noindex, nofollow')
-    loadFb().then(({ ensureAnon }) => ensureAnon())
-      .then((u) => setUid((u && u.uid) || ''))
-      .catch(() => setUid(''))
-    return () => { if (el) el.remove() }
+    /* 🧭 G490 (2026-11-01 적산 탭 2차 점검) — 로그인(익명)이 안 끝나면(회사망에서 firebase 막힘 · 느린 폰) «여는 중…» 에서 안 넘어가던 것 → 6초 지나면 손님으로 엶 */
+    let 살 = true
+    Promise.race([loadFb().then(({ ensureAnon }) => ensureAnon()), new Promise((ok) => setTimeout(() => ok(null), 6000))])
+      .then((u) => { if (살) setUid((u && u.uid) || '') })
+      .catch(() => { if (살) setUid('') })
+    return () => { 살 = false; if (el) el.remove() }
   }, [])
 
   if (uid === undefined) return <div className="wrap"><div className="card muted">여는 중…</div></div>
