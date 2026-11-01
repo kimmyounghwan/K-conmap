@@ -29,6 +29,13 @@ for (const [기기, vp] of [['PC', { width: 1280, height: 860 }], ['폰', { widt
   const 첫 = await p.$eval('.qs-row .qs-t', (e) => e.textContent)
   봐(/노무비 계산기/.test(첫), `${기기} 🔎 → «노무비» 맨 위 = ${첫}`)
   if (기기 === 'PC' || 기기 === '폰') { if (찍기) await p.screenshot({ path: `${찍기}/${기기}_노무비.png` }) }
+  /* 🔎 G500 소장님 「검색하는데 Tbm 회의록은 안나와」 — 사이트 작성 서식 36가지가 찾기 목록에 없었음 */
+  await p.fill('.qs-in', 'TBm')
+  await p.waitForFunction(() => [...document.querySelectorAll('.qs-row .qs-t')].some((e) => /TBM 회의록/.test(e.textContent)), null, { timeout: 5000 }).catch(() => {})
+  const tbm = await p.$$eval('.qs-row .qs-t', (es) => es.map((e) => e.textContent.trim()))
+  봐(tbm.some((t) => /TBM 회의록/.test(t)) && tbm.some((t) => /TBM 일지/.test(t)), `${기기} 🔎 «TBm» → TBM 회의록 · TBM 일지 (${tbm.slice(0, 4).join(' / ')})`)
+  if (찍기) await p.screenshot({ path: `${찍기}/${기기}_TBM.png` })
+  await p.fill('.qs-in', '노무비')
   await p.keyboard.press('Escape')
   await p.waitForTimeout(300)
   봐(!(await p.$('.qs-back')), `${기기} Esc 로 닫힘`)

@@ -38,6 +38,18 @@ const 틀린 = 표.filter(([q, to]) => 맨위(q) !== to)
 봐(L.찾기(목, '거푸집', 10).some((x) => x.to === '/jeoksan/model'), '«거푸집» 에 적산컨맵(골조 모델)도 나옴(더 붙인 말)')
 봐(!L.찾기(목, '', 5).length && !L.찾기(목, '   ', 5).length && !L.찾기(목, '쀏쀍', 5).length, '빈칸 · 없는 말 → 없음')
 
+console.log('③-2 서식 탭의 모든 서식이 찾기에 — G500 소장님 「검색하는데 Tbm 회의록은 안나와」')
+{
+  /* forms.json(서식 탭) 의 서식이 forms-min.json(찾기 목록)에 빠지면 찾기에 안 나옴 — 사이트 작성 서식 36가지가 빠져 있었음 */
+  const 서식 = 읽('forms.json').forms
+  const 빠짐 = 서식.filter((f) => !목.some((x) => x.to === '/forms/' + f.slug && x.t === f.title))
+  봐(!빠짐.length, `서식 탭 ${서식.length}가지가 모두 찾기 목록에 같은 제목으로`, 빠짐.map((f) => f.slug).join(' · '))
+  const tbm = L.찾기(목, 'TBm', 10).map((x) => x.to)
+  봐(tbm.includes('/forms/tbm-hoeui') && tbm.includes('/forms/tbm'), '«TBm»(대소문자 섞어) → TBM 회의록 · TBM 일지 둘 다', tbm.join(' · '))
+  봐((L.찾기(목, 'tbm 회의록', 3)[0] || {}).to === '/forms/tbm-hoeui', '«tbm 회의록» → 맨 위 TBM 회의록', JSON.stringify(L.찾기(목, 'tbm 회의록', 3).map((x) => x.to)))
+  봐((L.찾기(목, '화기작업', 3)[0] || {}).to === '/forms/hg-hwagi' && (L.찾기(목, '굴착 작업계획서', 3)[0] || {}).to === '/forms/jg-gulchak', '«화기작업» → 화기작업 허가서 · «굴착 작업계획서» → 굴착 작업계획서(사이트 작성 서식)', JSON.stringify([L.찾기(목, '화기작업', 3).map((x) => x.to), L.찾기(목, '굴착 작업계획서', 3).map((x) => x.to)]))
+}
+
 console.log('④ 공고 번호')
 const 공 = L.찾기(목, 'r26bk01693749-000', 5)
 봐(공[0] && 공[0].갈래 === '공고' && 공[0].to === '/notice/R26BK01693749', '«r26bk01693749-000» → 맨 위 «공고 R26BK01693749 열기»(대문자 · 차수 뺌)', JSON.stringify(공[0]))

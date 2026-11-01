@@ -5,6 +5,9 @@
    python3 tools/forms_web/더하기.py --check  — 고치지 않고 검사만(시험)
 검사: 칸 꼴(kv · table · chk · cl · text · sign) · 예시(ex)가 칸 꼴과 맞나(화면 tools/서식작성.jsx 맞는꼴 과 같은 셈) ·
       필수 글(제목 · 짧은 말 · 언제 · 놓치기 쉬운 것 · 근거) · slug 겹침 · 예시에 실제처럼 보이는 전화 · 주민번호 없음.
+🔎 G500 (11-01) 소장님 「검색하는데 Tbm 회의록은 안나와」 — 맨 위 🔎 찾기는 forms-min.json 을 읽는데, 여기서 넣은 서식 36가지가
+      거기 없었음(forms.json 에만 넣음) → 넣을 때 forms-min.json 에도 [제목, 아이콘, 짧은 말, 묶음] 을 같이 씀 ·
+      --check 는 «forms.json 의 모든 서식이 forms-min.json 에 같은 값으로 있나» 도 봄(빠지면 올리기가 멈춤).
 """
 import json
 import os
@@ -110,6 +113,11 @@ def 글검사(f):
     return 틀
 
 
+def 작게(f):
+    """forms-min.json 한 줄 — tools/forms2/publish.py 의 mini 와 같은 꼴"""
+    return [f['title'], f.get('icon', ''), f.get('short', ''), f.get('group', '')]
+
+
 def main():
     only = '--check' in sys.argv
     fp = os.path.join(DATA, 'forms.json')
@@ -135,6 +143,13 @@ def main():
     for t in set(titles):
         if titles.count(t) > 1:
             틀.append(f'제목 겹침: {t}')
+    # 🔎 G500 찾기 목록(forms-min.json) — 지금 forms.json 의 모든 서식(+ 이번에 넣을 것)이 같은 값으로 있어야 함(넣기 모드는 아래에서 같이 씀)
+    mp = os.path.join(DATA, 'forms-min.json')
+    mini = json.load(open(mp, encoding='utf-8'))
+    if only:
+        for f in [x for x in d['forms'] if x['slug'] not in slugs] + 새:
+            if mini.get(f['slug']) != 작게(f):
+                틀.append(f'{f["slug"]}: 🔎 찾기 목록(forms-min.json)에 없거나 다름 — python3 tools/forms_web/더하기.py 로 넣기')
     print(f'새 안전서식 {len(새)}가지 · 검사 틀림 {len(틀)}')
     for e in 틀:
         print('  ✗', e)
@@ -159,6 +174,11 @@ def main():
         st[k]['slugs'].append(f['slug'])
     open(fp, 'w', encoding='utf-8').write(json.dumps(d, ensure_ascii=False, indent=1))
     open(tp, 'w', encoding='utf-8').write(json.dumps(tab, ensure_ascii=False, indent=1))
+    for f in d['forms']:   # 🔎 G500 찾기 목록 — 빠진 것 · 바뀐 것만(있는 차례 그대로 · 새 것은 끝에)
+        if mini.get(f['slug']) != 작게(f):
+            mini[f['slug']] = 작게(f)
+    open(mp, 'w', encoding='utf-8').write(json.dumps(mini, ensure_ascii=False))
+    print(f'✓ forms-min.json(🔎 찾기) {len(mini)}가지')
     print(f'✓ forms.json {len(d["forms"])}가지 · 묶음 ③ {len(st["plan"]["slugs"])} · ⑥ {len(st["safety"]["slugs"])}')
 
 
