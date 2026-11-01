@@ -48,6 +48,11 @@
  *     맨 위 굵은 줄 «맵톡은 여러 분이 함께 쓰는 곳입니다. 예의를 갖추고 이용해 주세요.» 는 늘 넣음(띠에도 굵게).
  *   · 판 = '2026-10-업체'(닫은 분에게도 한 번) · 보이는 날 = 10/21 ~ 10/28(올린 날 포함 8일).
  *   · 맵톡에도 같은 글을 📢 공지(📌 고정)로 올림 — 공지 상자 맨 위.
+ *
+ * 🛠 G491 (2026-11-01 11:0x) 소장님 「공지 하나 띄워. 자정 12시까지 사이트 점검, 이용은 가능. 12시 넘으면 공지 제거」
+ *   → 띠 한 줄만(창 없음 · «공지 보기» 없음): «🛠 오늘 자정(24시)까지 사이트 점검 중입니다 — 이용은 그대로 하실 수 있습니다.»
+ *     판 = '2026-11-점검' · 까지 = '2026-11-01'(한국 날짜가 11-02 가 되면 저절로 안 뜸 — 올릴 것 없음). 맵톡엔 안 올림(짧은 점검 알림).
+ *     «창» 코드(공지창)는 다음 공지 때 다시 쓰도록 그대로 두고 창있음 = false.
  */
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -55,8 +60,9 @@ import { Link, useLocation } from 'react-router-dom'
 import { 로봇 as 로봇글 } from './lib/인사.js'
 import { 세기 } from './lib/받은수.jsx'
 
-const 판 = '2026-10-업체'         /* G345 — 10/20 에 올린 것 · G318 '2026-10-새것' · G284 '2026-10-필독' · G199 '2026-10-용역' · G186 '2026-10-고침2' · G176 '2026-10-고침' */
-const 까지 = '2026-10-28'          /* 이 날까지 보임 — 10/21 올리면 10/21~10/28 (올리는 날이 바뀌면 같이 고침) */
+const 판 = '2026-11-점검'         /* G491 점검 띠 · G345 '2026-10-업체' · G318 '2026-10-새것' · G284 '2026-10-필독' · G199 '2026-10-용역' · G186 '2026-10-고침2' · G176 '2026-10-고침' */
+const 까지 = '2026-11-01'          /* 이 날까지 보임 — 한국 날짜로 11-02 0시부터 저절로 안 뜸(소장님 「12시 넘으면 공지 제거」) */
+const 창있음 = false                /* G491 — 띠만(점검 알림). 창을 다시 쓰려면 true */
 const 열쇠 = 'kcm_notice_hide'      /* 다시 보지 않기(띠 ✕ 도 같음) — localStorage */
 const 본열쇠 = 'kcm_notice_seen'    /* 이번에 한 번 봤음 — sessionStorage(창을 닫으면 그 창 동안은 다시 안 띄움) */
 const 한국오늘 = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)
@@ -136,7 +142,7 @@ export default function 감사공지() {
   const { pathname } = useLocation()
   const [닫힘] = useState(() => 닫았나() || 띠감췄나())
   /* 창 — 이 창(탭)을 연 뒤 처음 한 번 저절로 */
-  const [창, set창] = useState(() => !닫았나() && !봤나() && !다른탭열림())
+  const [창, set창] = useState(() => 창있음 && !닫았나() && !봤나() && !다른탭열림())
   useEffect(() => { 살아적기(); const t = setInterval(살아적기, 살아간격); return () => clearInterval(t) }, [])   /* 이 탭이 열려 있는 동안 «쓰는 중» */
   const 오늘 = 한국오늘()
   if (닫힘 || 오늘 > 까지 || 로봇() || pathname.startsWith('/admin')) return null
@@ -145,11 +151,12 @@ export default function 감사공지() {
   return (
     <>
       <div className="noticebar" role="note">
-        <span className="t">📢 <b className="noticebar-must">새로 넣고 고친 것</b> — <b>맵톡은 예의를 갖추고 이용해 주세요</b> · 업체 찾기 · 공동도급 마당 · 입찰 분석실</span>
-        <button type="button" className="go" onClick={() => { 세기('|공지|보기'); set창(true) }}>공지 보기</button>
-        {/* 🩹 G284 소장님 「사이트 접속자 모두에게 계속 보이도록 해줘.」 — 띠 ✕ 없앰(20일까지 모든 화면 위에 늘) */}
+        {/* G491 점검 띠 — 창 없이 한 줄 · 11-01 자정까지 */}
+        <span className="t">🛠 <b className="noticebar-must">오늘 자정(24시)까지 사이트 점검 중입니다</b> — 이용은 그대로 하실 수 있습니다.</span>
+        {창있음 && <button type="button" className="go" onClick={() => { 세기('|공지|보기'); set창(true) }}>공지 보기</button>}
+        {/* 🩹 G284 소장님 「사이트 접속자 모두에게 계속 보이도록 해줘.」 — 띠 ✕ 없앰(모든 화면 위에 늘) */}
       </div>
-      {창 && <공지창 닫기={창닫기} />}
+      {창있음 && 창 && <공지창 닫기={창닫기} />}
     </>
   )
 }
