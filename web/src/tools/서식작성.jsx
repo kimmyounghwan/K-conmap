@@ -38,10 +38,20 @@ const 줄수 = (b) => Math.max(b.rows && b.rows.length ? b.rows.length : 0, b.n 
 const 미리줄 = (b) => (b.rows && b.rows.length ? b.rows : (b.wpre || []))
 
 /** 빈 값 — 블록마다 */
+/* 🗣 G497 (2026-11-01) TBM 회의록 — 소장님 「이용자 입장에서 편하게 되도록 자동으로」
+   · kv 줄 셋째가 'D' 면 오늘 날짜(+ 도움말의 시각)가 먼저 들어감 · table 에 기억(열쇠)이 있으면 지난번 적은 줄(참석자 이름)이 그대로 들어옴(kcm.서식기억:열쇠 · 이 기기)
+   · table 에 따름{블록, 열, 더{블록, 줄}} 이 있으면 그 열이 다른 표의 열(+ kv 한 칸)을 저절로 따라감(아래 따름맞추기) */
+const 기억열쇠 = (k) => 'kcm.서식기억:' + k
+const 오늘값 = (r) => { const m = /(\d{1,2}:\d{2}\s*[~∼]\s*\d{1,2}:\d{2})/.exec(String(r[1] || '')); return 오늘() + (m ? ' ' + m[1] : '') }
 export function 빈값(sheet, 공통 = {}) {
   return (sheet.blocks || []).map((b) => {
-    if (b.t === 'kv') return b.rows.map((r) => { const c = 공통이름(r[0]); return (c && 공통[c]) || '' })
-    if (b.t === 'table') { const 미리 = 미리줄(b); return Array.from({ length: 줄수(b) }, (_, j) => b.cols.map((_, k) => (미리[j] && 미리[j][k]) || '')) }
+    if (b.t === 'kv') return b.rows.map((r) => { const c = 공통이름(r[0]); return (c && 공통[c]) || (r[2] === 'D' ? 오늘값(r) : '') })
+    if (b.t === 'table') {
+      const 미리 = 미리줄(b)
+      const 기억 = b.기억 ? 읽기(기억열쇠(b.기억), null) : null
+      if (Array.isArray(기억) && 기억.length && 기억.every((r) => Array.isArray(r) && r.length === b.cols.length)) return Array.from({ length: Math.max(줄수(b), 기억.length) }, (_, j) => (기억[j] ? [...기억[j]] : b.cols.map(() => '')))
+      return Array.from({ length: 줄수(b) }, (_, j) => b.cols.map((_, k) => (미리[j] && 미리[j][k]) || ''))
+    }
     if (b.t === 'chk') return b.items.map(() => ({ r: '', m: '' }))
     if (b.t === 'cl') return b.items.map(() => false)
     if (b.t === 'sign') return { d: 오늘(), n: b.who.map(() => '') }
@@ -295,7 +305,24 @@ export default function 서식작성({ f }) {
     const c = 공통이름(s.blocks[i].rows[j][0])
     if (c) { const 공통 = 읽기(공통열쇠, {}); 공통[c] = String(val).slice(0, 80); 쓰기(공통열쇠, 공통) }
   }
-  const 표바꿈 = (i, j, k, val) => 바꿈(i, (o) => o.map((r, a) => (a === j ? r.map((c, b) => (b === k ? val : c)) : r)))
+  const 표바꿈 = (i, j, k, val) => {
+    바꿈(i, (o) => o.map((r, a) => (a === j ? r.map((c, b) => (b === k ? val : c)) : r)))
+    const b = s.blocks[i]
+    if (b.기억) { const o = v[i].map((r, a) => (a === j ? r.map((c, q) => (q === k ? val : c)) : r)); 쓰기(기억열쇠(b.기억), o.filter((r) => r.some((c) => String(c).trim()))) }   /* 🗣 G497 참석자 이름 기억 */
+  }
+  /* 🗣 G497 따름 — 잠재위험요인 표(+ 중점위험 kv)에 적은 것이 «작업 전 안전조치 확인» 표 첫 열에 저절로(줄이 모자라면 늘림 · 지우면 빠짐 · 다른 열은 그대로) */
+  useEffect(() => {
+    s.blocks.forEach((b, i) => {
+      if (b.t !== 'table' || !b.따름) return
+      const 원 = v[b.따름.블록]
+      if (!Array.isArray(원)) return
+      const 들 = 원.map((r) => String(r[b.따름.열] || '').trim()).filter(Boolean)
+      if (b.따름.더) { const kv = v[b.따름.더.블록]; const t = Array.isArray(kv) ? String(kv[b.따름.더.줄] || '').trim() : ''; if (t && !들.includes(t)) 들.push(t) }
+      const 지금 = v[i]
+      const 새 = Array.from({ length: Math.max(줄수(b), 들.length) }, (_, j) => { const r = 지금[j] ? [...지금[j]] : b.cols.map(() => ''); r[0] = 들[j] || ''; return r })
+      if (새.length !== 지금.length || 새.some((r, j) => r[0] !== 지금[j][0])) 바꿈(i, 새)
+    })
+  }, [v])   // eslint-disable-line react-hooks/exhaustive-deps
   const 줄더 = (i) => { const b = s.blocks[i]; 바꿈(i, (o) => (o.length >= 60 ? o : [...o, b.cols.map(() => '')])) }
   const 줄빼 = (i) => { const b = s.blocks[i]; 바꿈(i, (o) => (o.length <= 줄수(b) ? o : o.slice(0, -1))) }
 
@@ -388,9 +415,11 @@ export default function 서식작성({ f }) {
                     <thead><tr>{b.cols.map((c) => <th key={c}>{c}</th>)}</tr></thead>
                     <tbody>{x.map((r, j) => (
                       <tr key={j}>{r.map((c, k) => (
-                        <td key={k}>{b.wdv && b.wdv[k]
-                          ? <고름칸 value={c} label={`${b.cols[k]} ${j + 1}`} opts={b.wdv[k]} id={`fw-dl-${f.slug}-${i}-c${k}`} onChange={(val) => 표바꿈(i, j, k, val)} />
-                          : <늘칸 value={c} label={`${b.cols[k]} ${j + 1}`} onChange={(val) => 표바꿈(i, j, k, val)} />}</td>
+                        <td key={k}>{b.따름 && k === 0
+                          ? <span className="fw-in fw-ro" title="위 표에서 저절로 들어옵니다">{c || <i className="muted">위에 적으면 들어옵니다</i>}</span>   /* 🗣 G497 따라오는 열 — 손으로 못 고침 */
+                          : b.wdv && b.wdv[k]
+                            ? <고름칸 value={c} label={`${b.cols[k]} ${j + 1}`} opts={b.wdv[k]} id={`fw-dl-${f.slug}-${i}-c${k}`} onChange={(val) => 표바꿈(i, j, k, val)} />
+                            : <늘칸 value={c} label={`${b.cols[k]} ${j + 1}`} onChange={(val) => 표바꿈(i, j, k, val)} />}</td>
                       ))}</tr>
                     ))}</tbody>
                   </table>

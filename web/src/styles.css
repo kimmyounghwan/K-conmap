@@ -9786,3 +9786,6 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .umap-wb-d small { display: block; font-size: 10px; }
 .umap-wb.none .umap-wb-n { color: var(--muted); font-weight: 400; }
 @media (prefers-reduced-motion: reduce) { .umap-wb-bar i { transition: none; } }
+/* 🗣 G497 (2026-11-01) 서식작성 — 다른 표를 따라오는 열(손으로 못 고침) */
+.fw-in.fw-ro { display: block; min-height: 2.1em; padding: 6px 8px; background: var(--surface-2); color: var(--text); cursor: default; white-space: pre-wrap; }
+.fw-in.fw-ro .muted { font-style: normal; font-size: 12px; }
