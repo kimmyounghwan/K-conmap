@@ -4,6 +4,7 @@ import { 판단, 신고할일, 달규칙, 달더하기, 짧은날, 달글, 한�
 import { 공제셈, 연금상하한, 요율, 열원 } from '../lib/gongje.js'
 import { 링크만들기, 링크읽기, 기간날들 } from '../lib/ilyong4link.js'
 import G from '../data/ilyong_guide.json'
+import { 링크복사 } from '../lib/링크복사.js'
 
 /**
  * 🛡 /tools/ilyong-boheom — 일용직 4대보험 가입 판단기 (G107 · 2026-10-01)
@@ -331,7 +332,7 @@ export default function Ilyong4() {
     if (폰 && navigator.share) {
       try { await navigator.share({ title: 'K-건설맵 · 일용직 4대보험 판단', text: 글, url }); return } catch (e) { if (e && e.name === 'AbortError') return }
     }
-    try { await navigator.clipboard.writeText(url); set링크({ url, 복사: true }) } catch (e) { set링크({ url, 복사: false }) }
+    set링크({ url, 복사: await 링크복사(url) })   /* 🔗 G516 — 클립보드가 멈춰도 1.5초 뒤 링크는 보임 */
   }
 
   return (

@@ -11,6 +11,7 @@ import { 주휴판단, 원글, 시간글 } from '../lib/juhyu.js'
 import { 링크만들기, 링크읽기 } from '../lib/juhyuLink.js'
 import G from '../data/juhyu_guide.json'
 import { 일당살핌, 시급살핌 } from '../lib/살핌.js'
+import { 링크복사 } from '../lib/링크복사.js'
 
 const 열쇠 = 'kcm_juhyu'
 const 쓴링크열쇠 = 'kcm_juhyu_link'
@@ -77,7 +78,7 @@ export default function Juhyu() {
     if (폰 && navigator.share) {
       try { await navigator.share({ title: 'K-건설맵 · 주휴수당', text: 글, url }); return } catch (e) { if (e && e.name === 'AbortError') return }
     }
-    try { await navigator.clipboard.writeText(url); set링크({ url, 복사: true }) } catch (e) { set링크({ url, 복사: false }) }
+    set링크({ url, 복사: await 링크복사(url) })   /* 🔗 G516 — 클립보드가 멈춰도 1.5초 뒤 링크는 보임 */
   }
   const 적음 = !!(st.일당 || st.시급)
 

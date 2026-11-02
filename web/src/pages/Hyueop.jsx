@@ -12,6 +12,7 @@ import { 링크만들기, 링크읽기 } from '../lib/hyueopLink.js'
 import { 긴날, 짧은날 } from '../lib/해마다.js'
 import G from '../data/hyueop_guide.json'
 import { 일당살핌 } from '../lib/살핌.js'
+import { 링크복사 } from '../lib/링크복사.js'
 
 const 열쇠 = 'kcm_hyueop'
 const 쓴링크열쇠 = 'kcm_hyueop_link'
@@ -68,7 +69,7 @@ export default function Hyueop() {
     if (폰 && navigator.share) {
       try { await navigator.share({ title: 'K-건설맵 · 산재 휴업급여', text: 글, url }); return } catch (e) { if (e && e.name === 'AbortError') return }
     }
-    try { await navigator.clipboard.writeText(url); set링크({ url, 복사: true }) } catch (e) { set링크({ url, 복사: false }) }
+    set링크({ url, 복사: await 링크복사(url) })   /* 🔗 G516 — 클립보드가 멈춰도 1.5초 뒤 링크는 보임 */
   }
   const 낮은꼴 = !R.빈 && R.구간.some((x) => x.꼴 === '최저임금' || x.꼴 === '80')
   // G508 사이트 점검(11-02 12:0x)에서 찾음 — 해를 넘는 긴 기간은 «10.15.~10.14.» 처럼 거꾸로 보여 헷갈림 → 해가 바뀌면 연도까지

@@ -13,6 +13,7 @@ import { 링크만들기, 링크읽기 } from '../lib/silupLink.js'
 import { 한국오늘, 긴날, 짧은날, 달더하기 } from '../lib/해마다.js'
 import G from '../data/silup_guide.json'
 import { 일당살핌 } from '../lib/살핌.js'
+import { 링크복사 } from '../lib/링크복사.js'
 
 const 열쇠 = 'kcm_silup'
 const 쓴링크열쇠 = 'kcm_silup_link'
@@ -78,7 +79,7 @@ export default function Silup() {
     if (폰 && navigator.share) {
       try { await navigator.share({ title: 'K-건설맵 · 일용직 실업급여 판단', text: 글, url }); return } catch (e) { if (e && e.name === 'AbortError') return }
     }
-    try { await navigator.clipboard.writeText(url); set링크({ url, 복사: true }) } catch (e) { set링크({ url, 복사: false }) }
+    set링크({ url, 복사: await 링크복사(url) })   /* 🔗 G516 — 클립보드가 멈춰도 1.5초 뒤 링크는 보임 */
   }
   const 신청 = G.secs.find((x) => x.id === 'sincheong')
 

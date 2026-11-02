@@ -10,6 +10,7 @@ import { Link } from 'react-router-dom'
 import { 퇴직금판단, 원글, 시간글, 긴날, IRP기준 } from '../lib/toejikgeum.js'
 import { 링크만들기, 링크읽기 } from '../lib/toejikgeumLink.js'
 import G from '../data/toejikgeum_guide.json'
+import { 링크복사 } from '../lib/링크복사.js'
 
 const 열쇠 = 'kcm_toejikgeum'
 const 쓴링크열쇠 = 'kcm_toejikgeum_link'
@@ -77,7 +78,7 @@ export default function Toejikgeum() {
     if (폰 && navigator.share) {
       try { await navigator.share({ title: 'K-건설맵 · 일용직 퇴직금', text: 글, url }); return } catch (e) { if (e && e.name === 'AbortError') return }
     }
-    try { await navigator.clipboard.writeText(url); set링크({ url, 복사: true }) } catch (e) { set링크({ url, 복사: false }) }
+    set링크({ url, 복사: await 링크복사(url) })   /* 🔗 G516 — 클립보드가 멈춰도 1.5초 뒤 링크는 보임 */
   }
   const 적음 = !!(st.일당 || st.처음 || st.끝)
 
