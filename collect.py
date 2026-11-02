@@ -1265,9 +1265,11 @@ def 법인번호(b):
 # ══════════════════════════════════════════════════════════════════
 CORP_INFO = os.path.join(STORE, "corp_info.json")
 CORP_INFO_URL = BASE + "/ao/UsrInfoService02/getPrcrmntCorpBasicInfo02"
-CORP_INFO_RUN = int(os.environ.get("CORP_INFO_RUN", "300"))         # 회차마다 새로 물을 업체 수
+# 2026-11-03 소장님 「연락처, 주소는 반드시 찾아서 올려줘. 1순위에」 — 처음 채우기(법인 약 2,000곳)를 2~3회차 안에 끝내려고
+#   회차 300곳 · 150초 → 1,000곳 · 360초(다 채운 뒤에는 새로 들어온 1순위만 물어 몇십 곳 · 몇십 초). 하루 상한 5,000 그대로.
+CORP_INFO_RUN = int(os.environ.get("CORP_INFO_RUN", "1000"))        # 회차마다 새로 물을 업체 수
 CORP_INFO_DAY = int(os.environ.get("CORP_INFO_DAY", "5000"))        # 하루 상한(개발계정 10,000 의 절반)
-CORP_INFO_TIME_S = int(os.environ.get("CORP_INFO_TIME_S", "150"))   # 회차마다 쓸 시간(초)
+CORP_INFO_TIME_S = int(os.environ.get("CORP_INFO_TIME_S", "360"))   # 회차마다 쓸 시간(초) — 작업 상한 100분 · 회차 약 65분이라 넉넉함
 CORP_INFO_OK_DAYS = 365         # 찾은 것은 1년 뒤 다시 물음(이사 · 번호 바뀜)
 CORP_INFO_MISS_DAYS = 30        # 등록 정보에 없던 것은 30일 뒤 다시 물음
 CORP_INFO_KEEP_DAYS = 1095      # 3년 지나면 장부에서 버림
