@@ -231,6 +231,14 @@
         ]
       },
       {
+        "//": "🩹 G512 (2026-11-02) 배포 앞에 «지금 사이트 판 묶음 이름» 을 읽는 목록(tools/옛묶음잇기.py) — 늘 지금 것을 읽게 캐시 안 함 · 검색에는 안 나오게",
+        "source": "/assets-keep.json",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+          { "key": "X-Robots-Tag", "value": "noindex" }
+        ]
+      },
+      {
         "//": "서비스 워커는 절대 캐시하지 않는다 — 캐시되면 새 sw.js 가 영영 안 내려간다 (2026-09-06, 앱 설치용)",
         "source": "/sw.js",
         "headers": [

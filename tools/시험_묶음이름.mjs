@@ -4,6 +4,8 @@
 //        index 를 부르는 화면 묶음 95개 이름이 줄줄이 바뀜 → 열어 둔 화면에서 다른 화면을 누르면 404 → 새로 고침(«잠깐 안 열림»).
 //   고침: 도장은 HTML(window.__KCM_BUILD__)에만. 이 시험은 그 약속이 깨지지 않게 지킵니다(다시 구우면 막힘).
 //   ⚠️ 무거운 확인(빌드 두 번 → 묶음 이름이 하나도 안 바뀜)은 손으로: cd web && npx vite build 두 번 · ls dist/assets 비교(G511 때 225개 같음).
+//   🩹 G512(같은 날) — 코드가 바뀐 배포는 이름이 바뀌는 게 맞음 → 배포 앞에 바로 앞 판 묶음을 사이트에서 받아 같이 올림(update.yml «옛 화면 묶음 이어 두기»).
+//     여기서는 그 단계 자리 · firebase.json 만 봄(PC 에서도 도는 가벼운 시험). 셈 자체는 tools/시험_옛묶음잇기.py(127.0.0.1 작은 서버 — 클라우드에서만).
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -33,6 +35,17 @@ const 데이터 = fs.readFileSync(path.join(웹, 'src', 'lib', 'data.js'), 'utf8
 봄(/const V = \(typeof window !== 'undefined' && typeof window\.__KCM_BUILD__ === 'string' && window\.__KCM_BUILD__\) \|\| '0'/.test(데이터), 'lib/data.js 자료 주소 도장(?v=)은 HTML 의 window.__KCM_BUILD__')
 const 쪽 = fs.readFileSync(path.join(웹, 'index.html'), 'utf8')
 봄(/<head>/.test(쪽), 'index.html 에 <head> 가 있어 도장이 들어갈 자리가 있음')
+
+// 🩹 G512 — «코드가 바뀐» 배포 뒤에도 바로 앞 판 묶음이 사이트에 남게(옛 화면 묶음 이어 두기 · 셈은 tools/시험_옛묶음잇기.py — 클라우드에서)
+const 일꾼 = fs.readFileSync(path.join(여기, '..', '.github', 'workflows', 'update.yml'), 'utf8').replace(/\r\n/g, '\n')
+const 굽기 = 일꾼.indexOf('\n      - name: 주소별 HTML 굽기\n'), 잇기 = 일꾼.indexOf('\n      - name: 옛 화면 묶음 이어 두기\n'), 배포 = 일꾼.indexOf('\n      - name: 사이트 배포\n')
+const 잇기단계 = 잇기 > 0 && 배포 > 잇기 ? 일꾼.slice(잇기, 배포) : ''
+봄(0 < 굽기 && 굽기 < 잇기 && 잇기 < 배포 && /continue-on-error: true/.test(잇기단계) && /run: python tools\/옛묶음잇기\.py web\/dist/.test(잇기단계),
+  'update.yml «옛 화면 묶음 이어 두기» — 굽기 뒤 · 배포 앞 · 실패해도 배포는 그대로', `${굽기} ${잇기} ${배포}`)
+봄(fs.existsSync(path.join(여기, '옛묶음잇기.py')), 'tools/옛묶음잇기.py 있음')
+const 불 = JSON.parse(fs.readFileSync(path.join(웹, 'firebase.json'), 'utf8'))
+const 목록머리 = ((불.hosting && 불.hosting.headers) || []).find((h) => h.source === '/assets-keep.json')
+봄(!!목록머리 && 목록머리.headers.some((x) => x.key === 'Cache-Control' && /no-store/.test(x.value)), 'firebase.json /assets-keep.json 은 캐시 안 함(배포 앞에 늘 지금 목록을 읽게)')
 
 console.log(`\n묶음 이름 지킴 ${통과}/${통과 + 틀림}`)
 if (틀림) process.exit(1)
