@@ -1241,6 +1241,242 @@ def 법인번호(b):
     return len(b) == 10 and b[3:5] in ("81", "85", "86", "87", "88")
 
 
+# ══════════════════════════════════════════════════════════════════
+#  📞 G517 1순위 연락처 — 조달청 «조달업체 기본정보»로 빈 전화 · 주소 채우기 (2026-11-03)
+#
+#  소장님(11-02 23시 · 폰 캡처 «🏆 낙찰 업체 — 대표자 · 사업자만, 주소 · 전화 없음»):
+#    「1순위 연락처가 없는건, 클로드가 검색해서 찾아서 적어줘, 1순위 업체는 빠짐없이… 전화, 주소가 없잖아. 이걸 검색으로 채워 줘」
+#  ■ 왜 비나(실측 data/seed/first.json.gz 11-02 판 · 개찰 8/24~10/30 18,346건)
+#    1순위 법인 17,344건 중 연락처 있음 15,313 · 없음 2,031(사업자번호 1,956곳). 최근 한 주(10/27~)는 2,104건 중 950건이 빔.
+#    조달청은 낙찰자 상세(bidwinnrAdrs · TelNo)를 낙찰 확정 뒤 «주는 공고» 에만 실어 줍니다 → 막 나온 1순위가 거의 비어 있음.
+#  ■ 찾는 곳 — 웹 검색 대신 «공식 등록 정보»
+#    나라장터에 입찰하려면 조달업체 등록이 먼저 → 1순위 업체는 모두 등록 업체입니다.
+#    조달청_나라장터 사용자정보 서비스(공공데이터포털 15129466 · 활용신청 자동승인 · 개발계정 하루 10,000건)
+#      GET {BASE}/ao/UsrInfoService02/getPrcrmntCorpBasicInfo02 ? inqryDiv=3 & bizno=사업자번호 & type=json
+#      → corpNm · ceoNm · adrs · dtlAdrs · telNo · faxNo · rgnNm · hdoffceDivNm(본사/지사) …
+#    웹 검색은 같은 이름 다른 회사 · 옛 번호가 섞일 수 있어 쓰지 않습니다(틀린 번호를 싣는 것이 빈칸보다 나쁨).
+#    응답의 사업자번호가 물은 번호와 같을 때만 씁니다(다르면 «없음»).
+#  ■ 법인만 — G343 소장님 고르심 «법인만 넣기» 그대로. 개인사업자는 낙찰자 상세가 올 때만(전처럼).
+#  ■ 장부 data/store/corp_info.json(저장소에 안 올림 · Actions cache) — {"c": {사업자번호: [전화, 주소, 받은 날, 1 있음 / 0 없음]}}
+#    있음은 1년 · 없음은 30일 뒤 다시 물음 · 3년 지나면 버림 · 회차 상한 · 하루 상한 · 시간 예산(배포가 늦지 않게).
+#  ■ 키에 이 서비스 활용신청이 안 돼 있으면(응답코드 20 · 30 · HTTP 401/403) 첫 호출에서 멈추고
+#    docs/수집상태.md «1순위 연락처» 줄에 «활용신청 필요» 를 적습니다(회차마다 한 번만 다시 봄 — 승인되면 저절로 돎).
+#  ■ 다른 조달청 호출과 따로 셉니다 — 이 서비스의 한도(22)가 개찰 · 공고 수집을 멈추지 않게(QUOTA_OUT 을 안 건드림).
+# ══════════════════════════════════════════════════════════════════
+CORP_INFO = os.path.join(STORE, "corp_info.json")
+CORP_INFO_URL = BASE + "/ao/UsrInfoService02/getPrcrmntCorpBasicInfo02"
+CORP_INFO_RUN = int(os.environ.get("CORP_INFO_RUN", "300"))         # 회차마다 새로 물을 업체 수
+CORP_INFO_DAY = int(os.environ.get("CORP_INFO_DAY", "5000"))        # 하루 상한(개발계정 10,000 의 절반)
+CORP_INFO_TIME_S = int(os.environ.get("CORP_INFO_TIME_S", "150"))   # 회차마다 쓸 시간(초)
+CORP_INFO_OK_DAYS = 365         # 찾은 것은 1년 뒤 다시 물음(이사 · 번호 바뀜)
+CORP_INFO_MISS_DAYS = 30        # 등록 정보에 없던 것은 30일 뒤 다시 물음
+CORP_INFO_KEEP_DAYS = 1095      # 3년 지나면 장부에서 버림
+CORP_INFO_NOTE = ""             # docs/수집상태.md «1순위 연락처» 줄
+_CI_BLOCK = ("SERVICE_KEY_IS_NOT_REGISTERED", "SERVICE_ACCESS_DENIED_ERROR", "UNREGISTERED_IP",
+             "DEADLINE_HAS_EXPIRED", "TEMPORARILY_DISABLE_THE_SERVICEKEY", "UNSIGNED_CALL")
+_CI_BLOCK_CODES = ("20", "21", "30", "31", "32", "33")
+
+
+def _ci_num(v):
+    return re.sub(r"[^0-9]", "", str(v or ""))
+
+
+def _ci_tel(v):
+    """전화 칸 — 숫자 · 붙임표만, 숫자 8~12자리일 때만(«-» · «0» 같은 빈 값은 버림)"""
+    t = re.sub(r"[^0-9-]", "", str(v or "")).strip("-")
+    return t[:20] if 8 <= len(_ci_num(t)) <= 12 else ""
+
+
+def corp_info_get(key, bno, get=None, timeout=10):
+    """조달업체 기본정보 한 곳 → (꼴, 값)
+       꼴: 'ok'({t 전화, a 주소, n 업체명}) · 'none'(등록 정보에 없음 · 전화 주소 둘 다 빔 · 번호 다름)
+           · '막힘'(이 서비스 활용신청 안 됨 · 키 문제) · '한도'(이 서비스 오늘 몫 다 씀) · '실패'(통신 · 점검 · 모르는 응답)"""
+    get = get or requests.get
+    b = _ci_num(bno)
+    params = {"serviceKey": key, "type": "json", "inqryDiv": "3", "bizno": b,
+              "pageNo": "1", "numOfRows": "10"}
+    try:
+        r = get(CORP_INFO_URL, params=params, timeout=timeout, verify=False,
+                headers={"User-Agent": "Mozilla/5.0"})
+    except Exception as e:
+        return "실패", type(e).__name__
+    text = _utf8글(r)
+    head = " ".join(str(text or "").split())[:300]
+    sc = getattr(r, "status_code", 0)
+    if sc in (401, 403):
+        return "막힘", ("HTTP %s %s" % (sc, head[:120])).strip()
+    if _quota_msg(head):
+        return "한도", head[:160]
+    if sc != 200:
+        return "실패", "HTTP %s" % sc
+    try:
+        j = json.loads(text)
+    except Exception:
+        h = head.replace(" ", "")
+        if any(w in head for w in _CI_BLOCK) or any(("returnReasonCode>%s<" % c) in h for c in _CI_BLOCK_CODES):
+            return "막힘", head[:160]
+        if head.lstrip().lower().startswith(("<!doctype html", "<html")):
+            return "실패", "자료 대신 웹페이지 — " + (html_hint(text) or head[:80])
+        return "실패", head[:160]
+    resp = j.get("response", {}) if isinstance(j, dict) else {}
+    hd = resp.get("header", {}) or {}
+    code = str(hd.get("resultCode", "")).strip()
+    msg = str(hd.get("resultMsg", "")).strip()
+    if code and code not in ("00", "0", "000"):
+        c2 = code.lstrip("0") or "0"
+        if c2 == "22" or _quota_msg(msg):
+            return "한도", ("%s %s" % (code, msg)).strip()
+        if c2 in _CI_BLOCK_CODES or any(w in msg for w in _CI_BLOCK):
+            return "막힘", ("%s %s" % (code, msg)).strip()
+        if c2 == "3" or "NODATA" in msg.upper():
+            return "none", None
+        return "실패", ("%s %s" % (code, msg)).strip()
+    items = (resp.get("body", {}) or {}).get("items", [])
+    if isinstance(items, dict):
+        items = items.get("item", [items])
+    if isinstance(items, dict):
+        items = [items]
+    items = [x for x in (items if isinstance(items, list) else []) if isinstance(x, dict)]
+    if not items:
+        return "none", None
+    번호든 = [x for x in items if _ci_num(pick(x, "bizno"))]
+    if 번호든:
+        같은 = [x for x in 번호든 if _ci_num(pick(x, "bizno")) == b]
+        if not 같은:
+            return "none", None            # 다른 회사 줄 — 쓰지 않습니다
+        같은.sort(key=lambda x: 0 if "본사" in str(pick(x, "hdoffceDivNm") or "") else 1)
+        it = 같은[0]
+    elif len(items) == 1:
+        it = items[0]
+    else:
+        return "none", None
+    tel = _ci_tel(pick(it, "telNo"))
+    adr = re.sub(r"\s+", " ", " ".join(str(pick(it, n) or "").strip() for n in ("adrs", "dtlAdrs"))).strip()[:80]
+    if not (tel or adr):
+        return "none", None
+    return "ok", {"t": tel, "a": adr, "n": str(pick(it, "corpNm") or "").strip()[:40]}
+
+
+def fill_contacts_api(fstore, key, ledger_path=None, get=None, now=None, log=print,
+                      run_cap=None, day_cap=None, time_s=None, sleep_s=0.05):
+    """📞 G517 1순위 «법인» 의 빈 전화 · 주소를 조달청 조달업체 기본정보로 채웁니다(위 머리말).
+       ① 장부에 있으면 바로 넣고 ② 없거나 오래된 사업자번호는 최신 개찰부터 물어 장부에 쌓고 ③ 다시 넣습니다.
+       넣은 줄은 tsrc = 2(화면 «조달청 업체 정보»). 조달청 호출을 안 하는 회차(--exportonly · 차단기)도 장부로는 채웁니다.
+       돌려줌: {채움, 물음, 찾음, 남음, 상태, 말}"""
+    global CORP_INFO_NOTE
+    ledger_path = ledger_path or CORP_INFO
+    now = now or datetime.now(KST)
+    today = now.strftime("%Y%m%d")
+    run_cap = CORP_INFO_RUN if run_cap is None else run_cap
+    day_cap = CORP_INFO_DAY if day_cap is None else day_cap
+    time_s = CORP_INFO_TIME_S if time_s is None else time_s
+    led = load_json(ledger_path, {}) or {}
+    book = led.get("c") if isinstance(led.get("c"), dict) else {}
+    dd = led.get("d") if isinstance(led.get("d"), dict) else {}
+    if dd.get("day") != today:
+        dd = {"day": today, "n": 0}
+    cut = (now - timedelta(days=CORP_INFO_KEEP_DAYS)).strftime("%Y%m%d")
+    for b in [b for b, v in book.items()
+              if not (isinstance(v, list) and len(v) >= 4 and len(str(v[2])) == 8 and str(v[2]) >= cut)]:
+        del book[b]
+    rows = [r for r in (fstore.get("con") or {}).values()
+            if r.get("win") and 법인번호(r.get("bno")) and not (r.get("tel") or r.get("adr"))]
+    rows.sort(key=lambda r: dt_digits(r.get("dt")) or "", reverse=True)
+
+    def 넣기():
+        n = 0
+        for r in rows:
+            if r.get("tel") or r.get("adr"):
+                continue
+            v = book.get(_ci_num(r.get("bno")))
+            if v and v[3] == 1 and (v[0] or v[1]):
+                if v[0]:
+                    r["tel"] = v[0]
+                if v[1]:
+                    r["adr"] = v[1]
+                r["tsrc"] = 2
+                n += 1
+        return n
+
+    def 물을까(b):
+        v = book.get(b)
+        if not v:
+            return True
+        try:
+            age = (datetime.strptime(today, "%Y%m%d") - datetime.strptime(str(v[2]), "%Y%m%d")).days
+        except ValueError:
+            return True
+        return age >= (CORP_INFO_OK_DAYS if v[3] == 1 else CORP_INFO_MISS_DAYS)
+
+    채움 = 넣기()
+    # 물을 것 — 장부에 없거나 오래된 것(장부 값으로 방금 채운 줄도 1년 지났으면 다시 물어 새 값으로)
+    want, seen = [], set()
+    for r in rows:
+        b = _ci_num(r.get("bno"))
+        if b in seen:
+            continue
+        seen.add(b)
+        if 물을까(b):
+            want.append(b)
+    물음 = 찾음 = 실패 = 0
+    상태, 말 = "정상", ""
+    if NO_NET or NET_DOWN or not key:
+        상태, 말 = "건너뜀", ("조달청을 부르지 않는 회차" if (NO_NET or NET_DOWN) else "키 없음")
+    else:
+        t0 = time.time()
+        for b in want:
+            if 물음 >= run_cap:
+                break
+            if dd["n"] >= day_cap:
+                상태, 말 = "하루상한", "오늘 %d곳까지 물음(상한 %d)" % (dd["n"], day_cap)
+                break
+            if time.time() - t0 > time_s:
+                상태, 말 = "시간", "회차 시간 %d초를 다 씀" % time_s
+                break
+            꼴, 값 = corp_info_get(key, b, get=get)
+            물음 += 1
+            dd["n"] += 1
+            if 꼴 == "ok":
+                book[b] = [값["t"], 값["a"], today, 1]
+                찾음 += 1
+                실패 = 0
+            elif 꼴 == "none":
+                book[b] = ["", "", today, 0]
+                실패 = 0
+            elif 꼴 in ("막힘", "한도"):
+                상태, 말 = 꼴, str(값 or "")
+                break
+            else:
+                실패 += 1
+                말 = str(값 or "")
+                if 실패 >= 3:
+                    상태 = "실패"
+                    break
+            if sleep_s:
+                time.sleep(sleep_s)
+    채움 += 넣기()
+    남음 = sum(1 for r in rows if not (r.get("tel") or r.get("adr")))
+    led = {"v": 1, "c": book, "d": dd,
+           "st": {"at": now.strftime("%Y-%m-%d %H:%M"), "st": 상태, "msg": 말[:200], "asked": 물음, "got": 찾음}}
+    try:
+        save_json(ledger_path, led)
+    except Exception as e:
+        log("  ! 업체 정보 장부 저장 실패 (%s) — 넘어갑니다" % type(e).__name__)
+    있음 = sum(1 for v in book.values() if v[3] == 1)
+    if 상태 == "막힘":
+        CORP_INFO_NOTE = ("⚠️ 조달청 업체 정보 **활용신청 필요** — 공공데이터포털 «조달청_나라장터 사용자정보 서비스»(자동승인) · "
+                          "응답 «%s» · 빈칸 %s건" % (말[:80], format(남음, ",")))
+    elif 상태 == "한도":
+        CORP_INFO_NOTE = "⛔ 조달청 업체 정보 오늘 몫을 다 씀 — 이번 회차 %d곳 물음 · 빈칸 %s건" % (물음, format(남음, ","))
+    else:
+        CORP_INFO_NOTE = ("조달청 업체 정보 %s — 이번 회차 물음 %d곳(찾음 %d) · 오늘 %d곳 · 채운 1순위 %s건 · 아직 빈칸(법인) %s건 · 장부 %s곳(번호 있음 %s)%s"
+                          % ("정상" if 상태 == "정상" else 상태, 물음, 찾음, dd["n"], format(채움, ","), format(남음, ","),
+                             format(len(book), ","), format(있음, ","), (" · " + 말[:60]) if 말 and 상태 != "정상" else ""))
+    log("  → 📞 1순위 연락처(조달청 업체 정보 · 법인만): " + CORP_INFO_NOTE)
+    DIAG["업체정보"] = {"상태": 상태, "말": 말[:200], "물음": 물음, "찾음": 찾음, "채움": 채움, "남음": 남음}
+    return {"채움": 채움, "물음": 물음, "찾음": 찾음, "남음": 남음, "상태": 상태, "말": 말}
+
+
 def partner_evidence(first, live):
     """개찰 저장소(+ 같은 공고의 공고 줄)에서 업체마다 면허·지역 근거를 뽑습니다.
 
@@ -2939,6 +3175,7 @@ def write_status(first):
         "| 순위 받은 개찰 | %s건 |" % format(got, ","),
         "| 아직 안 물어본 것 | %s건 |" % format(len(rows) - asked, ","),
         "| 3년치 순위 보관함 | %s |" % box,
+        "| 1순위 연락처 | %s |" % (CORP_INFO_NOTE or "—"),
         "",
         "## 3년치 순위가 언제 다 차나",
         "",
@@ -4405,7 +4642,7 @@ def main():
                        int(r.get("base") or 0), r.get("dt") or "",
                        r.get("tel") or "", r.get("ceo") or "",
                        r.get("bno") or "", r.get("adr") or "",
-                       1 if r.get("tsrc") else 0,
+                       int(r.get("tsrc") or 0),    # 1 다른 공고에서 확인 · 2 조달청 업체 정보(G517)
                        # 어떤 공고를 채점하는지 화면에 밝혀야 합니다.
                        # 이게 없어서 «무슨 공고인지 모르겠다» 는 화면이 나왔습니다.
                        str(r.get("name") or "")[:60], str(r.get("inst") or "")[:30],
@@ -4554,6 +4791,11 @@ def main():
         fill_contacts(first)
     except Exception as e:
         print(f"  ! 연락처 잇기 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
+    # 📞 G517 그래도 빈 1순위 법인 — 조달청 조달업체 기본정보(사업자번호로) · 위 «다른 공고에서» 다음 차례
+    try:
+        fill_contacts_api(first, key)
+    except Exception as e:
+        print(f"  ! 조달청 업체 정보로 연락처 채우기 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
 
 
     # 📄 공고문 전문 (2026-09-30 — 입찰나라에서 가져온 것 · ntext.py 설명 참고)

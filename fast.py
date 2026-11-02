@@ -249,6 +249,48 @@ def enrich_first(rows, live_store, first_store):
     return n
 
 
+def contact_book(first_store):
+    """📞 G517 사업자번호 → (개찰일, 전화, 주소) — 저장소에서 조달청 낙찰자 상세가 실린 가장 최근 줄(collect.fill_contacts 와 같은 셈)."""
+    book = {}
+    for r in ((first_store or {}).get("con") or {}).values():
+        b = C._ci_num(r.get("bno"))
+        if len(b) != 10 or not (r.get("tel") or r.get("adr")) or r.get("tsrc"):
+            continue
+        d = C.dt_digits(r.get("dt")) or ""
+        cur = book.get(b)
+        if cur is None or d > cur[0]:
+            book[b] = (d, r.get("tel") or "", r.get("adr") or "")
+    return book
+
+
+def enrich_contacts(rows, book, cinfo):
+    """📞 G517 방금 들어온 1순위에도 연락처 — 정기 수집과 같은 차례:
+       ① 같은 사업자번호의 다른 공고 낙찰자 상세(tsrc 1) ② 조달청 업체 정보 장부(법인만 · tsrc 2 · data/store/corp_info.json 이 있을 때)."""
+    n = 0
+    for r in rows:
+        if r.get("tel") or r.get("adr"):
+            continue
+        b = C._ci_num(r.get("bno"))
+        got = (book or {}).get(b)
+        if got and (got[1] or got[2]):
+            if got[1]:
+                r["tel"] = got[1]
+            if got[2]:
+                r["adr"] = got[2]
+            r["tsrc"] = 1
+            n += 1
+            continue
+        v = (cinfo or {}).get(b)
+        if C.법인번호(b) and isinstance(v, list) and len(v) >= 4 and v[3] == 1 and (v[0] or v[1]):
+            if v[0]:
+                r["tel"] = v[0]
+            if v[1]:
+                r["adr"] = v[1]
+            r["tsrc"] = 2
+            n += 1
+    return n
+
+
 def lic_recent(key, now):
     """최근 몇 시간 사이 등록된 면허 제한 {공고번호: [제한명…]} — collect.lic_by_day 와 같은 읽기."""
     beg = (now - timedelta(hours=LIC_HOURS)).strftime("%Y%m%d%H%M")
@@ -360,8 +402,13 @@ def once(key, ctx, dry=False):
             rows = [r for r in (C.row_first(it) for it in items) if r]
             fr = pick_fresh(rows, p0, k0)
             joined = enrich_first(fr, ctx["live"], ctx["first"])
+            try:
+                nc = enrich_contacts(fr, ctx.get("tbook"), ctx.get("cinfo"))   # 📞 G517 — 넘어져도 개찰 싣기는 그대로
+            except Exception as e:
+                nc = 0
+                log(f"  · 연락처 붙이기 실패 ({type(e).__name__}) — 연락처 없이 싣습니다")
             body.update(body_for("first", finish("first", fr, ctx["book"], None), (m or {}).get("built")))
-            said.append(f"개찰 오늘 {len(rows)}건 중 새 것 {len(fr)}건(이어붙임 {joined}칸)")
+            said.append(f"개찰 오늘 {len(rows)}건 중 새 것 {len(fr)}건(이어붙임 {joined}칸 · 연락처 {nc})")
         except Quota as e:
             log(f"  ⛔ 조달청 하루 몫을 다 썼습니다 ({e}) — 이번 회차는 그만 부릅니다")
             ctx["quota"] = True
@@ -433,8 +480,16 @@ def main():
     ctx = {"sa": sa, "first": first, "live": live,
            "book": C.region_book(list((live.get("con") or {}).values()) + list((first.get("con") or {}).values())),
            "enp": C.pick_stats(first)[0]}
+    # 📞 G517 연락처 — 저장소 낙찰자 상세 + 조달청 업체 정보 장부(정기 수집이 cinfo- 캐시에 남긴 것 · 없으면 빈 것)
+    try:
+        ctx["tbook"] = contact_book(first)
+        _ci = C.load_json(C.CORP_INFO, {}) or {}
+        ctx["cinfo"] = _ci["c"] if isinstance(_ci, dict) and isinstance(_ci.get("c"), dict) else {}
+    except Exception as e:                       # 연락처는 덧붙이기 — 못 읽어도 빠른 수집은 그대로
+        ctx["tbook"], ctx["cinfo"] = {}, {}
+        log(f"  · 연락처 장부를 못 읽었습니다 ({type(e).__name__}) — 연락처 없이 돕니다")
     log(f"저장소 공고 {len(live.get('con') or {}):,} · 개찰 {len(first.get('con') or {}):,} "
-        f"(정기 수집이 캐시에 남긴 것 — 덧붙이기용) · {time.time() - t0:.1f}초")
+        f"(정기 수집이 캐시에 남긴 것 — 덧붙이기용) · 연락처 {len(ctx['tbook']):,} · 업체 정보 {len(ctx['cinfo']):,} · {time.time() - t0:.1f}초")
     end = time.time() + a.minutes * 60
     while True:
         t = time.time()

@@ -258,20 +258,21 @@ function BidTab({ r }) {
             )}
             {r.adr && (
               <div><span>주소</span>
-                <b>{r.adr}{r.tsrc ? <i className="tsrc">다른 공고에서 확인</i> : null}</b></div>
+                <b>{r.adr}{r.tsrc ? <i className="tsrc">{r.tsrc === 2 ? '조달청 업체 정보' : '다른 공고에서 확인'}</i> : null}</b></div>
             )}
             {r.tel && (
               <div><span>전화</span>
                 <b><a href={`tel:${r.tel.replace(/[^0-9+]/g, '')}`}>{r.tel}</a>
-                  {r.tsrc ? <i className="tsrc">다른 공고에서 확인</i> : null}</b></div>
+                  {r.tsrc ? <i className="tsrc">{r.tsrc === 2 ? '조달청 업체 정보' : '다른 공고에서 확인'}</i> : null}</b></div>
             )}
           </div>
           {/* 조달청은 낙찰자 상세를 «주는 공고»에만 실어 줍니다.
               없는 걸 «-» 로 채우지 않고, 왜 없는지 밝힙니다. */}
           {!r.adr && !r.tel && (
             <div className="wno solo" style={{ marginTop: 8, borderTop: 0 }}>
-              이 공고는 조달청이 주소·전화를 함께 주지 않았고, 이 업체의 다른 공고에서도
-              아직 확인되지 않았습니다.
+              이 공고는 조달청이 주소·전화를 함께 주지 않았고, 이 업체의 다른 공고 · 조달청 업체 정보에서도
+              아직 확인되지 않았습니다.{/* 📞 G517 법인은 조달청 «조달업체 기본정보»(사업자번호)로 채움 · 개인사업자는 낙찰자 상세가 올 때만 */}
+              {r.bno && !/^\d{3}(81|85|86|87|88)\d{5}$/.test(String(r.bno).replace(/\D/g, '')) ? ' 개인사업자는 조달청이 낙찰자 정보로 줄 때만 보입니다.' : ''}
             </div>
           )}
         </div>

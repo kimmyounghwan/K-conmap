@@ -91,6 +91,16 @@ jobs:
           key: lite-${{ github.run_id }}
           restore-keys: lite-
 
+      # 📞 G517 — 1순위 연락처 장부(조달청 업체 정보 · 정기 수집이 cinfo- 로 남김). 없으면 그냥 넘어감(저장소 낙찰자 상세로만 채움)
+      - name: 1순위 연락처 장부 가져오기 (읽기만)
+        if: steps.dup.outputs.skip != '1'
+        continue-on-error: true
+        uses: actions/cache/restore@v4
+        with:
+          path: data/store/corp_info.json
+          key: cinfo-${{ github.run_id }}
+          restore-keys: cinfo-
+
       - name: 빠른 수집 (10분마다 여섯 번 · 약 51분)
         id: run
         if: steps.dup.outputs.skip != '1'

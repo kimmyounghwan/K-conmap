@@ -1754,7 +1754,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
                 )}
                 {res.adr && (
                   <div className="wide"><span>주소</span>
-                    <b>{res.adr}{res.tsrc ? <i className="tsrc">다른 공고에서 확인</i> : null}</b></div>
+                    <b>{res.adr}{res.tsrc ? <i className="tsrc">{res.tsrc === 2 ? '조달청 업체 정보' : '다른 공고에서 확인'}</i> : null}</b></div>
                 )}
               </div>
               {res.tel ? (

@@ -508,6 +508,16 @@ jobs:
             data/store/live.json
           key: lite-${{ github.run_id }}
 
+      # 📞 G517 (2026-11-03) — 1순위 연락처 장부(조달청 업체 정보 · 법인만)를 빠른 수집도 쓰게 따로 보관(작은 파일 하나 · 키 cinfo-).
+      #   lite- 의 path 를 바꾸면 옛 lite 캐시를 못 찾으므로(path 가 캐시 판에 들어감) 따로 둡니다. 장부가 아직 없으면 이 단계만 넘어감.
+      - name: 빠른 수집용 업체 연락처 보관
+        if: ${{ success() && env.STORE_OK == '1' && env.STORE_SAVE == '1' && hashFiles('data/store/corp_info.json') != '' }}
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: data/store/corp_info.json
+          key: cinfo-${{ github.run_id }}
+
       - name: 수집 상태 확인
         id: health
         if: ${{ !cancelled() }}
