@@ -99,6 +99,7 @@ export default function Silup() {
           <a href="#jogeon" onClick={() => { const d = document.getElementById('jogeon'); if (d) d.open = true }}>📘 받는 조건 자세히</a>
           <Link to="/tools/ilyong-boheom">🛡 4대보험 가입 판단기</Link>
           <Link to="/tools/sanjae-hyueop">🩹 산재 휴업급여</Link>
+          <Link to="/tools/juhyu">📆 주휴수당</Link>
           {!지움물음 && st.끝날 && <button type="button" className="tp-x" onClick={() => set지움물음(true)}>처음부터</button>}
           {지움물음 && <span className="nm-ask">적은 것을 지웁니다.
             <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => { setSt(빈것()); set지움물음(false); set알림(''); set되돌릴(null) }}>지우기</button>

@@ -70,6 +70,9 @@ export default function Hyueop() {
     try { await navigator.clipboard.writeText(url); set링크({ url, 복사: true }) } catch (e) { set링크({ url, 복사: false }) }
   }
   const 낮은꼴 = !R.빈 && R.구간.some((x) => x.꼴 === '최저임금' || x.꼴 === '80')
+  // G508 사이트 점검(11-02 12:0x)에서 찾음 — 해를 넘는 긴 기간은 «10.15.~10.14.» 처럼 거꾸로 보여 헷갈림 → 해가 바뀌면 연도까지
+  const 해넘김 = !R.빈 && String(st.처음).slice(0, 4) !== String(st.끝).slice(0, 4)
+  const 날글 = (d) => (해넘김 ? 긴날(d) : 짧은날(d))
 
   return (
     <div className="wrap sl hy">
@@ -89,6 +92,7 @@ export default function Hyueop() {
           <a href="#eolma" onClick={() => { const d = document.getElementById('eolma'); if (d) d.open = true }}>📘 셈 자세히</a>
           <Link to="/tools/ilyong-silup">🧾 실업급여 판단기</Link>
           <Link to="/tools/ilyong-boheom">🛡 4대보험 가입 판단기</Link>
+          <Link to="/tools/juhyu">📆 주휴수당</Link>
           {!지움물음 && (st.처음 || st.일당) && <button type="button" className="tp-x" onClick={() => set지움물음(true)}>처음부터</button>}
           {지움물음 && <span className="nm-ask">적은 것을 지웁니다.
             <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => { setSt(빈것()); set지움물음(false); set알림(''); set되돌릴(null) }}>지우기</button>
@@ -146,7 +150,7 @@ export default function Hyueop() {
             <div><span>📐 평균임금</span><b>{R.직접 ? `${원글(R.평균)}원(직접 넣음)` : `일당 ${원글(st.일당)}원 × ${Math.round(R.계수 * 100)}/100 = ${원글(R.평균)}원`}</b>
               <small>{R.직접 ? '근로기준법 평균임금 — 3개월 넘게 계속 일했거나 상용처럼 일한 경우(시행령 제23조1)' : '일용근로자 평균임금 = 일당 × 통상근로계수(시행령 제24조①1 · 고시 제2025-90호)'}</small></div>
             <div><span>📅 쉰 기간</span><b>{긴날(st.처음)} ~ {긴날(st.끝)} · {R.일수}일</b><small>{R.셋날 ? '3일 이내는 산재 휴업급여 없음(제52조 단서)' : '4일 이상이라 첫날부터 · 주말 · 휴일도 요양 중이면 셈'}{R.나이글 ? ` · ${R.나이글}` : ''}</small></div>
-            {R.구간.length > 1 && <div><span>🧮 날마다</span><b className="hy-segs">{R.구간.map((x) => <span key={x.부터}>{짧은날(x.부터)}~{짧은날(x.까지)} {x.일}일 × {원글(x.액)}원</span>)}</b></div>}
+            {R.구간.length > 1 && <div><span>🧮 날마다</span><b className="hy-segs">{R.구간.map((x) => <span key={x.부터}>{날글(x.부터)}~{날글(x.까지)} {x.일}일 × {원글(x.액)}원</span>)}</b></div>}
           </div>
           {R.잠정 && <div className="note sm" style={{ marginTop: 8 }}>⚠️ 아직 고시가 안 나온 해가 들어 있어 2026년 값(최고 · 최저 보상기준 · 최저임금)으로 셈했습니다(잠정).</div>}
           {낮은꼴 && <div className="note sm" style={{ marginTop: 8 }}>⚠️ 평균임금이 낮아 «저소득 보정»(제54조)으로 셈했습니다 — 법 조문대로 셈한 숫자이니 근로복지공단 결정 통지로 꼭 확인하세요.</div>}
@@ -154,7 +158,7 @@ export default function Hyueop() {
           {R.상병 && <div className="note sm hy-long" style={{ marginTop: 8 }}>⚠️ 요양을 시작한 지 2년이 지난 뒤({긴날(R.상병)} 무렵부터)에도 낫지 않고 중증요양상태등급에 해당하며 일을 못 하면 휴업급여 대신 상병보상연금을 받습니다(제66조).</div>}
           <div className="detail-h" style={{ margin: '14px 0 6px' }}>까닭</div>
           <ul className="sl-why">
-            {R.구간.map((x) => <li key={x.부터} className="ok"><span className="sl-ic" aria-hidden>🧾</span><div><b>{R.구간.length > 1 ? `${짧은날(x.부터)} ~ ${짧은날(x.까지)} · ` : ''}하루 {원글(x.액)}원</b><p>{x.줄.join(' → ')}</p></div></li>)}
+            {R.구간.map((x) => <li key={x.부터} className="ok"><span className="sl-ic" aria-hidden>🧾</span><div><b>{R.구간.length > 1 ? `${날글(x.부터)} ~ ${날글(x.까지)} · ` : ''}하루 {원글(x.액)}원</b><p>{x.줄.join(' → ')}</p></div></li>)}
           </ul>
           <div className="sl-btns no-print">
             <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => window.print()}>🖨 인쇄</button>

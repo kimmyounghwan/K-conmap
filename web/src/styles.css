@@ -9909,3 +9909,7 @@ div.bth { padding: 0; }
 
 /* 🩹 G508 산재 휴업급여 계산기 (/tools/sanjae-hyueop · pages/Hyueop.jsx — 실업급여 판단기 sl-* 를 같이 씀) */
 .hy-segs { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+
+/* 📆 G509 주휴수당 판단기 (/tools/juhyu · pages/Juhyu.jsx — 실업급여 판단기 sl-* · iy-seg 를 같이 씀)
+   단위 글자(«시간» 처럼 두 글자)가 좁은 폰에서 «시/간» 으로 갈라지지 않게 */
+.sl-unit i { flex: none; white-space: nowrap; }

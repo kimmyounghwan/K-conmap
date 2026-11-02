@@ -1,0 +1,137 @@
+// 🧪 G509 — 주휴수당 판단기 화면 (B=http://127.0.0.1:4997 node tools/시험_주휴수당화면.mjs)
+//   PC 1280 · 폰 390 · 320 — 예시 여섯 · 손으로 넣기(시급 · 결근 · 4명 이하 · 여러 주 · 일당에 포함) · 결과 링크 오가기 · 넘침 · 오류 · 금지 말 · 어두운 화면 · 미리 구운 쪽
+//   캡처: C=폴더
+import { createRequire } from 'module'
+const require = createRequire(process.env.PW || '/tmp/g10/pw/package.json')
+const { chromium } = require('playwright')
+const B = process.env.B || 'http://127.0.0.1:4997'
+const C = process.env.C || ''
+let 통과 = 0, 틀림 = 0
+const 봄 = (v, 이름, 덧 = '') => { if (v) 통과++; else { 틀림++; console.log(`  ✗ ${이름} ${덧}`) } }
+
+const b = await chromium.launch()
+async function 새쪽(w, h, 어둠 = false) {
+  const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: w < 500 ? 2 : 1, colorScheme: 어둠 ? 'dark' : 'light' })
+  await p.addInitScript(() => { Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false }) })
+  await p.route(/googletagmanager|google-analytics|pagead2|adsbygoogle|geojs|firebaseio|firebasedatabase|identitytoolkit|securetoken/, (r) => r.fulfill({ status: 200, body: 'null' }))
+  const 오류 = []
+  p.on('pageerror', (e) => 오류.push(String(e.message || e)))
+  p.on('console', (m) => { if (m.type() === 'error' && !/net::|Failed to load resource|favicon/i.test(m.text())) 오류.push(m.text()) })
+  return { p, 오류 }
+}
+const 넘침 = (p) => p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+const 큰글 = (p) => p.evaluate(() => (document.querySelector('.sl-res') || {}).textContent || '')
+const 글 = (p) => p.evaluate(() => document.body.innerText)
+async function 예시(p, 이름) {
+  const d = p.locator('details.iy-exd')
+  if (!(await d.evaluate((e) => e.open))) await p.locator('details.iy-exd > summary').click()
+  await p.getByRole('button', { name: 이름, exact: true }).click()
+  await p.waitForTimeout(250)
+}
+const 단추 = (p, 무리, 이름) => p.locator(`.iy-seg[aria-label="${무리}"] button`, { hasText: 이름 }).click()
+
+for (const [w, h, 이름] of [[1280, 900, 'PC'], [390, 844, '폰'], [320, 640, '좁은 폰']]) {
+  console.log(`■ ${이름} ${w}`)
+  const { p, 오류 } = await 새쪽(w, h)
+  await p.goto(`${B}/tools/juhyu`, { waitUntil: 'domcontentloaded' })
+  await p.waitForSelector('h1.tl-h1', { timeout: 20000 })
+  await p.evaluate(() => { try { localStorage.removeItem('kcm_juhyu') } catch (e) { /* */ } })
+  await p.reload({ waitUntil: 'domcontentloaded' }); await p.waitForSelector('h1.tl-h1')
+  봄((await p.textContent('h1.tl-h1')).includes('주휴수당 판단기'), '제목')
+  봄(!(await p.$('.sl-res')), '처음엔 결과 없음')
+  await 예시(p, '일당 20만 · 주 5일')
+  봄((await 큰글(p)).includes('✅ 주휴수당 1주 200,000원'), '예시 a', await 큰글(p))
+  await 예시(p, '07~17시 · 주 6일')
+  let t = await 글(p)
+  봄((await 큰글(p)).includes('1주 168,421원'), '예시 b 168,421', await 큰글(p))
+  봄(t.includes('일당 200,000원 ÷ 9.5시간(8시간 + 1시간 × 1.5)') && t.includes('6일 × 8시간 = 48 → 40시간까지'), '예시 b 시급 · 40시간까지 줄')
+  await 예시(p, '알바 4시간 · 주 5일')
+  봄((await 큰글(p)).includes('1주 41,280원'), '예시 c 41,280', await 큰글(p))
+  await 예시(p, '주 12시간 알바')
+  봄((await 큰글(p)).includes('❌') && (await 큰글(p)).includes('15시간 미만'), '예시 d ❌ 15시간', await 큰글(p))
+  await 예시(p, '금요일까지 하고 그만둠')
+  봄((await 큰글(p)).includes('❌') && (await 큰글(p)).includes('휴일 전에'), '예시 e ❌ 휴일 전', await 큰글(p))
+  await 예시(p, '4명 이하 · 9시간')
+  t = await 글(p)
+  봄((await 큰글(p)).includes('1주 177,777원') && t.includes('상시 4명 이하 사업장도 주휴는 적용'), '예시 f 177,777 · 4명 이하 줄', await 큰글(p))
+  봄(await 넘침(p) <= 0, '가로 넘침 없음', String(await 넘침(p)))
+  // 손으로 — 시급 · 3시간 × 5일 = 15 → 받음 → 결근 → 없음
+  await p.getByRole('button', { name: '처음부터' }).click()
+  await p.getByRole('button', { name: '지우기' }).click()
+  await 단추(p, '임금 꼴', '시급')
+  await p.fill('input[aria-label="시급"]', '10320')
+  await p.fill('input[aria-label="하루 일하는 시간"]', '3')
+  await p.selectOption('select[aria-label="1주에 일하기로 정한 날"]', '5')
+  봄((await 큰글(p)).includes('1주 30,960원'), '손으로 — 3시간 × 5일 = 15시간 → 30,960', await 큰글(p))
+  await 단추(p, '개근', '빠진 날 있음')
+  봄((await 큰글(p)).includes('❌') && (await 큰글(p)).includes('결근'), '결근 → ❌', await 큰글(p))
+  await 단추(p, '개근', '정한 날 다 나옴')
+  await p.fill('input[aria-label="시급"]', '10000')
+  t = await 글(p)
+  봄(t.includes('최저임금(10,320원)보다 낮습니다'), '시급 10,000 → 최저임금 알림')
+  // 일당 · 여러 주 · 포함
+  await 단추(p, '임금 꼴', '일당')
+  await p.fill('input[aria-label="일당"]', '200000')
+  await p.fill('input[aria-label="하루 일하는 시간"]', '8')
+  await p.locator('details.sl-more > summary').click()
+  await p.fill('input[aria-label="같은 조건으로 일한 주"]', '4')
+  봄((await 큰글(p)).includes('× 4주 = 800,000원'), '4주 → 800,000', await 큰글(p))
+  await p.getByLabel('근로계약서에 «일당에 주휴수당 포함» 이라고 적혀 있음').check()
+  봄((await 큰글(p)).includes('일당에 넣기로') && !!(await p.$('.sl-res.check')), '일당에 포함 → ℹ️(check 색)', await 큰글(p))
+  await p.getByLabel('근로계약서에 «일당에 주휴수당 포함» 이라고 적혀 있음').uncheck()
+  await p.fill('input[aria-label="같은 조건으로 일한 주"]', '1')
+  await 단추(p, '사업장 규모', '4명 이하')
+  await p.fill('input[aria-label="하루 일하는 시간"]', '9')
+  봄((await 큰글(p)).includes('1주 177,777원'), '4명 이하 · 9시간 손으로 → 177,777', await 큰글(p))
+  const 앞큰 = await 큰글(p)
+  await p.getByRole('button', { name: '🔗 링크 보내기' }).click()
+  await p.waitForSelector('.sl-out .note a[href*="?c="]', { timeout: 5000 })
+  const url = await p.getAttribute('.sl-out .note a[href*="?c="]', 'href')
+  봄(/\/tools\/juhyu\?c=[A-Za-z0-9_-]+$/.test(url), '링크 꼴', url)
+  const { p: q, 오류: 오류2 } = await 새쪽(w, h)
+  await q.goto(url.replace(/^https?:\/\/[^/]+/, B), { waitUntil: 'domcontentloaded' })
+  await q.waitForSelector('.sl-res', { timeout: 20000 })
+  봄((await 큰글(q)) === 앞큰, '받은 링크 = 같은 결과', `${await 큰글(q)} / ${앞큰}`)
+  봄(!오류2.length, '받은 링크 쪽 오류 없음', 오류2.join(' | '))
+  await q.close()
+  t = await 글(p)
+  봄(!/클로드/.test(t), '«클로드» 없음')
+  const 무료 = await p.evaluate(() => [...document.querySelectorAll('.jh, .jh *')].some((e) => e.children.length === 0 && /무료/.test(e.textContent)))
+  봄(!무료, '새 화면 안에 «무료» 없음')
+  봄(await 넘침(p) <= 0, '가로 넘침 없음(손으로 뒤)', String(await 넘침(p)))
+  봄(!오류.length, '오류 없음', 오류.join(' | '))
+  if (C && w !== 320) {
+    await 예시(p, '07~17시 · 주 6일')
+    await p.evaluate(() => document.querySelector('.sl-out').scrollIntoView({ block: 'start' }))
+    await p.evaluate(() => window.scrollBy(0, -70))
+    await p.waitForTimeout(300)
+    await p.screenshot({ path: `${C}/주휴수당_${이름}.png`, fullPage: false })
+  }
+  await p.close()
+}
+
+console.log('■ 어두운 화면 · 다른 판단기에서 가는 길 · 미리 구운 쪽')
+{
+  const { p, 오류 } = await 새쪽(390, 844, true)
+  await p.goto(`${B}/tools/juhyu`, { waitUntil: 'domcontentloaded' })
+  await p.waitForSelector('h1.tl-h1')
+  await 예시(p, '주 12시간 알바')
+  const 색 = await p.evaluate(() => { const e = document.querySelector('.sl-res'); const s = getComputedStyle(e); return [s.color, s.backgroundColor] })
+  봄(색[0] !== 색[1], '어두운 화면 글자 ≠ 바탕', 색.join(' / '))
+  봄(!오류.length, '어두운 화면 오류 없음', 오류.join(' | '))
+  for (const 길 of ['/tools/ilyong-silup', '/tools/sanjae-hyueop']) {
+    await p.goto(`${B}${길}`, { waitUntil: 'domcontentloaded' })
+    await p.waitForSelector('h1.tl-h1')
+    봄(!!(await p.$('a[href="/tools/juhyu"]')), `${길} → 주휴수당 링크`)
+  }
+  await p.close()
+  const r = await fetch(`${B}/tools/juhyu.html`).then((x) => x.text())
+  봄(/<title>주휴수당 판단기/.test(r), '미리 구운 쪽 제목')
+  봄(r.includes('FAQPage') && r.includes('168,421원'), '미리 구운 쪽 FAQ · 예')
+  봄(!/무료|클로드/.test(r.replace(/<script[\s\S]*?<\/script>/g, '')), '미리 구운 쪽 «무료» · «클로드» 없음')
+  const sm = await fetch(`${B}/sitemap-main.xml`).then((x) => x.text()).catch(() => '')
+  봄(sm.includes('/tools/juhyu'), '사이트맵에 주소')
+}
+await b.close()
+console.log(`\n주휴수당 화면 ${통과}/${통과 + 틀림}`)
+if (틀림) process.exit(1)
