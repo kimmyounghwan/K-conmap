@@ -162,6 +162,7 @@ const Ilyong4 = lazyPage(() => import('./pages/Ilyong4.jsx'))   /* 🛡 2026-10-
 const Silup = lazyPage(() => import('./pages/Silup.jsx'))   /* 🧾 2026-11-02 (G507) 일용직 실업급여 판단기 */
 const Hyueop = lazyPage(() => import('./pages/Hyueop.jsx'))   /* 🩹 2026-11-02 (G508) 산재 휴업급여 계산기 */
 const Juhyu = lazyPage(() => import('./pages/Juhyu.jsx'))   /* 📆 2026-11-02 (G509) 주휴수당 판단기 */
+const Toejikgeum = lazyPage(() => import('./pages/Toejikgeum.jsx'))   /* 💼 2026-11-02 (G515) 일용직 퇴직금 판단기 */
 const IlyongGuide = lazyPage(() => import('./pages/Ilyong4.jsx').then((m) => ({ default: m.IlyongGuide })))
 /* 📎 2026-09-27 업체 스스로 등록 — 업체가 받은 링크(/tools/tuipbi/v/현장/링크) · 📒 내 납품 장부(/tools/tuipbi/v) */
 const TuipbiVendor = lazyPage(() => import('./pages/TuipbiVin.jsx'))
@@ -289,6 +290,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/tools/ilyong-silup" element={<Suspense fallback={<Loading />}><Silup /></Suspense>} />
           <Route path="/tools/sanjae-hyueop" element={<Suspense fallback={<Loading />}><Hyueop /></Suspense>} />
           <Route path="/tools/juhyu" element={<Suspense fallback={<Loading />}><Juhyu /></Suspense>} />
+          <Route path="/tools/ilyong-toejikgeum" element={<Suspense fallback={<Loading />}><Toejikgeum /></Suspense>} />
           <Route path="/tools/ilyong-guide" element={<Suspense fallback={<Loading />}><IlyongGuide /></Suspense>} />
           <Route path="/tools/tuipbi/v" element={<Suspense fallback={<Loading />}><TuipbiVendor /></Suspense>} />
           <Route path="/tools/tuipbi/v/:site/:link" element={<Suspense fallback={<Loading />}><TuipbiVendor /></Suspense>} />

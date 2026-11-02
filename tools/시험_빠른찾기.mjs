@@ -80,7 +80,8 @@ console.log('③-4 G510 — 소장님 「만든 도구들 모두 사이트에서
   const 말 = [['실업급여', '/tools/ilyong-silup'], ['구직급여', '/tools/ilyong-silup'], ['일용직 실업급여', '/tools/ilyong-silup'],
     ['휴업급여', '/tools/sanjae-hyueop'], ['산재 휴업급여', '/tools/sanjae-hyueop'], ['주휴수당', '/tools/juhyu'], ['주휴', '/tools/juhyu'], ['일용직 주휴수당', '/tools/juhyu'],
     ['퇴직공제', '/tools/toejik'], ['노무비', '/tools/nomubi'],
-    /* 아무것도 안 나오던 말(흔한 말 90개 점검) */ ['산안비', '/tools/sanan'], ['개산보험료', '/tools/boheomryo'], ['확정보험료', '/tools/boheomryo'], ['퇴직금', '/tools/toejik']]
+    /* 아무것도 안 나오던 말(흔한 말 90개 점검) */ ['산안비', '/tools/sanan'], ['개산보험료', '/tools/boheomryo'], ['확정보험료', '/tools/boheomryo'],
+    /* 💼 G515 일용직 퇴직금 판단기 — «퇴직금» 은 이제 판단기 · 퇴직공제는 그대로 */ ['퇴직금', '/tools/ilyong-toejikgeum'], ['일용직 퇴직금', '/tools/ilyong-toejikgeum'], ['퇴직금 계산', '/tools/ilyong-toejikgeum'], ['퇴직금계산기', '/tools/ilyong-toejikgeum']]
   const 틀림 = 말.filter(([q, to]) => 맨위(q) !== to)
   봐(!틀림.length, `판단기 · 노무 도구 ${말.length}가지 말 → 맨 위가 그 도구`, JSON.stringify(틀림.map(([q, to]) => [q, to, 맨위(q)])))
   /* 뜻이 넓은 말은 위 3 안에(«4대보험» 은 설명(ilyong-guide)이 맨 위 · 판단기는 둘째) */
