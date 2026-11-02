@@ -2877,6 +2877,69 @@ def ilyong_page(shell, g, image=None):
                 _iy_faq_ld(g, "/tools/ilyong-boheom", name, desc))
 
 
+# 🧾 /tools/ilyong-silup — 일용직 실업급여 판단기 (G507 · 2026-11-02 · 화면 Silup.jsx · 셈 lib/silup.js)
+#    글은 web/src/data/silup_guide.json 한 곳 — 화면 아래 «📘» 와 같은 글을 굽습니다(크롤러가 보는 글 = 사람이 보는 글).
+#    ⚠️ 새로 만든 화면이라 «무료» 말을 쓰지 않습니다(소장님 2026-10-24).
+SILUP_JSON = os.path.join(ROOT, "web", "src", "data", "silup_guide.json")
+
+
+def load_silup_guide():
+    try:
+        with open(SILUP_JSON, encoding="utf-8") as f:
+            return json.load(f) or None
+    except Exception as e:
+        print(f"  · 실업급여 판단기 글을 못 읽었습니다 ({type(e).__name__}) — 건너뜁니다")
+        return None
+
+
+def silup_page(shell, g, image=None):
+    path = "/tools/ilyong-silup"
+    title = "일용직 실업급여 판단기 — 받는 조건 · 신청일(건설일용 14일 · 3분의 1) · 하루 얼마 | K-건설맵"
+    desc = ("마지막으로 일한 날 · 두 달 출역 · 18개월 동안 일한 날만 넣으면 일용직 실업급여(구직급여)를 받을 수 있는지, 신청할 수 있는 날"
+            "(앞 달 1일부터 3분의 1 · 건설일용 14일), 하루 66,048원(하한) ~ 68,100원(상한) × 120~270일, 받는 기간까지. 고용보험법 조문대로.")[:160]
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">🧾 일용직 실업급여 판단기</h1>'
+           '<p class="cp" style="margin-top:8px">마지막으로 일한 날 · 두 달 출역 · 18개월 동안 일한 날만 넣으면 <b>받을 수 있는지</b>, '
+           '<b>언제부터 신청하는지</b>, <b>하루 얼마 × 며칠</b>인지 바로 나옵니다. 건설일용 «14일» 셈까지.</p>'
+           '<p class="cp">적은 것은 이 브라우저에만 남습니다 · 결과 링크로 보내면 받는 분도 같은 결과 · '
+           '<a href="/tools/ilyong-boheom">일용직 4대보험 가입 판단기</a></p></div>',
+           f'<div class="card"><h2 class="sec-title" style="margin:0 0 6px">📘 {esc(g.get("title") or "")}</h2>'
+           f'<p class="cp">{bold_md(esc(g.get("lead") or ""))}</p></div>']
+    t = g.get("table") or {}
+    for sec in (g.get("secs") or []):
+        sid = f' id="{esc(sec["id"])}"' if sec.get("id") else ""
+        out.append(f'<div class="card"{sid}><h2 class="sec-title" style="margin:0 0 6px">{esc(sec.get("h") or "")}</h2>')
+        for x in (sec.get("p") or []):
+            out.append(f'<p class="cp">{bold_md(esc(x))}</p>')
+        if sec.get("id") == "myeochil" and t:
+            out.append('<div class="tp-scroll"><table class="tbl"><thead><tr>' + "".join(f"<th>{esc(h)}</th>" for h in (t.get("head") or [])) + "</tr></thead><tbody>")
+            for r in (t.get("rows") or []):
+                out.append("<tr>" + "".join((f"<th>{esc(c)}</th>" if j == 0 else f"<td>{esc(c)}</td>") for j, c in enumerate(r)) + "</tr>")
+            out.append("</tbody></table></div>")
+        out.append("</div>")
+    out.append('<div class="card"><h2 class="sec-title" style="margin:0 0 6px">자주 묻는 것</h2>')
+    for q, a in [(list(x) + ["", ""])[:2] for x in (g.get("faq") or [])]:
+        out.append(f'<h3 style="font-size:15px;margin:12px 0 4px">{esc(q)}</h3><p class="cp">{esc(a)}</p>')
+    out.append("</div>")
+    out.append('<div class="card"><h2 class="sec-title" style="margin:0 0 6px">예시</h2><ul class="flist">')
+    for c in (g.get("cases") or []):
+        out.append(f'<li><b>{esc(c.get("t") or "")}</b> — {esc(c.get("q") or "")}</li>')
+    out.append("</ul></div>")
+    laws = g.get("laws") or []
+    if laws:
+        out.append('<div class="card"><p class="cp" style="font-size:12.5px">근거(국가법령정보센터 · ' + esc(g.get("updated") or "") + ' 확인): '
+                   + " · ".join(f'<a href="{esc(u)}" rel="noopener">{esc(n)}</a>' for n, u in laws) + "</p></div>")
+    name = "일용직 실업급여 판단기"
+    ld = {"@context": "https://schema.org", "@graph": [
+        {"@type": "WebApplication", "name": name, "description": desc, "url": f"{SITE}{path}", "inLanguage": "ko",
+         "applicationCategory": "BusinessApplication", "operatingSystem": "Web",
+         "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}},
+        {"@type": "FAQPage", "mainEntity": [
+            {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a.replace("**", "")}}
+            for q, a in [(list(x) + ["", ""])[:2] for x in (g.get("faq") or [])]]},
+    ]}
+    return page(shell, path, title, desc, "".join(out) + nav_html(path), image, ld)
+
+
 def ilyong_guide_page(shell, g, image=None):
     title = "일용직 4대보험 가입 기준 — 국민연금 8일 · 220만원, 건강보험 1개월, 취득일 · 상실일 · 보험료 달 | K-건설맵"
     desc = ("건설 일용근로자의 국민연금 · 건강보험 가입 기준을 공단 실무안내 원문대로 정리했습니다. 국민연금은 달 단위(2025.7~) · 같은 회사 합산, "
@@ -3912,6 +3975,12 @@ def main():
               og.tab("tool-ilyong-guide", "일용직 4대보험 가입 기준", "건설 노무", "국민연금 · 건강보험 · 고용", "사례 · 자주 묻는 것") if og.available else None))
         made += 2
         print("  · 일용직 4대보험 판단기 · 설명 페이지 2개 (/tools/ilyong-boheom · /tools/ilyong-guide)")
+    _sl = load_silup_guide()
+    if _sl:
+        write("tools/ilyong-silup.html", silup_page(shell, _sl,
+              og.tab("tool-silup", "일용직 실업급여 판단기", "건설 노무", "받을 수 있나 · 언제 신청", "건설일용 14일 · 하루 얼마") if og.available else None))
+        made += 1
+        print("  · 일용직 실업급여 판단기 페이지 1개 (/tools/ilyong-silup · G507)")
     write("tools/equip.html", equip_page(shell,
           og.tab("tool-equip", "장비 임대료·수금 장부", "건설 도구", "거래처별 미수금", "청구서 인쇄") if og.available else None))
     write("tools/risk.html", risk_page(shell,

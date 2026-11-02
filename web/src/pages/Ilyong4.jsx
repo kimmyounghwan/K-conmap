@@ -351,6 +351,7 @@ export default function Ilyong4() {
         <div className="iy-links">
           <Link to="/tools/ilyong-guide">📘 가입 기준 설명</Link>
           <Link to="/tools/nomubi">👷 여러 명은 노무비 계산기</Link>
+          <Link to="/tools/ilyong-silup">🧾 실업급여 받을 수 있나</Link>
           {!지움물음 && st.날.length > 0 && <button type="button" className="tp-x" onClick={() => set지움물음(true)}>처음부터</button>}
           {지움물음 && <span className="nm-ask">적은 것을 지웁니다.
             <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => { setSt({ ...빈것(), 시작: st.시작 }); set지움물음(false); set알림(''); set되돌릴(null); set기간한것(null); set기간첫(null) }}>지우기</button>
