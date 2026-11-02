@@ -30,7 +30,7 @@ import { PDF만들기, 캔버스JPEG, 파일주기 } from '../lib/그림PDF.js'
 import { 받음, 세기 } from '../lib/받은수.jsx'
 import 안내 from '../data/서식쓰기안내.json'   // prerender.py 도 같은 글(크롤러 · 사람이 보는 글이 같게)
 
-const V = typeof __BUILD__ === 'string' ? __BUILD__ : '0'   // eslint-disable-line no-undef
+const V = (typeof window !== 'undefined' && typeof window.__KCM_BUILD__ === 'string' && window.__KCM_BUILD__) || '0'   // 🩹 G511 — 도장은 HTML 에서(lib/data.js 와 같음)
 const 쓴열쇠 = 'kcm.격자'
 const 공통열쇠 = 'kcm.서식공통'
 const 읽기 = (k, 없으면) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? 없으면 : v } catch (e) { return 없으면 } }

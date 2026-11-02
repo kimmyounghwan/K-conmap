@@ -17,7 +17,9 @@ const inflight = new Map()
       «어제 오후 이후 갱신이 멈췄다» 로 보였습니다.
       코드와 자료는 반드시 같이 움직여야 합니다.
    전송량 걱정은 없습니다 — 사용자는 자기가 연 묶음 하나(압축 10KB)만 받습니다. */
-const V = typeof __BUILD__ === 'string' ? __BUILD__ : '0'
+/* 🩹 G511 (2026-11-02) — 도장은 HTML(window.__KCM_BUILD__ · vite.config.js 판번호)에서 읽습니다. 묶음에 구우면 자료만 바뀐 배포에도
+   묶음 이름이 줄줄이 바뀌어 열어 둔 화면이 404 → 새로 고침(«잠깐 안 열림»). 값 · 쓰임은 전과 같음(배포마다 바뀜). */
+const V = (typeof window !== 'undefined' && typeof window.__KCM_BUILD__ === 'string' && window.__KCM_BUILD__) || '0'
 
 /* ── 🔄 «새로고침» 을 누르고 들어온 회차인가 (2026-09-17) ─────────────
    소장님: 「건설맵 제일 위 쪽에 새로고침 만들어 줘」

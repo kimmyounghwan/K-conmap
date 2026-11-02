@@ -67,6 +67,14 @@ function 판번호() {
   return {
     name: '판번호',
     configResolved(c) { 낼곳 = c.build.outDir },
+    /* 🩹 G511 (2026-11-02) 소장님 「사이트 화면이 어쩔때 잠깐 안 열려. 점검해봐」
+       BUILD 도장을 묶음(js)에 구워(define __BUILD__ → lib/data.js) 자료만 새로 굽는 배포(20분쯤마다)에도 index-*.js 내용이 바뀌었고,
+       index 를 부르는 화면 묶음 95개(Forms · Nomubi · Qna · Ilyong4 …)의 이름이 줄줄이 바뀌었습니다(실측: 같은 코드인데 로컬 빌드와 사이트 이름이 다름 → 404).
+       열어 둔 화면에서 배포가 지나간 뒤 다른 화면을 누르면 없어진 파일을 부르다 404 → lazyPage 가 새로 고침 = «잠깐 안 열림».
+       → 도장은 HTML 에만 적습니다(window.__KCM_BUILD__ — 모든 껍데기 · 미리 구운 장 · 404 가 이 index.html 에서 나옴). 묶음은 코드가 바뀔 때만 이름이 바뀝니다. */
+    transformIndexHtml(html) {
+      return html.replace(/<head([^>]*)>/, (m) => `${m}\n    <script>window.__KCM_BUILD__=${JSON.stringify(BUILD)}</script>`)
+    },
     closeBundle() {
       if (CODE) fs.writeFileSync(path.resolve(낼곳, 'version.json'), JSON.stringify({ code: CODE, build: BUILD }))
     },
@@ -97,7 +105,7 @@ function 앱껍데기() {
 }
 
 export default defineConfig({
-  define: { __BUILD__: JSON.stringify(BUILD), __CODE__: JSON.stringify(CODE) },
+  define: { __CODE__: JSON.stringify(CODE) },   /* 🩹 G511 — __BUILD__ 는 묶음에 굽지 않음(위 판번호 · transformIndexHtml) */
   plugins: [react(), pdfjs자료(), 판번호(), 앱껍데기()],
   build: {
     outDir: 'dist',
