@@ -1878,6 +1878,28 @@ STATIC_NEW = ["/change", "/change/naeyeok", "/change/excel", "/change/twoline", 
     "/change/naeyeok/" + quote(_k, safe="") for _k, _d in NY_KINDS]
 
 
+def tool_urls_for_indexnow():
+    """🔎 G510 (2026-11-02) 소장님 「만든 도구들 모두 사이트에서 검색했을때 나오게 하고, 구글이나 네이버에서도 검색 되게 해줘」
+    도구 탭 카드(tools.json pages) · 계산기(tools.json tools) 주소를 IndexNow 에 «한 번씩» 알립니다(take_once 가 보낸 것은 다시 안 보냄).
+    ⚠️ 전엔 STATIC_NEW 에 손으로 적은 몇 개뿐이라 판단기 · 노무 · 견적 도구들은 사이트맵에만 있고 IndexNow 로는 한 번도 안 알렸습니다
+       (/indexnow-status.json «처음알리는정적: 0»). 카드에서 바로 뽑으니 새 도구를 만들면 저절로 들어갑니다.
+    잠긴 화면(/jeoksan/lab · /jeoksan/fill) · 관리(/admin · /report) · 굽기가 조건부인 /lic 는 뺍니다."""
+    try:
+        with open(os.path.join(ROOT, "web", "src", "data", "tools.json"), encoding="utf-8") as f:
+            T = json.load(f) or {}
+    except Exception:
+        return []
+    out = ["/tools"] + [f'/tools/{t["slug"]}' for t in (T.get("tools") or []) if t.get("slug")]
+    for p in (T.get("pages") or []):
+        for it in (p.get("items") or []):
+            to = str(it.get("to") or "")
+            if (to.startswith("/") and to not in ("/", "/lic") and "#" not in to and "?" not in to
+                    and not to.startswith(("/admin", "/report", "/jeoksan/lab", "/jeoksan/fill"))):
+                out.append(to)
+    seen = set()
+    return [u for u in out if not (u in seen or seen.add(u))]
+
+
 def change_naeyeok_kind_page(shell, kind, rows, meta, image=None):
     """/change/naeyeok/{갈래} — 갈래마다 한 장. (2026-09-06)
 
@@ -4304,7 +4326,7 @@ def main():
         #       빙·네이버는 그 안의 글 5편을 «스스로 찾아올 때까지» 기다립니다.
         #       사이트맵에는 있으니 언젠가 오지만, IndexNow 는 «지금 보라» 고 찌르는 것이라
         #       알릴 주소에 안 넣으면 그 값어치를 못 씁니다. 글마다 넣습니다.
-        _static = STATIC_NEW + [f'/guide/{t["slug"]}' for t in load_guide()]
+        _static = STATIC_NEW + [f'/guide/{t["slug"]}' for t in load_guide()] + tool_urls_for_indexnow()   # 🔎 G510 도구 카드 · 계산기 전부
         st_new, _ = indexnow.take_once("static", _static, n=len(_static))
         ny_paths = [f"/notice/{safe_no(r.get('no'))}" for r in baked
                     if str(r.get("no") or "") in nydocs and safe_no(r.get("no"))]

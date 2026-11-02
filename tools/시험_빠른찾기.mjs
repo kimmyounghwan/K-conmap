@@ -74,6 +74,37 @@ console.log('③-3 G504 오늘(G499) 만든 것 · 화면마다 찾기에 — �
   봐(!남은뺌.length, '«뺌» 목록에 찾기에 이미 있거나 없어진 길이 남지 않음', 남은뺌.join(' · '))
 }
 
+console.log('③-4 G510 — 소장님 「만든 도구들 모두 사이트에서 검색했을때 나오게 하고, 구글이나 네이버에서도 검색 되게 해줘」')
+{
+  /* 판단기 · 노무 도구 — 사람들이 칠 말이면 맨 위가 그 도구 */
+  const 말 = [['실업급여', '/tools/ilyong-silup'], ['구직급여', '/tools/ilyong-silup'], ['일용직 실업급여', '/tools/ilyong-silup'],
+    ['휴업급여', '/tools/sanjae-hyueop'], ['산재 휴업급여', '/tools/sanjae-hyueop'], ['주휴수당', '/tools/juhyu'], ['주휴', '/tools/juhyu'], ['일용직 주휴수당', '/tools/juhyu'],
+    ['퇴직공제', '/tools/toejik'], ['노무비', '/tools/nomubi'],
+    /* 아무것도 안 나오던 말(흔한 말 90개 점검) */ ['산안비', '/tools/sanan'], ['개산보험료', '/tools/boheomryo'], ['확정보험료', '/tools/boheomryo'], ['퇴직금', '/tools/toejik']]
+  const 틀림 = 말.filter(([q, to]) => 맨위(q) !== to)
+  봐(!틀림.length, `판단기 · 노무 도구 ${말.length}가지 말 → 맨 위가 그 도구`, JSON.stringify(틀림.map(([q, to]) => [q, to, 맨위(q)])))
+  /* 뜻이 넓은 말은 위 3 안에(«4대보험» 은 설명(ilyong-guide)이 맨 위 · 판단기는 둘째) */
+  const 넓 = [['4대보험', '/tools/ilyong-boheom'], ['4대보험', '/tools/ilyong-guide'], ['산재', '/tools/sanjae-hyueop'], ['일용직', '/tools/ilyong-silup'], ['최저임금', '/tools/juhyu']]
+  const 넓틀 = 넓.filter(([q, to]) => !L.찾기(목, q, 3).some((x) => x.to === to))
+  봐(!넓틀.length, `뜻이 넓은 말 ${넓.length}가지 → 위 3 안에`, JSON.stringify(넓틀.map(([q, to]) => [q, to, L.찾기(목, q, 3).map((x) => x.to)])))
+  /* 도구 · 계산기 · 화면 하나하나 — 제 이름(— 앞)으로 찾으면 위 3 안에(새 도구를 만들면 저절로 시험에 들어감) */
+  const 도구들 = 목.filter((x) => ['도구', '계산기', '화면'].includes(x.갈래))
+  const 못 = 도구들.filter((x) => { const q = x.t.split(/ — | · |\(|,/)[0].replace(/[^\p{L}\p{N}\s]/gu, ' ').trim(); return !L.찾기(목, q, 3).some((y) => y.to === x.to) })
+  봐(도구들.length >= 100 && !못.length, `도구 · 계산기 · 화면 ${도구들.length}곳 — 제 이름으로 찾으면 모두 위 3 안에`, 못.map((x) => x.to + ' ' + x.t).join(' · '))
+  /* 도구 탭 카드 · 계산기 주소가 사이트맵(sitemap.py)에 — 구글 · 네이버가 찾아오는 길. /lic 는 licstat.json 이 있을 때만 굽고 내서(조건부) 뺌 */
+  const sm = fs.readFileSync(path.join(여기, '..', 'sitemap.py'), 'utf8')
+  const 글자 = new Set([...sm.matchAll(/"(\/[^"\s{}]*)"/g)].map((m) => m[1]))
+  const T = 읽('tools.json')
+  const 슬 = new Set((T.tools || []).map((t) => '/tools/' + t.slug))
+  const 바 = new Set((읽('change.json').topics || []).map((t) => '/change/' + t.slug))
+  const 카드 = (T.pages || []).flatMap((p) => (p.items || []).map((it) => it.to)).filter((to) => to && to.startsWith('/'))
+  const 맵빠짐 = 카드.filter((to) => to !== '/' && to !== '/lic' && !글자.has(to) && !슬.has(to) && !바.has(to))
+  봐(카드.length >= 50 && !맵빠짐.length && /\/tools\/\{t\["slug"\]\}/.test(sm), `도구 탭 카드 ${카드.length}곳 · 계산기 ${슬.size}곳이 모두 사이트맵에(sitemap.py)`, 맵빠짐.join(' · '))
+  /* IndexNow(네이버 · 빙) — prerender.py 가 도구 카드 · 계산기 주소를 tools.json 에서 바로 뽑아 «한 번씩» 알림 */
+  const pr = fs.readFileSync(path.join(여기, '..', 'prerender.py'), 'utf8')
+  봐(/def tool_urls_for_indexnow\(\)/.test(pr) && /_static = STATIC_NEW \+ .*tool_urls_for_indexnow\(\)/.test(pr), 'IndexNow 알릴 주소에 도구 카드 · 계산기 전부(prerender.py tool_urls_for_indexnow)')
+}
+
 console.log('④ 공고 번호')
 const 공 = L.찾기(목, 'r26bk01693749-000', 5)
 봐(공[0] && 공[0].갈래 === '공고' && 공[0].to === '/notice/R26BK01693749', '«r26bk01693749-000» → 맨 위 «공고 R26BK01693749 열기»(대문자 · 차수 뺌)', JSON.stringify(공[0]))
