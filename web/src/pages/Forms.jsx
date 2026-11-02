@@ -11,6 +11,7 @@ import SAME from '../data/forms_same.json'
 import { ShareBtn } from './CorpPage.jsx'
 import UserForms from '../UserForms.jsx'
 import { Empty } from '../components.jsx'
+import { 둘씩, 더말글 } from '../lib/빠른찾기.js'
 
 /* 🎨 2026-10-16 탭 꾸밈 — 묶음마다 색(머리 띠 · 아이콘 바탕) */
 const 묶음색 = ['#2563eb', '#0d9488', '#d97706', '#7c3aed', '#e11d48', '#16a34a', '#0284c7', '#ea580c']
@@ -76,11 +77,22 @@ const ORIG = ORIG_DATA.forms || []
 const OGROUPS = ORIG_DATA.groups || []
 export const origBySlug = (slug) => ORIG.find((f) => f.slug === slug) || null
 
-/* 검색 — 띄어쓰기·대소문자 무시, 제목·설명·다른 이름·갈래에서 */
+/* 검색 — 띄어쓰기·대소문자 무시, 제목·설명·다른 이름·갈래에서
+   🩺 G514 (11-02 서식 점검 · 소장님 「서식 점검해 줘. 이용자 입장에서 … 어떤게 편한지」)
+     «출역부 · 장비일보 · 유류대장 · 실행예산 · 자재검수 · 월간보고» 가 0가지 → 머리 🔎찾기와 같은 더 붙인 말(lib/빠른찾기.js 더말) ·
+     붙여 쓴 말은 두 글자씩(장비일보 → 장비 · 일보가 다 든 서식) · 제목이 같은 것 먼저(«착공계» → 착공계가 «…서류 모음» 보다 먼저) */
 const 접기 = (t) => String(t || '').replace(/\s+/g, '').toLowerCase()
-function 맞나(f, q) {
-  const k = 접기([f.title, f.sub, f.short, f.group, ...(f.also || [])].join('|'))
-  return 접기(q).split(/[,·]/).filter(Boolean).every((w) => k.includes(w))
+function 점수(f, q) {
+  const 제 = 접기(f.title)
+  const k = 접기([f.title, f.sub, f.short, f.group, ...(f.also || []), 더말글('/forms/' + f.slug)].join('|'))
+  let 합 = 0
+  for (const w of 접기(q).split(/[,·]/).filter(Boolean)) {
+    const p = 제 === w ? 100 : 제.startsWith(w) ? 80 : 제.includes(w) ? 60 : k.includes(w) ? 30
+      : (w.length >= 4 && /^[가-힣]+$/.test(w) && 둘씩(w).every((s) => k.includes(s))) ? 15 : 0
+    if (!p) return 0
+    합 += p
+  }
+  return 합
 }
 /* 갈래는 «단계»가 아니라 «현장 조직» 기준입니다 — 공무/공사/안전/품질이 실제로
    현장이 나뉘는 방식이고, 서류를 찾는 사람도 그렇게 찾습니다. */
@@ -364,7 +376,11 @@ export default function Forms() {
   const ogroups = useMemo(() => OGROUPS.map((g) => [g, ORIG.filter((f) => f.group === g)]).filter(([, v]) => v.length), [])
   const 찾음 = useMemo(() => {
     if (!q.trim()) return null
-    return { o: ORIG.filter((f) => 맞나(f, q)), n: FORMS.filter((f) => 맞나(f, q)) }
+    // 점수 큰 차례 — 같으면 원본 틀 · 서식 차례 그대로
+    const 고름 = (목) => 목.map((f, i) => ({ f, s: 점수(f, q), i })).filter((x) => x.s)
+    const 다 = [...고름(ORIG).map((x) => ({ ...x, o: 1 })), ...고름(FORMS).map((x) => ({ ...x, o: 0 }))]
+      .sort((a, b) => b.s - a.s || b.o - a.o || a.i - b.i)
+    return { o: [], n: 다.map((x) => x.f) }
   }, [q])
   /* 🖼 G103 보기 · 거르기 · 받은 횟수 */
   const [보기, set보기] = useState('stage')
@@ -642,7 +658,7 @@ function OrigFormPage({ f }) {
           {f.sheets ? <span>시트 {f.sheets}장</span> : null}
           <span>{크기}</span>
         </div>
-        <div className="btn-row" style={{ marginTop: 12 }}>
+        <div className="btn-row fp-acts" style={{ marginTop: 12 }}>
           {f.re ? (
             <>
               <button type="button" className="btn primary" onClick={() => { const el = document.getElementById('작성'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}>✍️ 종이에 바로 쓰기 → PDF</button>
@@ -797,7 +813,7 @@ export function FormPage() {
             이렇게도 부릅니다 — {f.also.filter((a) => a && a !== f.title).join(' · ')}
           </div>
         )}
-        <div className="btn-row" style={{ marginTop: 12 }}>
+        <div className="btn-row fp-acts" style={{ marginTop: 12 }}>
           {웹 ? (
             /* ✍️ G346 안전서류 — 엑셀 없이 «사이트에서 작성 → PDF» (소장님 「엑셀로 주면 다시 안오잖아」) */
             <>

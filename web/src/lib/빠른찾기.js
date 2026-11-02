@@ -24,6 +24,8 @@ export function 초성(s) {
 export const 고른말 = (s) => String(s || '').toLowerCase().replace(/[\s·・—\-–_/\\()[\]{}«»"'“”‘’.,:;!?~|+&]+/g, '')
 
 const 초성만 = (s) => /^[ㄱ-ㅎ]+$/.test(s)
+/** 그 주소에 더 붙인 찾는 말(서식 화면 «서식 찾기» 도 같이 씀 — G514) */
+export const 더말글 = (to) => 더말[to] || ''
 /** 붙여 쓴 긴 말 → 두 글자씩(«장비일보» → 장비 · 일보 · «기성청구서» → 기성 · 청구 · 구서 — 홀수면 끝 두 글자를 겹쳐) */
 export const 둘씩 = (w) => { const a = []; for (let k = 0; k + 2 <= w.length; k += 2) a.push(w.slice(k, k + 2)); if (w.length % 2) a.push(w.slice(-2)); return a }
 

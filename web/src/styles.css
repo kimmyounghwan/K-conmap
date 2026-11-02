@@ -9913,3 +9913,12 @@ div.bth { padding: 0; }
 /* 📆 G509 주휴수당 판단기 (/tools/juhyu · pages/Juhyu.jsx — 실업급여 판단기 sl-* · iy-seg 를 같이 씀)
    단위 글자(«시간» 처럼 두 글자)가 좁은 폰에서 «시/간» 으로 갈라지지 않게 */
 .sl-unit i { flex: none; white-space: nowrap; }
+
+/* 🩺 G514 (11-02 서식 점검 · 소장님 「서식 점검해 줘. 이용자 입장에서 클로드가 하나 하나 세심히」)
+   서식 쪽 맨 위 단추 줄 — 폰(390)에서 «종이에 바로 쓰기 → PDF» 가 «종이 / 에 / 바로 / 쓰기 …», «빈 틀 엑셀» 이 «빈 / 틀 / 엑 / 셀» 로
+   한두 글자씩 세로로 접혔음(단추가 width 100% 인 채 한 줄(flex)에 둘 · 셋 + «지금까지 N번 받았습니다» 가 같이 들어가 좁아짐 · 서식 195가지).
+   → 줄을 넘기고 · 단추 글자는 안 접히고 · 받은 수는 아래 줄 오른쪽 · 폰에서는 큰 단추(작성)가 한 줄을 다 씀 */
+.fp-acts { flex-wrap: wrap; align-items: center; }
+.fp-acts .btn { width: auto; flex: 1 1 auto; word-break: keep-all; }   /* 한 줄에 다 안 들어가면 줄을 넘김(낱말 가운데서는 안 자름) */
+.fp-acts .dlcount.big { flex-basis: 100%; text-align: right; }
+@media (max-width: 560px) { .fp-acts .btn.primary { flex-basis: 100%; } }
