@@ -9906,3 +9906,6 @@ div.bth { padding: 0; }
 .sl-tbl th, .sl-tbl td { text-align: center; white-space: nowrap; }
 .sl-ex { display: flex; flex-wrap: wrap; gap: 6px; }
 @media print { .sl-in, .sl-guide, .iy-exd { display: none !important; } .sl-res { border: 1px solid #999; } }
+
+/* 🩹 G508 산재 휴업급여 계산기 (/tools/sanjae-hyueop · pages/Hyueop.jsx — 실업급여 판단기 sl-* 를 같이 씀) */
+.hy-segs { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }

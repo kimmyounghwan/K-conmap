@@ -2940,6 +2940,62 @@ def silup_page(shell, g, image=None):
     return page(shell, path, title, desc, "".join(out) + nav_html(path), image, ld)
 
 
+# 🩹 /tools/sanjae-hyueop — 산재 휴업급여 계산기 (G508 · 2026-11-02 · 화면 Hyueop.jsx · 셈 lib/hyueop.js)
+#    글은 web/src/data/hyueop_guide.json 한 곳 — 화면 아래 «📘» 와 같은 글. 새 화면이라 «무료» 를 쓰지 않습니다.
+HYUEOP_JSON = os.path.join(ROOT, "web", "src", "data", "hyueop_guide.json")
+
+
+def load_hyueop_guide():
+    try:
+        with open(HYUEOP_JSON, encoding="utf-8") as f:
+            return json.load(f) or None
+    except Exception as e:
+        print(f"  · 산재 휴업급여 글을 못 읽었습니다 ({type(e).__name__}) — 건너뜁니다")
+        return None
+
+
+def hyueop_page(shell, g, image=None):
+    path = "/tools/sanjae-hyueop"
+    title = "산재 휴업급여 계산기 — 일용직 평균임금(일당 × 73/100) · 하루 얼마 × 며칠 · 61세 감액 | K-건설맵"
+    desc = ("일당과 쉰 기간만 넣으면 산재 휴업급여를 셈합니다. 건설 일용 평균임금 = 일당 × 73/100, 하루 휴업급여 = 평균임금의 70%"
+            "(일당 20만 원 → 102,200원), 3일 이내는 없음, 61세 감액 · 최고 보상기준 금액까지 날마다. 산재보험법 · 고시대로.")[:160]
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">🩹 산재 휴업급여 계산기</h1>'
+           '<p class="cp" style="margin-top:8px">일당 · 쉰 기간만 넣으면 <b>하루 얼마 × 며칠 = 얼마</b>인지 바로 나옵니다. '
+           '건설 일용은 평균임금 = 일당 × 73/100. 61세 감액 · 3일 이내 · 최고 금액까지 날마다 셈합니다.</p>'
+           '<p class="cp">적은 것은 이 브라우저에만 남습니다 · 결과 링크로 보내면 받는 분도 같은 셈 · '
+           '<a href="/tools/ilyong-silup">일용직 실업급여 판단기</a> · <a href="/tools/ilyong-boheom">일용직 4대보험 가입 판단기</a></p></div>',
+           f'<div class="card"><h2 class="sec-title" style="margin:0 0 6px">📘 {esc(g.get("title") or "")}</h2>'
+           f'<p class="cp">{bold_md(esc(g.get("lead") or ""))}</p></div>']
+    for sec in (g.get("secs") or []):
+        sid = f' id="{esc(sec["id"])}"' if sec.get("id") else ""
+        out.append(f'<div class="card"{sid}><h2 class="sec-title" style="margin:0 0 6px">{esc(sec.get("h") or "")}</h2>')
+        for x in (sec.get("p") or []):
+            out.append(f'<p class="cp">{bold_md(esc(x))}</p>')
+        out.append("</div>")
+    out.append('<div class="card"><h2 class="sec-title" style="margin:0 0 6px">자주 묻는 것</h2>')
+    for q, a in [(list(x) + ["", ""])[:2] for x in (g.get("faq") or [])]:
+        out.append(f'<h3 style="font-size:15px;margin:12px 0 4px">{esc(q)}</h3><p class="cp">{esc(a)}</p>')
+    out.append("</div>")
+    out.append('<div class="card"><h2 class="sec-title" style="margin:0 0 6px">예시</h2><ul class="flist">')
+    for c in (g.get("cases") or []):
+        out.append(f'<li><b>{esc(c.get("t") or "")}</b> — {esc(c.get("q") or "")}</li>')
+    out.append("</ul></div>")
+    laws = g.get("laws") or []
+    if laws:
+        out.append('<div class="card"><p class="cp" style="font-size:12.5px">근거(국가법령정보센터 · ' + esc(g.get("updated") or "") + ' 확인): '
+                   + " · ".join(f'<a href="{esc(u)}" rel="noopener">{esc(n)}</a>' for n, u in laws) + "</p></div>")
+    name = "산재 휴업급여 계산기"
+    ld = {"@context": "https://schema.org", "@graph": [
+        {"@type": "WebApplication", "name": name, "description": desc, "url": f"{SITE}{path}", "inLanguage": "ko",
+         "applicationCategory": "BusinessApplication", "operatingSystem": "Web",
+         "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}},
+        {"@type": "FAQPage", "mainEntity": [
+            {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a.replace("**", "")}}
+            for q, a in [(list(x) + ["", ""])[:2] for x in (g.get("faq") or [])]]},
+    ]}
+    return page(shell, path, title, desc, "".join(out) + nav_html(path), image, ld)
+
+
 def ilyong_guide_page(shell, g, image=None):
     title = "일용직 4대보험 가입 기준 — 국민연금 8일 · 220만원, 건강보험 1개월, 취득일 · 상실일 · 보험료 달 | K-건설맵"
     desc = ("건설 일용근로자의 국민연금 · 건강보험 가입 기준을 공단 실무안내 원문대로 정리했습니다. 국민연금은 달 단위(2025.7~) · 같은 회사 합산, "
@@ -3981,6 +4037,12 @@ def main():
               og.tab("tool-silup", "일용직 실업급여 판단기", "건설 노무", "받을 수 있나 · 언제 신청", "건설일용 14일 · 하루 얼마") if og.available else None))
         made += 1
         print("  · 일용직 실업급여 판단기 페이지 1개 (/tools/ilyong-silup · G507)")
+    _hy = load_hyueop_guide()
+    if _hy:
+        write("tools/sanjae-hyueop.html", hyueop_page(shell, _hy,
+              og.tab("tool-hyueop", "산재 휴업급여 계산기", "건설 노무", "일당 × 73/100 × 70%", "하루 얼마 × 며칠") if og.available else None))
+        made += 1
+        print("  · 산재 휴업급여 계산기 페이지 1개 (/tools/sanjae-hyueop · G508)")
     write("tools/equip.html", equip_page(shell,
           og.tab("tool-equip", "장비 임대료·수금 장부", "건설 도구", "거래처별 미수금", "청구서 인쇄") if og.available else None))
     write("tools/risk.html", risk_page(shell,

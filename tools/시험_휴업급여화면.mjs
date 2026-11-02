@@ -1,0 +1,124 @@
+// 🧪 G508 — 산재 휴업급여 계산기 화면 (B=http://127.0.0.1:4996 node tools/시험_휴업급여화면.mjs)
+//   PC 1280 · 폰 390 · 320 — 예시 다섯 · 손으로 넣기 · 평균임금 직접 · 결과 링크 오가기 · 넘침 · 오류 · 금지 말 · 어두운 화면 · 미리 구운 쪽
+//   캡처: C=폴더
+import { createRequire } from 'module'
+const require = createRequire(process.env.PW || '/tmp/g10/pw/package.json')
+const { chromium } = require('playwright')
+const B = process.env.B || 'http://127.0.0.1:4996'
+const C = process.env.C || ''
+let 통과 = 0, 틀림 = 0
+const 봄 = (v, 이름, 덧 = '') => { if (v) 통과++; else { 틀림++; console.log(`  ✗ ${이름} ${덧}`) } }
+
+const b = await chromium.launch()
+async function 새쪽(w, h, 어둠 = false) {
+  const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: w < 500 ? 2 : 1, colorScheme: 어둠 ? 'dark' : 'light' })
+  await p.addInitScript(() => { Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false }) })
+  await p.route(/googletagmanager|google-analytics|pagead2|adsbygoogle|geojs|firebaseio|firebasedatabase|identitytoolkit|securetoken/, (r) => r.fulfill({ status: 200, body: 'null' }))
+  const 오류 = []
+  p.on('pageerror', (e) => 오류.push(String(e.message || e)))
+  p.on('console', (m) => { if (m.type() === 'error' && !/net::|Failed to load resource|favicon/i.test(m.text())) 오류.push(m.text()) })
+  return { p, 오류 }
+}
+const 넘침 = (p) => p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+const 큰글 = (p) => p.evaluate(() => (document.querySelector('.sl-res') || {}).textContent || '')
+const 글 = (p) => p.evaluate(() => document.body.innerText)
+async function 예시(p, 이름) {
+  const d = p.locator('details.iy-exd')
+  if (!(await d.evaluate((e) => e.open))) await p.locator('details.iy-exd > summary').click()
+  await p.getByRole('button', { name: 이름, exact: true }).click()
+  await p.waitForTimeout(250)
+}
+
+for (const [w, h, 이름] of [[1280, 900, 'PC'], [390, 844, '폰'], [320, 640, '좁은 폰']]) {
+  console.log(`■ ${이름} ${w}`)
+  const { p, 오류 } = await 새쪽(w, h)
+  await p.goto(`${B}/tools/sanjae-hyueop`, { waitUntil: 'domcontentloaded' })
+  await p.waitForSelector('h1.tl-h1', { timeout: 20000 })
+  await p.evaluate(() => { try { localStorage.removeItem('kcm_hyueop') } catch (e) { /* */ } })
+  await p.reload({ waitUntil: 'domcontentloaded' }); await p.waitForSelector('h1.tl-h1')
+  봄((await p.textContent('h1.tl-h1')).includes('산재 휴업급여 계산기'), '제목')
+  봄(!(await p.$('.sl-res')), '처음엔 결과 없음')
+  await 예시(p, '일당 20만 · 30일')
+  봄((await 큰글(p)).includes('하루 102,200원 × 30일 = 3,066,000원'), '예시 a', await 큰글(p))
+  let t = await 글(p)
+  봄(t.includes('일당 200,000원 × 73/100 = 146,000원'), '예시 a 평균임금 줄')
+  await 예시(p, '3일만 쉼')
+  봄((await 큰글(p)).includes('❌') && (await 큰글(p)).includes('3일 이내'), '예시 c ❌ 3일')
+  await 예시(p, '쉬는 중 61세')
+  t = await 글(p)
+  봄(t.includes('10.1.~10.14. 14일 × 102,200원') && t.includes('10.15.~10.31. 17일 × 96,360원'), '예시 d 나이 걸침 두 구간')
+  봄((await 큰글(p)).includes('31일 = 3,068,920원'), '예시 d 합', await 큰글(p))
+  await 예시(p, '61세 넘어 다침')
+  t = await 글(p)
+  봄(t.includes('감액 없음'), '예시 e 2년 감액 없음')
+  봄(await 넘침(p) <= 0, '가로 넘침 없음', String(await 넘침(p)))
+  // 손으로 — 평균임금 직접
+  await p.getByRole('button', { name: '처음부터' }).click()
+  await p.getByRole('button', { name: '지우기' }).click()
+  await p.getByLabel('같은 사업에서 3개월 넘게 계속 일함 · 상용처럼 일함 → 평균임금 직접 넣기').check()
+  await p.fill('input[aria-label="평균임금"]', '150000')
+  await p.fill('input[aria-label="쉰 첫날"]', '2026-10-01')
+  await p.fill('input[aria-label="쉰 끝날"]', '2026-10-10')
+  봄((await 큰글(p)).includes('하루 105,000원 × 10일 = 1,050,000원'), '손으로 — 평균임금 직접', await 큰글(p))
+  // 낮은 일당 → 저소득 보정 알림
+  await p.getByLabel('같은 사업에서 3개월 넘게 계속 일함 · 상용처럼 일함 → 평균임금 직접 넣기').uncheck()
+  await p.fill('input[aria-label="일당"]', '90000')
+  t = await 글(p)
+  봄(t.includes('82,560원') && t.includes('저소득 보정'), '낮은 일당 → 최저임금액 · 보정 알림')
+  봄((await p.locator('.hy-long').count()) === 0, '10일 — 오래 쉴 때 알림 없음')
+  await p.fill('input[aria-label="쉰 끝날"]', '2028-10-05')
+  t = await 글(p)
+  봄((await p.locator('.hy-long').count()) === 2 && t.includes('제36조③') && t.includes('상병보상연금'), '2년 넘게 쉼 → 증감 · 상병보상연금 알림 둘')
+  봄(await 넘침(p) <= 0, '가로 넘침 없음(알림 뒤)', String(await 넘침(p)))
+  await p.fill('input[aria-label="쉰 끝날"]', '2026-10-10')
+  await p.fill('input[aria-label="일당"]', '230000')
+  const 앞큰 = await 큰글(p)
+  await p.getByRole('button', { name: '🔗 링크 보내기' }).click()
+  await p.waitForSelector('.sl-out .note a[href*="?c="]', { timeout: 5000 })
+  const url = await p.getAttribute('.sl-out .note a[href*="?c="]', 'href')
+  봄(/\/tools\/sanjae-hyueop\?c=[A-Za-z0-9_-]+$/.test(url), '링크 꼴', url)
+  const { p: q, 오류: 오류2 } = await 새쪽(w, h)
+  await q.goto(url.replace(/^https?:\/\/[^/]+/, B), { waitUntil: 'domcontentloaded' })
+  await q.waitForSelector('.sl-res', { timeout: 20000 })
+  봄((await 큰글(q)) === 앞큰, '받은 링크 = 같은 결과', `${await 큰글(q)} / ${앞큰}`)
+  봄(!오류2.length, '받은 링크 쪽 오류 없음', 오류2.join(' | '))
+  await q.close()
+  t = await 글(p)
+  봄(!/클로드/.test(t), '«클로드» 없음')
+  const 무료 = await p.evaluate(() => [...document.querySelectorAll('.hy, .hy *')].some((e) => e.children.length === 0 && /무료/.test(e.textContent)))
+  봄(!무료, '새 화면 안에 «무료» 없음')
+  봄(await 넘침(p) <= 0, '가로 넘침 없음(손으로 뒤)', String(await 넘침(p)))
+  봄(!오류.length, '오류 없음', 오류.join(' | '))
+  if (C && w !== 320) {
+    await 예시(p, '쉬는 중 61세')
+    await p.evaluate(() => document.querySelector('.sl-out').scrollIntoView({ block: 'start' }))
+    await p.evaluate(() => window.scrollBy(0, -70))
+    await p.waitForTimeout(300)
+    await p.screenshot({ path: `${C}/휴업급여_${이름}.png`, fullPage: false })
+  }
+  await p.close()
+}
+
+console.log('■ 어두운 화면 · 실업급여에서 가는 길 · 미리 구운 쪽')
+{
+  const { p, 오류 } = await 새쪽(390, 844, true)
+  await p.goto(`${B}/tools/sanjae-hyueop`, { waitUntil: 'domcontentloaded' })
+  await p.waitForSelector('h1.tl-h1')
+  await 예시(p, '일당 25만 · 두 달')
+  const 색 = await p.evaluate(() => { const e = document.querySelector('.sl-res'); const s = getComputedStyle(e); return [s.color, s.backgroundColor] })
+  봄(색[0] !== 색[1], '어두운 화면 글자 ≠ 바탕', 색.join(' / '))
+  봄(!오류.length, '어두운 화면 오류 없음', 오류.join(' | '))
+  await p.goto(`${B}/tools/ilyong-silup`, { waitUntil: 'domcontentloaded' })
+  await p.waitForSelector('h1.tl-h1')
+  봄(!!(await p.$('a[href="/tools/sanjae-hyueop"]')), '실업급여 판단기 → 휴업급여 링크')
+  await p.close()
+  const r = await fetch(`${B}/tools/sanjae-hyueop.html`).then((x) => x.text())
+  봄(/<title>산재 휴업급여 계산기/.test(r), '미리 구운 쪽 제목')
+  봄(r.includes('FAQPage') && r.includes('102,200원'), '미리 구운 쪽 FAQ · 예')
+  봄(!/무료|클로드/.test(r.replace(/<script[\s\S]*?<\/script>/g, '')), '미리 구운 쪽 «무료» · «클로드» 없음')
+  const sm = await fetch(`${B}/sitemap-main.xml`).then((x) => x.text()).catch(() => '')
+  봄(sm.includes('/tools/sanjae-hyueop'), '사이트맵에 주소')
+}
+await b.close()
+console.log(`\n산재 휴업급여 화면 ${통과}/${통과 + 틀림}`)
+if (틀림) process.exit(1)
