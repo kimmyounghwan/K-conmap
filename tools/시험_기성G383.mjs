@@ -8,7 +8,9 @@
    ⑤ 비율 읽기 — 위쪽 요약의 묶음 제목 줄(「◎. 토목공사」)도 중복(전엔 합계 두 배)
    ⑥ 화면 · 소스 */
 import { readFileSync } from 'fs'
-const L = process.env.LIB || new URL('../web/src/lib', import.meta.url).pathname
+import { pathToFileURL } from 'url'
+/* 🪟 import 는 file:// 주소로 — .pathname(맨 경로)은 PC(Windows)에서 ERR_UNSUPPORTED_ESM_URL_SCHEME(G518 에서 찾음) */
+const L = process.env.LIB ? pathToFileURL(process.env.LIB).href : new URL('../web/src/lib', import.meta.url).href
 const K = await import(L + '/기성.js'), B = await import(L + '/비율.js'), G = await import(L + '/원가계산.js')
 
 let ok = 0, bad = 0

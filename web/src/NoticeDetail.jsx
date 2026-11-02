@@ -9,6 +9,7 @@ import { 개찰몫들 } from './lib/투찰자리.js'   /* 🎯 G181 */
 import { useP50 } from './tools/확보예가.jsx'
 import 내금액 from './내금액.jsx'   /* 📝 G338 넣은 금액이면 몇 위였나 */
 import { 한벌주소 } from './lib/낙찰한벌.js'   /* 🏁 G499 */
+import { 견적틀주소 } from './lib/견적틀주소.js'   /* 🤝 G518 하도급 견적틀 */
 import 관심분포 from './관심분포.jsx'   /* 👥 G499 이용자들이 고른 자리(마감 뒤) */
 
 /* ============================================================
@@ -286,6 +287,11 @@ function BidTab({ r }) {
         <Link className="nd-hanbeol" to={한벌주소({ no: r.no, 이름: r.name, 발주: r.inst, 금액: r.sAmt || r.amt })}>🏁 이 공사를 따셨다면 — 낙찰 서류 한 벌(계약 · 착공 · 안전 · 기성) →</Link>
       )}
 
+      {/* 🤝 G518 하도급 견적틀 — 이 공고 내역서를 공종별 견적서 틀로(수신 = 1순위 업체 · 제출 업체 칸만 빈칸) */}
+      {r.no && (
+        <Link className="nd-hgj" to={견적틀주소({ no: r.no, ord: r.ord, 공사명: r.name, 발주: r.inst, 원청: r.win, 날: String(r.dt || '').slice(0, 10) })}>🤝 하도급 견적틀 — 공종별 견적서로 →</Link>
+      )}
+
       {/* 개찰이 끝난 공고는 «채점»이 됩니다 —
           우리 권장 투찰률로 넣었으면 이 자리를 가져갔을지 바로 봅니다.
           (투찰이 아니라 되돌아보기라서, 끝난 공고에도 붙일 이유가 있습니다) */}
@@ -545,6 +551,10 @@ function DocTab({ r }) {
         href={`https://www.g2b.go.kr/`} target="_blank" rel="noreferrer">
         나라장터 첫 화면에서 공고번호로 찾기
       </a>
+      {/* 🤝 G518 — 받은 내역서로 공종별 견적틀 */}
+      {r.no && r.win && (
+        <Link className="nd-hgj" to={견적틀주소({ no: r.no, ord: r.ord, 공사명: r.name, 발주: r.inst, 원청: r.win, 날: String(r.dt || '').slice(0, 10) })}>🤝 받은 내역서로 하도급 견적틀 만들기 →</Link>
+      )}
       <div className="note" style={{ marginTop: 8 }}>
         원문이 안 열리면 차수가 달라서일 수 있습니다. 그때는 나라장터에서
         공고번호 <b>{r.no}</b> 로 검색하세요.

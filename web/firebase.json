@@ -27,6 +27,7 @@
     "rewrites": [
       { "source": "/calc", "destination": "/app.html" },
       { "source": "/first", "destination": "/app.html" },
+      { "//": "🤝 G518 하도급 견적틀(/first/hado-gyeonjeok) — 구운 장이 먼저 나가고 못 구웠을 때 여기", "source": "/first/**", "destination": "/app.html" },
       { "source": "/live", "destination": "/app.html" },
       { "//": "🏗 나라장터 밖 공고 — 2026-09-30 (extbids.py · pages/ExtBoard.jsx)", "source": "/ext", "destination": "/app.html" },
       { "//": "📣 곧 나올 공사 — 2026-10-05 G135 (build_json build_pre · pages/Pre.jsx)", "source": "/pre", "destination": "/app.html" },

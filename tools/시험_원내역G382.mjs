@@ -6,8 +6,10 @@
    ③ 원가계산서 꼴 — 구성비 칸 «[노무비] 의» · 부가세 = 바로 위 줄 × 10% · 머리 기호(가-1. · ①) · 시트 찾기 · 머리글 · 줄 나누기 · 끝수 · 오타
    ④ 화면 · 소스 — 원 내역서 화면이 1줄 내역서를 비율 도구 읽기로 보강 · % 줄 알림 */
 import { readFileSync } from 'fs'
+import { pathToFileURL } from 'url'
 import { readWorkbook } from '../web/src/lib/qtoxlsx.js'
-const L = process.env.LIB || new URL('../web/src/lib', import.meta.url).pathname
+/* 🪟 import 는 file:// 주소로 — .pathname(맨 경로)은 PC(Windows)에서 ERR_UNSUPPORTED_ESM_URL_SCHEME(G518 에서 찾음) */
+const L = process.env.LIB ? pathToFileURL(process.env.LIB).href : new URL('../web/src/lib', import.meta.url).href
 const R = await import(L + '/원내역변경.js'), B = await import(L + '/비율.js'), V = await import(L + '/변경내역.js'), G = await import(L + '/원가계산.js'), N = await import(L + '/낙찰맞추기.js')
 
 let ok = 0, bad = 0

@@ -78,7 +78,7 @@ STATIC = [("/", "1.0", "hourly"), ("/first", "0.9", "hourly"), ("/live", "0.9", 
           # 🔎 G341 (2026-10-20) 소장님 「지금 만드는거 다 페이지 넣었지? … 검색되게」 — prerender TABS · firebase.json 과 셋이 같이
           ("/bunseok", "0.9", "daily"), ("/gongdong", "0.8", "daily"),
           ("/ext", "0.8", "daily"), ("/pre", "0.8", "daily"),
-          ("/naeyeok/hado", "0.8", "monthly"), ("/change/gisung", "0.8", "monthly"),
+          ("/naeyeok/hado", "0.8", "monthly"), ("/first/hado-gyeonjeok", "0.8", "monthly"), ("/change/gisung", "0.8", "monthly"),
           ("/corp", "0.8", "daily")]   # 🏢 G343 업체 찾기
 
 # 건설 서식 — 변하지 않는 자료라 changefreq 는 yearly.

@@ -25,7 +25,9 @@ const esc = (s) => String(s)
 /* 꾸밈 번호 — STYLES 의 cellXfs 차례와 같아야 합니다.
  * 서식(wih-*.xlsx) 그대로: 머리 칸은 칠 없이 굵게(세부작업 · 사용장비는 붉게) · 회색 칠은 별지3·4 «회의일시» 같은 칸만 ·
  * 몸 글자 9pt · 작은 글 8pt · 윗글 11pt · 가운데 제목 16pt · 별지3·4 큰 제목 18pt. 위험등급 «상» 은 종이처럼 붉게. */
-export const 꼴 = { 민: 0, 칸: 1, 칸왼: 2, 칸왼위: 3, 머리: 4, 머리빨강: 5, 머리왼: 6, 굵은칸: 7, 제목: 8, 작은칸: 9, 윗글: 10, 큰제목: 11, 없음: 12, 꼬리: 13, 작은칸왼: 14, 회칸: 15, 등급상: 16, 수: 17, 굵은수: 18, 칸nb: 19, 칸왼nb: 20, 수nb: 21, 작은칸nb: 22, 작은칸왼nb: 23 }
+export const 꼴 = { 민: 0, 칸: 1, 칸왼: 2, 칸왼위: 3, 머리: 4, 머리빨강: 5, 머리왼: 6, 굵은칸: 7, 제목: 8, 작은칸: 9, 윗글: 10, 큰제목: 11, 없음: 12, 꼬리: 13, 작은칸왼: 14, 회칸: 15, 등급상: 16, 수: 17, 굵은수: 18, 칸nb: 19, 칸왼nb: 20, 수nb: 21, 작은칸nb: 22, 작은칸왼nb: 23,
+  /* 🤝 G518 하도급 견적틀 — 수량(일반 · 오른쪽) · 적는 칸(옅은 노랑 · 금액 / 글) · 회칸왼 */
+  수량: 24, 넣칸: 25, 넣칸왼: 26, 회칸왼: 27 }
 /* (G112) 칸에 class «nb» — 가로줄 없이 세로줄만 */
 const 세로만 = { [1]: 19, [2]: 20, [3]: 20, [17]: 21, [9]: 22, [14]: 23 }
 
@@ -43,15 +45,16 @@ const STYLES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
   '<font><sz val="8.5"/><color rgb="FF555555"/><name val="맑은 고딕"/></font>' +          /* 6 꼬리 */
   '<font><b/><sz val="18"/><name val="맑은 고딕"/></font>' +                              /* 7 큰 제목 */
   '</fonts>' +
-  '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>' +
-  '<fill><patternFill patternType="solid"><fgColor rgb="FFEDEDED"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+  '<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>' +
+  '<fill><patternFill patternType="solid"><fgColor rgb="FFEDEDED"/><bgColor indexed="64"/></patternFill></fill>' +
+  '<fill><patternFill patternType="solid"><fgColor rgb="FFFFF7D6"/><bgColor indexed="64"/></patternFill></fill></fills>' +
   '<borders count="3"><border><left/><right/><top/><bottom/><diagonal/></border>' +
   '<border><left style="thin"><color rgb="FF000000"/></left><right style="thin"><color rgb="FF000000"/></right>' +
   '<top style="thin"><color rgb="FF000000"/></top><bottom style="thin"><color rgb="FF000000"/></bottom><diagonal/></border>' +
   /* 2 — (G112) 세로줄만(산안비 항목별 사용내역 몸통처럼 가로줄 없는 칸) */
   '<border><left style="thin"><color rgb="FF000000"/></left><right style="thin"><color rgb="FF000000"/></right><top/><bottom/><diagonal/></border></borders>' +
   '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-  '<cellXfs count="24">' +
+  '<cellXfs count="28">' +
   '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +   /* 0 민 */
   xf(0, 0, 1, 가('center')) +       /* 1 칸 */
   xf(0, 0, 1, 가('left')) +         /* 2 칸왼 */
@@ -76,6 +79,11 @@ const STYLES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
   xf(0, 0, 2, 가('center')) + xf(0, 0, 2, 가('left')) +
   '<xf numFmtId="3" fontId="0" fillId="0" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1">' + 가('right') + '</xf>' +
   xf(4, 0, 2, 가('center')) + xf(4, 0, 2, 가('left')) +
+  /* 24~27 — 🤝 G518 하도급 견적틀(뒤에만 더함 — 앞 번호는 그대로) */
+  '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1">' + 가('right') + '</xf>' +
+  '<xf numFmtId="3" fontId="0" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">' + 가('right') + '</xf>' +
+  xf(0, 3, 1, 가('left')) +
+  xf(1, 2, 1, 가('left')) +
   '</cellXfs><cellStyles count="1"><cellStyle name="표준" xfId="0" builtinId="0"/></cellStyles></styleSheet>'
 
 /* ── 화면 종이 → 격자 ─────────────────────────────── */
@@ -232,7 +240,10 @@ export function 격자책(장들) {
     '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>')
   f['xl/workbook.xml'] = strToU8('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' +
-    장들.map((s, i) => `<sheet name="${이름(s.이름)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('') + '</sheets></workbook>')
+    장들.map((s, i) => `<sheet name="${이름(s.이름)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('') + '</sheets>' +
+    /* 🤝 G518 — 인쇄할 때 쪽마다 되풀이할 줄(장.반복 = [첫 줄, 끝 줄] · 1부터) — 견적틀 내역 머리 */
+    (장들.some((s) => s.반복) ? '<definedNames>' + 장들.map((s, i) => (s.반복 ? `<definedName name="_xlnm.Print_Titles" localSheetId="${i}">'${이름(s.이름).replace(/'/g, "''")}'!$${s.반복[0]}:$${s.반복[1]}</definedName>` : '')).join('') + '</definedNames>' : '') +
+    '</workbook>')
   f['xl/_rels/workbook.xml.rels'] = strToU8('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
     장들.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('') +

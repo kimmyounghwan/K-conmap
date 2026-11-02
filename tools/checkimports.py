@@ -83,7 +83,42 @@ def main():
             print(f"   {p:<34} {nm:<16} ← {src}")
         return 1
     print("✅ 빠진 import 없음")
-    return _workflows()          # 마지막 줄 = 워크플로 검사 결과 (✅ … 켜짐 / ⛔ …)
+    m = _mjs_paths()
+    w = _workflows()             # 마지막 줄 = 워크플로 검사 결과 (✅ … 켜짐 / ⛔ …)
+    return w or m
+
+
+def _mjs_paths():
+    """🪟 2026-11-03 G518 — tools 의 .mjs 가 import 에 «맨 경로»(path.join · path.resolve)를 넣으면
+    리눅스(클라우드 · 리허설)에서는 되는데 소장님 PC(Windows)에서는 ERR_UNSUPPORTED_ESM_URL_SCHEME 로 넘어집니다
+    (G518 첫 올리기가 PC 시험에서 멈춤 — 안전장치로 안 올라감). CLAUDE.md §6 «내 환경에서 됐다는 확인이 아니다» 와 같은 일.
+    → import(pathToFileURL(path.join(…)).href) 또는 상대 import('../web/…'). 리허설은 이것을 Windows 흉내(맨 경로 import 막음)로도 돌립니다.
+    ⚠️ 깃허브 Actions 안에서는 경고만(사이트 갱신을 세우지 않음) · 검사기가 넘어져도 건너뜀."""
+    try:
+        d = os.path.dirname(os.path.abspath(__file__))
+        bad = []
+        for f in sorted(os.listdir(d)):
+            if not f.endswith(".mjs"):
+                continue
+            for i, line in enumerate(open(os.path.join(d, f), encoding="utf-8").read().splitlines(), 1):
+                s = line.strip()
+                if s.startswith("//") or s.startswith("*") or s.startswith("/*"):
+                    continue
+                if re.search(r"\bimport\(\s*path\.(join|resolve)\(", line):
+                    bad.append((f, i))
+        if bad:
+            print(f"⛔ tools 의 .mjs 가 import 에 맨 경로를 씀 {len(bad)}곳 — PC(Windows)에서 넘어짐 · pathToFileURL(…).href 로 감싸기")
+            for f, i in bad[:20]:
+                print(f"   tools/{f}:{i}")
+            if os.environ.get("GITHUB_ACTIONS") == "true":
+                print("⚠️ (Actions 안이라 경고만 합니다 — 바로 고치십시오)")
+                return 0
+            return 1
+        print("✅ tools .mjs import — 맨 경로 없음(PC Windows 에서도 열림)")
+        return 0
+    except Exception as e:
+        print(f"⚠️ .mjs import 경로 검사를 못 돌렸습니다({type(e).__name__}: {e}) — 건너뜀")
+        return 0
 
 
 def _workflows():

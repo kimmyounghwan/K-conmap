@@ -1873,7 +1873,7 @@ STATIC_NEW = ["/change", "/change/naeyeok", "/change/excel", "/change/twoline", 
               "/safety", "/shareone", "/pdf", "/naeyeok/ratio", "/tools/photo", "/tools/photo-live", "/tools/earthcheck", "/jeoksan/bim", "/jeoksan/model",
               # 🔎 G341 (2026-10-20) 구운 장이 없던 화면들 — TABS 머리말
               "/bunseok", "/gongdong", "/ext", "/pre", "/naeyeok/hado", "/change/gisung",
-              "/corp", "/tools/jebiyul"] + [   # 🏢 G343 업체 찾기 · 📋 G350 간접공사비 요율 찾기
+              "/corp", "/tools/jebiyul", "/first/hado-gyeonjeok"] + [   # 🏢 G343 업체 찾기 · 📋 G350 간접공사비 요율 찾기 · 🤝 G518 하도급 견적틀
     "/cad/" + _c["slug"] for _c in (load_cad().get("cmds") or [])] + [
     "/change/naeyeok/" + quote(_k, safe="") for _k, _d in NY_KINDS]
 
@@ -3130,6 +3130,42 @@ def toejikgeum_page(shell, g, image=None):
     ]}
     return page(shell, path, title, desc, "".join(out) + nav_html(path), image, ld)
 
+def hado_gyeonjeok_page(shell, image=None):
+    """🤝 G518 (2026-11-03) 하도급 견적틀 — 화면 pages/HadoGyeonjeok.jsx · 나누기 lib/견적틀.js (구운 장은 설명 · 검색용)"""
+    path = "/first/hado-gyeonjeok"
+    title = "하도급 견적틀 — 내역서를 공종별 견적서로(공내역서도 됨 · 표지 + 단가 빈칸) | K-건설맵"
+    desc = ("공고 내역서(공내역서 · 설계내역서 엑셀)를 놓으면 공종마다 견적서 틀이 나옵니다 — 받는 곳 · 공사명 · 공종은 채운 표지, "
+            "품명 · 규격 · 단위 · 수량 그대로, 단가 · 금액 · 제출 업체 칸은 빈칸. 압입 · 항타 · 포장 · 씨드스프레이 같은 전문 공정 표시.")[:160]
+    faq = [
+        ("단가가 비어 있는 공내역서도 되나요?", "됩니다. 금액이 아니라 내역서의 꼴(들여쓰기 · 번호 · 단위 빈칸 · 합계 줄)로 공종 머리를 찾아 나눕니다. 설계 단가가 든 파일이어도 견적틀에는 단가를 넣지 않습니다."),
+        ("어떤 공종이 빠지나요?", "원가계산 줄(간접노무비 · 보험료 · 일반관리비 · 이윤 · 부가세)과 총괄 요약 줄은 품목이 아니라 뺍니다. 관급자재는 견적 대상이 아니라 기본으로 빼고(켤 수 있음), 나머지 공종은 전부 나눕니다."),
+        ("표지에는 무엇이 들어가나요?", "수신(원청 · 1순위 업체) · 공사명 · 공종 · 발주처 · 공고번호는 채우고, 견적 제출 업체의 상호 · 대표자 · 사업자번호 · 주소 · 전화와 견적금액 · 견적일은 빈칸으로 둡니다."),
+        ("파일이 서버로 올라가나요?", "아니요. 내역서는 브라우저 안에서만 읽고 나눕니다."),
+    ]
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">🤝 하도급 견적틀 — 내역서를 공종별 견적서로</h1>'
+           '<p class="cp" style="margin-top:8px">공고 <b>내역서(공내역서 · 설계내역서 엑셀)</b>를 놓으면 <b>공종마다 견적틀</b>이 나옵니다 — '
+           '견적서 표지(받는 곳 · 공사명 · 공종은 채움, <b>제출 업체 칸만 빈칸</b>) + 그 공종의 품명 · 규격 · 단위 · 수량, <b>단가 · 금액은 빈칸</b>.</p>'
+           '<p class="cp">1순위 카드의 «🤝 하도급 견적틀» 로 열면 수신(원청) · 공사명 · 발주처가 채워집니다 · 한 파일(공종마다 시트) 또는 공종마다 따로(zip) · '
+           '<a href="/first">1순위</a> · <a href="/naeyeok/hado">하도급 내역서 만들기</a> · <a href="/tools/gyeonjeok">공사 견적서 · 원가계산서</a></p></div>',
+           '<div class="card"><h2 class="sec-title" style="margin:0 0 6px">이렇게 나눕니다</h2><ul class="flist">'
+           '<li>들여쓰기 · 번호(Ⅰ. 1. 1) 가.) · 단위 빈칸 · 합계 줄로 공종 머리를 찾습니다 — 단가가 빈 공내역서도 됩니다.</li>'
+           '<li>원가계산 줄 · 총괄 요약 줄은 빼고, 관급자재는 기본으로 뺍니다.</li>'
+           '<li>압입 · 항타 · 흙막이 · 그라우팅 · 씨드스프레이 · 포장 · 차선 · 가드레일 같은 전문 공정은 🧱 로 표시합니다.</li>'
+           '<li>공종이 크게 묶였으면 «나누기» 로 그 아래 공종을 따로 고릅니다.</li></ul></div>',
+           '<div class="card"><h2 class="sec-title" style="margin:0 0 6px">자주 묻는 것</h2>']
+    for q, a in faq:
+        out.append(f'<h3 style="font-size:15px;margin:12px 0 4px">{esc(q)}</h3><p class="cp">{esc(a)}</p>')
+    out.append("</div>")
+    name = "하도급 견적틀"
+    ld = {"@context": "https://schema.org", "@graph": [
+        {"@type": "WebApplication", "name": name, "description": desc, "url": f"{SITE}{path}", "inLanguage": "ko",
+         "applicationCategory": "BusinessApplication", "operatingSystem": "Web",
+         "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}},
+        {"@type": "FAQPage", "mainEntity": [
+            {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in faq]},
+    ]}
+    return page(shell, path, title, desc, "".join(out) + nav_html(path), image, ld)
+
 def ilyong_guide_page(shell, g, image=None):
     title = "일용직 4대보험 가입 기준 — 국민연금 8일 · 220만원, 건강보험 1개월, 취득일 · 상실일 · 보험료 달 | K-건설맵"
     desc = ("건설 일용근로자의 국민연금 · 건강보험 가입 기준을 공단 실무안내 원문대로 정리했습니다. 국민연금은 달 단위(2025.7~) · 같은 회사 합산, "
@@ -4189,6 +4225,10 @@ def main():
               og.tab("tool-toejikgeum", "일용직 퇴직금 판단기", "건설 노무", "1년 · 1주 15시간", "받을 수 있나 · 얼마") if og.available else None))
         made += 1
         print("  · 일용직 퇴직금 판단기 페이지 1개 (/tools/ilyong-toejikgeum · G515)")
+    write("first/hado-gyeonjeok.html", hado_gyeonjeok_page(shell,
+          og.tab("first-hado-gyeonjeok", "하도급 견적틀", "1순위 · 내역서", "공종별 견적서 틀", "공내역서도 됨 · 단가 빈칸") if og.available else None))
+    made += 1
+    print("  · 하도급 견적틀 페이지 1개 (/first/hado-gyeonjeok · G518)")
     write("tools/equip.html", equip_page(shell,
           og.tab("tool-equip", "장비 임대료·수금 장부", "건설 도구", "거래처별 미수금", "청구서 인쇄") if og.available else None))
     write("tools/risk.html", risk_page(shell,

@@ -77,6 +77,7 @@ const Naeyeok = lazyPage(() => import('./pages/Naeyeok.jsx'))
    브라우저에서 엑셀을 읽고 쓰느라 무거워서 반드시 lazyPage 입니다. */
 const Ratio = lazyPage(() => import('./pages/Ratio.jsx'))
 const Hado = lazyPage(() => import('./pages/Hado.jsx'))   /* 🤝 2026-10-06 (G171) 하도급 내역서 만들기 — 6장 한 벌 */
+const HadoGyeonjeok = lazyPage(() => import('./pages/HadoGyeonjeok.jsx'))   /* 🤝 2026-11-03 (G518) 하도급 견적틀 — 내역서를 공종별 견적서 틀로(1순위 카드에서) */
 const Qna = lazyPage(() => import('./pages/Qna.jsx'))
 /* 🪪 G188 마이컨맵 — /my(만들기 · 내 작업대) · /@{주소}(공개 페이지). 파이어베이스는 이 화면을 열 때만 */
 const MyConmap = lazyPage(() => import('./pages/MyConmap.jsx'))
@@ -205,6 +206,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/bunseok" element={<Suspense fallback={<Loading />}><Bunseok /></Suspense>} />
           <Route path="/gongdong" element={<Suspense fallback={<Loading />}><Gongdong /></Suspense>} />
           <Route path="/first" element={<FirstBoard />} />
+          <Route path="/first/hado-gyeonjeok" element={<Suspense fallback={<Loading />}><HadoGyeonjeok /></Suspense>} />
           <Route path="/live" element={<LiveBoard />} />
           <Route path="/ext" element={<Suspense fallback={<Loading />}><ExtBoard /></Suspense>} />
           <Route path="/svc" element={<Suspense fallback={<Loading />}><SvcBoard key="svc-live" kind="svc" which="live" /></Suspense>} />

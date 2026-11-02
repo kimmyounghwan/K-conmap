@@ -1,8 +1,8 @@
 // 🎯 공사 견적서 — 목표 금액 맞추기 시험 (G140 · 2026-10-05) · node tools/시험_견적목표.mjs
 import path from 'path'
-import { fileURLToPath } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
 const 여기 = path.dirname(fileURLToPath(import.meta.url))
-const { 예시, 셈, 목표맞추기 } = await import(path.join(여기, '..', 'web', 'src', 'lib', 'gyeonjeok.js'))
+const { 예시, 셈, 목표맞추기 } = await import(pathToFileURL(path.join(여기, '..', 'web', 'src', 'lib', 'gyeonjeok.js')).href)   // 🪟 file:// 주소로(Windows)
 let 틀림 = 0, 맞음 = 0
 const 봄 = (이름, 참, 더 = '') => { if (!참) 틀림++; else 맞음++; console.log((참 ? '  ✓ ' : '  ✗ ') + 이름 + (더 ? ' — ' + 더 : '')) }
 const 넣기 = (견, r) => (견.방식 === 'public' ? { ...견, 공공: { ...견.공공, 요율: { ...견.공공.요율, 이윤: String(r) } } } : { ...견, 간단: { ...견.간단, 이윤: String(r) } })
