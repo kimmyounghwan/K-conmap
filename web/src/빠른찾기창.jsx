@@ -3,7 +3,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { 목록만들기, 찾기 } from './lib/빠른찾기.js'
+import { 목록만들기, 찾기, 고른말 } from './lib/빠른찾기.js'
 import { searchAgency, searchCorp } from './lib/data.js'
 import { normCorp } from './lib/fmt.js'
 import { 손끝 } from './lib/손끝고르기.js'
@@ -63,10 +63,14 @@ export default function 빠른찾기창({ 탭, 닫기 }) {
       const base = String(c.key).split('#')[0]
       return { 갈래: '업체', t: c.nm || c.label, d: [c.reg, `낙찰 ${Number(c.n || 0).toLocaleString()}건`].filter(Boolean).join(' · '), to: '/corp/' + encodeURIComponent(base), ic: '🏢', firm: c.key.includes('#') ? c.key : null }
     })
-    /* 도구가 아주 잘 맞으면(제목 앞) 도구 먼저 · 아니면 기관 · 업체를 도구 사이 위쪽에 */
+    /* 도구가 아주 잘 맞으면(제목 앞) 도구 먼저 · 아니면 기관 · 업체를 도구 사이 위쪽에
+       🩺 G513 (11-02 점검) 기관 · 업체 이름이 친 말로 «시작» 하거나 같을 때만 위쪽 — 이름 가운데 든 것은 도구 · 서식 뒤로
+       («안전교육» → 한국가스안전공사가스안전교육원(기관)이 안전보건교육일지(서식)보다 먼저 나왔음) */
     const 센 = 앞.filter((x) => x.점 >= 60)
     const 나머지 = 앞.filter((x) => x.점 < 60)
-    return [...센, ...기, ...업, ...나머지].slice(0, 40)
+    const 친 = 고른말(q)
+    const 앞섬 = (x) => 고른말(x.t).startsWith(친)
+    return [...센, ...기.filter(앞섬), ...업.filter(앞섬), ...나머지, ...기.filter((x) => !앞섬(x)), ...업.filter((x) => !앞섬(x))].slice(0, 40)
   }, [목, q, 기관, 업체])
 
   useEffect(() => { set고른(0) }, [q])

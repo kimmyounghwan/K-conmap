@@ -10,6 +10,7 @@ import { Link } from 'react-router-dom'
 import { 주휴판단, 원글, 시간글 } from '../lib/juhyu.js'
 import { 링크만들기, 링크읽기 } from '../lib/juhyuLink.js'
 import G from '../data/juhyu_guide.json'
+import { 일당살핌, 시급살핌 } from '../lib/살핌.js'
 
 const 열쇠 = 'kcm_juhyu'
 const 쓴링크열쇠 = 'kcm_juhyu_link'
@@ -118,9 +119,11 @@ export default function Juhyu() {
           {st.돈꼴 === 'day' ? <label>일당
             <span className="sl-unit"><input className="inp" inputMode="numeric" value={st.일당 ? 원글(st.일당) : ''} onChange={(e) => 바꿈('일당', 숫자(e.target.value))} placeholder="예: 200,000" aria-label="일당" /><i>원</i></span>
             <small>하루 받는 돈(주휴수당이 따로 없는 일당)</small>
+            {일당살핌(st.일당) && <small className="nm-warn">⚠️ {일당살핌(st.일당)}</small>}
           </label> : <label>시급
             <span className="sl-unit"><input className="inp" inputMode="numeric" value={st.시급 ? 원글(st.시급) : ''} onChange={(e) => 바꿈('시급', 숫자(e.target.value, 6))} placeholder="예: 10,320" aria-label="시급" /><i>원</i></span>
             <small>2026년 최저임금 10,320원</small>
+            {시급살핌(st.시급) && <small className="nm-warn">⚠️ {시급살핌(st.시급)}</small>}
           </label>}
           <label>하루 일하는 시간
             <span className="sl-unit"><input className="inp" inputMode="decimal" value={st.시간} onChange={(e) => 바꿈('시간', 소수(e.target.value, 4))} placeholder="예: 8" aria-label="하루 일하는 시간" /><i>시간</i></span>
@@ -179,7 +182,7 @@ export default function Juhyu() {
             <div><span>⏱ 시급</span><b>{R.시급글}</b>
               <small>{R.돈꼴 === 'day' ? (R.오인 ? '시행령 제6조②2 · 8시간 넘는 시간은 연장(× 1.5 — 제56조①)' : '4명 이하 — 하루 8시간 한도 · 연장 가산 없음(시행령 별표 1) → 일한 시간 그대로 나눔') : '시급제'}</small></div>
             <div><span>📅 1주 정해진 근무</span><b>{시간글(R.주시간)}시간{st.다름 ? `(${st.넷주}주 평균${R.정한 > R.주시간 ? ` ${시간글(R.정한)} → 40시간까지` : ''})` : ` (${R.날}일 × ${시간글(R.하루소정)}시간${R.정한 > R.주시간 ? ` = ${시간글(R.정한)} → 40시간까지` : ''})`}</b>
-              <small>15시간 이상이어야 · 5명 이상은 40시간까지가 정해진 근무(제50조) · 넘게 정해도 주휴는 8시간분(제18조③ · 근로기준정책과-5106)</small></div>
+              <small>15시간 이상이어야(제18조③) · 5명 이상은 40시간까지가 정해진 근무(제50조) · 넘게 정해도 주휴는 8시간분(근로기준정책과-5106)</small></div>
             <div><span>🛌 주휴시간</span><b>{시간글(R.주휴시간)}시간</b>
               <small>{R.주시간 >= 40 ? '1주 40시간 이상 → 8시간' : `1주 ${시간글(R.주시간)}시간 ÷ 40 × 8(시행령 별표 2)`}</small></div>
             <div><span>💰 1주 주휴수당</span><b>{R.셈글}</b>

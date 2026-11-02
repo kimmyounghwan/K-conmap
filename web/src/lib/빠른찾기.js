@@ -24,6 +24,8 @@ export function 초성(s) {
 export const 고른말 = (s) => String(s || '').toLowerCase().replace(/[\s·・—\-–_/\\()[\]{}«»"'“”‘’.,:;!?~|+&]+/g, '')
 
 const 초성만 = (s) => /^[ㄱ-ㅎ]+$/.test(s)
+/** 붙여 쓴 긴 말 → 두 글자씩(«장비일보» → 장비 · 일보 · «기성청구서» → 기성 · 청구 · 구서 — 홀수면 끝 두 글자를 겹쳐) */
+export const 둘씩 = (w) => { const a = []; for (let k = 0; k + 2 <= w.length; k += 2) a.push(w.slice(k, k + 2)); if (w.length % 2) a.push(w.slice(-2)); return a }
 
 /* 주소마다 더 붙이는 찾는 말(제목 · 설명에 없는데 사람들이 치는 말) */
 const 더말 = {
@@ -34,7 +36,6 @@ const 더말 = {
   '/naeyeok/ratio': '하도급 80% 비율 내역서',
   '/change/work': '설계변경 2줄 1줄 작업대',
   '/change/gisung': '기성 기성금 기성내역서 청구',
-  '/tools/nomubi': '노무비 일용 인건비 지급명세서 원천세 출역부 출역표 노임',
   '/tools/tuipbi': '투입비 공사일보 청구',
   '/': '투찰 입찰 금액 계산 사정률 바로투찰',
   '/first': '1순위 개찰 결과',
@@ -65,6 +66,23 @@ const 더말 = {
   '/tools/toejik': '퇴직금 건설퇴직금 퇴직공제금 공제부금 근로일수 전자카드',
   '/forms/gy-ilyong': '표준근로계약서 일용직근로계약서 건설일용 계약서',
   '/forms/gy-sangyong': '표준근로계약서 정규직 상용직 계약서',
+  /* 🩺 G513 (11-02 소장님 「오늘 올린 거 점검 다시 … 이용자 입장에서」) — 흔한 말 120개를 넣어 보니 아무것도 안 나오던 말 → 그 일을 하는 서식 · 도구에
+     (붙여 쓴 말은 아래 «두 글자씩» 으로도 찾지만, 이름이 아예 다른 말은 여기 적음) */
+  '/forms/gisung-cheonggu': '기성청구서 기성금청구 기성청구',
+  '/forms/chulyeok-ilbo': '출역부 출력부 출근부 출면 출역표 출력일보',
+  '/forms/anjeon-gyoyuk': '안전교육일지 안전교육 신규채용교육 채용시교육 정기교육 작업내용변경교육',
+  '/forms/bohogu': '안전모 안전화 안전대 안전장구 보호구 지급',
+  '/forms/wolgan-bogoseo': '월간보고 월간보고서 월보',
+  '/forms/janggi-gadong': '장비일보 장비작업일보 중장비 장비가동',
+  '/forms/yuryu': '유류대장 기름 경유 주유',
+  '/forms/cheongryeom': '청렴서약서 청렴서약',
+  '/forms/silhaeng-daebipyo': '실행예산 예산대비',
+  '/forms/bisan': '환경관리 살수 먼지',
+  '/forms/soeum': '환경관리 소음진동',
+  '/forms/jajae-geomsu': '자재검수 검수서 입고검사',
+  '/forms/sago-bogo': '재해보고 재해보고서 산재보고 사고보고',
+  '/tools/defect-period': '하자보증 하자보증금 하자보수보증 하자기간',
+  '/tools/nomubi': '노무비 일용 인건비 지급명세서 원천세 출역부 출역표 출력부 노임',
 }
 
 /* 자료(data/*.json)에 없는 화면 — 이름은 Crumbs.jsx NAME · LEAF 와 같게(관리자 · 소장님만 보는 화면은 넣지 않음) */
@@ -157,7 +175,7 @@ export function 공고번호(q) {
 }
 
 /**
- * 찾기 — 낱말마다 점수(제목 같음 100 · 제목 앞 60 · 제목 안 40 · 제목 초성 30 · 더 붙인 말 25 · 설명 10), 낱말 하나라도 못 찾으면 뺌
+ * 찾기 — 낱말마다 점수(제목 같음 100 · 제목 앞 60 · 제목 안 40 · 제목 초성 30 · 더 붙인 말 25 · 두 글자씩 제목 20 · 설명 10), 낱말 하나라도 못 찾으면 뺌
  * @returns [{ ...항목, 점 }] (점 큰 차례 · 같으면 갈래 차례 · 제목 짧은 차례)
  */
 export function 찾기(목, q, 몇 = 30) {
@@ -168,6 +186,12 @@ export function 찾기(목, q, 몇 = 30) {
     if (초성만(w)) return x.초.includes(w) ? (x.초.startsWith(w) ? 45 : 30) : 0
     let p = x.키 === w ? 100 : x.키.startsWith(w) ? 60 : x.키.includes(w) ? 40 : x.더.includes(w) ? 25 : x.설.includes(w) ? 10 : 0
     if (p >= 40 && x.더.includes(w)) p += 15                       // 제목에도 있고 더 붙인 말(그 화면의 뜻)에도 있음
+    // 🩺 G513 붙여 쓴 말(«장비일보» «유류대장» «안전교육일지»)이 제목에서 띄어 있거나 다른 말 사이에 있으면 — 두 글자씩 모두 들었을 때만(낮은 점수)
+    if (!p && w.length >= 4 && /^[가-힣]+$/.test(w)) {
+      const 조각 = 둘씩(w)
+      if (조각.every((s) => x.키.includes(s))) p = 20
+      else if (조각.every((s) => x.키.includes(s) || x.더.includes(s))) p = 12
+    }
     return p
   }
   for (const x of 목 || []) {

@@ -12,6 +12,7 @@ import { 판단, 까닭들, 나이들, 가입들, 구간글, 날맞나 } from '.
 import { 링크만들기, 링크읽기 } from '../lib/silupLink.js'
 import { 한국오늘, 긴날, 짧은날, 달더하기 } from '../lib/해마다.js'
 import G from '../data/silup_guide.json'
+import { 일당살핌 } from '../lib/살핌.js'
 
 const 열쇠 = 'kcm_silup'
 const 쓴링크열쇠 = 'kcm_silup_link'
@@ -162,6 +163,7 @@ export default function Silup() {
         <div className="sl-grid">
           <label>일당
             <span className="sl-unit"><input className="inp" inputMode="numeric" value={st.일당 ? 원(st.일당) : ''} onChange={(e) => 바꿈('일당', 숫자(e.target.value, 7))} placeholder="예: 250,000" aria-label="일당" /><i>원</i></span>
+            {일당살핌(st.일당) && <small className="nm-warn">⚠️ {일당살핌(st.일당)}</small>}
           </label>
           <label>한 달에 보통 일한 날
             <span className="sl-unit"><input className="inp" inputMode="numeric" value={st.월일} onChange={(e) => 바꿈('월일', 숫자(e.target.value, 2))} placeholder="예: 20" aria-label="한 달에 보통 일한 날" /><i>일</i></span>
@@ -188,11 +190,13 @@ export default function Silup() {
 
       {!R.빈 && <div className="card sl-out" id="sl-result">
         <div className={'sl-res ' + R.결론} role="status">{R.큰글}</div>
+        {(R.경고 || []).map((x) => <div key={x} className="note sm warn" style={{ marginTop: 8 }}>⚠️ {x}</div>)}
+        {R.결론 === 'no' && <div className="note sm" style={{ marginTop: 8 }}>ℹ️ 아래 날짜 · 금액은 <b>조건이 맞을 때</b>의 셈입니다 — 지금은 받을 수 없습니다.</div>}
         {st.기준 && <div className="note sm" style={{ marginTop: 8 }}>🧪 예시는 {긴날(st.기준)} 기준입니다.
           <button type="button" className="tp-x" onClick={() => setSt((s) => ({ ...s, 기준: '' }))}>오늘 기준으로 보기</button></div>}
         <div className="sl-facts">
           <div><span>📅 신청할 수 있는 날</span><b>{R.날들.length ? R.날들.map(구간글).join(' · ') : '없음'}</b>
-            {R.오늘됨 && <em className="sl-ok">{날맞나(st.기준) ? `${짧은날(st.기준)} 됨` : '오늘 됨'}</em>}</div>
+            {R.오늘됨 && R.결론 !== 'no' && <em className="sl-ok">{날맞나(st.기준) ? `${짧은날(st.기준)} 됨` : '오늘 됨'}</em>}</div>
           <div><span>💰 받는 돈</span><b>하루 {원(R.돈.일액)}원 × {R.돈.일수}일 = {원(R.돈.총)}원</b>
             <small>{R.돈.일액글} · 하한 {원(R.돈.한도.하한)}원 · 상한 {원(R.돈.한도.상한)}원({R.돈.한도.상한글})
               {R.돈.가입모름 ? ' · 가입기간을 모르면 가장 적은 120일로 셈' : ` · ${R.돈.위50 ? '50세 이상 · 장애인' : '50세 미만'} 표`}</small></div>

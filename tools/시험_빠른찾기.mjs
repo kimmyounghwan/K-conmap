@@ -105,6 +105,21 @@ console.log('③-4 G510 — 소장님 「만든 도구들 모두 사이트에서
   봐(/def tool_urls_for_indexnow\(\)/.test(pr) && /_static = STATIC_NEW \+ .*tool_urls_for_indexnow\(\)/.test(pr), 'IndexNow 알릴 주소에 도구 카드 · 계산기 전부(prerender.py tool_urls_for_indexnow)')
 }
 
+console.log('③-5 G513 — 소장님 「오늘 올린 거 점검 다시 해줘 … 이용자 입장에서」 · 흔한 말 120개 중 아무것도 안 나오던 말')
+{
+  봐(JSON.stringify(L.둘씩('장비일보')) === '["장비","일보"]' && JSON.stringify(L.둘씩('기성청구서')) === '["기성","청구","구서"]', '두 글자씩 — 장비일보 → 장비 · 일보 · 기성청구서 → 기성 · 청구 · 구서(홀수 끝 겹침)')
+  const 말 = [['기성청구서', '/forms/gisung-cheonggu'], ['출력부', '/tools/nomubi'], ['안전교육일지', '/forms/anjeon-gyoyuk'], ['안전교육', '/forms/anjeon-gyoyuk'],
+    ['하자보증', '/tools/defect-period'], ['월간보고', '/forms/wolgan-bogoseo'], ['장비일보', '/forms/janggi-gadong'], ['유류대장', '/forms/yuryu'], ['안전모', '/forms/bohogu'],
+    ['신규채용교육', '/forms/anjeon-gyoyuk'], ['청렴서약서', '/forms/cheongryeom'], ['실행예산', '/forms/silhaeng-daebipyo'], ['자재검수', '/forms/jajae-geomsu'], ['재해보고', '/forms/sago-bogo']]
+  const 틀림 = 말.filter(([q, to]) => 맨위(q) !== to)
+  봐(!틀림.length, `아무것도 안 나오던 말 ${말.length}가지 → 맨 위가 그 서식 · 도구`, JSON.stringify(틀림.map(([q, to]) => [q, to, 맨위(q)])))
+  봐(L.찾기(목, '출역부', 5).some((x) => x.to === '/forms/chulyeok-ilbo') && L.찾기(목, '환경관리', 5).some((x) => x.to === '/forms/bisan'), '«출역부» 에 출역일보(서식) · «환경관리» 에 비산먼지 점검표도')
+  /* 두 글자씩은 «다 들었을 때만» — 엉뚱한 것이 끼지 않게 */
+  봐(!L.찾기(목, '쀏쀍쀏쀍', 5).length && !L.찾기(목, '가나다라', 5).length, '없는 말(두 글자씩도 없음) → 없음')
+  const 창 = fs.readFileSync(path.join(여기, '..', 'web', 'src', '빠른찾기창.jsx'), 'utf8')
+  봐(/const 앞섬 = \(x\) => 고른말\(x\.t\)\.startsWith\(친\)/.test(창) && /\.\.\.나머지, \.\.\.기\.filter\(\(x\) => !앞섬\(x\)\)/.test(창), '기관 · 업체는 이름이 친 말로 시작할 때만 도구 · 서식 위(«안전교육» → 기관이 서식보다 먼저 나오던 것)')
+}
+
 console.log('④ 공고 번호')
 const 공 = L.찾기(목, 'r26bk01693749-000', 5)
 봐(공[0] && 공[0].갈래 === '공고' && 공[0].to === '/notice/R26BK01693749', '«r26bk01693749-000» → 맨 위 «공고 R26BK01693749 열기»(대문자 · 차수 뺌)', JSON.stringify(공[0]))

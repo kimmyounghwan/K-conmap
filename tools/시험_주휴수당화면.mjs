@@ -55,6 +55,8 @@ for (const [w, h, 이름] of [[1280, 900, 'PC'], [390, 844, '폰'], [320, 640, '
   t = await 글(p)
   봄((await 큰글(p)).includes('1주 177,777원') && t.includes('상시 4명 이하 사업장도 주휴는 적용'), '예시 f 177,777 · 4명 이하 줄', await 큰글(p))
   봄(await 넘침(p) <= 0, '가로 넘침 없음', String(await 넘침(p)))
+  // 🩺 G513 (11-02 점검) 근거 자리 — 15시간은 제18조③ · 8시간분은 근로기준정책과-5106
+  봄((await 글(p)).includes('15시간 이상이어야(제18조③)') && (await 글(p)).includes('8시간분(근로기준정책과-5106)'), '1주 정해진 근무 — 근거가 제자리에')
   // 손으로 — 시급 · 3시간 × 5일 = 15 → 받음 → 결근 → 없음
   await p.getByRole('button', { name: '처음부터' }).click()
   await p.getByRole('button', { name: '지우기' }).click()
@@ -69,6 +71,9 @@ for (const [w, h, 이름] of [[1280, 900, 'PC'], [390, 844, '폰'], [320, 640, '
   await p.fill('input[aria-label="시급"]', '10000')
   t = await 글(p)
   봄(t.includes('최저임금(10,320원)보다 낮습니다'), '시급 10,000 → 최저임금 알림')
+  await p.fill('input[aria-label="시급"]', '150000')
+  봄((await 글(p)).includes('10만 원이 넘습니다'), '🩺 G513 시급 15만 → «일당이면 일당을 고르세요» 알림')
+  await p.fill('input[aria-label="시급"]', '10000')
   // 일당 · 여러 주 · 포함
   await 단추(p, '임금 꼴', '일당')
   await p.fill('input[aria-label="일당"]', '200000')

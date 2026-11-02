@@ -11,6 +11,7 @@ import { 휴업셈, 원글 } from '../lib/hyueop.js'
 import { 링크만들기, 링크읽기 } from '../lib/hyueopLink.js'
 import { 긴날, 짧은날 } from '../lib/해마다.js'
 import G from '../data/hyueop_guide.json'
+import { 일당살핌 } from '../lib/살핌.js'
 
 const 열쇠 = 'kcm_hyueop'
 const 쓴링크열쇠 = 'kcm_hyueop_link'
@@ -109,6 +110,7 @@ export default function Hyueop() {
           {!st.직접 && <label>일당
             <span className="sl-unit"><input className="inp" inputMode="numeric" value={st.일당 ? 원글(st.일당) : ''} onChange={(e) => 바꿈('일당', 숫자(e.target.value))} placeholder="예: 200,000" aria-label="일당" /><i>원</i></span>
             <small>다친 날 받던 하루 임금</small>
+            {일당살핌(st.일당) && <small className="nm-warn">⚠️ {일당살핌(st.일당)}</small>}
           </label>}
           {st.직접 && <label>평균임금(1일)
             <span className="sl-unit"><input className="inp" inputMode="numeric" value={st.평균 ? 원글(st.평균) : ''} onChange={(e) => 바꿈('평균', 숫자(e.target.value))} placeholder="예: 150,000" aria-label="평균임금" /><i>원</i></span>
@@ -144,7 +146,7 @@ export default function Hyueop() {
         {R.빈 ? <div className="sl-res need" role="status">📝 {R.까닭}</div> : <>
           <div className={'sl-res ' + (R.셋날 ? 'no' : 'yes')} role="status">
             {R.셋날 ? `❌ 쉰 날이 ${R.일수}일(3일 이내)이라 산재 휴업급여는 없습니다 — 사업주가 휴업보상(평균임금의 60%)을 합니다`
-              : `💰 ${R.구간.length === 1 ? `하루 ${원글(R.구간[0].액)}원 × ${R.일수}일` : `${R.일수}일`} = ${원글(R.총)}원`}
+              : `💰 ${R.구간.length === 1 ? `하루 ${원글(R.구간[0].액)}원 × ${R.일수}일` : `${R.일수}일`} = ${원글(R.총)}원${R.구간.length > 1 && R.구간[0].액 !== R.구간[R.구간.length - 1].액 ? ` · 하루 ${원글(R.구간[0].액)}원 → ${원글(R.구간[R.구간.length - 1].액)}원(아래 «날마다»)` : ''}`}
           </div>
           <div className="sl-facts">
             <div><span>📐 평균임금</span><b>{R.직접 ? `${원글(R.평균)}원(직접 넣음)` : `일당 ${원글(st.일당)}원 × ${Math.round(R.계수 * 100)}/100 = ${원글(R.평균)}원`}</b>

@@ -52,12 +52,29 @@ for (const [w, h, 이름] of [[1280, 900, 'PC'], [390, 844, '폰'], [320, 640, '
   봄(t.includes('7일은 대기기간'), '예시 c 대기 7일')
   await 예시(p, '날이 모자람')
   봄((await 큰글(p)).includes('❌') && (await 큰글(p)).includes('180일'), '예시 d ❌ 180일')
+  // 🩺 G513 (11-02 점검) 큰글에 넣은 날 수 · 모자란 날 — «18개월 동안 일한 날 180일» 만 나와 채운 것처럼 읽혔음
+  봄((await 큰글(p)).includes('150일 — 180일에 30일 모자람'), '예시 d 큰글에 150일 · 30일 모자람', await 큰글(p))
+  t = await 글(p)
+  봄(t.includes('조건이 맞을 때') && !(await p.$('.sl-facts .sl-ok')), '❌ 이면 «조건이 맞을 때의 셈» 알림 · «됨» 딱지 없음')
   await 예시(p, '스스로 그만둠')
-  봄((await 큰글(p)).includes('❌') && (await 큰글(p)).includes('그만둔 까닭'), '예시 e ❌ 까닭')
+  봄((await 큰글(p)).includes('❌') && (await 큰글(p)).includes('정당한 사유 없이 스스로 그만둠'), '예시 e ❌ 까닭(짧은 까닭)', await 큰글(p))
   // 정당한 사유 체크 → 확인
   await p.getByLabel('임금 체불 · 통근 곤란 · 질병 같은 정당한 사유가 있음').check()
   봄((await 큰글(p)).includes('⚠️'), '정당한 사유 → ⚠️ 확인', await 큰글(p))
   봄(await 넘침(p) <= 0, '가로 넘침 없음', String(await 넘침(p)))
+
+  // 🩺 G513 — 그 달보다 많은 출역 · 18개월보다 많은 날 · 0 하나 더 넣은 일당 → 알림
+  await 예시(p, '건설 · 다음 달 1일부터')
+  await p.fill('input[aria-label="마지막 달 출역 일수"]', '35')
+  t = await 글(p)
+  봄(/월 출역 35일 — 마지막 날\(.+\)까지는 \d+일뿐/.test(t), '마지막 달 출역이 그 달보다 많음 → 알림')
+  await p.fill('input[aria-label="18개월 동안 일한 날"]', '600')
+  t = await 글(p)
+  봄(t.includes('18개월 동안 일한 날 600일 — 18개월('), '18개월보다 많은 날 → 알림')
+  await p.fill('input[aria-label="일당"]', '2500000')
+  t = await 글(p)
+  봄(t.includes('100만 원이 넘습니다'), '일당 0 하나 더 → 알림')
+  봄(await 넘침(p) <= 0, '가로 넘침 없음(알림 뒤)', String(await 넘침(p)))
 
   // 손으로 넣기 — 처음부터 → 날짜 · 날 수
   await p.getByRole('button', { name: '처음부터' }).click()
