@@ -26,6 +26,7 @@
   ],
   "id": "/",
   "scope": "/",
+  "handle_links": "not-preferred",
   "lang": "ko",
   "orientation": "portrait",
   "shortcuts": [
