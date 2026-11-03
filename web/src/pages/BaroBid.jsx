@@ -480,7 +480,10 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
       return
     }
     autoPicked.current = true
-    pick(hit)
+    /* 🧭 G519 주소(?no=)로 왔으면 금액 칸으로. 이 탭에 적어 둔 공고를 되살릴 때(뒤로 · 새로고침)는 길지킴이가 보던 자리를 먼저 돌려놓는데,
+       그 자리는 «고르기 전 화면» 기준이라 고른 화면으로 바뀌며 엉뚱한 곳(시험: 695 → 2,318)에 떨어졌음 →
+       맨 위가 아니었으면(= 금액을 보고 있었으면) 금액 칸으로 · 맨 위였으면 그대로 맨 위. */
+    pick(hit, !!sp.get('no') || window.scrollY > 0)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows])
 
@@ -531,7 +534,17 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
        || (r.no || '').toUpperCase().includes(up))).length
   }, [rows, q, qIsAmount, onlyReady])
 
-  const pick = (r) => {
+  /* 🧭 G519 (2026-11-03 소장님 「사이트 점검도 해 이용자 입장에서 최대한 편하고 간단하게」) — 공고를 고르면 «답» 이 바로 보이게
+     폰 실제 화면(소장님 크롬 · 390)에서 봄: 1순위 · 공고 카드의 «💰 바로투찰»(/?no=) 로 오면 권장 투찰금액이 화면 1.4장 아래(1,051px)에 있어
+     첫 화면엔 앱 띠 · 방문자 표 · 내역서 띠 · 공고 찾기만 보이고 답이 안 보였음. 목록에서 눌러도 금액 칸 윗부분만 겨우 보였음.
+     → 고른 «그때 한 번» 금액 칸(없으면 «기초금액 미공개» 안내)이 머리줄 바로 아래 오게 내립니다 — 이미 보이면 안 움직임.
+       누르는 길: 마감 임박 목록 · 찾은 공고 · ⚡ 오늘 넣을 것 · 주소 ?no=(카드 · 링크) · 적어 둔 공고를 되살릴 때 보던 자리가 맨 위가 아니면.
+       안 내리는 길: 되살릴 때 맨 위였으면 · 분석실(PC 세 칸) · 기초금액만 손으로 넣을 때.
+       방문자 표 · 띠는 그대로 그 자리에 있습니다(위로 올리면 보임 — 11-01 «방문자 상자 더 손대지 않음» 지킴). */
+  const 답자리 = useRef(null)
+  const 내려갈 = useRef(false)
+  const pick = (r, 내려가기 = true) => {
+    내려갈.current = !!내려가기
     /* A값 내역은 고른 뒤에만 필요합니다. 한 화면에 한 번만 받고, 실패해도 그냥 넘어갑니다
        (내역은 «보여주는 것»일 뿐 계산에 쓰이지 않습니다 — 계산은 aval 합계로 합니다) */
     if (apMap === null) {
@@ -570,6 +583,33 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
     setPicked(null); setQ(''); setInst(''); setBase(0)
     setBudgetIn(''); setAIn(''); setAAuto(false); setPcIn(''); setPickRate('rec'); setOwnRate('')
   }
+  /* 🧭 G519 — 고른 뒤 한 번: 금액 칸이 «머리줄 아래 ~ 아래 탭 위» 에 들어오게(위 설명). 미끄럼 없이 바로 —
+     미끄러지게 하면 가려진 탭에서 안 움직입니다(성적 한 줄과 같은 까닭). 0.45초 뒤 한 번 더 봄 — 위 칸(A값 · 방문자 숫자)이
+     늦게 커져 금액 칸이 밀렸으면 다시 맞춤. 그 사이 이용자가 화면을 움직였으면 손대지 않음. */
+  useEffect(() => {
+    if (분석실 || !picked || !내려갈.current) return undefined
+    내려갈.current = false
+    let 그만 = false
+    const 맞추기 = () => {
+      const el = 답자리.current
+      if (그만 || !el) return false
+      const 머리 = document.querySelector('.topbar')
+      const 위 = Math.max(0, 머리 ? 머리.getBoundingClientRect().bottom : 0) + 8
+      const 띠 = document.querySelector('.tabbar')
+      const 띠위 = 띠 && window.getComputedStyle(띠).position === 'fixed' && 띠.getBoundingClientRect().height > 0
+        ? 띠.getBoundingClientRect().top : window.innerHeight
+      const r = el.getBoundingClientRect()
+      if (r.top >= 위 - 2 && r.top + Math.min(r.height, 280) <= 띠위) return true   /* 이미 보임 */
+      window.scrollTo(0, Math.max(0, Math.round(window.scrollY + r.top - 위)))
+      return true
+    }
+    const t = setTimeout(() => {
+      if (!맞추기()) return
+      const y = window.scrollY
+      setTimeout(() => { if (!그만 && Math.abs(window.scrollY - y) < 2) 맞추기() }, 450)
+    }, 60)
+    return () => { 그만 = true; clearTimeout(t) }
+  }, [picked, 분석실])
 
   /* 📊 G340 분석실 — 왼쪽 목록을 누르면 주소 ?no= 만 바뀝니다. 바뀔 때마다 그 공고를 고릅니다(같은 pick — 금액 · A값 · 하한율이 다 따라옴).
      ?no= 가 빠지면(«◀ 공고 목록») 고른 것을 비웁니다. 분석실이 아니면 아무것도 안 합니다(첫 화면 바로투찰은 예전 그대로). */
@@ -1838,7 +1878,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
 
       {/* 종합심사 대상이면 계산을 아예 하지 않습니다. 0원을 보여주는 건 사고입니다. */}
       {picked && !isReady(picked) ? null : base > 0 && band && band.rec == null ? (
-        <div className="card c-stop">
+        <div className="card c-stop" ref={답자리}>
           <div className="detail-h">이 공고는 계산기를 쓰면 안 됩니다</div>
           <div className="kv2">
             <div><span>기초금액</span><b>{won(base)}</b></div>
@@ -1862,7 +1902,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
         </div>
       ) : base <= 0 ? (
         verifyMode ? null : (
-        <div className="hintbox">
+        <div className="hintbox" ref={답자리}>
           {picked ? (
             <>
               <b>이 공고는 아직 기초금액이 공개되지 않았습니다.</b><br />
@@ -1877,7 +1917,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
       ) : (
         <>
           {/* ── 3. 결과 ── */}
-          <div className={'hero ' + (pass === false ? 'bad' : '')}>
+          <div className={'hero ' + (pass === false ? 'bad' : '')} ref={답자리}>
             <div className="sjline">
               <span className="lab">분석 사정률</span>
               <span className="val">{sjMid.toFixed(4)}%</span>
