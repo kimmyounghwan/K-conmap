@@ -30,6 +30,18 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 
 DB = (os.environ.get("RTDB_URL") or "https://k-conmap-default-rtdb.firebaseio.com").rstrip("/")
+# 🔑 G528 (2026-11-03) 운영자 번호 — 화면(web/src/lib/운영자.js OPS)과 같은 목록을 그 파일에서 읽음(두 벌 두지 않음).
+#    운영자 번호로 쓴 글 · 답글은 저장된 op 표 · 별명과 상관없이 «K-건설맵» 으로 굽습니다(10/31~ 답글 16개가 자동 별명으로 보였음).
+def _운영자번호():
+    try:
+        글 = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "web", "src", "lib", "운영자.js"), encoding="utf-8").read()
+        m = re.search(r"const OPS = \[(.*?)\]", 글, re.S)
+        return set(re.findall(r"'([A-Za-z0-9]{20,64})'", re.sub(r"(?m)//.*$", "", m.group(1)))) if m else set()
+    except Exception:
+        return set()
+
+
+OPS = _운영자번호()
 CACHE = os.environ.get("QNA_SNAPSHOT") or os.path.join(tempfile.gettempdir(), "kcm_qna_snapshot.json")
 TTL = 30 * 60
 KST = timezone(timedelta(hours=9))
@@ -93,12 +105,17 @@ def snapshot(fresh=False):
             print(f"  · {k} 를 못 읽었습니다({type(e).__name__}) — 빈 것으로 봅니다")
             snap[k] = {}
     # ⚠️ 이용자 번호(uid)는 굽는 데 쓰지 않습니다 — 임시 파일에도 남기지 않습니다
+    #    🔑 G528 — 지우기 전에 운영자 번호면 «K-건설맵» · op 로 맞춤(번호 자체는 남기지 않음)
     for r in (snap["qna"] or {}).values():
         if isinstance(r, dict):
+            if r.get("uid") in OPS:
+                r["nick"] = "K-건설맵"
             r.pop("uid", None)
     for g in (snap["qna_a"] or {}).values():
         for a in (g or {}).values() if isinstance(g, dict) else []:
             if isinstance(a, dict):
+                if a.get("uid") in OPS:
+                    a["op"], a["nick"] = True, "K-건설맵"
                 a.pop("uid", None)
     try:
         with open(CACHE, "w", encoding="utf-8") as f:

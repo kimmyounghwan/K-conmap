@@ -125,12 +125,21 @@ const OP2 = { uid: 'Mk7VznW9UZaRpycYErDsuILmVfl1' }
 eq(쓰기('qna_pro', 'u_gap', 패, OP2), true, '노트북 엣지도 명패를 붙임')
 eq(읽기('qna_pro_req', null, OP2), true, '노트북 엣지도 신청 목록을 읽음')
 eq(쓰기('qna_pro', 'u_gap', 패, 을), false, '보통 이용자는 여전히 못 붙임')
-const 둘 = (글.match(/auth\.uid === 'ZglL1g3X5UZFBA2590LirDnEnil1' \|\| auth\.uid === 'Mk7VznW9UZaRpycYErDsuILmVfl1'/g) || []).length
-eq(둘 > 0 && 둘 === (글.match(/auth\.uid === 'ZglL1g3X5UZFBA2590LirDnEnil1'/g) || []).length, true, '규칙의 운영자 자리마다 두 기기가 다 있음')
-const 창고 = readFileSync(new URL('../web/storage.rules', import.meta.url), 'utf8')
-eq(창고.includes("request.auth.uid in ['ZglL1g3X5UZFBA2590LirDnEnil1', 'Mk7VznW9UZaRpycYErDsuILmVfl1']"), true, '성적표 재료(op/)도 두 기기 다 읽음')
+/* 🔑 G528 (2026-11-03) 세 번째 기기 — 「왜 내가 써도 건설맵이 안뜨지?」 → 이제 «두 기기» 가 아니라 «운영자.js OPS 모두» 를 봅니다(tools/운영자더하기.py 로만 더함) */
 const 목록 = readFileSync(new URL('../web/src/lib/운영자.js', import.meta.url), 'utf8')
-eq(목록.includes("'ZglL1g3X5UZFBA2590LirDnEnil1'") && 목록.includes("'Mk7VznW9UZaRpycYErDsuILmVfl1'"), true, '화면 운영자 목록에도 두 기기')
+const 모두 = ((목록.match(/const OPS = \[([\s\S]*?)\]/) || [])[1] || '').replace(/\/\/.*$/gm, '').match(/'([A-Za-z0-9]{20,64})'/g).map((x) => x.slice(1, -1))
+eq(모두.length >= 3 && 모두.includes('ZglL1g3X5UZFBA2590LirDnEnil1') && 모두.includes('Mk7VznW9UZaRpycYErDsuILmVfl1') && 모두.includes('pIFo0QpU30X8WJbrVxAg2fLmG2J3'), true, '화면 운영자 목록에 세 기기(사무실 크롬 · 노트북 엣지 · 11-03 기기)')
+const 묶음 = 모두.map((u) => `auth.uid === '${u}'`).join(' || ')
+const 첫자리 = (글.match(new RegExp(`'${모두[0]}'`, 'g')) || []).length
+const 맞는자리 = 글.split(묶음).length - 1 + 글.split(모두.map((u) => `$uid !== '${u}'`).join(' && ')).length - 1 + 글.split(모두.map((u) => `newData.child('r').val() !== '${u}'`).join(' && ')).length - 1
+eq(첫자리 >= 15 && 맞는자리 === 첫자리 && 모두.every((u) => (글.match(new RegExp(`'${u}'`, 'g')) || []).length === 첫자리), true, `규칙의 운영자 자리(${첫자리}곳)마다 운영자 기기가 모두 있음`)
+const OP3 = { uid: 'pIFo0QpU30X8WJbrVxAg2fLmG2J3' }
+eq(쓰기('qna_pro', 'u_gap', 패, OP3), true, '11-03 기기도 명패를 붙임')
+eq(읽기('qna_pro_req', null, OP3), true, '11-03 기기도 신청 목록을 읽음')
+const 창고 = readFileSync(new URL('../web/storage.rules', import.meta.url), 'utf8')
+eq(창고.includes('request.auth.uid in [' + 모두.map((u) => `'${u}'`).join(', ') + ']'), true, '성적표 재료(op/)도 운영자 기기 모두 읽음')
+const 알림 = readFileSync(new URL('./알림수세기.py', import.meta.url), 'utf8')
+eq(알림.includes('OP = (' + 모두.map((u) => `"${u}"`).join(', ') + ')'), true, '알림 셈(알림수세기.py)도 운영자 기기 모두 뺌')
 
 console.log('④ 화면이 이렇게 쓰는지')
 const 화면 = readFileSync(new URL('../web/src/pages/Qna.jsx', import.meta.url), 'utf8')

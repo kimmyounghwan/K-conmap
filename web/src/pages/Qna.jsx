@@ -201,6 +201,10 @@ const 봇같음 = () => {
    **사랑방 화면을 통째로 끌고 갔기** 때문입니다.
    여기서 다시 내보내는 것은 옛 길(`from './Qna.jsx'`)을 깨뜨리지 않기 위함입니다. */
 import { OPS, isOp } from '../lib/운영자.js'
+/* 🔑 G528 (2026-11-03) 소장님 「아니 왜 내가 써도 건설맵이 안뜨지? 맵톡에」 — 운영자 번호(OPS)로 쓴 글 · 답글은 저장된 op 표 · 별명과 상관없이 «K-건설맵».
+   목록에 늦게 더한 브라우저(10/31 ~ 11/03 답글 16개 «침착한 지게차548»)도 사이트가 바로 맞춰 보여 줍니다(저장된 값은 그대로). */
+const 운영답 = (x) => (x && !x.op && isOp(x.uid) ? { ...x, op: true, nick: 'K-건설맵' } : x)
+const 글별명 = (r) => (isOp(r.uid) ? 'K-건설맵' : (r.nick || '익명'))
 import { 몰래표, 몰래표잊기 } from '../lib/차단.js'
 export { OPS, isOp }
 
@@ -333,7 +337,7 @@ export default function Qna() {
     const o = {}
     for (const [k, m] of Object.entries(ans원 || {})) {
       const g = {}
-      for (const [id, x] of Object.entries(m || {})) if (보임(x)) g[id] = x
+      for (const [id, x] of Object.entries(m || {})) if (보임(x)) g[id] = 운영답(x)
       o[k] = g
     }
     return o
@@ -924,7 +928,7 @@ export default function Qna() {
           {op답(r.id) && r.c !== 'K-건설맵' && !isOp(r.uid) && <span className="mt-ok">✅ K-건설맵</span>}
           {/* 💬 «답하기» 는 남김(소장님 고르심 2026-10-06 「남겨두는 쪽으로 해줘」) — 답 없는 질문에만 · 누르면 글이 열리고 답글 칸이 열린 채로 */}
           {!n && 물음인가(r.t + ' ' + (r.b || '')) && <button type="button" className="mt-ask" onClick={() => { set답하러(r.id); 열기(r.id); 세기('|맵톡|답하기') }}>답하기</button>}
-          <span className="mt-nick">{배지(r.uid)}{r.nick || '익명'}{내것.has(r.id) ? ' · 내 글' : ''}</span>
+          <span className="mt-nick">{배지(r.uid)}{글별명(r)}{내것.has(r.id) ? ' · 내 글' : ''}</span>
         </div>
       </article>
     )
@@ -1164,7 +1168,7 @@ export default function Qna() {
                     return (
                       <button type="button" key={r.id} className="mt-hm" style={{ '--rc': 방표(r.방).색 }} onClick={() => { 세기('|맵톡|한마디'); 누르기(r.id) }}>
                         <span className="mt-hm-t">{가림(r.t)}{r.b ? <small> {가림(r.b)}</small> : null}</span>
-                        <span className="mt-hm-m">{r.nick || '익명'}{곳 ? ' · ' + 짧은이름(곳.n) : ''} · {날시(r.at)}{h > 0 ? ` · ♥ ${h}` : ''}{n > 0 ? ` · 💬 ${n}` : ''}</span>
+                        <span className="mt-hm-m">{글별명(r)}{곳 ? ' · ' + 짧은이름(곳.n) : ''} · {날시(r.at)}{h > 0 ? ` · ♥ ${h}` : ''}{n > 0 ? ` · 💬 ${n}` : ''}</span>
                       </button>
                     )
                   })}
@@ -1235,7 +1239,7 @@ export default function Qna() {
                   <span className="mt-date">· {날시(창글.at, { 해: true, 요: true })} · {언제(창글.at)}{창글.e ? ' · 고침' : ''}</span>
                 </div>
                 <h2 className="mt-full">{가림(창글.t)}</h2>
-                <div className="mt-who">{배지(창글.uid)}{창글.nick || '익명'}{내것.has(창글.id) ? ' · 내 글' : ''}{창글.sb && 나운영자 ? ' · 🙈 몰래 차단' : ''}{명패표(창글.uid)}</div>
+                <div className="mt-who">{배지(창글.uid)}{글별명(창글)}{내것.has(창글.id) ? ' · 내 글' : ''}{창글.sb && 나운영자 ? ' · 🙈 몰래 차단' : ''}{명패표(창글.uid)}</div>
                 {창글.p && <a href={창글.p} target="_blank" rel="noopener noreferrer"><img className="mt-bigphoto" src={창글.p} alt="올린 사진" /></a>}
                 <Detail row={창글} ans={ans[창글.id] || {}} mine={내것.has(창글.id)} 나운영자={나운영자} 분야뱃={분야뱃} 명패={명패} 참석={참석[창글.id] || {}} 참석누름={참석누름}
                   고정됨={!!고정[창글.id]} 나={나} 배지={배지} 조회수={조회[창글.id] || 0} 지도바탕={지도바탕}

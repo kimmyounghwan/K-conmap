@@ -62,7 +62,7 @@ def hash32(s):
 def nick(uid):
     h = hash32(str(uid))
     return f"{ADJ[h % 16]} {NOUN[(h // 16) % 16]}{(h // 256) % 1000:03d}"
-OP = ("ZglL1g3X5UZFBA2590LirDnEnil1", "Mk7VznW9UZaRpycYErDsuILmVfl1")   # 소장님 기기들(web/src/lib/운영자.js OPS 와 같게)
+OP = ("ZglL1g3X5UZFBA2590LirDnEnil1", "Mk7VznW9UZaRpycYErDsuILmVfl1", "pIFo0QpU30X8WJbrVxAg2fLmG2J3")   # 소장님 기기들(web/src/lib/운영자.js OPS 와 같게)
 print("\n── 사람마다 (별명 · 켠 알림) ──")
 담은 = collections.Counter()
 if isinstance(watch, dict):

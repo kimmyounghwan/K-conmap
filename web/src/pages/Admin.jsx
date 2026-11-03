@@ -351,7 +351,7 @@ function 글({ r, ans, onDone, 급함 }) {
           }}>답 없음 · {얼마전(r.at)}</span>
         )}
         <b style={{ flex: '1 1 200px', fontSize: 15 }}>{r.t}</b>
-        <span className="muted" style={{ fontSize: 12 }}>{r.nick || nickOf(r.uid)} · {when(r.at)}</span>
+        <span className="muted" style={{ fontSize: 12 }}>{isOp(r.uid) ? 'K-건설맵' : (r.nick || nickOf(r.uid))} · {when(r.at)}</span>
       </div>
       {r.b && (
         <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.85, fontSize: 13.5, marginTop: 8 }}>{r.b}</div>
@@ -360,11 +360,12 @@ function 글({ r, ans, onDone, 급함 }) {
       {답.map((a) => (
         <div key={a.id} style={{
           marginTop: 10, padding: '9px 11px', borderRadius: 9,
-          background: a.op ? 'var(--accent-soft, rgba(26,86,219,.08))' : 'var(--bg-soft, rgba(0,0,0,.03))',
+          background: (a.op || isOp(a.uid)) ? 'var(--accent-soft, rgba(26,86,219,.08))' : 'var(--bg-soft, rgba(0,0,0,.03))',
           border: '1px solid var(--line)',
         }}>
           <div style={{ fontSize: 12, marginBottom: 4 }}>
-            {a.op
+            {/* 🔑 G528 — 운영자 번호로 쓴 답글은 op 표가 없어도 K-건설맵(맵톡 화면과 같게) */}
+            {(a.op || isOp(a.uid))
               ? <b style={{ color: 'var(--accent, #1a56db)' }}>K-건설맵</b>
               : <b>{a.nick || '익명'}</b>}
             <span className="muted"> · {when(a.at)}</span>
