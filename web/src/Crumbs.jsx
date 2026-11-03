@@ -91,6 +91,7 @@ const LEAF = {
   '/report/agency': '발주기관 보고서 만들기',
   '/naeyeok/ratio': '내역서 비율 맞추기',
   '/jeoksan/fill': '공내역서 단가 채우기',
+  '/first/hado-gyeonjeok': '하도급 견적틀',   /* 🤝 G518d — 길 «오늘의 1순위 › 하도급 견적틀» */
 }
 
 /* 🔙 2026-09-24 — 소장님: 「뒤로가기 항상 빠져 있더라」

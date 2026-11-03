@@ -50,8 +50,10 @@ export default function HadoGyeonjeok() {
   const [펼침, set펼침] = useState(null)          /* 미리보기 연 공종 id */
   const [관급도, set관급도] = useState(false)
   const [받음, set받음] = useState('')
+  const [다른공사, set다른공사] = useState(null)   /* 🔎 G518d — 올린 내역서가 1순위 공고와 다른 공사 같을 때 { 내역, 번호 } */
   const inputRef = useRef(null)
   useEffect(() => { 세기('|견적틀|열기'); if (처음.no) 세기('|견적틀|1순위') }, [])   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { document.title = '하도급 견적틀 — 내역서를 공종별 견적서로(공내역서도 됨 · 표지 + 단가 빈칸) | K-건설맵' }, [])
 
   const libs = useCallback(async () => {
     if (L) return L
@@ -62,7 +64,7 @@ export default function HadoGyeonjeok() {
   }, [L])
 
   const 읽기 = useCallback(async (bytes, 이름, 크기) => {
-    setErr(''); set결과(null); set단위([]); set끔(new Set()); set펼침(null); set받음('')
+    setErr(''); set결과(null); set단위([]); set끔(new Set()); set펼침(null); set받음(''); set다른공사(null)
     setBusy('내역서를 읽고 공종을 나누는 중입니다…')
     try {
       const o = await libs()
@@ -76,6 +78,15 @@ export default function HadoGyeonjeok() {
         return
       }
       const u = o.g.기본단위(R)
+      /* 🔎 G518d — 이 내역서가 어느 공사 것인가(머리글 위 «공사명 :» · 파일 이름 · 맨 위 공사 머리)
+         · 1순위 공고에서 왔는데 다른 공사 같으면 알림(표지 · 받는 파일 이름이 1순위 공고 이름으로 나가므로)
+         · 1순위 없이 왔고 공사명 칸이 비었으면 내역서의 공사명을 채움(손으로 안 적게) */
+      const 내 = o.g.내역공사명(책, 이름, R)
+      const 깨끗 = 내.후보.find((h) => !/내역서|입찰용|공고용|게시용|^\(공\)/.test(h)) || ''
+      if ((처음.no || 처음.공사명) && !/^예시_/.test(이름) && o.g.같은공사(내, { 공고번호: 처음.no, 공사명: 처음.공사명 }) === 'diff') {
+        set다른공사({ 내역: 깨끗 || 내.후보[0] || '', 번호: 내.번호 && 내.번호 !== 처음.no ? 내.번호 : '', 고칠: 깨끗 })
+        세기('|견적틀|다른공사')
+      } else if (!처음.공사명 && 깨끗 && !/^예시_/.test(이름)) set공사명((v) => (v.trim() ? v : 깨끗.slice(0, 80)))
       set결과(R)
       set단위(u)
       set끔(new Set(u.filter((m) => o.g.꺼둘까(m) || !o.g.품목셈(m)).map((m) => m.id)))
@@ -150,6 +161,7 @@ export default function HadoGyeonjeok() {
           </div>
           <p className="muted" style={{ margin: '8px 0 0', fontSize: 13 }}>
             ① 나라장터 공고 원문의 첨부파일에서 <b>공내역서(또는 설계내역서) 엑셀</b>을 받고 ② 아래 칸에 놓으십시오.
+            <br />첨부에 내역서가 없는 공고도 있습니다(«물량내역서 해당없음» · 수의시담 등) — 그때는 발주처에서 받은 내역서 엑셀을 놓으시면 됩니다.
           </p>
           <a className="btn ghost sm" style={{ marginTop: 8 }} href={g2bUrl(처음.no, 처음.ord)} target="_blank" rel="noreferrer">나라장터 공고 원문 열기 — 내역서 받기 →</a>
         </div>
@@ -172,6 +184,19 @@ export default function HadoGyeonjeok() {
         </div>
         {busy && <div className="muted" style={{ marginTop: 8 }}>{busy}</div>}
         {err && <div className="cwarn" style={{ marginTop: 8 }}>⚠️ {err}</div>}
+        {다른공사 && (
+          <div className="cwarn hgj-diff" style={{ marginTop: 8 }}>
+            ⚠️ <b>이 내역서는 1순위 공고와 다른 공사 같습니다.</b>
+            {다른공사.내역 ? <> 내역서: «{다른공사.내역.slice(0, 60)}»</> : null}
+            {다른공사.번호 ? <> · 파일 이름의 공고번호 {다른공사.번호}</> : null}
+            {' '}· 1순위 공고: «{(처음.공사명 || 처음.no || '').slice(0, 60)}». 맞는 파일인지 확인하십시오(발주처가 옛 내역서 틀을 그대로 쓴 경우도 있습니다).
+            {다른공사.고칠 && 공사명.trim() !== 다른공사.고칠.slice(0, 80) ? (
+              <div style={{ marginTop: 6 }}>
+                <button type="button" className="btn ghost sm" onClick={() => { set공사명(다른공사.고칠.slice(0, 80)); 세기('|견적틀|공사명고침') }}>② 표지 공사명을 내역서 것으로 바꾸기</button>
+              </div>
+            ) : null}
+          </div>
+        )}
         {결과 && (
           <p className="hgj-sum" style={{ margin: '10px 0 0' }}>
             공종 <b>{fmt(단위.length)}개</b> · 품목 <b>{fmt(결과.품목수)}줄</b>
@@ -208,7 +233,7 @@ export default function HadoGyeonjeok() {
                 <div className={`tlrow hgj-row${켬 ? ' on' : ''}${m.관급 ? ' gwan' : ''}`} key={m.id}>
                   <label className="tlchk">
                     <input type="checkbox" checked={켬} onChange={(e) => set끔((s) => { const x = new Set(s); if (e.target.checked) x.delete(m.id); else x.add(m.id); return x })} />
-                    {' '}<b>{m.글 || m.이름}</b>
+                    {' '}<b>{L ? L.g.붙여쓰기(m.글 || m.이름) : (m.글 || m.이름)}</b>
                   </label>
                   <span className="hgj-meta">
                     {m.관급 ? <em className="hgj-tag g">관급 — 견적 대상 아님</em> : null}

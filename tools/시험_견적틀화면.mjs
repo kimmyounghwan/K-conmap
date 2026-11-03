@@ -138,6 +138,48 @@ console.log('④ 올리기 · 폰 · 어두운 화면 · 구운 장')
   await ctx.close()
 }
 
+console.log('⑤ 다른 공사 내역서 알림 · 공사명 채움 · 띄운 공종 이름 · 길(G518d — 소장님 «이용자 입장에서»)')
+{
+  /* 지어낸 내역서 둘 — 머리글 위 «공사명 :» 줄 · 한 글자씩 띄운 공종 「구 조 물 공」 */
+  const 내역 = (공사) => Q.writeWorkbook([{ name: '내역서', head: [`공사명 : ${공사}`], rows: [
+    ['품 명', '규 격', '단 위', '수 량'], ['1. 방 수 공', '', '', ''], ['우레탄 도막방수', '노출형', '㎡', 120], ['바탕 정리', '', '㎡', 120],
+    ['2. 구 조 물 공', '', '', ''], ['레미콘 타설', '25-24-15', '㎥', 12], ['거푸집', '합판', '㎡', 40]] }])
+  const 다른 = path.join(tmp, 'other_naeyeok.xlsx'), 같은 = path.join(tmp, 'same_naeyeok.xlsx')
+  fs.writeFileSync(다른, 내역('모의 학교 옥상 방수공사'))
+  fs.writeFileSync(같은, 내역('가상 소하천 정비공사'))
+  const q = '?' + new URLSearchParams({ no: 'R00TEST00001', o: '000', n: '가상 소하천 정비공사', i: '가상군', w: '(주)가상건설', d: '2026-11-02' })
+  const { ctx, p, 오류 } = await 새쪽(1280, 900)
+  await p.goto(BASE + '/first/hado-gyeonjeok' + q, { waitUntil: 'networkidle' })
+  ok('넓은 화면 길 «오늘의 1순위 › 하도급 견적틀»', /오늘의 1순위\s*›\s*하도급 견적틀/.test(await p.innerText('.crumbs').catch(() => '')), await p.innerText('.crumbs').catch(() => ''))
+  ok('1순위 상자 — 첨부에 내역서가 없는 공고 안내', /첨부에 내역서가 없는 공고도 있습니다/.test(await p.innerText('.hgj-from')))
+  await p.setInputFiles('.tldrop input[type=file]', 다른)
+  await p.waitForSelector('.hgj-row', { timeout: 15000 })
+  const 알림 = await p.$('.hgj-diff')
+  const 알림글 = 알림 ? await 알림.innerText() : ''
+  ok('다른 공사 내역서 → 알림(내역서 공사명 · 1순위 공고 공사명)', !!알림 && /모의 학교 옥상 방수공사/.test(알림글) && /가상 소하천 정비공사/.test(알림글), 알림글)
+  ok('띄운 공종 이름은 붙여서 «방수공 · 구조물공»', JSON.stringify(await p.$$eval('.hgj-row .tlchk b', (xs) => xs.map((x) => x.textContent))) === JSON.stringify(['방수공', '구조물공']), await p.$$eval('.hgj-row .tlchk b', (xs) => xs.map((x) => x.textContent)))
+  await p.click('.hgj-diff button')
+  ok('«표지 공사명을 내역서 것으로» → 공사명 칸이 바뀜 · 단추 사라짐', (await p.inputValue('.hgj-form label:nth-child(2) input')) === '모의 학교 옥상 방수공사' && !(await p.$('.hgj-diff button')))
+  const 한 = await 받기(p, '.hgj-btns .btn.primary')
+  const 책 = Q.readWorkbook(한.바이트)
+  const 방수 = (책['방수공'] || []).map((r) => (r || []).map((v) => String(v ?? '')))
+  ok('받는 파일 이름 · 표지 공사명이 바꾼 것으로 · 시트 이름 붙임 · 품명은 원본 그대로', /모의_학교_옥상_방수공사/.test(한.이름) && Object.keys(책).join() === '공종 목록,방수공,구조물공' && 방수.some((r) => r.includes('모의 학교 옥상 방수공사')) && 방수.some((r) => r.includes('우레탄 도막방수')), [한.이름, Object.keys(책)])
+  await p.setInputFiles('.tldrop input[type=file]', 같은)
+  await p.waitForSelector('.hgj-row', { timeout: 15000 })
+  ok('같은 공사 내역서 → 알림 없음', !(await p.$('.hgj-diff')))
+  ok('오류 0(다른 공사)', !오류.length, 오류)
+  await ctx.close()
+  const s2 = await 새쪽(390, 844)
+  await s2.p.goto(BASE + '/first/hado-gyeonjeok', { waitUntil: 'networkidle' })
+  await s2.p.setInputFiles('.tldrop input[type=file]', 다른)
+  await s2.p.waitForSelector('.hgj-row', { timeout: 15000 })
+  ok('1순위 없이 올리면 공사명 칸을 내역서 공사명으로 채움 · 알림 없음', (await s2.p.inputValue('.hgj-form label:nth-child(2) input')) === '모의 학교 옥상 방수공사' && !(await s2.p.$('.hgj-diff')))
+  ok('폰 390 넘침 0(⑤)', (await 넘침(s2.p)) <= 0, await 넘침(s2.p))
+  ok('탭 제목 — 하도급 견적틀', /^하도급 견적틀/.test(await s2.p.title()), await s2.p.title())
+  ok('오류 0(⑤ 폰)', !s2.오류.length, s2.오류)
+  await s2.ctx.close()
+}
+
 await b.close()
 console.log(`\n${bad ? '✗' : '✓'} 시험_견적틀화면 ${n - bad}/${n}`)
 process.exit(bad ? 1 : 0)
