@@ -214,8 +214,8 @@ export default function FreshBar({ kind = 'first', extra = '' }) {
       <span>
         자료 기준 {hhmm(v.at)} ({ago(v.mins)})
         {/* 🌙 2026-09-29 부터 밤에도 약 1시간마다 돕니다(update.yml). 낮에는 공고 · 개찰이 «빠른 길» 로 10분마다 더 들어옵니다 */}
-        {v.working ? '' : ' · 밤에는 약 1시간마다 갱신합니다'}
-        {note ? ` · ${note}` : ''}
+        {/* 🧭 G525 (2026-11-03 «이용자에게 편한걸로») 덧말(밤 갱신 · 개찰 몰리는 때)은 폰(≤620)에서 숨김 — 한 줄로, 목록이 첫 화면에. 경고 · 점검 · 빈 날 줄은 그대로 다 보임 */}
+        <span className="fb-more">{v.working ? '' : ' · 밤에는 약 1시간마다 갱신합니다'}{note ? ` · ${note}` : ''}</span>
       </span>
     </div>
   )

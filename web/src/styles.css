@@ -10006,3 +10006,6 @@ div.bth { padding: 0; }
   .simstrip .nums { gap: 2px 12px; }
   .simstrip .nums b { font-size: 15px; }
 }
+
+/* 🧭 G525 (2026-11-03 «이용자에게 편한걸로») 갱신 줄 덧말 — 폰에서 숨김(«최신 개찰 · 자료 기준 · 몇 분 전» 은 그대로) · 1순위 · 공고 탭 목록이 그만큼 위로 */
+@media (max-width: 620px) { .freshbar .fb-more { display: none; } }
