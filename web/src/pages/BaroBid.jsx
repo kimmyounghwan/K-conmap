@@ -1293,7 +1293,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
             if (el) el.scrollIntoView({ block: 'start' })   /* 바로 갑니다 — 미끄러지게 하면 창이 가려진 탭에서 안 움직입니다 */
           }}>
           <span className="k">
-            📊 바로투찰 성적 · 최근 {bt.days}일 개찰 <b>{num(bt.tested || bt.n)}건</b>에 우리 금액을 대 봤습니다
+            📊 바로투찰 성적<span className="ss-more"> · 최근 {bt.days}일 개찰 <b>{num(bt.tested || bt.n)}건</b>에 우리 금액을 대 봤습니다</span>{/* 🧭 G524 폰에선 덧말 숨김 */}
           </span>
           <span className="nums">
             <span><em>1순위였을 자리</em><b className="hi">{Number(bt.win).toFixed(1)}%</b></span>

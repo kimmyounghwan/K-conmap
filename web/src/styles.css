@@ -9991,3 +9991,18 @@ div.bth { padding: 0; }
 
 /* 🧭 G523 (2026-11-03 «이용자에게 편한걸로») 서식 첫 화면 — 폰에선 소개 첫 문장만(서식 N가지 · 사이트에서 작성 · 무료 · 회원가입 없음) → 찾기 칸이 첫 화면에 */
 @media (max-width: 560px) { .lead-card .why2 .fm-more { display: none; } }
+
+/* 🧭 G524 (2026-11-03 소장님 「이용자에게 편한걸로 해줘」) 바로투찰 첫 화면 — 폰(≤620)에서 공고 찾기 위 카드 넷을 낮게
+   (자리 · 차례 · 글 첫머리 그대로 · 덧말만 숨김): 사용 방법 73 → 44 · 오늘 넣을 것(조건 안 고른 때) 93 → 36 · 분석실 90 → 56 · 성적 150 → 70 남짓.
+   방문자 표 · 오늘의 기준 · 내역서 띠는 그대로(11-01 «방문자 상자 더 손대지 않음»). 넓은 화면은 전과 같음. */
+@media (max-width: 620px) {
+  .card.bth { padding: 8px 12px; }
+  .card.bth .bth-h .muted { display: none; }
+  .mytoday .mt-fold { display: none; }            /* 머리줄 «면허 · 지역 고르기 ▼» 가 같은 일 */
+  .bsr-cta { padding: 10px 14px; }
+  .bsr-cta .d { display: none; }
+  .simstrip { padding: 8px 12px; gap: 2px 10px; }
+  .simstrip .ss-more { display: none; }
+  .simstrip .nums { gap: 2px 12px; }
+  .simstrip .nums b { font-size: 15px; }
+}
