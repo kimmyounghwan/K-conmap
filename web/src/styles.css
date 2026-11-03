@@ -2837,9 +2837,12 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
   flex: 0 0 auto; border: 0; background: none; color: var(--text-2); font-size: 15px; cursor: pointer; padding: 4px 6px;
 }
 @media (max-width: 480px) {
-  .installbar { flex-wrap: wrap; font-size: 12.5px; }
-  .installbar .t { flex-basis: 100%; }
-  .installbar .go { flex: 1; }
+  /* 🧭 G522 (2026-11-03 소장님 「이용자에게 편한걸로 해줘」) 앱 띠는 그대로 맨 위(10-05 «항상 위») · 높이만 105 → 50 남짓:
+     글 · «추가하기» · ✕ 를 한 줄에 · 덧말(— 설치 파일 없이 …)은 숨김. 모든 화면에서 목록 · 계산기가 그만큼 위로 */
+  .installbar { flex-wrap: nowrap; gap: 8px; padding: 7px 6px 7px 12px; font-size: 12.5px; line-height: 1.45; }
+  .installbar .t { flex: 1 1 0; min-width: 0; }
+  .installbar .t .ib-more { display: none; }
+  .installbar .go { flex: 0 0 auto; padding: 7px 11px; }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -9967,4 +9970,21 @@ div.bth { padding: 0; }
   .naeyeok-strip { flex-wrap: nowrap; gap: 8px; padding: 8px 11px; font-size: 13px; line-height: 1.5; }
   .naeyeok-strip .ns-txt { flex: 1 1 0; min-width: 0; }
   .naeyeok-strip .ns-go { font-size: 12.5px; }
+}
+
+/* 🧭 G522 (2026-11-03 소장님 「이용자에게 편한걸로 해줘」) 공고 탭 — 폰에서 목록이 첫 화면에 보이게
+   · 맨 위 가는 줄 셋(공동도급 마당 · 나라장터 밖 공고 · 곧 나올 공사 — G343 «잘 보이게») → 작은 단추 한두 줄(자리 · 글 그대로 · 덧말만 숨김)
+   · «해볼 만한 공고만 (A·B)» · «설계내역서 붙은 공고만» 두 거르개 → 나란히 · 덧말 숨김 (넓은 화면은 전과 같음) */
+@media (max-width: 620px) {
+  .xlinks { display: flex; flex-wrap: wrap; gap: 6px; }
+  .xlinks .xlink { flex: 1 1 auto; margin: 0; padding: 7px 11px; gap: 6px; border-radius: 999px; min-width: 0; }
+  .xlinks .xlink.pre-xgot { flex-basis: 100%; border-radius: 12px; padding: 9px 12px; }   /* ⭐ 담아 둔 공사가 공고로 — 공고 이름이 보여야 해 카드 그대로 */
+  .xlinks .xlink .xl-i { font-size: 15px; }
+  .xlinks .xlink .xl-t b { font-size: 13px; }
+  .xlinks .xlink:not(.pre-xgot) .xl-t i { display: none; }
+  .xlinks .xlink:not(.pre-xgot) .xl-go, .xlinks .xlink .xl-sub { display: none; }   /* «가기 → · 보기 →» 대신 글 끝 «→» */
+  .xlinks .xlink:not(.pre-xgot) .xl-t b::after { content: ' →'; color: var(--accent); }
+  .goodrow { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .goodrow .goodonly { padding: 8px 10px; font-size: 12.5px; line-height: 1.4; text-align: center; }
+  .goodrow .goodonly i { display: none; }
 }

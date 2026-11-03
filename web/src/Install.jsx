@@ -250,7 +250,7 @@ export function InstallBar() {
       <div className="installbar">
         {isPC()
           ? <span className="t">🖥 <b>바탕화면·작업표시줄</b>에 K-건설맵 아이콘을 만들어 두세요 — 한 번 누르면 됩니다.</span>
-          : <span className="t">📲 <b>홈 화면에 추가</b>하면 앱처럼 열립니다 — 설치 파일 없이, 아이콘 하나로.</span>}
+          : <span className="t">📲 <b>홈 화면에 추가</b>하면 앱처럼 열립니다<span className="ib-more"> — 설치 파일 없이, 아이콘 하나로</span>.</span>}{/* 🧭 G522 폰(≤480)에선 덧말 숨김 · 한 줄 높이(styles.css) */}
         <button className="go" onClick={install}>{isPC() ? '아이콘 만들기' : '추가하기'}</button>
         <button className="x" aria-label="닫기" onClick={() => { hideFor(); setClosed(true) }}>✕</button>
       </div>

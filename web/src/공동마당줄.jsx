@@ -10,7 +10,7 @@ export default function 공동마당줄() {
   return (
     <Link to="/gongdong" className="xlink xlink-jv" onClick={() => 세기('|공동|공고탭줄')}>
       <span className="xl-i">🤝</span>
-      <span className="xl-t"><b>공동도급 마당 · 같이 넣을 업체 찾기</b>
+      <span className="xl-t"><b>공동도급 마당<span className="xl-sub"> · 같이 넣을 업체 찾기</span></b>{/* 🧭 G522 폰에선 «공동도급 마당» 만(작은 단추) */}
         <i>구성원 구함 · 참여 글 · 지분 짜기 · 업체 찾기</i></span>
       <span className="xl-go">가기 →</span>
     </Link>

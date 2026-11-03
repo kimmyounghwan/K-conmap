@@ -20,7 +20,7 @@ import { loadBasket, toggleBasket, clearBasket, BASKET_MAX } from '../lib/basket
 import FreshBar from '../Fresh.jsx'
 import { winGrade } from '../lib/winodds.js'
 import { noteLive } from '../lib/mentor.js'
-import { won, wonShort, num, dateTime, dday, REGIONS, inRegion, estOf } from '../lib/fmt.js'
+import { won, wonShort, num, dateTime, dateShort, dday, REGIONS, inRegion, estOf } from '../lib/fmt.js'
 import { loadLicCodes, saveLicCodes, loadLicNone, saveLicNone,
          licList, licNoneCount, licHit, licShort, loadRegion, saveRegion, loadMine, saveMine } from '../lib/lic.js'
 /* 📍🔔 2026-10-01 (G97) 내 조건 한 줄 · ☆ 담은 공고 1순위 알림 */
@@ -366,6 +366,7 @@ export default function LiveBoard() {
       {/* 🤝 G343 소장님 「공동도급 만든거 어디 있지???」 「잘 보이게 해줘」 「단어 배치 신경써서 … 빈공간 많이 남지 않게」
           — 맨 위 «가는 줄» 셋(공동도급 마당 · 나라장터 밖 공고 · 곧 나올 공사)을 한 묶음(.xlinks)으로:
             넓은 화면은 나란히(칸마다 글이 차게 · 가운데 텅 빈 띠가 없게) · 폰은 위아래 한 줄씩(전과 같음). 자료 없는 줄은 안 그림(전과 같음). */}
+      {/* 🧭 G522 폰(≤620)에서는 셋을 «작은 단추 한두 줄» 로(styles.css .xlinks) — 전엔 카드 셋이 199px 로 목록을 밀어냈음(첫 카드 1,004px) */}
       <div className="xlinks">
         <공동마당줄 />
         {/* 🏗 나라장터 밖 공고 (2026-09-30 · 입찰나라에서 가져온 것 4번) — 자료가 있을 때만 한 줄 */}
@@ -550,7 +551,8 @@ export default function LiveBoard() {
         </div>
       )}
 
-      {mode === 'list' && <RangeBar info={info} loaded={all.length} done={done} busy={busy} filtering={filtering} count={count} />}
+      {/* 🧭 G522 (2026-11-03 소장님 「이용자에게 편한걸로 해줘」) «7주 전체 N건 · 쪽을 넘기면…» 줄은 찾을 때 · 받는 중일 때만 — 평소엔 아래 공고 줄이 같은 건수 · 날짜 */}
+      {mode === 'list' && (filtering || busy) && <RangeBar info={info} loaded={all.length} done={done} busy={busy} filtering={filtering} count={count} />}
       {pick && idx === null && <div className="note">마감 전 공고 목록(bidindex.json)을 받지 못했습니다. 잠시 후 다시 열어보세요.</div>}
 
       {(pick ? (pickBusy || !done) : (loading || (filtering && !done) || !pageReady)) ? <Skeleton /> : rows.length === 0 ? (
@@ -562,7 +564,7 @@ export default function LiveBoard() {
       ) : (
         <>
           <div className="sec-title">{pick ? '넣을 만한 공고' : (bagMode ? '담은 공고' : '공고')} <span className="count">
-            {num(count)}건{pick ? ' (마감 전 · 계산 가능)' : (bagMode ? ` (최대 ${BASKET_MAX}건까지)` : (filtering ? ' (7주 전체)' : ''))}</span>
+            {num(count)}건{pick ? ' (마감 전 · 계산 가능)' : (bagMode ? ` (최대 ${BASKET_MAX}건까지)` : (filtering ? ' (7주 전체)' : (info && info.from && info.to ? ` · ${dateShort(info.from)} ~ ${dateShort(info.to)}` : '')))}</span>
             {방금.length > 0 && <span className="freshn">🆕 방금 {num(방금.length)}건 · {freshWhen(fresh && fresh.at)}</span>}</div>
           {/* 💰 2026-09-17 — 금액을 «몰라서» 빠진 공고를 정직하게 적습니다.
               조달청이 추정가격도 기초금액도 안 준 공고가 실측 6.1% 있습니다.
