@@ -13,7 +13,7 @@ import NoticeDetail, { scoreState, NoticeLink } from '../NoticeDetail.jsx'
 import { noteFirst } from '../lib/mentor.js'
 import { useBoard } from '../lib/useBoard.js'
 import { useFresh, freshRows, freshWhen } from '../lib/fresh.js'
-import { Skeleton, Empty, Tile, NaeyeokStrip } from '../components.jsx'
+import { Skeleton, Empty, NaeyeokStrip } from '../components.jsx'   /* 🧭 G521 숫자 상자(Tile) 뺌 — 제목 한 줄로 */
 import { won, wonShort, pct, num, dateTime, dateShort, REGIONS, inRegion } from '../lib/fmt.js'
 import { loadLicCodes, saveLicCodes, loadLicNone, saveLicNone,
          licList, licNoneCount, licHit, licShort, loadRegion, saveRegion, loadMine, saveMine } from '../lib/lic.js'
@@ -102,25 +102,19 @@ export default function FirstBoard() {
       {/* 📋 개찰 결과를 보러 온 사람 = 방금 낙찰됐거나 곧 낙찰될 사람입니다. */}
       <NaeyeokStrip tone="win" />
 
-      <div className="sec-title" style={{ marginTop: 14 }}>
+      {/* 🧭 G521 (2026-11-03 소장님 「사이트 점검도 해 이용자 입장에서 최대한 편하고 간단하게」 → 「이용자에게 편한걸로 해줘」)
+          폰(390)에서 목록 첫 카드가 862px — 화면 1.5장 아래라 1순위 탭을 눌러도 결과가 안 보였음.
+          · 숫자 상자 넷(누적 · 발주기관 · 업체 · 최근 개찰) → 제목 줄 한 줄(«최근 개찰» 은 결과 줄 건수와 같아 뺌)
+          · «나라장터 밖 1순위» 큰 카드 → 결과 줄의 작은 단추(날짜별 성적표 옆) · «7주 전체 N건 · 쪽을 넘기면…» 줄은 찾을 때 · 받는 중일 때만
+          · 갱신 알림(FreshBar) · 내 조건 · 찾기 · 지역 · 면허 · 내역서 띠는 그대로 */}
+      <div className="sec-title fb-head" style={{ marginTop: 14 }}>
         🏆 1순위 현황판
-        <span className="count">· 공사 개찰 결과 · 카드를 누르면 기초금액·낙찰가</span>
+        {ov && <span className="count">· 누적 {num(ov.rows)}건 · 발주기관 {num(ov.agencies)} · 업체 {num(ov.corps)}</span>}
       </div>
-
-      {ov && (
-        <div className="tiles c4" style={{ marginBottom: 10 }}>
-          <Tile k="누적 데이터" v={num(ov.rows)} small />
-          <Tile k="발주기관" v={num(ov.agencies)} small />
-          <Tile k="업체" v={num(ov.corps)} small />
-          <Tile k="최근 개찰" v={num(info?.n)} small />
-        </div>
-      )}
 
       {/* ⚠️ 문구를 여기에 적지 않습니다 — 시각에 따라 달라지고, 숫자의 근거는
           web/src/lib/freshnote.js 에 실측과 함께 한 곳에만 둡니다 (2026-09-11). */}
       <FreshBar kind="first" />
-      {/* 🏆 나라장터 밖 1순위(LH · 수자원 · 국방 · 아파트 · 민간) — 자료가 있을 때만 한 줄 (2026-09-30) */}
-      <밖공고줄 kind="first" />
       <내조건줄 region={region} mine={mine} lics={lics} licNone={licNone} licOptions={licOptions}
         넓혀보기={() => { setRegionRaw('전국'); setMineRaw(false) }}
         내조건으로={() => { setRegionRaw(loadRegion()); setMineRaw(loadMine()) }}
@@ -201,7 +195,8 @@ export default function FirstBoard() {
 
       <내금액모음 />
 
-      <RangeBar info={info} loaded={all.length} done={done} busy={busy} filtering={filtering} count={count} />
+      {/* 🧭 G521 찾을 때(«7주 전체에서 찾음») · 받는 중일 때만 — 평소엔 결과 줄이 같은 건수 · 날짜를 보여 줌 */}
+      {(filtering || busy) && <RangeBar info={info} loaded={all.length} done={done} busy={busy} filtering={filtering} count={count} />}
 
       {loading || (filtering && !done) || !pageReady ? <Skeleton /> : rows.length === 0 ? (
         <Empty icon="🔎">
@@ -212,10 +207,14 @@ export default function FirstBoard() {
           <div className="sec-title">
             {/* 검색 중엔 색인이 «7주 전체»에서 센 건수입니다 — 화면에 20건만 보여도 정확합니다.
                 (전에는 받아 둔 것만 세어서 «500건 중 몇 건» 이 되곤 했습니다) */}
-            결과 <span className="count">{num(count)}건{filtering && ' (7주 전체)'}</span>
+            결과 <span className="count">{num(count)}건{filtering ? ' (7주 전체)' : (info && info.from && info.to ? ` · ${dateShort(info.from)} ~ ${dateShort(info.to)}` : '')}</span>
             {방금.length > 0 && <span className="freshn">🆕 방금 {num(방금.length)}건 · {freshWhen(fresh && fresh.at)}</span>}
-            {/* ★ 날짜별 성적표로 가는 길 — <a href> 여야 정적 HTML 의 ddata 가 옵니다 */}
-            <a className="daylink" href="/daily">📅 날짜별 성적표 →</a>
+            <span className="fb-links">
+              {/* 🏆 나라장터 밖 1순위(LH · 수자원 · 국방 · 아파트 · 민간) — 자료가 있을 때만 (2026-09-30 · G521 작은 단추로) */}
+              <밖공고줄 kind="first" 작게 />
+              {/* ★ 날짜별 성적표로 가는 길 — <a href> 여야 정적 HTML 의 ddata 가 옵니다 */}
+              <a className="daylink" href="/daily">📅 날짜별 성적표 →</a>
+            </span>
           </div>
 
           {view.map((r, i) => {

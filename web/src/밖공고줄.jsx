@@ -9,7 +9,8 @@ import { useEffect, useState } from 'react'
 import { getJSON } from './lib/data.js'
 import { num } from './lib/fmt.js'
 
-export default function 밖공고줄({ kind = 'live' }) {
+/* 🧭 G521 (2026-11-03 «이용자에게 편한걸로») 작게 — 1순위 현황판 결과 줄의 작은 단추(날짜별 성적표 옆). 큰 카드가 목록을 밀어내던 것을 줄임 */
+export default function 밖공고줄({ kind = 'live', 작게 = false }) {
   const [m, setM] = useState(null)
   useEffect(() => {
     let 살아 = true
@@ -18,6 +19,7 @@ export default function 밖공고줄({ kind = 'live' }) {
   }, [])
   if (kind === 'first') {
     if (!m || !(m.first > 0)) return null
+    if (작게) return <Link to="/ext?t=first" className="daylink xchip" title="LH · 수자원 · 국방 · 아파트 · 민간 공사 · 최근 30일">🏆 나라장터 밖 1순위 {num(m.first)}건 →</Link>
     return (
       <Link to="/ext?t=first" className="xlink">
         <span className="xl-i">🏆</span>

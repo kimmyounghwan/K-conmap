@@ -9954,3 +9954,17 @@ div.bth { padding: 0; }
 .hgj-btns .btn { width: auto; flex: 1 1 260px; word-break: keep-all; }
 .hgj-how { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.65; }
 .hgj-sum { font-size: 13.5px; }
+
+/* 🧭 G521 (2026-11-03 소장님 「이용자에게 편한걸로 해줘」) 1순위 현황판 — 목록이 첫 화면에 보이게
+   · 결과 줄 오른쪽 작은 단추 둘(나라장터 밖 1순위 · 날짜별 성적표) — 좁으면 다음 줄로
+   · 투찰 순위 «▼ 나머지 N곳 보기» · 폰에서 내역서 띠를 한 줄 높이로(글 · «쓸 도구 · 서식 →» 나란히) */
+.sec-title .fb-links { margin-left: auto; display: inline-flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.sec-title .fb-links .daylink { margin-left: 0; }
+.rk-more { display: block; width: 100%; margin: 6px 0 2px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 9px;
+  background: var(--surface); color: var(--accent); font-weight: 700; font-size: 13.5px; cursor: pointer; }
+.rk-more:hover { background: var(--accent-soft); }
+@media (max-width: 560px) {
+  .naeyeok-strip { flex-wrap: nowrap; gap: 8px; padding: 8px 11px; font-size: 13px; line-height: 1.5; }
+  .naeyeok-strip .ns-txt { flex: 1 1 0; min-width: 0; }
+  .naeyeok-strip .ns-go { font-size: 12.5px; }
+}

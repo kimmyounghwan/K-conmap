@@ -214,6 +214,11 @@ function useRanks(r) {
 
 function BidTab({ r }) {
   const { corps, waiting: rankWait } = useRanks(r)
+  /* 🧭 G521 (2026-11-03 소장님 「이용자에게 편한걸로 해줘」) — 투찰 순위 30곳이 다 펼쳐져 폰에서 카드 하나가 3,100px(화면 4장)이었음
+     → 8곳 넘으면 처음 5곳 + «▼ 나머지 N곳 보기»(누르면 다 · «▲ 접기»). 셈 · 확보 예가 · 내 금액 몇 위는 그대로(30곳 모두로 셈). */
+  const [순위다, set순위다] = useState(false)
+  const 순위접음 = corps.length > 8 && !순위다
+  const 보일순위 = 순위접음 ? corps.slice(0, 5) : corps
   /* 🎯 G181 (2026-10-07) 투찰 순위마다 «확보 예가»(어림 · 평균 대비 배) — 소장님 「예가만 추가해」 · 셈은 lib/투찰자리.js(성적표와 같음)
      기초금액 · 하한율이 없거나 혼자 넣은 개찰은 셀 수 없어 비워 둡니다. 셈이 틀어져도 순위표는 그대로 뜹니다(try). */
   const p50 = useP50()
@@ -340,7 +345,7 @@ function BidTab({ r }) {
       {!rankWait && corps.length === 0 && (r._new
         ? <div className="hintbox">방금 들어온 개찰입니다 — 투찰 순위는 다음 정기 갱신 때 붙습니다(보통 1시간 안).</div>
         : <div className="hintbox">참여업체 정보가 없습니다.</div>)}
-      {corps.map((c, j) => {
+      {보일순위.map((c, j) => {
         const cr = c[2] != null ? c[2] : rateOf(c[1], r.base)
         return (
           <div className="row" key={j}>
@@ -356,6 +361,11 @@ function BidTab({ r }) {
           </div>
         )
       })}
+      {corps.length > 8 && (
+        <button type="button" className="rk-more" aria-expanded={순위다} onClick={() => set순위다((v) => !v)}>
+          {순위다 ? '▲ 순위 접기' : `▼ 나머지 ${corps.length - 5}곳 보기`}
+        </button>
+      )}
       {몫있음 && (
         <div className="kb-note muted" style={{ marginTop: 6 }}>
           🎯 <b>확보 예가</b>(어림) — 이 개찰 금액들을 낮은 순으로 늘어놓았을 때 그 업체가 1순위가 될 사정률 폭에 예정가격이 나올 몫을
