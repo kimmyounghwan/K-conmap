@@ -9988,3 +9988,6 @@ div.bth { padding: 0; }
   .goodrow .goodonly { padding: 8px 10px; font-size: 12.5px; line-height: 1.4; text-align: center; }
   .goodrow .goodonly i { display: none; }
 }
+
+/* 🧭 G523 (2026-11-03 «이용자에게 편한걸로») 서식 첫 화면 — 폰에선 소개 첫 문장만(서식 N가지 · 사이트에서 작성 · 무료 · 회원가입 없음) → 찾기 칸이 첫 화면에 */
+@media (max-width: 560px) { .lead-card .why2 .fm-more { display: none; } }
