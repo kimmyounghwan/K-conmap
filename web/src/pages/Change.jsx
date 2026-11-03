@@ -829,7 +829,7 @@ export function ChangeCalc() {
     if (nn(ctr) > 0) 줄.push(['', 굵은칸('변경 후 계약금액(어림)'), '', '', '', '', '', '', 수칸(nn(ctr) + 총증감), ''])
     값엑셀받기('설계변경_증감계산', [{ name: '증감 계산', head: ['No', '구분', '품명 · 규격', '단위', '당초 수량', '변경 수량', '증감 수량', '적용 단가', '조정액', '단가 근거(국가계약법 시행령 제65조)'], rows: 줄, widths: [5, 16, 26, 7, 10, 10, 10, 12, 14, 60] },
       { name: '조건', head: ['항목', '값'], rows: [['계약금액', 수칸(nn(ctr))], ['예정가격', 바로 ? '(낙찰률을 바로 넣음)' : 수칸(nn(est))], ['낙찰률', 율표], ['제경비 · 부가세 승율', 승 ? `${nn(승율)}%` : '(안 넣음 — 직접공사비만)']], widths: [24, 30] }],
-    { 주소: '/change/calc', 글: '설계변경 증감 계산 — K-건설맵 계산기에서 셈한 값입니다(수식 없음). 다시 셀 때는 k-conmap.com/change/calc' })
+    { 주소: '/change/calc', 글: '설계변경 증감 계산 — K-건설맵 계산기에서 셈한 값입니다. 다시 셀 때는 k-conmap.com/change/calc' })
     세기('|설계변경|엑셀')
   }
 
@@ -870,7 +870,7 @@ export function ChangeCalc() {
             ? <button type="button" className="btn ghost sm" onClick={예시}>✍ 예시 채우기</button>
             : <button type="button" className="btn ghost sm" onClick={처음부터}>🧹 처음부터</button>}
           <button type="button" className={'btn ghost sm' + (붙임 !== null ? ' on' : '')} onClick={() => set붙임(붙임 === null ? '' : null)}>📋 엑셀에서 붙여넣기</button>
-          <button type="button" className="btn ghost sm" onClick={엑셀받기} disabled={!out.some((o) => o.amt)}>📗 값만 엑셀 받기</button>
+          <button type="button" className="btn ghost sm" onClick={엑셀받기} disabled={!out.some((o) => o.amt)}>📗 엑셀 받기</button>
         </div>
         {붙임 !== null && (
           <div className="chg-paste">

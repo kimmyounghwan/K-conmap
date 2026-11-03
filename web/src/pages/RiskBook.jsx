@@ -219,7 +219,7 @@ export default function RiskBook() {
           <li><b>별지2 수시</b> — 4주(2주)·1주·1일 가운데 고르고, 별지1 줄을 <b>가져와</b> 작업위치·검토/추록·담당만 채웁니다. 1주는 요일별 ○·X 점검까지.</li>
           <li><b>별지3·4 회의·교육 결과</b> — 일시·장소·내용(기본 문장이 들어 있음)·사진 2장·참석자.</li>
           <li><b>별지5 성과측정표</b> — 중·상 등급 줄을 가져와 날마다 ○(이행)·X(미이행)를 누르면 달성율이 나옵니다.</li>
-          <li>다 되면 <b>🖨 인쇄</b> — 결재·서명은 종이에 받습니다. 보관용으로 <b>📗 엑셀(값만)</b>도 받습니다 — 종이와 같은 칸 · 결재란 그대로, 수식은 없습니다(고칠 때는 여기서).</li>
+          <li>다 되면 <b>🖨 인쇄</b> — 결재·서명은 종이에 받습니다. 보관용으로 <b>📗 엑셀</b>도 받습니다 — 종이와 같은 칸 · 결재란 그대로(고칠 때는 여기서).</li>
         </ol>
         <p className="note sm" style={{ marginBottom: 0 }}>
           빈 서식 종이만 필요하면 <Link to="/forms/wih-choego">📄 위험성평가 서식</Link>에서 별지마다 «빈 서식 인쇄» 를 누르십시오.
@@ -398,7 +398,7 @@ function 서류칸({ id, 문, 정보, 자료, 예시, 서류저장, 사진읽기
     if (!종) return
     const [{ 종이를격자, 격자책, 꼴 }, { 바이트받기 }] = await Promise.all([import('../lib/격자엑셀.js'), import('../lib/값엑셀.js')])
     const g = 종이를격자(종)
-    g.줄들.push({ h: 16, 칸: [{ c: 0, n: g.칸수, r: 1, v: 'K-건설맵 위험성평가에서 만든 값입니다(수식 없음). 고칠 때는 k-conmap.com/tools/risk 에서 고쳐 다시 받으십시오.', s: 꼴.꼬리 }] })
+    g.줄들.push({ h: 16, 칸: [{ c: 0, n: g.칸수, r: 1, v: 'K-건설맵 위험성평가에서 만든 값입니다. 고칠 때는 k-conmap.com/tools/risk 에서 고쳐 다시 받으십시오.', s: 꼴.꼬리 }] })
     바이트받기(`${K.별지}_${K.짧게}_${j.d || ''}`, 격자책([{ 이름: `${K.별지} ${K.짧게}`, ...g, 가로: !!K.가로 }]))
   }
   const 남은 = useRef(null)
@@ -431,7 +431,7 @@ function 서류칸({ id, 문, 정보, 자료, 예시, 서류저장, 사진읽기
         <button className="btn ghost sm" onClick={닫기}>← 서류 목록</button>
         <div className="grow"><div className="eq-name" style={{ fontSize: 15 }}>{K.별지} · {K.이름}</div><div className="d">{상태 || '고치면 저절로 저장됩니다'}</div></div>
         <button className="btn sm" onClick={인쇄}>🖨 인쇄</button>
-        <button className="btn sm ghost" onClick={엑셀받기} title="종이와 같은 칸으로 · 값만(수식 없음)">📗 엑셀(값만)</button>
+        <button className="btn sm ghost" onClick={엑셀받기} title="종이와 같은 칸으로">📗 엑셀</button>
       </div>
       <div className="card">
         {k === '1' && (
@@ -484,7 +484,7 @@ function 서류칸({ id, 문, 정보, 자료, 예시, 서류저장, 사진읽기
       <div className="card">
         <div className="eq-bar"><span className="sec-title" style={{ margin: 0 }}>🖨 종이 미리보기</span><span className="muted sm">{K.가로 ? 'A4 가로' : 'A4 세로'} · 결재·서명은 종이에</span>
           <button className="btn sm" onClick={인쇄}>🖨 인쇄 · PDF</button>
-          <button className="btn sm ghost" onClick={엑셀받기} title="종이와 같은 칸으로 · 값만(수식 없음)">📗 엑셀(값만)</button></div>
+          <button className="btn sm ghost" onClick={엑셀받기} title="종이와 같은 칸으로">📗 엑셀</button></div>
         <div className="rk-preview" ref={미리}><종이 k={k} j={j} 사진={사진} /></div>
       </div>
       {인쇄중 && createPortal(<div id="gp-인쇄"><div className={'rk-쪽 ' + (K.가로 ? 'land' : 'port')}><종이 k={k} j={j} 사진={사진} /></div></div>, document.body)}

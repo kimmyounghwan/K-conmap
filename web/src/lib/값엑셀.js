@@ -28,7 +28,7 @@ export const 흐린칸 = (s) => ({ v: String(s ?? ''), st: ST.GRAY })
  * @param {{주소?:string, 글?:string}} 꼬리  첫 시트 맨 아래 한 줄
  */
 export function 값엑셀받기(이름, 시트들, 꼬리 = {}) {
-  const 붙임 = 꼬리.주소 ? `K-건설맵에서 셈한 값입니다(수식 없음). 다시 셀 때는 k-conmap.com${꼬리.주소} 에서 — 적은 내용이 그 브라우저에 남아 있습니다.` : ''
+  const 붙임 = 꼬리.주소 ? `K-건설맵에서 셈한 값입니다. 다시 셀 때는 k-conmap.com${꼬리.주소} 에서 — 적은 내용이 그 브라우저에 남아 있습니다.` : ''
   const 시 = 시트들.map((s, i) => ({
     name: 시트이름(s.name),
     head: s.head,

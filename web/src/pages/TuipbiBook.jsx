@@ -140,8 +140,8 @@ function Bills(P) {
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 판인쇄('vendor')} disabled={!E.목록.length && !M.목록.length}>🖨 업체별 한 장씩 (장비 {장비업체들.length} · 자재 {M.목록.length})</button>
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 판인쇄('worker')} disabled={!N.줄.length}>🖨 근로자별 명세서 한 장씩 ({N.줄.length}명)</button>
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={인쇄}>🖨 이 화면 인쇄</button>
-          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 엑셀받기('M')} title="요약 · 노무비 대장 · 노무비 청구내역서 · 장비 · 자재 — 셈한 값만(수식 없음)">📗 이 달 청구서 엑셀(값만)</button>
-          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 엑셀받기('C')} title="처음 달부터 이 달까지 — 달별 · 노무비 집계표 · 개인별 · 장비 · 자재 업체별(수식 없음)">📗 달별 누계 엑셀(값만)</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 엑셀받기('M')} title="요약 · 노무비 대장 · 노무비 청구내역서 · 장비 · 자재">📗 이 달 청구서 엑셀</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 엑셀받기('C')} title="처음 달부터 이 달까지 — 달별 · 노무비 집계표 · 개인별 · 장비 · 자재 업체별">📗 달별 누계 엑셀</button>
           <label className="tp-chk" style={{ paddingBottom: 0 }}><input type="checkbox" checked={뒷자리} onChange={(e) => set뒷자리(e.target.checked)} disabled={잠김 && !예시} /> 주민번호 뒷자리 보이기</label>
         </div>
         {/* 📮👷🧾 G116 (2026-10-02) 경리 셋으로 이 현장 출역 넘기기 — 소장님 「현재 사이트에 있는 것과 연계해서」 (주민번호 · 계좌는 넘기지 않음) */}

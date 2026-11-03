@@ -300,7 +300,7 @@ export default function Gyeonjeok() {
       <div className="card gj-paper">
         <div className="btn-row no-print" style={{ justifyContent: 'flex-start', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
           <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={인쇄}>🖨 견적서 인쇄 (A4)</button>
-          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀받기}>📗 값만 엑셀 받기</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀받기}>📗 엑셀 받기</button>
           <span className="muted" style={{ fontSize: 12.5, alignSelf: 'center' }}>아래가 인쇄되는 모양입니다 — 견적서{견.방식 === 'public' ? ' · 원가계산서' : ''} 다음 쪽에 내역서.</span>
         </div>
         <h2 className="gj-title">견 적 서</h2>

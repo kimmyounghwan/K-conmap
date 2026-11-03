@@ -109,7 +109,7 @@ for (const 기기 of 기기들) {
       봐(/총 증감 어림\(승율 42\.86%\)이 당초 계약금액의 15\.03%/.test(t2) && /10% 이상입니다/.test(t2), `${기기} B 86% 알림 — 총 증감 15.03% · «10% 이상입니다»`, t2.slice(0, 260))
       if (기기 === 'PC') { await A.locator('.ctotal').screenshot({ path: `${폴더}/G371_PC_B_승율.png` }); await 알림.screenshot({ path: `${폴더}/G371_PC_B_86알림.png` }) }
       // 📗 값만 엑셀
-      const [dl] = await Promise.all([A.waitForEvent('download', { timeout: 20000 }), A.locator('button', { hasText: '값만 엑셀 받기' }).click()])
+      const [dl] = await Promise.all([A.waitForEvent('download', { timeout: 20000 }), A.locator('button', { hasText: /^📗 엑셀 받기$/ }).click()])
       const 파일 = `${폴더}/${기기}_B.xlsx`; await dl.saveAs(파일)
       const X = JSON.parse(execFileSync('python3', ['-c', `
 import json,sys,zipfile,re

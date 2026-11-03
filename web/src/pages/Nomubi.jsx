@@ -269,7 +269,7 @@ function 계산기({ 현장id, 현장칸, on현장명 }) {
         widths: [5, 10, 10, 6, 6, 10, 12, 10, 10, 10, 10, 10, 10, 11, 12, 60] },
       { name: '출역', head: ['성명', '직종', ...날, '공수', '일수'], rows: 출역, widths: [10, 10, ...날.map(() => 4), 6, 6] },
       { name: '신고용 집계', head: ['No', '성명', '직종', `근로일 (${달글(ym)})`, '근로일수', '지급액(보수 총액)', '소득세', '지방소득세'], rows: 신고, widths: [5, 10, 10, 40, 8, 14, 10, 10] },
-    ], { 주소: '/tools/nomubi', 글: `${st.co || ''} ${st.site || ''} · ${ym} 귀속 — K-건설맵 일용 노무비 계산기에서 셈한 값입니다(수식 없음). 다시 셀 때는 k-conmap.com/tools/nomubi 에서 — 적은 내용이 그 브라우저에 남아 있습니다.`.trim() })
+    ], { 주소: '/tools/nomubi', 글: `${st.co || ''} ${st.site || ''} · ${ym} 귀속 — K-건설맵 일용 노무비 계산기에서 셈한 값입니다. 다시 셀 때는 k-conmap.com/tools/nomubi 에서 — 적은 내용이 그 브라우저에 남아 있습니다.`.trim() })
   }
   const 안됨 = N.줄.filter((r) => !r.대상.P.대상 || !r.대상.H.대상 || !r.대상.E.대상)
 
@@ -544,8 +544,8 @@ function 계산기({ 현장id, 현장칸, on현장명 }) {
         <div className="card tp-bill">
           <div className="btn-row no-print" style={{ justifyContent: 'flex-start', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
             <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={인쇄}>🖨 지급명세서 인쇄 (A4 가로)</button>
-            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀받기}>📗 값만 엑셀 받기</button>
-            <span className="muted" style={{ fontSize: 12.5, alignSelf: 'center' }}>인쇄하면 출역 대장 · 지급 명세 · 신고용 집계가 함께 나옵니다. 엑셀은 보관용 값만(수식 없음) — 셈은 이 화면에서.</span>
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀받기}>📗 엑셀 받기</button>
+            <span className="muted" style={{ fontSize: 12.5, alignSelf: 'center' }}>인쇄하면 출역 대장 · 지급 명세 · 신고용 집계가 함께 나옵니다. 엑셀은 보관용 — 셈은 이 화면에서.</span>
           </div>
           {/* 📮👷🧾 G116 (2026-10-02) 경리 셋 — 같은 출역을 그대로 읽음 · 소장님 「현재 사이트에 있는 것과 연계해서」 */}
           <div className="btn-row no-print nm-next" style={{ justifyContent: 'flex-start', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>

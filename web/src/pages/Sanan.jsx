@@ -214,7 +214,7 @@ export default function Sanan() {
             {A.알림.length > 0 && <ul className="sn-al">{A.알림.map((a, i) => <li key={i}>{a}</li>)}</ul>}
             <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
               <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={계인쇄}>🖨 계상 내역 인쇄</button>
-              <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={계엑셀}>📗 값만 엑셀</button>
+              <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={계엑셀}>📗 엑셀 받기</button>
               <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set탭('plan')}>② 사용 계획 세우기 →</button>
             </div>
           </div>
@@ -348,7 +348,7 @@ export default function Sanan() {
             </div>
             <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
               <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={인쇄}>🖨 사용내역서 인쇄 (A4 · {1 + 쪽들.length}쪽)</button>
-              <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={서식엑셀}>📗 엑셀(값만 · 서식 칸 그대로)</button>
+              <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={서식엑셀}>📗 엑셀(서식 칸 그대로)</button>
             </div>
           </div>
           <div className="rk-preview sn-preview" ref={미리}>{종이들}</div>

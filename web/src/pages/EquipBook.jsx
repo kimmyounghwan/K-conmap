@@ -696,7 +696,7 @@ function 청구칸({ 자료, 달들, 정보, 풀린 }) {
           </select>
           <label className="eq-chk"><input type="checkbox" checked={모두} onChange={(e) => set모두(e.target.checked)} /> 이 달 거래처 모두</label>
           <button className="btn primary" disabled={!대상.length} onClick={인쇄}>🖨 인쇄 · PDF ({대상.length}장)</button>
-          <button className="btn ghost" disabled={!대상.length} onClick={엑셀받기} title="청구서 · 거래처 현황 · 기사 현황 · 달마다 — 셈한 값만(수식 없음)">📗 엑셀(값만)</button>
+          <button className="btn ghost" disabled={!대상.length} onClick={엑셀받기} title="청구서 · 거래처 현황 · 기사 현황 · 달마다">📗 엑셀</button>
         </div>
         <p className="note sm" style={{ margin: '8px 0 0' }}>A4 세로입니다. 아래 «장부 정보» 에 사업자번호·입금 계좌를 적어 두면 청구서 아래에 나옵니다.</p>
       </div>

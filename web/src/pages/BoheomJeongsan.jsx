@@ -266,7 +266,7 @@ export default function BoheomJeongsan() {
         )}
         <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
           <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => { 세기('|보험정산|인쇄'); 인쇄() }}>🖨 청구서 인쇄 (A4 가로)</button>
-          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀}>📗 엑셀 받기(값만)</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀}>📗 엑셀 받기</button>
         </div>
         {좁음 && <button type="button" className="tp-x" style={{ marginTop: 8 }} onClick={() => set크게((v) => !v)}>{크게 ? '🔎 한눈에 보기' : '🔍 크게 보기 (옆으로 밀어 보기)'}</button>}
         <div className="rk-preview bj-preview" ref={미리}><div style={맞춤 < 1 ? { zoom: 맞춤 } : undefined}><청구종이 c={c} S={S} /></div></div>

@@ -329,8 +329,8 @@ function 일보({ 현장id, 현장줄, 이름바뀜 }) {
         {알림 && <div className="note sm" role="status" style={{ marginTop: 8 }}>{알림}</div>}
         <div className="btn-row" style={{ marginTop: 10, flexWrap: 'wrap', justifyContent: 'flex-start', gap: 8 }}>
           <button type="button" className="btn" style={{ width: 'auto' }} onClick={인쇄}>🖨 이 날 작업일보 인쇄 (A4)</button>
-          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 엑셀(false)}>📗 이 날 엑셀(값만)</button>
-          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 엑셀(true)}>📗 {+ym.slice(5)}월 모아 엑셀(값만)</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 엑셀(false)}>📗 이 날 엑셀</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 엑셀(true)}>📗 {+ym.slice(5)}월 모아 엑셀</button>
           {적음((st.일 || {})[d]) && (묻기 === 'day'
             ? <><button type="button" className="btn line sm nm-warn" style={{ width: 'auto' }} onClick={() => { setSt((s) => { const 일 = { ...s.일 }; delete 일[d]; return { ...s, 일 } }); set묻기(false); set알림('이 날 것을 지웠습니다.') }}>정말 이 날 지우기</button><button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set묻기(false)}>그대로</button></>
             : <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set묻기('day')}>🗑 이 날 지우기</button>)}

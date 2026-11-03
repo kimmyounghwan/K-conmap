@@ -93,7 +93,7 @@ export default function Toejik() {
             <div className="hm-print-h">👷 {자료.co ? `${자료.co} · ` : ''}{자료.site || '현장'} — {달글(ym)} 퇴직공제 근로일수 · 공제부금 <span>(일액 {원(액.일액)}원 · K-건설맵 · {오늘} 뽑음)</span></div>
             <div className="btn-row no-print" style={{ justifyContent: 'flex-start', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
               <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={인쇄}>🖨 인쇄 (A4)</button>
-              <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀}>📗 값만 엑셀 받기</button>
+              <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀}>📗 엑셀 받기</button>
             </div>
             <div className="hm-sum">
               <div><span>피공제자</span><b>{T.합.인원}명</b>{T.합.뺀인원 > 0 && <i>뺀 사람 {T.합.뺀인원}명</i>}</div>

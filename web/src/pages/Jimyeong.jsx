@@ -197,7 +197,7 @@ export default function Jimyeong() {
             <label className="gj-check" style={{ marginTop: 6 }}><input type="checkbox" checked={!!st.새쪽} onChange={(e) => 칸바꿈('새쪽', e.target.checked)} /> 절마다 새 쪽에서 시작</label>
             <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
               <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={인쇄}>🖨 공사지명원 인쇄 (A4)</button>
-              <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀받기}>📗 값만 엑셀</button>
+              <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀받기}>📗 엑셀 받기</button>
             </div>
             <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>인쇄 창에서 «PDF로 저장» 을 고르면 PDF 로도 냅니다. 사업자등록증 같은 첨부 서류는 따로 떼어 뒤에 붙이십시오. 실적 사진은 <Link to="/tools/photo">사진대지</Link>로 만들 수 있습니다.</div>
           </div>

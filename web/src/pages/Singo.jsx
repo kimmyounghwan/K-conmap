@@ -97,7 +97,7 @@ export default function Singo() {
             <div className="hm-print-h">📮 {자료.co ? `${자료.co} · ` : ''}{자료.site || '현장'} — {달글(ym)} 귀속 신고 정리 <span>(K-건설맵 · {오늘} 뽑음)</span></div>
             <div className="btn-row no-print" style={{ justifyContent: 'flex-start', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
               <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={인쇄}>🖨 인쇄 (A4)</button>
-              <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀}>📗 값만 엑셀 받기</button>
+              <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀}>📗 엑셀 받기</button>
             </div>
             <div className="hm-sum">
               <div><span>인원</span><b>{N.합계.인원}명</b></div>

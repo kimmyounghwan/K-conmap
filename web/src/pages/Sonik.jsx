@@ -199,7 +199,7 @@ export default function Sonik() {
           <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
             <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={보고인쇄}>🖨 손익 보고서 (A4)</button>
             <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={장인쇄}>🖨 매입매출장 (A4 가로)</button>
-            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀받기}>📗 값만 엑셀</button>
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀받기}>📗 엑셀 받기</button>
           </div>
         </div>
       )}

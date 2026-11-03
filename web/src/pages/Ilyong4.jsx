@@ -533,7 +533,7 @@ export default function Ilyong4() {
           <div className="detail-h" style={{ margin: 0 }}>✅ 판단 결과{st.이름 ? ` — ${st.이름}` : ''}</div>
           <span className="iy-act">
             <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={인쇄} disabled={!R.날들.length}>🖨 인쇄</button>
-            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀받기} disabled={!R.날들.length}>📗 엑셀(값만)</button>
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀받기} disabled={!R.날들.length}>📗 엑셀</button>
             <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={링크보내기} disabled={!R.날들.length}>🔗 링크 보내기</button>
           </span>
         </div>

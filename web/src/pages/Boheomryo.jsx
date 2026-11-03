@@ -160,7 +160,7 @@ export default function Boheomryo() {
         <div className="hm-print-h">🧾 {입.해}년 고용 · 산재 보험료 <span>(K-건설맵 · {오늘} 뽑음)</span></div>
         <div className="btn-row no-print" style={{ justifyContent: 'flex-start', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
           <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={인쇄}>🖨 인쇄 (A4)</button>
-          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀}>📗 값만 엑셀 받기</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀}>📗 엑셀 받기</button>
         </div>
         <div className="hm-sum">
           <div><span>보수총액</span><b>{원(R.보수)}</b><i>{R.방식 === 'nomu' ? `총공사금액 × ${백(R.노율)}` : '실제 보수'}</i></div>

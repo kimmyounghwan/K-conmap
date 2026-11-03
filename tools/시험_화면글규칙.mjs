@@ -1,0 +1,108 @@
+/**
+ * 🧹 G520 화면 글 규칙 — 소장님이 «화면에 쓰지 말라» 하신 말이 사이트 어디에도 다시 안 들어가게(재발 막기)
+ *   node tools/시험_화면글규칙.mjs        (인터넷 · 빌드 · 플레이라이트 없이 — PC 올리기 시험에도 넣음)
+ *
+ *   ① 「값만 다운 — 이건 기재하지마」(2026-10-25) — 엑셀은 원칙대로 값만 주되 «값만 · 수식 없음» 이라고 적지 않음
+ *      (G518 견적틀 때 화면 글에서 처음 걸림 → G520 사이트 점검에서 도구 단추 · 안내 · 받는 파일 안 글 · 구운 장 · 도구 설명에 30곳 넘게 남은 것을 찾음)
+ *   ② «클로드» 라는 말을 사이트 글에 넣지 말 것 — «건설맵» 으로(2026-10-16)
+ *
+ *   보는 곳: web/src 의 .js · .jsx(주석 빼고 — 화면 글 · 받는 파일 글 · 제목(title) 모두) · web/src/data 의 .json · prerender.py(# 줄 빼고)
+ *            · web/index.html · web/public 의 .html
+ *   ⚠️ 이용자가 «가져오는» 파일을 말하는 글은 괜찮음 — 예: «값만 남은 내역서(적산 프로그램이 내보낸 것)» · «값만 읽으므로» (우리 받기 글이 아님)
+ */
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
+
+let bad = 0, n = 0
+const ok = (이름, c, got) => { n++; if (!c) bad++; console.log((c ? '  ✓ ' : '  ✗ ') + 이름 + (c || got === undefined ? '' : '\n      ' + [].concat(got).slice(0, 40).join('\n      '))) }
+
+/* 「값만 다운」 을 적은 말꼴 — 우리 받기 · 받은 파일을 두고 «값만 · 수식 없음» 을 말하는 꼴만 */
+const 값만꼴 = [
+  /값만\s*(든\s*)?(엑셀|파일)/,           // 값만 엑셀 · 값만 든 엑셀 · 값만 든 파일
+  /엑셀\s*(받기)?\s*\(\s*값만/,            // 엑셀(값만) · 엑셀 받기(값만)
+  /(?<!못한\s)수식\s*(은\s*)?없(음|습니다|이)/,   // 수식 없음 · 수식은 없습니다 · 수식 없이 (⚠️ «고치지 못한 수식은 없습니다»(2줄 변환 검산)는 다른 뜻)
+  /값만\s*\(\s*수식/,                     // 값만(수식 …
+  /셈한\s*(<b>\s*)?값만/,                  // 셈한 값만
+  /보관용\s*값만/,
+]
+const 클로드꼴 = /클로드/
+/* 옛 자료 «클로드:» 머리를 «건설맵:» 으로 바꿔 읽는 코드(lib/골조.js · 부재일람표.js · Bim.jsx — 10-16 고침의 옛 저장값 잇기)는 화면 글이 아님 */
+const 클로드괜찮음 = /startsWith\('클로드:'\)|\^\(클로드\|건설맵\)/
+
+/* 주석 빼기 — JS · JSX: 덩이 주석(JSX 의 {/* *\/} 포함) · 줄 주석(«://» 주소는 남김)
+   ⚠️ 글자 줄(' " `) 안은 주석으로 안 봄 — 처음엔 정규식 하나로 뺐다가 accept="image/*" 의 «/*» 를 주석 시작으로 보아
+      Jimyeong.jsx 141~214줄을 통째로 빼 «📗 값만 엑셀» 단추를 못 잡았음(G520 만들 때 찾음). ' " 는 줄 끝에서 끊음(JSX 글의 낱 따옴표). */
+function 주석빼기js(s) {
+  let out = '', i = 0, 상태 = null
+  const n = s.length
+  while (i < n) {
+    const c = s[i], d = s[i + 1]
+    if (상태) {
+      if (c === '\\') { out += c + (d || ''); i += 2; continue }
+      if (c === 상태 || (상태 !== '`' && c === '\n')) 상태 = null
+      out += c; i++; continue
+    }
+    if (c === '/' && d === '*') { const e = s.indexOf('*/', i + 2); const 끝 = e < 0 ? n : e + 2; out += s.slice(i, 끝).replace(/[^\n]/g, ' '); i = 끝; continue }
+    if (c === '/' && d === '/' && s[i - 1] !== ':') { const e = s.indexOf('\n', i); const 끝 = e < 0 ? n : e; out += ' '.repeat(끝 - i); i = 끝; continue }
+    if (c === "'" || c === '"' || c === '`') 상태 = c
+    out += c; i++
+  }
+  return out
+}
+function 주석빼기py(s) { return s.split('\n').map((줄) => (/^\s*#/.test(줄) ? '' : 줄)).join('\n') }
+
+function 파일들(곳, 끝들) {
+  const out = []
+  const 걷기 = (d) => {
+    if (!fs.existsSync(d)) return
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      const p = path.join(d, e.name)
+      if (e.isDirectory()) { if (!/node_modules|dist|\.git/.test(e.name)) 걷기(p) } else if (끝들.some((x) => e.name.endsWith(x))) out.push(p)
+    }
+  }
+  걷기(path.join(ROOT, 곳))
+  return out
+}
+function 찾기(목록, 빼기, 꼴들, 괜찮음 = null) {
+  const 걸림 = []
+  for (const f of 목록) {
+    const 글 = 빼기(fs.readFileSync(f, 'utf8'))
+    글.split('\n').forEach((줄, i) => {
+      if (괜찮음 && 괜찮음.test(줄)) return
+      for (const 꼴 of 꼴들) {
+        const m = 줄.match(꼴)
+        if (m) { 걸림.push(`${path.relative(ROOT, f)}:${i + 1}  …${줄.slice(Math.max(0, m.index - 30), m.index + 40).trim()}…`); break }
+      }
+    })
+  }
+  return 걸림
+}
+
+const js = 파일들('web/src', ['.js', '.jsx']).filter((f) => !f.includes(path.join('web', 'src', 'data') + path.sep))
+const json = 파일들('web/src/data', ['.json'])
+const html = [path.join(ROOT, 'web/index.html'), ...파일들('web/public', ['.html'])].filter((f) => fs.existsSync(f))
+const py = [path.join(ROOT, 'prerender.py')]
+const 그대로 = (s) => s
+
+console.log(`① «값만 · 수식 없음» 을 화면 · 받는 파일에 적지 않음 (js ${js.length} · json ${json.length} · html ${html.length} · prerender.py)`)
+ok('web/src 화면 · 받는 파일 글(주석 뺌)', !찾기(js, 주석빼기js, 값만꼴).length, 찾기(js, 주석빼기js, 값만꼴))
+ok('web/src/data 도구 · 서식 설명', !찾기(json, 그대로, 값만꼴).length, 찾기(json, 그대로, 값만꼴))
+ok('prerender.py 구운 장 글', !찾기(py, 주석빼기py, 값만꼴).length, 찾기(py, 주석빼기py, 값만꼴))
+ok('web/index.html · web/public 의 .html', !찾기(html, 그대로, 값만꼴).length, 찾기(html, 그대로, 값만꼴))
+
+console.log('② «클로드» 를 사이트 글에 넣지 않음')
+ok('web/src 화면 글(주석 뺌)', !찾기(js, 주석빼기js, [클로드꼴], 클로드괜찮음).length, 찾기(js, 주석빼기js, [클로드꼴], 클로드괜찮음))
+ok('web/src/data', !찾기(json, 그대로, [클로드꼴]).length, 찾기(json, 그대로, [클로드꼴]))
+ok('prerender.py', !찾기(py, 주석빼기py, [클로드꼴]).length, 찾기(py, 주석빼기py, [클로드꼴]))
+ok('web/index.html · web/public 의 .html', !찾기(html, 그대로, [클로드꼴]).length, 찾기(html, 그대로, [클로드꼴]))
+
+console.log('③ 시험이 제대로 잡는지(일부러 넣어 봄)')
+const 표본 = ['<button>📗 값만 엑셀 받기</button>', "title='종이와 같은 칸으로 · 값만(수식 없음)'", '📗 엑셀(값만)', '셈한 값이 든 엑셀입니다(수식 없음)', '보관용으로 셈한 <b>값만</b> 든 엑셀', '• 수식 없이 값만 들어 있습니다', '클로드가 만든 값', '<input accept="image/*" hidden />\n<button>📗 값만 엑셀</button>\n{/* 뒤 주석 */}']
+const 안걸릴 = ['<p>고치지 못한 수식은 없습니다. 그래도 합계는 확인</p>', '<li><b>값만 남은 내역서</b>(적산 프로그램이 내보낸 것)', '값만 읽으므로 새 엑셀은 우리 서식으로', '🟡 제안값만 확인하십시오', '/* 📗 값만 엑셀 — 주석 */ <b>엑셀 받기</b>', '// 클로드 주석', 'https://k-conmap.com // 주소 뒤 주석 클로드']
+ok('잡아야 할 꼴 8가지 모두 잡음(accept="image/*" 뒤 단추 포함)', 표본.every((t) => [...값만꼴, 클로드꼴].some((r) => r.test(주석빼기js(t)))), 표본.filter((t) => ![...값만꼴, 클로드꼴].some((r) => r.test(주석빼기js(t)))))
+ok('괜찮은 글 · 주석은 안 잡음', 안걸릴.every((t) => ![...값만꼴, 클로드꼴].some((r) => r.test(주석빼기js(t)))), 안걸릴.filter((t) => [...값만꼴, 클로드꼴].some((r) => r.test(주석빼기js(t)))))
+
+console.log(`\n${bad ? '✗' : '✓'} 시험_화면글규칙 ${n - bad}/${n}`)
+process.exit(bad ? 1 : 0)

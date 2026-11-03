@@ -136,7 +136,7 @@ for (const 기기 of 기기들) {
     // 📗 값만 엑셀 — 마지막 답 달
     const 끝달 = Object.keys(S.답[벌]).pop()
     await 옮김(끝달)
-    const [dl] = await Promise.all([A.waitForEvent('download', { timeout: 30000 }), A.locator('button', { hasText: '값만 엑셀 받기' }).click()])
+    const [dl] = await Promise.all([A.waitForEvent('download', { timeout: 30000 }), A.locator('button', { hasText: /^📗 엑셀 받기$/ }).click()])
     const 파일 = path.join(폴더, `${기기}_${벌}.xlsx`)
     await dl.saveAs(파일)
     const X = 엑셀줄(파일)
