@@ -115,6 +115,7 @@
     "yuhae-gyehoek",
     "anjeon-jijeong",
     "seolgye-anjeon-daejang",
+    "gongsa-anjeon-daejang",
     "anjeon-hwangyeong-bi",
     "anjeonbi-gyehoek",
     "pumjil-gwanri-gyehoek",
@@ -595,6 +596,10 @@
     {
      "s": "anjeon-gyehoek",
      "d": "안전관리계획서 — 대상 공사"
+    },
+    {
+     "s": "gongsa-anjeon-daejang",
+     "d": "공사안전보건대장 — 총공사금액 50억 원 이상 · 착공 전날까지"
     },
     {
      "s": "pumjil-gyehoek",

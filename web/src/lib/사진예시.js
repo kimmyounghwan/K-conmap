@@ -135,6 +135,73 @@ function 둥근네모(g, x, y, w, h, r) {
   g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath()
 }
 function 쓰기(g, t, x, y, px, 색 = '#1f2937', 굵 = true, 줄 = 'center') { g.font = 글꼴(px, 굵); g.fillStyle = 색; g.textAlign = 줄; g.fillText(t, x, y) }
+/* 🦺 G538 공사안전보건대장 «3. 기계·장비 배치 및 이동 경로» 예시 그림 네 장 — 같은 가상의 대지(가나시 복합청사 예시와 맞춤)
+ *   서쪽 주차동(철골) · 가운데 청사동(철근콘크리트 · 흙막이) · 동쪽 인접 건물(대지 밖) · 남쪽 ○○로 · 출입구 — 오른쪽은 범례
+ *   첨부 서식 1 예시(타워크레인 작업반경이 동쪽 인접 건물과 겹침 → 회전 제한 동쪽 90° · 펌프카 경사 5 % 구간 → 받침판 · 고임목)와 같은 내용 */
+function 화살(g, 점들, 색, 굵기 = 10) {
+  g.strokeStyle = 색; g.lineWidth = 굵기; g.lineCap = 'round'; g.lineJoin = 'round'
+  g.beginPath(); g.moveTo(점들[0][0], 점들[0][1]); for (const [x, y] of 점들.slice(1)) g.lineTo(x, y); g.stroke()
+  const [x1, y1] = 점들[점들.length - 2], [x2, y2] = 점들[점들.length - 1]
+  const a = Math.atan2(y2 - y1, x2 - x1), L = 굵기 * 2.6
+  g.fillStyle = 색; g.beginPath(); g.moveTo(x2 + Math.cos(a) * L * 0.6, y2 + Math.sin(a) * L * 0.6)
+  g.lineTo(x2 + Math.cos(a + 2.5) * L, y2 + Math.sin(a + 2.5) * L); g.lineTo(x2 + Math.cos(a - 2.5) * L, y2 + Math.sin(a - 2.5) * L); g.closePath(); g.fill()
+}
+function 빗금(g, x, y, w, h, 색, 바탕) {
+  if (바탕) { g.fillStyle = 바탕; g.fillRect(x, y, w, h) }
+  g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); g.strokeStyle = 색; g.lineWidth = 3
+  for (let i = -h; i < w + h; i += 18) { g.beginPath(); g.moveTo(x + i, y + h); g.lineTo(x + i + h, y); g.stroke() }
+  g.restore()
+}
+function 점선원(g, x, y, r, 색, 굵기 = 5) { g.strokeStyle = 색; g.lineWidth = 굵기; g.setLineDash([18, 10]); g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.stroke(); g.setLineDash([]) }
+function 신호수(g, x, y, 글쪽 = 'left') {
+  g.fillStyle = '#facc15'; g.strokeStyle = '#a16207'; g.lineWidth = 3; g.beginPath(); g.arc(x, y, 12, 0, Math.PI * 2); g.fill(); g.stroke()
+  if (글쪽) 쓰기(g, '신호수', 글쪽 === 'left' ? x - 20 : x + 20, y + 7, 20, '#854d0e', true, 글쪽 === 'left' ? 'right' : 'left')
+}
+function 받침(g, 점들) { g.fillStyle = '#6b7280'; for (const [x, y] of 점들) g.fillRect(x - 11, y - 11, 22, 22) }
+/** 장비 몸체(위에서 본 모양) — 몸 · 운전석 */
+function 장비몸(g, x, y, w, h, 글) {
+  g.fillStyle = '#f59e0b'; g.fillRect(x, y, w, h); g.strokeStyle = '#92400e'; g.lineWidth = 3; g.strokeRect(x, y, w, h)
+  g.fillStyle = '#fde68a'; g.fillRect(x + w - 26, y + 6, 20, h - 12)
+  if (글) 쓰기(g, 글, x + (w - 26) / 2, y + h / 2 + 8, 20, '#1f2937')
+}
+function 장비대지(g, w, h, 흙막이글 = true) {
+  g.fillStyle = '#f5f2ea'; g.fillRect(0, 0, w, h)
+  /* ○○로(남쪽) */
+  g.fillStyle = '#cfc9bc'; g.fillRect(0, 800, w, 80)
+  g.strokeStyle = '#ffffff'; g.lineWidth = 5; g.setLineDash([26, 20]); g.beginPath(); g.moveTo(0, 840); g.lineTo(w, 840); g.stroke(); g.setLineDash([])
+  쓰기(g, '○○로', 1280, 852, 30, '#5b5446')
+  /* 대지 경계(점선) · 남쪽 출입구 */
+  g.strokeStyle = '#374151'; g.lineWidth = 5; g.setLineDash([20, 12])
+  g.beginPath(); g.moveTo(380, 780); g.lineTo(90, 780); g.lineTo(90, 140); g.lineTo(1130, 140); g.lineTo(1130, 780); g.lineTo(520, 780); g.stroke(); g.setLineDash([])
+  쓰기(g, '대지 경계', 110, 172, 24, '#374151', false, 'left')
+  쓰기(g, '출입구', 372, 770, 22, '#374151', true, 'right')
+  /* 주차동(철골) · 청사동(철근콘크리트) · 흙막이 */
+  g.fillStyle = '#e5e7eb'; g.fillRect(160, 220, 260, 250); g.strokeStyle = '#6b7280'; g.lineWidth = 5; g.strokeRect(160, 220, 260, 250)
+  쓰기(g, '주차동', 290, 330, 30, '#374151'); 쓰기(g, '철골 · 12 m', 290, 370, 22, '#4b5563', false)
+  g.strokeStyle = '#92400e'; g.lineWidth = 4; g.setLineDash([10, 7]); g.strokeRect(530, 190, 500, 440); g.setLineDash([])
+  if (흙막이글) 쓰기(g, '흙막이', 1040, 622, 22, '#92400e', true, 'left')
+  g.fillStyle = '#d1d5db'; g.fillRect(560, 220, 440, 380); g.strokeStyle = '#4b5563'; g.lineWidth = 5; g.strokeRect(560, 220, 440, 380)
+  쓰기(g, '청사동', 780, 282, 32, '#1f2937'); 쓰기(g, '철근콘크리트 · 21.6 m', 780, 320, 22, '#374151', false); 쓰기(g, '굴착 6.5 m', 780, 350, 22, '#374151', false)
+  /* 인접 건물(대지 밖 · 동쪽) */
+  g.fillStyle = '#ffedd5'; g.fillRect(1160, 220, 200, 380); g.strokeStyle = '#c2410c'; g.lineWidth = 5; g.strokeRect(1160, 220, 200, 380)
+  쓰기(g, '인접 건물', 1260, 395, 28, '#9a3412'); 쓰기(g, '동쪽 · 5층', 1260, 433, 22, '#9a3412', false)
+  /* 북쪽 */
+  g.fillStyle = '#374151'; g.beginPath(); g.moveTo(2080, 70); g.lineTo(2056, 140); g.lineTo(2080, 124); g.lineTo(2104, 140); g.closePath(); g.fill()
+  쓰기(g, 'N', 2080, 60, 34, '#374151')
+}
+/** 범례 — [그리기(g, x, y), 글, 둘째 줄?] · 끝에 회색 덧말 */
+function 범례(g, 줄들, 덧말 = []) {
+  쓰기(g, '범  례', 1460, 196, 30, '#1f2937', true, 'left')
+  let y = 250
+  for (const [그리기, 글, 둘] of 줄들) {
+    그리기(g, 1500, y)
+    쓰기(g, 글, 1560, y + 9, 25, '#1f2937', true, 'left')
+    if (둘) { 쓰기(g, 둘, 1560, y + 41, 21, '#4b5563', false, 'left'); y += 32 }
+    y += 60
+  }
+  y += 6
+  for (const t of 덧말) { 쓰기(g, '· ' + t, 1460, y, 22, '#4b5563', false, 'left'); y += 34 }
+}
 const 그림장면 = {
   '공사장 위치도': { w: 1600, h: 1030, 표: 1030, 그리기: (g, w, h) => {
     g.fillStyle = '#f5f2ea'; g.fillRect(0, 0, w, h)
@@ -257,6 +324,104 @@ const 그림장면 = {
     g.strokeStyle = '#0284c7'; g.lineWidth = 4; g.setLineDash([12, 8]); g.beginPath(); g.arc(1800, 310, 28, 0, Math.PI * 2); g.stroke(); g.setLineDash([]); 쓰기(g, '살수시설', 1860, 320, 28, '#0369a1', true, 'left')
     g.fillStyle = '#d6b98c'; g.fillRect(1772, 370, 56, 40); 쓰기(g, '방진덮개', 1860, 400, 28, '#78350f', true, 'left')
   } },
+  /* 🦺 G538 공사안전보건대장 «3. 1) 타워크레인 배치 위치 및 작업구간» — 작업반경이 동쪽 인접 건물과 겹침 → 회전 제한(동쪽 90°) · 인양 구역 · 신호수 */
+  '장비 배치 · 타워크레인': { w: 2160, h: 880, 표: 880, 끝y: 792, 그리기: (g, w, h) => {
+    장비대지(g, w, h)
+    const cx = 780, cy = 450, R = 450
+    g.fillStyle = 'rgba(220,38,38,.16)'; g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, R, -Math.PI / 4, Math.PI / 4); g.closePath(); g.fill()
+    g.strokeStyle = '#dc2626'; g.lineWidth = 3; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + R * Math.SQRT1_2, cy - R * Math.SQRT1_2); g.moveTo(cx, cy); g.lineTo(cx + R * Math.SQRT1_2, cy + R * Math.SQRT1_2); g.stroke()
+    점선원(g, cx, cy, R, '#dc2626')
+    g.fillStyle = 'rgba(250,204,21,.38)'; g.fillRect(440, 645, 120, 90); g.strokeStyle = '#ca8a04'; g.lineWidth = 4; g.setLineDash([10, 6]); g.strokeRect(440, 645, 120, 90); g.setLineDash([])
+    쓰기(g, '인양 구역', 500, 698, 22, '#854d0e')
+    g.fillStyle = '#dc2626'; g.fillRect(cx - 20, cy - 20, 40, 40)
+    g.strokeStyle = '#ffffff'; g.lineWidth = 4; g.beginPath(); g.moveTo(cx - 20, cy - 20); g.lineTo(cx + 20, cy + 20); g.moveTo(cx + 20, cy - 20); g.lineTo(cx - 20, cy + 20); g.stroke()
+    쓰기(g, 'T-1', cx, cy + 52, 26, '#b91c1c')
+    신호수(g, 1075, 690); 신호수(g, 420, 600)
+    범례(g, [
+      [(g, x, y) => { g.fillStyle = '#dc2626'; g.fillRect(x - 16, y - 16, 32, 32) }, 'T-1 타워크레인 · 작업반경 R = 50 m'],
+      [(g, x, y) => { g.strokeStyle = '#dc2626'; g.lineWidth = 5; g.setLineDash([18, 10]); g.beginPath(); g.moveTo(x - 40, y); g.lineTo(x + 40, y); g.stroke(); g.setLineDash([]) }, '작업반경(점선)'],
+      [(g, x, y) => { g.fillStyle = 'rgba(220,38,38,.16)'; g.fillRect(x - 40, y - 20, 80, 40); g.strokeStyle = '#dc2626'; g.lineWidth = 3; g.strokeRect(x - 40, y - 20, 80, 40) }, '회전 제한 — 동쪽 90°', '인접 건물 위로 돌리지 않음(제한 장치)'],
+      [(g, x, y) => { g.fillStyle = 'rgba(250,204,21,.38)'; g.fillRect(x - 40, y - 20, 80, 40); g.strokeStyle = '#ca8a04'; g.lineWidth = 4; g.setLineDash([10, 6]); g.strokeRect(x - 40, y - 20, 80, 40); g.setLineDash([]) }, '자재 인양 구역 — 출입 통제'],
+      [(g, x, y) => 신호수(g, x, y, ''), '신호수 — 작업 전 회전 구역 표시'],
+    ], ['기초 — 지내력 확인 · 기초 구조검토', '다른 타워크레인 없음 — 작업구간 겹침 없음'])
+  } },
+  /* 🦺 G538 «2) 콘크리트 펌프카 배치 위치 및 이동 경로» — 출입구 경사 5 % 구간 → 받침판 · 고임목(첨부 서식 1 예시와 같게) */
+  '장비 배치 · 콘크리트 펌프카': { w: 2160, h: 880, 표: 880, 끝y: 792, 그리기: (g, w, h) => {
+    장비대지(g, w, h)
+    빗금(g, 420, 730, 60, 70, '#ea580c', 'rgba(234,88,12,.18)')
+    쓰기(g, '경사 5 %', 488, 772, 22, '#9a3412', true, 'left')
+    점선원(g, 800, 715, 330, '#ea580c')
+    g.strokeStyle = '#ea580c'; g.lineWidth = 4; g.setLineDash([10, 6]); g.strokeRect(585, 638, 365, 138); g.setLineDash([])
+    화살(g, [[120, 840], [450, 840], [450, 715], [588, 715]], '#2563eb')
+    g.fillStyle = '#e5e7eb'; g.fillRect(600, 695, 110, 40); g.strokeStyle = '#4b5563'; g.lineWidth = 3; g.strokeRect(600, 695, 110, 40)
+    쓰기(g, '레미콘', 655, 723, 20, '#1f2937')
+    g.strokeStyle = '#4b5563'; g.lineWidth = 5
+    g.beginPath(); g.moveTo(725, 695); g.lineTo(692, 662); g.moveTo(875, 695); g.lineTo(908, 662); g.moveTo(725, 735); g.lineTo(692, 762); g.moveTo(875, 735); g.lineTo(908, 762); g.stroke()
+    받침(g, [[688, 658], [912, 658], [688, 762], [912, 762]])
+    장비몸(g, 720, 690, 190, 50, '펌프카')
+    신호수(g, 1075, 690)
+    범례(g, [
+      [(g, x, y) => 화살(g, [[x - 40, y], [x + 34, y]], '#2563eb', 8), '이동 경로 — ○○로 → 출입구 → 타설 위치'],
+      [(g, x, y) => 장비몸(g, x - 40, y - 18, 80, 36), '콘크리트 펌프카 · 붐 36 m'],
+      [(g, x, y) => { g.strokeStyle = '#ea580c'; g.lineWidth = 5; g.setLineDash([18, 10]); g.beginPath(); g.moveTo(x - 40, y); g.lineTo(x + 40, y); g.stroke(); g.setLineDash([]) }, '붐 작업반경(점선)'],
+      [(g, x, y) => 받침(g, [[x - 20, y], [x + 20, y]]), '아웃트리거 — 끝까지 펴고 받침판'],
+      [(g, x, y) => 빗금(g, x - 40, y - 20, 80, 40, '#ea580c', 'rgba(234,88,12,.18)'), '경사 5 % 구간 — 받침판 · 고임목', '작업 전 지반(지내력) 확인'],
+      [(g, x, y) => { g.strokeStyle = '#ea580c'; g.lineWidth = 4; g.setLineDash([10, 6]); g.strokeRect(x - 40, y - 20, 80, 40); g.setLineDash([]) }, '작업구역 — 출입 통제'],
+    ], ['레미콘은 작업구역 안에서 대기 · 유도자 배치'])
+  } },
+  /* 🦺 G538 «3) 이동식크레인 배치 위치 및 이동 경로» — 주차동 철골 세우기 · 철판 깔기 · 작업반경 출입 금지 */
+  '장비 배치 · 이동식크레인': { w: 2160, h: 880, 표: 880, 끝y: 792, 그리기: (g, w, h) => {
+    장비대지(g, w, h)
+    빗금(g, 190, 560, 200, 130, '#6b7280', 'rgba(107,114,128,.16)')
+    점선원(g, 290, 625, 430, '#dc2626')
+    화살(g, [[900, 840], [450, 840], [450, 625], [398, 625]], '#2563eb')
+    g.strokeStyle = '#4b5563'; g.lineWidth = 5
+    g.beginPath(); g.moveTo(235, 605); g.lineTo(212, 582); g.moveTo(345, 605); g.lineTo(368, 582); g.moveTo(235, 645); g.lineTo(212, 668); g.moveTo(345, 645); g.lineTo(368, 668); g.stroke()
+    받침(g, [[208, 578], [372, 578], [208, 672], [372, 672]])
+    g.strokeStyle = '#b45309'; g.lineWidth = 12; g.lineCap = 'round'; g.beginPath(); g.moveTo(290, 610); g.lineTo(390, 290); g.stroke()
+    장비몸(g, 230, 600, 130, 50, '50 t')
+    신호수(g, 480, 560)
+    범례(g, [
+      [(g, x, y) => 장비몸(g, x - 40, y - 18, 80, 36), '이동식크레인 50 t', '주차동 철골 세우기'],
+      [(g, x, y) => 화살(g, [[x - 40, y], [x + 34, y]], '#2563eb', 8), '이동 경로 — 출입구 → 설치 위치'],
+      [(g, x, y) => { g.strokeStyle = '#dc2626'; g.lineWidth = 5; g.setLineDash([18, 10]); g.beginPath(); g.moveTo(x - 40, y); g.lineTo(x + 40, y); g.stroke(); g.setLineDash([]) }, '작업반경 — 출입 금지'],
+      [(g, x, y) => 빗금(g, x - 40, y - 20, 80, 40, '#6b7280', 'rgba(107,114,128,.16)'), '철판 깔기 — 지내력 확인'],
+      [(g, x, y) => 받침(g, [[x - 20, y], [x + 20, y]]), '아웃트리거 받침판'],
+      [(g, x, y) => 신호수(g, x, y, ''), '신호수 · 유도로프'],
+    ], ['인양물 아래 출입 금지'])
+  } },
+  /* 🦺 G538 «4) 항타·항발기 배치 위치 및 이동 경로» — 흙막이(H-pile) 선 따라 ① → ④ · 전도 위험 구역 · 작업 지반 */
+  '장비 배치 · 항타·항발기': { w: 2160, h: 880, 표: 880, 끝y: 792, 그리기: (g, w, h) => {
+    장비대지(g, w, h, false)
+    g.fillStyle = 'rgba(107,114,128,.16)'; g.beginPath(); g.rect(480, 150, 600, 530); g.rect(530, 190, 500, 440); g.fill('evenodd')
+    g.save(); g.beginPath(); g.rect(480, 150, 600, 530); g.rect(530, 190, 500, 440); g.clip('evenodd'); g.strokeStyle = 'rgba(107,114,128,.55)'; g.lineWidth = 3
+    for (let i = -600; i < 1200; i += 18) { g.beginPath(); g.moveTo(480 + i, 680); g.lineTo(480 + i + 530, 150); g.stroke() }
+    g.restore()
+    g.strokeStyle = '#92400e'; g.lineWidth = 8; g.strokeRect(530, 190, 500, 440)
+    g.fillStyle = '#92400e'
+    for (let x = 550; x < 1030; x += 40) { g.fillRect(x - 5, 184, 10, 12); g.fillRect(x - 5, 624, 10, 12) }
+    for (let y = 210; y < 630; y += 40) { g.fillRect(524, y - 5, 12, 10); g.fillRect(1024, y - 5, 12, 10) }
+    g.strokeStyle = '#2563eb'; g.lineWidth = 5; g.setLineDash([16, 10]); g.strokeRect(505, 168, 550, 488); g.setLineDash([])
+    화살(g, [[505, 470], [505, 400]], '#2563eb', 6); 화살(g, [[740, 168], [820, 168]], '#2563eb', 6)
+    화살(g, [[1055, 380], [1055, 450]], '#2563eb', 6); 화살(g, [[820, 656], [740, 656]], '#2563eb', 6)
+    for (const [t, x, y] of [['1', 505, 560], ['2', 640, 168], ['3', 1055, 260], ['4', 940, 656]]) {
+      g.fillStyle = '#ffffff'; g.strokeStyle = '#1d4ed8'; g.lineWidth = 4; g.beginPath(); g.arc(x, y, 21, 0, Math.PI * 2); g.fill(); g.stroke()
+      쓰기(g, t, x, y + 10, 28, '#1d4ed8')
+    }
+    화살(g, [[450, 840], [450, 700], [505, 700], [505, 664]], '#2563eb', 8)
+    점선원(g, 470, 300, 150, '#dc2626')
+    g.fillStyle = '#374151'; g.fillRect(420, 268, 80, 12); g.fillRect(420, 320, 80, 12)
+    장비몸(g, 425, 278, 70, 44)
+    g.fillStyle = '#1f2937'; g.fillRect(512, 286, 30, 28)
+    쓰기(g, '항타기', 415, 205, 22, '#1f2937', true, 'right')
+    범례(g, [
+      [(g, x, y) => { 장비몸(g, x - 40, y - 16, 56, 32); g.fillStyle = '#1f2937'; g.fillRect(x + 22, y - 12, 22, 24) }, '항타·항발기 — H-pile 박기 · 뽑기'],
+      [(g, x, y) => { g.strokeStyle = '#92400e'; g.lineWidth = 8; g.beginPath(); g.moveTo(x - 40, y); g.lineTo(x + 40, y); g.stroke() }, '흙막이 선(H-pile 자리)'],
+      [(g, x, y) => 화살(g, [[x - 40, y], [x + 34, y]], '#2563eb', 6), '이동 경로 — 출입구 → ① → ② → ③ → ④'],
+      [(g, x, y) => { g.strokeStyle = '#dc2626'; g.lineWidth = 5; g.setLineDash([18, 10]); g.beginPath(); g.moveTo(x - 40, y); g.lineTo(x + 40, y); g.stroke(); g.setLineDash([]) }, '전도 위험 구역 — 출입 금지'],
+      [(g, x, y) => 빗금(g, x - 40, y - 20, 80, 40, 'rgba(107,114,128,.55)', 'rgba(107,114,128,.16)'), '작업 지반 — 쇄석 깔기 · 다짐 · 철판', '경사 · 지내력 확인 뒤 이동'],
+    ], ['매설물 확인 뒤 박기(시험굴)'])
+  } },
 }
 const png = (c) => new Promise((ok, no) => c.toBlob((b) => (b ? b.arrayBuffer().then((a) => ok(new Uint8Array(a)), no) : no(new Error('그림을 만들지 못했습니다'))), 'image/png'))
 /** 예시 그림 한 장 — 종류: '공사장 위치도' · '방음 · 방진시설 배치'(없는 종류면 null) */
@@ -270,9 +435,17 @@ export async function 예시그림파일(종류) {
   return new File([await png(c)], `예시_${종류.replace(/[ ·]+/g, '_')}.png`, { type: 'image/png' })
 }
 /** 사진 칸 머리글 → 맞는 예시 그림 종류(현장 사진이면 null) — 격자작성.jsx «✍ 예시 채우기»
- *  위치도: 머리글에 세륜 · 방진벽이 있으면(비산먼지 신고서) 신축 그림 · 아니면(특정공사) 내부 철거 그림 / 세륜 · 비산 배치 도면 → 비산먼지 억제시설 그림 */
+ *  위치도: 머리글에 세륜 · 방진벽이 있으면(비산먼지 신고서) 신축 그림 · 아니면(특정공사) 내부 철거 그림 / 세륜 · 비산 배치 도면 → 비산먼지 억제시설 그림
+ *  🦺 G538 «… 배치 위치 및 작업구간 · 이동 경로»(공사안전보건대장) → 장비 배치 그림 네 가지(타워크레인 · 펌프카 · 이동식크레인 · 항타·항발기) */
 export function 그림종류(머리) {
   const t = String(머리 || '')
+  /* 🦺 G538 공사안전보건대장 «3.» 네 칸 — 머리글 «… 배치 위치 및 작업구간 · 이동 경로» 의 장비 이름으로 */
+  if (/배치 위치 및/.test(t)) {
+    if (/타워\s*크레인/.test(t)) return '장비 배치 · 타워크레인'
+    if (/펌프\s*카/.test(t)) return '장비 배치 · 콘크리트 펌프카'
+    if (/이동식\s*크레인/.test(t)) return '장비 배치 · 이동식크레인'
+    if (/항타|항발/.test(t)) return '장비 배치 · 항타·항발기'
+  }
   if (/위\s*치\s*도|지도/.test(t)) return /세륜|방진벽/.test(t) ? '공사장 위치도 · 신축' : '공사장 위치도'
   if (/세륜|비산/.test(t)) return '비산먼지 억제시설 배치'
   if (/(방음|방진).*(배치|도면)|(배치|도면).*(방음|방진)/.test(t)) return '방음 · 방진시설 배치'

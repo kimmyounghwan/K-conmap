@@ -132,7 +132,8 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
         if (판.Y[x[0] + x[2] - 1] - 판.Y[x[0] - 1] < 25) continue
         let 머리 = null
         for (let r = x[0] - 1; r >= 1; r--) { const y = 덮.get(r * 16384 + x[1]); if (!y || y === x) continue; if (y[5] === 1 || y[5] === 3) continue; const t = String(y[6] ?? '').trim(); if (t) { 머리 = t; break } }
-        if (머리 && /사진/.test(머리)) out.set(x, 머리)
+        /* 🦺 G538 공사안전보건대장 «3. 기계·장비 배치 및 이동 경로» 네 칸(머리글 «… 배치 위치 및 작업구간 · 이동 경로») — 대지 평면도(그림 · 사진)를 넣는 칸 */
+        if (머리 && /사진|배치 위치 및 (작업구간|이동 경로)/.test(머리)) out.set(x, 머리)
       }
     })
     return out

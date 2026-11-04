@@ -99,6 +99,7 @@ MASTER = {
  "안전": [
    ("안전·환경보전비 사용계획서", "anjeon-hwangyeong-bi"),
    ("설계안전보건대장 갑지", "seolgye-anjeon-daejang"),
+   ("공사안전보건대장", "gongsa-anjeon-daejang"),
    ("TBM 일지", "tbm"), ("위험성평가표", "wiheom-pyeongga"),
    ("안전보건교육일지", "anjeon-gyoyuk"),
    ("작업허가서", "jakeop-heoga"),

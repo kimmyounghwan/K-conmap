@@ -322,6 +322,11 @@ export default function Safety() {
           <li>발주자는 설계자 · 수급인이 안전을 먼저 생각할 수 있게 <b>적정한 비용과 기간</b>을 잡아야 합니다 <span className="muted">(법 제67조제3항)</span></li>
           <li>시공사 쪽에서 보면 — 발주자에게서 <b>설계안전보건대장</b>을 받아 <b>공사안전보건대장</b>을 만들고, 발주자가 이행을 확인합니다.</li>
         </ul>
+        {/* 🦺 G538 (11-04) 공사안전보건대장 서식(별지 제3호서식) — 대상 · 제출 기한(착공 전날) · 3개월 이행 확인 날짜 · 다시 열면 오늘 기준 */}
+        <div className="btn-grid" style={{ marginTop: 10 }}>
+          <Link className="btn ghost" to="/forms/gongsa-anjeon-daejang">🦺 공사안전보건대장 — 대상 · 제출 기한 · 이행 확인 날짜</Link>
+          <Link className="btn ghost" to="/forms/seolgye-anjeon-daejang">📐 설계안전보건대장 갑지</Link>
+        </div>
       </div>
 
       {/* ── 🔎 이름 헷갈리는 안전 서류 한 장 (G141 · 16) ── */}

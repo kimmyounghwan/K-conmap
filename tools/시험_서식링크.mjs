@@ -4,7 +4,7 @@
  *   소장님 「계속 사이트 찾게 해야 해」 → 서식 «놓치기 쉬운 것» · «언제 내나» · 안내 글의 [글](/forms/…) · [글](/tools/…) 는 사이트 안 링크(다음에 쓸 서류).
  *   ① 화면(Forms.jsx 굵게)과 구운 장(prerender.py bold_md)이 같은 꼴만 링크로 바꿈(사이트 안 주소만)
  *   ② forms.json · forms_orig.json 의 모든 링크가 «있는» 서식 · 도구를 가리킴(슬러그가 바뀌면 여기서 멈춤 — 죽은 링크 막기)
- *   ③ 특정공사 사전신고서 ↔ 소음 · 진동 측정 기록부 · 비산먼지 점검표 · 비산먼지 발생사업 신고서(G530) 서로 링크 · 한중 · 서중 콘크리트 시공계획서 ↔ 타설 · 레미콘 · 양생 · 혹서기(G531) · 품질관리비 산출내역서 ↔ 품질시험계획서 · 품질관리계획서 · 사용내역서(G532)
+ *   ③ 특정공사 사전신고서 ↔ 소음 · 진동 측정 기록부 · 비산먼지 점검표 · 비산먼지 발생사업 신고서(G530) 서로 링크 · 한중 · 서중 콘크리트 시공계획서 ↔ 타설 · 레미콘 · 양생 · 혹서기(G531) · 품질관리비 산출내역서 ↔ 품질시험계획서 · 품질관리계획서 · 사용내역서(G532) · 공사안전보건대장 ↔ 설계안전보건대장 · 유해위험방지계획서(G538)
  *   ④ 바깥 주소 · 다른 꼴([글](https://…) · [글](/corp/…))은 링크로 안 바뀜(글 그대로)
  */
 import fs from 'node:fs'
@@ -61,6 +61,7 @@ const 가 = (from, to) => 링크.some(([s, , 주소]) => s === from && 주소 ==
 const 도구로 = (from, to) => 링크.some(([s, , 주소]) => s === from && 주소 === '/tools/' + to)
 봐(도구로('gisung-cheonggu', 'payment-deadline') && 도구로('jungong-daega', 'payment-deadline'), '💰 G534 기성금 청구서 · 준공대가 청구서 → 기성금 · 준공금 지급 기한(받을 날)')
 봐(도구로('gy-gongdong', 'joint-split') && 도구로('gisung-cheonggu', 'joint-split'), '🤝 G535 공동수급협정서 · 기성금 청구서 → 공동도급 기성 · 준공금 나누기')
+봐(가('gongsa-anjeon-daejang', 'seolgye-anjeon-daejang') && 가('seolgye-anjeon-daejang', 'gongsa-anjeon-daejang') && 가('gongsa-anjeon-daejang', 'yuhae-gyehoek'), '🦺 G538 공사안전보건대장 ↔ 설계안전보건대장 · → 유해위험방지계획서(착공 전 안전 서류 한 벌)')
 
 /* 🩹 G536 (11-04) 안전보건대장은 «기본 · 설계 · 공사» 셋(산업안전보건법 제67조 · 시행규칙 제86조) — «유지관리» 대장은 없음(옛 글이 틀렸던 것 재발 막기) */
 { const 설 = F.find((f) => f.slug === 'seolgye-anjeon-daejang'); const 글 = 설 ? JSON.stringify(설) : ''
