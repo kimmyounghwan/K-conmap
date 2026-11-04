@@ -62,6 +62,12 @@ const 도구로 = (from, to) => 링크.some(([s, , 주소]) => s === from && 주
 봐(도구로('gisung-cheonggu', 'payment-deadline') && 도구로('jungong-daega', 'payment-deadline'), '💰 G534 기성금 청구서 · 준공대가 청구서 → 기성금 · 준공금 지급 기한(받을 날)')
 봐(도구로('gy-gongdong', 'joint-split') && 도구로('gisung-cheonggu', 'joint-split'), '🤝 G535 공동수급협정서 · 기성금 청구서 → 공동도급 기성 · 준공금 나누기')
 
+/* 🩹 G536 (11-04) 안전보건대장은 «기본 · 설계 · 공사» 셋(산업안전보건법 제67조 · 시행규칙 제86조) — «유지관리» 대장은 없음(옛 글이 틀렸던 것 재발 막기) */
+{ const 설 = F.find((f) => f.slug === 'seolgye-anjeon-daejang'); const 글 = 설 ? JSON.stringify(설) : ''
+  const 격 = (() => { try { return 읽('web/public/forms/g/seolgye-anjeon-daejang.json') } catch (e) { return '' } })()
+  봐(/기본 · 설계 · 공사 세 가지 안전보건대장/.test(글) && !/유지관리/.test(글) && /☐ 기본\s+☐ 설계\s+☐ 공사/.test(글) && 격 && !/유지관리/.test(격) && /☐ 기본\s+☑ 설계\s+☐ 공사/.test(격),
+    '🩹 G536 설계안전보건대장 갑지 — 안전보건대장은 «기본 · 설계 · 공사» 셋(놓치기 쉬운 것 · 작성 단계 칸 · 종이 예시 모두 — «유지관리» 없음)') }
+
 console.log('④ 구운 장 글에 [ ]( ) 꼴이 남지 않게 — bold_md 를 거치는 자리')
 const 자리 = (굽기.match(/bold_md\(esc\(/g) || []).length
 봐(자리 >= 4, `prerender.py 에서 bold_md(esc(…)) ${자리}곳(서식 안내 · 언제 · 놓치기 쉬운 것 포함)`)
