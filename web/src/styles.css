@@ -3021,6 +3021,17 @@ a.glink:hover { text-decoration: underline; }
 .kt-hint b{ color:var(--text); }
 .kt-won{ font-size:11.5px; color:var(--text-2); font-variant-numeric:tabular-nums; }
 .kt-law{ font-size:11.5px; color:var(--text-2); line-height:1.5; }
+/* 💰 G534 기성금 · 준공금 지급 기한 — 세는 날(1 ~ 5일째 · 뺀 날 · 기한) */
+.pdl .tl-o span{ white-space:nowrap; flex:0 0 auto; }      /* 폰에서 «지급 기한» 이름이 «지급 기 / 한» 으로 꺾이지 않게 — 값 쪽이 줄을 바꿈 */
+.pdl .tl-o b{ text-align:right; min-width:0; word-break:keep-all; }
+.pdl-days{ display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 4px; }
+.pdl-d{ display:inline-flex; flex-direction:column; align-items:center; min-width:62px; padding:5px 7px; border-radius:8px; border:1px solid var(--line); background:var(--surface); font-size:12px; line-height:1.35; }
+.pdl-d b{ font-weight:700; font-variant-numeric:tabular-nums; }
+.pdl-d i{ font-style:normal; font-size:11px; color:var(--text-2); }
+.pdl-d.x{ background:var(--surface-2); opacity:.7; }
+.pdl-d.x b{ text-decoration:line-through; }
+.pdl-d.end{ border-color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.pdl-d.end i{ color:var(--accent); font-weight:700; }
 .kt-next{ font-size:12.5px; color:var(--text-2); padding:8px 10px; border-radius:8px; background:var(--surface-2); }
 .kt-chks{ display:flex; flex-direction:column; gap:6px; }
 .kt-auto { font-weight: 700; color: var(--accent); }   /* 🩹 2026-10-21 지체상금 — 쉬는 날이라 저절로 켬 */

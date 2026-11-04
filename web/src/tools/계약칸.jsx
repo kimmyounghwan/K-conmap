@@ -1,11 +1,12 @@
 /* ==========================================================
-   📑 계약·공사 관리 도구 4가지 — 화면 (2026-09-28)
+   📑 계약·공사 관리 도구 5가지 — 화면 (2026-09-28)
      ⚖️ subcontract-check  하도급 적정성 판정 (82% · 64%) + 직접시공 비율
      📅 after-award        낙찰 뒤 할 일 달력 (+ 담은 공고 마감) → .ics
      ⏱ delay-penalty       지체상금 계산기
      🛡 defect-period      하자담보책임기간 · 하자보수보증금 찾기
+     💰 payment-deadline   기성금 · 준공금 지급 기한 (G534 · 2026-11-04 — 셈 lib/대금기한.js)
 
-   ⚠️ 숫자·조문은 lib/계약셈.js 한 곳에만 있습니다. 여기서는 그리기만 합니다.
+   ⚠️ 숫자·조문은 lib/계약셈.js 한 곳에만 있습니다(💰 지급 기한 셈은 lib/대금기한.js). 여기서는 그리기만 합니다.
    ⚠️ 설명·근거 글은 web/src/data/tools.json 에 (prerender 가 같이 굽습니다).
    ⚠️ 넣은 값은 이 기기에만 남습니다(use칸). 달력 파일도 이 브라우저에서 만들어 바로 받습니다 — 서버로 가지 않습니다.
    ========================================================== */
@@ -20,6 +21,7 @@ import {
 } from '../lib/계약셈.js'
 import { loadBasket } from '../lib/basket.js'
 import { 쉬는날 } from '../lib/해마다.js'
+import { 대금기한, 날말 } from '../lib/대금기한.js'
 import { getBidIndex, indexRows } from '../lib/data.js'
 
 const num = (v) => { const n = Number(String(v ?? '').replace(/[^0-9.]/g, '')); return isFinite(n) ? n : 0 }
@@ -400,8 +402,98 @@ export function DefectPeriod({ ex = {} }) {
   )
 }
 
+/* ══════════════════════════════════════════════════════════
+   💰 기성금 · 준공금 지급 기한 (G534) — 국가계약법 시행령 제58조 · 공사계약일반조건 제39조 · 제40조 · 지방계약법 시행령 제67조 · 민법 제157조 · 제161조
+   ══════════════════════════════════════════════════════════ */
+const 날칸 = (d) => `${Number(d.slice(5, 7))}.${Number(d.slice(8, 10))}.(${'일월화수목금토'[new Date(d + 'T00:00:00').getDay()]})`
+export function PaymentDeadline({ ex = {} }) {
+  const [무엇, set무엇] = use칸('무엇', ex.무엇 ?? '기성')
+  const [발주, set발주] = use칸('발주', ex.발주 ?? '국가')
+  const [검사, set검사] = use칸('검사', ex.검사 ?? '')
+  const [청구, set청구] = use칸('청구', ex.청구 ?? '')
+  const 기준 = 오늘()
+  const r = 대금기한({ 무엇, 발주, 검사일: 검사, 청구일: 청구, 오늘: 기준 })
+  const 남은글 = r.기한 ? (r.남은 === 0 ? '오늘까지' : r.남은 > 0 ? `${r.남은}일\u00a0남음` : `${-r.남은}일\u00a0지남`) : ''   // «27일 / 지남» 으로 꺾이지 않게(붙는 빈칸)
+  /* 세는 날 — 셈한 날(1 ~ 5) · 뺀 날(토 · 일 · 공휴일) · 기한 */
+  const 칸들 = []
+  if (r.기한) {
+    if (r.셈법 === '토공빼고') {
+      const 뺀 = new Set(r.뺀)
+      const 모두 = [...r.센, ...r.뺀].sort()
+      let n = 0
+      for (const d of 모두) 칸들.push(뺀.has(d) ? { d, 꼴: 'x', 글: '쉼' } : { d, 꼴: d === r.기한 ? 'end' : 'n', 글: `${++n}일째` })
+    } else {
+      r.센.forEach((d, i) => 칸들.push({ d, 꼴: !r.밀림 && d === r.기한 ? 'end' : 'n', 글: `${i + 1}일째${쉬는날(d) ? ' · 쉬는 날' : ''}` }))
+      if (r.밀림) { for (const d of r.뺀.slice(1)) 칸들.push({ d, 꼴: 'x', 글: '쉼' }); 칸들.push({ d: r.기한, 꼴: 'end', 글: '다음 일하는 날' }) }
+    }
+  }
+  return (
+    <div className="tool pdl">
+      <div className="tl-grid">
+        <Row label="받을 돈">
+          <select value={무엇} onChange={(e) => set무엇(e.target.value)}>
+            <option value="기성">기성금 (기성대가)</option>
+            <option value="준공">준공금 (준공대가)</option>
+          </select>
+        </Row>
+        <Row label="계약" hint="입찰공고 · 계약서에 적힌 법">
+          <select value={발주} onChange={(e) => set발주(e.target.value)}>
+            <option value="국가">국가 (국가계약법)</option>
+            <option value="지방">지자체 (지방계약법)</option>
+          </select>
+        </Row>
+        {무엇 === '기성' ? (
+          <>
+            <Row label="기성검사 완료일"><input type="date" value={검사} onChange={(e) => set검사(e.target.value)} /></Row>
+            <Row label="청구서 낸 날" hint="검사가 끝난 뒤에 냈을 때만 · 검사 전에 냈으면 비움"><input type="date" value={청구} onChange={(e) => set청구(e.target.value)} /></Row>
+          </>
+        ) : (
+          <>
+            <Row label="청구서 낸 날" hint="준공검사에 합격한 뒤 대가 지급 청구서를 낸 날"><input type="date" value={청구} onChange={(e) => set청구(e.target.value)} /></Row>
+            <Row label="준공검사 합격일" hint="몰라도 됨"><input type="date" value={검사} onChange={(e) => set검사(e.target.value)} /></Row>
+          </>
+        )}
+      </div>
+      <Out items={[
+        { k: '세기 시작', v: r.기한 ? `${날말(r.시작, 기준)} 다음 날부터` : '—' },
+        { k: '세는 법', v: r.기한 ? (r.셈법 === '달력' ? '달력 5일째 · 쉬는 날이면 다음 날' : '토 · 일 · 공휴일 빼고 5일째') : '—' },
+        { k: '지급 기한', v: r.기한 ? `${날말(r.기한, 기준)}까지 · ${남은글}` : (r.오류 || '—'), big: true },
+      ]} />
+      {칸들.length > 0 && (
+        <div className="pdl-days" aria-label="세는 날">
+          {칸들.map((x) => <span key={x.d + x.꼴} className={'pdl-d ' + x.꼴}><b>{날칸(x.d)}</b><i>{x.글}</i></span>)}
+        </div>
+      )}
+      {r.기한 && <div className="hint kt-hint">🧮 {r.시작말} 셉니다 — 첫날({날칸(r.시작)})은 넣지 않습니다(민법 제157조).</div>}
+      {r.참고기한 && (
+        <판정칸 종류="mid">토요일 · 공휴일을 빼고 세는 발주처도 있습니다 — 그렇게 세면 <b>{날말(r.참고기한, 기준)}</b>까지. 국가계약의 «공휴일 및 토요일 제외» 는 시행령 제58조 ⑥(제1항 · 제2항 기간)과 공사계약일반조건 제40조 ②(준공대가)에만 있고 기성(제58조 ④ · 제39조 ②)에는 없어, 위 날짜가 조문 글자대로입니다.</판정칸>
+      )}
+      {(r.알림 || []).map((m) => <판정칸 key={m} 종류="bad">{m}</판정칸>)}
+      {r.기한 && r.남은 < 0 && (
+        <판정칸 종류="bad">기한이 지났는데 아직 못 받았다면 — {발주 === '국가'
+          ? <>지급기한 다음 날부터 받는 날까지 일수 × 못 받은 금액 × 금융기관 대출평균금리를 이자로 받을 수 있습니다(공사계약일반조건 제41조 ①).</>
+          : <>계약서 · 일반조건의 «대가 지급 지연 이자» 조항을 보고 발주처에 이자와 함께 요청하십시오.</>} 청구서가 잘못돼 돌려받았다면 돌려받은 날부터 다시 낸 날까지는 기한에 넣지 않습니다.</판정칸>
+      )}
+      <div className="hint kt-hint">
+        기성금은 <b>적어도 30일마다</b> 줍니다. 검사를 마치는 날까지 미리 청구해 두면 <b>검사 완료일</b>부터, 검사 뒤에 청구하면 <b>청구를 받은 날</b>부터 5일입니다.
+        {' '}준공금은 준공검사에 합격한 뒤 청구서를 내고, <b>청구를 받은 날부터 토요일 · 공휴일을 빼고 5일</b>입니다.
+        {' '}재난 · 경제위기로 정부가 기간을 정해 고시하면 5일이 3일로 줄고, 계약 때 합의하면 5일을 넘지 않는 범위에서 늘릴 수 있습니다.
+        {' '}원도급사는 이 돈을 받은 날부터 <b>15일 안에</b> 하수급인에게 현금으로 줘야 합니다(건설산업기본법 제34조 ①).
+      </div>
+      <근거줄>{r.근거 && r.근거.length ? r.근거.join(' · ') : '국가계약법 시행령 제58조 · 공사계약일반조건 제39조 · 제40조 · 지방계약법 시행령 제67조'} · 공휴일: 관공서 공휴일 · 대체공휴일(2026 · 2027)</근거줄>
+      <div className="btn-row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
+        <Link className="btn ghost sm" to="/change/gisung">📆 기성 관리 — 기성내역서 · 선금 공제</Link>
+        <Link className="btn ghost sm" to="/forms/gisung-cheonggu">🧾 기성금 청구서</Link>
+        <Link className="btn ghost sm" to="/forms/jungong-daega">🏁 준공대가 청구서</Link>
+        <Link className="btn ghost sm" to="/tools/unpaid">💸 못 받으면 — 미불금 받는 순서</Link>
+      </div>
+    </div>
+  )
+}
+
 /* 🧪 예시 — 가상의 숫자입니다 (남의 공사 금액을 옮기지 않습니다) */
 export const 계약EXAMPLES = {
+  'payment-deadline': { 글: '국가 공사 · 11월 4일(수) 기성검사 완료 · 검사 전에 청구', ex: { 무엇: '기성', 발주: '국가', 검사: '2026-11-04', 청구: '' } },
   'subcontract-check': { 글: '지자체 발주 · 상당금액 2억 5천만 원인 부분을 2억 원에 하도급 · 도급 12억 원', ex: { 발주: '지자체', 상당: '250,000,000', 예가: '260,000,000', 하도: '200,000,000', 도급: '1,200,000,000', 노무: '300,000,000', 직접: '70,000,000' } },
   'after-award': { 글: '국가 발주 8억 5천만 원 공사 · 10월 5일 낙찰 통지 · 10월 20일 착공 · 하도급 1억 2천만 원', ex: { 낙찰일: '2026-10-05', 착공일: '2026-10-20', 발주: '국가', 도급: '850,000,000', 공기: '180', 안전: true, 하도일: '2026-10-26', 하도금: '120,000,000' } },
   'delay-penalty': { 글: '국가 공사 5억 원 · 준공기한 11월 30일 · 12월 15일 준공검사 합격', ex: { 곳: '국가', 종: '공사', 계약: '500,000,000', 기한: '2026-11-30', 합격: '2026-12-15' } },
@@ -412,4 +504,5 @@ export const 계약CALCS = {
   'after-award': AfterAward,
   'delay-penalty': DelayPenalty,
   'defect-period': DefectPeriod,
+  'payment-deadline': PaymentDeadline,
 }

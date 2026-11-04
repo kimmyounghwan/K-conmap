@@ -35,6 +35,7 @@ P = dict(
     qty=('/jeoksan/run', '🧮', '수량산출서 만들기', '재료표 + 치수표 — 칸을 누르고 도면을 누르면 값이 들어갑니다. 산출서·집계·검산.'),
     defect=('/tools/defect-period', '🛡', '하자담보책임기간 · 하자보수보증금', '공사 종류를 고르면 책임기간·끝나는 날·보증금률과 금액이 나옵니다.'),
     delay=('/tools/delay-penalty', '⏱', '지체상금 계산기', '준공기한과 합격일, 계약금액을 넣으면 지체일수·지체상금·30% 한도까지.'),
+    daegeum=('/tools/payment-deadline', '💰', '기성금 · 준공금 지급 기한', '검사 완료일 · 청구한 날을 넣으면 발주처가 줘야 하는 마지막 날과 남은 날 — 토요일 · 공휴일 셈까지 조문대로.'),
     unpaid=('/tools/unpaid', '💸', '미불금 받는 순서', '못 받은 돈의 종류를 고르면 받는 순서와 근거 조문, 시효가 끝날 수 있는 날이 나옵니다.'),
     direct=('/tools/direct-payment', '📨', '직접지급 요청서', '하도급대금은 발주자에게, 임금은 원도급사에게 직접 달라고 요청하는 글이 완성됩니다.'),
 )
@@ -72,11 +73,11 @@ STAGES = [
          slugs='chulyeok-ilbo geunroja-myeongbu chamyeoja-silmyeongbu taseol-silmyeongbu imgeum-daejang nomubi jikjeop-nomubi gyejwa-ipgeum janggi-banip janggi-gadong imdaeryo-jeongsan yuryu o-jangbi-gwanri'),
     dict(k='money', n='⑧', ic='💰', h='기성 · 설계변경 · 선금', 짧게='기성 청구 · 설계변경 · 물가변동 · 내역',
          언제='돈과 금액이 걸린 서류입니다 — 선금, 기성 청구, 설계변경·물가변동·공기연장, 내역서·원가계산서.',
-         progs=['gyeonjeok', 'sonik', 'jeongsan', 'chgexcel', 'twoline', 'price', 'qty'],
+         progs=['daegeum', 'gyeonjeok', 'sonik', 'jeongsan', 'chgexcel', 'twoline', 'price', 'qty'],
          slugs='seongeum seongeum-gyehoek o-seongeum gisung-geomsa giseong-daebipyo gisung-cheonggu jibul-gyehoekseo jibul-hwaginseo hadogeup-daegeum siljeong-bogo seolgye-byeongyeong chg-chongwal chg-naeyeok chg-hyeobui chg-ganjeopbi chg-mulga-san mulga gonggi-yeonjang jiche-gammyeon suryang ilwidaega sanchul-naeyeok wonga gongnaeyeok-hanbeol silhaeng-daebipyo'),
     dict(k='end', n='⑨', ic='🏁', h='준공 · 하자 · 대금 받기', 짧게='준공계 · 정산 · 완료 확인 · 대금 청구 · 하자',
          언제='준공 서류와 준공 뒤 하자·대금 문제입니다. 못 받은 돈은 사이트의 미불금 도구로 순서대로 갑니다.',
-         progs=['defect', 'delay', 'unpaid', 'direct'],
+         progs=['daegeum', 'defect', 'delay', 'unpaid', 'direct'],
          slugs='jungong jungong-daega jungong-jeongsan gongsa-wanryo gongsa-daegeum inssu-ingye gy-haja-gakseo haja-wanryo'),
 ]
 T = lambda t, d=None: {'t': t, **({'d': d} if d else {})}

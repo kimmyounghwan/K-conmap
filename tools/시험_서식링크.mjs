@@ -58,6 +58,9 @@ const 가 = (from, to) => 링크.some(([s, , 주소]) => s === from && 주소 ==
 봐(가('yangsaeng', 'hanjung-seojung') && 가('taseol-check', 'hanjung-seojung') && 가('hokseo', 'hanjung-seojung'), '양생 관리대장 · 타설 체크리스트 · 혹서기 · 혹한기 대책 → 한중 · 서중 콘크리트 시공계획서')
 봐(가('pumjil-sanchul', 'pumjil-gyehoek') && 가('pumjil-sanchul', 'o-anjeon-pumjil-bi') && 가('pumjil-gyehoek', 'pumjil-sanchul') && 가('pumjil-gwanri-gyehoek', 'pumjil-sanchul'), '🧮 G532 품질관리비 산출내역서 ↔ 품질시험계획서 · 품질관리계획서 → 안전 · 품질관리비 사용내역서')
 
+const 도구로 = (from, to) => 링크.some(([s, , 주소]) => s === from && 주소 === '/tools/' + to)
+봐(도구로('gisung-cheonggu', 'payment-deadline') && 도구로('jungong-daega', 'payment-deadline'), '💰 G534 기성금 청구서 · 준공대가 청구서 → 기성금 · 준공금 지급 기한(받을 날)')
+
 console.log('④ 구운 장 글에 [ ]( ) 꼴이 남지 않게 — bold_md 를 거치는 자리')
 const 자리 = (굽기.match(/bold_md\(esc\(/g) || []).length
 봐(자리 >= 4, `prerender.py 에서 bold_md(esc(…)) ${자리}곳(서식 안내 · 언제 · 놓치기 쉬운 것 포함)`)

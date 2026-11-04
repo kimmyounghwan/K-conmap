@@ -4132,7 +4132,7 @@ def main():
             others = ([o for o in ttools if o.get("cat") == t.get("cat") and o["slug"] != t["slug"]]
                       + [o for o in ttools if o.get("cat") != t.get("cat")])[:4]
             img = (og.tab(f'tool-{t["slug"]}', t["title"], "건설 도구",
-                          "무료", (t.get("short") or "")[:44]) if og.available else None)
+                          t.get("badge", "무료"), (t.get("short") or "")[:44]) if og.available else None)   # 💰 G534 새 도구는 «무료» 대신 badge(«새로 만드는 것에 무료 안 씀»)
             write(f'tools/{t["slug"]}.html', tool_page(shell, t, others, img))
             made += 1
         print(f"  · 건설 도구 페이지 {len(ttools) + 1:,}개 (/tools/)")

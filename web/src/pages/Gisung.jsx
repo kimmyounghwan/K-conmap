@@ -382,6 +382,7 @@ export default function Gisung() {
           <li>건강 · 연금 · 노인장기요양보험료는 준공 때 사후정산, 산업안전보건관리비는 사용 내역으로 정산하는 항목입니다 — 기성에서는 계약 요율대로 셉니다.</li>
         </ul>
         <div className="btn-row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
+          <Link className="btn ghost sm" to="/tools/payment-deadline">💰 기성금 받을 날 — 지급 기한</Link>
           <Link className="btn ghost sm" to="/change/won">🧾 원 내역서로 설계변경</Link>
           <Link className="btn ghost sm" to="/change/work">🧰 설계변경 작업대</Link>
           <Link className="btn ghost sm" to="/jeoksan/auto">⚡ 도면 물량 자동</Link>
