@@ -3032,6 +3032,22 @@ a.glink:hover { text-decoration: underline; }
 .pdl-d.x b{ text-decoration:line-through; }
 .pdl-d.end{ border-color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, var(--surface)); }
 .pdl-d.end i{ color:var(--accent); font-weight:700; }
+/* 🤝 G535 공동도급 기성 · 준공금 나누기 — 구성원 칸(폰은 두 줄) · 결과 표 */
+.jvs-ms{ display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:8px; margin:10px 0; }
+.jvs-m{ display:grid; grid-template-columns:1fr 1fr; gap:6px 8px; padding:8px 10px; border:1px solid var(--line); border-radius:10px; background:var(--surface); }
+.jvs-mh{ grid-column:1 / -1; display:flex; justify-content:space-between; align-items:center; font-size:13px; }
+.jvs-m label{ display:flex; flex-direction:column; gap:3px; font-size:11.5px; color:var(--text-2); min-width:0; }
+.jvs-m input{ width:100%; min-width:0; padding:6px 8px; border:1px solid var(--line); border-radius:7px; font-size:13.5px; background:var(--surface); color:var(--text); }
+.jvs-add{ align-self:center; justify-self:start; width:auto; }
+.jvs-pay{ display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:6px; margin:8px 0 6px; }
+.jvs-p{ display:flex; flex-direction:column; gap:2px; padding:8px 10px; border-radius:10px; background:color-mix(in srgb, var(--accent) 9%, var(--surface)); border:1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); }
+.jvs-p span{ font-size:12.5px; font-weight:700; }
+.jvs-p span i{ font-style:normal; font-weight:400; color:var(--text-2); }
+.jvs-p b{ font-size:18px; color:var(--accent); font-variant-numeric:tabular-nums; }
+.jvs-p small{ font-size:11.5px; color:var(--text-2); font-variant-numeric:tabular-nums; }
+.jvs-out{ margin:6px 0 8px; }
+.jvs-out tr.jvs-sum td{ font-weight:700; background:var(--surface-2); }
+.jvs-out th.r{ text-align:right; }
 .kt-next{ font-size:12.5px; color:var(--text-2); padding:8px 10px; border-radius:8px; background:var(--surface-2); }
 .kt-chks{ display:flex; flex-direction:column; gap:6px; }
 .kt-auto { font-weight: 700; color: var(--accent); }   /* 🩹 2026-10-21 지체상금 — 쉬는 날이라 저절로 켬 */

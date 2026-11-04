@@ -1,10 +1,11 @@
 /* ==========================================================
-   📑 계약·공사 관리 도구 5가지 — 화면 (2026-09-28)
+   📑 계약·공사 관리 도구 6가지 — 화면 (2026-09-28)
      ⚖️ subcontract-check  하도급 적정성 판정 (82% · 64%) + 직접시공 비율
      📅 after-award        낙찰 뒤 할 일 달력 (+ 담은 공고 마감) → .ics
      ⏱ delay-penalty       지체상금 계산기
      🛡 defect-period      하자담보책임기간 · 하자보수보증금 찾기
      💰 payment-deadline   기성금 · 준공금 지급 기한 (G534 · 2026-11-04 — 셈 lib/대금기한.js)
+     🤝 joint-split        공동도급 기성 · 준공금 나누기 (G535 · 2026-11-04 — 셈 lib/공동기성.js)
 
    ⚠️ 숫자·조문은 lib/계약셈.js 한 곳에만 있습니다(💰 지급 기한 셈은 lib/대금기한.js). 여기서는 그리기만 합니다.
    ⚠️ 설명·근거 글은 web/src/data/tools.json 에 (prerender 가 같이 굽습니다).
@@ -22,6 +23,7 @@ import {
 import { loadBasket } from '../lib/basket.js'
 import { 쉬는날 } from '../lib/해마다.js'
 import { 대금기한, 날말 } from '../lib/대금기한.js'
+import { 회차나누기 } from '../lib/공동기성.js'
 import { getBidIndex, indexRows } from '../lib/data.js'
 
 const num = (v) => { const n = Number(String(v ?? '').replace(/[^0-9.]/g, '')); return isFinite(n) ? n : 0 }
@@ -491,8 +493,109 @@ export function PaymentDeadline({ ex = {} }) {
   )
 }
 
+/* ══════════════════════════════════════════════════════════
+   🤝 공동도급 기성 · 준공금 나누기 (G535) — 셈 lib/공동기성.js · 공동계약운용요령 제11조 · 정부 입찰ㆍ계약 집행기준 제37조
+   ══════════════════════════════════════════════════════════ */
+const 빈구성원 = (i) => ({ 이름: '', 지분: '', 선금: '', 전회: '', 전회정산: '', 직접: '', _: i })
+export function JointSplit({ ex = {} }) {
+  const [계약, set계약] = use칸('계약', ex.계약 ?? '')
+  const [금회, set금회] = use칸('금회', ex.금회 ?? '')
+  const [방식, set방식] = use칸('방식', ex.방식 ?? '지분')
+  const [준공, set준공] = use칸('준공', ex.준공 ?? false)
+  const [끝전, set끝전] = use칸('끝전', ex.끝전 ?? 0)
+  const [구성원, set구성원] = use칸('구성원', ex.구성원 ?? [빈구성원(0), 빈구성원(1)])
+  const 줄들 = Array.isArray(구성원) && 구성원.length ? 구성원 : [빈구성원(0), 빈구성원(1)]
+  const 바꿈 = (i, k, v) => set구성원(줄들.map((x, j) => (j === i ? { ...x, [k]: v } : x)))
+  const r = 회차나누기({
+    계약: num(계약), 금회: num(금회), 방식, 준공: !!준공, 끝전: Math.min(Number(끝전) || 0, 줄들.length - 1),
+    구성원: 줄들.map((x) => ({ 이름: x.이름, 지분: num(x.지분), 선금: num(x.선금), 전회: num(x.전회), 전회정산: num(x.전회정산), 직접: num(x.직접) })),
+  })
+  const 이름 = (i) => 줄들[i] && 줄들[i].이름 ? 줄들[i].이름 : (i === 0 ? '대표사' : `구성원 ${i}`)
+  return (
+    <div className="tool jvs">
+      <div className="tl-grid">
+        <금액칸 label="계약금액" hint="원 · 공동수급체 전체" value={계약} set={set계약} placeholder="1,000,000,000" />
+        <금액칸 label="이번 회 기성금" hint={준공 ? '준공은 몫 − 지난번까지로 셈(안 넣어도 됨)' : '원 · 공동수급체 전체 금회'} value={금회} set={set금회} placeholder="300,000,000" />
+        <Row label="나누는 법">
+          <select value={방식} onChange={(e) => set방식(e.target.value)} disabled={!!준공}>
+            <option value="지분">지분율(출자비율)대로 — 공동이행</option>
+            <option value="직접">구성원별로 직접 — 이행내용대로 · 분담이행</option>
+          </select>
+        </Row>
+        <Row label="끝전(원 미만 버리고 남는 원)" hint="공동수급협정서에 정한 곳">
+          <select value={String(Math.min(Number(끝전) || 0, 줄들.length - 1))} onChange={(e) => set끝전(Number(e.target.value))}>
+            {줄들.map((_, i) => <option key={i} value={String(i)}>{이름(i)}</option>)}
+          </select>
+        </Row>
+      </div>
+      <div className="kt-chks">
+        <label className="kt-chk"><input type="checkbox" checked={!!준공} onChange={(e) => set준공(e.target.checked)} /> <span>마지막 회 — 준공대가 (구성원별 총액을 지분에 꼭 맞춤 · 남은 선금 모두 정산)</span></label>
+      </div>
+      <div className="jvs-ms">
+        {줄들.map((x, i) => (
+          <div key={x._ ?? i} className="jvs-m">
+            <div className="jvs-mh"><b>{i === 0 ? '👑 ' : ''}{이름(i)}</b>
+              {줄들.length > 2 && <button type="button" className="tp-x" onClick={() => set구성원(줄들.filter((_, j) => j !== i))} aria-label={`${이름(i)} 빼기`}>빼기</button>}
+            </div>
+            <label>이름 <input value={x.이름} onChange={(e) => 바꿈(i, '이름', e.target.value.slice(0, 20))} placeholder={i === 0 ? '대표사' : `구성원 ${i}`} /></label>
+            <label>지분 % <input inputMode="decimal" value={x.지분} onChange={(e) => 바꿈(i, '지분', e.target.value)} placeholder={i === 0 ? '60' : '40'} /></label>
+            {방식 === '직접' && !준공 && <label>이번 회 금액 <input inputMode="numeric" value={x.직접} onChange={(e) => 바꿈(i, '직접', e.target.value)} placeholder="이행한 금액" /></label>}
+            <label>받은 선금 <input inputMode="numeric" value={x.선금} onChange={(e) => 바꿈(i, '선금', e.target.value)} placeholder="없으면 비움" /></label>
+            <label>지난번까지 받은 기성 <input inputMode="numeric" value={x.전회} onChange={(e) => 바꿈(i, '전회', e.target.value)} placeholder="처음이면 비움" /></label>
+            <label>지난번까지 선금 정산 <input inputMode="numeric" value={x.전회정산} onChange={(e) => 바꿈(i, '전회정산', e.target.value)} placeholder="처음이면 비움" /></label>
+          </div>
+        ))}
+        {줄들.length < 6 && <button type="button" className="btn ghost sm jvs-add" onClick={() => set구성원([...줄들, 빈구성원(Date.now())])}>＋ 구성원 더하기</button>}
+      </div>
+      {r.오류 ? <div className="hint kt-hint">↑ {r.오류}</div> : (
+        <>
+        {/* 폰에서도 «이번에 받을 돈» 이 먼저 보이게 — 구성원마다 한 칸(표는 옆으로 밀면 누계 · 남은 것 · 몫) */}
+        <div className="jvs-pay" aria-label="구성원별 이번에 받을 돈">
+          {r.줄.map((x, i) => (
+            <div key={i} className="jvs-p">
+              <span>{i === 0 ? '👑 ' : ''}{이름(i)} <i>{x.지분}%</i></span>
+              <b>{원(x.지급)}</b>
+              <small>이번 회 {원(x.금회)}{x.선금 ? ` − 선금 정산 ${원(x.정산)}` : ''}</small>
+            </div>
+          ))}
+        </div>
+        <div className="gg-wrap jvs-out">
+          <table className="gg-r">
+            <thead><tr><th>구성원 (지분)</th><th className="r">이번 회</th><th className="r">선금 정산</th><th className="r">이번에 받을 돈</th><th className="r">누계</th><th className="r">남은 것</th><th className="r">몫(계약 × 지분)</th></tr></thead>
+            <tbody>
+              {r.줄.map((x, i) => (
+                <tr key={i} className={x.잔여 < 0 || x.금회 < 0 ? 'neg' : ''}>
+                  <td>{i === 0 ? '👑 ' : ''}{이름(i)} <span className="muted">{x.지분}%</span></td><td className="r">{원(x.금회)}</td><td className="r">{x.선금 ? 원(x.정산) : '—'}</td><td className="r"><b>{원(x.지급)}</b></td>
+                  <td className="r">{원(x.누계)} <span className="muted">({(x.율 * 100).toFixed(1)}%)</span></td><td className="r">{원(x.잔여)}</td><td className="r">{원(x.몫)}</td>
+                </tr>
+              ))}
+              <tr className="jvs-sum"><td>합 <span className="muted">{r.지분합}%</span></td><td className="r">{원(r.총.금회)}</td><td className="r">{r.총.선금 ? 원(r.총.정산) : '—'}</td><td className="r"><b>{원(r.총.지급)}</b></td><td className="r">{원(r.총.누계)}</td><td className="r">{원(r.총.잔여)}</td><td className="r">{원(r.총.몫)}</td></tr>
+            </tbody>
+          </table>
+        </div>
+        </>
+      )}
+      {(r.알림 || []).map((m) => <판정칸 key={m} 종류="bad">{m}</판정칸>)}
+      {!r.오류 && !(r.알림 || []).length && <판정칸 종류="good">대표사가 이 표대로 <b>구성원별로 나눠 적은 신청서</b>를 내면 발주처가 구성원 <b>각자</b>에게 줍니다(공동계약운용요령 제11조 ① · ②).</판정칸>}
+      <div className="hint kt-hint">
+        <b>몫</b> = 계약금액 × 지분율(원 미만 버림 · 남는 원은 끝전 구성원). 기성은 <b>이행내용대로</b> 받을 수 있지만, <b>준공 때 구성원별 총액은 출자비율(분담내용)과 꼭 같아야</b> 합니다(제11조 ③) — 마지막 회를 켜면 그렇게 맞춥니다.
+        {' '}<b>선금 정산</b>은 구성원마다 «받은 선금 × 누계 기성 ÷ 몫» 에서 지난번까지 정산한 것을 뺀 최소 금액입니다(정부 입찰ㆍ계약 집행기준 제37조 식 · 누계로 셈해 끝전이 쌓이지 않게) — 발주처가 더 정산하라고 하면 그대로 따르십시오.
+        {' '}금액은 청구서와 같은 기준(부가가치세 포함 여부)으로 넣으십시오. 지자체 공사는 «지방자치단체 입찰 및 계약 집행기준» 의 공동계약 운영요령을 따르니 발주처 안내도 함께 보십시오.
+      </div>
+      <근거줄>(계약예규) 공동계약운용요령 제2조의2 · 제11조 · 정부 입찰ㆍ계약 집행기준 제37조 · 원 미만 버림</근거줄>
+      <div className="btn-row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
+        <Link className="btn ghost sm" to="/forms/gisung-cheonggu">🧾 기성금 청구서</Link>
+        <Link className="btn ghost sm" to="/tools/payment-deadline">💰 받을 날 — 지급 기한</Link>
+        <Link className="btn ghost sm" to="/forms/gy-gongdong">📝 공동수급협정서</Link>
+        <Link className="btn ghost sm" to="/gongdong">🤝 공동도급 마당</Link>
+      </div>
+    </div>
+  )
+}
+
 /* 🧪 예시 — 가상의 숫자입니다 (남의 공사 금액을 옮기지 않습니다) */
 export const 계약EXAMPLES = {
+  'joint-split': { 글: '계약 10억 원 · 대표사 60% · 구성원 40% · 1회 기성 3억 원 · 선금 각 20%', ex: { 계약: '1,000,000,000', 금회: '300,000,000', 방식: '지분', 준공: false, 끝전: 0, 구성원: [{ 이름: '', 지분: '60', 선금: '120,000,000', 전회: '', 전회정산: '', 직접: '', _: 0 }, { 이름: '', 지분: '40', 선금: '80,000,000', 전회: '', 전회정산: '', 직접: '', _: 1 }] } },
   'payment-deadline': { 글: '국가 공사 · 11월 4일(수) 기성검사 완료 · 검사 전에 청구', ex: { 무엇: '기성', 발주: '국가', 검사: '2026-11-04', 청구: '' } },
   'subcontract-check': { 글: '지자체 발주 · 상당금액 2억 5천만 원인 부분을 2억 원에 하도급 · 도급 12억 원', ex: { 발주: '지자체', 상당: '250,000,000', 예가: '260,000,000', 하도: '200,000,000', 도급: '1,200,000,000', 노무: '300,000,000', 직접: '70,000,000' } },
   'after-award': { 글: '국가 발주 8억 5천만 원 공사 · 10월 5일 낙찰 통지 · 10월 20일 착공 · 하도급 1억 2천만 원', ex: { 낙찰일: '2026-10-05', 착공일: '2026-10-20', 발주: '국가', 도급: '850,000,000', 공기: '180', 안전: true, 하도일: '2026-10-26', 하도금: '120,000,000' } },
@@ -505,4 +608,5 @@ export const 계약CALCS = {
   'delay-penalty': DelayPenalty,
   'defect-period': DefectPeriod,
   'payment-deadline': PaymentDeadline,
+  'joint-split': JointSplit,
 }

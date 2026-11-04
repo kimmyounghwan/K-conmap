@@ -36,6 +36,7 @@ P = dict(
     defect=('/tools/defect-period', '🛡', '하자담보책임기간 · 하자보수보증금', '공사 종류를 고르면 책임기간·끝나는 날·보증금률과 금액이 나옵니다.'),
     delay=('/tools/delay-penalty', '⏱', '지체상금 계산기', '준공기한과 합격일, 계약금액을 넣으면 지체일수·지체상금·30% 한도까지.'),
     daegeum=('/tools/payment-deadline', '💰', '기성금 · 준공금 지급 기한', '검사 완료일 · 청구한 날을 넣으면 발주처가 줘야 하는 마지막 날과 남은 날 — 토요일 · 공휴일 셈까지 조문대로.'),
+    jvsplit=('/tools/joint-split', '🤝', '공동도급 기성 · 준공금 나누기', '계약금액 · 지분율 · 이번 회 기성금으로 구성원별 금액 · 선금 정산 · 받을 돈을 한 표로 — 준공 때 지분 맞춤까지.'),
     unpaid=('/tools/unpaid', '💸', '미불금 받는 순서', '못 받은 돈의 종류를 고르면 받는 순서와 근거 조문, 시효가 끝날 수 있는 날이 나옵니다.'),
     direct=('/tools/direct-payment', '📨', '직접지급 요청서', '하도급대금은 발주자에게, 임금은 원도급사에게 직접 달라고 요청하는 글이 완성됩니다.'),
 )
@@ -45,7 +46,7 @@ def prog(k):
 STAGES = [
     dict(k='contract', n='①', ic='🖊', h='계약 · 하도급', 짧게='도급·하도급·장비·근로 계약서 · 합의서',
          언제='낙찰 뒤 도급계약, 하도급을 줄 때, 장비·자재·용역·근로 계약을 맺을 때. 정부가 고시한 표준계약서가 있는 계약은 그 원문을 먼저 보십시오.',
-         progs=['after', 'subchk', 'ratio', 'jimyeong'],
+         progs=['after', 'subchk', 'ratio', 'jimyeong', 'jvsplit'],
          slugs='gy-dogeup gy-byeongyeong gy-gongdong gy-hadogeup hadogeup-gyehoek hadogeup-tongbo gy-jikbul nomubi-gubun-haeui gy-imdae gy-jajae gy-unban gy-yongyeok gy-pyegimul gy-sangyong gy-ilyong gy-nda gy-gakseo gy-haeji o-mingan-dogeup cheongryeom sayonginmgye wiimjang'),
     dict(k='start', n='②', ic='🚩', h='착공', 짧게='착공계 · 현장 개설 · 공정표 · 계획서',
          언제='계약 뒤 착공할 때 내는 서류와 공사 초기에 세우는 계획서입니다. 착공계 한 벌은 아래 «꾸러미» 에 차례대로 모아 두었습니다.',
@@ -73,7 +74,7 @@ STAGES = [
          slugs='chulyeok-ilbo geunroja-myeongbu chamyeoja-silmyeongbu taseol-silmyeongbu imgeum-daejang nomubi jikjeop-nomubi gyejwa-ipgeum janggi-banip janggi-gadong imdaeryo-jeongsan yuryu o-jangbi-gwanri'),
     dict(k='money', n='⑧', ic='💰', h='기성 · 설계변경 · 선금', 짧게='기성 청구 · 설계변경 · 물가변동 · 내역',
          언제='돈과 금액이 걸린 서류입니다 — 선금, 기성 청구, 설계변경·물가변동·공기연장, 내역서·원가계산서.',
-         progs=['daegeum', 'gyeonjeok', 'sonik', 'jeongsan', 'chgexcel', 'twoline', 'price', 'qty'],
+         progs=['daegeum', 'jvsplit', 'gyeonjeok', 'sonik', 'jeongsan', 'chgexcel', 'twoline', 'price', 'qty'],
          slugs='seongeum seongeum-gyehoek o-seongeum gisung-geomsa giseong-daebipyo gisung-cheonggu jibul-gyehoekseo jibul-hwaginseo hadogeup-daegeum siljeong-bogo seolgye-byeongyeong chg-chongwal chg-naeyeok chg-hyeobui chg-ganjeopbi chg-mulga-san mulga gonggi-yeonjang jiche-gammyeon suryang ilwidaega sanchul-naeyeok wonga gongnaeyeok-hanbeol silhaeng-daebipyo'),
     dict(k='end', n='⑨', ic='🏁', h='준공 · 하자 · 대금 받기', 짧게='준공계 · 정산 · 완료 확인 · 대금 청구 · 하자',
          언제='준공 서류와 준공 뒤 하자·대금 문제입니다. 못 받은 돈은 사이트의 미불금 도구로 순서대로 갑니다.',

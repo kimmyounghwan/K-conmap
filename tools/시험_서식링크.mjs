@@ -60,6 +60,7 @@ const 가 = (from, to) => 링크.some(([s, , 주소]) => s === from && 주소 ==
 
 const 도구로 = (from, to) => 링크.some(([s, , 주소]) => s === from && 주소 === '/tools/' + to)
 봐(도구로('gisung-cheonggu', 'payment-deadline') && 도구로('jungong-daega', 'payment-deadline'), '💰 G534 기성금 청구서 · 준공대가 청구서 → 기성금 · 준공금 지급 기한(받을 날)')
+봐(도구로('gy-gongdong', 'joint-split') && 도구로('gisung-cheonggu', 'joint-split'), '🤝 G535 공동수급협정서 · 기성금 청구서 → 공동도급 기성 · 준공금 나누기')
 
 console.log('④ 구운 장 글에 [ ]( ) 꼴이 남지 않게 — bold_md 를 거치는 자리')
 const 자리 = (굽기.match(/bold_md\(esc\(/g) || []).length
