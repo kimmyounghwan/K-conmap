@@ -66,7 +66,12 @@ const 도구로 = (from, to) => 링크.some(([s, , 주소]) => s === from && 주
 { const 설 = F.find((f) => f.slug === 'seolgye-anjeon-daejang'); const 글 = 설 ? JSON.stringify(설) : ''
   const 격 = (() => { try { return 읽('web/public/forms/g/seolgye-anjeon-daejang.json') } catch (e) { return '' } })()
   봐(/기본 · 설계 · 공사 세 가지 안전보건대장/.test(글) && !/유지관리/.test(글) && /☐ 기본\s+☐ 설계\s+☐ 공사/.test(글) && 격 && !/유지관리/.test(격) && /☐ 기본\s+☑ 설계\s+☐ 공사/.test(격),
-    '🩹 G536 설계안전보건대장 갑지 — 안전보건대장은 «기본 · 설계 · 공사» 셋(놓치기 쉬운 것 · 작성 단계 칸 · 종이 예시 모두 — «유지관리» 없음)') }
+    '🩹 G536 설계안전보건대장 갑지 — 안전보건대장은 «기본 · 설계 · 공사» 셋(놓치기 쉬운 것 · 작성 단계 칸 · 종이 예시 모두 — «유지관리» 없음)')
+  /* 🩹 G536b (11-04 사이트 점검) — 사이트 «예시 채우기» 값(forms/ex · 웹예시.py)이 옛 «☑ 공사 · ☐ 유지관리» 그대로였음 → 다시 만듦 · 서명 작성자도 작성자 칸(정안전)과 같게 */
+  const 예 = (() => { try { return JSON.parse(읽('web/public/forms/ex/seolgye-anjeon-daejang.json')) } catch (e) { return null } })()
+  const 예글 = 예 ? JSON.stringify(예) : ''
+  봐(!!예 && !/유지관리/.test(예글) && /☐ 기본\s+☑ 설계\s+☐ 공사/.test(예글) && 예[1] && 예[1][1] === '정안전' && 예[3] && 예[3].n && 예[3].n[0] === 예[1][1] && !/이영희/.test(격),
+    '🩹 G536b 설계안전보건대장 «예시 채우기»(forms/ex) — «기본 · ☑ 설계 · 공사» · «유지관리» 없음 · 서명 작성자 = 작성자 칸') }
 
 console.log('④ 구운 장 글에 [ ]( ) 꼴이 남지 않게 — bold_md 를 거치는 자리')
 const 자리 = (굽기.match(/bold_md\(esc\(/g) || []).length
