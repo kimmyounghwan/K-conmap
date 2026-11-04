@@ -216,7 +216,12 @@
   "|jeoksan|fill": 8,
   "|jeoksan|lab": 1,
   "|jeoksan|run": 4,
+  "|first|hado-gyeonjeok": 1,
   "|shareone": 2,
   "|tools|wonclick": 11
+ },
+ "_v": "🩹 G537 (2026-11-04) 조회 시작값 — 화면열쇠가 «|first» 로 묶여(1순위 화면과 섞여) 따로 못 센 기간(11/3 ~ 11/4)의 조회. 하도급 견적틀은 화면이 센 «|견적틀|열기» 6 · 받기는 «|견적틀|받기» 1(위 p — dl «|first» 1 과 같은 것).",
+ "v": {
+  "|first|hado-gyeonjeok": 6
  }
 }

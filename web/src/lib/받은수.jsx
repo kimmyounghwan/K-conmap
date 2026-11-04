@@ -31,7 +31,9 @@ import { useEffect, useState } from 'react'
 const DB = 'https://k-conmap-default-rtdb.firebaseio.com'
 const 조회직접시작 = Date.parse('2026-10-21T00:00:00+09:00')   /* 🔢 G342 — lib/조회수.jsx 와 같은 때(서로 불러오지 않게 한 줄 둠) */
 export const 파일끝 = /\.(xlsx|xlsm|xls|pdf|hwp|hwpx|docx|doc|zip|dwg|dxf|lsp|csv|pptx)$/i
-const 두마디 = new Set(['forms', 'tools', 'cad', 'jeoksan', 'naeyeok', 'change'])
+/* 🩹 G537 (11-04) 소장님 「조회는 이렇게 많은데, 받기는 없어」 — «하도급 견적틀»(/first/hado-gyeonjeok) 카드가 «|first»(1순위 화면 전체) 조회 2,321 을 보였음 → first 도 두 마디.
+   ⚠️ tools/이용자지도.py 두마디 와 «똑같이»(tools/시험_화면열쇠.mjs 가 대 봄) · 새 화면을 한 마디 화면 아래(/first/… · /svc/… 등)에 두면 여기에 넣을 것 */
+const 두마디 = new Set(['forms', 'tools', 'cad', 'jeoksan', 'naeyeok', 'change', 'first'])
 
 /** 데이터베이스 열쇠로 — «.» «/» «#» «$» «[» «]» 는 열쇠에 못 씁니다 */
 export const 열쇠꼴 = (s) => String(s).replace(/\./g, ',').replace(/\//g, '|').replace(/[#$[\]]/g, '_')
@@ -177,6 +179,8 @@ function 읽기() {
     if (v !== undefined && !(직접 && c === undefined)) {
       const 합침 = { ...((v && typeof v === 'object') ? v : {}) }
       if (c && typeof c === 'object') for (const [k, x] of Object.entries(c)) 합침[k] = (Number(합침[k]) || 0) + (Number(x) || 0)
+      /* 🩹 G537 — 따로 세기 전의 조회(받은수_시작.json v · 예: 하도급 견적틀 11/3~11/4 열림 6) */
+      if (시작 && 시작.v && typeof 시작.v === 'object') for (const [k, x] of Object.entries(시작.v)) 합침[k] = (Number(합침[k]) || 0) + (Number(x) || 0)
       조회 = { p: 합침 }
     }
     if (못받음) {

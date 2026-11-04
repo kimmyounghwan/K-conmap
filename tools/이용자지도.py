@@ -572,7 +572,7 @@ def 조회끝(때=None):
     """애널리틱스 조회수를 어디까지 셀지 — 10/21 0시 전엔 «today» · 그 뒤엔 2026-10-20"""
     return "today" if (때 or 지금()) < 조회직접 else 조회끝날
 조회틈 = 30 * 60                 # 30분마다 한 번(지도는 10분마다)
-두마디 = {"forms", "tools", "cad", "jeoksan", "naeyeok", "change"}
+두마디 = {"forms", "tools", "cad", "jeoksan", "naeyeok", "change", "first"}   # 🩹 G537 — first 도(/first/hado-gyeonjeok 이 1순위 조회를 받던 것) · 받은수.jsx 와 «똑같이»
 _열쇠바꿈 = str.maketrans({"#": "_", "$": "_", "[": "_", "]": "_"})
 열쇠모양 = re.compile(r"^\|(?:[a-z0-9-]+(?:\|[A-Za-z0-9,_-]+)?)?$")
 

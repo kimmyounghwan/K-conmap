@@ -38,6 +38,7 @@ t = datetime(2026, 10, 2, 10, 30, tzinfo=KST)
     ("/cad/kl", "|cad|kl"), ("/daily/2026-09-23", "|daily"), ("/guide/bid-price", "|guide"), ("/없는주소-시험", "|없는주소-시험"),
     ("/a.b/c", "|a,b"), ("/tools/x.y", "|tools|x,y"), ("/tools/a#b", "|tools|a"), ("/tools/a?q=1", "|tools|a"),
     ("/forms/$x[1]", "|forms|_x_1_"), ("/corp/(주)강원랜드", "|corp"), ("//tools//dxf3d//", "|tools|dxf3d"),
+    ("/first", "|first"), ("/first/", "|first"), ("/first/hado-gyeonjeok", "|first|hado-gyeonjeok"),   # 🩹 G537 — 1순위 와 하도급 견적틀을 따로
 ]
 틀린주소 = [(a, M.화면열쇠(a), b) for a, b in 주소답 if M.화면열쇠(a) != b]
 봄("화면열쇠 — 받은수.jsx 와 같은 답 %d가지" % len(주소답), not 틀린주소, 틀린주소[:3])
@@ -69,6 +70,9 @@ for 이름 in ("forms.json", "forms_orig.json"):
         if isinstance(f, dict) and f.get("slug"): 카드주소.add("/forms/" + f["slug"])
 안맞음 = sorted(a for a in 카드주소 if not M.열쇠모양.match(M.화면열쇠(a)))
 봄("카드 화면 %d곳 — 모두 열쇠 꼴에 맞음" % len(카드주소), len(카드주소) > 150 and not 안맞음, 안맞음[:5])
+# 🩹 G537 — 두 마디 이상인 카드 화면은 열쇠도 두 마디(한 마디면 윗 화면 조회를 통째로 받음 — 하도급 견적틀이 1순위 2,321 을 보였던 것)
+묶임 = sorted(a for a in 카드주소 if len([x for x in a.split("?")[0].split("#")[0].split("/") if x]) >= 2 and M.화면열쇠(a).count("|") < 2)
+봄("두 마디 카드 화면 — 열쇠도 두 마디(윗 화면과 안 섞임)", not 묶임, 묶임[:5])
 
 # 조회수가 안 돼도 지도는 그대로(따로 실패) · 조회수는 10분 뒤 다시 · 되면 30분 뒤
 class 답:
