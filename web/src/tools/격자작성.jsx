@@ -255,6 +255,8 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
     return () => window.removeEventListener('resize', 재기)
   }, [고른 !== null])   // eslint-disable-line react-hooks/exhaustive-deps
   const 쪽폭 = (판) => Math.max(200, Math.min(폭 || 800, 판.W > 700 ? 1100 : 820) * 확대)
+  /* 크게 본 종이가 화면보다 넓으면(폰은 처음부터) 오른쪽이 잘려 보임 — «옆으로 밀면 보임»을 알려 줌(11-04 이용자처럼 점검: 가로 서식 오른쪽 칸이 안 보였음) */
+  const 넘침 = 확대 > 1 && 폭 > 0 && 판들.some((판) => 쪽폭(판) > 폭 - 4)
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined') { set보임(null); return undefined }
     const io = new IntersectionObserver((ents) => {
@@ -684,6 +686,7 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
           <span className="muted sm">☑ = PDF · 인쇄에 넣음</span>
         </div>
       )}
+      {넘침 && <div className="gx-slide muted sm" role="note">↔ 종이를 옆으로 밀어 보세요 <button type="button" className="tp-x" onClick={() => set확대(1)}>한눈에 보기</button></div>}
       <div className={'gx-wrap' + (확대 > 1 ? ' zoomed' : '')} ref={감싸개} onDragOver={(e) => { if (사진칸들.length && e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files')) e.preventDefault() }} onDrop={놓기}>
         {doc.sheets.map((s, si) => (
           <div key={si} id={`gx-s${si}`} className={'gx-sheet' + (인쇄할[si] ? '' : ' off')}>

@@ -8728,6 +8728,7 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gx-sh input { margin: 0; }
 .gx-wrap { display: grid; justify-items: center; gap: 0; min-width: 0; padding: 4px 0; background: var(--surface-2); border-radius: 10px; }
 .gx-wrap.zoomed { overflow-x: auto; justify-items: start; }
+.gx-slide { margin: 0 0 4px; padding: 0 2px; line-height: 1.5; word-break: keep-all; }   /* 한 줄(폰 320 에서도) — 종이를 덜 밀어 내림 */
 .gx-sheet { display: grid; justify-items: center; gap: 12px; padding: 8px 0 4px; }
 .gx-wrap.zoomed .gx-sheet { justify-items: start; padding-left: 6px; padding-right: 6px; }
 .gx-sheet.off .gx-page { opacity: .5; }

@@ -64,7 +64,8 @@ for (const 기기 of 기기들) {
     if (i === 0) {
       // ① 열자마자 종이가 보임
       const 위치 = await A.evaluate(() => ({ 펼침: document.querySelector('details.gx-how').open, 종이: Math.round(document.querySelector('.gx-page').getBoundingClientRect().top + scrollY), 작성: Math.round(document.getElementById('작성').getBoundingClientRect().top + scrollY), 높이: innerHeight }))
-      봐(!위치.펼침 && 위치.종이 - 위치.작성 < (기기 === '폰' ? 400 : 330), `${기기} ① «이렇게 쓰세요» 접힘 · 종이가 쓰는 칸 바로 아래(작성 칸 위에서 ${위치.종이 - 위치.작성}px — 설명을 펴 둔 전엔 PC 591 · 폰 1,521px 밀림)`, JSON.stringify(위치))
+      // 폰 400 → 425(G533 11-04): 폰은 종이를 크게 시작해 옆으로 밀림 → 종이 바로 위 «↔ 종이를 옆으로 밀어 보세요 [한눈에 보기]» 한 줄 — 377 → 404px(+27)
+      봐(!위치.펼침 && 위치.종이 - 위치.작성 < (기기 === '폰' ? 425 : 330), `${기기} ① «이렇게 쓰세요» 접힘 · 종이가 쓰는 칸 바로 아래(작성 칸 위에서 ${위치.종이 - 위치.작성}px — 설명을 펴 둔 전엔 PC 591 · 폰 1,521px 밀림)`, JSON.stringify(위치))
       if (기기 === 'PC') 봐(위치.종이 < 위치.높이, `${기기} ① 첫 화면(860px) 안에서 종이가 보임 — 종이 위 ${위치.종이}px`, JSON.stringify(위치))
       await A.screenshot({ path: path.join(폴더, `G369_${기기}_처음화면.png`) })
       // 위 «종이에 바로 쓰기 → PDF» 를 누르면 → 종이 첫 줄이 화면 안(폰은 아래 단추 띠 위)
