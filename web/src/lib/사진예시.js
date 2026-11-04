@@ -117,14 +117,99 @@ const 장면 = {
   },
 }
 
-function 이름표(g, w, h, 글) {
+function 이름표(g, w, h, 글, 끝 = 'K-건설맵 예시 사진', 크기 = h) {
   g.textAlign = 'left'
-  g.font = 글꼴(Math.round(h * 0.045), true)
+  g.font = 글꼴(Math.round(크기 * 0.045), true)
   const tw = g.measureText(글).width
-  g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(w * 0.03, h * 0.04, tw + 30, h * 0.075)
-  g.fillStyle = '#222'; g.fillText(글, w * 0.03 + 15, h * 0.095)
-  g.font = 글꼴(Math.round(h * 0.03), true)
-  g.fillStyle = 'rgba(0,0,0,.45)'; g.textAlign = 'right'; g.fillText('K-건설맵 예시 사진', w * 0.97, h * 0.96)
+  g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(w * 0.03, 크기 * 0.04, tw + 30, 크기 * 0.075)
+  g.fillStyle = '#222'; g.fillText(글, w * 0.03 + 15, 크기 * 0.095)
+  g.font = 글꼴(Math.round(크기 * 0.03), true)
+  g.fillStyle = 'rgba(0,0,0,.45)'; g.textAlign = 'right'; g.fillText(끝, w * 0.97, h - 크기 * 0.04)
+}
+
+/* ── 📐 G529 (2026-11-04) 예시 «그림» — 위치도 · 배치 도면 칸에는 현장 사진(관 부설 등) 대신 위에서 본 간단한 그림 ──
+ *   특정공사 사전신고서 [첨부 2] 위치도 · [첨부 3] 방음 · 방진시설 배치 도면 — 작성 예시 피해 대상 표
+ *   (① 학교 동 45 m · ② 공동주택 북 62 m · ③ 주택 서 15 m · ④ 같은 건물 상가)와 맞춤 · 축척 1 m ≈ 2.7 점.
+ *   실제 장소 · 지도 · 이름 없음(○○로 · △△길만). */
+function 둥근네모(g, x, y, w, h, r) {
+  g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath()
+}
+function 쓰기(g, t, x, y, px, 색 = '#1f2937', 굵 = true, 줄 = 'center') { g.font = 글꼴(px, 굵); g.fillStyle = 색; g.textAlign = 줄; g.fillText(t, x, y) }
+const 그림장면 = {
+  '공사장 위치도': { w: 1600, h: 1030, 표: 1030, 그리기: (g, w, h) => {
+    g.fillStyle = '#f5f2ea'; g.fillRect(0, 0, w, h)
+    /* 길 — 아래 가로 ○○로 · 왼쪽 세로 △△길 */
+    g.fillStyle = '#cfc9bc'; g.fillRect(0, 830, w, 84); g.fillRect(380, 0, 84, 830)
+    g.strokeStyle = '#ffffff'; g.lineWidth = 5; g.setLineDash([26, 20])
+    g.beginPath(); g.moveTo(0, 872); g.lineTo(w, 872); g.moveTo(422, 0); g.lineTo(422, 830); g.stroke(); g.setLineDash([])
+    쓰기(g, '○○로', 160, 885, 34, '#5b5446'); g.save(); g.translate(436, 640); g.rotate(-Math.PI / 2); 쓰기(g, '△△길', 0, 0, 34, '#5b5446'); g.restore()
+    /* 공사장 부지 경계에서 50 m */
+    g.strokeStyle = '#2563eb'; g.lineWidth = 5; g.setLineDash([18, 12]); 둥근네모(g, 544, 164, 592, 572, 60); g.stroke(); g.setLineDash([])
+    쓰기(g, '부지 경계에서 50 m', 1100, 202, 30, '#1d4ed8', true, 'right')
+    /* 공사장 — 빨간 점선 */
+    g.fillStyle = '#fde8e5'; g.fillRect(680, 300, 320, 300)
+    g.strokeStyle = '#d92d20'; g.lineWidth = 7; g.setLineDash([22, 12]); g.strokeRect(680, 300, 320, 300); g.setLineDash([])
+    쓰기(g, '공 사 장', 840, 370, 40, '#b42318'); 쓰기(g, '(건물 안 내부 철거)', 840, 414, 28, '#b42318', false)
+    for (const x of [730, 880]) { g.fillStyle = '#f59e0b'; g.fillRect(x, 470, 70, 46); 쓰기(g, '장비', x + 35, 503, 24) }
+    쓰기(g, '④ 1층 상가(같은 건물)', 840, 578, 26, '#7c2d12')
+    /* ① 학교 — 동 45 m(50 m 안) */
+    g.fillStyle = '#dcfce7'; g.fillRect(1122, 250, 300, 310); g.strokeStyle = '#15803d'; g.lineWidth = 5; g.strokeRect(1122, 250, 300, 310)
+    g.fillStyle = '#bbf7d0'; g.fillRect(1180, 300, 190, 120)
+    쓰기(g, '① 학교', 1272, 470, 40, '#166534'); 쓰기(g, '동 45 m', 1272, 516, 30, '#166534', false)
+    /* ② 공동주택 — 북 62 m(50 m 밖) */
+    g.fillStyle = '#e0e7ff'; g.fillRect(640, 24, 400, 106); g.strokeStyle = '#4338ca'; g.lineWidth = 5; g.strokeRect(640, 24, 400, 106)
+    쓰기(g, '② 공동주택  북 62 m', 840, 92, 32, '#3730a3')
+    /* ③ 단독주택 4동 — 서 15 m */
+    for (const [x, y] of [[490, 330], [570, 330], [490, 430], [570, 430]]) { g.fillStyle = '#fef3c7'; g.fillRect(x, y, 66, 74); g.strokeStyle = '#b45309'; g.lineWidth = 4; g.strokeRect(x, y, 66, 74) }
+    쓰기(g, '③ 주택', 568, 548, 34, '#92400e'); 쓰기(g, '서 15 m', 568, 588, 28, '#92400e', false)
+    /* 북쪽 */
+    g.fillStyle = '#374151'; g.beginPath(); g.moveTo(1520, 70); g.lineTo(1496, 140); g.lineTo(1520, 124); g.lineTo(1544, 140); g.closePath(); g.fill()
+    쓰기(g, 'N', 1520, 60, 34, '#374151')
+  } },
+  '방음 · 방진시설 배치': { w: 2160, h: 400, 표: 700, 그리기: (g, w, h) => {
+    g.fillStyle = '#f5f2ea'; g.fillRect(0, 0, w, h)
+    /* 건물 한 층(위에서) — 벽 · 철거하는 칸막이(점선) */
+    g.strokeStyle = '#374151'; g.lineWidth = 12; g.strokeRect(300, 96, 1380, 220)
+    g.lineWidth = 6; g.setLineDash([16, 12]); g.beginPath(); g.moveTo(760, 96); g.lineTo(760, 316); g.moveTo(1220, 96); g.lineTo(1220, 316); g.stroke(); g.setLineDash([])
+    쓰기(g, '철거하는 칸막이(점선)', 990, 150, 32, '#6b7280', false)
+    /* 창 · 출입구 방음막(굵은 파랑) */
+    g.strokeStyle = '#2563eb'; g.lineWidth = 16
+    for (const [x1, x2] of [[420, 620], [880, 1080], [1340, 1540]]) { g.beginPath(); g.moveTo(x1, 316); g.lineTo(x2, 316); g.stroke() }
+    g.beginPath(); g.moveTo(300, 150); g.lineTo(300, 262); g.stroke()
+    쓰기(g, '창 · 출입구 방음막(파랑)', 990, 370, 34, '#1d4ed8')
+    /* 장비 · 방진매트(빗금) */
+    for (const [x, t] of [[480, '압쇄기'], [1330, '브레이커']]) {
+      g.fillStyle = '#fed7aa'; g.fillRect(x - 20, 160, 220, 110)
+      g.save(); g.beginPath(); g.rect(x - 20, 160, 220, 110); g.clip()
+      g.strokeStyle = '#ea580c'; g.lineWidth = 3
+      for (let i = -120; i < 240; i += 22) { g.beginPath(); g.moveTo(x - 20 + i, 270); g.lineTo(x - 20 + i + 110, 160); g.stroke() }
+      g.restore()
+      g.fillStyle = '#f59e0b'; g.fillRect(x + 30, 185, 120, 60); 쓰기(g, t, x + 90, 226, 28)
+      쓰기(g, '방진매트', x + 90, 296, 24, '#9a3412', false)
+    }
+    /* 이동식 방음벽 · 학교 쪽 */
+    g.strokeStyle = '#1e3a8a'; g.lineWidth = 22; g.beginPath(); g.moveTo(1760, 60); g.lineTo(1760, 350); g.stroke()
+    쓰기(g, '이동식 방음벽', 1800, 160, 34, '#1e3a8a', true, 'left'); 쓰기(g, '높이 3 m', 1800, 204, 28, '#1e3a8a', false, 'left')
+    쓰기(g, '① 학교 쪽 →', 1800, 290, 34, '#166534', true, 'left')
+  } },
+}
+const png = (c) => new Promise((ok, no) => c.toBlob((b) => (b ? b.arrayBuffer().then((a) => ok(new Uint8Array(a)), no) : no(new Error('그림을 만들지 못했습니다'))), 'image/png'))
+/** 예시 그림 한 장 — 종류: '공사장 위치도' · '방음 · 방진시설 배치'(없는 종류면 null) */
+export async function 예시그림파일(종류) {
+  const s = 그림장면[종류]
+  if (!s) return null
+  const c = 캔버스(s.w, s.h)
+  const g = c.getContext('2d')
+  s.그리기(g, s.w, s.h)
+  이름표(g, s.w, s.h, `예시 · ${종류}`, 'K-건설맵 예시 그림', s.표)
+  return new File([await png(c)], `예시_${종류.replace(/[ ·]+/g, '_')}.png`, { type: 'image/png' })
+}
+/** 사진 칸 머리글 → 맞는 예시 그림 종류(현장 사진이면 null) — 격자작성.jsx «✍ 예시 채우기» */
+export function 그림종류(머리) {
+  const t = String(머리 || '')
+  if (/위\s*치\s*도|지도/.test(t)) return '공사장 위치도'
+  if (/(방음|방진).*(배치|도면)|(배치|도면).*(방음|방진)/.test(t)) return '방음 · 방진시설 배치'
+  return null
 }
 
 /** 예시 사진 8장 — File 목록(찍은 시각 들어 있음) */

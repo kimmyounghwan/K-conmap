@@ -2248,6 +2248,9 @@ a.row.rowlink .go { color: var(--accent); font-weight: 800; font-size: 13px; }
 .flist { margin: 0; padding-left: 18px; }
 .flist li { font-size: 13px; line-height: 1.75; margin-bottom: 6px; }
 .flist.tight li { margin-bottom: 2px; }
+/* 🍚 G529 서식 글 안 «다음에 쓸 서류» 링크 — 그냥 a 는 글과 같은 색이라 링크인지 모름 */
+a.flink { color: var(--accent); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+a.flink:hover { opacity: .8; }
 
 /* 미리보기 — 종이처럼 */
 .fscroll { overflow-x: auto; }

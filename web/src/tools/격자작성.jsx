@@ -124,7 +124,7 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
   /* 📷 G492 사진 칸 — 열 머리글(위로 올라가며 처음 만나는 글 있는 칸)에 «사진» · 높이 25pt 넘는 빈 쓰는 칸 */
   const 덮는칸들 = useMemo(() => doc.sheets.map((sh) => { const m = new Map(); for (const x of sh.cells) for (let i = x[0]; i < x[0] + x[2]; i++) for (let j = x[1]; j < x[1] + x[3]; j++) m.set(i * 16384 + j, x); return m }), [doc])
   const 사진칸표 = useMemo(() => {
-    const out = new Set()
+    const out = new Map()      // 칸 → 머리글(📐 G529 예시 그림 고르기에 씀 · .has 는 Set 과 같음)
     doc.sheets.forEach((sh, si) => {
       const 판 = 판들[si], 덮 = 덮는칸들[si]
       for (const x of sh.cells) {
@@ -132,7 +132,7 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
         if (판.Y[x[0] + x[2] - 1] - 판.Y[x[0] - 1] < 25) continue
         let 머리 = null
         for (let r = x[0] - 1; r >= 1; r--) { const y = 덮.get(r * 16384 + x[1]); if (!y || y === x) continue; if (y[5] === 1 || y[5] === 3) continue; const t = String(y[6] ?? '').trim(); if (t) { 머리 = t; break } }
-        if (머리 && /사진/.test(머리)) out.add(x)
+        if (머리 && /사진/.test(머리)) out.set(x, 머리)
       }
     })
     return out
@@ -586,12 +586,20 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
     set말('✍ 가상의 현장으로 채운 작성 예시입니다 — 고쳐 쓰시거나 «🧹 빈칸으로» 를 누르세요')
     if (사진칸들.length) {
       try {
-        const { 예시사진파일들 } = await import('../lib/사진예시.js')
-        const 들 = await 예시사진파일들()
-        /* 공사 전 전경 · 관 부설 · 콘크리트 타설 = 착공 전 · 시공 중 · 준공 꼴(가상 그림) */
-        const 고름 = [들[0], 들[3], 들[6]].filter(Boolean).slice(0, 사진칸들.length)
+        const { 예시사진파일들, 예시그림파일, 그림종류 } = await import('../lib/사진예시.js')
+        /* 📐 G529 칸 머리글이 위치도 · 방음 배치 도면이면 그에 맞는 예시 그림 — 현장 사진(관 부설 등)을 도면 칸에 넣지 않게.
+           나머지 칸은 전처럼 공사 전 전경 · 관 부설 · 콘크리트 타설 = 착공 전 · 시공 중 · 준공 꼴(가상 그림). 사진넣기 는 칸 차례로 넣으므로 칸마다 한 장씩 차례로 고름 */
+        const 종류들 = 사진칸들.map((q) => 그림종류(사진칸표.get(q.x)))
+        const 들 = 종류들.some((t) => !t) ? await 예시사진파일들() : []
+        const 현장 = [들[0], 들[3], 들[6]].filter(Boolean)
+        const 고름 = []
+        for (const t of 종류들) {
+          const f = t ? await 예시그림파일(t) : 현장.shift()
+          if (!f) break
+          고름.push(f)
+        }
         사진들.current.clear()
-        await 사진넣기(고름, 사진칸들[0].i)
+        if (고름.length) await 사진넣기(고름, 사진칸들[0].i)
       } catch (e) { /* 예시 사진은 못 그려도 글 예시는 그대로 */ }
     }
   }

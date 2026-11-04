@@ -100,9 +100,18 @@ const GROUPS = ['일반', '계약·공사', '계약·임대구매', '계약·노
   '공무', '공사', '안전', '품질', '환경', '노무·장비']
 
 /* 서식 «놓치기 쉬운 것» 의 **굵게** 를 진짜 굵은 글씨로 (2026-09-26)
- * forms.json 143줄이 ** 를 쓰는데 화면에 별표가 그대로 나오고 있었습니다. */
+ * forms.json 143줄이 ** 를 쓰는데 화면에 별표가 그대로 나오고 있었습니다.
+ * 🍚 G529 (2026-11-04) [글](/forms/…) · [글](/tools/…) 는 사이트 안 링크로 — «다음에 쓸 서류» 로 바로 가게(소장님 「계속 사이트 찾게 해야 해」).
+ *   사이트 안 주소만(밖 주소 · 다른 꼴은 글 그대로) · prerender.py bold_md 와 같게 · 링크로 보이게 a.flink(색 · 밑줄 — 그냥 a 는 글과 같은 색). */
+const 안링크 = /\[([^\]\n]+)\]\((\/(?:forms|tools)\/[A-Za-z0-9\-/]+)\)/g
 function 굵게(s) {
-  return String(s).split(/\*\*(.+?)\*\*/g).map((x, i) => (i % 2 ? <b key={i}>{x}</b> : x))
+  const 조각 = String(s).split(안링크)        // [글, 링크글, 주소, 글, …]
+  const out = []
+  for (let i = 0; i < 조각.length; i += 3) {
+    조각[i].split(/\*\*(.+?)\*\*/g).forEach((x, j) => { if (x) out.push(j % 2 ? <b key={`${i}.${j}`}>{x}</b> : x) })
+    if (i + 2 < 조각.length) out.push(<Link key={`${i}.a`} className="flink" to={조각[i + 2]}>{조각[i + 1]}</Link>)
+  }
+  return out
 }
 
 export function bySlug(slug) {
