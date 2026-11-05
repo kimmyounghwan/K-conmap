@@ -10,6 +10,7 @@ import { Link } from 'react-router-dom'
 import * as H from '../lib/내현장.js'
 import { 세기 } from '../lib/받은수.jsx'
 import { 파일주기 } from '../lib/그림PDF.js'
+import { 금액수, 금액말 } from '../lib/금액읽기.js'
 
 const 원 = (n) => (n > 0 ? Math.round(n).toLocaleString('ko-KR') + '원' : '')
 const 억글 = (n) => {
@@ -28,6 +29,7 @@ function 편집({ 처음, 새것, 끝, 지움 }) {
     if (!x.현장) { set틀림('공사명을 적어 주세요'); return }
     if (!x.착공 || !x.준공) { set틀림('착공일 · 준공일을 넣어 주세요 — 할 일 날짜를 여기서 셉니다'); return }
     if (!H.현장맞나(x)) { set틀림('준공일이 착공일보다 앞섭니다'); return }
+    if (String(h.계약금액 || '').trim() && !x.계약금액) { set틀림('도급금액을 읽지 못했습니다 — 숫자로 적어 주세요(예: 1,250,000,000 · 12억 5천만)'); return }
     const r = H.저장(x)
     if (r.틀림) { set틀림(r.틀림); return }
     세기(새것 ? '|마이|현장만듦' : '|마이|현장고침')
@@ -39,6 +41,17 @@ function 편집({ 처음, 새것, 끝, 지움 }) {
       <input className="inp" value={h[k] || ''} onChange={바꿈(k)} {...꼴} />
     </label>
   )
+  /* 💰 G541 금액 칸 — «3억 8,500만» · «12억» 처럼 적어도 되고, 아래 줄에 어떻게 읽었는지 바로 보임(이용자 점검 11-05: 38,500원 · 12원으로 저장되던 것) */
+  const 금액칸 = (k, 이름) => {
+    const v = String(h[k] || '').trim(), n = 금액수(v)
+    return (
+      <label className="mc-f">
+        <span className="mc-fl">{이름}</span>
+        <input className="inp" value={h[k] || ''} onChange={바꿈(k)} inputMode="text" placeholder="예: 1,250,000,000 · 12억 5천만" />
+        {v && <span className={'mc-amt' + (n ? '' : ' bad')}>{n ? `= ${금액말(n)} (${n.toLocaleString('ko-KR')}원)` : '⚠ 금액으로 읽지 못했습니다 — 숫자로 적어 주세요'}</span>}
+      </label>
+    )
+  }
   return (
     <div className="card mc-ec mc-sited">
       <h3 className="mc-eh">{새것 ? '🏗 내 현장 적기' : '✏️ 현장 고치기'}</h3>
@@ -52,7 +65,7 @@ function 편집({ 처음, 새것, 끝, 지움 }) {
             {H.갈래들.map(([k, n]) => <option key={k} value={k}>{n}</option>)}
           </select>
         </label>
-        {칸('계약금액', '도급금액(원)', { inputMode: 'numeric', placeholder: '예: 1,250,000,000' })}
+        {금액칸('계약금액', '도급금액(원)')}
         {칸('착공', '착공일 *', { type: 'date' })}
         {칸('준공', '준공일 *', { type: 'date' })}
         {칸('회사', '우리 회사', { maxLength: 40 })}
@@ -65,7 +78,7 @@ function 편집({ 처음, 새것, 끝, 지움 }) {
           {칸('낙찰일', '낙찰 통지일', { type: 'date' })}
           {칸('계약일', '계약일', { type: 'date' })}
           {칸('하도급일', '하도급 계약일', { type: 'date' })}
-          {칸('하도급금액', '하도급금액(원)', { inputMode: 'numeric' })}
+          {금액칸('하도급금액', '하도급금액(원)')}
         </div>
       </details>
       <div className="mc-site-ck">
@@ -120,15 +133,17 @@ export default function 내현장칸() {
   const 늘일 = 일.filter((x) => !x.날)
   const 공 = H.공기(현장, 오늘)
   const 다시읽기 = () => setD(H.읽기())
-  const 끝 = (r) => { set편집중(null); 다시읽기(); if (r && r.현장) set말(`✓ «${r.현장.현장}» 저장 — 서식 ${r.칸}칸에 이 현장 값이 먼저 들어갑니다`) }
+  /* 🧭 G541 저장 · 닫기 · 지움 뒤 «내 현장» 카드가 화면에 보이게(이용자 점검 11-05: 폰에서 저장하면 카드가 화면 위로 지나가 단축키만 보였음) */
+  const 보이게 = () => setTimeout(() => { const el = document.querySelector('.mc-site'); if (!el) return; const t = el.getBoundingClientRect().top; if (t < 64 || t > window.innerHeight * 0.6) window.scrollTo({ top: Math.max(0, t + window.scrollY - 70), behavior: 'smooth' }) }, 30)
+  const 끝 = (r) => { set편집중(null); 다시읽기(); if (r && r.현장) set말(`✓ «${r.현장.현장}» 저장 — 서식 ${r.칸}칸에 이 현장 값이 먼저 들어갑니다`); 보이게() }
   const 했음바꿈 = (x) => { H.했음바꿈(현장.id, x.열쇠, !x.했음); 세기('|마이|할일했음'); 다시읽기() }
   const 고르기 = (id) => { const r = H.고르기(id); 세기('|마이|현장바꿈'); 다시읽기(); if (r) set말(`«${r.현장.현장}» 으로 바꿈 — 서식도 이 현장 값으로 열립니다`) }
   const 달력받기 = () => {
-    파일주기(new Blob([H.달력(현장, 일)], { type: 'text/calendar;charset=utf-8' }), H.달력이름(현장))
+    파일주기(new Blob([H.달력(현장, 일, 오늘)], { type: 'text/calendar;charset=utf-8' }), H.달력이름(현장))
     세기('|마이|달력받기')
-    set말('📲 받은 파일을 여시면 폰 달력에 할 일이 들어갑니다(일마다 하루 전 알림 · 이어 보기 주소)')
+    set말(`📲 받은 파일을 여시면 폰 달력에 앞으로 할 일 ${H.달력일(일, 오늘).length}가지가 들어갑니다(일마다 하루 전 알림 · 이어 보기 주소)`)
   }
-  const 지움 = () => { if (!현장) return; H.지우기(현장.id); 세기('|마이|현장지움'); set편집중(null); 다시읽기(); set말('현장을 지웠습니다(이 기기에서)') }
+  const 지움 = () => { if (!현장) return; H.지우기(현장.id); 세기('|마이|현장지움'); set편집중(null); 다시읽기(); set말('현장을 지웠습니다(이 기기에서)'); 보이게() }
 
   if (편집중) return <section className="mc-site" aria-label="내 현장"><편집 처음={편집중 === '새' ? H.공통에서() : 현장} 새것={편집중 === '새'} 끝={끝} 지움={지움} /></section>
   return (
@@ -170,7 +185,7 @@ export default function 내현장칸() {
               : <p className="mc-fh">가까운 할 일이 없습니다{날일.some((x) => !x.했음 && x.D > 0) ? '' : ' — 날짜를 더 적으면(✏️ 고치기) 더 나옵니다'}.</p>}
           <div className="btn-row">
             <button type="button" className="btn sm ghost" style={{ width: 'auto' }} onClick={() => { set전체(!전체); if (!전체) 세기('|마이|할일전체') }}>{전체 ? '▲ 가까운 것만' : `📋 전체 보기(${날일.length + 늘일.length})`}</button>
-            {날일.some((x) => !x.했음) && <button type="button" className="btn sm ghost" style={{ width: 'auto' }} onClick={달력받기}>📲 폰 달력에 넣기</button>}
+            {H.달력일(날일, 오늘).length > 0 && <button type="button" className="btn sm ghost" style={{ width: 'auto' }} onClick={달력받기}>📲 폰 달력에 넣기</button>}
           </div>
           {전체 && (
             <>

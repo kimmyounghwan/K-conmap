@@ -8,6 +8,7 @@
  *   ④ ✓ 했음 → 맨 위에서 빠짐 · 새로고침 그대로 · 전체 보기(늘 지킬 것 «늘») · 📲 폰 달력(.ics · 이어 보기)
  *   ⑤ 둘째 현장 → 고르기 칩 · 바꾸면 서식 공통 칸도 · 고치기(했음 그대로) · 지우기 두 번 눌러
  *   ⑥ 쓰는 법 새 칸 다섯 · «무료» 새 글에 없음 · 폰 390 · PC 1280 넘침 0 · 오류 0
+ *   ⑦ G541 이용자처럼 — 하던 현장(착공 두 달 전) · 도급금액 «3억 8,500만»(칸 아래 «= 3억 8,500만 원» · 못 읽는 «오억» 은 막음) · 저장 뒤 카드가 화면에 보임 · 서식 칸 385,000,000 · 달력은 오늘부터
  * 인터넷 안 부름(파이어베이스 · 광고 · 애널리틱스 막음) · 받은 파일은 메모리에서만 봄.
  */
 import { createRequire } from 'node:module'
@@ -120,6 +121,34 @@ for (const [기기, w, h, 폰] of [['폰', 390, 844, true], ['PC', 1280, 900, fa
   ok(`${기기} 넘침 0`, (await 넘침(p)) <= 1, await 넘침(p))
   ok(`${기기} 오류 0`, !오류.length, 오류)
   await ctx.close()
+
+  console.log(`⑦ ${기기} 이용자처럼 — 하던 현장 · «3억 8,500만» · 저장 뒤 보임 · 달력 오늘부터(G541)`)
+  const 일곱 = await 새쪽(w, h, 폰)
+  const q = 일곱.p
+  await 열기(q)
+  await q.locator('button', { hasText: '＋ 내 현장 적기' }).click(); await q.waitForTimeout(200)
+  await 칸(q, '공사명').fill('하던 마을안길 정비공사')
+  await 칸(q, '도급금액').fill('오억'); await q.waitForTimeout(100)
+  ok(`${기기} 못 읽는 금액 «오억» → 칸 아래 «⚠ 금액으로 읽지 못했습니다»`, /금액으로 읽지 못했습니다/.test(await q.locator('.mc-amt').innerText().catch(() => '')))
+  await 칸(q, '착공일').fill(H.달더하기(오늘, -2)); await 칸(q, '준공일').fill(H.달더하기(오늘, 4))
+  await q.locator('button', { hasText: '＋ 이 현장 저장' }).click(); await q.waitForTimeout(150)
+  ok(`${기기} 못 읽는 금액이면 저장 막음 — «도급금액을 읽지 못했습니다»`, /도급금액을 읽지 못했습니다/.test(await q.locator('.mc-sited .claudesay').innerText().catch(() => '')) && (await q.evaluate(() => localStorage.getItem('kcm.my.현장'))) === null)
+  await 칸(q, '도급금액').fill('3억 8,500만'); await q.waitForTimeout(100)
+  ok(`${기기} «3억 8,500만» → 칸 아래 «= 3억 8,500만 원 (385,000,000원)»`, (await q.locator('.mc-amt').innerText()) === '= 3억 8,500만 원 (385,000,000원)', await q.locator('.mc-amt').innerText())
+  await q.locator('button', { hasText: '＋ 이 현장 저장' }).click(); await q.waitForTimeout(900)
+  ok(`${기기} 카드 «385,000,000원 (3억 8,500만 원)»`, (await q.locator('.mc-site-l').innerText()).includes('385,000,000원 (3억 8,500만 원)'), await q.locator('.mc-site-l').innerText())
+  const 자리 = await q.evaluate(() => { const r = document.querySelector('.mc-site-c').getBoundingClientRect(); return [Math.round(r.top), innerHeight] })
+  ok(`${기기} 저장 뒤 현장 카드가 화면 안(위 ${자리[0]}px)`, 자리[0] >= 40 && 자리[0] < 자리[1] * 0.7, 자리)
+  ok(`${기기} 서식 공통 칸 계약금액 «385,000,000»(착공계에 그대로)`, (await q.evaluate(() => JSON.parse(localStorage.getItem('kcm.서식공통') || '{}').계약금액)) === '385,000,000')
+  const [dl7] = await Promise.all([q.waitForEvent('download', { timeout: 10000 }).catch(() => null), q.locator('button', { hasText: '폰 달력에 넣기' }).click()])
+  let ics7 = ''
+  if (dl7) { const st = await dl7.createReadStream(); for await (const c of st) ics7 += c.toString('utf8') }
+  const 날7 = (ics7.match(/DTSTART;VALUE=DATE:(\d{8})/g) || []).map((x) => x.slice(-8))
+  const 하던 = H.현장정리({ 현장: '하던 마을안길 정비공사', 계약금액: 385000000, 착공: H.달더하기(오늘, -2), 준공: H.달더하기(오늘, 4) })
+  ok(`${기기} 📲 달력 — 지난 일정 빼고 오늘부터만(일정 ${날7.length})`, !!dl7 && 날7.length === H.달력일(H.할일(하던, 오늘), 오늘).length && 날7.every((d) => d >= 오늘.replace(/-/g, '')) && H.할일(하던, 오늘).some((x) => x.날 && x.날 < 오늘), 날7)
+  ok(`${기기} 말 «앞으로 할 일 N가지»`, /앞으로 할 일 \d+가지/.test(await 말(q)), await 말(q))
+  ok(`${기기} ⑦ 넘침 0 · 오류 0`, (await 넘침(q)) <= 1 && !일곱.오류.length, [await 넘침(q), 일곱.오류])
+  await 일곱.ctx.close()
 }
 await b.close()
 console.log(`\n${bad ? '✗' : '✓'} 시험_내현장화면 ${n - bad}/${n}`)

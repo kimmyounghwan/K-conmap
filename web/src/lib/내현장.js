@@ -11,6 +11,7 @@
  * ■ 이 기기에만(localStorage) — 서버로 안 감. 시험: node tools/시험_내현장.mjs
  */
 import { 낙찰뒤할일, 날읽기, 날글, 날더하기, 날차, 요일글, ics만들기, 발주갈래 } from './계약셈.js'
+import { 금액수 } from './금액읽기.js'   // 💰 G541 «3억 8,500만» · «12억» 도 원으로(전엔 38,500원 · 12원 — 서식 계약금액까지 틀림)
 
 export const 현장열쇠 = 'kcm.my.현장'
 export const 공통열쇠 = 'kcm.서식공통'
@@ -21,7 +22,7 @@ export const 확인최대 = 12                  // 발주자 이행 확인 줄(3
 
 const 저장소 = () => (typeof localStorage !== 'undefined' ? localStorage : null)
 const 글 = (v, n = 80) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, n)
-const 수 = (v) => { const n = Number(String(v == null ? '' : v).replace(/[^0-9.]/g, '')); return Number.isFinite(n) && n > 0 ? Math.round(n) : 0 }
+const 수 = 금액수                        // 금액 칸(도급금액 · 하도급금액) — lib/금액읽기.js 한 곳에서 읽음
 const 쉼 = (n) => (n > 0 ? Math.round(n).toLocaleString('en-US') : '')
 
 /** 날짜 글 → 'YYYY-MM-DD' — 2026-12-02 · 2026.12.2 · 2026. 12. 2. · 20261202 (없거나 틀리면 '') */
@@ -204,8 +205,11 @@ export const D글 = (D) => (D == null ? '' : D === 0 ? '오늘' : D > 0 ? `D-${D
 export const D꼴 = (D, 했음) => (했음 ? '했음' : D == null ? '' : D < 0 ? '지남' : D <= 7 ? '곧' : '')
 
 /** 폰 달력(.ics) — 안 한 · 날 있는 것만 · 본래 날(G328 — 일찍 끝내는 게 안전) · 일정마다 «이어 보기: https://k-conmap.com/my» */
-export function 달력(h, 목록) {
-  const 일 = (목록 || []).filter((x) => x.날 && !x.했음).map((x) => ({ ...x, 글: `${x.글}\n이어 보기: https://k-conmap.com/my` + (x.곳 ? ` · ${x.곳이름}: https://k-conmap.com${x.곳}` : '') }))
+export function 달력(h, 목록, 오늘 = 오늘날()) {
+  /* 📲 G541 앞으로 할 일만(오늘부터) — 하던 현장을 적으면 지난 착공 · 계약 일정까지 폰 달력에 들어가 어지럽던 것(이용자 점검 11-05) */
+  const 일 = 달력일(목록, 오늘).map((x) => ({ ...x, 글: `${x.글}\n이어 보기: https://k-conmap.com/my` + (x.곳 ? ` · ${x.곳이름}: https://k-conmap.com${x.곳}` : '') }))
   return ics만들기(일, { 이름: `K-건설맵 · ${h && h.현장 ? h.현장 : '내 현장'}` })
 }
+/** 폰 달력에 넣을 일 — 날이 있고 · 안 했고 · 오늘이거나 뒤 */
+export const 달력일 = (목록, 오늘 = 오늘날()) => (목록 || []).filter((x) => x.날 && !x.했음 && x.날 >= 오늘)
 export const 달력이름 = (h) => `K-건설맵_${String((h && h.현장) || '내현장').replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 40)}_할일.ics`
