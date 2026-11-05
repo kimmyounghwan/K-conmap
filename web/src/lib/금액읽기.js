@@ -82,11 +82,14 @@ export function 칸글읽기(s) {
   return { 수: m, 숫자글: m ? String(m) : '', 그대로: true }
 }
 
-/** 칸에 보일 숫자(쉼표) — 수 0 → '' · 숫자 글 «0» → «0» (예전 바로투찰 칸 «base ? … : ''» · «aIn ? Number(aIn)… : ''» 과 같게) */
+/** 칸에 보일 숫자(쉼표) — 수 0 → '' · 숫자 글 «0» → «0» (예전 바로투찰 칸 «base ? … : ''» · «aIn ? Number(aIn)… : ''» 과 같게)
+ *  G544 예전에 친 그대로 남은 글(«3억 8,500만» — 계약 도구 칸은 글을 남겼음)은 읽은 수로 → «385,000,000» */
 export function 칸숫자(v) {
   if (typeof v === 'number') return v > 0 ? Math.round(v).toLocaleString('ko-KR') : ''
-  const d = String(v == null ? '' : v).replace(/\D/g, '')
-  return d ? Number(d).toLocaleString('ko-KR') : ''
+  const t = String(v == null ? '' : v)
+  if (/^[\d,\s]*$/.test(t)) { const d = t.replace(/\D/g, ''); return d ? Number(d).toLocaleString('ko-KR') : '' }
+  const n = 금액수(t)
+  return n ? n.toLocaleString('ko-KR') : ''
 }
 
 /**

@@ -7155,6 +7155,8 @@ ul.gm-why { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size:
 .amt-read { display: block; margin-top: 4px; font-size: 12.5px; color: var(--good); font-weight: 700; word-break: keep-all; line-height: 1.45; }
 .hm-row > label .amt-read { margin-top: 0; }
 .hm-paid-r .amt-read { order: 9; flex-basis: 100%; margin-top: 0; }   /* G543 «낸 금액» 칸 — 칸 · 단추 다음 줄에 */
+.tl-row .amt-read { margin-top: 0; }   /* G544 계약 도구 칸(tl-row 사이 4px) */
+.jvs-m .amt-read { margin-top: 0; font-size: 11px; }   /* G544 공동도급 구성원 칸(좁음) */
 .amt-read.bad { color: var(--bad); }
 .mc-fh { font-size: 12px; color: var(--muted); line-height: 1.6; margin: 0; }
 .mc-check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }

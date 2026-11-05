@@ -25,23 +25,21 @@ import { 쉬는날 } from '../lib/해마다.js'
 import { 대금기한, 날말 } from '../lib/대금기한.js'
 import { 회차나누기 } from '../lib/공동기성.js'
 import { getBidIndex, indexRows } from '../lib/data.js'
+import 금액입력 from '../금액입력.jsx'   /* 💰 G544 금액 칸 — «3억 8,500만» · 붙여넣은 «385,000,000원» 도 읽음 · 칸 아래 읽은 줄(바로투찰 · 보험료와 같은 칸) */
+import { 금액수 } from '../lib/금액읽기.js'
 
-const num = (v) => { const n = Number(String(v ?? '').replace(/[^0-9.]/g, '')); return isFinite(n) ? n : 0 }
+const num = (v) => { const n = Number(String(v ?? '').replace(/[^0-9.]/g, '')); return isFinite(n) ? n : 0 }   /* 율 · 날 · % 만 — 금액은 금() */
+/* 💰 G544 금액은 금() — 전엔 num() 으로 숫자만 남겨 «3억 8,500만» → 38,500 · «12억» → 12 로 셈(칸에는 친 글이 그대로 보여 더 헷갈림) */
+const 금 = 금액수
 const won = (n) => (n != null && n > 0 ? Math.round(n).toLocaleString('ko-KR') + '원' : '—')
 const 원 = (n) => (n != null ? Math.round(n).toLocaleString('ko-KR') + '원' : '—')
 const 퍼 = (n, d = 2) => (n != null ? n.toFixed(d) + '%' : '—')
-/* 「2억 5,000만 원」 — 긴 숫자를 한눈에 */
-function 억만(n) {
-  const v = Math.round(+n || 0)
-  if (!(v > 0)) return ''
-  const 억 = Math.floor(v / 1e8), 만 = Math.floor((v % 1e8) / 1e4), 나머지 = v % 1e4
-  return [억 ? `${억.toLocaleString('ko-KR')}억` : '', 만 ? `${만.toLocaleString('ko-KR')}만` : '', 나머지 ? `${나머지.toLocaleString('ko-KR')}` : ''].filter(Boolean).join(' ') + ' 원'
-}
+/* 💰 G544 금액 칸 — 금액입력(숫자만 치면 예전처럼 · 억 · 만도 읽음 · 칸 아래 «= 2억 5,000만 원») · 넣은 값은 숫자 글로 남김(use칸)
+   예전에 남은 글(«3억 8,500만» 처럼 친 그대로)도 금() 으로 바르게 읽음 · 옛 «2억 5,000만 원» 옆 글(억만)은 칸 아래 줄 하나로 */
 function 금액칸({ label, hint, value, set, placeholder }) {
   return (
     <Row label={label} hint={hint}>
-      <input inputMode="numeric" value={value} onChange={(e) => set(e.target.value)} placeholder={placeholder} />
-      {num(value) > 0 && <span className="kt-won">{억만(num(value))}</span>}
+      <금액입력 value={value} onValue={(n, d) => set(d)} placeholder={placeholder} />
     </Row>
   )
 }
@@ -68,8 +66,8 @@ export function SubcontractCheck({ ex = {} }) {
   const [도급, set도급] = use칸('도급', ex.도급 ?? '')
   const [노무, set노무] = use칸('노무', ex.노무 ?? '')
   const [직접, set직접] = use칸('직접', ex.직접 ?? '')
-  const r = 하도급판정({ 발주, 상당금액: num(상당), 예정가격: num(예가), 하도급금액: num(하도) })
-  const j = 직접시공판정({ 도급금액: num(도급), 총노무비: num(노무), 직접노무비: num(직접) })
+  const r = 하도급판정({ 발주, 상당금액: 금(상당), 예정가격: 금(예가), 하도급금액: 금(하도) })
+  const j = 직접시공판정({ 도급금액: 금(도급), 총노무비: 금(노무), 직접노무비: 금(직접) })
   const 미달글 = [r.미달82 ? `상당금액의 ${하도급선.상당}% 미달` : '', r.미달64 ? `예정가격의 ${하도급선.예가}% 미달` : ''].filter(Boolean).join(' · ')
   return (
     <div className="tool">
@@ -177,8 +175,8 @@ export function AfterAward({ ex = {} }) {
   const [담기, set담기] = use칸('담기', true)
   const 담은 = use담은공고()
   const 일 = useMemo(() => 낙찰뒤할일({
-    낙찰일, 계약일, 착공일, 발주, 도급금액: num(도급), 추정가격: num(est), 공기: num(공기),
-    전문, 유해, 안전, 전기, 하도급일: 하도일, 하도급금액: num(하도금),
+    낙찰일, 계약일, 착공일, 발주, 도급금액: 금(도급), 추정가격: 금(est), 공기: num(공기),
+    전문, 유해, 안전, 전기, 하도급일: 하도일, 하도급금액: 금(하도금),
   }), [낙찰일, 계약일, 착공일, 발주, 도급, est, 공기, 전문, 유해, 안전, 전기, 하도일, 하도금])
   const 담은일 = useMemo(() => {
     const out = []
@@ -290,7 +288,7 @@ export function DelayPenalty({ ex = {} }) {
   const 줄 = 표 ? (표.줄.find((x) => x.k === 종) || 표.줄[0]) : null
   const 율 = 곳 === '직접' ? num(율직접) : 줄 ? 줄.율 : 0
   const 일 = 지체일수({ 준공기한: 기한, 합격일: 합격, 기한안신고: 기한안, 말일공휴: 공휴, 뺄날: num(뺄), 직접: 직접일 === '' ? null : num(직접일) })
-  const r = 지체상금({ 계약금액: num(계약), 인수기성: num(인수), 율, 일수: 일.날 || 0 })
+  const r = 지체상금({ 계약금액: 금(계약), 인수기성: 금(인수), 율, 일수: 일.날 || 0 })
   return (
     <div className="tool">
       <div className="tl-grid">
@@ -356,7 +354,7 @@ export function DefectPeriod({ ex = {} }) {
   const x = 하자찾기(k) || 하자찾기('d2')
   const 쓸률 = 률 === '' ? x.률 : num(률)
   const 끝 = 날읽기(시작) != null ? 해더하기(시작, x.년) : ''
-  const 보 = 하자보증({ 계약금액: num(계약), 률: 쓸률, 조경: k === 'c3' })
+  const 보 = 하자보증({ 계약금액: 금(계약), 률: 쓸률, 조경: k === 'c3' })
   return (
     <div className="tool">
       <Row label="공사 종류">
@@ -507,8 +505,8 @@ export function JointSplit({ ex = {} }) {
   const 줄들 = Array.isArray(구성원) && 구성원.length ? 구성원 : [빈구성원(0), 빈구성원(1)]
   const 바꿈 = (i, k, v) => set구성원(줄들.map((x, j) => (j === i ? { ...x, [k]: v } : x)))
   const r = 회차나누기({
-    계약: num(계약), 금회: num(금회), 방식, 준공: !!준공, 끝전: Math.min(Number(끝전) || 0, 줄들.length - 1),
-    구성원: 줄들.map((x) => ({ 이름: x.이름, 지분: num(x.지분), 선금: num(x.선금), 전회: num(x.전회), 전회정산: num(x.전회정산), 직접: num(x.직접) })),
+    계약: 금(계약), 금회: 금(금회), 방식, 준공: !!준공, 끝전: Math.min(Number(끝전) || 0, 줄들.length - 1),
+    구성원: 줄들.map((x) => ({ 이름: x.이름, 지분: num(x.지분), 선금: 금(x.선금), 전회: 금(x.전회), 전회정산: 금(x.전회정산), 직접: 금(x.직접) })),
   })
   const 이름 = (i) => 줄들[i] && 줄들[i].이름 ? 줄들[i].이름 : (i === 0 ? '대표사' : `구성원 ${i}`)
   return (
@@ -539,10 +537,10 @@ export function JointSplit({ ex = {} }) {
             </div>
             <label>이름 <input value={x.이름} onChange={(e) => 바꿈(i, '이름', e.target.value.slice(0, 20))} placeholder={i === 0 ? '대표사' : `구성원 ${i}`} /></label>
             <label>지분 % <input inputMode="decimal" value={x.지분} onChange={(e) => 바꿈(i, '지분', e.target.value)} placeholder={i === 0 ? '60' : '40'} /></label>
-            {방식 === '직접' && !준공 && <label>이번 회 금액 <input inputMode="numeric" value={x.직접} onChange={(e) => 바꿈(i, '직접', e.target.value)} placeholder="이행한 금액" /></label>}
-            <label>받은 선금 <input inputMode="numeric" value={x.선금} onChange={(e) => 바꿈(i, '선금', e.target.value)} placeholder="없으면 비움" /></label>
-            <label>지난번까지 받은 기성 <input inputMode="numeric" value={x.전회} onChange={(e) => 바꿈(i, '전회', e.target.value)} placeholder="처음이면 비움" /></label>
-            <label>지난번까지 선금 정산 <input inputMode="numeric" value={x.전회정산} onChange={(e) => 바꿈(i, '전회정산', e.target.value)} placeholder="처음이면 비움" /></label>
+            {방식 === '직접' && !준공 && <label>이번 회 금액 <금액입력 value={x.직접} onValue={(n, d) => 바꿈(i, '직접', d)} placeholder="이행한 금액" /></label>}
+            <label>받은 선금 <금액입력 value={x.선금} onValue={(n, d) => 바꿈(i, '선금', d)} placeholder="없으면 비움" /></label>
+            <label>지난번까지 받은 기성 <금액입력 value={x.전회} onValue={(n, d) => 바꿈(i, '전회', d)} placeholder="처음이면 비움" /></label>
+            <label>지난번까지 선금 정산 <금액입력 value={x.전회정산} onValue={(n, d) => 바꿈(i, '전회정산', d)} placeholder="처음이면 비움" /></label>
           </div>
         ))}
         {줄들.length < 6 && <button type="button" className="btn ghost sm jvs-add" onClick={() => set구성원([...줄들, 빈구성원(Date.now())])}>＋ 구성원 더하기</button>}
