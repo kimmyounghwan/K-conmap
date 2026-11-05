@@ -9,7 +9,9 @@
  *   ■ 칸 아래 «= 2억 8,500만 원» 줄 — 어떻게 읽었는지 바로 보임(억 · 만으로 쳤으면 «(385,000,000원)» 도)
  *   ■ 바깥에서 값이 바뀌면(공고 고름 · 추정 A값 넣기 · 개찰 자료) 친 글은 버리고 새 값을 보임
  *   ■ onValue(수, 숫자글) — 수 = 원(못 읽으면 0) · 숫자글 = 예전 digits() 와 같은 글(숫자만 쳤을 때) / 읽은 수의 글(단위로 쳤을 때)
- *   ■ 읽기는 lib/금액읽기.js 한 곳(칸글읽기 · 칸숫자 · 금액줄) — 시험: tools/시험_금액읽기.mjs · tools/시험_바로투찰금액화면.mjs
+ *   ■ 읽기는 lib/금액읽기.js 한 곳(칸글읽기 · 칸숫자 · 금액줄) — 시험: tools/시험_금액읽기.mjs · tools/시험_바로투찰금액화면.mjs · 시험_보험료금액화면.mjs
+ *   ■ 읽은 줄은 span(display:block) — <label> 안에 넣어도 됨(G543 보험료 계산기 칸이 label 안)
+ *   쓰는 곳: 바로투찰(G542 기초 · 추정 · A값 · 순공사원가) · 보험료 계산기(G543 총공사금액 · 보수총액 · 실업 몫 없는 보수 · 이미 낸 개산 · 낸 금액)
  */
 import { useState } from 'react'
 import { 금액수, 금액줄, 칸글읽기, 칸숫자 } from './lib/금액읽기.js'
@@ -32,7 +34,7 @@ export default function 금액입력({ value, onValue, 줄 = true, inputMode = '
   return (
     <>
       <input {...칸} inputMode={inputMode} value={친글 != null ? 친글 : 칸숫자(value)} onChange={바꿈} onBlur={벗어남} />
-      {아래 && <div className={'amt-read' + (아래.bad ? ' bad' : '')}>{아래.글}</div>}
+      {아래 && <span className={'amt-read' + (아래.bad ? ' bad' : '')}>{아래.글}</span>}
     </>
   )
 }

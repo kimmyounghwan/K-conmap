@@ -6,13 +6,14 @@
 //   ③ 목록 · 화면 가로 넘침 없음(320 · 360 · 390 · 860 · 1280 — 목록 열린 채) · 다 더하면 목록 내려감 · 알림 · 화면 오류 없음
 //   (더한 줄의 면적은 기존 «면적 칸 누르고 평면의 방 안 누르기» 로 — 이 시험 밖)
 import { createRequire } from 'module'
+import { fileURLToPath } from 'node:url'   /* G543 URL.pathname → fileURLToPath(윈도우 «C:\C:\» 막음 · checkimports) */
 import fs from 'fs'
 import path from 'path'
 const require = createRequire(process.env.PW || '/tmp/g10/pw/package.json')
 const { chromium } = require('playwright')
 const 주소 = process.env.B || 'http://127.0.0.1:4467'
 const 기기들 = (process.argv[2] || '모두') === '모두' ? ['PC', '폰'] : [process.argv[2]]
-const 예 = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'web', 'public', 'jeoksan', '마감_예시.dxf')
+const 예 = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'web', 'public', 'jeoksan', '마감_예시.dxf')
 /* 평면의 «사무실» 글(첫 것 — 표의 «사무실» 은 그대로) → «총 주차대수 16대» */
 const 글 = fs.readFileSync(decodeURIComponent(예), 'utf8')
 const 자리 = 글.search(/\n사무실\r?\n/)

@@ -100,14 +100,25 @@ def _mjs_paths():
         for f in sorted(os.listdir(d)):
             if not f.endswith(".mjs"):
                 continue
+            속 = False   # /* … */ 안(설명 글)은 건너뜀
             for i, line in enumerate(open(os.path.join(d, f), encoding="utf-8").read().splitlines(), 1):
                 s = line.strip()
+                if 속:
+                    if "*/" in s:
+                        속 = False
+                    continue
+                if s.startswith("/*") and "*/" not in s:
+                    속 = True
+                    continue
                 if s.startswith("//") or s.startswith("*") or s.startswith("/*"):
                     continue
                 if re.search(r"\bimport\(\s*path\.(join|resolve)\(", line):
                     bad.append((f, i))
+                # 🪟 G543(11-05) URL.pathname 을 파일 경로로 쓰면 윈도우에서 «/C:/…» → «C:\\C:\\…» (G543 PC 시험에서 멈춤 · tools/checkmath.mjs 에 같은 사고) → fileURLToPath
+                if re.search(r"import\.meta\.url\)\.pathname", line):
+                    bad.append((f, i))
         if bad:
-            print(f"⛔ tools 의 .mjs 가 import 에 맨 경로를 씀 {len(bad)}곳 — PC(Windows)에서 넘어짐 · pathToFileURL(…).href 로 감싸기")
+            print(f"⛔ tools 의 .mjs 가 import 에 맨 경로를 쓰거나 URL.pathname 을 파일 경로로 씀 {len(bad)}곳 — PC(Windows)에서 넘어짐 · pathToFileURL(…).href / fileURLToPath(…) 로")
             for f, i in bad[:20]:
                 print(f"   tools/{f}:{i}")
             if os.environ.get("GITHUB_ACTIONS") == "true":

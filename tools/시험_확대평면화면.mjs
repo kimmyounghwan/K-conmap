@@ -4,13 +4,14 @@
 //   화면 빌드를 얹은 뒤  B=http://127.0.0.1:4467 node tools/시험_확대평면화면.mjs [PC|폰|모두]
 //   가상 예시(web/public/jeoksan/골조자동_예시.dxf)를 그대로 한 장 + 제목만 «2층 구조 확대평면도» · «지붕층 구조 확대평면도» 로 바꾼 사본 한 장.
 import { createRequire } from 'module'
+import { fileURLToPath } from 'node:url'   /* G543 URL.pathname → fileURLToPath(윈도우 «C:\C:\» 막음 · checkimports) */
 import fs from 'fs'
 import path from 'path'
 const require = createRequire(process.env.PW || '/tmp/g10/pw/package.json')
 const { chromium } = require('playwright')
 const 주소 = process.env.B || 'http://127.0.0.1:4467'
 const 기기들 = (process.argv[2] || '모두') === '모두' ? ['PC', '폰'] : [process.argv[2]]
-const 예 = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'web', 'public', 'jeoksan', '골조자동_예시.dxf')
+const 예 = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'web', 'public', 'jeoksan', '골조자동_예시.dxf')
 const 글 = fs.readFileSync(decodeURIComponent(예), 'utf8')
 const 확대 = 글.replace(/\n2층 구조평면도\r?\n/, '\n2층 구조 확대평면도\n').replace(/\n지붕층 구조평면도\r?\n/, '\n지붕층 구조 확대평면도\n')
 let ok = 0, bad = 0

@@ -8,6 +8,7 @@
 //   ⑤ 새로 열어도(주소에 pc 없이) 다시 붙음 ⑥ 프로그램을 끄면 띠가 내려감 · ?pc=1 인데 꺼져 있으면 알림
 //   ⑦ 설명서 «⬇ K-적산컨맵 연결 받기» 주소 · 가로 넘침 없음(320 ~ 1476 · 창 열린 채) · 화면 오류 없음
 import { createRequire } from 'module'
+import { fileURLToPath } from 'node:url'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
@@ -18,7 +19,7 @@ const { chromium } = require('playwright')
 const 주소 = process.env.B || 'http://127.0.0.1:4467'
 const 기기들 = (process.argv[2] || '모두') === '모두' ? ['PC', '폰'] : [process.argv[2]]
 const 진짜 = process.env.PCREAL === '1'
-const 예 = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'web', 'public', 'jeoksan')
+const 예 = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'web', 'public', 'jeoksan')   /* G543 URL.pathname → fileURLToPath(윈도우 «C:\C:\» 막음 · checkimports) */
 const 틀 = fs.mkdtempSync(path.join(os.tmpdir(), 'kcm_g468_'))
 const 폴더 = process.env.PCDIR || path.join(틀, '도면')
 const 보내기 = process.env.PCSEND || path.join(틀, '보내기')

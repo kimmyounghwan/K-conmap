@@ -7,6 +7,7 @@
  *     ⑥ «공고 찾기» 금액 알아보기(숫자만은 예전 규칙과 같음) ⑦ 바로투찰 소스에 칠 때마다 숫자만 남기는 칸이 없음
  */
 import fs from 'node:fs'
+import { fileURLToPath } from 'node:url'   /* ⚠️ URL.pathname 은 윈도우에서 «/C:/…» 라 «C:\C:\…» 가 됨(G543 PC 시험에서 멈춤 · tools/checkmath.mjs 에 같은 사고 적혀 있음) — 꼭 fileURLToPath */
 import { 금액수, 금액글, 금액말, 금액줄, 못읽음글, 금액뿐, 칸글읽기, 칸숫자 } from '../web/src/lib/금액읽기.js'
 import { 금액읽기 as 옛판단기 } from '../web/src/lib/ilyong4.js'
 import { digits, toNum } from '../web/src/lib/bidmath.js'
@@ -72,6 +73,27 @@ console.log('⑦ G542 재발 막기 — 바로투찰 금액 칸이 칠 때마다
   봐(/const qAmt = 금액뿐\(q\)/.test(바) && /qAmt >= 1e6/.test(바), '«공고 찾기» 는 금액뿐 · 100만 원 이상')
   const 칸 = fs.readFileSync(new URL('../web/src/금액입력.jsx', import.meta.url), 'utf8')
   봐(/칸글읽기\(t\)/.test(칸) && /inputMode = 'numeric'/.test(칸), '금액입력.jsx — 칸글읽기로 읽음 · 폰 숫자 자판 그대로')
+}
+console.log('⑧ G543 고친 화면 표 — 금액 칸이 다시 «칠 때마다 숫자만» 으로 돌아가면 실패(도구를 하나씩 고칠 때마다 여기에 더함)')
+{
+  /* 칠 때마다 숫자만 남기는 꼴 — 억 · 만 · 점이 사라짐(G127 · G541 · G542 · G543 같은 탈) */
+  const 숫자만꼴 = [/(digits|toNum|toNumber|숫자만|onlyDigits)\(\s*e\.target\.value\s*\)/g, /e\.target\.value\.replace\(\s*\/(\[\^0-9\]|\[\^\\d\]|\\D)\/g/g]
+  const 고친곳 = [['web/src/pages/BaroBid.jsx', 4, '바로투찰(G542)'], ['web/src/pages/Boheomryo.jsx', 5, '보험료 계산기(G543)']]
+  for (const [길, 칸수, 이름] of 고친곳) {
+    const 글 = fs.readFileSync(new URL('../' + 길, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+    const 남음 = 숫자만꼴.flatMap((r) => 글.match(r) || [])
+    봐(!남음.length, `${이름} — 칠 때마다 숫자만 남기는 칸 없음`, 남음)
+    const n = (글.match(/<금액입력[\s/>]/g) || []).length
+    봐(n === 칸수, `${이름} — 금액 칸 ${칸수}개 모두 금액입력`, n)
+    봐(/import 금액입력 from '\.\.\/금액입력\.jsx'/.test(글), `${이름} — 금액입력.jsx 를 가져옴(따로 만든 칸 아님)`)
+  }
+  /* 정보(실패 아님) — 아직 남은 화면(다음에 하나씩) */
+  const 모두 = []
+  const 훑기 = (d) => { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const q = d + '/' + f.name; if (f.isDirectory()) 훑기(q); else if (/\.jsx$/.test(f.name)) 모두.push(q) } }
+  const 뿌리 = fileURLToPath(new URL('../web/src', import.meta.url))
+  훑기(뿌리)
+  const 남은 = 모두.filter((q) => { const 글 = fs.readFileSync(q, 'utf8'); return 숫자만꼴.some((r) => { r.lastIndex = 0; return r.test(글) }) }).map((q) => q.slice(뿌리.length + 1).replace(/\\/g, '/'))
+  console.log(`   (정보) 아직 칠 때마다 숫자만 남기는 칸이 있는 화면 ${남은.length}곳: ${남은.slice(0, 12).join(' · ')}${남은.length > 12 ? ' …' : ''}`)
 }
 console.log(`\n${실패 ? '✗' : '✓'} 시험_금액읽기 ${통과}/${통과 + 실패}`)
 process.exit(실패 ? 1 : 0)

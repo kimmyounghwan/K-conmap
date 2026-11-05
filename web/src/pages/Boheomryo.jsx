@@ -6,6 +6,7 @@ import { 달줄, 일한달들, 달글 } from '../lib/신고정리.js'
 import { use노무자료 } from '../tools/노무자료.jsx'
 import 해마다띠 from '../tools/해마다띠.jsx'
 import 도구설명 from '../tools/도구설명.jsx'
+import 금액입력 from '../금액입력.jsx'   /* 💰 G543 금액 칸 다섯 — «12억 5천만» · 붙여넣은 «1,250,000,000원» 도 읽음 · 칸 아래 읽은 줄(바로투찰 G542 와 같은 칸) */
 
 /**
  * 🧾 /tools/boheomryo — 건설업 고용 · 산재 보험료 계산기 (G116 · 2026-10-02)
@@ -19,10 +20,6 @@ import 도구설명 from '../tools/도구설명.jsx'
  */
 const 숫자만 = (s) => { const v = Number(String(s ?? '').replace(/[^\d]/g, '')); return Number.isFinite(v) ? v : 0 }
 const 백 = (x) => `${Number((x * 100).toFixed(4))}%`
-const 억만 = (n) => {
-  const v = Math.round(Math.abs(n || 0)); const 억 = Math.floor(v / 1e8), 만 = Math.round((v % 1e8) / 1e4)
-  return 억 && 만 ? `${억.toLocaleString('ko-KR')}억 ${만.toLocaleString('ko-KR')}만` : 억 ? `${억.toLocaleString('ko-KR')}억` : 만 ? `${만.toLocaleString('ko-KR')}만` : ''
-}
 const 빈입력 = () => ({ 해: Number(한국오늘().slice(0, 4)), 방식: 'nomu', 금액: 0, 하도급: false, 보수: 0, 실업제외: 0, 규모: 's', 임금: true, 석면: true, 성립: '', 끝: '', 낸개산: 0 })
 const 기록정리 = (v) => ({ 입: { ...빈입력(), ...((v && v.입) || {}) }, 낸: (v && v.낸 && typeof v.낸 === 'object') ? v.낸 : {} })
 
@@ -113,8 +110,8 @@ export default function Boheomryo() {
         {입.방식 === 'nomu' ? (
           <div className="hm-row">
             <label>총공사금액 (부가세 뺌 · 원)
-              <input className="inp" inputMode="numeric" value={입.금액 ? 원(입.금액) : ''} placeholder="예: 1,250,000,000" onChange={(e) => 고침('금액', 숫자만(e.target.value))} />
-              {입.금액 > 0 && <small className="muted">{억만(입.금액)}원</small>}
+              {/* 💰 G543 전: 칠 때마다 숫자만 남겨 «12억 5천만» → 125 · «3억 8,500만» → 38,500(이용자 점검 11-05) · 아래 «N억 M만원» 줄은 금액입력 줄로 */}
+              <금액입력 className="inp" value={입.금액} placeholder="예: 1,250,000,000" onValue={(n) => 고침('금액', n)} />
             </label>
             <label>누가 내나
               <select className="inp" value={입.하도급 ? 'h' : 'w'} onChange={(e) => 고침('하도급', e.target.value === 'h')}>
@@ -126,10 +123,10 @@ export default function Boheomryo() {
         ) : (
           <div className="hm-row">
             <label>보수총액 (원 · 그 해 지급한 노무비)
-              <input className="inp" inputMode="numeric" value={입.보수 ? 원(입.보수) : ''} placeholder="0" onChange={(e) => 고침('보수', 숫자만(e.target.value))} />
+              <금액입력 className="inp" value={입.보수} placeholder="0" onValue={(n) => 고침('보수', n)} />
             </label>
             <label>그중 실업급여 몫이 없는 보수 (65세 이후 새로 고용 등)
-              <input className="inp" inputMode="numeric" value={입.실업제외 ? 원(입.실업제외) : ''} placeholder="0" onChange={(e) => 고침('실업제외', 숫자만(e.target.value))} />
+              <금액입력 className="inp" value={입.실업제외} placeholder="0" onValue={(n) => 고침('실업제외', n)} />
             </label>
           </div>
         )}
@@ -147,7 +144,7 @@ export default function Boheomryo() {
             <input type="date" className="inp" value={입.끝} onChange={(e) => 고침('끝', e.target.value)} />
           </label>
           <label>이미 낸 개산보험료 (확정 정산용 · 원)
-            <input className="inp" inputMode="numeric" value={입.낸개산 ? 원(입.낸개산) : ''} placeholder={낸해.개산 ? `${원(낸해.개산.a)} (${입.해}년 기록)` : '0'} onChange={(e) => 고침('낸개산', 숫자만(e.target.value))} />
+            <금액입력 className="inp" value={입.낸개산} placeholder={낸해.개산 ? `${원(낸해.개산.a)} (${입.해}년 기록)` : '0'} onValue={(n) => 고침('낸개산', n)} />
           </label>
         </div>
         <div className="hm-row">
@@ -208,8 +205,8 @@ export default function Boheomryo() {
                 <b>{입.해}년 {무엇}보험료</b>
                 {v ? <>✅ {원(v.a)}원 · {v.d} <button type="button" className="tp-x no-print" onClick={() => 낸적기(무엇, null)}>지우기</button></>
                   : <span className="no-print">
-                      <input className="inp hm-paid-in" inputMode="numeric" value={낸칸 && 낸칸.k === 무엇 ? 원(숫자만(낸칸.v)) : ''} placeholder={`${원(R.합)} (셈한 금액)`}
-                        onChange={(e) => set낸칸({ k: 무엇, v: e.target.value })} aria-label={`${입.해}년 ${무엇} 낸 금액`} />
+                      <금액입력 className="inp hm-paid-in" value={낸칸 && 낸칸.k === 무엇 ? 낸칸.v : ''} placeholder={`${원(R.합)} (셈한 금액)`}
+                        onValue={(n, d) => set낸칸({ k: 무엇, v: d })} aria-label={`${입.해}년 ${무엇} 낸 금액`} />
                       <button type="button" className="btn line sm" style={{ width: 'auto' }}
                         onClick={() => { 낸적기(무엇, { a: 낸칸 && 낸칸.k === 무엇 && 낸칸.v !== '' ? 숫자만(낸칸.v) : R.합, d: 한국오늘() }); set낸칸('') }}>✓ 냈음 기록</button>
                     </span>}
