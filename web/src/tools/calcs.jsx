@@ -60,6 +60,7 @@ import { lowerLimit } from '../lib/bidmath.js'
 import { 세기 } from '../lib/받은수.jsx'
 import { 적격기간, 낼서류, 오늘한국 } from '../lib/적격서류.js'   /* 🗂 G551 적격심사 서류 길잡이 */
 import { 숫자, 물가조정 } from '../lib/물가셈.js'
+import { 계좌들, 계좌풀이, 계좌근거, 상황들, 대상 as 지킴이대상, 대상근거 as 지킴이대상근거, 바뀜한줄, 바뀜, 바뀜근거, 법 as 지킴이법, 문의 as 지킴이문의, 메뉴때 as 지킴이메뉴때 } from '../lib/하도급지킴이.js'   /* 🔐 G556 하도급지킴이 길잡이 */
 
 const won = (n) => (n > 0 ? Math.round(n).toLocaleString('ko-KR') + '원' : '—')
 const num = (v) => { const n = Number(String(v).replace(/[^0-9.]/g, '')); return isFinite(n) ? n : 0 }
@@ -436,6 +437,66 @@ export function SoilVolume({ ex = {} }) {
   )
 }
 
+/* ── 🔐 하도급지킴이 길잡이 — 계좌 넷 · 상황별 할 일 (G556) ─────────────────
+   소장님 「1번 부터 5번까지 작업해줘」 — 카페 도구 후보 ②(카페 질문 5건). 글은 lib/하도급지킴이.js 한 곳(법 · 시행규칙 · 국토부 FAQ ·
+   은행 설명서 원문에서 확인한 것만). 맨 위 «누가 써야» 한 줄 → 상황을 고르면 한 줄 답 → 차례 → 챙길 것 → 사이트 안 서식 · 도구 → 근거
+   → 계좌 넷 표 → 법이 정한 것 · 바뀌는 것(2027 · 2028 — 접힘). 고른 상황은 이 기기에 남음(use칸). 셈: |하도급지킴이|상황 */
+const 굵은글 = (s) => String(s).split(/\*\*(.+?)\*\*/g).map((x, i) => (i % 2 ? <b key={i}>{x}</b> : x))
+/* 전화번호는 줄이 안 갈리게 · 폰에서 누르면 바로 걸림 */
+const 전화칸 = (s) => String(s).split(/(\d{4}-\d{4})/).map((x, i) => (i % 2 ? <a key={i} className="hj-tel" href={'tel:' + x.replace('-', '')}>{x}</a> : x))
+export function HadoJikimi({ ex = {} }) {
+  const [k, setK] = use칸('case', ex.case ?? '')
+  const 지금 = 상황들.find((x) => x.k === k) || null
+  const 고름 = (v) => { setK(v); 세기('|하도급지킴이|' + v) }
+  return (
+    <div className="tool">
+      <div className="hj-who">{굵은글(지킴이대상)} <span className="hj-src1">({지킴이대상근거})</span>
+        <div className="hj-new">📅 {굵은글(바뀜한줄)}</div>
+      </div>
+      <div className="hj-q">어떤 상황이세요?</div>
+      <div className="hj-picks" role="group" aria-label="상황 고르기">
+        {상황들.map((x) => (
+          <button key={x.k} type="button" className={'hj-pick' + (x.k === k ? ' on' : '')} aria-pressed={x.k === k} onClick={() => 고름(x.k)}>
+            <span className="hj-ic" aria-hidden="true">{x.아이콘}</span><span>{x.물음}</span>
+          </button>
+        ))}
+      </div>
+      {지금 ? (
+        <div className="hj-box" aria-live="polite">
+          <div className="hj-ans">{지금.답}</div>
+          <ol className="hj-steps">{지금.차례.map((t, i) => <li key={i}>{굵은글(t)}</li>)}</ol>
+          {지금.챙길 && 지금.챙길.length > 0 && <div className="hj-docs"><b>챙길 것</b> {지금.챙길.join(' · ')}</div>}
+          {지금.링크 && 지금.링크.length > 0 && (
+            <div className="hj-links">{지금.링크.map(([to, 글]) => <Link key={to} to={to} className="hj-link" onClick={() => 세기('|하도급지킴이|링크')}>{글} →</Link>)}</div>
+          )}
+          <div className="hj-src">근거: {지금.근거.join(' · ')}</div>
+        </div>
+      ) : <div className="hint">위에서 상황을 고르면 할 일이 차례로 나옵니다.</div>}
+      <details className="hj-acc" open>
+        <summary>계좌 넷 한눈에</summary>
+        <div className="tp-scroll">
+          <table className="tbl left hj-t">
+            <thead><tr><th>계좌</th><th>무엇</th><th>출금</th></tr></thead>
+            <tbody>{계좌들.map((a) => <tr key={a.k}><th>{a.이름}</th><td>{a.무엇}</td><td>{a.출금}</td></tr>)}</tbody>
+          </table>
+        </div>
+        <ul className="hj-notes">{계좌풀이.map((t, i) => <li key={i}>{굵은글(t)}</li>)}</ul>
+        <div className="hj-src">근거: {계좌근거}</div>
+      </details>
+      <details className="hj-acc hj-law">
+        <summary>법이 정한 것</summary>
+        <ul className="hj-notes">{지킴이법.map((x, i) => <li key={i}>{굵은글(x.글)} <span className="hj-src1">({x.근거})</span></li>)}</ul>
+      </details>
+      <details className="hj-acc hj-next">
+        <summary>바뀌는 것 — 2027. 1. 1. · 2028. 1. 1.</summary>
+        <ul className="hj-notes">{바뀜.map((x, i) => <li key={i}>{굵은글(x.글)} <span className="hj-src1">({x.근거})</span></li>)}</ul>
+        <div className="hj-src">근거: {바뀜근거}</div>
+      </details>
+      <div className="hint hj-end">막히면 {전화칸(지킴이문의)}. {지킴이메뉴때}</div>
+    </div>
+  )
+}
+
 /* ── 콘크리트 물량 ────────────────────────────────────────────── */
 export function ConcreteVolume({ ex = {} }) {
   const [w, setW] = use칸('w', ex.w ?? ''); const [h, setH] = use칸('h', ex.h ?? '')
@@ -596,6 +657,7 @@ export const EXAMPLES = {
   'effective-floor': { 글: '기초금액 6억 3천만 원 · A값 3,780만 원 · 하한율 89.745%', ex: { base: '630,000,000', aval: '37,800,000' } },
   'rebar-weight': { 글: 'D16 철근 8m 짜리 120개 · 할증 3%', ex: { d: 'D16', len: '8', cnt: '120' } },
   'floor-rate': { 글: '추정가격 6억 3천만 원 공사', ex: { est: '630,000,000' } },
+  'hado-jikimi': { 글: '«노무비는 어느 계좌로 · 어떻게 나가나요?» 를 고른 모습', ex: { case: 'nomubi' } },
   'qualify-docs': { 글: '입찰공고일 2026-11-05 · 신청서 · 등록증 · 금융거래확인서를 챙긴 모습', ex: { gongo: '2026-11-05', chk: { 신청: true, 등록: true, 금융: true } } },
   'qualify-score': { 글: '배점표에서 읽은 항목 점수를 넣은 모습 (예시 점수 — 실제 배점은 공고서)', ex: { v: { '경영상태': '15', '시공경험': '13.5', '기술능력': '0', '신인도': '1.2', '자재·장비': '0', '기타': '68' } } },
   'price-adjust': { 글: '남은 공사 5억 원 · 등락률 4.2% · 계약 뒤 120일 · 선금 30%', ex: { amt: '500,000,000', rate: '4.2', days: '120', adv: '30' } },
@@ -615,6 +677,7 @@ export const CALCS = {
   'floor-rate': FloorRate,
   'qualify-score': QualifyScore,
   'qualify-docs': QualifyDocs,
+  'hado-jikimi': HadoJikimi,
   'price-adjust': PriceAdjust,
   'soil-volume': SoilVolume,
   'concrete-volume': ConcreteVolume,

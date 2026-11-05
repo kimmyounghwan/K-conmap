@@ -3003,6 +3003,30 @@ a.glink:hover { text-decoration: underline; }
 /* 🚚 G553 계산기 안 작은 제목(토량환산 — 덤프 대수) */
 .tl-sub{ margin-top:6px; padding-top:12px; border-top:1px dashed var(--line); font-weight:800; font-size:14.5px; }
 .tl-sub i{ font-style:normal; font-weight:600; font-size:12px; color:var(--muted); margin-left:4px; }
+/* 🔐 G556 하도급지킴이 길잡이 — 상황 고르기 · 할 일 · 계좌 넷 */
+.hj-q{ font-weight:800; font-size:14.5px; }
+.hj-picks{ display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:8px; }
+.hj-pick{ display:flex; gap:8px; align-items:flex-start; width:100%; text-align:left; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--surface); color:inherit; font:inherit; font-size:14px; line-height:1.45; cursor:pointer; word-break:keep-all; }
+.hj-pick.on{ border-color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, var(--surface)); font-weight:700; }
+.hj-ic{ flex:none; }
+.hj-box{ border:1px solid var(--line); border-radius:10px; padding:12px; background:var(--surface); }
+.hj-ans{ font-weight:800; font-size:15px; line-height:1.55; word-break:keep-all; }
+.hj-steps{ margin:8px 0 0; padding-left:20px; font-size:14px; line-height:1.65; word-break:keep-all; }
+.hj-steps li{ margin:3px 0; }
+.hj-docs{ margin-top:8px; font-size:13.5px; line-height:1.6; word-break:keep-all; }
+.hj-links{ margin-top:8px; display:flex; flex-wrap:wrap; gap:6px 14px; }
+.hj-link{ font-weight:700; font-size:13.5px; }
+.hj-src{ margin-top:8px; font-size:12px; color:var(--muted); line-height:1.55; word-break:keep-all; }
+.hj-acc > summary{ cursor:pointer; font-weight:800; font-size:14px; margin-bottom:6px; }
+.hj-t{ width:100%; font-size:13px; }
+.hj-t th, .hj-t td{ vertical-align:top; word-break:keep-all; text-align:left; }
+.hj-who{ font-size:13.5px; line-height:1.6; padding:8px 10px; border-left:3px solid var(--accent); background:color-mix(in srgb, var(--accent) 6%, var(--surface)); border-radius:6px; word-break:keep-all; }
+.hj-src1{ font-size:12px; color:var(--muted); }
+.hj-notes{ margin:8px 0 0; padding-left:18px; font-size:13.5px; line-height:1.6; word-break:keep-all; }
+.hj-notes li{ margin:3px 0; }
+.hj-tel{ white-space:nowrap; font-weight:700; }
+.hj-end{ word-break:keep-all; }
+.hj-new{ margin-top:6px; font-size:13px; line-height:1.55; }
 /* 🩺 G555 4대보험 판단기 — 건강보험 상실 신고에 적을 값 */
 .iy-loss{ border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin:6px 0 8px; background:var(--surface); }
 .iy-loss-h{ font-size:14px; margin-bottom:6px; }
