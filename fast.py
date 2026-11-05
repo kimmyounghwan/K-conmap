@@ -73,7 +73,10 @@ class Quota(Exception):
 
 
 class ApiError(Exception):
-    pass
+    """gone = «판이 없거나 키가 그 판에 안 걸림» 으로 보이는 응답(🔁 G540 — 입찰공고는 다른 판으로 한 번 다시 봄)"""
+    def __init__(self, msg="", gone=False):
+        super().__init__(msg)
+        self.gone = bool(gone)
 
 
 def now_kst():
@@ -85,19 +88,66 @@ def log(*a):
 
 
 # ── 조달청 ─────────────────────────────────────────────────────────
+# 🔁 G540 (2026-11-05) 입찰공고정보서비스 새 판(02) — collect.py 와 같은 규칙(설명은 collect.py «G540» 머리 글):
+#   쓰는 판 = C.BID_PREFER_02(먼저) · 그 판이 «판» 문제(gone)거나 새 판 몫 끝이면 이 실행에 한 번만 다른 판으로 → 되면 남은 입찰공고도 그 판으로
+#   · 옛 판이 먼저 쓰는 판이고 옛 판 몫 끝 → 예전 그대로 Quota(빠른 수집 사슬 멈춤)
+#   · 새 판 · 다른 판의 몫 끝 → Quota 가 아니라 ApiError(이 실행의 입찰공고만 멈춤 — 개찰 · 1순위 빠른 수집과 다음 회차는 그대로)
+BID = {"alt": False, "tried": False, "quota": False}
+
+
 def api(url, key, params):
+    if not C.is_bid(url):
+        return _api(url, key, params)
+    if BID["quota"]:
+        raise ApiError("입찰공고 하루 몫 끝 — 이 실행에서는 더 안 부름")
+    first = C.BID_PREFER_02
+    now_new = first != BID["alt"]
+    try:
+        return _api(C.bid_url(url, new=now_new), key, params)
+    except Quota as q:
+        if not now_new and not BID["alt"]:
+            raise                                    # 옛 판이 먼저 쓰는 판 — 예전 그대로
+        if BID["alt"] or BID["tried"]:
+            BID["quota"] = True
+            raise ApiError("입찰공고 %s 하루 몫 끝 (%s)" % (C._bid_name(now_new), C._bid_hide(str(q)[:80], key)))
+        err = q
+    except ApiError as e:
+        if BID["alt"] or BID["tried"] or not e.gone:
+            raise
+        err = e
+    BID["tried"] = True                              # 다른 판으로 한 번
+    try:
+        out = _api(C.bid_url(url, new=not now_new), key, params)
+    except Quota as q2:
+        BID["quota"] = True
+        raise ApiError("입찰공고 %s 이 안 되고(%s) %s 은 하루 몫 끝 (%s)"
+                       % (C._bid_name(now_new), C._bid_hide(str(err)[:60], key), C._bid_name(not now_new), C._bid_hide(str(q2)[:60], key)))
+    except ApiError as e2:
+        log("  · 🔁 입찰공고 %s 도 안 됩니다 (%s) — %s 그대로" % (C._bid_name(not now_new), C._bid_hide(str(e2)[:80], key), C._bid_name(now_new)))
+        if isinstance(err, Quota):
+            BID["quota"] = True
+            raise ApiError("입찰공고 %s 하루 몫 끝 (%s)" % (C._bid_name(now_new), C._bid_hide(str(err)[:80], key)))
+        raise err
+    BID["alt"] = True
+    log("  🔁 입찰공고 %s 이 안 돼(%s) %s 으로 받았습니다 — 이 실행의 남은 입찰공고도"
+        % (C._bid_name(now_new), C._bid_hide(str(err)[:60], key), C._bid_name(not now_new)))
+    return out
+
+
+def _api(url, key, params):
     p = {"serviceKey": key, "numOfRows": "999", "pageNo": "1", "inqryDiv": "1", "type": "json"}
     p.update(params)
     r = requests.get(url, params=p, timeout=20, verify=False, headers={"User-Agent": "Mozilla/5.0"})
     if r.status_code != 200:
-        raise ApiError(f"HTTP {r.status_code}")
+        raise ApiError(f"HTTP {r.status_code}", gone=C.bid_gone(status=r.status_code, text=str(r.text or "")[:400]))
     try:
         j = r.json()
     except Exception:
         head = " ".join(r.text.split())[:180]
         if C._quota_msg(head):
             raise Quota(head)
-        raise ApiError("JSON 아님: " + head)
+        html = head.lstrip().lower().startswith(("<!doctype html", "<html"))
+        raise ApiError("JSON 아님: " + head, gone=(not html) and C.bid_gone(text=head))
     resp = j.get("response", {}) if isinstance(j, dict) else {}
     hd = resp.get("header", {}) or {}
     code = str(hd.get("resultCode", "")).strip()
@@ -105,7 +155,7 @@ def api(url, key, params):
         msg = str(hd.get("resultMsg", ""))
         if code in ("22", "022") or C._quota_msg(msg):
             raise Quota(f"{code} {msg}")
-        raise ApiError(f"응답코드 {code} {msg}")
+        raise ApiError(f"응답코드 {code} {msg}", gone=C.bid_gone(code=code, msg=msg))
     items = (resp.get("body", {}) or {}).get("items", [])
     if isinstance(items, dict):
         items = items.get("item", [items])

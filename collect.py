@@ -287,6 +287,248 @@ def html_hint(text):
         return ""
 
 
+# ══════════════════════════════════════════════════════════════════
+# 🔁 G540 (2026-11-05) 입찰공고정보서비스 «새 판(02)» 대비 — 옛 판이 막혀도 공고 수집이 안 멈추게
+#  · 2026-11-03 조달청이 공공데이터포털 «조달청_나라장터 입찰공고정보서비스»(15129394 · 참고문서 1.3)를 바꿈:
+#      새 주소 {BASE}/ad/BidPublicInfoService02/<오퍼레이션>02   (예: getBidPblancListInfoCnstwk02)
+#    포털 메일 「운영계정 신청자인 경우 별도의 재신청이 필요합니다」 — 우리 키는 이 서비스 «운영계정»(하루 10만 · 2026-04-09).
+#    소장님 11-05 08:5x 재신청 「했어」(자동승인). 새 판의 몫이 운영(10만)인지 개발(1,000)인지는 포털 화면으로만 보임.
+#  · 받는 칸은 같음 — 2026-11-05 대조(data/diag.json 의 옛 판 실제 칸 ↔ 새 판 명세): 공사 · 용역 목록 · 기초금액 · 면허제한 · 참가가능지역.
+#    낙찰정보서비스(as/ScsbidInfoService)는 안 바뀜(포털 수정일 2026-10-02 · 02 오퍼레이션 없음).
+#    ⚠️ 새 판 명세에 면허제한 · 참가지역은 bidNtceOrd 가 «필수» 로 적혀 있음 — 우리는 날짜로 부름(옛 판은 됨). 그래서 먼저 확인(아래).
+#  ■ 먼저 쓰는 판 = BID_PREFER_02(지금 False = 옛 판). 회차마다 새 판 4가지를 우리가 부르는 그대로 물어 봄(bid02_check) →
+#    docs/수집상태.md «입찰공고 새 판(02)» 줄 — 4가지 다 ✅ 이면 BID_PREFER_02 = True 로(G540b · 새 판 먼저 · 안 되면 옛 판).
+#  ■ 쓰는 판이 «판이 없음 · 키가 그 판에 안 걸림»(HTTP 401 · 403 · 404 · 410 · 응답코드 12 · 20 · 21 · 30~33)이면
+#    그 회차에 한 번만 다른 판으로 다시 불러 봄 → 되면 이번 회차 남은 입찰공고 호출도 다른 판으로(G481 http ↔ https 와 같은 꼴).
+#    일시 오류(연결 · 느림 · 5xx · 점검 웹페이지 · 자료 없음 · 요청 값)로는 판을 안 바꿈 — 그건 차단기 · 점검(G480~G482) 쪽 일.
+#  ■ «하루 몫 끝»(22): 옛 판이 먼저 쓰는 판이고 옛 판에서 났으면 예전 그대로(회차 멈춤 · QUOTA_OUT).
+#    새 판에서 났으면 — 옛 판을 아직 안 봤으면 옛 판으로 넘어가 다시 부르고, 아니면 이번 회차 «입찰공고만» 멈춤(BID_QUOTA · 개찰 · 순위는 그대로).
+#    (새 판 몫이 개발계정 1,000 이어도 개찰 수집을 못 하게 되는 일이 없게)
+#  ■ 빠른 수집(fast.py api)도 같은 규칙. 용역 · 물품(svc.py)은 이 fetch 를 그대로 씀.
+# ══════════════════════════════════════════════════════════════════
+BID_OLD = "/ad/BidPublicInfoService/"
+BID_NEW = "/ad/BidPublicInfoService02/"
+BID_PREFER_02 = False    # 🔁 먼저 쓰는 판 — 새 판 4가지가 수집상태에서 다 ✅ 이면 True(G540b)
+BID_ALT = False          # 이번 회차는 먼저 쓰는 판 대신 다른 판으로 받는 중
+BID_ALT_TRIED = False    # 다른 판으로 다시 부르기는 회차에 한 번만(막힌 날 호출이 두 배가 되지 않게)
+BID_QUOTA = False        # 이번 회차 입찰공고 호출 멈춤(새 판 · 다른 판의 하루 몫 끝) — 개찰 · 순위는 그대로
+BID_NOTE = ""            # 수집상태 «조달청 호출» 줄에 붙임(판을 바꿔 받았을 때 · 몫 끝)
+BID02_STATE = ""         # 수집상태 «입찰공고 새 판(02)» 줄
+BID_GOT = {"02": 0, "옛": 0}   # 이번 회차 입찰공고 «정상 응답» 수(판마다)
+BID02_PROBE_URL = BASE + BID_NEW + "getBidPblancListInfoCnstwk02"
+# 새 판 확인 — 우리가 실제로 부르는 꼴 그대로(날짜로 · inqryDiv 1). (이름, 오퍼레이션, 쪽 크기, 며칠 전)
+#   면허제한은 공사 · 용역 · 물품이 섞여 하루 수천 줄 → 어제 하루를 999줄로 물어 «쪽당 999줄» 이 그대로인지도 봄(lic_by_day 가 999 미만이면 멈춤).
+BID02_PROBES = [
+    ("공사 목록", "getBidPblancListInfoCnstwk02", 1, 0),
+    ("기초금액", "getBidPblancListInfoCnstwkBsisAmount02", 1, 0),
+    ("면허제한", "getBidPblancListInfoLicenseLimit02", 999, 1),
+    ("참가지역", "getBidPblancListInfoPrtcptPsblRgn02", 1, 0),
+]
+_BID_GONE_HTTP = (401, 403, 404, 410)
+_BID_GONE_CODES = ("12", "20", "21", "30", "31", "32", "33")
+_BID_GONE_WORDS = ("NO_OPENAPI_SERVICE", "SERVICE_KEY_IS_NOT_REGISTERED", "SERVICE_ACCESS_DENIED_ERROR",
+                   "UNREGISTERED_IP", "DEADLINE_HAS_EXPIRED", "TEMPORARILY_DISABLE_THE_SERVICEKEY", "API not found")
+
+
+def is_bid(url):
+    """입찰공고정보서비스(옛 판 · 새 판) 주소인가"""
+    return BID_OLD in str(url) or BID_NEW in str(url)
+
+
+def bid_url(url, new=None):
+    """입찰공고정보서비스 주소를 옛 판 ↔ 새 판(02)으로 바꿉니다. 다른 서비스 주소는 그대로.
+       new 를 안 주면 이번 회차에 쓸 판(먼저 쓰는 판 BID_PREFER_02 · 다른 판으로 넘어갔나 BID_ALT)."""
+    if new is None:
+        new = BID_PREFER_02 != BID_ALT
+    u = str(url)
+    for a in (BID_OLD, BID_NEW):
+        i = u.find(a)
+        if i >= 0:
+            op, q = u[i + len(a):], ""
+            if "?" in op:
+                op, q = op.split("?", 1)
+                q = "?" + q
+            if a == BID_NEW and op.endswith("02"):
+                op = op[:-2]
+            return u[:i] + ((BID_NEW + op + "02") if new else (BID_OLD + op)) + q
+    return u
+
+
+def bid_gone(status=200, text="", code="", msg=""):
+    """«이 판이 없거나 · 키가 이 판에 안 걸렸다» 로 보이는 응답인가.
+       하루 몫 끝(22) · 일시 오류(5xx) · 점검 웹페이지 · 자료 없음(03) · 요청 값(10 · 11)은 아닙니다 — 판을 바꿔도 소용없는 것들."""
+    t = " ".join(str(text or "").split())
+    m = str(msg or "")
+    if _quota_msg(t) or _quota_msg(m):
+        return False
+    try:
+        if int(status or 200) in _BID_GONE_HTTP:
+            return True
+    except (TypeError, ValueError):
+        pass
+    c = str(code or "").strip().lstrip("0")
+    if c and c in _BID_GONE_CODES:
+        return True
+    tt = t.replace(" ", "")
+    if any(("returnReasonCode>%s<" % x) in tt or ("returnReasonCode>0%s<" % x) in tt for x in _BID_GONE_CODES):
+        return True
+    return any(w in t or w in m for w in _BID_GONE_WORDS)
+
+
+def _bid_name(new):
+    return "새 판(02)" if new else "옛 판"
+
+
+def _bid_hide(text, key):
+    """응답 글에 키가 되울려 와도(주소를 그대로 돌려주는 오류 글 등) 수집상태(공개 저장소) · 로그에 안 남게 가립니다."""
+    t = str(text or "")
+    k = str(key or "")
+    if len(k) >= 8:
+        for v in {k, urllib.parse.quote(k, safe=""), urllib.parse.quote_plus(k)}:
+            t = t.replace(v, "***")
+    return t
+
+
+def _bid_switch(url, key, day, extra, label, why, cause):
+    """🔁 G540 쓰는 판이 «판» 문제(또는 새 판 몫 끝)로 안 될 때 — 이번 회차에 한 번만 다른 판으로 다시 불러 봅니다.
+       되면 (True, 줄들) — 이번 회차 남은 입찰공고 호출도 그 판으로. 안 되면 (False, None) — 먼저 쓰는 판 그대로."""
+    global BID_ALT, BID_ALT_TRIED, BID_NOTE
+    if BID_ALT or BID_ALT_TRIED or BID_QUOTA or not is_bid(url):
+        return False, None
+    BID_ALT_TRIED = True
+    BID_ALT = True
+    w = {}
+    out = fetch(url, key, day=day, extra=extra, label=(label or url.rsplit("/", 1)[-1]) + " · 다른 판", why=w)
+    if w or BID_QUOTA or NET_DOWN or QUOTA_OUT:
+        BID_ALT = False
+        print("    · 🔁 입찰공고 %s 도 안 됩니다 (%s) — %s 그대로 둡니다"
+              % (_bid_name(not BID_PREFER_02), _bid_hide(str(w)[:120], key), _bid_name(BID_PREFER_02)))
+        return False, None
+    BID_NOTE = (BID_NOTE + " · " if BID_NOTE else "") + "입찰공고 %s 이 안 돼(%s) %s 으로 받았습니다 — collect.py BID_PREFER_02 를 볼 것" % (
+        _bid_name(BID_PREFER_02), _bid_hide(str(cause)[:80], key), _bid_name(not BID_PREFER_02))
+    print("    🔁 " + BID_NOTE)
+    if why is not None:
+        why.clear()
+    return True, out
+
+
+def _bid_quota_hit(url, key, day, extra, label, why, tag, text):
+    """🔁 G540 입찰공고 «하루 몫 끝»(22) — 어느 판에서 났나에 따라:
+       · 옛 판이 먼저 쓰는 판이고 지금 옛 판 → 예전 그대로 회차 멈춤(_quota_stop · QUOTA_OUT)
+       · 새 판이 먼저 쓰는 판인데 새 판 몫 끝 → 옛 판으로 한 번 넘어가 다시 부름(되면 이번 회차 입찰공고는 옛 판)
+       · 그 밖(다른 판까지 몫 끝) → 이번 회차 «입찰공고만» 멈춤(BID_QUOTA · 개찰 · 순위 · 낙찰은 그대로)"""
+    global BID_QUOTA, BID_NOTE
+    on_new = BID_NEW in url
+    if not on_new and not BID_ALT:
+        _quota_stop(tag, text)
+        return []
+    if on_new and not BID_ALT:
+        done, out = _bid_switch(url, key, day, extra, label, why, "새 판 하루 몫 끝")
+        if done:
+            return out
+    if not BID_QUOTA:
+        BID_QUOTA = True
+        print("    ⛔ 입찰공고 %s 의 하루 몫이 끝났습니다 (%s · %s) — 이번 회차 입찰공고만 멈춥니다(개찰 · 순위 수집은 그대로)."
+              % (_bid_name(on_new), tag, _bid_hide(str(text)[:120], key)))
+        BID_NOTE = (BID_NOTE + " · " if BID_NOTE else "") + "%s 하루 몫 끝 — 이번 회차 입찰공고 멈춤" % _bid_name(on_new)
+    if why is not None:
+        why.update({"quota": "입찰공고"})
+    return []
+
+
+def bid02_probe(key, get=None, now=None, timeout=10, op="getBidPblancListInfoCnstwk02", rows=1, ago=0):
+    """🔁 G540 새 판(02)의 한 오퍼레이션을 우리가 부르는 꼴 그대로(날짜 · inqryDiv 1) 물어 봅니다.
+       다른 수집의 차단기 · 한도 · 판과 따로 셉니다(전역 값 안 건드림).
+       돌려줌 (꼴, 글) — 꼴: 'ok' · '막힘'(키가 새 판에 안 걸림 → 재신청 · 활용신청) · '한도' · '실패'(요청 값 · 통신 · 점검 · 모르는 응답)
+       · 'ok' 인데 쪽당 줄이 모자라면(rows 999 로 물었는데 999 · 전체보다 적게 옴) '쪽' (쪽넘김이 끊김).
+       ⚠️ 키는 어디에도 남기지 않습니다(오류는 이름만 · 주소는 params 로만 · 응답 글에 되울려 와도 가림)."""
+    k, t = _bid02_probe(key, get, now, timeout, op, rows, ago)
+    return k, _bid_hide(t, key)
+
+
+def _bid02_probe(key, get, now, timeout, op, rows, ago):
+    get = get or requests.get
+    d = ((now or datetime.now(KST)) - timedelta(days=ago)).strftime("%Y%m%d")
+    params = {"serviceKey": key, "numOfRows": str(rows), "pageNo": "1", "inqryDiv": "1", "type": "json",
+              "inqryBgnDt": d + "0000", "inqryEndDt": d + "2359"}
+    try:
+        r = get(BASE + BID_NEW + op, params=params, timeout=timeout, verify=False,
+                headers={"User-Agent": "Mozilla/5.0"})
+    except Exception as e:
+        return "실패", type(e).__name__
+    text = _utf8글(r)
+    head = " ".join(str(text or "").split())[:300]
+    sc = getattr(r, "status_code", 0)
+    if sc in _BID_GONE_HTTP and not _quota_msg(head):
+        return "막힘", ("HTTP %s %s" % (sc, head[:100])).strip()
+    if _quota_msg(head):
+        return "한도", head[:120]
+    if sc != 200:
+        return "실패", "HTTP %s" % sc
+    try:
+        j = json.loads(text)
+    except Exception:
+        if head.lstrip().lower().startswith(("<!doctype html", "<html")):
+            return "실패", "자료 대신 웹페이지 — " + (html_hint(text) or head[:80])
+        if bid_gone(text=head):
+            return "막힘", head[:120]
+        return "실패", head[:120]
+    resp = j.get("response", {}) if isinstance(j, dict) else {}
+    hd = resp.get("header", {}) or {}
+    code = str(hd.get("resultCode", "")).strip()
+    msg = str(hd.get("resultMsg", "")).strip()
+    if code and code not in ("00", "0", "000"):
+        c2 = code.lstrip("0") or "0"
+        if c2 == "22" or _quota_msg(msg):
+            return "한도", ("%s %s" % (code, msg)).strip()
+        if bid_gone(code=code, msg=msg):
+            return "막힘", ("%s %s" % (code, msg)).strip()
+        if c2 == "3" or "NODATA" in msg.upper():
+            return "ok", "0건"
+        return "실패", ("%s %s" % (code, msg)).strip()
+    body = resp.get("body", {}) or {}
+    n = str(body.get("totalCount", "") or "").strip()
+    items = body.get("items", [])
+    if isinstance(items, dict):
+        items = items.get("item", [items])
+    if isinstance(items, dict):
+        items = [items]
+    got = len(items) if isinstance(items, list) else 0
+    if rows > 1 and n.isdigit() and got < min(rows, int(n)):
+        return "쪽", "한 쪽에 %s줄만 옴(전체 %s · %s줄 물음) — 쪽넘김 확인 필요" % (got, format(int(n), ","), rows)
+    return "ok", ("%s건" % format(int(n), ",")) if n.isdigit() else "정상 응답"
+
+
+def bid02_check(key, get=None, now=None):
+    """회차마다 한 번 — 새 판(02) 4가지(BID02_PROBES)를 물어 BID02_STATE(수집상태 줄)에 적고 로그에 찍습니다.
+       막힘 · 한도면 나머지는 안 물음(같은 키라 같은 답 · 호출 아낌)."""
+    global BID02_STATE
+    if BID_PREFER_02:
+        BID02_STATE = "새 판(02)을 먼저 씁니다"
+        print("  · 🔁 입찰공고: " + BID02_STATE)
+        return BID02_STATE
+    out, all_ok = [], True
+    for name, op, rows, ago in BID02_PROBES:
+        k, t = bid02_probe(key, get=get, now=now, op=op, rows=rows, ago=ago)
+        mark = {"ok": "✅", "막힘": "⚠️ 막힘", "한도": "⚠️ 하루 몫 끝", "실패": "⚠️ 안 됨", "쪽": "⚠️ 쪽"}.get(k, k)
+        out.append("%s %s%s" % (name, mark, (" (%s)" % t) if t else ""))
+        all_ok = all_ok and k == "ok"
+        if k in ("막힘", "한도"):
+            break
+    BID02_STATE = " · ".join(out)
+    if any("막힘" in x for x in out):
+        BID02_STATE += " — 공공데이터포털 «조달청_나라장터 입찰공고정보서비스» 운영계정 재신청 · 활용신청 확인"
+    BID02_STATE += (" — 4가지 다 됨(새 판으로 바꿀 수 있음)" if all_ok and len(out) == len(BID02_PROBES) else "") + " · 지금은 옛 판으로 받음"
+    print("  · 🔁 입찰공고 새 판(02) 확인: " + BID02_STATE)
+    return BID02_STATE
+
+
+def bid_got_text():
+    """수집상태 줄 끝 — 이번 회차 입찰공고 «정상 응답» 수(판마다)."""
+    a, b = BID_GOT.get("02", 0), BID_GOT.get("옛", 0)
+    return ("이번 회차 정상 응답 새 판 %s · 옛 판 %s" % (format(a, ","), format(b, ","))) if a or b else ""
+
+
 def fetch(url, key, day=None, extra=None, label="", why=None, _flip=False):
     """why 에 dict 를 넘기면 실패 이유(HTTP·resultCode·resultMsg)를 담아 줍니다.
        진단에서 «응답 없음» 과 «필수값이 달라서 안 됨» 을 구별하기 위한 것입니다."""
@@ -296,7 +538,12 @@ def fetch(url, key, day=None, extra=None, label="", why=None, _flip=False):
     global NET_FAILS, NET_DOWN, NET_FAILS_ALL, NET_RECOVERED, NET_FAILS_CONN, NET_HTML, BASE_FLIP, SCHEME_NOTE, FLIP_TRIED, HTML_STREAK, HTML_HINT
     if BASE_FLIP and url.startswith(BASE_FLIP[0]):
         url = BASE_FLIP[1] + url[len(BASE_FLIP[0]):]
+    url = bid_url(url)          # 🔁 G540 입찰공고는 이번 회차에 쓸 판으로(다른 서비스 주소는 그대로)
     if NET_DOWN or QUOTA_OUT:
+        return []
+    if BID_QUOTA and is_bid(url):            # 🔁 G540 이번 회차 입찰공고는 몫 끝 — 개찰 · 순위는 그대로
+        if why is not None:
+            why.update({"quota": "입찰공고"})
         return []
     if time.time() - NET_T0 > NET_BUDGET_S:
         NET_DOWN = True
@@ -374,15 +621,22 @@ def fetch(url, key, day=None, extra=None, label="", why=None, _flip=False):
     if r.status_code != 200:
         print(f"    ! {tag} HTTP {r.status_code}")
         if why is not None:
-            why.update({"http": r.status_code, "body": " ".join(r.text.split())[:200]})
+            why.update({"http": r.status_code, "body": _bid_hide(" ".join(r.text.split())[:200], key)})   # 🔁 G540 키가 되울려 와도 가림(diag.json 은 공개)
+        # 🔁 G540 판이 없거나 키가 그 판에 안 걸렸으면(401 · 403 · 404 · 410) 다른 판으로 한 번(5xx 같은 일시 오류는 아님)
+        if not _flip and is_bid(url) and bid_gone(status=r.status_code, text=r.text[:400]):
+            done, out = _bid_switch(url, key, day, extra, label, why, "HTTP %s" % r.status_code)
+            if done:
+                return out
         return []
     try:
         j = r.json()
     except Exception:
-        head = " ".join(r.text.split())[:180]
+        head = _bid_hide(" ".join(r.text.split())[:180], key)   # 🔁 G540 키가 되울려 와도 로그 · diag.json 에 안 남게
         # ⚠️ 한도를 넘기면 포털이 JSON 이 아니라 XML 봉투로 돌려줄 때가 있습니다.
         #    <OpenAPI_ServiceResponse><cmmMsgHeader><returnReasonCode>22</...>
         if _quota_msg(head):
+            if is_bid(url):                      # 🔁 G540 입찰공고 몫 끝 — 어느 판인지 보고(옛 판이 먼저면 예전 그대로)
+                return _bid_quota_hit(url, key, day, extra, label, why, tag, head)
             _quota_stop(tag, head)
             return []
         if head.lstrip().lower().startswith(("<!doctype html", "<html")):
@@ -418,6 +672,12 @@ def fetch(url, key, day=None, extra=None, label="", why=None, _flip=False):
                 NET_DOWN = True
                 print(f"    ⛔ 조달청이 {HTML_STREAK}번 연달아 자료 대신 안내 웹페이지를 줍니다(시스템 점검으로 보임) — "
                       f"이번 회차는 조달청 호출을 멈춥니다(사이트는 누적 자료로 그대로 · 빠진 날은 점검 뒤 다시 훑음).")
+        # 🔁 G540 XML 봉투로 «서비스 없음 · 키 안 걸림»(NO_OPENAPI_SERVICE · SERVICE_KEY_IS_NOT_REGISTERED …)이면 다른 판으로 한 번
+        if (not _flip and is_bid(url) and not head.lstrip().lower().startswith(("<!doctype html", "<html"))
+                and bid_gone(text=head)):
+            done, out = _bid_switch(url, key, day, extra, label, why, head[:60])
+            if done:
+                return out
         return []
     HTML_STREAK = 0
     resp = j.get("response", {}) if isinstance(j, dict) else {}
@@ -426,13 +686,22 @@ def fetch(url, key, day=None, extra=None, label="", why=None, _flip=False):
     if code and code not in ("00", "0"):
         _msg = str(head.get("resultMsg", ""))
         if code in ("22", "022") or _quota_msg(_msg):
+            if is_bid(url):                      # 🔁 G540 입찰공고 몫 끝 — 어느 판인지 보고(옛 판이 먼저면 예전 그대로)
+                return _bid_quota_hit(url, key, day, extra, label, why, tag, "응답코드 %s · %s" % (code, _msg))
             _quota_stop(tag, "응답코드 %s · %s" % (code, _msg))
             return []
-        print(f"    ! {tag} 응답코드 {code} · {head.get('resultMsg', '')}")
+        print(f"    ! {tag} 응답코드 {code} · {_bid_hide(head.get('resultMsg', ''), key)}")
         if why is not None:
             why.update({"http": r.status_code, "code": code,
-                        "msg": str(head.get("resultMsg", ""))[:160]})
+                        "msg": _bid_hide(str(head.get("resultMsg", ""))[:160], key)})
+        # 🔁 G540 «서비스 없음 · 키 안 걸림»(12 · 20 · 21 · 30~33)이면 다른 판으로 한 번(03 자료 없음 · 10 · 11 요청 값은 아님)
+        if not _flip and is_bid(url) and bid_gone(code=code, msg=_msg):
+            done, out = _bid_switch(url, key, day, extra, label, why, "응답코드 %s %s" % (code, _msg[:40]))
+            if done:
+                return out
         return []
+    if is_bid(url):                              # 🔁 G540 판마다 «정상 응답» 수 — 수집상태 줄
+        BID_GOT["02" if BID_NEW in url else "옛"] += 1
     items = (resp.get("body", {}) or {}).get("items", [])
     # 오퍼레이션마다 어떤 항목이 오는지 한 번씩 찍어봅니다.
     #   아이건설넷은 A값(사회보험료 등 법정경비)과 관급자재금액을 자동으로 채웁니다.
@@ -3170,7 +3439,10 @@ def write_status(first):
         "| 조달청 호출 | %s |" % ("⛔ **일일 트래픽을 다 썼습니다**" if QUOTA_OUT
                               else ("⚠️ 통신 차단기가 내려갔습니다" if NET_DOWN
                                     else ("⚠️ 자료 대신 웹페이지(HTML) %d번" % NET_HTML if NET_HTML else "정상"))
-                              + (" · 🩹 " + SCHEME_NOTE if SCHEME_NOTE else "")),
+                              + (" · 🩹 " + SCHEME_NOTE if SCHEME_NOTE else "")
+                              + (" · 🔁 " + BID_NOTE if BID_NOTE else "")),
+        # 🔁 G540 2026-11-03 조달청 입찰공고정보서비스 새 판(02) — 회차마다 한 번 물어 본 결과(운영계정 재신청이 됐는지 보는 자리)
+        "| 입찰공고 새 판(02) | %s |" % (" · ".join(x for x in (BID02_STATE, bid_got_text()) if x) or "—"),
         "| 개찰 저장소 | %s건 |" % format(len(rows), ","),
         "| 순위 물어본 개찰 | %s건 (%.1f%%) |" % (format(asked, ","),
                                           asked / max(len(rows), 1) * 100),
@@ -3269,6 +3541,12 @@ def main():
     print("=" * 52)
     print(f"  조달청 수집 — 최근 {days}일")
     print("=" * 52)
+    # 🔁 G540 입찰공고 새 판(02)이 되는지 회차마다 한 번(1줄 · 다른 수집의 차단기 · 한도와 따로) — docs/수집상태.md 줄
+    if not NO_NET:
+        try:
+            bid02_check(key)
+        except Exception as e:
+            print(f"  · 입찰공고 새 판(02) 확인 실패 ({type(e).__name__}) — 넘어갑니다")
 
     first = load_store("first")
     live = load_store("live")
