@@ -15,6 +15,7 @@ import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
 const { chromium } = require('playwright')
 const BASE = process.argv[2] || 'http://127.0.0.1:4986'
+const 공지판 = (require('node:fs').readFileSync(new URL('../web/src/감사공지.jsx', import.meta.url), 'utf8').match(/const 판 = '([^']+)'/) || [])[1] || ''   /* G552 */
 const OUT = process.env.OUT || ''
 const 심의있음 = true   /* 근재보험 두 분 — 소장님 11-05 「이미 다 됐어..광고 넣어줘」 */
 let bad = 0, n = 0
@@ -38,6 +39,8 @@ async function 새쪽(w, h, 폰 = true, 어둠 = false) {
   await ctx.addInitScript(() => { try { localStorage.setItem('kcm_notice_seen', '2026-10-필독'); sessionStorage.setItem('kcm_notice_seen', '2026-10-업체'); sessionStorage.setItem('kcm_visit_s', '1') } catch (e) { /* 없음 */ } })
   /* 숨은 셈은 봇(navigator.webdriver)이면 안 셈 — 이 시험에선 사람처럼(셈이 정말 나가는지 보려고) */
   await ctx.addInitScript(() => { try { Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false }) } catch (e) { /* 없음 */ } })
+  /* G552 — webdriver 를 끄면 사이트 알림 창이 저절로 떠서 단추를 가림 → 지금 알림 판(감사공지.jsx «const 판») 을 «봤음» 으로 */
+  await ctx.addInitScript((판) => { try { sessionStorage.setItem('kcm_notice_seen', 판) } catch (e) { /* 없음 */ } }, 공지판)
   const p = await ctx.newPage()
   const 오류 = []
   p.on('pageerror', (e) => 오류.push(String(e).slice(0, 200)))

@@ -53,6 +53,13 @@
  *   → 띠 한 줄만(창 없음 · «공지 보기» 없음): «🛠 오늘 자정(24시)까지 사이트 점검 중입니다 — 이용은 그대로 하실 수 있습니다.»
  *     판 = '2026-11-점검' · 까지 = '2026-11-01'(한국 날짜가 11-02 가 되면 저절로 안 뜸 — 올릴 것 없음). 맵톡엔 안 올림(짧은 점검 알림).
  *     «창» 코드(공지창)는 다음 공지 때 다시 쓰도록 그대로 두고 창있음 = false.
+ *
+ * 📢 G552 (2026-11-05 19:3x) 소장님 「k-건설맵 만든 목적 및 이용방법, 등...이용자에게 무료로 오픈하고, 광고비용으로 운영비 충당하려고 한다.
+ *   많은 관심 부탁드린다. 라는 알림을 띄워줘. 문구 만들어서 먼저 보여줘」 → 초안 → 「운영은 광고로 사이트 운영비는 업체 광고로 충당하려고 합니다. …
+ *   고맙습니다.----이걸로 알림창 다시 만들어줘」 → 창 글 = 소장님 글 그대로(제목 «운영은 광고로») + 맵톡 예의 줄(G345 «항상 포함» · 맨 위 굵게)
+ *   · 판 = '2026-11-광고' · 까지 = '2026-11-12'(올린 날 포함 8일) · 창있음 = true · 띠 «📢 운영은 광고로 — …» + 공지 보기
+ *   · 자동 브라우저(navigator.webdriver)에는 창을 저절로 띄우지 않음 — 화면 시험이 창에 가리지 않게(띠 · «공지 보기» 는 그대로 · 시험_광고공지가 webdriver 를 끄고 봄)
+ *   · 맵톡 📢 공지에도 같은 글(«올려» 뒤 운영자 크롬) — G345 「공지는 항상 맵톡에도 같이 올리기」
  */
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -60,13 +67,14 @@ import { Link, useLocation } from 'react-router-dom'
 import { 로봇 as 로봇글 } from './lib/인사.js'
 import { 세기 } from './lib/받은수.jsx'
 
-const 판 = '2026-11-점검'         /* G491 점검 띠 · G345 '2026-10-업체' · G318 '2026-10-새것' · G284 '2026-10-필독' · G199 '2026-10-용역' · G186 '2026-10-고침2' · G176 '2026-10-고침' */
-const 까지 = '2026-11-01'          /* 이 날까지 보임 — 한국 날짜로 11-02 0시부터 저절로 안 뜸(소장님 「12시 넘으면 공지 제거」) */
-const 창있음 = false                /* G491 — 띠만(점검 알림). 창을 다시 쓰려면 true */
+const 판 = '2026-11-광고'         /* G552 운영은 광고로 · G491 '2026-11-점검' 점검 띠 · G345 '2026-10-업체' · G318 '2026-10-새것' · G284 '2026-10-필독' · G199 '2026-10-용역' · G186 '2026-10-고침2' · G176 '2026-10-고침' */
+const 까지 = '2026-11-12'          /* 이 날까지 보임(올린 날 포함 8일) — 한국 날짜로 11-13 0시부터 저절로 안 뜸 · ⚠️ 올리는 날이 바뀌면 같이 고침 */
+const 창있음 = true                 /* G552 — 띠 + 창(들어오면 한 번) */
 const 열쇠 = 'kcm_notice_hide'      /* 다시 보지 않기(띠 ✕ 도 같음) — localStorage */
 const 본열쇠 = 'kcm_notice_seen'    /* 이번에 한 번 봤음 — sessionStorage(창을 닫으면 그 창 동안은 다시 안 띄움) */
 const 한국오늘 = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)
 const 로봇 = () => { try { return 로봇글(navigator.userAgent || '') } catch (e) { return false } }
+const 자동 = () => { try { return !!navigator.webdriver } catch (e) { return false } }   /* G552 — 자동 브라우저(화면 시험)엔 창을 저절로 안 띄움 */
 /* 🩹 G284 소장님 「20일까지 계속 띄워. 닫기 누른 이용자에게도 계속 보이게 해줘.」 — «다시 보지 않기» 없음 · 늘(옛 판에서 닫은 열쇠도 안 봄)
    창은 들어올 때마다(새 창 · 탭마다) 한 번 · 띠는 ✕ 없이 늘(「사이트 접속자 모두에게 계속 보이도록」) */
 const 늘보임 = true
@@ -104,32 +112,20 @@ function 공지창({ 닫기 }) {
       <div className="noticepop-c" role="dialog" aria-modal="true" aria-labelledby="noticepop-h" tabIndex={-1} ref={상자}>
         <button type="button" className="noticepop-x" aria-label="공지 닫기" onClick={닫기}>✕</button>
         <div className="noticepop-tag">📢 공지</div>
-        <h2 id="noticepop-h" className="noticepop-h"><span className="noticepop-must">📢 새로 넣고 고친 것</span><span className="noticepop-sub">10월 20일 · 업체 찾기 · 공동도급 마당 · 입찰 분석실</span></h2>
+        <h2 id="noticepop-h" className="noticepop-h"><span className="noticepop-must">📢 운영은 광고로</span></h2>
         <div className="noticepop-b">
-          <p>안녕하세요, K-건설맵입니다. 10월 20일에 새로 넣고 고친 것을 알려 드립니다.</p>
           {/* G318 · G345 소장님 「맵톡 사용은 예의있게 이건 항상 포함 시키는 거 잊지말고」 — 굵게 · 늘 맨 위 */}
           <p className="noticepop-strong"><b>🗺 맵톡은 여러 분이 함께 쓰는 곳입니다. 예의를 갖추고 이용해 주세요.</b></p>
-          <p className="noticepop-group">🆕 새로 연 것</p>
-          <ul>
-            <li><Link to="/corp" onClick={감}>🏢 업체 찾기</Link> — 상호로 낙찰 실적 · 지역 · 면허로 같이 넣을 업체(법인은 연락처까지)</li>
-            <li><Link to="/gongdong" onClick={감}>🤝 공동도급 마당</Link> — 공동도급 되는 공고 · 구성원 구함 글 · 지분 짜기 · 답글로 바로 연락</li>
-            <li><Link to="/bunseok" onClick={감}>📊 입찰 분석실</Link> — 공고 하나로 투찰 금액 · 이 기관 사정률 흐름 · 분포 · 적중 검사를 한 화면에</li>
-          </ul>
-          <p className="noticepop-group">💰 바로투찰</p>
-          <ul>
-            <li><Link to="/" onClick={감}>📈 자리별 승률 곡선</Link>(참가업체 수별) — 넣은 금액을 적어 두면 개찰 뒤 몇 위였는지 알려 드립니다.</li>
-          </ul>
-          <p className="noticepop-group">🔧 고친 것</p>
-          <ul>
-            {/* 10/21 소장님 「건설맵에서 카운팅 한다는 말은 빼줘. 굳이 쓸필요가 없잖아」(공지에서) — «👁 조회수를 건설맵이 직접 셉니다» 줄 뺌 · 맵톡 공지 글도 같이 고침 */}
-            <li>📅 바로투찰 지도에 어제 방문 수가 함께 보입니다.</li>
-          </ul>
-          <p>안 맞는 곳은 <Link to="/qna" onClick={감}>맵톡</Link>에 남겨 주시면 반영하겠습니다. 늘 찾아 주셔서 감사합니다.</p>
+          {/* G552 — 아래 글은 소장님 글 그대로(낱말 · 차례 바꾸지 않음) */}
+          <p>사이트 운영비는 업체 광고로 충당하려고 합니다. 이용하시는 분께는 지금처럼 무료로 열어 두겠습니다.</p>
+          {/* 소장님 「광고 단가는 최저로 하겠습니다.」(19:4x 더함) */}
+          <p>광고 단가는 최저로 하겠습니다. 알릴 업체가 있으시면 <Link to="/ad" onClick={감}>«📣 광고 · 제휴 문의»</Link>로 연락 주세요.</p>
+          <p>많은 관심과 이용 부탁드립니다. 불편한 점은 <Link to="/qna" onClick={감}>맵톡</Link>이나 <a href="/contact" onClick={감}>문의</a>로 알려 주시면 바로 고치겠습니다. 고맙습니다.</p>
           <p className="noticepop-sign">— K-건설맵</p>
         </div>
         <div className="noticepop-f">
+          <Link className="btn line sm" to="/ad" onClick={감}>📣 광고 · 제휴 문의</Link>
           <Link className="btn line sm" to="/qna" onClick={감}>🗺 맵톡 가기</Link>
-          <Link className="btn line sm" to="/corp" onClick={감}>🏢 업체 찾기 해 보기</Link>
           <button type="button" className="btn sm" onClick={닫기}>닫기</button>
         </div>
       </div>
@@ -142,7 +138,7 @@ export default function 감사공지() {
   const { pathname } = useLocation()
   const [닫힘] = useState(() => 닫았나() || 띠감췄나())
   /* 창 — 이 창(탭)을 연 뒤 처음 한 번 저절로 */
-  const [창, set창] = useState(() => 창있음 && !닫았나() && !봤나() && !다른탭열림())
+  const [창, set창] = useState(() => 창있음 && !닫았나() && !봤나() && !다른탭열림() && !자동())
   useEffect(() => { 살아적기(); const t = setInterval(살아적기, 살아간격); return () => clearInterval(t) }, [])   /* 이 탭이 열려 있는 동안 «쓰는 중» */
   const 오늘 = 한국오늘()
   if (닫힘 || 오늘 > 까지 || 로봇() || pathname.startsWith('/admin')) return null
@@ -151,8 +147,8 @@ export default function 감사공지() {
   return (
     <>
       <div className="noticebar" role="note">
-        {/* G491 점검 띠 — 창 없이 한 줄 · 11-01 자정까지 */}
-        <span className="t">🛠 <b className="noticebar-must">오늘 자정(24시)까지 사이트 점검 중입니다</b> — 이용은 그대로 하실 수 있습니다.</span>
+        {/* G552 운영은 광고로 — 11-12 까지 · «공지 보기» 로 창 */}
+        <span className="t">📢 <b className="noticebar-must">운영은 광고로</b> — 이용하시는 분께는 지금처럼 무료로 열어 두겠습니다. 많은 관심과 이용 부탁드립니다.</span>
         {창있음 && <button type="button" className="go" onClick={() => { 세기('|공지|보기'); set창(true) }}>공지 보기</button>}
         {/* 🩹 G284 소장님 「사이트 접속자 모두에게 계속 보이도록 해줘.」 — 띠 ✕ 없앰(모든 화면 위에 늘) */}
       </div>

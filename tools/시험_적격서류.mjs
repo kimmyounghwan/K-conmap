@@ -96,7 +96,7 @@ if (/^https?:\/\//.test(process.argv[2] || '')) {
     ok('다시 열어도 그대로 — 공고일 2026-02-10 · 2 / 9 (이 기기에 남음)', r.날 === '2026-02-10' && r.셈 === '2 / 9', r)
     const 링크 = await p.evaluate(() => [...document.querySelectorAll('.qd-go a')].map((a) => a.getAttribute('href')).join())
     ok('이어지는 도구 — 점수 합산기 · 낙찰하한율', 링크 === '/tools/qualify-score,/tools/floor-rate', 링크)
-    ok('«무료» · «클로드» 없음', !/무료|클로드/.test(await p.evaluate(() => document.body.innerText)))
+    ok('«무료» · «클로드» 없음(사이트 알림 띠 · 창은 빼고 — 소장님 글)', !/무료|클로드/.test(await p.evaluate(() => { const c = document.body.cloneNode(true); c.querySelectorAll('.noticebar,.noticepop').forEach((e) => e.remove()); return c.textContent })))
     ok('폰 390 넘침 0 · 오류 0', (await 넘침(p)) <= 0 && !오류.length, [await 넘침(p), 오류])
     if (OUT) {
       await 숨김(p)

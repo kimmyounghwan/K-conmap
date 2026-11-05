@@ -10140,8 +10140,6 @@ div.bth { padding: 0; }
 .adinfo-hero { background: var(--ad-bg); border: 1.5px solid var(--ad-line); }
 .adinfo-h1 { margin: 0 0 6px; font-size: 22px; letter-spacing: -.4px; color: var(--ad-text); }
 .adinfo-lead { margin: 0 0 10px; color: var(--ad-text-2); font-size: 14.5px; word-break: keep-all; }
-.adinfo-nums { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 12px; font-size: 14px; color: var(--ad-text); }
-.adinfo-nums b { color: var(--ad-btn); font-variant-numeric: tabular-nums; }
 .adinfo-go { display: block; text-align: center; margin-top: 4px; }
 .adinfo-small { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); word-break: keep-all; }
 .adinfo-spots { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
@@ -10154,6 +10152,8 @@ div.bth { padding: 0; }
 .adinfo-two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 12px; }
 .adinfo-pick { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; text-align: left; padding: 10px 11px; border-radius: 12px; border: 1.5px solid var(--ad-line); background: var(--surface); color: var(--ad-text); font: inherit; cursor: pointer; }
 .adinfo-pick b { font-size: 15.5px; }
+a.adinfo-pick { text-decoration: none; }   /* G552 — 맨 위 두 칸이 바로 문의(링크) */
+a.adinfo-pick:hover, a.adinfo-pick:focus-visible { border-color: var(--ad-btn); }
 .adinfo-pick span { font-size: 12.5px; line-height: 1.4; color: var(--ad-text-2); word-break: keep-all; }
 .adinfo-pick em { margin-top: auto; padding-top: 2px; font-style: normal; font-size: 12px; font-weight: 800; color: var(--ad-chip); }
 .adinfo-sec { scroll-margin-top: 72px; }

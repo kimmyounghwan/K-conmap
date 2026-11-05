@@ -11,6 +11,8 @@
  *   ⑦ 광고 · 제휴 같은 무게(소장님 「광고나 제휴잖아. 지금 광고만 받는다고 잇는데」) — 띠 · 모집 카드 · /ad 맨 위 · 문의 칸 모두 «제휴» 가 같이 · 제휴 네 가지 · 🤝 제휴 문의(?k=ad&w=p)
  *   ⑤ /ad 안내 쪽 — 자리 넷 · 견본(가상 업체 · 눌리지 않음) · 신청 세 걸음 · «문의 보내기» = /contact?k=ad · «무료» · «클로드» 없음 · 넘침 0 · 오류 0
  *   ⑥ /contact?k=ad — «무슨 일» 에 «📣 광고 · 제휴 문의» 가 미리 적힘 · 제목 바뀜(보내지는 않음)
+ *   ⑨ G552 소장님 「누적방문...오늘 방문자 이게 왜 있지? 그리고, 최대한 편하게 만들어 줘」 — /ad 에 방문 숫자 없음 · 맨 위 두 칸 = 바로 문의(?k=ad&w=a · ?k=ad&w=p) ·
+ *      문의 칸: 연락처가 «무슨 일» 바로 아래 · 사이트 오류용 안내 칸 숨김 · 연락처 없이 보내면 막고 알림(보내지는 않음) · ?w=a = «📣 광고 문의»
  * 가상 자료만 씀 · 인터넷 안 부름(데이터베이스 · 애널리틱스는 막음).
  */
 import { createRequire } from 'node:module'
@@ -69,19 +71,20 @@ for (const [w, h, 폰] of [[390, 844, true], [320, 640, true], [1280, 900, false
   const { ctx, p, 오류 } = await 새쪽(w, h, 폰)
   await p.goto(BASE + '/ad', { waitUntil: 'domcontentloaded' }); await p.waitForSelector('.adinfo-h1', { timeout: 15000 }); await p.waitForTimeout(800)
   const 글 = await p.evaluate(() => document.querySelector('.adinfo').innerText.replace(/\s+/g, ' '))
-  ok(`${w} 제목 «광고주 · 제휴 모집» · 자리 넷 · 진행 넷 · 제휴 분야 · 광고비 · 기간은 문의`, /K-건설맵 광고주 · 제휴 모집/.test(글) && (await p.locator('#ad-guide .adinfo-spots li').count()) === 4 && (await p.locator('.adinfo-steps li').count()) === 4 && /건설 장비/.test(글) && /광고비 · 기간은 문의/.test(글) && /광고비 · 기간 안내/.test(글) && /게재 · 효과 보고/.test(글), 글.slice(0, 200))
+  ok(`${w} 제목 «광고주 · 제휴 모집» · 자리 넷 · 진행 넷 · 제휴 분야 · 광고비 · 기간은 문의`, /K-건설맵 광고주 · 제휴 모집/.test(글) && (await p.locator('#ad-guide .adinfo-spots li').count()) === 4 && (await p.locator('.adinfo-steps li').count()) === 4 && /건설 장비/.test(글) && /광고비 · 기간 안내/.test(글) && /광고 단가는 최저로 하겠습니다/.test(글) && /게재 · 효과 보고/.test(글), 글.slice(0, 200))
   ok(`${w} ⑧ 공짜처럼 읽히는 말 없음(«명함 한 장이면» · «만들어 드립니다» · «무료»)`, !/명함 한 장|만들어 드립니다|무료/.test(글), (글.match(/.{0,20}(명함 한 장|만들어 드립니다|무료).{0,20}/) || [''])[0])
   ok(`${w} «중기» 라는 말 없음(어떤 업체가 올지 모름 — 소장님 「중기라는 말을 넣으면 안돼지」)`, !/중기/.test(글) && !/중기/.test(await p.title()), (글.match(/.{0,20}중기.{0,20}/) || [''])[0])
   const 견 = await p.evaluate(() => { const a = document.querySelector('aside.adc-demo'); return a ? { 글: a.innerText.replace(/\s+/g, ' '), 링크: a.querySelectorAll('a').length, 셈: a.hasAttribute('data-ad') } : null })
   ok(`${w} 견본 카드 — «견본 — 이렇게 나옵니다» · 가상 업체 · 눌리는 전화 · 문자 · 메일 없음 · 셈 안 함`, !!견 && /견본 — 이렇게 나옵니다/.test(견.글) && /업체 이름/.test(견.글) && /하시는 일을 한 줄로/.test(견.글) && 견.링크 === 0 && !견.셈, 견)
   const 보내기 = await p.evaluate(() => [...document.querySelectorAll('.adinfo a.adinfo-go')].map((a) => a.getAttribute('href')))
-  ok(`${w} «문의 보내기» 둘 = 광고 · 제휴(/contact?k=ad) · 🤝 제휴(/contact?k=ad&w=p)`, 보내기.length === 2 && 보내기[0] === '/contact?k=ad' && 보내기[1] === '/contact?k=ad&w=p', 보내기)
+  ok(`${w} 아래 «문의 보내기» 둘 = 📣 광고(?k=ad&w=a · 광고 진행 아래) · 🤝 제휴(?k=ad&w=p)`, 보내기.length === 2 && 보내기[0] === '/contact?k=ad&w=a' && 보내기[1] === '/contact?k=ad&w=p', 보내기)
+  const 두칸 = await p.evaluate(() => [...document.querySelectorAll('.adinfo-hero a.adinfo-pick')].map((a) => a.getAttribute('href') + '|' + a.querySelector('b').textContent))
+  ok(`${w} ⑨ 맨 위 두 칸 = 바로 문의 — 📣 광고 문의(?k=ad&w=a) · 🤝 제휴 문의(?k=ad&w=p)`, 두칸.join(',') === '/contact?k=ad&w=a|📣 광고 문의,/contact?k=ad&w=p|🤝 제휴 문의', 두칸)
+  ok(`${w} ⑨ 방문 숫자 없음(«누적 방문» · «오늘 ○명» · .adinfo-nums)`, await p.evaluate(() => !document.querySelector('.adinfo-nums') && !/누적 방문|오늘 [\d,]+명/.test(document.querySelector('.adinfo').innerText)))
   const 위 = await p.evaluate(() => ({ 글: document.querySelector('.adinfo-hero').innerText.replace(/\s+/g, ' '), 칸: [...document.querySelectorAll('.adinfo-two .adinfo-pick b')].map((b) => b.textContent) }))
-  ok(`${w} ⑦ 맨 위에 광고 · 제휴 두 칸 · 첫 글에 «광고주와 제휴를 모십니다»`, 위.칸.join('|') === '📣 광고|🤝 제휴' && /광고주와 제휴를 모십니다/.test(위.글), 위)
+  ok(`${w} ⑦ 맨 위에 광고 · 제휴 두 칸 · 첫 글에 «광고주와 제휴를 모십니다» · «연락처만 남기시면»`, 위.칸.join('|') === '📣 광고 문의|🤝 제휴 문의' && /광고주와 제휴를 모십니다/.test(위.글) && /연락처만 남기시면/.test(위.글), 위)
   const 제 = await p.evaluate(() => [...document.querySelectorAll('#ad-partner .adinfo-spots li b')].map((b) => b.textContent))
   ok(`${w} ⑦ 제휴 네 가지(이용자 할인 · 서로 알리기 · 설명회 · 교육 · 자료 · 상담 연결)`, 제.join('|') === '이용자 할인|서로 알리기|설명회 · 교육 · 자료|상담 연결', 제)
-  const 내려 = await p.evaluate(async () => { document.querySelectorAll('.adinfo-pick')[1].click(); await new Promise((r) => setTimeout(r, 900)); const t = document.getElementById('ad-partner').getBoundingClientRect().top; return { t: Math.round(t), h: innerHeight, y: Math.round(scrollY) } })
-  ok(`${w} ⑦ «🤝 제휴» 칸 누르면 제휴 칸으로 내려감(머리 줄에 안 가림)`, 내려.y > 100 && 내려.t >= 40 && 내려.t <= 내려.h * 0.6, 내려)
   ok(`${w} «무료» · «클로드» 없음`, !/무료|클로드/.test(글))
   if (!폰) ok('② PC 1280 머리 줄 «📣 광고 · 제휴» 보임 → /ad', await p.evaluate(() => { const a = document.querySelector('.ad-top'); return !!a && getComputedStyle(a).display !== 'none' && a.getAttribute('href') === '/ad' }))
   ok(`${w} 넘침 0 · 오류 0`, (await 넘침(p)) <= 0 && !오류.length, [await 넘침(p), 오류])
@@ -105,12 +108,27 @@ console.log('⑥ /contact?k=ad — 미리 적힘(보내지는 않음)')
   await p.goto(BASE + '/contact?k=ad&w=p', { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(600)
   const 칸2 = await p.evaluate(() => ({ 일: document.getElementById('work').value, 제목: (document.querySelector('.card h2') || {}).textContent, 자세히: document.getElementById('memo').placeholder }))
   ok('⑦ /contact?k=ad&w=p = «🤝 제휴 문의» · 제목 · 자세히(함께하고 싶은 일)', 칸2.일 === '🤝 제휴 문의' && /제휴 문의/.test(칸2.제목) && /함께하고 싶은 일/.test(칸2.자세히), 칸2)
-  ok('⑦ contact.html 메일 갈래 — 제휴만 «제휴» · 나머지 «광고 · 제휴»(소스)', /want: 광고 \? \(제휴만 \? '제휴' : '광고 · 제휴'\) : '사이트 문의'/.test(require('node:fs').readFileSync(new URL('../web/public/contact.html', import.meta.url), 'utf8')))
+  ok('⑦ ⑨ contact.html 메일 갈래 — 제휴만 «제휴» · 광고만 «광고» · 나머지 «광고 · 제휴»(소스)', /want: 광고 \? \(제휴만 \? '제휴' : 광고만 \? '광고' : '광고 · 제휴'\) : '사이트 문의'/.test(require('node:fs').readFileSync(new URL('../web/public/contact.html', import.meta.url), 'utf8')))
+  for (const [주, 일, 글] of [['/contact?k=ad', '📣 광고 · 제휴 문의', /제휴 — 회사 이름/], ['/contact?k=ad&w=a', '📣 광고 문의', /안 적으셔도 연락드립니다/], ['/contact?k=ad&w=p', '🤝 제휴 문의', /함께하고 싶은 일/]]) {
+    await p.goto(BASE + 주, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(500)
+    const 꼴 = await p.evaluate(() => { const rows = [...document.querySelectorAll('#f .row')].filter((r) => r.offsetParent !== null).map((r) => (r.querySelector('input,textarea') || {}).id); const cards = [...document.querySelectorAll('.card')].filter((c) => c.offsetParent !== null).length; return { 일: document.getElementById('work').value, 제목: document.querySelector('.card h2').textContent, 자세히: document.getElementById('memo').placeholder, 줄: rows.join(','), 카드: cards, 연락처표: document.getElementById('phone').closest('.row').querySelector('label').textContent } })
+    ok(`⑨ ${주} — «${일}» · 연락처가 무슨 일 바로 아래(work,phone,memo) · 안내 칸 숨김(카드 하나) · 연락처 *`, 꼴.일 === 일 && 꼴.제목 === 일 && 글.test(꼴.자세히) && 꼴.줄 === 'work,phone,memo' && 꼴.카드 === 1 && /연락처 \*/.test(꼴.연락처표), 꼴)
+  }
+  {
+    let 나감 = 0
+    await p.route(/firebaseio\.com\/quotes/, (r) => { 나감++; r.fulfill({ status: 200, body: '{}' }) })
+    await p.goto(BASE + '/contact?k=ad&w=a', { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(400)
+    await p.click('#go'); await p.waitForTimeout(500)
+    const 알림 = await p.evaluate(() => ({ 말: document.getElementById('msg').textContent, 칸: document.activeElement && document.activeElement.id }))
+    ok('⑨ 연락처 없이 «문의 보내기» → 막고 «답을 드릴 전화번호나 이메일» 알림 · 연락처 칸으로 · 안 보냄', /답을 드릴 전화번호나 이메일/.test(알림.말) && 알림.칸 === 'phone' && 나감 === 0, [알림, 나감])
+    await p.unroute(/firebaseio\.com\/quotes/)
+  }
   await p.goto(BASE + '/contact', { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(500)
   ok('그냥 /contact 는 예전 그대로(빈 칸)', (await p.evaluate(() => document.getElementById('work').value)) === '')
   ok('오류 0', !오류.length, 오류)
   if (OUT) { await p.goto(BASE + '/contact?k=ad', { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(500); await p.screenshot({ path: OUT + '/문의_보내기_폰390.png' }) }
   if (OUT) { await p.goto(BASE + '/contact?k=ad&w=p', { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(500); await p.screenshot({ path: OUT + '/문의_보내기_제휴_폰390.png' }) }
+  if (OUT) { await p.goto(BASE + '/contact?k=ad&w=a', { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(500); await p.screenshot({ path: OUT + '/문의_보내기_광고_폰390.png' }) }
   await ctx.close()
 }
 if (OUT) {

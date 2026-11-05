@@ -33,6 +33,7 @@ const 서버 = (뿌리, port) => new Promise((ok) => {
 })
 const S1 = await 서버(D, 4991), S2 = await 서버(M, 4992)
 const 주소 = 'http://127.0.0.1:4991', 틀 = 'http://127.0.0.1:4992'
+const 공지판 = (fs.readFileSync(new URL('../web/src/감사공지.jsx', import.meta.url), 'utf8').match(/const 판 = '([^']+)'/) || [])[1] || ''   /* G552 */
 
 /* ── 가짜 데이터베이스(규칙 흉내) — bc/p 처음 한 번 · 공고마다 읽기 · bc/q 못 읽음 ── */
 let DB = {}
@@ -90,6 +91,7 @@ async function 창(기기) {
   await c.route(/\/data\/agency\/sjr\//, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ 가상시: { n: 8, med: 99.71, c: [['261020', 99.652, 89.912, 23, '가상 도로 보수공사'], ['261015', 100.211, 90.103, 41, '가상 배수관 정비']] } }) }))
   /* 사람 브라우저처럼(webdriver 끔 — 끄지 않으면 봇() 이라 관심도를 안 남김) · 인사 쪽지 안 뜨게 */
   await c.addInitScript(() => { try { localStorage.setItem('kcm_notice_seen', '2026-10-필독'); sessionStorage.setItem('kcm_notice_seen', '2026-10-업체'); sessionStorage.setItem('kcm_visit_s', '1') } catch (e) {}; Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false }) })
+  await c.addInitScript((판) => { try { sessionStorage.setItem('kcm_notice_seen', 판) } catch (e) { /* 없음 */ } }, 공지판)   /* G552 — 지금 알림 판을 «봤음» 으로(webdriver 를 끄면 창이 떠서 가림) */
   await c.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: 주소 })
   const p = await c.newPage(); const 오류 = []
   p.on('pageerror', (e) => 오류.push(String(e).slice(0, 300))); p.on('dialog', (d) => d.accept())
@@ -288,6 +290,7 @@ console.log('■ ⑧ 어두운 화면(폰 · PC 다크 모드) — 새 칸 글�
     await c.route(/\/data\/bidindex\.json/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: 색인 }))
     await c.route(/\/data\/bidresult\.json/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: 결과자료 }))
     await c.addInitScript(() => { try { localStorage.setItem('kcm_notice_seen', '2026-10-필독'); sessionStorage.setItem('kcm_notice_seen', '2026-10-업체'); sessionStorage.setItem('kcm_visit_s', '1') } catch (e) {}; Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false }) })
+    await c.addInitScript((판) => { try { sessionStorage.setItem('kcm_notice_seen', 판) } catch (e) { /* 없음 */ } }, 공지판)   /* G552 — 지금 알림 판을 «봤음» 으로(webdriver 를 끄면 창이 떠서 가림) */
     const P = { p: await c.newPage(), 기기 }; const 오 = []; P.p.on('pageerror', (e) => 오.push(String(e)))
     await P.p.goto(주소 + '/', { waitUntil: 'domcontentloaded' }); await P.p.waitForTimeout(3000)
     await P.p.evaluate(() => { const h = document.querySelector('.bth-h'); h && h.click() }); await P.p.waitForTimeout(300)
