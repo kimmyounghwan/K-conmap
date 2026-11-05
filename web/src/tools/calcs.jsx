@@ -8,7 +8,8 @@
    ⚠️ 단가는 넣지 않습니다. 표준품셈·물가정보·노임단가는 유료 간행물이라
       표를 그대로 실을 수 없습니다. 수량만 내고 단가는 사용자가 곱합니다.
    ========================================================== */
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 
 /* 🧭 2026-09-27 — 「손님 맞을 준비 … 뒤로가기」 전수조사: 계산기에 적은 값이 다른 화면에 갔다 오면 다 사라졌습니다.
    → 칸마다 이 기기에 남깁니다(localStorage · 계산기마다 한 묶음). «예시로 해 보기» 중에는 남긴 값을 읽지 않고,
@@ -56,6 +57,8 @@ export function use바뀐기본(새필드, 옛필드, 옛기본들, 새기본) {
 }
 /* ⚠️ 낙찰하한율 규칙은 lib/engines.js 한 곳에만 있습니다. 여기서 다시 적지 않습니다. */
 import { lowerLimit } from '../lib/bidmath.js'
+import { 세기 } from '../lib/받은수.jsx'
+import { 적격기간, 낼서류, 오늘한국 } from '../lib/적격서류.js'   /* 🗂 G551 적격심사 서류 길잡이 */
 import { 숫자, 물가조정 } from '../lib/물가셈.js'
 
 const won = (n) => (n > 0 ? Math.round(n).toLocaleString('ko-KR') + '원' : '—')
@@ -278,6 +281,54 @@ export function QualifyScore({ ex = {} }) {
         { k: '통과선까지', v: sum > 0 ? (need <= 0 ? '통과 (+' + (-need).toFixed(2) + '점)' : need.toFixed(2) + '점 부족') : '—' },
       ]} />
       <div className="hint">배점은 <b>발주기관·연도·규모마다 다릅니다.</b> 공고서 배점표를 보고 넣으세요 — 이 도구는 더하기만 합니다.</div>
+    </div>
+  )
+}
+
+/* ── 🗂 적격심사 서류 길잡이 (G551 · 2026-11-05) — 셈 · 근거는 lib/적격서류.js · 설명 글은 tools.json ──────
+   소장님 「적격심사 도구 만들어 줘.」 · 입찰공고일 하나로 실적인정기간 날짜 · 올해 분 조건(준공 끝난 공사만) · 실적 서류 · 낼 서류 체크(이 기기에 남음) */
+export function QualifyDocs({ ex = {} }) {
+  const [일, set일] = use칸('gongo', ex.gongo ?? 오늘한국())
+  const [체크, set체크] = use칸('chk', () => ({ ...(ex.chk || {}) }))
+  const 셈 = useRef(false)
+  const 세자 = () => { if (셈.current) return; 셈.current = true; try { 세기('|적격서류|셈') } catch (e) { /* 없음 */ } }
+  const k = 적격기간(일, true), k2 = 적격기간(일, false)
+  const 표 = 체크 || {}
+  const n = 낼서류.filter(([key]) => 표[key]).length
+  return (
+    <div className="tool">
+      <Row label="입찰공고일" hint="공고서에 적힌 날">
+        <input type="date" value={일} onChange={(e) => { set일(e.target.value); 세자() }} />
+      </Row>
+      <Out items={[{ k: '실적인정기간', v: k ? k.전체 : '—', big: true }]} />
+      {k && (
+        <div className="qd-box">
+          <p><b>① {k.확정해.join(' · ')}년</b> — 협회가 연도말 단위로 확정한 실적 · <b>협회 실적확인서</b></p>
+          <p><b>② {k.덧시작} ~ {k.끝}</b> — 이 사이 <b>준공이 끝난 공사만</b>(전체 준공) · <b>발주기관에서 직접 받은 실적증명서</b> · 공사 중 · 일부 공종만 끝난 것은 안 들어감</p>
+          <p className="qd-sub">작년({k.마지막확정}년) 실적이 아직 협회 실적확인서에 없으면 → <b>{k2.전체}</b> (① {k2.확정해.join(' · ')}년 + ② {k2.덧시작} ~) · 등급표는 «실적인정기간 4년 이상» 줄</p>
+        </div>
+      )}
+      <div className="qd-h">실적에 붙이는 서류</div>
+      <ul className="qd-list">
+        <li><b>공공공사</b> — 발주기관 실적증명서(적격심사용 별지 제5호서식)</li>
+        <li><b>민간공사</b>(발주자가 법인 · 개인) — 실적증명서(별지 제5-2호서식) + 인 · 허가서류 + 준공 서류 + 부가세 공급가액 증명서(도급계약서 포함) · 건축은 건축물대장</li>
+        <li><b>하도급공사</b> — 위 서류 + 원도급자 증명</li>
+        <li>공고서가 더 요구하면(세금계산서 · 이체증 · 인감증명서 등) 그것까지</li>
+      </ul>
+      <div className="qd-h">낼 서류 챙기기 <span className="qd-n">{n} / {낼서류.length}</span></div>
+      <div className="qd-chk">
+        {낼서류.map(([key, 이름, 말]) => (
+          <label key={key} className={'qd-c' + (표[key] ? ' on' : '')}>
+            <input type="checkbox" checked={!!표[key]} onChange={(e) => { set체크({ ...표, [key]: e.target.checked }); 세자() }} />
+            <span><b>{이름}</b><i>{말}</i></span>
+          </label>
+        ))}
+      </div>
+      <div className="hint">흔히 내는 서류입니다 — <b>공고서에 적힌 목록 · 기간이 우선</b>입니다. 체크한 것은 이 기기에 남아 다음에 이어서 봅니다.</div>
+      <div className="qd-go">
+        <Link className="btn line sm" to="/tools/qualify-score" onClick={() => { try { 세기('|적격서류|합산기') } catch (e) { /* 없음 */ } }}>✅ 적격심사 점수 합산기</Link>
+        <Link className="btn line sm" to="/tools/floor-rate" onClick={() => { try { 세기('|적격서류|하한율') } catch (e) { /* 없음 */ } }}>📊 낙찰하한율 찾기</Link>
+      </div>
     </div>
   )
 }
@@ -520,6 +571,7 @@ export const EXAMPLES = {
   'effective-floor': { 글: '기초금액 6억 3천만 원 · A값 3,780만 원 · 하한율 89.745%', ex: { base: '630,000,000', aval: '37,800,000' } },
   'rebar-weight': { 글: 'D16 철근 8m 짜리 120개 · 할증 3%', ex: { d: 'D16', len: '8', cnt: '120' } },
   'floor-rate': { 글: '추정가격 6억 3천만 원 공사', ex: { est: '630,000,000' } },
+  'qualify-docs': { 글: '입찰공고일 2026-11-05 · 신청서 · 등록증 · 금융거래확인서를 챙긴 모습', ex: { gongo: '2026-11-05', chk: { 신청: true, 등록: true, 금융: true } } },
   'qualify-score': { 글: '배점표에서 읽은 항목 점수를 넣은 모습 (예시 점수 — 실제 배점은 공고서)', ex: { v: { '경영상태': '15', '시공경험': '13.5', '기술능력': '0', '신인도': '1.2', '자재·장비': '0', '기타': '68' } } },
   'price-adjust': { 글: '남은 공사 5억 원 · 등락률 4.2% · 계약 뒤 120일 · 선금 30%', ex: { amt: '500,000,000', rate: '4.2', days: '120', adv: '30' } },
   'soil-volume': { 글: '자연상태 흙 1,000㎥ 를 흐트러진·다짐 상태로', ex: { from: 'nat', vol: '1000' } },
@@ -537,6 +589,7 @@ export const CALCS = {
   'rebar-weight': RebarWeight,
   'floor-rate': FloorRate,
   'qualify-score': QualifyScore,
+  'qualify-docs': QualifyDocs,
   'price-adjust': PriceAdjust,
   'soil-volume': SoilVolume,
   'concrete-volume': ConcreteVolume,

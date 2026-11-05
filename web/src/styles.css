@@ -10161,3 +10161,21 @@ div.bth { padding: 0; }
 .adc-h { flex-wrap: wrap; row-gap: 2px; }   /* 좁은 폰에서 «광고 · 제휴 문의 →» 가 넘치지 않고 아래 줄로 */
 .adc-sim { font-size: 11px; }
 @media (max-width: 340px) { .adc-call, .adc-sms { font-size: 14px; } .adc-sms { padding: 0 12px; } }
+
+/* 🗂 G551 적격심사 서류 길잡이(tools/calcs.jsx QualifyDocs) — 소장님 「적격심사 도구 만들어 줘.」 */
+.qd-box { margin: 8px 0 4px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); font-size: 13.5px; line-height: 1.55; word-break: keep-all; }
+.qd-box p { margin: 0 0 6px; }
+.qd-box p:last-child { margin-bottom: 0; }
+.qd-sub { color: var(--muted); font-size: 12.5px; }
+.qd-h { margin: 14px 0 6px; font-weight: 800; font-size: 14.5px; }
+.qd-n { margin-left: 6px; font-size: 12.5px; color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; }
+.qd-list { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13.5px; line-height: 1.5; word-break: keep-all; }
+.qd-chk { display: grid; gap: 6px; }
+.qd-c { display: flex; gap: 10px; align-items: flex-start; padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); cursor: pointer; }
+.qd-c.on { border-color: var(--good); background: var(--good-soft); }
+.qd-c input { width: 20px; height: 20px; margin: 1px 0 0; flex: none; }
+.qd-c span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.qd-c b { font-size: 14px; }
+.qd-c i { font-style: normal; font-size: 12.5px; color: var(--muted); word-break: keep-all; }
+.qd-go { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.qd-go .btn { width: auto; }

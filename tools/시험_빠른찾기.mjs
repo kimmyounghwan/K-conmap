@@ -32,6 +32,7 @@ const 표 = [
   ['노무비', '/tools/nomubi'], ['ㄴㅁㅂ 계산기', '/tools/nomubi'], ['거푸집', '/tools/formwork-area'], ['ㄱㅍㅈ', '/tools/formwork-area'],
   ['철근 무게', '/tools/rebar-weight'], ['기성', '/change/gisung'], ['위험성평가', '/tools/risk'], ['설계변경 작업대', '/change/work'],
   ['맵톡', '/qna'], ['A값', '/tools/a-value'], ['투찰', '/'], ['하도급 내역서', '/naeyeok/hado'], ['길이 합계', '/cad/kl'], ['bim', '/jeoksan/bim'],
+  ['적격심사 서류', '/tools/qualify-docs'], ['실적인정기간', '/tools/qualify-docs'], ['광고 제휴', '/ad'], ['광고문의', '/ad'],   /* 🗂 G551 · 📣 G549 */
 ]
 const 틀린 = 표.filter(([q, to]) => 맨위(q) !== to)
 봐(!틀린.length, `${표.length}가지 말 — 맨 위가 그 화면(노무비 · 초성 · 같은 뜻 «무게 = 중량» · 낱말 둘)`, JSON.stringify(틀린.map(([q, to]) => [q, to, 맨위(q)])))
