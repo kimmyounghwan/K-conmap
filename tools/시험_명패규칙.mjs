@@ -2,9 +2,11 @@
  * 🧪 G320 (2026-10-18) 전문가 명패 규칙 — web/database.rules.json 의 qna_pro_req · qna_pro 를 «작은 흉내» 로 돌려 봅니다.
  *   (파이어베이스 에뮬레이터를 받을 수 없는 곳에서도 돌게 — 규칙 글을 그대로 읽어 자바스크립트로 셈 · .write → .validate → 칸마다 .validate · $other)
  *   node tools/시험_명패규칙.mjs
+ * ✂️ G547 (2026-11-05) 소장님 「명패도 빼자」 — 화면에서 명패(신청 · 붙이기 · 보이기)를 뺐습니다.
+ *   규칙(qna_pro · qna_pro_req)은 옛 자료 때문에 그대로라 ① ② 규칙 흉내는 남기고, ④ 는 «화면이 명패를 안 씀» 으로 바꿈.
+ *   ⑤ 운영자 기기(G324 · G528)는 맵톡 «K-건설맵» 표 · 규칙 15곳 · 창고 · 알림 셈을 함께 봄 — 운영자더하기.py 뒤에 꼭 돌림.
  */
 import { readFileSync } from 'node:fs'
-import { 명패검사, 명패신청값, 명패만들기, 명패글, 분야전문가, 공개들, 분야들 } from '../web/src/lib/맵톡.js'
 
 const 글 = readFileSync(new URL('../web/database.rules.json', import.meta.url), 'utf8')
 const 규칙 = JSON.parse(글.replace(/^\s*\/\/.*$/gm, '')).rules
@@ -59,7 +61,9 @@ function 읽기(갈래, who, auth, 바탕 = {}) {
 const OP = { uid: 'ZglL1g3X5UZFBA2590LirDnEnil1' }
 const 갑 = { uid: 'u_gap' }, 을 = { uid: 'u_eul' }, 병폰 = { uid: 'u_new_phone' }
 const 이어짐 = { qna_who: { u_new_phone: { r: 'u_gap' } } }     // 병폰 = 갑이 «내 글 되찾기» 로 이은 새 기기
-const 좋은신청 = 명패신청값({ f: 'est', co: '○○건설', nm: '홍길동', i: '공공 토목 적산', sh: 'all', ok: true }, '노란 두더지12', Date.now())
+/* G547 — lib 의 명패 함수는 뺐으므로 규칙 흉내에 넣을 값을 여기서 바로 적음(옛 명패신청값 · 명패만들기 꼴 그대로) */
+const 좋은신청 = { f: 'est', sh: 'all', ok: true, at: Date.now(), co: '○○건설', nm: '홍길동', i: '공공 토목 적산', nick: '노란 두더지12' }
+const 명패만들기 = (r, at) => (r && r.ok === true ? { f: r.f, at, ...(r.sh !== 'name' ? { co: r.co } : {}), ...(r.sh !== 'co' ? { nm: r.nm } : {}), ...(r.i ? { i: r.i } : {}) } : null)
 
 console.log('① 신청(qna_pro_req) — 본인만 쓰고 · 본인 · 운영자만 읽음')
 eq(쓰기('qna_pro_req', 'u_gap', 좋은신청, 갑), true, '본인 번호로 신청')
@@ -102,24 +106,6 @@ eq(쓰기('qna_pro', 'u_gap', 명패만들기({ ...좋은신청, sh: 'name' }, 1
 eq(쓰기('qna_pro', 'u_gap', 명패만들기({ ...좋은신청, sh: 'co' }, 1), OP), true, '회사만 명패')
 eq(읽기('qna_pro', null, null), true, '명패는 누구나 읽음')
 
-console.log('③ 명패 글 · 신청 검사 · 공개 범위')
-eq(명패글({ f: 'est', co: '○○건설', nm: '홍길동' }), '✅ 적산·내역 · ○○건설 홍길동', '회사 + 이름')
-eq(명패글({ f: 'civil', nm: '홍길동' }), '✅ 토목 · 홍길동', '이름만')
-eq(명패글({ f: 'zz', nm: '홍길동' }), '', '모르는 분야는 안 보임')
-eq(명패글(null), '', '없으면 빈칸')
-eq(명패검사({ f: '', sh: 'all', co: 'a', nm: 'b', ok: true }), '분야를 골라 주세요.', '분야 없음')
-eq(명패검사({ f: 'est', sh: 'all', co: '', nm: 'b', ok: true }), '회사 이름을 적어 주세요.', '회사+이름인데 회사 없음')
-eq(명패검사({ f: 'est', sh: 'name', co: '', nm: 'b', ok: true }), '', '이름만이면 회사 없어도 됨')
-eq(명패검사({ f: 'est', sh: 'co', co: 'a', nm: '', ok: true }), '', '회사만이면 이름 없어도 됨')
-eq(명패검사({ f: 'est', sh: 'all', co: 'a', nm: 'b', ok: false }), '«맵톡에 보이는 데 동의합니다» 에 체크해 주세요.', '동의 없음')
-eq(JSON.stringify(명패만들기({ ...좋은신청, sh: 'name' }, 1)), JSON.stringify({ f: 'est', at: 1, nm: '홍길동', i: '공공 토목 적산' }), '이름만 — 명패에 회사가 안 들어감')
-eq(JSON.stringify(명패만들기({ ...좋은신청, sh: 'co' }, 1)), JSON.stringify({ f: 'est', at: 1, co: '○○건설', i: '공공 토목 적산' }), '회사만 — 명패에 이름이 안 들어감')
-eq(명패만들기({ ...좋은신청, ok: false }, 1), null, '동의 없는 신청은 못 붙임')
-eq(분야전문가({ a: { f: 'est', nm: 'A', at: 2 }, b: { f: 'bid', nm: 'B', at: 1 }, c: { f: 'est', nm: 'C', at: 1 } }, 'est').map((x) => x.uid).join(','), 'c,a', '분야 명단 — 붙인 차례')
-eq(분야전문가({ a: { f: 'est', nm: 'A', at: 2 }, b: { f: 'bid', nm: 'B', at: 1 } }).length, 2, '전체 명단')
-eq(공개들.map((x) => x.k).join('|'), 'all|name|co', '화면 공개 범위 = 규칙 sh')
-eq(분야들.map((x) => x.k).join('|'), 'bid|est|esc|civil|arch|elec|safe', '화면 분야 = 규칙 f')
-
 console.log('⑤ G324 (2026-10-19) 두 번째 운영자 기기(노트북 엣지) — 소장님 「맵톡글을 쓸때 붙게 해줘」 「관리자 탭이 없이」')
 const OP2 = { uid: 'Mk7VznW9UZaRpycYErDsuILmVfl1' }
 eq(쓰기('qna_pro', 'u_gap', 패, OP2), true, '노트북 엣지도 명패를 붙임')
@@ -141,15 +127,13 @@ eq(창고.includes('request.auth.uid in [' + 모두.map((u) => `'${u}'`).join(',
 const 알림 = readFileSync(new URL('./알림수세기.py', import.meta.url), 'utf8')
 eq(알림.includes('OP = (' + 모두.map((u) => `"${u}"`).join(', ') + ')'), true, '알림 셈(알림수세기.py)도 운영자 기기 모두 뺌')
 
-console.log('④ 화면이 이렇게 쓰는지')
+console.log('④ 화면 — G547 명패를 뺐으므로 «안 씀» 을 봄(소장님 「명패도 빼자」 · 다시 넣을 때는 먼저 여쭘)')
 const 화면 = readFileSync(new URL('../web/src/pages/Qna.jsx', import.meta.url), 'utf8')
-eq(/qna_pro_req\/\$\{me\.r\}/.test(화면), true, '신청은 내 번호(되찾은 기기는 옛 번호) 칸에')
-eq(/듣기\(ref\(db, 'qna_pro'\)/.test(화면), true, '명패는 열어 둔 화면에도 바로(듣기)')
-eq((화면.match(/<명패칸 /g) || []).length >= 4 && /명패표\(r\.uid\)/.test(화면) && /명패표\(창글\.uid\)/.test(화면), true, '카드 · 글 · 답글 · 명단에 명패')
-eq(/세기\('\|맵톡\|명패신청'\)/.test(화면) && /세기\('\|맵톡\|명패신청열기'\)/.test(화면), true, '쓴 횟수(소장님만)')
+eq(/qna_pro/.test(화면.replace(/\/\*[\s\S]*?\*\//g, '')), false, '화면이 qna_pro · qna_pro_req 를 읽지도 쓰지도 않음(주석 밖)')
+eq(/<명패칸 |명패표\(|function 명패|명패신청창|명패관리판/.test(화면), false, '카드 · 글 · 답글 · 명단에 명패 없음 · 신청 창 · 관리판 없음')
+eq(/세기\('\|맵톡\|명패/.test(화면), false, '명패 쓴 횟수 셈 없음')
 const 메일 = readFileSync(new URL('./qna_mail.py', import.meta.url), 'utf8')
-eq(/get\("qna_pro_req", tok\)/.test(메일) && /명패 신청/.test(메일), true, '신청이 오면 소장님 메일')
-eq(/«무료»|클로드/.test(화면.slice(화면.indexOf('function 명패칸'))), false, '명패 화면 글에 «무료» · «클로드» 없음')
+eq(/get\("qna_pro_req", tok\)/.test(메일), true, '메일은 그대로(옛 신청이 남아 있으면 알림 — 새 신청은 화면이 없어 안 생김)')
 
 console.log(`\n통과 ${통과} · 실패 ${실패}`)
 if (실패) process.exit(1)

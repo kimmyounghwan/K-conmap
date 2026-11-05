@@ -156,7 +156,7 @@ export function 점수셈(글들, 답들, 좋아요, 답좋아요, 달) {
   return m
 }
 /* 📖 공지 판 — 공지(활용 방법·보상)를 고치면 이 글자를 바꾸십시오. 처음 온 기기와 «바뀐 판» 에서만 한 번 펼쳐집니다(소장님 고르심). */
-const 공지판 = '2026-10-19'      /* 🗺 G316 방 셋(자유 · 지역방 · 전문가 방) · 공지 · 모임 글 — 한 번 다시 펼쳐 알립니다 (전 판 2026-09-29) */
+const 공지판 = '2026-10-19'      /* 🗺 G316 방(자유 · 지역방 — G547 11-05 전문가 방 뺌 · 판은 그대로: 안내 두 줄만 빠짐) · 공지 · 모임 글 — 한 번 다시 펼쳐 알립니다 (전 판 2026-09-29) */
 const 공지열쇠 = 'kcm.qna.공지판'
 
 /* 👁 2026-10-01 (G95) 조회수 — 소장님 「조회수 알 수 있지? 조회수도 넣어주고」
@@ -222,8 +222,7 @@ import { use화면상태, use남김 } from '../lib/길기록.js'
 /* 🗺 G147 (2026-10-05) 사랑방 → 맵톡 — 큰 지도 위 글쓰기 · 글 = 핀(시·군) · 방은 저절로(같은 주제 10개) · 사진 한 장 */
 import 맵톡지도 from '../tools/맵톡지도.jsx'
 import { 주제짐작, 글나누기, 제목내용, 자리짐작, 짧은이름, 곳찾기, 카드크기, 물음인가, 한마디인가, 사진줄이기, 사진크기한도, 답나무, 첫줄, 누적셈, 시도차례, 시도별, 곳기억읽기, 곳기억하기,
-  지역방들, 지역방이름, 글지역, 방표, 방색, 분야들, 분야이름, 분야짐작, 글분야, 모임, 모임날글, 이번주모임, 모임지남, 분야배지, 답기다리는질문, 방고름풀기, 방에드나, 공지인가, 시도지역방,
-  공개들, 명패글, 명패검사, 명패신청값, 명패만들기, 분야전문가 } from '../lib/맵톡.js'   /* 🗺 G316 방 셋 · 공지 · 모임 · 🪪 G320 명패 */
+  지역방들, 지역방이름, 글지역, 방표, 방색, 모임, 모임날글, 이번주모임, 모임지남, 답기다리는질문, 방고름풀기, 방에드나, 공지인가, 시도지역방 } from '../lib/맵톡.js'   /* 🗺 G316 방 · 공지 · 모임 (✂️ G547 11-05 🙋 전문가 방 · 🪪 명패 · 🏅 분야 뺌) */
 import { 세기 } from '../lib/받은수.jsx'
 import { 받는꼴, 파일검사, 압축검사, 확장자, 파일올리기, 크기글, 오늘올린수, 올린수더하기, 하루한도 } from '../lib/파일올리기.js'   /* 📎 G158 · 🗜 G196 압축검사 */
 import { 꺼내기 as 찍은사진꺼내기, 사건이름 as 찍은사진사건 } from '../lib/찍은사진.js'   /* 📷 G322 옆 «+» 찍기 단추 */
@@ -295,8 +294,9 @@ export default function Qna() {
   const [나운영자, set나운영자] = useState(false)
   const [onlyMine, setOnlyMine] = useState(false)
   const [q, setQ] = use남김('kcm.qna.찾기', '', 'session')
-  /* 🗺 G316 (2026-10-18) 방 셋 — 'all' · 'free'(자유) · 'r:{지역}'(지역방) · 'x' · 'x:{분야}'(전문가 방) · '공지' · '답기다림'(운영자)
-     (G147 의 «같은 주제 30개 모이면 방» 은 뺌 — 소장님 「자유, 지역별 방, 전문가 방 이렇게만」) · 옛 값(bid 등)은 'all' 로 */
+  /* 🗺 G316 (2026-10-18) 방 — 'all' · 'free'(자유) · 'r:{지역}'(지역방) · '공지' · '답기다림'(운영자)
+     (G147 의 «같은 주제 30개 모이면 방» 은 뺌 — 소장님 「자유, 지역별 방, 전문가 방 이렇게만」) · 옛 값(bid 등)은 'all' 로
+     ✂️ G547 (2026-11-05) 🙋 전문가 방('x' · 'x:{분야}')은 뺌 — 소장님 「전문가 빼자」 · 옛 기억은 lib 방고름풀기 가 'all' 로 */
   const [방고름원, set방고름] = use남김('kcm.qna.방', 'all', 'session')
   const 방고름 = ((v) => (v === '공지' ? 'all' : v))(방고름풀기(방고름원))   /* 📢 공지는 방이 아니라 맨 위 상자(그 자리에서 전부 펼침) — 옛 '공지' 기억은 전체로 */
   /* 📍 지역방 칩을 누르면 지난번 본 지역방(이 기기 기억) — 처음이면 내 핀(글쓰기에서 고른 곳)의 지역 · 그것도 없으면 서울 */
@@ -348,9 +348,6 @@ export default function Qna() {
   const [답좋아요, set답좋아요] = useState({})
   const [왕들, set왕들] = useState({})
   const [참석, set참석] = useState({})   /* 📅 G316 모임 참석 {글번호: {나: true}} — qna_go */
-  const [명패, set명패] = useState({})   /* 🪪 G320 전문가 명패 {번호: {f, co, nm, i, at}} — qna_pro(운영자만 붙임 · 누구나 읽음) */
-  const [명패창, set명패창] = useState(false)   /* 🪪 명패 신청 창 */
-  const [명패관리, set명패관리] = useState(false)   /* 🪪 운영자 — 신청 목록 */
   /* 📖 공지 — 처음 온 기기 · 바뀐 판에서만 펼친 채로 */
   const [공지열림, set공지열림] = useState(() => { try { return localStorage.getItem(공지열쇠) !== 공지판 } catch (e) { return true } })
   const [공지탭, set공지탭] = useState('활용')
@@ -457,7 +454,6 @@ export default function Qna() {
         듣기(ref(db, 'qna_a'), (v) => setAns(v || {}))
         듣기(ref(db, 'qna_del'), (v) => setDel(v || {}))
         듣기(ref(db, 'qna_top'), (v) => set고정(v || {}))
-        듣기(ref(db, 'qna_pro'), (v) => set명패(v || {}))   /* 🪪 G320 명패 — 붙이면 열어 둔 화면에도 바로 */
       } catch (e) { /* 듣기를 못 걸어도 ③으로 다시 읽음 */ }
     })()
     const 돌아옴 = () => { if (document.visibilityState === 'visible' && Date.now() - 마지막 > 60000) 다시() }
@@ -501,7 +497,7 @@ export default function Qna() {
     return rows.filter((r) => !r.deleted && !del[r.id] && 보임(r))
       .map((r) => {
         const g = 갈래떼기(r.t); const x = { ...r, c: g.c, t: g.t, 옛: g.옛 || '' }; x.주제 = 주제짐작(x, isOp)
-        x.방 = 글지역(x, 지도바탕); x.분야 = 글분야(x)      /* 🗺 G316 지역방(핀 → 시·도) · 전문가 분야 */
+        x.방 = 글지역(x, 지도바탕)      /* 🗺 G316 지역방(핀 → 시·도) — G547 전문가 분야는 뺌 */
         return x
       })
       .sort((a, b) => (b.at || 0) - (a.at || 0))
@@ -511,7 +507,7 @@ export default function Qna() {
   const 이글 = useMemo(() => {
     const r = 글번호 ? ((모두 || []).find((x) => x.id === 글번호) || 따로글) : null
     if (!r || !보임(r)) return null
-    return r.방 !== undefined ? r : { ...r, 방: 글지역(r, 지도바탕), 분야: 글분야(r) }
+    return r.방 !== undefined ? r : { ...r, 방: 글지역(r, 지도바탕) }
   }, [글번호, 모두, 따로글, 나, 나운영자, 지도바탕])   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!글번호 || rows === null || (모두 || []).some((r) => r.id === 글번호)) return undefined
@@ -579,20 +575,18 @@ export default function Qna() {
   }, [모두, q, onlyMine, 내것, 방고름, 고정, 기본보기, ans])   // eslint-disable-line react-hooks/exhaustive-deps
   /* 🗺 G316 방마다 글 수(공지는 따로 셈) */
   const 방셈 = useMemo(() => {
-    const m = { all: 0, free: 0, x: 0, 공지: 0 }
+    const m = { all: 0, free: 0, 공지: 0 }
     for (const r of 모두 || []) {
       if (공지인가(r, 고정)) { m.공지++; continue }
       m.all++
       if (r.방) { const k = r.방 === 'free' ? 'free' : 'r:' + r.방; m[k] = (m[k] || 0) + 1 }
-      if (r.분야) { m.x++; m['x:' + r.분야] = (m['x:' + r.분야] || 0) + 1 }
     }
     m.지역 = 지역방들.reduce((n, x) => n + (m['r:' + x.k] || 0), 0)
     return m
   }, [모두, 고정])
-  /* 🙋 답 기다리는 질문(전문가 방 · 답 없는 것) · 📅 이번 주 모임(지역방을 보고 있으면 그 지역만) · 🏅 분야 */
+  /* 🙋 답 기다리는 질문(G547 — 모든 방의 물음 글 · 답 없는 것) · 📅 이번 주 모임(지역방을 보고 있으면 그 지역만) */
   const 기다림 = useMemo(() => 답기다리는질문((모두 || []).filter((r) => !공지인가(r, 고정)), ans).slice(0, 5), [모두, ans, 고정])
   const 모임들 = useMemo(() => 이번주모임((모두 || []).filter((r) => !방고름.startsWith('r:') || r.방 === 방고름.slice(2))), [모두, 방고름])
-  const 분야뱃 = useMemo(() => 분야배지(모두, ans, 답좋아요), [모두, ans, 답좋아요])
 
   useEffect(() => {
     if (!onlyMine || !내글보러.current) return
@@ -620,10 +614,6 @@ export default function Qna() {
     const [, 표] = 계급(점수[uid] || 0)
     return 표 ? 표 + ' ' : ''
   }
-  /* 🪪 G320 명패 — 별명 옆 «✅ 적산·내역 · ○○건설 홍길동» (운영자 글 · 명패 없는 분은 없음) */
-  const 명패표 = (uid) => <명패칸 p={uid && !isOp(uid) ? 명패[uid] : null} />
-  const 이분야 = 방고름.startsWith('x:') ? 방고름.slice(2) : null
-  const 명단 = useMemo(() => 분야전문가(명패, 이분야), [명패, 이분야])
   const n좋아요 = (id) => Object.keys(좋아요[id] || {}).length
   /* 👍 누르기·빼기 — 먼저 화면에 반영하고, 서버가 막으면 되돌립니다 */
   const 좋아요누름 = async (경로, 켬) => {
@@ -895,7 +885,6 @@ export default function Qna() {
         <div className="mt-meta">
           {/* 🎨 G161 ④ 방 색 — 카드 위 색 띠 · 아주 옅은 바탕 · 방 이름 글씨(색은 styles.css 가 --rc 로 · 어두운 화면은 밝게) */}
           <span className="mt-tag"><i />{t.이름}</span>
-          {r.분야 && <span className="mt-ftag">🙋 {분야이름[r.분야]}</span>}
           {곳 && <span className="mt-where">{짧은이름(곳.n)}</span>}
           <span className="mt-date" title={언제(r.at)}>· {날시(r.at)}</span>
           {r.sb && 나운영자 && <b>🙈</b>}
@@ -911,8 +900,6 @@ export default function Qna() {
             </span>
           )}
         </button>
-        {/* 🪪 G320 명패 — 카드는 좁아 별명 줄에 두면 잘림 → 제목 아래 한 줄 */}
-        {명패[r.uid] && !isOp(r.uid) && <div className="mt-card-pro">{명패표(r.uid)}</div>}
         <div className="mt-foot">
           {/* 숫자만 — 누르면 글이 열리고, 공감 · 답글은 그 안에서 */}
           <button type="button" className={'mt-act mt-cnt mt-heart' + (하트눌림(r.id) ? ' on' : '')} onClick={() => 카드하트(r)} aria-pressed={하트눌림(r.id)}
@@ -987,7 +974,7 @@ export default function Qna() {
         {폰말 && <div className="muted" style={{ fontSize: 12.5, margin: '-2px 0 10px' }}>{폰말}</div>}
         {왕 && <div className="qna-king">👑 <b>{Number(왕.달.slice(5))}월의 답변왕</b> — {왕.nick} <span className="muted">· 고맙습니다!</span></div>}
 
-        {/* 🗺 G316 (2026-10-18) 방 셋 — 전체 · 💬 자유 · 📍 지역방(지역 7) · 🙋 전문가 방(분야 7) · 📢 공지(전부 쌓임) · 내 글
+        {/* 🗺 G316 (2026-10-18) 방 — 전체 · 💬 자유 · 📍 지역방(지역 7) · 📢 공지(전부 쌓임) · 내 글 (✂️ G547 11-05 🙋 전문가 방 뺌 — 소장님 「전문가 빼자」)
             소장님 「자유, 지역별 방, 전문가 방 이렇게만 … 카페 보면 방은 많은데, 다 자유게시판만 이용하거든」
             (G147 · G226 «같은 주제 30개 모이면 방이 저절로» 는 뺌) · 🩹 G155 «내 글» 과 방은 하나만 켜집니다 */}
         <nav className="mt-rooms" aria-label="방">
@@ -998,8 +985,6 @@ export default function Qna() {
             onClick={() => 방가기('free', '|맵톡|자유방')}>💬 자유 <em>{방셈.free || 0}</em></button>
           <button type="button" className={'mt-room' + (방고름.startsWith('r:') && !onlyMine ? ' on' : '')} aria-pressed={방고름.startsWith('r:') && !onlyMine}
             onClick={() => 방가기('r:' + (방고름.startsWith('r:') ? 방고름.slice(2) : 지역방고르기()), '|맵톡|지역방')}>📍 지역방{방고름.startsWith('r:') ? ' · ' + 지역방이름[방고름.slice(2)] : ''} <em>{방셈.지역 || 0}</em></button>
-          <button type="button" className={'mt-room' + ((방고름 === 'x' || 방고름.startsWith('x:')) && !onlyMine ? ' on' : '')} aria-pressed={(방고름 === 'x' || 방고름.startsWith('x:')) && !onlyMine}
-            onClick={() => 방가기(방고름.startsWith('x:') ? 방고름 : 'x', '|맵톡|전문가방')}>🙋 전문가 방 <em>{방셈.x || 0}{기다림.length ? ' · 답 기다림 ' + 기다림.length : ''}</em></button>
           {내것.size > 0 && (
             <button type="button" className={'mt-room' + (onlyMine ? ' on' : '')} aria-pressed={onlyMine} onClick={() => { const 켬 = !onlyMine; setOnlyMine(켬); if (켬) { set방고름('all'); 내글보러.current = true; 세기('|맵톡|내글보기') } }}>
               {onlyMine ? '✓ 내 글만' : '내 글'} <em>{내것.size}</em></button>
@@ -1017,31 +1002,6 @@ export default function Qna() {
             <span className="mt-sub-note">글 쓸 때 고른 지역(📍 핀)으로 모입니다 — 어떤 이야기든</span>
           </nav>
         )}
-        {(방고름 === 'x' || 방고름.startsWith('x:')) && !onlyMine && (
-          <nav className="mt-rooms2" aria-label="전문가 분야">
-            <button type="button" className={'mt-sub' + (방고름 === 'x' ? ' on' : '')} aria-pressed={방고름 === 'x'} onClick={() => 방가기('x')}>전체 <em>{방셈.x || 0}</em></button>
-            {분야들.map((x) => (
-              <button key={x.k} type="button" className={'mt-sub' + (방고름 === 'x:' + x.k ? ' on' : '')} aria-pressed={방고름 === 'x:' + x.k}
-                onClick={() => 방가기('x:' + x.k, '|맵톡|분야')}>{x.이름} <em>{방셈['x:' + x.k] || 0}</em></button>
-            ))}
-            <span className="mt-sub-note">공감 받은 답이 5개를 넘으면 별명 옆에 «🏅 분야»</span>
-          </nav>
-        )}
-        {/* 🪪 G320 명패 — 전문가 방 위 한 줄: 제목 · 신청 단추(누구나 · 붙이는 건 K-건설맵) · 운영자 신청 목록 · 명패 단 분들(분야 방이면 그 분야만)
-            폰은 이 줄이 옆으로 밀리므로 단추를 앞에 둠(명단이 길어도 신청 단추는 늘 보이게) */}
-        {(방고름 === 'x' || 방고름.startsWith('x:')) && !onlyMine && (
-          <div className="mt-pros" aria-label="명패를 단 전문가">
-            <span className="mt-pros-h">🪪 {이분야 ? 분야이름[이분야] + ' ' : ''}전문가</span>
-            <button type="button" className="mt-pro-btn" onClick={() => { set명패창(true); 세기('|맵톡|명패신청열기') }}>명패 신청</button>
-            {나운영자 && <button type="button" className="mt-pro-btn op" onClick={() => set명패관리((v) => !v)}>🛠 명패 신청 보기</button>}
-            {명단.length
-              ? 명단.map((p) => <span key={p.uid} className="mt-pro-card" title={p.i || ''}>{명패글(p)}{p.i ? <em> — {p.i}</em> : null}</span>)
-              : <span className="mt-pros-empty">분야 전문가께서 신청하시면 별명 옆에 «✅ 분야 · 회사 · 이름» 을 달아 드립니다.</span>}
-          </div>
-        )}
-        {나운영자 && 명패관리 && (방고름 === 'x' || 방고름.startsWith('x:')) && <명패관리판 명패={명패} 닫기={() => set명패관리(false)} />}
-        {명패창 && <명패신청창 나={나} 명패={명패} 닫기={() => set명패창(false)} />}
-
         {/* 📢 G316 공지 상자 — 모든 방 맨 위에 늘(소장님 「맵톡 공지는 항상 제일 위에」 「공지가 계속 쌓이게 해야 해. 위쪽에」 → 고르심 «① 한 상자»)
             첫 줄 = 📖 안내(쓰는 법 · 보상 · 운영진 — 처음 온 기기 · 바뀐 판에서만 펼친 채로) · 그 아래 최근 공지 둘 · «공지 N개 모두 보기» = 그 자리에서 전부 펼침
             · 새 공지는 맨 위로 들어가 아래로 밀려 쌓임 · 줄마다 👁 조회 · 💬 답글 (소장님 「이것도 조회수 있게 해...댓글쓰기도 넣고」)
@@ -1074,8 +1034,6 @@ export default function Qna() {
             <ol style={{ margin: '8px 0 0', paddingLeft: 20 }}>
               <li><b>🗺 맵톡 — 그냥 쓰세요.</b> 질문 · 현장 이야기 · 공동도급 구성원 구하기 · 구인·구직 · 건의 · 후기, 무엇이든 한 칸에 씁니다.
                 글을 올리면 <b>내 시·군에 핀</b>이 꽂히고 그 <b>📍 지역방</b>(서울 · 경기·인천 · 강원 · 충청 · 전라 · 경상 · 제주)에 모입니다 — 어떤 이야기든. 지역은 처음 한 번 고르면 기억합니다(안 고르면 접속한 곳으로 짐작 — 통신사에 따라 다른 곳으로 잡힐 수 있습니다). 지역 없이 쓰면 <b>💬 자유</b>.</li>
-              <li><b>🙋 전문가 방</b> — 묻는 글은 «전문가 방에도» 를 켜면 분야(입찰·계약 · 적산·내역 · ESC(물가변동) · 토목 · 건축 · 전기·통신·소방 · 안전·품질·노무)에도 올라갑니다. 공감 받은 답이 5개를 넘으면 별명 옆에 <b>«🏅 분야»</b>.</li>
-              <li><b>🪪 전문가 명패</b> — 🙋 전문가 방의 <b>«🪪 전문가 명패 신청»</b> 에 분야 · 회사 · 이름을 적어 주시면, K-건설맵이 확인한 뒤 별명 옆에 <b>«✅ 분야 · 회사 · 이름»</b> 을 붙여 드립니다. 보이는 것은 고르신 것(회사 + 이름 · 이름만 · 회사만)뿐이고, 언제든 내리실 수 있습니다.</li>
               <li><b>📅 모임 글</b> — «모임 글» 을 켜고 날짜 · 장소를 적으면 오른쪽 <b>«이번 주 모임»</b> 에 뜹니다. 가실 분은 글을 열고 <b>«🙋 참석»</b>.</li>
               <li><b>📷 사진도 올릴 수 있습니다</b>(한 장 · 크게 찍은 사진은 줄여서 올립니다). 남의 얼굴 · 이름 · 전화번호가 보이는 사진은 올리지 마세요.</li>
               {/* 🩹 G196 소장님 「이상한 파일 이면...이런 거 말고, 그냥, 파일 올릴 수 있다. 이렇게 해줘」 — 막는 것 · 주의 글은 뺌(고를 때 안 되는 것은 그 자리에서 알림) */}
@@ -1183,7 +1141,7 @@ export default function Qna() {
           </div>
 
           <aside className="mt-side">
-            {/* 🗺 G316 오른쪽 — 🙋 답을 기다리는 질문(전문가 방 · 답 없는 것) · 📅 이번 주 모임(지역방이면 그 지역) — «모이는 중» · 📌 도구 사용법은 뺌(공지로 합침) */}
+            {/* 🗺 G316 오른쪽 — 🙋 답을 기다리는 질문(G547 모든 방 물음 글 · 답 없는 것) · 📅 이번 주 모임(지역방이면 그 지역) — «모이는 중» · 📌 도구 사용법은 뺌(공지로 합침) */}
             {기다림.length > 0 && (
               <div className="mt-panel">
                 <h3>🙋 답을 기다리는 질문 <small className="muted">{기다림.length}</small></h3>
@@ -1191,7 +1149,7 @@ export default function Qna() {
                 <ul className="mt-pins mt-wait">
                   {기다림.map((r) => (
                     <li key={r.id}><button type="button" onClick={() => { 열기(r.id); 세기('|맵톡|기다림') }}>
-                      <span className="mt-ftag">{분야이름[r.분야]}</span>{가림(r.t)}<small className="muted"> · {언제(r.at)}</small></button></li>
+                      {가림(r.t)}<small className="muted"> · {언제(r.at)}</small></button></li>
                   ))}
                 </ul>
               </div>
@@ -1234,14 +1192,13 @@ export default function Qna() {
               <>
                 <div className="mt-meta">
                   {(() => { const t = 공지인가(창글, 고정) ? { 이름: '📢 공지', 색: '#0c1830' } : 방표(창글.방); return <span className="mt-tag" style={{ color: t.색 }}><i style={{ background: t.색 }} />{t.이름}</span> })()}
-                  {창글.분야 && <span className="mt-ftag">🙋 {분야이름[창글.분야]}</span>}
                   {창곳 && <span className="mt-where">{짧은이름(창곳.n)}</span>}
                   <span className="mt-date">· {날시(창글.at, { 해: true, 요: true })} · {언제(창글.at)}{창글.e ? ' · 고침' : ''}</span>
                 </div>
                 <h2 className="mt-full">{가림(창글.t)}</h2>
-                <div className="mt-who">{배지(창글.uid)}{글별명(창글)}{내것.has(창글.id) ? ' · 내 글' : ''}{창글.sb && 나운영자 ? ' · 🙈 몰래 차단' : ''}{명패표(창글.uid)}</div>
+                <div className="mt-who">{배지(창글.uid)}{글별명(창글)}{내것.has(창글.id) ? ' · 내 글' : ''}{창글.sb && 나운영자 ? ' · 🙈 몰래 차단' : ''}</div>
                 {창글.p && <a href={창글.p} target="_blank" rel="noopener noreferrer"><img className="mt-bigphoto" src={창글.p} alt="올린 사진" /></a>}
-                <Detail row={창글} ans={ans[창글.id] || {}} mine={내것.has(창글.id)} 나운영자={나운영자} 분야뱃={분야뱃} 명패={명패} 참석={참석[창글.id] || {}} 참석누름={참석누름}
+                <Detail row={창글} ans={ans[창글.id] || {}} mine={내것.has(창글.id)} 나운영자={나운영자} 참석={참석[창글.id] || {}} 참석누름={참석누름}
                   고정됨={!!고정[창글.id]} 나={나} 배지={배지} 조회수={조회[창글.id] || 0} 지도바탕={지도바탕}
                   좋아요={좋아요[창글.id] || {}} 답좋아요={답좋아요[창글.id] || {}} 좋아요누름={좋아요누름}
                   바로답={답하러 === 창글.id} 바로답끝={() => set답하러(null)}
@@ -1300,7 +1257,7 @@ function 왕정하기({ 모두, ans, 좋아요, 답좋아요, 왕들, onDone }) 
 }
 
 /* ── 질문 펼침 — 본문 + 답변들 + 답변 쓰기 ──────────────────────── */
-function Detail({ row, ans, mine, onChange, 나운영자, 안내 = false, 분야뱃 = {}, 명패 = {}, 참석 = {}, 참석누름 = null, 고정됨, 나, 배지 = () => '', 좋아요 = {}, 답좋아요 = {}, 좋아요누름, 조회수 = 0, 지도바탕 = null, 바로답 = false, 바로답끝 = () => {} }) {
+function Detail({ row, ans, mine, onChange, 나운영자, 안내 = false, 참석 = {}, 참석누름 = null, 고정됨, 나, 배지 = () => '', 좋아요 = {}, 답좋아요 = {}, 좋아요누름, 조회수 = 0, 지도바탕 = null, 바로답 = false, 바로답끝 = () => {} }) {
   const [pin, setPin] = useState('')
   const [msg, setMsg] = useState('')
   /* ✏️ 고치기 · 🔑 되찾기 — 2026-09-27 */
@@ -1320,9 +1277,7 @@ function Detail({ row, ans, mine, onChange, 나운영자, 안내 = false, 분야
       const 운영자글 = 나운영자 && isOp(row.uid)
       const 새갈래 = 운영자글 ? (고침.공지 ? 'K-건설맵' : '후기·건의') : row.c
       const 고칠 = { t: 갈래붙이기(새갈래, t), b: (고침.b || '').trim().slice(0, 2000), e: serverTimestamp() }
-      /* 🙋 전문가 방(분야) · 📅 모임 — 바뀐 것만 */
-      const 새분야 = 고침.x || '-'
-      if (새분야 !== (row.x || (row.분야 || '-'))) 고칠.x = 새분야
+      /* 📅 모임 — 바뀐 것만 (🙋 전문가 방 x 는 G547 에 뺌 — 고쳐도 옛 글의 x 는 안 건드림) */
       let 새모 = null
       if (고침.모) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(고침.모.d || '')) { set바쁨(false); return setMsg('📅 모임 날짜를 골라 주세요.') }
@@ -1335,13 +1290,12 @@ function Detail({ row, ans, mine, onChange, 나운영자, 안내 = false, 분야
       /* 📢 G117 — 운영자 글 제목에 «📢 공지» 가 있으면 후기·건의에 두어도 «K-건설맵» */
       /* 💬 G130 — 운영자가 쓴 글(운영자 번호)은 말머리를 바꿔도 · 그냥 고쳐도 «K-건설맵» (후기·건의로 옮긴 옛 글도 고치면 맞춰짐) */
       if (새갈래 !== row.c || 운영자글) 고칠.nick = ((새갈래 === 'K-건설맵' || 운영자글) ? 'K-건설맵' : nickOf(row.uid)).slice(0, 20)
-      /* 분야(x) · 모임(m) 규칙이 아직 안 올라간 때에도 고친 글은 올라가게 — 둘을 빼고 한 번 더 */
+      /* 모임(m) 규칙이 아직 안 올라간 때에도 고친 글은 올라가게 — 빼고 한 번 더 */
       try { await update(ref(db, `qna/${row.id}`), 고칠) } catch (e) {
-        if (!('x' in 고칠) && !('m' in 고칠)) throw e
-        delete 고칠.x; delete 고칠.m
+        if (!('m' in 고칠)) throw e
+        delete 고칠.m
         await update(ref(db, `qna/${row.id}`), 고칠)
       }
-      if ('x' in 고칠) 세기('|맵톡|분야고침')
       if ('m' in 고칠) 세기('|맵톡|모임고침')
       set고침(null); onChange()
     } catch (e) { setMsg('고치지 못했습니다 — 이 기기에서 쓴(또는 되찾은) 글만 고칠 수 있습니다.') } finally { set바쁨(false) }
@@ -1478,15 +1432,12 @@ function Detail({ row, ans, mine, onChange, 나운영자, 안내 = false, 분야
     const n = 나무.받은수[a.id] || 0
     /* ↩ G316 답글의 답글(줄기가 아닌 답에게 쓴 답)은 한 칸 더 들임 — 늘 두 칸까지만(폰에서 좁아지지 않게) */
     const 깊음 = 가지 && !!a.to && a.to !== 줄기id
-    const 분야상 = !a.op && row.분야 && (분야뱃[a.uid] || []).includes(row.분야)
     return (
       <div key={a.id} ref={(el) => { 상자들.current[a.id] = el }} className={'mt-ans' + (가지 ? ' sub' : '') + (깊음 ? ' d2' : '') + (a.op ? ' op' : '') + (반짝 === a.id ? ' flash' : '')} id={'a-' + a.id}>
         <div className="mt-ans-h">
           {a.op
             ? <b style={{ color: 'var(--accent, #1a56db)' }}>K-건설맵</b>
             : <b>{배지(a.uid)}{a.nick || '익명'}{a.sb && 나운영자 ? ' · 🙈 몰래 차단' : ''}</b>}
-          {!a.op && <명패칸 p={명패[a.uid]} />}
-          {분야상 && <span className="mt-fbadge" title={`${분야이름[row.분야]} 질문에 공감 받은 답이 많은 분`}>🏅 {분야이름[row.분야]}</span>}
           <span className="muted"> · {날시(a.at, { 요: true })}</span>
         </div>
         {받는 && (
@@ -1562,17 +1513,7 @@ function Detail({ row, ans, mine, onChange, 나운영자, 안내 = false, 분야
     <div style={{ marginTop: 10, borderTop: '1px solid var(--line)', paddingTop: 10 }}>
       {안내 ? null : 고침 ? (
         <div style={{ marginBottom: 8 }}>
-          {/* 🗺 G316 고치기 — 🙋 전문가 방(분야) · 📅 모임 · (운영자) 📢 공지. 지역방은 아래 «📍 지도 핀 자리» 로 바뀝니다 */}
-          <div className="mt-toroom" role="group" aria-label="전문가 방">
-            <span className="mt-toroom-l">🙋 전문가 방</span>
-            {[{ k: '-', 이름: '안 올림' }, ...분야들].map((x) => {
-              const on = (고침.x || '-') === x.k
-              return (
-                <button type="button" key={x.k} className={'mt-toroom-c' + (on ? ' on' : '')} style={{ '--rc': x.k === '-' ? '#64748b' : 방색.분야 }}
-                  aria-pressed={on} onClick={() => set고침((v) => ({ ...v, x: x.k }))}><i />{x.이름}</button>
-              )
-            })}
-          </div>
+          {/* 🗺 G316 고치기 — 📅 모임 · (운영자) 📢 공지. 지역방은 아래 «📍 지도 핀 자리» 로 바뀝니다 (G547 🙋 전문가 방 뺌) */}
           <div className="mt-meetedit">
             <label className="mt-chk"><input type="checkbox" checked={!!고침.모} onChange={(e) => set고침((v) => ({ ...v, 모: e.target.checked ? (v.모 || { d: '', h: '', w: '' }) : null }))} /> 📅 모임 글</label>
             {고침.모 && (
@@ -1668,7 +1609,7 @@ function Detail({ row, ans, mine, onChange, 나운영자, 안내 = false, 분야
 
       {mine && !고침 && !안내 && (
         <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-          <button className="btn line" onClick={() => { const 모 = 모임(row); set고침({ t: row.t || '', b: row.b || '', c: row.c, g: row.g || '', x: row.x || row.분야 || '-', 모: 모 ? { ...모 } : null, 공지: row.c === 'K-건설맵' }) }}>✏️ 고치기</button>
+          <button className="btn line" onClick={() => { const 모 = 모임(row); set고침({ t: row.t || '', b: row.b || '', c: row.c, g: row.g || '', 모: 모 ? { ...모 } : null, 공지: row.c === 'K-건설맵' }) }}>✏️ 고치기</button>
           {!나운영자 && <input className="inp" inputMode="numeric" maxLength={4} placeholder="4자리"
             value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
             style={{ width: 90 }} />}
@@ -1889,12 +1830,10 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
   const [다시잇는중, set다시잇는중] = useState(false)   /* ⏱ G357 쓰기가 3초 넘게 걸리면 «연결을 다시 잇는 중…» */
   const [흔들, set흔들] = useState(0)
   const [msg, setMsg] = useState('')
-  /* 🗺 G316 (2026-10-18) 방(k) 고르기는 뺌 — 글은 «📍 핀 자리» 의 지역방(핀 없이 = 💬 자유)으로 · 🙋 전문가 방(x) · 📅 모임(m) 은 글쓴이가 켬
+  /* 🗺 G316 (2026-10-18) 방(k) 고르기는 뺌 — 글은 «📍 핀 자리» 의 지역방(핀 없이 = 💬 자유)으로 · 📅 모임(m) 은 글쓴이가 켬 (G547 🙋 전문가 방(x) 뺌 — 새 글은 x 를 안 적음)
      (G211 · G226 · G283 의 «누른 방 / 글 내용으로 방» 은 방 셋으로 바뀌며 끝남 — 옛 글의 k 는 그대로 두고 안 씀) */
   const [자유로, set자유로] = useState(방고름 === 'free')      // 지역 없이(핀 없음) = 자유 방
   useEffect(() => { if (방고름 === 'free') set자유로(true); else if (방고름.startsWith('r:')) set자유로(false) }, [방고름])
-  const [분야손, set분야손] = useState(null)      // null = 손 안 댐(짐작) · '-' = 안 올림 · 열쇠 = 고름
-  const [분야열기, set분야열기] = useState(false)
   const [모, set모] = useState(null)              // 📅 { d, h, w } · null = 모임 글 아님
   const [공지로, set공지로] = useState(false)      // 📢 운영자 — 말머리 [K-건설맵] + 맨 위 고정
   const 칸 = useRef(null)
@@ -1936,13 +1875,6 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
     세기('|맵톡|지역고름')
   }
   const 시도들 = useMemo(() => (바탕 ? 시도별(바탕) : {}), [바탕])
-  /* 🙋 전문가 방 — 손 안 댔으면: 분야 방을 보고 쓰면 그 분야 · 아니면 물음 글이면 낱말로 짐작(못 찾으면 안 올림) */
-  const 짐작분야 = useMemo(() => {
-    if (방고름.startsWith('x:')) return 방고름.slice(2)
-    const 글 = 제목 + ' ' + 내용
-    return 방고름 === 'x' || 물음인가(글) ? 분야짐작(글) : null
-  }, [방고름, 제목, 내용])
-  const 분야 = 분야손 === '-' ? null : (분야손 || 짐작분야)
   /* 📍 이 글이 들어갈 지역방 — 자유로 · 핀 없음이면 자유 */
   const 들방 = 자유로 || !자리.곳 ? 'free' : (시도지역방(자리.곳.d) || 'free')
   const 보는지역 = 방고름.startsWith('r:') ? 방고름.slice(2) : ''
@@ -2035,7 +1967,6 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
         nick: (나운영자 ? 'K-건설맵' : nickOf(r)).slice(0, 20),   /* 💬 G130 운영자 글은 «K-건설맵»(규칙도 운영자 번호만 허락) */
         uid: r,
         at: Date.now(),
-        x: 분야 || '-',                  /* 🙋 G316 전문가 방 분야('-' = 안 올림 — 옛 글처럼 짐작하지 않게) */
         ...(모값 ? { m: 모값 } : {}),     /* 📅 G316 모임 */
         ...(곳 ? { g: String(곳.k) } : {}),
         ...(p ? { p } : {}),
@@ -2043,15 +1974,14 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
         ...몰래,                 /* 🙈 몰래 차단 기기면 sb — 규칙이 강제합니다 */
       }
       if (핀약속) await 핀약속   /* ⏱ G370 빨리쓰기 안에서 늦으면 다시 잇기까지 */
-      /* 🗺 G316 — 분야(x) · 모임(m) 규칙이 아직 안 올라간 때(사이트가 먼저 바뀐 몇 분)에도 글은 올라가게: 둘을 빼고 한 번 더 */
+      /* 🗺 G316 — 모임(m) 규칙이 아직 안 올라간 때(사이트가 먼저 바뀐 몇 분)에도 글은 올라가게: 빼고 한 번 더 (G547 x 는 이제 안 적음) */
       try { await 빨리쓰기(`qna/${slot.key}`, slot, 글값, () => set다시잇는중(true)) } catch (e) {
-        const { x, m, ...둘없이 } = 글값   // eslint-disable-line no-unused-vars
+        const { m, ...둘없이 } = 글값   // eslint-disable-line no-unused-vars
         /* 🙈 기억해 둔 10분 사이에 막힌 기기면 sb 를 붙여서(규칙이 sb 없는 글을 안 받음) */
         let 더 = {}
         if (!몰래.sb) { 몰래표잊기(); 더 = await 몰래표() }
         await set(slot, { ...둘없이, ...더 })
       }
-      if (분야) 세기('|맵톡|전문가물음')
       if (모값) 세기('|맵톡|모임글')
       if (자유로) 세기('|맵톡|자유글')
       addMine(id)
@@ -2059,9 +1989,9 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
       세기('|맵톡|글'); if (p) 세기('|맵톡|사진'); if (곳) 세기('|맵톡|자리'); if (f) { 세기('|맵톡|파일'); if (확장자(f.n) === 'zip') 세기('|맵톡|압축파일'); 올린수더하기() }
       if (공지글) { 세기('|맵톡|공지글'); try { await set(ref(db, `qna_top/${id}`), serverTimestamp()) } catch (e) { /* 글 안에서 다시 꽂으면 됨 */ } }
       try { sessionStorage.removeItem(초안열쇠) } catch (e) { /* 없음 */ }
-      set제목(''); set내용(''); setPin(''); set사진(null); set첨부(null); set분야손(null); set분야열기(false); set모(null); set공지로(false)
+      set제목(''); set내용(''); setPin(''); set사진(null); set첨부(null); set모(null); set공지로(false)
       /* 어느 방에 들어갔는지 — 보고 있던 방과 다르면 그 방 이름을 알림 */
-      const 간곳 = 공지글 ? '📢 공지' : (간방 === 'free' ? '💬 자유 방' : `📍 ${지역방이름[간방]} 방`) + (분야 ? ` · 🙋 ${분야이름[분야]}` : '')
+      const 간곳 = 공지글 ? '📢 공지' : (간방 === 'free' ? '💬 자유 방' : `📍 ${지역방이름[간방]} 방`)
       setMsg(`✅ 올렸습니다${곳 ? ` — ${짧은이름(곳.n)}에 핀이 꽂혔어요` : ''} · ${간곳}${사진말}${파일말}`)
       onDone(id)
     } catch (e) {
@@ -2142,26 +2072,6 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
           )}
         </div>
       )}
-      {/* 🙋 G316 전문가 방 — 짐작이 맞으면 그대로 · «바꾸기» 로 분야 칩 · «빼기» 로 안 올림 */}
-      {(분야 || 분야열기) && (
-        <div className="mt-place mt-xrow">
-          {분야
-            ? <span>🙋 <b style={{ color: 방색.분야 }}>{분야이름[분야]}</b> 전문가 방에도{분야손 === null && <em> (짐작)</em>}</span>
-            : <span>🙋 어느 분야 전문가에게 물을까요?</span>}
-          {분야 && !분야열기 && <button type="button" className="mt-place-b" onClick={() => set분야열기(true)}>바꾸기</button>}
-          <button type="button" className="mt-place-b" onClick={() => { set분야손('-'); set분야열기(false) }}>빼기</button>
-        </div>
-      )}
-      {분야열기 && (
-        <div className="mt-pick" role="group" aria-label="전문가 분야 고르기">
-          <div className="mt-pick-g">
-            {분야들.map((x) => (
-              <button type="button" key={x.k} className={'mt-pick-c' + (분야 === x.k ? ' on' : '')}
-                onClick={() => { set분야손(x.k); set분야열기(false) }}>{x.이름}</button>
-            ))}
-          </div>
-        </div>
-      )}
       {/* 📅 G316 모임 글 — 날짜 · 시각 · 장소는 쓰는 분이 · 참석은 읽는 분이 글을 열고 «🙋 참석» */}
       {모 && (
         <div className="mt-place mt-meetrow">
@@ -2173,11 +2083,6 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
         </div>
       )}
       <div className="mt-crow">
-        {!분야 && !분야열기 && (
-          <button type="button" className="mt-chip mt-xchip" onClick={() => { set분야열기(true); 세기('|맵톡|전문가켬') }}>
-            <span aria-hidden="true">🙋</span><span className="mt-chip-t">전문가에게 묻기</span>
-          </button>
-        )}
         {!모 && (
           <button type="button" className="mt-chip mt-mchip" onClick={() => { set모({ d: '', h: '', w: '' }); 세기('|맵톡|모임켬') }}>
             <span aria-hidden="true">📅</span><span className="mt-chip-t">모임 글</span>
@@ -2222,187 +2127,5 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
       폰으로 k-conmap.com/admin 한 번 열면 끝입니다. 두 곳에 둘 이유가 없었습니다.
    📌 «나한테 필요한 것» 을 «모두가 보는 자리» 에 두지 않습니다. */
 
-/* 🪪 G320 (2026-10-18) 전문가 명패 — 소장님 「전문가 이름을 넣고 싶거든. 각 분야 전문가… 회사랑 이름」
-   → 「우선은 전문가 데려 오고, 그 사람만 명패를 붙이는 걸로」 「클로드가 해야지」(붙이는 일은 K-건설맵 · 운영자 브라우저)
-   ■ 신청(누구나 · 이 창): qna_pro_req/{나} — 본인 · 운영자만 읽음. 신청이 오면 소장님 메일(tools/qna_mail.py «🪪 명패 신청»)
-   ■ 명패(운영자만 붙임 · 규칙이 막음): qna_pro/{나} — 고른 공개 범위대로 보일 것만. 본인은 언제든 «명패 내리기»
-   ■ 쓴 횟수(소장님만): |맵톡|명패신청열기 · 명패신청 · 명패거둠 · 명패내림 */
-function 명패칸({ p }) {
-  const 글 = 명패글(p)
-  if (!글) return null
-  return <span className="mt-pro" title={p.i ? `${글} — ${p.i}` : 글}>{글}</span>
-}
-
-function 명패신청창({ 나, 명패, 닫기 }) {
-  const [뿌리, set뿌리] = useState(나)
-  const [신청, set신청] = useState(undefined)      // undefined = 읽는 중 · null = 없음
-  const [x, setX] = useState({ f: '', co: '', nm: '', i: '', sh: 'all', ok: false })
-  const [말, set말] = useState('')
-  const [바쁨, set바쁨] = useState(false)
-  const 상자 = useRef(null)
-  useEffect(() => {
-    let 살 = true
-    ;(async () => {
-      try {
-        const me = 나 || (await 뿌리찾기())
-        if (!살) return
-        set뿌리(me)
-        const { ref, get, db } = await loadFb()
-        const v = (await get(ref(db, `qna_pro_req/${me.r}`))).val()
-        if (!살) return
-        set신청(v || null)
-        if (v) setX({ f: v.f || '', co: v.co || '', nm: v.nm || '', i: v.i || '', sh: v.sh || 'all', ok: false })
-      } catch (e) { if (살) set신청(null) }
-    })()
-    const 키 = (e) => { if (e.key === 'Escape') 닫기() }
-    window.addEventListener('keydown', 키)
-    try { 상자.current && 상자.current.focus({ preventScroll: true }) } catch (e) { /* 옛 브라우저 */ }
-    return () => { 살 = false; window.removeEventListener('keydown', 키) }
-  }, [])   // eslint-disable-line react-hooks/exhaustive-deps
-  const 내명패 = 뿌리 ? 명패[뿌리.r] : null
-  const 바꿈 = (k) => (e) => setX((o) => ({ ...o, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
-  const 보낼 = async () => {
-    const 틀 = 명패검사(x)
-    if (틀) { set말('❗ ' + 틀); return }
-    set바쁨(true); set말('')
-    try {
-      const { ref, set, db, ensureAnon } = await loadFb()
-      await ensureAnon()
-      const me = 뿌리 || (await 뿌리찾기())
-      const 값 = 명패신청값(x, nickOf(me.r), Date.now())
-      await set(ref(db, `qna_pro_req/${me.r}`), 값)
-      set신청(값); set말('✅ 신청했습니다 — K-건설맵이 확인한 뒤 명패를 붙여 드립니다(보통 하루 안).')
-      세기('|맵톡|명패신청')
-    } catch (e) { set말('❗ 신청하지 못했습니다. 잠시 뒤 다시 해 주세요.') }
-    set바쁨(false)
-  }
-  const 거두기 = async () => {
-    set바쁨(true)
-    try {
-      const { ref, set, db } = await loadFb()
-      await set(ref(db, `qna_pro_req/${뿌리.r}`), null)
-      set신청(null); set말('신청을 거두었습니다.'); 세기('|맵톡|명패거둠')
-    } catch (e) { set말('❗ 거두지 못했습니다. 잠시 뒤 다시 해 주세요.') }
-    set바쁨(false)
-  }
-  const 내리기 = async () => {
-    set바쁨(true)
-    try {
-      const { ref, set, db } = await loadFb()
-      await set(ref(db, `qna_pro/${뿌리.r}`), null)
-      set말('명패를 내렸습니다 — 이제 별명만 보입니다.'); 세기('|맵톡|명패내림')
-    } catch (e) { set말('❗ 내리지 못했습니다. 잠시 뒤 다시 해 주세요.') }
-    set바쁨(false)
-  }
-  const 미리 = 명패글({ f: x.f, co: x.sh !== 'name' ? x.co : '', nm: x.sh !== 'co' ? x.nm : '' })
-  return (
-    <>
-      <button type="button" className="mt-back" onClick={닫기} aria-label="닫기" />
-      <div className="mt-sheet mt-prosheet" role="dialog" aria-modal="true" aria-label="전문가 명패 신청" tabIndex={-1} ref={상자}>
-        <span className="mt-grab" />
-        <button type="button" className="mt-x" onClick={닫기} aria-label="닫기">✕</button>
-        <h2 className="mt-full">🪪 전문가 명패 신청</h2>
-        <p className="muted mt-pro-lead">분야 · 회사 · 이름을 적어 주시면 <b>K-건설맵이 확인한 뒤</b> 내 별명 옆에 명패를 붙여 드립니다. 글 · 답글마다 저절로 보입니다.</p>
-        {내명패 && (
-          <div className="mt-pro-now">
-            <div>지금 내 명패 <명패칸 p={내명패} /></div>
-            <button type="button" className="btn sm line" disabled={바쁨} onClick={내리기}>명패 내리기</button>
-          </div>
-        )}
-        {신청 && (
-          <div className="mt-pro-wait">⏳ 신청해 두셨습니다 — {명패글({ f: 신청.f, co: 신청.sh !== 'name' ? 신청.co : '', nm: 신청.sh !== 'co' ? 신청.nm : '' })}
-            <button type="button" className="linkbtn" disabled={바쁨} onClick={거두기}>신청 거두기</button></div>
-        )}
-        {신청 === undefined ? <p className="muted">읽는 중…</p> : (
-          <div className="mt-pro-form">
-            <label>분야
-              <select className="inp" value={x.f} onChange={바꿈('f')}>
-                <option value="">— 고르기 —</option>
-                {분야들.map((f) => <option key={f.k} value={f.k}>{f.이름}</option>)}
-              </select>
-            </label>
-            <label>회사 <input className="inp" maxLength={30} value={x.co} onChange={바꿈('co')} placeholder="예: ○○건설" /></label>
-            <label>이름 <input className="inp" maxLength={20} value={x.nm} onChange={바꿈('nm')} placeholder="예: 홍길동 (직함은 소개에)" /></label>
-            <label><span>한 줄 소개 <em className="muted mt-pro-opt">(없어도 됩니다)</em></span><input className="inp" maxLength={40} value={x.i} onChange={바꿈('i')} placeholder="예: 공공 토목 적산 15년" /></label>
-            <fieldset className="mt-pro-sh">
-              <legend>맵톡에 보일 것</legend>
-              {공개들.map((p) => (
-                <label key={p.k} className="mt-chk"><input type="radio" name="mt-pro-sh" value={p.k} checked={x.sh === p.k} onChange={바꿈('sh')} />{p.이름}</label>
-              ))}
-            </fieldset>
-            {미리 && <div className="mt-pro-prev">이렇게 보입니다: <span className="mt-pro">{미리}</span></div>}
-            <label className="mt-chk mt-pro-ok"><input type="checkbox" checked={x.ok} onChange={바꿈('ok')} />위 회사 · 이름이 맵톡에 보이는 데 동의합니다 (언제든 내릴 수 있습니다)</label>
-            <button type="button" className="btn" disabled={바쁨} onClick={보낼}>{신청 ? '신청 고쳐 보내기' : '신청하기'}</button>
-            {말 && <p className="mt-pro-msg" role="status">{말}</p>}
-            <p className="muted mt-pro-note">· 폰과 PC 를 따로 쓰시면 각각 신청해 주세요(같은 명패로 붙여 드립니다). «🔑 내 글 되찾기» 로 이어 두셨으면 한 번이면 됩니다.<br />· 신청 내용은 K-건설맵만 봅니다. 명패에는 고르신 것만 들어갑니다.</p>
-          </div>
-        )}
-        {말 && 신청 === undefined && <p className="mt-pro-msg" role="status">{말}</p>}
-      </div>
-    </>
-  )
-}
-
-function 명패관리판({ 명패, 닫기 }) {
-  const [목록, set목록] = useState(null)
-  const [말, set말] = useState('')
-  const 읽기 = async () => {
-    try {
-      const { ref, get, db, ensureAnon } = await loadFb()
-      await ensureAnon()
-      set목록((await get(ref(db, 'qna_pro_req'))).val() || {})
-    } catch (e) { set목록({}); set말('❗ 신청 목록을 읽지 못했습니다(운영자 브라우저만 읽습니다).') }
-  }
-  useEffect(() => { 읽기() }, [])   // eslint-disable-line react-hooks/exhaustive-deps
-  const 붙이기 = async (uid, req) => {
-    const p = 명패만들기(req, Date.now())
-    if (!p) { set말('❗ 신청 내용이 모자랍니다 — 붙이지 않았습니다.'); return }
-    try {
-      const { ref, set, db } = await loadFb()
-      await set(ref(db, `qna_pro/${uid}`), p)
-      await set(ref(db, `qna_pro_req/${uid}`), null)
-      set말(`✅ 붙였습니다 — ${명패글(p)}`); 읽기()
-    } catch (e) { set말('❗ 붙이지 못했습니다.') }
-  }
-  const 거절 = async (uid) => {
-    try {
-      const { ref, set, db } = await loadFb()
-      await set(ref(db, `qna_pro_req/${uid}`), null)
-      set말('신청을 지웠습니다.'); 읽기()
-    } catch (e) { set말('❗ 지우지 못했습니다.') }
-  }
-  const 내리기 = async (uid) => {
-    try {
-      const { ref, set, db } = await loadFb()
-      await set(ref(db, `qna_pro/${uid}`), null)
-      set말('명패를 내렸습니다.')
-    } catch (e) { set말('❗ 내리지 못했습니다.') }
-  }
-  const 신청들 = Object.entries(목록 || {}).sort((a, b) => (b[1].at || 0) - (a[1].at || 0))
-  const 붙은 = 분야전문가(명패)
-  return (
-    <div className="mt-proadmin">
-      <div className="mt-proadmin-h"><b>🛠 명패 신청 {신청들.length}건</b> <button type="button" className="linkbtn" onClick={닫기}>닫기</button></div>
-      {목록 === null && <p className="muted">읽는 중…</p>}
-      {신청들.map(([uid, r]) => (
-        <div key={uid} className="mt-proadmin-row">
-          <div><b>{명패글({ f: r.f, co: r.co, nm: r.nm })}</b> <span className="muted">· 보일 것 {(공개들.find((p) => p.k === r.sh) || {}).이름} · {r.nick} · {uid.slice(0, 6)}… · {new Date(r.at || 0).toLocaleString('ko-KR')}</span>
-            {r.i && <div className="muted">소개: {r.i}</div>}
-            <div className="muted">붙이면: {명패글(명패만들기(r, 0)) || '—'}</div></div>
-          <div className="mt-proadmin-act">
-            <button type="button" className="btn sm" onClick={() => 붙이기(uid, r)}>붙이기</button>
-            <button type="button" className="btn sm line" onClick={() => 거절(uid)}>지우기</button>
-          </div>
-        </div>
-      ))}
-      {붙은.length > 0 && <div className="mt-proadmin-h" style={{ marginTop: 8 }}><b>붙은 명패 {붙은.length}</b></div>}
-      {붙은.map((p) => (
-        <div key={p.uid} className="mt-proadmin-row">
-          <div><명패칸 p={p} /> <span className="muted">· {p.uid.slice(0, 6)}…</span></div>
-          <div className="mt-proadmin-act"><button type="button" className="btn sm line" onClick={() => 내리기(p.uid)}>내리기</button></div>
-        </div>
-      ))}
-      {말 && <p className="mt-pro-msg" role="status">{말}</p>}
-    </div>
-  )
-}
+/* 🪪 G320 전문가 명패(신청 창 · 운영자 붙이기 · 명패칸)는 G547(2026-11-05) 에 뺐습니다 — 소장님 「명패도 빼자」
+   qna_pro · qna_pro_req 자료와 규칙(database.rules.json)은 그대로 둠(지우지 않음 · 화면이 안 읽음) · 다시 넣을 때는 소장님께 먼저 여쭘 */

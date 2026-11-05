@@ -6,8 +6,9 @@ import { readFileSync } from 'node:fs'
 import {
   주제짐작, 넣을방, 고를방들, 고칠방들, 운영자글방, 글쓸방, 올릴방, 제목내용, 방나누기, 방기준, 글나누기, 경위도자리, 가까운곳, 자리고르기, 자리짐작, 곳찾기, 짧은이름, 카드크기, 물음인가, 한마디인가, 줄인크기, 맵톡시작, 주제들, 주제차례,
   답나무, 첫줄, 누적셈, 시도차례, 시도별, 곳기억읽기, 곳기억하기,
-  지역방들, 지역방이름, 시도지역방, 글지역, 방표, 분야들, 분야이름, 분야짐작, 글분야, 모임, 모임날글, 이번주모임, 모임지남, 분야배지, 답기다리는질문, 공지인가, 방고름풀기, 방에드나,
+  지역방들, 지역방이름, 시도지역방, 글지역, 방표, 모임, 모임날글, 이번주모임, 모임지남, 답기다리는질문, 공지인가, 방고름풀기, 방에드나,
 } from '../web/src/lib/맵톡.js'
+import * as 맵톡lib from '../web/src/lib/맵톡.js'
 
 const 바탕 = JSON.parse(readFileSync(new URL('../web/src/data/한국지도.json', import.meta.url), 'utf8'))
 let 통과 = 0, 실패 = 0
@@ -249,7 +250,7 @@ console.log('⑪ ✍ G289 답글 칸 크기 (소장님 「답글쓰기 칸이 �
   eq(/el\.scrollHeight/.test(칸) && /\[b\]\)/.test(칸), true, '쓰면 글만큼 저절로 늘어남')
 }
 
-console.log('⑫ 🗺 G316 방 셋 — 💬 자유 · 📍 지역방 7 · 🙋 전문가 방 · 📢 공지 · 📅 모임 (소장님 「자유, 지역별 방, 전문가 방 이렇게만」)')
+console.log('⑫ 🗺 G316 방 — 💬 자유 · 📍 지역방 7 · 📢 공지 · 📅 모임 (✂️ G547 11-05 🙋 전문가 방 · 🪪 명패 · 🏅 분야 뺌 — 소장님 「전문가 빼자」 「명패도 빼자」)')
 {
   // 지역방 — 시·도 17곳이 모두 한 방에
   eq(시도차례.every((d) => !!시도지역방(d)), true, '시·도 17곳 모두 지역방이 있음')
@@ -264,17 +265,6 @@ console.log('⑫ 🗺 G316 방 셋 — 💬 자유 · 📍 지역방 7 · 🙋 �
   eq(글지역({ g: '99999' }, 바탕), 'free', '모르는 핀 → 자유')
   eq(글지역({ g: String(서울곳.k) }, null), null, '지도 바탕 전 → 아직 모름(null)')
   eq(방표('free').이름, '자유', '방표 자유'); eq(방표('jeolla').이름, '전라', '방표 전라'); eq(방표(null).이름, '자유', '방표 없음 = 자유')
-  // 분야
-  eq(분야들.map((x) => x.k).includes('esc'), true, '전문가 방에 ESC 있음(소장님 「esc가 없다. 넣어줘」)')
-  eq(분야짐작('품목조정률 3% 넘으면 청구는?'), 'esc', 'ESC 짐작')
-  eq(분야짐작('공내역서 단가 넣을 때 노임은 하반기 걸로?'), 'est', '공내역서 단가 = 적산(노임 낱말이 있어도)')
-  eq(분야짐작('A값 있는 공고 투찰률'), 'bid', '입찰')
-  eq(분야짐작('오늘 날씨 좋네요'), null, '낱말 없음 → null')
-  eq(글분야({ x: '-', t: '사정률 어떻게 보세요?' }), null, "x '-' = 안 올림(물음이어도)")
-  eq(글분야({ x: 'safe', t: '아무 말' }), 'safe', 'x 고른 대로')
-  eq(글분야({ x: 'zzz', t: '사정률?' }), null, '모르는 x → null')
-  eq(글분야({ t: '사정률 요즘 어떻게 보세요?' }), 'bid', '옛 글 · 물음 → 짐작')
-  eq(글분야({ t: '사정률 99.8 몰림' }), null, '옛 글 · 물음 아님 → 전문가 방 아님')
   // 모임
   eq(모임({ m: { d: '2026-10-24', h: '19:00', w: '순천' } }), { d: '2026-10-24', h: '19:00', w: '순천' }, '모임 읽기')
   eq(모임({ m: { d: '10/24' } }), null, '날짜 꼴 틀림 → null')
@@ -288,27 +278,22 @@ console.log('⑫ 🗺 G316 방 셋 — 💬 자유 · 📍 지역방 7 · 🙋 �
   ]
   eq(이번주모임(모글, 지금).map((x) => x.r.id), ['b', 'c', 'a'], '이번 주(오늘~6일 뒤) · 날짜 · 시각 차례 · 시각 없으면 그날 뒤')
   eq(모임지남({ d: '2026-10-17' }, 지금), true, '어제 모임 = 지남'); eq(모임지남({ d: '2026-10-18' }, 지금), false, '오늘 모임 = 안 지남')
-  // 🏅 분야 배지 — 분야 글에 단 답 중 공감 받은 답 5개
-  const 글들 = Array.from({ length: 6 }, (_, i) => ({ id: 'q' + i, x: 'est', t: '질문' }))
-  const 답들 = Object.fromEntries(글들.map((r) => [r.id, { a1: { uid: 'U', b: '답' }, a2: { uid: 'V', b: '답' } }]))
-  const 답좋 = Object.fromEntries(글들.map((r, i) => [r.id, { a1: { Z: true }, ...(i < 4 ? { a2: { Z: true } } : {}) }]))
-  eq(분야배지(글들, 답들, 답좋), { U: ['est'] }, '공감 받은 답 6개 → 🏅 적산 · 4개는 아직')
-  eq(분야배지([{ id: 'q', x: '-', t: '사정률?' }], { q: { a: { uid: 'U' } } }, { q: { a: { Z: true } } }, 1), {}, '전문가 방 아닌 글의 답은 안 셈')
   // 답 기다림
-  eq(답기다리는질문([{ id: 'q1', x: 'bid' }, { id: 'q2', x: 'bid' }, { id: 'q3', x: '-' }], { q1: { a: { b: '답' } }, q2: { a: { deleted: true } } }).map((r) => r.id), ['q2'], '답 없는(지운 답만 있는) 전문가 글만')
+  eq(답기다리는질문([{ id: 'q1', t: '사정률 어떻게 보세요?' }, { id: 'q2', t: '노무비 이렇게 맞나요' }, { id: 'q3', t: '오늘 타설 끝났습니다' }, { id: 'q4', t: '하도급 대금', b: '직불 되는지 궁금합니다', x: '-' }],
+    { q1: { a: { b: '답' } }, q2: { a: { deleted: true } } }).map((r) => r.id), ['q2', 'q4'], '모든 방의 물음 글 중 답 없는(지운 답만 있는) 것 — 분야 · x 와 상관없음(G547)')
   // 공지
   eq(공지인가({ id: 'n', c: 'K-건설맵' }), true, '말머리 K-건설맵 = 공지'); eq(공지인가({ id: 'n', c: '후기·건의' }, { n: 1 }), true, '고정 = 공지'); eq(공지인가({ id: 'n', c: '후기·건의' }), false, '그 밖 = 공지 아님')
   // 방 고름 값
-  eq(['all', 'free', 'x', '공지', '답기다림', 'r:jeolla', 'x:esc'].map(방고름풀기), ['all', 'free', 'x', '공지', '답기다림', 'r:jeolla', 'x:esc'], '방 고름 값 그대로')
-  eq(['kcm', 'bid', 'r:zz', 'x:zz', '', null].map(방고름풀기), ['all', 'all', 'all', 'all', 'all', 'all'], '옛 방 · 틀린 값 → 전체(옛 브라우저 기억)')
-  const 글 = { 방: 'jeolla', 분야: 'est' }
-  eq([방에드나(글, 'all'), 방에드나(글, 'r:jeolla'), 방에드나(글, 'r:seoul'), 방에드나(글, 'free'), 방에드나(글, 'x'), 방에드나(글, 'x:est'), 방에드나(글, 'x:bid')], [true, true, false, false, true, true, false], '방에 드나')
+  eq(['all', 'free', '공지', '답기다림', 'r:jeolla'].map(방고름풀기), ['all', 'free', '공지', '답기다림', 'r:jeolla'], '방 고름 값 그대로')
+  eq(['x', 'x:esc', 'kcm', 'bid', 'r:zz', 'x:zz', '', null].map(방고름풀기), ['all', 'all', 'all', 'all', 'all', 'all', 'all', 'all'], '옛 전문가 방(x · x:분야) · 옛 방 · 틀린 값 → 전체(옛 브라우저 기억 · G547)')
+  const 글 = { 방: 'jeolla', x: 'est' }
+  eq([방에드나(글, 'all'), 방에드나(글, 'r:jeolla'), 방에드나(글, 'r:seoul'), 방에드나(글, 'free')], [true, true, false, false], '방에 드나(옛 글의 x 는 상관없음)')
   // 화면이 이렇게 쓰는지(다시 옛 방(k)으로 돌아가지 않게)
   const 화면 = readFileSync(new URL('../web/src/pages/Qna.jsx', import.meta.url), 'utf8')
   const 쓰기 = 화면.slice(화면.indexOf('function 맵톡글쓰기'))
-  eq(/x: 분야 \|\| '-'/.test(쓰기), true, '새 글은 x 를 늘 적음(안 올림 = -)')
+  eq(/\bx: /.test(쓰기.slice(쓰기.indexOf('const 글값 = {'), 쓰기.indexOf('const 글값 = {') + 900)) || /분야손|짐작분야/.test(쓰기), false, '새 글은 x(분야)를 안 적음 · 분야 짐작 없음(G547)')
   eq(/\{ k: 넣방 \}/.test(쓰기) || /올릴방\(/.test(쓰기), false, '새 글에 옛 방(k)을 안 씀')
-  eq(/const \{ x, m, \.\.\.둘없이 \} = 글값/.test(쓰기), true, '규칙이 아직이면 x · m 빼고 한 번 더(글은 꼭 올라감)')
+  eq(/const \{ m, \.\.\.둘없이 \} = 글값/.test(쓰기), true, '규칙이 아직이면 m 빼고 한 번 더(글은 꼭 올라감)')
   eq(/const 곳 = 자유로 \? null : await 자리약속/.test(쓰기), true, '«지역 없이(자유)» 면 핀 없음')
   eq(/else if \(공지 && !onlyMine && !s\) return false/.test(화면), true, '공지는 방 글 사이에 안 섞임(맨 위 공지 줄 · 📢 공지 방)')
   eq(/const 안내번호 = '_guide'/.test(화면) && /qna_v\/\$\{안내번호\}/.test(화면), true, '안내도 조회(qna_v/_guide)')
@@ -319,7 +304,12 @@ console.log('⑫ 🗺 G316 방 셋 — 💬 자유 · 📍 지역방 7 · 🙋 �
   // 규칙
   const 규칙 = readFileSync(new URL('../web/database.rules.json', import.meta.url), 'utf8')
   eq(/"x":\s*\{ "\.validate": "newData\.isString\(\) && newData\.val\(\)\.matches\(\/\^\(bid\|est\|esc\|civil\|arch\|elec\|safe\|-\)\$\/\)" \}/.test(규칙), true, '규칙 x = 분야 7 + -')
-  eq(분야들.map((x) => x.k).join('|') + '|-', 'bid|est|esc|civil|arch|elec|safe|-', '화면 분야 = 규칙 분야')
+  // ✂️ G547 재발 막기 — 🙋 전문가 방 · 🪪 명패 · 🏅 분야를 소장님께 여쭙지 않고 다시 넣지 않게(규칙 x · qna_pro 는 옛 자료 때문에 그대로 둠)
+  const 지도 = readFileSync(new URL('../web/src/tools/맵톡지도.jsx', import.meta.url), 'utf8')
+  const 다시 = ['전문가에게 묻기', '명패 신청', "ref(db, 'qna_pro')", 'function 명패', "'|맵톡|전문가방'", 'mt-pros', '🏅 {분야', '전문가 방에도', "방가기('x"].filter((w) => 화면.includes(w))
+  eq(다시, [], '맵톡 화면에 전문가 방 · 명패 · 🏅 분야가 없음(G547 · 소장님 「전문가 빼자」 「명패도 빼자」)')
+  eq(['분야들', '분야이름', '분야짐작', '글분야', '분야배지', '명패글', '명패검사', '명패신청값', '명패만들기', '분야전문가', '공개들'].filter((k) => k in 맵톡lib), [], 'lib 에 전문가 방 · 명패 함수 없음')
+  eq(/분야/.test(지도), false, '지도 핀 — 전문가 방 파랑 없음(공지 빨강 · 지역 초록)')
   eq(/"qna_go": \{/.test(규칙) && /child\('m'\)\.exists\(\)/.test(규칙), true, '규칙 qna_go — 모임 글에만')
 }
 
