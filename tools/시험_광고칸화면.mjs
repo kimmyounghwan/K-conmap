@@ -2,7 +2,8 @@
  * 🧪 업체 광고 칸(광고칸.jsx · lib/광고자료.js) 화면 시험 — 2026-11-05
  *   구운 사이트(dist)를 띄운 뒤:  LANG=C.UTF-8 node tools/시험_광고칸화면.mjs [주소=http://127.0.0.1:4986]
  *   소장님 「한 페이지에 한번씩만」 · 「구별이 안돼, 광고인지」 · 「보증하지 않습니다 … 빼줘」 · 「유안굴착은 1순위쪽에」 · 「근재보험 광고」
- *   ① 1순위(/first): 목록 셋째 카드 바로 다음에 한 장 · 쪽에 한 장뿐 · «광고 · 업체 소개» 띠 · «보증» 같은 말 없음 · 📞 tel: · 💬 sms: 번호 맞음
+ *   ① 1순위(/first): 셋째 카드 다음 강천 · 대유(제일 좋은 자리 · 늘) · 열째 유안굴착 · 열일곱째 정순덕 FP — 업체마다 쪽에 한 번 · 광고 사이 여섯 장 넘게 · 셋 다 «광고 · 👍 K-건설맵 추천» · «보증» 같은 말 없음 · 📞 tel: · 💬 sms:
+ *   ①b 공고(/live): 셋째 카드 다음 강천 · 대유(늘)
  *      · 카드를 눌러 펼쳐도 광고는 그 자리 한 장 · 다음 쪽에도 한 장
  *   ② 보험료 계산기 · 4대보험 판단기: 결과 바로 아래 한 장(근재보험 정순덕 FP · 여러 번 열어도 늘 — 소장님 「번갈아서 하지 말고」)
  *   ③ 숨은 셈: 보임(화면에 들어왔을 때 한 번) · 전화 · 문자 누름 → 데이터베이스로 |광고보임|id · |광고전화|id · |광고문자|id
@@ -50,45 +51,65 @@ const 광고 = (p) => p.evaluate(() => [...document.querySelectorAll('aside.adc'
 })))
 const 숨김 = (p) => p.addStyleTag({ content: '.insa{display:none!important}' })
 
-console.log('① 1순위(/first) — 폰 390')
+console.log('① 1순위(/first) — 폰 390 · 광고 셋(셋째 강천 · 대유 / 열째 유안굴착 / 열일곱째 정순덕)')
 {
   const { ctx, p, 오류 } = await 새쪽(390, 844)
   await p.goto(BASE + '/first', { waitUntil: 'domcontentloaded' })
   await p.waitForSelector('main .notice.tap', { timeout: 15000 })
   await p.waitForTimeout(800)
   let a = await 광고(p)
-  ok('광고 두 장(유안굴착 · 근재보험 정순덕 FP) — 업체마다 한 번', a.length === 2 && a[0].id === 'yuan' && a[1].id === 'kb-jsd', a.map((x) => x.id))
-  ok('유안굴착은 셋째 카드 바로 다음 · 근재보험은 열째 카드 바로 다음', await p.evaluate(() => { const ns = [...document.querySelectorAll('main .notice.tap')]; const ads = [...document.querySelectorAll('aside.adc')]; return ns[2] && ns[2].nextElementSibling === ads[0] && ns[9] && ns[9].nextElementSibling === ads[1] }), a.map((x) => [x.id, x.앞]))
-  ok('«광고 · 👍 K-건설맵 추천» 띠 · 추천 한 줄 · «보증» · «확인하십시오» 같은 말 없음', a[0] && /^광고 👍 K-건설맵 추천/.test(a[0].글) && /현장에 맞는 공법을 한 곳에서 상담/.test(a[0].글) && !/보증|확인하십시오|책임지지/.test(a[0].글), a[0] && a[0].글)
-  ok('📞 tel:01036583104 · 💬 sms:01036583104 · 번호가 단추에 보임', a[0] && a[0].tel === 'tel:01036583104' && a[0].sms === 'sms:01036583104' && /📞 010-3658-3104/.test(a[0].글), a[0])
-  ok('하는 일 · 지역(시 · 구까지) · 공종 · 사무실 · 팩스', a[0] && /압입추진 전문업체/.test(a[0].글) && /전북 전주시 덕진구/.test(a[0].글) && /유압식 잭킹/.test(a[0].글) && /사무실 063-909-0555/.test(a[0].글), a[0] && a[0].글)
-  await p.waitForTimeout(500)
-  await p.locator('aside.adc').first().scrollIntoViewIfNeeded(); await p.waitForTimeout(700)
-  ok('숨은 셈 — 화면에 들어오면 «|광고보임|yuan» 한 번', 셈들.filter((u) => /광고보임/.test(u) && /yuan/.test(u)).length === 1, 셈들)
+  const 찾 = (id) => a.find((x) => x.id === id)
+  ok('광고 셋 — 강천 · 대유 · 유안굴착 · 정순덕 FP(업체마다 한 번)', a.map((x) => x.id).join() === 'kc-dy,yuan,kb-jsd', a.map((x) => x.id))
+  ok('자리 — 셋째(제일 좋은 자리) · 열째 · 열일곱째 카드 바로 다음(광고 사이 카드 여섯 장 넘게 · 첫 결과 위엔 없음)', await p.evaluate(() => { const ns = [...document.querySelectorAll('main .notice.tap')]; const ads = [...document.querySelectorAll('aside.adc')]; return ns[2].nextElementSibling === ads[0] && ns[9].nextElementSibling === ads[1] && ns[16].nextElementSibling === ads[2] && ns[0].previousElementSibling?.tagName !== 'ASIDE' }), a.map((x) => [x.id, x.앞]))
+  const k = 찾('kc-dy'), y = 찾('yuan')
+  ok('강천 · 대유 — «광고 · 👍 K-건설맵 추천» · 추천 한 줄 · 이름 · 고흥군 · 📞 010-6460-1650 · 사무실 · 팩스 · 대표 이름 · 이메일 없음', k && /^광고 👍 K-건설맵 추천/.test(k.글) && /두 회사가 함께 — 고흥 지역 건설공사, 전화 한 통으로 상담/.test(k.글) && /강천건설\(주\) · \(유\)대유건설/.test(k.글) && /전남 고흥군/.test(k.글) && k.tel === 'tel:01064601650' && /📞 010-6460-1650/.test(k.글) && /사무실 061-835-6788/.test(k.글) && /팩스 061-844-1650/.test(k.글) && !/대표|@|naver/.test(k.글), k && k.글)
+  ok('유안굴착 — «광고 · 👍 K-건설맵 추천» · 추천 한 줄 · 압입추진 · 전북 전주시 덕진구 · 📞 010-3658-3104', y && /^광고 👍 K-건설맵 추천/.test(y.글) && /현장에 맞는 공법을 한 곳에서 상담/.test(y.글) && /압입추진 전문업체/.test(y.글) && /전북 전주시 덕진구/.test(y.글) && y.tel === 'tel:01036583104', y && y.글)
+  ok('«보증» · «확인하십시오» 같은 말 없음(셋 다)', a.every((x) => !/보증|확인하십시오|책임지지/.test(x.글)), a.map((x) => x.글.slice(0, 40)))
+  /* 셈은 운영자 확인(비동기) 뒤에 나감 — 정해진 짧은 시간만 기다리면 가끔 놓침(11-05 한 번 놓침) → 나올 때까지 8초까지 기다림 */
+  const 기다림 = async (f, ms = 8000) => { const t = Date.now(); while (Date.now() - t < ms) { if (f()) return true; await p.waitForTimeout(200) } return f() }
+  await p.locator('aside.adc').first().scrollIntoViewIfNeeded()
+  await 기다림(() => 셈들.some((u) => /광고보임/.test(u) && /kc-dy/.test(u))); await p.waitForTimeout(800)
+  ok('숨은 셈 — 화면에 들어오면 «|광고보임|kc-dy» 한 번', 셈들.filter((u) => /광고보임/.test(u) && /kc-dy/.test(u)).length === 1, 셈들)
   await p.locator('aside.adc').first().locator('.adc-call').evaluate((el) => { el.addEventListener('click', (e) => e.preventDefault(), { once: true }) })
   await p.locator('aside.adc').first().locator('.adc-call').click()
   await p.locator('aside.adc').first().locator('.adc-sms').evaluate((el) => { el.addEventListener('click', (e) => e.preventDefault(), { once: true }) })
   await p.locator('aside.adc').first().locator('.adc-sms').click()
-  await p.waitForTimeout(600)
-  ok('숨은 셈 — 전화 · 문자 누름 «|광고전화|yuan» · «|광고문자|yuan»', 셈들.some((u) => /광고전화/.test(u) && /yuan/.test(u)) && 셈들.some((u) => /광고문자/.test(u) && /yuan/.test(u)), 셈들)
+  await 기다림(() => 셈들.some((u) => /광고전화/.test(u) && /kc-dy/.test(u)) && 셈들.some((u) => /광고문자/.test(u) && /kc-dy/.test(u)))
+  ok('숨은 셈 — 전화 · 문자 누름 «|광고전화|kc-dy» · «|광고문자|kc-dy»', 셈들.some((u) => /광고전화/.test(u) && /kc-dy/.test(u)) && 셈들.some((u) => /광고문자/.test(u) && /kc-dy/.test(u)), 셈들)
   await p.locator('main .notice.tap').first().click(); await p.waitForTimeout(500)
-  ok('카드를 펼쳐도 광고는 두 장 그대로 · 그 자리', (await 광고(p)).length === 2, (await 광고(p)).length)
+  ok('카드를 펼쳐도 광고는 세 장 그대로 · 그 자리', (await 광고(p)).length === 3, (await 광고(p)).length)
   ok('폰 390 넘침 0 · 오류 0', (await 넘침(p)) <= 0 && !오류.length, [await 넘침(p), 오류])
   if (OUT) {
     await p.locator('main .notice.tap').first().click(); await p.waitForTimeout(300)
     await 숨김(p)
-    await p.evaluate(() => { const ns = [...document.querySelectorAll('main .notice.tap')]; ns[1].scrollIntoView(); window.scrollBy(0, -70) })
-    await p.waitForTimeout(400)
-    await p.screenshot({ path: OUT + '/광고_1순위_폰390.png' })
-    await p.evaluate(() => { const ns = [...document.querySelectorAll('main .notice.tap')]; ns[8].scrollIntoView(); window.scrollBy(0, -70) })
-    await p.waitForTimeout(400)
-    await p.screenshot({ path: OUT + '/광고_1순위_근재보험_폰390.png' })
+    /* 광고를 화면 가운데에(오른쪽 아래 + 단추에 안 가리게 · 앞뒤 카드도 보이게) */
+    const 가운데 = async (k, 이름) => { await p.evaluate((k) => document.querySelectorAll('aside.adc')[k].scrollIntoView({ block: 'center' }), k); await p.waitForTimeout(400); await p.screenshot({ path: OUT + '/' + 이름 }) }
+    await 가운데(0, '광고_1순위_폰390.png')
+    await 가운데(1, '광고_1순위_유안굴착_폰390.png')
+    await 가운데(2, '광고_1순위_근재보험_폰390.png')
   }
   const 다음 = p.locator('.pager button', { hasText: '다음' })
   if (await 다음.count()) {
     await 다음.click(); await p.waitForTimeout(800)
-    ok('다음 쪽(14건)에도 두 장(쪽마다 업체마다 한 번)', (await 광고(p)).length === 2, (await 광고(p)).map((x) => x.id))
+    ok('다음 쪽(14건) — 셋째 강천 · 대유 · 열째 유안굴착(15건 아래라 열일곱째 없음)', (await 광고(p)).map((x) => x.id).join() === 'kc-dy,yuan', (await 광고(p)).map((x) => x.id))
   } else ok('다음 쪽 단추(가상 34건 · 쪽 넘김)', false, 'pager 없음')
+  await ctx.close()
+}
+
+console.log('①b 공고(/live) — 셋째 카드 다음 강천 · 대유(소장님 「1순위 및 공고자리에도 항상」)')
+{
+  const { ctx, p, 오류 } = await 새쪽(390, 844)
+  const 마감 = (d) => new Date(Date.now() + d * 86400e3 + 9 * 3600e3).toISOString().slice(0, 10) + ' 10:00:00'
+  const 공고줄 = Array.from({ length: 12 }, (_, i) => ({ no: `R00TEST9${String(i).padStart(4, '0')}`, ord: '000', name: `가상 들말 배수로 정비공사 ${i + 1}`, inst: '가상시', dt: 오늘 + ' 09:00:00', close: 마감(i % 4 + 1), base: 244600000, est: 222363636, lo: -3, hi: 3, llr: 89.745, lic: ['토목공사업/0001'], aval: 0, ayn: 'N', ptot: 15, pdrw: 4, url: '' }))
+  await ctx.route('**/data/board/live.json*', (r) => r.fulfill({ json: { ...meta, con: { n: 공고줄.length, parts: 1, from: 오늘, to: 오늘 } } }))
+  await ctx.route('**/data/board/live-con-0.json*', (r) => r.fulfill({ json: 공고줄 }))
+  await p.goto(BASE + '/live', { waitUntil: 'domcontentloaded' })
+  await p.waitForSelector('main .notice.tap', { timeout: 15000 })
+  await p.waitForTimeout(800)
+  const a = await 광고(p)
+  ok('공고 — 광고 한 장(강천 · 대유) · 셋째 카드 바로 다음', a.length === 1 && a[0].id === 'kc-dy' && await p.evaluate(() => { const ns = [...document.querySelectorAll('main .notice')]; return ns[2] && ns[2].nextElementSibling === document.querySelector('aside.adc') }), a.map((x) => [x.id, x.앞]))
+  ok('공고 폰 390 넘침 0 · 오류 0', (await 넘침(p)) <= 0 && !오류.length, [await 넘침(p), 오류])
+  if (OUT) { await 숨김(p); await p.evaluate(() => document.querySelector('aside.adc').scrollIntoView({ block: 'center' })); await p.waitForTimeout(400); await p.screenshot({ path: OUT + '/광고_공고_폰390.png' }) }
   await ctx.close()
 }
 
@@ -158,8 +179,8 @@ console.log('③ 폰 320 · PC 1280 · 어두운 화면 · 인쇄')
   const { ctx, p, 오류 } = await 새쪽(1280, 900, false)
   await p.goto(BASE + '/first', { waitUntil: 'domcontentloaded' })
   await p.waitForSelector('aside.adc', { timeout: 15000 }); await p.waitForTimeout(400)
-  ok('PC 1280 — 두 장 · 넘침 0 · 오류 0', (await 광고(p)).length === 2 && (await 넘침(p)) <= 0 && !오류.length, [(await 광고(p)).length, 오류])
-  if (OUT) { await 숨김(p); await p.evaluate(() => { const ns = [...document.querySelectorAll('main .notice.tap')]; ns[1].scrollIntoView(); window.scrollBy(0, -90) }); await p.waitForTimeout(400); await p.screenshot({ path: OUT + '/광고_1순위_PC1280.png' }) }
+  ok('PC 1280 — 세 장 · 넘침 0 · 오류 0', (await 광고(p)).length === 3 && (await 넘침(p)) <= 0 && !오류.length, [(await 광고(p)).length, 오류])
+  if (OUT) { await 숨김(p); await p.evaluate(() => document.querySelector('aside.adc').scrollIntoView({ block: 'center' })); await p.waitForTimeout(400); await p.screenshot({ path: OUT + '/광고_1순위_PC1280.png' }) }
   await p.emulateMedia({ media: 'print' })
   ok('인쇄에는 안 나옴', await p.evaluate(() => getComputedStyle(document.querySelector('aside.adc')).display === 'none'))
   await ctx.close()
@@ -177,7 +198,7 @@ console.log('③ 폰 320 · PC 1280 · 어두운 화면 · 인쇄')
     return { 이름: 비(getComputedStyle(nm).color, 바탕), 한줄: 비(getComputedStyle(one).color, 바탕), 단추: 비(getComputedStyle(call).color, getComputedStyle(call).backgroundColor), 바탕 }
   })
   ok('어두운 화면 — 이름 · 한줄 · 단추 글 대비 4.5 넘음', 대비.이름 >= 4.5 && 대비.한줄 >= 4.5 && 대비.단추 >= 4.5, 대비)
-  if (OUT) { await 숨김(p); await p.evaluate(() => { const ns = [...document.querySelectorAll('main .notice.tap')]; ns[1].scrollIntoView(); window.scrollBy(0, -70) }); await p.waitForTimeout(400); await p.screenshot({ path: OUT + '/광고_1순위_폰390_어두운화면.png' }) }
+  if (OUT) { await 숨김(p); await p.evaluate(() => document.querySelector('aside.adc').scrollIntoView({ block: 'center' })); await p.waitForTimeout(400); await p.screenshot({ path: OUT + '/광고_1순위_폰390_어두운화면.png' }) }
   ok('어두운 화면 오류 0', !오류.length, 오류)
   await ctx.close()
 }

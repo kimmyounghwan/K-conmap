@@ -1,6 +1,6 @@
 import { Link, useSearchParams } from 'react-router-dom'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
-import 광고칸 from '../광고칸.jsx'   /* 📣 업체 광고 — 셋째 카드 다음(자리 first) · 열째 카드 다음(자리 first2 · 8건 넘을 때) — 업체마다 쪽에 한 번 · lib/광고자료.js */
+import 광고칸 from '../광고칸.jsx'   /* 📣 업체 광고 — 셋째 카드 다음(first) · 열째(first2 · 8건 넘을 때) · 열일곱째(first3 · 15건 넘을 때) — 업체마다 쪽에 한 번 · 광고 사이 여섯 장 넘게 · lib/광고자료.js */
 import { getOverview, getLicStat } from '../lib/data.js'
 import FreshBar from '../Fresh.jsx'
 import NoticeDetail, { scoreState, NoticeLink } from '../NoticeDetail.jsx'
@@ -283,6 +283,7 @@ export default function FirstBoard() {
               </div>
               {i === Math.min(2, view.length - 1) && <광고칸 자리="first" />}
               {view.length >= 8 && i === Math.min(9, view.length - 1) && <광고칸 자리="first2" />}
+              {view.length >= 15 && i === Math.min(16, view.length - 1) && <광고칸 자리="first3" />}
               </Fragment>
             )
           })}

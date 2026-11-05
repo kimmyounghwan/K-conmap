@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import 광고칸 from '../광고칸.jsx'   /* 📣 업체 광고 — 공고 목록 셋째 카드 다음 한 장(자리 live · 쪽에 한 번) · lib/광고자료.js */
 import { useBoard } from '../lib/useBoard.js'
 import { useFresh, freshRows, freshWhen } from '../lib/fresh.js'
 import { Skeleton, Empty } from '../components.jsx'
@@ -581,17 +582,22 @@ export default function LiveBoard() {
             const id = `${r.no}-${i}`
             const isOpen = open === id
             const dd = dday(r.close)
+            const 광고 = i === Math.min(2, view.length - 1) ? <광고칸 자리="live" /> : null
             if (r.gone) return (
-              <div className="notice gone" key={id}>
+              <Fragment key={id}>
+              <div className="notice gone">
                 <h3>공고번호 {r.no}</h3>
                 <div className="meta">
                   <span>마감 전 목록에 없습니다 — 마감됐거나 취소된 공고입니다</span>
                   <button className="cbtn ghost" onClick={(e) => toggleBag(e, r.no)}>⭐ 빼기</button>
                 </div>
               </div>
+              {광고}
+              </Fragment>
             )
             return (
-              <div className={'notice tap' + (isOpen ? ' open' : '')} key={id} onClick={() => { if (!isOpen) 공고봄(r.no, r.name); setOpen(isOpen ? null : id) }}>
+              <Fragment key={id}>
+              <div className={'notice tap' + (isOpen ? ' open' : '')} onClick={() => { if (!isOpen) 공고봄(r.no, r.name); setOpen(isOpen ? null : id) }}>
                 <h3>{r._new ? <span className="badge new">🆕 방금</span> : null}{r.name}</h3>
                 <div className="meta">
                   <span className="inst">{r.inst}</span>
@@ -800,6 +806,8 @@ export default function LiveBoard() {
                   </div>
                 )}
               </div>
+              {광고}
+              </Fragment>
             )
           })}
           {pages > 1 && (
