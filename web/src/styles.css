@@ -10127,5 +10127,37 @@ div.bth { padding: 0; }
 .adc-info dt { color: var(--ad-text-2); font-weight: 700; white-space: nowrap; }
 .adc-info dd { margin: 0; color: var(--ad-text); word-break: keep-all; overflow-wrap: anywhere; min-width: 0; }
 .adc-info a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+/* 📣 G549 광고 · 제휴 문의 길 — 광고 띠 «광고 · 제휴 문의 →» · 모집 카드 · 머리 줄(PC) · 바닥글 · /ad 안내 쪽 */
+.adc-ask { margin-left: auto; font-size: 11.5px; font-weight: 700; color: var(--ad-chip); text-decoration: none; white-space: nowrap; }
+.adc-ask:hover { text-decoration: underline; }
+.adc-btns1 { grid-template-columns: 1fr; }
+.adc-recruit .adc-nm { font-size: 16px; }
+.adc-demo { margin: 6px 0 0; }
+.ad-top { display: none; }
+@media (min-width: 1100px) { .ad-top { display: inline-flex; align-items: center; height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.28); color: #fde68a; font-size: 13px; font-weight: 800; text-decoration: none; white-space: nowrap; } .ad-top:hover { background: rgba(255,255,255,.08); } }
+.footer .ft-ad b { color: var(--ad-btn); }
+.adinfo { max-width: 760px; margin: 0 auto; }
+.adinfo-hero { background: var(--ad-bg); border: 1.5px solid var(--ad-line); }
+.adinfo-h1 { margin: 0 0 6px; font-size: 22px; letter-spacing: -.4px; color: var(--ad-text); }
+.adinfo-lead { margin: 0 0 10px; color: var(--ad-text-2); font-size: 14.5px; word-break: keep-all; }
+.adinfo-nums { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 12px; font-size: 14px; color: var(--ad-text); }
+.adinfo-nums b { color: var(--ad-btn); font-variant-numeric: tabular-nums; }
+.adinfo-go { display: block; text-align: center; margin-top: 4px; }
+.adinfo-small { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); word-break: keep-all; }
+.adinfo-spots { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.adinfo-spots li { display: grid; grid-template-columns: 26px 1fr; column-gap: 6px; align-items: baseline; }
+.adinfo-spots li b { font-size: 14.5px; }
+.adinfo-spots li em { grid-column: 2; font-style: normal; font-size: 13px; color: var(--muted); word-break: keep-all; }
+.adinfo-steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; word-break: keep-all; }
+.adinfo-chips { margin: 2px 0 12px; }
+/* 🤝 G549 광고 · 제휴 같은 무게 — 맨 위 두 칸(📣 광고 · 🤝 제휴) · 제휴 네 가지 — 소장님 「광고나 제휴잖아. 지금 광고만 받는다고 잇는데」 */
+.adinfo-two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 12px; }
+.adinfo-pick { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; text-align: left; padding: 10px 11px; border-radius: 12px; border: 1.5px solid var(--ad-line); background: var(--surface); color: var(--ad-text); font: inherit; cursor: pointer; }
+.adinfo-pick b { font-size: 15.5px; }
+.adinfo-pick span { font-size: 12.5px; line-height: 1.4; color: var(--ad-text-2); word-break: keep-all; }
+.adinfo-pick em { margin-top: auto; padding-top: 2px; font-style: normal; font-size: 12px; font-weight: 800; color: var(--ad-chip); }
+.adinfo-sec { scroll-margin-top: 72px; }
+.adinfo-sub { margin: 12px 0 6px; font-size: 13px; font-weight: 800; color: var(--ad-text-2); }
+.adc-h { flex-wrap: wrap; row-gap: 2px; }   /* 좁은 폰에서 «광고 · 제휴 문의 →» 가 넘치지 않고 아래 줄로 */
 .adc-sim { font-size: 11px; }
 @media (max-width: 340px) { .adc-call, .adc-sms { font-size: 14px; } .adc-sms { padding: 0 12px; } }

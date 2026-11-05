@@ -12,6 +12,7 @@ import { ShareBtn } from './CorpPage.jsx'
 import UserForms from '../UserForms.jsx'
 import { Empty } from '../components.jsx'
 import { 둘씩, 더말글 } from '../lib/빠른찾기.js'
+import 광고모집 from '../광고모집.jsx'   /* 📣 G549 광고가 없는 쪽 — «이 자리에 업체를 알리세요» 한 장 */
 
 /* 🎨 2026-10-16 탭 꾸밈 — 묶음마다 색(머리 띠 · 아이콘 바탕) */
 const 묶음색 = ['#2563eb', '#0d9488', '#d97706', '#7c3aed', '#e11d48', '#16a34a', '#0284c7', '#ea580c']
@@ -457,6 +458,7 @@ export default function Forms() {
           </div>
         </div>
       )}
+      {!찾음 && <광고모집 자리="서식" />}
 
       {!찾음 && 보기 !== 'stage' && (
         <div className="card">

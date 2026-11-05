@@ -21,6 +21,7 @@ import RefreshBtn from './Refresh.jsx'
 import Crumbs, { BackBtn } from './Crumbs.jsx'
 import { 화면조회줄, use조회세기 } from './lib/조회수.jsx'   /* 👁 G121 — 모든 화면 위 «이 화면 조회 N» · 👥 G172 방문자 바닥글은 G199 에서 뺌(바로투찰 지도에만) */
 import { use길지킴이 } from './lib/길기록.js'
+import { 세기 } from './lib/받은수.jsx'   /* 📣 G549 광고 · 제휴 문의 길 셈(바닥 · 머리) */
 import { use씀세기 } from './lib/씀세기.js'   /* ✍ 2026-10-21 화면 안에서 처음 손댄 횟수 — 소장님 판에만(아래 <Outlet /> 앞뒤 표시) */
 import { 쓴곳기록 } from './lib/마이쓴곳.js'   /* 🪪 G188 마이컨맵 «내 도구 · 서식» — 연 도구 · 서식을 이 브라우저에만 셈 */
 
@@ -206,6 +207,8 @@ export default function App() {
             {/* 🔙 2026-09-28 — 소장님: 「뒤로가기 버튼 … 새로고침 옆으로 옮기거나」 → 화면 안 알약 대신 여기(Crumbs.jsx BackBtn) */}
             {/* 🔔 안 본 사랑방 답글이 있을 때만 보입니다(G73) */}
             <알림종 />
+            {/* 📣 G549 — PC 머리 줄 «📣 광고 · 제휴»(좁은 화면은 숨김 · 바닥글에는 늘 있음) */}
+            <Link to="/ad" className="ad-top" onClick={() => { try { 세기('|광고문의|머리') } catch (e) { /* 없음 */ } }}>📣 광고 · 제휴</Link>
             <BackBtn />
             <RefreshBtn />
             {/* 🌊 G465 (2026-10-30 소장님 «아래에 있으니 사라사 빼자») — 맨 위 줄에서 뺌 · 바닥글 «🌊 자매 사이트 사라사» 는 그대로(모든 화면) */}
@@ -270,6 +273,8 @@ export default function App() {
         <찍기단추 />
         <footer className="footer">
           <div>
+            {/* 📣 G549 (11-05) 소장님 「광고, 제휴 문의 한다는 걸 알려야 문의가 들어 오잖아. 모든 페이지에 뒀으면 하는데??」 — 모든 화면 바닥글 맨 앞 */}
+            <Link to="/ad" className="ft-ad" onClick={() => { try { 세기('|광고문의|바닥') } catch (e) { /* 없음 */ } }}><b>📣 광고 · 제휴 문의</b></Link><span className="dot">·</span>
             <a href="/about">소개</a><span className="dot">·</span>
             <a href="/privacy">개인정보처리방침</a><span className="dot">·</span>
             <a href="/terms">이용약관</a><span className="dot">·</span>

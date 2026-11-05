@@ -42,6 +42,7 @@ const NAME = {
   '/lic': '면허별 경쟁도',
   '/qna': '맵톡',
   '/how': '보는 방법',
+  '/ad': '광고 · 제휴',
   '/agency': '발주기관',
   '/corp': '업체 찾기',
   '/pdf': 'PDF 도구',
@@ -104,7 +105,7 @@ const PARENT = {
   '/change': '/tools', '/cad': '/tools', '/pdf': '/tools', '/shareone': '/tools',
   '/safety': '/naeyeok',
   '/daily': '/first',
-  '/lic': '/', '/guide': '/', '/how': '/',
+  '/lic': '/', '/guide': '/', '/how': '/', '/ad': '/',
   '/pre': '/live',
   '/gongdong': '/live',          /* 🤝 G341 공동도급 마당 → «← 공고» */
   '/corp': '/analysis',          /* 🏢 G343 업체 찾기 → «← 낙찰 분석» */

@@ -85,6 +85,8 @@ const MyAt = lazyPage(() => import('./pages/MyConmap.jsx').then((m) => ({ defaul
 /* 🛠 관리자 — 소장님만. 검색엔진에 안 올립니다(Admin.jsx 가 noindex 를 겁니다). */
 const Admin = lazyPage(() => import('./pages/Admin.jsx'))
 const How = lazyPage(() => import('./pages/How.jsx'))
+/* 📣 G549 광고 · 제휴 안내(소장님 「광고, 제휴 문의 한다는 걸 알려야 문의가 들어 오잖아」) */
+const AdInfo = lazyPage(() => import('./pages/AdInfo.jsx'))
 const GuideTopic = lazyPage(() => import('./pages/Guide.jsx').then((m) => ({ default: m.GuideTopic })))
 /* 🧰 도구 — lazy() 가 아니라 lazyPage() 입니다. 배포가 지나가면 옛 파일이 사라져
    화면이 통째로 죽습니다 (2026-09-08 착공현장 사고). */
@@ -318,6 +320,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/admin" element={<Suspense fallback={<Loading />}><Admin /></Suspense>} />
           {/* 📖 보는 방법 — 처음 온 사람이 «어디로 가면 되는지» 아는 한 장 (2026-09-15) */}
           <Route path="/how" element={<Suspense fallback={<Loading />}><How /></Suspense>} />
+          <Route path="/ad" element={<Suspense fallback={<Loading />}><AdInfo /></Suspense>} />
           <Route path="/naeyeok" element={<Suspense fallback={<Loading />}><Naeyeok /></Suspense>} />
           <Route path="/naeyeok/ratio" element={<Suspense fallback={<Loading />}><Ratio /></Suspense>} />
           <Route path="/naeyeok/hado" element={<Suspense fallback={<Loading />}><Hado /></Suspense>} />

@@ -24,6 +24,7 @@ import { use남김 } from '../lib/길기록.js'
 /* ⬇ 2026-10-01 (G96) 도구마다 «받은 횟수» — 그 화면에서 받은 파일(만든 PDF · 엑셀 포함). 아래 화면이 따로 카드면 빼고 셉니다 */
 import { 받은수, 화면열쇠, use받은수, 합 as 받은합, 조회합, 세기 } from '../lib/받은수.jsx'
 import 이어쓰기 from '../tools/이어쓰기.jsx'
+import 광고모집 from '../광고모집.jsx'   /* 📣 G549 광고가 없는 쪽 — «이 자리에 업체를 알리세요» 한 장 */
 import { 앞모습두기 } from '../lib/이어쓰기.js'
 
 /* 🎨 2026-10-16 탭 꾸밈 — 묶음마다 색(머리 띠 · 아이콘 바탕) */
@@ -152,6 +153,7 @@ export default function ToolsIndex() {
           </div>
         </div>
       )}
+      {!q && <광고모집 자리="도구" />}
 
       {q && !찾은수 && (
         <div className="card"><div className="note">「{q}」 에 맞는 도구가 없습니다. 다른 말로 찾아 보시거나, 맵톡에 «이런 도구가 있으면» 한 줄 남겨 주십시오.</div></div>

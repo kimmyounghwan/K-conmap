@@ -54,6 +54,7 @@
     { "//": "💬 사랑방 글마다 한 장 — 2026-09-29. 구운 글은 qna/{번호}.html 이 먼저 나가고, 막 올라와 아직 안 구운 글만 여기로 옵니다(화면이 데이터베이스에서 읽어 그림)", "source": "/qna/**", "destination": "/app.html" },
       { "//": "🛠 관리자 — 소장님만. sitemap·robots 에는 안 넣습니다 (2026-09-17)", "source": "/admin", "destination": "/app.html" },
     { "source": "/how", "destination": "/app.html" },
+    { "//": "📣 G549 광고 · 제휴 안내(pages/AdInfo.jsx) — 2026-11-05", "source": "/ad", "destination": "/app.html" },
     { "source": "/lic", "destination": "/app.html" },
     { "source": "/report", "destination": "/app.html" },
     { "//": "📊 성적표 만들기 — 소장님만. sitemap·robots 에는 안 넣습니다 (2026-09-18)", "source": "/report/make", "destination": "/app.html" },

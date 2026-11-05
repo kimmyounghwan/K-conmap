@@ -110,6 +110,20 @@
   var go = document.getElementById('go')
   var V = function (id) { return (document.getElementById(id).value || '').trim() }
   var 말 = function (t, cls) { msg.textContent = t; msg.className = 'note ' + (cls || '') }
+  /* 📣 G549 (2026-11-05) 광고 · 제휴 문의 — /ad 의 «문의 보내기» 는 /contact?k=ad 로 옵니다.
+     «무슨 일» 에 «📣 광고 · 제휴 문의» 를 미리 적고, 운영자 메일에 «광고 · 제휴» 로 갑니다(want). 소장님 「광고, 제휴 문의 한다는 걸 알려야 문의가 들어 오잖아」 */
+  /* 🤝 &w=p = 제휴 문의(/ad «🤝 제휴 문의 보내기») — 소장님 「광고나 제휴잖아. 지금 광고만 받는다고 잇는데」 */
+  var 광고 = /[?&]k=ad(&|$)/.test(location.search)
+  var 제휴만 = 광고 && /[?&]w=p(&|$)/.test(location.search)
+  if (광고) {
+    document.getElementById('work').value = 제휴만 ? '🤝 제휴 문의' : '📣 광고 · 제휴 문의'
+    document.getElementById('memo').placeholder = 제휴만
+      ? '회사 이름 · 하시는 일 · 함께하고 싶은 일(이용자 할인 · 서로 알리기 · 설명회 · 교육 · 상담 연결 등)을 적어 주세요.'
+      : '광고 — 업체 이름 · 하는 일 · 원하시는 자리(1순위 · 공고 · 계산기 결과 아래) · 기간\n제휴 — 회사 이름 · 하시는 일 · 함께하고 싶은 일\n광고비 · 기간은 답장으로 안내드립니다.'
+    document.getElementById('phone').placeholder = '전화 또는 이메일 — 답을 드릴 곳'
+    var h = document.querySelector('.card h2'); if (h) h.textContent = 제휴만 ? '🤝 제휴 문의' : '📣 광고 · 제휴 문의'
+    var n = document.getElementById('no'); if (n && n.closest('.row')) n.closest('.row').style.display = 'none'   /* 공고번호 칸은 광고 문의엔 필요 없음(깔끔하게) */
+  }
 
   f.onsubmit = function (e) {
     e.preventDefault()
@@ -127,7 +141,7 @@
         work: work.slice(0, 120),
         org: '', money: '', due: '', name: '',
         no: V('no').slice(0, 40),
-        want: '사이트 문의',
+        want: 광고 ? (제휴만 ? '제휴' : '광고 · 제휴') : '사이트 문의',
         phone: V('phone').slice(0, 40) || '-',
         memo: V('memo').slice(0, 1000),
         at: Date.now()
