@@ -24,7 +24,9 @@ export function 금액수(s) {
   const t = String(s == null ? '' : s).replace(/[,\s원₩]/g, '')
   if (!t) return 0
   if (!/[조억만천백십]/.test(t)) {
-    const n = Number(t.replace(/[^\d.]/g, ''))
+    /* G542 점이 둘 이상이면 자리 나눔(«285.000.000» → 285000000 — 바로투찰 예전 digits() 와 같게) · 하나면 소수점(«3.85» → 4) */
+    const 점 = (t.match(/\./g) || []).length
+    const n = Number((점 > 1 ? t.replace(/\./g, '') : t).replace(/[^\d.]/g, ''))
     return Number.isFinite(n) && n > 0 ? Math.round(n) : 0
   }
   let 조 = 0, 억 = 0, 만 = 0, 나머지 = t
@@ -49,4 +51,53 @@ export function 금액말(n) {
   if (만) 조각.push(만.toLocaleString('ko-KR') + '만')
   if (원) 조각.push(원.toLocaleString('ko-KR'))
   return 조각.join(' ') + (원 ? '원' : ' 원')
+}
+
+/** 못 읽었을 때 칸 아래 글 — 마이컨맵(G541) · 금액입력.jsx(G542) 같은 글 */
+export const 못읽음글 = '⚠ 금액으로 읽지 못했습니다 — 숫자로 적어 주세요'
+
+/**
+ * 칸 아래 «이렇게 읽었습니다» 줄 — { 글, bad } · 빈 칸이면 null (G542 · 금액입력.jsx 가 씀)
+ *   금액줄(285000000) → «= 2억 8,500만 원» (칸에 이미 285,000,000 이 보일 때)
+ *   금액줄('3억 8,500만', true) → «= 3억 8,500만 원 (385,000,000원)» (억 · 만으로 친 글이 칸에 그대로 있을 때)
+ *   금액줄('삼억') → ⚠ 못읽음글 · 금액줄(0) · 금액줄('') → null
+ */
+export function 금액줄(s, 원도 = false) {
+  if (typeof s === 'number') { if (!(s > 0)) return null }
+  else if (s == null || String(s).trim() === '') return null
+  const n = 금액수(s)
+  if (!n) return { 글: 못읽음글, bad: true }
+  return { 글: '= ' + 금액말(n) + (원도 ? ` (${n.toLocaleString('ko-KR')}원)` : ''), bad: false }
+}
+
+/**
+ * 금액 칸에 친 글 → { 수, 숫자글, 그대로 } (G542 · 금액입력.jsx 가 칠 때마다 씀)
+ *   숫자만(쉼표 섞여도) → 예전 바로투찰 digits() · toNum() 과 같은 값 · 그대로 false(칸엔 쉼표 숫자 — 예전처럼 칠 때마다 쉼표)
+ *   단위 · 점 · 띄어쓰기 · 원이 섞이면 → 금액수 · 그대로 true(친 글을 칸에 둠 — 칸을 벗어나면 쉼표 숫자로)
+ */
+export function 칸글읽기(s) {
+  const t = String(s == null ? '' : s)
+  if (/^[\d,]*$/.test(t)) { const d = t.replace(/,/g, ''); return { 수: Number(d) || 0, 숫자글: d, 그대로: false } }
+  const m = 금액수(t)
+  return { 수: m, 숫자글: m ? String(m) : '', 그대로: true }
+}
+
+/** 칸에 보일 숫자(쉼표) — 수 0 → '' · 숫자 글 «0» → «0» (예전 바로투찰 칸 «base ? … : ''» · «aIn ? Number(aIn)… : ''» 과 같게) */
+export function 칸숫자(v) {
+  if (typeof v === 'number') return v > 0 ? Math.round(v).toLocaleString('ko-KR') : ''
+  const d = String(v == null ? '' : v).replace(/\D/g, '')
+  return d ? Number(d).toLocaleString('ko-KR') : ''
+}
+
+/**
+ * 글 전체가 금액이면 그 수(원), 아니면 0 — 바로투찰 «공고 찾기» 칸(G542): «2억 8,500만» 도 기초금액으로
+ *   숫자만(쉼표 · 띄어쓰기 · 원 · ₩ 섞여도) → 예전과 같은 수 · 단위(조 억 만 천 백 십)가 있으면 점(3.85억)도 됨
+ *   낱말이 섞이면(«도로 2억» · «억») 0 → 공고 이름으로 찾기
+ */
+export function 금액뿐(s) {
+  const t = String(s == null ? '' : s).trim()
+  if (!t || !/\d/.test(t)) return 0
+  if (/^[\d,\s원₩]+$/.test(t)) return 금액수(t)
+  if (/^[\d,.\s원₩조억만천백십]+$/.test(t) && /[조억만천백십]/.test(t)) return 금액수(t)
+  return 0
 }

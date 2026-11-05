@@ -7151,6 +7151,9 @@ ul.gm-why { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size:
 /* 💰 G541 금액 칸 아래 «이렇게 읽었습니다» 줄 */
 .mc-amt { font-size: 12.5px; color: var(--good); font-weight: 700; word-break: keep-all; }
 .mc-amt.bad { color: var(--bad); }
+/* 💰 G542 금액입력.jsx 칸 아래 같은 줄(바로투찰부터 — 다른 도구도 이 이름) */
+.amt-read { margin-top: 4px; font-size: 12.5px; color: var(--good); font-weight: 700; word-break: keep-all; line-height: 1.45; }
+.amt-read.bad { color: var(--bad); }
 .mc-fh { font-size: 12px; color: var(--muted); line-height: 1.6; margin: 0; }
 .mc-check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }
 .mc-check input { width: auto; flex: 0 0 auto; margin: 0; }

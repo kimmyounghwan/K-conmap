@@ -10,7 +10,7 @@ import { winGrade } from '../lib/winodds.js'
 /* 계산은 전부 여기 있습니다 — 화면과 채점이 같은 함수를 씁니다 */
 import { bidAmount, limitAmount, limitRate, r3, c3,
          sjSigma, recommend, buildScen, missingOf, isReady,
-         digits, toNum, P50_FALLBACK, shownBid, passProb, QTILES, QTILE_N, quantileBid,
+         toNum, P50_FALLBACK, shownBid, passProb, QTILES, QTILE_N, quantileBid,
          smartBid, autoRule, canBid, nowStamp, stamp14, lowerLimit,
          rankBracket, pcLine, enpWhy } from '../lib/bidmath.js'
 import { 관심남기기, 자리남기기, 관심읽기 } from '../lib/관심도.js'   /* 👥 G499 경쟁 관심도(마감 전엔 «몇 명» 만) */
@@ -28,6 +28,8 @@ import 칸누가 from '../칸누가.jsx'
 import 곧나올줄 from '../곧나올줄.jsx'
 import { 확보예가미리 } from '../tools/확보예가.jsx'   /* 🎯 G181 · (🔎 G189 사업자번호로 — G191 에서 뺌: 낮은 30곳만 받아 «기록 없음» 이 많음) */
 import 금액고르기 from '../tools/금액고르기.jsx'   /* 💰 G185 */
+import 금액입력 from '../금액입력.jsx'   /* 💰 G542 금액 칸 넷(기초 · 추정 · A값 · 순공사원가) — «3억 8,500만» 도 읽음 · 칸 아래 읽은 줄 */
+import { 금액뿐 } from '../lib/금액읽기.js'   /* 💰 G542 «공고 찾기» 칸에 «2억 8,500만» 을 넣어도 기초금액으로 */
 import 내금액 from '../내금액.jsx'   /* 📝 G338 넣은 금액 */
 /* 🗺 G144 (2026-10-05) 지금 K-건설맵을 쓰는 곳 — 사랑방에서 옮겨 옴(소장님 「실시간 지도를 바로입찰 상단에 … 여기가 조회수가 가장 많으니까」)
    화면이 뜬 뒤에 받습니다(지도 바탕 37KB · 자료 1KB) — 투찰 셈을 늦추지 않게 */
@@ -487,14 +489,15 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows])
 
-  const qDigits = digits(q)
-  const qIsAmount = q.trim().length > 0 && qDigits.length >= 7
-    && q.trim().replace(/[,\s원]/g, '') === qDigits
+  /* 💰 G542 — 숫자만(7자리 이상)은 예전 그대로 · «2억 8,500만» · «3.85억» 처럼 단위로 적어도 100만 원 이상이면 기초금액으로
+     (전: 숫자만 남겨 «2억 8,500만» → 28500 · 5자리라 공고 이름으로 찾다가 «없습니다» 만 뜸) */
+  const qAmt = 금액뿐(q)
+  const qIsAmount = qAmt >= 1e6
 
   useEffect(() => {
-    if (qIsAmount) { setPicked(null); setBase(Number(qDigits)) }
+    if (qIsAmount) { setPicked(null); setBase(qAmt) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [qIsAmount, qDigits])
+  }, [qIsAmount, qAmt])
 
   const hits = useMemo(() => {
     const s = q.trim()
@@ -1561,18 +1564,19 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
         <div className="field">
           <label htmlFor="go-base">기초금액 (원)</label>
           {/* 🪪 G188 마이컨맵 단축키 «바로투찰 — 기초금액 넣기»(/calc#go-base) 가 여기로 와서 커서를 둡니다(App.jsx) */}
-          <input id="go-base" inputMode="numeric" className="big"
-            value={base ? base.toLocaleString('ko-KR') : ''}
-            onChange={(e) => { setBase(toNum(e.target.value)); setCopied(false) }}
+          {/* 💰 G542 금액입력 — 숫자만 치면 예전과 같고 «3억 8,500만» · 붙여넣은 «385,000,000원» 도 읽음 · 아래 «= 2억 8,500만 원» */}
+          <금액입력 id="go-base" className="big"
+            value={base}
+            onValue={(n) => { setBase(n); setCopied(false) }}
             placeholder="예: 285,000,000" />
         </div>
 
         <div className="two">
           <div className="field">
             <label>추정가격 (원) <span className="hint">— 비우면 자동</span></label>
-            <input inputMode="numeric"
-              value={budgetIn ? Number(budgetIn).toLocaleString('ko-KR') : ''}
-              onChange={(e) => setBudgetIn(digits(e.target.value))}
+            <금액입력
+              value={budgetIn}
+              onValue={(n, d) => setBudgetIn(d)}
               placeholder={estimate ? estimate.toLocaleString('ko-KR') : '자동'} />
           </div>
           <div className="field">
@@ -1587,9 +1591,9 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
               ? '— 같은 규모 중앙값으로 넣은 추정값입니다. 공고서 값으로 바꿔주세요'
               : '— 사회보험료 등 법정경비'}
           </span></label>
-          <input inputMode="numeric"
-            value={aIn ? Number(aIn).toLocaleString('ko-KR') : ''}
-            onChange={(e) => { setAIn(digits(e.target.value)); setAAuto(false); setCopied(false) }}
+          <금액입력
+            value={aIn}
+            onValue={(n, d) => { setAIn(d); setAAuto(false); setCopied(false) }}
             placeholder="0" />
           {((picked && apMap && apMap[picked.no]) || []).length > 0 ? (
             <div className="aparts">
@@ -1635,9 +1639,9 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
               : picked?.pc > 0 && pcv === picked.pc ? '— 공고에서 자동으로 가져온 값(기초금액 중)'
               : '— 공고문의 «기초금액 중 순공사원가»(재료비 · 노무비 · 경비 + 부가세)'}
           </span></label>
-          <input inputMode="numeric"
-            value={pcIn ? Number(pcIn).toLocaleString('ko-KR') : ''}
-            onChange={(e) => { setPcIn(digits(e.target.value)); setCopied(false) }}
+          <금액입력
+            value={pcIn}
+            onValue={(n, d) => { setPcIn(d); setCopied(false) }}
             placeholder="모르면 비워 두세요" />
           <div className="note sm">
             예정가격 100억 원 미만 공사는 투찰금액이 <b>예정가격 중 순공사원가의 98%</b>보다 낮으면 심사에서 빠집니다
