@@ -10122,5 +10122,10 @@ div.bth { padding: 0; }
 .adc-sms { border: 1.5px solid var(--ad-btn-2); background: var(--surface); color: var(--ad-btn); padding: 0 16px; }
 .adc-call:hover, .adc-sms:hover { filter: brightness(1.06); }
 .adc-sub { margin-top: 7px; font-size: 12px; color: var(--ad-text-2); word-break: keep-all; }
+/* 📇 G548 명함 정보 두 칸 표(사무실 · 메일 · 주소 · 고객센터) — 소장님 「다 넣어 줘」 「깔끔하게 만들어 줘」 · 이름표는 옅게 · 값은 진하게 · 긴 메일 · 주소는 칸 안에서 줄바꿈 */
+.adc-info { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 9px 0 0; padding-top: 8px; border-top: 1px dashed var(--ad-line); font-size: 12.5px; line-height: 1.45; }
+.adc-info dt { color: var(--ad-text-2); font-weight: 700; white-space: nowrap; }
+.adc-info dd { margin: 0; color: var(--ad-text); word-break: keep-all; overflow-wrap: anywhere; min-width: 0; }
+.adc-info a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .adc-sim { font-size: 11px; }
 @media (max-width: 340px) { .adc-call, .adc-sms { font-size: 14px; } .adc-sms { padding: 0 12px; } }

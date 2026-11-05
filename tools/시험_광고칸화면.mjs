@@ -47,6 +47,7 @@ async function 새쪽(w, h, 폰 = true, 어둠 = false) {
 const 넘침 = (p) => p.evaluate(() => document.documentElement.scrollWidth - innerWidth)
 const 광고 = (p) => p.evaluate(() => [...document.querySelectorAll('aside.adc')].map((a) => ({
   id: a.dataset.ad, 글: a.innerText.replace(/\s+/g, ' ').trim(), tel: (a.querySelector('.adc-call') || {}).getAttribute?.('href'), sms: (a.querySelector('.adc-sms') || {}).getAttribute?.('href'),
+  메일: (a.querySelector('.adc-info a[href^="mailto:"]') || {}).getAttribute?.('href') || '',
   앞: a.previousElementSibling ? a.previousElementSibling.className : '', 뒤: a.nextElementSibling ? a.nextElementSibling.className : '',
 })))
 const 숨김 = (p) => p.addStyleTag({ content: '.insa{display:none!important}' })
@@ -62,8 +63,8 @@ console.log('① 1순위(/first) — 폰 390 · 광고 셋(셋째 강천 · 대�
   ok('광고 셋 — 강천 · 대유 · 유안굴착 · 정순덕 FP(업체마다 한 번)', a.map((x) => x.id).join() === 'kc-dy,yuan,kb-jsd', a.map((x) => x.id))
   ok('자리 — 셋째(제일 좋은 자리) · 열째 · 열일곱째 카드 바로 다음(광고 사이 카드 여섯 장 넘게 · 첫 결과 위엔 없음)', await p.evaluate(() => { const ns = [...document.querySelectorAll('main .notice.tap')]; const ads = [...document.querySelectorAll('aside.adc')]; return ns[2].nextElementSibling === ads[0] && ns[9].nextElementSibling === ads[1] && ns[16].nextElementSibling === ads[2] && ns[0].previousElementSibling?.tagName !== 'ASIDE' }), a.map((x) => [x.id, x.앞]))
   const k = 찾('kc-dy'), y = 찾('yuan')
-  ok('강천 · 대유 — «광고 · 👍 K-건설맵 추천» · 추천 한 줄 · 이름 · 고흥군 · 📞 010-6460-1650 · 사무실 · 팩스 · 대표 이름 · 이메일 없음', k && /^광고 👍 K-건설맵 추천/.test(k.글) && /두 회사가 함께 — 고흥 지역 건설공사, 전화 한 통으로 상담/.test(k.글) && /강천건설\(주\) · \(유\)대유건설/.test(k.글) && /전남 고흥군/.test(k.글) && k.tel === 'tel:01064601650' && /📞 010-6460-1650/.test(k.글) && /사무실 061-835-6788/.test(k.글) && /팩스 061-844-1650/.test(k.글) && !/대표|@|naver/.test(k.글), k && k.글)
-  ok('유안굴착 — «광고 · 👍 K-건설맵 추천» · 추천 한 줄 · 압입추진 · 전북 전주시 덕진구 · 📞 010-3658-3104', y && /^광고 👍 K-건설맵 추천/.test(y.글) && /현장에 맞는 공법을 한 곳에서 상담/.test(y.글) && /압입추진 전문업체/.test(y.글) && /전북 전주시 덕진구/.test(y.글) && y.tel === 'tel:01036583104', y && y.글)
+  ok('강천 · 대유 — «광고 · 👍 K-건설맵 추천» · 추천 한 줄 · 이름 · 고흥군 · 📞 010-6460-1650 · «대표 정종석» · 정보 표(사무실 · 팩스 · 메일 · 주소 — 소장님 「다 넣어 줘」) · 메일 누르면 mailto', k && /^광고 👍 K-건설맵 추천/.test(k.글) && /두 회사가 함께 — 고흥 지역 건설공사, 전화 한 통으로 상담/.test(k.글) && /대표 정종석/.test(k.글) && /강천건설\(주\) · \(유\)대유건설/.test(k.글) && /전남 고흥군/.test(k.글) && k.tel === 'tel:01064601650' && /📞 010-6460-1650/.test(k.글) && /사무실 061-835-6788 · 061-842-6789/.test(k.글) && /팩스 061-844-1650/.test(k.글) && /메일 jinhung1650@naver\.com/.test(k.글) && /주소 전남 고흥군 고흥읍 여산당촌길 23, 2층/.test(k.글) && k.메일 === 'mailto:jinhung1650@naver.com', k && k.글)
+  ok('유안굴착 — «광고 · 👍 K-건설맵 추천» · «대표 안정현» · 추천 한 줄 · 압입추진 · 전북 전주시 덕진구 · 📞 010-3658-3104 · 메일 · 주소(명함 그대로)', y && /^광고 👍 K-건설맵 추천/.test(y.글) && /대표 안정현/.test(y.글) && /메일 yuan0555@nate\.com/.test(y.글) && /주소 전북 전주시 덕진구 동부대로 670 클래시아A 101동 1101호/.test(y.글) && y.메일 === 'mailto:yuan0555@nate.com' && /현장에 맞는 공법을 한 곳에서 상담/.test(y.글) && /압입추진 전문업체/.test(y.글) && y.tel === 'tel:01036583104', y && y.글)
   ok('«보증» · «확인하십시오» 같은 말 없음(셋 다)', a.every((x) => !/보증|확인하십시오|책임지지/.test(x.글)), a.map((x) => x.글.slice(0, 40)))
   /* 셈은 운영자 확인(비동기) 뒤에 나감 — 정해진 짧은 시간만 기다리면 가끔 놓침(11-05 한 번 놓침) → 나올 때까지 8초까지 기다림 */
   const 기다림 = async (f, ms = 8000) => { const t = Date.now(); while (Date.now() - t < ms) { if (f()) return true; await p.waitForTimeout(200) } return f() }
@@ -124,7 +125,7 @@ console.log('② 보험료 계산기 · 4대보험 판단기 — 결과 바로 �
     if (심의있음) {
       if (k === 0) {
         ok('보험료 계산기: 한 장 · 근재보험 설계사 · 결과 표(노무비율 글) 다음 · 신고 기한 앞', a.length === 1 && /^kb-/.test(a[0].id) && /detail-h/.test(a[0].뒤), a)
-        ok('근재보험 카드 — 소속 · 하는 일 · 사무실 · «보증» 없음 · 정순덕은 «K-건설맵 추천» · 박현희는 «업체 소개»', a[0] && /교보생명/.test(a[0].글) && /근재보험/.test(a[0].글) && /사무실 061-72/.test(a[0].글) && !/보증하지/.test(a[0].글) && (a[0].id === 'kb-jsd' ? /^광고 👍 K-건설맵 추천/.test(a[0].글) : /^광고 업체 소개/.test(a[0].글)), a[0] && a[0].글)
+        ok('근재보험 카드 — 소속 · 하는 일 · 사무실 · «보증» 없음 · 정순덕은 «K-건설맵 추천» · 박현희는 «업체 소개»', a[0] && /교보생명/.test(a[0].글) && /근재보험/.test(a[0].글) && /사무실 061-72/.test(a[0].글) && /메일 \S+@\S+/.test(a[0].글) && /주소 전남 순천시/.test(a[0].글) && /고객센터 교보생명 1588-1001/.test(a[0].글) && !/보증하지/.test(a[0].글) && (a[0].id === 'kb-jsd' ? /^광고 👍 K-건설맵 추천/.test(a[0].글) : /^광고 업체 소개/.test(a[0].글)), a[0] && a[0].글)
         ok('폰 390 넘침 0 · 오류 0', (await 넘침(p)) <= 0 && !오류.length, [await 넘침(p), 오류])
         if (OUT) { await 숨김(p); await p.evaluate(() => { const a = document.querySelector('aside.adc'); a.scrollIntoView(); window.scrollBy(0, -260) }); await p.waitForTimeout(400); await p.screenshot({ path: OUT + '/광고_보험료계산기_폰390.png' }) }
       }
