@@ -8867,6 +8867,12 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 }
 .gx .fw-bar .gx-range { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; }
 .gx .fw-bar .gx-range .inp { width: 170px; padding: 8px 10px; font-size: 14px; margin: 0; }
+/* 🩹 G554 (2026-11-05) 폰 — 쪽 고르기(10쪽 넘는 서식)가 세 칸 격자의 한 칸(약 107px)에 170px 칸이라 오른쪽이 화면 밖으로 잘렸음
+     (토공사 시공계획서 18쪽 · 공사안전보건대장 12쪽 — 이용자처럼 점검에서 찾음) → 폰에선 한 줄 다 쓰고 «－ ＋» 줄 다음 · 주소 넣기 줄 앞 */
+@media (max-width: 640px) {
+  .gx .fw-bar .gx-range { grid-column: 1 / -1; order: 8; min-width: 0; }
+  .gx .fw-bar .gx-range .inp { width: auto; flex: 1; min-width: 0; }
+}
 .gx-how { margin: 0 0 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); padding: 8px 12px; }
 .gx-how > summary { cursor: pointer; font-size: 14px; line-height: 1.55; word-break: keep-all; }
 .gx-how > summary .muted { font-size: 12.5px; }
