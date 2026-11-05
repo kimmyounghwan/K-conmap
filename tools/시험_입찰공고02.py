@@ -159,8 +159,12 @@ with contextlib.redirect_stdout(로그):
        C.bid_url(OPENG, True) == OPENG and C.bid_url(C.CORP_INFO_URL, False) == C.CORP_INFO_URL
        and not C.is_bid(OPENG) and not C.is_bid(C.CORP_INFO_URL))
     ok("물음표 뒤(질의 글)는 그대로 둠", C.bid_url(OLD_LIVE + "?a=1", True) == NEW_LIVE + "?a=1")
+    기본 = C.BID_PREFER_02
     처음(lambda u, p: 자료())
-    ok("기본(지금) = 옛 판(BID_PREFER_02 False)", C.BID_PREFER_02 is False and C.bid_url(OLD_LIVE) == OLD_LIVE and C.bid_url(NEW_LIVE) == OLD_LIVE)
+    C.BID_PREFER_02 = 기본
+    ok("기본(지금 · G540b) = 새 판 먼저(BID_PREFER_02 True)", C.BID_PREFER_02 is True and C.bid_url(OLD_LIVE) == NEW_LIVE and C.bid_url(NEW_LIVE) == NEW_LIVE)
+    C.BID_PREFER_02 = False
+    ok("False 로 두면 옛 판 먼저(되돌릴 길)", C.bid_url(OLD_LIVE) == OLD_LIVE and C.bid_url(NEW_LIVE) == OLD_LIVE)
     ok("새 판 확인 주소 = …/ad/BidPublicInfoService02/getBidPblancListInfoCnstwk02", C.BID02_PROBE_URL == NEW_LIVE, C.BID02_PROBE_URL)
 
     머리("② «판 문제» 가르기")
