@@ -125,7 +125,7 @@ console.log('② 보험료 계산기 · 4대보험 판단기 — 결과 바로 �
     if (심의있음) {
       if (k === 0) {
         ok('보험료 계산기: 한 장 · 근재보험 설계사 · 결과 표(노무비율 글) 다음 · 신고 기한 앞', a.length === 1 && /^kb-/.test(a[0].id) && /detail-h/.test(a[0].뒤), a)
-        ok('근재보험 카드 — 소속 · 하는 일 · 사무실 · «보증» 없음 · 정순덕은 «K-건설맵 추천» · 박현희는 «업체 소개»', a[0] && /교보생명/.test(a[0].글) && /근재보험/.test(a[0].글) && /사무실 061-72/.test(a[0].글) && /메일 \S+@\S+/.test(a[0].글) && /주소 전남 순천시/.test(a[0].글) && /고객센터 교보생명 1588-1001/.test(a[0].글) && !/보증하지/.test(a[0].글) && (a[0].id === 'kb-jsd' ? /^광고 👍 K-건설맵 추천/.test(a[0].글) : /^광고 업체 소개/.test(a[0].글)), a[0] && a[0].글)
+        ok('근재보험 카드 — 소속 · 하는 일 · 사무실 · «보증» 없음 · 정순덕은 «K-건설맵 추천» · 박현희는 «업체 소개»', a[0] && /교보생명/.test(a[0].글) && /법인ㆍ화재ㆍ단체ㆍ근재 상담가능/.test(a[0].글) && /사무실 061-72/.test(a[0].글) && /메일 \S+@\S+/.test(a[0].글) && /주소 전남 순천시/.test(a[0].글) && /고객센터 교보생명 1588-1001/.test(a[0].글) && !/보증하지/.test(a[0].글) && (a[0].id === 'kb-jsd' ? /^광고 👍 K-건설맵 추천/.test(a[0].글) : /^광고 업체 소개/.test(a[0].글)), a[0] && a[0].글)
         ok('폰 390 넘침 0 · 오류 0', (await 넘침(p)) <= 0 && !오류.length, [await 넘침(p), 오류])
         if (OUT) { await 숨김(p); await p.evaluate(() => { const a = document.querySelector('aside.adc'); a.scrollIntoView(); window.scrollBy(0, -260) }); await p.waitForTimeout(400); await p.screenshot({ path: OUT + '/광고_보험료계산기_폰390.png' }) }
       }
@@ -157,7 +157,7 @@ console.log('②b 노무비 계산기 · 산재 휴업급여 계산기 — 정�
     const a = await 광고(p)
     a.forEach((x) => 나온.add(x.id))
     if (k < 2) {
-      ok(`${u}: 광고 한 장 · 근재보험 · 넘침 0 · 오류 0`, a.length === 1 && /^kb-/.test(a[0].id) && /근재보험/.test(a[0].글) && (await 넘침(p)) <= 0 && !오류.length, [a.map((x) => x.id), await 넘침(p), 오류])
+      ok(`${u}: 광고 한 장 · 보험(법인ㆍ화재ㆍ단체ㆍ근재 상담가능) · 넘침 0 · 오류 0`, a.length === 1 && /^kb-/.test(a[0].id) && /법인ㆍ화재ㆍ단체ㆍ근재 상담가능/.test(a[0].글) && (await 넘침(p)) <= 0 && !오류.length, [a.map((x) => x.id), await 넘침(p), 오류])
       ok(`${u}: 자리 — ${k % 2 ? '휴업급여 결과 다음 · 안내 앞' : '쓰는 방법(접힌 칸) 앞'}`, k % 2 ? /sl-guide/.test(a[0].뒤) : /js-more/.test(a[0].뒤), a[0] && [a[0].앞, a[0].뒤])
     }
     if (a[0] && a[0].id === 'kb-phh' && !나온.has('찍음') && OUT) { 나온.add('찍음'); await 숨김(p); await p.evaluate(() => { const x = document.querySelector('aside.adc'); x.scrollIntoView(); window.scrollBy(0, -220) }); await p.waitForTimeout(400); await p.screenshot({ path: OUT + '/광고_노무_박현희_폰390.png' }) }
