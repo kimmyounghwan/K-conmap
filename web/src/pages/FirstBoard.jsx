@@ -1,5 +1,6 @@
 import { Link, useSearchParams } from 'react-router-dom'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import 광고칸 from '../광고칸.jsx'   /* 📣 업체 광고 — 셋째 카드 다음(자리 first) · 열째 카드 다음(자리 first2 · 8건 넘을 때) — 업체마다 쪽에 한 번 · lib/광고자료.js */
 import { getOverview, getLicStat } from '../lib/data.js'
 import FreshBar from '../Fresh.jsx'
 import NoticeDetail, { scoreState, NoticeLink } from '../NoticeDetail.jsx'
@@ -222,7 +223,8 @@ export default function FirstBoard() {
             const isOpen = open === id
             const winAmt = r.sAmt || r.amt
             return (
-              <div className={'notice tap' + (isOpen ? ' open' : '')} key={id} onClick={() => { if (!isOpen) 공고봄(r.no, r.name); setOpen(isOpen ? null : id) }}>
+              <Fragment key={id}>
+              <div className={'notice tap' + (isOpen ? ' open' : '')} onClick={() => { if (!isOpen) 공고봄(r.no, r.name); setOpen(isOpen ? null : id) }}>
                 <h3>{r._new ? <span className="badge new">🆕 방금</span> : null}{r.name}</h3>
                 <div className="meta">
                   <span className="inst">{r.inst}</span>
@@ -279,6 +281,9 @@ export default function FirstBoard() {
 
                 {isOpen && <NoticeDetail r={r} />}
               </div>
+              {i === Math.min(2, view.length - 1) && <광고칸 자리="first" />}
+              {view.length >= 8 && i === Math.min(9, view.length - 1) && <광고칸 자리="first2" />}
+              </Fragment>
             )
           })}
 

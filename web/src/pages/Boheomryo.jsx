@@ -6,6 +6,7 @@ import { 달줄, 일한달들, 달글 } from '../lib/신고정리.js'
 import { use노무자료 } from '../tools/노무자료.jsx'
 import 해마다띠 from '../tools/해마다띠.jsx'
 import 도구설명 from '../tools/도구설명.jsx'
+import 광고칸 from '../광고칸.jsx'   /* 📣 업체 광고 — 계산 결과 표 바로 아래 한 장(자리 보험) */
 import 금액입력 from '../금액입력.jsx'   /* 💰 G543 금액 칸 다섯 — «12억 5천만» · 붙여넣은 «1,250,000,000원» 도 읽음 · 칸 아래 읽은 줄(바로투찰 G542 와 같은 칸) */
 
 /**
@@ -180,6 +181,7 @@ export default function Boheomryo() {
         </div>
         {R.방식 === 'nomu' && <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>노무비율 {백(R.노율)} — {R.근거.노무비율}. 보수총액을 정하기 어려울 때 씁니다(징수법 제13조⑥). 실제 지급한 노무비를 알면 «실제 보수총액» 이 맞습니다.</div>}
 
+        <광고칸 자리="보험" />
         <div className="detail-h" style={{ margin: '16px 0 6px' }}>🗓 신고 · 납부 기한</div>
         <ol className="hm-todo">
           {기.map((x) => {

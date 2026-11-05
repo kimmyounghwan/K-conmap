@@ -7,6 +7,7 @@
  */
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import 광고칸 from '../광고칸.jsx'   /* 📣 업체 광고(자리 노무) */
 import { 휴업셈, 원글 } from '../lib/hyueop.js'
 import { 링크만들기, 링크읽기 } from '../lib/hyueopLink.js'
 import { 긴날, 짧은날 } from '../lib/해마다.js'
@@ -174,6 +175,7 @@ export default function Hyueop() {
         </>}
       </div>}
 
+      <광고칸 자리="노무" />   {/* 📣 업체 광고 — 휴업급여 결과 다음 한 장(자리 노무 · 근재보험 두 분 번갈아) */}
       <div className="card sl-guide">
         <h2 className="sec-title" style={{ margin: 0 }}>📘 {G.title}</h2>
         <p className="cp">{굵게(G.lead)}</p>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import 광고칸 from '../광고칸.jsx'   /* 📣 업체 광고 — 판단 결과 카드 바로 아래 한 장(자리 보험) */
 import { 판단, 신고할일, 달규칙, 달더하기, 짧은날, 달글, 한달되는날, 달, 전날, 회사규모, 사업주몫, 생일풀기, 만나이, 긴날, 취득날, 현장들셈, 다른합치기, 다른현장최대, 금액읽기 } from '../lib/ilyong4.js'
 import { 공제셈, 연금상하한, 요율, 열원 } from '../lib/gongje.js'
 import { 링크만들기, 링크읽기, 기간날들 } from '../lib/ilyong4link.js'
@@ -706,6 +707,7 @@ export default function Ilyong4() {
         })()}
       </div>
 
+      <광고칸 자리="보험" />
       <details className="card iy-in iy-know">
         <summary className="detail-h" style={{ margin: 0 }}>📌 알아 두실 것</summary>
         <ul className="flist" style={{ marginTop: 6 }}>

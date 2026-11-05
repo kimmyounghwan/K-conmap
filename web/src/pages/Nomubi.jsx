@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import 광고칸 from '../광고칸.jsx'   /* 📣 업체 광고(자리 노무) */
 import { Link, useNavigate } from 'react-router-dom'
 import { 공제칸, 요율 } from '../lib/gongje.js'
 import { 빈것, 새번호, 달셈, 칸바꿈, 줄채움, 달값, 예시, 공수차례, 달날수, 요일, 달더하기, 원, 공수글,
@@ -699,6 +700,8 @@ function 계산기({ 현장id, 현장칸, on현장명 }) {
         </div>
       )}
 
+      {/* 📣 업체 광고 — 청구서 · 신고 다음 한 장(자리 노무 · 근재보험 두 분 번갈아) */}
+      <광고칸 자리="노무" />
       <details className="card js-more">
         <summary className="sec-title">쓰는 방법 · 알아 두실 것</summary>
         <ul className="flist" style={{ marginBottom: 0 }}>
