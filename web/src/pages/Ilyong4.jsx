@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import 광고칸 from '../광고칸.jsx'   /* 📣 업체 광고 — 판단 결과 카드 바로 아래 한 장(자리 보험) */
-import { 판단, 신고할일, 달규칙, 달더하기, 짧은날, 달글, 한달되는날, 달, 전날, 회사규모, 사업주몫, 생일풀기, 만나이, 긴날, 취득날, 현장들셈, 다른합치기, 다른현장최대, 금액읽기 } from '../lib/ilyong4.js'
+import { 판단, 건강상실값, 신고할일, 달규칙, 달더하기, 짧은날, 달글, 한달되는날, 달, 전날, 회사규모, 사업주몫, 생일풀기, 만나이, 긴날, 취득날, 현장들셈, 다른합치기, 다른현장최대, 금액읽기 } from '../lib/ilyong4.js'
 import { 공제셈, 연금상하한, 요율, 열원 } from '../lib/gongje.js'
 import { 링크만들기, 링크읽기, 기간날들 } from '../lib/ilyong4link.js'
 import G from '../data/ilyong_guide.json'
@@ -213,6 +213,9 @@ export default function Ilyong4() {
     const r = 공제셈(ym, 날돈, 옵션.고용65 ? 'E' : '', {}, 달규칙(R, ym))
     return { ym, n, 돈, ...r, 합: r.it + r.lt + r.ei + r.np + r.hi + r.lc }
   }), [일한달들.join(','), 입력, R, 옵션.고용65])   // eslint-disable-line react-hooks/exhaustive-deps
+  /* 🩺 G555 건강보험 상실 신고에 적을 값(보수총액 · 근무개월수 · 보험료 나오는 달) — 셈은 lib/ilyong4.js 건강상실값 */
+  const 상실값 = useMemo(() => { const 뗀 = {}; for (const r of 공제) if (!r.빈) 뗀[r.ym] = { hi: r.hi, lc: r.lc }; return 건강상실값(R.건강, 입력.달돈, 뗀) }, [R, 입력, 공제])
+  const 상실돈있음 = Object.values(입력.달돈 || {}).some((v) => Number(v) > 0)
 
   const 꼴글 = { sun: '일요일 빼고', wk: '평일만', all: '매일' }
   const 날누름 = (ds) => {
@@ -269,6 +272,9 @@ export default function Ilyong4() {
     }
     시트.push({ name: '판단 과정', head: ['보험', '이렇게 셌습니다'], rows: [...H.과정.map((x, i) => [i ? '' : '건강보험', x]), ...P.과정.map((x, i) => [i ? '' : '국민연금', x]), ...R.고용.과정.map((x, i) => [i ? '' : '고용보험', x])], widths: [12, 100] })
     시트.push({ name: '신고할 일', head: ['보험', '무엇을', '언제까지', '근거'], rows: 신고.map((x) => [x.보험, x.무엇, x.기한, x.근거]), widths: [12, 50, 40, 34] })
+    if (상실값.length) 시트.push({ name: '건강 상실 신고', head: ['가입', '해', '보수총액', '근무개월수', '근무한 달', '보험료 나오는 달 수', '보험료 나오는 달', '정산 보수월액'],
+      rows: 상실값.flatMap((g) => g.줄.map((x, j) => [j ? '' : `${짧은날(g.취득)} 취득 ~ ${짧은날(g.상실)} 상실`, `${x.해}년`, 상실돈있음 ? 수칸(x.보수총액) : '', x.근무월수, x.근무달.map(달글).join(' · '), x.정산월수, x.정산달.map(달글).join(' · ') || '없음', 상실돈있음 ? 수칸(x.보수월액) : ''])),
+      widths: [24, 8, 14, 11, 16, 16, 18, 14] })
     값엑셀받기(['4대보험판단', st.이름, R.날들.length ? R.날들[0].slice(0, 7) : ''].filter(Boolean).join('_'), 시트, { 주소: '/tools/ilyong-boheom' })
   }
 
@@ -588,6 +594,49 @@ export default function Ilyong4() {
                 ))}
               </div>
               )}
+
+              {/* 🩺 G555 (2026-11-05) 건강보험 상실 신고에 적을 값 — 카페 후보 ⑥ · 셈 lib/ilyong4.js 건강상실값 */}
+              {상실값.length > 0 && <>
+                <div className="iy-h2">🩺 건강보험 상실 신고에 적을 값 <span className="muted">— 보수총액 · 근무개월수</span></div>
+                {상실값.map((g, i) => (
+                  <div key={i} className="iy-loss">
+                    <div className="iy-loss-h"><b>{짧은날(g.취득)} 취득 ~ {짧은날(g.상실)} 상실</b> <span className="muted">· 이 현장</span></div>
+                    <div className="tp-scroll">
+                      <table className="tbl iy-losst">
+                        <thead><tr><th>해</th><th>보수총액</th><th>근무개월수</th><th>보험료 나오는 달</th></tr></thead>
+                        <tbody>
+                          {g.줄.map((x) => (
+                            <tr key={x.해}>
+                              <th>{x.해}년</th>
+                              <td>{상실돈있음 ? <b>{원(x.보수총액)}원</b> : <span className="muted">일당을 넣으면</span>}</td>
+                              <td><b>{x.근무월수}개월</b><br /><span className="muted">{x.근무달.map(달글).join(' · ')}</span></td>
+                              <td><b>{x.정산월수}개월</b><br /><span className="muted">{x.정산달.length ? x.정산달.map(달글).join(' · ') : '없음'}</span></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {g.취득월빠짐 && <div className="iy-loss-n">💡 {달글(달(g.취득))}은 1일 취득이 아니라 <b>근무개월수 · 보수총액에는 넣고</b>, 보험료 나오는 달(정산 개월수)에서만 빠집니다.</div>}
+                    {상실돈있음 && (
+                      <details className="iy-loss-d">
+                        <summary>정산하면(참고) — 보수월액 = 보수총액 ÷ 근무개월수</summary>
+                        {g.줄.map((x) => {
+                          const 차 = x.확정hi + x.확정lc - x.뗀hi - x.뗀lc
+                          return (
+                            <div key={x.해} className="iy-loss-r">
+                              {x.해}년 보수월액 <b>{원(x.보수월액)}</b>원 × {x.정산월수}개월 → 근로자 몫 건강 {원(x.확정hi)} · 요양 {원(x.확정lc)}
+                              {' '}/ 달마다 뗀 것 건강 {원(x.뗀hi)} · 요양 {원(x.뗀lc)}
+                              {' '}→ <b>{차 > 0 ? `${원(차)}원 더 냄` : 차 < 0 ? `${원(-차)}원 돌려받음` : '차이 없음'}</b>
+                            </div>
+                          )
+                        })}
+                        <div className="muted">사용 관계가 끝나면 보험료를 다시 셈해 근로자와 정산하고 공단과도 정산합니다(국민건강보험법 시행령 제39조) — 금액은 공단 고지가 기준입니다.</div>
+                      </details>
+                    )}
+                  </div>
+                ))}
+                <div className="muted iy-loss-src">상실 신고서(국민건강보험법 시행규칙 별지 제8호서식)의 «연간 보수총액 — 해당 연도 · 전년도 · 보수총액 · 근무개월수» 칸에 해마다 나눠 적습니다 · 근거: 국민건강보험법 제69조②(보험료는 취득한 다음 달부터 · 1일 취득은 그 달부터) · 시행령 제36조①(보수총액 ÷ 종사한 개월수)</div>
+              </>}
 
               {할일.length > 0 && <>
                 <div className="iy-h2">할 일</div>
