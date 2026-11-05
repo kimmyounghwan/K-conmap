@@ -28,6 +28,8 @@ const 씨앗 = {
     [키(3)]: { t: '[후기·건의] 오늘 타설 끝났습니다', b: '현장 이야기 — 비가 그쳐서 다행입니다', nick: '침착한 소장3', uid: 'u3', at: 지금 - 3 * 3600e3 },
     [키(4)]: { t: '[후기·건의] 노무비 명세서 이렇게 맞나요?', b: '답 달린 질문', nick: '꼼꼼한 공무4', uid: 'u4', at: 지금 - 2 * 3600e3, x: 'safe' },
     [키(5)]: { t: '[후기·건의] 일용 4대보험 신고 언제까지인가요', b: '자유 방 질문 — 답 없음', nick: '든든한 기사5', uid: 'u5', at: 지금 - 3600e3, x: '-' },
+    /* G547b — 운영자(K-건설맵)가 쓴 사례 · 알림 글은 «?» 가 있어도 «답을 기다리는 질문» 에 안 뜸(소장님 「답글이 안달린건...클로드가 쓴 알림글 비슷한거야」) */
+    [키(6)]: { t: '[후기·건의] 💬 사례 · 일용직 국민연금 — 첫 달 5일만 일했는데 가입인가요?', b: '가상 사례 글', nick: 'K-건설맵', uid: 'ZglL1g3X5UZFBA2590LirDnEnil1', at: 지금 - 1800e3 },
   },
   qna_a: { [키(4)]: { a1: { b: '노무비 계산기로 맞춰 보시면 됩니다', nick: '친절한 반장6', uid: 'u6', at: 지금 - 1800e3 } } },
   qna_del: {}, qna_top: {},
@@ -56,10 +58,11 @@ for (const [이름, 크기, 폰] of [['PC 1440', { width: 1440, height: 1000 }, 
   await p.goto(주소 + '/qna', { waitUntil: 'domcontentloaded' })
   await p.waitForFunction(() => document.body.innerText.includes('오늘 타설 끝났습니다'), null, { timeout: 20000 })
   await p.waitForTimeout(800)
+  const 카드수 = await p.locator('article.mt-card').count()
   // ①
   const 방줄 = await p.evaluate(() => [...document.querySelectorAll('nav.mt-rooms .mt-room')].map((b) => ({ 글: b.innerText.replace(/\s+/g, ' ').trim(), 켬: b.classList.contains('on') })))
   봄('① 방 줄 = 전체 · 💬 자유 · 📍 지역방 — 🙋 전문가 방 없음', 방줄.some((b) => /^전체/.test(b.글)) && 방줄.some((b) => /자유/.test(b.글)) && 방줄.some((b) => /지역방/.test(b.글)) && !방줄.some((b) => /전문가/.test(b.글)), JSON.stringify(방줄))
-  봄("① 옛 기억(전문가 방 'x:bid')은 «전체» 로 — 글 다섯 모두 보임", (방줄.find((b) => /^전체/.test(b.글)) || {}).켬 === true && (await p.locator('article.mt-card').count()) === 5, `${JSON.stringify(방줄)} · 카드 ${await p.locator('article.mt-card').count()}`)
+  봄("① 옛 기억(전문가 방 'x:bid')은 «전체» 로 — 이용자 글 다섯 · 운영자 글 하나 모두 보임", (방줄.find((b) => /^전체/.test(b.글)) || {}).켬 === true && 카드수 === 6, `${JSON.stringify(방줄)} · 카드 ${카드수}`)
   봄('① 분야 줄(입찰·계약 · 적산·내역 …) 없음', (await p.locator('nav[aria-label="전문가 분야"]').count()) === 0)
   // ②
   const 온글 = await p.evaluate(() => document.querySelector('main').innerText)
@@ -68,8 +71,8 @@ for (const [이름, 크기, 폰] of [['PC 1440', { width: 1440, height: 1000 }, 
   // ③
   const 기다림 = await p.evaluate(() => { const h = [...document.querySelectorAll('.mt-panel h3')].find((x) => /답을 기다리는 질문/.test(x.innerText)); if (!h) return null; return [...h.parentElement.querySelectorAll('li')].map((li) => li.innerText.replace(/\s+/g, ' ').trim()) })
   if (!폰 || 기다림) {
-    봄('③ 답을 기다리는 질문 = 모든 방 물음 글 중 답 없는 셋(옛 전문가 글 · 자유 글 둘) · 답 있는 글 · 물음 아닌 글 없음',
-      !!기다림 && 기다림.length === 3 && 기다림.some((t) => /사정률/.test(t)) && 기다림.some((t) => /직불/.test(t)) && 기다림.some((t) => /4대보험 신고/.test(t)) && !기다림.some((t) => /타설|노무비 명세서/.test(t)), JSON.stringify(기다림))
+    봄('③ 답을 기다리는 질문 = 모든 방 «이용자» 물음 글 중 답 없는 셋(옛 전문가 글 · 자유 글 둘) · 답 있는 글 · 물음 아닌 글 · 운영자 사례 글 없음(G547b)',
+      !!기다림 && 기다림.length === 3 && 기다림.some((t) => /사정률/.test(t)) && 기다림.some((t) => /직불/.test(t)) && 기다림.some((t) => /4대보험 신고/.test(t)) && !기다림.some((t) => /타설|노무비 명세서|사례/.test(t)), JSON.stringify(기다림))
   } else 봄('③ (폰) 답 기다림 판은 PC 오른쪽에만 — 폰은 셈 안 함', true)
   /* 캡처 — 인사 띠는 가리고 방 줄이 맨 위에 오게(방 줄 · 카드 · 오른쪽 답 기다림이 한 장에) */
   const 찍기 = async (이름) => { await p.addStyleTag({ content: '.insa{display:none!important}' }); await p.evaluate(() => { const n = document.querySelector('nav.mt-rooms'); n.scrollIntoView({ block: 'start' }); window.scrollBy(0, -70) }); await p.waitForTimeout(400); await p.screenshot({ path: `${캡처}/${이름}_${폰 ? '폰390' : 'PC1440'}.png` }) }
