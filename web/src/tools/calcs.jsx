@@ -374,13 +374,23 @@ export function PriceAdjust({ ex = {} }) {
 }
 
 /* ── 토량환산계수 L·C ─────────────────────────────────────────── */
+/* 🚚 G553 (2026-11-05) 소장님 「사이트 토량환산계수 도구도 이상없는지 봐주고」 — 카페 «설계는 일반 토사 · 실제는 뻘 · 사토 운반 계수»
+     → 덤프 대수(선택) 덧붙임: 한 대에 싣는 양 q = T ÷ γt × L (표준품셈 덤프트럭 — 무게로 싣는 것이 기준)
+       대수 = 자연상태 토량 ÷ (T ÷ γt) 올림 — L 은 «흐트러진 ㎥» 를 보여 줄 때만 쓰임(대수에는 안 들어감)
+       단위중량 칸은 비워 둠 — 시험으로 정하는 것이 원칙(표준품셈 적용기준 «재료의 단위중량») · 표준품셈 표 값은 싣지 않음(CLAUDE.md)
+     설명 글은 tools.json 한 곳 · 조사: docs/토량환산계수_조사_2026-11-05.md · 시험: tools/시험_토량환산.mjs */
 export function SoilVolume({ ex = {} }) {
   const [from, setFrom] = use칸('from', ex.from ?? 'nat')
   const [vol, setVol] = use칸('vol', ex.vol ?? '')
   const [L, setL] = use칸('L', '1.25')
   const [C, setC] = use칸('C', '0.90')
+  const [T, setT] = use칸('T', ex.T ?? '')
+  const [G, setG] = use칸('G', ex.G ?? '')
   const v = num(vol), l = num(L) || 1, c = num(C) || 1
   const nat = from === 'nat' ? v : from === 'loose' ? v / l : v / c
+  const t = num(T), g = num(G)
+  const 한대 = t > 0 && g > 0 ? t / g : 0                                   /* 한 대가 싣는 자연상태 ㎥ */
+  const 대수 = nat > 0 && 한대 > 0 ? Math.ceil(nat * g / t - 1e-9) : 0
   return (
     <div className="tool">
       <div className="tl-grid">
@@ -406,7 +416,22 @@ export function SoilVolume({ ex = {} }) {
         { k: '흐트러진 상태 (운반)', v: nat > 0 ? (nat * l).toFixed(1) + ' ㎥' : '—', big: true },
         { k: '다짐상태 (성토)', v: nat > 0 ? (nat * c).toFixed(1) + ' ㎥' : '—' },
       ]} />
-      <div className="hint">L·C 는 흙 종류마다 다릅니다. <b>설계도서나 토질조사 값이 있으면 그것을 넣으세요.</b></div>
+      <div className="hint">L·C 는 흙 종류마다 다릅니다. <b>토질시험 값이 원칙</b>이고, 설계도서나 토질조사 값이 있으면 그것을 넣으세요.</div>
+      <div className="tl-sub">🚚 덤프 대수 <i>선택 · 사토 운반</i></div>
+      <div className="tl-grid">
+        <Row label="덤프 적재중량" hint="톤 · 15톤 차는 15">
+          <input inputMode="decimal" value={T} onChange={(e) => setT(e.target.value)} placeholder="15" />
+        </Row>
+        <Row label="흙 단위중량" hint="t/㎥ · 자연상태">
+          <input inputMode="decimal" value={G} onChange={(e) => setG(e.target.value)} placeholder="시험 값" />
+        </Row>
+      </div>
+      <Out items={[
+        { k: '한 대 — 자연상태로', v: 한대 > 0 ? 한대.toFixed(2) + ' ㎥' : '—' },
+        { k: '한 대 — 흐트러진 상태로', v: 한대 > 0 ? (한대 * l).toFixed(2) + ' ㎥' : '—' },
+        { k: '덤프 대수 (올림)', v: 대수 > 0 ? 대수.toLocaleString('ko-KR') + ' 대' : '—', big: true },
+      ]} />
+      <div className="hint">한 대에 싣는 양 = 적재중량 ÷ 단위중량 × L · 대수 = 자연상태 토량 ÷ (적재중량 ÷ 단위중량). <b>무거운 흙일수록 한 번에 싣는 양이 줄어 대수가 늘어납니다.</b> 흐트러진 양이 적재함보다 크면 적재함 용량까지만 실을 수 있습니다.</div>
     </div>
   )
 }
@@ -574,7 +599,7 @@ export const EXAMPLES = {
   'qualify-docs': { 글: '입찰공고일 2026-11-05 · 신청서 · 등록증 · 금융거래확인서를 챙긴 모습', ex: { gongo: '2026-11-05', chk: { 신청: true, 등록: true, 금융: true } } },
   'qualify-score': { 글: '배점표에서 읽은 항목 점수를 넣은 모습 (예시 점수 — 실제 배점은 공고서)', ex: { v: { '경영상태': '15', '시공경험': '13.5', '기술능력': '0', '신인도': '1.2', '자재·장비': '0', '기타': '68' } } },
   'price-adjust': { 글: '남은 공사 5억 원 · 등락률 4.2% · 계약 뒤 120일 · 선금 30%', ex: { amt: '500,000,000', rate: '4.2', days: '120', adv: '30' } },
-  'soil-volume': { 글: '자연상태 흙 1,000㎥ 를 흐트러진·다짐 상태로', ex: { from: 'nat', vol: '1000' } },
+  'soil-volume': { 글: '자연상태 흙 1,000㎥ — 흐트러진 · 다짐 상태와 15톤 덤프 대수(단위중량 1.8 로 가정)', ex: { from: 'nat', vol: '1000', T: '15', G: '1.8' } },
   'concrete-volume': { 글: '보 0.4×0.6m, 길이 12m 짜리 8개', ex: { w: '0.4', h: '0.6', l: '12', n: '8' } },
   'formwork-area': { 글: '기둥 0.5×0.5m, 높이 3.6m 짜리 12개', ex: { kind: 'col', a: '0.5', b: '0.5', h: '3.6', n: '12' } },
   'remicon-truck': { 글: '콘크리트 45㎥ 를 6㎥ 차로', ex: { vol: '45' } },

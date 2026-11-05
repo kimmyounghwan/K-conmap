@@ -3000,6 +3000,9 @@ a.glink:hover { text-decoration: underline; }
 .tl-o b{ font-variant-numeric:tabular-nums; font-weight:700; }
 .tl-o.big{ padding:12px; background:color-mix(in srgb, var(--accent) 10%, var(--surface)); }
 .tl-o.big b{ font-size:19px; color:var(--accent); }
+/* 🚚 G553 계산기 안 작은 제목(토량환산 — 덤프 대수) */
+.tl-sub{ margin-top:6px; padding-top:12px; border-top:1px dashed var(--line); font-weight:800; font-size:14.5px; }
+.tl-sub i{ font-style:normal; font-weight:600; font-size:12px; color:var(--muted); margin-left:4px; }
 
 /* ➕ 도면 3D — 쌓인 도면 목록 (2026-09-28 · Dxf3d.jsx) */
 .dx3-files{ margin-top:10px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--surface-2); }
