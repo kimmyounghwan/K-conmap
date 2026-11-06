@@ -575,9 +575,19 @@ finally:
 이음 = C.기초이어(지난, dict(새))
 ok("정정공고(차수 001 · 공고일 11-06)를 새로 받아도 기초금액 · 예가범위 · A값 · A값 적용 · 순공사원가 · 관급자재 그대로",
    all(이음.get(f) == 지난[f] for f in ("base", "lo", "hi", "aval", "aparts", "ayn", "pc", "gmtrl")), 이음)
-ok("목록에서 오는 칸(차수 · 공고명 · 공고일 · 마감)은 새 줄 그대로 · 물어본 시각(bask) · 면허는 안 이음(전과 같음)",
+ok("목록에서 오는 칸(차수 · 공고명 · 공고일 · 마감)은 새 줄 그대로 · 면허는 안 이음(전과 같음)",
    이음["ord"] == "001" and 이음["name"].endswith("(정정)") and 이음["dt"].startswith("2026-11-06") and 이음["close"].startswith("2026-11-13")
-   and "bask" not in 이음 and "lic" not in 이음, 이음)
+   and "lic" not in 이음, 이음)
+ok("🩹 G567 물어본 시각(bask)은 이어 둠 — 개별조회 차례가 회차마다 처음으로 안 돌아감", 이음.get("bask") == "20261106130000" and C.ASK_KEEP == ("bask",), 이음)
+# G567 — 개별조회 차례(main 과 같은 정렬 열쇠): 지난 회차에 물어본 최근 공고는 뒤로 · 오래 안 물어본(앞 날) 공고가 앞으로
+최근 = C.기초이어({"base": 0, "bask": "20261106140000"}, {"no": "R26BK00000009", "dt": "2026-11-06 13:00:00"})
+앞날 = {"no": "R26BK00000008", "dt": "2026-11-03 10:00:00", "bask": "20261105090000"}
+처음 = {"no": "R26BK00000007", "dt": "2026-11-02 10:00:00"}
+차례 = sorted([("con", 최근), ("con", 앞날), ("con", 처음)], key=lambda kr: str(kr[1].get("bask") or ""))
+ok("차례: 한 번도 안 물어본 것 → 오래전에 물어본 앞 날 공고 → 방금 물어본 최근 공고(목록을 다시 받아도 bask 가 남아 뒤로 감)",
+   [r["no"] for _, r in 차례] == ["R26BK00000007", "R26BK00000008", "R26BK00000009"], [r["no"] for _, r in 차례])
+ok("main 개별조회 정렬 열쇠가 bask 그대로(오래 안 물어본 것부터)", 'uniq.sort(key=lambda kr: str(kr[1].get("bask") or ""))' in open(os.path.join(ROOT, "collect.py"), encoding="utf-8").read())
+ok("개찰 저장소 목록 다시 받기도 bask 를 이어 둠", '"llr", "est", "ptot", "pdrw", "pc", "bask"):' in open(os.path.join(ROOT, "collect.py"), encoding="utf-8").read().replace("\r\n", "\n"))
 ok("지난 줄이 없거나(None) 기초금액 칸이 없으면 새 줄 그대로(없던 칸 안 만듦)", C.기초이어(None, dict(새)) == 새 and C.기초이어({"no": "x", "name": "옛"}, dict(새)) == 새
    and C.기초이어({"base": 300000000}, dict(새)) == dict(새, base=300000000))
 ok("A값 미적용(ayn N · aval 없음)도 그대로 이음", C.기초이어({"base": 1, "ayn": "N"}, dict(새)).get("ayn") == "N" and "aval" not in C.기초이어({"base": 1, "ayn": "N"}, dict(새)))

@@ -800,12 +800,17 @@ def to_f(v):
 
 # 🩹 G566 기초금액 응답(bsis_row · extra_amounts)에서만 오는 칸 — 공고 목록을 다시 받아 줄을 새로 만들 때 이어 둠(base · lo · hi 와 함께)
 BSIS_KEEP = ("aval", "aparts", "ayn", "gmtrl", "pc")
+# 🩹 G567 기초금액 «물어본 시각»(bask · 개별조회 차례) — 목록을 다시 받아도 이어 둬야 «오래 안 물어본 것부터» 차례가 돎.
+#    안 이으면 최근 2~3일 공고는 회차마다 bask 가 지워져 늘 맨 앞(개별조회 250건을 다 씀) → 그 앞 날 공고(마감 임박)는 차례가 안 옴
+#    (11-06 G566 회차: 빈 건 765 · 최근 3일 공고 중 빈 것만 300건 넘음).
+ASK_KEEP = ("bask",)
 
 
 def 기초이어(prev, r):
     """🩹 G566 공고 목록을 다시 받아 새로 만든 줄 r 에 지난 줄 prev 의 기초금액 칸(base · lo · hi + BSIS_KEEP)을 이어 둡니다.
+       🩹 G567 물어본 시각(ASK_KEEP bask)도 — 개별조회 차례가 회차마다 처음으로 돌아가지 않게.
        목록에서 오는 칸(공고명 · 차수 · 날짜 · 마감 …)은 새 줄 그대로 · 지난 줄에 없던 칸은 안 만듦. r 을 돌려줌."""
-    for f in ("base", "lo", "hi") + BSIS_KEEP:
+    for f in ("base", "lo", "hi") + BSIS_KEEP + ASK_KEEP:
         if (prev or {}).get(f) is not None:
             r[f] = prev[f]
     return r
@@ -3737,9 +3742,10 @@ def main():
                 if r:
                     prev = first[kind].get(r["no"]) or {}
                     # 이미 받아둔 기초금액을 덮어쓰지 않는다
+                    # 🩹 G567 bask(기초금액 물어본 시각)도 이어 둠 — 개별조회 «오래 안 물어본 것부터» 차례가 돌게(공고 저장소 기초이어와 같음)
                     for f in ("base", "lo", "hi", "lic",
                               "aval", "aparts", "ayn", "gmtrl", "np",
-                              "llr", "est", "ptot", "pdrw", "pc"):
+                              "llr", "est", "ptot", "pdrw", "pc", "bask"):
                         if prev.get(f) is not None:
                             r[f] = prev[f]
                     # ⚠️ 2026-09-03 — 순위 조회로 채운 것을 개찰목록 수집이 덮어쓰면 안 됩니다.
