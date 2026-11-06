@@ -1,12 +1,13 @@
 /* 🧮 지분 짜기 — 공동도급 마당(G341 · 2026-10-20)
  *   구성원(우리 회사 + 4곳까지) · 지역 · 지분 · 시평액 → 검사(구성원 수 · 최소 지분 · 지역의무 지분 · 합 100%) ·
- *   각자 몫(투찰 금액 × 지분) · 시평액 합산(공동이행 = 구성원 모두 합산).
+ *   각자 몫(투찰 금액 × 지분) · 시평액(공동이행 — 국가 공사 = 구성원 모두 합산 · 🩹 G563 지자체 공사 = 시평액 × 지분 합).
  *   셈은 lib/공동판.js 한 곳 · 기준은 계약예규 공동계약운용요령 제9조(머리말) — «공고서 기준이 우선».
  *   적은 것은 이 탭에만(sessionStorage · 공고마다) — 다른 화면에 갔다 와도 남고, 탭을 닫으면 지워집니다.
  * ■ 숨은 누적: |공동|지분짜기(처음 고칠 때 한 번)
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { 기본규칙, 지분검사, 몫나누기, 시평합, 억만 } from './lib/공동판.js'
+import { Link } from 'react-router-dom'
+import { 기본규칙, 지분검사, 몫나누기, 시평합, 시평지분합, 억만 } from './lib/공동판.js'
 import { REGIONS, won } from './lib/fmt.js'
 import { 세기 } from './lib/받은수.jsx'
 
@@ -35,6 +36,8 @@ export default function 공동판짜기({ r, 권장금액 = 0, 명함 = {} }) {
   const 금액 = 억(s.금액) || Number(권장금액) || 0
   const 몫 = 몫나누기(금액, s.줄)
   const 시평 = 시평합(s.줄.map((m) => ({ ...m, sipy: 억(m.sipy) })))     /* 칸은 «억» · 셈은 원 */
+  const 시평지 = 시평지분합(s.줄.map((m) => ({ ...m, sipy: 억(m.sipy) })))   /* 🩹 G563 지자체 공사 — 시평액 × 지분 합 */
+  const 억글 = (n) => (n > 0 ? `${(n / 1e8).toFixed(1).replace(/\.0$/, '')}억` : '—')
   const 의무 = 규칙.의무시도 || []
 
   return (
@@ -82,8 +85,10 @@ export default function 공동판짜기({ r, 권장금액 = 0, 명함 = {} }) {
           <b>{금액 > 0 ? won(금액) : '—'}</b>
           <input className="inp" inputMode="decimal" value={s.금액} placeholder={권장금액 > 0 ? '권장 금액 그대로 · 억 단위로 바꿔 넣기' : '억 단위로 넣기 (예: 6.1)'}
             onChange={(e) => 고침((o) => ({ ...o, 금액: e.target.value.replace(/[^0-9.]/g, '').slice(0, 8) }))} /></div>
-        <div><span>시평액 합산(공동이행)</span><b>{시평.합 > 0 ? `${(시평.합 / 1e8).toFixed(1).replace(/\.0$/, '')}억` : '—'}</b>
-          <em className="muted sm">{시평.빈 ? `시평액을 안 적은 구성원 ${시평.빈}곳` : '구성원 모두의 것을 합산합니다'}</em></div>
+        <div><span>시평액 — 국가 공사(공동이행)</span><b>{억글(시평.합)}</b>
+          <em className="muted sm">{시평.빈 ? `시평액을 안 적은 구성원 ${시평.빈}곳` : '구성원 모두의 것을 합산합니다(공동계약운용요령 제9조②)'}</em></div>
+        <div><span>시평액 — 지자체 공사(공동이행)</span><b>{억글(시평지.합)}</b>
+          <em className="muted sm">구성원 시평액 × 지분을 더합니다(지방 집행기준 제6장 제2절) · 공고 기준과 견주기 → <Link to="/tools/bid-eligible">입찰 참가 가능 금액</Link></em></div>
       </div>
       <ul className="gd-notes">{검.알림.map((x, i) => <li key={i}>{x}</li>)}
         <li>몫은 «금액 × 지분» 어림입니다. 실제 대가는 협정서 지분과 계약서로 정해집니다.</li>

@@ -263,7 +263,8 @@ console.log('④ 화면 · 자리')
   const fb = JSON.parse(읽('web/firebase.json'))
   const h = Array.isArray(fb.hosting) ? fb.hosting[0] : fb.hosting
   ok('호스팅 /first/** → app.html(구운 장이 없을 때)', h.rewrites.some((r) => r.source === '/first/**' && r.destination === '/app.html'))
-  ok('구운 장 · 사이트맵 · 알림(IndexNow)', /write\("first\/hado-gyeonjeok\.html", hado_gyeonjeok_page/.test(읽('prerender.py')) && 읽('prerender.py').includes('"/first/hado-gyeonjeok"]') && 읽('sitemap.py').includes('("/first/hado-gyeonjeok", "0.8", "monthly")'))
+  /* 🩹 G563 알림(IndexNow) 목록 끝에 "/ad" 가 붙은 뒤(G549)로 «"/first/hado-gyeonjeok"]» 글자 찾기가 틀린 채였음 → 목록 안 어디든(뒤에 , 또는 ]) */
+  ok('구운 장 · 사이트맵 · 알림(IndexNow)', /write\("first\/hado-gyeonjeok\.html", hado_gyeonjeok_page/.test(읽('prerender.py')) && /"\/first\/hado-gyeonjeok"[,\]]/.test(읽('prerender.py')) && 읽('sitemap.py').includes('("/first/hado-gyeonjeok", "0.8", "monthly")'))
   const 화면 = 읽('web/src/pages/HadoGyeonjeok.jsx')
   ok('화면: 예시 파일 · 숨은 셈(열기 · 읽기 · 받기 · 묶음 · 1순위 · 예시) · 브라우저 안에서만', 화면.includes("'/tools/files/ex-hado-gyeonjeok.xlsx'") && ['|견적틀|열기', '|견적틀|읽기', '|견적틀|받기', '|견적틀|묶음', '|견적틀|1순위', '|견적틀|예시'].every((k) => 화면.includes(k)) && 화면.includes('브라우저 안에서만'))
   ok('사이트 글에 «무료» · «클로드» 없음', !/무료|클로드/.test(화면 + 읽('web/src/lib/견적틀.js') + 읽('web/src/lib/견적틀주소.js')))

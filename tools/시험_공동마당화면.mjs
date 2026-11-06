@@ -94,6 +94,8 @@ for (const 기기 of 기기들) {
   await 짜기.locator('[aria-label="1번째 시평액"]').fill('120'); await 짜기.locator('[aria-label="2번째 시평액"]').fill('45.2')
   봐(JSON.stringify(await 몫들()) === JSON.stringify(['5억', '3억', '2억']), `${기기} B 몫 10억 × 50/30/20 = 5억 · 3억 · 2억`, JSON.stringify(await 몫들()))
   봐(/165\.2억/.test(await 시평글()) && /안 적은 구성원 1곳/.test(await 시평글()), `${기기} B 시평 120 + 45.2 = 165.2억 · 안 적은 1곳`, await 시평글())
+  /* 🩹 G563 지자체 공사 줄 — 120 × 50% + 45.2 × 30% = 73.56 → 73.6억 · 입찰 참가 가능 금액 링크 */
+  { const 지글 = (await 짜기.locator('.gd-kv > div').nth(2).innerText()).replace(/\n/g, ' '); 봐(/지자체 공사/.test(지글) && /73\.6억/.test(지글) && /입찰 참가 가능 금액/.test(지글), `${기기} B 지자체 공사 시평 = 120 × 50% + 45.2 × 30% = 73.6억`, 지글) }
   봐(/협정 기준에 맞습니다/.test(await 짜기.innerText()) && /전남 업체 50%/.test(await 짜기.innerText()), `${기기} B 전남 업체 합 50% ≥ 30% → 맞음`, (await 짜기.innerText()).slice(0, 300))
   // C — 네 곳 40/25/20/15 · 5천만 · 이름은 첫 줄만
   await A.goto(주소 + '/gongdong?no=R26BK90000004', { waitUntil: 'domcontentloaded' })
