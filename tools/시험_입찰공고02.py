@@ -131,6 +131,7 @@ def 처음(f):
     C.BID_NOTE = C.BID02_STATE = ""
     C.BID_GOT.update({"02": 0, "옛": 0})
     C.NET_T0 = time.time()
+    C.NET_SLOW_N = 0
     F.BID.update({"alt": False, "tried": False, "quota": False})
     부른.clear()
     규칙["f"] = f
@@ -500,6 +501,91 @@ ok("main 에서 소급 보충이 없을 때만 · 차단기 · 몫 끝이면 안
    and "빈날 = 빈A값날(live)" in open(os.path.join(ROOT, "collect.py"), encoding="utf-8").read())
 ok("수집상태.md 에 «바로투찰 재료» 줄 · health.json 에 재료(write_health)", "| 바로투찰 재료 | %s |" in open(os.path.join(ROOT, "collect.py"), encoding="utf-8").read()
    and 'v["재료"] = 재' in open(os.path.join(ROOT, "collect.py"), encoding="utf-8").read())
+
+머리("⑮ 🩹 G566 하루치 호출이 늦으면 한 번 더 · 공고 목록을 다시 받아도 A값 이어 두기")
+def 늦음(n, 줄=3):
+    """처음 n번은 ReadTimeout(응답이 늦음) · 그다음은 기초금액 줄"""
+    셈 = {"n": 0}
+    def f(u, p):
+        셈["n"] += 1
+        if 셈["n"] <= n:
+            raise requests.exceptions.ReadTimeout("read timed out")
+        return 기초자료(줄)
+    return f
+def 끊김(n):
+    셈 = {"n": 0}
+    def f(u, p):
+        셈["n"] += 1
+        if 셈["n"] <= n:
+            raise requests.exceptions.ConnectionError("connection refused")
+        return 기초자료(2)
+    return f
+보낸시간 = []
+_get = requests.get
+def 시간get(url, params=None, **kw):
+    보낸시간.append(kw.get("timeout"))
+    return _get(url, params=params, **kw)
+requests.get = 시간get
+try:
+    오늘 = C.datetime(2026, 11, 6, 12, 0, tzinfo=C.KST)
+    처음(늦음(1)); 보낸시간.clear()
+    got = C.fetch(OLD_BSIS, KEY, 오늘, label="기초금액 con 11-06")
+    ok("하루치 기초금액이 한 번 늦으면(ReadTimeout) → 45초 기다리며 다시 받아 3줄 · 부른 2번(15초 → 45초) · 실패로 안 셈",
+       len(got) == 3 and len(부른) == 2 and 보낸시간 == [C.NET_TIMEOUT, C.NET_TIMEOUT_SLOW] == [15, 45] and C.NET_FAILS == 0, (len(got), len(부른), 보낸시간, C.NET_FAILS))
+    ok("두 번 다 같은 하루치 주소 · 같은 날짜(inqryBgnDt 202611060000)", 부른[0] == 부른[1] and 부른[0][1].get("inqryBgnDt") == "202611060000", 부른[:2])
+    처음(늦음(9)); 보낸시간.clear()
+    got = C.fetch(OLD_BSIS, KEY, 오늘, label="기초금액 con 11-06")
+    ok("두 번 다 늦으면 빈 목록 · 부른 2번뿐(세 번째 없음) · 실패 1번", got == [] and len(부른) == 2 and 보낸시간 == [15, 45] and C.NET_FAILS == 1,
+       (got, len(부른), 보낸시간, C.NET_FAILS))
+    처음(늦음(1)); 보낸시간.clear()
+    got = C.fetch(OLD_BSIS, KEY, None, extra={"inqryDiv": "2", "bidNtceNo": "R26BK00000001"}, label="기초금액 R26BK00000001")
+    ok("공고번호 개별조회(하루치 아님 · 회차당 250건)는 예전 그대로 — 한 번만 15초", got == [] and len(부른) == 1 and 보낸시간 == [15], (len(부른), 보낸시간))
+    처음(늦음(1)); 보낸시간.clear()
+    got = C.fetch(OPENG, KEY, 오늘, label="개찰 con 11-06")
+    ok("입찰공고 아닌 서비스(낙찰정보 하루치)는 예전 그대로 — 한 번만", got == [] and len(부른) == 1 and 보낸시간 == [15], (len(부른), 보낸시간))
+    처음(늦음(1)); 보낸시간.clear()
+    C.NET_T0 = time.time() - (C.NET_BUDGET_S - 90)
+    got = C.fetch(OLD_BSIS, KEY, 오늘, label="기초금액 con 11-06")
+    ok("시간 예산이 얼마 안 남았으면(90초) 다시 안 받음 — 한 번만", got == [] and len(부른) == 1 and 보낸시간 == [15], (len(부른), 보낸시간))
+    처음(늦음(1)); 보낸시간.clear()
+    got = C.fetch(OLD_LIVE, KEY, 오늘, label="공고 con 11-06")
+    ok("공고 목록 하루치도 같은 규칙(늦으면 한 번 더 · 45초)", len(got) == 3 and len(부른) == 2 and 보낸시간 == [15, 45], (len(got), len(부른), 보낸시간))
+    처음(늦음(1)); 보낸시간.clear(); C.BID_PREFER_02 = True
+    got = C.fetch(OLD_BSIS, KEY, 오늘, label="기초금액 con 11-06")
+    ok("새 판(02)을 쓸 때도 같은 규칙 · 두 번 다 새 판 주소", len(got) == 3 and len(부른) == 2 and all(판(u) == "02" for u, _ in 부른[:2]), [판(u) for u, _ in 부른])
+    처음(늦음(1)); 보낸시간.clear(); C.NET_SLOW_N = C.NET_SLOW_MAX
+    got = C.fetch(OLD_BSIS, KEY, 오늘, label="기초금액 con 11-06")
+    ok("한 회차에 «늦어서 한 번 더» 를 %d번 다 썼으면 더 안 함(조달청이 통째로 느린 날 시간 예산 지킴)" % C.NET_SLOW_MAX,
+       got == [] and len(부른) == 1 and 보낸시간 == [15] and C.NET_SLOW_MAX == 6, (len(부른), 보낸시간))
+    처음(늦음(1)); 보낸시간.clear()
+    C.fetch(OLD_BSIS, KEY, 오늘, label="기초금액 con 11-06")
+    ok("«늦어서 한 번 더» 를 하면 회차 셈이 1 늚", C.NET_SLOW_N == 1, C.NET_SLOW_N)
+    처음(끊김(1)); 보낸시간.clear()
+    got = C.fetch(OLD_BSIS, KEY, 오늘, label="기초금액 con 11-06")
+    ok("연결 안 됨(ConnectionError)은 예전 그대로 쉬었다 다시 · 15초 그대로", len(got) == 2 and len(부른) == 2 and 보낸시간 == [15, 15], (len(got), len(부른), 보낸시간))
+    처음(끊김(9)); 보낸시간.clear()
+    got = C.fetch(OLD_BSIS, KEY, 오늘, label="기초금액 con 11-06")
+    ok("연결이 계속 안 되면 예전 그대로 3번까지(RETRY_CONNECT 2) · 늦음 다시 받기는 안 섞임", got == [] and len(부른) == 3 and 보낸시간 == [15, 15, 15], (len(부른), 보낸시간))
+finally:
+    requests.get = _get
+지난 = {"no": "R26BK00000001", "ord": "000", "name": "가상 공사 1", "dt": "2026-11-03 10:00:00", "close": "2026-11-12 10:00:00",
+        "base": 300000000, "lo": -3.0, "hi": 3.0, "aval": 2000000, "aparts": [["국민연금보험료", 800000]], "ayn": "Y", "pc": 250000000,
+        "gmtrl": 5000000, "bask": "20261106130000", "lic": ["토목공사업"]}
+새 = {"no": "R26BK00000001", "ord": "001", "name": "가상 공사 1(정정)", "dt": "2026-11-06 10:00:00", "close": "2026-11-13 10:00:00"}
+이음 = C.기초이어(지난, dict(새))
+ok("정정공고(차수 001 · 공고일 11-06)를 새로 받아도 기초금액 · 예가범위 · A값 · A값 적용 · 순공사원가 · 관급자재 그대로",
+   all(이음.get(f) == 지난[f] for f in ("base", "lo", "hi", "aval", "aparts", "ayn", "pc", "gmtrl")), 이음)
+ok("목록에서 오는 칸(차수 · 공고명 · 공고일 · 마감)은 새 줄 그대로 · 물어본 시각(bask) · 면허는 안 이음(전과 같음)",
+   이음["ord"] == "001" and 이음["name"].endswith("(정정)") and 이음["dt"].startswith("2026-11-06") and 이음["close"].startswith("2026-11-13")
+   and "bask" not in 이음 and "lic" not in 이음, 이음)
+ok("지난 줄이 없거나(None) 기초금액 칸이 없으면 새 줄 그대로(없던 칸 안 만듦)", C.기초이어(None, dict(새)) == 새 and C.기초이어({"no": "x", "name": "옛"}, dict(새)) == 새
+   and C.기초이어({"base": 300000000}, dict(새)) == dict(새, base=300000000))
+ok("A값 미적용(ayn N · aval 없음)도 그대로 이음", C.기초이어({"base": 1, "ayn": "N"}, dict(새)).get("ayn") == "N" and "aval" not in C.기초이어({"base": 1, "ayn": "N"}, dict(새)))
+src566 = open(os.path.join(ROOT, "collect.py"), encoding="utf-8").read().replace("\r\n", "\n")
+ok("main 공고 목록 받는 곳이 기초이어(prev, r) 를 씀(예전 base · lo · hi 만 잇던 줄은 없음)",
+   "                    기초이어(prev, r)\n                    live[kind][r[\"no\"]] = r\n" in src566
+   and 'for f in ("base", "lo", "hi"):\n                        if prev.get(f) is not None:' not in src566)
+ok("BSIS_KEEP 칸이 다 개찰 저장소 이어 두기 칸에도 있음(같은 뜻)", all(('"%s"' % f) in src566.split("# 이미 받아둔 기초금액을 덮어쓰지 않는다", 1)[1][:400] for f in C.BSIS_KEEP))
 
 머리("⑬ 키가 어디에도 안 남음")
 글 = 로그.getvalue()

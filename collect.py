@@ -193,6 +193,11 @@ NO_NET = False           # --exportonly 처럼 «바깥을 아예 안 부른다�
 QUOTA_OUT = False        # 오늘 몫을 다 썼는지
 NET_LIMIT = 8            # 이만큼 연달아 실패하면 포기
 NET_TIMEOUT = 15         # 한 건당 기다리는 시간(초)
+NET_TIMEOUT_SLOW = 45    # 🩹 G566(11-06) 입찰공고 «하루치» 호출(공고 목록 · 기초금액 · 면허제한 · 참가지역)이 ReadTimeout 이면 이만큼 기다리며 한 번만 더 받음
+#    11-06 13:18 회차 «기초금액 con 11-06 통신 실패 (ReadTimeout)» 한 번에 그날 공고 기초금액이 통째로 비었다(바로투찰 114건 중 2건).
+#    하루치 호출은 회차당 몇 번뿐이라 더 기다려도 시간이 얼마 안 든다(공고번호로 묻는 개별조회는 그대로 15초 · 다시 안 함).
+NET_SLOW_MAX = 6         # 🩹 G566 한 회차에 «늦어서 한 번 더» 를 몇 번까지(최대 6 × 45초 = 4분 30초 · 조달청이 통째로 느린 날 시간 예산을 다 먹지 않게)
+NET_SLOW_N = 0           # 이번 회차에 «늦어서 한 번 더» 한 횟수
 # ⚠️ 2026-09-06 (일요일) — «연달아 8번» 만으로는 안 잡히는 날이 있었다.
 #    조달청이 «느리게» 아픈 날: 열에 여덟은 ReadTimeout, 둘은 성공. 성공 한 번이 NET_FAILS 를 0 으로
 #    되돌리니 차단기가 영영 안 내려갔고, 15초짜리 타임아웃 109번 = 27분을 기다리다
@@ -552,7 +557,7 @@ def fetch(url, key, day=None, extra=None, label="", why=None, _flip=False):
     """조달청 공통 호출.
     예전에 기초금액이 '계속 실패'했던 건 대부분 조용히 삼켜서 원인이 안 보였기 때문이다.
     그래서 여기서는 HTTP 코드 / resultCode / 본문 앞머리를 반드시 찍는다."""
-    global NET_FAILS, NET_DOWN, NET_FAILS_ALL, NET_RECOVERED, NET_FAILS_CONN, NET_HTML, BASE_FLIP, SCHEME_NOTE, FLIP_TRIED, HTML_STREAK, HTML_HINT
+    global NET_FAILS, NET_DOWN, NET_FAILS_ALL, NET_RECOVERED, NET_FAILS_CONN, NET_HTML, BASE_FLIP, SCHEME_NOTE, FLIP_TRIED, HTML_STREAK, HTML_HINT, NET_SLOW_N
     if BASE_FLIP and url.startswith(BASE_FLIP[0]):
         url = BASE_FLIP[1] + url[len(BASE_FLIP[0]):]
     url = bid_url(url)          # 🔁 G540 입찰공고는 이번 회차에 쓸 판으로(다른 서비스 주소는 그대로)
@@ -581,13 +586,24 @@ def fetch(url, key, day=None, extra=None, label="", why=None, _flip=False):
         params.update(extra)
     tag = label or url.rsplit("/", 1)[-1]
     r, err = None, None
+    tmo, slow = NET_TIMEOUT, False
     for attempt in range(RETRY_CONNECT + 1):
         try:
-            r = requests.get(url, params=params, timeout=NET_TIMEOUT, verify=False,
+            r = requests.get(url, params=params, timeout=tmo, verify=False,
                              headers={"User-Agent": "Mozilla/5.0"})
             break
         except Exception as e:
             err = e
+            # 🩹 G566 입찰공고 «하루치» 호출(day 있음)이 느리면(ReadTimeout) 더 오래(NET_TIMEOUT_SLOW) 기다리며 한 번만 더 받습니다.
+            #    시간 예산이 넉넉할 때만 · 공고번호 개별조회(day 없음)와 다른 서비스는 예전 그대로.
+            if (isinstance(e, requests.exceptions.ReadTimeout) and day is not None and is_bid(url)
+                    and not slow and attempt < RETRY_CONNECT and NET_SLOW_N < NET_SLOW_MAX
+                    and time.time() - NET_T0 < NET_BUDGET_S - NET_TIMEOUT_SLOW - 60):
+                slow, tmo = True, NET_TIMEOUT_SLOW
+                NET_SLOW_N += 1
+                print(f"    · {tag} 응답이 늦습니다(ReadTimeout) — {NET_TIMEOUT_SLOW}초까지 기다리며 한 번 더 받습니다"
+                      f" (이번 회차 {NET_SLOW_N}/{NET_SLOW_MAX})")
+                continue
             # ConnectTimeout 은 ConnectionError 의 한 갈래입니다 — 연결이 아예 안 된 경우만 다시 봅니다.
             if not isinstance(e, requests.exceptions.ConnectionError):
                 break
@@ -780,6 +796,19 @@ def to_f(v):
         return round(float(str(v).replace("%", "").strip()), 3)
     except Exception:
         return None
+
+
+# 🩹 G566 기초금액 응답(bsis_row · extra_amounts)에서만 오는 칸 — 공고 목록을 다시 받아 줄을 새로 만들 때 이어 둠(base · lo · hi 와 함께)
+BSIS_KEEP = ("aval", "aparts", "ayn", "gmtrl", "pc")
+
+
+def 기초이어(prev, r):
+    """🩹 G566 공고 목록을 다시 받아 새로 만든 줄 r 에 지난 줄 prev 의 기초금액 칸(base · lo · hi + BSIS_KEEP)을 이어 둡니다.
+       목록에서 오는 칸(공고명 · 차수 · 날짜 · 마감 …)은 새 줄 그대로 · 지난 줄에 없던 칸은 안 만듦. r 을 돌려줌."""
+    for f in ("base", "lo", "hi") + BSIS_KEEP:
+        if (prev or {}).get(f) is not None:
+            r[f] = prev[f]
+    return r
 
 
 def bsis_row(it):
@@ -3738,9 +3767,11 @@ def main():
                 r = row_live(item)
                 if r:
                     prev = live[kind].get(r["no"]) or {}
-                    for f in ("base", "lo", "hi"):
-                        if prev.get(f) is not None:
-                            r[f] = prev[f]
+                    # 🩹 G566(11-06) 기초금액 응답에서 온 칸은 «전부» 이어 둡니다(BSIS_KEEP · 개찰 저장소 위와 같은 뜻).
+                    #    전에는 base · lo · hi 만 이어서, 정정공고(차수 001 …)는 공고일이 정정한 날로 바뀌어 그날 기초금액
+                    #    하루치에 안 실려 오면 A값이 빠졌습니다(11-06 정정 13건 중 11건 · 11-05 29건 중 20건 «기초금액은
+                    #    있는데 A값 없음» → 바로투찰 안 뜸). 원공고도 회차마다 지웠다가 그날 하루치로 다시 채우던 것.
+                    기초이어(prev, r)
                     live[kind][r["no"]] = r
                     added["live"] += 1
             time.sleep(args.sleep)
