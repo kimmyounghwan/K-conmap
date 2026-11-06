@@ -23,6 +23,9 @@
     ④ 지역   최근 90일 지역 못 정함 비율이 좋은판보다 5%p 넘게 늘면 업체 빨강(좋은판이 없으면 35% 넘을 때)
              (전국 기관 — 농어촌공사 지사 · 국토관리청 등 — 은 원래 못 정함 · 실측 20%)
     ⑤ 수     업체 · 기관 수가 좋은판보다 10% 넘게 줆 → 그 칸 빨강
+    ⑥ 🩹 G565 바로투찰 재료 — collect.py 가 data/store/health.json «재료.경고» 를 남기면(최근 3일 기초금액 나온 마감 전 공고 중
+             A값 실린 것이 절반 밑 · 순공사원가 0건) «공고» 빨강 · 메일만(칸을 바꿔 끼우지 않음 — 공고 · 바로투찰은 안 건드림)
+             (2026-11-05 새 판(02) 기초금액에 A값 칸이 안 실려 와 «💰 바로투찰» 이 사라졌는데 회차는 «정상» 이었음 — G564)
   시험: python tools/시험_자료검진.py
 """
 import io
@@ -160,13 +163,18 @@ def main(root=ROOT, out=None):
         if not any(r["red"].values()):              # 둘 다 초록일 때만 «달 · 지역» 기준을 새로 잡음
             새좋은["달"], 새좋은["지역"] = 재료.get("달"), 재료.get("지역")
         _쓰기(os.path.join(store, "검진_좋은판.json"), 새좋은)
+    # ⑥ 🩹 G565 바로투찰 재료(A값 · 순공사원가) — 빨간불 · 메일만
+    재료경고 = ((_읽기(os.path.join(store, "health.json")) or {}).get("재료") or {}).get("경고")
+    if 재료경고:
+        결과["red"]["공고"] = [str(재료경고)]
     _쓰기(os.path.join(store, "검진.json"), 결과)
     try:
         _쓰기(os.path.join(root, "web", "public", "data", "검진.json"), 결과)
     except Exception:
         pass
-    why = " / ".join(f"{k}: {x}" for k in 칸들 for x in 결과["red"].get(k, [])) or 결과.get("why", "")
-    red = ",".join(k for k in 칸들 if 결과["red"].get(k))
+    키들 = 칸들 + (("공고",) if 결과["red"].get("공고") else ())
+    why = " / ".join(f"{k}: {x}" for k in 키들 for x in 결과["red"].get(k, [])) or 결과.get("why", "")
+    red = ",".join(k for k in 키들 if 결과["red"].get(k))
     print("🛡 자료 검진 — " + ("검사 못 돎: " + 결과["why"] if 결과["broken"] else
                              ("빨간불 " + red + " · " + why if red else "이상 없음")) +
           (" · " + ", ".join(f"{k} {v}" for k, v in 결과["한일"].items()) if 결과["한일"] else ""))

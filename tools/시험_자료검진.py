@@ -99,6 +99,21 @@ with tempfile.TemporaryDirectory() as d:
     open(os.path.join(data, "corp", "0.json"), "w").write('{"corp":"새것2"}')
     g = K.main(root=d, out=out)
     봄("재료 없음 → 검사 못 돎 · 아무것도 안 바꿈", g["broken"] == 1 and open(os.path.join(data, "corp", "0.json")).read() == '{"corp":"새것2"}')
+    # 🩹 G565 바로투찰 재료 — collect.py 가 health.json 에 «재료.경고» 를 남기면 «공고» 빨강 · 메일(칸은 안 바꿈)
+    json.dump(dict(기본, at=now), open(os.path.join(store, "검진_재료.json"), "w"))
+    경고 = "최근 3일 기초금액 나온 마감 전 공고 1,300건 중 A값 실린 공고 0건(0%) — 조달청 기초금액 응답에 A값 칸이 오는지 확인"
+    json.dump({"at": now, "ok": True, "재료": {"n": 1300, "A값": 0, "순공사원가": 0, "날": 3, "경고": 경고}},
+              open(os.path.join(store, "health.json"), "w", encoding="utf-8"), ensure_ascii=False)
+    open(out, "w").close()
+    g = K.main(root=d, out=out)
+    o2 = open(out, encoding="utf-8").read()
+    봄("재료.경고 → red 에 «공고» · why 에 경고 글 · 업체 · 기관 칸은 그대로(초록이면 좋은판 저장)", g["red"].get("공고") == [경고] and "red=공고" in o2
+       and ("why=공고: " + 경고[:20]) in o2 and not g["red"].get("corp") and not g["red"].get("agency"), o2[:300])
+    json.dump({"at": now, "ok": True, "재료": {"n": 1300, "A값": 1290, "순공사원가": 700, "날": 3}},
+              open(os.path.join(store, "health.json"), "w", encoding="utf-8"), ensure_ascii=False)
+    open(out, "w").close()
+    g = K.main(root=d, out=out)
+    봄("재료 정상(경고 없음) → «공고» 빨강 없음", "공고" not in g["red"] and "red=\n" in open(out, encoding="utf-8").read())
 
 print(f"\n{셈[0]}개 중 틀림 {len(틀림)}")
 sys.exit(1 if 틀림 else 0)

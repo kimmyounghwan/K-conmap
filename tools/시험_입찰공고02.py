@@ -84,6 +84,18 @@ def 자료(rows=1, total=None):
                                                    "totalCount": total if total is not None else rows}}}, ensure_ascii=False))
 
 
+def 기초자료(rows=1, total=None, a값=True):
+    """🩹 G565 기초금액 응답 꼴 — a값=True 면 옛 판처럼 A값 칸(sftyMngcst · bidPrceCalclAYn …)이 실려 옴"""
+    def 줄(i):
+        d = {"bidNtceNo": "R26BK0000%04d" % i, "bidNtceOrd": "000", "bssamt": "300000000"}
+        if a값:
+            d.update({"sftyMngcst": "1200000", "npnInsrprm": "800000", "bidPrceCalclAYn": "Y", "bssAmtPurcnstcst": "250000000"})
+        return d
+    return R(200, json.dumps({"response": {"header": {"resultCode": "00", "resultMsg": "정상"},
+                                          "body": {"items": [줄(i) for i in range(rows)],
+                                                   "totalCount": total if total is not None else rows}}}, ensure_ascii=False))
+
+
 def 코드(c, m):
     return R(200, json.dumps({"response": {"header": {"resultCode": c, "resultMsg": m}}}))
 
@@ -332,7 +344,7 @@ with contextlib.redirect_stdout(로그):
     ok("막힘 → 첫 하나만 묻고 멈춤(같은 키라 같은 답) · «재신청 · 활용신청 확인» · «지금은 옛 판으로 받음»",
        s.startswith("공사 목록 ⚠️ 막힘") and "운영계정 재신청" in s and s.endswith("지금은 옛 판으로 받음") and C.BID02_STATE == s and len(부른) == 1, (s, len(부른)))
     부른.clear()
-    규칙["f"] = lambda u, p: 자료(min(int(p.get("numOfRows", "1")), 999), total=1500)
+    규칙["f"] = lambda u, p: (기초자료 if "BsisAmount" in u else 자료)(min(int(p.get("numOfRows", "1")), 999), total=1500)
     s = C.bid02_check(KEY)
     ok("4가지 다 됨 → «… 4가지 다 됨(새 판으로 바꿀 수 있음) · 지금은 옛 판으로 받음»", s == "공사 목록 ✅ (1,500건) · 기초금액 ✅ (1,500건) · 면허제한 ✅ (1,500건) · "
        "참가지역 ✅ (1,500건) — 4가지 다 됨(새 판으로 바꿀 수 있음) · 지금은 옛 판으로 받음", s)
@@ -433,6 +445,61 @@ with contextlib.redirect_stdout(로그):
     ok("두 판 다 몫 끝 → ApiError(Quota 아님 · 사슬 안 멈춤) · 이 실행 입찰공고 멈춤", r6 == "ApiError" and F.BID["quota"], r6)
     ok("개찰은 그대로", len(F.api(OPENG, KEY, {})) == 1)
     C.BID_PREFER_02 = False
+
+머리("⑭ 🩹 G565 바로투찰 재료 — 새 판 기초금액 A값 칸 · 최근 3일 A값 실린 비율")
+처음(lambda u, p: 기초자료(1, total=25, a값=False))
+k3, t3 = C.bid02_probe(KEY, op="getBidPblancListInfoCnstwkBsisAmount02")
+ok("기초금액은 오는데 A값 칸이 없으면 → «A값» (G540b 때 건수만 보고 바꿈 — G564)", k3 == "A값" and "A값 칸" in t3, (k3, t3))
+처음(lambda u, p: 기초자료(1, total=25))
+ok("A값 칸이 실려 오면 → ok · «25건»", C.bid02_probe(KEY, op="getBidPblancListInfoCnstwkBsisAmount02") == ("ok", "25건"))
+처음(lambda u, p: 자료(1, total=7))
+ok("공사 목록 확인은 A값 칸을 안 봄(목록엔 원래 없음)", C.bid02_probe(KEY) == ("ok", "7건"))
+처음(lambda u, p: 기초자료(1, total=9, a값=False) if "BsisAmount" in u else 자료(1, total=9))
+s4 = C.bid02_check(KEY)
+ok("새 판 확인 줄 — «기초금액 ⚠️ A값 칸 없음» · «4가지 다 됨» 안 붙음", "기초금액 ⚠️ A값 칸 없음" in s4 and "4가지 다 됨" not in s4 and "참가지역 ✅" in s4, s4)
+지금 = C.datetime(2026, 11, 6, 13, 0, tzinfo=C.KST)
+def 공고(i, dt="20261105100000", close="20261112100000", base=300000000, aval=0, ayn="", pc=0):
+    return {"no": "R26BK%06d" % i, "dt": dt, "close": close, "base": base, "aval": aval, "ayn": ayn, "pc": pc}
+없음 = {"con": {str(i): 공고(i) for i in range(40)}}
+g = C.바로투찰재료(없음, 지금)
+ok("최근 3일 기초금액 나온 마감 전 40건 · A값 0 → 경고(«A값 실린 공고 0건(0%)» · «💰 바로투찰» · 순공사원가 0건)", g["n"] == 40 and g["A값"] == 0 and "A값 실린 공고 0건(0%)" in g.get("경고", "")
+   and "💰 바로투찰" in g["경고"] and "순공사원가 실린 공고 0건" in g["경고"], g)
+정상 = {"con": {str(i): 공고(i, aval=(1500000 if i < 39 else 0), ayn=("Y" if i < 39 else ""), pc=(250000000 if i % 2 else 0)) for i in range(40)}}
+g2 = C.바로투찰재료(정상, 지금)
+ok("40건 중 A값 39 · 순공사원가 20 → 경고 없음", g2 == {"n": 40, "A값": 39, "순공사원가": 20, "날": 3}, g2)
+ok("ayn «N»(A값 미적용)도 A값 실린 것으로 셈", C.바로투찰재료({"con": {str(i): 공고(i, ayn="N", pc=1) for i in range(30)}}, 지금)["A값"] == 30)
+섞임 = {"con": dict({str(i): 공고(i) for i in range(29)}, **{"old%d" % i: 공고(100 + i, dt="20261020100000") for i in range(50)},
+                    **{"shut%d" % i: 공고(200 + i, close="20261106120000") for i in range(50)}, **{"nob%d" % i: 공고(300 + i, base=0) for i in range(50)})}
+g3 = C.바로투찰재료(섞임, 지금)
+ok("3일 넘은 공고 · 마감 지난 공고 · 기초금액 없는 공고는 안 셈 → 29건(30 미만) · 경고 없음", g3["n"] == 29 and "경고" not in g3, g3)
+ok("수집상태 줄 — 정상이면 숫자 · 경고면 «⚠️» 로 시작", C.재료글(g2) == "최근 3일 기초금액 나온 마감 전 공고 40 · A값 39(97%) · 순공사원가 20(50%)"
+   and C.재료글(g).startswith("⚠️ 최근 3일 기초금액") and C.재료글({"n": 0, "날": 3}) == "최근 3일 기초금액 나온 마감 전 공고 없음", C.재료글(g2))
+빈줄 = ([공고(i, dt="20261103100000") for i in range(12)] + [공고(100 + i, dt="20261104100000") for i in range(9)]
+       + [공고(200 + i, dt="20261102100000", aval=1500000, ayn="Y") for i in range(30)]
+       + [공고(300 + i, dt="20261103100000", close="20261106120000") for i in range(20)] + [공고(400 + i, dt="20261020100000") for i in range(20)])
+빈 = {"con": {r["no"]: r for r in 빈줄}}     # 저장소는 공고번호가 열쇠(collect.py live["con"] 와 같은 꼴)
+ok("A값 빈 공고일 — 11-03(12건)만 · 11-04(9건 · 10 미만) · A값 있는 11-02 · 마감 지난 · 10일 넘은 공고는 안 셈", C.빈A값날(빈, 지금) == ["20261103"], C.빈A값날(빈, 지금))
+평소 = {"con": {r["no"]: r for r in [공고(500 + i, dt="20261105100000", aval=(1500000 if i >= 15 else 0)) for i in range(471)]}}
+ok("평소처럼 몇 건만 빔(471건 중 15건 · 3%) → 다시 안 부름(회차마다 헛호출 없게) · 비율 10% 넘으면 부름", C.빈A값날(평소, 지금) == []
+   and C.빈A값날({"con": {r["no"]: r for r in [공고(900 + i, dt="20261105100000", aval=(1500000 if i >= 50 else 0)) for i in range(471)]}}, 지금) == ["20261105"])
+받은날 = []
+옛 = C.bsis_by_day
+def 가짜기초(key, day, kind):
+    받은날.append(day.strftime("%Y%m%d"))
+    return {"R26BK%06d" % i: {"base": 300000000, "aval": 1500000, "ayn": "Y", "aparts": [["산업안전보건관리비", 1500000]], "pc": 250000000} for i in range(12)}
+C.bsis_by_day = 가짜기초
+try:
+    first0 = {"con": {}}
+    got = C.backfill_days(KEY, first0, 빈, ["20261103"], sleep=0)
+finally:
+    C.bsis_by_day = 옛
+a0 = 빈["con"]["R26BK000000"]
+ok("backfill_days — 그 공고일 하루치만 받고 빈 칸만 채움(A값 · 적용 · 순공사원가) · 있던 기초금액은 그대로", 받은날 == ["20261103"] and got == 12
+   and a0["aval"] == 1500000 and a0["ayn"] == "Y" and a0["pc"] == 250000000 and a0["base"] == 300000000 and C.빈A값날(빈, 지금) == [], (받은날, got, a0))
+ok("main 에서 소급 보충이 없을 때만 · 차단기 · 몫 끝이면 안 돎", "if not fill_days and not NET_DOWN and not QUOTA_OUT:" in open(os.path.join(ROOT, "collect.py"), encoding="utf-8").read()
+   and "빈날 = 빈A값날(live)" in open(os.path.join(ROOT, "collect.py"), encoding="utf-8").read())
+ok("수집상태.md 에 «바로투찰 재료» 줄 · health.json 에 재료(write_health)", "| 바로투찰 재료 | %s |" in open(os.path.join(ROOT, "collect.py"), encoding="utf-8").read()
+   and 'v["재료"] = 재' in open(os.path.join(ROOT, "collect.py"), encoding="utf-8").read())
 
 머리("⑬ 키가 어디에도 안 남음")
 글 = 로그.getvalue()

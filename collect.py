@@ -321,6 +321,12 @@ BID_QUOTA = False        # 이번 회차 입찰공고 호출 멈춤(새 판 · �
 BID_NOTE = ""            # 수집상태 «조달청 호출» 줄에 붙임(판을 바꿔 받았을 때 · 몫 끝)
 BID02_STATE = ""         # 수집상태 «입찰공고 새 판(02)» 줄
 BID_GOT = {"02": 0, "옛": 0}   # 이번 회차 입찰공고 «정상 응답» 수(판마다)
+# 🩹 G565(2026-11-06) 바로투찰 재료 지킴 — 소장님 「기록하고, 이런 일이 발생하지 않도록 세심히 점검해 줘. 다음부터는」
+#   G540b(11-05) 새 판(02) 기초금액에 A값 · 순공사원가 칸이 안 실려 와 11-04 뒤 공고 A값 0건 → 공고 목록 «💰 바로투찰» 이 사라졌는데
+#   회차는 «정상» 이라 아무도 몰랐음(소장님이 화면을 보고 알림 · G564 되돌림). → 회차마다 «최근 3일 기초금액 나온 마감 전 공고» 의
+#   A값 · 순공사원가 실린 수를 재어 수집상태 «바로투찰 재료» 줄 · health.json 재료 에 적고, 모자라면 재료.경고 →
+#   자료 검진(tools/자료검진.py)이 빨간불 메일(낮 · 하루 한 번). 새 판 확인(bid02_probe)도 기초금액 응답의 A값 칸을 봄.
+JAERYO_STATE = ""       # 수집상태 «바로투찰 재료» 줄
 BID02_PROBE_URL = BASE + BID_NEW + "getBidPblancListInfoCnstwk02"
 # 새 판 확인 — 우리가 실제로 부르는 꼴 그대로(날짜로 · inqryDiv 1). (이름, 오퍼레이션, 쪽 크기, 며칠 전)
 #   면허제한은 공사 · 용역 · 물품이 섞여 하루 수천 줄 → 어제 하루를 999줄로 물어 «쪽당 999줄» 이 그대로인지도 봄(lic_by_day 가 999 미만이면 멈춤).
@@ -502,6 +508,11 @@ def _bid02_probe(key, get, now, timeout, op, rows, ago):
     got = len(items) if isinstance(items, list) else 0
     if rows > 1 and n.isdigit() and got < min(rows, int(n)):
         return "쪽", "한 쪽에 %s줄만 옴(전체 %s · %s줄 물음) — 쪽넘김 확인 필요" % (got, format(int(n), ","), rows)
+    # 🩹 G565 기초금액은 «건수» 만 보지 않고 A값 칸이 실려 오는지도 봄(G540b 때 건수만 보고 새 판으로 바꿨다가 A값 0건 — G564)
+    if "BsisAmount" in op and got and isinstance(items, list) and isinstance(items[0], dict):
+        a칸 = [k for k, _ in A_PARTS] + ["bidPrceCalclAYn"]
+        if not any(k in items[0] for k in a칸):
+            return "A값", "기초금액은 오는데 A값 칸(sftyMngcst · npnInsrprm · bidPrceCalclAYn 등)이 없음 — 이 판을 먼저 쓰면 바로투찰이 A값 없는 공고를 계산 못 함"
     return "ok", ("%s건" % format(int(n), ",")) if n.isdigit() else "정상 응답"
 
 
@@ -516,7 +527,7 @@ def bid02_check(key, get=None, now=None):
     out, all_ok = [], True
     for name, op, rows, ago in BID02_PROBES:
         k, t = bid02_probe(key, get=get, now=now, op=op, rows=rows, ago=ago)
-        mark = {"ok": "✅", "막힘": "⚠️ 막힘", "한도": "⚠️ 하루 몫 끝", "실패": "⚠️ 안 됨", "쪽": "⚠️ 쪽"}.get(k, k)
+        mark = {"ok": "✅", "막힘": "⚠️ 막힘", "한도": "⚠️ 하루 몫 끝", "실패": "⚠️ 안 됨", "쪽": "⚠️ 쪽", "A값": "⚠️ A값 칸 없음"}.get(k, k)
         out.append("%s %s%s" % (name, mark, (" (%s)" % t) if t else ""))
         all_ok = all_ok and k == "ok"
         if k in ("막힘", "한도"):
@@ -927,6 +938,42 @@ def load_health():
         return {}
 
 
+def 바로투찰재료(live, now=None, days=3, 최소=30, 선=0.5):
+    """🩹 G565 최근 days 일에 공고된 마감 전 공사 공고 가운데 기초금액이 나온 것 → A값 · 순공사원가가 실렸나.
+       A값은 기초금액과 같은 응답에 실려 와 평소엔 거의 다 있음(11-02 공고 190건 중 188) · 순공사원가는 공고마다 다름(평소 절반쯤).
+       돌려줌 {n, A값, 순공사원가, 날[, 경고]} — n ≥ 최소 인데 A값이 «선» 밑이거나 순공사원가가 0건이면 경고."""
+    now = now or datetime.now(KST)
+    cut = (now - timedelta(days=days)).strftime("%Y%m%d")
+    nowd = now.strftime("%Y%m%d%H%M%S")
+    rows = [r for r in ((live or {}).get("con") or {}).values()
+            if dt_digits(r.get("dt"))[:8] >= cut and to_int(r.get("base") or 0) > 0
+            and dt_digits(r.get("close")).ljust(14, "0") >= nowd]
+    n = len(rows)
+    na = sum(1 for r in rows if to_int(r.get("aval") or 0) > 0 or str(r.get("ayn") or "").upper() in ("Y", "N"))
+    npc = sum(1 for r in rows if to_int(r.get("pc") or 0) > 0)
+    out = {"n": n, "A값": na, "순공사원가": npc, "날": days}
+    경고 = []
+    if n >= 최소 and na < n * 선:
+        경고.append("최근 %d일 기초금액 나온 마감 전 공고 %s건 중 A값 실린 공고 %s건(%d%%) — 조달청 기초금액 응답에 A값 칸이 오는지 확인"
+                  "(바로투찰은 A값 없는 공고를 계산하지 않아 공고 목록 «💰 바로투찰» 이 사라짐 · G564)" % (days, format(n, ","), format(na, ","), na * 100 // n))
+    if n >= 최소 and npc == 0:
+        경고.append("순공사원가 실린 공고 0건(%s건 중) — 조달청 기초금액 응답에 bssAmtPurcnstcst 칸이 오는지 확인(98%% 하한 검사가 빠짐)" % format(n, ","))
+    if 경고:
+        out["경고"] = " / ".join(경고)
+    return out
+
+
+def 재료글(재):
+    """수집상태 «바로투찰 재료» 줄 글."""
+    n = int((재 or {}).get("n") or 0)
+    if not n:
+        return "최근 %s일 기초금액 나온 마감 전 공고 없음" % ((재 or {}).get("날") or 3)
+    a, p = int(재.get("A값") or 0), int(재.get("순공사원가") or 0)
+    s = "최근 %s일 기초금액 나온 마감 전 공고 %s · A값 %s(%d%%) · 순공사원가 %s(%d%%)" % (
+        재.get("날") or 3, format(n, ","), format(a, ","), a * 100 // n, format(p, ","), p * 100 // n)
+    return ("⚠️ " + 재["경고"] + " — " + s) if 재.get("경고") else s
+
+
 def write_health(first, live, added):
     """이번 회차가 «제 일을 했는지» 를 한 파일에 적습니다.
 
@@ -1009,6 +1056,16 @@ def write_health(first, live, added):
                   % (format(len(rec), ","), format(nb, ","), nb * 100 / len(rec)))
     except Exception as e:
         print("    ! 번호 빈 비율 셈 실패 (%s)" % type(e).__name__)
+    # 🩹 G565 바로투찰 재료(A값 · 순공사원가) — 모자라면 재료.경고(자료 검진이 빨간불 메일)
+    global JAERYO_STATE
+    try:
+        재 = 바로투찰재료(live, now)
+        v["재료"] = 재
+        JAERYO_STATE = 재료글(재)
+        if 재.get("경고"):
+            print("  \u26a0\ufe0f " + 재["경고"])
+    except Exception as e:
+        print("    ! 바로투찰 재료 셈 실패 (%s)" % type(e).__name__)
     # 두 곳에 적습니다. store 쪽은 회차 사이에 이어지는 기록(fails 를 세려면 필요),
     # OUT 쪽은 사이트가 받아 가는 파일입니다.
     for p in (HEALTH_LOG, os.path.join(OUT, "health.json")):
@@ -1094,9 +1151,15 @@ def backfill_bsis(key, first, live, days, sleep=0.4):
     비용:
       bsis_by_day 는 하루당 1~2회 호출입니다. 45일이면 50~90회 — 하루 한 번이면 부담 없습니다.
     """
+    날들 = [datetime.now(KST) - timedelta(days=i) for i in range(days, 0, -1)]
+    got = _bsis_days(key, first, live, 날들, sleep)
+    print(f"  → 소급 보충 {days}일치 — A값 {got:,}건 새로 채움")
+
+
+def _bsis_days(key, first, live, 날들, sleep=0.4):
+    """하루치 기초금액(공고일 기준)을 날마다 받아 두 저장소의 «빈 칸만» 채웁니다 — 새로 채운 A값 수를 돌려줌."""
     got = 0
-    for i in range(days, 0, -1):
-        day = datetime.now(KST) - timedelta(days=i)
+    for day in 날들:
         for kind in KINDS:
             bm = bsis_by_day(key, day, kind)
             for store in (first, live):
@@ -1112,7 +1175,34 @@ def backfill_bsis(key, first, live, days, sleep=0.4):
             time.sleep(sleep)
         if NET_DOWN:
             break
-    print(f"  → 소급 보충 {days}일치 — A값 {got:,}건 새로 채움")
+    return got
+
+
+def 빈A값날(live, now=None, days=10, 최소=10, 비율=0.1):
+    """🩹 G565 마감 전 공고 가운데 기초금액은 있는데 A값(또는 A값 적용 표시)이 빈 공고가 «최소» 건 넘고 그날 기초금액 나온 공고의
+       «비율» 넘는 공고일(YYYYMMDD) — 최근 days 일. (평소에도 몇 건은 비어 오니 비율도 봄 — 회차마다 같은 날을 헛되이 다시 부르지 않게)
+       배치는 최근 2~3일(공고일)만 훑어서, 그 앞 공고일에 빈 A값은 개별조회(회차당 250건)로만 채워져 몇 시간 걸림(G564 때 11-03 공고 390 중 268)."""
+    now = now or datetime.now(KST)
+    cut = (now - timedelta(days=days)).strftime("%Y%m%d")
+    nowd = now.strftime("%Y%m%d%H%M%S")
+    셈, 기 = {}, {}
+    for kind in KINDS:
+        for r in ((live or {}).get(kind) or {}).values():
+            d = dt_digits(r.get("dt"))[:8]
+            if len(d) < 8 or d < cut or dt_digits(r.get("close")).ljust(14, "0") < nowd or not to_int(r.get("base") or 0) > 0:
+                continue
+            기[d] = 기.get(d, 0) + 1
+            if not (to_int(r.get("aval") or 0) > 0 or str(r.get("ayn") or "").upper() in ("Y", "N")):
+                셈[d] = 셈.get(d, 0) + 1
+    return sorted(d for d, c in 셈.items() if c >= 최소 and c >= 기[d] * 비율)
+
+
+def backfill_days(key, first, live, 날들, sleep=0.4):
+    """🩹 G565 공고일(YYYYMMDD) 목록만 하루치씩 다시 받아 빈 칸을 채웁니다(빈A값날 → 하루 1~2번 호출)."""
+    ds = [datetime(int(d[:4]), int(d[4:6]), int(d[6:8]), 12, 0, tzinfo=KST) for d in 날들]
+    got = _bsis_days(key, first, live, ds, sleep)
+    print(f"  → A값 빈 공고일 {len(ds)}일 다시 받음 — A값 {got:,}건 새로 채움")
+    return got
 
 
 def bsis_by_day(key, day, kind):
@@ -3449,6 +3539,8 @@ def write_status(first):
                               + (" · 🔁 " + BID_NOTE if BID_NOTE else "")),
         # 🔁 G540 2026-11-03 조달청 입찰공고정보서비스 새 판(02) — 회차마다 한 번 물어 본 결과(운영계정 재신청이 됐는지 보는 자리)
         "| 입찰공고 새 판(02) | %s |" % (" · ".join(x for x in (BID02_STATE, bid_got_text()) if x) or "—"),
+        # 🩹 G565 바로투찰 재료 — 최근 3일 기초금액 나온 마감 전 공고의 A값 · 순공사원가(모자라면 ⚠️ · 자료 검진 메일)
+        "| 바로투찰 재료 | %s |" % (JAERYO_STATE or "—"),
         "| 개찰 저장소 | %s건 |" % format(len(rows), ","),
         "| 순위 물어본 개찰 | %s건 (%.1f%%) |" % (format(asked, ","),
                                           asked / max(len(rows), 1) * 100),
@@ -3890,6 +3982,19 @@ def main():
             refresh_seed("live", live)
         except Exception as e:
             print(f"  ! 소급 보충 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
+    # 🩹 G565 A값 빈 공고일 스스로 채우기 — 소장님 11-06 「빨리 받아 와서 고쳐 줘」 · 「이런 일이 발생하지 않도록 세심히 점검해 줘」
+    #   기초금액은 있는데 A값이 빈 마감 전 공고가 10건 넘는 공고일(최근 10일)은 그날 하루치를 다시 받아 빈 칸만 채움(G564 — 11-03 공고)
+    if not fill_days and not NET_DOWN and not QUOTA_OUT:
+        try:
+            빈날 = 빈A값날(live)
+            if 빈날:
+                print("-" * 52)
+                print("  · 🩹 A값 빈 공고일 %s — 하루치를 다시 받습니다" % " · ".join(d[4:6] + "-" + d[6:8] for d in 빈날))
+                backfill_days(key, first, live, 빈날, args.sleep)
+                save_store("first", first)
+                save_store("live", live)
+        except Exception as e:
+            print(f"  ! A값 빈 공고일 채우기 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
 
     # ── ★ 개찰 순위 (1위~꼴찌) — 공고번호로 하나씩 받아 채웁니다 ──
     #   날짜로 부르면 안 옵니다. 공고번호로만 옵니다.
