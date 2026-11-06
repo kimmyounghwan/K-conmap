@@ -7,6 +7,7 @@
      💰 payment-deadline   기성금 · 준공금 지급 기한 (G534 · 2026-11-04 — 셈 lib/대금기한.js)
      🤝 joint-split        공동도급 기성 · 준공금 나누기 (G535 · 2026-11-04 — 셈 lib/공동기성.js)
      📦 contract-ready     계약 준비물 계산기 — 계약보증금 · 공사이행보증서 · 보증서 날짜 · 인지세 (G557 · 2026-11-06 — 셈 lib/계약준비.js)
+     🧭 toejik-check       퇴직공제 가입 대상 판단기 — 당연가입 · 성립 신고 14일 · 전자카드 (G558 · 2026-11-06 — 셈 lib/퇴직공제대상.js)
 
    ⚠️ 숫자·조문은 lib/계약셈.js 한 곳에만 있습니다(💰 지급 기한 셈은 lib/대금기한.js). 여기서는 그리기만 합니다.
    ⚠️ 설명·근거 글은 web/src/data/tools.json 에 (prerender 가 같이 굽습니다).
@@ -22,10 +23,11 @@ import {
   하자표, 하자찾기, 보증금률표, 하자보증,
 } from '../lib/계약셈.js'
 import { loadBasket } from '../lib/basket.js'
-import { 쉬는날 } from '../lib/해마다.js'
+import { 쉬는날, 퇴직공제일액표, 기한미루기 } from '../lib/해마다.js'   /* 🧭 G558 일액표 · 기한미루기 */
 import { 대금기한, 날말 } from '../lib/대금기한.js'
 import { 회차나누기 } from '../lib/공동기성.js'
 import { 발주들 as 준비발주, 인지세, 인지세칸, 인지세표, 변경인지세, 이행보증, 보증기간, 근거 as 준비근거, 공채글, 공채근거 } from '../lib/계약준비.js'   /* 📦 G557 */
+import { 종류들 as 공제종류, 발주들 as 공제발주, 건축들 as 공제건축, 가입판단, 성립기한, 전자카드 as 공제카드, 근거 as 공제근거, 할일들 as 공제할일, 아닐때 as 공제아닐때, 바뀜 as 공제바뀜, 금액풀이 as 공제금액풀이 } from '../lib/퇴직공제대상.js'   /* 🧭 G558 */
 import { getBidIndex, indexRows } from '../lib/data.js'
 import 금액입력 from '../금액입력.jsx'   /* 💰 G544 금액 칸 — «3억 8,500만» · 붙여넣은 «385,000,000원» 도 읽음 · 칸 아래 읽은 줄(바로투찰 · 보험료와 같은 칸) */
 import { 금액수 } from '../lib/금액읽기.js'
@@ -258,7 +260,7 @@ export function AfterAward({ ex = {} }) {
         달력 파일은 이 브라우저에서 만들어 바로 받습니다(어디로도 보내지 않음). 휴대폰·구글·아웃룩 달력에서 열면 일정이 들어가고 <b>하루 전 아침 9시</b>에 알려 줍니다.
         {' '}기한은 법령에 적힌 날 수로 셌습니다(첫날은 빼고 셈) — <b>공고문·계약서에 따로 정한 기한이 있으면 그것이 먼저입니다.</b>
         {' '}마지막 날이 주말·공휴일이면 그 앞 근무일에 끝내 두시는 것이 안전합니다.
-        {' '}계약할 때 낼 <b>계약보증금 · 공사이행보증서 · 인지세</b>와 보증서 날짜는 <Link to="/tools/contract-ready" className="kr-link">계약 준비물 계산기 →</Link>
+        {' '}계약할 때 낼 <b>계약보증금 · 공사이행보증서 · 인지세</b>와 보증서 날짜는 <Link to="/tools/contract-ready" className="kr-link">계약 준비물 계산기 →</Link>{' '}· 퇴직공제 가입 대상 · 성립 신고는 <Link to="/tools/toejik-check" className="kr-link">퇴직공제 가입 대상 판단기 →</Link>
       </div>
     </div>
   )
@@ -678,6 +680,66 @@ export function ContractReady({ ex = {} }) {
   )
 }
 
+/* ══════════════════════════════════════════════════════════
+   🧭 퇴직공제 가입 대상 판단기 (G558) — 당연가입 · 성립 신고 14일 · 전자카드
+   소장님 「1번 부터 5번까지 작업해줘」 — 카페 도구 후보 ④. 판단 · 조문은 lib/퇴직공제대상.js 한 곳(법제처 원문 세 번 읽음)
+   ══════════════════════════════════════════════════════════ */
+export function ToejikCheck({ ex = {} }) {
+  const [종류, set종류] = use칸('종류', ex.종류 ?? '건설')
+  const [발주, set발주] = use칸('발주', ex.발주 ?? '국가')
+  const [금액, set금액] = use칸('금액', ex.금액 ?? '')
+  const [건축, set건축] = use칸('건축', ex.건축 ?? '')
+  const [착공, set착공] = use칸('착공', ex.착공 ?? '')
+  const 쓸건축 = 종류 === '건설' && 발주 === '민간' ? 건축 : ''
+  const r = 가입판단({ 종류, 발주, 금액: 금(금액), 건축: 쓸건축 })
+  const 기한 = r.대상 ? 성립기한(착공) : ''
+  const 밀 = 기한 ? 기한미루기(기한) : null
+  const 카 = 공제카드(r.대상, 금(금액))
+  const 일액 = 퇴직공제일액표.slice(1).map((x) => `${x.글} ${x.일액.toLocaleString('ko-KR')}원`).join(' · ')
+  return (
+    <div className="tool tc">
+      <div className="tl-grid">
+        <Row label="공사 종류">
+          <select value={종류} onChange={(e) => set종류(e.target.value)}>
+            {공제종류.map((x) => <option key={x.k} value={x.k}>{x.이름}</option>)}
+          </select>
+        </Row>
+        <Row label="발주처">
+          <select value={발주} onChange={(e) => set발주(e.target.value)}>
+            {공제발주.map((x) => <option key={x.k} value={x.k}>{x.이름}</option>)}
+          </select>
+        </Row>
+        <금액칸 label="공사예정금액" hint={공제금액풀이[종류] || 공제금액풀이.건설} value={금액} set={set금액} placeholder="150,000,000" />
+        {종류 === '건설' && 발주 === '민간' && (
+          <Row label="건축물" hint="금액과 관계없이 대상">
+            <select value={건축} onChange={(e) => set건축(e.target.value)}>
+              {공제건축.map((x) => <option key={x.k || '없음'} value={x.k}>{x.이름}</option>)}
+            </select>
+          </Row>
+        )}
+        <Row label="착공일" hint="사업 시작일 — 신고 기한"><input type="date" value={착공} onChange={(e) => set착공(e.target.value)} /></Row>
+      </div>
+      {r.대상 === true && <판정칸 종류="good"><b>당연가입 대상입니다</b> — {r.까닭} ({r.근거})</판정칸>}
+      {r.대상 === false && <판정칸 종류="info"><b>당연가입 대상이 아닙니다</b> — {r.까닭} ({r.근거}). {굵게(공제아닐때)}</판정칸>}
+      {r.대상 === null && <div className="hint">{r.까닭}.</div>}
+      {r.대상 && (
+        <>
+          <Out items={[
+            { k: '성립 신고 기한', v: 기한 ? `${날점(밀.날)}${밀.밀림 ? ' (쉬는 날이라 미룸)' : ''}` : '착공일을 넣으면', big: true },
+            { k: '전자카드 출퇴근', v: 카 && 카.앱가능 ? '단말기 또는 휴대폰 앱' : '전자카드 단말기' },
+            { k: '공제부금 1일', v: '입찰공고일로 — 아래' },
+          ]} />
+          <ol className="tc-steps">{공제할일.map((x) => <li key={x.k}>{굵게(x.글)} <span className="hj-src1">({공제근거[x.근거]})</span></li>)}</ol>
+          <div className="hint kt-hint">공제부금 1일 금액: {일액}. 사람마다 근로일수 · 부금 집계는 <Link to="/tools/toejik" className="kr-link">퇴직공제 집계 →</Link></div>
+        </>
+      )}
+      <div className="hint kt-hint">📅 {굵게(공제바뀜)}</div>
+      <div className="hint kt-hint">착공 전후 다른 기한(보험관계 성립 신고 · 키스콘 등)은 <Link to="/tools/after-award" className="kr-link">낙찰 뒤 할 일 달력 →</Link></div>
+      <근거줄>{r.근거} · {공제근거.가입} · {공제근거.신고} · {공제근거.피공제자} · {공제근거.과태료}</근거줄>
+    </div>
+  )
+}
+
 export const 계약EXAMPLES = {
   'joint-split': { 글: '계약 10억 원 · 대표사 60% · 구성원 40% · 1회 기성 3억 원 · 선금 각 20%', ex: { 계약: '1,000,000,000', 금회: '300,000,000', 방식: '지분', 준공: false, 끝전: 0, 구성원: [{ 이름: '', 지분: '60', 선금: '120,000,000', 전회: '', 전회정산: '', 직접: '', _: 0 }, { 이름: '', 지분: '40', 선금: '80,000,000', 전회: '', 전회정산: '', 직접: '', _: 1 }] } },
   'payment-deadline': { 글: '국가 공사 · 11월 4일(수) 기성검사 완료 · 검사 전에 청구', ex: { 무엇: '기성', 발주: '국가', 검사: '2026-11-04', 청구: '' } },
@@ -686,6 +748,7 @@ export const 계약EXAMPLES = {
   'delay-penalty': { 글: '국가 공사 5억 원 · 준공기한 11월 30일 · 12월 15일 준공검사 합격', ex: { 곳: '국가', 종: '공사', 계약: '500,000,000', 기한: '2026-11-30', 합격: '2026-12-15' } },
   'defect-period': { 글: '아스팔트 포장 도로 3억 원 · 12월 20일 준공검사', ex: { k: 'd2', 시작: '2026-12-20', 계약: '300,000,000' } },
   'contract-ready': { 글: '국가 공사 2억 5천만 원 · 계약기간 11월 16일 ~ 내년 3월 31일', ex: { 발주: '국가', 계약: '250,000,000', 시작: '2026-11-16', 끝: '2027-03-31' } },
+  'toejik-check': { 글: '지자체 발주 건설공사 · 공사예정금액 1억 5천만 원 · 11월 16일 착공', ex: { 종류: '건설', 발주: '국가', 금액: '150,000,000', 건축: '', 착공: '2026-11-16' } },
 }
 export const 계약CALCS = {
   'subcontract-check': SubcontractCheck,
@@ -695,4 +758,5 @@ export const 계약CALCS = {
   'payment-deadline': PaymentDeadline,
   'joint-split': JointSplit,
   'contract-ready': ContractReady,
+  'toejik-check': ToejikCheck,
 }

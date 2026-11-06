@@ -63,7 +63,7 @@ console.log('④ 글 · 공채 · 빠른찾기')
 {
   const 자료 = JSON.parse(fs.readFileSync(path.join(뿌리, 'web/src/data/tools.json'), 'utf8'))
   const t = 자료.tools.find((x) => x.slug === 'contract-ready')
-  ok('tools.json contract-ready · cat work · tail «계약보증금 · 인지세» · 설명 넷(보증금 · 날짜 · 인지세 · 공채)', !!t && t.cat === 'work' && t.tail === '계약보증금 · 인지세' && t.secs.length === 4 && t.secs.map((x) => x.h).join() === '계약보증금 · 공사이행보증서,보증서 날짜,인지세,공채', t && [t.cat, t.tail, t.secs.map((x) => x.h)])
+  ok('tools.json contract-ready · cat work · tail 빈 글(제목에 이미 있는 말 — 구운 제목 겹침 없게 · G558 때 고침) · 설명 넷(보증금 · 날짜 · 인지세 · 공채)', !!t && t.cat === 'work' && t.tail === '' && t.secs.length === 4 && t.secs.map((x) => x.h).join() === '계약보증금 · 공사이행보증서,보증서 날짜,인지세,공채', t && [t.cat, t.tail, t.secs.map((x) => x.h)])
   const 모두 = JSON.stringify(t || {}) + JSON.stringify(L)
   ok('«무료» · «클로드» 없음', !/무료|클로드/.test(모두))
   ok('공채는 셈 안 함 — 지역개발채권(조례) · 도시철도채권(대통령령) · 근거 둘', L.공채글.length === 3 && /조례/.test(L.공채글[0]) && /대통령령/.test(L.공채글[1]) && /셈하지 않습니다/.test(L.공채글[2]) && /지방공기업법 제19조③④ · 도시철도법 제21조/.test(L.공채근거))
