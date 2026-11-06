@@ -3027,6 +3027,10 @@ a.glink:hover { text-decoration: underline; }
 .hj-tel{ white-space:nowrap; font-weight:700; }
 .hj-end{ word-break:keep-all; }
 .hj-new{ margin-top:6px; font-size:13px; line-height:1.55; }
+/* 📦 G557 계약 준비물 계산기 */
+.kr-link{ font-weight:700; }
+.tool.kr .kt-hint, .tool.kr .kt-chk span{ word-break:keep-all; }
+.kr-p{ margin:4px 0; font-size:13.5px; line-height:1.6; word-break:keep-all; }
 /* 🩺 G555 4대보험 판단기 — 건강보험 상실 신고에 적을 값 */
 .iy-loss{ border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin:6px 0 8px; background:var(--surface); }
 .iy-loss-h{ font-size:14px; margin-bottom:6px; }

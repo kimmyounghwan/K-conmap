@@ -6,6 +6,7 @@
      🛡 defect-period      하자담보책임기간 · 하자보수보증금 찾기
      💰 payment-deadline   기성금 · 준공금 지급 기한 (G534 · 2026-11-04 — 셈 lib/대금기한.js)
      🤝 joint-split        공동도급 기성 · 준공금 나누기 (G535 · 2026-11-04 — 셈 lib/공동기성.js)
+     📦 contract-ready     계약 준비물 계산기 — 계약보증금 · 공사이행보증서 · 보증서 날짜 · 인지세 (G557 · 2026-11-06 — 셈 lib/계약준비.js)
 
    ⚠️ 숫자·조문은 lib/계약셈.js 한 곳에만 있습니다(💰 지급 기한 셈은 lib/대금기한.js). 여기서는 그리기만 합니다.
    ⚠️ 설명·근거 글은 web/src/data/tools.json 에 (prerender 가 같이 굽습니다).
@@ -24,6 +25,7 @@ import { loadBasket } from '../lib/basket.js'
 import { 쉬는날 } from '../lib/해마다.js'
 import { 대금기한, 날말 } from '../lib/대금기한.js'
 import { 회차나누기 } from '../lib/공동기성.js'
+import { 발주들 as 준비발주, 인지세, 인지세칸, 인지세표, 변경인지세, 이행보증, 보증기간, 근거 as 준비근거, 공채글, 공채근거 } from '../lib/계약준비.js'   /* 📦 G557 */
 import { getBidIndex, indexRows } from '../lib/data.js'
 import 금액입력 from '../금액입력.jsx'   /* 💰 G544 금액 칸 — «3억 8,500만» · 붙여넣은 «385,000,000원» 도 읽음 · 칸 아래 읽은 줄(바로투찰 · 보험료와 같은 칸) */
 import { 금액수 } from '../lib/금액읽기.js'
@@ -256,6 +258,7 @@ export function AfterAward({ ex = {} }) {
         달력 파일은 이 브라우저에서 만들어 바로 받습니다(어디로도 보내지 않음). 휴대폰·구글·아웃룩 달력에서 열면 일정이 들어가고 <b>하루 전 아침 9시</b>에 알려 줍니다.
         {' '}기한은 법령에 적힌 날 수로 셌습니다(첫날은 빼고 셈) — <b>공고문·계약서에 따로 정한 기한이 있으면 그것이 먼저입니다.</b>
         {' '}마지막 날이 주말·공휴일이면 그 앞 근무일에 끝내 두시는 것이 안전합니다.
+        {' '}계약할 때 낼 <b>계약보증금 · 공사이행보증서 · 인지세</b>와 보증서 날짜는 <Link to="/tools/contract-ready" className="kr-link">계약 준비물 계산기 →</Link>
       </div>
     </div>
   )
@@ -592,6 +595,89 @@ export function JointSplit({ ex = {} }) {
 }
 
 /* 🧪 예시 — 가상의 숫자입니다 (남의 공사 금액을 옮기지 않습니다) */
+/* ══════════════════════════════════════════════════════════
+   📦 계약 준비물 계산기 (G557) — 계약보증금 · 공사이행보증서 · 보증서 날짜 · 인지세
+   소장님 「1번 부터 5번까지 작업해줘」 — 카페 도구 후보 ③. 숫자 · 조문은 lib/계약준비.js 한 곳(법제처 원문 세 번 읽음)
+   ══════════════════════════════════════════════════════════ */
+const 굵게 = (s) => String(s).split(/\*\*(.+?)\*\*/g).map((x, i) => (i % 2 ? <b key={i}>{x}</b> : x))
+const 날점 = (d) => `${d.slice(0, 4)}. ${Number(d.slice(5, 7))}. ${Number(d.slice(8, 10))}.`
+export function ContractReady({ ex = {} }) {
+  const [발주, set발주] = use칸('발주', ex.발주 ?? '국가')
+  const [계약, set계약] = use칸('계약', ex.계약 ?? '')
+  const [시작, set시작] = use칸('시작', ex.시작 ?? '')
+  const [끝, set끝] = use칸('끝', ex.끝 ?? '')
+  const [장기, set장기] = use칸('장기', ex.장기 ?? false)
+  const [총공사, set총공사] = use칸('총공사', ex.총공사 ?? '')
+  const [칠십, set칠십] = use칸('칠십', ex.칠십 ?? false)
+  const [고시, set고시] = use칸('고시', ex.고시 ?? false)
+  const [변경, set변경] = use칸('변경', ex.변경 ?? false)
+  const [전금액, set전금액] = use칸('전금액', ex.전금액 ?? '')
+  const 곳 = 준비발주.find((x) => x.k === 발주) || 준비발주[0]
+  const 금액 = 금(계약)
+  const r = 이행보증({ 발주: 곳.k, 계약금액: 금액, 장기: !!장기, 총공사: 금(총공사), 칠십미만: !!칠십, 고시: !!고시 })
+  const 기간 = 보증기간(시작, 끝)
+  const 세 = 인지세(금액), 세칸 = 인지세칸(금액)
+  const 차 = 변경 ? 변경인지세(금(전금액), 금액) : null
+  return (
+    <div className="tool kr">
+      <div className="tl-grid">
+        <Row label="발주처">
+          <select value={곳.k} onChange={(e) => set발주(e.target.value)}>
+            {준비발주.map((x) => <option key={x.k} value={x.k}>{x.이름} — {x.법}</option>)}
+          </select>
+        </Row>
+        <금액칸 label={변경 ? '바뀐 뒤 계약금액' : '계약금액'} hint="원 · 계약서에 적힌 금액" value={계약} set={set계약} placeholder="250,000,000" />
+        <Row label="계약기간 첫날" hint="계약서 «계약기간»"><input type="date" value={시작} onChange={(e) => set시작(e.target.value)} /></Row>
+        <Row label="계약기간 끝날" hint="준공기한"><input type="date" value={끝} onChange={(e) => set끝(e.target.value)} /></Row>
+      </div>
+      <div className="kt-chks">
+        <label className="kt-chk"><input type="checkbox" checked={!!장기} onChange={(e) => set장기(e.target.checked)} /> <span>장기계속계약(해마다 나눠 계약 — 첫 계약 때 총공사금액을 적음)</span></label>
+        {장기 && <div className="tl-grid"><금액칸 label="총공사금액" hint="첫 계약 때 덧붙여 적은 금액" value={총공사} set={set총공사} placeholder="1,200,000,000" /></div>}
+        <label className="kt-chk"><input type="checkbox" checked={!!칠십} onChange={(e) => set칠십(e.target.checked)} /> <span>예정가격의 70% 미만으로 낙찰(공사이행보증서 비율이 올라감)</span></label>
+        <label className="kt-chk"><input type="checkbox" checked={!!고시} onChange={(e) => set고시(e.target.checked)} /> <span>정부가 기간을 정해 고시한 경제위기 특례 기간(공고 · 계약서에 5% 로 적힘)</span></label>
+        <label className="kt-chk"><input type="checkbox" checked={!!변경} onChange={(e) => set변경(e.target.checked)} /> <span>변경계약(금액을 늘림) — 인지세는 늘어난 만큼만</span></label>
+        {변경 && <div className="tl-grid"><금액칸 label="바뀌기 전 계약금액" hint="원" value={전금액} set={set전금액} placeholder="200,000,000" /></div>}
+      </div>
+      <Out items={[
+        { k: `계약보증금 (${r.장기 ? '총공사금액' : '계약금액'}의 ${r.보증율}%)`, v: r.보증금 > 0 ? 원(r.보증금) : '—', big: true },
+        { k: `또는 공사이행보증서 (${r.이행율}%)`, v: r.이행보증금 != null ? 원(r.이행보증금) : (r.장기 ? '공고 · 계약담당 확인' : '—') },
+        { k: '보증서 보증기간', v: 기간 && !기간.틀림 ? `${날점(기간.첫날)} ~ ${날점(기간.끝날)} 이후` : (기간 && 기간.틀림 ? '끝날이 첫날보다 빠름' : '계약기간을 넣으면') },
+        { k: 변경 ? '인지세 (늘어난 만큼)' : '인지세 (1통)', v: 금액 > 0 ? (변경 ? 원(차) : (세 > 0 ? 원(세) : '없음 (1천만원 이하)')) : '—' },
+      ]} />
+      {r.면제될수 && <판정칸 종류="good">계약금액 5천만원 이하라 계약보증금을 <b>면제할 수 있습니다</b>(발주처가 정함). 면제되면 못 지키면 그 금액을 내겠다고 <b>확약하는 문서</b>를 냅니다.</판정칸>}
+      <div className="hint kt-hint">
+        <b>계약보증금과 공사이행보증서 중 하나</b>를 계약상대자가 고릅니다(공사계약). 발주처가 공사 특성상 이행보증서로 정할 수 있고{곳.k === '지방' ? ', 추정가격 300억원 이상 · 대형공사(일괄입찰 · 대안입찰) · 기술제안입찰 공사는 반드시 이행보증서입니다' : ''}.
+        {' '}보증금은 현금이나 <b>보증서</b>(건설공제조합 · 보증보험 · 금융기관 지급보증서 등)로 냅니다 — 보증서의 피보증인은 <b>{곳.피보증인}</b>, 보증금액은 낼 금액 이상이어야 합니다.
+        {' '}{곳.k === '국가' ? '국가 공사계약 계약보증금은 2026. 5. 12.부터 10%입니다.' : ''}
+      </div>
+      <div className="hint kt-hint">
+        <b>보증서 날짜</b> — 보증기간 첫날은 <b>계약기간 첫날</b>, 끝날은 <b>계약기간 끝날 이후</b>여야 합니다(보증서를 받은 날 · 계약서 초안을 받은 날이 아님).
+        {' '}계약은 발주처 담당자와 계약상대자가 계약서에 <b>기명 · 날인하거나 서명(전자서명)한 때</b> 확정됩니다.
+        {' '}하자보수보증서는 준공 뒤 — 기간 · 보증금률은 <Link to="/tools/defect-period" className="kr-link">하자담보책임기간 찾기 →</Link>
+      </div>
+      <div className="hint kt-hint">
+        <b>인지세</b> — 도급계약서 1통마다 냅니다. 발주처가 가지는 1통은 계약상대자가 쓴 것으로 보아 <b>계약상대자가 냅니다</b>(나머지 1통은 비과세).
+        {' '}{세칸 ? `이 금액은 «${세칸.글}» 칸이라 ${원(세칸.세액)}입니다. ` : ''}
+        <b>나라장터 같은 전자조달시스템</b>으로 계약하면 <b>계약서를 쓰는 날</b>, 그 밖에는 쓴 날이 속한 달의 <b>다음 달 10일까지</b> 전자수입인지로 냅니다.
+        {' '}금액을 늘린 변경계약은 늘어난 세액만, 줄인 변경계약은 내지 않습니다. 부가가치세를 따로 적은 계약서라면 기재금액은 국세청(126)에 확인하세요.
+      </div>
+      <details className="kt-all">
+        <summary>📋 인지세 표 · 공채(지역개발채권 · 도시철도채권)</summary>
+        <div className="kt-allg">
+          <div className="kt-allh">인지세 — 도급계약서 기재금액 <i>인지세법 제3조①1 · 3호</i></div>
+          <div className="kt-allr"><span>1천만원 이하</span><b>없음</b></div>
+          {인지세표.map((x) => <div key={x.넘고} className="kt-allr"><span>{x.글}</span><b>{원(x.세액)}</b></div>)}
+        </div>
+        <div className="kt-allg">
+          <div className="kt-allh">공채 <i>{공채근거}</i></div>
+          {공채글.map((t, i) => <p key={i} className="kr-p">{굵게(t)}</p>)}
+        </div>
+      </details>
+      <근거줄>{준비근거[곳.k]} · {준비근거.인지세}</근거줄>
+    </div>
+  )
+}
+
 export const 계약EXAMPLES = {
   'joint-split': { 글: '계약 10억 원 · 대표사 60% · 구성원 40% · 1회 기성 3억 원 · 선금 각 20%', ex: { 계약: '1,000,000,000', 금회: '300,000,000', 방식: '지분', 준공: false, 끝전: 0, 구성원: [{ 이름: '', 지분: '60', 선금: '120,000,000', 전회: '', 전회정산: '', 직접: '', _: 0 }, { 이름: '', 지분: '40', 선금: '80,000,000', 전회: '', 전회정산: '', 직접: '', _: 1 }] } },
   'payment-deadline': { 글: '국가 공사 · 11월 4일(수) 기성검사 완료 · 검사 전에 청구', ex: { 무엇: '기성', 발주: '국가', 검사: '2026-11-04', 청구: '' } },
@@ -599,6 +685,7 @@ export const 계약EXAMPLES = {
   'after-award': { 글: '국가 발주 8억 5천만 원 공사 · 10월 5일 낙찰 통지 · 10월 20일 착공 · 하도급 1억 2천만 원', ex: { 낙찰일: '2026-10-05', 착공일: '2026-10-20', 발주: '국가', 도급: '850,000,000', 공기: '180', 안전: true, 하도일: '2026-10-26', 하도금: '120,000,000' } },
   'delay-penalty': { 글: '국가 공사 5억 원 · 준공기한 11월 30일 · 12월 15일 준공검사 합격', ex: { 곳: '국가', 종: '공사', 계약: '500,000,000', 기한: '2026-11-30', 합격: '2026-12-15' } },
   'defect-period': { 글: '아스팔트 포장 도로 3억 원 · 12월 20일 준공검사', ex: { k: 'd2', 시작: '2026-12-20', 계약: '300,000,000' } },
+  'contract-ready': { 글: '국가 공사 2억 5천만 원 · 계약기간 11월 16일 ~ 내년 3월 31일', ex: { 발주: '국가', 계약: '250,000,000', 시작: '2026-11-16', 끝: '2027-03-31' } },
 }
 export const 계약CALCS = {
   'subcontract-check': SubcontractCheck,
@@ -607,4 +694,5 @@ export const 계약CALCS = {
   'defect-period': DefectPeriod,
   'payment-deadline': PaymentDeadline,
   'joint-split': JointSplit,
+  'contract-ready': ContractReady,
 }
