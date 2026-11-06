@@ -20,6 +20,7 @@ import { 미불CALCS, 미불EXAMPLES } from '../tools/미불칸.jsx'
 import { 공정CALCS, 공정EXAMPLES } from '../tools/공정칸.jsx'
 import { 제비율CALCS, 제비율EXAMPLES } from '../tools/제비율칸.jsx'   /* 📋 G350 간접공사비(제비율) 요율 찾기 */
 import { 토적CALCS, 토적EXAMPLES } from '../tools/토적칸.jsx'   /* 🏔 G571 토적컨맵 — 토적표 · 유토곡선 · 토공유동표 · 운반집계 · 차수 */
+import 도구이야기 from '../도구이야기.jsx'   /* 💬 G573 도구마다 «이 도구 이야기» — 묻고 답하기(맵톡에 함께) */
 import NotFound from './NotFound.jsx'
 import { use남김 } from '../lib/길기록.js'
 /* ⬇ 2026-10-01 (G96) 도구마다 «받은 횟수» — 그 화면에서 받은 파일(만든 PDF · 엑셀 포함). 아래 화면이 따로 카드면 빼고 셉니다 */
@@ -266,6 +267,7 @@ export function ToolPage() {
         {Calc ? <칸창고.Provider value={{ 열쇠, ex: 판.ex || {}, 예시안남김 }}><Calc key={판.n} ex={판.ex || {}} /></칸창고.Provider> : <div className="note">준비 중입니다.</div>}
       </div>
 
+      {Calc && <도구이야기 이름={String(t.title || '').split(' — ')[0]} 주소={`/tools/${t.slug}`} />}
       {(t.secs || []).map((s, i) => (
         <div className="card" key={i}>
           <div className="detail-h">{s.h}</div>

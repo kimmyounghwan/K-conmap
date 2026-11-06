@@ -10389,3 +10389,15 @@ a.adinfo-pick:hover, a.adinfo-pick:focus-visible { border-color: var(--ad-btn); 
   .tj-sum b { font-size: 14px; }
   .tj-tab { padding: 7px 7px; font-size: 13px; }
 }
+/* 💬 G573 이 도구 이야기 (도구이야기.jsx) — 도구 쪽 맨 아래 묻고 답하기(맵톡에 함께) */
+.dy .dy-sub { font-size: 12.5px; font-weight: 500; color: var(--muted); margin-left: 6px; }
+.dy-ta { width: 100%; min-height: 76px; font-size: 16px; line-height: 1.5; resize: vertical; }
+.dy-err { color: var(--bad); font-size: 13px; margin: 4px 0; }
+.dy-done { padding: 10px 12px; border-radius: 10px; background: var(--good-soft); color: var(--good); font-size: 13.5px; line-height: 1.7; }
+.dy-done a { font-weight: 700; margin: 0 6px; }
+.dy-list { margin-top: 10px; }
+.dy-list ul { list-style: none; padding: 0; margin: 6px 0 0; }
+.dy-list li { padding: 7px 0; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.dy-list li a { font-weight: 700; color: var(--text); text-decoration: none; }
+.dy-list li a:hover { color: var(--accent); text-decoration: underline; }
+.dy-meta { font-size: 12px; color: var(--muted); }
