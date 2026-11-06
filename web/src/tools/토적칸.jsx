@@ -12,8 +12,9 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { use칸, Row } from './calcs.jsx'
-import { 토적셈, 기본칸, 기본설정, 빈줄, 예시토적, 예시변경토적, 표풀기, 자료시작, 칸알아보기, 가져오기, 차수비교, 끝수, 숫, 높이에서 } from '../lib/토적.js'
+import { 토적셈, 기본칸, 기본설정, 빈줄, 예시토적, 예시변경토적, 표풀기, 자료시작, 칸알아보기, 가져오기, 차수비교, 끝수, 숫, 높이에서, 측점풀기 } from '../lib/토적.js'
 import { 유동줄, 동그라미 } from '../lib/토적받기.js'
+import { 노선살피기, 횡단토적 } from '../lib/토적횡단.js'   /* 📐 G572 횡단면도(DXF · DWG)에서 단면적 바로 읽기 */
 import { use인쇄 } from './공정인쇄.js'
 import { 세기 } from '../lib/받은수.jsx'
 
@@ -36,6 +37,8 @@ export function Tojeok({ ex = {} }) {
   const [지움확인, set지움확인] = useState(false)
   const [이름고침, set이름고침] = useState(false)
   const 파일 = useRef(null)
+  const 도면파일 = useRef(null)
+  const [횡, set횡] = useState(null)              /* 📐 횡단면도 읽기 {바쁨} | {노선, 고른, 출처, 파일} */
   const 표틀 = useRef(null)
   const 지금 = Math.min(Math.max(0, 지금칸 | 0), Math.max(0, 차수.length - 1))
   const V = 차수[지금] || 새판()
@@ -128,6 +131,44 @@ export function Tojeok({ ex = {} }) {
     세기('|토적|가져오기')
   }
 
+  /* 📐 횡단면도(DXF · DWG) — DWG 는 DXF 로 바꾼 뒤 일꾼이 읽음(도면 3D 보기와 같은 읽개) */
+  const 횡단받음 = async (files) => {
+    const 들 = [...(files || [])]
+    if (!들.length) return
+    const 모든 = []
+    try {
+      for (const f of 들) {
+        let buf = await f.arrayBuffer()
+        if (/\.dwg$/i.test(f.name)) {
+          set횡({ 바쁨: `${f.name} — DWG 를 DXF 로 바꾸는 중…` })
+          const { DWG바꾸기 } = await import('../lib/dwg바꾸기.js')
+          try { buf = (await DWG바꾸기(buf, f.name, (d) => set횡({ 바쁨: `${f.name} — DWG 바꾸는 중${d && d.msg ? ' · ' + d.msg : ''}` }))).dxf }
+          catch (e) { if (!(e && e.kind === 'isdxf')) throw e }
+        }
+        set횡({ 바쁨: `${f.name} — 횡단면도 읽는 중…` })
+        const r = await 횡단일꾼(buf, f.name.replace(/\.(dxf|dwg)$/i, ''), (pp) => set횡({ 바쁨: `${f.name} — 읽는 중 ${Math.round(pp * 100)}%` }))
+        모든.push(...r.노선)
+      }
+    } catch (e) { set횡(null); set알림('⚠️ 도면을 읽지 못했습니다 — ' + ((e && (e.message || e.kind)) || e)); return }
+    if (!모든.length) { set횡(null); set알림('⚠️ 횡단면도의 측점 표(NO. · 지반고)를 찾지 못했습니다. 횡단면도가 든 DXF · DWG 인지 확인해 주십시오(종평면도만 있는 파일은 단면적이 없습니다).'); return }
+    모든.sort((a, b) => String(a.이름).localeCompare(String(b.이름), 'ko', { numeric: true }))
+    const 첫 = 노선살피기(모든[0])
+    set횡({ 노선: 모든, 고른: 0, 출처: 첫.표수 ? '표' : '선', 파일: 들.map((f) => f.name).join(' · ') })
+    세기('|토적|횡단읽기')
+  }
+  const 횡단넣기 = (G) => { 넣기(G); set횡(null) }
+  const 노선짧게 = (이름) => String(이름 || '').replace(/\s*(횡단면도|횡단도)\s*/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 20)
+  const 횡단모두 = (Gs) => {
+    const 비었나 = (v) => !(v.줄 || []).some((r) => String(r.측 || '').trim() || Object.values(r.값 || {}).some((x) => String(x || '').trim()))
+    const 바꿈 = 차수.length === 1 && 비었나(차수[0])
+    const 처음 = 바꿈 ? 0 : 차수.length
+    const 새것 = Gs.map(({ G, 이름 }) => ({ 이름: 노선짧게(이름), 설정: { ...기본설정(), ...(V.설정 || {}), ...(G.간격 ? { 간격: String(G.간격) } : {}) }, 칸: G.칸, 줄: G.줄 }))
+    set차수((L) => (바꿈 ? 새것 : [...L, ...새것]))
+    set지금(처음); set되돌릴(null); set횡(null); set보일(한쪽)
+    set알림(`📥 노선 ${Gs.length}개를 한 장씩 넣었습니다(위 «차수 · 노선» 칸) — ${Gs.map((g) => 노선짧게(g.이름) + ' ' + g.G.줄.length + '측점').join(' · ')}. 노선마다 절토 C 를 넣어 주십시오.`)
+    세기('|토적|횡단모두')
+  }
+
   /* 차수 */
   const 차수더 = () => {
     const 이름 = (차수.length === 1 ? '1회 변경' : 차수.length + '회 변경')
@@ -169,7 +210,7 @@ export function Tojeok({ ex = {} }) {
     <>
       {/* ── 차수 ── */}
       <div className="tj-bar" role="tablist" aria-label="차수">
-        <span className="tj-bar-l">차수</span>
+        <span className="tj-bar-l">차수 · 노선</span>
         {차수.map((v, i) => (
           <button key={i} type="button" role="tab" aria-selected={i === 지금} className={'tj-chip' + (i === 지금 ? ' on' : '')} onClick={() => { set지금(i); set지움확인(false); set이름고침(false) }}>{v.이름 || (i ? i + '회 변경' : '당초')}</button>
         ))}
@@ -254,7 +295,9 @@ export function Tojeok({ ex = {} }) {
       <div className="kt-btns">
         <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set붙글(붙글 === null ? '' : null)}>📋 엑셀 표 붙여넣기(머리 줄째)</button>
         <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 파일.current?.click()}>📥 엑셀 파일 열기</button>
+        <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!(횡 && 횡.바쁨)} onClick={() => 도면파일.current?.click()}>📐 횡단면도(DXF · DWG) 읽기</button>
         <input ref={파일} type="file" accept=".xlsx,.xls" className="sr-only" tabIndex={-1} onChange={(e) => { 파일받음(e.target.files && e.target.files[0]); e.target.value = '' }} />
+        <input ref={도면파일} type="file" accept=".dxf,.dwg" multiple className="sr-only" tabIndex={-1} onChange={(e) => { 횡단받음(e.target.files); e.target.value = '' }} />
         {되돌릴 && <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={() => { setV(되돌릴); set되돌릴(null); set알림('↩ 가져오기 전으로 되돌렸습니다.') }}>↩ 가져오기 전으로</button>}
       </div>
       {붙글 !== null && !창 && (
@@ -269,6 +312,8 @@ export function Tojeok({ ex = {} }) {
         </div>
       )}
       {창 && <가져오기창 창={창} 이전칸={칸} 닫기={() => set창(null)} 넣기={넣기} />}
+      {횡 && 횡.바쁨 && <div className="gp-say">⏳ {횡.바쁨}</div>}
+      {횡 && 횡.노선 && <횡단창 횡={횡} set횡={set횡} 이전칸={칸} 넣기={횡단넣기} 모두={횡단모두} />}
       {알림 && <div className="gp-say">{알림}</div>}
 
       <div className="tj-wrap" ref={표틀}>
@@ -383,6 +428,67 @@ export function Tojeok({ ex = {} }) {
 }
 
 /* ── 가져오기 창 — 머리 줄 · 칸마다 할 일 ───────────────────────────── */
+/* ── 📐 횡단면도에서 읽은 노선 고르기 ─────────────────────────────── */
+function 횡단일꾼(buf, name, 알려) {
+  return new Promise((res, rej) => {
+    const w = new Worker(new URL('../lib/토적횡단.worker.js', import.meta.url), { type: 'module' })
+    w.onmessage = (ev) => {
+      const d = ev.data || {}
+      if (d.type === 'prog') { if (알려) 알려(d.p); return }
+      w.terminate()
+      if (d.type === 'done') res({ 노선: d.노선 || [], 까닭: d.까닭 }); else rej(new Error(d.msg || '읽기 실패'))
+    }
+    w.onerror = (e) => { w.terminate(); rej(new Error((e && e.message) || '읽기 실패')) }
+    w.postMessage({ buf, name }, [buf])
+  })
+}
+function 횡단창({ 횡, set횡, 이전칸, 넣기, 모두 }) {
+  const L = 횡.노선[횡.고른] || 횡.노선[0]
+  const 살 = 노선살피기(L)
+  const 출처 = 횡.출처 === '표' && !살.표수 ? '선' : 횡.출처
+  const G = useMemo(() => 횡단토적(L, 출처, 이전칸), [L, 출처, 이전칸])
+  const 쉼1 = (v) => (Number.isFinite(v) ? 끝수(v, 2).toLocaleString('ko-KR') : '')
+  return (
+    <div className="tj-box">
+      <div className="tj-box-h">📐 횡단면도에서 읽은 노선 {횡.노선.length}개{횡.파일 ? ' — ' + 횡.파일 : ''}</div>
+      <div className="tj-wrap">
+        <table className="tj-map">
+          <thead><tr><th /><th>노선</th><th>측점</th><th>표 값</th><th>선 값</th><th>측점 간격</th></tr></thead>
+          <tbody>
+            {횡.노선.map((x, i) => {
+              const a = 노선살피기(x)
+              const g = 횡단토적(x, a.표수 ? '표' : '선', [])
+              /* 길이는 측점 글 + 읽은 간격으로(3D 보기의 짐작 간격이 아니라) */
+              const 앞m = g.줄.length ? (측점풀기(g.줄[0].측, g.간격 || 20) || {}).m : NaN, 뒤m = g.줄.length ? (측점풀기(g.줄[g.줄.length - 1].측, g.간격 || 20) || {}).m : NaN
+              return (
+                <tr key={i} className={i === 횡.고른 ? '' : 'off'}>
+                  <td className="c"><input type="radio" name="tj-hd" checked={i === 횡.고른} onChange={() => set횡({ ...횡, 고른: i, 출처: a.표수 ? '표' : '선' })} aria-label={x.이름} /></td>
+                  <td className="tj-mh">{x.이름}</td>
+                  <td className="r">{a.n}곳 · {쉼1(앞m)} ~ {쉼1(뒤m)} m</td>
+                  <td className="r">{a.표수 ? a.표수 + '곳' : '없음'}</td>
+                  <td className="r">{a.선수 ? a.선수 + '곳' : '없음'}</td>
+                  <td className="r">{g.간격 ? g.간격 + ' m' + (g.간근거 === '짐작' ? ' 📌짐작' : ' (종평면도)') : '—'}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="tj-src">
+        <label><input type="radio" name="tj-src" checked={출처 === '표'} disabled={!살.표수} onChange={() => set횡({ ...횡, 출처: '표' })} /><span>📋 <b>표 값</b> — 측점 표에 설계자가 적은 면적{살.세부.절토.length ? '(흙깎기 토질별 ' + 살.세부.절토.join(' · ') + ')' : ''} · 설계 토적표와 같음{!살.표수 && <i> — 이 노선엔 없음</i>}</span></label>
+        <label><input type="radio" name="tj-src" checked={출처 === '선'} disabled={!살.선수} onChange={() => set횡({ ...횡, 출처: '선' })} /><span>📏 <b>선으로 잰 면적</b> — 지반선 · 계획선 사이를 잰 어림(표 값이 없는 도면)</span></label>
+      </div>
+      <p className="tl-p">넣을 것: 측점 <b>{G.줄.length}</b>곳 · 흙 칸 <b>{G.칸.length}</b>개({G.칸.map((c) => c.이름 + (c.종 === '성' ? '(성토)' : '')).join(' · ') || '—'}){G.간격 ? ' · 측점 간격 ' + G.간격 + ' m' : ''}{G.줄[0] ? ' · 첫 측점 ' + G.줄[0].측 : ''}</p>
+      {G.알림.length > 0 && <ul className="tj-warn">{G.알림.map((a, k) => <li key={k}>{a}</li>)}</ul>}
+      <div className="kt-btns">
+        <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={!G.줄.length || !G.칸.length} onClick={() => 넣기(G)}>이 노선 넣기 (지금 표를 바꿈)</button>
+        {횡.노선.length > 1 && <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 모두(횡.노선.map((x) => { const a = 노선살피기(x); return { 이름: x.이름, G: 횡단토적(x, a.표수 ? '표' : '선', 이전칸) } }))}>노선 {횡.노선.length}개 모두 — 노선마다 한 장</button>}
+        <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={() => set횡(null)}>그만</button>
+      </div>
+    </div>
+  )
+}
+
 const 할들 = [['무시', '안 씀'], ['측', '측점'], ['더', '측점 더함(+)'], ['거', '점간 거리'], ['누', '누가거리'], ['절', '절토 단면적'], ['성', '성토 단면적']]
 function 가져오기창({ 창, 이전칸, 닫기, 넣기 }) {
   const 처음시트 = () => {

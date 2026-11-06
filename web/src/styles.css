@@ -10304,6 +10304,13 @@ a.adinfo-pick:hover, a.adinfo-pick:focus-visible { border-color: var(--ad-btn); 
 .tj-map select { padding: 5px; font-size: 12.5px; }
 .tj-map input { padding: 5px 6px; font-size: 12.5px; width: 140px; }
 .tj-map tr.off td { opacity: .55; }
+.tj-map td.r { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+.tj-map td.c { width: 28px; text-align: center; }
+.tj-map input[type=radio] { width: auto; }
+.tj-src { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; font-size: 13px; line-height: 1.5; }
+.tj-src label { display: flex; gap: 6px; align-items: flex-start; }
+.tj-src input { width: auto; margin-top: 3px; flex: none; }
+.tj-src i { font-style: normal; color: var(--muted); }
 .tj-in { border-collapse: collapse; font-size: 13px; min-width: 100%; }
 .tj-in th { background: var(--surface-2); padding: 6px 4px; border-bottom: 1px solid var(--line); white-space: nowrap; font-weight: 700; font-size: 12.5px; text-align: center; line-height: 1.25; }
 .tj-in th.tj-c { color: #a16207; } .tj-in th.tj-f { color: var(--accent); }
