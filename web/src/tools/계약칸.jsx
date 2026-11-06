@@ -10,6 +10,7 @@
      🧭 toejik-check       퇴직공제 가입 대상 판단기 — 당연가입 · 성립 신고 14일 · 전자카드 (G558 · 2026-11-06 — 셈 lib/퇴직공제대상.js)
      ⏳ time-extension     공기연장 때 할 일 — 연장 청구 · 보증서 · 실비 · 신고 기한 (G559 · 2026-11-06 — 할 일 lib/공기연장.js)
      🌫️ env-reports        착공 전 환경 신고 판단기 — 비산먼지 · 특정공사 · 건설폐기물 · 사업장폐기물 (G561 · 2026-11-06 — 판정 lib/환경신고.js)
+     🎯 bid-eligible       입찰 참가 가능 금액 — 시공능력평가액 · 실적 제한 · 공동이행 (G562 · 2026-11-06 — 판정 lib/입찰참가.js · 화면 갈래는 «입찰 · 낙찰»)
 
    ⚠️ 숫자·조문은 lib/계약셈.js 한 곳에만 있습니다(💰 지급 기한 셈은 lib/대금기한.js). 여기서는 그리기만 합니다.
    ⚠️ 설명·근거 글은 web/src/data/tools.json 에 (prerender 가 같이 굽습니다).
@@ -32,9 +33,10 @@ import { 발주들 as 준비발주, 인지세, 인지세칸, 인지세표, 변�
 import { 종류들 as 공제종류, 발주들 as 공제발주, 건축들 as 공제건축, 가입판단, 성립기한, 전자카드 as 공제카드, 근거 as 공제근거, 할일들 as 공제할일, 아닐때 as 공제아닐때, 바뀜 as 공제바뀜, 금액풀이 as 공제금액풀이 } from '../lib/퇴직공제대상.js'   /* 🧭 G558 */
 import { 발주들 as 연장발주, 까닭들 as 연장까닭, 사유들 as 연장사유, 할일 as 연장할일, 근거 as 연장근거, 지체글 as 연장지체글 } from '../lib/공기연장.js'   /* ⏳ G559 */
 import { 규모칸 as 환경규모, 종류들 as 환경종류, 고른값 as 환경고른값, 장비들 as 환경장비, 가까이들 as 환경가까이, 비산먼지 as 비산판정, 특정공사 as 특정판정, 폐기물 as 폐기판정, 근거 as 환경근거, 신고들 as 환경신고들, 사업장풀이 as 환경사업장풀이, 함께 as 환경함께 } from '../lib/환경신고.js'   /* 🌫️ G561 */
+import { 발주들 as 참가발주, 종류들 as 참가종류, 제한들 as 참가제한, 판정 as 참가판정, 안전선 as 참가안전선, 안전선글 as 참가안전선글, 공동셈 as 참가공동, 안내 as 참가안내, 근거 as 참가근거 } from '../lib/입찰참가.js'   /* 🎯 G562 */
 import { getBidIndex, indexRows } from '../lib/data.js'
 import 금액입력 from '../금액입력.jsx'   /* 💰 G544 금액 칸 — «3억 8,500만» · 붙여넣은 «385,000,000원» 도 읽음 · 칸 아래 읽은 줄(바로투찰 · 보험료와 같은 칸) */
-import { 금액수 } from '../lib/금액읽기.js'
+import { 금액수, 금액말 } from '../lib/금액읽기.js'
 
 const num = (v) => { const n = Number(String(v ?? '').replace(/[^0-9.]/g, '')); return isFinite(n) ? n : 0 }   /* 율 · 날 · % 만 — 금액은 금() */
 /* 💰 G544 금액은 금() — 전엔 num() 으로 숫자만 남겨 «3억 8,500만» → 38,500 · «12억» → 12 로 셈(칸에는 친 글이 그대로 보여 더 헷갈림) */
@@ -904,6 +906,118 @@ export function EnvReports({ ex = {} }) {
   )
 }
 
+/* ══════════════════════════════════════════════════════════
+   🎯 입찰 참가 가능 금액 (G562) — 시공능력평가액 · 실적 제한 · 공동이행
+   소장님 「1번 부터 5번까지 작업해줘」 — 카페 도구 후보 ⑤-3(«시평액이 추정가격보다 적은데 단독으로 들어갈 수 있나»)
+   판정 · 조문은 lib/입찰참가.js 한 곳(법제처 원문 세 번 읽음) · 여기서는 그리기만
+   ══════════════════════════════════════════════════════════ */
+const 빈동료 = () => [{ 시평: '', 지분: '', 실적: '' }, { 시평: '', 지분: '', 실적: '' }]
+export function BidEligible({ ex = {} }) {
+  const [발주, set발주] = use칸('발주', ex.발주 ?? '국가')
+  const [종류, set종류] = use칸('종류', ex.종류 ?? '종합')
+  const [est, setEst] = use칸('추정', ex.추정 ?? '')   /* 이름 est — tools/checklabels.py 가 «추정가격» 이름표에 est 를 찾습니다(위 계약 준비물과 같음) */
+  const [제한, set제한] = use칸('제한', ex.제한 ?? '없음')
+  const [기준, set기준] = use칸('기준', ex.기준 ?? '')
+  const [우리, set우리] = use칸('우리', ex.우리 ?? '')
+  const [실적, set실적] = use칸('실적', ex.실적 ?? '')
+  const [우리지분, set우리지분] = use칸('우리지분', ex.우리지분 ?? '')
+  const [동료, set동료] = use칸('동료', ex.동료 ?? 빈동료())
+  const o = { 발주, 종류, 추정: est, 제한, 기준, 우리, 실적 }
+  const r = 참가판정(o)
+  const 선 = 참가안전선글(참가안전선(o))
+  const 규모 = 제한 === '실적규모'
+  const 실적칸 = 제한 === '실적금액' || 규모
+  const 시평칸 = 제한 === '없음' || 제한 === '시평'
+  const 동 = Array.isArray(동료) && 동료.length ? 동료 : 빈동료()
+  const 지분칸 = 발주 === '지방' && 제한 === '시평'
+  const 공 = 참가공동(o, [{ 시평: 우리, 지분: 우리지분, 실적 }, ...동])
+  const 공값 = 제한 === '시평' ? 공.시평합 : 공.실적값
+  const 공보기 = (v) => (규모 ? Number(v || 0).toLocaleString('ko-KR') : (금액말(v) || '0원'))
+  const 공판 = 제한 !== '없음' && r.기준 > 0 && 공.줄수 >= 2 && !(지분칸 && 공.지분빔) ? (공값 >= r.기준 ? 'yes' : 'no') : null
+  const 동고침 = (i, k, v) => set동료(동.map((m, j) => (j === i ? { ...m, [k]: v } : m)))
+  const 공근거 = 참가근거[발주 === '지방' ? '지방공동' : '국가공동']
+  const 판글 = r.결과 === 'yes' ? 'good' : r.결과 === 'no' ? 'bad' : ''
+  return (
+    <div className="tool be">
+      <div className="tl-grid">
+        <Row label="발주처">
+          <select value={발주} onChange={(e) => set발주(e.target.value)}>
+            {참가발주.map((x) => <option key={x.k} value={x.k}>{x.이름}</option>)}
+          </select>
+        </Row>
+        <Row label="공사 종류">
+          <select value={종류} onChange={(e) => set종류(e.target.value)}>
+            {참가종류.map((x) => <option key={x.k} value={x.k}>{x.이름}</option>)}
+          </select>
+        </Row>
+        <금액칸 label="추정가격" hint="공고문의 추정가격 — 기초금액 아님" value={est} set={setEst} placeholder="3,200,000,000" />
+        <Row label="공고의 참가 제한" hint="공고문 참가 자격에 적힌 것">
+          <select value={제한} onChange={(e) => set제한(e.target.value)}>
+            {참가제한.map((x) => <option key={x.k} value={x.k}>{x.이름}</option>)}
+          </select>
+        </Row>
+        {제한 === '시평' && <금액칸 label="공고 시평액 기준" hint="«시공능력평가액 ○○원 이상»" value={기준} set={set기준} placeholder="3,200,000,000" />}
+        {제한 === '실적금액' && <금액칸 label="공고 실적 기준" hint="같은 종류 공사 · 한 건 금액" value={기준} set={set기준} placeholder="2,000,000,000" />}
+        {규모 && <Row label="공고 실적 규모 · 양" hint="단위는 공고대로(㎞ · ㎡ · ㎥ · 개소 등)"><input inputMode="decimal" value={기준} onChange={(e) => set기준(e.target.value)} placeholder="0" /></Row>}
+        {시평칸 && <금액칸 label="우리 시평액" hint="공고 업종의 올해 공시 금액" value={우리} set={set우리} placeholder="2,100,000,000" />}
+        {제한 === '실적금액' && <금액칸 label="우리 가장 큰 한 건" hint="같은 종류 공사 실적 금액" value={실적} set={set실적} placeholder="1,800,000,000" />}
+        {규모 && <Row label="우리 가장 큰 한 건" hint="공고와 같은 단위"><input inputMode="decimal" value={실적} onChange={(e) => set실적(e.target.value)} placeholder="0" /></Row>}
+      </div>
+      {(제한 === '시평' || 제한 === '실적금액') && r.추정 > 0 && (
+        <div className="be-quick">공고 기준 빨리 넣기:
+          <button type="button" className="btn ghost sm" onClick={() => set기준(String(r.추정))}>추정가격만큼</button>
+          {제한 === '시평' && 발주 === '지방' && <button type="button" className="btn ghost sm" onClick={() => set기준(String(r.추정 * 2))}>추정가격 × 2</button>}
+        </div>
+      )}
+      {판글 ? <판정칸 종류={판글}><b>{r.제목}</b>{r.글 ? ` — ${r.글}` : ''}</판정칸> : <div className="hint">{r.제목}.</div>}
+      {r.알림.map((x) => <div key={x} className="hint kt-hint be-warn">⚠ {x}</div>)}
+      <Out items={[
+        { k: '이 공사에 시평 · 실적 제한', v: r.걸 === true ? '걸 수 있는 규모' : r.걸 === false ? '걸 수 없는 규모' : '추정가격을 넣으면' },
+        { k: '시평 기준 상한', v: r.걸 === false ? '제한 못 함' : r.상한 ? `${금액말(r.상한)} (추정가격 × ${r.배})` : '—' },
+        { k: '실적 금액 기준 상한', v: r.걸 === false ? '특수 기술 · 공법 공사만' : r.실적상한 ? `${금액말(r.실적상한)} (추정가격 × 1)` : '—' },
+        ...(선 && 시평칸 ? [{ k: '시평으로 안 막히는 공사', v: 선.v, big: true }] : []),
+      ]} />
+      {선 && 시평칸 && <div className="hint kt-hint">{선.풀이}.</div>}
+      {제한 !== '없음' && (
+        <details className="kt-all be-jv" open={r.결과 === 'no'}>
+          <summary>공동이행으로 들어갈 때 — {발주 === '지방' ? (제한 === '시평' ? '시평 = 각 시평액 × 지분을 더함' : '실적 = 구성원 중 한 곳이라도') : '시평 · 실적 = 구성원 모두 합산'}</summary>
+          <div className={'be-rows' + (지분칸 ? ' w3' : '')} role="table">
+            <div className="be-tr be-th" role="row"><span>구성원</span><span>{제한 === '시평' ? '시평액' : '실적(한 건)'}</span>{지분칸 && <span>지분 %</span>}</div>
+            <div className="be-tr" role="row">
+              <span>우리</span>
+              <span className="be-v">{제한 === '시평' ? (금액말(금액수(우리)) || '위 칸') : (규모 ? (실적 || '위 칸') : (금액말(금액수(실적)) || '위 칸'))}</span>
+              {지분칸 && <input className="inp num" aria-label="우리 지분" inputMode="decimal" value={우리지분} placeholder="%" onChange={(e) => set우리지분(e.target.value.replace(/[^0-9.]/g, '').slice(0, 5))} />}
+            </div>
+            {동.map((m, i) => (
+              <div key={i} className="be-tr" role="row">
+                <span>구성원 {i + 2}</span>
+                {제한 === '시평'
+                  ? <div className="be-c"><금액입력 className="inp num" aria-label={`구성원 ${i + 2} 시평액`} value={m.시평} onValue={(n, d) => 동고침(i, '시평', d)} placeholder="—" /></div>
+                  : 규모
+                    ? <input className="inp num" aria-label={`구성원 ${i + 2} 실적`} inputMode="decimal" value={m.실적} placeholder="—" onChange={(e) => 동고침(i, '실적', e.target.value)} />
+                    : <div className="be-c"><금액입력 className="inp num" aria-label={`구성원 ${i + 2} 실적`} value={m.실적} onValue={(n, d) => 동고침(i, '실적', d)} placeholder="—" /></div>}
+                {지분칸 && <input className="inp num" aria-label={`구성원 ${i + 2} 지분`} inputMode="decimal" value={m.지분} placeholder="%" onChange={(e) => 동고침(i, '지분', e.target.value.replace(/[^0-9.]/g, '').slice(0, 5))} />}
+              </div>
+            ))}
+          </div>
+          <Out items={[
+            { k: 제한 === '시평' ? '공동이행 시평액' : '공동이행 실적', v: 공.줄수 >= 2 ? 공보기(공값) : '구성원을 넣으면', big: true },
+            ...(지분칸 ? [{ k: '지분 합계', v: 공.줄수 ? `${공.지분합}%` : '—' }] : []),
+          ]} />
+          {공판 === 'yes' && <판정칸 종류="good"><b>공동이행이면 들어갈 수 있습니다</b> — 기준 {공보기(r.기준)} · 공동 {공보기(공값)}</판정칸>}
+          {공판 === 'no' && <판정칸 종류="bad"><b>공동이행으로도 {공보기(r.기준 - 공값)} 모자랍니다</b></판정칸>}
+          {지분칸 && 공.줄수 >= 2 && 공.지분빔 > 0 && <div className="hint kt-hint be-warn">⚠ 지자체 공사는 시평액 × 지분으로 셉니다 — 지분을 안 적은 구성원 {공.지분빔}곳.</div>}
+          {지분칸 && 공.줄수 >= 2 && !공.지분빔 && Math.abs(공.지분합 - 100) > 0.001 && <div className="hint kt-hint be-warn">⚠ 지분 합계가 {공.지분합}% 입니다 — 100% 가 돼야 합니다.</div>}
+          <div className="hint kt-hint">{공.풀이[제한 === '시평' ? '시평' : '실적']}({공근거}).{발주 === '지방' ? ' 주계약자 관리방식은 주계약자의 해당 업종 시평액으로 봅니다.' : ''} 구성원 수 · 최소 지분 · 협정서는 <Link to="/gongdong" className="kr-link">공동도급 마당 →</Link></div>
+        </details>
+      )}
+      {참가안내(발주).map((x) => <div key={x.slice(0, 12)} className="hint kt-hint">{굵게(x)}</div>)}
+      <div className="hint kt-hint">적격심사 시공경험 점수는 따로 셉니다 — <Link to="/tools/qualify-docs" className="kr-link">적격심사 서류 길잡이 →</Link> · <Link to="/tools/qualify-score" className="kr-link">적격심사 점수 합산기 →</Link></div>
+      <근거줄>{참가근거[발주 === '지방' ? '지방모두' : '국가모두']}</근거줄>
+    </div>
+  )
+}
+
 export const 계약EXAMPLES = {
   'joint-split': { 글: '계약 10억 원 · 대표사 60% · 구성원 40% · 1회 기성 3억 원 · 선금 각 20%', ex: { 계약: '1,000,000,000', 금회: '300,000,000', 방식: '지분', 준공: false, 끝전: 0, 구성원: [{ 이름: '', 지분: '60', 선금: '120,000,000', 전회: '', 전회정산: '', 직접: '', _: 0 }, { 이름: '', 지분: '40', 선금: '80,000,000', 전회: '', 전회정산: '', 직접: '', _: 1 }] } },
   'payment-deadline': { 글: '국가 공사 · 11월 4일(수) 기성검사 완료 · 검사 전에 청구', ex: { 무엇: '기성', 발주: '국가', 검사: '2026-11-04', 청구: '' } },
@@ -915,6 +1029,7 @@ export const 계약EXAMPLES = {
   'toejik-check': { 글: '지자체 발주 건설공사 · 공사예정금액 1억 5천만 원 · 11월 16일 착공', ex: { 종류: '건설', 발주: '국가', 금액: '150,000,000', 건축: '', 착공: '2026-11-16' } },
   'time-extension': { 글: '국가 공사 · 책임 없는 설계변경 · 준공기한 12월 31일 → 내년 2월 14일 · 12월 10일 변경계약 · 하도급 · 퇴직공제', ex: { 발주: '국가', 까닭: '없음', 지금: '2026-12-31', 새것: '2027-02-14', 합의: '2026-12-10', 장기: false, 하도급: true, 공제: true } },
   'env-reports': { 글: '근린생활시설 신축 연면적 3,200㎡ · 토공 1,800㎡ · 굴착기 등 5일 이상 · 공동주택 50m 안 · 건설폐기물 120톤 · 11월 16일 착공', ex: { 고른: { 건축: true, 토공: true }, 규모: { 건축: '3200', 토공: '1800' }, 장비: true, 가까이: { 공동주택: true }, 제외: false, 건폐톤: '120', 사업장: false, 착공: '2026-11-16' } },
+  'bid-eligible': { 글: '지자체 종합공사 · 추정가격 32억 원 · 공고에 시평 · 실적 제한 없음 · 우리 시평액 21억 원', ex: { 발주: '지방', 종류: '종합', 추정: '3,200,000,000', 제한: '없음', 기준: '', 우리: '2,100,000,000', 실적: '', 우리지분: '', 동료: [{ 시평: '', 지분: '', 실적: '' }, { 시평: '', 지분: '', 실적: '' }] } },
 }
 export const 계약CALCS = {
   'subcontract-check': SubcontractCheck,
@@ -927,4 +1042,5 @@ export const 계약CALCS = {
   'toejik-check': ToejikCheck,
   'time-extension': TimeExtension,
   'env-reports': EnvReports,
+  'bid-eligible': BidEligible,
 }
