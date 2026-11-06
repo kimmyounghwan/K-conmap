@@ -3035,6 +3035,15 @@ a.glink:hover { text-decoration: underline; }
 .tc-steps{ margin:8px 0 0; padding-left:20px; font-size:14px; line-height:1.65; word-break:keep-all; }
 .tc-steps li{ margin:4px 0; }
 .kr-p{ margin:4px 0; font-size:13.5px; line-height:1.6; word-break:keep-all; }
+/* ⏳ G559 공기연장 때 할 일 */
+/* 이름표가 «공사예정 / 금액» 처럼 두 줄로 쪼개지지 않게 — 긴 풀이(i)는 다음 줄로(G558 · G559 두 도구만) */
+.tool.tc .tl-lab, .tool.te .tl-lab{ flex-wrap:wrap; row-gap:1px; }
+.tool.te .kt-hint, .tool.te .kt-chk span{ word-break:keep-all; }
+.te-steps li{ margin:8px 0; }
+.te-when{ font-size:13px; color:var(--muted); font-weight:600; }
+.te-p{ margin-top:2px; font-size:13.5px; line-height:1.6; }
+.te-list{ margin:4px 0 6px; padding-left:18px; font-size:13.5px; line-height:1.6; word-break:keep-all; }
+.te-list li{ margin:2px 0; }
 /* 🩺 G555 4대보험 판단기 — 건강보험 상실 신고에 적을 값 */
 .iy-loss{ border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin:6px 0 8px; background:var(--surface); }
 .iy-loss-h{ font-size:14px; margin-bottom:6px; }

@@ -8,6 +8,7 @@
      🤝 joint-split        공동도급 기성 · 준공금 나누기 (G535 · 2026-11-04 — 셈 lib/공동기성.js)
      📦 contract-ready     계약 준비물 계산기 — 계약보증금 · 공사이행보증서 · 보증서 날짜 · 인지세 (G557 · 2026-11-06 — 셈 lib/계약준비.js)
      🧭 toejik-check       퇴직공제 가입 대상 판단기 — 당연가입 · 성립 신고 14일 · 전자카드 (G558 · 2026-11-06 — 셈 lib/퇴직공제대상.js)
+     ⏳ time-extension     공기연장 때 할 일 — 연장 청구 · 보증서 · 실비 · 신고 기한 (G559 · 2026-11-06 — 할 일 lib/공기연장.js)
 
    ⚠️ 숫자·조문은 lib/계약셈.js 한 곳에만 있습니다(💰 지급 기한 셈은 lib/대금기한.js). 여기서는 그리기만 합니다.
    ⚠️ 설명·근거 글은 web/src/data/tools.json 에 (prerender 가 같이 굽습니다).
@@ -28,6 +29,7 @@ import { 대금기한, 날말 } from '../lib/대금기한.js'
 import { 회차나누기 } from '../lib/공동기성.js'
 import { 발주들 as 준비발주, 인지세, 인지세칸, 인지세표, 변경인지세, 이행보증, 보증기간, 근거 as 준비근거, 공채글, 공채근거 } from '../lib/계약준비.js'   /* 📦 G557 */
 import { 종류들 as 공제종류, 발주들 as 공제발주, 건축들 as 공제건축, 가입판단, 성립기한, 전자카드 as 공제카드, 근거 as 공제근거, 할일들 as 공제할일, 아닐때 as 공제아닐때, 바뀜 as 공제바뀜, 금액풀이 as 공제금액풀이 } from '../lib/퇴직공제대상.js'   /* 🧭 G558 */
+import { 발주들 as 연장발주, 까닭들 as 연장까닭, 사유들 as 연장사유, 할일 as 연장할일, 근거 as 연장근거, 지체글 as 연장지체글 } from '../lib/공기연장.js'   /* ⏳ G559 */
 import { getBidIndex, indexRows } from '../lib/data.js'
 import 금액입력 from '../금액입력.jsx'   /* 💰 G544 금액 칸 — «3억 8,500만» · 붙여넣은 «385,000,000원» 도 읽음 · 칸 아래 읽은 줄(바로투찰 · 보험료와 같은 칸) */
 import { 금액수 } from '../lib/금액읽기.js'
@@ -343,6 +345,7 @@ export function DelayPenalty({ ex = {} }) {
         {' '}기한 뒤에 시정조치를 했다면 시정한 날부터 최종 합격일까지는 들어갑니다 — 그 일수는 «지체일수 직접» 칸에 넣으십시오.
         {' '}불가항력, 관급자재 공급 지연, 발주기관 책임의 착공 지연·공사 중지, 우리 책임 아닌 설계변경 같은 날은 빼고, 연장 승인을 받은 기간에는 붙지 않습니다.
       </div>
+      <div className="hint kt-hint">준공기한을 늘려야 하면 연장 청구 · 보증서 · 실비 · 신고 기한을 순서대로 — <Link to="/tools/time-extension" className="kr-link">공기연장 때 할 일 →</Link></div>
       <근거줄>{곳 === '직접' ? '계약서' : 표.근거} · 공사계약일반조건(계약예규) 제25조·제26조③ · 원 미만 버림</근거줄>
     </div>
   )
@@ -740,6 +743,82 @@ export function ToejikCheck({ ex = {} }) {
   )
 }
 
+/* ══════════════════════════════════════════════════════════
+   ⏳ 공기연장 때 할 일 (G559) — 연장 청구 · 인력투입계획 · 장비 · 보증서 · 실비 · 하도급 · 키스콘 · 고용산재 · 퇴직공제
+   소장님 「1번 부터 5번까지 작업해줘」 — 카페 도구 후보 ⑤-1. 할 일 · 조문은 lib/공기연장.js 한 곳(법제처 · 국토교통부 원문 세 번 읽음)
+   ══════════════════════════════════════════════════════════ */
+export function TimeExtension({ ex = {} }) {
+  const [발주, set발주] = use칸('발주', ex.발주 ?? '국가')
+  const [까닭, set까닭] = use칸('까닭', ex.까닭 ?? '없음')
+  const [지금, set지금] = use칸('지금', ex.지금 ?? '')
+  const [새것, set새것] = use칸('새것', ex.새것 ?? '')
+  const [합의, set합의] = use칸('합의', ex.합의 ?? '')
+  const [장기, set장기] = use칸('장기', ex.장기 ?? false)
+  const [하도급, set하도급] = use칸('하도급', ex.하도급 ?? false)
+  const [공제, set공제] = use칸('공제', ex.공제 ?? false)
+  const 곳 = 발주 === '지방' ? '지방' : '국가'
+  const r = 연장할일({ 발주: 곳, 까닭, 지금, 새것, 합의, 장기: !!장기, 하도급: !!하도급, 공제: !!공제 })
+  const 미룬 = (d) => { const m = 기한미루기(d); return `${날점(m.날)}${m.밀림 ? ' (쉬는 날이라 미룸)' : ''}` }
+  const 단 = (k) => r.단계.find((x) => x.k === k)
+  const 일수글 = r.일수 && r.일수.일 ? `${r.일수.일}일` : r.일수 && r.일수.틀림 ? '늘린 준공기한이 지금 준공기한보다 앞이거나 같음' : '두 준공기한을 넣으면'
+  return (
+    <div className="tool te">
+      <div className="tl-grid">
+        <Row label="발주처">
+          <select value={곳} onChange={(e) => set발주(e.target.value)}>
+            {연장발주.map((x) => <option key={x.k} value={x.k}>{x.이름}</option>)}
+          </select>
+        </Row>
+        <Row label="늦어진 까닭" hint="발주기관 사유 · 불가항력 등은 연장 사유">
+          <select value={까닭 === '우리' ? '우리' : '없음'} onChange={(e) => set까닭(e.target.value)}>
+            {연장까닭.map((x) => <option key={x.k} value={x.k}>{x.이름}</option>)}
+          </select>
+        </Row>
+        <Row label="지금 준공기한" hint="계약서 준공기한"><input type="date" value={지금} onChange={(e) => set지금(e.target.value)} /></Row>
+        <Row label="늘린 준공기한" hint="연장 뒤"><input type="date" value={새것} onChange={(e) => set새것(e.target.value)} /></Row>
+        <Row label="연장 변경계약한 날" hint="신고 기한 셈 — 아직이면 비움"><input type="date" value={합의} onChange={(e) => set합의(e.target.value)} /></Row>
+      </div>
+      <div className="kt-chks">
+        <label className="kt-chk"><input type="checkbox" checked={!!장기} onChange={(e) => set장기(e.target.checked)} /> <span>장기계속공사(연차별로 계약)</span></label>
+        <label className="kt-chk"><input type="checkbox" checked={!!하도급} onChange={(e) => set하도급(e.target.checked)} /> <span>하도급 준 공사가 있음</span></label>
+        <label className="kt-chk"><input type="checkbox" checked={!!공제} onChange={(e) => set공제(e.target.checked)} /> <span>퇴직공제 가입 공사</span></label>
+      </div>
+      {r.판정 === 'no'
+        ? <판정칸 종류="info"><b>계약기간 연장 사유가 아닙니다</b> — 우리 책임으로 늦어진 날은 {곳 === '지방' ? '지연배상금' : '지체상금'}이 붙습니다.</판정칸>
+        : <판정칸 종류="good"><b>계약기간 연장을 {곳 === '지방' ? '청구' : '신청'}할 수 있습니다</b> — {굵게(연장지체글[곳])}</판정칸>}
+      {r.판정 === 'yes' && (
+        <Out items={[
+          { k: '연장 일수', v: 일수글, big: true },
+          { k: '키스콘 변경통보', v: 단('kiscon') && 단('kiscon').날 ? 미룬(단('kiscon').날) : '변경계약한 날을 넣으면' },
+          { k: '고용 · 산재 변경신고', v: 단('boheom') && 단('boheom').날 ? 미룬(단('boheom').날) : '변경계약한 날을 넣으면' },
+        ]} />
+      )}
+      <ol className="tc-steps te-steps">
+        {r.단계.map((x) => (
+          <li key={x.k}>
+            <b>{x.제목}</b> <span className="te-when">— {x.때}{x.날 ? (x.k === 'cheong' ? `(준공기한 ${날점(x.날)})` : ` · ${미룬(x.날)}`) : ''}</span>
+            <div className="te-p">{굵게(x.글)} <span className="hj-src1">({x.근거})</span></div>
+          </li>
+        ))}
+      </ol>
+      {r.판정 === 'yes' && (
+        <details className="kt-all te-why">
+          <summary>연장 사유가 되는 것 — 지체일수에 넣지 않는 사유</summary>
+          <ul className="te-list">{연장사유[곳].map((s) => <li key={s}>{s}</li>)}</ul>
+          <div className="hj-src1">{곳 === '지방' ? '지방 집행기준 제9장 제8절 1-다 1) ~ 8)(7) 물품은 뺌)' : '공사계약일반조건 제25조③ 1 ~ 8호(4호 삭제)'}</div>
+        </details>
+      )}
+      <div className="hint kt-hint">
+        {r.판정 === 'no'
+          ? <>늦어진 날의 금액은 <Link to="/tools/delay-penalty" className="kr-link">지체상금 계산기 →</Link> · 우리 책임이 아닌 날을 빼 달라고 할 때는 <Link to="/forms/jiche-gammyeon" className="kr-link">지체상금 감면 신청서 →</Link></>
+          : <>서류: <Link to="/forms/gonggi-yeonjang" className="kr-link">공기연장 신청서 →</Link> · <Link to="/forms/chg-ganjeopbi" className="kr-link">공기연장 간접비 산출서 →</Link> · 환경 신고(변경 기한까지): <Link to="/forms/bisan-singo" className="kr-link">비산먼지 발생사업 신고서 →</Link> · <Link to="/forms/teukjeong-singo" className="kr-link">특정공사 사전신고서 →</Link></>}
+      </div>
+      <div className="hint kt-hint">기록이 연장을 정합니다 — 작업일보 · 기상 자료 쓰는 법은 <Link to="/change/period" className="kr-link">길잡이 «공기연장과 간접비» →</Link>{공제 ? <> · <Link to="/tools/toejik-check" className="kr-link">퇴직공제 가입 대상 판단기 →</Link></> : null}</div>
+      <근거줄>{r.판정 === 'no' ? 연장근거[곳 + '우리'] : 연장근거[곳 + '모두']}</근거줄>
+    </div>
+  )
+}
+
 export const 계약EXAMPLES = {
   'joint-split': { 글: '계약 10억 원 · 대표사 60% · 구성원 40% · 1회 기성 3억 원 · 선금 각 20%', ex: { 계약: '1,000,000,000', 금회: '300,000,000', 방식: '지분', 준공: false, 끝전: 0, 구성원: [{ 이름: '', 지분: '60', 선금: '120,000,000', 전회: '', 전회정산: '', 직접: '', _: 0 }, { 이름: '', 지분: '40', 선금: '80,000,000', 전회: '', 전회정산: '', 직접: '', _: 1 }] } },
   'payment-deadline': { 글: '국가 공사 · 11월 4일(수) 기성검사 완료 · 검사 전에 청구', ex: { 무엇: '기성', 발주: '국가', 검사: '2026-11-04', 청구: '' } },
@@ -749,6 +828,7 @@ export const 계약EXAMPLES = {
   'defect-period': { 글: '아스팔트 포장 도로 3억 원 · 12월 20일 준공검사', ex: { k: 'd2', 시작: '2026-12-20', 계약: '300,000,000' } },
   'contract-ready': { 글: '국가 공사 2억 5천만 원 · 계약기간 11월 16일 ~ 내년 3월 31일', ex: { 발주: '국가', 계약: '250,000,000', 시작: '2026-11-16', 끝: '2027-03-31' } },
   'toejik-check': { 글: '지자체 발주 건설공사 · 공사예정금액 1억 5천만 원 · 11월 16일 착공', ex: { 종류: '건설', 발주: '국가', 금액: '150,000,000', 건축: '', 착공: '2026-11-16' } },
+  'time-extension': { 글: '국가 공사 · 책임 없는 설계변경 · 준공기한 12월 31일 → 내년 2월 14일 · 12월 10일 변경계약 · 하도급 · 퇴직공제', ex: { 발주: '국가', 까닭: '없음', 지금: '2026-12-31', 새것: '2027-02-14', 합의: '2026-12-10', 장기: false, 하도급: true, 공제: true } },
 }
 export const 계약CALCS = {
   'subcontract-check': SubcontractCheck,
@@ -759,4 +839,5 @@ export const 계약CALCS = {
   'joint-split': JointSplit,
   'contract-ready': ContractReady,
   'toejik-check': ToejikCheck,
+  'time-extension': TimeExtension,
 }

@@ -114,6 +114,8 @@ if (BASE) {
     ok('일액(8,700원 · 6,500원) · 집계 링크 · 낙찰 뒤 할 일 링크 · 2027 바뀜', /8,700원/.test(글) && /6,500원/.test(글) && (await p.locator('.tool.tc a[href="/tools/toejik"]').count()) === 1 && (await p.locator('.tool.tc a[href="/tools/after-award"]').count()) === 1 && /2027\. 1\. 8\.부터/.test(글))
     ok('전자카드 — 1억 5천은 «단말기 또는 휴대폰 앱»', /단말기 또는 휴대폰 앱/.test(글))
     ok('건설 금액 칸 풀이 «국가계약법 장기계속계약은»', /국가계약법 장기계속계약은 연차 계약이 아닌/.test(글))
+    const 줄수 = await p.evaluate(() => { const l = [...document.querySelectorAll('.tool.tc .tl-lab')].find((x) => x.firstChild && /공사예정금액/.test(x.firstChild.textContent || '')); if (!l) return -1; const r = document.createRange(); r.selectNodeContents(l.firstChild); return new Set([...r.getClientRects()].map((q) => Math.round(q.top))).size })
+    ok('폰 390 — 이름표 «공사예정금액» 한 줄(풀이는 다음 줄로 · 두 줄로 쪼개지지 않음)', 줄수 === 1, 줄수)
     if (OUT) {
       await p.evaluate(() => { for (const e of document.querySelectorAll('body *')) { const s = getComputedStyle(e); if (s.position === 'fixed' || s.position === 'sticky') e.style.setProperty('display', 'none', 'important') } })
       await p.locator('.tool.tc').screenshot({ path: OUT + '/퇴직공제대상_예시_폰390.png' })
