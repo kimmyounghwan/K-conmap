@@ -1725,6 +1725,46 @@
         "$other": { ".validate": false }
       }
     },
+    // 🏔 토적컨맵 (tools/토적칸.jsx · /tools/tojeok · G571 · 2026-11-06) — bj_* 와 같은 문(코드 · 비밀번호 · 잠근 상태 한 칸)
+    "mc_pins": {
+      ".read": false,
+      "$c": {
+        ".write": "auth != null && !data.exists() && $c.matches(/^[A-Z0-9]{9}$/)",
+        ".validate": "newData.isString() && newData.val().length === 64"
+      }
+    },
+    "mc_keys": {
+      "$c": {
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid && (!newData.exists() || newData.val() === root.child('mc_pins').child($c).val())"
+        }
+      }
+    },
+    "mc_books": {
+      "$c": {
+        ".read": "auth != null && root.child('mc_pins').child($c).exists() && root.child('mc_keys').child($c).child(auth.uid).val() === root.child('mc_pins').child($c).val()",
+        ".write": "auth != null && root.child('mc_pins').child($c).exists() && root.child('mc_keys').child($c).child(auth.uid).val() === root.child('mc_pins').child($c).val()",
+        ".validate": "newData.hasChildren(['name','at'])",
+        "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60" },
+        "at": { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
+        "upd": { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
+        "del": { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
+        "$other": { ".validate": false }
+      }
+    },
+    "mc_doc": {
+      "$c": {
+        ".read": "auth != null && root.child('mc_pins').child($c).exists() && root.child('mc_keys').child($c).child(auth.uid).val() === root.child('mc_pins').child($c).val()",
+        ".write": "auth != null && root.child('mc_pins').child($c).exists() && root.child('mc_keys').child($c).child(auth.uid).val() === root.child('mc_pins').child($c).val()",
+        ".validate": "newData.hasChildren(['s','r','at'])",
+        "s": { ".validate": "newData.isString() && newData.val().beginsWith('v1.') && newData.val().length <= 3000000" },
+        "r": { ".validate": "newData.isNumber() && ((!data.exists() && newData.val() === 1) || (data.exists() && newData.val() === data.val() + 1))" },
+        "at": { ".validate": "newData.isNumber() && newData.val() <= (now + 60000)" },
+        "by": { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "$other": { ".validate": false }
+      }
+    },
     // 📡 실시간 사진대지 (PhotoLive.jsx · lib/사진잇기.js · G493 · 2026-11-01) — bj_* 와 같은 문(코드 · 비밀번호) + 사진 한 장씩(pb_pic)
     //   pb_doc = 잠근 상태(설정 · 사진 목록 — 바이트 없음) · r 판 · pb_pic/{코드}/{사진id} = 잠근 사진 한 장(≤ 1,500,000 자 · 1600px JPEG)
     //   사진 id = «때(36진)-기기(m 폰 · p PC)차례난수» — 매일 정리(tools/공사일보백업.py)가 7일 지난 것을 지움

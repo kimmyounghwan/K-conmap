@@ -10271,3 +10271,114 @@ a.adinfo-pick:hover, a.adinfo-pick:focus-visible { border-color: var(--ad-btn); 
 .qd-c i { font-style: normal; font-size: 12.5px; color: var(--muted); word-break: keep-all; }
 .qd-go { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .qd-go .btn { width: auto; }
+/* 🏔 G571 토적컨맵 (tools/토적칸.jsx) — 표는 가로로 밀어 보고(첫 칸 붙임), 유토곡선은 흰 종이(인쇄와 같음), 인쇄는 A4 가로(#gp-인쇄 · gp-쪽) */
+.tj-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 10px; }
+.tj-bar-l { font-size: 12.5px; font-weight: 800; color: var(--muted); margin-right: 2px; }
+.tj-chip { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.tj-chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tj-chip.add { border-style: dashed; color: var(--accent); }
+.tj-chip.ghost { font-weight: 500; color: var(--text-2); }
+.tj-chip.bad { color: var(--bad); border-color: var(--bad); }
+.tj-check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.55; margin: 8px 0 2px; }
+.tj-check input { width: auto; margin-top: 3px; flex: none; }
+.tj-check i { font-style: normal; color: var(--muted); }
+.tj-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 6px 0; max-width: 100%; }
+.tj-cols { border-collapse: collapse; font-size: 13px; min-width: 420px; }
+.tj-cols th { background: var(--surface-2); padding: 6px 6px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; font-weight: 700; }
+.tj-cols td { padding: 4px 6px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.tj-cols input:not([type=checkbox]) { padding: 6px 7px; font-size: 13px; min-width: 0; }
+.tj-cols td:first-child input { width: 150px; }
+.tj-cols td:nth-child(3) input { width: 76px; text-align: right; }
+.tj-cols input[type=checkbox] { width: auto; }
+.tj-cols select { padding: 6px; font-size: 13px; }
+.tj-need { border-color: var(--warn) !important; background: var(--warn-soft) !important; }
+.tj-box { margin: 8px 0; padding: 10px 12px; border: 1px solid var(--accent-line); background: var(--accent-soft); border-radius: 10px; }
+.tj-box-h { font-weight: 800; font-size: 14px; margin-bottom: 6px; }
+.tj-paste { width: 100%; font-size: 12.5px; font-family: ui-monospace, Consolas, monospace; }
+.tj-map { border-collapse: collapse; font-size: 12.5px; width: 100%; min-width: 620px; background: var(--surface); }
+.tj-map th { background: var(--surface-2); padding: 5px 6px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.tj-map td { padding: 4px 6px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.tj-map td.n { color: var(--muted); font-variant-numeric: tabular-nums; width: 36px; }
+.tj-map .tj-mh { max-width: 220px; word-break: keep-all; }
+.tj-map .tj-mv { color: var(--text-2); white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+.tj-map select { padding: 5px; font-size: 12.5px; }
+.tj-map input { padding: 5px 6px; font-size: 12.5px; width: 140px; }
+.tj-map tr.off td { opacity: .55; }
+.tj-in { border-collapse: collapse; font-size: 13px; min-width: 100%; }
+.tj-in th { background: var(--surface-2); padding: 6px 4px; border-bottom: 1px solid var(--line); white-space: nowrap; font-weight: 700; font-size: 12.5px; text-align: center; line-height: 1.25; }
+.tj-in th.tj-c { color: #a16207; } .tj-in th.tj-f { color: var(--accent); }
+.tj-in td { padding: 3px 3px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.tj-in td.n { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; padding-right: 6px; white-space: nowrap; }
+.tj-in td.c { text-align: center; }
+.tj-in input:not([type=checkbox]) { width: 84px; min-width: 0; padding: 6px 6px; font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+.tj-in td:nth-child(2) input { width: 112px; text-align: left; }
+.tj-in input[type=checkbox] { width: auto; }
+.tj-in tr.tj-cut td { background: var(--warn-soft); }
+.tj-in td.tj-rb { white-space: nowrap; }
+.tj-warn { margin: 10px 0; padding: 8px 10px 8px 26px; font-size: 13px; line-height: 1.6; color: var(--warn); background: var(--warn-soft); border-radius: 10px; }
+.tj-warn li.bad { color: var(--bad); }
+.tj-ok { margin-left: 8px; font-size: 12.5px; color: var(--good); background: var(--good-soft); padding: 2px 8px; border-radius: 999px; }
+.tj-ok.bad { color: var(--bad); background: var(--bad-soft); }
+.tj-sum { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; margin: 8px 0 10px; }
+.tj-sum > div { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; }
+.tj-sum span { display: block; font-size: 12px; color: var(--muted); }
+.tj-sum b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.tj-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 8px; border-bottom: 1px solid var(--line); }
+.tj-tab { border: 0; background: none; color: var(--text-2); padding: 8px 10px; font-size: 13.5px; font-weight: 700; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tj-tab.on { color: var(--accent); border-bottom-color: var(--accent); }
+.tj-t { border-collapse: collapse; font-size: 12.5px; min-width: 100%; font-variant-numeric: tabular-nums; }
+.tj-t th { background: var(--surface-2); padding: 5px 6px; border: 1px solid var(--line); white-space: nowrap; font-weight: 700; text-align: center; line-height: 1.25; }
+.tj-t th.s { font-weight: 600; font-size: 11.5px; }
+.tj-t th small { font-weight: 500; color: var(--muted); }
+.tj-t td { padding: 4px 6px; border: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.tj-t td.l { text-align: left; } .tj-t td.c { text-align: center; }
+.tj-t td.g { color: var(--text-2); } .tj-t td.b { font-weight: 700; } .tj-t td.neg { color: var(--bad); }
+.tj-t tr > :first-child { position: sticky; left: 0; background: var(--surface); z-index: 1; }
+.tj-t thead tr > :first-child { background: var(--surface-2); }
+.tj-t tr.sum td { font-weight: 800; background: var(--surface-2); }
+.tj-t tr.sub td { background: var(--surface-2); }
+.tj-t tr.tj-cut td { background: var(--warn-soft); }
+.tj-t tr.tj-sp td { color: #9d174d; } .tj-t tr.tj-bo td { color: #6d28d9; }
+.tj-chk { display: flex; flex-direction: column; gap: 2px; margin: 8px 0; padding: 8px 10px; border-radius: 10px; background: var(--good-soft); color: var(--good); font-size: 13px; }
+.tj-chk.bad { background: var(--bad-soft); color: var(--bad); }
+.tj-chk span { color: var(--text-2); font-variant-numeric: tabular-nums; }
+.tj-more { margin-top: 14px; border-top: 1px dashed var(--line); padding-top: 10px; }
+.tj-more summary { cursor: pointer; font-weight: 800; font-size: 14px; }
+.tj-paper { background: #fff; color: #111827; border: 1px solid var(--line); border-radius: 10px; padding: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.tj-svg { display: block; width: 100%; min-width: 640px; height: auto; font-family: inherit; }
+.tj-svg .tj-g { stroke: #e5e7eb; stroke-width: 1; }
+.tj-svg .tj-z { stroke: #9ca3af; stroke-width: 1; }
+.tj-svg .tj-tk { stroke: #9ca3af; stroke-width: 1; }
+.tj-svg .tj-yl { font-size: 11px; fill: #4b5563; text-anchor: end; }
+.tj-svg .tj-xl { font-size: 10.5px; fill: #374151; text-anchor: end; }
+.tj-svg .tj-ax { font-size: 11.5px; fill: #374151; font-weight: 700; }
+.tj-svg .tj-curve { fill: none; stroke: #1d4ed8; stroke-width: 2.4; stroke-linejoin: round; }
+.tj-svg .tj-bal { stroke: #dc2626; stroke-width: 1.6; stroke-dasharray: 7 4; }
+.tj-svg .tj-brk { stroke: #6b7280; stroke-width: 1.2; stroke-dasharray: 3 3; }
+.tj-svg .tj-bl { font-size: 10.5px; fill: #6b7280; }
+.tj-svg .tj-hill { fill: #fde68a; fill-opacity: .55; stroke: none; }
+.tj-svg .tj-valley { fill: #bfdbfe; fill-opacity: .6; stroke: none; }
+.tj-svg .tj-spoil { stroke: #db2777; stroke-width: 5; stroke-linecap: round; opacity: .8; }
+.tj-svg .tj-borrow { stroke: #7c3aed; stroke-width: 5; stroke-linecap: round; opacity: .8; }
+.tj-svg .tj-num { fill: #fff; stroke: #111827; stroke-width: 1.3; }
+.tj-svg .tj-numt { font-size: 11px; font-weight: 800; text-anchor: middle; fill: #111827; }
+.tj-svg .tj-ql { font-size: 11px; font-weight: 700; text-anchor: start; fill: #111827; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.tj-svg .tj-lg text { font-size: 11px; fill: #374151; }
+.tj-ph { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #111827; margin-bottom: 6px; padding-bottom: 3px; color: #111827; }
+.tj-ph b { font-size: 16px; letter-spacing: 2px; } .tj-ph span { font-size: 11.5px; }
+@media print {
+  .tj-쪽 { break-after: page; page-break-after: always; color: #111827; background: #fff; }
+  .tj-쪽:last-child { break-after: auto; page-break-after: auto; }
+  .tj-쪽 .tj-wrap, .tj-쪽 .tj-paper { overflow: visible; }
+  .tj-쪽 .tj-svg { min-width: 0; }
+  .tj-쪽 .tj-t { font-size: 9.5px; min-width: 0; width: 100%; }
+  .tj-쪽 .tj-t th, .tj-쪽 .tj-t td { padding: 2px 3px; border-color: #9ca3af; color: #111827; background: #fff; }
+  .tj-쪽 .tj-t tr > :first-child { position: static; }
+  .tj-쪽 .gp-hint, .tj-쪽 .tl-p { font-size: 9px; color: #374151; }
+  .tj-쪽 .tj-chk { background: #fff; color: #111827; border: 1px solid #9ca3af; }
+}
+@media (max-width: 520px) {
+  .tj-sum { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tj-sum b { font-size: 14px; }
+  .tj-tab { padding: 7px 7px; font-size: 13px; }
+}

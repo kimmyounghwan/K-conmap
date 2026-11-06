@@ -54,7 +54,8 @@ DB = os.environ.get("RTDB_URL") or "https://k-conmap-default-rtdb.firebaseio.com
 ]
 # 🔗 2026-10-02 (G113) — «이어 쓰기» 여덟(web/src/lib/이어쓰기.js): 프로그램 상태를 통째로 잠근 한 칸({ns}_doc) · 휴지통 없음(통 None)
 #   sn 산안비 · sk 손익 장부 · ib 작업일보 · nm 노무비 · jm 지명원 · gj 견적서 · sc 예정공정표 · wc 공사서류 원클릭 · bj 보험료 정산(G146)
-for _ns in ["sn", "sk", "ib", "nm", "jm", "gj", "sc", "wc", "bj"]:
+#   · mc 토적컨맵(G571 · 2026-11-06)
+for _ns in ["sn", "sk", "ib", "nm", "jm", "gj", "sc", "wc", "bj", "mc"]:
     묶음들.append({"ns": _ns, "책": _ns + "_books", "통": None, "자리": [_ns + "_books", _ns + "_doc"], "딸림": {}})
 # 📡 2026-11-01 (G493) — 실시간 사진대지(pb · web/src/lib/사진잇기.js): 상태는 pb_doc(백업함) · 사진은 pb_pic/{코드}/{사진id} 한 장씩.
 #   사진은 백업하지 않고(크고 · 7일짜리) 비우기에서 «id 앞 토막(36진 ms)» 이 사진둘날(7일) 지난 것을 지웁니다 — 내려받지 않고 얕은 목록(shallow)만 봅니다.
