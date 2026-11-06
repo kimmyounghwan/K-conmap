@@ -403,3 +403,125 @@ export function 구조물읽기(D, 판, 결정 = {}) {
   }
   return { 줄, 읽음, 못읽음, 상세, 물음 }
 }
+
+/* ── 🛣 G570 기존 배수로 복개(덮개 슬래브) (2026-11-06) ─────────────────────────────────────────
+ *   소장님 「건설맵 적산 부분 점검해 주고. 내역서 대비 95% 이상 되게 또 작업 해 보자」 — 현장 P① 토목 도면 «ROAD ARRANGEMENT PLAN» · «ROAD DETAILS» 의
+ *   기존 배수로 덮개 슬래브를 안 셌음(구조물 판 이름이 아님): 배치 평면 «기존배수로복개-A» 바로 밑 «L=24.4M»(B 7.8 · 0.9 · C 10.0) = 범례 «기존배수로 복개 L=43.1M»,
+ *   상세 «기존배수로 복개-A · B · C» 단면 = 폭 «2000»(기존 벽 «125 | 1750 | 125» 위) × 두께 300(폭 길이 가로 두 선 사이) · «HD19@200» 위 · 아래.
+ * ■ 길이: 이름 바로 밑(글 높이 2.2 배 안 · 옆 3 배 안)의 «L=○○M» — 종류(A · B …)마다 더함. 범례(같은 줄 오른쪽 «L=○○M»)는 맞춰 보기만.
+ * ■ 단면: 상세 이름(밑에 «L=» 없는 «…복개-A») 위 · 가로선(철근 · 치수 · 글 층 빼고) 가운데 «a | b | a» 세 칸 치수 줄(합 = 선 길이 · a ≤ 300)이 바로 위에 있는 선 = 덮개 밑면
+ *     (그 선 밑에서 가장 가까운 상세 이름이 이 이름일 때만) → 그 위 100 ~ 800 에서 같은 x 범위를 90 % 넘게 덮는 가로선(토막 합) 가운데 가장 낮은 것 = 윗면 · 두께 = 사이.
+ *     a = 기존 벽 · b = 속(밑면 거푸집 폭). 철근 = 상세 안 «HD○○@○○○» 가운데 가장 많은 것(위 · 아래 두 겹 · 두 방향 — 구조물 판 셈과 같은 «넓이 × 2 ÷ 간격»).
+ * ■ 물량(«보강» 표 산출식): 콘크리트 = 폭 × 두께 × 길이 · 거푸집 = 속 × 길이(밑면 — 기존 배수로 위) + 2 × 두께 × 길이(양 옆) · 철근 = (폭 × 길이) × 2 ÷ 간격 × 두 방향.
+ * ■ 상세를 못 찾은 종류 · «기존배수로 WALL 증고 · 레벨업»(벽 두께 · 밑 높이가 상세에 없음)은 ❓ 알림만(짐작 안 함).
+ */
+const 복개말 = /배수로복개(?:-([A-Z]))?$/
+const 복개길이말 = /^L=(\d+(?:\.\d+)?)M$/
+const 증고말 = /배수로WALL(?:증고|레벨업)$/
+const 복개철근말 = /^S?H?D(\d{2})@(\d{2,4})$/
+export function 배수로복개읽기(D) {
+  const 줄 = [], 알림 = []
+  const 글 = (D && D.글자) || []
+  if (!글.length || !D.찾기) return { 줄, 알림 }
+  const 길이들 = 글.filter((g) => 복개길이말.test(g.u))
+  const 길이값 = (g) => Math.round(+복개길이말.exec(g.u)[1] * 1000)
+  /* 가운데끼리 또는 왼쪽 끝끼리(왼쪽 맞춤 글 — 이름이 길이 글보다 길어 가운데가 어긋남) */
+  const 밑길이 = (t) => { let best = null, bd = Infinity; for (const g of 길이들) { const dy = t.y - g.y, dx = Math.min(Math.abs(g.x - t.x), Number.isFinite(g.x0) && Number.isFinite(t.x0) ? Math.abs(g.x0 - t.x0) : Infinity); if (dy > 0.3 * t.h && dy <= 2.2 * t.h && dx <= 3 * t.h && dy + dx < bd) { bd = dy + dx; best = g } } return best }
+  const 옆길이 = (t) => { let best = null, bd = Infinity; for (const g of 길이들) { const dy = Math.abs(t.y - g.y), dx = g.x - t.x; if (dy <= 0.6 * t.h && dx > 0 && dx <= 25 * t.h && dx < bd) { bd = dx; best = g } } return best }
+  const 구간 = new Map(), 범례 = [], 제목 = [], 증고 = []
+  for (const t of 글) {
+    if (증고말.test(t.u)) { const 옆 = 옆길이(t); if (옆) 증고.push(길이값(옆)); continue }
+    const k = 복개말.exec(t.u)
+    if (!k) continue
+    const 밑 = k[1] ? 밑길이(t) : null
+    if (밑) { const a = 구간.get(k[1]) || []; a.push({ v: 길이값(밑), s: 밑.u }); 구간.set(k[1], a); continue }
+    if (!k[1]) { const 옆 = 옆길이(t); if (옆) 범례.push(길이값(옆)); continue }
+    제목.push({ 종: k[1], t })
+  }
+  if (!구간.size) {
+    if (증고.length) 알림.push('❓ 기존배수로 WALL 증고 · 레벨업 ' + 증고.reduce((a, b) => a + b, 0) / 1000 + ' m(범례) — 벽 두께 · 밑 높이가 상세에 없어 셈에서 뺐습니다(짐작 안 함)')
+    return { 줄, 알림 }
+  }
+  const 층들 = D.layers || []
+  const 쓸선 = (s) => !(D.slt && D.slt[s]) && !안쓸선층.test(String((층들[D.sly[s]] || {}).name || ''))
+  const 가로선 = (x0, y0, x1, y1) => {
+    const out = [], 본 = new Set()
+    for (const s of D.찾기(x0, y0, x1, y1)) {
+      if (본.has(s)) continue
+      본.add(s)
+      const a = D.sx0[s], b = D.sx1[s], ya = D.sy0[s], yb = D.sy1[s]
+      if (Math.abs(yb - ya) > 2 || Math.abs(b - a) < 100 || !쓸선(s)) continue
+      const y = (ya + yb) / 2
+      if (y < y0 || y > y1 || Math.max(a, b) < x0 || Math.min(a, b) > x1) continue
+      out.push({ y, a: Math.min(a, b), b: Math.max(a, b) })
+    }
+    return out
+  }
+  const 수글 = 글.filter((g) => /^\d{2,5}$/.test(g.u) && Math.abs(Math.sin(g.a || 0)) < 0.1)
+  /* 덮개 밑면 선 위 «a | b | a» 치수 줄 — 합 = 선 길이 */
+  const 벽줄 = (L) => {
+    const 위 = 수글.filter((g) => g.y > L.y && g.y <= L.y + 3 * (L.b - L.a) && g.x >= L.a - 0.1 * (L.b - L.a) && g.x <= L.b + 0.1 * (L.b - L.a))
+    const 줄들 = []
+    for (const g of 위.slice().sort((p, q) => p.y - q.y)) { const z = 줄들[줄들.length - 1]; if (z && Math.abs(g.y - z.y) <= 0.6 * g.h) z.g.push(g); else 줄들.push({ y: g.y, g: [g] }) }
+    let best = null
+    for (const z of 줄들) {
+      const v = z.g.slice().sort((p, q) => p.x - q.x).map((g) => +g.u)
+      if (v.length !== 3 || v[0] !== v[2] || v[0] > 300 || v[1] < 2 * v[0] || Math.abs(v[0] + v[1] + v[2] - (L.b - L.a)) > 2) continue
+      if (!best || z.y < best.y) best = { y: z.y, 벽: v[0], 속: v[1] }
+    }
+    return best
+  }
+  const 단면 = new Map()
+  for (const c of 제목) {
+    if (단면.has(c.종)) continue
+    const t = c.t, 반 = 40 * t.h
+    const 후보 = 가로선(t.x - 반, t.y, t.x + 반, t.y + 80 * t.h).filter((L) => L.b - L.a >= 500)
+      .map((L) => ({ L, 벽: 벽줄(L) })).filter((z) => z.벽)
+      /* 그 선 밑에서 가장 가까운 상세 이름이 이 이름일 때만(두 줄로 늘어선 상세) */
+      .filter((z) => { const cx = (z.L.a + z.L.b) / 2, W = z.L.b - z.L.a; let n = null; for (const d of 제목) { if (d.t.y >= z.L.y || Math.abs(d.t.x - cx) > W) continue; if (!n || d.t.y > n.t.y) n = d } return n === c })
+      .sort((p, q) => p.L.y - q.L.y)
+    for (const z of 후보) {
+      const { L } = z, W = L.b - L.a
+      const 위선 = 가로선(L.a - 10, L.y + 100, L.b + 10, L.y + 800)
+      const 높이들 = [...new Set(위선.map((u) => Math.round(u.y)))].sort((p, q) => p - q)
+      let T = 0
+      for (const y of 높이들) {
+        const 토막 = 위선.filter((u) => Math.abs(u.y - y) <= 2).map((u) => [Math.max(u.a, L.a), Math.min(u.b, L.b)]).filter((p) => p[1] > p[0]).sort((p, q) => p[0] - q[0])
+        let 덮 = 0, 끝 = -Infinity
+        for (const [a, b] of 토막) { if (b <= 끝) continue; 덮 += b - Math.max(a, 끝); 끝 = b }
+        if (덮 >= 0.9 * W) { T = Math.round(y - L.y); break }
+      }
+      if (!T) continue
+      const 철글 = 글.filter((g) => 복개철근말.test(g.u) && g.x >= L.a - 0.5 * W && g.x <= L.b + 0.5 * W && g.y >= L.y - 0.5 * W && g.y <= L.y + 2 * W)
+      const 셈 = new Map()
+      for (const g of 철글) { const k = 복개철근말.exec(g.u); const 키 = k[1] + '@' + k[2]; 셈.set(키, (셈.get(키) || 0) + 1) }
+      const 철 = [...셈].sort((p, q) => q[1] - p[1])[0]
+      단면.set(c.종, { W: Math.round(W), T, 벽: z.벽.벽, 속: z.벽.속, 철: 철 ? { d: 철[0].split('@')[0], s: +철[0].split('@')[1] } : null, r: [L.a - 200, L.y - 200, L.b + 200, L.y + T + 200] })
+      break
+    }
+  }
+  const 쓴 = [], 못 = []
+  let 총 = 0, 곳 = 0
+  for (const [종, Ls] of [...구간].sort((p, q) => (p[0] < q[0] ? -1 : 1))) {
+    const 단 = 단면.get(종)
+    const L = Ls.reduce((a, b) => a + b.v, 0)
+    if (!단) { 못.push('기존배수로 복개-' + 종 + ' ' + L / 1000 + ' m'); continue }
+    총 += L; 곳 += Ls.length
+    const 동 = '기존배수로 복개-' + 종 + ' (' + Ls.map((z) => z.s).join(' · ') + ')'
+    const 자리 = [{ n: D.이름 || '', r: 단.r.map((v) => v / (D.k || 1)), 판: true }]
+    const 넣 = (부재, 식, 비고) => 줄.push({ 동, 층: 'FT', 부재, 산출식: 식, _자리: 자리, _비고: 비고 })
+    넣('S-콘크리트', m(단.W) + '*' + m(단.T) + '*' + m(L), '덮개 슬래브 폭 ' + 단.W + ' × 두께 ' + 단.T + ' × 길이(배치 평면 «L=»)')
+    넣('S-거푸집', m(단.속) + '*' + m(L) + '+2*' + m(단.T) + '*' + m(L), '밑면(기존 벽 ' + 단.벽 + ' 사이 속 ' + 단.속 + ') + 양 옆(두께 ' + 단.T + ')')
+    if (단.철) for (const 방향 of ['가로', '세로']) 넣('S-D' + 단.철.d, '(' + m(단.W) + '*' + m(L) + ')*2/' + m(단.철.s), 'HD' + 단.철.d + '@' + 단.철.s + ' 위 · 아래 두 겹 · ' + 방향 + ' 방향')
+    쓴.push(종 + ' ' + L / 1000 + ' m · 폭 ' + 단.W.toLocaleString('en-US') + '(기존 벽 ' + 단.벽 + ' + 속 ' + 단.속.toLocaleString('en-US') + ' + ' + 단.벽 + ') × 두께 ' + 단.T + (단.철 ? ' · HD' + 단.철.d + '@' + 단.철.s : ' · 철근 글 없음'))
+  }
+  if (쓴.length) {
+    const 범 = 범례.length ? 범례[0] : 0
+    const 평면합 = [...구간.values()].flat().reduce((a, b) => a + b.v, 0)
+    const 맞춤 = 범 ? (Math.abs(범 - 평면합) <= 50 ? ' = 범례 «기존배수로 복개 L=' + 범 / 1000 + 'M»' : ' — 범례 «L=' + 범 / 1000 + 'M» 와 다름(평면 길이로 셈 · 도면 확인)') : ''
+    알림.push('🛣 기존배수로 복개 ' + 총 / 1000 + ' m(배치 평면 «L=○○M» ' + 곳 + '곳' + 맞춤 + ')를 상세 단면으로 셈했습니다(골조 산출서 «보강» 표): ' + 쓴.join(' / ') + ' — 거푸집 = 밑면(기존 벽 사이 속) + 양 옆 · 철근 = 위 · 아래 두 겹 두 방향')
+  }
+  if (못.length) 알림.push('❓ ' + 못.join(' · ') + ' — 상세 단면(«a | b | a» 벽 치수 줄 · 덮개 두 선)을 못 찾아 셈에서 뺐습니다')
+  if (증고.length) 알림.push('❓ 기존배수로 WALL 증고 · 레벨업 ' + 증고.reduce((a, b) => a + b, 0) / 1000 + ' m(범례) — 벽 두께 · 밑 높이가 상세에 없어 셈에서 뺐습니다(짐작 안 함)')
+  return { 줄, 알림 }
+}

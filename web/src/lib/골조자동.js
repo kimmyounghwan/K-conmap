@@ -24,7 +24,7 @@ import { 도곽찾기 } from './dxfplot.js'
 import { 도곽찾기3d, 박스제목들 } from './도곽3d.js'
 import { 판목록, 배치판목록 } from './판펼치기.js'
 import { 지시선끝 } from './지시선.js'
-import { 구조물읽기 } from './구조물판.js'
+import { 구조물읽기, 배수로복개읽기 } from './구조물판.js'
 import { 레벨범례, 입면경사, 경사늘림, 파라펫읽기 } from './지붕높이.js'
 import { 방수턱읽기 } from './방수턱.js'
 import { 철골읽기 } from './철골읽기.js'
@@ -5014,6 +5014,13 @@ function 골조읽기0(도면들0, o = {}) {
     if (읽은.length) 경고.push('구조물 판 ' + 읽은.length + '장을 평면 벽 두께 · 단면 높이 치수로 셈했습니다(골조 산출서 «보강» 표 산출식): ' + 읽은.join(' · ') + (읽은.some((t) => /\(짐작\)$/.test(t)) ? ' — 짐작: 높이 «VAR»(곳마다 다름)는 단면 그림에서 잰 값 · 낮은 판은 단면 레벨 글자로 본 두께' : ''))
     if (못.length) 경고.push('구조물 판 ' + 못.length + '장은 아직 못 셌습니다: ' + 못.join(' · '))
     if (상세글.length) 경고.push('구조물 상세 판 ' + 상세글.length + '장(' + 상세글.join(' · ') + ')은 뚜껑 · 바닥 모양 상세라 상자가 없어 — 몸체는 같은 이름 «PLAN & SECTION» 판에서 셈했습니다')
+  }
+  /* 🛣 G570 기존 배수로 복개(덮개 슬래브) — 배치 평면 «…복개-A» 밑 «L=○○M» 길이 + 상세 «기존배수로 복개-A» 단면(구조물판.js 배수로복개읽기) */
+  for (const D of 도면들) {
+    let r
+    try { r = 배수로복개읽기(D) } catch (e) { continue }
+    주.보강.push(...r.줄)
+    경고.push(...r.알림)
   }
   const 이야기층 = P.층.filter((f) => f.이름 !== 'FT' && (f.층고 > 0 || 짐작층.includes(f.이름))).map((f) => f.이름)      // 🧭 G405 층고가 도면에 없는 층(❓ 0)도 층
   /* 🧭 G267 MAT 위 층(현장 B 1층 MAT → 1층 · 지하 MAT → 지하1층 · 현장 A «기초 구조평면도» MAT → 첫 층)의 기둥 주근 · 벽 수직근은 MAT 속으로 정착 —
