@@ -3036,8 +3036,26 @@ a.glink:hover { text-decoration: underline; }
 .tc-steps li{ margin:4px 0; }
 .kr-p{ margin:4px 0; font-size:13.5px; line-height:1.6; word-break:keep-all; }
 /* ⏳ G559 공기연장 때 할 일 */
-/* 이름표가 «공사예정 / 금액» 처럼 두 줄로 쪼개지지 않게 — 긴 풀이(i)는 다음 줄로(G558 · G559 두 도구만) */
-.tool.tc .tl-lab, .tool.te .tl-lab{ flex-wrap:wrap; row-gap:1px; }
+/* 이름표가 «공사예정 / 금액» 처럼 두 줄로 쪼개지지 않게 — 긴 풀이(i)는 다음 줄로(G558 · G559 · G561 도구만) */
+.tool.tc .tl-lab, .tool.te .tl-lab, .tool.er .tl-lab{ flex-wrap:wrap; row-gap:1px; }
+/* 🌫️ G561 착공 전 환경 신고 판단기 */
+.tool.er .kt-hint, .tool.er .kt-chk span{ word-break:keep-all; }
+.er-cards{ display:grid; gap:8px; margin-top:8px; }
+.er-card{ border:1px solid var(--line); border-radius:10px; padding:9px 11px; background:var(--surface); }
+.er-card.yes{ border-color:#2e9e5b; }
+.er-card.no{ opacity:.85; }
+.er-h{ display:flex; gap:8px; align-items:baseline; justify-content:space-between; font-size:14.5px; }
+.er-badge{ font-size:12px; font-weight:700; white-space:nowrap; }
+.er-card.yes .er-badge{ color:#1f7a45; }
+.er-why{ margin:4px 0 2px; padding-left:18px; font-size:13px; line-height:1.55; word-break:keep-all; }
+.er-p{ margin-top:3px; font-size:13px; line-height:1.6; word-break:keep-all; }
+.er-eqs{ font-size:13px; line-height:1.6; word-break:keep-all; padding:2px 0 4px; }
+.er-kinds-h{ font-size:12.5px; font-weight:700; color:var(--fg-dim); margin:2px 0 6px; }
+.er-kinds{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+.er-kind{ display:inline-flex; align-items:center; gap:5px; border:1px solid var(--line); border-radius:999px; padding:6px 11px; font-size:13.5px; cursor:pointer; background:var(--surface); }
+.er-kind input{ width:16px; height:16px; margin:0; }
+.er-kind.on{ border-color:var(--accent, #2563eb); font-weight:700; }
+.er-near .kt-chks{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:6px 10px; }
 .tool.te .kt-hint, .tool.te .kt-chk span{ word-break:keep-all; }
 .te-steps li{ margin:8px 0; }
 .te-when{ font-size:13px; color:var(--muted); font-weight:600; }

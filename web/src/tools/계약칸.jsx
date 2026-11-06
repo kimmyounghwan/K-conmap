@@ -9,6 +9,7 @@
      📦 contract-ready     계약 준비물 계산기 — 계약보증금 · 공사이행보증서 · 보증서 날짜 · 인지세 (G557 · 2026-11-06 — 셈 lib/계약준비.js)
      🧭 toejik-check       퇴직공제 가입 대상 판단기 — 당연가입 · 성립 신고 14일 · 전자카드 (G558 · 2026-11-06 — 셈 lib/퇴직공제대상.js)
      ⏳ time-extension     공기연장 때 할 일 — 연장 청구 · 보증서 · 실비 · 신고 기한 (G559 · 2026-11-06 — 할 일 lib/공기연장.js)
+     🌫️ env-reports        착공 전 환경 신고 판단기 — 비산먼지 · 특정공사 · 건설폐기물 · 사업장폐기물 (G561 · 2026-11-06 — 판정 lib/환경신고.js)
 
    ⚠️ 숫자·조문은 lib/계약셈.js 한 곳에만 있습니다(💰 지급 기한 셈은 lib/대금기한.js). 여기서는 그리기만 합니다.
    ⚠️ 설명·근거 글은 web/src/data/tools.json 에 (prerender 가 같이 굽습니다).
@@ -30,6 +31,7 @@ import { 회차나누기 } from '../lib/공동기성.js'
 import { 발주들 as 준비발주, 인지세, 인지세칸, 인지세표, 변경인지세, 이행보증, 보증기간, 근거 as 준비근거, 공채글, 공채근거 } from '../lib/계약준비.js'   /* 📦 G557 */
 import { 종류들 as 공제종류, 발주들 as 공제발주, 건축들 as 공제건축, 가입판단, 성립기한, 전자카드 as 공제카드, 근거 as 공제근거, 할일들 as 공제할일, 아닐때 as 공제아닐때, 바뀜 as 공제바뀜, 금액풀이 as 공제금액풀이 } from '../lib/퇴직공제대상.js'   /* 🧭 G558 */
 import { 발주들 as 연장발주, 까닭들 as 연장까닭, 사유들 as 연장사유, 할일 as 연장할일, 근거 as 연장근거, 지체글 as 연장지체글 } from '../lib/공기연장.js'   /* ⏳ G559 */
+import { 규모칸 as 환경규모, 종류들 as 환경종류, 고른값 as 환경고른값, 장비들 as 환경장비, 가까이들 as 환경가까이, 비산먼지 as 비산판정, 특정공사 as 특정판정, 폐기물 as 폐기판정, 근거 as 환경근거, 신고들 as 환경신고들, 사업장풀이 as 환경사업장풀이, 함께 as 환경함께 } from '../lib/환경신고.js'   /* 🌫️ G561 */
 import { getBidIndex, indexRows } from '../lib/data.js'
 import 금액입력 from '../금액입력.jsx'   /* 💰 G544 금액 칸 — «3억 8,500만» · 붙여넣은 «385,000,000원» 도 읽음 · 칸 아래 읽은 줄(바로투찰 · 보험료와 같은 칸) */
 import { 금액수 } from '../lib/금액읽기.js'
@@ -819,6 +821,89 @@ export function TimeExtension({ ex = {} }) {
   )
 }
 
+/* ══════════════════════════════════════════════════════════
+   🌫️ 착공 전 환경 신고 판단기 (G561) — 비산먼지 · 특정공사(소음 · 진동) · 건설폐기물 처리계획 · 사업장폐기물배출자
+   소장님 「1번 부터 5번까지 작업해줘」 — 카페 도구 후보 ⑤-2. 판정 · 조문은 lib/환경신고.js 한 곳(법제처 원문 세 번 읽음)
+   ══════════════════════════════════════════════════════════ */
+export function EnvReports({ ex = {} }) {
+  const [고른, set고른] = use칸('고른', ex.고른 ?? {})
+  const [규모, set규모] = use칸('규모', ex.규모 ?? {})
+  const [장비, set장비] = use칸('장비', ex.장비 ?? false)
+  const [가까이, set가까이] = use칸('가까이', ex.가까이 ?? {})
+  const [제외, set제외] = use칸('제외', ex.제외 ?? false)
+  const [건폐톤, set건폐톤] = use칸('건폐톤', ex.건폐톤 ?? '')
+  const [사업장, set사업장] = use칸('사업장', ex.사업장 ?? false)
+  const [착공, set착공] = use칸('착공', ex.착공 ?? '')
+  const 값 = { ...환경고른값(고른 || {}, 규모 || {}), 장비: !!장비, 가까이: 가까이 || {}, 제외: !!제외 }
+  const 보일칸 = new Set(환경종류.filter((x) => (고른 || {})[x.k]).flatMap((x) => x.칸))
+  const 비 = 비산판정(값), 특 = 특정판정(값), 폐 = 폐기판정({ 건폐톤, 사업장: !!사업장 })
+  const 판 = {
+    비산: { 대상: 비.대상, 걸림: 비.걸림, 까닭: 비.대상 === false ? (비.조례 ? `규모 미만 — 다만 ${비.구역.length ? 비.구역.join(' · ') : '매설공사'} 이면 조례로 신고 대상일 수 있음(별표 13 비고 1 · 2) — 시 · 군 · 구 환경과 확인` : '별표 13 제5호 규모 미만') : '공사 규모를 넣으면 판정' },
+    특정: { 대상: 특.대상, 걸림: 특.걸림, 까닭: 특.까닭 || '' },
+    건폐: { 대상: 폐.건설, 걸림: 폐.건설 ? [`건설폐기물 예상 ${Number(String(건폐톤).replace(/[^0-9.]/g, '')).toLocaleString('ko-KR')}톤 — 5톤 이상`] : [], 까닭: 폐.건설 === false ? '5톤 미만 — 건설폐기물법의 건설폐기물이 아님(종량제 마대 등은 시 · 군 · 구 안내대로)' : '건설폐기물 예상량(톤)을 넣으면 판정' },
+    사업장: { 대상: 폐.사업장 ? true : null, 걸림: 폐.사업장 ? ['건설폐기물이 아닌 사업장폐기물 5톤 이상'] : [], 까닭: 환경사업장풀이 + ' 해당하면 위 칸을 고르세요.' },
+  }
+  const 배지 = (v) => (v === true ? '✓ 신고 대상' : v === false ? '대상 아님' : '확인')
+  const 칸 = (k, v) => set규모({ ...(규모 || {}), [k]: v })
+  const 날 = 착공 && /^\d{4}-\d{2}-\d{2}$/.test(착공) ? 날점(착공) : ''
+  const 몇 = 환경신고들.filter((x) => 판[x.k].대상 === true).length
+  return (
+    <div className="tool er">
+      <div className="er-kinds-h">공사에 들어 있는 것을 고르세요(여럿 가능)</div>
+      <div className="er-kinds">
+        {환경종류.map((x) => (
+          <label key={x.k} className={'er-kind' + ((고른 || {})[x.k] ? ' on' : '')}><input type="checkbox" checked={!!(고른 || {})[x.k]} onChange={(e) => set고른({ ...(고른 || {}), [x.k]: e.target.checked })} /> <span>{x.이름}</span></label>
+        ))}
+      </div>
+      <div className="tl-grid">
+        {환경규모.filter((x) => 보일칸.has(x.k)).map((x) => (
+          <Row key={x.k} label={x.이름} hint={x.단위 + (x.풀이 ? ' · ' + x.풀이 : '')}>
+            <input inputMode="decimal" value={(규모 || {})[x.k] ?? ''} onChange={(e) => 칸(x.k, e.target.value)} placeholder="0" />
+          </Row>
+        ))}
+        <Row label="건설폐기물 예상량" hint="톤 · 폐콘크리트 · 폐아스팔트콘크리트 · 폐목재 등"><input inputMode="decimal" value={건폐톤} onChange={(e) => set건폐톤(e.target.value)} placeholder="0" /></Row>
+        <Row label="착공일" hint="신고 기한"><input type="date" value={착공} onChange={(e) => set착공(e.target.value)} /></Row>
+      </div>
+      <div className="kt-chks">
+        <label className="kt-chk"><input type="checkbox" checked={!!장비} onChange={(e) => set장비(e.target.checked)} /> <span>아래 기계 · 장비를 <b>5일 이상</b> 씀(별표 9)</span></label>
+        <details className="kt-all er-eq"><summary>별표 9 기계 · 장비 열하나 보기</summary><div className="er-eqs">{환경장비.join(' · ')}</div></details>
+        <label className="kt-chk"><input type="checkbox" checked={!!사업장} onChange={(e) => set사업장(e.target.checked)} /> <span>건설폐기물이 아닌 사업장폐기물이 5톤 이상(폐수처리오니 · 발견된 옛 매립 폐기물 등)</span></label>
+        <label className="kt-chk"><input type="checkbox" checked={!!제외} onChange={(e) => set제외(e.target.checked)} /> <span>공사장이 산업단지 · 전용공업지역 · 자유무역지역이거나 300m 안에 주택 · 운동 · 휴양시설이 없음</span></label>
+      </div>
+      <details className="kt-all er-near" open>
+        <summary>공사장 가까이 — 부지 경계선에서 직선 50m 안(또는 그 지역)</summary>
+        <div className="kt-chks">
+          {환경가까이.map((x) => (
+            <label key={x.k} className="kt-chk"><input type="checkbox" checked={!!(가까이 || {})[x.k]} onChange={(e) => set가까이({ ...(가까이 || {}), [x.k]: e.target.checked })} /> <span>{x.이름}</span></label>
+          ))}
+        </div>
+      </details>
+      {몇 > 0
+        ? <판정칸 종류="good"><b>착공 전에 낼 신고 {몇}가지</b>{날 ? ` — 착공일 ${날} 전(폐기물은 착공일까지)` : ''}</판정칸>
+        : <div className="hint">공사를 고르고 규모 · 장비 · 폐기물 양을 넣으면 신고마다 판정합니다. (도장 = 장기수선계획 공동주택의 건물외부 도장 · 관로 매설 = 가스관 · 전선로 · 수도관 · 하수관거 · 통신선로)</div>}
+      <div className="er-cards">
+        {환경신고들.map((x) => {
+          const v = 판[x.k]
+          return (
+            <div key={x.k} className={'er-card ' + (v.대상 === true ? 'yes' : v.대상 === false ? 'no' : 'q')}>
+              <div className="er-h"><b>{x.이름}</b> <span className="er-badge">{배지(v.대상)}</span></div>
+              {v.걸림.length ? <ul className="er-why">{v.걸림.map((s) => <li key={s}>{s}</li>)}</ul> : null}
+              {v.대상 !== true && v.까닭 ? <div className="er-p">{v.까닭}</div> : null}
+              {v.대상 !== false && (
+                <div className="er-p">언제: <b>{x.언제}{날 ? `(${날}${x.언제 === '착공 전' ? ' 전' : '까지'})` : ''}</b> · 누가: {x.누가} · 어디: {x.어디} · 서류: {x.서식 ? <Link to={x.서식} className="kr-link">{x.서식이름} →</Link> : x.서식이름}</div>
+              )}
+              <div className="hj-src1">({환경근거[x.k]})</div>
+            </div>
+          )
+        })}
+      </div>
+      <div className="hint kt-hint">{굵게(환경함께)} 저소음 · 저진동 기계 · 장비로 장관 인정을 받은 것만 쓰면 특정공사에서 빠집니다(제21조① 단서). 공사를 나눠 발주했으면 규모는 <b>총 공사</b>로 셉니다(별표 13 비고 3).</div>
+      <div className="hint kt-hint">착공 뒤 공기가 늘면 이 신고들의 변경신고 기한이 있습니다 — <Link to="/tools/time-extension" className="kr-link">공기연장 때 할 일 →</Link> · 다른 착공 기한은 <Link to="/tools/after-award" className="kr-link">낙찰 뒤 할 일 달력 →</Link></div>
+      <근거줄>{환경근거.비산} · {환경근거.특정} · {환경근거.건폐} · {환경근거.사업장}</근거줄>
+    </div>
+  )
+}
+
 export const 계약EXAMPLES = {
   'joint-split': { 글: '계약 10억 원 · 대표사 60% · 구성원 40% · 1회 기성 3억 원 · 선금 각 20%', ex: { 계약: '1,000,000,000', 금회: '300,000,000', 방식: '지분', 준공: false, 끝전: 0, 구성원: [{ 이름: '', 지분: '60', 선금: '120,000,000', 전회: '', 전회정산: '', 직접: '', _: 0 }, { 이름: '', 지분: '40', 선금: '80,000,000', 전회: '', 전회정산: '', 직접: '', _: 1 }] } },
   'payment-deadline': { 글: '국가 공사 · 11월 4일(수) 기성검사 완료 · 검사 전에 청구', ex: { 무엇: '기성', 발주: '국가', 검사: '2026-11-04', 청구: '' } },
@@ -829,6 +914,7 @@ export const 계약EXAMPLES = {
   'contract-ready': { 글: '국가 공사 2억 5천만 원 · 계약기간 11월 16일 ~ 내년 3월 31일', ex: { 발주: '국가', 계약: '250,000,000', 시작: '2026-11-16', 끝: '2027-03-31' } },
   'toejik-check': { 글: '지자체 발주 건설공사 · 공사예정금액 1억 5천만 원 · 11월 16일 착공', ex: { 종류: '건설', 발주: '국가', 금액: '150,000,000', 건축: '', 착공: '2026-11-16' } },
   'time-extension': { 글: '국가 공사 · 책임 없는 설계변경 · 준공기한 12월 31일 → 내년 2월 14일 · 12월 10일 변경계약 · 하도급 · 퇴직공제', ex: { 발주: '국가', 까닭: '없음', 지금: '2026-12-31', 새것: '2027-02-14', 합의: '2026-12-10', 장기: false, 하도급: true, 공제: true } },
+  'env-reports': { 글: '근린생활시설 신축 연면적 3,200㎡ · 토공 1,800㎡ · 굴착기 등 5일 이상 · 공동주택 50m 안 · 건설폐기물 120톤 · 11월 16일 착공', ex: { 고른: { 건축: true, 토공: true }, 규모: { 건축: '3200', 토공: '1800' }, 장비: true, 가까이: { 공동주택: true }, 제외: false, 건폐톤: '120', 사업장: false, 착공: '2026-11-16' } },
 }
 export const 계약CALCS = {
   'subcontract-check': SubcontractCheck,
@@ -840,4 +926,5 @@ export const 계약CALCS = {
   'contract-ready': ContractReady,
   'toejik-check': ToejikCheck,
   'time-extension': TimeExtension,
+  'env-reports': EnvReports,
 }
