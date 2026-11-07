@@ -10,6 +10,7 @@
  * ■ 표에 엑셀 덩이를 붙이면(칸에 붙여넣기) 그 칸부터 아래 · 오른쪽으로 채움 · 머리 줄이 있는 표는 «📋 엑셀 표 붙여넣기» 로 칸을 맞춰 넣음
  * ■ G574(2026-11-07): ⑤ 운반 띠 «한 운반 구간도 거리별로 나눔»(설정 띠나눔 '거리') — 유토곡선에 띠 거리선(주황 점선) · 운반집계 · 유동표는 마디마다 띠 몫 줄
  * ■ G575(2026-11-07): ⑤ 🚛 사토장 · 토취장(설정 사토장 · 토취장 [{이름, 측, 밖}]) — 요약 · 유동표 · 운반집계 · 집계표에 운반거리 · 유토곡선 맨 아래 ▲ 줄(진출입 측점)
+ * ■ G576(2026-11-07): 🔀 탭 위 «토공유동도» — 측점 사이 남는 · 모자라는 흙 막대 + 운반 몫마다 깎는 곳 무게중심 → 쌓는 곳 무게중심 화살(길이 = 평균운반거리 · 굵기 = 토량) · 사토 ↓ · 순성토 ↑ · 인쇄 한 쪽
  */
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -385,7 +386,7 @@ export function Tojeok({ ex = {} }) {
           </div>
           {보기 === '토적' && <토적표 R={R} />}
           {보기 === '곡선' && <><유토그림 R={R} /><마디표 R={R} /></>}
-          {보기 === '유동' && <유동표 R={R} />}
+          {보기 === '유동' && <><유동도 R={R} /><유동표 R={R} /></>}
           {보기 === '운반' && <운반표 R={R} />}
           {보기 === '집계' && <집계표 R={R} />}
           {보기 === '차수' && (
@@ -712,6 +713,90 @@ function 유토그림({ R }) {
 }
 const 좋은간 = (v) => { if (!(v > 0)) return 1; const p = 10 ** Math.floor(Math.log10(v)); const f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p }
 
+/* ── 🔀 토공유동도 — 막대(측점 사이 m 당 남는 + · 모자라는 −) + 화살(깎는 곳 무게중심 → 쌓는 곳 무게중심) ─────────── */
+function 유동도({ R }) {
+  const 줄 = R.줄
+  if (줄.length < 2) return null
+  const xs = 줄[0].x, xe = 줄[줄.length - 1].x, 길 = Math.max(1e-9, xe - xs)
+  const W = 1000, 왼 = 34, 오 = 34
+  const X = (x) => 왼 + ((x - xs) / 길) * (W - 왼 - 오)
+  /* 운반 몫(띠별 — 거리별로 나누면 장비마다) · 화살 높이는 길이에 비례(모두 같은 꼴 · 안쪽 짧은 운반 · 바깥 긴 운반) */
+  const 활 = []
+  for (const q of R.마디) if (q.V > 1e-9) for (const p of q.띠별 || []) if (Number.isFinite(p.절c) && Number.isFinite(p.성c) && p.V > 1e-9) 활.push({ q, p })
+  const 최대V = Math.max(1e-9, ...활.map((a) => a.p.V))
+  const 솟 = (a) => Math.min(150, Math.max(16, 0.35 * Math.abs(X(a.p.성c) - X(a.p.절c))))
+  const 최대솟 = Math.max(36, ...활.map(솟))
+  const 위 = 34, y0 = 위 + 최대솟 + 30, 막대 = 32
+  /* 막대 — 측점 줄마다 차인(보정 절토 − 성토)을 그 줄이 맡은 길이로 나눔 */
+  const 칸 = []
+  for (let k = 0; k < 줄.length; k++) {
+    const z = 줄[k]
+    let a, b
+    if (R.방법 === '평균단면') { if (k === 0) continue; a = 줄[k - 1].x; b = z.x }
+    else { a = z.x - (z.d || 0) / 2; b = z.x + (k + 1 < 줄.length ? 줄[k + 1].d : 0) / 2 }
+    if (!(b - a > 1e-9) || !z.차) continue
+    칸.push({ a, b, v: z.차 / (b - a) })
+  }
+  const 최대v = Math.max(1e-9, ...칸.map((c) => Math.abs(c.v)))
+  const 사들 = R.마디.flatMap((q) => (q.사묶음 || []).filter((m) => m.V > 1e-9).map((m) => ({ q, m, 꼴: '사' })))
+  const 순들 = R.마디.flatMap((q) => (q.순묶음 || []).filter((m) => m.V > 1e-9).map((m) => ({ q, m, 꼴: '순' })))
+  const 아래들 = [...사들, ...순들].sort((p, q) => p.m.c - q.m.c)
+  const 측y = y0 + 막대 + 8, 글y = 측y + 62, H = 글y + (아래들.length ? 40 : 4)
+  const 측라벨 = []
+  let 앞 = -Infinity
+  for (const z of 줄) { if (!z.측) continue; const px = X(z.x); if (px - 앞 >= 30) { 측라벨.push(z); 앞 = px } }
+  const 끝맞춤 = (x) => (x > W - 150 ? 'end' : x < 150 ? 'start' : 'middle')
+  return (
+    <div className="tj-paper">
+      <svg viewBox={`0 0 ${W} ${H}`} className="tj-svg" role="img" aria-label="토공유동도">
+        <defs>
+          <marker id="tj-mk" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" className="tj-mkh" /></marker>
+          <marker id="tj-mks" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" className="tj-mks" /></marker>
+          <marker id="tj-mkb" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" className="tj-mkb" /></marker>
+        </defs>
+        <text x={14} y={18} className="tj-ax">토공유동도 <tspan className="tj-fsub">{'횡방향 유용 ' + 쉼(R.합.횡, 0) + '㎥(같은 측점)' + (R.합.직접 > 0 ? ' · 바로 사토 ' + 쉼(R.합.직접, 0) + '㎥(자연)' : '')}</tspan></text>
+        {칸.map((c, k) => {
+          const h = (Math.abs(c.v) / 최대v) * 막대
+          return <rect key={k} x={X(c.a)} width={Math.max(0.5, X(c.b) - X(c.a))} y={c.v > 0 ? y0 - h : y0} height={h} className={c.v > 0 ? 'tj-fbar-c' : 'tj-fbar-f'} />
+        })}
+        {R.구간.filter((g) => g.번 > 0).map((g) => <line key={'g' + g.번} x1={X(g.xs)} x2={X(g.xs)} y1={위} y2={y0 + 막대} className="tj-brk" />)}
+        <line x1={X(xs)} x2={X(xe)} y1={y0} y2={y0} className="tj-z" />
+        {줄.filter((z) => z.측).map((z, k) => <line key={'t' + k} x1={X(z.x)} x2={X(z.x)} y1={y0 + 막대 + 1} y2={y0 + 막대 + 5} className="tj-tk" />)}
+        {측라벨.map((z, k) => <text key={'l' + k} x={X(z.x)} y={측y} className="tj-xl" transform={`rotate(-45 ${X(z.x)} ${측y})`}>{z.측}</text>)}
+        {활.map(({ q, p }, k) => {
+          const x1 = X(p.절c), x2 = X(p.성c), s = 솟({ p }), xm = (x1 + x2) / 2
+          return (
+            <g key={'a' + k}>
+              <path d={`M ${x1.toFixed(1)} ${y0} Q ${xm.toFixed(1)} ${(y0 - 2 * s).toFixed(1)} ${x2.toFixed(1)} ${y0}`} className="tj-flow" style={{ strokeWidth: 1.4 + 3.2 * (p.V / 최대V) }} markerEnd="url(#tj-mk)" />
+              <text x={xm} y={y0 - s - 5} className="tj-fl">{동그라미(q.번)} {쉼(p.V, 0)}㎥ · {쉼(p.L, 1)}m{p.이름 && (q.띠별 || []).length > 1 ? ' · ' + p.이름 : ''}</text>
+            </g>
+          )
+        })}
+        {아래들.map(({ m, 꼴 }, k) => {
+          const x = X(m.c), y글 = 글y + (k % 2) * 17
+          const 말 = 꼴 === '사' ? '사토 ' + 쉼(m.V, 0) + '㎥' + (m.장이름 ? ' → ' + m.장이름 + ' ' + 쉼(m.L, 0) + 'm' : '') : '순성토 ' + 쉼(m.V, 0) + '㎥' + (m.장이름 ? ' ← ' + m.장이름 + ' ' + 쉼(m.L, 0) + 'm' : '')
+          return (
+            <g key={'s' + k}>
+              {꼴 === '사'
+                ? <line x1={x} x2={x} y1={y0 + 2} y2={y글 - 13} className="tj-fs" markerEnd="url(#tj-mks)" />
+                : <line x1={x} x2={x} y1={y글 - 13} y2={y0 + 2} className="tj-fb" markerEnd="url(#tj-mkb)" />}
+              <text x={x} y={y글} className={꼴 === '사' ? 'tj-fst' : 'tj-fbt'} style={{ textAnchor: 끝맞춤(x) }}>{말}</text>
+            </g>
+          )
+        })}
+        <g transform={`translate(${W - 오 - 430}, 14)`} className="tj-lg">
+          <path d="M0 4 Q 11 -8 22 4" className="tj-flow" style={{ strokeWidth: 2.4 }} /><text x="27" y="4">종방향 유용(굵기 = 토량)</text>
+          <rect x="168" y="-6" width="14" height="10" className="tj-fbar-c" /><text x="186" y="4">남는 흙</text>
+          <rect x="236" y="-6" width="14" height="10" className="tj-fbar-f" /><text x="254" y="4">모자라는 흙</text>
+          <line x1="330" x2="330" y1="-7" y2="5" className="tj-fs" /><text x="336" y="4">사토</text>
+          <line x1="372" x2="372" y1="-7" y2="5" className="tj-fb" /><text x="378" y="4">순성토</text>
+        </g>
+      </svg>
+      <p className="tl-p muted gp-hint">화살 = 운반 몫마다 깎는 곳 흙 무게중심 → 쌓는 곳 흙 무게중심(화살 길이 = 평균운반거리) · 막대 = 측점 사이 1 m 당 남는(위) · 모자라는(아래) 흙(보정 절토 − 성토) · 사토 · 순성토는 나오는 · 들어가는 자리 무게중심.</p>
+    </div>
+  )
+}
+
 function 마디표({ R }) {
   const 씀칸 = R.칸.filter((c) => c.종 !== '성' && c.씀 !== false)
   if (!R.마디.length) return <p className="muted">운반 · 사토 · 순성토가 없습니다(절토와 성토가 측점마다 맞음).</p>
@@ -868,6 +953,7 @@ function 인쇄판({ R, 판 }) {
   return (
     <>
       <div className="gp-쪽 tj-쪽">{머리('유토곡선')}<유토그림 R={R} /><마디표 R={R} /></div>
+      <div className="gp-쪽 tj-쪽">{머리('토공유동도')}<유동도 R={R} /></div>
       <div className="gp-쪽 tj-쪽">{머리('집계표 · 토공유동표')}<집계표 R={R} /><유동표 R={R} /></div>
       <div className="gp-쪽 tj-쪽">{머리('운반집계')}<운반표 R={R} /></div>
       <div className="gp-쪽 tj-쪽">{머리('토적표')}<토적표 R={R} /></div>

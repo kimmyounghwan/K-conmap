@@ -31,6 +31,8 @@
  * ■ 사토장 · 토취장(G575 · 소장님께 말씀드린 차례 ③): 장마다 «진출입 측점»(길에서 나가는 곳 · 비우면 밖 거리만) + «밖 거리».
  *   흙마다(유토곡선 사토 · 순성토 = 높이 띠 기록마다 · 바로 사토 = 측점 줄 · 칸마다) 길 따라 평균 거리 + 밖 거리가 가장 짧은 곳으로.
  *   길 따라 평균 거리는 흙이 놓인 꼴 그대로(높이 띠 안은 고르게 · 평균단면은 두 단면 사이 곧게 · 지배거리는 그 측점 몫 고르게 — 평균거리) — 어림 없음.
+ * ■ 토공 유동도(G576 · 차례 ④): 운반 몫마다 흙 무게중심 — 절c(깎는 곳) · 성c(쌓는 곳) = Σ(띠 높이 × 그 높이의 만나는 점) ÷ V.
+ *   한 마디 안의 짝은 모두 같은 쪽(→ 또는 ←)이라 |성c − 절c| = 평균운반거리 L 이 그대로 맞음(화살표 길이 = L). 사토 · 순성토 묶음도 c.
  * ■ 시험: node tools/시험_토적.mjs
  */
 
@@ -346,15 +348,18 @@ export function 토적셈(입 = {}) {
         q.V += r.h; q.VL += r.h * r.거
         나눔(q.토V, r.절.s.몫, r.h); 나눔(q.토VL, r.절.s.몫, r.h * r.거)
         q.절x = 넓힘(q.절x, r.절); q.성x = 넓힘(q.성x, r.성)
+        q.절중 += r.h * r.절.x; q.성중 += r.h * r.성.x
         q.최소 = Math.min(q.최소, r.거lo, r.거hi); q.최대 = Math.max(q.최대, r.거lo, r.거hi)
         if (거리별) 거리로나눔(r, 띠, 띠고름, q, 띠선)
-      } else if (r.꼴 === '사') { q.사 += r.h; 나눔(q.토사, r.절.s.몫, r.h); q.사x = 넓힘(q.사x, r.절); q.사들.push({ ab: 넓힘(null, r.절), h: r.h, 몫: r.절.s.몫, ...장고름(사장, 가까운, r.절, r.h, 범, 넘음, '사토장') }) }
-      else { q.순 += r.h; q.순x = 넓힘(q.순x, r.성); q.순들.push({ ab: 넓힘(null, r.성), h: r.h, 몫: null, ...장고름(순장, 가까운, r.성, r.h, 범, 넘음, '토취장') }) }
+      } else if (r.꼴 === '사') { q.사 += r.h; 나눔(q.토사, r.절.s.몫, r.h); q.사x = 넓힘(q.사x, r.절); q.사들.push({ ab: 넓힘(null, r.절), h: r.h, 몫: r.절.s.몫, 가: r.절.x, ...장고름(사장, 가까운, r.절, r.h, 범, 넘음, '사토장') }) }
+      else { q.순 += r.h; q.순x = 넓힘(q.순x, r.성); q.순들.push({ ab: 넓힘(null, r.성), h: r.h, 몫: null, 가: r.성.x, ...장고름(순장, 가까운, r.성, r.h, 범, 넘음, '토취장') }) }
     }
     const 번g = 구간.length
     for (const q of 마) {
       q.구간 = 번g
       q.L = q.V > 0 ? q.VL / q.V : 0
+      q.절c = q.V > 0 ? q.절중 / q.V : null; q.성c = q.V > 0 ? q.성중 / q.V : null
+      delete q.절중; delete q.성중
       q.방향 = q.꼴 === '위' ? '→' : q.꼴 === '아래' ? '←' : ''
       q.반폭 = 반높이폭(쪽, b, q)
       q.사묶음 = 묶기(q.사들); q.순묶음 = 묶기(q.순들)
@@ -381,9 +386,10 @@ export function 토적셈(입 = {}) {
     if (!(q.V > 1e-9)) { q.띠별 = []; continue }
     q.띠별 = 거리별
       ? [...몫.values()].filter((p) => p.V > 1e-9).sort((a, b) => a.t - b.t)
-      : [{ t: 띠고름(q.L), V: q.V, VL: q.VL, 토V: q.토V, 토VL: q.토VL, 절x: q.절x, 성x: q.성x, 최소: q.최소, 최대: q.최대 }]
+      : [{ t: 띠고름(q.L), V: q.V, VL: q.VL, 토V: q.토V, 토VL: q.토VL, 절x: q.절x, 성x: q.성x, 최소: q.최소, 최대: q.최대, 절c: q.절c, 성c: q.성c }]
     for (const p of q.띠별) {
       p.L = p.V > 0 ? p.VL / p.V : 0
+      if (p.절중 !== undefined) { p.절c = p.V > 0 ? p.절중 / p.V : null; p.성c = p.V > 0 ? p.성중 / p.V : null; delete p.절중; delete p.성중 }
       p.이름 = 띠[p.t].이름 || ''
       p.까지 = 띠[p.t].까지
       띠[p.t].V += p.V; 띠[p.t].VL += p.VL
@@ -491,8 +497,10 @@ function 거리로나눔(r, 띠, 띠고름, q, 띠선) {
     const L0 = a + d * s0, L1 = a + d * s1, h = r.h * (s1 - s0), vl = (h * (L0 + L1)) / 2
     const t = 띠고름((L0 + L1) / 2)
     let p = q.띠몫.get(t)
-    if (!p) { p = { t, V: 0, VL: 0, 토V: {}, 토VL: {}, 절x: null, 성x: null, 최소: Infinity, 최대: 0 }; q.띠몫.set(t, p) }
+    if (!p) { p = { t, V: 0, VL: 0, 토V: {}, 토VL: {}, 절x: null, 성x: null, 최소: Infinity, 최대: 0, 절중: 0, 성중: 0 }; q.띠몫.set(t, p) }
     p.V += h; p.VL += vl
+    const sm = (s0 + s1) / 2
+    p.절중 += h * (r.절.xl + sm * (r.절.xh - r.절.xl)); p.성중 += h * (r.성.xl + sm * (r.성.xh - r.성.xl))
     나눔(p.토V, 몫, h); 나눔(p.토VL, 몫, vl)
     p.절x = 넓힘(p.절x, 자리(r.절, s0, s1)); p.성x = 넓힘(p.성x, 자리(r.성, s0, s1))
     p.최소 = Math.min(p.최소, L0, L1); p.최대 = Math.max(p.최대, L0, L1)
@@ -505,11 +513,11 @@ function 묶기(들) {
   const 묶 = []
   for (const d of L) {
     const 끝 = 묶[묶.length - 1]
-    if (끝 && 끝.장 === d.장 && d.ab[0] <= 끝.xb + 1e-6) { 끝.xb = Math.max(끝.xb, d.ab[1]); 끝.V += d.h; 끝.VL += d.VL; 나눔(끝.토, d.몫, d.h); 나눔(끝.토VL, d.몫, d.VL) }
-    else { const 새 = { xa: d.ab[0], xb: d.ab[1], V: d.h, 토: {}, 장: d.장, VL: d.VL, 토VL: {} }; 나눔(새.토, d.몫, d.h); 나눔(새.토VL, d.몫, d.VL); 묶.push(새) }
+    if (끝 && 끝.장 === d.장 && d.ab[0] <= 끝.xb + 1e-6) { 끝.xb = Math.max(끝.xb, d.ab[1]); 끝.V += d.h; 끝.VL += d.VL; 끝.중 += d.h * d.가; 나눔(끝.토, d.몫, d.h); 나눔(끝.토VL, d.몫, d.VL) }
+    else { const 새 = { xa: d.ab[0], xb: d.ab[1], V: d.h, 토: {}, 장: d.장, VL: d.VL, 토VL: {}, 중: d.h * d.가 }; 나눔(새.토, d.몫, d.h); 나눔(새.토VL, d.몫, d.VL); 묶.push(새) }
   }
   묶.sort((p, q) => p.xa - q.xa)
-  for (const m of 묶) m.L = m.장 >= 0 && m.V > 0 ? m.VL / m.V : null
+  for (const m of 묶) { m.L = m.장 >= 0 && m.V > 0 ? m.VL / m.V : null; m.c = m.V > 0 ? m.중 / m.V : (m.xa + m.xb) / 2; delete m.중 }
   return 묶
 }
 /** 높이 띠 기록 하나(사토 · 순성토)의 장 — 흙은 그 띠의 만나는 점 자리 xl ~ xh 에 고르게 */
@@ -611,7 +619,7 @@ function 평형마디(점, b) {
   for (let i = 0; i + 1 < 경.length; i++) {
     const xa = 경[i], xb = 경[i + 1], xm = (xa + xb) / 2
     const d = 높이에서(점, xm) - b
-    마.push({ xa, xb, 꼴: d > tol ? '위' : d < -tol ? '아래' : '평', V: 0, VL: 0, 사: 0, 순: 0, 토V: {}, 토VL: {}, 토사: {}, 절x: null, 성x: null, 사x: null, 순x: null, 사들: [], 순들: [], 최소: Infinity, 최대: 0, 띠몫: new Map() })
+    마.push({ xa, xb, 꼴: d > tol ? '위' : d < -tol ? '아래' : '평', V: 0, VL: 0, 사: 0, 순: 0, 토V: {}, 토VL: {}, 토사: {}, 절x: null, 성x: null, 사x: null, 순x: null, 사들: [], 순들: [], 최소: Infinity, 최대: 0, 띠몫: new Map(), 절중: 0, 성중: 0 })
   }
   return 마
 }

@@ -10381,6 +10381,14 @@ a.adinfo-pick:hover, a.adinfo-pick:focus-visible { border-color: var(--ad-btn); 
 /* G575 ▼ 사토장 · 토취장 진출입 측점 */
 .tj-svg .tj-site-s { fill: #db2777; } .tj-svg .tj-site-b { fill: #7c3aed; }
 .tj-svg .tj-sitet { font-size: 10.5px; font-weight: 700; fill: #374151; text-anchor: middle; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+/* G576 토공유동도 */
+.tj-svg .tj-flow { fill: none; stroke: #0f766e; stroke-linecap: round; }
+.tj-svg .tj-mkh { fill: #0f766e; } .tj-svg .tj-mks { fill: #db2777; } .tj-svg .tj-mkb { fill: #7c3aed; }
+.tj-svg .tj-fbar-c { fill: #fde68a; } .tj-svg .tj-fbar-f { fill: #bfdbfe; }
+.tj-svg .tj-fl { font-size: 10.5px; font-weight: 700; fill: #134e4a; text-anchor: middle; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.tj-svg .tj-fs { stroke: #db2777; stroke-width: 2; } .tj-svg .tj-fb { stroke: #7c3aed; stroke-width: 2; }
+.tj-svg .tj-fst { font-size: 10.5px; font-weight: 700; fill: #9d174d; text-anchor: middle; } .tj-svg .tj-fbt { font-size: 10.5px; font-weight: 700; fill: #6d28d9; text-anchor: middle; }
+.tj-svg .tj-fsub { font-size: 10.5px; font-weight: 400; fill: #6b7280; }
 .tj-svg .tj-num { fill: #fff; stroke: #111827; stroke-width: 1.3; }
 .tj-svg .tj-numt { font-size: 11px; font-weight: 800; text-anchor: middle; fill: #111827; }
 .tj-svg .tj-ql { font-size: 11px; font-weight: 700; text-anchor: start; fill: #111827; paint-order: stroke; stroke: #fff; stroke-width: 3px; }

@@ -4,6 +4,7 @@
  *   DXF: lib/dxf2010틀.js(R2010 · UTF-8 · KCM 글꼴) · 가로 1 = 1 m · 세로는 «1 = ○ ㎥» (도면 왼쪽 아래에 적음) · 시험: ezdxf 로 다시 읽고 audit 0
  *   G574: «한 운반 구간도 거리별로 나눔» — 유동표 · 운반집계는 마디마다 띠 몫 줄 · 유토곡선 시트와 DXF 에 띠 거리선(KCM-띠선)
  *   G575: 🚛 사토장 · 토취장 — 유동표 사토 · 순성토 · 바로 사토 줄에 곳 · 거리 · 장비 · 운반집계 🚛 줄(장줄들) · 집계표 비고 · DXF ▲ 줄(KCM-사토장 · KCM-토취장)
+ *   G576: DXF 유토곡선도 아래에 «토공유동도» — 막대(KCM-남는흙 · KCM-모자라는흙) · 화살(KCM-유동도 — 볼록 폴리선 bulge = 활 높이 0.35 × 길이 · 길이 = 평균운반거리) · 사토 ↓ · 순성토 ↑
  */
 import { 틀, 틀정보 } from './dxf2010틀.js'
 import { 끝수, 띠글 } from './토적.js'
@@ -212,6 +213,59 @@ export function 토적DXF(R, 판 = {}) {
     if (q.사 > 1e-9) 말.push('사토 ' + 쉼(q.사) + '㎥')
     if (q.순 > 1e-9) 말.push('순성토 ' + 쉼(q.순) + '㎥')
     글(q.V > 1e-9 ? 운층 : 사층, 말.join(' · '), 끝점.x, ty, 글높 * 0.9)
+  }
+  /* 토공유동도(G576) — 유토곡선도 아래 · 가로는 같은 누가거리 */
+  {
+    const 활 = []
+    for (const q of R.마디) if (q.V > 1e-9) for (const p of q.띠별 || []) if (Number.isFinite(p.절c) && Number.isFinite(p.성c) && p.V > 1e-9 && Math.abs(p.성c - p.절c) > 1e-6) 활.push({ q, p })
+    const 칸 = []
+    for (let i = 0; i < R.줄.length; i++) {
+      const z = R.줄[i]
+      let a, b
+      if (R.방법 === '평균단면') { if (i === 0) continue; a = R.줄[i - 1].x; b = z.x }
+      else { a = z.x - (z.d || 0) / 2; b = z.x + (i + 1 < R.줄.length ? R.줄[i + 1].d : 0) / 2 }
+      if (!(b - a > 1e-9) || !z.차) continue
+      칸.push({ a, b, v: z.차 / (b - a) })
+    }
+    if (활.length || 칸.length) {
+      const 최대솟 = Math.max(글높 * 1.5, ...활.map((a) => 0.35 * Math.abs(a.p.성c - a.p.절c)))
+      const 막대높 = 글높 * 2.5, 최대v = Math.max(1e-9, ...칸.map((c) => Math.abs(c.v)))
+      const 꼭대기 = Y(ya) - 글높 * (장있음 ? 16 : 12)
+      const y유 = 꼭대기 - 최대솟 - 글높 * 3
+      const 유층 = 층('KCM-유동도', 4), 남층 = 층('KCM-남는흙', 2), 모층 = 층('KCM-모자라는흙', 5)
+      글(글층, '토공유동도 — 화살: 깎는 곳 무게중심 → 쌓는 곳 무게중심(길이 = 평균운반거리) · 막대: 측점 사이 1 m 당 남는(위) · 모자라는(아래) 흙', xs, 꼭대기, 글높 * 0.9, { 가로: 0, 세로: 2 })
+      선(유층, [xs, y유], [xe, y유])
+      for (const c of 칸) {
+        const h = (Math.abs(c.v) / 최대v) * 막대높
+        줄(c.v > 0 ? 남층 : 모층, c.v > 0 ? [[c.a, y유], [c.a, y유 + h], [c.b, y유 + h], [c.b, y유]] : [[c.a, y유], [c.a, y유 - h], [c.b, y유 - h], [c.b, y유]], true)
+      }
+      for (const { q, p } of 활) {
+        const x1 = p.절c, x2 = p.성c, c = Math.abs(x2 - x1), s = 0.35 * c
+        const 볼록 = (x2 > x1 ? -1 : 1) * (2 * s) / c
+        머리('LWPOLYLINE', 유층); P(100, 'AcDbPolyline'); P(90, 2); P(70, 0)
+        P(10, 수(x1)); P(20, 수(y유)); P(42, 수(볼록)); P(10, 수(x2)); P(20, 수(y유))
+        넓(x1, y유); 넓(x2, y유); 넓((x1 + x2) / 2, y유 + s)
+        /* 화살촉 — 끝에서 활의 접선(현과 θ/2 · θ = 4 atan(0.7)) 반대로 ±25° */
+        const 반각 = 2 * Math.atan(2 * s / c), 방 = x2 > x1 ? 1 : -1
+        const tx = 방 * Math.cos(반각), ty = -Math.sin(반각)
+        for (const 돌 of [0.44, -0.44]) {
+          const cx = Math.cos(돌), sx = Math.sin(돌)
+          const bx = -(tx * cx - ty * sx), by = -(tx * sx + ty * cx)
+          선(유층, [x2, y유], [x2 + bx * 글높 * 0.8, y유 + by * 글높 * 0.8])
+        }
+        글(유층, 동그라미(q.번) + ' ' + 쉼(p.V, 0) + '㎥ · ' + 쉼(p.L, 1) + 'm' + (p.이름 && (q.띠별 || []).length > 1 ? ' · ' + p.이름 : ''), (x1 + x2) / 2, y유 + s + 글높 * 0.6, 글높 * 0.7)
+      }
+      const 아래들 = R.마디.flatMap((q) => [...(q.사묶음 || []).map((m) => ['사', m]), ...(q.순묶음 || []).map((m) => ['순', m])]).filter(([, m]) => m.V > 1e-9).sort((a, b) => a[1].c - b[1].c)
+      아래들.forEach(([꼴, m], k) => {
+        const 층n = 꼴 === '사' ? 층('KCM-사토', 6) : 층('KCM-토취장', 200)
+        const y끝 = y유 - 막대높 - 글높 * (3 + (k % 2) * 1.6)
+        선(층n, [m.c, y유], [m.c, y끝])
+        const [ya2, yb2] = 꼴 === '사' ? [y끝, 1] : [y유, -1]
+        선(층n, [m.c, ya2], [m.c - 글높 * 0.3, ya2 + yb2 * 글높 * 0.6]); 선(층n, [m.c, ya2], [m.c + 글높 * 0.3, ya2 + yb2 * 글높 * 0.6])
+        const 말 = 꼴 === '사' ? '사토 ' + 쉼(m.V, 0) + '㎥' + (m.장이름 ? ' → ' + m.장이름 + ' ' + 쉼(m.L, 0) + 'm' : '') : '순성토 ' + 쉼(m.V, 0) + '㎥' + (m.장이름 ? ' ← ' + m.장이름 + ' ' + 쉼(m.L, 0) + 'm' : '')
+        글(층n, 말, m.c, y끝 - 글높 * 0.8, 글높 * 0.7)
+      })
+    }
   }
   /* 제목 · 배율 */
   const 제목 = '유토곡선도' + (판.설정 && 판.설정.공사명 ? ' — ' + 판.설정.공사명 : '') + (판.이름 ? ' (' + 판.이름 + ')' : '')
