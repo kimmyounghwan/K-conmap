@@ -5,14 +5,14 @@ import 이용자지도 from '../tools/이용자지도.jsx'   /* 🩹 G166 따로
 import { NaeyeokStrip } from '../components.jsx'
 import { Link, useSearchParams } from 'react-router-dom'
 import { getJSON, getOverview, getAgency, similarZone, getSim, getBidIndex, indexRows, getResults } from '../lib/data.js'
-import { won, wonShort, pct, num, dateTime, dday } from '../lib/fmt.js'
+import { won, wonShort, wonRange, pct, num, dateTime, dday } from '../lib/fmt.js'
 import { winGrade } from '../lib/winodds.js'
 /* 계산은 전부 여기 있습니다 — 화면과 채점이 같은 함수를 씁니다 */
 import { bidAmount, limitAmount, limitRate, r3, c3,
          sjSigma, recommend, buildScen, missingOf, isReady,
          toNum, P50_FALLBACK, shownBid, passProb, QTILES, QTILE_N, quantileBid,
          smartBid, autoRule, canBid, nowStamp, stamp14, lowerLimit,
-         rankBracket, pcLine, enpWhy, 표준대상, 표준모름, 취소공고, A값앎 } from '../lib/bidmath.js'
+         rankBracket, pcLine, enpWhy, 표준대상, 표준모름, 취소공고, A값앎, 하한율없는방식, 낙찰방법 } from '../lib/bidmath.js'
 import { 관심남기기, 자리남기기, 관심읽기 } from '../lib/관심도.js'   /* 👥 G499 경쟁 관심도(마감 전엔 «몇 명» 만) */
 import { 기관사정률받기 } from '../lib/기관사정률.js'   /* 📄 G499 품의서 — 기관 최근 사정률 */
 import 바로투찰사용법 from '../바로투찰사용법.jsx'   /* 📖 G499 */
@@ -438,6 +438,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
            바로투찰(공고 화면)과 다른 금액이 나옵니다. */
         llr: a[21] != null ? Number(a[21]) : 0, est: Number(a[22]) || 0,
         enp: Number(a[23]) || 0, enpn: Number(a[24]) || 0,
+        enpb: a[25] || '',                          // ⚖ G580 예상 참가 근거(이 면허·이 금액대 · 이 기관 …) — 화면 글이 근거를 그대로 말하게
         pc: Number(a[26]) || 0,                     // ⚖ G356 기초금액 중 순공사원가 (a[25] = enpb)
       } : fromUrl)
     })
@@ -675,7 +676,15 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
      «기술형 적격심사»(낙찰하한율이 공고에 적힘 · 낙찰방법 «적격심사제-추정가격이 300억원미만 100억원이상…»)라, 공고 목록 · 공고 한 장은
      권장 금액을 내는데 이 화면만 «종합심사 — 계산기 안 됨» 이라 어긋났습니다(이용자 입장 점검 11-07).
      → 공고에 낙찰하한율이 있고 낙찰방법이 종합심사가 아니면 계산합니다. 종합심사(하한율 없음 · 낙찰방법 «종합심사»)만 막습니다. */
+  /* ⚖ G580 낙찰방법을 이름으로 — 공고(마감 전 picked · 개찰 res)가 있으면 그 «낙찰방법» 앞머리. 하한율이 없는 방식(최저가 · 수의시담 · 종합심사 ·
+     종합평가 · 기술제안 · 일괄입찰)이면 «아직 안 실려 왔습니다» 가 아니라 «계산 대상 아님» 으로 · 공고 없이 손으로 넣은 100억 넘는 금액은 «공고마다 다름».
+     100억 넘는데 하한율만 아직 안 온 적격심사 공고(드묾)는 종합심사로 막지 않고 «아직 안 실려 왔습니다» 로 둡니다. */
+  const 공고줄 = picked || res || null
+  const 방식 = 공고줄 ? 낙찰방법(공고줄) : ''
+  const 방식없음 = !!공고줄 && 하한율없는방식(공고줄)
+  const 하한쓰는방식 = !!방식 && !방식없음 && /적격|낙찰하한율|소액수의/.test(방식)
   const 종심 = !!band && band.rec == null && !(givenLL > 0 && !/종합심사/.test(String(picked?.swin || res?.swin || '')))
+    && !(공고줄 && 하한쓰는방식 && !(givenLL > 0))
   const ll = givenLL > 0
     ? { rate: givenLL, note: '공고서에 적힌 낙찰하한율', given: true }
     : band
@@ -777,6 +786,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
   /* ★ 공고별 자동 분위 — 예상 참가(enp)를 알면 그 자리 실측에서 가장 많이 이긴 분위 (bidmath.autoRule) */
   const enpHere = Number(picked?.enp || res?.enp) || 0
   const enpN = Number(picked?.enpn || res?.enpn) || 0
+  const enp줄 = Number(picked?.enp) > 0 ? picked : res   /* ⚖ G580 예상 참가를 준 줄 — 근거 글(enpWhy)도 그 줄에서 */
   const aRule = autoRule(enpHere)
   const autoOut = (aRule && ll?.rate && base > 0 && sjSd > 0)
     ? smartBid({ base, llRate: ll.rate, aVal: a, aKnown, p50: sjMid, sd: sjSd, enp: enpHere, pc: pcv }) : null
@@ -942,7 +952,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
       const 지금 = new Date(Date.now() + 9 * 3600e3).toISOString()
       const v = {
         공고: { no: picked.no, name: picked.name, inst: picked.inst, close: stamp14(picked.close), lic: picked.lic || [], base, est: estimate, aval: a, aKnown,
-          llr: ll?.rate, lo, hi, pc: pcv, enp: enpHere, enpWhy: enpWhy(picked) || '' },
+          llr: ll?.rate, lo, hi, pc: pcv, enp: enpHere, enpWhy: enpWhy(enp줄) || '' },
         금액: main, 투찰률: myRate, 예정: Math.round(base * (sjMid / 100)), 사정률: sjMid, 범위: [bandLo, bandHi],
         자리: { label: chosen?.label || (pickRate === 'own' ? '직접 입력' : '권장'), why: chosen?.why || '', q },
         통과: pp ? pp.p : null, 버팀: pp ? pp.sj : null, 일순율,
@@ -1330,13 +1340,24 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
       )}
 
       {/* 100억 이상은 종합심사라 이 계산기가 통하지 않습니다 — ⚖ G579 100억~300억 적격심사(하한율 있음)는 빼고 */}
-      {종심 && (
+      {종심 && (공고줄 ? (방식 && !/종합심사/.test(방식) ? (
+        <div className="alertbar">
+          ⛔ <b>이 공고는 낙찰방법이 «{방식}» 입니다.</b><br />
+          낙찰하한율로 낙찰자를 정하는 방식(적격심사)이 아니라 이 계산기가 통하지 않습니다. 공고서의 낙찰 기준을 직접 보셔야 합니다.
+        </div>
+      ) : (
         <div className="alertbar">
           ⛔ <b>이 공고는 추정가격 100억 이상 — 종합심사 대상입니다.</b><br />
           낙찰하한율이 아니라 가격·공사수행능력·사회적책임을 함께 점수로 매기는 방식이라
           이 계산기가 통하지 않습니다. 공고서의 심사기준을 직접 보셔야 합니다.
         </div>
-      )}
+      )) : (
+        <div className="alertbar">
+          ⛔ <b>추정가격 100억 이상은 공고마다 낙찰방법이 다릅니다.</b><br />
+          종합심사 · 종합평가 · 일괄입찰 등은 이 계산기가 통하지 않고, 적격심사 공고(낙찰하한율이 공고에 적힘)는
+          위 «공고 찾기» 에서 공고를 고르시면 그 하한율로 계산합니다.
+        </div>
+      ))}
       {band && band.thin && band.rec != null && (
         <div className="alertbar">
           ⚠️ 이 규모({band.label})는 최근 {band.win}일 표본이 <b>{num(band.n)}건</b>뿐입니다.
@@ -1426,7 +1447,8 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
         )}
         {!picked && !qIsAmount && hiddenCount > 0 && (
           <div className="hidenote">
-            계산에 필요한 값이 빠진 공고 <b>{hiddenCount}건</b>은 감췄습니다.
+            {/* ⚖ G580 감춘 까닭은 «값이 빠짐» 만이 아님(취소 · 하한율이 없는 낙찰방법) */}
+            바로투찰로 계산할 수 없는 공고 <b>{hiddenCount}건</b>은 감췄습니다(값이 아직 없거나 · 취소 · 하한율 없는 낙찰방법).
             {' '}<button className="lnk" onClick={() => setOnlyReady(false)}>그래도 보기</button>
           </div>
         )}
@@ -1456,7 +1478,9 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
                         ? <> · <b className="money">기초 {wonShort(r.base)}</b></>
                         : <> · <span className="muted">기초금액 미공개</span></>}
                       {!isReady(r) && (
-                        <> · <span className="nogo">{취소공고(r) ? '취소된 공고' : `계산 불가 — ${missingOf(r).join('·')} 없음`}</span></>
+                        <> · <span className="nogo">{취소공고(r) ? '취소된 공고'
+                          : 하한율없는방식(r) ? `계산 대상 아님 — ${낙찰방법(r)}`
+                          : `계산 불가 — ${missingOf(r).join('·')} 없음`}</span></>
                       )}
                     </div>
                     {(r.lic || []).length > 0 && (
@@ -1530,8 +1554,24 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
           )}
         </div>
       )}
+      {/* ⚖ G580 하한율이 없는 낙찰방법(최저가낙찰제 · 수의시담 · 종합심사 · 종합평가 · 기술제안 · 일괄입찰) — 기다려도 하한율이 안 옴.
+          전엔 아래 «아직 안 실려 왔습니다 — 조금 뒤에 열어보세요» 가 떴음(11-07 마감 전 162건). 100억 넘는 것은 아래 «계산기를 쓰면 안 됩니다» 카드가 말함. */}
+      {picked && 하한율없는방식(picked) && !취소공고(picked) && !종심 && (
+        <div className="warnbox nogobox">
+          <div className="h">⛔ 바로투찰로 계산하지 않는 공고입니다</div>
+          <p>
+            이 공고의 낙찰방법은 <b>«{낙찰방법(picked)}»</b> 입니다 — 낙찰하한율로 낙찰자를 정하는 방식(적격심사)이 아니라
+            공고에 <b>낙찰하한율이 없습니다.</b> 바로투찰 금액은 «낙찰하한 위로 붙이는» 셈이라 이 공고에는 맞지 않아 금액을 내지 않습니다.
+            공고서의 낙찰 기준을 직접 보세요.
+          </p>
+          {picked.url && (
+            <a className="btn ghost sm" style={{ width: '100%', marginTop: 8 }}
+              href={picked.url} target="_blank" rel="noreferrer">나라장터에서 이 공고 열기 ↗</a>
+          )}
+        </div>
+      )}
       {/* ⚖ G579 종합심사(100억 넘고 하한율 없음)는 «아직 안 실려 왔습니다» 가 아니라 아래 «계산기를 쓰면 안 됩니다» 로 — 기다려도 하한율은 안 옴 */}
-      {picked && !isReady(picked) && !취소공고(picked) && !종심 && (
+      {picked && !isReady(picked) && !취소공고(picked) && !하한율없는방식(picked) && !종심 && (
         <div className="warnbox nogobox">
           <div className="h">⛔ 이 공고는 아직 계산할 수 없습니다</div>
           <p>
@@ -1915,16 +1955,26 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
       {/* 종합심사 대상이면 계산을 아예 하지 않습니다. 0원을 보여주는 건 사고입니다. */}
       {picked && !isReady(picked) && !종심 ? null : base > 0 && 종심 ? (
         <div className="card c-stop" ref={답자리}>
-          <div className="detail-h">이 공고는 계산기를 쓰면 안 됩니다</div>
+          {/* ⚖ G580 공고 없이 손으로 넣은 금액엔 «이 공고는» 이 아니라 «공고를 골라야» */}
+          <div className="detail-h">{공고줄 ? '이 공고는 계산기를 쓰면 안 됩니다' : '추정가격 100억 이상 — 공고를 골라야 계산합니다'}</div>
           <div className="kv2">
             <div><span>기초금액</span><b>{won(base)}</b></div>
             <div><span>추정가격</span><b>{won(estimate)}</b></div>
-            <div><span>낙찰방법</span><b>종합심사낙찰제 (추정가격 100억 이상)</b></div>
+            {/* ⚖ G580 낙찰방법은 공고에 적힌 그대로 · 공고 없이 손으로 넣은 금액은 «공고마다 다름» */}
+            <div><span>낙찰방법</span><b>{공고줄 ? (방식 || '종합심사낙찰제 (추정가격 100억 이상)') : '공고마다 다름 (추정가격 100억 이상)'}</b></div>
           </div>
           <div className="note sm">
-            종합심사는 가격만으로 낙찰자를 정하지 않습니다.
-            공사수행능력·사회적책임·가격을 함께 점수로 매기고, 발주기관마다 세부 기준이 다릅니다.
-            <b> 공고서의 심사기준을 직접 보셔야 합니다.</b>
+            {!공고줄 ? (
+              <>추정가격 100억 이상은 공고마다 낙찰방법이 다릅니다. 종합심사 · 종합평가 · 일괄입찰 등은 가격만으로 낙찰자를 정하지 않아
+                이 계산기가 통하지 않고, 적격심사 공고(낙찰하한율이 공고에 적힘)는 <b>위 «공고 찾기» 에서 공고를 고르시면</b> 그 하한율로 계산합니다.</>
+            ) : 방식 && !/종합심사/.test(방식) ? (
+              <>이 낙찰방법은 낙찰하한율로 낙찰자를 정하지 않습니다(적격심사가 아님).
+                <b> 공고서의 심사 · 낙찰 기준을 직접 보셔야 합니다.</b></>
+            ) : (
+              <>종합심사는 가격만으로 낙찰자를 정하지 않습니다.
+                공사수행능력·사회적책임·가격을 함께 점수로 매기고, 발주기관마다 세부 기준이 다릅니다.
+                <b> 공고서의 심사기준을 직접 보셔야 합니다.</b></>
+            )}
             {picked?.url && (
               <>
                 <br />
@@ -1968,7 +2018,8 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
             <div className="sub">
               투찰률 {pct(myRate, 3)} · 예정가격 {won(Math.round(base * (sjMid / 100)))}
             </div>
-            <div className="range">사정률에 따라 {wonShort(bandLo)} ~ {wonShort(bandHi)}</div>
+            {/* ⚖ G580 두 끝이 짧은 꼴로 같으면(«1.7억 ~ 1.7억») 만 원까지 */}
+            <div className="range">사정률에 따라 {wonRange(bandLo, bandHi)}</div>
             {/* 👥 G499 경쟁 관심도 — 마감 전엔 «몇 명» 만(금액 · 회사 · 이름은 안 남김 · 고른 분위는 규칙으로 화면 어디서도 못 읽음) · 마감 뒤 개찰 카드에 «이용자들이 고른 자리» */}
             {picked?.no && 관심 && 관심.n > 0 && (
               <div className="bc-line" title="몇 명이 이 공고 금액을 봤는지만 셉니다 — 금액 · 회사 · 이름은 남기지 않고, 고른 자리(분위)는 마감 전엔 사이트 어디서도(운영자 화면 포함) 볼 수 없습니다. 마감 뒤 개찰 카드에 «건설맵 이용자들이 고른 자리» 가 묶음으로만 나옵니다.">
@@ -2150,7 +2201,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
           {pickRate === 'auto' && aRule && (
             <div className="autobox">
               <div className="h">🎯 이 공고는 <b>{aRule.q}분위</b>로 넣습니다 — 예상 참가 <b>{num(enpHere)}곳</b>
-                <i>이 기관 최근 개찰 {num(enpN)}건의 참가업체수 중앙</i></div>
+                <i>{enpWhy(enp줄) || `지난 개찰 ${num(enpN)}건의 중앙`} — 참가업체수</i></div>
               <p>
                 같은 자리(참가 {aRule.maxNp === 10 ? '2~9' : '10~29'}곳, 실측 {num(aRule.n)}건)에서 {aRule.q}분위 금액이
                 <b> 1순위 {aRule.win}%</b>(실격 {aRule.dq}%)로, 권장 {aRule.recWin}%(실격 {aRule.recDq}%)보다 더 이겼습니다.

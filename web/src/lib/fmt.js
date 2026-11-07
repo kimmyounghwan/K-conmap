@@ -14,8 +14,31 @@ export const wonShort = (n) => {
     const eok = v / 100000000
     return (eok >= 100 ? Math.round(eok) : eok.toFixed(1).replace(/\.0$/, '')) + '억'
   }
-  if (v >= 10000) return Math.round(v / 10000).toLocaleString('ko-KR') + '만'
+  if (v >= 10000) {
+    const man = Math.round(v / 10000)
+    return man >= 10000 ? '1억' : man.toLocaleString('ko-KR') + '만'   // ⚖ G580 99,995,000 → «10,000만» 이 아니라 «1억»
+  }
   return v.toLocaleString('ko-KR')
+}
+
+/* ⚖ G580(2026-11-07) 금액 범위 — 짧은 꼴(1.7억)로 두 끝이 같아지면 «1.7억 ~ 1.7억» 처럼 아무것도 안 알려 줌(바로투찰 «사정률에 따라»).
+   두 끝이 같으면 만 원까지(«1억 6,324만 ~ 1억 6,851만») · 그래도 같으면 원 단위로. */
+export const wonEokMan = (n) => {
+  const v = Math.round(Math.abs(Number(n) || 0))
+  if (!v) return '-'
+  const eok = Math.floor(v / 1e8), man = Math.round((v % 1e8) / 1e4)
+  if (man >= 10000) return (eok + 1).toLocaleString('ko-KR') + '억'
+  if (eok && man) return eok.toLocaleString('ko-KR') + '억 ' + man.toLocaleString('ko-KR') + '만'
+  if (eok) return eok.toLocaleString('ko-KR') + '억'
+  if (man) return man.toLocaleString('ko-KR') + '만'
+  return v.toLocaleString('ko-KR')
+}
+export const wonRange = (lo, hi) => {
+  const a = wonShort(lo), b = wonShort(hi)
+  if (a !== b) return `${a} ~ ${b}`
+  const c = wonEokMan(lo), d = wonEokMan(hi)
+  if (c !== d) return `${c} ~ ${d}`
+  return `${(Number(lo) || 0).toLocaleString('ko-KR')} ~ ${won(hi)}`
 }
 
 export const pct = (n, d = 2) =>

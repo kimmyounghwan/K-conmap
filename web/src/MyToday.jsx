@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import { getBoardMeta } from './lib/data.js'
 import { won, num, dateTime, dday, REGIONS, inRegion } from './lib/fmt.js'
-import { quickBid, pickOdds, canBid, nowStamp, stamp14 } from './lib/bidmath.js'
+import { quickBid, pickOdds, canBid, nowStamp, stamp14, enpWhy, enp기관 } from './lib/bidmath.js'
 import { loadLicCodes, saveLicCodes, loadLicNone, saveLicNone, loadRegion, saveRegion,
          licList, licHit, licShort } from './lib/lic.js'
 
@@ -112,12 +112,11 @@ export default function MyToday({ rows, idx, p50, onPick }) {
 
       {showEditor && (
         <div className="mt-setup">
-          {!configured && (
-            <div className="mt-lead">
-              <b>면허와 지역을 고르면</b> 여기에 <b>오늘 넣을 수 있는 공고</b>가 금액과 함께 뜹니다.
-              {' '}이 브라우저에만 저장되고, 서버로는 아무것도 가지 않습니다.
-            </div>
-          )}
+          {/* ⚖ G580 안내 글은 고르기 칸이 열린 동안 늘 둠 — 전엔 첫 칩을 누르면 사라져 칩이 한 줄 위로 뛰어(폰) 다음 칩을 잘못 누름 */}
+          <div className="mt-lead">
+            <b>면허와 지역을 고르면</b> 여기에 <b>오늘 넣을 수 있는 공고</b>가 금액과 함께 뜹니다.
+            {' '}이 브라우저에만 저장되고, 서버로는 아무것도 가지 않습니다.
+          </div>
           <div className="mt-lab">내 면허 <span className="hint">— 여러 개 고를 수 있습니다</span></div>
           {licOptions.length ? (
             <div className="chips wrap">
@@ -167,11 +166,12 @@ export default function MyToday({ rows, idx, p50, onPick }) {
                   <div className="tp-name">{r.name}</div>
                   <div className="tp-meta">
                     {r.inst}
+                    {/* ⚖ G580 근거는 그 줄의 enpb 그대로(이 면허·이 금액대 · 이 기관 …) — 전엔 늘 «기관 최근 N건» 이라 적었는데 95%가 면허 근거였음 */}
                     {od && od.enp > 0
-                      ? <> · 예상 참가 <b>{num(od.enp)}곳</b><span className="tp-src"> (기관 최근 {num(od.enpn)}건 중앙)</span></>
-                      : <> · 예상 참가 <span className="tp-src">모름 (기관 표본 부족)</span></>}
+                      ? <> · 예상 참가 <b>{num(od.enp)}곳</b><span className="tp-src"> ({enpWhy(r) || `지난 개찰 ${num(od.enpn)}건의 중앙`})</span></>
+                      : <> · 예상 참가 <span className="tp-src">모름 (지난 개찰 표본 부족)</span></>}
                     {od && od.enp === 1 && (
-                      <span className="tp-warn"> · 단독 입찰이 잦은 기관 — 참가 자격을 꼭 확인하세요</span>
+                      <span className="tp-warn"> · {enp기관(r) ? '단독 입찰이 잦은 기관' : '참가 1곳(단독)이 잦은 면허 · 금액대'} — 참가 자격을 꼭 확인하세요</span>
                     )}
                   </div>
                   <div className="oneclick">
