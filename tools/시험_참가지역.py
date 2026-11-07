@@ -61,7 +61,7 @@ if C is not None:
     src = io.open(os.path.join(ROOT, "collect.py"), encoding="utf-8").read()
     i = src.index('"f": ["no", "name"')
     f = re.findall(r'"([a-z]+)"', src[src.index("[", i):src.index("]", src.index("[", i))])
-    봄("② bidindex 뒤 칸 «rgs»(참가가능지역 열쇠) — 그 뒤에 ⚖ G578 smk(표준시장단가 칸) · ⚖ pc(순공사원가 · 2026-10-21)", f[-3:] == ["rgs", "smk", "pc"], f[-4:].__repr__())
+    봄("② bidindex 뒤 칸 «rgs»(참가가능지역 열쇠) — 그 뒤에 ⚖ G579 az(A값 0원) · G578 smk(표준시장단가 칸) · ⚖ pc(순공사원가 · 2026-10-21)", f[-4:] == ["rgs", "az", "smk", "pc"], f[-5:].__repr__())
     봄("② bidindex 줄에 rgk 또는 rgn 열쇠를 실음", 'r.get("rgk") or rgn_keys(r.get("rgn"))' in src)
 
     # ③ 근거

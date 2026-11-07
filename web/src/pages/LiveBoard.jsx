@@ -15,7 +15,7 @@ import { NoticeLink } from '../NoticeDetail.jsx'
    ⚠️ Comments.jsx / CommentsPanel.jsx 는 지우지 않았습니다 — 이미 달린 글이 DB(cmt)에 있고,
       다시 붙일 자리가 생길 수 있어서입니다. 지금은 어디서도 부르지 않습니다. */
 import { quickBid, P50_FALLBACK, pickOdds, stamp14, nowStamp, canBid,
-         atLeastOne, enpWhy } from '../lib/bidmath.js'
+         atLeastOne, enpWhy, 취소공고 } from '../lib/bidmath.js'
 import { getOverview, getBidIndex, indexRows, getLicStat } from '../lib/data.js'
 import { loadBasket, toggleBasket, clearBasket, BASKET_MAX } from '../lib/basket.js'
 import FreshBar from '../Fresh.jsx'
@@ -760,6 +760,8 @@ export default function LiveBoard() {
                       <div className="nocalc">
                         {stamp14(r.close) < now ? (
                           <>이미 <b>마감된 공고</b>라 투찰 계산은 하지 않습니다.</>
+                        ) : 취소공고(r) ? (
+                          <>나라장터에서 <b>취소된 공고</b>(취소공고)라 투찰 계산은 하지 않습니다.</>
                         ) : (
                           <>아직 <b>바로투찰 계산이 안 됩니다</b> — 조달청 자료에
                             «{missingOf(r).join(' · ')}» 이 아직 안 실려 왔습니다.

@@ -12,7 +12,7 @@ import { pct, won, wonShort, dateFull, estOf } from '../lib/fmt.js'
    이제 한 줄은 «한 줄 남기기» 창(AskComment.jsx)이 받아 **사랑방 한 곳으로** 모읍니다.
    ⚠️ Comments.jsx / CommentsPanel.jsx 는 지우지 않았습니다 — 이미 달린 글이 DB(cmt)에 있고,
       다시 붙일 자리가 생길 수 있어서입니다. 지금은 어디서도 부르지 않습니다. */
-import { quickBid, P50_FALLBACK } from '../lib/bidmath.js'
+import { quickBid, P50_FALLBACK, 취소공고 } from '../lib/bidmath.js'
 import { wasBaked } from '../lib/baked.js'
 /* 🏛 기관 최근 사정률 · 📋 투찰 조건 · 일정 · 첨부 — 공고 카드(/live)와 같은 칸 (2026-09-30, 입찰나라에서 가져온 것) */
 import 기관사정률 from '../기관사정률.jsx'
@@ -178,10 +178,17 @@ function OpenNotice({ r }) {
   const qb = quickBid(r, ov?.sjq?.p50 ?? P50_FALLBACK, qFix || undefined)
   return (
     <>
-      <div className="verdict" style={{ marginTop: 10 }}>
-        ⏳ <b>아직 개찰 전입니다</b>
-        {r.close && <> · 마감 {dateFull(r.close)}</>}
-      </div>
+      {/* ⚖ G579 취소공고 — «아직 개찰 전» 이 아니라 «취소된 공고» */}
+      {취소공고(r) ? (
+        <div className="verdict" style={{ marginTop: 10 }}>
+          ⛔ <b>나라장터에서 취소된 공고입니다</b> · 투찰할 수 없습니다
+        </div>
+      ) : (
+        <div className="verdict" style={{ marginTop: 10 }}>
+          ⏳ <b>아직 개찰 전입니다</b>
+          {r.close && <> · 마감 {dateFull(r.close)}</>}
+        </div>
+      )}
       {qb && (
         <div className="card">
           <div className="sec-title" style={{ margin: '0 0 6px' }}>💰 권장 투찰금액</div>
@@ -200,6 +207,7 @@ function OpenNotice({ r }) {
             estOf 가 기초금액에서 메우고, 그래도 모르면 이름표를 바꿉니다. */}
         <div><span>{estOf(r) > 0 ? '추정가격' : '배정예산'}</span><b>{won(estOf(r) || r.budget)}</b></div>
         {r.aval > 0 && <div><span>A값</span><b>{won(r.aval)}{r.smk === 'Y' ? ' (표준시장단가 포함)' : ''}</b></div>}
+        {!(r.aval > 0) && Number(r.az) === 1 && r.ayn !== 'N' && <div><span>A값</span><b>0원 (나라장터 A 0원)</b></div>}
         {r.llr > 0 && <div><span>낙찰하한율</span><b>{pct(r.llr, 3)}</b></div>}
         {r.lo != null && r.hi != null && <div><span>예가범위</span><b>{r.lo}% ~ {r.hi}%</b></div>}
         <div><span>공고번호</span><b>{r.no}{r.ord ? `-${r.ord}` : ''}</b></div>

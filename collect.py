@@ -799,7 +799,7 @@ def to_f(v):
 
 
 # 🩹 G566 기초금액 응답(bsis_row · extra_amounts)에서만 오는 칸 — 공고 목록을 다시 받아 줄을 새로 만들 때 이어 둠(base · lo · hi 와 함께)
-BSIS_KEEP = ("aval", "aparts", "ayn", "gmtrl", "pc", "smk")   # ⚖ G578 smk — 응답에 표준시장단가 칸이 실려 옴(Y 더함 · N 없음)
+BSIS_KEEP = ("aval", "aparts", "ayn", "gmtrl", "pc", "smk", "az")   # ⚖ G578 smk — 응답에 표준시장단가 칸이 실려 옴(Y 더함 · N 없음) · ⚖ G579 az — A값 0원(1 · 0 = 확인함)
 # ⚖ G578 이번 회차에 본 표준시장단가 칸(«Y·Y» = 0 보다 큼 · 포함 여부 Y …) — 진단 줄에 적어 포함 여부(smkpAmtYn)의 뜻을 실측으로 확인
 SMKP_SEEN = {}
 # 🩹 G567 기초금액 «물어본 시각»(bask · 개별조회 차례) — 목록을 다시 받아도 이어 둬야 «오래 안 물어본 것부터» 차례가 돎.
@@ -837,6 +837,10 @@ def bsis_row(it):
     if 0 < pc <= base:
         out["pc"] = pc
     return out
+
+
+# ⚖ G579 나라장터 «A» 7개 항목(국민연금 · 건강 · 퇴직공제 · 노인장기요양 · 산업안전보건관리비 · 안전관리비 · 품질관리비) — A값 0원 근거(az)를 셀 때만 씀
+A7_KEYS = ("npnInsrprm", "mrfnHealthInsrprm", "rtrfundNon", "odsnLngtrmrcprInsrprm", "sftyMngcst", "sftyChckMngcst", "qltyMngcst")
 
 
 # ── A값(법정경비) 항목들 ────────────────────────
@@ -900,6 +904,12 @@ def extra_amounts(item):
     yn = str(pick(item, "bidPrceCalclAYn") or "").upper()
     if yn in ("Y", "N"):
         out["ayn"] = yn        # 이 공고가 A값을 적용하는지
+    # ⚖ G579(2026-11-07) A값 0원 — 적용 여부 «Y» 인데 A 항목(표준시장단가 포함)이 다 0 이면: 7개 항목 가운데 셋 넘게 «0» 으로 실려 왔으면 az = 1
+    #   (나라장터 «기초금액조회» 도 «A 0 원» — 11-07 10건 대조 · 화면이 A값 0원으로 계산). 빈칸 · 칸 없음뿐이면 az = 0(확인했지만 0 이라는 근거 없음 →
+    #   화면은 전처럼 «A값 모름» · G540b 처럼 칸이 빠져 와도 0 으로 셈하지 않음). 1 · 0 모두 «G579 뒤 받은 응답» 표시 — 개별조회가 한 번만 다시 묻습니다.
+    if yn == "Y" and total <= 0:
+        _z = sum(1 for k, _l in A_PARTS if k in A7_KEYS and str(_low.get(k.lower(), "")).strip() in ("0", "0.0", "0.00"))
+        out["az"] = 1 if _z >= 3 else 0
     g = to_int(pick(item, "govsplyAmt", "govcnstrtnGovsplyMtrlAmt",
                     "contrctrcnstrtnGovsplyMtrlAmt", "govsplyMtrlAmt") or 0)
     if g > 0:
@@ -929,6 +939,10 @@ def 표준바꿈(row, b):
             row.pop(f, None)
     row["ayn"] = b["ayn"]
     row["smk"] = b["smk"]
+    if b.get("az") is not None:          # ⚖ G579 A값 0원 표시도 같이
+        row["az"] = b["az"]
+    else:
+        row.pop("az", None)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -3797,7 +3811,7 @@ def main():
                     # 🩹 G567 bask(기초금액 물어본 시각)도 이어 둠 — 개별조회 «오래 안 물어본 것부터» 차례가 돌게(공고 저장소 기초이어와 같음)
                     for f in ("base", "lo", "hi", "lic",
                               "aval", "aparts", "ayn", "gmtrl", "np",
-                              "llr", "est", "ptot", "pdrw", "pc", "bask", "smk"):
+                              "llr", "est", "ptot", "pdrw", "pc", "bask", "smk", "az"):
                         if prev.get(f) is not None:
                             r[f] = prev[f]
                     # ⚠️ 2026-09-03 — 순위 조회로 채운 것을 개찰목록 수집이 덮어쓰면 안 됩니다.
@@ -3859,6 +3873,11 @@ def main():
                         #   응답에 A값 적용 여부(ayn)가 있을 때만(취소 차수 응답은 A 칸이 비어 와 덮으면 A값이 지워짐).
                         if row.get("smk") is None and b.get("smk") is not None and b.get("ayn") in ("Y", "N"):
                             표준바꿈(row, b)
+                            hit = True
+                        # ⚖ G579 A값 0원 표시(az)를 못 받은 줄 — A값이 없고 응답도 A값이 없을 때만(같은 «0 원» 이야기일 때)
+                        if row.get("az") is None and b.get("az") is not None and not row.get("aval") and not b.get("aval") \
+                                and b.get("ayn") == row.get("ayn"):
+                            row["az"] = b["az"]
                             hit = True
                         if hit:
                             n_aval += 1
@@ -3984,7 +4003,7 @@ def main():
 
     # ── 화면에 실릴 최근 건 중 기초금액이 빈 것만 공고번호로 개별 보충 ──
     todo = []
-    todo_why = {"기초": 0, "A값": 0, "표준시장단가": 0, "취소공고 뺌": 0}
+    todo_why = {"기초": 0, "A값": 0, "A값 0원 확인": 0, "표준시장단가": 0, "취소공고 뺌": 0}
     n_std = 0
     for kind in KINDS:
         # 마감 전 공고를 마감 임박 순으로 — 사람들이 실제로 계산하는 순서입니다
@@ -4010,6 +4029,10 @@ def main():
             elif not r.get("aval") and str(r.get("ayn") or "") not in ("Y", "N"):
                 todo.append((kind, r))
                 todo_why["A값"] += 1
+            elif str(r.get("ayn") or "") == "Y" and not r.get("aval") and r.get("az") is None:
+                # ⚖ G579 A값 적용인데 A값이 없는 줄 — A값 0원(az)인지 한 번만 다시 물음(G579 뒤 응답이면 az 가 1 · 0 으로 붙어 다시 안 물음)
+                todo.append((kind, r))
+                todo_why["A값 0원 확인"] += 1
         # 그다음 개찰 목록에서 기초금액이 빈 것
         rows = sorted(trim(first[kind], SHOW_DAYS, "dt").values(),
                       key=lambda r: dt_digits(r.get("dt")), reverse=True)
@@ -4036,7 +4059,7 @@ def main():
     if uniq:
         print(f"  · 기초금액 개별조회 {min(len(uniq), BSIS_ONE_CAP):,}건 "
               f"(빈 건 {len(uniq):,} — 오래 안 물어본 것부터)"
-              f" · 까닭: 공고 기초 {todo_why['기초']:,} · A값 {todo_why['A값']:,}"
+              f" · 까닭: 공고 기초 {todo_why['기초']:,} · A값 {todo_why['A값']:,} · A값 0원 확인 {todo_why['A값 0원 확인']:,}"
               f" · 100억 넘는 공고 표준시장단가 {todo_why['표준시장단가']:,} · 취소공고 뺌 {todo_why['취소공고 뺌']:,}")
         for kind, r in uniq[:BSIS_ONE_CAP]:
             b = bsis_one(key, r["no"], kind)
@@ -4049,6 +4072,8 @@ def main():
                 if b.get("ayn") in ("Y", "N") and b.get("aval") is None:
                     r.pop("aval", None)
                     r.pop("aparts", None)
+                if b.get("ayn") in ("Y", "N") and b.get("az") is None:
+                    r.pop("az", None)          # ⚖ G579 A값이 있거나 미적용(N)이면 A값 0원 표시는 지움
                 if was_std:
                     n_std += 1
                 if had:
@@ -4251,6 +4276,10 @@ def main():
             # ⚖ G578 공고 쪽이 표준시장단가 칸을 받았으면(smk) 개찰 줄 A값도 같게 — 채점 · 성적이 같은 A값으로
             if src.get("smk") and not r.get("smk") and src.get("ayn") in ("Y", "N"):
                 표준바꿈(r, src)
+                joined += 1
+            # ⚖ G579 A값 0원 표시(az)도 — 두 줄 다 A값이 없을 때만
+            if r.get("az") is None and src.get("az") is not None and not r.get("aval") and not src.get("aval"):
+                r["az"] = src["az"]
                 joined += 1
     if joined:
         print(f"  · 공고→개찰 이어붙임: 낙찰하한율·추정가격 등 {joined:,}칸")
@@ -5047,6 +5076,8 @@ def main():
                 # 🗺 G221 참가가능지역 열쇠(«전남» · «전남 장흥군» · «?») — 비면 지역 제한 정보 없음.
                 #   업체 화면 «참여할 수 있는 공고» 가 씀. rgnb(판단기준)는 수의계약에만 와서 지역을 못 가립니다.
                 r.get("rgk") or rgn_keys(r.get("rgn")),
+                # ⚖ G579 A값 0원(조달청 A 칸이 «0» 으로 실려 옴 — 1 이면 화면이 A값 0원으로 계산 · 0 은 모름)
+                1 if r.get("az") == 1 else 0,
                 # ⚖ G578 표준시장단가 칸을 받았나(Y 더함 · N 없음 · 빈칸 모름) — 화면이 추정가격 100억 넘는 공고는 이것이 있어야 계산
                 r.get("smk") or "",
                 # ⚖ 2026-10-21 기초금액 중 순공사원가(조달청 bssAmtPurcnstcst · 없으면 0) — 바로투찰 «순공사원가 98 %» 선
@@ -5058,7 +5089,7 @@ def main():
                      "llr", "est", "lic", "aval", "gmtrl",
                      "ayn", "ptot", "pdrw", "url",
                      "site", "rgnb", "joint", "mthd", "swin", "rebid",
-                     "enp", "enpn", "dt", "sido", "dsn", "enpb", "jnt", "tg", "nt", "licg", "rgs", "smk", "pc"],
+                     "enp", "enpn", "dt", "sido", "dsn", "enpb", "jnt", "tg", "nt", "licg", "rgs", "az", "smk", "pc"],
                "pick": pick,
                "r": rows}
         path = os.path.join(OUT, "bidindex.json")

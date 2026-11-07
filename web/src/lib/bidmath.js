@@ -96,13 +96,21 @@ export const 표준대상 = (r) => {
 }
 /** 표준시장단가를 A값에 더했는지 모르는 줄(100억 넘는데 smk 없음) · A값 미적용(N)인데 표준시장단가가 있는 줄(어떻게 셀지 모름) */
 export const 표준모름 = (r) => !!r && 표준대상(r) && (!r.smk || (r.smk === 'Y' && r.ayn === 'N'))
+/* ⚖ G579(2026-11-07) 소장님 「사이트에서 다시 이용자 입장에서 하나 하나 해봐. 고칠 것 고쳐야 해」 — 바로투찰을 이용자처럼 해 보다 찾은 둘:
+   ⑥ 취소공고 — 나라장터에서 취소된 공고(공고종류 «취소공고» · 유형 비트 4). 기초금액 · A값이 지난 차수에서 이어져 와
+      «💰 권장 투찰금액» 이 나오던 것(11-07 마감 전 9건) → 계산하지 않고 «취소된 공고» 라고 말합니다.
+   ⑦ A값 0원 — 조달청 응답에 A값 칸이 «0» 으로 실려 온 공고(az = 1 · 나라장터 «기초금액조회» 도 «A 0 원» — 11-07 10건 대조)는
+      A값을 아는 것으로 셉니다(전엔 «A값이 아직 안 실려 왔습니다» 로 막힘). 칸이 비었거나 없으면 az 가 안 붙어 전처럼 «모름». */
+export const 취소공고 = (r) => !!r && (r.kind === '취소공고' || (Number(r.tg) & 4) === 4)
+export const A값앎 = (r) => !!r && (r.ayn === 'N' || Number(r.aval) > 0 || Number(r.az) === 1)
 export function missingOf(r) {
   if (!r) return []
+  if (취소공고(r)) return ['취소공고']   // 취소된 공고 — 다른 칸은 볼 것 없이 계산 안 함(화면은 «취소된 공고» 로 따로 말함)
   const m = []
   const llr = Number(r.llr)
   if (!(r.base > 0)) m.push('기초금액')
   if (!(llr >= 60 && llr <= 100)) m.push('낙찰하한율')
-  if (!(r.aval > 0 || r.ayn === 'N')) m.push('A값')
+  if (!A값앎(r)) m.push('A값')
   else if (표준모름(r)) m.push('표준시장단가')
   if (!(r.ptot > 0 && r.pdrw > 0)) m.push('예비가격 정보')
   return m
@@ -212,7 +220,7 @@ export const canBid = (r, now) => !!r && stamp14(r.close) >= now && isReady(r)
 
 export function quickBid(r, p50, q) {
   if (!r || !isReady(r) || !(p50 > 0)) return null
-  const aKnown = r.ayn === 'N' || r.aval > 0
+  const aKnown = A값앎(r)                       // ⚖ G579 A값 0원(az)도 «앎»
   const aVal = r.ayn === 'N' ? 0 : (Number(r.aval) || 0)
   const lo = r.lo != null ? Number(r.lo) : -3
   const hi = r.hi != null ? Number(r.hi) : 3

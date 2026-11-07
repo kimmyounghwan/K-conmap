@@ -12,7 +12,7 @@ import { bidAmount, limitAmount, limitRate, r3, c3,
          sjSigma, recommend, buildScen, missingOf, isReady,
          toNum, P50_FALLBACK, shownBid, passProb, QTILES, QTILE_N, quantileBid,
          smartBid, autoRule, canBid, nowStamp, stamp14, lowerLimit,
-         rankBracket, pcLine, enpWhy, 표준대상, 표준모름 } from '../lib/bidmath.js'
+         rankBracket, pcLine, enpWhy, 표준대상, 표준모름, 취소공고, A값앎 } from '../lib/bidmath.js'
 import { 관심남기기, 자리남기기, 관심읽기 } from '../lib/관심도.js'   /* 👥 G499 경쟁 관심도(마감 전엔 «몇 명» 만) */
 import { 기관사정률받기 } from '../lib/기관사정률.js'   /* 📄 G499 품의서 — 기관 최근 사정률 */
 import 바로투찰사용법 from '../바로투찰사용법.jsx'   /* 📖 G499 */
@@ -563,7 +563,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
        그런데 수집 쪽은 항목 합계를 그대로 담습니다. 화면에서 걸러야 합니다.
        안 거르면 하한을 실제보다 높게 잡아 «통과인데 실격» 이라고 겁을 줍니다. */
     /* ⚖ G578 100억 넘는 공고인데 표준시장단가를 A값에 더했는지 모르면(표준모름) A값을 채우지 않습니다 — 모자란 A값으로 하한을 낮게 잡음 */
-    setAIn(r.ayn === 'N' || 표준모름(r) ? '' : (r.aval ? String(r.aval) : ''))
+    setAIn(r.ayn === 'N' || 표준모름(r) || 취소공고(r) ? '' : (r.aval ? String(r.aval) : ''))
     setAAuto(false)
     setPcIn(r.pc > 0 ? String(r.pc) : '')
     setSjPick(null)
@@ -671,6 +671,11 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
      그대로 쓰면 금액이 통째로 틀립니다. 말이 되는 범위만 받습니다. */
   const rawLL = Number(picked?.llr || sp.get('llr') || res?.llr) || 0
   const givenLL = (rawLL >= 60 && rawLL <= 100) ? rawLL : 0
+  /* ⚖ G579 100억 넘는 공고 — 전엔 «추정가격 100억 이상 = 종합심사» 로 보고 계산기를 막았습니다. 2026.7 개편으로 100억~300억은
+     «기술형 적격심사»(낙찰하한율이 공고에 적힘 · 낙찰방법 «적격심사제-추정가격이 300억원미만 100억원이상…»)라, 공고 목록 · 공고 한 장은
+     권장 금액을 내는데 이 화면만 «종합심사 — 계산기 안 됨» 이라 어긋났습니다(이용자 입장 점검 11-07).
+     → 공고에 낙찰하한율이 있고 낙찰방법이 종합심사가 아니면 계산합니다. 종합심사(하한율 없음 · 낙찰방법 «종합심사»)만 막습니다. */
+  const 종심 = !!band && band.rec == null && !(givenLL > 0 && !/종합심사/.test(String(picked?.swin || res?.swin || '')))
   const ll = givenLL > 0
     ? { rate: givenLL, note: '공고서에 적힌 낙찰하한율', given: true }
     : band
@@ -729,7 +734,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
      둘 다 «A값 모름»으로 보고 95분위로 잡았습니다.
      같은 공고인데 채점은 621,509,664원, 직접 계산은 620,811,319원이 나온 원인입니다.
      이제 «어디서 왔든 진짜 A값이 있으면» 안다고 봅니다. 추정값(aAuto)만 빼고요. */
-  const aKnown = (!!picked && (picked.ayn === 'N' || picked.aval > 0) && !표준모름(picked))
+  const aKnown = (!!picked && A값앎(picked) && !표준모름(picked))    // ⚖ G579 A값 0원(az)도 «앎»
     || (!!res && (res.ayn === 'N' || res.aval > 0))
     || (!aAuto && toNum(aIn) > 0)
   const SJ_K = aKnown ? 0.674 : 1.63          // 75분위 : 95분위
@@ -1180,7 +1185,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
   /* 화면에 «(추정)» 을 붙일지 판단합니다 — aAuto 하나로 통일했습니다 */
   const aGuessed = aAuto && toNum(aIn) > 0
   useEffect(() => {
-    if (!picked || picked.aval || picked.ayn === 'N') return
+    if (!picked || picked.aval || picked.ayn === 'N' || A값앎(picked) || 취소공고(picked)) return   // ⚖ G579 A값 0원 · 취소공고엔 추정 A값을 안 넣음
     if (!bstat?.ar || !(base > 0)) return
     if (aIn) return
     setAIn(String(Math.round(base * bstat.ar)))
@@ -1324,8 +1329,8 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
         </Link>
       )}
 
-      {/* 100억 이상은 종합심사라 이 계산기가 통하지 않습니다 */}
-      {band && band.rec == null && (
+      {/* 100억 이상은 종합심사라 이 계산기가 통하지 않습니다 — ⚖ G579 100억~300억 적격심사(하한율 있음)는 빼고 */}
+      {종심 && (
         <div className="alertbar">
           ⛔ <b>이 공고는 추정가격 100억 이상 — 종합심사 대상입니다.</b><br />
           낙찰하한율이 아니라 가격·공사수행능력·사회적책임을 함께 점수로 매기는 방식이라
@@ -1451,7 +1456,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
                         ? <> · <b className="money">기초 {wonShort(r.base)}</b></>
                         : <> · <span className="muted">기초금액 미공개</span></>}
                       {!isReady(r) && (
-                        <> · <span className="nogo">계산 불가 — {missingOf(r).join('·')} 없음</span></>
+                        <> · <span className="nogo">{취소공고(r) ? '취소된 공고' : `계산 불가 — ${missingOf(r).join('·')} 없음`}</span></>
                       )}
                     </div>
                     {(r.lic || []).length > 0 && (
@@ -1511,7 +1516,22 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
 
       {/* 완비가 아닌 공고를 (링크 등으로) 고른 경우 — 금액을 내지 않습니다.
           반쯤 아는 값으로 금액을 내미는 것보다 «모른다» 가 낫습니다. */}
-      {picked && !isReady(picked) && (
+      {/* ⚖ G579 취소공고 — «아직 안 실려 왔습니다» 가 아니라 «취소된 공고» 라고 */}
+      {picked && 취소공고(picked) && (
+        <div className="warnbox nogobox">
+          <div className="h">⛔ 나라장터에서 취소된 공고입니다</div>
+          <p>
+            이 공고는 공고종류가 <b>«취소공고»</b> 입니다 — 입찰이 취소돼 <b>투찰할 수 없습니다.</b> 그래서 금액을 내지 않습니다.
+            다시 나오면(재공고) 새 공고로 올라옵니다.
+          </p>
+          {picked.url && (
+            <a className="btn ghost sm" style={{ width: '100%', marginTop: 8 }}
+              href={picked.url} target="_blank" rel="noreferrer">나라장터에서 이 공고 열기 ↗</a>
+          )}
+        </div>
+      )}
+      {/* ⚖ G579 종합심사(100억 넘고 하한율 없음)는 «아직 안 실려 왔습니다» 가 아니라 아래 «계산기를 쓰면 안 됩니다» 로 — 기다려도 하한율은 안 옴 */}
+      {picked && !isReady(picked) && !취소공고(picked) && !종심 && (
         <div className="warnbox nogobox">
           <div className="h">⛔ 이 공고는 아직 계산할 수 없습니다</div>
           <p>
@@ -1522,7 +1542,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
           <div className="needlist">
             {[['기초금액', picked.base > 0],
               ['낙찰하한율', Number(picked.llr) >= 60 && Number(picked.llr) <= 100],
-              ['A값', picked.aval > 0 || picked.ayn === 'N'],
+              ['A값', A값앎(picked)],
               ...(표준대상(picked) ? [['표준시장단가(100억 이상)', !표준모름(picked)]] : []),
               ['예비가격 정보', picked.ptot > 0 && picked.pdrw > 0]].map(([nm, ok]) => (
               <span key={nm} className={ok ? 'yes' : 'no'}>{ok ? '✓' : '✕'} {nm}</span>
@@ -1553,7 +1573,8 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
           <span className="v">
             기초 {wonShort(base)}
             {' · '}예가 {lo}%~{hi}%
-            {a > 0 ? ` · A값 ${wonShort(a)}` : (picked.ayn === 'N' ? ' · A값 없음' : '')}
+            {/* ⚖ G579 추정 A값을 «공고에서 가져왔습니다» 로 보이지 않게 · A값 0원(az) */}
+            {a > 0 ? ` · A값${aGuessed ? '(추정)' : ''} ${wonShort(a)}` : (picked.ayn === 'N' ? ' · A값 없음' : (Number(picked.az) === 1 ? ' · A값 0원' : ''))}
             {pcv > 0 ? ` · 순공사원가 ${wonShort(pcv)}` : ''}
           </span>
           <span className="e">값 고치기 ▾</span>
@@ -1621,7 +1642,10 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
               퇴직공제부금 같은 법정경비가 여기 들어갑니다.<br />
               <b>공고에 A값이 실려 오면 자동으로 채워집니다.</b>{' '}
               아직 안 채워졌다면 기초금액이 공개되기 전이거나 A값이 없는 공고입니다.
-              {bstat?.ar > 0 && base > 0 && (
+              {picked && Number(picked.az) === 1 && !(picked.aval > 0) && (
+                <div className="aguess"><div className="g1">⚖ 이 공고는 나라장터 «기초금액조회» A값이 <b>0원</b>입니다(조달청 자료 그대로) — 0원으로 계산합니다.</div></div>
+              )}
+              {bstat?.ar > 0 && base > 0 && !(picked && (A값앎(picked) || 취소공고(picked))) && (
                 <div className="aguess">
                   <div className="g1">
                     같은 규모 공고 {num(bstat.arN)}건의 A값은 기초금액의
@@ -1889,7 +1913,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
       {bt && base <= 0 && !분석실 && <SimBlock bt={bt} open={btOpen} setOpen={setBtOpen} />}
 
       {/* 종합심사 대상이면 계산을 아예 하지 않습니다. 0원을 보여주는 건 사고입니다. */}
-      {picked && !isReady(picked) ? null : base > 0 && band && band.rec == null ? (
+      {picked && !isReady(picked) && !종심 ? null : base > 0 && 종심 ? (
         <div className="card c-stop" ref={답자리}>
           <div className="detail-h">이 공고는 계산기를 쓰면 안 됩니다</div>
           <div className="kv2">
@@ -2285,7 +2309,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
                 <div><span>추정가격</span><b>{won(estimate)}</b></div>
                 <div><span>예가범위</span><b>+{hi}% ~ {lo}%</b></div>
                 <div><span>공사 규모</span>
-                  <b>{band ? band.label : '-'}{band?.rec == null ? ' · 종합심사' : ''}</b></div>
+                  <b>{band ? band.label : '-'}{종심 ? ' · 종합심사' : (band?.rec == null && givenLL > 0 ? ' · 적격심사(하한율 공고값)' : '')}</b></div>
                 <div><span>낙찰하한율</span>
                   <b>{ll?.rate ? pct(ll.rate, 3) : '별도 기준'}
                     {a > 0 && llEff ? <span className="sub2"> · 실효 {pct(llEff, 3)}</span> : null}</b></div>

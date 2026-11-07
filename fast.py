@@ -481,6 +481,9 @@ def once(key, ctx, dry=False):
                 #   (A값을 지난 줄에서 옮겨 왔을 때만 · 같은 응답에서 온 짝이어야 뜻이 맞음)
                 if not r.get("smk") and prev.get("smk") and r.get("aval") == prev.get("aval"):
                     r["smk"] = prev["smk"]
+                # ⚖ G579 A값 0원 표시(az = 1)도 — 두 줄 다 A값이 없을 때만
+                if r.get("az") is None and prev.get("az") == 1 and not r.get("aval") and not prev.get("aval"):
+                    r["az"] = 1
             nl = 0
             if any(not r.get("lic") for r in fr):
                 try:

@@ -17,7 +17,7 @@
 
    ■ 한 줄만 답니다. 카드에 이미 뱃지·금액이 있어서, 여기서 또 늘어놓으면 아무도 안 읽습니다.
    ========================================================== */
-import { AUTO_RULE } from './bidmath.js'
+import { AUTO_RULE, 취소공고, missingOf } from './bidmath.js'
 
 const num = (n) => Number(n || 0).toLocaleString('ko-KR')
 
@@ -35,6 +35,12 @@ export function noteLive(r, ctx = {}) {
   const lic = Array.isArray(r?.lic) ? r.lic : []
 
   if (!ready) {
+    /* ⚖ G579 취소공고 · 표준시장단가는 «아직 안 들어옴» 이 아니라 까닭을 그대로 */
+    if (취소공고(r)) return { tone: 'bad', text: '나라장터에서 취소된 공고입니다(취소공고) — 투찰할 수 없어 금액을 내지 않습니다.' }
+    if (missingOf(r).includes('표준시장단가')) {
+      return { tone: 'info',
+        text: '100억 넘는 공고라 A값에 표준시장단가가 들어갑니다 — 그 값이 실리면 금액이 나옵니다(틀린 금액 대신 기다림).' }
+    }
     return { tone: 'info',
       text: '아직 기초금액 같은 값이 안 들어와 금액을 못 냅니다. 들어오면 자동으로 채워집니다.' }
   }
