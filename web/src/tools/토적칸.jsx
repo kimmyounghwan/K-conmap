@@ -16,7 +16,7 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { use칸, Row } from './calcs.jsx'
-import { 토적셈, 기본칸, 기본설정, 빈줄, 예시토적, 예시변경토적, 표풀기, 자료시작, 칸알아보기, 가져오기, 차수비교, 끝수, 숫, 높이에서, 측점풀기, 띠글 } from '../lib/토적.js'
+import { 토적셈, 기본칸, 기본설정, 빈줄, 예시토적, 예시변경토적, 표풀기, 자료시작, 칸알아보기, 가져오기, 차수비교, 끝수, 숫, 높이에서, 측점풀기, 띠글, 칸이름 } from '../lib/토적.js'
 import { 유동줄, 장줄들, 동그라미 } from '../lib/토적받기.js'
 import { 노선살피기, 횡단토적 } from '../lib/토적횡단.js'   /* 📐 G572 횡단면도(DXF · DWG)에서 단면적 바로 읽기 */
 import { use인쇄 } from './공정인쇄.js'
@@ -396,6 +396,8 @@ export function Tojeok({ ex = {} }) {
             <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!바쁨} onClick={양식엑셀}>{바쁨 === '양식' ? '만드는 중…' : '📑 설계 양식 엑셀'}</button>
             <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { 인쇄(); 세기('|토적|인쇄') }}>🖨 인쇄(A4 가로)</button>
           </div>
+          {/* ⚖ G583 소장님 「지울 수 있게도 해 줘. 단, 다시 방문하게 해야 해」 — 받은 엑셀로 다시 이어서 */}
+          <p className="tl-p muted gp-hint">📗 · 📑 받은 엑셀을 고쳐 셀 때는 위 <b>«📥 엑셀 파일 열기»</b>로 다시 불러오면 측점 · 거리 · 단면적이 그대로 들어와 이어서 셉니다. 엑셀 맨 아래 «K-건설맵» 줄은 지워도 됩니다.</p>
           {보기 === '토적' && <토적표 R={R} />}
           {보기 === '곡선' && <><유토그림 R={R} /><마디표 R={R} /></>}
           {보기 === '유동' && <><유동도 R={R} /><유동표 R={R} /></>}
@@ -526,7 +528,7 @@ function 횡단창({ 횡, set횡, 이전칸, 넣기, 모두 }) {
         <label><input type="radio" name="tj-src" checked={출처 === '표'} disabled={!살.표수} onChange={() => set횡({ ...횡, 출처: '표' })} /><span>📋 <b>표 값</b> — 측점 표에 설계자가 적은 면적{살.세부.절토.length ? '(흙깎기 토질별 ' + 살.세부.절토.join(' · ') + ')' : ''} · 설계 토적표와 같음{!살.표수 && <i> — 이 노선엔 없음</i>}</span></label>
         <label><input type="radio" name="tj-src" checked={출처 === '선'} disabled={!살.선수} onChange={() => set횡({ ...횡, 출처: '선' })} /><span>📏 <b>선으로 잰 면적</b> — 지반선 · 계획선 사이를 잰 어림(표 값이 없는 도면)</span></label>
       </div>
-      <p className="tl-p">넣을 것: 측점 <b>{G.줄.length}</b>곳 · 흙 칸 <b>{G.칸.length}</b>개({G.칸.map((c) => c.이름 + (c.종 === '성' ? '(성토)' : '')).join(' · ') || '—'}){G.간격 ? ' · 측점 간격 ' + G.간격 + ' m' : ''}{G.줄[0] ? ' · 첫 측점 ' + G.줄[0].측 : ''}</p>
+      <p className="tl-p">넣을 것: 측점 <b>{G.줄.length}</b>곳 · 흙 칸 <b>{G.칸.length}</b>개({G.칸.map((c) => c.이름 + (c.종 === '성' && !/성토/.test(c.이름) ? '(성토)' : '')).join(' · ') || '—'}){G.간격 ? ' · 측점 간격 ' + G.간격 + ' m' : ''}{G.줄[0] ? ' · 첫 측점 ' + G.줄[0].측 : ''}</p>
       {G.알림.length > 0 && <ul className="tj-warn">{G.알림.map((a, k) => <li key={k}>{a}</li>)}</ul>}
       <div className="kt-btns">
         <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={!G.줄.length || !G.칸.length} onClick={() => 넣기(G)}>이 노선 넣기 (지금 표를 바꿈)</button>
@@ -537,7 +539,7 @@ function 횡단창({ 횡, set횡, 이전칸, 넣기, 모두 }) {
   )
 }
 
-const 할들 = [['무시', '안 씀'], ['측', '측점'], ['더', '측점 더함(+)'], ['거', '점간 거리'], ['누', '누가거리'], ['절', '절토 단면적'], ['성', '성토 단면적']]
+const 할들 = [['무시', '안 씀'], ['측', '측점'], ['더', '측점 더함(+)'], ['거', '점간 거리'], ['누', '누가거리'], ['절', '절토 단면적'], ['성', '성토 단면적'], ['끊', '운반 끊음']]   /* ⚖ G583 끊음 칸 */
 function 가져오기창({ 창, 이전칸, 닫기, 넣기 }) {
   const 처음시트 = () => {
     if (!창.시트들) return ''
@@ -556,6 +558,9 @@ function 가져오기창({ 창, 이전칸, 닫기, 넣기 }) {
   const 보일칸 = 맞춤.filter((k) => k.머리 || k.보기.some(Boolean))
   const 됨 = 맞춤.some((m) => m.할 === '측' || m.할 === '누') && 맞춤.some((m) => m.할 === '절' || m.할 === '성')
   const 미리 = useMemo(() => (됨 ? 가져오기(rows, 머리수, 맞춤.filter((m) => m.할 !== '무시'), 이전칸) : null), [됨, rows, 머리수, JSON.stringify(고침), 칸들])   // eslint-disable-line react-hooks/exhaustive-deps
+  /* ⚖ G583 «흙 칸 이름» 빈칸에 보이는 글 = 실제로 넣을 이름(지금 표 칸 이름을 이어 받으면 그 이름) */
+  const 미리이름 = {}
+  if (미리) 맞춤.filter((m) => m.할 === '절' || m.할 === '성').forEach((m, i) => { if (미리.칸[i]) 미리이름[m.c] = 미리.칸[i].이름 })
   return (
     <div className="tj-box">
       <div className="tj-box-h">📥 칸 맞추기{창.파일 ? ' — ' + 창.파일 : ''}</div>
@@ -577,14 +582,14 @@ function 가져오기창({ 창, 이전칸, 닫기, 넣기 }) {
                 <td className="tj-mh">{k.머리 || <span className="muted">(없음)</span>}</td>
                 <td className="tj-mv">{k.보기.filter(Boolean).slice(0, 3).join(' · ')}</td>
                 <td><select value={k.할} onChange={(e) => set고침((o) => ({ ...o, [k.c]: { ...(o[k.c] || {}), 할: e.target.value } }))}>{할들.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select></td>
-                <td>{(k.할 === '절' || k.할 === '성') ? <input value={k.이름 ?? ''} placeholder={칸이름미리(k.머리)} onChange={(e) => set고침((o) => ({ ...o, [k.c]: { ...(o[k.c] || {}), 이름: e.target.value.slice(0, 24) } }))} /> : ''}</td>
+                <td>{(k.할 === '절' || k.할 === '성') ? <input value={k.이름 ?? ''} placeholder={미리이름[k.c] || 칸이름(k.머리)} onChange={(e) => set고침((o) => ({ ...o, [k.c]: { ...(o[k.c] || {}), 이름: e.target.value.slice(0, 24) } }))} /> : ''}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
       <p className="tl-p muted gp-hint">«부피(㎥)» 칸은 넣지 않습니다(토적컨맵이 다시 셈) · «계» 줄은 빼고 넣습니다 · 측점이 «번호 | 더함» 두 칸이면 둘 다 고르십시오.</p>
-      {미리 && <p className="tl-p">넣을 것: 측점 <b>{미리.줄.length}</b>줄 · 흙 칸 <b>{미리.칸.length}</b>개({미리.칸.map((c) => c.이름 + (c.종 === '성' ? '(성토)' : '')).join(' · ')}){미리.줄[0] ? ' · 첫 측점 ' + 미리.줄[0].측 : ''}{미리.간격 ? ' · 측점 간격 ' + 미리.간격 + ' m' : ''}</p>}
+      {미리 && <p className="tl-p">넣을 것: 측점 <b>{미리.줄.length}</b>줄 · 흙 칸 <b>{미리.칸.length}</b>개({미리.칸.map((c) => c.이름 + (c.종 === '성' && !/성토/.test(c.이름) ? '(성토)' : '')).join(' · ')}){미리.줄[0] ? ' · 첫 측점 ' + 미리.줄[0].측 : ''}{미리.간격 ? ' · 측점 간격 ' + 미리.간격 + ' m' : ''}</p>}
       <div className="kt-btns">
         <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={!미리 || !미리.줄.length} onClick={() => 넣기(미리)}>이대로 넣기 (지금 표를 바꿈)</button>
         <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={닫기}>그만</button>
@@ -594,7 +599,6 @@ function 가져오기창({ 창, 이전칸, 닫기, 넣기 }) {
   )
 }
 const 열글 = (c) => { let s = '', n = c + 1; while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26) } return s }
-function 칸이름미리(h) { return String(h || '').replace(/\((?:㎡|m2|m²|㎥|m)\)/gi, '').replace(/단면적|단면|면적/g, '').replace(/\s+/g, ' ').trim().slice(0, 24) || '흙' }
 
 /* ── 결과 표들 ─────────────────────────────────────────────────── */
 function 토적표({ R }) {
