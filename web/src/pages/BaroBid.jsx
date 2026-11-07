@@ -700,11 +700,13 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
   /* ⚖ G582 50억 이상 적격심사 — 수집이 난이도계수로 하한율을 확정 못 한 공고(llw)는 하한율을 쓰지 않습니다(금액 · 분석 모두).
      이용자가 나라장터 «기초금액조회» 의 낙찰하한율을 넣으면(직접LL) picked 가 그 값을 llr 로 들고 와 계산합니다. */
   const ll확인 = !!picked?.llw
+  /* ⚖ G582b 수집이 난이도계수로 바로잡은 하한율(llr0 · dc 있음)은 «공고에 적힌 값» 이 아님 — 글을 «나라장터 «기초금액조회» 낙찰하한율» 로(11-07 사이트 확인 때 «공고 하한율 83.395% · 이 공고에 실제로 적힌 값입니다» 로 보였음) */
+  const 하한바로잡음 = !picked?.llman && !!난이도글(picked || res) && !(picked || res)?.llw
   const ll = ll확인 ? null : givenLL > 0
     ? { rate: givenLL,
         note: picked?.llman ? '직접 넣은 낙찰하한율(나라장터 기초금액조회)'
-          : (난이도글(picked || res) ? `공고서에 적힌 낙찰하한율 · ${난이도글(picked || res)}` : '공고서에 적힌 낙찰하한율'),
-        given: true, manual: !!picked?.llman }
+          : (하한바로잡음 ? `나라장터 «기초금액조회» 낙찰하한율 — ${난이도글(picked || res)}` : '공고서에 적힌 낙찰하한율'),
+        given: true, manual: !!picked?.llman, adj: 하한바로잡음 }
     : band
       ? { rate: band.llr, note: `추정가격 ${band.label}` }
       : lowerLimit(estimate)
@@ -2384,12 +2386,13 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
                   <>⚖ 순공사원가 {won(pcv)}의 98% 선 <b>{won(선98)}</b>이 낙찰하한 {won(하한1)}보다 높아,
                     {' '}이 선이 실제 하한입니다(예정가격 100억 미만 — 순공사원가 98% 미만은 심사 제외). · </>
                 ) : a > 0 && llEff ? (
-                  <>공고 하한율 {pct(ll.rate, 3)} + A값 {won(a)} → 실효 하한 {pct(llEff, 3)}.
+                  <>{ll.adj ? '하한율' : ll.manual ? '넣은 하한율' : '공고 하한율'} {pct(ll.rate, 3)} + A값 {won(a)} → 실효 하한 {pct(llEff, 3)}.
                     {' '}A값이 있으면 명목 하한율보다 높아집니다. · </>
                 ) : null}
                 {선98 > 0 && !선98이하한 && <>순공사원가 98% 선 {won(선98)}은 낙찰하한보다 낮아 영향이 없습니다. · </>}
                 {ll.note}
-                {ll.given ? (ll.manual ? ' · 나라장터 «기초금액조회» 값과 같은지 한 번 더 보세요.' : ' · 이 공고에 실제로 적힌 값입니다.')
+                {ll.given ? (ll.manual ? ' · 나라장터 «기초금액조회» 값과 같은지 한 번 더 보세요.'
+                  : ll.adj ? ' · 공고 목록 값이 아니라 난이도계수를 반영한 값입니다(나라장터와 같은 셈).' : ' · 이 공고에 실제로 적힌 값입니다.')
                   : ' · 일반공사 적격심사 기준으로 추정한 값입니다. 공고서를 꼭 확인하세요.'}
               </div>
               <GuideLink slug="nakchal-hahanyul" />
