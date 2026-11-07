@@ -13,7 +13,7 @@
  * ■ «셀 수 있나» 규칙은 svc.py calc_why 와 같습니다(tools/시험_용역셈.mjs 가 같은 사례로 둘을 맞춰 봄).
  * ■ 권장 금액도 «참고» — 화면은 «참고하시고, 투찰 금액은 직접 골라 주십시오» (소장님 「권장금액 참고 하라고 적어」)
  */
-import { sjSigma, limitAmount, breakEvenSj, normCdf, recommend, SCEN_Z, P50_FALLBACK } from './bidmath.js'
+import { sjSigma, limitAmount, breakEvenSj, normCdf, recommend, SCEN_Z, P50_FALLBACK, A값앎 } from './bidmath.js'
 
 export const 실측최소 = 30
 
@@ -56,9 +56,12 @@ export function 재료(r, p50) {
   const ptot = Number(r.ptot) || 15, pdrw = Number(r.pdrw) || 4
   const sd = sjSigma(lo, hi, ptot, pdrw)
   if (!(sd > 0)) return null
-  const aKnown = r.ayn === 'N' || Number(r.aval) > 0
-  const aVal = r.ayn === 'N' ? 0 : (Number(r.aval) || 0)
-  return { base, llRate, aVal, aKnown, lo, hi, ptot, pdrw, sd, p50 }
+  /* ⚖ G581 A값을 «아는지» 는 공사와 같은 한 곳(bidmath A값앎 — 미적용 N · A값 있음 · A값 0원 az 1)으로.
+     ※ 용역 · 물품은 조달청 기초금액 자료에 A값 칸이 아예 없어(11-07 공고 용역 19,403 · 물품 16,622건 모두) 지금은 늘 «모름 → 0 · 95분위».
+       A값은 시설공사 일부 적격심사에만 적용되는 값이라 금액이 바뀌는 공고는 없음 — 조달청이 실어 보내면 공사와 같이 셈하게 맞춰 둠. */
+  const aKnown = A값앎(r)
+  const aVal = r.ayn === 'N' || (Number(r.az) === 1 && !(Number(r.aval) > 0)) ? 0 : (Number(r.aval) || 0)
+  return { base, llRate, aVal, aKnown, a0: Number(r.az) === 1 && !(Number(r.aval) > 0), lo, hi, ptot, pdrw, sd, p50 }
 }
 
 /** 권장(참고) 금액 — 공사 바로투찰과 같은 식(recommend): A값을 알면 75분위 + 0.3% · 모르면 95분위 */
@@ -105,6 +108,7 @@ export function 계산주소(종류, r) {
   const 넣 = (k, v) => { if (v != null && v !== '') p.set(k, String(v)) }
   넣('no', r.no); 넣('ord', r.ord); 넣('n', r.name); 넣('i', r.inst); 넣('b', r.base); 넣('l', r.llr)
   넣('lo', r.lo); 넣('hi', r.hi); 넣('a', r.aval); 넣('ay', r.ayn); 넣('pt', r.ptot); 넣('pd', r.pdrw)
+  if (Number(r.az) === 1) 넣('az', 1)   /* ⚖ G581 A값 0원 */
   넣('c', r.close); 넣('pm', r.pmth); 넣('sw', r.swin); 넣('u', r.url)
   return `/${종류}/calc?${p.toString()}`
 }
@@ -115,5 +119,5 @@ export function 주소공고(search) {
   const n = (k) => (p.get(k) == null || p.get(k) === '' ? null : Number(p.get(k)))
   if (!g('b') && !g('no')) return null
   return { no: g('no'), ord: g('ord'), name: g('n'), inst: g('i'), base: n('b'), llr: n('l'), lo: n('lo'), hi: n('hi'),
-    aval: n('a'), ayn: g('ay'), ptot: n('pt'), pdrw: n('pd'), close: g('c'), pmth: g('pm') || '복수예가', swin: g('sw') || '', url: g('u') }
+    aval: n('a'), ayn: g('ay'), az: n('az'), ptot: n('pt'), pdrw: n('pd'), close: g('c'), pmth: g('pm') || '복수예가', swin: g('sw') || '', url: g('u') }
 }

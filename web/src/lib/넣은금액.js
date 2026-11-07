@@ -11,7 +11,7 @@
  * ■ 셈한 결과는 그 줄에 같이 적어 둡니다(o) — 1순위 화면 «내가 적어 둔 금액» 모아 보기가 다시 받지 않고 셉니다.
  *   시험: node tools/시험_넣은금액.mjs
  */
-import { rankBracket, breakEvenSj } from './bidmath.js'
+import { rankBracket, breakEvenSj, A값앎, 표준모름 } from './bidmath.js'
 import { lowerLimit } from './engines.js'
 
 const LS = 'kcm_mybid'
@@ -79,8 +79,11 @@ export function 내성적(r, 금액, 낮은곳) {
   if (!(내 > 0)) return { 상태: '모름', 왜: '내 금액이 없습니다' }
   if (!(amt > 0) || !(rate > 50 && rate < 110)) return { 상태: '모름', 왜: '1순위 금액 · 투찰률이 안 실려 왔습니다' }
   const 예정 = amt / (rate / 100)
-  const A모름 = !(Number(r.aval) > 0) && r.ayn !== 'N'
-  const A = r.ayn === 'N' ? 0 : (Number(r.aval) || 0)
+  /* ⚖ G581 100억 넘는 적격심사 — 표준시장단가 칸을 받기 전 A값엔 표준시장단가가 빠져 하한이 낮게 나옴 → 셈하지 않음 */
+  if (표준모름(r)) return { 상태: '모름', 왜: '추정가격 100억 넘는 공고라 A값에 표준시장단가가 들어가는데, 그 값이 아직 안 실려 와 하한을 셀 수 없습니다' }
+  /* ⚖ G581 A값 0원(az 1 · 나라장터 «A 0 원»)은 «앎» — 전엔 «A값 모름» 으로 적었음(셈은 0 으로 같았음) */
+  const A모름 = !A값앎(r)
+  const A = r.ayn === 'N' || (Number(r.az) === 1 && !(Number(r.aval) > 0)) ? 0 : (Number(r.aval) || 0)
   let llr = Number(r.llr) || 0, 하한추정 = false
   if (!(llr > 0)) {
     const est = Number(r.est) || (base > 0 ? Math.round(base / 1.1) : 0)

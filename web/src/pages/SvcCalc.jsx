@@ -223,7 +223,7 @@ export default function SvcCalc({ kind = 'svc' }) {
               <div><span>낙찰하한율</span><b>{pct(m.llRate, 3)}</b></div>
               <div><span>예가 범위</span><b>{m.lo}% ~ +{m.hi}%</b></div>
               <div><span>예비가격</span><b>{m.ptot}개 중 {m.pdrw}개 추첨</b></div>
-              <div><span>A값</span><b>{m.aVal > 0 ? won(m.aVal) : m.aKnown ? '없음' : '공고에 없음 → 0 · 95분위로 넉넉히'}</b></div>
+              <div><span>A값</span><b>{m.aVal > 0 ? won(m.aVal) : m.aKnown ? (m.a0 ? '0원 (나라장터 A 0원)' : '없음') : '공고에 없음 → 0 · 95분위로 넉넉히'}</b></div>
               <div><span>사정률 가운데값</span><b>{m.p50.toFixed(3)}% {기준.출처 === '실측' ? `(${T.이름} 실측 ${기준.n.toLocaleString()}건)` : `(공사 실측 빌림 · ${T.이름} 실측 ${기준.n}건 쌓이는 중)`}</b></div>
             </div>
           </div>

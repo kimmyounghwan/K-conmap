@@ -409,6 +409,8 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
       name: sp.get('nm') || '', inst: sp.get('it') || '',
       aval: n('aval'), ayn: sp.get('ayn') || '',
       lo: sp.has('lo') ? n('lo') : null, hi: sp.has('hi') ? n('hi') : null,
+      /* ⚖ G581 7일 넘은 개찰도 공고의 하한율 · 추정가격 · 순공사원가 · A값 0원 · 표준시장단가 칸으로 채점(1순위 «채점» 단추가 실어 보냄) */
+      llr: n('llr'), est: n('est'), pc: n('pc'), az: n('az'), smk: sp.get('smk') || '',
       old: true,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -440,6 +442,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
         enp: Number(a[23]) || 0, enpn: Number(a[24]) || 0,
         enpb: a[25] || '',                          // ⚖ G580 예상 참가 근거(이 면허·이 금액대 · 이 기관 …) — 화면 글이 근거를 그대로 말하게
         pc: Number(a[26]) || 0,                     // ⚖ G356 기초금액 중 순공사원가 (a[25] = enpb)
+        az: Number(a[27]) || 0, smk: a[28] || '',   // ⚖ G581 A값 0원 · 표준시장단가 칸(마감된 공고 채점도 공고 화면과 같은 판정)
       } : fromUrl)
     })
     return () => { ok = false }
@@ -744,7 +747,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
      같은 공고인데 채점은 621,509,664원, 직접 계산은 620,811,319원이 나온 원인입니다.
      이제 «어디서 왔든 진짜 A값이 있으면» 안다고 봅니다. 추정값(aAuto)만 빼고요. */
   const aKnown = (!!picked && A값앎(picked) && !표준모름(picked))    // ⚖ G579 A값 0원(az)도 «앎»
-    || (!!res && (res.ayn === 'N' || res.aval > 0))
+    || (!!res && A값앎(res) && !표준모름(res))      // ⚖ G581 개찰 줄도 A값 0원은 «앎» · 100억 넘고 표준시장단가 모르면 «모름»
     || (!aAuto && toNum(aIn) > 0)
   const SJ_K = aKnown ? 0.674 : 1.63          // 75분위 : 95분위
   const SJ_MARGIN = aKnown ? 1.003 : 1.0      // 75분위에는 0.3% 여유를 붙입니다
@@ -1053,10 +1056,15 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
       (x) => est >= x.min && (x.max == null || est < x.max)) || null
     const givenH = (res.llr >= 60 && res.llr <= 100) ? res.llr : 0
     const h = givenH || (bd ? bd.llr : null)
-    if (h == null) return { yeje, est, band: bd, skip: true }
+    /* ⚖ G581 채점하지 않는 까닭을 같이 돌려줌 — 전엔 skip 이어도 아래 채점 카드가 «밀렸을 자리 · 0 > 0» 처럼 빈 값으로 그려졌음 */
+    if (h == null) return { yeje, est, band: bd, skip: true, why: '하한율' }
+    /* ⚖ G581 100억 넘는 적격심사 — 표준시장단가 칸(smk)을 받기 전 A값엔 표준시장단가가 빠져 있을 수 있음(G578 앞에 마감된 줄) → 채점 안 함 */
+    if (표준모름(res)) return { yeje, est, band: bd, skip: true, why: '표준시장단가' }
 
-    const realA = res.ayn === 'N' ? 0 : (res.aval || 0)
-    const guess = !realA && res.ayn !== 'N'
+    /* ⚖ G581 A값 0원(az 1 · 나라장터 «A 0 원»)은 A = 0 을 «아는» 것 — 전엔 규모 비율로 A값을 지어 넣고(추정) 채점했음 */
+    const A0 = Number(res.az) === 1 && !(res.aval > 0)
+    const realA = res.ayn === 'N' || A0 ? 0 : (res.aval || 0)
+    const guess = !realA && res.ayn !== 'N' && !A0
     const st = bstatOf(bd)
     const A = realA || (guess && st ? Math.round(b * st.ar) : 0)
     /* ⚖ G356 개찰 자료의 «기초금액 중 순공사원가» — 있으면 98 % 선도 채점에 (화면과 같은 함수) */
@@ -1064,9 +1072,9 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
 
     /* ★ 추천 화면과 «같은 함수» 로 금액을 만듭니다 */
     const ro = recommend({ base: b, llRate: h, aVal: A,
-                           aKnown: res.ayn === 'N' || (res.aval || 0) > 0,
+                           aKnown: res.ayn === 'N' || (res.aval || 0) > 0 || A0,
                            p50: ov?.sjq?.p50 ?? P50_FALLBACK, sd: rSd, pc: rpc })
-    if (!ro) return { yeje, est, band: bd, skip: true }
+    if (!ro) return { yeje, est, band: bd, skip: true, why: '셈' }
     const sj95v = ro.sj
     /* 원인 ②: 채점은 recommend() 의 금액을 그대로 썼는데, 바로투찰 화면은 그 금액을
        투찰률(소수 3자리 **올림**)로 바꿨다가 다시 금액으로 만듭니다 — 사용자가 복사해 가는
@@ -1075,7 +1083,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
        → 채점도 같은 길을 갑니다: 금액 → c3(투찰률) → bidAmount. */
     const pmid = ov?.sjq?.p50 ?? P50_FALLBACK
     /* 예상 참가를 알던 공고면 그날 화면도 자동 분위였다 — 채점도 같은 금액(smartBid)으로 (2026-09-03) */
-    const sb = smartBid({ base: b, llRate: h, aVal: A, aKnown: res.ayn === 'N' || (res.aval || 0) > 0,
+    const sb = smartBid({ base: b, llRate: h, aVal: A, aKnown: res.ayn === 'N' || (res.aval || 0) > 0 || A0,
                           p50: pmid, sd: rSd, enp: Number(res.enp) || 0, pc: rpc }) || { amt: shownBid(b, pmid, ro.amt).amt, mode: 'rec', rule: null }
     const M = sb.amt                                              // 바로투찰이 준 금액
     const L = Math.max(Math.ceil((yeje - A) * (h / 100) + A),      // 실제 낙찰하한금액
@@ -1727,8 +1735,38 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
       </>
       )}
 
+      {/* ⚖ G581 채점하지 않는 개찰(100억 넘고 하한율 없음 · 표준시장단가 모름 · 셀 수 없음) — 까닭만 짧게(전엔 빈 값으로 채점 카드가 그려짐) */}
+      {res && scored?.skip && (
+        <div className="scored lose">
+          <div className="sh">
+            <span className="ic">📋</span>
+            <span>개찰 끝난 공고입니다 · 채점하지 않습니다</span>
+            <span className="dt">{String(res.dt).slice(0, 16)}</span>
+          </div>
+          {(res.name || res.inst) && (
+            <div className="stitle">
+              <b>{res.name}</b>
+              <span>{res.inst}{res.no ? ` · ${res.no}` : ''}</span>
+            </div>
+          )}
+          <div className="srow">
+            <div className="s1">
+              <span className="k">① 실제 1순위가 쓴 금액</span>
+              <b className="nm">{won(res.amt)}</b>
+              <span className="v">{res.win || '—'} · {res.rate != null ? pct(res.rate, 3) : '—'}</span>
+            </div>
+          </div>
+          <div className="note sm">
+            {scored.why === '표준시장단가'
+              ? <>추정가격 100억 넘는 공고라 A값에 <b>표준시장단가</b>가 들어가는데, 그 값이 아직 안 실려 와 하한을 셀 수 없습니다 — 틀린 하한으로 채점하지 않습니다(자동 갱신 때 다시 받아 옵니다).</>
+              : scored.why === '하한율'
+                ? <>추정가격 100억 이상인데 공고에 <b>낙찰하한율이 없습니다</b>(종합심사 · 종합평가 · 일괄입찰 등 — 가격만으로 낙찰자를 정하지 않음). 바로투찰이 계산하지 않는 자리라 채점하지 않습니다.</>
+                : <>이 개찰은 값이 모자라 바로투찰 금액을 다시 셀 수 없어 채점하지 않습니다.</>}
+          </div>
+        </div>
+      )}
       {/* ── 개찰 결과 채점 — 우리 말이 맞았는지 그 자리에서 봅니다 ── */}
-      {res && (
+      {res && !scored?.skip && (
         <div className={'scored ' + (scored?.dq ? 'dq' : scored?.beat ? 'win' : 'lose')}>
           <div className="sh">
             <span className="ic">{scored?.dq ? '⛔' : scored?.beat ? '🏆' : '📉'}</span>

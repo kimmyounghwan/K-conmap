@@ -11,6 +11,7 @@ import 내금액 from './내금액.jsx'   /* 📝 G338 넣은 금액이면 몇 �
 import { 한벌주소 } from './lib/낙찰한벌.js'   /* 🏁 G499 */
 import { 견적틀주소 } from './lib/견적틀주소.js'   /* 🤝 G518 하도급 견적틀 */
 import 관심분포 from './관심분포.jsx'   /* 👥 G499 이용자들이 고른 자리(마감 뒤) */
+import { A값앎, 표준대상, 표준모름 } from './lib/bidmath.js'   /* ⚖ G581 마감된 공고 채점도 공고 화면과 같은 판정 */
 
 /* ============================================================
    개찰 카드를 펼쳤을 때 나오는 상세 화면
@@ -43,10 +44,17 @@ function scoreMissing(r) {
   const m = []
   if (!(Number(r?.amt) > 0 && Number(r?.rate) > 0)) m.push('낙찰금액·투찰률')
   if (!(Number(r?.base) > 0)) m.push('기초금액')
-  if (!(Number(r?.aval) > 0 || r?.ayn === 'N')) m.push('A값')
+  /* ⚖ G581 소장님 「나머지도 고쳐 줘」 — 마감된 공고 채점도 공고 화면(bidmath)과 같은 판정:
+     A값 0원(az 1 · 나라장터 «A 0 원»)은 «앎» · 100억 넘는 적격심사는 표준시장단가 칸(smk)을 받기 전엔 채점 안 함
+     (G578 앞에 마감된 줄은 A값에 표준시장단가가 빠져 하한이 낮게 나옴 → «가져갔을 자리» 가 남발됨) */
+  if (!A값앎(r)) m.push('A값')
+  else if (표준모름(r)) m.push('표준시장단가')
   if (r?.lo == null || r?.hi == null) m.push('예가범위')
   return m
 }
+/* ⚖ G581 추정가격 100억 이상인데 공고에 낙찰하한율이 없는 개찰(종합심사 · 종합평가 · 일괄입찰 …) — 바로투찰이 계산하지 않는 자리.
+   전엔 «📊 채점 가능» 이 붙고 채점 단추를 누르면 바로투찰이 «계산기를 쓰면 안 됩니다» 로 막혔음(1순위 7주치 44건). */
+export const 큰하한없음 = (r) => 표준대상(r) && !(Number(r?.llr) >= 60 && Number(r?.llr) <= 100)
 
 /* ══════════════════════════════════════════════════════════════
    채점은 «바로투찰이 다루는 자리»에서만 성립합니다 — 2026-09-03
@@ -80,6 +88,7 @@ function scoreGrade(r) {
  *     실측(2026-09-02): 개찰 11,257건 중 7,873건(69.9%)이 완비.
  */
 export function scoreState(r) {
+  if (큰하한없음(r)) return { ok: false, why: 'big' }
   const g = scoreGrade(r)
   if (g && (g.key === 'C' || g.key === 'D')) {
     return { ok: false, why: 'grade', grade: g }
@@ -101,6 +110,12 @@ function scoreLink(r) {
   if (r.base > 0) q.set('base', String(r.base))
   if (r.aval) q.set('aval', String(r.aval))
   if (r.ayn) q.set('ayn', String(r.ayn))
+  /* ⚖ G581 7일 넘은 개찰(주소로만 채점)도 공고의 하한율 · 추정가격 · 순공사원가 · A값 0원 · 표준시장단가 칸을 그대로 */
+  if (Number(r.llr) >= 60 && Number(r.llr) <= 100) q.set('llr', String(r.llr))
+  if (Number(r.est) > 0) q.set('est', String(r.est))
+  if (Number(r.pc) > 0) q.set('pc', String(r.pc))
+  if (Number(r.az) === 1) q.set('az', '1')
+  if (r.smk) q.set('smk', String(r.smk))
   if (r.lo != null) q.set('lo', String(r.lo))
   if (r.hi != null) q.set('hi', String(r.hi))
   if (r.np) q.set('np', String(r.np))
@@ -310,7 +325,10 @@ function BidTab({ r }) {
         const cd = st.why === 'grade'
         return (
           <div className="nocalc">
-            {cd ? (
+            {st.why === 'big' ? (
+              <>추정가격 <b>100억 이상</b>인데 공고에 <b>낙찰하한율이 없습니다</b>(종합심사 · 종합평가 · 일괄입찰 등 — 가격만으로 낙찰자를 정하지 않음).
+                {' '}바로투찰이 계산하지 않는 자리라 채점하지 않습니다.</>
+            ) : cd ? (
               <>이 공고는 <b>{g.key}등급 ({g.label})</b>이라 채점하지 않습니다.
                 {' '}실제 개찰 958건에서 이 등급은 <b>한 건도 못 땄습니다.</b>
                 {' '}1순위가 낙찰하한 바로 위(0.005% 안)에 붙는 자리라,

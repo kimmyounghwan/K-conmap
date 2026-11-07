@@ -130,8 +130,9 @@ d = 덩이("todo_why = {", 3600)
 봄("⑥ 개별조회 — 취소공고 뺌 · 100억 넘는 공고(smk 없음)를 먼저 · A값 적용 여부를 받은 줄은 다시 안 물음",
    'if str(r.get("kind") or "") == "취소공고":' in d and 'elif r.get("base") and r.get("smk") is None and 표준대상(r):' in d
    and 'elif not r.get("aval") and str(r.get("ayn") or "") not in ("Y", "N"):' in d)
-봄("⑥ 개별조회 정렬은 전과 같음(오래 안 물어본 것부터 · 같은 시각이면 넣은 차례 = 100억 넘는 공고 먼저)",
-   'uniq.sort(key=lambda kr: str(kr[1].get("bask") or ""))' in src)
+봄("⑥ 개별조회 정렬 — ⚖ G581 표준시장단가 줄(앞 · 공고 · 개찰)을 맨 앞(3시간 안에 물어본 것은 차례대로) · 그 밖은 전처럼 오래 안 물어본 것부터",
+   'uniq.sort(key=lambda kr: (0 if (kr[0], kr[1]["no"]) in 앞 and str(kr[1].get("bask") or "") < cut3 else 1,' in src
+   and 'str(kr[1].get("bask") or "")))' in src and '앞.add((kind, r["no"]))' in src)
 d = 덩이("b = bsis_one(key, r[\"no\"], kind)", 1200)
 봄("⑥ 개별조회 결과 — 응답 A값이 0 원이면 줄의 옛 A값 지움", 'if b.get("ayn") in ("Y", "N") and b.get("aval") is None:' in d and 'r.pop("aval", None)' in d)
 d = 덩이('"site", "pc"):\n                if (r.get(f) in (None, "", 0, []))', 700)

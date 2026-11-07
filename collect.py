@@ -4003,8 +4003,10 @@ def main():
 
     # ── 화면에 실릴 최근 건 중 기초금액이 빈 것만 공고번호로 개별 보충 ──
     todo = []
-    todo_why = {"기초": 0, "A값": 0, "A값 0원 확인": 0, "표준시장단가": 0, "취소공고 뺌": 0}
+    todo_why = {"기초": 0, "A값": 0, "A값 0원 확인": 0, "표준시장단가": 0, "취소공고 뺌": 0,
+                "개찰 표준시장단가": 0, "개찰 A값 0원 확인": 0}
     n_std = 0
+    앞 = set()          # ⚖ G581 먼저 물을 줄(표준시장단가 — 공고 · 개찰) · 3시간 안에 물어본 것은 차례대로(헛물음 되풀이 안 함)
     for kind in KINDS:
         # 마감 전 공고를 마감 임박 순으로 — 사람들이 실제로 계산하는 순서입니다
         live_rows = [r for r in live[kind].values()
@@ -4020,6 +4022,7 @@ def main():
             elif r.get("base") and r.get("smk") is None and 표준대상(r):
                 todo.append((kind, r))
                 todo_why["표준시장단가"] += 1
+                앞.add((kind, r["no"]))
         for r in live_rows:
             if str(r.get("kind") or "") == "취소공고":
                 continue
@@ -4039,6 +4042,20 @@ def main():
         for r in rows[:MAX_ROWS]:
             if not r.get("base"):
                 todo.append((kind, r))
+        # ⚖ G581 개찰 7주치 전체에서(위 기초금액 빈 것은 최근 MAX_ROWS 만) — 둘 다 드묾(표준 54 · A 0원 확인 수십 건)
+        for r in rows:
+            if not r.get("base") or str(r.get("kind") or "") == "취소공고":
+                continue
+            if r.get("smk") is None and 표준대상(r) and 60 <= (to_f(r.get("llr")) or 0) <= 100:
+                # ⚖ G581 마감된(개찰) 100억 넘는 적격심사 공고 — G578(11-07) 앞에 마감돼 A값에 표준시장단가가 빠진 채 남은 줄
+                #   (1순위 7주치 54건). 채점 · 넣은 금액 · 업체 성적표가 이 A값으로 하한을 셈 → 한 번 다시 물어 A값 · smk 를 바로잡음.
+                todo.append((kind, r))
+                todo_why["개찰 표준시장단가"] += 1
+                앞.add((kind, r["no"]))
+            elif str(r.get("ayn") or "") == "Y" and not r.get("aval") and r.get("az") is None:
+                # ⚖ G581 마감된 A값 적용 공고인데 A값이 없는 줄 — A값 0원(az)인지 한 번 물음(G579 앞에 마감된 줄 · 채점이 «A값 모름» 으로 막힘)
+                todo.append((kind, r))
+                todo_why["개찰 A값 0원 확인"] += 1
     seen = set()
     uniq = []
     for kind, r in todo:
@@ -4055,12 +4072,16 @@ def main():
     #   ⚠️ 횟수 제한은 두지 않습니다 — 기초금액은 마감 직전에 공개되는 공고가 있어서,
     #      한 번 없다고 끊으면 영영 못 받습니다.
     now_ts = datetime.now(KST).strftime("%Y%m%d%H%M%S")
-    uniq.sort(key=lambda kr: str(kr[1].get("bask") or ""))
+    # ⚖ G581 표준시장단가 줄(앞)은 맨 앞에 — G578 은 todo 앞에 넣었지만 아래 정렬(bask)이 다시 섞었음. 3시간 안에 물어본 것은 차례대로.
+    cut3 = (datetime.now(KST) - timedelta(hours=3)).strftime("%Y%m%d%H%M%S")
+    uniq.sort(key=lambda kr: (0 if (kr[0], kr[1]["no"]) in 앞 and str(kr[1].get("bask") or "") < cut3 else 1,
+                              str(kr[1].get("bask") or "")))
     if uniq:
         print(f"  · 기초금액 개별조회 {min(len(uniq), BSIS_ONE_CAP):,}건 "
               f"(빈 건 {len(uniq):,} — 오래 안 물어본 것부터)"
               f" · 까닭: 공고 기초 {todo_why['기초']:,} · A값 {todo_why['A값']:,} · A값 0원 확인 {todo_why['A값 0원 확인']:,}"
-              f" · 100억 넘는 공고 표준시장단가 {todo_why['표준시장단가']:,} · 취소공고 뺌 {todo_why['취소공고 뺌']:,}")
+              f" · 100억 넘는 공고 표준시장단가 {todo_why['표준시장단가']:,} · 취소공고 뺌 {todo_why['취소공고 뺌']:,}"
+              f" · 개찰 표준시장단가 {todo_why['개찰 표준시장단가']:,} · 개찰 A값 0원 확인 {todo_why['개찰 A값 0원 확인']:,}")
         for kind, r in uniq[:BSIS_ONE_CAP]:
             b = bsis_one(key, r["no"], kind)
             r["bask"] = now_ts          # 물어본 시각 (다음 회차에서 뒤로 밀립니다)
@@ -5227,13 +5248,15 @@ def main():
                        enp_of(r, enp_map)[1],
                        enp_of(r, enp_map)[2],
                        # ⚖ 2026-10-21 기초금액 중 순공사원가(없으면 0) — 채점도 «순공사원가 98 %» 선을 알게
-                       int(r.get("pc") or 0)]
+                       int(r.get("pc") or 0),
+                       # ⚖ G581 A값 0원(az 1) · 표준시장단가 칸(smk Y/N · 모르면 "") — 채점이 «A 0원» 을 알고 100억 넘는 공고의 «표준시장단가 모름» 을 막게
+                       1 if r.get("az") == 1 else 0, r.get("smk") or ""]
         path = os.path.join(OUT, "bidresult.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump({"built": built, "f": ["win", "amt", "rate", "np", "base", "dt",
                              "tel", "ceo", "bno", "adr", "tsrc", "name", "inst",
                              "aval", "ayn", "amts", "rq", "nrank", "lo", "hi", "lic",
-                             "llr", "est", "enp", "enpn", "enpb", "pc"],
+                             "llr", "est", "enp", "enpn", "enpb", "pc", "az", "smk"],
                        "r": out}, f, ensure_ascii=False, separators=(",", ":"))
         print(f"  → bidresult 최근 7일 개찰 {len(out):,}건 "
               f"({os.path.getsize(path)/1024:.0f}KB)")

@@ -63,7 +63,7 @@ f = re.findall(r'"([a-z]+)"', src[src.index("[", k):src.index("]", src.index("["
 봄("③ bidindex 맨 뒤 칸 pc · 줄 맨 뒤 int(pc)", f[-1] == "pc" and 'int(r.get("pc") or 0),\n            ])' in src, repr(f[-3:]))
 k2 = src.index('"f": ["win", "amt", "rate"')
 f2 = re.findall(r'"([a-z]+)"', src[src.index("[", k2):src.index("]", src.index("[", k2))])
-봄("③ bidresult 맨 뒤 칸 pc", f2[-1] == "pc" and f2[-2] == "enpb", repr(f2[-3:]))
+봄("③ bidresult 칸 pc(enpb 다음 · ⚖ G581 그 뒤에 az · smk)", "pc" in f2 and f2[f2.index("pc") - 1] == "enpb" and f2[-2:] == ["az", "smk"], repr(f2[-4:]))
 
 print(f"\n{셈[0]}개 중 틀림 {len(틀림)}")
 sys.exit(1 if 틀림 else 0)

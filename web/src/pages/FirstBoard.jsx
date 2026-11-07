@@ -247,6 +247,14 @@ export default function FirstBoard() {
                   {(() => {
                     const st = scoreState(r)
                     if (st.ok) return <span className="badge b">📊 채점 가능</span>
+                    if (st.why === 'big') {
+                      /* ⚖ G581 100억 넘고 하한율 없음(종합심사 등) — 바로투찰이 계산하지 않는 자리 */
+                      return (
+                        <span className="badge n" title="추정가격 100억 이상인데 공고에 낙찰하한율이 없습니다(종합심사 · 종합평가 · 일괄입찰 등). 바로투찰이 계산하지 않는 자리라 채점하지 않습니다.">
+                          채점 안 함 · 100억 이상
+                        </span>
+                      )
+                    }
                     if (st.why === 'grade') {
                       return (
                         <span className="badge n"
