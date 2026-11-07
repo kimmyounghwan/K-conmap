@@ -36,6 +36,7 @@ const 표 = [
   ['덤프 대수', '/tools/soil-volume'], ['토량환산계수', '/tools/soil-volume'], ['사토 운반', '/tools/soil-volume'],   /* 🚚 G553 */
   ['유토곡선', '/tools/tojeok'], ['매스커브', '/tools/tojeok'], ['토적표', '/tools/tojeok'], ['평균운반거리', '/tools/tojeok'],   /* 🏔 G571 */
   ['장비별 운반', '/tools/tojeok'], ['경제 운반거리', '/tools/tojeok'],   /* 🚜 G574 */
+  ['사토장 거리', '/tools/tojeok'], ['토취장', '/tools/tojeok'],   /* 🚛 G575 */
 ]
 const 틀린 = 표.filter(([q, to]) => 맨위(q) !== to)
 봐(!틀린.length, `${표.length}가지 말 — 맨 위가 그 화면(노무비 · 초성 · 같은 뜻 «무게 = 중량» · 낱말 둘)`, JSON.stringify(틀린.map(([q, to]) => [q, to, 맨위(q)])))

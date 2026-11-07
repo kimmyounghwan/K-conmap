@@ -9,12 +9,13 @@
  * ■ 셈: lib/토적.js(시험 node tools/시험_토적.mjs) · 받기: lib/토적받기.js(엑셀 · DXF) · 사용설명서: data/tools.json «tojeok» secs
  * ■ 표에 엑셀 덩이를 붙이면(칸에 붙여넣기) 그 칸부터 아래 · 오른쪽으로 채움 · 머리 줄이 있는 표는 «📋 엑셀 표 붙여넣기» 로 칸을 맞춰 넣음
  * ■ G574(2026-11-07): ⑤ 운반 띠 «한 운반 구간도 거리별로 나눔»(설정 띠나눔 '거리') — 유토곡선에 띠 거리선(주황 점선) · 운반집계 · 유동표는 마디마다 띠 몫 줄
+ * ■ G575(2026-11-07): ⑤ 🚛 사토장 · 토취장(설정 사토장 · 토취장 [{이름, 측, 밖}]) — 요약 · 유동표 · 운반집계 · 집계표에 운반거리 · 유토곡선 맨 아래 ▲ 줄(진출입 측점)
  */
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { use칸, Row } from './calcs.jsx'
 import { 토적셈, 기본칸, 기본설정, 빈줄, 예시토적, 예시변경토적, 표풀기, 자료시작, 칸알아보기, 가져오기, 차수비교, 끝수, 숫, 높이에서, 측점풀기, 띠글 } from '../lib/토적.js'
-import { 유동줄, 동그라미 } from '../lib/토적받기.js'
+import { 유동줄, 장줄들, 동그라미 } from '../lib/토적받기.js'
 import { 노선살피기, 횡단토적 } from '../lib/토적횡단.js'   /* 📐 G572 횡단면도(DXF · DWG)에서 단면적 바로 읽기 */
 import { use인쇄 } from './공정인쇄.js'
 import { 세기 } from '../lib/받은수.jsx'
@@ -53,6 +54,7 @@ export function Tojeok({ ex = {} }) {
   const [인쇄중, 인쇄] = use인쇄(((S.공사명 || '토적') + ' 토적컨맵').trim())
 
   const 설 = (k, v) => setV((o) => ({ ...o, 설정: { ...기본설정(), ...(o.설정 || {}), [k]: v } }))
+  const 장고침 = (k, i, f, v) => setV((o) => { const 옛 = { ...기본설정(), ...(o.설정 || {}) }; return { ...o, 설정: { ...옛, [k]: (옛[k] || []).map((u, j) => (j === i ? { ...u, [f]: v } : u)) } } })
   const 칸고침 = (i, k, v) => setV((o) => ({ ...o, 칸: o.칸.map((c, j) => (j === i ? { ...c, [k]: v } : c)) }))
   const 칸더 = (종) => setV((o) => ({ ...o, 칸: [...o.칸, 종 === '성' ? { id: 새id(), 이름: '성토', 종: '성' } : { id: 새id(), 이름: '절토', 종: '절', C: '', 씀: true }] }))
   const 칸빼 = (i) => setV((o) => {
@@ -370,6 +372,8 @@ export function Tojeok({ ex = {} }) {
             <div><span>사토</span><b>{쉼(R.합.사토 + 0)} ㎥{R.합.직접 > 0 ? ' + 바로 ' + 쉼(R.합.직접) : ''}</b></div>
             <div><span>순성토(토취)</span><b>{쉼(R.합.순성토)} ㎥</b></div>
             {R.띠.filter((t) => t.V > 1e-9).length > 1 && R.띠.filter((t) => t.V > 1e-9).map((t, k) => <div key={'t' + k}><span>🚜 {띠글(t)}</span><b>{쉼(t.V)} ㎥ · {쉼(t.VL / t.V)} m</b></div>)}
+            {(R.합.사토L !== null || R.합.직접L !== null) && <div><span>🚛 사토장까지 평균</span><b>{[R.합.사토L !== null ? 쉼(R.합.사토L) + ' m' : '', R.합.직접L !== null ? '바로 사토 ' + 쉼(R.합.직접L) + ' m' : ''].filter(Boolean).join(' · ')}</b></div>}
+            {R.합.순성토L !== null && <div><span>🚛 토취장에서 평균</span><b>{쉼(R.합.순성토L)} m</b></div>}
           </div>
           <div className="tj-tabs" role="tablist">
             {보기들.map(([k, 이름]) => <button key={k} type="button" role="tab" aria-selected={보기 === k} className={'tj-tab' + (보기 === k ? ' on' : '')} onClick={() => set보기(k)}>{이름}</button>)}
@@ -406,7 +410,7 @@ export function Tojeok({ ex = {} }) {
 
       {/* ── ⑤ 운반 띠 · 토취 ── */}
       <details className="tj-more">
-        <summary>⑤ 운반 거리 나눔(장비) · 토취 흙 C</summary>
+        <summary>⑤ 운반 거리 나눔(장비) · 사토장 · 토취장 · 토취 흙 C</summary>
         <p className="tl-p muted">운반집계를 거리로 나눕니다(예: 불도저 60 m 까지 · 그 밖 덤프트럭). 거리는 설계서 · 시방 기준대로 넣으십시오. 마지막 띠의 «까지» 를 비우면 그보다 먼 운반을 모두 담습니다.</p>
         <div className="tj-wrap">
           <table className="tj-cols">
@@ -428,6 +432,29 @@ export function Tojeok({ ex = {} }) {
           <label className="tj-check"><input type="radio" name="tj-띠나눔" checked={S.띠나눔 === '거리'} onChange={() => 설('띠나눔', '거리')} /> <span>한 운반 구간도 거리별로 나눔 <i>— 유토곡선에 띠 거리 길이의 가로선(주황 점선)을 그어 그 위(짧은 운반)는 짧은 장비, 아래(긴 운반)는 긴 장비</i></span></label>
         </div>
         {S.띠나눔 === '거리' && R.띠.length < 2 && <p className="tl-p muted">띠를 둘 이상(예: 불도저 60 · 덤프트럭 비움) 넣어야 나눕니다.</p>}
+        <div className="tl-sub">🚛 사토장 · 토취장</div>
+        <p className="tl-p muted">남는 흙(사토 · 바로 사토)이 가는 곳, 모자라는 흙(순성토)이 오는 곳을 넣으면 흙마다 <b>길 따라 진출입 측점까지 평균 거리 + 밖 거리</b>가 가장 짧은 곳으로 운반거리를 셉니다. 진출입 측점을 비우면 밖 거리만 씁니다(설계서에 운반거리 한 값만 있을 때).</p>
+        {['사토장', '토취장'].map((k) => ((S[k] || []).length > 0 && (
+          <div key={k} className="tj-wrap">
+            <table className="tj-cols tj-jangt">
+              <thead><tr><th>{k}</th><th title="길에서 그 곳으로 나가는 측점 — 비우면 밖 거리만">진출입 측점</th><th title="진출입 측점에서 그 곳까지 길 밖 운반거리">밖 거리(m)</th><th /></tr></thead>
+              <tbody>
+                {(S[k] || []).map((s, i) => (
+                  <tr key={i}>
+                    <td><input value={s.이름 || ''} onChange={(e) => 장고침(k, i, '이름', e.target.value.slice(0, 16))} placeholder={k + ' ' + (i + 1)} /></td>
+                    <td><input value={s.측 || ''} onChange={(e) => 장고침(k, i, '측', e.target.value)} placeholder="예: NO.5 · 비우면 밖만" /></td>
+                    <td><input inputMode="decimal" value={s.밖 ?? ''} onChange={(e) => 장고침(k, i, '밖', e.target.value)} placeholder="예: 1200" /></td>
+                    <td><button type="button" className="gp-x" title="지우기" onClick={() => 설(k, (S[k] || []).filter((_, j) => j !== i))}>✕</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )))}
+        <div className="kt-btns">
+          <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={() => 설('사토장', [...(S.사토장 || []), { 이름: '', 측: '', 밖: '' }])}>＋ 사토장</button>
+          <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={() => 설('토취장', [...(S.토취장 || []), { 이름: '', 측: '', 밖: '' }])}>＋ 토취장</button>
+        </div>
         <div className="tl-grid"><Row label="토취 흙 C" hint="순성토를 자연 상태로"><input inputMode="decimal" value={S.토취C || ''} onChange={(e) => 설('토취C', e.target.value)} placeholder="비우면 다짐 기준만" /></Row></div>
       </details>
     </>
@@ -594,8 +621,11 @@ function 토적표({ R }) {
 function 유토그림({ R }) {
   const 점 = R.점
   if (점.length < 2) return null
-  const W = 1000, H = 470, 왼 = 78, 오 = 18, 위 = 58, 아래 = 78
   const xs = 점[0].x, xe = 점[점.length - 1].x, 길 = Math.max(1e-9, xe - xs)
+  /* ▲ 사토장 · 토취장 진출입 측점(그림 안에 드는 것만) — 그림 맨 아래 따로 한 줄(측점 글 아래 · 마디 번호와 안 겹침) */
+  const 장표 = [...(R.장 ? R.장.사 : []).map((s) => ({ s, 꼴: '사' })), ...(R.장 ? R.장.순 : []).map((s) => ({ s, 꼴: '순' }))].filter(({ s }) => Number.isFinite(s.x) && s.x >= xs - 1e-9 && s.x <= xe + 1e-9)
+  const 장줄 = 장표.length ? 26 : 0
+  const W = 1000, H = 470 + 장줄, 왼 = 78, 오 = 18, 위 = 58, 아래 = 78 + 장줄
   let mn = Math.min(0, ...점.map((p) => p.m), ...R.구간.map((g) => g.b)), mx = Math.max(0, ...점.map((p) => p.m), ...R.구간.map((g) => g.b))
   if (!(mx > mn)) mx = mn + 1
   const 여 = (mx - mn) * 0.08; mn -= 여; mx += 여
@@ -607,6 +637,7 @@ function 유토그림({ R }) {
   const 측라벨 = []
   let 앞 = -Infinity
   for (const z of R.줄) { if (!z.측) continue; const px = X(z.x); if (px - 앞 >= 30) { 측라벨.push(z); 앞 = px } }
+  const 띠있음 = (R.띠선 || []).length > 0, 장있음 = 장표.length > 0
   const 다각 = []
   for (const g of R.구간) for (const q of g.마디) {
     if (q.꼴 === '평' || !(q.V > 1e-9 || q.사 > 1e-9 || q.순 > 1e-9)) continue
@@ -639,6 +670,15 @@ function 유토그림({ R }) {
           )
         })}
         <polyline points={점.map((p) => X(p.x).toFixed(1) + ',' + Y(p.m).toFixed(1)).join(' ')} className="tj-curve" />
+        {장표.map(({ s, 꼴 }, k) => {
+          const x = X(s.x), 오른 = x > W - 170
+          return (
+            <g key={'j' + k}>
+              <path d={`M ${x.toFixed(1)} ${H - 장줄 + 3} l -6 11 h 12 z`} className={꼴 === '사' ? 'tj-site-s' : 'tj-site-b'} />
+              <text x={오른 ? x - 9 : x + 9} y={H - 장줄 + 13} className="tj-sitet" style={{ textAnchor: 오른 ? 'end' : 'start' }}>{s.이름}{s.밖 > 0 ? ' · 밖 ' + 쉼(s.밖, 0) + ' m' : ''}</text>
+            </g>
+          )
+        })}
         {R.마디.map((q) => {
           const g = R.구간[q.구간]
           const 안 = g.점.filter((p) => p.x >= q.xa && p.x <= q.xb)
@@ -656,14 +696,15 @@ function 유토그림({ R }) {
           )
         })}
         <text x={14} y={위 - 22} className="tj-ax">누가토량(㎥ · 다짐 기준)</text>
-        <g transform={`translate(${W - 오 - ((R.띠선 || []).length ? 562 : 470)}, 16)`} className="tj-lg">
+        <g transform={`translate(${W - 오 - 470 - (띠있음 ? 92 : 0) - (장있음 ? 112 : 0)}, 16)`} className="tj-lg">
           <line x1="0" x2="20" y1="0" y2="0" className="tj-curve" /><text x="25" y="4">유토곡선</text>
           <line x1="90" x2="110" y1="0" y2="0" className="tj-bal" /><text x="115" y="4">평형선</text>
           <rect x="170" y="-6" width="16" height="12" className="tj-hill" /><text x="190" y="4">→ 순방향</text>
           <rect x="255" y="-6" width="16" height="12" className="tj-valley" /><text x="275" y="4">← 역방향</text>
           <line x1="340" x2="360" y1="0" y2="0" className="tj-spoil" /><text x="364" y="4">사토</text>
           <line x1="400" x2="420" y1="0" y2="0" className="tj-borrow" /><text x="424" y="4">순성토</text>
-          {(R.띠선 || []).length > 0 && <><line x1="472" x2="492" y1="0" y2="0" className="tj-dl" /><text x="496" y="4">띠 거리선</text></>}
+          {띠있음 && <><line x1="472" x2="492" y1="0" y2="0" className="tj-dl" /><text x="496" y="4">띠 거리선</text></>}
+          {장있음 && <><path d={`M ${476 + (띠있음 ? 92 : 0)} 5 l 6 -10 l 6 10 z`} className="tj-site-s" /><text x={496 + (띠있음 ? 92 : 0)} y="4">사토장 · 토취장</text></>}
         </g>
       </svg>
     </div>
@@ -758,9 +799,16 @@ function 운반표({ R }) {
               {셋(t.V, t.VL).map((x, i) => <td key={'s' + i}>{x}</td>)}<td className="c">{t.마디.map(동그라미).join(' ')}</td>
             </tr>
           ))}
+          {장줄들(R).map((u, k) => (
+            <tr key={'j' + k} className="sub tj-jang">
+              <td className="l" colSpan={2}>{u.글}</td>
+              {씀칸.flatMap((c) => (u.토V ? 셋(u.토V[c.id] || 0, u.토VL[c.id] || 0) : ['', '', '']).map((x, i) => <td key={c.id + i}>{x}</td>))}
+              {셋(u.V, u.VL).map((x, i) => <td key={'s' + i} className={i === 0 ? 'b' : ''}>{x}</td>)}<td className="c">{u.띠}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
-      <p className="tl-p muted gp-hint">다짐 기준 · L = V×L ÷ V · 토질별로 나눈 것은 그 측점 보정 절토 비례(운반 흙은 늘 절토가 남는 구간에서 나옴) · 장비 띠는 아래 ⑤ 에서 정함{R.띠나눔 === '거리' ? ' — 지금은 «한 운반 구간도 거리별로 나눔»(높이 띠마다 실제 운반거리로 나눠 셈 · 유토곡선의 주황 점선 위는 짧은 장비)' : ''}.</p>
+      <p className="tl-p muted gp-hint">다짐 기준 · L = V×L ÷ V · 토질별로 나눈 것은 그 측점 보정 절토 비례(운반 흙은 늘 절토가 남는 구간에서 나옴) · 장비 띠 · 🚛 사토장 · 토취장은 아래 ⑤ 에서 정함(🚛 줄 = 길 따라 진출입 측점까지 평균 + 밖 거리 · 바로 사토는 자연 상태){R.띠나눔 === '거리' ? ' — 지금은 «한 운반 구간도 거리별로 나눔»(높이 띠마다 실제 운반거리로 나눠 셈 · 유토곡선의 주황 점선 위는 짧은 장비)' : ''}.</p>
     </div>
   )
 }
@@ -780,9 +828,9 @@ function 집계표({ R }) {
           <tr className="sub"><td className="c">유용</td><td className="l">보정 절토(성토에 씀)</td><td className="b">{쉼(R.합.유용)}</td><td className="c">다짐</td><td /></tr>
           <tr><td className="c">유용</td><td className="l">횡방향 유용</td><td className="b">{쉼(R.합.횡)}</td><td className="c">다짐</td><td className="l">같은 측점 안에서 깎아 쌓음</td></tr>
           <tr><td className="c">유용</td><td className="l">종방향 유용(운반토량)</td><td className="b">{쉼(R.합.종)}</td><td className="c">다짐</td><td className="l">평균운반거리 {쉼(R.합.L)} m</td></tr>
-          <tr><td className="c">사토</td><td className="l">남는 흙(유토곡선)</td><td className="b">{쉼(R.합.사토 + 0)}</td><td className="c">다짐</td><td className="l">{사자연 > 0 ? '자연 상태로 ' + 쉼(사자연) + ' ㎥(÷ 토질별 C)' : ''}</td></tr>
-          {R.합.직접 > 0 && <tr><td className="c">사토</td><td className="l">바로 사토(유용 안 함)</td><td className="b">{쉼(R.합.직접)}</td><td className="c">자연</td><td className="l">{R.합.직접칸.filter((k) => k.V > 0).map((k) => k.이름).join(' · ')}</td></tr>}
-          <tr><td className="c">순성토</td><td className="l">모자라는 흙(토취)</td><td className="b">{쉼(R.합.순성토)}</td><td className="c">다짐</td><td className="l">{R.합.순성토자연 !== null ? '토취 흙 C 로 자연 ' + 쉼(R.합.순성토자연) + ' ㎥' : '토취 흙 C 를 넣으면 자연 상태로도'}</td></tr>
+          <tr><td className="c">사토</td><td className="l">남는 흙(유토곡선)</td><td className="b">{쉼(R.합.사토 + 0)}</td><td className="c">다짐</td><td className="l">{[사자연 > 0 ? '자연 상태로 ' + 쉼(사자연) + ' ㎥(÷ 토질별 C)' : '', R.합.사토L !== null ? '사토장까지 평균 ' + 쉼(R.합.사토L) + ' m' : ''].filter(Boolean).join(' · ')}</td></tr>
+          {R.합.직접 > 0 && <tr><td className="c">사토</td><td className="l">바로 사토(유용 안 함)</td><td className="b">{쉼(R.합.직접)}</td><td className="c">자연</td><td className="l">{R.합.직접칸.filter((k) => k.V > 0).map((k) => k.이름).join(' · ')}{R.합.직접L !== null ? ' · 사토장까지 평균 ' + 쉼(R.합.직접L) + ' m' : ''}</td></tr>}
+          <tr><td className="c">순성토</td><td className="l">모자라는 흙(토취)</td><td className="b">{쉼(R.합.순성토)}</td><td className="c">다짐</td><td className="l">{[R.합.순성토자연 !== null ? '토취 흙 C 로 자연 ' + 쉼(R.합.순성토자연) + ' ㎥' : '토취 흙 C 를 넣으면 자연 상태로도', R.합.순성토L !== null ? '토취장에서 평균 ' + 쉼(R.합.순성토L) + ' m' : ''].filter(Boolean).join(' · ')}</td></tr>
         </tbody>
       </table>
       <div className={'tj-chk' + (R.검산.맞음 ? '' : ' bad')}><b>{R.검산.맞음 ? '✓ 검산 맞음' : '⛔ 검산 안 맞음'}</b><span>절토 차 {끝수(R.검산.절, 4)} · 성토 차 {끝수(R.검산.성, 4)}</span></div>

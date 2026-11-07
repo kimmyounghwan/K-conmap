@@ -28,6 +28,9 @@
  *   «거리» — 한 마디도 높이 띠마다 실제 운반거리로 나눔. 높이 띠 안에서 운반거리는 높이에 곧게 바뀌므로(거lo → 거hi)
  *     띠 거리(까지)와 같아지는 높이에서 잘라 짧은 쪽 · 긴 쪽 장비에 나눔 — 어림 없음. 그 높이에 그은 가로선(길이 = 띠 거리)이
  *     «띠 거리선»(외국 매스커브의 free haul 선과 같은 꼴): 봉우리 쪽(짧은 운반)은 짧은 장비, 평형선 쪽(긴 운반)은 긴 장비.
+ * ■ 사토장 · 토취장(G575 · 소장님께 말씀드린 차례 ③): 장마다 «진출입 측점»(길에서 나가는 곳 · 비우면 밖 거리만) + «밖 거리».
+ *   흙마다(유토곡선 사토 · 순성토 = 높이 띠 기록마다 · 바로 사토 = 측점 줄 · 칸마다) 길 따라 평균 거리 + 밖 거리가 가장 짧은 곳으로.
+ *   길 따라 평균 거리는 흙이 놓인 꼴 그대로(높이 띠 안은 고르게 · 평균단면은 두 단면 사이 곧게 · 지배거리는 그 측점 몫 고르게 — 평균거리) — 어림 없음.
  * ■ 시험: node tools/시험_토적.mjs
  */
 
@@ -113,7 +116,7 @@ export const 기본칸 = () => [
   { id: 'c', 이름: '발파암', 종: '절', C: '', 씀: true },
   { id: 'f', 이름: '성토', 종: '성' },
 ]
-export const 기본설정 = () => ({ 공사명: '', 간격: '20', 꼴: '자동', 방법: '평균단면', 끝: '2', 변이점: false, 평형: '시점', 평형높이: [], 띠: [], 띠나눔: '구간', 토취C: '' })
+export const 기본설정 = () => ({ 공사명: '', 간격: '20', 꼴: '자동', 방법: '평균단면', 끝: '2', 변이점: false, 평형: '시점', 평형높이: [], 띠: [], 띠나눔: '구간', 사토장: [], 토취장: [], 토취C: '' })
 /** 띠 이름 — 이름이 비면 «60 m 까지» · «그 밖» */
 export const 띠글 = (t) => (t && t.이름) || (t && Number.isFinite(t.까지) ? t.까지 + ' m 까지' : '그 밖')
 export const 빈줄 = () => ({ 측: '', 거: '', 값: {}, 끊: false })
@@ -275,6 +278,49 @@ export function 토적셈(입 = {}) {
   const 거리별 = S.띠나눔 === '거리' && 띠.length > 1
   const 띠고름 = (L) => { const t = 띠.findIndex((u) => Number.isFinite(u.까지) && L <= u.까지 + 1e-9); return t < 0 ? 띠.length - 1 : t }
   const 띠선 = []
+  /* 사토장 · 토취장 — 측점 → 누가거리(측점 글이 같은 줄이 있으면 그 줄 · 아니면 읽은 측점 사이를 곧게) */
+  const 측x = (글) => {
+    const 낱 = (s) => String(s || '').replace(/\s+/g, '').toUpperCase()
+    const 같은 = 줄.find((z) => z.측 && 낱(z.측) === 낱(글))
+    if (같은) return 같은.x
+    const p = 측점풀기(글, 간격, S.꼴)
+    if (!p) return NaN
+    const 읽은 = 줄.filter((z) => z.p)
+    if (!읽은.length) return p.m
+    if (p.m <= 읽은[0].p.m) return 읽은[0].x - (읽은[0].p.m - p.m)
+    for (let i = 1; i < 읽은.length; i++) {
+      const a = 읽은[i - 1], c = 읽은[i]
+      if (p.m <= c.p.m) return c.p.m > a.p.m ? a.x + ((p.m - a.p.m) / (c.p.m - a.p.m)) * (c.x - a.x) : c.x
+    }
+    const e = 읽은[읽은.length - 1]
+    return e.x + (p.m - e.p.m)
+  }
+  const 장틀 = (목록, 머리) => (Array.isArray(목록) ? 목록 : []).map((s, i) => {
+    const 이름 = String(s?.이름 || '').trim() || 머리 + ' ' + (i + 1)
+    const 측 = String(s?.측 ?? '').trim(), 밖 = 숫(s?.밖)
+    if (!측 && !Number.isFinite(밖)) return null
+    const x = 측 ? 측x(측) : NaN
+    if (측 && !Number.isFinite(x)) 오류.push(`${머리} «${이름}» 측점 «${측}» 을 읽지 못했습니다 — NO.12+5.5 · 0+120 꼴로 적어 주십시오(이 ${머리}은 셈에서 뺌)`)
+    if (Number.isFinite(밖) && 밖 < 0) 오류.push(`${머리} «${이름}» 밖 거리가 음수입니다 — 0 으로 셈`)
+    return { 이름, 측, x, 밖: Number.isFinite(밖) && 밖 > 0 ? 밖 : 0, 못읽음: !!측 && !Number.isFinite(x), V: 0, VL: 0, 토V: {}, 토VL: {}, 직접V: 0, 직접VL: 0, 마디: [] }
+  }).filter(Boolean)
+  const 사장 = 장틀(S.사토장, '사토장'), 순장 = 장틀(S.토취장, '토취장')
+  /* 가장 가까운 장 — 길 따라 평균 거리(흙이 [a, b] 에 곧게 바뀌는 무게 wa → wb 로 놓임) + 밖 거리.
+     범 = 흙이 든 구간의 운반 끊음 경계(시점 · 종점 쪽은 끝없음) — 끊음 너머 진출입 측점은 이쪽에 갈 곳이 하나도 없을 때만(넘 → 🚛 알림) */
+  const 가까운 = (장들, a, b, wa, wb, 범) => {
+    let k = -1, L = Infinity, 넘k = -1, 넘L = Infinity
+    장들.forEach((s, i) => {
+      if (s.못읽음) return
+      const d = (Number.isFinite(s.x) ? 평균거리(a, b, wa, wb, s.x) : 0) + s.밖
+      const 넘 = !!범 && Number.isFinite(s.x) && (s.x < 범[0] - 1e-6 || s.x > 범[1] + 1e-6)
+      if (넘) { if (d < 넘L - 1e-9) { 넘L = d; 넘k = i } }
+      else if (d < L - 1e-9) { L = d; k = i }
+    })
+    if (k >= 0) return { k, L, 넘: false }
+    if (넘k >= 0) return { k: 넘k, L: 넘L, 넘: true }
+    return { k: -1, L: null, 넘: false }
+  }
+  const 넘음 = { 사토장: 0, 토취장: 0 }
   const 끊x = 줄.slice(1, -1).filter((z) => z.끊).map((z) => z.x)
   const 경계 = n ? [줄[0].x, ...끊x.filter((x, i, a) => x > 줄[0].x && (i === 0 || x > a[i - 1])), 줄[n - 1].x] : []
   const 구간 = []
@@ -290,6 +336,7 @@ export function 토적셈(입 = {}) {
     else if (S.평형 === '직접') { const v = 숫((S.평형높이 || [])[구간.length]); if (Number.isFinite(v)) { b = v; 꼴 = '직접' } }
     const 기록 = 띠셈(쪽, b)
     const 마 = 평형마디(쪽, b)
+    const 범 = [g > 0 ? xs : -Infinity, g + 2 < 경계.length ? xe : Infinity]
     for (const r of 기록) {
       const x = r.꼴 === '운' ? (r.절.x + r.성.x) / 2 : r.꼴 === '사' ? r.절.x : r.성.x
       let t = 마.findIndex((q) => x >= q.xa - 1e-7 && x <= q.xb + 1e-7)
@@ -301,8 +348,8 @@ export function 토적셈(입 = {}) {
         q.절x = 넓힘(q.절x, r.절); q.성x = 넓힘(q.성x, r.성)
         q.최소 = Math.min(q.최소, r.거lo, r.거hi); q.최대 = Math.max(q.최대, r.거lo, r.거hi)
         if (거리별) 거리로나눔(r, 띠, 띠고름, q, 띠선)
-      } else if (r.꼴 === '사') { q.사 += r.h; 나눔(q.토사, r.절.s.몫, r.h); q.사x = 넓힘(q.사x, r.절); q.사들.push({ ab: 넓힘(null, r.절), h: r.h, 몫: r.절.s.몫 }) }
-      else { q.순 += r.h; q.순x = 넓힘(q.순x, r.성); q.순들.push({ ab: 넓힘(null, r.성), h: r.h, 몫: null }) }
+      } else if (r.꼴 === '사') { q.사 += r.h; 나눔(q.토사, r.절.s.몫, r.h); q.사x = 넓힘(q.사x, r.절); q.사들.push({ ab: 넓힘(null, r.절), h: r.h, 몫: r.절.s.몫, ...장고름(사장, 가까운, r.절, r.h, 범, 넘음, '사토장') }) }
+      else { q.순 += r.h; q.순x = 넓힘(q.순x, r.성); q.순들.push({ ab: 넓힘(null, r.성), h: r.h, 몫: null, ...장고름(순장, 가까운, r.성, r.h, 범, 넘음, '토취장') }) }
     }
     const 번g = 구간.length
     for (const q of 마) {
@@ -345,6 +392,55 @@ export function 토적셈(입 = {}) {
     q.띠 = 거리별 ? q.띠별.map((p) => 띠글(p)).join(' · ') : q.띠별[0].이름
   }
   for (const s of 띠선) { s.꼴 = s.마디.꼴; s.구간 = s.마디.구간; s.마디 = s.마디.번 }
+  /* 사토장 · 토취장 합 — 유토곡선 사토 · 순성토 묶음마다(장 · 거리 · 장비 띠) · 바로 사토는 측점 줄 · 칸마다 */
+  const 더하기 = (o, p) => { for (const [k, v] of Object.entries(p || {})) o[k] = (o[k] || 0) + v }
+  for (const q of 마디) {
+    for (const [묶, 장들] of [[q.사묶음, 사장], [q.순묶음, 순장]]) {
+      for (const m of 묶) {
+        if (!(m.장 >= 0)) continue
+        const s = 장들[m.장]
+        s.V += m.V; s.VL += m.VL; 더하기(s.토V, m.토); 더하기(s.토VL, m.토VL)
+        if (!s.마디.includes(q.번)) s.마디.push(q.번)
+        m.장이름 = s.이름; m.띠 = 띠[띠고름(m.L)].이름 || ''
+      }
+    }
+  }
+  const 직접장 = []
+  if (사장.length && 안씀j.length) {
+    for (let k = 0; k < n; k++) {
+      const z = 줄[k]
+      for (const j of 안씀j) {
+        const V = z.V[j]
+        if (!(V > 0)) continue
+        let a, b, wa, wb
+        if (방법 === '평균단면') {
+          if (k === 0) continue
+          const p = 줄[k - 1]
+          if (z.변) { if (p.A[j] > 0) { a = p.x; b = p.x + z.변.x0; wa = p.A[j]; wb = 0 } else { a = p.x + z.변.x0; b = z.x; wa = 0; wb = z.A[j] } }
+          else { a = p.x; b = z.x; wa = p.A[j]; wb = z.A[j] }
+        } else { a = z.x - (z.d || 0) / 2; b = z.x + (k + 1 < n ? 줄[k + 1].d : 0) / 2; wa = 1; wb = 1 }
+        const 가운데 = (a + b) / 2
+        let gi = 0
+        while (gi + 2 < 경계.length && 가운데 > 경계[gi + 1] + 1e-9) gi++
+        const g = 가까운(사장, a, b, wa, wb, 경계.length > 2 ? [gi > 0 ? 경계[gi] : -Infinity, gi + 2 < 경계.length ? 경계[gi + 1] : Infinity] : null)
+        if (g.k < 0) continue
+        if (g.넘) 넘음.사토장++
+        let e = 직접장.find((o) => o.j === j && o.장 === g.k)
+        if (!e) { e = { j, id: 칸[j].id, 이름: 칸[j].이름, 장: g.k, 장이름: 사장[g.k].이름, V: 0, VL: 0 }; 직접장.push(e) }
+        e.V += V; e.VL += V * g.L
+      }
+    }
+    for (const e of 직접장) { e.L = e.V > 0 ? e.VL / e.V : null; e.띠 = 띠[띠고름(e.L)].이름 || ''; 사장[e.장].직접V += e.V; 사장[e.장].직접VL += e.VL; delete e.j }
+    직접장.sort((p, q) => p.장 - q.장)
+  }
+  for (const s of [...사장, ...순장]) {
+    s.L = s.V > 1e-9 ? s.VL / s.V : null; s.띠 = s.L !== null ? 띠[띠고름(s.L)].이름 || '' : ''
+    s.직접L = s.직접V > 1e-9 ? s.직접VL / s.직접V : null
+  }
+  for (const [머리, 수] of Object.entries(넘음)) if (수) 경고.push(`🚛 운반 끊음(교량 등) 이쪽에 ${머리}(진출입 측점)이 없어 끊음 너머 ${머리}까지 길 따라 셈한 흙이 있습니다 — 끊음 이쪽에도 진출입 측점을 넣으십시오(같은 곳을 진출입 측점만 달리해 두 줄로 적어도 됩니다)`)
+  const 장합 = (장들, k) => 장들.reduce((a, s) => a + s[k], 0)
+  const 사토VL = 장합(사장, 'VL'), 사토장V = 장합(사장, 'V'), 순성토VL = 장합(순장, 'VL'), 순성토장V = 장합(순장, 'V')
+  const 직접장V = 직접장.reduce((a, e) => a + e.V, 0), 직접VL = 직접장.reduce((a, e) => a + e.VL, 0)
   if (띠틀.length && Number.isFinite(띠틀[띠틀.length - 1].까지) && 마디.some((q) => q.V > 1e-9 && (거리별 ? q.최대 : q.L) > 띠틀[띠틀.length - 1].까지 + 1e-9)) {
     경고.push(`🚚 ${거리별 ? '운반거리' : '평균운반거리'}가 마지막 띠(${띠틀[띠틀.length - 1].이름} ${띠틀[띠틀.length - 1].까지} m)보다 먼 운반이 있어 그 띠에 넣었습니다 — 띠를 하나 더 두십시오`)
   }
@@ -354,12 +450,14 @@ export function 토적셈(입 = {}) {
   if (!맞음) 오류.push(`검산이 맞지 않습니다(절토 차 ${끝수(검절, 4)} · 성토 차 ${끝수(검성, 4)}) — 이 화면을 캡처해 맵톡에 남겨 주십시오`)
 
   return {
-    설정: S, 칸, C, C없음, 방법, 간격, 끝, 줄, 점: 곡, 구간, 마디, 띠, 띠나눔: 거리별 ? '거리' : '구간', 띠선, 자리, 자리꼴,
+    설정: S, 칸, C, C없음, 방법, 간격, 끝, 줄, 점: 곡, 구간, 마디, 띠, 띠나눔: 거리별 ? '거리' : '구간', 띠선, 장: { 사: 사장, 순: 순장 }, 직접장, 자리, 자리꼴,
     합: {
       칸: 칸합, 보정: 보정합, 유용: 유용합, 성: 성합, 횡: 횡합, 종, 종VL, L: 종 > 0 ? 종VL / 종 : 0,
       사토, 사토토: 토사토, 사토자연, 직접: 직접합, 직접칸: 안씀j.map((j) => ({ id: 칸[j].id, 이름: 칸[j].이름, V: 칸합[j] })),
       순성토, 순성토자연: 토취C > 0 ? 순성토 / 토취C : null, 토V: 토('토V'), 토VL: 토('토VL'),
       길이: n ? 줄[n - 1].x - 줄[0].x : 0, 끝누가: M,
+      사토VL, 사토L: 사토장V > 1e-9 ? 사토VL / 사토장V : null, 순성토VL, 순성토L: 순성토장V > 1e-9 ? 순성토VL / 순성토장V : null,
+      직접VL, 직접L: 직접장V > 1e-9 ? 직접VL / 직접장V : null,
     },
     검산: { 절: 검절, 성: 검성, 맞음 },
     경고, 오류, 변이들,
@@ -401,16 +499,43 @@ function 거리로나눔(r, 띠, 띠고름, q, 띠선) {
   }
 }
 
-/** 사토 · 순성토 자리 — 붙어 있는(겹치는) 자리끼리 묶음: [{xa, xb, V, 토}] */
+/** 사토 · 순성토 자리 — 같은 장(사토장 · 토취장)으로 가는 붙어 있는(겹치는) 자리끼리 묶음: [{xa, xb, V, 토, 장, VL, 토VL, L}] (장 −1 = 장을 안 넣음) */
 function 묶기(들) {
-  const L = 들.slice().sort((p, q) => p.ab[0] - q.ab[0])
+  const L = 들.slice().sort((p, q) => p.장 - q.장 || p.ab[0] - q.ab[0])
   const 묶 = []
   for (const d of L) {
     const 끝 = 묶[묶.length - 1]
-    if (끝 && d.ab[0] <= 끝.xb + 1e-6) { 끝.xb = Math.max(끝.xb, d.ab[1]); 끝.V += d.h; 나눔(끝.토, d.몫, d.h) }
-    else { const 새 = { xa: d.ab[0], xb: d.ab[1], V: d.h, 토: {} }; 나눔(새.토, d.몫, d.h); 묶.push(새) }
+    if (끝 && 끝.장 === d.장 && d.ab[0] <= 끝.xb + 1e-6) { 끝.xb = Math.max(끝.xb, d.ab[1]); 끝.V += d.h; 끝.VL += d.VL; 나눔(끝.토, d.몫, d.h); 나눔(끝.토VL, d.몫, d.VL) }
+    else { const 새 = { xa: d.ab[0], xb: d.ab[1], V: d.h, 토: {}, 장: d.장, VL: d.VL, 토VL: {} }; 나눔(새.토, d.몫, d.h); 나눔(새.토VL, d.몫, d.VL); 묶.push(새) }
   }
+  묶.sort((p, q) => p.xa - q.xa)
+  for (const m of 묶) m.L = m.장 >= 0 && m.V > 0 ? m.VL / m.V : null
   return 묶
+}
+/** 높이 띠 기록 하나(사토 · 순성토)의 장 — 흙은 그 띠의 만나는 점 자리 xl ~ xh 에 고르게 */
+function 장고름(장들, 가까운, c, h, 범, 넘음, 머리) {
+  if (!장들.length) return { 장: -1, VL: 0 }
+  const g = 가까운(장들, c.xl, c.xh, 1, 1, 범)
+  if (g.넘) 넘음[머리]++
+  return g.k < 0 ? { 장: -1, VL: 0 } : { 장: g.k, VL: h * g.L }
+}
+/** [a, b] 위에 곧게 바뀌는 무게(wa → wb)로 놓인 흙에서 점 p 까지 길 따라 평균 거리 — 적분 그대로(어림 없음) */
+export function 평균거리(a, b, wa, wb, p) {
+  if (!Number.isFinite(p)) return 0
+  if (b < a) { const t = a; a = b; b = t; const w = wa; wa = wb; wb = w }
+  const L = b - a
+  if (!(L > 1e-12)) return Math.abs(a - p)
+  const α = wa, β = (wb - wa) / L
+  const M0 = (u, v) => α * (v - u) + (β * (v * v - u * u)) / 2
+  const M1 = (u, v) => (α * (v * v - u * u)) / 2 + (β * (v * v * v - u * u * u)) / 3
+  const W = M0(0, L)
+  if (!(W > 0)) return Math.abs((a + b) / 2 - p)
+  const P = p - a
+  let s
+  if (P <= 0) s = M1(0, L) - P * W
+  else if (P >= L) s = P * W - M1(0, L)
+  else s = P * (M0(0, P) - M0(P, L)) - (M1(0, P) - M1(P, L))
+  return s / W
 }
 function 나눔(o, 몫, v) {
   if (!몫) { o['?'] = (o['?'] || 0) + v; return }
@@ -705,7 +830,7 @@ export function 예시토적() {
     ['NO.18', 0, 0, 9.1], ['NO.19', 0, 0, 6.7], ['NO.20', 1.8, 0, 2.2], ['NO.21', 5.6, 0, 0], ['NO.22', 3.9, 0, 0],
   ]
   return {
-    설정: { ...기본설정(), 공사명: '가상 ○○ 도로 개설공사(예시)', 띠: [{ 이름: '불도저', 까지: '60' }, { 이름: '덤프트럭', 까지: '' }] },
+    설정: { ...기본설정(), 공사명: '가상 ○○ 도로 개설공사(예시)', 띠: [{ 이름: '불도저', 까지: '60' }, { 이름: '덤프트럭', 까지: '' }], 사토장: [{ 이름: '사토장 A', 측: 'NO.0', 밖: '1200' }, { 이름: '사토장 B', 측: 'NO.22', 밖: '1500' }] },
     칸: [{ id: 'a', 이름: '토사', 종: '절', C: '0.9', 씀: true }, { id: 'b', 이름: '리핑암', 종: '절', C: '1.1', 씀: true }, { id: 'f', 이름: '성토', 종: '성' }],
     줄: 표.map(([측, a, b, f]) => ({ 측, 거: '', 값: { a: a ? String(a) : '', b: b ? String(b) : '', f: f ? String(f) : '' }, 끊: 측 === 'NO.12' })),
   }
