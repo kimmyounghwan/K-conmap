@@ -799,7 +799,9 @@ def to_f(v):
 
 
 # 🩹 G566 기초금액 응답(bsis_row · extra_amounts)에서만 오는 칸 — 공고 목록을 다시 받아 줄을 새로 만들 때 이어 둠(base · lo · hi 와 함께)
-BSIS_KEEP = ("aval", "aparts", "ayn", "gmtrl", "pc")
+BSIS_KEEP = ("aval", "aparts", "ayn", "gmtrl", "pc", "smk")   # ⚖ G578 smk — 응답에 표준시장단가 칸이 실려 옴(Y 더함 · N 없음)
+# ⚖ G578 이번 회차에 본 표준시장단가 칸(«Y·Y» = 0 보다 큼 · 포함 여부 Y …) — 진단 줄에 적어 포함 여부(smkpAmtYn)의 뜻을 실측으로 확인
+SMKP_SEEN = {}
 # 🩹 G567 기초금액 «물어본 시각»(bask · 개별조회 차례) — 목록을 다시 받아도 이어 둬야 «오래 안 물어본 것부터» 차례가 돎.
 #    안 이으면 최근 2~3일 공고는 회차마다 bask 가 지워져 늘 맨 앞(개별조회 250건을 다 씀) → 그 앞 날 공고(마감 임박)는 차례가 안 옴
 #    (11-06 G566 회차: 빈 건 765 · 최근 3일 공고 중 빈 것만 300건 넘음).
@@ -874,6 +876,24 @@ def extra_amounts(item):
             continue
         parts.append([label, v])
         total += v
+    # ⚖ G578(2026-11-07) 표준시장단가 — 2026.7 개편으로 추정가격 100억~300억 «기술형 적격심사» 공사는 표준시장단가 적용 공종 금액도
+    #   낙찰률에서 뺍니다(A값처럼 그대로 더함 · 뉴스핌 2026-07-01 «표준시장단가 적용 항목은 낙찰률 산정 시 제외»).
+    #   나라장터 «기초금액조회» 의 A 도 7개 항목 + 표준시장단가입니다(11-07 대조: 마감 전 14건 모두 «우리 A + 표준시장단가 = 나라장터 A»).
+    #   이 칸을 안 읽어 그 공고들의 하한을 6천만~7억 원 낮게 냈습니다(그대로 넣으면 하한 미달) → 조달청 smkpAmt 를 A값에 더합니다.
+    #   ⚠️ 0 보다 크면 포함 여부(smkpAmtYn)와 상관없이 더합니다 — 본 것 15건 모두 나라장터 A 에 들어 있었고, 크게 잡는 쪽이 실격을 막습니다.
+    #   smk: 응답에 표준시장단가 칸이 실려 왔다는 표시(Y 더함 · N 없음) — 화면은 추정가격 100억 넘는 공고를 smk 가 있어야 계산합니다.
+    _low = {str(k).lower(): v for k, v in item.items()} if isinstance(item, dict) else {}
+    if "smkpamt" in _low or "smkpamtyn" in _low:
+        sv = to_int(_low.get("smkpamt") or 0)
+        syn = str(_low.get("smkpamtyn") or "").strip().upper() or "-"
+        _k = ("Y" if sv > 0 else "0") + "·" + syn
+        SMKP_SEEN[_k] = SMKP_SEEN.get(_k, 0) + 1
+        if sv > 0:
+            parts.append(["표준시장단가", sv])
+            total += sv
+            out["smk"] = "Y"
+        else:
+            out["smk"] = "N"
     if total > 0:
         out["aval"] = total
         out["aparts"] = parts
@@ -885,6 +905,30 @@ def extra_amounts(item):
     if g > 0:
         out["gmtrl"] = g
     return out
+
+
+STD_EST = 10_000_000_000      # ⚖ G578 추정가격 100억 — 표준시장단가가 A값에 들 수 있는 공고(기술형 적격심사 100억~300억 · 300억 넘으면 종합심사)
+
+
+def 표준대상(r):
+    """⚖ G578 표준시장단가가 A값에 들 수 있는 공고 — 추정가격 100억 이상(추정가격이 없으면 기초금액 110억 이상).
+       화면 bidmath.js 표준대상 과 같은 선입니다(시험_표준시장단가 가 대조)."""
+    est = to_int((r or {}).get("est") or 0)
+    if est > 0:
+        return est >= STD_EST
+    return to_int((r or {}).get("base") or 0) >= STD_EST * 11 // 10
+
+
+def 표준바꿈(row, b):
+    """⚖ G578 표준시장단가 칸을 못 받은 줄(smk 없음) → 응답 b 의 A값(표준시장단가 포함) · 내역 · 적용 여부 · smk 로 바꿉니다.
+       응답의 A값이 0 이면 줄의 A값도 지웁니다(나라장터 «A 0 원» 과 같게). b 에 ayn(Y/N)이 있을 때만 부릅니다."""
+    for f in ("aval", "aparts"):
+        if b.get(f) is not None:
+            row[f] = b[f]
+        else:
+            row.pop(f, None)
+    row["ayn"] = b["ayn"]
+    row["smk"] = b["smk"]
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1379,14 +1423,22 @@ def put_licg(row, no, names):
 
 
 def bsis_one(key, no, kind):
-    """공고번호로 한 건만. 목록조회에서 빠진 건을 메운다 (inqryDiv=2)."""
+    """공고번호로 한 건만. 목록조회에서 빠진 건을 메운다 (inqryDiv=2).
+       ⚖ G578 차수가 여럿 오면 A값 적용 여부(ayn)가 실린 응답 가운데 가장 뒤 차수를 씁니다 — 이제 기초금액 · A값이 다 있는
+       100억 넘는 공고도 표준시장단가 때문에 다시 묻는데, 앞 차수(000) 값으로 정정 뒤 값을 덮으면 안 되고
+       취소 차수 응답은 A 칸이 비어 옵니다. ayn 이 실린 응답이 없으면 전처럼 기초금액이 있는 첫 응답."""
+    first, best, best_ord = None, None, ""
     for it in fetch(BSIS[kind], key, None,
                     {"inqryDiv": "2", "bidNtceNo": no}, label=f"기초금액 {no}"):
         r = bsis_row(it)
         if r:
             r.update(extra_amounts(it))
-            return r
-    return None
+            if first is None:
+                first = r
+            o = str(pick(it, "bidNtceOrd") or "").strip().zfill(3)
+            if r.get("ayn") in ("Y", "N") and (best is None or o > best_ord):
+                best, best_ord = r, o
+    return best or first
 
 
 # 화면에 싣는 순위 개수. 전부 실으면 파일이 터집니다 —
@@ -3745,7 +3797,7 @@ def main():
                     # 🩹 G567 bask(기초금액 물어본 시각)도 이어 둠 — 개별조회 «오래 안 물어본 것부터» 차례가 돌게(공고 저장소 기초이어와 같음)
                     for f in ("base", "lo", "hi", "lic",
                               "aval", "aparts", "ayn", "gmtrl", "np",
-                              "llr", "est", "ptot", "pdrw", "pc", "bask"):
+                              "llr", "est", "ptot", "pdrw", "pc", "bask", "smk"):
                         if prev.get(f) is not None:
                             r[f] = prev[f]
                     # ⚠️ 2026-09-03 — 순위 조회로 채운 것을 개찰목록 수집이 덮어쓰면 안 됩니다.
@@ -3803,6 +3855,11 @@ def main():
                             if row.get(f) is None and b.get(f) is not None:
                                 row[f] = b[f]
                                 hit = True
+                        # ⚖ G578 표준시장단가 칸을 못 받은 줄(smk 없음)은 이번 응답의 A값으로 바꿈 — 표준시장단가가 더해졌을 수 있음.
+                        #   응답에 A값 적용 여부(ayn)가 있을 때만(취소 차수 응답은 A 칸이 비어 와 덮으면 A값이 지워짐).
+                        if row.get("smk") is None and b.get("smk") is not None and b.get("ayn") in ("Y", "N"):
+                            표준바꿈(row, b)
+                            hit = True
                         if hit:
                             n_aval += 1
             time.sleep(args.sleep)
@@ -3927,15 +3984,32 @@ def main():
 
     # ── 화면에 실릴 최근 건 중 기초금액이 빈 것만 공고번호로 개별 보충 ──
     todo = []
+    todo_why = {"기초": 0, "A값": 0, "표준시장단가": 0, "취소공고 뺌": 0}
+    n_std = 0
     for kind in KINDS:
         # 마감 전 공고를 마감 임박 순으로 — 사람들이 실제로 계산하는 순서입니다
         live_rows = [r for r in live[kind].values()
                      if dt_digits(r.get("close")).ljust(14, "0")
                      >= datetime.now(KST).strftime("%Y%m%d%H%M%S")]
         live_rows.sort(key=lambda r: dt_digits(r.get("close")))
+        # ⚖ G578 ① 100억 넘는 공고 가운데 표준시장단가 칸을 못 받은 것(smk 없음)을 맨 앞에 — 화면이 이것을 받아야 금액을 냅니다
+        #   ② 취소공고는 묻지 않음 — 입찰이 취소돼 A값이 원래 없음(11-07 «정정 · 기초 있음 · A값 없음» 70건 중 68건 · 나라장터 «실공고(취소공고)»)
+        #   ③ A값 적용 여부(ayn Y/N)를 이미 받은 줄은 A값이 0 이어도 다시 안 물음(나라장터도 «A 0 원» — 11-07 10건 대조)
         for r in live_rows:
-            if not r.get("base") or not r.get("aval"):
+            if str(r.get("kind") or "") == "취소공고":
+                todo_why["취소공고 뺌"] += 1
+            elif r.get("base") and r.get("smk") is None and 표준대상(r):
                 todo.append((kind, r))
+                todo_why["표준시장단가"] += 1
+        for r in live_rows:
+            if str(r.get("kind") or "") == "취소공고":
+                continue
+            if not r.get("base"):
+                todo.append((kind, r))
+                todo_why["기초"] += 1
+            elif not r.get("aval") and str(r.get("ayn") or "") not in ("Y", "N"):
+                todo.append((kind, r))
+                todo_why["A값"] += 1
         # 그다음 개찰 목록에서 기초금액이 빈 것
         rows = sorted(trim(first[kind], SHOW_DAYS, "dt").values(),
                       key=lambda r: dt_digits(r.get("dt")), reverse=True)
@@ -3961,19 +4035,32 @@ def main():
     uniq.sort(key=lambda kr: str(kr[1].get("bask") or ""))
     if uniq:
         print(f"  · 기초금액 개별조회 {min(len(uniq), BSIS_ONE_CAP):,}건 "
-              f"(빈 건 {len(uniq):,} — 오래 안 물어본 것부터)")
+              f"(빈 건 {len(uniq):,} — 오래 안 물어본 것부터)"
+              f" · 까닭: 공고 기초 {todo_why['기초']:,} · A값 {todo_why['A값']:,}"
+              f" · 100억 넘는 공고 표준시장단가 {todo_why['표준시장단가']:,} · 취소공고 뺌 {todo_why['취소공고 뺌']:,}")
         for kind, r in uniq[:BSIS_ONE_CAP]:
             b = bsis_one(key, r["no"], kind)
             r["bask"] = now_ts          # 물어본 시각 (다음 회차에서 뒤로 밀립니다)
             if b:
                 had = bool(r.get("base"))
+                was_std = r.get("smk") is None and b.get("smk") is not None
                 r.update(b)
+                # ⚖ G578 응답에 A값 적용 여부가 있는데 A값이 없으면(0 원) 줄의 옛 A값 · 내역도 지움 — 나라장터 «A 0 원» 과 같게
+                if b.get("ayn") in ("Y", "N") and b.get("aval") is None:
+                    r.pop("aval", None)
+                    r.pop("aparts", None)
+                if was_std:
+                    n_std += 1
                 if had:
                     n_aval += 1
                 else:
                     n_base += 1
             time.sleep(args.sleep / 2)
-    print(f"  · 기초금액 확보 {n_base:,}건")
+    print(f"  · 기초금액 확보 {n_base:,}건" + (f" · 표준시장단가 칸 새로 받음 {n_std:,}건" if n_std else ""))
+    if SMKP_SEEN:
+        # ⚖ G578 표준시장단가 칸 실측 — «Y·Y» 0 보다 큼 · 포함 여부 Y / «0·N» 0 · N … (포함 여부 뜻을 확인하려고 적음)
+        print("  · 🧱 표준시장단가 칸(이번 회차 기초금액 응답): "
+              + " · ".join(f"{k} {v:,}" for k, v in sorted(SMKP_SEEN.items())))
 
     # ⚠️ 순서 중요: 잘라내기 전에 누적 CSV 로 먼저 옮긴다
     # ── 소급 보충 ────────────────────────────────────────────────
@@ -4161,6 +4248,10 @@ def main():
                 if (r.get(f) in (None, "", 0, [])) and src.get(f) not in (None, "", 0, []):
                     r[f] = src[f]
                     joined += 1
+            # ⚖ G578 공고 쪽이 표준시장단가 칸을 받았으면(smk) 개찰 줄 A값도 같게 — 채점 · 성적이 같은 A값으로
+            if src.get("smk") and not r.get("smk") and src.get("ayn") in ("Y", "N"):
+                표준바꿈(r, src)
+                joined += 1
     if joined:
         print(f"  · 공고→개찰 이어붙임: 낙찰하한율·추정가격 등 {joined:,}칸")
 
@@ -4956,6 +5047,8 @@ def main():
                 # 🗺 G221 참가가능지역 열쇠(«전남» · «전남 장흥군» · «?») — 비면 지역 제한 정보 없음.
                 #   업체 화면 «참여할 수 있는 공고» 가 씀. rgnb(판단기준)는 수의계약에만 와서 지역을 못 가립니다.
                 r.get("rgk") or rgn_keys(r.get("rgn")),
+                # ⚖ G578 표준시장단가 칸을 받았나(Y 더함 · N 없음 · 빈칸 모름) — 화면이 추정가격 100억 넘는 공고는 이것이 있어야 계산
+                r.get("smk") or "",
                 # ⚖ 2026-10-21 기초금액 중 순공사원가(조달청 bssAmtPurcnstcst · 없으면 0) — 바로투찰 «순공사원가 98 %» 선
                 int(r.get("pc") or 0),
             ])
@@ -4965,7 +5058,7 @@ def main():
                      "llr", "est", "lic", "aval", "gmtrl",
                      "ayn", "ptot", "pdrw", "url",
                      "site", "rgnb", "joint", "mthd", "swin", "rebid",
-                     "enp", "enpn", "dt", "sido", "dsn", "enpb", "jnt", "tg", "nt", "licg", "rgs", "pc"],
+                     "enp", "enpn", "dt", "sido", "dsn", "enpb", "jnt", "tg", "nt", "licg", "rgs", "smk", "pc"],
                "pick": pick,
                "r": rows}
         path = os.path.join(OUT, "bidindex.json")

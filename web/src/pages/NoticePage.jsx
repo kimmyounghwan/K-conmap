@@ -199,7 +199,7 @@ function OpenNotice({ r }) {
             est 가 없으면 배정예산(총사업비)이 「추정가격」 이라는 이름으로 나갔습니다.
             estOf 가 기초금액에서 메우고, 그래도 모르면 이름표를 바꿉니다. */}
         <div><span>{estOf(r) > 0 ? '추정가격' : '배정예산'}</span><b>{won(estOf(r) || r.budget)}</b></div>
-        {r.aval > 0 && <div><span>A값</span><b>{won(r.aval)}</b></div>}
+        {r.aval > 0 && <div><span>A값</span><b>{won(r.aval)}{r.smk === 'Y' ? ' (표준시장단가 포함)' : ''}</b></div>}
         {r.llr > 0 && <div><span>낙찰하한율</span><b>{pct(r.llr, 3)}</b></div>}
         {r.lo != null && r.hi != null && <div><span>예가범위</span><b>{r.lo}% ~ {r.hi}%</b></div>}
         <div><span>공고번호</span><b>{r.no}{r.ord ? `-${r.ord}` : ''}</b></div>

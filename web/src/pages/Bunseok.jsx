@@ -24,6 +24,7 @@ import 분석실설명 from '../분석실설명.jsx'
 import { getBidIndex, indexRows } from '../lib/data.js'
 import { 세기 } from '../lib/받은수.jsx'
 import { won } from '../lib/fmt.js'
+import { 표준모름 } from '../lib/bidmath.js'   /* ⚖ G578 100억 넘는 공고 · 표준시장단가를 A값에 더했는지 모름 */
 
 export default function Bunseok() {
   const [sp, setSp] = useSearchParams()
@@ -95,7 +96,9 @@ export default function Bunseok() {
       </section>
       <section className="bsr-mid" aria-label="분석">
         {p ? (
-          <분석판 inst={p.inst} lo={p.lo} hi={p.hi} base={상태.base} llr={상태.llr} aval={상태.aval} pc={상태.pc || 0}
+          /* ⚖ G578 100억 넘는 공고인데 표준시장단가를 A값에 더했는지 모르고(표준모름) A값도 손으로 안 넣었으면
+             «그 사정률이면» 금액을 안 셉니다(하한율 0 으로 넘김 → «하한율이 있어야 금액을 셉니다») — 모자란 A값으로 하한을 낮게 잡음 */
+          <분석판 inst={p.inst} lo={p.lo} hi={p.hi} base={상태.base} llr={표준모름(p) && !(상태.aval > 0) ? 0 : 상태.llr} aval={상태.aval} pc={상태.pc || 0}
             sjMid={상태.sjMid} sjSd={상태.sjSd} 지금금액={상태.ready ? 상태.main : 0} 직접={상태.직접} ag={상태.ag} />
         ) : (
           <div className="bsr-box bsr-empty">

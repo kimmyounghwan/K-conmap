@@ -12,7 +12,7 @@ import { bidAmount, limitAmount, limitRate, r3, c3,
          sjSigma, recommend, buildScen, missingOf, isReady,
          toNum, P50_FALLBACK, shownBid, passProb, QTILES, QTILE_N, quantileBid,
          smartBid, autoRule, canBid, nowStamp, stamp14, lowerLimit,
-         rankBracket, pcLine, enpWhy } from '../lib/bidmath.js'
+         rankBracket, pcLine, enpWhy, 표준대상, 표준모름 } from '../lib/bidmath.js'
 import { 관심남기기, 자리남기기, 관심읽기 } from '../lib/관심도.js'   /* 👥 G499 경쟁 관심도(마감 전엔 «몇 명» 만) */
 import { 기관사정률받기 } from '../lib/기관사정률.js'   /* 📄 G499 품의서 — 기관 최근 사정률 */
 import 바로투찰사용법 from '../바로투찰사용법.jsx'   /* 📖 G499 */
@@ -562,7 +562,8 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
     /* ⚠️ bidPrceCalclAYn='N' 은 «이 공고는 A값을 적용하지 않는다» 는 뜻입니다.
        그런데 수집 쪽은 항목 합계를 그대로 담습니다. 화면에서 걸러야 합니다.
        안 거르면 하한을 실제보다 높게 잡아 «통과인데 실격» 이라고 겁을 줍니다. */
-    setAIn(r.ayn === 'N' ? '' : (r.aval ? String(r.aval) : ''))
+    /* ⚖ G578 100억 넘는 공고인데 표준시장단가를 A값에 더했는지 모르면(표준모름) A값을 채우지 않습니다 — 모자란 A값으로 하한을 낮게 잡음 */
+    setAIn(r.ayn === 'N' || 표준모름(r) ? '' : (r.aval ? String(r.aval) : ''))
     setAAuto(false)
     setPcIn(r.pc > 0 ? String(r.pc) : '')
     setSjPick(null)
@@ -728,7 +729,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
      둘 다 «A값 모름»으로 보고 95분위로 잡았습니다.
      같은 공고인데 채점은 621,509,664원, 직접 계산은 620,811,319원이 나온 원인입니다.
      이제 «어디서 왔든 진짜 A값이 있으면» 안다고 봅니다. 추정값(aAuto)만 빼고요. */
-  const aKnown = (!!picked && (picked.ayn === 'N' || picked.aval > 0))
+  const aKnown = (!!picked && (picked.ayn === 'N' || picked.aval > 0) && !표준모름(picked))
     || (!!res && (res.ayn === 'N' || res.aval > 0))
     || (!aAuto && toNum(aIn) > 0)
   const SJ_K = aKnown ? 0.674 : 1.63          // 75분위 : 95분위
@@ -1522,10 +1523,17 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
             {[['기초금액', picked.base > 0],
               ['낙찰하한율', Number(picked.llr) >= 60 && Number(picked.llr) <= 100],
               ['A값', picked.aval > 0 || picked.ayn === 'N'],
+              ...(표준대상(picked) ? [['표준시장단가(100억 이상)', !표준모름(picked)]] : []),
               ['예비가격 정보', picked.ptot > 0 && picked.pdrw > 0]].map(([nm, ok]) => (
               <span key={nm} className={ok ? 'yes' : 'no'}>{ok ? '✓' : '✕'} {nm}</span>
             ))}
           </div>
+          {표준모름(picked) && (
+            <p>
+              ⚖ 추정가격 100억~300억 적격심사는 <b>표준시장단가 금액도 A값처럼</b> 낙찰률을 곱하지 않고 그대로 더합니다
+              (나라장터 «기초금액조회» 의 A값에 들어 있음). 이 값이 자료에 실려야 금액을 냅니다.
+            </p>
+          )}
           <p className="last">
             보통 <b>기초금액이 공개되면</b> 나머지도 같이 들어옵니다. 자동 갱신 때마다 다시 받아오니
             조금 뒤에 열어보시거나, 아래 «나라장터 공고» 에서 직접 확인하세요.

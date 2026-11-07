@@ -477,6 +477,10 @@ def once(key, ctx, dry=False):
                 for f in ("base", "lo", "hi", "lic", "aval", "ayn", "pc"):
                     if _empty(r.get(f)) and not _empty(prev.get(f)):
                         r[f] = prev[f]
+                # ⚖ G578 표준시장단가 칸 받음 표시(smk)도 — 화면이 추정가격 100억 넘는 공고는 이것이 있어야 금액을 냅니다
+                #   (A값을 지난 줄에서 옮겨 왔을 때만 · 같은 응답에서 온 짝이어야 뜻이 맞음)
+                if not r.get("smk") and prev.get("smk") and r.get("aval") == prev.get("aval"):
+                    r["smk"] = prev["smk"]
             nl = 0
             if any(not r.get("lic") for r in fr):
                 try:
