@@ -10,6 +10,7 @@
  * ■ 표에 엑셀 덩이를 붙이면(칸에 붙여넣기) 그 칸부터 아래 · 오른쪽으로 채움 · 머리 줄이 있는 표는 «📋 엑셀 표 붙여넣기» 로 칸을 맞춰 넣음
  * ■ G574(2026-11-07): ⑤ 운반 띠 «한 운반 구간도 거리별로 나눔»(설정 띠나눔 '거리') — 유토곡선에 띠 거리선(주황 점선) · 운반집계 · 유동표는 마디마다 띠 몫 줄
  * ■ G575(2026-11-07): ⑤ 🚛 사토장 · 토취장(설정 사토장 · 토취장 [{이름, 측, 밖}]) — 요약 · 유동표 · 운반집계 · 집계표에 운반거리 · 유토곡선 맨 아래 ▲ 줄(진출입 측점)
+ * ■ G577(2026-11-07): 📑 설계 양식 탭 — 설계사 토공집계표 · 토량운반계산서 꼴(머리 네 줄 · 칸 합침 · lib/토적양식.js) · 📑 설계 양식 엑셀(격자책 — 칸 합침 그대로) · 인쇄 두 쪽
  * ■ G576(2026-11-07): 🔀 탭 위 «토공유동도» — 측점 사이 남는 · 모자라는 흙 막대 + 운반 몫마다 깎는 곳 무게중심 → 쌓는 곳 무게중심 화살(길이 = 평균운반거리 · 굵기 = 토량) · 사토 ↓ · 순성토 ↑ · 인쇄 한 쪽
  */
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
@@ -19,12 +20,13 @@ import { 토적셈, 기본칸, 기본설정, 빈줄, 예시토적, 예시변경�
 import { 유동줄, 장줄들, 동그라미 } from '../lib/토적받기.js'
 import { 노선살피기, 횡단토적 } from '../lib/토적횡단.js'   /* 📐 G572 횡단면도(DXF · DWG)에서 단면적 바로 읽기 */
 import { use인쇄 } from './공정인쇄.js'
+import { 토공양식, 운반양식 } from '../lib/토적양식.js'   /* 📑 G577 설계 양식 */
 import { 세기 } from '../lib/받은수.jsx'
 
 const 새판 = (이름 = '당초') => ({ 이름, 설정: 기본설정(), 칸: 기본칸(), 줄: Array.from({ length: 10 }, 빈줄) })
 const 새id = () => 'k' + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36)
 const 쉼 = (v, d = 2) => (Number.isFinite(v) ? 끝수(v, d).toLocaleString('ko-KR', { maximumFractionDigits: d }) : '')
-const 보기들 = [['토적', '📋 토적표'], ['곡선', '〽️ 유토곡선'], ['유동', '🔀 토공유동표'], ['운반', '🚚 운반집계'], ['집계', '🧾 집계표'], ['차수', '🔁 차수 비교']]
+const 보기들 = [['토적', '📋 토적표'], ['곡선', '〽️ 유토곡선'], ['유동', '🔀 토공유동표'], ['운반', '🚚 운반집계'], ['집계', '🧾 집계표'], ['양식', '📑 설계 양식'], ['차수', '🔁 차수 비교']]
 const 한쪽 = 200
 
 export function Tojeok({ ex = {} }) {
@@ -196,6 +198,15 @@ export function Tojeok({ ex = {} }) {
       await 토적엑셀(R, V, 차수, 견)
       세기('|토적|엑셀')
     } catch (e) { set알림('⚠️ 엑셀 만들기 실패 — ' + (e?.message || e)) } finally { set바쁨('') }
+  }
+  const 양식엑셀 = async () => {
+    set바쁨('양식')
+    try {
+      const { 양식엑셀바이트 } = await import('../lib/토적양식.js')
+      const { 바이트받기 } = await import('../lib/값엑셀.js')
+      바이트받기('토공집계표_' + (S.공사명 || '토적') + (차수.length > 1 ? '_' + (V.이름 || '') : ''), await 양식엑셀바이트(R, V))
+      세기('|토적|설계양식')
+    } catch (e) { set알림('⚠️ 설계 양식 엑셀 만들기 실패 — ' + (e?.message || e)) } finally { set바쁨('') }
   }
   const DXF = async () => {
     set바쁨('DXF')
@@ -382,6 +393,7 @@ export function Tojeok({ ex = {} }) {
           <div className="kt-btns">
             <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={!!바쁨} onClick={엑셀}>{바쁨 === '엑셀' ? '만드는 중…' : '📗 엑셀로 받기'}</button>
             <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!바쁨} onClick={DXF}>{바쁨 === 'DXF' ? '만드는 중…' : '📐 유토곡선도 DXF'}</button>
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!바쁨} onClick={양식엑셀}>{바쁨 === '양식' ? '만드는 중…' : '📑 설계 양식 엑셀'}</button>
             <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { 인쇄(); 세기('|토적|인쇄') }}>🖨 인쇄(A4 가로)</button>
           </div>
           {보기 === '토적' && <토적표 R={R} />}
@@ -389,6 +401,7 @@ export function Tojeok({ ex = {} }) {
           {보기 === '유동' && <><유동도 R={R} /><유동표 R={R} /></>}
           {보기 === '운반' && <운반표 R={R} />}
           {보기 === '집계' && <집계표 R={R} />}
+          {보기 === '양식' && <><양식표 g={토공양식(R, V)} 끝={R.끝} /><양식표 g={운반양식(R, V)} 끝={2} /></>}
           {보기 === '차수' && (
             차수.length < 2 ? <p className="muted">차수가 하나뿐입니다. 위 <b>＋ 새 차수</b> 를 누르면 지금 것을 베낀 변경 차수가 생기고, 고친 뒤 여기서 증감을 봅니다.</p> : (
               <>
@@ -713,6 +726,34 @@ function 유토그림({ R }) {
 }
 const 좋은간 = (v) => { if (!(v > 0)) return 1; const p = 10 ** Math.floor(Math.log10(v)); const f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p }
 
+/* ── 📑 설계 양식 표 — lib/토적양식.js 격자를 그대로(칸 합침 · 머리 줄 th) · 제목 · 꼬리 줄은 표 밖 ─────────── */
+function 양식표({ g, 끝 }) {
+  const 제목들 = g.줄들.filter((z) => z.칸.length === 1 && (z.칸[0].k === '제목' || z.칸[0].k === '작은글'))
+  const 몸 = g.줄들.filter((z) => !제목들.includes(z))
+  const 자리 = 끝 < 0 ? 6 : 끝
+  const 글 = (k) => (typeof k.v === 'number' ? (k.k === '일반수' ? k.v.toLocaleString('ko-KR', { maximumFractionDigits: 6 }) : 끝수(k.v, 자리).toLocaleString('ko-KR', { maximumFractionDigits: 자리 })) : k.v)
+  const 꼬리 = 제목들.filter((z) => g.줄들.indexOf(z) > 2)
+  return (
+    <div className="tj-yang-box">
+      {제목들.filter((z) => !꼬리.includes(z)).map((z, i) => (z.칸[0].k === '제목' ? <div key={i} className="tj-yang-ttl">{z.칸[0].v}</div> : <p key={i} className="tl-p muted gp-hint">{z.칸[0].v}</p>))}
+      <div className="tj-wrap">
+        <table className="tj-t tj-yang">
+          <tbody>
+            {몸.map((z, i) => (
+              <tr key={i} className={z.칸.some((k) => k.k === '굵은수' || k.k === '굵은글') ? 'sum' : ''}>
+                {z.칸.map((k) => (k.k === '머리'
+                  ? <th key={k.c} colSpan={k.n} rowSpan={k.r}>{k.v}</th>
+                  : <td key={k.c} colSpan={k.n} rowSpan={k.r} className={typeof k.v === 'number' ? (k.k.startsWith('굵은') ? 'b' : '') : 'l'}>{글(k)}</td>))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {꼬리.map((z, i) => <p key={'k' + i} className="tl-p muted gp-hint">{z.칸[0].v}</p>)}
+    </div>
+  )
+}
+
 /* ── 🔀 토공유동도 — 막대(측점 사이 m 당 남는 + · 모자라는 −) + 화살(깎는 곳 무게중심 → 쌓는 곳 무게중심) ─────────── */
 function 유동도({ R }) {
   const 줄 = R.줄
@@ -957,6 +998,8 @@ function 인쇄판({ R, 판 }) {
       <div className="gp-쪽 tj-쪽">{머리('집계표 · 토공유동표')}<집계표 R={R} /><유동표 R={R} /></div>
       <div className="gp-쪽 tj-쪽">{머리('운반집계')}<운반표 R={R} /></div>
       <div className="gp-쪽 tj-쪽">{머리('토적표')}<토적표 R={R} /></div>
+      <div className="gp-쪽 tj-쪽">{머리('토공집계표(설계 양식)')}<양식표 g={토공양식(R, 판)} 끝={R.끝} /></div>
+      <div className="gp-쪽 tj-쪽">{머리('토량운반계산서(설계 양식)')}<양식표 g={운반양식(R, 판)} 끝={2} /></div>
     </>
   )
 }

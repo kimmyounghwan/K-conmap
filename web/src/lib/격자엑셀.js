@@ -27,14 +27,20 @@ const esc = (s) => String(s)
  * 몸 글자 9pt · 작은 글 8pt · 윗글 11pt · 가운데 제목 16pt · 별지3·4 큰 제목 18pt. 위험등급 «상» 은 종이처럼 붉게. */
 export const 꼴 = { 민: 0, 칸: 1, 칸왼: 2, 칸왼위: 3, 머리: 4, 머리빨강: 5, 머리왼: 6, 굵은칸: 7, 제목: 8, 작은칸: 9, 윗글: 10, 큰제목: 11, 없음: 12, 꼬리: 13, 작은칸왼: 14, 회칸: 15, 등급상: 16, 수: 17, 굵은수: 18, 칸nb: 19, 칸왼nb: 20, 수nb: 21, 작은칸nb: 22, 작은칸왼nb: 23,
   /* 🤝 G518 하도급 견적틀 — 수량(일반 · 오른쪽) · 적는 칸(옅은 노랑 · 금액 / 글) · 회칸왼 */
-  수량: 24, 넣칸: 25, 넣칸왼: 26, 회칸왼: 27 }
+  수량: 24, 넣칸: 25, 넣칸왼: 26, 회칸왼: 27,
+  /* 📑 G577 토적컨맵 설계 양식 — 소수 자리 수(#,##0.00 · 0.000 · 0.0 · 안 버림) · 일반 수(적은 그대로 · 오른쪽) */
+  수2: 28, 굵은수2: 29, 수3: 30, 굵은수3: 31, 수1: 32, 굵은수1: 33, 수안: 34, 굵은수안: 35, 일반수: 36 }
 /* (G112) 칸에 class «nb» — 가로줄 없이 세로줄만 */
 const 세로만 = { [1]: 19, [2]: 20, [3]: 20, [17]: 21, [9]: 22, [14]: 23 }
 
 const 가 = (h, v = 'center') => `<alignment horizontal="${h}" vertical="${v}" wrapText="1"/>`
+/* 📑 G577 — 수 칸(테두리 · 오른쪽) 꼴: 수 꼴 번호 · 굵게(1) */
+const 수xf = (fmt, 굵게) => `<xf numFmtId="${fmt}" fontId="${굵게 ? 1 : 0}" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>`
 const xf = (font, fill, border, al) => `<xf numFmtId="0" fontId="${font}" fillId="${fill}" borderId="${border}" xfId="0" applyFont="1"${fill ? ' applyFill="1"' : ''}${border ? ' applyBorder="1"' : ''} applyAlignment="1">${al}</xf>`
 const STYLES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
   '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+  /* 📑 G577 — 사용자 수 꼴(164 · 165 · 166) */
+  '<numFmts count="3"><numFmt numFmtId="164" formatCode="#,##0.000"/><numFmt numFmtId="165" formatCode="#,##0.0"/><numFmt numFmtId="166" formatCode="#,##0.0#####"/></numFmts>' +
   '<fonts count="8">' +
   '<font><sz val="9"/><name val="맑은 고딕"/></font>' +                                   /* 0 몸 */
   '<font><b/><sz val="9"/><name val="맑은 고딕"/></font>' +                               /* 1 굵게 */
@@ -54,7 +60,7 @@ const STYLES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
   /* 2 — (G112) 세로줄만(산안비 항목별 사용내역 몸통처럼 가로줄 없는 칸) */
   '<border><left style="thin"><color rgb="FF000000"/></left><right style="thin"><color rgb="FF000000"/></right><top/><bottom/><diagonal/></border></borders>' +
   '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-  '<cellXfs count="28">' +
+  '<cellXfs count="37">' +
   '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +   /* 0 민 */
   xf(0, 0, 1, 가('center')) +       /* 1 칸 */
   xf(0, 0, 1, 가('left')) +         /* 2 칸왼 */
@@ -84,6 +90,8 @@ const STYLES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
   '<xf numFmtId="3" fontId="0" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">' + 가('right') + '</xf>' +
   xf(0, 3, 1, 가('left')) +
   xf(1, 2, 1, 가('left')) +
+  /* 28~36 — 📑 G577 토적컨맵 설계 양식(뒤에만 더함 — 앞 번호는 그대로) */
+  수xf(4, 0) + 수xf(4, 1) + 수xf(164, 0) + 수xf(164, 1) + 수xf(165, 0) + 수xf(165, 1) + 수xf(166, 0) + 수xf(166, 1) + 수xf(0, 0) +
   '</cellXfs><cellStyles count="1"><cellStyle name="표준" xfId="0" builtinId="0"/></cellStyles></styleSheet>'
 
 /* ── 화면 종이 → 격자 ─────────────────────────────── */

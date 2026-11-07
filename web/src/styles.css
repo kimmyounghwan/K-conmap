@@ -10348,6 +10348,11 @@ a.adinfo-pick:hover, a.adinfo-pick:focus-visible { border-color: var(--ad-btn); 
 .tj-t td.l { text-align: left; } .tj-t td.c { text-align: center; }
 .tj-t td.g { color: var(--text-2); } .tj-t td.b { font-weight: 700; } .tj-t td.neg { color: var(--bad); }
 .tj-t tr > :first-child { position: sticky; left: 0; background: var(--surface); z-index: 1; }
+/* 📑 G577 설계 양식 — 머리 네 줄 합친 칸이라 첫 칸 붙박이 안 함 */
+.tj-yang tr > :first-child { position: static; }
+.tj-yang th { vertical-align: middle; }
+.tj-yang-ttl { font-weight: 800; font-size: 15px; letter-spacing: .35em; text-align: center; margin: 10px 0 2px; }
+.tj-yang-box + .tj-yang-box { margin-top: 18px; }
 .tj-t thead tr > :first-child { background: var(--surface-2); }
 .tj-t tr.sum td { font-weight: 800; background: var(--surface-2); }
 .tj-t tr.sub td { background: var(--surface-2); }

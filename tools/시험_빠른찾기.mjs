@@ -38,6 +38,7 @@ const 표 = [
   ['장비별 운반', '/tools/tojeok'], ['경제 운반거리', '/tools/tojeok'],   /* 🚜 G574 */
   ['사토장 거리', '/tools/tojeok'], ['토취장', '/tools/tojeok'],   /* 🚛 G575 */
   ['토공유동도', '/tools/tojeok'],   /* 🔀 G576 */
+  ['토공집계표', '/tools/tojeok'], ['토량운반계산서', '/tools/tojeok'],   /* 📑 G577 */
 ]
 const 틀린 = 표.filter(([q, to]) => 맨위(q) !== to)
 봐(!틀린.length, `${표.length}가지 말 — 맨 위가 그 화면(노무비 · 초성 · 같은 뜻 «무게 = 중량» · 낱말 둘)`, JSON.stringify(틀린.map(([q, to]) => [q, to, 맨위(q)])))
