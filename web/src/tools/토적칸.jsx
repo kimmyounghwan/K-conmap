@@ -8,11 +8,12 @@
  *   줄 {측, 거, 값{칸id: 단면적}, 끊, 거원?, 값원?} — 거원 · 값원 = 엑셀에서 가져온 «원래 수»(셈 찌꺼기까지 — 설계 엑셀과 끝수까지 같게)
  * ■ 셈: lib/토적.js(시험 node tools/시험_토적.mjs) · 받기: lib/토적받기.js(엑셀 · DXF) · 사용설명서: data/tools.json «tojeok» secs
  * ■ 표에 엑셀 덩이를 붙이면(칸에 붙여넣기) 그 칸부터 아래 · 오른쪽으로 채움 · 머리 줄이 있는 표는 «📋 엑셀 표 붙여넣기» 로 칸을 맞춰 넣음
+ * ■ G574(2026-11-07): ⑤ 운반 띠 «한 운반 구간도 거리별로 나눔»(설정 띠나눔 '거리') — 유토곡선에 띠 거리선(주황 점선) · 운반집계 · 유동표는 마디마다 띠 몫 줄
  */
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { use칸, Row } from './calcs.jsx'
-import { 토적셈, 기본칸, 기본설정, 빈줄, 예시토적, 예시변경토적, 표풀기, 자료시작, 칸알아보기, 가져오기, 차수비교, 끝수, 숫, 높이에서, 측점풀기 } from '../lib/토적.js'
+import { 토적셈, 기본칸, 기본설정, 빈줄, 예시토적, 예시변경토적, 표풀기, 자료시작, 칸알아보기, 가져오기, 차수비교, 끝수, 숫, 높이에서, 측점풀기, 띠글 } from '../lib/토적.js'
 import { 유동줄, 동그라미 } from '../lib/토적받기.js'
 import { 노선살피기, 횡단토적 } from '../lib/토적횡단.js'   /* 📐 G572 횡단면도(DXF · DWG)에서 단면적 바로 읽기 */
 import { use인쇄 } from './공정인쇄.js'
@@ -368,6 +369,7 @@ export function Tojeok({ ex = {} }) {
             <div><span>평균운반거리</span><b>{쉼(R.합.L)} m</b></div>
             <div><span>사토</span><b>{쉼(R.합.사토 + 0)} ㎥{R.합.직접 > 0 ? ' + 바로 ' + 쉼(R.합.직접) : ''}</b></div>
             <div><span>순성토(토취)</span><b>{쉼(R.합.순성토)} ㎥</b></div>
+            {R.띠.filter((t) => t.V > 1e-9).length > 1 && R.띠.filter((t) => t.V > 1e-9).map((t, k) => <div key={'t' + k}><span>🚜 {띠글(t)}</span><b>{쉼(t.V)} ㎥ · {쉼(t.VL / t.V)} m</b></div>)}
           </div>
           <div className="tj-tabs" role="tablist">
             {보기들.map(([k, 이름]) => <button key={k} type="button" role="tab" aria-selected={보기 === k} className={'tj-tab' + (보기 === k ? ' on' : '')} onClick={() => set보기(k)}>{이름}</button>)}
@@ -421,6 +423,11 @@ export function Tojeok({ ex = {} }) {
           </table>
         </div>
         <div className="kt-btns"><button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={() => 설('띠', [...(S.띠 || []), { 이름: '', 까지: '' }])}>＋ 띠</button></div>
+        <div className="tj-radio" role="radiogroup" aria-label="한 운반 구간을 나누는 법">
+          <label className="tj-check"><input type="radio" name="tj-띠나눔" checked={S.띠나눔 !== '거리'} onChange={() => 설('띠나눔', '구간')} /> <span>한 운반 구간 = 한 장비 <i>— 구간(①②…)마다 평균운반거리로 띠 하나</i></span></label>
+          <label className="tj-check"><input type="radio" name="tj-띠나눔" checked={S.띠나눔 === '거리'} onChange={() => 설('띠나눔', '거리')} /> <span>한 운반 구간도 거리별로 나눔 <i>— 유토곡선에 띠 거리 길이의 가로선(주황 점선)을 그어 그 위(짧은 운반)는 짧은 장비, 아래(긴 운반)는 긴 장비</i></span></label>
+        </div>
+        {S.띠나눔 === '거리' && R.띠.length < 2 && <p className="tl-p muted">띠를 둘 이상(예: 불도저 60 · 덤프트럭 비움) 넣어야 나눕니다.</p>}
         <div className="tl-grid"><Row label="토취 흙 C" hint="순성토를 자연 상태로"><input inputMode="decimal" value={S.토취C || ''} onChange={(e) => 설('토취C', e.target.value)} placeholder="비우면 다짐 기준만" /></Row></div>
       </details>
     </>
@@ -620,6 +627,17 @@ function 유토그림({ R }) {
             {g.번 > 0 && <><line x1={X(g.xs)} x2={X(g.xs)} y1={위} y2={H - 아래} className="tj-brk" /><text x={X(g.xs) + 4} y={위 + 12} className="tj-bl">운반 끊음</text></>}
           </g>
         ))}
+        {(R.띠선 || []).map((s, k) => {
+          /* 글은 마디 안쪽(언덕은 선 아래 · 골짜기는 선 위) — 평형선에 붙은 선이면 반대쪽에 */
+          const g = R.구간[s.구간], 붙음 = !!g && Math.abs(Y(s.m) - Y(g.b)) < 16
+          const 아래글 = (s.꼴 === '아래') === 붙음
+          return (
+            <g key={'d' + k}>
+              <line x1={X(s.xa)} x2={X(s.xb)} y1={Y(s.m)} y2={Y(s.m)} className="tj-dl" />
+              <text x={(X(s.xa) + X(s.xb)) / 2} y={Y(s.m) + (아래글 ? 13 : -5)} className="tj-dlt">{(s.이름 ? s.이름 + ' ' : '') + 쉼(s.까지) + ' m'}</text>
+            </g>
+          )
+        })}
         <polyline points={점.map((p) => X(p.x).toFixed(1) + ',' + Y(p.m).toFixed(1)).join(' ')} className="tj-curve" />
         {R.마디.map((q) => {
           const g = R.구간[q.구간]
@@ -638,13 +656,14 @@ function 유토그림({ R }) {
           )
         })}
         <text x={14} y={위 - 22} className="tj-ax">누가토량(㎥ · 다짐 기준)</text>
-        <g transform={`translate(${W - 오 - 470}, 16)`} className="tj-lg">
+        <g transform={`translate(${W - 오 - ((R.띠선 || []).length ? 562 : 470)}, 16)`} className="tj-lg">
           <line x1="0" x2="20" y1="0" y2="0" className="tj-curve" /><text x="25" y="4">유토곡선</text>
           <line x1="90" x2="110" y1="0" y2="0" className="tj-bal" /><text x="115" y="4">평형선</text>
           <rect x="170" y="-6" width="16" height="12" className="tj-hill" /><text x="190" y="4">→ 순방향</text>
           <rect x="255" y="-6" width="16" height="12" className="tj-valley" /><text x="275" y="4">← 역방향</text>
           <line x1="340" x2="360" y1="0" y2="0" className="tj-spoil" /><text x="364" y="4">사토</text>
           <line x1="400" x2="420" y1="0" y2="0" className="tj-borrow" /><text x="424" y="4">순성토</text>
+          {(R.띠선 || []).length > 0 && <><line x1="472" x2="492" y1="0" y2="0" className="tj-dl" /><text x="496" y="4">띠 거리선</text></>}
         </g>
       </svg>
     </div>
@@ -706,6 +725,8 @@ function 운반표({ R }) {
   const 운 = R.마디.filter((q) => q.V > 1e-9)
   if (!운.length) return <p className="muted">종방향 운반이 없습니다.</p>
   const 셋 = (v, vl) => [v > 0 ? 쉼(vl / v) : '', v > 0 ? 쉼(v) : '', v > 0 ? 쉼(vl) : '']
+  /* 거리별로 나눈 구간은 띠 몫마다 한 줄(① 불도저 · ① 덤프트럭) */
+  const 줄들 = 운.flatMap((q) => ((q.띠별 || []).length > 1 ? q.띠별.map((p) => ({ q, p, 키: q.번 + '-' + p.t })) : [{ q, p: null, 키: String(q.번) }]))
   return (
     <div className="tj-wrap">
       <table className="tj-t">
@@ -714,14 +735,17 @@ function 운반표({ R }) {
           <tr>{[...씀칸, { id: '계' }].flatMap((c) => [<th key={c.id + 'L'} className="s">L(m)</th>, <th key={c.id + 'V'} className="s">V(㎥)</th>, <th key={c.id + 'X'} className="s">V×L</th>])}</tr>
         </thead>
         <tbody>
-          {운.map((q) => (
-            <tr key={q.번}>
-              <td className="c">{동그라미(q.번)}</td><td className="c">{q.방향}</td>
-              {씀칸.flatMap((c) => 셋(q.토V[c.id] || 0, q.토VL[c.id] || 0).map((t, i) => <td key={c.id + i}>{t}</td>))}
-              {셋(q.V, q.VL).map((t, i) => <td key={'s' + i} className={i === 0 ? 'b' : ''}>{t}</td>)}
-              <td className="c">{q.띠 || ''}</td>
-            </tr>
-          ))}
+          {줄들.map(({ q, p, 키 }) => {
+            const o = p || q
+            return (
+              <tr key={키}>
+                <td className="c">{동그라미(q.번)}</td><td className="c">{q.방향}</td>
+                {씀칸.flatMap((c) => 셋(o.토V[c.id] || 0, o.토VL[c.id] || 0).map((t, i) => <td key={c.id + i}>{t}</td>))}
+                {셋(o.V, o.VL).map((t, i) => <td key={'s' + i} className={i === 0 ? 'b' : ''}>{t}</td>)}
+                <td className="c">{p ? 띠글(p) : q.띠 || ''}</td>
+              </tr>
+            )
+          })}
           <tr className="sum">
             <td className="l" colSpan={2}>계</td>
             {씀칸.flatMap((c) => 셋(R.합.토V[c.id] || 0, R.합.토VL[c.id] || 0).map((t, i) => <td key={c.id + i}>{t}</td>))}
@@ -736,7 +760,7 @@ function 운반표({ R }) {
           ))}
         </tbody>
       </table>
-      <p className="tl-p muted gp-hint">다짐 기준 · L = V×L ÷ V · 토질별로 나눈 것은 그 측점 보정 절토 비례(운반 흙은 늘 절토가 남는 구간에서 나옴) · 장비 띠는 아래 ⑤ 에서 정함.</p>
+      <p className="tl-p muted gp-hint">다짐 기준 · L = V×L ÷ V · 토질별로 나눈 것은 그 측점 보정 절토 비례(운반 흙은 늘 절토가 남는 구간에서 나옴) · 장비 띠는 아래 ⑤ 에서 정함{R.띠나눔 === '거리' ? ' — 지금은 «한 운반 구간도 거리별로 나눔»(높이 띠마다 실제 운반거리로 나눠 셈 · 유토곡선의 주황 점선 위는 짧은 장비)' : ''}.</p>
     </div>
   )
 }

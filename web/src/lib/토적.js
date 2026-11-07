@@ -23,6 +23,11 @@
  *   운반토량 V = 띠 높이 합 · V×L = 띠 높이 × 짝 사이 거리(띠 안에서 곧은 줄 → 가운데 높이 값이 곧 평균) → 평균운반거리 = V×L ÷ V.
  *   토질별: 운반 · 사토 흙은 늘 «오름» 선분에서 나옴 → 그 줄 보정 절토(유용) 비례로 나눔.
  * ■ 검산: 보정 절토(유용) = 횡방향 + 종방향 + 사토(곡선) · 성토 = 횡방향 + 종방향 + 순성토
+ * ■ 운반 띠(장비) 나눔(G574 · 2026-11-07 · 소장님께 말씀드린 차례 ② «한 운반 구간을 거리별 장비로»):
+ *   «구간»(기본) — 마디(운반 구간)마다 평균운반거리로 띠 하나(한 구간 = 한 장비).
+ *   «거리» — 한 마디도 높이 띠마다 실제 운반거리로 나눔. 높이 띠 안에서 운반거리는 높이에 곧게 바뀌므로(거lo → 거hi)
+ *     띠 거리(까지)와 같아지는 높이에서 잘라 짧은 쪽 · 긴 쪽 장비에 나눔 — 어림 없음. 그 높이에 그은 가로선(길이 = 띠 거리)이
+ *     «띠 거리선»(외국 매스커브의 free haul 선과 같은 꼴): 봉우리 쪽(짧은 운반)은 짧은 장비, 평형선 쪽(긴 운반)은 긴 장비.
  * ■ 시험: node tools/시험_토적.mjs
  */
 
@@ -108,7 +113,9 @@ export const 기본칸 = () => [
   { id: 'c', 이름: '발파암', 종: '절', C: '', 씀: true },
   { id: 'f', 이름: '성토', 종: '성' },
 ]
-export const 기본설정 = () => ({ 공사명: '', 간격: '20', 꼴: '자동', 방법: '평균단면', 끝: '2', 변이점: false, 평형: '시점', 평형높이: [], 띠: [], 토취C: '' })
+export const 기본설정 = () => ({ 공사명: '', 간격: '20', 꼴: '자동', 방법: '평균단면', 끝: '2', 변이점: false, 평형: '시점', 평형높이: [], 띠: [], 띠나눔: '구간', 토취C: '' })
+/** 띠 이름 — 이름이 비면 «60 m 까지» · «그 밖» */
+export const 띠글 = (t) => (t && t.이름) || (t && Number.isFinite(t.까지) ? t.까지 + ' m 까지' : '그 밖')
 export const 빈줄 = () => ({ 측: '', 거: '', 값: {}, 끊: false })
 
 /* ── 셈 ─────────────────────────────────────────────────────────── */
@@ -262,6 +269,12 @@ export function 토적셈(입 = {}) {
   for (const p of 점) { const q = 곡[곡.length - 1]; if (q && Math.abs(q.x - p.x) < 1e-9) { if (Math.abs(q.m - p.m) < 1e-9) continue; p.x = q.x + 1e-9 } 곡.push(p) }
 
   /* ⑤ 구간(운반 못 건넘) · 평형선 · 띠 셈 */
+  const 띠틀 = (S.띠 || []).map((t) => ({ 이름: String(t?.이름 || '').trim(), 까지: 숫(t?.까지) })).filter((t) => t.이름 || Number.isFinite(t.까지))
+    .sort((p, q) => (Number.isFinite(p.까지) ? p.까지 : Infinity) - (Number.isFinite(q.까지) ? q.까지 : Infinity))
+  const 띠 = (띠틀.length ? 띠틀 : [{ 이름: '운반', 까지: NaN }]).map((t) => ({ ...t, V: 0, VL: 0, 마디: [] }))
+  const 거리별 = S.띠나눔 === '거리' && 띠.length > 1
+  const 띠고름 = (L) => { const t = 띠.findIndex((u) => Number.isFinite(u.까지) && L <= u.까지 + 1e-9); return t < 0 ? 띠.length - 1 : t }
+  const 띠선 = []
   const 끊x = 줄.slice(1, -1).filter((z) => z.끊).map((z) => z.x)
   const 경계 = n ? [줄[0].x, ...끊x.filter((x, i, a) => x > 줄[0].x && (i === 0 || x > a[i - 1])), 줄[n - 1].x] : []
   const 구간 = []
@@ -287,6 +300,7 @@ export function 토적셈(입 = {}) {
         나눔(q.토V, r.절.s.몫, r.h); 나눔(q.토VL, r.절.s.몫, r.h * r.거)
         q.절x = 넓힘(q.절x, r.절); q.성x = 넓힘(q.성x, r.성)
         q.최소 = Math.min(q.최소, r.거lo, r.거hi); q.최대 = Math.max(q.최대, r.거lo, r.거hi)
+        if (거리별) 거리로나눔(r, 띠, 띠고름, q, 띠선)
       } else if (r.꼴 === '사') { q.사 += r.h; 나눔(q.토사, r.절.s.몫, r.h); q.사x = 넓힘(q.사x, r.절); q.사들.push({ ab: 넓힘(null, r.절), h: r.h, 몫: r.절.s.몫 }) }
       else { q.순 += r.h; q.순x = 넓힘(q.순x, r.성); q.순들.push({ ab: 넓힘(null, r.성), h: r.h, 몫: null }) }
     }
@@ -299,6 +313,7 @@ export function 토적셈(입 = {}) {
       q.사묶음 = 묶기(q.사들); q.순묶음 = 묶기(q.순들)
       delete q.사들; delete q.순들
       if (q.V > 1e-9 || q.사 > 1e-9 || q.순 > 1e-9) 마디.push(q)
+      else delete q.띠몫
     }
     구간.push({ 번: 번g, xs, xe, b, 꼴, 시높, 끝높: 쪽[쪽.length - 1].m, 점: 쪽, 마디: 마 })
   }
@@ -312,18 +327,26 @@ export function 토적셈(입 = {}) {
   const 사토자연 = {}
   for (const [id, v] of Object.entries(토사토)) { const j = 칸.findIndex((c) => c.id === id); 사토자연[id] = j >= 0 ? v / C[j] : v }
   const 토취C = 숫(S.토취C)
-  const 띠틀 = (S.띠 || []).map((t) => ({ 이름: String(t?.이름 || '').trim(), 까지: 숫(t?.까지) })).filter((t) => t.이름 || Number.isFinite(t.까지))
-    .sort((p, q) => (Number.isFinite(p.까지) ? p.까지 : Infinity) - (Number.isFinite(q.까지) ? q.까지 : Infinity))
-  const 띠 = (띠틀.length ? 띠틀 : [{ 이름: '운반', 까지: NaN }]).map((t) => ({ ...t, V: 0, VL: 0, 마디: [] }))
+  /* 운반 띠: «구간» 은 마디 평균운반거리로 띠 하나 · «거리» 는 ⑤ 에서 높이 띠마다 나눈 몫(띠몫)을 그대로 — 띠별 = [{t, 이름, 까지, V, VL, L, 토V, 토VL, 절x, 성x, 최소, 최대}] */
   for (const q of 마디) {
-    if (!(q.V > 1e-9)) continue
-    let t = 띠.findIndex((u) => Number.isFinite(u.까지) && q.L <= u.까지 + 1e-9)
-    if (t < 0) t = 띠.length - 1
-    q.띠 = 띠[t].이름 || ''
-    띠[t].V += q.V; 띠[t].VL += q.VL; 띠[t].마디.push(q.번)
+    const 몫 = q.띠몫
+    delete q.띠몫
+    if (!(q.V > 1e-9)) { q.띠별 = []; continue }
+    q.띠별 = 거리별
+      ? [...몫.values()].filter((p) => p.V > 1e-9).sort((a, b) => a.t - b.t)
+      : [{ t: 띠고름(q.L), V: q.V, VL: q.VL, 토V: q.토V, 토VL: q.토VL, 절x: q.절x, 성x: q.성x, 최소: q.최소, 최대: q.최대 }]
+    for (const p of q.띠별) {
+      p.L = p.V > 0 ? p.VL / p.V : 0
+      p.이름 = 띠[p.t].이름 || ''
+      p.까지 = 띠[p.t].까지
+      띠[p.t].V += p.V; 띠[p.t].VL += p.VL
+      if (!띠[p.t].마디.includes(q.번)) 띠[p.t].마디.push(q.번)
+    }
+    q.띠 = 거리별 ? q.띠별.map((p) => 띠글(p)).join(' · ') : q.띠별[0].이름
   }
-  if (띠틀.length && Number.isFinite(띠틀[띠틀.length - 1].까지) && 마디.some((q) => q.V > 1e-9 && q.L > 띠틀[띠틀.length - 1].까지 + 1e-9)) {
-    경고.push(`🚚 평균운반거리가 마지막 띠(${띠틀[띠틀.length - 1].이름} ${띠틀[띠틀.length - 1].까지} m)보다 먼 운반이 있어 그 띠에 넣었습니다 — 띠를 하나 더 두십시오`)
+  for (const s of 띠선) { s.꼴 = s.마디.꼴; s.구간 = s.마디.구간; s.마디 = s.마디.번 }
+  if (띠틀.length && Number.isFinite(띠틀[띠틀.length - 1].까지) && 마디.some((q) => q.V > 1e-9 && (거리별 ? q.최대 : q.L) > 띠틀[띠틀.length - 1].까지 + 1e-9)) {
+    경고.push(`🚚 ${거리별 ? '운반거리' : '평균운반거리'}가 마지막 띠(${띠틀[띠틀.length - 1].이름} ${띠틀[띠틀.length - 1].까지} m)보다 먼 운반이 있어 그 띠에 넣었습니다 — 띠를 하나 더 두십시오`)
   }
   const 검절 = 유용합 - (횡합 + 종 + 사토), 검성 = 성합 - (횡합 + 종 + 순성토)
   const 잣대 = Math.max(1, 유용합, 성합)
@@ -331,7 +354,7 @@ export function 토적셈(입 = {}) {
   if (!맞음) 오류.push(`검산이 맞지 않습니다(절토 차 ${끝수(검절, 4)} · 성토 차 ${끝수(검성, 4)}) — 이 화면을 캡처해 맵톡에 남겨 주십시오`)
 
   return {
-    설정: S, 칸, C, C없음, 방법, 간격, 끝, 줄, 점: 곡, 구간, 마디, 띠, 자리, 자리꼴,
+    설정: S, 칸, C, C없음, 방법, 간격, 끝, 줄, 점: 곡, 구간, 마디, 띠, 띠나눔: 거리별 ? '거리' : '구간', 띠선, 자리, 자리꼴,
     합: {
       칸: 칸합, 보정: 보정합, 유용: 유용합, 성: 성합, 횡: 횡합, 종, 종VL, L: 종 > 0 ? 종VL / 종 : 0,
       사토, 사토토: 토사토, 사토자연, 직접: 직접합, 직접칸: 안씀j.map((j) => ({ id: 칸[j].id, 이름: 칸[j].이름, V: 칸합[j] })),
@@ -340,6 +363,41 @@ export function 토적셈(입 = {}) {
     },
     검산: { 절: 검절, 성: 검성, 맞음 },
     경고, 오류, 변이들,
+  }
+}
+
+/** 거리별 장비 나눔 — 한 높이 띠(운반 기록 r: lo ~ lo+h) 안에서 짝 사이 거리는 높이에 곧게 바뀜(거lo → 거hi).
+ *  띠 거리(까지)와 같아지는 높이 s 에서 잘라 짧은 쪽 · 긴 쪽 띠에 V · V×L · 토질 · 자리를 나눔(어림 없음).
+ *  자른 높이에서 두 만나는 점을 잇는 가로선(길이 = 띠 거리) = 띠선 [{마디, t, 이름, 까지, m, xa, xb}] */
+function 거리로나눔(r, 띠, 띠고름, q, 띠선) {
+  const a = r.거lo, d = r.거hi - r.거lo
+  const 자름 = [0, 1]
+  if (Math.abs(d) > 1e-12) {
+    띠.forEach((u, t) => {
+      if (t === 띠.length - 1 || !Number.isFinite(u.까지) || (t > 0 && 띠[t - 1].까지 === u.까지)) return   /* 같은 거리 띠 둘이면 선 하나 */
+      const s = (u.까지 - a) / d
+      if (s > 1e-12 && s < 1 - 1e-12) 자름.push(s)
+      if (s > 1e-12 && s <= 1 + 1e-12) {
+        const k = Math.min(1, s)
+        const x1 = r.절.xl + k * (r.절.xh - r.절.xl), x2 = r.성.xl + k * (r.성.xh - r.성.xl)
+        띠선.push({ 마디: q, t, 이름: u.이름, 까지: u.까지, m: r.lo + k * r.h, xa: Math.min(x1, x2), xb: Math.max(x1, x2) })
+      }
+    })
+  }
+  자름.sort((p, s) => p - s)
+  const 몫 = r.절.s.몫
+  const 자리 = (c, s0, s1) => ({ xl: c.xl + s0 * (c.xh - c.xl), xh: c.xl + s1 * (c.xh - c.xl) })
+  for (let i = 0; i + 1 < 자름.length; i++) {
+    const s0 = 자름[i], s1 = 자름[i + 1]
+    if (!(s1 - s0 > 1e-15)) continue
+    const L0 = a + d * s0, L1 = a + d * s1, h = r.h * (s1 - s0), vl = (h * (L0 + L1)) / 2
+    const t = 띠고름((L0 + L1) / 2)
+    let p = q.띠몫.get(t)
+    if (!p) { p = { t, V: 0, VL: 0, 토V: {}, 토VL: {}, 절x: null, 성x: null, 최소: Infinity, 최대: 0 }; q.띠몫.set(t, p) }
+    p.V += h; p.VL += vl
+    나눔(p.토V, 몫, h); 나눔(p.토VL, 몫, vl)
+    p.절x = 넓힘(p.절x, 자리(r.절, s0, s1)); p.성x = 넓힘(p.성x, 자리(r.성, s0, s1))
+    p.최소 = Math.min(p.최소, L0, L1); p.최대 = Math.max(p.최대, L0, L1)
   }
 }
 
@@ -397,7 +455,7 @@ export function 띠셈(점, b) {
         else 기록.push({ 꼴: '사', h, 절: c })
       } else if (열림) {
         const 절 = 위 ? 열림 : c, 성 = 위 ? c : 열림
-        기록.push({ 꼴: '운', h, 거: Math.abs(c.x - 열림.x), 거lo: Math.abs(c.xl - 열림.xl), 거hi: Math.abs(c.xh - 열림.xh), 절, 성 })
+        기록.push({ 꼴: '운', h, lo, 거: Math.abs(c.x - 열림.x), 거lo: Math.abs(c.xl - 열림.xl), 거hi: Math.abs(c.xh - 열림.xh), 절, 성 })
       }
       열림 = null
     }
@@ -428,7 +486,7 @@ function 평형마디(점, b) {
   for (let i = 0; i + 1 < 경.length; i++) {
     const xa = 경[i], xb = 경[i + 1], xm = (xa + xb) / 2
     const d = 높이에서(점, xm) - b
-    마.push({ xa, xb, 꼴: d > tol ? '위' : d < -tol ? '아래' : '평', V: 0, VL: 0, 사: 0, 순: 0, 토V: {}, 토VL: {}, 토사: {}, 절x: null, 성x: null, 사x: null, 순x: null, 사들: [], 순들: [], 최소: Infinity, 최대: 0 })
+    마.push({ xa, xb, 꼴: d > tol ? '위' : d < -tol ? '아래' : '평', V: 0, VL: 0, 사: 0, 순: 0, 토V: {}, 토VL: {}, 토사: {}, 절x: null, 성x: null, 사x: null, 순x: null, 사들: [], 순들: [], 최소: Infinity, 최대: 0, 띠몫: new Map() })
   }
   return 마
 }
