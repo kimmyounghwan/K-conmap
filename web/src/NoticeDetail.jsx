@@ -11,7 +11,7 @@ import 내금액 from './내금액.jsx'   /* 📝 G338 넣은 금액이면 몇 �
 import { 한벌주소 } from './lib/낙찰한벌.js'   /* 🏁 G499 */
 import { 견적틀주소 } from './lib/견적틀주소.js'   /* 🤝 G518 하도급 견적틀 */
 import 관심분포 from './관심분포.jsx'   /* 👥 G499 이용자들이 고른 자리(마감 뒤) */
-import { A값앎, 표준대상, 표준모름 } from './lib/bidmath.js'   /* ⚖ G581 마감된 공고 채점도 공고 화면과 같은 판정 */
+import { A값앎, 표준대상, 표준모름, 난이도짧게 } from './lib/bidmath.js'   /* ⚖ G581 마감된 공고 채점도 공고 화면과 같은 판정 · ⚖ G582 난이도계수 글 */
 
 /* ============================================================
    개찰 카드를 펼쳤을 때 나오는 상세 화면
@@ -89,6 +89,8 @@ function scoreGrade(r) {
  */
 export function scoreState(r) {
   if (큰하한없음(r)) return { ok: false, why: 'big' }
+  /* ⚖ G582 추정가격 50억 이상 적격심사 — 난이도계수로 하한율이 바뀔 수 있는데 확정 못 한 개찰(수집이 붙인 llw)은 채점 안 함 */
+  if (r?.llw) return { ok: false, why: 'llw' }
   const g = scoreGrade(r)
   if (g && (g.key === 'C' || g.key === 'D')) {
     return { ok: false, why: 'grade', grade: g }
@@ -250,10 +252,18 @@ function BidTab({ r }) {
         <div><span>낙찰가 (1순위)</span><b className="hi">{won(winAmt)}</b></div>
         <div><span>투찰률</span><b>{r.rate != null ? pct(r.rate, 3) : pct(rateOf(winAmt, r.base), 3)}</b></div>
         <div><span>예가범위</span><b>{r.lo != null && r.hi != null ? `${r.lo}% ~ ${r.hi}%` : '-'}</b></div>
-        <div>
-          <span>낙찰하한율 (참고)</span>
-          <b>{ll ? (ll.rate ? pct(ll.rate, 3) : '별도') : '-'}</b>
-        </div>
+        {/* ⚖ G582 공고가 준 하한율이 있으면 그 값(50억 이상은 난이도계수 반영) · 없을 때만 규모로 «참고» */}
+        {Number(r.llr) >= 60 && Number(r.llr) <= 100 ? (
+          <div>
+            <span>낙찰하한율</span>
+            <b>{pct(r.llr, 3)}{난이도짧게(r) ? <small> ({난이도짧게(r)})</small> : null}</b>
+          </div>
+        ) : (
+          <div>
+            <span>낙찰하한율 (참고)</span>
+            <b>{ll ? (ll.rate ? pct(ll.rate, 3) : '별도') : '-'}</b>
+          </div>
+        )}
         {r.np > 0 && (
           <div><span>참가업체</span><b className="hi">{num(r.np)}곳</b></div>
         )}
@@ -325,7 +335,10 @@ function BidTab({ r }) {
         const cd = st.why === 'grade'
         return (
           <div className="nocalc">
-            {st.why === 'big' ? (
+            {st.why === 'llw' ? (
+              <>추정가격 <b>50억 이상 적격심사</b>는 <b>난이도계수에 따라 낙찰하한율이 달라지는데</b>, 이 공고는 아직 확정되지 않았습니다
+                {' '}(공고 목록 {pct(r.llr, 3)}{r.dc != null && r.dc !== '' ? ` · 난이도계수 ${Number(r.dc)}` : ''}). 틀린 하한으로 채점하면 «가져갔을 자리» 가 거짓이 되어 채점하지 않습니다.</>
+            ) : st.why === 'big' ? (
               <>추정가격 <b>100억 이상</b>인데 공고에 <b>낙찰하한율이 없습니다</b>(종합심사 · 종합평가 · 일괄입찰 등 — 가격만으로 낙찰자를 정하지 않음).
                 {' '}바로투찰이 계산하지 않는 자리라 채점하지 않습니다.</>
             ) : cd ? (

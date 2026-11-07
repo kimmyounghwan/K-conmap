@@ -119,6 +119,65 @@ export const 하한율없는방식 = (r) => {
   const m = 낙찰방법(r)
   return !!m && 하한율없는방식들.some((k) => m.startsWith(k))
 }
+/* ⚖ G582(2026-11-07) ⑨ 난이도계수 — 추정가격 50억 이상 적격심사는 «자재 및 인력조달 가격의 적정성» 점수에 공사 난이도계수
+   (1 · 0.95 · 0.9 · 0.85 · 0.8)를 곱해, 계수가 작으면 낙찰하한율이 오릅니다(나라장터 «기초금액조회» 에 난이도계수 · 낙찰하한율이 함께 나옴).
+   조달청 공고 목록은 계수를 반영한 값이 올 때도, 기준값(81.995 · 87.495)만 올 때도 있습니다 — 11-07 마감 전 100억+ 17건 중 5건이
+   0.9 · 0.95 인데 81.995(나라장터 83.395 · 82.695) → 권장 금액이 참 하한 아래(실격). 개찰도 83.395 로 됨(R26BK01749022 1순위가 그 하한 바로 위).
+   수집(kcm_rules.하한율칸)이 계수(dc)를 받아 llr 을 바로잡아 싣고(목록 값은 llr0) · 확정 못 하면 llw 를 붙입니다
+   ('dc' 계수 기다림 — 다음 수집이 받아 옴 · 'nk' 계수 < 1 인데 그 낙찰방법의 셈을 확인 못 함 — 나라장터 하한율을 직접 넣어야).
+   화면은 llw 가 있으면 금액을 내지 않습니다(missingOf «낙찰하한율 확인»). 아래 하한율칸은 «저장소 줄»(성적표)을 그대로 셀 때 씁니다.
+   ⚠️ kcm_rules.py 하한율칸 과 같은 셈 — 시험_난이도하한.py · .mjs 가 같은 표로 봅니다(한쪽만 고치면 시험이 깨짐). */
+export const 난이도_기준 = { 100: 81.995, 50: 87.495 }
+export function 난이도셈(swin, est) {
+  const s = String(swin || '').replace(/\s+/g, '')
+  if (s && !s.startsWith('적격심사')) return null
+  const 재난 = s.includes('재난')
+  const pq = s.toUpperCase().includes('PQ')
+  const 종합 = s.includes('종합공사)')
+  if (s.includes('300억원미만100억원이상')) return [난이도_기준[100], 종합 && !pq && !재난 ? 14 : null]
+  if (s.includes('100억원미만50억원이상')) return [난이도_기준[50], 종합 && !pq && !재난 ? 5 : null]
+  if (s.includes('70억원미만50억원이상')) return [난이도_기준[50], null]
+  if (['50억원미만', '30억원미만', '10억원미만', '추정가격이2억원미만', '추정가격2억원미만'].some((k) => s.includes(k))) return null
+  const e = Number(est) || 0
+  if (e >= 1e10 && e < 3e10) return [난이도_기준[100], null]
+  if (e >= 5e9 && e < 1e10) return [난이도_기준[50], null]
+  return null
+}
+/** ⚖ G582 줄 하나 → { llr: 쓸 낙찰하한율, llr0: 공고 목록 값(바꿨을 때만 · 아니면 null), llw: 막는 까닭('dc' · 'nk' · null) } */
+export function 하한율칸(r) {
+  const raw = r ? r.llr : undefined
+  const llr = Number(raw)
+  if (raw == null || raw === '' || !Number.isFinite(llr) || !(llr >= 60 && llr <= 100)) return { llr: raw, llr0: null, llw: null }
+  const est = Number(r.est) || ((Number(r.base) || 0) / 1.1)
+  const 셈 = 난이도셈(r.swin, est)
+  if (!셈) return { llr, llr0: null, llw: null }
+  const [기준, 폭] = 셈
+  let dc = r.dc == null || r.dc === '' ? null : Number(r.dc)
+  if (dc != null && !(dc >= 0.5 && dc <= 1)) dc = null
+  if (폭 != null && dc != null) {
+    const v = Math.round((기준 + 폭 * (1 - dc)) * 1000) / 1000
+    return { llr: v, llr0: Math.abs(v - llr) > 0.0005 ? llr : null, llw: null }
+  }
+  if (Math.abs(llr - 기준) > 0.0005) return { llr, llr0: null, llw: null }
+  if (dc == null) return { llr, llr0: null, llw: String(r.swin || '').trim() ? 'dc' : null }   // 낙찰방법 글이 없는 옛 줄은 막지 않음(전과 같음)
+  if (dc >= 0.9995) return { llr, llr0: null, llw: null }
+  return { llr, llr0: null, llw: 'nk' }
+}
+/** ⚖ G582 화면 글 — 바로잡은 줄 «난이도계수 0.9 반영 · 공고 목록 81.995%» · 막힌 줄은 까닭 · 그 밖엔 '' */
+export function 난이도글(r) {
+  if (!r) return ''
+  if (r.llw === 'dc') return '추정가격 50억 이상 적격심사는 난이도계수에 따라 낙찰하한율이 달라지는데, 이 공고의 난이도계수가 아직 자료에 안 실려 왔습니다'
+  if (r.llw === 'nk') return `난이도계수 ${Number(r.dc)} 인 공고인데, 이 낙찰방법은 계수에 따른 낙찰하한율 셈을 이 사이트가 아직 확인하지 못했습니다`
+  if (r.llr0 != null && r.llr0 !== '' && r.dc != null && r.dc !== '') return `난이도계수 ${Number(r.dc)} 반영 · 공고 목록 ${Number(r.llr0).toFixed(3)}%`
+  return ''
+}
+/** ⚖ G582 짧은 글(목록 칸) — «난이도계수 0.9 반영» · «난이도계수 확인 중» · 그 밖엔 '' */
+export function 난이도짧게(r) {
+  if (!r) return ''
+  if (r.llw) return '난이도계수 확인 중'
+  if (r.llr0 != null && r.llr0 !== '' && r.dc != null && r.dc !== '') return `난이도계수 ${Number(r.dc)} 반영`
+  return ''
+}
 export function missingOf(r) {
   if (!r) return []
   if (취소공고(r)) return ['취소공고']   // 취소된 공고 — 다른 칸은 볼 것 없이 계산 안 함(화면은 «취소된 공고» 로 따로 말함)
@@ -127,6 +186,7 @@ export function missingOf(r) {
   const llr = Number(r.llr)
   if (!(r.base > 0)) m.push('기초금액')
   if (!(llr >= 60 && llr <= 100)) m.push('낙찰하한율')
+  else if (r.llw) m.push('낙찰하한율 확인')   // ⚖ G582 난이도계수로 하한율이 바뀔 수 있는데 확정 못 함(수집이 붙인 llw)
   if (!A값앎(r)) m.push('A값')
   else if (표준모름(r)) m.push('표준시장단가')
   if (!(r.ptot > 0 && r.pdrw > 0)) m.push('예비가격 정보')

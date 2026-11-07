@@ -28,6 +28,8 @@ export function 공고값(r) {
     llr = ll && ll.rate ? ll.rate : 0
     추정 = true
   }
+  /* ⚖ G582 난이도계수로 하한율이 바뀔 수 있는데 확정 못 한 줄(llw) — 하한을 안 셈(자리 그림 · 분위 안 냄 · 규모로 메우지 않음) */
+  if (r && r.llw) { llr = 0; 추정 = false }
   const A = r && r.ayn === 'N' ? 0 : 수(r && r.aval)
   return { base, llr, A, pc: 수(r && r.pc), 추정, sd: sjSigma(r && r.lo != null ? r.lo : -3, r && r.hi != null ? r.hi : 3) }
 }

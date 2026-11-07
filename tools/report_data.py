@@ -27,6 +27,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 import bidmath as B                                            # noqa: E402
+import kcm_rules as R                                          # noqa: E402  ⚖ G582 난이도계수 반영 하한율(하한율칸)
 
 STORE = os.path.join(ROOT, "data", "store")
 
@@ -77,7 +78,9 @@ def one(row, bno, p50):
         "baro": None,
     }
     base = row.get("base") or 0
-    llr = row.get("llr") or 0
+    # ⚖ G582 추정가격 50억 이상 적격심사는 난이도계수 반영 하한율 · 계수를 몰라 확정 못 하면(llw) 채점 안 함 — 성적표.js 와 같이
+    _ll = R.하한율칸(row)
+    llr = 0 if _ll[2] else (_ll[0] or 0)
     a = row.get("aval") or 0
     a_known = str(row.get("ayn") or "").upper() == "Y"
     if base and llr and win_amt and win_rate:
@@ -168,7 +171,8 @@ def next_five(recs, p50, n=5):
     now = datetime.datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
     out = []
     for r in live:
-        base, llr = r.get("base") or 0, r.get("llr") or 0
+        _ll = R.하한율칸(r)                 # ⚖ G582 (성적표.js 와 같이)
+        base, llr = r.get("base") or 0, (0 if _ll[2] else (_ll[0] or 0))
         close = str(r.get("close") or "")
         if not base or not llr or close <= now:
             continue

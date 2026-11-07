@@ -274,6 +274,7 @@ def pick_fresh(rows, part0, known=None):
 
 # ── 덧붙이기 (조달청 호출 없음) ─────────────────────────────────────
 JOIN = ("llr", "est", "ptot", "pdrw", "base", "lo", "hi", "aval", "ayn", "aparts", "gmtrl", "lic", "site", "pc")   # ⚖ pc 순공사원가(2026-10-21)
+JOIN2 = ("dc", "swin")   # ⚖ G582 난이도계수 · 낙찰방법(하한율 셈 — collect.py 이어붙임과 같은 칸)
 
 
 def _empty(v):
@@ -290,12 +291,18 @@ def enrich_first(rows, live_store, first_store):
         for f in ("base", "lo", "hi", "lic", "aval", "aparts", "ayn", "gmtrl", "llr", "est", "ptot", "pdrw", "pc"):
             if _empty(r.get(f)) and not _empty(prev.get(f)):
                 r[f] = prev[f]
+        for f in JOIN2:
+            if _empty(r.get(f)) and not _empty(prev.get(f)):
+                r[f] = prev[f]
         src = lv.get(r["no"])
         if isinstance(src, dict):
             for f in JOIN:
                 if _empty(r.get(f)) and not _empty(src.get(f)):
                     r[f] = src[f]
                     n += 1
+            for f in JOIN2:
+                if _empty(r.get(f)) and not _empty(src.get(f)):
+                    r[f] = src[f]
     return n
 
 
@@ -376,6 +383,14 @@ def finish(name, rows, book, enp_map):
     out = []
     for r in rows:
         x = {k: v for k, v in r.items() if k not in C.BOARD_RANK_KEYS or (name == "first" and k == "corps")}
+        # ⚖ G582 50억 이상 적격심사 하한율 — 정기 묶음(collect.py export_board)과 같은 셈(kcm_rules.하한율칸) · 개찰 줄엔 swin 을 안 실음
+        _v, _o, _w = C.R.하한율칸(r)
+        if _o is not None:
+            x["llr"], x["llr0"] = _v, _o
+        if _w:
+            x["llw"] = _w
+        if name == "first":
+            x.pop("swin", None)
         sido = C.sido_of(r, book)
         codes = C.lic_codes(r)
         if name == "first":

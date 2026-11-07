@@ -247,6 +247,14 @@ export default function FirstBoard() {
                   {(() => {
                     const st = scoreState(r)
                     if (st.ok) return <span className="badge b">📊 채점 가능</span>
+                    if (st.why === 'llw') {
+                      /* ⚖ G582 50억 이상 적격심사 — 난이도계수로 하한율이 바뀔 수 있는데 확정 못 함 */
+                      return (
+                        <span className="badge n" title="추정가격 50억 이상 적격심사는 난이도계수에 따라 낙찰하한율이 달라지는데, 이 공고는 아직 확정되지 않아 채점하지 않습니다.">
+                          채점 안 함 · 하한율 확인
+                        </span>
+                      )
+                    }
                     if (st.why === 'big') {
                       /* ⚖ G581 100억 넘고 하한율 없음(종합심사 등) — 바로투찰이 계산하지 않는 자리 */
                       return (

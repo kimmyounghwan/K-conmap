@@ -596,7 +596,7 @@ src566 = open(os.path.join(ROOT, "collect.py"), encoding="utf-8").read().replace
 ok("main 공고 목록 받는 곳이 기초이어(prev, r) 를 씀(예전 base · lo · hi 만 잇던 줄은 없음)",
    "                    기초이어(prev, r)\n                    live[kind][r[\"no\"]] = r\n" in src566
    and 'for f in ("base", "lo", "hi"):\n                        if prev.get(f) is not None:' not in src566)
-ok("BSIS_KEEP 칸이 다 개찰 저장소 이어 두기 칸에도 있음(같은 뜻)", all(('"%s"' % f) in src566.split("# 이미 받아둔 기초금액을 덮어쓰지 않는다", 1)[1][:400] for f in C.BSIS_KEEP))
+ok("BSIS_KEEP 칸이 다 개찰 저장소 이어 두기 칸에도 있음(같은 뜻)", all(('"%s"' % f) in src566.split("# 이미 받아둔 기초금액을 덮어쓰지 않는다", 1)[1][:400] for f in C.BSIS_KEEP if f != "dc") and '"dc"' in src566.split("# 이미 받아둔 기초금액을 덮어쓰지 않는다", 1)[1][:800])   # ⚖ G582 dc 는 바로 아래 따로 잇는 줄
 
 머리("⑬ 키가 어디에도 안 남음")
 글 = 로그.getvalue()

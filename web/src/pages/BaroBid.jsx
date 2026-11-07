@@ -12,7 +12,7 @@ import { bidAmount, limitAmount, limitRate, r3, c3,
          sjSigma, recommend, buildScen, missingOf, isReady,
          toNum, P50_FALLBACK, shownBid, passProb, QTILES, QTILE_N, quantileBid,
          smartBid, autoRule, canBid, nowStamp, stamp14, lowerLimit,
-         rankBracket, pcLine, enpWhy, 표준대상, 표준모름, 취소공고, A값앎, 하한율없는방식, 낙찰방법 } from '../lib/bidmath.js'
+         rankBracket, pcLine, enpWhy, 표준대상, 표준모름, 취소공고, A값앎, 하한율없는방식, 낙찰방법, 난이도글 } from '../lib/bidmath.js'
 import { 관심남기기, 자리남기기, 관심읽기 } from '../lib/관심도.js'   /* 👥 G499 경쟁 관심도(마감 전엔 «몇 명» 만) */
 import { 기관사정률받기 } from '../lib/기관사정률.js'   /* 📄 G499 품의서 — 기관 최근 사정률 */
 import 바로투찰사용법 from '../바로투찰사용법.jsx'   /* 📖 G499 */
@@ -290,7 +290,13 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
     const t = setTimeout(() => { try { if (q) sessionStorage.setItem('kcm.baro.q', q); else sessionStorage.removeItem('kcm.baro.q') } catch (e) { /* 없음 */ } }, 300)
     return () => clearTimeout(t)
   }, [q])
-  const [picked, setPicked] = useState(null)
+  const [picked0, setPicked] = useState(null)
+  /* ⚖ G582 나라장터 «기초금액조회» 낙찰하한율 손 입력 — 수집이 난이도계수로 하한율을 확정 못 한 공고(llw)에서만 씁니다.
+     넣으면(60~100) 그 공고를 그 하한율로 계산합니다(picked 가 llr · llman 을 들고 옴) · 공고를 바꾸면 지웁니다. */
+  const [llIn, setLlIn] = useState('')
+  const 직접LL = (() => { const v = Number(String(llIn).replace(/[^0-9.]/g, '')); return v >= 60 && v <= 100 ? Math.round(v * 1000) / 1000 : 0 })()
+  const picked = useMemo(() => (picked0 && picked0.llw && 직접LL > 0
+    ? { ...picked0, llr: 직접LL, llw: '', llman: 1, llr0: picked0.llr } : picked0), [picked0, 직접LL])
   /* A값 내역 — 공고를 고르면 그때 한 번만 받아 옵니다 (한 화면에 한 번) */
   const [apMap, setApMap] = useState(null)
   const [inst, setInst] = useState('')
@@ -443,6 +449,9 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
         enpb: a[25] || '',                          // ⚖ G580 예상 참가 근거(이 면허·이 금액대 · 이 기관 …) — 화면 글이 근거를 그대로 말하게
         pc: Number(a[26]) || 0,                     // ⚖ G356 기초금액 중 순공사원가 (a[25] = enpb)
         az: Number(a[27]) || 0, smk: a[28] || '',   // ⚖ G581 A값 0원 · 표준시장단가 칸(마감된 공고 채점도 공고 화면과 같은 판정)
+        /* ⚖ G582 난이도계수 · 공고 목록 하한율(바꿨을 때만) · 막는 까닭(dc 계수 기다림 · nk 셈 모름) — 채점도 공고 화면과 같은 하한율 */
+        dc: a[29] === '' || a[29] == null ? null : Number(a[29]),
+        llr0: a[30] === '' || a[30] == null ? null : Number(a[30]), llw: a[31] || '',
       } : fromUrl)
     })
     return () => { ok = false }
@@ -558,7 +567,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
       setApMap({})
       getAparts().then((d) => setApMap((d && d.a) || {})).catch(() => {})
     }
-    setPicked(r); setQ(r.name); setInst(r.inst)
+    setPicked(r); setQ(r.name); setInst(r.inst); setLlIn('')
     try { sessionStorage.setItem('kcm.baro.no', String(r.no || '')) } catch (e) { /* 없음 */ }
     setBase(r.base || 0); setBudgetIn(''); setCopied(false)
     { const m = 기억분위(); 기억에서.current = !!m; setPickRate(m || 'rec') }   /* 🩹 G206 기억한 분위로 시작 */
@@ -588,7 +597,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
   }
   const clear = () => {
     try { sessionStorage.removeItem('kcm.baro.no'); sessionStorage.removeItem('kcm.baro.q') } catch (e) { /* 없음 */ }
-    setPicked(null); setQ(''); setInst(''); setBase(0)
+    setPicked(null); setQ(''); setInst(''); setBase(0); setLlIn('')
     setBudgetIn(''); setAIn(''); setAAuto(false); setPcIn(''); setPickRate('rec'); setOwnRate('')
   }
   /* 🧭 G519 — 고른 뒤 한 번: 금액 칸이 «머리줄 아래 ~ 아래 탭 위» 에 들어오게(위 설명). 미끄럼 없이 바로 —
@@ -688,8 +697,14 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
   const 하한쓰는방식 = !!방식 && !방식없음 && /적격|낙찰하한율|소액수의/.test(방식)
   const 종심 = !!band && band.rec == null && !(givenLL > 0 && !/종합심사/.test(String(picked?.swin || res?.swin || '')))
     && !(공고줄 && 하한쓰는방식 && !(givenLL > 0))
-  const ll = givenLL > 0
-    ? { rate: givenLL, note: '공고서에 적힌 낙찰하한율', given: true }
+  /* ⚖ G582 50억 이상 적격심사 — 수집이 난이도계수로 하한율을 확정 못 한 공고(llw)는 하한율을 쓰지 않습니다(금액 · 분석 모두).
+     이용자가 나라장터 «기초금액조회» 의 낙찰하한율을 넣으면(직접LL) picked 가 그 값을 llr 로 들고 와 계산합니다. */
+  const ll확인 = !!picked?.llw
+  const ll = ll확인 ? null : givenLL > 0
+    ? { rate: givenLL,
+        note: picked?.llman ? '직접 넣은 낙찰하한율(나라장터 기초금액조회)'
+          : (난이도글(picked || res) ? `공고서에 적힌 낙찰하한율 · ${난이도글(picked || res)}` : '공고서에 적힌 낙찰하한율'),
+        given: true, manual: !!picked?.llman }
     : band
       ? { rate: band.llr, note: `추정가격 ${band.label}` }
       : lowerLimit(estimate)
@@ -1060,6 +1075,8 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
     if (h == null) return { yeje, est, band: bd, skip: true, why: '하한율' }
     /* ⚖ G581 100억 넘는 적격심사 — 표준시장단가 칸(smk)을 받기 전 A값엔 표준시장단가가 빠져 있을 수 있음(G578 앞에 마감된 줄) → 채점 안 함 */
     if (표준모름(res)) return { yeje, est, band: bd, skip: true, why: '표준시장단가' }
+    /* ⚖ G582 50억 이상 적격심사 — 난이도계수로 하한율이 바뀔 수 있는데 확정 못 한 개찰(llw) → 채점 안 함(목록 하한율로 셈하지 않음) */
+    if (res.llw) return { yeje, est, band: bd, skip: true, why: '난이도' }
 
     /* ⚖ G581 A값 0원(az 1 · 나라장터 «A 0 원»)은 A = 0 을 «아는» 것 — 전엔 규모 비율로 A값을 지어 넣고(추정) 채점했음 */
     const A0 = Number(res.az) === 1 && !(res.aval > 0)
@@ -1488,6 +1505,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
                       {!isReady(r) && (
                         <> · <span className="nogo">{취소공고(r) ? '취소된 공고'
                           : 하한율없는방식(r) ? `계산 대상 아님 — ${낙찰방법(r)}`
+                          : r.llw && missingOf(r).join() === '낙찰하한율 확인' ? '하한율 확인 — 난이도계수'
                           : `계산 불가 — ${missingOf(r).join('·')} 없음`}</span></>
                       )}
                     </div>
@@ -1582,14 +1600,22 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
       {picked && !isReady(picked) && !취소공고(picked) && !하한율없는방식(picked) && !종심 && (
         <div className="warnbox nogobox">
           <div className="h">⛔ 이 공고는 아직 계산할 수 없습니다</div>
-          <p>
-            금액을 내려면 아래가 다 있어야 하는데, <b>{missingOf(picked).join(' · ')}</b> 이(가)
-            조달청 자료에 아직 안 실려 왔습니다. 없는 값을 추측해서 금액을 내면
-            <b> 수천만원이 어긋납니다.</b> 그래서 답을 내지 않겠습니다.
-          </p>
+          {missingOf(picked).join() === '낙찰하한율 확인' ? (
+            /* ⚖ G582 난이도계수로 하한율이 바뀔 수 있는데 확정 못 함 — 값이 «안 실려 왔다» 가 아님 */
+            <p>
+              금액을 내려면 <b>낙찰하한율이 확정</b>돼야 하는데, 이 공고는 난이도계수에 따라 하한율이 달라져 아직 확정되지 않았습니다.
+              공고 목록 값({pct(picked.llr, 3)})으로 금액을 내면 참 하한보다 낮아 <b>실격</b>할 수 있어 답을 내지 않겠습니다.
+            </p>
+          ) : (
+            <p>
+              금액을 내려면 아래가 다 있어야 하는데, <b>{missingOf(picked).join(' · ')}</b> 이(가)
+              조달청 자료에 아직 안 실려 왔습니다. 없는 값을 추측해서 금액을 내면
+              <b> 수천만원이 어긋납니다.</b> 그래서 답을 내지 않겠습니다.
+            </p>
+          )}
           <div className="needlist">
             {[['기초금액', picked.base > 0],
-              ['낙찰하한율', Number(picked.llr) >= 60 && Number(picked.llr) <= 100],
+              [picked.llw ? '낙찰하한율(난이도계수)' : '낙찰하한율', Number(picked.llr) >= 60 && Number(picked.llr) <= 100 && !picked.llw],
               ['A값', A값앎(picked)],
               ...(표준대상(picked) ? [['표준시장단가(100억 이상)', !표준모름(picked)]] : []),
               ['예비가격 정보', picked.ptot > 0 && picked.pdrw > 0]].map(([nm, ok]) => (
@@ -1603,8 +1629,11 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
             </p>
           )}
           <p className="last">
-            보통 <b>기초금액이 공개되면</b> 나머지도 같이 들어옵니다. 자동 갱신 때마다 다시 받아오니
-            조금 뒤에 열어보시거나, 아래 «나라장터 공고» 에서 직접 확인하세요.
+            {missingOf(picked).join() === '낙찰하한율 확인' ? (picked.llw === 'nk'
+              ? <>이 낙찰방법은 계수에 따른 하한율 셈을 아직 확인하지 못해 저절로는 계산하지 않습니다 — 아래에 나라장터 값을 넣어 주세요.</>
+              : <>난이도계수는 기초금액 자료에 같이 실려 옵니다 — 자동 갱신 때 들어오면 저절로 계산됩니다(아래에 나라장터 값을 넣어도 됩니다).</>)
+              : <>보통 <b>기초금액이 공개되면</b> 나머지도 같이 들어옵니다. 자동 갱신 때마다 다시 받아오니
+                조금 뒤에 열어보시거나, 아래 «나라장터 공고» 에서 직접 확인하세요.</>}
           </p>
           {picked.url && (
             <a className="btn ghost sm" style={{ width: '100%', marginTop: 8 }}
@@ -1613,6 +1642,32 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
         </div>
       )}
 
+      {/* ⚖ G582 난이도계수 — 수집이 하한율을 확정 못 한 공고(llw)에 나라장터 «기초금액조회» 낙찰하한율 손 입력.
+          넣은 뒤에도(계산이 나와도) 이 칸은 남아 고칠 수 있습니다. */}
+      {picked0?.llw && !취소공고(picked0) && (
+        <div className="warnbox llbox">
+          <div className="h">⚖ 난이도계수에 따라 낙찰하한율이 달라지는 공고입니다</div>
+          <p>
+            추정가격 50억 이상 적격심사는 «자재 및 인력조달 가격의 적정성» 점수에 공사 난이도계수를 곱해,
+            계수가 1 보다 작으면 <b>낙찰하한율이 공고 목록 값({pct(picked0.llr, 3)})보다 높아집니다.</b>
+            {' '}{picked0.llw === 'nk'
+              ? `이 공고의 난이도계수는 ${Number(picked0.dc)} 인데, 이 낙찰방법의 셈은 이 사이트가 아직 확인하지 못했습니다.`
+              : '이 공고의 난이도계수는 아직 자료에 안 실려 왔습니다.'}
+          </p>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label htmlFor="go-llr">나라장터 «기초금액조회» 의 낙찰하한율 (%)</label>
+            <input id="go-llr" inputMode="decimal" value={llIn} placeholder="예: 83.395"
+              onChange={(e) => { setLlIn(e.target.value.replace(/[^0-9.]/g, '')); setCopied(false) }} />
+          </div>
+          {직접LL > 0
+            ? <p className="last">✓ 넣은 낙찰하한율 <b>{pct(직접LL, 3)}</b> 로 계산합니다 — 나라장터 값과 같은지 한 번 더 보세요.</p>
+            : <p className="last">{llIn ? '60 ~ 100 사이 숫자로 넣어 주세요.' : '나라장터 공고 → «기초금액조회» 에 난이도계수와 낙찰하한율이 함께 나옵니다.'}</p>}
+          {picked0.url && isReady(picked) && (
+            <a className="btn ghost sm" style={{ width: '100%', marginTop: 8 }}
+              href={picked0.url} target="_blank" rel="noreferrer">나라장터에서 이 공고 열기 ↗</a>
+          )}
+        </div>
+      )}
       {/* ── 2. 숫자 ── */}
       {picked && !editIn ? (
         /* 자동으로 다 채워졌습니다 — 한 줄로 요약하고 접어 둡니다 */
@@ -1757,7 +1812,9 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
             </div>
           </div>
           <div className="note sm">
-            {scored.why === '표준시장단가'
+            {scored.why === '난이도'
+              ? <>추정가격 50억 이상 적격심사는 <b>난이도계수에 따라 낙찰하한율이 달라지는데</b>, 이 공고는 아직 확정되지 않아(공고 목록 {pct(res.llr, 3)}) 하한을 셀 수 없습니다 — 틀린 하한으로 채점하지 않습니다.</>
+              : scored.why === '표준시장단가'
               ? <>추정가격 100억 넘는 공고라 A값에 <b>표준시장단가</b>가 들어가는데, 그 값이 아직 안 실려 와 하한을 셀 수 없습니다 — 틀린 하한으로 채점하지 않습니다(자동 갱신 때 다시 받아 옵니다).</>
               : scored.why === '하한율'
                 ? <>추정가격 100억 이상인데 공고에 <b>낙찰하한율이 없습니다</b>(종합심사 · 종합평가 · 일괄입찰 등 — 가격만으로 낙찰자를 정하지 않음). 바로투찰이 계산하지 않는 자리라 채점하지 않습니다.</>
@@ -2332,7 +2389,7 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
                 ) : null}
                 {선98 > 0 && !선98이하한 && <>순공사원가 98% 선 {won(선98)}은 낙찰하한보다 낮아 영향이 없습니다. · </>}
                 {ll.note}
-                {ll.given ? ' · 이 공고에 실제로 적힌 값입니다.'
+                {ll.given ? (ll.manual ? ' · 나라장터 «기초금액조회» 값과 같은지 한 번 더 보세요.' : ' · 이 공고에 실제로 적힌 값입니다.')
                   : ' · 일반공사 적격심사 기준으로 추정한 값입니다. 공고서를 꼭 확인하세요.'}
               </div>
               <GuideLink slug="nakchal-hahanyul" />

@@ -60,10 +60,12 @@ fsrc = io.open(os.path.join(ROOT, "fast.py"), encoding="utf-8").read()
 # ③ 내보내기
 k = src.index('"f": ["no", "name"')
 f = re.findall(r'"([a-z]+)"', src[src.index("[", k):src.index("]", src.index("[", k))])
-봄("③ bidindex 맨 뒤 칸 pc · 줄 맨 뒤 int(pc)", f[-1] == "pc" and 'int(r.get("pc") or 0),\n            ])' in src, repr(f[-3:]))
+# ⚖ G582 pc 뒤에 dc · llr0 · llw 가 붙음(llr0 은 숫자가 섞여 위 찾기에 안 잡힘) — pc 자리(36)는 그대로
+봄("③ bidindex 칸 pc(⚖ G582 그 뒤 dc · llr0 · llw) · 줄도 int(pc) 다음 G582 칸", f[-3:] == ["pc", "dc", "llw"] and 'int(r.get("pc") or 0),\n                # ⚖ G582' in src
+   and "_pc = sum(1 for x in rows if x[36] > 0)" in src, repr(f[-3:]))
 k2 = src.index('"f": ["win", "amt", "rate"')
 f2 = re.findall(r'"([a-z]+)"', src[src.index("[", k2):src.index("]", src.index("[", k2))])
-봄("③ bidresult 칸 pc(enpb 다음 · ⚖ G581 그 뒤에 az · smk)", "pc" in f2 and f2[f2.index("pc") - 1] == "enpb" and f2[-2:] == ["az", "smk"], repr(f2[-4:]))
+봄("③ bidresult 칸 pc(enpb 다음 · ⚖ G581 그 뒤에 az · smk · ⚖ G582 dc · llr0 · llw)", "pc" in f2 and f2[f2.index("pc") - 1] == "enpb" and f2[-4:] == ["az", "smk", "dc", "llw"], repr(f2[-4:]))
 
 print(f"\n{셈[0]}개 중 틀림 {len(틀림)}")
 sys.exit(1 if 틀림 else 0)

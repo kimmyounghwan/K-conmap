@@ -44,6 +44,7 @@ from urllib.parse import quote
 
 from ogcard import OgMaker
 import daily as dailymod
+from kcm_rules import 하한율칸   # ⚖ G582 50억 이상 적격심사 난이도계수 반영 하한율(화면 · 수집과 같은 셈)
 import indexnow
 import qnapages
 import mypages   # 🪪 G188 마이컨맵 «내 건설 명함 페이지» — 검색 등록 칸을 다 채운 것만
@@ -823,6 +824,16 @@ def date_time(s):
 def notice_page(shell, r, image=None, L=None, docs=None):
     no = r.get("no")
     nm = str(r.get("name") or no)
+    # ⚖ G582 낙찰하한율은 난이도계수 반영 값(목록 값과 다르면 함께 적음) · 계수를 몰라 확정 못 하면 «나라장터에서 확인»
+    _ll = 하한율칸(r)
+    _llr = _ll[0] if isinstance(_ll[0], (int, float)) else None
+    _llt = None
+    if _llr is not None:
+        _llt = pct(_llr, 3)
+        if _ll[1] is not None and r.get("dc") is not None:
+            _llt += f" (난이도계수 {float(r['dc']):g} 반영 · 공고 목록 {pct(_ll[1], 3)})"
+        elif _ll[2]:
+            _llt += " (공고 목록 값 · 난이도계수에 따라 바뀔 수 있어 나라장터 «기초금액조회» 에서 확인)"
     inst = str(r.get("inst") or "")
     won = r.get("win")
     rate = r.get("rate")
@@ -870,8 +881,8 @@ def notice_page(shell, r, image=None, L=None, docs=None):
         story.append(f"<b>{esc(inst)}</b> 가 발주한 공사입니다.")
     if base:
         story.append(f"기초금액은 <b>{won_short(base)}</b> 입니다.")
-    if isinstance(r.get("llr"), (int, float)):
-        story.append(f"낙찰하한율은 <b>{pct(r['llr'], 3)}</b> 입니다.")
+    if _llt:
+        story.append(f"낙찰하한율은 <b>{esc(_llt)}</b> 입니다.")
     if r.get("lo") is not None and r.get("hi") is not None:
         _hi = f"+{r['hi']}" if isinstance(r["hi"], (int, float)) and r["hi"] > 0 else f"{r['hi']}"
         story.append(f"예정가격은 기초금액에서 <b>{r['lo']}% ~ {_hi}%</b> 범위 안에서 뽑습니다.")
@@ -897,7 +908,7 @@ def notice_page(shell, r, image=None, L=None, docs=None):
 
     rows = [("기초금액", won_short(base)), ("추정가격", won_short(r.get("est"))),
             ("A값", won_short(r.get("aval"))),
-            ("낙찰하한율", pct(r.get("llr"), 3)),
+            ("낙찰하한율", _llt),
             ("예가범위", (f"{r.get('lo')}% ~ {r.get('hi')}%"
                        if r.get("lo") is not None and r.get("hi") is not None else None))]
     body += rows_html("📋 공고 조건", rows)

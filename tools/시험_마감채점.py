@@ -45,9 +45,13 @@ k1 = src.index("    seen = set()\n    uniq = []", k0)
 봄("① 블록이 «for r in rows:»(MAX_ROWS 로 자르지 않음 — 7주치 전체)", 블록.lstrip().splitlines()[1].startswith("for r in rows:"), 블록.splitlines()[1])
 
 
+sys.path.insert(0, ROOT)
+import kcm_rules as R  # noqa: E402  ⚖ G582 블록에 «개찰 난이도계수» 갈래(R.하한율칸)가 붙음
+
+
 def 고르기(줄들):
-    env = {"rows": 줄들, "todo": [], "kind": "con", "앞": set(), "표준대상": 표준대상, "to_f": to_f,
-           "todo_why": {"개찰 표준시장단가": 0, "개찰 A값 0원 확인": 0}}
+    env = {"rows": 줄들, "todo": [], "kind": "con", "앞": set(), "표준대상": 표준대상, "to_f": to_f, "R": R,
+           "todo_why": {"개찰 표준시장단가": 0, "개찰 A값 0원 확인": 0, "개찰 난이도계수": 0}}
     exec(compile(블록, "G581 블록", "exec"), env)
     return env
 
@@ -90,8 +94,9 @@ d = src[src.index('b = bsis_one(key, r["no"], kind)'):src.index('b = bsis_one(ke
 # ③ bidresult 맨 뒤 az · smk
 k = src.index('"f": ["win", "amt", "rate"')
 f = re.findall(r'"([a-z]+)"', src[src.index("[", k):src.index("]", src.index("[", k))])
-봄("③ bidresult 칸 끝 «pc · az · smk»(BaroBid a[27] az · a[28] smk)", f[-3:] == ["pc", "az", "smk"] and len(f) == 29, repr(f[-4:]))
-봄("③ 줄 끝도 같은 자리(pc 다음 az 1/0 · smk)", 'int(r.get("pc") or 0),\n                       # ⚖ G581' in src and '1 if r.get("az") == 1 else 0, r.get("smk") or ""]' in src)
+# ⚖ G582 smk 뒤에 dc · llr0 · llw(BaroBid a[29] · a[30] · a[31]) — llr0 은 숫자가 섞여 위 찾기에 안 잡혀 31칸으로 셈
+봄("③ bidresult 칸 «pc · az · smk»(BaroBid a[27] az · a[28] smk) · 그 뒤 ⚖ G582 dc · llr0 · llw", f[-5:] == ["pc", "az", "smk", "dc", "llw"] and len(f) == 31, repr(f[-5:]))
+봄("③ 줄 끝도 같은 자리(pc 다음 az 1/0 · smk)", 'int(r.get("pc") or 0),\n                       # ⚖ G581' in src and '1 if r.get("az") == 1 else 0, r.get("smk") or "",\n' in src)
 baro = io.open(os.path.join(ROOT, "web", "src", "pages", "BaroBid.jsx"), encoding="utf-8").read().replace("\r\n", "\n")
 봄("③ 화면 BaroBid — a[27] az · a[28] smk 로 읽음", "az: Number(a[27]) || 0, smk: a[28] || ''," in baro)
 

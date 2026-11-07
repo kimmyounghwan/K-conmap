@@ -99,7 +99,9 @@ export function 한건(row, bno, p50) {
     amt, rate, win_amt, win_rate, baro: null,
   }
   const base = row.base || 0
-  const llr = row.llr || 0
+  /* ⚖ G582 추정가격 50억 이상 적격심사는 난이도계수 반영 하한율 · 계수를 몰라 확정 못 하면(llw) 채점 안 함 — report_data.py 와 같이 */
+  const _ll = B.하한율칸(row)
+  const llr = _ll.llw ? 0 : (_ll.llr || 0)
   const a = row.aval || 0
   const a_known = String(row.ayn || '').toUpperCase() === 'Y'
   if (base && llr && win_amt && win_rate) {
@@ -180,7 +182,8 @@ export function 다음자리(recs, live, p50, n = 5) {
   const out = []
   for (const r of live) {
     const base = r.base || 0
-    const llr = r.llr || 0
+    const _ll = B.하한율칸(r)               // ⚖ G582 (report_data.py 와 같이)
+    const llr = _ll.llw ? 0 : (_ll.llr || 0)
     const close = String(r.close || '')
     if (!base || !llr || close <= now) continue
     if (!(lo_b <= base && base <= hi_b)) continue

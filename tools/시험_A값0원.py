@@ -87,7 +87,8 @@ d = 덩이('"site", "pc"):\n                if (r.get(f) in (None, "", 0, []))',
    and '"pc", "bask", "smk", "az"):' in src)
 k = src.index('"f": ["no", "name"')
 f = re.findall(r'"([a-z]+)"', src[src.index("[", k):src.index("]", src.index("[", k))])
-봄("③ bidindex — «az» 칸이 smk 앞(pc 맨 뒤 그대로) · 줄에도 같은 자리", f[-4:] == ["rgs", "az", "smk", "pc"]
+# ⚖ G582 pc 뒤에 dc · llr0 · llw 가 붙음(llr0 은 숫자가 섞여 위 찾기에 안 잡힘)
+봄("③ bidindex — «az» 칸이 smk 앞(pc 다음은 ⚖ G582 dc · llr0 · llw) · 줄에도 같은 자리", f[-6:] == ["rgs", "az", "smk", "pc", "dc", "llw"]
    and '1 if r.get("az") == 1 else 0,\n                # ⚖ G578 표준시장단가 칸을 받았나' in src, repr(f[-4:]))
 fsrc = io.open(os.path.join(ROOT, "fast.py"), encoding="utf-8").read().replace("\r\n", "\n")
 봄("③ 빠른 수집(fast.py) — 지난 줄의 az 1 도(두 줄 다 A값 없을 때만)", 'if r.get("az") is None and prev.get("az") == 1 and not r.get("aval") and not prev.get("aval"):' in fsrc)

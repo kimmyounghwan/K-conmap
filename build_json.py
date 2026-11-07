@@ -133,7 +133,7 @@ STOPWORDS = {"공사", "용역", "설치", "사업", "시공", "및", "기타", 
 # 📏 G217 — 업체 이름 · 사업자번호 · 지역 규칙은 kcm_rules.py «한 곳» 에만 둡니다(collect.py 와 같이 씀).
 #   여기 이름(CORP_NOISE · REGIONS · REGION_ALIAS · norm_corp · region_of)은 다른 파일(prerender.py 등)이 가져다 쓰므로 그대로 내보냅니다.
 from kcm_rules import (CORP_NOISE, REGIONS, REGION_ALIAS, MERGED_SIDO, GWANGJU_GU,  # noqa: E402,F401
-                       norm_corp, region_of, bizno10)
+                       norm_corp, region_of, bizno10, 하한율칸)
 
 
 # ─────────────────────────────────────────────
@@ -1913,7 +1913,11 @@ def build_kan(first=None, live=None):
         L = live.get(no)
         if not L:
             continue
-        base, llr = _num(L.get("base")), _num(L.get("llr"))
+        # ⚖ G582 50억 이상 적격심사는 난이도계수 반영 하한율(kcm_rules.하한율칸) · 계수를 몰라 확정 못 하면 뺌
+        _ll = 하한율칸(L)
+        if _ll[2]:
+            continue
+        base, llr = _num(L.get("base")), _num(_ll[0])
         aval = 0.0 if str(L.get("ayn") or "") == "N" else _num(L.get("aval"))
         if base <= 0 or not (60 <= llr <= 100):
             continue

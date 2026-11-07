@@ -800,6 +800,7 @@ def to_f(v):
 
 # 🩹 G566 기초금액 응답(bsis_row · extra_amounts)에서만 오는 칸 — 공고 목록을 다시 받아 줄을 새로 만들 때 이어 둠(base · lo · hi 와 함께)
 BSIS_KEEP = ("aval", "aparts", "ayn", "gmtrl", "pc", "smk", "az")   # ⚖ G578 smk — 응답에 표준시장단가 칸이 실려 옴(Y 더함 · N 없음) · ⚖ G579 az — A값 0원(1 · 0 = 확인함)
+BSIS_KEEP = BSIS_KEEP + ("dc",)   # ⚖ G582 dc 난이도계수 — 50억 이상 적격심사 하한율 셈(kcm_rules.하한율칸)
 # ⚖ G578 이번 회차에 본 표준시장단가 칸(«Y·Y» = 0 보다 큼 · 포함 여부 Y …) — 진단 줄에 적어 포함 여부(smkpAmtYn)의 뜻을 실측으로 확인
 SMKP_SEEN = {}
 # 🩹 G567 기초금액 «물어본 시각»(bask · 개별조회 차례) — 목록을 다시 받아도 이어 둬야 «오래 안 물어본 것부터» 차례가 돎.
@@ -836,6 +837,11 @@ def bsis_row(it):
     pc = to_int(pick(it, "bssAmtPurcnstcst", "bssamtPurcnstcst"))
     if 0 < pc <= base:
         out["pc"] = pc
+    # ⚖ G582 난이도계수(dfcltydgrCfcnt) — 추정가격 50억 이상 적격심사는 이 계수로 낙찰하한율이 바뀝니다(kcm_rules.하한율칸).
+    #   나라장터 «기초금액조회» 의 «난이도계수» 와 같은 칸(11-07 대조 17건). 비어 오면(작은 공고) 안 적습니다.
+    dc = to_f(pick(it, "dfcltydgrCfcnt", "dfcltyDgrCfcnt"))
+    if dc is not None and 0 < dc <= 1:
+        out["dc"] = dc
     return out
 
 
@@ -2891,7 +2897,10 @@ def _pick_bucket(v, edges):
 
 
 def _pick_llr(r):
-    llr = r.get("llr")
+    # ⚖ G582 난이도계수 반영 하한율(kcm_rules.하한율칸) · 계수를 몰라 확정 못 하는 줄은 셈에서 뺌(규모 추정으로 메우지 않음)
+    llr, _o, _w = R.하한율칸(r)
+    if _w:
+        return None
     if llr and 60 <= float(llr) <= 100:
         return float(llr)
     est = r.get("est") or (float(r.get("base") or 0) / 1.1)
@@ -3814,6 +3823,10 @@ def main():
                               "llr", "est", "ptot", "pdrw", "pc", "bask", "smk", "az"):
                         if prev.get(f) is not None:
                             r[f] = prev[f]
+                    # ⚖ G582 난이도계수(dc) · 낙찰방법(swin — 공고에서 이어 온 것)도 이어 둠 — 50억 이상 적격심사 하한율 셈(kcm_rules.하한율칸)
+                    for f in ("dc", "swin"):
+                        if prev.get(f) is not None and r.get(f) is None:
+                            r[f] = prev[f]
                     # ⚠️ 2026-09-03 — 순위 조회로 채운 것을 개찰목록 수집이 덮어쓰면 안 됩니다.
                     #    개찰목록 API 의 corps 는 «1순위 한 곳»뿐이라, 그대로 두면 힘들게 받은
                     #    30곳 순위(corps)·사다리(rq)·전체건수(nrank)가 통째로 날아갑니다.
@@ -3869,6 +3882,10 @@ def main():
                             if row.get(f) is None and b.get(f) is not None:
                                 row[f] = b[f]
                                 hit = True
+                        # ⚖ G582 난이도계수(dc)도 빈 칸이면 — 50억 이상 적격심사 하한율 셈(kcm_rules.하한율칸)
+                        if row.get("dc") is None and b.get("dc") is not None:
+                            row["dc"] = b["dc"]
+                            hit = True
                         # ⚖ G578 표준시장단가 칸을 못 받은 줄(smk 없음)은 이번 응답의 A값으로 바꿈 — 표준시장단가가 더해졌을 수 있음.
                         #   응답에 A값 적용 여부(ayn)가 있을 때만(취소 차수 응답은 A 칸이 비어 와 덮으면 A값이 지워짐).
                         if row.get("smk") is None and b.get("smk") is not None and b.get("ayn") in ("Y", "N"):
@@ -4004,7 +4021,7 @@ def main():
     # ── 화면에 실릴 최근 건 중 기초금액이 빈 것만 공고번호로 개별 보충 ──
     todo = []
     todo_why = {"기초": 0, "A값": 0, "A값 0원 확인": 0, "표준시장단가": 0, "취소공고 뺌": 0,
-                "개찰 표준시장단가": 0, "개찰 A값 0원 확인": 0}
+                "개찰 표준시장단가": 0, "개찰 A값 0원 확인": 0, "난이도계수": 0, "개찰 난이도계수": 0}
     n_std = 0
     앞 = set()          # ⚖ G581 먼저 물을 줄(표준시장단가 — 공고 · 개찰) · 3시간 안에 물어본 것은 차례대로(헛물음 되풀이 안 함)
     for kind in KINDS:
@@ -4022,6 +4039,12 @@ def main():
             elif r.get("base") and r.get("smk") is None and 표준대상(r):
                 todo.append((kind, r))
                 todo_why["표준시장단가"] += 1
+                앞.add((kind, r["no"]))
+            elif r.get("base") and R.하한율칸(r)[2] == "dc":
+                # ⚖ G582 50억 이상 적격심사인데 난이도계수를 아직 모르고 목록 하한율이 기준값(81.995 · 87.495) — 계수로 하한율이 바뀔 수
+                #   있어 화면이 금액을 안 냄(11-07 100억+ 17건 중 5건이 0.9 · 0.95) → 맨 앞에 물음(3시간 안에 물은 것은 차례대로)
+                todo.append((kind, r))
+                todo_why["난이도계수"] += 1
                 앞.add((kind, r["no"]))
         for r in live_rows:
             if str(r.get("kind") or "") == "취소공고":
@@ -4056,6 +4079,10 @@ def main():
                 # ⚖ G581 마감된 A값 적용 공고인데 A값이 없는 줄 — A값 0원(az)인지 한 번 물음(G579 앞에 마감된 줄 · 채점이 «A값 모름» 으로 막힘)
                 todo.append((kind, r))
                 todo_why["개찰 A값 0원 확인"] += 1
+            elif R.하한율칸(r)[2] == "dc":
+                # ⚖ G582 마감된 50억 이상 적격심사 — 난이도계수를 몰라 채점 · 넣은 금액 · 성적표가 하한율을 확정 못 함 → 한 번 물음(차례대로)
+                todo.append((kind, r))
+                todo_why["개찰 난이도계수"] += 1
     seen = set()
     uniq = []
     for kind, r in todo:
@@ -4081,7 +4108,8 @@ def main():
               f"(빈 건 {len(uniq):,} — 오래 안 물어본 것부터)"
               f" · 까닭: 공고 기초 {todo_why['기초']:,} · A값 {todo_why['A값']:,} · A값 0원 확인 {todo_why['A값 0원 확인']:,}"
               f" · 100억 넘는 공고 표준시장단가 {todo_why['표준시장단가']:,} · 취소공고 뺌 {todo_why['취소공고 뺌']:,}"
-              f" · 개찰 표준시장단가 {todo_why['개찰 표준시장단가']:,} · 개찰 A값 0원 확인 {todo_why['개찰 A값 0원 확인']:,}")
+              f" · 개찰 표준시장단가 {todo_why['개찰 표준시장단가']:,} · 개찰 A값 0원 확인 {todo_why['개찰 A값 0원 확인']:,}"
+              f" · 50억 이상 난이도계수 {todo_why['난이도계수']:,} · 개찰 난이도계수 {todo_why['개찰 난이도계수']:,}")
         for kind, r in uniq[:BSIS_ONE_CAP]:
             b = bsis_one(key, r["no"], kind)
             r["bask"] = now_ts          # 물어본 시각 (다음 회차에서 뒤로 밀립니다)
@@ -4107,6 +4135,27 @@ def main():
         # ⚖ G578 표준시장단가 칸 실측 — «Y·Y» 0 보다 큼 · 포함 여부 Y / «0·N» 0 · N … (포함 여부 뜻을 확인하려고 적음)
         print("  · 🧱 표준시장단가 칸(이번 회차 기초금액 응답): "
               + " · ".join(f"{k} {v:,}" for k, v in sorted(SMKP_SEEN.items())))
+    # ⚖ G582 난이도계수 실측 — 마감 전 50억 이상 적격심사(하한율 있음)의 계수 · 하한율을 바로잡은 줄 · 막은 줄(화면이 금액 안 냄)
+    try:
+        _dc, _fix, _blk = {}, 0, {"dc": 0, "nk": 0}
+        _now = datetime.now(KST).strftime("%Y%m%d%H%M%S")
+        for _r in (live.get("con") or {}).values():
+            if dt_digits(_r.get("close")).ljust(14, "0") < _now or R.난이도셈(_r.get("swin"), _r.get("est")) is None:
+                continue
+            if not (60 <= (to_f(_r.get("llr")) or 0) <= 100):
+                continue
+            _k = "모름" if _r.get("dc") is None else f"{float(_r['dc']):g}"
+            _dc[_k] = _dc.get(_k, 0) + 1
+            _v, _o, _w = R.하한율칸(_r)
+            if _o is not None:
+                _fix += 1
+            if _w:
+                _blk[_w] += 1
+        if _dc:
+            print("  · 🎚 난이도계수(마감 전 50억 이상 적격): " + " · ".join(f"{k} {v:,}" for k, v in sorted(_dc.items()))
+                  + f" · 하한율 바로잡음 {_fix:,} · 막음(계수 기다림 {_blk['dc']:,} · 셈 모름 {_blk['nk']:,})")
+    except Exception as e:
+        print(f"  ! 난이도계수 세기 실패 ({type(e).__name__}: {e})")
 
     # ⚠️ 순서 중요: 잘라내기 전에 누적 CSV 로 먼저 옮긴다
     # ── 소급 보충 ────────────────────────────────────────────────
@@ -4294,6 +4343,10 @@ def main():
                 if (r.get(f) in (None, "", 0, [])) and src.get(f) not in (None, "", 0, []):
                     r[f] = src[f]
                     joined += 1
+            # ⚖ G582 난이도계수(dc) · 낙찰방법(swin)도 — 50억 이상 적격심사의 하한율을 개찰 줄도 같은 셈으로(kcm_rules.하한율칸)
+            for f in ("dc", "swin"):
+                if (r.get(f) in (None, "")) and src.get(f) not in (None, ""):
+                    r[f] = src[f]
             # ⚖ G578 공고 쪽이 표준시장단가 칸을 받았으면(smk) 개찰 줄 A값도 같게 — 채점 · 성적이 같은 A값으로
             if src.get("smk") and not r.get("smk") and src.get("ayn") in ("Y", "N"):
                 표준바꿈(r, src)
@@ -4390,6 +4443,16 @@ def main():
             for i, part in enumerate(parts):
                 slim = [{k: v for k, v in r.items() if k not in BOARD_RANK_KEYS}
                         for r in part]
+                # ⚖ G582 50억 이상 적격심사 하한율 — 사본에만 난이도계수 반영 값 · 목록 값(llr0) · 막는 까닭(llw).
+                #    개찰 묶음은 낙찰방법(swin) 글을 싣지 않음(크기 — 셈에만 씀). 저장소 줄은 안 건드립니다(늘 목록 값).
+                for x, r in zip(slim, part):
+                    _v, _o, _w = R.하한율칸(r)
+                    if _o is not None:
+                        x["llr"], x["llr0"] = _v, _o
+                    if _w:
+                        x["llw"] = _w
+                    if name == "first":
+                        x.pop("swin", None)
                 # 🤝 공고 묶음에도 jnt(색인과 같은 한 칸)를 붙입니다 — 카드와 거르기가 «같은 재료» 로 판정하게.
                 #    사본(slim)에만 붙입니다. 저장소 줄은 안 건드립니다. 공동이 안 되는 공고는 붙이지 않습니다(크기).
                 if name == "live":
@@ -5051,6 +5114,7 @@ def main():
                 continue
             if c.ljust(14, "0") < now:      # 이미 마감된 공고는 뺀다
                 continue
+            _ll = R.하한율칸(r)     # ⚖ G582 (쓸 하한율, 목록 값(바꿨을 때만), 막는 까닭)
             rows.append([
                 r.get("no") or "",
                 r.get("name") or "",
@@ -5060,7 +5124,7 @@ def main():
                 r.get("close") or "",
                 r.get("lo") if r.get("lo") is not None else -3,
                 r.get("hi") if r.get("hi") is not None else 3,
-                r.get("llr"),                      # 공고가 알려준 낙찰하한율
+                _ll[0],                            # 공고가 알려준 낙찰하한율 — ⚖ G582 50억 이상 적격심사는 난이도계수 반영(목록 값은 llr0)
                 int(r.get("est") or 0),            # 공고가 알려준 추정가격
                 r.get("lic") or [],                # 면허·업종 제한
                 int(r.get("aval") or 0),           # A값 합계 (법정경비)
@@ -5103,6 +5167,10 @@ def main():
                 r.get("smk") or "",
                 # ⚖ 2026-10-21 기초금액 중 순공사원가(조달청 bssAmtPurcnstcst · 없으면 0) — 바로투찰 «순공사원가 98 %» 선
                 int(r.get("pc") or 0),
+                # ⚖ G582 난이도계수(없으면 "") · 공고 목록 하한율(바꿨을 때만 · 아니면 "") · 막는 까닭(dc 계수 기다림 · nk 셈 모름 · "")
+                r.get("dc") if r.get("dc") is not None else "",
+                _ll[1] if _ll[1] is not None else "",
+                _ll[2] or "",
             ])
         rows.sort(key=lambda x: re.sub(r"[^0-9]", "", str(x[5])))
         out = {"built": built,
@@ -5110,14 +5178,15 @@ def main():
                      "llr", "est", "lic", "aval", "gmtrl",
                      "ayn", "ptot", "pdrw", "url",
                      "site", "rgnb", "joint", "mthd", "swin", "rebid",
-                     "enp", "enpn", "dt", "sido", "dsn", "enpb", "jnt", "tg", "nt", "licg", "rgs", "az", "smk", "pc"],
+                     "enp", "enpn", "dt", "sido", "dsn", "enpb", "jnt", "tg", "nt", "licg", "rgs", "az", "smk", "pc",
+                     "dc", "llr0", "llw"],
                "pick": pick,
                "r": rows}
         path = os.path.join(OUT, "bidindex.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
         have = sum(1 for x in rows if x[3] > 0)
-        _pc = sum(1 for x in rows if x[-1] > 0)
+        _pc = sum(1 for x in rows if x[36] > 0)      # ⚠️ 36 = «pc» 자리(⚖ G582 뒤에 dc · llr0 · llw 가 붙음)
         print(f"  · 순공사원가(기초금액 중) 실린 마감 전 공고 {_pc:,}건 / 기초금액 있는 {have:,}건")
         # ── 면허별 경쟁도 (2026-09-14) — 작은 파일 하나로 따로 냅니다.
         #    첫 화면에 안 얹습니다: 면허를 고를 때와 /lic 페이지에서만 받습니다.
@@ -5208,6 +5277,7 @@ def main():
             no = r.get("no")
             if not no:
                 continue
+            _ll = R.하한율칸(r)        # ⚖ G582 (쓸 하한율, 목록 값(바꿨을 때만), 막는 까닭) — 채점도 공고 화면과 같은 하한율
             # 전화·주소·대표자는 «있는 공고만» 옵니다(조달청 낙찰자 상세에 실릴 때만).
             # 없으면 빈 문자열로 두고, 화면에서는 아예 감춥니다.
             out[no] = [r.get("win") or "", int(r.get("amt") or 0),
@@ -5242,7 +5312,7 @@ def main():
                        (r.get("lic") or [])[:3],
                        # ★ 낙찰하한율·추정가격 — 2026-09-03 추가. 공고서에 적힌 하한율이 있으면
                        #   채점도 그걸로 계산해야 바로투찰과 같은 금액이 나옵니다.
-                       r.get("llr"), int(r.get("est") or 0),
+                       _ll[0], int(r.get("est") or 0),
                        # ★ 예상 참가 — 그날 바로투찰이 «자동 분위» 였는지 채점이 알아야 같은 금액이 나옵니다 (2026-09-03)
                        enp_of(r, enp_map)[0],
                        enp_of(r, enp_map)[1],
@@ -5250,13 +5320,17 @@ def main():
                        # ⚖ 2026-10-21 기초금액 중 순공사원가(없으면 0) — 채점도 «순공사원가 98 %» 선을 알게
                        int(r.get("pc") or 0),
                        # ⚖ G581 A값 0원(az 1) · 표준시장단가 칸(smk Y/N · 모르면 "") — 채점이 «A 0원» 을 알고 100억 넘는 공고의 «표준시장단가 모름» 을 막게
-                       1 if r.get("az") == 1 else 0, r.get("smk") or ""]
+                       1 if r.get("az") == 1 else 0, r.get("smk") or "",
+                       # ⚖ G582 난이도계수 · 공고 목록 하한율(바꿨을 때만) · 막는 까닭(dc · nk) — BaroBid a[29] · a[30] · a[31]
+                       r.get("dc") if r.get("dc") is not None else "",
+                       _ll[1] if _ll[1] is not None else "", _ll[2] or ""]
         path = os.path.join(OUT, "bidresult.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump({"built": built, "f": ["win", "amt", "rate", "np", "base", "dt",
                              "tel", "ceo", "bno", "adr", "tsrc", "name", "inst",
                              "aval", "ayn", "amts", "rq", "nrank", "lo", "hi", "lic",
-                             "llr", "est", "enp", "enpn", "enpb", "pc", "az", "smk"],
+                             "llr", "est", "enp", "enpn", "enpb", "pc", "az", "smk",
+                             "dc", "llr0", "llw"],
                        "r": out}, f, ensure_ascii=False, separators=(",", ":"))
         print(f"  → bidresult 최근 7일 개찰 {len(out):,}건 "
               f"({os.path.getsize(path)/1024:.0f}KB)")

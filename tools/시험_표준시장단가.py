@@ -142,7 +142,7 @@ d = 덩이("# 이미 받아둔 기초금액을 덮어쓰지 않는다", 600)
 봄("⑥ 개찰 저장소 다시 받을 때 지키는 칸에도 smk", '"bask", "smk"' in d)
 k = src.index('"f": ["no", "name"')
 f = re.findall(r'"([a-z]+)"', src[src.index("[", k):src.index("]", src.index("[", k))])
-봄("⑥ bidindex — smk 칸이 pc 바로 앞 · 줄에도 같은 자리", f[-2:] == ["smk", "pc"] and 'r.get("smk") or "",\n                # ⚖ 2026-10-21 기초금액 중 순공사원가' in src, repr(f[-3:]))
+봄("⑥ bidindex — smk 칸이 pc 바로 앞(⚖ G582 그 뒤 dc · llr0 · llw) · 줄에도 같은 자리", f[-4:] == ["smk", "pc", "dc", "llw"] and 'r.get("smk") or "",\n                # ⚖ 2026-10-21 기초금액 중 순공사원가' in src, repr(f[-3:]))
 fsrc = io.open(os.path.join(ROOT, "fast.py"), encoding="utf-8").read().replace("\r\n", "\n")
 봄("⑥ 빠른 수집(fast.py) — 지난 줄에서 A값을 옮길 때 smk 도", 'if not r.get("smk") and prev.get("smk") and r.get("aval") == prev.get("aval"):' in fsrc)
 
