@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { 보험료, 기한들, 분할, 기간어긋남, 원 } from '../lib/보험료셈.js'
 import { 회사규모들, 노무비율표, 한국오늘, 남은날, 디데이, 요일, 짧은날 } from '../lib/해마다.js'
@@ -6,6 +6,7 @@ import { 달줄, 일한달들, 달글 } from '../lib/신고정리.js'
 import { use노무자료 } from '../tools/노무자료.jsx'
 import 해마다띠 from '../tools/해마다띠.jsx'
 import 도구설명 from '../tools/도구설명.jsx'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G594 PDF · 인쇄는 그림(글자 층 없음) — 📗 엑셀은 그대로 */
 import 광고칸 from '../광고칸.jsx'   /* 📣 업체 광고 — 계산 결과 표 바로 아래 한 장(자리 보험) */
 import 금액입력 from '../금액입력.jsx'   /* 💰 G543 금액 칸 다섯 — «12억 5천만» · 붙여넣은 «1,250,000,000원» 도 읽음 · 칸 아래 읽은 줄(바로투찰 G542 와 같은 칸) */
 
@@ -56,12 +57,12 @@ export default function Boheomryo() {
   const 가져오기 = () => set입((s) => ({ ...s, 방식: 'bosu', 보수: 가져올.보수, 실업제외: 가져올.제외 }))
   const 낸개산 = 입.낸개산 > 0 ? 입.낸개산 : (낸해.개산 ? 낸해.개산.a : 0)
   const 정산 = 낸개산 > 0 ? R.합 - 낸개산 : null
-  useEffect(() => {
-    const 끝 = () => document.body.classList.remove('hm-print')
-    window.addEventListener('afterprint', 끝)
-    return () => { window.removeEventListener('afterprint', 끝); 끝() }
-  }, [])
-  const 인쇄 = () => { document.body.classList.add('hm-print'); setTimeout(() => window.print(), 80) }
+  /* 🖼 G594 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 전엔 몸에 hm-print 를 달고 window.print(글자 PDF).
+     이제 결과 칸(.hm-out)을 복제본에서만 인쇄 CSS(hm-print)로 펴서 그림으로: 📄 PDF 바로 받기 · 🖨 그림만 인쇄
+     (A4 세로 기본 @page · 글자 칸 186 × 271mm) · 숨은 누적 |고용산재보험료|PDF · 인쇄 */
+  const 그 = use그림인쇄(['고용산재보험료', 입.해 + '년', 한국오늘()].join('_'), {
+    셈: '고용산재보험료', 대상: '.bh .hm-out', 몸표: ['hm-print'], 쪽: { 폭: 186, 높: 271 }, 여백: [12, 12], 칸줄: true,
+  })
   const 엑셀 = async () => {
     const { 값엑셀받기, 수칸, 굵은칸 } = await import('../lib/값엑셀.js')
     const 줄 = [
@@ -84,7 +85,9 @@ export default function Boheomryo() {
   }
 
   return (
-    <div className="wrap hm bh">
+    <>
+    <div className="kcm-인쇄안내">🖨 보험료 계산 결과는 화면의 <b>«📄 PDF 저장»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+    <div className="wrap hm bh 그림만인쇄">
       <div className="card hm-in">
         <h1 className="tl-h1" style={{ marginTop: 0 }}>🧾 건설업 고용 · 산재 보험료 계산기 — 개산 · 확정 · 분할 납부</h1>
         <p className="cp" style={{ margin: '6px 0 0' }}>
@@ -157,9 +160,11 @@ export default function Boheomryo() {
       <div className="card hm-out">
         <div className="hm-print-h">🧾 {입.해}년 고용 · 산재 보험료 <span>(K-건설맵 · {오늘} 뽑음)</span></div>
         <div className="btn-row no-print" style={{ justifyContent: 'flex-start', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-          <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={인쇄}>🖨 인쇄 (A4)</button>
+          <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => 그.PDF()} disabled={!!그.찍기}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 PDF 저장 (A4)'}</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 그.인쇄()} disabled={!!그.찍기}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀}>📗 엑셀 받기</button>
         </div>
+        {그.말 && <div className="note sm no-print" role="status" style={{ marginBottom: 10 }}>{그.말}</div>}
         <div className="hm-sum">
           <div><span>보수총액</span><b>{원(R.보수)}</b><i>{R.방식 === 'nomu' ? `총공사금액 × ${백(R.노율)}` : '실제 보수'}</i></div>
           <div><span>보험료 합계</span><b>{원(R.합)}</b><i>고용 + 산재 + 임금채권 + 석면</i></div>
@@ -241,5 +246,6 @@ export default function Boheomryo() {
       </div>
       <div className="hm-in"><도구설명 k="boheomryo" /></div>
     </div>
+    </>
   )
 }
