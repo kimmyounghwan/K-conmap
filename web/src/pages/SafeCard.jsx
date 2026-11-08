@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import * as S from '../lib/안전카드.js'
-import { use인쇄 } from '../tools/공정인쇄.js'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G597 PDF · 인쇄는 그림(글자 층 없음) */
 import { 세기 } from '../lib/받은수.jsx'
 import 도구설명 from '../tools/도구설명.jsx'
 
@@ -85,16 +85,19 @@ export default function SafeCard() {
   }, [분류, 찾기, 고른, 판.말])
   const 분류수 = useMemo(() => Object.fromEntries(S.분류들.map(([c]) => [c, S.문장들.filter((s) => s.c === c && 고른.includes(s.id)).length])), [고른])
 
-  const [인쇄중, 인쇄] = use인쇄(`다국어안전카드_${종류이름[종]}_${판.칸.date || S.예시날()}`)
-  const 인쇄하기 = () => {
+  /* 🖼 G597 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 인쇄 판(#gp-인쇄)을 그림으로 찍어 📄 PDF 바로 받기 · 🖨 그림만 인쇄
+     (A4 세로 @page sc세로 10mm → 글자 칸 190 × 277mm · 표지 꼴은 한 장에 하나 그대로) · 판 안 종이들은 한 덩이(.sc-종이들)로 — 훅은 판의 첫 덩이를 찍음 */
+  const 그 = use그림인쇄(`다국어안전카드_${종류이름[종]}_${판.칸.date || S.예시날()}`, { 셈: '안전카드', 쪽: { 폭: 190, 높: 277 }, 여백: [10, 10], 종이: [210, 297], 판쪽: 'sc세로', 칸줄: true })
+  const 셈하기 = () => {
     세기(`|안전카드|인쇄${종류이름[종]}`)
     for (const k of 판.말) 세기(`|안전카드|${k}`)
-    인쇄()
   }
   const 빈종이 = 고른.length === 0 && 직접.every((r) => !r.ko.trim()) && (종 !== 'tbm' && 종 !== 'order' ? true : 판.작업.length === 0)
 
   return (
-    <div className="container sc-wrap">
+    <>
+    <div className="kcm-인쇄안내">🖨 안전카드는 화면의 <b>«📄 PDF 저장»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+    <div className="container sc-wrap 그림만인쇄">
       <div className="card">
         <h1 className="sec-title" style={{ fontSize: 20, margin: '0 0 6px' }}>🌏 현장 다국어 안전카드</h1>
         <p className="muted" style={{ margin: 0 }}>
@@ -245,9 +248,11 @@ export default function SafeCard() {
           <div className="sec-title" style={{ margin: 0 }}>⑤ 종이 (A4 세로)</div>
           <div className="sc-headb">
             <label className="sc-brand"><input type="checkbox" checked={판.건설맵} onChange={(e) => 바꿈(() => ({ 건설맵: e.target.checked }))} /> 아래에 건설맵 주소</label>
-            <button type="button" className="btn sm" disabled={빈종이} onClick={인쇄하기}>🖨 인쇄 · PDF</button>
+            <button type="button" className="btn sm" disabled={빈종이 || !!그.찍기} onClick={() => { 셈하기(); 그.PDF() }}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 PDF 저장'}</button>
+            <button type="button" className="btn line sm" disabled={빈종이 || !!그.찍기} onClick={() => { 셈하기(); 그.인쇄() }}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
           </div>
         </div>
+        {그.말 && <div className="note sm" role="status" style={{ margin: '8px 0' }}>{그.말}</div>}
         {빈종이
           ? <div className="note sm">문장을 하나 이상 고르면 종이가 나옵니다. 처음이면 <b>👍 추천 넣기</b> 나 <b>🧪 예시 채우기</b> 를 누르십시오.</div>
           : <div className="sc-preview"><종이들 판={판} /></div>}
@@ -266,8 +271,9 @@ export default function SafeCard() {
       </div>
       <도구설명 k="safecard" />
 
-      {인쇄중 && createPortal(<div id="gp-인쇄"><종이들 판={판} 인쇄 /></div>, document.body)}
+      {그.판 && createPortal(<div id="gp-인쇄"><div className="sc-종이들"><종이들 판={판} 인쇄 /></div></div>, document.body)}
     </div>
+    </>
   )
 }
 

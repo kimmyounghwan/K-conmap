@@ -62,9 +62,10 @@ for (const 기기 of 기기들) {
   await A.locator('.sc-brand input').uncheck()
   봐(!(await 종이글()).includes('k-conmap.com'), `${기기} A 건설맵 주소 끄면 사라짐`)
   셈.length = 0
-  await A.locator('button', { hasText: '인쇄 · PDF' }).click()
-  await A.waitForTimeout(700)
-  봐((await A.evaluate(() => window.__찍음 || 0)) === 1 && (await A.locator('#gp-인쇄 .sc-쪽').count()) === 1, `${기기} A 인쇄 — 종이 한 벌 · print 한 번`)
+  /* 🖼 G597 그림 인쇄 — 종이를 그림으로 찍어 그 그림만 인쇄(#kcm-그림인쇄) · 찍는 판(#gp-인쇄)은 찍는 동안만 */
+  await A.locator('button', { hasText: '🖨 인쇄' }).click()
+  for (let i = 0; i < 100 && !(await A.evaluate(() => window.__찍음 || 0)); i++) await A.waitForTimeout(100)
+  봐((await A.evaluate(() => window.__찍음 || 0)) === 1 && (await A.locator('#kcm-그림인쇄 img.kcm-쪽그림').count()) >= 1 && (await A.locator('#gp-인쇄').count()) === 0, `${기기} A 인쇄 — 종이를 쪽 그림으로 · print 한 번(G597 · 쪽 수는 시험_안전카드그림PDF화면 에서 전 방식과 견줌)`, JSON.stringify({ 찍음: await A.evaluate(() => window.__찍음 || 0), 그림: await A.locator('#kcm-그림인쇄 img.kcm-쪽그림').count(), 판: await A.locator('#gp-인쇄').count(), 말: await A.evaluate(() => [...document.querySelectorAll('[role=status]')].map((x) => x.innerText).join(' | ')) }))
   if (기기 === 'PC') {
     await A.emulateMedia({ media: 'print' })
     await A.pdf({ path: `${폴더}/시험A_TBM.pdf`, format: 'A4', printBackground: true, preferCSSPageSize: true })
@@ -74,7 +75,7 @@ for (const 기기 of 기기들) {
   await A.waitForTimeout(300)
   const 셈글 = 셈.join('\n')
   봐(/안전카드.{0,3}인쇄TBM/.test(셈글) && /안전카드.{0,3}zh/.test(셈글) && /안전카드.{0,3}vi/.test(셈글), `${기기} A 인쇄 셈(|안전카드|인쇄TBM · zh · vi)`, 셈글.slice(0, 300))
-  봐((await A.locator('#gp-인쇄').count()) === 0, `${기기} A 인쇄 끝나면 인쇄 칸 사라짐`)
+  봐((await A.locator('#gp-인쇄, #kcm-그림인쇄').count()) === 0, `${기기} A 인쇄 끝나면 인쇄 칸 사라짐`)
   봐((await 넘침()) <= 1, `${기기} A 가로 넘침 없음`)
   await A.screenshot({ path: `${폴더}/시험A_${기기}.png`, fullPage: false })
 
@@ -108,7 +109,9 @@ for (const 기기 of 기기들) {
   봐((await A.locator('.sc-preview .sc-sign.k-no').count()) >= 1 && (await A.locator('.sc-preview .sc-sign.k-self').count()) === 1, `${기기} B 금지 · 직접 표지 색`)
   봐((await 넘침()) <= 1, `${기기} B 가로 넘침 없음`)
   if (기기 === 'PC') {
-    await A.locator('button', { hasText: '인쇄 · PDF' }).click(); await A.waitForTimeout(500)
+    await A.locator('button', { hasText: '🖨 인쇄' }).click()
+    for (let i = 0; i < 100 && (await A.locator('#kcm-그림인쇄 img.kcm-쪽그림').count()) < 4; i++) await A.waitForTimeout(100)
+    봐((await A.locator('#kcm-그림인쇄 img.kcm-쪽그림').count()) >= 4, `${기기} B 표지 인쇄 — 쪽 그림 4장 넘게(표지 넷 · 긴 표지는 두 쪽)(G597)`, String(await A.locator('#kcm-그림인쇄 img.kcm-쪽그림').count()))
     await A.emulateMedia({ media: 'print' })
     await A.pdf({ path: `${폴더}/시험B_표지.pdf`, format: 'A4', printBackground: true, preferCSSPageSize: true })
     await A.emulateMedia({ media: 'screen' }); await A.evaluate(() => window.dispatchEvent(new Event('afterprint'))); await A.waitForTimeout(200)

@@ -38,7 +38,7 @@ function 쪽나누기(큰, { H, 경계, 피함, 표들, 꼭 = [] }, { 쪽H, k, z
     쪽들.push({ s, cut, 머리 })
     s = cut
   }
-  return 쪽들.map(({ s: a, cut, 머리 }) => {
+  const 그림쪽 = 쪽들.map(({ s: a, cut, 머리 }) => {
     const cv = document.createElement('canvas')
     cv.width = 쪽px[0]; cv.height = 쪽px[1]
     const g = cv.getContext('2d')
@@ -53,6 +53,26 @@ function 쪽나누기(큰, { H, 경계, 피함, 표들, 꼭 = [] }, { 쪽H, k, z
     if (h > 0) g.drawImage(큰, 0, a * k, 큰.width, h * k, 0, y, 큰.width * zz, h * k * zz)
     return cv
   })
+  /* 🩹 G597 빈 쪽은 빼기 — 한 쪽보다 긴 덩이가 쪽 나눔(break-after) 앞에서 넘치면 남은 빈 아래 여백만 한 쪽이 됐음
+     (안전카드 «표지» 긴 글 — 전 방식은 그 쪽에 바닥 글 한 줄) · 흰 쪽(점 하나 없음)만 빼고 · 적어도 한 쪽은 남김 */
+  const 남길 = 그림쪽.filter((cv) => !흰쪽(cv))
+  if (!남길.length) return 그림쪽.slice(0, 1)
+  for (const cv of 그림쪽) if (!남길.includes(cv)) { cv.width = cv.height = 1 }
+  return 남길
+}
+
+/** 쪽 그림이 온통 흰가 — 줄이지 않고 제 크기 그대로 64줄 띠씩 봄(가는 선 한 줄 · 점 하나라도 있으면 흰 쪽 아님 · 처음 만난 점에서 바로 멈춤)
+ *  못 읽으면(그림이 막힘 등) 흰 쪽 아님으로 — 쪽을 빼는 쪽으로는 절대 안 틀림 */
+function 흰쪽(cv) {
+  try {
+    const g = cv.getContext('2d')
+    const W = cv.width
+    for (let y = 0; y < cv.height; y += 64) {
+      const d = g.getImageData(0, y, W, Math.min(64, cv.height - y)).data
+      for (let i = 0; i < d.length; i += 4) if (d[i] < 250 || d[i + 1] < 250 || d[i + 2] < 250) return false
+    }
+    return true
+  } catch (e) { return false }
 }
 
 /** 표 — 머리줄(thead)과 첫 줄 자리 · 머리줄 다시 쓸 표 */
