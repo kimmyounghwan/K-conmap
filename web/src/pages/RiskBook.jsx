@@ -17,7 +17,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { use화면상태, 앞칸같은주소 } from '../lib/길기록.js'
-import { use인쇄 } from '../tools/공정인쇄.js'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G587 PDF · 인쇄는 그림(글자 층 없음) — 📗 엑셀은 그대로 */
 import { 장부, 목록읽기, 목록기억, 막힘, 휴지통날 } from '../lib/장부.js'
 import { 코드정리, 코드보기 } from '../lib/tuipbi.js'
 import { 새장부, 열기칸, 만들었음, 연장부목록, 코드와휴지통 } from '../tools/장부문.jsx'
@@ -219,7 +219,7 @@ export default function RiskBook() {
           <li><b>별지2 수시</b> — 4주(2주)·1주·1일 가운데 고르고, 별지1 줄을 <b>가져와</b> 작업위치·검토/추록·담당만 채웁니다. 1주는 요일별 ○·X 점검까지.</li>
           <li><b>별지3·4 회의·교육 결과</b> — 일시·장소·내용(기본 문장이 들어 있음)·사진 2장·참석자.</li>
           <li><b>별지5 성과측정표</b> — 중·상 등급 줄을 가져와 날마다 ○(이행)·X(미이행)를 누르면 달성율이 나옵니다.</li>
-          <li>다 되면 <b>🖨 인쇄</b> — 결재·서명은 종이에 받습니다. 보관용으로 <b>📗 엑셀</b>도 받습니다 — 종이와 같은 칸 · 결재란 그대로(고칠 때는 여기서).</li>
+          <li>다 되면 <b>📄 PDF</b>(바로 받음 · 폰도) 또는 <b>🖨 인쇄</b> — 결재·서명은 종이에 받습니다. 보관용으로 <b>📗 엑셀</b>도 받습니다 — 종이와 같은 칸 · 결재란 그대로(고칠 때는 여기서).</li>
         </ol>
         <p className="note sm" style={{ marginBottom: 0 }}>
           빈 서식 종이만 필요하면 <Link to="/forms/wih-choego">📄 위험성평가 서식</Link>에서 별지마다 «빈 서식 인쇄» 를 누르십시오.
@@ -390,7 +390,11 @@ function 서류칸({ id, 문, 정보, 자료, 예시, 서류저장, 사진읽기
   const [j, setJ] = useState(() => 풀기(k, 문.j, 정보))
   const [상태, set상태] = useState('')
   const [사진, set사진] = useState({})
-  const [인쇄중, 인쇄] = use인쇄(`${K.별지}_${K.짧게}_${j.d || ''}`)
+  /* 🖼 G587 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 인쇄 판을 그림으로 찍어 📄 PDF 바로 받기 · 🖨 그림만 인쇄
+     A4 가로(별지 @page rk가로 · 여백 8mm) / 세로(rk세로 · 12mm) 그대로 · 합친 칸 표도 칸 줄 한 번씩(칸줄) · 숨은 누적 |위험성평가|PDF · |위험성평가|인쇄 */
+  const 그 = use그림인쇄(`${K.별지}_${K.짧게}_${j.d || ''}`, K.가로
+    ? { 셈: '위험성평가', 쪽: { 폭: 281, 높: 194 }, 여백: [8, 8], 종이: [297, 210], 판쪽: 'rk가로', 칸줄: true }
+    : { 셈: '위험성평가', 쪽: { 폭: 186, 높: 273 }, 여백: [12, 12], 종이: [210, 297], 판쪽: 'rk세로', 칸줄: true })
   const 미리 = useRef(null)
   /* 📗 G110 — 화면 종이(미리보기)를 칸 그대로 · 값만 */
   const 엑셀받기 = async () => {
@@ -427,12 +431,16 @@ function 서류칸({ id, 문, 정보, 자료, 예시, 서류저장, 사진읽기
 
   return (
     <>
+      <div className="kcm-인쇄안내">🖨 위험성평가 서류는 화면의 <b>«📄 PDF»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+      <div className="그림만인쇄">
       <div className="card rk-edit-head">
         <button className="btn ghost sm" onClick={닫기}>← 서류 목록</button>
         <div className="grow"><div className="eq-name" style={{ fontSize: 15 }}>{K.별지} · {K.이름}</div><div className="d">{상태 || '고치면 저절로 저장됩니다'}</div></div>
-        <button className="btn sm" onClick={인쇄}>🖨 인쇄</button>
+        <button className="btn sm" onClick={() => 그.PDF('위')} disabled={!!그.찍기}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 PDF'}</button>
+        <button className="btn sm ghost" onClick={() => 그.인쇄('위')} disabled={!!그.찍기}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
         <button className="btn sm ghost" onClick={엑셀받기} title="종이와 같은 칸으로">📗 엑셀</button>
       </div>
+      {그.말 && 그.말자리 === '위' && <div className="note sm" role="status" style={{ margin: '0 0 10px' }}>{그.말}</div>}
       <div className="card">
         {k === '1' && (
           <div className="eq-3">
@@ -483,11 +491,14 @@ function 서류칸({ id, 문, 정보, 자료, 예시, 서류저장, 사진읽기
       {(k === '1' || k.startsWith('2') || k === '5') && <줄들 k={k} j={j} 바꿈={바꿈} 다른서류={다른서류} />}
       <div className="card">
         <div className="eq-bar"><span className="sec-title" style={{ margin: 0 }}>🖨 종이 미리보기</span><span className="muted sm">{K.가로 ? 'A4 가로' : 'A4 세로'} · 결재·서명은 종이에</span>
-          <button className="btn sm" onClick={인쇄}>🖨 인쇄 · PDF</button>
+          <button className="btn sm" onClick={() => 그.PDF('아래')} disabled={!!그.찍기}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 PDF 저장'}</button>
+          <button className="btn sm ghost" onClick={() => 그.인쇄('아래')} disabled={!!그.찍기}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
           <button className="btn sm ghost" onClick={엑셀받기} title="종이와 같은 칸으로">📗 엑셀</button></div>
+        {그.말 && 그.말자리 === '아래' && <div className="note sm" role="status" style={{ margin: '6px 0' }}>{그.말}</div>}
         <div className="rk-preview" ref={미리}><종이 k={k} j={j} 사진={사진} /></div>
       </div>
-      {인쇄중 && createPortal(<div id="gp-인쇄"><div className={'rk-쪽 ' + (K.가로 ? 'land' : 'port')}><종이 k={k} j={j} 사진={사진} /></div></div>, document.body)}
+      </div>
+      {그.판 && createPortal(<div id="gp-인쇄"><div className={'rk-쪽 ' + (K.가로 ? 'land' : 'port')}><종이 k={k} j={j} 사진={사진} /></div></div>, document.body)}
     </>
   )
 }

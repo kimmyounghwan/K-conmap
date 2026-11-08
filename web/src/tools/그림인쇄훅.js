@@ -7,7 +7,7 @@
  *            <button onClick={() => 그.PDF('위')} disabled={!!그.찍기}>📄 PDF 저장</button> · <button onClick={() => 그.인쇄('위')}>🖨 인쇄</button>
  *            {그.말 && 그.말자리 === '위' && <div role="status">{그.말}</div>}   ← 알림은 누른 단추 곁(위 · 아래)
  *   ■ 쪽 = 그 판 @page 의 글자 칸(mm) · 여백 = [왼, 위] mm · 종이 = A4 [210, 297](가로면 [297, 210]) · 판쪽 = 그림 인쇄 때 쓸 @page 이름(같은 여백)
- *   ■ 셈 = 숨은 누적 |{셈}|PDF · |{셈}|인쇄 (소장님 브라우저 · 로봇은 안 셈)
+ *   ■ 셈 = 숨은 누적 |{셈}|PDF · |{셈}|인쇄 (소장님 브라우저 · 로봇은 안 셈) · 칸줄 = 겹친 칸 줄 한 번씩(G587 · lib/그림인쇄.js 칸줄고침 — 합친 칸 표도)
  *   ■ 단추 없이 Ctrl+P 로 찍으면 화면 글이 글자로 나감 → 쓰는 쪽 덩이에 className «그림만인쇄» + <div className="kcm-인쇄안내">…</div> (styles.css)
  */
 import { useEffect, useRef, useState } from 'react'
@@ -16,13 +16,13 @@ import { 세기 } from '../lib/받은수.jsx'
 
 const 옛판꼴 = /dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading chunk/i
 
-export function use그림인쇄(제목, { 셈 = '', 쪽 = { 폭: 186, 높: 273 }, 여백 = [12, 12], 종이 = [210, 297], 판쪽 = '', 몸표 = ['gp-인쇄중'], 판 = '#gp-인쇄', 맞춤 = true, 더CSS = '' } = {}) {
+export function use그림인쇄(제목, { 셈 = '', 쪽 = { 폭: 186, 높: 273 }, 여백 = [12, 12], 종이 = [210, 297], 판쪽 = '', 몸표 = ['gp-인쇄중'], 판 = '#gp-인쇄', 맞춤 = true, 더CSS = '', 칸줄 = false } = {}) {
   const [찍기, set찍기] = useState(null)        // 'pdf' | '인쇄' — 판을 붙이고 그림으로 찍는 중
   const [말, set말0] = useState('')
   const [말자리, set말자리] = useState('위')
   const 자리 = useRef('위')
   const 설정 = useRef(null)
-  설정.current = { 제목, 셈, 쪽, 여백, 종이, 판쪽, 몸표, 판, 맞춤, 더CSS }
+  설정.current = { 제목, 셈, 쪽, 여백, 종이, 판쪽, 몸표, 판, 맞춤, 더CSS, 칸줄 }
   const 알림 = (m) => { set말자리(자리.current); set말0(m) }
   useEffect(() => { if (!말) return undefined; const t = setTimeout(() => set말0(''), 4000); return () => clearTimeout(t) }, [말])
   useEffect(() => {
@@ -40,7 +40,7 @@ export function use그림인쇄(제목, { 셈 = '', 쪽 = { 폭: 186, 높: 273 }
         if (그만) return
         if (!el) throw new Error('인쇄 판을 못 찾음')
         const { 인쇄판찍기, A4쪽 } = await import('../lib/그림인쇄.js')
-        const { 쪽들 } = await 인쇄판찍기(el, { 몸표: S.몸표, 쪽: S.쪽, 맞춤: S.맞춤, 더CSS: S.더CSS })
+        const { 쪽들 } = await 인쇄판찍기(el, { 몸표: S.몸표, 쪽: S.쪽, 맞춤: S.맞춤, 더CSS: S.더CSS, 칸줄: S.칸줄 })
         if (그만) return
         const 이름 = String(S.제목 || '인쇄').replace(/[\\/:*?"<>|]/g, '').trim() || '인쇄'
         if (찍기 === 'pdf') {

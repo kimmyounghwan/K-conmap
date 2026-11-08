@@ -115,6 +115,31 @@ function 인쇄규칙() {
 
 const 블록꼴 = /^(block|table|table-row|table-row-group|table-header-group|table-footer-group|table-caption|flex|grid|list-item|flow-root)$/
 
+/** 🖼 G587 겹친 칸 줄(border-collapse) 고침 — 복제본에서만. 그림으로 찍으면 맞닿은 두 칸이 같은 줄을 따로 그어 굵게 나옴
+ *  → 표마다 «떨어진 칸» 으로 바꾸고 칸 줄을 한 번씩만: 맨 왼쪽 · 맨 위 칸이 아니면 왼 · 위 줄을 지움(합친 칸(rowspan · colspan)도 칸 자리로 봄) ·
+ *  표 자체에 테두리가 있으면 그 쪽 끝 칸 줄은 지움(표 테두리 하나만). 줄 굵기 · 색은 칸에 적힌 그대로. */
+function 칸줄고침(판) {
+  const 창 = 판.ownerDocument.defaultView
+  for (const t of 판.querySelectorAll('table')) {
+    const ts = 창.getComputedStyle(t)
+    if (ts.borderCollapse !== 'collapse') continue
+    const 칸들 = [...t.querySelectorAll('th, td')].filter((c) => c.closest('table') === t)
+    if (!칸들.length) continue
+    const 자리 = 칸들.map((c) => c.getBoundingClientRect())
+    const 왼 = Math.min(...자리.map((r) => r.left)), 위 = Math.min(...자리.map((r) => r.top))
+    const 오른 = Math.max(...자리.map((r) => r.right)), 아래 = Math.max(...자리.map((r) => r.bottom))
+    const 표줄 = { l: parseFloat(ts.borderLeftWidth) || 0, t: parseFloat(ts.borderTopWidth) || 0, r: parseFloat(ts.borderRightWidth) || 0, b: parseFloat(ts.borderBottomWidth) || 0 }
+    t.style.borderCollapse = 'separate'; t.style.borderSpacing = '0'
+    칸들.forEach((c, i) => {
+      const r = 자리[i]
+      if (r.left - 왼 > 1.5 || 표줄.l > 0) c.style.borderLeftWidth = '0'
+      if (r.top - 위 > 1.5 || 표줄.t > 0) c.style.borderTopWidth = '0'
+      if (표줄.r > 0 && 오른 - r.right < 1.5) c.style.borderRightWidth = '0'
+      if (표줄.b > 0 && 아래 - r.bottom < 1.5) c.style.borderBottomWidth = '0'
+    })
+  }
+}
+
 /** 복제본 안 종이 재기 — 경계(덩이 위 · 아래 · 글 줄) · 피함(줄 · avoid 덩이) · 표 · 꼭(page 나눔) */
 function 판재기(el) {
   const 위0 = el.getBoundingClientRect().top
@@ -151,11 +176,12 @@ function 판재기(el) {
 /**
  * 🖼 G585 인쇄 판 하나를 «인쇄 모양 그대로» 그림 쪽들로 — 판(el)은 화면엔 숨어 있어도 됨(복제본에서만 폄)
  * @param {HTMLElement} el  #gp-인쇄 안의 쪽 덩이(예: .il-쪽)
- * @param {{몸표?: string[], 쪽?: {폭: number, 높: number}, 맞춤?: boolean, 배율?: number, 한도?: number, 더CSS?: string}} o
- *   몸표 = 인쇄 때 몸에 다는 표(gp-인쇄중 …) · 쪽 = 글자 칸 mm(그 판의 @page 와 같게) · 맞춤 = 마지막 쪽이 1/4 안 되면 줄여 한 쪽 덜 씀
+ * @param {{몸표?: string[], 쪽?: {폭: number, 높: number}, 맞춤?: boolean, 배율?: number, 한도?: number, 더CSS?: string, 칸줄?: boolean}} o
+ *   몸표 = 인쇄 때 몸에 다는 표(gp-인쇄중 …) · 쪽 = 글자 칸 mm(그 판의 @page 와 같게) · 맞춤 = 마지막 쪽이 1/4 안 되면 줄여 한 쪽 덜 씀 ·
+ *   칸줄 = 겹친 칸 줄을 한 번씩만(G587 — 합친 칸 있는 표도 · 도구마다 CSS 를 따로 안 써도 됨)
  * @returns {Promise<{쪽들: HTMLCanvasElement[], z: number}>}
  */
-export async function 인쇄판찍기(el, { 몸표 = [], 쪽 = { 폭: 186, 높: 273 }, 맞춤 = true, 배율 = 2, 한도 = 12e6, 더CSS = '' } = {}) {
+export async function 인쇄판찍기(el, { 몸표 = [], 쪽 = { 폭: 186, 높: 273 }, 맞춤 = true, 배율 = 2, 한도 = 12e6, 더CSS = '', 칸줄 = false } = {}) {
   const { default: html2canvas } = await import('html2canvas')
   if (document.fonts && document.fonts.ready) { try { await document.fonts.ready } catch (e) { /* 없음 */ } }
   const 규칙 = 인쇄규칙()
@@ -175,6 +201,7 @@ export async function 인쇄판찍기(el, { 몸표 = [], 쪽 = { 폭: 186, 높: 
       doc.head.appendChild(st)
       const 판 = doc.querySelector(`[data-kcm-찍을="${표지}"]`)
       if (!판) return
+      if (칸줄) 칸줄고침(판)
       잰 = 판재기(판)
       /* 한 장 맞춤 — 꼬리만 넘치면 넓게 펴서 다시 잼(줄이면 표가 폭을 다 쓰게 · 인쇄의 zoom 과 같은 모양) */
       const n = Math.max(1, Math.ceil((잰.H - 0.5) / 높px))

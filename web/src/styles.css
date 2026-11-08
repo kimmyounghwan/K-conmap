@@ -5161,6 +5161,9 @@ span.qna-like { cursor: default; }
   .rk-fs .field:first-child { grid-column: 1 / 3; }
   .rk-pics { grid-template-columns: 1fr; }
   .rk-edit-head .btn.sm { padding: 6px 9px; }
+  /* 🖼 G587 폰 — 단추(📄 PDF · 🖨 인쇄 · 📗 엑셀)가 한 줄에 다 서면 서류 이름 칸이 좁아져 글이 한 글자씩 세로로 섰음 → 이름은 첫 줄을 다 쓰고 단추는 다음 줄 */
+  .rk-edit-head { flex-wrap: wrap; row-gap: 8px; }
+  .rk-edit-head .grow { flex: 1 1 calc(100% - 140px); }
 }
 /* 종이 */
 .rk-paper { background: #fff; color: #111; margin: 0 auto; padding: 16px 18px; box-shadow: 0 1px 6px rgba(0,0,0,.12); font-family: 'Malgun Gothic', '맑은 고딕', 'Noto Sans KR', sans-serif; }
