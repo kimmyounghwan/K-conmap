@@ -154,12 +154,14 @@ function 판재기(el) {
     const cs = 창.getComputedStyle(n)
     if (cs.display === 'none') continue
     const [a, b] = 자리(n)
+    /* 쪽 나눔(break-before/after: page)은 높이 0 인 빈 덩이(노무비 지급명세서 .tp-pb)에도 걸림 — 높이를 보기 전에 셈
+       (G589 — 전엔 빈 덩이를 먼저 걸러 «③ 신고용 집계» 가 첫 쪽에 붙고 한 장으로 줄었음) */
+    if (/^(page|always|left|right)$/.test(cs.breakBefore) || cs.pageBreakBefore === 'always') 꼭.push(a)
+    if (/^(page|always|left|right)$/.test(cs.breakAfter) || cs.pageBreakAfter === 'always') 꼭.push(b)
     if (b - a <= 0) continue
     if (블록꼴.test(cs.display)) { 경계.add(a); 경계.add(b) }
     if (n.tagName === 'TR' || cs.breakInside === 'avoid' || cs.pageBreakInside === 'avoid' || cs.breakInside === 'avoid-page') 피함.push([a, b])
     if (/^(H[1-6]|SUMMARY)$/.test(n.tagName) || cs.breakAfter === 'avoid' || cs.breakAfter === 'avoid-page' || cs.pageBreakAfter === 'avoid') 붙임.push([a, b])
-    if (/^(page|always|left|right)$/.test(cs.breakBefore) || cs.pageBreakBefore === 'always') 꼭.push(a)
-    if (/^(page|always|left|right)$/.test(cs.breakAfter) || cs.pageBreakAfter === 'always') 꼭.push(b)
   }
   /* 글 줄 사이 — 긴 덩이(특기사항 칸 · 긴 글)도 글 줄 가운데서 자르지 않게 */
   const 문서 = el.ownerDocument
@@ -224,7 +226,8 @@ export async function 인쇄판찍기(el, { 몸표 = [], 쪽 = { 폭: 186, 높: 
       잰 = 판재기(판)
       /* 한 장 맞춤 — 꼬리만 넘치면 넓게 펴서 다시 잼(줄이면 표가 폭을 다 쓰게 · 인쇄의 zoom 과 같은 모양) */
       const n = Math.max(1, Math.ceil((잰.H - 0.5) / 높px))
-      if (맞춤 && n > 1) {
+      const 꼭있음 = 잰.꼭.some((y) => y > 8 && y < 잰.H - 0.5)   // 쪽 나눔이 있는 판(노무비 신고용 집계 새 쪽)은 쪽을 합칠 수 없음 — 줄이지 않음(G589)
+      if (맞춤 && n > 1 && !꼭있음) {
         const 끝쪽 = 잰.H - (n - 1) * 높px
         const 줄일 = ((n - 1) * 높px * 0.975) / 잰.H
         if (끝쪽 < 높px * 0.25 && 줄일 >= 0.83) {

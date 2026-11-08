@@ -8,6 +8,7 @@ import { 읽기현장, 쓰기현장, 현장목록, 현장목록쓰기, 현장목
 import { 다른현장명단, 사람찾기, 사람열쇠, 현장사람들, 줄에채움, 데려오기 } from '../lib/nomubi.js'   /* 👥 G182 이름만 쳐서 다른 현장 사람 데려오기 */
 import { 세기 } from '../lib/받은수.jsx'
 import { use잠깐말 } from '../lib/잠깐말.js'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G589 지급명세서 PDF · 인쇄는 그림(글자 층 없음) — 📗 엑셀은 그대로 */
 /* 🛡 2026-10-01 (G107) 연금 · 건강 «대상» 은 lib/ilyong4.js 판단(여러 달) — 사람마다 «판단 자세히» 로 가입 판단기에 출역을 넘깁니다 */
 import { 생일풀기, 만나이, 나이날 } from '../lib/ilyong4.js'   /* 🎂 G109 생년월일 → 만 나이 · 60세 연금 · 65세 고용 */
 import 이어쓰기 from '../tools/이어쓰기.jsx'
@@ -100,11 +101,6 @@ function 계산기({ 현장id, 현장칸, on현장명 }) {
     }
     window.addEventListener('storage', 사건)
     return () => window.removeEventListener('storage', 사건)
-  }, [])
-  useEffect(() => {
-    const 끝 = () => document.body.classList.remove('tp-print-bill')
-    window.addEventListener('afterprint', 끝)
-    return () => { window.removeEventListener('afterprint', 끝); 끝() }
   }, [])
   const ym = st.ym
   const N = useMemo(() => 달셈(st, ym), [st, ym])
@@ -256,7 +252,12 @@ function 계산기({ 현장id, 현장칸, on현장명 }) {
     else o[k] = 숫자만(s)
     바꿈((x) => 달값(x, ym, id, { o }))
   }
-  const 인쇄 = () => { document.body.classList.add('tp-print-bill'); setTimeout(() => window.print(), 80) }
+  /* 🖼 G589 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 전엔 몸에 tp-print-bill 을 달고 window.print(글자 PDF).
+     이제 지급명세서(.tp-bill)를 복제본에서만 인쇄 CSS(tp-print-bill)로 펴서 그림으로 찍음: 📄 PDF 바로 받기 · 🖨 그림만 인쇄
+     (A4 가로 · @page tp-land 10mm → 글자 칸 277 × 190mm · 출역 대장 · 지급 명세 · 신고용 집계 그대로) · 숨은 누적 |노무비|PDF · |노무비|인쇄 */
+  const 그 = use그림인쇄(['노무비지급명세서', st.site, ym].filter(Boolean).join('_'), {
+    셈: '노무비', 대상: '.nm .tp-bill', 몸표: ['tp-print-bill'], 쪽: { 폭: 277, 높: 190 }, 여백: [10, 10], 종이: [297, 210], 판쪽: 'tp-land', 칸줄: true,
+  })
   /* 📗 G109 값만 엑셀 — 소장님 「엑셀로 값만 주는 걸로 하자. 프로그램 원칙으로 하고」(셈은 이 화면, 엑셀은 보관용 값) */
   const 엑셀받기 = async () => {
     const { 값엑셀받기, 수칸, 굵은칸 } = await import('../lib/값엑셀.js')
@@ -276,12 +277,14 @@ function 계산기({ 현장id, 현장칸, on현장명 }) {
   const 안됨 = N.줄.filter((r) => !r.대상.P.대상 || !r.대상.H.대상 || !r.대상.E.대상)
 
   return (
-    <div className="wrap tp nm">
+    <>
+    <div className="kcm-인쇄안내">🖨 지급명세서는 화면의 <b>«📄 PDF 저장»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+    <div className="wrap tp nm 그림만인쇄">
       <div className="card">
         <h1 className="tl-h1" style={{ marginTop: 0 }}>👷 일용 노무비 계산기 · 지급명세서</h1>
         <p className="cp" style={{ margin: '6px 0 0' }}>
           이름 · 직종 · 일당을 적고 <b>일한 날을 누르면</b> 소득세 · 지방소득세 · 고용보험 · 국민연금 · 건강보험 · 장기요양 공제와
-          <b> 실지급액</b>이 저절로 나옵니다. <b>생년월일</b>을 넣으면 만 60세(국민연금) · 만 65세(고용보험)도 나이로 가려 금액에 넣고 뺍니다. 지급명세서를 <b>A4 가로로 인쇄</b>하고, 근로내용 확인신고에 옮겨 적을 집계도 함께 나옵니다.
+          <b> 실지급액</b>이 저절로 나옵니다. <b>생년월일</b>을 넣으면 만 60세(국민연금) · 만 65세(고용보험)도 나이로 가려 금액에 넣고 뺍니다. 지급명세서를 <b>A4 가로 PDF 로 바로 받거나 인쇄</b>하고, 근로내용 확인신고에 옮겨 적을 집계도 함께 나옵니다.
         </p>
         <div className="nm-badges">
           <span>회원가입 없음 · 무료</span>
@@ -545,10 +548,12 @@ function 계산기({ 현장id, 현장칸, on현장명 }) {
       {N.줄.length > 0 && (
         <div className="card tp-bill">
           <div className="btn-row no-print" style={{ justifyContent: 'flex-start', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-            <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={인쇄}>🖨 지급명세서 인쇄 (A4 가로)</button>
+            <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => 그.PDF()} disabled={!!그.찍기}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 지급명세서 PDF 저장 (A4 가로)'}</button>
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 그.인쇄()} disabled={!!그.찍기}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
             <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀받기}>📗 엑셀 받기</button>
-            <span className="muted" style={{ fontSize: 12.5, alignSelf: 'center' }}>인쇄하면 출역 대장 · 지급 명세 · 신고용 집계가 함께 나옵니다. 엑셀은 보관용 — 셈은 이 화면에서.</span>
+            <span className="muted" style={{ fontSize: 12.5, alignSelf: 'center' }}>PDF · 인쇄에는 출역 대장 · 지급 명세 · 신고용 집계가 함께 나옵니다. 엑셀은 보관용 — 셈은 이 화면에서.</span>
           </div>
+          {그.말 && <div className="note sm no-print" role="status" style={{ marginBottom: 10 }}>{그.말}</div>}
           {/* 📮👷🧾 G116 (2026-10-02) 경리 셋 — 같은 출역을 그대로 읽음 · 소장님 「현재 사이트에 있는 것과 연계해서」 */}
           <div className="btn-row no-print nm-next" style={{ justifyContent: 'flex-start', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
             <span className="muted" style={{ fontSize: 12.5, alignSelf: 'center' }}>이 출역 그대로 —</span>
@@ -727,6 +732,7 @@ function 계산기({ 현장id, 현장칸, on현장명 }) {
         </ul>
       </details>
     </div>
+    </>
   )
 }
 

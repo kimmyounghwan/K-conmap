@@ -146,15 +146,21 @@ for (const 기기 of 기기들) {
     }).map(([이름]) => 이름)
     봐(X.수식 === 0 && !엑다름.length, `${기기} ${벌} ${끝달} 값만 엑셀 = 손셈 · 수식 0`, `수식 ${X.수식} · ${엑다름}`)
     // 🖨 인쇄 — A4 가로 세 덩어리
-    await A.locator('button', { hasText: '지급명세서 인쇄' }).click()
-    await A.waitForTimeout(300)
+    // 🖼 G589 그림 인쇄 — 단추를 누르면 지급명세서를 복제본에서 인쇄 CSS(tp-print-bill)로 펴서 쪽 그림으로 찍고 그 그림만 인쇄(몸엔 꼴을 안 닮).
+    //   → 쪽 그림이 2장 넘게 붙고 print 가 한 번 불림을 보고, 세 덩어리는 복제본과 같은 꼴(몸에 tp-print-bill · kcm-찍는중 + 인쇄 매체)로 봄
+    await A.locator('.tp-bill button', { hasText: '🖨 인쇄' }).click()
+    for (let i = 0; i < 100 && !(await A.evaluate(() => window.__인쇄 || 0)); i++) await A.waitForTimeout(100)
+    const 쪽그림 = await A.evaluate(() => document.querySelectorAll('#kcm-그림인쇄 img.kcm-쪽그림').length)
+    await A.evaluate(() => window.dispatchEvent(new Event('afterprint')))
+    await A.waitForTimeout(200)
+    await A.evaluate(() => document.body.classList.add('tp-print-bill', 'kcm-찍는중'))
     await A.emulateMedia({ media: 'print' })
     const 인 = await A.evaluate(() => ({ n: window.__인쇄 || 0, 몸: document.body.classList.contains('tp-print-bill'), 대장: [...document.querySelectorAll('.nm-printonly .tp-grid tbody tr')].filter((tr) => tr.offsetParent !== null).length, 줄: [...document.querySelectorAll('table.tp-lb tbody tr')].filter((tr) => tr.offsetParent !== null).length, 신고: [...document.querySelectorAll('table.nm-rep tbody tr')].filter((tr) => tr.offsetParent !== null).length }))
     const 사람수 = Object.keys(S.답[벌][끝달]).length
-    봐(인.n === 1 && 인.몸 && 인.대장 >= 사람수 && 인.줄 === 사람수 + 1 && 인.신고 === 사람수 + 1, `${기기} ${벌} 인쇄 — 출역 대장 · 지급 명세 · 신고용 집계가 인쇄에 보임`, JSON.stringify(인))
+    봐(인.n === 1 && 쪽그림 >= 2 && 인.몸 && 인.대장 >= 사람수 && 인.줄 === 사람수 + 1 && 인.신고 === 사람수 + 1, `${기기} ${벌} 인쇄 — 쪽 그림 ${쪽그림}장 · 출역 대장 · 지급 명세 · 신고용 집계가 인쇄 꼴에 보임`, JSON.stringify({ ...인, 쪽그림 }))
     if (기기 === 'PC') await A.locator('.tp-bill').screenshot({ path: path.join(폴더, `G367_${벌}_${끝달}_인쇄.png`) })
     await A.emulateMedia({ media: 'screen' })
-    await A.evaluate(() => document.body.classList.remove('tp-print-bill'))
+    await A.evaluate(() => document.body.classList.remove('tp-print-bill', 'kcm-찍는중'))
     if (기기 === 'PC' || 벌 === 'B') await A.locator('.tp-bill').screenshot({ path: path.join(폴더, `G367_${기기}_${벌}_${끝달}.png`) })
     if (기기 === '폰') 봐((await A.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 1, `${기기} ${벌} 폰 가로 넘침 없음`)
     봐(!오류.length, `${기기} ${벌} 화면 오류 0`, 오류.join(' | '))
