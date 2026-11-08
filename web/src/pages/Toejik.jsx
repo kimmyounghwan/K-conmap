@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { 일한달들, 달글, 원 } from '../lib/신고정리.js'
 import { 달집계, 누계, 설정정리, 낸것바꿈 } from '../lib/퇴직공제.js'
@@ -6,6 +6,7 @@ import { 퇴직공제일액, 퇴직공제일액표, 달더하기, 한국오늘, 
 import { use노무자료, 노무자료줄, 출역없음 } from '../tools/노무자료.jsx'
 import 해마다띠 from '../tools/해마다띠.jsx'
 import 도구설명 from '../tools/도구설명.jsx'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G596 PDF · 인쇄는 그림(글자 층 없음) — 📗 엑셀은 그대로 */
 
 /**
  * 👷 /tools/toejik — 건설근로자 퇴직공제 집계 (G116 · 2026-10-02)
@@ -36,12 +37,12 @@ export default function Toejik() {
   const 이달낸 = ym ? 설정.paid[ym] : null
   const 낸기록 = () => { set설정((s) => 낸것바꿈(s, ym, { a: 낸칸.a === '' ? T.합.부금 : 숫자만(낸칸.a), d: 낸칸.d || 오늘 })); set낸칸({ a: '', d: '' }) }
   const 기한 = T ? 기한미루기(T.기한) : null
-  useEffect(() => {
-    const 끝 = () => document.body.classList.remove('hm-print')
-    window.addEventListener('afterprint', 끝)
-    return () => { window.removeEventListener('afterprint', 끝); 끝() }
-  }, [])
-  const 인쇄 = () => { document.body.classList.add('hm-print'); setTimeout(() => window.print(), 80) }
+  /* 🖼 G596 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 전엔 몸에 hm-print 를 달고 window.print(글자 PDF).
+     이제 결과 칸(.hm-out)을 복제본에서만 인쇄 CSS(hm-print)로 펴서 그림으로: 📄 PDF 바로 받기 · 🖨 그림만 인쇄
+     (A4 세로 기본 @page · 글자 칸 186 × 271mm) · 숨은 누적 |퇴직공제|PDF · 인쇄 */
+  const 그 = use그림인쇄(['퇴직공제', String((자료 && 자료.site) || '현장').trim(), ym || ''].filter(Boolean).join('_'), {
+    셈: '퇴직공제', 대상: '.tj .hm-out', 몸표: ['hm-print'], 쪽: { 폭: 186, 높: 271 }, 여백: [12, 12], 칸줄: true,
+  })
   const 엑셀 = async () => {
     const { 값엑셀받기, 수칸, 굵은칸 } = await import('../lib/값엑셀.js')
     const 줄 = T.줄.map((r, i) => [i + 1, r.p.n, r.p.b || '', r.p.j, r.온, r.짧은 || '', r.넘어옴 || '', r.뺌 ? 0 : r.일수, r.남음 || '', 수칸(r.부금), r.뺌 ? '뺌(피공제자 아님)' : ''])
@@ -55,7 +56,9 @@ export default function Toejik() {
   }
 
   return (
-    <div className="wrap hm tj">
+    <>
+    <div className="kcm-인쇄안내">🖨 퇴직공제 근로일수 · 부금은 화면의 <b>«📄 PDF 저장»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+    <div className="wrap hm tj 그림만인쇄">
       <div className="card hm-in">
         <h1 className="tl-h1" style={{ marginTop: 0 }}>👷 건설근로자 퇴직공제 집계 — 근로일수 · 공제부금</h1>
         <p className="cp" style={{ margin: '6px 0 0' }}>
@@ -94,9 +97,11 @@ export default function Toejik() {
           <div className="card hm-out">
             <div className="hm-print-h">👷 {자료.co ? `${자료.co} · ` : ''}{자료.site || '현장'} — {달글(ym)} 퇴직공제 근로일수 · 공제부금 <span>(일액 {원(액.일액)}원 · K-건설맵 · {오늘} 뽑음)</span></div>
             <div className="btn-row no-print" style={{ justifyContent: 'flex-start', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-              <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={인쇄}>🖨 인쇄 (A4)</button>
+              <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => 그.PDF()} disabled={!!그.찍기}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 PDF 저장 (A4)'}</button>
+              <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 그.인쇄()} disabled={!!그.찍기}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
               <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀}>📗 엑셀 받기</button>
             </div>
+            {그.말 && <div className="note sm no-print" role="status" style={{ marginBottom: 10 }}>{그.말}</div>}
             <div className="hm-sum">
               <div><span>피공제자</span><b>{T.합.인원}명</b>{T.합.뺀인원 > 0 && <i>뺀 사람 {T.합.뺀인원}명</i>}</div>
               <div><span>근로일수</span><b>{T.합.일수}일</b></div>
@@ -184,5 +189,6 @@ export default function Toejik() {
       )}
       <div className="hm-in"><도구설명 k="toejik" /></div>
     </div>
+    </>
   )
 }
