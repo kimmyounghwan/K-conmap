@@ -9,6 +9,8 @@
  * ■ 칸(localStorage 'kcm.calc.schedule'): 공사명·착공·준공·간격·공종[{이름, 금액, 시작, 기간, 선행, 간격}]
  *   공사일보(/tools/tuipbi) «📝 공사일보» 의 계획 공정률이 같은 브라우저의 이 칸을 읽어 씁니다(lib/공정.js 계획률).
  * ■ 셈: lib/공정.js (시험: node tools/시험_공정.mjs) · 인쇄: A4 가로 한 장(#gp-인쇄)
+ *   🖼 G590 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 인쇄 판(#gp-인쇄)을 그림으로 찍어 📄 PDF 바로 받기 · 🖨 그림만 인쇄(tools/그림인쇄훅.js)
+ *      막대형 = A4 가로 @page gp가로 8mm(글자 칸 281 × 194mm) · 금액형(변경공정칸.jsx) = A3 · A4 가로 그대로
  * ■ 날은 달력 날(공휴일 빼기 없음).
  * ■ 🔀 2026-09-28 양식 둘 — 소장님: 「예정공정표 다른 형식이야. 이것도 올려줘」 → 처음엔 따로 «변경 예정공정표» 도구로 만들었다가
  *    「공정표를 말하는 거야」 → 이름을 «예정공정표 다른 형식» 으로: 이 도구 안의 두 번째 양식 «💰 금액형(달마다 %·금액 · 당초·변경)» (tools/변경공정칸.jsx)
@@ -18,7 +20,7 @@ import { useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { use칸, Row, Out } from './calcs.jsx'
 import { 공정셈, 자동배치, 내역공종, 예시공정, 예시변경공정, 점날, 번날 } from '../lib/공정.js'
-import { use인쇄 } from './공정인쇄.js'
+import { use그림인쇄 } from './그림인쇄훅.js'   /* 🖼 G590 PDF · 인쇄는 그림(글자 층 없음) */
 import { ScheduleChange } from './변경공정칸.jsx'
 
 const 원 = (n) => (Number.isFinite(n) ? Math.round(n).toLocaleString('ko-KR') : '')
@@ -35,6 +37,8 @@ export function Schedule({ ex = {} }) {
   const [양식, set양식] = use칸('양식', '막대')
   return (
     <>
+      <div className="kcm-인쇄안내">🖨 예정공정표는 화면의 <b>«📄 PDF 저장»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+      <div className="그림만인쇄">
       <div className="gp-pick" role="tablist" aria-label="양식">
         <span className="gp-pick-l">양식</span>
         {[['막대', '📊 막대형', '공종·기간·선행 → 보할·주공정·S커브'], ['금액', '💰 금액형', '달마다 %·금액 · 당초·변경 두 줄']].map(([k, 이름, 설명]) => (
@@ -43,6 +47,7 @@ export function Schedule({ ex = {} }) {
         ))}
       </div>
       {양식 === '금액' ? <ScheduleChange ex={ex} 앞="금_" /> : <막대형 ex={ex} />}
+      </div>
     </>
   )
 }
@@ -56,7 +61,7 @@ function 막대형({ ex = {} }) {
   const [알림, set알림] = useState('')
   const 파일 = useRef(null)
   const R = useMemo(() => 공정셈({ 착공, 준공, 간격, 공종 }), [착공, 준공, 간격, 공종])
-  const [인쇄중, 인쇄] = use인쇄('예정공정표' + (공사명 ? ' — ' + 공사명 : ''))
+  const 그 = use그림인쇄(['예정공정표', String(공사명 || '').trim()].filter(Boolean).join('_'), { 셈: '예정공정표', 쪽: { 폭: 281, 높: 194 }, 여백: [8, 8], 종이: [297, 210], 판쪽: 'gp가로', 칸줄: true })
 
   const 고침 = (i, key, v) => set공종((L) => L.map((r, j) => (j === i ? { ...r, [key]: v } : r)))
   const 더하기 = () => set공종((L) => [...L, 빈줄()])
@@ -142,10 +147,12 @@ function 막대형({ ex = {} }) {
       {R.칸.length && 쓸줄.length ? (
         <>
           <div className="kt-btns">
-            <button type="button" className="btn" style={{ width: 'auto' }} onClick={인쇄}>🖨 인쇄 (A4 가로)</button>
+            <button type="button" className="btn" style={{ width: 'auto' }} onClick={() => 그.PDF()} disabled={!!그.찍기}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 PDF 저장 (A4 가로)'}</button>
+            <button type="button" className="btn line" style={{ width: 'auto' }} onClick={() => 그.인쇄()} disabled={!!그.찍기}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
           </div>
+          {그.말 && <div className="gp-say" role="status">{그.말}</div>}
           <div className="gp-sheetwrap">{표}</div>
-          {인쇄중 && createPortal(<div id="gp-인쇄"><div className="gp-쪽">{표}</div></div>, document.body)}
+          {그.판 && createPortal(<div id="gp-인쇄"><div className="gp-쪽">{표}</div></div>, document.body)}
         </>
       ) : <p className="muted">착공·준공과 공종(이름·기간)을 적으면 여기에 공정표가 그려집니다. 🧪 예시로 해 보기를 눌러 보십시오.</p>}
     </>

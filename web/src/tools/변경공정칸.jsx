@@ -16,7 +16,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { use칸, Row, Out } from './calcs.jsx'
-import { use인쇄 } from './공정인쇄.js'
+import { use그림인쇄 } from './그림인쇄훅.js'   /* 🖼 G590 PDF · 인쇄는 그림(글자 층 없음) — A3 · A4 가로 그대로 */
 import { 변경공정셈, 맞춰반올림, 내역공종, 공정셈, 자동배치, 점날, 번날, 날번 } from '../lib/공정.js'
 
 const 쉼 = (n) => (Number.isFinite(n) ? Math.round(n).toLocaleString('ko-KR') : '')
@@ -44,7 +44,10 @@ export function ScheduleChange({ ex = {}, 앞 = '' }) {
   const 파일 = useRef(null)
   const P = { 착공, 준공, 변준공, 간격, 도급, 변도급, 변경, 공종 }
   const R = useMemo(() => 변경공정셈(P), [착공, 준공, 변준공, 간격, 도급, 변도급, 변경, 공종])   // eslint-disable-line react-hooks/exhaustive-deps
-  const [인쇄중, 인쇄] = use인쇄('예정공정표' + (공사명 ? ' — ' + 공사명 : ''))
+  /* 🖼 G590 — 쪽마다 그 용지 @page 글자 칸(A3 가로 7mm → 406 × 283mm · A4 가로 6mm → 285 × 198mm) · 쪽은 아래 쪽나누기가 미리 나눔(맞춤 없음) */
+  const 그 = use그림인쇄(['예정공정표', String(공사명 || '').trim()].filter(Boolean).join('_'), 용지 === 'A3'
+    ? { 셈: '예정공정표', 쪽: { 폭: 406, 높: 283 }, 여백: [7, 7], 종이: [420, 297], 판쪽: 'gc가로A3', 맞춤: false }
+    : { 셈: '예정공정표', 쪽: { 폭: 285, 높: 198 }, 여백: [6, 6], 종이: [297, 210], 판쪽: 'gc가로A4', 맞춤: false })
 
   const 고침 = (i, key, v) => set공종((L) => L.map((r, j) => (j === i ? { ...r, [key]: v } : r)))
   const 더하기 = (깊이) => set공종((L) => [...L, 빈줄(깊이)])
@@ -193,11 +196,14 @@ export function ScheduleChange({ ex = {}, 앞 = '' }) {
             <select value={용지} onChange={(e) => set용지(e.target.value)} aria-label="용지" style={{ width: 'auto' }}>
               <option value="A3">A3 가로</option><option value="A4">A4 가로</option>
             </select>
-            <button type="button" className="btn" style={{ width: 'auto' }} onClick={인쇄}>🖨 인쇄 ({용지} 가로{쪽들.length > 1 ? ' · ' + 쪽들.length + '쪽' : ''})</button>
+            <button type="button" className="btn" style={{ width: 'auto' }} onClick={() => 그.PDF()} disabled={!!그.찍기}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : `📄 PDF 저장 (${용지} 가로${쪽들.length > 1 ? ' · ' + 쪽들.length + '쪽' : ''})`}</button>
+            <button type="button" className="btn line" style={{ width: 'auto' }} onClick={() => 그.인쇄()} disabled={!!그.찍기}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
             <button type="button" className="btn ghost sm" style={{ width: 'auto' }} onClick={() => set맞춤((v) => !v)}>{맞춤 ? '🔍 실제 크기로' : '↔ 화면 너비에 맞춤'}</button>
           </div>
+          {그.말 && <div className="gp-say" role="status">{그.말}</div>}
           <div className={'gp-sheetwrap gc-screen' + (맞춤 ? ' gc-fit' : '')}>{표(null)}</div>
-          {인쇄중 && createPortal(<div id="gp-인쇄">{쪽들.map((쪽, k) => <div key={k} className={'gp-쪽 gc-쪽 ' + (용지 === 'A3' ? 'gc-a3' : 'gc-a4')}>{표(쪽)}</div>)}</div>, document.body)}
+          {/* 쪽들을 한 덩이(.gc-쪽들)로 — 그림 찍기는 판(#gp-인쇄)의 첫 덩이를 찍음 */}
+          {그.판 && createPortal(<div id="gp-인쇄"><div className="gc-쪽들">{쪽들.map((쪽, k) => <div key={k} className={'gp-쪽 gc-쪽 ' + (용지 === 'A3' ? 'gc-a3' : 'gc-a4')}>{표(쪽)}</div>)}</div></div>, document.body)}
         </>
       ) : <p className="muted">착공·준공과 공종(이름·금액·기간)을 적으면 여기에 공정표가 그려집니다. 🧪 예시로 해 보기를 눌러 보십시오.</p>}
     </>
