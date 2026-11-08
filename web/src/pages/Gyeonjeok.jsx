@@ -4,6 +4,7 @@ import {
   읽기, 쓰기, 빈견적, 새번호, 셈, 산안표, 법정, 기본요율, 켜기본, 원, 한글금액, 날더하기, 예시, 예시나, 오늘, 목표맞추기,
 } from '../lib/gyeonjeok.js'
 import { 세기 } from '../lib/받은수.jsx'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G593 견적서 PDF · 인쇄는 그림(글자 층 없음) — 📗 엑셀은 그대로 */
 import { 요율불러오기 } from '../tools/제비율칸.jsx'
 import 이어쓰기 from '../tools/이어쓰기.jsx'
 import { 앞모습두기 } from '../lib/이어쓰기.js'
@@ -62,11 +63,6 @@ export default function Gyeonjeok() {
   const [붙임, set붙임] = useState('')
   const [알림, set알림] = useState('')
   useEffect(() => { set저장됨(쓰기(st)) }, [st])
-  useEffect(() => {
-    const 끝 = () => document.body.classList.remove('gj-print')
-    window.addEventListener('afterprint', 끝)
-    return () => { window.removeEventListener('afterprint', 끝); 끝() }
-  }, [])
   const 견 = st.cur
   const 나 = st.나
   const S = useMemo(() => 셈(견), [견])
@@ -102,7 +98,12 @@ export default function Gyeonjeok() {
     바꿈((c) => ({ ...c, 줄: [...c.줄.filter((r) => String(r.n || '').trim() || String(r.q || '').trim()), ...줄] }))
     set붙임(''); set알림(`${줄.length}줄을 내역에 붙였습니다.`)
   }
-  const 인쇄 = () => { document.body.classList.add('gj-print'); setTimeout(() => window.print(), 80) }
+  /* 🖼 G593 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 전엔 몸에 gj-print 를 달고 window.print(글자 PDF).
+     이제 견적서 종이(.gj-paper)를 복제본에서만 인쇄 CSS(gj-print)로 펴서 그림으로: 📄 PDF 바로 받기 · 🖨 그림만 인쇄
+     (A4 세로 · @page gj-port 12mm → 글자 칸 186 × 273mm · 견적서(· 원가계산서) 다음 쪽 내역서 그대로) · 숨은 누적 |견적서|PDF · |견적서|인쇄 */
+  const 그 = use그림인쇄(['견적서', String(견.공사명 || '').trim() || '공사', 견.견적일 || ''].filter(Boolean).join('_'), {
+    셈: '견적서', 대상: '.gj .gj-paper', 몸표: ['gj-print'], 쪽: { 폭: 186, 높: 273 }, 여백: [12, 12], 판쪽: 'gj-port', 칸줄: true,
+  })
   const 유효날 = 날더하기(견.견적일, 견.유효)
   /* 📗 G109 값만 엑셀 — 소장님 「엑셀로 값만 주는 걸로 하자. 프로그램 원칙으로 하고」(셈은 이 화면, 엑셀은 보관용 값) */
   const 엑셀받기 = async () => {
@@ -128,13 +129,15 @@ export default function Gyeonjeok() {
   const 내역 = S.L
 
   return (
-    <div className="wrap gj">
+    <>
+    <div className="kcm-인쇄안내">🖨 견적서는 화면의 <b>«📄 견적서 PDF 저장»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+    <div className="wrap gj 그림만인쇄">
       <div className="card">
         <h1 className="tl-h1" style={{ marginTop: 0 }}>🧾 공사 견적서 · 원가계산서 만들기</h1>
         <p className="cp" style={{ margin: '6px 0 0' }}>
           내역(품명 · 규격 · 수량 · 재료비/노무비/경비 단가)을 적으면 <b>직접공사비 → 일반관리비 · 이윤 → 부가세 → 견적금액(한글)</b>이 저절로 나옵니다.
           민간 · 하도급은 <b>간단 견적</b>, 관급 설계처럼 산재 · 고용 · 4대보험 · 산안비까지 넣으려면 <b>공공식 원가계산</b>을 고르십시오.
-          견적서를 <b>A4로 인쇄</b>합니다.
+          견적서를 <b>A4 PDF 로 바로 받거나 인쇄</b>합니다.
         </p>
         <div className="nm-badges">
           <span>회원가입 없음 · 무료</span>
@@ -299,10 +302,12 @@ export default function Gyeonjeok() {
 
       <div className="card gj-paper">
         <div className="btn-row no-print" style={{ justifyContent: 'flex-start', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-          <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={인쇄}>🖨 견적서 인쇄 (A4)</button>
+          <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => 그.PDF()} disabled={!!그.찍기}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 견적서 PDF 저장 (A4)'}</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 그.인쇄()} disabled={!!그.찍기}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀받기}>📗 엑셀 받기</button>
-          <span className="muted" style={{ fontSize: 12.5, alignSelf: 'center' }}>아래가 인쇄되는 모양입니다 — 견적서{견.방식 === 'public' ? ' · 원가계산서' : ''} 다음 쪽에 내역서.</span>
+          <span className="muted" style={{ fontSize: 12.5, alignSelf: 'center' }}>아래가 PDF · 인쇄되는 모양입니다 — 견적서{견.방식 === 'public' ? ' · 원가계산서' : ''} 다음 쪽에 내역서.</span>
         </div>
+        {그.말 && <div className="note sm no-print" role="status" style={{ marginBottom: 10 }}>{그.말}</div>}
         <h2 className="gj-title">견 적 서</h2>
         <div className="gj-head">
           <table className="tbl gj-left">
@@ -428,6 +433,7 @@ export default function Gyeonjeok() {
         </ul>
       </details>
     </div>
+    </>
   )
 }
 
