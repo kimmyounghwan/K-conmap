@@ -6060,7 +6060,7 @@ button.sk-mini { color: var(--accent); padding: 0; text-align: left; }
   .sk-ledp .il-t th, .sk-ledp .il-t td { font-size: 8.5px; padding: 2px 3px; height: auto; }
 }
 .sk-ledp { max-width: 1060px; }
-.sk-ledp .il-t td { font-size: 10.5px; }
+@media screen { .sk-ledp .il-t td { font-size: 10.5px; } }   /* 🩹 G600 이 화면 규칙이 위 인쇄 규칙(8.5px) 뒤에 있어 인쇄에서도 이겼음 → 칸이 좁아 날짜 · 구분이 두 줄로 꺾여 장부가 두 배 쪽(102줄 11쪽) — 화면에서만 */
 
 /* 🏢 /tools/jimyeong — 공사지명원 만들기 */
 .jm-logo { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }

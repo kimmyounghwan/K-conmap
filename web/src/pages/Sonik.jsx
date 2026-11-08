@@ -5,7 +5,7 @@ import {
   매출항목, 매입항목, 증빙들, 구분이름, 수, 원, 오늘, 새번호, 합계, 미결, 선급,
   셈, 달별, 거래처별, 분기세, 붙여읽기, 읽기, 쓰기, 빈장부, 예시,
 } from '../lib/sonik.js'
-import { use인쇄 } from '../tools/공정인쇄.js'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G600 PDF · 인쇄는 그림(글자 층 없음) */
 import 도구설명 from '../tools/도구설명.jsx'
 import 이어쓰기 from '../tools/이어쓰기.jsx'
 
@@ -16,6 +16,7 @@ import 이어쓰기 from '../tools/이어쓰기.jsx'
  * ■ 매출(청구) · 매입을 세금계산서 단위로 적으면 → 현장마다 손익 · 이익률 · 미수금 · 미지급금 · 달별 · 원가 구성 · 거래처별 · 분기 부가세(참고)
  * ■ 인쇄: 손익 보고서(A4 세로) · 매입매출장(A4 가로) + 📗 값만 엑셀. 저장은 이 브라우저 + 🔗 코드 + 비밀번호로 서버에 잠가 두면 폰·PC 어디서든 이어 씀(tools/이어쓰기.jsx · G113) — 셈은 lib/sonik.js.
  * ■ 창(alert · confirm)을 띄우지 않습니다 — 지우기는 한 번 더 누르기.
+ * ■ 🖼 G600(11-08) PDF · 인쇄는 그림 — 인쇄 판(#gp-인쇄 .sk-쪽)을 찍어 📄 PDF 바로 받기 · 🖨 그림만 인쇄(보고서 A4 세로 sk세로 12mm · 매입매출장 A4 가로 sk가로 8mm).
  */
 
 const 률글 = (x) => (Number.isFinite(x) ? (Math.round(x * 1000) / 10).toFixed(1) + '%' : '—')
@@ -92,8 +93,12 @@ export default function Sonik() {
 
   /* 인쇄 · 엑셀 */
   const 제목 = 현장 ? 현장.n : '전체 현장'
-  const [보고인쇄중, 보고인쇄] = use인쇄(`손익보고서_${제목}`)
-  const [장인쇄중, 장인쇄] = use인쇄(`매입매출장_${제목}`)
+  /* 🖼 G600 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 인쇄 판(#gp-인쇄 .sk-쪽)을 그림으로 찍어 📄 PDF 바로 받기 · 🖨 그림만 인쇄
+     손익 보고서 A4 세로(@page sk세로 12mm → 186 × 273mm) · 매입매출장 A4 가로(@page sk가로 8mm → 281 × 194mm · 표 머리줄은 쪽마다 다시) ·
+     두 판이 같은 #gp-인쇄 를 쓰니 하나 찍는 동안 네 단추를 다 막음 */
+  const 보 = use그림인쇄(`손익보고서_${제목}`, { 셈: '손익보고서', 쪽: { 폭: 186, 높: 273 }, 여백: [12, 12], 종이: [210, 297], 판쪽: 'sk세로', 칸줄: true })
+  const 장 = use그림인쇄(`매입매출장_${제목}`, { 셈: '매입매출장', 쪽: { 폭: 281, 높: 194 }, 여백: [8, 8], 종이: [297, 210], 판쪽: 'sk가로', 칸줄: true })
+  const 찍는중 = !!(보.찍기 || 장.찍기)
   const 엑셀받기 = async () => {
     const { 값엑셀받기, 수칸, 굵은칸 } = await import('../lib/값엑셀.js')
     const 요약 = [['장부', st.co || ''], ['범위', 제목], ['매출(공급가액)', 수칸(S.매출.공급)], ['매출 부가세', 수칸(S.매출.세)], ['받은 돈(선급금 포함)', 수칸(S.매출.결제)], ['선급금 받은 것', 수칸(S.매출.선급)], [굵은칸('미수금'), 수칸(S.매출.미)],
@@ -116,12 +121,14 @@ export default function Sonik() {
   const 장부종이 = <매입매출장종이 st={st} 제목={제목} 줄들={[...줄들].sort((a, b) => String(a.d).localeCompare(String(b.d)))} 현장이름={현장이름} S={S} />
 
   return (
-    <div className="wrap gj sk">
+    <>
+    <div className="kcm-인쇄안내">🖨 손익 보고서 · 매입매출장은 화면의 <b>«📄 PDF»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+    <div className="wrap gj sk 그림만인쇄">
       <div className="card">
         <h1 className="tl-h1" style={{ marginTop: 0 }}>💰 현장 손익 장부 — 매출 · 매입 · 미수금 · 손익</h1>
         <p className="cp" style={{ margin: '6px 0 0' }}>
           현장마다 <b>기성 청구(매출)</b>와 <b>자재 · 장비 · 노무 · 외주(매입)</b>를 세금계산서 단위로 적으면, <b>손익 · 이익률 · 미수금 · 미지급금</b>과 달별 흐름 · 원가 구성 · 거래처별 잔액이 저절로 나옵니다.
-          도급액을 넣으면 진행률과 «이대로 가면» 예상 손익(참고)까지 봅니다. 손익 보고서 · 매입매출장을 <b>A4로 인쇄</b>합니다.
+          도급액을 넣으면 진행률과 «이대로 가면» 예상 손익(참고)까지 봅니다. 손익 보고서 · 매입매출장을 <b>A4 PDF · 인쇄</b>로 냅니다.
         </p>
         <div className="nm-badges">
           <span>회원가입 없음 · 무료</span>
@@ -196,9 +203,18 @@ export default function Sonik() {
               </table>
             </div>
           )}
+          <div className="tp-찍기 sk-찍기">
+            {[['보', 보, '📊 손익 보고서 (A4 세로)'], ['장', 장, '📒 매입매출장 (A4 가로)']].map(([k, 그, 글]) => (
+              <div key={k} className="tp-찍기줄">
+                <span>{글}</span>
+                <button type="button" className="btn sm" disabled={찍는중} onClick={() => 그.PDF()}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 PDF'}</button>
+                <button type="button" className="btn line sm" disabled={찍는중} onClick={() => 그.인쇄()}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
+              </div>
+            ))}
+          </div>
+          {보.말 && <div className="note sm sk-찍말" role="status" style={{ margin: '8px 0 0' }}>{보.말}</div>}
+          {장.말 && <div className="note sm sk-찍말" role="status" style={{ margin: '8px 0 0' }}>{장.말}</div>}
           <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-            <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={보고인쇄}>🖨 손익 보고서 (A4)</button>
-            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={장인쇄}>🖨 매입매출장 (A4 가로)</button>
             <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀받기}>📗 엑셀 받기</button>
           </div>
         </div>
@@ -337,9 +353,10 @@ export default function Sonik() {
       </div>
 
       <도구설명 k="sonik" />
-      {보고인쇄중 && createPortal(<div id="gp-인쇄"><div className="sk-쪽">{보고서}</div></div>, document.body)}
-      {장인쇄중 && createPortal(<div id="gp-인쇄"><div className="sk-쪽 land">{장부종이}</div></div>, document.body)}
+      {보.판 && createPortal(<div id="gp-인쇄"><div className="sk-쪽">{보고서}</div></div>, document.body)}
+      {장.판 && createPortal(<div id="gp-인쇄"><div className="sk-쪽 land">{장부종이}</div></div>, document.body)}
     </div>
+    </>
   )
 }
 
