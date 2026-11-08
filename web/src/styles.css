@@ -5025,8 +5025,8 @@ span.qna-like { cursor: default; }
   body.kcm-그림인쇄중 #kcm-그림인쇄 { display: block; }
   #kcm-그림인쇄 .kcm-쪽그림 { display: block; max-width: 100%; object-fit: contain; object-position: left top; break-after: page; page-break-after: always; }
   #kcm-그림인쇄 .kcm-쪽그림:last-child { break-after: auto; page-break-after: auto; }
-  body:not(.kcm-그림인쇄중):not(.gp-인쇄중) .그림만인쇄 { display: none !important; }
-  body:not(.kcm-그림인쇄중):not(.gp-인쇄중) .kcm-인쇄안내 { display: block; border: 1px solid #999; padding: 6mm; margin: 4mm 0; font-size: 12pt; }
+  body:not(.kcm-그림인쇄중):not(.gp-인쇄중):not(.kcm-찍는중) .그림만인쇄 { display: none !important; }
+  body:not(.kcm-그림인쇄중):not(.gp-인쇄중):not(.kcm-찍는중) .kcm-인쇄안내 { display: block; border: 1px solid #999; padding: 6mm; margin: 4mm 0; font-size: 12pt; }
 }
 @media print {
   body.il-인쇄중 > *:not(#il-인쇄) { display: none !important; }

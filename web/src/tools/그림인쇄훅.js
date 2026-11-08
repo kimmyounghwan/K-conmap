@@ -8,23 +8,24 @@
  *            {그.말 && 그.말자리 === '위' && <div role="status">{그.말}</div>}   ← 알림은 누른 단추 곁(위 · 아래)
  *   ■ 쪽 = 그 판 @page 의 글자 칸(mm) · 여백 = [왼, 위] mm · 종이 = A4 [210, 297](가로면 [297, 210]) · 판쪽 = 그림 인쇄 때 쓸 @page 이름(같은 여백)
  *   ■ 셈 = 숨은 누적 |{셈}|PDF · |{셈}|인쇄 (소장님 브라우저 · 로봇은 안 셈) · 칸줄 = 겹친 칸 줄 한 번씩(G587 · lib/그림인쇄.js 칸줄고침 — 합친 칸 표도)
+ *   ■ 대상 = 인쇄 판 없이 화면 덩이를 인쇄하던 도구(G588 일용 4대보험 «.iy-out» · 몸표 iy-print) — 그 덩이를 복제본에서 인쇄 CSS 로 펴 찍음 · 손질(판, 문서) = 복제본만 고치기(접은 것 펴기)
  *   ■ 단추 없이 Ctrl+P 로 찍으면 화면 글이 글자로 나감 → 쓰는 쪽 덩이에 className «그림만인쇄» + <div className="kcm-인쇄안내">…</div> (styles.css)
  */
 import { useEffect, useRef, useState } from 'react'
 import { PDF만들기, 캔버스JPEG, 파일주기 } from '../lib/그림PDF.js'
 import { 세기 } from '../lib/받은수.jsx'
+import { use잠깐말 } from '../lib/잠깐말.js'
 
 const 옛판꼴 = /dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading chunk/i
 
-export function use그림인쇄(제목, { 셈 = '', 쪽 = { 폭: 186, 높: 273 }, 여백 = [12, 12], 종이 = [210, 297], 판쪽 = '', 몸표 = ['gp-인쇄중'], 판 = '#gp-인쇄', 맞춤 = true, 더CSS = '', 칸줄 = false } = {}) {
+export function use그림인쇄(제목, { 셈 = '', 쪽 = { 폭: 186, 높: 273 }, 여백 = [12, 12], 종이 = [210, 297], 판쪽 = '', 몸표 = ['gp-인쇄중'], 판 = '#gp-인쇄', 맞춤 = true, 더CSS = '', 칸줄 = false, 대상 = '', 손질 = null } = {}) {
   const [찍기, set찍기] = useState(null)        // 'pdf' | '인쇄' — 판을 붙이고 그림으로 찍는 중
-  const [말, set말0] = useState('')
+  const [말, set말0] = use잠깐말(4000)   // 🩹 G588 같은 알림을 4초 안에 또 띄워도 4초를 새로 셈(lib/잠깐말.js)
   const [말자리, set말자리] = useState('위')
   const 자리 = useRef('위')
   const 설정 = useRef(null)
-  설정.current = { 제목, 셈, 쪽, 여백, 종이, 판쪽, 몸표, 판, 맞춤, 더CSS, 칸줄 }
+  설정.current = { 제목, 셈, 쪽, 여백, 종이, 판쪽, 몸표, 판, 맞춤, 더CSS, 칸줄, 대상, 손질 }
   const 알림 = (m) => { set말자리(자리.current); set말0(m) }
-  useEffect(() => { if (!말) return undefined; const t = setTimeout(() => set말0(''), 4000); return () => clearTimeout(t) }, [말])
   useEffect(() => {
     if (!찍기) return undefined
     let 그만 = false
@@ -33,14 +34,14 @@ export function use그림인쇄(제목, { 셈 = '', 쪽 = { 폭: 186, 높: 273 }
       try {
         let el = null
         for (let i = 0; i < 80 && !그만; i++) {
-          el = document.querySelector(`${S.판} > *`)
+          el = S.대상 ? document.querySelector(S.대상) : document.querySelector(`${S.판} > *`)   // 대상 = 화면에 있는 덩이를 그대로(G588 · 인쇄 판 없이 화면을 인쇄하던 도구)
           if (el) break
           await new Promise((r) => setTimeout(r, 50))
         }
         if (그만) return
         if (!el) throw new Error('인쇄 판을 못 찾음')
         const { 인쇄판찍기, A4쪽 } = await import('../lib/그림인쇄.js')
-        const { 쪽들 } = await 인쇄판찍기(el, { 몸표: S.몸표, 쪽: S.쪽, 맞춤: S.맞춤, 더CSS: S.더CSS, 칸줄: S.칸줄 })
+        const { 쪽들 } = await 인쇄판찍기(el, { 몸표: S.몸표, 쪽: S.쪽, 맞춤: S.맞춤, 더CSS: S.더CSS, 칸줄: S.칸줄, 손질: S.손질 })
         if (그만) return
         const 이름 = String(S.제목 || '인쇄').replace(/[\\/:*?"<>|]/g, '').trim() || '인쇄'
         if (찍기 === 'pdf') {
@@ -65,7 +66,7 @@ export function use그림인쇄(제목, { 셈 = '', 쪽 = { 폭: 186, 높: 273 }
   }, [찍기])   // eslint-disable-line react-hooks/exhaustive-deps
   const PDF = (곳 = '위') => { if (찍기) return; 자리.current = 곳; if (설정.current.셈) 세기(`|${설정.current.셈}|PDF`); set찍기('pdf') }
   const 인쇄 = (곳 = '위') => { if (찍기) return; 자리.current = 곳; if (설정.current.셈) 세기(`|${설정.current.셈}|인쇄`); set찍기('인쇄') }
-  return { 판: !!찍기, 찍기, PDF, 인쇄, 말, 말자리 }
+  return { 판: !!찍기 && !설정.current.대상, 찍기, PDF, 인쇄, 말, 말자리 }
 }
 
 /** 그림 쪽만 인쇄 — 몸 바로 밑 #kcm-그림인쇄(그림만) · 인쇄 창을 닫으면 걷음

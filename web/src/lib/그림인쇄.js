@@ -148,6 +148,7 @@ function 판재기(el) {
   const 경계 = new Set([H])
   const 피함 = []
   const 꼭 = []
+  const 붙임 = []     // 제목(h1~h6 · <summary> · break-after: avoid) — 다음 글 첫 줄과 같은 쪽에(쪽 끝에 제목만 남지 않게 · G588 일용 «🧾 공제 표» 제목만 첫 쪽 끝에 남았음)
   const 창 = el.ownerDocument.defaultView
   for (const n of el.querySelectorAll('*')) {
     const cs = 창.getComputedStyle(n)
@@ -156,6 +157,7 @@ function 판재기(el) {
     if (b - a <= 0) continue
     if (블록꼴.test(cs.display)) { 경계.add(a); 경계.add(b) }
     if (n.tagName === 'TR' || cs.breakInside === 'avoid' || cs.pageBreakInside === 'avoid' || cs.breakInside === 'avoid-page') 피함.push([a, b])
+    if (/^(H[1-6]|SUMMARY)$/.test(n.tagName) || cs.breakAfter === 'avoid' || cs.breakAfter === 'avoid-page' || cs.pageBreakAfter === 'avoid') 붙임.push([a, b])
     if (/^(page|always|left|right)$/.test(cs.breakBefore) || cs.pageBreakBefore === 'always') 꼭.push(a)
     if (/^(page|always|left|right)$/.test(cs.breakAfter) || cs.pageBreakAfter === 'always') 꼭.push(b)
   }
@@ -163,10 +165,16 @@ function 판재기(el) {
   const 문서 = el.ownerDocument
   const 걷개 = 문서.createTreeWalker(el, 4)                // NodeFilter.SHOW_TEXT
   const 범위 = 문서.createRange()
+  const 줄 = []
   for (let t = 걷개.nextNode(); t; t = 걷개.nextNode()) {
     if (!t.nodeValue || !t.nodeValue.trim()) continue
     범위.selectNodeContents(t)
-    for (const r of 범위.getClientRects()) { 경계.add(r.top - 위0); 경계.add(r.bottom - 위0) }
+    for (const r of 범위.getClientRects()) { 경계.add(r.top - 위0); 경계.add(r.bottom - 위0); if (r.height > 0) 줄.push([r.top - 위0, r.bottom - 위0]) }
+  }
+  for (const [a, b] of 붙임) {      // 제목 위 ~ 다음 글 첫 줄 아래는 자르지 않음(그 사이가 한 쪽보다 길면 쪽나누기가 안 봄)
+    let 끝 = Infinity
+    for (const [t, u] of 줄) if (t >= b - 1 && u < 끝) 끝 = u
+    if (끝 < Infinity) 피함.push([a, 끝])
   }
   const 표들 = []
   표재기(el, 자리, 피함, 표들)
@@ -178,10 +186,10 @@ function 판재기(el) {
  * @param {HTMLElement} el  #gp-인쇄 안의 쪽 덩이(예: .il-쪽)
  * @param {{몸표?: string[], 쪽?: {폭: number, 높: number}, 맞춤?: boolean, 배율?: number, 한도?: number, 더CSS?: string, 칸줄?: boolean}} o
  *   몸표 = 인쇄 때 몸에 다는 표(gp-인쇄중 …) · 쪽 = 글자 칸 mm(그 판의 @page 와 같게) · 맞춤 = 마지막 쪽이 1/4 안 되면 줄여 한 쪽 덜 씀 ·
- *   칸줄 = 겹친 칸 줄을 한 번씩만(G587 — 합친 칸 있는 표도 · 도구마다 CSS 를 따로 안 써도 됨)
+ *   칸줄 = 겹친 칸 줄을 한 번씩만(G587 — 합친 칸 있는 표도 · 도구마다 CSS 를 따로 안 써도 됨) · 손질(판, 문서) = 복제본만 고치기(G588 접은 것 펴기 등)
  * @returns {Promise<{쪽들: HTMLCanvasElement[], z: number}>}
  */
-export async function 인쇄판찍기(el, { 몸표 = [], 쪽 = { 폭: 186, 높: 273 }, 맞춤 = true, 배율 = 2, 한도 = 12e6, 더CSS = '', 칸줄 = false } = {}) {
+export async function 인쇄판찍기(el, { 몸표 = [], 쪽 = { 폭: 186, 높: 273 }, 맞춤 = true, 배율 = 2, 한도 = 12e6, 더CSS = '', 칸줄 = false, 손질 = null } = {}) {
   const { default: html2canvas } = await import('html2canvas')
   if (document.fonts && document.fonts.ready) { try { await document.fonts.ready } catch (e) { /* 없음 */ } }
   const 규칙 = 인쇄규칙()
@@ -195,12 +203,23 @@ export async function 인쇄판찍기(el, { 몸표 = [], 쪽 = { 폭: 186, 높: 
     scale: 배율, backgroundColor: '#ffffff', logging: false, useCORS: true,
     windowWidth: Math.round(폭px), scrollX: 0, scrollY: 0,
     onclone: (doc) => {
-      for (const c of 몸표) { doc.documentElement.classList.add(c); if (doc.body) doc.body.classList.add(c) }
+      for (const c of [...몸표, 'kcm-찍는중']) { doc.documentElement.classList.add(c); if (doc.body) doc.body.classList.add(c) }   // kcm-찍는중 — «그림만인쇄» 숨김(Ctrl+P 막기)이 복제본엔 안 걸리게
       const st = doc.createElement('style')
       st.textContent = 규칙 + '\n' + 더CSS
       doc.head.appendChild(st)
       const 판 = doc.querySelector(`[data-kcm-찍을="${표지}"]`)
       if (!판) return
+      if (typeof 손질 === 'function') { try { 손질(판, doc) } catch (e) { /* 손질 못 해도 찍음 */ } }   // G588 접은 것 펴기 같은 도구마다 손질(복제본만)
+      /* 펼침 표(▼ · ▶ — <summary> 의 disclosure 표)는 그림 그리개가 못 그려 «1.» 로 나왔음(G588 일용 4대보험) → 글자 표로 바꿔 그대로 */
+      const 창 = doc.defaultView
+      for (const sm of 판.querySelectorAll('summary')) {
+        const cs = 창.getComputedStyle(sm)
+        if (cs.display === 'list-item' && /disclosure/.test(cs.listStyleType)) {
+          const 열림 = !!(sm.parentElement && sm.parentElement.open)
+          sm.style.listStyle = 'none'; sm.style.display = 'block'
+          sm.insertBefore(doc.createTextNode(열림 ? '▾ ' : '▸ '), sm.firstChild)
+        }
+      }
       if (칸줄) 칸줄고침(판)
       잰 = 판재기(판)
       /* 한 장 맞춤 — 꼬리만 넘치면 넓게 펴서 다시 잼(줄이면 표가 폭을 다 쓰게 · 인쇄의 zoom 과 같은 모양) */

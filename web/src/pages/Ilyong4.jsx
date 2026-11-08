@@ -6,6 +6,7 @@ import { 공제셈, 연금상하한, 요율, 열원 } from '../lib/gongje.js'
 import { 링크만들기, 링크읽기, 기간날들 } from '../lib/ilyong4link.js'
 import G from '../data/ilyong_guide.json'
 import { 링크복사 } from '../lib/링크복사.js'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G588 PDF · 인쇄는 그림(글자 층 없음) — 📗 엑셀은 그대로 */
 
 /**
  * 🛡 /tools/ilyong-boheom — 일용직 4대보험 가입 판단기 (G107 · 2026-10-01)
@@ -240,15 +241,13 @@ export default function Ilyong4() {
   const 누르기바꿈 = (m) => { set누르기(m); set기간첫(null); set기간한것(null) }
   const 사례 = (c) => { if (st.날.length && !되돌릴) set되돌릴(st); setSt(상태로({ ...c.in, 일당: c.in.일당 })); set알림(`예시 «${c.t}» 를 채웠습니다 — ${c.q}`); window.scrollTo({ top: 0, behavior: 'smooth' }) }
   const 결과로 = () => { const el = 결과칸.current; if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
-  /* 🖨 인쇄 — 접어 둔 것을 모두 펴서 찍고(사업주 몫은 연 때만 · data-print="as-is") 끝나면 되돌림 */
-  const 인쇄 = () => {
-    const ds = [...document.querySelectorAll('.iy-out details')].filter((d) => d.dataset.print !== 'as-is')
-    const 전 = ds.map((d) => d.open)
-    ds.forEach((d) => { d.open = true })
-    const 되돌림 = () => { ds.forEach((d, i) => { d.open = 전[i] }); window.removeEventListener('afterprint', 되돌림) }
-    window.addEventListener('afterprint', 되돌림)
-    document.body.classList.add('iy-print'); setTimeout(() => window.print(), 80)
-  }
+  /* 🖨 인쇄 — 접어 둔 것을 모두 펴서 찍고(사업주 몫은 연 때만 · data-print="as-is") 끝나면 되돌림
+     🖼 G588 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 화면의 판단 결과(.iy-out)를 복제본에서 인쇄 CSS(iy-print)로 펴서 그림으로 찍음:
+     📄 PDF 바로 받기 · 🖨 그림만 인쇄(A4 세로 · 글자 칸 186 × 271mm) · 접은 것은 복제본에서만 폄(보는 화면은 그대로) · 숨은 누적 |일용4대보험|PDF · 인쇄 */
+  const 그 = use그림인쇄(['4대보험판단', st.이름, R.날들.length ? R.날들[0].slice(0, 7) : ''].filter(Boolean).join('_'), {
+    셈: '일용4대보험', 대상: '.iy-out', 몸표: ['iy-print'], 쪽: { 폭: 186, 높: 271 }, 여백: [12, 12], 칸줄: true,
+    손질: (판) => { for (const d of 판.querySelectorAll('details')) if (d.dataset.print !== 'as-is') d.open = true },
+  })
   /* 📗 G109 값만 엑셀 — 소장님 「엑셀로 값만 주는 걸로 하자. 프로그램 원칙으로 하고」(판단 · 셈은 이 화면, 엑셀은 보관용 값) */
   const 엑셀받기 = async () => {
     const { 값엑셀받기, 수칸, 굵은칸 } = await import('../lib/값엑셀.js')
@@ -343,7 +342,9 @@ export default function Ilyong4() {
   }
 
   return (
-    <div className={'wrap iy' + (요약 ? ' iy-has-bar' : '')} onFocusCapture={(e) => { if (글칸(e.target)) set입력중(true) }} onBlurCapture={(e) => { if (글칸(e.target)) set입력중(false) }}>
+    <>
+    <div className="kcm-인쇄안내">🖨 판단 결과는 화면의 <b>«📄 PDF»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+    <div className={'wrap iy 그림만인쇄' + (요약 ? ' iy-has-bar' : '')} onFocusCapture={(e) => { if (글칸(e.target)) set입력중(true) }} onBlurCapture={(e) => { if (글칸(e.target)) set입력중(false) }}>
       <div className="card iy-in">
         <h1 className="tl-h1" style={{ marginTop: 0 }}>🛡 일용직 4대보험 가입 판단기</h1>
         <p className="cp" style={{ margin: '6px 0 0' }}>
@@ -539,11 +540,13 @@ export default function Ilyong4() {
         <div className="btn-row no-print" style={{ justifyContent: 'space-between', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
           <div className="detail-h" style={{ margin: 0 }}>✅ 판단 결과{st.이름 ? ` — ${st.이름}` : ''}</div>
           <span className="iy-act">
-            <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={인쇄} disabled={!R.날들.length}>🖨 인쇄</button>
+            <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => 그.PDF()} disabled={!R.날들.length || !!그.찍기}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 PDF'}</button>
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 그.인쇄()} disabled={!R.날들.length || !!그.찍기}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
             <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀받기} disabled={!R.날들.length}>📗 엑셀</button>
             <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={링크보내기} disabled={!R.날들.length}>🔗 링크 보내기</button>
           </span>
         </div>
+        {그.말 && <div className="note sm no-print" role="status" style={{ marginBottom: 8 }}>{그.말}</div>}
         {링크 && <div className="note sm iy-link no-print" role="status">
           {링크.복사 ? '📋 링크를 복사했습니다 — 카톡 · 문자 · 카페에 붙여 넣으십시오. 받는 분이 누르면 같은 날짜 · 금액으로 열립니다.' : '아래 주소를 눌러 복사하십시오 — 받는 분이 누르면 같은 날짜 · 금액으로 열립니다.'}
           <input className="inp" readOnly value={링크.url} onFocus={(e) => e.target.select()} onClick={(e) => e.target.select()} aria-label="결과 링크" />
@@ -778,6 +781,7 @@ export default function Ilyong4() {
         <span className="iy-bar-m">{요약.돈없음 ? <>{요약.돈.이름} · 일당을 넣으면 떼는 돈이 나옵니다</> : <>{요약.돈.이름} · 공제 <b>{원(요약.돈.공제)}</b> · 실지급 <b>{원(요약.돈.받음 - 요약.돈.공제)}</b></>} <span className="iy-bar-go">결과 ▾</span></span>
       </button>}
     </div>
+    </>
   )
 }
 
