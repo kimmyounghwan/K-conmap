@@ -14,6 +14,7 @@
  */
 import { useEffect, useState } from 'react'
 import { 세기 } from '../lib/받은수.jsx'
+import { use잠깐말 } from '../lib/잠깐말.js'
 
 export default function 현장틀({ 나, 머리, 이름읽기, 새로만들기, 가져오기글, 가져오기처음 = true, 안 }) {
   const [목록, set목록] = useState(() => 나.목록())
@@ -21,7 +22,7 @@ export default function 현장틀({ 나, 머리, 이름읽기, 새로만들기, 
   const [새칸, set새칸] = useState(null)          // { 이름, 가져옴 }
   const [뺌물음, set뺌물음] = useState(false)
   const [되살릴, set되살릴] = useState('')
-  const [알림, set알림] = useState('')
+  const [알림, set알림] = use잠깐말(12000)   // 🩹 G588b 같은 알림을 그 시간 안에 또 띄워도 시간을 새로 셈(lib/잠깐말.js — 전엔 둘째 알림이 곧 사라짐)
   const cur = 목록.cur
   const 산 = 목록.L.filter((x) => !x.del)
   const 뺀 = 목록.L.filter((x) => x.del)
@@ -36,7 +37,6 @@ export default function 현장틀({ 나, 머리, 이름읽기, 새로만들기, 
     window.addEventListener('storage', f)
     return () => window.removeEventListener('storage', f)
   }, [나])
-  useEffect(() => { if (!알림) return undefined; const t = setTimeout(() => set알림(''), 12000); return () => clearTimeout(t) }, [알림])
   const 바꿈 = (m, 글) => { 나.목록쓰기(m); set목록(m); set새칸(null); set뺌물음(false); set알림(글 || '') }
   const 고르기 = (id) => {
     if (!id || id === cur) return

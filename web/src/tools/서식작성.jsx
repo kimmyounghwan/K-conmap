@@ -15,6 +15,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { 받음, 세기 } from '../lib/받은수.jsx'
+import { use잠깐말 } from '../lib/잠깐말.js'
 import { PDF만들기, 캔버스JPEG, 파일주기 } from '../lib/그림PDF.js'   /* 🖼 G584 그림 PDF(글자 층 없음) — 격자작성과 같은 PDF 쓰개 */
 
 const 쓴열쇠 = 'kcm.서식작성'
@@ -270,7 +271,7 @@ export default function 서식작성({ f }) {
   const [v, setV] = useState(() => (맞는꼴(s, 내것0.cur) ? 내것0.cur : 빈값(s, 공통0)))
   const [저장들, set저장들] = useState(() => (Array.isArray(내것0.saved) ? 내것0.saved.filter((x) => 맞는꼴(s, x.v)) : []))
   const [목록, set목록] = useState(false)
-  const [말, set말0] = useState('')
+  const [말, set말0] = use잠깐말(4000)   // 🩹 G588b 같은 알림을 그 시간 안에 또 띄워도 시간을 새로 셈(lib/잠깐말.js — 전엔 둘째 알림이 곧 사라짐)
   /* 🖼 G584 알림은 누른 단추 곁에 — 아래 단추로 PDF · 인쇄를 누르면 아래에(위 알림은 화면 밖이라 안 보였음) · 다른 일(저장 · 예시 …)은 위 */
   const [말자리, set말자리] = useState('위')
   const 찍은자리 = useRef('위')
@@ -291,7 +292,6 @@ export default function 서식작성({ f }) {
     }, 600)
     return () => clearTimeout(t)
   }, [v, 저장들, f.slug])
-  useEffect(() => { if (!말) return undefined; const t = setTimeout(() => set말0(''), 4000); return () => clearTimeout(t) }, [말])
 
   /* PDF · 인쇄 파일 이름 = 서식명_공사명(현장명)_오늘 — 공사명 칸이 없으면 날짜가 아닌 첫 칸(🖼 G584: TBM 은 «TBM 일시» 날짜가 붙던 것) */
   const 파일이름 = () => {

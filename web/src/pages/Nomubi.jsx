@@ -7,6 +7,7 @@ import { 빈것, 새번호, 달셈, 칸바꿈, 줄채움, 달값, 예시, 공수
 import { 읽기현장, 쓰기현장, 현장목록, 현장목록쓰기, 현장목록열쇠, 현장자료열쇠, 현장연결자리, 현장백업열쇠, 현장이름, 현장더하기, 현장지우기, 현장되살리기 } from '../lib/nomubi.js'   /* 🏗 G178 현장별로 나눠 쓰기 */
 import { 다른현장명단, 사람찾기, 사람열쇠, 현장사람들, 줄에채움, 데려오기 } from '../lib/nomubi.js'   /* 👥 G182 이름만 쳐서 다른 현장 사람 데려오기 */
 import { 세기 } from '../lib/받은수.jsx'
+import { use잠깐말 } from '../lib/잠깐말.js'
 /* 🛡 2026-10-01 (G107) 연금 · 건강 «대상» 은 lib/ilyong4.js 판단(여러 달) — 사람마다 «판단 자세히» 로 가입 판단기에 출역을 넘깁니다 */
 import { 생일풀기, 만나이, 나이날 } from '../lib/ilyong4.js'   /* 🎂 G109 생년월일 → 만 나이 · 60세 연금 · 65세 고용 */
 import 이어쓰기 from '../tools/이어쓰기.jsx'
@@ -742,7 +743,7 @@ export default function Nomubi() {
   const [새칸, set새칸] = useState(null)          // { 이름, 가져옴 }
   const [뺌물음, set뺌물음] = useState(false)
   const [되살릴, set되살릴] = useState('')
-  const [알림, set알림] = useState('')
+  const [알림, set알림] = use잠깐말(12000)   // 🩹 G588b 같은 알림을 그 시간 안에 또 띄워도 시간을 새로 셈(lib/잠깐말.js — 전엔 둘째 알림이 곧 사라짐)
   const cur = 목록.cur
   const 산 = 목록.L.filter((x) => !x.del)
   const 뺀 = 목록.L.filter((x) => x.del)
@@ -757,7 +758,6 @@ export default function Nomubi() {
     window.addEventListener('storage', f)
     return () => window.removeEventListener('storage', f)
   }, [])
-  useEffect(() => { if (!알림) return undefined; const t = setTimeout(() => set알림(''), 12000); return () => clearTimeout(t) }, [알림])
   const 바꿈 = (m, 글) => { 현장목록쓰기(m); set목록(m); set새칸(null); set뺌물음(false); set알림(글 || '') }
   const 고르기 = (id) => {
     if (!id || id === cur) return

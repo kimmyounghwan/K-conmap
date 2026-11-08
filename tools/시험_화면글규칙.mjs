@@ -5,6 +5,8 @@
  *   ① 「값만 다운 — 이건 기재하지마」(2026-10-25) — 엑셀은 원칙대로 값만 주되 «값만 · 수식 없음» 이라고 적지 않음
  *      (G518 견적틀 때 화면 글에서 처음 걸림 → G520 사이트 점검에서 도구 단추 · 안내 · 받는 파일 안 글 · 구운 장 · 도구 설명에 30곳 넘게 남은 것을 찾음)
  *   ② «클로드» 라는 말을 사이트 글에 넣지 말 것 — «건설맵» 으로(2026-10-16)
+ *   ④ (코드 꼴) 잠깐 알림은 lib/잠깐말.js use잠깐말(ms) 로 — useEffect([말]) + setTimeout(() => set말(''), N) 꼴은 같은 글을 그 시간 안에 또 띄우면
+ *      둘째 알림이 곧 사라짐(G588 일용 4대보험 시험에서 찾음 · G588b 에 남은 여섯 곳 고침 — PC 올리기마다 이 시험이 돌아 다시 못 들어옴)
  *
  *   보는 곳: web/src 의 .js · .jsx(주석 빼고 — 화면 글 · 받는 파일 글 · 제목(title) 모두) · web/src/data 의 .json · prerender.py(# 줄 빼고)
  *            · web/index.html · web/public 의 .html
@@ -105,6 +107,14 @@ const 표본 = ['<button>📗 값만 엑셀 받기</button>', "title='종이와 
 const 안걸릴 = ['<p>고치지 못한 수식은 없습니다. 그래도 합계는 확인</p>', '<li><b>값만 남은 내역서</b>(적산 프로그램이 내보낸 것)', '값만 읽으므로 새 엑셀은 우리 서식으로', '🟡 제안값만 확인하십시오', '/* 📗 값만 엑셀 — 주석 */ <b>엑셀 받기</b>', '// 클로드 주석', 'https://k-conmap.com // 주소 뒤 주석 클로드']
 ok(`잡아야 할 꼴 ${표본.length}가지 모두 잡음(accept="image/*" 뒤 단추 · G583 «엑셀은 값만 담깁니다» 포함)`, 표본.every((t) => [...값만꼴, 클로드꼴].some((r) => r.test(주석빼기js(t)))), 표본.filter((t) => ![...값만꼴, 클로드꼴].some((r) => r.test(주석빼기js(t)))))
 ok('괜찮은 글 · 주석은 안 잡음', 안걸릴.every((t) => ![...값만꼴, 클로드꼴].some((r) => r.test(주석빼기js(t)))), 안걸릴.filter((t) => [...값만꼴, 클로드꼴].some((r) => r.test(주석빼기js(t)))))
+
+/* ④ 잠깐 알림 꼴 — 한 줄짜리 useEffect(() => { if (!말) return undefined; const t = setTimeout(() => set말(''), 4000) … }, [말]) (값이 글일 때만 · null · 새 물건은 늘 바뀌어 괜찮음) */
+const 잠깐꼴 = /useEffect\(\s*\(\)\s*=>\s*\{\s*if\s*\(\s*!\s*[\w가-힣$]+\s*\)\s*return(\s+undefined)?\s*;?\s*const\s+\w+\s*=\s*setTimeout\(\s*\(\)\s*=>\s*set[\w가-힣$]*\(\s*(''|"")\s*\)/
+console.log('④ 잠깐 알림은 use잠깐말 로(같은 알림을 그 시간 안에 또 띄워도 시간을 새로 셈)')
+ok('web/src 코드(주석 뺌) — useEffect([말]) + setTimeout 꼴 없음', !찾기(js, 주석빼기js, [잠깐꼴]).length, 찾기(js, 주석빼기js, [잠깐꼴]))
+const 잠깐표본 = ["  useEffect(() => { if (!말) return undefined; const t = setTimeout(() => set말0(''), 4000); return () => clearTimeout(t) }, [말])", "useEffect(() => { if (!알림) return; const t = setTimeout(() => set알림(''), 8000); return () => clearTimeout(t) }, [알림])"]
+const 잠깐괜찮음 = ["    if (m) 시계.current = setTimeout(() => set말0(''), ms)", "set복사(r.id); setTimeout(() => set복사(''), 1500)", "useEffect(() => { if (!되돌림) return undefined; const t = setTimeout(() => set되돌림(null), 20000); return () => clearTimeout(t) }, [되돌림])", "/* useEffect(() => { if (!말) return undefined; const t = setTimeout(() => set말(''), 4000) }, [말]) */"]
+ok(`잠깐 알림 옛 꼴 ${잠깐표본.length}가지 잡음 · 새 꼴 · 복사 표시 · null · 주석은 안 잡음`, 잠깐표본.every((x) => 잠깐꼴.test(주석빼기js(x))) && 잠깐괜찮음.every((x) => !잠깐꼴.test(주석빼기js(x))), [...잠깐표본.filter((x) => !잠깐꼴.test(주석빼기js(x))), ...잠깐괜찮음.filter((x) => 잠깐꼴.test(주석빼기js(x)))])
 
 console.log(`\n${bad ? '✗' : '✓'} 시험_화면글규칙 ${n - bad}/${n}`)
 process.exit(bad ? 1 : 0)

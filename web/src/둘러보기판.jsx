@@ -21,6 +21,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { 세기 } from './lib/받은수.jsx'
+import { use잠깐말 } from './lib/잠깐말.js'
 import { 사람몸, 놓기 } from './lib/사람3d.js'
 import { 사람모델읽기, 사람자세, 사람놓기, 캐릭터들, 캐릭터받기 } from './lib/사람vrm.js'
 import { 층판, 첫자리, 걷기, 가까운것, 확인들, 자동길, 자동입력, 자동막힘, 밀어내기, 누른곳길, 가까운빠짐, 막들, 디딤, 카메라맞춤 } from './lib/둘러보기.js'
@@ -53,9 +54,8 @@ export default function 둘러보기판({ 보기Ref, 누름Ref = null, M, S, 층
   const UI네모Ref = useRef([])                          // 위 막대 · 단추 · 알림 · 손잡이 · 아래 줄 네모(판 안 px · 0.2 초마다)
   const 올림Ref = useRef({ 목표: 0, 지금: 0 })           // 📱 폰에서 퀘스트 카드가 사람을 덮으면 사람을 화면 아래로(카메라 겨눔을 올림 · m)
   const 구간Ref = useRef(-2)                           // ▭ G393 지금 서 있는 구간(바뀌면 알림)
-  const [알림, set알림] = useState('')
   /* 🔧 G454 걷는 동안 알림(⬆ 층 옮김 · 구간 · 계단 …)은 8 초 뒤 저절로 닫음 — 폰에서 사람 발을 덮지 않게 */
-  useEffect(() => { if (!알림) return undefined; const t = setTimeout(() => set알림(''), 8000); return () => clearTimeout(t) }, [알림])
+  const [알림, set알림] = use잠깐말(8000)   // 🩹 G588b 같은 알림을 그 시간 안에 또 띄워도 시간을 새로 셈(lib/잠깐말.js — 전엔 둘째 알림이 곧 사라짐)
   const [메모, set메모] = useState(null)               // null | 글
   const [퀘, set퀘] = useState(null)                   // 🎮 G392 퀘스트 — {종: '제안', id} 건설맵이 세운 것 확인 · {종: '빨강', k} 손으로 할 곳
   const 넘김Ref = useRef(new Set())

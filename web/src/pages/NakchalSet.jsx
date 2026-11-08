@@ -9,6 +9,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { 세기 } from '../lib/받은수.jsx'
+import { use잠깐말 } from '../lib/잠깐말.js'
 import { 한벌차례, 한벌칸, 주소값, 공통넣기, 공통읽기, 한벌열쇠 } from '../lib/낙찰한벌.js'
 
 const 쉼표 = (v) => { const n = Number(String(v ?? '').replace(/[^0-9]/g, '')) || 0; return n > 0 ? n.toLocaleString('ko-KR') : '' }
@@ -33,11 +34,10 @@ export default function NakchalSet() {
     return { v, no: 주.no || (!주소있음 ? 지난.no || '' : ''), 주소있음 }
   }, [loc.search])
   const [v, setV] = useState(처음.v)
-  const [말, set말] = useState('')
+  const [말, set말] = use잠깐말(6000)   // 🩹 G588b 같은 알림을 그 시간 안에 또 띄워도 시간을 새로 셈(lib/잠깐말.js — 전엔 둘째 알림이 곧 사라짐)
   const [넣음, set넣음] = useState(false)
   useEffect(() => { setV(처음.v); set넣음(false) }, [처음])
   useEffect(() => { 세기('|한벌|열기') }, [])
-  useEffect(() => { if (!말) return undefined; const t = setTimeout(() => set말(''), 6000); return () => clearTimeout(t) }, [말])
   const 칸 = (k) => (e) => { const x = k === '계약금액' ? 쉼표(e.target.value) : e.target.value; setV((o) => ({ ...o, [k]: x })); set넣음(false) }
   const 모자람 = 한벌칸.filter(([k, , 꼭]) => 꼭 && !String(v[k] || '').trim()).map(([, n]) => n)
   const 채우기 = (조용히 = false) => {

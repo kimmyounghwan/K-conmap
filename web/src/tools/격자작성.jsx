@@ -28,6 +28,7 @@ import { 꼴 } from '../lib/엑셀꼴.js'
 import { 판짜기, 쪽그리기, 칸찾기, 칸상자, 칸쪽, 칸이름 } from '../lib/격자그림.js'
 import { PDF만들기, 캔버스JPEG, 파일주기 } from '../lib/그림PDF.js'
 import { 받음, 세기 } from '../lib/받은수.jsx'
+import { use잠깐말 } from '../lib/잠깐말.js'
 import 안내 from '../data/서식쓰기안내.json'   // prerender.py 도 같은 글(크롤러 · 사람이 보는 글이 같게)
 
 const V = (typeof window !== 'undefined' && typeof window.__KCM_BUILD__ === 'string' && window.__KCM_BUILD__) || '0'   // 🩹 G511 — 도장은 HTML 에서(lib/data.js 와 같음)
@@ -150,7 +151,7 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
   const [글, set글] = useState('')
   const [저장들, set저장들] = useState(() => { const a = (읽기(쓴열쇠, {})[slug] || {}).saved; return Array.isArray(a) ? a : [] })
   const [목록, set목록] = useState(false)
-  const [말, set말] = useState('')
+  const [말, set말] = use잠깐말(4500)   // 🩹 G588b 같은 알림을 그 시간 안에 또 띄워도 시간을 새로 셈(lib/잠깐말.js — 전엔 둘째 알림이 곧 사라짐)
   /* 「자세히 설명해줘. 이용자가 알게」 — 전엔 처음 온 기기에서 펴 두었는데(접기 전까지 늘 펴짐), 열 줄 설명이 종이를 화면 아래로 밀어
      소장님 「사이트에서 쓰게 되어 있어야 하는데 … 어디서 작성하는 거지?」(10/22) → 늘 접어 둠 · 종이가 바로 보이게(G369) */
   const [안내열림, set안내열림] = useState(false)
@@ -195,7 +196,6 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
     const t = setTimeout(() => { 사진남기기(slug, 'cur', 사진들.current) }, 600)
     return () => clearTimeout(t)
   }, [사진판, slug])
-  useEffect(() => { if (!말) return undefined; const t = setTimeout(() => set말(''), 4500); return () => clearTimeout(t) }, [말])
 
   function 공통채우기(오늘도) {
     const 공통 = 읽기(공통열쇠, {})
