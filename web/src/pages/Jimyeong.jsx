@@ -5,7 +5,7 @@ import {
   절들, 첨부기본, 형태들, 칸, 빈것, 읽기, 쓰기, 예시, 새번호, 수, 원, 붙여읽기, 실적모음, 기술모음, 부채비율, 오늘,
 } from '../lib/jimyeong.js'
 import { 한글금액 } from '../lib/gyeonjeok.js'
-import { use인쇄 } from '../tools/공정인쇄.js'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G599 PDF · 인쇄는 그림(글자 층 없음) */
 import 도구설명 from '../tools/도구설명.jsx'
 import 이어쓰기 from '../tools/이어쓰기.jsx'
 import { 앞모습두기 } from '../lib/이어쓰기.js'
@@ -17,6 +17,7 @@ import { 앞모습두기 } from '../lib/이어쓰기.js'
  * ■ 탭: ① 회사 ② 면허 · 연혁 ③ 기술인 · 장비 ④ 시공 실적 ⑤ 재무 · 첨부 ⑥ 미리보기 · 인쇄
  * ■ 표지 · 지명원 · 목차 · 절마다 표 → A4 세로 인쇄 + 📗 값만 엑셀. 저장은 이 브라우저(lib/jimyeong.js) + 🔗 코드 + 비밀번호로 서버에 잠가 두면 폰·PC 어디서든 이어 씀(tools/이어쓰기.jsx · G113).
  * ■ 창(alert · confirm)을 띄우지 않습니다 — 지우기는 한 번 더 누르기.
+ * ■ 🖼 G599(11-08) PDF · 인쇄는 그림 — 인쇄 판(#gp-인쇄 .jm-쪽)을 찍어 📄 PDF 바로 받기 · 🖨 그림만 인쇄(A4 세로 jm세로 14mm · 절마다 새 쪽 그대로).
  */
 
 const 탭들 = [['co', '① 회사'], ['lic', '② 면허 · 연혁'], ['ppl', '③ 기술인 · 장비'], ['rec', '④ 시공 실적'], ['fin', '⑤ 재무 · 첨부'], ['view', '⑥ 미리보기 · 인쇄']]
@@ -64,7 +65,9 @@ export default function Jimyeong() {
   const 칸바꿈 = (k, v) => setSt((s) => ({ ...s, [k]: v }))
   const 실 = useMemo(() => 실적모음(st.실적), [st.실적])
   const 분야 = useMemo(() => 기술모음(st.기술), [st.기술])
-  const [인쇄중, 인쇄] = use인쇄(`공사지명원_${회.상호 || ''}`)
+  /* 🖼 G599 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 인쇄 판(#gp-인쇄 .jm-쪽)을 그림으로 찍어 📄 PDF 바로 받기 · 🖨 그림만 인쇄
+     (A4 세로 @page jm세로 14mm → 글자 칸 182 × 269mm · 표지 262mm · «절마다 새 쪽» 그대로) · 이름은 📗 엑셀과 같게(상호가 없으면 «회사») */
+  const 그 = use그림인쇄(`공사지명원_${회.상호 || '회사'}`, { 셈: '지명원', 쪽: { 폭: 182, 높: 269 }, 여백: [14, 14], 종이: [210, 297], 판쪽: 'jm세로', 칸줄: true })
   const 로고넣기 = async (e) => {
     const f = e.target.files && e.target.files[0]
     e.target.value = ''
@@ -94,7 +97,9 @@ export default function Jimyeong() {
   }
 
   return (
-    <div className="wrap gj jm">
+    <>
+    <div className="kcm-인쇄안내">🖨 공사지명원은 화면의 <b>«📄 PDF 저장»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요(⑥ 미리보기 · 인쇄 탭).</div>
+    <div className="wrap gj jm 그림만인쇄">
       <div className="card">
         <h1 className="tl-h1" style={{ marginTop: 0 }}>🏢 공사지명원 만들기 — 회사 소개 · 면허 · 기술인 · 실적</h1>
         <p className="cp" style={{ margin: '6px 0 0' }}>
@@ -196,18 +201,21 @@ export default function Jimyeong() {
             </div>
             <label className="gj-check" style={{ marginTop: 6 }}><input type="checkbox" checked={!!st.새쪽} onChange={(e) => 칸바꿈('새쪽', e.target.checked)} /> 절마다 새 쪽에서 시작</label>
             <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-              <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={인쇄}>🖨 공사지명원 인쇄 (A4)</button>
+              <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={!!그.찍기} onClick={() => 그.PDF()}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 공사지명원 PDF 저장 (A4)'}</button>
+              <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!그.찍기} onClick={() => 그.인쇄()}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
               <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀받기}>📗 엑셀 받기</button>
             </div>
-            <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>인쇄 창에서 «PDF로 저장» 을 고르면 PDF 로도 냅니다. 사업자등록증 같은 첨부 서류는 따로 떼어 뒤에 붙이십시오. 실적 사진은 <Link to="/tools/photo">사진대지</Link>로 만들 수 있습니다.</div>
+            {그.말 && <div className="note sm jm-찍말" role="status" style={{ margin: '8px 0 0' }}>{그.말}</div>}
+            <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>«📄 PDF 저장» 은 바로 받습니다(폰도). 사업자등록증 같은 첨부 서류는 따로 떼어 뒤에 붙이십시오. 실적 사진은 <Link to="/tools/photo">사진대지</Link>로 만들 수 있습니다.</div>
           </div>
           <div className="jm-preview"><지명원종이 st={st} 실={실} 분야={분야} /></div>
         </>
       )}
 
       <도구설명 k="jimyeong" />
-      {인쇄중 && createPortal(<div id="gp-인쇄"><div className="jm-쪽"><지명원종이 st={st} 실={실} 분야={분야} /></div></div>, document.body)}
+      {그.판 && createPortal(<div id="gp-인쇄"><div className="jm-쪽"><지명원종이 st={st} 실={실} 분야={분야} /></div></div>, document.body)}
     </div>
+    </>
   )
 }
 

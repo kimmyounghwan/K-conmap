@@ -6113,6 +6113,7 @@ button.sk-mini { color: var(--accent); padding: 0; text-align: left; }
   .jm-쪽 .jm-t tr { break-inside: avoid; page-break-inside: avoid; }
   .jm-쪽 .jm-t th, .jm-쪽 .jm-sum td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .jm-쪽 .jm-foot { display: none; }
+  .jm-쪽 .jm-h1, .jm-쪽 .jm-h2 { break-after: avoid; page-break-after: avoid; }   /* 🩹 G599 절 제목만 쪽 끝에 남고 표가 다음 쪽으로 가던 것(«7. 시공 중인 공사») — 제목을 표와 같이 */
 }
 
 /* 📝 /tools/ilbo — 작업일보 만들기 (종이는 tools/일보종이.jsx · il-* 를 같이 씀) */
