@@ -7,7 +7,7 @@ import {
 } from '../lib/ilbo.js'
 import { 계획률, 공정셈 as 공정표셈 } from '../lib/공정.js'
 import 일보종이 from '../tools/일보종이.jsx'
-import { use인쇄 } from '../tools/공정인쇄.js'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G585 PDF · 인쇄는 그림(글자 층 없음) — 엑셀은 그대로 */
 import 도구설명 from '../tools/도구설명.jsx'
 import 이어쓰기 from '../tools/이어쓰기.jsx'
 import 현장틀 from '../tools/현장틀.jsx'   /* 🏗 G179 현장별로 나눠 쓰기 */
@@ -24,6 +24,11 @@ import 현장틀 from '../tools/현장틀.jsx'   /* 🏗 G179 현장별로 나�
 const 점날 = (t) => { const m = String(t || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[1]}. ${+m[2]}. ${+m[3]}.` : '' }
 const 수글 = (v) => (Number.isFinite(v) ? String(Math.round(v * 100) / 100) : '')
 const 공정표읽기 = () => { try { const m = JSON.parse(localStorage.getItem('kcm.calc.schedule') || 'null'); return m && Array.isArray(m.공종) && m.착공 ? m : null } catch (e) { return null } }
+/* 🖼 G585 찍을 때만(복제본) — 겹친 칸 줄(border-collapse)은 그림으로 찍으면 칸마다 두 번 그어져 굵게 나옴 → 칸 줄을 한 번씩만(오른쪽 · 아래 + 첫 칸 왼쪽 · 표 첫 줄 위) */
+const 일보칸줄 = `#gp-인쇄 .il-t, #gp-인쇄 .il-sign { border-collapse: separate !important; border-spacing: 0 !important; }
+#gp-인쇄 .il-t th, #gp-인쇄 .il-t td, #gp-인쇄 .il-sign th, #gp-인쇄 .il-sign td { border-width: 0 1px 1px 0 !important; }
+#gp-인쇄 .il-t tr > :first-child, #gp-인쇄 .il-sign tr > :first-child { border-left-width: 1px !important; }
+#gp-인쇄 .il-t > :first-child > tr:first-child > *, #gp-인쇄 .il-sign > :first-child > tr:first-child > * { border-top-width: 1px !important; }`
 
 /* 🏗 G179 일보 한 벌 = 현장 하나 — 현장을 바꾸면 key 로 통째로 새로 그림 */
 function 일보({ 현장id, 현장줄, 이름바뀜 }) {
@@ -94,7 +99,8 @@ function 일보({ 현장id, 현장줄, 이름바뀜 }) {
     set알림(`👷 노무비 계산기의 ${점날(d)} 출역 ${노무.인.reduce((s, r) => s + 수(r.n), 0)}명을 직종별로 가져왔습니다.`)
   }
 
-  const [인쇄중, 인쇄] = use인쇄(`작업일보_${d}${st.현장.name ? '_' + st.현장.name : ''}`)
+  /* 🖼 G585 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 인쇄 판을 그림으로 찍어 📄 PDF 바로 받기 · 🖨 그림만 인쇄(한 장 맞춤) */
+  const 그 = use그림인쇄(`작업일보_${d}${st.현장.name ? '_' + st.현장.name : ''}`, { 셈: '작업일보', 쪽: { 폭: 186, 높: 273 }, 여백: [12, 12], 판쪽: 'il세로', 더CSS: 일보칸줄 })
   const 현장 = { name: st.현장.name, co: st.현장.co }
   const 종이 = <일보종이 현장={현장} d={d} 폼={{ ...싸기(폼), pp: 계획표시 ?? '', ap: 실시표시 ?? '' }} 셈={S} 대비={대비} 제목="작 업 일 보" 공정={공} />
 
@@ -127,7 +133,9 @@ function 일보({ 현장id, 현장줄, 이름바뀜 }) {
   }
 
   return (
-    <div className="wrap gj ib">
+    <>
+    <div className="kcm-인쇄안내">🖨 작업일보는 화면의 <b>«📄 PDF 저장»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+    <div className="wrap gj ib 그림만인쇄">
       <div className="card">
         <h1 className="tl-h1" style={{ marginTop: 0 }}>📝 작업일보 만들기 — 인원 · 장비 · 자재 누계 저절로</h1>
         <p className="cp" style={{ margin: '6px 0 0' }}>
@@ -327,8 +335,10 @@ function 일보({ 현장id, 현장줄, 이름바뀜 }) {
         <div className="il-sub">6. 내일 작업 계획</div>
         <textarea className="il-ta" rows={2} value={폼.nx} onChange={칸('nx')} maxLength={1000} placeholder="예: 1구간 측구 콘크리트 타설(펌프카 1대)" />
         {알림 && <div className="note sm" role="status" style={{ marginTop: 8 }}>{알림}</div>}
+        {그.말 && <div className="note sm" role="status" style={{ marginTop: 8 }}>{그.말}</div>}
         <div className="btn-row" style={{ marginTop: 10, flexWrap: 'wrap', justifyContent: 'flex-start', gap: 8 }}>
-          <button type="button" className="btn" style={{ width: 'auto' }} onClick={인쇄}>🖨 이 날 작업일보 인쇄 (A4)</button>
+          <button type="button" className="btn" style={{ width: 'auto' }} onClick={() => 그.PDF()} disabled={!!그.찍기}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 이 날 작업일보 PDF 저장'}</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 그.인쇄()} disabled={!!그.찍기}>{그.찍기 === '인쇄' ? '인쇄 준비 중…' : '🖨 인쇄 (A4)'}</button>
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 엑셀(false)}>📗 이 날 엑셀</button>
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 엑셀(true)}>📗 {+ym.slice(5)}월 모아 엑셀</button>
           {적음((st.일 || {})[d]) && (묻기 === 'day'
@@ -345,8 +355,9 @@ function 일보({ 현장id, 현장줄, 이름바뀜 }) {
         </p>
       </div>
       <도구설명 k="ilbo" />
-      {인쇄중 && createPortal(<div id="gp-인쇄"><div className="il-쪽">{종이}</div></div>, document.body)}
+      {그.판 && createPortal(<div id="gp-인쇄"><div className="il-쪽">{종이}</div></div>, document.body)}
     </div>
+    </>
   )
 }
 

@@ -5015,6 +5015,19 @@ span.qna-like { cursor: default; }
 .il-foot { margin-top: 10px; text-align: right; font-size: 10.5px; color: #6b7280; }
 #il-인쇄 { display: none; }
 @page il세로 { size: A4 portrait; margin: 12mm 12mm; }
+/* 🖼 G585 그림 인쇄(tools/그림인쇄훅.js) — 도구 인쇄 판을 그림으로 찍어 그림만 인쇄(몸 바로 밑 #kcm-그림인쇄 · 쪽 그림마다 그 판의 @page 이름) ·
+   단추 없이 Ctrl+P 로 찍으면 화면 글이 글자로 나가므로 «그림만인쇄» 덩이는 숨기고 «단추로 인쇄» 안내만(.kcm-인쇄안내) */
+#kcm-그림인쇄 { display: none; }
+.kcm-인쇄안내 { display: none; }
+@media print {
+  body.kcm-그림인쇄중 > *:not(#kcm-그림인쇄) { display: none !important; }
+  html.kcm-그림인쇄중, body.kcm-그림인쇄중 { background: #fff !important; margin: 0 !important; padding: 0 !important; }
+  body.kcm-그림인쇄중 #kcm-그림인쇄 { display: block; }
+  #kcm-그림인쇄 .kcm-쪽그림 { display: block; max-width: 100%; object-fit: contain; object-position: left top; break-after: page; page-break-after: always; }
+  #kcm-그림인쇄 .kcm-쪽그림:last-child { break-after: auto; page-break-after: auto; }
+  body:not(.kcm-그림인쇄중):not(.gp-인쇄중) .그림만인쇄 { display: none !important; }
+  body:not(.kcm-그림인쇄중):not(.gp-인쇄중) .kcm-인쇄안내 { display: block; border: 1px solid #999; padding: 6mm; margin: 4mm 0; font-size: 12pt; }
+}
 @media print {
   body.il-인쇄중 > *:not(#il-인쇄) { display: none !important; }
   html.il-인쇄중, body.il-인쇄중 { background: #fff !important; margin: 0 !important; padding: 0 !important; }
