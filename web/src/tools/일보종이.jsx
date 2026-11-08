@@ -8,6 +8,12 @@ const 수글 = (v) => (Number.isFinite(v) ? String(Math.round(v * 100) / 100) : 
 const 공수글 = (g) => (g === 1 ? '1' : String(Math.round(g * 100) / 100))
 
 const 소 = (x, n = 1) => (Number.isFinite(x) ? x.toFixed(n) : '')
+/** 🖼 G585 · G586 그림으로 찍을 때만(복제본 — tools/그림인쇄훅.js 더CSS) — 겹친 칸 줄(border-collapse)은 그림으로 찍으면 칸마다 두 번 그어져 굵게 나옴
+ *  → 칸 줄을 한 번씩만(오른쪽 · 아래 + 첫 칸 왼쪽 · 표 첫 줄 위). 판 = 인쇄 판 선택자(작업일보 #gp-인쇄 · 공사일보 #il-인쇄) */
+export const 일보칸줄 = (판) => `${판} .il-t, ${판} .il-sign { border-collapse: separate !important; border-spacing: 0 !important; }
+${판} .il-t th, ${판} .il-t td, ${판} .il-sign th, ${판} .il-sign td { border-width: 0 1px 1px 0 !important; }
+${판} .il-t tr > :first-child, ${판} .il-sign tr > :first-child { border-left-width: 1px !important; }
+${판} .il-t > :first-child > tr:first-child > *, ${판} .il-sign > :first-child > tr:first-child > * { border-top-width: 1px !important; }`
 /** 공정 — (G112 작업일보) lib/ilbo.js 공정셈() 결과 · 있으면 «공정 현황 — 보할 기준» 표를 넣음(투입비 공사일보는 안 넘김) */
 export default function 일보종이({ 현장, d, 폼, 셈, 대비, 제목 = '공 사 일 보', 공정 = null }) {
   const wk = (폼.wk || []).filter((r) => r.g || r.v || r.t || r.n)

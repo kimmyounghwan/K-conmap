@@ -9,13 +9,16 @@
  * ■ 적는 칸(날씨·기온·공정률·작업 내용·특기사항·내일 계획)만 cost_day/{현장}/{날짜} 에 저장(자동, 0.9초 뒤)
  * ■ 계획 공정률: 같은 브라우저의 📈 예정공정표(/tools/schedule, localStorage 'kcm.calc.schedule')에서 그날 누계를 가져옴
  * ■ 인쇄: A4 세로 한 장(#il-인쇄)
+ *   🖼 G586 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — «📄 PDF 저장»(바로 받음) · «🖨 인쇄» 는 인쇄 판을 그림으로 찍어서(tools/그림인쇄훅.js) ·
+ *     맨 아래 한두 줄만 넘치면 줄여 한 장에(작업일보 G585 와 같은 길) · 숨은 누적 |공사일보|PDF · |공사일보|인쇄
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { 오늘, 날더하기, 요일, 날씨들, 일보풀기, 일보싸기, 일보셈 } from '../lib/tuipbi.js'
 import { 계획률 } from '../lib/공정.js'
-import 일보종이 from '../tools/일보종이.jsx'   /* 2026-10-01 (G112) 종이는 따로 — /tools/ilbo(작업일보 만들기)와 같이 씀 */
+import 일보종이, { 일보칸줄 } from '../tools/일보종이.jsx'   /* 2026-10-01 (G112) 종이는 따로 — /tools/ilbo(작업일보 만들기)와 같이 씀 */
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G586 PDF · 인쇄는 그림(글자 층 없음) */
 
 const 점날 = (t) => { const m = String(t || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? m[1] + '. ' + (+m[2]) + '. ' + (+m[3]) + '.' : '' }
 const 수글 = (v) => (Number.isFinite(v) ? String(Math.round(v * 100) / 100) : '')
@@ -70,20 +73,8 @@ export default function TuipbiIlbo({ 현장, 줄들, 사람, 장비, 업체, 출
   const 공종들 = useMemo(() => { const s = new Set(); for (const v of Object.values(일보)) for (const r of 일보풀기(v).wk) if (r.g) s.add(r.g); return [...s].slice(0, 40) }, [일보])
   const 업체들 = useMemo(() => Object.values(업체 || {}).filter((x) => !x.off).map((x) => x.n), [업체])
 
-  const [인쇄중, set인쇄중] = useState(false)
-  useEffect(() => {
-    if (!인쇄중) return undefined
-    const 옛 = document.title
-    document.title = '공사일보 ' + d + (현장 && 현장.name ? ' — ' + 현장.name : '')
-    document.body.classList.add('il-인쇄중'); document.documentElement.classList.add('il-인쇄중')
-    const 끝 = () => { document.body.classList.remove('il-인쇄중'); document.documentElement.classList.remove('il-인쇄중'); document.title = 옛; set인쇄중(false) }
-    const t = setTimeout(() => {
-      window.addEventListener('afterprint', 끝, { once: true })
-      try { window.print() } catch (e) { 끝() }
-      setTimeout(() => { if (document.body.classList.contains('il-인쇄중')) 끝() }, 60000)
-    }, 150)
-    return () => { clearTimeout(t); window.removeEventListener('afterprint', 끝) }
-  }, [인쇄중])   // eslint-disable-line react-hooks/exhaustive-deps
+  /* 🖼 G586 인쇄 판(#il-인쇄)을 그림으로 찍어 📄 PDF 바로 받기 · 🖨 그림만 인쇄 */
+  const 그 = use그림인쇄(`공사일보_${d}${현장 && 현장.name ? '_' + 현장.name : ''}`, { 셈: '공사일보', 쪽: { 폭: 186, 높: 273 }, 여백: [12, 12], 판쪽: 'il세로', 몸표: ['il-인쇄중'], 판: '#il-인쇄', 더CSS: 일보칸줄('#il-인쇄') })
 
   const 종이 = <일보종이 현장={현장} d={d} 폼={폼} 셈={셈} 대비={대비} />
   const 저장됨 = !!일보[d]
@@ -150,12 +141,15 @@ export default function TuipbiIlbo({ 현장, 줄들, 사람, 장비, 업체, 출
         <textarea className="il-ta" rows={2} value={폼.nx} onChange={칸('nx')} maxLength={1000} placeholder="예: 3층 슬래브 콘크리트 타설(펌프카 1대)" />
         <p className="muted" style={{ fontSize: 12.5, margin: '8px 0 0' }}>👷 인원 · 🚜 장비 · 🧱 자재는 <b>✍️ 적기</b>에 적은 출역·장비·자재 반입으로 <b>저절로</b> 들어갑니다(아래 한 장에 금일·누계).</p>
         <div className="btn-row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
-          <button type="button" className="btn" style={{ width: 'auto' }} onClick={() => set인쇄중(true)}>🖨 이 날 공사일보 인쇄 (A4)</button>
+          <button type="button" className="btn" style={{ width: 'auto' }} onClick={() => 그.PDF()} disabled={!!그.찍기}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 이 날 공사일보 PDF 저장'}</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 그.인쇄()} disabled={!!그.찍기}>{그.찍기 === '인쇄' ? '인쇄 준비 중…' : '🖨 인쇄 (A4)'}</button>
         </div>
+        {그.말 && <div className="note sm" role="status" style={{ marginTop: 8 }}>{그.말}</div>}
       </div>
 
       <div className="card il-paperwrap no-print">{종이}</div>
-      {인쇄중 && createPortal(<div id="il-인쇄"><div className="il-쪽">{종이}</div></div>, document.body)}
+      {그.판 && createPortal(<div id="il-인쇄"><div className="il-쪽">{종이}</div></div>, document.body)}
+      <div className="kcm-인쇄안내">🖨 공사일보는 화면의 <b>«📄 PDF 저장»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
     </>
   )
 }
