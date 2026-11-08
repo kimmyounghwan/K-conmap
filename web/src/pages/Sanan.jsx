@@ -5,7 +5,7 @@ import {
   종류표, 종류찾기, 계상, 설계변경, 항목, 한도, 스마트한도, 칸이름, 줄금액, 계획금액, 달셈, 점검,
   읽기, 쓰기, 빈현장, 예시, 새번호, 수, 원, 버림, 고시, 이번달, 오늘,
 } from '../lib/sanan.js'
-import { use인쇄 } from '../tools/공정인쇄.js'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G598 PDF · 인쇄는 그림(글자 층 없음) */
 import 도구설명 from '../tools/도구설명.jsx'
 import 이어쓰기 from '../tools/이어쓰기.jsx'
 import { 앞모습두기 } from '../lib/이어쓰기.js'
@@ -17,6 +17,7 @@ import { 앞모습두기 } from '../lib/이어쓰기.js'
  * ■ 탭 넷: ① 계상(별표1 · 관급 비교 · 보건관리자 · 설계변경 별표1의3 · 별표3) ② 사용 계획(항목별 계상액 — 제10조 실행예산)
  *          ③ 사용 내역 적기(항목마다 서식의 칸 그대로) ④ 사용내역서(별지 제1호서식 1~10쪽 — 서식 칸 · 차례 그대로)
  * ■ 근거 · 숫자는 lib/sanan.js 머리말(고시 원문 확인). 인쇄(A4 세로) + 📗 값만 엑셀(사용내역서는 서식 칸 그대로 — lib/격자엑셀.js).
+ * ■ 🖼 G598(11-08) PDF · 인쇄는 그림 — 인쇄 판(#gp-인쇄 · 쪽들은 .sn-쪽들 한 덩이)을 찍어 📄 PDF 바로 받기 · 🖨 그림만 인쇄(A4 세로 sn세로 10mm · 쪽마다 새 쪽 그대로).
  * ■ 저장: 이 브라우저 + 🔗 코드 + 비밀번호로 서버에 잠가 두면 폰·PC 어디서든 이어 씀(tools/이어쓰기.jsx · G113) · 현장 여러 벌 저장. 창(alert · confirm)을 띄우지 않습니다 — 지우기는 한 번 더 누르기.
  */
 
@@ -76,8 +77,13 @@ export default function Sanan() {
   const 줄칸 = (id, k, v) => 바꿈((x) => ({ ...x, R: x.R.map((r) => (r.id === id ? { ...r, [k]: v } : r)) }))
   const 줄뺌 = (id) => { 바꿈((x) => ({ ...x, R: x.R.filter((r) => r.id !== id) })); set묻기('') }
 
-  const [인쇄중, 인쇄] = use인쇄(`산안비_사용내역서_${ym}`)
-  const [계인쇄중, 계인쇄] = use인쇄('산안비_계상')
+  /* 🖼 G598 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 인쇄 판(#gp-인쇄)을 그림으로 찍어 📄 PDF 바로 받기 · 🖨 그림만 인쇄
+     (A4 세로 @page sn세로 10mm → 글자 칸 190 × 277mm · 쪽마다 새 쪽 그대로) · 판 안 쪽들은 한 덩이(.sn-쪽들)로 — 훅은 판의 첫 덩이를 찍음 ·
+     사용내역서 · 계상 내역 두 판은 같은 #gp-인쇄 를 쓰니 하나 찍는 동안 네 단추를 다 막음 */
+  const 판꼴 = { 쪽: { 폭: 190, 높: 277 }, 여백: [10, 10], 종이: [210, 297], 판쪽: 'sn세로', 칸줄: true }
+  const 내 = use그림인쇄(`산안비_사용내역서_${ym}`, { 셈: '산안비내역서', ...판꼴 })
+  const 계 = use그림인쇄('산안비_계상', { 셈: '산안비계상', ...판꼴 })
+  const 찍는중 = !!(내.찍기 || 계.찍기)
   const 쪽들 = 항목.filter((h) => 모두쪽 || 쓴항목.has(h.i))
 
   /* 📗 값만 엑셀 */
@@ -115,7 +121,9 @@ export default function Sanan() {
   )
 
   return (
-    <div className="wrap gj sn">
+    <>
+    <div className="kcm-인쇄안내">🖨 산안비 계상 내역 · 사용내역서는 화면의 <b>«📄 PDF 저장»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+    <div className="wrap gj sn 그림만인쇄">
       <div className="card">
         <h1 className="tl-h1" style={{ marginTop: 0 }}>🦺 산업안전보건관리비 계상기 · 사용내역서</h1>
         <p className="cp" style={{ margin: '6px 0 0' }}>
@@ -213,10 +221,12 @@ export default function Sanan() {
             )}
             {A.알림.length > 0 && <ul className="sn-al">{A.알림.map((a, i) => <li key={i}>{a}</li>)}</ul>}
             <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-              <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={계인쇄}>🖨 계상 내역 인쇄</button>
+              <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={찍는중} onClick={() => 계.PDF()}>{계.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 계상 내역 PDF 저장'}</button>
+              <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={찍는중} onClick={() => 계.인쇄()}>{계.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
               <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={계엑셀}>📗 엑셀 받기</button>
               <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => set탭('plan')}>② 사용 계획 세우기 →</button>
             </div>
+            {계.말 && <div className="note sm sn-찍말" role="status" style={{ margin: '8px 0 0' }}>{계.말}</div>}
           </div>
 
           <div className="card">
@@ -347,9 +357,11 @@ export default function Sanan() {
               <label className="gj-check"><input type="checkbox" checked={!모두쪽} onChange={(e) => set모두쪽(!e.target.checked)} /> 이 달에 쓴 항목 쪽만</label>
             </div>
             <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-              <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={인쇄}>🖨 사용내역서 인쇄 (A4 · {1 + 쪽들.length}쪽)</button>
+              <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={찍는중} onClick={() => 내.PDF()}>{내.찍기 === 'pdf' ? 'PDF 만드는 중…' : `📄 사용내역서 PDF 저장 (A4 · ${1 + 쪽들.length}쪽)`}</button>
+              <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={찍는중} onClick={() => 내.인쇄()}>{내.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
               <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={서식엑셀}>📗 엑셀(서식 칸 그대로)</button>
             </div>
+            {내.말 && <div className="note sm sn-찍말" role="status" style={{ margin: '8px 0 0' }}>{내.말}</div>}
           </div>
           <div className="rk-preview sn-preview" ref={미리}>{종이들}</div>
         </>
@@ -364,9 +376,10 @@ export default function Sanan() {
       </div>
 
       <도구설명 k="sanan" />
-      {인쇄중 && createPortal(<div id="gp-인쇄">{[<총괄쪽 key="0" c={c} ym={ym} S={S} 계상액={계상액} />, ...쪽들.map((h) => <항목쪽 key={h.i} h={h} c={c} ym={ym} S={S} />)].map((x, i) => <div className="sn-쪽" key={i}>{x}</div>)}</div>, document.body)}
-      {계인쇄중 && createPortal(<div id="gp-인쇄"><div className="sn-쪽"><계상종이 c={c} A={A} 변={변} 계상액={계상액} S={S} /></div></div>, document.body)}
+      {내.판 && createPortal(<div id="gp-인쇄"><div className="sn-쪽들">{[<총괄쪽 key="0" c={c} ym={ym} S={S} 계상액={계상액} />, ...쪽들.map((h) => <항목쪽 key={h.i} h={h} c={c} ym={ym} S={S} />)].map((x, i) => <div className="sn-쪽" key={i}>{x}</div>)}</div></div>, document.body)}
+      {계.판 && createPortal(<div id="gp-인쇄"><div className="sn-쪽들"><div className="sn-쪽"><계상종이 c={c} A={A} 변={변} 계상액={계상액} S={S} /></div></div></div>, document.body)}
     </div>
+    </>
   )
 }
 
