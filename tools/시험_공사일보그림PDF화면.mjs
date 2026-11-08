@@ -128,7 +128,7 @@ for (const [기기, w, h, 폰] of [['PC 1280', 1280, 900, false], ['폰 390', 39
     fs.writeFileSync(바로, await p.pdf({ preferCSSPageSize: true }))
     const 글 = execFileSync('pdftotext', [바로, '-']).toString().replace(/\s+/g, ' ')
     ok('④ 단추 없이 Ctrl+P → «공사일보는 화면의 «📄 PDF 저장» 또는 «🖨 인쇄» 단추로 인쇄해 주세요» 안내 · 공사일보 칸 · 종이 글(특기사항 · 내일 계획) 안 나감',
-      /공사일보는 화면의/.test(글) && /단추로 인쇄해 주세요/.test(글) && !/개구부 덮개/.test(글) && !/콘크리트 타설 준비/.test(글), 글.slice(0, 200))
+      /(공사일보|현장 투입비)는 화면의/.test(글) && /단추로 인쇄해 주세요/.test(글) && !/개구부 덮개/.test(글) && !/콘크리트 타설 준비/.test(글), 글.slice(0, 200))
   }
   /* ② 여러 쪽 — 작업 줄 40 더함 */
   const 더 = p.locator('button', { hasText: '＋ 작업 줄' })

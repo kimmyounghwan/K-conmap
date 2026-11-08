@@ -405,7 +405,9 @@ export default function Tuipbi() {
   const 보기 = ((화면 === 'site' || 화면 === 'made') && !현장) ? (바쁨 ? '' : 'home') : 화면
 
   return (
-    <div className="wrap tp">
+    <>
+    <div className="kcm-인쇄안내">🖨 현장 투입비는 화면의 <b>«📄 PDF»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요(📝 공사일보 · 🧾 청구서는 그 탭 안의 단추로).</div>
+    <div className="wrap tp 그림만인쇄">
       {보기 !== 'site' && (
         <div className="card">
           <h1 className="tl-h1" style={{ marginTop: 0 }}>🏗 현장 투입비 · 공사일보 <span className="count">· 청구내역서까지</span></h1>
@@ -494,6 +496,7 @@ export default function Tuipbi() {
         </div>
       </div>
     </div>
+    </>
   )
 }
 

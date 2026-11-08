@@ -11,6 +11,7 @@ import TuipbiBook from './TuipbiBook.jsx'
 import { VendorInbox, use업체입력 } from './TuipbiVin.jsx'
 import TuipbiIlbo from './TuipbiIlbo.jsx'
 import { use화면상태 } from '../lib/길기록.js'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G592 현장 머리 PDF · 인쇄(지금 탭)도 그림 */
 
 const 숫자만 = (s) => Number(String(s || '').replace(/[^0-9.-]/g, '')) || 0
 const 쉼표칸 = (s) => { const n = String(s || '').replace(/[^0-9]/g, ''); return n ? 원(Number(n)) : '' }
@@ -33,6 +34,14 @@ export default function TuipbiSite(P) {
   /* 📎 업체가 올린 것 — 탭 이름에 «대기 N», 한눈에 위에 띠 (2026-09-27) */
   const V = use업체입력(P.코드, 예시)
   const 새로고침 = async () => { await V.읽기(); P.새로고침 && P.새로고침() }
+  /* 🖼 G592 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 현장 머리 «🖨 인쇄»(window.print · 지금 탭을 글자 PDF) →
+     지금 탭을 복제본에서 인쇄 CSS 로 펴서 그림으로: 📄 PDF 바로 받기 · 🖨 그림만 인쇄(A4 세로 · 글자 칸 186 × 271mm · 기본 @page) ·
+     📝 공사일보 · 🧾 청구서 탭은 그 탭 안의 단추로(그 종이 · 가로 청구서) — 머리 단추는 숨김 · 숨은 누적 |투입비탭|PDF · 인쇄 */
+  const 탭이름 = { home: '한눈에', vin: '업체입력', day: '적기', book: '명부', gisung: '기성공정률', list: '적은것', help: '쓰는방법' }[탭] || '화면'
+  const 그 = use그림인쇄(['현장투입비', 탭이름, String(현장.name || '현장').trim(), 오늘()].join('_'), {
+    셈: '투입비탭', 대상: '.wrap.tp', 몸표: [], 쪽: { 폭: 186, 높: 271 }, 여백: [12, 12], 칸줄: true,
+  })
+  const 탭단추 = 탭 === 'ilbo' || 탭 === 'bill'   // 그 탭 안에 PDF · 인쇄 단추가 따로 있음
   return (
     <>
       {예시 && <div className="card tp-ex no-print">🧪 <b>예시 현장입니다</b> — 이름·금액·주민번호·계좌 모두 지어낸 것이고, 적거나 지워도 저장되지 않습니다. 탭을 눌러 둘러보십시오. <button type="button" className="chip" onClick={P.나가기}>처음으로</button></div>}
@@ -46,7 +55,8 @@ export default function TuipbiSite(P) {
             </div>
           </div>
           <div className="tp-acts no-print">
-            <button type="button" className="chip" onClick={() => window.print()} title="지금 보고 있는 탭을 인쇄합니다 (청구서는 청구서 탭의 📄 PDF · 🖨 인쇄 단추로)">🖨 인쇄</button>
+            {!탭단추 && <button type="button" className="chip" onClick={() => 그.PDF()} disabled={!!그.찍기} title="지금 보고 있는 탭을 PDF 로 바로 받습니다(A4 세로)">{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 PDF'}</button>}
+            {!탭단추 && <button type="button" className="chip" onClick={() => 그.인쇄()} disabled={!!그.찍기} title="지금 보고 있는 탭을 인쇄합니다(A4 세로)">{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>}
             {/* 📗 G110 현장 전체 값만 엑셀 — 요약 · 월별 집계 · 투입 내역 · 출역 노무 · 기성(lib/tuipbi.js 엑셀 · 수식 없음) */}
             <button type="button" className="chip" title="현장 전체 — 요약 · 월별 집계 · 투입 내역 · 출역 노무 · 기성"
               onClick={async () => { const { 바이트받기 } = await import('../lib/값엑셀.js'); 바이트받기(`현장투입비_${현장.name || '현장'}_${오늘()}`, 엑셀(현장, 줄들, P.코드, 출역, P.사람)) }}>📗 엑셀</button>
@@ -56,6 +66,7 @@ export default function TuipbiSite(P) {
             <button type="button" className="chip" onClick={P.나가기}>나가기</button>
           </div>
         </div>
+        {그.말 && <div className="note sm no-print" role="status" style={{ marginTop: 6 }}>{그.말}</div>}
         <div className={'tp-saved no-print' + (P.저장됨 ? ' on' : '')} key={P.저장됨 || 'x'}>
           {예시
             ? <>🧪 예시 현장 — 눌러 보셔도 <b>저장되지 않습니다</b>{P.저장됨 ? ` (마지막으로 누른 때 ${P.저장됨})` : ''}</>
@@ -798,7 +809,7 @@ export function TuipbiGuide({ 현장안 }) {
           <li><b>🏢 업체별 한 장씩</b>: 장비는 업체마다(같은 업체의 굴착기·덤프를 한 장에), 자재는 업체마다 한 장씩 — 머리에 «청구 업체» 가 찍혀 업체에 그대로 줄 수 있습니다.</li>
           <li><b>👷 근로자별 명세서 한 장씩</b>: 한 사람에 한 장 — 출역 달력 · 일급 · 보수총액 · 공제 항목별(대상 여부와 까닭) · <b>실지급액</b> · 입금 계좌 · «위 금액을 정히 영수합니다» 수령인 서명란.</li>
           <li><b>👀 이 화면</b>: 지금 보는 청구서 하나(노무비·장비·자재·달별 누계 중)만.</li>
-          <li>현장 머리의 <b>🖨 인쇄</b>: 지금 보는 탭(📊 한눈에 — 총공사금액·투입비·공정률·구분별·월별, 📈 기성, 📜 적은 것 등)을 인쇄합니다.</li>
+          <li>현장 머리의 <b>📄 PDF</b>(바로 받음 · 폰도) · <b>🖨 인쇄</b>: 지금 보는 탭(📊 한눈에 — 총공사금액·투입비·공정률·구분별·월별, 📈 기성, 📜 적은 것 등)을 A4 세로로 — 📝 공사일보 · 🧾 청구서 탭은 그 탭 안의 단추로.</li>
           <li>제출용 파일이 필요하면 인쇄 창에서 대상(프린터)을 <b>«PDF로 저장»</b> 으로 고르십시오.</li>
           <li>자료는 서버에 계속 쌓여 있어서, 지난달·석 달 전 청구서도 언제든 다시 보고 인쇄합니다(현장을 지우지 않는 한).</li>
         </ul>

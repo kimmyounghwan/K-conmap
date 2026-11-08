@@ -162,7 +162,7 @@ for (const [기기, w, h, 폰] of [['PC 1280', 1280, 900, false], ['폰 390', 39
     const 바로 = path.join(폴더, '바로인쇄.pdf')
     fs.writeFileSync(바로, await p.pdf({ preferCSSPageSize: true }))
     const 바글 = execFileSync('pdftotext', [바로, '-']).toString().replace(/\s+/g, ' ')
-    ok('④ 단추 없이 Ctrl+P → «청구서는 화면의 … 단추로 인쇄해 주세요» 안내 · 청구서 판 글 안 나감', /청구서는 화면의/.test(바글) && /단추로 인쇄해 주세요/.test(바글) && !/실지급/.test(바글) && !/청구내역서 \(/.test(바글), 바글.slice(0, 300))
+    ok('④ 단추 없이 Ctrl+P → «청구서는 화면의 … 단추로 인쇄해 주세요» 안내 · 청구서 판 글 안 나감', /(청구서|현장 투입비)는 화면의/.test(바글) && /단추로 인쇄해 주세요/.test(바글) && !/실지급/.test(바글) && !/청구내역서 \(/.test(바글), 바글.slice(0, 300))
   } else {
     const 줄 = await p.evaluate(() => { const r = [...document.querySelectorAll('.tp-찍기줄 button')].map((x) => x.getBoundingClientRect()); const 나란 = [...document.querySelectorAll('.tp-찍기줄')].every((z) => { const [a, b] = [...z.querySelectorAll('button')].map((x) => x.getBoundingClientRect()); const s = z.querySelector('span').getBoundingClientRect(); return Math.abs(a.top - b.top) < 2 && a.top >= s.bottom - 1 }); return { 오른쪽: Math.round(Math.max(...r.map((x) => x.right))), 화면: innerWidth, 수: r.length, 나란 } })
     ok(`${앞}⑦ 폰 단추 줄 — 단추 ${줄.수}개 화면 안(${줄.오른쪽} ≤ ${줄.화면}) · 줄마다 이름 아래 📄 PDF · 🖨 인쇄 나란히`, 줄.수 === 8 && 줄.오른쪽 <= 줄.화면 && 줄.나란, 줄)
