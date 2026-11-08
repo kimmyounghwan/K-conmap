@@ -9,6 +9,7 @@
  *   ■ 쪽 = 그 판 @page 의 글자 칸(mm) · 여백 = [왼, 위] mm · 종이 = A4 [210, 297](가로면 [297, 210]) · 판쪽 = 그림 인쇄 때 쓸 @page 이름(같은 여백)
  *   ■ 셈 = 숨은 누적 |{셈}|PDF · |{셈}|인쇄 (소장님 브라우저 · 로봇은 안 셈) · 칸줄 = 겹친 칸 줄 한 번씩(G587 · lib/그림인쇄.js 칸줄고침 — 합친 칸 표도)
  *   ■ 대상 = 인쇄 판 없이 화면 덩이를 인쇄하던 도구(G588 일용 4대보험 «.iy-out» · 몸표 iy-print) — 그 덩이를 복제본에서 인쇄 CSS 로 펴 찍음 · 손질(판, 문서) = 복제본만 고치기(접은 것 펴기)
+ *   ■ 끝 = 찍기가 끝나면(됐든 못 됐든) 부름 — 찍으려고 화면에 잠깐 펼친 판을 걷을 때(G591 투입비 청구서 «이 달 모두 · 업체별 · 근로자별»)
  *   ■ 단추 없이 Ctrl+P 로 찍으면 화면 글이 글자로 나감 → 쓰는 쪽 덩이에 className «그림만인쇄» + <div className="kcm-인쇄안내">…</div> (styles.css)
  */
 import { useEffect, useRef, useState } from 'react'
@@ -18,13 +19,13 @@ import { use잠깐말 } from '../lib/잠깐말.js'
 
 const 옛판꼴 = /dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading chunk/i
 
-export function use그림인쇄(제목, { 셈 = '', 쪽 = { 폭: 186, 높: 273 }, 여백 = [12, 12], 종이 = [210, 297], 판쪽 = '', 몸표 = ['gp-인쇄중'], 판 = '#gp-인쇄', 맞춤 = true, 더CSS = '', 칸줄 = false, 대상 = '', 손질 = null } = {}) {
+export function use그림인쇄(제목, { 셈 = '', 쪽 = { 폭: 186, 높: 273 }, 여백 = [12, 12], 종이 = [210, 297], 판쪽 = '', 몸표 = ['gp-인쇄중'], 판 = '#gp-인쇄', 맞춤 = true, 더CSS = '', 칸줄 = false, 대상 = '', 손질 = null, 끝 = null } = {}) {
   const [찍기, set찍기] = useState(null)        // 'pdf' | '인쇄' — 판을 붙이고 그림으로 찍는 중
   const [말, set말0] = use잠깐말(4000)   // 🩹 G588 같은 알림을 4초 안에 또 띄워도 4초를 새로 셈(lib/잠깐말.js)
   const [말자리, set말자리] = useState('위')
   const 자리 = useRef('위')
   const 설정 = useRef(null)
-  설정.current = { 제목, 셈, 쪽, 여백, 종이, 판쪽, 몸표, 판, 맞춤, 더CSS, 칸줄, 대상, 손질 }
+  설정.current = { 제목, 셈, 쪽, 여백, 종이, 판쪽, 몸표, 판, 맞춤, 더CSS, 칸줄, 대상, 손질, 끝 }
   const 알림 = (m) => { set말자리(자리.current); set말0(m) }
   useEffect(() => {
     if (!찍기) return undefined
@@ -60,7 +61,7 @@ export function use그림인쇄(제목, { 셈 = '', 쪽 = { 폭: 186, 높: 273 }
       } catch (e) {
         if (!그만) 알림(옛판꼴.test(String((e && e.message) || e)) ? '사이트가 새로 바뀌었습니다 — 화면을 새로고침(↻)한 뒤 다시 눌러 주세요(쓴 것은 그대로 남습니다)' : 'PDF 를 만들지 못했습니다 — 잠시 뒤 다시 눌러 주세요')
       }
-      if (!그만) set찍기(null)
+      if (!그만) { set찍기(null); if (typeof S.끝 === 'function') { try { S.끝() } catch (e) { /* 걷기 못 해도 그대로 */ } } }
     })()
     return () => { 그만 = true }
   }, [찍기])   // eslint-disable-line react-hooks/exhaustive-deps

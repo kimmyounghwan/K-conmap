@@ -4331,6 +4331,12 @@ span.qna-like { cursor: default; }
   .tp-bill-hd { margin-bottom: 4px; }
   .tp-bill-top { margin-bottom: 6px; }
 }
+/* 🖼 G591 (2026-11-08) 투입비 청구서 — 무엇을(줄마다: 이 달 모두 · 업체별 · 근로자별 · 이 화면) · 📄 PDF · 🖨 인쇄 */
+.tp-찍기 { display: grid; gap: 6px; margin-top: 8px; }
+.tp-찍기줄 { display: flex; align-items: center; gap: 6px 8px; flex-wrap: wrap; padding: 6px 8px; border: 1px solid var(--line); border-radius: 10px; }
+.tp-찍기줄 > span { flex: 1 1 200px; font-size: 13.5px; font-weight: 700; min-width: 0; }
+.tp-찍기줄 .btn { width: auto; }
+@media (max-width: 640px) { .tp-찍기줄 > span { flex-basis: 100%; } }   /* 폰: 이름은 첫 줄 · 단추 둘은 둘째 줄에 나란히(PDF 만 이름 옆에 붙고 인쇄가 혼자 내려가던 것) */
 /* 👷 2026-10-01 (G104) /tools/nomubi 일용 노무비 계산기 · 지급명세서 (Nomubi.jsx) — 표 · 인쇄는 투입비 청구서(tp-*)를 그대로 */
 .nm .nw { white-space: nowrap; }
 .nm-badges { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 12.5px; color: var(--text-2); }

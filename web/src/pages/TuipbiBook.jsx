@@ -6,13 +6,14 @@
  *     «이 달 청구서 엑셀(값만)»(lib/tuipbi.js 월엑셀 — 요약 · 노무비 대장 · 노무비 청구내역서 · 장비 · 자재) ·
  *     «달별 누계 엑셀(값만)»(누계엑셀). 9/26 에 끊어 둔 셈을 다시 이었습니다 — 수식 없음 · 주민번호·계좌는 화면과 같게(잠겨 있으면 빈칸 · 뒷자리는 «보이기» 를 켰을 때만)
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { 원, 억만, 공수글, 오늘, 노무달, 장비달, 자재달, 누계, 장비메모, 달더하기, 요일, 단위들, 월엑셀, 누계엑셀 } from '../lib/tuipbi.js'
 import { 요율 } from '../lib/gongje.js'
 import { 공제칸 } from '../lib/gongje.js'
 import { 주민가림 } from '../lib/tplock.js'
 import { useNavigate } from 'react-router-dom'
 import { 투입비넘김, 넘김쓰기 } from '../lib/신고정리.js'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G591 청구서 PDF · 인쇄는 그림(글자 층 없음) — 📗 엑셀은 그대로 */
 
 const 숫자만 = (s) => Number(String(s || '').replace(/[^0-9.-]/g, '')) || 0
 const 쉼표칸 = (s) => { const n = String(s || '').replace(/[^0-9]/g, ''); return n ? 원(Number(n)) : '' }
@@ -96,13 +97,15 @@ function Bills(P) {
   /* 인쇄판 — '' 화면 그대로 · all 노무·장비·자재 한 장씩 · vendor 업체별 한 장씩 · worker 근로자별 명세서 한 장씩
    *   소장님: 「「업체별 한 장씩 인쇄」나 「근로자 개인별 명세서 한 장씩」 … 응 넣어줘.」 */
   const [판, set판] = useState('')
-  useEffect(() => {
-    const 끝 = () => { document.body.classList.remove('tp-print-bill'); set판('') }
-    window.addEventListener('afterprint', 끝)
-    return () => window.removeEventListener('afterprint', 끝)
-  }, [])
-  const 인쇄 = () => { document.body.classList.add('tp-print-bill'); setTimeout(() => window.print(), 50) }
-  const 판인쇄 = (k) => { set판(k); document.body.classList.add('tp-print-bill'); setTimeout(() => window.print(), 400) }
+  /* 🖼 G591 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 전엔 몸에 tp-print-bill 을 달고 window.print(글자 PDF) · 인쇄 창을 닫으면 판을 걷음.
+     이제 고른 판(이 달 모두 · 업체별 · 근로자별 · 이 화면)을 잠깐 펼쳐 복제본에서만 인쇄 CSS(tp-print-bill)로 찍고 곧바로 걷음(끝):
+     📄 PDF 바로 받기 · 🖨 그림만 인쇄 — A4 가로 @page tp-land 10mm(글자 칸 277 × 190mm) · 판마다 새 쪽(.tp-pb) 그대로 · 숨은 누적 |투입비청구서|PDF · 인쇄 */
+  const 판이름 = { all: '투입비청구서', vendor: '업체별청구서', worker: '근로자별명세서' }[판] || ({ L: '노무비청구내역서', E: '장비청구서', M: '자재청구서', C: '달별누계' }[보기] || '청구서')
+  const 그 = use그림인쇄([판이름, String(현장.name || '현장').trim(), ym].join('_'), {
+    셈: '투입비청구서', 대상: '.tp-찍을판', 몸표: ['tp-print-bill'], 쪽: { 폭: 277, 높: 190 }, 여백: [10, 10], 종이: [297, 210], 판쪽: 'tp-land', 칸줄: true,
+    끝: () => set판(''),
+  })
+  const 찍기 = (k, 어떻게) => { if (그.찍기) return; set판(k); if (어떻게 === 'pdf') 그.PDF(); else 그.인쇄() }
   /* 업체별로 묶기 — 장비는 같은 업체의 여러 장비를 한 장에 */
   const 장비업체들 = useMemo(() => {
     const m = new Map()
@@ -135,11 +138,21 @@ function Bills(P) {
             <button key={k} type="button" className={'chip' + (보기 === k ? ' on' : '')} onClick={() => set보기(k)}>{t}</button>
           ))}
         </div>
+        {/* 🖼 G591 무엇을(줄마다) → 📄 PDF(바로 받음 · 폰도) · 🖨 인쇄 */}
+        <div className="tp-찍기">
+          {[['all', '🧾 이 달 청구서 모두 (노무·장비·자재)', false],
+            ['vendor', `🏢 업체별 한 장씩 (장비 ${장비업체들.length} · 자재 ${M.목록.length})`, !E.목록.length && !M.목록.length],
+            ['worker', `👷 근로자별 명세서 한 장씩 (${N.줄.length}명)`, !N.줄.length],
+            ['', '👀 이 화면', false]].map(([k, 글, 막음]) => (
+            <div key={k || '화면'} className="tp-찍기줄">
+              <span>{글}</span>
+              <button type="button" className="btn sm" onClick={() => 찍기(k, 'pdf')} disabled={막음 || !!그.찍기}>{그.찍기 === 'pdf' && 판 === k ? 'PDF 만드는 중…' : '📄 PDF'}</button>
+              <button type="button" className="btn line sm" onClick={() => 찍기(k, '인쇄')} disabled={막음 || !!그.찍기}>{그.찍기 === '인쇄' && 판 === k ? '준비 중…' : '🖨 인쇄'}</button>
+            </div>
+          ))}
+        </div>
+        {그.말 && <div className="note sm" role="status" style={{ marginTop: 8 }}>{그.말}</div>}
         <div className="tp-start" style={{ marginTop: 8 }}>
-          <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => 판인쇄('all')}>🖨 이 달 청구서 모두 인쇄 (노무·장비·자재)</button>
-          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 판인쇄('vendor')} disabled={!E.목록.length && !M.목록.length}>🖨 업체별 한 장씩 (장비 {장비업체들.length} · 자재 {M.목록.length})</button>
-          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 판인쇄('worker')} disabled={!N.줄.length}>🖨 근로자별 명세서 한 장씩 ({N.줄.length}명)</button>
-          <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={인쇄}>🖨 이 화면 인쇄</button>
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 엑셀받기('M')} title="요약 · 노무비 대장 · 노무비 청구내역서 · 장비 · 자재">📗 이 달 청구서 엑셀</button>
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 엑셀받기('C')} title="처음 달부터 이 달까지 — 달별 · 노무비 집계표 · 개인별 · 장비 · 자재 업체별">📗 달별 누계 엑셀</button>
           <label className="tp-chk" style={{ paddingBottom: 0 }}><input type="checkbox" checked={뒷자리} onChange={(e) => set뒷자리(e.target.checked)} disabled={잠김 && !예시} /> 주민번호 뒷자리 보이기</label>
@@ -153,6 +166,9 @@ function Bills(P) {
           ))}
         </div>
       </div>
+      <div className="kcm-인쇄안내">🖨 청구서는 화면의 <b>«📄 PDF»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+      {/* 🖼 G591 찍는 판 — 고른 판(또는 이 화면)을 한 덩이로(그림 찍기 대상) · Ctrl+P 로는 안 찍힘(그림만인쇄) */}
+      <div className="tp-찍을판 그림만인쇄">
       {판 === 'all' ? (
         <>
           <div className="card tp-bill"><LaborBill N={N} y={y} m={m} 현장={현장} 풀린={풀린} 잠김={잠김 && !예시} 뒷자리={뒷자리} {...P} /></div>
@@ -182,6 +198,7 @@ function Bills(P) {
           {보기 === 'C' && C && <CumBill C={C} 현장={현장} />}
         </div>
       )}
+      </div>
     </>
   )
 }
