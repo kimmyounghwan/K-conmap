@@ -55,11 +55,11 @@ for (const 기기 of 기기들) {
   봐(못고침, '② 따라오는 첫 열은 손으로 못 고침(.fw-ro)')
   /* ③ 참석자 기억 · 종이 */
   봐(await 표쓰기(2, 0, 0, '이가상') && await 표쓰기(2, 0, 2, '최가상') && await 표쓰기(2, 1, 0, '정가상'), '③ 참석자 이름 셋 적음'); await p.waitForTimeout(900)
-  /* 종이(#fw-인쇄)는 인쇄 창을 열 때만 몸에 붙음 — headless 는 print() 가 바로 돌아와 걷히므로 print() 를 가로채 그 순간의 종이 글을 집음 */
-  await p.evaluate(() => { window.print = () => { window.__종이 = (document.querySelector('#fw-인쇄') || {}).innerText || '' }; const b = [...document.querySelectorAll('.fw-bar button')].find((x) => /PDF 저장/.test(x.textContent)); if (b) b.click() }); await p.waitForTimeout(900)
-  const 종이 = await p.evaluate(() => window.__종이 || '')
-  await p.evaluate(() => window.dispatchEvent(new Event('afterprint'))); await p.waitForTimeout(300)
-  봐(/근로자와 장비와의 충돌/.test(종이) && /주변 비닐하우스 파손 우려/.test(종이) && /이가상/.test(종이) && new RegExp(오늘).test(종이), '③ 종이(#fw-인쇄)에 저절로 들어온 줄 · 참석자 · 오늘 날짜가 찍힘')
+  /* 종이(#fw-인쇄)는 PDF 를 만드는 동안만 화면 밖에 펴짐(🖼 G584 — 그림으로 찍어 바로 내려받음) — 펴져 칸 맞춤을 끝낸 순간의 종이 글을 집음 */
+  await p.evaluate(() => { window.__종이 = ''; const ob = new MutationObserver(() => { const el = document.querySelector('#fw-인쇄 .fw-paper[data-h]'); if (el && !window.__종이) window.__종이 = el.innerText }); ob.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-h'] }); window.__ob = ob })
+  const [받음] = await Promise.all([p.waitForEvent('download', { timeout: 30000 }).catch(() => null), p.evaluate(() => { const b = [...document.querySelectorAll('.fw-bar button')].find((x) => /PDF 저장/.test(x.textContent)); if (b) b.click() })])
+  const 종이 = await p.evaluate(() => { if (window.__ob) window.__ob.disconnect(); return window.__종이 || '' })
+  봐(!!받음 && /근로자와 장비와의 충돌/.test(종이) && /주변 비닐하우스 파손 우려/.test(종이) && /이가상/.test(종이) && new RegExp(오늘).test(종이), '③ 📄 PDF 저장 → 바로 받음 · 종이(#fw-인쇄)에 저절로 들어온 줄 · 참석자 · 오늘 날짜가 찍힘', { 받음: !!받음, 종이: 종이.slice(0, 200) })
   await p.reload({ waitUntil: 'domcontentloaded' }); await p.waitForTimeout(2500)
   await p.evaluate(() => { const b = [...document.querySelectorAll('.fw-bar button')].find((x) => /빈칸으로/.test(x.textContent)); if (b) b.click() }); await p.waitForTimeout(500)
   const 참 = await 표읽기(2)

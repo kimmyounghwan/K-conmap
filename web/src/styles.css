@@ -8754,6 +8754,7 @@ button.gd-gonggo:hover { background: var(--accent-soft); color: var(--accent); }
 .fw-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0 10px; }
 .fw-bar .btn { width: auto; padding: 9px 14px; font-size: 14px; }   /* PC — 한 줄에 나란히(전역 .btn 은 width 100% 라 다섯 줄로 쌓였음 · 10/21) */
 .fw-bar.bottom { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--line); }
+.fw-bar.bottom .fw-say { flex-basis: 100%; margin: 0; }   /* 🖼 G584 아래 단추로 누른 PDF · 인쇄 알림 */
 .fw-bar .btn.on { border-color: var(--accent); color: var(--accent); }
 .fw-say { margin: 0 0 10px; padding: 8px 10px; border-radius: 8px; background: var(--accent-soft); font-size: 13px; word-break: keep-all; }
 .fw-list { display: grid; gap: 6px; margin: 0 0 12px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
@@ -8811,6 +8812,21 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 #fw-인쇄 { display: none; }
 /* 🩹 2026-10-21 T1 · T2 — 인쇄 직전 종이 높이를 재는 동안만(화면 밖 · 안 보임 · 인쇄 폭 186mm 그대로) */
 @media screen { #fw-인쇄.fw-재기 { display: block; position: absolute; left: -10000px; top: 0; width: 186mm; visibility: hidden; pointer-events: none; } }
+/* 🖼 G584 그림 PDF — 종이를 화면 밖에 펼쳐 그림으로 찍는 동안(보여야 찍힘 · 인쇄 폭 186mm 그대로) · 인쇄는 그 그림(쪽마다 186 × 271mm = @page 글자 칸) */
+@media screen { #fw-인쇄.fw-그림 { display: block; position: absolute; left: -10000px; top: 0; width: 186mm; pointer-events: none; } }
+/* 찍을 때만 — 겹친 칸 줄(border-collapse)은 그림으로 찍으면 칸마다 두 번 그어져 굵게 나옴 → 칸 줄을 한 번씩만(오른쪽 · 아래 + 첫 칸 왼쪽 · 표 첫 줄 위) */
+#fw-인쇄.fw-그림 table { border-collapse: separate; border-spacing: 0; }
+#fw-인쇄.fw-그림 th, #fw-인쇄.fw-그림 td { border-width: 0 0.6pt 0.6pt 0; }
+#fw-인쇄.fw-그림 tr > :first-child { border-left-width: 0.6pt; }
+#fw-인쇄.fw-그림 thead tr:first-child > *, #fw-인쇄.fw-그림 .fw-kv tr:first-child > * { border-top-width: 0.6pt; }
+#fw-인쇄 .fw-쪽그림 { display: block; width: 186mm; height: 271mm; max-width: 100%; object-fit: contain; object-position: left top; break-after: page; page-break-after: always; }
+#fw-인쇄 .fw-쪽그림:last-child { break-after: auto; page-break-after: auto; }
+/* 단추 없이 Ctrl+P 로 찍으면 칸 글이 글자로 나감 → 작성 칸은 숨기고 안내만 */
+.fw-인쇄안내 { display: none; }
+@media print {
+  body:not(.fw-인쇄중) .card.fw { display: none !important; }
+  body:not(.fw-인쇄중) .fw-인쇄안내 { display: block; border: 1px solid #999; padding: 6mm; margin: 4mm 0; font-size: 12pt; }
+}
 @media print {
   @page { size: A4 portrait; margin: 12mm 12mm 14mm; }
   body.fw-인쇄중 > *:not(#fw-인쇄) { display: none !important; }

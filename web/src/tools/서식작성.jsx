@@ -3,7 +3,10 @@
  *          → 고르심 «안전서류 = 사이트에서 작성 → PDF(엑셀 안 줌) · 공무 서식 = 엑셀 그대로»
  *   ■ forms.json 서식(sheet.blocks)을 그대로 칸으로 펼칩니다 — 서식마다 화면을 따로 짜지 않습니다(새 안전서식 · 옛 서식 모두).
  *     kv(이름 · 값) · table(표 · 줄 더하기) · chk(점검 항목 → 양호 · 불량 · 해당없음 + 조치) · cl(확인 목록 ☐) · text(안내) · sign(날짜 · 서명란)
- *   ■ PDF: 인쇄 창 → «PDF로 저장»(폰은 공유 → 인쇄 → PDF). 종이는 #fw-인쇄(몸에 바로 붙임 · 화면에는 안 보임)만 찍힙니다.
+ *   ■ PDF(~G583): 인쇄 창 → «PDF로 저장»(폰은 공유 → 인쇄 → PDF). 종이는 #fw-인쇄(몸에 바로 붙임 · 화면에는 안 보임)만 찍힙니다.
+ *   🖼 G584(11-08) 소장님 「PDF 도 변환 안되게 해야 하지 않아? 사이트?」 — 10-21 «그림 PDF» 가 여기엔 안 들어가 있었음(인쇄 PDF 에 글자가 남아
+ *     변환 프로그램으로 엑셀이 나옴) → «📄 PDF 저장» = 종이를 그림으로 찍어 바로 내려받기(lib/그림인쇄.js · 그림PDF.js) · «🖨 인쇄» = 같은 그림을 인쇄 ·
+ *     Ctrl+P 로 화면을 바로 찍으면 칸 글이 글자로 나가므로 인쇄 때 작성 칸은 숨기고 «단추로 인쇄» 안내만(styles.css .fw-인쇄안내).
  *   ■ 쓴 것은 이 기기에 남습니다(localStorage · 서버로 안 감) — 쓰던 것 저절로 · «💾 저장»(이름 붙여 여러 벌) · «불러오기 · 복사해 새로».
  *     공사명 · 현장명 · 회사명 · 작성자는 한 번 쓰면 다른 서식에도 먼저 채웁니다(kcm.서식공통).
  *   ■ 개인정보: 주민등록번호 칸은 두지 않습니다(이 기기에 남지 않게) — 필요한 서식은 «제출 서식에 직접» 이라고 적음.
@@ -12,6 +15,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { 받음, 세기 } from '../lib/받은수.jsx'
+import { PDF만들기, 캔버스JPEG, 파일주기 } from '../lib/그림PDF.js'   /* 🖼 G584 그림 PDF(글자 층 없음) — 격자작성과 같은 PDF 쓰개 */
 
 const 쓴열쇠 = 'kcm.서식작성'
 const 공통열쇠 = 'kcm.서식공통'
@@ -126,7 +130,7 @@ const 글칸 = (r) => r[2] === 'L' || 글칸말.test(String(r[0] || '').replace(
 /** 빈 줄을 더해도 되는 표 — 미리 적힌 줄이 없는 «쓰는 표» */
 const 쓰는표 = (b) => b.t === 'table' && !(b.rows && b.rows.length) && !(b.wpre && b.wpre.length)
 
-function 종이({ f, v }) {
+function 종이({ f, v, 그림 = false }) {
   const s = f.sheet
   const 끝 = s.blocks.length - 1
   const 근거안 = !!f.law && s.blocks[끝] && s.blocks[끝].t === 'sign'   /* 근거 줄이 혼자 다음 쪽으로 넘어가지 않게 서명칸 안에 */
@@ -168,7 +172,8 @@ function 종이({ f, v }) {
   }, [맞춤])
   const 맞 = 맞춤 || { 더: {}, 늘: 0, 줄높: 0, 칸높: 0, z: 1 }
   return (
-    <div className="fw-paper" ref={판} data-h={맞춤 ? 맞춤.H : ''} data-z={맞.z} style={맞.z < 1 ? { zoom: 맞.z } : undefined}>
+    /* 🖼 G584 그림으로 찍을 땐 zoom 대신 종이를 1/z 만큼 넓게 펴서 찍고 그림을 z 배로 줄임(lib/그림인쇄.js) — 인쇄의 zoom 과 같은 모양(표가 종이 폭을 다 씀) */
+    <div className="fw-paper" ref={판} data-h={맞춤 ? 맞춤.H : ''} data-z={맞.z} style={맞.z < 1 ? (그림 ? { width: (186 / 맞.z).toFixed(3) + 'mm' } : { zoom: 맞.z }) : undefined}>
       <div className="fw-mark">K-건설맵 · k-conmap.com</div>
       <h1 className="fw-h">{s.heading}</h1>
       {s.blocks.map((b, i) => {
@@ -265,8 +270,15 @@ export default function 서식작성({ f }) {
   const [v, setV] = useState(() => (맞는꼴(s, 내것0.cur) ? 내것0.cur : 빈값(s, 공통0)))
   const [저장들, set저장들] = useState(() => (Array.isArray(내것0.saved) ? 내것0.saved.filter((x) => 맞는꼴(s, x.v)) : []))
   const [목록, set목록] = useState(false)
-  const [말, set말] = useState('')
+  const [말, set말0] = useState('')
+  /* 🖼 G584 알림은 누른 단추 곁에 — 아래 단추로 PDF · 인쇄를 누르면 아래에(위 알림은 화면 밖이라 안 보였음) · 다른 일(저장 · 예시 …)은 위 */
+  const [말자리, set말자리] = useState('위')
+  const 찍은자리 = useRef('위')
+  const set말 = (m, 자리 = '위') => { set말자리(자리); set말0(m) }
   const [인쇄중, set인쇄중] = useState(false)
+  const [찍기, set찍기] = useState(null)        // 🖼 G584 'pdf' | '인쇄' — 종이를 화면 밖에 펼쳐 그림으로 찍는 중
+  const [쪽그림, set쪽그림] = useState([])      // 인쇄할 쪽 그림(dataURL)
+  const 찍는판 = useRef(null)
   const 셌다 = useRef(false)
 
   useEffect(() => { if (!셌다.current) { 셌다.current = true; 세기('|서식작성|열기') } }, [])
@@ -279,14 +291,56 @@ export default function 서식작성({ f }) {
     }, 600)
     return () => clearTimeout(t)
   }, [v, 저장들, f.slug])
-  useEffect(() => { if (!말) return undefined; const t = setTimeout(() => set말(''), 4000); return () => clearTimeout(t) }, [말])
+  useEffect(() => { if (!말) return undefined; const t = setTimeout(() => set말0(''), 4000); return () => clearTimeout(t) }, [말])
 
-  /* 인쇄 — 몸에 바로 붙인 종이만 */
+  /* PDF · 인쇄 파일 이름 = 서식명_공사명(현장명)_오늘 — 공사명 칸이 없으면 날짜가 아닌 첫 칸(🖼 G584: TBM 은 «TBM 일시» 날짜가 붙던 것) */
+  const 파일이름 = () => {
+    const 값들 = []
+    s.blocks.forEach((b, i) => { if (b.t === 'kv') b.rows.forEach((r, j) => { const x = String((v[i] || [])[j] || '').replace(/\s+/g, ' ').trim(); if (x) 값들.push([공통이름(r[0]), x]) }) })
+    const 현장 = (값들.find(([c]) => c === '현장') || 값들.find(([, x]) => !/^\d{4}\s*[-.년]/.test(x)) || 값들[0] || ['', ''])[1]
+    return `${f.title}${현장 ? '_' + 현장.slice(0, 30).trim() : ''}_${오늘()}`.replace(/[\\/:*?"<>|]/g, '')
+  }
+  /* 🖼 G584 종이를 그림으로 — 화면 밖에 펼친 종이가 칸 맞춤(data-h)을 끝내면 찍음 → PDF 내려받기 또는 인쇄할 그림 */
+  useEffect(() => {
+    if (!찍기) return undefined
+    let 그만 = false
+    ;(async () => {
+      try {
+        let el = null
+        for (let i = 0; i < 80 && !그만; i++) {
+          el = 찍는판.current && 찍는판.current.querySelector('.fw-paper')
+          if (el && el.dataset.h) break
+          await new Promise((r) => setTimeout(r, 50))
+        }
+        if (그만) return
+        if (!el || !el.dataset.h) throw new Error('종이를 펴지 못함')
+        const { 종이찍기, A4쪽 } = await import('../lib/그림인쇄.js')
+        const 쪽들 = await 종이찍기(el, { z: Number(el.dataset.z) || 1 })
+        if (그만) return
+        if (찍기 === 'pdf') {
+          const pdf = 쪽들.map((cv) => { const a = A4쪽(cv); const p = { jpg: 캔버스JPEG(a, 0.9), px: [a.width, a.height], pt: [595.28, 841.89] }; a.width = a.height = 1; return p })
+          파일주기(PDF만들기(pdf, f.title), 파일이름() + '.pdf')
+          set말(`📄 PDF ${pdf.length}쪽을 만들었습니다 — 내려받은 파일을 여세요`, 찍은자리.current)
+        } else {
+          set쪽그림(쪽들.map((cv) => cv.toDataURL('image/jpeg', 0.92)))
+          set인쇄중(true)
+        }
+        쪽들.forEach((cv) => { cv.width = cv.height = 1 })
+      } catch (e) {
+        /* 화면을 열어 둔 사이 사이트가 새로 올라가 «찍는 도구» 파일 이름이 바뀐 때(옛 파일 404) — 새로고침하면 됨(쓴 것은 이 기기에 저절로 남아 있음) */
+        const 옛판 = /dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading chunk/i.test(String((e && e.message) || e))
+        if (!그만) set말(옛판 ? '사이트가 새로 바뀌었습니다 — 화면을 새로고침(↻)한 뒤 다시 눌러 주세요(쓴 것은 그대로 남습니다)' : 'PDF 를 만들지 못했습니다 — 잠시 뒤 다시 눌러 주세요', 찍은자리.current)
+      }
+      if (!그만) set찍기(null)
+    })()
+    return () => { 그만 = true }
+  }, [찍기])   // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* 인쇄 — 몸에 바로 붙인 종이(🖼 G584 그림 쪽)만 */
   useEffect(() => {
     if (!인쇄중) return undefined
     const 옛 = document.title
-    const 현장 = (v.find((x, i) => s.blocks[i].t === 'kv') || []).find((x) => x) || ''
-    const 새제목 = `${f.title}${현장 ? '_' + String(현장).slice(0, 30) : ''}_${오늘()}`
+    const 새제목 = 파일이름()
     document.title = 새제목
     document.body.classList.add('fw-인쇄중'); document.documentElement.classList.add('fw-인쇄중')
     /* 🩹 2026-10-21 서식 점검 T5 — 60초 «혹시» 시계를 안 지워, 앞 서식에서 PDF 를 누르고 60초 안에 다음 서식 PDF 를 누르면
@@ -294,8 +348,9 @@ export default function 서식작성({ f }) {
        화면을 떠나면(다른 서식으로) 인쇄 표시도 걷음. */
     let 늦 = null
     const 걷기 = () => { document.body.classList.remove('fw-인쇄중'); document.documentElement.classList.remove('fw-인쇄중'); if (document.title === 새제목) document.title = 옛 }
-    const 끝 = () => { clearTimeout(늦); 늦 = null; 걷기(); set인쇄중(false) }
-    const t = setTimeout(() => {
+    const 끝 = () => { clearTimeout(늦); 늦 = null; 걷기(); set인쇄중(false); set쪽그림([]) }
+    const t = setTimeout(async () => {
+      try { await Promise.all([...document.querySelectorAll('#fw-인쇄 img')].map((im) => (im.decode ? im.decode().catch(() => {}) : null))) } catch (e) { /* 그대로 */ }
       window.addEventListener('afterprint', 끝, { once: true })
       try { window.print() } catch (e) { 끝() }
       if (document.body.classList.contains('fw-인쇄중')) 늦 = setTimeout(끝, 60000)   // 폰 등 print() 가 바로 돌아오는 곳
@@ -331,7 +386,8 @@ export default function 서식작성({ f }) {
   const 줄더 = (i) => { const b = s.blocks[i]; 바꿈(i, (o) => (o.length >= 60 ? o : [...o, b.cols.map(() => '')])) }
   const 줄빼 = (i) => { const b = s.blocks[i]; 바꿈(i, (o) => (o.length <= 줄수(b) ? o : o.slice(0, -1))) }
 
-  const PDF = () => { 세기('|서식작성|PDF'); 받음(`/forms/w/${f.slug}.pdf`); set인쇄중(true) }
+  const PDF = (자리 = '위') => { if (찍기 || 인쇄중) return; 찍은자리.current = 자리; 세기('|서식작성|PDF'); 받음(`/forms/w/${f.slug}.pdf`); set찍기('pdf') }
+  const 인쇄 = (자리 = '위') => { if (찍기 || 인쇄중) return; 찍은자리.current = 자리; 세기('|서식작성|인쇄'); set찍기('인쇄') }
   const 저장 = () => {
     const 이름 = ((v.find((x, i) => s.blocks[i].t === 'kv') || []).find((x) => x) || f.title).slice(0, 30)
     const 새 = [{ id: Date.now().toString(36), nm: 이름, at: Date.now(), v }, ...저장들].slice(0, 30)
@@ -364,20 +420,28 @@ export default function 서식작성({ f }) {
   }
   const 예시있음 = !!((f.ex && 맞는꼴(s, f.ex)) || f.wex)
 
+  const 단추 = (자리) => (
+    <>
+      <button type="button" className="btn primary" onClick={() => PDF(자리)} disabled={!!찍기}>{찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 PDF 저장'}</button>
+      <button type="button" className="btn ghost" onClick={() => 인쇄(자리)} disabled={!!찍기}>{찍기 === '인쇄' ? '인쇄 준비 중…' : '🖨 인쇄'}</button>
+    </>
+  )
   return (
+    <>
+    <div className="fw-인쇄안내">🖨 이 서식은 화면의 <b>«📄 PDF 저장»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
     <div className="card fw" id="작성">
       <div className="fw-top">
         <div className="sec-title" style={{ margin: 0 }}>✍️ 사이트에서 작성 → PDF</div>
-        <div className="fw-sub muted sm">칸을 채우고 <b>🖨 PDF 저장 · 인쇄</b>를 누르세요. 쓴 것은 이 기기에만 남습니다(서버로 안 갑니다).</div>
+        <div className="fw-sub muted sm">칸을 채우고 <b>📄 PDF 저장</b> 또는 <b>🖨 인쇄</b>를 누르세요. 쓴 것은 이 기기에만 남습니다(서버로 안 갑니다).</div>
       </div>
       <div className="fw-bar">
-        <button type="button" className="btn primary" onClick={PDF}>🖨 PDF 저장 · 인쇄</button>
+        {단추('위')}
         <button type="button" className="btn ghost" onClick={저장}>💾 저장</button>
         <button type="button" className={'btn ghost' + (목록 ? ' on' : '')} onClick={() => set목록(!목록)} aria-expanded={목록}>📂 저장한 것 {저장들.length}</button>
         {예시있음 && <button type="button" className="btn ghost" onClick={예시} disabled={예받는중}>{예받는중 ? '예시 받는 중…' : '✍ 예시 채우기'}</button>}
         <button type="button" className="btn ghost" onClick={비우기}>🧹 빈칸으로</button>
       </div>
-      {말 && <div className="fw-say" role="status">{말}</div>}
+      {말 && 말자리 === '위' && <div className="fw-say" role="status">{말}</div>}
       {목록 && (
         <div className="fw-list">
           {저장들.length === 0 && <div className="muted sm">아직 저장한 것이 없습니다. 다 쓰고 <b>💾 저장</b>을 누르면 여기에 쌓입니다.</div>}
@@ -491,11 +555,14 @@ export default function 서식작성({ f }) {
         {f.law && <div className="fw-lawb muted sm">근거 · {f.law}</div>}
       </div>
       <div className="fw-bar bottom">
-        <button type="button" className="btn primary" onClick={PDF}>🖨 PDF 저장 · 인쇄</button>
-        <span className="muted sm">인쇄 창에서 <b>«PDF로 저장»</b>을 고르세요 · 폰은 <b>공유 → 인쇄 → PDF</b></span>
+        {단추('아래')}
+        {말 && 말자리 === '아래' && <div className="fw-say" role="status">{말}</div>}
+        <span className="muted sm"><b>📄 PDF 저장</b>은 바로 내려받습니다(폰도) · <b>🖨 인쇄</b>는 인쇄 창에서 프린터를 고르세요</span>
       </div>
-      {인쇄중 && createPortal(<div id="fw-인쇄"><종이 f={f} v={v} /></div>, document.body)}
+      {찍기 && createPortal(<div id="fw-인쇄" className="fw-그림" ref={찍는판}><종이 f={f} v={v} 그림 /></div>, document.body)}
+      {인쇄중 && createPortal(<div id="fw-인쇄">{쪽그림.map((u, i) => <img key={i} className="fw-쪽그림" src={u} alt="" />)}</div>, document.body)}
     </div>
+    </>
   )
 }
 
