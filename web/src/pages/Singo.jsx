@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { 달줄, 일한달들, 할일목록, 달글, 원, 신고설정정리, 했음, 했음바꿈, 밀린목록 } from '../lib/신고정리.js'
 import { 달집계, 설정정리 as 퇴직설정정리 } from '../lib/퇴직공제.js'
@@ -7,6 +7,7 @@ import { 요율 } from '../lib/gongje.js'
 import { use노무자료, 노무자료줄, 출역없음 } from '../tools/노무자료.jsx'
 import 해마다띠 from '../tools/해마다띠.jsx'
 import 도구설명 from '../tools/도구설명.jsx'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G595 PDF · 인쇄는 그림(글자 층 없음) — 📗 엑셀은 그대로 */
 
 /**
  * 📮 /tools/singo — 매달 신고 정리 (G116 · 2026-10-02)
@@ -42,12 +43,12 @@ export default function Singo() {
   const 밀린 = ym ? 밀린목록(자료, 설정, ym, 오늘, 퇴직Of).filter((x) => !한날(x.ym, x)) : []
   const 남은수 = 목록.filter((x) => !한날(ym, x)).length
   const R = ym ? 요율(ym) : null
-  useEffect(() => {
-    const 끝 = () => document.body.classList.remove('hm-print')
-    window.addEventListener('afterprint', 끝)
-    return () => { window.removeEventListener('afterprint', 끝); 끝() }
-  }, [])
-  const 인쇄 = () => { document.body.classList.add('hm-print'); setTimeout(() => window.print(), 80) }
+  /* 🖼 G595 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 전엔 몸에 hm-print 를 달고 window.print(글자 PDF).
+     이제 결과 칸(.hm-out)을 복제본에서만 인쇄 CSS(hm-print)로 펴서 그림으로: 📄 PDF 바로 받기 · 🖨 그림만 인쇄
+     (A4 세로 기본 @page · 글자 칸 186 × 271mm) · 숨은 누적 |신고정리|PDF · 인쇄 */
+  const 그 = use그림인쇄(['신고정리', String((자료 && 자료.site) || '현장').trim(), ym || ''].filter(Boolean).join('_'), {
+    셈: '신고정리', 대상: '.sg .hm-out', 몸표: ['hm-print'], 쪽: { 폭: 186, 높: 271 }, 여백: [12, 12], 칸줄: true,
+  })
   const 엑셀 = async () => {
     const { 값엑셀받기, 수칸, 굵은칸 } = await import('../lib/값엑셀.js')
     const 일 = 목록.map((x, i) => [i + 1, x.기한, x.기관, x.무엇, x.숫자.map(([a, b]) => `${a} ${b}`).join(' · '), 한날(ym, x) || '', x.어디서, x.근거])
@@ -61,7 +62,9 @@ export default function Singo() {
   }
 
   return (
-    <div className="wrap hm sg">
+    <>
+    <div className="kcm-인쇄안내">🖨 신고 정리는 화면의 <b>«📄 PDF 저장»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+    <div className="wrap hm sg 그림만인쇄">
       <div className="card hm-in">
         <h1 className="tl-h1" style={{ marginTop: 0 }}>📮 매달 신고 정리 — 원천세 · 근로내용 확인신고 · 퇴직공제 · 4대보험</h1>
         <p className="cp" style={{ margin: '6px 0 0' }}>
@@ -96,9 +99,11 @@ export default function Singo() {
           <div className="card hm-out">
             <div className="hm-print-h">📮 {자료.co ? `${자료.co} · ` : ''}{자료.site || '현장'} — {달글(ym)} 귀속 신고 정리 <span>(K-건설맵 · {오늘} 뽑음)</span></div>
             <div className="btn-row no-print" style={{ justifyContent: 'flex-start', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-              <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={인쇄}>🖨 인쇄 (A4)</button>
+              <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => 그.PDF()} disabled={!!그.찍기}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 PDF 저장 (A4)'}</button>
+              <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 그.인쇄()} disabled={!!그.찍기}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
               <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀}>📗 엑셀 받기</button>
             </div>
+            {그.말 && <div className="note sm no-print" role="status" style={{ marginBottom: 10 }}>{그.말}</div>}
             <div className="hm-sum">
               <div><span>인원</span><b>{N.합계.인원}명</b></div>
               <div><span>근로일수</span><b>{N.합계.일수}일</b></div>
@@ -182,5 +187,6 @@ export default function Singo() {
       )}
       <div className="hm-in"><도구설명 k="singo" /></div>
     </div>
+    </>
   )
 }
