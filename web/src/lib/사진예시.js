@@ -524,6 +524,60 @@ const 그림장면 = {
     let y = 500
     for (const t of ['치수 단위 mm', '모두 1층', '경량철골조', '(컨테이너)']) { 쓰기(g, '· ' + t, 1340, y, 21, '#4b5563', false, 'left'); y += 34 }
   } },
+  /* 🏗️ G617 (2026-11-09) 가설건축물 존치기간 연장신고서 [첨부] 앞 · 뒤 · 양옆 사진 — 같은 가상의 현장사무실 컨테이너(G616 예시 ①)를 네 쪽에서 본 «사진 같은 그림»
+   *   칸 비율 ≈ 386 : 134 → 1730 : 600 · 컨테이너 #dfe5ea · 유리 #8ec5e8 (시험이 이 색을 셈) */
+  '가설건축물 전면': { w: 1730, h: 600, 표: 600, 그리기: (g, w, h) => 컨테이너면(g, w, h, '전면') },
+  '가설건축물 후면': { w: 1730, h: 600, 표: 600, 그리기: (g, w, h) => 컨테이너면(g, w, h, '후면') },
+  '가설건축물 좌측면': { w: 1730, h: 600, 표: 600, 그리기: (g, w, h) => 컨테이너면(g, w, h, '좌측면') },
+  '가설건축물 우측면': { w: 1730, h: 600, 표: 600, 그리기: (g, w, h) => 컨테이너면(g, w, h, '우측면') },
+}
+/** 컨테이너 한 면(사진 같은 그림) — 하늘 · 자갈 바닥 · 뒤 울타리 · 골판 벽 · 문 · 창 · 실외기 */
+function 컨테이너면(g, w, h, 쪽) {
+  const 하늘 = g.createLinearGradient(0, 0, 0, h * 0.62)
+  하늘.addColorStop(0, '#bfdcf2'); 하늘.addColorStop(1, '#e8f3fa')
+  g.fillStyle = 하늘; g.fillRect(0, 0, w, h * 0.62)
+  g.fillStyle = '#b9b2a4'; g.fillRect(0, h * 0.62, w, h * 0.38)
+  g.fillStyle = 'rgba(120,110,95,.35)'
+  for (let i = 0; i < 260; i++) { const x = (i * 97) % w, y = h * 0.64 + ((i * 53) % Math.round(h * 0.34)); g.fillRect(x, y, 6, 3) }
+  /* 뒤 울타리(가설울타리) */
+  g.fillStyle = '#d6dbe0'; g.fillRect(0, h * 0.40, w, h * 0.22)
+  g.strokeStyle = '#b8c0c8'; g.lineWidth = 3
+  for (let x = 0; x < w; x += 60) { g.beginPath(); g.moveTo(x, h * 0.40); g.lineTo(x, h * 0.62); g.stroke() }
+  const 긴 = 쪽 === '전면' || 쪽 === '후면'
+  const x0 = 긴 ? 300 : 640, x1 = 긴 ? 1450 : 1090, y0 = 150, y1 = 430
+  /* 받침(블록) · 그림자 */
+  g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(x0 + 10, y1, x1 - x0, 22)
+  g.fillStyle = '#9ca3af'; for (const x of [x0 + 20, (x0 + x1) / 2 - 30, x1 - 80]) g.fillRect(x, y1, 60, 18)
+  /* 벽(골판) */
+  g.fillStyle = '#dfe5ea'; g.fillRect(x0, y0, x1 - x0, y1 - y0)
+  g.strokeStyle = '#c5ced6'; g.lineWidth = 3
+  for (let x = x0 + 14; x < x1; x += 24) { g.beginPath(); g.moveTo(x, y0 + 14); g.lineTo(x, y1 - 12); g.stroke() }
+  g.fillStyle = '#9aa6b2'; g.fillRect(x0 - 6, y0 - 12, x1 - x0 + 12, 16); g.fillRect(x0 - 6, y1 - 10, x1 - x0 + 12, 12)
+  g.fillRect(x0 - 6, y0 - 12, 12, y1 - y0 + 10); g.fillRect(x1 - 6, y0 - 12, 12, y1 - y0 + 10)
+  const 창 = (x, y, ww, hh) => { g.fillStyle = '#6b7c8c'; g.fillRect(x - 6, y - 6, ww + 12, hh + 12); g.fillStyle = '#8ec5e8'; g.fillRect(x, y, ww, hh)
+    g.strokeStyle = '#6b7c8c'; g.lineWidth = 4; g.beginPath(); g.moveTo(x + ww / 2, y); g.lineTo(x + ww / 2, y + hh); g.stroke()
+    g.fillStyle = 'rgba(255,255,255,.45)'; g.beginPath(); g.moveTo(x + 8, y + hh - 8); g.lineTo(x + ww * 0.35, y + 8); g.lineTo(x + ww * 0.45, y + 8); g.lineTo(x + 18, y + hh - 8); g.closePath(); g.fill() }
+  const 문 = (x) => { g.fillStyle = '#a9b6c2'; g.fillRect(x, y0 + 50, 92, y1 - y0 - 58); g.strokeStyle = '#7b8794'; g.lineWidth = 4; g.strokeRect(x, y0 + 50, 92, y1 - y0 - 58)
+    g.fillStyle = '#374151'; g.fillRect(x + 70, y0 + 160, 8, 26); g.fillStyle = '#8b8f94'; g.fillRect(x - 14, y1, 120, 16) }
+  const 실외기 = (x) => { g.fillStyle = '#f3f4f6'; g.fillRect(x, y1 - 92, 130, 92); g.strokeStyle = '#9ca3af'; g.lineWidth = 3; g.strokeRect(x, y1 - 92, 130, 92)
+    g.beginPath(); g.arc(x + 62, y1 - 46, 32, 0, Math.PI * 2); g.stroke(); g.beginPath(); g.moveTo(x + 30, y1 - 46); g.lineTo(x + 94, y1 - 46); g.moveTo(x + 62, y1 - 78); g.lineTo(x + 62, y1 - 14); g.stroke() }
+  if (쪽 === '전면') {
+    문(560); 창(780, 210, 180, 110); 창(1060, 210, 180, 110)
+    g.fillStyle = '#ffffff'; g.fillRect(470, 168, 260, 40); g.strokeStyle = '#1e3a8a'; g.lineWidth = 3; g.strokeRect(470, 168, 260, 40)
+    쓰기(g, '현 장 사 무 실', 600, 198, 26, '#1e3a8a')
+    실외기(1490)
+  } else if (쪽 === '후면') {
+    창(420, 200, 150, 80); 창(760, 200, 150, 80); 창(1180, 200, 150, 80)
+    g.fillStyle = '#9aa6b2'; g.fillRect(1408, y0, 14, y1 - y0 + 10)
+  } else if (쪽 === '좌측면') {
+    문(700); 창(880, 210, 150, 100)
+    g.fillStyle = 'rgba(160,170,180,.55)'; g.fillRect(1160, 220, 420, 210)
+    쓰기(g, '② 자재창고', 1370, 340, 26, '#4b5563')
+  } else {
+    창(760, 210, 260, 110); 실외기(1130)
+    g.fillStyle = 'rgba(160,170,180,.55)'; g.fillRect(180, 220, 400, 210)
+    쓰기(g, '③ 휴게실', 380, 340, 26, '#4b5563')
+  }
 }
 const png =(c) => new Promise((ok, no) => c.toBlob((b) => (b ? b.arrayBuffer().then((a) => ok(new Uint8Array(a)), no) : no(new Error('그림을 만들지 못했습니다'))), 'image/png'))
 /** 예시 그림 한 장 — 종류: '공사장 위치도' · '방음 · 방진시설 배치'(없는 종류면 null) */
@@ -545,6 +599,11 @@ export function 그림종류(머리) {
   if (/가설건축물/.test(t)) {
     if (/배\s*치\s*도/.test(t)) return '가설건축물 배치도'
     if (/평\s*면\s*도/.test(t)) return '가설건축물 평면도'
+    /* 🏗️ G617 존치기간 연장신고서 [첨부] 앞 · 뒤 · 양옆 사진 */
+    if (/전\s*면/.test(t)) return '가설건축물 전면'
+    if (/후\s*면/.test(t)) return '가설건축물 후면'
+    if (/좌\s*측\s*면/.test(t)) return '가설건축물 좌측면'
+    if (/우\s*측\s*면/.test(t)) return '가설건축물 우측면'
   }
   /* 🦺 G538 공사안전보건대장 «3.» 네 칸 — 머리글 «… 배치 위치 및 작업구간 · 이동 경로» 의 장비 이름으로 */
   if (/배치 위치 및/.test(t)) {

@@ -387,7 +387,9 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
           const sh = doc.sheets[q.si]
           for (const y of sh.cells) {
             if (y[0] !== q.x[0] || y === q.x || y[5] !== 1 || !날꼴인가(y[8]) || y[1] > sh.pc) continue
-            if (책.입력값(q.si, y[0], y[1]) !== undefined) continue
+            /* 🩹 G617 «지움» 으로 비운 칸(null · '')도 빈칸 — 전엔 한 번 적었다 지운 촬영일은 사진을 넣어도 안 채워졌음 */
+            const 있던 = 책.입력값(q.si, y[0], y[1])
+            if (있던 !== undefined && 있던 !== null && 있던 !== '') continue
             const v = 값읽기(p.때.slice(0, 10), y)
             if (v !== null) { 책.넣기(q.si, y[0], y[1], v); 날++ }
           }
