@@ -7,7 +7,7 @@
 ③ 깊은 글(deep) — 종목에 있는 slug 만 · 제목 · 설명 · 단락 · 블록 종류(p · warn · ul · steps · table · src · links)
 ④ 글 — «무료» · «클로드» 없음 · 기출 원문을 옮긴 흔적(«①②③④ 보기 원문» 같은 큐넷 저작권 문구) 없음 · «원문은 큐넷» 안내 있음
 ⑤ 등급 셈 글 — 등급 경계 표가 lib/등급셈.js 와 같음(설계 · 시공 75 · 65 · 55 · 35 / 건설사업관리 80 · 70 · 60 · 40)
-⑥ 사이트맵 · 구운 쪽 · 화면 주소가 같은 파일을 봄(sitemap.py · prerender.py · firebase.json · main.jsx)
+⑥ 사이트맵 · 구운 쪽 · 화면 주소가 같은 파일을 봄(sitemap.py · prerender.py · firebase.json · main.jsx) · G627 IndexNow 에 자격증 쪽(소장님 「검색되게 해줘」)
 ⑦ 블록 글 칸 — p · warn 은 text · ul · steps · src · links 는 items · table 은 cols + rows(11-09 «x» 로 적어 빈 단락이 될 뻔함 → 막음)
 ⑧ 종목 수 = 국가기술자격법 시행규칙 [별표 2](2025. 9. 1.) · 큐넷 목록 — 토목 48(14 · 1 · 11 · 9 · 13) · 건축 31(4 · 2 · 3 · 6 · 16) · 건설안전 3
    + 2027. 1. 1. [별표 2의2] 새 종목(건축구조기사)은 «새» 표시 · 없는 종목(철도토목산업기사) 없음
@@ -67,6 +67,11 @@ def main():
     rows = next((b["rows"] for s in d["grade"]["secs"] for b in s["blocks"] if b.get("t") == "table" and "등급" in b.get("cols", [""])[0]), [])
     ok("⑤ 등급 셈 글의 경계 표 = lib(특급 75 · 80 · 75 / 초급 35 · 40 · 35)", rows[:1] == [["특급", "75점 이상", "80점 이상", "75점 이상"]] and rows[3][1:] == ["35 ~ 55 미만", "40 ~ 60 미만", "35 ~ 55 미만"], rows)
     ok("⑥ sitemap.py · prerender.py 가 cert.json 을 읽음", "cert.json" in rd("sitemap.py") and "cert.json" in rd("prerender.py"))
+    pr = rd("prerender.py")
+    ok("⑥ G627 IndexNow(네이버 · 빙) — prerender.py 가 자격증 쪽(cert_urls_for_indexnow)을 «처음 알리는 정적» 에 넣음", "def cert_urls_for_indexnow" in pr
+       and re.search(r"_static = .*cert_urls_for_indexnow\(\)", pr) is not None)
+    ok("⑥ G627 👁 조회수 — 자격증 쪽(첫마디 cert)이 lib/조회수.jsx · tools/이용자지도.py 첫마디들 둘 다에 있음(«똑같이»)",
+       re.search(r"첫마디들 = new Set\(\[[^\]]*'cert'", rd("web/src/lib/조회수.jsx")) is not None and re.search(r'첫마디들 = \{[^}]*"cert"', rd("tools/이용자지도.py")) is not None)
     fj = rd("web/firebase.json")
     ok("⑥ firebase.json — /cert · /cert/** 가 앱으로", '"source": "/cert"' in fj and '"source": "/cert/**"' in fj)
     mj = rd("web/src/main.jsx")

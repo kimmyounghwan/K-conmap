@@ -1922,6 +1922,17 @@ def tool_urls_for_indexnow():
     return [u for u in out if not (u in seen or seen.add(u))]
 
 
+def cert_urls_for_indexnow():
+    """📚 G627 (2026-11-10) 소장님 「검색되게 해줘」 — 자격증 쪽(/cert · /cert/grade · 깊은 글 /cert/{종목})을 IndexNow(네이버 · 빙)에 «한 번씩» 알립니다.
+    깊은 글이 cert.json 에 늘면(기사 · 산업기사 …) 저절로 들어갑니다(take_once 가 보낸 것은 다시 안 보냄). 구글은 사이트맵(sitemap.py) · 서치콘솔 요청."""
+    try:
+        d = load_cert() or {}
+    except Exception:
+        return []
+    deep = d.get("deep") or {}
+    return ["/cert", "/cert/grade"] + [f'/cert/{x["slug"]}' for x in (d.get("items") or []) if x.get("slug") in deep]
+
+
 def change_naeyeok_kind_page(shell, kind, rows, meta, image=None):
     """/change/naeyeok/{갈래} — 갈래마다 한 장. (2026-09-06)
 
@@ -4567,7 +4578,7 @@ def main():
         #       빙·네이버는 그 안의 글 5편을 «스스로 찾아올 때까지» 기다립니다.
         #       사이트맵에는 있으니 언젠가 오지만, IndexNow 는 «지금 보라» 고 찌르는 것이라
         #       알릴 주소에 안 넣으면 그 값어치를 못 씁니다. 글마다 넣습니다.
-        _static = STATIC_NEW + [f'/guide/{t["slug"]}' for t in load_guide()] + tool_urls_for_indexnow()   # 🔎 G510 도구 카드 · 계산기 전부
+        _static = STATIC_NEW + [f'/guide/{t["slug"]}' for t in load_guide()] + tool_urls_for_indexnow() + cert_urls_for_indexnow()   # 🔎 G510 도구 카드 · 계산기 전부 · 📚 G627 자격증 쪽
         st_new, _ = indexnow.take_once("static", _static, n=len(_static))
         ny_paths = [f"/notice/{safe_no(r.get('no'))}" for r in baked
                     if str(r.get("no") or "") in nydocs and safe_no(r.get("no"))]

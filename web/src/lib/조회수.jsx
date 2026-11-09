@@ -25,7 +25,7 @@ import { 지역주소, 방문수, 누적시작, 날글 } from './이용자지도
 
 const DB = 'https://k-conmap-default-rtdb.firebaseio.com'
 export const 첫마디들 = new Set(['agency', 'analysis', 'bunseok', 'gongdong', 'cad', 'calc', 'change', 'corp', 'daily', 'ext', 'first', 'forms', 'goods', 'guide', 'how', 'jeoksan', 'jobs',
-  'lic', 'live', 'my', 'naeyeok', 'pdf', 'qna', 'report', 'safety', 'shareone', 'svc', 'tools', 'about', 'privacy', 'terms', 'contact'])
+  'lic', 'live', 'my', 'naeyeok', 'pdf', 'qna', 'report', 'safety', 'shareone', 'svc', 'tools', 'about', 'privacy', 'terms', 'contact', 'cert'])   /* 📚 G627 자격증 쪽도 «👁 이 화면 조회»(누적) */
 /* 🔢 G205 (2026-10-08) 소장님 「마이컨맵은 다른 페이지처럼 누적으로 카운트되게」 — 'my' 를 더함(/my → |my). 공개 페이지 /@주소 는 일부러 안 넣음(숨은 누적 |명함|주소 만 — MyConmap.jsx).
  *   ⚠️ 파이썬 tools/이용자지도.py 첫마디들 과 «똑같이» */
 const 공고모양 = /^[A-Za-z0-9-]{6,30}$/
