@@ -55,7 +55,7 @@ export default function CertIndex() {
         <h1 className="cert-h1">📚 토목 · 건축 자격증</h1>
         <p className="cp" style={{ marginTop: 6 }}>
           기능사부터 기술사까지 <b>한 장에</b> — 무슨 시험이 있고, 어떻게 올라가고, 따면 현장에서 몇 급이 되는지.
-          깊은 글은 기술사부터 차례로 채웁니다.
+          기술사 · 기능사는 종목마다 자세히 — 기사 · 산업기사도 차례로 채웁니다.
         </p>
         <input className="cert-q" value={q} onChange={(e) => setQ(e.target.value)} inputMode="search" enterKeyHint="search"
           placeholder="찾기 — 토목기사 · 거푸집 · 측량 · 특급 …" aria-label="자격증 찾기" />

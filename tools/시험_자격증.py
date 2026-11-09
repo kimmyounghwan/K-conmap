@@ -13,6 +13,8 @@
    + 2027. 1. 1. [별표 2의2] 새 종목(건축구조기사)은 «새» 표시 · 없는 종목(철도토목산업기사) 없음
 ⑨ 큐넷 번호(q · 네 자리) — «새» 빼고 모든 종목 · 겹침 없음
 ⑩ 기술사 19 종목 모두 깊은 글 · 시험과목 · 응시자격 11줄(시행령 [별표 4의2]) · 등급 셈 링크
+⑪ G626(11-10) 기능사 29 종목 모두 깊은 글 — 시험 표 5줄(시험과목 · 필기 · 실기 · 합격 · 2026 시험) · 응시자격 «제한 없음»(시행령 [별표 4의2]) ·
+   다음 단계 표(산업기사 1년 · 기술사 7년) · 실기만 종목은 필기 «없음» · 수수료 실기만 · 등급 셈 링크 · 기술사 · 기능사 말고는 아직 깊은 글 없음
 """
 import io
 import json
@@ -105,6 +107,24 @@ def main():
        all(표(deep[x["slug"]], "구분") and [r[0] for r in 표(deep[x["slug"]], "구분")["rows"]][:4] == ["시험과목", "필기", "면접", "합격"]
            and 표(deep[x["slug"]], "갖춘 것") and len(표(deep[x["slug"]], "갖춘 것")["rows"]) == 11
            and any(b.get("t") == "links" and any(i[1] == "/cert/grade" for i in b["items"]) for s0 in deep[x["slug"]]["secs"] for b in s0["blocks"]) for x in 기술사))
+    # ⑪ 기능사
+    기능사 = [x for x in 지금 if x["lv"] == "기능사"]
+    ok("⑪ 기능사 29 종목 모두 깊은 글 · 그 밖(기사 · 산업기사 · 기능장)은 아직 없음", len(기능사) == 29 and all(x["slug"] in deep for x in 기능사)
+       and all(x["slug"] not in deep for x in 지금 if x["lv"] not in ("기술사", "기능사")), [x["n"] for x in 기능사 if x["slug"] not in deep])
+    def 기능사꼴(t):
+        시 = 표(t, "구분")
+        다 = 표(t, "다음 단계")
+        팩 = dict((k, v) for k, v in t.get("facts") or [])
+        필없음 = bool(시) and dict(시["rows"]).get("필기") == "없음"
+        return bool(시 and [r[0] for r in 시["rows"]] == ["시험과목", "필기", "실기", "합격", "2026 시험"] and dict(시["rows"])["2026 시험"].startswith("정기 기능사")
+                    and 다 and 다["rows"] == [["산업기사", "1년 이상"], ["기술사", "7년 이상"]]
+                    and 팩.get("응시자격") == "제한 없음" and 팩.get("건설기술인 자격지수") == "**15**" and "제한 없음" in t["lead"]
+                    and (팩.get("시험") == "실기만(필기 없음)") == 필없음 and ("필기" not in 팩.get("수수료(2026)", "")) == 필없음
+                    and any(b.get("t") == "links" and any(i[1] == "/cert/grade" for i in b["items"]) for s0 in t["secs"] for b in s0["blocks"]))
+    틀림 = [x["n"] for x in 기능사 if not 기능사꼴(deep[x["slug"]])]
+    ok("⑪ 기능사 깊은 글 꼴 — 시험 표 5줄 · 다음 단계(산업기사 1년 · 기술사 7년) · 제한 없음 · 자격지수 15 · 실기만이면 필기 «없음» · 수수료 실기만", not 틀림, 틀림)
+    실기만 = sorted(x["n"] for x in 기능사 if dict(표(deep[x["slug"]], "구분")["rows"]).get("필기") == "없음")
+    ok("⑪ 실기만(필기 없음) 17 종목 — 큐넷 그대로(건축 13 · 토목 4 — 거푸집 · 도배 · 미장 · 조적 · 철근 · 타일 · 석공 · 도화 …)", len(실기만) == 17 and "거푸집기능사" in 실기만 and "콘크리트기능사" not in 실기만, 실기만)
     print(f"\n{'❌' if bad else '✅'} 시험_자격증 {n - bad}/{n}")
     sys.exit(1 if bad else 0)
 

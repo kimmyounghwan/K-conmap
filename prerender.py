@@ -3792,7 +3792,7 @@ def cert_index(shell, d, image=None):
             "건설기술인 등급(초급 · 중급 · 고급 · 특급) 역량지수 셈 · 경력수첩(경력증) 받는 길까지.")[:160]
     out = ['<div class="card"><h1 class="cert-h1">📚 토목 · 건축 자격증</h1>'
            '<p class="cp" style="margin-top:6px">기능사부터 기술사까지 <b>한 장에</b> — 무슨 시험이 있고, 어떻게 올라가고, '
-           '따면 현장에서 몇 급이 되는지. 깊은 글은 기술사부터 차례로 채웁니다.</p>'
+           '따면 현장에서 몇 급이 되는지. 기술사 · 기능사는 종목마다 자세히 — 기사 · 산업기사도 차례로 채웁니다.</p>'
            '<div class="cert-top"><a class="cert-big" href="/cert/grade"><b>🎓 내 등급 셈</b><span>초급 · 중급 · 고급 · 특급 — 자격 · 경력 · 학력으로</span></a>'
            '<a class="cert-big" href="/cert/grade#suchup"><b>📘 경력수첩(경력증)</b><span>받는 곳 · 신고 · 등급 올리기</span></a></div></div>']
     for g in d.get("groups") or []:

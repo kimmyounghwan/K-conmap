@@ -11,6 +11,7 @@
  *   ⑥ 폰 390 · 360 · PC 1280 넘침 0 · 오류 0 · 구운 쪽(/cert.html · /cert/grade.html · 기술사 19쪽) 제목 · h1
  *   ⑦ 기술사 깊은 글(토목시공 · 건축시공 · 건설안전 · 토질및기초 · 해양) — h1 · 사실 칸 · 시험과목 · 응시자격 11줄 · 큐넷 그 종목 링크 · 등급 셈 링크
  *   ⑧ 깊은 글 없는 종목 칩 → 큐넷 그 종목(새 창 · ↗) · 2027 새 종목(건축구조기사) «2027. 1. 1.부터» 표시
+ *   ⑩ G626(11-10) 기능사 깊은 글(거푸집 — 실기만 · 콘크리트 — 필기 + 복합형 실기 · 전산응용건축제도) — h1 · 사실 6칸 · 시험 표 5줄 · «제한 없음» · 다음 단계 2줄 · 큐넷 · 등급 셈
  *   ⑨ 등급 셈 «그 밖» — 일한 분야가 다름 → 초급까지 · 감점 3 → 3점 빠짐(lib 와 같음)
  * 인터넷 안 부름(파이어베이스 · 광고 · 애널리틱스 막음).
  */
@@ -82,7 +83,7 @@ for (const [이름, w, h, 폰] of [['폰 390', 390, 844, true], ['폰 360', 360,
   const 칩꼴 = await p.evaluate(() => ({ 깊은: document.querySelectorAll('a.cert-chip.deep').length,
     토목기사: (() => { const a = [...document.querySelectorAll('a.cert-chip')].find((x) => x.innerText.replace(/[↗›\s]/g, '') === '토목기사'); return a ? [a.getAttribute('href'), a.getAttribute('target')] : null })(),
     새: (() => { const c = [...document.querySelectorAll('.cert-chip')].find((x) => x.innerText.startsWith('건축구조기사')); return c ? c.innerText.replace(/\s+/g, ' ') : '' })() }))
-  ok('⑧ 깊은 글 칩 19(기술사) · 토목기사 칩 → 큐넷 그 종목(jmCd 1250 · 새 창) · 건축구조기사 «2027. 1. 1.부터»', 칩꼴.깊은 === 19 && 칩꼴.토목기사 && /q-net\.or\.kr\/crf005\.do\?id=crf00503&jmCd=1250$/.test(칩꼴.토목기사[0]) && 칩꼴.토목기사[1] === '_blank' && /2027\. 1\. 1\.부터/.test(칩꼴.새), 칩꼴)
+  ok('⑧ 깊은 글 칩 48(기술사 19 · 기능사 29) · 토목기사 칩 → 큐넷 그 종목(jmCd 1250 · 새 창) · 건축구조기사 «2027. 1. 1.부터»', 칩꼴.깊은 === 48 && 칩꼴.토목기사 && /q-net\.or\.kr\/crf005\.do\?id=crf00503&jmCd=1250$/.test(칩꼴.토목기사[0]) && 칩꼴.토목기사[1] === '_blank' && /2027\. 1\. 1\.부터/.test(칩꼴.새), 칩꼴)
   ok('③ 탭 — 자격증에 불', (await 탭들(p)).some((x) => /자격증/.test(x.t) && x.on))
   await p.fill('.cert-q', '거푸집')
   await 쉬어(200)
@@ -159,6 +160,19 @@ for (const [이름, w, h, 폰] of [['폰 390', 390, 844, true], ['폰 360', 360,
       { h1: d.h1, 사실: d.사실, 줄: d.줄, 큐넷: d.큐넷.length, 셈: d.셈 })
     ok(`${이름} ${이름2} 넘침 0`, (await 넘침(p)) <= 1, await 넘침(p))
   }
+  /* ⑩ 기능사 깊은 글(G626) */
+  for (const [slug, 이름2, 과목, q, 실기만] of [['geopujip-gineungsa', '거푸집기능사', '거푸집 작업', '7170', true], ['concrete-gineungsa', '콘크리트기능사', '콘크리트재료', '7020', false], ['jeonsan-geonchuk-jedo-gineungsa', '전산응용건축제도기능사', '건축계획 및 설계도면 작성', '7061', false]]) {
+    await p.goto(BASE + '/cert/' + slug, { waitUntil: 'domcontentloaded' })
+    await p.waitForSelector('.cert-facts', { timeout: 20000 })
+    await 쉬어(300)
+    const d = await p.evaluate(() => ({ h1: (document.querySelector('h1') || {}).innerText || '', 사실: document.querySelectorAll('.cert-facts > div').length, 글: document.querySelector('main').innerText,
+      줄: [...document.querySelectorAll('table.ctab')].map((t) => t.querySelectorAll('tbody tr').length), 큐넷: [...document.querySelectorAll('a[href*="q-net.or.kr"]')].map((a) => a.getAttribute('href')),
+      셈: !!document.querySelector('a[href="/cert/grade"]') }))
+    ok(`⑩ ${이름2} — h1 · 사실 6칸 · 시험과목 «${과목}» · 시험 표 5줄 · 다음 단계 2줄 · «제한 없음» · ${실기만 ? '실기만' : '필기 + 실기'} · 큐넷 jmCd ${q} · 등급 셈`,
+      d.h1 === 이름2 && d.사실 === 6 && d.글.includes(과목) && d.글.includes('제한 없음') && d.줄.join() === '5,2' && (실기만 ? /실기만\(필기 없음\)/.test(d.글) : /객관식 4지 택일형 60문항/.test(d.글))
+        && d.큐넷.some((h) => h.endsWith('jmCd=' + q)) && d.셈, { h1: d.h1, 사실: d.사실, 줄: d.줄, 큐넷: d.큐넷.length, 셈: d.셈 })
+    ok(`${이름} ${이름2} 넘침 0`, (await 넘침(p)) <= 1, await 넘침(p))
+  }
   ok(`${이름} 오류 0`, 오류.length === 0, 오류)
   await ctx.close()
 }
@@ -170,6 +184,9 @@ if (fs.existsSync(구운)) {
   ok('⑥ 구운 /cert/grade — 제목 «건설기술인 등급 셈 — 초급 · 중급 · 고급 · 특급 …» · 경력수첩', /<title>건설기술인 등급 셈 — 초급 · 중급 · 고급 · 특급/.test(g) && /id="suchup"/.test(g))
   ok('⑥ 구운 쪽에 «클로드» 없음 · 자격증 글에 «무료» 없음', !/클로드/.test(h + g) && !/무료/.test(fs.readFileSync(path.join(ROOT, 'web/src/data/cert.json'), 'utf8')))
   const 깊은쪽 = fs.readdirSync(path.join(ROOT, 'web/dist/cert')).filter((x) => /-gisulsa\.html$/.test(x))
+  const 기능사쪽 = fs.readdirSync(path.join(ROOT, 'web/dist/cert')).filter((x) => /-gineungsa\.html$/.test(x))
+  const gp = fs.readFileSync(path.join(ROOT, 'web/dist/cert/geopujip-gineungsa.html'), 'utf8')
+  ok('⑥ 구운 기능사 29쪽 · 거푸집기능사 쪽 제목 · h1 · 실기만', 기능사쪽.length === 29 && /<title>거푸집기능사 — /.test(gp) && /<h1[^>]*>거푸집기능사<\/h1>/.test(gp) && /필기 없음/.test(gp), [기능사쪽.length, (gp.match(/<title>[^<]*/) || [''])[0]])
   const ts = fs.readFileSync(path.join(ROOT, 'web/dist/cert/tomok-sigong-gisulsa.html'), 'utf8')
   ok('⑥ 구운 기술사 19쪽 · 토목시공기술사 쪽 제목 · h1 · 시험과목', 깊은쪽.length === 19 && /<title>토목시공기술사/.test(ts) && /<h1[^>]*>토목시공기술사<\/h1>/.test(ts) && /시공계획/.test(ts), [깊은쪽.length, (ts.match(/<title>[^<]*/) || [''])[0]])
 }
