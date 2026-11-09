@@ -4,6 +4,7 @@
  *   셈 lib/toejikgeum.js(퇴직급여법 · 근로기준법 · 판례 · 고용노동부 해석 — 그 파일 머리 참고) · 링크 lib/toejikgeumLink.js · 글 data/toejikgeum_guide.json(미리굽기와 같은 글)
  * ■ 첫 출근일 · 마지막 근무일 · 일당 · 하루 시간 · 한 달에 일한 날 → 받을 수 있나 · 얼마 · 까닭(조문 · 판례).
  * ■ 적은 것은 이 브라우저에만(kcm_toejikgeum) · 결과 링크(?c=) · 이름 · 회사 이름 같은 것은 받지 않음.
+ * ■ 🖼 G608(11-08) PDF · 인쇄는 그림 — 화면(.wrap.tjg)을 복제본에서 인쇄 CSS 로 펴서(적는 칸 · 설명 · 단추는 숨음 — 옛 인쇄와 같은 모양) 찍음.
  */
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -11,6 +12,7 @@ import { 퇴직금판단, 원글, 시간글, 긴날, IRP기준 } from '../lib/to
 import { 링크만들기, 링크읽기 } from '../lib/toejikgeumLink.js'
 import G from '../data/toejikgeum_guide.json'
 import { 링크복사 } from '../lib/링크복사.js'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G608 PDF · 인쇄는 그림(글자 층 없음) */
 
 const 열쇠 = 'kcm_toejikgeum'
 const 쓴링크열쇠 = 'kcm_toejikgeum_link'
@@ -81,9 +83,14 @@ export default function Toejikgeum() {
     set링크({ url, 복사: await 링크복사(url) })   /* 🔗 G516 — 클립보드가 멈춰도 1.5초 뒤 링크는 보임 */
   }
   const 적음 = !!(st.일당 || st.처음 || st.끝)
+  /* 🖼 G608 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 옛 «🖨 인쇄»(window.print · 화면 그대로 글자 PDF) → 화면(.wrap.tjg)을 복제본에서
+     인쇄 CSS(@media print — .sl-in · .sl-guide · .iy-exd · .no-print 숨음)로 펴서 그림으로 · A4 세로 기본 쪽(186 × 271) · 몸표 없음(실업급여 G605 와 같은 꼴) */
+  const 그 = use그림인쇄(['일용퇴직금판단', /^\d{4}-\d{2}-\d{2}$/.test(String(st.끝 || '')) ? st.끝 : ''].filter(Boolean).join('_'), { 셈: '일용퇴직금판단', 대상: '.wrap.tjg', 몸표: [], 쪽: { 폭: 186, 높: 271 }, 여백: [12, 12], 칸줄: true })
 
   return (
-    <div className="wrap sl tjg">
+    <>
+    <div className="kcm-인쇄안내">🖨 퇴직금 판단은 화면의 <b>«📄 PDF»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+    <div className="wrap sl tjg 그림만인쇄">
       <div className="card">
         <h1 className="tl-h1" style={{ marginTop: 0 }}>💼 일용직 퇴직금 판단기</h1>
         <p className="cp" style={{ margin: '6px 0 0' }}>
@@ -189,9 +196,11 @@ export default function Toejikgeum() {
             {R.요건.map((x) => <li key={x.글} className={x.ok === true ? 'ok' : x.ok === null ? 'chk' : 'bad'}><span className="sl-ic" aria-hidden>{x.ok === true ? '✅' : x.ok === null ? '⚠️' : '❌'}</span><div><p>{x.글}</p></div></li>)}
           </ul>
           <div className="sl-btns no-print">
-            <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => window.print()}>🖨 인쇄</button>
+            <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={!!그.찍기} onClick={() => 그.PDF()}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 PDF'}</button>
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!그.찍기} onClick={() => 그.인쇄()}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
             <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={링크보내기}>🔗 링크 보내기</button>
           </div>
+          {그.말 && <div className="note sm no-print tjg-찍말" style={{ marginTop: 8 }} role="status">{그.말}</div>}
           {링크 && <div className="note sm no-print" role="status" style={{ marginTop: 8, wordBreak: 'break-all' }}>
             {링크.복사 ? '📋 링크를 복사했습니다 — 카톡 · 문자 · 카페에 붙여 넣으십시오. 받는 분이 누르면 같은 조건으로 열립니다.' : '아래 링크를 길게 눌러 복사하십시오.'}
             <div style={{ marginTop: 4 }}><a href={링크.url}>{링크.url}</a></div></div>}
@@ -212,5 +221,6 @@ export default function Toejikgeum() {
         <p className="cp" style={{ fontSize: 12.5 }}>근거(국가법령정보센터 · 고용노동부 · {문자(G.updated).replace(/^(\d{4})-0?(\d+)-0?(\d+)$/, '$1.$2.$3.')} 확인): {G.laws.map(([t, u], k) => <span key={u}>{k ? ' · ' : ''}<a href={u} target="_blank" rel="noopener noreferrer">{t}</a></span>)}</p>
       </div>
     </div>
+    </>
   )
 }
