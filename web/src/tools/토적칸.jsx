@@ -19,7 +19,7 @@ import { use칸, Row } from './calcs.jsx'
 import { 토적셈, 기본칸, 기본설정, 빈줄, 예시토적, 예시변경토적, 표풀기, 자료시작, 칸알아보기, 가져오기, 차수비교, 끝수, 숫, 높이에서, 측점풀기, 띠글, 칸이름 } from '../lib/토적.js'
 import { 유동줄, 장줄들, 동그라미 } from '../lib/토적받기.js'
 import { 노선살피기, 횡단토적 } from '../lib/토적횡단.js'   /* 📐 G572 횡단면도(DXF · DWG)에서 단면적 바로 읽기 */
-import { use인쇄 } from './공정인쇄.js'
+import { use그림인쇄 } from './그림인쇄훅.js'   /* 🖼 G603 PDF · 인쇄는 그림(글자 층 없음) */
 import { 토공양식, 운반양식 } from '../lib/토적양식.js'   /* 📑 G577 설계 양식 */
 import { 세기 } from '../lib/받은수.jsx'
 
@@ -54,7 +54,10 @@ export function Tojeok({ ex = {} }) {
   const 칸 = V.칸 || []
   const 견i = 견줌칸 === 지금 ? (지금 > 0 ? 0 : Math.min(1, 차수.length - 1)) : Math.min(Math.max(0, 견줌칸 | 0), 차수.length - 1)
   const R견 = useMemo(() => (차수.length > 1 && 견i !== 지금 ? 토적셈(차수[견i]) : null), [차수, 견i, 지금])
-  const [인쇄중, 인쇄] = use인쇄(((S.공사명 || '토적') + ' 토적컨맵').trim())
+  /* 🖼 G603 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 인쇄 판(#gp-인쇄 · 쪽 일곱 .tj-쪽 → 한 덩이 .tj-쪽들)을 그림으로 찍어 📄 PDF 바로 받기 ·
+     🖨 그림만 인쇄(A4 가로 @page gp가로 8mm → 281 × 194mm · 쪽마다 새 쪽 그대로) · 쓴 횟수는 훅이 |토적|PDF · |토적|인쇄 로(옛 |토적|인쇄 와 같은 열쇠) ·
+     이름은 📗 엑셀과 같게(토적컨맵_공사명 · 차수가 둘 넘으면 _차수 이름 — lib/토적받기.js) */
+  const 그 = use그림인쇄('토적컨맵_' + (S.공사명 || '토적표') + (차수.length > 1 ? '_' + (V.이름 || '') : ''), { 셈: '토적', 쪽: { 폭: 281, 높: 194 }, 여백: [8, 8], 종이: [297, 210], 판쪽: 'gp가로', 칸줄: true })
 
   const 설 = (k, v) => setV((o) => ({ ...o, 설정: { ...기본설정(), ...(o.설정 || {}), [k]: v } }))
   const 장고침 = (k, i, f, v) => setV((o) => { const 옛 = { ...기본설정(), ...(o.설정 || {}) }; return { ...o, 설정: { ...옛, [k]: (옛[k] || []).map((u, j) => (j === i ? { ...u, [f]: v } : u)) } } })
@@ -223,6 +226,8 @@ export function Tojeok({ ex = {} }) {
 
   return (
     <>
+      <div className="kcm-인쇄안내">🖨 토적컨맵은 화면의 <b>«📄 PDF 저장»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+      <div className="그림만인쇄">
       {/* ── 차수 ── */}
       <div className="tj-bar" role="tablist" aria-label="차수">
         <span className="tj-bar-l">차수 · 노선</span>
@@ -394,8 +399,12 @@ export function Tojeok({ ex = {} }) {
             <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={!!바쁨} onClick={엑셀}>{바쁨 === '엑셀' ? '만드는 중…' : '📗 엑셀로 받기'}</button>
             <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!바쁨} onClick={DXF}>{바쁨 === 'DXF' ? '만드는 중…' : '📐 유토곡선도 DXF'}</button>
             <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!바쁨} onClick={양식엑셀}>{바쁨 === '양식' ? '만드는 중…' : '📑 설계 양식 엑셀'}</button>
-            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { 인쇄(); 세기('|토적|인쇄') }}>🖨 인쇄(A4 가로)</button>
           </div>
+          <div className="kt-btns" style={{ marginTop: 8 }}>{/* 🖼 G603 PDF · 인쇄는 한 줄에 같이(폰에서 «🖨 인쇄» 만 혼자 다음 줄로 내려가지 않게) */}
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!그.찍기} onClick={() => 그.PDF()}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 PDF 저장(A4 가로)'}</button>
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!그.찍기} onClick={() => 그.인쇄()}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
+          </div>
+          {그.말 && <div className="note sm tj-찍말" role="status" style={{ margin: '6px 0' }}>{그.말}</div>}
           {/* ⚖ G583 소장님 「지울 수 있게도 해 줘. 단, 다시 방문하게 해야 해」 — 받은 엑셀로 다시 이어서 */}
           <p className="tl-p muted gp-hint">📗 · 📑 받은 엑셀을 고쳐 셀 때는 위 <b>«📥 엑셀 파일 열기»</b>로 다시 불러오면 측점 · 거리 · 단면적이 그대로 들어와 이어서 셉니다. 엑셀 맨 아래 «K-건설맵» 줄은 지워도 됩니다.</p>
           {보기 === '토적' && <토적표 R={R} />}
@@ -420,7 +429,7 @@ export function Tojeok({ ex = {} }) {
               </>
             )
           )}
-          {인쇄중 && createPortal(<div id="gp-인쇄"><인쇄판 R={R} 판={V} /></div>, document.body)}
+          {그.판 && createPortal(<div id="gp-인쇄"><div className="tj-쪽들"><인쇄판 R={R} 판={V} /></div></div>, document.body)}
         </>
       ) : <p className="muted">측점을 둘 이상 적으면 토적표 · 유토곡선 · 토공유동표 · 운반집계가 바로 나옵니다. 위 <b>🧪 예시로 해 보기</b> 를 눌러 보십시오.</p>}
 
@@ -473,6 +482,7 @@ export function Tojeok({ ex = {} }) {
         </div>
         <div className="tl-grid"><Row label="토취 흙 C" hint="순성토를 자연 상태로"><input inputMode="decimal" value={S.토취C || ''} onChange={(e) => 설('토취C', e.target.value)} placeholder="비우면 다짐 기준만" /></Row></div>
       </details>
+      </div>
     </>
   )
 }
