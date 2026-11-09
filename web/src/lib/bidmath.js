@@ -465,8 +465,17 @@ export function quantileBid({ base, llRate, aVal, p50, sd, q, pc = 0 }) {
    짝지어 세면 1순위 +13건(새것만 22 vs 지금만 9 · z=2.33), 실격 −46건(z=−6.38).
    **위험은 확실히 줄고 이기는 것도 줄지 않았습니다.**
    ⚠️ collect.py 의 PICK_AUTO 와 같이 고칠 것 — selfcheck 가 두 벌을 대조합니다. */
+/* 🎯 G624 (2026-11-09) 소장님 「투찰금액을 더 정교하게 다듬을 수는 없어?」 · 「다른 입찰사이트 참고해서...해줘.」 · 「시험도 해줘」 → 결과표 → 「적용해줘」
+   지난 개찰로 «바로투찰 금액을 넣었다면» 다시 쟀습니다(tools/시험_투찰자리뒤로.py · extra_2026-08~11 공사 16,185건 · 예상 참가는 그날보다 앞선 개찰로만 짐작).
+       지금(권장)                      1순위 4.23% · 실격 13.6%   (사이트 성적 4.3% · 13.3% 와 같게 나옴)
+       예상 참가 100곳+ → 95분위         1순위 4.20% · 실격 10.8%   (그 공고만: 1순위 2.69 → 2.57% · 실격 14.6 → 5.4%)
+   1순위는 짝지어 세면 +50/−56건(z = −0.6 · 차이 없음) · 실격은 크게 줄고 · 8~9월 · 10~11월 따로 재도 같은 쪽.
+   참가가 몰리면 다들 가운데 사정률을 노려 그 근처가 붐빕니다 — 사정률이 높게 나온 날의 «빈 자리» 를 지키는 쪽이 실격 없이 같은 만큼 이깁니다.
+   ⚠️ 다른 사이트 방식(발주처별 사정률 흐름 · 투찰률 끝자리 · 범위별 가운데값 · 더 낮게)은 같은 시험에서 효과 없음 · 나빠짐 — 다시 넣지 말 것.
+   ⚠️ collect.py 의 PICK_AUTO(묶음 3 = 100곳+)와 같이 고칠 것 — selfcheck 가 대조합니다. */
 export const AUTO_RULE = [
   { maxNp: 10, q: 80, n: 638,  win: 22.1, dq: 13.3, recWin: 18.2, recDq: 7.8 },
+  { minNp: 100, q: 95, n: 4789, win: 2.57, dq: 5.43, recWin: 2.69, recDq: 14.6 },
 ]
 
 /* 예상 참가를 «무엇을 보고» 짐작했나 — collect.py 의 ENP_BASIS 와 같은 말입니다.
@@ -500,7 +509,7 @@ export function atLeastOne(rates) {
 }
 export function autoRule(enp) {
   if (!(enp > 0)) return null
-  return AUTO_RULE.find((r) => enp < r.maxNp) || null
+  return AUTO_RULE.find((r) => (r.maxNp == null || enp < r.maxNp) && (r.minNp == null || enp >= r.minNp)) || null   /* 🎯 G624 minNp(100곳+) */
 }
 /** 공고 한 줄이 «실제로 낼» 금액 — 예상 참가를 알면 자동 분위, 모르면 권장. 화면·원클릭·채점이 전부 이것 하나. */
 export function smartBid({ base, llRate, aVal, aKnown, p50, sd, enp, pc = 0 }) {

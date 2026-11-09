@@ -2299,13 +2299,22 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
             <div className="autobox">
               <div className="h">🎯 이 공고는 <b>{aRule.q}분위</b>로 넣습니다 — 예상 참가 <b>{num(enpHere)}곳</b>
                 <i>{enpWhy(enp줄) || `지난 개찰 ${num(enpN)}건의 중앙`} — 참가업체수</i></div>
-              <p>
-                같은 자리(참가 {aRule.maxNp === 10 ? '2~9' : '10~29'}곳, 실측 {num(aRule.n)}건)에서 {aRule.q}분위 금액이
-                <b> 1순위 {aRule.win}%</b>(실격 {aRule.dq}%)로, 권장 {aRule.recWin}%(실격 {aRule.recDq}%)보다 더 이겼습니다.
-                {aRule.maxNp === 30 && <> 대신 실격이 네 번 중 한 번 더 납니다 — 한 건이 급하면 이쪽, 실격이 싫으면 권장.</>}
-                {' '}차이는 오차 범위 안팎이라 «확실한 우위»가 아니라 «자료가 이쪽을 가리킨다» 정도입니다.
-                참가가 30곳을 넘는 자리에서는 권장이 가장 좋았습니다.
-              </p>
+              {aRule.minNp ? (
+                /* 🎯 G624 예상 참가 100곳+ → 95분위(지난 개찰 다시 재 봄 · 소장님 «적용해줘» 11-09) */
+                <p>
+                  참가가 몰리는 자리(예상 {num(aRule.minNp)}곳 넘게, 지난 개찰 {num(aRule.n)}건)에서 {aRule.q}분위 금액은
+                  <b> 1순위 {aRule.win}%</b>로 권장({aRule.recWin}%)과 거의 같았고, <b>실격은 {aRule.recDq}% → {aRule.dq}%</b>로 크게 줄었습니다.
+                  {' '}다들 가운데 사정률을 노려 붐비는 자리라, 조금 높게 넣어도 이기는 수는 그대로이고 하한 밑으로 떨어지는 일만 줄어듭니다.
+                </p>
+              ) : (
+                <p>
+                  같은 자리(참가 {aRule.maxNp === 10 ? '2~9' : '10~29'}곳, 실측 {num(aRule.n)}건)에서 {aRule.q}분위 금액이
+                  <b> 1순위 {aRule.win}%</b>(실격 {aRule.dq}%)로, 권장 {aRule.recWin}%(실격 {aRule.recDq}%)보다 더 이겼습니다.
+                  {aRule.maxNp === 30 && <> 대신 실격이 네 번 중 한 번 더 납니다 — 한 건이 급하면 이쪽, 실격이 싫으면 권장.</>}
+                  {' '}차이는 오차 범위 안팎이라 «확실한 우위»가 아니라 «자료가 이쪽을 가리킨다» 정도입니다.
+                  참가 30~99곳은 권장이 가장 좋았고, 100곳이 넘으면 95분위로 넣습니다(실격이 크게 줄어듦).
+                </p>
+              )}
               <GuideLink slug="participants" />
             </div>
           )}

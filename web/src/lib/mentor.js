@@ -23,7 +23,7 @@ const num = (n) => Number(n || 0).toLocaleString('ko-KR')
 
 /** 참가 구간별 «권장으로 넣었을 때» 실측 1순위율 — bidmath 의 표에서 가져옵니다(두 번 적지 않기). */
 const recWinFor = (np) => {
-  const r = AUTO_RULE.find((x) => np < x.maxNp)
+  const r = AUTO_RULE.find((x) => x.maxNp && np < x.maxNp)   /* 🎯 G624 «100곳+» 규칙(minNp)은 권장 1순위율 말에 안 씀 */
   return r ? r.recWin : null
 }
 
@@ -69,7 +69,7 @@ export function noteLive(r, ctx = {}) {
     return { tone: 'bad',
       /* 💬 G167 (2026-10-06) 소장님 「다른 공고가 낫습니다. 이런 말은 아니지 않아..다 알고서 어떻게든 해보려고 하는데」
          → 넣으려는 분께 «하지 말라» 가 아니라 «이렇게 넣으라» 로 */
-      text: `예상 ${num(enp)}곳이 몰리는 공고입니다. 1순위가 낙찰하한 바로 위에서 갈리는 자리라, 하한 밑으로만 내려가지 않게 넣으시면 됩니다.` }
+      text: `예상 ${num(enp)}곳이 몰리는 공고입니다. 1순위가 낙찰하한 바로 위에서 갈리는 자리라, 하한 밑으로만 내려가지 않게 넣으시면 됩니다 — 바로투찰도 이런 공고는 95분위로 조금 높여 실격을 줄입니다.` }
   }
   if (odds && odds.win > 0 && odds.n > 0) {
     return { tone: odds.win >= 8 ? 'good' : odds.win >= 3 ? 'mid' : 'bad',

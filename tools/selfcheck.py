@@ -794,6 +794,7 @@ def check_autorule():
     if not m:
         return ["bidmath.js 에서 AUTO_RULE 을 못 찾았습니다"]
     rules = [(int(a), int(b)) for a, b in re.findall(r"maxNp:\s*(\d+),\s*q:\s*(\d+)", m.group(1))]
+    rules_min = [(int(a), int(b)) for a, b in re.findall(r"minNp:\s*(\d+),\s*q:\s*(\d+)", m.group(1))]   # 🎯 G624 «이 수 이상» 규칙(100곳+ → 95분위)
     qz = {int(q): float(z) for q, z in re.findall(r"\{\s*q:\s*(\d+),\s*z:\s*(-?[\d.]+)", js)}
     nb = [int(x) for x in re.findall(r"PICK_NB\s*=\s*\[([^\]]*)\]", cs)[0].split(",")]
     want = {}
@@ -802,6 +803,14 @@ def check_autorule():
             bad.append(f"AUTO_RULE 의 maxNp {maxnp} 가 PICK_NB {nb} 의 경계가 아닙니다")
             continue
         want[nb.index(maxnp)] = (qz.get(q), 1.0)
+    for minnp, q in rules_min:
+        if minnp not in nb:
+            bad.append(f"AUTO_RULE 의 minNp {minnp} 가 PICK_NB {nb} 의 경계가 아닙니다")
+            continue
+        if nb.index(minnp) != len(nb) - 1:
+            bad.append(f"AUTO_RULE 의 minNp {minnp} 는 PICK_NB 마지막 경계여야 합니다(그 위 묶음 하나만)")
+            continue
+        want[nb.index(minnp) + 1] = (qz.get(q), 1.0)
     if set(py) != set(want):
         bad.append(f"묶음이 다릅니다 — collect.py {sorted(py)} vs bidmath.js {sorted(want)}")
     for k in sorted(set(py) & set(want)):
@@ -815,7 +824,7 @@ def check_autorule():
             print("   ·", x)
     else:
         print(f"✅ 자동 분위 규칙 {len(py)}가지가 두 곳에서 같습니다 "
-              f"({', '.join('참가<%d → %d분위' % (m_, q_) for m_, q_ in rules)})")
+              f"({', '.join(['참가<%d → %d분위' % (m_, q_) for m_, q_ in rules] + ['참가≥%d → %d분위' % (m_, q_) for m_, q_ in rules_min])})")
     return bad
 
 
