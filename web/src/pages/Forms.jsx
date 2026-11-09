@@ -13,6 +13,7 @@ import UserForms from '../UserForms.jsx'
 import { Empty } from '../components.jsx'
 import { 둘씩, 더말글 } from '../lib/빠른찾기.js'
 import 광고모집 from '../광고모집.jsx'   /* 📣 G549 광고가 없는 쪽 — «이 자리에 업체를 알리세요» 한 장 */
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G611 빈 서식 미리보기 PDF · 인쇄는 그림(글자 층 없음) */
 
 /* 🎨 2026-10-16 탭 꾸밈 — 묶음마다 색(머리 띠 · 아이콘 바탕) */
 const 묶음색 = ['#2563eb', '#0d9488', '#d97706', '#7c3aed', '#e11d48', '#16a34a', '#0284c7', '#ea580c']
@@ -117,6 +118,23 @@ function 굵게(s) {
 
 export function bySlug(slug) {
   return FORMS.find((f) => f.slug === slug) || null
+}
+
+/* 🖼 G611 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 옛 «🖨 인쇄 · PDF»(window.print · 쪽 전체 — 설명 글까지 글자 PDF 2쪽)를
+   빈 서식 미리보기 종이(.fp-미리판 .fpaper)만 그림으로: «📄 빈 서식 PDF»(바로 받음) · «🖨 인쇄» — A4 세로 기본 쪽(186 × 271) · 몸표 없음(@media print 그대로 — 테두리 · 최소 폭 뺌).
+   쓰는 곳: 정적 빈 서식 PDF(f.pdf)가 없는 엑셀 서식(지금은 공내역서 한 벌) — 훅은 FormPage 의 앞 return 들 뒤라 따로 덩이로 둠 */
+function 미리인쇄({ f }) {
+  const 그 = use그림인쇄(`${f.title}_빈서식`, {
+    셈: '서식미리', 대상: '.fp-미리판 .fpaper', 몸표: [], 쪽: { 폭: 186, 높: 271 }, 여백: [12, 12], 칸줄: true,
+    손질: (판) => { 판.style.width = '186mm'; 판.style.maxWidth = 'none'; 판.style.boxSizing = 'border-box' },   // 카드 · 쪽 여백 안에서 좁게 찍히던 것 → 종이 글자 칸 폭 그대로(복제본만)
+  })
+  return (
+    <>
+      <button type="button" className="btn ghost" disabled={!!그.찍기} onClick={() => 그.PDF()}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 빈 서식 PDF'}</button>
+      <button type="button" className="btn ghost" disabled={!!그.찍기} onClick={() => 그.인쇄()}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
+      {그.말 && <div className="note sm fp-찍말" role="status" style={{ flexBasis: '100%', margin: '4px 0 0' }}>{그.말}</div>}
+    </>
+  )
 }
 
 /* 미리보기 — 엑셀과 «같은 blocks» 를 그립니다. 두 벌로 적지 않기 위해서입니다. */
@@ -849,7 +867,7 @@ export function FormPage() {
               {/* ✍️ 2026-09-29 다시 만든 서식(gen:forms2)은 빈 서식 PDF 를 엽니다 — 화면 인쇄는 옛 미리보기 표가 나옵니다 */}
               {f.gen !== 'wihgen' && (f.pdf
                 ? <a className="btn ghost" href={f.pdf} target="_blank" rel="noopener">🖨 인쇄용 PDF</a>
-                : <button className="btn ghost" onClick={() => window.print()}>🖨 인쇄 · PDF</button>)}
+                : <미리인쇄 f={f} />)}
               {쓸칸 && <button type="button" className="btn ghost" onClick={작성가기}>✍️ 사이트에서 작성</button>}
             </>
           )}
@@ -899,7 +917,7 @@ export function FormPage() {
           </ul>
         </div>
       ) : (
-      <div className="card">
+      <div className="card fp-미리판">
         <div className="sec-title" style={{ margin: '0 0 8px' }}>미리보기</div>
         <div className="fscroll"><Preview sheet={f.sheet} /></div>
         <div className="note sm" style={{ marginTop: 8 }}>

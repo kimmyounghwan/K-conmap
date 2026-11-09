@@ -175,7 +175,9 @@ for (const [기기, w, h, 폰, 목록] of [['PC 1280', 1280, 900, false, PC들],
   /* ④ 화면을 열어 둔 사이 사이트가 새로 올라가 «찍는 도구» 파일(html2canvas · 그림인쇄)이 없어진 때 — 404 를 흉내 */
   if (!폰) {
     const q = await ctx.newPage()
-    await q.route((u) => /html2canvas|그림인쇄/.test(decodeURIComponent(u.toString())), (r) => r.fulfill({ status: 404, body: 'not found' }))
+    /* 🩹 G611 서식 쪽(Forms.jsx)이 빈 서식 미리보기 PDF 로 그림 인쇄 «훅»(그림인쇄훅-…js)을 처음부터 불러옴 — 훅은 쪽과 같이 이미 와 있는 파일이라 막지 않고, 누를 때 늦게 오는
+       «찍는 도구»(html2canvas · lib 그림인쇄-…js)만 404 로(전엔 훅까지 막혀 서식 쪽이 안 떴음) */
+    await q.route((u) => /html2canvas|그림인쇄(?!훅)/.test(decodeURIComponent(u.toString())), (r) => r.fulfill({ status: 404, body: 'not found' }))
     await q.goto(`${BASE}/forms/jg-charyang-geonseol`, { waitUntil: 'domcontentloaded' })
     await q.waitForSelector('.fw-bar button', { timeout: 20000 })
     await q.locator('.fw-bar button', { hasText: '📄 PDF 저장' }).first().click()
