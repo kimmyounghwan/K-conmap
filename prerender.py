@@ -1658,11 +1658,17 @@ def form_page(shell, f, others, image=None):
                 f'손으로 쓸 빈 양식은 엑셀(xlsx)로 다운로드할 수 있고, 회원가입이 필요 없습니다.') if f.get("gen") == "forms2" else \
                (f'{f["title"]} 양식을 엑셀(xlsx) 파일로 무료 다운로드할 수 있습니다. '
                 f'회원가입이 필요 없고, 인쇄해서 바로 쓸 수 있습니다.')
+    # 🔎 G620 (11-09 소장님 「꼭 검색 되게」) 서식마다 검색 제목 · 설명 · 큰 제목 · 첫 글을 따로 줄 수 있음 — «양식» 이 어색한 것(2027 달력 …)
+    #    forms.json seo_title · seo_desc · h1 · lead (없으면 위 꼴 그대로)
+    title = f.get("seo_title") or title
+    desc = f.get("seo_desc") or desc
+    lead = f.get("lead") or lead
+    큰제목 = f.get("h1") or f'{f["title"]} 양식'
     desc = desc.strip()[:150]
     또줄 = (f'<p style="font-size:12px;color:var(--muted);margin:6px 0 0">'
             f'이렇게도 부릅니다 — {esc(" · ".join(또))}</p>') if 또 else ''
     out = [f'<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">'
-           f'{esc(f["title"])} 양식</h1>'
+           f'{esc(큰제목)}</h1>'
            f'<div style="font-size:12.5px;color:var(--muted);margin-top:4px">'
            f'{esc(f.get("short") or "")}</div>'
            f'<p style="font-size:12.5px;margin:8px 0 0">{esc(lead)}</p>'
@@ -1711,9 +1717,9 @@ def form_page(shell, f, others, image=None):
         {"@type": "BreadcrumbList", "itemListElement": [
             {"@type": "ListItem", "position": 1, "name": "K-건설맵", "item": SITE},
             {"@type": "ListItem", "position": 2, "name": "건설 서식", "item": SITE + "/forms"},
-            {"@type": "ListItem", "position": 3, "name": f'{f["title"]} 양식',
+            {"@type": "ListItem", "position": 3, "name": 큰제목,
              "item": f'{SITE}/forms/{f["slug"]}'}]},
-        {"@type": "CreativeWork", "name": f'{f["title"]} 양식',
+        {"@type": "CreativeWork", "name": 큰제목,
          "description": (g.get("what") or f.get("short") or "")[:200],
          "inLanguage": "ko", "isAccessibleForFree": True,
          "genre": f.get("group") or "건설 서식",

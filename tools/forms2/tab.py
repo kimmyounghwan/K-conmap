@@ -59,7 +59,7 @@ STAGES = [
     dict(k='daily', n='④', ic='🏗', h='공사 중 — 날마다 · 주마다 · 달마다', 짧게='일보 · 주간·월간 보고 · 회의 · 사진대지',
          언제='공사하는 동안 되풀이해 쓰는 서류입니다. 공사일보·투입비는 사이트에서 바로 쓰는 프로그램이 있습니다.',
          progs=['ilbo', 'tuipbi', 'schedule'],
-         slugs='jakeop-ilbo jugan-hyeonhwang gongjeong-jugan-wolgan o-jugan-gongjeong o-hoeui-gongjeongpyo gongjeong-bogo wolgan-bogoseo gongjeong-manhoe jugan-hoeuirok sajin-daeji o-sajindaeji o-konkeuriteu-taseol o-gangu-taseol gongsa-jungji balsong gongmun minwon'),
+         slugs='dalryeok-2027 jakeop-ilbo jugan-hyeonhwang gongjeong-jugan-wolgan o-jugan-gongjeong o-hoeui-gongjeongpyo gongjeong-bogo wolgan-bogoseo gongjeong-manhoe jugan-hoeuirok sajin-daeji o-sajindaeji o-konkeuriteu-taseol o-gangu-taseol gongsa-jungji balsong gongmun minwon'),
     dict(k='quality', n='⑤', ic='🔍', h='검측 · 품질 · 자재', 짧게='검측 체크리스트 · 시험 · 자재 승인·수불',
          언제='공종마다 검측을 받고, 자재는 승인 → 반입 검수 → 수불로 관리합니다. 검측 체크리스트는 공종별로 나눠 두었습니다.',
          progs=['remicon'],
