@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import {
   종류들, 수, 원, 달일수, 빈줄, 빈공사, 고르기, 읽기, 쓰기, 회셈, 공사셈, 붙임들, 다음회, 붙여읽기, 예시, 셋합, 근거, 근거주소,
 } from '../lib/보험정산.js'
-import { use인쇄 } from '../tools/공정인쇄.js'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G602 PDF · 인쇄는 그림(글자 층 없음) */
 import 도구설명 from '../tools/도구설명.jsx'
 import 이어쓰기 from '../tools/이어쓰기.jsx'
 import { 앞모습두기 } from '../lib/이어쓰기.js'
@@ -19,7 +19,7 @@ import { 세기 } from '../lib/받은수.jsx'
  * ■ 한 공사에 회차를 쌓음 → 전회까지 · 누계 · 내역서 계상액 대비 남은 금액(제94조②) 저절로
  * ■ 종이(A4 가로) 하나로 인쇄 · 📗 값만 엑셀(lib/격자엑셀.js — 종이 칸 그대로). 셈은 lib/보험정산.js 하나.
  * ■ 저장: 이 브라우저 + 🔗 코드 + 비밀번호(ns 'bj'). 창(alert · confirm) 없음 — 지우기는 한 번 더 누르기.
- * ■ 📊 세기(숫자는 사이트 어디에도 안 보임): |보험정산|인쇄 · |보험정산|엑셀 · |보험정산|예시 · |보험정산|붙여넣기 (받기는 받은수가 저절로)
+ * ■ 📊 세기(숫자는 사이트 어디에도 안 보임): |보험정산|PDF · |보험정산|인쇄(G602 부터 그림 훅이 셈) · |보험정산|엑셀 · |보험정산|예시 · |보험정산|붙여넣기 (받기는 받은수가 저절로)
  */
 
 const 숫자만 = (v) => String(v ?? '').replace(/[^\d]/g, '')
@@ -92,7 +92,9 @@ export default function BoheomJeongsan() {
     set알림(`${줄.length}줄을 넣었습니다${못읽음 ? ` (못 읽은 줄 ${못읽음})` : ''}. 확인서 금액 · 투입일이 맞는지 한 번 보십시오.`)
   }
 
-  const [인쇄중, 인쇄] = use인쇄(`보험료_정산_청구서_제${회.n}회${c.공사명 ? '_' + c.공사명 : ''}`)
+  /* 🖼 G602 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 인쇄 판(#gp-인쇄 .rk-쪽.land)을 그림으로 찍어 📄 PDF 바로 받기 · 🖨 그림만 인쇄
+     (A4 가로 @page rk가로 8mm → 글자 칸 281 × 194mm · 표 머리줄은 쪽마다 다시) · 쓴 횟수는 훅이 |보험정산|PDF · |보험정산|인쇄 로(옛 |보험정산|인쇄 와 같은 열쇠) */
+  const 그 = use그림인쇄(`보험료_정산_청구서_제${회.n}회${c.공사명 ? '_' + c.공사명 : ''}`, { 셈: '보험정산', 쪽: { 폭: 281, 높: 194 }, 여백: [8, 8], 종이: [297, 210], 판쪽: 'rk가로', 칸줄: true })
   const 엑셀 = async () => {
     const [{ 종이를격자, 격자책 }, { 바이트받기 }] = await Promise.all([import('../lib/격자엑셀.js'), import('../lib/값엑셀.js')])
     const el = 미리.current ? 미리.current.querySelector('.rk-paper') : null
@@ -104,7 +106,9 @@ export default function BoheomJeongsan() {
   const 빈줄수 = S.이번.줄.filter((x) => x.빈).length
 
   return (
-    <div className="wrap gj bj">
+    <>
+    <div className="kcm-인쇄안내">🖨 보험료 정산 청구서는 화면의 <b>«📄 청구서 PDF 저장»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+    <div className="wrap gj bj 그림만인쇄">
       <div className="card">
         <h1 className="tl-h1" style={{ marginTop: 0 }}>🩺 국민건강 · 연금보험료 정산 청구서 — 사업자 부담분 · 일할 저절로</h1>
         <p className="cp" style={{ margin: '6px 0 0' }}>
@@ -265,9 +269,11 @@ export default function BoheomJeongsan() {
           </ul>
         )}
         <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-          <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => { 세기('|보험정산|인쇄'); 인쇄() }}>🖨 청구서 인쇄 (A4 가로)</button>
+          <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={!!그.찍기} onClick={() => 그.PDF()}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 청구서 PDF 저장 (A4 가로)'}</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!그.찍기} onClick={() => 그.인쇄()}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={엑셀}>📗 엑셀 받기</button>
         </div>
+        {그.말 && <div className="note sm bj-찍말" role="status" style={{ margin: '8px 0 0' }}>{그.말}</div>}
         {좁음 && <button type="button" className="tp-x" style={{ marginTop: 8 }} onClick={() => set크게((v) => !v)}>{크게 ? '🔎 한눈에 보기' : '🔍 크게 보기 (옆으로 밀어 보기)'}</button>}
         <div className="rk-preview bj-preview" ref={미리}><div style={맞춤 < 1 ? { zoom: 맞춤 } : undefined}><청구종이 c={c} S={S} /></div></div>
         <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
@@ -276,8 +282,9 @@ export default function BoheomJeongsan() {
       </div>
 
       <도구설명 k="jeongsan" />
-      {인쇄중 && createPortal(<div id="gp-인쇄"><div className="rk-쪽 land"><청구종이 c={c} S={S} /></div></div>, document.body)}
+      {그.판 && createPortal(<div id="gp-인쇄"><div className="rk-쪽 land"><청구종이 c={c} S={S} /></div></div>, document.body)}
     </div>
+    </>
   )
 }
 
