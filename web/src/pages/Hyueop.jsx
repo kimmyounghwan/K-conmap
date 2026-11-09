@@ -4,6 +4,7 @@
  *   셈 lib/hyueop.js(산재보험법 · 시행령 · 고시 원문 — 그 파일 머리 참고) · 링크 lib/hyueopLink.js · 글 data/hyueop_guide.json(미리굽기와 같은 글)
  * ■ 일당 · 쉰 기간(· 생년월일)만 넣으면 «하루 얼마 × 며칠 = 얼마» · 61세 감액 · 3일 이내 · 저소득 보정을 날마다 셈.
  * ■ 적은 것은 이 브라우저에만(kcm_hyueop) · 결과 링크(?c=)에는 생년월일을 안 담음.
+ * ■ 🖼 G606(11-08) PDF · 인쇄는 그림 — 화면(.wrap.hy)을 복제본에서 인쇄 CSS 로 펴서(적는 칸 · 설명 · 광고 · 단추는 숨음 — 옛 인쇄와 같은 모양) 찍음.
  */
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -14,6 +15,7 @@ import { 긴날, 짧은날 } from '../lib/해마다.js'
 import G from '../data/hyueop_guide.json'
 import { 일당살핌 } from '../lib/살핌.js'
 import { 링크복사 } from '../lib/링크복사.js'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G606 PDF · 인쇄는 그림(글자 층 없음) */
 
 const 열쇠 = 'kcm_hyueop'
 const 쓴링크열쇠 = 'kcm_hyueop_link'
@@ -76,9 +78,14 @@ export default function Hyueop() {
   // G508 사이트 점검(11-02 12:0x)에서 찾음 — 해를 넘는 긴 기간은 «10.15.~10.14.» 처럼 거꾸로 보여 헷갈림 → 해가 바뀌면 연도까지
   const 해넘김 = !R.빈 && String(st.처음).slice(0, 4) !== String(st.끝).slice(0, 4)
   const 날글 = (d) => (해넘김 ? 긴날(d) : 짧은날(d))
+  /* 🖼 G606 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 옛 «🖨 인쇄»(window.print · 화면 그대로 글자 PDF) → 화면(.wrap.hy)을 복제본에서
+     인쇄 CSS(@media print — .sl-in · .sl-guide · .iy-exd · .no-print(광고 포함) 숨음)로 펴서 그림으로 · A4 세로 기본 쪽(186 × 271) · 몸표 없음(실업급여 판단기 G605 와 같은 꼴) */
+  const 그 = use그림인쇄(['산재휴업급여', st.처음 && st.끝 ? `${st.처음}~${st.끝}` : ''].filter(Boolean).join('_'), { 셈: '산재휴업급여', 대상: '.wrap.hy', 몸표: [], 쪽: { 폭: 186, 높: 271 }, 여백: [12, 12], 칸줄: true })
 
   return (
-    <div className="wrap sl hy">
+    <>
+    <div className="kcm-인쇄안내">🖨 휴업급여 셈은 화면의 <b>«📄 PDF»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+    <div className="wrap sl hy 그림만인쇄">
       <div className="card">
         <h1 className="tl-h1" style={{ marginTop: 0 }}>🩹 산재 휴업급여 계산기</h1>
         <p className="cp" style={{ margin: '6px 0 0' }}>
@@ -166,9 +173,11 @@ export default function Hyueop() {
             {R.구간.map((x) => <li key={x.부터} className="ok"><span className="sl-ic" aria-hidden>🧾</span><div><b>{R.구간.length > 1 ? `${날글(x.부터)} ~ ${날글(x.까지)} · ` : ''}하루 {원글(x.액)}원</b><p>{x.줄.join(' → ')}</p></div></li>)}
           </ul>
           <div className="sl-btns no-print">
-            <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => window.print()}>🖨 인쇄</button>
+            <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={!!그.찍기} onClick={() => 그.PDF()}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 PDF'}</button>
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!그.찍기} onClick={() => 그.인쇄()}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
             <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={링크보내기}>🔗 링크 보내기</button>
           </div>
+          {그.말 && <div className="note sm no-print hy-찍말" style={{ marginTop: 8 }} role="status">{그.말}</div>}
           {링크 && <div className="note sm no-print" role="status" style={{ marginTop: 8, wordBreak: 'break-all' }}>
             {링크.복사 ? '📋 링크를 복사했습니다 — 카톡 · 문자 · 카페에 붙여 넣으십시오. 받는 분이 누르면 같은 일당 · 날짜로 열립니다.' : '아래 링크를 길게 눌러 복사하십시오.'}
             <div style={{ marginTop: 4 }}><a href={링크.url}>{링크.url}</a></div></div>}
@@ -190,5 +199,6 @@ export default function Hyueop() {
         <p className="cp" style={{ fontSize: 12.5 }}>근거(국가법령정보센터 · {긴날(G.updated)} 확인): {G.laws.map(([t, u], k) => <span key={u}>{k ? ' · ' : ''}<a href={u} target="_blank" rel="noopener noreferrer">{t}</a></span>)}</p>
       </div>
     </div>
+    </>
   )
 }
