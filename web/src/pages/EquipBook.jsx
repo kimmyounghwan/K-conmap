@@ -6,6 +6,7 @@
  *
  * ■ 기사·장비(시간당·일대 단가)와 거래처(현장명)를 등록 → 날마다 사용 내역(수량 × 단가 · 유류대) →
  *   수금 → 거래처별 임대료·받은 돈·미수금 · 기사(장비)별 · 달마다 → 거래처별 청구서 인쇄(A4 세로)
+ *   🖼 G601(11-08) 청구서 PDF · 인쇄는 그림 — 인쇄 판(#gp-인쇄 · .eq-쪽들)을 찍어 📄 PDF 바로 받기 · 🖨 그림만 인쇄(eq세로 12mm · 거래처마다 새 쪽).
  * ■ 장부를 만들면 «장부 코드(9자리) + 비밀번호» 가 생깁니다. 회원가입 없음. 폰·PC 어디서든 같은 장부.
  * ■ 사업자번호·계좌는 브라우저에서 비밀번호로 잠가 저장(lib/tplock.js) — 서버는 못 읽습니다.
  * ■ 📗 엑셀은 «값만»(G110 · 2026-10-01 소장님 「엑셀로 값만 주는 걸로 하자. 프로그램 원칙으로 하고」 · 「2차 가자」) — 청구서 탭 «📗 엑셀(값만)»:
@@ -16,7 +17,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { use화면상태, 앞칸같은주소 } from '../lib/길기록.js'
-import { use인쇄 } from '../tools/공정인쇄.js'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G601 청구서 PDF · 인쇄는 그림(글자 층 없음) */
 import { 새장부, 열기칸, 만들었음, 연장부목록, 잠금풀칸, 코드와휴지통 } from '../tools/장부문.jsx'
 import { 장부, 목록읽기, 목록기억, 막힘, 휴지통날 } from '../lib/장부.js'
 import { 코드정리, 코드보기 } from '../lib/tuipbi.js'
@@ -257,7 +258,9 @@ function 장부화면(p) {
   const 달들 = useMemo(() => 달목록(자료), [자료])
   const 등록없음 = !Object.keys(자료.drivers).length || !Object.keys(자료.clients).length
   return (
-    <div className="eq">
+    <>
+    <div className="kcm-인쇄안내">🖨 장비 장부 청구서는 «🧾 청구서» 탭의 <b>«📄 PDF 저장»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+    <div className="eq 그림만인쇄">
       <div className="card eq-head">
         <div className="grow">
           <div className="eq-name">🚜 {정보.name}{예시 && <span className="badge n" style={{ marginLeft: 6 }}>예시</span>}</div>
@@ -286,6 +289,7 @@ function 장부화면(p) {
       {탭 === 'reg' && <등록칸 자료={자료} 저장={p.저장} 지우기={p.지우기} />}
       {탭 === 'info' && <정보칸 {...p} />}
     </div>
+    </>
   )
 }
 
@@ -636,10 +640,13 @@ function 청구칸({ 자료, 달들, 정보, 풀린 }) {
   const [cl, setCl] = useState(() => (cls[0] && cls[0].id) || '')
   const [달, set달] = useState(이번달())
   const [모두, set모두] = useState(false)
-  const [인쇄중, 인쇄] = use인쇄(`청구서_${달}`)
   const from = 달 ? 달첫날(달) : '', to = 달 ? 달끝날(달) : ''
   const 대상 = 모두 ? cls.filter((c) => 청구서(자료, c.id, from, to).줄.length) : cls.filter((c) => c.id === cl)
   const 종이들 = 대상.map((c) => <청구종이 key={c.id} 자료={자료} 거래처={c} from={from} to={to} 정보={정보} 풀린={풀린} />)
+  /* 🖼 G601 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 인쇄 판(#gp-인쇄)을 그림으로 찍어 📄 PDF 바로 받기 · 🖨 그림만 인쇄
+     (A4 세로 @page eq세로 12mm → 186 × 273mm · 거래처마다 새 쪽 그대로) · 판 안 청구서들은 한 덩이(.eq-쪽들)로 — 훅은 판의 첫 덩이를 찍음 ·
+     이름은 📗 엑셀과 같게(장비청구서_거래처_달) */
+  const 그 = use그림인쇄(`장비청구서_${모두 ? '거래처모두' : (대상[0] && 대상[0].n) || '거래처'}_${달 || '전부'}`, { 셈: '장비청구서', 쪽: { 폭: 186, 높: 273 }, 여백: [12, 12], 종이: [210, 297], 판쪽: 'eq세로', 칸줄: true })
   /* 📗 G110 값만 엑셀 — 고른 거래처(또는 이 달 거래처 모두)의 청구서 + 한눈에 표 셋 */
   const 엑셀받기 = async () => {
     const { 값엑셀받기, 수칸, 굵은칸, 흐린칸 } = await import('../lib/값엑셀.js')
@@ -695,14 +702,16 @@ function 청구칸({ 자료, 달들, 정보, 풀린 }) {
             <option value="">처음부터 전부</option>
           </select>
           <label className="eq-chk"><input type="checkbox" checked={모두} onChange={(e) => set모두(e.target.checked)} /> 이 달 거래처 모두</label>
-          <button className="btn primary" disabled={!대상.length} onClick={인쇄}>🖨 인쇄 · PDF ({대상.length}장)</button>
+          <button className="btn primary" disabled={!대상.length || !!그.찍기} onClick={() => 그.PDF()}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : `📄 PDF 저장 (${대상.length}장)`}</button>
+          <button className="btn ghost" disabled={!대상.length || !!그.찍기} onClick={() => 그.인쇄()}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
           <button className="btn ghost" disabled={!대상.length} onClick={엑셀받기} title="청구서 · 거래처 현황 · 기사 현황 · 달마다">📗 엑셀</button>
         </div>
+        {그.말 && <div className="note sm eq-찍말" role="status" style={{ margin: '8px 0 0' }}>{그.말}</div>}
         <p className="note sm" style={{ margin: '8px 0 0' }}>A4 세로입니다. 아래 «장부 정보» 에 사업자번호·입금 계좌를 적어 두면 청구서 아래에 나옵니다.</p>
       </div>
       {!대상.length && <div className="card muted">이 달에 청구할 사용 내역이 없습니다.</div>}
       {종이들.map((x, i) => <div className="card eq-paperwrap" key={i}>{x}</div>)}
-      {인쇄중 && createPortal(<div id="gp-인쇄">{종이들.map((x, i) => <div className="eq-쪽" key={i}>{x}</div>)}</div>, document.body)}
+      {그.판 && createPortal(<div id="gp-인쇄"><div className="eq-쪽들">{종이들.map((x, i) => <div className="eq-쪽" key={i}>{x}</div>)}</div></div>, document.body)}
     </>
   )
 }
