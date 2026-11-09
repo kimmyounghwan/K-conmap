@@ -422,8 +422,110 @@ const 그림장면 = {
       [(g, x, y) => 빗금(g, x - 40, y - 20, 80, 40, 'rgba(107,114,128,.55)', 'rgba(107,114,128,.16)'), '작업 지반 — 쇄석 깔기 · 다짐 · 철판', '경사 · 지내력 확인 뒤 이동'],
     ], ['매설물 확인 뒤 박기(시험굴)'])
   } },
+  /* 🏗️ G616 (2026-11-09) 가설건축물 축조신고서 [첨부 1 · 2] 배치도 · 평면도 — 작성 예시(① 현장사무실 36 ㎡ · ② 자재창고 18 ㎡ · ③ 근로자 휴게실 18 ㎡ ·
+   *   컨테이너 3동 · 1층 · 대지 1,850 ㎡)와 맞춤 · 실제 장소 · 이름 없음(○○로만). 칸 비율 477 : 290 ≈ 1640 : 1000 */
+  '가설건축물 배치도': { w: 1640, h: 1000, 표: 1000, 그리기: (g, w, h) => {
+    g.fillStyle = '#f5f2ea'; g.fillRect(0, 0, w, h)
+    /* ○○로(남쪽) */
+    g.fillStyle = '#cfc9bc'; g.fillRect(0, 856, 1140, 66)
+    g.strokeStyle = '#ffffff'; g.lineWidth = 5; g.setLineDash([26, 20]); g.beginPath(); g.moveTo(0, 889); g.lineTo(1140, 889); g.stroke(); g.setLineDash([])
+    쓰기(g, '○○로', 1000, 900, 30, '#5b5446')
+    /* 대지 경계(점선) · 남쪽 출입구(700 ~ 840) */
+    g.strokeStyle = '#374151'; g.lineWidth = 5; g.setLineDash([20, 12])
+    g.beginPath(); g.moveTo(700, 830); g.lineTo(100, 830); g.lineTo(100, 150); g.lineTo(1100, 150); g.lineTo(1100, 830); g.lineTo(840, 830); g.stroke(); g.setLineDash([])
+    쓰기(g, '대지 경계 (1,850 ㎡)', 1085, 184, 24, '#374151', false, 'right')
+    화살(g, [[770, 878], [770, 700]], '#2563eb', 7)
+    쓰기(g, '출입구', 856, 818, 24, '#1d4ed8', true, 'left')
+    /* 신축 건물 자리(공사 구역 — 빗금) */
+    빗금(g, 560, 220, 480, 400, 'rgba(107,114,128,.45)')
+    g.strokeStyle = '#6b7280'; g.lineWidth = 5; g.strokeRect(560, 220, 480, 400)
+    g.fillStyle = '#f5f2ea'; g.fillRect(640, 382, 320, 80)
+    쓰기(g, '신축 건물 자리', 800, 416, 30, '#374151'); 쓰기(g, '(공사 구역)', 800, 450, 24, '#4b5563', false)
+    /* 가설건축물(컨테이너) 3동 — 동 사이 · 대지 경계에서 2 m 띄움 */
+    const 동 = (x, y, w2, 번, 이름, 면적) => {
+      g.fillStyle = '#dbeafe'; g.fillRect(x, y, w2, 72); g.strokeStyle = '#1d4ed8'; g.lineWidth = 5; g.strokeRect(x, y, w2, 72)
+      쓰기(g, `${번} ${이름}`, x + w2 / 2, y + 32, 23, '#1e3a8a'); 쓰기(g, 면적, x + w2 / 2, y + 59, 20, '#1e40af', false)
+    }
+    동(150, 720, 288, '①', '현장사무실', '36 ㎡')
+    동(150, 600, 144, '②', '자재창고', '18 ㎡')
+    동(486, 720, 144, '③', '휴게실', '18 ㎡')
+    const 띄움 = (x1, y1, x2, y2, 글, tx, ty) => {
+      g.strokeStyle = '#b45309'; g.lineWidth = 3; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke()
+      쓰기(g, 글, tx, ty, 20, '#92400e', true, 'left')
+    }
+    띄움(230, 672, 230, 720, '2 m', 240, 703)
+    띄움(438, 756, 486, 756, '2 m', 446, 712)
+    띄움(100, 650, 150, 650, '2 m', 104, 640)
+    띄움(300, 792, 300, 830, '2 m', 310, 818)
+    /* 범례 */
+    쓰기(g, '범  례', 1170, 226, 30, '#1f2937', true, 'left')
+    let y = 280
+    const 줄 = (그리기, 글) => { 그리기(1170, y); 쓰기(g, 글, 1262, y + 9, 24, '#1f2937', true, 'left'); y += 60 }
+    줄((x, y2) => { g.fillStyle = '#dbeafe'; g.fillRect(x, y2 - 18, 72, 36); g.strokeStyle = '#1d4ed8'; g.lineWidth = 4; g.strokeRect(x, y2 - 18, 72, 36) }, '가설건축물(컨테이너)')
+    줄((x, y2) => { g.strokeStyle = '#374151'; g.lineWidth = 5; g.setLineDash([20, 12]); g.beginPath(); g.moveTo(x, y2); g.lineTo(x + 72, y2); g.stroke(); g.setLineDash([]) }, '대지 경계')
+    줄((x, y2) => { 빗금(g, x, y2 - 18, 72, 36, 'rgba(107,114,128,.55)'); g.strokeStyle = '#6b7280'; g.lineWidth = 3; g.strokeRect(x, y2 - 18, 72, 36) }, '신축 건물 자리')
+    줄((x, y2) => 화살(g, [[x, y2], [x + 64, y2]], '#2563eb', 6), '출입구 · 차량 길')
+    y += 8
+    for (const t of ['① 현장사무실 36 ㎡ (3 × 12 m)', '② 자재창고 18 ㎡ (3 × 6 m)', '③ 근로자 휴게실 18 ㎡ (3 × 6 m)', '모두 1층 · 경량철골조(컨테이너)', '동 사이 · 대지 경계에서 2 m']) {
+      쓰기(g, '· ' + t, 1170, y, 22, '#4b5563', false, 'left'); y += 36
+    }
+    g.fillStyle = '#374151'; g.beginPath(); g.moveTo(1580, 70); g.lineTo(1556, 140); g.lineTo(1580, 124); g.lineTo(1604, 140); g.closePath(); g.fill()
+    쓰기(g, 'N', 1580, 60, 34, '#374151')
+  } },
+  '가설건축물 평면도': { w: 1640, h: 1000, 표: 1000, 그리기: (g, w, h) => {
+    g.fillStyle = '#f5f2ea'; g.fillRect(0, 0, w, h)
+    /* 1 m = 90 점 · 바깥 벽(굵게) · 창(연파랑) · 출입문(문짝 · 여닫는 호) · 치수(mm) */
+    const 방 = (x, y, w2, h2) => { g.strokeStyle = '#374151'; g.lineWidth = 10; g.strokeRect(x, y, w2, h2) }
+    const 창 = (x, y, 길이, 가로 = true) => {
+      const [a, b, c, d] = 가로 ? [x, y - 7, 길이, 14] : [x - 7, y, 14, 길이]
+      g.fillStyle = '#93c5fd'; g.fillRect(a, b, c, d); g.strokeStyle = '#1d4ed8'; g.lineWidth = 2; g.strokeRect(a, b, c, d)
+    }
+    const 문 = (x, y, 폭, 오른 = false) => {       // 남쪽 벽(y)에 난 문 — 안(북쪽)으로 엶
+      g.fillStyle = '#f5f2ea'; g.fillRect(x, y - 7, 폭, 14)
+      const hx = 오른 ? x + 폭 : x
+      g.strokeStyle = '#b45309'; g.lineWidth = 4; g.beginPath(); g.moveTo(hx, y); g.lineTo(hx, y - 폭); g.stroke()
+      g.lineWidth = 2; g.setLineDash([8, 6]); g.beginPath(); g.arc(hx, y, 폭, 오른 ? Math.PI : -Math.PI / 2, 오른 ? Math.PI * 1.5 : 0); g.stroke(); g.setLineDash([])
+    }
+    const 치수 = (x1, y1, x2, y2, 글) => {
+      g.strokeStyle = '#6b7280'; g.lineWidth = 2; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2)
+      if (y1 === y2) { g.moveTo(x1, y1 - 10); g.lineTo(x1, y1 + 10); g.moveTo(x2, y2 - 10); g.lineTo(x2, y2 + 10) } else { g.moveTo(x1 - 10, y1); g.lineTo(x1 + 10, y1); g.moveTo(x2 - 10, y2); g.lineTo(x2 + 10, y2) }
+      g.stroke()
+      if (y1 === y2) 쓰기(g, 글, (x1 + x2) / 2, y1 - 10, 22, '#374151', false)
+      else { g.save(); g.translate(x1 - 12, (y1 + y2) / 2); g.rotate(-Math.PI / 2); 쓰기(g, 글, 0, 0, 22, '#374151', false); g.restore() }
+    }
+    /* ① 현장사무실 12.0 × 3.0 m — 사무 공간 9 m · 소장실 · 회의 3 m */
+    방(120, 200, 1080, 270)
+    g.strokeStyle = '#374151'; g.lineWidth = 6; g.beginPath(); g.moveTo(930, 200); g.lineTo(930, 380); g.stroke()
+    for (const x of [220, 520, 1010]) 창(x, 200, 150)
+    문(440, 470, 90)
+    쓰기(g, '① 현장사무실  36 ㎡', 520, 318, 28, '#1f2937'); 쓰기(g, '사무 공간 (9.0 m × 3.0 m)', 520, 356, 22, '#4b5563', false)
+    쓰기(g, '소장실 · 회의', 1065, 318, 24, '#1f2937'); 쓰기(g, '(3.0 m × 3.0 m)', 1065, 352, 20, '#4b5563', false)
+    치수(120, 168, 1200, 168, '12,000'); 치수(84, 200, 84, 470, '3,000')
+    /* ② 자재창고 6.0 × 3.0 m — 양쪽 문 · 선반 */
+    방(120, 620, 540, 270)
+    g.fillStyle = '#e5e7eb'; g.fillRect(140, 640, 500, 44); g.strokeStyle = '#9ca3af'; g.lineWidth = 2; g.strokeRect(140, 640, 500, 44)
+    쓰기(g, '선반', 390, 670, 20, '#4b5563', false)
+    문(300, 890, 90); 문(390, 890, 90, true)
+    쓰기(g, '② 자재창고  18 ㎡', 390, 752, 28, '#1f2937'); 쓰기(g, '(6.0 m × 3.0 m)', 390, 788, 22, '#4b5563', false)
+    치수(120, 932, 660, 932, '6,000'); 치수(84, 620, 84, 890, '3,000')
+    /* ③ 근로자 휴게실 6.0 × 3.0 m — 창 둘 · 문 */
+    방(750, 620, 540, 270)
+    창(830, 620, 170); 창(1290, 690, 130, false)
+    문(1120, 890, 90)
+    쓰기(g, '③ 근로자 휴게실  18 ㎡', 1020, 752, 28, '#1f2937'); 쓰기(g, '(6.0 m × 3.0 m)', 1020, 788, 22, '#4b5563', false)
+    치수(750, 932, 1290, 932, '6,000')
+    /* 범례 */
+    쓰기(g, '범  례', 1340, 236, 28, '#1f2937', true, 'left')
+    g.strokeStyle = '#374151'; g.lineWidth = 10; g.beginPath(); g.moveTo(1340, 290); g.lineTo(1400, 290); g.stroke()
+    쓰기(g, '바깥 벽', 1414, 298, 22, '#1f2937', true, 'left')
+    창(1340, 350, 60); 쓰기(g, '창', 1414, 358, 22, '#1f2937', true, 'left')
+    g.strokeStyle = '#374151'; g.lineWidth = 10; g.beginPath(); g.moveTo(1330, 440); g.lineTo(1340, 440); g.moveTo(1400, 440); g.lineTo(1410, 440); g.stroke()
+    문(1340, 440, 60); 쓰기(g, '출입문', 1414, 434, 22, '#1f2937', true, 'left')
+    let y = 500
+    for (const t of ['치수 단위 mm', '모두 1층', '경량철골조', '(컨테이너)']) { 쓰기(g, '· ' + t, 1340, y, 21, '#4b5563', false, 'left'); y += 34 }
+  } },
 }
-const png = (c) => new Promise((ok, no) => c.toBlob((b) => (b ? b.arrayBuffer().then((a) => ok(new Uint8Array(a)), no) : no(new Error('그림을 만들지 못했습니다'))), 'image/png'))
+const png =(c) => new Promise((ok, no) => c.toBlob((b) => (b ? b.arrayBuffer().then((a) => ok(new Uint8Array(a)), no) : no(new Error('그림을 만들지 못했습니다'))), 'image/png'))
 /** 예시 그림 한 장 — 종류: '공사장 위치도' · '방음 · 방진시설 배치'(없는 종류면 null) */
 export async function 예시그림파일(종류) {
   const s = 그림장면[종류]
@@ -439,6 +541,11 @@ export async function 예시그림파일(종류) {
  *  🦺 G538 «… 배치 위치 및 작업구간 · 이동 경로»(공사안전보건대장) → 장비 배치 그림 네 가지(타워크레인 · 펌프카 · 이동식크레인 · 항타·항발기) */
 export function 그림종류(머리) {
   const t = String(머리 || '')
+  /* 🏗️ G616 가설건축물 축조신고서 [첨부 1 · 2] — 머리글에 «가설건축물» + 배치도 · 평면도 */
+  if (/가설건축물/.test(t)) {
+    if (/배\s*치\s*도/.test(t)) return '가설건축물 배치도'
+    if (/평\s*면\s*도/.test(t)) return '가설건축물 평면도'
+  }
   /* 🦺 G538 공사안전보건대장 «3.» 네 칸 — 머리글 «… 배치 위치 및 작업구간 · 이동 경로» 의 장비 이름으로 */
   if (/배치 위치 및/.test(t)) {
     if (/타워\s*크레인/.test(t)) return '장비 배치 · 타워크레인'
@@ -449,6 +556,9 @@ export function 그림종류(머리) {
   if (/위\s*치\s*도|지도/.test(t)) return /세륜|방진벽/.test(t) ? '공사장 위치도 · 신축' : '공사장 위치도'
   if (/세륜|비산/.test(t)) return '비산먼지 억제시설 배치'
   if (/(방음|방진).*(배치|도면)|(배치|도면).*(방음|방진)/.test(t)) return '방음 · 방진시설 배치'
+  /* 🏗️ G616 재발 막기 — 도면 칸(배치도 · 평면도 · 입면도 · 단면도 · 계통도 · 도면)인데 맞는 예시 그림이 없으면 «도면»(그림 없음)
+     → 격자작성.jsx 가 거기서 멈춤 = 현장 사진(관 부설 등)을 도면 칸에 넣지 않음 */
+  if (/배\s*치\s*도|평\s*면\s*도|입\s*면\s*도|단\s*면\s*도|계\s*통\s*도|도\s*면/.test(t)) return '도면'
   return null
 }
 
