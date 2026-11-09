@@ -10,8 +10,9 @@
       한 번 적은 당사자·금액이 다른 서류에도 그대로 들어갑니다. 이 기기에만 남고 서버로 가지 않습니다.
    ⚠️ 결과는 화면에서 보고 인쇄만 합니다(소장님 방침 2026-09-26 — 파일로 내려받지 않음).
    ========================================================== */
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { use그림인쇄 } from './그림인쇄훅.js'   /* 🖼 G610 인쇄는 그림(글자 층 없음) — 9/26 방침대로 «인쇄만»(파일로 내려받지 않음) */
 import { Link } from 'react-router-dom'
 import { use칸, Row, Out } from './calcs.jsx'
 import {
@@ -165,35 +166,22 @@ function 공통칸({ d, set, n, 누구 = '내용증명', 이율도 = true, 당�
 }
 
 /* ── 종이 · 인쇄 ─────────────────────────────────────────────
-   인쇄할 때만 몸 바로 밑에 종이를 따로 그리고(엑셀화면.jsx 와 같은 방법), 끝나면 치웁니다. */
-function use인쇄(제목) {
-  const [인쇄중, set인쇄중] = useState(false)
-  useEffect(() => {
-    if (!인쇄중) return undefined
-    const 옛 = document.title
-    document.title = 제목 || 옛
-    document.body.classList.add('mb-인쇄중'); document.documentElement.classList.add('mb-인쇄중')
-    const 끝 = () => { document.body.classList.remove('mb-인쇄중'); document.documentElement.classList.remove('mb-인쇄중'); document.title = 옛; set인쇄중(false) }
-    const t = setTimeout(() => {
-      window.addEventListener('afterprint', 끝, { once: true })
-      try { window.print() } catch (e) { 끝() }
-      setTimeout(() => { if (document.body.classList.contains('mb-인쇄중')) 끝() }, 60000)
-    }, 120)
-    return () => { clearTimeout(t); window.removeEventListener('afterprint', 끝) }
-  }, [인쇄중])   // eslint-disable-line react-hooks/exhaustive-deps
-  return [인쇄중, () => set인쇄중(true)]
-}
+   인쇄할 때만 몸 바로 밑에 종이를 따로 그리고(#mb-인쇄 · 부수만큼), 그 판을 그림으로 찍어 «그림만» 인쇄합니다(끝나면 치움).
+   🖼 G610 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 옛 글자 인쇄(이 파일 안의 use인쇄 · window.print · body.mb-인쇄중)를
+   tools/그림인쇄훅.js use그림인쇄 로: 판 '#mb-인쇄' · 몸표 mb-인쇄중(그 판의 인쇄 CSS 그대로) · @page mb쪽 18 · 16mm → 글자 칸 178 × 261mm · 부수마다 새 쪽.
+   ⚠️ 9/26 방침 «결과는 화면에서 보고 인쇄만» — 그래서 «📄 PDF 저장»(받기) 단추는 두지 않음 · 인쇄 창의 «PDF로 저장» 도 그림만 남음. */
 function 종이판({ 제목, 부수 = 1, children, 인쇄글 = '🖨 인쇄', 덧 = null }) {
-  const [인쇄중, 인쇄] = use인쇄(제목)
+  const 그 = use그림인쇄(제목, { 셈: '미불서류', 판: '#mb-인쇄', 몸표: ['mb-인쇄중'], 쪽: { 폭: 178, 높: 261 }, 여백: [16, 18], 종이: [210, 297], 판쪽: 'mb쪽', 칸줄: true })
   return (
     <div className="mb-out">
       <div className="kt-btns">
-        <button type="button" className="btn" style={{ width: 'auto' }} onClick={인쇄}>{인쇄글}{부수 > 1 ? ` · ${부수}부` : ''}</button>
+        <button type="button" className="btn" style={{ width: 'auto' }} disabled={!!그.찍기} onClick={() => 그.인쇄()}>{그.찍기 === '인쇄' ? '준비 중…' : `${인쇄글}${부수 > 1 ? ` · ${부수}부` : ''}`}</button>
         {덧}
       </div>
+      {그.말 && <div className="note sm no-print mb-찍말" role="status" style={{ marginTop: 8 }}>{그.말}</div>}
       <div className="mb-판"><div className="mb-종이">{children}</div></div>
-      {인쇄중 && createPortal(
-        <div id="mb-인쇄">{Array.from({ length: 부수 }, (_, i) => <div className="mb-쪽" key={i}><div className="mb-종이">{children}</div></div>)}</div>,
+      {그.판 && createPortal(
+        <div id="mb-인쇄"><div className="mb-쪽들">{Array.from({ length: 부수 }, (_, i) => <div className="mb-쪽" key={i}><div className="mb-종이">{children}</div></div>)}</div></div>,
         document.body,
       )}
     </div>
@@ -280,7 +268,9 @@ export function DemandLetter({ ex = {} }) {
   const [d, set, n] = use미불(ex)
   const 글 = useMemo(() => 내용증명글(n), [JSON.stringify(n)])   // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <div className="tool">
+    <>
+    <div className="kcm-인쇄안내">🖨 내용증명은 화면의 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+    <div className="tool 그림만인쇄">
       <공통칸 d={d} set={set} n={n} 누구="내용증명" />
       <div className="kt-h">⑥ 무엇을 요구하나</div>
       <div className="tl-grid">
@@ -310,6 +300,7 @@ export function DemandLetter({ ex = {} }) {
       <근거줄>우편법 시행규칙 제46조·제48조(원본과 등본 2통 — 필요 없으면 1통 · 우체국 3년 보관 · 전자우편 내용증명)·제49조(A4) · 민법 제174조(최고 — 6개월 안에 지급명령·소송·가압류)</근거줄>
       <상담줄 />
     </div>
+    </>
   )
 }
 
@@ -401,7 +392,9 @@ export function PaymentOrder({ ex = {} }) {
   )
 
   return (
-    <div className="tool">
+    <>
+    <div className="kcm-인쇄안내">🖨 지급명령 신청서는 화면의 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+    <div className="tool 그림만인쇄">
       <공통칸 d={d} set={set} n={n} 누구="지급명령" 당사자={당사자} />
       <div className="kt-h">⑥ 사건 · 법원 · 비용</div>
       <div className="tl-grid">
@@ -510,6 +503,7 @@ export function PaymentOrder({ ex = {} }) {
       <근거줄>민사소송법 제462조·제463조·제470조·제474조 · 민사소송 등 인지법 제2조·제7조②④·제16조(전자소송 10분의 9) · 소송촉진 등에 관한 특례법 제3조 · 같은 조 법정이율 규정(연 {송달뒤율}%) · 송달료 당사자 수 × {송달회분}회분(송달료규칙 업무처리요령 별표 1)</근거줄>
       <상담줄 />
     </div>
+    </>
   )
 }
 
@@ -524,7 +518,9 @@ export function DirectPayment({ ex = {} }) {
   const 행 = d.내역 && d.내역.length ? d.내역 : []
   const 행고침 = (i, f, v) => set.내역(행.map((x, j) => (j === i ? { ...x, [f]: v } : x)))
   return (
-    <div className="tool">
+    <>
+    <div className="kcm-인쇄안내">🖨 직접지급 요청서는 화면의 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+    <div className="tool 그림만인쇄">
       <공통칸 d={d} set={set} n={n} 누구="직접지급" 이율도={false} />
       {!모드 ? (
         <판정칸 종류="mid" 머리="안내">
@@ -608,6 +604,7 @@ export function DirectPayment({ ex = {} }) {
       )}
       <상담줄 />
     </div>
+    </>
   )
 }
 
