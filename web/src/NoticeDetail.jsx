@@ -575,7 +575,9 @@ function DocTab({ r }) {
       <div className="kv">
         <div><span>공고번호</span><b>{r.no || '-'}</b></div>
         <div><span>차수</span><b>{r.ord || '-'}</b></div>
-        <div><span>개찰일시</span><b>{dateTime(r.dt)}</b></div>
+        <div><span>개찰일시</span><b>{dateTime(r.odt || r.dt)}</b></div>
+        {/* 🩹 G619 수의시담처럼 결과가 개찰일시보다 먼저 올라온 공고 — 나라장터 개찰일시(odt)와 결과 받은 때(dt)를 따로 */}
+        {r.odt ? <div><span>결과 받은 때</span><b>{dateTime(r.dt)} (개찰일시보다 먼저)</b></div> : null}
         <div><span>발주기관</span><b>{r.inst}</b></div>
       </div>
 

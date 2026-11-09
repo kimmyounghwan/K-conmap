@@ -1551,7 +1551,8 @@ def row_first(item):
     if not corps:
         return None
     win, amt, rate = corps[0][0], corps[0][1], corps[0][2]
-    return {
+    dt, odt = 결과시각(str(item.get("opengDt", "")).strip())
+    rec = {
         "no": no,
         # 공고차수 — 나라장터 원문 주소를 정확히 만들려면 필요합니다
         "ord": str(item.get("bidNtceOrd", "") or "").strip(),
@@ -1559,7 +1560,7 @@ def row_first(item):
         "np": to_int(pick(item, "prtcptCnum") or 0),
         "name": str(item.get("bidNtceNm", "")).strip(),
         "inst": str(item.get("ntceInsttNm", "")).strip(),
-        "dt": str(item.get("opengDt", "")).strip(),
+        "dt": dt,
         "win": win, "amt": amt, "rate": rate,
         # 업체를 이름이 아니라 «사업자번호» 로 가리기 위한 값
         "bno": corps[0][3] if len(corps[0]) > 3 else "",
@@ -1569,6 +1570,36 @@ def row_first(item):
         "sRate": to_rate(pick(item, "sucsfbidRate")),
         "corps": corps,
     }
+    if odt:
+        rec["odt"] = odt
+    return rec
+
+
+def 결과시각(openg, now=None):
+    """🩹 G619 (2026-11-09 14:5x 소장님 「이상하지 않아. 시간이..」) — 개찰 결과의 시각 (dt, odt).
+    수의시담(«정보공개 차원에서 공고 · 계약대상자가 아닌 업체는 참가할 수 없음») 처럼 결과가 나라장터 개찰일시보다
+    먼저 올라오는 공고가 있습니다(11-09 한 공사 — 전자시담 11:00~15:20 · 개찰 16:20 인데 13:24 에 결과).
+    그대로 두면 1순위 목록 맨 위에 앞날 시각(16:20)이 «결과» 로 보입니다(단독 1곳 7건).
+    → 개찰일시가 지금보다 뒤면 dt = 지금(결과를 받은 때) · odt = 나라장터 개찰일시. 아니면 (개찰일시, "")."""
+    d = dt_digits(openg)
+    now = now or datetime.now(KST)
+    if len(d) >= 12 and d[:12] > now.strftime("%Y%m%d%H%M"):
+        return now.strftime("%Y-%m-%d %H:%M:%S"), openg
+    return openg, ""
+
+
+def 결과시각이어(r, prev):
+    """🩹 G619 결과가 개찰일시보다 먼저 온 공고 — 회차마다 시각이 바뀌거나 개찰일시가 지난 뒤 자리가 튀지 않게
+    처음 받은 때(dt) · 개찰일시(odt)를 이어 둡니다. 고친 코드가 처음 본 줄은 순위를 물어본 때(rask)가 더 이르면 그 때로."""
+    if prev.get("odt"):
+        # 개찰일시가 미뤄졌으면(아직 앞날) 새 개찰일시 · 지났으면(row_first 가 odt 를 안 줌) 전 개찰일시
+        r["dt"], r["odt"] = prev.get("dt") or r.get("dt"), r.get("odt") or prev["odt"]
+    elif r.get("odt"):
+        rk = re.sub(r"[^0-9]", "", str(prev.get("rask") or ""))
+        if len(rk) >= 12 and rk[:12] < dt_digits(r.get("dt")):
+            rk = rk.ljust(14, "0")
+            r["dt"] = f"{rk[:4]}-{rk[4:6]}-{rk[6:8]} {rk[8:10]}:{rk[10:12]}:{rk[12:14]}"
+    return r
 
 
 def row_live(item):
@@ -3827,6 +3858,7 @@ def main():
                     for f in ("dc", "swin"):
                         if prev.get(f) is not None and r.get(f) is None:
                             r[f] = prev[f]
+                    결과시각이어(r, prev)   # 🩹 G619 결과가 개찰일시보다 먼저 온 공고 — 처음 받은 때 · 개찰일시 이어 둠
                     # ⚠️ 2026-09-03 — 순위 조회로 채운 것을 개찰목록 수집이 덮어쓰면 안 됩니다.
                     #    개찰목록 API 의 corps 는 «1순위 한 곳»뿐이라, 그대로 두면 힘들게 받은
                     #    30곳 순위(corps)·사다리(rq)·전체건수(nrank)가 통째로 날아갑니다.

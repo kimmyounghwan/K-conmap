@@ -184,6 +184,7 @@ export default function SvcBoard({ kind = 'svc', which = 'live' }) {
                   <span className="inst">{r.inst}</span>
                   <span>·</span>
                   <span>{isFirst ? dateTime(r.dt) : `공고 ${dateTime(r.dt)}`}</span>{/* 🩹 G198 소장님 「공고 부분에 공고시간이 없어. 1순위에는 있는데」 — 날짜만 → 날짜 · 시각(공사 공고 카드와 같게) */}
+                  {isFirst && r.odt ? <span className="badge n" title="수의시담처럼 결과가 나라장터 개찰일시보다 먼저 올라온 공고입니다">결과 먼저 · 개찰 {dateTime(r.odt)}</span> : null}{/* 🩹 G619 */}
                   {isFirst && 율(r) != null && <span className="badge b">{pct(율(r), 3)}</span>}
                   {isFirst && 단가같음(r) && <span className="badge n" title="한 벌 · 한 개 값(단가)으로 넣은 입찰로 보여 투찰률을 보지 않습니다">단가 입찰</span>}
                   {r.base > 0 && <span className="badge n">기초 {wonShort(r.base)}</span>}
@@ -225,7 +226,8 @@ export default function SvcBoard({ kind = 'svc', which = 'live' }) {
                         {r.rate != null && <div><span>투찰률</span><b>{율(r) != null ? pct(율(r), 3) : '— (단가 입찰로 보임)'}</b></div>}
                         {r.base > 0 && r.amt > 0 && !단가같음(r) && <div><span>기초금액 대비</span><b>{pct((r.amt / r.base) * 100, 3)}</b></div>}
                         {r.np > 0 && <div><span>참가업체</span><b>{num(r.np)}곳</b></div>}
-                        <div><span>개찰</span><b>{dateTime(r.dt)}</b></div>
+                        <div><span>개찰</span><b>{dateTime(r.odt || r.dt)}</b></div>
+                        {r.odt ? <div><span>결과 받은 때</span><b>{dateTime(r.dt)} (개찰일시보다 먼저)</b></div> : null}
                       </div>
                     ) : (
                       <>

@@ -230,6 +230,9 @@ export default function FirstBoard() {
                   <span className="inst">{r.inst}</span>
                   <span>·</span>
                   <span>{dateTime(r.dt)}</span>
+                  {/* 🩹 G619 소장님 「이상하지 않아. 시간이..」(11-09 14:5x) — 수의시담처럼 결과가 나라장터 개찰일시보다 먼저 올라온 공고:
+                      시각은 결과를 받은 때(dt) · 나라장터 개찰일시는 odt(collect.py 결과시각) */}
+                  {r.odt ? <span className="badge n" title="수의시담처럼 결과가 나라장터 개찰일시보다 먼저 올라온 공고입니다">결과 먼저 · 개찰 {dateTime(r.odt)}</span> : null}
                   {r.rate != null && <span className="badge b">{pct(r.rate, 3)}</span>}
                   {r.base > 0 && <span className="badge n">기초 {wonShort(r.base)}</span>}
                   {/* 몇 곳이 붙었는지 목록에서 바로 보이게 합니다 —

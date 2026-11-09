@@ -288,6 +288,7 @@ def enrich_first(rows, live_store, first_store):
     n = 0
     for r in rows:
         prev = fs.get(r["no"]) or {}
+        C.결과시각이어(r, prev)   # 🩹 G619 결과가 개찰일시보다 먼저 온 공고(수의시담 등) — 저장소에 처음 받은 때가 있으면 그 시각 · 개찰일시
         for f in ("base", "lo", "hi", "lic", "aval", "aparts", "ayn", "gmtrl", "llr", "est", "ptot", "pdrw", "pc"):
             if _empty(r.get(f)) and not _empty(prev.get(f)):
                 r[f] = prev[f]
