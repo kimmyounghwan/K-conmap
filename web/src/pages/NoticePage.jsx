@@ -77,9 +77,10 @@ export default function NoticePage() {
     // ⚠️ 구운 페이지면 «못 받았을 뿐» 일 수 있습니다 (AgencyPage 와 같은 이유).
     if (!r && wasBaked(`/notice/${key}`)) return
     const nm = r?.name || key
+    // 🔎 G621 사람들이 치는 말 «개찰결과» · «입찰공고» — 미리 구운 제목(prerender.notice_page)과 같은 꼴(tools/시험_공고제목.py)
     const t = r?.win
-      ? `${nm} 낙찰 결과 — ${r.win}${typeof r.rate === 'number' ? ` ${pct(r.rate, 3)}` : ''} | K-건설맵`
-      : `${nm} 입찰 공고${r?.base ? ` — 기초금액 ${wonShort(r.base)}` : ''} | K-건설맵`
+      ? `${nm} 개찰결과 — 낙찰 ${r.win}${typeof r.rate === 'number' ? ` ${pct(r.rate, 3)}` : ''} | K-건설맵`
+      : `${nm} 입찰공고${r?.base ? ` — 기초금액 ${wonShort(r.base)}` : ''} | K-건설맵`
     document.title = r ? t : `${key} | K-건설맵`
     setMeta('robots', r ? null : 'noindex')
     return () => setMeta('robots', null)

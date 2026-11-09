@@ -840,19 +840,21 @@ def notice_page(shell, r, image=None, L=None, docs=None):
     base = r.get("base")
     dt = date_full(r.get("dt")) or date_full(r.get("close"))
 
+    # 🔎 G621 (2026-11-09) 소장님 「우선 검색이 되게 해줘」 — 사람들이 치는 말 그대로 «○○공사 개찰결과» · «○○공사 입찰공고»
+    #    (나라장터 메뉴 이름과 같음). 전엔 «낙찰 결과» · «입찰 공고». 화면(NoticePage.jsx)도 같은 꼴 — tools/시험_공고제목.py 가 둘을 함께 봄.
     if won:   # 개찰 끝난 건
-        title = f"{nm} 낙찰 결과" + (f" — {won}" if won else "")
+        title = f"{nm} 개찰결과 — 낙찰 {won}"
         if isinstance(rate, (int, float)):
             title += f" {rate:.3f}%"
-        desc = (f"{inst} {nm} 개찰 결과." + (f" 낙찰 {won}" if won else "")
+        desc = (f"{inst} {nm} 개찰결과 · 1순위." + (f" 낙찰 {won}" if won else "")
                 + (f", 투찰률 {rate:.3f}%" if isinstance(rate, (int, float)) else "")
                 + (f", 낙찰금액 {won_short(r.get('amt'))}" if r.get("amt") else "")
-                + " 기초금액·예정가격·참가업체수를 무료로 봅니다.")
+                + " 기초금액 · 예정가격 · 참가업체 순위를 봅니다.")
     else:     # 아직 마감 전
-        title = f"{nm} 입찰 공고"
+        title = f"{nm} 입찰공고"
         if base:
             title += f" — 기초금액 {won_short(base)}"
-        desc = (f"{inst} {nm} 나라장터 입찰 공고."
+        desc = (f"{inst} {nm} 나라장터 입찰공고."
                 + (f" 기초금액 {won_short(base)}" if base else "")
                 + (f", 마감 {date_full(r.get('close'))}" if r.get("close") else "")
                 + ". 권장 투찰금액을 바로 계산해 드립니다.")
