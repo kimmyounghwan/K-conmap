@@ -19,8 +19,8 @@ const MM = 96 / 25.4
 export const 글칸mm = [186, 271]          // A4 210 × 297 − 여백(왼 · 오른 12 · 위 12 · 아래 14) — styles.css @page 와 같음
 export const 여백mm = [12, 12]            // [왼, 위]
 
-/** 큰 그림 → 쪽 그림들(글자 칸 크기) — 잰 것(경계 · 피함 · 표들 · 꼭)에서 자를 곳을 골라 */
-function 쪽나누기(큰, { H, 경계, 피함, 표들, 꼭 = [] }, { 쪽H, k, zz, 쪽px }) {
+/** 자를 곳만 셈 — 쪽마다 {s, cut, 머리}(쪽나누기 · 한 장 맞춤이 같이 씀 · G609 에서 떼어 냄) */
+function 쪽자르기({ H, 경계, 피함, 표들, 꼭 = [] }, 쪽H) {
   const 자를수 = (y) => !피함.some(([a, b]) => b - a <= 쪽H && a + 0.5 < y && y < b - 0.5)
   const 쪽들 = []
   let s = 0
@@ -38,6 +38,13 @@ function 쪽나누기(큰, { H, 경계, 피함, 표들, 꼭 = [] }, { 쪽H, k, z
     쪽들.push({ s, cut, 머리 })
     s = cut
   }
+  return 쪽들
+}
+
+/** 큰 그림 → 쪽 그림들(글자 칸 크기) — 잰 것(경계 · 피함 · 표들 · 꼭)에서 자를 곳을 골라 */
+function 쪽나누기(큰, 잰, { 쪽H, k, zz, 쪽px }) {
+  const { H } = 잰
+  const 쪽들 = 쪽자르기(잰, 쪽H)
   const 그림쪽 = 쪽들.map(({ s: a, cut, 머리 }) => {
     const cv = document.createElement('canvas')
     cv.width = 쪽px[0]; cv.height = 쪽px[1]
@@ -258,6 +265,27 @@ export async function 인쇄판찍기(el, { 몸표 = [], 쪽 = { 폭: 186, 높: 
           if (Math.ceil((잰.H * zz - 0.5) / 높px) > n - 1) {   // 넓혀도 안 들어가면(드묾) 높이에 맞춰 더 줄임
             zz = Math.max(0.5, Math.floor((((n - 1) * 높px * 0.99) / 잰.H) * 1000) / 1000)
           }
+        }
+      }
+      /* 🩹 G609 자를 곳 때문에 넘친 꼬리 — 높이로는 n 쪽에 꼭 들어가는데(위 맞춤은 안 걸림) 줄 사이 · 덩이 경계에서만 자르다 보니 마지막 몇 줄이 한 쪽 더 넘어감
+         (낙찰 뒤 할 일: 높이 2048 · 쪽 1024 → 3쪽째에 한 줄만) → 정말 자른 쪽 수로 다시 보고, 꼬리가 1/4 쪽 안 되면 같은 꼴(넓게 펴서 찍고 줄임)로 한 쪽 덜 —
+         0.83 까지 조금씩 · 그래도 안 되면 그대로(위 맞춤과 겹치지 않게 zz 가 1 일 때만 · 쪽 나눔이 있는 판은 안 함) */
+      if (맞춤 && zz === 1 && !꼭있음) {
+        const 자른 = 쪽자르기(잰, 높px)
+        const m = 자른.length
+        const 꼬리 = 잰.H - 자른[m - 1].s
+        if (m > 1 && m > n && 꼬리 < 높px * 0.25) {
+          const [원폭, 원최대] = [판.style.width, 판.style.maxWidth]
+          let z = Math.floor((((m - 1) * 높px * 0.975) / 잰.H) * 1000) / 1000
+          let 됨 = false
+          for (let 번 = 0; 번 < 8 && z >= 0.83; 번++) {
+            판.style.width = (폭px / z).toFixed(2) + 'px'
+            판.style.maxWidth = 'none'
+            const 잰2 = 판재기(판)
+            if (쪽자르기(잰2, 높px / z).length <= m - 1) { zz = z; 잰 = 잰2; 됨 = true; break }
+            z = Math.floor((z - 0.02) * 1000) / 1000
+          }
+          if (!됨) { 판.style.width = 원폭; 판.style.maxWidth = 원최대; 잰 = 판재기(판) }
         }
       }
       if (잰.W * 잰.H * 배율 * 배율 > 한도) 설정.scale = Math.max(1, Math.sqrt(한도 / (잰.W * 잰.H)))   // 아이폰 캔버스 한도

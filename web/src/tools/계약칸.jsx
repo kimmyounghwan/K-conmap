@@ -19,6 +19,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { use칸, Row, Out } from './calcs.jsx'
+import { use그림인쇄 } from './그림인쇄훅.js'   /* 🖼 G609 낙찰 뒤 할 일 PDF · 인쇄는 그림(글자 층 없음) */
 import {
   발주갈래, 하도급선, 하도급판정, 직접시공판정, 직접시공표,
   낙찰뒤할일, ics만들기, 날읽기, 날차, 요일글, 해더하기, 날더하기,
@@ -202,11 +203,16 @@ export function AfterAward({ ex = {} }) {
   const 날없는 = 일.filter((x) => !x.날)
   const 달력용 = [...날있는, ...(담기 ? 담은일 : [])]
   const 받자 = () => 받기('K-건설맵_낙찰뒤할일.ics', ics만들기(달력용, { 이름: 'K-건설맵 낙찰 뒤 할 일' }), 'text/calendar;charset=utf-8')
+  /* 🖼 G609 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 옛 «🖨 인쇄»(window.print · 화면 그대로 글자 PDF) → 이 계산기 덩이(.kt-aa)를 복제본에서
+     인쇄 CSS(@media print — .kt-btns 숨음 · 지난 일 흐리게 안 함)로 펴서 그림으로 · A4 세로 기본 쪽(186 × 271) · 몸표 없음(옛 인쇄도 @media print 만) */
+  const 그 = use그림인쇄(['낙찰뒤할일', 낙찰일 || 착공일 || ''].filter(Boolean).join('_'), { 셈: '낙찰뒤할일', 대상: '.kt-aa', 몸표: [], 쪽: { 폭: 186, 높: 271 }, 여백: [12, 12], 칸줄: true })
   const 체크 = (v, set, 글, 곁 = null) => (
     <label className="kt-chk"><input type="checkbox" checked={!!v} onChange={(e) => set(e.target.checked)} /> <span>{글}{곁}</span></label>
   )
   return (
-    <div className="tool">
+    <>
+    <div className="kcm-인쇄안내">🖨 낙찰 뒤 할 일은 화면의 <b>«📄 PDF»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+    <div className="tool kt-aa 그림만인쇄">
       <div className="tl-grid">
         <Row label="낙찰 통지 받은 날"><input type="date" value={낙찰일} onChange={(e) => set낙찰일(e.target.value)} /></Row>
         <Row label="계약한 날" hint="아직이면 비움"><input type="date" value={계약일} onChange={(e) => set계약일(e.target.value)} /></Row>
@@ -260,8 +266,10 @@ export function AfterAward({ ex = {} }) {
 
       <div className="kt-btns">
         <button type="button" className="btn" style={{ width: 'auto' }} disabled={!달력용.length} onClick={받자}>📅 달력 파일(.ics) 받기 · {달력용.length}가지</button>
-        <button type="button" className="btn line" style={{ width: 'auto' }} onClick={() => window.print()}>🖨 인쇄</button>
+        <button type="button" className="btn line" style={{ width: 'auto' }} disabled={!!그.찍기} onClick={() => 그.PDF()}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 PDF'}</button>
+        <button type="button" className="btn line" style={{ width: 'auto' }} disabled={!!그.찍기} onClick={() => 그.인쇄()}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
       </div>
+      {그.말 && <div className="note sm no-print kt-찍말" role="status" style={{ marginTop: 8 }}>{그.말}</div>}
       <div className="hint kt-hint">
         달력 파일은 이 브라우저에서 만들어 바로 받습니다(어디로도 보내지 않음). 휴대폰·구글·아웃룩 달력에서 열면 일정이 들어가고 <b>하루 전 아침 9시</b>에 알려 줍니다.
         {' '}기한은 법령에 적힌 날 수로 셌습니다(첫날은 빼고 셈) — <b>공고문·계약서에 따로 정한 기한이 있으면 그것이 먼저입니다.</b>
@@ -269,6 +277,7 @@ export function AfterAward({ ex = {} }) {
         {' '}계약할 때 낼 <b>계약보증금 · 공사이행보증서 · 인지세</b>와 보증서 날짜는 <Link to="/tools/contract-ready" className="kr-link">계약 준비물 계산기 →</Link>{' '}· 퇴직공제 가입 대상 · 성립 신고는 <Link to="/tools/toejik-check" className="kr-link">퇴직공제 가입 대상 판단기 →</Link>
       </div>
     </div>
+    </>
   )
 }
 
