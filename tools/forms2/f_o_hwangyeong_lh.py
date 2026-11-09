@@ -337,7 +337,7 @@ def check(bk, ex):
            (3, I("점검일", ex=D(2026, 5, 8) if ex else None, fmt="date", blank="20    년    월    일", align="center")), (2, "작 성 자", L),
            (2, I("점검자", ex="박환경" if ex else None, align="center"))], h=26)
     p.row([(1, "구분", dict(H, rs=2)), (2, "항  목", dict(H, rs=2)), (5, "점  검  사  항", dict(H, rs=2)), (4, "실  시  사  항", H)], h=22)
-    p.row([(1, "결과", H), (2, "부적합 장소 / 사항", H), (1, "대  책", H)], h=22, start=9)
+    p.row([(1, "결과", H), (2, "부적합 장소 / 사항", H), (1, "대  책", H)], h=28, start=9)   # 🩹 G623 두 줄(전 22)
     k = 0
     first = p.r
     for g, it, qs in CHK:

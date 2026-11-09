@@ -279,9 +279,10 @@ def export(slug, out_dir=None, blank_xlsx=False):
         pr = p.last_print or ws.max_row
         maxc = max(ws.max_column, p.ncol)
         widths = [p.widths[i] if i < len(p.widths) else (ws.column_dimensions[_col(i + 1)].width or 8.43) for i in range(maxc)]
-        wpt = [colw_pt(w) for w in widths]
+        # 🩹 G623 엑셀에서 숨긴 줄 · 칸(공정표 반달 날짜 · 도움 줄)은 화면 종이에서도 숨김(높이 · 폭 0) — 전에는 다 보여 날짜가 잘려 보였음
+        wpt = [0.0 if ws.column_dimensions[_col(i + 1)].hidden else colw_pt(w) for i, w in enumerate(widths)]
         maxr = ws.max_row
-        hpt = [float(ws.row_dimensions[r].height or 15) for r in range(1, maxr + 1)]
+        hpt = [0.0 if ws.row_dimensions[r].hidden else float(ws.row_dimensions[r].height or 15) for r in range(1, maxr + 1)]
         merges, cover = _merges(ws)
         dvs = _dvs(ws)
         inp = getattr(p, "_inp", {})

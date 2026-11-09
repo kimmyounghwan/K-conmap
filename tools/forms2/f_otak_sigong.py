@@ -9,7 +9,7 @@
 ■ 원본의 해상작업 중지 기준 «파고 1.0m/sec» 는 단위가 틀려 «파고 1.0m · 유속 1.0m/s» 로 고치고 노란 칸(현장 기준으로 고쳐 씀)으로 두었습니다."""
 import datetime
 
-from fb import F, I
+from fb import F, I, text_lines
 from openpyxl.formatting.rule import Rule
 from openpyxl.styles import PatternFill
 from openpyxl.styles.differential import DifferentialStyle
@@ -233,7 +233,7 @@ def sigong(bk, ex):
     d.para(p, "3) 막체의 재질 및 성능 — 직포 토목섬유 성능 기준", indent=1)
     heads = [("종류", 1), ("형별", 1), ("중량\n(g/㎡)", 1), ("인장강도\n(kg/in)", 1), ("인장신도\n(%)", 1), ("봉합강도\n(kg/in)", 1),
              ("투수계수\n(cm/sec)", 1), ("비중", 1), ("인열강도\n(kg)", 1), ("재질", 1), ("수축률\n(%)", 1)]
-    d.table(p, heads, [PERF], h=40, head_h=34, size=8.5)
+    d.table(p, heads, [PERF], h=40, head_h=34, size=8.5, head_size=8.5)   # 🩹 G623 «투수계수» 가 세 줄로 접혀 잘리던 것
     p.row([(PC, "※ 시험성적서를 감독(감리)에 내고 승인을 받은 뒤 씁니다.", {"kind": "note"})], h=16)
     d.keep(p, 330)
     d.para(p, "4) 부속재료", indent=1)
@@ -299,10 +299,13 @@ def munje(bk, ex):
     p.row([(2, "구  분", H), (4, "문 제 점", H), (4, "대 책 검 토 안", H), (2, "비  고", H)], h=24)
     for i in range(1, 7):
         x = PROB[i - 1] if i <= len(PROB) else (None, None, None)
-        lines = max(2, max((len(t or "") // 34 + 1) for t in x[1:]) if ex and x[1] else 2)
+        note = "여건이 바뀌면 설치 위치·수심을 다시 검토해 계획서를 고침" if x[0] else None
+        # 🩹 G623 높이는 예시 글로 셈 · 빈 종이와 예시가 같은 높이(사이트 종이는 빈 종이 높이에 예시를 보임 — 네 줄 예시가 위아래 잘렸음)
+        lines = max([2] + [text_lines(t, sum(p.widths[c0:c0 + 4]) * 10.0 / 9) for t, c0 in ((x[1], 2), (x[2], 6)) if t]
+                    + ([text_lines(note, sum(p.widths[10:12]) * 10.0 / 8.5) * 8.5 / 9] if note else []))
         p.row([(2, I(f"구분#{i}", ex=x[0], align="center")), (4, I(f"문제#{i}", ex=x[1], size=9)), (4, I(f"대책#{i}", ex=x[2], size=9)),
-               (2, I(f"문제비고#{i}", ex=("여건이 바뀌면 설치 위치·수심을 다시 검토해 계획서를 고침" if ex and x[0] else None), size=8.5))],
-              h=max(40, lines * 14 + 8))
+               (2, I(f"문제비고#{i}", ex=(note if ex else None), size=8.5))],
+              h=max(40, lines * 9 * 1.45 + 8))
     d.done(p)
     return p
 

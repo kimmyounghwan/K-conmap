@@ -61,10 +61,10 @@ def h1(p, t):
     p.row([(p.pc, t, {"kind": "h2", "size": 13.5})], h=28)
 
 
-def h2(p, t):
-    keep(p, 24 + 50)
+def h2(p, t, h=21):
+    keep(p, h + 3 + 50)
     p.gap(3)
-    p.row([(p.pc, t, {"kind": "h2", "size": 11})], h=21)
+    p.row([(p.pc, t, {"kind": "h2", "size": 11})], h=h)   # 🩹 G623 h — 두 줄 제목은 34
 
 
 def para(p, t, indent=2, size=10):
@@ -84,7 +84,7 @@ def items(p, lst, marks=None, size=10, lead=1):
                (p.pc - lead, t, {"kind": "free", "size": size, "valign": "top"})], h=n * size * 1.55 + 5)
 
 
-def table(p, heads, rows, h=22, head_h=24, size=9.5):
+def table(p, heads, rows, h=22, head_h=24, size=9.5, head_size=None):
     """heads: [(이름, 칸수)] · rows: [[내용…]] (내용은 글 · I · F · (내용, {선택}))"""
     plan = []
     for r in rows:
@@ -105,7 +105,7 @@ def table(p, heads, rows, h=22, head_h=24, size=9.5):
         plan.append((cells, max(h, longest * size * 1.5 + 6)))
     tot = head_h + sum(x[1] for x in plan)
     keep(p, tot if tot < 500 else head_h + sum(x[1] for x in plan[:2]))
-    p.row([(sp, t, {"kind": "head"}) for t, sp in heads], h=head_h)
+    p.row([(sp, t, {"kind": "head", **({"size": head_size} if head_size else {})}) for t, sp in heads], h=head_h)   # 🩹 G623 head_size — 좁은 칸 머리 글이 접혀 잘리던 것
     for cells, hh in plan:
         p.row(cells, h=hh)
 

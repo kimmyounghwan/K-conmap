@@ -161,9 +161,9 @@ def detail(bk, ex, kind):
             amt = F(f"금액#{i}", '=IF(N({노임명세서!노무비계})=0,"",{노임명세서!노무비계})', fmt=WON, size=9)
         else:
             amt = F(f"금액#{i}", f'=IF(OR(N({{수량#{i}}})=0,N({{단가#{i}}})=0),"",ROUND({{수량#{i}}}*{{단가#{i}}},0))', fmt=WON, size=9)
-        p.row([(3, I(f"항목#{i}", ex=e[0], size=7.5)), (1, I(f"일자#{i}", ex=e[1], fmt='m"/"d', align="center", size=9)),
+        p.row([(3, I(f"항목#{i}", ex=e[0], size=7)),   # 🩹 G623 긴 항목 이름(세 줄)이 잘리던 것 — 7.5 → 7 · 줄 높이 24 → 27 (1, I(f"일자#{i}", ex=e[1], fmt='m"/"d', align="center", size=9)),
                (2, I(f"품목#{i}", ex=e[2], size=9)), (2, I(f"규격#{i}", ex=e[3] or None, size=8.5)), (1, I(f"수량#{i}", ex=e[4], fmt="#,##0.##", align="center", size=9)),
-               (1, I(f"단위#{i}", ex=e[5], align="center", size=9)), (1, I(f"단가#{i}", ex=up, fmt=WON, size=9)), (1, amt)], h=24)
+               (1, I(f"단위#{i}", ex=e[5], align="center", size=9)), (1, I(f"단가#{i}", ex=up, fmt=WON, size=9)), (1, amt)], h=27)
     p.k["항목[]"] = f"{p.k['항목#1']}:{p.k[f'항목#{NDET}']}"
     p.k["금액[]"] = f"{p.k['금액#1']}:{p.k[f'금액#{NDET}']}"
     p.row([(11, "계", S), (1, F("세부계", '=SUM({금액[]})', fmt=WON, bold=True, size=9))], h=26)
@@ -212,11 +212,11 @@ def payroll(bk, ex):
     p.gap(4)
     heads1 = [(1, "NO.", dict(H, rs=2)), (1, "성 명", dict(H, rs=2)), (1, "직 종", dict(H, rs=2))]
     heads1 += [(1, str(dd), dict(H, size=8)) for dd in range(1, 17)]
-    heads1 += [(1, "공수", dict(H, rs=2, size=9)), (1, "노 무 비", H), (1, "소득세", H), (1, "국민연금", H), (1, "고용보험", H), (1, "", H), (1, "공제 총액", dict(H, rs=2, size=9)),
+    heads1 += [(1, "공수", dict(H, rs=2, size=9)), (1, "노 무 비", H), (1, "소득세", H), (1, "국민연금", dict(H, size=8)), (1, "고용보험", dict(H, size=8)), (1, "", H), (1, "공제 총액", dict(H, rs=2, size=9)),
                (1, "지 급 액", dict(H, rs=2)), (1, "주민등록번호\n(비고)", dict(H, rs=2, size=8))]
     p.row(heads1, h=18)
     heads2 = [(1, str(dd), dict(H, size=8)) for dd in range(17, 32)] + [(1, "", H)]
-    heads2 += [(1, "단  가", H), (1, "지방소득세", dict(H, size=8.5)), (1, "건강보험", H), (1, "장기요양", H), (1, "", H)]
+    heads2 += [(1, "단  가", H), (1, "지방소득세", dict(H, size=7)), (1, "건강보험", dict(H, size=8)), (1, "장기요양", dict(H, size=8)), (1, "", H)]
     p.row(heads2, h=18, start=L_D0)
     first = p.r
     NW = 12
@@ -264,8 +264,8 @@ def payroll(bk, ex):
     p.gap(4)
     p.row([(4, "공제 기준(2026년)", L), (3, "소득세 비과세 일급", {"kind": "text", "size": 8.5}), (2, I("비과세", blank=150_000, rate=True, fmt=WON, size=8.5)),
            (3, "소득세율(6%×45%)", {"kind": "text", "size": 8.5}), (2, I("소득세율", blank=0.027, rate=True, fmt="0.0%", size=8.5)),
-           (2, "국민연금", {"kind": "text", "size": 8.5}), (2, I("연금율", blank=0.0475, rate=True, fmt="0.00%", size=8.5)),
-           (2, "건강보험", {"kind": "text", "size": 8.5}), (2, I("건강율", blank=0.03595, rate=True, fmt="0.000%", size=8.5)),
+           (2, "국민연금", {"kind": "text", "size": 7}), (2, I("연금율", blank=0.0475, rate=True, fmt="0.00%", size=8.5)),
+           (2, "건강보험", {"kind": "text", "size": 7}), (2, I("건강율", blank=0.03595, rate=True, fmt="0.000%", size=8.5)),
            (1, "요양/건강", {"kind": "text", "size": 7.5}), (1, I("요양비", blank=0.1314, rate=True, fmt="0.00%", size=8)),
            (1, "고용", {"kind": "text", "size": 8}), (1, I("고용율", blank=0.009, rate=True, fmt="0.0%", size=8)),
            (1, "8일↑", {"kind": "text", "size": 7.5}), (1, I("보험일수", blank=8, rate=True, fmt='0"일"', size=8))], h=22)

@@ -3,7 +3,8 @@
  *   node tools/시험_글자잘림.mjs [주소=http://127.0.0.1:4578] [slug ...]   (slug 를 안 주면 dalryeok-2027)
  *   11-09 사이트 점검: «2027 달력» 근무일 · 연휴기한 쪽 머리 밑 설명이 두 줄로 접혀 윗줄이 반쯤 잘렸음 — 다시 안 나게
  *   빈 종이 · «✍ 예시 채우기» 뒤 두 번 봄 · 쪽마다 끝까지 내려 그린 뒤 셈
- *   잘림 = 글자 높이의 20 % 넘게 위 · 아래가 칸 밖 / 옆으로 글자 높이의 30 % 넘게 칸 밖(옆 빈 칸으로 넘친 뒤에도)
+ *   잘림 = 글자 높이의 10 % 넘게 위 · 아래가 칸 밖 / 옆으로 글자 높이의 30 % 넘게 칸 밖(옆 빈 칸으로 넘친 뒤에도) · KCM_CLIP=0.2 처럼 바꿔 볼 수 있음
+ *   G623: 서식 205개 훑어 18개 고침(빈 줄 · 두 줄 설명 · 좁은 머리 글 · 엑셀에서 숨긴 줄이 화면에 보이던 것)
  * 인터넷 안 부름(파이어베이스 · 광고 · 애널리틱스 막음).
  */
 import { createRequire } from 'node:module'
@@ -21,6 +22,7 @@ function 덫() {
   const P = CanvasRenderingContext2D.prototype
   const oBegin = P.beginPath, oRect = P.rect, oClip = P.clip, oSave = P.save, oRestore = P.restore, oFill = P.fillText
   window.__잘림 = new Map()
+  const 기준 = window.__잘림기준 || 0.1
   P.beginPath = function () { this.__r = null; return oBegin.call(this) }
   P.rect = function (x, y, w, h) { this.__r = [x, y, x + w, y + h]; return oRect.call(this, x, y, w, h) }
   P.clip = function (...a) { this.__c = this.__r; return oClip.apply(this, a) }
@@ -36,7 +38,7 @@ function 덫() {
       const h = Math.max(1, B - T)
       const 위 = Math.max(0, c[1] - T), 아래 = Math.max(0, B - c[3])
       const 옆 = Math.max(0, c[0] - L) + Math.max(0, R - c[2])
-      if ((위 + 아래) / h > 0.2 || 옆 > h * 0.3) {
+      if ((위 + 아래) / h > 기준 || 옆 > h * 0.3) {
         const cv = this.canvas
         const k = (cv && cv.dataset && cv.dataset.k) || '?'
         const key = k + '|' + 글
@@ -52,12 +54,16 @@ async function 새쪽() {
   const ctx = await b.newContext({ viewport: { width: 1280, height: 900 }, locale: 'ko-KR', timezoneId: 'Asia/Seoul' })
   await ctx.route(/googletagmanager|google-analytics|pagead2|adsbygoogle|googlesyndication|geojs|firebaseio|firebasedatabase/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: 'null' }))
   await ctx.addInitScript(() => { try { localStorage.setItem('kcm_notice_seen', '2026-10-필독'); sessionStorage.setItem('kcm_notice_seen', '2026-10-업체'); sessionStorage.setItem('kcm_visit_s', '1') } catch (e) { /* 없음 */ } })
+  if (process.env.KCM_CLIP) await ctx.addInitScript((v) => { window.__잘림기준 = v }, Number(process.env.KCM_CLIP))   /* 기준 바꿔 볼 때(기본 0.1) */
   await ctx.addInitScript(덫)
   const p = await ctx.newPage()
   const 오류 = []
   p.on('pageerror', (e) => 오류.push(String(e).slice(0, 200)))
   return { ctx, p, 오류 }
 }
+
+/* 잘린 글 한 줄씩(시트 · 쪽 · 글 · 얼마나) — 40줄까지 */
+const 줄들 = (L) => { for (const x of L.slice(0, 40)) console.log(`      · [${x.시트} ${x.쪽}쪽] «${x.글}» 위 ${x.위} · 아래 ${x.아래} · 옆 ${x.옆}`); if (L.length > 40) console.log(`      · … ${L.length - 40}줄 더`) }
 
 /* 쪽마다 끝까지 내려 다 그리게 한 뒤 잘림 모음 */
 async function 다그려모음(p) {
@@ -84,13 +90,13 @@ for (const slug of SLUGS) {
   await s.p.waitForTimeout(500)
   const 빈 = await 다그려모음(s.p)
   ok(`${slug} 빈 종이 — 쪽 ${빈.장}장 다 그림`, 빈.그린 >= 1 && 빈.장 >= 1, 빈)
-  ok(`${slug} 빈 종이 — 글자 잘림 0`, 빈.잘림.length === 0, 빈.잘림)
+  ok(`${slug} 빈 종이 — 글자 잘림 0`, 빈.잘림.length === 0, 빈.잘림.length + '줄'); 줄들(빈.잘림)
   const 예시 = s.p.getByRole('button', { name: /예시 채우기/ }).first()
   if (await 예시.count()) {
     await 예시.click()
     await s.p.waitForTimeout(600)
     const 찬 = await 다그려모음(s.p)
-    ok(`${slug} 예시 채운 뒤 — 글자 잘림 0`, 찬.잘림.length === 0, 찬.잘림)
+    ok(`${slug} 예시 채운 뒤 — 글자 잘림 0`, 찬.잘림.length === 0, 찬.잘림.length + '줄'); 줄들(찬.잘림)
   }
   ok(`${slug} 화면 오류 0`, s.오류.length === 0, s.오류)
   await s.ctx.close()

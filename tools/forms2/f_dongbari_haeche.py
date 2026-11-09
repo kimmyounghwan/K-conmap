@@ -327,7 +327,7 @@ def anjeon(bk, ex):
             p.row([(1, f"{j}", {"kind": "ctext", "size": 9.5}), (7, t, {"kind": "text", "size": 9.5}),
                    (1, I(f"확{key}#{j}", ex=v, dv=CHK, align="center", size=9)), (1, I(f"확인자{key}#{j}", ex=("정반장" if ex else None), align="center", size=8.5)),
                    (2, I(f"확비고{key}#{j}", ex=("산소 농도 측정 생략 — 환기 충분(개방 층)" if (ex and (key, j) == ("전", 7)) else
-                                              "자재 4단 넘게 쌓음 → 나눠 쌓은 뒤 다시 확인" if (ex and (key, j) == ("중", 7)) else None), size=8))], h=hh)
+                                              "4단 넘어 나눠 쌓음" if (ex and (key, j) == ("중", 7)) else None), size=8))], h=hh)
             if first is None:
                 first = p.k[f"확{key}#{j}"]
             last = p.k[f"확{key}#{j}"]

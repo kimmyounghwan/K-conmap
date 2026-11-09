@@ -780,7 +780,7 @@ def siheom(bk, ex):
     pc = len(TW)
     p.row([(pc, "2.3.5 ~ 2.3.7   품질시험 계획 (선정 · 관리 · 검사시험)", {"kind": "h2", "size": 13})], h=28)
     p.row([(pc, "※ 시험 빈도는 「건설공사 품질관리 업무지침」 [별표 2] 와 공사시방서에서 확인하여 적으세요. 계획 횟수 = 설계물량 ÷ 빈도 (올림).",
-            {"kind": "note"})], h=16)
+            {"kind": "note"})], h=26)   # 🩹 G623 두 줄(전 16 — 아랫줄 잘림)
     for pre, title, rows in TESTS:
         n = len(rows) + 2
         d.keep(p, 26 + 34 + 22 * 4)

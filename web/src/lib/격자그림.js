@@ -136,6 +136,7 @@ export function 쪽그리기(ctx, o) {
     if (o.건설맵빼기 && 건설맵칸(x)) continue   /* 🏷 G369 화면 · 인쇄 · PDF 같이 */
     const ra = Math.max(r, r1), rb = Math.min(r + rs - 1, r2)
     const cb = Math.min(c + cs - 1, 판.pc)
+    if (!(판.X[cb] - 판.X[c - 1] > 0.01) || !(판.Y[rb] - 판.Y[ra - 1] > 0.01)) continue   /* 🩹 G623 엑셀에서 숨긴 줄 · 칸(높이 · 폭 0)은 안 그림 */
     보일.push({ x, x0: px(판.X[c - 1]), x1: px(판.X[cb]), y0: py(판.Y[ra - 1]), y1: py(판.Y[rb]), 잘림: ra !== r })
   }
   // 1) 바탕

@@ -144,7 +144,7 @@ def panjeong(bk, ex):
 def singo(bk, ex):
     p = g.pg(bk, ex, "신고서", fit=1)
     p.row([(8, "■ 건축법 시행규칙 [별지 제8호서식] <개정 2026. 2. 27.>", {"kind": "note", "size": 8}),
-           (4, "세움터(www.eais.go.kr)에서도 신청할 수 있습니다.", {"kind": "note", "size": 7.5, "align": "right"})], h=16)
+           (4, "세움터(www.eais.go.kr)에서도 신청할 수 있습니다.", {"kind": "note", "size": 7.5, "align": "right"})], h=24)   # 🩹 G623 두 줄(전 16)
     p.title("가설건축물 축조신고서", h=40)
     p.row([(10, "• 어두운 난(    )은 신고인이 작성하지 않으며, [  ]에는 해당하는 곳에 √ 표시를 합니다.", {"kind": "free", "size": 8.5}),
            (2, "(앞쪽)", {"kind": "free", "size": 8.5, "align": "right"})], h=18)

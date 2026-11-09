@@ -11,7 +11,7 @@
 ■ 업무지침 제33 · 34조 — 레미콘 1,000㎥ 이상 공사는 공급원 승인 전 사전점검, 3,000㎥ 이상은 반기 1회 정기점검(발주청 · 공사감독자 · 시공자 합동)."""
 import datetime
 
-from fb import F, I
+from fb import F, I, text_lines
 
 SLUG = "o-remicon-gongjang"
 TITLE = "레미콘공장 사전(정기)점검표"
@@ -198,7 +198,8 @@ def draw(bk, ex):
                     cells += [(5, t, {"kind": "text", "size": 9, "indent": 1}),
                               (4, I(f"결과#{k}", ex=r_, dv="결과", align="center", size=9.5)),
                               (1, I(f"조치#{k}", ex=a_, align="center", size=8.5))]
-                p.row(cells, minh=29)
+                # 🩹 G623 긴 항목(들여쓰기 한 칸 빼고 셈) — 세 줄 항목이 위아래 조금 잘리던 것
+                p.row(cells, minh=max(29, text_lines(t, (sum(p.widths[1:6]) - 1.5) * 10.0 / 9) * 9 * 1.45 + 7))
         블록.append((k0, k))
         if 쪽 == 5:
             p.row([(1, "기타", L), (5, "기타 품질관리에 영향을 미치는 사항", {"kind": "text", "size": 9, "indent": 1}),

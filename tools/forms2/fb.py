@@ -259,8 +259,8 @@ class Page:
         cell.font = Font(name=FONT, size=size, bold=bold, color=ink)
         # 숫자 칸은 «칸에 맞춰 줄이기» — 좁은 칸에 억 단위 금액이 들어와도 ### 가 되지 않게 (엑셀·한셀·LibreOffice 공통)
         numeric = bool(fmt) and fmt not in ("text", "date", "hangul") and not str(NF.get(fmt, fmt)).startswith("[DBNum")
-        shrink = numeric and (is_calc or is_input) and border is not False
-        cell.alignment = Alignment(horizontal=align, vertical=valign, wrap_text=(wrap and not shrink), indent=indent,
+        shrink = (numeric and (is_calc or is_input) and border is not False) or wrap == "shrink"   # 🩹 G623 wrap="shrink" = 글도 한 줄로 줄여 넣기(좁은 칸 · 잘림 막기)
+        cell.alignment = Alignment(horizontal=align, vertical=valign, wrap_text=(wrap is True and not shrink), indent=indent,
                                    shrink_to_fit=shrink)
         if fmt:
             code = NF.get(fmt, fmt)

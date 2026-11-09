@@ -115,7 +115,8 @@ def toc(p, items):
     p.row([(PC, "목          차", {"kind": "title", "size": 22})], h=50)
     p.gap(14)
     for t in items:
-        p.row([(2, "", FR), (8, t, {"kind": "free", "bold": True, "size": 12.5}), (2, "", FR)], h=30)
+        t, h = t if isinstance(t, tuple) else (t, 30)   # 🩹 G623 (글, 높이) — 세 줄로 접히는 긴 줄만 높게(전 30 고정 — 반쯤 잘렸음)
+        p.row([(2, "", FR), (8, t, {"kind": "free", "bold": True, "size": 12.5}), (2, "", FR)], h=h)
 
 
 # ── 공사개요 · 물량 · 조직도 ──────────────────────────────────────────
