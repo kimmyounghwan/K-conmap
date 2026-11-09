@@ -5,7 +5,7 @@
  *         고르신 것: 「마감 수량산출」 (사이트에, 모두 무료)
  *
  * ■ 흐름: ① 마감표(마감 기호마다 들어가는 재료) → ② 창호표(창호 재료 식·창호 조합) → ③ 실(방마다 한 줄) → ④ 외벽
- *         → ⑤ 묶음·조합(평형·셀을 동·층 범위·개수로 곱함 · 치환) → ⑥ 결과(산출서·집계·동별·구역별·창호 집계·면적 검산·당초 대비·엑셀·인쇄)
+ *         → ⑤ 묶음·조합(평형·셀을 동·층 범위·개수로 곱함 · 치환) → ⑥ 결과(산출서·집계·동별·구역별·창호 집계·면적 검산·당초 대비·엑셀·PDF·인쇄)
  * ■ 2026-09-27 「빠진 기능까지 다」: 묶음+조합표·면적 검산·치환·창호 산출(W·H·A·L)·창호 조합·계수 식 변수(Q·A·L·H·J·K)·부자재·일괄 바꾸기·구역·당초 대비
  * ■ «잰 치수 빼기»: 실 표의 면적·둘레 칸을 누르고 도면의 «방 안» 을 누르면 면적과 둘레가 한 번에 들어갑니다.
  *     창호 칸에서 창호 글자(WD1 …)를 누르면 하나씩 더해집니다. 실명·층은 글자, 천장고·길이는 치수·선.
@@ -18,6 +18,10 @@
  *   → 곧바로 ⑥ 결과. 누르기는 고칠 때만. 끌어 놓기·🧪 예시도 자동으로.
  * ■ 🔗 2026-09-28 결과 ↔ 도면 오가기(lib/도면오가기.js): ⑥ 결과의 산출서 줄을 누르면 그 방을 찍은 자리가 도면에서 빛나고,
  *   도면을 누르면 그 자리에서 나온 산출서 줄을 칠함 (받은 설명서의 «양방향 링크» 를 «방식만»)
+ * ■ 🖼 G613 (2026-11-09) ⑥ 결과 PDF · 인쇄도 그림 — 소장님 「PDF 도 변환 안되게 해야 하지 않아? 사이트?」 → 「엑셀은 그대로 · PDF 는 모두 그림」.
+ *   예전 «🖨 인쇄»(window.print — 쪽 전체 글자 PDF) → 결과 카드(.gg-print)만 그림으로 «📄 PDF»(바로 받음) · «🖨 인쇄»(그림만) — tools/그림인쇄훅.js 대상 모드
+ *   (몸표 없음 · 인쇄 규칙 .gg .gg-hide 펼침 그대로 — 집계 · 층별 · 부위별 · 동별 · 구역별 · 창호 · 당초 대비 · 산출서 모두) · 긴 산출서는 lib «긴 판 나눠 찍기».
+ *   작업 화면(.gg-ws — 화면 꽉 찬 붙박이 틀)에서도 복제본만 보통 흐름으로 풀어 찍음(더CSS) · Ctrl+P 는 결과 카드 대신 «단추로 인쇄» 안내.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -35,6 +39,8 @@ import 받기검사판, { 엑셀내려주기 } from '../받기검사판.jsx'   /
 import { use화면상태 } from '../lib/길기록.js'
 import 마감방판 from '../마감방판.jsx'
 import { 세기 } from '../lib/받은수.jsx'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'
+import { 작업틀풀기 } from '../lib/작업틀풀기.js'
 
 import { 단위보기, 단위풀이 } from '../lib/단위.js'
 const 저장열쇠 = 'kcm.magam.v1'
@@ -152,6 +158,10 @@ export default function Magam() {
   }, [공사])
 
   const 결과 = useMemo(() => { try { return 셈(공사) } catch (e) { return { 줄: [], 경고: [{ 글: '셈하다 멈췄습니다: ' + e.message }], 집계: { 합: [], 층별: [], 부위별: [], 동별: [], 구역별: [] }, 창호집계: [], 면적검산: [], 기: 공사.기준 } } }, [공사])
+  /* 🖼 G613 결과 PDF · 인쇄 — 결과 카드만 그림으로(이름은 엑셀과 같게) · 작업 화면 틀은 복제본에서만 풂 */
+  const 그 = use그림인쇄('마감수량산출서_' + (공사.이름 || '현장').replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 30), {
+    셈: '마감', 대상: '.gg .gg-print', 몸표: [], 쪽: { 폭: 186, 높: 271 }, 여백: [12, 12], 칸줄: true, 더CSS: 작업틀풀기,
+  })
 
   const 예시열기 = async () => {
     set묻기('')
@@ -630,7 +640,9 @@ export default function Magam() {
       {탭 === '묶음' && <묶음판 공사={공사} 결과={결과} 셀={셀} 칸쓰기={칸쓰기} 줄더하기={줄더하기} 줄빼기={줄빼기} />}
 
       {탭 === '결과' && (
-        <div className="card gg-print">
+        <>
+        <div className="kcm-인쇄안내">🖨 마감 수량산출서는 화면의 <b>«📄 PDF»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+        <div className="card gg-print 그림만인쇄">
           <div className="gg-head">
             <div>
               <div className="detail-h" style={{ margin: 0 }}>마감 수량산출서{공사.이름 ? ' — ' + 공사.이름 : ''}</div>
@@ -638,9 +650,11 @@ export default function Magam() {
             </div>
             <div className="btn-row no-print" style={{ flexWrap: 'wrap' }}>
               <button type="button" className="btn sm" disabled={!결과.줄.length || 받는중} onClick={엑셀받기}>{받는중 ? '만드는 중…' : '⬇ 엑셀 받기'}</button>
-              <button type="button" className="btn line sm" disabled={!결과.줄.length} onClick={() => window.print()}>🖨 인쇄</button>
+              <button type="button" className="btn line sm" disabled={!결과.줄.length || !!그.찍기} onClick={() => 그.PDF()}>{그.찍기 === 'pdf' ? `PDF 만드는 중…${그.진행 ? ' ' + 그.진행 : ''}` : '📄 PDF'}</button>
+              <button type="button" className="btn line sm" disabled={!결과.줄.length || !!그.찍기} onClick={() => 그.인쇄()}>{그.찍기 === '인쇄' ? `인쇄 준비 중…${그.진행 ? ' ' + 그.진행 : ''}` : '🖨 인쇄'}</button>
             </div>
           </div>
+          {그.말 && <div className="note sm no-print mg-찍말" role="status" style={{ margin: '0 0 8px' }}>{그.말}</div>}
           <div className="gg-tiles">
             <div><span>실</span><b>{공사.실.filter((r) => String(r.실명 || '').trim()).length}</b> 개</div>
             <div><span>바닥 면적 합</span><b>{쉼(바닥합, 2)}</b> ㎡ <small>헤베</small></div>
@@ -654,6 +668,7 @@ export default function Magam() {
           {!결과.줄.length && <p className="muted">아직 셀 것이 없습니다 — ① 마감표와 ③ 실을 채우십시오. (🧪 예시로 해 보기를 누르면 채워진 것을 볼 수 있습니다)</p>}
           {결과.줄.length > 0 && <결과표 결과={결과} 공사={공사} set공사={set공사} 짚기={모델 ? 짚기 : null} 짚음열쇠={짚음 ? 짚음.표 + '|' + 짚음.i : ''} 짚은={짚은} />}
         </div>
+        </>
       )}
 
       <div className="card no-print">
