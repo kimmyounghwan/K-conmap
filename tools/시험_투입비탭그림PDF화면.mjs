@@ -46,7 +46,9 @@ function 검은점들(파일, 머리) {
     let i = 0, 줄 = 0
     while (줄 < 3) { if (buf[i] === 10) 줄++; i++ }
     let 검 = 0
-    for (let k = i; k < buf.length; k++) if (buf[k] < 128) 검++
+    /* 🩹 G612 흰 종이(255)가 아니면 셈(다른 그림 PDF 시험과 같게) — 긴 판 나눠 찍기로 PC 배율이 2 그대로가 되자 가는 줄이 30dpi 에서 옅어져
+       «📜 적은 것» 꼬리 쪽(머리줄 + 두 줄)이 검은 점(<128) 0.02% 로 걸렸음(내용은 같음 · 전 0.03%) */
+    for (let k = i; k < buf.length; k++) if (buf[k] < 230) 검++
     return Math.round((검 / (buf.length - i)) * 10000) / 100
   })
 }

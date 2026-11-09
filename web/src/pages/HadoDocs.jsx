@@ -442,7 +442,7 @@ export default function HadoDocs() {
               <p className="muted" style={{ fontSize: 13 }}>하도급 계약금액 <b>{fmt(결과.금액.하계약금액)}</b>원 · 하도급 부분 도급액 {fmt(결과.금액.하도급부분도급액)}원 · 공정표 {결과.월수}개월 ·
                 제출 서류 {결과.제출.length}장 + 원자료 {결과.원자료.length}장(⚙ 회색 탭 — 제출용 아님)</p>
               <Suspense fallback={<div className="muted">화면을 불러오는 중…</div>}>
-                <엑셀화면 책={결과.책} 시트들={결과.시트} 고침={고침} set고침={set고침} 이름={받을이름().replace(/\.xlsx$/, '')}
+                <엑셀화면 책={결과.책} 시트들={결과.시트} 고침={고침} set고침={set고침} 이름={받을이름().replace(/\.xlsx$/, '')} 셈이름="하도급서류"
                   이름표={(n) => (결과.원자료.includes(n) ? '⚙ ' + n : n)} />
               </Suspense>
             </>

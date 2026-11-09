@@ -4681,6 +4681,8 @@ span.qna-like { cursor: default; }
 .xv-장들 .chip { flex: none; }
 .xv-띠 { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 .xv-띠 .btn { width: auto; }
+/* 🖼 G612 그림 PDF · 인쇄 알림(«📄 PDF 35쪽을 만들었습니다» · 못 만들면 새로고침 안내) — 단추 줄 아래 한 줄 */
+.xv-찍말 { flex-basis: 100%; font-size: 12.5px; line-height: 1.5; color: var(--text, #111827); background: #f8fafc; border: 1px solid var(--line, #e5e7eb); border-radius: 8px; padding: 6px 10px; }
 .xv-알림 { font-size: 12.5px; color: var(--muted); margin: 0 0 8px; line-height: 1.6; }
 .xv-고친견본 { outline: 2px dashed #f59e0b; outline-offset: -2px; background: #fffbeb; padding: 0 4px; }
 .xv-판 { background: #e5e7eb; border-radius: 10px; padding: 12px 0; }
@@ -5029,8 +5031,10 @@ span.qna-like { cursor: default; }
   body.kcm-그림인쇄중 > *:not(#kcm-그림인쇄) { display: none !important; }
   html.kcm-그림인쇄중, body.kcm-그림인쇄중 { background: #fff !important; margin: 0 !important; padding: 0 !important; }
   body.kcm-그림인쇄중 #kcm-그림인쇄 { display: block; }
-  #kcm-그림인쇄 .kcm-쪽그림 { display: block; max-width: 100%; object-fit: contain; object-position: left top; break-after: page; page-break-after: always; }
-  #kcm-그림인쇄 .kcm-쪽그림:last-child { break-after: auto; page-break-after: auto; }
+  #kcm-그림인쇄 .kcm-쪽그림 { display: block; max-width: 100%; object-fit: contain; object-position: left top; }
+  /* 🩹 G612 쪽 나눔 · 쪽 이름(@page)은 쪽 덩이에 — 그림(img)에 단 쪽 이름은 크롬이 안 봄(가로 · 세로 섞인 엑셀 화면 판이 다 가로로 갈렸음) */
+  #kcm-그림인쇄 .kcm-쪽덩이 { display: block; break-after: page; page-break-after: always; }
+  #kcm-그림인쇄 .kcm-쪽덩이:last-child { break-after: auto; page-break-after: auto; }
   body:not(.kcm-그림인쇄중):not(.gp-인쇄중):not(.kcm-찍는중) .그림만인쇄 { display: none !important; }
   body:not(.kcm-그림인쇄중):not(.gp-인쇄중):not(.kcm-찍는중) .kcm-인쇄안내 { display: block; border: 1px solid #999; padding: 6mm; margin: 4mm 0; font-size: 12pt; }
 }

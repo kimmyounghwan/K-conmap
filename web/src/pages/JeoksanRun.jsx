@@ -477,12 +477,12 @@ function Run() {
       {/* ── 📄 화면에서 보고 · 고치고 · 인쇄 (2026-09-27) ── */}
       {out && 결과책 && (
         <div className="card">
-          <div className="sec-title">화면에서 보고 · 고치고 · 인쇄</div>
-          <p className="muted" style={{ marginTop: 0, fontSize: 12.5 }}>엑셀을 받지 않아도 산출서·집계를 여기서 보고 인쇄합니다. 칸을 고치면 집계가 따라 바뀝니다.
+          <div className="sec-title">화면에서 보고 · 고치고 · PDF · 인쇄</div>
+          <p className="muted" style={{ marginTop: 0, fontSize: 12.5 }}>엑셀을 받지 않아도 산출서·집계를 여기서 보고 PDF 로 받거나 인쇄합니다. 칸을 고치면 집계가 따라 바뀝니다.
             <b> 치수를 고쳐 다시 세면 화면에서 고친 칸은 지워집니다.</b></p>
           <Suspense fallback={<div className="note sm">화면을 준비하는 중…</div>}>
             <엑셀화면 책={결과책.책} 시트들={['산출서', '집계', '태그별', '검산']} 고침={고침} set고침={set고침}
-              머리행들={{ 산출서: 1, 집계: 1, 태그별: 1, 검산: 1 }} 이름="수량산출서" />
+              머리행들={{ 산출서: 1, 집계: 1, 태그별: 1, 검산: 1 }} 이름="수량산출서" 셈이름="수량산출서" />
           </Suspense>
         </div>
       )}

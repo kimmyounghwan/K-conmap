@@ -9,11 +9,17 @@
  * ■ 셈: lib/엑셀수식.js (리브레오피스와 대조 — 원클릭 389식 · 수량산출서 118식 모두 같음)
  * ■ 고친 칸은 노란 점선으로 보입니다(인쇄에는 안 나옴). 고친 칸을 쓰는 다른 칸도 따라 바뀝니다.
  * ■ 인쇄: 고른 장만 A4 한 장씩(틀에 적힌 «한 쪽에 맞춤» 그대로). 사이트의 다른 것은 인쇄에 안 나옵니다.
+ * ■ 🖼 G612 (2026-11-08) PDF · 인쇄도 그림 — 소장님 「PDF 도 변환 안되게 해야 하지 않아? 사이트?」 → 「엑셀은 그대로 · PDF 는 모두 그림」.
+ *   예전: 고른 장을 몸 밑 #xv-인쇄 에 그려 window.print → 글자 PDF(변환 프로그램으로 엑셀이 다시 나옴).
+ *   이제: 같은 판(#xv-인쇄 · 장마다 .xv-쪽)을 그림으로 찍어 «📄 PDF»(바로 받음) · «🖨 인쇄»(그림만) — tools/그림인쇄훅.js 조각(장마다 가로/세로 · 장마다 줄임).
+ *   ⚠️ 판에 CSS zoom 을 쓰지 않음 — 그림 그리개(html2canvas)가 zoom 안 글자를 zoom 안 된 크기로 그려 낱말 사이가 벌어졌음(원클릭 쪽채움 ≈1.1배)
+ *      → 줄임 · 키움은 data-z 로 lib 에 넘김(판 폭 = 쪽 폭 / z · 그림 배율 × z). 엑셀 쪽 설정 그대로(자동 줄임 안 씀) · 긴 산출서는 lib «긴 판 나눠 찍기».
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { 칸이름 } from './lib/엑셀읽기.js'
 import { 셈판, 형식글, 형식코드 } from './lib/엑셀수식.js'
+import { use그림인쇄 } from './tools/그림인쇄훅.js'
 
 const 선모양 = {
   thin: [1, 'solid'], medium: [2, 'solid'], thick: [3, 'solid'], hair: [1, 'solid'], dashed: [1, 'dashed'], dotted: [1, 'dotted'],
@@ -159,15 +165,68 @@ export function 채움배율(시, 틀) {
   return { z, 행배수, 열배수 }
 }
 
+/* 🖼 G612 인쇄 쪽 꼴 — styles.css @page xv세로 { margin: 12mm 10mm } · xv가로 { margin: 10mm 12mm } 와 같게(글자 칸 · 여백 [왼, 위] · 종이 mm) */
+const 쪽꼴 = {
+  세로: { 쪽: { 폭: 190, 높: 273 }, 여백: [10, 12], 종이: [210, 297], 판쪽: 'xv세로' },
+  가로: { 쪽: { 폭: 273, 높: 190 }, 여백: [12, 10], 종이: [297, 210], 판쪽: 'xv가로' },
+}
+const xv조각 = (판) => [...판.children].filter((x) => x.classList.contains('xv-쪽'))
+  .map((el) => ({ el, z0: Number(el.getAttribute('data-z')) || 1, ...(el.classList.contains('가로') ? 쪽꼴.가로 : 쪽꼴.세로) }))
+
+/** 🖼 G612 인쇄 · PDF 단추들 + 찍을 판(찍는 동안만 몸 밑에) — 훅을 여기 두어 «만드는 중 3/35» 가 바뀔 때 장 화면은 다시 안 그림 */
+function 인쇄단추들({ 보일, 시, 책, 셈, 고침, 머리행들, 쪽채움, 이름, 이름표, 셈이름 }) {
+  const [고른, set고른] = useState(null)        // { 장들: [시트 이름], 꼴: 'pdf' | '인쇄', 하나: bool }
+  const 장이름 = (n) => String(이름표 ? 이름표(n) : n).replace(/^[^\p{L}\p{N}]+/u, '').trim() || n
+  const 제목 = 고른 && 고른.하나 && 보일.length > 1 ? `${이름}_${장이름(고른.장들[0])}` : 이름
+  const 그 = use그림인쇄(제목, { 셈: 셈이름, 판: '#xv-인쇄', 몸표: ['xv-인쇄중'], 조각: xv조각, 홀로: true, 칸줄: true, 맞춤: false, 끝: () => set고른(null) })
+  const 누름 = (장들, 꼴, 하나) => {
+    if (그.찍기) return
+    set고른({ 장들, 꼴, 하나 })
+    if (꼴 === 'pdf') 그.PDF(); else 그.인쇄()
+  }
+  const 판 = useMemo(() => (!고른 ? null : (
+    <div id="xv-인쇄">
+      {보일.filter((s) => 고른.장들.includes(s.이름)).map((s) => {
+        const t = 틀짜기(s)
+        const 채 = 쪽채움 ? 채움배율(s, t) : null
+        const z = 채 ? 채.z : 인쇄배율(s, t)
+        return (
+          <section key={s.이름} className={'xv-쪽' + (가로냐(s, t) ? ' 가로' : '') + (채 ? ' 채움' : '')} data-z={z}>
+            <div style={{ width: t.너비 * (채 ? 채.열배수 : 1), margin: 채 || s.용지.가운데 ? '0 auto' : 0 }}>
+              {s.머리 && <div className="xv-머리">{s.머리}</div>}
+              <시트판 책={책} 시={s} 셈={셈} 고침={고침 || {}} 격자보임={false} 머리행={머리행들[s.이름] || 0}
+                행배수={채 ? 채.행배수 : 1} 열배수={채 ? 채.열배수 : 1} />
+            </div>
+          </section>
+        )
+      })}
+    </div>
+  )), [고른, 보일, 책, 셈, 고침, 머리행들, 쪽채움])
+  const 이것 = (꼴, 하나) => 고른 && 고른.꼴 === 꼴 && 고른.하나 === 하나 && 그.찍기
+  const 글 = (꼴, 하나, 기본) => (이것(꼴, 하나) ? `${꼴 === 'pdf' ? 'PDF 만드는 중…' : '인쇄 준비 중…'}${그.진행 ? ' ' + 그.진행 : ''}` : 기본)
+  const 여럿 = 보일.length > 1
+  return (
+    <>
+      <button type="button" className="btn sm" disabled={!!그.찍기} onClick={() => 누름([시.이름], 'pdf', true)}>{글('pdf', true, '📄 이 장 PDF')}</button>
+      <button type="button" className="btn ghost sm" disabled={!!그.찍기} onClick={() => 누름([시.이름], '인쇄', true)}>{글('인쇄', true, '🖨 이 장 인쇄')}</button>
+      {여럿 && <button type="button" className="btn ghost sm" disabled={!!그.찍기} onClick={() => 누름(보일.map((s) => s.이름), 'pdf', false)}>{글('pdf', false, `📄 ${보일.length}장 모두 PDF`)}</button>}
+      {여럿 && <button type="button" className="btn ghost sm" disabled={!!그.찍기} onClick={() => 누름(보일.map((s) => s.이름), '인쇄', false)}>{글('인쇄', false, `🖨 ${보일.length}장 모두 인쇄`)}</button>}
+      {그.말 && <div className="xv-찍말" role="status">{그.말}</div>}
+      {그.판 && 판 && createPortal(판, document.body)}
+    </>
+  )
+}
+
 /**
  * @param 책        엑셀읽기() 결과
  * @param 시트들    보일 시트 이름들(차례대로)
  * @param 고침 · set고침  { '시트!B5': 값 } — 부모가 쥡니다(남기기는 부모 몫)
  * @param 머리행들  { 시트이름: 줄 } — 인쇄할 때 쪽마다 되풀이할 머리 줄(없으면 틀의 인쇄 제목)
- * @param 이름      인쇄할 때 브라우저 제목(= PDF 파일 이름)
- * @param 인쇄함    false 면 인쇄 단추를 숨깁니다(🤝 G321 하도급 계약서류 예시 — 소장님 「보기만 가능 내려받기 없이」)
+ * @param 이름      PDF 파일 이름(이 장만이면 «이름_장» · 여러 장이 있을 때) · 인쇄 때 브라우저 제목
+ * @param 인쇄함    false 면 인쇄 · PDF 단추를 숨깁니다(🤝 G321 하도급 계약서류 예시 — 소장님 「보기만 가능 내려받기 없이」)
+ * @param 셈이름    숨은 누적 |셈이름|PDF · |셈이름|인쇄 (G612 — 원클릭 · 수량산출서 · 하도급서류)
  */
-export default function 엑셀화면({ 책, 시트들, 고침, set고침, 머리행들 = {}, 이름 = 'K-건설맵', 고칠수 = true, 이름표 = null, 쪽채움 = false, 인쇄함 = true }) {
+export default function 엑셀화면({ 책, 시트들, 고침, set고침, 머리행들 = {}, 이름 = 'K-건설맵', 고칠수 = true, 이름표 = null, 쪽채움 = false, 인쇄함 = true, 셈이름 = '' }) {
   const 셈 = useMemo(() => 셈판(책, 고침 || {}), [책, 고침])
   const 보일 = useMemo(() => 책.시트들.filter((s) => 시트들.includes(s.이름)).sort((a, b) => 시트들.indexOf(a.이름) - 시트들.indexOf(b.이름)), [책, 시트들])
   const [지금, set지금] = useState(0)
@@ -178,7 +237,6 @@ export default function 엑셀화면({ 책, 시트들, 고침, set고침, 머리
   const 틀 = useMemo(() => (시 ? 틀짜기(시) : null), [시])
   const 판 = useRef(null)
   const [폭, set폭] = useState(0)
-  const [인쇄할, set인쇄할] = useState(null)
 
   useLayoutEffect(() => {
     const el = 판.current
@@ -190,22 +248,6 @@ export default function 엑셀화면({ 책, 시트들, 고침, set고침, 머리
     return () => { if (ro) ro.disconnect(); else window.removeEventListener('resize', 재기) }
   }, [])
   useEffect(() => { set고른(null) }, [지금])
-
-  /* 인쇄 — 고른 장만 몸 바로 밑에 따로 그려 인쇄하고 치웁니다 */
-  useEffect(() => {
-    if (!인쇄할) return undefined
-    const 옛제목 = document.title
-    document.title = 이름
-    document.body.classList.add('xv-인쇄중'); document.documentElement.classList.add('xv-인쇄중')
-    const 끝 = () => { document.body.classList.remove('xv-인쇄중'); document.documentElement.classList.remove('xv-인쇄중'); document.title = 옛제목; set인쇄할(null) }
-    const t = setTimeout(() => {
-      window.addEventListener('afterprint', 끝, { once: true })
-      try { window.print() } catch (e) { 끝() }
-      // 사파리 등 afterprint 가 안 오는 곳 대비
-      setTimeout(() => { if (document.body.classList.contains('xv-인쇄중')) 끝() }, 60000)
-    }, 120)
-    return () => { clearTimeout(t); window.removeEventListener('afterprint', 끝) }
-  }, [인쇄할])   // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!시) return <div className="note">보일 장이 없습니다.</div>
   const 배율 = 크게 || !틀 || !폭 ? 1 : Math.min(1, (폭 - 4) / (틀.너비 + 24))   /* 종이 여백 12px×2 까지 */
@@ -247,8 +289,7 @@ export default function 엑셀화면({ 책, 시트들, 고침, set고침, 머리
         </div>
       )}
       <div className="xv-띠 no-print">
-        {인쇄함 && <button type="button" className="btn sm" onClick={() => set인쇄할([시.이름])}>🖨 이 장 인쇄</button>}
-        {인쇄함 && 보일.length > 1 && <button type="button" className="btn ghost sm" onClick={() => set인쇄할(보일.map((s) => s.이름))}>🖨 {보일.length}장 모두 인쇄</button>}
+        {인쇄함 && <인쇄단추들 보일={보일} 시={시} 책={책} 셈={셈} 고침={고침} 머리행들={머리행들} 쪽채움={쪽채움} 이름={이름} 이름표={이름표} 셈이름={셈이름} />}
         <button type="button" className="btn ghost sm" onClick={() => set크게((v) => !v)}>{크게 ? '🔍 화면에 맞추기' : '🔍 크게 보기'}</button>
         {고친수 > 0 && <button type="button" className="btn ghost sm" onClick={모두되돌리기}>↩ 고친 칸 {고친수}개 되돌리기</button>}
       </div>
@@ -274,25 +315,6 @@ export default function 엑셀화면({ 책, 시트들, 고침, set고침, 머리
         </div>
       )}
 
-      {인쇄할 && createPortal(
-        <div id="xv-인쇄">
-          {보일.filter((s) => 인쇄할.includes(s.이름)).map((s) => {
-            const t = 틀짜기(s)
-            const 채 = 쪽채움 ? 채움배율(s, t) : null
-            const z = 채 ? 채.z : 인쇄배율(s, t)
-            return (
-              <section key={s.이름} className={'xv-쪽' + (가로냐(s, t) ? ' 가로' : '') + (채 ? ' 채움' : '')}>
-                <div style={{ zoom: z, width: t.너비 * (채 ? 채.열배수 : 1), margin: 채 || s.용지.가운데 ? '0 auto' : 0 }}>
-                  {s.머리 && <div className="xv-머리">{s.머리}</div>}
-                  <시트판 책={책} 시={s} 셈={셈} 고침={고침 || {}} 격자보임={false} 머리행={머리행들[s.이름] || 0}
-                    행배수={채 ? 채.행배수 : 1} 열배수={채 ? 채.열배수 : 1} />
-                </div>
-              </section>
-            )
-          })}
-        </div>,
-        document.body,
-      )}
     </div>
   )
 }
