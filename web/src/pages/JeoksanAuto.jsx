@@ -14,7 +14,7 @@
  *    ① 도면에 적힌 표   : 철근 재료표 → 직경별 무게 · 수량표 → 품명별 · 그 밖의 «~표» 는 그대로 옮김 (여러 장 한꺼번에)
  *    ② 횡단면 토공      : 측점마다 적힌 깎기·쌓기 면적 → 평균단면법
  *    ③ 레이어·블록·글자 : 레이어별 선 길이·닫힌 면적 · 블록 개수 · 글자(기호) 개수 — 네모로 범위를 좁힐 수 있음
- *    ④ 수량산출서       : 고른 것을 모아 엑셀(수량 칸은 살아 있는 식) · 인쇄
+ *    ④ 수량산출서       : 고른 것을 모아 엑셀(수량 칸은 살아 있는 식) · PDF · 인쇄
  * ■ 도면을 «해석» 하지 않습니다 — 도면에 적힌 글자·숫자를 자리대로 옮깁니다. 그래서 늘 «어디서 읽었나» 를 도면 위 네모로 보여 줍니다.
  * ■ 도면은 이 브라우저 안에서만 읽습니다. 서버로 가지 않습니다(DWG 도 브라우저 안에서 DXF 로 바꿔 읽음).
  * ■ 셈: lib/도면자동.js (시험: node tools/시험_도면자동.mjs) · 도면판: ../도면판.jsx
@@ -29,6 +29,10 @@
  *    콘크리트·거푸집·철근을 스스로 셈 → ① 에 줄로 · ② 골조 탭 · 엑셀에 «골조 산출서…» 시트(골조 화면과 같은 양식).
  *    소장님: 「적산에서 왜 골조 물량을 찍어야 된다고 했지?. 도면만 주면 스스로 물량을 내는 거잖아」
  *            「물량은 자동으로 뽑아서 엑셀로 다운 받을 수 있게 해줘」 「도면을 주면 도면에 나와있는 물량은 자동으로 엑셀로 정리되게 해줘」
+ * ■ 🖼 G615 (2026-11-09) 수량산출서 · 내역 대조 · 골조 PDF · 인쇄도 그림 — 소장님 「PDF 도 변환 안되게 해야 하지 않아? 사이트?」 → 「엑셀은 그대로 · PDF 는 모두 그림」.
+ *    예전 «🖨 인쇄»(window.print — 쪽 전체 글자 PDF) → 지금 탭의 결과 카드(.gg-print)만 그림으로 «📄 PDF»(바로 받음) · «🖨 인쇄»(그림만) — tools/그림인쇄훅.js 대상 모드
+ *    (몸표 없음 · 끈 줄(ja-off no-print)은 빠짐 · 긴 산출서 · 대조는 lib «긴 판 나눠 찍기») · 이름은 엑셀과 같게(도면물량_수량산출서 · 도면물량_내역대조 · 골조_수량산출서(도면 자동)) ·
+ *    골조 탭엔 단추가 없던 것도 «📄 PDF · 🖨 인쇄» 넣음 · 작업 화면(.gg-ws)에서도 복제본만 풀어 찍음(lib/작업틀풀기.js) · Ctrl+P 는 결과 카드 대신 «단추로 인쇄» 안내.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
@@ -56,6 +60,8 @@ import { 셈 as 마감셈 } from '../lib/마감.js'
 import { askAfter } from '../AskComment'
 import 받기검사판, { 엑셀내려주기 } from '../받기검사판.jsx'   // 📋 G444 받기 전 검사
 import { use화면상태 } from '../lib/길기록.js'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'
+import { 작업틀풀기 } from '../lib/작업틀풀기.js'
 import * as 창고 from '../lib/기억자료.js'
 
 import { 단위보기, 단위풀이 } from '../lib/단위.js'
@@ -661,6 +667,11 @@ export default function JeoksanAuto() {
       if (r.통과) { 엑셀내려주기(r.바이트, 이름); askAfter('jeoksan') }
     } finally { set받는중(false) }
   }
+  /* 🖼 G615 PDF · 인쇄 — 지금 탭의 결과 카드만 그림으로(이름은 엑셀과 같게) · 작업 화면 틀은 복제본에서만 풂
+     알림은 누른 카드에만(말자리 — 4초 안에 탭을 바꾸면 앞 탭 알림이 새 탭 카드에 뜨던 것 막음 · 시험에서 찾음) */
+  const 그 = use그림인쇄(탭 === '대조' ? '도면물량_내역대조' : 탭 === '골조' ? '골조_수량산출서(도면 자동)' : '도면물량_수량산출서', {
+    셈: '적산자동', 대상: '.gg .gg-print', 몸표: [], 쪽: { 폭: 186, 높: 271 }, 여백: [12, 12], 칸줄: true, 더CSS: 작업틀풀기,
+  })
   /* 🏗 골조 화면에서 고치기 — 이 브라우저의 골조 화면(localStorage)에 넣고 그 화면으로. 적어 둔 것이 있으면 먼저 여쭘 */
   const 골옮기기 = (묻지않음) => {
     if (!골공사) return
@@ -1046,7 +1057,9 @@ export default function JeoksanAuto() {
       )}
 
       {탭 === '골조' && (
-        <div className="card gg-print">
+        <>
+        <div className="kcm-인쇄안내">🖨 골조 산출서는 화면의 <b>«📄 PDF»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+        <div className="card gg-print 그림만인쇄">
           <div className="gg-head">
             <div>
               <div className="detail-h" style={{ margin: 0 }}>🏗 골조 — 보·기둥·슬래브·벽·기초 (도면에서 자동)</div>
@@ -1054,10 +1067,13 @@ export default function JeoksanAuto() {
             </div>
             <div className="btn-row no-print" style={{ flexWrap: 'wrap' }}>
               {골결과 && <button type="button" className="btn sm" disabled={받는중} onClick={골엑셀받기}>{받는중 ? '만드는 중…' : '⬇ 골조 산출서 엑셀'}</button>}
+              {골결과 && <button type="button" className="btn line sm" disabled={!!그.찍기} onClick={() => 그.PDF('골조')}>{그.찍기 === 'pdf' ? `PDF 만드는 중…${그.진행 ? ' ' + 그.진행 : ''}` : '📄 PDF'}</button>}
+              {골결과 && <button type="button" className="btn line sm" disabled={!!그.찍기} onClick={() => 그.인쇄('골조')}>{그.찍기 === '인쇄' ? `인쇄 준비 중…${그.진행 ? ' ' + 그.진행 : ''}` : '🖨 인쇄'}</button>}
               {골결과 && <button type="button" className="btn line sm" onClick={() => 골옮기기(false)}>🏗 골조 화면에서 고치기</button>}
               <button type="button" className="btn ghost sm" onClick={골조예시열기}>🧪 골조 예시 (가상 2층)</button>
             </div>
           </div>
+          {그.말 && 그.말자리 === '골조' && <div className="note sm no-print ja-찍말" role="status" style={{ margin: '0 0 8px' }}>{그.말}</div>}
           {골옮김 === '묻기' && (
             <div className="ja-gz-ask no-print">
               <b>골조 화면에 전에 적어 둔 것이 있습니다.</b> 도면에서 읽은 것으로 바꿀까요? (전에 적은 것은 이 브라우저에 한 벌 남겨 둡니다)
@@ -1147,10 +1163,13 @@ export default function JeoksanAuto() {
             </>
           )}
         </div>
+        </>
       )}
 
       {탭 === '산출' && (
-        <div className="card gg-print">
+        <>
+        <div className="kcm-인쇄안내">🖨 수량산출서는 화면의 <b>«📄 PDF»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+        <div className="card gg-print 그림만인쇄">
           <div className="gg-head">
             <div>
               <div className="detail-h" style={{ margin: 0 }}>물량 전부 — 수량산출서</div>
@@ -1158,10 +1177,12 @@ export default function JeoksanAuto() {
             </div>
             <div className="btn-row no-print" style={{ flexWrap: 'wrap' }}>
               <button type="button" className="btn sm" disabled={!산출.켠줄.length || 받는중} onClick={엑셀받기}>{받는중 ? '만드는 중…' : '⬇ 엑셀 받기'}</button>
-              <button type="button" className="btn line sm" disabled={!산출.켠줄.length} onClick={() => window.print()}>🖨 인쇄</button>
+              <button type="button" className="btn line sm" disabled={!산출.켠줄.length || !!그.찍기} onClick={() => 그.PDF('산출')}>{그.찍기 === 'pdf' ? `PDF 만드는 중…${그.진행 ? ' ' + 그.진행 : ''}` : '📄 PDF'}</button>
+              <button type="button" className="btn line sm" disabled={!산출.켠줄.length || !!그.찍기} onClick={() => 그.인쇄('산출')}>{그.찍기 === '인쇄' ? `인쇄 준비 중…${그.진행 ? ' ' + 그.진행 : ''}` : '🖨 인쇄'}</button>
               <button type="button" className="btn ghost sm" disabled={!산출.켠줄.length} onClick={() => (내역 ? set탭('대조') : 내역칸.current?.click())}>📑 내역서와 대조</button>
             </div>
           </div>
+          {그.말 && 그.말자리 === '산출' && <div className="note sm no-print ja-찍말" role="status" style={{ margin: '0 0 8px' }}>{그.말}</div>}
           {!파일들.length && <p className="muted">도면(DXF·DWG)을 넣으십시오. 누를 것 없이 모든 물량이 여기에 모입니다. (🧪 예시로 해 보기 = 가상 토목·건축 도면 두 장 + 가상 내역서)</p>}
           {(딴저장.골조 || 딴저장.마감) && (
             <div className="btn-row no-print" style={{ flexWrap: 'wrap', gap: 10, margin: '6px 0' }}>
@@ -1195,10 +1216,13 @@ export default function JeoksanAuto() {
           )}
           <p className="muted gg-hint no-print">엑셀에는 산출서(켠 줄) · 철근 재료표(줄마다 길이×개수×단위무게 식) · 토공(측점별 평균단면 식) · 실 · 마감(실별 식) · 창호 대조 · 도면의 표 그대로{내역 ? ' · 내역 대조 · 내역에 없는 도면 물량' : ''} 이 들어갑니다. 수량 칸은 <b>=ROUND(식,3)</b> 이라 엑셀에서 다시 셉니다.</p>
         </div>
+        </>
       )}
 
       {탭 === '대조' && (
-        <div className="card gg-print">
+        <>
+        <div className="kcm-인쇄안내">🖨 내역 대조는 화면의 <b>«📄 PDF»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+        <div className="card gg-print 그림만인쇄">
           <div className="gg-head">
             <div>
               <div className="detail-h" style={{ margin: 0 }}>내역 대조 — 내역서 물량 ↔ 도면 물량</div>
@@ -1207,9 +1231,11 @@ export default function JeoksanAuto() {
             <div className="btn-row no-print" style={{ flexWrap: 'wrap' }}>
               <button type="button" className="btn sm" onClick={() => 내역칸.current?.click()}>📑 {내역 ? '다른 내역서' : '내역서 넣기'}</button>
               {대조 && <button type="button" className="btn line sm" disabled={받는중} onClick={엑셀받기}>{받는중 ? '만드는 중…' : '⬇ 엑셀 받기'}</button>}
-              {대조 && <button type="button" className="btn ghost sm" onClick={() => window.print()}>🖨 인쇄</button>}
+              {대조 && <button type="button" className="btn line sm" disabled={!!그.찍기} onClick={() => 그.PDF('대조')}>{그.찍기 === 'pdf' ? `PDF 만드는 중…${그.진행 ? ' ' + 그.진행 : ''}` : '📄 PDF'}</button>}
+              {대조 && <button type="button" className="btn ghost sm" disabled={!!그.찍기} onClick={() => 그.인쇄('대조')}>{그.찍기 === '인쇄' ? `인쇄 준비 중…${그.진행 ? ' ' + 그.진행 : ''}` : '🖨 인쇄'}</button>}
             </div>
           </div>
+          {그.말 && 그.말자리 === '대조' && <div className="note sm no-print ja-찍말" role="status" style={{ margin: '0 0 8px' }}>{그.말}</div>}
           {!내역 && <p className="muted">«품명 · 규격 · 단위 · 수량» 칸이 있는 내역서(.xlsx · .csv)면 됩니다. 공내역서도 됩니다(단가는 안 봄). 일위대가·단가산출 시트는 처음에 꺼 둡니다. <b>내역서도 이 브라우저 안에서만 읽습니다.</b></p>}
           {내역 && (
             <>
@@ -1331,6 +1357,7 @@ export default function JeoksanAuto() {
             </>
           )}
         </div>
+        </>
       )}
 
       {탭 === '실' && (

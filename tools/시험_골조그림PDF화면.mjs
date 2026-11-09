@@ -60,8 +60,9 @@ for (const [기기, w, h, 폰] of [['PC 1280', 1280, 900, false], ['폰 390', 39
   await ctx.route(/firebaseio\.com|firebasedatabase\.app|identitytoolkit|securetoken/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: 'null' }))
   await ctx.addInitScript(() => { try { localStorage.setItem('kcm_notice_seen', '2026-10-필독'); sessionStorage.setItem('kcm_notice_seen', '2026-10-업체'); sessionStorage.setItem('kcm_visit_s', '1') } catch (e) { /* 없음 */ } })
   await ctx.addInitScript(() => { window.__받은이름 = []; document.addEventListener('click', (e) => { const a = e.target && e.target.closest && e.target.closest('a[download]'); if (a) window.__받은이름.push(a.download) }, true) })
-  /* 알림은 4초만 보임 — 시험 기계가 느려 받은 파일 저장이 늦어도 놓치지 않게 뜨는 순간 적어 둠 */
-  await ctx.addInitScript(() => { window.__알림들 = []; new MutationObserver(() => { for (const x of document.querySelectorAll('.gj-찍말')) { const t = x.innerText; if (t && window.__알림들[window.__알림들.length - 1] !== t) window.__알림들.push(t) } }).observe(document, { subtree: true, childList: true, characterData: true }) })
+  /* 알림은 4초만 보임 — 시험 기계가 느려 받은 파일 저장이 늦어도 놓치지 않게 뜨는 순간 적어 둠
+     (같은 글이 다시 떠도 적음 — 앞 알림이 사라졌다가(빈 글) 다시 뜨면 새 알림 · G615 시험에서 3쪽 → 3쪽 을 놓쳤음) */
+  await ctx.addInitScript(() => { window.__알림들 = []; let 앞 = ''; new MutationObserver(() => { const 지금 = [...document.querySelectorAll('.gj-찍말')].map((x) => x.innerText).join(' | '); if (지금 && 지금 !== 앞) window.__알림들.push(지금); 앞 = 지금 }).observe(document, { subtree: true, childList: true, characterData: true }) })
   const p = await ctx.newPage()
   const 오류 = []
   p.on('pageerror', (e) => 오류.push(String(e).slice(0, 200)))
