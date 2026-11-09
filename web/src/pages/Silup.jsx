@@ -5,6 +5,7 @@
  * ■ 마지막으로 일한 날 · 두 달 출역 · 18개월 합만 넣으면 «받을 수 있나 · 언제부터(신청할 수 있는 날) · 하루 얼마 × 며칠».
  * ■ 적은 것은 이 브라우저에만(kcm_silup) · 결과 링크(?c=)로 보내면 받는 분도 같은 결과.
  * ■ 예시는 data 의 base(2026-11-02) 날로 셈 — 내 것을 고치면 오늘 날로.
+ * ■ 🖼 G605(11-08) PDF · 인쇄는 그림 — 화면(.wrap.sl)을 복제본에서 인쇄 CSS 로 펴서(적는 칸 · 설명 · 단추는 숨음 — 옛 인쇄와 같은 모양) 찍음.
  */
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -14,6 +15,7 @@ import { 한국오늘, 긴날, 짧은날, 달더하기 } from '../lib/해마다.
 import G from '../data/silup_guide.json'
 import { 일당살핌 } from '../lib/살핌.js'
 import { 링크복사 } from '../lib/링크복사.js'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G605 PDF · 인쇄는 그림(글자 층 없음) */
 
 const 열쇠 = 'kcm_silup'
 const 쓴링크열쇠 = 'kcm_silup_link'
@@ -82,9 +84,14 @@ export default function Silup() {
     set링크({ url, 복사: await 링크복사(url) })   /* 🔗 G516 — 클립보드가 멈춰도 1.5초 뒤 링크는 보임 */
   }
   const 신청 = G.secs.find((x) => x.id === 'sincheong')
+  /* 🖼 G605 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 옛 «🖨 인쇄»(window.print · 화면 그대로 글자 PDF) → 화면(.wrap.sl)을 복제본에서
+     인쇄 CSS(@media print — .sl-in · .sl-guide · .iy-exd · .no-print 숨음)로 펴서 그림으로 찍음 · A4 세로 기본 쪽(186 × 271) · 몸표 없음(옛 인쇄도 몸 표 없이 @media print 만) */
+  const 그 = use그림인쇄(['실업급여판단', 끝맞음 ? st.끝날 : ''].filter(Boolean).join('_'), { 셈: '실업급여판단', 대상: '.wrap.sl', 몸표: [], 쪽: { 폭: 186, 높: 271 }, 여백: [12, 12], 칸줄: true })
 
   return (
-    <div className="wrap sl">
+    <>
+    <div className="kcm-인쇄안내">🖨 판단 결과는 화면의 <b>«📄 PDF»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+    <div className="wrap sl 그림만인쇄">
       <div className="card">
         <h1 className="tl-h1" style={{ marginTop: 0 }}>🧾 일용직 실업급여 판단기</h1>
         <p className="cp" style={{ margin: '6px 0 0' }}>
@@ -215,9 +222,11 @@ export default function Silup() {
           })}
         </ul>
         <div className="sl-btns no-print">
-          <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => window.print()}>🖨 인쇄</button>
+          <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={!!그.찍기} onClick={() => 그.PDF()}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 PDF'}</button>
+          <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!그.찍기} onClick={() => 그.인쇄()}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={링크보내기}>🔗 링크 보내기</button>
         </div>
+        {그.말 && <div className="note sm no-print sl-찍말" style={{ marginTop: 8 }} role="status">{그.말}</div>}
         {링크 && <div className="note sm no-print" role="status" style={{ marginTop: 8, wordBreak: 'break-all' }}>
           {링크.복사 ? '📋 링크를 복사했습니다 — 카톡 · 문자 · 카페에 붙여 넣으십시오. 받는 분이 누르면 같은 날짜 · 날 수로 열립니다.' : '아래 링크를 길게 눌러 복사하십시오.'}
           <div style={{ marginTop: 4 }}><a href={링크.url}>{링크.url}</a></div></div>}
@@ -244,5 +253,6 @@ export default function Silup() {
         <p className="cp" style={{ fontSize: 12.5 }}>근거(국가법령정보센터 · {긴날(G.updated)} 확인): {G.laws.map(([t, u], k) => <span key={u}>{k ? ' · ' : ''}<a href={u} target="_blank" rel="noopener noreferrer">{t}</a></span>)}</p>
       </div>
     </div>
+    </>
   )
 }
