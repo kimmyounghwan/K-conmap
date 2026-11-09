@@ -7,6 +7,10 @@
  *   ② «클로드» 라는 말을 사이트 글에 넣지 말 것 — «건설맵» 으로(2026-10-16)
  *   ④ (코드 꼴) 잠깐 알림은 lib/잠깐말.js use잠깐말(ms) 로 — useEffect([말]) + setTimeout(() => set말(''), N) 꼴은 같은 글을 그 시간 안에 또 띄우면
  *      둘째 알림이 곧 사라짐(G588 일용 4대보험 시험에서 찾음 · G588b 에 남은 여섯 곳 고침 — PC 올리기마다 이 시험이 돌아 다시 못 들어옴)
+ *   ⑤ (코드 꼴) 「PDF 도 변환 안되게」 · «엑셀은 그대로 · PDF 는 모두 그림»(2026-11-08) — 글자 PDF 로 찍는 길이 다시 안 생기게(G604):
+ *      (가) 옛 글자 인쇄 훅 use인쇄(tools/공정인쇄.js)를 가져다 쓰는 파일 0 — G585 ~ G604 에 열아홉 곳 모두 use그림인쇄 로 바꿈
+ *      (나) window.print() 를 부르는 파일은 «그림만 찍는 곳» 과 «아직 하나씩 바꾸는 남은 결과지» 목록에 있는 것만 — 새 파일이 부르면 걸림 ·
+ *           남은 목록에 있는데 이제 안 부르면(바꿨으면) 목록에서 빼라고 걸림(목록이 늘 참말이게)
  *
  *   보는 곳: web/src 의 .js · .jsx(주석 빼고 — 화면 글 · 받는 파일 글 · 제목(title) 모두) · web/src/data 의 .json · prerender.py(# 줄 빼고)
  *            · web/index.html · web/public 의 .html
@@ -115,6 +119,25 @@ ok('web/src 코드(주석 뺌) — useEffect([말]) + setTimeout 꼴 없음', !�
 const 잠깐표본 = ["  useEffect(() => { if (!말) return undefined; const t = setTimeout(() => set말0(''), 4000); return () => clearTimeout(t) }, [말])", "useEffect(() => { if (!알림) return; const t = setTimeout(() => set알림(''), 8000); return () => clearTimeout(t) }, [알림])"]
 const 잠깐괜찮음 = ["    if (m) 시계.current = setTimeout(() => set말0(''), ms)", "set복사(r.id); setTimeout(() => set복사(''), 1500)", "useEffect(() => { if (!되돌림) return undefined; const t = setTimeout(() => set되돌림(null), 20000); return () => clearTimeout(t) }, [되돌림])", "/* useEffect(() => { if (!말) return undefined; const t = setTimeout(() => set말(''), 4000) }, [말]) */"]
 ok(`잠깐 알림 옛 꼴 ${잠깐표본.length}가지 잡음 · 새 꼴 · 복사 표시 · null · 주석은 안 잡음`, 잠깐표본.every((x) => 잠깐꼴.test(주석빼기js(x))) && 잠깐괜찮음.every((x) => !잠깐꼴.test(주석빼기js(x))), [...잠깐표본.filter((x) => !잠깐꼴.test(주석빼기js(x))), ...잠깐괜찮음.filter((x) => 잠깐꼴.test(주석빼기js(x)))])
+
+/* ⑤ 글자 PDF 길 막기 */
+console.log('⑤ PDF · 인쇄는 그림으로 — 글자 인쇄 길이 다시 안 생기게')
+const 상대 = (f) => path.relative(path.join(ROOT, 'web', 'src'), f).split(path.sep).join('/')
+const 코드 = js.map((f) => ({ f: 상대(f), 글: 주석빼기js(fs.readFileSync(f, 'utf8')) }))
+const 옛훅꼴 = /(?<![\w$가-힣])use인쇄(?![\w$가-힣])/   // ⚠️ \b 는 한글 뒤에서 안 맞음(«use인쇄(» 를 놓침) — 앞뒤 글자를 따로 봄
+const 그림만 = ['tools/그림인쇄훅.js', 'tools/서식작성.jsx', 'tools/격자작성.jsx', 'tools/공정인쇄.js']   // 그림을 찍는 곳 · 옛 훅 파일(쓰는 곳 0 — 가)
+const 남은 = ['pages/Forms.jsx', 'pages/Golgo.jsx', 'pages/Hyueop.jsx', 'pages/JeoksanAuto.jsx', 'pages/Juhyu.jsx', 'pages/Magam.jsx', 'pages/Silup.jsx',
+  'pages/Toejikgeum.jsx', 'tools/계약칸.jsx', 'tools/미불칸.jsx', '엑셀화면.jsx']   // 아직 글자로 찍는 결과지 — 바꿀 때마다 여기서 뺌(미불칸은 제 안에 옛 꼴 use인쇄 를 따로 둠)
+const 옛훅 = 코드.filter((x) => x.f !== 'tools/공정인쇄.js' && !남은.includes(x.f) && 옛훅꼴.test(x.글)).map((x) => x.f)
+ok('(가) 옛 글자 인쇄 훅 use인쇄 를 쓰는 파일 0 (남은 결과지 빼고 모두 use그림인쇄)', !옛훅.length, 옛훅)
+const 부름 = 코드.filter((x) => /window\.print\s*\(/.test(x.글)).map((x) => x.f)
+const 새로부름 = 부름.filter((f) => !그림만.includes(f) && !남은.includes(f))
+ok(`(나) window.print() 는 그림 찍는 곳 ${그림만.length} · 남은 결과지 ${남은.length} 에만 — 새로 부르는 파일 0`, !새로부름.length, 새로부름)
+const 이제안부름 = 남은.filter((f) => !부름.includes(f))
+ok('(나) 남은 목록이 참말 — 바꾼 파일은 목록에서 뺐음', !이제안부름.length, 이제안부름.map((f) => f + ' — 이제 window.print 를 안 부름 → 남은 목록에서 빼십시오'))
+const 훅표본 = ["import { use인쇄 } from './공정인쇄.js'", "  const [인쇄중, 인쇄] = use인쇄(`청구서_${달}`)", 'const x = use인쇄;']
+const 훅괜찮음 = ["import { use그림인쇄 } from './그림인쇄훅.js'", '/* 옛 use인쇄 → use그림인쇄 */ const 그 = use그림인쇄(이름)', "// use인쇄 는 이제 안 씀", 'const 내use인쇄훅 = 1']
+ok(`(가) 옛 훅 꼴 ${훅표본.length}가지 잡음 · use그림인쇄 · 주석 · 다른 이름은 안 잡음`, 훅표본.every((x) => 옛훅꼴.test(주석빼기js(x))) && 훅괜찮음.every((x) => !옛훅꼴.test(주석빼기js(x))), [...훅표본.filter((x) => !옛훅꼴.test(주석빼기js(x))), ...훅괜찮음.filter((x) => 옛훅꼴.test(주석빼기js(x)))])
 
 console.log(`\n${bad ? '✗' : '✓'} 시험_화면글규칙 ${n - bad}/${n}`)
 process.exit(bad ? 1 : 0)
