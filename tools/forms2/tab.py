@@ -51,7 +51,7 @@ STAGES = [
     dict(k='start', n='②', ic='🚩', h='착공', 짧게='착공계 · 현장 개설 · 공정표 · 계획서',
          언제='계약 뒤 착공할 때 내는 서류와 공사 초기에 세우는 계획서입니다. 착공계 한 벌은 아래 «꾸러미» 에 차례대로 모아 두었습니다.',
          progs=['wonclick', 'schedule', 'safety'],
-         slugs='chakgong o-chakgong-moeum o-chakgong-seoryu teukjeong-singo bisan-singo gaseol-chukjo-singo gaseol-jonchi-yeonjang daeriin daeriin-byeongyeong hyeonjang-gaeseol hyeonjang-jojikdo bisang-yeonrak hyeonhwangpan gisulin-jungbok gongjeongpyo o-yejeong-gongjeongpyo gongjeong-inryeok jikjeop-sigong-gyehoek gijunjeom doseo-pyoji anjeon-gyehoek yuhae-gyehoek anjeon-jijeong seolgye-anjeon-daejang gongsa-anjeon-daejang anjeon-hwangyeong-bi anjeonbi-gyehoek pumjil-gwanri-gyehoek pumjil-gyehoek o-pumjil-siheom pumjil-sanchul o-hwangyeong-lh'),
+         slugs='chakgong o-chakgong-moeum o-chakgong-seoryu geonchuk-chakgong-singo teukjeong-singo bisan-singo gaseol-chukjo-singo gaseol-jonchi-yeonjang daeriin daeriin-byeongyeong hyeonjang-gaeseol hyeonjang-jojikdo bisang-yeonrak hyeonhwangpan gisulin-jungbok gongjeongpyo o-yejeong-gongjeongpyo gongjeong-inryeok jikjeop-sigong-gyehoek gijunjeom doseo-pyoji anjeon-gyehoek yuhae-gyehoek anjeon-jijeong seolgye-anjeon-daejang gongsa-anjeon-daejang anjeon-hwangyeong-bi anjeonbi-gyehoek pumjil-gwanri-gyehoek pumjil-gyehoek o-pumjil-siheom pumjil-sanchul o-hwangyeong-lh'),
     dict(k='plan', n='③', ic='📘', h='시공계획서 · 작업계획서', 짧게='공종별 시공계획 · 해체 · 발파 · 야간작업',
          언제='공종을 시작하기 전에 감독(감리) 승인을 받는 계획서입니다. 현장에서 쓰던 원본의 틀을 그대로 옮겼습니다.',
          progs=[],

@@ -10,6 +10,7 @@ run.py — 서식을 굽고(빈 서식 + 작성 예시) 두 번 검증합니다.
 검증 ②  모든 시트: 오류값(#REF!·#VALUE!·#DIV/0!·#NAME?·Err:) 0, 바깥 파일 참조 0,
         빈 서식의 수식 칸은 빈칸(0 은 숨김 서식) — 글이 나오는 칸은 목록으로 보여 줌
 """
+import re
 import importlib
 import os
 import shutil
@@ -116,7 +117,8 @@ def verify(m, bk, path, out):
                     bad.append(f"[{ws.title}] {c.coordinate} 오류값 {v}")
                 f = fws[c.coordinate].value
                 if isinstance(f, str) and f.startswith("="):
-                    if "[" in f and "]" in f.split("!")[0]:
+                    fq = re.sub(r'"[^"]*"', '""', f)      # 🩹 G618 따옴표 안 글자(«[√] 천장재» 같은 표시)는 바깥 파일 참조가 아님
+                    if "[" in fq and "]" in fq.split("!")[0]:
                         bad.append(f"[{ws.title}] {c.coordinate} 바깥 파일 참조 {f[:60]}")
     for (st, lg), p in bk.pages.items():
         if st != "blank":
