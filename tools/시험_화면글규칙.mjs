@@ -126,7 +126,7 @@ const 상대 = (f) => path.relative(path.join(ROOT, 'web', 'src'), f).split(path
 const 코드 = js.map((f) => ({ f: 상대(f), 글: 주석빼기js(fs.readFileSync(f, 'utf8')) }))
 const 옛훅꼴 = /(?<![\w$가-힣])use인쇄(?![\w$가-힣])/   // ⚠️ \b 는 한글 뒤에서 안 맞음(«use인쇄(» 를 놓침) — 앞뒤 글자를 따로 봄
 const 그림만 = ['tools/그림인쇄훅.js', 'tools/서식작성.jsx', 'tools/격자작성.jsx', 'tools/공정인쇄.js']   // 그림을 찍는 곳 · 옛 훅 파일(쓰는 곳 0 — 가)
-const 남은 = ['pages/Golgo.jsx', 'pages/JeoksanAuto.jsx']   // 아직 글자로 찍는 결과지 — 바꿀 때마다 여기서 뺌(G612 엑셀화면 · G613 마감 뺌)
+const 남은 = ['pages/JeoksanAuto.jsx']   // 아직 글자로 찍는 결과지 — 바꿀 때마다 여기서 뺌(G612 엑셀화면 · G613 마감 · G614 골조 뺌)
 const 옛훅 = 코드.filter((x) => x.f !== 'tools/공정인쇄.js' && !남은.includes(x.f) && 옛훅꼴.test(x.글)).map((x) => x.f)
 ok('(가) 옛 글자 인쇄 훅 use인쇄 를 쓰는 파일 0 (남은 결과지 빼고 모두 use그림인쇄)', !옛훅.length, 옛훅)
 const 부름 = 코드.filter((x) => /window\.print\s*\(/.test(x.글)).map((x) => x.f)

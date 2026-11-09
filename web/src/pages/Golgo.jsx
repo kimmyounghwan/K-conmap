@@ -5,7 +5,7 @@
  *         → 「사이트에, 모두 무료」 · 「수량산출서에 필요한 모든 것」
  *
  * ■ 흐름: ① 개요(동·층·기준값·산출 옵션) → ② 배근표(부재 기호마다) → ③ 주자료(골조산출양식 칸 그대로 · 동마다)
- *         → unit(수평·수직 묶음) → ④ 결과(산출서·집계(층·동·공구·유형·구획)·분석·당초 대비·검산 · 엑셀 · 인쇄)
+ *         → unit(수평·수직 묶음) → ④ 결과(산출서·집계(층·동·공구·유형·구획)·분석·당초 대비·검산 · 엑셀 · PDF · 인쇄)
  * ■ 2026-09-27 「빠진 기능까지 다」: 동(여러 동·공구·유형·연면적·Typical 같은 동·동 복사·동마다 층) · 층 복사(기호 옮김)·중간층 ·
  *   배근 기호 연속 표기(1-RG1)·적용 동 · 철근 넣는 꼴 5가지 · 부재 종류(헌치·캔틸레버·트랙·다각·데크·파라펫·헌치 기초…) ·
  *   Dry Area(양식 밖 표) · 산출 옵션(40D) · 규격별 할증 · 층 둘레 → S-EDGE · unit · 구획(양식 밖 칸) · 연면적 분석 · 당초 대비
@@ -24,6 +24,10 @@
  * ■ 🆕 2026-09-28 소장님 「1번부터 6번까지 한꺼번에」 (받은 무료 프로그램 설명서의 «방식만»):
  *   📋 도면의 정착·이음 길이표 읽기(lib/정착표읽기.js — ① 개요 · 자동에서도) · 🪝 갈고리 정착(l_dh) 칸·산출 옵션 «갈고리» ·
  *   🧱 버림콘크리트(배근표 «버림 두께») · 교대배근 표기(HD10+13@200) · 🔗 결과 ↔ 도면 오가기(lib/도면오가기.js — ④ 결과)
+ * ■ 🖼 G614 (2026-11-09) ④ 결과 PDF · 인쇄도 그림 — 소장님 「PDF 도 변환 안되게 해야 하지 않아? 사이트?」 → 「엑셀은 그대로 · PDF 는 모두 그림」.
+ *   예전 «🖨 인쇄»(window.print — 쪽 전체 글자 PDF) → 결과 카드(.gg-print)만 그림으로 «📄 PDF»(바로 받음) · «🖨 인쇄»(그림만) — tools/그림인쇄훅.js 대상 모드
+ *   (몸표 없음 · 인쇄 규칙 .gg .gg-hide 펼침 그대로 — 집계 · 층별 부재별 · 층별 · 동별 · 공구 · 유형 · 구획 · 연면적 분석 · 당초 대비 · 산출서 모두) · 긴 산출서는 lib «긴 판 나눠 찍기».
+ *   작업 화면(.gg-ws)에서도 복제본만 보통 흐름으로 풀어 찍음(lib/작업틀풀기.js — G613 마감과 같이) · Ctrl+P 는 결과 카드 대신 «단추로 인쇄» 안내.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -45,6 +49,8 @@ import { 세기 } from '../lib/받은수.jsx'
 import { askAfter } from '../AskComment'
 import 받기검사판, { 엑셀내려주기 } from '../받기검사판.jsx'   // 📋 G444 받기 전 검사
 import { use화면상태 } from '../lib/길기록.js'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'
+import { 작업틀풀기 } from '../lib/작업틀풀기.js'
 
 import { 단위보기, 단위풀이 } from '../lib/단위.js'
 const 저장열쇠 = 'kcm.golgo.v1'
@@ -472,6 +478,10 @@ export default function Golgo() {
       if (r.통과) { 엑셀내려주기(r.바이트, 이름); askAfter('jeoksan') }
     } finally { set받는중(false) }
   }
+  /* 🖼 G614 결과 PDF · 인쇄 — 결과 카드만 그림으로(이름은 엑셀과 같게) · 작업 화면 틀은 복제본에서만 풂 */
+  const 그 = use그림인쇄('골조수량산출서_' + (공사.이름 || '현장').replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 30), {
+    셈: '골조', 대상: '.gg .gg-print', 몸표: [], 쪽: { 폭: 186, 높: 271 }, 여백: [12, 12], 칸줄: true, 더CSS: 작업틀풀기,
+  })
 
   const 표이름 = { 보: '1. 보', 보강: '보강', 기둥: '2. 기둥', 슬라브: '3. 슬라브', 옹벽: '4. 옹벽', 계단: '5. 계단', 기초: '6. 기초', 보강근: '보강근', 드라이에리어: 'DRY AREA*' }
   const 동으로 = (k) => { set동i(k); set선택(null) }
@@ -682,7 +692,7 @@ export default function Golgo() {
       )}
 
       {탭 === '결과' && (
-        <결과판 공사={공사} set공사={set공사} 결과={결과} 합={합} 엑셀받기={엑셀받기} 받는중={받는중} 짚기={모델 ? 짚기 : null} 짚음열쇠={곳열쇠(짚음)} 짚은={짚은} 가기={(곳) => {
+        <결과판 공사={공사} set공사={set공사} 결과={결과} 합={합} 엑셀받기={엑셀받기} 받는중={받는중} 그={그} 짚기={모델 ? 짚기 : null} 짚음열쇠={곳열쇠(짚음)} 짚은={짚은} 가기={(곳) => {
           if (!곳) return
           set선택(null)
           if (곳.표 === '동' || 곳.표 === '층') { set탭('개요'); return }
@@ -1089,7 +1099,7 @@ function 모음표({ 줄, 앞 }) {
   )
 }
 
-function 결과판({ 공사, set공사, 결과, 합, 엑셀받기, 받는중, 가기, 짚기, 짚음열쇠, 짚은 }) {
+function 결과판({ 공사, set공사, 결과, 합, 엑셀받기, 받는중, 그, 가기, 짚기, 짚음열쇠, 짚은 }) {
   const [보기, set보기] = useState('집계')
   /* 🔗 도면을 눌러 찾은 줄 → 산출서로 옮겨 첫 줄을 보여 줌 */
   const 짚은셋 = useMemo(() => new Set(짚은 || []), [짚은])
@@ -1119,7 +1129,9 @@ function 결과판({ 공사, set공사, 결과, 합, 엑셀받기, 받는중, �
     set공사((P) => ({ ...P, 당초: { 때: 글때, 합: 집.합.map((x) => ({ 항목: x.항목, 규격: x.규격, 단위: x.단위, 산출: x.산출 })) } }))
   }
   return (
-    <div className="card gg-print" ref={판Ref}>
+    <>
+    <div className="kcm-인쇄안내">🖨 골조 수량산출서는 화면의 <b>«📄 PDF»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+    <div className="card gg-print 그림만인쇄" ref={판Ref}>
       <div className="gg-head">
         <div>
           <div className="detail-h" style={{ margin: 0 }}>골조 수량산출서{공사.이름 ? ' — ' + 공사.이름 : ''}</div>
@@ -1127,9 +1139,11 @@ function 결과판({ 공사, set공사, 결과, 합, 엑셀받기, 받는중, �
         </div>
         <div className="btn-row no-print" style={{ flexWrap: 'wrap' }}>
           <button type="button" className="btn sm" disabled={!결과.줄.length || 받는중} onClick={엑셀받기}>{받는중 ? '만드는 중…' : '⬇ 엑셀 받기'}</button>
-          <button type="button" className="btn line sm" disabled={!결과.줄.length} onClick={() => window.print()}>🖨 인쇄</button>
+          <button type="button" className="btn line sm" disabled={!결과.줄.length || !!그.찍기} onClick={() => 그.PDF()}>{그.찍기 === 'pdf' ? `PDF 만드는 중…${그.진행 ? ' ' + 그.진행 : ''}` : '📄 PDF'}</button>
+          <button type="button" className="btn line sm" disabled={!결과.줄.length || !!그.찍기} onClick={() => 그.인쇄()}>{그.찍기 === '인쇄' ? `인쇄 준비 중…${그.진행 ? ' ' + 그.진행 : ''}` : '🖨 인쇄'}</button>
         </div>
       </div>
+      {그.말 && <div className="note sm no-print gj-찍말" role="status" style={{ margin: '0 0 8px' }}>{그.말}</div>}
       <div className="gg-tiles">
         <div><span>콘크리트 (레미콘)</span><b>{쉼(합('콘크리트'), 2)}</b> ㎥ <small>루베</small></div>
         <div><span>거푸집</span><b>{쉼(합('거푸집'), 2)}</b> ㎡ <small>헤베</small></div>
@@ -1211,5 +1225,6 @@ function 결과판({ 공사, set공사, 결과, 합, 엑셀받기, 받는중, �
         </div>
       ))}
     </div>
+    </>
   )
 }
