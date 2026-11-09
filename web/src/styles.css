@@ -10514,6 +10514,52 @@ a.cert-chip:not(.deep) { color: inherit; text-decoration: none; }
 .go-bar i b { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
 .go-bar em { font-style: normal; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
 .go-src { margin-top: 8px; font-size: 11.5px; color: var(--muted); }
+/* ── 📝 G628 예상문제(/cert/{종목}/quiz) — 폰 한 손 · 보기 단추 크게(48px) · 맞음 초록 · 틀림 빨강 ── */
+.qz, .qz-out { scroll-margin-top: 64px; }
+.qz-go { margin-top: 10px; min-height: 0; }
+.qz-top { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
+.qz-n { font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+.qz-score { margin-left: auto; font-variant-numeric: tabular-nums; }
+.qz-prog { height: 5px; background: var(--line-soft); border-radius: 99px; overflow: hidden; margin: 8px 0 10px; }
+.qz-prog b { display: block; height: 100%; background: var(--accent); }
+.qz-name { font-size: 12px; color: var(--accent); font-weight: 700; word-break: keep-all; }
+.qz-q { font-size: 15.5px; line-height: 1.65; margin: 4px 0 12px; word-break: keep-all; }
+.qz-q.sm { font-size: 14px; margin: 2px 0 6px; }
+.qz-opts { display: grid; gap: 8px; }
+.qz-opt { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 11px 12px; text-align: left; border-radius: 12px;
+  border: 1.5px solid var(--line); background: var(--surface); color: var(--text); font-size: 15px; font-variant-numeric: tabular-nums; cursor: pointer; }
+.qz-opt:disabled { cursor: default; }
+.qz-opt.ok { border-color: var(--good); background: var(--good-soft); }
+.qz-opt.no { border-color: var(--bad); background: var(--bad-soft); }
+.qz-opt.dim { opacity: .6; }
+.qz-k { flex: 0 0 auto; font-weight: 800; color: var(--muted); }
+.qz-t { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.qz-mk { flex: 0 0 auto; }
+.qz-exp { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); font-size: 13.5px; line-height: 1.6; }
+.qz-exp.ok > b { color: var(--good); }
+.qz-exp.no > b { color: var(--bad); }
+.qz-steps { margin: 6px 0 0; padding-left: 20px; font-size: 13.5px; line-height: 1.6; word-break: keep-all; }
+.qz-src { margin-top: 6px; font-size: 12px; color: var(--muted); line-height: 1.5; word-break: keep-all; }
+.qz-nav { display: flex; align-items: center; gap: 8px; margin-top: 12px; scroll-margin-bottom: 16px; }
+.qz-next { flex: 1 1 auto; width: auto; }
+.qz-start { margin-top: 4px; }
+.qz-wrong { display: grid; gap: 6px; margin-top: 8px; }
+.qz-clear { justify-self: end; border: 0; background: none; color: var(--muted); font-size: 12px; text-decoration: underline; padding: 4px 2px; cursor: pointer; }
+.qz-types { padding: 8px 0; border-top: 1px solid var(--line-soft); font-size: 13px; line-height: 1.55; }
+.qz-types b { display: block; font-size: 13.5px; }
+.qz-types span { color: var(--text-2); word-break: keep-all; }
+.qz-res { display: grid; gap: 8px; margin-top: 10px; }
+.qz-res > div { display: grid; grid-template-columns: 1fr auto; gap: 3px 8px; font-size: 13px; }
+.qz-res em { font-style: normal; color: var(--muted); font-variant-numeric: tabular-nums; }
+.qz-res i { grid-column: 1 / -1; height: 8px; background: var(--line-soft); border-radius: 99px; overflow: hidden; display: block; }
+.qz-res i b { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+.qz-res i b.low { background: var(--bad); }
+.qz-btns { display: grid; gap: 8px; margin: 0 0 12px; }
+.qz-rv summary { cursor: pointer; padding: 9px 0; border-top: 1px solid var(--line-soft); font-size: 13.5px; line-height: 1.45; word-break: keep-all; }
+.qz-rv summary em { font-style: normal; font-size: 11.5px; color: var(--muted); margin-left: 6px; }
+.qz-rv[open] { padding-bottom: 8px; }
+.qz-ans { font-size: 13.5px; }
+.qz-ex { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 3px; font-size: 13.5px; font-variant-numeric: tabular-nums; }
 /* 📚 G625 1순위 ↔ 분석 두 칸 단추(.seg 와 같은 꼴 · 링크) */
 .fa-seg { margin: 12px 0 10px; }
 .fa-seg a { flex: 1; text-align: center; padding: 9px 4px; border-radius: 8px; font-size: 13px; font-weight: 700; color: var(--muted); text-decoration: none; white-space: nowrap; }

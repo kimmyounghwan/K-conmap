@@ -24,6 +24,7 @@ export const certBySlug = (s) => 종목들.find((x) => x.slug === s) || null
 const 등급순 = DATA.levels || ['기술사', '기능장', '기사', '산업기사', '기능사']
 const 큐넷 = 'https://www.q-net.or.kr/'
 const 기출 = 'https://www.q-net.or.kr/cst006.do?id=cst00601&code=1203&gSite=Q'
+const 퀴즈종목 = 종목들.filter((x) => 깊은[x.slug] && 깊은[x.slug].quiz)   /* 📝 G628 예상문제가 있는 종목 */
 
 /* 찾기 — 띄어쓰기 · 대소문자 무시 · «및» 빼고(토질및기초 = 토질 기초) */
 const 낱 = (s) => String(s || '').replace(/\s+/g, '').replace(/및/g, '').toLowerCase()
@@ -96,6 +97,12 @@ export default function CertIndex() {
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 8px' }}>📝 기출문제는?</div>
         <Blocks blocks={DATA.gichul || []} />
+        {퀴즈종목.map((y) => (   /* 📝 G628 직접 만든 예상문제 */
+          <Link className="row rowlink" to={`/cert/${y.slug}/quiz`} key={y.slug}>
+            <span className="fic">📝</span><div className="grow"><div className="t">{y.n} 예상문제</div>
+              <div className="d">{(깊은[y.slug].quiz.과목 || []).length}과목 계산 문제 {(깊은[y.slug].quiz.틀 || []).length}가지 — 풀 때마다 숫자가 바뀜 · 풀이 · 근거</div></div><span className="go">→</span>
+          </Link>
+        ))}
         <a className="row rowlink" href={기출} target="_blank" rel="noopener nofollow">
           <span className="fic">🔗</span><div className="grow"><div className="t">큐넷 기출문제(기술사) 자료실</div>
             <div className="d">원문은 큐넷에서 — 한국산업인력공단</div></div><span className="go">↗</span>
@@ -203,6 +210,10 @@ export function CertItem() {
         <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>{x.lv} · {(DATA.groups.find((g) => g.k === x.g) || {}).n} · {d.sub}</div>
         <p className="cp" style={{ marginTop: 8 }}>{md(d.lead)}</p>
         {d.facts && <div className="cert-facts">{d.facts.map(([k, v], i) => <div key={i}><span>{k}</span><b>{md(v)}</b></div>)}</div>}
+        {d.quiz && (   /* 📝 G628 예상문제 — 건설맵이 직접 만든 계산 문제(/cert/{종목}/quiz) */
+          <Link className="cert-big qz-go" to={`/cert/${slug}/quiz`}><b>📝 예상문제 풀기</b>
+            <span>{(d.quiz.과목 || []).length}과목 계산 문제 {(d.quiz.틀 || []).length}가지 — 풀 때마다 숫자가 바뀜 · 바로 채점 · 풀이</span></Link>
+        )}
       </div>
       {d.secs.map((s, i) => (
         <div className="card" key={i}>

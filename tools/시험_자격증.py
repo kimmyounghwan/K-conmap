@@ -14,7 +14,9 @@
 ⑨ 큐넷 번호(q · 네 자리) — «새» 빼고 모든 종목 · 겹침 없음
 ⑩ 기술사 19 종목 모두 깊은 글 · 시험과목 · 응시자격 11줄(시행령 [별표 4의2]) · 등급 셈 링크
 ⑪ G626(11-10) 기능사 29 종목 모두 깊은 글 — 시험 표 5줄(시험과목 · 필기 · 실기 · 합격 · 2026 시험) · 응시자격 «제한 없음»(시행령 [별표 4의2]) ·
-   다음 단계 표(산업기사 1년 · 기술사 7년) · 실기만 종목은 필기 «없음» · 수수료 실기만 · 등급 셈 링크 · 기술사 · 기능사 말고는 아직 깊은 글 없음
+   다음 단계 표(산업기사 1년 · 기술사 7년) · 실기만 종목은 필기 «없음» · 수수료 실기만 · 등급 셈 링크 · 기능장 · 산업기사는 아직 깊은 글 없음
+⑫ G628(11-10) 기사 깊은 글(토목기사부터) — 시험 표 6줄(필기 과목 · 필기 · 실기 · 합격 · 관련 학과 · 2026 시험) · 응시자격 10줄(시행령 [별표 4의2] 기사 = 큐넷 응시자격별 안내) ·
+   자격지수 30 · 등급 셈 링크 · 예상문제(quiz) — 과목 · 틀 · 맛보기(과목마다 하나) · 예상문제 링크 · 길(main.jsx · prerender · sitemap · IndexNow · Crumbs 이름)
 """
 import io
 import json
@@ -114,8 +116,8 @@ def main():
            and any(b.get("t") == "links" and any(i[1] == "/cert/grade" for i in b["items"]) for s0 in deep[x["slug"]]["secs"] for b in s0["blocks"]) for x in 기술사))
     # ⑪ 기능사
     기능사 = [x for x in 지금 if x["lv"] == "기능사"]
-    ok("⑪ 기능사 29 종목 모두 깊은 글 · 그 밖(기사 · 산업기사 · 기능장)은 아직 없음", len(기능사) == 29 and all(x["slug"] in deep for x in 기능사)
-       and all(x["slug"] not in deep for x in 지금 if x["lv"] not in ("기술사", "기능사")), [x["n"] for x in 기능사 if x["slug"] not in deep])
+    ok("⑪ 기능사 29 종목 모두 깊은 글 · 기능장 · 산업기사는 아직 없음(기사는 ⑫)", len(기능사) == 29 and all(x["slug"] in deep for x in 기능사)
+       and all(x["slug"] not in deep for x in 지금 if x["lv"] in ("기능장", "산업기사")), [x["n"] for x in 기능사 if x["slug"] not in deep])
     def 기능사꼴(t):
         시 = 표(t, "구분")
         다 = 표(t, "다음 단계")
@@ -130,6 +132,32 @@ def main():
     ok("⑪ 기능사 깊은 글 꼴 — 시험 표 5줄 · 다음 단계(산업기사 1년 · 기술사 7년) · 제한 없음 · 자격지수 15 · 실기만이면 필기 «없음» · 수수료 실기만", not 틀림, 틀림)
     실기만 = sorted(x["n"] for x in 기능사 if dict(표(deep[x["slug"]], "구분")["rows"]).get("필기") == "없음")
     ok("⑪ 실기만(필기 없음) 17 종목 — 큐넷 그대로(건축 13 · 토목 4 — 거푸집 · 도배 · 미장 · 조적 · 철근 · 타일 · 석공 · 도화 …)", len(실기만) == 17 and "거푸집기능사" in 실기만 and "콘크리트기능사" not in 실기만, 실기만)
+    # ⑫ 기사
+    기사 = [x for x in 지금 if x["lv"] == "기사" and x["slug"] in deep]
+    ELIG기사 = [["산업기사(이상)", "1년 이상"], ["기능사", "3년 이상"], ["같은 · 비슷한 직무분야의 다른 기사(이상)", "바로"],
+              ["관련 학과 대학(4년제) 졸업 · 졸업 예정", "바로"], ["관련 학과 3년제 전문대 졸업", "1년 이상"], ["관련 학과 2년제 전문대 졸업", "2년 이상"],
+              ["기사 수준 기술훈련과정 이수 · 이수 예정", "바로"], ["산업기사 수준 기술훈련과정 이수", "2년 이상"],
+              ["자격 · 학력 없이 실무만", "4년 이상"], ["외국에서 같은 종목 자격", "바로"]]
+    def 기사꼴(x):
+        t = deep[x["slug"]]
+        시 = 표(t, "구분")
+        자 = 표(t, "갖춘 것")
+        팩 = dict((k, v) for k, v in t.get("facts") or [])
+        링크들 = [i[1] for s0 in t["secs"] for b in s0["blocks"] if b.get("t") == "links" for i in b["items"]]
+        qz = t.get("quiz")
+        return bool(시 and [r[0] for r in 시["rows"]] == ["필기 과목", "필기", "실기", "합격", "관련 학과", "2026 시험"] and dict(시["rows"])["2026 시험"].startswith("정기 기사")
+                    and 자 and 자["rows"] == ELIG기사 and 팩.get("건설기술인 자격지수") == "**30**" and "/cert/grade" in 링크들
+                    and ((f'/cert/{x["slug"]}/quiz' in 링크들) == bool(qz))
+                    and (not qz or (qz.get("과목") and len(qz.get("틀") or []) >= 3 * len(qz["과목"]) and len(qz.get("예시") or []) == len(qz["과목"]))))
+    ok("⑫ 기사 깊은 글 — 토목기사 있음 · 시험 표 6줄 · 응시자격 10줄(=[별표 4의2] · 큐넷) · 자격지수 30 · 등급 셈 링크 · 예상문제(과목 · 틀 · 맛보기 · 링크)",
+       any(x["n"] == "토목기사" for x in 기사) and all(기사꼴(x) for x in 기사), [x["n"] for x in 기사 if not 기사꼴(x)])
+    퀴즈 = [x for x in 지금 if (deep.get(x["slug"]) or {}).get("quiz")]
+    lib = rd("web/src/lib/예상문제.js")
+    cr = rd("web/src/Crumbs.jsx")
+    sm = rd("sitemap.py")
+    ok("⑫ 예상문제 길 — main.jsx /cert/:slug/quiz · prerender cert_quiz(cert/{종목}/quiz.html) · sitemap · IndexNow · lib 문제집 · Crumbs 가운데 칸 이름",
+       bool(퀴즈) and 'path="/cert/:slug/quiz"' in mj and "def cert_quiz" in pr and 'write(f"cert/{s}/quiz.html"' in pr and '/quiz"' in sm and "/quiz'" in pr
+       and all(f"'{x['slug']}':" in lib and f"'/cert/{x['slug']}': '{x['n']}'" in cr for x in 퀴즈), [x["n"] for x in 퀴즈])
     print(f"\n{'❌' if bad else '✅'} 시험_자격증 {n - bad}/{n}")
     sys.exit(1 if bad else 0)
 

@@ -1930,7 +1930,8 @@ def cert_urls_for_indexnow():
     except Exception:
         return []
     deep = d.get("deep") or {}
-    return ["/cert", "/cert/grade"] + [f'/cert/{x["slug"]}' for x in (d.get("items") or []) if x.get("slug") in deep]
+    return (["/cert", "/cert/grade"] + [f'/cert/{x["slug"]}' for x in (d.get("items") or []) if x.get("slug") in deep]
+            + [f'/cert/{x["slug"]}/quiz' for x in (d.get("items") or []) if (deep.get(x.get("slug")) or {}).get("quiz")])   # 📝 G628 예상문제 쪽
 
 
 def change_naeyeok_kind_page(shell, kind, rows, meta, image=None):
@@ -3824,7 +3825,10 @@ def cert_index(shell, d, image=None):
                     out.append(f'<span class="cert-chip">{esc(x["n"])}</span>')
             out.append("</div></div>")
         out.append("</div>")
-    out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">📝 기출문제는?</div>' + _blocks_html(d.get("gichul") or []) + "</div>")
+    qz = "".join(f'<a class="row rowlink" href="/cert/{esc(x["slug"])}/quiz"><span class="fic">📝</span><div class="grow"><div class="t">{esc(x["n"])} 예상문제</div>'
+                 f'<div class="d">{len(deep[x["slug"]]["quiz"].get("과목") or [])}과목 계산 문제 {len(deep[x["slug"]]["quiz"].get("틀") or [])}가지 — 풀 때마다 숫자가 바뀜 · 풀이 · 근거</div></div><span class="go">→</span></a>'
+                 for x in items if x["slug"] in deep and deep[x["slug"]].get("quiz"))   # 📝 G628 — 화면(Cert.jsx 퀴즈종목)과 같은 줄
+    out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">📝 기출문제는?</div>' + _blocks_html(d.get("gichul") or []) + qz + "</div>")
     out.append(f'<div class="note sm" style="margin-top:10px">{esc(d.get("note") or "")}</div>')
     rows = [("/cert/grade", "건설기술인 등급 셈 — 초급 · 중급 · 고급 · 특급", "")] + [(f'/cert/{s}', (deep[s].get("h1") or s), "") for s in deep]
     ld = ld_graph(ld_crumbs(("K-건설맵", None), ("토목 · 건축 자격증", "/cert")), ld_list("토목 · 건축 자격증", rows))
@@ -3858,6 +3862,10 @@ def cert_item(shell, d, x, t, image=None):
            f'<p class="cp" style="margin-top:8px">{_bold(t.get("lead") or "")}</p>']
     if t.get("facts"):
         out.append('<div class="cert-facts">' + "".join(f'<div><span>{esc(k)}</span><b>{_bold(v)}</b></div>' for k, v in t["facts"]) + "</div>")
+    if t.get("quiz"):   # 📝 G628 — 화면(Cert.jsx CertItem)과 같은 단추
+        qz = t["quiz"]
+        out.append(f'<a class="cert-big qz-go" href="/cert/{esc(x["slug"])}/quiz"><b>📝 예상문제 풀기</b>'
+                   f'<span>{len(qz.get("과목") or [])}과목 계산 문제 {len(qz.get("틀") or [])}가지 — 풀 때마다 숫자가 바뀜 · 바로 채점 · 풀이</span></a>')
     out.append("</div>")
     for s in t.get("secs") or []:
         out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">' + esc(s["h"]) + "</div>" + _blocks_html(s["blocks"]) + "</div>")
@@ -3870,6 +3878,48 @@ def cert_item(shell, d, x, t, image=None):
                   {"@type": "Article", "headline": h1, "description": desc, "inLanguage": "ko",
                    "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}})
     return page(shell, f'/cert/{x["slug"]}', title, desc, "".join(out) + nav_html("/cert"), image, ld)
+
+
+def cert_quiz(shell, d, x, t, image=None):
+    """📝 G628 (2026-11-10) 소장님 「최신기출문제도 해줘. 예상문제도 해주고…」 — /cert/{종목}/quiz 구운 쪽.
+    화면(pages/CertQuiz.jsx «고르는 화면»)과 같은 글: 제목 · 소개 · 들어 있는 문제(과목마다 틀 이름) · 맛보기(cert.json quiz.예시 — lib/예상문제.js 가 같은 씨앗으로 만든 것 그대로) ·
+    기출 원문 안내(저작권 — 큐넷 링크). 문제를 푸는 것은 화면(자바스크립트)에서 — 숫자가 바뀌는 문제는 굽지 않습니다."""
+    qz = t.get("quiz") or {}
+    h1 = qz.get("h1") or f'📝 {x["n"]} 예상문제'
+    title = qz.get("title") or f'{x["n"]} 예상문제 — 계산 문제 · 풀이 · 근거 | K-건설맵'
+    desc = re.sub(r"\*\*", "", qz.get("desc") or f'{x["n"]} 필기 계산 문제 — 바로 채점 · 풀이 · 근거.')[:160]
+    틀 = qz.get("틀") or []
+    과목들 = qz.get("과목") or []
+    번호 = "①②③④"
+    out = [f'<div class="btn-row" style="padding-top:14px;margin-bottom:10px"><a class="btn sm line" href="/cert/{esc(x["slug"])}">← {esc(x["n"])}</a></div>',
+           f'<div class="card"><h1 class="cert-h1">{esc(h1)}</h1>'
+           f'<p class="cp" style="margin-top:6px">건설맵이 교과서 공식으로 <b>직접 만든</b> 계산 문제 {len(틀)}가지입니다(기출 원문 아님). '
+           f'<b>풀 때마다 숫자가 바뀌고</b>, 보기를 누르면 바로 채점 · 풀이 · 근거가 나옵니다.</p></div>',
+           f'<div class="card"><div class="sec-title" style="margin:0 0 4px">📋 들어 있는 문제 — {len(틀)}가지</div>']
+    for 과 in 과목들:
+        out.append(f'<div class="qz-types"><b>{esc(과)}</b><span>{esc(" · ".join(y["이름"] for y in 틀 if y["과목"] == 과))}</span></div>')
+    out.append("</div>")
+    if qz.get("예시"):
+        out.append('<div class="card"><div class="sec-title" style="margin:0 0 4px">👀 맛보기 — 과목마다 한 문제</div>')
+        for j, z in enumerate(qz["예시"]):
+            out.append(f'<details class="qz-rv"><summary>{j + 1}. {esc(z["이름"])}<em>{esc(z["과목"])}</em></summary>'
+                       f'<p class="qz-q sm">{esc(z["문"])}</p>'
+                       '<ol class="qz-ex">' + "".join(f'<li><span class="qz-k">{번호[k]}</span> {esc(v)}</li>' for k, v in enumerate(z["보기"])) + "</ol>"
+                       f'<div class="qz-ans">정답 {번호[z["답"]]} <b>{esc(z["보기"][z["답"]])}</b></div>'
+                       '<ol class="qz-steps">' + "".join(f"<li>{esc(h)}</li>" for h in z["해설"]) + "</ol>"
+                       f'<div class="qz-src">근거 — {esc(z["근거"])}</div></details>')
+        out.append('<div class="go-src">위 «풀기 시작» 으로 풀면 숫자가 바뀐 새 문제가 나옵니다.</div></div>')
+    q_url = f'https://www.q-net.or.kr/crf005.do?id=crf00503&amp;jmCd={esc(x["q"])}' if x.get("q") else "https://www.q-net.or.kr/"
+    out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">📎 기출문제 원문은?</div>'
+               '<p class="cp" style="margin:0">국가기술자격 시험문제의 저작권은 한국산업인력공단에 있어 옮겨 싣지 않습니다. 시험 일정 · 출제기준 원문은 큐넷에서 보세요.</p>'
+               f'<a class="row rowlink" href="{q_url}" target="_blank" rel="noopener nofollow"><span class="fic">🔗</span><div class="grow"><div class="t">큐넷 — {esc(x["n"])} 시험정보</div>'
+               '<div class="d">일정 · 수수료 · 출제기준 원문 · 원서접수</div></div><span class="go">↗</span></a></div>')
+    out.append('<div class="note sm" style="margin-top:10px">필기 합격 기준 — 과목마다 40점 이상 · 전 과목 평균 60점 이상(국가기술자격법 시행령 제20조). 이 쪽의 점수 · 판정은 연습용입니다.</div>')
+    ld = ld_graph(ld_crumbs(("K-건설맵", None), ("토목 · 건축 자격증", "/cert"), (x["n"], f'/cert/{x["slug"]}'), (f'{x["n"]} 예상문제', f'/cert/{x["slug"]}/quiz')),
+                  {"@type": "LearningResource", "name": h1, "description": desc, "inLanguage": "ko", "learningResourceType": "연습 문제",
+                   "educationalLevel": f'{x["n"]} 필기', "isAccessibleForFree": True, "url": f'{SITE}/cert/{x["slug"]}/quiz',
+                   "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}})
+    return page(shell, f'/cert/{x["slug"]}/quiz', title, desc, "".join(out) + nav_html("/cert"), image, ld)
 
 
 def guide_topic(shell, t, others, image=None):
@@ -4264,7 +4314,11 @@ def main():
                 continue
             write(f"cert/{s}.html", cert_item(shell, cd, x, t, og.tab(f"cert-{s}", t.get("h1") or x["n"], x["lv"], "자격증", (t.get("sub") or "")[:44]) if og.available else None))
             made += 1
-        print(f"  · 자격증 페이지 {2 + len(cd.get('deep') or {}):,}개 (/cert/)")
+            if t.get("quiz"):   # 📝 G628 예상문제 — /cert/{종목}/quiz (cert/{종목}.html 옆 폴더 — /cert.html + cert/ 와 같은 꼴)
+                write(f"cert/{s}/quiz.html", cert_quiz(shell, cd, x, t, og.tab(f"cert-{s}-quiz", f'{x["n"]} 예상문제', f'{len(t["quiz"].get("과목") or [])}과목 계산 문제', "풀이 · 근거", "풀 때마다 숫자가 바뀜") if og.available else None))
+                made += 1
+        n_qz = sum(1 for t in (cd.get("deep") or {}).values() if t.get("quiz"))
+        print(f"  · 자격증 페이지 {2 + len(cd.get('deep') or {}) + n_qz:,}개 (/cert/ · 예상문제 {n_qz})")
 
     # ── 🧰 건설 도구 ──
     ttools, tcats = load_tools()

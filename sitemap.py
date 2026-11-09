@@ -339,7 +339,8 @@ def main():
         with io.open(CERT_JSON, encoding="utf-8") as f:
             cd = json.load(f) or {}
         if cd.get("items"):
-            for u in ["/cert", "/cert/grade"] + [f"/cert/{s}" for s in (cd.get("deep") or {})]:
+            for u in (["/cert", "/cert/grade"] + [f"/cert/{s}" for s in (cd.get("deep") or {})]
+                      + [f"/cert/{s}/quiz" for s, t in (cd.get("deep") or {}).items() if t.get("quiz")]):   # 📝 G628 예상문제 쪽
                 urls.append(f'  <url><loc>{SITE}{u}</loc>'
                             f'<lastmod>{_mtime(CERT_JSON, today)}</lastmod>'
                             f'<changefreq>monthly</changefreq><priority>0.7</priority></url>')
