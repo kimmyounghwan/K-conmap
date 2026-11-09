@@ -4,6 +4,7 @@
  *   셈 lib/juhyu.js(근로기준법 · 시행령 · 별표 · 고용노동부 해석 — 그 파일 머리 참고) · 링크 lib/juhyuLink.js · 글 data/juhyu_guide.json(미리굽기와 같은 글)
  * ■ 일당(또는 시급) · 하루 시간 · 1주 날 · 개근 · 그만둔 주인지 → 받을 수 있나 · 1주 얼마 · 까닭(조문).
  * ■ 적은 것은 이 브라우저에만(kcm_juhyu) · 결과 링크(?c=) · 이름 같은 것은 받지 않음.
+ * ■ 🖼 G607(11-08) PDF · 인쇄는 그림 — 화면(.wrap.jh)을 복제본에서 인쇄 CSS 로 펴서(적는 칸 · 설명 · 단추는 숨음 — 옛 인쇄와 같은 모양) 찍음.
  */
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -12,6 +13,7 @@ import { 링크만들기, 링크읽기 } from '../lib/juhyuLink.js'
 import G from '../data/juhyu_guide.json'
 import { 일당살핌, 시급살핌 } from '../lib/살핌.js'
 import { 링크복사 } from '../lib/링크복사.js'
+import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G607 PDF · 인쇄는 그림(글자 층 없음) */
 
 const 열쇠 = 'kcm_juhyu'
 const 쓴링크열쇠 = 'kcm_juhyu_link'
@@ -81,9 +83,16 @@ export default function Juhyu() {
     set링크({ url, 복사: await 링크복사(url) })   /* 🔗 G516 — 클립보드가 멈춰도 1.5초 뒤 링크는 보임 */
   }
   const 적음 = !!(st.일당 || st.시급)
+  /* 🖼 G607 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 옛 «🖨 인쇄»(window.print · 화면 그대로 글자 PDF) → 화면(.wrap.jh)을 복제본에서
+     인쇄 CSS(@media print — .sl-in · .sl-guide · .iy-exd · .no-print 숨음)로 펴서 그림으로 · A4 세로 기본 쪽(186 × 271) · 몸표 없음(실업급여 G605 와 같은 꼴) ·
+     이름은 날짜만(이 판단기는 이름 · 날짜를 받지 않음 — 이 브라우저의 오늘) */
+  const 오늘글 = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` })()
+  const 그 = use그림인쇄(`주휴수당판단_${오늘글}`, { 셈: '주휴수당판단', 대상: '.wrap.jh', 몸표: [], 쪽: { 폭: 186, 높: 271 }, 여백: [12, 12], 칸줄: true })
 
   return (
-    <div className="wrap sl jh">
+    <>
+    <div className="kcm-인쇄안내">🖨 주휴수당 판단은 화면의 <b>«📄 PDF»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>
+    <div className="wrap sl jh 그림만인쇄">
       <div className="card">
         <h1 className="tl-h1" style={{ marginTop: 0 }}>📆 주휴수당 판단기 — 일용 · 알바</h1>
         <p className="cp" style={{ margin: '6px 0 0' }}>
@@ -199,9 +208,11 @@ export default function Juhyu() {
             {R.요건.map((x) => <li key={x.글} className={x.ok ? 'ok' : 'bad'}><span className="sl-ic" aria-hidden>{x.ok ? '✅' : '❌'}</span><div><p>{x.글}</p></div></li>)}
           </ul>
           <div className="sl-btns no-print">
-            <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => window.print()}>🖨 인쇄</button>
+            <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={!!그.찍기} onClick={() => 그.PDF()}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 PDF'}</button>
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!그.찍기} onClick={() => 그.인쇄()}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
             <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={링크보내기}>🔗 링크 보내기</button>
           </div>
+          {그.말 && <div className="note sm no-print jh-찍말" style={{ marginTop: 8 }} role="status">{그.말}</div>}
           {링크 && <div className="note sm no-print" role="status" style={{ marginTop: 8, wordBreak: 'break-all' }}>
             {링크.복사 ? '📋 링크를 복사했습니다 — 카톡 · 문자 · 카페에 붙여 넣으십시오. 받는 분이 누르면 같은 조건으로 열립니다.' : '아래 링크를 길게 눌러 복사하십시오.'}
             <div style={{ marginTop: 4 }}><a href={링크.url}>{링크.url}</a></div></div>}
@@ -222,5 +233,6 @@ export default function Juhyu() {
         <p className="cp" style={{ fontSize: 12.5 }}>근거(국가법령정보센터 · 고용노동부 · {문자(G.updated).replace(/^(\d{4})-0?(\d+)-0?(\d+)$/, '$1.$2.$3.')} 확인): {G.laws.map(([t, u], k) => <span key={u}>{k ? ' · ' : ''}<a href={u} target="_blank" rel="noopener noreferrer">{t}</a></span>)}</p>
       </div>
     </div>
+    </>
   )
 }
