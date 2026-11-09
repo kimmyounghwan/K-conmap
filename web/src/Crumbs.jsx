@@ -26,6 +26,7 @@ const NAME = {
   '/first': '오늘의 1순위',
   '/live': '입찰 공고',
   '/analysis': '낙찰 분석',
+  '/cert': '자격증',   /* 📚 G625 */
   '/jobs': '구인구직',
   '/gongdong': '공동도급 마당',
   '/daily': '개찰 성적표',
@@ -122,7 +123,7 @@ const 영문조각 = (x) => /^[a-z0-9]+(-[a-z0-9]+)*$/.test(x)
 const TOP = new Set(['/', '/calc', '/first', '/live', '/analysis', '/jobs', '/my', '/forms',
   '/svc', '/svc/live', '/svc/first', '/svc/calc', '/goods', '/goods/live', '/goods/first', '/goods/calc',   /* 🏠 G194c · 💰 G194d 세 방의 탭 자리 */
   '/change', '/naeyeok', '/jeoksan', '/qna', '/how', '/guide', '/tools', '/cad',
-  '/daily', '/safety', '/shareone', '/report', '/lic', '/pdf', '/admin'])
+  '/daily', '/safety', '/shareone', '/report', '/lic', '/pdf', '/admin', '/cert'])   /* 📚 G625 자격증 탭 */
 
 /* 🧭 2026-09-27 — 「특히 뒤로가기 잘 되어 있나 확인해 주고」 전수조사에서 찾은 것
    ① «← 공고» (공고 상세) · «← 발주기관» · «← 업체» 가 **없는 화면(404)** 으로 갔습니다.

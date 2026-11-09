@@ -332,6 +332,21 @@ def main():
     except Exception as e:
         print(f"  · 입찰 알아보기 자료를 못 읽었습니다 ({type(e).__name__})")
 
+    # ── 📚 G625 자격증 — prerender.py 가 cert.json 으로 굽는 쪽(첫 화면 · 등급 셈 · 깊은 글)과 같게 ──
+    n_ct = 0
+    try:
+        CERT_JSON = os.path.join(ROOT, "web", "src", "data", "cert.json")
+        with io.open(CERT_JSON, encoding="utf-8") as f:
+            cd = json.load(f) or {}
+        if cd.get("items"):
+            for u in ["/cert", "/cert/grade"] + [f"/cert/{s}" for s in (cd.get("deep") or {})]:
+                urls.append(f'  <url><loc>{SITE}{u}</loc>'
+                            f'<lastmod>{_mtime(CERT_JSON, today)}</lastmod>'
+                            f'<changefreq>monthly</changefreq><priority>0.7</priority></url>')
+                n_ct += 1
+    except Exception as e:
+        print(f"  · 자격증 자료를 못 읽었습니다 ({type(e).__name__})")
+
     # ── 건설 도구 ────────────────────────────────
     n_tl = 0
     try:
@@ -453,7 +468,7 @@ def main():
 
     print(f"  ✅ 사이트맵 — 고정 {len(STATIC)} + 면허 {n_lc} + 기관 {n_ag} + 업체 {n_co}"
           f" + 공고 {n_no} + 성적표 {n_dy} + 서식 {n_fm} + 설계변경 {n_cg}"
-          f" + 알아보기 {n_gd} + 도구 {n_tl} + 캐드 {n_cd} + 사랑방 {n_qa} = {len(urls)}개")
+          f" + 알아보기 {n_gd} + 자격증 {n_ct} + 도구 {n_tl} + 캐드 {n_cd} + 사랑방 {n_qa} = {len(urls)}개")
     print("     sitemap.xml (목차) → " + " · ".join(f"{이름} {수:,}장" for 이름, 수 in 낸것))
     print(f"     {p}")
 

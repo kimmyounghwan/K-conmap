@@ -38,7 +38,7 @@ function md(s) {
   return parts.map((x, i) => (i % 2 ? <b key={i}>{x}</b> : x))
 }
 
-function Blocks({ blocks }) {
+export function Blocks({ blocks }) {   /* 📚 G625 자격증 쪽(Cert.jsx)도 같은 블록(p · warn · ul · steps · table · src · links) */
   return blocks.map((b, i) => {
     if (b.t === 'p') return <p className="cp" key={i}>{md(b.text)}</p>
     if (b.t === 'warn') return <div className="cwarn" key={i}>⚠️ {md(b.text)}</div>
@@ -53,9 +53,9 @@ function Blocks({ blocks }) {
     if (b.t === 'table') {
       return (
         <div className="fscroll" key={i}>
-          <table className={'ctab' + (b.fit ? ' fit' : '')}>
+          <table className={'ctab' + (b.fit ? ' fit' : '') + (b.stk ? ' stk' : '')}>
             <thead><tr>{b.cols.map((c, j) => <th key={j}>{c}</th>)}</tr></thead>
-            <tbody>{b.rows.map((r, j) => <tr key={j}>{r.map((c, k) => <td key={k}>{md(c)}</td>)}</tr>)}</tbody>
+            <tbody>{b.rows.map((r, j) => <tr key={j}>{r.map((c, k) => <td key={k} data-l={b.cols[k] || ''}>{md(c)}</td>)}</tr>)}</tbody>
           </table>
         </div>
       )
@@ -177,3 +177,7 @@ export function GuideTopic() {
     </>
   )
 }
+
+/* 📚 G625 자격증 쪽(Cert.jsx)도 같이 씀 — «md» 그대로 내보내면 lib/토공3d.js 의 지역 변수 md(«md <= tol»)와 이름이 겹쳐
+   tools/checkimports.py 가 «import 안 하고 씀» 으로 잘못 잡음(리허설 rh625) → 다른 이름으로 내보냄 */
+export { md as guideMd }

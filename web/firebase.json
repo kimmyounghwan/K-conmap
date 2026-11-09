@@ -69,6 +69,8 @@
       { "source": "/forms/**", "destination": "/app.html" },
       { "source": "/change/**", "destination": "/app.html" },
       { "source": "/guide/**", "destination": "/app.html" },
+      { "//": "📚 G625 자격증(/cert · /cert/grade · /cert/{종목}) — 구운 장이 먼저 나가고 못 구웠을 때 여기", "source": "/cert", "destination": "/app.html" },
+      { "source": "/cert/**", "destination": "/app.html" },
       { "source": "/tools/**", "destination": "/app.html" },
     { "source": "/jeoksan/**", "destination": "/app.html" },
     { "source": "/cad/**", "destination": "/app.html" }

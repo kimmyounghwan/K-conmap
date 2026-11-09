@@ -166,6 +166,7 @@ SITENAV = [("/", "바로투찰"), ("/first", "1순위 개찰"), ("/live", "입�
            ("/analysis", "낙찰 분석"),
            ("/daily", "개찰 성적표"),
            ("/guide", "입찰 알아보기"), ("/tools", "건설 도구"),
+           ("/cert", "토목 · 건축 자격증"), ("/cert/grade", "건설기술인 등급 셈"),
            ("/lic", "면허별 경쟁도"),
            ("/cad", "캐드 유틸"), ("/pdf", "PDF 도구"), ("/jeoksan", "K-적산"),
            ("/shareone", "쉐어원 공유폴더"),
@@ -3767,6 +3768,99 @@ def guide_index(shell, topics, image=None):
     return page(shell, "/guide", title, desc, "".join(out) + nav_html("/guide"), image, ld)
 
 
+# ── 📚 G625 자격증 (2026-11-09) ─────────────────────────────────
+#  소장님 「탭을 하나 만들어서 … 자격증 설명 … 사이트에 반영하자」 · 「검색 되게 해줘」 · 「토목, 건축 관련 자격증만」 · 「초급, 중급, 고급., 특급 기술자 수첩」
+#  ⚠️ 글은 web/src/data/cert.json 한 곳 — 화면(pages/Cert.jsx)과 같은 글을 굽습니다(크롤러가 보는 글 = 사람이 보는 글).
+#     새 화면이라 «무료» 를 쓰지 않습니다. 기출문제 원문은 싣지 않습니다(저작권 — 큐넷 링크).
+CERT_JSON = os.path.join(ROOT, "web", "src", "data", "cert.json")
+
+
+def load_cert():
+    try:
+        with open(CERT_JSON, encoding="utf-8") as f:
+            return json.load(f) or {}
+    except Exception as e:
+        print(f"  · 자격증 자료를 못 읽었습니다 ({type(e).__name__}) — 건너뜁니다")
+        return {}
+
+
+def cert_index(shell, d, image=None):
+    deep = d.get("deep") or {}
+    items = d.get("items") or []
+    title = "토목 · 건축 자격증 — 기술사 · 기사 · 산업기사 · 기능사 한눈에 · 건설기술인 등급 셈 | K-건설맵"
+    desc = ("토목 · 건축 · 건설안전 국가기술자격을 기능사부터 기술사까지 한 장에 정리했습니다. 종목 찾기 · "
+            "건설기술인 등급(초급 · 중급 · 고급 · 특급) 역량지수 셈 · 경력수첩(경력증) 받는 길까지.")[:160]
+    out = ['<div class="card"><h1 class="cert-h1">📚 토목 · 건축 자격증</h1>'
+           '<p class="cp" style="margin-top:6px">기능사부터 기술사까지 <b>한 장에</b> — 무슨 시험이 있고, 어떻게 올라가고, '
+           '따면 현장에서 몇 급이 되는지. 깊은 글은 기술사부터 차례로 채웁니다.</p>'
+           '<div class="cert-top"><a class="cert-big" href="/cert/grade"><b>🎓 내 등급 셈</b><span>초급 · 중급 · 고급 · 특급 — 자격 · 경력 · 학력으로</span></a>'
+           '<a class="cert-big" href="/cert/grade#suchup"><b>📘 경력수첩(경력증)</b><span>받는 곳 · 신고 · 등급 올리기</span></a></div></div>']
+    for g in d.get("groups") or []:
+        gi = [x for x in items if x["g"] == g["k"]]
+        if not gi:
+            continue
+        out.append(f'<div class="card cert-map"><div class="sec-title" style="margin:0 0 6px">{esc(g["ic"])} {esc(g["n"])}'
+                   f'<span class="count" style="margin-left:6px">{esc(g["d"])}</span></div>')
+        for lv in d.get("levels") or []:
+            row = [x for x in gi if x["lv"] == lv]
+            if not row:
+                continue
+            out.append(f'<div class="cert-lv"><div class="cert-lvn"><b>{esc(lv)}</b><span>{esc((d.get("lvnote") or {}).get(lv, ""))}</span></div><div class="cert-chips">')
+            for x in row:
+                if x["slug"] in deep:
+                    out.append(f'<a class="cert-chip deep" href="/cert/{esc(x["slug"])}">{esc(x["n"])}<span class="cc-go">›</span></a>')
+                else:
+                    out.append(f'<span class="cert-chip">{esc(x["n"])}</span>')
+            out.append("</div></div>")
+        out.append("</div>")
+    out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">📝 기출문제는?</div>' + _blocks_html(d.get("gichul") or []) + "</div>")
+    out.append(f'<div class="note sm" style="margin-top:10px">{esc(d.get("note") or "")}</div>')
+    rows = [("/cert/grade", "건설기술인 등급 셈 — 초급 · 중급 · 고급 · 특급", "")] + [(f'/cert/{s}', (deep[s].get("h1") or s), "") for s in deep]
+    ld = ld_graph(ld_crumbs(("K-건설맵", None), ("토목 · 건축 자격증", "/cert")), ld_list("토목 · 건축 자격증", rows))
+    return page(shell, "/cert", title, desc, "".join(out) + nav_html("/cert"), image, ld)
+
+
+def cert_grade(shell, d, image=None):
+    gd = d.get("grade") or {}
+    title = "건설기술인 등급 셈 — 초급 · 중급 · 고급 · 특급 역량지수 계산 · 경력수첩 | K-건설맵"
+    desc = ("건설기술인 등급(초급 · 중급 · 고급 · 특급)을 역량지수(자격 · 학력 · 경력 · 교육)로 바로 셉니다. "
+            "다음 등급까지 경력이 몇 년 더 필요한지, 경력수첩(건설기술인 경력증) 받는 길까지.")[:160]
+    out = ['<div class="card"><h1 class="cert-h1">🎓 건설기술인 등급 셈 — 초급 · 중급 · 고급 · 특급</h1>'
+           f'<p class="cp" style="margin-top:6px">{_bold(gd.get("lead") or "")}</p></div>']
+    for s in gd.get("secs") or []:
+        sid = f' id="{esc(s["id"])}"' if s.get("id") else ""
+        out.append(f'<div class="card"{sid}><div class="sec-title" style="margin:0 0 8px">{esc(s["h"])}</div>' + _blocks_html(s["blocks"]) + "</div>")
+    out.append(f'<div class="note sm" style="margin-top:10px">{esc(gd.get("note") or "")}</div>')
+    ld = ld_graph(ld_crumbs(("K-건설맵", None), ("토목 · 건축 자격증", "/cert"), ("건설기술인 등급 셈", "/cert/grade")),
+                  _app_ld("건설기술인 등급 셈(역량지수)", desc, "/cert/grade"))
+    return page(shell, "/cert/grade", title, desc, "".join(out) + nav_html("/cert/grade"), image, ld)
+
+
+def cert_item(shell, d, x, t, image=None):
+    deep = d.get("deep") or {}
+    g = next((g for g in d.get("groups") or [] if g["k"] == x["g"]), {"n": ""})
+    h1 = t.get("h1") or x["n"]
+    title = t.get("title") or f'{x["n"]} — 하는 일 · 시험 과목 · 응시자격 · 합격 기준 | K-건설맵'
+    desc = re.sub(r"\*\*", "", t.get("desc") or f'{x["n"]}({x["lv"]} · {g["n"]}) {t.get("lead") or ""}')[:160]
+    out = [f'<div class="card"><h1 class="cert-h1">{esc(h1)}</h1>'
+           f'<div style="font-size:12.5px;color:var(--muted);margin-top:4px">{esc(x["lv"])} · {esc(g["n"])} · {esc(t.get("sub") or "")}</div>'
+           f'<p class="cp" style="margin-top:8px">{_bold(t.get("lead") or "")}</p>']
+    if t.get("facts"):
+        out.append('<div class="cert-facts">' + "".join(f'<div><span>{esc(k)}</span><b>{_bold(v)}</b></div>' for k, v in t["facts"]) + "</div>")
+    out.append("</div>")
+    for s in t.get("secs") or []:
+        out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">' + esc(s["h"]) + "</div>" + _blocks_html(s["blocks"]) + "</div>")
+    others = [y for y in d.get("items") or [] if y["g"] == x["g"] and y["slug"] != x["slug"] and y["slug"] in deep][:6]
+    rows = [("/cert/grade", "이 자격으로 몇 급? — 건설기술인 등급 셈", "")] + [(f'/cert/{y["slug"]}', y["n"], "") for y in others]
+    out.append(rows_html("이어서 볼 것", [(nm, "보기 →") for _u, nm, _ in rows],
+                         href=lambda nm: next((u for u, n2, _ in rows if n2 == nm), None)))
+    out.append(f'<div class="note sm" style="margin-top:10px">{esc(d.get("note") or "")}</div>')
+    ld = ld_graph(ld_crumbs(("K-건설맵", None), ("토목 · 건축 자격증", "/cert"), (x["n"], f'/cert/{x["slug"]}')),
+                  {"@type": "Article", "headline": h1, "description": desc, "inLanguage": "ko",
+                   "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}})
+    return page(shell, f'/cert/{x["slug"]}', title, desc, "".join(out) + nav_html("/cert"), image, ld)
+
+
 def guide_topic(shell, t, others, image=None):
     # 제목에 이미 «—» 가 있으면 덧붙이지 않습니다 — 「… — 실측 8,424건 — 공공공사 입찰」 처럼
     # 줄표가 두 번 나오면 검색결과에서 읽기 나빠집니다.
@@ -4144,6 +4238,22 @@ def main():
             write(f'guide/{t["slug"]}.html', guide_topic(shell, t, others, img))
             made += 1
         print(f"  · 입찰 알아보기 페이지 {len(gtopics) + 1:,}개 (/guide/)")
+
+    # ── 📚 G625 자격증 ──
+    cd = load_cert()
+    if cd.get("items"):
+        write("cert.html", cert_index(shell, cd, og.tab("cert", "토목 · 건축 자격증", "기술사 · 기사 · 산업기사 · 기능사",
+                                                     f'{len(cd["items"])}종목', "등급 셈") if og.available else None))
+        write("cert/grade.html", cert_grade(shell, cd, og.tab("cert-grade", "건설기술인 등급 셈", "초급 · 중급 · 고급 · 특급",
+                                                            "역량지수", "경력수첩") if og.available else None))
+        made += 2
+        for s, t in (cd.get("deep") or {}).items():
+            x = next((y for y in cd["items"] if y["slug"] == s), None)
+            if not x:
+                continue
+            write(f"cert/{s}.html", cert_item(shell, cd, x, t, og.tab(f"cert-{s}", t.get("h1") or x["n"], x["lv"], "자격증", (t.get("sub") or "")[:44]) if og.available else None))
+            made += 1
+        print(f"  · 자격증 페이지 {2 + len(cd.get('deep') or {}):,}개 (/cert/)")
 
     # ── 🧰 건설 도구 ──
     ttools, tcats = load_tools()

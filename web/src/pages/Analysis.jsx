@@ -10,6 +10,7 @@ import 기관견본줄 from '../기관견본.jsx'
 import { use지금종류, 종류찾기 } from '../종류띠.jsx'   /* 🩹 G198 용역 · 물품 방에서 연 분석 → «준비 중» 안내 */
 import { 세기 as 분석세기 } from '../lib/받은수.jsx'
 import { 손끝 } from '../lib/손끝고르기.js'   /* 👆 G215 아이폰 — 한글 치는 중 목록 누름이 안 먹던 것 */
+import 일순분석칸 from '../일순분석칸.jsx'   /* 📚 G625 1순위 ↔ 분석 두 칸 단추(분석 탭 → 1순위 탭 안) */
 
 /* 🩹 G198 (2026-10-08) 소장님 「1번만 하고, 휴일에 작업을 하자」 — 용역 · 물품 분석(3년치)은 휴일 작업.
    그 전까지 용역 · 물품 방에서 «분석» 을 누르면 맨 위에 «준비 중» 한 줄 · 아래 공사 분석은 그대로.
@@ -35,7 +36,8 @@ export default function Analysis() {
 
   return (
     <>
-      <div className="sec-title" style={{ marginTop: 14 }}>
+      <일순분석칸 지금="analysis" 일순={방 === 'svc' ? '/svc/first' : 방 === 'goods' ? '/goods/first' : '/first'} />
+      <div className="sec-title" style={{ marginTop: 4 }}>
         🔍 분석 <span className="count">· 3년치 낙찰 데이터</span>
       </div>
       {방 !== 'con' && <분석준비중 k={방} />}

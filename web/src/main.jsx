@@ -88,6 +88,10 @@ const How = lazyPage(() => import('./pages/How.jsx'))
 /* 📣 G549 광고 · 제휴 안내(소장님 「광고, 제휴 문의 한다는 걸 알려야 문의가 들어 오잖아」) */
 const AdInfo = lazyPage(() => import('./pages/AdInfo.jsx'))
 const GuideTopic = lazyPage(() => import('./pages/Guide.jsx').then((m) => ({ default: m.GuideTopic })))
+/* 📚 G625 자격증 — /cert(토목 · 건축 지도) · /cert/grade(건설기술인 등급 셈) · /cert/{종목}(깊은 글) */
+const CertIndex = lazyPage(() => import('./pages/Cert.jsx'))
+const CertGrade = lazyPage(() => import('./pages/Cert.jsx').then((m) => ({ default: m.CertGrade })))
+const CertItem = lazyPage(() => import('./pages/Cert.jsx').then((m) => ({ default: m.CertItem })))
 /* 🧰 도구 — lazy() 가 아니라 lazyPage() 입니다. 배포가 지나가면 옛 파일이 사라져
    화면이 통째로 죽습니다 (2026-09-08 착공현장 사고). */
 const ToolsIndex = lazyPage(() => import('./pages/Tools.jsx'))
@@ -326,6 +330,9 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/naeyeok/hado" element={<Suspense fallback={<Loading />}><Hado /></Suspense>} />
           <Route path="/guide" element={<Suspense fallback={<Loading />}><Guide /></Suspense>} />
           <Route path="/guide/:slug" element={<Suspense fallback={<Loading />}><GuideTopic /></Suspense>} />
+          <Route path="/cert" element={<Suspense fallback={<Loading />}><CertIndex /></Suspense>} />
+          <Route path="/cert/grade" element={<Suspense fallback={<Loading />}><CertGrade /></Suspense>} />
+          <Route path="/cert/:slug" element={<Suspense fallback={<Loading />}><CertItem /></Suspense>} />
           <Route path="/daily" element={<DailyIndex />} />
           <Route path="/daily/:date" element={<DailyPage />} />
           {/* 🪪 G188 마이컨맵 — «/@주소» 는 한 칸짜리 «/:at» 로 받고 @ 로 시작하지 않으면 MyAt 이 NotFound 를 그립니다(react-router 6 은 «/@:a» 같은 반쪽 변수를 못 받음).

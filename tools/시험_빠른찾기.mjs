@@ -18,8 +18,8 @@ console.log('① 초성 · 고른말')
 봐(L.고른말(' 설계 변경 · 작업대 ') === '설계변경작업대' && L.고른말('BIM 물량') === 'bim물량', '고른말 — 띄어쓰기 · 꾸밈 글자 빼고 소문자')
 
 console.log('② 목록 — 사이트 자료로')
-const 탭 = [{ to: '/tools', ic: '🧰', label: '도구' }, { to: '/qna', ic: '🗺', label: '맵톡' }]
-const 목 = L.목록만들기({ 탭, tools: 읽('tools.json'), forms: 읽('forms-min.json'), change: 읽('change.json'), guide: 읽('guide.json'), cad: 읽('cad.json') })
+const 탭 = [{ to: '/tools', ic: '🧰', label: '도구' }, { to: '/qna', ic: '🗺', label: '맵톡' }, { to: '/cert', ic: '📚', label: '자격증' }]   /* 📚 G625 자격증 탭 */
+const 목 = L.목록만들기({ 탭, tools: 읽('tools.json'), forms: 읽('forms-min.json'), change: 읽('change.json'), guide: 읽('guide.json'), cad: 읽('cad.json'), cert: 읽('cert.json') })   /* 📚 G625 빠른찾기창.jsx 처럼 cert.json 도 */
 const 셈 = 목.reduce((a, x) => ((a[x.갈래] = (a[x.갈래] || 0) + 1), a), {})
 봐(목.length >= 250 && 셈.서식 >= 150 && 셈.계산기 >= 20 && 셈.도구 >= 40 && 셈['캐드 명령'] >= 10 && 셈.설계변경 >= 5 && 셈['입찰 알아보기'] >= 10 && 셈.화면 >= 15, `목록 ${목.length}개 — ${JSON.stringify(셈)}`)
 봐(new Set(목.map((x) => x.to)).size === 목.length, '같은 주소 두 번 없음')

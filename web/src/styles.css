@@ -10471,3 +10471,50 @@ a.adinfo-pick:hover, a.adinfo-pick:focus-visible { border-color: var(--ad-btn); 
 .dy-list li a { font-weight: 700; color: var(--text); text-decoration: none; }
 .dy-list li a:hover { color: var(--accent); text-decoration: underline; }
 .dy-meta { font-size: 12px; color: var(--muted); }
+
+/* ── 📚 G625 자격증(/cert · /cert/grade · /cert/종목) — 폰 먼저 · 한 손 ── */
+.cert-h1 { font-size: 18px; font-weight: 800; margin: 0; line-height: 1.4; word-break: keep-all; }
+.cert-q { margin-top: 10px; font-size: 15px; }
+.cert-top { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.cert-big { display: flex; flex-direction: column; gap: 3px; padding: 11px 12px; border-radius: 12px; background: var(--accent-soft);
+  border: 1px solid var(--accent-line); color: var(--text); text-decoration: none; min-height: 64px; }
+.cert-big b { font-size: 14.5px; }
+.cert-big span { font-size: 12px; color: var(--muted); line-height: 1.4; word-break: keep-all; }
+.cert-lv { display: grid; grid-template-columns: 70px 1fr; gap: 8px; padding: 9px 0; border-top: 1px solid var(--line-soft); }
+.cert-map .sec-title + .cert-lv { border-top: 0; }
+.cert-lvn b { display: block; font-size: 13.5px; }
+.cert-lvn span { display: block; font-size: 11px; color: var(--muted); line-height: 1.35; margin-top: 2px; word-break: keep-all; }
+.cert-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.cert-chip { display: inline-flex; align-items: center; gap: 2px; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--surface); font-size: 13px; color: var(--text-2); line-height: 1.25; }
+.cert-chip.deep { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 700; text-decoration: none; }
+.cc-go { font-weight: 800; margin-left: 1px; }
+a.cert-chip:not(.deep) { color: inherit; text-decoration: none; }
+.cc-ext { font-size: 10.5px; color: var(--muted); margin-left: 2px; }
+.cc-new { font-style: normal; font-size: 10.5px; color: var(--accent); margin-left: 4px; font-weight: 700; }
+.cert-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+.cert-facts > div { background: var(--surface-2); border-radius: 10px; padding: 8px 10px; }
+.cert-facts span { display: block; font-size: 11.5px; color: var(--muted); }
+.cert-facts b { display: block; font-size: 13.5px; margin-top: 2px; line-height: 1.4; word-break: keep-all; }
+.chips.wrap { flex-wrap: wrap; overflow: visible; -webkit-mask-image: none; mask-image: none; }
+.grade-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.grade-row input { width: 74px; flex: 0 0 74px; text-align: right; }
+.grade-row select { flex: 1 1 auto; min-width: 0; }
+.grade-row span { font-size: 13px; color: var(--text-2); flex: 0 0 auto; }
+.grade-x { flex: 0 0 34px; height: 34px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); }
+.grade-out { border: 2px solid var(--line); }
+.go-top { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.go-n { font-size: 34px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.go-u { font-size: 14px; color: var(--muted); }
+.go-g { color: #fff; font-weight: 800; padding: 3px 11px; border-radius: 999px; font-size: 15px; align-self: center; }
+.go-c { font-size: 12.5px; color: var(--muted); align-self: center; }
+.go-bars { margin-top: 10px; display: grid; gap: 7px; }
+.go-bar { display: grid; grid-template-columns: 30px 1fr 78px; align-items: center; gap: 8px; font-size: 12.5px; }
+.go-bar i { height: 8px; background: var(--line-soft); border-radius: 99px; overflow: hidden; display: block; }
+.go-bar i b { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+.go-bar em { font-style: normal; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.go-src { margin-top: 8px; font-size: 11.5px; color: var(--muted); }
+/* 📚 G625 1순위 ↔ 분석 두 칸 단추(.seg 와 같은 꼴 · 링크) */
+.fa-seg { margin: 12px 0 10px; }
+.fa-seg a { flex: 1; text-align: center; padding: 9px 4px; border-radius: 8px; font-size: 13px; font-weight: 700; color: var(--muted); text-decoration: none; white-space: nowrap; }
+.fa-seg a.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }

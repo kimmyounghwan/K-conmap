@@ -25,6 +25,7 @@ import 밖공고줄 from '../밖공고줄.jsx'
 import { 공고봄 } from '../lib/조회수.jsx'   /* 👁 G121 — 펼치면 그 공고 조회 1 */
 import { 검색어기억 } from '../lib/저절로알림.js'   /* 🔔 G222 찾은 말 → 하루 두 번 알림(다 친 뒤 2.5초) */
 import { 내금액모음 } from '../내금액.jsx'   /* 📝 G338 적어 둔 금액 모아 보기 */
+import 일순분석칸 from '../일순분석칸.jsx'   /* 📚 G625 1순위 ↔ 분석 두 칸 단추 */
 
 const PAGE = 20
 const KIND = 'con'   // 공사만 다룹니다 (용역 제외)
@@ -108,7 +109,8 @@ export default function FirstBoard() {
           · 숫자 상자 넷(누적 · 발주기관 · 업체 · 최근 개찰) → 제목 줄 한 줄(«최근 개찰» 은 결과 줄 건수와 같아 뺌)
           · «나라장터 밖 1순위» 큰 카드 → 결과 줄의 작은 단추(날짜별 성적표 옆) · «7주 전체 N건 · 쪽을 넘기면…» 줄은 찾을 때 · 받는 중일 때만
           · 갱신 알림(FreshBar) · 내 조건 · 찾기 · 지역 · 면허 · 내역서 띠는 그대로 */}
-      <div className="sec-title fb-head" style={{ marginTop: 14 }}>
+      <일순분석칸 지금="first" />
+      <div className="sec-title fb-head" style={{ marginTop: 4 }}>
         🏆 1순위 현황판
         {ov && <span className="count">· 누적 {num(ov.rows)}건 · 발주기관 {num(ov.agencies)} · 업체 {num(ov.corps)}</span>}
       </div>

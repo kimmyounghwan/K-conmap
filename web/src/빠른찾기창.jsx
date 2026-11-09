@@ -15,8 +15,8 @@ function 목록받기(탭) {
   if (!목록약속) {
     목록약속 = Promise.all([
       import('./data/tools.json'), import('./data/forms-min.json'), import('./data/change.json'),
-      import('./data/guide.json'), import('./data/cad.json'),
-    ]).then(([t, f, c, g, k]) => 목록만들기({ 탭, tools: t.default, forms: f.default, change: c.default, guide: g.default, cad: k.default }))
+      import('./data/guide.json'), import('./data/cad.json'), import('./data/cert.json'),   /* 📚 G625 자격증 */
+    ]).then(([t, f, c, g, k, z]) => 목록만들기({ 탭, tools: t.default, forms: f.default, change: c.default, guide: g.default, cad: k.default, cert: z.default }))
       .catch(() => { 목록약속 = null; return 목록만들기({ 탭 }) })
   }
   return 목록약속
