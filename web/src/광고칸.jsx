@@ -9,7 +9,7 @@
  *   ■ 📣 G549 위 띠 오른쪽 «광고 · 제휴 문의 →»(/ad · |광고문의|카드 · 소장님 「광고나 제휴잖아」 — 광고만 적지 않기) — 소장님 「광고, 제휴 문의 한다는 걸 알려야 문의가 들어 오잖아. 모든 페이지에」
  *     광고카드({ a, 견본 }) — /ad 안내 쪽 견본도 같은 꼴(견본은 전화 · 문자 · 메일이 눌리지 않고 셈도 안 함)
  */
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { 자리광고, 전화숫자 } from './lib/광고자료.js'
 import { 세기 } from './lib/받은수.jsx'
@@ -45,19 +45,25 @@ export function 광고카드({ a, 칸 = null, 견본 = false }) {
         {!견본 && <Link className="adc-ask" to="/ad" onClick={() => { try { 세기('|광고문의|카드') } catch (e) { /* 없음 */ } }}>광고 · 제휴 문의 →</Link>}
       </div>
       <div className="adc-b">
-        <div className="adc-nm"><span className="adc-ic" aria-hidden="true">{a.아이콘}</span>{a.이름}</div>
-        {a.대표 && <div className="adc-so">대표 {a.대표}</div>}   {/* 소장님 11-05 「대표이름 넣어 줘.」 */}
-        {a.소속 && <div className="adc-so">{a.소속}</div>}
-        {a.추천 && <div className="adc-rec">{a.추천}</div>}
-        <p className="adc-one">{a.한줄}{a.지역 && !(a.정보 || []).some(([k]) => k === '주소') ? <> · 📍 {a.지역}</> : null}</p>
-        {a.칩 && a.칩.length > 0 && <div className="adc-chips">{a.칩.map((t) => <span key={t} className="adc-chip">{t}</span>)}</div>}
-        <div className="adc-btns">
-          {단추('adc-call', 'tel:' + 번호, `📞 ${a.전화}`, `${a.이름}에 전화 ${a.전화}`)}
-          {단추('adc-sms', 'sms:' + 번호, '💬 문자', `${a.이름}에 문자`)}
+        {/* 📐 G630 (11-10) 소장님 「광고란....공간활용을 잘 해서 크기를 줄여 줘」 — 넓은 화면은 두 칸(왼쪽 이름 · 추천 · 한줄 / 오른쪽 전화 · 문자) ·
+            대표는 이름 옆 · 연락처(사무실 · 팩스 · 메일 · 주소)는 줄마다 한 칸이 아니라 이어 붙여 한두 줄 — 들어가는 글은 그대로(소장님 「다 넣어 줘」) */}
+        <div className="adc-main">
+          <div className="adc-who">
+            <div className="adc-nm"><span className="adc-ic" aria-hidden="true">{a.아이콘}</span><span className="adc-nmt">{a.이름}</span>
+              {a.대표 && <span className="adc-ceo">대표 {a.대표}</span>}</div>   {/* 소장님 11-05 「대표이름 넣어 줘.」 */}
+            {a.소속 && <div className="adc-so">{a.소속}</div>}
+            {a.추천 && <div className="adc-rec">{a.추천}</div>}
+            <p className="adc-one">{a.한줄}{a.지역 && !(a.정보 || []).some(([k]) => k === '주소') ? <> · 📍 {a.지역}</> : null}</p>
+            {a.칩 && a.칩.length > 0 && <div className="adc-chips">{a.칩.map((t) => <span key={t} className="adc-chip">{t}</span>)}</div>}
+          </div>
+          <div className="adc-btns">
+            {단추('adc-call', 'tel:' + 번호, `📞 ${a.전화}`, `${a.이름}에 전화 ${a.전화}`)}
+            {단추('adc-sms', 'sms:' + 번호, '💬 문자', `${a.이름}에 문자`)}
+          </div>
         </div>
         {a.정보 && a.정보.length > 0
           ? <dl className="adc-info">{a.정보.map(([k, v]) => (
-              <Fragment key={k}><dt>{k}</dt><dd>{k === '메일' && !견본 ? <a href={'mailto:' + v} onClick={누름('메일')}>{v}</a> : v}</dd></Fragment>
+              <div className="adc-kv" key={k}><dt>{k}</dt><dd>{k === '메일' && !견본 ? <a href={'mailto:' + v} onClick={누름('메일')}>{v}</a> : v}</dd></div>
             ))}</dl>
           : a.작은줄 && <div className="adc-sub">{a.작은줄}</div>}
         {a.심의 && <div className="adc-sub adc-sim">{a.심의}</div>}

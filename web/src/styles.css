@@ -10240,28 +10240,32 @@ div.bth { padding: 0; }
 :root { --ad-bg: #fff7e8; --ad-line: #f2c27b; --ad-head: #fdebc8; --ad-tag: #b45309; --ad-text: #3b2a14; --ad-text-2: #6b5434; --ad-chip: #92400e; --ad-btn: #b45309; --ad-btn-2: #d97706; }
 @media (prefers-color-scheme: dark) { :root { --ad-bg: #241c10; --ad-line: #7a5a24; --ad-head: #33270f; --ad-tag: #b45309; --ad-text: #f6e7cc; --ad-text-2: #d6bf95; --ad-chip: #f3c27a; --ad-btn: #b45309; --ad-btn-2: #e2a04a; } }
 .adc { border: 1.5px solid var(--ad-line); border-radius: 14px; background: var(--ad-bg); overflow: hidden; margin: 12px 0; color: var(--ad-text); }
-.adc-h { display: flex; align-items: center; gap: 8px; background: var(--ad-head); padding: 6px 12px; border-bottom: 1px solid var(--ad-line); }
+.adc-h { display: flex; align-items: center; gap: 8px; background: var(--ad-head); padding: 4px 12px; border-bottom: 1px solid var(--ad-line); }   /* 📐 G630 6 → 4px */
 .adc-tag { font-size: 12px; font-weight: 900; color: #fff; background: var(--ad-tag); border-radius: 6px; padding: 1px 8px; }
 .adc-hs { font-size: 12px; font-weight: 700; color: var(--ad-chip); }
-.adc-b { padding: 10px 14px 12px; }
-.adc-nm { display: flex; align-items: center; gap: 6px; font-size: 17px; font-weight: 900; letter-spacing: -.3px; color: var(--ad-text); }
+.adc-b { padding: 8px 12px 10px; }   /* 📐 G630 소장님 「광고란....공간활용을 잘 해서 크기를 줄여 줘」 — 10/14/12 → 8/12/10 */
+.adc-nm { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; font-size: 16px; font-weight: 900; letter-spacing: -.3px; color: var(--ad-text); }
+.adc-ceo { font-size: 12.5px; font-weight: 700; letter-spacing: 0; color: var(--ad-text-2); }   /* 📐 G630 대표는 이름 옆(한 줄 아낌) */
 .adc-ic { font-size: 19px; }
 .adc-so { font-size: 12.5px; font-weight: 700; color: var(--ad-text-2); margin-top: 1px; }
-.adc-rec { margin: 5px 0 2px; padding: 4px 9px; border-left: 3px solid var(--ad-btn-2); background: var(--surface); border-radius: 0 8px 8px 0; font-size: 13px; font-weight: 800; color: var(--ad-chip); word-break: keep-all; text-wrap: balance; line-height: 1.45; }   /* 두 줄이면 줄 길이를 고르게(«상담» 한 낱말만 아랫줄에 남지 않게) */
-.adc-one { font-size: 13px; color: var(--ad-text-2); margin: 3px 0 7px; word-break: keep-all; }
+.adc-rec { margin: 4px 0 2px; padding: 3px 8px; border-left: 3px solid var(--ad-btn-2); background: var(--surface); border-radius: 0 8px 8px 0; font-size: 12.5px; font-weight: 800; color: var(--ad-chip); word-break: keep-all; text-wrap: balance; line-height: 1.45; }   /* 두 줄이면 줄 길이를 고르게(«상담» 한 낱말만 아랫줄에 남지 않게) */
+.adc-one { font-size: 13px; color: var(--ad-text-2); margin: 2px 0 6px; word-break: keep-all; }
 .adc-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 9px; }
 .adc-chip { font-size: 11.5px; padding: 2px 8px; border-radius: 999px; background: var(--surface); color: var(--ad-chip); border: 1px solid var(--ad-line); font-weight: 700; }
 .adc-btns { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
-.adc-call, .adc-sms { display: flex; align-items: center; justify-content: center; height: 42px; border-radius: 11px; font-weight: 800; font-size: 15px; text-decoration: none; white-space: nowrap; }
+.adc-call, .adc-sms { display: flex; align-items: center; justify-content: center; height: 38px; border-radius: 10px; font-weight: 800; font-size: 14.5px; text-decoration: none; white-space: nowrap; }   /* 📐 G630 42 → 38px */
 .adc-call { background: var(--ad-btn); color: #fff; font-variant-numeric: tabular-nums; }
 .adc-sms { border: 1.5px solid var(--ad-btn-2); background: var(--surface); color: var(--ad-btn); padding: 0 16px; }
 .adc-call:hover, .adc-sms:hover { filter: brightness(1.06); }
 .adc-sub { margin-top: 7px; font-size: 12px; color: var(--ad-text-2); word-break: keep-all; }
 /* 📇 G548 명함 정보 두 칸 표(사무실 · 메일 · 주소 · 고객센터) — 소장님 「다 넣어 줘」 「깔끔하게 만들어 줘」 · 이름표는 옅게 · 값은 진하게 · 긴 메일 · 주소는 칸 안에서 줄바꿈 */
-.adc-info { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 9px 0 0; padding-top: 8px; border-top: 1px dashed var(--ad-line); font-size: 12.5px; line-height: 1.45; }
+.adc-info { display: flex; flex-wrap: wrap; gap: 2px 14px; margin: 7px 0 0; padding-top: 6px; border-top: 1px dashed var(--ad-line); font-size: 12px; line-height: 1.45; }   /* 📐 G630 줄마다 한 칸 → 이어 붙임(한두 줄) */
+.adc-kv { display: flex; gap: 5px; min-width: 0; max-width: 100%; }
 .adc-info dt { color: var(--ad-text-2); font-weight: 700; white-space: nowrap; }
 .adc-info dd { margin: 0; color: var(--ad-text); word-break: keep-all; overflow-wrap: anywhere; min-width: 0; }
 .adc-info a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+/* 📐 G630 넓은 화면 — 두 칸(왼쪽 이름 · 대표 · 추천 · 한줄 / 오른쪽 전화 · 문자) · 폰은 위아래 그대로(전화 · 문자 한 줄) */
+@media (min-width: 760px) { .adc-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 280px); gap: 4px 16px; align-items: center; } .adc-main .adc-one { margin-bottom: 0; } }
 /* 📣 G549 광고 · 제휴 문의 길 — 광고 띠 «광고 · 제휴 문의 →» · 모집 카드 · 머리 줄(PC) · 바닥글 · /ad 안내 쪽 */
 .adc-ask { margin-left: auto; font-size: 11.5px; font-weight: 700; color: var(--ad-chip); text-decoration: none; white-space: nowrap; }
 .adc-ask:hover { text-decoration: underline; }
