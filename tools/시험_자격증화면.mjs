@@ -10,7 +10,10 @@
  *   ⑤ 빠른 찾기(🔎) «특급» → 건설기술인 등급 셈 · «토목기사» → 자격증
  *   ⑥ 폰 390 · 360 · PC 1280 넘침 0 · 오류 0 · 구운 쪽(/cert.html · /cert/grade.html · 기술사 19쪽) 제목 · h1
  *   ⑦ 기술사 깊은 글(토목시공 · 건축시공 · 건설안전 · 토질및기초 · 해양) — h1 · 사실 칸 · 시험과목 · 응시자격 11줄 · 큐넷 그 종목 링크 · 등급 셈 링크
- *   ⑧ 깊은 글 없는 종목 칩 → 큐넷 그 종목(새 창 · ↗) · 2027 새 종목(건축구조기사) «2027. 1. 1.부터» 표시
+ *   ⑧ G643 모든 종목 칩 83 → 깊은 글(건축기사 → /cert/geonchuk-gisa) · 2027 새 종목(건축구조기사)도 깊은 글 + «2027. 1. 1.부터» 표시
+ *   ⑭ G643(11-10) 큐넷 덧 — 건축기사 · 건설안전산업기사 · 건축일반시공기능장 · 거푸집기능사(실기만) · 토목시공기술사(면접) — 차례 칩 = 칸 · 📅 일정 · 📊 합격률 ·
+ *      🏅 우대 3칸이 «📝 시험» 바로 뒤 · 일정 표 7칸 · 합격률 막대 = certq 자료(해 · 너비 · 값) · 차례 칩 누르면 그 칸이 위 막대 밑으로 숨지 않고 위에 · 넘침 0 ·
+ *      구운 쪽(산업기사 16 · 기능장 3 · 기사 16쪽 · 건축기사 쪽 차례 · data-q 3칸 · 합격률 5줄) · 소장님 「자격증은 다른 사이트와 비교해서 자세하고 편하게」
  *   ⑩ G626(11-10) 기능사 깊은 글(거푸집 — 실기만 · 콘크리트 — 필기 + 복합형 실기 · 전산응용건축제도) — h1 · 사실 6칸 · 시험 표 5줄 · «제한 없음» · 다음 단계 2줄 · 큐넷 · 등급 셈
  *   ⑨ 등급 셈 «그 밖» — 일한 분야가 다름 → 초급까지 · 감점 3 → 3점 빠짐(lib 와 같음)
  *   ⑪ G628(11-10) 토목기사 깊은 글(시험 표 6줄 · 응시자격 10줄 · 📝 예상문제 단추) → /cert/tomok-gisa/quiz — 과목 · 문제 수 고르기 · 한 문제씩 바로 채점(⭕ 하나 · 고른 ❌) ·
@@ -89,9 +92,10 @@ for (const [이름, w, h, 폰] of [['폰 390', 390, 844, true], ['폰 360', 360,
   const 칩꼴 = await p.evaluate(() => ({ 깊은: document.querySelectorAll('a.cert-chip.deep').length,
     토목기사: (() => { const a = [...document.querySelectorAll('a.cert-chip')].find((x) => x.innerText.replace(/[↗›\s]/g, '') === '토목기사'); return a ? [a.getAttribute('href'), a.getAttribute('target')] : null })(),
     건축기사: (() => { const a = [...document.querySelectorAll('a.cert-chip')].find((x) => x.innerText.replace(/[↗›\s]/g, '') === '건축기사'); return a ? [a.getAttribute('href'), a.getAttribute('target')] : null })(),
-    새: (() => { const c = [...document.querySelectorAll('.cert-chip')].find((x) => x.innerText.startsWith('건축구조기사')); return c ? c.innerText.replace(/\s+/g, ' ') : '' })() }))
-  ok('⑧ 깊은 글 칩 49(기술사 19 · 기능사 29 · 토목기사) · 토목기사 칩 → 깊은 글 · 건축기사 칩 → 큐넷 그 종목(jmCd 1630 · 새 창) · 건축구조기사 «2027. 1. 1.부터»', 칩꼴.깊은 === 49 && 칩꼴.토목기사 && 칩꼴.토목기사[0] === '/cert/tomok-gisa' && !칩꼴.토목기사[1]
-    && 칩꼴.건축기사 && /q-net\.or\.kr\/crf005\.do\?id=crf00503&jmCd=1630$/.test(칩꼴.건축기사[0]) && 칩꼴.건축기사[1] === '_blank' && /2027\. 1\. 1\.부터/.test(칩꼴.새), 칩꼴)
+    새: (() => { const c = [...document.querySelectorAll('.cert-chip')].find((x) => x.innerText.startsWith('건축구조기사')); return c ? c.innerText.replace(/\s+/g, ' ') : '' })(),
+    새길: (() => { const c = [...document.querySelectorAll('.cert-chip')].find((x) => x.innerText.startsWith('건축구조기사')); return c ? c.getAttribute('href') : '' })() }))
+  ok('⑧ 깊은 글 칩 83(모든 종목) · 토목기사 · 건축기사 칩 → 깊은 글 · 건축구조기사(새) → 깊은 글 + «2027. 1. 1.부터»', 칩꼴.깊은 === 83 && 칩꼴.토목기사 && 칩꼴.토목기사[0] === '/cert/tomok-gisa' && !칩꼴.토목기사[1]
+    && 칩꼴.건축기사 && 칩꼴.건축기사[0] === '/cert/geonchuk-gisa' && !칩꼴.건축기사[1] && /2027\. 1\. 1\.부터/.test(칩꼴.새) && 칩꼴.새길 === '/cert/geonchuk-gujo-gisa', 칩꼴)
   ok('⑪ /cert 기출 칸 — «토목기사 예상문제» 줄(→ /cert/tomok-gisa/quiz)', await p.evaluate(() => [...document.querySelectorAll('a.row[href="/cert/tomok-gisa/quiz"]')].some((a) => /토목기사 예상문제/.test(a.innerText))))
   ok('③ 탭 — 자격증에 불', (await 탭들(p)).some((x) => /자격증/.test(x.t) && x.on))
   await p.fill('.cert-q', '거푸집')
@@ -163,7 +167,7 @@ for (const [이름, w, h, 폰] of [['폰 390', 390, 844, true], ['폰 360', 360,
     await p.waitForSelector('.cert-facts', { timeout: 20000 })
     await 쉬어(300)
     const d = await p.evaluate(() => ({ h1: (document.querySelector('h1') || {}).innerText || '', 사실: document.querySelectorAll('.cert-facts > div').length, 글: document.querySelector('main').innerText,
-      줄: [...document.querySelectorAll('table.ctab')].map((t) => t.querySelectorAll('tbody tr').length), 큐넷: [...document.querySelectorAll('a[href*="q-net.or.kr"]')].map((a) => a.getAttribute('href')),
+      줄: [...document.querySelectorAll('.card:not([data-q]) table.ctab')].map((t) => t.querySelectorAll('tbody tr').length), 큐넷: [...document.querySelectorAll('a[href*="q-net.or.kr"]')].map((a) => a.getAttribute('href')),
       셈: !!document.querySelector('a[href="/cert/grade"]') }))
     ok(`⑦ ${이름2} — h1 · 사실 6칸 · 시험과목 «${과목}» · 응시자격 11줄 · 큐넷 jmCd ${q} · 등급 셈 링크`, d.h1 === 이름2 && d.사실 === 6 && d.글.includes(과목) && d.줄.includes(11) && d.큐넷.some((h) => h.endsWith('jmCd=' + q)) && d.셈,
       { h1: d.h1, 사실: d.사실, 줄: d.줄, 큐넷: d.큐넷.length, 셈: d.셈 })
@@ -175,11 +179,51 @@ for (const [이름, w, h, 폰] of [['폰 390', 390, 844, true], ['폰 360', 360,
     await p.waitForSelector('.cert-facts', { timeout: 20000 })
     await 쉬어(300)
     const d = await p.evaluate(() => ({ h1: (document.querySelector('h1') || {}).innerText || '', 사실: document.querySelectorAll('.cert-facts > div').length, 글: document.querySelector('main').innerText,
-      줄: [...document.querySelectorAll('table.ctab')].map((t) => t.querySelectorAll('tbody tr').length), 큐넷: [...document.querySelectorAll('a[href*="q-net.or.kr"]')].map((a) => a.getAttribute('href')),
+      줄: [...document.querySelectorAll('.card:not([data-q]) table.ctab')].map((t) => t.querySelectorAll('tbody tr').length), 큐넷: [...document.querySelectorAll('a[href*="q-net.or.kr"]')].map((a) => a.getAttribute('href')),
       셈: !!document.querySelector('a[href="/cert/grade"]') }))
     ok(`⑩ ${이름2} — h1 · 사실 6칸 · 시험과목 «${과목}» · 시험 표 5줄 · 다음 단계 2줄 · «제한 없음» · ${실기만 ? '실기만' : '필기 + 실기'} · 큐넷 jmCd ${q} · 등급 셈`,
       d.h1 === 이름2 && d.사실 === 6 && d.글.includes(과목) && d.글.includes('제한 없음') && d.줄.join() === '5,2' && (실기만 ? /실기만\(필기 없음\)/.test(d.글) : /객관식 4지 택일형 60문항/.test(d.글))
         && d.큐넷.some((h) => h.endsWith('jmCd=' + q)) && d.셈, { h1: d.h1, 사실: d.사실, 줄: d.줄, 큐넷: d.큐넷.length, 셈: d.셈 })
+    ok(`${이름} ${이름2} 넘침 0`, (await 넘침(p)) <= 1, await 넘침(p))
+  }
+  /* ⑭ G643 큐넷 덧 — 시험 일정 · 합격률 · 법령 우대 · 차례 */
+  for (const [slug, 이름2, 둘, 필기] of [['geonchuk-gisa', '건축기사', '실기', true], ['geonseol-anjeon-saneopgisa', '건설안전산업기사', '실기', true], ['geonchuk-ilban-gineungjang', '건축일반시공기능장', '실기', true],
+    ['geopujip-gineungsa', '거푸집기능사', '실기', false], ['tomok-sigong-gisulsa', '토목시공기술사', '면접', true]]) {
+    const qj = JSON.parse(fs.readFileSync(path.join(ROOT, 'web/src/data/certq', slug + '.json'), 'utf8'))
+    const 기대률 = ((qj.secs.find((s) => s.h.startsWith('📊')) || { blocks: [{}] }).blocks[0].rows) || []
+    const 일 = qj.secs[0].blocks[0]
+    await p.goto(BASE + '/cert/' + slug, { waitUntil: 'domcontentloaded' })
+    await p.waitForSelector('.card[data-q] .crate', { timeout: 20000 })
+    await 쉬어(300)
+    const d = await p.evaluate(() => {
+      const cards = [...document.querySelectorAll('.card[id^="cs"]')]
+      const q = cards.filter((c) => c.hasAttribute('data-q'))
+      const 우대 = q.find((c) => /🏅/.test(c.querySelector('.sec-title').innerText))
+      return { 카드: cards.length, 제목들: cards.map((c) => c.querySelector('.sec-title').innerText), toc: [...document.querySelectorAll('.cert-toc a')].map((a) => [a.innerText.trim(), a.getAttribute('href')]),
+        q수: q.length, 머리: q.map((c) => [...c.querySelector('.sec-title').innerText][0]), 일정: q[0] ? [...q[0].querySelectorAll('table.ctab tbody tr')].map((tr) => tr.querySelectorAll('td').length) : [],
+        rows: [...document.querySelectorAll('.crate .cr-row')].map((r) => ({ y: r.querySelector('.cr-y').innerText, bars: [...r.querySelectorAll('.cr-bar')].map((b) => ({ k: b.querySelector('.cr-k').innerText, w: b.querySelector('.cr-t i').style.width, v: b.querySelector('.cr-v').innerText })) })),
+        우대줄: 우대 ? 우대.querySelectorAll('table.ctab tbody tr').length : -1 }
+    })
+    const 률맞음 = d.rows.length === 기대률.length && d.rows.every((r, j) => {
+      const [해, 필응, 필률, 실응, 실률] = 기대률[j]
+      const 끝 = r.bars[r.bars.length - 1]
+      return r.y === String(해) && r.bars.length === (필기 ? 2 : 1) && 끝.k === 둘 && 끝.w === `${Math.min(100, 실률)}%` && (실응 ? 끝.v.startsWith(`${실률}%`) : 끝.v.startsWith('—'))
+        && (!필기 || (r.bars[0].k === '필기' && r.bars[0].w === `${Math.min(100, 필률)}%` && (필응 ? r.bars[0].v.startsWith(`${필률}%`) : r.bars[0].v.startsWith('—'))))
+    })
+    const 시험곳 = d.제목들.findIndex((x) => x.startsWith('📝 시험'))
+    ok(`⑭ ${이름2} — 차례 칩 = 칸 ${d.카드} · 큐넷 덧 3칸(📅 · 📊 · 🏅) «📝 시험» 바로 뒤 · 일정 ${일.rows.length}줄 4칸 · 합격률 ${기대률.length}해(${필기 ? '필기 · ' : ''}${둘}) = 자료 · 우대 표`,
+      d.toc.length === d.카드 && d.toc.every(([글, h], j) => h === '#cs' + j && d.제목들[j].startsWith(글)) && d.q수 === 3 && d.머리.join() === '📅,📊,🏅'
+        && 시험곳 >= 0 && (d.제목들[시험곳 + 1] || '').startsWith('📅') && d.일정.length === 일.rows.length && d.일정.every((x) => x === 4) && 률맞음 && d.우대줄 >= 1 && d.우대줄 <= 8,
+      { 카드: d.카드, toc: d.toc.length, q수: d.q수, 머리: d.머리, 일정: d.일정, rows: d.rows.slice(0, 1), 우대줄: d.우대줄, 률맞음 })
+    const 칩 = d.toc.findIndex(([글]) => 글.startsWith('📊'))
+    await p.evaluate((i) => document.querySelectorAll('.cert-toc a')[i].click(), 칩)
+    await 쉬어(1200)
+    const 자리 = await p.evaluate((i) => {
+      const c = document.getElementById('cs' + i).getBoundingClientRect().top
+      const bar = document.querySelector('.topbar')
+      return { 위: Math.round(c), 막대: bar ? Math.round(bar.getBoundingClientRect().bottom) : 0 }
+    }, 칩)
+    ok(`⑭ ${이름2} 차례 «📊 합격률» 누름 → 그 칸 제목이 위 막대(${자리.막대}px) 밑에 숨지 않고 바로 아래(${자리.위}px)`, 자리.위 >= 자리.막대 - 1 && 자리.위 < 자리.막대 + 60, 자리)
     ok(`${이름} ${이름2} 넘침 0`, (await 넘침(p)) <= 1, await 넘침(p))
   }
   /* ⑪ G628 토목기사 · 예상문제 */
@@ -190,7 +234,7 @@ for (const [이름, w, h, 폰] of [['폰 390', 390, 844, true], ['폰 360', 360,
   await p.waitForSelector('.cert-facts', { timeout: 20000 })
   await 쉬어(300)
   const tg = await p.evaluate(() => ({ h1: (document.querySelector('h1') || {}).innerText || '', 사실: document.querySelectorAll('.cert-facts > div').length, 글: document.querySelector('main').innerText,
-    줄: [...document.querySelectorAll('table.ctab')].map((t) => t.querySelectorAll('tbody tr').length), 큐넷: [...document.querySelectorAll('a[href*="q-net.or.kr"]')].map((a) => a.getAttribute('href')),
+    줄: [...document.querySelectorAll('.card:not([data-q]) table.ctab')].map((t) => t.querySelectorAll('tbody tr').length), 큐넷: [...document.querySelectorAll('a[href*="q-net.or.kr"]')].map((a) => a.getAttribute('href')),
     셈: !!document.querySelector('a[href="/cert/grade"]'), 퀴즈: (document.querySelector('a.qz-go') || { getAttribute: () => '' }).getAttribute('href') }))
   ok('⑪ 토목기사 — h1 · 사실 6칸 · 6과목 · 시험 표 6줄 · 응시자격 10줄 · 큐넷 jmCd 1250 · 등급 셈 · 📝 예상문제 단추', tg.h1 === '토목기사' && tg.사실 === 6 && tg.글.includes('철근콘크리트 및 강구조')
     && tg.글.includes('19,400원') && tg.줄.join() === '6,10' && tg.큐넷.some((h) => h.endsWith('jmCd=1250')) && tg.셈 && tg.퀴즈 === '/cert/tomok-gisa/quiz', { h1: tg.h1, 사실: tg.사실, 줄: tg.줄, 퀴즈: tg.퀴즈 })
@@ -367,6 +411,13 @@ if (fs.existsSync(구운)) {
   const tk = fs.readFileSync(path.join(ROOT, 'web/dist/cert/tomok-gisa.html'), 'utf8')
   const 퀴즈쪽 = path.join(ROOT, 'web/dist/cert/tomok-gisa/quiz.html')
   const qz = fs.existsSync(퀴즈쪽) ? fs.readFileSync(퀴즈쪽, 'utf8') : ''
+  const 쪽들 = fs.readdirSync(path.join(ROOT, 'web/dist/cert'))
+  const 셈쪽 = (re) => 쪽들.filter((x) => re.test(x)).length
+  const gk = fs.readFileSync(path.join(ROOT, 'web/dist/cert/geonchuk-gisa.html'), 'utf8')
+  ok('⑭ 구운 쪽 — 산업기사 16 · 기능장 3 · 기사 16(건축구조기사 포함) · 건축기사 쪽 제목 · h1 · 차례 · 큐넷 덧 3칸(data-q) · 합격률 5줄 · 일정 표 · 우대 표',
+    셈쪽(/-saneopgisa\.html$/) === 16 && 셈쪽(/-gineungjang\.html$/) === 3 && 셈쪽(/-gisa\.html$/) === 16 && /<title>건축기사 — /.test(gk) && /<h1[^>]*>건축기사<\/h1>/.test(gk)
+      && /<nav class="cert-toc"/.test(gk) && (gk.match(/data-q="1"/g) || []).length === 3 && (gk.match(/class="cr-row"/g) || []).length === 5 && /<th>회차<\/th><th>접수<\/th><th>시험<\/th><th>발표<\/th>/.test(gk) && /class="ctab fit cnl"/.test(gk) && /class="ctab fit ckv"/.test(gk) && /쓰이는 곳/.test(gk) && !/클로드|무료/.test(gk.replace(/<script[\s\S]*?<\/script>/g, '')),
+    [셈쪽(/-saneopgisa\.html$/), 셈쪽(/-gineungjang\.html$/), 셈쪽(/-gisa\.html$/), (gk.match(/data-q="1"/g) || []).length, (gk.match(/class="cr-row"/g) || []).length])
   ok('⑪ 구운 토목기사 쪽 — 제목 · h1 · 📝 예상문제 단추 · /cert 에 «토목기사 예상문제» 줄', /<title>토목기사 — /.test(tk) && /<h1[^>]*>토목기사<\/h1>/.test(tk) && /class="cert-big qz-go" href="\/cert\/tomok-gisa\/quiz"/.test(tk) && /href="\/cert\/tomok-gisa\/quiz"><span class="fic">📝/.test(h))
   ok('⑪ 구운 예상문제 쪽(cert/tomok-gisa/quiz.html) — 제목 · h1 · 들어 있는 문제 6과목 · 맛보기 6 · «직접 만든» · 큐넷 · canonical', /<title>토목기사 필기 예상문제 — /.test(qz) && /<h1[^>]*>📝 토목기사 필기 예상문제<\/h1>/.test(qz)
     && (qz.match(/class="qz-types"/g) || []).length === 6 && (qz.match(/<details class="qz-rv">/g) || []).length === 6 && /직접 만든/.test(qz) && /jmCd=1250/.test(qz) && /rel="canonical" href="https:\/\/k-conmap\.com\/cert\/tomok-gisa\/quiz"/.test(qz) && !/클로드|무료/.test(qz.replace(/<script[\s\S]*?<\/script>/g, '')),

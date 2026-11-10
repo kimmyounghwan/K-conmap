@@ -1824,12 +1824,26 @@ def _blocks_html(blocks):
         elif t == "table":
             # fit: 열이 적은 표는 폰에서 옆으로 밀지 않고 접어 보여 줍니다(G91 — 화면 Guide.jsx 와 같게)
             # stk: 폰에서 줄마다 카드로 쌓고 머리 이름을 칸 위에 씁니다(G331 — 화면 Change.jsx 와 같게)
-            out.append('<div class="fscroll"><table class="ctab' + (' fit' if b.get("fit") else '') + (' stk' if b.get("stk") else '') + '"><thead><tr>')
+            # kv → ckv: 첫 칸(이름) 줄바꿈 없음 · nl → cnl: 칸 안 줄바꿈(\n) 살림(G643 — 화면 Guide.jsx 와 같게 · 전역 .kv 와 겹치지 않게 c 붙임)
+            out.append('<div class="fscroll"><table class="ctab' + (' fit' if b.get("fit") else '') + (' stk' if b.get("stk") else '')
+                       + (' ckv' if b.get("kv") else '') + (' cnl' if b.get("nl") else '') + '"><thead><tr>')
             out.extend(f"<th>{esc(c)}</th>" for c in b["cols"])
             out.append("</tr></thead><tbody>")
             for r in b["rows"]:
                 out.append("<tr>" + "".join(f'<td data-l="{esc(b["cols"][k] if k < len(b["cols"]) else "")}">{_bold(c)}</td>' for k, c in enumerate(r)) + "</tr>")
             out.append("</tbody></table></div>")
+        elif t == "rate":
+            # 📊 G643 자격증 합격률 — 해마다 필기 · 실기(면접) 막대 + 응시자 수(화면 Guide.jsx Blocks «rate» 와 같은 모양)
+            out.append('<div class="crate">')
+            for 해, 필응, 필률, 실응, 실률 in b["rows"]:
+                bars = []
+                if b.get("필기"):
+                    bars.append('<div class="cr-bar"><span class="cr-k">필기</span><span class="cr-t"><i style="width:%s%%"></i></span><span class="cr-v">%s<small>%s</small></span></div>'
+                                % (min(100, 필률), f"{필률}%" if 필응 else "—", f" · {필응:,}명" if 필응 else ""))
+                bars.append('<div class="cr-bar two"><span class="cr-k">%s</span><span class="cr-t"><i style="width:%s%%"></i></span><span class="cr-v">%s<small>%s</small></span></div>'
+                            % (esc(b.get("둘") or "실기"), min(100, 실률), f"{실률}%" if 실응 else "—", f" · {실응:,}명" if 실응 else ""))
+                out.append(f'<div class="cr-row"><b class="cr-y">{해}</b><div class="cr-bars">{"".join(bars)}</div></div>')
+            out.append("</div>")
         elif t == "src":
             # ⚖️ 2026-09-30 — 법·계약 글의 «근거 조문» — 법제처 원문으로 (화면 Guide.jsx 와 같은 모양)
             out.append('<div class="csrc"><span class="csrc-h">근거 조문 (법제처)</span>')
@@ -3897,6 +3911,28 @@ def load_cert():
         return {}
 
 
+CERTQ_DIR = os.path.join(ROOT, "web", "src", "data", "certq")
+
+
+def load_certq(slug):
+    """📅📊🏅 G643 큐넷 덧(시험 일정 · 합격률 · 법령 우대) — 화면(Cert.jsx 큐넷덧파일)과 같은 파일"""
+    try:
+        with open(os.path.join(CERTQ_DIR, f"{slug}.json"), encoding="utf-8") as f:
+            return json.load(f) or {}
+    except Exception:
+        return {}
+
+
+def certq_insert(secs, q):
+    """화면 덧끼우기()와 같은 자리 — «📝 시험» 칸 바로 뒤(없으면 첫 칸 뒤)"""
+    add = (q or {}).get("secs") or []
+    if not add:
+        return list(secs)
+    k = next((i for i, s in enumerate(secs) if s.get("h", "").startswith("📝 시험")), -1)
+    at = min(1, len(secs)) if k < 0 else k + 1
+    return list(secs[:at]) + [dict(s, q=1) for s in add] + list(secs[at:])   # q — 큐넷 덧 칸(화면 data-q 와 같음)
+
+
 def cert_index(shell, d, image=None):
     deep = d.get("deep") or {}
     items = d.get("items") or []
@@ -3905,7 +3941,7 @@ def cert_index(shell, d, image=None):
             "건설기술인 등급(초급 · 중급 · 고급 · 특급) 역량지수 셈 · 경력수첩(경력증) 받는 길까지.")[:160]
     out = ['<div class="card"><h1 class="cert-h1">📚 토목 · 건축 자격증</h1>'
            '<p class="cp" style="margin-top:6px">기능사부터 기술사까지 <b>한 장에</b> — 무슨 시험이 있고, 어떻게 올라가고, '
-           '따면 현장에서 몇 급이 되는지. 기술사 · 기능사는 종목마다 자세히 — 기사 · 산업기사도 차례로 채웁니다.</p>'
+           '따면 현장에서 몇 급이 되는지. 종목을 누르면 시험 · 응시자격 · 2026 일정 · 최근 5년 합격률 · 법령 우대까지 자세히.</p>'
            '<div class="cert-top"><a class="cert-big" href="/cert/grade"><b>🎓 내 등급 셈</b><span>초급 · 중급 · 고급 · 특급 — 자격 · 경력 · 학력으로</span></a>'
            '<a class="cert-big" href="/cert/grade#suchup"><b>📘 경력수첩(경력증)</b><span>받는 곳 · 신고 · 등급 올리기</span></a></div></div>']
     for g in d.get("groups") or []:
@@ -3921,7 +3957,8 @@ def cert_index(shell, d, image=None):
             out.append(f'<div class="cert-lv"><div class="cert-lvn"><b>{esc(lv)}</b><span>{esc((d.get("lvnote") or {}).get(lv, ""))}</span></div><div class="cert-chips">')
             for x in row:
                 if x["slug"] in deep:
-                    out.append(f'<a class="cert-chip deep" href="/cert/{esc(x["slug"])}">{esc(x["n"])}<span class="cc-go">›</span></a>')
+                    새 = f'<em class="cc-new">{esc(x["새"])}</em>' if x.get("새") else ""
+                    out.append(f'<a class="cert-chip deep" href="/cert/{esc(x["slug"])}">{esc(x["n"])}{새}<span class="cc-go">›</span></a>')
                 else:
                     out.append(f'<span class="cert-chip">{esc(x["n"])}</span>')
             out.append("</div></div>")
@@ -3974,8 +4011,14 @@ def cert_item(shell, d, x, t, image=None):
         out.append(f'<a class="cert-big qz-go" href="/cert/{esc(x["slug"])}/interview"><b>🎤 면접 준비</b>'
                    f'<span>자주 나오는 질문 {t["interview"].get("수", 0)}개 · 분야별 답 요령 · 근거 · 외운 것 표시</span></a>')
     out.append("</div>")
-    for s in t.get("secs") or []:
-        out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">' + esc(s["h"]) + "</div>" + _blocks_html(s["blocks"]) + "</div>")
+    secs = certq_insert(t.get("secs") or [], load_certq(x["slug"]))
+    if len(secs) > 3:   # 🧭 G643 차례(화면 Cert.jsx 와 같은 칩)
+        toc = [re.sub(r"\s*[—(].*$", "", s["h"]) for s in secs]   # f-string 안에 \ 를 쓰지 않음(3.11)
+        out.append('<nav class="cert-toc" aria-label="이 쪽 차례">' + "".join(
+            f'<a href="#cs{i}">{esc(nm)}</a>' for i, nm in enumerate(toc)) + "</nav>")
+    for i, s in enumerate(secs):
+        dq = ' data-q="1"' if s.get("q") else ""
+        out.append(f'<div class="card" id="cs{i}"{dq}><div class="sec-title" style="margin:0 0 8px">' + esc(s["h"]) + "</div>" + _blocks_html(s["blocks"]) + "</div>")
     others = [y for y in d.get("items") or [] if y["g"] == x["g"] and y["slug"] != x["slug"] and y["slug"] in deep][:6]
     rows = [("/cert/grade", "이 자격으로 몇 급? — 건설기술인 등급 셈", "")] + [(f'/cert/{y["slug"]}', y["n"], "") for y in others]
     out.append(rows_html("이어서 볼 것", [(nm, "보기 →") for _u, nm, _ in rows],

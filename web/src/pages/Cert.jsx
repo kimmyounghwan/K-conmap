@@ -38,9 +38,19 @@ function 맞나(x, q) {
 /* 큐넷 종목별 상세정보(시험정보 · 일정 · 수수료 · 출제기준) — 번호(jmCd)는 큐넷 종목 목록에서 11-09 옮김 */
 export const 큐넷종목 = (x) => (x && x.q ? `https://www.q-net.or.kr/crf005.do?id=crf00503&jmCd=${x.q}` : 큐넷)
 
+/* 📅📊🏅 G643 큐넷 덧(시험 일정 · 합격률 최근 5년 · 법령 우대) — 종목마다 data/certq/{종목}.json(따로 조각 — 이 쪽을 열 때만 받음)
+   글은 tools 만들기(make_deep4)가 만든 블록 그대로 · 구운 쪽(prerender.py cert_item)도 같은 파일 · 같은 자리(«📝 시험» 바로 뒤) */
+const 큐넷덧파일 = import.meta.glob('../data/certq/*.json')
+export function 덧끼우기(secs, 덧) {
+  if (!덧 || !(덧.secs || []).length) return secs
+  const k = secs.findIndex((s) => /^📝 시험/.test(s.h))
+  const 곳 = k < 0 ? Math.min(1, secs.length) : k + 1
+  return [...secs.slice(0, 곳), ...덧.secs.map((s) => ({ ...s, q: 1 })), ...secs.slice(곳)]   /* q — 큐넷 덧 칸 표시(구운 쪽 data-q 와 같음) */
+}
+
 function Chip({ x }) {
   const deep = !!깊은[x.slug]
-  if (deep) return <Link className="cert-chip deep" to={`/cert/${x.slug}`}>{x.n}<span className="cc-go">›</span></Link>
+  if (deep) return <Link className="cert-chip deep" to={`/cert/${x.slug}`}>{x.n}{x.새 && <em className="cc-new">{x.새}</em>}<span className="cc-go">›</span></Link>
   if (x.새) return <span className="cert-chip">{x.n}<em className="cc-new">{x.새}</em></span>
   /* 깊은 글이 아직 없는 종목 — 큐넷 그 종목 쪽으로(새 창) */
   return <a className="cert-chip" href={큐넷종목(x)} target="_blank" rel="noopener nofollow">{x.n}<span className="cc-ext">↗</span></a>
@@ -57,7 +67,7 @@ export default function CertIndex() {
         <h1 className="cert-h1">📚 토목 · 건축 자격증</h1>
         <p className="cp" style={{ marginTop: 6 }}>
           기능사부터 기술사까지 <b>한 장에</b> — 무슨 시험이 있고, 어떻게 올라가고, 따면 현장에서 몇 급이 되는지.
-          기술사 · 기능사는 종목마다 자세히 — 기사 · 산업기사도 차례로 채웁니다.
+          종목을 누르면 시험 · 응시자격 · 2026 일정 · 최근 5년 합격률 · 법령 우대까지 자세히.
         </p>
         <input className="cert-q" value={q} onChange={(e) => setQ(e.target.value)} inputMode="search" enterKeyHint="search"
           placeholder="찾기 — 토목기사 · 거푸집 · 측량 · 특급 …" aria-label="자격증 찾기" />
@@ -207,8 +217,18 @@ export function CertItem() {
   const { slug } = useParams()
   const x = certBySlug(slug)
   const d = 깊은[slug]
+  const [덧, set덧] = useState(null)
+  useEffect(() => {
+    let 살 = true
+    set덧(null)
+    const f = 큐넷덧파일[`../data/certq/${slug}.json`]
+    if (f) f().then((m) => { if (살) set덧(m.default || m) }).catch(() => {})
+    return () => { 살 = false }
+  }, [slug])
   if (!x || !d) return <NotFound />
   const 같은 = 종목들.filter((y) => y.g === x.g && y.slug !== x.slug && 깊은[y.slug]).slice(0, 6)
+  const secs = 덧끼우기(d.secs, 덧)
+  const 가기 = (i) => (e) => { e.preventDefault(); const el = document.getElementById(`cs${i}`); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
   return (
     <>
       <div className="btn-row" style={{ paddingTop: 14, marginBottom: 10 }}><Link className="btn sm line" to="/cert">← 자격증</Link><ShareBtn /></div>
@@ -226,8 +246,13 @@ export function CertItem() {
             <span>자주 나오는 질문 {d.interview.수}개 · 분야별 답 요령 · 근거 · 외운 것 표시</span></Link>
         )}
       </div>
-      {d.secs.map((s, i) => (
-        <div className="card" key={i}>
+      {secs.length > 3 && (   /* 🧭 G643 차례 — 눌러서 바로 그 칸으로(폰에서 길게 내리지 않게) */
+        <nav className="cert-toc" aria-label="이 쪽 차례">
+          {secs.map((s, i) => <a key={i} href={`#cs${i}`} onClick={가기(i)}>{s.h.replace(/\s*[—(].*$/, '')}</a>)}
+        </nav>
+      )}
+      {secs.map((s, i) => (
+        <div className="card" key={i} id={`cs${i}`} data-q={s.q ? 1 : undefined}>
           <div className="sec-title" style={{ margin: '0 0 8px' }}>{s.h}</div>
           <Blocks blocks={s.blocks} />
         </div>

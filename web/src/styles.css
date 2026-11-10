@@ -2333,6 +2333,9 @@ a.flink:hover { opacity: .8; }
 @media (max-width: 430px) { .cstep { grid-template-columns: 1fr; gap: 3px; } }
 .ctab { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 420px; }
 .ctab.fit { min-width: 0; }   /* 열이 적은 표 — 폰에서 옆으로 밀지 않고 줄바꿈 (G91) */
+.ctab.ckv td:first-child { white-space: nowrap; width: 1%; }   /* G643 «구분 | 내용» 표 — 폰에서 «필기 과 / 목» 처럼 이름 칸이 갈라지지 않게(전역 .kv 와 겹치지 않게 ckv) */
+.ctab.cnl td { white-space: pre-line; word-break: keep-all; }   /* G643 칸 안 줄바꿈(\n) — 시험 일정 «(빈자리 …)» 를 아래 줄로 · 낱말 안에서 안 끊음 */
+.ctab.cnl td:first-child { white-space: pre; font-weight: 700; }   /* «1회 필기» 가 «1회 필 / 기» 로 갈라지지 않게 */
 /* stk — 폰에서 표를 줄마다 카드로 쌓습니다. 옆으로 밀어야 보이던 «비고» 칸이 잘려 보이던 것(G331 · /change/price · esc) */
 @media (max-width: 600px) {
   .ctab.stk { min-width: 0; }
@@ -10537,6 +10540,25 @@ a.cert-chip:not(.deep) { color: inherit; text-decoration: none; }
   .cert-chip { padding: 6px 9px; }
 }
 .cert-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+/* 🧭 G643 자격증 깊은 글 차례 — 칩을 누르면 그 칸으로(폰에서 길게 내리지 않게) */
+.cert-toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.cert-toc a { padding: 6px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--text); font-size: 12.5px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.cert-toc a:hover { border-color: var(--accent); }
+.card[id^="cs"] { scroll-margin-top: 64px; }   /* 차례 칩으로 갔을 때 칸 제목이 위 막대(topbar · sticky) 밑에 숨지 않게 */
+/* 📊 G643 합격률 막대(해마다 필기 · 실기) — Guide.jsx Blocks «rate» · prerender.py 같은 모양 */
+.crate { display: grid; gap: 8px; }
+.cr-row { display: grid; grid-template-columns: 44px 1fr; gap: 8px; align-items: center; }
+.cr-y { font-size: 13px; font-variant-numeric: tabular-nums; }
+.cr-bars { display: grid; gap: 4px; min-width: 0; }
+.cr-bar { display: grid; grid-template-columns: 32px 1fr 128px; gap: 6px; align-items: center; font-size: 12px; }
+.cr-k { color: var(--muted); }
+.cr-t { height: 10px; border-radius: 5px; background: var(--surface-2); overflow: hidden; }
+.cr-t i { display: block; height: 100%; border-radius: 5px; background: var(--accent); }
+.cr-bar.two .cr-t i { background: #16a34a; }
+.cr-v { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cr-v small { font-weight: 400; color: var(--muted); }
+@media (max-width: 420px) { .cr-bar { grid-template-columns: 30px 1fr 104px; font-size: 11.5px; } }
+.crate { max-width: 760px; }   /* PC 에서 막대가 너무 길지 않게 */
 .cert-facts > div { background: var(--surface-2); border-radius: 10px; padding: 8px 10px; }
 .cert-facts span { display: block; font-size: 11.5px; color: var(--muted); }
 .cert-facts b { display: block; font-size: 13.5px; margin-top: 2px; line-height: 1.4; word-break: keep-all; }

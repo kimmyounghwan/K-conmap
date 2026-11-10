@@ -38,7 +38,7 @@ function md(s) {
   return parts.map((x, i) => (i % 2 ? <b key={i}>{x}</b> : x))
 }
 
-export function Blocks({ blocks }) {   /* 📚 G625 자격증 쪽(Cert.jsx)도 같은 블록(p · warn · ul · steps · table · src · links) */
+export function Blocks({ blocks }) {   /* 📚 G625 자격증 쪽(Cert.jsx)도 같은 블록(p · warn · ul · steps · table · src · links · 📊 G643 rate) */
   return blocks.map((b, i) => {
     if (b.t === 'p') return <p className="cp" key={i}>{md(b.text)}</p>
     if (b.t === 'warn') return <div className="cwarn" key={i}>⚠️ {md(b.text)}</div>
@@ -51,12 +51,30 @@ export function Blocks({ blocks }) {   /* 📚 G625 자격증 쪽(Cert.jsx)도 �
       )
     }
     if (b.t === 'table') {
+      /* kv → ckv 첫 칸(이름) 줄바꿈 없음 · nl → cnl 칸 안 줄바꿈(\n) 살림(G643 — 구운 쪽 prerender.py 와 같게 · 이름은 전역 .kv 와 겹치지 않게 c 붙임) */
       return (
         <div className="fscroll" key={i}>
-          <table className={'ctab' + (b.fit ? ' fit' : '') + (b.stk ? ' stk' : '')}>
+          <table className={'ctab' + (b.fit ? ' fit' : '') + (b.stk ? ' stk' : '') + (b.kv ? ' ckv' : '') + (b.nl ? ' cnl' : '')}>
             <thead><tr>{b.cols.map((c, j) => <th key={j}>{c}</th>)}</tr></thead>
             <tbody>{b.rows.map((r, j) => <tr key={j}>{r.map((c, k) => <td key={k} data-l={b.cols[k] || ''}>{md(c)}</td>)}</tr>)}</tbody>
           </table>
+        </div>
+      )
+    }
+    if (b.t === 'rate') {
+      /* 📊 G643 자격증 합격률 — 해마다 필기 · 실기(면접) 막대 + 응시자 수(구운 쪽 prerender.py 와 같은 모양) */
+      const 쉼표 = (n) => Number(n || 0).toLocaleString('ko-KR')
+      return (
+        <div className="crate" key={i}>
+          {b.rows.map(([해, 필응, 필률, 실응, 실률], j) => (
+            <div className="cr-row" key={j}>
+              <b className="cr-y">{해}</b>
+              <div className="cr-bars">
+                {b.필기 && <div className="cr-bar"><span className="cr-k">필기</span><span className="cr-t"><i style={{ width: `${Math.min(100, 필률)}%` }} /></span><span className="cr-v">{필응 ? `${필률}%` : '—'}<small>{필응 ? ` · ${쉼표(필응)}명` : ''}</small></span></div>}
+                <div className="cr-bar two"><span className="cr-k">{b.둘 || '실기'}</span><span className="cr-t"><i style={{ width: `${Math.min(100, 실률)}%` }} /></span><span className="cr-v">{실응 ? `${실률}%` : '—'}<small>{실응 ? ` · ${쉼표(실응)}명` : ''}</small></span></div>
+              </div>
+            </div>
+          ))}
         </div>
       )
     }

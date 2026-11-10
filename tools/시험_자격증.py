@@ -14,9 +14,15 @@
 ⑨ 큐넷 번호(q · 네 자리) — «새» 빼고 모든 종목 · 겹침 없음
 ⑩ 기술사 19 종목 모두 깊은 글 · 시험과목 · 응시자격 11줄(시행령 [별표 4의2]) · 등급 셈 링크
 ⑪ G626(11-10) 기능사 29 종목 모두 깊은 글 — 시험 표 5줄(시험과목 · 필기 · 실기 · 합격 · 2026 시험) · 응시자격 «제한 없음»(시행령 [별표 4의2]) ·
-   다음 단계 표(산업기사 1년 · 기술사 7년) · 실기만 종목은 필기 «없음» · 수수료 실기만 · 등급 셈 링크 · 기능장 · 산업기사는 아직 깊은 글 없음
+   다음 단계 표(산업기사 1년 · 기술사 7년) · 실기만 종목은 필기 «없음» · 수수료 실기만 · 등급 셈 링크
 ⑫ G628(11-10) 기사 깊은 글(토목기사부터) — 시험 표 6줄(필기 과목 · 필기 · 실기 · 합격 · 관련 학과 · 2026 시험) · 응시자격 10줄(시행령 [별표 4의2] 기사 = 큐넷 응시자격별 안내) ·
    자격지수 30 · 등급 셈 링크 · 예상문제(quiz) — 과목 · 틀 · 맛보기(과목마다 하나) · 예상문제 링크 · 길(main.jsx · prerender · sitemap · IndexNow · Crumbs 이름)
+⑬ G643(11-10) 소장님 「자격증 마무리」 · 「다른 사이트와 비교해서 자세하고 편하게」 — 82 종목(«새» 빼고) 모두 깊은 글 ·
+   산업기사 16 · 기능장 3 꼴(시험 표 6줄 · 응시자격 [별표 4의2] 산업기사 8줄 · 기능장 6줄 · 자격지수 20 · 30 · 산업기사는 «기사» 회차 안내) · 건축구조기사(2027 새) 깊은 글
+⑮ G643 만들기(tools/자격증만들기/깊은글_큐넷덧.py)를 다시 돌려도 cert.json · certq 가 똑같음 — 이 34쪽 · 덧은 만들기로만 고침
+⑭ G643 큐넷 덧(data/certq/{종목}.json) — 82 종목 모두 · 큐넷 번호 같음 · 📅 일정 표 4칸(회차 · 접수 · 시험 · 발표 — 폰에서 짧게) · 📊 합격률(해 · 응시 · 합격률 0 ~ 100) · 🏅 우대 갈래 합 = 전체 건수 ·
+   «구분 | 내용» 표는 모두 kv(폰에서 이름 칸이 갈라지지 않게) ·
+   화면(Cert.jsx 덧끼우기 · 차례) · 구운 쪽(prerender certq_insert · 차례 · rate) · 블록 그림(Guide.jsx rate · styles .cr-bar) 이 같은 자료를 봄
 """
 import io
 import json
@@ -116,8 +122,7 @@ def main():
            and any(b.get("t") == "links" and any(i[1] == "/cert/grade" for i in b["items"]) for s0 in deep[x["slug"]]["secs"] for b in s0["blocks"]) for x in 기술사))
     # ⑪ 기능사
     기능사 = [x for x in 지금 if x["lv"] == "기능사"]
-    ok("⑪ 기능사 29 종목 모두 깊은 글 · 기능장 · 산업기사는 아직 없음(기사는 ⑫)", len(기능사) == 29 and all(x["slug"] in deep for x in 기능사)
-       and all(x["slug"] not in deep for x in 지금 if x["lv"] in ("기능장", "산업기사")), [x["n"] for x in 기능사 if x["slug"] not in deep])
+    ok("⑪ 기능사 29 종목 모두 깊은 글(기사는 ⑫ · 산업기사 · 기능장은 ⑬)", len(기능사) == 29 and all(x["slug"] in deep for x in 기능사), [x["n"] for x in 기능사 if x["slug"] not in deep])
     def 기능사꼴(t):
         시 = 표(t, "구분")
         다 = 표(t, "다음 단계")
@@ -158,6 +163,118 @@ def main():
     ok("⑫ 예상문제 길 — main.jsx /cert/:slug/quiz · prerender cert_quiz(cert/{종목}/quiz.html) · sitemap · IndexNow · lib 문제집 · Crumbs 가운데 칸 이름",
        bool(퀴즈) and 'path="/cert/:slug/quiz"' in mj and "def cert_quiz" in pr and 'write(f"cert/{s}/quiz.html"' in pr and '/quiz"' in sm and "/quiz'" in pr
        and all(f"'{x['slug']}':" in lib and f"'/cert/{x['slug']}': '{x['n']}'" in cr for x in 퀴즈), [x["n"] for x in 퀴즈])
+    # ⑬ G643 — 모든 종목 깊은 글 · 산업기사 · 기능장 꼴
+    ok("⑬ 82 종목(«새» 빼고) 모두 깊은 글 · 건축구조기사(새)도", len(지금) == 82 and all(x["slug"] in deep for x in 지금)
+       and any(x["n"] == "건축구조기사" and x["slug"] in deep for x in items), [x["n"] for x in 지금 if x["slug"] not in deep])
+    ELIG산업기사 = [["기능사(이상)", "1년 이상"], ["같은 · 비슷한 직무분야의 다른 산업기사(이상)", "바로"],
+                ["관련 학과 2년제 · 3년제 전문대 졸업 · 졸업 예정", "바로"], ["관련 학과 대학(4년제) 졸업 · 졸업 예정", "바로"],
+                ["산업기사 수준 기술훈련과정 이수 · 이수 예정", "바로"], ["자격 · 학력 없이 실무만", "2년 이상"],
+                ["기능경기대회 입상(고용노동부령으로 정한 대회)", "바로"], ["외국에서 같은 종목 자격", "바로"]]
+    ELIG기능장 = [["산업기사 또는 기능사 + 기능대학 기능장과정 이수 · 이수 예정", "바로"], ["산업기사(이상)", "5년 이상"], ["기능사", "7년 이상"],
+               ["자격 없이 실무만", "9년 이상"], ["같은 · 비슷한 직무분야의 다른 기능장", "바로"], ["외국에서 같은 종목 자격", "바로"]]
+    def 중간꼴(x, 회, 엘, 지수):
+        t = deep[x["slug"]]
+        시 = 표(t, "구분")
+        자 = 표(t, "갖춘 것")
+        팩 = dict((k, v) for k, v in t.get("facts") or [])
+        링크들 = [i[1] for s0 in t["secs"] for b in s0["blocks"] if b.get("t") == "links" for i in b["items"]]
+        return bool(시 and [r[0] for r in 시["rows"]] == ["필기 과목", "필기", "실기", "합격", "관련 학과", "2026 시험"] and all(r[1] for r in 시["rows"])
+                    and dict(시["rows"])["2026 시험"].startswith(회) and 자 and 자["rows"] == 엘 and 팩.get("건설기술인 자격지수") == 지수 and "/cert/grade" in 링크들
+                    and not re.search(r"\.\s—", dict(시["rows"])["실기"]))
+    산 = [x for x in 지금 if x["lv"] == "산업기사"]
+    틀림 = [x["n"] for x in 산 if not 중간꼴(x, "정기 기사", ELIG산업기사, "**20**") or "산업기사도 «기사» 회차" not in dict(표(deep[x["slug"]], "구분")["rows"])["2026 시험"]]
+    ok("⑬ 산업기사 16 종목 — 시험 표 6줄 · 응시자격 8줄(=[별표 4의2] 산업기사) · 자격지수 20 · 등급 셈 링크 · «기사» 회차 안내", len(산) == 16 and not 틀림, 틀림)
+    장 = [x for x in 지금 if x["lv"] == "기능장"]
+    틀림 = [x["n"] for x in 장 if not 중간꼴(x, "정기 기능장", ELIG기능장, "**30**")]
+    ok("⑬ 기능장 3 종목 — 시험 표 6줄 · 응시자격 6줄(=[별표 4의2] 기능장) · 자격지수 30 · 등급 셈 링크", len(장) == 3 and not 틀림, 틀림)
+    gj = deep.get(next((x["slug"] for x in items if x["n"] == "건축구조기사"), ""), {})
+    ok("⑬ 건축구조기사(2027. 1. 1. 새) — 큐넷 공고 전이라 과목 · 일정 짐작 안 함 · 응시자격 = 기사 공통",
+       "2027. 1. 1." in gj.get("sub", "") and "짐작" in gj.get("lead", "") and (표(gj, "갖춘 것") or {}).get("rows") == ELIG기사 and not 표(gj, "구분"))
+    # ⑭ 큐넷 덧
+    qd = os.path.join(ROOT, "web", "src", "data", "certq")
+    파일 = sorted(f[:-5] for f in os.listdir(qd) if f.endswith(".json")) if os.path.isdir(qd) else []
+    ok("⑭ certq — «새» 빼고 82 종목 모두 · 남는 파일 없음", 파일 == sorted(x["slug"] for x in 지금), sorted(set(파일) ^ {x["slug"] for x in 지금})[:5])
+    틀림 = []
+    for x in 지금:
+        if x["slug"] not in 파일:
+            continue
+        with io.open(os.path.join(qd, x["slug"] + ".json"), encoding="utf-8") as f:
+            q = json.load(f)
+        secs = q.get("secs") or []
+        hs = [s0["h"] for s0 in secs]
+        if q.get("q") != x["q"] or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", q.get("at", "")) or not hs or not hs[0].startswith("📅 시험 일정"):
+            틀림.append((x["n"], "머리"))
+            continue
+        il = secs[0]["blocks"][0]
+        if (il.get("t") != "table" or il.get("cols") != ["회차", "접수", "시험", "발표"] or not il.get("nl") or not il.get("rows")
+                or any(len(r) != 4 or not all(r) for r in il["rows"]) or not re.search(r"(필기|실기|면접)$", il["rows"][0][0])):
+            틀림.append((x["n"], "일정"))
+        if not any("2년간 필기 면제" in b.get("text", "") or "실기만" in b.get("text", "") for b in secs[0]["blocks"]):
+            틀림.append((x["n"], "면제 글"))
+        for s0 in secs:
+            for b in s0["blocks"]:
+                if b.get("t") not in ("p", "table", "rate"):
+                    틀림.append((x["n"], "블록 " + str(b.get("t"))))
+                if b.get("t") == "rate":
+                    rr = b.get("rows") or []
+                    해 = [r[0] for r in rr]
+                    if not rr or len(rr) > 5 or 해 != sorted(해, reverse=True) or not all(2015 <= y <= 2026 for y in 해) or b.get("둘") not in ("실기", "면접"):
+                        틀림.append((x["n"], "합격률 해"))
+                    for r in rr:
+                        if len(r) != 5 or not all(isinstance(v, (int, float)) and v >= 0 for v in r[1:]) or r[2] > 100 or r[4] > 100 or (not r[1] and r[2]) or (not r[3] and r[4]):
+                            틀림.append((x["n"], "합격률 값", r))
+        for s0 in secs:
+            if s0["h"].startswith("🏅"):
+                글 = s0["blocks"][0].get("text", "")
+                수 = [int(v) for v in re.findall(r"\*\*(\d+)건\*\*", 글)]
+                if len(수) < 2 or 수[0] != sum(수[1:]):
+                    틀림.append((x["n"], "우대 합", 수))
+                tb = [b for b in s0["blocks"] if b.get("t") == "table"]
+                if tb and (len(tb[0]["rows"]) > 8 or tb[0]["cols"] != ["법령", "쓰이는 곳"]):
+                    틀림.append((x["n"], "우대 표"))
+    ok("⑭ certq 꼴 — 큐넷 번호 · 📅 일정 표 4칸(빈칸 없음 · nl) · 필기 면제 2년(제21조) · 합격률(해 내림 · 0 ~ 100 · 응시 0 이면 0) · 🏅 갈래 합 = 전체 · 표 8줄 안", not 틀림, 틀림[:6])
+    구분표 = [(s, b0.get("kv")) for s, t in deep.items() for s0 in t["secs"] for b0 in s0["blocks"] if b0.get("t") == "table" and b0.get("cols") == ["구분", "내용"]]
+    ok("⑭ «구분 | 내용» 표 82개 모두 kv(첫 칸 줄바꿈 없음 — 화면 Guide.jsx · 구운 쪽 · styles .ctab.ckv)", len(구분표) == 82 and all(k for _s, k in 구분표)
+       and "(b.kv ? ' ckv' : '')" in rd("web/src/pages/Guide.jsx") and "(' ckv' if b.get(\"kv\") else '')" in pr and ".ctab.ckv td:first-child" in rd("web/src/styles.css"),
+       [s for s, k in 구분표 if not k][:5])
+    css0 = rd("web/src/styles.css")
+    gx = rd("web/src/pages/Guide.jsx")
+    겹침 = [c for c in ("ckv", "cnl") if re.search(r"(?<!\.ctab)\." + c + r"(?![\w-])", css0)]
+    ok("⑭ G643 표 꾸밈 이름이 전역 이름과 안 겹침 — .ctab.ckv · .ctab.cnl 만(처음 .kv 로 했다가 전역 .kv 격자와 겹쳐 «📝 시험» 표가 깨짐 → 막음)",
+       not 겹침 and not re.search(r"\.ctab\.(?:kv|nl)(?![\w-])", css0) and "' kv'" not in gx and "' nl'" not in gx and "' ckv'" in gx and "' cnl'" in gx, 겹침)
+    cj = rd("web/src/pages/Cert.jsx")
+    gd = rd("web/src/pages/Guide.jsx")
+    css = rd("web/src/styles.css")
+    ok("⑭ 화면 · 구운 쪽이 같은 덧을 봄 — Cert.jsx glob(certq) · 덧끼우기 · 차례 / prerender load_certq · certq_insert · 차례 · rate / Guide.jsx rate · styles .cr-bar",
+       "import.meta.glob('../data/certq/*.json')" in cj and "export function 덧끼우기" in cj and 'className="cert-toc"' in cj and "덧끼우기(d.secs, 덧)" in cj
+       and "def load_certq" in pr and "certq_insert(t.get(\"secs\") or [], load_certq(" in pr and 'class="cert-toc"' in pr and 'elif t == "rate":' in pr
+       and "b.t === 'rate'" in gd and ".cr-bar {" in css and ".cert-toc {" in css)
+    # ⑮ 만들기 다시 돌려도 같음 — 34쪽 · certq 는 tools/자격증만들기 로만 고침(손으로 고친 것이 다음에 지워지지 않게)
+    import shutil
+    import subprocess
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        cj = os.path.join(tmp, "cert.json")
+        shutil.copy(os.path.join(ROOT, "web", "src", "data", "cert.json"), cj)
+        qo = os.path.join(tmp, "certq")
+        os.makedirs(qo)
+        r = subprocess.run([sys.executable, "-B", os.path.join(ROOT, "tools", "자격증만들기", "깊은글_큐넷덧.py"), cj, qo], capture_output=True, text=True)
+        같음 = r.returncode == 0 and rd("web/src/data/cert.json") == io.open(cj, encoding="utf-8").read()
+        다른 = [f for f in sorted(os.listdir(qo)) if io.open(os.path.join(qo, f), encoding="utf-8").read() != rd("web/src/data/certq/" + f)]
+        ok("⑮ tools/자격증만들기/깊은글_큐넷덧.py 를 다시 돌려도 cert.json · certq 82 파일이 똑같음(손으로 고친 것 없음 · 평균은 분수 반올림 — 파이썬 판마다 같음)",
+           같음 and not 다른 and len(os.listdir(qo)) == 82, (r.returncode, r.stderr[-300:], 다른[:3]))
+    md = os.path.join(ROOT, "tools", "자격증만들기")
+    무시 = []
+    try:
+        for f in sorted(os.listdir(md)):
+            if f == "__pycache__":
+                continue
+            g = subprocess.run(["git", "-C", ROOT, "check-ignore", "-q", os.path.join("tools", "자격증만들기", f)], capture_output=True)
+            if g.returncode == 0:
+                무시.append(f)
+    except FileNotFoundError:     # git 이 없는 곳 — 건너뜀
+        pass
+    ok("⑮ 만들기 폴더 파일 중 git 이 무시하는 것 없음(.gitignore *.txt — 처음 qnet_compact.txt 가 안 올라가 다른 곳에서 만들기가 못 돎 → .dat)", not 무시, 무시)
     print(f"\n{'❌' if bad else '✅'} 시험_자격증 {n - bad}/{n}")
     sys.exit(1 if bad else 0)
 
