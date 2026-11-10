@@ -16,6 +16,8 @@
  *   ⑪ G628(11-10) 토목기사 깊은 글(시험 표 6줄 · 응시자격 10줄 · 📝 예상문제 단추) → /cert/tomok-gisa/quiz — 과목 · 문제 수 고르기 · 한 문제씩 바로 채점(⭕ 하나 · 고른 ❌) ·
  *      풀이 · 근거 · 결과(과목별 점수 · 6과목이면 모의 판정) · 틀린 문제 = 이 브라우저(id · 씨앗)에 모임 → lib 로 다시 만든 문제와 같음 · 다시 풀어 맞히면 빠짐 ·
  *      PC 숫자 1 ~ 4 · Enter · 틀린 문제 비우기(두 번 눌러야) · 넘침 0 · 소장님 「최신기출문제도 해줘. 예상문제도 해주고…」
+ *   ⑬ G631(11-10) 🎤 토목시공기술사 면접 준비 — 깊은 글 단추 → /interview · 분야 칩 11 · 질문 150 · 분야 고름 · 찾기 «히빙» · 🎲 하나만 펼침 ·
+ *      ✓ 외웠음(이 브라우저 · 새로고침해도 남음) · 외운 것 빼고 보기 · 넘침 0 · 구운 쪽 · 소장님 「기술사 서브노트 … 고쳐서 올려줘」
  * 인터넷 안 부름(파이어베이스 · 광고 · 애널리틱스 막음).
  */
 import { createRequire } from 'node:module'
@@ -296,6 +298,56 @@ for (const [이름, w, h, 폰] of [['폰 390', 390, 844, true], ['폰 360', 360,
     ok(`⑪ 고르는 화면 «↺ 틀린 문제 다시 풀기 (${지금틀린})» · 비우기는 두 번(한 번은 «한 번 더 누르면 비웁니다») → 비움`, w0.단추 === `↺ 틀린 문제 다시 풀기 (${지금틀린})` && w0.비우기 === '틀린 문제 비우기'
       && w1 === '한 번 더 누르면 비웁니다' && 아직 === 지금틀린 && !w2 && (await 오답들()).length === 0, { w0, w1, 아직, w2 })
   } else ok('⑪ 틀린 문제 비우기 — (틀린 문제가 없어 건너뜀)', true)
+  /* ⑬ G631 면접 준비 */
+  const 면접열쇠 = 'kcm.면접.tomok-sigong-gisulsa'
+  await p.evaluate((k) => { try { localStorage.removeItem(k) } catch (e) { /* 없음 */ } }, 면접열쇠)
+  await p.goto(BASE + '/cert/tomok-sigong-gisulsa', { waitUntil: 'domcontentloaded' })
+  await p.waitForSelector('.cert-facts', { timeout: 20000 })
+  await 쉬어(300)
+  const 면접단추 = await p.evaluate(() => [...document.querySelectorAll('a.cert-big.qz-go')].map((a) => [a.getAttribute('href'), a.innerText.replace(/\s+/g, ' ').trim()]))
+  ok('⑬ 토목시공기술사 깊은 글 — «🎤 면접 준비» 단추(→ /interview · 질문 150개)', 면접단추.some(([h, t]) => h === '/cert/tomok-sigong-gisulsa/interview' && /🎤 면접 준비/.test(t) && /150개/.test(t)), 면접단추)
+  await p.click('a[href="/cert/tomok-sigong-gisulsa/interview"].cert-big')
+  await p.waitForURL(/\/cert\/tomok-sigong-gisulsa\/interview$/, { timeout: 10000 })
+  await p.waitForSelector('details.iv-q', { timeout: 20000 })
+  await 쉬어(300)
+  const 셈 = () => p.evaluate(() => ({ 질문: document.querySelectorAll('details.iv-q').length, 열림: document.querySelectorAll('details.iv-q[open]').length, 외움: (document.querySelector('.iv-cnt') || {}).innerText || '' }))
+  const iv0 = await p.evaluate(() => ({ h1: (document.querySelector('h1') || {}).innerText || '', 칩: [...document.querySelectorAll('.iv-tools .chips .chip')].map((c) => c.innerText.trim()), 차례: document.querySelectorAll('.csteps .cstep').length }))
+  const c0 = await 셈()
+  ok('⑬ 면접 쪽 — h1 · 분야 칩 11(전체 150 + 10) · 준비 차례 5 · 질문 150 · 외움 0 / 150', iv0.h1 === '🎤 토목시공기술사 면접 준비' && iv0.칩.length === 11 && iv0.칩[0] === '전체 150' && iv0.차례 === 5 && c0.질문 === 150 && c0.외움 === '✓ 외움 0 / 150', { ...iv0, ...c0 })
+  ok(`${이름} 면접 쪽 넘침 0`, (await 넘침(p)) <= 1, await 넘침(p))
+  await p.evaluate(() => [...document.querySelectorAll('.iv-tools .chips .chip')].find((c) => c.innerText.includes('콘크리트')).click())
+  await 쉬어(200)
+  const 콘 = await 셈()
+  await p.fill('.iv-tools .cert-q', '히빙')
+  await 쉬어(250)
+  const 히 = await p.evaluate(() => [...document.querySelectorAll('details.iv-q')].map((d) => d.textContent))
+  await p.fill('.iv-tools .cert-q', '')
+  await p.evaluate(() => [...document.querySelectorAll('.iv-tools .chips .chip')][0].click())
+  await 쉬어(250)
+  ok('⑬ 분야 «콘크리트» → 23 · 찾기 «히빙»(콘크리트 안) → 0 · 전체로 돌아오면 150', 콘.질문 === 23 && 히.length === 0 && (await 셈()).질문 === 150, [콘.질문, 히.length])
+  await p.fill('.iv-tools .cert-q', '히빙')
+  await 쉬어(250)
+  const 히2 = await p.evaluate(() => [...document.querySelectorAll('details.iv-q')].map((d) => d.textContent))
+  ok('⑬ 전체에서 찾기 «히빙» → 1개 넘게 · 모두 «히빙» 이 들어감', 히2.length >= 1 && 히2.every((t) => t.includes('히빙')), 히2.length)
+  await p.fill('.iv-tools .cert-q', '')
+  await 쉬어(200)
+  await p.click('.iv-row .btn')
+  await 쉬어(400)
+  ok('⑬ 🎲 아무 질문 하나 → 하나만 펼쳐짐', (await 셈()).열림 === 1, await 셈())
+  const 첫 = await p.evaluate(() => { const d = document.querySelector('details.iv-q'); d.querySelector('summary').click(); return d.id })
+  await 쉬어(250)
+  await p.evaluate((id) => document.querySelector('#' + id + ' .iv-body .btn').click(), 첫)
+  await 쉬어(250)
+  const 외1 = await p.evaluate((id) => ({ 표: !!document.querySelector('#' + id + ' summary .iv-ok'), 단추: document.querySelector('#' + id + ' .iv-body .btn').innerText.trim() }), 첫)
+  const 저장 = await p.evaluate((k) => { try { return JSON.parse(localStorage.getItem(k) || '[]') } catch (e) { return null } }, 면접열쇠)
+  ok('⑬ ✓ 외웠음 — 질문 줄에 ✓ · 단추 «다시 볼 것으로» · 외움 1 / 150 · 이 브라우저에 번호 저장', 외1.표 && /다시 볼 것으로/.test(외1.단추) && (await 셈()).외움 === '✓ 외움 1 / 150' && Array.isArray(저장) && 저장.length === 1 && 'iq-' + 저장[0] === 첫, { 외1, 저장 })
+  await p.evaluate(() => [...document.querySelectorAll('.iv-row .chip')].find((c) => /외운 것 빼고/.test(c.innerText)).click())
+  await 쉬어(250)
+  ok('⑬ 외운 것 빼고 보기 → 149', (await 셈()).질문 === 149, await 셈())
+  await p.reload({ waitUntil: 'domcontentloaded' })
+  await p.waitForSelector('details.iv-q', { timeout: 20000 })
+  await 쉬어(300)
+  ok('⑬ 새로고침해도 외움 1 / 150(이 브라우저)', (await 셈()).외움 === '✓ 외움 1 / 150', await 셈())
   ok(`${이름} 오류 0`, 오류.length === 0, 오류)
   await ctx.close()
 }
@@ -319,6 +371,12 @@ if (fs.existsSync(구운)) {
   ok('⑪ 구운 예상문제 쪽(cert/tomok-gisa/quiz.html) — 제목 · h1 · 들어 있는 문제 6과목 · 맛보기 6 · «직접 만든» · 큐넷 · canonical', /<title>토목기사 필기 예상문제 — /.test(qz) && /<h1[^>]*>📝 토목기사 필기 예상문제<\/h1>/.test(qz)
     && (qz.match(/class="qz-types"/g) || []).length === 6 && (qz.match(/<details class="qz-rv">/g) || []).length === 6 && /직접 만든/.test(qz) && /jmCd=1250/.test(qz) && /rel="canonical" href="https:\/\/k-conmap\.com\/cert\/tomok-gisa\/quiz"/.test(qz) && !/클로드|무료/.test(qz.replace(/<script[\s\S]*?<\/script>/g, '')),
     [qz.length, (qz.match(/<title>[^<]*/) || [''])[0]])
+  const 면접쪽 = path.join(ROOT, 'web/dist/cert/tomok-sigong-gisulsa/interview.html')
+  const ivh = fs.existsSync(면접쪽) ? fs.readFileSync(면접쪽, 'utf8') : ''
+  const tsh = fs.readFileSync(path.join(ROOT, 'web/dist/cert/tomok-sigong-gisulsa.html'), 'utf8')
+  ok('⑬ 구운 면접 쪽(cert/tomok-sigong-gisulsa/interview.html) — 제목 · h1 · 질문 150(펼침) · 근거 · canonical · 깊은 글 🎤 단추 · /cert 줄', /<title>토목시공기술사 면접 — /.test(ivh) && /<h1[^>]*>🎤 토목시공기술사 면접 준비<\/h1>/.test(ivh)
+    && (ivh.match(/<details class="iv-q"/g) || []).length === 150 && /law\.go\.kr/.test(ivh) && /rel="canonical" href="https:\/\/k-conmap\.com\/cert\/tomok-sigong-gisulsa\/interview"/.test(ivh)
+    && /class="cert-big qz-go" href="\/cert\/tomok-sigong-gisulsa\/interview"/.test(tsh) && /href="\/cert\/tomok-sigong-gisulsa\/interview"><span class="fic">🎤/.test(h), [ivh.length, (ivh.match(/<title>[^<]*/) || [''])[0]])
 }
 await b.close()
 console.log(`\n${bad ? '❌' : '✅'} 시험_자격증화면 ${n - bad}/${n}`)

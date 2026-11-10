@@ -1948,7 +1948,8 @@ def cert_urls_for_indexnow():
         return []
     deep = d.get("deep") or {}
     return (["/cert", "/cert/grade"] + [f'/cert/{x["slug"]}' for x in (d.get("items") or []) if x.get("slug") in deep]
-            + [f'/cert/{x["slug"]}/quiz' for x in (d.get("items") or []) if (deep.get(x.get("slug")) or {}).get("quiz")])   # 📝 G628 예상문제 쪽
+            + [f'/cert/{x["slug"]}/quiz' for x in (d.get("items") or []) if (deep.get(x.get("slug")) or {}).get("quiz")]   # 📝 G628 예상문제 쪽
+            + [f'/cert/{x["slug"]}/interview' for x in (d.get("items") or []) if (deep.get(x.get("slug")) or {}).get("interview")])   # 🎤 G631 면접 준비
 
 
 def change_naeyeok_kind_page(shell, kind, rows, meta, image=None):
@@ -3845,6 +3846,9 @@ def cert_index(shell, d, image=None):
     qz = "".join(f'<a class="row rowlink" href="/cert/{esc(x["slug"])}/quiz"><span class="fic">📝</span><div class="grow"><div class="t">{esc(x["n"])} 예상문제</div>'
                  f'<div class="d">{len(deep[x["slug"]]["quiz"].get("과목") or [])}과목 계산 문제 {len(deep[x["slug"]]["quiz"].get("틀") or [])}가지 — 풀 때마다 숫자가 바뀜 · 풀이 · 근거</div></div><span class="go">→</span></a>'
                  for x in items if x["slug"] in deep and deep[x["slug"]].get("quiz"))   # 📝 G628 — 화면(Cert.jsx 퀴즈종목)과 같은 줄
+    qz += "".join(f'<a class="row rowlink" href="/cert/{esc(x["slug"])}/interview"><span class="fic">🎤</span><div class="grow"><div class="t">{esc(x["n"])} 면접 준비</div>'
+                  f'<div class="d">자주 나오는 질문 {deep[x["slug"]]["interview"].get("수", 0)}개 · 분야별 답 요령 · 근거</div></div><span class="go">→</span></a>'
+                  for x in items if x["slug"] in deep and deep[x["slug"]].get("interview"))   # 🎤 G631 — 화면(Cert.jsx 면접종목)과 같은 줄
     out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">📝 기출문제는?</div>' + _blocks_html(d.get("gichul") or []) + qz + "</div>")
     out.append(f'<div class="note sm" style="margin-top:10px">{esc(d.get("note") or "")}</div>')
     rows = [("/cert/grade", "건설기술인 등급 셈 — 초급 · 중급 · 고급 · 특급", "")] + [(f'/cert/{s}', (deep[s].get("h1") or s), "") for s in deep]
@@ -3883,6 +3887,9 @@ def cert_item(shell, d, x, t, image=None):
         qz = t["quiz"]
         out.append(f'<a class="cert-big qz-go" href="/cert/{esc(x["slug"])}/quiz"><b>📝 예상문제 풀기</b>'
                    f'<span>{len(qz.get("과목") or [])}과목 계산 문제 {len(qz.get("틀") or [])}가지 — 풀 때마다 숫자가 바뀜 · 바로 채점 · 풀이</span></a>')
+    if t.get("interview"):   # 🎤 G631 — 화면(Cert.jsx CertItem)과 같은 단추
+        out.append(f'<a class="cert-big qz-go" href="/cert/{esc(x["slug"])}/interview"><b>🎤 면접 준비</b>'
+                   f'<span>자주 나오는 질문 {t["interview"].get("수", 0)}개 · 분야별 답 요령 · 근거 · 외운 것 표시</span></a>')
     out.append("</div>")
     for s in t.get("secs") or []:
         out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">' + esc(s["h"]) + "</div>" + _blocks_html(s["blocks"]) + "</div>")
@@ -3937,6 +3944,51 @@ def cert_quiz(shell, d, x, t, image=None):
                    "educationalLevel": f'{x["n"]} 필기', "isAccessibleForFree": True, "url": f'{SITE}/cert/{x["slug"]}/quiz',
                    "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}})
     return page(shell, f'/cert/{x["slug"]}/quiz', title, desc, "".join(out) + nav_html("/cert"), image, ld)
+
+
+INTERVIEW_JSON = os.path.join(ROOT, "web", "src", "data", "interview.json")
+_IV = None
+
+
+def load_interview():
+    """🎤 G631 기술사 면접 준비 글(web/src/data/interview.json) — 화면(CertInterview.jsx)과 같은 파일."""
+    global _IV
+    if _IV is None:
+        try:
+            with open(INTERVIEW_JSON, encoding="utf-8") as f:
+                _IV = json.load(f) or {}
+        except Exception as e:
+            print(f"  · 면접 준비 자료를 못 읽었습니다 ({type(e).__name__}) — 건너뜁니다")
+            _IV = {}
+    return _IV
+
+
+def cert_interview(shell, x, iv, image=None):
+    """🎤 G631 (2026-11-10) 소장님 「기술사 서브노트 … 다르게 고쳐서」 · 「자격증 탭에 추가해서 정리해줘」 — /cert/{종목}/interview 구운 쪽.
+    화면(pages/CertInterview.jsx)과 같은 글: 제목 · 소개 · 면접 준비 차례 · 질문 전부(펼치면 답 요령 · 근거). 찾기 · 외움 표시는 화면(자바스크립트)에서."""
+    h1 = iv.get("h1") or f'🎤 {x["n"]} 면접 준비'
+    title = iv.get("title") or f'{x["n"]} 면접 준비 | K-건설맵'
+    desc = re.sub(r"\*\*", "", iv.get("desc") or "")[:160]
+    fn = {f["k"]: f for f in iv.get("fields") or []}
+    out = [f'<div class="btn-row" style="padding-top:14px;margin-bottom:10px"><a class="btn sm line" href="/cert/{esc(x["slug"])}">← {esc(x["n"])}</a></div>',
+           f'<div class="card"><h1 class="cert-h1">{esc(h1)}</h1><p class="cp" style="margin-top:6px">{_bold(iv.get("lead") or "")}</p></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 8px">🧭 면접은 이렇게 준비합니다</div>' + _blocks_html(iv.get("how") or []) + "</div>",
+           f'<div class="card iv-list"><div class="sec-title" style="margin:0 0 4px">📋 질문 {len(iv.get("qs") or [])}개</div>']
+    for y in iv.get("qs") or []:
+        f = fn.get(y["k"], {"ic": "", "n": ""})
+        out.append(f'<details class="iv-q" id="iq-{y["id"]}"><summary><span class="iv-n">{y["id"]}</span><span class="iv-t">{esc(y["q"])}</span></summary>'
+                   f'<div class="iv-body"><div class="iv-k">{esc(f["ic"])} {esc(f["n"])}</div>'
+                   '<ul class="flist">' + "".join(f"<li>{_bold(t)}</li>" for t in y["a"]) + "</ul>"
+                   + (f'<div class="iv-tip">💡 {esc(y["tip"])}</div>' if y.get("tip") else "")
+                   + ('<div class="csrc"><span class="csrc-h">근거</span>' + "".join(f'<a href="{esc(u)}" target="_blank" rel="noopener nofollow">{esc(nm)} ↗</a>' for nm, u in y["s"]) + "</div>" if y.get("s") else "")
+                   + "</div></details>")
+    out.append("</div>")
+    out.append('<div class="note sm" style="margin-top:10px">답은 건설맵이 법령 · 기준을 확인해 새로 쓴 «답 요령»입니다. 기준 숫자는 개정되므로 국가건설기준센터 원문으로 다시 확인하세요.</div>')
+    ld = ld_graph(ld_crumbs(("K-건설맵", None), ("토목 · 건축 자격증", "/cert"), (x["n"], f'/cert/{x["slug"]}'), (f'{x["n"]} 면접 준비', f'/cert/{x["slug"]}/interview')),
+                  {"@type": "LearningResource", "name": h1, "description": desc, "inLanguage": "ko", "learningResourceType": "면접 질문 · 답 요령",
+                   "educationalLevel": f'{x["n"]} 면접', "isAccessibleForFree": True, "url": f'{SITE}/cert/{x["slug"]}/interview',
+                   "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}})
+    return page(shell, f'/cert/{x["slug"]}/interview', title, desc, "".join(out) + nav_html("/cert"), image, ld)
 
 
 def guide_topic(shell, t, others, image=None):
@@ -4334,8 +4386,13 @@ def main():
             if t.get("quiz"):   # 📝 G628 예상문제 — /cert/{종목}/quiz (cert/{종목}.html 옆 폴더 — /cert.html + cert/ 와 같은 꼴)
                 write(f"cert/{s}/quiz.html", cert_quiz(shell, cd, x, t, og.tab(f"cert-{s}-quiz", f'{x["n"]} 예상문제', f'{len(t["quiz"].get("과목") or [])}과목 계산 문제', "풀이 · 근거", "풀 때마다 숫자가 바뀜") if og.available else None))
                 made += 1
+            iv = (load_interview() or {}).get(s) if t.get("interview") else None
+            if iv:   # 🎤 G631 면접 준비 — /cert/{종목}/interview
+                write(f"cert/{s}/interview.html", cert_interview(shell, x, iv, og.tab(f"cert-{s}-interview", f'{x["n"]} 면접 준비', f'자주 나오는 질문 {len(iv.get("qs") or [])}개', "답 요령 · 근거", "분야별") if og.available else None))
+                made += 1
         n_qz = sum(1 for t in (cd.get("deep") or {}).values() if t.get("quiz"))
-        print(f"  · 자격증 페이지 {2 + len(cd.get('deep') or {}) + n_qz:,}개 (/cert/ · 예상문제 {n_qz})")
+        n_iv = sum(1 for t in (cd.get("deep") or {}).values() if t.get("interview"))
+        print(f"  · 자격증 페이지 {2 + len(cd.get('deep') or {}) + n_qz + n_iv:,}개 (/cert/ · 예상문제 {n_qz} · 면접 {n_iv})")
 
     # ── 🧰 건설 도구 ──
     ttools, tcats = load_tools()

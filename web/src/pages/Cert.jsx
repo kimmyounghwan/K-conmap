@@ -25,6 +25,7 @@ const 등급순 = DATA.levels || ['기술사', '기능장', '기사', '산업기
 const 큐넷 = 'https://www.q-net.or.kr/'
 const 기출 = 'https://www.q-net.or.kr/cst006.do?id=cst00601&code=1203&gSite=Q'
 const 퀴즈종목 = 종목들.filter((x) => 깊은[x.slug] && 깊은[x.slug].quiz)   /* 📝 G628 예상문제가 있는 종목 */
+const 면접종목 = 종목들.filter((x) => 깊은[x.slug] && 깊은[x.slug].interview)   /* 🎤 G631 면접 준비가 있는 종목 */
 
 /* 찾기 — 띄어쓰기 · 대소문자 무시 · «및» 빼고(토질및기초 = 토질 기초) */
 const 낱 = (s) => String(s || '').replace(/\s+/g, '').replace(/및/g, '').toLowerCase()
@@ -101,6 +102,12 @@ export default function CertIndex() {
           <Link className="row rowlink" to={`/cert/${y.slug}/quiz`} key={y.slug}>
             <span className="fic">📝</span><div className="grow"><div className="t">{y.n} 예상문제</div>
               <div className="d">{(깊은[y.slug].quiz.과목 || []).length}과목 계산 문제 {(깊은[y.slug].quiz.틀 || []).length}가지 — 풀 때마다 숫자가 바뀜 · 풀이 · 근거</div></div><span className="go">→</span>
+          </Link>
+        ))}
+        {면접종목.map((y) => (   /* 🎤 G631 */
+          <Link className="row rowlink" to={`/cert/${y.slug}/interview`} key={'iv' + y.slug}>
+            <span className="fic">🎤</span><div className="grow"><div className="t">{y.n} 면접 준비</div>
+              <div className="d">자주 나오는 질문 {깊은[y.slug].interview.수}개 · 분야별 답 요령 · 근거</div></div><span className="go">→</span>
           </Link>
         ))}
         <a className="row rowlink" href={기출} target="_blank" rel="noopener nofollow">
@@ -213,6 +220,10 @@ export function CertItem() {
         {d.quiz && (   /* 📝 G628 예상문제 — 건설맵이 직접 만든 계산 문제(/cert/{종목}/quiz) */
           <Link className="cert-big qz-go" to={`/cert/${slug}/quiz`}><b>📝 예상문제 풀기</b>
             <span>{(d.quiz.과목 || []).length}과목 계산 문제 {(d.quiz.틀 || []).length}가지 — 풀 때마다 숫자가 바뀜 · 바로 채점 · 풀이</span></Link>
+        )}
+        {d.interview && (   /* 🎤 G631 면접 준비 — 질문 · 답 요령(/cert/{종목}/interview) */
+          <Link className="cert-big qz-go" to={`/cert/${slug}/interview`}><b>🎤 면접 준비</b>
+            <span>자주 나오는 질문 {d.interview.수}개 · 분야별 답 요령 · 근거 · 외운 것 표시</span></Link>
         )}
       </div>
       {d.secs.map((s, i) => (

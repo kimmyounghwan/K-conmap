@@ -94,6 +94,8 @@ const CertGrade = lazyPage(() => import('./pages/Cert.jsx').then((m) => ({ defau
 const CertItem = lazyPage(() => import('./pages/Cert.jsx').then((m) => ({ default: m.CertItem })))
 /* 📝 G628 예상문제 — /cert/{종목}/quiz(건설맵이 직접 만든 계산 문제 · lib/예상문제.js) */
 const CertQuiz = lazyPage(() => import('./pages/CertQuiz.jsx'))
+/* 🎤 G631 기술사 면접 준비 — /cert/{종목}/interview(질문 · 답 요령 · 근거 · data/interview.json) */
+const CertInterview = lazyPage(() => import('./pages/CertInterview.jsx'))
 /* 🧰 도구 — lazy() 가 아니라 lazyPage() 입니다. 배포가 지나가면 옛 파일이 사라져
    화면이 통째로 죽습니다 (2026-09-08 착공현장 사고). */
 const ToolsIndex = lazyPage(() => import('./pages/Tools.jsx'))
@@ -336,6 +338,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/cert/grade" element={<Suspense fallback={<Loading />}><CertGrade /></Suspense>} />
           <Route path="/cert/:slug" element={<Suspense fallback={<Loading />}><CertItem /></Suspense>} />
           <Route path="/cert/:slug/quiz" element={<Suspense fallback={<Loading />}><CertQuiz /></Suspense>} />
+          <Route path="/cert/:slug/interview" element={<Suspense fallback={<Loading />}><CertInterview /></Suspense>} />
           <Route path="/daily" element={<DailyIndex />} />
           <Route path="/daily/:date" element={<DailyPage />} />
           {/* 🪪 G188 마이컨맵 — «/@주소» 는 한 칸짜리 «/:at» 로 받고 @ 로 시작하지 않으면 MyAt 이 NotFound 를 그립니다(react-router 6 은 «/@:a» 같은 반쪽 변수를 못 받음).

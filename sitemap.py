@@ -340,7 +340,8 @@ def main():
             cd = json.load(f) or {}
         if cd.get("items"):
             for u in (["/cert", "/cert/grade"] + [f"/cert/{s}" for s in (cd.get("deep") or {})]
-                      + [f"/cert/{s}/quiz" for s, t in (cd.get("deep") or {}).items() if t.get("quiz")]):   # 📝 G628 예상문제 쪽
+                      + [f"/cert/{s}/quiz" for s, t in (cd.get("deep") or {}).items() if t.get("quiz")]   # 📝 G628 예상문제 쪽
+                      + [f"/cert/{s}/interview" for s, t in (cd.get("deep") or {}).items() if t.get("interview")]):   # 🎤 G631 면접 준비
                 urls.append(f'  <url><loc>{SITE}{u}</loc>'
                             f'<lastmod>{_mtime(CERT_JSON, today)}</lastmod>'
                             f'<changefreq>monthly</changefreq><priority>0.7</priority></url>')

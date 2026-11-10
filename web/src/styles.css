@@ -10520,6 +10520,20 @@ a.cert-chip:not(.deep) { color: inherit; text-decoration: none; }
 .pre-gnb a { color: var(--text-2); text-decoration: none; font-weight: 600; }
 .pre-gnb a[aria-current="page"] { color: var(--accent); }
 .qz, .qz-out { scroll-margin-top: 64px; }
+/* 🎤 G631 기술사 면접 준비(/cert/{종목}/interview) — 질문 줄 · 펼치면 답 요령 · 외움 표시 */
+.iv-tools .cert-q { margin-top: 8px; }
+.iv-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.iv-cnt { margin-left: auto; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.iv-q { border-top: 1px solid var(--line-soft); scroll-margin-top: 64px; }
+.iv-q summary { display: flex; gap: 8px; align-items: baseline; cursor: pointer; padding: 10px 0; list-style: none; font-size: 14.5px; line-height: 1.45; word-break: keep-all; }
+.iv-q summary::-webkit-details-marker { display: none; }
+.iv-n { flex: 0 0 auto; min-width: 28px; font-size: 12px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+.iv-t { flex: 1 1 auto; font-weight: 700; }
+.iv-ok { flex: 0 0 auto; color: var(--good); font-weight: 900; }
+.iv-body { padding: 0 0 12px 36px; }
+.iv-k { font-size: 11.5px; color: var(--muted); margin-bottom: 4px; }
+.iv-tip { margin: 6px 0; font-size: 13px; color: var(--text-2); }
+@media (max-width: 420px) { .iv-body { padding-left: 0; } }
 .qz-go { margin-top: 10px; min-height: 0; }
 .qz-top { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
 .qz-n { font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
