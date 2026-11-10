@@ -17,7 +17,7 @@ import { nickOf } from './lib/nickname.js'
 import { 갈래떼기 } from './lib/말머리.js'
 import { 이야기머리, 그도구글, 이야기제목, 이야기본문 } from './lib/도구이야기.js'
 import { 몰래표 } from './lib/차단.js'
-import { 낱자만, 낱자말 } from './lib/낱자글.js'   /* 🚫 G632 낱자 글 막기 */
+import { 낱자만 } from './lib/낱자글.js'   /* 🚫 G632 낱자 글 막기 */
 
 let _fb = null
 const loadFb = async () => {
@@ -62,7 +62,7 @@ export default function 도구이야기({ 이름, 주소 = '', 아이콘 = '💬
   const 올리기 = async () => {
     const { t, b } = 글나누기(글)
     if (t.length < 2) { set탈('두 글자만이라도 적어 주십시오.'); return }
-    if (낱자만(t)) { set탈(낱자말.첫줄); return }   /* 🚫 G632 — 제목엔 도구 이름이 붙으므로 붙기 전 첫 줄로 봄 */
+    if (낱자만(t)) { set탈(''); return }   /* 🚫 G632 — 제목엔 도구 이름이 붙으므로 붙기 전 첫 줄로 봄 · 🤫 G633 아무 말 없이 */
     set보냄(true); set탈('')
     try { await 늦으면(올리기안(t, b), 20000) } catch (e) { set탈(e && e.message === '늦음' ? '망이 느려 늦어지고 있습니다 — 맵톡에서 올라갔는지 본 뒤 다시 해 주십시오.' : '올리지 못했습니다. 잠시 뒤 다시 해 주십시오.') } finally { set보냄(false) }
   }

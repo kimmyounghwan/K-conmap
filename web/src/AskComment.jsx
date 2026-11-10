@@ -43,7 +43,7 @@ import { nickOf } from './lib/nickname.js'
    소장님: 「이용자에게 띄우는 창은 그대로 유지하고, 어디로 올릴건지만」 — 창은 안 바뀝니다. */
 import { 갈래붙이기 } from './lib/말머리.js'
 import { 몰래표 } from './lib/차단.js'
-import { 낱자만, 낱자말 } from './lib/낱자글.js'   /* 🚫 G632 «ㄱㄱ» · «ㅇㅇ» 같은 낱자 글 막기 */
+import { 낱자만 } from './lib/낱자글.js'   /* 🚫 G632 «ㄱㄱ» · «ㅇㅇ» 같은 낱자 글 막기 */
 
 /* ⚠️ firebase 는 «정적으로» 끌어오지 않습니다 — 이 창을 실제로 올릴 때만 받습니다.
    (사랑방·구인구직과 같은 방식. 안 그러면 모든 화면이 firebase 를 지고 다닙니다) */
@@ -220,8 +220,9 @@ export default function AskStrip() {
   const 올리기 = async () => {
     const { t, b } = 글나누기(글)
     if (t.length < 2) { set탈('두 글자만이라도 적어 주십시오.'); return }
-    /* 🚫 G632 «ㄱㄱ» · «ㅇㅇ» 처럼 낱자만 쓴 첫 줄(= 제목) — 실제로 올라갈 제목(말머리 · 76자 자름)도 같이 봄(서버 규칙과 같게) */
-    if (낱자만(t) || 낱자만(갈래붙이기('후기·건의', t))) { set탈(낱자말.첫줄); return }
+    /* 🚫 G632 «ㄱㄱ» · «ㅇㅇ» 처럼 낱자만 쓴 첫 줄(= 제목) — 실제로 올라갈 제목(말머리 · 76자 자름)도 같이 봄(서버 규칙과 같게)
+       🤫 G633 아무 말 없이 안 올림(소장님 「알림은 제거해」) */
+    if (낱자만(t) || 낱자만(갈래붙이기('후기·건의', t))) { set탈(''); return }
     set보냄(true); set탈('')
     try {
       const { ref, set, push, db, ensureAnon } = await loadFb()

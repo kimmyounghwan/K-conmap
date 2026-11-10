@@ -216,7 +216,7 @@ const when = (ms) => {
 }
 
 import { 갈래떼기, 갈래붙이기 } from '../lib/말머리.js'
-import { 낱자만, 낱자말 } from '../lib/낱자글.js'   /* 🚫 G632 «ㄱㄱ» · «ㅇㅇ» 처럼 낱자만 쓴 제목 · 답글 막기 */
+import { 낱자만 } from '../lib/낱자글.js'   /* 🚫 G632 «ㄱㄱ» · «ㅇㅇ» 처럼 낱자만 쓴 제목 · 답글 막기 · 🤫 G633 아무 말 없이(소장님 「알림은 제거해」) */
 import { use화면상태, use남김 } from '../lib/길기록.js'
 /* 🗺 G114 사랑방 맨 위 지도는 G144(2026-10-05) 바로투찰 맨 위로 옮김 — 소장님 「사랑방에 있는 지도는 제거하고」 */
 /* 📰 G128 «오늘의 건설 소식» 은 2026-10-17 뺌 — 소장님 「지우기로 가자」(건설 밖 기사 · 지난 기사 · 얼마나 보는지 모름) */
@@ -1272,7 +1272,7 @@ function Detail({ row, ans, mine, onChange, 나운영자, 안내 = false, 참석
   const 고쳐올리기 = async () => {
     const t = (고침.t || '').trim()
     if (t.length < 2) return setMsg('제목을 2자 이상 적어 주세요.')
-    if (낱자만(t)) return setMsg(낱자말.제목)   /* 🚫 G632 */
+    if (낱자만(t)) return setMsg('')   /* 🚫 G632 · 🤫 G633 */
     set바쁨(true); setMsg('')
     try {
       const { ref, update, db, ensureAnon, serverTimestamp } = await loadFb()
@@ -1386,7 +1386,7 @@ function Detail({ row, ans, mine, onChange, 나운영자, 안내 = false, 참석
   const 답고치기 = async (a) => {
     const t = 고칠글.replace(/\r/g, '').trim()
     if (t.length < 2) { setMsg('두 글자 이상 적어 주세요.'); return }
-    if (낱자만(t)) { setMsg(낱자말.답글); return }   /* 🚫 G632 */
+    if (낱자만(t)) { setMsg(''); return }   /* 🚫 G632 · 🤫 G633 */
     if (t === String(a.b || '').trim()) { set답고칠(null); return }
     set고치는중(true)
     try {
@@ -1699,7 +1699,7 @@ function AnswerForm({ qid, onDone, to = null, 받는이 = '', 인용 = '', 열�
 
   const submit = async () => {
     if (b.trim().length < 2 && !첨부) return setMsg('답글을 적어 주세요.')
-    if (b.trim() && 낱자만(b)) return setMsg(낱자말.답글)   /* 🚫 G632 — 파일만 올리는 답글(글 없음)은 그대로 */
+    if (b.trim() && 낱자만(b)) return setMsg('')   /* 🚫 G632 — 파일만 올리는 답글(글 없음)은 그대로 · 🤫 G633 */
     if (첨부 && !나운영자 && 오늘올린수() >= 하루한도) return setMsg('📎 지금은 파일을 더 올릴 수 없습니다. 잠시 뒤 다시 올려 주세요. (글만 올리시려면 파일을 빼 주세요)')
     /* 🔔 누른 그 순간 묻습니다(아이폰 · 파이어폭스는 기다렸다 물으면 거절) — 이미 정했으면 묻지 않음
        ⚠️ 소장님(운영자) 브라우저에서는 묻지 않습니다 — 소장님: 「그냥, 내가 답글을 쓰면 알림이 가게 해달라고」(허용 창 없이) */
@@ -1924,7 +1924,7 @@ function 맵톡글쓰기({ onDone, 첫글, 나운영자, 방고름 = 'all' }) {
     if (busy) return
     const { t, b } = 제목내용(제목, 내용)
     if (t.length < 2) return 막기('두 글자 이상 적어 주세요.')
-    if (낱자만(t)) return 막기(String(제목 || '').trim() ? 낱자말.제목 : 낱자말.글첫줄)   /* 🚫 G632 */
+    if (낱자만(t)) return setMsg('')   /* 🚫 G632 · 🤫 G633 */
     if (모 && !/^\d{4}-\d{2}-\d{2}$/.test(모.d || '')) return 막기('📅 모임 날짜를 골라 주세요.')
     if (!나운영자 && pin.length !== 4) { 막기('🔑 지우고 되찾을 때 쓸 4자리 숫자를 정해 주세요.'); try { 핀칸.current && 핀칸.current.focus() } catch (e) { /* 없음 */ } return }
     /* 📎 하루 한도 — 숫자는 안 알려 드림(소장님만 앎) */
