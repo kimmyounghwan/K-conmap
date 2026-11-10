@@ -28,6 +28,9 @@ const 격자작성 = lazy(() => import('../tools/격자작성.jsx'))
 /** 안전서류(묶음 «안전») 와 새로 만든 웹 서식(gen web)은 엑셀 없이 «사이트에서 작성 → PDF» 만 */
 export const 웹서식 = (f) => !!f && (f.group === '안전' || f.gen === 'web')
 /** ✍️ G361 사이트에서 작성(자동 계산 · 그림 PDF) — 안전 · 웹 서식 + 엑셀로 굽던 서식(forms2) + 다시 만든 원본 틀 */
+/* ✍ G635 (2026-11-10) «작성 예시» 판정 한 곳 — 다시 만든 서식(forms2 · re) · 예시 값(ex) · 위험성평가(wihgen — 미리보기가 곧 지어낸 현장의 작성 예시)
+   소장님 「예시 만들어 주고」(점검: 서식 200 중 6이 «예시 없음» 으로 셈 — 위험성평가 5종은 예시를 보여 주면서도 표가 빠져 있었음) · prerender.py _fm_card 와 같은 셈 */
+export const 작성예시있음 = (f) => !!f && (f.gen === 'forms2' || !!f.re || !!f.ex || f.gen === 'wihgen')
 export const 사이트작성 = (f) => 웹서식(f) || (!!f && (f.gen === 'forms2' || (!!f.re && String(f.slug || '').startsWith('o-'))))
 
 /** 🧰 2026-09-29 «사이트에서 바로 쓰기» — forms.json / forms_orig.json 의 prog {to, t, d} (prerender.py 도 같은 칸을 굽습니다)
@@ -253,7 +256,7 @@ const 거르기들 = [
   { k: 'prog', t: '🧰 바로 쓰기', ok: (f) => !!(f.prog && f.prog.to) },
   { k: 'pdf', t: '🖨 인쇄용 PDF', ok: (f) => !!f.pdf },
   { k: 'web', t: '✍️ 사이트 작성', ok: (f) => 사이트작성(f) },
-  { k: 'ex', t: '✍ 작성 예시', ok: (f) => f.gen === 'forms2' || !!f.re || !!f.ex },
+  { k: 'ex', t: '✍ 작성 예시', ok: 작성예시있음 },
   { k: 'orig', t: '원본 틀', ok: (f) => ORIGSET.has(f.slug) },
 ]
 const 거르기수 = Object.fromEntries(거르기들.map((g) => [g.k, 전부.filter(g.ok).length]))
@@ -280,7 +283,7 @@ function 끊을자리(글) {
 /** 큰 그림 카드 — «많이 받은 순 · 가나다순» 과 «많이 받은 서식» 줄 */
 function 그림칸({ f, n, rank }) {
   const th = 썸(f)
-  const 예시 = f.gen === 'forms2' || f.re
+  const 예시 = 작성예시있음(f)
   return (
     <Link className="fm-gal" to={`/forms/${f.slug}`}>
       <span className="fm-gal-th">
@@ -332,7 +335,7 @@ function 비슷한서식({ slug }) {
 }
 
 function 서식칸({ f }) {
-  const 예시 = f.gen === 'forms2' || f.re || f.ex
+  const 예시 = 작성예시있음(f)
   const th = 썸(f)
   return (
     <Link className="tlx-card fm-card" to={`/forms/${f.slug}`} title={f.short}>

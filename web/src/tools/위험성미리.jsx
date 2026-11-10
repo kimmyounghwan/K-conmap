@@ -45,7 +45,7 @@ export default function 위험성미리({ slug }) {
   return (
     <div className="card">
       <div className="eq-bar" style={{ marginBottom: 6 }}>
-        <span className="sec-title" style={{ margin: 0 }}>미리보기 <span className="count">· 예문</span></span>
+        <span className="sec-title" style={{ margin: 0 }}>미리보기 <span className="count">· ✍ 작성 예시(지어낸 현장)</span></span>
         {종류들.length > 1 && 종류들.map((x) => (
           <button key={x} className={'btn sm ' + (x === k ? '' : 'ghost')} onClick={() => setK(x)}>{종류[x].짧게}</button>
         ))}
@@ -58,7 +58,7 @@ export default function 위험성미리({ slug }) {
       </div>
       {그.말 && <div className="note sm wih-찍말" role="status" style={{ marginTop: 8 }}>{그.말}</div>}
       <div className="note sm" style={{ marginTop: 8 }}>
-        위 예문은 지어낸 것입니다. <b>빈 서식 PDF · 인쇄</b>는 칸만 있는 종이 — 손으로 쓸 때. 내려받은 엑셀의 맨 윗줄 K-건설맵 표시는
+        위 작성 예시는 지어낸 현장 · 사람입니다(위험성평가 프로그램의 «👀 예시로 해 보기» 와 같은 예시). <b>빈 서식 PDF · 인쇄</b>는 칸만 있는 종이 — 손으로 쓸 때. 내려받은 엑셀의 맨 윗줄 K-건설맵 표시는
         <b> 1행을 지우면 없어집니다</b> (마우스 오른쪽 → 행 삭제).
       </div>
       {그.판 && createPortal(<div id="gp-인쇄"><div className={'rk-쪽 ' + (K.가로 ? 'land' : 'port')}><종이 k={k} j={빈종이(k)} /></div></div>, document.body)}

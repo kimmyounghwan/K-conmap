@@ -1489,7 +1489,7 @@ FORMS_TAB_JSON = os.path.join(ROOT, "web", "src", "data", "forms_tab.json")
 
 def _fm_card(f, origset):
     """서식 칸 — 화면 Forms.jsx 서식칸 과 같은 글"""
-    ex = f.get("gen") == "forms2" or f.get("re") or f.get("ex")
+    ex = f.get("gen") in ("forms2", "wihgen") or f.get("re") or f.get("ex")   # ✍ G635 화면 Forms.jsx 작성예시있음 과 같은 셈
     웹 = _사이트작성(f)     # ✍️ G346 · G361 — 화면 서식칸 «✍️ 사이트 작성» 과 같음
     tags = ('<em class="tlx-new fm-pg">🧰 바로 쓰기</em>' if f.get("prog") else "") + (
         '<em class="tlx-new fm-w">✍️ 사이트 작성</em>' if 웹 else "") + (
