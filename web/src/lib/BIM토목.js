@@ -22,10 +22,10 @@ import { 평균단면 } from './토공3d.js'
 import { 노선자리, 측점글 } from './활용3d.js'
 import { 끊음펴기들 } from './조각맞춤.js'
 
-export const 토목종류 = ['수로', '구조물', '견줌', '건물', '흙막이', '터파기', '성토', '지형']
-export const 토목색 = { 수로: [0.78, 0.75, 0.68], 구조물: [0.30, 0.70, 0.68], 구조바닥: [0.62, 0.66, 0.72], 건물: [0.95, 0.84, 0.62], 건물바닥: [0.78, 0.81, 0.88], 흙막이: [0.36, 0.39, 0.46], 토류판: [0.84, 0.64, 0.40], 띠장: [0.92, 0.30, 0.26], 버팀보: [0.14, 0.66, 0.40], 사보강: [0.98, 0.60, 0.14], 보강재: [0.66, 0.36, 0.84], 터파기: [0.80, 0.56, 0.32], 성토: [0.50, 0.70, 0.32], 지형: [0.60, 0.72, 0.52], 견줌: [0.86, 0.70, 0.42] }   // 🎨 G232 또렷한 색(BIM 프로그램처럼) · 배수로 = 콘크리트 모래색 · 흙막이 말뚝 = 강재 회색(고른 것 파랑과 안 겹치게)
+export const 토목종류 = ['수로', '구조물', '관', '견줌', '건물', '흙막이', '터파기', '성토', '지형']
+export const 토목색 = { 수로: [0.78, 0.75, 0.68], 구조물: [0.30, 0.70, 0.68], 구조바닥: [0.62, 0.66, 0.72], 건물: [0.95, 0.84, 0.62], 건물바닥: [0.78, 0.81, 0.88], 흙막이: [0.36, 0.39, 0.46], 토류판: [0.84, 0.64, 0.40], 띠장: [0.92, 0.30, 0.26], 버팀보: [0.14, 0.66, 0.40], 사보강: [0.98, 0.60, 0.14], 보강재: [0.66, 0.36, 0.84], 터파기: [0.80, 0.56, 0.32], 성토: [0.50, 0.70, 0.32], 지형: [0.60, 0.72, 0.52], 견줌: [0.86, 0.70, 0.42], 관: [0.40, 0.48, 0.62] }   // 🛣 G641 관 = 강재 청회색   // 🎨 G232 또렷한 색(BIM 프로그램처럼) · 배수로 = 콘크리트 모래색 · 흙막이 말뚝 = 강재 회색(고른 것 파랑과 안 겹치게)
 export const 토목비침 = { 터파기: 0.26, 성토: 0.32, 지형: 0.42, 견줌: 0.55 }      // ⚖ G445 견줌 = 같은 자리 횡단면(합에 안 넣음) — 옅게
-export const 토목이름 = { 수로: '배수로 · 수로', 구조물: '구조물', 견줌: '같은 자리 횡단(견줌)', 건물: '건물(평면)', 흙막이: '흙막이 · 가설', 터파기: '터파기', 성토: '성토', 지형: '땅' }
+export const 토목이름 = { 수로: '배수로 · 수로', 구조물: '구조물', 관: '관(횡단의 원)', 견줌: '같은 자리 횡단(견줌)', 건물: '건물(평면)', 흙막이: '흙막이 · 가설', 터파기: '터파기', 성토: '성토', 지형: '땅' }
 /* 🏢 G228 지붕 층 이름(층고 없이 맨 위) · 벽 두께가 이보다 두껍거나 얇으면 벽으로 안 봄(해치 · 설비 · 글자 덩어리) */
 const 지붕층 = /^(RF|PH|R|ROOF)\d*$|옥상|지붕|옥탑/i
 const 벽두께범위 = [0.05, 0.6]
@@ -248,19 +248,25 @@ function 고리정보(r) {
   }
   return { A: Math.abs(A / 2), o: A ? cx / (3 * A) : r[0][0], z: A ? cz / (3 * A) : r[0][1], w: o1 - o0, h: z1 - z0, o0, z0 }
 }
-/** 두 단면의 묶(바깥 + 구멍) 짝 — 구멍 없고 · 가운데가 가깝고(옆 3 m · 위아래 2.5 m 안) · 넓이 · 폭 · 높이가 0.4 ~ 2.5 배 */
+/** 두 단면의 묶(바깥 + 구멍) 짝 — 가운데가 가깝고(옆 3 m · 위아래 2.5 m 안) · 넓이 · 폭 · 높이가 0.4 ~ 2.5 배
+ *  🛣 G641 구멍 있는 덩어리(박스 암거 · 관)도 짝 — 구멍 수가 같고 구멍 넓이도 큰 순으로 0.4 ~ 2.5 배
+ *  (소장님 현장 S «암거도 지금 이상하게 나와 있잖아» · «잘 연결이 안되어 있잖아» — 유입 BOX 2.0 × 1.5 가 구멍이 있어 짝을 못 지어 단면마다 따로 서고 기울었음) */
+const 짝점많음 = (m) => m.바깥.length > 이음점수 / 2 || m.구멍.some((h) => h.length > 이음점수 / 2)
 function 고리짝(묶A, 묶B) {
   const 후보 = []
+  const 배 = (x, y) => (x > 0 && y > 0 ? Math.max(x / y, y / x) : Infinity)
+  const 구넓 = (m) => m.구멍.map((h) => Math.abs(넓(h))).sort((p, q) => q - p)
   묶A.forEach((m, i) => {
-    if (m.구멍.length || m.바깥.length > 이음점수 / 2) return
-    const a = 고리정보(m.바깥)
+    if (짝점많음(m)) return
+    const a = 고리정보(m.바깥), ah = 구넓(m)
     묶B.forEach((n, j) => {
-      if (n.구멍.length || n.바깥.length > 이음점수 / 2) return
+      if (짝점많음(n) || n.구멍.length !== m.구멍.length) return
       const b = 고리정보(n.바깥)
-      const 배 = (x, y) => (x > 0 && y > 0 ? Math.max(x / y, y / x) : Infinity)
       const dO = Math.abs(a.o - b.o), dZ = Math.abs(a.z - b.z)
       if (dO > Math.max(3, 0.5 * Math.max(a.w, b.w)) || dZ > 2.5) return
       if (배(a.A, b.A) > 2.5 || 배(a.w, b.w) > 2.5 || 배(a.h, b.h) > 2.5) return
+      const bh = 구넓(n)
+      if (ah.some((x, k) => 배(x, bh[k]) > 2.5)) return
       후보.push([dO + dZ, i, j])
     })
   })
@@ -309,17 +315,41 @@ function 맞돌림(A, B) {
   return B.slice(bs).concat(B.slice(0, bs))
 }
 const 섞기 = (A, B, t) => A.map((p, k) => [p[0] + (B[k][0] - p[0]) * t, p[1] + (B[k][1] - p[1]) * t])
+/** 🛣 G641 두 덩어리 구멍 짝 — 바깥 가운데에서 본 구멍 가운데가 가장 가까운 것끼리(차례 = m 의 구멍) */
+function 구멍맞대기(m, n) {
+  const ga = 고리정보(m.바깥), gb = 고리정보(n.바깥)
+  const 자리 = (h, g) => { const q = 고리정보(h); return [q.o - g.o, q.z - g.z] }
+  const B = n.구멍.map((h) => 자리(h, gb)), 쓴 = new Set()
+  return m.구멍.map((h) => {
+    const [x, y] = 자리(h, ga)
+    let best = -1, bd = Infinity
+    B.forEach((p, j) => { if (쓴.has(j)) return; const d = (p[0] - x) ** 2 + (p[1] - y) ** 2; if (d < bd) { bd = d; best = j } })
+    쓴.add(best)
+    return best
+  })
+}
 /**
  * 틀마다 다른 2D 줄(점 수 같음)을 이어 세운 덩어리 — 첫 · 끝 틀에 뚜껑
  * @param 줄들 [[[o, z]…]] (틀마다 · 반시계) · @param 틀들 [(o, z) => [x, y, z]] · @param 가운데 모서리 선을 뽑을 줄 번호
  */
-function 이어세우기(줄들, 틀들, 가운데, { 모서리각 = 35 } = {}) {
+function 이어세우기(줄들, 틀들, 가운데, { 모서리각 = 35, 구멍줄 = null } = {}) {
   const 면 = [], 선 = []
   const K = 틀들.length
   if (K < 2) return { 면, 선 }
   const N = 줄들[0].length
   const 세모 = (a, b, c) => { 면.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]) }
   const P = 줄들.map((r, k) => r.map((p) => 틀들[k](p[0], p[1])))
+  /* 🛣 G641 구멍(박스 칸 · 관 속) — 틀마다 같은 수의 구멍 줄(시계 방향) · 옆면은 바깥과 같은 차례로 이으면 구멍 안쪽을 봄 */
+  const 구수 = 구멍줄 && 구멍줄[0] ? 구멍줄[0].length : 0
+  for (let h = 0; h < 구수; h++) {
+    const Q = 구멍줄.map((hs, k) => hs[h].map((p) => 틀들[k](p[0], p[1])))
+    const M = 구멍줄[0][h].length
+    for (let k = 0; k + 1 < K; k++) {
+      const A = Q[k], B = Q[k + 1]
+      for (let i = 0; i < M; i++) { const j = (i + 1) % M; 세모(A[i], A[j], B[j]); 세모(A[i], B[j], B[i]) }
+    }
+    for (const k of [0, K - 1]) for (let i = 0; i < M; i++) 선.push(...Q[k][i], ...Q[k][(i + 1) % M])
+  }
   const 기 = 줄들[가운데]
   const 껍 = 볼록점(기)
   const 꺾 = 기.map((p, i) => {
@@ -339,16 +369,18 @@ function 이어세우기(줄들, 틀들, 가운데, { 모서리각 = 35 } = {}) 
   }
   for (const [k, 뒤집] of [[0, true], [K - 1, false]]) {
     const r = 줄들[k]
-    let T = 귀자르기(r), 세들 = []
+    const hs = 구수 ? 구멍줄[k] : []
+    const Pc = hs.length ? 다리잇기(r, hs) : r
+    let T = 귀자르기(Pc), 세들 = []
     let 합 = 0, 뒤 = false
     for (let i = 0; i < T.length; i += 3) {
-      const a = r[T[i]], b = r[T[i + 1]], c = r[T[i + 2]]
+      const a = Pc[T[i]], b = Pc[T[i + 1]], c = Pc[T[i + 2]]
       const A2 = ((b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1])) / 2
       if (A2 < -1e-6) 뒤 = true
       합 += Math.abs(A2); 세들.push([a, b, c])
     }
-    const 참 = Math.abs(넓(r))
-    if (뒤 || Math.abs(합 - 참) > Math.max(1e-6, 참 * 1e-6)) 세들 = 띠나누기([r])
+    const 참 = Math.abs(넓(r)) - hs.reduce((t, h) => t + Math.abs(넓(h)), 0)
+    if (뒤 || Math.abs(합 - 참) > Math.max(1e-6, 참 * 1e-6)) 세들 = 띠나누기([r, ...hs])
     for (const [a, b, c] of 세들) {
       const A3 = 틀들[k](a[0], a[1]), B3 = 틀들[k](b[0], b[1]), C3 = 틀들[k](c[0], c[1])
       if (뒤집) 세모(A3, C3, B3); else 세모(A3, B3, C3)
@@ -607,24 +639,32 @@ export function 토목모델(활0, 가운데 = [0, 0, 0], 옵 = {}) {
         const 앞짝 = i > 0 && 짝들[i - 1] ? new Map([...짝들[i - 1][k]].map(([x, y]) => [y, x])) : new Map()
         const 뒤짝 = 짝들[i] ? 짝들[i][k] : new Map()
         const 그대로 = [], 면 = [], 선 = []
+        /* 🛣 G641 콘크리트 · 견줌은 짝 없는 쪽을 단면 높이 그대로 — 전엔 단면의 «구조물 바닥»(가운데 큰 덩어리) 높이 차를 옆 덩어리에도 입혀
+             옆 암거가 반 칸마다 위 · 아래로 꺾였음(현장 S NO.2+6.98 ~ NO.3: 가운데 바닥 −1.55 → 0.65 m 를 따라 2.2 m 기욺). 흙(터파기 · 성토)은 예전처럼 이어 기울임 */
+        const 평평 = k === '콘' || k === '견'
+        const dz곳 = (mm) => (평평 ? 0 : 이음z(mm))
         묶.forEach((m, j) => {
           const pj = 앞짝.get(j), nj = 뒤짝.get(j)
           if (pj === undefined && nj === undefined) { 그대로.push(m); return }
           const R = 고르게(m.바깥)
-          const 앞R = pj !== undefined ? 섞기(R, 맞돌림(R, 고르게(묶들[i - 1][k][pj].바깥)), 0.5) : null
-          const 뒤R = nj !== undefined ? 섞기(R, 맞돌림(R, 고르게(묶들[i + 1][k][nj].바깥)), 0.5) : null
+          const Hs = m.구멍.map(고르게)
+          const 앞n = pj !== undefined ? 묶들[i - 1][k][pj] : null, 뒤n = nj !== undefined ? 묶들[i + 1][k][nj] : null
+          const 앞R = 앞n ? 섞기(R, 맞돌림(R, 고르게(앞n.바깥)), 0.5) : null
+          const 뒤R = 뒤n ? 섞기(R, 맞돌림(R, 고르게(뒤n.바깥)), 0.5) : null
+          const 구섞 = (n) => { if (!n || !Hs.length) return null; const 짝 = 구멍맞대기(m, n); return Hs.map((H, h) => 섞기(H, 맞돌림(H, 고르게(n.구멍[짝[h]])), 0.5)) }
+          const 앞H = 구섞(앞n), 뒤H = 구섞(뒤n)
           const 앞점 = 나눔점(L, a, s.측), 뒤점 = 나눔점(L, s.측, b)
-          const 줄들 = [], 틀 = []
-          const 넣 = (mm, r, dz) => { 줄들.push(r); 틀.push(틀만들기(mm, dz)) }
-          if (s.측 - a > 0.05) for (const mm of 앞점.slice(0, -1)) { const u = (s.측 - mm) / (s.측 - a); 앞R ? 넣(mm, 섞기(R, 앞R, u), 0) : 넣(mm, R, 이음z(mm)) }
+          const 줄들 = [], 구멍줄 = [], 틀 = []
+          const 넣 = (mm, r, hs, dz) => { 줄들.push(r); 구멍줄.push(hs); 틀.push(틀만들기(mm, dz)) }
+          if (s.측 - a > 0.05) for (const mm of 앞점.slice(0, -1)) { const u = (s.측 - mm) / (s.측 - a); 앞R ? 넣(mm, 섞기(R, 앞R, u), 앞H ? Hs.map((H, h) => 섞기(H, 앞H[h], u)) : Hs, 0) : 넣(mm, R, Hs, dz곳(mm)) }
           const 가운데 = 줄들.length
-          넣(s.측, R, 0)
-          if (b - s.측 > 0.05) for (const mm of 뒤점.slice(1)) { const u = (mm - s.측) / (b - s.측); 뒤R ? 넣(mm, 섞기(R, 뒤R, u), 0) : 넣(mm, R, 이음z(mm)) }
-          const g = 이어세우기(줄들, 틀, 가운데)
+          넣(s.측, R, Hs, 0)
+          if (b - s.측 > 0.05) for (const mm of 뒤점.slice(1)) { const u = (mm - s.측) / (b - s.측); 뒤R ? 넣(mm, 섞기(R, 뒤R, u), 뒤H ? Hs.map((H, h) => 섞기(H, 뒤H[h], u)) : Hs, 0) : 넣(mm, R, Hs, dz곳(mm)) }
+          const g = 이어세우기(줄들, 틀, 가운데, Hs.length ? { 구멍줄 } : {})
           for (const v of g.면) 면.push(v)
           if (선있음) for (const v of g.선) 선.push(v)
         })
-        if (그대로.length) { const g = 끌어세우기(그대로, 틀들); for (const v of g.면) 면.push(v); if (선있음) for (const v of g.선) 선.push(v) }
+        if (그대로.length) { const g = 끌어세우기(그대로, 평평 ? 점들.map((mm) => 틀만들기(mm, 0)) : 틀들); for (const v of g.면) 면.push(v); if (선있음) for (const v of g.선) 선.push(v) }
         return { 면, 선 }
       }
       if (모.콘 && 모.콘.length && (s.면적.콘크리트 || 0) > 0) {
@@ -660,6 +700,66 @@ export function 토목모델(활0, 가운데 = [0, 0, 0], 옵 = {}) {
       }
     }
     for (const x of 만든) { const id = 넣({ 종류: x.종류, 이름: x.이름, 면: x.g.면, 선: x.g.선, ...x.공통, 몫: x.몫 }).id; if (x.종류 === '견줌') (노.견ids || (노.견ids = [])).push(id); else 노.ids.push(id) }
+    /* 🛣 G641 관(단면의 원 — 횡단3d 관찾기) — 이웃 단면의 같은 관(가운데 1 m · 반지름 1.3 배 안 · 80 m 안)끼리 이어 속 빈 원통 · 길이 = 첫 단면 앞 반 칸 ~ 끝 단면 뒤 반 칸(콘크리트 덩어리와 같은 셈)
+         소장님 현장 S: 배수장 횡단 NO.3 ~ NO.5 의 강관 2열(겹원)이 3D 에 없어 펌프장과 토출구 사이가 비어 보였음 · 물량 = 관 길이(지름마다) — 콘크리트 합에는 안 넣음 */
+    {
+      const 관단 = (t.단면 || []).filter((s) => Number.isFinite(s.측)).slice().sort((p, q) => p.측 - q.측)
+      const 줄기들 = []
+      let 앞줄 = []
+      관단.forEach((s, i) => {
+        const 지금 = []
+        for (const p of s.관 || []) {
+          let 고른 = null, bd = Infinity
+          if (i > 0 && s.측 - 관단[i - 1].측 <= 80) for (const q of 앞줄) {
+            if (q.쓴) continue
+            const d = Math.hypot(p.o - q.p.o, p.z - q.p.z)
+            if (d <= Math.max(1, p.r) && Math.max(p.r / q.p.r, q.p.r / p.r) <= 1.3 && d < bd) { bd = d; 고른 = q }
+          }
+          let 줄
+          if (고른) { 고른.쓴 = true; 줄 = 고른.줄기 } else { 줄 = { 점: [] }; 줄기들.push(줄) }
+          /* 단면 표 «계획고» 가 관 바닥(안 바닥 · 없으면 바깥 바닥)과 0.3 m 안이면 그 값이 관 바닥 — 그림으로 잰 높이(눈금 · 지반선 기준)보다 표 숫자를 따름
+               (현장 S NO.5: 그림 원은 관 속 바닥 −0.57 · 표 계획고 −0.37 = 다른 단면들과 같은 높이) */
+          const 바닥 = p.z - (p.안 > 0 ? p.안 : p.r)
+          const 표맞 = Number.isFinite(s.계획고) && Math.abs(s.계획고 - 바닥) <= 0.3
+          줄.점.push({ i, p: 표맞 ? { ...p, z: s.계획고 + (p.안 > 0 ? p.안 : p.r), 표: true } : p })
+          지금.push({ p, 줄기: 줄 })
+        }
+        앞줄 = 지금
+      })
+      const 원점들 = (o, z, r, 쪽) => { const a = []; for (let k = 0; k < 32; k++) { const u = (쪽 * k * 2 * Math.PI) / 32; a.push([o + r * Math.cos(u), z + r * Math.sin(u)]) } return a }
+      const 관요약 = new Map()
+      for (const 줄 of 줄기들) {
+        const P0 = 줄.점[0], P1 = 줄.점[줄.점.length - 1]
+        const s0 = 관단[P0.i].측, s1 = 관단[P1.i].측
+        const 앞 = P0.i > 0 ? (관단[P0.i - 1].측 + s0) / 2 : s0, 뒤 = P1.i + 1 < 관단.length ? (s1 + 관단[P1.i + 1].측) / 2 : s1
+        const 시작 = 앞 < 뒤 ? 앞 : s0 - 2.5, 끝 = 앞 < 뒤 ? 뒤 : s1 + 2.5
+        const 측들 = [...new Set([...나눔점(L, 시작, 끝), ...줄.점.map((q) => 관단[q.i].측)].map((v) => Math.round(v * 1000) / 1000))].sort((p, q) => p - q)
+        const 값 = (m, k) => {
+          const a = 줄.점
+          if (m <= 관단[a[0].i].측) return a[0].p[k]
+          for (let j = 0; j + 1 < a.length; j++) { const x0 = 관단[a[j].i].측, x1 = 관단[a[j + 1].i].측; if (m <= x1) { const u = x1 > x0 ? (m - x0) / (x1 - x0) : 0; const v0 = a[j].p[k], v1 = a[j + 1].p[k]; return v0 == null || v1 == null ? v0 ?? v1 : v0 + (v1 - v0) * u } }
+          return a[a.length - 1].p[k]
+        }
+        const 안있음 = 줄.점.every((q) => q.p.안 > 0)
+        const 줄들 = 측들.map((m) => 원점들(값(m, 'o'), 값(m, 'z'), 값(m, 'r'), 1))
+        const 구멍줄 = 안있음 ? 측들.map((m) => [원점들(값(m, 'o'), 값(m, 'z'), 값(m, '안'), -1)]) : null
+        const g = 이어세우기(줄들, 측들.map((m) => 틀만들기(m, 0)), 0, 구멍줄 ? { 구멍줄 } : {})
+        if (!g.면.length) continue
+        const 길이 = 끝 - 시작, D = Math.round(P0.p.r * 2000), Dn = 안있음 ? Math.round(P0.p.안 * 2000) : 0
+        const 처음글 = 측점글(s0), 끝글 = 측점글(s1)
+        const id = 넣({ 종류: '관', 이름: `${이름} 관 Ø${D.toLocaleString('ko-KR')}${Dn ? ' (안 Ø' + Dn.toLocaleString('ko-KR') + ')' : ''} ${처음글}${s1 > s0 ? ' ~ ' + 끝글 : ''}`, 면: g.면, 선: g.선, 노선: 이름, 노선번: 노.번, 측: s0, 범위: [시작, 끝], 파일: t.파일, 원파일: t.원파일 || '',
+          몫: { '관 길이(m)': 길이 }, 크기: `바깥 Ø${D.toLocaleString('ko-KR')} mm${Dn ? ' · 안 Ø' + Dn.toLocaleString('ko-KR') + ' mm' : ''} · 길이 ${길이.toFixed(2)} m — 횡단 ${줄.점.length}곳의 원(${P0.p.근거}${P0.p.층 ? ' · 층 «' + P0.p.층 + '»' : ''}) · 바닥 EL ${(값(s0, 'z') - 값(s0, 'r')).toFixed(2)}${Dn ? ' · 관 속 바닥 EL ' + (값(s0, 'z') - 값(s0, '안')).toFixed(2) : ''}${줄.점.some((q) => q.p.표) ? ' (단면 표 계획고)' : ''}` }).id
+        ;(노.관ids || (노.관ids = [])).push(id)
+        const 열쇠 = D + '|' + Dn
+        const e = 관요약.get(열쇠) || { 바깥: D, 안: Dn, 열: 0, 길이: 0, 처음: s0, 끝: s1 }
+        e.열++; e.길이 += 길이; e.처음 = Math.min(e.처음, s0); e.끝 = Math.max(e.끝, s1)
+        관요약.set(열쇠, e)
+      }
+      if (관요약.size) {
+        노.관 = [...관요약.values()]
+        짐작.push(`«${이름}» 관 ${노.관.map((e) => `Ø${e.바깥.toLocaleString('ko-KR')}${e.안 ? '(안 Ø' + e.안.toLocaleString('ko-KR') + ')' : ''} ${e.열}줄 · 합 ${e.길이.toFixed(2)} m`).join(' / ')} — 횡단면도의 원(겹원 · 관 층 · 관 글자)을 이어 세움 · 길이 = 첫 단면 앞 반 칸 ~ 끝 단면 뒤 반 칸(${측점글(Math.min(...노.관.map((e) => e.처음)))} ~ ${측점글(Math.max(...노.관.map((e) => e.끝)))}) · 콘크리트 합에는 안 넣음`)
+      }
+    }
     if (p.빠진.length) 경고.push(`«${이름}» 단면 ${p.빠진.length}개는 면적을 못 읽어 뺐습니다: ${p.빠진.slice(0, 4).join(' · ')}${p.빠진.length > 4 ? ' …' : ''}`)
   }
   /* ② 홀로 선 구조물(배수장 · 집수정 · 박스) — 벽 · 바닥 */

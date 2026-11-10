@@ -502,6 +502,72 @@ function 창선(raw, 창) {
   }
   return 조각
 }
+/* 🛣 G641 횡단의 관(원) — 소장님 현장 S «펌프장에서 강관 두 개를 연결하는데 … 레벨이 나와 있어?» · «도면을 넣으면 3d가 되고 물량까지»
+     배수장 횡단 NO.3 ~ NO.5 의 강관 2열(겹원 Ø2.0 · Ø2.34)이 콘크리트가 아니라 3D 에 없었음 → 같은 층 선이 닫힌 원을 이루면 원으로 읽고,
+     같은 가운데 원 둘(관 벽) · 관 층 이름 · «D 숫자» 관 글자 중 하나가 있을 때만 관으로 봄(맨홀 · 기호 원은 안 셈) */
+const 관층 = /관|PIPE|흄|HUME|PVC|강관|주철|DCIP|STEEL|CULVERT/i
+const 관글 = /^(D|Ø|φ|Φ|ø)\s*=?\s*\d{2,4}|강관|흄관|주철관|PE관|PVC관|이중벽|파형관|추진관/i
+export function 원찾기(arr) {
+  const 키 = (x, y) => x + ',' + y
+  const 곳 = new Map()
+  arr.forEach((g, i) => { for (const k of [키(g[0], g[1]), 키(g[2], g[3])]) { const a = 곳.get(k); if (a) a.push(i); else 곳.set(k, [i]) } })
+  const 쓴 = new Uint8Array(arr.length), 원들 = []
+  for (let i0 = 0; i0 < arr.length; i0++) {
+    if (쓴[i0]) continue
+    const 점 = [[arr[i0][0], arr[i0][1]]]
+    let i = i0, 끝 = 키(arr[i0][2], arr[i0][3]), 닫힘 = false, 됨 = true
+    const 처음 = 키(arr[i0][0], arr[i0][1])
+    쓴[i0] = 1
+    for (let n = 0; n < 2000; n++) {
+      const [x, y] = 끝.split(',').map(Number)
+      점.push([x, y])
+      if (끝 === 처음) { 닫힘 = true; 점.pop(); break }
+      const a = 곳.get(끝)
+      if (!a || a.length !== 2) { 됨 = false; break }
+      const j = a[0] === i ? a[1] : a[0]
+      if (쓴[j] && 키(arr[j][0], arr[j][1]) !== 처음 && 키(arr[j][2], arr[j][3]) !== 처음) { 됨 = false; break }
+      쓴[j] = 1
+      const g = arr[j]
+      끝 = 키(g[0], g[1]) === 끝 ? 키(g[2], g[3]) : 키(g[0], g[1])
+      i = j
+    }
+    if (!됨 || !닫힘 || 점.length < 12) continue
+    let cx = 0, cy = 0
+    for (const [x, y] of 점) { cx += x; cy += y }
+    cx /= 점.length; cy /= 점.length
+    let r0 = Infinity, r1 = 0, rs = 0
+    for (const [x, y] of 점) { const d = Math.hypot(x - cx, y - cy); r0 = Math.min(r0, d); r1 = Math.max(r1, d); rs += d }
+    const r = rs / 점.length
+    if (r > 0 && (r1 - r0) / r <= 0.03) 원들.push({ x: cx, y: cy, r })
+  }
+  return 원들
+}
+export function 관찾기(raw, s, 배, 높) {
+  const 원들 = []
+  for (const [ly, arr] of s.조각) {
+    if (땅층.test(ly) || 계획층.test(ly) || arr.length < 12) continue
+    for (const c of 원찾기(arr)) if (c.r * 배 >= 0.05 && c.r * 배 <= 3.5) 원들.push({ ...c, ly })
+  }
+  if (!원들.length) return null
+  원들.sort((p, q) => q.r - p.r)
+  const 묶 = []
+  for (const c of 원들) {
+    const 집 = 묶.find((m) => Math.hypot(m.x - c.x, m.y - c.y) <= 0.05 * m.r)
+    if (!집) { 묶.push({ x: c.x, y: c.y, r: c.r, 안: null, ly: c.ly }); continue }
+    if (c.r < 집.r * 0.99 && (!집.안 || c.r > 집.안)) 집.안 = c.r       // 같은 크기 겹선(사본)은 하나로
+  }
+  const 글 = (raw.texts || []).filter((t) => t.x >= s.창[0] && t.x <= s.창[2] && t.y >= s.창[1] && t.y <= s.창[3] && 관글.test(String(t.s || '').replace(/\s+/g, '')))
+  const out = []
+  for (const m of 묶) {
+    const 근거 = m.안 ? '겹원' : 관층.test(m.ly) ? '관 층' : 글.some((t) => Math.hypot(t.x - m.x, t.y - m.y) <= 3 * m.r) ? '관 글자' : ''
+    if (!근거) continue
+    const z = 높(m.y)
+    if (!Number.isFinite(z)) continue
+    out.push({ o: Math.round((m.x - s.cx) * 배 * 1000) / 1000, z: Math.round(z * 1000) / 1000, r: Math.round(m.r * 배 * 10000) / 10000, 안: m.안 ? Math.round(m.안 * 배 * 10000) / 10000 : null, 층: m.ly, 근거 })
+  }
+  out.sort((p, q) => p.o - q.o)
+  return out.length ? out : null
+}
 /** x 에서 선 조각들의 y (여럿이면 가장 위) */
 function y에서(조각들, x) {
   let best = NaN
@@ -689,7 +755,9 @@ export function 횡단세우기(raw, 새버킷, 어긋 = 0, 머리 = '', 고른 
       /* 📐 (G139) 단면 면적 — 터파기 · 되메우기 · 구조물 · 성토(lib/토공3d.js · 선 모양으로) */
       let 면적 = null
       try { 면적 = 단면면적(s.조각, (ly) => 땅층.test(ly), (y) => 높(s, y), 배, s.cx) } catch (e) { 면적 = null }
-      return { 층: 머리 + s.글, 이름: s.글 + ' (' + s.측.toFixed(2).replace(/\.00$/, '') + ' m)', 측: s.측, 풀이: s.풀이, 글: s.글, 지반고: s.지반고, 계획고: s.계획고, 근거: s.근거, 중심: s.중심근거, 면적, 표면적: s.표면적 || null }
+      let 관 = null
+      try { 관 = 관찾기(raw, s, 배, (y) => 높(s, y)) } catch (e) { 관 = null }      // 🛣 G641 관(원) — 3D 관 · 관 길이
+      return { 층: 머리 + s.글, 이름: s.글 + ' (' + s.측.toFixed(2).replace(/\.00$/, '') + ' m)', 측: s.측, 풀이: s.풀이, 글: s.글, 지반고: s.지반고, 계획고: s.계획고, 근거: s.근거, 중심: s.중심근거, 면적, 표면적: s.표면적 || null, 관 }
     }),
     폭m: Math.max(...폭들),
     시작: 쓴[0].측, 끝: 쓴[쓴.length - 1].측,

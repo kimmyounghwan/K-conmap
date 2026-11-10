@@ -623,7 +623,7 @@ function 토공칸({ 토, 두께 = {}, set두께 = () => {} }) {
         <tr><th>콘크리트</th><td>{쉼(h.콘크리트, 2)} ㎥</td></tr>
         <tr><th>거푸집</th><td>{쉼(h.거푸집, 1)} ㎡</td></tr>
       </tbody></table>
-      {(토.노선들 || []).length > 0 && <ul className="tmk-perline">{토.노선들.map((n, i) => <li key={i}><b>{n.이름}</b> <small>터파기 {쉼(n.합.터파기, 1)} · 되메우기 {쉼(n.합.되메우기, 1)} · 콘크리트 {쉼(n.합.콘크리트, 2)}</small></li>)}</ul>}
+      {(토.노선들 || []).length > 0 && <ul className="tmk-perline">{토.노선들.map((n, i) => <li key={i}><b>{n.이름}</b> <small>터파기 {쉼(n.합.터파기, 1)} · 되메우기 {쉼(n.합.되메우기, 1)} · 콘크리트 {쉼(n.합.콘크리트, 2)}{(n.관 || []).map((e, j) => <span key={j} className="tmk-pipe"> · 관 Ø{e.바깥.toLocaleString('ko-KR')}{e.안 ? `(안 Ø${e.안.toLocaleString('ko-KR')})` : ''} {e.열}줄 {쉼(e.길이, 2)} m</span>)}</small></li>)}</ul>}
       {(토.경고 || []).slice(0, 3).map((w, i) => <small key={i} className="gmd-warn">⚠ {w}</small>)}
     </div>
   )
