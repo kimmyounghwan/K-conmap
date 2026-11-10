@@ -10648,3 +10648,50 @@ a.cert-chip:not(.deep) { color: inherit; text-decoration: none; }
 .fa-seg { margin: 12px 0 10px; }
 .fa-seg a { flex: 1; text-align: center; padding: 9px 4px; border-radius: 8px; font-size: 13px; font-weight: 700; color: var(--muted); text-decoration: none; white-space: nowrap; }
 .fa-seg a.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+/* 📍 G644 내 위치 좌표(/tools/gps) — 폰 GPS → X · Y */
+.gp .btn-row { flex-wrap: wrap; }
+.gp .gp-go { font-size: 17px; padding: 14px 16px; }
+.gp-hint { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+.gp-wait { margin-top: 10px; font-size: 13.5px; }
+.gp-bad { margin-top: 10px; padding: 9px 11px; border-radius: 9px; background: var(--bad-soft); border: 1px solid color-mix(in srgb, var(--bad) 30%, var(--line)); font-size: 13px; line-height: 1.6; }
+.gp-note { margin-top: 8px; font-size: 12.5px; }
+.gp-xy { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.gp-xy > div { background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-width: 0; }
+.gp-xy span { display: block; font-size: 12px; color: var(--muted); font-weight: 700; }
+.gp-xy b { font-size: 24px; font-variant-numeric: tabular-nums; letter-spacing: -0.3px; overflow-wrap: anywhere; }
+.gp-xy.sm b { font-size: 19px; }
+@media (max-width: 380px) { .gp-xy b { font-size: 21px; } .gp-xy.sm b { font-size: 17px; } }
+.gp-acc { display: flex; align-items: baseline; gap: 4px 10px; flex-wrap: wrap; margin-top: 8px; padding: 8px 11px; border-radius: 10px; font-size: 13px; }
+.gp-acc b { font-size: 16px; }
+.gp-acc.좋음 { background: color-mix(in srgb, #16a34a 12%, var(--surface)); color: #15803d; }
+.gp-acc.보통 { background: color-mix(in srgb, #f59e0b 15%, var(--surface)); color: #b45309; }
+.gp-acc.나쁨, .gp-acc.모름 { background: var(--bad-soft); color: var(--bad); }
+.gp-org { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; }
+.gp-org > span { font-size: 12.5px; color: var(--muted); font-weight: 700; margin-right: 2px; }
+.gp-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.gp-facts > div { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; min-width: 0; }
+.gp-facts span { display: block; font-size: 11.5px; color: var(--muted); }
+.gp-facts b { font-size: 14px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.gp-facts small { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.gp-btns { margin-top: 10px; }
+.gp-p { margin: 6px 0 10px; font-size: 13px; }
+.gp-avg { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; font-size: 13px; }
+.gp-bar { flex: 1 1 160px; height: 10px; border-radius: 5px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+.gp-bar i { display: block; height: 100%; background: var(--accent); transition: width .25s linear; }
+.gp-avgres small { display: block; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.gp .gp-warn { color: #b45309; }
+.gp-save { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin-top: 10px; align-items: center; }
+@media (max-width: 560px) { .gp-save { grid-template-columns: 1fr; } }
+.gp-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+.gp-list li { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; min-width: 0; }
+.gp-li-h { display: flex; align-items: baseline; gap: 8px; }
+.gp-li-h b { font-size: 14px; overflow-wrap: anywhere; }
+.gp-li-acc { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.gp-li-h .gp-x, .gp-li-h .gp-del { margin-left: auto; }
+.gp-li-xy { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; overflow-wrap: anywhere; }
+.gp-list small { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.gp-del { display: inline-flex; gap: 2px; white-space: nowrap; }
+.gp-way { display: flex; gap: 12px; align-items: center; margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); }
+.gp-arrow { width: 40px; height: 40px; transition: transform .3s; flex: none; color: var(--accent); }
+.gp-way b { font-size: 16px; }
+.gp-way small { display: block; font-size: 12px; color: var(--muted); margin-top: 3px; }

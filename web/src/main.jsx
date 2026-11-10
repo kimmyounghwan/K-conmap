@@ -135,6 +135,7 @@ const SigongPlan = lazyPage(() => import('./pages/SigongPlan.jsx'))
 /* 🦺 안전관리계획서 한 벌 — G638 · 2026-11-10(잠금 · 🧪 예시) */
 const SafetyPlan = lazyPage(() => import('./pages/SafetyPlan.jsx'))
 const HazardPlan = lazyPage(() => import('./pages/HazardPlan.jsx'))
+const GpsPoint = lazyPage(() => import('./pages/GpsPoint.jsx'))   /* 📍 2026-11-10 (G644) 내 위치 좌표 — 폰 GPS → X · Y */
 const Jungcheo = lazyPage(() => import('./pages/Jungcheo.jsx'))   /* 🛡 2026-10-17 중대재해 안전보건관리체계 한 벌(잠김 · 예시) */
 const SafeCard = lazyPage(() => import('./pages/SafeCard.jsx'))   /* 🌏 2026-10-22 현장 다국어 안전카드 */
 const ColorPlan = lazyPage(() => import('./pages/ColorPlan.jsx'))   /* 🎨 2026-10-17 컬러 평면도 · 피난 안내도(잠김 · 예시) */
@@ -316,6 +317,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/tools/sigong" element={<Suspense fallback={<Loading />}><SigongPlan /></Suspense>} />
           <Route path="/tools/anjeon" element={<Suspense fallback={<Loading />}><SafetyPlan /></Suspense>} />
           <Route path="/tools/yuhae" element={<Suspense fallback={<Loading />}><HazardPlan /></Suspense>} />
+          <Route path="/tools/gps" element={<Suspense fallback={<Loading />}><GpsPoint /></Suspense>} />
           <Route path="/tools/jungcheo" element={<Suspense fallback={<Loading />}><Jungcheo /></Suspense>} />
           <Route path="/tools/safecard" element={<Suspense fallback={<Loading />}><SafeCard /></Suspense>} />
           <Route path="/tools/colorplan" element={<Suspense fallback={<Loading />}><ColorPlan /></Suspense>} />
