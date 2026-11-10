@@ -132,6 +132,8 @@ const PhotoBook = lazyPage(() => import('./pages/PhotoBook.jsx'))
 const PhotoLive = lazyPage(() => import('./pages/PhotoLive.jsx'))   /* 📡 G493 실시간 사진대지 — 폰에서 찍으면 PC 에 바로 */
 const NakchalSet = lazyPage(() => import('./pages/NakchalSet.jsx'))   /* 🏁 G499 낙찰 서류 한 벌 */
 const SigongPlan = lazyPage(() => import('./pages/SigongPlan.jsx'))
+/* 🦺 안전관리계획서 한 벌 — G638 · 2026-11-10(잠금 · 🧪 예시) */
+const SafetyPlan = lazyPage(() => import('./pages/SafetyPlan.jsx'))
 const Jungcheo = lazyPage(() => import('./pages/Jungcheo.jsx'))   /* 🛡 2026-10-17 중대재해 안전보건관리체계 한 벌(잠김 · 예시) */
 const SafeCard = lazyPage(() => import('./pages/SafeCard.jsx'))   /* 🌏 2026-10-22 현장 다국어 안전카드 */
 const ColorPlan = lazyPage(() => import('./pages/ColorPlan.jsx'))   /* 🎨 2026-10-17 컬러 평면도 · 피난 안내도(잠김 · 예시) */
@@ -311,6 +313,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/tools/photo" element={<Suspense fallback={<Loading />}><PhotoBook /></Suspense>} />
           <Route path="/tools/photo-live" element={<Suspense fallback={<Loading />}><PhotoLive /></Suspense>} />
           <Route path="/tools/sigong" element={<Suspense fallback={<Loading />}><SigongPlan /></Suspense>} />
+          <Route path="/tools/anjeon" element={<Suspense fallback={<Loading />}><SafetyPlan /></Suspense>} />
           <Route path="/tools/jungcheo" element={<Suspense fallback={<Loading />}><Jungcheo /></Suspense>} />
           <Route path="/tools/safecard" element={<Suspense fallback={<Loading />}><SafeCard /></Suspense>} />
           <Route path="/tools/colorplan" element={<Suspense fallback={<Loading />}><ColorPlan /></Suspense>} />

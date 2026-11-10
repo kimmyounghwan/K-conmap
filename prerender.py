@@ -176,7 +176,7 @@ SITENAV = [("/", "바로투찰"), ("/first", "1순위 개찰"), ("/live", "입�
            ("/cad", "캐드 유틸"), ("/pdf", "PDF 도구"), ("/jeoksan", "K-적산"),
            ("/shareone", "쉐어원 공유폴더"),
            ("/safety", "안전관리계획서 · 유해위험방지계획서"),
-           ("/naeyeok", "내역서 — 산출내역서 · 하도급 · 설계변경"), ("/tools/dxf3d", "도면 3D 보기"), ("/tools/earthcheck", "토공 검산"), ("/tools/dxfpdf", "도면 PDF 만들기"), ("/tools/dwgdxf", "DWG → DXF 바꾸기"), ("/tools/sajincad", "사진 · 손그림 → 캐드"), ("/jeoksan/bim", "BIM 물량 · 3D + 물량"), ("/jeoksan/model", "골조 모델 · 세우면 물량"), ("/jeoksan/golgo", "골조 수량산출"), ("/jeoksan/magam", "마감 수량산출"), ("/jeoksan/auto", "도면 물량 자동"), ("/tools/tuipbi", "현장 투입비 · 공사일보"), ("/tools/risk", "위험성평가"), ("/tools/equip", "장비 임대료·수금 장부"), ("/tools/photo", "사진대지 · 영수증 정리"), ("/tools/photo-live", "실시간 사진대지"), ("/tools/sigong", "시공계획서 자동 만들기"), ("/qna", "맵톡"),
+           ("/naeyeok", "내역서 — 산출내역서 · 하도급 · 설계변경"), ("/tools/dxf3d", "도면 3D 보기"), ("/tools/earthcheck", "토공 검산"), ("/tools/dxfpdf", "도면 PDF 만들기"), ("/tools/dwgdxf", "DWG → DXF 바꾸기"), ("/tools/sajincad", "사진 · 손그림 → 캐드"), ("/jeoksan/bim", "BIM 물량 · 3D + 물량"), ("/jeoksan/model", "골조 모델 · 세우면 물량"), ("/jeoksan/golgo", "골조 수량산출"), ("/jeoksan/magam", "마감 수량산출"), ("/jeoksan/auto", "도면 물량 자동"), ("/tools/tuipbi", "현장 투입비 · 공사일보"), ("/tools/risk", "위험성평가"), ("/tools/equip", "장비 임대료·수금 장부"), ("/tools/photo", "사진대지 · 영수증 정리"), ("/tools/photo-live", "실시간 사진대지"), ("/tools/sigong", "시공계획서 자동 만들기"), ("/tools/anjeon", "안전관리계획서 한 벌"), ("/qna", "맵톡"),
            ("/how", "보는 방법"), ("/ad", "광고 · 제휴")]
 
 
@@ -3541,6 +3541,30 @@ def sigong_page(shell, image=None):
         "시공계획서 자동 만들기")
 
 
+def anjeon_page(shell, image=None):
+    """/tools/anjeon — 🦺 안전관리계획서 한 벌 (G638 · 2026-11-10) — 화면 SafetyPlan.jsx · 셈 web/src/lib/안전계획.js
+    소장님: 「안전관리계획서 한벌 … 말하는 거야」 · 「만들고 예시만 보여주고 막아 놔」 · 「견본대로 해」"""
+    return _tool_page(shell, image, "/tools/anjeon",
+        "안전관리계획서 한 벌 — 총괄 안전관리계획 · 공종별 세부 안전관리계획 · 현장 운영 서식 | K-건설맵",
+        "건설기술 진흥법 시행규칙 별표 7(안전관리계획의 수립기준) 차례대로 공사개요 · 현장 특성 분석 · 현장운영계획 · 비상시 긴급조치계획과 "
+        "가설 · 굴착 · 콘크리트 · 강구조물 · 성토 · 절토 · 해체 · 건축설비 · 타워크레인 공종별 세부 안전관리계획, 작업허가서 · 일일 점검표 · 작업계획서까지 한 벌. "
+        "지금은 준비 중 — 예시로 미리 볼 수 있습니다.",
+        "🦺 안전관리계획서 한 벌",
+        ["「건설기술 진흥법」 제62조 · 시행령 제98조 · 시행규칙 <b>별표 7(안전관리계획의 수립기준)</b> 차례대로 — "
+         "<b>제1장 총괄 안전관리계획</b>(공사개요 · 현장 특성 분석 · 현장운영계획 · 비상시 긴급조치계획)과 "
+         "<b>제2장 공종별 세부 안전관리계획</b>(이 공사에 있는 공종만), <b>현장 운영 서식</b>까지 한 벌로 만듭니다.",
+         "가입 없음 · <b>파일은 브라우저 밖으로 나가지 않습니다.</b> PDF · 한글(.hwpx) · 워드 · 엑셀로 받습니다. "
+         "<b>🔒 지금은 준비 중</b> — 직접 적어 만드는 것은 곧 엽니다. 화면에서 🧪 예시(가상 공사)로 만든 한 벌을 쪽마다 넘겨 보실 수 있습니다."],
+        [("저절로 들어가는 것", ["수립 대상 판정(시행령 제98조제1항 각 호) · 정기안전점검 회차(건설공사 안전관리 업무수행 지침 별표 1)",
+                              "공종별 작업 순서 위험성평가 · 31일 일일 안전점검표 · 작업 단계별 안전시공 절차",
+                              "간이 검토 — 이동식 크레인 인양 하중 · 줄걸이 장력 · 아웃트리거 접지압 · 강관비계 기준 · 굴착면 기울기",
+                              "작업계획서(산업안전보건기준에 관한 규칙 제38조 · 별표 4) · 작업허가서 · 교육 일지 · 협의체 회의록 · 비상연락망"]),
+         ("법령에 맞춘 것", ["안전관리비 일곱 항목(건설기술 진흥법 시행규칙 제60조)", "안전난간 · 낙하물방지망 · 추락방호망 · 강관비계 표준 상세도(산업안전보건기준에 관한 규칙)",
+                          "도급인의 안전 · 보건 조치(산업안전보건법 제64조) · 법정 안전보건교육", "계절 · 기상별 재해 대책 · 화기작업 · 밀폐공간"])],
+        '대상인지 · 무엇을 언제 내는지는 <a href="/safety">안전관리계획서 · 유해위험방지계획서 안내</a>, 시공계획서는 <a href="/tools/sigong">시공계획서 자동 만들기</a>입니다.',
+        "안전관리계획서 한 벌")
+
+
 def jungcheo_page(shell, image=None):
     """/tools/jungcheo — 🛡 중대재해 안전보건관리체계 한 벌 (2026-10-17) — 화면 Jungcheo.jsx · 셈 web/src/lib/중처법.js
     소장님: 「중처법 …」 「대충 만들지 말고, 사이트에서 가능하게」 「크몽보다 좋아야 해. 반드시, 대충만들지마.」"""
@@ -4569,6 +4593,9 @@ def main():
     write("tools/sigong.html", sigong_page(shell,
           og.tab("tool-sigong", "시공계획서 자동 만들기", "건설 도구", "내역서만 올리면 한 벌", "PDF · 한글 · 워드 · 엑셀") if og.available else None))
     print("  · 시공계획서 자동 만들기 페이지 1개 (/tools/sigong)")
+    write("tools/anjeon.html", anjeon_page(shell,
+          og.tab("tool-anjeon", "안전관리계획서 한 벌", "건설 도구", "총괄 · 공종별 · 현장 운영 서식", "PDF · 한글 · 워드 · 엑셀") if og.available else None))
+    print("  · 안전관리계획서 한 벌 페이지 1개 (/tools/anjeon)")
     write("tools/jungcheo.html", jungcheo_page(shell,
           og.tab("tool-jungcheo", "중대재해 안전보건관리체계", "건설 도구", "서류 22가지 한 벌", "반기 점검 · 보고서까지") if og.available else None))
     print("  · 중대재해 안전보건관리체계 한 벌 페이지 1개 (/tools/jungcheo)")

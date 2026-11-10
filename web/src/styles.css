@@ -7987,6 +7987,24 @@ details.sg-more-sm > summary::before { top: 5px; left: 10px; }
 .sg-view { overflow-x: auto; background: #e9ecf1; border-radius: 10px; padding: 10px 0; display: flex; justify-content: center; }
 .sg-page { box-shadow: 0 1px 6px rgba(0, 0, 0, .18); background: #fff; flex: 0 0 auto; font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Pretendard", sans-serif; }
 
+/* ── 🦺 안전관리계획서 한 벌 (/tools/anjeon · G638 · 2026-11-10) — 미리보기는 위 .sg-* 를 같이 씀 ── */
+.sp-btns { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.sp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px 10px; }
+.sp-grid > label { display: grid; gap: 4px; font-size: 13px; font-weight: 700; min-width: 0; }
+.sp-grid > label input:not([type="checkbox"]), .sp-grid > label select, .sp-grid > label textarea { width: 100%; min-width: 0; font-size: 14px; font-weight: 400; padding: 7px 9px; }
+.sp-grid > label textarea { font-family: inherit; line-height: 1.5; resize: vertical; }
+.sp-grid > .sp-wide { grid-column: 1 / -1; }
+.sp-grid .sp-chk, .sp-sub .sp-chk { display: flex; align-items: center; gap: 6px; font-weight: 500; font-size: 13.5px; cursor: pointer; }
+.sp-chk input { width: 17px; height: 17px; margin: 0; flex: 0 0 auto; }
+.sp-gong { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; display: grid; gap: 6px; }
+.sp-sub { display: grid; gap: 4px; padding-left: 22px; }
+.sp-toc { margin: 10px 0 0; }
+.sp-toc select { width: 100%; max-width: 520px; height: 38px; font-size: 14px; padding: 0 8px; }
+.sp-up { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sp-up select { flex: 1 1 240px; min-width: 0; height: 38px; font-size: 14px; padding: 0 8px; }
+.sp-list { margin: 8px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.9; }
+.okline { color: #15803d; font-weight: 700; }
+
 /* ═══ 🎨 2026-10-16 서식 · 도구 · 내역서 · 적산 탭 꾸밈 — 소장님 「빈 공간이 너무 많아, 예쁘게」 ═══
    ① 카드 높이 맞춤(설명 3줄 · 마우스를 대면 전체 글) ② 끝 줄 외톨이 카드 넓게 ③ 작은 묶음 둘 나란히(.ny-pair)
    ④ 묶음마다 색(--sec · 머리 띠 · 아이콘 바탕) · 카드는 흰 바탕 · 마우스를 대면 살짝 뜸 ⑤ 적산 질문 막대 2열.
