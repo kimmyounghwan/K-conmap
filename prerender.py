@@ -73,7 +73,12 @@ SITE = "https://k-conmap.com"
 
 # 몇 곳까지 구울지. 파일 하나가 3KB 안팎이라 3,000곳이면 약 9MB 입니다.
 # ⚠️ 늘리기 전에 Firebase Hosting «출시 저장용량»(보관 10개) 을 확인하세요.
-N_AGENCY = int(os.environ.get("PRERENDER_AGENCY", "300"))
+N_AGENCY = int(os.environ.get("PRERENDER_AGENCY", "300"))   # 홈 · 탭 «기관» 줄(낙찰 많은 차례) — 굽는 장 수는 아래 AG_BAKE_MAX
+# 🔎 G640 (2026-11-10) 소장님 「최대한 늘려」 — 발주기관 장을 «낙찰 많은 300곳(agency/top.json)» → «이름 목록 전부(agency/names.json · 11-10 5,106곳)»
+#   · 개찰 AG_INDEX_MIN(3)건 이상만 검색에 냄(사이트맵 sitemap.py 같은 값 · IndexNow 회차마다 DRIP 장씩)
+#   · 그보다 적은 곳(1~2건)도 굽되 noindex — 카톡 · 문자로 주소를 보내면 미리보기가 뜨고 사람은 봄(얄팍한 장을 검색에 내지 않음)
+AG_BAKE_MAX = int(os.environ.get("PRERENDER_AGENCY_ALL", "20000"))
+AG_INDEX_MIN = int(os.environ.get("AGENCY_INDEX_MIN", "3"))
 N_CORP = int(os.environ.get("PRERENDER_CORP", "20000"))   # 🏢 G343 소장님 고르심 «낙찰 3건 이상 18,286곳» — 3,000 → 20,000(top.json 이 3건 이상만 냄)
 # 공고·개찰 한 건마다 한 장. 최신부터 굽습니다.
 # ⚠️ 배포 1벌이 그만큼 무거워집니다(장당 4~5KB). Firebase «출시 저장용량»(보관 10개)을
@@ -499,6 +504,34 @@ class Links:
     def corp(self, name):
         k = norm_corp(str(name or ""))
         return f"/corp/{quote(k, safe='')}" if k in self.co else None
+
+
+def agency_rows(names, top, safe_fn=None):
+    """🔎 G640 굽는 발주기관 [(이름, 개찰 건수, 통)] — names.json(전부)이 있으면 그것, 없으면 top.json(앞 300).
+    건수 많은 차례 · 같은 이름 한 번 · 이름이 파일 이름으로 못 쓰이면 뺌 · AG_BAKE_MAX 까지."""
+    ok_ = safe_fn or safe
+    src = names if names else top
+    rows = []
+    seen = set()
+    for r in src or []:
+        if not isinstance(r, (list, tuple)) or len(r) < 3:
+            continue
+        nm = r[0]
+        if not nm or nm in seen or not ok_(nm):
+            continue
+        try:
+            n = int(r[1] or 0)
+        except (TypeError, ValueError):
+            n = 0
+        seen.add(nm)
+        rows.append((nm, n, r[2]))
+    rows.sort(key=lambda x: -x[1])
+    return rows[:AG_BAKE_MAX]
+
+
+def noindex_html(h):
+    """검색엔진에 «이 장은 넣지 마십시오» — 사람 · 카톡 미리보기는 그대로"""
+    return h.replace("</head>", '  <meta name="robots" content="noindex" />\n  </head>', 1)
 
 
 def agency_page(shell, name, a, image=None, L=None):
@@ -1912,7 +1945,7 @@ STATIC_NEW = ["/change", "/change/naeyeok", "/change/excel", "/change/twoline", 
               "/safety", "/shareone", "/pdf", "/naeyeok/ratio", "/tools/photo", "/tools/photo-live", "/tools/earthcheck", "/jeoksan/bim", "/jeoksan/model",
               # 🔎 G341 (2026-10-20) 구운 장이 없던 화면들 — TABS 머리말
               "/bunseok", "/gongdong", "/ext", "/pre", "/naeyeok/hado", "/change/gisung",
-              "/corp", "/tools/jebiyul", "/first/hado-gyeonjeok", "/ad"] + [   # 🏢 G343 업체 찾기 · 📋 G350 간접공사비 요율 찾기 · 🤝 G518 하도급 견적틀
+              "/corp", "/tools/jebiyul", "/first/hado-gyeonjeok", "/ad", "/svc/calc", "/goods/calc"] + [   # 🏢 G343 업체 찾기 · 📋 G350 간접공사비 요율 찾기 · 🤝 G518 하도급 견적틀
     "/cad/" + _c["slug"] for _c in (load_cad().get("cmds") or [])] + [
     "/change/naeyeok/" + quote(_k, safe="") for _k, _d in NY_KINDS]
 
@@ -4055,6 +4088,21 @@ TABS = [
      "나라장터 물품 개찰 결과를 모아 보여드립니다. 공고별 1순위 업체, 투찰금액, 투찰률, 참가업체 수를 확인하세요.",
      ("물품 1순위 개찰 결과", "누가 얼마에 땄나 · 7주", "물품 1순위",
       "조달청 나라장터 물품 개찰 결과 · 회원가입 없이")),
+    # 🔎 G640 (2026-11-10) 소장님 「건설맵에 잇는 모든 건 페이지 만들고, 검색되게 해줘」 — 라우트 · 찾기엔 있는데 구운 장 · 사이트맵이 없던 용역 · 물품 바로투찰
+    #   (sitemap.py STATIC · STATIC_NEW · firebase.json «/svc/**» · «/goods/**» 와 같이)
+    ("/svc/calc", "용역 바로투찰 — 용역 투찰금액 · 낙찰하한금액 계산(공고 하한율 · 예가 범위) | K-건설맵",
+     "나라장터 용역(설계 · 감리 · 측량 · 안전진단 등) 공고의 기초금액 · 낙찰하한율 · 예가 범위를 넣으면 낙찰하한금액과 참고 투찰금액을 셉니다. "
+     "셈은 공사 바로투찰과 같은 식(예정가격 = 기초금액 × 사정률 · 낙찰하한 = (예정가격 − A값) × 하한율 + A값)이고, "
+     "하한율은 공고마다 조달청이 적어 준 값을 씁니다. 협상 · 수의시담 · 단일예가 공고는 가격으로 정해지지 않아 셈하지 않습니다. "
+     "권장 금액은 참고이고, 투찰 금액은 분위 단추나 직접 넣어 고릅니다.",
+     ("용역 바로투찰", "공고 하한율 · 예가 범위로 셈", "가입 없음",
+      "권장 금액은 참고 — 투찰 금액은 직접 고르십시오")),
+    ("/goods/calc", "물품 바로투찰 — 물품 투찰금액 · 낙찰하한금액 계산(공고 하한율 · 예가 범위) | K-건설맵",
+     "나라장터 물품(자재 · 장비 · 기기 등) 공고의 기초금액 · 낙찰하한율 · 예가 범위를 넣으면 낙찰하한금액과 참고 투찰금액을 셉니다. "
+     "셈은 공사 바로투찰과 같은 식이고, 하한율은 공고마다 조달청이 적어 준 값을 씁니다. "
+     "협상 · 수의시담 · 단일예가 공고는 가격으로 정해지지 않아 셈하지 않습니다. 권장 금액은 참고이고, 투찰 금액은 직접 고릅니다.",
+     ("물품 바로투찰", "공고 하한율 · 예가 범위로 셈", "가입 없음",
+      "권장 금액은 참고 — 투찰 금액은 직접 고르십시오")),
     ("/analysis", "발주기관·업체 낙찰 분석 — 3년치 개찰 기록 | K-건설맵",
      "발주기관의 낙찰률 성향과 업체별 낙찰 실적을 3년치 개찰 기록으로 분석합니다. 회원가입 없이 무료.",
      ("발주기관·업체 낙찰 분석", "3년치 개찰 기록으로 봅니다", "자가진단",
@@ -4565,34 +4613,44 @@ def main():
     #     (실측: 기관 6곳 전부 /corp/ 링크 0개. 반대로 업체→기관은 6~8개로 멀쩡했습니다).
     #   조용히 틀리는 종류라 아래에 «0이면 경고» 도 답니다.
     top = load("agency/top.json") or []
+    ag_list = agency_rows(load("agency/names.json") or [], top)   # 🔎 G640 이름 목록 전부(없으면 top 300)
     ctop = load("corp/top.json") or []
     if not ctop:
         print("  · corp/top.json 이 없습니다 — build_json.py 를 한 번 돌리면 생깁니다")
-    for row in top[:N_AGENCY]:
-        if len(row) >= 3 and safe(row[0]):
-            L.ag.add(row[0])
+    for nm, _n, _ch in ag_list:
+        L.ag.add(nm)
     for row in ctop[:N_CORP]:
         if len(row) >= 3 and safe(row[0]):
             L.co.add(row[0])
 
     # ── 발주기관 ──
     by_chunk = {}
-    for row in top[:N_AGENCY]:
-        if len(row) >= 3 and safe(row[0]):
-            by_chunk.setdefault(row[2], []).append(row[0])
+    ag_cnt = {}
+    for nm, n_, ch in ag_list:
+        by_chunk.setdefault(ch, []).append(nm)
+        ag_cnt[nm] = n_
+    og_ag = {nm for nm, _n, _ch in ag_list[:OG_AGENCY]}   # 미리보기 그림은 낙찰 많은 OG_AGENCY 곳만(전처럼)
     n_ag = 0
     n_aglink = 0
-    for ch, names in sorted(by_chunk.items()):
+    ag_done, ag_noidx = [], 0
+    for ch, names in sorted(by_chunk.items(), key=lambda kv: str(kv[0])):
         dat = load(f"agency/dat/{ch}.json") or {}
         for nm in names:
             a = dat.get(nm)
             if a:
-                img = og.agency(nm, a) if n_ag < OG_AGENCY else None
+                img = og.agency(nm, a) if nm in og_ag else None
                 n_ag += img is not None
                 _h = agency_page(shell, nm, a, img, L)
                 n_aglink += _h.count('href="/corp/')
+                if ag_cnt.get(nm, 0) < AG_INDEX_MIN:
+                    _h = noindex_html(_h)
+                    ag_noidx += 1
+                else:
+                    ag_done.append(nm)
                 write(f"agency/{nm}.html", _h)
                 made += 1
+    if ag_list:
+        print(f"  · 발주기관 페이지 {len(ag_done) + ag_noidx:,}개 (검색에 냄 {len(ag_done):,} · 개찰 {AG_INDEX_MIN}건 미만 noindex {ag_noidx:,} · 목록 {len(ag_list):,})")
     if top and not n_aglink:
         print("  ⚠️ 기관 페이지에서 업체로 가는 링크가 **0개** 입니다 — "
               "L.co 가 비었거나 이름 정규화(norm_corp)가 어긋났습니다.")
@@ -4718,11 +4776,16 @@ def main():
         _rank = {k: i for i, k in enumerate(r[0] for r in ctop[:N_CORP] if r)}
         co_paths = [f"/corp/{quote(k, safe='')}" for k in sorted(corp_done, key=lambda k: _rank.get(k, 1 << 30))]
         co_new, co_left = indexnow.take_once("corp", co_paths)
-        paths += st_new + ny_new + qn_new + co_new
+        # 🔎 G640 발주기관 장(검색에 내는 것) — 업체처럼 회차마다 DRIP 장씩 · 낙찰 많은 곳부터
+        _agset = set(ag_done)
+        ag_paths = [f"/agency/{quote(nm, safe='')}" for nm, _n, _c in ag_list if nm in _agset]
+        ag_new, ag_left = indexnow.take_once("agency", ag_paths)
+        paths += st_new + ny_new + qn_new + co_new + ag_new
         n_q = indexnow.queue(paths, mark=mark)
         print(f"  · IndexNow 다음 회차에 알릴 주소 {n_q:,}개 "
               f"(새 개찰 {len(fresh):,} · 처음 알리는 정적 {len(st_new):,} · "
-              f"내역서 {len(ny_new):,} · 내역서 남은 것 {ny_left:,} · 업체 {len(co_new):,} · 업체 남은 것 {co_left:,})")
+              f"내역서 {len(ny_new):,} · 내역서 남은 것 {ny_left:,} · 업체 {len(co_new):,} · 업체 남은 것 {co_left:,} · "
+              f"기관 {len(ag_new):,} · 기관 남은 것 {ag_left:,})")
         # 로그를 못 볼 때를 대비해 결과를 사이트에 남깁니다 → /indexnow-status.json
         # (robots.txt 가 /data/ 를 막고 있어 뿌리에 둡니다 — 확인 도구가 못 읽었습니다)
         indexnow.write_report(DIST, sent, {"n": n_q, "새개찰": len(fresh),
@@ -4731,6 +4794,7 @@ def main():
                                            "내역서남은것": ny_left,
                                            "맵톡": len(qn_new),
                                            "업체": len(co_new), "업체남은것": co_left,
+                                           "기관": len(ag_new), "기관남은것": ag_left,
                                            "예": paths[:5]})
     except Exception as e:
         print(f"  · IndexNow 목록 만들기 실패 ({type(e).__name__}: {e}) — 넘어갑니다")
@@ -4825,6 +4889,20 @@ def main():
             "셀 수 있는 공고(복수예가 · 하한율 · 기초금액)에는 💰 바로투찰 단추가 붙습니다."]),
         "/goods/first": lead_card("물품 1순위 개찰 결과", [
             "나라장터 물품 개찰 결과를 7주치 모아 공고마다 1순위 업체 · 투찰금액 · 투찰률 · 참가업체 수를 보여 드립니다."]),
+        # 🔎 G640 용역 · 물품 바로투찰 — 화면(pages/SvcCalc.jsx · lib/용역셈.js)과 같은 말
+        "/svc/calc": lead_card("용역 바로투찰", [
+            "용역 공고의 기초금액 · 낙찰하한율(%) · 예가 범위(±%)를 넣으면 낙찰하한금액과 참고 투찰금액이 나옵니다. "
+            "용역 공고 카드의 💰 바로투찰 단추를 누르면 그 공고 값이 저절로 들어오고, 아래 «셀 수 있는 마감 전 공고» 를 눌러도 됩니다.",
+            "셈은 공사와 같은 식입니다 — 예정가격 = 기초금액 × 사정률(복수예가 15개 중 4개 추첨) · "
+            "낙찰하한 = (예정가격 − A값) × 하한율 + A값. 다른 것은 재료입니다: 하한율은 공고마다 달라 조달청이 공고에 적어 준 값만 쓰고, "
+            "협상 · 수의시담은 가격으로 안 정해지며, 단일예가 · 비예가는 사정률로 셀 수 없습니다.",
+            "권장 금액은 참고입니다. 사정률 분위(5 · 15 … 95) 단추로 금액을 바꿔 보거나 내 금액을 넣어 낙찰하한과의 차이를 보십시오."]),
+        "/goods/calc": lead_card("물품 바로투찰", [
+            "물품 공고의 기초금액 · 낙찰하한율(%) · 예가 범위(±%)를 넣으면 낙찰하한금액과 참고 투찰금액이 나옵니다. "
+            "물품 공고 카드의 💰 바로투찰 단추를 누르면 그 공고 값이 저절로 들어옵니다.",
+            "셈은 공사 · 용역과 같은 식이고, 하한율은 공고마다 조달청이 적어 준 값을 씁니다. "
+            "협상 · 수의시담 · 단일예가 공고는 가격으로 정해지지 않아 셈하지 않습니다.",
+            "권장 금액은 참고입니다. 분위 단추나 내 금액으로 낙찰하한과의 차이를 보고 직접 고르십시오."]),
         "/analysis": (lead_card("발주기관 · 업체 낙찰 분석",
                                 ["발주기관이 어떤 자리인지(투찰률 분포·경쟁 강도)와 "
                                  "업체가 어디에 강한지를 3년치 개찰 기록으로 봅니다."])
@@ -5136,6 +5214,7 @@ def main():
     _tabname = {"/first": "1순위 개찰", "/live": "입찰 공고",
                 "/svc": "용역 공고", "/svc/first": "용역 1순위",
                 "/goods": "물품 공고", "/goods/first": "물품 1순위",
+                "/svc/calc": "용역 바로투찰", "/goods/calc": "물품 바로투찰",   # 🔎 G640
                 "/analysis": "낙찰 분석", "/jobs": "구인구직",
                 "/naeyeok": "내역서", "/qna": "맵톡",
                 "/how": "보는 방법", "/report": "업체 입찰 성적표",
@@ -5173,7 +5252,7 @@ def main():
 
     print(f"  · 공고·개찰 페이지 {n_no:,}개 (저장소 {len(merged):,}건 중)")
     print(f"  · 개찰 성적표 {n_dy:,}일치 (/daily/)")
-    print(f"  · 미리 구운 페이지 {made:,}개 (기관 {len(top[:N_AGENCY]):,} · 업체 {len(ctop[:N_CORP]):,} 대상)")
+    print(f"  · 미리 구운 페이지 {made:,}개 (기관 {len(ag_list):,} · 업체 {len(ctop[:N_CORP]):,} 대상)")
     print(f"  · 기관 → 업체 링크 {n_aglink:,}개")
     if og.available:
         print(f"  · 카톡 미리보기 그림 {og.made:,}장 "

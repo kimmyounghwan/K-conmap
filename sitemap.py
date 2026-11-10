@@ -40,12 +40,12 @@ if _ROBOTS and SITE != _ROBOTS:
     print(f"  ⚠️ 사이트맵 주소({SITE})가 robots.txt 가 알리는 주소({_ROBOTS})와 다릅니다 "
           f"— robots.txt 쪽으로 맞춥니다")
     SITE = _ROBOTS
-LIMIT = int(os.environ.get("SITEMAP_AGENCIES", "800"))   # 색인 상황 보며 올릴 것
+LIMIT = int(os.environ.get("SITEMAP_AGENCIES", "20000"))   # 🔎 G640 (11-10 소장님 「최대한 늘려」) 800 → 20,000 — 이름 목록 전부(agency/names.json) · prerender AG_BAKE_MAX 와 같게
 CORP = int(os.environ.get("SITEMAP_CORPS", "20000"))     # 업체도 천천히 — 처음엔 300곳 → 2026-09-30 1,000곳 → 🏢 G343 20,000(낙찰 3건 이상 전부 · PRERENDER_CORP 와 같게)
 #   (소장님 「업체 실적페이지 … 필요한 것 지금 작업해줘」 — 페이지마다 투찰률 칸 · 순위 기록 · 상대 · 성적표 신청을 더한 뒤 올림.
 #    서치콘솔에서 색인 비율을 보고 3,000(=PRERENDER_CORP)까지 한 단계씩. PRERENDER_CORP 보다 크면 안 됨)
 NOTICE = int(os.environ.get("SITEMAP_NOTICES", "1000"))  # 공고·개찰. 매일 570건씩 느니 천천히 — 🔎 G621 (11-09 소장님 «우선 검색이 되게») 500 → 1,000 (PRERENDER_NOTICE 8,000 보다 작게)
-MIN_ROWS = 15                                            # 얄팍한 페이지는 아예 넣지 않음
+MIN_ROWS = int(os.environ.get("AGENCY_INDEX_MIN", "3"))  # 🔎 G640 15 → 3 — 개찰 3건 미만 기관은 넣지 않음(prerender 가 그 장에 noindex · 같은 값)
 MIN_CORP = 3                                             # 낙찰 3건 미만 업체는 넣지 않음 (🏢 G343 8 → 3 · build_json CORP_TOP_MIN 과 같게)
 
 # (2026-09-06) /calc 를 뺐습니다. 라우터에서 «/» 와 같은 화면(BaroBid)이라
@@ -54,6 +54,8 @@ MIN_CORP = 3                                             # 낙찰 3건 미만 �
 STATIC = [("/", "1.0", "hourly"), ("/first", "0.9", "hourly"), ("/live", "0.9", "hourly"),
           # 📐📦 G194 (2026-10-07) 용역 · 물품 — 라우트(main.jsx) · prerender TABS · firebase.json 과 넷이 같이
           ("/svc", "0.8", "daily"), ("/svc/first", "0.8", "daily"), ("/goods", "0.7", "daily"), ("/goods/first", "0.7", "daily"),
+          # 🔎 G640 (2026-11-10) 용역 · 물품 바로투찰 · 광고 · 제휴 안내 — 구운 장 · 찾기엔 있는데 사이트맵에서 빠져 있었음
+          ("/svc/calc", "0.7", "weekly"), ("/goods/calc", "0.6", "weekly"), ("/ad", "0.4", "monthly"),
           ("/analysis", "0.8", "weekly"),
           ("/jobs", "0.7", "daily"), ("/about", "0.3", "monthly"),
           ("/privacy", "0.2", "yearly"), ("/terms", "0.2", "yearly"), ("/contact", "0.3", "yearly"),
@@ -134,11 +136,18 @@ def main():
             for p, pr, cf in STATIC]
 
     top_path = os.path.join(DATA, "agency", "top.json")
+    names_path = os.path.join(DATA, "agency", "names.json")   # 🔎 G640 이름 목록 전부(5,106곳 · 11-10) — 없으면 top.json(앞 300)
     n_ag = 0
-    if os.path.exists(top_path):
-        with open(top_path, encoding="utf-8") as f:
-            top = json.load(f)
-        for name, cnt, _chunk in top:
+    _ag_src = names_path if os.path.exists(names_path) else top_path
+    if os.path.exists(_ag_src):
+        with open(_ag_src, encoding="utf-8") as f:
+            top = sorted((r for r in json.load(f) if isinstance(r, list) and len(r) >= 3), key=lambda r: -(r[1] or 0))
+        _seen = set()
+        for name, cnt, _chunk in (r[:3] for r in top):
+            # prerender.py safe() 와 같은 거르기 — 못 구운 이름을 사이트맵에 내지 않음(빈 껍데기 soft 404)
+            if not name or name in _seen or (set(name) & set('\\/:*?"<>|')) or len(name.encode("utf-8")) >= 180:
+                continue
+            _seen.add(name)
             if cnt < MIN_ROWS or n_ag >= LIMIT:
                 continue
             urls.append(
