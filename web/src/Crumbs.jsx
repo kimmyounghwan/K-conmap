@@ -87,6 +87,7 @@ const LEAF = {
   '/forms/hanbeol': '낙찰 서류 한 벌',
   '/tools/sigong': '시공계획서 자동 만들기',
   '/tools/anjeon': '안전관리계획서 한 벌',
+  '/tools/yuhae': '유해위험방지계획서 한 벌',
   '/tools/jungcheo': '중대재해 안전보건관리체계 한 벌',
   '/tools/safecard': '현장 다국어 안전카드',
   '/tools/colorplan': '컬러 평면도 · 피난 안내도',

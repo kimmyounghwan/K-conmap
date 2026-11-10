@@ -75,25 +75,60 @@ export function 글맞춤(글, 폭mm, 높이mm, 크기 = 9, 굵게 = false) {
   return { 크기: k, 줄들 }
 }
 
-/** 폭에 맞게 줄 나누기 — 띄어쓰기에서 먼저, 안 되면 글자에서 */
+/* 혼자 줄에 서면 안 되는 부호 — 홀부호: 띄어 쓴 « · » « ~ » 같은 낱 부호(앞 낱말에 붙여 넘김) ·
+   꼬리부호: 글자로 쪼갠 끝 조각이 이것뿐이면(«)» 하나 등) 앞 조각 끝 글자를 같이 내림 */
+const 홀부호 = /^[·,.)\]」』〉》:;%~|/-]+$/
+const 꼬리부호 = /^[)\]」』〉》,.:;%]+$/
+/** 폭에 맞게 줄 나누기 — 띄어쓰기에서 먼저, 안 되면 글자에서
+ *  (G639 11-10: «안전시설 설치 / · / 작업허가(고소 / )» 처럼 부호만 남은 줄이 생겼음 →
+ *   홀로 선 부호는 앞 낱말에 붙이고, 긴 낱말은 «(» 앞에서 먼저 끊고(«작업허가 / (고소)»), 부호만 남는 끝 조각은 안 만듦) */
 export function 나누기(글, 폭mm, 크기, 굵게 = false) {
   const out = []
+  const 폭 = (s) => 글폭(s, 크기, 굵게)
+  const 글자로 = (s) => {
+    const o = []
+    let 조각 = ''
+    for (const ch of s) {
+      if (폭(조각 + ch) > 폭mm && 조각) { o.push(조각); 조각 = '' }
+      조각 += ch
+    }
+    if (조각) o.push(조각)
+    return o
+  }
+  /* 낱말 하나가 폭보다 길 때 — «(» 앞이 들어가면 거기서 먼저, 나머지는 글자 단위 */
+  const 쪼개기 = (낱) => {
+    const 괄 = 낱.indexOf('(')
+    const o = 괄 > 0 && 폭(낱.slice(0, 괄)) <= 폭mm ? [낱.slice(0, 괄), ...글자로(낱.slice(괄))] : 글자로(낱)
+    for (let i = 1; i < o.length; i++) {
+      if (!꼬리부호.test(o[i])) continue
+      const 앞 = [...o[i - 1]]
+      if (앞.length < 2) continue
+      const ch = 앞.pop()
+      o[i - 1] = 앞.join('')
+      o[i] = ch + o[i]
+    }
+    return o
+  }
   for (const 단락 of String(글).split('\n')) {
-    if (글폭(단락, 크기, 굵게) <= 폭mm) { out.push(단락); continue }
+    if (폭(단락) <= 폭mm) { out.push(단락); continue }
     let 줄 = ''
-    const 낱말들 = 단락.split(/(\s+)/)
+    const 낱말들 = []
+    for (const t of 단락.split(/(\s+)/)) {
+      const n = 낱말들.length
+      if (t && 홀부호.test(t) && n >= 2 && /^\s+$/.test(낱말들[n - 1]) && /\S/.test(낱말들[n - 2])) {
+        const 빈 = 낱말들.pop()
+        낱말들[n - 2] += 빈 + t
+      } else 낱말들.push(t)
+    }
     for (const 낱 of 낱말들) {
       const 시험 = 줄 + 낱
-      if (글폭(시험, 크기, 굵게) <= 폭mm) { 줄 = 시험; continue }
+      if (폭(시험) <= 폭mm) { 줄 = 시험; continue }
       if (줄.trim()) { out.push(줄.trimEnd()); 줄 = '' }
       if (/^\s+$/.test(낱)) continue
-      /* 낱말 하나가 폭보다 길면 글자 단위로 */
-      let 조각 = ''
-      for (const ch of 낱) {
-        if (글폭(조각 + ch, 크기, 굵게) > 폭mm && 조각) { out.push(조각); 조각 = '' }
-        조각 += ch
-      }
-      줄 = 조각
+      if (폭(낱) <= 폭mm) { 줄 = 낱; continue }
+      const 조각들 = 쪼개기(낱)
+      out.push(...조각들.slice(0, -1))
+      줄 = 조각들[조각들.length - 1] || ''
     }
     if (줄.trim() || !out.length) out.push(줄.trimEnd())
   }
