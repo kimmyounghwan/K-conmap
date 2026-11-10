@@ -25,6 +25,9 @@
  *    원가계산서 · 총괄표까지 원본의 요율 · 산출근거로 다시 셈 · 낙찰금액이면 도급액 = 낙찰금액(끝전은 이윤) · A값 · 관급 그대로
  * ■ 🔧 G453 (2026-10-29 맵톡 «A값의 적용을 선택할 수는 없는지 · 현장마다 퇴직공제 · 환경보전비 등이 안 들어가는 경우») —
  *    낙찰금액 맞추기에서 «설계금액 그대로» 둘 항목을 올린 원가계산서의 경비 항목마다 체크(처음엔 A값만 켬 · 다른 항목도 켤 수 있음)
+ * ■ 🧪 G636 (2026-11-10) «예시로 해 보기» — 소장님 「예시 만들어 주고」(11-10 점검: 예시 없는 곳)
+ *    지어낸 내역서 한 벌(/jeoksan/비율예시_내역서.xlsx — 원가계산서 + 내역서 · 가상 마을안길 정비공사 · 관급 레미콘 · 철근)을
+ *    올린 것처럼 엽니다(같은 openFile) · 비율 80% 그대로 · 셈 |비율|예시. 이용자 파일은 하나도 안 건드림(이 화면은 원래 저장을 안 함).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -33,7 +36,10 @@ import { 세기 } from '../lib/받은수.jsx'   /* 🏷 G169 */
 
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { 요율불러오기 } from '../tools/제비율칸.jsx'
+import 도구설명 from '../tools/도구설명.jsx'   /* 📖 G636 쓰는 순서 · 자주 묻는 것(tools_guide.json «ratio» — 구운 쪽도 같은 글) */
 import { XLSX, 엑셀종류 } from '../lib/엑셀종류.js'   /* 🩹 G378 .xlsm 은 .xlsm 으로 */
+const 예시주소 = '/jeoksan/비율예시_내역서.xlsx'   /* 🧪 G636 지어낸 파일(tools/만들기_비율예시내역.py) */
+const 예시이름 = '예시_내역서(가상 마을안길 정비공사).xlsx'
 const fmt = (n) => new Intl.NumberFormat('ko-KR').format(Math.round(n || 0))
 const pct = (r) => (Math.round(r * 1000000) / 10000).toLocaleString('ko-KR') + '%'
 const kb = (n) => new Intl.NumberFormat('ko-KR').format(Math.round(n / 1024))
@@ -109,6 +115,18 @@ export default function Ratio() {
       setErr((e && e.message) || '읽지 못했습니다.')
     } finally { setBusy('') }
   }, [loadLib])
+
+  /* 🧪 G636 예시 — 지어낸 내역서를 받아 «올린 것처럼» 엽니다 */
+  const 예시열기 = useCallback(async () => {
+    setErr(''); setBusy('예시 내역서를 받는 중입니다…')
+    try {
+      const r = await fetch(예시주소, { cache: 'force-cache' })
+      if (!r.ok) throw new Error('예시 내역서를 받지 못했습니다. 잠시 뒤 다시 눌러 주십시오.')
+      const b = await r.blob()
+      try { 세기('|비율|예시') } catch (e) { /* 지나갑니다 */ }
+      await openFile(new File([b], 예시이름, { type: b.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+    } catch (e) { setBusy(''); setErr((e && e.message) || '예시를 열지 못했습니다.') }
+  }, [openFile])
 
   /* 고른 시트만으로 다시 모읍니다 — 파일을 다시 읽지는 않습니다 */
   const 읽은 = useMemo(() => {
@@ -304,6 +322,13 @@ export default function Ratio() {
             : <><b>＋ 내역서를 끌어 놓거나 누르십시오</b>
               <span>.xlsx · .xlsm · .xls — 단가가 «채워진» 내역서라야 합니다 (공내역서는 곱할 것이 없습니다)</span></>}
         </div>
+        {!file && (
+          <div className="btn-row" style={{ justifyContent: 'flex-start', marginTop: 8, flexWrap: 'wrap', gap: 8 }}>
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={예시열기} disabled={!!busy}>🧪 예시로 해 보기</button>
+            <span className="muted" style={{ fontSize: 12.5, alignSelf: 'center' }}>지어낸 내역서(가상 마을안길 정비공사 · 원가계산서 + 내역서)로 80% 맞추기를 바로 봅니다</span>
+          </div>
+        )}
+        {file && /^예시_내역서/.test(file.name) && <div className="note sm" role="status" style={{ marginTop: 8 }}>🧪 지어낸 예시 내역서입니다(실제 공사 · 회사 아님). 내 내역서는 위 칸을 눌러 올리십시오.</div>}
         {busy && <div className="muted" style={{ marginTop: 8 }}>{busy}</div>}
         {err && <div className="cwarn" style={{ marginTop: 8 }}>⚠️ {err}</div>}
         {온것 && (
@@ -786,6 +811,7 @@ export default function Ratio() {
           <Link className="btn ghost" to="/tools">🧰 건설 도구</Link>
         </div>
       </div>
+      <도구설명 k="ratio" />
     </div>
   )
 }

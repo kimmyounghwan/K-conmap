@@ -5121,6 +5121,9 @@ def main():
                      key=lambda r: -int(r[2] or 0))[:10]
         if _rs:
             _cf.append(link_card(f"📍 {_sd} — 이 지역 공고에 넣어 본 업체", [(L.corp(r[1]), str(r[0]), f"낙찰 {num(r[2])}건") for r in _rs]))
+    # 📖 G636 내역서 비율 맞추기 — 화면 «쓰는 순서 · 자주 묻는 것»(tools_guide.json ratio)과 같은 글
+    if "/naeyeok/ratio" in tab_body:
+        tab_body["/naeyeok/ratio"] = tab_body["/naeyeok/ratio"] + _tool_guide_html("ratio")
     tab_body["/corp"] = (lead_card("🏢 건설업체 찾기", [
         "상호로 찾으면 3년치 개찰의 1순위(낙찰) 기록 — 어느 지역 · 어느 기관에서 강한지, 평균 투찰률이 얼마인지 — 를 봅니다.",
         "지역 · 면허로 찾으면 그 시·도 지역 제한 공고에 최근 1년 안에 실제로 넣어 본 업체가 나옵니다(반년 안에 넣은 업체 먼저 · 낙찰 많은 차례). "

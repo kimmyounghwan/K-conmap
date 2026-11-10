@@ -52,9 +52,9 @@ for (const 기기 of 기기들) {
     await A.waitForSelector('input[type=file]', { state: 'attached', timeout: 20000 })
     await A.locator('input[type=file]').first().setInputFiles({ name: 이름, mimeType: 'application/octet-stream', buffer: e.b })
     /* 아래 도움말에도 «당초 합계» 낱말이 있어 ① 칸 안에서 기다립니다 */
-    try { await A.locator('.card', { hasText: '① 내역서 올리기' }).first().locator('p', { hasText: '당초 합계' }).first().waitFor({ timeout: 90000 }) } catch (x) { 봐(false, `${기기} ${이름} 읽힘`, await A.locator('body').innerText()); continue }
+    try { await A.locator('.card:not(.fguide)', { hasText: '① 내역서 올리기' }).first().locator('p', { hasText: '당초 합계' }).first().waitFor({ timeout: 90000 }) } catch (x) { 봐(false, `${기기} ${이름} 읽힘`, await A.locator('body').innerText()); continue }
     await A.waitForTimeout(400)
-    const 글 = await A.locator('.card', { hasText: '① 내역서 올리기' }).first().innerText()
+    const 글 = await A.locator('.card:not(.fguide)', { hasText: '① 내역서 올리기' }).first().innerText()
     봐(글.includes('당초 합계 ' + 원(e.합) + '원'), `${기기} ${이름} 화면 당초 합계 = lib ${원(e.합)}`, 글.slice(0, 200))
     if (e.노무) {
       const n = e.노무
@@ -71,7 +71,7 @@ for (const 기기 of 기기들) {
     }
     if (캡 && 기기 === 'PC') {
       /* 알림 줄만 — 파일 이름 · 시트 칩 · 품목표는 찍지 않습니다 */
-      const 줄들 = A.locator('.card', { hasText: '① 내역서 올리기' }).first().locator('p', { hasText: /당초 합계|직접노무비|첫 품목을 빼고/ })
+      const 줄들 = A.locator('.card:not(.fguide)', { hasText: '① 내역서 올리기' }).first().locator('p', { hasText: /당초 합계|직접노무비|첫 품목을 빼고/ })
       const 개 = await 줄들.count()
       for (let i = 0; i < 개; i++) await 줄들.nth(i).screenshot({ path: path.join(캡, `PC_예${e.k + 1}_${i + 1}.png`) })
     }

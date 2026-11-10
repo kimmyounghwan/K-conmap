@@ -30,7 +30,7 @@ for (const 기기 of 기기들) {
     await p.goto(주소 + '/naeyeok/ratio', { waitUntil: 'domcontentloaded' })
     await p.waitForSelector('input[type=file]', { state: 'attached', timeout: 20000 })
     await p.locator('input[type=file]').first().setInputFiles({ name: '내역서.xlsx', mimeType: 'application/octet-stream', buffer: fs.readFileSync(파일) })
-    await p.locator('.card', { hasText: '③ 내려받기' }).waitFor({ timeout: 60000 })
+    await p.locator('.card:not(.fguide)', { hasText: '③ 내려받기' }).waitFor({ timeout: 60000 })
     await p.evaluate(() => { const r = [...document.querySelectorAll('label')].find((l) => /🏷 낙찰금액으로/.test(l.textContent)); r.querySelector('input').click() })
     await p.waitForTimeout(800)
   }

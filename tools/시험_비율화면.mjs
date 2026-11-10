@@ -14,6 +14,9 @@ const { unzipSync, strFromU8 } = require('/tmp/g10/fm55/web/node_modules/fflate'
 const 주소 = process.env.B || 'http://127.0.0.1:4998'
 import { fileURLToPath } from 'url'
 const 자료 = fileURLToPath(new URL('./시험자료/', import.meta.url))
+/* 🩹 G636 지금 공지 판(감사공지.jsx 판)을 «봤음» 으로 — 옛 판 이름('2026-10-업체')이면 공지 창이 단추를 가려 시험이 멈췄음 ·
+   «③ 내려받기» 는 화면 아래 사용 방법(.card.fguide)에도 있어 기다릴 때 그 칸은 뺌(안 빼면 파일을 읽기 전에 지나감) */
+const 공지판 = (fs.readFileSync(fileURLToPath(new URL('../web/src/감사공지.jsx', import.meta.url)), 'utf8').match(/const 판 = '([^']+)'/) || [])[1] || '2026-10-업체'
 const 기기들 = (process.argv[2] || '모두') === '모두' ? ['PC', '폰'] : [process.argv[2]]
 const 폴더 = process.env.CAP || '/tmp/g10/g378/ui'
 fs.mkdirSync(폴더, { recursive: true })
@@ -25,7 +28,7 @@ for (const 기기 of 기기들) {
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36' })
   await 판.route(/googletagmanager|google-analytics|pagead2|adsbygoogle|geojs/, (r) => r.fulfill({ status: 200, body: '' }))
   await 판.route(/firebaseio\.com/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: 'null' }))
-  await 판.addInitScript(() => { localStorage.setItem('kcm_notice_seen', '2026-10-필독'); try { sessionStorage.setItem('kcm_notice_seen', '2026-10-업체') } catch (e) {}; Object.defineProperty(navigator, 'webdriver', { get: () => false }) })
+  await 판.addInitScript((공지판) => { localStorage.setItem('kcm_notice_seen', '2026-10-필독'); try { sessionStorage.setItem('kcm_notice_seen', 공지판) } catch (e) {}; Object.defineProperty(navigator, 'webdriver', { get: () => false }) }, 공지판)
   const A = await 판.newPage()
   const 오류 = []
   A.on('pageerror', (e) => 오류.push(String(e).slice(0, 160)))
@@ -34,7 +37,7 @@ for (const 기기 of 기기들) {
     await A.goto(주소 + '/naeyeok/ratio', { waitUntil: 'domcontentloaded' })
     await A.waitForSelector('input[type=file]', { state: 'attached', timeout: 20000 })
     await A.locator('input[type=file]').first().setInputFiles({ name: 이름, mimeType: 'application/octet-stream', buffer: fs.readFileSync(path.join(자료, 원파일)) })
-    await A.locator('.card', { hasText: '③ 내려받기' }).waitFor({ timeout: 30000 })
+    await A.locator('.card:not(.fguide)', { hasText: '③ 내려받기' }).waitFor({ timeout: 30000 })
   }
   /* 받은 뒤 하루 한 번 뜨는 «한 줄 남기기» 창(askAfter)이 단추를 덮습니다 — 사람처럼 ✕ 로 닫고 누름 */
   const 창닫기 = async () => { await A.waitForTimeout(1000); const x = A.locator('.askx'); if (await x.count()) await x.first().click().catch(() => {}) }
