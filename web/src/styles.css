@@ -10515,6 +10515,10 @@ a.cert-chip:not(.deep) { color: inherit; text-decoration: none; }
 .go-bar em { font-style: normal; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
 .go-src { margin-top: 8px; font-size: 11.5px; color: var(--muted); }
 /* ── 📝 G628 예상문제(/cert/{종목}/quiz) — 폰 한 손 · 보기 단추 크게(48px) · 맞음 초록 · 틀림 빨강 ── */
+/* 🔎 G629 구운 쪽 맨 위 주 메뉴(prerender.py gnb_html — React 가 덮기 전 잠깐 · 크롤러가 읽는 사이트 메뉴) */
+.pre-gnb { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 10px 2px 4px; font-size: 13px; }
+.pre-gnb a { color: var(--text-2); text-decoration: none; font-weight: 600; }
+.pre-gnb a[aria-current="page"] { color: var(--accent); }
 .qz, .qz-out { scroll-margin-top: 64px; }
 .qz-go { margin-top: 10px; min-height: 0; }
 .qz-top { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }

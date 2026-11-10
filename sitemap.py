@@ -472,6 +472,89 @@ def main():
           f" + 알아보기 {n_gd} + 자격증 {n_ct} + 도구 {n_tl} + 캐드 {n_cd} + 사랑방 {n_qa} = {len(urls)}개")
     print("     sitemap.xml (목차) → " + " · ".join(f"{이름} {수:,}장" for 이름, 수 in 낸것))
     print(f"     {p}")
+    write_rss(rows.values())   # 📰 G629 네이버 «RSS 제출» 용 새 글 목록(web/public/rss.xml)
+
+
+# ── 📰 G629 (2026-11-10) RSS «새 글 목록» — 네이버 서치어드바이저 «RSS 제출» 용 ─────────────────
+#  소장님 「네이버에서도 검색이 되게 해줘」 — 네이버는 사이트맵(전체 지도)과 함께 RSS(새로 생긴 쪽)를 받아 새 쪽을 더 빨리 모읍니다.
+#  새 쪽 알리기는 IndexNow(indexnow.py)가 이미 매 회차 하고 있고, RSS 는 그 «목록판»입니다(서치어드바이저에 한 번 제출하면 네이버가 스스로 읽으러 옴).
+#  ⚠️ 구운 쪽만 냅니다 — 공고 · 개찰 최신(prerender 가 최신 8,000 을 구움). 공고 번호 꼴이 아니면 뺌. 글자는 모두 XML 이스케이프.
+#  ⚠️ 실패해도 사이트맵 · 빌드를 멈추지 않습니다(main 끝에서 try).  시험: tools/시험_네이버.py
+RSS_EACH = int(os.environ.get("RSS_EACH", "100"))     # 개찰결과 · 입찰공고 각각 최신 몇 개
+_요일 = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+_달 = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def _rfc822(v):
+    """'2026-11-10 09:00:00'(한국 시각) → 'Tue, 10 Nov 2026 09:00:00 +0900' · 못 읽으면 None (요일 · 달 이름은 로케일과 상관없이 영문)"""
+    d = "".join(ch for ch in str(v or "") if ch.isdigit())
+    if len(d) < 8:
+        return None
+    try:
+        t = datetime(int(d[0:4]), int(d[4:6]), int(d[6:8]), int(d[8:10] or 0), int(d[10:12] or 0), int(d[12:14] or 0))
+    except ValueError:
+        return None
+    return f"{_요일[t.weekday()]}, {t.day:02d} {_달[t.month - 1]} {t.year} {t.hour:02d}:{t.minute:02d}:{t.second:02d} +0900"
+
+
+def _x(v):
+    """XML 글자 — & < > " 이스케이프 · 제어문자 뺌"""
+    s = "".join(ch for ch in str(v or "") if ch in "\t\n" or ord(ch) >= 32)
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+
+def rss_xml(rows, now=None, each=None):
+    """공고 · 개찰 rows(dict 값들) → RSS 2.0 글. 개찰결과 · 입찰공고 각각 최신 each 개를 날짜 내림차순으로."""
+    each = RSS_EACH if each is None else each
+    now = now or datetime.now()
+    좋은 = [r for r in rows if isinstance(r, dict) and str(r.get("no") or "") and all(c.isalnum() or c == "-" for c in str(r.get("no")))
+          and _rfc822(r.get("dt")) and str(r.get("name") or "").strip()]
+    결과 = sorted([r for r in 좋은 if r.get("win")], key=lambda r: str(r.get("dt")), reverse=True)[:each]
+    공고 = sorted([r for r in 좋은 if not r.get("win")], key=lambda r: str(r.get("dt")), reverse=True)[:each]
+    items = []
+    for r in sorted(결과 + 공고, key=lambda r: str(r.get("dt")), reverse=True):
+        no, nm, inst = str(r["no"]), str(r.get("name")).strip(), str(r.get("inst") or "").strip()
+        link = f"{SITE}/notice/{quote(no, safe='')}"
+        if r.get("win"):
+            title = f"{nm} 개찰결과 — 낙찰 {r.get('win')}"
+            try:
+                rt = f" · 투찰률 {float(r.get('rate')):.3f}%"
+            except (TypeError, ValueError):
+                rt = ""
+            desc = f"{inst} · 낙찰 {r.get('win')}{rt} — 기초금액 · 예정가격 · 참가업체 순위"
+        else:
+            title = f"{nm} 입찰공고"
+            try:
+                bs = f" · 기초금액 {int(float(r.get('base'))):,}원" if r.get("base") else ""
+            except (TypeError, ValueError):
+                bs = ""
+            cl = f" · 마감 {str(r.get('close'))[:16]}" if r.get("close") else ""
+            desc = f"{inst}{bs}{cl} — 권장 투찰금액 바로 계산"
+        items.append(f"    <item><title>{_x(title)}</title><link>{_x(link)}</link><guid isPermaLink=\"true\">{_x(link)}</guid>"
+                     f"<pubDate>{_rfc822(r.get('dt'))}</pubDate><description>{_x(desc)}</description></item>")
+    빌드 = f"{_요일[now.weekday()]}, {now.day:02d} {_달[now.month - 1]} {now.year} {now.hour:02d}:{now.minute:02d}:{now.second:02d} +0900"
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">\n  <channel>\n'
+            '    <title>K-건설맵 — 공공 입찰 공고 · 개찰결과</title>\n'
+            f'    <link>{SITE}/</link>\n'
+            f'    <atom:link href="{SITE}/rss.xml" rel="self" type="application/rss+xml" />\n'
+            '    <description>나라장터 공사 입찰공고와 개찰결과(1순위 · 낙찰 투찰률)를 날마다 모아 바로 보여 드립니다.</description>\n'
+            '    <language>ko</language>\n'
+            f'    <lastBuildDate>{빌드}</lastBuildDate>\n'
+            + "\n".join(items) + ("\n" if items else "")
+            + "  </channel>\n</rss>\n")
+
+
+def write_rss(rows):
+    """web/public/rss.xml — sitemap.py 가 npm run build «앞» 에 돌아 dist 로 같이 실립니다."""
+    try:
+        x = rss_xml(list(rows))
+        p = os.path.join(OUT, "rss.xml")
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(x)
+        print(f"  ✅ RSS(새 글 목록) — {x.count('<item>')}개 → {p}")
+    except Exception as e:
+        print(f"  · RSS 를 못 만들었습니다 ({type(e).__name__}: {e}) — 사이트맵은 그대로 갑니다")
 
 
 def stamp_cad_lisp():

@@ -175,6 +175,23 @@ SITENAV = [("/", "바로투찰"), ("/first", "1순위 개찰"), ("/live", "입�
            ("/how", "보는 방법"), ("/ad", "광고 · 제휴")]
 
 
+# ── 🔎 G629 (2026-11-10) 맨 위 주 메뉴 — 네이버 «서브링크»(검색 결과 아래 메뉴 줄) 용 ─────────────────
+#  소장님 「지금은 하나만 나와. 예전엔 서식 입찰해서 여러개가 떴는데」 · 「예전부터 그랬어 … 시간이 좀 됐어」 · 「네이버에서도 검색이 되게 해줘」:
+#  네이버는 사이트 메뉴를 읽어 서브링크를 스스로 만듭니다(신청 길 없음 · 기준 비공개). 그런데 구운 쪽(자바스크립트 없이 읽는 글)에는
+#  맨 위 메뉴가 없고, 맨 아래 «K-건설맵 둘러보기» 목록(SITENAV)만 있었습니다 — 9월 중순 14줄 → 11월 37줄(도구 하나하나까지)로 늘어
+#  «사이트 메뉴»로 안 보일 수 있음(가능성) → 앱 탭 줄과 같은 짧은 주 메뉴를 모든 구운 쪽 «맨 위»에 <nav> 로 둡니다.
+#  React 가 마운트되면 #root 를 통째로 덮어써 이용자 화면은 그대로입니다(앱 탭 줄이 같은 자리 · 잠깐 보이는 것도 같은 차례).
+#  ⚠️ 줄 이름 · 차례를 자주 바꾸지 말 것(메뉴가 바뀌면 서브링크도 다시 셈). 시험: tools/시험_네이버.py ③
+GNB = [("/", "바로투찰"), ("/first", "1순위 개찰"), ("/live", "입찰 공고"), ("/tools", "건설 도구"), ("/forms", "건설 서식"),
+       ("/naeyeok", "내역서"), ("/jeoksan", "K-적산"), ("/qna", "맵톡"), ("/cert", "자격증")]
+
+
+def gnb_html(here=""):
+    return ('<nav class="pre-gnb" aria-label="K-건설맵 주 메뉴">'
+            + "".join(f'<a href="{esc(u)}"' + (' aria-current="page"' if u == here else "") + f'>{esc(nm)}</a>' for u, nm in GNB)
+            + "</nav>")
+
+
 def nav_html(here=""):
     out = ['<div class="card" style="margin-top:10px"><div class="sec-title" '
            'style="margin:0 0 6px">K-건설맵 둘러보기</div><div class="navrow">']
@@ -332,7 +349,7 @@ def page(shell, path, title, desc, body, image=None, jsonld=None):
                       + "</script>\n  </head>", 1)
     # 본문 — React 가 마운트되면 이 자리를 통째로 덮어씁니다
     h = h.replace('<div id="root"></div>',
-                  '<div id="root">' + body + nav_html(path) + "</div>", 1)
+                  '<div id="root">' + gnb_html(path) + body + nav_html(path) + "</div>", 1)
     return h
 
 
@@ -368,7 +385,7 @@ def not_found_page(shell):
             '주소가 바뀌었거나, 7주가 지나 목록에서 빠진 공고일 수 있습니다. '
             '아래에서 찾아보세요.</p></div>')
     return h.replace('<div id="root"></div>',
-                     '<div id="root">' + body + nav_html("") + "</div>", 1)
+                     '<div id="root">' + gnb_html("") + body + nav_html("") + "</div>", 1)
 
 
 def write(rel_path, text):
