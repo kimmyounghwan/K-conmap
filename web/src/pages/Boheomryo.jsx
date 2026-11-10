@@ -8,6 +8,7 @@ import 해마다띠 from '../tools/해마다띠.jsx'
 import 도구설명 from '../tools/도구설명.jsx'
 import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G594 PDF · 인쇄는 그림(글자 층 없음) — 📗 엑셀은 그대로 */
 import 광고칸 from '../광고칸.jsx'   /* 📣 업체 광고 — 계산 결과 표 바로 아래 한 장(자리 보험) */
+import { 세기 } from '../lib/받은수.jsx'   /* 📊 G634 |고용산재보험료|예시 */
 import 금액입력 from '../금액입력.jsx'   /* 💰 G543 금액 칸 다섯 — «12억 5천만» · 붙여넣은 «1,250,000,000원» 도 읽음 · 칸 아래 읽은 줄(바로투찰 G542 와 같은 칸) */
 
 /**
@@ -19,20 +20,29 @@ import 금액입력 from '../금액입력.jsx'   /* 💰 G543 금액 칸 다섯 
  * ■ 율은 lib/해마다.js — 보험연도마다 고르고, 그 해 고시가 아직 없으면 앞 해 값 + 노란 띠
  * ■ 🔁 일의 연속성(소장님 「일의 연속성도 고려 해 주고..」): 해마다 «개산 낸 것 · 확정 낸 것» 을 남김 → 다음 해 확정 정산 때 그 해 개산이 저절로 들어옴 ·
  *   입력 · 기록은 노무비 자료 안(st.bh)이라 노무비 «🔗 코드» 로 폰 · PC 같이 감(투입비 현장은 이 브라우저).
+ * ■ 🧪 G634 (2026-11-10) «예시로 해 보기» — 소장님 「예시 만들어 주고」(점검: 예시 없는 16곳 중 하나)
+ *   지어낸 공사(가나지구 배수로 정비공사 · 총공사금액 12억 5천만 원 · 3월 2일 ~ 12월 18일)를 «화면에만» 띄움 — 적어 둔 칸 · 낸 기록(st.bh)은 건드리지 않음.
+ *   예시 동안 바꾼 칸도 저장 안 함 · «✓ 냈음 기록» · 노무비에서 가져오기는 숨김 · «예시 닫기» 로 내 칸으로 · PDF · 엑셀 이름에 «예시».
  */
 const 숫자만 = (s) => { const v = Number(String(s ?? '').replace(/[^\d]/g, '')); return Number.isFinite(v) ? v : 0 }
 const 백 = (x) => `${Number((x * 100).toFixed(4))}%`
 const 빈입력 = () => ({ 해: Number(한국오늘().slice(0, 4)), 방식: 'nomu', 금액: 0, 하도급: false, 보수: 0, 실업제외: 0, 규모: 's', 임금: true, 석면: true, 성립: '', 끝: '', 낸개산: 0 })
 const 기록정리 = (v) => ({ 입: { ...빈입력(), ...((v && v.입) || {}) }, 낸: (v && v.낸 && typeof v.낸 === 'object') ? v.낸 : {} })
+/* 🧪 G634 예시 — 지어낸 공사 · 그 해 3월 2일 ~ 12월 18일(확정 신고 기한이 다음 해 1월로 넘어가 «앞으로 할 일» 도 보임) */
+export const 예시입력 = (해) => ({ ...빈입력(), 해, 방식: 'nomu', 금액: 1250000000, 하도급: false, 보수: 0, 실업제외: 0, 규모: 's', 임금: true, 석면: true, 성립: `${해}-03-02`, 끝: `${해}-12-18`, 낸개산: 0 })
+export const 예시이름 = '가나지구 배수로 정비공사(지어낸 공사)'
 
 export default function Boheomryo() {
   const 노 = use노무자료()
   const 보 = 기록정리(노.기록('bh'))
-  const 입 = 보.입
-  const set입 = (f) => 노.기록쓰기('bh', { ...보, 입: f(입) })
+  /* 🧪 G634 예시 — 화면에만(저장 안 함) */
+  const [예, set예] = useState(null)
+  const 입 = 예 || 보.입
+  const set입 = (f) => (예 ? set예((x) => f(x)) : 노.기록쓰기('bh', { ...보, 입: f(입) }))
   const 고침 = (k, v) => set입((s) => ({ ...s, [k]: v }))
-  const 낸해 = 보.낸[입.해] || {}
-  const 낸적기 = (무엇, v) => 노.기록쓰기('bh', { ...보, 낸: { ...보.낸, [입.해]: { ...낸해, [무엇]: v } } })
+  const 낸해 = 예 ? {} : (보.낸[입.해] || {})
+  const 낸적기 = (무엇, v) => { if (예) return; 노.기록쓰기('bh', { ...보, 낸: { ...보.낸, [입.해]: { ...낸해, [무엇]: v } } }) }
+  const 예시켜기 = () => { set예(예시입력(Number(한국오늘().slice(0, 4)))); 세기('|고용산재보험료|예시') }
   const [낸칸, set낸칸] = useState('')
   const 해들 = [...new Set([...Object.keys(노무비율표).map(Number), Number(한국오늘().slice(0, 4)), Number(한국오늘().slice(0, 4)) + 1, Number(입.해)])].sort()
   const R = useMemo(() => 보험료(입), [입])
@@ -60,7 +70,7 @@ export default function Boheomryo() {
   /* 🖼 G594 (2026-11-08) 소장님 «엑셀은 그대로 · PDF 는 모두 그림» — 전엔 몸에 hm-print 를 달고 window.print(글자 PDF).
      이제 결과 칸(.hm-out)을 복제본에서만 인쇄 CSS(hm-print)로 펴서 그림으로: 📄 PDF 바로 받기 · 🖨 그림만 인쇄
      (A4 세로 기본 @page · 글자 칸 186 × 271mm) · 숨은 누적 |고용산재보험료|PDF · 인쇄 */
-  const 그 = use그림인쇄(['고용산재보험료', 입.해 + '년', 한국오늘()].join('_'), {
+  const 그 = use그림인쇄(['고용산재보험료', 입.해 + '년', ...(예 ? ['예시'] : []), 한국오늘()].join('_'), {
     셈: '고용산재보험료', 대상: '.bh .hm-out', 몸표: ['hm-print'], 쪽: { 폭: 186, 높: 271 }, 여백: [12, 12], 칸줄: true,
   })
   const 엑셀 = async () => {
@@ -77,7 +87,7 @@ export default function Boheomryo() {
     ]
     const 기줄 = 기.map((x) => [x.무엇, x.기한, x.근거, x.메모 || ''])
     const 분줄 = 분.됨 ? 분.줄.map((g) => [`${g.기}기`, `${g.부터} ~ ${g.까지}`, 수칸(g.금액), g.기한]) : [['분할 안 됨', 분.까닭, '', '']]
-    값엑셀받기(`고용산재보험료_${입.해}`, [
+    값엑셀받기(`고용산재보험료_${입.해}${예 ? '_예시' : ''}`, [
       { name: `${입.해}년 보험료`, head: ['항목', '셈', '금액'], rows: 줄, widths: [26, 60, 16] },
       { name: '기한', head: ['무엇', '기한', '근거', '메모'], rows: 기줄, widths: [36, 12, 26, 40] },
       { name: '분할 납부', head: ['기', '기간', '금액', '납부 기한'], rows: 분줄, widths: [10, 26, 16, 12] },
@@ -94,6 +104,18 @@ export default function Boheomryo() {
           총공사금액(부가세 뺌) × <b>노무비율</b>(고시) 또는 <b>실제 보수총액</b>으로 고용보험료 · 산재보험료 · 임금채권부담금 · 석면분담금을 셉니다.
           노무비 계산기(또는 현장 투입비)에 적은 출역에서 그 해 보수를 가져올 수 있고, 신고 기한 · 분할 납부 · 전액 납부 경감도 나옵니다. 무료.
         </p>
+        {/* 🧪 G634 예시로 해 보기 — 화면에만 · 적어 둔 칸은 그대로 */}
+        {예 ? (
+          <div className="note sm bh-ex" role="status" style={{ marginTop: 10 }}>
+            🧪 <b>예시를 보는 중</b> — {예시이름} · 총공사금액 12억 5천만 원 · 원수급인 · {입.해}년 3월 2일 ~ 12월 18일. 칸을 바꿔 봐도 저장되지 않습니다.
+            <button type="button" className="btn line sm" style={{ width: 'auto', marginLeft: 8 }} onClick={() => set예(null)}>예시 닫기 — 내 칸으로</button>
+          </div>
+        ) : (
+          <div className="btn-row no-print" style={{ justifyContent: 'flex-start', marginTop: 10 }}>
+            <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={예시켜기}>🧪 예시로 해 보기</button>
+            <span className="muted" style={{ fontSize: 12.5, alignSelf: 'center' }}>총공사금액 12억 5천만 원 공사로 — 적어 둔 칸은 그대로 둡니다</span>
+          </div>
+        )}
       </div>
       <div className="card hm-in">
         <해마다띠 키들={['nomu', 'sanjae', 'goyong', 'imgeum', 'seokmyeon', 'hyuil']} 해={R.해} 잠정={R.잠정} />
@@ -134,12 +156,12 @@ export default function Boheomryo() {
             </label>
           </div>
         )}
-        <div className="hm-pull">
+        {!예 && <div className="hm-pull">
           {가져올.달들.length > 0
             ? <>👷 {노.출처 === 'tp' ? `현장 투입비 «${노.넘김.site || ''}»` : '노무비 계산기'}에 {입.해}년 출역 <b>{가져올.달들.length}달 · {가져올.인원}명 · 보수 {원(가져올.보수)}원</b>{가져올.제외 > 0 ? ` (실업급여 몫 없는 보수 ${원(가져올.제외)}원)` : ''}
                 <button type="button" className="btn line sm" style={{ width: 'auto', marginLeft: 8 }} onClick={가져오기}>실제 보수총액으로 가져오기</button></>
             : <span className="muted">👷 <Link to="/tools/nomubi">노무비 계산기</Link>(또는 현장 투입비)에 {입.해}년 출역이 있으면 그 보수를 실제 보수총액으로 가져옵니다.</span>}
-        </div>
+        </div>}
         <div className="hm-row">
           <label>공사 시작일 (보험관계 성립 · 착공)
             <input type="date" className="inp" value={입.성립} onChange={(e) => 고침('성립', e.target.value)} />
@@ -158,7 +180,7 @@ export default function Boheomryo() {
       </div>
 
       <div className="card hm-out">
-        <div className="hm-print-h">🧾 {입.해}년 고용 · 산재 보험료 <span>(K-건설맵 · {오늘} 뽑음)</span></div>
+        <div className="hm-print-h">🧾 {입.해}년 고용 · 산재 보험료{예 ? ' — 예시(지어낸 공사)' : ''} <span>(K-건설맵 · {오늘} 뽑음)</span></div>
         <div className="btn-row no-print" style={{ justifyContent: 'flex-start', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
           <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => 그.PDF()} disabled={!!그.찍기}>{그.찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 PDF 저장 (A4)'}</button>
           <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 그.인쇄()} disabled={!!그.찍기}>{그.찍기 === '인쇄' ? '준비 중…' : '🖨 인쇄'}</button>
@@ -173,17 +195,21 @@ export default function Boheomryo() {
         </div>
         <div className="tp-scroll">
           <table className="tbl hm-t">
-            <thead><tr><th>항목</th><th>율</th><th>금액</th><th className="no-print">근거</th></tr></thead>
+            <thead><tr><th>항목</th><th>율</th><th>금액</th><th className="no-print bh-src">근거</th></tr></thead>
             <tbody>
-              <tr><td>고용 — 실업급여 <small className="muted">(근로자 · 사업주 반씩)</small></td><td className="r">{백(R.고용.실업율)}</td><td className="r">{원(R.고용.실업)}</td><td className="no-print hm-src-t" rowSpan={2}>{R.근거.고용}</td></tr>
+              <tr><td>고용 — 실업급여 <small className="muted">(근로자 · 사업주 반씩)</small></td><td className="r">{백(R.고용.실업율)}</td><td className="r">{원(R.고용.실업)}</td><td className="no-print hm-src-t bh-src" rowSpan={2}>{R.근거.고용}</td></tr>
               <tr><td>고용 — 고용안정 · 직업능력개발 <small className="muted">(사업주)</small></td><td className="r">{백(R.고용.안정율)}</td><td className="r">{원(R.고용.안정)}</td></tr>
-              <tr><td>산재보험료 <small className="muted">(건설업 {백(R.산재.건설)} + 출퇴근 {백(R.산재.출퇴근)})</small></td><td className="r">{백(R.산재.율)}</td><td className="r">{원(R.산재.합)}</td><td className="no-print hm-src-t">{R.근거.산재}</td></tr>
-              <tr className={입.임금 ? '' : 'off'}><td>임금채권부담금</td><td className="r">{백(R.임금.율)}</td><td className="r">{원(R.임금.합)}</td><td className="no-print hm-src-t">{R.근거.임금}</td></tr>
-              <tr className={입.석면 ? '' : 'off'}><td>석면피해구제분담금</td><td className="r">{백(R.석면.율)}</td><td className="r">{원(R.석면.합)}</td><td className="no-print hm-src-t">{R.근거.석면}</td></tr>
-              <tr className="sum"><td>합계</td><td /><td className="r"><b>{원(R.합)}</b></td><td className="no-print" /></tr>
+              <tr><td>산재보험료 <small className="muted">(건설업 {백(R.산재.건설)} + 출퇴근 {백(R.산재.출퇴근)})</small></td><td className="r">{백(R.산재.율)}</td><td className="r">{원(R.산재.합)}</td><td className="no-print hm-src-t bh-src">{R.근거.산재}</td></tr>
+              <tr className={입.임금 ? '' : 'off'}><td>임금채권부담금</td><td className="r">{백(R.임금.율)}</td><td className="r">{원(R.임금.합)}</td><td className="no-print hm-src-t bh-src">{R.근거.임금}</td></tr>
+              <tr className={입.석면 ? '' : 'off'}><td>석면피해구제분담금</td><td className="r">{백(R.석면.율)}</td><td className="r">{원(R.석면.합)}</td><td className="no-print hm-src-t bh-src">{R.근거.석면}</td></tr>
+              <tr className="sum"><td>합계</td><td /><td className="r"><b>{원(R.합)}</b></td><td className="no-print bh-src" /></tr>
             </tbody>
           </table>
         </div>
+        {/* 📱 G634 폰(560px 아래)에서는 «근거» 칸을 표 밖 한 줄씩으로 — 네 칸이면 항목 글이 한두 글자씩 세로로 깨졌음(11-10 캡쳐에서 봄) */}
+        <ul className="hm-src-m no-print">
+          <li><b>고용</b> {R.근거.고용}</li><li><b>산재</b> {R.근거.산재}</li><li><b>임금채권</b> {R.근거.임금}</li><li><b>석면</b> {R.근거.석면}</li>
+        </ul>
         {R.방식 === 'nomu' && <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>노무비율 {백(R.노율)} — {R.근거.노무비율}. 보수총액을 정하기 어려울 때 씁니다(징수법 제13조⑥). 실제 지급한 노무비를 알면 «실제 보수총액» 이 맞습니다.</div>}
 
         <광고칸 자리="보험" />
@@ -211,6 +237,7 @@ export default function Boheomryo() {
               <div key={무엇} className="hm-paid-r">
                 <b>{입.해}년 {무엇}보험료</b>
                 {v ? <>✅ {원(v.a)}원 · {v.d} <button type="button" className="tp-x no-print" onClick={() => 낸적기(무엇, null)}>지우기</button></>
+                  : 예 ? <span className="muted">예시에서는 기록하지 않습니다</span>
                   : <span className="no-print">
                       <금액입력 className="inp hm-paid-in" value={낸칸 && 낸칸.k === 무엇 ? 낸칸.v : ''} placeholder={`${원(R.합)} (셈한 금액)`}
                         onValue={(n, d) => set낸칸({ k: 무엇, v: d })} aria-label={`${입.해}년 ${무엇} 낸 금액`} />

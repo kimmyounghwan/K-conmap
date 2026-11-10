@@ -6328,6 +6328,14 @@ button.sk-mini { color: var(--accent); padding: 0; text-align: left; }
 .hm-t tr.off td { opacity: .5; }
 .hm-t tr.on td { background: var(--accent-soft); font-weight: 700; }
 .hm-t tr.due td { background: var(--bad-soft); }
+/* 📱 G634 폰: 보험료 표의 «근거» 칸(.bh-src — 보험료 화면만)은 표 밖 목록(.hm-src-m)으로 — 항목 글이 세로로 깨지지 않게
+   ⚠ .hm-t · .no-print · .hm-src-t 는 퇴직공제(피공제자 «셈 ✓» 단추 칸) · 해마다 화면도 쓰는 이름 — 여기에 숨김을 걸면 그 화면 칸이 폰에서 사라짐 → 이 화면만의 이름(.bh-src)으로만 숨김 */
+.hm-src-m { display: none; }
+@media (max-width: 560px) {
+  .hm-t .bh-src { display: none; }
+  .hm-src-m { display: block; margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--text-2); line-height: 1.55; }
+  .hm-src-m b { color: var(--text); font-weight: 700; margin-right: 4px; }
+}
 .hm-days { min-width: 160px; font-size: 12px; }
 .hm-ins span { font-size: 11.5px; font-weight: 800; margin-right: 4px; }
 .hm-ins span.y { color: var(--good); } .hm-ins span.n { color: var(--muted); }
