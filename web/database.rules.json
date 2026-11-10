@@ -72,7 +72,11 @@
       "$id": {
         ".write": "auth != null && newData.exists() && ( !data.exists() || data.child('uid').val() === auth.uid || data.child('uid').val() === root.child('qna_who').child(auth.uid).child('r').val() )",
         ".validate": "newData.hasChildren(['t','nick','uid','at']) && ( !root.child('qna_block').child(auth.uid).exists() || newData.child('sb').val() === true )",
-        "t":       { ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 80" },
+        // 🚫 G632 (2026-11-10) 낱자 글 막기 — 소장님 「자음만 쓴 글 삭제해줘. 그리고, 이렇게 쓰는 글은 맵톡에 올라오지 못하게 막아줘」
+        //    말머리 둘([후기·건의] · [K-건설맵])을 떼고 «띄어쓰기와 한글 낱자(ㄱ ~ ㅎ · ㅏ ~ ㅣ · U+3131 ~ U+318E)만» 이면 거절(«ㄱㄱ» · «ㅇㅇ» · «ㅌㅋㅌㅋㅌ»).
+        //    화면(lib/낱자글.js 낱자만)이 먼저 더 넓게 막고(문장부호 · 기호 섞인 것도) 안내를 보여 줍니다 — 여기는 화면을 거치지 않는 쓰기를 막는 뒷문.
+        //    ⚠️ 여기서 막히는 글은 화면에서도 반드시 막혀야 합니다(tools/시험_낱자글.mjs) — 한쪽만 고치지 말 것. 답글(qna_a b)도 같은 꼴.
+        "t":       { ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 80 && !newData.val().replace('[후기·건의] ', '').replace('[K-건설맵] ', '').matches(/^\\s*[ㄱ-ㆎ][\\sㄱ-ㆎ]*$/)" },
         "b":       { ".validate": "newData.isString() && newData.val().length <= 2000" },
         "nick":    { ".validate": "newData.isString() && newData.val().length <= 20 && ( newData.val() !== 'K-건설맵' || (auth.uid === 'ZglL1g3X5UZFBA2590LirDnEnil1' || auth.uid === 'Mk7VznW9UZaRpycYErDsuILmVfl1' || auth.uid === 'pIFo0QpU30X8WJbrVxAg2fLmG2J3') )" },
         "uid":     { ".validate": "newData.isString() && ( newData.val() === auth.uid || newData.val() === root.child('qna_who').child(auth.uid).child('r').val() )" },
@@ -136,7 +140,8 @@
         "$aid": {
           ".write": "auth != null && newData.exists() && ( !data.exists() || data.child('uid').val() === auth.uid || data.child('uid').val() === root.child('qna_who').child(auth.uid).child('r').val() )",
           ".validate": "newData.hasChildren(['b','nick','uid','at']) && ( !root.child('qna_block').child(auth.uid).exists() || newData.child('sb').val() === true )",
-          "b":       { ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 2000" },
+          // 🚫 G632 낱자 답글 막기(qna t 와 같은 꼴 — «ㅋㅋ» · «ㅇㅇ» 만 쓴 답글은 거절)
+          "b":       { ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 2000 && !newData.val().matches(/^\\s*[ㄱ-ㆎ][\\sㄱ-ㆎ]*$/)" },
           "nick":    { ".validate": "newData.isString() && newData.val().length <= 20 && ( newData.val() !== 'K-건설맵' || (auth.uid === 'ZglL1g3X5UZFBA2590LirDnEnil1' || auth.uid === 'Mk7VznW9UZaRpycYErDsuILmVfl1' || auth.uid === 'pIFo0QpU30X8WJbrVxAg2fLmG2J3') )" },
           // ⛔ 운영자 브라우저만 참으로 넣을 수 있습니다. 나머지는 거짓이거나 아예 없어야 합니다.
           //    ⚠️ 번호를 «여기 규칙 안에» 적습니다. DB 에 명단을 따로 두면 그 명단을 넣을 길이
