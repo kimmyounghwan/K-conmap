@@ -464,6 +464,10 @@ input:focus, select:focus, textarea:focus {
 }
 textarea { resize: vertical; min-height: 88px; line-height: 1.6; }
 input[type=number] { font-variant-numeric: tabular-nums; }
+/* ☑ G642 (2026-11-10) 체크 · 라디오 상자는 위 전역 input(넓이 100% · 안쪽 여백 11px 12px)을 받지 않음 — 아이폰 사파리에서 상자가
+   단추 넓이만큼 커져 옆 글을 가렸음(서식 «2027 달력» 시트 단추 · 소장님 폰 캡쳐 11-10). 2026-09-15 · .iy-opt · .tlchk 처럼 곳곳에서
+   하나씩 되돌리던 것을 여기서 한 번에. 크기를 따로 정한 곳(.gx-brand input 16px 등)은 그대로 — 그 규칙이 뒤에 있어 이김. */
+input[type=checkbox], input[type=radio] { width: auto; padding: 0; flex-shrink: 0; }
 
 .btn {
   display: inline-flex;
@@ -2366,7 +2370,7 @@ a.flink:hover { opacity: .8; }
 .ctotal div { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 0; }
 .ctotal span { font-size: 12.5px; color: var(--muted); }
 .ctotal b { font-size: 18px; font-weight: 800; }
-.adtoggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.adtoggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); word-break: keep-all; }
 /* 🧮 G371 설계변경 계산기 — 예시 · 붙여넣기 · 값만 엑셀 · 승율 */
 .chg-quick { flex-wrap: wrap; gap: 6px; }
 .chg-quick .btn { width: auto; }
@@ -8951,7 +8955,7 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
    종이 = 캔버스(엑셀 칸 그대로) · 칸을 누르면 아래 «쓰는 칸» · 인쇄 · PDF 는 같은 그림(#gx-인쇄 — 화면에는 안 보임) */
 .gx .fw-bar .gx-zoom { display: inline-flex; gap: 4px; margin-left: auto; }
 .gx-brand { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; white-space: nowrap; }   /* 🏷 G369 */
-.gx-brand input { width: 16px; height: 16px; margin: 0; }
+.gx-brand input { width: 16px; height: 16px; margin: 0; padding: 0; flex: none; }
 @media (max-width: 640px) {
   /* 📱 G369 폰 — 단추 다섯 줄이 종이를 화면 아래로 밀었음 → 작은 단추 세 칸씩(PDF 저장만 한 줄) */
   .gx .fw-bar { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
@@ -8967,7 +8971,7 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gx-sh { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px; font-size: 12.5px; background: var(--surface); }
 .gx-sh.on { border-color: var(--accent); }
 .gx-sh a { color: var(--text); text-decoration: none; font-weight: 700; }
-.gx-sh input { margin: 0; }
+.gx-sh input { width: 16px; height: 16px; min-width: 16px; margin: 0; padding: 0; flex: 0 0 16px; accent-color: var(--accent); }   /* ☑ G642 폰(아이폰)에서 상자가 커져 시트 이름을 가렸음 */
 .gx-wrap { display: grid; justify-items: center; gap: 0; min-width: 0; padding: 4px 0; background: var(--surface-2); border-radius: 10px; }
 .gx-wrap.zoomed { overflow-x: auto; justify-items: start; }
 .gx-slide { margin: 0 0 4px; padding: 0 2px; line-height: 1.5; word-break: keep-all; }   /* 한 줄(폰 320 에서도) — 종이를 덜 밀어 내림 */

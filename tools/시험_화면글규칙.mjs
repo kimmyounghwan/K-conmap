@@ -138,5 +138,16 @@ const 훅표본 = ["import { use인쇄 } from './공정인쇄.js'", "  const [�
 const 훅괜찮음 = ["import { use그림인쇄 } from './그림인쇄훅.js'", '/* 옛 use인쇄 → use그림인쇄 */ const 그 = use그림인쇄(이름)', "// use인쇄 는 이제 안 씀", 'const 내use인쇄훅 = 1']
 ok(`(가) 옛 훅 꼴 ${훅표본.length}가지 잡음 · use그림인쇄 · 주석 · 다른 이름은 안 잡음`, 훅표본.every((x) => 옛훅꼴.test(주석빼기js(x))) && 훅괜찮음.every((x) => !옛훅꼴.test(주석빼기js(x))), [...훅표본.filter((x) => !옛훅꼴.test(주석빼기js(x))), ...훅괜찮음.filter((x) => 옛훅꼴.test(주석빼기js(x)))])
 
+console.log('⑥ 체크 · 라디오 상자는 전역 input(넓이 100% · 안쪽 여백)을 받지 않음 — 아이폰에서 상자가 단추만큼 커져 글을 가렸음(G642 · 11-10 서식 시트 단추)')
+{
+  const css = fs.readFileSync(path.join(ROOT, 'web/src/styles.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+  const 전역 = css.search(/(^|\n)input,\s*select,\s*textarea\s*\{[^}]*width:\s*100%/)
+  const 되돌림m = /(^|\n)input\[type=checkbox\],\s*input\[type=radio\]\s*\{([^}]*)\}/.exec(css)
+  ok('(가) 전역 input 규칙 바로 뒤 «input[type=checkbox], input[type=radio] { width: auto; padding: 0 }» 가 있음',
+    전역 >= 0 && !!되돌림m && 되돌림m.index > 전역 && /width:\s*auto/.test(되돌림m[2]) && /padding:\s*0/.test(되돌림m[2]), [전역, 되돌림m && 되돌림m[2]])
+  const 시트 = /\.gx-sh input\s*\{([^}]*)\}/.exec(css)
+  ok('(나) 서식 시트 단추 상자(.gx-sh input)는 크기를 px 로 · 안쪽 여백 0', !!시트 && /width:\s*\d+px/.test(시트[1]) && /height:\s*\d+px/.test(시트[1]) && /padding:\s*0/.test(시트[1]), 시트 && 시트[1])
+}
+
 console.log(`\n${bad ? '✗' : '✓'} 시험_화면글규칙 ${n - bad}/${n}`)
 process.exit(bad ? 1 : 0)
