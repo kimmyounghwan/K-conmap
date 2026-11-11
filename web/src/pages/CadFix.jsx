@@ -181,16 +181,19 @@ export default function CadFix() {
   /* 설정이 바뀌면 결과는 다시 */
   useEffect(() => { 목록Ref.current = 목록Ref.current.map((x) => (x.상태 === '끝' ? { ...x, 상태: '진단', 결과: null } : x)); set목록(목록Ref.current) }, [설정])
 
+  /* 🧪 G650(11-11) 소장님 「막아 놓은 건 예시도 받지 못하게 막고 볼 수만 있게 해」 — 열쇠말 · 소장님 브라우저에서도 예시 도면은 보기만 */
+  const 예시막음 = () => { set잠금말('🧪 예시 도면은 보기만 됩니다 — 받기는 내 도면(DWG · DXF)을 넣고 고친 뒤에 됩니다.'); 세기('|캐드고침|예시잠금') }
   const 받기 = async (x) => {
     if (!씀) { 잠김('고친 도면 받기는'); return }
+    if (x && x.예시) { 예시막음(); return }
     if (!x.결과) return
     저장하기(받을이름(x.이름, x.결과.판이름, x.결과.설정.방식), x.결과.buf, 'application/dxf')
     세기('|캐드고침|받기')
   }
   const 모두받기 = async () => {
     if (!씀) { 잠김('고친 도면 받기는'); return }
-    const 된것 = 목록.filter((x) => x.결과)
-    if (!된것.length) return
+    const 된것 = 목록.filter((x) => x.결과 && !x.예시)
+    if (!된것.length) { if (목록.some((x) => x.결과 && x.예시)) 예시막음(); return }
     if (된것.length === 1) { 받기(된것[0]); return }
     const { zipSync } = await import('fflate')
     const 묶음 = {}
@@ -358,8 +361,8 @@ export default function CadFix() {
               {도는중 ? '⏳ 고치는 중…' : `🛠 고치기${진단끝 > 1 ? ` (${진단끝}장)` : ''}`}
             </button>
             {목록.some((x) => x.결과) && (
-              <button type="button" className={'btn line' + (씀 ? '' : ' sg-lockbtn')} style={{ width: 'auto' }} onClick={모두받기}>
-                {씀 ? `⬇ 받기${목록.filter((x) => x.결과).length > 1 ? ` (ZIP ${목록.filter((x) => x.결과).length}장)` : ' (DXF)'}` : '🔒 받기'}
+              <button type="button" className={'btn line' + (씀 && 목록.some((x) => x.결과 && !x.예시) ? '' : ' sg-lockbtn')} style={{ width: 'auto' }} onClick={모두받기}>
+                {씀 && 목록.some((x) => x.결과 && !x.예시) ? `⬇ 받기${목록.filter((x) => x.결과 && !x.예시).length > 1 ? ` (ZIP ${목록.filter((x) => x.결과 && !x.예시).length}장)` : ' (DXF)'}` : '🔒 받기'}
               </button>
             )}
           </div>
@@ -383,8 +386,9 @@ export default function CadFix() {
           )}
           {지금.결과.그림 ? <미리보기 그림={지금.결과.그림} /> : <div className="muted">이 도면을 고르고 «고치기» 를 누르면 미리보기가 나옵니다.</div>}
           <div className="cfx-go">
-            <button type="button" className={'btn' + (씀 ? '' : ' sg-lockbtn')} style={{ width: 'auto' }} onClick={() => 받기(지금)}>{씀 ? '⬇ 이 도면 받기 (DXF)' : '🔒 받기'}</button>
+            <button type="button" className={'btn' + (씀 && !예시중 ? '' : ' sg-lockbtn')} style={{ width: 'auto' }} onClick={() => 받기(지금)}>{씀 && !예시중 ? '⬇ 이 도면 받기 (DXF)' : '🔒 받기'}</button>
             {예시중 && !씀 && <span className="muted" style={{ fontSize: 13 }}>🧪 예시는 미리보기까지 — 받기는 곧 엽니다.</span>}
+            {예시중 && 씀 && <span className="muted" style={{ fontSize: 13 }}>🧪 예시 도면은 보기만 — 받기는 내 도면을 넣고 고친 뒤에 됩니다.</span>}
           </div>
         </div>
       )}

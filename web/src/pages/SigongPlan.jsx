@@ -91,6 +91,9 @@ export default function SigongPlan() {
   /* 🔒 씀 = 소장님 브라우저 · 열쇠말을 넣은 브라우저 */
   const [씀, set씀] = useState(() => isOpen())
   const [예시봄, set예시봄] = useState(false)
+  /* 🧪 G650(11-11) 소장님 「막아 놓은 건 예시도 받지 못하게 막고 볼 수만 있게 해」 — 열쇠말 · 소장님 브라우저에서도
+     예시 내역서로 만든 한 벌은 보기만(받기 넷 막음) · 내 내역서를 올리면 풂 */
+  const 예시내역 = !!(내역 && 내역.이름 === '예시_내역서.xlsx')
   const [잠금말, set잠금말] = useState('')
   const [열쇠말, set열쇠말] = useState('')
   const [열쇠틀림, set열쇠틀림] = useState(false)
@@ -230,6 +233,7 @@ export default function SigongPlan() {
 
   const 내려받기 = async (형식) => {
     if (!씀) { 잠김(형식표[형식][0] + ' 받기는'); return }
+    if (예시내역) { set잠금말(`🧪 예시 내역서로 만든 것은 보기만 됩니다 — ${형식표[형식][0]} 받기는 내 내역서를 올린 뒤에 됩니다.`); 세기('|시공계획|예시잠금'); return }
     if (!쪽들.length) return
     const [이름, 타입, 끝] = 형식표[형식]
     set내림중(이름); await 숨()
@@ -533,14 +537,15 @@ export default function SigongPlan() {
           {!자료 && <p className="muted" style={{ marginTop: 0 }}>내역서를 올리기 전에도 틀(품질 · 안전 · 환경 · 교통)은 볼 수 있습니다. 내역서를 넣으면 공정 · 물량 · 공종이 채워집니다.</p>}
           <div className="sg-dl">
             {Object.entries(형식표).map(([k, [이름]]) => (
-              <button key={k} type="button" className={씀 ? (k === 'pdf' ? 'btn' : 'btn line') : 'btn line sg-lockbtn'} style={{ width: 'auto' }} disabled={씀 && (!쪽들.length || !!내림중)} onClick={() => 내려받기(k)}>
-                {내림중 === 이름 ? '⏳ 만드는 중…' : `${씀 ? '⬇' : '🔒'} ${이름}`}
+              <button key={k} type="button" className={씀 && !예시내역 ? (k === 'pdf' ? 'btn' : 'btn line') : 'btn line sg-lockbtn'} style={{ width: 'auto' }} disabled={씀 && !예시내역 && (!쪽들.length || !!내림중)} onClick={() => 내려받기(k)}>
+                {내림중 === 이름 ? '⏳ 만드는 중…' : `${씀 && !예시내역 ? '⬇' : '🔒'} ${이름}`}
               </button>
             ))}
             <button type="button" className={'btn line' + (씀 ? '' : ' sg-lockbtn')} style={{ width: 'auto' }} onClick={원클릭에} title="공사명 · 위치 · 착공 · 준공 · 회사 · 현장대리인을 공사서류 원클릭(착공계 · 착공서류)으로 넘깁니다">{씀 ? '⚡' : '🔒'} 착공서류(원클릭)로</button>
           </div>
           {!씀 && <p className="muted" style={{ margin: '6px 0 0' }}>🧪 예시(지어낸 공사)입니다. 받기 · 넘기기는 준비 중 — 화면에서 쪽마다 넘겨 보십시오.</p>}
-          {!씀 && 잠금말 && <div className="cwarn" style={{ marginTop: 6 }}>{잠금말}</div>}
+          {씀 && 예시내역 && <p className="cwarn" style={{ margin: '6px 0 0' }}>🧪 지금은 <b>예시 내역서</b>로 만든 것입니다 — 보기만 됩니다. 받기(PDF · 한글 · 워드 · 엑셀)는 내 내역서를 올린 뒤에 됩니다.</p>}
+          {잠금말 && (!씀 || 예시내역) && <div className="cwarn" style={{ marginTop: 6 }}>{잠금말}</div>}
           {쪽 && (
             <>
               <div className="sg-pager">

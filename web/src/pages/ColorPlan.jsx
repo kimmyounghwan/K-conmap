@@ -287,6 +287,8 @@ export default function ColorPlan() {
   const [내림, set내림] = useState('')
   const 받기 = async (꼴) => {
     if (!씀) { 잠김(`${꼴} 받기는`); return }
+    /* 🧪 G650(11-11) 소장님 「막아 놓은 건 예시도 받지 못하게 막고 볼 수만 있게 해」 — 열쇠말 · 소장님 브라우저에서도 예시 도면은 보기만 */
+    if (도면 && 도면.예시) { set잠금말(`🧪 예시 도면은 보기만 됩니다 — ${꼴} 받기는 내 도면(DXF · DWG)을 넣은 뒤에 됩니다.`); 세기('|컬러평면|예시잠금'); return }
     if (!장면 || !D) return
     set내림(꼴); set오류(''); await 숨()
     try {
@@ -419,10 +421,11 @@ export default function ColorPlan() {
               )}
               {장면 ? <미리보기 장면={장면} 고른방={탭 === 'color' ? 고른방 : null} on누름={눌렀다} 누름말={누름말} /> : <div className="muted">그리는 중…</div>}
               <div className="cpl-dl">
-                <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={!!내림} onClick={() => 받기('PDF')}>{씀 ? '📄' : '🔒'} PDF{탭 === 'evac' ? ` (${쪽목록.length}장)` : ''}</button>
-                <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!내림} onClick={() => 받기('PNG')}>{씀 ? '🖼' : '🔒'} PNG 300dpi</button>
-                <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!내림} onClick={() => 받기('DXF')}>{씀 ? '📐' : '🔒'} DXF (캐드)</button>
+                <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={!!내림} onClick={() => 받기('PDF')}>{씀 && !예시중 ? '📄' : '🔒'} PDF{탭 === 'evac' ? ` (${쪽목록.length}장)` : ''}</button>
+                <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!내림} onClick={() => 받기('PNG')}>{씀 && !예시중 ? '🖼' : '🔒'} PNG 300dpi</button>
+                <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!내림} onClick={() => 받기('DXF')}>{씀 && !예시중 ? '📐' : '🔒'} DXF (캐드)</button>
                 {내림 && <span className="muted">⏳ {내림} 만드는 중…</span>}
+                {씀 && 예시중 && <span className="muted" style={{ fontSize: 13 }}>🧪 예시 도면은 보기만 — 받기는 내 도면을 넣은 뒤에 됩니다.</span>}
                 <span className="muted" style={{ marginLeft: 'auto' }}>{장면 ? `${장면.종이} · 축척 1/${장면.축척}` : ''}</span>
               </div>
             </div>

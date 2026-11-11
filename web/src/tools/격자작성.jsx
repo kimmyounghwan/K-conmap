@@ -17,6 +17,8 @@
  *   ■ 사진은 lib/사진정리.js 사진열기(EXIF 방향대로 세움 · 긴 쪽 2000 · JPEG)로 읽고, 찍은 날(EXIF)이 있으면 같은 줄 «촬영일» 칸이 비었을 때 채웁니다.
  *   ■ 화면 · PDF · 인쇄 모두 같은 그림(격자그림.js 쪽그리기 사진칸) · 사진은 서버로 안 가고 이 브라우저(IndexedDB · lib/격자사진.js)에 남습니다 — 쓰던 것(cur) · 💾 저장한 것(id).
  *   ■ «✍ 예시 채우기» 는 사진 칸에도 가상 사진(lib/사진예시.js) · «🧹 빈칸으로» 는 사진도 뺌 · «복사해 새로» 는 사진 없이(새 날 사진).
+ *   🧪 G650(11-11) 소장님 「예시는 보기만 가능하게… 그리고 막아줘」 → 예시 채운 뒤엔 «🧹 빈칸으로»(또는 불러오기 · 복사해 새로) 전까지
+ *     PDF · 인쇄 · 저장 · Ctrl+P 막음(🔒 · 보기만 — Ctrl+P 는 안내 한 장) · 새로고침해도 그대로(쓴열쇠 안 ex) · 숨은 누적 |서식격자|예시잠금.
  *   ■ 숨은 누적: |서식격자|사진 (사진을 넣을 때 1)
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -150,6 +152,8 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
   const 고를때 = useRef(false)
   const [글, set글] = useState('')
   const [저장들, set저장들] = useState(() => { const a = (읽기(쓴열쇠, {})[slug] || {}).saved; return Array.isArray(a) ? a : [] })
+  /* 🧪 G650 예시 채운 동안은 보기만 — «🧹 빈칸으로» · 불러오기 · 복사해 새로 에서 풂 */
+  const [예시중, set예시중] = useState(() => { const 내것 = 읽기(쓴열쇠, {})[slug] || {}; return !!(내것.ex && 내것.cur && Object.keys(내것.cur).length) })
   const [목록, set목록] = useState(false)
   const [말, set말] = use잠깐말(4500)   // 🩹 G588b 같은 알림을 그 시간 안에 또 띄워도 시간을 새로 셈(lib/잠깐말.js — 전엔 둘째 알림이 곧 사라짐)
   /* 「자세히 설명해줘. 이용자가 알게」 — 전엔 처음 온 기기에서 펴 두었는데(접기 전까지 늘 펴짐), 열 줄 설명이 종이를 화면 아래로 밀어
@@ -218,9 +222,9 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
   /* 쓰던 것 저절로 — 0.6초 뒤 */
   useEffect(() => {
     if (!판번) return undefined
-    const t = setTimeout(() => { const 전체 = 읽기(쓴열쇠, {}); 전체[slug] = { cur: 책.내보내기(), saved: 저장들 }; 쓰기(쓴열쇠, 전체) }, 600)
+    const t = setTimeout(() => { const 전체 = 읽기(쓴열쇠, {}); 전체[slug] = { cur: 책.내보내기(), saved: 저장들, ...(예시중 ? { ex: 1 } : {}) }; 쓰기(쓴열쇠, 전체) }, 600)
     return () => clearTimeout(t)
-  }, [판번, 저장들, slug, 책])
+  }, [판번, 저장들, slug, 책, 예시중])
 
   /* 폭 재기 */
   useLayoutEffect(() => {
@@ -468,6 +472,11 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
     const box = 인쇄판.current
     if (!box) return
     box.innerHTML = ''
+    if (예시중) {          /* 🧪 G650 예시는 보기만 — Ctrl+P 로 찍어도 안내 한 장 */
+      const d = document.createElement('div'); d.className = 'gx-p port gx-예시인쇄'
+      d.textContent = '🧪 작성 예시는 보기만 됩니다 — «🧹 빈칸으로» 를 누르고 내 현장으로 적은 뒤 인쇄 · PDF 저장을 해 주세요.'
+      box.appendChild(d); return
+    }
     let 목록 = 쪽목록() || 쪽목록전부()
     if (목록.length > 40 && !쪽고름.trim()) {        // Ctrl+P 로 큰 서식 전부 — 화면 가까운 쪽만(기억이 모자라 멈추지 않게)
       const 가까 = 목록.filter(([si, pi]) => !보임 || 보임.has(`${si}-${pi}`))
@@ -502,7 +511,9 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
     const 현장 = String(공통.현장 || '').replace(/[\\/:*?"<>|]/g, '').slice(0, 30)
     return `${title}${현장 ? '_' + 현장 : ''}_${오늘글()}`
   }
+  const 예시막음 = () => { set말('🧪 예시는 보기만 됩니다 — «🧹 빈칸으로» 를 누르고 내 현장으로 적으면 PDF · 인쇄 · 저장이 됩니다'); 세기('|서식격자|예시잠금') }
   const 인쇄 = () => {
+    if (예시중) { 예시막음(); return }
     const 목록 = 쪽목록()
     if (!목록) { set말('쪽 칸은 «1-3, 7» 처럼 적어 주세요'); return }
     if (목록.length > 많음) { set말(`쪽이 많습니다(${목록.length}쪽) — 위 «쪽» 칸에 인쇄할 쪽을 적어 주세요(예: 1-10)`); return }
@@ -515,6 +526,7 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
   const [PDF중, setPDF중] = useState(false)
   const PDF = async () => {
     if (PDF중) return
+    if (예시중) { 예시막음(); return }
     setPDF중(true)
     세기('|서식격자|PDF'); 받음(`/forms/w/${slug}.pdf`)
     try {
@@ -540,6 +552,7 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
 
   /* ── 저장 · 예시 · 비우기 ── */
   const 저장 = () => {
+    if (예시중) { 예시막음(); return }
     const 공통 = 읽기(공통열쇠, {})
     const 이름 = String(공통.현장 || title).slice(0, 30) + ' · ' + new Date(Date.now() + 9 * 3600e3).toISOString().slice(5, 16).replace('T', ' ')
     const id = Date.now().toString(36)
@@ -549,7 +562,7 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
     set말(`💾 «${이름}» 으로 저장했습니다 — 이 기기에만 남습니다`)
   }
   const 불러오기 = (x) => {
-    책.들여오기(x.v); set목록(false); 고르기(null); set판번((n) => n + 1); set말(`📂 «${x.nm}» 을 불러왔습니다`)
+    책.들여오기(x.v); set예시중(false); set목록(false); 고르기(null); set판번((n) => n + 1); set말(`📂 «${x.nm}» 을 불러왔습니다`)
     if (사진칸들.length) { 사진들.current.clear(); set사진판((n) => n + 1); 사진꺼내기(slug, x.id).then(async (들) => { for (const p of 들) { try { 사진들.current.set(p.칸, { 그림: await 그림으로(p.바이트), 바이트: p.바이트, w: p.w, h: p.h, 때: p.때 }) } catch (e) { /* */ } } set사진판((n) => n + 1); set판번((n) => n + 1) }) }
   }
   /* «전일» 칸 — 엑셀에선 INDIRECT("'"&전날시트&"'!H"&ROW()) 로 어제 시트의 같은 줄을 끌어옴(작업일보) → 사이트에선 «복사해 새로» 때 어제 값으로 */
@@ -559,7 +572,7 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
     return out
   }, [doc])
   const 복사새로 = (x) => {
-    책.들여오기(x.v)
+    책.들여오기(x.v); set예시중(false)
     let 전 = 0
     if (전일칸.length) {
       const 어제 = 전일칸.map((q) => { let col = 0; for (const ch of q.열) col = col * 26 + ch.charCodeAt(0) - 64; return 책.값(q.si, q.r, col) })
@@ -586,9 +599,9 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
   }
   const 지우기 = (x) => { set저장들(저장들.filter((y) => y.id !== x.id)); if (x.p) 사진지우기(slug, x.id) }
   const 예시 = async () => {
-    책.들여오기(doc.ex || {})
+    책.들여오기(doc.ex || {}); set예시중(true)
     세기('|서식격자|예시'); 고르기(null); set판번((n) => n + 1)
-    set말('✍ 가상의 현장으로 채운 작성 예시입니다 — 고쳐 쓰시거나 «🧹 빈칸으로» 를 누르세요')
+    set말('✍ 가상의 현장으로 채운 작성 예시입니다 — 보기만 됩니다(PDF · 인쇄 · 저장 안 됨) · 내 것은 «🧹 빈칸으로» 를 누르고 적으세요')
     if (사진칸들.length) {
       try {
         const { 예시사진파일들, 예시그림파일, 그림종류 } = await import('../lib/사진예시.js')
@@ -608,7 +621,7 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
       } catch (e) { /* 예시 사진은 못 그려도 글 예시는 그대로 */ }
     }
   }
-  const 비우기 = () => { 책.모두지우기(); 공통채우기(true); 고르기(null); 사진모두빼기(); set판번((n) => n + 1); set말('🧹 빈 서식으로 돌렸습니다(공사명 · 회사 등은 남김)') }
+  const 비우기 = () => { 책.모두지우기(); 공통채우기(true); 고르기(null); 사진모두빼기(); set예시중(false); set판번((n) => n + 1); set말('🧹 빈 서식으로 돌렸습니다(공사명 · 회사 등은 남김)') }
   const 예시있음 = doc.ex && Object.keys(doc.ex).length > 0
 
   /* 쓰는 칸 */
@@ -641,9 +654,9 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
         </div>
       </div>
       <div className="fw-bar">
-        <button type="button" className="btn primary" onClick={PDF} disabled={PDF중}>{PDF중 ? 'PDF 만드는 중…' : '📄 PDF 저장'}</button>
-        <button type="button" className="btn ghost" onClick={인쇄}>🖨 인쇄</button>
-        <button type="button" className="btn ghost" onClick={저장}>💾 저장</button>
+        <button type="button" className={'btn primary' + (예시중 ? ' sg-lockbtn' : '')} onClick={PDF} disabled={PDF중}>{PDF중 ? 'PDF 만드는 중…' : 예시중 ? '🔒 PDF 저장' : '📄 PDF 저장'}</button>
+        <button type="button" className={'btn ghost' + (예시중 ? ' sg-lockbtn' : '')} onClick={인쇄}>{예시중 ? '🔒 인쇄' : '🖨 인쇄'}</button>
+        <button type="button" className={'btn ghost' + (예시중 ? ' sg-lockbtn' : '')} onClick={저장}>{예시중 ? '🔒 저장' : '💾 저장'}</button>
         <button type="button" className={'btn ghost' + (목록 ? ' on' : '')} onClick={() => set목록(!목록)} aria-expanded={목록}>📂 저장한 것 {저장들.length}</button>
         {예시있음 && <button type="button" className="btn ghost" onClick={예시}>✍ 예시 채우기</button>}
         <button type="button" className="btn ghost" onClick={비우기}>🧹 빈칸으로</button>
@@ -664,6 +677,7 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
           {안내.차례.map(([머리, 글]) => <li key={머리}><b>{머리}</b> — {글}</li>)}
         </ol>
       </details>
+      {예시중 && <div className="cwarn" role="note" style={{ margin: '0 0 10px' }}>🧪 지금은 <b>작성 예시</b>입니다 — 보기만 됩니다(PDF · 인쇄 · 저장 안 됨). 내 서식은 <b>«🧹 빈칸으로»</b> 를 누르고 적으세요.</div>}
       {말 && <div className="fw-say" role="status">{말}</div>}
       {목록 && (
         <div className="fw-list">

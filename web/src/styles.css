@@ -9023,6 +9023,7 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
   #gx-인쇄 .gx-p.port { page: gx-port; width: 210mm; height: 296.6mm; }
   #gx-인쇄 .gx-p.land { page: gx-land; width: 297mm; height: 209.6mm; }
   #gx-인쇄 .gx-p canvas { display: block; width: 100%; height: 100%; }
+  #gx-인쇄 .gx-p.gx-예시인쇄 { box-sizing: border-box; padding: 40mm 20mm; font-size: 16pt; line-height: 1.7; color: #222; }   /* 🧪 G650 예시는 보기만 — Ctrl+P 안내 한 장 */
 }
 .gx .fw-bar .gx-range { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; }
 .gx .fw-bar .gx-range .inp { width: 170px; padding: 8px 10px; font-size: 14px; margin: 0; }
