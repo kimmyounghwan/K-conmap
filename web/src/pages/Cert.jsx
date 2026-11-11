@@ -5,6 +5,7 @@ import { Blocks, guideMd as md } from './Guide.jsx'
 import { ShareBtn } from './CorpPage.jsx'
 import NotFound from './NotFound.jsx'
 import * as G from '../lib/등급셈.js'
+import { 세기 } from '../lib/받은수.jsx'   /* 📄 G652 기출칸 누름 셈(사이트엔 안 보임) */
 
 /**
  * 📚 /cert · /cert/grade · /cert/{종목} — 토목 · 건축 자격증 (G625 · 2026-11-09)
@@ -39,6 +40,31 @@ function 맞나(x, q) {
 
 /* 큐넷 종목별 상세정보(시험정보 · 일정 · 수수료 · 출제기준) — 번호(jmCd)는 큐넷 종목 목록에서 11-09 옮김 */
 export const 큐넷종목 = (x) => (x && x.q ? `https://www.q-net.or.kr/crf005.do?id=crf00503&jmCd=${x.q}` : 큐넷)
+
+/* 📄 G652 (11-11) 소장님 「자격증 기출문제 연결 안되게 많아. 그리고 예상문제도 없고」 → 「클로드가 한 것 처럼 하자」(기획 ①)
+   종목마다 «📄 기출문제» 칸 — cert.json items[].gq(tools/자격증만들기/기출칸.py · 2026-11-11 큐넷 자료실을 종목 이름으로 찾아 확인)
+   · 기출 = «기출문제(기술사)» 자료실(code 1203) · 공개 · 예시 = «공개문제» 자료실(code 1204) — 그 종목 이름으로 찾은 목록으로 바로(새 창)
+   · 없음 = 자료실에 그 종목 문제가 없음(기사 · 산업기사 · 기능사 필기) → 제 예상문제 · 짝 예상문제(qzRef) · 아니면 «차례로 만들고 있습니다»
+   · 구운 쪽(prerender.py cert_item)도 같은 글 · 같은 링크 · 셈 |자격증기출|slug · |자격증기출짝|slug */
+export const 큐넷찾기 = (code, 이름) => `https://www.q-net.or.kr/cst006.do?id=cst00601&code=${code}&gSite=Q&schType=A&schText=${encodeURIComponent(이름)}`
+export const 기출길 = (x) => (!x || !x.gq ? null : 큐넷찾기(x.gq === '기출' ? '1203' : '1204', x.n))
+export const 기출글 = { 기출: ['📄 기출문제 — 큐넷 문제지', '회차별 필기 문제지(한국산업인력공단) · 제140회(2026. 8.)부터 공공누리 제1유형'],
+  공개: ['📄 실기 공개문제 — 큐넷', '한국산업인력공단이 공개한 실기 문제(큐넷 공개문제 자료실)'],
+  예시: ['📄 실기 예시문제 — 큐넷', '한국산업인력공단이 공개한 실기 예시문제(큐넷 공개문제 자료실)'] }
+function 기출칸({ x }) {
+  const 셈 = (k) => () => { try { 세기(k + x.slug) } catch (e) { /* 없음 */ } }
+  if (x.gq && 기출글[x.gq]) {
+    const [제목, 설명] = 기출글[x.gq]
+    return <a className="cert-big gq-go" href={기출길(x)} target="_blank" rel="noopener nofollow" onClick={셈('|자격증기출|')}><b>{제목} <span className="gq-ext">↗</span></b><span>{설명}</span></a>
+  }
+  const 짝 = x.qzRef && 깊은[x.qzRef.s] && 깊은[x.qzRef.s].quiz ? certBySlug(x.qzRef.s) : null
+  return (
+    <div className="gq-none"><b>📄 기출문제</b> — 이 종목 문제는 큐넷 자료실(기출 · 공개문제)에 없습니다.
+      {깊은[x.slug] && 깊은[x.slug].quiz ? ' 위 «📝 예상문제 풀기» 로 연습하세요.'
+        : 짝 ? <> <Link to={`/cert/${짝.slug}/quiz`} onClick={셈('|자격증기출짝|')}>📝 {짝.n} 예상문제</Link> 로 연습하세요 — {x.qzRef.d}.</>
+          : ' 예상문제는 차례로 만들고 있습니다.'}</div>
+  )
+}
 
 /* 📅📊🏅 G643 큐넷 덧(시험 일정 · 합격률 최근 5년 · 법령 우대) — 종목마다 data/certq/{종목}.json(따로 조각 — 이 쪽을 열 때만 받음)
    글은 tools 만들기(make_deep4)가 만든 블록 그대로 · 구운 쪽(prerender.py cert_item)도 같은 파일 · 같은 자리(«📝 시험» 바로 뒤) */
@@ -247,6 +273,7 @@ export function CertItem() {
           <Link className="cert-big qz-go" to={`/cert/${slug}/interview`}><b>🎤 면접 준비</b>
             <span>자주 나오는 질문 {d.interview.수}개 · 분야별 답 요령 · 근거 · 외운 것 표시</span></Link>
         )}
+        <기출칸 x={x} />   {/* 📄 G652 종목마다 기출문제 · 공개문제 길 */}
       </div>
       {secs.length > 3 && (   /* 🧭 G643 차례 — 눌러서 바로 그 칸으로(폰에서 길게 내리지 않게) */
         <nav className="cert-toc" aria-label="이 쪽 차례">
