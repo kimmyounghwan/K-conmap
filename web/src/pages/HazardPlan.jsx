@@ -83,6 +83,10 @@ export default function HazardPlan() {
   const [폭, set폭] = useState(560)
   const [씀, set씀] = useState(() => isOpen())
   const [예시봄, set예시봄] = useState(false)
+  /* 🧪 G650(11-11) 소장님 「막아 놓은 건 예시도 받지 못하게 막고 볼 수만 있게 해」 — 열쇠말 · 소장님 브라우저에서도
+     «🧪 예시(가상 공사)로 채우기» 한 것은 보기만(받기 넷 막음) · «↺ 비우기» 에서 풂 · 새로고침해도 그대로 */
+  const [예시채움, set예시채움] = useState(() => { try { return localStorage.getItem(남김열쇠 + '.ex') === '1' } catch (e) { return false } })
+  useEffect(() => { try { if (예시채움) localStorage.setItem(남김열쇠 + '.ex', '1'); else localStorage.removeItem(남김열쇠 + '.ex') } catch (e) { /* 저장소 막힘 */ } }, [예시채움])
   const [잠금말, set잠금말] = useState('')
   const [열쇠말, set열쇠말] = useState('')
   const [열쇠틀림, set열쇠틀림] = useState(false)
@@ -127,12 +131,13 @@ export default function HazardPlan() {
   const 예시채우기 = () => {
     if (!lib) return
     set입(합치기(JSON.parse(JSON.stringify(lib.예시))))
-    set쪽번(0); 세기('|유해계획|예시')
+    set예시채움(true); set쪽번(0); 세기('|유해계획|예시')
   }
-  const 새로 = () => { set입(빈입력()); set그림들(new Map()); set그림자리({}); set쪽번(0) }
+  const 새로 = () => { set입(빈입력()); set예시채움(false); set잠금말(''); set그림들(new Map()); set그림자리({}); set쪽번(0) }
 
   const 내려받기 = async (형식) => {
     if (!씀) { 잠김(형식표[형식][0] + ' 받기는'); return }
+    if (예시채움) { set잠금말(`🧪 예시(가상 공사)로 채운 것은 보기만 됩니다 — ${형식표[형식][0]} 받기는 «↺ 비우기» 를 누르고 내 공사로 적은 뒤에 됩니다.`); 세기('|유해계획|예시잠금'); return }
     if (!쪽들.length) return
     const [이름, 타입, 끝] = 형식표[형식]
     set내림중(이름); await 숨()
@@ -413,13 +418,14 @@ export default function HazardPlan() {
           {오류 && <div className="cwarn">⚠️ {오류}</div>}
           <div className="sg-dl">
             {Object.entries(형식표).map(([k, [이름]]) => (
-              <button key={k} type="button" className={씀 ? (k === 'pdf' ? 'btn' : 'btn line') : 'btn line sg-lockbtn'} style={{ width: 'auto' }} disabled={씀 && (!쪽들.length || !!내림중)} onClick={() => 내려받기(k)}>
-                {내림중 === 이름 ? '⏳ 만드는 중…' : `${씀 ? '⬇' : '🔒'} ${이름}`}
+              <button key={k} type="button" className={씀 && !예시채움 ? (k === 'pdf' ? 'btn' : 'btn line') : 'btn line sg-lockbtn'} style={{ width: 'auto' }} disabled={씀 && !예시채움 && (!쪽들.length || !!내림중)} onClick={() => 내려받기(k)}>
+                {내림중 === 이름 ? '⏳ 만드는 중…' : `${씀 && !예시채움 ? '⬇' : '🔒'} ${이름}`}
               </button>
             ))}
           </div>
           {!씀 && <p className="muted" style={{ margin: '6px 0 0' }}>🧪 예시(지어낸 공사 · 이름 · 번호)입니다. 받기는 준비 중 — 화면에서 처음부터 끝까지 쪽마다 넘겨 보십시오.</p>}
-          {!씀 && 잠금말 && <div className="cwarn" style={{ marginTop: 6 }}>{잠금말}</div>}
+          {씀 && 예시채움 && <p className="cwarn" style={{ margin: '6px 0 0' }}>🧪 지금은 <b>예시(가상 공사)</b>로 채운 것입니다 — 보기만 됩니다. 받기(PDF · 한글 · 워드 · 엑셀)는 <b>«↺ 비우기»</b> 를 누르고 내 공사로 적은 뒤에 됩니다.</p>}
+          {잠금말 && (!씀 || 예시채움) && <div className="cwarn" style={{ marginTop: 6 }}>{잠금말}</div>}
           {결과?.목차?.length > 0 && (
             <div className="sp-toc">
               <select value="" onChange={(e) => { if (e.target.value !== '') 쪽으로(+e.target.value) }}>
