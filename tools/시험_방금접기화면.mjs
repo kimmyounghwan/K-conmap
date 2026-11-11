@@ -1,9 +1,8 @@
 /**
- * 📱 G648 공고 목록 «🆕 방금» 접기 화면 시험 — 구운 사이트(dist)를 띄운 뒤:
+ * 📱 G649 공고 목록 «🆕 방금» 은 접지 않음 — 지키는 시험 (구운 사이트(dist)를 띄운 뒤):
  *   node tools/시험_방금접기화면.mjs [주소=http://127.0.0.1:4578]
- *   소장님 「공고 점검해줘, 공고에 바로투찰이 안보여. 철저히 해줘」(2026-11-11 09:4x)
- *   실제 사이트(11-11 09:46): 방금 올라온 공고 40건(기초금액 전 — 💰 바로투찰 없음)이 공고 목록 맨 위를 다 차지해
- *   첫 «💰 바로투찰» 이 41번째 카드(폰 390 에서 10,000px 아래). → 바로투찰 되는 방금 줄은 다 · 안 되는 줄은 앞 3건만 · 나머지 «더 보기».
+ *   소장님 2026-11-11 13:0x 「공고 접기는 하지마」 — G648(방금 줄 접기 · 바로투찰 되는 방금 줄 맨 앞)을 G649 로 뺌.
+ *   방금 올라온 공고는 모두 보이고(새것 먼저 · 차례 그대로) «더 보기 · 접기» 줄은 없어야 합니다 — 다시 접기를 넣으면 ✗.
  *   가상 자료만 씀(방금 40건 = 바로투찰 됨 2 + 기초금액 전 38 · 목록 20건) · 인터넷 안 부름 · 폰 390 · 360 · PC 1280.
  */
 import { createRequire } from 'node:module'
@@ -76,35 +75,20 @@ for (const [이름, w, h, 폰] of [['폰 390', 390, 844, true], ['폰 360', 360,
   await p.waitForFunction(() => document.querySelectorAll('.notice').length >= 20 && !!document.querySelector('.freshn'), null, { timeout: 20000 })
   await 쉬어(600)
   const 처음 = await 모양(p)
-  ok('머리 «🆕 방금 40건» 그대로(방금 수를 숨기지 않음)', /방금 40건/.test(처음.머리), 처음.머리)
-  ok('방금 카드 5(바로투찰 되는 2 + 기초금액 전 3) · 목록 20 그대로', 처음.방금 === 5 && 처음.수 === 25, { 방금: 처음.방금, 수: 처음.수 })
-  ok('바로투찰 되는 방금 둘이 맨 앞(18번째 · 34번째 올라온 것) · 그다음 가장 새 것 셋', 처음.이름5[0] === '가상 방금 공사 18(바로투찰 됨)' && 처음.이름5[1] === '가상 방금 공사 34(바로투찰 됨)' && 처음.이름5[2] === '가상 방금 공사 1', 처음.이름5)
-  ok('접기 줄 «🆕 방금 올라온 공고 35건 더 보기 ▼» · 기초금액 안내 · 다섯째 방금 카드 바로 다음', /🆕 방금 올라온 공고 35건 더 보기 ▼/.test(처음.접기) && /기초금액이 아직 안 나온 공고/.test(처음.접기) && 처음.접기자리 === 5, { 접기: 처음.접기, 자리: 처음.접기자리 })
-  ok('첫 «💰 바로투찰» = 첫 카드(전엔 41번째) · 첫 화면 가까이(위에서 1,600px 안)', 처음.첫 === 0 && 처음.첫알약y !== null && 처음.첫알약y < 1600, { 첫: 처음.첫, y: 처음.첫알약y })
+  ok('머리 «🆕 방금 40건» 그대로', /방금 40건/.test(처음.머리), 처음.머리)
+  ok('방금 카드 40 모두 보임 · 목록 20 그대로(접지 않음)', 처음.방금 === 40 && 처음.수 === 60, { 방금: 처음.방금, 수: 처음.수 })
+  ok('«더 보기 · 접기» 줄 없음(button.fresh-fold 0)', 처음.접기 === '' && 처음.접기자리 === -1, { 접기: 처음.접기, 자리: 처음.접기자리 })
+  ok('방금 차례 = 새것 먼저 그대로(1 · 2 · 3 …) — 바로투찰 되는 줄을 앞으로 옮기지 않음', 처음.이름5[0] === '가상 방금 공사 1' && 처음.이름5[1] === '가상 방금 공사 2' && 처음.이름5[2] === '가상 방금 공사 3', 처음.이름5)
+  ok('첫 «💰 바로투찰» = 18번째 카드(방금 18 · 차례 그대로)', 처음.첫 === 17, { 첫: 처음.첫, y: 처음.첫알약y })
   ok('바로투찰 알약 = 방금 되는 2 + 목록 완비 14(목록은 그대로)', 처음.알약수 === 16, 처음.알약수)
   ok(`${이름} 넘침 0`, (await 넘침(p)) <= 0, await 넘침(p))
-  if (폰 && w === 390) {
-    const 카 = await p.$$('.notice')
-    await 카[4].scrollIntoViewIfNeeded()
-    await p.evaluate(() => window.scrollBy(0, -260))
-    await 쉬어(300)
-    await p.screenshot({ path: '/tmp/g10/g648/out/폰_방금접힘.png' })
-  }
-  await p.click('button.fresh-fold')
-  await 쉬어(500)
-  const 펼침 = await 모양(p)
-  ok('«더 보기» 누름 → 방금 40건 다 · 맨 앞은 그대로 바로투찰 되는 둘 · 접기 줄 «▲ 방금 올라온 공고 접기» 가 마흔째 방금 다음', 펼침.방금 === 40 && 펼침.수 === 60 && 펼침.이름5[0] === '가상 방금 공사 18(바로투찰 됨)'
-    && /▲ 방금 올라온 공고 접기/.test(펼침.접기) && 펼침.접기자리 === 40, { 방금: 펼침.방금, 수: 펼침.수, 접기: 펼침.접기, 자리: 펼침.접기자리 })
   await p.reload({ waitUntil: 'domcontentloaded' })
   await p.waitForFunction(() => document.querySelectorAll('.notice').length >= 20 && !!document.querySelector('.freshn'), null, { timeout: 20000 })
   await 쉬어(600)
-  ok('새로고침해도 펼친 채(이 탭 동안 · sessionStorage)', (await 모양(p)).방금 === 40, (await 모양(p)).방금)
-  await p.click('button.fresh-fold')
-  await 쉬어(500)
   const 다시 = await 모양(p)
-  ok('«접기» 누름 → 다시 방금 5 · «35건 더 보기»', 다시.방금 === 5 && /35건 더 보기/.test(다시.접기), { 방금: 다시.방금, 접기: 다시.접기 })
-  /* 바로투찰 되는 방금 카드 알약 → 바로투찰(그 공고) */
-  await p.evaluate(() => { const c = [...document.querySelectorAll('.notice')][0]; c.querySelector('a.gocalc').click() })
+  ok('새로고침해도 같음(방금 40 · 접기 줄 없음)', 다시.방금 === 40 && 다시.접기 === '', { 방금: 다시.방금, 접기: 다시.접기 })
+  /* 방금 카드 알약 → 바로투찰(그 공고) */
+  await p.evaluate(() => { const c = [...document.querySelectorAll('.notice')].find((x) => x.querySelector('a.gocalc')); c.querySelector('a.gocalc').click() })
   await p.waitForFunction(() => location.pathname === '/' && /no=R00TESTF0017/.test(location.search), null, { timeout: 10000 })
   await p.waitForFunction(() => document.body.innerText.includes('가상 방금 공사 18'), null, { timeout: 20000 })
   ok('방금 카드 «💰 바로투찰» → 바로투찰(?no= 그 공고) · 공고 이름이 뜸', true)
@@ -112,5 +96,5 @@ for (const [이름, w, h, 폰] of [['폰 390', 390, 844, true], ['폰 360', 360,
   await ctx.close()
 }
 await b.close()
-console.log(`\n${bad ? '❌' : '✅'} 시험_방금접기화면 ${n - bad}/${n}`)
+console.log(`\n${bad ? '❌' : '✅'} 시험_방금접기화면(접지 않음) ${n - bad}/${n}`)
 process.exit(bad ? 1 : 0)
