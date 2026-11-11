@@ -20,6 +20,7 @@
 ⑬ G643(11-10) 소장님 「자격증 마무리」 · 「다른 사이트와 비교해서 자세하고 편하게」 — 82 종목(«새» 빼고) 모두 깊은 글 ·
    산업기사 16 · 기능장 3 꼴(시험 표 6줄 · 응시자격 [별표 4의2] 산업기사 8줄 · 기능장 6줄 · 자격지수 20 · 30 · 산업기사는 «기사» 회차 안내) · 건축구조기사(2027 새) 깊은 글
 ⑮ G643 만들기(tools/자격증만들기/깊은글_큐넷덧.py)를 다시 돌려도 cert.json · certq 가 똑같음 — 이 34쪽 · 덧은 만들기로만 고침
+⑯ G647 모든 표 fit · stk — 폰에서 옆으로 밀어야 보이는 표 없음
 ⑭ G643 큐넷 덧(data/certq/{종목}.json) — 82 종목 모두 · 큐넷 번호 같음 · 📅 일정 표 4칸(회차 · 접수 · 시험 · 발표 — 폰에서 짧게) · 📊 합격률(해 · 응시 · 합격률 0 ~ 100) · 🏅 우대 갈래 합 = 전체 건수 ·
    «구분 | 내용» 표는 모두 kv(폰에서 이름 칸이 갈라지지 않게) ·
    화면(Cert.jsx 덧끼우기 · 차례) · 구운 쪽(prerender certq_insert · 차례 · rate) · 블록 그림(Guide.jsx rate · styles .cr-bar) 이 같은 자료를 봄
@@ -275,6 +276,24 @@ def main():
     except FileNotFoundError:     # git 이 없는 곳 — 건너뜀
         pass
     ok("⑮ 만들기 폴더 파일 중 git 이 무시하는 것 없음(.gitignore *.txt — 처음 qnet_compact.txt 가 안 올라가 다른 곳에서 만들기가 못 돎 → .dat)", not 무시, 무시)
+    # ⑯ 📱 G647 — 폰에서 옆으로 밀어야 보이는 표 없음: 모든 표(cert.json 깊은 글 · 등급 셈 · 기출 + certq 82)가 fit(줄바꿈) 또는 stk(카드 쌓기)
+    #    (11-11 «이용자 입장» 점검에서 등급 셈 «소속 | 경력관리 기관» 표만 fit 이 없어 폰에서 «한국건설기술인협회» 가 칸 밖으로 나감 → 만들기가 fit)
+    def _표들(x):
+        if isinstance(x, dict):
+            if x.get("t") == "table":
+                yield x
+            for v in x.values():
+                yield from _표들(v)
+        elif isinstance(x, list):
+            for v in x:
+                yield from _표들(v)
+    _cd = json.load(io.open(os.path.join(ROOT, "web", "src", "data", "cert.json"), encoding="utf-8"))
+    _표 = list(_표들(_cd))
+    _qd = os.path.join(ROOT, "web", "src", "data", "certq")
+    for f in sorted(os.listdir(_qd)):
+        _표 += list(_표들(json.load(io.open(os.path.join(_qd, f), encoding="utf-8"))))
+    _안 = [b["cols"] for b in _표 if not b.get("fit") and not b.get("stk")]
+    ok(f"⑯ 표 {len(_표)}개 모두 fit · stk — 폰에서 옆으로 밀지 않음(등급 셈 «소속 | 경력관리 기관» 포함)", len(_표) > 300 and not _안, _안[:3])
     print(f"\n{'❌' if bad else '✅'} 시험_자격증 {n - bad}/{n}")
     sys.exit(1 if bad else 0)
 
