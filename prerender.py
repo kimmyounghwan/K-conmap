@@ -4016,6 +4016,39 @@ def cert_grade(shell, d, image=None):
     return page(shell, "/cert/grade", title, desc, "".join(out) + nav_html("/cert/grade"), image, ld)
 
 
+CERT_GQ = {   # 📄 G652 — 화면(Cert.jsx 기출글)과 같은 글
+    "기출": ("📄 기출문제 — 큐넷 문제지", "회차별 필기 문제지(한국산업인력공단) · 제140회(2026. 8.)부터 공공누리 제1유형"),
+    "공개": ("📄 실기 공개문제 — 큐넷", "한국산업인력공단이 공개한 실기 문제(큐넷 공개문제 자료실)"),
+    "예시": ("📄 실기 예시문제 — 큐넷", "한국산업인력공단이 공개한 실기 예시문제(큐넷 공개문제 자료실)"),
+}
+
+
+def cert_gq_url(x):
+    """📄 G652 큐넷 자료실을 종목 이름으로 찾은 쪽 — 기출 = «기출문제(기술사)»(1203) · 공개 · 예시 = «공개문제»(1204). 화면 Cert.jsx 기출길과 같은 주소."""
+    if not x.get("gq"):
+        return None
+    code = "1203" if x["gq"] == "기출" else "1204"
+    return f'https://www.q-net.or.kr/cst006.do?id=cst00601&code={code}&gSite=Q&schType=A&schText={quote(x["n"], safe="")}'
+
+
+def cert_gq_html(d, x):
+    """📄 G652 (11-11) 소장님 「자격증 기출문제 연결 안되게 많아. 그리고 예상문제도 없고」 — 종목 쪽 맨 위 칸의 «📄 기출문제» (화면 Cert.jsx 기출칸과 같은 글)."""
+    deep = d.get("deep") or {}
+    if x.get("gq") in CERT_GQ:
+        제목, 설명 = CERT_GQ[x["gq"]]
+        return (f'<a class="cert-big gq-go" href="{esc(cert_gq_url(x))}" target="_blank" rel="noopener nofollow"><b>{esc(제목)} <span class="gq-ext">↗</span></b>'
+                f'<span>{esc(설명)}</span></a>')
+    ref = x.get("qzRef") or {}
+    짝 = next((y for y in d.get("items") or [] if y["slug"] == ref.get("s")), None) if (deep.get(ref.get("s")) or {}).get("quiz") else None
+    if (deep.get(x["slug"]) or {}).get("quiz"):
+        뒤 = " 위 «📝 예상문제 풀기» 로 연습하세요."
+    elif 짝:
+        뒤 = f' <a href="/cert/{esc(짝["slug"])}/quiz">📝 {esc(짝["n"])} 예상문제</a> 로 연습하세요 — {esc(ref.get("d") or "")}.'
+    else:
+        뒤 = " 예상문제는 차례로 만들고 있습니다."
+    return f'<div class="gq-none"><b>📄 기출문제</b> — 이 종목 문제는 큐넷 자료실(기출 · 공개문제)에 없습니다.{뒤}</div>'
+
+
 def cert_item(shell, d, x, t, image=None):
     deep = d.get("deep") or {}
     g = next((g for g in d.get("groups") or [] if g["k"] == x["g"]), {"n": ""})
@@ -4034,6 +4067,7 @@ def cert_item(shell, d, x, t, image=None):
     if t.get("interview"):   # 🎤 G631 — 화면(Cert.jsx CertItem)과 같은 단추
         out.append(f'<a class="cert-big qz-go" href="/cert/{esc(x["slug"])}/interview"><b>🎤 면접 준비</b>'
                    f'<span>자주 나오는 질문 {t["interview"].get("수", 0)}개 · 분야별 답 요령 · 근거 · 외운 것 표시</span></a>')
+    out.append(cert_gq_html(d, x))   # 📄 G652 — 화면(Cert.jsx 기출칸)과 같은 글 · 같은 링크
     out.append("</div>")
     secs = certq_insert(t.get("secs") or [], load_certq(x["slug"]))
     if len(secs) > 3:   # 🧭 G643 차례(화면 Cert.jsx 와 같은 칩)
