@@ -6,7 +6,7 @@
     82종목 시험일정 표 · 종목별 검정현황(최근 5년) · 우대현황(qnet_compact.dat · qnet_pref8.dat — 줄마다 해시 대조 다 맞음)
   · 국가기술자격법 시행령 [시행 2026. 1. 2.] [별표 4의2] 응시자격(기능장 · 기사 · 산업기사) · 제20조 합격 기준 · 제21조 필기 면제 2년(law_notes.md · 3번)
   · 건설기술인 등급 — lib/등급셈.js(고시 [별표 3]) 로 셈한 해(기사 · 기능장 30 · 산업기사 20)
-돌리기: python tools/자격증만들기/깊은글_큐넷덧.py web/src/data/cert.json web/src/data/certq   (다시 돌려도 같은 결과 — 시험_자격증 ⑮)
+돌리기: (예상문제 틀을 바꿨으면 먼저 node tools/자격증만들기/예상문제_메타.mjs) → python tools/자격증만들기/깊은글_큐넷덧.py web/src/data/cert.json web/src/data/certq   (다시 돌려도 같은 결과 — 시험_자격증 ⑮)
 고칠 때: 이 34쪽 · certq 글은 cert.json 을 손으로 고치지 말고 여기(만들기)를 고쳐 다시 돌립니다 — 2027 일정 · 합격률은 큐넷에서 다시 모아 qnet_compact.dat 를 바꿈.
 """
 import io
@@ -387,6 +387,20 @@ d['deep']['geonchuk-gujo-gisa'] = {
     ],
 }
 made.append('geonchuk-gujo-gisa')
+
+# 📝 G645 예상문제 — 차림표(예상문제_메타.json · node tools/자격증만들기/예상문제_메타.mjs 가 lib/예상문제.js 로 만듦)를 넣고,
+#   이 만들기가 쓴 쪽(건축기사 …)에는 «📝 예상문제» 칸을 «📝 시험» 바로 뒤에(토목기사 G628 쪽과 같은 꼴 · 같은 글)
+메타 = json.load(io.open(os.path.join(HERE, '예상문제_메타.json'), encoding='utf-8'))
+for 종목, qz in 메타.items():
+    t = d['deep'][종목]
+    t['quiz'] = qz
+    if 종목 in made:
+        이름 = next(x['n'] for x in d['items'] if x['slug'] == 종목)
+        칸 = {'h': f"📝 예상문제 — {len(qz['과목'])}과목 계산 문제", 'blocks': [
+            {'t': 'p', 'text': f"건설맵이 교과서 공식으로 **직접 만든** 계산 문제 {len(qz['틀'])}가지입니다(기출 원문 아님). **풀 때마다 숫자가 바뀌고**, 문제마다 풀이 · 근거가 붙습니다. 틀린 문제는 모아 두었다가 다시 풀 수 있습니다."},
+            {'t': 'links', 'items': [[f'📝 {이름} 예상문제 풀기', f'/cert/{종목}/quiz', '과목 고르기 · 바로 채점 · 풀이']]}]}
+        k = next(i for i, s in enumerate(t['secs']) if s['h'].startswith('📝 시험'))
+        t['secs'].insert(k + 1, 칸)
 d['at'] = '2026-11-10'
 덧메모 = (' / 11-10 밤 — 기사 · 산업기사 · 기능장 34쪽: 큐넷 종목별 상세(33종목 취득방법 · 수수료 · 출제기준) · 시행령 [별표 4의2] · 제20조 · 제21조 3번 확인'
         ' · 큐넷 덧 82종목(시험일정 · 종목별 검정현황 · 우대현황 — FNV 해시로 옮겨 적은 것 맞춤)')
