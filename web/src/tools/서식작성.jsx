@@ -11,6 +11,8 @@
  *     공사명 · 현장명 · 회사명 · 작성자는 한 번 쓰면 다른 서식에도 먼저 채웁니다(kcm.서식공통).
  *   ■ 개인정보: 주민등록번호 칸은 두지 않습니다(이 기기에 남지 않게) — 필요한 서식은 «제출 서식에 직접» 이라고 적음.
  *   ■ 숨은 누적: |서식작성|열기 · |서식작성|PDF · |서식작성|저장 · |서식작성|예시 · PDF 는 받은 횟수(/forms/w/{slug}.pdf)에도 1.
+ *   🧪 G650(11-11) 소장님 「예시는 보기만 가능하게… 그리고 막아줘」 → «✍ 예시 채우기» 한 뒤엔 «🧹 빈칸으로»(또는 저장한 것 불러오기 · 복사해 새로) 전까지
+ *     PDF · 인쇄 · 저장을 막음(🔒 · 보기만) · 새로고침해도 그대로(쓴열쇠 안 ex) · 숨은 누적 |서식작성|예시잠금.
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -270,6 +272,8 @@ export default function 서식작성({ f }) {
   const 내것0 = 전체0[f.slug] || {}
   const [v, setV] = useState(() => (맞는꼴(s, 내것0.cur) ? 내것0.cur : 빈값(s, 공통0)))
   const [저장들, set저장들] = useState(() => (Array.isArray(내것0.saved) ? 내것0.saved.filter((x) => 맞는꼴(s, x.v)) : []))
+  /* 🧪 G650 예시 채운 동안은 보기만(PDF · 인쇄 · 저장 막음) — «🧹 빈칸으로» · 불러오기 · 복사해 새로 에서 풂 */
+  const [예시중, set예시중] = useState(() => !!내것0.ex && 맞는꼴(s, 내것0.cur))
   const [목록, set목록] = useState(false)
   const [말, set말0] = use잠깐말(4000)   // 🩹 G588b 같은 알림을 그 시간 안에 또 띄워도 시간을 새로 셈(lib/잠깐말.js — 전엔 둘째 알림이 곧 사라짐)
   /* 🖼 G584 알림은 누른 단추 곁에 — 아래 단추로 PDF · 인쇄를 누르면 아래에(위 알림은 화면 밖이라 안 보였음) · 다른 일(저장 · 예시 …)은 위 */
@@ -287,11 +291,11 @@ export default function 서식작성({ f }) {
   useEffect(() => {
     const t = setTimeout(() => {
       const 전체 = 읽기(쓴열쇠, {})
-      전체[f.slug] = { cur: v, saved: 저장들 }
+      전체[f.slug] = { cur: v, saved: 저장들, ...(예시중 ? { ex: 1 } : {}) }
       쓰기(쓴열쇠, 전체)
     }, 600)
     return () => clearTimeout(t)
-  }, [v, 저장들, f.slug])
+  }, [v, 저장들, f.slug, 예시중])
 
   /* PDF · 인쇄 파일 이름 = 서식명_공사명(현장명)_오늘 — 공사명 칸이 없으면 날짜가 아닌 첫 칸(🖼 G584: TBM 은 «TBM 일시» 날짜가 붙던 것) */
   const 파일이름 = () => {
@@ -386,28 +390,30 @@ export default function 서식작성({ f }) {
   const 줄더 = (i) => { const b = s.blocks[i]; 바꿈(i, (o) => (o.length >= 60 ? o : [...o, b.cols.map(() => '')])) }
   const 줄빼 = (i) => { const b = s.blocks[i]; 바꿈(i, (o) => (o.length <= 줄수(b) ? o : o.slice(0, -1))) }
 
-  const PDF = (자리 = '위') => { if (찍기 || 인쇄중) return; 찍은자리.current = 자리; 세기('|서식작성|PDF'); 받음(`/forms/w/${f.slug}.pdf`); set찍기('pdf') }
-  const 인쇄 = (자리 = '위') => { if (찍기 || 인쇄중) return; 찍은자리.current = 자리; 세기('|서식작성|인쇄'); set찍기('인쇄') }
+  const 예시막음 = (자리 = '위') => { set말('🧪 예시는 보기만 됩니다 — «🧹 빈칸으로» 를 누르고 내 현장으로 적으면 PDF · 인쇄 · 저장이 됩니다', 자리); 세기('|서식작성|예시잠금') }
+  const PDF = (자리 = '위') => { if (찍기 || 인쇄중) return; if (예시중) { 예시막음(자리); return } 찍은자리.current = 자리; 세기('|서식작성|PDF'); 받음(`/forms/w/${f.slug}.pdf`); set찍기('pdf') }
+  const 인쇄 = (자리 = '위') => { if (찍기 || 인쇄중) return; if (예시중) { 예시막음(자리); return } 찍은자리.current = 자리; 세기('|서식작성|인쇄'); set찍기('인쇄') }
   const 저장 = () => {
+    if (예시중) { 예시막음(); return }
     const 이름 = ((v.find((x, i) => s.blocks[i].t === 'kv') || []).find((x) => x) || f.title).slice(0, 30)
     const 새 = [{ id: Date.now().toString(36), nm: 이름, at: Date.now(), v }, ...저장들].slice(0, 30)
     set저장들(새); 세기('|서식작성|저장')
     set말(`💾 «${이름}» 으로 저장했습니다 — 이 기기에만 남습니다`)
   }
-  const 불러오기 = (x) => { setV(x.v); set목록(false); set말(`📂 «${x.nm}» 을 불러왔습니다`) }
+  const 불러오기 = (x) => { setV(x.v); set예시중(false); set목록(false); set말(`📂 «${x.nm}» 을 불러왔습니다`) }
   const 복사새로 = (x) => {
     const 새 = x.v.map((b, i) => (s.blocks[i].t === 'sign' ? { ...b, d: 오늘() } : b))
-    setV(새); set목록(false); set말('📄 날짜만 오늘로 바꿔 새로 씁니다 — 고칠 곳만 고치세요')
+    setV(새); set예시중(false); set목록(false); set말('📄 날짜만 오늘로 바꿔 새로 씁니다 — 고칠 곳만 고치세요')
   }
   const 지우기 = (x) => set저장들(저장들.filter((y) => y.id !== x.id))
-  const 비우기 = () => { setV(빈값(s, 읽기(공통열쇠, {}))); set말('🧹 빈 서식으로 돌렸습니다(현장명 · 회사명은 남김)') }
+  const 비우기 = () => { setV(빈값(s, 읽기(공통열쇠, {}))); set예시중(false); set말('🧹 빈 서식으로 돌렸습니다(현장명 · 회사명은 남김)') }
   /* ✍ 2026-10-21 옛 서식(엑셀 서식)도 «예시 채우기» — 소장님 「편하게 해줘 이용자 입장에서」
      엑셀 «작성 예시» 시트와 같은 가상 값(계산 칸까지)을 tools/forms2/웹예시.py 가 /forms/ex/{slug}.json 으로 만들어 둠(f.wex).
      누를 때만 받음(forms.json 이 커지지 않게) · 모양이 서식과 다르면 쓰지 않음 */
   const [예받는중, set예받는중] = useState(false)
   const 예시넣기 = (x) => {
-    setV(JSON.parse(JSON.stringify(x))); 세기('|서식작성|예시')
-    set말('✍ 가상의 현장으로 채운 작성 예시입니다 — 고쳐 쓰시거나 «빈칸으로» 를 누르세요')
+    setV(JSON.parse(JSON.stringify(x))); set예시중(true); 세기('|서식작성|예시')
+    set말('✍ 가상의 현장으로 채운 작성 예시입니다 — 보기만 됩니다(PDF · 인쇄 · 저장 안 됨) · 내 것은 «🧹 빈칸으로» 를 누르고 적으세요')
   }
   const 예시 = () => {
     if (f.ex && 맞는꼴(s, f.ex)) { 예시넣기(f.ex); return }
@@ -422,8 +428,8 @@ export default function 서식작성({ f }) {
 
   const 단추 = (자리) => (
     <>
-      <button type="button" className="btn primary" onClick={() => PDF(자리)} disabled={!!찍기}>{찍기 === 'pdf' ? 'PDF 만드는 중…' : '📄 PDF 저장'}</button>
-      <button type="button" className="btn ghost" onClick={() => 인쇄(자리)} disabled={!!찍기}>{찍기 === '인쇄' ? '인쇄 준비 중…' : '🖨 인쇄'}</button>
+      <button type="button" className={'btn primary' + (예시중 ? ' sg-lockbtn' : '')} onClick={() => PDF(자리)} disabled={!!찍기}>{찍기 === 'pdf' ? 'PDF 만드는 중…' : 예시중 ? '🔒 PDF 저장' : '📄 PDF 저장'}</button>
+      <button type="button" className={'btn ghost' + (예시중 ? ' sg-lockbtn' : '')} onClick={() => 인쇄(자리)} disabled={!!찍기}>{찍기 === '인쇄' ? '인쇄 준비 중…' : 예시중 ? '🔒 인쇄' : '🖨 인쇄'}</button>
     </>
   )
   return (
@@ -436,11 +442,12 @@ export default function 서식작성({ f }) {
       </div>
       <div className="fw-bar">
         {단추('위')}
-        <button type="button" className="btn ghost" onClick={저장}>💾 저장</button>
+        <button type="button" className={'btn ghost' + (예시중 ? ' sg-lockbtn' : '')} onClick={() => 저장()}>{예시중 ? '🔒 저장' : '💾 저장'}</button>
         <button type="button" className={'btn ghost' + (목록 ? ' on' : '')} onClick={() => set목록(!목록)} aria-expanded={목록}>📂 저장한 것 {저장들.length}</button>
         {예시있음 && <button type="button" className="btn ghost" onClick={예시} disabled={예받는중}>{예받는중 ? '예시 받는 중…' : '✍ 예시 채우기'}</button>}
         <button type="button" className="btn ghost" onClick={비우기}>🧹 빈칸으로</button>
       </div>
+      {예시중 && <div className="cwarn" style={{ margin: '0 0 10px' }} role="note">🧪 지금은 <b>작성 예시</b>입니다 — 보기만 됩니다(PDF · 인쇄 · 저장 안 됨). 내 서식은 <b>«🧹 빈칸으로»</b> 를 누르고 적으세요.</div>}
       {말 && 말자리 === '위' && <div className="fw-say" role="status">{말}</div>}
       {목록 && (
         <div className="fw-list">
