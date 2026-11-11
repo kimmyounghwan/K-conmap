@@ -60,6 +60,7 @@ const NAME = {
 /* 두 칸짜리 안쪽 화면의 «제 이름» — 없으면 주소 조각을 그대로 씁니다. */
 const LEAF = {
   '/cert/tomok-gisa': '토목기사',
+  '/cert/geonchuk-gisa': '건축기사',   /* 📝 G645 예상문제(/cert/geonchuk-gisa/quiz) 의 가운데 칸 */
   '/cert/tomok-sigong-gisulsa': '토목시공기술사',   /* 🎤 G631 면접 준비(/cert/tomok-sigong-gisulsa/interview) 의 가운데 칸 */   /* 📝 G628 예상문제(/cert/tomok-gisa/quiz) 의 가운데 칸 — 영문 slug 대신 종목 이름(예상문제 쪽이 늘면 같이) */
   '/change/calc': '증감율 계산',
   '/change/excel': '엑셀로 만들기',
