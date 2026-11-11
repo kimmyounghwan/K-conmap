@@ -413,5 +413,11 @@ for _s, _t in d['deep'].items():     # 📝 «구분 | 내용» 표 — 폰에�
             if _b.get('t') == 'table' and _b.get('cols') == ['구분', '내용']:
                 _b['kv'] = True
                 kv수 += 1
+# 📱 G647(11-11 소장님 「점검 다시 해줘. 이용자 입장에서」) — 등급 셈 «소속 | 경력관리 기관» 표만 fit 이 없어 폰에서 옆으로 밀어야 «한국건설기술인협회» 가 다 보였음
+#   → 열 둘 표는 fit(줄바꿈) · 다른 표는 이미 모두 fit · stk(시험_자격증 ⑯ 이 «fit 도 stk 도 없는 표 0» 을 봄)
+for _sec in (d.get('grade') or {}).get('secs') or []:
+    for _b in _sec.get('blocks') or []:
+        if _b.get('t') == 'table' and len(_b.get('cols') or []) <= 2:
+            _b['fit'] = True
 io.open(P, 'w', encoding='utf-8', newline='\n').write(json.dumps(d, ensure_ascii=False, indent=1) + '\n')
 print('deep', len(d['deep']), '새', len(made), 'certq', len(items), 'kv', kv수)
