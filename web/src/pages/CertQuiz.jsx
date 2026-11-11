@@ -10,7 +10,7 @@ import * as Q from '../lib/예상문제.js'
  *
  * 소장님: 「최신기출문제도 해줘. 예상문제도 해주고…」
  *  · 기출 원문은 싣지 않습니다(국가기술자격 시험문제 저작권 = 한국산업인력공단) → 건설맵이 교과서 공식으로 «직접» 만든 계산 문제(lib/예상문제.js)
- *  · 한 문제씩 — 보기를 누르면 바로 채점 · 풀이 · 근거 → «다음» · 끝나면 과목별 점수 · 모의 판정(과목 40 · 평균 60 — 6과목 다 풀었을 때만)
+ *  · 한 문제씩 — 보기를 누르면 바로 채점 · 풀이 · 근거 → «다음» · 끝나면 과목별 점수 · 모의 판정(과목 40 · 평균 60 — 전 과목 다 풀었을 때만)
  *  · 틀린 문제는 이 브라우저에 모아 둡니다(localStorage kcm.예상문제.{종목} · 서버에 안 보냄) → «틀린 문제 다시 풀기»(같은 씨앗 = 같은 문제)
  *  · 차림표(과목 · 틀 이름)는 cert.json deep[종목].quiz — 구운 쪽(prerender.py)도 같은 글(시험_예상문제 ④ 가 lib 와 같은지 봄)
  */
@@ -35,7 +35,7 @@ export default function CertQuiz() {
   const x = (DATA.items || []).find((y) => y.slug === slug) || null
   const d = (DATA.deep || {})[slug]
   const 집 = Q.문제집[slug]
-  const [과목, set과목] = useState(null)        /* null = 6과목 전체 */
+  const [과목, set과목] = useState(null)        /* null = 과목 전체 */
   const [몇, set몇] = useState(12)
   const [판, set판] = useState(null)            /* { 문제들, 고른[], 다시 } — null 이면 고르는 화면 */
   const [i, setI] = useState(0)
@@ -48,7 +48,8 @@ export default function CertQuiz() {
   useEffect(() => { if (처음.current) { 처음.current = false; return } 오답쓰기(slug, 오답) }, [slug, 오답])
   useEffect(() => { if (판 && 카드.current) 카드.current.scrollIntoView({ block: 'start' }) }, [판, i])
 
-  const 수들 = 과목 ? [5, 10, 20] : [6, 12, 30]
+  const 과수 = (집 && 집.과목.length) || 6   /* 🏛 G645 — 토목 6 · 건축 5(전체는 과목 수의 1 · 2 · 5배) */
+  const 수들 = 과목 ? [5, 10, 20] : [과수, 과수 * 2, 과수 * 5]
   const 지금몇 = 수들.includes(몇) ? 몇 : 수들[1]
   const 문제들 = 판 ? 판.문제들 : []
   const N = 문제들.length
@@ -119,8 +120,8 @@ export default function CertQuiz() {
                 : 낙과목.length ? <><b>{낙과목.join(' · ')}</b> 과락({r.기준.과목}점 아래) — 과목마다 {r.기준.과목}점 이상이어야 합니다.</>
                   : <>평균이 {r.기준.평균}점 아래입니다 — 평균 {r.기준.평균}점 이상이어야 합니다.</>)
               : 판.다시 ? <>틀린 문제를 다시 풀었습니다. 맞힌 문제는 «틀린 문제» 에서 빠집니다.</>
-                : <>한 과목만 풀었습니다 — 과락({r.기준.과목}점 아래)인지 보세요. 모의 판정은 6과목 전체로 풀 때 나옵니다.</>}
-            {판정 && N < 30 && <> 문제가 적으면 점수가 크게 흔들립니다 — 30문제로 풀어 보세요.</>}
+                : <>한 과목만 풀었습니다 — 과락({r.기준.과목}점 아래)인지 보세요. 모의 판정은 {집.과목.length}과목 전체로 풀 때 나옵니다.</>}
+            {판정 && N < 과수 * 5 && <> 문제가 적으면 점수가 크게 흔들립니다 — {과수 * 5}문제로 풀어 보세요.</>}
           </p>
         </div>
         <div className="qz-btns">
