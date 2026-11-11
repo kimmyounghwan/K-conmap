@@ -113,22 +113,6 @@ export function freshRows(fresh, have, match, floor = '') {
   return out
 }
 
-/** 📱 G648(2026-11-11) «🆕 방금» 접기 — 소장님 「공고 점검해줘, 공고에 바로투찰이 안보여. 철저히 해줘」(09:4x)
- *  아침에 방금 올라온 공고 40건(기초금액이 아직 안 나와 💰 바로투찰 없음)이 공고 목록 맨 위를 다 차지해,
- *  첫 «💰 바로투찰» 이 41번째 카드(폰 390 에서 10,000px 아래)에 있었음 — 실제 사이트 11-11 09:46 확인.
- *  → 바로투찰 되는 방금 줄은 다 보이고(맨 앞), 안 되는 줄은 앞 «몇» 건만 · 나머지는 «🆕 방금 올라온 공고 N건 더 보기» 로 접음.
- *  rows: freshRows 결과(새것 먼저) · 됨: (줄) => 바로투찰 되나 · 펼침: 다 보기 · 몇: 접어도 보일 수(3)
- *  돌려줌: { 보임: [됨 줄들, 안 됨 줄 앞 몇 건 …], 접힘: 안 보이는 줄 수, 모두: 됨 → 안 됨 차례 전체 } */
-export function 방금접기(rows, 됨, 펼침 = false, 몇 = 3) {
-  const 다 = Array.isArray(rows) ? rows : []
-  const 된 = [], 안 = []
-  for (const r of 다) (됨(r) ? 된 : 안).push(r)
-  const 모두 = [...된, ...안]
-  if (펼침) return { 보임: 모두, 접힘: 0, 모두 }
-  const 보임 = [...된, ...안.slice(0, Math.max(0, 몇))]
-  return { 보임, 접힘: 모두.length - 보임.length, 모두 }
-}
-
 /** «10:42 기준» 처럼 — 몇 분 전인지 같이 */
 export function freshWhen(at, now = Date.now()) {
   if (!at) return ''

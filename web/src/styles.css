@@ -377,12 +377,6 @@ a.brand-sub:hover { opacity: 1; }
 /* ⚡ 2026-09-30 — 빠른 길로 방금 들어온 공고 · 개찰 (lib/fresh.js) */
 .badge.new { background: var(--good-soft); color: var(--good); border-color: var(--good); margin-right: 6px; vertical-align: 2px; font-size: 11px; }
 .freshn { margin-left: 8px; font-size: 12px; font-weight: 600; color: var(--good); }
-/* 📱 G648 «🆕 방금» 접기 줄 — 방금 카드 셋 다음 · 누르면 다 펼침(그 아래 목록에 💰 바로투찰) */
-.fresh-fold { display: block; width: 100%; text-align: left; margin: 0 0 12px; padding: 11px 14px; border-radius: 12px;
-  border: 1px dashed color-mix(in srgb, var(--good) 45%, var(--line)); background: color-mix(in srgb, var(--good) 6%, var(--surface));
-  color: var(--text); font: inherit; cursor: pointer; }
-.fresh-fold b { display: block; font-size: 14px; color: var(--good); }
-.fresh-fold span { display: block; margin-top: 3px; font-size: 12.5px; color: var(--muted); line-height: 1.45; }
 
 /* 좁은 화면에서는 가로 스크롤, 넓은 화면에서는 줄바꿈.
    가로 스크롤일 때 오른쪽 끝을 흐리게 해서 «더 있다»는 걸 보이게 한다.
