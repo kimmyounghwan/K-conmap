@@ -19,6 +19,7 @@
  *   ⑪ G628(11-10) 토목기사 깊은 글(시험 표 6줄 · 응시자격 10줄 · 📝 예상문제 단추) → /cert/tomok-gisa/quiz — 과목 · 문제 수 고르기 · 한 문제씩 바로 채점(⭕ 하나 · 고른 ❌) ·
  *      풀이 · 근거 · 결과(과목별 점수 · 6과목이면 모의 판정) · 틀린 문제 = 이 브라우저(id · 씨앗)에 모임 → lib 로 다시 만든 문제와 같음 · 다시 풀어 맞히면 빠짐 ·
  *      PC 숫자 1 ~ 4 · Enter · 틀린 문제 비우기(두 번 눌러야) · 넘침 0 · 소장님 「최신기출문제도 해줘. 예상문제도 해주고…」
+ *   ⑭c G646(11-11) 건설안전기사 예상문제 — 깊은 글 단추 · 📝 칸 · 5과목 칩(큐넷 차례) · 10문제 끝까지(풀이 · 근거 · 화면마다 넘침 0) → 결과 5줄 · 모의 판정 · 구운 쪽
  *   ⑭b G645(11-10) 건축기사 예상문제 — 깊은 글 단추 · 📝 칸 · 5과목 칩 · 문제 수 5 · 10 · 25 · 10문제 끝까지 → 결과 5줄 · 모의 판정 · 구운 쪽
  *   ⑬ G631(11-10) 🎤 토목시공기술사 면접 준비 — 깊은 글 단추 → /interview · 분야 칩 11 · 질문 150 · 분야 고름 · 찾기 «히빙» · 🎲 하나만 펼침 ·
  *      ✓ 외웠음(이 브라우저 · 새로고침해도 남음) · 외운 것 빼고 보기 · 넘침 0 · 구운 쪽 · 소장님 「기술사 서브노트 … 고쳐서 올려줘」
@@ -375,6 +376,44 @@ for (const [이름, w, h, 폰] of [['폰 390', 390, 844, true], ['폰 360', 360,
   ok('⑭b 5과목 10문제 — 과목마다 2문제(차례) · 결과 5줄 · 전 과목이라 모의 판정 · «25문제로»(5과목 × 5) 안내', ['건축계획', '건축시공', '건축구조', '건축설비', '건축관계법규'].every((과, i) => 건과목들[i * 2].includes(과) && 건과목들[i * 2 + 1].includes(과))
     && 건결과.줄.length === 5 && 건결과.판정 && !/한 과목만/.test(건결과.글) && /25문제로 풀어 보세요/.test(건결과.글), { 건과목들, 줄: 건결과.줄 })
   await p.evaluate(() => { try { localStorage.removeItem('kcm.예상문제.geonchuk-gisa') } catch (e) { /* 없음 */ } })
+  /* ⑭c G646 건설안전기사 예상문제 — 5과목(산업재해 예방 … 건설공사 안전관리) · 풀이 · 근거(법령) · 문제 · 결과 화면 넘침 */
+  const 안과목명 = ['산업재해 예방 및 안전보건교육', '인간공학 및 위험성 평가·관리', '건설재료', '건설시공', '건설공사 안전관리']
+  await p.goto(BASE + '/cert/geonseol-anjeon-gisa', { waitUntil: 'domcontentloaded' })
+  await p.waitForSelector('a.qz-go', { timeout: 20000 })
+  await 쉬어(300)
+  const ak = await p.evaluate(() => ({ 단추: (document.querySelector('a.qz-go') || { getAttribute: () => '' }).getAttribute('href'), 칸: [...document.querySelectorAll('.card[id^="cs"] .sec-title')].map((x) => x.innerText),
+    줄: [...document.querySelectorAll('.card a[href="/cert/geonseol-anjeon-gisa/quiz"]')].length }))
+  ok('⑭c 건설안전기사 깊은 글 — 📝 예상문제 단추 · «📝 예상문제 — 5과목 계산 문제» 칸 · 칸 안 링크', ak.단추 === '/cert/geonseol-anjeon-gisa/quiz' && ak.칸.some((h) => h === '📝 예상문제 — 5과목 계산 문제') && ak.줄 >= 1, ak)
+  await p.click('a.qz-go')
+  await p.waitForURL(/\/cert\/geonseol-anjeon-gisa\/quiz$/, { timeout: 10000 })
+  await p.waitForSelector('.qz-start', { timeout: 20000 })
+  await 쉬어(300)
+  const 안고름 = await p.evaluate(() => ({ h1: (document.querySelector('h1') || {}).innerText || '', 틀줄: document.querySelectorAll('.qz-types').length, 맛: document.querySelectorAll('details.qz-rv').length,
+    시작: document.querySelector('.qz-start').innerText, 큐넷: !!document.querySelector('a[href$="jmCd=1440"]') }))
+  const 안과목 = await 칩글(0), 안수 = await 칩글(1)
+  ok('⑭c 건설안전기사 예상문제 — h1 · 과목 칩 6(전체 + 5과목 · 차례 = 큐넷) · 문제 수 5 · 10 · 25 · 들어 있는 문제 5줄 · 맛보기 5 · «5과목 전체 10문제» · 큐넷 1440',
+    안고름.h1 === '📝 건설안전기사 필기 예상문제' && 안과목.length === 6 && 안과목[0] === '5과목 전체' && 안과목명.every((과, i) => 안과목[i + 1] === 과) && 안수.join() === '5문제,10문제,25문제' && 안고름.틀줄 === 5 && 안고름.맛 === 5
+      && /5과목 전체 10문제/.test(안고름.시작) && 안고름.큐넷, { ...안고름, 안과목, 안수 })
+  ok(`${이름} 건설안전기사 예상문제(고르는 화면) 넘침 0`, (await 넘침(p)) <= 1, await 넘침(p))
+  await p.click('.qz-start')
+  const 안과목들 = [], 안넘침 = [], 안풀이 = []
+  for (let k = 0; k < 10; k++) {
+    await p.waitForSelector('.qz-opt:not([disabled])', { timeout: 10000 })
+    안과목들.push(await p.evaluate(() => document.querySelector('.qz-top').innerText))
+    await p.click('.qz-opt >> nth=0')
+    await 쉬어(120)
+    안풀이.push(await p.evaluate(() => { const e = document.querySelector('.qz-exp'); return e ? { 줄: e.querySelectorAll('.qz-steps li').length, 근거: ((e.querySelector('.qz-src') || {}).innerText || '') } : null }))
+    안넘침.push(await 넘침(p))
+    await p.click('.qz-next')
+  }
+  await p.waitForSelector('.qz-out', { timeout: 10000 })
+  안넘침.push(await 넘침(p))
+  const 안결과 = await p.evaluate(() => ({ 줄: [...document.querySelectorAll('.qz-res > div')].map((x) => x.innerText.replace(/\s+/g, ' ').trim()), 판정: !!document.querySelector('.qz-out .go-g'), 글: document.querySelector('.qz-out').innerText }))
+  ok('⑭c 5과목 10문제 — 과목마다 2문제(차례) · 결과 5줄 · 전 과목이라 모의 판정 · «25문제로» 안내', 안과목명.every((과, i) => 안과목들[i * 2].includes(과) && 안과목들[i * 2 + 1].includes(과))
+    && 안결과.줄.length === 5 && 안결과.판정 && !/한 과목만/.test(안결과.글) && /25문제로 풀어 보세요/.test(안결과.글), { 안과목들, 줄: 안결과.줄 })
+  ok('⑭c 답 고르면 풀이(2줄 넘게) · «근거 — …» 바로 보임(10문제 모두)', 안풀이.every((x) => x && x.줄 >= 2 && /^근거 — ./.test(x.근거)), 안풀이)
+  ok(`${이름} 건설안전기사 문제 · 결과 화면 넘침 0(11 화면)`, 안넘침.every((x) => x <= 1), 안넘침)
+  await p.evaluate(() => { try { localStorage.removeItem('kcm.예상문제.geonseol-anjeon-gisa') } catch (e) { /* 없음 */ } })
   /* ⑬ G631 면접 준비 */
   const 면접열쇠 = 'kcm.면접.tomok-sigong-gisulsa'
   await p.evaluate((k) => { try { localStorage.removeItem(k) } catch (e) { /* 없음 */ } }, 면접열쇠)
@@ -460,6 +499,11 @@ if (fs.existsSync(구운)) {
   ok('⑭b 구운 건축기사 예상문제 쪽(cert/geonchuk-gisa/quiz.html) — 제목 · h1 · 들어 있는 문제 5과목 · 맛보기 5 · canonical · /cert 에 «건축기사 예상문제» 줄', /<title>건축기사 필기 예상문제 — /.test(gq) && /<h1[^>]*>📝 건축기사 필기 예상문제<\/h1>/.test(gq)
     && (gq.match(/class="qz-types"/g) || []).length === 5 && (gq.match(/<details class="qz-rv">/g) || []).length === 5 && /rel="canonical" href="https:\/\/k-conmap\.com\/cert\/geonchuk-gisa\/quiz"/.test(gq)
     && /href="\/cert\/geonchuk-gisa\/quiz"><span class="fic">📝/.test(h) && !/클로드|무료/.test(gq.replace(/<script[\s\S]*?<\/script>/g, '')), [gq.length, (gq.match(/<title>[^<]*/) || [''])[0]])
+  const 안퀴즈 = path.join(ROOT, 'web/dist/cert/geonseol-anjeon-gisa/quiz.html')
+  const aq = fs.existsSync(안퀴즈) ? fs.readFileSync(안퀴즈, 'utf8') : ''
+  ok('⑭c 구운 건설안전기사 예상문제 쪽(cert/geonseol-anjeon-gisa/quiz.html) — 제목 · h1 · 들어 있는 문제 5과목 · 맛보기 5 · 큐넷 1440 · canonical · /cert 에 «건설안전기사 예상문제» 줄', /<title>건설안전기사 필기 예상문제 — /.test(aq) && /<h1[^>]*>📝 건설안전기사 필기 예상문제<\/h1>/.test(aq)
+    && (aq.match(/class="qz-types"/g) || []).length === 5 && (aq.match(/<details class="qz-rv">/g) || []).length === 5 && /jmCd=1440/.test(aq) && /rel="canonical" href="https:\/\/k-conmap\.com\/cert\/geonseol-anjeon-gisa\/quiz"/.test(aq)
+    && /href="\/cert\/geonseol-anjeon-gisa\/quiz"><span class="fic">📝/.test(h) && !/클로드|무료/.test(aq.replace(/<script[\s\S]*?<\/script>/g, '')), [aq.length, (aq.match(/<title>[^<]*/) || [''])[0]])
   const 면접쪽 = path.join(ROOT, 'web/dist/cert/tomok-sigong-gisulsa/interview.html')
   const ivh = fs.existsSync(면접쪽) ? fs.readFileSync(면접쪽, 'utf8') : ''
   const tsh = fs.readFileSync(path.join(ROOT, 'web/dist/cert/tomok-sigong-gisulsa.html'), 'utf8')

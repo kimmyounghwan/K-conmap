@@ -5,6 +5,7 @@
  *   ② 정답 자리 고르게(각 자리 15 ~ 35 %) · 같은 씨앗 = 같은 문제 · 다른 씨앗 = 숫자가 바뀜(200개 중 같은 문 40 % 아래)
  *   ③ 시험지 — 과목 차례 · 문제 수 · 채점(과목 40 · 평균 60 — 국가기술자격법 시행령 제20조 ②)
  *   ④ cert.json deep[종목].quiz 과목 · 틀 · 맛보기 = lib 문제집(구운 쪽 · 사이트맵이 그쪽을 봄) — 종목마다
+ *   ⑥ G646(11-11) 건설안전기사 5과목 22틀 — 큐넷 2024 출제기준 과목 · 건설시공은 건축시공 틀을 과목 이름만 바꿔 씀 · 법령 근거 · 단위 없는 값 · 시험지
  *   ⑤ G645(11-10) 건축기사 5과목 20틀 — 건축구조는 토목 틀을 과목 이름만 바꿔 씀(같은 문제) · 법규 틀 근거에 조문 · 시험지 · 채점(5과목)
  */
 import fs from 'fs'
@@ -65,9 +66,29 @@ const 따로 = {
   'al-bcr': ({ A, B }) => [100 * B / A, 1],
   'al-far': ({ A, f, n: 층 }) => [100 * f * 층 / A, 1],
   'al-window': ({ A, 무엇 }) => [A / (무엇 === '채광' ? 10 : 20), 1],
+  /* 🦺 G646 건설안전기사 */
+  'sf-freq': ({ N, 날, 시, k }) => [k * 1e6 / (N * 날 * 시), 2],
+  'sf-sev': ({ N, 날, 시, D }) => [D * 1000 / (N * 날 * 시), 2],
+  'sf-annual': ({ N, k }) => [1000 * k / N, 2],
+  'sf-index': ({ F, S }) => [Math.pow(F * S, 0.5), 2],
+  'sf-convert': ({ 쪽, 값 }) => [쪽 === '도수율→연천인율' ? 2.4 * 값 : 값 / 2.4, 2],
+  'hf-series': ({ a, b, c }) => [a * b * c, 4],
+  'hf-parallel': ({ a, b }) => [a + b - a * b, 4],
+  'hf-exp': ({ T, n: 고장, t }) => [Math.pow(Math.E, -(고장 / T) * t), 4],
+  'hf-info': ({ 갈래, n: 가지, p, ps }) => [갈래 === '같은 확률' ? Math.log(가지) / Math.LN2 : 갈래 === '한 사건' ? -Math.log(p) / Math.LN2 : ps.reduce((s, x) => s - x * Math.log(x) / Math.LN2, 0), 2],
+  'hf-fta': ({ a, b, c, 게이트 }) => [게이트 === 'AND' ? a * b * c : a + b + c - a * b - b * c - a * c + a * b * c, 4],
+  'mt-fm': ({ 누 }) => [누.reduce((x, y) => x + y, 0) / 100, 2],
+  'mt-absorb': ({ W, Ws, W0, 무엇 }) => [무엇 === '흡수율' ? 100 * (Ws - W0) / W0 : 무엇 === '표면수율' ? 100 * (W - Ws) / Ws : 100 * (W - W0) / W0, 2],
+  'mt-comp': ({ D, P }) => [4 * P * 1000 / (Math.PI * D * D), 1],
+  'mt-wood': ({ W0, W }) => [100 * (W - W0) / W0, 1],
+  'cc-dump': ({ V, L, q }) => [Math.ceil(V * L / q - 1e-9), 0],
+  'sm-factor': ({ B, W }) => [B / W, 2],
+  'sm-slope': ({ 흙, H }) => [H * { 모래: 1.8, '연암 및 풍화암': 1.0, 경암: 0.5, '그 밖의 흙': 1.2 }[흙], 2],
+  'sm-wire': ({ 쪽, B, W }) => (쪽 === '안전계수' ? [B / W, 2] : [B / 5, 1]),
 }
 /* 건축구조 — 토목 틀을 그대로 쓴 것은 따로 셈도 같은 것 */
-for (const [새, 옛] of [['as-udl', 'm-simple-udl'], ['as-point', 'm-simple-point'], ['as-inertia', 'm-rect-inertia'], ['as-stress-block', 'r-stress-block']]) 따로[새] = 따로[옛]
+for (const [새, 옛] of [['as-udl', 'm-simple-udl'], ['as-point', 'm-simple-point'], ['as-inertia', 'm-rect-inertia'], ['as-stress-block', 'r-stress-block'],
+  ['cc-loose', 'ac-loose'], ['cc-fill', 'ac-fill'], ['cc-wc', 'ac-wc'], ['cc-cost-slope', 'ac-cost-slope']]) 따로[새] = 따로[옛]
 
 const 집 = Q.문제집['tomok-gisa']
 const 모든틀 = [...new Set(Object.values(Q.문제집).flatMap((z) => z.틀))]
@@ -83,7 +104,7 @@ for (const id of 모든틀) {
     if (q.보기.length !== 4 || new Set(q.보기).size !== 4) { 틀림 = ['보기 겹침', s, q.보기]; break }
     if (!(q.답 >= 0 && q.답 <= 3)) { 틀림 = ['정답 자리', s, q.답]; break }
     const [값, 자리] = 따로[id](q.입)
-    const 기대 = `${id === 's-random-error' ? '±' : ''}${글(값, 자리)} ${q.단위}`
+    const 기대 = `${id === 's-random-error' ? '±' : ''}${글(값, 자리)}${q.단위 ? ' ' + q.단위 : ''}`
     if (q.보기[q.답] !== 기대) { 틀림 = ['정답 ≠ 따로 셈', s, q.보기[q.답], 기대, q.입]; break }
     if (Math.abs(값 - q.값) > 1e-9 * Math.max(1, Math.abs(값))) { 틀림 = ['값 다름', s, 값, q.값]; break }
     const 모두 = [q.문, ...q.보기, ...q.해설, q.근거].join(' ')
@@ -150,6 +171,23 @@ ok('건축기사 시험지 10문제 — 과목마다 2문제 · 과목 차례', 
 const 건다 = Q.채점('geonchuk-gisa', 건10.map((x) => ({ 과목: x.과목, 맞음: true })))
 const 건하나 = Q.채점('geonchuk-gisa', 건10.map((x) => ({ 과목: x.과목, 맞음: x.과목 !== '건축관계법규' })))
 ok('건축기사 채점 — 5과목 다 풀면 전과목 · 다 맞음 합격 · 법규 0점이면 과락 불합격', 건다.전과목 && 건다.합격 && 건다.평균 === 100 && !건하나.합격 && 건하나.전과목, [건다.평균, 건하나.평균])
+console.log('⑥ G646 건설안전기사')
+const 안 = Q.문제집['geonseol-anjeon-gisa']
+ok('건설안전기사 5과목 = 큐넷 2024 출제기준 차례 · 과목마다 틀 3개 넘게 · 합격 40 · 60', JSON.stringify(안.과목) === JSON.stringify(['산업재해 예방 및 안전보건교육', '인간공학 및 위험성 평가·관리', '건설재료', '건설시공', '건설공사 안전관리'])
+  && 안.과목.every((과) => 안.틀.filter((id) => Q.틀of(id).과목 === 과).length >= 3) && 안.합격.과목 === 40 && 안.합격.평균 === 60)
+const 안필 = (((cert.deep || {})['geonseol-anjeon-gisa'] || {}).secs || []).flatMap((s) => s.blocks).filter((b) => b.t === 'table' && b.cols[0] === '구분').flatMap((b) => b.rows).find((r) => r[0] === '필기 과목')
+ok('건설안전기사 과목 = cert.json 깊은 글 «필기 과목» 줄(큐넷)', 안필 && 안.과목.every((과, i) => 안필[1].includes(`${i + 1}. ${과}`)), 안필)
+ok('건설시공 — 건축시공 틀을 그대로 쓴 넷(cc-loose · cc-fill · cc-wc · cc-cost-slope)은 같은 씨앗 = 같은 문 · 과목만 «건설시공»',
+  [['cc-loose', 'ac-loose'], ['cc-fill', 'ac-fill'], ['cc-wc', 'ac-wc'], ['cc-cost-slope', 'ac-cost-slope']].every(([a, b]) => { const x = Q.문제(a, 41), y = Q.문제(b, 41); return x.문 === y.문 && JSON.stringify(x.보기) === JSON.stringify(y.보기) && x.과목 === '건설시공' }))
+ok('법령 틀 근거에 법령 — 산업재해통계업무처리규정(도수율 · 강도율) · 산업안전보건기준에 관한 규칙 [별표 11] · 제163조', /산업재해통계업무처리규정 제3조 ① 4호 — 도수율\(빈도율\) = 재해건수 \/ 연근로시간수 × 1,000,000/.test(Q.문제('sf-freq', 1).근거) && /산업재해통계업무처리규정 제3조 ① 5호 — 강도율 = \(총요양근로손실일수 \/ 연근로시간수\) × 1,000/.test(Q.문제('sf-sev', 1).근거)
+  && /\[별표 11\] 굴착면의 기울기 기준\(제339조 ① 관련\)/.test(Q.문제('sm-slope', 1).근거) && /제163조 ① — 양중기 와이어로프 등 달기구의 안전계수/.test(Q.문제('sm-wire', 1).근거))
+ok('단위 없는 값(도수율 · 신뢰도 …) — 보기 끝에 빈칸 없음', ['sf-freq', 'hf-series', 'mt-fm', 'sm-factor'].every((id) => Q.문제(id, 7).보기.every((x) => x === x.trim())))
+const 모든id = Object.values(Q.문제집).flatMap((x) => x.틀)
+const 갈라짐 = 모든id.flatMap((id) => [1, 2, 3].map((s) => Q.문제(id, s))).flatMap((q) => [q.문, ...q.해설].filter((x) => /\d (?:kN|MPa|mm|m³|m²|m|%|bit|대|원\/일|시간)(?:$|[\s(),.])/.test(x) || /\d : \d/.test(x)).map((x) => [q.id, x]))
+ok('숫자 · 단위 사이 = 줄바꿈 없는 빈칸(문 · 해설 — 폰에서 «16.0 / kN» 으로 안 갈라짐) · 보기에는 안 넣음(채점 글 그대로)', Q.붙임('= 80 ÷ 5 = 16.0 kN') === '= 80 ÷ 5 = 16.0\u00a0kN' && Q.붙임('5 이상') === '5 이상' && Q.붙임('모래 1 : 1.8') === '모래 1\u00a0:\u00a01.8'
+  && 갈라짐.length === 0 && 모든id.every((id) => Q.문제(id, 5).보기.every((x) => !x.includes('\u00a0'))), 갈라짐.slice(0, 3))
+const 안10 = Q.시험지('geonseol-anjeon-gisa', null, 10, 2027)
+ok('건설안전기사 시험지 10문제 — 과목마다 2문제 · 과목 차례', 안10.length === 10 && 안.과목.every((과, i) => 안10[i * 2].과목 === 과 && 안10[i * 2 + 1].과목 === 과), 안10.map((x) => x.과목))
 const 퀴즈종목 = Object.entries(cert.deep || {}).filter(([, t]) => t.quiz).map(([k]) => k)
 ok('예상문제가 있는 종목(cert.json) = lib 문제집 종목', JSON.stringify(퀴즈종목.sort()) === JSON.stringify(Object.keys(Q.문제집).sort()), 퀴즈종목)
 const 글모두 = JSON.stringify(Q.문제집) + 모든틀.map((id) => JSON.stringify(Q.문제(id, 5))).join('')
