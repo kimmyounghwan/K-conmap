@@ -50,7 +50,7 @@ console.log('① 바닥글 · ② 머리 줄 · ④ 모집 카드 — 폰 390')
   ok('② 폰 390 머리 줄 «광고 · 제휴» 는 숨김', await p.evaluate(() => { const a = document.querySelector('.ad-top'); return !!a && getComputedStyle(a).display === 'none' }))
   await p.goto(BASE + '/tools', { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(1500)
   const 모 = await p.evaluate(() => [...document.querySelectorAll('aside.adc-recruit')].map((a) => ({ 글: a.innerText.replace(/\s+/g, ' ').trim(), 곳: (a.querySelector('a') || {}).getAttribute?.('href') })))
-  ok('④ 도구 목록 — 모집 카드 한 장 «이 자리에 광고하세요 — 광고주 · 제휴 모집» → /ad', 모.length === 1 && /이 자리에 광고하세요 — 광고주 · 제휴 모집/.test(모[0].글) && 모[0].곳 === '/ad', 모)
+  ok('④ 도구 목록 — 모집 카드 한 장 «광고 · 광고주 · 제휴 모집» 띠 + «📣 이 자리에 광고하세요»(G651 같은 말 두 번 뺌) → /ad', 모.length === 1 && /^광고 광고주 · 제휴 모집 📣 이 자리에 광고하세요 공공 공사/.test(모[0].글) && 모[0].곳 === '/ad', 모)
   ok('⑦ ⑧ 모집 카드 — «광고비 · 기간은 문의» · 제휴 넷 이름 · «명함 한 장이면» 없음', 모.length === 1 && /광고비 · 기간은 문의/.test(모[0].글) && /제휴\(이용자 할인 · 서로 알리기 · 교육 · 상담 연결\)/.test(모[0].글) && !/명함 한 장/.test(모[0].글), 모[0] && 모[0].글)
   ok('④ 도구 목록 — 첫 결과 위에는 없음(머리 · 많이 쓴 도구 뒤)', await p.evaluate(() => { const a = document.querySelector('aside.adc-recruit'); const h = document.querySelector('.tl-h1'); return !!a && !!h && (h.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING) > 0 }))
   if (OUT) { await 숨김(p); await p.evaluate(() => document.querySelector('aside.adc-recruit').scrollIntoView({ block: 'center' })); await p.waitForTimeout(300); await p.screenshot({ path: OUT + '/문의_도구목록_모집카드_폰390.png' }) }
