@@ -4,7 +4,8 @@
  *   ① 틀마다 씨앗 2,000개 — 보기 넷 서로 다름 · 정답 자리 0 ~ 3 · 보기[정답] = 시험이 «따로» 셈한 값(lib 를 쓰지 않은 공식) · 글자에 NaN · undefined 없음
  *   ② 정답 자리 고르게(각 자리 15 ~ 35 %) · 같은 씨앗 = 같은 문제 · 다른 씨앗 = 숫자가 바뀜(200개 중 같은 문 40 % 아래)
  *   ③ 시험지 — 과목 차례 · 문제 수 · 채점(과목 40 · 평균 60 — 국가기술자격법 시행령 제20조 ②)
- *   ④ cert.json deep['tomok-gisa'].quiz 과목 · 틀 = lib 문제집(구운 쪽 · 사이트맵이 그쪽을 봄)
+ *   ④ cert.json deep[종목].quiz 과목 · 틀 · 맛보기 = lib 문제집(구운 쪽 · 사이트맵이 그쪽을 봄) — 종목마다
+ *   ⑤ G645(11-10) 건축기사 5과목 20틀 — 건축구조는 토목 틀을 과목 이름만 바꿔 씀(같은 문제) · 법규 틀 근거에 조문 · 시험지 · 채점(5과목)
  */
 import fs from 'fs'
 import path from 'path'
@@ -47,13 +48,33 @@ const 따로 = {
   'w-bod-load': ({ C, Q: q }) => [C * q * 1e-3, 0],
   'w-overflow': ({ Q: q, D }) => [q / (Math.PI * D * D / 4), 1],
   'w-max-day': ({ P, q }) => [P * q / 1000, 0],
+  /* 🏛 G645 건축기사 */
+  'ap-use-rate': ({ T, U }) => [100 * U / T, 1],
+  'ap-purity': ({ U, S }) => [100 * S / U, 1],
+  'ap-rentable': ({ F, R }) => [100 * R / F, 1],
+  'ac-loose': ({ V, L }) => [L * V, 1],
+  'ac-fill': ({ F, C }) => [F * (1 / C), 1],
+  'ac-wc': ({ W, C }) => [100 * W / C, 1],
+  'ac-cost-slope': ({ Tn, Tc, Cn, Cc }) => [(Cc - Cn) / (Tn - Tc), 0],
+  'as-bending-stress': ({ b, h, M }) => [6 * M * 1e6 / (b * h * h), 2],
+  'as-euler': ({ K, E, I, L }) => [Math.PI * Math.PI * E * (I * 1e6) / Math.pow(K * L * 1000, 2) / 1000, 1],
+  'ae-heat': ({ K, A, ti, to }) => [K * A * (ti - to), 1],
+  'ae-co2': ({ n: 사람, m, Ci, Co }) => [100 * 사람 * m / (Ci - Co), 1],
+  'ae-lumen': ({ E, a, b, F, U, M }) => [Math.ceil(E * a * b / (F * U * M) - 1e-9), 0],
+  'ae-3phase': ({ V, I, pf }) => [Math.sqrt(3) * V * I * pf / 1000, 2],
+  'al-bcr': ({ A, B }) => [100 * B / A, 1],
+  'al-far': ({ A, f, n: 층 }) => [100 * f * 층 / A, 1],
+  'al-window': ({ A, 무엇 }) => [A / (무엇 === '채광' ? 10 : 20), 1],
 }
+/* 건축구조 — 토목 틀을 그대로 쓴 것은 따로 셈도 같은 것 */
+for (const [새, 옛] of [['as-udl', 'm-simple-udl'], ['as-point', 'm-simple-point'], ['as-inertia', 'm-rect-inertia'], ['as-stress-block', 'r-stress-block']]) 따로[새] = 따로[옛]
 
 const 집 = Q.문제집['tomok-gisa']
+const 모든틀 = [...new Set(Object.values(Q.문제집).flatMap((z) => z.틀))]
 console.log('① 틀마다 씨앗 2,000개')
 ok(`토목기사 틀 ${집.틀.length}개 · 과목 6 · 과목마다 틀 3개 넘게`, 집.과목.length === 6 && 집.과목.every((과) => 집.틀.filter((id) => Q.틀of(id).과목 === 과).length >= 3), 집.과목.map((과) => 집.틀.filter((id) => Q.틀of(id).과목 === 과).length))
-ok('시험의 «따로 셈» 이 모든 틀에 있음', 집.틀.every((id) => 따로[id]), 집.틀.filter((id) => !따로[id]))
-for (const id of 집.틀) {
+ok(`시험의 «따로 셈» 이 모든 틀(종목 ${Object.keys(Q.문제집).length} · 틀 ${모든틀.length})에 있음`, 모든틀.every((id) => 따로[id]), 모든틀.filter((id) => !따로[id]))
+for (const id of 모든틀) {
   const 자리셈 = [0, 0, 0, 0]
   let 틀림 = null
   for (let s = 1; s <= 2000; s++) {
@@ -75,8 +96,8 @@ for (const id of 집.틀) {
 }
 
 console.log('② 같은 씨앗 = 같은 문제 · 다른 씨앗 = 숫자 바뀜')
-ok('같은 씨앗 두 번 → 똑같은 문제(틀린 문제 다시 풀기)', 집.틀.every((id) => JSON.stringify(Q.문제(id, 777)) === JSON.stringify(Q.문제(id, 777))))
-const 바뀜 = 집.틀.map((id) => { const 문들 = new Set(); for (let s = 1; s <= 200; s++) 문들.add(Q.문제(id, s * 40503).문); return [id, 문들.size] })
+ok('같은 씨앗 두 번 → 똑같은 문제(틀린 문제 다시 풀기)', 모든틀.every((id) => JSON.stringify(Q.문제(id, 777)) === JSON.stringify(Q.문제(id, 777))))
+const 바뀜 = 모든틀.map((id) => { const 문들 = new Set(); for (let s = 1; s <= 200; s++) 문들.add(Q.문제(id, s * 40503).문); return [id, 문들.size] })
 ok('씨앗 200개에서 서로 다른 문(숫자) 30개 넘게 — 틀마다', 바뀜.every(([, k]) => k > 30), 바뀜.filter(([, k]) => k <= 30))
 
 console.log('③ 시험지 · 채점')
@@ -103,17 +124,35 @@ ok('한 과목만 풀면 «전과목» 아님 → 합격 판정 안 함', !한�
 ok('채점 줄 = 과목 차례(응용역학 → 상하수도공학)', JSON.stringify(Q.채점('tomok-gisa', [...t12].reverse().map((x) => ({ 과목: x.과목, 맞음: true }))).줄.map((x) => x.과목)) === JSON.stringify(집.과목))
 ok('합격 기준 = 과목 40 · 평균 60', 집.합격.과목 === 40 && 집.합격.평균 === 60)
 
-console.log('④ cert.json 과 같음')
+console.log('④ cert.json 과 같음 — 종목마다')
 const cert = JSON.parse(fs.readFileSync(path.join(여기, '..', 'web', 'src', 'data', 'cert.json'), 'utf8'))
-const qz = ((cert.deep || {})['tomok-gisa'] || {}).quiz || {}
-ok('deep[tomok-gisa].quiz 과목 = lib 과목', JSON.stringify(qz.과목) === JSON.stringify(집.과목), qz.과목)
-ok('deep[tomok-gisa].quiz 틀(id · 과목 · 이름) = lib', JSON.stringify((qz.틀 || []).map((x) => [x.id, x.과목, x.이름])) === JSON.stringify(집.틀.map((id) => [id, Q.틀of(id).과목, Q.틀of(id).이름])), (qz.틀 || []).length)
-const 예시 = qz.예시 || []
-const 예시같음 = 예시.every((e) => { const q = Q.문제(e.id, e.씨); return q && ['과목', '이름', '문', '보기', '답', '해설', '근거'].every((k) => JSON.stringify(q[k]) === JSON.stringify(e[k])) })
-ok('deep[tomok-gisa].quiz 예시(맛보기) — 과목마다 한 문제 · lib 가 같은 씨앗으로 만든 것과 글자까지 같음(구운 쪽 = 화면)', 예시.length === 집.과목.length && 집.과목.every((과, i) => 예시[i] && 예시[i].과목 === 과) && 예시같음, 예시.map((e) => e.id))
+for (const [종목, z] of Object.entries(Q.문제집)) {
+  const qz = ((cert.deep || {})[종목] || {}).quiz || {}
+  ok(`deep[${종목}].quiz 과목 = lib 과목`, JSON.stringify(qz.과목) === JSON.stringify(z.과목), qz.과목)
+  ok(`deep[${종목}].quiz 틀(id · 과목 · 이름) = lib`, JSON.stringify((qz.틀 || []).map((x) => [x.id, x.과목, x.이름])) === JSON.stringify(z.틀.map((id) => [id, Q.틀of(id).과목, Q.틀of(id).이름])), (qz.틀 || []).length)
+  const 예시 = qz.예시 || []
+  const 예시같음 = 예시.every((e) => { const q = Q.문제(e.id, e.씨); return q && ['과목', '이름', '문', '보기', '답', '해설', '근거'].every((k) => JSON.stringify(q[k]) === JSON.stringify(e[k])) })
+  ok(`deep[${종목}].quiz 예시(맛보기) — 과목마다 한 문제 · lib 가 같은 씨앗으로 만든 것과 글자까지 같음(구운 쪽 = 화면)`, 예시.length === z.과목.length && z.과목.every((과, i) => 예시[i] && 예시[i].과목 === 과) && 예시같음, 예시.map((e) => e.id))
+  ok(`deep[${종목}].quiz 글 — h1 · 제목 · 설명에 종목 이름 · ${z.과목.length}과목 · 틀 ${z.틀.length}가지`, (qz.h1 || '').includes(z.이름) && (qz.title || '').includes(`${z.과목.length}과목`) && (qz.desc || '').includes(`${z.틀.length}가지`), [qz.h1, qz.title])
+}
+console.log('⑤ G645 건축기사')
+const 건 = Q.문제집['geonchuk-gisa']
+ok('건축기사 5과목 = 큐넷 필기 과목 차례(건축계획 · 건축시공 · 건축구조 · 건축설비 · 건축관계법규) · 과목마다 틀 3개 넘게', JSON.stringify(건.과목) === JSON.stringify(['건축계획', '건축시공', '건축구조', '건축설비', '건축관계법규'])
+  && 건.과목.every((과) => 건.틀.filter((id) => Q.틀of(id).과목 === 과).length >= 3) && 건.합격.과목 === 40 && 건.합격.평균 === 60)
+const 필과 = (((cert.deep || {})['geonchuk-gisa'] || {}).secs || []).flatMap((s) => s.blocks).filter((b) => b.t === 'table' && b.cols[0] === '구분').flatMap((b) => b.rows).find((r) => r[0] === '필기 과목')
+ok('건축기사 과목 = cert.json 깊은 글 «필기 과목» 줄(큐넷)', 필과 && 건.과목.every((과, i) => 필과[1].includes(`${i + 1}. ${과}`)), 필과)
+ok('건축구조 — 토목 틀을 그대로 쓴 넷(as-udl · as-point · as-inertia · as-stress-block)은 같은 씨앗 = 같은 문 · 과목만 «건축구조»',
+  [['as-udl', 'm-simple-udl'], ['as-point', 'm-simple-point'], ['as-inertia', 'm-rect-inertia'], ['as-stress-block', 'r-stress-block']].every(([a, b]) => { const x = Q.문제(a, 31), y = Q.문제(b, 31); return x.문 === y.문 && JSON.stringify(x.보기) === JSON.stringify(y.보기) && x.과목 === '건축구조' && y.과목 !== '건축구조' }))
+ok('토목기사 문제집에는 건축 틀이 안 섞임 · 건축기사에는 토목 틀(과목 이름 그대로)이 안 섞임', 집.틀.every((id) => 집.과목.includes(Q.틀of(id).과목)) && 건.틀.every((id) => 건.과목.includes(Q.틀of(id).과목)) && !건.틀.some((id) => 집.틀.includes(id)))
+ok('법규 틀 근거에 조문 — 건축법 제55조 · 제56조 · 시행령 제119조 · 피난ㆍ방화구조 규칙 제17조', /건축법 제55조/.test(Q.문제('al-bcr', 1).근거) && /건축법 제56조/.test(Q.문제('al-far', 1).근거) && /시행령 제119조 ① 4호 가목/.test(Q.문제('al-far', 1).근거) && /제17조/.test(Q.문제('al-window', 1).근거))
+const 건10 = Q.시험지('geonchuk-gisa', null, 10, 2026)
+ok('건축기사 시험지 10문제 — 과목마다 2문제 · 과목 차례', 건10.length === 10 && 건.과목.every((과, i) => 건10[i * 2].과목 === 과 && 건10[i * 2 + 1].과목 === 과), 건10.map((x) => x.과목))
+const 건다 = Q.채점('geonchuk-gisa', 건10.map((x) => ({ 과목: x.과목, 맞음: true })))
+const 건하나 = Q.채점('geonchuk-gisa', 건10.map((x) => ({ 과목: x.과목, 맞음: x.과목 !== '건축관계법규' })))
+ok('건축기사 채점 — 5과목 다 풀면 전과목 · 다 맞음 합격 · 법규 0점이면 과락 불합격', 건다.전과목 && 건다.합격 && 건다.평균 === 100 && !건하나.합격 && 건하나.전과목, [건다.평균, 건하나.평균])
 const 퀴즈종목 = Object.entries(cert.deep || {}).filter(([, t]) => t.quiz).map(([k]) => k)
 ok('예상문제가 있는 종목(cert.json) = lib 문제집 종목', JSON.stringify(퀴즈종목.sort()) === JSON.stringify(Object.keys(Q.문제집).sort()), 퀴즈종목)
-const 글모두 = JSON.stringify(Q.문제집) + 집.틀.map((id) => JSON.stringify(Q.문제(id, 5))).join('')
+const 글모두 = JSON.stringify(Q.문제집) + 모든틀.map((id) => JSON.stringify(Q.문제(id, 5))).join('')
 ok('«무료» · «클로드» 없음', !/무료|클로드/.test(글모두))
 
 console.log(`\n${bad ? '❌' : '✅'} 시험_예상문제 ${n - bad}/${n}`)
