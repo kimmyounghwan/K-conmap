@@ -3985,9 +3985,11 @@ def cert_index(shell, d, image=None):
                     out.append(f'<span class="cert-chip">{esc(x["n"])}</span>')
             out.append("</div></div>")
         out.append("</div>")
+    gorder = [g.get("k") for g in (d.get("groups") or [])]   # 📱 G647 예상문제 줄도 지도 차례(토목 → 건축 → 건설안전)
     qz = "".join(f'<a class="row rowlink" href="/cert/{esc(x["slug"])}/quiz"><span class="fic">📝</span><div class="grow"><div class="t">{esc(x["n"])} 예상문제</div>'
                  f'<div class="d">{len(deep[x["slug"]]["quiz"].get("과목") or [])}과목 계산 문제 {len(deep[x["slug"]]["quiz"].get("틀") or [])}가지 — 풀 때마다 숫자가 바뀜 · 풀이 · 근거</div></div><span class="go">→</span></a>'
-                 for x in items if x["slug"] in deep and deep[x["slug"]].get("quiz"))   # 📝 G628 — 화면(Cert.jsx 퀴즈종목)과 같은 줄
+                 for x in sorted((x for x in items if x["slug"] in deep and deep[x["slug"]].get("quiz")),   # 📝 G628 — 화면(Cert.jsx 퀴즈종목)과 같은 줄
+                                 key=lambda x: gorder.index(x["g"]) if x.get("g") in gorder else 99))
     qz += "".join(f'<a class="row rowlink" href="/cert/{esc(x["slug"])}/interview"><span class="fic">🎤</span><div class="grow"><div class="t">{esc(x["n"])} 면접 준비</div>'
                   f'<div class="d">자주 나오는 질문 {deep[x["slug"]]["interview"].get("수", 0)}개 · 분야별 답 요령 · 근거</div></div><span class="go">→</span></a>'
                   for x in items if x["slug"] in deep and deep[x["slug"]].get("interview"))   # 🎤 G631 — 화면(Cert.jsx 면접종목)과 같은 줄
