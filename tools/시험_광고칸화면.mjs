@@ -8,6 +8,8 @@
  *   ② 보험료 계산기 · 4대보험 판단기: 결과 바로 아래 한 장(근재보험 정순덕 FP · 여러 번 열어도 늘 — 소장님 「번갈아서 하지 말고」)
  *   ③ 숨은 셈: 보임(화면에 들어왔을 때 한 번) · 전화 · 문자 누름 → 데이터베이스로 |광고보임|id · |광고전화|id · |광고문자|id
  *   ④ 폰 390 · 320 넘침 0 · 어두운 화면 글이 읽힘(대비) · 인쇄에는 안 나옴 · 오류 0
+ *   ⑤ 📐 G651 소장님 「광고 크기 줄여줘」 · 「현재 광고 다 크기 줄이고」 — 높이 막이(폰 390 강천 · 대유 ≤ 180 · 유안굴착 ≤ 230 · 정순덕 ≤ 180 · 박현희 ≤ 165 · 어느 광고든 ≤ 230 / PC 1280 ≤ 125 · 유안굴착 ≤ 150 — 전 243 · 323 · 301 · 255 / 161 · 194 · 181)
+ *      · 연락처(사무실 · 팩스 · 메일 · 주소 · 고객센터)는 «📇 …» 한 줄로 접힘 → 누르면 펼침 · 셈 |광고더보기|id 한 번 · 다시 누르면 접힘
  *   OUT=폴더 면 화면 사진(폰 · PC · 어두운 화면)
  * 가상 자료만 씀(공사 · 기관 · 업체 이름 지어냄 — 광고 자료만 실제) · 인터넷 안 부름.
  */
@@ -48,8 +50,11 @@ async function 새쪽(w, h, 폰 = true, 어둠 = false) {
   return { ctx, p, 오류 }
 }
 const 넘침 = (p) => p.evaluate(() => document.documentElement.scrollWidth - innerWidth)
+/* G651 — 연락처는 접혀 있음(«📇 …») → 글을 읽을 때만 잠깐 펴서 읽고 그대로 되돌림(접힘은 따로 봄) */
+const 펴읽기 = (a) => { const ds = [...a.querySelectorAll('details')]; const 열림 = ds.map((d) => d.open); ds.forEach((d) => { d.open = true }); const t = a.innerText.replace(/\s+/g, ' ').trim(); ds.forEach((d, i) => { d.open = 열림[i] }); return t }
 const 광고 = (p) => p.evaluate(() => [...document.querySelectorAll('aside.adc')].map((a) => ({
-  id: a.dataset.ad, 글: a.innerText.replace(/\s+/g, ' ').trim(), tel: (a.querySelector('.adc-call') || {}).getAttribute?.('href'), sms: (a.querySelector('.adc-sms') || {}).getAttribute?.('href'),
+  id: a.dataset.ad, 글: ((a) => { const ds = [...a.querySelectorAll('details')]; const 열림 = ds.map((d) => d.open); ds.forEach((d) => { d.open = true }); const t = a.innerText.replace(/\s+/g, ' ').trim(); ds.forEach((d, i) => { d.open = 열림[i] }); return t })(a),
+  높이: Math.round(a.getBoundingClientRect().height), 접힘: (() => { const d = a.querySelector('details.adc-more'); return d ? !d.open : null })(), tel: (a.querySelector('.adc-call') || {}).getAttribute?.('href'), sms: (a.querySelector('.adc-sms') || {}).getAttribute?.('href'),
   메일: (a.querySelector('.adc-info a[href^="mailto:"]') || {}).getAttribute?.('href') || '',
   앞: a.previousElementSibling ? a.previousElementSibling.className : '', 뒤: a.nextElementSibling ? a.nextElementSibling.className : '',
 })))
@@ -69,6 +74,10 @@ console.log('① 1순위(/first) — 폰 390 · 광고 셋(셋째 강천 · 대�
   ok('강천 · 대유 — «광고 · 👍 K-건설맵 추천» · 추천 한 줄 · 이름 · 고흥군 · 📞 010-6460-1650 · «대표 정종석» · 정보 표(사무실 · 팩스 · 메일 · 주소 — 소장님 「다 넣어 줘」) · 메일 누르면 mailto', k && /^광고 👍 K-건설맵 추천/.test(k.글) && /두 회사가 함께 — 고흥 지역 건설공사, 전화 한 통으로 상담/.test(k.글) && /대표 정종석/.test(k.글) && /강천건설\(주\) · \(유\)대유건설/.test(k.글) && /전남 고흥군/.test(k.글) && k.tel === 'tel:01064601650' && /📞 010-6460-1650/.test(k.글) && /사무실 061-835-6788 · 061-842-6789/.test(k.글) && /팩스 061-844-1650/.test(k.글) && /메일 jinhung1650@naver\.com/.test(k.글) && /주소 전남 고흥군 고흥읍 여산당촌길 23, 2층/.test(k.글) && k.메일 === 'mailto:jinhung1650@naver.com', k && k.글)
   ok('유안굴착 — «광고 · 👍 K-건설맵 추천» · «대표 안정현» · 추천 한 줄 · 압입추진 · 전북 전주시 덕진구 · 📞 010-3658-3104 · 메일 · 주소(명함 그대로)', y && /^광고 👍 K-건설맵 추천/.test(y.글) && /대표 안정현/.test(y.글) && /메일 yuan0555@nate\.com/.test(y.글) && /주소 전북 전주시 덕진구 동부대로 670 클래시아A 101동 1101호/.test(y.글) && y.메일 === 'mailto:yuan0555@nate.com' && /현장에 맞는 공법을 한 곳에서 상담/.test(y.글) && /압입추진 전문업체/.test(y.글) && y.tel === 'tel:01036583104', y && y.글)
   ok('«보증» · «확인하십시오» 같은 말 없음(셋 다)', a.every((x) => !/보증|확인하십시오|책임지지/.test(x.글)), a.map((x) => x.글.slice(0, 40)))
+  const 정 = 찾('kb-jsd')
+  ok('📐 G651 폰 390 높이 — 강천 · 대유 ≤ 180 · 유안굴착 ≤ 230 · 정순덕 ≤ 180(전 243 · 323 · 301)', k && y && 정 && k.높이 <= 180 && y.높이 <= 230 && 정.높이 <= 180, a.map((x) => [x.id, x.높이]))
+  ok('📐 G651 연락처는 접힘 — «📇 사무실 · 팩스 · 메일 · 주소» 한 줄 · 사무실 번호 · 주소는 안 보임(셋 다)', a.every((x) => x.접힘 === true) && await p.evaluate(() => [...document.querySelectorAll('aside.adc')].every((ad) => { const sm = ad.querySelector('details.adc-more > summary'); const 글 = ad.innerText; return sm && /^📇 사무실 · 팩스 · 메일 · 주소/.test(sm.innerText.trim()) && !/061-835-6788|063-909-0555|061-725-2603/.test(글) && !/주소 전남|주소 전북/.test(글) })), a.map((x) => [x.id, x.접힘]))
+  ok('📐 G651 정순덕 FP — 소속이 이름 옆 한 줄 · 추천 · 한줄 한 문단(글은 그대로) · «📇 사무실 · 팩스 · 메일 · 주소 · 고객센터»', 정 && /^광고 👍 K-건설맵 추천 광고 · 제휴 문의 → 🛡 정순덕 FP 교보생명 순천중앙FP지점 · SM MDRT 회원 · 우수인증설계사 — 착공 전 근재보험, 현장에 맞춰 상담 · 법인ㆍ화재ㆍ단체ㆍ근재 상담가능 📞 010-7623-9715 💬 문자 📇 사무실 · 팩스 · 메일 · 주소 · 고객센터 사무실 061-725-2603 팩스 061-726-1362 메일 sun9715suns@naver\.com 주소 전남 순천시 이수로 296, 6층 \(연향동, 청우빌딩\) 고객센터 교보생명 1588-1001$/.test(정.글) && await p.evaluate(() => { const ad = document.querySelectorAll('aside.adc')[2]; const n = ad.querySelector('.adc-nmt').getBoundingClientRect(), so = ad.querySelector('.adc-so').getBoundingClientRect(); return Math.abs(n.bottom - so.bottom) < 6 }), 정 && 정.글)
   /* 셈은 운영자 확인(비동기) 뒤에 나감 — 정해진 짧은 시간만 기다리면 가끔 놓침(11-05 한 번 놓침) → 나올 때까지 8초까지 기다림 */
   const 기다림 = async (f, ms = 8000) => { const t = Date.now(); while (Date.now() - t < ms) { if (f()) return true; await p.waitForTimeout(200) } return f() }
   await p.locator('aside.adc').first().scrollIntoViewIfNeeded()
@@ -80,6 +89,16 @@ console.log('① 1순위(/first) — 폰 390 · 광고 셋(셋째 강천 · 대�
   await p.locator('aside.adc').first().locator('.adc-sms').click()
   await 기다림(() => 셈들.some((u) => /광고전화/.test(u) && /kc-dy/.test(u)) && 셈들.some((u) => /광고문자/.test(u) && /kc-dy/.test(u)))
   ok('숨은 셈 — 전화 · 문자 누름 «|광고전화|kc-dy» · «|광고문자|kc-dy»', 셈들.some((u) => /광고전화/.test(u) && /kc-dy/.test(u)) && 셈들.some((u) => /광고문자/.test(u) && /kc-dy/.test(u)), 셈들)
+  {
+    const 첫 = p.locator('aside.adc').first(), sm = 첫.locator('details.adc-more > summary')
+    const 전높이 = await 첫.evaluate((a) => a.getBoundingClientRect().height)
+    await sm.click(); await p.waitForTimeout(300)
+    const 편 = await 첫.evaluate((a) => ({ 열림: a.querySelector('details.adc-more').open, 글: a.innerText.replace(/\s+/g, ' '), 높이: a.getBoundingClientRect().height }))
+    await 기다림(() => 셈들.some((u) => /광고더보기/.test(u) && /kc-dy/.test(u)), 5000)
+    ok('📐 G651 «📇 …» 누르면 펼침 — 사무실 · 팩스 · 메일 · 주소가 보임 · 셈 |광고더보기|kc-dy 한 번', 편.열림 && /사무실 061-835-6788 · 061-842-6789/.test(편.글) && /팩스 061-844-1650/.test(편.글) && /메일 jinhung1650@naver\.com/.test(편.글) && /주소 전남 고흥군 고흥읍 여산당촌길 23, 2층/.test(편.글) && 편.높이 > 전높이 && 셈들.filter((u) => /광고더보기/.test(u) && /kc-dy/.test(u)).length === 1, [편, 셈들.filter((u) => /더보기/.test(u))])
+    await sm.click(); await p.waitForTimeout(400)
+    ok('📐 G651 다시 누르면 접힘 · 셈은 더 안 감(펼칠 때만)', !(await 첫.evaluate((a) => a.querySelector('details.adc-more').open)) && Math.abs((await 첫.evaluate((a) => a.getBoundingClientRect().height)) - 전높이) < 2 && 셈들.filter((u) => /광고더보기/.test(u)).length === 1, 셈들.filter((u) => /더보기/.test(u)))
+  }
   await p.locator('main .notice.tap').first().click(); await p.waitForTimeout(500)
   ok('카드를 펼쳐도 광고는 세 장 그대로 · 그 자리', (await 광고(p)).length === 3, (await 광고(p)).length)
   ok('폰 390 넘침 0 · 오류 0', (await 넘침(p)) <= 0 && !오류.length, [await 넘침(p), 오류])
@@ -129,7 +148,7 @@ console.log('② 보험료 계산기 · 4대보험 판단기 — 결과 바로 �
       if (k === 0) {
         ok('보험료 계산기: 한 장 · 근재보험 설계사 · 결과 표(노무비율 글) 다음 · 신고 기한 앞', a.length === 1 && /^kb-/.test(a[0].id) && /detail-h/.test(a[0].뒤), a)
         ok('근재보험 카드 — 소속 · 하는 일 · 사무실 · «보증» 없음 · 정순덕은 «K-건설맵 추천» · 박현희는 «업체 소개»', a[0] && /교보생명/.test(a[0].글) && /법인ㆍ화재ㆍ단체ㆍ근재 상담가능/.test(a[0].글) && /사무실 061-72/.test(a[0].글) && /메일 \S+@\S+/.test(a[0].글) && /주소 전남 순천시/.test(a[0].글) && /고객센터 교보생명 1588-1001/.test(a[0].글) && !/보증하지/.test(a[0].글) && (a[0].id === 'kb-jsd' ? /^광고 👍 K-건설맵 추천/.test(a[0].글) : /^광고 업체 소개/.test(a[0].글)), a[0] && a[0].글)
-        ok('폰 390 넘침 0 · 오류 0', (await 넘침(p)) <= 0 && !오류.length, [await 넘침(p), 오류])
+        ok('폰 390 넘침 0 · 오류 0 · 📐 G651 광고 높이 ≤ 180', (await 넘침(p)) <= 0 && !오류.length && a[0].높이 <= 180, [await 넘침(p), 오류, a[0] && a[0].높이])
         if (OUT) { await 숨김(p); await p.evaluate(() => { const a = document.querySelector('aside.adc'); a.scrollIntoView(); window.scrollBy(0, -260) }); await p.waitForTimeout(400); await p.screenshot({ path: OUT + '/광고_보험료계산기_폰390.png' }) }
       }
       a.forEach((x) => 나온.add(x.id))
@@ -164,7 +183,7 @@ console.log('②b 노무비 계산기 · 산재 휴업급여 계산기 — 정�
       ok(`${u}: 자리 — ${k % 2 ? '휴업급여 결과 다음 · 안내 앞' : '쓰는 방법(접힌 칸) 앞'}`, k % 2 ? /sl-guide/.test(a[0].뒤) : /js-more/.test(a[0].뒤), a[0] && [a[0].앞, a[0].뒤])
     }
     if (a[0] && a[0].id === 'kb-phh' && !나온.has('찍음') && OUT) { 나온.add('찍음'); await 숨김(p); await p.evaluate(() => { const x = document.querySelector('aside.adc'); x.scrollIntoView(); window.scrollBy(0, -220) }); await p.waitForTimeout(400); await p.screenshot({ path: OUT + '/광고_노무_박현희_폰390.png' }) }
-    if (a[0] && a[0].id === 'kb-phh') ok('박현희 카드 — «광고 · 업체 소개»(추천 없음) · 📞 010-9885-7439', /^광고 업체 소개/.test(a[0].글) && a[0].tel === 'tel:01098857439', a[0].글)
+    if (a[0] && a[0].id === 'kb-phh') ok('박현희 카드 — «광고 · 업체 소개»(추천 없음) · 📞 010-9885-7439 · 📐 G651 폰 390 높이 ≤ 165(전 255) · 연락처 접힘', /^광고 업체 소개/.test(a[0].글) && a[0].tel === 'tel:01098857439' && a[0].높이 <= 165 && a[0].접힘 === true, [a[0].높이, a[0].접힘, a[0].글])
     await ctx.close()
   }
   ok('노무 자리 — 여러 번 열면 정순덕 · 박현희 둘 다 나옴(번갈아)', 나온.has('kb-jsd') && 나온.has('kb-phh'), [...나온])
@@ -184,6 +203,7 @@ console.log('③ 폰 320 · PC 1280 · 어두운 화면 · 인쇄')
   await p.goto(BASE + '/first', { waitUntil: 'domcontentloaded' })
   await p.waitForSelector('aside.adc', { timeout: 15000 }); await p.waitForTimeout(400)
   ok('PC 1280 — 세 장 · 넘침 0 · 오류 0', (await 광고(p)).length === 3 && (await 넘침(p)) <= 0 && !오류.length, [(await 광고(p)).length, 오류])
+  { const h = (await 광고(p)).map((x) => [x.id, x.높이]); ok('📐 G651 PC 1280 높이 — 강천 · 대유 · 정순덕 ≤ 125 · 유안굴착 ≤ 150(전 161 · 194 · 181)', h.every(([id, v]) => v <= (id === 'yuan' ? 150 : 125)), h) }
   if (OUT) { await 숨김(p); await p.evaluate(() => document.querySelector('aside.adc').scrollIntoView({ block: 'center' })); await p.waitForTimeout(400); await p.screenshot({ path: OUT + '/광고_1순위_PC1280.png' }) }
   await p.emulateMedia({ media: 'print' })
   ok('인쇄에는 안 나옴', await p.evaluate(() => getComputedStyle(document.querySelector('aside.adc')).display === 'none'))
