@@ -79,6 +79,13 @@ for (const [기기, w, h, 폰, 목록] of [['PC 1280', 1280, 900, false, PC들],
     await 쉬어(200)
     await p.locator('.fw-bar button', { hasText: '✍ 예시 채우기' }).first().click()
     await 쉬어(500)
+    /* 🧪 G650(11-11) 예시는 보기만 — 예시 채운 채로는 🔒 PDF 저장 · 그림 PDF 는 같은 값에서 «예시» 표만 지우고(시험만 · 이 기기 저장값) 새로고침해 찍음 */
+    ok(`${f.slug}${꼬리} 예시 채운 채로는 🔒 PDF 저장(G650)`, (await p.locator('.fw-bar button', { hasText: '🔒 PDF 저장' }).count()) > 0)
+    await 쉬어(700)   // 쓰던 것 저절로(0.6초) 뒤
+    await p.evaluate(() => { const k = 'kcm.서식작성'; const v = JSON.parse(localStorage.getItem(k) || '{}'); for (const s of Object.keys(v)) if (v[s]) delete v[s].ex; localStorage.setItem(k, JSON.stringify(v)) })
+    await p.reload({ waitUntil: 'domcontentloaded' })
+    await p.waitForSelector('.fw-bar button', { timeout: 20000 })
+    await 쉬어(400)
     const 첫값 = await p.evaluate(() => { const i = [...document.querySelectorAll('.fw-form input.fw-in, .fw-form textarea.fw-in')].find((x) => x.value && x.value.trim().length >= 4 && !/^\d{4}-\d{2}-\d{2}/.test(x.value)); return i ? i.value.trim() : '' })
     /* ① PDF 저장 — 화면 밖 종이가 펴지는 순간 그 글 · 배율을 적어 둠(시험만) */
     await p.evaluate(() => {

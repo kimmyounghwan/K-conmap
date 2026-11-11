@@ -52,9 +52,15 @@ for (const slug of 격자들) {
   if (기기 === '폰') 봐((await A.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 1, `${slug} 폰 가로 넘침`)
   if (기기 === 'PC' && !process.env.NOPDF) {
     try {
+      /* 🧪 G650(11-11) 예시는 보기만 — 예시 채운 채로는 🔒 PDF 저장(받기 0) · 그림 PDF 는 «🧹 빈칸으로» 뒤 같은 예시 값을 시험 고리(window.__격자)로 넣고 찍음 */
+      if (await 예.count()) {
+        봐((await A.locator('button', { hasText: '🔒 PDF 저장' }).count()) > 0, `${slug} 예시 채운 채로는 🔒 PDF 저장`)
+        await A.locator('button', { hasText: '빈칸으로' }).click(); await A.waitForTimeout(150)
+        await A.evaluate(() => { const b = window.__격자; b.책.들여오기(b.doc.ex || {}) })
+      }
       const 고름 = 쪽수 > 60 ? '1-3' : ''              // 쪽이 아주 많은 서식(검측 300항목)은 쪽을 골라야 PDF 를 만듦(화면도 그렇게 알림)
       if (고름) await A.locator('.gx-range input').fill(고름)
-      const [dl] = await Promise.all([A.waitForEvent('download', { timeout: 30000 }), A.locator('button', { hasText: 'PDF 저장' }).click()])
+      const [dl] = await Promise.all([A.waitForEvent('download', { timeout: 30000 }), A.locator('button', { hasText: '📄 PDF 저장' }).click()])
       const p = await dl.path()
       const buf = fs.readFileSync(p)
       const 글 = buf.toString('latin1')

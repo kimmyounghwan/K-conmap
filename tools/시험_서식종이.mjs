@@ -133,6 +133,10 @@ for (const [기기, w] of [['PC', 1280], ['폰', 430]]) {
     await 서식열기(A, 'jakeop-ilbo')
     await A.locator('button', { hasText: '예시 채우기' }).click(); await A.waitForTimeout(250)
     const 어제누계 = await 값(A, 0, 'H12'), 어제누계2 = await 값(A, 0, 'H13')
+    /* 🧪 G650(11-11) 예시는 보기만 — 예시 채운 채로는 🔒 저장 · «🧹 빈칸으로» 뒤 같은 예시 값을 시험 고리(window.__격자)로 넣고 «어제 것» 으로 저장 */
+    봐((await A.locator('button', { hasText: '🔒 저장' }).count()) > 0, `${기기} ⑩ 예시 채운 채로는 🔒 저장(G650)`)
+    await A.locator('button', { hasText: '빈칸으로' }).click(); await A.waitForTimeout(200)
+    await A.evaluate(() => { const b = window.__격자; b.책.들여오기(b.doc.ex || {}) })
     await A.locator('button', { hasText: '💾 저장' }).click(); await A.waitForTimeout(200)
     await A.locator('button', { hasText: '📂 저장한 것' }).click()
     await A.locator('.fw-li button', { hasText: '복사해 새로' }).first().click(); await A.waitForTimeout(300)

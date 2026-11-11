@@ -107,7 +107,19 @@ for (const 기기 of 기기들) {
       await A.locator('.sp-up button:has-text("그 쪽 보기")').click()
       await A.waitForTimeout(1600)
       봐(await A.locator('svg.sg-page image').count() >= 1, `${누구} 그 쪽에 넣은 그림이 보임`)
-      /* PDF 받기 — 이 시험 브라우저 안에서만 */
+      /* 🧪 G650(11-11) 소장님 「막아 놓은 건 예시도 받지 못하게 막고 볼 수만 있게 해」 — 예시로 채운 것은 공사명 · 그림을 고쳐도 🔒(받기 0) */
+      let 예시받음 = false
+      const 예시받기 = () => { 예시받음 = true }
+      A.on('download', 예시받기)
+      await A.locator('.sg-dl button:has-text("🔒 PDF")').click()
+      await A.waitForTimeout(900)
+      봐(!예시받음 && (await A.locator('body').innerText()).includes('예시(가상 공사)로 채운 것은 보기만'), `${누구} 예시로 채운 채로는 🔒 받기 · 받기 0(G650)`)
+      A.off('download', 예시받기)
+      /* ↺ 비우기 → 내 공사로 적고 PDF 받기 — 이 시험 브라우저 안에서만 */
+      await A.locator('button:has-text("↺ 비우기")').click()
+      await A.waitForTimeout(1200)
+      await A.locator('label:has-text("공사명") input').first().fill('가상 시험 내 공사')
+      await A.waitForTimeout(1800)
       const [받기] = await Promise.all([A.waitForEvent('download', { timeout: 240000 }), A.locator('.sg-dl button:has-text("⬇ PDF")').click()])
       const 이름 = 받기.suggestedFilename()
       const fs = await import('node:fs')
