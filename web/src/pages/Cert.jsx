@@ -24,7 +24,9 @@ export const certBySlug = (s) => 종목들.find((x) => x.slug === s) || null
 const 등급순 = DATA.levels || ['기술사', '기능장', '기사', '산업기사', '기능사']
 const 큐넷 = 'https://www.q-net.or.kr/'
 const 기출 = 'https://www.q-net.or.kr/cst006.do?id=cst00601&code=1203&gSite=Q'
+const 갈래차례 = (DATA.groups || []).map((g) => g.k)
 const 퀴즈종목 = 종목들.filter((x) => 깊은[x.slug] && 깊은[x.slug].quiz)   /* 📝 G628 예상문제가 있는 종목 */
+  .sort((a, b) => 갈래차례.indexOf(a.g) - 갈래차례.indexOf(b.g))   /* 📱 G647 지도와 같은 차례(토목 → 건축 → 건설안전 — 처음엔 종목 목록 차례라 건축기사가 맨 위) · 구운 쪽 prerender 도 같게 */
 const 면접종목 = 종목들.filter((x) => 깊은[x.slug] && 깊은[x.slug].interview)   /* 🎤 G631 면접 준비가 있는 종목 */
 
 /* 찾기 — 띄어쓰기 · 대소문자 무시 · «및» 빼고(토질및기초 = 토질 기초) */
@@ -266,7 +268,9 @@ export function CertItem() {
             <div className="grow"><div className="t">{y.n}</div></div><span className="go">→</span></Link>
         ))}
         <a className="row rowlink" href={큐넷종목(x)} target="_blank" rel="noopener nofollow"><span className="fic">🔗</span>
-          <div className="grow"><div className="t">큐넷 — {x.n} 시험정보</div><div className="d">일정 · 수수료 · 출제기준 원문 · 원서접수</div></div><span className="go">↗</span></a>
+          {x.q ? <div className="grow"><div className="t">큐넷 — {x.n} 시험정보</div><div className="d">일정 · 수수료 · 출제기준 원문 · 원서접수</div></div>
+            : <div className="grow"><div className="t">큐넷 첫 화면</div><div className="d">{x.n} 종목 쪽은 한국산업인력공단 공고 뒤 큐넷에 생깁니다</div></div>}{/* 📱 G647 — 새 종목(큐넷 번호 없음)은 «○○ 시험정보» 라 해 놓고 첫 화면으로 가던 것 */}
+          <span className="go">↗</span></a>
       </div>
       <div className="note sm" style={{ marginTop: 10 }}>{DATA.note}</div>
     </>
