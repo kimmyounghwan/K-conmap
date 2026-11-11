@@ -19,6 +19,7 @@
  *   ⑪ G628(11-10) 토목기사 깊은 글(시험 표 6줄 · 응시자격 10줄 · 📝 예상문제 단추) → /cert/tomok-gisa/quiz — 과목 · 문제 수 고르기 · 한 문제씩 바로 채점(⭕ 하나 · 고른 ❌) ·
  *      풀이 · 근거 · 결과(과목별 점수 · 6과목이면 모의 판정) · 틀린 문제 = 이 브라우저(id · 씨앗)에 모임 → lib 로 다시 만든 문제와 같음 · 다시 풀어 맞히면 빠짐 ·
  *      PC 숫자 1 ~ 4 · Enter · 틀린 문제 비우기(두 번 눌러야) · 넘침 0 · 소장님 「최신기출문제도 해줘. 예상문제도 해주고…」
+ *   ⑭b G645(11-10) 건축기사 예상문제 — 깊은 글 단추 · 📝 칸 · 5과목 칩 · 문제 수 5 · 10 · 25 · 10문제 끝까지 → 결과 5줄 · 모의 판정 · 구운 쪽
  *   ⑬ G631(11-10) 🎤 토목시공기술사 면접 준비 — 깊은 글 단추 → /interview · 분야 칩 11 · 질문 150 · 분야 고름 · 찾기 «히빙» · 🎲 하나만 펼침 ·
  *      ✓ 외웠음(이 브라우저 · 새로고침해도 남음) · 외운 것 빼고 보기 · 넘침 0 · 구운 쪽 · 소장님 「기술사 서브노트 … 고쳐서 올려줘」
  * 인터넷 안 부름(파이어베이스 · 광고 · 애널리틱스 막음).
@@ -342,6 +343,38 @@ for (const [이름, w, h, 폰] of [['폰 390', 390, 844, true], ['폰 360', 360,
     ok(`⑪ 고르는 화면 «↺ 틀린 문제 다시 풀기 (${지금틀린})» · 비우기는 두 번(한 번은 «한 번 더 누르면 비웁니다») → 비움`, w0.단추 === `↺ 틀린 문제 다시 풀기 (${지금틀린})` && w0.비우기 === '틀린 문제 비우기'
       && w1 === '한 번 더 누르면 비웁니다' && 아직 === 지금틀린 && !w2 && (await 오답들()).length === 0, { w0, w1, 아직, w2 })
   } else ok('⑪ 틀린 문제 비우기 — (틀린 문제가 없어 건너뜀)', true)
+  /* ⑭b G645 건축기사 예상문제 — 5과목 */
+  await p.goto(BASE + '/cert/geonchuk-gisa', { waitUntil: 'domcontentloaded' })
+  await p.waitForSelector('a.qz-go', { timeout: 20000 })
+  await 쉬어(300)
+  const gk = await p.evaluate(() => ({ 단추: (document.querySelector('a.qz-go') || { getAttribute: () => '' }).getAttribute('href'), 칸: [...document.querySelectorAll('.card[id^="cs"] .sec-title')].map((x) => x.innerText),
+    줄: [...document.querySelectorAll('.card a[href="/cert/geonchuk-gisa/quiz"]')].length }))
+  ok('⑭b 건축기사 깊은 글 — 📝 예상문제 단추 · «📝 예상문제 — 5과목 계산 문제» 칸(«📝 시험» 뒤 · 큐넷 덧 뒤) · 칸 안 링크', gk.단추 === '/cert/geonchuk-gisa/quiz' && gk.칸.some((h) => h === '📝 예상문제 — 5과목 계산 문제') && gk.줄 >= 1, gk)
+  await p.click('a.qz-go')
+  await p.waitForURL(/\/cert\/geonchuk-gisa\/quiz$/, { timeout: 10000 })
+  await p.waitForSelector('.qz-start', { timeout: 20000 })
+  await 쉬어(300)
+  const 건고름 = await p.evaluate(() => ({ h1: (document.querySelector('h1') || {}).innerText || '', 틀줄: document.querySelectorAll('.qz-types').length, 맛: document.querySelectorAll('details.qz-rv').length,
+    시작: document.querySelector('.qz-start').innerText, 큐넷: !!document.querySelector('a[href$="jmCd=1630"]') }))
+  const 건과목 = await 칩글(0), 건수 = await 칩글(1)
+  ok('⑭b 건축기사 예상문제 — h1 · 과목 칩 6(전체 + 5과목 · 끝 건축관계법규) · 문제 수 5 · 10 · 25 · 들어 있는 문제 5줄 · 맛보기 5 · «5과목 전체 10문제» · 큐넷 1630',
+    건고름.h1 === '📝 건축기사 필기 예상문제' && 건과목.length === 6 && 건과목[0] === '5과목 전체' && 건과목[5] === '건축관계법규' && 건수.join() === '5문제,10문제,25문제' && 건고름.틀줄 === 5 && 건고름.맛 === 5
+      && /5과목 전체 10문제/.test(건고름.시작) && 건고름.큐넷, { ...건고름, 건과목, 건수 })
+  ok(`${이름} 건축기사 예상문제 넘침 0`, (await 넘침(p)) <= 1, await 넘침(p))
+  await p.click('.qz-start')
+  const 건과목들 = []
+  for (let k = 0; k < 10; k++) {
+    await p.waitForSelector('.qz-opt:not([disabled])', { timeout: 10000 })
+    건과목들.push(await p.evaluate(() => document.querySelector('.qz-top').innerText))
+    await p.click('.qz-opt >> nth=0')
+    await 쉬어(120)
+    await p.click('.qz-next')
+  }
+  await p.waitForSelector('.qz-out', { timeout: 10000 })
+  const 건결과 = await p.evaluate(() => ({ 줄: [...document.querySelectorAll('.qz-res > div')].map((x) => x.innerText.replace(/\s+/g, ' ').trim()), 판정: !!document.querySelector('.qz-out .go-g'), 글: document.querySelector('.qz-out').innerText }))
+  ok('⑭b 5과목 10문제 — 과목마다 2문제(차례) · 결과 5줄 · 전 과목이라 모의 판정 · «25문제로»(5과목 × 5) 안내', ['건축계획', '건축시공', '건축구조', '건축설비', '건축관계법규'].every((과, i) => 건과목들[i * 2].includes(과) && 건과목들[i * 2 + 1].includes(과))
+    && 건결과.줄.length === 5 && 건결과.판정 && !/한 과목만/.test(건결과.글) && /25문제로 풀어 보세요/.test(건결과.글), { 건과목들, 줄: 건결과.줄 })
+  await p.evaluate(() => { try { localStorage.removeItem('kcm.예상문제.geonchuk-gisa') } catch (e) { /* 없음 */ } })
   /* ⑬ G631 면접 준비 */
   const 면접열쇠 = 'kcm.면접.tomok-sigong-gisulsa'
   await p.evaluate((k) => { try { localStorage.removeItem(k) } catch (e) { /* 없음 */ } }, 면접열쇠)
@@ -422,6 +455,11 @@ if (fs.existsSync(구운)) {
   ok('⑪ 구운 예상문제 쪽(cert/tomok-gisa/quiz.html) — 제목 · h1 · 들어 있는 문제 6과목 · 맛보기 6 · «직접 만든» · 큐넷 · canonical', /<title>토목기사 필기 예상문제 — /.test(qz) && /<h1[^>]*>📝 토목기사 필기 예상문제<\/h1>/.test(qz)
     && (qz.match(/class="qz-types"/g) || []).length === 6 && (qz.match(/<details class="qz-rv">/g) || []).length === 6 && /직접 만든/.test(qz) && /jmCd=1250/.test(qz) && /rel="canonical" href="https:\/\/k-conmap\.com\/cert\/tomok-gisa\/quiz"/.test(qz) && !/클로드|무료/.test(qz.replace(/<script[\s\S]*?<\/script>/g, '')),
     [qz.length, (qz.match(/<title>[^<]*/) || [''])[0]])
+  const 건퀴즈 = path.join(ROOT, 'web/dist/cert/geonchuk-gisa/quiz.html')
+  const gq = fs.existsSync(건퀴즈) ? fs.readFileSync(건퀴즈, 'utf8') : ''
+  ok('⑭b 구운 건축기사 예상문제 쪽(cert/geonchuk-gisa/quiz.html) — 제목 · h1 · 들어 있는 문제 5과목 · 맛보기 5 · canonical · /cert 에 «건축기사 예상문제» 줄', /<title>건축기사 필기 예상문제 — /.test(gq) && /<h1[^>]*>📝 건축기사 필기 예상문제<\/h1>/.test(gq)
+    && (gq.match(/class="qz-types"/g) || []).length === 5 && (gq.match(/<details class="qz-rv">/g) || []).length === 5 && /rel="canonical" href="https:\/\/k-conmap\.com\/cert\/geonchuk-gisa\/quiz"/.test(gq)
+    && /href="\/cert\/geonchuk-gisa\/quiz"><span class="fic">📝/.test(h) && !/클로드|무료/.test(gq.replace(/<script[\s\S]*?<\/script>/g, '')), [gq.length, (gq.match(/<title>[^<]*/) || [''])[0]])
   const 면접쪽 = path.join(ROOT, 'web/dist/cert/tomok-sigong-gisulsa/interview.html')
   const ivh = fs.existsSync(면접쪽) ? fs.readFileSync(면접쪽, 'utf8') : ''
   const tsh = fs.readFileSync(path.join(ROOT, 'web/dist/cert/tomok-sigong-gisulsa.html'), 'utf8')
