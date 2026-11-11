@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import 광고칸 from '../광고칸.jsx'   /* 📣 업체 광고 — 공고 목록 셋째 카드 다음 한 장(자리 live · 쪽에 한 번) · lib/광고자료.js */
 import { useBoard } from '../lib/useBoard.js'
-import { useFresh, freshRows, freshWhen } from '../lib/fresh.js'
+import { useFresh, freshRows, freshWhen, 방금접기 } from '../lib/fresh.js'
+import { 세기 } from '../lib/받은수.jsx'
 import { Skeleton, Empty } from '../components.jsx'
 import { RangeBar } from './FirstBoard.jsx'
 import { isReady, missingOf } from './BaroBid.jsx'
@@ -349,7 +350,11 @@ export default function LiveBoard() {
     모름수.current = keep
     return out
   }, [fresh, all, match, page, loading, listOf, floor])   // eslint-disable-line react-hooks/exhaustive-deps
-  const view = 방금.length ? [...방금, ...view0] : view0
+  /* 📱 G648 «🆕 방금» 접기 — 바로투찰 되는 방금 줄은 다 · 안 되는 줄(기초금액 전)은 앞 3건만, 나머지는 «더 보기»(lib/fresh.js 방금접기)
+     11-11 아침 실제 사이트: 방금 40건이 맨 위를 다 차지해 첫 «💰 바로투찰» 이 41번째 카드 — 소장님 「공고에 바로투찰이 안보여」 */
+  const [방금펼침, set방금펼침] = use남김('kcm.live.freshall', false, 'session')
+  const 방금꼴 = useMemo(() => 방금접기(방금, (r) => canBid(r, now), 방금펼침), [방금, now, 방금펼침])
+  const view = 방금꼴.보임.length ? [...방금꼴.보임, ...view0] : view0
   const rows = view
   const done = listOf ? true : (filtering ? indexReady : true)     // 검색 중이면 색인이 와야 «다 셌다»
   const pickBusy = (pick || bagMode) && idx === undefined
@@ -817,6 +822,18 @@ export default function LiveBoard() {
                   </div>
                 )}
               </div>
+              {/* 📱 G648 «🆕 방금» 접기 줄 — 보인 방금 카드 바로 다음(그 아래가 바로투찰 되는 공고 목록) */}
+              {방금.length > 0 && i === 방금꼴.보임.length - 1 && (방금꼴.접힘 > 0 || 방금펼침) && (
+                <button type="button" className="fresh-fold" onClick={() => {
+                  if (!방금펼침) 세기('|공고|방금더보기')
+                  set방금펼침(!방금펼침)
+                }}>
+                  {방금펼침
+                    ? <b>▲ 방금 올라온 공고 접기</b>
+                    : <><b>🆕 방금 올라온 공고 {num(방금꼴.접힘)}건 더 보기 ▼</b>
+                      <span>기초금액이 아직 안 나온 공고 — 나오면 «💰 바로투찰» 이 붙습니다</span></>}
+                </button>
+              )}
               {광고}
               </Fragment>
             )
