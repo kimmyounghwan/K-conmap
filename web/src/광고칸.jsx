@@ -4,7 +4,8 @@
  *   ■ 꼴: 크림 바탕 · 주황 테두리 · 맨 위 «광고 · 업체 소개» 띠(추천 업체는 «광고 · 👍 K-건설맵 추천» + 이름 아래 추천 한 줄) · 갈색 단추 — 업체를 깎는 말 없음
  *   ■ 📞 단추에 번호가 보임(PC 에서도 읽힘 · 폰은 누르면 전화) · 💬 문자 · 보험은 심의필 줄
  *   ■ 아래 두 칸 표(정보) — 사무실 · 메일 · 주소 · 고객센터(명함 그대로 · 소장님 「다 넣어 줘」 「깔끔하게」) · 메일은 누르면 메일 쓰기 · 정보가 없으면 옛 작은 줄
- *   ■ 숨은 셈(사이트엔 안 보임): |광고보임|<id>(화면에 반 넘게 들어왔을 때 한 번) · |광고전화|<id> · |광고문자|<id>
+ *     📐 G651 소장님 「광고 크기 줄여줘」 — 정보는 «📇 사무실 · 팩스 · …» 한 줄로 접어 둠(누르면 펼침 · 셈 |광고더보기|<id>)
+ *   ■ 숨은 셈(사이트엔 안 보임): |광고보임|<id>(화면에 반 넘게 들어왔을 때 한 번) · |광고전화|<id> · |광고문자|<id> · |광고메일|<id> · |광고더보기|<id>(G651 연락처 펼침)
  *   ■ 인쇄에는 안 나옴(no-print)
  *   ■ 📣 G549 위 띠 오른쪽 «광고 · 제휴 문의 →»(/ad · |광고문의|카드 · 소장님 「광고나 제휴잖아」 — 광고만 적지 않기) — 소장님 「광고, 제휴 문의 한다는 걸 알려야 문의가 들어 오잖아. 모든 페이지에」
  *     광고카드({ a, 견본 }) — /ad 안내 쪽 견본도 같은 꼴(견본은 전화 · 문자 · 메일이 눌리지 않고 셈도 안 함)
@@ -45,15 +46,15 @@ export function 광고카드({ a, 칸 = null, 견본 = false }) {
         {!견본 && <Link className="adc-ask" to="/ad" onClick={() => { try { 세기('|광고문의|카드') } catch (e) { /* 없음 */ } }}>광고 · 제휴 문의 →</Link>}
       </div>
       <div className="adc-b">
-        {/* 📐 G630 (11-10) 소장님 「광고란....공간활용을 잘 해서 크기를 줄여 줘」 — 넓은 화면은 두 칸(왼쪽 이름 · 추천 · 한줄 / 오른쪽 전화 · 문자) ·
-            대표는 이름 옆 · 연락처(사무실 · 팩스 · 메일 · 주소)는 줄마다 한 칸이 아니라 이어 붙여 한두 줄 — 들어가는 글은 그대로(소장님 「다 넣어 줘」) */}
+        {/* 📐 G630 (11-10) 소장님 「광고란....공간활용을 잘 해서 크기를 줄여 줘」 — 넓은 화면은 두 칸(왼쪽 이름 · 추천 · 한줄 / 오른쪽 전화 · 문자) · 대표는 이름 옆
+            📐 G651 (11-11) 소장님 「광고 크기 줄여줘」 · 「현재 광고 다 크기 줄이고, 모두 캡쳐 보여 줘」 — 소속도 이름 옆 · 추천은 상자 없이 한줄 앞에 이어 한 문단 ·
+            연락처(사무실 · 팩스 · 메일 · 주소 · 고객센터)는 «📇 …» 한 줄로 접음(누르면 펼침 · 셈 |광고더보기|id) — 들어가는 글은 그대로 다(소장님 「다 넣어 줘」) */}
         <div className="adc-main">
           <div className="adc-who">
             <div className="adc-nm"><span className="adc-ic" aria-hidden="true">{a.아이콘}</span><span className="adc-nmt">{a.이름}</span>
-              {a.대표 && <span className="adc-ceo">대표 {a.대표}</span>}</div>   {/* 소장님 11-05 「대표이름 넣어 줘.」 */}
-            {a.소속 && <div className="adc-so">{a.소속}</div>}
-            {a.추천 && <div className="adc-rec">{a.추천}</div>}
-            <p className="adc-one">{a.한줄}{a.지역 && !(a.정보 || []).some(([k]) => k === '주소') ? <> · 📍 {a.지역}</> : null}</p>
+              {a.대표 && <span className="adc-ceo">대표 {a.대표}</span>}   {/* 소장님 11-05 「대표이름 넣어 줘.」 */}
+              {a.소속 && <span className="adc-so">{a.소속}</span>}</div>
+            <p className="adc-one">{a.추천 && <><b className="adc-rec">{a.추천}</b>{' · '}</>}{a.한줄}{a.지역 && !(a.정보 || []).some(([k]) => k === '주소') ? <> · 📍 {a.지역}</> : null}</p>
             {a.칩 && a.칩.length > 0 && <div className="adc-chips">{a.칩.map((t) => <span key={t} className="adc-chip">{t}</span>)}</div>}
           </div>
           <div className="adc-btns">
@@ -62,9 +63,12 @@ export function 광고카드({ a, 칸 = null, 견본 = false }) {
           </div>
         </div>
         {a.정보 && a.정보.length > 0
-          ? <dl className="adc-info">{a.정보.map(([k, v]) => (
-              <div className="adc-kv" key={k}><dt>{k}</dt><dd>{k === '메일' && !견본 ? <a href={'mailto:' + v} onClick={누름('메일')}>{v}</a> : v}</dd></div>
-            ))}</dl>
+          ? <details className="adc-more" onToggle={(e) => { if (!견본 && e.currentTarget.open) { try { 세기('|광고더보기|' + a.id) } catch (err) { /* 없음 */ } } }}>
+              <summary>📇 {a.정보.map(([k]) => k).join(' · ')}</summary>
+              <dl className="adc-info">{a.정보.map(([k, v]) => (
+                <div className="adc-kv" key={k}><dt>{k}</dt><dd>{k === '메일' && !견본 ? <a href={'mailto:' + v} onClick={누름('메일')}>{v}</a> : v}</dd></div>
+              ))}</dl>
+            </details>
           : a.작은줄 && <div className="adc-sub">{a.작은줄}</div>}
         {a.심의 && <div className="adc-sub adc-sim">{a.심의}</div>}
       </div>
