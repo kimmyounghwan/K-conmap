@@ -10342,6 +10342,15 @@ a.adinfo-pick:hover, a.adinfo-pick:focus-visible { border-color: var(--ad-btn); 
 .adc-sim { font-size: 11px; }
 @media (max-width: 340px) { .adc-call, .adc-sms { font-size: 13.5px; } .adc-sms { padding: 0 12px; } }
 
+/* 🛒 G654 (11-12) 쿠팡 «분야별 베스트» 줄 — 모든 쪽 맨 아래(바닥글 바로 위) · 업체 광고 칸과 같은 꼴(크림 바탕 · «광고» 딱지 · .adc-h 를 같이 씀)
+   소장님 「쿠팡 광고 상품사진 올리자」 → 자리 «① 모든 쪽 맨 아래» · 「쿠팡에 제일 잘 팔리는 상품순으로」 · 「분야별로 … 페이지 마다」
+   안에는 쿠팡 다이나믹 배너(iframe · 높이 140 · 폭은 줄 안쪽에 맞춤 300~680) — 쪽 전체는 안 넘침 */
+.cpg { border: 1.5px solid var(--ad-line); border-radius: 12px; background: var(--ad-bg); overflow: hidden; margin: 14px 0 10px; color: var(--ad-text); }
+.cpg-dis { margin: 0; padding: 5px 10px 0; font-size: 11.5px; line-height: 1.45; color: var(--ad-text-2); word-break: keep-all; }
+.cpg-fr { display: flex; justify-content: center; padding: 6px 10px 10px; min-height: 140px; }
+.cpg-fr iframe { display: block; border: 0; max-width: 100%; height: 140px; background: #fff; border-radius: 6px; }
+@media print { .cpg { display: none !important; } }
+
 /* 🗂 G551 적격심사 서류 길잡이(tools/calcs.jsx QualifyDocs) — 소장님 「적격심사 도구 만들어 줘.」 */
 .qd-box { margin: 8px 0 4px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); font-size: 13.5px; line-height: 1.55; word-break: keep-all; }
 .qd-box p { margin: 0 0 6px; }

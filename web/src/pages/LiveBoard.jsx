@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import 광고칸 from '../광고칸.jsx'   /* 📣 업체 광고 — 공고 목록 셋째 카드 다음 한 장(자리 live · 쪽에 한 번) · lib/광고자료.js */
+import 쿠팡칸 from '../쿠팡칸.jsx'   /* 🛒 G654 쿠팡 «분야별 베스트» — 여섯째 카드 다음(목록이 여섯 장 넘을 때만 · 그 쪽 바닥 줄은 쉼) · 소장님 고르심 «② 목록 중간» */
 import { useBoard } from '../lib/useBoard.js'
 import { useFresh, freshRows, freshWhen } from '../lib/fresh.js'
 import { Skeleton, Empty } from '../components.jsx'
@@ -583,6 +584,7 @@ export default function LiveBoard() {
             const isOpen = open === id
             const dd = dday(r.close)
             const 광고 = i === Math.min(2, view.length - 1) ? <광고칸 자리="live" /> : null
+            const 쿠팡 = view.length >= 6 && i === 5 ? <쿠팡칸 자리="목록" /> : null
             if (r.gone) return (
               <Fragment key={id}>
               <div className="notice gone">
@@ -593,6 +595,7 @@ export default function LiveBoard() {
                 </div>
               </div>
               {광고}
+              {쿠팡}
               </Fragment>
             )
             return (
@@ -818,6 +821,7 @@ export default function LiveBoard() {
                 )}
               </div>
               {광고}
+              {쿠팡}
               </Fragment>
             )
           })}
