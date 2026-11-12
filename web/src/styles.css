@@ -4572,11 +4572,11 @@ span.qna-like { cursor: default; }
   .gg .gg-sec { break-inside: auto; }
   .gg .gg-tiles > div { border: 1px solid #9ca3af; }
 }
-.gg-draw { position: sticky; top: 52px; z-index: 30; }
+.gg-draw { position: sticky; top: calc(52px + var(--cn-h, 0px)); z-index: 30; }
 .gg-draw.folded { padding-bottom: 8px; }
 .gg-draw.folded .gg-say { display: none; }
 .gg-draw .gg-say { margin-top: 6px; padding: 5px 9px; font-size: 12.5px; }
-@media (max-width: 700px) { .gg-draw { top: 48px; padding: 8px; } }
+@media (max-width: 700px) { .gg-draw { top: calc(48px + var(--cn-h, 0px)); padding: 8px; } }
 @media (max-width: 600px) {
   .gg-bar { gap: 4px; margin-bottom: 6px; }
   .gg-bar .chip { padding: 4px 9px; font-size: 12px; }
@@ -5478,19 +5478,32 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 .noti-band.cn .noti-go b { color: #fff; font-size: 14.5px; }
 .noti-band.cn .cn-what { font-size: 12.5px; color: #d1fae5; word-break: keep-all; }
 .noti-band.cn .noti-see { background: #fff; color: #047857; font-weight: 800; padding: 4px 11px; border-radius: 999px; }
-.noti-band.cn .noti-x { color: #ecfdf5; }
-/* 소장님 「빈공간 없이 다시 만들어 줘」 — 점 칸(왼쪽 빈 줄) 없앰 · ✕ 는 오른쪽 구석에 겹쳐 둠 · 폰은 글 두 덩이 + 단추를 줄 가득(왼쪽 · 오른쪽 빈 곳 없게) */
-.noti-band.cn { position: relative; padding: 10px 40px 10px 14px; }
+/* 소장님 「빈공간 없이 다시 만들어 줘」 — 점 칸(왼쪽 빈 줄) 없앰 · 폰은 글 두 덩이 + 단추를 줄 가득(왼쪽 · 오른쪽 빈 곳 없게)
+   🔁 G662 (11-13) 「항상 보이게」 — ✕(닫기) 없앰 → 오른쪽 ✕ 자리(40px)도 없앰 */
+.noti-band.cn { position: relative; padding: 10px 14px; }
 .noti-band.cn .noti-dot { display: none; }
 .noti-band.cn .noti-go { align-items: center; column-gap: 10px; row-gap: 5px; }
-.noti-band.cn .noti-x { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); }
 @media (max-width: 640px) {
   .noti-band.cn { padding: 10px 12px 12px; }
-  .noti-band.cn .noti-go b { flex: 1 1 100%; padding-right: 26px; line-height: 1.45; }
+  .noti-band.cn .noti-go b { flex: 1 1 100%; line-height: 1.45; }
   .noti-band.cn .cn-what { flex: 1 1 100%; line-height: 1.5; }
   .noti-band.cn .noti-see { flex: 1 1 100%; margin: 3px 0 0; text-align: center; padding: 8px 12px; font-size: 13.5px; }
-  .noti-band.cn .noti-x { top: 6px; right: 4px; transform: none; }
 }
+/* 🔁 G662 작은 띠(.cn-mini · 공사연결띠.jsx 공사연결작은띠) — 머리줄(.topbar · sticky) 맨 아래에 매달림(absolute · top 100%) →
+   머리줄 높이는 그대로(G198 교훈) · 큰 띠가 머리줄 밑으로 지나가면 html.cn-mini-on 으로 보임(⚠️ html 이름을 .cn-mini 로 쓰면 html 이 display:none) · 진초록 한 줄 · 34px */
+.cn-mini { position: absolute; left: 0; right: 0; top: 100%; height: 34px; display: none; text-decoration: none; color: #fff;
+  background: linear-gradient(90deg, #047857, #0f766e); border-bottom: 1px solid #065f46; box-shadow: 0 4px 12px rgba(4, 120, 87, .28); }
+html.cn-mini-on .cn-mini { display: block; }
+.cn-mini-in { max-width: var(--maxw); height: 100%; margin: 0 auto; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cn-mini-t { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 13px; }
+.cn-mini-t b { color: #fff; }
+.cn-mini-s { color: #d1fae5; font-size: 12.5px; }
+.cn-mini-go { flex: none; background: #fff; color: #047857; font-weight: 800; font-size: 12.5px; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+@media (max-width: 480px) { .cn-mini-in { padding: 0 10px; } .cn-mini-s { display: none; } }
+@media print { .cn-mini { display: none !important; } }
+/* 작은 띠가 보이는 동안 — 머리줄 밑에 붙는 칸 · 바로 가기 자리(scroll-margin)를 34px 더 내림(가리지 않게) */
+html.cn-mini-on { --cn-h: 34px; }
+html { scroll-padding-top: var(--cn-h, 0px); }
 .noti-x { flex: none; border: 0; background: none; color: var(--muted); font-size: 15px; cursor: pointer; padding: 2px 6px; }
 .noti-on { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: -2px 0 10px; font-size: 12.5px; }
 @media print { .noti-bell, .noti-band, .noti-on { display: none !important; } }
@@ -5507,7 +5520,7 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 .pb-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
 @media (min-width: 1000px) {
   .pb-grid { grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); }
-  .pb-right { position: sticky; top: calc(var(--nav-h, 58px) + 8px); }
+  .pb-right { position: sticky; top: calc(var(--nav-h, 58px) + 8px + var(--cn-h, 0px)); }
 }
 .pb-left > .card { margin-bottom: 12px; }
 .pb-step { padding: 14px; }
@@ -5932,7 +5945,7 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 .nm-orphan ul { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .nm-orphan li { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
 .nm-orphan li > span:first-child { font-variant-numeric: tabular-nums; }
-.nm-undo { position: sticky; top: calc(var(--nav-h, 58px) + 6px); z-index: 20; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; background: var(--text); color: var(--surface); font-size: 13.5px; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+.nm-undo { position: sticky; top: calc(var(--nav-h, 58px) + 6px + var(--cn-h, 0px)); z-index: 20; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; background: var(--text); color: var(--surface); font-size: 13.5px; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
 .nm-undo > span { flex: 1 1 260px; min-width: 0; }
 .nm-undo .btn { background: var(--surface); color: var(--text); border-color: var(--surface); }
 .nm-undo-x { border: 0; background: transparent; color: inherit; font-size: 15px; cursor: pointer; padding: 4px 6px; }
@@ -6444,7 +6457,7 @@ button.sk-mini { color: var(--accent); padding: 0; text-align: left; }
 .iy-side { display: none; }
 @media (min-width: 1100px) {
   .iy-calrow { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 12px; align-items: start; }
-  .iy-side { display: flex; flex-direction: column; gap: 8px; position: sticky; top: 64px; border: 1px solid var(--accent); border-radius: 12px; padding: 12px; background: var(--surface); }
+  .iy-side { display: flex; flex-direction: column; gap: 8px; position: sticky; top: calc(64px + var(--cn-h, 0px)); border: 1px solid var(--accent); border-radius: 12px; padding: 12px; background: var(--surface); }
 }
 .iy-side-h { font-weight: 800; font-size: 14px; } .iy-side-h small { font-weight: 400; font-size: 11.5px; }
 .iy-side-r { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 700; }
@@ -7294,7 +7307,7 @@ ul.gm-why { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size:
 .mc-edit { display: flex; flex-direction: column; gap: 10px; }
 .mc-edit-g { display: grid; grid-template-columns: minmax(0, 1fr) 390px; gap: 18px; align-items: start; }
 .mc-edit-l { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.mc-edit-r { position: sticky; top: 76px; min-width: 0; }
+.mc-edit-r { position: sticky; top: calc(76px + var(--cn-h, 0px)); min-width: 0; }
 .mc-ec { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
 .mc-eh { margin: 0; font-size: 15px; font-weight: 900; display: flex; align-items: center; gap: 6px; }
 .mc-ebh { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -8488,18 +8501,18 @@ details.hdx-묶 > summary { cursor: pointer; padding: 9px 12px; line-height: 1.6
 .bsr-title .muted { margin-left: 8px; font-size: 13px; }
 .bsr-back { display: none; }
 @media (max-width: 1200px) { .bsr-back { display: inline-flex; align-items: center; gap: 4px; padding: 7px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); font-weight: 700; font-size: 13px; cursor: pointer; } }
-.bsr-left { grid-area: left; position: sticky; top: 64px; max-height: calc(100vh - 76px); display: flex; flex-direction: column; min-width: 0; }
+.bsr-left { grid-area: left; position: sticky; top: calc(64px + var(--cn-h, 0px)); max-height: calc(100vh - 76px - var(--cn-h, 0px)); display: flex; flex-direction: column; min-width: 0; }
 .bsr-mid { grid-area: mid; min-width: 0; }
 .bsr-right { grid-area: right; min-width: 0; }
 .bsr-right > .card:first-child, .bsr-right > .hero:first-child { margin-top: 0; }
-@media (min-width: 1201px) { .bsr-right { position: sticky; top: 64px; max-height: calc(100vh - 76px); overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; } }
+@media (min-width: 1201px) { .bsr-right { position: sticky; top: calc(64px + var(--cn-h, 0px)); max-height: calc(100vh - 76px - var(--cn-h, 0px)); overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; } }
 /* 900~1200: 고르기 전엔 목록만 · 고르면 목록을 접고(«◀ 공고 목록») 분석 | 투찰 두 칸 */
 @media (max-width: 1200px) and (min-width: 900px) {
   .bsr-room { grid-template-columns: minmax(0, 1fr) 400px; grid-template-areas: "top top" "left left" "mid right"; }
   .bsr-left { position: static; max-height: none; }
   .bsr-room.picked .bsr-left { display: none; }
   .bsr-room:not(.picked) .bsr-mid, .bsr-room:not(.picked) .bsr-right { display: none; }
-  .bsr-right { position: sticky; top: 64px; max-height: calc(100vh - 76px); overflow-y: auto; overscroll-behavior: contain; }
+  .bsr-right { position: sticky; top: calc(64px + var(--cn-h, 0px)); max-height: calc(100vh - 76px - var(--cn-h, 0px)); overflow-y: auto; overscroll-behavior: contain; }
   .bsr-items { max-height: none; overflow: visible; }
 }
 @media (max-width: 899px) {
@@ -8641,7 +8654,7 @@ details.hdx-묶 > summary { cursor: pointer; padding: 9px 12px; line-height: 1.6
   .gd-room:not(.picked) .gd-main { display: none; }
   .gd-room.picked .bsr-back { display: inline-flex; align-items: center; gap: 4px; padding: 7px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); font-weight: 700; font-size: 13px; cursor: pointer; }
 }
-@media (min-width: 1000px) { .gd-left { position: sticky; top: 64px; max-height: calc(100vh - 76px); overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; } }
+@media (min-width: 1000px) { .gd-left { position: sticky; top: calc(64px + var(--cn-h, 0px)); max-height: calc(100vh - 76px - var(--cn-h, 0px)); overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; } }
 .gd-top .gd-me { flex-basis: 100%; }
 .gd-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
 .gd-tabs button { border: 1px solid var(--line); background: var(--surface); border-radius: 9px; padding: 7px 4px; font-size: 12.5px; font-weight: 700; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }

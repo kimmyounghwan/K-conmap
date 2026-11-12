@@ -3,10 +3,12 @@
  *   node tools/시험_공사연결화면.mjs [http://127.0.0.1:4659]   (vite build → /tmp/g10/srv.mjs 로 띄운 판 — /contact → contact.html · LANG=C.UTF-8)
  *   소장님 「전국으로 하자」 · 「전국 공사 연결 및 설계변경, 안전관리계획서, 등 모든 서류 작성 대행 최저가로」 · 「견본 제공 후 최저가로 작성」 · 「색을 다르게 해서 잘 보이게」
  *
- *   ① 모든 손님(지역 상관없이) — 모든 탭(바로투찰 · 1순위 · 공고 · 도구 · 서식 · 내역서 · 적산 · 마이컨맵 · 맵톡 · 자격증 · 용역 · 물품 …)에 띠 · 관리자 · 로봇(HeadlessChrome)엔 없음
+ *   ① 모든 손님(지역 상관없이) — 모든 탭(바로투찰 · 1순위 · 공고 · 도구 · 서식 · 내역서 · 적산 · 마이컨맵 · 맵톡 · 자격증 · 용역 · 물품 …) · 관리자 화면까지(G662)에 띠 · 로봇(HeadlessChrome)엔 없음
  *   ② 띠 글(전국 공사 연결 · 모든 서류 작성 대행 · 설계변경 · 안전관리계획서 등 · 견본 먼저, 최저가로) · «문의 남기기» → /contact?k=cn ·
  *      색(진초록 · 흰 글 · 흰 단추 — 옅은 색으로 되돌아가면 걸림) · 쿠팡 맨 위 줄 다음 · 씀-앞 앞 · 폰 넘침 0
- *   ③ ✕ → 바로 사라지고 새로 열어도 오늘은 안 보임(kcm.cn.hide = 오늘)
+ *   ③ G662 닫기(✕) 없음 — 예전에 닫아 둔 값(kcm.cn.hide = 오늘)이 있어도 보임(소장님 「내 밥 줄인데, 항상 보이게」)
+ *   ⑥ G662 작은 띠 — 내려서 큰 띠가 머리줄 밑으로 지나가면 머리줄 바로 아래 한 줄(늘 보임 · 34px · --cn-h) · 올리면 들어감 · 다른 쪽도
+ *   ⑦ G662 정적 쪽(소개 · 개인정보 · 약관 · 문의 · 광고 문의 · ShareOne 설명서) 맨 위 한 줄(sticky) · 상담 쪽 자신엔 없음 · 로봇엔 없음
  *   ④ 문의(/contact?k=cn) — 제목 · 안내(견본 먼저 · 최저가 · 먼저 여쭘) · 무슨 일 미리 · 필요한 것 두 묶음(공사 연결 5 · 서류 작성 5 · 하나만) ·
  *      공고번호 · 사이트 오류 안내 숨김 · 연락처가 «자세히» 위 · 연락처 없이 보내면 알림 · 보내면 문의함(quotes) want «서류 작성 — 설계변경» ·
  *      보냈다는 말 · 자동 브라우저는 셈 안 감
@@ -66,17 +68,41 @@ for (const [기기, w, h, 폰] of [['PC 1280', 1280, 900, false], ['폰 390', 39
     ok(`⑧ 넘침 ${await 넘침(p)}px(/)`, (await 넘침(p)) <= 0)
     await p.screenshot({ path: path.join(폴더, `②띠_첫화면${폰 ? '_폰' : ''}.png`), fullPage: false })
     const 쪽들 = {}
-    /* 소장님 「모든칸에 넣어 줘」 — 모든 탭(도구 · 적산 · 마이컨맵 · 맵톡 · 자격증 · 용역 · 물품도) · 관리자만 뺌 */
-    const 탭들 = ['/first', '/live', '/tools', '/tools/risk', '/forms', '/naeyeok', '/jeoksan', '/my', '/qna', '/cert', '/svc', '/goods', '/change', '/safety']
-    for (const 길 of [...탭들, '/admin']) { await 열기(p, 길); 쪽들[길] = await 띠(p).count() }
-    ok(`① 쪽마다 ${JSON.stringify(쪽들)} — 모든 탭 · 관리자만 없음`, 탭들.every((k) => 쪽들[k] === 1) && 쪽들['/admin'] === 0, 쪽들)
+    /* 소장님 「모든칸에 넣어 줘」 → 11-13 「모든 페이지에 넣고」 — 모든 탭(도구 · 적산 · 마이컨맵 · 맵톡 · 자격증 · 용역 · 물품도) · 관리자 화면까지(G662) */
+    const 탭들 = ['/first', '/live', '/tools', '/tools/risk', '/forms', '/naeyeok', '/jeoksan', '/my', '/qna', '/cert', '/svc', '/goods', '/change', '/safety', '/admin']
+    for (const 길 of 탭들) { await 열기(p, 길); 쪽들[길] = await 띠(p).count() }
+    ok(`① 쪽마다 ${JSON.stringify(쪽들)} — 모든 탭 · 관리자 화면까지`, 탭들.every((k) => 쪽들[k] === 1), 쪽들)
     await 열기(p, '/first')
     ok(`⑧ 넘침 ${await 넘침(p)}px(/first)`, (await 넘침(p)) <= 0)
-    await 띠(p).locator('.noti-x').click(); await 쉬어(300)
-    const 닫은뒤 = await 띠(p).count()
-    const 열쇠 = await p.evaluate(() => localStorage.getItem('kcm.cn.hide'))
+    /* ③ G662 「항상 보이게」 — 닫기(✕) 없음 · 예전에 닫아 둔 값(kcm.cn.hide = 오늘)이 있어도 보임 */
+    ok('③ 닫기(✕) 단추 없음', (await 띠(p).locator('.noti-x').count()) === 0 && (await p.locator('a.cn-mini .noti-x').count()) === 0)
+    await p.evaluate((d) => localStorage.setItem('kcm.cn.hide', d), 오늘)
     await 열기(p, '/'); const 다시 = await 띠(p).count()
-    ok(`③ ✕ → 띠 ${닫은뒤} · 새로 열어도 ${다시} · kcm.cn.hide=${열쇠}`, 닫은뒤 === 0 && 다시 === 0 && 열쇠 === 오늘)
+    ok(`③ 예전에 닫아 둔 값(kcm.cn.hide=오늘)이 있어도 보임 — 띠 ${다시}`, 다시 === 1)
+    /* ⑥ 작은 띠 — 내려서 큰 띠가 머리줄 밑으로 지나가면 머리줄 바로 아래에 한 줄(늘 보임) · 다시 올리면 들어감 */
+    const 작은 = () => p.evaluate(() => {
+      const m = document.querySelector('a.cn-mini'), h = document.querySelector('.topbar'), r = document.documentElement
+      if (!m) return null
+      const mr = m.getBoundingClientRect(), hr = h.getBoundingClientRect()
+      return { 켬: r.classList.contains('cn-mini-on'), 보임: getComputedStyle(m).display !== 'none', 쪽보임: getComputedStyle(r).display !== 'none' && getComputedStyle(document.body).display !== 'none', 위: Math.round(mr.top), 머리밑: Math.round(hr.bottom), 높이: Math.round(mr.height),
+        주소: m.getAttribute('href'), 글: m.innerText.replace(/\s+/g, ' ').trim(), 칸높이: getComputedStyle(r).getPropertyValue('--cn-h').trim(), 여백: getComputedStyle(r).scrollPaddingTop }
+    })
+    let 작 = await 작은()
+    ok('⑥ 맨 위(큰 띠가 보임) — 작은 띠는 숨음', !!작 && !작.켬 && !작.보임 && 작.칸높이 === '' , 작)
+    await p.evaluate(() => window.scrollTo(0, 1600)); await 쉬어(500)
+    작 = await 작은()
+    ok(`⑥ 내리면 — 머리줄 바로 아래 작은 띠(위 ${작 && 작.위} = 머리줄 밑 ${작 && 작.머리밑} · 높이 ${작 && 작.높이})`, !!작 && 작.켬 && 작.보임 && Math.abs(작.위 - 작.머리밑) <= 1 && 작.높이 === 34, 작)
+    ok('⑥ 작은 띠가 보여도 쪽(html · body)은 그대로 보임', !!작 && 작.쪽보임, 작)
+    ok(`⑥ 작은 띠 글 «${작 && 작.글}» → ${작 && 작.주소}`, !!작 && /공사 연결/.test(작.글) && /서류 작성대행/.test(작.글) && /상담 · 견적/.test(작.글) && 작.주소 === '/contact?k=cn', 작)
+    ok(`⑥ 작은 띠 동안 --cn-h ${작 && 작.칸높이} · 바로 가기 여백 ${작 && 작.여백}(머리줄 밑 칸이 안 가려지게)`, !!작 && 작.칸높이 === '34px' && 작.여백 === '34px', 작)
+    ok(`⑧ 넘침 ${await 넘침(p)}px(작은 띠 보일 때)`, (await 넘침(p)) <= 0)
+    await p.screenshot({ path: path.join(폴더, `⑥작은띠${폰 ? '_폰' : ''}.png`), fullPage: false })
+    await p.evaluate(() => window.scrollTo(0, 0)); await 쉬어(400)
+    작 = await 작은()
+    ok('⑥ 다시 올리면 — 작은 띠 들어감', !!작 && !작.켬 && !작.보임, 작)
+    await 열기(p, '/tools'); await p.evaluate(() => window.scrollTo(0, 2000)); await 쉬어(500)
+    작 = await 작은()
+    ok('⑥ 다른 쪽(/tools)에서도 내리면 작은 띠', !!작 && 작.켬 && 작.보임, 작)
     ok(`② 오류 ${오류.length}`, 오류.length === 0, 오류)
     await ctx.close()
   }
@@ -84,7 +110,9 @@ for (const [기기, w, h, 폰] of [['PC 1280', 1280, 900, false], ['폰 390', 39
   {
     const { ctx, p } = await 새판('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/130.0.0.0 Safari/537.36')
     await 열기(p, '/'); const 로봇 = await 띠(p).count()
-    ok(`① 로봇(HeadlessChrome) — 띠 ${로봇}`, 로봇 === 0)
+    ok(`① 로봇(HeadlessChrome) — 띠 ${로봇} · 작은 띠 ${await p.locator('a.cn-mini').count()}`, 로봇 === 0 && (await p.locator('a.cn-mini').count()) === 0)
+    await p.goto(BASE + '/about', { waitUntil: 'domcontentloaded' }); await 쉬어(400)
+    ok('① 로봇 — 정적 쪽(소개)에도 없음', (await p.locator('#cn-band').count()) === 0)
     await ctx.close()
   }
 
@@ -146,6 +174,25 @@ for (const [기기, w, h, 폰] of [['PC 1280', 1280, 900, false], ['폰 390', 39
     const 광고 = await p.evaluate(() => ({ work: document.getElementById('work').value, 고름: document.querySelectorAll('.cn-pick').length, h2: document.querySelector('.card h2').textContent }))
     ok(`⑤ 광고 문의 그대로 — «${광고.work}» · «${광고.h2}» · 고르기 ${광고.고름}`, 광고.work === '📣 광고 문의' && 광고.h2 === '📣 광고 문의' && 광고.고름 === 0)
     ok(`⑤ 오류 ${오류.length}`, 오류.length === 0, 오류)
+    await ctx.close()
+  }
+
+  /* ⑦ G662 정적 쪽(앱 밖 .html) — 맨 위 한 줄(늘 보임 · sticky) · 상담 쪽 자신엔 없음 */
+  {
+    const { ctx, p, 오류 } = await 새판()
+    const 정적 = {}
+    for (const 길 of ['/about', '/privacy', '/terms', '/contact', '/contact?k=ad&w=a', '/shareone/사용설명서.html', '/contact?k=cn']) {
+      await p.goto(BASE + encodeURI(길), { waitUntil: 'domcontentloaded' }); await 쉬어(400)
+      정적[길] = await p.evaluate(() => { const a = document.getElementById('cn-band'); if (!a) return 0; const g = getComputedStyle(a); return { 주소: a.getAttribute('href'), 붙음: g.position, 첫: document.body.firstElementChild === a, 글: a.innerText.replace(/\s+/g, ' ').trim().slice(0, 60) } })
+    }
+    const 달림 = ['/about', '/privacy', '/terms', '/contact', '/contact?k=ad&w=a', '/shareone/사용설명서.html']
+    ok(`⑦ 정적 쪽 ${달림.length}곳 맨 위 한 줄(sticky) → /contact?k=cn`, 달림.every((k) => 정적[k] && 정적[k].주소 === '/contact?k=cn' && 정적[k].붙음 === 'sticky' && 정적[k].첫 && /공사 연결/.test(정적[k].글) && /상담 · 견적/.test(정적[k].글)), 정적)
+    ok('⑦ 상담 쪽(/contact?k=cn) 자신엔 없음', 정적['/contact?k=cn'] === 0, 정적['/contact?k=cn'])
+    await p.goto(BASE + '/terms', { waitUntil: 'domcontentloaded' }); await 쉬어(300)
+    await p.evaluate(() => window.scrollTo(0, 3000)); await 쉬어(300)
+    ok('⑦ 정적 쪽 내려도 맨 위에 보임', await p.evaluate(() => { const a = document.getElementById('cn-band'); return !!a && Math.round(a.getBoundingClientRect().top) === 0 }))
+    ok(`⑧ 넘침 ${await 넘침(p)}px(정적 쪽)`, (await 넘침(p)) <= 0)
+    ok(`⑦ 오류 ${오류.length}`, 오류.length === 0, 오류)
     await ctx.close()
   }
 }

@@ -78,16 +78,18 @@ async function 새쪽(폰) {
 }
 
 /* 본문 모습 — 두 칸 단추(.fa-seg)는 빼고 · 시각 · 숫자 흔들림은 고르게 */
-const 모습 = (p) => p.evaluate(() => {
+const 모습 = (p) => p.evaluate((빼기) => {
   const m = document.querySelector('main') || document.body
   const c = m.cloneNode(true)
   c.querySelectorAll('.fa-seg').forEach((e) => e.remove())
+  /* 일부러 바꾼 칸(TG_HIDE)은 글 · 링크 · 단추 견주기에서도 뺌 */
+  if (빼기) c.querySelectorAll(빼기).forEach((e) => e.remove())
   /* 맵톡 «아직 글이 없습니다» 는 파이어베이스가 늦게 오면 한쪽만 뜸(시험 자리엔 인터넷 없음) — 견주기에서 뺌 */
   const 글 = (c.innerText || c.textContent || '').replace(/\s+/g, ' ').replace(/📭\s*아직 글이 없습니다\.[^📅]*/g, '').trim()
   const 링크 = [...c.querySelectorAll('a')].map((a) => (a.getAttribute('href') || '') + '|' + (a.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40))
   const 단추 = [...c.querySelectorAll('button')].map((x) => (x.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 30))
   return { 글, 링크, 단추, 넘침: document.documentElement.scrollWidth - innerWidth, 높이: document.documentElement.scrollHeight }
-})
+}, process.env.TG_HIDE || '')
 
 const 화면들 = ['/', '/?no=R00TEST80001', '/first', '/svc/first', '/live', '/pre', '/gongdong', '/ext', '/svc/live', '/goods/live', '/analysis', '/corp', '/agency', '/bunseok',
   '/how', '/guide', '/tools', '/tools/nomubi', '/tools/soil-volume', '/forms', '/forms/dalryeok-2027', '/naeyeok', '/naeyeok/hado', '/jeoksan', '/my', '/qna', '/change/gisung', '/cad', '/daily', '/lic']
@@ -109,6 +111,8 @@ async function 열기(p, 주소, 더 = 0) {
 /* 아래(폰 tabbar) · 위(PC railnav) 탭 띠는 둘 다 숨김 — «분석 → 자격증» 이름만 바뀐 자리(④에서 따로 봄) */
 async function 그림(p, 파일) {
   await p.addStyleTag({ content: 'nav.tabbar,nav.railnav{visibility:hidden !important}' })   /* 폰 = 아래 tabbar · PC = 위 railnav */
+  /* 일부러 바꾼 칸은 TG_HIDE 로 빼고 견줌(예: G662 공사 연결 띠 «.noti-band.cn» — 두 판 모두 자리째 뺌) */
+  if (process.env.TG_HIDE) await p.addStyleTag({ content: process.env.TG_HIDE + '{display:none !important}' })
   await p.screenshot({ path: 파일, fullPage: true, animations: 'disabled', caret: 'hide' })
 }
 
