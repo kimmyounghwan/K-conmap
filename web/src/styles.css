@@ -5173,6 +5173,14 @@ span.qna-like { cursor: default; }
 .rk-pick { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; font-size: 13px; border-top: 1px dashed var(--line); cursor: pointer; }
 .rk-pick input { width: auto; margin-top: 3px; }
 .rk-preview { overflow-x: auto; background: var(--surface-2); padding: 10px; border-radius: 10px; margin-top: 8px; }
+/* 🧮 G658 위험성 추정 기준 3×3 | 5×4 — 줄 위 한 줄 · 5×4 기준표는 접어 둠 */
+.rk-scale { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 10px; }
+.rk-scale .eq-seg { flex: 1 1 260px; max-width: 420px; }
+.rk-scale .eq-seg button { padding: 6px 6px; font-size: 12.5px; }
+.rk-5x4 { flex-basis: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; background: var(--surface-2); font-size: 12.5px; }
+.rk-5x4 summary { cursor: pointer; font-weight: 700; }
+.rk-5x4-in { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px 14px; margin: 8px 0 6px; line-height: 1.55; }
+.rk-5x4-in b { display: block; margin-bottom: 2px; }
 @media (max-width: 640px) {
   .rk-fs { grid-template-columns: 1fr 1fr; }
   .rk-fs .field:first-child { grid-column: 1 / 3; }

@@ -12,6 +12,9 @@
  *   「2차 가자」): 화면 종이 미리보기를 lib/격자엑셀.js 가 합친 칸 · 결재란 · 칸 이름 그대로 엑셀로(수식 없음 · 사진은 인쇄본에).
  * ■ 적으면 1초 남짓 뒤 저절로 저장됩니다(서류 한 장 = rk_docs 한 덩이). 사진은 rk_pics — 그 서류를 열 때만 받습니다.
  * 셈: lib/위험성.js (시험 node tools/시험_위험성.mjs) · 저장: lib/장부.js (ns 'rk') · 규칙: web/database.rules.json «위험성평가»
+ * ■ 🧮 G658 (2026-11-12) 서류마다 «위험성 추정 기준» 3×3(상·중·하 — 예전 그대로) | 5×4(빈도 1~5 × 강도 1~4 = 1~20 · 공단 매뉴얼 예시)
+ *   이용자 문의(발주처가 5×4 로 다시 쓰라는 공문) → 소장님 «그래». 새 서류는 장부에서 마지막으로 쓴 기준으로 시작 · 기준을 바꾸면 그 서류의 빈도 · 강도만 비움
+ *   다른 기준 서류에서 «가져오기» 하면 빈도 · 강도는 비우고 가져옴 · 사전(3×3 출발값)은 5×4 서류에 넣을 때 빈도 · 강도를 비움 · 숨은 셈 |위험성|5x4
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -22,9 +25,10 @@ import { 장부, 목록읽기, 목록기억, 막힘, 휴지통날 } from '../lib
 import { 코드정리, 코드보기 } from '../lib/tuipbi.js'
 import { 새장부, 열기칸, 만들었음, 연장부목록, 코드와휴지통 } from '../tools/장부문.jsx'
 import { 종이 } from '../tools/위험성종이.jsx'
+import { 세기 } from '../lib/받은수.jsx'
 import {
-  종류, 종류차례, 재해형태들, 다음표시, 등급, 점수, 오늘, 점날, 기간글, 날더하기, 반날들, 달성, 빈줄, 빈서류, 제목,
-  가져올줄, 등급수, 풀기, 싸기, 사전, 사전공종, 예시책,
+  종류, 종류차례, 재해형태들, 다음표시, 등급, 등급색, 점수, 오늘, 점날, 기간글, 날더하기, 반날들, 달성, 빈줄, 빈서류, 제목,
+  가져올줄, 등급수, 풀기, 싸기, 사전, 사전공종, 예시책, 척, 척도, 오사단계, 최근척,
 } from '../lib/위험성.js'
 
 const NS = 'rk'
@@ -215,10 +219,10 @@ export default function RiskBook() {
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 6px' }}>이렇게 씁니다</div>
         <ol className="flist">
-          <li><b>별지1 최초·정기</b> — 공종마다 위험요인·재해형태·빈도·강도·예방대책. <b>📚 위험요인 사전</b>에서 골라 넣고 고쳐 씁니다.</li>
+          <li><b>별지1 최초·정기</b> — 공종마다 위험요인·재해형태·빈도·강도·예방대책. <b>📚 위험요인 사전</b>에서 골라 넣고 고쳐 씁니다. 빈도·강도는 <b>3×3</b>(상·중·하)이나 <b>5×4</b>(빈도 1~5 × 강도 1~4) 가운데 발주처 기준에 맞춰 고릅니다.</li>
           <li><b>별지2 수시</b> — 4주(2주)·1주·1일 가운데 고르고, 별지1 줄을 <b>가져와</b> 작업위치·검토/추록·담당만 채웁니다. 1주는 요일별 ○·X 점검까지.</li>
           <li><b>별지3·4 회의·교육 결과</b> — 일시·장소·내용(기본 문장이 들어 있음)·사진 2장·참석자.</li>
-          <li><b>별지5 성과측정표</b> — 중·상 등급 줄을 가져와 날마다 ○(이행)·X(미이행)를 누르면 달성율이 나옵니다.</li>
+          <li><b>별지5 성과측정표</b> — 중·상 등급 줄(5×4 는 4점 이상)을 가져와 날마다 ○(이행)·X(미이행)를 누르면 달성율이 나옵니다.</li>
           <li>다 되면 <b>📄 PDF</b>(바로 받음 · 폰도) 또는 <b>🖨 인쇄</b> — 결재·서명은 종이에 받습니다. 보관용으로 <b>📗 엑셀</b>도 받습니다 — 종이와 같은 칸 · 결재란 그대로(고칠 때는 여기서).</li>
         </ol>
         <p className="note sm" style={{ marginBottom: 0 }}>
@@ -238,7 +242,7 @@ function 장부화면(p) {
   const [열린, set열린] = use화면상태('문서_' + p.코드, '')
   const 문 = 열린 && 자료.docs[열린]
   const 새로 = async (k, j0) => {
-    const j = j0 || 빈서류(k, 정보)
+    const j = j0 || 빈서류(k, 정보, 최근척(자료.docs))   /* 🧮 G658 새 서류는 마지막으로 쓴 기준으로 */
     const id = await p.서류저장(null, k, j)
     if (id) { p.set알림(''); set열린(id) }
   }
@@ -319,12 +323,13 @@ function 서류목록({ 자료, 새로, 열기, 지우기 }) {
         </div>
         {!보일.length && <div className="muted" style={{ marginTop: 8 }}>아직 쓴 서류가 없습니다 — 위에서 고르십시오. 처음이면 <b>별지 1 최초·정기</b>부터.</div>}
         {보일.map((x) => {
-          const 셈 = x.k === '1' || x.k.startsWith('2') ? 등급수(풀기(x.k, x.j).rows) : null
+          const 풀 = x.k === '1' || x.k.startsWith('2') ? 풀기(x.k, x.j) : null
+          const 셈 = 풀 ? 등급수(풀.rows, 척(풀)) : null
           return (
             <div className="row" key={x.id}>
               <button className="grow rk-open" onClick={() => 열기(x.id)}>
                 <div className="t"><span className="badge n">{종류[x.k]?.별지} {종류[x.k]?.짧게}</span> {x.t || ''}</div>
-                <div className="d">{점날(x.d)}{셈 ? ` · 상 ${셈.상} · 중 ${셈.중} · 하 ${셈.하}` : ''}</div>
+                <div className="d">{점날(x.d)}{셈 ? (척(풀) === '5x4' ? ` · 5×4 · 9점 이상 ${셈.상} · 4~8점 ${셈.중} · 3점 이하 ${셈.하}` : ` · 상 ${셈.상} · 중 ${셈.중} · 하 ${셈.하}`) : ''}</div>
               </button>
               <button className="btn sm ghost" title="같은 내용으로 새 서류(날짜는 오늘)" onClick={() => 새로(x.k, 복제(x.k, 풀기(x.k, x.j)))}>복사</button>
               <button className="btn sm ghost" onClick={() => { if (window.confirm('이 서류를 지울까요? (휴지통으로 갑니다)')) 지우기(x.id) }}>지우기</button>
@@ -563,7 +568,16 @@ function 편집34({ k, j, 바꿈, 사진, 사진바꿈 }) {
 /* ── 줄들 (별지1 · 2 · 5) ── */
 function 줄들({ k, j, 바꿈, 다른서류 }) {
   const rows = j.rows || []
+  const c = 척(j)                          /* 🧮 G658 위험성 추정 기준 — '3x3' | '5x4' */
+  const 표 = 척도[c]
   const [판, set판] = useState('')       // '' | 'lib' | 'imp'
+  const 척바꿈 = (새) => {
+    if (새 === c) return
+    const 찬 = rows.some((r) => String(r.f || '').trim() || String(r.s || '').trim())
+    if (찬 && !window.confirm(`위험성 추정 기준을 ${척도[새].긴이름}(으)로 바꾸면 이 서류의 빈도 · 강도를 비웁니다.\n(위험요인 · 예방대책 글은 그대로) 바꿀까요?`)) return
+    바꿈({ 척: 새, rows: rows.map((r) => (k === '5' ? r : { ...r, f: '', s: '' })) })
+    if (새 === '5x4') { try { 세기('|위험성|5x4') } catch (e) { /* 셈 때문에 막히면 안 됨 */ } }
+  }
   const 줄바꿈 = (i, v) => 바꿈({ rows: rows.map((r, q) => (q === i ? { ...r, ...v } : r)) })
   const 옮김 = (i, d) => { const n = [...rows]; const t = n[i]; n[i] = n[i + d]; n[i + d] = t; 바꿈({ rows: n }) }
   const 더함 = (새) => { 바꿈({ rows: [...rows.filter((r) => Object.entries(r).some(([key, v]) => key !== 'ck' && key !== 'mk' && String(v || '').trim())), ...새] }); set판('') }
@@ -577,15 +591,23 @@ function 줄들({ k, j, 바꿈, 다른서류 }) {
         <button className={'btn sm ' + (판 === 'lib' ? '' : 'ghost')} onClick={() => set판(판 === 'lib' ? '' : 'lib')}>📚 사전에서 고르기</button>
         {k !== '1' && <button className={'btn sm ' + (판 === 'imp' ? '' : 'ghost')} onClick={() => set판(판 === 'imp' ? '' : 'imp')}>📥 다른 서류에서 가져오기</button>}
       </div>
-      {판 === 'lib' && <사전고르기 k={k} 넣기={더함} />}
-      {판 === 'imp' && <가져오기 k={k} 다른서류={다른서류} 넣기={더함} />}
+      {k !== '5' && (
+        <div className="rk-scale">
+          <span className="muted sm">위험성 추정 기준</span>
+          <div className="eq-seg">{['3x3', '5x4'].map((x) => <button key={x} className={c === x ? 'on' : ''} onClick={() => 척바꿈(x)}>{척도[x].긴이름}</button>)}</div>
+          {c === '5x4' && <오사표 />}
+        </div>
+      )}
+      {판 === 'lib' && <사전고르기 k={k} c={c} 넣기={더함} />}
+      {판 === 'imp' && <가져오기 k={k} c={c} 다른서류={다른서류} 넣기={더함} />}
       {rows.map((r, i) => {
-        const g = 등급(r.f, r.s)
+        const g = 등급(r.f, r.s, c)
+        const 색 = 등급색(r.f, r.s, c)
         return (
           <div className="rk-row" key={i}>
             <div className="rk-row-h">
               <b>{i + 1}</b>
-              {k !== '5' && <span className={'rk-g g-' + (g || 'x')}>{g ? `${g} (${점수(r.f, r.s)}점)` : '등급 —'}</span>}
+              {k !== '5' && <span className={'rk-g g-' + (색 || 'x')}>{g ? `${g} (${점수(r.f, r.s)}점)` : '등급 —'}</span>}
               {k === '5' && (() => { const x = 달성(r.mk, 날들); return <span className="rk-g">{x.율 != null ? `달성율 ${x.율}% (X ${x.지적}/${x.작업}일)` : '달성율 —'}</span> })()}
               <span className="grow" />
               <button className="btn sm ghost" disabled={i === 0} onClick={() => 옮김(i, -1)}>↑</button>
@@ -603,8 +625,8 @@ function 줄들({ k, j, 바꿈, 다른서류 }) {
                 <div className="field"><label>위험요인</label><textarea rows={2} value={r.h || ''} maxLength={300} onChange={(e) => 줄바꿈(i, { h: e.target.value })} /></div>
                 <div className="rk-fs">
                   <div className="field"><label>재해형태</label><input list="rk-t" value={r.t || ''} maxLength={10} onChange={(e) => 줄바꿈(i, { t: e.target.value })} /></div>
-                  <div className="field"><label>빈도</label><div className="eq-seg">{[1, 2, 3].map((n) => <button key={n} className={Number(r.f) === n ? 'on' : ''} onClick={() => 줄바꿈(i, { f: n })}>{n}</button>)}</div></div>
-                  <div className="field"><label>강도</label><div className="eq-seg">{[1, 2, 3].map((n) => <button key={n} className={Number(r.s) === n ? 'on' : ''} onClick={() => 줄바꿈(i, { s: n })}>{n}</button>)}</div></div>
+                  <div className="field"><label>빈도{c === '5x4' ? ' (1~5)' : ''}</label><div className="eq-seg">{표.빈도.map((n) => <button key={n} title={표.빈도뜻[n] || ''} className={Number(r.f) === n ? 'on' : ''} onClick={() => 줄바꿈(i, { f: n })}>{n}</button>)}</div></div>
+                  <div className="field"><label>강도{c === '5x4' ? ' (1~4)' : ''}</label><div className="eq-seg">{표.강도.map((n) => <button key={n} title={표.강도뜻[n] || ''} className={Number(r.s) === n ? 'on' : ''} onClick={() => 줄바꿈(i, { s: n })}>{n}</button>)}</div></div>
                 </div>
               </>
             )}
@@ -655,7 +677,23 @@ function 줄들({ k, j, 바꿈, 다른서류 }) {
   )
 }
 
-function 사전고르기({ k, 넣기 }) {
+/* 🧮 G658 5×4 기준표 — 접어 둠(필요할 때 펼쳐 봄) · 공단 «사업장 위험성평가 매뉴얼»(2012) 예시 그대로 */
+function 오사표() {
+  const t = 척도['5x4']
+  return (
+    <details className="rk-5x4">
+      <summary>5×4 기준 보기 — 빈도 · 강도 · 위험성 수준</summary>
+      <div className="rk-5x4-in">
+        <div><b>빈도(가능성)</b>{[5, 4, 3, 2, 1].map((n) => <div key={n}>{n} — {t.빈도뜻[n]}</div>)}</div>
+        <div><b>강도(중대성)</b>{[4, 3, 2, 1].map((n) => <div key={n}>{n} — {t.강도뜻[n]}</div>)}</div>
+        <div><b>위험성 = 빈도 × 강도</b>{오사단계.map((x) => <div key={x.이름}>{x.아래 === x.위 ? x.아래 : `${x.아래}~${x.위}`} {x.긴} — {x.기준}</div>)}</div>
+      </div>
+      <div className="muted sm">안전보건공단 «사업장 위험성평가 매뉴얼»의 5×4 예시입니다. 단계와 허용 기준은 현장(사업장)이 정하므로 발주처 · 원청 기준이 따로 있으면 그것을 따르십시오.</div>
+    </details>
+  )
+}
+
+function 사전고르기({ k, c = '3x3', 넣기 }) {
   const [g, setG] = useState(사전공종[0])
   const [고른, set고른] = useState(() => new Set())
   const 보일 = 사전.map((x, i) => ({ ...x, i })).filter((x) => x.g === g)
@@ -663,7 +701,8 @@ function 사전고르기({ k, 넣기 }) {
     const 새 = [...고른].sort((a, b) => a - b).map((i) => {
       const x = 사전[i]
       if (k === '5') return { ...빈줄('5'), w: x.w, eq: x.eq, m: x.m }
-      return { ...빈줄(k), w: x.w, eq: x.eq, h: x.h, t: x.t, f: x.f, s: x.s, m: x.m }
+      /* 🧮 G658 사전의 빈도 · 강도는 3×3 출발값 — 5×4 서류엔 비우고 넣음(현장에서 직접 고름 · 짐작으로 옮기지 않음) */
+      return { ...빈줄(k), w: x.w, eq: x.eq, h: x.h, t: x.t, f: c === '5x4' ? '' : x.f, s: c === '5x4' ? '' : x.s, m: x.m }
     })
     넣기(새)
   }
@@ -678,17 +717,18 @@ function 사전고르기({ k, 넣기 }) {
       ))}
       <div className="btn-row" style={{ marginTop: 8 }}>
         <button className="btn sm" disabled={!고른.size} onClick={넣을}>고른 {고른.size}줄 넣기</button>
-        <span className="muted sm">여러 공종에서 골라도 됩니다 · 넣은 뒤 현장에 맞게 고치십시오</span>
+        <span className="muted sm">여러 공종에서 골라도 됩니다 · 넣은 뒤 현장에 맞게 고치십시오{c === '5x4' && k !== '5' ? ' · 5×4 서류라 빈도 · 강도는 비워서 넣습니다(사전 값은 3×3)' : ''}</span>
       </div>
     </div>
   )
 }
 
-function 가져오기({ k, 다른서류, 넣기 }) {
+function 가져오기({ k, c = '3x3', 다른서류, 넣기 }) {
   const [src, setSrc] = useState(() => (다른서류.find((x) => x.k === '1') || 다른서류[0] || {}).id || '')
   const [중상, set중상] = useState(k === '5')
   const 서 = 다른서류.find((x) => x.id === src)
-  const 줄 = useMemo(() => (서 ? 가져올줄(풀기(서.k, 서.j), k, { 중상만: 중상 }) : []), [서, k, 중상])
+  const 원척 = 서 ? 척(풀기(서.k, 서.j)) : '3x3'
+  const 줄 = useMemo(() => (서 ? 가져올줄(풀기(서.k, 서.j), k, { 중상만: 중상, 원척, 새척: c }) : []), [서, k, 중상, 원척, c])
   if (!다른서류.length) return <div className="rk-panel muted">가져올 서류가 없습니다 — 먼저 <b>별지 1 최초·정기</b>를 쓰십시오.</div>
   return (
     <div className="rk-panel">
@@ -696,8 +736,9 @@ function 가져오기({ k, 다른서류, 넣기 }) {
         <select value={src} onChange={(e) => setSrc(e.target.value)}>
           {다른서류.map((x) => <option key={x.id} value={x.id}>{종류[x.k].별지} {종류[x.k].짧게} · {점날(x.d)} · {x.t}</option>)}
         </select>
-        <label className="eq-chk"><input type="checkbox" checked={중상} onChange={(e) => set중상(e.target.checked)} /> 중·상 등급만</label>
+        <label className="eq-chk"><input type="checkbox" checked={중상} onChange={(e) => set중상(e.target.checked)} /> {원척 === '5x4' ? '4점 이상만(5×4)' : '중·상 등급만'}</label>
       </div>
+      {k !== '5' && 서 && 원척 !== c && <div className="muted sm" style={{ marginTop: 6 }}>🧮 기준이 달라({척도[원척].이름} → {척도[c].이름}) 빈도 · 강도는 비우고 가져옵니다.</div>}
       <div className="muted sm" style={{ margin: '6px 0' }}>{줄.length}줄 — {줄.slice(0, 4).map((r) => r.w).filter(Boolean).join(' · ')}{줄.length > 4 ? ' …' : ''}</div>
       <button className="btn sm" disabled={!줄.length} onClick={() => 넣기(줄)}>{줄.length}줄 가져오기</button>
     </div>
