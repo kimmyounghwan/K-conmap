@@ -10,7 +10,11 @@
  *     · (G654 의 «바닥» 줄 · 목록 줄이 있으면 바닥을 쉬던 장치는 G656 에서 뺌)
  *   ■ 꼴: 업체 광고 칸과 같은 크림 바탕 · «광고» 딱지 · «쿠팡 ○○ 베스트» · 대가성 문구(쿠팡 «반드시 기재») 바로 아래 쿠팡 다이나믹 배너
  *     배너 안 상품 사진은 한 장 한 장 따로 눌리고 누르면 그 상품으로(link.coupang.com/re/…) · 사진은 쿠팡이 주는 가장 큰 사진(11-12 크롬 확인 857×857)
- *   ■ 쿠팡이 준 iframe 코드 그대로(referrerpolicy="unsafe-url" · 테두리 0 · 스크롤 없음) — 폭만 줄 안쪽 폭에 맞춤(폰 390 ≈ 336 · 320 ≈ 266 · PC 680) · 늦게 불러옴
+ *   ■ 쿠팡이 준 iframe 코드 그대로(referrerpolicy="unsafe-url" · 테두리 0 · 스크롤 없음) — 폭만 줄 안쪽 폭에 맞춤(폰 390 ≈ 336 · 320 ≈ 266 · PC 680) · 목록 줄은 늦게 불러옴
+ *   ■ ⚡ G660 (11-12 23시) 소장님 「광고 물품 처음 뜰때 로딩 없이 바로 할 수 있다고 했지? 약간 늦게 떠」 — 처음 뜨는 속도만 줄임(넘어가는 속도는 쿠팡 몫):
+ *     ① index.html 에서 쿠팡 배너 주소에 미리 연결(preconnect · dns-prefetch) ② 분야를 첫 그림에서 바로 정함(빈 그림 한 번 덜)
+ *     ③ 폭을 그리기 전에 잼(useLayoutEffect) ④ 맨 위 줄은 바로 불러옴(eager · 목록 줄은 그대로 lazy)
+ *     ⑤ 폭이 20px 안으로만 바뀌면(스크롤 막대가 생길 때 등) 배너를 다시 부르지 않음 — 전엔 key 가 바뀌어 처음부터 다시 받았음(늦게 뜬 까닭 하나)
  *   ■ 쿠팡 운영정책: 링크를 숨기지 않음 · 저절로 넘기지 않음 · 화면을 덮지 않음 · «눌러 주세요» 같은 말 없음
  *   ■ 쪽을 옮길 때마다 분야를 새로 고름(자격증 → 도서 · 서식 · 내역서 → 문구/오피스 · 도구 → 가전디지털 · 나머지는 돌림) · 인쇄에는 안 나옴 · 운영자 문의함(/admin)에는 안 나옴
  *   ■ 숨은 셈(사이트엔 안 보임 · 소장님 「클릭수 광고 숨김으로 해서 카운트 해」 · 물으시면 알려 드림):
@@ -18,7 +22,7 @@
  *     · |쿠팡누름|<자리>-<분야 id>(배너 안을 누르면 — 쿠팡 칸은 남의 창이라 «배너 칸으로 손이 옮겨 간 것» 으로 셈 · 정확한 누른 수 · 산 것은 쿠팡 파트너스 리포트)
  *   ⚠️ 위 줄은 «써 본 횟수»(lib/씀세기.js — 씀-앞 ~ 씀-뒤 사이) 밖에 둠 — 쿠팡 줄을 누른 것이 도구 쓴 수로 세지지 않게
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { 분야정하기, 배너주소, 쿠팡문구 } from './lib/쿠팡자료.js'
 import { 세기 } from './lib/받은수.jsx'
@@ -31,16 +35,18 @@ export default function 쿠팡칸({ 자리 = '위', 차례 = 0 }) {
   const { pathname } = useLocation()
   const 쉼 = /^\/admin(\/|$)/.test(pathname)
   const 이름 = 자리 === '목록' ? '목록' + (차례 || 1) : 자리   /* 숨은 셈 자리 이름 — 위 · 목록1 · 목록2 … */
-  const [분야, set분야] = useState(null)
+  /* ⚡ G660 ② 첫 그림에서 바로 분야(전엔 null 로 한 번 그린 뒤 정함) */
+  const [분야, set분야] = useState(() => (쉼 ? null : 분야정하기(pathname, 자리 === '목록' ? (차례 || 1) : 0, 씨앗얻기(pathname))))
   const [폭, set폭] = useState(0)
   const 칸 = useRef(null)
   const 틀 = useRef(null)
   useEffect(() => { set분야(쉼 ? null : 분야정하기(pathname, 자리 === '목록' ? (차례 || 1) : 0, 씨앗얻기(pathname))) }, [pathname, 쉼, 자리, 차례])
   /* 폭 — 줄 안쪽 폭에 맞춤(240 ~ 680 · 좁은 폰 320 에서도 안 잘림) · 화면을 돌리거나 창 크기를 바꾸면 다시 */
-  useEffect(() => {
+  /* ⚡ G660 ③ 그리기 전에 잼 · ⑤ 20px 안 바뀜은 그대로(배너를 다시 안 부름 · 여유 22px 안이라 넘치지 않음) */
+  useLayoutEffect(() => {
     const el = 칸.current
     if (!분야 || !el) return undefined
-    const 재기 = () => { const w = Math.floor(el.clientWidth - 22); set폭(Math.max(240, Math.min(680, w))) }
+    const 재기 = () => { const w = Math.max(240, Math.min(680, Math.floor(el.clientWidth - 22))); set폭((옛) => (옛 > 0 && Math.abs(옛 - w) < 20 ? 옛 : w)) }
     재기()
     if (typeof ResizeObserver === 'undefined') return undefined
     const ro = new ResizeObserver(재기)
@@ -80,7 +86,7 @@ export default function 쿠팡칸({ 자리 = '위', 차례 = 0 }) {
       <div className="cpg-fr">
         {폭 > 0 && (
           <iframe ref={틀} key={분야.id + '|' + 폭} title={`쿠팡 ${분야.이름} 베스트 상품`} src={배너주소(분야, 폭, 140)}
-            width={폭} height="140" frameBorder="0" scrolling="no" referrerPolicy="unsafe-url" loading="lazy" />
+            width={폭} height="140" frameBorder="0" scrolling="no" referrerPolicy="unsafe-url" loading={자리 === '위' ? 'eager' : 'lazy'} />
         )}
       </div>
     </aside>

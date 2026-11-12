@@ -132,7 +132,9 @@ if (BASE) {
     const 기대 = 쪽분야.find(([re]) => re.test(쪽))
     ok(기대 ? `쪽 맞춤 — ${쪽} → ${이름(기대[1])}` : `돌림 분야(${이름(z.분야)})`, 기대 ? 위.분야 === 기대[1] : 돌림분야.includes(z.분야), [위.분야, z.분야])
     ok('배너 — 그 분야 번호 · 추적 코드 · 폭이 주소와 같음 · 높이 140', 맞나(z) && z.틀.h === 140, z.틀)
-    ok('referrerpolicy=unsafe-url · 늦게 불러옴(lazy) · 제목 있음', z.틀.rp === 'unsafe-url' && z.틀.lazy === 'lazy' && /베스트 상품$/.test(z.틀.title || ''), z.틀)
+    /* ⚡ G660 맨 위 줄은 바로 불러옴(eager) · 목록 줄은 늦게(lazy) */
+    ok(`referrerpolicy=unsafe-url · ${z.이름 === '위' ? '바로 불러옴(eager)' : '늦게 불러옴(lazy)'} · 제목 있음`, z.틀.rp === 'unsafe-url' && z.틀.lazy === (z.이름 === '위' ? 'eager' : 'lazy') && /베스트 상품$/.test(z.틀.title || ''), z.틀)
+    ok('맨 위 줄은 바로 불러옴(eager) — 처음 뜨는 속도(G660)', 위.틀 && 위.틀.lazy === 'eager', 위.틀)
     ok('폰 390 — 배너 폭 300~358 · 쪽 넘침 0 · 줄 높이 ≤ 230', z.틀.w >= 300 && z.틀.w <= 358 && await 넘침(p) <= 0 && z.높이 <= 230, { 폭: z.틀.w, 넘침: await 넘침(p), 높이: z.높이 })
     await p.evaluate((g) => document.querySelector(g).scrollIntoView({ block: 'center' }), 고름)
     await 기다림(() => 셈수('쿠팡보임', z) > 0); await p.waitForTimeout(700)
