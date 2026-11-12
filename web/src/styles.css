@@ -10816,3 +10816,20 @@ details.esc-edit > summary { cursor: pointer; font-weight: 700; font-size: 13.5p
   .esc-ex > *:not(.esc-printnote) { display: none !important; }
   .esc-ex .esc-printnote { display: block !important; }
 }
+
+/* ══ 📱 G661 (2026-11-13) 아이폰 키보드 뒤 «기준점 어긋남» 바로잡기 — html.vv-fix 일 때만(lib/아이폰자리.js) · 평소엔 아무것도 안 바뀜 ══
+   소장님 폰 캡처(06:25): 아래 탭이 화면 가운데(키보드 위 자리)에 떠 있고 맨 위 머리줄이 안 보임 → 「빨리 고쳐 줘」
+   · 머리줄(sticky 위)은 top 으로 내림 — transform 금지(머리줄 안의 알림창 · 설치 안내 · 빠른 찾기 «떠 있는 창» 이 머리줄 안에 갇힘)
+   · 떠 있는 것(fixed)은 translate 로 그만큼 내림 — 원래 transform(가운데 맞춤 · «+» 기울기)과 겹쳐도 됨
+   · 붙는 것(sticky 아래)은 bottom 에서 그만큼 뺌 — 붙어 있을 때만 내려가고, 제자리(글 끝)에 있을 때는 그대로
+   · ⚠️ position: fixed(또는 sticky 아래)를 새로 쓰면 아래 목록에 더하거나, 시험_아이폰자리.mjs 의 «뺌» 목록에 까닭과 함께 적을 것(시험이 잡음) */
+html.vv-fix .topbar { top: var(--vv-dy, 0px); }
+html.vv-fix :is(.tabbar, .cam-tab, .cam-dim, .bsr-dock, .gx-ed, .xv-고침판, .iy-bar, .insa, .ask-card,
+  .installguide, .noticepop, .askwrap, .끌놓판, .pb-modal, .mt-back, .mt-sheet, .qs-back,
+  .kcm-help-back, .kcm-help-dlg, .gmd-askbox, .gmd-xlchk, .gmd-xlchk-toast) { translate: 0 var(--vv-dy, 0px); }
+@media (max-width: 560px) { html.vv-fix .noti-pop { translate: 0 var(--vv-dy, 0px); } }   /* 폰에서만 떠 있음(넓으면 머리줄에 붙어 같이 내려감) */
+html.vv-fix .mc-savebar { bottom: calc(12px - var(--vv-dy, 0px)); }
+@media (max-width: 899px) { html.vv-fix .mc-savebar { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 8px - var(--vv-dy, 0px)); } }
+@media (max-width: 560px) { html.vv-fix .mc-savebar { bottom: calc(var(--nav-h) * 2 + env(safe-area-inset-bottom) + 8px - var(--vv-dy, 0px)); } }
+html.vv-fix .fill-go { bottom: calc(10px - var(--vv-dy, 0px)); }
+@media (max-width: 720px) { html.vv-fix .fill-go { bottom: calc(104px - var(--vv-dy, 0px)); } }
