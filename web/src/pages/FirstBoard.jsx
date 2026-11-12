@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from 'react-router-dom'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import 광고칸 from '../광고칸.jsx'   /* 📣 업체 광고 — 셋째 카드 다음(first) · 열째(first2 · 8건 넘을 때) · 열일곱째(first3 · 15건 넘을 때) — 업체마다 쪽에 한 번 · 광고 사이 여섯 장 넘게 · lib/광고자료.js */
-import 쿠팡칸 from '../쿠팡칸.jsx'   /* 🛒 G654 쿠팡 «분야별 베스트» — 여섯째 카드 다음 · G656 그 뒤 열 장마다(네이버 카페 · 뽐뿌처럼 · 업체 광고 칸과 두 장 넘게 떨어지게) */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 G654 쿠팡 줄 — 여섯째 카드 다음 · G656 그 뒤 열 장마다(네이버 카페 · 뽐뿌처럼 · 업체 광고 칸과 두 장 넘게 떨어지게) · G663 카페형 상품 카드(큰 카드) */
 import { 목록쿠팡자리 } from '../lib/쿠팡자료.js'
 import { getOverview, getLicStat } from '../lib/data.js'
 import FreshBar from '../Fresh.jsx'
@@ -307,7 +307,7 @@ export default function FirstBoard() {
               {i === Math.min(2, view.length - 1) && <광고칸 자리="first" />}
               {view.length >= 8 && i === Math.min(9, view.length - 1) && <광고칸 자리="first2" />}
               {view.length >= 15 && i === Math.min(16, view.length - 1) && <광고칸 자리="first3" />}
-              {(() => { const k = 목록쿠팡자리(view.length, [2, 9, 16]).indexOf(i); return k >= 0 ? <쿠팡칸 자리="목록" 차례={k + 1} /> : null })()}
+              {(() => { const k = 목록쿠팡자리(view.length, [2, 9, 16]).indexOf(i); return k >= 0 ? <쿠팡카드줄 자리="목록" 차례={k + 1} /> : null })()}
               </Fragment>
             )
           })}

@@ -64,7 +64,7 @@ for (const [기기, w, h, 폰] of [['PC 1280', 1280, 900, false], ['폰 390', 39
     ok(`② «상담 · 견적 받기» → ${href}`, href === '/contact?k=cn')
     const 색 = await p.evaluate(() => { const a = document.querySelector('.noti-band.cn'); if (!a) return null; const g = getComputedStyle(a); const t = getComputedStyle(a.querySelector('.noti-go b')); const s = getComputedStyle(a.querySelector('.noti-see')); return { 바탕: g.backgroundImage, 글: t.color, 단추: s.backgroundColor } })
     ok('② 띠 색 — 진초록 바탕 · 흰 글 · 흰 단추', !!색 && /linear-gradient/.test(색.바탕) && /rgb\(4, 120, 87\)/.test(색.바탕) && 색.글 === 'rgb(255, 255, 255)' && 색.단추 === 'rgb(255, 255, 255)', 색)
-    ok('② 띠는 쿠팡 맨 위 줄 다음 · 씀-앞 앞(도구 써 본 횟수 밖)', await p.evaluate(() => { const a = document.querySelector('.noti-band.cn'), s = document.getElementById('씀-앞'), c = document.querySelector('aside.cpg[data-cpg-at="위"]'); return !!a && !!s && !!c && !!(a.compareDocumentPosition(s) & Node.DOCUMENT_POSITION_FOLLOWING) && !!(c.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING) }))
+    ok('② 띠는 쿠팡 맨 위 줄 다음 · 씀-앞 앞(도구 써 본 횟수 밖)', await p.evaluate(() => { const a = document.querySelector('.noti-band.cn'), s = document.getElementById('씀-앞'), c = document.querySelector('aside[data-cpg-at="위"]')   /* G663 — 카드 줄(aside.cpc) · 자료를 못 받으면 예전 배너(aside.cpg) */; return !!a && !!s && !!c && !!(a.compareDocumentPosition(s) & Node.DOCUMENT_POSITION_FOLLOWING) && !!(c.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING) }))
     ok(`⑧ 넘침 ${await 넘침(p)}px(/)`, (await 넘침(p)) <= 0)
     await p.screenshot({ path: path.join(폴더, `②띠_첫화면${폰 ? '_폰' : ''}.png`), fullPage: false })
     const 쪽들 = {}

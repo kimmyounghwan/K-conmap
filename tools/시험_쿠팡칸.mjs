@@ -11,6 +11,8 @@
  *      숨은 셈 |쿠팡보임|위-분야 · |쿠팡보임|목록1-분야 … 한 번씩 · 배너 안을 누르면 |쿠팡누름|그 자리-분야 한 번 · 다른 쪽(/how)으로 옮기면 맨 위 줄 · 또 한 번 셈
  *   ③ 쪽 맞춤(자격증 · 서식 · 도구) · 목록이 여섯 장이 안 되면 맨 위 줄만 · PC 1280 폭 680 · 폰 320 · 어두운 화면 대비 · 인쇄 안 나옴 · 문의함 없음 · 오류 0
  *   쿠팡 배너는 인터넷을 부르지 않고 가짜 쪽으로 받음(1순위 · 공고 자료도 가상). OUT=폴더 면 화면 사진.
+ *   🛒 G663 (11-13) 부터 맨 위 · 목록 줄은 «카페형 상품 카드»(쿠팡카드줄.jsx · 시험_쿠팡카드.mjs) — 배너는 카드 자료(cards.json)를 못 받았을 때만 나옴
+ *      → 이 시험은 cards.json 을 «못 받음(404)» 으로 두고 예전 배너가 예전 자리 · 예전 꼴 그대로 나오는지 봄
  */
 import { createRequire } from 'node:module'
 import { 쿠팡분야, 쿠팡추적, 쿠팡문구, 쪽분야, 돌림분야, 분야고르기, 분야정하기, 목록쿠팡자리, 배너주소 } from '../web/src/lib/쿠팡자료.js'
@@ -69,6 +71,7 @@ if (BASE) {
     await ctx.route(/firebaseio\.com|firebasedatabase\.app/, (r) => { const u = decodeURIComponent(r.request().url()); if (/쿠팡/.test(u) && r.request().method() !== 'GET') 셈들.push(u.replace(/^.*?\.(com|app)\//, '')); r.fulfill({ status: 200, contentType: 'application/json', body: r.request().method() === 'GET' ? 'null' : (r.request().postData() || 'null') }) })
     await ctx.route(/ads-partners\.coupang\.com/, (r) => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: 가짜배너(r.request().url()) }))
     await ctx.route(/link\.coupang\.com/, (r) => r.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: '<title>쿠팡(가짜)</title>쿠팡' }))
+    await ctx.route('**/coupang/cards.json*', (r) => r.fulfill({ status: 404, body: '' }))   /* G663 — 카드 자료를 못 받음 → 예전 배너 */
     await ctx.route('**/data/board/first.json*', (r) => r.fulfill({ json: meta(몇장) }))
     await ctx.route('**/data/board/first-con-0.json*', (r) => r.fulfill({ json: 일순위(몇장) }))
     await ctx.route('**/data/board/live.json*', (r) => r.fulfill({ json: { ...meta(몇장), con: { n: 몇장, parts: 1, from: 오늘, to: 오늘 } } }))

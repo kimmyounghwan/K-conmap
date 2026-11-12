@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import 광고칸 from '../광고칸.jsx'   /* 📣 업체 광고 — 공고 목록 셋째 카드 다음 한 장(자리 live · 쪽에 한 번) · lib/광고자료.js */
-import 쿠팡칸 from '../쿠팡칸.jsx'   /* 🛒 G654 쿠팡 «분야별 베스트» — 여섯째 카드 다음 · G656 그 뒤 열 장마다(네이버 카페 · 뽐뿌처럼 · 업체 광고 칸과 두 장 넘게 떨어지게) */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 G654 쿠팡 줄 — 여섯째 카드 다음 · G656 그 뒤 열 장마다(네이버 카페 · 뽐뿌처럼 · 업체 광고 칸과 두 장 넘게 떨어지게) · G663 카페형 상품 카드(큰 카드) */
 import { 목록쿠팡자리 } from '../lib/쿠팡자료.js'
 import { useBoard } from '../lib/useBoard.js'
 import { useFresh, freshRows, freshWhen } from '../lib/fresh.js'
@@ -586,7 +586,7 @@ export default function LiveBoard() {
             const dd = dday(r.close)
             const 광고 = i === Math.min(2, view.length - 1) ? <광고칸 자리="live" /> : null
             const 쿠팡k = 목록쿠팡자리(view.length, [Math.min(2, view.length - 1)]).indexOf(i)
-            const 쿠팡 = 쿠팡k >= 0 ? <쿠팡칸 자리="목록" 차례={쿠팡k + 1} /> : null
+            const 쿠팡 = 쿠팡k >= 0 ? <쿠팡카드줄 자리="목록" 차례={쿠팡k + 1} /> : null
             if (r.gone) return (
               <Fragment key={id}>
               <div className="notice gone">
