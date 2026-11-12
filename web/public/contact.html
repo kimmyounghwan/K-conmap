@@ -48,11 +48,21 @@
 .note{margin-top:10px;font-size:13px;font-weight:700}
 .ok{color:#15803d}.err{color:#c0392b}
 @media(max-width:460px){.f .two{grid-template-columns:1fr}}
+/* 🤝 G659 공사 연결 · 서류 작성 대행(?k=cn) — 필요한 것 고르기(두 묶음 · 누르면 초록) */
+/* 「빈공간 없이」 — 묶음 이름을 단추 위 한 줄로(왼쪽 이름 칸 아래 빈 곳 없게) */
+.cn-grp{margin:2px 0 10px}
+.cn-gname{display:block;font-size:12.5px;font-weight:700;color:#047857;margin:0 0 5px}
+.cn-pick{display:flex;flex-wrap:wrap;gap:6px}
+.cn-pick button{font:inherit;font-size:14px;padding:7px 12px;border-radius:999px;border:1px solid #d1d5db;background:#fff;color:#111827;cursor:pointer}
+.cn-pick button.on{border-color:#047857;background:#ecfdf5;color:#047857;font-weight:700}
 @media(prefers-color-scheme:dark){
   .f input,.f textarea{background:#0e1116;border-color:#333b48;color:#e8eaed}
   .btn{border-color:#3b82f6;background:#161a21;color:#8ab0ff}
   .btn:hover{background:#1b2230}
   .ok{color:#4ade80}
+  .cn-pick button{background:#0e1116;border-color:#333b48;color:#e8eaed}
+  .cn-pick button.on{background:#0f2a22;border-color:#34d399;color:#34d399}
+  .cn-gname{color:#34d399}
 }
 </style>
 </head><body><div class="wrap"><a class="back" href="/">← K-건설맵으로</a><h1>문의</h1>
@@ -135,11 +145,75 @@
     var cards = document.querySelectorAll('.card'); if (cards[1]) cards[1].style.display = 'none'   /* «이런 내용을 함께» · 글 삭제 · 자료 정정 — 사이트 문의용이라 숨김 */
   }
 
+  /* 🤝 G659 (2026-11-12) 공사 연결 · 서류 작성대행 문의 — 사이트 맨 위 진초록 띠(공사연결띠.jsx)의 «문의 남기기» 는 /contact?k=cn 로 옵니다.
+     소장님 「전남 공사 … 연결해 준다는 알림」 → «1번 만» → 「전국으로 하자」 「공사 연결」 「모든 서류 작성 가능」 「견본 제공 후 최저가로 작성」
+            → 「다시 만들어 줘. 전국 공사 연결 및 설계변경, 안전관리계획서, 등 모든 서류 작성 대행 최저가로」 · 「유해위험방지계획서」 · «문장 다시(의견 더함)» · 「빈공간 없이」 · 「작성대행으로 해줘」 → «이대로»
+     · «무슨 일» 에 «🤝 공사 연결 · 📄 서류 작성대행 상담» 을 미리 적고, 필요한 것을 눌러 고름
+       (공사 연결: 시공 · 하도급 · 장비 · 인력 · 자재 / 서류 작성대행: 설계변경 · 안전관리계획서 · 유해위험방지계획서 · 내역서 · 기성 · 그 밖 서류 — 하나만 · 다시 누르면 풂)
+       → 운영자 메일 · 문의함에 «공사 연결 — 장비» · «서류 작성대행 — 설계변경» 처럼(want · 아래 갈래고침) · 안 고르면 «공사 연결 · 서류 작성대행»
+     · 연락처 꼭(무슨 일 바로 아래로) · 공고번호 칸 · 사이트 오류 안내 칸은 숨김
+     · 업체에 연락처를 알려 드리기 전에 먼저 여쭘(개인정보 — 남에게 넘기기 전에 그분 뜻을 물음)
+     · 숨은 셈 |공사연결|접수(보낸 뒤 — 받은수.jsx 세기 와 같은 «1 더하기»(ETag) · 소장님 브라우저(kcm_op) · 자동 브라우저는 안 셈) */
+  var 연결 = !광고 && /[?&]k=cn(&|$)/.test(location.search)
+  var 고른것 = ''
+  if (연결) {
+    document.title = '공사 연결 · 서류 작성대행 상담 | K-건설맵'
+    var ch1 = document.querySelector('h1'); if (ch1) ch1.textContent = '🤝 공사 연결 · 📄 서류 작성대행'
+    var ch2 = document.querySelector('.card h2'); if (ch2) ch2.textContent = '상담 · 견적 받기 — 1분이면 됩니다'
+    var cp = document.querySelector('.card p.small')
+    if (cp) cp.innerHTML = '<b>🤝 공사 연결</b> — 전국 어디든 시공 · 하도급 · 장비 · 인력 · 자재가 필요하시면 남겨 주세요. <b>건설맵이 맞는 곳을 찾아 연락드립니다.</b><br>' +
+      '<b>📄 서류 작성대행</b> — 설계변경 · 안전관리계획서 · 유해위험방지계획서 · 내역서 · 기성 등 건설 서류를 작성대행합니다. <b>견본을 먼저 보여 드리고</b>, 마음에 드시면 <b>최저가</b>로 진행합니다.<br>' +
+      '🔒 남기신 글은 운영자만 봅니다 — 업체에 연락처를 알려 드리기 전에는 먼저 여쭙니다.'
+    document.getElementById('work').value = '🤝 공사 연결 · 📄 서류 작성대행 상담'
+    document.getElementById('memo').placeholder = '공사 — 어디(시·군) · 어떤 공사 · 언제 / 서류 — 어떤 서류 · 언제까지 (안 적으셔도 연락드립니다)'
+    document.getElementById('phone').placeholder = '전화 또는 이메일 — 연락드릴 곳'
+    var cno = document.getElementById('no'); if (cno && cno.closest('.row')) cno.closest('.row').style.display = 'none'
+    var cph = document.getElementById('phone'), cpr = cph && cph.closest('.row'), cmr = document.getElementById('memo').closest('.row')
+    if (cpr && cmr && cmr.parentNode) { cmr.parentNode.insertBefore(cpr, cmr); cpr.classList.add('ad-phone') }
+    var cpl = cpr && cpr.querySelector('label'); if (cpl) cpl.innerHTML = '연락처 <span class="req">*</span> <span class="small">(연락드릴 전화 또는 이메일)</span>'
+    var cml = cmr && cmr.querySelector('label'); if (cml) cml.innerHTML = '자세히 <span class="small">(안 적어도 됩니다)</span>'
+    /* 필요한 것 — 두 묶음 · 하나만 고름(한 번 더 누르면 풂) · 무슨 일 바로 아래 */
+    var 묶음들 = [['공사 연결', ['시공', '하도급', '장비', '인력', '자재']], ['서류 작성대행', ['설계변경', '안전관리계획서', '유해위험방지계획서', '내역서', '기성', '그 밖 서류']]]
+    var crow = document.createElement('div'); crow.className = 'row cn-row'
+    var clab = document.createElement('label'); clab.innerHTML = '필요한 것 <span class="small">(누르면 고름)</span>'; crow.appendChild(clab)
+    var 다시칠 = function () {
+      Array.prototype.forEach.call(crow.querySelectorAll('.cn-pick button'), function (y) { var on = y.getAttribute('data-v') === 고른것; y.className = on ? 'on' : ''; y.setAttribute('aria-pressed', on ? 'true' : 'false') })
+    }
+    묶음들.forEach(function (g) {
+      var gbox = document.createElement('div'); gbox.className = 'cn-grp'
+      var gname = document.createElement('span'); gname.className = 'cn-gname'; gname.textContent = g[0]; gbox.appendChild(gname)
+      var box = document.createElement('div'); box.className = 'cn-pick'; box.setAttribute('role', 'group'); box.setAttribute('aria-label', g[0])
+      g[1].forEach(function (x) {
+        var b = document.createElement('button'); b.type = 'button'; b.textContent = x; b.setAttribute('data-v', g[0] + ' — ' + x); b.setAttribute('aria-pressed', 'false')
+        b.onclick = function () { var v = b.getAttribute('data-v'); 고른것 = 고른것 === v ? '' : v; 다시칠() }
+        box.appendChild(b)
+      })
+      gbox.appendChild(box)
+      crow.appendChild(gbox)
+    })
+    var cwr = document.getElementById('work').closest('.row'); if (cwr && cwr.parentNode) cwr.parentNode.insertBefore(crow, cwr.nextSibling)
+    var ccards = document.querySelectorAll('.card'); if (ccards[1]) ccards[1].style.display = 'none'
+  }
+  /* 공사 연결 · 서류 작성대행(?k=cn) 이면 메일 갈래(want)만 고른 것으로 — 위 광고 · 사이트 문의 갈래 줄은 그대로 둠(시험_광고문의화면 ⑦ ⑨ 가 그 줄을 봄) */
+  var 갈래고침 = function (o) { if (연결) o.want = 고른것 || '공사 연결 · 서류 작성대행'; return o }
+  var 셈 = function (k) {
+    try {
+      if (navigator.webdriver || /bot|crawl|spider|slurp|headless|lighthouse/i.test(navigator.userAgent || '')) return
+      if (localStorage.getItem('kcm_op')) return
+      var url = 'https://k-conmap-default-rtdb.firebaseio.com/dl/p/' + encodeURIComponent(k) + '.json'
+      fetch(url, { headers: { 'X-Firebase-ETag': 'true' }, cache: 'no-store' }).then(function (r) {
+        if (!r.ok) return
+        var tag = r.headers.get('ETag')
+        return r.json().then(function (v) { return fetch(url, { method: 'PUT', headers: { 'if-match': tag }, body: String((Number(v) || 0) + 1) }) })
+      }).catch(function () { /* 셈 때문에 문의가 막히면 안 됨 */ })
+    } catch (e) { /* 없음 */ }
+  }
+
   f.onsubmit = function (e) {
     e.preventDefault()
     var work = V('work')
     if (work.length < 2) { 말('무슨 일인지 한 줄만 적어 주십시오.', 'err'); return }
-    if (광고 && V('phone').length < 4) { 말('답을 드릴 전화번호나 이메일을 적어 주십시오.', 'err'); document.getElementById('phone').focus(); return }
+    if ((광고 || 연결) && V('phone').length < 4) { 말(연결 ? '연락드릴 전화번호나 이메일을 적어 주십시오.' : '답을 드릴 전화번호나 이메일을 적어 주십시오.', 'err'); document.getElementById('phone').focus(); return }
     /* 기계 거르개 — 사람 눈에 안 보이는 칸이 채워졌을 때만 걸러냅니다.
        ⚠️ 「2초 안에 보내면 기계로 본다」 도 넣었다가 **뺐습니다.** 빨리 쓰는 분의 진짜 문의를
           조용히 버리게 됩니다. 스팸 몇 통보다 문의 한 통을 잃는 것이 훨씬 큰 손해입니다. */
@@ -148,7 +222,7 @@
     fetch(DB, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: JSON.stringify(갈래고침({
         work: work.slice(0, 120),
         org: '', money: '', due: '', name: '',
         no: V('no').slice(0, 40),
@@ -156,11 +230,12 @@
         phone: V('phone').slice(0, 40) || '-',
         memo: V('memo').slice(0, 1000),
         at: Date.now()
-      })
+      }))
     }).then(function (r) {
       if (!r.ok) throw new Error(r.status)
       f.style.display = 'none'
-      말('보냈습니다. 연락처를 적어 주셨으면 하루 안에 답을 드리겠습니다. 고맙습니다 🙏', 'ok')
+      말(연결 ? '보냈습니다. 하루 안에 적어 주신 연락처로 연락드리겠습니다. 고맙습니다 🙏' : '보냈습니다. 연락처를 적어 주셨으면 하루 안에 답을 드리겠습니다. 고맙습니다 🙏', 'ok')
+      if (연결) 셈('|공사연결|접수')
     }).catch(function () {
       go.disabled = false
       말('보내지 못했습니다. 잠시 뒤 다시 하시거나 kimmyounghwan259@gmail.com 으로 보내 주십시오.', 'err')
