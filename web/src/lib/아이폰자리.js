@@ -20,12 +20,14 @@ const 아이폰인가 = () => {
 }
 
 const 글칸아님 = /^(button|submit|reset|checkbox|radio|range|color|file|image|hidden)$/i
-/** 글을 쓰는 중인가(키보드가 올라와 있을 수 있음) — 다른 사이트 틀(iframe) 안은 알 수 없으니 «쓰는 중» 으로 봄 */
+/** 글을 쓰는 중인가(키보드가 올라와 있을 수 있음)
+ *  🩹 G661b — 다른 사이트 틀(iframe · 쿠팡 배너)은 «쓰는 중» 으로 보지 않음: 배너를 누르면 틀에 커서가 남아(쿠팡 다녀와도) 바로잡기가 막혔음.
+ *     틀 안에서 정말 글을 쓰면 키보드가 올라와 보이는 높이가 줄어드니 «높이 85%» 가 대신 막아 줌 */
 export const 글쓰는중 = (a) => {
   if (!a || a === document.body || a === document.documentElement) return false
   if (a.isContentEditable) return true
   const t = a.tagName
-  if (t === 'TEXTAREA' || t === 'SELECT' || t === 'IFRAME') return true
+  if (t === 'TEXTAREA' || t === 'SELECT') return true
   if (t === 'INPUT') return !글칸아님.test(a.type || 'text')
   return false
 }

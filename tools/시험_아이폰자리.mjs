@@ -14,6 +14,7 @@
  *   ⑦ 알림(이벤트) 없이 어긋남 — 2초 안에 잡음(처음은 0.5초 그대로일 때만) · 뒤로 가기로 돌아옴(pageshow) — 잡음
  *   ⑧ PC(윈도 크롬) · 안드로이드 — 같은 가짜 값이어도 아무것도 안 바뀜
  *   ⑨ 재발 막기 — styles.css 의 position: fixed · sticky(아래) 를 다 «G661 목록» 또는 «뺌(까닭)» 에 두었는지
+ *   ⑩ G661b 쿠팡 배너(다른 사이트 틀)에 커서가 남아도 — 키보드가 없으면 바로잡음 · 키보드가 올라와 있으면 안 건드림
  *   인터넷 안 부름(파이어베이스 · 광고 · 애널리틱스 막음 · 셈은 가로채서 봄).
  */
 import fs from 'node:fs'
@@ -170,6 +171,22 @@ const 커서뺌 = (p) => p.evaluate(() => { if (document.activeElement && docume
   ok('⑦ 뒤로 가기로 돌아옴(pageshow) — 잡음(300)', s.고침 && s.dy === '300px', s)
   await 값(p, { offsetTop: 0 }); await 쉬어(300)
   ok('⑦ 다시 풂', !(await 상태(p)).고침)
+
+  /* 🩹 G661b 쿠팡 배너(다른 사이트 틀)를 누르면 틀에 커서가 남음 — 그래도 키보드가 없으면 바로잡아야(전엔 막혔음) */
+  const 틀커서 = await p.evaluate(() => {
+    let f = document.querySelector('aside.cpg iframe')
+    if (!f) { f = document.createElement('iframe'); f.id = '시험틀'; f.srcdoc = '<p>틀</p>'; document.querySelector('main').appendChild(f) }
+    f.focus(); return document.activeElement === f
+  })
+  ok('⑩ (시험 준비) 배너 틀에 커서', 틀커서)
+  await 값(p, { height: 531, offsetTop: 343 }); await 쉬어(900)
+  ok('⑩ 틀에 커서 + 키보드 올라옴(높이 531) — 안 건드림', !(await 상태(p)).고침)
+  await 값(p, { height: 874 }); await 쉬어(900)
+  s = await 상태(p)
+  ok('⑩ 틀에 커서 + 키보드 없음 + 343 남음 — 바로잡음(쿠팡 다녀온 뒤)', s.고침 && s.dy === '343px' && s.탭옮김 === '0px 343px', s)
+  await 값(p, { offsetTop: 0 }); await 쉬어(300)
+  ok('⑩ 다시 풂', !(await 상태(p)).고침)
+  await 커서뺌(p)
   ok('셈은 한 번뿐(이 탭)', 보냄.filter((x) => /아이폰자리/.test(x.u)).length === 1)
   ok('화면 오류 없음', 오류.length === 0, 오류)
   await ctx.close()
