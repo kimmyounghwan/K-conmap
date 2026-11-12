@@ -50,14 +50,45 @@ export const 쿠팡문구 = '이 포스팅은 쿠팡 파트너스 활동의 일�
 /** 나머지 쪽에서 돌아가며 띄울 분야 — 15 다(소장님 「다 올려야 해」 · 헬스/건강식품은 G655 로 뺌) · 자격증 · 서식 · 도구 쪽은 위 쪽분야가 먼저 */
 export const 돌림분야 = ['food', 'living', 'digital', 'car', 'sports', 'kitchen', 'office', 'books', 'fashion', 'beauty', 'baby', 'interior', 'toys', 'pets', 'import']
 
-/** 이 쪽에 띄울 분야 하나 — 맞는 쪽이면 그 분야 · 아니면 돌림분야에서 고름(표에 없는 것은 건너뜀) */
-export function 분야고르기(pathname = '/', 섞기 = Math.random, 표 = 쿠팡분야) {
+/**
+ * 한 쪽에 쿠팡 줄이 여럿일 때(G656 맨 위 + 목록 사이사이) 줄마다 분야를 정함 — 같은 쪽에서 분야가 겹치지 않게
+ *   차례 0 = 맨 위 줄(맞는 쪽이면 그 분야 · 아니면 돌림에서 씨앗 자리) · 차례 1, 2 … = 목록 사이 줄(맨 위 분야를 뺀 나머지를 씨앗부터 차례로)
+ *   씨앗 = 쪽에 들어올 때 한 번 정한 수(쿠팡칸.jsx) — 들어올 때마다 바뀌어 여러 분야가 고루 나옴
+ */
+export function 분야정하기(pathname = '/', 차례 = 0, 씨앗 = 0, 표 = 쿠팡분야) {
   const 맞음 = 쪽분야.find(([re]) => re.test(pathname))
-  const 그것 = 맞음 && 표.find((x) => x.id === 맞음[1])
-  if (그것) return 그것
+  const 맞춤 = 맞음 && 표.find((x) => x.id === 맞음[1])
   const 돌림 = 표.filter((x) => 돌림분야.includes(x.id))
   const 고를 = 돌림.length ? 돌림 : 표
-  return 고를[Math.min(고를.length - 1, Math.floor(섞기() * 고를.length))]
+  const s = Math.abs(Math.floor(Number(씨앗) || 0)) % 고를.length
+  const 위 = 맞춤 || 고를[s]
+  if (!(차례 > 0)) return 위
+  const 남은 = 고를.filter((x) => x.id !== 위.id)
+  const 고를2 = 남은.length ? 남은 : 고를
+  return 고를2[(s + 차례 - 1) % 고를2.length]
+}
+
+/**
+ * 목록 사이 쿠팡 줄 자리(G656 · 네이버 카페 · 뽐뿌처럼 글 목록 사이사이) — 0부터 센 카드 차례 i 의 «다음» 에 줄
+ *   여섯째 카드 다음(i=5)부터 열 장마다 · 업체 광고 칸(업체 = 그 쪽 업체 광고가 붙는 i)과는 두 장 넘게 떨어지게 뒤로 밂
+ *   예) 1순위(업체 2 · 9 · 16) 60장 → 5 · 19 · 29 · 39 · 49 · 59 / 공고(업체 2) → 5 · 15 · 25 …
+ */
+export function 목록쿠팡자리(n, 업체 = [], 첫 = 5, 사이 = 10, 거리 = 3) {
+  const 자리 = []
+  let p = 첫
+  while (p < n) {
+    while (업체.some((q) => Math.abs(p - q) < 거리)) p++
+    if (p >= n) break
+    자리.push(p)
+    p += 사이
+  }
+  return 자리
+}
+
+/** 이 쪽에 띄울 분야 하나(맨 위 줄) — 맞는 쪽이면 그 분야 · 아니면 돌림분야에서 고름(표에 없는 것은 건너뜀) */
+export function 분야고르기(pathname = '/', 섞기 = Math.random, 표 = 쿠팡분야) {
+  const n = 표.filter((x) => 돌림분야.includes(x.id)).length || 표.length
+  return 분야정하기(pathname, 0, Math.min(n - 1, Math.floor(섞기() * n)), 표)
 }
 
 /** 배너 주소(쿠팡이 준 iframe 코드의 src 꼴 그대로 · width 만 화면에 맞춤) */

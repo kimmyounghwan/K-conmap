@@ -5,14 +5,15 @@
  *   소장님 「쿠팡 광고 상품사진 올리자」 · 「쿠팡에 제일 잘 팔리는 상품순으로」 · 「업데이트 매일 매일」 · 「상품이 나오고 그 상품을 클릭하게 해줘」
  *   · 「분야별로 많이 팔린 상품 띄워주고...페이지 마다」 · 「위치도 사람들이 보기 좋은 곳으로」 → «② 목록 중간 + 나머지 맨 아래» · 「광고는 나에게 먼저 캡쳐 보여 주고 올릴껏」
  *   ① 자료: 분야 15(배너 번호 = 11-12 파트너스 목록 · 국내여행 · 해외여행은 상품 0개라 뺌 · 🩹 G655 헬스/건강식품은 상품이 식품이라 뺌) · 추적 코드 · 배너 주소 = 쿠팡 iframe 코드 꼴 그대로 · 대가성 문구 = 쿠팡 글 그대로 · 쪽 → 분야 · 돌림
- *   ② 화면(폰 390 · 고른 쪽): 쪽에 쿠팡 줄 한 번 — 1순위 · 공고는 여섯째 카드 바로 다음(자리 목록 · 바닥 줄 없음) · 그 밖은 바닥글 바로 위(자리 바닥)
+ *   ② 화면(폰 390 · 고른 쪽 · G656 네이버 카페 · 뽐뿌처럼): 모든 쪽 맨 위(공지 띠 자리) 한 줄(자리 위) — 공지 띠 없음 · 첫 화면 위쪽 · «써 본 횟수» 칸 밖
+ *      1순위 · 공고는 맨 위 + 목록 사이(여섯째 카드 다음 · 그 뒤 열 장마다 · 업체 광고 칸과 두 장 넘게 떨어짐) · 한 쪽의 줄은 분야가 다 다름
  *      «광고» · «쿠팡 ○○ 베스트» · 대가성 문구 · 배너(번호 · 추적 코드 · 폭 = 주소 폭 · 높이 140 · unsafe-url · lazy) · 넘침 0 · 높이 ≤ 230
- *      숨은 셈 |쿠팡보임|자리-분야 한 번 · 배너 안을 누르면 |쿠팡누름|자리-분야 한 번 · 다른 쪽(/how)으로 옮기면 바닥 줄 · 또 한 번 셈
- *   ③ 쪽 맞춤(자격증 · 서식 · 도구) · 목록이 여섯 장이 안 되면 바닥 줄 · PC 1280 폭 680 · 폰 320 · 어두운 화면 대비 · 인쇄 안 나옴 · 문의함 없음 · 오류 0
+ *      숨은 셈 |쿠팡보임|위-분야 · |쿠팡보임|목록1-분야 … 한 번씩 · 배너 안을 누르면 |쿠팡누름|그 자리-분야 한 번 · 다른 쪽(/how)으로 옮기면 맨 위 줄 · 또 한 번 셈
+ *   ③ 쪽 맞춤(자격증 · 서식 · 도구) · 목록이 여섯 장이 안 되면 맨 위 줄만 · PC 1280 폭 680 · 폰 320 · 어두운 화면 대비 · 인쇄 안 나옴 · 문의함 없음 · 오류 0
  *   쿠팡 배너는 인터넷을 부르지 않고 가짜 쪽으로 받음(1순위 · 공고 자료도 가상). OUT=폴더 면 화면 사진.
  */
 import { createRequire } from 'node:module'
-import { 쿠팡분야, 쿠팡추적, 쿠팡문구, 쪽분야, 돌림분야, 분야고르기, 배너주소 } from '../web/src/lib/쿠팡자료.js'
+import { 쿠팡분야, 쿠팡추적, 쿠팡문구, 쪽분야, 돌림분야, 분야고르기, 분야정하기, 목록쿠팡자리, 배너주소 } from '../web/src/lib/쿠팡자료.js'
 const require = createRequire(import.meta.url)
 const BASE = process.argv[2] || ''
 const 쪽 = process.argv[3] || '/'
@@ -41,6 +42,12 @@ ok('맞춤 아닌 쪽 — 비슷한 이름에 속지 않음(/certx · /formsy ·
   ok('돌림 2,000번 — 열다섯 분야 다 나옴(소장님 「다 올려야 해」)', !틀림 && 본.size === 15, [...본])
 }
 ok('쪽분야가 가리키는 분야는 다 표에 있음', 쪽분야.every(([, id]) => 쿠팡분야.some((x) => x.id === id)))
+/* G656 — 한 쪽에 여러 줄(맨 위 + 목록 사이) */
+ok('한 쪽 줄 15개(맨 위 + 목록 14) — 씨앗 0~199 어느 것이든 분야가 다 다름', Array.from({ length: 200 }, (_, s) => new Set(Array.from({ length: 15 }, (_, k) => 분야정하기('/first', k, s).id)).size === 15).every(Boolean))
+ok('맞춤 쪽(/tools) 맨 위는 가전디지털 · 목록 줄은 가전디지털이 아님', 분야정하기('/tools', 0, 7).id === 'digital' && [1, 2, 3].every((k) => 분야정하기('/tools', k, 7).id !== 'digital'))
+ok('목록 사이 자리 — 1순위(업체 2 · 9 · 16) 60장 → 5 · 19 · 29 · 39 · 49 · 59', 목록쿠팡자리(60, [2, 9, 16]).join() === '5,19,29,39,49,59', 목록쿠팡자리(60, [2, 9, 16]))
+ok('목록 사이 자리 — 공고(업체 2) 40장 → 5 · 15 · 25 · 35 · 여섯 장 안 되면 없음', 목록쿠팡자리(40, [2]).join() === '5,15,25,35' && 목록쿠팡자리(5, [2]).length === 0 && 목록쿠팡자리(6, [2]).join() === '5', 목록쿠팡자리(40, [2]))
+ok('목록 사이 자리 — 업체 광고 칸과 늘 세 장 넘게 떨어짐(1순위 1~120장)', Array.from({ length: 120 }, (_, n) => 목록쿠팡자리(n + 1, [2, 9, 16]).every((p) => [2, 9, 16].every((q) => Math.abs(p - q) >= 3))).every(Boolean))
 
 if (BASE) {
   const { chromium } = require('playwright')
@@ -77,63 +84,74 @@ if (BASE) {
     p.on('dialog', (d) => d.dismiss())
     return { ctx, p, 오류 }
   }
-  const 줄 = (p) => p.evaluate(() => {
+  const 줄 = (p, 고름 = 'aside.cpg') => p.evaluate((고름) => {
     const a = [...document.querySelectorAll('aside.cpg')]
-    const x = a[0]
-    if (!x) return { 수: 0 }
-    const f = x.querySelector('iframe')
-    /* 앞 카드 — 바로 앞 형제가 카드(.notice)인지 · 카드 차례(몇째) */
+    const x = document.querySelector(고름)
     const 카드들 = [...document.querySelectorAll('main .notice')]
-    let 앞 = x.previousElementSibling
-    while (앞 && 앞.matches('aside.adc')) 앞 = 앞.previousElementSibling
+    const 앞카드 = (y) => { let 앞 = y.previousElementSibling; while (앞 && 앞.matches('aside.adc')) 앞 = 앞.previousElementSibling; return 앞 && 앞.matches('.notice') ? 카드들.indexOf(앞) + 1 : 0 }
+    const 모두 = { 수: a.length, 이름들: a.map((y) => y.dataset.cpgN), 분야들: a.map((y) => y.dataset.cpg), 앞카드들: a.map(앞카드), 카드수: 카드들.length, 공지띠: !!document.querySelector('.noticebar') }
+    if (!x) return 모두
+    const f = x.querySelector('iframe')
+    const r = x.getBoundingClientRect()
+    const s = document.getElementById('씀-앞')
     return {
-      수: a.length, 자리: x.dataset.cpgAt, 뒤: x.nextElementSibling ? x.nextElementSibling.className : '', 앞카드: 앞 && 앞.matches('.notice') ? 카드들.indexOf(앞) + 1 : 0,
+      ...모두, 자리: x.dataset.cpgAt, 이름: x.dataset.cpgN, 앞카드: 앞카드(x), 위끝: Math.round(r.top + scrollY), 아래끝: Math.round(r.bottom + scrollY), 화면높이: innerHeight,
+      씀밖: !!(s && (x.compareDocumentPosition(s) & Node.DOCUMENT_POSITION_FOLLOWING)),
       분야: x.dataset.cpg, 딱지: (x.querySelector('.adc-tag') || {}).textContent, 머리: (x.querySelector('.adc-hs') || {}).textContent,
-      문구: (x.querySelector('.cpg-dis') || {}).textContent, 높이: Math.round(x.getBoundingClientRect().height),
+      문구: (x.querySelector('.cpg-dis') || {}).textContent, 높이: Math.round(r.height),
       틀: f ? { src: f.getAttribute('src'), w: Math.round(f.getBoundingClientRect().width), h: Math.round(f.getBoundingClientRect().height), wa: f.getAttribute('width'), rp: f.getAttribute('referrerpolicy'), lazy: f.getAttribute('loading'), title: f.getAttribute('title') } : null,
     }
-  })
+  }, 고름)
   const 넘침 = (p) => p.evaluate(() => document.documentElement.scrollWidth - innerWidth)
   const 숨김 = (p) => p.addStyleTag({ content: '.insa{display:none!important}' })
   const 기다림 = async (f, ms = 6000) => { const t = Date.now(); while (Date.now() - t < ms) { if (f()) return true; await new Promise((r) => setTimeout(r, 150)) } return false }
   const 이름 = (id) => (쿠팡분야.find((x) => x.id === id) || {}).이름
   const 맞나 = (z) => { const m = z.틀 && z.틀.src.match(주소꼴); const x = 쿠팡분야.find((y) => y.id === z.분야); return !!(m && x && m[1] === String(x.배너) && Number(m[2]) === z.틀.w && Number(z.틀.wa) === z.틀.w) }
-  const 셈수 = (종류, z) => 셈들.filter((u) => u.includes(종류) && u.includes(`${z.자리}-${z.분야}`)).length
+  const 셈수 = (종류, z) => 셈들.filter((u) => u.includes(종류) && u.includes(`|${z.이름}-${z.분야}`)).length
 
   console.log(`② 화면 — 폰 390 · 쪽 ${쪽}`)
+  const 업체자리 = (곳, n) => (곳 === '/first' ? [2, 9, 16] : [Math.min(2, n - 1)])
   {
     const { ctx, p, 오류 } = await 새쪽(390, 844)
     await p.goto(BASE + 쪽, { waitUntil: 'domcontentloaded' })
-    await p.waitForSelector('aside.cpg iframe', { timeout: 15000 }); await p.waitForTimeout(800)
-    const z = await 줄(p)
-    if (목록쪽(쪽)) ok('쪽에 쿠팡 줄 한 번 — 여섯째 카드 바로 다음(자리 목록) · 바닥 줄 없음', z.수 === 1 && z.자리 === '목록' && z.앞카드 === 6, z)
-    else ok('쪽에 쿠팡 줄 한 번 — 바닥글(footer) 바로 위(자리 바닥)', z.수 === 1 && z.자리 === '바닥' && /footer/.test(z.뒤), z)
+    await p.waitForSelector('aside.cpg iframe', { timeout: 15000 })
+    if (목록쪽(쪽)) await p.waitForSelector('aside.cpg[data-cpg-n="목록1"] iframe', { timeout: 15000 })
+    await p.waitForTimeout(800)
+    const 위 = await 줄(p, 'aside.cpg[data-cpg-n="위"]')
+    ok('맨 위 줄 하나(자리 위 · 공지 띠 자리) — 공지 띠 없음 · 첫 화면 위쪽(맨 위 260px 안) · «써 본 횟수» 칸 밖', 위.이름들.filter((x) => x === '위').length === 1 && 위.이름 === '위' && !위.공지띠 && 위.위끝 <= 260 && 위.씀밖, 위)
+    if (목록쪽(쪽)) {
+      const 기대 = 목록쿠팡자리(위.카드수, 업체자리(쪽, 위.카드수)).map((q) => q + 1)
+      const 목록앞 = 위.이름들.map((x, k) => [x, 위.앞카드들[k]]).filter(([x]) => /^목록/.test(x)).map(([, c]) => c)
+      ok(`목록 사이 — 카드 ${위.카드수}장 중 ${기대.join(' · ')}째 다음(여섯째부터 열 장마다 · 업체 광고와 떨어짐)`, 기대.length >= 1 && 목록앞.join() === 기대.join(), { 기대, 목록앞, 이름들: 위.이름들 })
+      ok('한 쪽의 쿠팡 줄 분야가 다 다름', new Set(위.분야들).size === 위.분야들.length, 위.분야들)
+    } else ok('그 밖의 쪽 — 쿠팡 줄은 맨 위 하나뿐', 위.수 === 1, 위)
+    const 고름 = 목록쪽(쪽) ? 'aside.cpg[data-cpg-n="목록1"]' : 'aside.cpg[data-cpg-n="위"]'
+    const z = await 줄(p, 고름)
     ok(`«광고» 딱지 · «쿠팡 ${이름(z.분야)} 베스트»`, z.딱지 === '광고' && z.머리 === `쿠팡 ${이름(z.분야)} 베스트`, [z.딱지, z.머리])
     ok('대가성 문구 그대로', z.문구 === 쿠팡문구, z.문구)
     const 기대 = 쪽분야.find(([re]) => re.test(쪽))
-    ok(기대 ? `쪽 맞춤 — ${쪽} → ${이름(기대[1])}` : `돌림 분야(${이름(z.분야)})`, 기대 ? z.분야 === 기대[1] : 돌림분야.includes(z.분야), z.분야)
+    ok(기대 ? `쪽 맞춤 — ${쪽} → ${이름(기대[1])}` : `돌림 분야(${이름(z.분야)})`, 기대 ? 위.분야 === 기대[1] : 돌림분야.includes(z.분야), [위.분야, z.분야])
     ok('배너 — 그 분야 번호 · 추적 코드 · 폭이 주소와 같음 · 높이 140', 맞나(z) && z.틀.h === 140, z.틀)
     ok('referrerpolicy=unsafe-url · 늦게 불러옴(lazy) · 제목 있음', z.틀.rp === 'unsafe-url' && z.틀.lazy === 'lazy' && /베스트 상품$/.test(z.틀.title || ''), z.틀)
     ok('폰 390 — 배너 폭 300~358 · 쪽 넘침 0 · 줄 높이 ≤ 230', z.틀.w >= 300 && z.틀.w <= 358 && await 넘침(p) <= 0 && z.높이 <= 230, { 폭: z.틀.w, 넘침: await 넘침(p), 높이: z.높이 })
-    await p.evaluate(() => document.querySelector('aside.cpg').scrollIntoView({ block: 'center' }))
+    await p.evaluate((g) => document.querySelector(g).scrollIntoView({ block: 'center' }), 고름)
     await 기다림(() => 셈수('쿠팡보임', z) > 0); await p.waitForTimeout(700)
-    ok(`숨은 셈 — 화면에 들어오면 «|쿠팡보임|${z.자리}-${z.분야}» 한 번`, 셈수('쿠팡보임', z) === 1 && 셈들.filter((u) => u.includes('쿠팡보임')).length === 1, 셈들)
+    ok(`숨은 셈 — 화면에 들어오면 «|쿠팡보임|${z.이름}-${z.분야}» 한 번`, 셈수('쿠팡보임', z) === 1, 셈들)
     if (OUT) { await 숨김(p); await p.waitForTimeout(300); await p.screenshot({ path: `${OUT}/쿠팡줄_폰390${쪽.replace(/\//g, '_') || '_'}.png` }) }
-    const 틀 = p.frameLocator('aside.cpg iframe')
+    const 틀 = p.frameLocator(고름 + ' iframe')
     const [새창] = await Promise.all([ctx.waitForEvent('page', { timeout: 8000 }).catch(() => null), 틀.locator('a').click()])
     await 기다림(() => 셈수('쿠팡누름', z) > 0)
-    ok(`배너 안을 누르면 «|쿠팡누름|${z.자리}-${z.분야}» 한 번`, 셈수('쿠팡누름', z) === 1, 셈들)
+    ok(`배너 안을 누르면 «|쿠팡누름|${z.이름}-${z.분야}» 한 번 · 다른 줄은 안 셈`, 셈수('쿠팡누름', z) === 1 && 셈들.filter((u) => u.includes('쿠팡누름')).length === 1, 셈들)
     ok('누르면 새 창(쿠팡)', !!새창, null)
     if (새창) await 새창.close()
     await p.bringToFront()
-    const 앞셈 = 셈들.filter((u) => u.includes('쿠팡보임')).length
     await p.click('footer a[href="/how"]')
     await p.waitForURL(/\/how$/, { timeout: 10000 }); await p.waitForTimeout(900)
-    const z2 = await 줄(p)
-    ok('다른 쪽(/how) — 바닥 줄 한 번 · 바닥글 바로 위 · 돌림 분야', z2.수 === 1 && z2.자리 === '바닥' && /footer/.test(z2.뒤) && 돌림분야.includes(z2.분야), z2)
-    await p.evaluate(() => document.querySelector('aside.cpg').scrollIntoView({ block: 'center' }))
-    await 기다림(() => 셈들.filter((u) => u.includes('쿠팡보임')).length > 앞셈)
-    ok('쪽을 옮겨 보이면 «|쿠팡보임|바닥-분야» 한 번 더', 셈들.filter((u) => u.includes('쿠팡보임')).length === 앞셈 + 1 && 셈수('쿠팡보임', z2) >= 1, 셈들)
+    const z2 = await 줄(p, 'aside.cpg[data-cpg-n="위"]')
+    ok('다른 쪽(/how) — 맨 위 줄 하나 · 돌림 분야', z2.수 === 1 && z2.이름 === '위' && 돌림분야.includes(z2.분야) && z2.위끝 <= 260, z2)
+    await p.evaluate(() => window.scrollTo(0, 0))
+    await 기다림(() => 셈수('쿠팡보임', z2) > 0)
+    ok('쪽을 옮겨 보이면 «|쿠팡보임|위-분야» 셈', 셈수('쿠팡보임', z2) >= 1, 셈들)
     ok('오류 0', !오류.length, 오류)
     await ctx.close()
   }
@@ -144,7 +162,7 @@ if (BASE) {
     await p.goto(BASE + 곳, { waitUntil: 'domcontentloaded' })
     await p.waitForSelector('aside.cpg iframe', { timeout: 15000 }); await p.waitForTimeout(400)
     const z = await 줄(p)
-    ok(`${곳} → 바닥 줄 «쿠팡 ${이름(id)} 베스트» · 배너 번호 맞음 · 오류 0`, z.수 === 1 && z.자리 === '바닥' && z.분야 === id && z.머리 === `쿠팡 ${이름(id)} 베스트` && 맞나(z) && !오류.length, [z.자리, z.분야, z.머리, 오류])
+    ok(`${곳} → 맨 위 줄 «쿠팡 ${이름(id)} 베스트» · 배너 번호 맞음 · 공지 띠 없음 · 오류 0`, z.수 === 1 && z.이름 === '위' && z.분야 === id && z.머리 === `쿠팡 ${이름(id)} 베스트` && 맞나(z) && !z.공지띠 && !오류.length, [z.이름, z.분야, z.머리, z.공지띠, 오류])
     await ctx.close()
   }
   for (const 곳 of ['/first', '/live']) {
@@ -153,18 +171,19 @@ if (BASE) {
     await p.waitForSelector('main .notice', { timeout: 15000 })
     await p.waitForSelector('aside.cpg iframe', { timeout: 15000 }); await p.waitForTimeout(500)
     const z = await 줄(p)
-    ok(`${곳} 목록이 넉 장뿐 — 목록 줄 없이 바닥 줄 한 번`, z.수 === 1 && z.자리 === '바닥' && /footer/.test(z.뒤) && !오류.length, [z, 오류])
+    ok(`${곳} 목록이 넉 장뿐 — 목록 줄 없이 맨 위 줄 하나`, z.수 === 1 && z.이름 === '위' && !오류.length, [z.이름들, 오류])
     await ctx.close()
   }
   for (const 곳 of ['/first', '/live']) {
     const { ctx, p, 오류 } = await 새쪽(1280, 900, false)
     await p.goto(BASE + 곳, { waitUntil: 'domcontentloaded' })
-    await p.waitForSelector('aside.cpg iframe', { timeout: 15000 }); await p.waitForTimeout(500)
-    const z = await 줄(p)
-    ok(`PC 1280 ${곳} — 여섯째 카드 다음 · 배너 폭 680 · 주소 폭 680 · 넘침 0`, z.수 === 1 && z.자리 === '목록' && z.앞카드 === 6 && z.틀.w === 680 && 맞나(z) && await 넘침(p) <= 0, z)
-    if (OUT) { await 숨김(p); await p.evaluate(() => document.querySelector('aside.cpg').scrollIntoView({ block: 'center' })); await p.waitForTimeout(400); await p.screenshot({ path: `${OUT}/쿠팡줄_PC1280${곳.replace(/\//g, '_')}.png` }) }
+    await p.waitForSelector('aside.cpg[data-cpg-n="목록1"] iframe', { timeout: 15000 }); await p.waitForTimeout(500)
+    const z = await 줄(p, 'aside.cpg[data-cpg-n="목록1"]')
+    const 위 = await 줄(p, 'aside.cpg[data-cpg-n="위"]')
+    ok(`PC 1280 ${곳} — 맨 위 줄 + 여섯째 카드 다음 · 배너 폭 680 · 주소 폭 680 · 넘침 0`, z.앞카드 === 6 && z.틀.w === 680 && 맞나(z) && 위.틀.w === 680 && 맞나(위) && await 넘침(p) <= 0, [z.앞카드, z.틀, 위.틀])
+    if (OUT) { await 숨김(p); await p.evaluate(() => document.querySelector('aside.cpg[data-cpg-n="목록1"]').scrollIntoView({ block: 'center' })); await p.waitForTimeout(400); await p.screenshot({ path: `${OUT}/쿠팡줄_PC1280${곳.replace(/\//g, '_')}.png` }) }
     await p.emulateMedia({ media: 'print' })
-    ok(`PC ${곳} — 인쇄에는 안 나옴 · 오류 0`, await p.evaluate(() => getComputedStyle(document.querySelector('aside.cpg')).display === 'none') && !오류.length, 오류)
+    ok(`PC ${곳} — 인쇄에는 안 나옴 · 오류 0`, await p.evaluate(() => [...document.querySelectorAll('aside.cpg')].every((x) => getComputedStyle(x).display === 'none')) && !오류.length, 오류)
     await ctx.close()
   }
   {
