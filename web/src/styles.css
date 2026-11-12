@@ -10833,3 +10833,6 @@ html.vv-fix .mc-savebar { bottom: calc(12px - var(--vv-dy, 0px)); }
 @media (max-width: 560px) { html.vv-fix .mc-savebar { bottom: calc(var(--nav-h) * 2 + env(safe-area-inset-bottom) + 8px - var(--vv-dy, 0px)); } }
 html.vv-fix .fill-go { bottom: calc(10px - var(--vv-dy, 0px)); }
 @media (max-width: 720px) { html.vv-fix .fill-go { bottom: calc(104px - var(--vv-dy, 0px)); } }
+/* 🩺 G661c 깨우기 — 앱으로 돌아옴 · 뒤로 가기 · 키보드 닫힘 때 두 그림(2 프레임) 동안만 새 판(레이어)에 올려 아이폰이 옛 자리를 다시 그리게
+   (opacity — transform · will-change: transform 은 안 씀: 머리줄 안의 떠 있는 창이 갇힘) · 눈에는 안 보임 */
+html.vv-kick :is(.topbar, .tabbar, .cam-tab) { will-change: opacity; }

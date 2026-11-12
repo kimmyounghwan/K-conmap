@@ -127,6 +127,14 @@ export async function 세기(열쇠) {
 }
 const 열쇠쪽 = (k) => 열쇠꼴(k).slice(0, 80)
 
+/** 📱 G661c 아이폰 화면 어긋남 «진단» — 소장님 폰에서도 셈(어떤 꼴로 어긋나는지 알아야 고침 · lib/아이폰자리.js) · 자동 브라우저만 안 셈 · 마디 둘까지 */
+export async function 진단세기(열쇠) {
+  try {
+    if (봇() || !/^[|][^|]+([|][^|]+)?$/.test(열쇠)) return
+    await 하나더('p', 열쇠쪽(열쇠))
+  } catch (e) { /* 세는 것 때문에 화면이 막히면 안 됩니다 */ }
+}
+
 /** 사이트를 열 때 한 번(main.jsx) */
 export function 켜기() {
   if (typeof window === 'undefined' || window.__받은수) return

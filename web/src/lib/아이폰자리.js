@@ -9,8 +9,14 @@
  *     아이폰이 스스로 돌아오면(offsetTop 0) 바로 풂 · 키보드가 올라와 있는 동안은 아이폰이 하는 대로 둠(입력칸을 가리지 않게).
  *   ■ 아이폰 · 아이패드에서만 켜짐 — PC · 안드로이드는 아무것도 안 바뀜(시험_아이폰자리.mjs 가 지킴).
  *   ■ 숨은 셈 |아이폰자리|바로잡음 (이 탭에서 처음 바로잡을 때 한 번 · 소장님 브라우저 · 로봇은 안 셈 — 받은수.jsx 세기)
+ *   ■ 🩺 G661c 진단(소장님 폰에서도 셈 — 받은수.jsx 진단세기 · 쪽을 열 때마다 꼴마다 한 번):
+ *     |아이폰자리|진단-A-…  = 기준점(offsetTop)이 남아 바로잡음 (t 기준점 · h 보이는 높이 · i innerHeight · b 아래 탭 바닥 · s 화면 높이 · 앱/웹)
+ *     |아이폰자리|진단-B-…  = 기준점은 0 인데 아래 탭 바닥이 보이는 바닥과 40px 넘게 어긋남(다른 꼴 — 이 꼴은 아직 못 바로잡음 → 숫자 보고 고침)
+ *     둘 다 안 오르는데 소장님 폰에 또 뜨면 «값은 멀쩡한데 그림만 어긋나는 꼴» → 다른 길
+ *   ■ 🩺 G661c 깨우기: 앱으로 돌아옴(visibilitychange) · 뒤로 가기(pageshow) · 키보드 닫힘(focusout) 때 떠 있는 것들을 두 그림(2 프레임) 동안
+ *     will-change: opacity 로 새 판(레이어)에 다시 올림(html.vv-kick) — 아이폰이 옛 자리를 붙들고 있으면 다시 그리게 · 눈에는 안 보임
  */
-import { 세기 } from './받은수.jsx'
+import { 세기, 진단세기 } from './받은수.jsx'
 
 const 아이폰인가 = () => {
   try {
@@ -48,6 +54,30 @@ export function 켜기() {
   const vv = window.visualViewport
   const 최대 = {}          // 화면 폭(세로 · 가로)마다 «키보드 없을 때» 보이는 높이
   let 지금 = 0, 셌음 = false, 줄 = 0, 후보 = null
+  const 진단함 = {}
+  const 진단 = (꼴, vt, vh, b) => {
+    if (진단함[꼴]) return
+    진단함[꼴] = true
+    try { 진단세기(`|아이폰자리|진단-${꼴}-t${vt}-h${vh}-i${Math.round(window.innerHeight || 0)}-b${b}-s${Math.round((window.screen && window.screen.height) || 0)}-${navigator.standalone ? '앱' : '웹'}`) } catch (e) { /* 없음 */ }
+  }
+  /* 아래 탭 바닥(그려진 자리 — 바로잡은 만큼 뺀 «원래» 자리) · 탭이 안 보이는 넓은 화면은 -1 */
+  const 탭바닥 = () => {
+    try { const t = document.querySelector('.tabbar'); if (!t || getComputedStyle(t).display === 'none') return -1; return Math.round(t.getBoundingClientRect().bottom) } catch (e) { return -1 }
+  }
+  const 살핌 = (쓰는중, 최대높이) => {
+    if (쓰는중 || (최대높이 > 0 && (vv.height || 0) < 최대높이 * 0.85) || Math.abs((vv.scale || 1) - 1) > 0.02) return
+    const vt = Math.round(vv.offsetTop || 0), vh = Math.round(vv.height || 0), b = 탭바닥()
+    if (지금) { 진단('A', vt, vh, b); return }
+    if (vt < 40 && b >= 0 && Math.abs(b - (vt + vh)) >= 40) 진단('B', vt, vh, b)   // 기준점 탓이 아닌 어긋남만
+  }
+  let 깨우는중 = false
+  const 깨우기 = () => {
+    if (깨우는중) return
+    깨우는중 = true
+    const r = document.documentElement
+    r.classList.add('vv-kick')
+    requestAnimationFrame(() => requestAnimationFrame(() => { r.classList.remove('vv-kick'); 깨우는중 = false }))
+  }
   const 바꾸기 = (dy) => {
     지금 = dy
     const r = document.documentElement
@@ -66,6 +96,7 @@ export function 켜기() {
     const 열쇠 = Math.round(window.innerWidth || 0)
     if (!쓰는중 && Math.abs((vv.scale || 1) - 1) <= 0.02) 최대[열쇠] = Math.max(최대[열쇠] || 0, vv.height || 0)
     const dy = 어긋남(vv, 최대[열쇠] || 0, 쓰는중)
+    살핌(쓰는중, 최대[열쇠] || 0)
     if (!dy) { 후보 = null; if (지금) 바꾸기(0); return }                 // 돌아오면 바로 풂
     if (지금) { if (Math.abs(dy - 지금) > 2) 바꾸기(dy); return }        // 바로잡는 중 — 값만 따라감
     /* 처음 바로잡기는 0.5초 그대로일 때만 — 끝에서 튕김 · 키보드가 내려가는 한순간에는 안 움직임 */
@@ -78,7 +109,7 @@ export function 켜기() {
     setTimeout(맞추기, 550)
   }
   const 곧 = () => { if (!줄) 줄 = requestAnimationFrame(맞추기) }
-  const 조금뒤 = () => { [120, 400, 900].forEach((ms) => setTimeout(맞추기, ms)) }
+  const 조금뒤 = () => { [120, 400, 900].forEach((ms) => setTimeout(맞추기, ms)); setTimeout(깨우기, 450) }
   vv.addEventListener('resize', 곧)
   vv.addEventListener('scroll', 곧)
   window.addEventListener('scroll', 곧, { passive: true })

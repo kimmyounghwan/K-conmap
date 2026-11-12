@@ -15,6 +15,7 @@
  *   ⑧ PC(윈도 크롬) · 안드로이드 — 같은 가짜 값이어도 아무것도 안 바뀜
  *   ⑨ 재발 막기 — styles.css 의 position: fixed · sticky(아래) 를 다 «G661 목록» 또는 «뺌(까닭)» 에 두었는지
  *   ⑩ G661b 쿠팡 배너(다른 사이트 틀)에 커서가 남아도 — 키보드가 없으면 바로잡음 · 키보드가 올라와 있으면 안 건드림
+ *   ⑪ G661c 진단(소장님 폰에서도 셈) — A: 바로잡을 때 숫자 한 번 · B: 기준점 0 인데 탭 바닥이 어긋날 때 숫자 한 번 · 깨우기(vv-kick 두 그림 · opacity)
  *   인터넷 안 부름(파이어베이스 · 광고 · 애널리틱스 막음 · 셈은 가로채서 봄).
  */
 import fs from 'node:fs'
@@ -139,8 +140,12 @@ const 커서뺌 = (p) => p.evaluate(() => { if (document.activeElement && docume
   await p.evaluate(() => { history.pushState(null, '', '/tools'); window.dispatchEvent(new PopStateEvent('popstate')) }); await 쉬어(900)
   s = await 상태(p)
   ok('④ 다른 탭(/tools)으로 옮겨도 바로잡은 채', s.고침 && s.탭옮김 === '0px 343px' && s.머리top === '343px', s)
-  const 셈 = 보냄.filter((x) => /아이폰자리/.test(x.u))
+  const 셈 = 보냄.filter((x) => /아이폰자리\|바로잡음/.test(x.u))
   ok('④ 숨은 셈 |아이폰자리|바로잡음 — 한 번', 셈.length === 1 && /\|아이폰자리\|바로잡음\.json$/.test(셈[0].u), 셈)
+  await 쉬어(1200)
+  const 진A = 보냄.filter((x) => /아이폰자리\|진단-A-/.test(x.u))
+  ok('⑪ 진단 A(기준점이 남아 바로잡음) — 한 번 · 숫자(t343 · h874 · i874 · 바로잡은 탭 바닥 b1217)', 진A.length === 1 && /진단-A-t343-h874-i874-b1217-s\d+-(웹|앱)\.json$/.test(진A[0].u), 진A.map((x) => x.u.replace(/^.*\/dl\/p\//, '')))
+  ok('⑪ 기준점 탓 어긋남엔 진단 B 없음', !보냄.some((x) => /진단-B-/.test(x.u)))
 
   /* ⑤ 아이폰이 스스로 돌아옴 */
   await 값(p, { offsetTop: 0 }, 'scroll'); await 쉬어(300)
@@ -187,7 +192,16 @@ const 커서뺌 = (p) => p.evaluate(() => { if (document.activeElement && docume
   await 값(p, { offsetTop: 0 }); await 쉬어(300)
   ok('⑩ 다시 풂', !(await 상태(p)).고침)
   await 커서뺌(p)
-  ok('셈은 한 번뿐(이 탭)', 보냄.filter((x) => /아이폰자리/.test(x.u)).length === 1)
+  ok('셈은 한 번뿐(이 탭) · 진단 A 도 한 번뿐', 보냄.filter((x) => /아이폰자리\|바로잡음/.test(x.u)).length === 1 && 보냄.filter((x) => /진단-A-/.test(x.u)).length === 1)
+  /* 🩺 깨우기 — 뒤로 가기(pageshow) 뒤 두 그림 동안만 html.vv-kick */
+  await p.evaluate(() => { window.__깨 = 0; new MutationObserver(() => { if (document.documentElement.classList.contains('vv-kick')) window.__깨++ }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] }) })
+  await p.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))); await 쉬어(900)
+  ok('⑪ 깨우기 — pageshow 뒤 vv-kick 이 잠깐 붙었다 떨어짐', (await p.evaluate(() => window.__깨)) >= 1 && !(await p.evaluate(() => document.documentElement.classList.contains('vv-kick'))))
+  ok('⑪ 깨우기 동안 머리줄 · 탭 will-change: opacity(transform 아님)', await p.evaluate(() => { document.documentElement.classList.add('vv-kick'); const a = getComputedStyle(document.querySelector('.topbar')).willChange, b = getComputedStyle(document.querySelector('.tabbar')).willChange; document.documentElement.classList.remove('vv-kick'); return a === 'opacity' && b === 'opacity' }))
+  /* 🩺 진단 B — 기준점은 0 인데 아래 탭 바닥이 보이는 바닥과 어긋남(다른 꼴 · 아직 못 바로잡음 → 숫자만 적음) — 맨 끝(가장 큰 높이가 바뀜) */
+  await 값(p, { offsetTop: 0, height: 1100 }); await 쉬어(1300)
+  const 진B = 보냄.filter((x) => /아이폰자리\|진단-B-/.test(x.u))
+  ok('⑪ 진단 B(기준점 0 · 탭 바닥 874 ≠ 보이는 바닥 1100) — 한 번 · 바로잡지는 않음', 진B.length === 1 && /진단-B-t0-h1100-i874-b874-/.test(진B[0].u) && !(await 상태(p)).고침, 진B.map((x) => x.u.replace(/^.*\/dl\/p\//, '')))
   ok('화면 오류 없음', 오류.length === 0, 오류)
   await ctx.close()
 }
