@@ -10718,3 +10718,72 @@ a.cert-chip:not(.deep) { color: inherit; text-decoration: none; }
 .gp-arrow { width: 40px; height: 40px; transition: transform .3s; flex: none; color: var(--accent); }
 .gp-way b { font-size: 16px; }
 .gp-way small { display: block; font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+/* 📈 G657 물가변동 ESC 산출서 (/tools/esc) — 소장님 11-12 «견본으로 만들고 · 막아 놓고 · 예시는 보기만» */
+.esc-ask { margin-top: 8px; font-size: 13px; }
+.esc-mine { margin-top: 10px; padding: 9px 12px; border: 1px solid var(--accent-line); background: var(--accent-soft); border-radius: 10px; font-size: 13px; line-height: 1.7; }
+.esc-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.esc-switch { display: flex; gap: 6px; margin: 0 0 10px; }
+.esc-switch .btn { width: auto; }
+.esc-card .sec-title { overflow-wrap: anywhere; }
+.esc-name { font-size: 15px; margin: 2px 0 10px; overflow-wrap: anywhere; }
+.esc-tag { display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 800; color: var(--warn); border: 1px solid var(--warn); border-radius: 6px; padding: 0 5px; vertical-align: 1px; }
+.esc-sum { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 760px) { .esc-sum { grid-template-columns: 1fr 1fr; } }
+.esc-box { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--surface-2); min-width: 0; }
+.esc-box.big { border-color: var(--accent-line); background: var(--accent-soft); }
+.esc-box span { display: block; font-size: 12px; color: var(--muted); font-weight: 700; }
+.esc-box b { display: block; font-size: clamp(14px, 4vw, 19px); font-variant-numeric: tabular-nums; white-space: nowrap; margin-top: 2px; }
+.esc-box.big b { font-size: clamp(15px, 4.4vw, 22px); color: var(--accent); }
+.esc-box b.neg, .esc-t td.neg { color: var(--bad); }
+.esc-box em { display: block; font-style: normal; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.esc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 6px; }
+.esc-chip { font-size: 12.5px; font-weight: 700; border-radius: 999px; padding: 3px 10px; border: 1px solid var(--line); }
+.esc-chip.ok { color: var(--good); background: var(--good-soft); border-color: transparent; }
+.esc-chip.no { color: var(--bad); background: var(--bad-soft); border-color: transparent; }
+.esc-chip.warn { color: var(--warn); background: var(--warn-soft); border-color: transparent; }
+.esc-line { font-size: 12.5px; line-height: 1.7; overflow-wrap: anywhere; }
+.esc-line b { color: var(--text); }
+.esc-check { margin-top: 8px; padding: 8px 12px; border-radius: 10px; font-size: 12.5px; line-height: 1.7; }
+.esc-check.ok { background: var(--good-soft); color: var(--good); }
+.esc-check.no { background: var(--bad-soft); color: var(--bad); }
+.esc-check div { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 2px; }
+.esc-check .diff { font-weight: 800; }
+details.esc-edit { margin-top: 10px; border: 1px dashed var(--line); border-radius: 10px; padding: 8px 10px; }
+details.esc-edit > summary { cursor: pointer; font-weight: 700; font-size: 13.5px; }
+.esc-fs { display: flex; flex-wrap: wrap; gap: 8px 12px; margin: 8px 0; }
+.esc-f { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; }
+.esc-f span { color: var(--muted); font-weight: 700; }
+.esc-f input { width: 130px; padding: 5px 7px; font-size: 13px; }
+.esc-f input[type="date"] { width: 150px; }
+.esc-f i { font-style: normal; color: var(--muted); }
+.esc-rate { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; width: 100%; font-size: 12.5px; }
+.esc-rate > span { min-width: 140px; font-weight: 700; }
+.esc-rate .esc-f input { width: 76px; }
+.esc-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin: 14px 0 0; border-bottom: 1px solid var(--line); }
+.esc-tab { appearance: none; border: 1px solid var(--line); border-bottom: none; background: var(--surface-2); color: var(--text-2); font-size: 13px; font-weight: 700; padding: 7px 11px; border-radius: 9px 9px 0 0; cursor: pointer; }
+.esc-tab.on { background: var(--surface); color: var(--accent); border-color: var(--accent-line); position: relative; top: 1px; }
+.esc-tbl { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--line); border-top: none; border-radius: 0 0 10px 10px; max-height: 72vh; overflow-y: auto; }
+.esc-t { font-size: 12.5px; background: var(--surface); }
+.esc-t th { position: sticky; top: 0; background: var(--surface-2); z-index: 1; white-space: nowrap; }
+.esc-t thead tr + tr th { top: 30px; }
+.esc-t td { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.esc-t tr.b td { font-weight: 800; }
+.esc-t tr.hl td { background: var(--accent-soft); }
+.esc-t tr.grp-row td { background: var(--line-soft); font-weight: 700; text-align: left; }
+.esc-t td.note { color: var(--muted); text-align: left; white-space: normal; min-width: 160px; font-weight: 400; }
+.esc-t td.nm { text-align: left; min-width: 150px; white-space: normal; }
+.esc-t td.nm small { color: var(--muted); }
+.esc-t small.tag { margin-left: 4px; font-size: 10.5px; color: var(--warn); border: 1px solid currentColor; border-radius: 4px; padding: 0 3px; }
+.esc-t small.grp { display: block; font-size: 10.5px; color: var(--muted); font-weight: 700; }
+.esc-t.esc-wide { min-width: 1100px; }
+.esc-w2 { min-width: 520px; }
+.esc-dl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+.esc-dl-note { width: 100%; }
+.esc-printnote { display: none; }
+.esc-swipe { display: none; font-size: 12px; margin: 12px 0 -8px; }
+@media (max-width: 640px) { .esc-swipe { display: block; } }
+@media print {
+  .esc-ex > *:not(.esc-printnote) { display: none !important; }
+  .esc-ex .esc-printnote { display: block !important; }
+}

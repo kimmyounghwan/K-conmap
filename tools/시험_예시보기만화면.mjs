@@ -9,6 +9,7 @@
  *   ③ 잠긴 도구 · 소장님 브라우저(kcm_op) — 안전관리 · 유해위험 «예시로 채우기» → 🔒 받기 넷 · 새로고침 🔒 → ↺ 비우기 → ⬇ PDF 받힘
  *      시공계획서 예시 내역서 → 🔒 · 컬러평면 · 캐드고침 예시 도면 → 🔒(받기 0)
  *   ④ 잠긴 도구 · 이용자 — 예시를 열고 받기를 다 눌러도 받기 0(전과 같음)
+ *   📈 G657 물가변동 ESC(/tools/esc) — ③ 소장님 · ④ 이용자 둘 다 🧪 예시면 엑셀 받기 🔒
  *   가상 자료만(사이트에 든 예시) · 인터넷 안 부름(파이어베이스 · 광고 막음) · 폰 390(①은 PC 1280 도)
  */
 import { createRequire } from 'node:module'
@@ -185,6 +186,22 @@ for (const [길, 결과기다림] of [['/tools/colorplan', '.cpl-dl'], ['/tools/
   await ctx.close()
 }
 
+/* 📈 G657 물가변동 ESC — 소장님 브라우저여도 🧪 예시면 엑셀 받기 🔒(받기 0) */
+{
+  console.log('■ ③ 소장님 브라우저 /tools/esc — 🧪 예시')
+  const { ctx, p, 오류, 받음 } = await 새쪽(390, true)
+  await p.goto(BASE + '/tools/esc', { waitUntil: 'domcontentloaded' })
+  await p.waitForSelector('.esc-mine button:has-text("🧪 예시 보기")', { timeout: 30000 })
+  await p.locator('.esc-mine button:has-text("🧪 예시 보기")').click()
+  await p.waitForSelector('.esc-card', { timeout: 30000 })
+  const 단 = await 단추글(p, '.esc-dl button')
+  ok('예시면 엑셀 받기 🔒', 단.length === 1 && 단[0].startsWith('🔒'), 단)
+  await p.locator('.esc-dl button').click(); await 쉬어(800)
+  ok('🔒 눌러도 받기 0 · «예시는 보기만 됩니다» 알림', (await 흔적(p)).length === 0 && 받음.length === 0 && /예시는 보기만 됩니다/.test(await 글(p)), await 흔적(p))
+  ok('오류 0', 오류.length === 0, 오류)
+  await ctx.close()
+}
+
 /* ── ④ 잠긴 도구 · 이용자(전과 같음) ── */
 for (const [길, 예시글] of [['/tools/anjeon', '예시로 미리 보기'], ['/tools/yuhae', '예시로 미리 보기'], ['/tools/sigong', '예시로 미리 보기']]) {
   console.log(`■ ④ 이용자 ${길}`)
@@ -197,6 +214,18 @@ for (const [길, 예시글] of [['/tools/anjeon', '예시로 미리 보기'], ['
   const 단 = await 단추글(p, '.sg-dl button')
   for (const x of 단) { await p.locator(`.sg-dl button:has-text("${x}")`).first().click(); await 쉬어(700) }
   ok('예시 미리보기 받기 모두 🔒 · 눌러도 받기 0', 단.filter((x) => /PDF|한글|워드|엑셀/.test(x)).every((x) => x.startsWith('🔒')) && (await 흔적(p)).length === 0 && 받음.length === 0, { 단, 흔적: await 흔적(p) })
+  ok('오류 0', 오류.length === 0, 오류)
+  await ctx.close()
+}
+{
+  console.log('■ ④ 이용자 /tools/esc')
+  const { ctx, p, 오류, 받음 } = await 새쪽(390, false)
+  await p.goto(BASE + '/tools/esc', { waitUntil: 'domcontentloaded' })
+  await p.waitForSelector('button:has-text("🧪 예시 산출서 보기")', { timeout: 30000 })
+  await 누르기(p, '🧪 예시 산출서 보기')
+  await p.waitForSelector('.esc-card', { timeout: 30000 })
+  await p.locator('.esc-dl button').click(); await 쉬어(700)
+  ok('예시 산출서 받기 🔒 · 눌러도 받기 0 · ESC 파일 칸 없음', (await 단추글(p, '.esc-dl button')).every((x) => x.startsWith('🔒')) && (await 흔적(p)).length === 0 && 받음.length === 0 && await p.locator('input[type=file][accept*=".xls"]').count() === 0, await 흔적(p))
   ok('오류 0', 오류.length === 0, 오류)
   await ctx.close()
 }

@@ -141,6 +141,7 @@ const SafeCard = lazyPage(() => import('./pages/SafeCard.jsx'))   /* 🌏 2026-1
 const ColorPlan = lazyPage(() => import('./pages/ColorPlan.jsx'))   /* 🎨 2026-10-17 컬러 평면도 · 피난 안내도(잠김 · 예시) */
 const CadFix = lazyPage(() => import('./pages/CadFix.jsx'))   /* 🛠 2026-10-17 캐드 버전 · 글꼴 고치기(잠김 · 예시) */
 const HadoDocs = lazyPage(() => import('./pages/HadoDocs.jsx'))   /* 🤝 2026-10-18 (G321) 하도급 계약서류 한 벌(잠김 · 예시 보기만) */
+const Esc = lazyPage(() => import('./pages/Esc.jsx'))   /* 📈 2026-11-12 (G657) 물가변동 ESC 품목조정률 산출서(잠김 · 예시 보기만) */
 const CadPage = lazyPage(() => import('./pages/Cad.jsx').then((m) => ({ default: m.CadPage })))
 /* 🪪 면허별 경쟁도 — 2026-09-14. 주소를 주는 이유: 「토목공사업 입찰 경쟁률」 같은 건 실제 검색어입니다. */
 const LicStat = lazyPage(() => import('./pages/LicStat.jsx'))
@@ -323,6 +324,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/tools/colorplan" element={<Suspense fallback={<Loading />}><ColorPlan /></Suspense>} />
           <Route path="/tools/cadfix" element={<Suspense fallback={<Loading />}><CadFix /></Suspense>} />
           <Route path="/tools/hado-docs" element={<Suspense fallback={<Loading />}><HadoDocs /></Suspense>} />
+          <Route path="/tools/esc" element={<Suspense fallback={<Loading />}><Esc /></Suspense>} />
           <Route path="/tools/:slug" element={<Suspense fallback={<Loading />}><ToolPage /></Suspense>} />
           {/* 📋 2026-09-15 — 내역서 작성 대행. 하나뿐인 유료 화면입니다. */}
           {/* 💬 2026-09-15 — 묻고 답하기 */}
