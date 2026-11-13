@@ -36,6 +36,32 @@ const 문 = 읽기('web/public/contact.html')
 const 묶 = (/\['서류 작성대행', (\[[^\]]*\])\]/.exec(문) || [])[1]
 봐(!!묶 && JSON.stringify(JSON.parse(묶.replace(/'/g, '"'))) === JSON.stringify(갈래), '잠금문의.jsx 문의갈래 = contact.html «서류 작성대행» 묶음', `${JSON.stringify(갈래)} / ${묶}`)
 봐(/get\('s'\)/.test(문) && /get\('t'\)/.test(문) && /cm\.value = /.test(문) && !/innerHTML[^\n]*미리t/.test(문), 'contact.html 이 s · t 를 받음(t 는 value 로만)')
+/* ①-2 🔒 G677 (11-13 소장님 «공사서류 원클릭 안 막았잖아» 확인하다 찾음) — G669 는 화면만 바꿔 구운 쪽(prerender.py · 검색 · 첫 화면)에 «지금은 준비 중 · 곧 엽니다» ·
+ *      원클릭 «회원가입 없이 무료» · 구조화 자료 «무료 · 0원» 이 남아 있었음 → 구운 쪽도 «🔒 문의해 주세요 + 작성대행 · 견적 문의» 꼴 · 화면 jsx 에 «무료» 없음 */
+const 구 = 읽기('prerender.py')
+const 함수 = { WonClick: 'wonclick_page', SigongPlan: 'sigong_page', SafetyPlan: 'anjeon_page', HazardPlan: 'yuhae_page', Jungcheo: 'jungcheo_page',
+  ColorPlan: 'colorplan_page', CadFix: 'cadfix_page', Esc: 'esc_page', HadoDocs: 'hadodocs_page' }
+for (const [f] of 도구들) {
+  const 코드 = 읽기(`web/src/pages/${f}.jsx`).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+  봐(!/무료/.test(코드), `${f} 화면 글에 «무료» 없음(잠근 도구)`)
+  const i = 구.indexOf(`\ndef ${함수[f]}(`), j = 구.indexOf('\ndef ', i + 5)
+  const 몸 = i < 0 ? '' : 구.slice(i, j).replace(/"""[\s\S]*?"""/g, '').replace(/#.*$/gm, '')       // 함수 설명 · 주석 뺌
+  봐(!!몸, `prerender ${함수[f]} 있음`)
+  봐(!/준비 중|곧 엽니다|무료|isAccessibleForFree|"price"/.test(몸), `prerender ${함수[f]} — «준비 중 · 곧 엽니다 · 무료 · 0원» 없음`, (몸.match(/준비 중|곧 엽니다|무료|isAccessibleForFree|"price"/) || [''])[0])
+  봐(/_잠금문의\(/.test(몸) && (f === 'WonClick' || /locked=True\)/.test(몸)), `prerender ${함수[f]} — 문의 글 · 단추(_잠금문의) · locked`)
+}
+/*    도구 목록 카드 설명(tools.json «d» — /tools 목록 · 구운 /tools 쪽)도 «준비 중» 이 남아 있었음(시공계획서 · 중처법 · 컬러 평면도 · 캐드 고치기) → «K-건설맵이 직접 …» */
+const 도구표 = JSON.parse(읽기('web/src/data/tools.json'))
+const 설명 = {}
+for (const pg of 도구표.pages || []) for (const it of pg.items || []) if (it.to) 설명[it.to] = it.d || ''
+for (const [f, 길] of 도구들) {
+  const d = 설명[길]
+  봐(typeof d === 'string' && !!d, `tools.json ${길} 설명 있음`)
+  봐(!/준비 중|곧 엽니다|무료/.test(d || ''), `tools.json ${길} 설명 — «준비 중 · 곧 엽니다 · 무료» 없음`, (String(d).match(/준비 중|곧 엽니다|무료/) || [''])[0])
+  봐(/K-건설맵이 직접/.test(d || '') && /예시/.test(d || ''), `tools.json ${길} 설명 — «K-건설맵이 직접» · 예시`)
+}
+const 구갈래 = (/^문의갈래 = (\[[^\]]*\])/m.exec(구) || [])[1]
+봐(!!구갈래 && JSON.stringify(JSON.parse(구갈래)) === JSON.stringify(갈래), 'prerender.py 문의갈래 = 잠금문의.jsx 문의갈래', `${구갈래}`)
 
 /* ② 화면 */
 if (주소) {
