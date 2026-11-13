@@ -146,7 +146,8 @@ def main():
         print("-" * 56)
         print(t)
 
-    subject = "[K-건설맵] 새 내역서 문의 %d건 — %s" % (
+    # 📬 G678 — 함수(web/functions quoteMail)와 같은 머리 «[건설맵 중요]» (맵톡 새 글 «[K-건설맵]» 과 갈라 받은편지함에서 바로 보이게)
+    subject = "[건설맵 중요] 새 문의 %d건 — %s" % (
         len(new), (sorted(new.values(), key=lambda v: v.get("at") or 0)[-1].get("work") or "")[:40])
     mailed = False
     try:
