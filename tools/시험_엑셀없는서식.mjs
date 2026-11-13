@@ -39,6 +39,9 @@ for (const f of 없는) {
   봐(!!MINI[f.slug] && MINI[f.slug][0] === f.title, `${f.slug} 찾기 목록(forms-min) 에 같은 제목`)
   봐(!JSON.stringify(f).includes('무료'), `${f.slug} 글에 «무료» 없음`)
   봐(!/xlsx|엑셀/.test(JSON.stringify({ s: f.short, w: f.when, n: f.notes, g: f.guide })), `${f.slug} 설명 · 안내 글에 엑셀 말 없음`)
+  // 🩹 G671 — «이렇게도 부릅니다»(also) · 제목 · 부제 · 첨부 · 차례 글도 화면에 나옴(거래명세서 also «거래명세서 엑셀» 을 화면 시험만 잡았음 → PC 올리기에도)
+  봐(!/xlsx|엑셀/.test(JSON.stringify({ a: f.also, t: f.title, u: f.sub, at: f.attach, sh: f.sheet })), `${f.slug} 다른 이름 · 제목 · 첨부 · 차례 글에 엑셀 말 없음`,
+    JSON.stringify((f.also || []).filter((x) => /엑셀/.test(x))))
 }
 /* 쓰는 법 안내 JSON — 셋째 칸(엑셀 없는 서식 글) 꼴 */
 const 엑셀줄 = 안내.차례.filter((x) => /엑셀/.test(x[1]))
