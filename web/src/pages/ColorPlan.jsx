@@ -18,6 +18,7 @@ import { isOpen, tryOpen } from '../lib/gate.js'
 import { 나운영자 } from '../lib/운영자.js'
 import { Row } from '../tools/calcs.jsx'
 import { 세기, 예시본수 } from '../lib/받은수.jsx'
+import 잠금문의 from '../잠금문의.jsx'   // 📄 G669 잠근 도구 «문의»
 import { 도면읽어오기, 오류글, 큰파일 } from '../도면판.jsx'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { 단위배율 } from '../lib/골조도면.js'
@@ -134,7 +135,7 @@ export default function ColorPlan() {
     return () => { 살 = false }
   }, [])
   useEffect(() => { document.title = '컬러 평면도 · 피난 안내도 — 도면을 넣으면 방 색 · 면적 · 비상구 길까지 | K-건설맵' }, [])
-  const 잠김 = (무엇) => { set잠금말(`🔒 ${무엇} 지금 준비 중입니다 — 🧪 예시 도면으로 어떻게 나오는지 보실 수 있습니다.`); 세기('|컬러평면|잠금') }
+  const 잠김 = (무엇) => { set잠금말(`🔒 ${무엇} K-건설맵에 문의해 주세요(위 «📄 작성대행 · 견적 문의») — 🧪 예시 도면으로 어떻게 나오는지 보실 수 있습니다.`); 세기('|컬러평면|잠금') }
 
   /* 도면 */
   const [도면, set도면] = useState(null)          /* { 모델, k, 판들, 이름, 예시 } */
@@ -337,7 +338,7 @@ export default function ColorPlan() {
         </p>
         {!씀 && (
           <div className="sg-lock">
-            <b>🔒 지금은 준비 중입니다</b> — 내 도면 넣기 · 받기는 곧 엽니다. 지금은 🧪 예시 도면으로 어떻게 나오는지 보실 수 있습니다(색 · 무늬 · 현위치 · 길도 바꿔 보기).
+            <b>🔒 문의해 주세요</b> — 내 도면으로 만들어 받는 것은 K-건설맵이 직접 해 드립니다(견본 먼저 · 최저가). <잠금문의 도구="컬러 평면도" 셈="컬러평면" /> 지금은 🧪 예시 도면으로 어떻게 나오는지 보실 수 있습니다(색 · 무늬 · 현위치 · 길도 바꿔 보기).
             {' '}<예시본수 열쇠="|컬러평면|예시" />
             <details className="sg-more sg-more-sm" style={{ marginTop: 6 }}>
               <summary className="muted" style={{ fontSize: 12.5 }}>🔑 열쇠말이 있으신가요?</summary>

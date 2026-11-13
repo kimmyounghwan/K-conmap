@@ -18,6 +18,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { 세기, 예시본수 } from '../lib/받은수.jsx'
+import 잠금문의 from '../잠금문의.jsx'   // 📄 G669 잠근 도구 «문의»
 import { 쪽그림, 그림줄이기 } from '../lib/쪽그림.jsx'
 import { isOpen, tryOpen } from '../lib/gate.js'
 import { 나운영자 } from '../lib/운영자.js'
@@ -85,7 +86,7 @@ export default function SafetyPlan() {
     나운영자().then((v) => { if (살 && v) set씀(true) }).catch(() => {})
     return () => { 살 = false }
   }, [])
-  const 잠김 = (무엇) => { set잠금말(`🔒 ${무엇} 지금 준비 중입니다 — 🧪 예시로 어떻게 나오는지 보실 수 있습니다.`); 세기('|안전계획|잠금') }
+  const 잠김 = (무엇) => { set잠금말(`🔒 ${무엇} K-건설맵에 문의해 주세요(위 «📄 작성대행 · 견적 문의») — 🧪 예시로 어떻게 나오는지 보실 수 있습니다.`); 세기('|안전계획|잠금') }
 
   useEffect(() => { if (씀) 쓰(남김열쇠, 입) }, [씀, 입])
   useEffect(() => {
@@ -224,7 +225,7 @@ export default function SafetyPlan() {
         </p>
         {!씀 && (
           <div className="sg-lock">
-            <b>🔒 지금은 준비 중입니다</b> — 내 공사로 적어 만들고 받는 것은 곧 엽니다.
+            <b>🔒 문의해 주세요</b> — 내 공사로 안전관리계획서를 만들어 받는 것은 K-건설맵이 직접 작성해 드립니다(견본 먼저 · 최저가). <잠금문의 도구="안전관리계획서" 갈래="안전관리계획서" 셈="안전계획" />
             지금은 <button type="button" className="btn line sm" style={{ width: 'auto', margin: '0 2px' }} onClick={예시보기}>🧪 예시(가상 공사)</button>로 어떻게 나오는지 쪽마다 넘겨 보실 수 있습니다.
             {' '}<예시본수 열쇠="|안전계획|예시" />
             <details className="sg-more sg-more-sm" style={{ marginTop: 6 }}>
@@ -358,7 +359,7 @@ export default function SafetyPlan() {
               </button>
             ))}
           </div>
-          {!씀 && <p className="muted" style={{ margin: '6px 0 0' }}>🧪 예시(지어낸 공사 · 이름 · 번호)입니다. 받기는 준비 중 — 화면에서 쪽마다 넘겨 보십시오.</p>}
+          {!씀 && <p className="muted" style={{ margin: '6px 0 0' }}>🧪 예시(지어낸 공사 · 이름 · 번호)입니다. 받기는 K-건설맵에 문의해 주세요 — 화면에서 쪽마다 넘겨 보십시오.</p>}
           {씀 && 예시채움 && <p className="cwarn" style={{ margin: '6px 0 0' }}>🧪 지금은 <b>예시(가상 공사)</b>로 채운 것입니다 — 보기만 됩니다. 받기(PDF · 한글 · 워드 · 엑셀)는 <b>«↺ 비우기»</b> 를 누르고 내 공사로 적은 뒤에 됩니다.</p>}
           {잠금말 && (!씀 || 예시채움) && <div className="cwarn" style={{ marginTop: 6 }}>{잠금말}</div>}
           {결과?.목차?.length > 0 && (

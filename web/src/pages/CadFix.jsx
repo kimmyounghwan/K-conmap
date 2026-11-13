@@ -20,6 +20,7 @@ import { Link } from 'react-router-dom'
 import { isOpen, tryOpen } from '../lib/gate.js'
 import { 나운영자 } from '../lib/운영자.js'
 import { 세기, 예시본수 } from '../lib/받은수.jsx'
+import 잠금문의 from '../잠금문의.jsx'   // 📄 G669 잠근 도구 «문의»
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { 판읽기 } from '../lib/dwgdxf.js'
 import { 글꼴판, 판목록, 받을이름 } from '../lib/캐드고침.js'
@@ -97,7 +98,7 @@ export default function CadFix() {
     return () => { 살 = false }
   }, [])
   useEffect(() => { document.title = '캐드 버전 · 글꼴 고치기 — 옛 캐드에서 열리게 · 한글 «?» 고치기 | K-건설맵' }, [])
-  const 잠김 = (무엇) => { set잠금말(`🔒 ${무엇} 지금 준비 중입니다 — 🧪 예시 도면으로 진단 · 고치기 · 미리보기를 해 보실 수 있습니다.`); 세기('|캐드고침|잠금') }
+  const 잠김 = (무엇) => { set잠금말(`🔒 ${무엇} K-건설맵에 문의해 주세요(위 «📄 작성대행 · 견적 문의») — 🧪 예시 도면으로 진단 · 고치기 · 미리보기를 해 보실 수 있습니다.`); 세기('|캐드고침|잠금') }
 
   /* 파일 목록 */
   const [목록, set목록] = useState([])     // { id, 이름, 크기, 상태: '읽는중'|'진단'|'고치는중'|'끝'|'실패', msg, 진, 결과, 오류, 예시, 글꼴별 }
@@ -230,7 +231,7 @@ export default function CadFix() {
         </p>
         {!씀 && (
           <div className="sg-lock">
-            <b>🔒 지금은 준비 중입니다</b> — 내 도면 넣기 · 받기는 곧 엽니다. 지금은 🧪 예시 도면 두 장으로 진단 · 고치기 · 미리보기를 해 보실 수 있습니다.
+            <b>🔒 문의해 주세요</b> — 내 도면을 고쳐 받는 것은 K-건설맵이 직접 해 드립니다(견본 먼저 · 최저가). <잠금문의 도구="캐드 도면 고치기" 셈="캐드고침" /> 지금은 🧪 예시 도면 두 장으로 진단 · 고치기 · 미리보기를 해 보실 수 있습니다.
             {' '}<예시본수 열쇠="|캐드고침|예시" />
             <details className="sg-more sg-more-sm" style={{ marginTop: 6 }}>
               <summary className="muted" style={{ fontSize: 12.5 }}>🔑 열쇠말이 있으신가요?</summary>
@@ -387,7 +388,7 @@ export default function CadFix() {
           {지금.결과.그림 ? <미리보기 그림={지금.결과.그림} /> : <div className="muted">이 도면을 고르고 «고치기» 를 누르면 미리보기가 나옵니다.</div>}
           <div className="cfx-go">
             <button type="button" className={'btn' + (씀 && !예시중 ? '' : ' sg-lockbtn')} style={{ width: 'auto' }} onClick={() => 받기(지금)}>{씀 && !예시중 ? '⬇ 이 도면 받기 (DXF)' : '🔒 받기'}</button>
-            {예시중 && !씀 && <span className="muted" style={{ fontSize: 13 }}>🧪 예시는 미리보기까지 — 받기는 곧 엽니다.</span>}
+            {예시중 && !씀 && <span className="muted" style={{ fontSize: 13 }}>🧪 예시는 미리보기까지 — 내 도면으로 받는 것은 K-건설맵에 문의해 주세요(위 «📄 작성대행 · 견적 문의»).</span>}
             {예시중 && 씀 && <span className="muted" style={{ fontSize: 13 }}>🧪 예시 도면은 보기만 — 받기는 내 도면을 넣고 고친 뒤에 됩니다.</span>}
           </div>
         </div>

@@ -36,7 +36,7 @@ for (const 기기 of 기기들) {
     const 넘침 = async () => A.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
     if (!소장님) {
       const 글 = await A.locator('body').innerText()
-      봐(글.includes('🔒 지금은 준비 중입니다'), `${누구} 잠금 안내`)
+      봐(글.includes('🔒 문의해 주세요'), `${누구} 잠금 안내`)
       봐(!글.includes('① 공사 · 사람'), `${누구} 적는 칸 없음`)
       await A.locator('button:has-text("예시로 미리 보기")').click()
       await A.waitForSelector('svg.sg-page', { timeout: 60000 })
@@ -62,11 +62,11 @@ for (const 기기 of 기기들) {
       await A.locator('button:has-text("🔒 PDF")').click()
       await A.waitForTimeout(800)
       const 글2 = await A.locator('body').innerText()
-      봐(글2.includes('PDF 받기는 지금 준비 중입니다') && !받음, `${누구} 잠긴 받기 → 안내만`)
+      봐(글2.includes('PDF 받기는 K-건설맵에 문의해 주세요') && !받음, `${누구} 잠긴 받기 → 안내만`)
       봐(await 넘침() <= 1, `${누구} 가로 넘침 없음`, await 넘침())
     } else {
       const 글 = await A.locator('body').innerText()
-      봐(!글.includes('🔒 지금은 준비 중입니다') && 글.includes('① 공사 · 사람'), `${누구} 적는 칸 보임 · 잠금 안내 없음`)
+      봐(!글.includes('🔒 문의해 주세요') && 글.includes('① 공사 · 사람'), `${누구} 적는 칸 보임 · 잠금 안내 없음`)
       await A.locator('button:has-text("예시(가상 공사)로 채우기")').click()
       await A.waitForSelector('svg.sg-page', { timeout: 60000 })
       await A.waitForFunction(() => /미리보기 · 받기\s*— (\d+)쪽/.test(document.body.innerText) && +document.body.innerText.match(/미리보기 · 받기\s*— (\d+)쪽/)[1] >= 300, null, { timeout: 60000 }).catch(() => {})

@@ -14,6 +14,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { 세기, 예시본수 } from '../lib/받은수.jsx'
+import 잠금문의 from '../잠금문의.jsx'   // 📄 G669 잠근 도구 «문의»
 import { isOpen, tryOpen } from '../lib/gate.js'
 import { 나운영자 } from '../lib/운영자.js'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
@@ -58,7 +59,7 @@ export default function Esc() {
     나운영자().then((v) => { if (살 && v) set씀(true) }).catch(() => {})
     return () => { 살 = false }
   }, [])
-  const 잠김 = (무엇) => { set잠금말(`🔒 ${무엇} 지금은 K-건설맵이 직접 해 드리는 것으로만 씁니다 — 🧪 예시로 어떤 산출서가 나오는지 보실 수 있습니다.`); 세기('|물가ESC|잠금') }
+  const 잠김 = (무엇) => { set잠금말(`🔒 ${무엇} K-건설맵에 문의해 주세요(위 «📄 작성대행 · 견적 문의») — 🧪 예시로 어떤 산출서가 나오는지 보실 수 있습니다.`); 세기('|물가ESC|잠금') }
   const 결과로 = () => setTimeout(() => { try { 결과칸.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) } catch { /* 없음 */ } }, 60)
 
   /* ── 🧪 예시(누구나 · 보기만 · 미리 셈한 값) ── */
@@ -141,7 +142,7 @@ export default function Esc() {
         </p>
         {!씀 && (
           <div className="sg-lock">
-            <b>🔒 지금은 K-건설맵이 직접 해 드립니다</b> — 이 화면에서 직접 넣고 받는 것은 열지 않았습니다.
+            <b>🔒 문의해 주세요</b> — 물가변동 ESC 산출서는 K-건설맵이 직접 작성해 드립니다(견본 먼저 · 최저가). <잠금문의 도구="물가변동 ESC 산출서" 셈="물가ESC" />
             {' '}<button type="button" className="btn line sm" style={{ width: 'auto', margin: '0 2px' }} onClick={예시보기}>🧪 예시 산출서 보기</button>로 어떤 산출서가 나오는지 보실 수 있습니다(보기만).
             {' '}<예시본수 열쇠="|물가ESC|예시" />
             <details className="sg-more sg-more-sm" style={{ marginTop: 6 }}>
@@ -194,7 +195,7 @@ export default function Esc() {
           </>
         ) : (
           <div className="tldrop sg-locked" onClick={() => 잠김('ESC 엑셀 넣기는')} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); 잠김('ESC 엑셀 넣기는') }}>
-            <b>🔒 ESC 엑셀 넣기는 열지 않았습니다</b>
+            <b>🔒 ESC 엑셀 넣기는 K-건설맵에 문의해 주세요</b>
             <span>내역서 · 단가(입찰일 · 조정기준일) · 공정률 · 선금을 넣으면 산출서 한 벌이 나옵니다. 지금은 위 🧪 예시로 보십시오.</span>
           </div>
         )}

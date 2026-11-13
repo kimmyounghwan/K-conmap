@@ -15,6 +15,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { 세기, 예시본수 } from '../lib/받은수.jsx'
+import 잠금문의 from '../잠금문의.jsx'   // 📄 G669 잠근 도구 «문의»
 import { isOpen, tryOpen } from '../lib/gate.js'
 import { 나운영자 } from '../lib/운영자.js'
 import { Row } from '../tools/calcs.jsx'
@@ -71,7 +72,7 @@ export default function Jungcheo() {
   const [내림중, set내림중] = useState('')
   const [오류, set오류] = useState('')
 
-  const 잠김 = (무엇) => { set잠금말(`🔒 ${무엇} 지금 준비 중입니다 — 🧪 예시로 어떻게 나오는지 보실 수 있습니다.`); 세기('|중처법|잠금') }
+  const 잠김 = (무엇) => { set잠금말(`🔒 ${무엇} K-건설맵에 문의해 주세요(위 «📄 작성대행 · 견적 문의») — 🧪 예시로 어떻게 나오는지 보실 수 있습니다.`); 세기('|중처법|잠금') }
   /* 🧪 예시 — 기록이 든 상반기를 보여 줌(반기 보고서가 채워진 모습) */
   const 예시 = () => { set예시봄(true); set잠금말(''); set쪽번(0); set반기(`${예시것.기준년}-상`); 세기('|중처법|예시') }
 
@@ -129,7 +130,7 @@ export default function Jungcheo() {
         </p>
         {!씀 && (
           <div className="sg-lock">
-            <b>🔒 지금은 준비 중입니다</b> — 우리 회사로 적고 받는 것은 곧 엽니다.
+            <b>🔒 문의해 주세요</b> — 우리 회사로 적어 받는 것은 K-건설맵이 직접 작성해 드립니다(견본 먼저 · 최저가). <잠금문의 도구="중대재해 안전보건관리체계 한 벌" 셈="중처법" />
             지금은 <button type="button" className="btn line sm" style={{ width: 'auto', margin: '0 2px' }} onClick={예시}>🧪 예시 회사</button>로 어떻게 나오는지 미리 보실 수 있습니다.
             {' '}<예시본수 열쇠="|중처법|예시" />
             <details className="sg-more sg-more-sm" style={{ marginTop: 6 }}>
@@ -378,7 +379,7 @@ export default function Jungcheo() {
                   </button>
                 ))}
               </div>
-              {(!씀 || 예시봄) && <p className="muted" style={{ margin: '6px 0 0' }}>🧪 예시(지어낸 회사)입니다. {씀 ? '받으려면 «우리 회사로 돌아가기» 를 누르십시오.' : '받기는 준비 중 — 화면에서 쪽마다 넘겨 보십시오.'}</p>}
+              {(!씀 || 예시봄) && <p className="muted" style={{ margin: '6px 0 0' }}>🧪 예시(지어낸 회사)입니다. {씀 ? '받으려면 «우리 회사로 돌아가기» 를 누르십시오.' : '받기는 K-건설맵에 문의해 주세요 — 화면에서 쪽마다 넘겨 보십시오.'}</p>}
               {잠금말 && <div className="cwarn" style={{ marginTop: 6 }}>{잠금말}</div>}
               {오류 && <div className="cwarn" style={{ marginTop: 6 }}>⚠️ {오류}</div>}
               <쪽넘기기 쪽들={쪽들} 쪽번={쪽번} set쪽번={set쪽번} on끝={() => { if (!씀) 세기('|중처법|예시끝') }} />

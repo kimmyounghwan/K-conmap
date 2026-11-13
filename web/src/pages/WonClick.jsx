@@ -41,6 +41,7 @@ import { 앞모습두기 } from '../lib/이어쓰기.js'
 import { 현장나눔 } from '../lib/현장나눔.js'   /* 🏗 G179 현장별로 나눠 쓰기 */
 import 현장틀 from '../tools/현장틀.jsx'
 import { 세기 } from '../lib/받은수.jsx'
+import 잠금문의 from '../잠금문의.jsx'   // 📄 G669 잠근 도구 «문의»
 import { isOpen, tryOpen } from '../lib/gate.js'
 import { 나운영자 } from '../lib/운영자.js'
 /* 📄 2026-09-27 — 서류를 화면에서 보고·고치고·인쇄 (엑셀화면.jsx). 무거운 셈은 열 때만 받습니다. */
@@ -428,10 +429,10 @@ export default function WonClick() {
     return () => { 살 = false }
   }, [])
   if (!씀) {
-    const 잠김 = (무엇) => { set말(`🔒 ${무엇} 지금 준비 중입니다 — 🧪 예시로 어떤 서류가 나오는지 보실 수 있습니다.`); 세기('|원클릭|잠금') }
+    const 잠김 = (무엇) => { set말(`🔒 ${무엇} K-건설맵에 문의해 주세요(위 «📄 작성대행 · 견적 문의») — 🧪 예시로 어떤 서류가 나오는지 보실 수 있습니다.`); 세기('|원클릭|잠금') }
     const 띠 = (
       <div className="sg-lock">
-        <b>🔒 지금은 준비 중입니다</b> — 우리 공사로 칸을 채우고 엑셀로 받는 것은 곧 엽니다.
+        <b>🔒 문의해 주세요</b> — 우리 공사로 칸을 채워 엑셀로 받는 것은 K-건설맵이 직접 해 드립니다(견본 먼저 · 최저가). <잠금문의 도구="공사서류 원클릭(착공 · 기성 · 준공 서류)" 셈="원클릭" />
         지금은 아래 <b>🧪 예시</b>로 서류를 고르고 <b>③ 화면에서 보기</b>로 어떻게 나오는지 보실 수 있습니다.
         <details className="sg-more sg-more-sm" style={{ marginTop: 6 }}>
           <summary className="muted" style={{ fontSize: 12.5 }}>🔑 열쇠말이 있으신가요?</summary>

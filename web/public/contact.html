@@ -192,6 +192,14 @@
       crow.appendChild(gbox)
     })
     var cwr = document.getElementById('work').closest('.row'); if (cwr && cwr.parentNode) cwr.parentNode.insertBefore(crow, cwr.nextSibling)
+    /* 📄 G669 잠근 도구 9가지의 «📄 작성대행 · 견적 문의» 단추(web/src/잠금문의.jsx)에서 온 문의 — ?k=cn&s=서류 갈래&t=도구 이름
+       → 그 갈래를 미리 고르고(서류 작성대행 묶음에 있는 말만) «자세히» 가 비었으면 한 줄 채움(글로만 넣음 · 40자까지) */
+    try {
+      var 쿼리 = new URLSearchParams(location.search)
+      var 미리s = 쿼리.get('s') || '', 미리t = (쿼리.get('t') || '').slice(0, 40)
+      if (미리s && 묶음들[1][1].indexOf(미리s) >= 0) { 고른것 = '서류 작성대행 — ' + 미리s; 다시칠() }
+      var cm = document.getElementById('memo'); if (미리t && cm && !cm.value) cm.value = '«' + 미리t + '» 작성대행 · 견적 문의합니다.'
+    } catch (e) { /* 주소 꼬리를 못 읽으면 그대로 */ }
     var ccards = document.querySelectorAll('.card'); if (ccards[1]) ccards[1].style.display = 'none'
   }
   /* 공사 연결 · 서류 작성대행(?k=cn) 이면 메일 갈래(want)만 고른 것으로 — 위 광고 · 사이트 문의 갈래 줄은 그대로 둠(시험_광고문의화면 ⑦ ⑨ 가 그 줄을 봄) */

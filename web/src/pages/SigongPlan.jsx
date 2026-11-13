@@ -21,6 +21,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { 세기, 예시본수 } from '../lib/받은수.jsx'
+import 잠금문의 from '../잠금문의.jsx'   // 📄 G669 잠근 도구 «문의»
 import { 현장나눔 } from '../lib/현장나눔.js'
 import { 쪽그림, 그림줄이기 } from '../lib/쪽그림.jsx'
 import { Row } from '../tools/calcs.jsx'
@@ -102,7 +103,7 @@ export default function SigongPlan() {
     나운영자().then((v) => { if (살 && v) set씀(true) }).catch(() => {})
     return () => { 살 = false }
   }, [])
-  const 잠김 = (무엇) => { set잠금말(`🔒 ${무엇} 지금 준비 중입니다 — 🧪 예시로 어떻게 나오는지 보실 수 있습니다.`); 세기('|시공계획|잠금') }
+  const 잠김 = (무엇) => { set잠금말(`🔒 ${무엇} K-건설맵에 문의해 주세요(위 «📄 작성대행 · 견적 문의») — 🧪 예시로 어떻게 나오는지 보실 수 있습니다.`); 세기('|시공계획|잠금') }
 
   useEffect(() => { if (씀) 쓰(남김열쇠, { 공사, 사람, 설정, 크레인 }) }, [씀, 공사, 사람, 설정, 크레인])
   useEffect(() => {
@@ -310,7 +311,7 @@ export default function SigongPlan() {
         </p>
         {!씀 && (
           <div className="sg-lock">
-            <b>🔒 지금은 준비 중입니다</b> — 내 내역서를 올려 만들고 받는 것은 곧 엽니다.
+            <b>🔒 문의해 주세요</b> — 내 내역서로 시공계획서를 만들어 받는 것은 K-건설맵이 직접 작성해 드립니다(견본 먼저 · 최저가). <잠금문의 도구="시공계획서" 셈="시공계획" />
             지금은 <button type="button" className="btn line sm" style={{ width: 'auto', margin: '0 2px' }} onClick={예시}>🧪 예시 내역서</button>로 어떻게 나오는지 미리 보실 수 있습니다.
             {' '}<예시본수 열쇠="|시공계획|예시" />
             <details className="sg-more sg-more-sm" style={{ marginTop: 6 }}>
@@ -343,8 +344,8 @@ export default function SigongPlan() {
           </div>
         ) : (
           <div className="tldrop sg-locked" onClick={() => 잠김('내 파일 올리기는')} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); 잠김('내 파일 올리기는') }}>
-            <b>🔒 올리기는 준비 중입니다</b>
-            <span>내역서 .xlsx · .xls · 공사설명서 · 시방서 PDF · 도면 PDF · JPG · PNG 를 올리면 한 벌이 만들어집니다 — 곧 엽니다. 지금은 아래 🧪 예시로 보십시오.</span>
+            <b>🔒 올리기는 K-건설맵에 문의해 주세요</b>
+            <span>내역서 .xlsx · .xls · 공사설명서 · 시방서 PDF · 도면 PDF · JPG · PNG 를 올리면 한 벌이 만들어집니다 — K-건설맵이 직접 작성해 드립니다(위 «📄 작성대행 · 견적 문의»). 지금은 아래 🧪 예시로 보십시오.</span>
           </div>
         )}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
@@ -543,7 +544,7 @@ export default function SigongPlan() {
             ))}
             <button type="button" className={'btn line' + (씀 ? '' : ' sg-lockbtn')} style={{ width: 'auto' }} onClick={원클릭에} title="공사명 · 위치 · 착공 · 준공 · 회사 · 현장대리인을 공사서류 원클릭(착공계 · 착공서류)으로 넘깁니다">{씀 ? '⚡' : '🔒'} 착공서류(원클릭)로</button>
           </div>
-          {!씀 && <p className="muted" style={{ margin: '6px 0 0' }}>🧪 예시(지어낸 공사)입니다. 받기 · 넘기기는 준비 중 — 화면에서 쪽마다 넘겨 보십시오.</p>}
+          {!씀 && <p className="muted" style={{ margin: '6px 0 0' }}>🧪 예시(지어낸 공사)입니다. 받기 · 넘기기는 K-건설맵에 문의해 주세요 — 화면에서 쪽마다 넘겨 보십시오.</p>}
           {씀 && 예시내역 && <p className="cwarn" style={{ margin: '6px 0 0' }}>🧪 지금은 <b>예시 내역서</b>로 만든 것입니다 — 보기만 됩니다. 받기(PDF · 한글 · 워드 · 엑셀)는 내 내역서를 올린 뒤에 됩니다.</p>}
           {잠금말 && (!씀 || 예시내역) && <div className="cwarn" style={{ marginTop: 6 }}>{잠금말}</div>}
           {쪽 && (
