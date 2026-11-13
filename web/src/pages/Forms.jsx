@@ -646,6 +646,8 @@ export const 새틀말 = [
   '위 «종이에 바로 쓰기» 에서 칸을 채우면 저절로 계산되고, «✍ 예시 채우기» 로 가상의 현장으로 다 채운 모습을 볼 수 있습니다. 노란 칸은 요율·기준값(발주기관 기준으로 고쳐 씀), 옅은 하늘색 칸은 자동 계산입니다. 내려받는 엑셀은 손으로 쓸 빈 틀(계산 없음)입니다.',
 ]
 export const 첫줄말 = '맨 윗줄의 K-건설맵 표시는 1행을 지우면 없어집니다 (마우스 오른쪽 → 행 삭제). 그림이 아니라 글자라서 흔적이 남지 않습니다.'
+/* 📄 G668 엑셀을 주지 않는 새 서식(noxlsx) 미리보기 아래 한 줄 — prerender.py NEW_FORM_PDF 와 같은 글 */
+export const 새서식말 = '위 «종이에 바로 쓰기» 에서 칸을 채우면 저절로 계산되고, «✍ 예시 채우기» 로 가상의 현장으로 다 채운 모습을 볼 수 있습니다. 다 쓴 종이는 📄 PDF 저장 · 🖨 인쇄로 그대로 받습니다. 쓴 내용은 이 기기에만 남고, 다시 열면 이어서 씁니다.'
 
 /* 미리보기 그림 + 그림 설명(prevcap) */
 function 그림들({ f }) {
@@ -823,7 +825,8 @@ export function FormPage() {
   const 위험성 = f.gen === 'wihgen'
   const 쓸칸 = !위험성 && ((f.sheet && f.sheet.blocks) || []).some((b) => b.t === 'kv' || b.t === 'table' || b.t === 'chk' || b.t === 'cl')
   const 격자 = f.gen === 'forms2'
-  const 작성칸 = 격자 ? <Suspense fallback={<div className="card muted" id="작성">✍️ 종이를 펴는 중…</div>}><격자작성 slug={f.slug} title={f.title} 빈틀={xlsx} key={f.slug} /></Suspense>
+  const 엑셀없음 = !!f.noxlsx      // 📄 G668 새 서식 — 빈 틀 엑셀을 주지 않음(소장님 11-13 「빈엑셀 주면 다운 받아서 사용하면 땡 이잖아」 · 사이트 작성 → 그림 PDF 만)
+  const 작성칸 = 격자 ? <Suspense fallback={<div className="card muted" id="작성">✍️ 종이를 펴는 중…</div>}><격자작성 slug={f.slug} title={f.title} 빈틀={엑셀없음 ? null : xlsx} key={f.slug} /></Suspense>
     : 쓸칸 ? <Suspense fallback={<div className="card muted">작성 칸을 불러오는 중…</div>}><서식작성 f={f} key={f.slug} /></Suspense> : null
   const 작성가기 = () => { const el = document.getElementById('작성'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
   return (
@@ -858,7 +861,7 @@ export function FormPage() {
           ) : 격자 ? (
             <>
               <button type="button" className="btn primary" onClick={작성가기}>✍️ 종이에 바로 쓰기 → PDF</button>
-              <a className="btn ghost" href={xlsx} download={`${f.title}_빈틀.xlsx`} onClick={() => askAfter('forms')}>⬇ 빈 틀 엑셀</a>
+              {!엑셀없음 && <a className="btn ghost" href={xlsx} download={`${f.title}_빈틀.xlsx`} onClick={() => askAfter('forms')}>⬇ 빈 틀 엑셀</a>}
               {f.pdf && <a className="btn ghost" href={f.pdf} target="_blank" rel="noopener">🖨 빈 서식 PDF</a>}
             </>
           ) : (
@@ -874,7 +877,7 @@ export function FormPage() {
               {쓸칸 && <button type="button" className="btn ghost" onClick={작성가기}>✍️ 사이트에서 작성</button>}
             </>
           )}
-          <받은수 파일={[xlsx, f.pdf, `/forms/w/${f.slug}.pdf`]} 앞="지금까지 " 글="번 받았습니다" className="dlcount big" />
+          <받은수 파일={엑셀없음 ? [f.pdf, `/forms/w/${f.slug}.pdf`] : [xlsx, f.pdf, `/forms/w/${f.slug}.pdf`]} 앞="지금까지 " 글="번 받았습니다" className="dlcount big" />
         </div>
         {f.law && <div className="muted sm" style={{ marginTop: 8, lineHeight: 1.6, wordBreak: 'keep-all' }}>근거 · {f.law}</div>}
       </div>
@@ -915,8 +918,7 @@ export function FormPage() {
           <div className="sec-title" style={{ margin: '0 0 8px' }}>미리보기</div>
           <그림들 f={f} />
           <ul className="flist" style={{ marginTop: 8 }}>
-            <li>{새틀말[1]}</li>
-            <li>{첫줄말}</li>
+            {엑셀없음 ? <li>{새서식말}</li> : <><li>{새틀말[1]}</li><li>{첫줄말}</li></>}
           </ul>
         </div>
       ) : (

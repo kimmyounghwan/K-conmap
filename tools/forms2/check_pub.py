@@ -11,6 +11,8 @@ from verify2 import solve, _serial_eq
 bad = 0
 for slug in [a for a in sys.argv[1:] if not a.startswith("--")]:
     import registry; m = registry.get(slug)
+    if not getattr(m, "XLSX", True):      # 📄 G668 새 서식 — 엑셀을 안 올림(올라갈 엑셀이 없음 · 셈은 run.py · 격자셈시험 이 봄)
+        print(f"·  {m.SLUG:<20} 올라갈 엑셀 없음(XLSX = False) — 건너뜀"); continue
     bk = Book(m.TITLE); m.draw(bk, False); m.draw(bk, True); bk.finish()
     pub = os.path.join(ROOT, "web", "public", "forms", "orig" if m.WHERE == "orig" else "", f"{m.SLUG}.xlsx")
     tmp = tempfile.mkdtemp()

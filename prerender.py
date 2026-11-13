@@ -1219,11 +1219,20 @@ def _prog_html(p):
             + '<span class="go">열기 →</span></a>')
 
 
-def _쓰기안내_html():
-    """✍️ G361 «종이에 바로 쓰기» 쓰는 방법 — 화면 tools/격자작성.jsx 와 같은 글(web/src/data/서식쓰기안내.json 한 곳)"""
+def _쓰기안내_html(엑셀없음=False):
+    """✍️ G361 «종이에 바로 쓰기» 쓰는 방법 — 화면 tools/격자작성.jsx 와 같은 글(web/src/data/서식쓰기안내.json 한 곳)
+    📄 G668 엑셀을 주지 않는 서식(noxlsx)은 셋째 칸 글로 바꾸고 null 이면 그 줄을 뺌(화면 «빈틀» 이 없을 때와 같게)"""
     d = json.loads(open(os.path.join(ROOT, "web", "src", "data", "서식쓰기안내.json"), "rb").read().decode("utf-8"))
+    줄 = []
+    for it in d["차례"]:
+        a, b = it[0], it[1]
+        if 엑셀없음 and len(it) > 2:
+            if it[2] is None:
+                continue
+            b = it[2]
+        줄.append(f'<li><b>{esc(a)}</b> — {esc(b)}</li>')
     return ('<div class="card" id="작성"><details class="gx-how" open><summary><b>' + esc(d["제목"]) + '</b> <span class="muted">— '
-            + esc(d["한줄"]) + '</span></summary><ol>' + "".join(f'<li><b>{esc(a)}</b> — {esc(b)}</li>' for a, b in d["차례"])
+            + esc(d["한줄엑셀없음"] if 엑셀없음 else d["한줄"]) + '</span></summary><ol>' + "".join(줄)
             + '</ol></details></div>')
 
 
@@ -1238,6 +1247,9 @@ NEW_FRAME = [
     "위 «종이에 바로 쓰기» 에서 칸을 채우면 저절로 계산되고, «✍ 예시 채우기» 로 가상의 현장으로 다 채운 모습을 볼 수 있습니다. 노란 칸은 요율·기준값(발주기관 기준으로 고쳐 씀), 옅은 하늘색 칸은 자동 계산입니다. 내려받는 엑셀은 손으로 쓸 빈 틀(계산 없음)입니다.",
 ]
 FIRST_ROW = "맨 윗줄의 K-건설맵 표시는 1행을 지우면 없어집니다 (마우스 오른쪽 → 행 삭제). 그림이 아니라 글자라서 흔적이 남지 않습니다."
+# 📄 G668 엑셀을 주지 않는 새 서식(forms.json noxlsx) 미리보기 아래 한 줄 — 화면 Forms.jsx 새서식말 과 같은 글
+NEW_FORM_PDF = ("위 «종이에 바로 쓰기» 에서 칸을 채우면 저절로 계산되고, «✍ 예시 채우기» 로 가상의 현장으로 다 채운 모습을 볼 수 있습니다. "
+                "다 쓴 종이는 📄 PDF 저장 · 🖨 인쇄로 그대로 받습니다. 쓴 내용은 이 기기에만 남고, 다시 열면 이어서 씁니다.")
 
 
 # 🔗 2026-10-01 (G98) 비슷한 서식 — 화면 Forms.jsx «비슷한서식» 과 «같은 글» (묶음은 web/src/data/forms_same.json 한 곳)
@@ -1692,6 +1704,13 @@ def form_page(shell, f, others, image=None):
             (g.get("what") or f'{f.get("short") or ""} {f.get("when") or ""}').strip()
         lead = (f'{f["title"]} 양식을 이 화면에서 바로 채우고 PDF로 저장 · 인쇄할 수 있습니다. '
                 f'회원가입이 필요 없고, 쓴 내용은 내 기기에만 남습니다.')
+    elif f.get("noxlsx"):        # 📄 G668 (11-13 소장님 「그냥 pdf 만 제공하고 빈액셀 제공은 없기」) — 엑셀 말 없이 «사이트 작성 · PDF» 만
+        title = f'{f["title"]} 양식 — 사이트에서 작성 · PDF 저장 | K-건설맵'
+        desc = ((f'{f["title"]}(' + ' · '.join(또[:2]) + ') 양식 — 사이트에서 바로 작성해 PDF 저장 · 인쇄. ') if 또 else
+                f'{f["title"]} 양식 — 사이트에서 바로 작성해 PDF 저장 · 인쇄. ') + \
+            (g.get("what") or f'{f.get("short") or ""} {f.get("when") or ""}').strip()
+        lead = (f'{f["title"]} 양식을 이 화면에서 바로 채우면 합계 · 날수 · 금액이 저절로 계산되고, PDF로 저장 · 인쇄할 수 있습니다. '
+                f'회원가입이 필요 없고, 쓴 내용은 내 기기에만 남아 다음에 이어서 씁니다.')
     elif f.get("nofree"):        # ✂ 2026-10-24 소장님 «이제 만드는 것은 무료라는 단어 넣지 말고» — 새로 만든 서식(G437 ~)
         title = f'{f["title"]} 양식 — 사이트에서 작성 · PDF 저장 · 빈 엑셀(xlsx) | K-건설맵'
         desc = ((f'{f["title"]}(' + ' · '.join(또[:2]) + ') 양식 — 사이트에서 작성해 PDF 저장 · 빈 엑셀(xlsx) 다운로드. ') if 또 else
@@ -1730,13 +1749,13 @@ def form_page(shell, f, others, image=None):
                + (f'<a class="btn ghost" href="{esc(f["pdf"])}" target="_blank" rel="noopener">🖨 빈 서식 PDF</a>'
                   if f.get("pdf") and f.get("gen") != "wihgen" else '')) if 웹 else
               ((f'<a class="btn primary" href="#작성">✍️ 종이에 바로 쓰기 → PDF</a>'          # ✍️ G361 화면 Forms.jsx 와 같은 단추
-                f'<a class="btn ghost" href="/forms/{esc(f["slug"])}.xlsx" download>⬇ 빈 틀 엑셀</a>'
+                + ('' if f.get("noxlsx") else f'<a class="btn ghost" href="/forms/{esc(f["slug"])}.xlsx" download>⬇ 빈 틀 엑셀</a>')    # 📄 G668
                 + (f'<a class="btn ghost" href="{esc(f["pdf"])}" target="_blank" rel="noopener">🖨 빈 서식 PDF</a>' if f.get("pdf") else '')) if f.get("gen") == "forms2" else
                (f'<a class="btn primary" href="/forms/{esc(f["slug"])}.xlsx" download>⬇ 엑셀 내려받기</a>'
                + (f'<a class="btn ghost" href="{esc(f["pdf"])}" target="_blank" rel="noopener">🖨 인쇄용 PDF</a>' if f.get("pdf") else ''))))
            + "</div>"
            + (f'<div style="font-size:12px;color:var(--muted);margin-top:8px">근거 · {esc(f["law"])}</div>' if f.get("law") else '')
-           + "</div>", _쓰기안내_html() if f.get("gen") == "forms2" else "", _prog_html(f.get("prog")), _guide_html(f)]
+           + "</div>", _쓰기안내_html(bool(f.get("noxlsx"))) if f.get("gen") == "forms2" else "", _prog_html(f.get("prog")), _guide_html(f)]
     if f.get("when"):
         out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">언제 내나</div>'
                    f'<div class="fwhen">{bold_md(esc(f["when"]))}</div></div>')
@@ -1751,7 +1770,8 @@ def form_page(shell, f, others, image=None):
     out.append(_same_html(f["slug"]))
     if f.get("prev"):     # ✍️ 2026-09-29 다시 만든 서식 — 엑셀을 그린 그림(빈 서식 · 작성 예시)
         out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">미리보기</div>' + _prev_html(f)
-                   + f'<ul class="flist" style="margin-top:8px"><li>{esc(NEW_FRAME[1])}</li><li>{esc(FIRST_ROW)}</li></ul></div>')
+                   + ((f'<ul class="flist" style="margin-top:8px"><li>{esc(NEW_FORM_PDF)}</li></ul></div>') if f.get("noxlsx") else
+                      f'<ul class="flist" style="margin-top:8px"><li>{esc(NEW_FRAME[1])}</li><li>{esc(FIRST_ROW)}</li></ul></div>'))
     else:
         out.append('<div class="card"><div class="sec-title" style="margin:0 0 8px">미리보기</div>'
                    + _sheet_html(f["sheet"]) + "</div>")
@@ -1759,7 +1779,7 @@ def form_page(shell, f, others, image=None):
     same = [o for o in others if o.get("group") == f.get("group") and o["slug"] != f["slug"]][:5]
     if same:
         out.append(rows_html(f'{f.get("group")} 단계의 다른 서식',
-                             [(o["title"], "내려받기 →") for o in same],
+                             [(o["title"], "작성하기 →" if o.get("noxlsx") else "내려받기 →") for o in same],   # 📄 G668
                              href=lambda t: next((f'/forms/{o["slug"]}' for o in same
                                                   if o["title"] == t), None)))
     out.append('<div class="card"><div class="fwarn2">이 서식은 K-건설맵이 만든 일반 양식입니다. '
@@ -1775,7 +1795,7 @@ def form_page(shell, f, others, image=None):
          "inLanguage": "ko", "isAccessibleForFree": True,
          "genre": f.get("group") or "건설 서식",
          "url": f'{SITE}/forms/{f["slug"]}',
-         "encodingFormat": ("application/pdf" if 웹 else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+         "encodingFormat": ("application/pdf" if (웹 or f.get("noxlsx")) else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),   # 📄 G668
          "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}}]}
     return page(shell, f'/forms/{f["slug"]}', title, desc, "".join(out), image, ld)
 
@@ -4508,7 +4528,7 @@ def main():
         made += 1
         for f in forms:
             img = (og.tab(f'forms-{f["slug"]}', f["title"],
-                          f.get("sub") or "건설 서식", "엑셀",
+                          f.get("sub") or "건설 서식", "작성 · PDF" if f.get("noxlsx") else "엑셀",   # 📄 G668 엑셀 안 주는 서식은 «엑셀» 딱지 안 씀
                           (f.get("short") or "")[:44])
                    if og.available else None)
             write(f'forms/{f["slug"]}.html', form_page(shell, f, forms, img))

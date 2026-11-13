@@ -672,9 +672,9 @@ function 종이작성({ doc, slug, title, 빈틀 }) {
         </span>
       </div>
       <details className="gx-how" open={안내열림} onToggle={(e) => { if (e.currentTarget.open !== 안내열림) 안내토글(e.currentTarget.open) }}>
-        <summary><b>{안내.제목}</b> <span className="muted">— {안내.한줄}</span></summary>
+        <summary><b>{안내.제목}</b> <span className="muted">— {빈틀 ? 안내.한줄 : 안내.한줄엑셀없음}</span></summary>
         <ol>
-          {안내.차례.map(([머리, 글]) => <li key={머리}><b>{머리}</b> — {글}</li>)}
+          {안내.차례.filter(([, , 엑]) => 빈틀 || 엑 !== null).map(([머리, 글, 엑]) => <li key={머리}><b>{머리}</b> — {!빈틀 && 엑 ? 엑 : 글}</li>)}{/* 📄 G668 빈 틀 엑셀이 없는 서식은 «엑셀» 줄을 빼거나 바꿈 */}
         </ol>
       </details>
       {예시중 && <div className="cwarn" role="note" style={{ margin: '0 0 10px' }}>🧪 지금은 <b>작성 예시</b>입니다 — 보기만 됩니다(PDF · 인쇄 · 저장 안 됨). 내 서식은 <b>«🧹 빈칸으로»</b> 를 누르고 적으세요.</div>}
