@@ -3,6 +3,8 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import 광고칸 from '../광고칸.jsx'   /* 📣 업체 광고 — 셋째 카드 다음(first) · 열째(first2 · 8건 넘을 때) · 열일곱째(first3 · 15건 넘을 때) — 업체마다 쪽에 한 번 · 광고 사이 여섯 장 넘게 · lib/광고자료.js */
 import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 G654 쿠팡 줄 — 여섯째 카드 다음 · G656 그 뒤 열 장마다(네이버 카페 · 뽐뿌처럼 · 업체 광고 칸과 두 장 넘게 떨어지게) · G663 카페형 상품 카드(큰 카드) */
 import { 목록쿠팡자리 } from '../lib/쿠팡자료.js'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 G666 카카오 애드핏 «목록» 칸 — 다른 광고 줄과 떨어진 자리 하나 */
+import { 애드핏목록자리 } from '../lib/애드핏.js'
 import { getOverview, getLicStat } from '../lib/data.js'
 import FreshBar from '../Fresh.jsx'
 import NoticeDetail, { scoreState, NoticeLink } from '../NoticeDetail.jsx'
@@ -222,7 +224,7 @@ export default function FirstBoard() {
             </span>
           </div>
 
-          {view.map((r, i) => {
+          {(() => { const 줄들 = view.map((r, i) => {
             const id = `${r.no}-${i}`
             const isOpen = open === id
             const winAmt = r.sAmt || r.amt
@@ -310,7 +312,15 @@ export default function FirstBoard() {
               {(() => { const k = 목록쿠팡자리(view.length, [2, 9, 16]).indexOf(i); return k >= 0 ? <쿠팡카드줄 자리="목록" 차례={k + 1} /> : null })()}
               </Fragment>
             )
-          })}
+          })
+            /* 💰 G666 (11-13) 카카오 애드핏 «목록» 칸 — 업체 광고 칸(셋째 · 열째 · 열일곱째 다음) · 쿠팡 목록 줄과 세 장 넘게 떨어진 첫 자리(열한째 카드 다음부터 · lib/애드핏.js)
+               · 카드 묶음 밖에 따로 key 를 둠 — 목록을 거르거나 쪽을 넘겨도 광고를 다시 부르지 않음(운영정책 «과도하게 반복 노출» · «계속 동적으로 불러오는 경우» 금지) */
+            const n = view.length
+            const 다른 = [Math.min(2, n - 1), ...(n >= 8 ? [Math.min(9, n - 1)] : []), ...(n >= 15 ? [Math.min(16, n - 1)] : []), ...목록쿠팡자리(n, [2, 9, 16])]
+            const 애자리 = 애드핏목록자리(n, 다른)
+            if (애자리 >= 0) 줄들.splice(애자리 + 1, 0, <애드핏칸 key="afit-list" 자리="목록" />)
+            return 줄들
+          })()}
 
           {pages > 1 && (
             <div className="pager">

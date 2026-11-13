@@ -69,7 +69,8 @@ def scan(src=SRC):
         for nm, srcs in exports.items():
             if nm in have or p in srcs:
                 continue
-            if re.search(r"(?<![\w$.'\"])" + re.escape(nm) + r"\s*[(<]", body):
+            # ⚠️ 2026-11-13 G666 — 따옴표(' ")와 같이 «`» 바로 뒤도 호출이 아님: `calc(50% - …)` 같은 CSS 글을 lib/susik.js 의 calc 호출로 잡았음(틀린 경보 · 8절 22)
+            if re.search(r"(?<![\w$.'\"`])" + re.escape(nm) + r"\s*[(<]", body):
                 bad.append((os.path.relpath(p, src), nm, os.path.relpath(sorted(srcs)[0], src)))
     return exports, bad
 

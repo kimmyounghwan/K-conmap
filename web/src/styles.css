@@ -10891,3 +10891,15 @@ html.vv-kick :is(.topbar, .tabbar, .cam-tab) { will-change: opacity; }
 @media (min-width: 900px) { .cpc-c { flex-basis: 168px; width: 168px; } .cpc-sm .cpc-c { flex-basis: 112px; width: 112px; } }
 @media (prefers-color-scheme: dark) { .cpc-p em { color: #fb7185; } .cpc-r i { color: #fbbf24; } .cpc-img { border-color: rgba(255, 255, 255, .08); } }
 @media print { .cpc { display: none !important; } }
+
+/* ── 💰 G666 카카오 애드핏 광고 칸(애드핏칸.jsx · lib/애드핏.js) — 2026-11-13 ────────────────
+   운영정책 5.3.1: 버튼 · 링크 · 이전/다음 · 네비게이션 가까이 금지 → 위아래 넉넉히 · 클릭 유도(색 · 움직임으로 부각) 금지 → «광고» 작은 회색 글만 · 테두리 · 바탕 없음
+   · 자리 고정 → 광고 크기(폰 300×250 · 320×100 / PC 728×90)는 애드핏칸.jsx 가 미리 잡음 · 인쇄 · 그림 PDF 에 안 찍힘 */
+.afit { margin: 44px 0 30px; min-width: 0; display: flex; flex-direction: column; align-items: center; }   /* 가운데 · 광고가 본문보다 넓으면 양옆으로 고르게 내밂 */
+.afit-list { margin: 26px 0; }
+.afit-h { font-size: 11px; line-height: 16px; color: var(--muted); text-align: center; margin: 0 0 4px; letter-spacing: .5px; }
+.afit-box { overflow: hidden; flex: none; }
+@media print { .afit { display: none !important; } }
+/* 광고 칸이 화면에 보이는 동안 떠 있는 «+» 찍기 단추(폰 · 오른쪽 끝) · 방문 인사 쪽지(✕ 가 있음)를 숨김 — 광고를 덮거나 잘못 누르지 않게 ·
+   «광고 닫기 버튼 등이 광고 영역 내에 위치» 로 보이지 않게(5.3.1) · html.afit-in 은 애드핏칸.jsx 가 붙임 */
+html.afit-in :is(.cam-tab, .insa) { opacity: 0 !important; pointer-events: none !important; }
