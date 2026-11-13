@@ -14,7 +14,7 @@
  */
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
-import { 카드자료풀기, 카드주제정하기, 카드쪽주제, 카드돌림, 자리차례, 그림크기, 원, 기준글 } from '../web/src/lib/쿠팡카드.js'
+import { 카드자료풀기, 카드주제정하기, 카드쪽주제, 카드돌림, 자리차례, 그림크기, 그림주소, 그림차례, 그림집, 원, 기준글 } from '../web/src/lib/쿠팡카드.js'
 import { 쿠팡문구, 목록쿠팡자리 } from '../web/src/lib/쿠팡자료.js'
 const require = createRequire(import.meta.url)
 const BASE = process.argv[2] || ''
@@ -47,6 +47,22 @@ ok('한 쪽의 줄 17개(위 · 바닥 · 목록 1~15) — 씨앗 0~199 어느 �
 ok('자리차례 — 위 0 · 바닥 1 · 목록1 2 · 목록2 3', 자리차례('위') === 0 && 자리차례('바닥') === 1 && 자리차례('목록', 1) === 2 && 자리차례('목록', 2) === 3)
 ok('그림 크기 바꾸기 — 212 → 320 · 492', 그림크기('https://t1a.coupangcdn.com/thumbnails/remote/212x212ex/image/a.jpg', 320) === 'https://t1a.coupangcdn.com/thumbnails/remote/320x320ex/image/a.jpg' && /\/492x492ex\//.test(그림크기(D.상품[0].그림)))
 ok('값 글 — 12,900', 원(12900) === '12,900' && 원(0) === '0')
+{
+  /* ⚡ G665 (11-13) 소장님 「광고가 늦게 떠」 — 자료 미리 받기 · 그림 집 하나 · 못 받으면 다른 주소로 */
+  const 껍데기 = fs.readFileSync(new URL('../web/index.html', import.meta.url), 'utf8')
+  ok('⚡ G665 그림집 — 쿠팡 그림 집 꼴(thumbnailN.coupangcdn.com)', /^thumbnail\d+\.coupangcdn\.com$/.test(그림집), 그림집)
+  ok('⚡ G665 index.html — 자료 미리 받기(preload · as=fetch · crossorigin) · 그림집 미리 연결(lib 그림집과 같은 집 — 두 벌 대조) · 예전 배너는 이름만(dns-prefetch)',
+    껍데기.includes('<link rel="preload" href="/coupang/cards.json" as="fetch" crossorigin />') && 껍데기.includes(`<link rel="preconnect" href="https://${그림집}" />`)
+    && !/rel="preconnect" href="https:\/\/ads-partners/.test(껍데기) && 껍데기.includes('<link rel="dns-prefetch" href="https://ads-partners.coupang.com" />'), (껍데기.match(/<link rel="(preload|preconnect|dns-prefetch)"[^>]*>/g) || []))
+  ok('⚡ G665 그림주소 — 집만 그림집으로 · 크기 320 · 492 · 길(…/image/…)은 그대로 · 끝에 «.webp»(가볍게) — 212개 다', 그림주소('https://t3c.coupangcdn.com/thumbnails/remote/212x212ex/image/a/b.png', 320) === `https://${그림집}/thumbnails/remote/320x320ex/image/a/b.png.webp`
+    && D.상품.every((q) => 그림주소(q.그림, 492).startsWith(`https://${그림집}/thumbnails/remote/492x492ex/image/`) && 그림주소(q.그림, 320).split('/image/')[1] === q.그림.split('/image/')[1] + '.webp'))
+  {
+    const 가 = 그림차례('https://t3c.coupangcdn.com/thumbnails/remote/212x212ex/image/a.png', 320)
+    const 나 = 그림차례(`https://${그림집}/thumbnails/remote/212x212ex/image/a.png`, 320)
+    ok('⚡ G665 그림차례 — 그림집 webp → 그림집 원래 꼴 → 원래 집(같은 크기) → 쿠팡이 준 그대로(212) · 같은 주소는 한 번', 가.length === 4 && 가[0] === `https://${그림집}/thumbnails/remote/320x320ex/image/a.png.webp` && 가[1] === `https://${그림집}/thumbnails/remote/320x320ex/image/a.png`
+      && 가[2] === 'https://t3c.coupangcdn.com/thumbnails/remote/320x320ex/image/a.png' && 가[3] === 'https://t3c.coupangcdn.com/thumbnails/remote/212x212ex/image/a.png' && 나.length === 3 && 나[2].includes('/212x212ex/') && !나[2].endsWith('.webp'), { 가, 나 })
+  }
+}
 {
   const 틀린 = { 기준: '2026-11-13', 주제들: [['fruit', '과일']], 칸: 날.칸, 상품: [
     ['fruit', '좋은 것', 'https://t1a.coupangcdn.com/thumbnails/remote/212x212ex/image/a.jpg', 100, 90, 10, 5, 3, 'https://link.coupang.com/a/abcDEF12'],
@@ -113,7 +129,8 @@ if (BASE) {
     return { ...모두, 자리: x.dataset.cpgAt, 이름: x.dataset.cpgN, 주제: x.dataset.cpc, 작게: x.classList.contains('cpc-sm'), 위끝: Math.round(r.top + scrollY), 높이: Math.round(r.height), 앞카드: 앞카드(x),
       씀밖: !!(s && (x.compareDocumentPosition(s) & Node.DOCUMENT_POSITION_FOLLOWING)), 띠앞: 띠 ? !!(x.compareDocumentPosition(띠) & Node.DOCUMENT_POSITION_FOLLOWING) : '띠없음',
       바닥바로위: x.nextElementSibling === 바닥, 딱지: (x.querySelector('.adc-tag') || {}).textContent, 제목: (x.querySelector('.cpc-t') || {}).textContent, 머리: (x.querySelector('.cpc-hs') || {}).textContent,
-      문구: (x.querySelector('.cpc-dis') || {}).textContent, 넘김: 줄칸 ? 줄칸.scrollWidth - 줄칸.clientWidth : -1, 머리넘침: x.querySelector('.cpc-h').scrollWidth - x.querySelector('.cpc-h').clientWidth,
+      문구: (x.querySelector('.cpc-dis') || {}).textContent, 문구보임: (x.querySelector('.cpc-dis') || {}).innerText, 머리보임: getComputedStyle(x.querySelector('.cpc-hs')).display !== 'none',
+      문의: (() => { const q = x.querySelector('a.cpc-ask'); return q ? { 글: q.textContent, 곳: q.getAttribute('href'), 보임: getComputedStyle(q).display !== 'none' && q.getBoundingClientRect().width > 0 } : null })(), 머리단추: getComputedStyle(document.querySelector('.ad-top')).display !== 'none', 넘김: 줄칸 ? 줄칸.scrollWidth - 줄칸.clientWidth : -1, 머리넘침: x.querySelector('.cpc-h').scrollWidth - x.querySelector('.cpc-h').clientWidth,
       카드: cs.length, 카드들: cs.slice(0, 40).map((c) => ({ href: c.getAttribute('href'), target: c.target, rel: c.rel, rp: c.getAttribute('referrerpolicy'), img: (c.querySelector('img') || {}).getAttribute ? c.querySelector('img').getAttribute('src') : '', 이름: (c.querySelector('.cpc-n') || {}).textContent, 값: (c.querySelector('.cpc-p b') || {}).textContent, 할인: (c.querySelector('.cpc-p em') || {}).textContent || '', 원값: (c.querySelector('.cpc-o') || {}).textContent || '', 별: (c.querySelector('.cpc-r') || {}).textContent || '', w: Math.round(c.getBoundingClientRect().width) })) }
   }, 고름)
   const 넘침 = (p) => p.evaluate(() => document.documentElement.scrollWidth - innerWidth)
@@ -136,13 +153,14 @@ if (BASE) {
     ok('맨 위 작은 카드 줄 하나 — 첫 화면 위쪽(260px 안) · «써 본 횟수» 칸 밖 · 공사 연결 띠 앞 · 예전 배너 없음', 위.이름들.filter((x) => x === '위').length === 1 && 위.작게 && 위.위끝 <= 260 && 위.씀밖 && 위.띠앞 === true && 위.배너 === 0, 위)
     ok(`쪽 맞춤 — 첫 화면 맨 위 «${이름of('sitewinter')}»`, 위.주제 === 'sitewinter', 위.주제)
     ok('«광고» 딱지 · 주제 이름 · «쿠팡 · 11월 13일 가격»', 위.딱지 === '광고' && 위.제목 === 이름of(위.주제) && 위.머리 === '쿠팡 · 11월 13일 가격', [위.딱지, 위.제목, 위.머리])
-    ok('대가성 문구 그대로 + «가격은 바뀔 수 있습니다.»', 위.문구 === `${쿠팡문구} 가격은 바뀔 수 있습니다.`, 위.문구)
+    ok('대가성 문구 그대로 + «가격은 11월 13일 쿠팡 기준이며 바뀔 수 있습니다.»(폰 — 날짜가 머리 대신 여기 · G664)', 위.문구 === `${쿠팡문구} 가격은 11월 13일 쿠팡 기준이며 바뀔 수 있습니다.` && 위.문구보임 === 위.문구, [위.문구, 위.문구보임])
+    ok('🩹 G664 폰 — 줄 머리 오른쪽 «광고 · 제휴 문의 →» 보임 → /ad · 머리의 «쿠팡 · 11월 13일 가격» 은 숨김 · 머리줄 «📣 광고 · 제휴» 는 숨김(자리 없음)', 위.문의 && 위.문의.보임 && 위.문의.곳 === '/ad' && 위.문의.글 === '광고 · 제휴 문의 →' && !위.머리보임 && !위.머리단추, [위.문의, 위.머리보임, 위.머리단추])
     ok(`카드 ${위.카드}장 — 링크(쿠팡 상품 링크) · 새 창 · sponsored · noopener · 그림 320 · 이름 · 값(12,900원) · 할인(%)`, 카드꼴(위, 320), 위.카드들.slice(0, 3))
     ok('카드 글이 자료 그대로(이름 · 값 · 주제)', 자료에있음(위), 위.카드들.slice(0, 2))
     ok('그 주제 상품이 다 나옴(주제 하나 = 한 줄)', 위.카드 === D.상품.filter((x) => x.주제 === 위.주제).length, [위.카드])
     ok('작은 카드 — 원값 · 별점은 안 보임(줄을 낮게)', 위.카드들.every((c) => !c.원값 && !c.별))
     ok('옆으로 넘김(줄 폭보다 김) · 쪽 넘침 0 · 머리 넘침 0', 위.넘김 > 300 && await 넘침(p) <= 0 && 위.머리넘침 <= 0, { 넘김: 위.넘김, 넘침: await 넘침(p), 머리넘침: 위.머리넘침 })
-    ok(`맨 위 줄 높이 ${위.높이}px ≤ 250(예전 배너 줄과 비슷 · 첫 화면을 덜 가림)`, 위.높이 <= 250, 위.높이)
+    ok(`맨 위 줄 높이 ${위.높이}px ≤ 270(예전 배너 줄과 비슷 · 첫 화면을 덜 가림 · G664 폰은 날짜가 아래 문구로 와서 한 줄 늚)`, 위.높이 <= 270, 위.높이)
     const 바닥 = await 줄(p, 'aside.cpc[data-cpg-n="바닥"]')
     ok('바닥 큰 카드 줄 — 바닥글 바로 위 · 큰 카드(그림 492 · 원값 · 별점) · 맨 위 줄과 다른 주제', 바닥.바닥바로위 && !바닥.작게 && 카드꼴(바닥, 492) && 바닥.카드들.some((c) => c.원값 && c.별) && 바닥.주제 !== 위.주제, { 주제: [위.주제, 바닥.주제], 바로위: 바닥.바닥바로위, 첫: 바닥.카드들[0] })
     ok('큰 카드 폭 156 · 작은 카드 폭 104', 바닥.카드들.every((c) => c.w === 156) && 위.카드들.every((c) => c.w === 104), [바닥.카드들[0].w, 위.카드들[0].w])
@@ -160,8 +178,8 @@ if (BASE) {
     await p.evaluate(() => document.querySelector('aside.cpc[data-cpg-n="바닥"]').scrollIntoView({ block: 'center' }))
     await 기다림(() => 셈수('쿠팡보임', '바닥', 바닥.주제) > 0)
     ok(`바닥 줄이 보이면 «|쿠팡보임|카드-바닥-${바닥.주제}» 한 번`, 셈수('쿠팡보임', '바닥', 바닥.주제) === 1, 셈들)
-    const 그림주소 = 그림들.filter((u) => /coupangcdn/.test(u))
-    ok('그림은 쿠팡 그림 주소로만 받음(320 · 492) · 처음 세 장 빼고 늦게(lazy)', 그림주소.length > 0 && 그림주소.every((u) => /\/(320x320|492x492)ex\//.test(u)) && await p.evaluate(() => [...document.querySelectorAll('aside.cpc')].every((a) => [...a.querySelectorAll('img')].every((im, i) => im.getAttribute('loading') === (i < 3 ? 'eager' : 'lazy')))), 그림주소.slice(0, 3))
+    const 받은그림 = 그림들.filter((u) => /coupangcdn/.test(u))
+    ok(`그림은 쿠팡 그림 주소로만 받음(320 · 492) · ⚡ G665 집은 그림집(${그림집}) 하나 · webp · 맨 위 줄 처음 세 장만 바로(eager · fetchpriority high) · 나머지 · 목록 · 바닥 줄은 늦게(lazy — G663b · 우선 표시 없음)`, 받은그림.length > 0 && 받은그림.every((u) => /\/(320x320|492x492)ex\//.test(u) && u.startsWith(`https://${그림집}/`) && u.endsWith('.webp')) && await p.evaluate(() => [...document.querySelectorAll('aside.cpc')].every((a) => [...a.querySelectorAll('img')].every((im, i) => im.getAttribute('loading') === (a.dataset.cpgN === '위' && i < 3 ? 'eager' : 'lazy') && im.getAttribute('fetchpriority') === (a.dataset.cpgN === '위' && i < 3 ? 'high' : null)))), 받은그림.slice(0, 3))
     await p.click('footer a[href="/how"]')
     await p.waitForURL(/\/how$/, { timeout: 10000 }); await p.waitForTimeout(900)
     const z2 = await 줄(p, 'aside.cpc[data-cpg-n="위"]')
@@ -224,6 +242,14 @@ if (BASE) {
     const 뒤 = await p.evaluate(() => document.querySelector('aside.cpc[data-cpg-n="목록1"] .cpc-row').scrollLeft)
     ok('PC 1280 — ‹ › 단추 보임 · › 를 누르면 줄이 넘어감 · 큰 카드 168 · 넘침 0', 단추.length === 2 && 단추.every((x) => /^flex\/28$/.test(x)) && 뒤 > 앞 + 200 && z.카드들.every((c) => c.w === 168) && await 넘침(p) <= 0, { 단추, 앞, 뒤, w: z.카드들[0].w })
     if (OUT) { await 숨김(p); await p.evaluate(() => window.scrollTo(0, 0)); await p.waitForTimeout(400); await p.screenshot({ path: `${OUT}/카드_PC1280_위.png` }) }
+    {
+      const z1 = await 줄(p, 'aside.cpc[data-cpg-n="위"]')
+      ok('🩹 G664 PC 1280 — 머리줄 «📣 광고 · 제휴» 보임 · 줄 머리에 «쿠팡 · 11월 13일 가격» 과 «광고 · 제휴 문의 →» 둘 다 · 아래 문구엔 날짜 안 보임', z1.머리단추 && z1.머리보임 && z1.문의 && z1.문의.보임 && z1.문구보임 === `${쿠팡문구} 가격은 바뀔 수 있습니다.`, [z1.머리단추, z1.머리보임, z1.문의, z1.문구보임])
+      const [새창] = await Promise.all([p.waitForURL(/\/ad$/, { timeout: 8000 }).then(() => true).catch(() => false), p.click('aside.cpc[data-cpg-n="위"] a.cpc-ask')])
+      await 기다림(() => 셈들.some((u) => u.includes('|광고문의|쿠팡줄')))
+      ok('🩹 G664 «광고 · 제휴 문의 →» 를 누르면 /ad(같은 창) · «|광고문의|쿠팡줄» 셈', 새창 && 셈들.filter((u) => u.includes('|광고문의|쿠팡줄')).length === 1, 셈들.filter((u) => /광고문의/.test(u)))
+      await p.goto(BASE + '/first', { waitUntil: 'domcontentloaded' }); await p.waitForSelector('aside.cpc[data-cpg-n="목록1"] a.cpc-c', { timeout: 15000 }); await p.waitForTimeout(400)
+    }
     await p.emulateMedia({ media: 'print' })
     ok('PC — 인쇄에는 안 나옴 · 오류 0', await p.evaluate(() => [...document.querySelectorAll('aside.cpc')].every((x) => getComputedStyle(x).display === 'none')) && !오류.length, 오류)
     await ctx.close()
@@ -233,6 +259,18 @@ if (BASE) {
     await p.goto(BASE + '/first', { waitUntil: 'domcontentloaded' })
     await p.waitForSelector('aside.cpc[data-cpg-n="위"] a.cpc-c', { timeout: 15000 }); await p.waitForTimeout(400)
     ok('폰 — ‹ › 단추는 안 보임(손으로 밀어 넘김)', await p.evaluate(() => getComputedStyle(document.querySelector('aside.cpc .cpc-nav')).display === 'none'))
+    await ctx.close()
+  }
+  for (const [w, 폰, 보임] of [[1028, false, true], [700, false, true], [600, true, true], [560, true, true], [559, true, false], [430, true, false]]) {
+    const { ctx, p, 오류 } = await 새쪽(w, 800, { 폰 })
+    for (const 길 of ['/', '/tools/boheomryo']) {
+      await p.goto(BASE + 길, { waitUntil: 'domcontentloaded' })
+      await p.waitForSelector('aside.cpc[data-cpg-n="위"] a.cpc-c', { timeout: 15000 }); await p.waitForTimeout(400)
+      const r = await p.evaluate(() => { const ti = document.querySelector('.topbar-in'), a = document.querySelector('.ad-top'), h = document.querySelector('aside.cpc[data-cpg-n="위"] .cpc-h'), q = h.querySelector('a.cpc-ask')
+        return { 단추: getComputedStyle(a).display !== 'none', 곳: a.getAttribute('href'), 머리넘침: ti.scrollWidth - ti.clientWidth, 줄머리넘침: h.scrollWidth - h.clientWidth, 문의: !!q && getComputedStyle(q).display !== 'none', 쪽넘침: document.documentElement.scrollWidth - innerWidth } })
+      ok(`🩹 G664 ${w} ${길} — 머리줄 «📣 광고 · 제휴» ${보임 ? '보임' : '숨김(폰 · 자리 없음)'} · 줄 머리 «광고 · 제휴 문의 →» 보임 · 머리줄 · 줄 머리 · 쪽 넘침 0`, r.단추 === 보임 && r.곳 === '/ad' && r.머리넘침 <= 0 && r.줄머리넘침 <= 0 && r.문의 && r.쪽넘침 <= 0, r)
+    }
+    ok(`🩹 G664 ${w} 오류 0`, !오류.length, 오류)
     await ctx.close()
   }
   {
@@ -302,6 +340,70 @@ if (BASE) {
     const 후 = await p.evaluate(() => [Math.round(document.querySelector('.noti-band.cn').getBoundingClientRect().top + scrollY), Math.round(document.querySelector('aside.cpc[data-cpg-n="위"]').getBoundingClientRect().height)])
     const z = await 줄(p)
     ok(`자료가 늦게 와도 — 먼저 같은 높이 빈 틀(${전[1]} → ${후[1]}px · 읽기 프로그램엔 숨김)로 자리 잡음 · 덜컥임 ${후[0] - 전[0]}px ≤ 4 · 오면 빈 틀은 사라짐 · 오류 0`, Math.abs(후[0] - 전[0]) <= 4 && Math.abs(후[1] - 전[1]) <= 4 && 전[2] === 'true' && z.기다림 === 0 && z.이름들.includes('위') && !오류.length, { 전, 후, 기다림: z.기다림, 오류 })
+    await ctx.close()
+  }
+  console.log('⚡ G665 — 늦게 뜨는 것 · 그림 빈 칸(소장님 11-13 「광고가 늦게 떠」 · 폰 캡처 첫 그림 흰 칸)')
+  const 위그림 = (p) => p.evaluate(() => [...document.querySelectorAll('aside.cpc[data-cpg-n="위"] img')].slice(0, 3).map((im) => ({ src: im.getAttribute('src'), 다됨: im.complete, 폭: im.naturalWidth, on: im.classList.contains('on'),
+    숨김: im.style.visibility === 'hidden', k: im.dataset.k || '0', 바탕: getComputedStyle(im).backgroundColor })))
+  {
+    const 첫글 = await (await fetch(BASE + '/')).text()
+    ok('굽은 첫 쪽(index.html)에도 — 자료 미리 받기 · 그림집 미리 연결', 첫글.includes('<link rel="preload" href="/coupang/cards.json" as="fetch" crossorigin') && 첫글.includes(`<link rel="preconnect" href="https://${그림집}"`), (첫글.match(/<link rel="(preload|preconnect)"[^>]*>/g) || []))
+    const { ctx, p, 오류 } = await 새쪽(390, 844)
+    const 자료요청 = []
+    p.on('request', (q) => { if (/\/coupang\/cards\.json/.test(q.url())) 자료요청.push(q.resourceType()) })
+    await p.goto(BASE + '/', { waitUntil: 'domcontentloaded' })
+    await p.waitForSelector('aside.cpc[data-cpg-n="위"] a.cpc-c', { timeout: 15000 }); await p.waitForTimeout(800)
+    const 표 = await p.evaluate(() => {
+      const 자료 = performance.getEntriesByType('resource').filter((e) => /\/coupang\/cards\.json/.test(e.name))
+      const 묶음 = performance.getEntriesByType('resource').filter((e) => /\/assets\/index-[^/]+\.js$/.test(e.name))
+      return { 자료: 자료.map((e) => [e.initiatorType, Math.round(e.startTime)]), 묶음끝: 묶음.map((e) => Math.round(e.responseEnd)) }
+    })
+    ok('자료(cards.json)는 한 번만 받음 — index.html 미리 받기(preload)를 앱이 그대로 이어받음(두 번 안 받음)', 자료요청.length === 1 && 표.자료.length === 1 && 표.자료[0][0] === 'link', { 자료요청, 자료: 표.자료 })
+    ok('자료를 앱 묶음(index-*.js)이 다 오기 «전에» 받기 시작(전엔 앱이 돈 뒤에야)', 표.자료.length === 1 && 표.묶음끝.length >= 1 && 표.자료[0][1] < Math.min(...표.묶음끝), 표)
+    const g = await 위그림(p)
+    ok('맨 위 처음 세 장 — 다 받음 · on(받는 동안 바탕 없앰) · 숨김 없음', g.length === 3 && g.every((x) => x.다됨 && x.폭 > 0 && x.on && !x.숨김 && x.바탕 === 'rgba(0, 0, 0, 0)'), g)
+    ok('오류 0', !오류.length, 오류)
+    await ctx.close()
+  }
+  {
+    const { ctx, p, 오류 } = await 새쪽(390, 844)
+    let 막음 = 0
+    await ctx.route(new RegExp(그림집.replace(/\./g, '\\.') + '/thumbnails/remote/320x320ex/'), (r) => { 막음++; r.fulfill({ status: 503, body: '' }) })
+    await p.goto(BASE + '/', { waitUntil: 'domcontentloaded' })
+    await p.waitForSelector('aside.cpc[data-cpg-n="위"] a.cpc-c', { timeout: 15000 })
+    await 기다림(() => false, 1500)
+    const g = await 위그림(p)
+    const 원래집 = await p.evaluate(() => [...document.querySelectorAll('aside.cpc[data-cpg-n="위"] a.cpc-c')].slice(0, 3).map((a) => a.getAttribute('href')))
+    const 기대 = 원래집.map((h) => { const q = D.상품.find((x) => x.짧은 === h); return q ? 그림차례(q.그림, 320) : [] })
+    ok(`그림집에서 못 받으면(503 · ${막음}번) — 다음 주소(원래 집 · 쿠팡이 준 그대로)로 다시 받아 빈 칸 없음`, 막음 >= 1 && g.length === 3 && g.every((x, i) => x.폭 > 0 && x.on && !x.숨김 && x.src === 기대[i][Number(x.k)] && Number(x.k) >= 1), { g, 기대 })
+    ok('오류 0', !오류.length, 오류)
+    await ctx.close()
+  }
+  {
+    const { ctx, p, 오류 } = await 새쪽(390, 844)
+    const 받음 = {}
+    await ctx.route(/coupangcdn\.com/, (r) => { const u = r.request().url(); 받음[u] = (받음[u] || 0) + 1; r.fulfill({ status: 404, body: '' }) })
+    await p.goto(BASE + '/', { waitUntil: 'domcontentloaded' })
+    await p.waitForSelector('aside.cpc[data-cpg-n="위"] a.cpc-c', { timeout: 15000 })
+    await 기다림(() => false, 1500)
+    const g = await 위그림(p)
+    const 끝까지 = await p.evaluate(() => [...document.querySelectorAll('aside.cpc[data-cpg-n="위"] a.cpc-c')].slice(0, 3).map((a) => a.getAttribute('href')))
+    const 길수 = 끝까지.map((h) => { const q = D.상품.find((x) => x.짧은 === h); return q ? 그림차례(q.그림, 320).length : 0 })
+    ok('다 못 받으면 — 차례를 다 해 본 뒤 그 칸만 비움(되풀이 없음 · 주소마다 한 번)', g.every((x, i) => x.숨김 && Number(x.k) === 길수[i] - 1) && Object.values(받음).every((v) => v === 1), { g: g.map((x) => [x.k, x.숨김]), 길수, 많이: Object.entries(받음).filter(([, v]) => v > 1) })
+    ok('오류 0', !오류.length, 오류)
+    await ctx.close()
+  }
+  for (const 어둠 of [false, true]) {
+    const { ctx, p, 오류 } = await 새쪽(390, 844, { 어둠 })
+    await ctx.route(/coupangcdn\.com/, async (r) => { await new Promise((x) => setTimeout(x, 2500)); r.fulfill({ status: 200, contentType: 'image/svg+xml', body: 가짜그림(r.request().url()) }) })
+    await p.goto(BASE + '/', { waitUntil: 'domcontentloaded' })
+    await p.waitForSelector('aside.cpc[data-cpg-n="위"] a.cpc-c', { timeout: 15000 })
+    const 받는중 = await 위그림(p)
+    const 빈틀빛 = await p.evaluate(() => { const d = document.createElement('div'); d.style.background = 'var(--ad-head)'; document.body.appendChild(d); const c = getComputedStyle(d).backgroundColor; d.remove(); return c })
+    await 기다림(() => false, 3200)
+    const 받은뒤 = await 위그림(p)
+    ok(`그림을 받는 동안(${어둠 ? '어두운' : '밝은'} 화면) — 칸이 빈 틀 빛(${빈틀빛} · 흰 빈 칸 아님) · 받으면 on · 바탕 없앰`, 받는중.every((x) => !x.on && x.바탕 === 빈틀빛 && 빈틀빛 !== 'rgb(255, 255, 255)') && 받은뒤.every((x) => x.on && x.폭 > 0 && x.바탕 === 'rgba(0, 0, 0, 0)'), { 받는중: 받는중.map((x) => [x.on, x.바탕]), 받은뒤: 받은뒤.map((x) => [x.on, x.바탕]) })
+    ok('오류 0', !오류.length, 오류)
     await ctx.close()
   }
   await b.close()

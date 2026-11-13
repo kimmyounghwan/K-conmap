@@ -2,8 +2,12 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
-    <!-- ⚡ G660 (11-12) 쿠팡 배너(맨 위 줄)가 처음에 늦게 뜨는 것 — 배너 주소에 미리 연결 -->
-    <link rel="preconnect" href="https://ads-partners.coupang.com" />
+    <!-- ⚡ G665 (11-13) 쿠팡 카드 줄(G663 — 맨 위 · 목록 · 바닥)이 늦게 뜨는 것 — 소장님 「광고가 늦게 떠」
+         ① 상품 자료(cards.json)를 앱 묶음과 «같이» 받기 시작(전엔 앱 묶음을 다 받아 돌린 뒤에야 받음 — 쿠팡카드줄.jsx 받기() 가 이것을 이어받음)
+         ② 상품 그림 집에 미리 연결(그림 주소를 한 집으로 모음 — lib/쿠팡카드.js 그림집 · 바꾸면 여기도)
+         ③ 예전 배너(G660 — 자료를 못 받을 때만 나옴)는 이름만 미리 찾아 둠(미리 연결은 거의 안 쓰는 연결이라 뺌) -->
+    <link rel="preload" href="/coupang/cards.json" as="fetch" crossorigin />
+    <link rel="preconnect" href="https://thumbnail6.coupangcdn.com" />
     <link rel="dns-prefetch" href="https://ads-partners.coupang.com" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#1d4ed8" />

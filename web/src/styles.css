@@ -10356,7 +10356,9 @@ div.bth { padding: 0; }
 .adc-recruit .adc-nm { font-size: 15px; }
 .adc-demo { margin: 6px 0 0; }
 .ad-top { display: none; }
-@media (min-width: 1100px) { .ad-top { display: inline-flex; align-items: center; height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.28); color: #fde68a; font-size: 13px; font-weight: 800; text-decoration: none; white-space: nowrap; } .ad-top:hover { background: rgba(255,255,255,.08); } }
+/* 🩹 G664 (11-13) 소장님 「광고 제휴 한다는 조그만 버튼이 안보여 확인해봐」 「제일 위」 — 1100px 넘을 때만 → 560px 부터(태블릿 · 좁은 PC 창 · 소장님 PC 창 1028px)
+   폰(560 안)은 머리줄에 자리가 없음(뒤로 단추가 있는 쪽에서 390 폭 27px 넘침 — 잼) → 쿠팡 카드 줄 머리 오른쪽 «광고 · 제휴 문의 →»(업체 광고 칸과 같은 꼴 · 쿠팡카드줄.jsx) */
+@media (min-width: 560px) { .ad-top { display: inline-flex; align-items: center; height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.28); color: #fde68a; font-size: 13px; font-weight: 800; text-decoration: none; white-space: nowrap; } .ad-top:hover { background: rgba(255,255,255,.08); } }
 .footer .ft-ad b { color: var(--ad-btn); }
 .adinfo { max-width: 760px; margin: 0 auto; }
 .adinfo-hero { background: var(--ad-bg); border: 1.5px solid var(--ad-line); }
@@ -10857,7 +10859,10 @@ html.vv-kick :is(.topbar, .tabbar, .cam-tab) { will-change: opacity; }
 .cpc-h { display: flex; align-items: center; gap: 6px; padding: 8px 12px 0; min-width: 0; }
 .cpc-t { font-size: 15px; font-weight: 900; letter-spacing: -.3px; color: var(--ad-text); white-space: nowrap; }
 .cpc-hs { font-size: 11.5px; font-weight: 700; color: var(--ad-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.cpc-nav { margin-left: auto; display: none; gap: 4px; flex: none; }
+.cpc-nav { margin-left: 8px; display: none; gap: 4px; flex: none; }
+.cpc-ask { margin-left: auto; flex: none; }   /* 🩹 G664 «광고 · 제휴 문의 →»(.adc-ask 같은 꼴) — 폰에서도 맨 위 줄 머리에 보임 */
+.cpc-d { display: none; }   /* 🩹 G664 폰은 머리의 «쿠팡 · ○월 ○일 가격» 을 빼고 아래 문구에 날짜(자리 — 광고 · 제휴 문의) */
+@media (max-width: 559px) { .cpc-hs { display: none; } .cpc-d { display: inline; } }
 @media (hover: hover) and (pointer: fine) { .cpc-nav { display: flex; } }
 .cpc-nav button { width: 28px; height: 28px; padding: 0; border-radius: 50%; border: 1px solid var(--ad-line); background: var(--surface); color: var(--ad-text); font-size: 18px; line-height: 1; cursor: pointer; }
 .cpc-nav button:hover { background: var(--ad-head); }
@@ -10865,7 +10870,8 @@ html.vv-kick :is(.topbar, .tabbar, .cam-tab) { will-change: opacity; }
 .cpc-row::-webkit-scrollbar { display: none; }
 .cpc-c { flex: 0 0 156px; width: 156px; min-width: 0; scroll-snap-align: start; display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: inherit; -webkit-tap-highlight-color: transparent; }
 .cpc-img { display: block; width: 100%; aspect-ratio: 1 / 1; border-radius: 10px; overflow: hidden; background: #fff; border: 1px solid rgba(0, 0, 0, .06); }
-.cpc-img img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .2s; }
+.cpc-img img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .2s; background: var(--ad-head); }
+.cpc-img img.on { background: none; }   /* ⚡ G665 그림을 받는 동안엔 빈 틀(cpc-wait)과 같은 빛 — 흰 빈 칸이 «깨진 그림» 처럼 보였음(소장님 폰 캡처) · 받으면 on */
 @media (hover: hover) { .cpc-c:hover .cpc-img img { transform: scale(1.04); } .cpc-c:hover .cpc-n { text-decoration: underline; } }
 .cpc-n { margin-top: 5px; font-size: 13px; line-height: 1.38; color: var(--ad-text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; min-height: calc(13px * 1.38 * 2); }
 .cpc-p { display: flex; align-items: baseline; gap: 5px; font-size: 15.5px; line-height: 1.3; white-space: nowrap; }

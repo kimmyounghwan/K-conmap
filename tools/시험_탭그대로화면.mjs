@@ -54,6 +54,9 @@ const b = await chromium.launch()
 async function 새쪽(폰) {
   const ctx = await b.newContext({ viewport: 폰 ? { width: 390, height: 844 } : { width: 1280, height: 900 }, locale: 'ko-KR', timezoneId: 'Asia/Seoul', isMobile: 폰, hasTouch: 폰, ...(폰 ? { userAgent: UA폰 } : {}) })
   await ctx.clock.setFixedTime(고정)
+  /* 🩹 G664 (11-13) TG_HIDE 칸은 쪽이 «뜰 때부터» 숨김 — 찍을 때만 숨기면 숨기기 전 높이 차이(예: 쿠팡 맨 위 줄 249 → 265px)로
+     글 칸에 커서가 가는 쪽(/corp)에서 머리줄(sticky)이 찍힌 자리가 달라져 «다른 그림» 으로 잘못 잡혔음(두 판 모두 처음부터 숨기면 0점 차이 — 잼) */
+  if (process.env.TG_HIDE) await ctx.addInitScript((css) => { const 붙이기 = () => { const st = document.createElement('style'); st.textContent = css + '{display:none !important}'; (document.head || document.documentElement).appendChild(st) }; if (document.documentElement) 붙이기(); else document.addEventListener('DOMContentLoaded', 붙이기) }, process.env.TG_HIDE)
   /* 늦게 단 길이 먼저 — 나머지 /data 는 둘 다 404 */
   await ctx.route(/\/data\//, (r) => r.fulfill({ status: 404, body: '' }))
   await ctx.route(/googletagmanager|google-analytics|pagead2|adsbygoogle|googlesyndication|geojs|doubleclick|kakao|naver/, (r) => r.fulfill({ status: 200, body: '' }))
@@ -106,6 +109,9 @@ async function 열기(p, 주소, 더 = 0) {
   await p.evaluate(() => document.querySelectorAll('img[loading="lazy"]').forEach((i) => { i.loading = 'eager' })).catch(() => {})
   try { await p.waitForFunction(() => [...document.images].every((i) => i.complete) && !document.querySelector('[class*="skel"]'), null, { timeout: 4000 }) } catch (e) { /* 계속 */ }
   await p.evaluate(() => Promise.all([...document.images].map((i) => (i.decode ? i.decode().catch(() => {}) : null)))).catch(() => {})   /* 그림 풀기(webp)까지 끝난 뒤 찍음 */
+  /* 🩹 G665 (11-13) «화면에 들어올 때 받는» 칸(확보예가 — IntersectionObserver)도 찍기 «전에» 다 받게: 끝까지 내렸다 맨 위로.
+     전엔 통째 찍기(fullPage)가 창을 늘리는 그 순간에 받기 시작해, 한 판은 «받아 셉니다…» · 다른 판은 «받지 못했습니다» 로 찍혀 «다른 그림» 이 됐음(/?no= 폰 — 코드 차이 아님) */
+  await p.evaluate(async () => { const H = document.documentElement.scrollHeight; for (let y = 0; y < H; y += Math.max(200, innerHeight - 100)) { scrollTo(0, y); await new Promise((r) => setTimeout(r, 80)) } scrollTo(0, 0) }).catch(() => {})
   await p.waitForTimeout(1200 + 더)
 }
 /* 아래(폰 tabbar) · 위(PC railnav) 탭 띠는 둘 다 숨김 — «분석 → 자격증» 이름만 바뀐 자리(④에서 따로 봄) */
