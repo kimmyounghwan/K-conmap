@@ -15,7 +15,10 @@
  *   ⑧ PC(윈도 크롬) · 안드로이드 — 같은 가짜 값이어도 아무것도 안 바뀜
  *   ⑨ 재발 막기 — styles.css 의 position: fixed · sticky(아래) 를 다 «G661 목록» 또는 «뺌(까닭)» 에 두었는지
  *   ⑩ G661b 쿠팡 배너(다른 사이트 틀)에 커서가 남아도 — 키보드가 없으면 바로잡음 · 키보드가 올라와 있으면 안 건드림
- *   ⑪ G661c 진단(소장님 폰에서도 셈) — A: 바로잡을 때 숫자 한 번 · B: 기준점 0 인데 탭 바닥이 어긋날 때 숫자 한 번 · 깨우기(vv-kick 두 그림 · opacity)
+ *   ⑪ G661c 진단(소장님 폰에서도 셈) — A: 바로잡을 때 숫자 한 번 · B: 안 바로잡았는데 탭 바닥이 0.8초 넘게 어긋날 때 숫자(G667 꼴 t·h·m·c·b·f) · 깨우기(vv-kick 두 그림 · opacity)
+ *   ⑫ G667 «끼임» — 소장님 11-13 16:03 캡처(탭 바닥 568.7pt / 874 · 「탭이 같이 올라가」): 글자판을 닫았는데 보이는 높이까지 줄어 있는 채 남음 →
+ *      커서 없이 0.7초 넘게 이어지면 바로잡음(내리고 올릴 때 기준점을 0 까지 따라감) · 다시 글 쓰면 바로 풂 · 글자판이 제대로 내려가면 한 번도 안 움직임 ·
+ *      커서만 남고 높이는 돌아온 채 1.5초 넘으면 바로잡음 · 진단 C 한 번
  *   인터넷 안 부름(파이어베이스 · 광고 · 애널리틱스 막음 · 셈은 가로채서 봄).
  */
 import fs from 'node:fs'
@@ -144,7 +147,7 @@ const 커서뺌 = (p) => p.evaluate(() => { if (document.activeElement && docume
   ok('④ 숨은 셈 |아이폰자리|바로잡음 — 한 번', 셈.length === 1 && /\|아이폰자리\|바로잡음\.json$/.test(셈[0].u), 셈)
   await 쉬어(1200)
   const 진A = 보냄.filter((x) => /아이폰자리\|진단-A-/.test(x.u))
-  ok('⑪ 진단 A(기준점이 남아 바로잡음) — 한 번 · 숫자(t343 · h874 · i874 · 바로잡은 탭 바닥 b1217)', 진A.length === 1 && /진단-A-t343-h874-i874-b1217-s\d+-(웹|앱)\.json$/.test(진A[0].u), 진A.map((x) => x.u.replace(/^.*\/dl\/p\//, '')))
+  ok('⑪ 진단 A(기준점이 남아 바로잡음) — 한 번 · 숫자(t343 · h874 · m874 · c874 · 바로잡기 전 탭 바닥 b874 · 커서 없음)', 진A.length === 1 && /진단-A-t343-h874-m874-c874-b874-fN-s\d+-(웹|앱)\.json$/.test(진A[0].u), 진A.map((x) => x.u.replace(/^.*\/dl\/p\//, '')))
   ok('⑪ 기준점 탓 어긋남엔 진단 B 없음', !보냄.some((x) => /진단-B-/.test(x.u)))
 
   /* ⑤ 아이폰이 스스로 돌아옴 */
@@ -201,8 +204,69 @@ const 커서뺌 = (p) => p.evaluate(() => { if (document.activeElement && docume
   /* 🩺 진단 B — 기준점은 0 인데 아래 탭 바닥이 보이는 바닥과 어긋남(다른 꼴 · 아직 못 바로잡음 → 숫자만 적음) — 맨 끝(가장 큰 높이가 바뀜) */
   await 값(p, { offsetTop: 0, height: 1100 }); await 쉬어(1300)
   const 진B = 보냄.filter((x) => /아이폰자리\|진단-B-/.test(x.u))
-  ok('⑪ 진단 B(기준점 0 · 탭 바닥 874 ≠ 보이는 바닥 1100) — 한 번 · 바로잡지는 않음', 진B.length === 1 && /진단-B-t0-h1100-i874-b874-/.test(진B[0].u) && !(await 상태(p)).고침, 진B.map((x) => x.u.replace(/^.*\/dl\/p\//, '')))
+  ok('⑪ 진단 B(기준점 0 · 탭 바닥 874 ≠ 보이는 바닥 1100) — 한 번 · 바로잡지는 않음', 진B.length === 1 && /진단-B-t0-h1100-m1100-c874-b874-fN-/.test(진B[0].u) && !(await 상태(p)).고침, 진B.map((x) => x.u.replace(/^.*\/dl\/p\//, '')))
   ok('화면 오류 없음', 오류.length === 0, 오류)
+  await ctx.close()
+}
+
+/* ━━ ⑫ G667 «끼임» — 글자판을 닫았는데 보이는 높이까지 줄어 있는 채 남음(소장님 11-13 16:03 캡처 · 「탭이 같이 올라가」) ━━ */
+{
+  console.log('■ 아이폰 ⑫ G667 끼임(보이는 높이까지 줄어 있음)')
+  const { ctx, p, 오류, 보냄 } = await 새판(UA아이폰)
+  await 열기(p, '/')
+  await 값(p, { offsetTop: 0, scale: 1, height: 874 }); await 쉬어(300)
+  ok('⑫ (시험 준비) 입력칸에 커서', await 커서(p))
+  await 값(p, { height: 531, offsetTop: 0 }); await 쉬어(300)
+  ok('⑫ 글 쓰는 중(커서 · 높이 531) — 안 건드림', !(await 상태(p)).고침)
+  /* 글자판 닫음 — 커서는 빠졌는데 보이는 높이 531 이 그대로 남음(끼임) · 맨 위(기준점 0) */
+  await 커서뺌(p); await 쉬어(1000)
+  let s = await 상태(p)
+  ok('⑫ 끼임 + 맨 위(기준점 0) — 안 건드림(탭 제자리)', !s.고침 && s.탭바닥 === s.높이, s)
+  /* 내림 — 보이는 쪽이 바탕 안에서 미끄러져 기준점이 커짐(바로잡지 않으면 탭이 글과 같이 올라감) */
+  await 값(p, { offsetTop: 150 }, 'scroll'); await 쉬어(150)
+  s = await 상태(p)
+  ok('⑫ 끼임에서 내림(150) — 바로 바로잡음(0.7초 지남 · 기다림 없음)', s.고침 && s.dy === '150px' && s.탭옮김 === '0px 150px' && s.머리top === '150px', s)
+  await 값(p, { offsetTop: 305 }, 'scroll'); await 쉬어(150)
+  s = await 상태(p)
+  ok('⑫ 더 내림(305 — 캡처와 같은 어긋남) — 따라감', s.고침 && s.dy === '305px' && s.탭옮김 === '0px 305px' && s.머리top === '305px', s)
+  await 값(p, { offsetTop: 20 }, 'scroll'); await 쉬어(150)
+  s = await 상태(p)
+  ok('⑫ 다시 올림(20) — 작은 값도 따라감', s.고침 && s.dy === '20px', s)
+  await 값(p, { offsetTop: 0 }, 'scroll'); await 쉬어(150)
+  s = await 상태(p)
+  ok('⑫ 맨 위(0) — 끼인 동안은 켠 채 0(탭 · 머리줄 제자리)', s.고침 && s.dy === '0px' && s.탭바닥 === s.높이 && s.머리top === '0px', s)
+  /* 다시 글을 씀(커서 + 높이 줄어 있음) — 바로 풂(아이폰이 하는 대로 · 입력칸을 가리지 않게) */
+  await 커서(p); await 값(p, { offsetTop: 200 }, 'scroll'); await 쉬어(200)
+  ok('⑫ 다시 글 씀(커서 + 높이 531) — 바로 풂', !(await 상태(p)).고침)
+  /* 닫음 — 다시 끼임(305) · 0.7초 안에는 안 건드림(글자판이 내려가는 중일 수 있음) → 지나면 바로잡음 */
+  await 커서뺌(p); await 값(p, { offsetTop: 305 }, 'scroll'); await 쉬어(350)
+  ok('⑫ 닫은 직후 0.35초 — 아직 안 건드림', !(await 상태(p)).고침)
+  await 쉬어(800)
+  s = await 상태(p)
+  ok('⑫ 0.7초 넘게 끼임 — 바로잡음(305)', s.고침 && s.dy === '305px' && s.탭옮김 === '0px 305px', s)
+  /* 아이폰이 스스로 돌아옴(높이 874 · 기준점 0) — 바로 풂 */
+  await 값(p, { height: 874, offsetTop: 0 }); await 쉬어(300)
+  s = await 상태(p)
+  ok('⑫ 스스로 돌아옴(높이 874 · 0) — 풂', !s.고침 && s.dy === '' && s.탭옮김 === 'none', s)
+  /* 글자판이 제대로 내려감(커서 빠진 뒤 0.3초 안에 높이 · 기준점 돌아옴) — 한 번도 안 움직임(깜빡임 없음) */
+  await p.evaluate(() => { window.__깜 = 0; new MutationObserver(() => { if (document.documentElement.classList.contains('vv-fix')) window.__깜++ }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] }) })
+  await 커서(p); await 값(p, { height: 531, offsetTop: 343 }); await 쉬어(300)
+  await 커서뺌(p); await 쉬어(150); await 값(p, { height: 700, offsetTop: 200 }); await 쉬어(120); await 값(p, { height: 874, offsetTop: 0 }); await 쉬어(1200)
+  ok('⑫ 글자판이 제대로 내려감(0.3초) — 한 번도 안 움직임', (await p.evaluate(() => window.__깜)) === 0 && !(await 상태(p)).고침)
+  /* 커서는 글칸에 남았는데 글자판은 내려감(높이 874) + 343 남음 — 1.5초 기다렸다 바로잡음 */
+  await 커서(p); await 값(p, { height: 874, offsetTop: 343 }); await 쉬어(1000)
+  ok('⑫ 커서 남음 + 높이 돌아옴 — 1초 안에는 안 건드림(막 커서가 들어간 것일 수 있음)', !(await 상태(p)).고침)
+  await 쉬어(1800)
+  s = await 상태(p)
+  ok('⑫ 커서 남음 + 높이 돌아옴 1.5초 넘게 — 바로잡음(글자판은 내려갔는데 커서만 남음)', s.고침 && s.dy === '343px', s)
+  await 커서뺌(p); await 값(p, { offsetTop: 0 }); await 쉬어(300)
+  ok('⑫ 풂', !(await 상태(p)).고침)
+  await 쉬어(300)
+  const 진C = 보냄.filter((x) => /아이폰자리\|진단-C-/.test(x.u))
+  ok('⑫ 진단 C(끼임 · 바로잡음) — 한 번 · 숫자(t150 · h531 · m874 · c874 · b874 · 커서 없음)', 진C.length === 1 && /진단-C-t150-h531-m874-c874-b874-fN-s\d+-(웹|앱)\.json$/.test(진C[0].u), 진C.map((x) => x.u.replace(/^.*\/dl\/p\//, '')))
+  ok('⑫ 진단 B 는 한 쪽에 셋까지', 보냄.filter((x) => /아이폰자리\|진단-B-/.test(x.u)).length <= 3, 보냄.filter((x) => /진단-B-/.test(x.u)).map((x) => x.u.replace(/^.*\/dl\/p\//, '')))
+  ok('⑫ 셈 |아이폰자리|바로잡음 — 한 번', 보냄.filter((x) => /아이폰자리\|바로잡음/.test(x.u)).length === 1)
+  ok('⑫ 화면 오류 없음', 오류.length === 0, 오류)
   await ctx.close()
 }
 
