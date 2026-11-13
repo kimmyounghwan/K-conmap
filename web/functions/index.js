@@ -94,8 +94,11 @@ exports.quoteMail = onValueCreated(
     const id = event.params.id
     if (q.sent) return                       /* 깃허브가 먼저 보냈으면 그만둡니다 */
 
+    /* 📬 G678 (11-14 소장님 「문의함 보내면 이것도 메일로 오게」 · 「사이트 운영에 내가 알아야 할 사항은 메일로」 → 고르심 «문의 · 접수» 만 바로)
+       제목 머리를 «[건설맵 중요]» 로 — 맵톡 새 글 «[K-건설맵]» 과 갈라 받은편지함에서 바로 보이게 · 갈래(광고 · 제휴 · 공사 연결 · 서류 작성대행 · 사이트 문의)를 제목에 */
+    const 갈래 = String(q.want || '문의').slice(0, 30)
     const 본문 = [
-      '새 문의가 들어왔습니다.',
+      '새 문의가 들어왔습니다 — ' + 갈래,
       '',
       줄('무슨 일  ', q.work),
       줄('필요한 것', q.want),
@@ -117,7 +120,7 @@ exports.quoteMail = onValueCreated(
     ].join('\n')
 
     try {
-      await 보내기('[K-건설맵] 새 문의 — ' + String(q.work || '').slice(0, 40), 본문)
+      await 보내기('[건설맵 중요] 새 문의 — ' + 갈래 + ' · ' + String(q.work || '').slice(0, 40), 본문)
     } catch (e) {
       /* ⚠️ 표를 «남기지 않고» 끝냅니다 — 그래야 깃허브 알림이 그물 노릇을 합니다 */
       console.error('메일 실패:', e && e.message)
