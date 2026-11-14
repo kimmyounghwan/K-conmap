@@ -39,8 +39,13 @@ import { 층판 } from '../lib/둘러보기.js'
 import { 길잡이 } from '../lib/도우미.js'
 import { 부재보기 } from '../lib/bim3d.js'
 import { 확인 as 이용권확인 } from '../lib/이용권.js'
+import { isOpen as 열쇠열림 } from '../lib/gate.js'
+import { 나운영자 } from '../lib/운영자.js'
 /* 🛣 G396 작업 화면 «토목» 탭 — 노선(STA) · TM 좌표 · EL · 측량점 파일 · 좌표계(따로 불러옴 — 건축만 쓰면 안 받음) */
 const 토목판 = lazy(() => import('../토목판.jsx'))
+/* 📏 G685 «캐드에서 고른 것»(KCMS) 탭 — 🔒 출시 전에는 소장님 브라우저 · 열쇠말만(따로 불러옴 — 다른 분은 안 받음) */
+const 캐드고름판 = lazy(() => import('../캐드고름판.jsx'))
+const 캐드열쇠 = 'kcm.cad.v1'
 const 분야열쇠 = 'kcm.ws.field'
 
 const 저장열쇠 = 'kcm.model.v1'
@@ -171,6 +176,44 @@ export default function Model() {
     })
   }, [])
   const 되돌리기 = () => set되돌림((u) => { if (!u.length) return u; setM0(u[u.length - 1]); return u.slice(0, -1) })
+  /* 📏 G685 캐드에서 고른 것(KCMS) — 골조 모델(M)과 따로 둠(표를 고칠 때마다 골조 셈을 다시 하지 않게) · 이 브라우저 kcm.cad.v1 · 💾 모델 파일에 같이
+       🔒 출시 전: 소장님 브라우저(lib/운영자.js) · 열쇠말(lib/gate.js)만 탭 · 받기 · 저장 */
+  const [캐드씀, set캐드씀] = useState(() => 열쇠열림())
+  useEffect(() => { let 살 = true; 나운영자().then((v) => { if (살 && v) set캐드씀(true) }).catch(() => {}); return () => { 살 = false } }, [])
+  const 캐드씀Ref = useRef(캐드씀)
+  캐드씀Ref.current = 캐드씀
+  const [캐드, set캐드0] = useState({ 묶음: [], 줄: [] })
+  const 캐드Ref = useRef(캐드)
+  캐드Ref.current = 캐드
+  const [캐드준비, set캐드준비] = useState(false)
+  const 캐드준비Ref = useRef(false)
+  const [캐드되돌림, set캐드되돌림] = useState([])
+  /* 저장해 둔 것을 한 번만 읽음 — 받기(고름받기)가 먼저 오면 거기서 읽고 합침(읽기가 받은 것을 덮지 않게) */
+  const 캐드불러오기 = (L) => {
+    if (캐드준비Ref.current) return 캐드Ref.current
+    캐드준비Ref.current = true
+    let x = null
+    try { const t = localStorage.getItem(캐드열쇠); x = t ? L.캐드정돈(JSON.parse(t)) : null } catch (e) { x = null }
+    const N = x && x.묶음.length ? x : 캐드Ref.current
+    캐드Ref.current = N
+    set캐드0(N); set캐드준비(true)
+    return N
+  }
+  useEffect(() => {
+    if (!캐드씀 || 캐드준비Ref.current) return undefined
+    let 살 = true
+    import('../lib/캐드고름.js').then((L) => { if (살) 캐드불러오기(L) }).catch(() => {})
+    return () => { 살 = false }
+  }, [캐드씀])  // eslint-disable-line react-hooks/exhaustive-deps
+  const set캐드 = useCallback((f) => {
+    set캐드0((P) => { const N = typeof f === 'function' ? f(P) : f; if (N !== P) set캐드되돌림((u) => [...u.slice(-19), P]); return N })
+  }, [])
+  const 캐드되돌리기 = () => set캐드되돌림((u) => { if (!u.length) return u; set캐드0(u[u.length - 1]); return u.slice(0, -1) })
+  useEffect(() => {
+    if (!캐드씀 || !캐드준비) return undefined
+    const t = setTimeout(() => { try { if (캐드.묶음.length) localStorage.setItem(캐드열쇠, JSON.stringify(캐드)); else localStorage.removeItem(캐드열쇠) } catch (e) { /* 꽉 참 · 사생활 보호 */ } }, 600)
+    return () => clearTimeout(t)
+  }, [캐드, 캐드씀, 캐드준비])
   /* 저장(0.4초 모아서) */
   useEffect(() => {
     if (큰저장) return undefined                    // 큰 저장 모델을 고르기 전에는 덮어쓰지 않음
@@ -185,6 +228,11 @@ export default function Model() {
   const M늦 = useDeferredValue(M)
   const S = useMemo(() => { try { return 모델셈(M늦) } catch (e) { return { 오류: String(e && e.message || e) } } }, [M늦])
   const 고른것 = 고른 !== null ? M.부재.find((o) => o.id === 고른) || null : null
+  /* 📏 G685 캐드 탭 3D — 층 이름 → 그 층 바닥 높이(mm · 그림만) */
+  const 층바닥 = useMemo(() => {
+    try { const H = 층높이(M); return (f) => { const h = f ? H.표.get(f) : null; return h && Number.isFinite(h.z0) ? h.z0 : 0 } } catch (e) { return () => 0 }
+  }, [M.층, M.기준])  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (탭 === '캐드' && !캐드씀) set탭('세우기') }, [탭, 캐드씀])
   const 층FT = FT층(M.층.find((f) => f.이름 === 층))
   const 쓸도구 = 층FT ? ['기초', '보', '슬라브', '고르기', '옮기기', '구간', '지우기'] : ['기둥', '보', '벽', '슬라브', '계단', '고르기', '옮기기', '구간', '지우기']
   useEffect(() => { if (!쓸도구.includes(도구)) set도구(층FT ? '기초' : '기둥') }, [층FT])  // eslint-disable-line react-hooks/exhaustive-deps
@@ -214,7 +262,7 @@ export default function Model() {
     document.body.appendChild(a); a.click(); a.remove()
     setTimeout(() => URL.revokeObjectURL(a.href), 60000)
   }
-  const 모델저장 = () => { 내려주기(new Blob([JSON.stringify(M)], { type: 'application/json' }), '골조모델_' + 파일이름 + '.json'); 세기('|골조모델|저장') }
+  const 모델저장 = () => { 내려주기(new Blob([JSON.stringify(캐드씀 && 캐드.묶음.length ? { ...M, 캐드 } : M)], { type: 'application/json' }), '골조모델_' + 파일이름 + '.json'); 세기('|골조모델|저장') }
   const 파일Ref = useRef(null)
   const 모델열기 = async (f) => {
     if (!f) return
@@ -222,6 +270,7 @@ export default function Model() {
       const j = JSON.parse(await f.text())
       if (!j || !Array.isArray(j.부재) || !j.통심) throw new Error('골조 모델 파일이 아닙니다')
       setM(정돈(j)); set고른(null); set탭('세우기'); set알림('«' + f.name + '» 를 열었습니다.')
+      if (캐드씀 && j.캐드) { const L = await import('../lib/캐드고름.js'); 캐드불러오기(L); const x = L.캐드정돈(j.캐드); if (x) { 캐드Ref.current = x; set캐드(x) } }   // 📏 G685 모델 파일에 든 캐드 고름(저장 읽기가 뒤에 와서 덮지 않게 먼저 읽음 표시)
       세기('|골조모델|열기파일')
     } catch (e) { set알림('열지 못했습니다 — ' + (e.message || e)) }
   }
@@ -350,13 +399,50 @@ export default function Model() {
     try {
       const l = await pc보낸(연)
       if (!l.length) return
-      const 받은 = []
-      for (const x of l) { set도면상태({ k: 'busy', 글: '💻 캐드에서 보낸 도면 받는 중 — ' + x.이름 }); const r = await pc보낸파일(연, x.id); 받은.push({ 이름: x.이름, buf: r.buf }); await pc받음(연, x.id) }
+      const 받은 = [], 고름 = []
+      for (const x of l) {
+        const 캐드것 = /^kcms_\d+\.csv$/i.test(x.이름)          // 📏 G685 캐드 명령 KCMS 가 보낸 «고른 것»(도면 넣기 아님)
+        set도면상태({ k: 'busy', 글: (캐드것 ? '📏 캐드에서 고른 것 받는 중 — ' : '💻 캐드에서 보낸 도면 받는 중 — ') + x.이름 })
+        const r = await pc보낸파일(연, x.id)
+        await pc받음(연, x.id)
+        ;(캐드것 ? 고름 : 받은).push({ 이름: x.이름, buf: r.buf })
+      }
+      if (고름.length) {
+        set도면상태(null)
+        /* 🔒 소장님 브라우저 · 열쇠말만 — 화면을 막 연 때(프로그램이 연 탭)는 운영자 확인이 늦을 수 있어 여기서 한 번 더 봄 */
+        const 씀 = 캐드씀Ref.current || 열쇠열림() || (await 나운영자().catch(() => false))
+        if (씀) { if (!캐드씀Ref.current) set캐드씀(true); await 고름받기(고름) }
+        if (!받은.length) return
+      }
       세기('|골조모델|PC보냄')
       if (탭 !== '세우기') set탭('세우기')
       const r = await 함께넣기(받은)
       if (r) set알림((a) => '💻 캐드에서 보낸 «' + 받은.map((x) => x.이름).join(' · ') + '» — ' + a)
     } catch (e) { set도면상태({ k: 'err', 글: '💻 캐드에서 보낸 도면을 받지 못했습니다 — ' + ((e && e.message) || e) }) } finally { 보내는중.current = false }
+  }
+  /* 📏 G685 KCMS «고른 것» → 묶음 · 줄(lib/캐드고름.js) → 📏 캐드 탭 · 앞 묶음의 층을 이어씀(사람이 넣은 값만 — 짐작 안 함) */
+  const 고름받기 = async (목록) => {
+    const L = await import('../lib/캐드고름.js')
+    let N = 캐드불러오기(L)
+    const 앞N = N
+    const 말 = []
+    let 줄수 = 0
+    for (const f of 목록) {
+      const 읽 = L.고름읽기(L.글풀기(f.buf))
+      if (!읽) { 말.push('«' + f.이름 + '» 은 캐드 고름(KCMS) 글이 아닙니다'); continue }
+      const 끝 = N.묶음[N.묶음.length - 1]
+      const 층 = 끝 ? (N.줄.find((r) => r.묶음 === 끝.id && r.층) || {}).층 || '' : ''
+      const r = L.줄만들기(읽, { 이름: f.이름, 층, 있는핸들: L.있는핸들(N) })
+      const d = L.묶음더하기(N, r)
+      N = d.캐드
+      줄수 += r.줄.length - d.뺌
+      말.push(...r.알림)
+      if (d.뺌) 말.push('이 화면에는 ' + L.모두최대.toLocaleString('ko-KR') + '줄까지 둡니다 — ' + d.뺌.toLocaleString('ko-KR') + '줄은 받지 않았습니다.')
+    }
+    if (N !== 앞N) { 캐드Ref.current = N; set캐드(N) }
+    set분야('건축'); set탭('캐드')
+    set알림('📏 캐드에서 고른 것 ' + 줄수.toLocaleString('ko-KR') + '줄을 받았습니다(📏 캐드 탭)' + (말.length ? ' — ' + 말.join(' ') : '.'))
+    세기('|캐드고름|받음')
   }
   const 보낸넣기Ref = useRef(보낸넣기)
   보낸넣기Ref.current = 보낸넣기              // 3초 돌기는 늘 지금 모델로(옛 화면의 함께넣기를 쓰지 않게)
@@ -477,12 +563,12 @@ export default function Model() {
         <div className="gmd-ws" ref={작업Ref} role="dialog" aria-label="K-적산컨맵 작업 화면">
           {물음판}
           {설명서판}
-          <받기검사판 검사={검사} 닫기={() => set검사(null)} 받기={() => { if (!검사) return; if (검사.ifc) { 내려주기(new Blob([검사.바이트], { type: 'application/x-step' }), 검사.이름); 세기('|골조모델|IFC'); set검사({ ...검사, 알고: true }); return } 내려주기(new Blob([검사.바이트], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 검사.이름); 세기('|골조모델|엑셀'); set엑셀받음(true); set검사({ ...검사, 알고: true }) }} />
+          <받기검사판 검사={검사} 닫기={() => set검사(null)} 받기={() => { if (!검사) return; if (검사.ifc) { 내려주기(new Blob([검사.바이트], { type: 'application/x-step' }), 검사.이름); 세기('|골조모델|IFC'); set검사({ ...검사, 알고: true }); return } 내려주기(new Blob([검사.바이트], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 검사.이름); 세기(검사.셈 || '|골조모델|엑셀'); if (!검사.셈) set엑셀받음(true); set검사({ ...검사, 알고: true }) }} />
           <div className="gmd-ws-top">
             {분야칸}
-            <span className="gmd-ws-tabs" role="tablist">
+            <span className={'gmd-ws-tabs' + (캐드씀 ? ' t7' : '')} role="tablist">
               {/* 📆 G463 탭 다섯(🗓 G466 여섯) — 좁은 화면(폰)에서는 뒤 글(· 3D · 층 · 엑셀 · 부호)을 숨겨 한 줄에 다 보임 */}
-              {[['세우기', '세우기', ' · 3D'], ['통심', '통심', ' · 층'], ['일람', '일람', '', '부호 '], ['물량', '물량', ' · 엑셀'], ['공정', '🗓 공정', ''], ['기성', '📆 기성', '']].map(([k, t, 뒤, 앞 = '']) => (
+              {[['세우기', '세우기', ' · 3D'], ['통심', '통심', ' · 층'], ['일람', '일람', '', '부호 '], ['물량', '물량', ' · 엑셀'], ['공정', '🗓 공정', ''], ['기성', '📆 기성', ''], ...(캐드씀 ? [['캐드', '📏 캐드', '']] : [])].map(([k, t, 뒤, 앞 = '']) => (
                 <button key={k} type="button" role="tab" aria-label={앞 + t + 뒤} aria-selected={탭 === k} className={'gmd-tab' + (탭 === k ? ' on' : '')} onClick={() => set탭(k)}>{앞 && <span className="gmd-tl">{앞}</span>}{t}{뒤 && <span className="gmd-tl">{뒤}</span>}</button>
               ))}
             </span>
@@ -511,6 +597,11 @@ export default function Model() {
               {탭 === '물량' && <물량칸 M={M} S={S} 엑셀받기={엑셀받기} IFC받기={IFC받기} 받는중={받는중} set탭={set탭} set고른={set고른} set층={set층} />}
               {탭 === '공정' && 공정판}
               {탭 === '기성' && 기성판}
+              {탭 === '캐드' && 캐드씀 && (
+                <Suspense fallback={<div className="card"><p className="muted">📏 캐드 탭 여는 중…</p></div>}>
+                  <캐드고름판 캐드={캐드} set캐드={set캐드} 되돌리기={캐드되돌리기} 되돌림수={캐드되돌림.length} 층들={M.층} 바닥={층바닥} 세기={세기} 내려주기={내려주기} 검사로={set검사} 파일이름={파일이름} />
+                </Suspense>
+              )}
             </div>
           )}
         </div>
@@ -521,7 +612,7 @@ export default function Model() {
   return (
     <div className="page gmd">
       {물음판}
-      <받기검사판 검사={검사} 닫기={() => set검사(null)} 받기={() => { if (!검사) return; if (검사.ifc) { 내려주기(new Blob([검사.바이트], { type: 'application/x-step' }), 검사.이름); 세기('|골조모델|IFC'); set검사({ ...검사, 알고: true }); return } 내려주기(new Blob([검사.바이트], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 검사.이름); 세기('|골조모델|엑셀'); set엑셀받음(true); set검사({ ...검사, 알고: true }) }} />
+      <받기검사판 검사={검사} 닫기={() => set검사(null)} 받기={() => { if (!검사) return; if (검사.ifc) { 내려주기(new Blob([검사.바이트], { type: 'application/x-step' }), 검사.이름); 세기('|골조모델|IFC'); set검사({ ...검사, 알고: true }); return } 내려주기(new Blob([검사.바이트], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 검사.이름); 세기(검사.셈 || '|골조모델|엑셀'); if (!검사.셈) set엑셀받음(true); set검사({ ...검사, 알고: true }) }} />
       <div className="card">
         <h1 style={{ margin: 0, fontSize: 20 }}>🧱 골조 모델 — 세우면 물량</h1>
         <p className="muted" style={{ margin: '6px 0 0', lineHeight: 1.7 }}>

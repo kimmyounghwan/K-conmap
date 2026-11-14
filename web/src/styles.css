@@ -11124,3 +11124,76 @@ html.kcm-보기만 .kcm-예시판 input, html.kcm-보기만 .kcm-예시판 texta
   .gr-t tr.gr-go:hover { background: var(--accent-soft); }
   .gr-t tr.gr-go:hover td { background: transparent; }   /* 쌓은 줄은 칸마다 칠하면 얼룩져 보임 — 줄 통째로 */
 }
+
+/* 📏 G685 적산컨맵 작업 화면 «📏 캐드» 탭 — 캐드에서 고른 것(KCMS · 캐드고름판.jsx) · 🔒 출시 전 소장님만 */
+.gmd .kcs { display: flex; flex-direction: column; gap: 10px; }
+.gmd .kcs .card { margin: 0; }
+.gmd .kcs-titlerow { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; }
+.gmd .kcs-titlerow .gmd-h { margin: 0; flex-wrap: wrap; }
+.gmd .kcs-sum { font-size: 12.5px; font-weight: 400; }
+.gmd .kcs-acts { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.gmd .kcs-acts .btn { width: auto; }
+.gmd .kcs-bundles { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.gmd .kcs-bundle { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 5px 8px 5px 10px; border: 1px solid var(--line); border-radius: 10px; font-size: 12.5px; max-width: 100%; }
+.gmd .kcs-bundle.warn { border-color: #f59e0b; background: color-mix(in srgb, #f59e0b 9%, var(--surface, #fff)); }
+.gmd .kcs-bname { font-weight: 600; overflow-wrap: anywhere; }
+.gmd .kcs-units { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.gmd .kcs-units .btn { width: auto; padding: 3px 8px; }
+.gmd .kcs-check { margin: 8px 0 0; }
+.gmd .kcs-main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 10px; align-items: start; }
+.gmd .kcs-3dbox { grid-column: 2; grid-row: 1; position: sticky; top: 0; padding: 8px; }
+.gmd .kcs-list { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.gmd .kcs-3d { display: block; width: 100%; height: 320px; border-radius: 8px; touch-action: none; }
+.gmd .kcs-3dnote { font-size: 11.5px; line-height: 1.5; margin: 6px 2px 0; }
+.gmd .kcs-group { padding: 8px 10px; }
+.gmd .kcs-group.has-q { border-left: 3px solid #f59e0b; }
+.gmd .kcs-ghead { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.gmd .kcs-fold { border: 0; background: none; font-size: 15px; cursor: pointer; padding: 2px 4px; color: var(--text); }
+.gmd .kcs-gname { flex: 1 1 200px; min-width: 0; font-size: 13.5px; overflow-wrap: anywhere; }
+.gmd .kcs-gname .muted { font-size: 12px; }
+.gmd .kcs-gsum { display: inline-flex; gap: 8px; font-size: 13px; font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+.gmd .kcs-q { color: #b45309; font-weight: 600; }
+.gmd .kcs-gedit, .gmd .kcs-row { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: flex-end; }
+.gmd .kcs-gedit { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); }
+.gmd .kcs-gedit label, .gmd .kcs-row label { display: inline-flex; flex-direction: column; gap: 1px; font-size: 11px; color: var(--muted); }
+.gmd .kcs-gedit label::before, .gmd .kcs-row label::before { content: attr(data-l); }
+.gmd .kcs-in { font: inherit; font-size: 13px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 7px; padding: 5px 7px; min-width: 0; }
+.gmd .kcs-memo { width: 150px; }
+.gmd .kcs-kind { width: 150px; }
+.gmd .kcs-floor { width: 86px; }
+.gmd .kcs-zone { width: 76px; }
+.gmd .kcs-num { width: 70px; }
+.gmd .kcs-num.kcs-sm { width: 56px; }
+.gmd .kcs-rows { margin-top: 6px; display: flex; flex-direction: column; }
+.gmd .kcs-row { padding: 7px 4px; border-top: 1px solid var(--line); }
+.gmd .kcs-row.on { background: color-mix(in srgb, #f59e0b 12%, transparent); }
+.gmd .kcs-row.dim { background: color-mix(in srgb, #facc15 16%, transparent); }
+.gmd .kcs-no { font-size: 11.5px; color: var(--muted); min-width: 22px; align-self: center; }
+.gmd .kcs-what { font-size: 12.5px; min-width: 120px; align-self: center; overflow-wrap: anywhere; }
+.gmd .kcs-meas, .gmd .kcs-qty { align-self: center; font-size: 13px; font-variant-numeric: tabular-nums; }
+.gmd .kcs-meas { min-width: 78px; color: var(--muted); }
+.gmd .kcs-qty { min-width: 110px; }
+.gmd .kcs-f { display: block; font-size: 11px; }
+.gmd .kcs-dim { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12.5px; color: #92400e; }
+.gmd .kcs-dim .btn { width: auto; padding: 3px 8px; }
+.gmd .kcs-dim .btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.gmd .kcs-del { margin-left: auto; align-self: center; }
+.gmd .kcs-agg .kcs-tot td { border-top: 2px solid var(--line); }
+.gmd .kcs-steps { padding-left: 20px; }
+@media (prefers-color-scheme: dark) { .gmd .kcs-dim { color: #fcd34d; } .gmd .kcs-q { color: #fbbf24; } }
+@media (max-width: 900px) {
+  .gmd .kcs-main { grid-template-columns: minmax(0, 1fr); }
+  .gmd .kcs-3dbox { grid-column: 1; grid-row: 1; position: static; }
+  .gmd .kcs-list { grid-column: 1; grid-row: 2; }
+  .gmd .kcs-3d { height: 240px; }
+}
+/* 탭 일곱(📏 캐드 — 소장님만)일 때 381 ~ 432 px(아이폰 390 · 393 · 414 …)에서 줄을 넘던 것(34 px) — 그 폭에서만 · 그 탭이 있을 때만 좁힘(손님 탭 여섯은 그대로) */
+@media (min-width: 381px) and (max-width: 432px) { .gmd .gmd-ws-tabs.t7 { gap: 3px; } .gmd .gmd-ws-tabs.t7 .gmd-tab { padding: 6px 6px; font-size: 12.5px; } }
+@media (max-width: 600px) {
+  .gmd .kcs-row label, .gmd .kcs-gedit label { flex: 1 1 calc(50% - 8px); }
+  .gmd .kcs-row label .kcs-in, .gmd .kcs-gedit label .kcs-in { width: 100%; }
+  .gmd .kcs-row label:has(.kcs-memo), .gmd .kcs-gedit label:has(.kcs-memo) { flex-basis: 100%; }
+  .gmd .kcs-in { font-size: 16px; }
+  .gmd .kcs-what { flex: 1 1 auto; }
+  .gmd .kcs-3d { height: 210px; }
+}

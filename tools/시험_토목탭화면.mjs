@@ -270,7 +270,9 @@ for (const 기기 of 기기들) {
   /* ⑦ 건축으로 */
   await p.click('.gmd-field:has-text("건축")')
   await p.waitForSelector('.gmd-ws-tabs', { timeout: 30000 })
-  봐((await p.locator('.gmd-ws-tabs .gmd-tab').count()) === 6, `${기기} 🏢 건축 — 골조 탭 여섯 그대로(G463 📆 기성 · G466 🗓 공정 더함 — G466 때 이 시험을 안 고쳐 «다섯» 이 남아 있었음)`)
+  /* 📏 G685 이 시험은 소장님 브라우저(kcm_op)로 돎 — 골조 탭 여섯 + «📏 캐드»(소장님만 · 손님은 여섯 그대로: 시험_캐드고름화면 ①) */
+  const 탭글 = await p.locator('.gmd-ws-tabs .gmd-tab').allInnerTexts()
+  봐(탭글.length === 7 && /캐드/.test(탭글[6]), `${기기} 🏢 건축 — 골조 탭 여섯 + 📏 캐드(소장님 브라우저 · G463 📆 기성 · G466 🗓 공정 더함 — G466 때 이 시험을 안 고쳐 «다섯» 이 남아 있었음)`, 탭글)
   const 건합 = await p.evaluate(() => [...document.querySelectorAll('.gmd-sum b')].slice(0, 3).map((x) => x.textContent))
   봐(골조합 && 건합.length === 3 && Math.abs(숫(건합[0]) - 골조합.콘) < 0.006 && Math.abs(숫(건합[1]) - 골조합.틀) < 0.06 && Math.abs(숫(건합[2]) - 골조합.철) < 0.0006, `${기기} 🏢 건축 탭 합 = 토목 탭 «함께 합» 골조 줄(같은 모델)`, JSON.stringify([건합, 골조합]))
   const 넘 = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
