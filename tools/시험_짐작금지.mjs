@@ -128,6 +128,8 @@ console.log('④ 🚫 G682 손으로 적는 틀에도 짐작 값 없음 — 새 
   const 마소 = 읽('lib/마감.js'), 대소 = 읽('lib/마감대조.js')
   const 마새 = 마소.slice(마소.indexOf('export function 새공사'), 마소.indexOf('export function', 마소.indexOf('export function 새공사') + 10))
   const 마기 = (마소.match(/const 기 = \{[^\n]*/) || [''])[0]
+  const 도모 = 읽('lib/도면모델.js'), 층넣 = (도모.match(/층\.push\(\{ 이름: o\.층[^\n]*/) || [''])[0]
+  ok('소스: 🚫 G683 BIM → 골조 모델 — 층 표에 없는 층에 3300 · 150 짐작 없음(빈칸)', 층넣.length > 10 && !/\b(3300|3600|150)\b/.test(층넣), 층넣)
   ok('소스: 마감 새공사() · 셈 기준에 천장고 짐작(2.x) 없음 · 마감 대조 기본(|| 2.7) 없음(예시 공사의 2.7 은 가상 도면 값이라 그대로)', 마새.length > 30 && 마기.length > 10 && !/천장고:\s*2\.\d/.test(마새 + 마기) && !/\|\|\s*2\.7\b/.test(대소), [마새.slice(0, 80), 마기])
 }
 

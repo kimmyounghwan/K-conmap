@@ -175,5 +175,24 @@ console.log('— 좌표가 망가진 점이 섞인 도면')
   봐(나.D.stats.멀리 >= 5 && 나.큰 < 1e12 && Math.abs(나.D.ox - 가.D.ox) < 1 && Math.abs(나.D.oy - 가.D.oy) < 1, `망가진 점 ${나.D.stats.멀리}곳 뺌 — 남은 좌표 1e12 안 · 원점 그대로`, JSON.stringify({ 멀리: 나.D.stats.멀리, 큰: 나.큰, ox: [가.D.ox, 나.D.ox] }))
   봐(나.초 < 30 && ['기둥', '보', '벽', '슬라브', '기초'].every((k) => Math.abs((나.합[k] || 0) - (가.합[k] || 0)) < 1e-6) && (가.합.기둥 || 0) > 0, `🔒 섞여도 멈추지 않음(${나.초.toFixed(1)}초) · 물량 같음(기둥 ${(나.합.기둥 || 0).toFixed(3)} · 보 ${(나.합.보 || 0).toFixed(3)} ㎥)`, JSON.stringify([가.합, 나.합]))
 }
+/* 🚫 G683 BIM 층 표에 없는 층 — 짐작(3,300 · 150) 없이 빈칸(❓) · 작업 화면 셈도 도면 셈처럼 그 층 기둥을 뺌(현장 P · Q 꼴을 가상 예시로 흉내: 공사 층 표에서 «2» 를 지움) */
+{
+  const b = fs.readFileSync(new URL('../web/public/jeoksan/BIM_예시_3층.dxf', import.meta.url))
+  const D = 도면읽기끝까지(decodeBytes(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)), () => {})
+  let 들 = [{ 모델: D, 이름: 'a.dwg', k: 단위배율(D.units, D.box, D.ox, D.oy).k || 1 }]
+  try { 들 = 참조끼우기(들).들 } catch (e) { /* 그대로 */ }
+  const R = 플랜트다듬기(들, 골조읽기(들))
+  const 모델 = 플랜트모델(모델만들기(들, R, { 높이: {} }), R)
+  const 공사 = 셈방법입히기(겹친것빼기(층고바꾸기(R.공사, {}, R.읽음 && R.읽음.높이), 모델), '도면')
+  const 빠진 = { ...공사, 층: 공사.층.filter((f) => f.이름 !== '2') }
+  const r = 도면에서모델(모델, { 공사: 빠진 })
+  const 층2 = r.M.층.find((f) => f.이름 === '2')
+  봐(층2 && 층2.층고 === '' && 층2.슬라브 === '', '🚫 G683 공사 층 표에 없는 «2» 층 — 작업 화면 층 표엔 빈칸(❓) · 3,300 · 150 짐작 없음', JSON.stringify(층2))
+  const G = L.모델셈(r.M), 기2 = G.R.줄.filter((x) => x.부재 === '기둥' && x.층 === '2' && x.항목 === '콘크리트')
+  const 경 = (G.R.경고 || []).map((w) => w.글 || w)
+  봐(r.M.부재.some((o) => o.종류 === '기둥' && o.층 === '2') && 기2.length === 0 && 경.some((t) => /«2» 층의 층고도 없습니다/.test(t)), '🚫 G683 그 층 기둥은 셈에서 빠짐 + «층고도 없습니다» 경고(도면 셈과 같게 — 짐작으로 셈하지 않음)', JSON.stringify([기2.length, 경.slice(0, 2)]))
+  const 다른 = 종합(G.R.줄), 온 = 종합(L.모델셈(도면에서모델(모델, { 공사 }).M).R.줄)
+  봐((다른.기둥 || 0) < (온.기둥 || 0) && (다른.기둥 || 0) > 0, `🚫 G683 다른 층 기둥은 그대로 셈(${(다른.기둥 || 0).toFixed(3)} < 층 표 온전 ${(온.기둥 || 0).toFixed(3)})`)
+}
 console.log(`\n${ok} 통과 · ${bad} 실패`)
 if (bad) process.exit(1)
