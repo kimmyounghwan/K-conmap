@@ -17,7 +17,7 @@ import { 씀열쇠 } from './씀열쇠.js'   /* ✍ 2026-10-21 화면 안에서 
 const DB = 'https://k-conmap-default-rtdb.firebaseio.com'
 /* 화면 주소(앞에서부터 맞춤 · 긴 것 먼저) → 그 화면의 셈 열쇠 머리 */
 const 자리표 = [
-  ['/tools/jungcheo', ['|중처법']], ['/tools/safecard', ['|안전카드']], ['/tools/colorplan', ['|컬러평면']], ['/tools/cadfix', ['|캐드고침']], ['/tools/sigong', ['|시공계획']], ['/tools/anjeon', ['|안전계획']], ['/tools/yuhae', ['|유해계획']], ['/tools/nomubi', ['|노무비']], ['/tools/nomubi-myeongse', ['|노무비명세']], ['/tools/sajincad', ['|사진캐드']], ['/tools/hado-docs', ['|하도급서류']], ['/tools/esc', ['|물가ESC']], ['/tools/risk', ['|위험성']],
+  ['/tools/jungcheo', ['|중처법']], ['/tools/safecard', ['|안전카드']], ['/tools/colorplan', ['|컬러평면']], ['/tools/cadfix', ['|캐드고침']], ['/tools/sigong', ['|시공계획']], ['/tools/anjeon', ['|안전계획']], ['/tools/yuhae', ['|유해계획']], ['/tools/nomubi', ['|노무비']], ['/tools/nomubi-myeongse', ['|노무비명세']], ['/tools/gyeongri', ['|경리']], ['/tools/sajincad', ['|사진캐드']], ['/tools/hado-docs', ['|하도급서류']], ['/tools/esc', ['|물가ESC']], ['/tools/risk', ['|위험성']],
   ['/tools/dxf3d', ['|도면3d', '|3D활용', '|3D활용엑셀', '|3D활용탭']], ['/tools/earthcheck', ['|토공검산']], ['/tools/gps', ['|내위치']], ['/tools/boheom-jeongsan', ['|보험정산']],
   ['/tools/wonclick', ['|원클릭']], ['/tools/gyeonjeok', ['|견적']], ['/jeoksan/bim', ['|BIM물량']], ['/jeoksan/model', ['|골조모델']], ['/jeoksan/magam', ['|마감']],
   ['/jeoksan/golgo', ['|골조']], ['/jeoksan/auto', ['|적산자동']], ['/jeoksan/run', ['|수량산출서']], ['/change/gisung', ['|기성']], ['/change/twoline', ['|2줄']], ['/change/won', ['|변경원내역']], ['/change/work', ['|작업대']], ['/naeyeok/ratio', ['|비율']],

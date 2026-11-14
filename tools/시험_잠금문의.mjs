@@ -1,5 +1,5 @@
 // 📄 G669 잠근 도구 «문의» 시험 (2026-11-13 소장님 「준비중을 문의로 바꿔줘.. 막아 놓은 것 모두? 막아 놓고 문의해 달라고 해줘」)
-//   ① 파일(인터넷 없이 — PC 올리기에도): 잠근 도구 9가지 jsx 에 «지금은 준비 중입니다» · «곧 엽니다» 가 남지 않음 · 잠금문의 단추를 씀 ·
+//   ① 파일(인터넷 없이 — PC 올리기에도): 잠근 도구 10가지(G684 경리컨맵 더함) jsx 에 «지금은 준비 중입니다» · «곧 엽니다» 가 남지 않음 · 잠금문의 단추를 씀 ·
 //      잠금은 그대로(isOpen · 나운영자) · 잠금문의.jsx 문의갈래 = contact.html «서류 작성대행» 묶음(두 벌 대조) · contact.html 이 s · t 를 받음
 //   ② 화면(주소를 주면 · PC 1280 · 폰 390): 손님 — 띠 «🔒 문의해 주세요» · 단추 고리(/contact?k=cn&s=…&t=…) · «준비 중» 없음 / 소장님(kcm_op) — 띠 없음 ·
 //      문의 화면 — s 로 고른 갈래가 눌림(aria-pressed) · t 로 «자세히» 한 줄 · 엉뚱한 s 는 안 고름 · t 에 꺾쇠를 넣어도 글로만(꼬리표 안 생김) · 다른 문의(광고)는 그대로
@@ -19,6 +19,7 @@ const 도구들 = [
   ['WonClick', '/tools/wonclick', '공사서류 원클릭'], ['SigongPlan', '/tools/sigong', '시공계획서'], ['SafetyPlan', '/tools/anjeon', '안전관리계획서'],
   ['HazardPlan', '/tools/yuhae', '유해위험방지계획서'], ['Jungcheo', '/tools/jungcheo', '중대재해'], ['ColorPlan', '/tools/colorplan', '컬러 평면도'],
   ['CadFix', '/tools/cadfix', '캐드 도면 고치기'], ['Esc', '/tools/esc', '물가변동 ESC'], ['HadoDocs', '/tools/hado-docs', '하도급 서류'],
+  ['Gyeongri', '/tools/gyeongri', '경리컨맵'],   // 🗃 G684(11-14) 경리컨맵 — 소장님 «만들고 막아놔, 예시만 보게 해줘»
 ]
 /* ① 파일 */
 for (const [f, , 이름] of 도구들) {
@@ -40,7 +41,7 @@ const 묶 = (/\['서류 작성대행', (\[[^\]]*\])\]/.exec(문) || [])[1]
  *      원클릭 «회원가입 없이 무료» · 구조화 자료 «무료 · 0원» 이 남아 있었음 → 구운 쪽도 «🔒 문의해 주세요 + 작성대행 · 견적 문의» 꼴 · 화면 jsx 에 «무료» 없음 */
 const 구 = 읽기('prerender.py')
 const 함수 = { WonClick: 'wonclick_page', SigongPlan: 'sigong_page', SafetyPlan: 'anjeon_page', HazardPlan: 'yuhae_page', Jungcheo: 'jungcheo_page',
-  ColorPlan: 'colorplan_page', CadFix: 'cadfix_page', Esc: 'esc_page', HadoDocs: 'hadodocs_page' }
+  ColorPlan: 'colorplan_page', CadFix: 'cadfix_page', Esc: 'esc_page', HadoDocs: 'hadodocs_page', Gyeongri: 'gyeongri_page' }
 for (const [f] of 도구들) {
   const 코드 = 읽기(`web/src/pages/${f}.jsx`).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
   봐(!/무료/.test(코드), `${f} 화면 글에 «무료» 없음(잠근 도구)`)

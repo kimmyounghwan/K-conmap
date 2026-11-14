@@ -304,7 +304,7 @@ d.textContent='카카오 광고 자리 '+w+'×'+h+' (실제 광고는 올린 뒤
     ok('그 쪽들에선 애드핏 스크립트를 한 번도 안 부름', 부름.length === 0, 부름)
     /* 비밀번호 칸이 «보이는» 쪽 — 뺀 쪽 표에 없어도 접음(본인확인 · 입력 중) */
     const 비번쪽 = []
-    for (const 쪽 of ['/tools/esc', '/tools/anjeon', '/tools/yuhae', '/tools/wonclick', '/tools/jungcheo', '/tools/colorplan', '/tools/cadfix', '/tools/hado-docs', '/tools/photo-live', '/tools/sigong', '/tools/nomubi', '/tools/ilbo', '/tools/sonik', '/tools/gyeonjeok', '/tools/jimyeong', '/tools/sanan', '/tools/boheom-jeongsan']) {
+    for (const 쪽 of ['/tools/esc', '/tools/anjeon', '/tools/yuhae', '/tools/wonclick', '/tools/jungcheo', '/tools/colorplan', '/tools/cadfix', '/tools/hado-docs', '/tools/photo-live', '/tools/sigong', '/tools/nomubi', '/tools/ilbo', '/tools/sonik', '/tools/gyeonjeok', '/tools/jimyeong', '/tools/sanan', '/tools/boheom-jeongsan', '/tools/gyeongri']) {
       await p.goto(BASE + 쪽, { waitUntil: 'domcontentloaded' })
       await p.waitForSelector('footer.footer', { timeout: 15000 }); await p.waitForTimeout(1300)
       비번쪽.push(await p.evaluate((쪽) => ({ 쪽, 비번: [...document.querySelectorAll('main input[type="password"]')].some((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 }), 칸: document.querySelectorAll('aside.afit').length, ins: document.querySelectorAll('ins.kakao_ad_area').length }), 쪽))

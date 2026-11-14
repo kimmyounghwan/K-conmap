@@ -163,6 +163,7 @@ const Tuipbi = lazyPage(() => import('./pages/Tuipbi.jsx'))
 /* 👷 2026-10-01 (G104) 일용 노무비 계산기 · 지급명세서 — 이 브라우저에만 저장 · 공제는 lib/gongje.js */
 const Nomubi = lazyPage(() => import('./pages/Nomubi.jsx'))
 const NomubiMyeongse = lazyPage(() => import('./pages/NomubiMyeongse.jsx'))   /* 🧾 G681 일용노무비 지급명세서 한 장 표 */
+const Gyeongri = lazyPage(() => import('./pages/Gyeongri.jsx'))   /* 🗃 경리컨맵 1단계 — 한눈에 · 거래처 원장(손익 장부 자료) · 잠금 */
 /* 🧾 2026-10-01 (G105) 공사 견적서 · 원가계산서 만들기 — 이 브라우저에만 저장 · 요율 근거는 lib/gyeonjeok.js */
 const Gyeonjeok = lazyPage(() => import('./pages/Gyeonjeok.jsx'))
 /* 🦺💰🏢📝 2026-10-01 (G112) 소장님 「예스폼에 또 뭐가 있지? 새로 만들어야 할 서식은?」 → 「1부터 4까지 만들어 보자」 — 넷 다 이 브라우저에만 저장 */
@@ -296,6 +297,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/tools/tuipbi" element={<Suspense fallback={<Loading />}><Tuipbi /></Suspense>} />
           <Route path="/tools/nomubi" element={<Suspense fallback={<Loading />}><Nomubi /></Suspense>} />
           <Route path="/tools/nomubi-myeongse" element={<Suspense fallback={<Loading />}><NomubiMyeongse /></Suspense>} />
+          <Route path="/tools/gyeongri" element={<Suspense fallback={<Loading />}><Gyeongri /></Suspense>} />
           <Route path="/tools/gyeonjeok" element={<Suspense fallback={<Loading />}><Gyeonjeok /></Suspense>} />
           <Route path="/tools/sonik" element={<Suspense fallback={<Loading />}><Sonik /></Suspense>} />
           <Route path="/tools/jimyeong" element={<Suspense fallback={<Loading />}><Jimyeong /></Suspense>} />

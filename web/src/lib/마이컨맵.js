@@ -320,6 +320,7 @@ export const 작업목록 = [
   ['kcm-eq-books', '장비 임대료 · 수금 장부', '🚜', '/tools/equip', (v) => (개수(v) ? `장부 ${개수(v)}개` : '')],
   ['kcm-rk-books', '위험성평가', '⚠️', '/tools/risk', (v) => (개수(v) ? `장부 ${개수(v)}개` : '')],
   ['kcm_sonik1', '공사 손익 장부', '📒', '/tools/sonik', () => ''],
+  ['kcm_gyeongri1', '경리컨맵 거래처 정보', '🗃', '/tools/gyeongri', (v) => (v && v.곳 && Object.keys(v.곳).length ? `거래처 ${Object.keys(v.곳).length}곳` : '')],   /* 🗃 경리컨맵 1단계 */
   ['kcm_ilbo1', '작업일보', '🗒', '/tools/ilbo', () => ''],
   ['kcm_gyeonjeok1', '견적서', '🧾', '/tools/gyeonjeok', () => ''],
   ['kcm_jimyeong1', '공사지명원', '📇', '/tools/jimyeong', () => ''],

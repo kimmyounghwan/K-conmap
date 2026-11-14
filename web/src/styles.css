@@ -11041,3 +11041,86 @@ html.kcm-보기만 .kcm-예시판 input, html.kcm-보기만 .kcm-예시판 texta
 .gmd-in.gg-q { background: var(--warn-soft); border-color: var(--warn); }
 .gmd-in.gg-q::placeholder { color: var(--warn); opacity: 1; font-weight: 700; }
 @media print { .gg-qhint { display: none; } }
+
+/* 🗃 경리컨맵 1단계 — 회사 전체 한눈에 · 거래처 원장 (2026-11-14 · /tools/gyeongri · pages/Gyeongri.jsx — 자료는 현장 손익 장부) */
+.gr h1 { font-size: 21px; margin: 6px 0 4px; }
+.gr-p { font-size: 13.5px; line-height: 1.7; margin: 0 0 6px; word-break: keep-all; }
+.gr-note { margin: 8px 0 0; font-size: 13px; line-height: 1.6; word-break: keep-all; }
+.gr-start { margin-top: 12px; font-size: 13.5px; }
+.gr-start ul { margin: 6px 0 0; padding-left: 18px; line-height: 1.8; word-break: keep-all; }
+.gr-top { margin-top: 12px; justify-content: space-between; }
+.gr-tabs { margin-top: 0; }
+.gr-write { width: auto; white-space: nowrap; }
+.gr-판 { margin-top: 10px; }
+.gr-판 > .card { padding: 12px; }
+.gr-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.gr-co { font-size: 15px; }
+.gr-달 { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+.gr-달 .btn { width: auto; min-width: 34px; padding: 4px 8px; }
+.gr-tiles { margin: 10px 0 4px; }
+.gr-tiles > div b { font-size: 17px; }
+.gr-tiles2 { grid-template-columns: 1fr 1fr; }
+.gr-small { margin: 2px 0 8px; font-size: 12px; line-height: 1.6; word-break: keep-all; }
+.gr-wrap { overflow-x: auto; margin: 4px 0 6px; -webkit-overflow-scrolling: touch; }
+.gr-t { border-collapse: collapse; width: 100%; min-width: 540px; font-size: 13px; }
+.gr-t th { background: var(--surface-2); font-weight: 700; padding: 6px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; text-align: left; font-size: 12.5px; }
+.gr-t td { padding: 6px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.gr-t th.n, .gr-t td.n { text-align: right; white-space: nowrap; }
+.gr-t tr.gr-go { cursor: pointer; }
+.gr-t tr.gr-go:hover td { background: var(--accent-soft); }
+.gr-적 { min-width: 140px; word-break: keep-all; }
+.gr-neg { color: var(--bad); }
+.gr-앞 { font-size: 10.5px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.gr-갈 { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
+.gr-청 { background: #e0ecff; color: #1d4ed8; } .gr-수 { background: #dcfce7; color: #15803d; } .gr-매 { background: #fff1e0; color: #b45309; } .gr-지 { background: #fde2e2; color: #b91c1c; }
+@media (prefers-color-scheme: dark) { .gr-청 { background: #1e2b4a; color: #93c5fd; } .gr-수 { background: #14301f; color: #86efac; } .gr-매 { background: #3a2a14; color: #fcd34d; } .gr-지 { background: #3b1717; color: #fca5a5; } }
+.gr-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.gr-chips .chip { width: auto; }
+.gr-kv { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; font-size: 13.5px; margin: 2px 0 6px; }
+.gr-kv b { font-size: 15px; }
+.gr-info { margin: 2px 0 8px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.gr-info > summary { cursor: pointer; font-size: 14px; }
+.gr-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px 12px; align-items: end; margin: 8px 0 0; }
+.gr-form label { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; color: var(--muted); font-weight: 600; min-width: 0; }
+.gr-form .gr-small { grid-column: 1 / -1; }
+.gr-in { width: 100%; min-width: 0; box-sizing: border-box; padding: 8px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 14px; }
+.gr-warn { color: var(--bad); font-weight: 600; }
+.gr-inline { width: auto; display: inline-block; margin: 0 2px; padding: 3px 9px; }
+.gr-foot { margin-top: 14px; font-size: 12.5px; }
+@media (max-width: 520px) {
+  .gr-in { font-size: 16px; }
+  .gr-form { grid-template-columns: 1fr 1fr; }
+  .gr-달 { margin-left: 0; }
+  .gr-top { flex-direction: column; align-items: stretch; }
+  .gr-write { text-align: center; }
+}
+@media (max-width: 360px) { .gr-form { grid-template-columns: 1fr; } }
+/* 🗃 경리컨맵 폰(600px 아래) — 표를 옆으로 밀지 않게 줄마다 쌓음(G331 .ctab.stk 꼴 · 11-14 올리기 전 캡처에서 현장 이름이 한 글자씩 세로로 서고 원장 금액 · 줄 돈 칸이 화면 밖으로 잘려 보였음)
+ *   현장마다 = 이름 한 줄 + 두 칸 격자(칸 이름 위 · 값 아래) · 거래처 = 이름 … 남은 돈(값 있는 쪽만) / 마지막 거래
+ *   원장 = 은행 앱 거래 내역처럼: 날 · 갈래 … 금액 / 항목 · 적요 / 현장 … 남은 돈(그 줄 쪽만) — 칸 이름은 data-l(표 머리 대신) */
+@media (max-width: 600px) {
+  .gr-wrap { overflow-x: visible; }
+  .gr-t { min-width: 0; }
+  .gr-t thead { display: none; }
+  .gr-t, .gr-t tbody { display: block; width: 100%; }
+  .gr-t tr { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; row-gap: 3px; padding: 9px 2px; border-bottom: 1px solid var(--line); }
+  .gr-t td { display: block; border: 0; padding: 0; }
+  .gr-t td.gr-폰숨, .gr-t td:empty { display: none; }
+  .gr-t td.n[data-l]::before { content: attr(data-l); font-size: 11.5px; font-weight: 600; color: var(--muted); margin-right: 6px; }
+  .gr-t.gr-현장 tr { display: grid; grid-template-columns: 1fr 1fr; column-gap: 12px; row-gap: 6px; }
+  .gr-t.gr-현장 td:first-child { grid-column: 1 / -1; word-break: keep-all; }
+  .gr-t.gr-현장 td.n { text-align: left; }
+  .gr-t.gr-현장 td.n[data-l]::before { display: block; margin: 0 0 1px; }
+  .gr-t.gr-곳 td.gr-이름 { flex: 1 1 auto; word-break: keep-all; }
+  .gr-t.gr-곳 td.n { margin-left: auto; }
+  .gr-t.gr-곳 td.gr-마지막 { flex-basis: 100%; font-size: 12px; }
+  .gr-t.gr-곳 td.gr-마지막::before { content: attr(data-l) ' '; }
+  .gr-t.gr-장 td.gr-날 { order: 1; }
+  .gr-t.gr-장 td.gr-갈래 { order: 2; }
+  .gr-t.gr-장 td.gr-금 { order: 3; margin-left: auto; }
+  .gr-t.gr-장 td.gr-적 { order: 4; flex-basis: 100%; min-width: 0; }
+  .gr-t.gr-장 td.gr-현 { order: 5; flex: 1 1 auto; font-size: 12px; color: var(--muted); word-break: keep-all; }
+  .gr-t.gr-장 td.gr-남 { order: 6; margin-left: auto; }
+  .gr-t tr.gr-go:hover { background: var(--accent-soft); }
+  .gr-t tr.gr-go:hover td { background: transparent; }   /* 쌓은 줄은 칸마다 칠하면 얼룩져 보임 — 줄 통째로 */
+}

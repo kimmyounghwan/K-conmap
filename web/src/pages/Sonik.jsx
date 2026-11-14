@@ -349,6 +349,7 @@ export default function Sonik() {
         <p className="cp" style={{ margin: 0, fontSize: 13 }}>
           현장에서 날마다 출역 · 장비 · 자재를 적고 달마다 청구내역서까지 뽑으려면 <Link to="/tools/tuipbi">현장 투입비 · 공사일보</Link>,
           장비 임대료 수금은 <Link to="/tools/equip">장비 임대료 · 수금 장부</Link>, 일용 노무비는 <Link to="/tools/nomubi">노무비 계산기</Link>입니다.
+          {' '}모든 현장을 한눈에(그 달 들어온 · 나간 돈 · 받을 · 줄 돈) · 거래처 원장은 이 장부를 읽어 보이는 <Link to="/tools/gyeongri">경리컨맵</Link>입니다.
         </p>
       </div>
 

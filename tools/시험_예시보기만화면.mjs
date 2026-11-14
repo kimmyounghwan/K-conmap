@@ -256,10 +256,10 @@ for (const [길, 예시글] of [['/tools/anjeon', '예시로 미리 보기'], ['
   const css목록 = [...줄.matchAll(/html\.kcm-보기만 (\.[^\s,{]+)/g)].map((x) => x[1])
   ok('⑤ 두 벌 — lib/보기만.js 예시판 = styles.css «G679» 고르기 막음 칸', 목록.length >= 6 && 목록.length === css목록.length && 목록.every((x) => css목록.includes(x)), { 목록, css목록 })
   ok('⑤ styles.css — 인쇄면 html.kcm-보기만 body > * 숨김 · body::before 안내', /html\.kcm-보기만 body > \* \{ display: none !important; \}/.test(css) && /html\.kcm-보기만 body::before \{\s*content: "🧪 예시는 화면에서 보기만/.test(css))
-  const 잠근도구 = ['wonclick', 'hado-docs', 'esc', 'anjeon', 'yuhae', 'sigong', 'jungcheo', 'colorplan', 'cadfix']
-  const 쪽파일 = { wonclick: 'WonClick', 'hado-docs': 'HadoDocs', esc: 'Esc', anjeon: 'SafetyPlan', yuhae: 'HazardPlan', sigong: 'SigongPlan', jungcheo: 'Jungcheo', colorplan: 'ColorPlan', cadfix: 'CadFix' }
+  const 잠근도구 = ['wonclick', 'hado-docs', 'esc', 'anjeon', 'yuhae', 'sigong', 'jungcheo', 'colorplan', 'cadfix', 'gyeongri']   // 🗃 G684 경리컨맵 더함
+  const 쪽파일 = { wonclick: 'WonClick', 'hado-docs': 'HadoDocs', esc: 'Esc', anjeon: 'SafetyPlan', yuhae: 'HazardPlan', sigong: 'SigongPlan', jungcheo: 'Jungcheo', colorplan: 'ColorPlan', cadfix: 'CadFix', gyeongri: 'Gyeongri' }
   const 안부름 = 잠근도구.filter((k) => !/use보기만\(/.test(fs.readFileSync(path.join(ROOT, `web/src/pages/${쪽파일[k]}.jsx`), 'utf8')))
-  ok('⑤ 잠근 도구 9가지 모두 use보기만 을 부름', 안부름.length === 0, 안부름)
+  ok(`⑤ 잠근 도구 ${잠근도구.length}가지 모두 use보기만 을 부름`, 안부름.length === 0, 안부름)
 }
 const 보기만도구 = [
   ['/tools/wonclick', async (p) => { await 누르기(p, '화면에서 보기'); await p.waitForSelector('.xv-판', { timeout: 60000 }) }, '.xv-판'],
@@ -271,6 +271,7 @@ const 보기만도구 = [
   ['/tools/jungcheo', async (p) => { await p.locator('button[role=tab]:has-text("서류 한 벌")').first().click(); await 누르기(p, '예시로 미리 보기'); await p.waitForSelector('.sg-view svg.sg-page', { timeout: 60000 }) }, '.sg-view'],
   ['/tools/colorplan', async (p) => { await p.locator('button:visible:has-text("🧪")').first().click(); await p.waitForSelector('.cpl-view canvas', { timeout: 90000 }) }, '.cpl-view'],
   ['/tools/cadfix', async (p) => { await p.locator('button:visible:has-text("🧪")').first().click(); await p.waitForSelector('button:has-text("고치기")', { timeout: 90000 }); await p.locator('button:visible:has-text("🛠 고치기")').first().click(); await p.waitForSelector('.cfx-view canvas', { timeout: 90000 }) }, '.cfx-view'],
+  ['/tools/gyeongri', async (p) => { await 누르기(p, '예시 장부 보기'); await p.waitForSelector('.kcm-예시판 .gr-t', { timeout: 30000 }) }, '.kcm-예시판'],   // 🗃 G684 경리컨맵 예시 장부
 ]
 for (const [길, 열기, 판] of 보기만도구) {
   for (const w of (길 === '/tools/wonclick' ? [390, 1280] : [390])) {
