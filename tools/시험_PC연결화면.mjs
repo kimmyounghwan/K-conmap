@@ -120,8 +120,10 @@ for (const 기기 of 기기들) {
   if (!폰) await p.screenshot({ path: path.join(틀, 'PC_PC연결띠.png') })
   /* ④ 캐드 KCM 보내기 */
   fs.writeFileSync(path.join(보내기, 'kcm_' + Date.now() + '.txt'), path.join(폴더, '하위', '둘째.dxf') + '\r\n')
-  봐(await 기다림(() => p.evaluate(() => !!document.querySelector('.gmd-askbox')), 60), '보낸 도면을 받아 읽은 뒤 «지금 모델 대신 도면에서 세울까요?» 물음(모델이 있으니)')
-  봐(await 누름(/^예, 바꾸기$/), '예, 바꾸기')
+  /* 📚 G483(11-01) 지금 모델이 «쌓인 도면에서 세운 그대로»(손대지 않음)면 묻지 않고 앞 도면과 합쳐 다시 세움 — 전엔 «지금 모델 대신 …?» 물음이었음
+       (이 시험은 G483 때 안 고쳐져 11-14 적산 탭 점검에서 찾음 · 물음이 다시 생기면 여기서 잡힘) */
+  let 물음뜸 = false
+  봐(await 기다림(async () => { if (await p.evaluate(() => !!document.querySelector('.gmd-askbox'))) 물음뜸 = true; return /캐드에서 보낸 «둘째\.dxf»/.test(await p.evaluate(() => document.body.innerText)) && await 다읽음() }, 60) && !물음뜸, '보낸 도면을 받아 — 모델이 쌓인 도면 그대로라 묻지 않고 앞 도면과 합쳐 세움(G483 · 물음 없음)', { 물음뜸 })
   봐(await 기다림(async () => /캐드에서 보낸 «둘째\.dxf»/.test(await p.evaluate(() => document.body.innerText)) && await 다읽음(), 60), '캐드 KCM 으로 보낸 «둘째.dxf» 를 열린 화면이 받아 넣음')
   const 남 = await 핑()
   봐(남 && 남.보낸 === 0, '프로그램 쪽 보낸 것 모두 «받음»', 남)

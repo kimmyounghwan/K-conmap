@@ -10,6 +10,8 @@
  *   ⑤ 수량산출서 3000줄 «📄 이 장 PDF» → 가로 74쪽(= 옛 인쇄) · 덩이 여럿(줄 솎음) · 쪽마다 머리줄 다시
  *   ⑥ 아이폰 흉내(사파리 쓸 칸 위 27 · 아래 32mm) «🖨 모두 인쇄» → 그림이 안 갈리고 35쪽(안드로이드 꼴 그림은 같은 흉내에서 갈림)
  *   ⑦ Ctrl+P → 장 글 안 나감 ⑧ 404 ⑨ 하도급 서류 예시는 인쇄 · PDF 단추 없음(보기만) ⑩ 폰 390 · PC 1280 넘침 0 · 오류 0
+ *   🧪 G679(11-14) 뒤 — 원클릭은 «열쇠말 연 브라우저»(lib/gate.js 해시 · 예시값을 그 브라우저에 적어 둠)에서만 📄 PDF · 🖨 인쇄 → ①②③⑥⑦⑧ 은 그 꼴로 ·
+ *     남(열쇠말 없음)의 원클릭 예시는 보기만(PDF · 인쇄 단추 0 · html.kcm-보기만) — ⑨ 에서 같이 봄(11-14 적산 탭 점검에서 G679 가 이 시험을 안 고친 것을 찾음)
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -23,6 +25,12 @@ const 폴더 = process.env.OUT || '/tmp/g10/g612'
 const 긴판 = process.env.긴판 !== '0'
 fs.mkdirSync(폴더, { recursive: true })
 const 견본 = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'web', 'public', 'jeoksan', '치수표_견본.csv')   // 🪟 URL.pathname 은 PC(Windows)에서 «/E:/…» 로 넘어짐(checkimports)
+
+/* 🔑 G679 뒤 — 원클릭 PDF · 인쇄는 열쇠말 연 브라우저에서만: lib/gate.js 의 해시 · WonClick.jsx 의 예시값을 소스에서 읽어 씀(두 벌 안 둠) */
+const 뿌리 = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
+const HASH = (/const HASH = '([0-9a-f]{64})'/.exec(fs.readFileSync(path.join(뿌리, 'web', 'src', 'lib', 'gate.js'), 'utf8')) || [])[1]
+const 예시값 = Function('return ' + (/const 예시값 = (\{[\s\S]*?\n\})/.exec(fs.readFileSync(path.join(뿌리, 'web', 'src', 'pages', 'WonClick.jsx'), 'utf8')) || [])[1])()
+if (!HASH || !예시값 || !예시값.공사명) { console.log('✗ gate.js 해시 · WonClick.jsx 예시값을 못 읽음'); process.exit(1) }
 
 let bad = 0, n = 0
 const 틀림 = []
@@ -80,12 +88,13 @@ const 띠차 = (a, b) => { let s = 0; for (let i = 0; i < Math.min(a.length, b.l
 const b = await chromium.launch()
 const UA폰 = 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36'
 const UA아이폰 = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1'
-const 새판 = async (기기) => {
+const 새판 = async (기기, 열쇠 = true) => {
   const 폰 = 기기 !== 'PC'
   const ctx = await b.newContext({ viewport: 폰 ? { width: 390, height: 844 } : { width: 1280, height: 900 }, locale: 'ko-KR', timezoneId: 'Asia/Seoul', isMobile: 폰, hasTouch: 폰, acceptDownloads: true, ...(기기 === '폰' ? { userAgent: UA폰 } : 기기 === '아이폰' ? { userAgent: UA아이폰 } : {}) })
   await ctx.route(/googletagmanager|google-analytics|pagead2|adsbygoogle|googlesyndication|geojs/, (r) => r.fulfill({ status: 200, body: '' }))
   await ctx.route(/firebaseio\.com|firebasedatabase\.app|identitytoolkit|securetoken/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: 'null' }))
   await ctx.addInitScript(() => { try { localStorage.setItem('kcm_notice_seen', '2026-10-필독'); sessionStorage.setItem('kcm_notice_seen', '2026-10-업체'); sessionStorage.setItem('kcm_visit_s', '1') } catch (e) { /* 없음 */ } })
+  if (열쇠) await ctx.addInitScript(([h, v]) => { try { localStorage.setItem('kcm_lab_ok', h); if (!localStorage.getItem('kcm.wonclick.v1')) localStorage.setItem('kcm.wonclick.v1', JSON.stringify(v)) } catch (e) { /* 없음 */ } }, [HASH, 예시값])
   await ctx.addInitScript(() => { window.__받은이름 = []; window.__kcm찍기재기 = []; document.addEventListener('click', (e) => { const a = e.target && e.target.closest && e.target.closest('a[download]'); if (a) window.__받은이름.push(a.download) }, true) })
   return ctx
 }
@@ -298,9 +307,15 @@ const 치수 = (줄수) => { const 나 = [...머리줄, 몸줄[0]]; for (let i =
     ok('PC 3000줄 오류 0', 오류3.length === 0, 오류3)
     await L.close()
   }
-  /* ⑨ 하도급 서류 예시 — 보기만(인쇄 · PDF 없음) */
+  /* ⑨ 하도급 서류 예시 — 보기만(인쇄 · PDF 없음) · 🧪 G679 남(열쇠말 없음)의 원클릭 예시도 보기만 — 열쇠 없는 판에서 */
   {
-    const h = await ctx.newPage()
+    const ctx9 = await 새판('PC', false)
+    const w = await ctx9.newPage()
+    await 원클릭열기(w)
+    const 글w = await w.$$eval('.xv-띠 button', (x) => x.map((y) => y.innerText))
+    ok(`⑨ 남(열쇠말 없음)의 원클릭 예시 → 보기만(PDF · 인쇄 단추 0 · html.kcm-보기만) «${글w.join(' · ')}»`, 글w.every((x) => !/PDF|인쇄/.test(x)) && await w.evaluate(() => document.documentElement.classList.contains('kcm-보기만')), 글w)
+    await w.close()
+    const h = await ctx9.newPage()
     await h.goto(BASE + '/tools/hado-docs', { waitUntil: 'domcontentloaded' })
     await h.locator('button', { hasText: '예시 한 벌 보기' }).first().click()
     await h.waitForSelector('.xv-띠', { timeout: 60000 })
@@ -308,6 +323,7 @@ const 치수 = (줄수) => { const 나 = [...머리줄, 몸줄[0]]; for (let i =
     const 글9 = await h.$$eval('.xv-띠 button', (x) => x.map((y) => y.innerText))
     ok(`⑨ 하도급 계약서류 예시(보기만) → 인쇄 · PDF 단추 없음(«${글9.join(' · ')}»)`, 글9.length >= 1 && 글9.every((x) => !/PDF|인쇄/.test(x)), 글9)
     await h.close()
+    await ctx9.close()
   }
   await ctx.close()
 }

@@ -222,13 +222,19 @@ for (const 기기 of 기기들) {
   await B.waitForSelector('.gmd-ws', { timeout: 30000 })
   봐(true, `${기기} 운영자는 ?ws=1 로 바로 작업 화면`)
   /* ⑦ 📐 도면 넣기 — 가상 예시 도면 → 좌표대로 세움 */
-  /* 🔧 G454 «지금 모델 대신 도면에서 세울까요?» 는 브라우저 창이 아니라 화면 안 물음(gmd-askbox) — «예, 바꾸기» */
+  /* 🔧 G454 «지금 모델 대신 도면에서 세울까요?» 는 브라우저 창이 아니라 화면 안 물음(gmd-askbox) — «예, 바꾸기»
+     🔰 G487 지금 모델이 «가상 예시» 면 묻지 않고 바로 세움(예시를 눌러 본 뒤 내 도면을 넣는 처음 쓰는 분에게 뜻 모를 물음) —
+        여기 모델은 «가상 예시(2층 라멘조)» 를 고친 것이라 물음 없이 세워져야 함(11-14 점검: 이 시험이 G487 뒤로 물음을 기다리다 멈춰 있었음 · 물음 자체는 시험_PC연결화면이 봄) */
   let 창 = 0; const 창셈 = (d) => { 창++; d.accept() }; B.on('dialog', 창셈)
   await B.locator('.gmd-ws-dwgin').setInputFiles(예도면)
-  await B.locator('.gmd-askbox button', { hasText: '예, 바꾸기' }).click({ timeout: 60000 })
+  const 물음 = await Promise.race([
+    B.waitForSelector('.gmd-askbox', { timeout: 60000 }).then(() => true),
+    B.waitForSelector('.gmd-dwgres', { timeout: 60000 }).then(() => false),
+  ])
+  if (물음) await B.locator('.gmd-askbox button', { hasText: '예, 바꾸기' }).click()
   await B.waitForSelector('.gmd-dwgres', { timeout: 60000 })
   B.off('dialog', 창셈)
-  봐(창 === 0, `${기기} 도면 넣기 — 바꿀지 화면 안에서 물음(브라우저 창 안 뜸)`, 창)
+  봐(창 === 0 && !물음, `${기기} 도면 넣기 — 지금 모델이 가상 예시라 묻지 않고 세움(G487 · 브라우저 창도 안 뜸)`, { 창, 물음 })
   await B.waitForTimeout(1200)
   const 결 = await B.locator('.gmd-dwgres').innerText()
   봐(new RegExp('부재 ' + 도면예.옮김 + '개').test(결) && 도면예.옮김 > 100, `${기기} 도면 넣기 — 부재 ${도면예.옮김}개 세움`, 결.slice(0, 200))
@@ -282,6 +288,20 @@ for (const 기기 of 기기들) {
   await 함r.locator('li').first().locator('input[type=checkbox]').check(); await B.waitForTimeout(600)
   봐(합8 !== 합2 && (await B.locator('.gmd-ws-right .gmd-sum').innerText()) === 합2, `${기기} 새로고침 뒤에도 ☐ 빼고 ☑ 넣기 — 합 그대로`, 합8)
   if (기기 === '폰') 봐((await B.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 1, `폰 도면함 가로 넘침 없음`)
+  /* 🔧 G454 «바꿀까요?» 물음 — 예시가 아닌 손댄 모델(새로고침 뒤 · 도면에서 세운 것)에 도면을 또 넣으면 화면 안 물음(gmd-askbox · 브라우저 창 아님)
+       → «아니오, 그대로» 면 모델 그대로(합 = 합2) · 알림 «그대로 두었습니다»
+       (11-14 점검에서 더함 — G483 · G487 뒤로 예시 · 쌓인 그대로 모델은 묻지 않게 바뀌어, 물음을 실제로 띄워 보는 시험이 없었음) */
+  {
+    let 창2 = 0; const 창셈2 = (d) => { 창2++; d.dismiss() }; B.on('dialog', 창셈2)
+    await B.locator('.gmd-ws-dwgin').setInputFiles(예도면)
+    const 떴나 = await B.waitForSelector('.gmd-askbox', { timeout: 60000 }).then(() => true).catch(() => false)
+    const 물글 = 떴나 ? await B.locator('.gmd-askbox').innerText() : ''
+    if (떴나) await B.locator('.gmd-askbox button', { hasText: '아니오, 그대로' }).click()
+    await B.waitForTimeout(1500)
+    B.off('dialog', 창셈2)
+    봐(떴나 && 창2 === 0 && /세울까요/.test(물글), `${기기} 손댄 모델에 도면 또 넣기 — 화면 안 물음(G454 · 브라우저 창 안 뜸)`, { 떴나, 창2, 물글: 물글.slice(0, 120) })
+    봐(/그대로 두었습니다/.test(await B.locator('body').innerText()) && (await B.locator('.gmd-ws-right .gmd-sum').innerText()) === 합2, `${기기} «아니오, 그대로» → 모델 그대로(합 같음)`)
+  }
   for (let i = 0; i < 30 && !/212\.014/.test(await B.locator('.gmd-ws-right .gmd-sum').innerText()) && (await B.getByTitle('되돌리기').isEnabled()); i++) { await B.getByTitle('되돌리기').click(); await B.waitForTimeout(250) }
   await B.waitForTimeout(500)
   봐(/212\.014/.test(await B.locator('.gmd-ws-right .gmd-sum').innerText()), `${기기} 되돌리기 → 도면 넣기 전 모델(예시 212.014)`)
