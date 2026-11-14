@@ -2925,6 +2925,29 @@ def nomubi_page(shell, image=None):
                 _app_ld("일용 노무비 계산기", desc, "/tools/nomubi"))
 
 
+# 🧾 /tools/nomubi-myeongse — 일용노무비 지급명세서 «한 장 표» (G681 · 2026-11-14) · 화면 NomubiMyeongse.jsx · 셈 lib/노무비명세.js(= lib/nomubi.js 달셈)
+#   소장님 「도구로 해서 캡쳐랑 똑같이 만들어」 — 새 화면 글엔 «무료» 를 안 씀(11-09 규칙)
+def nomubi_myeongse_page(shell, image=None):
+    title = "일용노무비 지급명세서 양식 — 현장 한 장 표 · 4대보험 공제 자동 · PDF | K-건설맵"
+    desc = ("일용노무비 지급명세서를 현장 한 장 표 그대로 사이트에서 작성합니다. 직종 · 성명 · 주민번호 · 전화 · 주소 · 일당 · 은행 · 계좌를 적고 "
+            "일한 날만 누르면 총공수 · 노무비 · 소득세 · 주민세 · 고용 · 국민연금 · 건강 · 요양보험 · 차감 지급액이 저절로 — A4 가로 PDF · 인쇄.")[:160]
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">🧾 일용노무비 지급명세서</h1>'
+           '<p class="cp" style="margin-top:8px">현장에서 쓰는 <b>한 장 표</b> 그대로입니다 — 상호 · 공사명 · 기간 / 순번 · 직종 · 성명 · 주민등록번호 · 전화번호 · 주소 · '
+           '근로일수(1~15일 · 16~31일 두 줄) · 총공수 · 노무비 단가 · 노무비 총액 · 공제 총액 · 차감 지급액 · 공제 내역(소득세 · 주민세 · 고용보험 · 국민연금 · '
+           '건강보험 · 요양보험) · 은행 · 계좌번호 · 합계.</p>'
+           '<p class="cp">사람마다 적고 <b>일한 날만 누르면</b> 공제와 차감 지급액이 저절로 나오고, <b>A4 가로 PDF · 인쇄</b>로 받습니다. '
+           '적은 것은 이 기기에만 남고, 주민번호 · 계좌는 이 기기 안에서 잠가 둡니다(서버로 보내지 않음).</p></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">공제는 이렇게 셉니다 (2026년 · 일용근로자)</div><ul class="flist">'
+           '<li>소득세 — 날마다 (일당 − 15만원) × 2.7% · 한 달 합 1천원 미만은 떼지 않음 · 주민세(지방소득세) 10%</li>'
+           '<li>고용보험 0.9% · 국민연금 4.75% · 건강보험 3.595% · 요양보험 = 건강보험료 × 13.14% — 가입 기준(한 달 8일 · 첫 근로일부터 1개월 등)과 '
+           '나이(만 60세 국민연금 · 만 65세 고용보험)는 주민번호 앞자리로 저절로 가립니다 (<a href="/tools/ilyong-boheom">4대보험 가입 판단기</a>와 같은 기준)</li>'
+           '<li>사람마다 «연금 · 건강 · 고용» 단추로 그 달만 넣고 뺄 수 있습니다</li></ul></div>',
+           '<div class="card"><p class="cp" style="margin:0">신고에 옮겨 적을 집계 · 퇴직공제 · 보험료는 <a href="/tools/nomubi">일용 노무비 계산기</a>와 '
+           '<a href="/tools/singo">매달 신고 정리</a>에서 — 근로내용 확인신고는 일한 달의 다음 달 15일까지입니다 (고용보험법 시행령 제7조제1항).</p></div>']
+    return page(shell, "/tools/nomubi-myeongse", title, desc, "".join(out) + nav_html("/tools/nomubi-myeongse"), image,
+                _app_ld("일용노무비 지급명세서", desc, "/tools/nomubi-myeongse"))
+
+
 # 🚜 /tools/equip · ⚠️ /tools/risk — «코드+비밀번호» 장부 둘 (2026-09-29)
 #   소장님: 「(서식) 좀 이상해 봐줘. 위험성평가도 이상해. 되도록 사이트내에서 사용 할 수 있는 프로그램으로 만들어 줘」
 #   화면은 EquipBook.jsx · RiskBook.jsx · 셈은 lib/장비장부.js · lib/위험성.js · 저장은 파이어베이스(eq_* · rk_*).
@@ -4707,6 +4730,10 @@ def main():
           og.tab("tool-nomubi", "일용 노무비 계산기", "건설 도구", "소득세 · 4대보험 공제", "지급명세서 인쇄") if og.available else None))
     made += 1
     print("  · 일용 노무비 계산기 페이지 1개 (/tools/nomubi)")
+    write("tools/nomubi-myeongse.html", nomubi_myeongse_page(shell,
+          og.tab("tool-nomubi-myeongse", "일용노무비 지급명세서", "건설 도구", "현장 한 장 표", "공제 자동 · PDF") if og.available else None))
+    made += 1
+    print("  · 일용노무비 지급명세서 페이지 1개 (/tools/nomubi-myeongse)")
     write("tools/gyeonjeok.html", gyeonjeok_page(shell,
           og.tab("tool-gyeonjeok", "공사 견적서 · 원가계산서", "건설 도구", "견적금액 한글 자동", "A4 인쇄") if og.available else None))
     made += 1

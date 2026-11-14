@@ -315,6 +315,7 @@ const 개수 = (v) => (Array.isArray(v) ? v.length : Array.isArray(v && v.L) ? v
 export const 작업목록 = [
   ['kcm_nomubi_sites', '노무비 계산기', '👷', '/tools/nomubi', (v) => (개수(v) ? `현장 ${개수(v)}곳` : '')],
   ['kcm_nomubi1', '노무비 계산기', '👷', '/tools/nomubi', () => ''],
+  ['kcm_nomubi_ms1', '일용노무비 지급명세서', '🧾', '/tools/nomubi-myeongse', (v) => (v && Array.isArray(v.P) && v.P.length ? `명단 ${v.P.length}명` : '')],   /* 🧾 G681 */
   ['kcm-tuipbi-sites', '현장 투입비 · 공사일보', '🏗', '/tools/tuipbi', (v) => (개수(v) ? `현장 ${개수(v)}곳` : '')],
   ['kcm-eq-books', '장비 임대료 · 수금 장부', '🚜', '/tools/equip', (v) => (개수(v) ? `장부 ${개수(v)}개` : '')],
   ['kcm-rk-books', '위험성평가', '⚠️', '/tools/risk', (v) => (개수(v) ? `장부 ${개수(v)}개` : '')],

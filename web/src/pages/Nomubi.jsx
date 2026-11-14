@@ -290,6 +290,7 @@ function 계산기({ 현장id, 현장칸, on현장명 }) {
           <span>회원가입 없음 · 무료</span>
           <span>💾 이 브라우저에 저장 · 🔗 코드로 폰·PC 이어 쓰기 {저장됨 ? '' : <b className="nm-warn">— 지금 저장이 막혀 있습니다(사생활 보호 창 등)</b>}</span>
           <span>🔒 생년월일만 · 주민번호 뒷자리 · 계좌는 받지 않습니다</span>
+          <span>🧾 현장 한 장 표(주민번호 · 전화 · 주소 · 은행 · 계좌 칸)는 <Link to="/tools/nomubi-myeongse">일용노무비 지급명세서</Link> — 같은 셈</span>
         </div>
         {현장칸}
         <이어쓰기 ns="nm" 자리={현장연결자리(현장id)} 이름="일용 노무비" 파일="노무비" st={st} setSt={setSt}

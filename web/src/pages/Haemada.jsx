@@ -11,7 +11,7 @@ import 도구설명 from '../tools/도구설명.jsx'
  */
 const 원 = (n) => Math.round(n || 0).toLocaleString('ko-KR')
 const 화면주소 = (s) => { const m = String(s).match(/^(\/[a-z0-9\-/]+)/i); return m ? m[1] : null }
-const 화면이름 = { '/tools/boheomryo': '고용·산재 보험료', '/tools/singo': '매달 신고 정리', '/tools/toejik': '퇴직공제 집계', '/tools/nomubi': '노무비 계산기',
+const 화면이름 = { '/tools/boheomryo': '고용·산재 보험료', '/tools/singo': '매달 신고 정리', '/tools/toejik': '퇴직공제 집계', '/tools/nomubi': '노무비 계산기', '/tools/nomubi-myeongse': '노무비 지급명세서',
   '/tools/ilyong-boheom': '4대보험 판단기', '/tools/ilyong-silup': '실업급여 판단기', '/tools/sanjae-hyueop': '산재 휴업급여', '/tools/juhyu': '주휴수당 판단기', '/tools/gyeonjeok': '견적서 · 원가계산서', '/tools/tuipbi': '현장 투입비', '/tools/sanan': '산안비 계상기' }
 const 쓰는글 = (s) => { const u = 화면주소(s); const 덧 = u ? String(s).slice(u.length).trim() : ''; return { u, 글: u ? `${화면이름[u] || u}${덧 ? ' ' + 덧 : ''}` : s } }
 

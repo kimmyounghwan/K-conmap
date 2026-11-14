@@ -67,7 +67,9 @@ ok('콜백 이름 — 자리마다 다름(한 쪽에 광고단위 둘 · 애드�
   const 끝자리 = 앱.indexOf('<애드핏칸 key={pathname} 자리="끝" />')
   ok('자리 — App.jsx 끝 칸 하나(쪽마다 새로 key=주소) · 씀-뒤 다음 · 쿠팡 바닥 줄 · 바닥글 앞', (앱.match(/<애드핏칸 /g) || []).length === 1 && 끝자리 > 앱.indexOf('id="씀-뒤"') && 끝자리 < 앱.indexOf('<쿠팡카드줄 자리="바닥" />') && 끝자리 < 앱.indexOf('<footer'))
   ok('자리 — 1순위 · 공고 목록 칸 하나씩(카드 묶음 밖 · 따로 key — 목록을 걸러도 다시 안 부름)', [일, 공].every((s) => (s.match(/<애드핏칸 /g) || []).length === 1 && s.includes('줄들.splice(애자리 + 1, 0, <애드핏칸 key="afit-list" 자리="목록" />)')))
-  const 그 = 읽기('../web/src/styles.css'), g = 그.slice(그.indexOf('G666 카카오 애드핏 광고 칸'))
+  const 그 = 읽기('../web/src/styles.css'), g0 = 그.slice(그.indexOf('G666 카카오 애드핏 광고 칸'))
+  /* 🩹 G681(11-14) G666 덩이만 봄 — 전엔 «파일 끝까지» 잘라 봐서 뒤에 붙은 다른 G 덩이(G679 보기만 인쇄 안내 · G681 노무비 종이)의 테두리 · 바탕을 잡아 G679 부터 늘 틀렸음 */
+  const 다음G = g0.search(/\n\/\*[^\n]*\bG(?!666\b)\d{3}/), g = 다음G > 0 ? g0.slice(0, 다음G) : g0
   ok('꾸밈 — 테두리 · 바탕 · 움직임 · 붙박이(fixed · sticky) 없음 · 인쇄 숨김(5.3.1 «색상 및 애니메이션 등으로 광고 영역을 부각» 금지)', g.length > 50 && !/border\s*:|background|animation|transition|position\s*:\s*(fixed|sticky)/.test(g.replace(/\/\*[\s\S]*?\*\//g, '')) && /@media print \{ \.afit \{ display: none !important; \} \}/.test(g))
   ok('화면 글 — «클로드» · «무료» 없음(애드핏칸.jsx 화면 글)', !/클로드|무료/.test(코))
   ok('광고 칸을 가린 채 두지 않음 — .afit · .afit-box 를 visibility · opacity 로 숨기는 규칙 없음(숨긴 광고 = 부정 노출 · 5.4) · 접을 땐 칸을 뺌', !/\.afit(-box|-h)?\s*\{[^}]*(visibility\s*:\s*hidden|opacity\s*:\s*0)/.test(그.replace(/\/\*[\s\S]*?\*\//g, '')) && !/afit[^'"\n]*\.style\.(visibility|opacity)/.test(코) && /if \(끔\) return null/.test(코))

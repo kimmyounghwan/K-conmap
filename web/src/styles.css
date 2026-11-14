@@ -10919,3 +10919,115 @@ html.kcm-보기만 .kcm-예시판 input, html.kcm-보기만 .kcm-예시판 texta
     display: block !important; border: 1px solid #999; padding: 6mm; margin: 4mm 0; font-size: 12pt; line-height: 1.6; color: #000; background: #fff;
   }
 }
+
+/* 🧾 G681 일용노무비 지급명세서 «한 장 표» (/tools/nomubi-myeongse) — 화면(적는 칸 · 근로일 · 4대보험 단추) + 종이(277 × 190mm · 그림 PDF)
+   소장님 「도구로 해서 캡쳐랑 똑같이 만들어」 · 종이는 늘 흰 바탕 · 검은 줄(어두운 화면에서도) */
+.ms-띠 { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; font-size: 12.5px; color: var(--text-2); }
+.ms-경고 { color: var(--warn); }
+.ms-알림 { margin-top: 8px; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); font-size: 12.5px; line-height: 1.6; }
+.ms-위칸 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 8px; margin-top: 12px; }
+.ms-칸 { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ms-칸 > span { font-size: 12px; color: var(--text-2); font-weight: 700; }
+.ms-in { width: 100%; box-sizing: border-box; min-width: 0; font: inherit; font-size: 15px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); }
+.ms-in:focus { outline: 2px solid var(--accent-line); border-color: var(--accent); }
+.ms-달줄 { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 12px; }
+.ms-달 { font-size: 17px; }
+.ms-단추줄 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ms .btn.ms-작은단추 { width: auto; }
+.ms-말 { font-size: 12.5px; color: var(--text-2); }
+.ms-물음 { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; }
+.ms-되돌림 { margin-top: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; padding: 8px 10px; border-radius: 8px; background: var(--accent-soft); border: 1px solid var(--accent-line); }
+.ms-합줄 { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; margin-bottom: 10px; }
+.ms-차감 { color: var(--good); }
+.ms-명단 { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+.ms-사람 { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.ms-사람머리 { display: grid; grid-template-columns: 26px minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1fr) 34px; gap: 6px; align-items: center; }
+.ms-번 { font-weight: 800; color: var(--text-2); text-align: center; }
+.ms-빼기 { height: 34px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); color: var(--text-2); font-size: 15px; cursor: pointer; }
+.ms-칸들 { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px 8px; margin-top: 8px; }
+.ms-칸들 .ms-칸 { grid-column: span 2; }
+.ms-칸들 .ms-칸.ms-넓게 { grid-column: span 2; }
+.ms-출역머리 { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 10px; font-size: 13px; }
+.ms-출역머리 .muted { font-size: 12px; }
+.ms-출역단추 { display: inline-flex; gap: 6px; margin-left: auto; }
+.ms-날판 { display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 3px; margin-top: 6px; }
+.ms-날단추 { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 40px; padding: 2px 0; border: 1px solid var(--line); border-radius: 7px;
+  background: var(--surface); color: var(--text); cursor: pointer; font: inherit; line-height: 1.1; }
+.ms-날단추 small { font-size: 10.5px; color: var(--muted); }
+.ms-날단추 b { font-size: 12.5px; color: var(--muted); font-weight: 700; }
+.ms-날단추.일 small { color: #dc2626; }
+.ms-날단추.토 small { color: #2563eb; }
+.ms-날단추.on { background: var(--accent-soft); border-color: var(--accent); }
+.ms-날단추.on b { color: var(--accent); font-weight: 800; }
+@media (min-width: 761px) { .ms-날판 .ms-날단추.d16 { grid-column-start: 1; } }   /* 넓은 화면은 종이처럼 1~15 · 16~31 두 줄 */
+.ms-셈 { margin-top: 8px; font-size: 13px; }
+.ms-셈줄 { line-height: 1.7; }
+.ms-대상들 { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+.ms-대상 { font: inherit; font-size: 12.5px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text-2); cursor: pointer; }
+.ms-대상.on { border-color: var(--good); color: var(--good); background: var(--good-soft); font-weight: 700; }
+.ms-대상.손 { box-shadow: inset 0 0 0 1px #f59e0b; }
+.ms-까닭 { font-size: 11.5px; line-height: 1.5; }
+.ms-다른명단 { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; font-size: 13px; }
+.ms-미리머리 { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 8px; font-size: 14px; }
+.ms-미리머리 .muted { font-size: 12.5px; }
+.ms-미리 { width: 100%; overflow: hidden; }
+.ms-미리.크게 { overflow-x: auto; }
+.ms-미리안 { overflow: hidden; }
+.ms-미리안 .ms-쪽 { margin-bottom: 12px; box-shadow: 0 1px 6px rgba(0,0,0,.18); }
+.ms-설명 { margin: 12px 0 0; padding-left: 18px; font-size: 12.5px; line-height: 1.7; color: var(--text-2); }
+@media (max-width: 760px) {
+  .ms-칸들 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ms-칸들 .ms-칸 { grid-column: span 1; }
+  .ms-칸들 .ms-칸.ms-넓게 { grid-column: span 2; }
+  .ms-날판 { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
+  .ms-날단추 { min-height: 42px; }
+}
+@media (max-width: 520px) {
+  .ms-위칸 { grid-template-columns: minmax(0, 1fr); }
+  .ms-사람머리 { grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1fr) 34px; }
+  .ms-사람머리 .ms-단가 { grid-column: 2 / 4; grid-row: 2; }
+  .ms-in { font-size: 16px; }             /* 아이폰이 글칸을 누를 때 화면을 키우지 않게(8절 29) */
+  .ms-출역단추 { margin-left: 0; }
+}
+/* 종이 — 캡처와 같은 한 장 표 · mm 로 잼(그림 PDF 는 이 판을 그대로 찍음 · 줄이지 않음)
+   ⚠️ 종이엔 font-variant-numeric(tabular-nums)을 쓰지 않음 — 그림 그리개(캔버스)는 그 꼴을 몰라 숫자 폭이 달라져 «760906 - 1» 처럼 «-» 둘레가 벌어졌음 */
+.ms-쪽 { width: 277mm; height: 190mm; box-sizing: border-box; background: #fff; color: #000; position: relative; overflow: hidden; }
+.ms-표 { width: 277mm; border-collapse: collapse; table-layout: fixed; color: #000; background: #fff; font-size: 6.6pt; line-height: 1.15; }
+.ms-표 th, .ms-표 td { border: 0.2mm solid #222; padding: 0 0.5mm; text-align: center; vertical-align: middle; overflow: hidden; white-space: nowrap; color: #000; background: #fff; font-weight: 400; }
+.ms-표 th { font-weight: 700; }
+.ms-첫줄 th, .ms-첫줄 td { height: 9mm; border-bottom-width: 0.35mm; }
+.ms-첫줄 .ms-제목 { font-size: 10pt; font-weight: 800; letter-spacing: 0.2mm; }
+.ms-첫줄 .ms-이름표 { font-size: 7pt; }
+.ms-첫줄 .ms-값 { font-size: 7.6pt; font-weight: 700; white-space: normal; line-height: 1.2; }
+.ms-첫줄 .ms-값.ms-작게 { font-size: 6.4pt; }
+.ms-첫줄 .ms-세로 { font-size: 6.2pt; line-height: 1.05; padding: 0; }
+.ms-첫줄 .ms-기간 { font-size: 6.2pt; font-weight: 700; line-height: 1.5; }
+.ms-첫줄 .ms-날수 { font-size: 7pt; font-weight: 700; }
+.ms-머리 th { height: 4.6mm; font-size: 6.2pt; line-height: 1.1; white-space: normal; }
+.ms-날머리 th { font-size: 5.6pt; font-weight: 400; padding: 0; }
+.ms-세로글 { line-height: 1.05 !important; }
+.ms-윗 td, .ms-아래 td { height: 6.2mm; }
+.ms-윗 td { border-top-width: 0.3mm; }
+.ms-아래 td.ms-날, .ms-아래 td.ms-수, .ms-아래 td.ms-주민 { border-top-style: dashed; border-top-color: #888; }
+.ms-표 td.ms-날 { font-size: 5.6pt; padding: 0; }
+.ms-표 .ms-없음 { background: #e9e9e9; }
+.ms-표 td.ms-수 { text-align: right; padding-right: 0.8mm; }
+.ms-표 td.ms-굵 { font-weight: 700; }
+.ms-표 td.ms-주민 { font-size: 6.2pt; }
+.ms-표 td.ms-주소 { white-space: normal; text-align: left; line-height: 1.2; font-size: 6.2pt; word-break: break-all; }
+.ms-표 td.ms-계좌 { white-space: normal; word-break: break-all; font-size: 6.2pt; line-height: 1.2; }
+.ms-표 td.ms-작게 { font-size: 5.4pt; white-space: normal; line-height: 1.15; }
+.ms-합 td { font-weight: 700; }
+.ms-합 td.ms-날 { font-weight: 400; }
+.ms-표 td.ms-노랑 { background: #fff59d; }
+.ms-쪽번호 { position: absolute; right: 0; bottom: 0; font-size: 7pt; color: #444; }
+#ms-인쇄 { display: none; }
+@page ms가로 { size: A4 landscape; margin: 10mm; }
+@media print {
+  body.ms-인쇄중 > *:not(#ms-인쇄) { display: none !important; }
+  html.ms-인쇄중, body.ms-인쇄중 { background: #fff !important; margin: 0 !important; padding: 0 !important; }
+  body.ms-인쇄중 #ms-인쇄 { display: block; }
+  .ms-쪽 { page: ms가로; break-after: page; page-break-after: always; box-shadow: none !important; margin: 0 !important; }
+  .ms-쪽:last-child { break-after: auto; page-break-after: auto; }
+  #ms-인쇄 * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
