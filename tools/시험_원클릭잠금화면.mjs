@@ -3,6 +3,7 @@
  *   4998 에 화면 빌드를 얹은 뒤  node tools/시험_원클릭잠금화면.mjs   (B=주소)
  *   남(열쇠말 없음): «준비 중» 띠 · 🧪 예시 칸(○○) · 칸 고치기 · 받기 잠김(받기 없음) · 서류 고르기 · ③ 화면에서 보기는 됨 · 이 기기에 적어 둔 값은 안 지움
  *   열쇠말을 연 브라우저: 띠 없음 · 적어 둔 값 그대로 · 칸 고치기 됨
+ *   🧪 G679(11-14) 남의 ③ 예시는 보기만 — 📄 PDF · 🖨 인쇄 단추 없음 · html.kcm-보기만 / 열쇠말 브라우저는 안 걸림
  */
 import { createRequire } from 'module'
 const require = createRequire('/tmp/g10/pw/package.json')
@@ -48,8 +49,12 @@ for (const [기기, vp] of [['PC', { width: 1280, height: 900 }], ['폰', { widt
   봐(끔 === 0 && 켬 >= 20, `${기기} 서류 고르기는 됨(끔 ${끔} · 전부 ${켬})`)
   await p.click('button:has-text("화면에서 보기")')
   await p.waitForFunction(() => /○○동 ○○시설 개보수공사/.test(document.body.innerText.split('③')[2] || document.body.innerText), null, { timeout: 30000 }).catch(() => {})
-  const 보임 = await p.evaluate(() => { const c = [...document.querySelectorAll('.card')].find((x) => /③ 화면에서 보고/.test(x.textContent)); return c ? c.innerText.length : 0 })
+  const 보임 = await p.evaluate(() => { const c = [...document.querySelectorAll('.card')].find((x) => /③ 화면에서 보(고|기)/.test(x.textContent)); return c ? c.innerText.length : 0 })
   봐(보임 > 400, `${기기} ③ 화면에서 보기 — 예시 서류가 그려짐(글 ${보임}자)`)
+  /* 🧪 G679(11-14) 소장님 「공사서류 원클릭은 인쇄 가능하게 되어 있어」 · 「PDF 다운도 가능하고」 — 예시 엑셀 화면엔 📄 PDF · 🖨 인쇄 단추가 없어야 · Ctrl+P 는 안내 한 줄 */
+  const 예시단추 = await p.evaluate(() => [...document.querySelectorAll('.card button')].filter((e) => e.offsetParent && /PDF|인쇄/.test(e.innerText)).map((e) => e.innerText.trim()))
+  const 보기만 = await p.evaluate(() => document.documentElement.classList.contains('kcm-보기만'))
+  봐(예시단추.length === 0 && 보기만, `${기기} ③ 예시는 보기만 — 📄 PDF · 🖨 인쇄 단추 없음 · html.kcm-보기만(G679)`, [예시단추, 보기만])
   if (찍기) await p.screenshot({ path: `${찍기}/${기기}_원클릭잠금.png`, fullPage: false })
   const 남은 = await p.evaluate(() => localStorage.getItem('kcm.wonclick.v1'))
   봐(/내가 적어 둔 공사/.test(남은 || ''), `${기기} 이 기기에 적어 둔 값은 그대로(지우지 않음)`, 남은)
@@ -68,6 +73,7 @@ for (const [기기, vp] of [['PC', { width: 1280, height: 900 }], ['폰', { widt
   await q.fill('#wc-공사명', '열쇠로 고침')
   const v2 = await q.$eval('#wc-공사명', (e) => e.value)
   봐(!띠 && v === '내가 적어 둔 공사' && v2 === '열쇠로 고침', `${기기} 띠 없음 · 적어 둔 값 그대로 · 칸 고치기 됨`, [!!띠, v, v2])
+  봐(!(await q.evaluate(() => document.documentElement.classList.contains('kcm-보기만'))), `${기기} 열쇠말 브라우저는 보기만 안 걸림(G679)`)
   await ctx2.close()
 }
 await b.close()
