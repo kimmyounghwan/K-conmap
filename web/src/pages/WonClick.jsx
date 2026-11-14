@@ -43,6 +43,7 @@ import 현장틀 from '../tools/현장틀.jsx'
 import { 세기 } from '../lib/받은수.jsx'
 import 잠금문의 from '../잠금문의.jsx'   // 📄 G669 잠근 도구 «문의»
 import { isOpen, tryOpen } from '../lib/gate.js'
+import { use보기만 } from '../lib/보기만.js'   // 🧪 G679 예시는 보기만(PDF · 인쇄 · Ctrl+P · 복사 막음)
 import { 나운영자 } from '../lib/운영자.js'
 /* 📄 2026-09-27 — 서류를 화면에서 보고·고치고·인쇄 (엑셀화면.jsx). 무거운 셈은 열 때만 받습니다. */
 const 엑셀화면 = lazy(() => import('../엑셀화면.jsx'))
@@ -140,6 +141,7 @@ function Field({ inp, v, set }) {
 
 /* 🏗 G179 원클릭 한 벌 = 현장(공사) 하나 — 현장을 바꾸면 key 로 통째로 새로 그림 */
 function 원클릭({ 현장id, 현장줄, 이름바뀜, 잠금 = null }) {
+  use보기만(!!잠금, '원클릭')   // 🧪 G679 — 잠긴 예시는 보기만(Ctrl+P 는 안내 한 줄 · 예시 판 복사 막음)
   const [vals, setVals] = useState(() => (잠금 ? { ...예시값 } : load(현장id)))
   const [pick, setPick] = useState(() => (잠금 ? 모두() : 고른것읽기(load(현장id))))
   const [busy, setBusy] = useState(false)
@@ -332,10 +334,12 @@ function 원클릭({ 현장id, 현장줄, 이름바뀜, 잠금 = null }) {
       </div>
 
       <div className="card">
-        <div className="detail-h">③ 화면에서 보고 · 고치고 · PDF · 인쇄 <span className="count">· 엑셀 없이 여기서 끝</span></div>
+        <div className="detail-h">{잠금 ? <>③ 화면에서 보기 <span className="count">· 🧪 예시는 보기만</span></> : <>③ 화면에서 보고 · 고치고 · PDF · 인쇄 <span className="count">· 엑셀 없이 여기서 끝</span></>}</div>
         {!보기 ? (
           <>
-            <div className="note sm">채운 칸이 서류에 어떻게 들어갔는지 A4 그대로 봅니다. <b>칸을 누르면 고칠 수 있고</b>, 고친 것은 이 기기에 남습니다. 인쇄하면 서류 한 가지가 A4 한 장입니다.</div>
+            {잠금
+              ? <div className="note sm">🧪 예시(지어낸 공사 · 회사 ○○)가 서류에 어떻게 들어갔는지 A4 그대로 봅니다 — <b>화면에서 보기만</b> 됩니다(PDF · 인쇄 · 받기 없음).</div>
+              : <div className="note sm">채운 칸이 서류에 어떻게 들어갔는지 A4 그대로 봅니다. <b>칸을 누르면 고칠 수 있고</b>, 고친 것은 이 기기에 남습니다. 인쇄하면 서류 한 가지가 A4 한 장입니다.</div>}
             <div className="btn-row" style={{ marginTop: 8 }}>
               <button className="btn" onClick={() => { set보기(true); if (새것골랐나(pick)) 세기('|원클릭|새서류') }} disabled={!pick.length}>📄 서류 {고른수}가지 화면에서 보기</button>
             </div>
@@ -345,7 +349,8 @@ function 원클릭({ 현장id, 현장줄, 이름바뀜, 잠금 = null }) {
           : !보일서류.length ? <div className="note sm">② 에서 서류를 하나 이상 골라 주세요.</div>
           : (
             <Suspense fallback={<div className="note sm">화면을 준비하는 중…</div>}>
-              <엑셀화면 책={책} 시트들={보일서류} 고침={고침} set고침={set고침} 쪽채움 셈이름="원클릭"
+              {/* 🧪 G679 잠긴 예시는 보기만 — 📄 PDF · 🖨 인쇄 단추 없음(인쇄함) · 칸 고치기 없음(고칠수) */}
+              <엑셀화면 책={책} 시트들={보일서류} 고침={고침} set고침={set고침} 쪽채움 셈이름="원클릭" 인쇄함={!잠금} 고칠수={!잠금}
                 이름={`공사서류_${(vals.공사명 || '원클릭').slice(0, 30)}`}
                 이름표={(n) => n.replace(/^\d+\s*/, '')} />
             </Suspense>

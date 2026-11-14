@@ -10903,3 +10903,19 @@ html.vv-kick :is(.topbar, .tabbar, .cam-tab) { will-change: opacity; }
 /* 광고 칸이 화면에 보이는 동안 떠 있는 «+» 찍기 단추(폰 · 오른쪽 끝) · 방문 인사 쪽지(✕ 가 있음)를 숨김 — 광고를 덮거나 잘못 누르지 않게 ·
    «광고 닫기 버튼 등이 광고 영역 내에 위치» 로 보이지 않게(5.3.1) · html.afit-in 은 애드핏칸.jsx 가 붙임 */
 html.afit-in :is(.cam-tab, .insa) { opacity: 0 !important; pointer-events: none !important; }
+
+/* ══ 🧪 G679 (2026-11-14) 잠근 도구 «예시는 보기만» — lib/보기만.js 가 예시를 보이는 동안 html.kcm-보기만 을 켬 ══
+   소장님 「예시 PDF 인쇄 가능해 … 예시를 볼 수만 있게 해주고 나머지는 다 막아야지」 · 「PDF 다운도 가능하고」
+   ① 예시 판(lib/보기만.js 예시판 과 같은 목록 — 시험이 맞춰 봄) 글 고르기 · iOS 길게 눌러 저장 막음(판 안 글칸은 그대로)
+   ② Ctrl+P · 브라우저 인쇄 · «PDF로 저장» → 종이엔 안내 한 줄만(사이트 화면은 한 줄도 안 찍힘) */
+html.kcm-보기만 .xv-판, html.kcm-보기만 .sg-view, html.kcm-보기만 .esc-ex, html.kcm-보기만 .cpl-view, html.kcm-보기만 .cfx-view, html.kcm-보기만 .kcm-예시판 {
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
+html.kcm-보기만 .kcm-예시판 input, html.kcm-보기만 .kcm-예시판 textarea { -webkit-user-select: text; user-select: text; }
+@media print {
+  html.kcm-보기만 body > * { display: none !important; }
+  html.kcm-보기만 body::before {
+    content: "🧪 예시는 화면에서 보기만 됩니다 — 인쇄 · PDF 저장은 되지 않습니다. 우리 공사 서류는 K-건설맵에 문의해 주세요 (k-conmap.com/contact)";
+    display: block !important; border: 1px solid #999; padding: 6mm; margin: 4mm 0; font-size: 12pt; line-height: 1.6; color: #000; background: #fff;
+  }
+}

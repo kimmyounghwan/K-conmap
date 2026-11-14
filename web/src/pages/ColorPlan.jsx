@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { isOpen, tryOpen } from '../lib/gate.js'
+import { use보기만 } from '../lib/보기만.js'   // 🧪 G679 예시는 보기만(Ctrl+P 안내 한 줄 · 예시 판 복사 막음)
 import { 나운영자 } from '../lib/운영자.js'
 import { Row } from '../tools/calcs.jsx'
 import { 세기, 예시본수 } from '../lib/받은수.jsx'
@@ -323,6 +324,7 @@ export default function ColorPlan() {
   const 판색 = C.색판들[색.색판] || C.색판들.부드럽게
   const 안합 = D ? D.방들.filter((R) => !R.이름없음 && R.용도 !== '발코니').reduce((s, R) => s + R.면적, 0) : 0
   const 예시중 = !!(도면 && 도면.예시)
+  use보기만(예시중, '컬러평면')   // 🧪 G679 예시 도면은 보기만(Ctrl+P 로 칠한 평면도가 찍히던 것 막음)
 
   return (
     <>
