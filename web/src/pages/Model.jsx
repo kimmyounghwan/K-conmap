@@ -569,7 +569,7 @@ export default function Model() {
             <span className={'gmd-ws-tabs' + (캐드씀 ? ' t7' : '')} role="tablist">
               {/* 📆 G463 탭 다섯(🗓 G466 여섯) — 좁은 화면(폰)에서는 뒤 글(· 3D · 층 · 엑셀 · 부호)을 숨겨 한 줄에 다 보임 */}
               {[['세우기', '세우기', ' · 3D'], ['통심', '통심', ' · 층'], ['일람', '일람', '', '부호 '], ['물량', '물량', ' · 엑셀'], ['공정', '🗓 공정', ''], ['기성', '📆 기성', ''], ...(캐드씀 ? [['캐드', '📏 캐드', '']] : [])].map(([k, t, 뒤, 앞 = '']) => (
-                <button key={k} type="button" role="tab" aria-label={앞 + t + 뒤} aria-selected={탭 === k} className={'gmd-tab' + (탭 === k ? ' on' : '')} onClick={() => set탭(k)}>{앞 && <span className="gmd-tl">{앞}</span>}{t}{뒤 && <span className="gmd-tl">{뒤}</span>}</button>
+                <button key={k} type="button" role="tab" aria-label={앞 + t + 뒤} aria-selected={탭 === k} className={'gmd-tab' + (탭 === k ? ' on' : '')} onClick={() => set탭(k)}>{앞 && <span className="gmd-tl">{앞}</span>}{t.codePointAt(0) > 0xffff && t.indexOf(' ') > 0 ? <><span className="gmd-ti">{t.slice(0, t.indexOf(' ') + 1)}</span>{t.slice(t.indexOf(' ') + 1)}</> : t}{뒤 && <span className="gmd-tl">{뒤}</span>}</button>
               ))}
             </span>
             <span className="gmd-ws-acts">

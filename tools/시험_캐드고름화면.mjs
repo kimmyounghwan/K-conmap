@@ -5,7 +5,7 @@
 //   ② 소장님: 탭 · 빈 화면 안내 · 🧪 예시 · 무리 한꺼번에(갈래 · 높이) · ⚠ 치수 고르기 · ❓ 보기 · 3D 그림
 //   ③ 열린 화면이 KCMS 를 받음 → 줄 · 합 = lib 셈 · 두 번 보내면 «이미 받은 객체» · 단위 없는 도면 → 단위 고르기
 //   ④ 새로 열어도 남음 · ✕ 묶음 빼기 → ↶ 되돌리기 · 📊 엑셀(받기 전 검사 통과 · 시트 셋) · 💾 모델 파일에 캐드 고름
-//   ⑤ 넘침 없음(폰 320 · 360 · 390 / PC 860 · 1280 · 1476) · 탭 줄 안에 «📏 캐드» · 폰 입력 칸 16px · 화면 오류 없음
+//   ⑤ 넘침 없음(폰 320 ~ 520 아홉 폭 / PC 521 ~ 1476 아홉 폭 · G685b) · 탭 줄 안에 «📏 캐드»(글꼴이 10 % 넓어도) · 폰 입력 칸 16px · 화면 오류 없음
 import { createRequire } from 'module'
 import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
@@ -96,6 +96,8 @@ for (const 기기 of 기기들) {
     await p.goto(주소 + '/jeoksan/model?ws=1&pc=1', { waitUntil: 'domcontentloaded' }); await 쉼(p, 3500)
     const t = await 탭들(p)
     봐(t.length === 6 && !t.some((x) => /캐드/.test(x)), '손님 — 탭 여섯 그대로 · «📏 캐드» 없음', t)
+    const 보임 = await p.evaluate(() => [...document.querySelectorAll('.gmd-ws-tabs .gmd-tab')].slice(4).map((b) => b.innerText.trim()))
+    봐(보임.join() === '🗓 공정,📆 기성', '손님 — 그림 글자 그대로(🗓 공정 · 📆 기성 — 숨김은 탭 일곱일 때만)', 보임)
     const n0 = 보낸.length
     보냄(리습csv('kcms_' + (폰 ? 202 : 201) + '.csv'))
     봐(await 기다림(p, async () => 보낸.length > n0 && 보낸.every((x) => x.받음), 20), '손님 — 보낸 KCMS 글은 받음 처리만(프로그램 쪽 «받음»)', 보낸.length)
@@ -209,18 +211,27 @@ for (const 기기 of 기기들) {
   /* 💾 모델 파일에 캐드 고름 */
   const [dj] = await Promise.all([p.waitForEvent('download', { timeout: 15000 }).catch(() => null), p.evaluate(() => { const b = [...document.querySelectorAll('button')].find((x) => x.title === '모델 파일 저장'); if (b) b.click() })])
   if (dj) { const f = path.join(틀, 기기 + '_모델.json'); await dj.saveAs(f); const j = JSON.parse(fs.readFileSync(f, 'utf8')); 봐(j.캐드 && j.캐드.줄.length === 16 && j.캐드.묶음.length === 1, '💾 모델 파일에 캐드 고름(16줄)', j.캐드 && j.캐드.줄.length) } else 봐(false, '💾 모델 파일 받기')
-  /* ⑤ 넘침 · 탭 · 폰 칸 */
-  for (const w of 폰 ? [320, 360, 390] : [860, 1280, 1476]) {
-    await p.setViewportSize({ width: w, height: 812 }); await 쉼(p, 700)
-    const r = await p.evaluate(() => {
-      const 탭 = document.querySelector('.gmd-ws-tabs'), 캐드탭 = [...document.querySelectorAll('.gmd-ws-tabs .gmd-tab')].pop()
-      const tb = 탭.getBoundingClientRect(), cb = 캐드탭.getBoundingClientRect()
-      const 밖 = [...document.querySelectorAll('.kcs input, .kcs select, .kcs button, .kcs canvas')].filter((e) => { const q = e.getBoundingClientRect(); return q.width && (q.right > innerWidth + 1 || q.left < -1) }).length
-      return { 넘: document.documentElement.scrollWidth - innerWidth, 탭안: cb.right <= tb.right + 1 && cb.left >= tb.left - 1, 탭밀림: 탭.scrollWidth - 탭.clientWidth, 밖 }
-    })
+  /* ⑤ 넘침 · 탭 · 폰 칸 — G685b: 폭을 촘촘히(옛 시험은 320 · 360 · 390 · 860 · 1280 · 1476 만 봐 521 ~ 600 넘침(리눅스 글꼴 45 px)을 놓침)
+     + «글꼴이 10 % 넓어도»(윈도 크롬 맑은 고딕은 이 글꼴보다 5 ~ 9 % 넓음 — 실제 사이트 잼 11-14: 300 ~ 606 px 곳곳 8 ~ 86 px 넘쳤음) */
+  const 폭들 = 폰 ? [320, 360, 375, 390, 402, 414, 433, 460, 520] : [521, 560, 600, 680, 681, 768, 860, 1280, 1476]
+  const 탭재기 = () => p.evaluate(() => {
+    const 탭 = document.querySelector('.gmd-ws-tabs'), 캐드탭 = [...document.querySelectorAll('.gmd-ws-tabs .gmd-tab')].pop()
+    const tb = 탭.getBoundingClientRect(), cb = 캐드탭.getBoundingClientRect()
+    const 밖 = [...document.querySelectorAll('.kcs input, .kcs select, .kcs button, .kcs canvas')].filter((e) => { const q = e.getBoundingClientRect(); return q.width && (q.right > innerWidth + 1 || q.left < -1) }).length
+    return { 넘: document.documentElement.scrollWidth - innerWidth, 탭안: cb.right <= tb.right + 1 && cb.left >= tb.left - 1, 탭밀림: 탭.scrollWidth - 탭.clientWidth, 밖, 캐드글: 캐드탭.innerText.trim() }
+  })
+  for (const w of 폭들) {
+    await p.setViewportSize({ width: w, height: 812 }); await 쉼(p, 500)
+    const r = await 탭재기()
     봐(r.넘 <= 1 && r.밖 === 0, w + ' px — 넘침 없음 · 칸 · 단추 화면 안', JSON.stringify(r))
     봐(r.탭안 && r.탭밀림 <= 1, w + ' px — 탭 줄 안에 «📏 캐드»(밀지 않아도 보임)', JSON.stringify(r))
+    봐(r.캐드글 === (w <= 520 ? '캐드' : '📏 캐드'), w + ' px — 탭 글 «' + (w <= 520 ? '캐드»(폰 폭은 그림 글자 숨김)' : '📏 캐드»'), r.캐드글)
   }
+  await p.addStyleTag({ content: '.gmd .gmd-ws-tabs.t7 .gmd-tab { letter-spacing: 0.1em !important; }' })
+  const 넓은글 = []
+  for (const w of 폭들) { await p.setViewportSize({ width: w, height: 812 }); await 쉼(p, 300); const r = await 탭재기(); if (!(r.탭안 && r.탭밀림 <= 1)) 넓은글.push(w + ':' + r.탭밀림) }
+  봐(!넓은글.length, '글꼴이 10 % 넓어도(letter-spacing 0.1em — 윈도 글꼴 흉내) ' + 폭들.join(' · ') + ' px 모두 탭 한 줄', 넓은글.join(' '))
+  await p.evaluate(() => { for (const s of document.querySelectorAll('style')) if (/letter-spacing: 0\.1em !important/.test(s.textContent)) s.remove() })
   await p.setViewportSize(창)
   if (폰) {
     const fs16 = await p.evaluate(() => [...document.querySelectorAll('.kcs-in')].every((e) => parseFloat(getComputedStyle(e).fontSize) >= 16))

@@ -11187,8 +11187,12 @@ html.kcm-보기만 .kcm-예시판 input, html.kcm-보기만 .kcm-예시판 texta
   .gmd .kcs-list { grid-column: 1; grid-row: 2; }
   .gmd .kcs-3d { height: 240px; }
 }
-/* 탭 일곱(📏 캐드 — 소장님만)일 때 381 ~ 432 px(아이폰 390 · 393 · 414 …)에서 줄을 넘던 것(34 px) — 그 폭에서만 · 그 탭이 있을 때만 좁힘(손님 탭 여섯은 그대로) */
-@media (min-width: 381px) and (max-width: 432px) { .gmd .gmd-ws-tabs.t7 { gap: 3px; } .gmd .gmd-ws-tabs.t7 .gmd-tab { padding: 6px 6px; font-size: 12.5px; } }
+/* 탭 일곱(📏 캐드 — 소장님만)일 때 어느 폭 · 어느 글꼴에서도 한 줄 — G685b: G685 의 «381 ~ 432 px 만 좁힘» 은 리눅스 글꼴로만 잰 것이라
+   윈도 크롬(맑은 고딕)에선 300 ~ 390 · 433 ~ 459 · 521 ~ 606 px 에서 8 ~ 86 px 넘쳤음(실제 사이트 잼 11-14) →
+   폰 폭(520 이하)은 그림 글자(🗓 📆 📏 — .gmd-ti)를 숨겨 한글만 · 521 ~ 680 은 뒤 글(· 3D …)을 숨김 · 손님 탭 여섯은 그대로 */
+@media (max-width: 520px) { .gmd .gmd-ws-tabs.t7 { gap: 3px; } .gmd .gmd-ws-tabs.t7 .gmd-tab { padding: 6px 6px; font-size: 12.5px; } .gmd .gmd-ws-tabs.t7 .gmd-ti { display: none; } }
+@media (max-width: 380px) { .gmd .gmd-ws-tabs.t7 { gap: 2px; } .gmd .gmd-ws-tabs.t7 .gmd-tab { padding: 6px 4px; font-size: 12px; } }
+@media (min-width: 521px) and (max-width: 680px) { .gmd .gmd-ws-tabs.t7 .gmd-tl { display: none; } }
 @media (max-width: 600px) {
   .gmd .kcs-row label, .gmd .kcs-gedit label { flex: 1 1 calc(50% - 8px); }
   .gmd .kcs-row label .kcs-in, .gmd .kcs-gedit label .kcs-in { width: 100%; }
