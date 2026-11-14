@@ -20,6 +20,17 @@ export const 읽은평면키 = (p) => (p && Number.isInteger(p.도면) ? p.도�
 const 수 = (x, d = 0) => { const v = Number(String(x ?? '').replace(/,/g, '')); return Number.isFinite(v) ? v : d }
 const 상자 = (판) => { let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; for (const p of 판 || []) { a = Math.min(a, p[0]); b = Math.min(b, p[1]); c = Math.max(c, p[0]); d = Math.max(d, p[1]) } return [a, b, c, d] }
 const 넓이 = (판) => { let s = 0; for (let i = 0; i < 판.length; i++) { const p = 판[i], q = 판[(i + 1) % 판.length]; s += p[0] * q[1] - q[0] * p[1] } return Math.abs(s) / 2 }
+/** 🧱 G686 캐드에서 고른 것으로 세운 부재의 평면 키(lib/캐드부재.js) · 이 모델에서 캐드로 세운 줄(근거.원 = '<줄 id>[+<짝 줄 id>]#n' → 줄 id)
+    — 작업 화면(Model.jsx)이 캐드 탭 합에서 «세운 줄» 을 빼는 데 씀(이 파일은 작업 화면이 늘 읽음 · 캐드 lib 는 누를 때만) */
+export const 캐드키 = '0|캐드'
+export function 세운줄(M) {
+  const s = new Set()
+  for (const o of (M && M.부재) || []) {
+    if (!o.근거 || o.근거.키 !== 캐드키 || o.근거.원 === undefined) continue
+    for (const id of String(o.근거.원).split('#')[0].split('+')) if (id) s.add(id)
+  }
+  return s
+}
 /** 판의 변이 모두 가로 · 세로인가(2° 안) */
 const 곧은판 = (판) => 판.every((p, i) => { const q = 판[(i + 1) % 판.length]; const dx = Math.abs(q[0] - p[0]), dy = Math.abs(q[1] - p[1]); return dx + dy < 1 || dx <= dy * 0.035 || dy <= dx * 0.035 })
 

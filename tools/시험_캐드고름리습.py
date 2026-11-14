@@ -14,6 +14,7 @@ import io
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -238,13 +239,23 @@ class 캐드:
         self.콘솔 = []
         self.명령 = []
         self.열린 = []
+        self.집 = None        # 📏 G686 USERPROFILE(C:\\Users\\시험) → 시험 폴더 · 다운로드\\K-conmap
+        self.mkdir = False    # vl-mkdir 이 있는 캐드인가(오토캐드 · ZWCAD) — 없으면 그 이름이 nil
+        self.레지 = None      # 📏 G686 vl-registry-read 가 있는 캐드면 {값 이름: 값} — None 이면 그 이름이 nil(LT · 캐디안 흉내)
+        self.길표 = {}        # 📏 G686 다른 드라이브(옮겨 둔 다운로드 'D:\\받은 파일') → 시험 폴더
 
     def 실제길(self, p):
         """윈도 경로(C:\\…\\AppData\\Roaming\\…) → 시험 폴더"""
         앞 = self.변수['__APPDATA']
-        if not p.startswith(앞):
-            return None
-        return os.path.join(self.앱데이터, *[x for x in p[len(앞):].split('\\') if x])
+        if p.startswith(앞):
+            return os.path.join(self.앱데이터, *[x for x in p[len(앞):].split('\\') if x])
+        집앞 = self.변수.get('__HOME')
+        if 집앞 and self.집 and p.startswith(집앞):
+            return os.path.join(self.집, *[x for x in p[len(집앞):].split('\\') if x])
+        for 앞2, 곳 in self.길표.items():
+            if p == 앞2 or p.startswith(앞2 + '\\'):
+                return os.path.join(곳, *[x for x in p[len(앞2):].split('\\') if x])
+        return None
 
 
 def 타입(v):
@@ -326,6 +337,10 @@ class 해석기:
             g[Sym.of(k)] = Builtin(k, f)
         g[Sym.of('T')] = T
         g[Sym.of('PI')] = math.pi
+        if not getattr(cad, 'mkdir', False):
+            g.pop(Sym.of('VL-MKDIR'), None)   # LT · 캐디안 흉내 — (and … vl-mkdir) 가 nil
+        if getattr(cad, '레지', None) is None:
+            g.pop(Sym.of('VL-REGISTRY-READ'), None)   # 레지스트리를 못 읽는 캐드 흉내 — (if vl-registry-read …) 가 nil
 
     # 동적 범위
     def 찾기(self, s):
@@ -668,6 +683,29 @@ class 해석기:
                 f.fh.write(s + '\r\n')
             return s
 
+        def findfile(p):
+            깐(isinstance(p, str), 'stringp', p)
+            real = cad.실제길(p)
+            return p if real and os.path.exists(real) else None
+
+        def vl_registry_read(키, 값=None):
+            깐(isinstance(키, str), 'stringp', 키)
+            if 키 != 'HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\User Shell Folders':
+                return None          # 다른 키는 없음(틀린 키 이름이면 늘 nil — 시험이 잡음)
+            return (cad.레지 or {}).get(값)
+
+        def strcase(s, 작게=None):
+            깐(isinstance(s, str), 'stringp', s)
+            return s.lower() if 작게 is not None else s.upper()
+
+        def vl_mkdir(p):
+            깐(isinstance(p, str), 'stringp', p)
+            real = cad.실제길(p)
+            if not real or os.path.exists(real) or not os.path.isdir(os.path.dirname(real)):
+                return None
+            os.mkdir(real)
+            return T
+
         def ssget(*a):
             if a:
                 raise LispError('ssget 꼴은 흉내 안 함 — KCMS 는 (ssget) 만')
@@ -747,7 +785,7 @@ class 해석기:
             'STRCAT': strcat, 'ITOA': itoa, 'RTOS': rtos, 'SUBSTR': substr, 'STRLEN': strlen, 'CHR': chr_, 'LOGAND': logand,
             'PRINC': princ, 'PROMPT': lambda s: princ(s), 'TERPRI': lambda: princ('\n'), 'WRITE-LINE': write_line, 'OPEN': open_, 'CLOSE': close,
             'GETVAR': getvar, 'GETENV': getenv, 'SSGET': ssget, 'SSLENGTH': sslength, 'SSNAME': ssname, 'ENTGET': entget, 'ENTNEXT': entnext,
-            'GETSTRING': getstring, 'COMMAND': command,
+            'GETSTRING': getstring, 'COMMAND': command, 'FINDFILE': findfile, 'VL-MKDIR': vl_mkdir, 'VL-REGISTRY-READ': vl_registry_read, 'STRCASE': strcase,
         }
         return b
 
@@ -875,14 +913,45 @@ def 둘레(a, b, t0=0.0, t1=2 * math.pi, n=200000):
 셈못답 = 4   # HATCH · SPLINE · 메시 폴리선 · 기운 호
 
 
-def 돌려(객체들, 글꼴='cp949', dimzin=0, 단위=4, 적요='', 날=2461359.73456, 앱=None, 미리=None, 도면이름=None):
-    """kcm.lsp 를 불러 c:KCMS 를 돌림 → (csv 경로, txt 경로, 캐드)"""
+def 돌려(객체들, 글꼴='cp949', dimzin=0, 단위=4, 적요='', 날=2461359.73456, 앱=None, 미리=None, 도면이름=None, 집=None, 앱없음=False, 먼저=None, 레지=None, 옮긴=None):
+    """kcm.lsp 를 불러 c:KCMS 를 돌림 → (csv 경로, txt 경로, 캐드)
+       집 = {'다운로드': 있나, 'K': 다운로드\\K-conmap 이 이미 있나, 'mkdir': vl-mkdir 있는 캐드인가} — 없으면 USERPROFILE 없음(옛 꼴 · 프로그램 폴더로)
+       앱없음 = 프로그램을 한 번도 안 켬(APPDATA\\K-conmap\\연결\\보내기 없음)
+       먼저 = 보낼 곳에 미리 둘 «아직 안 받은» 파일 이름들(글 «옛것») — 리습이 그 번호를 덮지 않는지
+       레지 = vl-registry-read 가 있는 캐드의 «User Shell Folders» 값들({값 이름: 값} · None = 그 함수 없는 캐드)
+       옮긴 = {'D:\\받은 파일': 있나} — 옮겨 둔 다운로드(다른 드라이브) 흉내"""
     앱 = 앱 or tempfile.mkdtemp(prefix='kcms_app_')
     보내기 = os.path.join(앱, 'K-conmap', '연결', '보내기')
-    os.makedirs(보내기, exist_ok=True)
+    if not 앱없음:
+        os.makedirs(보내기, exist_ok=True)
+    집폴더 = None
+    if 집 is not None:
+        집폴더 = tempfile.mkdtemp(prefix='kcms_home_')
+        if 집.get('다운로드'):
+            os.makedirs(os.path.join(집폴더, 'Downloads'))
+        if 집.get('K'):
+            os.makedirs(os.path.join(집폴더, 'Downloads', 'K-conmap'))
     변수 = {'DATE': 날, 'DWGPREFIX': 'C:\\도면\\현장 가\\', 'DWGNAME': 도면이름 or '1층 평면도.dwg', 'INSUNITS': 단위, 'ACADVER': '24.3s (LMS Tech)', 'PRODUCT': 'AutoCAD', 'DWGTITLED': 1,
           '__APPDATA': 'C:\\Users\\시험\\AppData\\Roaming', '__ENV_APPDATA': 'C:\\Users\\시험\\AppData\\Roaming'}
+    if 집 is not None:
+        변수['__HOME'] = 'C:\\Users\\시험'
+        변수['__ENV_USERPROFILE'] = 'C:\\Users\\시험'
+    먼저 = list(먼저 or [])
+    if 먼저:
+        곳 = os.path.join(집폴더, 'Downloads', 'K-conmap') if 집폴더 and 집.get('K') else 보내기
+        for n in 먼저:
+            io.open(os.path.join(곳, n), 'w', encoding='utf-8').write('옛것\n')
     cad = 캐드([o for o, _ in 객체들] if 미리 is None else 미리, 변수, 앱, 글꼴, 적요, dimzin)
+    cad.집 = 집폴더
+    cad.레지 = 레지
+    for 윈길, 있나 in (옮긴 or {}).items():
+        곳 = tempfile.mkdtemp(prefix='kcms_dl_')
+        if not 있나:
+            os.rmdir(곳)
+        elif 있나 == 'K':
+            os.makedirs(os.path.join(곳, 'K-conmap'))     # 사람이 만들어 둔 K-conmap(설명서 «직접 만드십시오»)
+        cad.길표[윈길] = 곳
+    cad.mkdir = bool(집 and 집.get('mkdir'))
     lisp = 해석기(cad)
     원문 = io.open(리습, 'rb').read().decode('cp949')
     for e in 읽기(원문):
@@ -892,6 +961,12 @@ def 돌려(객체들, 글꼴='cp949', dimzin=0, 단위=4, 적요='', 날=2461359
     except LispError as e:
         return None, None, cad, str(e)
     k = int(100000 * math.fmod(날, 1)) % 500
+    # 리습이 새로 쓴 csv(미리 둔 «먼저» 말고) — 다운로드\\K-conmap 먼저 · 없으면 프로그램 보내기 폴더
+    for 곳 in [os.path.join(x, 'K-conmap') for x in cad.길표.values()] + ([os.path.join(집폴더, 'Downloads', 'K-conmap')] if 집폴더 else []) + [보내기]:
+        if os.path.isdir(곳):
+            새 = sorted(n for n in os.listdir(곳) if re.match(r'^kcms_\d+\.csv$', n) and n not in 먼저)
+            if 새:
+                return os.path.join(곳, 새[0]), os.path.join(곳, 새[0][:-4] + '.txt'), cad, None
     return os.path.join(보내기, f'kcms_{k}.csv'), os.path.join(보내기, f'kcms_{k}.txt'), cad, None
 
 
@@ -992,7 +1067,11 @@ def main():
         봄(False, f'읽기 실패 — {e}'); 식들 = []
     정의 = {e[1].n for e in 식들 if isinstance(e, list) and isinstance(e[0], Sym) and e[0].n == 'DEFUN'}
     봄({'C:KCM', 'C:KCMS'} <= 정의, '명령 KCM · KCMS 둘 다 정의됨')
-    봄(not any(t in 원문.lower() for t in ('(vla-', '(vlax-', '(vl-', '(vlr-', 'load_dialog', 'new_dialog', '(dos_')), 'vla · vlax · vl- · DCL 안 씀(LT · ZWCAD · 캐디안)')
+    봄(not any(t in 원문.lower() for t in ('(vla-', '(vlax-', '(vlr-', 'load_dialog', 'new_dialog', '(dos_')), 'vla · vlax · vlr · DCL 안 씀(LT · ZWCAD · 캐디안)')
+    코드 = '\n'.join(l for l in 원문.splitlines() if not l.lstrip().startswith(';'))   # 주석 줄 뺌
+    vl들 = [코드[i:i + 12] for i in range(len(코드)) if 코드.startswith('(vl-', i)]
+    봄(sorted(vl들) == ['(vl-mkdir d)', '(vl-registry'] and '(and (not (findfile d)) vl-mkdir) (vl-mkdir d)' in 코드 and '(if vl-registry-read\n    (setq r (vl-registry-read ' in 코드,
+      'vl- 는 vl-mkdir · vl-registry-read 둘 · 있는 캐드에서만 부름((and … vl-mkdir) · (if vl-registry-read …) — LT · 캐디안은 건너뜀)' + (f' — {vl들}' if sorted(vl들) != ['(vl-mkdir d)', '(vl-registry'] else ''))
     # 쓰인 함수가 모두 흉내 해석기(= 순수 AutoLISP 몫)에 있나
     쓴 = set()
 
@@ -1027,7 +1106,10 @@ def main():
             훑(y)
     for e in 식들:
         훑(e)
-    빈 = 해석기(캐드([], {}, '/tmp'))
+    빈캐드 = 캐드([], {}, '/tmp')
+    빈캐드.mkdir = True
+    빈캐드.레지 = {}
+    빈 = 해석기(빈캐드)
     없음 = sorted(n for n in 쓴 if n not in 특별 and n not in 정의 and not isinstance(빈.찾기(Sym.of(n)), Builtin) and n not in ('/', 'QUOTE'))
     없음 = [n for n in 없음 if n != '*ERROR*']
     봄(not 없음, '쓰인 함수가 모두 알려진 AutoLISP 함수' + (f' — 모름: {없음}' if 없음 else ''))
@@ -1091,7 +1173,7 @@ def main():
     for e in 읽기(원문):
         변.셈(e)
     변.부름(변.찾기(Sym.of('C:KCMS')), [])
-    봄(any('프로그램을 먼저 켜 주십시오' in s for s in 변.cad.콘솔), '보내기 폴더가 없으면(프로그램을 한 번도 안 켬) «프로그램을 먼저 켜 주십시오»')
+    봄(any('다운로드 폴더에 K-conmap 폴더를 만들어 주십시오' in s for s in 변.cad.콘솔), '보낼 곳이 없으면(다운로드\\K-conmap 없음 · 프로그램도 안 켬) «다운로드 폴더에 K-conmap 폴더를 만들어 주십시오»')
 
     # ⑤ 리습이 틀리면 잡는지 — strcat 에 nil 이 들어가게 바꾼 리습
     틀린 = 원문.replace('(kcms-s (getvar "PRODUCT"))', '(getvar "PRODUCTX")')
@@ -1118,6 +1200,89 @@ def main():
     변.부름(변.찾기(Sym.of('C:KCM')), [])
     낸 = os.listdir(os.path.join(앱, 'K-conmap', '연결', '보내기'))
     봄(cad.명령 == [('_.QSAVE',)] and len(낸) == 1 and 낸[0].startswith('kcm_') and io.open(os.path.join(앱, 'K-conmap', '연결', '보내기', 낸[0]), encoding='cp949').read().strip() == 'C:\\도면\\평면.dwg', 'KCM(1.0 그대로) — QSAVE 뒤 «kcm_<번호>.txt» 에 도면 경로')
+
+    # ⑦ 📏 G686 프로그램 없이 — KCMS 가 «다운로드\\K-conmap» 에 씀(건설맵 화면이 «캐드 폴더 잇기» 로 직접 읽음)
+    csv, txt, cad, 오 = 돌려(도면1, 집={'다운로드': True, 'mkdir': True})
+    kd = os.path.join(cad.집, 'Downloads', 'K-conmap') if cad.집 else ''
+    봄(오 is None and os.path.isdir(kd) and csv.startswith(kd) and os.path.isfile(csv) and os.path.isfile(txt), '다운로드 폴더 있고 vl-mkdir 있음(오토캐드) → K-conmap 을 만들고 그 안에 kcms_<번호>.csv · .txt')
+    봄(any('보낼 곳: C:\\Users\\시험\\Downloads\\K-conmap' in s and '캐드 폴더 잇기' in s for s in cad.콘솔), '불러올 때 «보낼 곳: …\\Downloads\\K-conmap — 캐드 폴더 잇기» 알림')
+    봄(not os.listdir(os.path.join(cad.앱데이터, 'K-conmap', '연결', '보내기')), '프로그램 보내기 폴더(APPDATA)에는 안 씀')
+    봄(any('안 이었으면 "캐드 폴더 잇기"' in s and 'Downloads\\K-conmap' in s for s in cad.콘솔), '보낸 뒤 «안 이었으면 "캐드 폴더 잇기" 로 …\\Downloads\\K-conmap» 알림')
+    결 = 풀기([csv])
+    견줌(결, 도면1, ' [다운로드\\K-conmap]')
+    t = io.open(txt, encoding='cp949').read().strip()
+    봄(t == 'C:\\Users\\시험\\Downloads\\K-conmap\\' + os.path.basename(csv), '.txt = 다 썼다는 표시(화면은 .txt 가 있는 .csv 만 읽음) · 첫 줄 csv 경로')
+    csv, txt, cad, 오 = 돌려(도면m, 단위=6, 집={'다운로드': True, 'K': True, 'mkdir': False})
+    kd = os.path.join(cad.집, 'Downloads', 'K-conmap')
+    봄(오 is None and csv.startswith(kd) and os.path.isfile(csv), 'vl-mkdir 없는 캐드(LT · 캐디안 흉내)라도 K-conmap 이 이미 있으면 그 안에 씀')
+    csv, txt, cad, 오 = 돌려(도면m, 단위=6, 집={'다운로드': True, 'mkdir': False})
+    kd = os.path.join(cad.집, 'Downloads', 'K-conmap')
+    봄(오 is None and not os.path.exists(kd) and os.path.isfile(csv) and csv.startswith(os.path.join(cad.앱데이터, 'K-conmap')) and not any('보낼 곳:' in s for s in cad.콘솔) and any('K-적산컨맵 연결 프로그램 - ' in s for s in cad.콘솔),
+      'K-conmap 이 없고 vl-mkdir 도 없으면 → 프로그램 보내기 폴더(옛 길) · «보낼 곳» 알림 없음')
+    csv, txt, cad, 오 = 돌려(도면m, 단위=6, 집={'다운로드': False, 'mkdir': True})
+    봄(오 is None and os.path.isfile(csv) and csv.startswith(os.path.join(cad.앱데이터, 'K-conmap')), '다운로드 폴더가 없으면 만들지 않고(부모 없음) 프로그램 보내기 폴더로')
+    csv, txt, cad, 오 = 돌려(도면m, 단위=6, 집={'다운로드': True, 'mkdir': False}, 앱없음=True)
+    봄(오 is None and not os.path.exists(csv) and any('다운로드 폴더에 K-conmap 폴더를 만들어 주십시오' in s for s in cad.콘솔), '둘 다 없으면 멈추지 않고 «다운로드 폴더에 K-conmap 폴더를 만들어 주십시오»')
+
+    # ⑧ 📏 G686 실제 캐드에서 찾은 것 — 오토캐드가 «아직 안 잰» 치수의 42 를 −1 로 줌(42 없이 저장된 DXF 를 연 도면 · 소장님 오토캐드 2023 시험에서 셋 다 −1)
+    #    → 건설맵이 치수 «자기» 두 점에서 잼(정렬 = 두 점 거리 · 회전 = 그 방향 길이) · 바꾼 글(9,950)은 그대로 · 비스듬한 선의 가로 치수는 그대로 안 견줌
+    도면안잰 = []
+    for o, 답 in 도면1:
+        if not isinstance(o, tuple) and o[0].d == 'DIMENSION':
+            o = [P(42, -1.0) if isinstance(x, Pair) and x.a == 42 else x for x in o]
+        도면안잰.append((o, 답))
+    csv, txt, cad, 오 = 돌려(도면안잰, 날=2461359.33333)
+    봄(오 is None and os.path.isfile(csv), '42 = −1(안 잰 치수) 도면도 KCMS 가 멈추지 않음')
+    if not 오:
+        봄(len(re.findall(r'^DIMENSION\t.*\t-1(?:\.0+)?,3[23],', io.open(csv, 'rb').read().decode('cp949'), re.M)) == 3, '리습은 −1 을 그대로 보냄(고치지 않음 — 건설맵이 봄 · 치수 셋)')
+        결 = 풀기([csv])
+        견줌(결, 도면안잰, ' [42 = −1]')
+
+    # ⑨ 📏 G686 같은 번호 — 이름 번호 = 시각(0~499 · 0.864초마다 하나) → 화면을 안 잇고(받지 않고) 여러 번 보내면 같은 번호가 나옴(30번이면 반 넘게)
+    #    · 옛 리습은 그 파일을 «덮어» 앞에 보낸 것이 조용히 사라졌음(G686 실제 캐드 시험 «연달아 두 번» 에서 찾음) → 아직 안 받은 kcms_<번호>.csv · .txt 가 있으면 다음 번호
+    날 = 2461359.73456
+    k = int(100000 * math.fmod(날, 1)) % 500
+    for 먼저, 답k, 글 in ((['kcms_%d.csv' % k, 'kcms_%d.txt' % k], (k + 1) % 500, '.csv · .txt 둘 다'),
+                         (['kcms_%d.txt' % k], (k + 1) % 500, '.txt 만(받는 중)'),
+                         (['kcms_%d.csv' % k], (k + 1) % 500, '.csv 만(쓰다 멈춤)'),
+                         (['kcms_%d.csv' % k, 'kcms_%d.txt' % k, 'kcms_%d.csv' % ((k + 1) % 500), 'kcms_%d.txt' % ((k + 1) % 500)], (k + 2) % 500, '두 번호')):
+        for 집 in ({'다운로드': True, 'K': True, 'mkdir': True}, None):
+            csv, txt, cad, 오 = 돌려(도면m, 단위=6, 날=날, 집=집, 먼저=먼저)
+            곳 = os.path.dirname(csv)
+            봄(오 is None and os.path.basename(csv) == 'kcms_%d.csv' % 답k and os.path.isfile(csv) and os.path.isfile(txt)
+              and all(open(os.path.join(곳, n), 'rb').read() == '옛것\n'.encode('utf-8') for n in 먼저)
+              and io.open(txt, encoding='cp949').read().strip().endswith('kcms_%d.csv' % 답k),
+              f'안 받은 kcms_{k} ({글}) 가 있으면 → kcms_{답k} 에 씀 · 앞 것 그대로' + (' [다운로드\\K-conmap]' if 집 else ' [프로그램 보내기]'))
+    날9 = next(2461359 + x / 100000 + 0.000003 for x in range(499, 100000, 500) if int(100000 * math.fmod(2461359 + x / 100000 + 0.000003, 1)) % 500 == 499)
+    csv, txt, cad, 오 = 돌려(도면m, 단위=6, 날=날9, 집={'다운로드': True, 'K': True, 'mkdir': True}, 먼저=['kcms_499.csv', 'kcms_499.txt'])
+    봄(오 is None and os.path.basename(csv) == 'kcms_0.csv' and os.path.isfile(csv), '499 가 차 있으면 → 0 으로 돎(kcms_0)')
+    가득 = [f'kcms_{i}.{x}' for i in range(500) for x in ('csv', 'txt')]
+    csv, txt, cad, 오 = 돌려(도면m, 단위=6, 날=날, 집={'다운로드': True, 'K': True, 'mkdir': True}, 먼저=가득)
+    kd = os.path.join(cad.집, 'Downloads', 'K-conmap')
+    봄(오 is None and len(os.listdir(kd)) == 1000 and all(open(os.path.join(kd, n), 'rb').read() == '옛것\n'.encode('utf-8') for n in 가득)
+      and any('아직 안 받은 것이 500개' in s for s in cad.콘솔) and all(not f.열림 for f in cad.열린),
+      '500 번호가 다 차 있으면 → 하나도 덮지 않고 «아직 안 받은 것이 500개 … 먼저 받으십시오»')
+
+    # ⑩ 📏 G686 옮겨 둔 다운로드(D: 같은 다른 드라이브) — 윈도 «User Shell Folders» 의 다운로드 자리를 따라감(vl-registry-read 가 있는 캐드만 · 없으면 USERPROFILE\\Downloads)
+    #    · 화면의 «📂 캐드 폴더 잇기» 는 브라우저가 진짜 다운로드에서 엶 → 리습도 같은 곳에 써야 이용자가 헤매지 않음
+    DL = '{374DE290-123F-4565-9164-39C4925E467B}'
+    집기본 = {'다운로드': True, 'mkdir': True}
+    for 레지, 옮긴, 답, 글 in (({DL: '%USERPROFILE%\\Downloads'}, None, '집', '«%USERPROFILE%\\Downloads»(기본) → 그대로'),
+                             ({DL: '%userprofile%\\Downloads'}, None, '집', '작은 글자 «%userprofile%» 도 → 그대로'),
+                             ({DL: 'D:\\받은 파일'}, {'D:\\받은 파일': True}, '옮김', '«D:\\받은 파일» 로 옮겨 둠 → 그 안에 K-conmap 을 만들고 씀'),
+                             ({DL: 'D:\\받은 파일'}, {'D:\\받은 파일': False}, '집', '옮긴 자리가 없으면 → USERPROFILE\\Downloads'),
+                             ({}, None, '집', '값이 없으면(nil) → USERPROFILE\\Downloads'),
+                             (None, {'D:\\받은 파일': True}, '집', 'vl-registry-read 없는 캐드 → USERPROFILE\\Downloads(옛 길 그대로)')):
+        csv, txt, cad, 오 = 돌려(도면m, 단위=6, 집=집기본, 레지=레지, 옮긴=옮긴)
+        곳 = os.path.join(cad.길표['D:\\받은 파일'], 'K-conmap') if 답 == '옮김' else os.path.join(cad.집, 'Downloads', 'K-conmap')
+        보낼곳 = 'D:\\받은 파일\\K-conmap' if 답 == '옮김' else 'C:\\Users\\시험\\Downloads\\K-conmap'
+        봄(오 is None and os.path.dirname(csv) == 곳 and os.path.isfile(csv) and os.path.isfile(txt)
+          and io.open(txt, encoding='cp949').read().strip() == 보낼곳 + '\\' + os.path.basename(csv)
+          and any(('보낼 곳: ' + 보낼곳) in s for s in cad.콘솔),
+          f'다운로드 자리 {글} — «보낼 곳: {보낼곳}»')
+    csv, txt, cad, 오 = 돌려(도면m, 단위=6, 집={'다운로드': True, 'mkdir': False}, 레지={DL: 'D:\\받은 파일'}, 옮긴={'D:\\받은 파일': 'K'})
+    봄(오 is None and os.path.dirname(csv) == os.path.join(cad.길표['D:\\받은 파일'], 'K-conmap') and os.path.isfile(csv),
+      'vl-mkdir 없는 캐드라도 옮긴 다운로드 안에 사람이 K-conmap 을 만들어 두면 그 안에 씀')
 
     print(f'\n결과: {len(됨)} 통과 · {len(틀)} 틀림')
     if 틀:

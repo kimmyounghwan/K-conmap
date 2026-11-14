@@ -1,10 +1,12 @@
-;;; K-적산컨맵 연결 1.1 - 캐드 명령 KCM · KCMS (K-건설맵 · k-conmap.com)
+;;; K-적산컨맵 연결 1.2 - 캐드 명령 KCM · KCMS (K-건설맵 · k-conmap.com)
 ;;; KCM  : 지금 도면을 저장하고 "K-적산컨맵 연결" 프로그램의 보내기 폴더에 도면 경로 한 줄을 씁니다.
 ;;;        프로그램이 그것을 보고 적산컨맵 작업 화면을 열어 이 도면을 넣습니다(도면은 이 PC 안에서만 오감).
-;;; KCMS : 캐드에서 고른 것(선 · 폴리선 · 호 · 원 · 타원 · 블록 · 치수 · 글자)의 좌표 · 레이어 · 핸들을 보내기 폴더에 씁니다.
-;;;        작업 화면 "캐드" 탭이 받아 길이 · 면적 · 개수를 셈하고, 높이 · 공제 · 횟수는 화면에서 넣습니다(도면 파일은 보내지 않음).
-;;; 넣는 법: 캐드 명령 APPLOAD -> 이 파일(kcm.lsp) -> 불러오기. "시작하기 세트" 에 넣으면 캐드를 켤 때마다 들어옵니다.
-;;; 오토캐드 · 오토캐드 LT(2024 이상) · ZWCAD · 캐디안에서 씁니다(순수 AutoLISP 만 씀 - vla · DCL 안 씀).
+;;; KCMS : 캐드에서 고른 것(선 · 폴리선 · 호 · 원 · 타원 · 블록 · 치수 · 글자)의 좌표 · 레이어 · 핸들을 "다운로드\K-conmap" 폴더에 씁니다.
+;;;        건설맵 작업 화면 "캐드" 탭이 그 폴더를 직접 읽어(창을 열면 "캐드 폴더 잇기" 한 번) 길이 · 면적 · 개수를 셈합니다 - 프로그램 없이.
+;;;        높이 · 공제 · 횟수는 화면에서 넣습니다(도면 파일은 보내지 않음 · 이 PC 안에서만).
+;;;        그 폴더가 없고 만들 수도 없으면(vl-mkdir 이 없는 캐드) K-적산컨맵 연결 프로그램의 보내기 폴더에 씁니다.
+;;; 넣는 법: 캐드 명령 APPLOAD -> 이 파일(kcm.lsp) -> 불러오기(보안 경고가 뜨면 "로드"). "시작하기 세트" 에 넣으면 캐드를 켤 때마다 들어옵니다.
+;;; 오토캐드 · 오토캐드 LT(2024 이상) · ZWCAD · 캐디안에서 씁니다(순수 AutoLISP - vla · DCL 안 씀 · vl-mkdir · vl-registry-read 는 있을 때만).
 ;;; KCMS 글 꼴(판 1)은 건설맵 web/src/lib/캐드고름.js 머리 설명과 같아야 합니다(시험 tools/시험_캐드고름리습.py).
 (defun c:KCM ( / a d p fn f)
   (setq a (getenv "APPDATA"))
@@ -148,6 +150,32 @@
   (strcat ty tb (kcms-clean (kcms-g 8 e)) tb (kcms-s (kcms-g 5 e)) tb cl tb z tb pts tb vals tb txt tb ext)
 )
 
+
+;; 다운로드 폴더 - 윈도가 아는 자리(D: 같은 데로 옮겨 둔 다운로드도 · 레지스트리를 읽을 수 있는 캐드만) · 모르면 USERPROFILE\Downloads
+(defun kcms-dl ( / h r)
+  (setq h (getenv "USERPROFILE") r nil)
+  (if vl-registry-read
+    (setq r (vl-registry-read "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\User Shell Folders" "{374DE290-123F-4565-9164-39C4925E467B}")))
+  (if (not (eq (type r) 'STR)) (setq r nil))
+  (if (and r h (> (strlen r) 13) (= (strcase (substr r 1 13)) "%USERPROFILE%"))
+    (setq r (strcat h (substr r 14))))
+  (cond
+    ((and r (findfile r)) r)
+    (h (strcat h "\\Downloads")))
+)
+;; KCMS 가 쓸 곳 - 1) 다운로드\K-conmap(건설맵 화면이 직접 읽음 · 없으면 만듦 - vl-mkdir 이 있는 캐드만)
+;;               2) 그 폴더가 없고 못 만들면 K-적산컨맵 연결 프로그램의 보내기 폴더(APPDATA\K-conmap\연결\보내기)
+(defun kcms-dir ( / l d a)
+  (setq l (kcms-dl) d nil kcms-folder nil)
+  (if l
+    (progn
+      (setq d (strcat l "\\K-conmap"))
+      (if (and (not (findfile d)) vl-mkdir) (vl-mkdir d))
+      (if (findfile d) (setq kcms-folder T) (setq d nil))))
+  (if (and (not d) (setq a (getenv "APPDATA")))
+    (setq d (strcat a "\\K-conmap\\연결\\보내기")))
+  d
+)
 ;;; ---- KCMS : 고른 것을 적산컨맵 작업 화면 "캐드" 탭으로 ----
 (defun c:KCMS ( / *error* a d ss n i k nm fn tx f memo tb)
   (defun *error* (msg)
@@ -156,12 +184,11 @@
     (princ (strcat "\n[KCMS] 멈춤: " (kcms-s msg)))
     (princ)
   )
-  (setq a (getenv "APPDATA") tb (chr 9))
+  (setq d (kcms-dir) tb (chr 9))
   (cond
-    ((not a)
-      (princ "\n[KCMS] APPDATA 폴더를 찾지 못했습니다."))
+    ((not d)
+      (princ "\n[KCMS] 보낼 폴더를 찾지 못했습니다 - 다운로드 폴더에 K-conmap 폴더를 만든 뒤 다시 하십시오."))
     (T
-      (setq d (strcat a "\\K-conmap\\연결\\보내기"))
       (princ "\n[KCMS] 적산컨맵으로 보낼 것을 고르십시오(선 · 폴리선 · 호 · 원 · 블록 · 치수 · 글자 - 다 고른 뒤 엔터).")
       (setq ss (ssget))
       (cond
@@ -171,14 +198,20 @@
           (princ (strcat "\n[KCMS] 너무 많습니다(" (itoa (sslength ss)) "개) - 5,000개까지 나눠서 보내 주십시오.")))
         (T
           (setq memo (getstring T "\n[KCMS] 적요 - 무엇인지(예: 1층 벽 W1 · 엔터 = 건너뜀): "))
+          ;; 이름 번호 = 지금 시각(0~499 · 0.864초마다 하나) - 아직 안 받은 같은 번호가 남아 있으면 다음 번호(앞에 보낸 것을 덮지 않음)
           (setq n (sslength ss)
                 k (rem (fix (* 100000 (rem (getvar "DATE") 1))) 500)
-                nm (strcat "kcms_" (itoa k))
+                i 0)
+          (while (and (< i 500) (or (findfile (strcat d "\\kcms_" (itoa k) ".csv")) (findfile (strcat d "\\kcms_" (itoa k) ".txt"))))
+            (setq k (rem (1+ k) 500) i (1+ i)))
+          (setq nm (strcat "kcms_" (itoa k))
                 fn (strcat d "\\" nm ".csv")
                 tx (strcat d "\\" nm ".txt")
-                f (open fn "w"))
+                f (if (< i 500) (open fn "w")))
           (if (not f)
-            (princ "\n[KCMS] 보내지 못했습니다 - K-적산컨맵 연결 프로그램을 먼저 켜 주십시오(건설맵 사이트에서 받음).")
+            (princ (if (< i 500)
+                     "\n[KCMS] 보내지 못했습니다 - 다운로드 폴더에 K-conmap 폴더를 만들어 주십시오(건설맵 작업 화면 \"캐드\" 탭 안내)."
+                     "\n[KCMS] 보내지 못했습니다 - 보낼 곳에 아직 안 받은 것이 500개 있습니다(건설맵 작업 화면 \"캐드\" 탭에서 먼저 받으십시오)."))
             (progn
               (write-line (strcat "KCMSEL" tb "1" tb (kcms-s (getvar "DWGPREFIX")) (kcms-s (getvar "DWGNAME")) tb (kcms-s (getvar "INSUNITS")) tb (kcms-clean memo) tb (itoa n) tb (kcms-s (getvar "ACADVER")) tb (kcms-s (getvar "PRODUCT"))) f)
               (setq i 0)
@@ -193,11 +226,15 @@
                   (write-line fn f)
                   (close f)
                   (setq f nil)
-                  (princ (strcat "\n[KCMS] 적산컨맵으로 보냄: " (itoa n) "개 - 작업 화면 \"캐드\" 탭에서 봅니다.")))
+                  (princ (strcat "\n[KCMS] 적산컨맵으로 보냄: " (itoa n) "개 - 건설맵 작업 화면 \"캐드\" 탭에서 봅니다"
+                                 (if kcms-folder "(안 이었으면 \"캐드 폴더 잇기\" 로 " "(K-적산컨맵 연결 프로그램 - ") d ").")))
                 (princ "\n[KCMS] 보내지 못했습니다 - 보내기 폴더에 쓸 수 없습니다.")))))))
   )
   (setq f nil)
   (princ)
 )
-(princ "\nK-적산컨맵 연결 1.1 - 명령 KCM: 지금 도면을 적산컨맵으로 · KCMS: 고른 것을 적산컨맵 \"캐드\" 탭으로. (K-건설맵 · k-conmap.com)")
+(setq kcms-d (kcms-dir))
+(princ "\nK-적산컨맵 연결 1.2 - 명령 KCM: 지금 도면을 적산컨맵으로 · KCMS: 고른 것을 적산컨맵 \"캐드\" 탭으로. (K-건설맵 · k-conmap.com)")
+(if kcms-folder
+  (princ (strcat "\n[KCMS] 보낼 곳: " kcms-d " - 건설맵 작업 화면 \"캐드\" 탭 \"캐드 폴더 잇기\" 에서 이 폴더를 고르십시오(창을 새로 열면 한 번 더).")))
 (princ)

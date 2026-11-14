@@ -167,7 +167,7 @@ for (const 기기 of 기기들) {
     for (const w of 폰 ? [320, 360, 390] : [860, 1280]) {
       await p.setViewportSize({ width: w, height: 812 }); await 쉼(700)
       const 넘 = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
-      봐(넘 <= 1, w + ' px — 세우기 화면(탭 여섯) 가로 넘침 없음', 넘)
+      봐(넘 <= 1, w + ' px — 세우기 화면(탭 일곱 — G686 «📏 캐드» 모든 이용자) 가로 넘침 없음', 넘)
     }
   }
   봐(!오류.length, '화면 오류 없음', 오류.join(' | '))

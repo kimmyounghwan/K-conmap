@@ -16,11 +16,12 @@ const 원 = (v) => (Number.isFinite(v) ? Math.round(v).toLocaleString('ko-KR') +
 const 판정꼴 = { 같음: ['✓', 'ok'], '도면이 많음': ['▲', 'up'], '도면이 적음': ['▼', 'dn'] }
 
 async function 불러오기() {
-  const [변, 대, 채, q, 쓰, 변엑] = await Promise.all([import('./lib/골조변경.js'), import('./lib/내역대조.js'), import('./lib/내역채움.js'), import('./lib/qtoxlsx.js'), import('./lib/엑셀쓰기.js'), import('./lib/변경엑셀쓰기.js')])
-  return { ...변, 내역읽기: 대.내역읽기, 셀바꾸기: 채.셀바꾸기, readWorkbook: q.readWorkbook, 값만으로: 쓰.값만으로, 변경엑셀: 변엑.변경엑셀 }
+  const [변, 대, 채, q, 쓰, 변엑, 캐] = await Promise.all([import('./lib/골조변경.js'), import('./lib/내역대조.js'), import('./lib/내역채움.js'), import('./lib/qtoxlsx.js'), import('./lib/엑셀쓰기.js'), import('./lib/변경엑셀쓰기.js'), import('./lib/캐드고름.js')])
+  return { ...변, 내역읽기: 대.내역읽기, 셀바꾸기: 채.셀바꾸기, readWorkbook: q.readWorkbook, 값만으로: 쓰.값만으로, 변경엑셀: 변엑.변경엑셀, 캐드셈: 캐.캐드셈, 캐드대조줄: 캐.캐드대조줄 }
 }
 
-export default function 골조변경판({ M, S, 세기 = () => {} }) {
+/* 📏 G686 캐드 탭 물량(세운 줄은 빼고 — 골조 모델 물량으로 견줌)도 내역 줄과 견줌 — 캐드={캐드} 세운={세운}(Model.jsx) */
+export default function 골조변경판({ M, S, 세기 = () => {}, 캐드 = null, 세운 = null }) {
   const [lib, setLib] = useState(null)
   const [재료, set재료] = useState(null)        // { 이름, 원본, 내0, 내, 책, 수식칸, 켠, 예시 }
   const [설정, set설정] = useState(빈설정)
@@ -82,10 +83,14 @@ export default function 골조변경판({ M, S, 세기 = () => {} }) {
     return () => clearTimeout(h)
   }, [재료, 설정])
 
+  const 캐드줄 = useMemo(() => {
+    if (!lib || !캐드 || !캐드.줄 || !캐드.줄.length) return []
+    try { return lib.캐드대조줄(lib.캐드셈(캐드, { 세운 })) } catch (e) { return [] }
+  }, [lib, 캐드, 세운])
   const 판 = useMemo(() => {
     if (!lib || !재료 || !S || S.오류) return null
-    try { return lib.골조대조(M, S, 재료.내, { ...설정, 수식칸: 재료.수식칸 }) } catch (e) { return { 오류: String((e && e.message) || e) } }
-  }, [lib, 재료, 설정, M, S])
+    try { return lib.골조대조(M, S, 재료.내, { ...설정, 수식칸: 재료.수식칸, 캐드줄 }) } catch (e) { return { 오류: String((e && e.message) || e) } }
+  }, [lib, 재료, 설정, M, S, 캐드줄])
   const 기대 = useMemo(() => {
     if (!판 || 판.오류 || !재료 || !재료.책) return null
     try { return lib.변경기대(lib.변경모형(재료.책, 판, 재료.이름)) } catch (e) { return null }
@@ -146,7 +151,8 @@ export default function 골조변경판({ M, S, 세기 = () => {} }) {
   const 짝줄 = 판 && !판.오류 ? 판.줄.filter((x) => x.r.도면) : []
   const 남은줄 = 판 && !판.오류 ? 판.줄.filter((x) => !x.r.도면) : []
   const 넣은 = 짝줄.filter((x) => x.넣음 && x.바뀜)
-  const 짝목록 = 판 && !판.오류 ? 판.도면.filter((d) => d.골) : []
+  const 짝목록 = 판 && !판.오류 ? 판.도면.filter((d) => d.골 || d.캐드) : []
+  const 캐드남음 = 판 && !판.오류 ? 판.캐드남음 || [] : []
   const 시트목록 = 재료 ? 재료.내0.시트들.map((s) => ({ 시트: s.시트, n: lib ? lib.골조줄수(s) : 0 })).filter((s) => s.n > 0) : []
 
   const 줄그림 = (x) => {
@@ -164,7 +170,7 @@ export default function 골조변경판({ M, S, 세기 = () => {} }) {
         <td className="num">{x.수식칸 ? <small className="muted">내역서 식</small> : <input type="number" step="any" inputMode="decimal" aria-label={n.줄 + '행 변경 수량'} className="gmd-cv-in" value={값 === null || 값 === undefined ? '' : 값} placeholder="—" onChange={(e) => 값바꿈(x, e.target.value)} />}</td>
         <td><select aria-label={n.줄 + '행 건설맵 짝'} value={x.r.도면 ? x.r.도면.key : ''} onChange={(e) => 짝바꿈(x, e.target.value)} title={x.까닭}>
           <option value="">— 짝 없음</option>
-          {짝목록.map((d) => <option key={d.key} value={d.key}>{d.품명} {d.규격} · {수글(d.수량, 2)}</option>)}
+          {짝목록.map((d) => <option key={d.key} value={d.key}>{d.캐드 ? '📏 ' + d.품명 + ' · ' + 수글(d.수량, 2) + ' ' + d.단위 : d.품명 + ' ' + d.규격 + ' · ' + 수글(d.수량, 2)}</option>)}
         </select></td>
       </tr>
     )
@@ -173,7 +179,7 @@ export default function 골조변경판({ M, S, 세기 = () => {} }) {
 
   return (
     <section className="gmd-cv" aria-label="내역서 대조 · 설계변경">
-      <h2 className="gmd-h">📑 내역서 대조 → 설계변경 <span className="muted">내 내역서 골조 줄 ↔ 이 모델 물량</span></h2>
+      <h2 className="gmd-h">📑 내역서 대조 → 설계변경 <span className="muted">내 내역서 골조 줄 ↔ 이 모델 물량{캐드 && 캐드.줄 && 캐드.줄.length ? ' · 📏 캐드 물량' : ''}</span></h2>
       <input ref={파일Ref} type="file" accept=".xlsx,.xlsm,.xls,.csv" hidden onChange={파일고름} />
       {!재료 && (
         <div className="gmd-top">
@@ -190,7 +196,7 @@ export default function 골조변경판({ M, S, 세기 = () => {} }) {
           {시트목록.length > 1 && <span className="gmd-cv-sheets">{시트목록.map((s) => <button key={s.시트} type="button" className={'gmd-gs-chip' + (재료.켠.includes(s.시트) ? ' on' : '')} aria-pressed={재료.켠.includes(s.시트)} onClick={() => 시트바꿈(s.시트)} title={'골조 줄 ' + s.n}>{s.시트} <small>{s.n}</small></button>)}</span>}
           <span className="gmd-cv-act"><button type="button" className="gmd-link" onClick={() => 파일Ref.current && 파일Ref.current.click()}>다른 내역서</button> · <button type="button" className="gmd-link" onClick={() => set설정(빈설정())}>처음대로</button> · <button type="button" className="gmd-link" onClick={지우기} aria-label="내역 대조 지우기">✕</button></span>
         </div>
-        {판.한눈.length > 0 && <div className="gmd-cv-sum">{판.한눈.map((h) => <span key={h.이름} className={'gmd-cv-chip' + (h.맞음 >= 95 ? ' ok' : h.맞음 >= 85 ? ' mid' : ' low')} title={'내역 ' + 수글(h.내역) + ' · 건설맵 ' + 수글(h.모델) + ' ' + h.단위 + ' (' + h.줄글 + ')'}>{h.이름} <b>{h.맞음.toFixed(1)}%</b></span>)}</div>}
+        {(판.한눈.length > 0 || 판.셈.캐드 > 0) && <div className="gmd-cv-sum">{판.한눈.map((h) => <span key={h.이름} className={'gmd-cv-chip' + (h.맞음 >= 95 ? ' ok' : h.맞음 >= 85 ? ' mid' : ' low')} title={'내역 ' + 수글(h.내역) + ' · 건설맵 ' + 수글(h.모델) + ' ' + h.단위 + ' (' + h.줄글 + ')'}>{h.이름} <b>{h.맞음.toFixed(1)}%</b></span>)}{판.셈.캐드 > 0 && <span className="gmd-cv-chip" title="캐드 탭 물량(적요 · 단위마다) 가운데 내역 줄과 짝이 된 것">📏 캐드 짝 <b>{판.셈.캐드 - 캐드남음.length}/{판.셈.캐드}</b></span>}</div>}
         {짝줄.length ? (
           <div className="gmd-tablewrap"><table className="gmd-table gmd-cv-table">{머리}<tbody>{짝줄.map(줄그림)}</tbody></table></div>
         ) : <p className="muted gmd-p">이 시트에서 모델과 짝이 되는 골조 줄을 못 찾았습니다 — 다른 시트를 켜거나 아래 줄에서 짝을 고르십시오.</p>}
@@ -198,6 +204,28 @@ export default function 골조변경판({ M, S, 세기 = () => {} }) {
           <details className="gmd-cv-rest">
             <summary>짝 없음 · 다른 동·공종 {남은줄.length}줄 <span className="muted">(짝을 고르면 위로 올라감)</span></summary>
             <div className="gmd-tablewrap"><table className="gmd-table gmd-cv-table">{머리}<tbody>{남은줄.map(줄그림)}</tbody></table></div>
+          </details>
+        )}
+        {캐드남음.length > 0 && (
+          <details className="gmd-cv-rest gmd-cv-cad" open={!짝줄.some((x) => x.r.도면 && x.r.도면.캐드)}>
+            <summary>📏 캐드 물량 — 내역 줄을 아직 못 찾은 것 {캐드남음.length} <span className="muted">(내역 줄을 고르면 위 표로 올라감)</span></summary>
+            <div className="gmd-tablewrap"><table className="gmd-table gmd-cv-table">
+              <thead><tr><th>캐드 적요</th><th>단위</th><th>캐드 수량</th><th>내역 줄 고르기</th></tr></thead>
+              <tbody>{캐드남음.map((d) => {
+                const 후 = lib.캐드짝후보(d, 재료.내, 판)
+                return (
+                  <tr key={d.key}>
+                    <td className="nm" title={d.근거}>{d.품명}<small className="muted"> · {d.근거}</small></td>
+                    <td>{d.단위}</td>
+                    <td className="num">{수글(d.수량)}</td>
+                    <td><select aria-label={d.품명 + ' 내역 줄 고르기'} value="" onChange={(e) => { const n = 후.find((c) => String(c.n.id) === e.target.value); if (n) { 짝바꿈({ 열쇠: lib.줄열쇠(n.n) }, d.key); 세기('|골조모델|캐드짝') } }}>
+                      <option value="">{후.length ? '— 내역 줄(같은 단위 ' + 후.length + ')' : '— 같은 단위 내역 줄 없음'}</option>
+                      {후.map((c) => <option key={c.n.id} value={String(c.n.id)}>{c.n.줄}행 {c.n.품명}{c.n.규격 ? ' ' + c.n.규격 : ''} · {수글(c.n.수량, 2)} {c.n.단위}{c.있 ? ' (짝 있음)' : ''}</option>)}
+                    </select></td>
+                  </tr>
+                )
+              })}</tbody>
+            </table></div>
           </details>
         )}
         <p className="gmd-cv-money" role="status">변경에 넣은 줄 <b>{넣은.length}</b>

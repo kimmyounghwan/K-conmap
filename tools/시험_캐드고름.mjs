@@ -6,7 +6,7 @@
  *   리습을 실제로 돌려 보는 시험은 tools/시험_캐드고름리습.py(클라우드 · 흉내 해석기) · 엑셀은 tools/시험_캐드고름엑셀.mjs
  * 쓰는 법: node tools/시험_캐드고름.mjs
  */
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import path from 'node:path'
 
@@ -117,6 +117,22 @@ const 치시험 = (선, 치) => m.줄만들기(읽어([선, 치]), {}).줄[0].�
 봄(치시험(['LINE', 'a', '1', '0', '0', '0,0;10000,0', '0,0', '', ''], ['DIMENSION', 'd', '2', '0', '0', '0,0;10000,0', '10000,34,0', '', '']) === undefined, '각도 · 지름 · 반지름 치수는 안 견줌')
 봄(치시험(['LINE', 'a', '1', '0', '0', '0,0;10000,0', '0,0', '', ''], ['DIMENSION', 'd', '2', '0', '0', '0,300;10000,300', '10000,33,0', '9,000', '']) === undefined, '치수 두 점이 선 끝과 멀면(300 mm) 안 견줌')
 봄(치시험(['LINE', 'a', '1', '0', '0', '0,0;10000,0', '0,0', '', ''], ['DIMENSION', 'd', '2', '0', '0', '0,0;10000,0', '10000,33,0', '약 10m', '']).도면값 === 10000, '바꾼 글이 숫자가 아니면 잰 값(42)으로')
+/* 📏 G686 실제 오토캐드 2023 시험에서 찾음 — 아직 안 잰 치수는 42 = −1(42 없이 저장된 DXF 를 연 도면) → 치수 «자기» 두 점에서 잼(짐작 아님) */
+{
+  const 안잰 = (선, 치) => 치시험(선, 치)
+  const 가 = 안잰(['LINE', 'a', '1', '0', '0', '0,-500;5000,-500', '0,0', '', ''], ['DIMENSION', 'd', '2', '0', '0', '0,-500;5000,-500', '-1,32,0', '<>', ''])
+  봄(가 && 가.도면값 === 5000 && 가.다름 === undefined, '42 = −1 · 가로 치수(꼴 0 · 0°) → 두 점에서 5,000 · 같음', JSON.stringify(가))
+  const 나 = 안잰(['LINE', 'a', '1', '0', '0', '0,0;3000,4000', '0,0', '', ''], ['DIMENSION', 'd', '2', '0', '0', '0,0;3000,4000', '-1,33,0', '', ''])
+  봄(나 && Math.abs(나.도면값 - 5000) < 1e-9, '42 = −1 · 정렬 치수(꼴 1) → 두 점 거리 5,000', JSON.stringify(나))
+  const 다 = 안잰(['LINE', 'a', '1', '0', '0', '0,0;0,4000', '0,0', '', ''], ['DIMENSION', 'd', '2', '0', '0', '0,0;0,4000', '-1,32,1.5707963268', '', ''])
+  봄(다 && Math.abs(다.도면값 - 4000) < 1e-6, '42 = −1 · 세로 치수(꼴 0 · 90°) → 그 방향 4,000', JSON.stringify(다))
+  봄(안잰(['LINE', 'a', '1', '0', '0', '0,0;3000,4000', '0,0', '', ''], ['DIMENSION', 'd', '2', '0', '0', '0,0;3000,4000', '-1,32,0', '', '']) === undefined, '42 = −1 이어도 비스듬한 선의 가로 치수는 그대로 안 견줌')
+  const 라 = 안잰(['LINE', 'a', '1', '0', '0', '0,0;10000,0', '0,0', '', ''], ['DIMENSION', 'd', '2', '0', '0', '0,0;10000,0', '-1,33,0', '9,950', ''])
+  봄(라 && 라.도면값 === 9950 && 라.다름 === true, '42 = −1 이어도 바꾼 글(9,950)은 그대로 → 다름')
+  const 마 = 안잰(['LINE', 'a', '1', '0', '0', '0,0;10000,0', '0,0', '', ''], ['DIMENSION', 'd', '2', '0', '0', '0,0;10000,0', '0,32,0', '', ''])
+  봄(마 && 마.도면값 === 10000, '42 = 0(42 를 안 주는 캐드 — 리습 기본 0) → 두 점에서 10,000')
+  봄(m.치수잰값({ 값: [7400, 33, 0], 점: [[0, 0], [7500, 0]], 치수꼴: 1, 회전: 0 }) === 7400, '42 가 있으면 42 그대로(두 점보다 먼저)')
+}
 /* 두 번 · 최대 */
 const 있 = new Set()
 const r1 = m.줄만들기(읽어([['LINE', 'a', '1A', '0', '0', '0,0;1,0', '0,0', '', '']]), { 있는핸들: 있 })
@@ -224,7 +240,31 @@ const lsp = new TextDecoder('euc-kr').decode(readFileSync(path.join(뿌리, 'too
 봄(lsp.includes('"' + m.머리말 + '"'), `kcm.lsp 머리말 «${m.머리말}» = lib`)
 봄(/\(strcat ty tb \(kcms-clean \(kcms-g 8 e\)\) tb \(kcms-s \(kcms-g 5 e\)\) tb cl tb z tb pts tb vals tb txt tb ext\)/.test(lsp), 'kcm.lsp 한 줄 = 종류 · 레이어 · 핸들 · 닫힘 · z · 점들 · 값들 · 글 · 돌출(lib 설명 차례)')
 봄(/kcms_/.test(lsp) && /\.csv/.test(lsp) && /\.txt/.test(lsp), 'kcm.lsp 가 kcms_<번호>.csv 를 쓰고 .txt 에 그 경로')
-봄(!/\(vla-|\(vlax-|\(vl-|load_dialog/i.test(lsp), 'kcm.lsp 순수 AutoLISP(vla · vl · DCL 없음)')
+const lsp코드 = lsp.split(/\r?\n/).filter((l) => !/^\s*;/.test(l)).join('\n')   // 주석 줄 뺌
+봄(!/\(vla-|\(vlax-|\(vlr-|load_dialog/i.test(lsp코드) && (lsp코드.match(/\(vl-/g) || []).length === 2 && lsp코드.includes('(and (not (findfile d)) vl-mkdir) (vl-mkdir d)')
+  && /\(if vl-registry-read\s+\(setq r \(vl-registry-read /.test(lsp코드),
+  'kcm.lsp 순수 AutoLISP(vla · vlr · DCL 없음 · vl- 는 vl-mkdir · vl-registry-read 둘 — 있는 캐드에서만 · G686)')
+/* 📏 G686 사이트에서 받는 리습(web/public/tools/files/kcm.lsp) = 저장소 리습(tools/pc연결/kcm.lsp) — 줄바꿈만 달라도 됨 */
+{
+  const 받는 = path.join(뿌리, 'web', 'public', 'tools', 'files', 'kcm.lsp')
+  const 같게 = (b) => Buffer.from(b).toString('latin1').replace(/\r\n/g, '\n')
+  봄(existsSync(받는) && 같게(readFileSync(받는)) === 같게(readFileSync(path.join(뿌리, 'tools', 'pc연결', 'kcm.lsp'))), '사이트에서 받는 kcm.lsp = 저장소 kcm.lsp(두 벌 같음)')
+  봄(/K-적산컨맵 연결 1\.2/.test(lsp) && lsp코드.includes('(strcat h "\\\\Downloads")') && lsp코드.includes('(strcat l "\\\\K-conmap")') && lsp코드.includes('"{374DE290-123F-4565-9164-39C4925E467B}"'),
+    'kcm.lsp 1.2 · 보낼 곳 다운로드\\K-conmap(옮겨 둔 다운로드도 — 윈도 «User Shell Folders» 다운로드 자리)')
+}
+/* 📏 G686 폴더 손잡이(FileSystemHandle)를 IndexedDB 에 넣지 않음 — 시크릿 창에서 꺼내면 브라우저가 통째로 꺼짐(크로뮴 153 잼: 일반 창 됨 · --incognito 창 SIGTRAP)
+   손잡이를 IndexedDB 에 넣는 파일은 lib/파일기억.js(소장님만 여는 /report/make) 하나뿐이어야 함 — 새로 넣으려면 시크릿 창에서 먼저 잴 것 */
+{
+  const 주석뺌 = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+  const 폴더src = 주석뺌(readFileSync(path.join(뿌리, 'web', 'src', 'lib', '캐드폴더.js'), 'utf8'))
+  봄(!/indexedDB|IDBObjectStore|objectStore|\.put\(/.test(폴더src), '캐드폴더.js — 폴더 손잡이를 IndexedDB 에 안 넣음(시크릿 창 브라우저 꺼짐 막기)')
+  const 모델src = readFileSync(path.join(뿌리, 'web', 'src', 'pages', 'Model.jsx'), 'utf8')
+  봄(!/손잡이꺼냄|손잡이둠/.test(모델src) && /F\.이은폴더\(\)/.test(모델src), '작업 화면은 이 창에서 이은 폴더만 씀(저장된 손잡이를 안 꺼냄)')
+  const 다 = []
+  const 훑 = (d) => { for (const n of readdirSync(d, { withFileTypes: true })) { const f = path.join(d, n.name); if (n.isDirectory()) 훑(f); else if (/\.(js|jsx)$/.test(n.name)) { const s = 주석뺌(readFileSync(f, 'utf8')); if (/showDirectoryPicker|showOpenFilePicker|showSaveFilePicker|getAsFileSystemHandle/.test(s) && /indexedDB/.test(s)) 다.push(path.relative(뿌리, f)) } } }
+  훑(path.join(뿌리, 'web', 'src'))
+  봄(다.join() === path.join('web', 'src', 'lib', '파일기억.js'), '손잡이를 IndexedDB 에 넣는 파일 = lib/파일기억.js(소장님만 · /report/make) 하나뿐 — ' + 다.join(' · '))
+}
 
 console.log(`\n결과: ${됨} 통과 · ${틀.length} 틀림`)
 if (틀.length) { for (const t of 틀) console.log('  ✗ ' + t); process.exit(1) }

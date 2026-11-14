@@ -24,7 +24,7 @@ import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useR
 import { Link } from 'react-router-dom'
 import { 세기 } from '../lib/받은수.jsx'
 import { 배근칸, 정착표, 기준값, 엑셀 as 골조엑셀 } from '../lib/골조.js'
-import { 도면함끄기, 도면함켜기, 도면함넣어둠 } from '../lib/도면모델.js'
+import { 도면함끄기, 도면함켜기, 도면함넣어둠, 세운줄 } from '../lib/도면모델.js'
 import { 새모델, 예시모델, 작업예시모델, 정돈, 겹침둠, 겹침남기기, 겹침물을짝, 큰무리빼기, 정리할것, 무더기빼기, 사선넣기, 사선끝, 띠판, 기둥넣기, 선넣기, 칸넣기, 계단넣기, 부재옮기기, 구간넣기, 구간빼기, 구간고치기, 구간물량, 구간선자르기, 구간색들, 기성셈, 부재빼기, 부재고치기, 부재나누기, 층복사, 통심더하기, 통심빼기, 통심간격, 모델셈, 종류색, 부재글, 모델시트, FT층, 층높이, 제안확인, 제안모두확인, 제안빼기, 기초철근넣기, 계단글 } from '../lib/골조모델.js'
 import 둘러보기판 from '../둘러보기판.jsx'
 import 골조기성판, { 기성색들, 칸상태 } from '../골조기성판.jsx'
@@ -39,8 +39,6 @@ import { 층판 } from '../lib/둘러보기.js'
 import { 길잡이 } from '../lib/도우미.js'
 import { 부재보기 } from '../lib/bim3d.js'
 import { 확인 as 이용권확인 } from '../lib/이용권.js'
-import { isOpen as 열쇠열림 } from '../lib/gate.js'
-import { 나운영자 } from '../lib/운영자.js'
 /* 🛣 G396 작업 화면 «토목» 탭 — 노선(STA) · TM 좌표 · EL · 측량점 파일 · 좌표계(따로 불러옴 — 건축만 쓰면 안 받음) */
 const 토목판 = lazy(() => import('../토목판.jsx'))
 /* 📏 G685 «캐드에서 고른 것»(KCMS) 탭 — 🔒 출시 전에는 소장님 브라우저 · 열쇠말만(따로 불러옴 — 다른 분은 안 받음) */
@@ -177,11 +175,8 @@ export default function Model() {
   }, [])
   const 되돌리기 = () => set되돌림((u) => { if (!u.length) return u; setM0(u[u.length - 1]); return u.slice(0, -1) })
   /* 📏 G685 캐드에서 고른 것(KCMS) — 골조 모델(M)과 따로 둠(표를 고칠 때마다 골조 셈을 다시 하지 않게) · 이 브라우저 kcm.cad.v1 · 💾 모델 파일에 같이
-       🔒 출시 전: 소장님 브라우저(lib/운영자.js) · 열쇠말(lib/gate.js)만 탭 · 받기 · 저장 */
-  const [캐드씀, set캐드씀] = useState(() => 열쇠열림())
-  useEffect(() => { let 살 = true; 나운영자().then((v) => { if (살 && v) set캐드씀(true) }).catch(() => {}); return () => { 살 = false } }, [])
-  const 캐드씀Ref = useRef(캐드씀)
-  캐드씀Ref.current = 캐드씀
+       🧪 G686 시험판 — 모든 이용자(소장님 11-14 «시험판으로 올리자. 우선, 모든 이용자 사용 가능하게» — G685 의 🔒 소장님 브라우저 · 열쇠말 잠금을 풂) */
+  const 캐드씀 = true
   const [캐드, set캐드0] = useState({ 묶음: [], 줄: [] })
   const 캐드Ref = useRef(캐드)
   캐드Ref.current = 캐드
@@ -209,17 +204,32 @@ export default function Model() {
     set캐드0((P) => { const N = typeof f === 'function' ? f(P) : f; if (N !== P) set캐드되돌림((u) => [...u.slice(-19), P]); return N })
   }, [])
   const 캐드되돌리기 = () => set캐드되돌림((u) => { if (!u.length) return u; set캐드0(u[u.length - 1]); return u.slice(0, -1) })
+  /* 🩹 G686 아직 안 쓴 저장(모아 쓰는 0.4 · 0.6초 사이)은 쪽을 떠날 때 · 창을 닫을 때 바로 씀 — 예전엔 그 사이에 다른 쪽으로 가면 타이머만 지워져
+       마지막 고침이 사라졌음(시험_캐드고름화면 ⑥ 이 잡음: 폴더에서 받은 17줄이 쪽 옮김 뒤 없어짐 — 폴더 파일은 이미 지운 뒤라 영영 잃음) */
+  const 캐드쓰기 = (x) => { try { if (x.묶음.length) localStorage.setItem(캐드열쇠, JSON.stringify(x)); else localStorage.removeItem(캐드열쇠) } catch (e) { /* 꽉 참 · 사생활 보호 */ } }
+  const 캐드남음 = useRef(null)
   useEffect(() => {
     if (!캐드씀 || !캐드준비) return undefined
-    const t = setTimeout(() => { try { if (캐드.묶음.length) localStorage.setItem(캐드열쇠, JSON.stringify(캐드)); else localStorage.removeItem(캐드열쇠) } catch (e) { /* 꽉 참 · 사생활 보호 */ } }, 600)
+    캐드남음.current = 캐드
+    const t = setTimeout(() => { 캐드쓰기(캐드); 캐드남음.current = null }, 600)
     return () => clearTimeout(t)
-  }, [캐드, 캐드씀, 캐드준비])
+  }, [캐드, 캐드씀, 캐드준비])  // eslint-disable-line react-hooks/exhaustive-deps
   /* 저장(0.4초 모아서) */
+  const 모델남음 = useRef(null)
   useEffect(() => {
     if (큰저장) return undefined                    // 큰 저장 모델을 고르기 전에는 덮어쓰지 않음
-    const t = setTimeout(() => { try { localStorage.setItem(저장열쇠, JSON.stringify(M)) } catch (e) { /* 꽉 참 · 사생활 보호 */ } }, 400)
+    모델남음.current = M
+    const t = setTimeout(() => { try { localStorage.setItem(저장열쇠, JSON.stringify(M)) } catch (e) { /* 꽉 참 · 사생활 보호 */ } 모델남음.current = null }, 400)
     return () => clearTimeout(t)
   }, [M, 큰저장])
+  useEffect(() => {
+    const 바로씀 = () => {
+      if (모델남음.current) { try { localStorage.setItem(저장열쇠, JSON.stringify(모델남음.current)) } catch (e) { /* 꽉 참 */ } 모델남음.current = null }
+      if (캐드남음.current) { 캐드쓰기(캐드남음.current); 캐드남음.current = null }
+    }
+    window.addEventListener('pagehide', 바로씀)
+    return () => { window.removeEventListener('pagehide', 바로씀); 바로씀() }
+  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
   /* 층 이름이 없어지면 첫 층으로 */
   useEffect(() => { if (!M.층.some((f) => f.이름 === 층)) set층((M.층.find((f) => !FT층(f)) || M.층[0]).이름) }, [M.층, 층])
   useEffect(() => { set첫점(null) }, [도구, 층])
@@ -232,7 +242,6 @@ export default function Model() {
   const 층바닥 = useMemo(() => {
     try { const H = 층높이(M); return (f) => { const h = f ? H.표.get(f) : null; return h && Number.isFinite(h.z0) ? h.z0 : 0 } } catch (e) { return () => 0 }
   }, [M.층, M.기준])  // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (탭 === '캐드' && !캐드씀) set탭('세우기') }, [탭, 캐드씀])
   const 층FT = FT층(M.층.find((f) => f.이름 === 층))
   const 쓸도구 = 층FT ? ['기초', '보', '슬라브', '고르기', '옮기기', '구간', '지우기'] : ['기둥', '보', '벽', '슬라브', '계단', '고르기', '옮기기', '구간', '지우기']
   useEffect(() => { if (!쓸도구.includes(도구)) set도구(층FT ? '기초' : '기둥') }, [층FT])  // eslint-disable-line react-hooks/exhaustive-deps
@@ -409,9 +418,7 @@ export default function Model() {
       }
       if (고름.length) {
         set도면상태(null)
-        /* 🔒 소장님 브라우저 · 열쇠말만 — 화면을 막 연 때(프로그램이 연 탭)는 운영자 확인이 늦을 수 있어 여기서 한 번 더 봄 */
-        const 씀 = 캐드씀Ref.current || 열쇠열림() || (await 나운영자().catch(() => false))
-        if (씀) { if (!캐드씀Ref.current) set캐드씀(true); await 고름받기(고름) }
+        await 고름받기(고름)
         if (!받은.length) return
       }
       세기('|골조모델|PC보냄')
@@ -431,19 +438,120 @@ export default function Model() {
       const 읽 = L.고름읽기(L.글풀기(f.buf))
       if (!읽) { 말.push('«' + f.이름 + '» 은 캐드 고름(KCMS) 글이 아닙니다'); continue }
       const 끝 = N.묶음[N.묶음.length - 1]
-      const 층 = 끝 ? (N.줄.find((r) => r.묶음 === 끝.id && r.층) || {}).층 || '' : ''
+      /* 🧱 G686 적요(캐드에서 적은 말 «1층 기둥 C1» · «2층 보 B1» · «기초 F1»)의 층 · 부재 · 부호 · 두께를 그대로 채움(사람이 적은 말 — 다르면 고침) · 층이 없으면 앞 묶음 층 */
+      const 풀 = L.적요풀기(읽.머리.적요, M.층)
+      const 층 = 풀.층 || (풀.층적음 ? '' : 끝 ? (N.줄.find((r) => r.묶음 === 끝.id && r.층) || {}).층 || '' : '')      // 적요에 층 말(«지붕층» · 모델에 없는 층)이 있으면 앞 묶음 층을 잇지 않음
       const r = L.줄만들기(읽, { 이름: f.이름, 층, 있는핸들: L.있는핸들(N) })
+      if (풀.부재 && r.줄.length) {
+        const d = L.부재넣기(r.줄, () => true, 풀.부재, 풀, M.층)
+        r.줄 = d.줄
+        if (d.넣음) 말.push('적요 «' + 읽.머리.적요 + '» → ' + 풀.말 + ' ' + d.넣음 + '줄' + (d.안맞음 ? '(' + d.안맞음 + '줄은 그 꼴로 못 세워 수량만)' : '') + ' — 🧱 골조 모델에 세우기 단추로 세움.')
+      } else if (풀.층 && r.줄.length) 말.push('적요 «' + 읽.머리.적요 + '» → ' + (풀.층 === 'FT' ? 'FT' : 풀.층 + '층') + '.')
       const d = L.묶음더하기(N, r)
       N = d.캐드
       줄수 += r.줄.length - d.뺌
       말.push(...r.알림)
       if (d.뺌) 말.push('이 화면에는 ' + L.모두최대.toLocaleString('ko-KR') + '줄까지 둡니다 — ' + d.뺌.toLocaleString('ko-KR') + '줄은 받지 않았습니다.')
     }
-    if (N !== 앞N) { 캐드Ref.current = N; set캐드(N) }
+    if (N !== 앞N) { 캐드Ref.current = N; set캐드(N); 캐드쓰기(N) }      // 바로 씀 — 폴더 파일을 지우기 전에(쪽을 바로 떠나도 안 잃음 · G686)
     set분야('건축'); set탭('캐드')
     set알림('📏 캐드에서 고른 것 ' + 줄수.toLocaleString('ko-KR') + '줄을 받았습니다(📏 캐드 탭)' + (말.length ? ' — ' + 말.join(' ') : '.'))
     세기('|캐드고름|받음')
   }
+  const 고름받기Ref = useRef(고름받기)
+  고름받기Ref.current = 고름받기
+  /* 🧱 G686 캐드에서 고른 것 → 골조 모델 부재(스케치업 꼴 · lib/캐드부재.js) — 세운 줄은 캐드 탭 합에서 빠짐(두 번 안 셈 · 부재를 지우면 다시 셈) */
+  const 세운 = useMemo(() => 세운줄(M), [M.부재])  // eslint-disable-line react-hooks/exhaustive-deps
+  const [캐드못, set캐드못] = useState(null)        // 마지막 세우기에서 못 세운 줄 → 까닭(캐드 탭 줄에 ⚠)
+  const [캐드크기, set캐드크기] = useState(null)    // 📐 부호 일람 ↔ 캐드에서 잰 크기 다름(사람이 «일람을 캐드 크기로» 누를 때만 고침)
+  const 일람캐드로 = async () => {
+    try {
+      const D = await import('../lib/캐드부재.js')
+      const r = D.일람캐드로(M, 캐드크기)
+      if (r.고침) { setM(r.M); 세기('|캐드고름|일람캐드로') }
+      set알림(r.고침 ? '📐 부호 일람 ' + r.고침 + '칸을 캐드에서 잰 크기로 고쳤습니다 — 물량이 다시 셈됨(↶ 되돌리기)' : '📐 고칠 칸이 없습니다(캐드 값이 여럿인 것은 도면부터 확인)')
+      set캐드크기(null)
+    } catch (e) { set알림('📐 고치지 못했습니다 — ' + ((e && e.message) || e)) }
+  }
+  const 캐드세우기 = async () => {
+    try {
+      const D = await import('../lib/캐드부재.js')
+      const 결 = D.부재로세우기(캐드Ref.current, M)
+      set캐드못(new Map((결.못 || []).filter((x) => x.id).map((x) => [x.id, x.까닭])))
+      set캐드크기(결.크기다름 && 결.크기다름.length ? 결.크기다름 : null)
+      if (결.세움 > 0) {
+        setM(결.M); set탭('세우기'); 세기('|캐드고름|부재세움')
+        /* 새로 세운 첫 부재를 골라 둠 — 그 층 · 3D 주황 · 오른쪽 «🔍 3D 크게» 로 바로 봄 */
+        const 앞id = new Set(M.부재.map((o) => o.id))
+        const 첫 = 결.M.부재.find((o) => !앞id.has(o.id) && o.근거 && o.근거.키 === D.캐드키)
+        if (첫) { set층(첫.층); set고른(첫.id) }
+      } else 세기('|캐드고름|부재못세움')
+      set알림(D.세움글(결))
+      return 결
+    } catch (e) { set알림('🧱 세우지 못했습니다 — ' + ((e && e.message) || e)); return null }
+  }
+  /* 📏 G686 캐드 폴더(시험판 · 프로그램 없이) — 리습 KCMS 가 «다운로드\K-conmap» 에 쓴 것을 이 화면이 직접 읽음(lib/캐드폴더.js · PC 크롬 · 엣지)
+       k: '…' 보는 중 · '안됨' 이 브라우저는 폴더 읽기 없음 · '없음' 아직 안 이음(창을 새로 열면 다시 — 손잡이를 저장하지 않음: 시크릿 창 브라우저 꺼짐 막기)
+          · '다시' 브라우저가 다시 물음(단추 한 번) · '이어짐' */
+  const [폴더, set폴더] = useState({ k: '…' })
+  const 폴더Ref = useRef(null)
+  useEffect(() => {
+    if (!작업) return undefined
+    let 산 = true
+    import('../lib/캐드폴더.js').then(async (F) => {
+      if (!F.됨()) { if (산) set폴더({ k: '안됨' }); return }
+      const h = F.이은폴더()                                 // 이 창에서 이은 것만(사이트 안 다른 쪽에 갔다 와도 그대로)
+      if (!산) return
+      if (!h) { set폴더({ k: '없음' }); return }
+      폴더Ref.current = h
+      const p = await F.허락(h, false).catch(() => 'prompt')
+      if (산) set폴더({ k: p === 'granted' ? '이어짐' : '다시', 이름: h.name })
+    }).catch(() => { if (산) set폴더({ k: '안됨' }) })
+    return () => { 산 = false }
+  }, [작업])
+  const 폴더잇기 = async () => {
+    const F = await import('../lib/캐드폴더.js')
+    try {
+      if (폴더.k === '다시' && 폴더Ref.current) {
+        const p = await F.허락(폴더Ref.current, true)
+        if (p === 'granted') { set폴더({ k: '이어짐', 이름: 폴더Ref.current.name }); 세기('|캐드고름|폴더다시'); return }
+      }
+      const h = await F.고르기()
+      폴더Ref.current = h
+      set폴더({ k: '이어짐', 이름: h.name })
+      세기('|캐드고름|폴더잇기')
+      if (h.name !== F.폴더이름) set알림('📂 «' + h.name + '» 폴더를 이었습니다 — 리습(KCMS)은 «다운로드\\' + F.폴더이름 + '» 에 씁니다. 다른 폴더면 다시 골라 주십시오.')
+      else set알림('📂 캐드 폴더 «' + h.name + '» 를 이었습니다 — 캐드에서 KCMS 로 고르면 이 탭에 들어옵니다.')
+    } catch (e) {
+      if (e && e.name === 'AbortError') return            // 고르기 창을 닫음
+      set알림('📂 폴더를 잇지 못했습니다 — ' + ((e && e.message) || e) + ' («다운로드» 폴더 자체는 브라우저가 막습니다 — 그 안 «' + F.폴더이름 + '» 를 골라 주십시오)')
+    }
+  }
+  /* 이어진 동안 2초마다(화면이 보일 때만) — .txt 가 있는(다 쓴) kcms_<번호>.csv 를 받아 넣고 지움 */
+  useEffect(() => {
+    if (!작업 || 폴더.k !== '이어짐') return undefined
+    let 산 = true
+    let 도는중 = false
+    const 돌기 = async () => {
+      if (도는중 || !폴더Ref.current || (typeof document !== 'undefined' && document.visibilityState === 'hidden')) return
+      도는중 = true
+      let F = null
+      try {
+        F = await import('../lib/캐드폴더.js')
+        const l = await F.훑기(폴더Ref.current)
+        if (!산 || !l.length) return
+        try { await 고름받기Ref.current(l) } finally { for (const x of l) await F.지우기(폴더Ref.current, x.이름) }
+        세기('|캐드고름|폴더받음')
+      } catch (e) {
+        if (!산) return
+        if (e && (e.name === 'NotAllowedError' || e.name === 'SecurityError')) set폴더((p) => ({ ...p, k: '다시' }))
+        else if (e && e.name === 'NotFoundError') { 폴더Ref.current = null; if (F) F.놓기(); set폴더({ k: '없음' }) }   // 폴더가 지워짐 · 옮겨짐
+      } finally { 도는중 = false }
+    }
+    const t = setInterval(돌기, 2000)
+    돌기()
+    return () => { 산 = false; clearInterval(t) }
+  }, [작업, 폴더.k])
   const 보낸넣기Ref = useRef(보낸넣기)
   보낸넣기Ref.current = 보낸넣기              // 3초 돌기는 늘 지금 모델로(옛 화면의 함께넣기를 쓰지 않게)
   useEffect(() => {
@@ -488,6 +596,14 @@ export default function Model() {
       /* 🗓 G466 공정이 다 정해졌으면 «골조공정표» · «월별예정» · «공정조건» 시트도 */
       const 공R = M.공정 ? 공정셈(M, S) : null
       const sheets = [...골조엑셀(S.공사, S.R, (s) => s, ST), ...모델시트(M, S, ST), ...(공R && 공R.다됨 ? 공정시트(M, S, ST, 공R) : [])]
+      /* 📏 G686 캐드 탭 물량도 한 파일에(«캐드고름» 줄마다 근거 · «캐드집계») — 세운 줄은 «골조 모델에서 셈» 으로만(두 번 안 셈) */
+      let 캐맞 = []
+      if (캐드.줄.length) {
+        const L = await import('../lib/캐드고름.js')
+        const 캐 = L.캐드시트(캐드, ST, L.캐드셈(캐드, { 세운 }))
+        sheets.push(...캐.sheets)
+        캐맞 = 캐.맞댈
+      }
       /* 📋 G442 받기 전 검사 — 한 번 더 셈해 보고(화면 합 = 엑셀 «부재별» · «집계») 통과하면 받음 · 못 통과면 알리고 «알고 받기» */
       const 검 = await import('../lib/받기전검사.js')
       await new Promise((ok) => setTimeout(ok, 30))
@@ -504,7 +620,7 @@ export default function Model() {
         기맞.push({ 이름: '🗓 달마다 콘크리트 합(월별예정)', 시트: /^월별예정/, 줄: '합계', 열: '콘크리트(㎥)', 값: 콘, 단위: '㎥', 자리: 3, 오차: 0.0011 })
         기맞.push({ 이름: '🗓 달마다 작업일 합(월별예정)', 시트: /^월별예정/, 줄: '합계', 열: '작업일', 값: 공R.작업일, 단위: '일', 자리: 0, 오차: 0 })
       }
-      const r = 검.받기전검사(sheets, [...검.골조맞댈(S), ...기맞])
+      const r = 검.받기전검사(sheets, [...검.골조맞댈(S), ...기맞, ...캐맞])
       const 이름 = '골조모델_' + 파일이름 + '.xlsx'
       set검사({ ...r, 이름 })
       if (r.통과) { 내려주기(new Blob([r.바이트], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 이름); 세기('|골조모델|엑셀'); set엑셀받음(true) }
@@ -590,16 +706,23 @@ export default function Model() {
           {도면상태 && <div className={'gmd-note gmd-ws-note' + (도면상태.k === 'err' ? ' gmd-warnbox' : '')} role="status">{도면상태.k === 'busy' ? '⏳ ' : '⚠ '}{도면상태.글}{도면상태.k !== 'busy' && <button type="button" className="gmd-x" onClick={() => set도면상태(null)} aria-label="닫기">✕</button>}</div>}
 {큰저장 && <div className="gmd-note gmd-warnbox" role="alert">⚠ 저장된 모델의 부재가 <b>{큰저장.부재.length.toLocaleString('ko-KR')}개</b>로 아주 많습니다({[...new Set(큰저장.부재.map((o) => o.층))].map((f) => f + '층 ' + 큰저장.부재.filter((o) => o.층 === f).length.toLocaleString('ko-KR')).join(' · ')}) — 열면 화면이 멈출 수 있습니다.{큰무리.length > 0 && <> 많은 곳: {큰무리.map((g) => `${g.층}층 ${g.종류} ${g.모두.toLocaleString('ko-KR')}개(도면에서 온 것 ${g.도면.toLocaleString('ko-KR')} · 손으로 세운 것 ${g.뺌.toLocaleString('ko-KR')})`).join(' · ')}.</>} <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => { const r = 큰무리빼기(큰저장); setM0(r.M); set큰저장(null); set알림('너무 많던 ' + r.무리.map((g) => g.층 + '층 ' + g.종류 + ' 손으로 세운 것 ' + g.뺌.toLocaleString('ko-KR') + '개').join(' · ') + ' 만 빼고 열었습니다(도면에서 온 것은 남김)') }}>많은 것만 빼고 열기</button> <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { setM0(큰저장); set큰저장(null) }}>그대로 열기</button> <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => { set큰저장(null); set알림('새 모델로 시작합니다') }}>비우고 시작</button></div>}
           {알림 && <div className="gmd-note gmd-ws-note">{알림}<button type="button" className="gmd-x" onClick={() => set알림('')} aria-label="닫기">✕</button></div>}
+          {캐드크기 && 캐드크기.length > 0 && (
+            <div className="gmd-note gmd-ws-note gmd-warnbox gmd-cadsize" role="status">
+              ⚠ 부호 일람과 캐드에서 잰 크기가 다릅니다(물량은 일람 값으로 셈) — {캐드크기.slice(0, 5).map((x) => x.종 + ' ' + x.부호 + ' ' + x.칸 + ' 일람 ' + x.일람 + ' · 캐드 ' + (x.여럿 ? x.여럿.join(' / ') + '(여럿 — 도면 확인)' : x.캐드)).join(' · ')}{캐드크기.length > 5 ? ' …' : ''}
+              {캐드크기.some((x) => !x.여럿) && <button type="button" className="btn sm" onClick={일람캐드로}>📐 일람을 캐드 크기로</button>}
+              <button type="button" className="btn line sm" onClick={() => set캐드크기(null)}>일람 그대로</button>
+            </div>
+          )}
           {탭 === '세우기' ? 세움칸(true) : (
             <div className="gmd-ws-page">
               {탭 === '통심' && <통심칸 M={M} setM={setM} />}
               {탭 === '일람' && <일람칸들 M={M} setM={setM} />}
-              {탭 === '물량' && <물량칸 M={M} S={S} 엑셀받기={엑셀받기} IFC받기={IFC받기} 받는중={받는중} set탭={set탭} set고른={set고른} set층={set층} />}
+              {탭 === '물량' && <물량칸 M={M} S={S} 엑셀받기={엑셀받기} IFC받기={IFC받기} 받는중={받는중} set탭={set탭} set고른={set고른} set층={set층} 캐드={캐드} 세운={세운} />}
               {탭 === '공정' && 공정판}
               {탭 === '기성' && 기성판}
               {탭 === '캐드' && 캐드씀 && (
                 <Suspense fallback={<div className="card"><p className="muted">📏 캐드 탭 여는 중…</p></div>}>
-                  <캐드고름판 캐드={캐드} set캐드={set캐드} 되돌리기={캐드되돌리기} 되돌림수={캐드되돌림.length} 층들={M.층} 바닥={층바닥} 세기={세기} 내려주기={내려주기} 검사로={set검사} 파일이름={파일이름} />
+                  <캐드고름판 캐드={캐드} set캐드={set캐드} 되돌리기={캐드되돌리기} 되돌림수={캐드되돌림.length} 층들={M.층} 바닥={층바닥} 세기={세기} 내려주기={내려주기} 검사로={set검사} 파일이름={파일이름} 폴더={폴더} 폴더잇기={폴더잇기} 세운={세운} 세우기={캐드세우기} 일람={M.배근} 못={캐드못} />
                 </Suspense>
               )}
             </div>
@@ -643,7 +766,7 @@ export default function Model() {
       {탭 === '통심' && <통심칸 M={M} setM={setM} />}
       {탭 === '일람' && <일람칸들 M={M} setM={setM} />}
       {탭 === '세우기' && 세움칸(false)}
-      {탭 === '물량' && <물량칸 M={M} S={S} 엑셀받기={엑셀받기} IFC받기={IFC받기} 받는중={받는중} set탭={set탭} set고른={set고른} set층={set층} />}
+      {탭 === '물량' && <물량칸 M={M} S={S} 엑셀받기={엑셀받기} IFC받기={IFC받기} 받는중={받는중} set탭={set탭} set고른={set고른} set층={set층} 캐드={캐드} 세운={세운} />}
       {탭 === '공정' && 공정판}
       {탭 === '기성' && 기성판}
       <div className="card kcm-help-card" id="kcm-help"><적산컨맵설명서 /></div>
@@ -1862,8 +1985,8 @@ function 요약줄({ S }) {
 }
 
 /* ───────────────────────── ④ 물량 */
-function 물량칸({ M, S, 엑셀받기, IFC받기, 받는중, set탭, set고른, set층 }) {
-  if (!M.부재.length) return <div className="card"><p>아직 세운 부재가 없습니다. <button type="button" className="gmd-link" onClick={() => set탭('세우기')}>③ 세우기</button>에서 세우거나, 위의 «가상 예시» 로 해 보십시오.</p></div>
+function 물량칸({ M, S, 엑셀받기, IFC받기, 받는중, set탭, set고른, set층, 캐드, 세운 }) {
+  if (!M.부재.length) return <div className="card"><p>아직 세운 부재가 없습니다. <button type="button" className="gmd-link" onClick={() => set탭('세우기')}>③ 세우기</button>에서 세우거나, 위의 «가상 예시» 로 해 보십시오.</p>{캐드 && 캐드.줄.length > 0 && S && !S.오류 && <골조변경판 M={M} S={S} 세기={세기} 캐드={캐드} 세운={세운} />}</div>
   if (!S || S.오류) return <div className="card"><p className="gmd-warn">셈을 하지 못했습니다 — {S && S.오류}</p></div>
   const 합표 = (S.R.집계 && S.R.집계.합) || []
   const 줄 = (r, i, 앞) => (
@@ -1895,7 +2018,7 @@ function 물량칸({ M, S, 엑셀받기, IFC받기, 받는중, set탭, set고른
         <thead><tr><th>항목</th><th>규격</th><th>단위</th><th>산출</th><th>할증 %</th><th>내역</th></tr></thead>
         <tbody>{합표.map((r, i) => <tr key={i}><td>{r.항목}</td><td>{r.규격}</td><td>{r.단위}</td><td className="num">{수글(r.산출)}</td><td className="num">{r.할증}</td><td className="num">{수글(r.내역)}</td></tr>)}</tbody>
       </table></div>
-      <골조변경판 M={M} S={S} 세기={세기} />
+      <골조변경판 M={M} S={S} 세기={세기} 캐드={캐드} 세운={세운} />
       <h2 className="gmd-h">검사</h2>
       <ul className="gmd-check">
         {S.검사.map((z, i) => <li key={i} className={z.좋음 ? 'ok' : 'bad'}>{z.좋음 ? '✓' : '⚠'} {z.글}</li>)}

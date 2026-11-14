@@ -1,14 +1,15 @@
 /**
  * 📏 G685 작업 화면 «📏 캐드» 탭 — 캐드에서 고른 것(KCMS) → 줄 · 3D · 수량 · 검사 · 엑셀
  *   소장님 2026-11-14 「적산컨맵 업그레이드 … 캐드로 작업할 수 있게」 · 「편하지만 정확하게」 · 「물론 3D 되어야 하고」
- *   🔒 지금은 소장님 브라우저 · 열쇠말만(출시 전 — Model.jsx 가 탭을 그릴지 정함 · 화면에 이용권 · 값 말 없음)
- *   ■ 흐름: 캐드에서 KCMS → 고름 → (적요) → K-적산컨맵 연결 프로그램 → 이 탭에 «묶음» 하나(레이어 · 블록마다 무리)
+ *   🧪 G686 시험판 — 모든 이용자(화면에 이용권 · 값 말 없음) · 프로그램 없이: 리습만 받아 APPLOAD → «📂 캐드 폴더 잇기»(다운로드\K-conmap · 창을 열 때마다 한 번
+ *      — 손잡이를 저장하지 않음: 시크릿 창에서 꺼내면 브라우저가 꺼짐 · lib/캐드폴더.js)
+ *   ■ 흐름: 캐드에서 KCMS → 고름 → (적요) → 다운로드\K-conmap(이 화면이 직접 읽음 — lib/캐드폴더.js · 또는 K-적산컨맵 연결 프로그램) → 이 탭에 «묶음» 하나(레이어 · 블록마다 무리)
  *     → 무리 줄에서 갈래(길이 · 길이×높이 · 면적 · 면적×두께 · 개수) · 층 · 높이 · 두께를 한 번에 → 수량(빈칸은 ❓ — 짐작 안 함)
  *     → ⚠ 치수 글과 잰 길이가 다르면 사람이 고름 → 📊 엑셀(받기 전 검사) · 3D(누르면 그 줄로)
  *   ■ 셈 · 검사 · 엑셀 시트는 lib/캐드고름.js 한 곳(시험 tools/시험_캐드고름.mjs · 시험_캐드고름엑셀.mjs · 시험_캐드고름리습.py · 화면 시험_캐드고름화면.mjs)
  */
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import { 캐드셈, 캐드3D, 캐드시트, 갈래들, 단위이름, 고를단위, 종류이름, 적요글, 치수남음, 단위바꾸기, 묶음빼기, 묶음더하기, 줄만들기, 고름읽기, 예시고름글, 예시이름 } from './lib/캐드고름.js'
+import { 캐드셈, 캐드3D, 캐드시트, 갈래들, 단위이름, 고를단위, 종류이름, 적요글, 치수남음, 단위바꾸기, 묶음빼기, 묶음더하기, 줄만들기, 고름읽기, 예시고름글, 예시이름, 부재종류, 부재넣기, 부재맞음, 레이어부재, 층고름글 } from './lib/캐드고름.js'
 import { 부재보기 } from './lib/bim3d.js'
 
 const 쉼 = (v, n = 3) => (Number.isFinite(v) ? v.toLocaleString('ko-KR', { maximumFractionDigits: n }) : '')
@@ -18,9 +19,27 @@ const 때글 = (t) => { const d = new Date(t); return (d.getMonth() + 1) + '.' +
 const 같은값 = (셈, 칸) => { const v = 셈.length ? 셈[0].r[칸] : ''; return 셈.every((x) => x.r[칸] === v) ? v : null }
 const 단위차 = ['m', '㎡', '㎥', '개']
 const 합글 = (합) => 단위차.filter((u) => 합[u] !== undefined).map((u) => 쉼(합[u]) + ' ' + u).join(' · ')
+const 으로 = { 기둥: '기둥으로', 보: '보로', 벽: '벽으로', 슬라브: '슬라브로', 기초: '기초로' }
 
-export default function 캐드고름판({ 캐드, set캐드, 되돌리기, 되돌림수, 층들, 바닥, 세기, 내려주기, 검사로, 파일이름 }) {
-  const C = useMemo(() => 캐드셈(캐드), [캐드])
+/* 📏 G686 리습 받기 · 캐드 폴더 잇기(시험판) — 비었을 때 · 줄이 있을 때 둘 다 */
+const 리습주소 = '/tools/files/kcm.lsp'
+function 폴더줄({ 폴더, 폴더잇기, 세기, 짧게 }) {
+  const k = 폴더 ? 폴더.k : '…'
+  return (
+    <div className={'kcs-folder' + (k === '이어짐' ? ' on' : '')}>
+      <a className="btn line sm" href={리습주소} download="kcm.lsp" onClick={() => 세기('|캐드고름|리습받기')}>📥 리습 받기(kcm.lsp)</a>
+      {k === '안됨' && <span className="muted">📂 이 브라우저는 폴더를 못 읽습니다 — PC 크롬 · 엣지에서 여십시오</span>}
+      {k === '없음' && <><button type="button" className="btn sm" onClick={폴더잇기}>📂 캐드 폴더 잇기</button>{!짧게 && <span className="muted">다운로드 → <b>K-conmap</b> 고르기(창을 열 때마다 한 번 · 다음엔 그 폴더에서 열림)</span>}</>}
+      {k === '다시' && <button type="button" className="btn sm" onClick={폴더잇기}>📂 캐드 폴더 다시 잇기(한 번 누름)</button>}
+      {k === '이어짐' && <span className="kcs-folder-on">📂 <b>{폴더.이름 || 'K-conmap'}</b> 이어짐{짧게 ? '' : ' — 캐드에서 KCMS 로 고르면 바로 들어옵니다'}</span>}
+    </div>
+  )
+}
+
+export default function 캐드고름판({ 캐드, set캐드, 되돌리기, 되돌림수, 층들, 바닥, 세기, 내려주기, 검사로, 파일이름, 폴더, 폴더잇기, 세운 = null, 세우기 = null, 일람 = null, 못 = null }) {
+  /* 🧱 G686 세운 줄(골조 모델로 옮김 — Model.jsx 가 모델 부재의 근거에서 셈)은 이 표 합 · 집계 · 검사에서 빠짐 */
+  const C = useMemo(() => 캐드셈(캐드, { 세운 }), [캐드, 세운])
+  const [세우는중, set세우는중] = useState(false)
   const [보기, set보기] = useState('모두')              // 모두 · 빈칸(❓) · 치수(⚠)
   const [펼친, set펼친] = useState(() => new Set())
   const [고른, set고른] = useState(null)                // 3D · 표에서 고른 줄 id
@@ -45,6 +64,14 @@ export default function 캐드고름판({ 캐드, set캐드, 되돌리기, 되�
   /* 고침 */
   const 줄고침 = (id, 칸, v) => set캐드((P) => ({ ...P, 줄: P.줄.map((r) => (r.id === id ? { ...r, [칸]: v } : r)) }))
   const 무리고침 = (키, 칸, v) => set캐드((P) => ({ ...P, 줄: P.줄.map((r) => (무리키(r) === 키 ? { ...r, [칸]: v } : r)) }))
+  /* 🧱 부재 고르기(lib 부재넣기 — 그 부재로 세울 수 있는 꼴의 줄만 · 부호가 비면 닫힌 선 안 글자(C1 · B1 …) · 기초 · 지중보는 층이 비면 FT) */
+  const 부재고침 = (pick, v) => set캐드((P) => ({ ...P, 줄: 부재넣기(P.줄, pick, v, {}, 층들).줄 }))
+  const 세우기누름 = async () => {
+    if (!세우기 || 세우는중) return
+    set세우는중(true)
+    try { const 결 = await 세우기(); if (결 && !결.세움) set알림((결.못 && 결.못.length ? '🧱 못 세웠습니다 — ' + 결.못.slice(0, 3).map((x) => x.까닭).join(' / ') : '🧱 새로 세울 것이 없습니다(이미 세웠거나 같은 자리에 있음)')) } finally { set세우는중(false) }
+  }
+  const 부호들 = (종) => ((일람 && 일람[종]) || []).map((x) => String(x.기호 || '').trim()).filter(Boolean)
   const 줄빼기 = (id) => set캐드((P) => ({ ...P, 줄: P.줄.filter((r) => r.id !== id) }))
   const 무리빼기 = (키) => set캐드((P) => ({ ...P, 줄: P.줄.filter((r) => 무리키(r) !== 키) }))
   const 치수고름 = (id, 씀) => set캐드((P) => ({ ...P, 줄: P.줄.map((r) => (r.id === id ? { ...r, 치수씀: 씀 || undefined, 치수봄: 씀 ? undefined : true } : r)) }))
@@ -104,13 +131,15 @@ export default function 캐드고름판({ 캐드, set캐드, 되돌리기, 되�
   useEffect(() => () => { if (보기Ref.current) { 보기Ref.current.dispose(); 보기Ref.current = null } }, [])
   useEffect(() => { if (!C.셈.length && 보기Ref.current) { 보기Ref.current.dispose(); 보기Ref.current = null } }, [C.셈.length])
 
-  const 층칸 = (값, 바꿈, 라벨) => (
-    <select className="kcs-in kcs-floor" value={값 ?? ''} onChange={(e) => 바꿈(e.target.value)} aria-label={라벨}>
+  /* 층 — 보 · 슬라브(바닥꼴)는 «2층 바닥 · 1층»(골조 모델 n층 = n층 기둥 · 벽 + 그 위 바닥 — 도면 «2층 구조평면도» 보는 1층에 듦) */
+  const 층칸 = (값, 바꿈, 라벨, 바닥꼴 = false) => (
+    <select className={'kcs-in kcs-floor' + (바닥꼴 ? ' kcs-floor-b' : '')} value={값 ?? ''} onChange={(e) => 바꿈(e.target.value)} aria-label={라벨}>
       {값 === null && <option value="">여러 층</option>}
       <option value="">층 —</option>
-      {층들.map((f) => <option key={f.이름} value={f.이름}>{f.이름 === 'FT' ? 'FT' : f.이름 + '층'}</option>)}
+      {층들.map((f) => <option key={f.이름} value={f.이름}>{층고름글(층들, f.이름, 바닥꼴)}</option>)}
     </select>
   )
+  const 바닥꼴 = (부) => 부 === '보' || 부 === '슬라브'
   const 갈래칸 = (값, 바꿈, 라벨) => (
     <select className="kcs-in kcs-kind" value={값 ?? ''} onChange={(e) => e.target.value && 바꿈(e.target.value)} aria-label={라벨}>
       {값 === null && <option value="">여러 갈래</option>}
@@ -124,14 +153,18 @@ export default function 캐드고름판({ 캐드, set캐드, 되돌리기, 되�
   if (!캐드.묶음.length) {
     return (
       <div className="card kcs kcs-empty">
-        <h2 className="gmd-h">📏 캐드에서 고른 것</h2>
+        <h2 className="gmd-h">📏 캐드에서 고른 것 <span className="kcs-beta">시험판</span></h2>
         <p className="gmd-p">캐드에서 명령 <b>KCMS</b> 를 치고 선 · 폴리선 · 호 · 원 · 블록을 고르면 여기에 줄로 들어옵니다. 길이 · 면적 · 개수는 건설맵이 캐드 좌표로 셈하고, <b>높이 · 두께 · 공제 · 횟수</b>만 넣으면 수량이 나옵니다 — 빈칸은 ❓(짐작하지 않음).</p>
         <ol className="gmd-p kcs-steps">
-          <li><b>K-적산컨맵 연결</b> 프로그램을 켜 둡니다(이 화면 «📘 설명서» 에서 받기).</li>
-          <li>캐드 명령 <b>APPLOAD</b> → <b>kcm.lsp</b>(1.1 판 · KCM · KCMS) → 불러오기.</li>
-          <li>도면에서 <b>KCMS</b> → 셀 것을 고르고 엔터 → 적요(예: «1층 벽 W1» · 엔터 = 건너뜀) → 이 탭에 들어옵니다.</li>
+          <li><b>📥 리습 받기</b> → 캐드 명령 <b>APPLOAD</b> → 받은 <b>kcm.lsp</b> → <b>로드</b>(보안 경고가 뜨면 로드) — 다운로드 안에 K-conmap 폴더가 생깁니다. 캐드를 켤 때마다 쓰려면 APPLOAD 창 «시작하기 세트» 에 넣기.</li>
+          <li>이 화면 <b>📂 캐드 폴더 잇기</b> → <b>다운로드 → K-conmap</b> → 폴더 선택 → 허용. 창을 새로 열면 한 번 더(다음엔 그 폴더에서 바로 열림).</li>
+          <li>도면에서 <b>KCMS</b> → 셀 것을 고르고 엔터 → 적요(예: «1층 벽 W1» · 엔터 = 건너뜀) → 2초쯤 뒤 이 탭에 들어옵니다.</li>
+          <li>레이어 · 블록마다 묶인 줄에서 갈래 · 층 · 높이 · 두께를 한꺼번에 넣으면 수량 — 빈칸은 ❓ → <b>📊 엑셀</b>.</li>
+          <li>🧱 적요를 «1층 기둥 C1» · «2층 보 G1» 처럼 적으면 부재가 채워지고 <b>🧱 골조 모델에 세우기</b> 한 번 → 3D · 콘크리트 · 거푸집 · 철근 · 물량 탭에서 원 내역과 대조.</li>
         </ol>
-        <p className="gmd-p muted">도면 파일은 보내지 않습니다 — 고른 것의 좌표 · 레이어 · 핸들 · 글자만 이 PC 안에서 오갑니다. 글자를 같이 고르면 닫힌 선 안 실 이름이 적요가 되고, 치수를 같이 고르면 그려진 길이와 견줍니다.</p>
+        <p className="gmd-p muted">자세한 쓰는 법(갈래 · 치수 다름 · 단위 · 안 될 때): 위 막대 <b>📘 설명서</b> → «📏 캐드에서 고르기».</p>
+        <폴더줄 폴더={폴더} 폴더잇기={폴더잇기} 세기={세기} />
+        <p className="gmd-p muted">PC 크롬 · 엣지에서 캐드와 같은 PC 로 씁니다. 도면 파일은 보내지 않습니다 — 고른 것의 좌표 · 레이어 · 핸들 · 글자만 이 PC 안에서 오가고, 읽은 파일은 지웁니다. 글자를 같이 고르면 닫힌 선 안 실 이름이 적요가 되고, 치수를 같이 고르면 그려진 길이와 견줍니다. «K-적산컨맵 연결» 프로그램을 쓰시던 분은 그대로 됩니다.</p>
         <div className="gmd-top"><button type="button" className="btn sm" onClick={예시넣기}>🧪 예시(가상 평면)로 해 보기</button></div>
         {알림 && <div className="gmd-note">{알림}</div>}
       </div>
@@ -143,7 +176,7 @@ export default function 캐드고름판({ 캐드, set캐드, 되돌리기, 되�
     <div className="kcs">
       <div className="card kcs-head">
         <div className="kcs-titlerow">
-          <h2 className="gmd-h">📏 캐드에서 고른 것 <span className="muted kcs-sum">{C.셈.length.toLocaleString('ko-KR')}줄 · {합글(C.합) || '수량 없음'}</span></h2>
+          <h2 className="gmd-h">📏 캐드에서 고른 것 <span className="kcs-beta">시험판</span> <span className="muted kcs-sum">{C.셈.length.toLocaleString('ko-KR')}줄 · {합글(C.합) || '수량 없음'}</span></h2>
           <span className="kcs-acts">
             <button type="button" className="btn line sm" onClick={되돌리기} disabled={!되돌림수} title="되돌리기 — 바로 앞으로">↶{되돌림수 ? ' ' + 되돌림수 : ''}</button>
             <button type="button" className="btn line sm" onClick={예시넣기}>🧪 예시</button>
@@ -151,6 +184,7 @@ export default function 캐드고름판({ 캐드, set캐드, 되돌리기, 되�
             <button type="button" className="btn line sm" onClick={() => { set캐드(() => ({ 묶음: [], 줄: [] })); set알림('모두 비웠습니다 — ↶ 로 돌아옵니다'); 세기('|캐드고름|비움') }} title="받은 것을 모두 지움(↶ 로 돌아옴)">🗑</button>
           </span>
         </div>
+        <폴더줄 폴더={폴더} 폴더잇기={폴더잇기} 세기={세기} 짧게 />
         <div className="kcs-bundles">
           {캐드.묶음.map((b) => {
             const n = 캐드.줄.filter((r) => r.묶음 === b.id).length
@@ -174,6 +208,9 @@ export default function 캐드고름판({ 캐드, set캐드, 되돌리기, 되�
           {검.틀림 > 0 && <li className="bad">⚠ 숫자가 아닌 칸이 있는 줄 {검.틀림}</li>}
           {검.치수다름 > 0 && <li className="bad">⚠ 치수 글과 그려진 길이가 다른 줄 {검.치수다름} <button type="button" className="gmd-link" onClick={() => set보기(보기 === '치수' ? '모두' : '치수')}>{보기 === '치수' ? '모두 보기' : '⚠ 줄만 보기'}</button></li>}
           {검.높이다름 > 0 && <li className="ok">3D 로 그린 선 {검.높이다름}줄은 평면 길이로 셉니다.</li>}
+          {세우기 && 검.세울 > 0 && <li className="kcs-build">🧱 부재를 고른 줄 {검.세울} <button type="button" className="btn sm" onClick={세우기누름} disabled={세우는중}>{세우는중 ? '세우는 중…' : '🧱 골조 모델에 세우기'}</button> <span className="muted">캐드 좌표 그대로 통심 위에 세움 → 세우기 탭 3D · 물량 탭(콘크리트 · 거푸집 · 철근)</span></li>}
+          {검.세움 > 0 && <li className="ok">🧱 골조 모델로 세운 줄 {검.세움} — 이 표 합에서 빼고 골조 물량(물량 탭)에서 셉니다(세우기 탭에서 그 부재를 지우면 다시 여기서 셈).</li>}
+          {세우기 && !검.세울 && !검.세움 && <li className="ok muted">🧱 스케치업처럼 세우려면 — 무리 줄 «부재» 에서 기둥 · 보 · 벽 · 슬라브 · 기초를 고르고 부호(C1 · B1 …)를 적으십시오.</li>}
         </ul>
         {알림 && <div className="gmd-note">{알림}<button type="button" className="gmd-x" onClick={() => set알림('')} aria-label="닫기">✕</button></div>}
       </div>
@@ -191,26 +228,44 @@ export default function 캐드고름판({ 캐드, set캐드, 되돌리기, 되�
             const 펴 = 펼친.has(g.키) || 보기 !== '모두'
             const 종 = [...new Set(g.셈.map((x) => 종류이름[x.r.종류] || x.r.종류))].map((t) => t + ' ' + g.셈.filter((x) => (종류이름[x.r.종류] || x.r.종류) === t).length).join(' · ')
             const 합 = {}
-            for (const x of g.셈) if (x.수량 !== null) 합[x.단위] = (합[x.단위] || 0) + x.수량
-            const 빈 = g.셈.filter((x) => x.수량 === null).length
+            for (const x of g.셈) if (x.수량 !== null && !x.세움) 합[x.단위] = (합[x.단위] || 0) + x.수량        // 🧱 세운 줄은 무리 합에서도 뺌(골조 물량에서 셈)
+            const 빈 = g.셈.filter((x) => x.수량 === null && !x.세움).length
+            const 세운수 = g.셈.filter((x) => x.세움).length
             const 갈 = 같은값(g.셈, '갈래')
             const 적들 = [...new Set(g.셈.map((x) => 적요글(x.r, x.b)))]
+            /* 🧱 부재 — 무리에 하나면 그것 · 섞였으면 null · 레이어 · 블록 이름이 부재를 말하면 🟨 제안(누르면 그 부재) */
+            const 부 = 같은값(g.셈, '부재')
+            const 부든 = g.셈.filter((x) => x.r.부재).length
+            const 권 = 세우기 && !부든 ? 레이어부재(g.레이어, g.블록) : ''
+            const 권수 = 권 ? g.셈.filter((x) => 부재맞음(권, x.r)).length : 0
             return (
               <div key={g.키} className={'kcs-group card' + (빈 ? ' has-q' : '')}>
                 <div className="kcs-ghead">
                   <button type="button" className="kcs-fold" onClick={() => 펴기(g.키)} aria-expanded={펴} aria-label={(펴 ? '접기 ' : '펴기 ') + (g.블록 || g.레이어)}>{펴 ? '▾' : '▸'}</button>
                   <span className="kcs-gname"><b>{g.블록 ? '블록 ' + g.블록 : '레이어 ' + (g.레이어 || '—')}</b> <span className="muted">{g.블록 ? '레이어 ' + g.레이어 + ' · ' : ''}{종}</span></span>
-                  <span className="kcs-gsum">{단위차.filter((u) => 합[u] !== undefined).map((u) => <b key={u}>{쉼(합[u])} {u}</b>)}{빈 ? <span className="kcs-q">❓ {빈}</span> : null}</span>
+                  <span className="kcs-gsum">{단위차.filter((u) => 합[u] !== undefined).map((u) => <b key={u}>{쉼(합[u])} {u}</b>)}{빈 ? <span className="kcs-q">❓ {빈}</span> : null}{세운수 ? <span className="kcs-built">🧱 골조 모델 {세운수}</span> : null}</span>
                   <button type="button" className="gmd-x" onClick={() => 무리빼기(g.키)} aria-label={'무리 빼기 ' + (g.블록 || g.레이어)}>✕</button>
                 </div>
                 <div className="kcs-gedit" role="group" aria-label="이 무리 한꺼번에">
                   <label data-l="적요">{글칸(같은값(g.셈, '적요'), (v) => 무리고침(g.키, '적요', v), '무리 적요', 적들.length === 1 ? 적들[0] : '줄마다 — ' + 적들.slice(0, 3).join(' · ') + (적들.length > 3 ? ' …' : ''), 'kcs-memo')}</label>
                   <label data-l="갈래">{갈래칸(갈, (v) => 무리고침(g.키, '갈래', v), '무리 갈래')}</label>
-                  <label data-l="층">{층칸(같은값(g.셈, '층'), (v) => 무리고침(g.키, '층', v), '무리 층')}</label>
+                  <label data-l="층">{층칸(같은값(g.셈, '층'), (v) => 무리고침(g.키, '층', v), '무리 층', 바닥꼴(부))}</label>
                   <label data-l="구간">{글칸(같은값(g.셈, '구간'), (v) => 무리고침(g.키, '구간', v), '무리 구간', '구간', 'kcs-zone')}</label>
                   {(갈 === '길이높이' || 갈 === null) && <label data-l="높이 m">{글칸(같은값(g.셈, '높이'), (v) => 무리고침(g.키, '높이', v), '무리 높이(m)', '높이 m', 'kcs-num')}</label>}
                   {(갈 === '면적두께' || 갈 === null) && <label data-l="두께 m">{글칸(같은값(g.셈, '두께'), (v) => 무리고침(g.키, '두께', v), '무리 두께(m)', '두께 m', 'kcs-num')}</label>}
+                  {세우기 && <>
+                    <label data-l="부재">
+                      <select className="kcs-in kcs-member" value={부 ?? ''} onChange={(e) => 부재고침((r) => 무리키(r) === g.키, e.target.value)} aria-label="무리 부재(골조 모델로 세움)">
+                        {부 === null && <option value="">여러 부재</option>}
+                        <option value="">— 수량만</option>
+                        {부재종류.map((k) => <option key={k} value={k}>🧱 {k}</option>)}
+                      </select>
+                    </label>
+                    {부든 > 0 && <label data-l="부호">{글칸(같은값(g.셈.filter((x) => x.r.부재), '부호'), (v) => set캐드((P) => ({ ...P, 줄: P.줄.map((r) => (무리키(r) === g.키 && r.부재 ? { ...r, 부호: v.toUpperCase() } : r)) })), '무리 부호', 부호들(부 || '기둥').slice(0, 3).join(' · ') || 'C1', 'kcs-sign')}</label>}
+                    {권 && 권수 > 0 && <button type="button" className="btn line sm kcs-suggest" onClick={() => { 부재고침((r) => 무리키(r) === g.키, 권); 세기('|캐드고름|부재제안') }} title={'레이어 · 블록 이름 «' + (g.블록 || g.레이어) + '» — 누르면 ' + 권 + '(꼴이 맞는 ' + 권수 + '줄)'}>🟨 {으로[권]} 세우기?</button>}
+                  </>}
                 </div>
+                {세우기 && 부 === null && 부든 > 0 && <p className="muted kcs-gnote">🧱 {부든}줄은 부재 · {g.셈.length - 부든}줄은 수량만(그 부재로 못 세우는 꼴 — 블록 · 열린 선 · 원 …)</p>}
                 {펴 && (
                   <div className="kcs-rows">
                     {셈.slice(0, 400).map((x, i) => {
@@ -222,14 +277,18 @@ export default function 캐드고름판({ 캐드, set캐드, 되돌리기, 되�
                           <span className="kcs-what" data-l="객체">{종류이름[r.종류] || r.종류} <small className="muted">#{r.핸들}</small>{r.글근거 ? <small> «{r.글근거}»</small> : null}</span>
                           <label data-l="적요">{글칸(r.적요, (v) => 줄고침(r.id, '적요', v), '적요', 적요글(r, x.b), 'kcs-memo')}</label>
                           <label data-l="갈래">{갈래칸(r.갈래, (v) => 줄고침(r.id, '갈래', v), '갈래')}</label>
-                          <label data-l="층">{층칸(r.층, (v) => 줄고침(r.id, '층', v), '층')}</label>
+                          <label data-l="층">{층칸(r.층, (v) => 줄고침(r.id, '층', v), '층', 바닥꼴(r.부재))}</label>
                           {r.갈래 === '길이높이' && <label data-l="높이 m">{글칸(r.높이, (v) => 줄고침(r.id, '높이', v), '높이(m)', '높이 m', 'kcs-num')}</label>}
                           {r.갈래 === '면적두께' && <label data-l="두께 m">{글칸(r.두께, (v) => 줄고침(r.id, '두께', v), '두께(m)', '두께 m', 'kcs-num')}</label>}
+                          {세우기 && r.부재 && (x.세움
+                            ? <span className="kcs-built" data-l="부재">🧱 {r.부재} {r.부호 || ''} — 골조 모델</span>
+                            : <label data-l={'부호(' + r.부재 + ')'}>{글칸(r.부호, (v) => 줄고침(r.id, '부호', v.toUpperCase()), '부호', 부호들(r.부재)[0] || 'C1', 'kcs-sign')}</label>)}
                           <label data-l="공제">{글칸(r.공제, (v) => 줄고침(r.id, '공제', v), '공제(' + x.단위 + ')', '공제', 'kcs-num kcs-sm')}</label>
                           <label data-l="횟수">{글칸(r.횟수, (v) => 줄고침(r.id, '횟수', v), '횟수', '1', 'kcs-num kcs-sm')}</label>
                           <span className="kcs-meas" data-l="잰 값">{잰}</span>
-                          <span className="kcs-qty" data-l="수량">{x.수량 !== null ? <b>{쉼(x.수량)} {x.단위}</b> : <span className="kcs-q">❓ {[...x.빈칸, ...x.틀림].join(' · ')}</span>}{x.식 && x.수량 !== null && /[×−]/.test(x.식) ? <small className="muted kcs-f"> = {x.식}</small> : null}</span>
+                          <span className="kcs-qty" data-l="수량">{x.세움 ? <span className="muted">골조 물량에서 셈</span> : x.수량 !== null ? <b>{쉼(x.수량)} {x.단위}</b> : <span className="kcs-q">❓ {[...x.빈칸, ...x.틀림].join(' · ')}</span>}{x.식 && x.수량 !== null && /[×−]/.test(x.식) ? <small className="muted kcs-f"> = {x.식}</small> : null}</span>
                           <button type="button" className="gmd-x kcs-del" onClick={(e) => { e.stopPropagation(); 줄빼기(r.id) }} aria-label={'줄 빼기 ' + r.핸들}>✕</button>
+                          {세우기 && r.부재 && !x.세움 && 못 && 못.has(r.id) && <span className="kcs-fail" data-l="못 세움">⚠ {못.get(r.id)}</span>}
                           {r.치수 && r.치수.다름 && (
                             <span className="kcs-dim" data-l="치수">
                               ⚠ 치수 글 «{r.치수.글 || 쉼(r.치수.도면값)}» ≠ 그려진 길이 {쉼(r.치수.잰, 1)}

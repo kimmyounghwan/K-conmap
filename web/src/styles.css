@@ -11125,7 +11125,7 @@ html.kcm-보기만 .kcm-예시판 input, html.kcm-보기만 .kcm-예시판 texta
   .gr-t tr.gr-go:hover td { background: transparent; }   /* 쌓은 줄은 칸마다 칠하면 얼룩져 보임 — 줄 통째로 */
 }
 
-/* 📏 G685 적산컨맵 작업 화면 «📏 캐드» 탭 — 캐드에서 고른 것(KCMS · 캐드고름판.jsx) · 🔒 출시 전 소장님만 */
+/* 📏 G685 적산컨맵 작업 화면 «📏 캐드» 탭 — 캐드에서 고른 것(KCMS · 캐드고름판.jsx) · 🧪 G686 시험판(모든 이용자) */
 .gmd .kcs { display: flex; flex-direction: column; gap: 10px; }
 .gmd .kcs .card { margin: 0; }
 .gmd .kcs-titlerow { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; }
@@ -11180,6 +11180,25 @@ html.kcm-보기만 .kcm-예시판 input, html.kcm-보기만 .kcm-예시판 texta
 .gmd .kcs-del { margin-left: auto; align-self: center; }
 .gmd .kcs-agg .kcs-tot td { border-top: 2px solid var(--line); }
 .gmd .kcs-steps { padding-left: 20px; }
+/* 🧱 G686 캐드 → 골조 모델 부재 */
+.gmd .kcs-member { width: 118px; }
+.gmd .kcs-sign { width: 78px; text-transform: uppercase; }
+.gmd .kcs-floor-b { width: 136px; }
+.gmd .kcs-suggest { width: auto; align-self: flex-end; padding: 4px 9px; border-color: #eab308; background: color-mix(in srgb, #facc15 14%, var(--surface, #fff)); }
+.gmd .kcs-gnote { margin: 4px 0 0; font-size: 12px; }
+.gmd .kcs-built { align-self: center; font-size: 12.5px; font-weight: 600; color: #1d4ed8; background: color-mix(in srgb, #3b82f6 10%, transparent); border: 1px solid color-mix(in srgb, #3b82f6 35%, transparent); border-radius: 999px; padding: 2px 9px; }
+.gmd .kcs-fail { flex-basis: 100%; font-size: 12.5px; color: #b45309; }
+.gmd .kcs-check li.kcs-build { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+.gmd .kcs-check li.kcs-build .btn { width: auto; }
+.gmd .gmd-cadsize { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.gmd .gmd-cadsize .btn { width: auto; }
+@media (prefers-color-scheme: dark) { .gmd .kcs-built { color: #93c5fd; } .gmd .kcs-fail { color: #fbbf24; } }
+/* 🧪 G686 시험판 딱지 · 리습 받기 · 캐드 폴더 잇기(다운로드\K-conmap — 프로그램 없이) */
+.gmd .kcs-beta { display: inline-block; margin-left: 4px; padding: 1px 7px; border-radius: 999px; font-size: 11.5px; font-weight: 700; vertical-align: middle; color: #7c2d12; background: #ffedd5; border: 1px solid #fdba74; }
+.gmd .kcs-folder { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 8px 0 2px; font-size: 13px; }
+.gmd .kcs-folder .btn { width: auto; }
+.gmd .kcs-folder-on { color: #047857; overflow-wrap: anywhere; }
+@media (prefers-color-scheme: dark) { .gmd .kcs-beta { color: #fed7aa; background: #431407; border-color: #9a3412; } .gmd .kcs-folder-on { color: #6ee7b7; } }
 @media (prefers-color-scheme: dark) { .gmd .kcs-dim { color: #fcd34d; } .gmd .kcs-q { color: #fbbf24; } }
 @media (max-width: 900px) {
   .gmd .kcs-main { grid-template-columns: minmax(0, 1fr); }
@@ -11187,9 +11206,9 @@ html.kcm-보기만 .kcm-예시판 input, html.kcm-보기만 .kcm-예시판 texta
   .gmd .kcs-list { grid-column: 1; grid-row: 2; }
   .gmd .kcs-3d { height: 240px; }
 }
-/* 탭 일곱(📏 캐드 — 소장님만)일 때 어느 폭 · 어느 글꼴에서도 한 줄 — G685b: G685 의 «381 ~ 432 px 만 좁힘» 은 리눅스 글꼴로만 잰 것이라
+/* 탭 일곱(📏 캐드 — G686 부터 모든 이용자)일 때 어느 폭 · 어느 글꼴에서도 한 줄 — G685b: G685 의 «381 ~ 432 px 만 좁힘» 은 리눅스 글꼴로만 잰 것이라
    윈도 크롬(맑은 고딕)에선 300 ~ 390 · 433 ~ 459 · 521 ~ 606 px 에서 8 ~ 86 px 넘쳤음(실제 사이트 잼 11-14) →
-   폰 폭(520 이하)은 그림 글자(🗓 📆 📏 — .gmd-ti)를 숨겨 한글만 · 521 ~ 680 은 뒤 글(· 3D …)을 숨김 · 손님 탭 여섯은 그대로 */
+   폰 폭(520 이하)은 그림 글자(🗓 📆 📏 — .gmd-ti)를 숨겨 한글만 · 521 ~ 680 은 뒤 글(· 3D …)을 숨김(.t7 — 탭이 일곱일 때) */
 @media (max-width: 520px) { .gmd .gmd-ws-tabs.t7 { gap: 3px; } .gmd .gmd-ws-tabs.t7 .gmd-tab { padding: 6px 6px; font-size: 12.5px; } .gmd .gmd-ws-tabs.t7 .gmd-ti { display: none; } }
 @media (max-width: 380px) { .gmd .gmd-ws-tabs.t7 { gap: 2px; } .gmd .gmd-ws-tabs.t7 .gmd-tab { padding: 6px 4px; font-size: 12px; } }
 @media (min-width: 521px) and (max-width: 680px) { .gmd .gmd-ws-tabs.t7 .gmd-tl { display: none; } }

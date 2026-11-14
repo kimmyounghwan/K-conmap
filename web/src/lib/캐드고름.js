@@ -19,6 +19,7 @@
  *     INSERT      점 = 넣은 곳(OCS) · 값 = 배율x,배율y,회전,열,행 · 글 = 블록 이름
  *     TEXT/MTEXT  점 = 자리(OCS) · 값 = 높이 · 글 = 글
  *     DIMENSION   점 = 잰 두 점(13;14 — WCS) · 값 = 잰 값(42),꼴(70),회전(50) · 글 = 바꾼 글(1)
+ *                 (오토캐드는 아직 안 잰 치수의 42 를 −1 로 줌 — 그때는 두 점에서 잼 · 치수잰값)
  *     그 밖       종류 · 레이어 · 핸들만(셈 못 함 — 세어 알림)
  *     돌출 = 210 이 (0,0,1) 이 아니면 «x,y,z» — (0,0,-1) 이면 OCS x 를 뒤집어 WCS 로 · 기울었으면 셈 못 함(3D 객체)
  */
@@ -37,6 +38,9 @@ export const 갈래들 = [
   ['개수', '개수 (개)', '개'],
 ]
 export const 갈래단위 = Object.fromEntries(갈래들.map((g) => [g[0], g[2]]))
+/** 🧱 G686 골조 모델로 세울 수 있는 부재(스케치업 꼴 — 캐드에서 고른 것을 통심 위 부재로) · 부호 꼴(C1 · 2G1 · MAT1 · TC1 …) */
+export const 부재종류 = ['기둥', '보', '벽', '슬라브', '기초']
+export const 부호꼴 = (t) => /^(?=.*[A-Za-z])(?=.*\d)[0-9A-Za-z][0-9A-Za-z-]{1,9}$/.test(String(t || '').trim())
 export const 종류이름 = { LINE: '선', LWPOLYLINE: '폴리선', POLYLINE: '폴리선', ARC: '호', CIRCLE: '원', ELLIPSE: '타원', INSERT: '블록', TEXT: '글자', MTEXT: '글자', DIMENSION: '치수',
   HATCH: '해치', SPLINE: '스플라인', REGION: '영역', SOLID: '솔리드', '3DSOLID': '3D 솔리드', '3DFACE': '3D 면', POINT: '점', LEADER: '지시선', MLEADER: '지시선', XLINE: '무한선', RAY: '반무한선', WIPEOUT: '가림', IMAGE: '그림', OLE2FRAME: 'OLE', TABLE: '표', ACAD_TABLE: '표', MLINE: '다중선' }
 const 셈종류 = ['LINE', 'LWPOLYLINE', 'POLYLINE', 'ARC', 'CIRCLE', 'ELLIPSE', 'INSERT']
@@ -249,6 +253,17 @@ let 줄번 = 0
 const 새id = (머) => 머 + Date.now().toString(36) + (줄번++).toString(36)
 const 기본갈래 = (o, g) => (o.종류 === 'INSERT' ? '개수' : g && g.닫힘 && g.면적 > 0 ? '면적' : '길이')
 const 숫자글 = (t) => /^\s*[-+]?[\d,]*\.?\d+\s*$/.test(String(t || '')) && /\d/.test(String(t || ''))
+/** 치수가 잰 값 — 캐드가 준 42(실제 잰 값)가 0 보다 크면 그대로.
+ *  42 가 −1(오토캐드가 아직 안 잼 — 42 없이 저장된 DXF 를 연 도면 · G686 소장님 오토캐드 2023 시험에서 셋 다 −1)이거나 없으면(0)
+ *  치수 «자기» 두 점에서 같은 셈: 정렬(꼴 1) = 두 점 거리 · 회전 · 가로 · 세로(꼴 0) = 그 방향(50)으로 잰 길이 — 짐작 아님(치수 객체가 재는 그대로) */
+export const 치수잰값 = (d) => {
+  const v = d && d.값 ? d.값[0] : NaN
+  if (Number.isFinite(v) && v > 0) return v
+  const [p, q] = (d && d.점) || []
+  if (!p || !q) return NaN
+  const dx = q[0] - p[0], dy = q[1] - p[1]
+  return d.치수꼴 === 1 ? Math.hypot(dx, dy) : Math.abs(dx * Math.cos(d.회전 || 0) + dy * Math.sin(d.회전 || 0))
+}
 export const 도면키 = (도면, 핸들) => String(도면 || '').toLowerCase() + '|' + String(핸들 || '').toUpperCase()
 
 /**
@@ -294,7 +309,7 @@ export function 줄만들기(읽, o = {}) {
         const 가까 = (u, v) => Math.hypot(u[0] - v[0], u[1] - v[1]) <= 붙
         if (!((가까(p, a) && 가까(q, c)) || (가까(p, c) && 가까(q, a)))) continue
         if (d.치수꼴 === 0 && L > 1e-9 && Math.abs(Math.sin(Math.atan2(c[1] - a[1], c[0] - a[0]) - d.회전)) > 0.01) continue    // 비스듬한 선의 가로 · 세로 치수(투영)는 견주지 않음
-        const 치값 = 숫자글(d.글) ? 수(d.글.replace(/[,\s]/g, '')) : d.값[0]
+        const 치값 = 숫자글(d.글) ? 수(d.글.replace(/[,\s]/g, '')) : 치수잰값(d)
         if (!Number.isFinite(치값) || 치값 <= 0) continue
         r.치수 = { 도면값: 치값, 잰: L, 글: d.글 || '' }
         if (Math.abs(L - 치값) > Math.max(10 / 판k, L * 0.002)) r.치수.다름 = true
@@ -369,16 +384,18 @@ export function 줄셈(r, g, k) {
 }
 
 /** 모든 줄 셈 + 적요 · 층 · 단위로 모은 집계 + 검사 — 셈 = [{r, b(묶음), k, g, …줄셈}] */
-export function 캐드셈(캐드) {
+export function 캐드셈(캐드, 옵 = {}) {
   const 묶음표 = new Map(((캐드 && 캐드.묶음) || []).map((b) => [b.id, b]))
+  const 세운 = 옵 && 옵.세운 instanceof Set ? 옵.세운 : null       // 🧱 G686 골조 모델로 세운 줄 id — 이 표 합 · 집계 · 검사에서 뺌(골조 물량에서 셈 — 두 번 안 셈)
   const 셈 = ((캐드 && 캐드.줄) || []).map((r) => {
     const b = 묶음표.get(r.묶음) || null
     const k = b ? 단위표[b.단위] || null : null
     const g = 객체기하({ 종류: r.종류, ...r.원 }, k || 1)
-    return { r, b, k, g: k ? g : null, 판g: g, ...줄셈(r, k ? g : null, k) }
+    return { r, b, k, g: k ? g : null, 판g: g, ...줄셈(r, k ? g : null, k), ...(세운 && 세운.has(r.id) ? { 세움: true } : {}) }
   })
+  const 셀 = 셈.filter((x) => !x.세움)
   const 모음 = new Map()
-  for (const x of 셈) {
+  for (const x of 셀) {
     if (x.수량 === null) continue
     const 적 = 적요글(x.r, x.b)
     const 키 = [x.단위, 적, x.r.층, x.r.구간].join('\u0001')
@@ -389,15 +406,17 @@ export function 캐드셈(캐드) {
   const 단위차 = ['m', '㎡', '㎥', '개']
   const 집계 = [...모음.values()].map((a) => ({ ...a, 수량: 반(a.수량) })).sort((p, q) => 단위차.indexOf(p.단위) - 단위차.indexOf(q.단위) || p.적요.localeCompare(q.적요, 'ko') || String(p.층).localeCompare(String(q.층), 'ko', { numeric: true }) || String(p.구간).localeCompare(String(q.구간), 'ko'))
   const 합 = {}
-  for (const x of 셈) if (x.수량 !== null) 합[x.단위] = (합[x.단위] || 0) + x.수량
+  for (const x of 셀) if (x.수량 !== null) 합[x.단위] = (합[x.단위] || 0) + x.수량
   for (const u of Object.keys(합)) 합[u] = 반(합[u])
   const 검사 = {
-    빈칸: 셈.filter((x) => x.빈칸.length).length,
-    틀림: 셈.filter((x) => x.틀림.length).length,
-    치수다름: 셈.filter((x) => 치수남음(x.r)).length,
-    단위없음: [...묶음표.values()].filter((b) => !단위표[b.단위] && 셈.some((x) => x.r.묶음 === b.id)).length,     // 줄이 있는 묶음만(다 «이미 받음» 으로 빠진 묶음은 고를 것이 없음)
-    높이다름: 셈.filter((x) => x.r.높이다름).length,
-    수량: 셈.filter((x) => x.수량 !== null).length,
+    빈칸: 셀.filter((x) => x.빈칸.length).length,
+    틀림: 셀.filter((x) => x.틀림.length).length,
+    치수다름: 셀.filter((x) => 치수남음(x.r)).length,
+    단위없음: [...묶음표.values()].filter((b) => !단위표[b.단위] && 셀.some((x) => x.r.묶음 === b.id)).length,     // 줄이 있는 묶음만(다 «이미 받음» 으로 빠진 묶음은 고를 것이 없음)
+    높이다름: 셀.filter((x) => x.r.높이다름).length,
+    수량: 셀.filter((x) => x.수량 !== null).length,
+    세움: 셈.length - 셀.length,
+    세울: 셀.filter((x) => 부재종류.includes(x.r.부재)).length,          // 🧱 부재를 골랐는데 아직 안 세운 줄
   }
   return { 셈, 집계, 합, 검사 }
 }
@@ -411,6 +430,163 @@ export function 적요글(r, b) {
   if (r.글근거) return r.글근거
   if (r.블록 && !/^\*/.test(r.블록)) return r.블록
   return r.레이어 || '(레이어 없음)'
+}
+
+/* ── 🧱 G686 적요 · 레이어 이름 읽기 — 층 · 부재 · 부호 · 두께(사람이 적은 말 · 도면 레이어 이름을 «읽기만» — 없는 값을 짓지 않음) ──
+ *   KCMS 적요(캐드에서 적은 말) «1층 기둥 C1» · «2층 보 B1» · «지하1층 벽 W1» · «기초 F1» · «지붕 슬라브 S1 T150» → 층 · 부재 · 부호 · 두께
+ *   ■ 층 — 골조 모델은 «n층 = n층 기둥 · 벽 + 그 위 바닥(보 · 슬라브)» 이라:
+ *        기둥 · 벽(· 부재 아닌 줄) «n층» = n층 · 보 · 슬라브 «n층» = n층 바닥 = 바로 아래층 · «지붕 · 옥상» 보 · 슬라브 = 맨 위층 · 기초 · 지중보 = FT
+ *        모델에 없는 층 · 맨 아래 바닥(그 아래 층이 없음)은 안 채움(❓ — 사람이 고름)
+ *   ■ 부재가 둘 넘게 · 부호가 둘 넘게 적혀 있으면 그것은 안 채움(어느 것인지 모름) · 두께는 «T150 · THK150 · 두께150»(mm) 만
+ *   ■ 시험: tools/시험_캐드부재.mjs ① */
+const 층토막 = (t) => {
+  let m
+  if ((m = t.match(/^지하(\d{1,2})(?:층|F|FL)?$/))) return { 층: 'B' + +m[1] }
+  if ((m = t.match(/^B(\d{1,2})(?:층|F|FL)$/))) return { 층: 'B' + +m[1] }
+  if ((m = t.match(/^(\d{1,3})(?:층|F|FL)$/))) return { 층: String(+m[1]) }
+  if (/^(지붕|지붕층|옥상|옥상층|R층|RF|ROOF)$/.test(t)) return { 지붕: true }
+  if (/^(FT|기초층)$/.test(t)) return { 층: 'FT' }
+  if ((m = t.match(/^(PH|옥탑)(\d{0,2})(?:층|F)?$/))) return { 층: m[1] + (m[2] || '') }
+  return null
+}
+const 부재토막 = (t) => {
+  if (/^(기둥|원형기둥|사각기둥|RC기둥|COL|COLS|COLUMN|COLUMNS)$/.test(t)) return '기둥'
+  if (/^(슬라브|슬래브|바닥슬라브|지붕슬라브|SLAB|SLABS)$/.test(t)) return '슬라브'
+  if (/^(지중보|기초보)$/.test(t)) return '지중보'
+  if (/^(보|큰보|작은보|테두리보|캔틸레버보|지붕보|BEAM|BEAMS|GIRDER|GIRDERS|거더)$/.test(t)) return '보'
+  if (/^(벽|벽체|옹벽|외벽|내벽|코어벽|전단벽|내력벽|지하벽|지하외벽|RC벽|WALL|WALLS)$/.test(t)) return '벽'
+  if (/^(기초|독립기초|줄기초|매트기초|온통기초|확대기초|말뚝기초|파일캡|매트|MAT|FOOTING|FOOTINGS|FDN|FNDN|FOUNDATION)$/.test(t)) return '기초'
+  return ''
+}
+const 두께토막 = (t) => { const m = t.match(/^(?:T|THK|두께)(\d{2,4})$/); return m ? +m[1] : null }
+const 덤말 = /^(외부|내부|구조|구조체|RC|철근콘크리트|부재|외곽|중심|중심선|외곽선|바닥)$/
+const 토막나눔 = (s) => String(s || '').toUpperCase()
+  .replace(/([가-힣])([A-Z0-9])/g, '$1 $2').replace(/([A-Z0-9])([가-힣])/g, '$1 $2')          // 한글 · 영문 숫자 사이(«1층기둥C1»)
+  .replace(/지하\s+(\d)/g, '지하$1').replace(/두께\s+(\d)/g, '두께$1')
+  .replace(/(\d)\s+(층|F(?![A-Z0-9])|FL(?![A-Z0-9]))/g, '$1$2').replace(/(^|[^A-Z0-9])(R|PH\d{0,2})\s+층/g, '$1$2층')
+  .replace(/(\d층)(?=[가-힣])/g, '$1 ').replace(/(지붕|옥상)(?=(보|슬라브|슬래브))/g, '$1 ')
+  .split(/[\s,·/|()[\]{}<>~_:;+=«»"']+/).filter(Boolean)
+/** 층 이름(모델 층 표에서 찾음 — «1» · «1층» · «1F» 같은 이름도) */
+function 모델층(층들, n) {
+  const 이름 = (층들 || []).map((f) => String((f && f.이름) ?? f ?? '').trim())
+  const u = String(n).toUpperCase()
+  return 이름.find((x) => x.toUpperCase() === u) || 이름.find((x) => x.toUpperCase() === u + '층' || x.toUpperCase() === u + 'F') || ''
+}
+/**
+ * @param 글 적요 · @param 층들 골조 모델 층 표(M.층 — 아래부터 · FT 먼저)
+ * @returns { 층, 부재, 부호, 두께(m 글), 지중, 말(무엇을 읽었는지 한 줄), 층적음(층 말이 있었나 — 있는데 못 찾았으면 앞 묶음 층을 잇지 않음) }
+ */
+export function 적요풀기(글, 층들 = []) {
+  const 토 = 토막나눔(글)
+  let 층말 = null, 지붕 = false, 층여럿 = false
+  const 부재들 = new Set(), 부호들 = new Set(), 두께들 = new Set()
+  let 딴말 = 0
+  for (const t of 토) {
+    const f = 층토막(t)
+    if (f) { if (f.지붕) 지붕 = true; else { if (층말 && 층말 !== f.층) 층여럿 = true; 층말 = f.층 } continue }
+    const p = 부재토막(t)
+    if (p) { 부재들.add(p); continue }
+    const d = 두께토막(t)
+    if (d !== null) { 두께들.add(d); continue }
+    if (부호꼴(t)) { 부호들.add(t); continue }
+    if (!덤말.test(t)) 딴말++
+  }
+  /* 부재는 적요가 «층 · 부재 · 부호 · 두께» 뿐일 때만(«기둥 미장» · «벽 방수» 처럼 다른 일을 적은 것은 부재로 안 봄 — 수량만) */
+  const 부재0 = 부재들.size === 1 && !딴말 ? [...부재들][0] : ''
+  const 지중 = 부재0 === '지중보'
+  const 부재 = 지중 ? '보' : 부재0
+  const 이름 = (층들 || []).map((f) => String((f && f.이름) ?? '').trim())
+  let 층 = ''
+  if (부재 === '기초' || 지중) 층 = 모델층(층들, 'FT')
+  else if (!층여럿 && (부재 === '보' || 부재 === '슬라브')) {
+    if (지붕 && !층말) { const 끝 = 이름[이름.length - 1]; 층 = 끝 && 끝.toUpperCase() !== 'FT' ? 끝 : '' }
+    else if (층말) { const 위 = 모델층(층들, 층말); const i = 위 ? 이름.indexOf(위) : -1; 층 = i > 0 ? 이름[i - 1] : '' }
+  } else if (!층여럿 && 층말 && !지붕) 층 = 모델층(층들, 층말)
+  const 부호 = 부재 && 부호들.size === 1 ? [...부호들][0] : ''
+  const 두께 = (부재 === '슬라브' || 부재 === '기초') && 두께들.size === 1 ? String([...두께들][0] / 1000) : ''
+  const 바닥글 = (f) => { const i = 이름.indexOf(f); const 위 = i >= 0 ? 이름[i + 1] : ''; return 위 ? (위.toUpperCase() === 'FT' ? 위 : 위 + '층') + ' 바닥' : '지붕' }
+  const 층글 = 층 ? ((부재 === '보' || 부재 === '슬라브') && !지중 ? 바닥글(층) + '(' + (층.toUpperCase() === 'FT' ? 'FT' : 층 + '층') + ')' : 층.toUpperCase() === 'FT' ? 'FT' : 층 + '층') : ''
+  const 말 = 부재 || 층 ? [부재 ? '🧱 ' + (지중 ? '지중보' : 부재) + (부호 ? ' ' + 부호 : '') : '', 층글, 두께 ? '두께 ' + 두께 + ' m' : ''].filter(Boolean).join(' · ') : ''
+  return { 층, 부재, 부호, 두께, 지중, 말, 층적음: !!(층말 || 지붕) }
+}
+/** 레이어 · 블록 이름이 부재를 말하나(«S-COL» · «기둥» · «WALL» …) — 🟨 고르기 제안에만(누르면 그 부재 · 저절로 넣지 않음) */
+const 레이어토막 = (t) => {
+  const p = 부재토막(t)
+  if (p) return p === '지중보' ? '보' : p
+  if (/^(COLU|COLM|S?COL\d*)$/.test(t) || /^기둥(선|외곽|라인)?$/.test(t)) return '기둥'
+  if (/^(벽(선|체선|외곽|라인)|WALL\d*)$/.test(t)) return '벽'
+  if (/^(보(선|외곽|라인)|BEAM\d*|GIRD)$/.test(t)) return '보'
+  if (/^(슬라브|슬래브)(선|외곽|라인)?$/.test(t) || /^SLAB\d*$/.test(t)) return '슬라브'
+  if (/^(기초(선|외곽|라인)?|FOOT|FTG|FOUND)$/.test(t)) return '기초'
+  return ''
+}
+export function 레이어부재(...이름들) {
+  const 찾 = new Set()
+  for (const n of 이름들) for (const t of 토막나눔(String(n || '').replace(/-/g, ' '))) { const p = 레이어토막(t); if (p) 찾.add(p) }
+  return 찾.size === 1 ? [...찾][0] : ''
+}
+/** 이 줄 꼴로 그 부재를 세울 수 있나 — 기둥 · 기초 = 닫힌 선 · 원 · 블록(하나) · 슬라브 = 닫힌 선(원 · 타원 빼고) · 보 · 벽 = 선 · 호 · 꺾은선 */
+export function 부재맞음(부재, r) {
+  if (!부재종류.includes(부재) || !r || !r.원) return false
+  if (r.종류 === 'INSERT') return (부재 === '기둥' || 부재 === '기초') && !(r.원.개수 > 1)
+  const g = 객체기하({ 종류: r.종류, ...r.원 }, 1)
+  if (!g) return false
+  if (부재 === '기둥' || 부재 === '기초') return !!g.닫힘
+  if (부재 === '슬라브') return !!g.닫힘 && r.종류 !== 'CIRCLE' && r.종류 !== 'ELLIPSE'
+  return r.종류 === 'LINE' || r.종류 === 'ARC' || r.종류 === 'LWPOLYLINE' || r.종류 === 'POLYLINE'
+}
+/**
+ * 줄들에 부재를 넣음(꼴이 맞는 줄만) — 부호가 비면 닫힌 선 안 글자(부호 꼴) → 준 부호 · 기초 · 지중보는 층이 비면 FT · 두께가 비면 준 두께
+ * @returns { 줄(새 배열), 넣음, 안맞음 }
+ */
+export function 부재넣기(줄, 고름, 부재, 덧 = {}, 층들 = []) {
+  let 넣음 = 0, 안맞음 = 0
+  const FT = 모델층(층들, 'FT')
+  const 새 = 줄.map((r) => {
+    if (!고름(r)) return r
+    const n = { ...r }
+    if (!부재) { delete n.부재; return n }
+    if (!부재맞음(부재, r)) { 안맞음++; delete n.부재; return n }
+    n.부재 = 부재
+    넣음++
+    if (!String(r.부호 || '').trim()) { const t = String(r.글근거 || '').trim(); if (부호꼴(t)) n.부호 = t.toUpperCase(); else if (덧.부호) n.부호 = String(덧.부호).toUpperCase() }
+    if (!String(r.층 || '').trim()) { if (덧.층) n.층 = 덧.층; else if ((부재 === '기초' || 덧.지중) && FT) n.층 = FT }
+    if (덧.두께 && !String(r.두께 || '').trim() && (부재 === '슬라브' || 부재 === '기초')) n.두께 = 덧.두께
+    return n
+  })
+  return { 줄: 새, 넣음, 안맞음 }
+}
+/** 층 고르기 글 — 보 · 슬라브는 «2층 바닥 · 1층»(모델 n층 = n층 + 그 위 바닥) · 그 밖은 «1층» */
+export function 층고름글(층들, f, 바닥꼴) {
+  const 이름 = (층들 || []).map((x) => String((x && x.이름) ?? '').trim())
+  const 글 = (n) => (n.toUpperCase() === 'FT' ? 'FT' : n + '층')
+  if (!바닥꼴) return 글(f)
+  const i = 이름.indexOf(f)
+  const 위 = i >= 0 ? 이름[i + 1] : ''
+  return (위 ? 글(위) + ' 바닥' : '지붕') + ' · ' + 글(f)
+}
+/** 적요에서 층 말(1층 · 지하1층 · B1층 · 1F · 지붕층)만 뗌 — 내역서 품명과 견주게(내역서는 층으로 안 나눔) */
+export const 층말떼기 = (s) => String(s || '').replace(/지하\s*\d{1,2}\s*층?/g, ' ').replace(/(?<![A-Za-z0-9])B\d{1,2}\s*(?:층|F(?![A-Za-z0-9]))/gi, ' ')
+  .replace(/\d{1,3}\s*층/g, ' ').replace(/(?<![A-Za-z0-9])\d{1,3}F(?![A-Za-z0-9])/gi, ' ').replace(/지붕층|옥상층/g, ' ').replace(/\s+/g, ' ').trim()
+/** 📑 내역 대조에 넣을 캐드 물량 — 세운 줄은 빼고(골조 모델 물량으로 견줌) · 적요(층 말은 뗌) · 단위마다 합 */
+export function 캐드대조줄(C) {
+  const 모 = new Map()
+  for (const x of (C && C.셈) || []) {
+    if (x.세움 || x.수량 === null || !x.단위) continue
+    const 원적 = 적요글(x.r, x.b)
+    const 이름 = 층말떼기(원적) || 원적
+    const 키 = 이름 + '\u0001' + x.단위
+    const a = 모.get(키) || { 이름, 단위: x.단위, 수량: 0, 줄: 0, 층: new Set(), 도면: new Set(), 레이어: new Set() }
+    a.수량 += x.수량; a.줄++
+    if (x.r.층) a.층.add(x.r.층)
+    if (x.b) a.도면.add((x.b.이름 && !/^kcms_\d+\.csv$/i.test(x.b.이름) ? x.b.이름 : String(x.b.도면 || '').split(/[\\/]/).pop()) || '도면')
+    if (x.r.레이어) a.레이어.add(x.r.레이어)
+    모.set(키, a)
+  }
+  return [...모.values()].map((a) => ({
+    key: 'cad:' + a.이름 + '|' + a.단위, 캐드: true, 구분: '📏 캐드', 품명: a.이름, 규격: '', 단위: a.단위, 수량: 반(a.수량),
+    근거: '캐드 고름 ' + a.줄 + '줄' + (a.층.size ? ' · ' + [...a.층].map((f) => (String(f).toUpperCase() === 'FT' ? 'FT' : f + '층')).join(' · ') : '') + ' · ' + [...a.도면].slice(0, 2).join(' · ') + ' · 레이어 ' + [...a.레이어].slice(0, 3).join(' · '),
+  }))
 }
 
 /** 단위를 고름(❓ → mm · cm · m …) — 줄의 «원» 으로 다시 셈하므로 묶음 단위만 바꾸면 됨 */
@@ -456,6 +632,8 @@ export function 캐드정돈(x) {
     if (r.치수봄 && o.치수) o.치수봄 = true
     if (r.글근거) o.글근거 = 글(r.글근거)
     if (r.높이다름) o.높이다름 = true
+    if (부재종류.includes(r.부재)) o.부재 = r.부재                  // 🧱 G686 골조 모델로 세울 부재 · 부호
+    if (글(r.부호)) o.부호 = 글(r.부호).slice(0, 20)
     return o
   })
   return { 묶음: 묶음.filter((b) => 줄.some((r) => r.묶음 === b.id) || b.셈못 || b.두번), 줄 }
@@ -478,7 +656,7 @@ export function 캐드3D(셈, 바닥 = () => 0, { 시작id = 3000000, 고른 = n
   const 넣기 = (r, 판, z0, z1, 색) => { if (덩.length >= 최대) { 넘침++; return } 덩.push({ id, 판, z0, z1, 색 }); 줄id.set(id, r.id); id++ }
   for (const x of 셈) {
     const r = x.r, g = x.g
-    if (!g || !g.그림 || !g.그림.length) continue
+    if (!g || !g.그림 || !g.그림.length || x.세움) continue        // 🧱 세운 줄은 골조 모델 3D(세우기 탭)에
     const z0 = 바닥(r.층) || 0
     const h = Math.max(0, (넣은수(r.높이) || 0) * 1000)
     const t = Math.max(0, (넣은수(r.두께) || 0) * 1000)
@@ -522,7 +700,7 @@ export function 캐드시트(캐드, ST, C = 캐드셈(캐드)) {
       r.글근거 ? '안 글자 «' + r.글근거 + '»' : '', r.치수 ? (r.치수.다름 ? '⚠ ' : '') + '치수 ' + r.치수.도면값.toLocaleString('ko-KR') + (r.치수.다름 ? ' ≠ 잰 ' + (+r.치수.잰.toFixed(1)).toLocaleString('ko-KR') : ' = 잰 길이') + (r.치수씀 ? ' → 치수 값으로 셈' : r.치수.다름 ? ' → 잰 길이로 셈' : '') : '',
       r.높이다름 ? '3D 선 — 평면 길이' : ''].filter(Boolean).join(' · ')
     return [i + 1, 적요글(r, b), r.층, r.구간, (갈래들.find((g) => g[0] === r.갈래) || ['', r.갈래])[1],
-      x.수량 === null ? '❓ ' + [...x.빈칸, ...x.틀림].join(' · ') : 수칸(x.수량), x.단위, x.식,
+      x.세움 ? '🧱 골조 모델(' + r.부재 + ' ' + (r.부호 || '') + ') — 골조 산출서에서 셈' : x.수량 === null ? '❓ ' + [...x.빈칸, ...x.틀림].join(' · ') : 수칸(x.수량), x.단위, x.식,
       수칸(x.길이), 수칸(x.면적), x.개수 || '', r.높이, r.두께, r.공제, r.횟수, 종류이름[r.종류] || r.종류, r.레이어, r.핸들, (b && b.도면) || '', 근거]
   })
   const 집 = []
@@ -537,7 +715,7 @@ export function 캐드시트(캐드, ST, C = 캐드셈(캐드)) {
     { name: '캐드집계', head: ['단위', '적요', '층', '구간', '줄 수', '수량'], rows: 집, widths: [9, 28, 8, 10, 7, 14], freeze: 1 },
   ]
   const 맞댈 = []
-  const 줄들 = C.셈.map((x, i) => ({ 줄: [String(i + 1)], 값: x.수량 })).filter((x) => x.값 !== null)
+  const 줄들 = C.셈.map((x, i) => ({ 줄: [String(i + 1)], 값: x.세움 ? null : x.수량 })).filter((x) => x.값 !== null)
   if (줄들.length) 맞댈.push({ 이름: '📏 캐드 고름 줄마다 수량', 시트: '캐드고름', 열: '수량', 여럿: 줄들, 오차: 0.0006 })
   for (const u of Object.keys(C.합)) {
     const n = C.집계.filter((a) => a.단위 === u).length
