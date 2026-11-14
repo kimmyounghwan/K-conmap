@@ -16,6 +16,7 @@ import { Link } from 'react-router-dom'
 import { 세기, 예시본수 } from '../lib/받은수.jsx'
 import 잠금문의 from '../잠금문의.jsx'   // 📄 G669 잠근 도구 «문의»
 import { isOpen, tryOpen } from '../lib/gate.js'
+import { use보기만 } from '../lib/보기만.js'   // 🧪 G679 예시는 보기만(Ctrl+P 안내 한 줄 · 예시 판 복사 막음)
 import { 나운영자 } from '../lib/운영자.js'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import 금액입력 from '../금액입력.jsx'
@@ -223,6 +224,7 @@ export default function Esc() {
 function 산출서({ 자료, 예시, 씀, 머리, 고침, set고침, 입력, 엑셀받기 }) {
   const [탭, set탭] = useState('금액')
   const [받기말, set받기말] = useState('')
+  use보기만(!!예시, '물가ESC')   // 🧪 G679 예시 산출서는 보기만(Ctrl+P 안내 한 줄 · 표 복사 막음)
   const 금 = 자료.금액, 날 = 자료.날
   const 감액 = 자료.조정률 < 0
   return (

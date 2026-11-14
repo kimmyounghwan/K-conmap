@@ -21,6 +21,7 @@ import { 세기, 예시본수 } from '../lib/받은수.jsx'
 import 잠금문의 from '../잠금문의.jsx'   // 📄 G669 잠근 도구 «문의»
 import { 쪽그림, 그림줄이기 } from '../lib/쪽그림.jsx'
 import { isOpen, tryOpen } from '../lib/gate.js'
+import { use보기만 } from '../lib/보기만.js'   // 🧪 G679 예시는 보기만(Ctrl+P 안내 한 줄 · 예시 판 복사 막음)
 import { 나운영자 } from '../lib/운영자.js'
 
 const 남김열쇠 = 'kcm.anjeon.v1'
@@ -78,6 +79,7 @@ export default function SafetyPlan() {
      «🧪 예시(가상 공사)로 채우기» 한 것은 보기만(받기 넷 막음) · «↺ 비우기» 에서 풂 · 새로고침해도 그대로 */
   const [예시채움, set예시채움] = useState(() => { try { return localStorage.getItem(남김열쇠 + '.ex') === '1' } catch (e) { return false } })
   useEffect(() => { try { if (예시채움) localStorage.setItem(남김열쇠 + '.ex', '1'); else localStorage.removeItem(남김열쇠 + '.ex') } catch (e) { /* 저장소 막힘 */ } }, [예시채움])
+  use보기만((!씀 && 예시봄) || (씀 && 예시채움), '안전계획')   // 🧪 G679 예시 쪽은 보기만(Ctrl+P 로 쪽이 찍히던 것 막음)
   const [잠금말, set잠금말] = useState('')
   const [열쇠말, set열쇠말] = useState('')
   const [열쇠틀림, set열쇠틀림] = useState(false)

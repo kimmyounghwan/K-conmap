@@ -20,6 +20,7 @@ import { Link } from 'react-router-dom'
 import { 세기, 예시본수 } from '../lib/받은수.jsx'
 import 잠금문의 from '../잠금문의.jsx'   // 📄 G669 잠근 도구 «문의»
 import { isOpen, tryOpen } from '../lib/gate.js'
+import { use보기만 } from '../lib/보기만.js'   // 🧪 G679 예시는 보기만(Ctrl+P 안내 한 줄 · 예시 판 복사 막음)
 import { 나운영자 } from '../lib/운영자.js'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { 칸들, 자료들 } from '../lib/하도급서류칸.js'
@@ -100,6 +101,7 @@ export default function HadoDocs() {
   const [손, set손] = useState({})                /* 손으로 적은 칸 */
   const [공정손, set공정손] = useState(null)
   const [결과, set결과] = useState(null)
+  use보기만(!!예시 && (!씀 || !결과), '하도급서류')   // 🧪 G679 예시를 보는 동안 보기만(소장님 · 열쇠말이 내 서류를 같이 띄웠으면 그 인쇄는 그대로)
   /* ✏️ 결과 화면에서 고친 칸(소장님 「사이트에서 작업하게 해야 해」) — 인쇄 · 받는 엑셀에 그대로(원클릭과 같게) · 다시 만들어도 남음 */
   const [고침, set고침원] = useState({})
   const set고침 = (v) => { const 새 = v || {}; if (Object.keys(새).length > Object.keys(고침).length) 세기('|하도급서류|칸고침'); set고침원(새) }

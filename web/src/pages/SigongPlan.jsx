@@ -26,6 +26,7 @@ import { 현장나눔 } from '../lib/현장나눔.js'
 import { 쪽그림, 그림줄이기 } from '../lib/쪽그림.jsx'
 import { Row } from '../tools/calcs.jsx'
 import { isOpen, tryOpen } from '../lib/gate.js'
+import { use보기만 } from '../lib/보기만.js'   // 🧪 G679 예시는 보기만(Ctrl+P 안내 한 줄 · 예시 판 복사 막음)
 import { 나운영자 } from '../lib/운영자.js'
 
 const 남김열쇠 = 'kcm.sigong.v1'
@@ -95,6 +96,7 @@ export default function SigongPlan() {
   /* 🧪 G650(11-11) 소장님 「막아 놓은 건 예시도 받지 못하게 막고 볼 수만 있게 해」 — 열쇠말 · 소장님 브라우저에서도
      예시 내역서로 만든 한 벌은 보기만(받기 넷 막음) · 내 내역서를 올리면 풂 */
   const 예시내역 = !!(내역 && 내역.이름 === '예시_내역서.xlsx')
+  use보기만((!씀 && 예시봄) || (씀 && 예시내역), '시공계획')   // 🧪 G679 예시 쪽은 보기만(Ctrl+P 로 쪽이 찍히던 것 막음)
   const [잠금말, set잠금말] = useState('')
   const [열쇠말, set열쇠말] = useState('')
   const [열쇠틀림, set열쇠틀림] = useState(false)

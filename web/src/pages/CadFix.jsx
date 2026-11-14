@@ -18,6 +18,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { isOpen, tryOpen } from '../lib/gate.js'
+import { use보기만 } from '../lib/보기만.js'   // 🧪 G679 예시는 보기만(Ctrl+P 안내 한 줄 · 예시 판 복사 막음)
 import { 나운영자 } from '../lib/운영자.js'
 import { 세기, 예시본수 } from '../lib/받은수.jsx'
 import 잠금문의 from '../잠금문의.jsx'   // 📄 G669 잠근 도구 «문의»
@@ -215,6 +216,7 @@ export default function CadFix() {
   const 판바꿈 = 설정.판 && 진 && 설정.판 !== 진.판
   const 보존막힘 = 설정.방식 === '그대로' && 판바꿈
   const 예시중 = !!(지금 && 지금.예시)
+  use보기만(예시중, '캐드고침')   // 🧪 G679 예시 도면은 보기만(Ctrl+P 안내 한 줄 · 미리보기 끌기 · 저장 막음)
   const 진단끝 = 목록.filter((x) => x.진).length
 
   return (

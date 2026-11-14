@@ -17,6 +17,7 @@ import { Link } from 'react-router-dom'
 import { 세기, 예시본수 } from '../lib/받은수.jsx'
 import 잠금문의 from '../잠금문의.jsx'   // 📄 G669 잠근 도구 «문의»
 import { isOpen, tryOpen } from '../lib/gate.js'
+import { use보기만 } from '../lib/보기만.js'   // 🧪 G679 예시는 보기만(Ctrl+P 안내 한 줄 · 예시 판 복사 막음)
 import { 나운영자 } from '../lib/운영자.js'
 import { Row } from '../tools/calcs.jsx'
 import 쪽넘기기 from '../tools/쪽그림.jsx'
@@ -43,6 +44,7 @@ export default function Jungcheo() {
   /* 🔒 씀 */
   const [씀, set씀] = useState(() => isOpen())
   const [예시봄, set예시봄] = useState(false)
+  use보기만(예시봄, '중처법')   // 🧪 G679 예시 회사 서류는 보기만(Ctrl+P 안내 한 줄 · 쪽 복사 막음)
   const [잠금말, set잠금말] = useState('')
   const [열쇠말, set열쇠말] = useState('')
   const [열쇠틀림, set열쇠틀림] = useState(false)
