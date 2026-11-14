@@ -606,7 +606,7 @@ function 통심칸({ M, setM }) {
     const 끝 = P.층[P.층.length - 1]
     const n = P.층.filter((f) => !FT층(f)).length + 1
     let 이름 = String(n); while (P.층.some((f) => f.이름 === 이름)) 이름 += "'"
-    return { ...P, 층: [...P.층, { 이름, 층고: FT층(끝) ? 3300 : 끝.층고, 슬라브: FT층(끝) ? 150 : 끝.슬라브 }] }
+    return { ...P, 층: [...P.층, { 이름, 층고: FT층(끝) ? '' : 끝.층고, 슬라브: FT층(끝) ? '' : 끝.슬라브 }] }   // 🚫 G682 FT 다음은 빈칸(❓ — 예전 3,300 · 150 짐작) · 그 밖은 아래층 값 그대로
   })
   const 층빼기 = (이름) => {
     const n = M.부재.filter((o) => o.층 === 이름).length
@@ -616,7 +616,7 @@ function 통심칸({ M, setM }) {
   const 지하더 = () => setM((P) => {
     let 이름 = 'B1'; let k = 1; while (P.층.some((f) => f.이름 === 이름)) { k++; 이름 = 'B' + k }
     const i = P.층.findIndex((f) => !FT층(f))
-    const 새 = { 이름, 층고: 3600, 슬라브: 150 }
+    const 새 = { 이름, 층고: '', 슬라브: '' }   // 🚫 G682 지하층도 빈칸(❓ — 예전 3,600 · 150 짐작)
     const 층 = [...P.층]; 층.splice(i < 0 ? 1 : i, 0, 새)
     return { ...P, 층 }
   })
@@ -655,8 +655,8 @@ function 통심칸({ M, setM }) {
             {[...위층].reverse().map((f) => (
               <tr key={f.이름}>
                 <td><input className="gmd-in name" defaultValue={f.이름} onBlur={(e) => 층이름바꿈(f.이름, e.target.value)} aria-label="층 이름" /></td>
-                <td><input className="gmd-in num" inputMode="numeric" value={f.층고} onChange={(e) => 층고침(f.이름, '층고', Number(e.target.value) || 0)} /></td>
-                <td><input className="gmd-in num" inputMode="numeric" value={f.슬라브} onChange={(e) => 층고침(f.이름, '슬라브', Number(e.target.value) || 0)} /></td>
+                <td><input className={'gmd-in num' + (String(f.층고 ?? '').trim() === '' ? ' gg-q' : '')} inputMode="numeric" value={f.층고 ?? ''} placeholder="❓" title="도면의 층고(mm)를 적어 주세요" onChange={(e) => 층고침(f.이름, '층고', e.target.value.trim() === '' ? '' : Number(e.target.value) || 0)} /></td>
+                <td><input className={'gmd-in num' + (String(f.슬라브 ?? '').trim() === '' ? ' gg-q' : '')} inputMode="numeric" value={f.슬라브 ?? ''} placeholder="❓" title="도면의 슬라브 두께(mm)를 적어 주세요 — 없으면 0" onChange={(e) => 층고침(f.이름, '슬라브', e.target.value.trim() === '' ? '' : Number(e.target.value) || 0)} /></td>
                 <td className="num">{M.부재.filter((o) => o.층 === f.이름).length}</td>
                 <td>{위층.length > 1 && <button type="button" className="gmd-x" title="이 층 빼기" onClick={() => 층빼기(f.이름)}>✕</button>}</td>
               </tr>
@@ -672,6 +672,9 @@ function 통심칸({ M, setM }) {
           </tbody>
         </table>
       </div>
+      {위층.some((f) => String(f.층고 ?? '').trim() === '' || String(f.슬라브 ?? '').trim() === '') && (
+        <p className="gg-qhint">❓ 빈 칸(층고 · 슬라브 두께)은 도면 값을 적어 주세요 — 층고가 빈 층의 기둥 · 벽 · 계단은 셈에서 빠지고(3D 에서도 납작하게 보임), 슬라브 두께가 비면 보 · 기둥에서 슬라브를 빼지 않습니다(짐작하지 않음).</p>
+      )}
       <div className="gmd-top">
         <button type="button" className="btn line sm" onClick={층더}>＋ 위로 층 더하기</button>
         <button type="button" className="btn line sm" onClick={지하더}>＋ 지하층 더하기</button>

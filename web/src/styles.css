@@ -11031,3 +11031,13 @@ html.kcm-보기만 .kcm-예시판 input, html.kcm-보기만 .kcm-예시판 texta
   .ms-쪽:last-child { break-after: auto; page-break-after: auto; }
   #ms-인쇄 * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* 🚫 G682 (2026-11-14) 손으로 적는 틀의 짐작 값 없앰 — 빈 층고 · 슬라브 · 천장고 칸은 ❓ 로 보이고 옅은 노랑(도면 값을 적을 칸) */
+.gg-t td.gg-q input { background: var(--warn-soft); border-color: var(--warn); }
+.gg-t td.gg-q input::placeholder { color: var(--warn); opacity: 1; font-weight: 700; }
+.gg-qhint { font-size: 12.5px; line-height: 1.6; margin: 8px 0 0; padding: 6px 9px; border-radius: 8px; color: var(--warn); background: var(--warn-soft); border: 1px solid var(--warn); word-break: keep-all; overflow-wrap: anywhere; }
+.gg-f.gg-q input { background: var(--warn-soft); border-color: var(--warn); }
+.gg-f.gg-q input::placeholder { color: var(--warn); opacity: 1; font-weight: 700; }
+.gmd-in.gg-q { background: var(--warn-soft); border-color: var(--warn); }
+.gmd-in.gg-q::placeholder { color: var(--warn); opacity: 1; font-weight: 700; }
+@media print { .gg-qhint { display: none; } }

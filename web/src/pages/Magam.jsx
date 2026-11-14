@@ -622,7 +622,7 @@ export default function Magam() {
         <div className="card no-print">
           <div className="gg-row" style={{ alignItems: 'flex-end' }}>
             <label className="gg-f">공사 이름<input value={공사.이름 || ''} placeholder="결과에 적힙니다" onChange={(e) => set공사((P) => ({ ...P, 이름: e.target.value }))} /></label>
-            <label className="gg-f">기본 천장고 (m)<input value={공사.기준.천장고} inputMode="decimal" onChange={(e) => set공사((P) => ({ ...P, 기준: { ...P.기준, 천장고: e.target.value } }))} /></label>
+            <label className={'gg-f' + (String(공사.기준.천장고 ?? '').trim() === '' ? ' gg-q' : '')}>기본 천장고 (m)<input value={공사.기준.천장고 ?? ''} inputMode="decimal" placeholder="❓ 적어 주세요" title="도면의 천장고(m) — 실 줄 천장고가 빈 방에 씀 · 둘 다 비면 그 방 벽은 셈에서 빠짐(짐작하지 않음)" onChange={(e) => set공사((P) => ({ ...P, 기준: { ...P.기준, 천장고: e.target.value } }))} /></label>
           </div>
           <p className="muted gg-hint">방마다 한 줄. <b>면적·둘레</b> 칸을 누르고 도면의 <b>방 안</b>을 누르면 둘 다 들어갑니다. 바닥·걸레받이·벽·천장·몰딩에는 ① 마감표의 기호를 적습니다(비우면 그 부위는 안 셈). <b>창호</b>: 「WD1*2 AW1」 — 창호 칸을 누르고 도면의 창호 글자를 누르면 하나씩 더해집니다. 같은 방이 여러 개면 <b>개수</b>.
             <br /><b>묶음</b>: 세대(평형)·셀의 방이면 묶음 이름(예: 84A)을 적고 ⑤ 조합표에서 동·층·개수로 곱합니다 — 묶음을 적은 방은 조합표로만 셉니다. <b>구역</b>: 구역별 집계. <b>변수</b>: 마감표 식에 쓰는 J1~J4·K1~K5 (예: 「J1=0.3 K1=2」).</p>

@@ -847,7 +847,7 @@ function 개요({ 공사, set공사, 기준고치기, 동k, 동으로, 도, 열�
     return { ...P, 층: f([...P.층]) }
   })
   const 층고치기 = (i, key, v) => 층바꾸기((L) => { L[i] = { ...L[i], [key]: v }; return L })
-  const 층더하기 = () => 층바꾸기((L) => [...L, { 이름: '', 층고: 3300, 슬라브: 150 }])
+  const 층더하기 = () => 층바꾸기((L) => [...L, { 이름: '', 층고: '', 슬라브: '' }])   // 🚫 G682 짐작 값(3,300 · 150) 없이 빈칸 — 도면 값을 적음
   const 층끼우기 = (i) => 층바꾸기((L) => { L.splice(i + 1, 0, { 이름: String(L[i].이름 || '') + 'A', 층고: L[i].층고, 슬라브: L[i].슬라브 }); return L })
   const 층빼기 = (i) => 층바꾸기((L) => L.filter((_, j) => j !== i))
   const 강도바꿈 = (key, v) => 기준고치기((b) => { b[key] = v; const fck = +b.fck, fy = +b.fy; if (fck > 0 && fy > 0) { b.정착 = 정착표규격(fck, fy, b.fy규격 || null); delete b.정착출처; delete b.정착부재 } return b })
@@ -920,8 +920,8 @@ function 개요({ 공사, set공사, 기준고치기, 동k, 동으로, 도, 열�
             {층들.map((f, i) => (
               <tr key={i}>
                 <td><input value={f.이름} onChange={(e) => 층고치기(i, '이름', e.target.value)} /></td>
-                <td className="n"><input value={f.층고} inputMode="decimal" onChange={(e) => 층고치기(i, '층고', e.target.value)} /></td>
-                <td className="n"><input value={f.슬라브} inputMode="decimal" onChange={(e) => 층고치기(i, '슬라브', e.target.value)} /></td>
+                <td className={'n' + (String(f.층고 ?? '').trim() === '' ? ' gg-q' : '')}><input value={f.층고 ?? ''} inputMode="decimal" placeholder="❓" title="도면의 층고(mm)를 적어 주세요" onChange={(e) => 층고치기(i, '층고', e.target.value)} /></td>
+                <td className={'n' + (String(f.슬라브 ?? '').trim() === '' ? ' gg-q' : '')}><input value={f.슬라브 ?? ''} inputMode="decimal" placeholder="❓" title="도면의 슬라브 두께(mm)를 적어 주세요 — 없으면 0" onChange={(e) => 층고치기(i, '슬라브', e.target.value)} /></td>
                 <td className="n"><input value={f.둘레 ?? ''} inputMode="decimal" onChange={(e) => 층고치기(i, '둘레', e.target.value)} /></td>
                 <td><input value={f.마구리 ?? ''} placeholder={기.거푸집} onChange={(e) => 층고치기(i, '마구리', e.target.value)} /></td>
                 <td className="gg-x"><button type="button" title="이 층 위에 중간층 끼우기" onClick={() => 층끼우기(i)}>⤵</button></td>
@@ -931,6 +931,9 @@ function 개요({ 공사, set공사, 기준고치기, 동k, 동으로, 도, 열�
           </tbody>
         </table>
       </div>
+      {층들.some((f) => String(f.층고 ?? '').trim() === '' || String(f.슬라브 ?? '').trim() === '') && (
+        <p className="gg-qhint">❓ 빈 칸(층고 · 슬라브 두께)은 도면 값을 적어 주세요 — 층고가 빈 층의 기둥 · 벽 · 계단은 셈에서 빠지고, 슬라브 두께가 비면 보 · 기둥에서 슬라브를 빼지 않습니다(짐작하지 않음).</p>
+      )}
       <button type="button" className="btn sm" style={{ marginTop: 8 }} onClick={층더하기}>＋ 층</button>
 
       <div className="detail-h" style={{ marginTop: 18 }}>기준값 — 고쳐 쓰는 칸</div>
