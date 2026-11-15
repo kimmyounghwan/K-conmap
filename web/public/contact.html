@@ -55,6 +55,12 @@
 .cn-pick{display:flex;flex-wrap:wrap;gap:6px}
 .cn-pick button{font:inherit;font-size:14px;padding:7px 12px;border-radius:999px;border:1px solid #d1d5db;background:#fff;color:#111827;cursor:pointer}
 .cn-pick button.on{border-color:#047857;background:#ecfdf5;color:#047857;font-weight:700}
+/* 📐 G694 견본 보기(도면 작성대행 묶음 아래) — 그림 두 장 · 누르면 그림 PDF(새 창) */
+.cn-sample{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 2px}
+.cn-sname{flex:1 1 100%;font-size:12.5px;font-weight:700;color:#374151}
+.cn-sample a{display:flex;flex-direction:column;flex:1 1 140px;max-width:240px;border:1px solid #d1d5db;border-radius:10px;overflow:hidden;text-decoration:none;color:#047857;background:#fff;font-size:13px;font-weight:700}
+.cn-sample img{display:block;width:100%;height:auto;aspect-ratio:1.414;object-fit:contain;background:#fff;border-bottom:1px solid #e5e7eb}
+.cn-sample a span{padding:6px 9px;line-height:1.35;word-break:keep-all}
 @media(prefers-color-scheme:dark){
   .f input,.f textarea{background:#0e1116;border-color:#333b48;color:#e8eaed}
   .btn{border-color:#3b82f6;background:#161a21;color:#8ab0ff}
@@ -63,6 +69,8 @@
   .cn-pick button{background:#0e1116;border-color:#333b48;color:#e8eaed}
   .cn-pick button.on{background:#0f2a22;border-color:#34d399;color:#34d399}
   .cn-gname{color:#34d399}
+  .cn-sname{color:#c7d0de}
+  .cn-sample a{background:#0e1116;border-color:#333b48;color:#34d399}
 }
 </style>
 <script src="/cn-band.js" defer></script></head><body><div class="wrap"><a class="back" href="/">← K-건설맵으로</a><h1>문의</h1>
@@ -198,6 +206,19 @@
         box.appendChild(b)
       })
       gbox.appendChild(box)
+      /* 📐 G694 (11-16) 견본 보기 — 가상 공사 도면 두 장(tools/견본도면.py 가 만든 그림 PDF · 글자 층 없음) · 숨은 셈 |공사연결|견본-<무엇> */
+      if (g[0] === '도면 작성대행') {
+        var sbox = document.createElement('div'); sbox.className = 'cn-sample'
+        var sname = document.createElement('span'); sname.className = 'cn-sname'; sname.textContent = '📐 견본 보기 — 가상 공사 · 누르면 크게(PDF)'; sbox.appendChild(sname)
+        ;[['견본_시공상세도', '시공상세도 견본', '시공상세도'], ['견본_가설안전시설배치도', '가설 · 안전시설 배치도 견본', '배치도']].forEach(function (x) {
+          var a = document.createElement('a'); a.href = '/cn/' + x[0] + '.pdf'; a.target = '_blank'; a.rel = 'noopener'
+          var im = document.createElement('img'); im.src = '/cn/' + x[0] + '_작게.webp'; im.alt = x[1]; im.loading = 'lazy'; im.width = 240; im.height = 170; a.appendChild(im)
+          var t = document.createElement('span'); t.textContent = '📄 ' + x[1]; a.appendChild(t)
+          a.onclick = function () { 셈('|공사연결|견본-' + x[2]) }
+          sbox.appendChild(a)
+        })
+        gbox.appendChild(sbox)
+      }
       crow.appendChild(gbox)
     })
     var cwr = document.getElementById('work').closest('.row'); if (cwr && cwr.parentNode) cwr.parentNode.insertBefore(crow, cwr.nextSibling)

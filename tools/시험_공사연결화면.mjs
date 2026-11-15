@@ -16,6 +16,7 @@
  *   인터넷 안 부름(파이어베이스 · 광고 · 애널리틱스 막음 · quotes 보내기는 가로채서 봄).
  *   📐 G693 (11-15 «도면 · 건설서류 작성대행») — ② 큰 띠 «📐 도면 · 📄 건설서류» · ⑥-2 작은 띠가 폭 320 ~ 1280(+ 글꼴 10 % 넓힘)에서 안 잘림 ·
  *      ④ 문의 세 묶음(도면 작성대행 8) · ?s= 도면 갈래 미리 고름 · ?t=도면 · 숨은 셈(고름 · 접수 묶음) · ⑨ 도면 도구 쪽 끝 한 줄(도면대행줄 — 쪽 · 글 · 고리 · 씀 밖 · 다른 쪽엔 없음)
+ *   📐 G694 (11-16) ④-3 «📐 견본 보기» — 도면 묶음 아래 두 장(그림 받아짐 · 찌그러지지 않음 · 새 창 · PDF 200 · %PDF · 글자 층 없음) · 누르면 |공사연결|견본-<무엇>
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -227,6 +228,31 @@ for (const [기기, w, h, 폰] of [['PC 1280', 1280, 900, false], ['폰 390', 39
     const 바람 = ['|공사연결|고름-도면', '|공사연결|고름-서류', '|공사연결|접수', '|공사연결|접수-도면']
     ok(`④-2 숨은 셈 ${JSON.stringify(셈들)}`, JSON.stringify([...셈들].sort()) === JSON.stringify([...바람].sort()), 셈들)
     ok(`④-2 오류 ${오류.length}`, 오류.length === 0, 오류)
+    await ctx.close()
+  }
+  /* ④-3 📐 G694 «📐 견본 보기» — 도면 작성대행 묶음 아래 두 장(가상 공사 그림 PDF) */
+  {
+    const { ctx, p, 오류, 보냄 } = await 새판()
+    await ctx.addInitScript(() => { try { Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false }) } catch (e) { /* 없음 */ } })
+    await p.goto(BASE + '/contact?k=cn', { waitUntil: 'domcontentloaded' }); await 쉬어(900)
+    const 견 = await p.evaluate(() => {
+      const s = document.querySelector('.cn-sample'); if (!s) return null
+      const 묶음 = s.closest('.cn-grp') && s.closest('.cn-grp').querySelector('.cn-gname').textContent
+      return { 묶음, 수: document.querySelectorAll('.cn-sample').length, 장: [...s.querySelectorAll('a')].map((a) => { const im = a.querySelector('img'), r = im.getBoundingClientRect(); return { 주소: a.getAttribute('href'), 창: a.target, 받음: im.complete && im.naturalWidth > 0, 비: Math.round(r.width / r.height * 100) / 100, 글: a.innerText.trim() } }) }
+    })
+    const 바람 = ['/cn/견본_시공상세도.pdf', '/cn/견본_가설안전시설배치도.pdf']
+    ok(`④-3 견본 보기 ${JSON.stringify(견)}`, !!견 && 견.묶음 === '도면 작성대행' && 견.수 === 1 && JSON.stringify(견.장.map((x) => x.주소)) === JSON.stringify(바람) &&
+      견.장.every((x) => x.창 === '_blank' && x.받음 && x.비 >= 1.35 && x.비 <= 1.48 && /견본$/.test(x.글)), 견)
+    for (const 주소 of 바람) {
+      const r = await p.request.get(BASE + encodeURI(주소)); const b = await r.body()
+      ok(`④-3 ${주소} — ${r.status()} · ${b.length} B · %PDF · 글자 층 없음`, r.status() === 200 && b.length > 100000 && b.slice(0, 4).toString() === '%PDF' && !b.includes('/Font'))
+    }
+    const [창] = await Promise.all([ctx.waitForEvent('page', { timeout: 8000 }).catch(() => null), p.locator('.cn-sample a').first().click()])
+    await 쉬어(900); if (창) await 창.close()
+    const 셈들 = 보냄.filter((x) => x.m === 'PUT' && /\/dl\/p\//.test(x.u)).map((x) => decodeURIComponent(x.u.replace(/^.*\/dl\/p\//, '').replace(/\.json$/, '')))
+    ok(`④-3 견본 누름 → 새 창 ${!!창} · 셈 ${JSON.stringify(셈들)}`, !!창 && JSON.stringify(셈들) === JSON.stringify(['|공사연결|견본-시공상세도']), 셈들)
+    ok(`⑧ 넘침 ${await 넘침(p)}px(견본 보기)`, (await 넘침(p)) <= 0)
+    ok(`④-3 오류 ${오류.length}`, 오류.length === 0, 오류)
     await ctx.close()
   }
   /* ⑨ 📐 G693 도면 도구 쪽 끝 한 줄(도면대행줄) — 그 쪽들에만 · 글 · 고리 · 씀 밖(씀-뒤 다음) · 넘침 0 · 잠근 캐드 고치기 · 컬러 평면도 · 다른 쪽엔 없음 */
