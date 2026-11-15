@@ -148,6 +148,9 @@
   /* 🤝 G659 (2026-11-12) 공사 연결 · 서류 작성대행 문의 — 사이트 맨 위 진초록 띠(공사연결띠.jsx)의 «문의 남기기» 는 /contact?k=cn 로 옵니다.
      소장님 「전남 공사 … 연결해 준다는 알림」 → «1번 만» → 「전국으로 하자」 「공사 연결」 「모든 서류 작성 가능」 「견본 제공 후 최저가로 작성」
             → 「다시 만들어 줘. 전국 공사 연결 및 설계변경, 안전관리계획서, 등 모든 서류 작성 대행 최저가로」 · 「유해위험방지계획서」 · «문장 다시(의견 더함)» · 「빈공간 없이」 · 「작성대행으로 해줘」 → «이대로»
+     📐 G693 (2026-11-15) 「도면 및 건설서류 작성 대행 — 작성대행에 도면 문구 삽입」 → «그렇게 해» — 셋째 묶음 «도면 작성대행»(시공상세도 · 준공도면 · 설계변경 도면 · 가설 · 안전시설 배치도 ·
+       교통처리 계획도 · 피난 안내도 · 캐드 정리(DWG · PDF) · 그 밖 도면 — web/src/잠금문의.jsx 도면갈래 · prerender.py 와 세 벌) · ?s= 는 세 묶음 어디서든 찾아 미리 고름 ·
+       숨은 셈 |공사연결|고름-공사 · 도면 · 서류(이 쪽에서 묶음마다 처음 누를 때) · |공사연결|접수-공사 · 도면 · 서류 · 안고름(보낸 뒤)
      · «무슨 일» 에 «🤝 공사 연결 · 📄 서류 작성대행 상담» 을 미리 적고, 필요한 것을 눌러 고름
        (공사 연결: 시공 · 하도급 · 장비 · 인력 · 자재 / 서류 작성대행: 설계변경 · 안전관리계획서 · 유해위험방지계획서 · 내역서 · 기성 · 그 밖 서류 — 하나만 · 다시 누르면 풂)
        → 운영자 메일 · 문의함에 «공사 연결 — 장비» · «서류 작성대행 — 설계변경» 처럼(want · 아래 갈래고침) · 안 고르면 «공사 연결 · 서류 작성대행»
@@ -157,23 +160,26 @@
   var 연결 = !광고 && /[?&]k=cn(&|$)/.test(location.search)
   var 고른것 = ''
   if (연결) {
-    document.title = '공사 연결 · 서류 작성대행 상담 | K-건설맵'
-    var ch1 = document.querySelector('h1'); if (ch1) ch1.textContent = '🤝 공사 연결 · 📄 서류 작성대행'
+    document.title = '공사 연결 · 도면 · 서류 작성대행 상담 | K-건설맵'
+    var ch1 = document.querySelector('h1'); if (ch1) { ch1.textContent = '🤝 공사 연결 · 📐 도면 · 📄 서류 작성대행'; ch1.style.wordBreak = 'keep-all' }   /* 📐 G693 폰에서 «작성 / 대행» 으로 갈리지 않게(낱말째 줄바꿈) */
     var ch2 = document.querySelector('.card h2'); if (ch2) ch2.textContent = '상담 · 견적 받기 — 1분이면 됩니다'
     var cp = document.querySelector('.card p.small')
     if (cp) cp.innerHTML = '<b>🤝 공사 연결</b> — 전국 어디든 시공 · 하도급 · 장비 · 인력 · 자재가 필요하시면 남겨 주세요. <b>건설맵이 맞는 곳을 찾아 연락드립니다.</b><br>' +
-      '<b>📄 서류 작성대행</b> — 설계변경 · 안전관리계획서 · 유해위험방지계획서 · 내역서 · 기성 등 건설 서류를 작성대행합니다. <b>견본을 먼저 보여 드리고</b>, 마음에 드시면 <b>최저가</b>로 진행합니다.<br>' +
+      '<b>📐 도면 작성대행</b> — 시공상세도 · 준공도면 · 설계변경 도면 · 가설 · 안전시설 배치도 · 교통처리 계획도 · 피난 안내도 · 캐드 정리(DWG · PDF) 등 시공 · 공무 도면을 그려 드립니다.<br>' +
+      '<b>📄 서류 작성대행</b> — 설계변경 · 안전관리계획서 · 유해위험방지계획서 · 내역서 · 기성 등 건설 서류를 작성대행합니다.<br>' +
+      '도면 · 서류 모두 <b>견본을 먼저 보여 드리고</b>, 마음에 드시면 <b>최저가</b>로 진행합니다.<br>' +
       '🔒 남기신 글은 운영자만 봅니다 — 업체에 연락처를 알려 드리기 전에는 먼저 여쭙니다.'
-    document.getElementById('work').value = '🤝 공사 연결 · 📄 서류 작성대행 상담'
-    document.getElementById('memo').placeholder = '공사 — 어디(시·군) · 어떤 공사 · 언제 / 서류 — 어떤 서류 · 언제까지 (안 적으셔도 연락드립니다)'
+    document.getElementById('work').value = '🤝 공사 연결 · 📐 도면 · 📄 서류 작성대행 상담'
+    document.getElementById('memo').placeholder = '공사 — 어디(시·군) · 어떤 공사 · 언제 / 도면 · 서류 — 무엇 · 언제까지 (안 적으셔도 연락드립니다)'
     document.getElementById('phone').placeholder = '전화 또는 이메일 — 연락드릴 곳'
     var cno = document.getElementById('no'); if (cno && cno.closest('.row')) cno.closest('.row').style.display = 'none'
     var cph = document.getElementById('phone'), cpr = cph && cph.closest('.row'), cmr = document.getElementById('memo').closest('.row')
     if (cpr && cmr && cmr.parentNode) { cmr.parentNode.insertBefore(cpr, cmr); cpr.classList.add('ad-phone') }
     var cpl = cpr && cpr.querySelector('label'); if (cpl) cpl.innerHTML = '연락처 <span class="req">*</span> <span class="small">(연락드릴 전화 또는 이메일)</span>'
     var cml = cmr && cmr.querySelector('label'); if (cml) cml.innerHTML = '자세히 <span class="small">(안 적어도 됩니다)</span>'
-    /* 필요한 것 — 두 묶음 · 하나만 고름(한 번 더 누르면 풂) · 무슨 일 바로 아래 */
-    var 묶음들 = [['공사 연결', ['시공', '하도급', '장비', '인력', '자재']], ['서류 작성대행', ['설계변경', '안전관리계획서', '유해위험방지계획서', '내역서', '기성', '그 밖 서류']]]
+    /* 필요한 것 — 세 묶음(📐 G693 도면 더함) · 하나만 고름(한 번 더 누르면 풂) · 무슨 일 바로 아래 */
+    var 묶음들 = [['공사 연결', ['시공', '하도급', '장비', '인력', '자재']], ['도면 작성대행', ['시공상세도', '준공도면', '설계변경 도면', '가설 · 안전시설 배치도', '교통처리 계획도', '피난 안내도', '캐드 정리(DWG · PDF)', '그 밖 도면']], ['서류 작성대행', ['설계변경', '안전관리계획서', '유해위험방지계획서', '내역서', '기성', '그 밖 서류']]]
+    var 묶음셈 = { '공사 연결': '공사', '도면 작성대행': '도면', '서류 작성대행': '서류' }, 셈한묶음 = {}
     var crow = document.createElement('div'); crow.className = 'row cn-row'
     var clab = document.createElement('label'); clab.innerHTML = '필요한 것 <span class="small">(누르면 고름)</span>'; crow.appendChild(clab)
     var 다시칠 = function () {
@@ -185,7 +191,10 @@
       var box = document.createElement('div'); box.className = 'cn-pick'; box.setAttribute('role', 'group'); box.setAttribute('aria-label', g[0])
       g[1].forEach(function (x) {
         var b = document.createElement('button'); b.type = 'button'; b.textContent = x; b.setAttribute('data-v', g[0] + ' — ' + x); b.setAttribute('aria-pressed', 'false')
-        b.onclick = function () { var v = b.getAttribute('data-v'); 고른것 = 고른것 === v ? '' : v; 다시칠() }
+        b.onclick = function () {
+          var v = b.getAttribute('data-v'); 고른것 = 고른것 === v ? '' : v; 다시칠()
+          if (고른것 && !셈한묶음[g[0]]) { 셈한묶음[g[0]] = 1; 셈('|공사연결|고름-' + 묶음셈[g[0]]) }   /* 📐 G693 어느 묶음을 눌렀나(이 쪽에서 묶음마다 한 번) */
+        }
         box.appendChild(b)
       })
       gbox.appendChild(box)
@@ -193,17 +202,17 @@
     })
     var cwr = document.getElementById('work').closest('.row'); if (cwr && cwr.parentNode) cwr.parentNode.insertBefore(crow, cwr.nextSibling)
     /* 📄 G669 잠근 도구 9가지의 «📄 작성대행 · 견적 문의» 단추(web/src/잠금문의.jsx)에서 온 문의 — ?k=cn&s=서류 갈래&t=도구 이름
-       → 그 갈래를 미리 고르고(서류 작성대행 묶음에 있는 말만) «자세히» 가 비었으면 한 줄 채움(글로만 넣음 · 40자까지) */
+       → 그 갈래를 미리 고르고(도면 · 서류 작성대행 묶음에 있는 말만 — 📐 G693 도면 묶음도) «자세히» 가 비었으면 한 줄 채움(글로만 넣음 · 40자까지) */
     try {
       var 쿼리 = new URLSearchParams(location.search)
       var 미리s = 쿼리.get('s') || '', 미리t = (쿼리.get('t') || '').slice(0, 40)
-      if (미리s && 묶음들[1][1].indexOf(미리s) >= 0) { 고른것 = '서류 작성대행 — ' + 미리s; 다시칠() }
+      if (미리s) 묶음들.forEach(function (g) { if (!고른것 && g[0] !== '공사 연결' && g[1].indexOf(미리s) >= 0) { 고른것 = g[0] + ' — ' + 미리s; 다시칠() } })
       var cm = document.getElementById('memo'); if (미리t && cm && !cm.value) cm.value = '«' + 미리t + '» 작성대행 · 견적 문의합니다.'
     } catch (e) { /* 주소 꼬리를 못 읽으면 그대로 */ }
     var ccards = document.querySelectorAll('.card'); if (ccards[1]) ccards[1].style.display = 'none'
   }
   /* 공사 연결 · 서류 작성대행(?k=cn) 이면 메일 갈래(want)만 고른 것으로 — 위 광고 · 사이트 문의 갈래 줄은 그대로 둠(시험_광고문의화면 ⑦ ⑨ 가 그 줄을 봄) */
-  var 갈래고침 = function (o) { if (연결) o.want = 고른것 || '공사 연결 · 서류 작성대행'; return o }
+  var 갈래고침 = function (o) { if (연결) o.want = 고른것 || '공사 연결 · 도면 · 서류 작성대행'; return o }
   var 셈 = function (k) {
     try {
       if (navigator.webdriver || /bot|crawl|spider|slurp|headless|lighthouse/i.test(navigator.userAgent || '')) return
@@ -243,7 +252,7 @@
       if (!r.ok) throw new Error(r.status)
       f.style.display = 'none'
       말(연결 ? '보냈습니다. 하루 안에 적어 주신 연락처로 연락드리겠습니다. 고맙습니다 🙏' : '보냈습니다. 연락처를 적어 주셨으면 하루 안에 답을 드리겠습니다. 고맙습니다 🙏', 'ok')
-      if (연결) 셈('|공사연결|접수')
+      if (연결) { 셈('|공사연결|접수'); 셈('|공사연결|접수-' + (고른것 ? 묶음셈[고른것.split(' — ')[0]] || '안고름' : '안고름')) }   /* 📐 G693 보낸 묶음 */
     }).catch(function () {
       go.disabled = false
       말('보내지 못했습니다. 잠시 뒤 다시 하시거나 kimmyounghwan259@gmail.com 으로 보내 주십시오.', 'err')

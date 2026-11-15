@@ -3,7 +3,8 @@
    · 사이트(앱) 쪽은 공사연결띠.jsx 가 그림 — 이 파일은 앱 밖의 정적 쪽(.html)에만 <script src="/cn-band.js" defer>
    · 맨 위에 한 줄 · 내려도 늘 보임(sticky) · 닫기 없음 · 진초록(앱 띠와 같은 색) · 누르면 /contact?k=cn(상담)
    · 상담 쪽(/contact?k=cn) 자신에는 안 붙임 · 로봇(자동 브라우저) · 인쇄엔 안 나옴
-   · 숨은 셈 |공사연결|보임(앱과 같은 열쇠 · 이 탭에서 한 번) · |공사연결|정적누름 — 소장님 브라우저(kcm_op) · 자동 브라우저는 안 셈 */
+   · 숨은 셈 |공사연결|보임(앱과 같은 열쇠 · 이 탭에서 한 번) · |공사연결|정적누름 — 소장님 브라우저(kcm_op) · 자동 브라우저는 안 셈
+   · 📐 G693 (11-15) «🤝 전국 공사 연결 · 📐 도면 · 📄 건설서류 작성대행» — 앱 큰 띠와 같은 말 */
 (function () {
   try {
     var ua = navigator.userAgent || ''
@@ -36,8 +37,8 @@
     a.id = 'cn-band'
     a.href = '/contact?k=cn'
     a.setAttribute('role', 'note')
-    a.setAttribute('aria-label', '전국 공사 연결 · 건설 서류 작성대행 — 상담 · 견적 받기')
-    a.innerHTML = '<span class="i"><span class="t"><b>🤝 전국 공사 연결 · 📄 건설 서류 작성대행</b><span class="s"> — 견본 먼저 보시고 최저가로</span></span><span class="g">상담 · 견적 받기 ▸</span></span>'
+    a.setAttribute('aria-label', '전국 공사 연결 · 도면 · 건설서류 작성대행 — 상담 · 견적 받기')
+    a.innerHTML = '<span class="i"><span class="t"><b>🤝 전국 공사 연결 · 📐 도면 · 📄 건설서류 작성대행</b><span class="s"> — 견본 먼저 보시고 최저가로</span></span><span class="g">상담 · 견적 받기 ▸</span></span>'
     a.addEventListener('click', function (e) {
       e.preventDefault()
       var 감 = false

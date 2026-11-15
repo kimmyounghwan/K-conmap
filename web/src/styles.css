@@ -5543,7 +5543,18 @@ html.cn-mini-on .cn-mini { display: block; }
 .cn-mini-s { color: #d1fae5; font-size: 12.5px; }
 .cn-mini-go { flex: none; background: #fff; color: #047857; font-weight: 800; font-size: 12.5px; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
 @media (max-width: 480px) { .cn-mini-in { padding: 0 10px; } .cn-mini-s { display: none; } }
+/* 📐 G693 작은 띠 «🤝 공사 연결 · 📐 도면 · 📄 서류 작성대행» — 좁은 폰은 그림 글자(📐 📄 · 440 이하) · «상담 · »(380 이하)를 숨겨 말이 안 잘리게(폭마다 · 글꼴 10 % 넓혀서도 잼 — 시험_공사연결화면 ⑥-2) */
+@media (max-width: 560px) { .cn-mini-s { display: none; } }   /* « — 견본 먼저 · 최저가» 는 넓은 데서만(481 ~ 560 은 글꼴이 넓으면 잘렸음 — 잼) */
+@media (max-width: 440px) { .cn-mini-e { display: none; } }
+@media (max-width: 380px) { .cn-mini-g2 { display: none; } .cn-mini-in { gap: 8px; } }
 @media print { .cn-mini { display: none !important; } }
+/* 📐 G693 도면 도구 쪽 끝 한 줄(공사연결띠.jsx 도면대행줄) — 옅은 초록 바탕 · 진초록 단추(큰 띠와 같은 색 짝) · 인쇄엔 안 나옴 */
+.dm-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 18px 0 6px; padding: 11px 14px; border: 1px solid var(--line); border-left: 4px solid #047857;
+  border-radius: 12px; background: var(--good-soft); color: var(--text); font-size: 13.5px; line-height: 1.55; word-break: keep-all; }
+.dm-t { flex: 1 1 260px; min-width: 0; }
+.dm-go { flex: none; background: #047857; color: #fff; font-weight: 800; font-size: 13px; padding: 6px 13px; border-radius: 999px; text-decoration: none; white-space: nowrap; }
+@media (max-width: 480px) { .dm-go { flex: 1 1 100%; text-align: center; padding: 8px 12px; } }
+@media print { .dm-line { display: none !important; } }
 /* 작은 띠가 보이는 동안 — 머리줄 밑에 붙는 칸 · 바로 가기 자리(scroll-margin)를 34px 더 내림(가리지 않게) */
 html.cn-mini-on { --cn-h: 34px; }
 html { scroll-padding-top: var(--cn-h, 0px); }

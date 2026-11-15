@@ -3,6 +3,8 @@
 //      잠금은 그대로(isOpen · 나운영자) · 잠금문의.jsx 문의갈래 = contact.html «서류 작성대행» 묶음(두 벌 대조) · contact.html 이 s · t 를 받음
 //   ② 화면(주소를 주면 · PC 1280 · 폰 390): 손님 — 띠 «🔒 문의해 주세요» · 단추 고리(/contact?k=cn&s=…&t=…) · «준비 중» 없음 / 소장님(kcm_op) — 띠 없음 ·
 //      문의 화면 — s 로 고른 갈래가 눌림(aria-pressed) · t 로 «자세히» 한 줄 · 엉뚱한 s 는 안 고름 · t 에 꺾쇠를 넣어도 글로만(꼬리표 안 생김) · 다른 문의(광고)는 그대로
+//   📐 G693 (11-15) 도면갈래 세 벌(잠금문의.jsx · contact.html «도면 작성대행» · prerender.py) · 도면줄길 · 도면줄글 두 벌(공사연결띠.jsx · prerender.py) ·
+//      캐드 고치기 · 컬러 평면도 단추 «📐 도면 작성대행 · 견적 문의» · s = 도면 갈래 · 문의 화면이 그 도면 갈래를 미리 고름
 //   돌리기: node tools/시험_잠금문의.mjs [주소]
 import fs from 'fs'
 import path from 'path'
@@ -37,6 +39,16 @@ const 문 = 읽기('web/public/contact.html')
 const 묶 = (/\['서류 작성대행', (\[[^\]]*\])\]/.exec(문) || [])[1]
 봐(!!묶 && JSON.stringify(JSON.parse(묶.replace(/'/g, '"'))) === JSON.stringify(갈래), '잠금문의.jsx 문의갈래 = contact.html «서류 작성대행» 묶음', `${JSON.stringify(갈래)} / ${묶}`)
 봐(/get\('s'\)/.test(문) && /get\('t'\)/.test(문) && /cm\.value = /.test(문) && !/innerHTML[^\n]*미리t/.test(문), 'contact.html 이 s · t 를 받음(t 는 value 로만)')
+/* 📐 G693 도면갈래 세 벌 · 도면줄길 · 도면줄글 두 벌 — 하나만 고치면 문의 화면이 갈래를 못 고르거나 구운 쪽(구글)과 화면 글이 달라짐 */
+const 도갈 = JSON.parse(((/export const 도면갈래 = (\[[^\]]*\])/.exec(잠) || [])[1] || 'null').replace(/'/g, '"'))
+const 도묶 = (/\['도면 작성대행', (\[[^\]]*\])\]/.exec(문) || [])[1]
+봐(Array.isArray(도갈) && 도갈.length === 8 && !!도묶 && JSON.stringify(JSON.parse(도묶.replace(/'/g, '"'))) === JSON.stringify(도갈), '잠금문의.jsx 도면갈래 = contact.html «도면 작성대행» 묶음', `${JSON.stringify(도갈)} / ${도묶}`)
+봐(Array.isArray(도갈) && 도갈.every((x) => !갈래.includes(x)), '도면갈래 · 문의갈래(서류) 글이 겹치지 않음(미리 고를 때 한 곳만)')
+const 띠 = 읽기('web/src/공사연결띠.jsx')
+const 줄길 = (/export const 도면줄길 = (\[[^\]]*\])/.exec(띠) || [])[1], 줄글 = (/export const 도면줄글 = '([^']*)'/.exec(띠) || [])[1]
+봐(!!줄길 && !!줄글 && /^📐 도면 작성 · 캐드 대행이 필요하시면/.test(줄글), '공사연결띠.jsx 도면줄길 · 도면줄글 있음', `${줄길} / ${줄글}`)
+봐(!/(^|[^변])설계(?!변경)/.test(줄글 || '') && !/설계 ?대행|설계도면 작성/.test(띠 + 문), '«설계» 는 «설계변경 · 설계변경 도면» 말고 안 씀(건축 허가 · 신고용 설계는 건축사 일)')
+봐(/<잠금문의 도구="캐드 도면 고치기" 갈래="캐드 정리\(DWG · PDF\)" 셈="캐드고침" \/>/.test(읽기('web/src/pages/CadFix.jsx')) && /<잠금문의 도구="컬러 평면도" 갈래="피난 안내도" 셈="컬러평면" \/>/.test(읽기('web/src/pages/ColorPlan.jsx')), '캐드 고치기 · 컬러 평면도 잠금 상자 단추 = 도면 갈래')
 /* ①-2 🔒 G677 (11-13 소장님 «공사서류 원클릭 안 막았잖아» 확인하다 찾음) — G669 는 화면만 바꿔 구운 쪽(prerender.py · 검색 · 첫 화면)에 «지금은 준비 중 · 곧 엽니다» ·
  *      원클릭 «회원가입 없이 무료» · 구조화 자료 «무료 · 0원» 이 남아 있었음 → 구운 쪽도 «🔒 문의해 주세요 + 작성대행 · 견적 문의» 꼴 · 화면 jsx 에 «무료» 없음 */
 const 구 = 읽기('prerender.py')
@@ -63,6 +75,16 @@ for (const [f, 길] of 도구들) {
 }
 const 구갈래 = (/^문의갈래 = (\[[^\]]*\])/m.exec(구) || [])[1]
 봐(!!구갈래 && JSON.stringify(JSON.parse(구갈래)) === JSON.stringify(갈래), 'prerender.py 문의갈래 = 잠금문의.jsx 문의갈래', `${구갈래}`)
+const 구도갈 = (/^도면갈래 = (\[[^\]]*\])/m.exec(구) || [])[1]
+봐(!!구도갈 && JSON.stringify(JSON.parse(구도갈)) === JSON.stringify(도갈), 'prerender.py 도면갈래 = 잠금문의.jsx 도면갈래', `${구도갈}`)
+const 구줄길 = (/^도면줄길 = (\[[^\]]*\])/m.exec(구) || [])[1], 구줄글 = (/^도면줄글 = "([^"]*)"/m.exec(구) || [])[1]
+봐(!!구줄길 && !!줄길 && JSON.stringify(JSON.parse(구줄길)) === JSON.stringify(JSON.parse(줄길.replace(/'/g, '"'))), 'prerender.py 도면줄길 = 공사연결띠.jsx 도면줄길', `${구줄길}`)
+봐(!!구줄글 && 구줄글 === 줄글, 'prerender.py 도면줄글 = 공사연결띠.jsx 도면줄글', `${구줄글}`)
+봐(/_도면줄_html\(path\)/.test((/\ndef page\([\s\S]*?\n    return h\r?\n/.exec(구) || [''])[0]), 'prerender page() 가 도면 도구 쪽 끝에 도면 줄을 붙임')   // \r? — PC(autocrlf)는 CRLF 로 꺼냄(G693 PC 시험에서 걸림)
+for (const [f, s] of [['cadfix_page', '캐드 정리(DWG · PDF)'], ['colorplan_page', '피난 안내도']]) {
+  const i = 구.indexOf(`\ndef ${f}(`), j = 구.indexOf('\ndef ', i + 5)
+  봐(i > 0 && 구.slice(i, j).includes(`\", \"${s}\")`), `prerender ${f} — _잠금문의(…, «${s}») 도면 갈래`)
+}
 
 /* ② 화면 */
 if (주소) {
@@ -91,6 +113,7 @@ if (주소) {
         if (누구 === '손님') {
           봐(r.띠 && /🔒 문의해 주세요/.test(r.글), `${기기} ${f} 손님 — 띠 «🔒 문의해 주세요»`, r.글.slice(0, 60))
           봐(/^\/contact\?k=cn&s=[^&]+&t=.+/.test(r.고리) && /작성대행 · 견적 문의/.test(r.단추글), `${기기} ${f} 문의 단추 고리`, r.고리)
+          if (f === 'CadFix' || f === 'ColorPlan') 봐(/^📐 도면 작성대행 · 견적 문의/.test(r.단추글.trim()) && r.고리.includes('s=' + encodeURIComponent(f === 'CadFix' ? '캐드 정리(DWG · PDF)' : '피난 안내도')) && /📐 도면은 K-건설맵이 직접/.test(r.글), `${기기} ${f} 📐 도면 단추 · 갈래 · 글`, `${r.단추글} ${r.고리}`)
           봐(!r.본문준비, `${기기} ${f} «준비 중» 없음`)
         } else {
           봐(!r.띠, `${기기} ${f} 소장님 — 잠금 띠 없음(씀)`)
@@ -105,7 +128,11 @@ if (주소) {
         let c = await A.evaluate(() => ({ 눌림: [...document.querySelectorAll('.cn-pick button[aria-pressed="true"]')].map((b) => b.textContent), 자세히: (document.getElementById('memo') || {}).value || '', 무슨: (document.getElementById('work') || {}).value || '' }))
         봐(c.눌림.length === 1 && c.눌림[0] === '안전관리계획서', `${기기} 문의 — s 로 «안전관리계획서» 미리 고름`, JSON.stringify(c.눌림))
         봐(c.자세히 === '«안전관리계획서» 작성대행 · 견적 문의합니다.', `${기기} 문의 — t 로 «자세히» 한 줄`, c.자세히)
-        봐(/공사 연결 · 📄 서류 작성대행/.test(c.무슨), `${기기} 문의 — 무슨 일 그대로`, c.무슨)
+        봐(/공사 연결 · 📐 도면 · 📄 서류 작성대행/.test(c.무슨), `${기기} 문의 — 무슨 일 그대로`, c.무슨)
+        /* 📐 G693 컬러 평면도 단추 → s=피난 안내도 → 도면 묶음에서 미리 고름 */
+        await 열기('?k=cn&s=' + encodeURIComponent('피난 안내도') + '&t=' + encodeURIComponent('컬러 평면도'))
+        c = await A.evaluate(() => ({ 눌림: [...document.querySelectorAll('.cn-pick button[aria-pressed="true"]')].map((b) => b.getAttribute('data-v')), 자세히: (document.getElementById('memo') || {}).value || '' }))
+        봐(JSON.stringify(c.눌림) === JSON.stringify(['도면 작성대행 — 피난 안내도']) && c.자세히 === '«컬러 평면도» 작성대행 · 견적 문의합니다.', `${기기} 문의 — s=피난 안내도 → 도면 묶음 미리 고름`, JSON.stringify(c))
         await 열기('?k=cn&s=' + encodeURIComponent('없는갈래') + '&t=' + encodeURIComponent('<img src=x onerror=alert(1)>'))
         c = await A.evaluate(() => ({ 눌림: document.querySelectorAll('.cn-pick button[aria-pressed="true"]').length, 자세히: (document.getElementById('memo') || {}).value || '', 꼬리표: document.querySelectorAll('img[src="x"]').length }))
         봐(c.눌림 === 0, `${기기} 문의 — 엉뚱한 s 는 안 고름`)

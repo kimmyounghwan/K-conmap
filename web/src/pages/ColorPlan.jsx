@@ -139,7 +139,7 @@ export default function ColorPlan() {
     return () => { 살 = false }
   }, [])
   useEffect(() => { document.title = '컬러 평면도 · 피난 안내도 — 도면을 넣으면 방 색 · 면적 · 비상구 길까지 | K-건설맵' }, [])
-  const 잠김 = (무엇) => { set잠금말(`🔒 ${무엇} K-건설맵에 문의해 주세요(위 «📄 작성대행 · 견적 문의») — 🧪 예시 도면으로 어떻게 나오는지 보실 수 있습니다.`); 세기('|컬러평면|잠금') }
+  const 잠김 = (무엇) => { set잠금말(`🔒 ${무엇} K-건설맵에 문의해 주세요(위 «📐 도면 작성대행 · 견적 문의») — 🧪 예시 도면으로 어떻게 나오는지 보실 수 있습니다.`); 세기('|컬러평면|잠금') }
 
   /* 도면 */
   const [도면, set도면] = useState(null)          /* { 모델, k, 판들, 이름, 예시 } */
@@ -345,7 +345,7 @@ export default function ColorPlan() {
         </p>
         {!씀 && (
           <div className="sg-lock">
-            <b>🔒 문의해 주세요</b> — 내 도면으로 만들어 받는 것은 K-건설맵이 직접 해 드립니다(견본 먼저 · 최저가). <잠금문의 도구="컬러 평면도" 셈="컬러평면" /> 지금은 🧪 예시 도면으로 어떻게 나오는지 보실 수 있습니다(색 · 무늬 · 현위치 · 길도 바꿔 보기).
+            <b>🔒 문의해 주세요</b> — 📐 도면은 K-건설맵이 직접 그려 드립니다(컬러 평면도 · 피난 안내도 — 견본 먼저 · 최저가). <잠금문의 도구="컬러 평면도" 갈래="피난 안내도" 셈="컬러평면" /> 지금은 🧪 예시 도면으로 어떻게 나오는지 보실 수 있습니다(색 · 무늬 · 현위치 · 길도 바꿔 보기).
             {' '}<예시본수 열쇠="|컬러평면|예시" />
             <details className="sg-more sg-more-sm" style={{ marginTop: 6 }}>
               <summary className="muted" style={{ fontSize: 12.5 }}>🔑 열쇠말이 있으신가요?</summary>
@@ -427,11 +427,11 @@ export default function ColorPlan() {
                   <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={쪽번 >= 보일쪽목록.length - 1} onClick={() => set쪽번(쪽번 + 1)}>▶</button>
                 </div>
               )}
-              {!씀 && 탭 === 'evac' && <예시끝 전체={쪽목록.length} 단위="장" 무엇="피난 안내도" 도구="컬러 평면도 · 피난 안내도" 셈="컬러평면" />}
+              {!씀 && 탭 === 'evac' && <예시끝 전체={쪽목록.length} 단위="장" 무엇="피난 안내도" 도구="컬러 평면도 · 피난 안내도" 갈래="피난 안내도" 셈="컬러평면" />}
               {장면 ? <미리보기 장면={장면} 고른방={탭 === 'color' ? 고른방 : null} on누름={눌렀다} 누름말={누름말} /> : <div className="muted">그리는 중…</div>}
               {/* 🧪 G690 손님에겐 «🔒 PDF · PNG · DXF» 단추 대신 문의 하나(소장님 「문의로 하라고 했잖아」) */}
               <div className="cpl-dl">
-                {!씀 ? <받기대신문의 도구="컬러 평면도 · 피난 안내도" 셈="컬러평면" 글="PDF · PNG · DXF 받기는 K-건설맵이 직접 해 드립니다(견본 먼저 · 최저가)" /> : (
+                {!씀 ? <받기대신문의 도구="컬러 평면도 · 피난 안내도" 갈래="피난 안내도" 셈="컬러평면" 글="PDF · PNG · DXF 받기는 K-건설맵이 직접 해 드립니다(견본 먼저 · 최저가)" /> : (
                   <>
                     <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={!!내림} onClick={() => 받기('PDF')}>{!예시중 ? '📄' : '🔒'} PDF{탭 === 'evac' ? ` (${쪽목록.length}장)` : ''}</button>
                     <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!내림} onClick={() => 받기('PNG')}>{!예시중 ? '🖼' : '🔒'} PNG 300dpi</button>

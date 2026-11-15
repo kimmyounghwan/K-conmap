@@ -15,6 +15,11 @@
  *   ■ 문의: /contact?k=cn — 지금 있는 비공개 문의(운영자 메일로만 · 남에게 안 보임 · 문의함) · 필요한 것(공사 연결 다섯 · 서류 여섯)
  *   ■ 숨은 셈: |공사연결|보임(이 탭에서 한 번) · |공사연결|누름(큰 띠) · |공사연결|작은누름(작은 띠) · |공사연결|접수(contact.html 이 보낸 뒤)
  *   ⚠️ 씀-앞 «밖»(App.jsx 쿠팡 맨 위 줄 바로 다음 · 작은 띠는 머리줄 안) — 띠를 누른 것이 도구 «써 본 횟수» 로 안 세짐
+ *   📐 G693 (2026-11-15) 소장님 「도면 및 건설서류 작성 대행 — 작성대행에 도면 문구 삽입 가능해. 아이디어 줘봐」 → 안 여덟 → «그렇게 해»
+ *     · 큰 띠 «🤝 전국 공사 연결 · 📐 도면 · 📄 건설서류 작성대행» + «시공상세도 · 준공도면 · 설계변경 도면 · 안전관리계획서 · 유해위험방지계획서 등 — …»
+ *     · 작은 띠 «🤝 공사 연결 · 📐 도면 · 📄 서류 작성대행» — 좁은 폰은 그림 글자 · «상담 · » 를 숨겨 안 잘리게(styles.css «G693» · 폭마다 잼)
+ *     · 도면 도구 쪽 끝 한 줄(도면대행줄 — 쪽은 도면줄길 · prerender.py 와 두 벌 · 시험_잠금문의 가 대조) · 숨은 셈 |공사연결|도면줄-<쪽>
+ *     · «설계» 는 «설계변경 도면» 말고 안 씀 — 건축 허가 · 신고용 설계는 건축사 일(건축법 제23조 · 건축사법) · 시공상세도는 건설사업자가 그리는 것(건설기술 진흥법 제48조)
  */
 import { useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
@@ -28,10 +33,10 @@ const 본열쇠 = 'kcm.cn.seen'
 const 로봇 = () => { try { return 로봇글(navigator.userAgent || '') } catch (e) { return false } }
 
 /* contact.html 은 정적 쪽(새로 읽음) — 셈이 가고 나서 넘어가게 잠깐(0.7초 안) 기다림 */
-const 가기 = async (e, 열쇠) => {
+const 가기 = async (e, 열쇠, 갈곳 = 문의주소) => {
   e.preventDefault()
   try { await Promise.race([세기(열쇠), new Promise((r) => setTimeout(r, 700))]) } catch (er) { /* 셈 때문에 막히면 안 됨 */ }
-  window.location.href = 문의주소
+  window.location.href = 갈곳
 }
 
 /* 큰 띠가 머리줄 밑으로 지나갔나 → html.cn-mini-on (작은 띠 보임 · --cn-h)
@@ -76,8 +81,8 @@ export default function 공사연결띠() {
     <div className="noti-band cn" role="note" ref={띠}>
       <span className="noti-dot" />
       <a className="noti-go" href={문의주소} onClick={(e) => 가기(e, '|공사연결|누름')}>
-        <b>🤝 전국 공사 연결 · 📄 건설 서류 무엇이든 작성대행</b>
-        <span className="cn-what">설계변경 · 안전관리계획서 · 유해위험방지계획서 등 — 견본 먼저 보시고 최저가로 맡기세요</span>
+        <b>🤝 전국 공사 연결 · 📐 도면 · 📄 건설서류 작성대행</b>
+        <span className="cn-what">시공상세도 · 준공도면 · 설계변경 도면 · 안전관리계획서 · 유해위험방지계획서 등 — 견본 먼저 보시고 최저가로 맡기세요</span>
         <span className="noti-see">상담 · 견적 받기 ▸</span>
       </a>
     </div>
@@ -88,11 +93,35 @@ export default function 공사연결띠() {
 export function 공사연결작은띠() {
   if (로봇()) return null
   return (
-    <a className="cn-mini" href={문의주소} onClick={(e) => 가기(e, '|공사연결|작은누름')} aria-label="전국 공사 연결 · 건설 서류 작성대행 — 상담 · 견적 받기">
+    <a className="cn-mini" href={문의주소} onClick={(e) => 가기(e, '|공사연결|작은누름')} aria-label="전국 공사 연결 · 도면 · 건설서류 작성대행 — 상담 · 견적 받기">
       <span className="cn-mini-in">
-        <span className="cn-mini-t"><b>🤝 공사 연결 · 📄 서류 작성대행</b><span className="cn-mini-s"> — 견본 먼저 · 최저가</span></span>
-        <span className="cn-mini-go">상담 · 견적 ▸</span>
+        <span className="cn-mini-t"><b>🤝 공사 연결 · <span className="cn-mini-e">📐 </span>도면 · <span className="cn-mini-e">📄 </span>서류 작성대행</b><span className="cn-mini-s"> — 견본 먼저 · 최저가</span></span>
+        <span className="cn-mini-go"><span className="cn-mini-g2">상담 · </span>견적 ▸</span>
       </span>
     </a>
+  )
+}
+
+/* 📐 G693 도면 도구 쪽 끝 한 줄 — 소장님 «그렇게 해»(안 ④ «도면 도구 쪽 결과 아래 한 줄») · App.jsx 씀-뒤 바로 다음(씀 밖 — 누른 것이 도구 «써 본 횟수» 로 안 세짐)
+ *   쪽 = 도면줄길(⚠️ prerender.py 도면줄길 · 도면줄글 과 두 벌 — 구운 쪽(구글)에도 같은 줄 · 시험_잠금문의 가 대조) · 잠근 도구(캐드 고치기 · 컬러 평면도)는 잠금 상자가 문의라 뺌
+ *   누르면 /contact?k=cn&t=도면 («자세히» 에 ««도면» 작성대행 · 견적 문의합니다.» · 도면 묶음은 이용자가 고름) · 숨은 셈 |공사연결|도면줄-<쪽> */
+export const 도면줄길 = ['/cad', '/cad/*', '/tools/dxfpdf', '/tools/dwgdxf', '/tools/dxf3d', '/tools/sajincad', '/tools/tojeok', '/jeoksan', '/jeoksan/golgo', '/jeoksan/magam', '/jeoksan/auto', '/jeoksan/model', '/jeoksan/bim']
+export const 도면줄글 = '📐 도면 작성 · 캐드 대행이 필요하시면 — 시공상세도 · 준공도면 · 설계변경 도면 · 캐드 정리까지 K-건설맵이 그려 드립니다(견본 먼저 · 최저가).'
+export const 도면줄주소 = '/contact?k=cn&t=' + encodeURIComponent('도면')
+/** 이 쪽의 도면줄길 한 칸('/cad/*' 는 /cad/아무거나) — 없으면 '' */
+export const 도면줄칸 = (p) => {
+  const 길 = String(p || '')
+  return 도면줄길.find((g) => (g.endsWith('/*') ? 길.startsWith(g.slice(0, -1)) && 길.length > g.length - 1 : 길 === g)) || ''
+}
+export function 도면대행줄() {
+  const { pathname } = useLocation()
+  const 칸 = 도면줄칸(pathname)
+  if (!칸) return null
+  const 쪽 = 칸.replace('/*', '').replace(/^\//, '').replace(/\//g, '-')
+  return (
+    <div className="dm-line" role="note">
+      <span className="dm-t">{도면줄글}</span>
+      <a className="dm-go" href={도면줄주소} onClick={(e) => 가기(e, `|공사연결|도면줄-${쪽}`, 도면줄주소)}>📐 도면 작성대행 문의 ▸</a>
+    </div>
   )
 }

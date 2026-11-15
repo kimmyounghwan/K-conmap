@@ -80,6 +80,7 @@ export default function 빠른찾기창({ 탭, 닫기 }) {
     세기('|빠른찾기|고름')
     닫기()
     if (x.firm) navigate(x.to, { state: { firm: x.firm } })
+    else if (/^\/contact(\?|$)/.test(x.to)) window.location.assign(x.to)   /* 📐 G693 문의(정적 쪽 contact.html)는 앱 밖 — 새로 읽어 엶 */
     else navigate(x.to)
   }
   const 키 = (e) => {
