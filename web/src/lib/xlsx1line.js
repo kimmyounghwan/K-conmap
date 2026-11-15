@@ -241,8 +241,18 @@ export function 짝찾기(시트, sst) {
     const 기본 = ['당초', '변경', '증감']
     결과.상태 = 차례.every((s) => 기본.includes(s)) ? 기본.filter((s) => 차례.includes(s)) : 차례
     let 지금 = null, 앞자리 = -1
+    /* 🩹 G689 라벨 칸이 병합 아래 숨은 줄 — 숨은 칸의 «변경» 글도 읽음(전엔 못 읽어 짝이 한 줄씩 밀림 · 실제 설계내역서 D37 «소스» 시트를 1줄 → 2줄 → 1줄 하니
+       C2:G3 세로 병합 아래 라벨 «변경» 이 숨어 첫 줄이 홀로 남고 아래가 모두 엇갈렸음) · 숨은 글로 맞춘 줄 수 = 숨은라벨(살펴보기가 «확실» 에서 뺌) */
+    let 숨은라벨 = 0
+    const 라벨글 = (r) => {
+      const t = 보임글(라벨, r)
+      if (t || !숨은.has(라벨 + ',' + r)) return t
+      const row = rows.get(r); const raw = row && row.cells.get(라벨) ? 글칸(row.cells.get(라벨), sst) : ''
+      if (상태말(raw)) { 숨은라벨++; return raw }
+      return t
+    }
     for (const r of 순) {
-      const s = 상태말(보임글(라벨, r))
+      const s = 상태말(라벨글(r))
       if (!s) { 지금 = null; 앞자리 = -1; continue }
       const k = 결과.상태.indexOf(s)
       if (!지금 || k <= 앞자리 || r !== 지금.rows[지금.rows.length - 1] + 1) { 지금 = { rows: [], 상태: new Map() }; 결과.덩이.push(지금) }
@@ -251,6 +261,7 @@ export function 짝찾기(시트, sst) {
     const 첫 = 결과.덩이.length ? 결과.덩이[0].rows[0] : 결과.자료부터
     if (첫 < 결과.자료부터) 결과.자료부터 = 첫
     결과.꼴 = 결과.상태.length > 3 || !결과.상태.every((s) => 기본.includes(s)) ? 'N상태' : 결과.상태.includes('증감') ? '3줄' : '2줄'
+    결과.숨은라벨 = 숨은라벨
     return 결과
   }
 
@@ -456,11 +467,13 @@ export function 살펴보기(buf) {
       검사 = 짝검사(s.시트, 짝, s.name)
       const 수식맞음 = 검사.다름 <= Math.max(6, 검사.같음 * 0.05)
       확실 = 짝.라벨칸 ? 홀안 <= Math.max(2, 여럿.length * 0.02) && 수식맞음 : (여럿.length >= 3 && 홀안 === 0 && 수식맞음)
+      /* 🩹 G689 라벨을 병합 아래 숨은 칸에서 읽어 맞춘 짝이 있으면 «확실» 아님 — 미리보기로 보고 사람이 켬 */
+      if (짝.숨은라벨 > 0) 확실 = false
     }
     sheets.push({
       path: s.path, name: s.name, 꼴: 짝.꼴, 상태: 짝.상태, 짝: 여럿.length, 홀: 홀.length, 홀안, 홀줄: 홀.slice(0, 8),
       라벨칸: 짝.라벨칸 ? numToCol(짝.라벨칸) : '', 자료부터: 짝.자료부터, 끝: 짝.끝, 까닭: 짝.까닭,
-      지울줄: 여럿.reduce((n, d) => n + d.rows.length - 1, 0), 확실, 검사: { 같음: 검사.같음, 다름: 검사.다름, 예: 검사.예 },
+      지울줄: 여럿.reduce((n, d) => n + d.rows.length - 1, 0), 확실, 검사: { 같음: 검사.같음, 다름: 검사.다름, 예: 검사.예 }, 숨은라벨: 짝.숨은라벨 || 0,
     })
   }
   return { sheets, 상태들, 책 }
@@ -906,6 +919,9 @@ function 라벨풀이(f, ctx) {
             const 앞 = out.replace(/\s+$/, '')
             const o = 앞.slice(-1)
             if (o === '-' || o === '+') { out = 앞.slice(0, -1); i = a.end + 1; continue }
+            /* 🩹 G689 빼는 몫이 아니라 «지운 줄(당초)만 더하던» 식 — 1줄엔 그 줄이 없어 0 이 됨 → 그 칸은 그때 값으로(옮겨 가 봄)
+               (2줄 파일의 홀 줄 · 합계 줄이 SUMIF(…,"당초",…) 만 더하던 것 — 전엔 조용히 0 · «SUM(0)*10%») */
+            ctx.지운상태만 = true
             out += '0'; i = a.end + 1; continue
           }
           out += 라벨풀이(새, ctx)
@@ -919,8 +935,10 @@ function 라벨풀이(f, ctx) {
   /* «0+…» 처럼 맨 앞에 남은 0 */
   out = out.replace(/^(\(*)0\+/, '$1').replace(/\(0\+/g, '(').replace(/,0\+/g, ',')
   out = 겹SUM풀기(out)
-  /* 라벨로 거른 식이었으면 — 우리 2줄 변환이 만든 꼴을 원래 꼴로(조건 하나 남은 SUMIFS → SUMIF · 함수 하나를 감싼 괄호) */
-  if (ctx.거른범위) out = 괄호풀기(SUMIFS하나(out))
+  /* 라벨로 거른 식이었으면 — 우리 2줄 변환이 만든 꼴을 원래 꼴로(조건 하나 남은 SUMIFS → SUMIF · 함수 하나를 감싼 괄호)
+     🩹 G689 · 2줄 파일에서 이미 «함수 하나를 감싼» 괄호는 사람이 쓴 것 → 그대로(«TRUNC((SUM(…)),0)» 의 괄호를 떼던 것 — 실제 설계내역서 되돌림 D46)
+        괄호를 뗀 뒤 생긴 «SUM(SUM(범위))» 도 한 번 더 풂(«SUM((SUM(…)-SUMIF(…)))*10%» → 전엔 «SUM(SUM(…))*10%» 로 남음 — D47) */
+  if (ctx.거른범위) out = 겹SUM풀기(괄호풀기(SUMIFS하나(out), 홑괄호들(f)))
   return out
 }
 /* SUMIFS(합범위,조건범위,조건) — 조건이 하나면 SUMIF(조건범위,조건,합범위) */
@@ -943,25 +961,50 @@ function SUMIFS하나(f) {
   }
   return out
 }
-/* (함수(…)) — 여는 괄호 앞이 «(» · «,» · 맨 앞이면 감싼 괄호를 뗌 */
-function 괄호풀기(f) {
+/* 홑괄호(함수 괄호가 아닌 «(») 를 차례로 — 저마다 «함수 하나만 감쌌나» · 글자(«…») 안 괄호는 셈 안 함 */
+const 이름글 = /[A-Za-z0-9_.$]/
+function 함수하나감쌈(t, i) {
+  const a = splitArgs(t, i + 1)
+  if (!a || a.args.length !== 1) return { a, 속: null }
+  const 속 = t.slice(a.args[0][0], a.args[0][1]).trim()
+  const m = /^[A-Za-z][A-Za-z0-9.]*\(/.exec(속)
+  if (!m) return { a, 속: null }
+  const b = splitArgs(속, m[0].length)
+  return { a, 속: b && b.end === 속.length - 1 ? 속 : null }
+}
+function 홑괄호들(f) {
+  const 들 = []
+  for (let i = 0; i < f.length; i++) {
+    const ch = f[i]
+    if (ch === '"') { let j = i + 1; while (j < f.length) { if (f[j] === '"') { if (f[j + 1] === '"') j += 2; else break } else j++ } i = j; continue }
+    if (ch !== '(' || (i > 0 && 이름글.test(f[i - 1]))) continue
+    들.push(!!함수하나감쌈(f, i).속)
+  }
+  return 들
+}
+/* (함수(…)) — 여는 괄호 앞이 «(» · «,» · 맨 앞이면 감싼 괄호를 뗌
+   원 = 2줄 파일 식의 홑괄호들(같은 차례) — 거기서 이미 «함수 하나를 감싼» 괄호는 사람이 쓴 것이라 그대로(수가 안 맞으면 전처럼 모두 봄) */
+function 괄호풀기(f, 원 = null) {
   let out = f
+  const 표 = 원 && 홑괄호들(out).length === 원.length ? 원.slice() : null
   for (let n = 0; n < 50; n++) {
     let 바뀜 = false
+    let k = -1
     for (let i = 0; i < out.length; i++) {
-      if (out[i] !== '(') continue
+      const ch = out[i]
+      if (ch === '"') { let j = i + 1; while (j < out.length) { if (out[j] === '"') { if (out[j + 1] === '"') j += 2; else break } else j++ } i = j; continue }
+      if (ch !== '(') continue
       const prev = i > 0 ? out[i - 1] : ''
+      if (prev && 이름글.test(prev)) continue        /* 함수 괄호 */
+      k++
       if (prev && prev !== '(' && prev !== ',' && prev !== '=') continue
-      const a = splitArgs(out, i + 1)
-      if (!a || a.args.length !== 1) continue
-      const 속 = out.slice(a.args[0][0], a.args[0][1]).trim()
-      const m = /^[A-Za-z][A-Za-z0-9.]*\(/.exec(속)
-      if (!m) continue
-      const b = splitArgs(속, m[0].length)
-      if (!b || b.end !== 속.length - 1) continue
+      const { a, 속 } = 함수하나감쌈(out, i)
+      if (!속) continue
       const 뒤 = out[a.end + 1] || ''
       if (뒤 && !/[,)]/.test(뒤)) continue          /* (SUMIF(…))*0.03 같은 것은 그대로 */
+      if (표 && 표[k]) continue                      /* 2줄 파일에서도 함수 하나를 감쌌던 괄호 — 사람이 쓴 것 */
       out = out.slice(0, i) + 속 + out.slice(a.end + 1)
+      if (표) 표.splice(k, 1)
       바뀜 = true
       break
     }
@@ -1114,9 +1157,16 @@ export function 한줄로(buf, opts = {}) {
     })
     return 지울 > 0 && 남는 === 0
   }
-  const 옮겨 = (text, ctx) => {
+  const 옮겨 = (text, ctx, 칸) => {
     const t1 = 라벨풀이(text, ctx)
     ctx.거른 = !!ctx.거른범위
+    /* 🩹 G689 지운 줄(당초)만 더하던 칸 — 1줄로 옮기면 0 이 되므로 그 칸은 그때 값(2줄 파일이 보이던 숫자 그대로) + 알림 */
+    if (ctx.지운상태만 && 칸) {
+      셈.고정++; ctx.고정시트()
+      if (ctx.굳힘) ctx.굳힘(ctx.시트, '지운 줄만 더하던 식')
+      ctx.알림('지운 줄만 더하던 칸이라 1줄에선 0 이 됩니다 — 그때 값(숫자 그대로)으로 두었습니다. 남긴 줄 합계가 필요하면 그 칸 수식을 다시 넣어 주십시오.')
+      return 고정값(칸, sst)
+    }
     return 참조옮김(t1, ctx)
   }
 
@@ -1188,7 +1238,7 @@ export function 한줄로(buf, opts = {}) {
           if (원.f) {
             셈.수식칸++
             const ctx = 문맥(s.name, s.path, ref, b)
-            새f = 원.f.text ? 옮겨(원.f.text, ctx) : ''
+            새f = 원.f.text ? 옮겨(원.f.text, ctx, 원) : ''
           }
           셀들.push(칸쓰기(원, ref, 서식, 새f, 배열ref(원, src, nr)))
         }
@@ -1202,7 +1252,7 @@ export function 한줄로(buf, opts = {}) {
             if (계획) 셈.수식칸++
             const ctx = 문맥(s.name, s.path, ref, undefined)
             if (계획 && 지운줄만(c.f.text, s.name)) ctx.이어잇기 = true
-            새f = 옮겨(c.f.text, ctx)
+            새f = 옮겨(c.f.text, ctx, c)
             if (새f !== c.f.text) 바뀜 = true
           }
           if (nr !== rn) 바뀜 = true
