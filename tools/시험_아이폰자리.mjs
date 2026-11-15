@@ -19,6 +19,8 @@
  *   ⑫ G667 «끼임» — 소장님 11-13 16:03 캡처(탭 바닥 568.7pt / 874 · 「탭이 같이 올라가」): 글자판을 닫았는데 보이는 높이까지 줄어 있는 채 남음 →
  *      커서 없이 0.7초 넘게 이어지면 바로잡음(내리고 올릴 때 기준점을 0 까지 따라감) · 다시 글 쓰면 바로 풂 · 글자판이 제대로 내려가면 한 번도 안 움직임 ·
  *      커서만 남고 높이는 돌아온 채 1.5초 넘으면 바로잡음 · 진단 C 한 번
+ *   ⑬ G691 진단 D — 머리줄(공사연결 작은 띠가 매달림)이 보이는 곳 위로 0.9초 넘게 나가 있으면 숫자 한 번(글자판이 정말 올라와 있을 땐 없음 · 아무것도 안 움직임) ·
+ *      ⑪ ⑫ 의 바로잡기 흐름에선 D 없음
  *   인터넷 안 부름(파이어베이스 · 광고 · 애널리틱스 막음 · 셈은 가로채서 봄).
  */
 import fs from 'node:fs'
@@ -205,6 +207,7 @@ const 커서뺌 = (p) => p.evaluate(() => { if (document.activeElement && docume
   await 값(p, { offsetTop: 0, height: 1100 }); await 쉬어(1300)
   const 진B = 보냄.filter((x) => /아이폰자리\|진단-B-/.test(x.u))
   ok('⑪ 진단 B(기준점 0 · 탭 바닥 874 ≠ 보이는 바닥 1100) — 한 번 · 바로잡지는 않음', 진B.length === 1 && /진단-B-t0-h1100-m1100-c874-b874-fN-/.test(진B[0].u) && !(await 상태(p)).고침, 진B.map((x) => x.u.replace(/^.*\/dl\/p\//, '')))
+  ok('⑪ 진단 D 없음(머리줄은 늘 보이는 곳 안)', !보냄.some((x) => /진단-D-/.test(x.u)), 보냄.filter((x) => /진단-D-/.test(x.u)).map((x) => x.u.replace(/^.*\/dl\/p\//, '')))
   ok('화면 오류 없음', 오류.length === 0, 오류)
   await ctx.close()
 }
@@ -266,7 +269,34 @@ const 커서뺌 = (p) => p.evaluate(() => { if (document.activeElement && docume
   ok('⑫ 진단 C(끼임 · 바로잡음) — 한 번 · 숫자(t150 · h531 · m874 · c874 · b874 · 커서 없음)', 진C.length === 1 && /진단-C-t150-h531-m874-c874-b874-fN-s\d+-(웹|앱)\.json$/.test(진C[0].u), 진C.map((x) => x.u.replace(/^.*\/dl\/p\//, '')))
   ok('⑫ 진단 B 는 한 쪽에 셋까지', 보냄.filter((x) => /아이폰자리\|진단-B-/.test(x.u)).length <= 3, 보냄.filter((x) => /진단-B-/.test(x.u)).map((x) => x.u.replace(/^.*\/dl\/p\//, '')))
   ok('⑫ 셈 |아이폰자리|바로잡음 — 한 번', 보냄.filter((x) => /아이폰자리\|바로잡음/.test(x.u)).length === 1)
+  ok('⑫ 진단 D 없음(바로잡는 동안에도 머리줄은 보이는 곳 안)', !보냄.some((x) => /진단-D-/.test(x.u)), 보냄.filter((x) => /진단-D-/.test(x.u)).map((x) => x.u.replace(/^.*\/dl\/p\//, '')))
   ok('⑫ 화면 오류 없음', 오류.length === 0, 오류)
+  await ctx.close()
+}
+
+/* ━━ ⑬ G691 진단 D — 머리줄이 보이는 곳 위로 나가 있음(소장님 11-15 20:3x 「아래로 내리면 공사연결 띠가 사라져」 · 작은 띠는 머리줄에 매달림) — 숫자만 적고 아무것도 안 움직임 ━━ */
+{
+  console.log('■ 아이폰 ⑬ G691 진단 D(머리줄이 보이는 곳 위로)')
+  const { ctx, p, 오류, 보냄 } = await 새판(UA아이폰)
+  await 열기(p, '/live')
+  await 값(p, { offsetTop: 0, scale: 1, height: 874 }); await 쉬어(300)
+  /* 머리줄을 위로 밀어 «아이폰에서 머리줄이 보이는 곳 위로 나간» 모습을 흉내(크롬은 visualViewport 를 못 움직임) */
+  const 밀기 = (px) => p.evaluate((px) => { let s = document.getElementById('시험밀기'); if (!s) { s = document.createElement('style'); s.id = '시험밀기'; document.head.appendChild(s) } s.textContent = px ? `.topbar{position:relative !important;top:${px}px !important}` : '' }, px)
+  ok('⑬ (시험 준비) 입력칸에 커서', await 커서(p))
+  await 값(p, { height: 531, offsetTop: 0 }); await 밀기(-200); await 쉬어(1500)
+  ok('⑬ 글 쓰는 중(커서 · 높이 531) + 머리줄이 위로 — 진단 D 없음(글자판이 정말 올라와 있음 · 아이폰이 하는 대로)', !보냄.some((x) => /진단-D-/.test(x.u)))
+  await 커서뺌(p); await 값(p, { height: 874, offsetTop: 0 }); await 쉬어(400)
+  ok('⑬ 커서 뺌 · 머리줄이 위로 나간 지 0.4초 — 아직 없음', !보냄.some((x) => /진단-D-/.test(x.u)))
+  await 쉬어(1400)
+  const 진D = 보냄.filter((x) => /아이폰자리\|진단-D-/.test(x.u))
+  ok('⑬ 0.9초 넘게 — 진단 D 한 번 · 숫자(t0 · h874 · 머리줄 바닥 y− · 확대 k100 · 바로잡음 z0 · 쪽 live)', 진D.length === 1 && /진단-D-t0-h874-m874-c874-b874-fN-y-\d+-k100-z0-plive-s\d+-(웹|앱)\.json$/.test(진D[0].u), 진D.map((x) => x.u.replace(/^.*\/dl\/p\//, '')))
+  const s = await 상태(p)
+  ok('⑬ 진단만 — 바로잡기(vv-fix) 안 함 · 아래 탭 그대로', !s.고침 && s.탭옮김 === 'none', s)
+  await 쉬어(2200)
+  ok('⑬ 이어져도 한 쪽에 한 번뿐', 보냄.filter((x) => /진단-D-/.test(x.u)).length === 1)
+  await 밀기(0); await 쉬어(1100)
+  ok('⑬ 머리줄 제자리 — 그 뒤로 더 없음 · 다른 진단(A · B · C)도 없음', 보냄.filter((x) => /진단-[A-D]-/.test(x.u)).length === 1, 보냄.filter((x) => /진단-/.test(x.u)).map((x) => x.u.replace(/^.*\/dl\/p\//, '')))
+  ok('⑬ 화면 오류 없음', 오류.length === 0, 오류)
   await ctx.close()
 }
 

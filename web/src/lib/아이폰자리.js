@@ -25,6 +25,10 @@
  *     · 진단을 다시 짬 — G661c 진단 B 는 «쪽마다 처음 한 번» 이라 위로 튕김(음수 기준점)이 먼저 자리를 차지해 정작 어긋난 숫자가 안 남았음(11-13 dl/p 24개 중 22개가 튕김):
  *       A(높이 그대로 · 기준점 남음) · C(끼임 — 높이도 줄어 있음)는 바로잡을 때 한 번 · B(안 바로잡았는데 탭이 0.8초 넘게 40px 넘게 어긋남 · 위로 튕김 뺌)는 한 쪽에 셋까지 ·
  *       t 기준점 · h 보이는 높이 · m 가장 컸던 높이 · c 바탕 높이(clientHeight) · b 탭 바닥(바로잡기 전) · f 커서(I 글칸 · F 틀 · N 없음) · s 화면 높이 · 앱/웹
+ *   ■ 🩺 G691 (11-15 20:3x) 진단 D — 소장님 「아래로 내리면 공사연결 띠가 사라져」 → 「또 이제 이상 없다 ㅎㅎ 왜 이러지?」(크롬 실측으론 안 생김 ·
+ *     11-15 dl/p: C 5 — 모두 소장님 폰 · h −62(보이는 높이가 음수로 옴) · t 46 ~ 369 · b = 812 − t)
+ *     머리줄(공사연결 작은 띠가 매달림)이 보이는 곳 위로 0.9초 넘게 나가 있으면(글자판이 정말 올라와 있을 때 빼고 · 바로잡는 중이어도) 한 번:
+ *     |아이폰자리|진단-D-t…-h…-m…-c…-b…-f…-y(머리줄 바닥)-k(확대 ×100)-z(바로잡은 만큼)-p(쪽)-s…-앱/웹 — 숫자만 적고 아무것도 안 움직임(원인을 숫자로 잡은 뒤 고침)
  */
 import { 세기, 진단세기 } from './받은수.jsx'
 
@@ -73,18 +77,25 @@ export function 켜기() {
   let 끼임때 = 0          // «커서 없이 높이만 줄어 있음» 이 처음 보인 때(이어지는 동안 그대로)
   let 쓰기때 = 0          // 글칸에 커서가 처음 들어간 때(이어지는 동안 그대로)
   let 어긋때 = 0          // 진단 B — 안 바로잡았는데 탭이 어긋나 보인 때
+  let 숨음때 = 0          // 🩺 G691 진단 D — 머리줄이 보이는 곳 위로 나가 있는 때(이어지는 동안 그대로)
   const 진단함 = {}
   let B수 = 0
   /* 아래 탭 바닥(그려진 자리) · 탭이 안 보이는 넓은 화면은 -1 */
   const 탭바닥 = () => {
     try { const t = document.querySelector('.tabbar'); if (!t || getComputedStyle(t).display === 'none') return -1; return Math.round(t.getBoundingClientRect().bottom) } catch (e) { return -1 }
   }
+  /* 머리줄 바닥(아이폰은 «보이는 쪽» 기준으로 잼 — G667) · 머리줄이 없거나 안 그려졌으면 null */
+  const 머리바닥 = () => {
+    try { const t = document.querySelector('.topbar'); if (!t) return null; const r = t.getBoundingClientRect(); return r.height > 0 ? Math.round(r.bottom) : null } catch (e) { return null }
+  }
+  const 쪽글 = () => { try { return (location.pathname.split('/')[1] || 'home').replace(/[^a-z0-9-]/gi, '').slice(0, 12) || 'x' } catch (e) { return 'x' } }
   const 진단 = (꼴, d) => {
     const 열쇠 = 꼴 === 'B' ? `B${Math.round(d.t / 20)}_${Math.round(d.b / 20)}` : 꼴
     if (진단함[열쇠] || (꼴 === 'B' && B수 >= 3)) return
     진단함[열쇠] = true
     if (꼴 === 'B') B수++
-    try { 진단세기(`|아이폰자리|진단-${꼴}-t${d.t}-h${d.h}-m${d.m}-c${d.c}-b${d.b}-f${d.f}-s${Math.round((window.screen && window.screen.height) || 0)}-${navigator.standalone ? '앱' : '웹'}`) } catch (e) { /* 없음 */ }
+    const 덧 = 꼴 === 'D' ? `-y${d.y}-k${d.k}-z${d.z}-p${d.p}` : ''
+    try { 진단세기(`|아이폰자리|진단-${꼴}-t${d.t}-h${d.h}-m${d.m}-c${d.c}-b${d.b}-f${d.f}${덧}-s${Math.round((window.screen && window.screen.height) || 0)}-${navigator.standalone ? '앱' : '웹'}`) } catch (e) { /* 없음 */ }
   }
   let 깨우는중 = false
   const 깨우기 = () => {
@@ -134,6 +145,16 @@ export function 켜기() {
       const tb = 탭바닥()
       return { t: vt, h: Math.round(vv.height || 0), m: Math.round(m), c: Math.round(document.documentElement.clientHeight || 0), b: tb < 0 ? -1 : tb - (켬 ? 지금 : 0), f: 쓰는중 ? 'I' : 틀 ? 'F' : 'N' }
     }
+    /* 🩺 G691 진단 D — 머리줄(맨 위에 붙음 · 공사연결 작은 띠가 매달림)이 보이는 곳 위로 0.9초 넘게 나가 있음
+       소장님 11-15 20:3x 「아래로 내리면 공사연결 띠가 사라져」 → 「또 이제 이상 없다」 — 크롬에선 안 생김 · 아이폰에서 그 순간 숫자를 남김
+       글자판이 정말 올라와 있을 때(커서 + 줄어든 높이)는 아이폰이 하는 대로라 뺌 · 바로잡는 중이어도 봄(바로잡기가 못 미친 꼴) · 숫자만 적고 아무것도 안 움직임
+       y 머리줄 바닥 · k 확대(×100) · z 바로잡은 만큼 · p 쪽(주소 첫 마디) */
+    const 머리 = 머리바닥()
+    if (머리 !== null && 머리 < 8 && !(쓰는중 && 줄음)) {
+      if (!숨음때) 숨음때 = t0
+      if (t0 - 숨음때 >= 900) 진단('D', { ...값(), y: 머리, k: Math.round((vv.scale || 1) * 100), z: 켬 ? 지금 : 0, p: 쪽글() })
+      else 다시봄(920 - (t0 - 숨음때))
+    } else 숨음때 = 0
     if (켬) {
       어긋때 = 0
       if (막음) { 풀기(); return }                                           // 글자판이 올라옴 · 손가락 확대 — 아이폰이 하는 대로
