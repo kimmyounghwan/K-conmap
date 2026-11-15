@@ -20,6 +20,7 @@ import { 나운영자 } from '../lib/운영자.js'
 import { Row } from '../tools/calcs.jsx'
 import { 세기, 예시본수 } from '../lib/받은수.jsx'
 import 잠금문의 from '../잠금문의.jsx'   // 📄 G669 잠근 도구 «문의»
+import { 예시자름, 예시끝, 받기대신문의, 열림띠, 손님보기켬 } from '../예시한도.jsx'   // 🧪 G690 손님 예시는 앞 3장까지 · 받기 자리는 문의 · 🔑 소장님 기기 띠
 import { 도면읽어오기, 오류글, 큰파일 } from '../도면판.jsx'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { 단위배율 } from '../lib/골조도면.js'
@@ -126,7 +127,9 @@ function 미리보기({ 장면, 고른방, on누름, 누름말 }) {
 
 export default function ColorPlan() {
   /* 🔒 씀 */
-  const [씀, set씀] = useState(() => isOpen())
+  const [씀원, set씀] = useState(() => isOpen())
+  const 손님보기 = 손님보기켬()   // 👀 G690 소장님 기기에서 «손님 화면으로 보기»(이 탭만 · 예시한도.jsx)
+  const 씀 = 씀원 && !손님보기
   const [잠금말, set잠금말] = useState('')
   const [열쇠말, set열쇠말] = useState('')
   const [열쇠틀림, set열쇠틀림] = useState(false)
@@ -238,7 +241,9 @@ export default function ColorPlan() {
     return l
   }, [D, 쪽방, 손쪽, 전체쪽])
   const [쪽번, set쪽번] = useState(0)
-  useEffect(() => { if (쪽번 >= 쪽목록.length) set쪽번(Math.max(0, 쪽목록.length - 1)) }, [쪽목록.length])   // eslint-disable-line react-hooks/exhaustive-deps
+  /* 🧪 G690 손님(씀 아님)은 피난 안내도 예시 앞 3장까지만 — 넘기기 · 그림 모두 보일쪽목록으로 */
+  const 보일쪽목록 = useMemo(() => 예시자름(쪽목록, !씀), [쪽목록, 씀])
+  useEffect(() => { if (쪽번 >= 보일쪽목록.length) set쪽번(Math.max(0, 보일쪽목록.length - 1)) }, [보일쪽목록.length])   // eslint-disable-line react-hooks/exhaustive-deps
 
   const 색설정 = useMemo(() => ({ ...색, 방바꿈, 날짜: 오늘() }), [색, 방바꿈])
   const 피설정 = useMemo(() => ({ ...피, 장비들, 출구들, 방바꿈 }), [피, 장비들, 출구들, 방바꿈])
@@ -251,10 +256,10 @@ export default function ColorPlan() {
     if (!D) return null
     try {
       if (탭 === 'color') return 컬러장면(D, 색설정)
-      const 쪽 = 쪽목록[쪽번] || 쪽목록[0] || { 현위치방: null }
+      const 쪽 = 보일쪽목록[쪽번] || 보일쪽목록[0] || { 현위치방: null }
       return 쪽장면(쪽)
     } catch (e) { console.error(e); return null }
-  }, [D, 탭, 색설정, 쪽목록, 쪽번, 쪽장면])
+  }, [D, 탭, 색설정, 보일쪽목록, 쪽번, 쪽장면])
   const 점검 = useMemo(() => (D && 탭 === 'evac' ? 기준점검(D, 길, 피설정) : []), [D, 탭, 길, 피설정])
 
   /* 누르기 */
@@ -357,13 +362,13 @@ export default function ColorPlan() {
             </details>
           </div>
         )}
+        <열림띠 열림={씀원} 손님보기={손님보기} />
         <div className="cpl-open">
           {Object.entries(예시들).map(([키, x]) => (
             <button key={키} type="button" className={'btn line sm' + (도면 && 도면.예시 === 키 ? ' on' : '')} style={{ width: 'auto' }} onClick={() => 예시열기(키)}>🧪 {x.이름}</button>
           ))}
-          <button type="button" className={'btn sm' + (씀 ? '' : ' sg-lockbtn')} style={{ width: 'auto' }} onClick={() => (씀 ? 파일칸.current && 파일칸.current.click() : 잠김('내 도면 넣기는'))}>
-            {씀 ? '📂 내 평면도 넣기 (DXF · DWG)' : '🔒 내 평면도 넣기'}
-          </button>
+          {/* 🧪 G690 손님에겐 «🔒 내 평면도 넣기» 를 안 보임 — 바로 위 잠금 상자의 문의 단추로 */}
+          {씀 && <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => 파일칸.current && 파일칸.current.click()}>📂 내 평면도 넣기 (DXF · DWG)</button>}
           <input ref={파일칸} type="file" accept=".dxf,.DXF,.dwg,.DWG" className="sr-only" tabIndex={-1} onChange={(e) => { 파일받기(e.target.files); e.target.value = '' }} />
         </div>
         {씀 && <끌어놓기판 글="평면도(DXF · DWG)를 놓으면 열립니다" 받기={(fs) => 파일받기(fs)} />}
@@ -417,16 +422,22 @@ export default function ColorPlan() {
                 <div className="sg-pager">
                   <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={쪽번 === 0} onClick={() => set쪽번(쪽번 - 1)}>◀</button>
                   <select value={쪽번} onChange={(e) => set쪽번(+e.target.value)}>
-                    {쪽목록.map((p, i) => <option key={i} value={i}>{i + 1} / {쪽목록.length} · {p.이름}</option>)}
+                    {보일쪽목록.map((p, i) => <option key={i} value={i}>{i + 1} / {쪽목록.length} · {p.이름}</option>)}
                   </select>
-                  <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={쪽번 >= 쪽목록.length - 1} onClick={() => set쪽번(쪽번 + 1)}>▶</button>
+                  <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={쪽번 >= 보일쪽목록.length - 1} onClick={() => set쪽번(쪽번 + 1)}>▶</button>
                 </div>
               )}
+              {!씀 && 탭 === 'evac' && <예시끝 전체={쪽목록.length} 단위="장" 무엇="피난 안내도" 도구="컬러 평면도 · 피난 안내도" 셈="컬러평면" />}
               {장면 ? <미리보기 장면={장면} 고른방={탭 === 'color' ? 고른방 : null} on누름={눌렀다} 누름말={누름말} /> : <div className="muted">그리는 중…</div>}
+              {/* 🧪 G690 손님에겐 «🔒 PDF · PNG · DXF» 단추 대신 문의 하나(소장님 「문의로 하라고 했잖아」) */}
               <div className="cpl-dl">
-                <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={!!내림} onClick={() => 받기('PDF')}>{씀 && !예시중 ? '📄' : '🔒'} PDF{탭 === 'evac' ? ` (${쪽목록.length}장)` : ''}</button>
-                <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!내림} onClick={() => 받기('PNG')}>{씀 && !예시중 ? '🖼' : '🔒'} PNG 300dpi</button>
-                <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!내림} onClick={() => 받기('DXF')}>{씀 && !예시중 ? '📐' : '🔒'} DXF (캐드)</button>
+                {!씀 ? <받기대신문의 도구="컬러 평면도 · 피난 안내도" 셈="컬러평면" 글="PDF · PNG · DXF 받기는 K-건설맵이 직접 해 드립니다(견본 먼저 · 최저가)" /> : (
+                  <>
+                    <button type="button" className="btn sm" style={{ width: 'auto' }} disabled={!!내림} onClick={() => 받기('PDF')}>{!예시중 ? '📄' : '🔒'} PDF{탭 === 'evac' ? ` (${쪽목록.length}장)` : ''}</button>
+                    <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!내림} onClick={() => 받기('PNG')}>{!예시중 ? '🖼' : '🔒'} PNG 300dpi</button>
+                    <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={!!내림} onClick={() => 받기('DXF')}>{!예시중 ? '📐' : '🔒'} DXF (캐드)</button>
+                  </>
+                )}
                 {내림 && <span className="muted">⏳ {내림} 만드는 중…</span>}
                 {씀 && 예시중 && <span className="muted" style={{ fontSize: 13 }}>🧪 예시 도면은 보기만 — 받기는 내 도면을 넣은 뒤에 됩니다.</span>}
                 <span className="muted" style={{ marginLeft: 'auto' }}>{장면 ? `${장면.종이} · 축척 1/${장면.축척}` : ''}</span>

@@ -8057,6 +8057,22 @@ details.sg-more-sm > summary::before { top: 5px; left: 10px; }
 }
 :root[data-theme="dark"] .sg-lock { background: #2b2614; border-color: #6b5a2a; color: #f1e3b5; }
 :root[data-theme="dark"] .sg-locked { background: transparent; }
+/* 🧪 G690 잠근 도구 — 손님 예시 «앞 3쪽까지» 알림 · 받기 자리 문의 단추 · 🔑 소장님 기기 띠(web/src/예시한도.jsx) */
+.kcm-예시끝 { margin-top: 8px; line-height: 1.7; }
+.kcm-받기문의 { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; max-width: 100%; }
+.kcm-받기문의 .muted { font-size: 12.5px; }
+.kcm-열림띠 { margin: 8px 0 0; padding: 6px 10px; border: 1px dashed #8fb3e3; border-radius: 8px; background: #f2f7ff; color: #1f3657; font-size: 12.5px; line-height: 1.6; word-break: keep-all; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .kcm-열림띠 { background: #15233a; border-color: #3d5f8f; color: #cfe0f7; }
+}
+:root[data-theme="dark"] .kcm-열림띠 { background: #15233a; border-color: #3d5f8f; color: #cfe0f7; }
+.kcm-열림띠 .kcm-열림단추 { width: auto; margin: 2px 0 0; padding: 2px 10px; font-size: 12.5px; min-height: 0; vertical-align: middle; }
+.kcm-손님보기 { border-style: solid; border-color: #e0a54a; background: #fff6e5; color: #4a3410; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .kcm-손님보기 { background: #2e2410; border-color: #8a6a2a; color: #f2dfb3; }
+}
+:root[data-theme="dark"] .kcm-손님보기 { background: #2e2410; border-color: #8a6a2a; color: #f2dfb3; }
+@media print { .kcm-열림띠, .kcm-예시끝 { display: none !important; } }
 .sg-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .sg-chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; font-size: 13px; font-weight: 700; cursor: pointer; background: var(--surface); }
 .sg-chip.on { border-color: var(--accent-line); background: var(--accent-soft); }

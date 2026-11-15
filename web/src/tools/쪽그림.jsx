@@ -49,8 +49,8 @@ export function 쪽그림({ 쪽, 폭px, 그림들 = new Map() }) {
   )
 }
 
-/** 쪽 넘기기 + 그림 — 끝 쪽까지 넘기면 한 번 on끝() */
-export default function 쪽넘기기({ 쪽들, 그림들, on끝, 쪽번: 밖쪽번, set쪽번: 밖set }) {
+/** 쪽 넘기기 + 그림 — 끝 쪽까지 넘기면 한 번 on끝() · 전체 = 고르기 글의 «/ n쪽»(G690 손님 예시는 앞 3쪽만 넘겨 받고 한 벌 쪽 수를 보임) */
+export default function 쪽넘기기({ 쪽들, 그림들, on끝, 쪽번: 밖쪽번, set쪽번: 밖set, 전체 }) {
   const [안쪽번, 안set] = useState(0)
   const 쪽번 = 밖쪽번 ?? 안쪽번
   const set쪽번 = 밖set || 안set
@@ -73,7 +73,7 @@ export default function 쪽넘기기({ 쪽들, 그림들, on끝, 쪽번: 밖쪽�
       <div className="sg-pager">
         <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={쪽번 === 0} onClick={() => set쪽번(쪽번 - 1)}>◀</button>
         <select value={쪽번} onChange={(e) => set쪽번(+e.target.value)}>
-          {쪽들.map((p, i) => <option key={i} value={i}>{i + 1} / {쪽들.length}쪽{p.번호 ? ` (- ${p.번호} -)` : ''}{p.제목 ? ' · ' + p.제목 : ''}</option>)}
+          {쪽들.map((p, i) => <option key={i} value={i}>{i + 1} / {전체 || 쪽들.length}쪽{p.번호 ? ` (- ${p.번호} -)` : ''}{p.제목 ? ' · ' + p.제목 : ''}</option>)}
         </select>
         <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={쪽번 >= 쪽들.length - 1} onClick={() => set쪽번(쪽번 + 1)}>▶</button>
       </div>

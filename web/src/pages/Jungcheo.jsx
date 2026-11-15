@@ -16,6 +16,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { 세기, 예시본수 } from '../lib/받은수.jsx'
 import 잠금문의 from '../잠금문의.jsx'   // 📄 G669 잠근 도구 «문의»
+import { 예시자름, 예시끝, 받기대신문의, 열림띠, 손님보기켬 } from '../예시한도.jsx'   // 🧪 G690 손님 예시는 앞 3쪽까지 · 받기 자리는 문의 · 🔑 소장님 기기 띠
 import { isOpen, tryOpen } from '../lib/gate.js'
 import { use보기만 } from '../lib/보기만.js'   // 🧪 G679 예시는 보기만(Ctrl+P 안내 한 줄 · 예시 판 복사 막음)
 import { 나운영자 } from '../lib/운영자.js'
@@ -42,7 +43,9 @@ const 날짧 = (s) => { const [y, m, d] = String(s || '').split('-'); return y &
 
 export default function Jungcheo() {
   /* 🔒 씀 */
-  const [씀, set씀] = useState(() => isOpen())
+  const [씀원, set씀] = useState(() => isOpen())
+  const 손님보기 = 손님보기켬()   // 👀 G690 소장님 기기에서 «손님 화면으로 보기»(이 탭만 · 예시한도.jsx)
+  const 씀 = 씀원 && !손님보기
   const [예시봄, set예시봄] = useState(false)
   use보기만(예시봄, '중처법')   // 🧪 G679 예시 회사 서류는 보기만(Ctrl+P 안내 한 줄 · 쪽 복사 막음)
   const [잠금말, set잠금말] = useState('')
@@ -112,12 +115,14 @@ export default function Jungcheo() {
     } catch (e) { set오류(`${이름} 만들기 실패 — ${e?.message || e}`) } finally { set내림중('') }
   }
 
+  /* 🧪 G690 손님(씀 아님)은 예시 앞 3쪽까지만 — 넘기기 · 서류로 가기 · 그림 모두 보일쪽들로(나머지 쪽은 그리지 않음) */
+  const 보일쪽들 = useMemo(() => 예시자름(쪽들, !씀), [쪽들, 씀])
   /* 서류로 가기 — 그 서류 첫 쪽 */
   const 서류쪽 = useMemo(() => {
     const m = {}
-    쪽들.forEach((p, i) => { if (p.제목 && !(p.제목 in m)) m[p.제목] = i })
+    보일쪽들.forEach((p, i) => { if (p.제목 && !(p.제목 in m)) m[p.제목] = i })
     return m
-  }, [쪽들])
+  }, [보일쪽들])
 
   return (
     <>
@@ -156,6 +161,7 @@ export default function Jungcheo() {
             <span className="muted" style={{ alignSelf: 'center' }}>{예시봄 ? '🧪 예시(지어낸 회사)를 보고 있습니다 — 고치려면 우리 회사로 돌아가십시오.' : '💾 적은 것은 이 브라우저에 저절로 남습니다.'}</span>
           </div>
         )}
+        <열림띠 열림={씀원} 손님보기={손님보기} />
         {잠금말 && <div className="cwarn" style={{ marginTop: 8 }}>{잠금말}</div>}
       </div>
 
@@ -348,10 +354,10 @@ export default function Jungcheo() {
 
       {탭 === 'doc' && (
         <div className="card">
-          <div className="sec-title">③ 서류 한 벌 {쪽들.length > 0 && <span className="muted" style={{ fontWeight: 500 }}>— {고른.length}가지 · {쪽들.length}쪽</span>}</div>
+          <div className="sec-title">③ 서류 한 벌 {쪽들.length > 0 && <span className="muted" style={{ fontWeight: 500 }}>— {고른.length}가지 · {쪽들.length}쪽{!씀 && 예시봄 ? ` · 🧪 예시 앞 ${보일쪽들.length}쪽` : ''}</span>}</div>
           {!씀 && !예시봄 ? (
             <>
-              <p className="muted" style={{ marginTop: 0 }}>🧪 예시 회사(지어낸 회사 · 현장 셋 · 협력업체 셋)로 22가지 서류를 쪽마다 넘겨 보실 수 있습니다.</p>
+              <p className="muted" style={{ marginTop: 0 }}>🧪 예시 회사(지어낸 회사 · 현장 셋 · 협력업체 셋)로 만든 22가지 서류 한 벌 중 <b>앞 3쪽</b>을 보실 수 있습니다(보기만).</p>
               <button type="button" className="btn" style={{ width: 'auto' }} onClick={예시}>🧪 예시로 미리 보기</button>
             </>
           ) : (
@@ -374,17 +380,20 @@ export default function Jungcheo() {
                   {Object.entries(서류쪽).map(([t, i]) => <option key={t} value={i}>{t}</option>)}
                 </select></label>
               </div>
+              {/* 🧪 G690 손님에겐 «🔒 PDF · 한글 · 워드 · 엑셀» 단추 대신 문의 하나(소장님 「문의로 하라고 했잖아」) */}
               <div className="sg-dl" style={{ marginTop: 8 }}>
-                {Object.entries(형식표).map(([k, [이름]]) => (
-                  <button key={k} type="button" className={씀 && !예시봄 ? (k === 'pdf' ? 'btn' : 'btn line') : 'btn line sg-lockbtn'} style={{ width: 'auto' }} disabled={씀 && !예시봄 && (!쪽들.length || !!내림중)} onClick={() => 내려받기(k)}>
-                    {내림중 === 이름 ? '⏳ 만드는 중…' : `${씀 && !예시봄 ? '⬇' : '🔒'} ${이름}`}
-                  </button>
-                ))}
+                {!씀 ? <받기대신문의 도구="중대재해 안전보건관리체계 한 벌" 셈="중처법" 글="PDF · 한글 · 워드 · 엑셀 받기는 K-건설맵이 직접 작성해 드립니다(견본 먼저 · 최저가)" />
+                  : Object.entries(형식표).map(([k, [이름]]) => (
+                    <button key={k} type="button" className={!예시봄 ? (k === 'pdf' ? 'btn' : 'btn line') : 'btn line sg-lockbtn'} style={{ width: 'auto' }} disabled={!예시봄 && (!쪽들.length || !!내림중)} onClick={() => 내려받기(k)}>
+                      {내림중 === 이름 ? '⏳ 만드는 중…' : `${!예시봄 ? '⬇' : '🔒'} ${이름}`}
+                    </button>
+                  ))}
               </div>
-              {(!씀 || 예시봄) && <p className="muted" style={{ margin: '6px 0 0' }}>🧪 예시(지어낸 회사)입니다. {씀 ? '받으려면 «우리 회사로 돌아가기» 를 누르십시오.' : '받기는 K-건설맵에 문의해 주세요 — 화면에서 쪽마다 넘겨 보십시오.'}</p>}
+              {(!씀 || 예시봄) && <p className="muted" style={{ margin: '6px 0 0' }}>🧪 예시(지어낸 회사)입니다. {씀 ? '받으려면 «우리 회사로 돌아가기» 를 누르십시오.' : `앞 ${보일쪽들.length}쪽을 넘겨 보십시오(보기만).`}</p>}
               {잠금말 && <div className="cwarn" style={{ marginTop: 6 }}>{잠금말}</div>}
               {오류 && <div className="cwarn" style={{ marginTop: 6 }}>⚠️ {오류}</div>}
-              <쪽넘기기 쪽들={쪽들} 쪽번={쪽번} set쪽번={set쪽번} on끝={() => { if (!씀) 세기('|중처법|예시끝') }} />
+              <쪽넘기기 쪽들={보일쪽들} 전체={쪽들.length} 쪽번={쪽번} set쪽번={set쪽번} on끝={() => { if (!씀) 세기('|중처법|예시끝') }} />
+              {!씀 && <예시끝 전체={쪽들.length} 무엇="중대재해 안전보건관리체계 서류 한 벌" 도구="중대재해 안전보건관리체계 한 벌" 셈="중처법" />}
             </>
           )}
           <p className="muted" style={{ marginTop: 8 }}>

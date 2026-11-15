@@ -1,7 +1,7 @@
 // 🧪 유해위험방지계획서 한 벌 화면(/tools/yuhae) — G639 (2026-11-10)
 //   화면 빌드를 띄운 뒤  B=http://127.0.0.1:4996 node tools/시험_유해계획화면.mjs [PC|폰|모두]
 //   ① 잠긴 브라우저(이용자): 🔒 안내 · 적는 칸 없음 · 🧪 예시 → 300쪽 넘는 미리보기 · 표지 · 제출서 · 대조표 · 쪽 넘김 · 차례로 가기 ·
-//      마지막 쪽(서식)까지 넘겨 볼 수 있음(소장님 「예시는 처음부터 끝까지 이용자가 볼 수 있게 해줘」) · 받기 누르면 잠금 말 · 받기 안 됨
+//      앞 3쪽까지만(G690 · 11-15 소장님 「예시도 2페이지에서 3페이지만 볼 수 있게 해줘」 — 전엔 «처음부터 끝까지») · 받기 자리는 문의 단추 · 받기 안 됨
 //   ② 소장님 브라우저(kcm_op=1): 적는 칸 · 🧪 예시로 채우기 → 판정 줄 · 작성대상 끄기 → 쪽 줄어듦 · 그림 넣기(가짜 PNG) · PDF 받기(이 시험 브라우저 안에서만)
 //   ③ 화면 오류 없음 · 폰 가로 넘침 없음 · 안전관리계획서 화면에서 이 화면으로 가는 길
 import { createRequire } from 'module'
@@ -41,39 +41,33 @@ for (const 기기 of 기기들) {
       봐(!글.includes('① 공사 · 사람'), `${누구} 적는 칸 없음`)
       await A.locator('button:has-text("예시로 미리 보기")').click()
       await A.waitForSelector('svg.sg-page', { timeout: 60000 })
-      const n = await 쪽수()
-      봐(n >= 300, `${누구} 예시 ${n}쪽(300 넘게)`, n)
+      /* 🧪 G690 (11-15 소장님 「예시도 2페이지에서 3페이지만 볼 수 있게 해줘」 — G639 «처음부터 끝까지» 를 바꿈) — 손님 예시는 앞 3쪽까지 */
+      const n = await A.evaluate(() => +((document.body.innerText.match(/한 벌 (\d+)쪽/) || [])[1] || 0))
+      봐(n >= 300, `${누구} 예시 한 벌 ${n}쪽(300 넘게) — 머리 «🧪 예시 3쪽 (한 벌 ${n}쪽)»`, n)
       const 표지 = await 쪽글(A)
       봐(표지.includes('가상 한빛 복합문화센터 신축공사') && /유 해 위 험 방 지 계 획 서/.test(표지), `${누구} 표지(가상 공사명)`)
       await A.locator('.sg-pager button:has-text("▶")').click()
       await A.waitForTimeout(400)
       봐((await A.locator('.sg-pager select').inputValue()) === '1' && (await 쪽글(A)).includes('별지 제17호서식'), `${누구} ▶ 다음 쪽 — 별지 제17호서식 제출서`)
-      /* 앞쪽 — 첨부서류 대조표 */
-      const 대조 = await A.evaluate(() => { const s = document.querySelector('.sg-pager select'); return s ? s.options.length : 0 })
-      let 본대조 = false
-      for (let i = 2; i < Math.min(12, 대조); i++) {
-        await A.locator('.sg-pager select').selectOption(String(i)); await A.waitForTimeout(250)
-        if ((await 쪽글(A)).includes('첨부서류 대조표')) { 본대조 = true; break }
-      }
-      봐(본대조, `${누구} 앞쪽 «첨부서류 대조표»`)
-      /* 차례로 가기 — «2. 산업안전보건관리비 사용계획서» */
-      const 값 = await A.locator('.sp-toc select option', { hasText: '2. 산업안전보건관리비 사용계획서' }).first().getAttribute('value')
-      await A.locator('.sp-toc select').selectOption(값)
-      await A.waitForTimeout(500)
-      const 지금 = await A.locator('.sg-pager select').inputValue()
-      봐(+지금 > 20 && /산업안전보건관리비 사용계획서/.test(await 쪽글(A)), `${누구} 차례로 가기 → ${+지금 + 1}번째 쪽(산안비)`, 지금)
-      /* 끝까지 — 마지막 쪽(별첨 서식) */
-      await A.locator('.sg-pager select').selectOption(String(n - 1))
-      await A.waitForTimeout(500)
-      const 끝 = await 쪽글(A)
-      봐(/서식 \d+\./.test(끝) && (await A.locator('.sg-pager button:has-text("▶")').isDisabled()), `${누구} 마지막 쪽(${n}쪽)까지 넘겨 봄 — 서식`)
-      /* 받기 누르면 잠금 말 · 내려받기 없음 */
+      const 고르기 = await A.evaluate(() => [...document.querySelectorAll('.sg-pager select option')].map((o) => o.textContent))
+      봐(고르기.length === 3 && new RegExp('^3 / ' + n + '쪽').test(고르기[2]), `${누구} 넘기기 고르기는 3쪽까지(«${고르기[2] || ''}»)`, 고르기)
+      await A.locator('.sg-pager select').selectOption('2')
+      await A.waitForTimeout(400)
+      봐(await A.locator('.sg-pager button:has-text("▶")').isDisabled(), `${누구} 3쪽에서 ▶ 막힘(마지막 쪽 · 서식은 안 보임)`)
+      /* 차례로 가기 — 4쪽부터는 🔒(«2. 산업안전보건관리비 사용계획서» 도 잠김) */
+      const 차례 = await A.evaluate(() => {
+        const o = [...document.querySelectorAll('.sp-toc select option')].filter((x) => x.value !== '' || x.disabled)
+        const 산안 = [...document.querySelectorAll('.sp-toc select option')].find((x) => /2\. 산업안전보건관리비 사용계획서/.test(x.textContent))
+        return { 열림: o.filter((x) => !x.disabled).length, 잠김: o.filter((x) => x.disabled).length, 산안잠김: !!(산안 && 산안.disabled && /🔒/.test(산안.textContent)) }
+      })
+      봐(차례.열림 <= 3 && 차례.잠김 > 10 && 차례.산안잠김, `${누구} 차례로 가기 — 4쪽부터 🔒(열림 ${차례.열림} · 잠김 ${차례.잠김})`, 차례)
+      const 끝말 = await A.locator('.kcm-예시끝').innerText().catch(() => '')
+      봐(/예시는 앞 3쪽까지 보입니다/.test(끝말) && /유해위험방지계획서 한 벌 \d{3}쪽 전부/.test(끝말) && (await A.locator('.kcm-예시끝 a[href^="/contact?k=cn"]').count()) === 1, `${누구} «🔒 예시는 앞 3쪽까지» + 문의 단추`, 끝말)
+      /* 받기 자리 = 문의 단추 · 내려받기 없음 */
       let 받음 = false
       A.on('download', () => { 받음 = true })
-      await A.locator('button:has-text("🔒 PDF")').click()
-      await A.waitForTimeout(800)
-      const 글2 = await A.locator('body').innerText()
-      봐(글2.includes('PDF 받기는 K-건설맵에 문의해 주세요') && !받음, `${누구} 잠긴 받기 → 안내만`)
+      const 받기단추 = await A.evaluate(() => [...document.querySelectorAll('.sg-dl button')].map((b) => b.innerText.trim()))
+      봐(받기단추.length === 0 && (await A.locator('.sg-dl a[href^="/contact?k=cn"]').count()) === 1 && !받음, `${누구} 받기 자리 — 🔒 받기 단추 0 · 문의 단추 1(G690)`, 받기단추)
       봐(await 넘침() <= 1, `${누구} 가로 넘침 없음`, await 넘침())
     } else {
       const 글 = await A.locator('body').innerText()

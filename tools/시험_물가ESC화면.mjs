@@ -1,6 +1,6 @@
 /**
  * 📈 G657 물가변동 ESC 화면 시험 — 구운 사이트(dist)를 띄운 뒤: node tools/시험_물가ESC화면.mjs [주소=http://127.0.0.1:4987]
- *   ① 이용자(폰 390 · PC 1280): 잠금 상자 · 🧪 예시 산출서(5.54% · 28,454,000원) · 탭 여섯 · 🔒 받기 눌러도 받기 0 · 🔒 넣기 · 가로 넘침 없음 · 오류 0
+ *   ① 이용자(폰 390 · PC 1280): 잠금 상자 · 🧪 예시 산출서(5.54% · 28,454,000원) · 탭 앞 3장만(G690) · 받기 단추 없음(문의) · 🔒 넣기 · 가로 넘침 없음 · 오류 0
  *   ② 소장님 브라우저(kcm_op · 폰 390): 가상 ESC 엑셀 넣기 → 같은 숫자 · 📗 받기 → 다시 읽어 같은 숫자 · 선금 0 으로 고치면 공제 0
  *      · 🧪 예시로 바꾸면 받기 🔒(받기 0 · G650) · 📄 빈 틀 받기 → 다시 읽으면 품목 0
  *   가상 자료만(지어낸 공사) · 인터넷 안 부름(파이어베이스 · 광고 막음)
@@ -73,17 +73,21 @@ for (const w of [390, 1280]) {
   ok('예시 요약 — 조정률 5.54% · 조정금액 · 선금 공제 · 적용금액 28,454,000원', /5\.54%/.test(요약) && /40,621,000원/.test(요약) && /12,167,000원/.test(요약) && /28,454,000원/.test(요약), 요약)
   ok('예시 — «가상» 딱지 · 보기만 안내', /가상/.test(await 글(p, '.esc-name')) && /보기만 · 받기 · 인쇄 없음/.test(await 글(p, '.esc-card .sec-title')))
   ok('요건 ✓ 경과 281일 · 조정률 3% 이상', /✓ 경과 281일/.test(await 글(p, '.esc-chips')) && /✓ 조정률 5\.54%/.test(await 글(p, '.esc-chips')))
+  /* 🧪 G690 (11-15 소장님 「예시도 2페이지에서 3페이지만 볼 수 있게 해줘」) — 손님 예시는 앞 3장(조정금액 · 조정율 산출표 · 품목별 등락폭) */
+  const 보인탭 = await p.$$eval('.esc-tab', (es) => es.map((e) => e.innerText.trim()))
+  ok('손님 예시 탭은 앞 3장(조정금액 · 조정율 산출표 · 품목별 등락폭)', 보인탭.join('|') === 탭들.slice(0, 3).join('|'), 보인탭)
   const 줄수 = []
-  for (const t of 탭들) {
+  for (const t of 탭들.slice(0, 3)) {
     await p.locator(`.esc-tab:has-text("${t}")`).click(); await 쉬어(150)
     줄수.push(await p.locator('.esc-tbl table tbody tr').count())
   }
-  ok('탭 여섯 모두 표가 나옴(줄 수)', 줄수.every((x) => x > 5), 줄수)
+  ok('탭 셋 모두 표가 나옴(줄 수)', 줄수.every((x) => x > 5), 줄수)
   ok('품목 탭 — 22줄 + 머리 6 + 합계', 줄수[2] === 29, 줄수[2])
   await p.locator('.esc-tab:has-text("조정율 산출표")').click(); await 쉬어(150)
   ok('조정율 표 마지막 줄 — 물가변동 조정율 5.54%', /물가변동 조정율[\s\S]*5\.54%/.test(await 글(p, '.esc-tbl')))
-  await p.locator('button:has-text("🔒 ESC 엑셀 받기")').click(); await 쉬어(400)
-  ok('🔒 받기 눌러도 받기 0 · «예시는 보기만» 알림', (await 흔적(p)).length === 0 && /예시는 보기만 됩니다/.test(await 글(p, '.esc-dl')), await 흔적(p))
+  const 끝말 = await 글(p, '.kcm-예시끝')
+  ok('«🔒 예시는 앞 3장까지 — ESC 산출서 6장 전부는 문의» + 문의 단추', /예시는 앞 3장까지 보입니다/.test(끝말) && /ESC 산출서 6장 전부/.test(끝말) && await p.locator('.kcm-예시끝 a[href^="/contact?k=cn"]').count() === 1, 끝말)
+  ok('받기 자리 — «🔒 ESC 엑셀 받기» 단추 없음(손님 · G690) · 받기 0', await p.locator('button:has-text("ESC 엑셀 받기")').count() === 0 && await p.locator('.esc-dl').count() === 0 && (await 흔적(p)).length === 0, await 흔적(p))
   ok('가로 넘침 없음(화면 전체)', (await 넘침(p)) <= 1, await 넘침(p))
   ok('오류 0', 오류.length === 0, 오류)
   await ctx.close()

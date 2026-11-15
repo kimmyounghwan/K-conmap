@@ -15,6 +15,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { 세기, 예시본수 } from '../lib/받은수.jsx'
 import 잠금문의 from '../잠금문의.jsx'   // 📄 G669 잠근 도구 «문의»
+import { 예시자름, 예시끝, 열림띠, 손님보기켬 } from '../예시한도.jsx'   // 🧪 G690 손님 예시는 앞 3장(조정금액 · 조정율 · 품목)까지 · 받기 자리는 문의 · 🔑 소장님 기기 띠
 import { isOpen, tryOpen } from '../lib/gate.js'
 import { use보기만 } from '../lib/보기만.js'   // 🧪 G679 예시는 보기만(Ctrl+P 안내 한 줄 · 예시 판 복사 막음)
 import { 나운영자 } from '../lib/운영자.js'
@@ -42,7 +43,9 @@ function 고친입력(입, 고) {
 }
 
 export default function Esc() {
-  const [씀, set씀] = useState(() => isOpen())
+  const [씀원, set씀] = useState(() => isOpen())
+  const 손님보기 = 손님보기켬()   // 👀 G690 소장님 기기에서 «손님 화면으로 보기»(이 탭만 · 예시한도.jsx)
+  const 씀 = 씀원 && !손님보기
   const [열쇠말, set열쇠말] = useState('')
   const [열쇠틀림, set열쇠틀림] = useState(false)
   const [잠금말, set잠금말] = useState('')
@@ -173,6 +176,7 @@ export default function Esc() {
             {' '}<예시본수 열쇠="|물가ESC|예시" />
           </div>
         )}
+        <열림띠 열림={씀원} 손님보기={손님보기} />
         {잠금말 && <div className="cwarn" style={{ marginTop: 8 }}>{잠금말}</div>}
         {바쁨 && <div className="muted" style={{ marginTop: 8 }}>⏳ {바쁨}</div>}
         {오류 && <div className="cwarn" style={{ marginTop: 8 }}>⚠️ {오류}</div>}
@@ -222,9 +226,12 @@ export default function Esc() {
 
 /* ═══════════════ 산출서 화면(예시 · 내 것 같은 꼴) ═══════════════ */
 function 산출서({ 자료, 예시, 씀, 머리, 고침, set고침, 입력, 엑셀받기 }) {
-  const [탭, set탭] = useState('금액')
+  const [탭원, set탭] = useState('금액')
   const [받기말, set받기말] = useState('')
   use보기만(!!예시, '물가ESC')   // 🧪 G679 예시 산출서는 보기만(Ctrl+P 안내 한 줄 · 표 복사 막음)
+  /* 🧪 G690 손님(씀 아님) 예시는 앞 3장(조정금액 · 조정율 산출표 · 품목별 등락폭)까지 — 나머지 장은 탭도 표도 안 그림 */
+  const 보일탭 = 예시자름(탭들, !씀)
+  const 탭 = 보일탭.some(([k]) => k === 탭원) ? 탭원 : 보일탭[0][0]
   const 금 = 자료.금액, 날 = 자료.날
   const 감액 = 자료.조정률 < 0
   return (
@@ -285,7 +292,7 @@ function 산출서({ 자료, 예시, 씀, 머리, 고침, set고침, 입력, 엑
 
       <div className="esc-swipe muted">↔ 표는 옆으로 밀어 보십시오</div>
       <div className="esc-tabs" role="tablist">
-        {탭들.map(([k, 이름]) => (
+        {보일탭.map(([k, 이름]) => (
           <button key={k} type="button" role="tab" aria-selected={탭 === k} className={'esc-tab' + (탭 === k ? ' on' : '')} onClick={() => set탭(k)}>{이름}</button>
         ))}
       </div>
@@ -297,16 +304,20 @@ function 산출서({ 자료, 예시, 씀, 머리, 고침, set고침, 입력, 엑
         {탭 === '공정' && <공정표 자료={자료} />}
         {탭 === '선금' && <선금표 자료={자료} />}
       </div>
+      {!씀 && <예시끝 전체={탭들.length} 단위="장" 무엇="ESC 산출서" 붙임={`(${보일탭.map(([, 이름]) => 이름).join(' · ')})`} 도구="물가변동 ESC 산출서" 셈="물가ESC" />}
 
-      <div className="esc-dl">
-        <button type="button" className={'btn sm' + (예시 || !씀 ? ' line' : '')} style={{ width: 'auto' }} onClick={() => set받기말(엑셀받기() === false ? '🔒 예시는 보기만 됩니다 — 받기는 내 ESC 엑셀을 넣은 뒤에 됩니다.' : '')}>
-          {예시 || !씀 ? '🔒 ESC 엑셀 받기' : '📗 ESC 엑셀 받기 (견본 시트 차례 · 수식)'}
-        </button>
-        <span className="muted" style={{ fontSize: 12.5 }}>
-          {예시 ? '예시는 보기만 됩니다.' : '입력 · 2 조정금액 · 조정율 · 4 품목 · 5 적용대가 · 6 공정 · 12_4 선금 — 노란 칸을 고치면 엑셀이 다시 셈합니다.'}
-        </span>
-        {받기말 && <div className="cwarn esc-dl-note">{받기말}</div>}
-      </div>
+      {/* 🧪 G690 손님에겐 «🔒 ESC 엑셀 받기» 단추를 안 보임 — 바로 위 «🔒 예시는 앞 3장까지 … 문의» 가 받기 자리(소장님 「문의로 하라고 했잖아」) */}
+      {씀 && (
+        <div className="esc-dl">
+          <button type="button" className={'btn sm' + (예시 ? ' line' : '')} style={{ width: 'auto' }} onClick={() => set받기말(엑셀받기() === false ? '🔒 예시는 보기만 됩니다 — 받기는 내 ESC 엑셀을 넣은 뒤에 됩니다.' : '')}>
+            {예시 ? '🔒 ESC 엑셀 받기' : '📗 ESC 엑셀 받기 (견본 시트 차례 · 수식)'}
+          </button>
+          <span className="muted" style={{ fontSize: 12.5 }}>
+            {예시 ? '예시는 보기만 됩니다.' : '입력 · 2 조정금액 · 조정율 · 4 품목 · 5 적용대가 · 6 공정 · 12_4 선금 — 노란 칸을 고치면 엑셀이 다시 셈합니다.'}
+          </span>
+          {받기말 && <div className="cwarn esc-dl-note">{받기말}</div>}
+        </div>
+      )}
     </div>
   )
 }

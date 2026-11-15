@@ -1,7 +1,7 @@
 /**
  * 🔒 공사서류 원클릭 잠금 화면 시험 · G403 (2026-10-25) — 소장님 「공사서류 한벌도 예시만 보게 해줘. 잠가」
  *   4998 에 화면 빌드를 얹은 뒤  node tools/시험_원클릭잠금화면.mjs   (B=주소)
- *   남(열쇠말 없음): «준비 중» 띠 · 🧪 예시 칸(○○) · 칸 고치기 · 받기 잠김(받기 없음) · 서류 고르기 · ③ 화면에서 보기는 됨 · 이 기기에 적어 둔 값은 안 지움
+ *   남(열쇠말 없음): 🔒 문의 띠 · 🧪 예시 칸(○○) · 칸 고치기 잠김 · 받기 자리는 문의 단추(G690) · 서류 고르기 없음 · ③ 예시 서류 3가지만(G690) · 이 기기에 적어 둔 값은 안 지움
  *   열쇠말을 연 브라우저: 띠 없음 · 적어 둔 값 그대로 · 칸 고치기 됨
  *   🧪 G679(11-14) 남의 ③ 예시는 보기만 — 📄 PDF · 🖨 인쇄 단추 없음 · html.kcm-보기만 / 열쇠말 브라우저는 안 걸림
  */
@@ -33,24 +33,21 @@ for (const [기기, vp] of [['PC', { width: 1280, height: 900 }], ['폰', { widt
   const 공사명2 = await p.$eval('#wc-공사명', (e) => e.value)
   const 말 = await p.$eval('.wc-go .cwarn', (e) => e.textContent).catch(() => '')
   봐(공사명2 === 공사명 && /칸 채우기는 K-건설맵에 문의해 주세요/.test(말), `${기기} 칸 고치기 잠김(그대로 · «${말.slice(0, 30)}…»)`, 공사명2)
-  const 받기 = await p.$('.wc-go .btn.primary')
-  await 받기.click()
-  await p.waitForTimeout(800)
-  const 말2 = await p.$eval('.wc-go .cwarn', (e) => e.textContent).catch(() => '')
-  봐(받음 === 0 && /엑셀 받기는 K-건설맵에 문의해 주세요/.test(말2) && /🔒/.test(await 받기.textContent()), `${기기} ⬇ 엑셀 받기 🔒 — 받은 파일 0`, [받음, 말2])
+  /* 🧪 G690 (11-15 소장님 「공사서류 원클릭 엑셀 받기 되는데???」 · 「문의로 하라고 했잖아」) — 손님 받기 자리는 문의 단추(⬇ 엑셀로 받기 🔒 단추 없음) */
+  const 받기자리 = await p.evaluate(() => { const c = document.querySelector('.wc-go'); return { 단추: [...c.querySelectorAll('button')].map((b) => b.innerText.trim()), 문의: c.querySelectorAll('a[href^="/contact?k=cn"]').length, 글: c.innerText } })
+  봐(받기자리.단추.length === 0 && 받기자리.문의 === 1 && !/엑셀로 받기/.test(받기자리.글) && 받음 === 0, `${기기} 받기 자리 — «⬇ 엑셀로 받기» 단추 없음 · 📄 작성대행 · 견적 문의 1 · 받은 파일 0`, 받기자리)
   봐(!(await p.$('.nm-sites')) && !(await p.$('.bk[data-ns="wc"]')) && !(await p.$('text=코드 만들기')), `${기기} 현장 나누기 · 이어 쓰기 칸 · «코드 만들기» 안내 안 보임`)
-  /* 서류 고르기 · 화면에서 보기는 됨 */
-  await p.click('text=모두 끄기')
-  await p.waitForTimeout(150)
-  const 끔 = await p.$$eval('.wc-doc input:checked', (es) => es.length)
-  await p.click('text=전부')
-  await p.waitForTimeout(150)
-  const 켬 = await p.$$eval('.wc-doc input:checked', (es) => es.length)
-  봐(끔 === 0 && 켬 >= 20, `${기기} 서류 고르기는 됨(끔 ${끔} · 전부 ${켬})`)
-  await p.click('button:has-text("화면에서 보기")')
-  await p.waitForFunction(() => /○○동 ○○시설 개보수공사/.test(document.body.innerText.split('③')[2] || document.body.innerText), null, { timeout: 30000 }).catch(() => {})
+  /* 🧪 G690 손님은 서류 고르기 없음 — 예시는 늘 서류 3가지(착공신고서 · 기성검사 요청서 · 준공신고서) */
+  봐(!(await p.$('text=② 서류 고르기')) && (await p.$$('.wc-doc')).length === 0, `${기기} ② 서류 고르기 안 보임(예시는 늘 3가지)`)
+  await p.click('button:has-text("예시 서류 3가지 화면에서 보기")')
+  await p.waitForSelector('.xv-장들', { timeout: 30000 }).catch(() => {})
+  await p.waitForTimeout(800)
+  const 장 = await p.$$eval('.xv-장들 button', (es) => es.map((e) => e.innerText.trim()))
+  봐(장.join('|') === '착공신고서|기성검사 요청서|준공신고서', `${기기} ③ 예시 서류 3가지만(${장.join(' · ')})`, 장)
   const 보임 = await p.evaluate(() => { const c = [...document.querySelectorAll('.card')].find((x) => /③ 화면에서 보(고|기)/.test(x.textContent)); return c ? c.innerText.length : 0 })
-  봐(보임 > 400, `${기기} ③ 화면에서 보기 — 예시 서류가 그려짐(글 ${보임}자)`)
+  봐(보임 > 400 && /○○동 ○○시설 개보수공사/.test(await p.evaluate(() => document.body.innerText)), `${기기} ③ 화면에서 보기 — 예시 서류가 그려짐(글 ${보임}자)`)
+  const 끝말 = await p.locator('.kcm-예시끝').innerText().catch(() => '')
+  봐(/예시는 3가지까지 보입니다/.test(끝말) && /공사서류 34가지 전부/.test(끝말), `${기기} «🔒 예시는 3가지까지 — 34가지 전부는 문의»`, 끝말)
   /* 🧪 G679(11-14) 소장님 「공사서류 원클릭은 인쇄 가능하게 되어 있어」 · 「PDF 다운도 가능하고」 — 예시 엑셀 화면엔 📄 PDF · 🖨 인쇄 단추가 없어야 · Ctrl+P 는 안내 한 줄 */
   const 예시단추 = await p.evaluate(() => [...document.querySelectorAll('.card button')].filter((e) => e.offsetParent && /PDF|인쇄/.test(e.innerText)).map((e) => e.innerText.trim()))
   const 보기만 = await p.evaluate(() => document.documentElement.classList.contains('kcm-보기만'))

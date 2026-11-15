@@ -22,6 +22,7 @@ import { use보기만 } from '../lib/보기만.js'   // 🧪 G679 예시는 보�
 import { 나운영자 } from '../lib/운영자.js'
 import { 세기, 예시본수 } from '../lib/받은수.jsx'
 import 잠금문의 from '../잠금문의.jsx'   // 📄 G669 잠근 도구 «문의»
+import { 받기대신문의, 열림띠, 손님보기켬 } from '../예시한도.jsx'   // 🧪 G690 받기 자리는 문의(예시 도면은 두 장 — 3장 한도 안) · 🔑 소장님 기기 띠
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { 판읽기 } from '../lib/dwgdxf.js'
 import { 글꼴판, 판목록, 받을이름 } from '../lib/캐드고침.js'
@@ -89,7 +90,9 @@ function 미리보기({ 그림 }) {
 
 export default function CadFix() {
   /* 🔒 씀 */
-  const [씀, set씀] = useState(() => isOpen())
+  const [씀원, set씀] = useState(() => isOpen())
+  const 손님보기 = 손님보기켬()   // 👀 G690 소장님 기기에서 «손님 화면으로 보기»(이 탭만 · 예시한도.jsx)
+  const 씀 = 씀원 && !손님보기
   const [잠금말, set잠금말] = useState('')
   const [열쇠말, set열쇠말] = useState('')
   const [열쇠틀림, set열쇠틀림] = useState(false)
@@ -250,13 +253,13 @@ export default function CadFix() {
             </details>
           </div>
         )}
+        <열림띠 열림={씀원} 손님보기={손님보기} />
         <div className="cpl-open">
           {Object.entries(예시들).map(([키, x]) => (
             <button key={키} type="button" className={'btn line sm' + (지금 && 지금.예시 === 키 ? ' on' : '')} style={{ width: 'auto' }} onClick={() => 예시열기(키)}>🧪 {x.이름}</button>
           ))}
-          <button type="button" className={'btn sm' + (씀 ? '' : ' sg-lockbtn')} style={{ width: 'auto' }} onClick={() => (씀 ? 파일칸.current && 파일칸.current.click() : 잠김('내 도면 넣기는'))}>
-            {씀 ? '📂 내 도면 넣기 (DWG · DXF · 여러 장)' : '🔒 내 도면 넣기'}
-          </button>
+          {/* 🧪 G690 손님에겐 «🔒 내 도면 넣기» 를 안 보임 — 바로 위 잠금 상자의 문의 단추로 */}
+          {씀 && <button type="button" className="btn sm" style={{ width: 'auto' }} onClick={() => 파일칸.current && 파일칸.current.click()}>📂 내 도면 넣기 (DWG · DXF · 여러 장)</button>}
           <input ref={파일칸} type="file" multiple accept=".dxf,.DXF,.dwg,.DWG" className="sr-only" tabIndex={-1} onChange={(e) => { 파일받기(e.target.files); e.target.value = '' }} />
         </div>
         {씀 && <끌어놓기판 글="도면(DWG · DXF)을 놓으면 진단합니다 — 여러 장도 됩니다" 여럿 받기={(fs) => 파일받기(fs)} />}
@@ -363,9 +366,10 @@ export default function CadFix() {
             <button type="button" className="btn" style={{ width: 'auto' }} disabled={도는중 || 보존막힘} onClick={() => 고치기(목록.filter((x) => x.진).map((x) => x.id))}>
               {도는중 ? '⏳ 고치는 중…' : `🛠 고치기${진단끝 > 1 ? ` (${진단끝}장)` : ''}`}
             </button>
-            {목록.some((x) => x.결과) && (
-              <button type="button" className={'btn line' + (씀 && 목록.some((x) => x.결과 && !x.예시) ? '' : ' sg-lockbtn')} style={{ width: 'auto' }} onClick={모두받기}>
-                {씀 && 목록.some((x) => x.결과 && !x.예시) ? `⬇ 받기${목록.filter((x) => x.결과 && !x.예시).length > 1 ? ` (ZIP ${목록.filter((x) => x.결과 && !x.예시).length}장)` : ' (DXF)'}` : '🔒 받기'}
+            {/* 🧪 G690 손님에겐 «🔒 받기» 단추를 안 보임(받기 자리 문의는 아래 고친 도면 칸에) */}
+            {씀 && 목록.some((x) => x.결과) && (
+              <button type="button" className={'btn line' + (목록.some((x) => x.결과 && !x.예시) ? '' : ' sg-lockbtn')} style={{ width: 'auto' }} onClick={모두받기}>
+                {목록.some((x) => x.결과 && !x.예시) ? `⬇ 받기${목록.filter((x) => x.결과 && !x.예시).length > 1 ? ` (ZIP ${목록.filter((x) => x.결과 && !x.예시).length}장)` : ' (DXF)'}` : '🔒 받기'}
               </button>
             )}
           </div>
@@ -389,8 +393,9 @@ export default function CadFix() {
           )}
           {지금.결과.그림 ? <미리보기 그림={지금.결과.그림} /> : <div className="muted">이 도면을 고르고 «고치기» 를 누르면 미리보기가 나옵니다.</div>}
           <div className="cfx-go">
-            <button type="button" className={'btn' + (씀 && !예시중 ? '' : ' sg-lockbtn')} style={{ width: 'auto' }} onClick={() => 받기(지금)}>{씀 && !예시중 ? '⬇ 이 도면 받기 (DXF)' : '🔒 받기'}</button>
-            {예시중 && !씀 && <span className="muted" style={{ fontSize: 13 }}>🧪 예시는 미리보기까지 — 내 도면으로 받는 것은 K-건설맵에 문의해 주세요(위 «📄 작성대행 · 견적 문의»).</span>}
+            {/* 🧪 G690 손님에겐 «🔒 받기» 대신 문의 하나(소장님 「문의로 하라고 했잖아」) */}
+            {!씀 ? <받기대신문의 도구="캐드 도면 고치기" 셈="캐드고침" 글="🧪 예시는 미리보기까지 — 내 도면을 고쳐 받는 것은 K-건설맵이 직접 해 드립니다(견본 먼저 · 최저가)." />
+              : <button type="button" className={'btn' + (!예시중 ? '' : ' sg-lockbtn')} style={{ width: 'auto' }} onClick={() => 받기(지금)}>{!예시중 ? '⬇ 이 도면 받기 (DXF)' : '🔒 받기'}</button>}
             {예시중 && 씀 && <span className="muted" style={{ fontSize: 13 }}>🧪 예시 도면은 보기만 — 받기는 내 도면을 넣고 고친 뒤에 됩니다.</span>}
           </div>
         </div>

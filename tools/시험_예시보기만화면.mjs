@@ -8,7 +8,7 @@
  *   ② 서식(종이에 바로 쓰기 · 격자) o-balpa-jageop · anjeon-gyehoek(안전관리계획서 표지·목차) — 같은 차례 + Ctrl+P(beforeprint) 는 안내 한 장
  *   ③ 잠긴 도구 · 소장님 브라우저(kcm_op) — 안전관리 · 유해위험 «예시로 채우기» → 🔒 받기 넷 · 새로고침 🔒 → ↺ 비우기 → ⬇ PDF 받힘
  *      시공계획서 예시 내역서 → 🔒 · 컬러평면 · 캐드고침 예시 도면 → 🔒(받기 0)
- *   ④ 잠긴 도구 · 이용자 — 예시를 열고 받기를 다 눌러도 받기 0(전과 같음)
+ *   ④ 잠긴 도구 · 이용자 — 예시를 열면 받기 단추 대신 문의 단추(G690) · 받기 0
  *   📈 G657 물가변동 ESC(/tools/esc) — ③ 소장님 · ④ 이용자 둘 다 🧪 예시면 엑셀 받기 🔒
  *   ⑤ 🧪 G679(11-14) 소장님 「예시 PDF 인쇄 가능해 … 예시를 볼 수만 있게 해주고 나머지는 다 막아야지」 · 「PDF 다운도 가능하고」 —
  *      잠근 도구 9가지(원클릭 · 하도급서류 · ESC · 안전관리 · 유해위험 · 시공계획서 · 중처법 · 컬러평면 · 캐드고침) 이용자 예시:
@@ -228,9 +228,10 @@ for (const [길, 예시글] of [['/tools/anjeon', '예시로 미리 보기'], ['
   await 누르기(p, 예시글)
   await p.waitForSelector('svg.sg-page', { timeout: 90000 })
   await 쉬어(1200)
+  /* 🧪 G690 (11-15) 손님 받기 자리는 문의 단추 하나 — 🔒 PDF · 한글 · 워드 · 엑셀 단추 없음 */
   const 단 = await 단추글(p, '.sg-dl button')
-  for (const x of 단) { await p.locator(`.sg-dl button:has-text("${x}")`).first().click(); await 쉬어(700) }
-  ok('예시 미리보기 받기 모두 🔒 · 눌러도 받기 0', 단.filter((x) => /PDF|한글|워드|엑셀/.test(x)).every((x) => x.startsWith('🔒')) && (await 흔적(p)).length === 0 && 받음.length === 0, { 단, 흔적: await 흔적(p) })
+  const 문의 = await p.locator('.sg-dl a[href^="/contact?k=cn"]').count()
+  ok('예시 미리보기 받기 자리 — 받기 단추 0 · 문의 단추 1 · 받기 0(G690)', 단.length === 0 && 문의 === 1 && (await 흔적(p)).length === 0 && 받음.length === 0, { 단, 문의, 흔적: await 흔적(p) })
   ok('오류 0', 오류.length === 0, 오류)
   await ctx.close()
 }
@@ -241,8 +242,9 @@ for (const [길, 예시글] of [['/tools/anjeon', '예시로 미리 보기'], ['
   await p.waitForSelector('button:has-text("🧪 예시 산출서 보기")', { timeout: 30000 })
   await 누르기(p, '🧪 예시 산출서 보기')
   await p.waitForSelector('.esc-card', { timeout: 30000 })
-  await p.locator('.esc-dl button').click(); await 쉬어(700)
-  ok('예시 산출서 받기 🔒 · 눌러도 받기 0 · ESC 파일 칸 없음', (await 단추글(p, '.esc-dl button')).every((x) => x.startsWith('🔒')) && (await 흔적(p)).length === 0 && 받음.length === 0 && await p.locator('input[type=file][accept*=".xls"]').count() === 0, await 흔적(p))
+  await 쉬어(700)
+  /* 🧪 G690 (11-15) 손님에겐 «🔒 ESC 엑셀 받기» 단추가 없음 — «🔒 예시는 앞 3장까지 … 문의» 가 그 자리 */
+  ok('예시 산출서 받기 단추 없음 · 문의(예시끝) · 받기 0 · ESC 파일 칸 없음(G690)', await p.locator('.esc-dl').count() === 0 && await p.locator('.kcm-예시끝 a[href^="/contact?k=cn"]').count() === 1 && (await 흔적(p)).length === 0 && 받음.length === 0 && await p.locator('input[type=file][accept*=".xls"]').count() === 0, await 흔적(p))
   ok('오류 0', 오류.length === 0, 오류)
   await ctx.close()
 }

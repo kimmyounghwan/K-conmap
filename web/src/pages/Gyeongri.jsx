@@ -5,6 +5,7 @@ import * as 손 from '../lib/sonik.js'
 import { 기기열쇠, 잠그기, 풀기 } from '../lib/기기잠금.js'
 import { 세기, 예시본수 } from '../lib/받은수.jsx'
 import 잠금문의 from '../잠금문의.jsx'
+import { 예시자름, 예시끝, 열림띠, 손님보기켬 } from '../예시한도.jsx'   // 🧪 G690 손님 예시는 한눈에 + 거래처 원장 2곳(3쪽)까지 · 🔑 소장님 기기 띠
 import { isOpen, tryOpen } from '../lib/gate.js'
 import { use보기만 } from '../lib/보기만.js'
 import { 나운영자 } from '../lib/운영자.js'
@@ -28,10 +29,12 @@ const 날글 = (d) => (d ? `${d.slice(2, 4)}.${d.slice(5, 7)}.${d.slice(8, 10)}`
 const 갈래색 = { 청구: 'gr-청', 수금: 'gr-수', 매입: 'gr-매', 지급: 'gr-지' }
 
 export default function Gyeongri() {
-  const [씀, set씀] = useState(() => isOpen())
+  const [씀원, set씀] = useState(() => isOpen())
+  const 손님보기 = 손님보기켬()   // 👀 G690 소장님 기기에서 «손님 화면으로 보기»(이 탭만 · 예시한도.jsx)
+  const 씀 = 씀원 && !손님보기
   const [열쇠말, set열쇠말] = useState('')
   const [열쇠틀림, set열쇠틀림] = useState(false)
-  const [보기, set보기] = useState(() => (isOpen() ? '내것' : ''))
+  const [보기, set보기] = useState(() => (isOpen() && !손님보기켬() ? '내것' : ''))
   const [장부, set장부] = useState(() => 손.읽기())
   const [정보, set정보] = useState(() => 경.정보읽기())
   const 예시장부 = useMemo(() => 경.예시(), [])
@@ -48,7 +51,7 @@ export default function Gyeongri() {
 
   useEffect(() => {
     let 살 = true
-    나운영자().then((v) => { if (살 && v) { set씀(true); set보기((b) => b || '내것') } }).catch(() => {})
+    나운영자().then((v) => { if (살 && v) { set씀(true); if (!손님보기켬()) set보기((b) => b || '내것') } }).catch(() => {})
     /* 손익 장부를 다른 탭 · 창에서 고치면 여기도 바로(같은 기기 저장) */
     const 다시 = () => set장부(손.읽기())
     const 볼때 = () => { if (document.visibilityState === 'visible') 다시() }
@@ -78,6 +81,9 @@ export default function Gyeongri() {
   const 보는달 = 달 || 경.처음달(지금, 오늘달())
   const H = useMemo(() => 경.한눈에(지금, 보는달), [지금, 보는달])
   const 곳들 = useMemo(() => 경.거래처들(지금.R), [지금])
+  /* 🧪 G690 손님(씀 아님) 예시는 «한눈에» + 거래처 원장 2곳까지(3쪽) — 나머지 거래처는 원장을 안 그림 */
+  const 원장곳 = useMemo(() => 예시자름(곳들, !씀, 2), [곳들, 씀])
+  const 원장됨 = (이름) => 원장곳.some((x) => x.이름 === 이름)
   const 현장이름 = useMemo(() => new Map((지금.현장 || []).map((h) => [h.id, h.n])), [지금])
   const 잠김 = () => { set잠금말('🔒 경리 장부는 K-건설맵에 문의해 주세요(위 «📄 작성대행 · 견적 문의») — 🧪 예시 장부로 어떤 장부인지 보실 수 있습니다(보기만).'); 세기('|경리|잠금') }
   const 예시보기 = () => { set보기('예시'); set탭('한눈에'); set달(''); set고른(''); set잠금말(''); 세기('|경리|예시') }
@@ -129,6 +135,7 @@ export default function Gyeongri() {
           </details>
         </div>
       )}
+      <열림띠 열림={씀원} 손님보기={손님보기} />
       {잠금말 && <div className="cwarn gr-note" role="status">{잠금말}</div>}
 
       {!씀 && !예시 && (
@@ -199,8 +206,8 @@ export default function Gyeongri() {
                       {(() => { const 줄 = 곳들.filter((x) => x.받을 || x.줄돈)
                         if (!줄.length) return <tr><td colSpan={5} className="muted">남은 돈이 없습니다</td></tr>
                         return 줄.map((x) => (
-                          <tr key={x.이름} className="gr-go" onClick={() => { set고른(x.이름); set탭('원장') }}>
-                            <td className="gr-이름"><b>{x.이름}</b></td><td className="muted gr-폰숨">{[x.매출 && '매출처', x.매입 && '매입처'].filter(Boolean).join(' · ')}</td>
+                          <tr key={x.이름} className={원장됨(x.이름) ? 'gr-go' : 'gr-잠'} onClick={원장됨(x.이름) ? () => { set고른(x.이름); set탭('원장') } : undefined}>
+                            <td className="gr-이름"><b>{x.이름}</b>{원장됨(x.이름) ? null : <span className="muted"> 🔒</span>}</td><td className="muted gr-폰숨">{[x.매출 && '매출처', x.매입 && '매입처'].filter(Boolean).join(' · ')}</td>
                             {원칸(x.받을, '받을 돈', true)}{원칸(x.줄돈, '줄 돈', true)}<td className="muted gr-마지막" data-l="마지막 거래">{날글(x.마지막)}</td>
                           </tr>)) })()}
                     </tbody>
@@ -212,10 +219,11 @@ export default function Gyeongri() {
             {탭 === '원장' && (
               <div className="card">
                 <div className="gr-chips">
-                  {곳들.map((x) => <button key={x.이름} type="button" className={'chip' + ((고른 || (곳들[0] && 곳들[0].이름)) === x.이름 ? ' on' : '')} onClick={() => set고른(x.이름)}>{x.이름}{x.받을 || x.줄돈 ? ' •' : ''}</button>)}
+                  {원장곳.map((x) => <button key={x.이름} type="button" className={'chip' + ((고른 && 원장됨(고른) ? 고른 : (원장곳[0] && 원장곳[0].이름)) === x.이름 ? ' on' : '')} onClick={() => set고른(x.이름)}>{x.이름}{x.받을 || x.줄돈 ? ' •' : ''}</button>)}
                 </div>
+                {!씀 && <예시끝 전체={곳들.length} 한도={원장곳.length} 단위="곳" 무엇="거래처 원장" 도구="경리컨맵" 셈="경리" />}
                 {(() => {
-                  const 이름 = 고른 && 곳들.some((x) => x.이름 === 고른) ? 고른 : 곳들[0] && 곳들[0].이름
+                  const 이름 = 고른 && 원장됨(고른) ? 고른 : 원장곳[0] && 원장곳[0].이름
                   if (!이름) return <p className="muted">거래처가 없습니다 — 현장 손익 장부에 거래처를 적으면 여기 나옵니다.</p>
                   const 원 = 경.원장(지금.R, 이름)
                   const 끝 = 원[원.length - 1] || { 받을: 0, 줄돈: 0 }

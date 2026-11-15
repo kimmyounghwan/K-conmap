@@ -12,13 +12,14 @@
  * ■ 파일은 이 브라우저 밖으로 나가지 않습니다. 적은 것만 이 브라우저에 남습니다(kcm.yuhae.v1 — 쓸 수 있는 브라우저만).
  *
  * 🔒 잠금(SafetyPlan 과 같은 방식): 소장님 브라우저(lib/운영자.js 나운영자) 또는 열쇠말(lib/gate.js)이면 다 씀.
- *    그 밖의 분은 🧪 예시(가상 공사) 한 벌을 표지부터 마지막 서식까지 쪽마다 넘겨 보기만 — 적기 · 올리기 · 받기는 잠김.
+ *    그 밖의 분은 🧪 예시(가상 공사) 한 벌 중 앞 3쪽만 보기만(G690 · 11-15 — 전엔 표지부터 마지막 서식까지) — 적기 · 올리기 · 받기는 잠김.
  * 📊 세기(안 보임): |유해계획|예시 · |유해계획|PDF · |유해계획|한글 · |유해계획|워드 · |유해계획|엑셀 · |유해계획|그림 · |유해계획|잠금 · |유해계획|열쇠
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { 세기, 예시본수 } from '../lib/받은수.jsx'
 import 잠금문의 from '../잠금문의.jsx'   // 📄 G669 잠근 도구 «문의»
+import { 예시자름, 예시끝, 받기대신문의, 열림띠, 손님보기켬 } from '../예시한도.jsx'   // 🧪 G690 손님 예시는 앞 3쪽까지(G639 «처음부터 끝까지» 를 바꿈) · 받기 자리는 문의 · 🔑 소장님 기기 띠
 import { 쪽그림, 그림줄이기 } from '../lib/쪽그림.jsx'
 import { isOpen, tryOpen } from '../lib/gate.js'
 import { use보기만 } from '../lib/보기만.js'   // 🧪 G679 예시는 보기만(Ctrl+P 안내 한 줄 · 예시 판 복사 막음)
@@ -83,7 +84,9 @@ export default function HazardPlan() {
   const [고른자리, set고른자리] = useState('')
   const 폭틀 = useRef(null)
   const [폭, set폭] = useState(560)
-  const [씀, set씀] = useState(() => isOpen())
+  const [씀원, set씀] = useState(() => isOpen())
+  const 손님보기 = 손님보기켬()   // 👀 G690 소장님 기기에서 «손님 화면으로 보기»(이 탭만 · 예시한도.jsx)
+  const 씀 = 씀원 && !손님보기
   const [예시봄, set예시봄] = useState(false)
   /* 🧪 G650(11-11) 소장님 「막아 놓은 건 예시도 받지 못하게 막고 볼 수만 있게 해」 — 열쇠말 · 소장님 브라우저에서도
      «🧪 예시(가상 공사)로 채우기» 한 것은 보기만(받기 넷 막음) · «↺ 비우기» 에서 풂 · 새로고침해도 그대로 */
@@ -127,8 +130,10 @@ export default function HazardPlan() {
     try { return lib.안전계획만들기(씀 ? 늦은입력 : lib.예시) } catch (e) { return { 오류: e?.message || String(e) } }
   }, [lib, 씀, 예시봄, 늦은입력])
   const 쪽들 = 결과?.쪽들 || []
-  useEffect(() => { if (쪽번 >= 쪽들.length) set쪽번(Math.max(0, 쪽들.length - 1)) }, [쪽들.length])   // eslint-disable-line react-hooks/exhaustive-deps
-  const 쪽 = 쪽들[쪽번]
+  /* 🧪 G690 손님(씀 아님)은 예시 앞 3쪽까지만(소장님 11-15 「예시도 2페이지에서 3페이지만」 — G639 «처음부터 끝까지» 를 바꿈) · 넘기기 · 차례 · 그림 모두 보일쪽들로 */
+  const 보일쪽들 = useMemo(() => 예시자름(쪽들, !씀), [쪽들, 씀])
+  useEffect(() => { if (쪽번 >= 보일쪽들.length) set쪽번(Math.max(0, 보일쪽들.length - 1)) }, [보일쪽들.length])   // eslint-disable-line react-hooks/exhaustive-deps
+  const 쪽 = 보일쪽들[쪽번]
 
   const 예시보기 = () => { set예시봄(true); set잠금말(''); set쪽번(0); 세기('|유해계획|예시') }
   const 예시채우기 = () => {
@@ -184,7 +189,7 @@ export default function HazardPlan() {
     set그림들((old) => { const n = new Map(old); n.delete(자리); return n })
     set그림자리((old) => { const n = { ...old }; delete n[자리]; return n })
   }
-  const 쪽으로 = (i) => { if (i === undefined || i === null) return; set쪽번(i); setTimeout(() => 폭틀.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60) }
+  const 쪽으로 = (i) => { if (i === undefined || i === null) return; set쪽번(Math.max(0, Math.min(i, 보일쪽들.length - 1))); setTimeout(() => 폭틀.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60) }
 
   /* 칸 고치기 도우미 */
   const 바꿈 = (묶, k) => (e) => { const v = e.target.type === 'checkbox' ? e.target.checked : e.target.value; set입((p) => ({ ...p, [묶]: { ...p[묶], [k]: v } })) }
@@ -238,7 +243,7 @@ export default function HazardPlan() {
         {!씀 && (
           <div className="sg-lock">
             <b>🔒 문의해 주세요</b> — 내 공사로 유해위험방지계획서를 만들어 받는 것은 K-건설맵이 직접 작성해 드립니다(견본 먼저 · 최저가). <잠금문의 도구="유해위험방지계획서" 갈래="유해위험방지계획서" 셈="유해계획" />
-            지금은 <button type="button" className="btn line sm" style={{ width: 'auto', margin: '0 2px' }} onClick={예시보기}>🧪 예시(가상 공사)</button>로 표지부터 마지막 서식까지 쪽마다 넘겨 보실 수 있습니다.
+            지금은 <button type="button" className="btn line sm" style={{ width: 'auto', margin: '0 2px' }} onClick={예시보기}>🧪 예시(가상 공사)</button>로 어떻게 나오는지 앞 3쪽을 보실 수 있습니다(보기만).
             {' '}<예시본수 열쇠="|유해계획|예시" />
             <details className="sg-more sg-more-sm" style={{ marginTop: 6 }}>
               <summary className="muted" style={{ fontSize: 12.5 }}>🔑 열쇠말이 있으신가요?</summary>
@@ -255,6 +260,7 @@ export default function HazardPlan() {
             </details>
           </div>
         )}
+        <열림띠 열림={씀원} 손님보기={손님보기} />
       </div>
 
       {씀 && (
@@ -410,23 +416,25 @@ export default function HazardPlan() {
       {lib && !씀 && !예시봄 && (
         <div className="card">
           <div className="sec-title">미리보기</div>
-          <p className="muted" style={{ marginTop: 0 }}>🧪 예시(가상 공사)를 열면 표지 · 제출서 · 첨부서류 대조표 · 목차부터 작업공사 종류별 계획 · 현장 운영 서식까지 한 벌을 처음부터 끝까지 쪽마다 넘겨 보실 수 있습니다.</p>
+          <p className="muted" style={{ marginTop: 0 }}>🧪 예시(가상 공사)로 만든 한 벌(표지 · 제출서 · 첨부서류 대조표 · 목차부터 작업공사 종류별 계획 · 현장 운영 서식까지) 중 <b>앞 3쪽</b>을 보실 수 있습니다(보기만).</p>
           <button type="button" className="btn" style={{ width: 'auto' }} onClick={예시보기}>🧪 예시로 미리 보기</button>
         </div>
       )}
       {lib && (씀 || 예시봄) && (
         <div className="card">
-          <div className="sec-title">미리보기 · 받기 {쪽들.length > 0 && <span className="muted" style={{ fontWeight: 500 }}>— {쪽들.length}쪽</span>}</div>
+          <div className="sec-title">{씀 ? '미리보기 · 받기' : '미리보기'} {쪽들.length > 0 && <span className="muted" style={{ fontWeight: 500 }}>— {씀 ? `${쪽들.length}쪽` : `🧪 예시 ${보일쪽들.length}쪽 (한 벌 ${쪽들.length}쪽)`}</span>}</div>
           {결과?.오류 && <div className="cwarn">⚠️ {결과.오류}</div>}
           {오류 && <div className="cwarn">⚠️ {오류}</div>}
+          {/* 🧪 G690 손님에겐 «🔒 PDF · 한글 · 워드 · 엑셀» 단추 대신 문의 하나(소장님 「문의로 하라고 했잖아」) */}
           <div className="sg-dl">
-            {Object.entries(형식표).map(([k, [이름]]) => (
-              <button key={k} type="button" className={씀 && !예시채움 ? (k === 'pdf' ? 'btn' : 'btn line') : 'btn line sg-lockbtn'} style={{ width: 'auto' }} disabled={씀 && !예시채움 && (!쪽들.length || !!내림중)} onClick={() => 내려받기(k)}>
-                {내림중 === 이름 ? '⏳ 만드는 중…' : `${씀 && !예시채움 ? '⬇' : '🔒'} ${이름}`}
-              </button>
-            ))}
+            {!씀 ? <받기대신문의 도구="유해위험방지계획서" 갈래="유해위험방지계획서" 셈="유해계획" 글="PDF · 한글 · 워드 · 엑셀 받기는 K-건설맵이 직접 작성해 드립니다(견본 먼저 · 최저가)" />
+              : Object.entries(형식표).map(([k, [이름]]) => (
+                <button key={k} type="button" className={!예시채움 ? (k === 'pdf' ? 'btn' : 'btn line') : 'btn line sg-lockbtn'} style={{ width: 'auto' }} disabled={!예시채움 && (!쪽들.length || !!내림중)} onClick={() => 내려받기(k)}>
+                  {내림중 === 이름 ? '⏳ 만드는 중…' : `${!예시채움 ? '⬇' : '🔒'} ${이름}`}
+                </button>
+              ))}
           </div>
-          {!씀 && <p className="muted" style={{ margin: '6px 0 0' }}>🧪 예시(지어낸 공사 · 이름 · 번호)입니다. 받기는 K-건설맵에 문의해 주세요 — 화면에서 처음부터 끝까지 쪽마다 넘겨 보십시오.</p>}
+          {!씀 && <p className="muted" style={{ margin: '6px 0 0' }}>🧪 예시(지어낸 공사 · 이름 · 번호)입니다 — 앞 {보일쪽들.length}쪽을 넘겨 보십시오(보기만).</p>}
           {씀 && 예시채움 && <p className="cwarn" style={{ margin: '6px 0 0' }}>🧪 지금은 <b>예시(가상 공사)</b>로 채운 것입니다 — 보기만 됩니다. 받기(PDF · 한글 · 워드 · 엑셀)는 <b>«↺ 비우기»</b> 를 누르고 내 공사로 적은 뒤에 됩니다.</p>}
           {잠금말 && (!씀 || 예시채움) && <div className="cwarn" style={{ marginTop: 6 }}>{잠금말}</div>}
           {결과?.목차?.length > 0 && (
@@ -435,7 +443,8 @@ export default function HazardPlan() {
                 <option value="">📑 차례로 가기…</option>
                 {결과.목차.filter((m) => m.쪽).map((m, i) => {
                   const 실제 = 쪽들.findIndex((p) => p.번호 === m.쪽)
-                  return <option key={i} value={실제 < 0 ? '' : 실제}>{'　'.repeat(Math.max(0, m.단 - 1))}{m.글.replace(/\s+/g, ' ')} · {m.쪽}쪽</option>
+                  const 잠 = 실제 >= 보일쪽들.length   /* 🧪 G690 손님 — 4쪽부터는 🔒(고를 수 없음) */
+                  return <option key={i} value={실제 < 0 || 잠 ? '' : 실제} disabled={잠}>{잠 ? '🔒 ' : ''}{'　'.repeat(Math.max(0, m.단 - 1))}{m.글.replace(/\s+/g, ' ')} · {m.쪽}쪽</option>
                 })}
               </select>
             </div>
@@ -445,13 +454,14 @@ export default function HazardPlan() {
               <div className="sg-pager">
                 <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={쪽번 === 0} onClick={() => set쪽번(쪽번 - 1)}>◀</button>
                 <select value={쪽번} onChange={(e) => set쪽번(+e.target.value)}>
-                  {쪽들.map((p, i) => <option key={i} value={i}>{i + 1} / {쪽들.length}쪽{p.번호 ? ` (- ${p.번호} -)` : ''}</option>)}
+                  {보일쪽들.map((p, i) => <option key={i} value={i}>{i + 1} / {쪽들.length}쪽{p.번호 ? ` (- ${p.번호} -)` : ''}</option>)}
                 </select>
-                <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={쪽번 >= 쪽들.length - 1} onClick={() => set쪽번(쪽번 + 1)}>▶</button>
+                <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={쪽번 >= 보일쪽들.length - 1} onClick={() => set쪽번(쪽번 + 1)}>▶</button>
               </div>
               <div ref={폭틀} className="sg-view">
                 <쪽그림 쪽={쪽} 폭px={쪽.폭 > 쪽.높이 ? 폭 : Math.min(폭, 640)} 그림들={그림들} />
               </div>
+              {!씀 && <예시끝 전체={쪽들.length} 무엇="유해위험방지계획서 한 벌" 도구="유해위험방지계획서" 갈래="유해위험방지계획서" 셈="유해계획" />}
             </>
           )}
 

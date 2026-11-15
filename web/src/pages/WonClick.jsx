@@ -42,6 +42,7 @@ import { 현장나눔 } from '../lib/현장나눔.js'   /* 🏗 G179 현장별�
 import 현장틀 from '../tools/현장틀.jsx'
 import { 세기 } from '../lib/받은수.jsx'
 import 잠금문의 from '../잠금문의.jsx'   // 📄 G669 잠근 도구 «문의»
+import { 예시끝, 받기대신문의, 열림띠, 손님보기켬 } from '../예시한도.jsx'   // 🧪 G690 손님 예시는 서류 3가지 · 받기 자리는 문의 · 🔑 소장님 기기 띠
 import { isOpen, tryOpen } from '../lib/gate.js'
 import { use보기만 } from '../lib/보기만.js'   // 🧪 G679 예시는 보기만(PDF · 인쇄 · Ctrl+P · 복사 막음)
 import { 나운영자 } from '../lib/운영자.js'
@@ -59,6 +60,12 @@ const 늦게펼침 = ['6.', '7.', '8.', '9.', '10.', '11.', '12.', '13.']     //
 /* 🗂 G142 — 고르는 단위는 «서류»(뒤쪽 장은 앞쪽에 딸림) · 예전에 저장한 시트 이름은 서류 이름으로 옮김 */
 const 서류들 = META.docs.filter((d) => !d.with)
 const 모두 = () => META.docs.map((d) => d.sheet)
+/* 🧪 G690 (11-15) 손님 예시는 서류 3가지만 — 착공 · 기성 · 준공 하나씩(고르기와 상관없이 늘 이 셋 · 나머지 서류는 채우지도 않음) */
+const 예시서류 = (() => {
+  const x = ['08 착공신고서', '20 기성검사 요청서', '25 준공신고서'].filter((s) => META.docs.some((d) => d.sheet === s && !d.with))
+  return x.length === 3 ? x : 서류들.slice(0, 3).map((d) => d.sheet)
+})()
+const 예시서류이름 = 예시서류.map((s) => s.replace(/^\d+\s*/, '')).join(' · ')
 const 이름으로 = new Map(META.docs.map((d) => [d.name, d.sheet]))
 const 시트옮김 = (s) => { const x = String(s); return META.docs.some((d) => d.sheet === x) ? x : (이름으로.get(x.replace(/^\d+\s*/, '')) || x) }
 function 딸림붙임(p) {
@@ -171,13 +178,13 @@ function 원클릭({ 현장id, 현장줄, 이름바뀜, 잠금 = null }) {
         }
         const v = {}
         for (const i of META.inputs) if (vals[i.key] !== undefined) v[i.key] = vals[i.key]
-        const out = lib.fillWorkbook(t, META, v, pick.length ? pick : META.docs.map((d) => d.sheet))
+        const out = lib.fillWorkbook(t, META, v, 잠금 ? 예시서류 : (pick.length ? pick : META.docs.map((d) => d.sheet)))
         if (살) set책(R.엑셀읽기(out))
       } catch (e) { if (살) set보기오류(e.message || String(e)) }
     })()
     return () => { 살 = false }
   }, [보기, vals, 틀])   // eslint-disable-line react-hooks/exhaustive-deps
-  const 보일서류 = useMemo(() => META.docs.map((d) => d.sheet).filter((x) => pick.includes(x)), [pick])
+  const 보일서류 = useMemo(() => (잠금 ? 예시서류 : META.docs.map((d) => d.sheet).filter((x) => pick.includes(x))), [pick, 잠금])
 
   useEffect(() => { if (!잠금) save(현장id, { ...vals, __pick: pick, __pv: 2 }) }, [vals, pick])  // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (이름바뀜) 이름바뀜() }, [vals.공사명])  // eslint-disable-line react-hooks/exhaustive-deps
@@ -268,7 +275,7 @@ function 원클릭({ 현장id, 현장줄, 이름바뀜, 잠금 = null }) {
           <b>한 번 입력하면 착공부터 준공·하자까지 서류 {서류들.length}가지가 채워진 엑셀</b>이 나옵니다.
           공사명·계약금액·날짜를 서류마다 옮겨 적지 않아도 됩니다. 관급·민간 <b>모든 현장</b>에 씁니다.
         </div>
-        {잠금 && 잠금.띠}
+        {잠금 ? 잠금.띠 : <열림띠 씀 />}
         <ul className="wc-up">
           <li><b>저절로 계산</b> — 일금 …원정 한글 금액, 공사기간 일수, 계약·하자보수보증금, 하자기간 끝나는 날, 지체일수·지체상금, 기성 누계·기성률, 준공금 청구액.</li>
           <li><b>공사 중 서류까지</b> — 선금 신청·사용계획, 인력·장비 투입계획, 월간 공정보고, 노무비 청구내역, 산안비 사용계획·사용내역(고시 별지 제1호서식),
@@ -284,7 +291,7 @@ function 원클릭({ 현장id, 현장줄, 이름바뀜, 잠금 = null }) {
           요율(보증금률·지체상금률·하자기간)은 <b>계약서·공고서에 적힌 값</b>을 넣으세요.</div>}
         {!잠금 && 현장줄}
         {!잠금 && <이어쓰기 ns="wc" 자리={원나눔.연결자리(현장id)} 이름="공사서류 원클릭" 파일="공사서류원클릭" st={잇는상태} setSt={잇기받기} 읽기={잇기읽기} 쓰기={잇기쓰기} />}
-        {잠금 && <div className="note sm" style={{ marginTop: 6 }}>🧪 아래 칸은 <b>예시</b>(지어낸 공사 · 회사 ○○)입니다 — 서류 고르기 · ③ 화면에서 보기로 어떤 서류가 나오는지 보실 수 있습니다.</div>}
+        {잠금 && <div className="note sm" style={{ marginTop: 6 }}>🧪 아래 칸은 <b>예시</b>(지어낸 공사 · 회사 ○○)입니다 — ③ 화면에서 보기로 서류 {예시서류.length}가지({예시서류이름})가 어떻게 나오는지 보실 수 있습니다.</div>}
         {secs.map(([s, list]) => {
           const 늦게 = 늦게펼침.some((p) => s.startsWith(p))
           const 채움 = list.some((i) => String(vals[i.key] ?? '').trim())
@@ -309,7 +316,8 @@ function 원클릭({ 현장id, 현장줄, 이름바뀜, 잠금 = null }) {
         ) : null}
       </div>
 
-      <div className="card">
+      {/* 🧪 G690 손님(잠금)은 서류 고르기 없음 — 예시는 늘 서류 3가지(예시서류)라 고를 것이 없음 · 들어 있는 서류는 아래 «들어 있는 서류» 칸 */}
+      {!잠금 && <div className="card">
         <div className="detail-h">② 서류 고르기 <span className="count">· {고른수}/{서류들.length}가지</span></div>
         <div className="navrow" style={{ marginBottom: 8 }}>
           <button className="navi" onClick={() => 고르기(() => true)}>전부</button>
@@ -331,17 +339,17 @@ function 원클릭({ 현장id, 현장줄, 이름바뀜, 잠금 = null }) {
             </div>
           </div>
         ))}
-      </div>
+      </div>}
 
       <div className="card">
-        <div className="detail-h">{잠금 ? <>③ 화면에서 보기 <span className="count">· 🧪 예시는 보기만</span></> : <>③ 화면에서 보고 · 고치고 · PDF · 인쇄 <span className="count">· 엑셀 없이 여기서 끝</span></>}</div>
+        <div className="detail-h">{잠금 ? <>③ 화면에서 보기 <span className="count">· 🧪 예시 서류 {예시서류.length}가지 · 보기만</span></> : <>③ 화면에서 보고 · 고치고 · PDF · 인쇄 <span className="count">· 엑셀 없이 여기서 끝</span></>}</div>
         {!보기 ? (
           <>
             {잠금
-              ? <div className="note sm">🧪 예시(지어낸 공사 · 회사 ○○)가 서류에 어떻게 들어갔는지 A4 그대로 봅니다 — <b>화면에서 보기만</b> 됩니다(PDF · 인쇄 · 받기 없음).</div>
+              ? <div className="note sm">🧪 예시(지어낸 공사 · 회사 ○○)로 서류 {예시서류.length}가지(<b>{예시서류이름}</b>)를 A4 그대로 봅니다 — <b>화면에서 보기만</b> 됩니다(PDF · 인쇄 · 받기 없음).</div>
               : <div className="note sm">채운 칸이 서류에 어떻게 들어갔는지 A4 그대로 봅니다. <b>칸을 누르면 고칠 수 있고</b>, 고친 것은 이 기기에 남습니다. 인쇄하면 서류 한 가지가 A4 한 장입니다.</div>}
             <div className="btn-row" style={{ marginTop: 8 }}>
-              <button className="btn" onClick={() => { set보기(true); if (새것골랐나(pick)) 세기('|원클릭|새서류') }} disabled={!pick.length}>📄 서류 {고른수}가지 화면에서 보기</button>
+              <button className="btn" onClick={() => { set보기(true); if (!잠금 && 새것골랐나(pick)) 세기('|원클릭|새서류') }} disabled={!잠금 && !pick.length}>{잠금 ? `📄 예시 서류 ${예시서류.length}가지 화면에서 보기` : `📄 서류 ${고른수}가지 화면에서 보기`}</button>
             </div>
           </>
         ) : 보기오류 ? <div className="note sm" style={{ color: 'var(--bad, #c62828)' }}>⚠ {보기오류}</div>
@@ -349,24 +357,28 @@ function 원클릭({ 현장id, 현장줄, 이름바뀜, 잠금 = null }) {
           : !보일서류.length ? <div className="note sm">② 에서 서류를 하나 이상 골라 주세요.</div>
           : (
             <Suspense fallback={<div className="note sm">화면을 준비하는 중…</div>}>
-              {/* 🧪 G679 잠긴 예시는 보기만 — 📄 PDF · 🖨 인쇄 단추 없음(인쇄함) · 칸 고치기 없음(고칠수) */}
+              {/* 🧪 G679 잠긴 예시는 보기만 — 📄 PDF · 🖨 인쇄 단추 없음(인쇄함) · 칸 고치기 없음(고칠수) · G690 서류 3가지만(보일서류 = 예시서류) */}
               <엑셀화면 책={책} 시트들={보일서류} 고침={고침} set고침={set고침} 쪽채움 셈이름="원클릭" 인쇄함={!잠금} 고칠수={!잠금}
                 이름={`공사서류_${(vals.공사명 || '원클릭').slice(0, 30)}`}
                 이름표={(n) => n.replace(/^\d+\s*/, '')} />
             </Suspense>
           )}
+        {잠금 && 보기 && <예시끝 전체={서류들.length} 한도={예시서류.length} 단위="가지" 앞={false} 무엇="공사서류" 도구="공사서류 원클릭(착공 · 기성 · 준공 서류)" 셈="원클릭" />}
       </div>
 
       <div className="card wc-go">
-        {빈칸.length > 0 && (
+        {!잠금 && 빈칸.length > 0 && (
           <div className="note sm" style={{ color: 'var(--warn, #b25a00)' }}>
             ⚠ 꼭 필요한 칸 {빈칸.length}개가 비어 있습니다 — {빈칸.map((k) => 이름[k]).join(', ')}. 그래도 받을 수 있지만, 채운 뒤 받아야 서류마다 들어갑니다.
           </div>
         )}
         <div className="btn-row" style={{ marginTop: 8 }}>
-          <button className="btn primary" onClick={받기} disabled={busy}>
-            {busy ? '만드는 중…' : `⬇ 엑셀로 받기 (서류 ${고른수}가지)`}{잠금 ? ' 🔒' : ''}
-          </button>
+          {/* 🧪 G690 손님(잠금)에겐 «⬇ 엑셀로 받기 🔒» 단추를 안 보임 — 그 자리에 문의(소장님 「문의로 하라고 했잖아」) */}
+          {잠금
+            ? <받기대신문의 도구="공사서류 원클릭(착공 · 기성 · 준공 서류)" 셈="원클릭" 글={`우리 공사로 채운 서류 ${서류들.length}가지(엑셀)는 K-건설맵이 직접 작성해 드립니다(견본 먼저 · 최저가).`} />
+            : <button className="btn primary" onClick={받기} disabled={busy}>
+                {busy ? '만드는 중…' : `⬇ 엑셀로 받기 (서류 ${고른수}가지)`}
+              </button>}
           {!잠금 && !지움물음 && <button className="btn ghost sm" style={{ whiteSpace: 'nowrap' }} onClick={() => set지움물음(true)}>입력 지우기</button>}
           {지움물음 && (
             <span className="nm-ask">이 현장에 적은 칸을 모두 지웁니다(지우기 전 모습은 «🔗 이어 쓰기 → 💾 백업 · 더 보기 → ↩ 되돌리기» 로 한 번 되살림).
@@ -423,7 +435,9 @@ const 예시값 = {
   계약보증률: '10', 하자보증률: '3', 하자년: '2', 지체율: '0.5',
 }
 export default function WonClick() {
-  const [씀, set씀] = useState(() => isOpen())
+  const [씀원, set씀] = useState(() => isOpen())
+  const 손님보기 = 손님보기켬()   // 👀 G690 소장님 기기에서 «손님 화면으로 보기»(이 탭만 · 예시한도.jsx)
+  const 씀 = 씀원 && !손님보기
   const [말, set말] = useState('')
   const [열쇠말, set열쇠말] = useState('')
   const [열쇠틀림, set열쇠틀림] = useState(false)
@@ -437,7 +451,7 @@ export default function WonClick() {
     const 띠 = (
       <div className="sg-lock">
         <b>🔒 문의해 주세요</b> — 우리 공사로 칸을 채워 엑셀로 받는 것은 K-건설맵이 직접 해 드립니다(견본 먼저 · 최저가). <잠금문의 도구="공사서류 원클릭(착공 · 기성 · 준공 서류)" 셈="원클릭" />
-        지금은 아래 <b>🧪 예시</b>로 서류를 고르고 <b>③ 화면에서 보기</b>로 어떻게 나오는지 보실 수 있습니다.
+        지금은 아래 <b>🧪 예시</b>로 서류 {예시서류.length}가지({예시서류이름})를 <b>③ 화면에서 보기</b>로 보실 수 있습니다.
         <details className="sg-more sg-more-sm" style={{ marginTop: 6 }}>
           <summary className="muted" style={{ fontSize: 12.5 }}>🔑 열쇠말이 있으신가요?</summary>
           <form style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }} onSubmit={async (e) => {
@@ -451,6 +465,7 @@ export default function WonClick() {
           </form>
           {열쇠틀림 && <div className="cwarn" style={{ marginTop: 6 }}>열쇠말이 다릅니다.</div>}
         </details>
+        <열림띠 열림={씀원} 손님보기={손님보기} />
       </div>
     )
     return <원클릭 key="예시" 현장id="예시" 현장줄={null} 이름바뀜={null} 잠금={{ 잠김, 띠, 말 }} />

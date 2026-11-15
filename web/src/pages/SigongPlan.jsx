@@ -13,7 +13,7 @@
  *
  * 🔒 2026-10-16 소장님: 「우선 올리고 나만 사용할 수 있게 막아둬. 이용자가 볼 수는 있지만, 사용은 못하게 해줘. 단 예시는 볼 수있게 해주고…」
  *   · 소장님 브라우저(lib/운영자.js 나운영자) 또는 열쇠말(lib/gate.js — 적산 실험실과 같은 열쇠말)이면 다 씀.
- *   · 그 밖의 분: 화면 · 설명은 다 보이고, 🧪 예시 내역서로 만든 시공계획서를 미리보기로 넘겨 볼 수 있음.
+ *   · 그 밖의 분: 화면 · 설명은 다 보이고, 🧪 예시 내역서로 만든 시공계획서를 미리보기로 넘겨 볼 수 있음(G690 · 11-15 — 앞 3쪽까지 · 받기 자리는 문의 단추).
  *     내 파일 올리기 · 받기(PDF · 한글 · 워드 · 엑셀) · 원클릭 넘기기 · 칸 고치기는 잠김(«준비 중»).
  *   ⚠️ 문 앞 잠금일 뿐입니다(gate.js 머리말) — 화면 코드는 누구나 받을 수 있습니다. 열 때는 이 «씀» 조건만 풀면 됩니다.
  */
@@ -22,6 +22,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { 세기, 예시본수 } from '../lib/받은수.jsx'
 import 잠금문의 from '../잠금문의.jsx'   // 📄 G669 잠근 도구 «문의»
+import { 예시자름, 예시끝, 받기대신문의, 열림띠, 손님보기켬 } from '../예시한도.jsx'   // 🧪 G690 손님 예시는 앞 3쪽까지 · 받기 자리는 문의 · 🔑 소장님 기기 띠
 import { 현장나눔 } from '../lib/현장나눔.js'
 import { 쪽그림, 그림줄이기 } from '../lib/쪽그림.jsx'
 import { Row } from '../tools/calcs.jsx'
@@ -91,7 +92,9 @@ export default function SigongPlan() {
   const 폭틀 = useRef(null)
   const [폭, set폭] = useState(560)
   /* 🔒 씀 = 소장님 브라우저 · 열쇠말을 넣은 브라우저 */
-  const [씀, set씀] = useState(() => isOpen())
+  const [씀원, set씀] = useState(() => isOpen())
+  const 손님보기 = 손님보기켬()   // 👀 G690 소장님 기기에서 «손님 화면으로 보기»(이 탭만 · 예시한도.jsx)
+  const 씀 = 씀원 && !손님보기
   const [예시봄, set예시봄] = useState(false)
   /* 🧪 G650(11-11) 소장님 「막아 놓은 건 예시도 받지 못하게 막고 볼 수만 있게 해」 — 열쇠말 · 소장님 브라우저에서도
      예시 내역서로 만든 한 벌은 보기만(받기 넷 막음) · 내 내역서를 올리면 풂 */
@@ -232,7 +235,9 @@ export default function SigongPlan() {
     try { return lib.시공계획만들기(늦은입력) } catch (e) { return { 오류: e?.message || String(e) } }
   }, [lib, 늦은입력])
   const 쪽들 = 결과?.쪽들 || []
-  useEffect(() => { if (쪽번 >= 쪽들.length) set쪽번(Math.max(0, 쪽들.length - 1)) }, [쪽들.length])   // eslint-disable-line react-hooks/exhaustive-deps
+  /* 🧪 G690 손님(씀 아님)은 예시 앞 3쪽까지만 — 넘기기 · 고르기 · 그림 모두 보일쪽들로(나머지 쪽은 그리지 않음) */
+  const 보일쪽들 = useMemo(() => 예시자름(쪽들, !씀), [쪽들, 씀])
+  useEffect(() => { if (쪽번 >= 보일쪽들.length) set쪽번(Math.max(0, 보일쪽들.length - 1)) }, [보일쪽들.length])   // eslint-disable-line react-hooks/exhaustive-deps
 
   const 내려받기 = async (형식) => {
     if (!씀) { 잠김(형식표[형식][0] + ' 받기는'); return }
@@ -281,7 +286,7 @@ export default function SigongPlan() {
   const 그림목록 = [...그림들.entries()]
   const 공정줄화면 = 결과?.줄들 || []
   const 공기 = 날수(공사.착공, 공사.준공)
-  const 쪽 = 쪽들[쪽번]
+  const 쪽 = 보일쪽들[쪽번]
   const 칸고침 = (k) => (e) => set공사((g) => ({ ...g, [k]: e.target.value }))
   /* 그림 자리마다 미리보기 몇 쪽에 있나 — «👁 그 쪽 보기» */
   const 자리쪽 = useMemo(() => {
@@ -289,7 +294,7 @@ export default function SigongPlan() {
     쪽들.forEach((p, i) => p.칸들.forEach((c) => { if (c.자리 && !(c.자리 in m)) m[c.자리] = i }))
     return m
   }, [쪽들])
-  const 쪽으로 = (i) => { set쪽번(i); setTimeout(() => 폭틀.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60) }
+  const 쪽으로 = (i) => { set쪽번(Math.max(0, Math.min(i, 보일쪽들.length - 1))); setTimeout(() => 폭틀.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60) }
   /* 셈 기준이 지금 표에 어떻게 들어갔나(보여 주기만) */
   const 셈보기 = useMemo(() => {
     const 노무비 = (결과?.줄들 || []).reduce((t, r) => t + (r.무게만 ? 0 : (r.노무비 || 0)), 0)
@@ -331,6 +336,7 @@ export default function SigongPlan() {
             </details>
           </div>
         )}
+        <열림띠 열림={씀원} 손님보기={손님보기} />
       </div>
 
       {/* ── ① 올리기 */}
@@ -529,24 +535,29 @@ export default function SigongPlan() {
       {lib && !씀 && !예시봄 && (
         <div className="card">
           <div className="sec-title">④ 미리보기</div>
-          <p className="muted" style={{ marginTop: 0 }}>🧪 예시 내역서를 열면 시공계획서 한 벌(표지 · 공정표 · 투입계획 · 공종별 · 품질 · 안전 · 환경 · 교통)을 쪽마다 넘겨 보실 수 있습니다.</p>
+          <p className="muted" style={{ marginTop: 0 }}>🧪 예시 내역서로 만든 시공계획서 한 벌(표지 · 공정표 · 투입계획 · 공종별 · 품질 · 안전 · 환경 · 교통) 중 <b>앞 3쪽</b>을 보실 수 있습니다(보기만).</p>
           <button type="button" className="btn" style={{ width: 'auto' }} onClick={예시}>🧪 예시로 미리 보기</button>
         </div>
       )}
       {lib && (씀 || 예시봄) && (
         <div className="card">
-          <div className="sec-title">④ 미리보기 · 받기 {쪽들.length > 0 && <span className="muted" style={{ fontWeight: 500 }}>— {쪽들.length}쪽</span>}</div>
+          <div className="sec-title">{씀 ? '④ 미리보기 · 받기' : '④ 미리보기'} {쪽들.length > 0 && <span className="muted" style={{ fontWeight: 500 }}>— {씀 ? `${쪽들.length}쪽` : `🧪 예시 ${보일쪽들.length}쪽 (한 벌 ${쪽들.length}쪽)`}</span>}</div>
           {결과?.오류 && <div className="cwarn">⚠️ {결과.오류}</div>}
           {!자료 && <p className="muted" style={{ marginTop: 0 }}>내역서를 올리기 전에도 틀(품질 · 안전 · 환경 · 교통)은 볼 수 있습니다. 내역서를 넣으면 공정 · 물량 · 공종이 채워집니다.</p>}
+          {/* 🧪 G690 손님에겐 «🔒 PDF · 한글 · 워드 · 엑셀 · 착공서류로» 단추 대신 문의 하나(소장님 「문의로 하라고 했잖아」) */}
           <div className="sg-dl">
-            {Object.entries(형식표).map(([k, [이름]]) => (
-              <button key={k} type="button" className={씀 && !예시내역 ? (k === 'pdf' ? 'btn' : 'btn line') : 'btn line sg-lockbtn'} style={{ width: 'auto' }} disabled={씀 && !예시내역 && (!쪽들.length || !!내림중)} onClick={() => 내려받기(k)}>
-                {내림중 === 이름 ? '⏳ 만드는 중…' : `${씀 && !예시내역 ? '⬇' : '🔒'} ${이름}`}
-              </button>
-            ))}
-            <button type="button" className={'btn line' + (씀 ? '' : ' sg-lockbtn')} style={{ width: 'auto' }} onClick={원클릭에} title="공사명 · 위치 · 착공 · 준공 · 회사 · 현장대리인을 공사서류 원클릭(착공계 · 착공서류)으로 넘깁니다">{씀 ? '⚡' : '🔒'} 착공서류(원클릭)로</button>
+            {!씀 ? <받기대신문의 도구="시공계획서" 셈="시공계획" 글="PDF · 한글 · 워드 · 엑셀 받기는 K-건설맵이 직접 작성해 드립니다(견본 먼저 · 최저가)" /> : (
+              <>
+                {Object.entries(형식표).map(([k, [이름]]) => (
+                  <button key={k} type="button" className={!예시내역 ? (k === 'pdf' ? 'btn' : 'btn line') : 'btn line sg-lockbtn'} style={{ width: 'auto' }} disabled={!예시내역 && (!쪽들.length || !!내림중)} onClick={() => 내려받기(k)}>
+                    {내림중 === 이름 ? '⏳ 만드는 중…' : `${!예시내역 ? '⬇' : '🔒'} ${이름}`}
+                  </button>
+                ))}
+                <button type="button" className="btn line" style={{ width: 'auto' }} onClick={원클릭에} title="공사명 · 위치 · 착공 · 준공 · 회사 · 현장대리인을 공사서류 원클릭(착공계 · 착공서류)으로 넘깁니다">⚡ 착공서류(원클릭)로</button>
+              </>
+            )}
           </div>
-          {!씀 && <p className="muted" style={{ margin: '6px 0 0' }}>🧪 예시(지어낸 공사)입니다. 받기 · 넘기기는 K-건설맵에 문의해 주세요 — 화면에서 쪽마다 넘겨 보십시오.</p>}
+          {!씀 && <p className="muted" style={{ margin: '6px 0 0' }}>🧪 예시(지어낸 공사)입니다 — 앞 {보일쪽들.length}쪽을 넘겨 보십시오(보기만).</p>}
           {씀 && 예시내역 && <p className="cwarn" style={{ margin: '6px 0 0' }}>🧪 지금은 <b>예시 내역서</b>로 만든 것입니다 — 보기만 됩니다. 받기(PDF · 한글 · 워드 · 엑셀)는 내 내역서를 올린 뒤에 됩니다.</p>}
           {잠금말 && (!씀 || 예시내역) && <div className="cwarn" style={{ marginTop: 6 }}>{잠금말}</div>}
           {쪽 && (
@@ -554,13 +565,14 @@ export default function SigongPlan() {
               <div className="sg-pager">
                 <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={쪽번 === 0} onClick={() => set쪽번(쪽번 - 1)}>◀</button>
                 <select value={쪽번} onChange={(e) => set쪽번(+e.target.value)}>
-                  {쪽들.map((p, i) => <option key={i} value={i}>{i + 1} / {쪽들.length}쪽{p.번호 ? ` (- ${p.번호} -)` : ''}</option>)}
+                  {보일쪽들.map((p, i) => <option key={i} value={i}>{i + 1} / {쪽들.length}쪽{p.번호 ? ` (- ${p.번호} -)` : ''}</option>)}
                 </select>
-                <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={쪽번 >= 쪽들.length - 1} onClick={() => set쪽번(쪽번 + 1)}>▶</button>
+                <button type="button" className="btn line sm" style={{ width: 'auto' }} disabled={쪽번 >= 보일쪽들.length - 1} onClick={() => set쪽번(쪽번 + 1)}>▶</button>
               </div>
               <div ref={폭틀} className="sg-view">
                 <쪽그림 쪽={쪽} 폭px={쪽.폭 > 쪽.높이 ? 폭 : Math.min(폭, 640)} 그림들={그림들} />
               </div>
+              {!씀 && <예시끝 전체={쪽들.length} 무엇="시공계획서 한 벌" 도구="시공계획서" 셈="시공계획" />}
             </>
           )}
           <p className="muted" style={{ marginTop: 8 }}>

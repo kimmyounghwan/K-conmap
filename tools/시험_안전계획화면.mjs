@@ -1,6 +1,6 @@
 // 🧪 안전관리계획서 한 벌 화면(/tools/anjeon) — G638 (2026-11-10)
 //   화면 빌드를 띄운 뒤  B=http://127.0.0.1:4996 node tools/시험_안전계획화면.mjs [PC|폰|모두]
-//   ① 잠긴 브라우저(이용자): 🔒 안내 · 적는 칸 없음 · 🧪 예시 → 300쪽 넘는 미리보기 · 쪽 넘김 · 차례로 가기 · 받기 누르면 잠금 말 · 받기 안 됨
+//   ① 잠긴 브라우저(이용자): 🔒 안내 · 적는 칸 없음 · 🧪 예시 → 앞 3쪽만(G690 — 한 벌 300쪽 넘음 · 차례 4쪽부터 🔒) · 받기 자리는 문의 단추 · 받기 안 됨
 //   ② 소장님 브라우저(kcm_op=1): 적는 칸 · 🧪 예시로 채우기 → 미리보기 · 판정 · 그림 넣기(가짜 PNG) → 그 자리에 그림 · PDF 받기(이 시험 브라우저 안에서만)
 //   ③ 화면 오류 없음 · 폰 가로 넘침 없음
 import { createRequire } from 'module'
@@ -40,29 +40,35 @@ for (const 기기 of 기기들) {
       봐(!글.includes('① 공사 · 사람'), `${누구} 적는 칸 없음`)
       await A.locator('button:has-text("예시로 미리 보기")').click()
       await A.waitForSelector('svg.sg-page', { timeout: 60000 })
-      const 쪽수 = await A.evaluate(() => +((document.body.innerText.match(/미리보기 · 받기\s*— (\d+)쪽/) || [])[1] || 0))
-      봐(쪽수 >= 300, `${누구} 예시 ${쪽수}쪽(300 넘게)`, 쪽수)
+      /* 🧪 G690 (11-15 소장님 「예시도 2페이지에서 3페이지만 볼 수 있게 해줘」) — 손님 예시는 앞 3쪽까지 · 한 벌 쪽 수는 머리에 */
+      const 쪽수 = await A.evaluate(() => +((document.body.innerText.match(/한 벌 (\d+)쪽/) || [])[1] || 0))
+      봐(쪽수 >= 300, `${누구} 예시 한 벌 ${쪽수}쪽(300 넘게) — 머리 «🧪 예시 3쪽 (한 벌 ${쪽수}쪽)»`, 쪽수)
       const 표지 = await A.locator('svg.sg-page').innerHTML()
       봐(표지.includes('가상 한빛 공공하수처리시설 증설공사') && /안\s*전\s*관\s*리\s*계\s*획\s*서/.test(표지.replace(/<[^>]+>/g, '')), `${누구} 표지(가상 공사명)`)
       await A.locator('.sg-pager button:has-text("▶")').click()
       await A.waitForTimeout(400)
       const 쪽2 = await A.locator('.sg-pager select').inputValue()
       봐(쪽2 === '1', `${누구} ▶ 다음 쪽`, 쪽2)
-      /* 차례로 가기 — «다. 현장운영계획» */
-      const 값 = await A.locator('.sp-toc select option', { hasText: '다. 현장운영계획' }).first().getAttribute('value')
-      await A.locator('.sp-toc select').selectOption(값)
-      await A.waitForTimeout(500)
-      const 지금 = await A.locator('.sg-pager select').inputValue()
-      봐(+지금 > 10, `${누구} 차례로 가기 → ${+지금 + 1}번째 쪽`, 지금)
-      const 그쪽 = (await A.locator('svg.sg-page').innerHTML()).replace(/<[^>]+>/g, ' ')
-      봐(/현장운영계획/.test(그쪽), `${누구} 그 쪽에 «현장운영계획»`)
-      /* 받기 누르면 잠금 말 · 내려받기 없음 */
+      const 고르기 = await A.evaluate(() => [...document.querySelectorAll('.sg-pager select option')].map((o) => o.textContent))
+      봐(고르기.length === 3 && /^3 \/ \d{3}쪽/.test(고르기[2]), `${누구} 넘기기 고르기는 3쪽까지(«${고르기[2] || ''}»)`, 고르기)
+      await A.locator('.sg-pager select').selectOption('2')
+      await A.waitForTimeout(400)
+      봐(await A.locator('.sg-pager button:has-text("▶")').isDisabled(), `${누구} 3쪽에서 ▶ 막힘`)
+      /* 차례로 가기 — 4쪽부터는 🔒(고를 수 없음) */
+      const 차례 = await A.evaluate(() => {
+        const o = [...document.querySelectorAll('.sp-toc select option')].filter((x) => x.value !== '' || x.disabled)
+        const 운영 = [...document.querySelectorAll('.sp-toc select option')].find((x) => /다\. 현장운영계획/.test(x.textContent))
+        return { 열림: o.filter((x) => !x.disabled).length, 잠김: o.filter((x) => x.disabled).length, 운영잠김: !!(운영 && 운영.disabled && /🔒/.test(운영.textContent)) }
+      })
+      봐(차례.열림 <= 3 && 차례.잠김 > 10 && 차례.운영잠김, `${누구} 차례로 가기 — 4쪽부터 🔒(열림 ${차례.열림} · 잠김 ${차례.잠김} · «다. 현장운영계획» 🔒)`, 차례)
+      const 끝말 = await A.locator('.kcm-예시끝').innerText().catch(() => '')
+      봐(/예시는 앞 3쪽까지 보입니다/.test(끝말) && /안전관리계획서 한 벌 \d{3}쪽 전부/.test(끝말) && (await A.locator('.kcm-예시끝 a[href^="/contact?k=cn"]').count()) === 1, `${누구} «🔒 예시는 앞 3쪽까지» + 문의 단추`, 끝말)
+      /* 받기 자리 = 문의 단추(🔒 PDF · 한글 · 워드 · 엑셀 단추 없음) · 내려받기 없음 */
       let 받음 = false
       A.on('download', () => { 받음 = true })
-      await A.locator('button:has-text("🔒 PDF")').click()
-      await A.waitForTimeout(800)
-      const 글2 = await A.locator('body').innerText()
-      봐(글2.includes('PDF 받기는 K-건설맵에 문의해 주세요') && !받음, `${누구} 잠긴 받기 → 안내만`)
+      const 받기단추 = await A.evaluate(() => [...document.querySelectorAll('.sg-dl button')].map((b) => b.innerText.trim()))
+      const 문의 = await A.locator('.sg-dl a[href^="/contact?k=cn"]').count()
+      봐(받기단추.length === 0 && 문의 === 1 && !받음, `${누구} 받기 자리 — 🔒 받기 단추 0 · 문의 단추 1(G690)`, 받기단추)
       봐(await 넘침() <= 1, `${누구} 가로 넘침 없음`, await 넘침())
     } else {
       const 글 = await A.locator('body').innerText()

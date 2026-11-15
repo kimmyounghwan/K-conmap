@@ -311,7 +311,12 @@ const 치수 = (줄수) => { const 나 = [...머리줄, 몸줄[0]]; for (let i =
   {
     const ctx9 = await 새판('PC', false)
     const w = await ctx9.newPage()
-    await 원클릭열기(w)
+    /* 🧪 G690 (11-15) 손님은 «② 서류 고르기» 없음 — 예시는 늘 서류 3가지(착공신고서 · 기성검사 요청서 · 준공신고서) */
+    await w.goto(BASE + '/tools/wonclick', { waitUntil: 'domcontentloaded' })
+    await w.waitForSelector('.sg-lock', { timeout: 30000 })
+    await w.locator('button', { hasText: '예시 서류 3가지 화면에서 보기' }).click()
+    await w.waitForSelector('.xv-띠', { timeout: 30000 })
+    await 쉬어(400)
     const 글w = await w.$$eval('.xv-띠 button', (x) => x.map((y) => y.innerText))
     ok(`⑨ 남(열쇠말 없음)의 원클릭 예시 → 보기만(PDF · 인쇄 단추 0 · html.kcm-보기만) «${글w.join(' · ')}»`, 글w.every((x) => !/PDF|인쇄/.test(x)) && await w.evaluate(() => document.documentElement.classList.contains('kcm-보기만')), 글w)
     await w.close()

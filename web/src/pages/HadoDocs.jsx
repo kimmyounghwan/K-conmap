@@ -19,6 +19,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { 세기, 예시본수 } from '../lib/받은수.jsx'
 import 잠금문의 from '../잠금문의.jsx'   // 📄 G669 잠근 도구 «문의»
+import { 예시한도, 예시끝, 열림띠, 손님보기켬 } from '../예시한도.jsx'   // 🧪 G690 손님 예시는 3장까지 · 🔑 소장님 기기 띠
 import { isOpen, tryOpen } from '../lib/gate.js'
 import { use보기만 } from '../lib/보기만.js'   // 🧪 G679 예시는 보기만(Ctrl+P 안내 한 줄 · 예시 판 복사 막음)
 import { 나운영자 } from '../lib/운영자.js'
@@ -27,6 +28,11 @@ import { 칸들, 자료들 } from '../lib/하도급서류칸.js'
 import { 하자표 } from '../lib/계약셈.js'
 
 const 엑셀화면 = lazy(() => import('../엑셀화면.jsx'))
+/* 🧪 G690 (11-15) 손님 예시는 3장만 — 제출 서류 목록 · 하도급계약 통보서 · 하도급계약서(이름이 바뀌었으면 앞 3장) */
+const 예시장 = (시트) => {
+  const 고름 = ['제출서류목록', '하도급계약통보서', '하도급계약서'].filter((n) => 시트.includes(n))
+  return 고름.length === 예시한도 ? 고름 : 시트.slice(0, 예시한도)
+}
 const 하자표줄 = 하자표.flatMap((g) => g.줄)
 const fmt = (n) => new Intl.NumberFormat('ko-KR').format(Math.round(n || 0))
 const 숨 = () => new Promise((r) => setTimeout(r, 30))
@@ -48,7 +54,9 @@ const 고를것 = {
 }
 
 export default function HadoDocs() {
-  const [씀, set씀] = useState(() => isOpen())
+  const [씀원, set씀] = useState(() => isOpen())
+  const 손님보기 = 손님보기켬()   // 👀 G690 소장님 기기에서 «손님 화면으로 보기»(이 탭만 · 예시한도.jsx)
+  const 씀 = 씀원 && !손님보기
   const [열쇠말, set열쇠말] = useState('')
   const [열쇠틀림, set열쇠틀림] = useState(false)
   const [잠금말, set잠금말] = useState('')
@@ -265,6 +273,7 @@ export default function HadoDocs() {
             </details>
           </div>
         )}
+        <열림띠 열림={씀원} 손님보기={손님보기} />
         {잠금말 && <div className="cwarn" style={{ marginTop: 8 }}>{잠금말}</div>}
         {바쁨 && <div className="muted" style={{ marginTop: 8 }}>⏳ {바쁨}</div>}
         {오류 && <div className="cwarn" style={{ marginTop: 8 }}>⚠️ {오류}</div>}
@@ -275,13 +284,15 @@ export default function HadoDocs() {
         <div className="card">
           <div className="sec-title">🧪 예시 한 벌 — 지어낸 회사 · 지어낸 내역서 <span className="muted" style={{ fontWeight: 500 }}>(보기만 · 받기 · 인쇄 없음)</span></div>
           <p className="muted" style={{ margin: '0 0 8px', fontSize: 13 }}>
-            제출 서류 {예시.제출.length}장 + 원자료 {예시.원자료.length}장. 위 단추로 장을 넘겨 보십시오.
-            {씀 ? '' : ' 실제 회사 자료로 만들어 드리는 것은 K-건설맵에 문의해 주십시오.'}
+            {씀 ? <>제출 서류 {예시.제출.length}장 + 원자료 {예시.원자료.length}장. 위 단추로 장을 넘겨 보십시오.</>
+              : <>한 벌(제출 서류 {예시.제출.length}장 + 원자료 {예시.원자료.length}장) 중 {예시장(예시.시트).length}장({예시장(예시.시트).join(' · ')})을 보실 수 있습니다. 위 단추로 장을 넘겨 보십시오.</>}
           </p>
           <Suspense fallback={<div className="muted">화면을 불러오는 중…</div>}>
-            <엑셀화면 책={예시.책} 시트들={예시.시트} 고칠수={false} 인쇄함={false} 이름="하도급 계약서류 예시"
+            {/* 🧪 G690 손님은 3장만(예시장) — 나머지 장은 단추도 화면도 안 그림 */}
+            <엑셀화면 책={예시.책} 시트들={씀 ? 예시.시트 : 예시장(예시.시트)} 고칠수={false} 인쇄함={false} 이름="하도급 계약서류 예시"
               이름표={(n) => (예시.원자료.includes(n) ? '⚙ ' + n : n)} />
           </Suspense>
+          {!씀 && <예시끝 전체={예시.시트.length} 한도={예시장(예시.시트).length} 단위="장" 앞={false} 무엇="하도급 서류" 도구="하도급 서류 한 벌" 셈="하도급서류" />}
         </div>
       )}
 

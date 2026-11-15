@@ -40,14 +40,20 @@ for (const w of [390, 1280]) {
     const 거래표 = await p.evaluate(() => { const t = [...document.querySelectorAll('.gr-t')][1]; return t ? [...t.querySelectorAll('tbody tr')].map((tr) => tr.textContent.replace(/\s+/g, ' ').trim()) : [] })
     const 남은곳 = 경.거래처들(E.R).filter((x) => x.받을 || x.줄돈)
     봐(거래표.length === 남은곳.length && 거래표[0].startsWith(남은곳[0].이름), `거래처 남은 돈 ${남은곳.length}곳 · 첫 줄 ${남은곳[0].이름}`, 거래표)
-    /* 누르면 원장 — 가상흄관 */
-    await p.evaluate(() => { const t = [...document.querySelectorAll('.gr-t')][1]; [...t.querySelectorAll('tbody tr')].find((tr) => /가상흄관/.test(tr.textContent))?.click() }); await 쉼(p, 600)
-    const 흄 = await p.evaluate(() => ({ 탭: (document.querySelector('.gr-tabs [aria-selected=true]') || {}).textContent, 고른: (document.querySelector('.gr-chips .chip.on') || {}).textContent, 정보: (document.querySelector('.gr-kv') || {}).textContent, 타일: [...document.querySelectorAll('.gr-tiles > div')].map((d) => d.textContent.replace(/\s+/g, ' ').trim()), 줄: [...document.querySelectorAll('.gr-t tbody tr')].map((tr) => tr.textContent.replace(/\s+/g, ' ').trim()) }))
-    봐(/거래처 원장/.test(흄.탭) && /가상흄관/.test(흄.고른) && /박가상/.test(흄.정보) && /\*\*\*-\*\*-\*\*\*\*\*/.test(흄.정보) && !/\d{3}-\d{2}-\d{5}/.test(흄.정보), '거래처 줄 누름 → 원장 탭 · 가상흄관 · 정보(지어낸 · 사업자번호 가림)', 흄)
-    봐(흄.타일[1].includes('27,350,000') && 흄.줄.length === 2 && 흄.줄[0].includes('42,350,000') && 흄.줄[1].includes('15,000,000') && 흄.줄[1].includes('27,350,000'), '가상흄관 원장 — 매입 42,350,000 → 지급 15,000,000 → 줄 돈 27,350,000', 흄)
-    await p.evaluate(() => [...document.querySelectorAll('.gr-chips .chip')].find((b) => /○○시/.test(b.textContent))?.click()); await 쉼(p, 400)
-    const 시 = await p.evaluate(() => ({ 타일: [...document.querySelectorAll('.gr-tiles > div')].map((d) => d.textContent.replace(/\s+/g, ' ').trim()), 첫: (document.querySelector('.gr-t tbody tr') || {}).textContent }))
-    봐(시.타일[0].includes('29,929,412') && /선급/.test(시.첫) && /미리 받음/.test(시.첫), '○○시 — 받을 돈 29,929,412 · 첫 줄 선급(미리 받음)', 시)
+    /* 🧪 G690 (11-15 소장님 「예시도 2페이지에서 3페이지만 볼 수 있게 해줘」) — 손님 예시는 한눈에 + 거래처 원장 2곳(남은 돈 큰 차례 앞 둘)까지 */
+    const 잠줄 = await p.evaluate(() => { const t = [...document.querySelectorAll('.gr-t')][1]; return [...t.querySelectorAll('tbody tr')].map((tr) => ({ 글: tr.textContent.replace(/\s+/g, ' ').trim().slice(0, 20), 잠: tr.classList.contains('gr-잠'), 자물: /🔒/.test(tr.textContent) })) })
+    봐(잠줄.length > 2 && !잠줄[0].잠 && !잠줄[1].잠 && 잠줄.slice(2).every((x) => x.잠 && x.자물), `거래처 남은 돈 — 앞 2곳만 누름 · 나머지 ${잠줄.length - 2}곳 🔒`, 잠줄)
+    await p.evaluate(() => { const t = [...document.querySelectorAll('.gr-t')][1]; [...t.querySelectorAll('tbody tr')].find((tr) => /가상흄관/.test(tr.textContent))?.click() }); await 쉼(p, 500)
+    봐(/한눈에/.test(await p.evaluate(() => (document.querySelector('.gr-tabs [aria-selected=true]') || {}).textContent || '')), '🔒 가상흄관 줄을 눌러도 원장으로 안 감')
+    /* 누르면 원장 — 가상철골(외주) */
+    await p.evaluate(() => { const t = [...document.querySelectorAll('.gr-t')][1]; [...t.querySelectorAll('tbody tr')].find((tr) => /가상철골/.test(tr.textContent))?.click() }); await 쉼(p, 600)
+    const 철 = await p.evaluate(() => ({ 탭: (document.querySelector('.gr-tabs [aria-selected=true]') || {}).textContent, 고른: (document.querySelector('.gr-chips .chip.on') || {}).textContent, 칩: [...document.querySelectorAll('.gr-chips .chip')].map((b) => b.textContent.trim()), 정보: (document.querySelector('.gr-kv') || {}).textContent, 타일: [...document.querySelectorAll('.gr-tiles > div')].map((d) => d.textContent.replace(/\s+/g, ' ').trim()), 줄: [...document.querySelectorAll('.gr-t tbody tr')].map((tr) => tr.textContent.replace(/\s+/g, ' ').trim()), 끝말: (document.querySelector('.kcm-예시끝') || {}).textContent || '' }))
+    봐(/거래처 원장/.test(철.탭) && /가상철골/.test(철.고른) && /최가상/.test(철.정보) && /\*\*\*-\*\*-\*\*\*\*\*/.test(철.정보) && !/\d{3}-\d{2}-\d{5}/.test(철.정보), '거래처 줄 누름 → 원장 탭 · 가상철골(외주) · 정보(지어낸 · 사업자번호 가림)', 철)
+    봐(철.칩.length === 2 && /가상물류/.test(철.칩[0]) && /가상철골/.test(철.칩[1]) && /예시는 2곳까지 보입니다|예시는 앞 2곳까지 보입니다/.test(철.끝말) && /거래처 원장 13곳 전부/.test(철.끝말), '원장 거래처는 2곳만 · «🔒 예시는 … 2곳까지 — 거래처 원장 13곳 전부는 문의»', 철)
+    봐(철.타일[1].includes('114,400,000') && 철.줄.length === 3 && 철.줄[0].includes('129,800,000') && 철.줄[2].includes('114,400,000'), '가상철골(외주) 원장 — 매입 129,800,000 → 지급 → 매입 114,400,000 · 줄 돈 114,400,000', 철)
+    await p.evaluate(() => [...document.querySelectorAll('.gr-chips .chip')].find((b) => /가상물류/.test(b.textContent))?.click()); await 쉼(p, 400)
+    const 물 = await p.evaluate(() => ({ 타일: [...document.querySelectorAll('.gr-tiles > div')].map((d) => d.textContent.replace(/\s+/g, ' ').trim()), 줄: [...document.querySelectorAll('.gr-t tbody tr')].map((tr) => tr.textContent.replace(/\s+/g, ' ').trim()) }))
+    봐(물.타일[0].includes('235,400,000') && 물.줄.length === 3 && /청구/.test(물.줄[0]) && /수금/.test(물.줄[1]), '가상물류(주) — 받을 돈 235,400,000 · 청구 → 수금 → 청구', 물)
     const 넘 = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
     봐(넘 <= 1, '가로 넘침 없음', 넘)
     /* 🩹 11-14 올리기 전 캡처에서 찾음 — 폰에서 현장 이름이 한 글자씩 세로로 · 원장 금액 · 줄 돈 칸이 화면 밖(옆으로 밀어야 보임) → 폰은 줄마다 쌓음 */
@@ -67,8 +73,8 @@ for (const w of [390, 1280]) {
     const 꼴2 = await p.evaluate(() => { const 줄 = [...document.querySelectorAll('.gr-t.gr-장 tbody tr')]; const r = (td) => td.getBoundingClientRect()
       return { 줄: 줄.length, 금액안: 줄.every((tr) => r(tr.querySelector('td.gr-금')).right <= window.innerWidth), 남은칸: 줄.map((tr) => [...tr.querySelectorAll('td.gr-남')].filter((td) => td.offsetParent !== null).length),
         금액줄: 줄.slice(0, 1).map((tr) => Math.abs(r(tr.querySelector('td.gr-금')).top - r(tr.querySelector('td.gr-날')).top) < 6) } })
-    if (폰) 봐(꼴2.줄 === 8 && 꼴2.금액안 && 꼴2.남은칸.every((k) => k === 1) && 꼴2.금액줄[0], '폰 원장 — 은행 앱 꼴(날 · 갈래 … 금액 한 줄 · 남은 돈은 그 줄 쪽 하나만 · 금액이 화면 안)', 꼴2)
-    else 봐(꼴2.줄 === 8 && 꼴2.금액안 && 꼴2.남은칸.every((k) => k === 2), 'PC 원장 — 일곱 칸 그대로(받을 · 줄 돈 남음 둘 다)', 꼴2)
+    if (폰) 봐(꼴2.줄 === 3 && 꼴2.금액안 && 꼴2.남은칸.every((k) => k === 1) && 꼴2.금액줄[0], '폰 원장 — 은행 앱 꼴(날 · 갈래 … 금액 한 줄 · 남은 돈은 그 줄 쪽 하나만 · 금액이 화면 안)', 꼴2)
+    else 봐(꼴2.줄 === 3 && 꼴2.금액안 && 꼴2.남은칸.every((k) => k === 2), 'PC 원장 — 일곱 칸 그대로(받을 · 줄 돈 남음 둘 다)', 꼴2)
     봐(오류.length === 0, '쪽 오류 0', 오류)
     await c.close()
   }
