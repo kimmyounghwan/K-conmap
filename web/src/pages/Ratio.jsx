@@ -807,7 +807,7 @@ export default function Ratio() {
         </ul>
         <div className="btn-row" style={{ justifyContent: 'flex-start', marginTop: 12, flexWrap: 'wrap' }}>
           <Link className="btn ghost" to="/naeyeok">📋 내역서 — 다른 도구 · 서식</Link>
-          <Link className="btn ghost" to="/change/twoline">🔁 설계변경 2줄 자동변환</Link>
+          <Link className="btn ghost" to="/change/twoline">🔁 설계변경 2줄 · 1줄 자동변환</Link>
           <Link className="btn ghost" to="/tools">🧰 건설 도구</Link>
         </div>
       </div>

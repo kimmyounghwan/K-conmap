@@ -16,10 +16,15 @@
  *       그래서 인쇄영역·매크로·조건부서식·그림이 그대로 남습니다.
  *
  * ■ 파일은 브라우저 안에서만 다룹니다. 서버로 올라가지 않습니다.
+ *
+ * ■ G687 (2026-11-15) «2줄 → 1줄» 을 같은 화면에 — 소장님 「1줄로 되게 만들어 줘」 · 「한 줄로 해야 해. 2줄로 하는 데서 1줄로 하는 것도 둬」
+ *    맨 위 두 단추(1줄 → 2줄 · 2줄 → 1줄 · 주소 ?m=1) · 1줄 → 2줄은 전 그대로(두줄판) · 2줄 → 1줄은 ../한줄로판.jsx
+ *    · 1줄 → 2줄에 이미 2줄인 파일을 놓으면 «2줄 → 1줄로 이 파일 열기» 안내 · 두 쪽 다 🧪 예시 파일(지어낸 공사 · tools/build_2줄예시.py)
  */
-import { useCallback, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { askAfter } from '../AskComment'
+import 한줄로판 from '../한줄로판.jsx'
 
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { 세기 } from '../lib/받은수.jsx'   /* 🔢 G377 쓴 횟수 — |2줄|2줄 · |2줄|3줄 · |2줄|xlsm · |2줄|멈춤 (받은 것은 받은수가 따로 셈) */
@@ -30,8 +35,55 @@ const LABELS = ['당초', '변경', '증감']
 import { XLSX, XLSM, 매크로인가 } from '../lib/엑셀종류.js'
 
 function fmt(n) { return new Intl.NumberFormat('ko-KR').format(n) }
+const 예시1줄 = '/tools/files/ex-twoline-1line.xlsx'
+const 예시1줄이름 = '가상_솔바람마을_내역서.xlsx'
 
 export default function TwoLine() {
+  const [sp, setSp] = useSearchParams()
+  const 모드 = sp.get('m') === '1' ? '1' : '2'
+  const [넘김, set넘김] = useState(null)       /* 다른 쪽으로 넘길 파일 {name, size, buf, 예시} */
+  const 바꿈 = useCallback((m, 파일 = null) => {
+    set넘김(파일 && 파일.buf ? { ...파일, t: Date.now() } : null)
+    const n = new URLSearchParams(sp)
+    if (m === '1') n.set('m', '1'); else n.delete('m')
+    setSp(n)
+  }, [sp, setSp])
+  return (
+    <>
+      <div className="card lead-card">
+        <h1 style={{ margin: 0, fontSize: 20 }}>🔁 설계변경 2줄 · 1줄 자동변환</h1>
+        <div className="tlmode" role="tablist" aria-label="바꾸는 쪽">
+          <button type="button" role="tab" aria-selected={모드 === '2'} className={모드 === '2' ? 'on' : ''} onClick={() => 모드 !== '2' && 바꿈('2')}>
+            <b>1줄 → 2줄</b><span>당초 · 변경 벌리기</span>
+          </button>
+          <button type="button" role="tab" aria-selected={모드 === '1'} className={모드 === '1' ? 'on' : ''} onClick={() => 모드 !== '1' && 바꿈('1')}>
+            <b>2줄 → 1줄</b><span>변경 줄만 남기기</span>
+          </button>
+        </div>
+        {모드 === '1' ? (
+          <p className="why2" style={{ marginBottom: 6 }}>
+            당초 · 변경 <b>2줄 변경내역서</b>를 올리면 짝마다 <b>변경 줄 하나</b>만 남긴 1줄 내역서로 줄여 드립니다.
+            서식 · 인쇄 · 결재란은 원본 그대로입니다.
+          </p>
+        ) : (
+          <p className="why2" style={{ marginBottom: 6 }}>
+            공사 내역서 엑셀을 올리면 <b>당초 · 변경</b> 두 줄로 벌려 드립니다.
+            당초는 검정, 변경은 <b className="tlred">적색</b>입니다.
+          </p>
+        )}
+        <p className="muted" style={{ margin: 0 }}>
+          <b>파일은 이 브라우저 안에서만 다룹니다.</b> 서버로 올라가지 않습니다.
+        </p>
+      </div>
+      {모드 === '1'
+        ? <한줄로판 key="1" 처음파일={넘김} 바꿈={바꿈} />
+        : <두줄판 key="2" 처음파일={넘김} 바꿈={바꿈} />}
+    </>
+  )
+}
+
+/* ── 1줄 → 2줄 (전 화면 그대로 · G687 에서 함수만 나눔) ── */
+function 두줄판({ 처음파일 = null, 바꿈 }) {
   const [lib, setLib] = useState(null)        /* 무겁습니다 — 파일을 올릴 때 받아옵니다 */
   const [busy, setBusy] = useState('')
   const [err, setErr] = useState('')
@@ -42,6 +94,7 @@ export default function TwoLine() {
   const [color, setColor] = useState('blackred')
   const [diff, setDiff] = useState(true)
   const [out, setOut] = useState(null)        /* {url,name,report} */
+  const [두줄임, set두줄임] = useState(null)   /* G687 이미 2줄인 파일 — {시트: '내역서 · 원가계산서', 짝} */
   const inputRef = useRef(null)
 
   const loadLib = useCallback(async () => {
@@ -53,7 +106,7 @@ export default function TwoLine() {
 
   const openFile = useCallback(async (f) => {
     if (!f) return
-    setErr(''); setOut(null); setBook(null); setJobs([])
+    setErr(''); setOut(null); setBook(null); setJobs([]); set두줄임(null)
     if (!/\.(xlsx|xlsm)$/i.test(f.name)) {
       setErr(/\.xls$/i.test(f.name)
         ? '구형 엑셀(.xls)은 아직 못 읽습니다. 엑셀에서 «다른 이름으로 저장 → Excel 통합 문서(.xlsx)» 한 뒤 올려 주십시오.'
@@ -63,10 +116,18 @@ export default function TwoLine() {
     setBusy('파일을 읽는 중입니다…')
     try {
       const m = await loadLib()
-      const buf = await f.arrayBuffer()
+      const buf = f.buf || await f.arrayBuffer()
       const b = m.analyze(buf)
-      setFile({ name: f.name, size: f.size, buf })
+      setFile({ name: f.name, size: f.size, buf, 예시: !!f.예시 })
       setBook(b)
+      /* G687 — 이미 당초 · 변경 2줄인 파일이면 «2줄 → 1줄» 을 알려 드림(벌리면 네 줄이 됩니다) */
+      import('../lib/xlsx1line.js').then((l) => {
+        try {
+          const 살 = l.살펴보기(buf)
+          const 확 = 살.sheets.filter((s) => s.확실)
+          if (확.length) set두줄임({ 시트: 확.map((s) => s.name).slice(0, 3).join(' · '), 짝: 확.reduce((n, s) => n + s.짝, 0) })
+        } catch (e) { /* 안내만 — 못 살펴도 그대로 */ }
+      }).catch(() => {})
       /* 실제 내역서 파일은 «원가계산서 · 내역서 · 일위대가 · 단가산출» 처럼 여러 장입니다.
          2줄로 벌릴 것은 보통 «내역» 이 들어간 시트라, 그것부터 켜 둡니다.
          (없으면 첫 시트) — 물론 손으로 다시 고르실 수 있습니다. */
@@ -88,6 +149,24 @@ export default function TwoLine() {
   }, [loadLib])
 
   const onDrop = (e) => { e.preventDefault(); openFile(e.dataTransfer?.files?.[0]) }
+
+  /* «2줄 → 1줄» 에서 «1줄 → 2줄로 이 파일 열기» 로 넘어온 파일 */
+  useEffect(() => {
+    if (처음파일 && 처음파일.buf) openFile({ name: 처음파일.name, size: 처음파일.size, buf: 처음파일.buf, 예시: 처음파일.예시 })
+  }, [처음파일]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const 예시 = async () => {
+    setErr('')
+    setBusy('예시 파일을 받는 중입니다…')
+    try {
+      const r = await fetch(예시1줄, { cache: 'no-store' })
+      if (!r.ok) throw new Error('예시 파일을 받지 못했습니다. 잠시 뒤 다시 눌러 주십시오.')
+      const buf = await r.arrayBuffer()
+      세기('|2줄|예시')
+      setBusy('')
+      await openFile({ name: 예시1줄이름, size: buf.byteLength, buf, 예시: true })
+    } catch (e) { setErr(e?.message || '예시 파일을 받지 못했습니다.'); setBusy('') }
+  }
 
   const setJob = (i, patch) => setJobs((js) => js.map((j, k) => (k === i ? { ...j, ...patch } : j)))
 
@@ -157,17 +236,6 @@ export default function TwoLine() {
 
   return (
     <>
-      <div className="card lead-card">
-        <h1 style={{ margin: 0, fontSize: 20 }}>🔁 설계변경 2줄 자동변환</h1>
-        <p className="why2" style={{ marginBottom: 6 }}>
-          공사 내역서 엑셀을 올리면 <b>당초 · 변경</b> 두 줄로 벌려 드립니다.
-          당초는 검정, 변경은 <b className="tlred">적색</b>입니다.
-        </p>
-        <p className="muted" style={{ margin: 0 }}>
-          <b>파일은 이 브라우저 안에서만 다룹니다.</b> 서버로 올라가지 않습니다.
-        </p>
-      </div>
-
       {/* ── 우리만 하는 것 ── */}
       <div className="card">
         <div className="sec-title">다른 변환기와 다른 점</div>
@@ -196,15 +264,27 @@ export default function TwoLine() {
         >
           <input
             ref={inputRef} type="file" accept=".xlsx,.xlsm" hidden
-            onChange={(e) => openFile(e.target.files?.[0])}
+            onChange={(e) => { openFile(e.target.files?.[0]); e.target.value = '' }}
           />
           <끌어놓기판 글="내역서(엑셀)를 놓으면 엽니다" 길들={[{ 꼴: /\.(xlsx|xlsm)$/i, 받기: (fs) => openFile(fs[0]) }]} />
           {file
-            ? <><b>{file.name}</b><span>{fmt(Math.round(file.size / 1024))} KB · 다른 파일을 올리려면 누르십시오</span></>
+            ? <><b>{file.name}</b><span>{fmt(Math.round(file.size / 1024))} KB{file.예시 ? ' · 🧪 예시(지어낸 공사)' : ''} · 다른 파일을 올리려면 누르십시오</span></>
             : <><b>＋ 엑셀 파일을 끌어 놓거나 누르십시오</b><span>.xlsx · .xlsm — 구형 .xls 는 xlsx 로 저장해서 올려 주십시오</span></>}
+        </div>
+        <div className="btn-row" style={{ marginTop: 8 }}>
+          <button type="button" className="btn ghost sm tl2-ex" onClick={예시} disabled={!!busy}>🧪 예시 내역서로 해 보기</button>
         </div>
         {busy && <div className="muted" style={{ marginTop: 8 }}>{busy}</div>}
         {err && <div className="cwarn" style={{ marginTop: 8 }}>⚠️ {err}</div>}
+        {두줄임 && (
+          <div className="cwarn tl2-already" style={{ marginTop: 8 }}>
+            ⚠️ 이 파일은 이미 <b>당초 · 변경 2줄</b>입니다(«{두줄임.시트}» 짝 {fmt(두줄임.짝)}개) — 여기서 벌리면 줄이 또 늘어납니다.
+            1줄로 줄이시려면{' '}
+            {바꿈 && file
+              ? <button type="button" className="btn ghost sm" onClick={() => 바꿈('1', file)}>2줄 → 1줄로 이 파일 열기 ▸</button>
+              : '«2줄 → 1줄» 을 쓰십시오.'}
+          </div>
+        )}
       </div>
 
       {/* ── ② 시트와 구간 ── */}

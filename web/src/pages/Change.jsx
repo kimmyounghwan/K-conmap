@@ -630,11 +630,12 @@ export default function Change() {
       <Link className="card fbook" to="/change/twoline">
         <span className="fic">🔁</span>
         <div className="grow">
-          <div className="t">설계변경 2줄 자동변환 <em>· 엑셀 · 브라우저에서만</em></div>
+          <div className="t">설계변경 2줄 · 1줄 자동변환 <em>· 엑셀 · 브라우저에서만</em></div>
           <div className="d">
             공사 내역서 엑셀을 올리면 <b>당초 · 변경</b> 두 줄로 벌려 드립니다.
             <b>합계를 SUMIF 로 갈라</b> 당초 합계와 변경 합계를 따로 내고,
-            <b>증감 줄</b>까지 넣을 수 있습니다. 파일은 서버로 올라가지 않습니다.
+            <b>증감 줄</b>까지 넣을 수 있습니다. 거꾸로 <b>2줄 변경내역서는 변경 줄만 남긴 1줄</b>로 줄여 드립니다(서식 그대로).
+            파일은 서버로 올라가지 않습니다.
             <받은수 쪽="/change/twoline" 봄="/change/twoline" className="dlcount tlx-dl" />
           </div>
         </div>

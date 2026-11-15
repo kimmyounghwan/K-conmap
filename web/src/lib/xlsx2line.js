@@ -36,24 +36,24 @@ export function numToCol(n) {
   while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = (n - m - 1) / 26 }
   return s
 }
-function splitRef(ref) {
+export function splitRef(ref) {
   const m = /^([A-Za-z]{1,3})(\d+)$/.exec(ref)
   return m ? { col: m[1].toUpperCase(), row: +m[2] } : null
 }
 
 /* ── 아주 작은 XML 도우미 — 여는 태그의 속성만 만집니다 ── */
-function attr(tag, name) {
+export function attr(tag, name) {
   const m = new RegExp(`\\s${name}="([^"]*)"`).exec(tag)
   return m ? m[1] : null
 }
-function setAttr(tag, name, val) {
+export function setAttr(tag, name, val) {
   const re = new RegExp(`(\\s${name}=")[^"]*(")`)
   if (re.test(tag)) return tag.replace(re, `$1${val}$2`)
   return tag.replace(/(<[A-Za-z:]+)/, `$1 ${name}="${val}"`)
 }
-const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+export const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 /* 엑셀은 한글을 &#46020; 같은 숫자 기호로도 씁니다 — 미리보기에서 풀어 줍니다 */
-const unesc = (s) => String(s)
+export const unesc = (s) => String(s)
   .replace(/&#x([0-9A-Fa-f]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
   .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(+d))
   .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'")
@@ -82,6 +82,11 @@ export function mapFormulaRows(f, mapRow, sheetRow) {
   let i = 0
   while (i < f.length) {
     const prev = i > 0 ? f[i - 1] : ''
+    /* 🩹 G687 다른 통합 문서 «[383]내역서!H17» — 그대로(전엔 «]» 뒤 «내역서!H17» 을 이 책의 내역서로 보고 H29 로 옮겼음 · 조달청 내역서엔 바깥 연결이 흔함) */
+    if (f[i] === '[') {
+      const xm = /^\[[^\]]*\](?:'(?:[^']|'')*'|[A-Za-z0-9_.\u3131-\uD79D]+)?!?(?:\$?[A-Za-z]{1,3}\$?\d{1,7}(?::\$?[A-Za-z]{1,3}\$?\d{1,7})?)?/.exec(f.slice(i))
+      if (xm) { out += xm[0]; i += xm[0].length; continue }
+    }
     /* ① 시트이름! + 칸 (=내역서!G9 · ='내 역서'!G9) */
     if (!/[A-Za-z0-9_.$!]/.test(prev)) {
       const sm = SHEET_RE.exec(f.slice(i))
@@ -167,7 +172,7 @@ export function shiftFormula(f, dRow, dCol) {
 /* ══════════════════════════════════════════════════════════
    styles.xml — 붉은/푸른 글씨 변형 만들기
    ══════════════════════════════════════════════════════════ */
-function sliceList(xml, tag) {
+export function sliceList(xml, tag) {
   const open = new RegExp(`<${tag}\\b[^>]*>`).exec(xml)
   if (!open) return null
   const start = open.index
@@ -176,7 +181,7 @@ function sliceList(xml, tag) {
   const inner = xml.slice(start + open[0].length, close)
   return { head: open[0], inner, start, end: close + tag.length + 3 }
 }
-function splitItems(inner, tag) {
+export function splitItems(inner, tag) {
   const re = new RegExp(`<${tag}\\b[^>]*\\/>|<${tag}\\b[^>]*>[\\s\\S]*?<\\/${tag}>`, 'g')
   return inner.match(re) || []
 }
@@ -185,7 +190,7 @@ function splitItems(inner, tag) {
    엑셀은 hs 를 몰라 Fallback 을 씁니다 — 하나로 세어야 번호(fontId · s)가 안 밀립니다.
    전엔 Choice · Fallback 을 둘 다 세고 감싼 것을 버려 번호가 밀리고(글꼴 · 서식이 엉뚱하게) hs 이름표가 풀려 XML 이 깨졌습니다.
    → 고칠 때만(Styler.build) 감싼 것을 Fallback 하나로 바꿔 씁니다(Fallback 이 없으면 Choice 에서 남의 이름표를 뗀 것). */
-function 대안풀기(inner, tag) {
+export function 대안풀기(inner, tag) {
   if (!/AlternateContent/.test(inner)) return inner
   return inner.replace(/<([A-Za-z_][\w.-]*):AlternateContent\b[\s\S]*?<\/\1:AlternateContent>/g, (blk) => {
     const fb = /<[A-Za-z_][\w.-]*:Fallback\b[^>]*>([\s\S]*?)<\/[A-Za-z_][\w.-]*:Fallback>/.exec(blk)
@@ -195,7 +200,7 @@ function 대안풀기(inner, tag) {
   })
 }
 
-class Styler {
+export class Styler {
   constructor(xml) {
     this.xml = xml
     this.fontsBlk = sliceList(xml, 'fonts')
@@ -516,7 +521,9 @@ function planSheet(xml, o) {
   const newOf = new Map()
   let cur = 0
   for (let r = 1; r <= maxRn; r++) { cur += 1; newOf.set(r, cur); if (dup.has(r)) cur += gs - 1 }
-  return { dup, mapBase: (r) => (newOf.has(r) ? newOf.get(r) : r), maxRn }
+  /* 마지막 줄 뒤(빈 줄)도 같은 만큼 밀림 — 전엔 그대로 두어 «SUM(K28:K35)» 가 «SUM(K51:K35)» 처럼 거꾸로 · 짧아졌음(G687) */
+  const 뒤 = cur - maxRn
+  return { dup, mapBase: (r) => (newOf.has(r) ? newOf.get(r) : r > maxRn ? Math.min(1048576, r + 뒤) : r), maxRn }
 }
 
 /* ── 시트 한 장 ──────────────────────────────── */
@@ -558,7 +565,9 @@ function convertSheet(xml, o, styler) {
     newOf.set(r, cur)
     if (dup.has(r)) cur += gs - 1
   }
-  const mapBase = (r) => (newOf.has(r) ? newOf.get(r) : r)
+  /* 마지막 줄 뒤(빈 줄)도 같은 만큼 밀림(위 planSheet 와 같게 · G687) */
+  const 뒤줄 = cur - maxRn
+  const mapBase = (r) => (newOf.has(r) ? newOf.get(r) : r > maxRn ? Math.min(1048576, r + 뒤줄) : r)
 
   /* 3) 행을 다시 씁니다 */
   const styleOf = (s, k) => {
@@ -803,7 +812,7 @@ function 줄합식(pl, r1, r2, word, labels, gs, sumR, labR, crit = '') {
 }
 
 /* 여는 괄호 바로 뒤(pos)부터 인자를 나눕니다 — 글자 · 안쪽 괄호는 건너뜁니다. 못 닫히면 null */
-function splitArgs(f, pos) {
+export function splitArgs(f, pos) {
   let j = pos, depth = 0, start = pos
   const args = []
   while (j < f.length) {
@@ -1091,7 +1100,7 @@ function fixSqrefs(xml, dup, mapBase, gs) {
 
 
 /* 워크북에 적힌 시트 차례 — 인쇄영역의 localSheetId 가 이 번호입니다 */
-function sheetOrder(zip) {
+export function sheetOrder(zip) {
   const out = []
   if (!zip['xl/workbook.xml']) return out
   const wb = strFromU8(zip['xl/workbook.xml'])
@@ -1227,7 +1236,7 @@ export function keySumRanges(zip, path, from, to) {
 
 
 /* 시트 파일경로 → 시트 이름 */
-function sheetNames(zip) {
+export function sheetNames(zip) {
   const out = {}
   if (!zip['xl/workbook.xml']) return out
   const wb = strFromU8(zip['xl/workbook.xml'])

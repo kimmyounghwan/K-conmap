@@ -344,11 +344,11 @@ export default function ChangeWork() {
           <li><b>관급자재 · 기타공사비</b>처럼 순공사비 밖에 두는 공종은, 공종 줄에 적힌 합을 보고 찾아서 순공사비에서 뺍니다.</li>
           <li>2줄 내역서에서 <b>변경 줄에 품명 · 규격을 바꿔 적은 것</b>(예: 말뚝 종류를 바꾼 것)도 한 품목으로 읽습니다.</li>
           <li>파일 둘을 맞출 때는 <b>공종 이름 + 품명 · 규격 · 단위</b>가 같은 것끼리 짝짓습니다. 규격을 바꾼 품목은 «없어진 것 + 신규» 로 보입니다.</li>
-          <li><b>.xls</b>(엑셀 97-2003)도 읽습니다 — 값만 읽으므로 새 엑셀은 우리 서식으로 만듭니다. <b>원래 서식 그대로</b> 줄만 벌리려면 <Link to="/change/twoline">2줄 자동변환</Link>을 쓰십시오.</li>
+          <li><b>.xls</b>(엑셀 97-2003)도 읽습니다 — 값만 읽으므로 새 엑셀은 우리 서식으로 만듭니다. <b>원래 서식 그대로</b> 줄만 벌리거나 변경만 남긴 1줄로 줄이려면 <Link to="/change/twoline">2줄 · 1줄 자동변환</Link>을 쓰십시오.</li>
         </ul>
         <div className="btn-row">
           <Link className="btn ghost" to="/change">← 설계변경으로</Link>
-          <Link className="btn ghost" to="/change/twoline">🔁 2줄 자동변환(서식 그대로)</Link>
+          <Link className="btn ghost" to="/change/twoline">🔁 2줄 · 1줄 자동변환(서식 그대로)</Link>
           <Link className="btn ghost" to="/change/calc">🧮 증감 계산기</Link>
           <Link className="btn ghost" to="/qna">이상한 데가 있으면 한 줄</Link>
         </div>

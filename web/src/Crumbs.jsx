@@ -66,7 +66,7 @@ const LEAF = {
   '/change/calc': '증감율 계산',
   '/change/excel': '엑셀로 만들기',
   '/change/naeyeok': '공사 내역서 모음',
-  '/change/twoline': '2줄 자동변환',
+  '/change/twoline': '2줄 · 1줄 자동변환',
   '/change/work': '설계변경 작업대',
   '/change/won': '원 내역서로 설계변경',
   '/jeoksan/run': '수량산출서 만들기',

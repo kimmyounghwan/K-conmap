@@ -2283,14 +2283,15 @@ def change_twoline(shell, image=None):
     ⚠️ 여기 적는 글은 화면(TwoLine.jsx)이 그리는 것과 «같은 내용»입니다.
        잠깐 보였다가 React 가 덮어씁니다. 숨겨 넣는 글이 아닙니다.
     """
-    title = "설계변경 2줄 자동변환 — 내역서 엑셀 당초·변경 한 번에 | K-건설맵"
+    title = "설계변경 2줄 · 1줄 자동변환 — 내역서 엑셀 당초·변경 벌리기 · 변경만 남긴 1줄 | K-건설맵"
     desc = ("공사 내역서 엑셀을 올리면 당초·변경 두 줄로 벌려 드립니다. "
             "합계를 SUMIF 로 갈라 당초 합계와 변경 합계를 따로 내고, 증감 줄까지 넣습니다. "
-            "파일은 브라우저에서만 처리하며 서버로 올라가지 않습니다. 무료.")
+            "거꾸로 2줄 변경내역서는 변경 줄만 남긴 1줄로 줄여 드립니다(서식 · 인쇄 · 결재란 그대로). "
+            "파일은 브라우저에서만 처리하며 서버로 올라가지 않습니다.")
     out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">'
-           '설계변경 2줄 자동변환</h1>'
+           '설계변경 2줄 · 1줄 자동변환</h1>'
            '<div style="font-size:12.5px;color:var(--muted);margin-top:4px">'
-           '내역서 엑셀 · 당초 검정 · 변경 적색 · 브라우저에서만 처리</div>'
+           '내역서 엑셀 · 1줄 → 2줄(당초 검정 · 변경 적색) · 2줄 → 1줄(변경만 남김) · 브라우저에서만 처리</div>'
            '<p class="cp" style="margin-top:8px">설계변경이 승인되면 당초와 변경을 '
            '<b>한 부의 내역서에 나란히</b> 적어 냅니다. 품목마다 행을 하나 더 만들고 옮겨 적는 '
            '일인데, 줄이 수백이면 손으로 못 합니다. 여기서 <b>파일 단위로 한 번에</b> 끝냅니다.</p>'
@@ -2306,6 +2307,16 @@ def change_twoline(shell, image=None):
            '<li><b>검산 목록</b> — 못 고친 수식을 숨기지 않고 알려 드립니다</li>'
            '<li><b>서식이 그대로</b> — 파일을 다시 쓰지 않고 필요한 부분만 고칩니다. '
            '인쇄영역·병합셀·조건부서식·그림·매크로가 남습니다</li></ul></div>',
+           '<div class="card"><div class="sec-title" style="margin:0 0 6px">'
+           '2줄 → 1줄 (변경만 남기기)</div><ul class="flist">'
+           '<li><b>짝마다 «변경» 줄 하나만 남깁니다</b> — 당초 · 변경(· 증감) 줄 가운데 마지막(변경) 줄을 남기고 나머지를 지웁니다. '
+           '품명 · 규격 · 단위처럼 당초 줄에만 적힌 글은 남긴 줄로 옮깁니다</li>'
+           '<li><b>수식을 다시 잇습니다</b> — 합계(SUMIF «변경»)는 보통 합으로, 변경 줄이 당초 줄을 보던 수식은 그 수식을 끌어와 잇습니다</li>'
+           '<li><b>엉뚱한 줄을 지우지 않습니다</b> — 짝이 확실한 시트만 켜 두고, 이상하면 까닭을 보이고, 짝이 엇갈리면 멈춥니다</li>'
+           '<li><b>대비표 · 갑지는 숫자 그대로</b> — 지운 당초 줄을 보던 칸은 그때 값으로 둡니다</li>'
+           '<li>다음 차수 설계변경 때 1줄로 줄인 내역서를 다시 «1줄 → 2줄» 로 벌리면 됩니다</li></ul>'
+           '<div class="btn-row" style="margin-top:10px">'
+           '<a class="btn ghost" href="/change/twoline?m=1">🔁 2줄 → 1줄로 줄이기</a></div></div>',
            '<div class="card"><div class="sec-title" style="margin:0 0 6px">이럴 때 씁니다</div>'
            '<ul class="flist">'
            '<li>설계변경 승인 뒤 <b>당초·변경 내역서를 한 부</b>로 만들 때</li>'
@@ -2323,7 +2334,7 @@ def change_twoline(shell, image=None):
            '<a class="btn ghost" href="/change/excel">📊 설계변경 통합 엑셀</a>'
            '<a class="btn ghost" href="/qna">💬 맵톡</a></div></div>']
     ld = ld_graph(ld_crumbs(("K-건설맵", None), ("설계변경", "/change"),
-                            ("2줄 자동변환", "/change/twoline")))
+                            ("2줄 · 1줄 자동변환", "/change/twoline")))
     return page(shell, "/change/twoline", title, desc,
                 "".join(out) + nav_html("/change"), image, ld)
 
@@ -2352,10 +2363,10 @@ def change_work(shell, image=None):
            '<li><b>셈 규칙</b> — 금액 = 수량 × 단가(원 미만 버림), 합계 = 노무비 + 재료비 + 경비</li>'
            '<li>조달수수료 · 공구손료처럼 수량 칸이 비율인 줄은 적힌 값을 그대로 둡니다</li>'
            '<li>관급자재 · 기타공사비처럼 순공사비 밖의 공종은 공종 합을 보고 찾아 순공사비에서 뺍니다</li>'
-           '<li>원래 서식 그대로 줄만 벌리려면 2줄 자동변환을 쓰십시오</li></ul>'
+           '<li>원래 서식 그대로 줄만 벌리거나 변경만 남긴 1줄로 줄이려면 2줄 · 1줄 자동변환을 쓰십시오</li></ul>'
            '<div class="btn-row" style="margin-top:10px">'
            '<a class="btn ghost" href="/change">← 설계변경</a>'
-           '<a class="btn ghost" href="/change/twoline">🔁 2줄 자동변환</a>'
+           '<a class="btn ghost" href="/change/twoline">🔁 2줄 · 1줄 자동변환</a>'
            '<a class="btn ghost" href="/qna">💬 맵톡</a></div></div>']
     ld = ld_graph(ld_crumbs(("K-건설맵", None), ("설계변경", "/change"),
                             ("설계변경 작업대", "/change/work")))
@@ -4636,8 +4647,8 @@ def main():
                      "무료", "신규비목은 설계변경 당시 단가 × 낙찰률")
               if og.available else None))
         write("change/twoline.html", change_twoline(shell,
-              og.tab("change-twoline", "설계변경 2줄 자동변환", "당초 검정 · 변경 적색",
-                     "무료", "합계를 SUMIF 로 갈라 줍니다 · 증감 줄까지")
+              og.tab("change-twoline", "설계변경 2줄 · 1줄 자동변환", "당초 검정 · 변경 적색 · 변경만 남긴 1줄",
+                     "2줄 · 1줄", "합계를 SUMIF 로 갈라 줍니다 · 서식 그대로")
               if og.available else None))
         write("change/work.html", change_work(shell,
               og.tab("change-work", "설계변경 작업대", "2줄→1줄 · 짝짓기 · 대비표",

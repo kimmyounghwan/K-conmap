@@ -3539,6 +3539,49 @@ ul.plainlist li { margin-bottom: 5px; }
   .tlopts { gap: 12px 16px; }
 }
 
+/* ══ G687 (2026-11-15) 2줄 → 1줄 — 맨 위 두 단추 · 시트 줄 · 미리보기 ══
+   소장님 「한 줄로 해야 해. 2줄로 하는 데서 1줄로 하는 것도 둬」 — 같은 화면 · 두 쪽(?m=1) */
+.tlmode { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 10px 0 8px; }
+.tlmode button {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0;
+  padding: 9px 8px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--surface-2);
+  color: var(--text); cursor: pointer; font: inherit; line-height: 1.3;
+}
+.tlmode button b { font-size: 15px; white-space: nowrap; }
+.tlmode button span { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.tlmode button.on { border-color: var(--accent); background: var(--accent-soft, var(--surface)); box-shadow: inset 0 0 0 1px var(--accent); }
+.tlmode button.on b { color: var(--accent); }
+.tlmode button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.tl1row .tl1off b { color: var(--muted); font-weight: 600; }
+.tl1info { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 12.5px; color: var(--muted); margin-left: auto; }
+.tl1tag { font-size: 11.5px; font-weight: 800; padding: 1px 7px; border-radius: 999px; background: var(--accent-soft, var(--surface)); color: var(--accent); }
+.tl1ok { color: #15803d; font-weight: 700; }
+.tl1warn { color: #b45309; font-weight: 700; }
+.tl1see { font-size: 12.5px; }
+.tl1opts > div { flex: 1 1 240px; min-width: 0; }
+.tl1opts label { white-space: normal; align-items: flex-start; }
+.tl1opts label input { margin-top: 3px; }
+.tl1note { font-size: 12px; line-height: 1.6; max-width: 100%; white-space: normal; }
+.tl1rep { font-size: 13px; line-height: 1.8; }
+.tl1prev th { padding: 4px 8px; font-size: 11.5px; color: var(--muted); font-weight: 700; text-align: left; white-space: nowrap; }
+.tl1prev tr.tl1gone td { color: var(--muted); text-decoration: line-through; text-decoration-color: rgba(127,127,127,.45); }
+.tl1prev tr.tl1keep td { color: #c00000; }
+.tl1prev tr.tl1out th, .tl1prev tr.tl1out td { font-weight: 800; color: var(--text); border-top: 1.5px solid var(--accent); background: var(--accent-soft, transparent); }
+.tl1prev tr.tl1out + tr th, .tl1prev tr.tl1out + tr td { border-top: 6px solid transparent; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tl1ok { color: #4ade80; }
+  :root:not([data-theme="light"]) .tl1warn { color: #fbbf24; }
+  :root:not([data-theme="light"]) .tl1prev tr.tl1keep td { color: #ff8a80; }
+}
+:root[data-theme="dark"] .tl1ok { color: #4ade80; }
+:root[data-theme="dark"] .tl1warn { color: #fbbf24; }
+:root[data-theme="dark"] .tl1prev tr.tl1keep td { color: #ff8a80; }
+@media (max-width: 520px) {
+  .tl1info { margin-left: 0; width: 100%; }
+  .tlmode button b { font-size: 14px; }
+}
+
 /* 📊 업체 입찰 성적표 (/report) — 2026-09-15
    견주기 표에서 «작은 설명» 이 제목에 붙어 버려 「업체 자가진단사이트에서 바로」 로 읽혔습니다. */
 /* 🔤 2026-09-18 — 소장님: 「입찰업체 성적표, pdf 받기 페이지만, 특히 «위쪽 부분» 만
