@@ -5,11 +5,14 @@
  *   ■ 숨은 셈: |뉴스|쪽 · |뉴스|원문 · |뉴스|지난날 · |뉴스|맵톡
  *   ■ G696b 소장님 「간단히 뉴스 라고만 써, 간략히」 · 「이걸 꼭 써야 해」 → 고르심 «건설뉴스» · 제목 «건설뉴스» 만 · 머리 안내 상자(언제 올리는지 · 다시 쓴 글 · 원문 고리 설명) 뺌 — 맨 아래 한 줄 알림은 그대로
  */
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Skeleton } from '../components.jsx'
 import { 세기 } from '../lib/받은수.jsx'
 import { 날글, 날인가, 날뉴스받기, 목록받기, 갈래묶기, 갈래이름, 갈래그림, 갈래표 } from '../lib/건설뉴스.js'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
+import { 가운데칸 } from '../lib/애드핏.js'   /* 💰 11-16 글 칸 가운데 자리(⌈n/2⌉째 칸 다음) */
 
 export default function News() {
   const { d: 고른날 } = useParams()
@@ -52,8 +55,10 @@ export default function News() {
           <b>{날글(자.d, true)}</b><span className="nw-n"> · {자.items.length}건</span>
           {목.length > 1 && <button type="button" className="nw-prev" onClick={지난보기}>‹ 지난 뉴스</button>}
         </div>
-        {갈래묶기(자.items).map(([c, a]) => (
-          <section key={c} className={'nw-sec nw-' + 갈래표[c]} aria-label={갈래이름[c]}>
+        {/* 💰🛒 11-16 소장님 「페이지 마다」 — 갈래 가운데쯤(⌈n/2⌉째 칸 다음) 애드핏 «가운데» · 마지막 칸 다음 쿠팡 «가운데» 줄(칸이 둘 넘을 때 · 둘 사이에 갈래을 두고) */}
+        {갈래묶기(자.items).map(([c, a], gi, 모두) => (
+          <Fragment key={c}>
+          <section className={'nw-sec nw-' + 갈래표[c]} aria-label={갈래이름[c]}>
             <h2 className="nw-h2"><span aria-hidden="true">{갈래그림[c]}</span> {갈래이름[c]}</h2>
             {a.map((x, i) => (
               <article className="nw-it" key={c + i}>
@@ -67,6 +72,9 @@ export default function News() {
               </article>
             ))}
           </section>
+          {gi === 가운데칸(모두.length) && <애드핏칸 key={'mid-news-' + 자.d} 자리="중" />}
+          {gi === 모두.length - 1 && gi > 가운데칸(모두.length) && <쿠팡카드줄 key={'cmid-news-' + 자.d} 자리="중" />}
+          </Fragment>
         ))}
         <div className="nw-talk">
           <Link to="/qna" onClick={() => 세기('|뉴스|맵톡')}>💬 맵톡에서 이야기 나누기 ▸</Link>

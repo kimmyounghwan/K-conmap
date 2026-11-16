@@ -3,12 +3,15 @@
  *   미리굽기(prerender.py _tool_guide_html)가 «같은 글» 을 HTML 로 굽습니다(크롤러가 보는 글 = 사람이 보는 글).
  *   ⚠️ 법령은 국가법령정보센터 원문으로 확인한 조문만(at = 확인한 날). */
 import 설명들 from '../data/tools_guide.json'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» — 소장님 「페이지 마다」 · 이 설명을 쓰는 도구 쪽마다(도구를 다 쓴 뒤 · 설명 앞) */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 export default function 도구설명({ k }) {
   const g = 설명들[k]
   if (!g) return null
   return (
     <section className="tguide" aria-label={g.h}>
+      <애드핏칸 key={'mid-' + k} 자리="중" />
       <div className="card fguide">
         <h2 className="sec-title" style={{ margin: '0 0 6px' }}>📖 {g.h}</h2>
         <p className="gwhat">{g.what}</p>
@@ -19,6 +22,8 @@ export default function 도구설명({ k }) {
           <dl className="ghow">{g.how.map(([a, b], i) => <div key={i}><dt>{a}</dt><dd>{b}</dd></div>)}</dl>
         </div>
       )}
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — «쓰는 순서» 다음 · «자주 묻는 것» 앞(애드핏 가운데 칸과 설명 두 장 사이 두고) */}
+      <쿠팡카드줄 key={'cmid-' + k} 자리="중" />
       {g.faq && g.faq.length > 0 && (
         <div className="card fguide">
           <h2 className="sec-title" style={{ margin: '0 0 6px' }}>자주 묻는 것</h2>

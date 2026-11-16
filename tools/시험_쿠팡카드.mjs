@@ -14,6 +14,7 @@
  */
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
 import { 카드자료풀기, 카드주제정하기, 카드쪽주제, 카드돌림, 자리차례, 그림크기, 그림주소, 그림차례, 그림집, 원, 기준글 } from '../web/src/lib/쿠팡카드.js'
 import { 쿠팡문구, 목록쿠팡자리 } from '../web/src/lib/쿠팡자료.js'
 const require = createRequire(import.meta.url)
@@ -45,6 +46,24 @@ ok('쪽 맞춤 — 맨 위 줄 주제(자격증 → 수험서 · 도구 → 공�
 ok('비슷한 이름에 속지 않음(/certx · /toolsz · /formsy → 돌림)', ['/certx', '/toolsz', '/formsy'].every((p) => 카드돌림.includes(카드주제정하기(p, 0, 3, 있는)) && 카드주제정하기(p, 0, 3, 있는) === 카드돌림[3 % 카드돌림.length]))
 ok('한 쪽의 줄 17개(위 · 바닥 · 목록 1~15) — 씨앗 0~199 어느 것이든 주제가 다 다름', Array.from({ length: 200 }, (_, s) => new Set([0, 1, ...Array.from({ length: 15 }, (_, k) => 자리차례('목록', k + 1))].map((m) => 카드주제정하기('/first', m, s, 있는))).size === 17).every(Boolean))
 ok('자리차례 — 위 0 · 바닥 1 · 목록1 2 · 목록2 3', 자리차례('위') === 0 && 자리차례('바닥') === 1 && 자리차례('목록', 1) === 2 && 자리차례('목록', 2) === 3)
+{
+  /* 🆕 11-16 쿠팡 «가운데» 줄(중) — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
+  ok('🆕 자리차례 — 중 2(위 0 · 바닥 1 과 다름)', 자리차례('중') === 2 && 자리차례('중', 5) === 2)
+  const 쪽갈래 = ['/', '/notice/R26', '/corp/x', '/agency/x', '/tools', '/tools/schedule', '/tools/risk', '/forms', '/forms/chakgong', '/change/won', '/guide/x', '/cert', '/cert/togmok-gisa', '/jeoksan', '/cad/x', '/daily/2026-11-16', '/news', '/how', '/safety', '/naeyeok', '/shareone']
+  ok(`🆕 한 쪽 위 · 가운데 · 바닥 세 줄 — 쪽 갈래 ${쪽갈래.length}곳 × 씨앗 0~199 어느 것이든 주제 셋이 다 다름`, 쪽갈래.every((p) => Array.from({ length: 200 }, (_, s) => new Set(['위', '중', '바닥'].map((z) => 카드주제정하기(p, 자리차례(z), s, 있는))).size === 3).every(Boolean)))
+  const 이름들 = D.상품.map((q) => q.이름), 그림들 = D.상품.map((q) => q.그림.split('/image/')[1]), 링크들 = D.상품.map((q) => q.짧은)
+  ok('🆕 주제끼리 상품이 겹치지 않음 — 이름 · 그림 · 링크 모두 하나씩(주제가 다르면 상품도 다름)', new Set(이름들).size === 이름들.length && new Set(그림들).size === 그림들.length && new Set(링크들).size === 링크들.length, [이름들.length, new Set(이름들).size, new Set(그림들).size, new Set(링크들).size])
+  /* 중(2) = 목록1(2) — 목록 줄이 있는 화면엔 가운데 줄을 넣지 않음(한 쪽에 같은 주제 두 줄 금지) */
+  const 모든jsx = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? 모든jsx(d + '/' + e.name) : /\.jsx$/.test(e.name) ? [d + '/' + e.name] : []))
+  const 뿌리 = fileURLToPath(new URL('../web/src', import.meta.url))   /* PC(Windows)에서도 — URL.pathname 을 파일 경로로 쓰지 않음(checkimports) */
+  const 둘다 = 모든jsx(뿌리).filter((f) => { const t = fs.readFileSync(f, 'utf8'); return /<쿠팡카드줄 [^>]*자리="목록"/.test(t) && /<쿠팡카드줄 [^>]*자리="중"/.test(t) })
+  ok('🆕 목록 줄 쪽(1순위 · 공고)엔 가운데 줄 없음 — 같은 차례(2)라 주제가 겹침', 둘다.length === 0, 둘다)
+  const 중쪽 = 모든jsx(뿌리).filter((f) => /<쿠팡카드줄 [^>]*자리="중"/.test(fs.readFileSync(f, 'utf8')))
+  ok(`🆕 가운데 줄을 넣은 화면 파일 ${중쪽.length}곳(30곳 넘게) · 줄마다 key(쪽을 옮기면 새로 — 보임 셈이 쪽마다)`, 중쪽.length >= 30 && 중쪽.every((f) => (fs.readFileSync(f, 'utf8').match(/<쿠팡카드줄 [^>]*자리="중"[^>]*>/g) || []).every((x) => /key=/.test(x))), 중쪽.length)
+  const 줄글 = fs.readFileSync(new URL('../web/src/쿠팡카드줄.jsx', import.meta.url), 'utf8')
+  ok('🆕 자료를 못 받으면 가운데 줄은 안 그림(예전 배너는 위 줄과 같은 분야라 겹침)', /자리 === '바닥' \|\| 자리 === '중' \? null/.test(줄글))
+  ok('🆕 가운데 줄은 광고를 쉬는 쪽(맵톡 · 투입비 · 미불금 서류 …)엔 안 그림 — 위 · 바닥 줄은 예전 그대로', /const 쉼 = \/\^\\\/admin\(\\\/\|\$\)\/\.test\(pathname\) \|\| \(자리 === '중' && 애드핏쉼\(pathname\)\)/.test(줄글))
+}
 ok('그림 크기 바꾸기 — 212 → 320 · 492', 그림크기('https://t1a.coupangcdn.com/thumbnails/remote/212x212ex/image/a.jpg', 320) === 'https://t1a.coupangcdn.com/thumbnails/remote/320x320ex/image/a.jpg' && /\/492x492ex\//.test(그림크기(D.상품[0].그림)))
 ok('값 글 — 12,900', 원(12900) === '12,900' && 원(0) === '0')
 {

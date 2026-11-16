@@ -15,6 +15,7 @@ import { getOverview } from '../lib/data.js'
 import { won, wonShort, pct, dateTime, dday } from '../lib/fmt.js'
 import { 세기 } from '../lib/받은수.jsx'
 import { 셈까닭, 셈가능, 까닭말, 기준사정률, 재료, 참고금액, 분위들, 분위금액, 내금액, 하한표, 계산주소, 주소공고, 실측최소 } from '../lib/용역셈.js'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
 
 const 종류표 = {
   svc: { 이름: '용역', ic: '📐', slug: 'svc', kind: 'serv', 셈: '|용역|' },
@@ -229,6 +230,9 @@ export default function SvcCalc({ kind = 'svc' }) {
           </div>
         </>
       )}
+
+      {/* 💰 11-16 애드핏 «가운데» — 계산 다음 · «왜 공사와 다른가요?» 앞 · 소장님 「페이지 마다」 */}
+      <애드핏칸 key={'mid-' + kind + '-calc'} 자리="중" />
 
       <details className="card sc-why" open>
         <summary><b>❓ 왜 공사와 다른가요?</b></summary>

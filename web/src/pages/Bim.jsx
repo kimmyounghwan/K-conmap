@@ -48,6 +48,7 @@ import { 일람표만들기, 일람표시트 } from '../lib/부재일람표.js'
 import { 멈춤감시, 멈춤글 } from '../lib/파일한도.js'
 import { 함목록, 함몸, 함넣기, 함고치기, 함빼기, 함비우기 } from '../lib/도면함.js'   // 📚 G438 도면함(이 브라우저에 남김)
 import { 도면종류 } from '../lib/도곽3d.js'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
 
 const 예시 = [['/jeoksan/BIM_예시_3층.dxf', 'BIM_예시_3층.dxf']]
 /** 🧭 G405 «만든 값» 칸 글의 표시 — ❓ 도면에 없음 · 📐 잰 값 · 📄 도면의 다른 표 */
@@ -1691,6 +1692,8 @@ export default function Bim() {
         </>
       )}
 
+      {/* 💰 11-16 애드핏 «가운데» — 도구를 다 쓴 뒤 · «같이 쓰면 좋은 것» 앞(단추와 넉넉히) · 소장님 「페이지 마다」 */}
+      <애드핏칸 key="mid-bim" 자리="중" />
       <div className="card">
         <div className="muted" style={{ fontSize: 13 }}>
           같이 쓰면 좋은 것: <Link to="/jeoksan/golgo">골조 수량산출(고쳐 쓰기)</Link> · <Link to="/jeoksan/auto">도면 물량 자동</Link> · <Link to="/jeoksan/magam">마감 수량산출</Link> · <Link to="/tools/dxf3d">도면 3D 보기(토목 · 건물 선)</Link> · <Link to="/tools/dwgdxf">DWG → DXF</Link>

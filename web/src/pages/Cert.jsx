@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { Fragment, useMemo, useState, useEffect } from 'react'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import DATA from '../data/cert.json'
 import { Blocks, guideMd as md } from './Guide.jsx'
@@ -6,6 +6,9 @@ import { ShareBtn } from './CorpPage.jsx'
 import NotFound from './NotFound.jsx'
 import * as G from '../lib/등급셈.js'
 import { 세기 } from '../lib/받은수.jsx'   /* 📄 G652 기출칸 누름 셈(사이트엔 안 보임) */
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
+import { 가운데칸 } from '../lib/애드핏.js'   /* 💰 11-16 글 칸 가운데 자리(⌈n/2⌉째 칸 다음) */
 
 /**
  * 📚 /cert · /cert/grade · /cert/{종목} — 토목 · 건축 자격증 (G625 · 2026-11-09)
@@ -133,6 +136,8 @@ export default function CertIndex() {
         )
       })}
       {!보임.length && !등급말 && <div className="card"><p className="cp">«{q}» 에 맞는 종목이 없습니다. 토목 · 건축 · 건설안전 종목만 있습니다.</p></div>}
+      {/* 💰 11-16 애드핏 «가운데» — 종목 지도 다음 · «기출문제는?» 앞(찾은 종목이 있을 때) · 소장님 「페이지 마다」 */}
+      {보임.length > 0 && <애드핏칸 key="mid-cert" 자리="중" />}
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 8px' }}>📝 기출문제는?</div>
         <Blocks blocks={DATA.gichul || []} />
@@ -229,11 +234,16 @@ export function CertGrade() {
         )}
         <div className="go-src">보정 경력 {r.보정년}년 · 경력지수 = log(보정 년) ÷ log 40 × 40{r.감점 ? ` · 감점 −${r.감점}(2년 · 한 등급까지)` : ''}</div>
       </div>
+      {/* 💰 11-16 애드핏 «가운데» — 등급 결과 카드 다음 · 설명 앞(입력 칸과 결과 카드 아래) · 소장님 「페이지 마다」 */}
+      <애드핏칸 key="mid-cert-grade" 자리="중" />
       {DATA.grade.secs.map((s, i) => (
-        <div className="card" key={i} id={s.id || undefined}>
-          <div className="sec-title" style={{ margin: '0 0 8px' }}>{s.h}</div>
-          <Blocks blocks={s.blocks} />
-        </div>
+        <Fragment key={i}>
+          <div className="card" id={s.id || undefined}>
+            <div className="sec-title" style={{ margin: '0 0 8px' }}>{s.h}</div>
+            <Blocks blocks={s.blocks} />
+          </div>
+          {i === 가운데칸(DATA.grade.secs.length) && i < DATA.grade.secs.length - 1 && <쿠팡카드줄 key="cmid-cert-grade" 자리="중" />}
+        </Fragment>
       ))}
       <div className="note sm" style={{ marginTop: 10 }}>{DATA.grade.note}</div>
     </>
@@ -280,11 +290,16 @@ export function CertItem() {
           {secs.map((s, i) => <a key={i} href={`#cs${i}`} onClick={가기(i)}>{s.h.replace(/\s*[—(].*$/, '')}</a>)}
         </nav>
       )}
+      {/* 💰🛒 11-16 소장님 「페이지 마다」 — 글 칸 가운데쯤(⌈n/2⌉째 칸 다음) 애드핏 «가운데» · 마지막 칸 다음 쿠팡 «가운데» 줄(칸이 둘 넘을 때 · 둘 사이에 글 칸을 두고) */}
       {secs.map((s, i) => (
-        <div className="card" key={i} id={`cs${i}`} data-q={s.q ? 1 : undefined}>
-          <div className="sec-title" style={{ margin: '0 0 8px' }}>{s.h}</div>
-          <Blocks blocks={s.blocks} />
-        </div>
+        <Fragment key={i}>
+          <div className="card" id={`cs${i}`} data-q={s.q ? 1 : undefined}>
+            <div className="sec-title" style={{ margin: '0 0 8px' }}>{s.h}</div>
+            <Blocks blocks={s.blocks} />
+          </div>
+          {i === 가운데칸(secs.length) && <애드핏칸 key={'mid-' + slug} 자리="중" />}
+          {i === secs.length - 1 && i > 가운데칸(secs.length) && <쿠팡카드줄 key={'cmid-' + slug} 자리="중" />}
+        </Fragment>
       ))}
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 6px' }}>이어서 볼 것</div>

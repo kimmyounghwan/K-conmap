@@ -11,7 +11,7 @@
    ■ 내용(제목·설명·근거)은 web/src/data/tools.json 한 곳에만 있습니다.
      계산기 코드는 web/src/tools/calcs.jsx. 둘의 slug 가 짝이 맞아야 합니다.
    ========================================================== */
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import DATA from '../data/tools.json'
 import { CALCS as 셈CALCS, EXAMPLES as 셈EXAMPLES, 칸창고 } from '../tools/calcs.jsx'
@@ -28,6 +28,9 @@ import { 받은수, 화면열쇠, use받은수, 합 as 받은합, 조회합, 세
 import 이어쓰기 from '../tools/이어쓰기.jsx'
 import 광고모집 from '../광고모집.jsx'   /* 📣 G549 광고가 없는 쪽 — «이 자리에 업체를 알리세요» 한 장 */
 import { 앞모습두기 } from '../lib/이어쓰기.js'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위는 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
+import { 가운데칸 } from '../lib/애드핏.js'   /* 💰 11-16 글 칸 가운데 자리(⌈n/2⌉째 칸 다음) */
 
 /* 🎨 2026-10-16 탭 꾸밈 — 묶음마다 색(머리 띠 · 아이콘 바탕) */
 const 묶음색 = ['#2563eb', '#0d9488', '#d97706', '#7c3aed', '#e11d48', '#16a34a', '#0284c7', '#ea580c']
@@ -161,8 +164,10 @@ export default function ToolsIndex() {
         <div className="card"><div className="note">「{q}」 에 맞는 도구가 없습니다. 다른 말로 찾아 보시거나, 맵톡에 «이런 도구가 있으면» 한 줄 남겨 주십시오.</div></div>
       )}
 
+      {/* 💰🛒 11-16 소장님 「페이지 마다」 — 도구 묶음 가운데쯤(⌈n/2⌉째 묶음 다음) 애드핏 «가운데» · 마지막 묶음 다음 쿠팡 «가운데» 줄 · 찾는 중엔 안 넣음(목록이 바뀜) */}
       {찾은.map((g, gi) => (
-        <div className="card tlx-sec" key={g.key} id={`t-${g.key}`} style={{ ...(내림 || {}), '--sec': 묶음색[gi % 묶음색.length] }}>
+        <Fragment key={g.key}>
+        <div className="card tlx-sec" id={`t-${g.key}`} style={{ ...(내림 || {}), '--sec': 묶음색[gi % 묶음색.length] }}>
           <div className="detail-h">{g.icon} {g.name} <span className="count">· {g.items.length}가지</span></div>
           <div className="tlx-grid">
             {g.items.map((x) => {
@@ -183,6 +188,9 @@ export default function ToolsIndex() {
             })}
           </div>
         </div>
+        {!q && gi === 가운데칸(찾은.length) && <애드핏칸 key="mid-tools" 자리="중" />}
+        {!q && gi === 찾은.length - 1 && gi > 가운데칸(찾은.length) && <쿠팡카드줄 key="cmid-tools" 자리="중" />}
+        </Fragment>
       ))}
 
       <Link className="card fbook" to="/forms">
@@ -273,6 +281,9 @@ export function ToolPage() {
         {Calc ? <칸창고.Provider value={{ 열쇠, ex: 판.ex || {}, 예시안남김 }}><Calc key={판.n} ex={판.ex || {}} /></칸창고.Provider> : <div className="note">준비 중입니다.</div>}
       </div>
 
+      {/* 💰 11-16 애드핏 «가운데» — 도구를 쓰다 내려오면 보이는 자리(도구 칸 바로 아래 · 단추와 넉넉히 띄움 · 쪽마다 새로) */}
+      {Calc && <애드핏칸 key={'mid-' + t.slug} 자리="중" />}
+
       {Calc && <도구이야기 이름={String(t.title || '').split(' — ')[0]} 주소={`/tools/${t.slug}`} />}
       {(t.secs || []).map((s, i) => (
         <div className="card" key={i}>
@@ -280,6 +291,9 @@ export function ToolPage() {
           {(s.p || []).map((x, j) => <p className="tl-p" key={j}>{굵게(x)}</p>)}
         </div>
       ))}
+
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 설명을 다 읽은 뒤 · «다른 도구» 앞(애드핏 가운데 칸과 설명 덩이 사이 두고) */}
+      {Calc && <쿠팡카드줄 key={'cmid-' + t.slug} 자리="중" />}
 
       <div className="card">
         <div className="detail-h">다른 도구</div>

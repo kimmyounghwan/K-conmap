@@ -22,6 +22,8 @@ import 활용판 from './Dxf3d활용.jsx'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { DWG바꾸기 } from '../lib/dwg바꾸기.js'
 import { 파일한도, 작은기기, 한도글, 멈춤감시, 멈춤글 } from '../lib/파일한도.js'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 /* 🧪 2026-09-26 — 소장님: 「각각의 도구별로 예시가 하나씩 있어야 하지 않아. 그래야 사람들이 보고 해보지」
    예시 도면은 제가 새로 그린 «가상의 건물·언덕» 입니다(남의 공사 도면이 아닙니다). public/tools/files/ex-*.dxf */
 const 예시들 = [
@@ -796,6 +798,8 @@ export default function Dxf3d() {
         )}
       </div>
 
+      {/* 💰 11-16 애드핏 «가운데» — 도구를 다 쓴 뒤 · 설명 앞(단추와 넉넉히) */}
+      <애드핏칸 key="mid-dxf3d" 자리="중" />
       <div className="card">
         <div className="detail-h">무엇이 서나</div>
         <p className="tl-p">
@@ -815,6 +819,8 @@ export default function Dxf3d() {
         </p>
       </div>
 
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 애드핏 가운데 칸과 설명 덩이 사이 두고 */}
+      <쿠팡카드줄 key="cmid-dxf3d" 자리="중" />
       <div className="card">
         <div className="detail-h">못 읽는 것</div>
         <ul className="tl-p" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.9 }}>

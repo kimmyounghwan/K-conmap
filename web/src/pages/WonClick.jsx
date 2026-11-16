@@ -46,6 +46,8 @@ import { 예시끝, 받기대신문의, 열림띠, 손님보기켬 } from '../�
 import { isOpen, tryOpen } from '../lib/gate.js'
 import { use보기만 } from '../lib/보기만.js'   // 🧪 G679 예시는 보기만(PDF · 인쇄 · Ctrl+P · 복사 막음)
 import { 나운영자 } from '../lib/운영자.js'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 /* 📄 2026-09-27 — 서류를 화면에서 보고·고치고·인쇄 (엑셀화면.jsx). 무거운 셈은 열 때만 받습니다. */
 const 엑셀화면 = lazy(() => import('../엑셀화면.jsx'))
 const 고침열쇠 = 'kcm.wonclick.고침.v1'
@@ -403,6 +405,8 @@ function 원클릭({ 현장id, 현장줄, 이름바뀜, 잠금 = null }) {
         </ul>
       </div>
 
+      {/* 💰 11-16 애드핏 «가운데» — 도구를 다 쓴 뒤 · 설명 앞(단추와 넉넉히) */}
+      <애드핏칸 key="mid-wonclick" 자리="중" />
       <div className="card">
         <div className="detail-h">알아 두실 것</div>
         <ul className="flist">
@@ -417,6 +421,8 @@ function 원클릭({ 현장id, 현장줄, 이름바뀜, 잠금 = null }) {
           <li>인쇄하면 머리글 오른쪽에 작은 K-건설맵 표시가 나옵니다. 지우려면 엑셀 <b>페이지 레이아웃 → 페이지 설정 → 머리글/바닥글</b>에서 «(없음)».</li>
         </ul>
       </div>
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 설명 다음(애드핏 가운데 칸과 설명 덩이 사이 두고) */}
+      <쿠팡카드줄 key="cmid-wonclick" 자리="중" />
     </div>
   )
 }

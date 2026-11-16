@@ -17,6 +17,8 @@ import { Link } from 'react-router-dom'
 import * as U from '../lib/활용3d.js'
 import { 성과표읽기 } from '../lib/성과표.js'
 import { 세기 } from '../lib/받은수.jsx'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 const 표끝 = /\.(csv|txt|xlsx|xls)$/i
 const 쉼 = (n, d = 0) => (Number.isFinite(n) ? Number(n).toLocaleString('ko-KR', { maximumFractionDigits: d, minimumFractionDigits: d }) : '—')
@@ -333,6 +335,8 @@ export default function EarthCheck() {
         </div>
       )}
 
+      {/* 💰 11-16 애드핏 «가운데» — 도구를 다 쓴 뒤 · 설명 앞(단추와 넉넉히) */}
+      <애드핏칸 key="mid-earthcheck" 자리="중" />
       <div className="card">
         <div className="detail-h">어떻게 재나</div>
         <ol className="tl-p" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.9 }}>
@@ -346,6 +350,8 @@ export default function EarthCheck() {
           횡단면도로 잰 평균단면법 물량과 나란히 보면 검산이 됩니다.
         </p>
       </div>
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 애드핏 가운데 칸과 설명 덩이 사이 두고 */}
+      <쿠팡카드줄 key="cmid-earthcheck" 자리="중" />
 
       <div className="card">
         <div className="navrow">

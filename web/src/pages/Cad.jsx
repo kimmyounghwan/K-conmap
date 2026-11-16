@@ -4,6 +4,8 @@ import DATA from '../data/cad.json'
 import { Empty } from '../components.jsx'
 import { JeoksanStrip } from './Jeoksan.jsx'
 import { 받은수 } from '../lib/받은수.jsx'   /* 👁 2026-10-17 명령마다 조회 */
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 /**
  * /cad · /cad/{slug} — 「캐드 유틸」 (2026-09-14)
@@ -108,6 +110,9 @@ export default function Cad() {
         </div>
       </div>
 
+      {/* 💰 11-16 애드핏 «가운데» — 받기 · 설치 · 쓰는 법 다음 · «명령» 목록 앞 · 소장님 「페이지 마다」 */}
+      <애드핏칸 key="mid-cad" 자리="중" />
+
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 6px' }}>명령 {CMDS.length}가지</div>
         {CMDS.map((c) => (
@@ -124,6 +129,9 @@ export default function Cad() {
       {/* 🧮 적산 — 캐드 유틸을 보러 온 분이 바로 다음에 궁금해할 것입니다 (2026-09-16).
           아직 준비 중이라 «무엇을 만들고 있는지»만 보여 줍니다. 받는 단추는 없습니다. */}
       <JeoksanStrip />
+
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — «명령» 목록 · 적산 띠 다음 · «못 하는 것» 앞 */}
+      <쿠팡카드줄 key="cmid-cad" 자리="중" />
 
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 6px' }}>못 하는 것 — 미리 말씀드립니다</div>
@@ -169,6 +177,9 @@ export function CadPage() {
         </div>
       </div>
 
+      {/* 💰 11-16 애드핏 «가운데» — «쓰는 순서» 다음 · «알아 두실 것» 앞 · 소장님 「페이지 마다」 */}
+      <애드핏칸 key={'mid-' + c.slug} 자리="중" />
+
       {c.note && c.note.length > 0 && (
         <div className="card">
           <div className="sec-title" style={{ margin: '0 0 6px' }}>알아 두실 것</div>
@@ -177,6 +188,9 @@ export function CadPage() {
       )}
 
       <Download />
+
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 받기 카드 다음 · «다른 명령» 앞(애드핏 가운데 칸과 글 · 받기 카드 사이 두고) */}
+      <쿠팡카드줄 key={'cmid-' + c.slug} 자리="중" />
 
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 6px' }}>다른 명령</div>

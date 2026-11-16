@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
 import { askAfter } from '../AskComment'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 /**
  * /shareone — 「쉐어원」 사무실 공유폴더 (2026-09-16)
@@ -77,6 +79,9 @@ export default function ShareOne() {
         </div>
       </div>
 
+      {/* 💰 11-16 애드핏 «가운데» — 받기 · 세 단계 다음 · «되는 것» 앞 · 소장님 「페이지 마다」 */}
+      <애드핏칸 key="mid-shareone" 자리="중" />
+
       {/* ── 되는 것 ── */}
       <div className="card">
         <div className="sec-title">무엇이 되나</div>
@@ -108,6 +113,9 @@ export default function ShareOne() {
             제가 소장님 자료를 책임질 수는 없습니다</li>
         </ul>
       </div>
+
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — «되는 것 · 못 하는 것» 다음 */}
+      <쿠팡카드줄 key="cmid-shareone" 자리="중" />
 
       {/* ── 왜 공짜인가 ── */}
       <div className="card">

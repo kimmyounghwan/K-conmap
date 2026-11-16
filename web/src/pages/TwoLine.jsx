@@ -33,6 +33,8 @@ const LABELS = ['당초', '변경', '증감']
    (안의 통합 문서 종류는 그대로 «매크로 사용» 이라 이름과 안이 어긋남). 안을 보고 같은 확장자 · 종류로 내보냅니다.
    G378 — 80% 비율도 같은 꼴이라 lib/엑셀종류.js 한 곳으로 옮김 */
 import { XLSX, XLSM, 매크로인가 } from '../lib/엑셀종류.js'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 function fmt(n) { return new Intl.NumberFormat('ko-KR').format(n) }
 const 예시1줄 = '/tools/files/ex-twoline-1line.xlsx'
@@ -414,6 +416,8 @@ function 두줄판({ 처음파일 = null, 바꿈 }) {
       )}
 
       {/* ── 알아 두실 것 ── */}
+      {/* 💰 11-16 애드핏 «가운데» — 도구를 다 쓴 뒤 · 설명 앞(단추와 넉넉히) */}
+      <애드핏칸 key="mid-twoline" 자리="중" />
       <div className="card">
         <div className="sec-title">알아 두실 것</div>
         <ul className="flist">
@@ -429,6 +433,8 @@ function 두줄판({ 처음파일 = null, 바꿈 }) {
           <Link className="btn ghost" to="/qna">이상한 데가 있으면 한 줄</Link>
         </div>
       </div>
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 설명 다음(애드핏 가운데 칸과 설명 덩이 사이 두고) */}
+      <쿠팡카드줄 key="cmid-twoline" 자리="중" />
     </>
   )
 }

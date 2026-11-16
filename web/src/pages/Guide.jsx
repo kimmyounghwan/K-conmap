@@ -2,6 +2,10 @@ import { useParams, Link } from 'react-router-dom'
 import DATA from '../data/guide.json'
 import { ShareBtn } from './CorpPage.jsx'
 import NotFound from './NotFound.jsx'
+import { Fragment } from 'react'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
+import { 가운데칸 } from '../lib/애드핏.js'   /* 💰 11-16 글 칸 가운데 자리(⌈n/2⌉째 칸 다음) */
 
 /**
  * /guide · /guide/{주제} — 「입찰 알아보기」 (2026-09-06)
@@ -118,11 +122,13 @@ export default function GuideIndex() {
           계약한 뒤의 일(하도급대금 · 물가변동 · 설계변경 · 지체상금)은 <b>법제처 원문</b>을 확인해 따로 묶었습니다.
         </p>
       </div>
-      {GROUPS.map((gr) => {
+      {/* 💰🛒 11-16 소장님 「페이지 마다」 — 첫 묶음 다음 애드핏 «가운데» · 마지막 묶음 다음 쿠팡 «가운데» 줄 */}
+      {GROUPS.map((gr, gi) => {
         const ts = TOPICS.filter((t) => 묶음(t) === gr.g)
         if (!ts.length) return null
         return (
-          <div key={gr.g || 'bid'}>
+          <Fragment key={gr.g || 'bid'}>
+          <div>
             <div className="sec-title" style={{ margin: '16px 0 6px' }}>{gr.h}
               <span className="count" style={{ marginLeft: 6 }}>{gr.d}</span></div>
             {ts.map((t) => (
@@ -133,6 +139,9 @@ export default function GuideIndex() {
               </Link>
             ))}
           </div>
+          {gi === 가운데칸(GROUPS.length) && <애드핏칸 key="mid-guide" 자리="중" />}
+          {gi === GROUPS.length - 1 && gi > 가운데칸(GROUPS.length) && <쿠팡카드줄 key="cmid-guide" 자리="중" />}
+          </Fragment>
         )
       })}
       <div className="note sm" style={{ marginTop: 10 }}>
@@ -164,11 +173,16 @@ export function GuideTopic() {
         <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>{t.sub}</div>
         <p className="cp" style={{ marginTop: 8 }}>{md(t.lead)}</p>
       </div>
+      {/* 💰🛒 11-16 소장님 「페이지 마다」 — 글 칸 가운데쯤(⌈n/2⌉째 칸 다음) 애드핏 «가운데» · 마지막 칸 다음 쿠팡 «가운데» 줄(칸이 둘 넘을 때 · 둘 사이에 글 칸을 두고) */}
       {t.secs.map((s, i) => (
-        <div className="card" key={i}>
-          <div className="sec-title" style={{ margin: '0 0 8px' }}>{s.h}</div>
-          <Blocks blocks={s.blocks} />
-        </div>
+        <Fragment key={i}>
+          <div className="card">
+            <div className="sec-title" style={{ margin: '0 0 8px' }}>{s.h}</div>
+            <Blocks blocks={s.blocks} />
+          </div>
+          {i === 가운데칸(t.secs.length) && <애드핏칸 key={'mid-' + t.slug} 자리="중" />}
+          {i === t.secs.length - 1 && i > 가운데칸(t.secs.length) && <쿠팡카드줄 key={'cmid-' + t.slug} 자리="중" />}
+        </Fragment>
       ))}
       {묶음(t) === 'law' && (
         <div className="note sm" style={{ marginTop: 10 }}>

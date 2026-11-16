@@ -27,6 +27,8 @@ import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { 판읽기 } from '../lib/dwgdxf.js'
 import { 글꼴판, 판목록, 받을이름 } from '../lib/캐드고침.js'
 import { 파일한도, 한도글 } from '../lib/파일한도.js'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 const 큰파일 = 파일한도()
 const 예시들 = {
@@ -401,6 +403,8 @@ export default function CadFix() {
         </div>
       )}
 
+      {/* 💰 11-16 애드핏 «가운데» — 도구를 다 쓴 뒤 · 설명 앞(단추와 넉넉히) */}
+      <애드핏칸 key="mid-cadfix" 자리="중" />
       <div className="card">
         <h2 className="cfx-h2">❓ 언제 쓰나요</h2>
         <ul className="cfx-help">
@@ -414,6 +418,8 @@ export default function CadFix() {
           PDF 로 뽑으실 때는 <Link to="/tools/dxfpdf">도면 PDF 만들기</Link>.
         </p>
       </div>
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 설명 다음(애드핏 가운데 칸과 설명 덩이 사이 두고) */}
+      <쿠팡카드줄 key="cmid-cadfix" 자리="중" />
     </>
   )
 }

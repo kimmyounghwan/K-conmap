@@ -15,6 +15,8 @@ import { Link } from 'react-router-dom'
 import { askAfter } from '../AskComment'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { 세기 } from '../lib/받은수.jsx'   /* 🔢 G379 쓴 횟수 — |작업대|만듦 · |작업대|짝짓기 · |작업대|xls · |작업대|멈춤 */
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 const 원 = (n) => (typeof n === 'number' && Number.isFinite(n) ? Math.round(n).toLocaleString('ko-KR') : '—')
 const 꼴맞음 = /\.(xlsx|xlsm|xls)$/i
@@ -336,6 +338,8 @@ export default function ChangeWork() {
         </div>
       )}
 
+      {/* 💰 11-16 애드핏 «가운데» — 도구를 다 쓴 뒤 · 설명 앞(단추와 넉넉히) */}
+      <애드핏칸 key="mid-changework" 자리="중" />
       <div className="card">
         <div className="sec-title">알아 두실 것</div>
         <ul className="flist">
@@ -353,6 +357,8 @@ export default function ChangeWork() {
           <Link className="btn ghost" to="/qna">이상한 데가 있으면 한 줄</Link>
         </div>
       </div>
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 설명 다음(애드핏 가운데 칸과 설명 덩이 사이 두고) */}
+      <쿠팡카드줄 key="cmid-changework" 자리="중" />
     </>
   )
 }

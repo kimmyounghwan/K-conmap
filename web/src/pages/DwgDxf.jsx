@@ -22,6 +22,8 @@ import { DWG바꾸기, DWG일꾼내리기 } from '../lib/dwg바꾸기.js'
 import { use머무름 } from '../lib/길기록.js'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { 파일한도, 한도글 } from '../lib/파일한도.js'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 /* 🧭 G243 PC 는 크기 한도 없음(2 GB) · 폰 200 MB — lib/파일한도.js (전 200 MB) */
 const 큰파일 = 파일한도()
 let 번호 = 0
@@ -209,6 +211,8 @@ export default function DwgDxf() {
         </ul>
       </div>
 
+      {/* 💰 11-16 애드핏 «가운데» — 도구를 다 쓴 뒤 · 설명 앞(단추와 넉넉히) */}
+      <애드핏칸 key="mid-dwgdxf" 자리="중" />
       <div className="card">
         <div className="detail-h">알아 두실 점</div>
         <ul className="tl-p" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.9 }}>
@@ -219,6 +223,8 @@ export default function DwgDxf() {
           <li><b>아주 옛 판(R14 이전)</b>이나 캐드가 아닌 프로그램이 만든 DWG 는 안 될 수 있습니다</li>
         </ul>
       </div>
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 설명 다음(애드핏 가운데 칸과 설명 덩이 사이 두고) */}
+      <쿠팡카드줄 key="cmid-dwgdxf" 자리="중" />
 
       <div className="card">
         <div className="detail-h">공개 프로그램</div>

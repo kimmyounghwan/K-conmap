@@ -23,6 +23,7 @@ import { SafetyStrip } from './Safety.jsx'
 import { PriceStance } from '../components.jsx'
 /* 📄 서식 이름·그림은 formsgen.py 가 구운 «작은 목록»(6KB) — Change.jsx 와 같은 것 */
 import FMIN from '../data/forms-min.json'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
 
 /* ⏸ 2026-09-25 — 소장님: 「공내역서 채우기가 정확히 몇 퍼센트 되는 거지? 그럼 작성대행도 안돼고,
    적산도 안되는 거잖아. 근데, 사이트에는 된다고 해놓서...이걸 고쳐야 할 것 같아」
@@ -469,6 +470,9 @@ export default function Naeyeok() {
       </div>
 
       </>) : <작업대 />}
+
+      {/* 💰 11-16 애드핏 «가운데» — 맨 위 안내 · 비율 맞추기 다음 · «언제 내나» 앞 · 소장님 「페이지 마다」 */}
+      <애드핏칸 key="mid-naeyeok" 자리="중" />
 
       {/* ── 언제 내나 ─────────────────────────────────────────── */}
       <div className="card">

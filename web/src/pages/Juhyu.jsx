@@ -14,6 +14,8 @@ import G from '../data/juhyu_guide.json'
 import { 일당살핌, 시급살핌 } from '../lib/살핌.js'
 import { 링크복사 } from '../lib/링크복사.js'
 import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G607 PDF · 인쇄는 그림(글자 층 없음) */
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 const 열쇠 = 'kcm_juhyu'
 const 쓴링크열쇠 = 'kcm_juhyu_link'
@@ -219,6 +221,8 @@ export default function Juhyu() {
         </>}
       </div>}
 
+      {/* 💰 11-16 애드핏 «가운데» — 도구를 다 쓴 뒤 · 설명 앞(단추와 넉넉히) */}
+      <애드핏칸 key="mid-juhyu" 자리="중" />
       <div className="card sl-guide">
         <h2 className="sec-title" style={{ margin: 0 }}>📘 {G.title}</h2>
         <p className="cp">{굵게(G.lead)}</p>
@@ -232,6 +236,8 @@ export default function Juhyu() {
         </details>
         <p className="cp" style={{ fontSize: 12.5 }}>근거(국가법령정보센터 · 고용노동부 · {문자(G.updated).replace(/^(\d{4})-0?(\d+)-0?(\d+)$/, '$1.$2.$3.')} 확인): {G.laws.map(([t, u], k) => <span key={u}>{k ? ' · ' : ''}<a href={u} target="_blank" rel="noopener noreferrer">{t}</a></span>)}</p>
       </div>
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 설명 다음(애드핏 가운데 칸과 설명 덩이 사이 두고) */}
+      <쿠팡카드줄 key="cmid-juhyu" 자리="중" />
     </div>
     </>
   )

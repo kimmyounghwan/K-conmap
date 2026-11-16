@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 
 import { askAfter } from '../AskComment'
 import { useParams, Link } from 'react-router-dom'
@@ -14,6 +14,9 @@ import { getNaeyeok, getNaeyeokAll, naeyeokRows } from '../lib/data.js'
 
 import { use남김 } from '../lib/길기록.js'
 import { 받은수, 세기 } from '../lib/받은수.jsx'   /* 👁 2026-10-17 서식 · 도구마다 받기 · 조회 · 🧮 G371 세기 */
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
+import { 가운데칸 } from '../lib/애드핏.js'   /* 💰 11-16 글 칸 가운데 자리(⌈n/2⌉째 칸 다음) */
 /**
  * /change · /change/{주제} · /change/calc — 「설계변경」 (2026-09-05)
  *
@@ -203,6 +206,9 @@ export function ChangeBook() {
 
       <MainBook inPage />
 
+      {/* 💰 11-16 애드핏 «가운데» — 내역서 받기 다음 · «이럴 때 씁니다» 앞 · 소장님 「페이지 마다」 */}
+      <애드핏칸 key="mid-change-excel" 자리="중" />
+
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 6px' }}>이럴 때 씁니다</div>
         {(BOOK.use || []).map(([h, d], i) => (
@@ -225,6 +231,9 @@ export function ChangeBook() {
           </details>
         ))}
       </div>
+
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — «이럴 때 · 자주 묻는 것» 다음 · «함께 쓰는 서식» 앞 */}
+      <쿠팡카드줄 key="cmid-change-excel" 자리="중" />
 
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 6px' }}>
@@ -642,6 +651,9 @@ export default function Change() {
         <span className="go">›</span>
       </Link>
 
+      {/* 💰 11-16 애드핏 «가운데» — 설계변경 도구 카드들 다음 · 소장님 「페이지 마다」 */}
+      <애드핏칸 key="mid-change" 자리="중" />
+
       <MainBook />
 
       <Link className="card fbook" to="/change/naeyeok">
@@ -671,6 +683,9 @@ export default function Change() {
           </Link>
         ))}
       </div>
+
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — «무엇부터 보면 되나» 다음 · 서식 앞(애드핏 가운데 칸과 카드 셋 사이 두고) */}
+      <쿠팡카드줄 key="cmid-change" 자리="중" />
 
       <div id="seosik"><ChangeForms /></div>
 
@@ -714,11 +729,16 @@ export function ChangeTopic() {
         <p className="cp" style={{ marginTop: 8 }}>{md(t.lead)}</p>
       </div>
 
+      {/* 💰🛒 11-16 소장님 「페이지 마다」 — 글 칸 가운데쯤(⌈n/2⌉째 칸 다음) 애드핏 «가운데» · 마지막 칸 다음 쿠팡 «가운데» 줄(칸이 둘 넘을 때 · 둘 사이에 글 칸을 두고) */}
       {t.secs.map((s, i) => (
-        <div className="card" key={i}>
-          <div className="sec-title" style={{ margin: '0 0 8px' }}>{s.h}</div>
-          <Blocks blocks={s.blocks} />
-        </div>
+        <Fragment key={i}>
+          <div className="card">
+            <div className="sec-title" style={{ margin: '0 0 8px' }}>{s.h}</div>
+            <Blocks blocks={s.blocks} />
+          </div>
+          {i === 가운데칸(t.secs.length) && <애드핏칸 key={'mid-' + t.slug} 자리="중" />}
+          {i === t.secs.length - 1 && i > 가운데칸(t.secs.length) && <쿠팡카드줄 key={'cmid-' + t.slug} 자리="중" />}
+        </Fragment>
       ))}
 
       {/* 「서류 묶음」 주제에서는 이름만 늘어놓지 않고 그 자리에서 받게 합니다 */}

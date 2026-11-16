@@ -19,6 +19,8 @@ import { 도면넘기기 } from '../lib/도면넘김.js'
 import { 세기 } from '../lib/받은수.jsx'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { 꺼내기 as 찍은사진꺼내기, 사건이름 as 찍은사진사건 } from '../lib/찍은사진.js'   /* 📷 G322 옆 «+» 찍기 단추 */
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 const 꼴들 = [
   { k: '도면', 아이콘: '📄', 이름: '도면 사진', 설명: '인쇄한 도면 · 모니터 화면을 찍은 사진 — 적힌 치수 숫자를 읽어 그대로 맞춤' },
@@ -406,6 +408,8 @@ export default function SajinCad() {
           <li><b>함께 쓰기</b> — 받은 DXF 는 <Link to="/tools/dxfpdf">도면 PDF 만들기</Link> · <Link to="/jeoksan/bim">BIM 물량</Link> · <Link to="/tools/dxf3d">도면 3D 보기</Link> 에 바로 넣을 수 있습니다</li>
         </ul>
       </div>
+      {/* 💰 11-16 애드핏 «가운데» — 도구를 다 쓴 뒤 · 설명 앞(단추와 넉넉히) */}
+      <애드핏칸 key="mid-sajincad" 자리="중" />
       <div className="card">
         <div className="detail-h">알아 두실 점</div>
         <ul className="tl-p" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.9 }}>
@@ -416,6 +420,8 @@ export default function SajinCad() {
           <li>사진에 다른 그림 · 제목 딱지가 함께 찍혔으면 «모서리 다시» 로 도면만 들어오게 파란 점을 옮기면 더 깔끔합니다</li>
         </ul>
       </div>
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 설명 다음(애드핏 가운데 칸과 설명 덩이 사이 두고) */}
+      <쿠팡카드줄 key="cmid-sajincad" 자리="중" />
       <div className="card">
         <div className="detail-h">공개 자료</div>
         <div className="tl-p" style={{ lineHeight: 1.8 }}>

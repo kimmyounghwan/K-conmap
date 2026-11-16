@@ -15,6 +15,8 @@ import { 세기 } from '../lib/받은수.jsx'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { 바이트받기 } from '../lib/값엑셀.js'
 import { 견적틀값 } from '../lib/견적틀주소.js'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 const fmt = (n) => new Intl.NumberFormat('ko-KR').format(Math.round(n || 0))
 const kb = (n) => new Intl.NumberFormat('ko-KR').format(Math.max(1, Math.round(n / 1024)))
@@ -275,6 +277,8 @@ export default function HadoGyeonjeok() {
         </div>
       )}
 
+      {/* 💰 11-16 애드핏 «가운데» — 도구를 다 쓴 뒤 · 설명 앞(단추와 넉넉히) · 소장님 「페이지 마다」 */}
+      <애드핏칸 key="mid-hado-gyeonjeok" 자리="중" />
       <div className="card">
         <div className="sec-title">이렇게 나눕니다</div>
         <ul className="hgj-how">
@@ -287,6 +291,8 @@ export default function HadoGyeonjeok() {
           하도급 계약용 내역서(원 · 하도급 대비 6장)는 <Link to="/naeyeok/hado">하도급 내역서 만들기</Link>에 있습니다.
         </p>
       </div>
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 설명 다음(애드핏 가운데 칸과 설명 덩이 사이 두고) */}
+      <쿠팡카드줄 key="cmid-hado-gyeonjeok" 자리="중" />
     </div>
   )
 }

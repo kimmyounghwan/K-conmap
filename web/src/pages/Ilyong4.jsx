@@ -7,6 +7,8 @@ import { 링크만들기, 링크읽기, 기간날들 } from '../lib/ilyong4link.
 import G from '../data/ilyong_guide.json'
 import { 링크복사 } from '../lib/링크복사.js'
 import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G588 PDF · 인쇄는 그림(글자 층 없음) — 📗 엑셀은 그대로 */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
 
 /**
  * 🛡 /tools/ilyong-boheom — 일용직 4대보험 가입 판단기 (G107 · 2026-10-01)
@@ -771,6 +773,8 @@ export default function Ilyong4() {
           <li>판단은 공단이 최종으로 합니다. 기준과 사례는 <Link to="/tools/ilyong-guide">가입 기준 설명</Link>에 원문 그대로 정리했습니다.</li>
         </ul>
       </details>
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 알아 두실 것 다음(업체 광고 칸과 설명 덩이 사이 두고 · 이 쪽은 업체 광고가 가운데라 애드핏 가운데 칸은 안 넣음) */}
+      <쿠팡카드줄 key="cmid-ilyong" 자리="중" />
 
       {요약 && <button type="button" className={'iy-bar no-print' + (!결과보임 && !입력중 ? ' on' : '')} style={{ bottom: 바닥 }} onClick={결과로} aria-label="판단 결과로 가기">
         <span className="iy-bar-c">
@@ -814,12 +818,16 @@ export function IlyongGuide() {
           </table>
         </div>
       </div>
+      {/* 💰 11-16 애드핏 «가운데» — «한눈에» 표 다음 · 소장님 「페이지 마다」 */}
+      <애드핏칸 key="mid-ilyong-guide" 자리="중" />
       {G.secs.map((s, i) => (
         <div className="card" key={i} id={s.id || undefined}>
           <div className="detail-h" style={{ margin: 0 }}>{s.h}</div>
           {s.p.map((x, j) => <p className="tl-p" key={j}>{굵게(x)}</p>)}
         </div>
       ))}
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 설명 칸들 다음 · «사례로 보기» 앞 */}
+      <쿠팡카드줄 key="cmid-ilyong-guide" 자리="중" />
       <div className="card">
         <div className="detail-h" style={{ margin: 0 }}>사례로 보기 — 누르면 판단기에 그대로 채워집니다</div>
         {G.cases.map((c) => (

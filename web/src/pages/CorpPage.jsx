@@ -9,6 +9,8 @@ import { pct, num } from '../lib/fmt.js'
    여기만 없었습니다. tools/checkimports.py 가 이제 이런 걸 잡습니다. */
 import { wasBaked } from '../lib/baked.js'
 import { 업체확보예가 } from '../tools/확보예가.jsx'   /* 🎯 G181 */
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위는 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 /**
  * /corp/{업체키} — 업체 성적표. 분석 탭 안에 갇혀 있던 화면을 주소로 꺼낸 것입니다.
@@ -116,6 +118,8 @@ export default function CorpPage() {
         </div>
       )}
       <CorpReport c={c} ov={ov} onPickFirm={법인고르기} onAll={전체보기} base={decoded} />
+      {/* 💰 11-16 애드핏 «가운데» — 업체 낙찰 성적을 다 본 자리 */}
+      <애드핏칸 key={'mid-' + decoded} 자리="중" />
       {/* 🎯 G181 (2026-10-07) 확보 예가 — 최근 개찰(누를 때만 셈 · 법인 하나일 때) · 소장님 「예가만 추가해」
           법인 하나뿐인 업체는 biz 가 비어 있고 번호가 bz[0] 에만 있습니다(업체 자료의 4할) — 그 번호로 셉니다. */}
       <업체확보예가 biz={c.biz || (Number(c.bzn) === 1 && Array.isArray(c.bz) && Array.isArray(c.bz[0]) ? String(c.bz[0][0] || '') : '')}
@@ -134,6 +138,8 @@ export default function CorpPage() {
           <Link className="btn ghost" to="/qna">💬 맵톡에 신청하기</Link>
         </div>
       </div>
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 성적표 카드 다음(애드핏 가운데 칸과 확보 예가 · 성적표 사이 두고) */}
+      <쿠팡카드줄 key={'cmid-' + decoded} 자리="중" />
       <div className="btn-row" style={{ marginTop: 10 }}>
         <Link className="btn" to="/calc" style={{ flex: 1 }}>💰 바로투찰 열기 →</Link>
       </div>

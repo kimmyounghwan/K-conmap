@@ -8,6 +8,8 @@ import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G593 견
 import { 요율불러오기 } from '../tools/제비율칸.jsx'
 import 이어쓰기 from '../tools/이어쓰기.jsx'
 import { 앞모습두기 } from '../lib/이어쓰기.js'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 /**
  * 🧾 /tools/gyeonjeok — 공사 견적서 · 원가계산서 만들기 (G105 · 2026-10-01)
@@ -420,6 +422,8 @@ export default function Gyeonjeok() {
         <div className="tp-note">금액 = 수량 × 단가(원 미만 버림). {견.방식 === 'public' ? '원가계산의 각 비목도 원 미만 버림입니다.' : ''}</div>
       </div>
 
+      {/* 💰 11-16 애드핏 «가운데» — 도구를 다 쓴 뒤 · 설명 앞(단추와 넉넉히) */}
+      <애드핏칸 key="mid-gyeonjeok" 자리="중" />
       <details className="card js-more">
         <summary className="sec-title">쓰는 방법 · 알아 두실 것</summary>
         <ul className="flist" style={{ marginBottom: 0 }}>
@@ -432,6 +436,8 @@ export default function Gyeonjeok() {
           <li>엑셀 서식이 필요하면 <Link to="/forms/wonga">공사원가계산서</Link> · <Link to="/forms/sanchul-naeyeok">공사 산출내역서</Link> 서식이 있고, 하도급 비율 맞추기는 <Link to="/naeyeok/ratio">내역서 비율 맞추기</Link>입니다.</li>
         </ul>
       </details>
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 설명 다음(애드핏 가운데 칸과 설명 덩이 사이 두고) */}
+      <쿠팡카드줄 key="cmid-gyeonjeok" 자리="중" />
     </div>
     </>
   )

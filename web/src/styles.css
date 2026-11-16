@@ -10979,6 +10979,8 @@ html.vv-kick :is(.topbar, .tabbar, .cam-tab) { will-change: opacity; }
    · 자리 고정 → 광고 크기(폰 300×250 · 320×100 / PC 728×90)는 애드핏칸.jsx 가 미리 잡음 · 인쇄 · 그림 PDF 에 안 찍힘 */
 .afit { margin: 44px 0 30px; min-width: 0; display: flex; flex-direction: column; align-items: center; }   /* 가운데 · 광고가 본문보다 넓으면 양옆으로 고르게 내밂 */
 .afit-list { margin: 26px 0; }
+.afit-mid { margin: 40px 0 34px; }   /* 11-16 쪽 가운데 — 위 칸 단추와 넉넉히(운영정책 5.3.1) */
+.cpc.cpc-mid { margin: 26px 0 20px; }   /* 11-16 쿠팡 «가운데» 줄 — 위아래 글과 조금 더 띄움 */
 .afit-h { font-size: 11px; line-height: 16px; color: var(--muted); text-align: center; margin: 0 0 4px; letter-spacing: .5px; }
 .afit-box { overflow: hidden; flex: none; }
 @media print { .afit { display: none !important; } }

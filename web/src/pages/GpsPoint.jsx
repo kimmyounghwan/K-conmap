@@ -14,6 +14,8 @@ import { Link } from 'react-router-dom'
 import * as W from '../lib/내위치.js'
 import { 세기 } from '../lib/받은수.jsx'
 import { 링크복사 } from '../lib/링크복사.js'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 const 원점칸 = W.원점들.map((o) => o.키)
 function 점읽기() {
@@ -281,6 +283,8 @@ export default function GpsPoint() {
         </div>)}
       </div>
 
+      {/* 💰 11-16 애드핏 «가운데» — 도구를 다 쓴 뒤 · 설명 앞(단추와 넉넉히) */}
+      <애드핏칸 key="mid-gps" 자리="중" />
       <div className="card gp-why">
         <div className="detail-h" style={{ margin: 0 }}>⚠️ 오차 — 꼭 읽어 주세요</div>
         <ul className="flist">
@@ -301,6 +305,8 @@ export default function GpsPoint() {
         <div className="iy-small">셈: 위도 · 경도(GRS80) → TM(원점 위도 38° · 가산 X 600,000 m · Y 200,000 m · 축척 1.0000) · 폰 GPS(WGS84)와 GRS80 차이는 몇 cm 라 그대로 씁니다.
           도면 3D 보기의 <Link to="/tools/dxf3d">사진 위치</Link>와 같은 셈입니다.</div>
       </div>
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 오차 설명 다음(애드핏 가운데 칸과 설명 덩이 사이 두고) */}
+      <쿠팡카드줄 key="cmid-gps" 자리="중" />
     </div>
   )
 }

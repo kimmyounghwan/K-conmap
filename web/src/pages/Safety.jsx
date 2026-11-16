@@ -47,6 +47,8 @@
 import { Link } from 'react-router-dom'
 import { QuoteForm } from './Naeyeok.jsx'
 import { PriceStance } from '../components.jsx'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 /* 기준을 읽어 온 날. 화면 아래에 그대로 적습니다 — 「언제 것인가」 가 제일 중요합니다. */
 const 기준일 = '2026-09-16'
@@ -199,6 +201,9 @@ export default function Safety() {
         </p>
       </div>
 
+      {/* 💰 11-16 애드핏 «가운데» — 대상 판정 ① ② 다음 · «둘은 어떻게 다른가» 앞 · 소장님 「페이지 마다」 */}
+      <애드핏칸 key="mid-safety" 자리="중" />
+
       {/* ── 둘은 어떻게 다른가 ── */}
       <div className="card">
         <div className="sec-title">둘은 어떻게 다릅니까</div>
@@ -328,6 +333,9 @@ export default function Safety() {
           <Link className="btn ghost" to="/forms/seolgye-anjeon-daejang">📐 설계안전보건대장 갑지</Link>
         </div>
       </div>
+
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — «소규모 · 안전보건대장» 다음 · «헷갈리는 서류» 앞 */}
+      <쿠팡카드줄 key="cmid-safety" 자리="중" />
 
       {/* ── 🔎 이름 헷갈리는 안전 서류 한 장 (G141 · 16) ── */}
       <div className="card" id="sf-cmp">

@@ -14,12 +14,14 @@ import { pct, won, wonShort, dateFull, estOf } from '../lib/fmt.js'
       다시 붙일 자리가 생길 수 있어서입니다. 지금은 어디서도 부르지 않습니다. */
 import { quickBid, P50_FALLBACK, 취소공고, 난이도짧게 } from '../lib/bidmath.js'
 import { wasBaked } from '../lib/baked.js'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위는 lib/애드핏.js */
 /* 🏛 기관 최근 사정률 · 📋 투찰 조건 · 일정 · 첨부 — 공고 카드(/live)와 같은 칸 (2026-09-30, 입찰나라에서 가져온 것) */
 import 기관사정률 from '../기관사정률.jsx'
 import { 입찰일정, 투찰조건, 공고첨부, 공고문전문 } from '../공고자세히.jsx'
 import { 공동칸 } from '../공동칸.jsx'
 import { load우리지역 } from '../lib/공동.js'
 import { loadLicCodes } from '../lib/lic.js'
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 /**
  * /notice/{공고번호} — 공고 한 건 / 개찰 결과 한 건.
@@ -114,7 +116,11 @@ export default function NoticePage() {
           마감 전 공고에 그걸 그리면 「낙찰가 −, 투찰률 −」 이 떠서
           «개찰했는데 아무도 안 됐다» 로 읽힙니다 (CLAUDE.md — 한 화면이 서로 반대말 하지 않기). */}
       {r.win ? <NoticeDetail r={r} /> : <OpenNotice r={r} />}
+      {/* 💰 11-16 애드핏 «가운데» — 공고 분석을 다 본 자리 · 붙은 내역서 카드 앞 */}
+      <애드핏칸 key={'mid-' + key} 자리="중" />
       <NoticeDocs r={r} />
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 붙은 내역서 카드 다음(내역서가 없는 공고는 애드핏 가운데 칸과 바로 붙어 안 넣음) */}
+      {(r.ndocs || []).length > 0 && <쿠팡카드줄 key={'cmid-' + key} 자리="중" />}
       <div className="note" style={{ marginTop: 10 }}>
         공공데이터포털 나라장터 입찰정보를 가공해 보여드립니다. 분석 결과는 참고용이며 낙찰을 보장하지 않습니다.
       </div>

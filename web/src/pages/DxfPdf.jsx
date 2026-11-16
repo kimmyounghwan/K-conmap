@@ -21,6 +21,8 @@ import { 도면받기 } from '../lib/도면넘김.js'
 import { use머무름 } from '../lib/길기록.js'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { 파일한도, 한도글, 멈춤감시, 멈춤글 } from '../lib/파일한도.js'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 /* 🧪 예시 — 제가 그린 «가상의 사무소 건물» 도곽 2장(A3 · 1:100): 평면도(통심선 점선·벽 해치·치수·문)와
    벽체 단면 상세(흙·잡석·콘크리트 해치·단열재 굵은 선). 남의 도면이 아닙니다 — 만든 스크립트는 CLAUDE.md 참고 */
 const 예시 = { 파일: 'ex-drawing-pdf.dxf', 글: '가상 사무소 건물 — 평면도 + 벽체 단면 상세 (A3 도곽 2장) — 흑백으로 찍어 봅니다' }
@@ -421,6 +423,8 @@ export default function DxfPdf() {
         </div>
       )}
 
+      {/* 💰 11-16 애드핏 «가운데» — 도구를 다 쓴 뒤 · 설명 앞(단추와 넉넉히) */}
+      <애드핏칸 key="mid-dxfpdf" 자리="중" />
       <div className="card">
         <div className="detail-h">이렇게 찍습니다</div>
         <ul className="tl-p" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.9 }}>
@@ -431,6 +435,8 @@ export default function DxfPdf() {
           <li><b>글자</b> — 캐드 전용 글꼴(SHX)은 브라우저에 없어 <b>KCM Gothic</b>(나눔고딕 바탕 · <a href="/fonts/OFL.txt" target="_blank" rel="noreferrer">OFL</a>)으로 찍습니다. 모양이 조금 다를 수 있습니다</li>
         </ul>
       </div>
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 애드핏 가운데 칸과 설명 덩이 사이 두고 */}
+      <쿠팡카드줄 key="cmid-dxfpdf" 자리="중" />
       <div className="card">
         <div className="detail-h">아직 못 하는 것</div>
         <ul className="tl-p" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.9 }}>

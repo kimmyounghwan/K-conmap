@@ -27,6 +27,7 @@ import { 단위배율 } from '../lib/골조도면.js'
 import * as C from '../lib/컬러평면.js'
 import { 컬러장면, 피난장면, 기준점검, 모델점, 종이들, 평 } from '../lib/컬러평면장면.js'
 import { 장면캔버스 } from '../lib/장면그림.js'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
 
 const 예시들 = {
   apt: { 이름: '🏠 84㎡형 집(가상)', 파일: '/tools/files/ex-colorplan-apt.dxf', 탭: 'color', 업소: '예시 집', 층: '' },
@@ -550,6 +551,8 @@ export default function ColorPlan() {
           </div>
         </>
       )}
+      {/* 💰 11-16 애드핏 «가운데» — 도구를 다 쓴 뒤 · 맨 끝 안내 앞(단추와 넉넉히) · 소장님 「페이지 마다」 */}
+      <애드핏칸 key="mid-colorplan" 자리="중" />
       <div className="card">
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>
           방 면적 · 물량이 필요하면 <Link to="/jeoksan/magam">마감 수량산출</Link>, 도면을 세워 보려면 <Link to="/tools/dxf3d">도면 3D 보기</Link>, DWG 를 DXF 로만 바꾸려면 <Link to="/tools/dwgdxf">DWG 바꾸기</Link>입니다.

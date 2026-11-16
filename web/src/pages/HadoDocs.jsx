@@ -26,6 +26,8 @@ import { 나운영자 } from '../lib/운영자.js'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import { 칸들, 자료들 } from '../lib/하도급서류칸.js'
 import { 하자표 } from '../lib/계약셈.js'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 const 엑셀화면 = lazy(() => import('../엑셀화면.jsx'))
 /* 🧪 G690 (11-15) 손님 예시는 3장만 — 제출 서류 목록 · 하도급계약 통보서 · 하도급계약서(이름이 바뀌었으면 앞 3장) */
@@ -476,6 +478,8 @@ export default function HadoDocs() {
         </div>
       )}
 
+      {/* 💰 11-16 애드핏 «가운데» — 도구를 다 쓴 뒤 · 설명 앞(단추와 넉넉히) */}
+      <애드핏칸 key="mid-hadodocs" 자리="중" />
       <div className="card">
         <div className="sec-title">어떻게 만드나 — 적어 둡니다</div>
         <ul className="flist">
@@ -491,6 +495,8 @@ export default function HadoDocs() {
           <Link className="btn ghost" to="/tools/defect-period">🛡 하자담보책임기간 찾기</Link>
         </div>
       </div>
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 설명 다음(애드핏 가운데 칸과 설명 덩이 사이 두고) */}
+      <쿠팡카드줄 key="cmid-hadodocs" 자리="중" />
     </div>
   )
 

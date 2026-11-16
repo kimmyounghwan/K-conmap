@@ -5,6 +5,8 @@ import { ShareBtn } from './CorpPage.jsx'
 import { Empty } from '../components.jsx'
 import { won, wonShort, pct, num } from '../lib/fmt.js'
 import { quickBid, pickOdds, P50_FALLBACK } from '../lib/bidmath.js'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 /**
  * /daily/{YYYY-MM-DD} — 「그날의 개찰 성적표」 (2026-09-04)
@@ -102,8 +104,14 @@ export default function DailyPage() {
         rows={dd.byNp}
         right={(o) => <>{o.np ? `${num(o.np)}곳` : ''}{o.rate != null ? ` · ${pct(o.rate, 3)}` : ''}</>} />
 
+      {/* 💰 11-16 애드핏 «가운데» — 첫 표(가장 치열했던 공고) 다음 · 소장님 「페이지 마다」 */}
+      {(dd.byNp || []).length > 0 && <애드핏칸 key={'mid-daily-' + d} 자리="중" />}
+
       <Table title="💰 금액이 큰 공고" rows={dd.byAmt}
         right={(o) => <>{wonShort(o.amt)}{o.rate != null ? ` · ${pct(o.rate, 3)}` : ''}</>} />
+
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 둘째 표(금액이 큰 공고) 다음(애드핏 가운데 칸과 표 하나 사이 두고 · 두 표가 다 있을 때만) */}
+      {(dd.byNp || []).length > 0 && (dd.byAmt || []).length > 0 && <쿠팡카드줄 key={'cmid-daily-' + d} 자리="중" />}
 
       <Table title="🌲 참가 1곳 — 아무도 안 붙은 자리"
         note="참가 자격(면허·지역)이 좁게 묶인 공고가 대부분입니다. 경쟁이 없으면 하한까지 내릴 이유가 없어 투찰률이 높게 나옵니다."
@@ -197,6 +205,15 @@ function OpenPicks() {
 }
 
 /* /daily — 날짜 목록. 미리 구운 HTML 안의 <script id="dlist"> 를 씁니다. */
+/* 날짜 한 줄 — 목록이 길면 애드핏 «가운데» 칸을 사이에 두고 두 카드로 나눠 그림(DailyIndex) */
+const 날줄 = ([d, n]) => (
+  <a className="row rowlink" href={`/daily/${d}`} key={d}>
+    <div className="grow"><div className="t">{d.replace(/-/g, '.')} 개찰 성적표</div></div>
+    <span className="r">{num(n)}건</span>
+    <span className="go">→</span>
+  </a>
+)
+
 export function DailyIndex() {
   const days = useMemo(() => {
     try {
@@ -225,14 +242,11 @@ export function DailyIndex() {
         {/* ⚠️ 줄 «전체»를 링크로 둡니다. 전에는 날짜 글자(70px)만 눌렸습니다 —
             줄 너비가 1,123px 였으니 6%만 누를 수 있었습니다 (2026-09-04 실측).
             <a href> 여야 합니다(<Link> 아님) — 정적 HTML 을 받아야 그 안의 ddata 로 그려집니다. */}
-        {days.map(([d, n]) => (
-          <a className="row rowlink" href={`/daily/${d}`} key={d}>
-            <div className="grow"><div className="t">{d.replace(/-/g, '.')} 개찰 성적표</div></div>
-            <span className="r">{num(n)}건</span>
-            <span className="go">→</span>
-          </a>
-        ))}
+        {(days.length > 14 ? days.slice(0, 10) : days).map(날줄)}
       </div>
+      {/* 💰 11-16 애드핏 «가운데» — 열째 날 다음(날이 열다섯 넘을 때만 · 목록 카드를 둘로 나눔 · 소장님 「페이지 마다」) */}
+      {days.length > 14 && <애드핏칸 key="mid-daily-index" 자리="중" />}
+      {days.length > 14 && <div className="card">{days.slice(10).map(날줄)}</div>}
     </>
   )
 }

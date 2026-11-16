@@ -2,11 +2,12 @@
  *   소장님: 「쿠팡을 쪽에 맞는 상품으로 하고, 최대한 상품 많이 보이게 해줘」 · 「카페는 이렇게 하잖아」 · 「화질도 좋고」 · 「가격이 안보이는 거야?」
  *          「과일만 쭉… 제철 과일… 옷 만 쭉… 각 카테고리 별로. 모두 건설맵에 넣는 거지」 · 「이용자가 클릭을 하게 해야지…」
  *   ■ 자리: 위(모든 쪽 맨 위 — 예전 쿠팡 배너 자리 · 작은 카드 · 쪽에 맞는 주제) · 목록(1순위 · 공고 목록 사이 — 예전 배너 자리 · 큰 카드) · 바닥(바닥글 바로 위 · 큰 카드)
+ *     · 🆕 11-16 중(쪽 «가운데» — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 · 큰 카드 · 애드핏 가운데 칸과 글 한 덩이 넘게 떨어진 곳 · 목록 줄이 있는 쪽엔 안 넣음)
  *   ■ 한 줄 = 한 주제(제철 과일만 · 겨울 옷만 · 자격증 수험서만 …) · 같은 쪽 안에서는 줄마다 주제가 다름 · 들어올 때마다 첫 상품이 바뀜
  *   ■ 누르면 쿠팡 «상품 링크»(정식 · 수수료) 새 창 · «광고» 딱지 · 머리에 «쿠팡 · ○월 ○일 가격» · 대가성 문구(쿠팡 «반드시 기재») + «가격은 바뀔 수 있습니다»
  *   ■ 숨은 셈: |쿠팡보임|카드-<자리>-<주제>(반 넘게 · 한 번) · |쿠팡누름|카드-<자리>-<주제> — 자리 = 위 · 목록1 · 목록2 … · 바닥
  *   ■ 관리자 화면(/admin) · 인쇄엔 안 나옴 · 씀-앞 «밖»(App.jsx) — 쿠팡을 누른 것은 도구 «써 본 횟수» 로 안 셈
- *   ■ 자료(cards.json)를 못 받으면 맨 위 · 목록 줄은 예전 쿠팡 배너(쿠팡칸.jsx)로 돌아감 — 광고 자리가 빈 채로 남지 않게 · 바닥 줄은 안 그림
+ *   ■ 자료(cards.json)를 못 받으면 맨 위 · 목록 줄은 예전 쿠팡 배너(쿠팡칸.jsx)로 돌아감 — 광고 자리가 빈 채로 남지 않게 · 바닥 · 가운데 줄은 안 그림(예전 배너는 위 줄과 같은 분야라 겹침)
  *   ■ 맨 위 줄은 자료가 오는 동안 같은 짜임의 빈 틀(cpc-wait)로 자리를 잡아 둠 — 글이 밀려 내려가는 일(덜컥임) 없게
  *   ⚠️ 쿠팡 운영정책: 링크를 숨기지 않음 · 저절로 넘기지 않음 · 화면을 덮지 않음 · «눌러 주세요» 같은 말 없음
  *   ⚡ G663b: 그림은 맨 위 줄의 처음 세 장만 바로(eager) · 목록 · 바닥 줄은 모두 늦게(lazy) — 화면 아래 줄 그림을 처음부터 받지 않게(폰 데이터 · 첫 화면 속도)
@@ -20,6 +21,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { 세기 } from './lib/받은수.jsx'
 import { 쿠팡문구 } from './lib/쿠팡자료.js'
 import { 카드자료풀기, 카드주제정하기, 자리차례, 그림차례, 원, 기준글 } from './lib/쿠팡카드.js'
+import { 애드핏쉼 } from './lib/애드핏.js'   /* 🆕 11-16 가운데 줄은 광고를 쉬는 쪽(맵톡 · 투입비 · 미불금 서류 …)엔 안 넣음 — 위 · 바닥 줄은 예전 그대로 */
 import 쿠팡칸 from './쿠팡칸.jsx'
 
 /* 자료 — 앱이 뜰 때 바로 받기 시작(첫 그림 전에 오는 일이 많음) · 한 번만 받음 · 못 받으면 false */
@@ -61,7 +63,7 @@ const 그림못받음 = (e, 원래, 크기) => {
 
 export default function 쿠팡카드줄({ 자리 = '바닥', 차례 = 0 }) {
   const { pathname } = useLocation()
-  const 쉼 = /^\/admin(\/|$)/.test(pathname)
+  const 쉼 = /^\/admin(\/|$)/.test(pathname) || (자리 === '중' && 애드핏쉼(pathname))
   const [d, setD] = useState(자료)
   const 줄 = useRef(null)
   const 칸 = useRef(null)
@@ -94,7 +96,7 @@ export default function 쿠팡카드줄({ 자리 = '바닥', 차례 = 0 }) {
   /* 다른 쪽으로 옮기면 줄을 맨 앞으로 */
   useEffect(() => { if (줄.current) 줄.current.scrollLeft = 0 }, [셈이름])
   if (쉼) return null
-  if (d === false) return 자리 === '바닥' ? null : <쿠팡칸 자리={자리} 차례={차례} />
+  if (d === false) return 자리 === '바닥' || 자리 === '중' ? null : <쿠팡칸 자리={자리} 차례={차례} />
   const 작게 = 자리 === '위'
   if (d === null) return 작게 ? <빈틀 /> : null
   if (!주제 || !상품들.length) return null
@@ -102,7 +104,7 @@ export default function 쿠팡카드줄({ 자리 = '바닥', 차례 = 0 }) {
   const 누름 = () => { try { 세기('|쿠팡누름|' + 셈이름) } catch (e) { /* 없음 */ } }
   const 크기 = 작게 ? 320 : 492
   return (
-    <aside className={'cpc no-print' + (작게 ? ' cpc-sm' : '')} ref={칸} aria-label={`광고 — 쿠팡 ${주제.이름.replace(/^\S+\s/, '')}`} data-cpc={주제.id} data-cpg-at={자리} data-cpg-n={이름}>
+    <aside className={'cpc no-print' + (작게 ? ' cpc-sm' : '') + (자리 === '중' ? ' cpc-mid' : '')} ref={칸} aria-label={`광고 — 쿠팡 ${주제.이름.replace(/^\S+\s/, '')}`} data-cpc={주제.id} data-cpg-at={자리} data-cpg-n={이름}>
       <div className="cpc-h">
         <span className="adc-tag">광고</span>
         <b className="cpc-t">{주제.이름}</b>

@@ -46,6 +46,8 @@
 import { useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import 바로투찰사용법 from '../바로투찰사용법.jsx'   /* 📖 G499 */
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 /* 🔎 G504 (11-01) 찾기에서 «투찰 품의서 · 개찰 복기 · 관심도 · 바로투찰 사용 방법» 을 고르면 /how#baro-pum 처럼 옴 → 그 칸으로 내려가 잠깐 칠함 */
 function 주소칸으로() {
@@ -188,6 +190,9 @@ export default function How() {
         </p>
       </div>
 
+      {/* 💰 11-16 애드핏 «가운데» — «왜 · 값 · 고쳐 나가는 중» 다음 · «처음이시면» 앞 · 소장님 「페이지 마다」 */}
+      <애드핏칸 key="mid-how" 자리="중" />
+
       {/* ── 처음이시면 ── 입찰 둘 + 적산 + 서식 */}
       <div className="card">
         <div className="sec-title">처음이시면 이 넷부터</div>
@@ -228,6 +233,9 @@ export default function How() {
           단가 채우기는 아직 <b>시험판</b>이라 채운 값을 한 줄씩 확인하셔야 합니다.
         </p>
       </div>
+
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — «처음이시면 · 바로투찰 · 적산» 다음 · «현장» 앞 */}
+      <쿠팡카드줄 key="cmid-how" 자리="중" />
 
       {/* ── 현장 ── 공사일보 · 서류 */}
       <div className="card">

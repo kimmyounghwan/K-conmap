@@ -14,6 +14,8 @@ import { Empty } from '../components.jsx'
 import { 둘씩, 더말글 } from '../lib/빠른찾기.js'
 import 광고모집 from '../광고모집.jsx'   /* 📣 G549 광고가 없는 쪽 — «이 자리에 업체를 알리세요» 한 장 */
 import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G611 빈 서식 미리보기 PDF · 인쇄는 그림(글자 층 없음) */
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위는 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 /* 🎨 2026-10-16 탭 꾸밈 — 묶음마다 색(머리 띠 · 아이콘 바탕) */
 const 묶음색 = ['#2563eb', '#0d9488', '#d97706', '#7c3aed', '#e11d48', '#16a34a', '#0284c7', '#ea580c']
@@ -552,6 +554,9 @@ export default function Forms() {
       ))}
       </>)}
 
+      {/* 💰 11-16 애드핏 «가운데» — 서식 목록 다음 · «서류 꾸러미» 앞 · 소장님 「페이지 마다」 */}
+      <애드핏칸 key="mid-forms" 자리="중" />
+
       <div className="card" id="fm-packs">
         <div className="sec-title" style={{ marginTop: 0 }}>📦 서류 꾸러미 — 이때 이것들을 한 번에</div>
         <p className="muted" style={{ marginTop: 0 }}>
@@ -573,6 +578,9 @@ export default function Forms() {
           <li>맨 윗줄의 K-건설맵 표시는 1행을 지우면 없어집니다. <b>발주기관이 정한 서식이 있으면 그 서식이 우선</b>입니다.</li>
         </ul>
       </div>
+
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — «서식은 어떻게 만들었나» 다음 · «갈래별로 전부 보기» 앞(애드핏 가운데 칸과 카드 두 장 사이 두고) */}
+      <쿠팡카드줄 key="cmid-forms" 자리="중" />
 
       <details className="card js-more">
         <summary className="sec-title">갈래별로 전부 보기 — {FORMS.length + ORIG.length}가지</summary>
@@ -722,6 +730,9 @@ function OrigFormPage({ f }) {
         </div>
       )}
 
+      {/* 💰 11-16 애드핏 «가운데» — 원본 서식 쪽: 받기 · 작성 · 미리보기를 다 본 뒤 «알아 두실 것» 앞(단추와 넉넉히) */}
+      <애드핏칸 key={'mid-' + f.slug} 자리="중" />
+
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 6px' }}>알아 두실 것</div>
         {f.re ? (
@@ -742,6 +753,9 @@ function OrigFormPage({ f }) {
         </ul>
         )}
       </div>
+
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — «알아 두실 것»(원본 서식) · «놓치기 쉬운 것 · 함께 내는 서류»(새 서식) 다음 · 애드핏 가운데 칸과 글 덩이 사이 두고 */}
+      <쿠팡카드줄 key={'cmid-' + f.slug} 자리="중" />
 
       <비슷한서식 slug={f.slug} />
 
@@ -893,6 +907,9 @@ export function FormPage() {
         <div className="fwhen">{굵게(f.when)}</div>
       </div>
 
+      {/* 💰 11-16 애드핏 «가운데» — 서식 설명 글 사이(단추 · 작성 칸과 떨어진 글 카드 아래) */}
+      <애드핏칸 key={'mid-' + f.slug} 자리="중" />
+
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 6px' }}>놓치기 쉬운 것</div>
         <ul className="flist">
@@ -908,6 +925,9 @@ export function FormPage() {
           </ul>
         </div>
       )}
+
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — «알아 두실 것»(원본 서식) · «놓치기 쉬운 것 · 함께 내는 서류»(새 서식) 다음 · 애드핏 가운데 칸과 글 덩이 사이 두고 */}
+      <쿠팡카드줄 key={'cmid-' + f.slug} 자리="중" />
 
       <비슷한서식 slug={f.slug} />
 

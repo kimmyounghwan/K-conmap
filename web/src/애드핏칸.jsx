@@ -1,6 +1,7 @@
 /**
  * 💰 G666 카카오 애드핏 광고 칸 (2026-11-13) — 규칙 · 광고단위 · 뺀 쪽은 lib/애드핏.js 한 곳
  *   자리="끝": 모든 쪽 본문 끝(App.jsx — 씀-뒤 다음 · 쿠팡 바닥 줄 앞 · 넉넉히 띄움) · 자리="목록": 1순위 · 공고 목록 카드 사이(다른 광고 줄과 세 장 넘게 떨어짐)
+ *   자리="중"(11-16 「페이지 마다」): 도구 칸 바로 아래(Tools.jsx) · 서식 «언제 내나» 아래(Forms.jsx) · 공고 분석 아래(NoticePage) · 업체 성적 아래(CorpPage) — 광고단위가 비면 안 그림
  *   ■ 그리는 차례: ① 뺀 쪽 · 틀(iframe) 안 · 등록 안 한 집이면 아무것도 안 그림
  *     ② 칸 폭을 재서 판(폰 · PC)을 정하고 광고 크기만큼 자리를 «먼저» 잡음(늦게 와도 글이 밀리지 않음 — 운영정책 5.3.1 «광고가 배치되는 공간은 고정»)
  *     ③ 0.4초 뒤 그 쪽에 비밀번호 칸이 보이거나(본인확인 · 입력 중) 검색 제외(noindex — 없는 쪽)면 접음 · 아니면 애드핏이 준 코드 그대로(ins + 스크립트) 넣음
@@ -35,7 +36,8 @@ export default function 애드핏칸({ 자리 = '끝' }) {
   const { pathname } = useLocation()
   const 칸 = useRef(null)
   const 상자 = useRef(null)
-  const [끔, set끔] = useState(() => 애드핏쉼(pathname) || 틀안() || !부를곳())
+  const 단위 = 애드핏단위[자리]
+  const [끔, set끔] = useState(() => 애드핏쉼(pathname) || 틀안() || !부를곳() || !단위 || !단위.폰.id || !단위.PC.id)   /* 광고단위를 아직 안 만든 자리(빈 번호)는 안 그림 */
   const [판, set판] = useState(null)
   const [채움, set채움] = useState(false)
 
@@ -48,7 +50,7 @@ export default function 애드핏칸({ 자리 = '끝' }) {
   /* 화면을 돌려(가로 → 세로) 칸이 PC 광고(728)보다 좁아지면 폰 광고로 한 번 바꿈 — 화면 밖으로 넘치지 않게(그때 새 광고를 부름 · 사람이 돌렸을 때만) */
   useEffect(() => {
     if (끔 || 판 !== 'PC' || !칸.current || typeof ResizeObserver === 'undefined') return undefined
-    const ro = new ResizeObserver(() => { const el = 칸.current; if (el && el.getBoundingClientRect().width + 28 < 애드핏단위.끝.PC.w) { set채움(false); set판('폰') } })
+    const ro = new ResizeObserver(() => { const el = 칸.current; if (el && el.getBoundingClientRect().width + 28 < 단위.PC.w) { set채움(false); set판('폰') } })
     ro.observe(칸.current)
     return () => ro.disconnect()
   }, [끔, 판])
@@ -56,7 +58,7 @@ export default function 애드핏칸({ 자리 = '끝' }) {
   /* ③ ④ 넣기 · 접기 · 셈 */
   useEffect(() => {
     if (끔 || !판 || !상자.current) return undefined
-    const u = (애드핏단위[자리] || 애드핏단위.끝)[판]
+    const u = 단위[판]
     const 셈이름 = `${자리}-${판}`
     let 살아 = true
     let 다셈 = false
@@ -104,9 +106,9 @@ export default function 애드핏칸({ 자리 = '끝' }) {
   }, [끔, 판, 자리])
 
   if (끔) return null
-  const u = 판 ? (애드핏단위[자리] || 애드핏단위.끝)[판] : null
+  const u = 판 ? 단위[판] : null
   return (
-    <aside ref={칸} className={'afit no-print afit-' + (자리 === '목록' ? 'list' : 'end') + (채움 ? ' on' : '')} aria-label="광고" data-afit={자리} data-afit-pan={판 || ''} data-afit-unit={u ? u.id : ''}>
+    <aside ref={칸} className={'afit no-print afit-' + (자리 === '목록' ? 'list' : 자리 === '중' ? 'mid' : 'end') + (채움 ? ' on' : '')} aria-label="광고" data-afit={자리} data-afit-pan={판 || ''} data-afit-unit={u ? u.id : ''}>
       <div className="afit-h">광고</div>
       {/* 가운데(styles.css .afit — 세로 flex · 가운데 맞춤) · 본문보다 넓으면(폰 320 — 본문 292) 양옆 여백으로 고르게 내밂(화면 밖으로는 안 나감) */}
       <div ref={상자} className="afit-box" style={u ? { width: u.w, height: u.h } : { height: 0 }} />

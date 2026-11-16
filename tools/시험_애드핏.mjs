@@ -12,7 +12,7 @@
  */
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
-import { 애드핏스크립트, 애드핏단위, 애드핏집, 애드핏뺀쪽, 애드핏쉼, 애드핏판, 애드핏목록자리, 애드핏콜백이름 } from '../web/src/lib/애드핏.js'
+import { 애드핏스크립트, 애드핏단위, 애드핏집, 애드핏뺀쪽, 애드핏쉼, 애드핏판, 애드핏목록자리, 애드핏콜백이름, 가운데칸 } from '../web/src/lib/애드핏.js'
 import { 목록쿠팡자리 } from '../web/src/lib/쿠팡자료.js'
 const require = createRequire(import.meta.url)
 const BASE = process.argv[2] || ''
@@ -29,6 +29,28 @@ ok('스크립트 — 애드핏이 준 주소 그대로(//t1.kakaocdn.net/kas/sta
   ok('광고단위 넷 — 코드 꼴(DAN- + 16자) · 넷 다 다름(한 쪽에 같은 단위 두 번 없음)', 단위들.every((u) => /^DAN-[A-Za-z0-9]{16}$/.test(u.id)) && new Set(단위들.map((u) => u.id)).size === 4, 단위들.map((u) => u.id))
   ok('크기 — 목록 폰 320×100 · 목록 PC 728×90 · 끝 폰 300×250 · 끝 PC 728×90 · 이름에 크기 · 자리 · 판', [[애드핏단위.목록.폰, 320, 100, '폰_목록'], [애드핏단위.목록.PC, 728, 90, 'PC_목록'], [애드핏단위.끝.폰, 300, 250, '폰_끝'], [애드핏단위.끝.PC, 728, 90, 'PC_끝']].every(([u, w, h, k]) => u.w === w && u.h === h && u.이름 === `건설맵_${k}_${w}x${h}`), 단위들)
   ok('애드핏이 준 코드 그대로(11-13 광고단위 만들기 끝 화면에서 읽은 값)', 애드핏단위.목록.폰.id === 'DAN-F1DW7yN8tc1zwJyO' && 애드핏단위.목록.PC.id === 'DAN-Ds6MpvnFZrrnM7zQ' && 애드핏단위.끝.폰.id === 'DAN-ZlYf9xVyuyHhkFZA' && 애드핏단위.끝.PC.id === 'DAN-0pyNgeQ8vp2cG3o2')
+}
+{
+  /* 🆕 11-16 가운데(중) 자리 — 소장님 「페이지 마다」 · 광고단위를 애드핏에서 만들기 전엔 비어 있어 안 그림 · 만든 뒤엔 다른 넷과 다른 코드 */
+  const 중 = [애드핏단위.중.폰, 애드핏단위.중.PC]
+  const 다른넷 = [애드핏단위.목록.폰, 애드핏단위.목록.PC, 애드핏단위.끝.폰, 애드핏단위.끝.PC].map((u) => u.id)
+  const 비었음 = 중.every((u) => u.id === '')
+  ok('가운데 광고단위 — 아직 안 만들었으면 둘 다 빈 칸(안 그림) · 만들었으면 DAN- + 16자 · 여섯 다 다름', 비었음 || (중.every((u) => /^DAN-[A-Za-z0-9]{16}$/.test(u.id)) && new Set([...다른넷, ...중.map((u) => u.id)]).size === 6), 중.map((u) => u.id))
+  ok('가운데 크기 — 폰 300×250 · PC 728×90 · 이름에 크기 · 자리 · 판', 애드핏단위.중.폰.w === 300 && 애드핏단위.중.폰.h === 250 && 애드핏단위.중.PC.w === 728 && 애드핏단위.중.PC.h === 90 && /폰_중_300x250/.test(애드핏단위.중.폰.이름) && /PC_중_728x90/.test(애드핏단위.중.PC.이름))
+  ok('콜백 이름 — 세 자리(목록 · 가운데 · 끝) 모두 다름', new Set(['목록', '중', '끝'].flatMap((z) => ['fail', 'load'].map((k) => 애드핏콜백이름(z, k)))).size === 6)
+  const 칸글 = 주석뺌(읽기('../web/src/애드핏칸.jsx'))
+  ok('광고단위 번호가 빈 자리는 그리지 않음(같은 단위를 두 번 쓰지 않게)', /!단위\.폰\.id \|\| !단위\.PC\.id/.test(칸글) && !/애드핏단위\.끝\)/.test(칸글))
+  const 쪽들 = { 'pages/Tools.jsx': /<애드핏칸 key=\{'mid-' \+ t\.slug\} 자리="중" \/>/, 'pages/Forms.jsx': /<애드핏칸 key=\{'mid-' \+ f\.slug\} 자리="중" \/>/, 'pages/NoticePage.jsx': /<애드핏칸 key=\{'mid-' \+ key\} 자리="중" \/>/, 'pages/CorpPage.jsx': /<애드핏칸 key=\{'mid-' \+ decoded\} 자리="중" \/>/, 'tools/도구설명.jsx': /<애드핏칸 key=\{'mid-' \+ k\} 자리="중" \/>/ }
+  ok('가운데 칸 자리 — 도구 칸 아래 · 도구 설명(도구설명.jsx) 앞 · 서식 «언제 내나» 아래 · 공고 분석 아래 · 업체 성적 아래(쪽마다 새로)', Object.entries(쪽들).every(([f, re]) => re.test(읽기('../web/src/' + f))))
+  /* 🆕 11-16 소장님 「페이지마다 다 넣어」 — 가운데 칸을 넣은 쪽 · 안 넣는 쪽(까닭) 표 — 화면을 고치다 빠지거나 뺀 쪽에 들어가지 않게 */
+  ok('가운데칸 — 글 칸 n 개 → ⌈n/2⌉째 칸 다음(0부터): 1~6 → 0 0 1 1 2 2 · 0 · 이상한 값 → 0', [1, 2, 3, 4, 5, 6].map(가운데칸).join() === '0,0,1,1,2,2' && 가운데칸(0) === 0 && 가운데칸(undefined) === 0 && 가운데칸('x') === 0)
+  const 가운데쪽 = ['Tools', 'Forms', 'NoticePage', 'CorpPage', 'AgencyPage', 'Guide', 'Change', 'Cert', 'Cad', 'DailyPage', 'News', 'WonClick', 'DwgDxf', 'SajinCad', 'Gyeonjeok', 'Gisung', 'Silup', 'Juhyu', 'Toejikgeum',
+    'Dxf3d', 'EarthCheck', 'DxfPdf', 'CadFix', 'HadoDocs', 'GpsPoint', 'Ilyong4', 'Jeoksan', 'Hado', 'Bim', 'How', 'ShareOne', 'Naeyeok', 'Safety', 'TwoLine', 'ChangeWork', 'WonChange', 'HadoGyeonjeok', 'SvcCalc', 'Analysis', 'BaroBid', 'ColorPlan']
+  const 중칸 = /<애드핏칸 [^>]*자리="중"/
+  ok(`가운데 칸을 넣은 쪽 ${가운데쪽.length}곳(+ 도구설명.jsx 를 쓰는 도구 11곳)`, 가운데쪽.every((f) => 중칸.test(읽기(`../web/src/pages/${f}.jsx`))) && 중칸.test(읽기('../web/src/tools/도구설명.jsx')), 가운데쪽.filter((f) => !중칸.test(읽기(`../web/src/pages/${f}.jsx`))))
+  /* 안 넣는 쪽 — 목록 칸이 있는 쪽(1순위 · 공고) · 업체 광고 칸이 가운데인 쪽(휴업급여 · 노무비) · 뺀 쪽(맵톡 · 관리자 · 광고 문의 · 마이컨맵 · 투입비 · 장부 문 · 소장님만) · 문제 풀이 · 면접(입력 중) */
+  const 안넣는쪽 = ['FirstBoard', 'LiveBoard', 'Hyueop', 'Nomubi', 'Qna', 'Admin', 'AdInfo', 'MyConmap', 'Tuipbi', 'TuipbiVin', 'RiskBook', 'EquipBook', 'ReportMake', 'AgencyReportMake', 'JeoksanLab', 'CertQuiz', 'CertInterview']
+  ok(`가운데 칸을 안 넣는 쪽 ${안넣는쪽.length}곳 — 목록 칸 · 업체 광고 칸이 가운데 · 뺀 쪽 · 문제 풀이`, 안넣는쪽.every((f) => !중칸.test(읽기(`../web/src/pages/${f}.jsx`))), 안넣는쪽.filter((f) => 중칸.test(읽기(`../web/src/pages/${f}.jsx`))))
 }
 ok('집 — k-conmap.com · www 만 부름', 애드핏집('k-conmap.com') && 애드핏집('www.k-conmap.com'))
 ok('집 — web.app · 미리보기 주소 · 내 컴퓨터 · 비슷한 이름은 안 부름(5.4 제3의 매체)', ['k-conmap.web.app', 'k-conmap--preview-ab12cd.web.app', 'k-conmap.firebaseapp.com', 'localhost', '127.0.0.1', 'evil-k-conmap.com', 'k-conmap.com.evil.com', 'xk-conmap.com', '', undefined].every((h) => !애드핏집(h)))
@@ -268,19 +290,26 @@ d.textContent='카카오 광고 자리 '+w+'×'+h+' (실제 광고는 올린 뒤
       await p.waitForSelector('footer.footer', { timeout: 15000 })
       await p.waitForTimeout(150)
       const 먼저 = await 칸들(p)   /* 스크립트 넣기 전(0.4초 안) — 자리만 잡혀 있어야 */
-      await 기다림(async () => (await p.evaluate(() => document.querySelectorAll('aside.afit.on').length)) >= 1, 6000)
+      /* 🆕 11-17 칸이 둘(가운데 + 끝)일 수 있음 — 모든 칸이 채워질 때까지(하나만 보고 재면 가운데 칸이 아직 빈 채로 잼) */
+      await 기다림(async () => (await p.evaluate(() => { const a = document.querySelectorAll('aside.afit').length; return a >= 1 && document.querySelectorAll('aside.afit.on').length === a })), 8000)
       const 뒤 = await 칸들(p)
-      결과.push({ 쪽, 수: 뒤.length, 꼴: 뒤[0] && 꼴맞음(뒤[0], 애드핏단위.끝.폰), 자리: 뒤[0] && 뒤[0].자리, 미리: 먼저.length === 1 ? [먼저[0].칸높이, 뒤[0] && 뒤[0].칸높이] : 먼저.length, 씀밖: 뒤[0] && 뒤[0].씀밖, 바닥앞: 뒤[0] && 뒤[0].바닥앞, 가까움: 뒤[0] && 뒤[0].가까움, 넘침: await 넘침(p) })
+      /* 🆕 11-17 가운데(중) 칸 — 광고단위 번호가 있으면 쪽에 따라 하나 더(끝 칸은 늘 하나) */
+      const 끝칸 = 뒤.find((z) => z.자리 === '끝'), 중칸 = 뒤.find((z) => z.자리 === '중')
+      결과.push({ 쪽, 수: 뒤.length, 수끝: 뒤.filter((z) => z.자리 === '끝').length, 수중: 뒤.filter((z) => z.자리 === '중').length,
+        꼴: !!끝칸 && 꼴맞음(끝칸, 애드핏단위.끝.폰) && (!중칸 || 꼴맞음(중칸, 애드핏단위.중.폰)) && 뒤.every((z) => z.자리 === '끝' || z.자리 === '중'),
+        미리: 먼저.map((z) => [z.자리, z.칸높이, (뒤.find((w) => w.자리 === z.자리) || {}).칸높이]), 씀밖: 끝칸 && 끝칸.씀밖, 바닥앞: 끝칸 && 끝칸.바닥앞, 가까움: Math.min(...뒤.map((z) => z.가까움)), 넘침: await 넘침(p) })
     }
-    ok(`쪽 ${쪽들.length}곳 — 끝 칸 하나씩(폰 300×250 · 코드 그대로)`, 결과.every((x) => x.수 === 1 && x.꼴 && x.자리 === '끝'), 결과.map((x) => [x.쪽, x.수, x.꼴]))
-    ok('자리 미리 잡음 — 광고가 오기 전과 뒤 칸 높이 같음(덜컥임 0 · 5.3.1 자리 고정 · 지연 로드)', 결과.every((x) => Array.isArray(x.미리) && x.미리[0] === x.미리[1] && x.미리[0] >= 250), 결과.map((x) => [x.쪽, x.미리]))
-    ok('씀-뒤 다음 · 쿠팡 바닥 줄 · 바닥글 앞 · 누를 것과 12px 넘게 · 넘침 0', 결과.every((x) => x.씀밖 && x.바닥앞 && x.가까움 >= 12 && x.넘침 <= 0), 결과.map((x) => [x.쪽, x.가까움, x.넘침]))
-    ok('쪽을 옮길 때마다 스크립트를 한 번씩(쪽마다 새 광고 · 겹쳐 부르지 않음)', 부름.length === 쪽들.length, 부름.length)
+    const 중있음 = !!(애드핏단위.중.폰.id && 애드핏단위.중.PC.id)
+    ok(`쪽 ${쪽들.length}곳 — 끝 칸 하나씩(폰 300×250 · 코드 그대로)${중있음 ? ' · 가운데 칸은 하나까지(폰 300×250 가운데 단위)' : ' · 가운데 칸 없음(번호 없음)'}`, 결과.every((x) => x.수끝 === 1 && x.수중 <= (중있음 ? 1 : 0) && x.꼴), 결과.map((x) => [x.쪽, x.수끝, x.수중, x.꼴]))
+    ok('자리 미리 잡음 — 광고가 오기 전과 뒤 칸 높이 같음(칸마다 · 덜컥임 0 · 5.3.1 자리 고정 · 지연 로드)', 결과.every((x) => x.미리.length >= 1 && x.미리.every(([, a, b]) => a === b && a >= 250)), 결과.map((x) => [x.쪽, x.미리]))
+    ok('끝 칸 씀-뒤 다음 · 쿠팡 바닥 줄 · 바닥글 앞 · 칸마다 누를 것과 12px 넘게 · 넘침 0', 결과.every((x) => x.씀밖 && x.바닥앞 && x.가까움 >= 12 && x.넘침 <= 0), 결과.map((x) => [x.쪽, x.가까움, x.넘침]))
+    /* 한 쪽에 칸이 둘이면 같은 스크립트 주소를 브라우저가 한 번만 받아 올 수 있음(메모리 캐시 — 칸마다 ins · 스크립트는 하나씩 · 아래 «칸마다 ins 하나» 로 봄) */
+    ok('쪽을 옮길 때마다 스크립트를 새로 부름(쪽마다 새 광고 — 쪽 수 ≤ 부른 수 ≤ 칸 수 · 겹쳐 부르지 않음)', 부름.length >= 쪽들.length && 부름.length <= 결과.reduce((n, x) => n + x.수, 0), [부름.length, 쪽들.length, 결과.reduce((n, x) => n + x.수, 0)])
     /* 안에서 옮기기(Link) — 쪽마다 칸 하나 · 앞 쪽 광고는 사라짐 */
     await p.goto(BASE + '/how', { waitUntil: 'domcontentloaded' }); await p.waitForSelector('aside.afit.on', { timeout: 8000 })
     await p.click('footer a[href="/guide"]'); await p.waitForURL(/\/guide$/, { timeout: 10000 })
-    await 기다림(async () => (await p.evaluate(() => document.querySelectorAll('aside.afit.on').length)) === 1, 6000)
-    ok('사이트 안에서 쪽을 옮겨도 칸 하나(ins 하나) · 새로 그림', await p.evaluate(() => document.querySelectorAll('aside.afit').length === 1 && document.querySelectorAll('ins.kakao_ad_area').length === 1))
+    await 기다림(async () => (await p.evaluate(() => document.querySelectorAll('aside.afit.on').length === document.querySelectorAll('aside.afit').length && document.querySelectorAll('aside.afit').length >= 1)), 6000)
+    ok('사이트 안에서 쪽을 옮겨도 끝 칸 하나 · 칸마다 ins 하나(앞 쪽 광고는 사라짐) · 새로 그림', await p.evaluate(() => document.querySelectorAll('aside.afit[data-afit="끝"]').length === 1 && document.querySelectorAll('aside.afit').length <= 2 && [...document.querySelectorAll('aside.afit')].every((a) => a.querySelectorAll('ins.kakao_ad_area').length === 1) && document.querySelectorAll('ins.kakao_ad_area').length === document.querySelectorAll('aside.afit').length))
     if (OUT) {
       await p.goto(BASE + '/tools/juhyu', { waitUntil: 'domcontentloaded' }); await p.waitForSelector('aside.afit.on', { timeout: 8000 })
       await p.addStyleTag({ content: '.insa{display:none!important} .footer-me{visibility:hidden}' })
@@ -309,10 +338,14 @@ d.textContent='카카오 광고 자리 '+w+'×'+h+' (실제 광고는 올린 뒤
       await p.waitForSelector('footer.footer', { timeout: 15000 }); await p.waitForTimeout(1300)
       비번쪽.push(await p.evaluate((쪽) => ({ 쪽, 비번: [...document.querySelectorAll('main input[type="password"]')].some((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 }), 칸: document.querySelectorAll('aside.afit').length, ins: document.querySelectorAll('ins.kakao_ad_area').length }), 쪽))
     }
-    ok('비밀번호 칸이 보이는 쪽엔 칸 · ins 없음 · 안 보이는 쪽엔 끝 칸 하나', 비번쪽.every((x) => (x.비번 ? x.칸 === 0 && x.ins === 0 : x.칸 === 1 && x.ins === 1)), 비번쪽)
+    const 중칸있음 = !!(애드핏단위.중.폰.id && 애드핏단위.중.PC.id)
+    ok('비밀번호 칸이 보이는 쪽엔 칸 · ins 없음 · 안 보이는 쪽엔 끝 칸 하나(+ 가운데 칸 하나까지 · 칸마다 ins 하나)', 비번쪽.every((x) => (x.비번 ? x.칸 === 0 && x.ins === 0 : x.칸 >= 1 && x.칸 <= (중칸있음 ? 2 : 1) && x.ins === x.칸)), 비번쪽)
     console.log('    (비밀번호 칸이 보인 쪽: ' + (비번쪽.filter((x) => x.비번).map((x) => x.쪽).join(' · ') || '없음') + ')')
     /* 틀(iframe) 안 — 우리 확인 꾸러미처럼 같은 집 iframe 에 띄우면 안 그림(5.4 아이프레임 안 호출 금지) */
     await p.goto(BASE + '/how', { waitUntil: 'domcontentloaded' }); await p.waitForSelector('aside.afit.on', { timeout: 8000 })
+    /* 🆕 11-17 칸이 둘(가운데 + 끝)이면 둘 다 채워진 뒤에 셈 — 늦게 오는 칸의 스크립트를 틀 안 것으로 잘못 셈 */
+    await 기다림(async () => (await p.evaluate(() => { const a = document.querySelectorAll('aside.afit').length; return a >= 1 && document.querySelectorAll('aside.afit.on').length === a })), 8000)
+    await p.waitForTimeout(600)
     const 앞부름 = 부름.length
     await p.evaluate((u) => { const f = document.createElement('iframe'); f.id = 'tt'; f.style.cssText = 'width:390px;height:800px'; f.src = u; document.body.appendChild(f) }, BASE + '/first')
     await p.waitForTimeout(3500)

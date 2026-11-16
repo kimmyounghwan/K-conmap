@@ -8,6 +8,8 @@ import { Skeleton, Empty } from '../components.jsx'
 import { ShareBtn } from './CorpPage.jsx'
 import { pct, num } from '../lib/fmt.js'
 import { wasBaked } from '../lib/baked.js'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 /**
  * /agency/{기관명} — 검색엔진에 색인되는 페이지.
@@ -72,8 +74,12 @@ export default function AgencyPage() {
       <div className="btn-row" style={{ marginTop: 10 }}>
         <Link className="btn" to="/calc" style={{ flex: 1 }}>💰 바로투찰 열기 →</Link>
       </div>
+      {/* 💰 11-16 애드핏 «가운데» — 기관 분석을 다 본 자리(바로투찰 단추와 넉넉히 띄움) · 소장님 「페이지 마다」 */}
+      <애드핏칸 key={'mid-' + decoded} 자리="중" />
       {/* 🏛 2026-09-28 — 이 화면을 끝까지 본 사람이 «더 세세한 것» 을 원하는 사람입니다 */}
       <기관견본줄 name={decoded} />
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 분석 견본 카드 다음(애드핏 가운데 칸과 견본 카드 사이 두고) */}
+      <쿠팡카드줄 key={'cmid-' + decoded} 자리="중" />
       {/* 📣 이 기관이 낼 공사(발주계획 · 사전규격) — 2026-10-05 G135 · 있을 때만 */}
       <기관낼공사 name={decoded} />
     </>

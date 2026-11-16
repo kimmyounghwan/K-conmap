@@ -26,6 +26,8 @@
 import { Link } from 'react-router-dom'
 import { 받은수, 화면열쇠 } from '../lib/받은수.jsx'   /* ⬇ 2026-10-01 (G109) 소장님 「내역서 및 적산 탭 안에 … 받기 숫자가 하나도 없는데?」 — 도구 탭과 같은 숫자 */
 import { PriceStance } from '../components.jsx'
+import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 const 단가표 = { 품목: '63,665', 공고: '4,555', 반영: '2026-09-27' }
 
@@ -244,6 +246,8 @@ export default function Jeoksan() {
       </div>
 
       {/* 📚 2026-09-29 — 단가 자료가 어디서 오고 얼마나 쌓였나 (소장님 「적산에 필요한 자료는 받고 있지?」) */}
+      {/* 💰 11-16 애드핏 «가운데» — 적산 차례 다음 · 단가 자료 앞 · 소장님 「페이지 마다」 */}
+      <애드핏칸 key="mid-jeoksan" 자리="중" />
       <div className="card" id="js-price">
         <div className="sec-title">📚 단가 자료 — 어디서 오나</div>
         <p style={{ marginTop: 0, lineHeight: 1.8 }}>
@@ -264,6 +268,8 @@ export default function Jeoksan() {
       </div>
 
       {/* ── 긴 설명은 접어 둡니다 (2026-09-29) — 글은 그대로, 펼치면 보입니다 ── */}
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 단가 자료 다음 · 긴 설명 앞(애드핏 가운데 칸과 카드 하나 사이 두고) */}
+      <쿠팡카드줄 key="cmid-jeoksan" 자리="중" />
       <div className="js-more-grid">
       <details className="card js-more">
         <summary className="sec-title">도구마다 무엇을 하나</summary>

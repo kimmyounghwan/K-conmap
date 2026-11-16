@@ -16,6 +16,7 @@ import G from '../data/hyueop_guide.json'
 import { 일당살핌 } from '../lib/살핌.js'
 import { 링크복사 } from '../lib/링크복사.js'
 import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G606 PDF · 인쇄는 그림(글자 층 없음) */
+import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 const 열쇠 = 'kcm_hyueop'
 const 쓴링크열쇠 = 'kcm_hyueop_link'
@@ -198,6 +199,8 @@ export default function Hyueop() {
         </details>
         <p className="cp" style={{ fontSize: 12.5 }}>근거(국가법령정보센터 · {긴날(G.updated)} 확인): {G.laws.map(([t, u], k) => <span key={u}>{k ? ' · ' : ''}<a href={u} target="_blank" rel="noopener noreferrer">{t}</a></span>)}</p>
       </div>
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 설명 다음(업체 광고 칸과 설명 덩이 사이 두고 · 이 쪽은 업체 광고가 가운데라 애드핏 가운데 칸은 안 넣음) */}
+      <쿠팡카드줄 key="cmid-hyueop" 자리="중" />
     </div>
     </>
   )
