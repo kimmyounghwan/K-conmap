@@ -1214,12 +1214,11 @@ def news_page(shell, nd, days, latest=False):
     its = nd["items"]
     dl = news_day(d)
     path = "/news" if latest else f"/news/{d}"
-    title = f"{'오늘의 건설 뉴스' if latest else '건설 뉴스'} {dl} — 사건 · 사고 · 정책 변경 · 정보 {len(its)}건 | K-건설맵"
+    title = f"건설뉴스 {dl} — 사건 · 사고 · 정책 변경 · 정보 {len(its)}건 | K-건설맵"
     desc = (f"{dl} 건설 현장 사건 · 사고, 정책 변경, 정보 {len(its)}건을 K-건설맵이 짧게 다시 썼습니다. "
             + " / ".join(x["t"] for x in its[:3]))[:300]
-    out = [f'<div class="nw"><h1 class="nw-h1"><span class="nw-ic">📰</span>{"오늘의 건설 뉴스" if latest else "건설 뉴스"}</h1>',
-           f'<div class="nw-date"><b>{esc(dl)}</b><span class="nw-n"> · {len(its)}건</span></div>',
-           '<p class="nw-lead">사건 · 사고 · 정책 변경 · 정보 — 매일 아침 7시쯤. 기사 글은 옮기지 않고 K-건설맵이 짧게 다시 쓰고, 원문은 고리로 둡니다.</p>']
+    out = ['<div class="nw"><h1 class="nw-h1"><span class="nw-ic">📰</span>건설뉴스</h1>',   # G696b 소장님 «건설뉴스» 만 · 머리 상자 뺌
+           f'<div class="nw-date"><b>{esc(dl)}</b><span class="nw-n"> · {len(its)}건</span></div>']
     for c, name, cls in NEWS_KIND:
         a = [x for x in its if x["c"] == c]
         if not a:
@@ -1242,9 +1241,9 @@ def news_page(shell, nd, days, latest=False):
             out.append(f'<a class="nw-dd{on}" href="{href}">{esc(news_day(dd, False))}<em> {len(nd2["items"])}건</em></a>')
         out.append("</div></section>")
     out.append('<p class="nw-note">요약은 K-건설맵이 원문을 읽고 다시 쓴 글입니다. 자세한 내용 · 바뀐 내용은 원문과 발표 기관 자료에서 확인하세요.</p></div>')
-    crumbs = [("K-건설맵", None), ("오늘의 건설 뉴스", "/news")]
+    crumbs = [("K-건설맵", None), ("건설뉴스", "/news")]
     if not latest:
-        crumbs.append((f"{dl} 건설 뉴스", f"/news/{d}"))
+        crumbs.append((f"{dl} 건설뉴스", f"/news/{d}"))
     ld = ld_graph(ld_crumbs(*crumbs))
     return page(shell, path, title, desc, "".join(out), None, ld)
 

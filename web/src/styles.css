@@ -11323,7 +11323,6 @@ a.kn-strip:hover { border-left-color: var(--kn-a); }
 .nw-date { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 4px; font-size: 15px; }
 .nw-n { color: var(--muted); font-size: 13.5px; }
 .nw-prev { margin-left: auto; padding: 4px 0; background: none; border: 0; color: var(--good); font: inherit; font-size: 13.5px; font-weight: 800; cursor: pointer; }
-.nw-lead { margin: 8px 0 6px; padding: 10px 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; color: var(--text-2); font-size: 13.5px; line-height: 1.6; word-break: keep-all; }
 .nw-sec { --c: var(--kn-a); }
 .nw-sec.nw-p { --c: var(--kn-p); }
 .nw-sec.nw-i { --c: var(--kn-i); }

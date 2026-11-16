@@ -3,6 +3,7 @@
  *   ■ 꼭지마다: 제목 · 2~3줄 요약(우리 말로 다시 씀) · «👷 현장에선?» · 출처(매체 · 날짜) · «원문 보기 ▸»(새 창 · nofollow)
  *   ■ 자료: public/newsd/*.json (lib/건설뉴스.js) · 검색용 구운 쪽: prerender.py news_page · news_index · 사이트맵 sitemap.py
  *   ■ 숨은 셈: |뉴스|쪽 · |뉴스|원문 · |뉴스|지난날 · |뉴스|맵톡
+ *   ■ G696b 소장님 「간단히 뉴스 라고만 써, 간략히」 · 「이걸 꼭 써야 해」 → 고르심 «건설뉴스» · 제목 «건설뉴스» 만 · 머리 안내 상자(언제 올리는지 · 다시 쓴 글 · 원문 고리 설명) 뺌 — 맨 아래 한 줄 알림은 그대로
  */
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
@@ -27,7 +28,7 @@ export default function News() {
   }, [날, 틀린주소])
   useEffect(() => { let 살아 = true; 목록받기().then((x) => { if (살아) set목(x) }); 세기('|뉴스|쪽'); return () => { 살아 = false } }, [])
   useEffect(() => {
-    if (자 && 자.d) document.title = `${날 ? '건설 뉴스' : '오늘의 건설 뉴스'} ${날글(자.d, true)} — 사건 · 사고 · 정책 변경 · 정보 | K-건설맵`
+    if (자 && 자.d) document.title = `건설뉴스 ${날글(자.d, true)} — 사건 · 사고 · 정책 변경 · 정보 | K-건설맵`
   }, [자, 날])
 
   const 이날 = 자 && 자.d
@@ -38,12 +39,12 @@ export default function News() {
 
   return (
     <div className="nw">
-      <h1 className="nw-h1"><span className="nw-ic">📰</span>{날 ? '건설 뉴스' : '오늘의 건설 뉴스'}</h1>
+      <h1 className="nw-h1"><span className="nw-ic">📰</span>건설뉴스</h1>
       {자 === null && <Skeleton n={3} />}
       {자 === false && (
         <div className="card nw-none">
           <p>{틀린주소 ? '주소가 맞지 않습니다.' : '그날 뉴스가 없습니다.'}</p>
-          <Link className="btn" to="/news">📰 오늘의 건설 뉴스 보기</Link>
+          <Link className="btn" to="/news">📰 건설뉴스 보기</Link>
         </div>
       )}
       {자 && (<>
@@ -51,7 +52,6 @@ export default function News() {
           <b>{날글(자.d, true)}</b><span className="nw-n"> · {자.items.length}건</span>
           {목.length > 1 && <button type="button" className="nw-prev" onClick={지난보기}>‹ 지난 뉴스</button>}
         </div>
-        <p className="nw-lead">사건 · 사고 · 정책 변경 · 정보 — 매일 아침 7시쯤. 기사 글은 옮기지 않고 K-건설맵이 짧게 다시 쓰고, 원문은 고리로 둡니다.</p>
         {갈래묶기(자.items).map(([c, a]) => (
           <section key={c} className={'nw-sec nw-' + 갈래표[c]} aria-label={갈래이름[c]}>
             <h2 className="nw-h2"><span aria-hidden="true">{갈래그림[c]}</span> {갈래이름[c]}</h2>

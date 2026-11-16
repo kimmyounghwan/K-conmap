@@ -8,6 +8,7 @@
  *     · 두 줄 높이로 고정(빈 틀도 같은 높이) → 늦게 와도 그 아래 광고 칸이 움직이지 않음(광고를 잘못 누르게 하는 배치 금지 — 애드핏 운영정책)
  *   ■ 안 나오는 때: 로봇 · 인쇄 · 자료를 못 받음 · 자료가 오늘 · 어제 것이 아님(자동 갱신이 멈춰도 옛 뉴스를 «오늘» 로 걸지 않게)
  *   ■ 숨은 셈: |뉴스|띠누름 · |뉴스|끝누름 (뉴스 쪽 안은 pages/News.jsx)
+ *   ■ G696b 소장님 「간단히 뉴스 라고만 써, 간략히」 → 「건설뉴스— 뭐가 좋지?」 → 고르심 «건설뉴스» — 보이는 이름은 «건설뉴스» 만(«오늘의 건설 뉴스» 안 씀)
  *   ⚠️ 씀-앞 · 씀-뒤 «밖» — 눌러도 도구 «써 본 횟수» 로 안 셈
  */
 import { useEffect, useState } from 'react'
@@ -47,7 +48,7 @@ export default function 뉴스띠() {
   if (d === null) {
     return (
       <div className="kn-strip kn-wait no-print" aria-hidden="true">
-        <span className="kn-top"><span className="kn-ic">📰</span><b>오늘의 건설 뉴스</b></span>
+        <span className="kn-top"><span className="kn-ic">📰</span><b>건설뉴스</b></span>
         <span className="kn-h">&nbsp;</span>
         <span className="kn-h">&nbsp;</span>
       </div>
@@ -56,8 +57,8 @@ export default function 뉴스띠() {
   const [a, b, c] = 띠줄(d.items)
   return (
     <Link to="/news" className="kn-strip no-print" onClick={() => 세기('|뉴스|띠누름')}
-      aria-label={`오늘의 건설 뉴스 ${날글(d.d)} — 전체 보기`}>
-      <span className="kn-top"><span className="kn-ic">📰</span><b>오늘의 건설 뉴스</b><span className="kn-d">{날글(d.d)}</span><span className="kn-all">전체 보기 ▸</span></span>
+      aria-label={`건설뉴스 ${날글(d.d)} — 전체 보기`}>
+      <span className="kn-top"><span className="kn-ic">📰</span><b>건설뉴스</b><span className="kn-d">{날글(d.d)}</span><span className="kn-all">전체 보기 ▸</span></span>
       <span className="kn-h">{칸(a)}</span>
       <span className="kn-h">{b ? 칸(b) : <>&nbsp;</>}{c ? <> · {칸(c)}</> : null}</span>
     </Link>
@@ -72,7 +73,7 @@ export function 뉴스끝줄() {
   if (d === null) {
     return (
       <div className="kn-line kn-wait no-print" aria-hidden="true">
-        <span className="kn-top"><span className="kn-ic">📰</span><b>오늘의 건설 뉴스</b></span>
+        <span className="kn-top"><span className="kn-ic">📰</span><b>건설뉴스</b></span>
         <span className="kn-one">&nbsp;</span>
       </div>
     )
@@ -80,8 +81,8 @@ export function 뉴스끝줄() {
   const x = d.items[0]
   return (
     <Link to="/news" className="kn-line no-print" onClick={() => 세기('|뉴스|끝누름')}
-      aria-label={`오늘의 건설 뉴스 ${날글(d.d)} — 전체 보기`}>
-      <span className="kn-top"><span className="kn-ic">📰</span><b>오늘의 건설 뉴스 · {날글(d.d)}</b><span className="kn-all">전체 보기 ▸</span></span>
+      aria-label={`건설뉴스 ${날글(d.d)} — 전체 보기`}>
+      <span className="kn-top"><span className="kn-ic">📰</span><b>건설뉴스 · {날글(d.d)}</b><span className="kn-all">전체 보기 ▸</span></span>
       <span className="kn-one">{칸(x)}{x.kk ? ` — ${x.kk}` : ''}</span>
     </Link>
   )
