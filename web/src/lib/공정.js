@@ -11,7 +11,7 @@
  * ■ 날은 모두 «달력 날» (공휴일 빼기 없음) — 화면에 그렇게 적습니다.
  * ■ 시험: node tools/시험_공정.mjs
  */
-import { readWorkbook } from './qtoxlsx.js'
+import { 공종나무읽기, 막대형줄, 금액형줄 } from './공종읽기.js'
 
 const 하루 = 86400000
 /** 'YYYY-MM-DD' → 날 번호(1970-01-01 = 0) · 못 읽으면 null */
@@ -204,81 +204,116 @@ export function 자동배치(공종, 착공, 준공) {
 
 /* ───────────────────────────── 내역서 → 공종·금액 */
 
-const 글 = (x) => (x === null || x === undefined ? '' : String(x).trim())
-const 붙 = (x) => 글(x).replace(/\s+/g, '')
-const 합계줄 = /^[\[(]?(합계|소계|계|총계|누계|총공사비|공사비|직접공사비|간접공사비|순공사비|순공사원가|일반관리비|이윤|부가가치세|부가세|도급액|도급금액|총원가|재료비|노무비|경비|계:?|합:?)[\])]?$/
-
 /**
- * 내역서(.xlsx)에서 공종과 금액 — «공종별 집계표» 시트를 먼저 보고, 없으면 «식» 단위 줄
- * @returns {공종:[{이름, 금액}], 시트, 말}
+ * 내역서(.xlsx · .xls) → 막대형 공종 [{이름, 금액}]
+ *   🩹 2026-11-16 소장님 「간단하게 하는 방법없을까? 내역서만 넣으면 되게」 → 「실제로 내역서 직접 넣어 보고, 점검해줘」:
+ *   전엔 «공종별 집계표» 머리 하나만 찾아 실제 내역서 58개 가운데 여럿에서 엉뚱한 시트(기계경비 · 일위대가)를 고르거나
+ *   «01 ○○지구…» 처럼 번호가 붙은 이름 · 금액 없는 줄이 나왔음 → lib/공종읽기.js 공종나무읽기(번호 꼴 · 관급 · 위 합 밖 · 겹침)로 바꿈.
+ *   막대형 = 맨 위 공종(넷보다 적으면 그 아래까지 · 같은 이름은 «위 · 이름»).
+ * @returns {공종:[{이름, 금액}], 시트, 말, 금있음, 나무(공종나무읽기 결과)}
  */
 export function 내역공종(bytes, 이름 = '내역서') {
-  const wb = readWorkbook(bytes)
-  const 시트들 = Object.entries(wb).filter(([, g]) => g && g.length)
-  const 순 = [...시트들].sort((a, b) => 점수(b[0]) - 점수(a[0]))
-  const 말 = []
-  for (const [시트, grid] of 순) {
-    const r = 집계읽기(grid)
-    if (r.length >= 2) {
-      const 금있음 = r.some((x) => x.금액 > 0)
-      말.push(시트 + ': ' + r.length + '공종' + (금있음 ? '' : ' (금액 비어 있음)'))
-      return { 공종: r, 시트, 말, 금있음 }
-    }
-    말.push(시트 + ': 공종 못 찾음')
-  }
-  throw new Error('내역서에서 «공종·금액» 집계를 못 찾았습니다 (' + 말.slice(0, 5).join(' / ') + ') — 공종과 금액을 직접 적어 주십시오')
+  const R = 공종나무읽기(bytes, 이름)
+  const 공종 = 막대형줄(R).map((x) => ({ 이름: x.이름, 금액: x.금액 > 0 ? Math.round(x.금액) : 0 }))
+  if (!공종.length) throw new Error('내역서에서 공종을 못 찾았습니다 — 공종과 금액을 직접 적어 주십시오')
+  return { 공종, 시트: R.시트, 말: R.말, 금있음: R.금있음, 나무: R }
 }
-function 점수(시트) { const u = 붙(시트); return (/공종별|집계/.test(u) ? 3 : 0) + (/총괄|총집계/.test(u) ? 1 : 0) + (/원가계산|일위|단가|명세/.test(u) ? -3 : 0) }
 
-/** 한 시트 — 머리 줄(공종·명칭·품명 + 금액·합계) 찾고, 공종 줄마다 합계 금액(없으면 재료·노무·경비 금액의 합) */
-function 집계읽기(grid) {
-  let hi = -1
-  for (let i = 0; i < Math.min(grid.length, 25); i++) {
-    const c = (grid[i] || []).map(붙)
-    if (c.some((x) => /^(공종|공종명|명칭|품명|공사명|공사종류|내역|구분)$/.test(x))) { hi = i; break }
+/**
+ * 공종 나무 → 금액형 줄(1 공종 · 1.1 세부 — 변경공정칸.jsx 빈줄 꼴) · 금액은 단위(천원이면 ÷1000 · 줄 합이 맞게 큰 나머지 반올림)
+ * @returns {줄:[{깊이, 이름, 수량, 단위, 금액, 시작, 끝, 변금액, 변시작, 변끝}], 세부씀, 합(원)}
+ */
+export function 금액형내역줄(R, 단위 = '천원') {
+  const { 줄, 세부씀 } = 금액형줄(R)
+  const 천 = 단위 === '천원'
+  const 잎 = 줄.map((x, i) => (x.금액 !== null && x.금액 !== undefined && x.금액 > 0 ? i : -1)).filter((i) => i >= 0)
+  const 바꾼 = 천 ? 맞춰반올림(잎.map((i) => 줄[i].금액 / 1000)) : 잎.map((i) => Math.round(줄[i].금액))
+  const 금 = new Map(잎.map((i, k) => [i, 바꾼[k]]))
+  const out = 줄.map((x, i) => ({ 깊이: x.깊이, 이름: x.이름, 수량: '1', 단위: '식', 금액: 금.has(i) ? String(금.get(i)) : '', 시작: '', 끝: '', 변금액: '', 변시작: '', 변끝: '' }))
+  const 합 = R.위.reduce((s, n) => s + (n.금액 > 0 ? n.금액 : 0), 0)
+  return { 줄: out, 세부씀, 합 }
+}
+
+/**
+ * 🪄 금액형 기간 놓기 — «1 공종» 줄은 착공 ~ 준공에 계단처럼(자동배치 · 금액이 클수록 길게), 그 아래 «1.1 세부» 는 공종 기간 안에서 다시 계단처럼.
+ *   아래 줄을 거느린 줄(세부가 있는 공종 · ◈ 대공종)은 날을 비워 «아래 줄들의 기간» 으로 그림(공정률이 세부 날짜를 그대로 따름).
+ *   금액이 빈 공종은 아래 줄 합으로 길이를 정함. 변경 칸(변금액 · 변시작 · 변끝)은 건드리지 않음. 짐작일 뿐 — 화면에 «고쳐 쓰십시오».
+ */
+export function 금액형배치(공종, 착공, 준공) {
+  const a0 = 날번(착공), b0 = 날번(준공)
+  if (a0 === null || b0 === null || b0 < a0) return 공종
+  const a = 공종.map((r) => ({ ...r }))
+  const 깊 = (r) => Math.max(0, Math.min(2, parseInt(r.깊이, 10) || 0))
+  const 씀 = (r) => String(r.이름 || '').trim() !== '' || 있음(r.금액)
+  const 아이들 = (i) => { const d = 깊(a[i]); const out = []; for (let j = i + 1; j < a.length && 깊(a[j]) > d; j++) if (깊(a[j]) === d + 1 && 씀(a[j])) out.push(j); return out }
+  const 줄금 = (i) => (있음(a[i].금액) ? 수(a[i].금액) : 아이들(i).reduce((s, j) => s + 줄금(j), 0))
+  const 놓기 = (목록, s, e) => {
+    const 놓음 = 자동배치(목록.map((i) => ({ 이름: a[i].이름, 금액: String(줄금(i)) })), s, e)
+    목록.forEach((i, k) => { const t = 날번(놓음[k].시작), d = +놓음[k].기간; if (t !== null && d > 0) { a[i].시작 = 놓음[k].시작; a[i].끝 = 번날(t + d - 1) } })
   }
-  if (hi < 0) return []
-  const h1 = (grid[hi] || []).map(붙), h2 = (grid[hi + 1] || []).map(붙)
-  const 넓이 = Math.max(h1.length, h2.length)
-  const iN = h1.findIndex((x) => /^(공종|공종명|명칭|품명|공사명|공사종류|내역|구분)$/.test(x))
-  const iU = h1.findIndex((x) => /^단위$/.test(x))
-  const iQ = h1.findIndex((x) => /^수량$/.test(x))
-  // 금액 열: «합계» 머리 아래 «금액» 이 있으면 그 열, 아니면 «합계»·«금액» 열 · 재료·노무·경비 금액 열(더함)
-  let i합 = -1
-  const 금액열 = []
-  for (let j = 0; j < 넓이; j++) {
-    const a = h1[j] || '', b = h2[j] || ''
-    if (/^금액$/.test(b)) {
-      // 어느 큰 머리 아래인가 — 왼쪽으로 가장 가까운 비어 있지 않은 윗머리
-      let k = j; while (k >= 0 && !h1[k]) k--
-      const 윗 = k >= 0 ? h1[k] : ''
-      if (/합계|총/.test(윗)) i합 = j
-      else if (/재료|노무|경비/.test(윗)) 금액열.push(j)
-    } else if (/^(합계금액|합계|총액|금액|공사비)$/.test(a) && !/^(단가)$/.test(b)) {
-      if (/합계|총액|공사비/.test(a) && i합 < 0) i합 = j
-      else if (a === '금액' && i합 < 0) i합 = j
-    }
+  let 일들 = a.map((r, i) => i).filter((i) => 깊(a[i]) === 1 && 씀(a[i]))
+  if (!일들.length) 일들 = a.map((r, i) => i).filter((i) => 깊(a[i]) === 2 && 씀(a[i]))
+  if (!일들.length) return 공종
+  놓기(일들, 착공, 준공)
+  for (const p of 일들) {
+    const 아 = 아이들(p)
+    if (!아.length) continue
+    놓기(아, a[p].시작, a[p].끝)
+    a[p].시작 = ''; a[p].끝 = ''
   }
-  const 데이터시작 = h2.some((x) => /^(단가|금액)$/.test(x)) ? hi + 2 : hi + 1
-  const out = []
-  for (let r = 데이터시작; r < grid.length; r++) {
-    const row = grid[r] || []
-    let 이름 = 글(row[iN])
-    if (!이름) continue
-    이름 = 이름.replace(/^\s*[\d]+[.)]\s*/, '').replace(/^\s*[가-하][.)]\s*/, '').trim()
-    const u = 붙(이름)
-    if (!u || 합계줄.test(u)) continue
-    if (/합계|소계|총계|누계/.test(u)) { if (out.length) break; continue }     // 첫 합계 줄 아래는 간접비·이윤 등 — 공종이 아님
-    if (/관리비|이윤|부가가치|보험료|간접|기타경비|공사손해|퇴직|환경보전|보증수수료|하도급|건설기계|물가|보정|명세/.test(u)) continue
-    if (iU >= 0 && 글(row[iU]) && !/식|式|LS|L\.S/i.test(글(row[iU])) && iQ >= 0 && 수(row[iQ]) !== 1) continue   // 집계가 아닌 세부 품목
-    let 금 = i합 >= 0 ? 수(row[i합]) : 0
-    if (!(금 > 0) && 금액열.length) 금 = 금액열.reduce((s, j) => s + Math.max(0, 수(row[j])), 0)
-    out.push({ 이름, 금액: Math.round(금) })
+  for (const r of a) if (깊(r) === 0) { r.시작 = ''; r.끝 = '' }
+  return a
+}
+
+/** 날짜 글 «2026-11-10 · 2026. 11. 10. · 2026.11.10» → 'YYYY-MM-DD' (못 읽으면 '') — 서식 공통 칸(kcm.서식공통 착공 · 준공)을 읽을 때 */
+export function 날짜고르기(t) {
+  const m = String(t ?? '').match(/(\d{4})\D{1,3}(\d{1,2})\D{1,3}(\d{1,2})/)
+  if (!m) return ''
+  const v = `${m[1]}-${String(+m[2]).padStart(2, '0')}-${String(+m[3]).padStart(2, '0')}`
+  return 날번(v) !== null && 번날(날번(v)) === v ? v : ''
+}
+
+/** 서식 공통 칸(kcm.서식공통 — 서식 · 낙찰 한 벌 · 내 현장이 씀)의 착공 · 준공 → {착공, 준공} ('YYYY-MM-DD' · 없으면 '') */
+export function 공통날읽기(저장소 = (typeof localStorage !== 'undefined' ? localStorage : null)) {
+  try {
+    const c = (저장소 && JSON.parse(저장소.getItem('kcm.서식공통') || '{}')) || {}
+    return { 착공: 날짜고르기(c.착공), 준공: 날짜고르기(c.준공) }
+  } catch (e) { return { 착공: '', 준공: '' } }
+}
+
+/**
+ * 🧪 예시를 보는 중인가 — 예정공정표는 예시를 저장하지 않으므로(Tools.jsx 예시안남김) 그때 넣은 내역서는 저장 칸에 바로 써 두고
+ *   예시를 끔(«kcm-예시끄기» → 판을 새로 깔면 넣은 값으로 열림). 예시가 아니면 null.
+ * @param 판 calcs.jsx 칸창고 값 {열쇠, ex}
+ */
+export function 예시중저장(판) {
+  if (!판 || !판.ex || !Object.keys(판.ex).length || typeof localStorage === 'undefined') return null
+  let m = {}
+  try { m = JSON.parse(localStorage.getItem(판.열쇠) || '{}') || {} } catch (e) { m = {} }
+  return {
+    값: (k) => m[k],
+    쓰기: (값들) => {
+      try {
+        localStorage.setItem(판.열쇠, JSON.stringify({ ...m, ...값들 }))
+        window.dispatchEvent(new CustomEvent('kcm-calc', { detail: 판.열쇠 }))
+        window.dispatchEvent(new CustomEvent('kcm-예시끄기', { detail: 판.열쇠 }))
+      } catch (e) { /* 가득 참 */ }
+    },
   }
-  // 같은 이름이 여러 번이면 더함
-  const m = new Map()
-  for (const x of out) m.set(x.이름, (m.get(x.이름) || 0) + x.금액)
-  return [...m].map(([이름, 금액]) => ({ 이름, 금액 })).slice(0, 60)
+}
+
+/** 내역서 넣은 뒤 알림 한 줄 — 어느 시트 · 몇 가지 · 순공사비 · 도급액 · 뺀 것 · 기간 */
+export function 내역알림(R, { 공종수 = 0, 세부수 = 0, 단위 = '원', 도급 = null, 날됨 = false, 공통날 = false } = {}) {
+  const 순 = R.위.reduce((s, n) => s + (n.금액 > 0 ? n.금액 : 0), 0)
+  const 금 = (v) => (단위 === '천원' ? Math.round(v / 1000).toLocaleString('ko-KR') + '천원' : Math.round(v).toLocaleString('ko-KR') + '원')
+  let t = '📥 «' + R.시트 + '» 시트에서 공종 ' + 공종수 + '가지' + (세부수 ? ' · 세부 ' + 세부수 + '가지' : '') + '를 읽었습니다'
+  t += R.금있음 && 순 > 0 ? ' (순공사비 ' + 금(순) + (도급 ? ' · 도급액 ' + 금(도급) + ' — 원가계산서' : '') + ').' : ' — 금액이 비어 있는 공내역서라 금액은 직접 적어 주십시오.'
+  if (R.뺀 && R.뺀.length) {
+    const 이름들 = R.뺀.slice(0, 4).map((x) => x.이름 + (x.까닭 === '위 합 밖' ? '(순공사비 밖)' : ''))
+    t += ' 뺀 것: ' + 이름들.join(' · ') + (R.뺀.length > 4 ? ' 외 ' + (R.뺀.length - 4) + '가지' : '') + '.'
+  }
+  t += 날됨 ? ' 🪄 ' + (공통날 ? '서식에 적어 둔 ' : '') + '착공 ~ 준공에 기간을 계단처럼 놓았습니다 — 짐작이니 공종마다 고쳐 쓰십시오.' : ' 📅 착공 · 준공을 적으면 기간을 바로 놓습니다.'
+  return t
 }
 
 /** 🧪 예시 — 지어낸 공사(실제 현장 아님) */

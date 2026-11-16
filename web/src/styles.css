@@ -4919,6 +4919,14 @@ span.qna-like { cursor: default; }
 
 /* 📈 2026-09-28 예정공정표 · S커브 (tools/공정칸.jsx) — 화면은 가로로 밀어 보고, 인쇄는 A4 가로 한 장(#gp-인쇄) */
 .gp-say { margin: 8px 0; padding: 8px 10px; border-radius: 8px; font-size: 13px; line-height: 1.55; background: var(--surface-2); border: 1px solid var(--line); }
+/* 📥 11-16 예정공정표 «내역서 넣기» — 소장님 「내역서만 넣으면 되게」 · 맨 위 큰 단추 하나(공종 · 금액 · 기간 한 번에) · 날을 기다리면 그 자리 날짜 칸 */
+.gp-in { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 2px 0 12px; padding: 12px 14px; border: 1.5px dashed var(--accent-line); border-radius: 12px; background: var(--accent-soft); }
+.gp-in .gp-in-b { width: auto; font-size: 15px; padding: 10px 18px; white-space: nowrap; }
+.gp-in-t { flex: 1 1 220px; min-width: 0; font-size: 13px; line-height: 1.55; color: var(--muted); }
+.gp-in-t b { color: var(--text); }
+.gp-ask { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: -2px 0 10px; padding: 8px 10px; border-radius: 8px; font-size: 13px; background: var(--surface-2); border: 1px solid var(--accent-line); }
+.gp-ask label { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.gp-ask input[type=date] { width: auto; min-width: 140px; padding: 5px 7px; font-size: 13px; }
 .gp-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 6px 0; }
 .gp-edit { border-collapse: collapse; width: 100%; min-width: 860px; font-size: 13px; }
 .gp-edit th { background: var(--surface-2); padding: 6px 4px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; font-weight: 700; }

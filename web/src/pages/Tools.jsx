@@ -229,6 +229,12 @@ export function ToolPage() {
     window.addEventListener('kcm-calc', f)
     return () => window.removeEventListener('kcm-calc', f)
   }, [열쇠, 잇기])
+  /* 📥 2026-11-16 예정공정표 «내역서 넣기» — 🧪 예시를 보던 중에 넣으면(예시는 저장 안 함) 도구가 저장 칸에 먼저 써 두고 이 신호를 보냄 → 예시를 끄고 판을 새로 깔아 넣은 값으로 엶 */
+  useEffect(() => {
+    const f = (e) => { if (e.detail === 열쇠) set판((p) => ({ n: p.n + 1, ex: null })) }
+    window.addEventListener('kcm-예시끄기', f)
+    return () => window.removeEventListener('kcm-예시끄기', f)
+  }, [열쇠])
   /* 없는 slug 는 soft 404 가 되지 않게 NotFound 로 — noindex 를 걸고 언마운트 때 지웁니다. */
   if (!t) return <NotFound />
   const Calc = CALCS[t.slug]

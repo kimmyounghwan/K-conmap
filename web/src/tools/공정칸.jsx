@@ -16,10 +16,11 @@
  *    「공정표를 말하는 거야」 → 이름을 «예정공정표 다른 형식» 으로: 이 도구 안의 두 번째 양식 «💰 금액형(달마다 %·금액 · 당초·변경)» (tools/변경공정칸.jsx)
  *    금액형 칸은 같은 저장(kcm.calc.schedule) 안에 «금_» 을 붙여 둡니다(막대형 칸과 섞이지 않게). 공사일보는 막대형 칸만 읽습니다.
  */
-import { useMemo, useRef, useState } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { use칸, Row, Out } from './calcs.jsx'
-import { 공정셈, 자동배치, 내역공종, 예시공정, 예시변경공정, 점날, 번날 } from '../lib/공정.js'
+import { use칸, Row, Out, 칸창고 } from './calcs.jsx'
+import { 공정셈, 자동배치, 내역공종, 예시공정, 예시변경공정, 점날, 번날, 날번, 내역알림, 공통날읽기, 예시중저장 } from '../lib/공정.js'
+import { 세기 } from '../lib/받은수.jsx'
 import { use그림인쇄 } from './그림인쇄훅.js'   /* 🖼 G590 PDF · 인쇄는 그림(글자 층 없음) */
 import { ScheduleChange } from './변경공정칸.jsx'
 
@@ -31,6 +32,8 @@ const 억만 = (n) => {
   return (억 ? 억 + '억 ' : '') + (만 ? 만.toLocaleString('ko-KR') + '만' : '') + '원'
 }
 const 빈줄 = () => ({ 이름: '', 금액: '', 시작: '', 기간: '', 선행: '', 간격: '' })
+/* 📥 내역서 넣기를 🧪 예시 중에 하면 저장 칸에 써 두고 예시를 끄며 판을 새로 깔아 — 알림 · 날 기다림을 새 판으로 넘김(변경공정칸.jsx 와 같음) */
+const 넘김 = { 알림: '', 기다림: false }
 
 
 export function Schedule({ ex = {} }) {
@@ -58,7 +61,9 @@ function 막대형({ ex = {} }) {
   const [준공, set준공] = use칸('준공', ex.준공 ?? '')
   const [간격, set간격] = use칸('간격', ex.간격 ?? '월')
   const [공종, set공종] = use칸('공종', ex.공종 ?? [빈줄(), 빈줄(), 빈줄()])
-  const [알림, set알림] = useState('')
+  const [알림, set알림] = useState(() => { const t = 넘김.알림; 넘김.알림 = ''; return t })
+  const [기다림, set기다림] = useState(() => { const t = 넘김.기다림; 넘김.기다림 = false; return t })   /* 내역서를 넣었는데 착공 · 준공이 없음 → 적으면 바로 기간을 놓음 */
+  const 판 = useContext(칸창고)
   const 파일 = useRef(null)
   const R = useMemo(() => 공정셈({ 착공, 준공, 간격, 공종 }), [착공, 준공, 간격, 공종])
   const 그 = use그림인쇄(['예정공정표', String(공사명 || '').trim()].filter(Boolean).join('_'), { 셈: '예정공정표', 쪽: { 폭: 281, 높: 194 }, 여백: [8, 8], 종이: [297, 210], 판쪽: 'gp가로', 칸줄: true })
@@ -70,22 +75,66 @@ function 막대형({ ex = {} }) {
   const 자동 = () => {
     if (!착공 || !준공) { set알림('착공일과 준공일을 먼저 적어 주십시오.'); return }
     set공종((L) => 자동배치(L, 착공, 준공))
+    set기다림(false)
     set알림('🪄 적은 차례대로 계단처럼 놓았습니다 — 짐작일 뿐이니 공종마다 시작일·기간·선행을 고쳐 쓰십시오.')
   }
+  /* 📥 내역서 넣기 — 🩹 2026-11-16 소장님 「간단하게 하는 방법없을까? 내역서만 넣으면 되게」 → 「해줘.」:
+       내역서 하나로 공종 · 금액 · 공사명 · 기간(착공 ~ 준공 · 서식 공통 칸 · 없으면 그 자리에 날짜 칸) 한 번에 — 읽기: lib/공종읽기.js (실제 내역서 58개 대 봄)
+       적어 둔 공종이 있으면 먼저 묻고 바꿈 · 공사명 · 날은 비었을 때만 채움 · 저장 꼴은 손으로 적은 것과 같음(공사일보 · 기성이 그대로 읽음) */
   const 내역받기 = async (f) => {
     if (!f) return
-    try {
-      const r = 내역공종(await f.arrayBuffer(), f.name)
-      set공종(r.공종.map((x) => ({ ...빈줄(), 이름: x.이름, 금액: x.금액 > 0 ? String(x.금액) : '' })))
-      set알림('📥 «' + r.시트 + '» 시트에서 공종 ' + r.공종.length + '가지를 가져왔습니다' + (r.금있음 ? '' : ' — 금액이 비어 있는 공내역서라 금액은 직접 적어 주십시오') + '. 이제 착공·준공을 적고 🪄 자동 배치를 누르십시오.')
-    } catch (e) { set알림('⚠️ ' + e.message) }
+    let r
+    try { r = 내역공종(await f.arrayBuffer(), f.name) } catch (e) { set알림('⚠️ ' + e.message); return }
+    const 예시 = 예시중저장(판)
+    const 지금 = (k, v) => (예시 ? 예시.값(k) : v)
+    const 옛줄 = 예시 ? (예시.값('공종') || []) : 공종
+    const 적은 = (Array.isArray(옛줄) ? 옛줄 : []).filter((x) => x && (String(x.이름 || '').trim() || String(x.금액 || '').trim())).length
+    if (적은 && !window.confirm('적어 둔 공종 ' + 적은 + '줄을 내역서의 공종으로 바꿉니다. 계속할까요?')) return
+    세기('|예정공정표|내역막대형')
+    const 줄 = r.공종.map((x) => ({ ...빈줄(), 이름: x.이름, 금액: x.금액 > 0 ? String(x.금액) : '' }))
+    const 공 = 공통날읽기()
+    const 착 = 지금('착공', 착공) || 공.착공, 준 = 지금('준공', 준공) || 공.준공
+    const 날됨 = 날번(착) !== null && 날번(준) !== null && 날번(준) >= 날번(착)
+    const 값 = { 공종: 날됨 ? 자동배치(줄, 착, 준) : 줄 }
+    if (!String(지금('공사명', 공사명) || '').trim() && r.나무.공사명) 값.공사명 = r.나무.공사명
+    if (!String(지금('착공', 착공) || '').trim() && 공.착공) 값.착공 = 공.착공
+    if (!String(지금('준공', 준공) || '').trim() && 공.준공) 값.준공 = 공.준공
+    const 말 = 내역알림(r.나무, { 공종수: 줄.length, 단위: '원', 날됨, 공통날: !!(값.착공 || 값.준공) })
+    if (예시) { 넘김.알림 = 말; 넘김.기다림 = !날됨; 예시.쓰기(값); return }
+    set공종(값.공종)
+    if (값.공사명) set공사명(값.공사명)
+    if (값.착공) set착공(값.착공)
+    if (값.준공) set준공(값.준공)
+    set기다림(!날됨)
+    set알림(말)
   }
+  /* 착공 · 준공을 기다리던 중(내역서를 넣은 뒤) 두 날이 다 들어오면 바로 기간을 놓음 */
+  useEffect(() => {
+    if (!기다림) return
+    if (날번(착공) === null || 날번(준공) === null || 날번(준공) < 날번(착공)) return
+    set공종((L) => 자동배치(L, 착공, 준공))
+    set기다림(false)
+    set알림((t) => String(t || '').replace(/\s*📅[^]*$/, '') + ' 🪄 착공 ~ 준공에 기간을 계단처럼 놓았습니다 — 짐작이니 공종마다 고쳐 쓰십시오.')
+  }, [기다림, 착공, 준공])   // eslint-disable-line react-hooks/exhaustive-deps
 
   const 쓸줄 = R.줄.filter((z) => z.이름 || z.금액 > 0)
   const CP들 = 쓸줄.filter((z) => z.CP).map((z) => z.이름 || (z.i + 1) + '번')
   const 표 = <공정표종이 R={R} 공사명={공사명} 착공={착공} 준공={준공} 간격={간격} />
   return (
     <>
+      <div className="gp-in">
+        <button type="button" className="btn gp-in-b" onClick={() => 파일.current?.click()}>📥 내역서 넣기</button>
+        <span className="gp-in-t">내역서 엑셀(.xlsx · .xls)을 넣으면 <b>공종 · 금액</b>을 읽고 <b>착공 ~ 준공</b>에 맞춰 기간까지 놓습니다</span>
+        <input ref={파일} type="file" accept=".xlsx,.xls,.xlsm" className="sr-only" tabIndex={-1} onChange={(e) => { 내역받기(e.target.files && e.target.files[0]); e.target.value = '' }} />
+      </div>
+      {알림 && <div className="gp-say gp-in-say" role="status">{알림}</div>}
+      {기다림 && (
+        <div className="gp-ask">
+          <span>📅 착공 · 준공을 적으면 기간을 바로 놓습니다</span>
+          <label>착공 <input type="date" value={착공} onChange={(e) => set착공(e.target.value)} aria-label="착공일" /></label>
+          <label>준공 <input type="date" value={준공} onChange={(e) => set준공(e.target.value)} aria-label="준공일" /></label>
+        </div>
+      )}
       <div className="kt-h">① 공사 · 기간</div>
       <div className="tl-grid">
         <Row label="공사명"><input value={공사명} onChange={(e) => set공사명(e.target.value)} placeholder="예: ○○지구 배수로 정비공사" /></Row>
@@ -100,11 +149,8 @@ function 막대형({ ex = {} }) {
 
       <div className="kt-h">② 공종 — 적은 차례가 공정표의 차례</div>
       <div className="kt-btns">
-        <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 파일.current?.click()}>📥 내역서(엑셀)에서 공종·금액 가져오기</button>
         <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={자동}>🪄 자동 배치</button>
-        <input ref={파일} type="file" accept=".xlsx" className="sr-only" tabIndex={-1} onChange={(e) => { 내역받기(e.target.files && e.target.files[0]); e.target.value = '' }} />
       </div>
-      {알림 && <div className="gp-say">{알림}</div>}
       <div className="gp-wrap">
         <table className="gp-edit">
           <thead><tr><th>#</th><th>공종</th><th>금액(원)</th><th>보할</th><th>시작일</th><th>기간(일)</th><th title="앞 공종 번호 — 그 공종이 끝난 다음 날 시작">선행</th><th title="선행 끝 다음 날부터 더 띄울 날(음수면 겹침)">간격</th><th>끝</th><th /></tr></thead>
