@@ -56,6 +56,7 @@ STATIC = [("/", "1.0", "hourly"), ("/first", "0.9", "hourly"), ("/live", "0.9", 
           ("/svc", "0.8", "daily"), ("/svc/first", "0.8", "daily"), ("/goods", "0.7", "daily"), ("/goods/first", "0.7", "daily"),
           # 🔎 G640 (2026-11-10) 용역 · 물품 바로투찰 · 광고 · 제휴 안내 — 구운 장 · 찾기엔 있는데 사이트맵에서 빠져 있었음
           ("/svc/calc", "0.7", "weekly"), ("/goods/calc", "0.6", "weekly"), ("/ad", "0.4", "monthly"),
+          ("/news", "0.7", "daily"),   # 📰 G696 (2026-11-16) 오늘의 건설 뉴스 — 라우트 · prerender news_page · firebase.json 과 같이(그날 쪽은 아래 «오늘의 건설 뉴스»)
           ("/analysis", "0.8", "weekly"),
           ("/jobs", "0.7", "daily"), ("/about", "0.3", "monthly"),
           ("/privacy", "0.2", "yearly"), ("/terms", "0.2", "yearly"), ("/contact", "0.3", "yearly"),
@@ -116,6 +117,41 @@ def _day(v, fallback=None):
     """'2026-09-04 15:00:00' · '20260904' -> '2026-09-04'"""
     d = "".join(ch for ch in str(v or "") if ch.isdigit())
     return f"{d[0:4]}-{d[4:6]}-{d[6:8]}" if len(d) >= 8 else fallback
+
+
+# 📰 G696 (2026-11-16) 오늘의 건설 뉴스 날 목록 — ⚠️ prerender.py news_clean · load_news 와 같은 걸름(구운 날만 사이트맵에)
+NEWS_DIR = os.path.join(ROOT, "web", "public", "newsd")
+
+
+def _news_date_ok(d):
+    import re as _re
+    if not _re.match(r"^\d{4}-\d{2}-\d{2}$", str(d or "")):
+        return False
+    try:
+        datetime(*(int(x) for x in d.split("-")))
+        return True
+    except ValueError:
+        return False
+
+
+def news_days(n=60):
+    def rd(fn):
+        try:
+            with io.open(os.path.join(NEWS_DIR, fn), encoding="utf-8") as f:
+                return json.load(f)
+        except (OSError, ValueError):
+            return None
+    lst = rd("list.json") or {}
+    days = sorted({str(x[0]) for x in (lst.get("days") or []) if isinstance(x, list) and x and _news_date_ok(x[0])}, reverse=True)
+    out = []
+    for d in days[:n]:
+        j = rd(f"{d}.json")
+        if not isinstance(j, dict) or j.get("d") != d or not isinstance(j.get("items"), list):
+            continue
+        if any(isinstance(x, dict) and x.get("c") in ("사고", "정책", "정보") and isinstance(x.get("t"), str) and x["t"].strip()
+               for x in j["items"]):
+            out.append(d)
+    return out
 
 
 def main():
@@ -261,6 +297,15 @@ def main():
                     f"<changefreq>{'daily' if d >= today else 'yearly'}</changefreq>"
                     f"<priority>0.6</priority></url>")
         n_dy += 1
+
+    # ── 📰 G696 오늘의 건설 뉴스 — 그날 쪽(/news/{날}) · prerender.py load_news 와 같은 걸름(list.json 의 날 중 그날 파일이 있고 꼴이 맞는 것 · 60날)
+    n_nw = 0
+    for d in news_days():
+        urls.append(f"  <url><loc>{SITE}/news/{d}</loc>"
+                    f"<lastmod>{d}</lastmod>"
+                    f"<changefreq>{'daily' if d >= today else 'yearly'}</changefreq>"
+                    f"<priority>0.5</priority></url>")
+        n_nw += 1
 
     # ── 캐드 유틸 ─────────────────────────────────
     n_cd = 0
@@ -479,7 +524,7 @@ def main():
 
     print(f"  ✅ 사이트맵 — 고정 {len(STATIC)} + 면허 {n_lc} + 기관 {n_ag} + 업체 {n_co}"
           f" + 공고 {n_no} + 성적표 {n_dy} + 서식 {n_fm} + 설계변경 {n_cg}"
-          f" + 알아보기 {n_gd} + 자격증 {n_ct} + 도구 {n_tl} + 캐드 {n_cd} + 사랑방 {n_qa} = {len(urls)}개")
+          f" + 알아보기 {n_gd} + 자격증 {n_ct} + 도구 {n_tl} + 캐드 {n_cd} + 사랑방 {n_qa} + 뉴스 {n_nw} = {len(urls)}개")
     print("     sitemap.xml (목차) → " + " · ".join(f"{이름} {수:,}장" for 이름, 수 in 낸것))
     print(f"     {p}")
     write_rss(rows.values())   # 📰 G629 네이버 «RSS 제출» 용 새 글 목록(web/public/rss.xml)

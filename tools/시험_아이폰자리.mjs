@@ -85,7 +85,9 @@ const 상태 = (p) => p.evaluate(() => {
 const 커서 = (p) => p.evaluate(() => {
   let i = [...document.querySelectorAll('main input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=hidden]), main textarea')].find((x) => x.offsetParent)
   if (!i) { i = document.createElement('input'); i.id = '시험칸'; document.querySelector('main').appendChild(i) }
-  i.focus(); return document.activeElement === i
+  /* 📰 G696 (11-16) 뉴스띠(입찰 화면 공사연결 띠 아래)로 첫 입력칸이 화면 밖(854 → 955)으로 내려가 focus 가 쪽을 538 내렸음 → ⑪ «진단 D 없음» 이 깨짐.
+     이 시험은 «맨 위에서 글자판 · 기준점» 흐름이라 커서만 넣고 쪽은 안 움직임(preventScroll). 내려간 채 바로잡을 때의 D 는 옛 판도 같음(538 내려 시험 — y-145) → G691 조사 몫(⑬) */
+  i.focus({ preventScroll: true }); return document.activeElement === i
 })
 const 커서뺌 = (p) => p.evaluate(() => { if (document.activeElement && document.activeElement.blur) document.activeElement.blur() })
 

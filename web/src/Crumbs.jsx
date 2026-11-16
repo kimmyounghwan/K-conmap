@@ -30,6 +30,7 @@ const NAME = {
   '/jobs': '구인구직',
   '/gongdong': '공동도급 마당',
   '/daily': '개찰 성적표',
+  '/news': '오늘의 건설 뉴스',   /* 📰 G696 */
   '/forms': '건설 서식',
   '/change': '설계변경',
   '/guide': '입찰 알아보기',
@@ -113,7 +114,7 @@ const PARENT = {
   '/change': '/tools', '/cad': '/tools', '/pdf': '/tools', '/shareone': '/tools',
   '/safety': '/naeyeok',
   '/daily': '/first',
-  '/lic': '/', '/guide': '/', '/how': '/', '/ad': '/',
+  '/lic': '/', '/guide': '/', '/how': '/', '/ad': '/', '/news': '/',   /* 📰 G696 오늘의 건설 뉴스 → «← 바로투찰» */
   '/pre': '/live',
   '/gongdong': '/live',          /* 🤝 G341 공동도급 마당 → «← 공고» */
   '/corp': '/analysis',          /* 🏢 G343 업체 찾기 → «← 낙찰 분석» */

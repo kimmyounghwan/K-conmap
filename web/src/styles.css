@@ -8383,6 +8383,7 @@ details.sg-more-sm > summary::before { top: 5px; left: 10px; }
 .mt-nt { flex: none; background: #e11d48; color: #fff; font-size: 12px; font-weight: 800; border-radius: 6px; padding: 1px 8px; }
 .mt-nr { flex: none; margin-left: auto; color: var(--muted); font-size: 12.5px; }
 .mt-nt.g { background: #b45309; }
+.mt-nt.nw { background: #2563eb; }   /* 📰 G696 맵톡 맨 위 «뉴스» 줄(공지 빨강 · 안내 갈색과 다르게) */
 .mt-nnew { flex: none; background: #16a34a; color: #fff; font-size: 11px; font-weight: 800; border-radius: 5px; padding: 0 5px; }
 .mt-nhow.on { background: var(--surface-2); }
 .mt-nbody { padding: 4px 16px 14px; border-top: 1px solid var(--line); }
@@ -11290,3 +11291,57 @@ html.kcm-보기만 .kcm-예시판 input, html.kcm-보기만 .kcm-예시판 texta
   .gmd .kcs-what { flex: 1 1 auto; }
   .gmd .kcs-3d { height: 210px; }
 }
+
+/* 📰 G696 (2026-11-16) 오늘의 건설 뉴스 — 입찰 화면 띠(.kn-strip · 공사연결 띠 바로 아래) · 서식 · 도구 쪽 끝 줄(.kn-line · 광고 칸 위) · 뉴스 쪽(.nw)
+ *   갈래 색: 사고 빨강 · 정책 파랑 · 정보 초록(어두운 화면은 밝게) · 띠 · 끝 줄은 높이가 늘 같음(줄마다 한 줄 · 끝 줄은 두 줄 고정 — 자료가 늦게 와도 아래가 안 밀림)
+ *   소장님 「화면 배열시 이상하지 않게 해줘」 → 둘레 · 둥글기 · 여백은 옆 칸(공사연결 띠 · 도면대행줄)과 같게 */
+:root { --kn-a: #dc2626; --kn-p: #2563eb; --kn-i: #047857; }
+@media (prefers-color-scheme: dark) { :root { --kn-a: #f87171; --kn-p: #6b9bff; --kn-i: #34d399; } }
+.kn-strip, .kn-line { display: block; color: var(--text); text-decoration: none; font-size: 13.5px; line-height: 1.55; border-radius: 12px; }
+.kn-strip { margin: 10px 0; padding: 9px 14px 10px; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--kn-a); box-shadow: var(--shadow); }
+.kn-line { margin: 18px 0 6px; padding: 10px 14px; background: var(--bad-soft); border: 1px dashed #fca5a5; }
+@media (prefers-color-scheme: dark) { .kn-line { border-color: #7f1d1d; } }
+a.kn-strip:hover, a.kn-line:hover { border-color: var(--accent-line); }
+a.kn-strip:hover { border-left-color: var(--kn-a); }
+.kn-top { display: flex; align-items: baseline; gap: 6px; min-width: 0; font-size: 14px; }
+.kn-top b { font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.kn-ic { flex: none; }
+.kn-d { flex: none; color: var(--muted); font-weight: 700; font-size: 13px; white-space: nowrap; }
+.kn-all { flex: none; margin-left: auto; padding-left: 6px; color: var(--good); font-weight: 800; font-size: 13px; white-space: nowrap; }
+.kn-h { display: block; margin-top: 3px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kn-one { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin-top: 3px; min-height: 3.1em; color: var(--text-2); word-break: keep-all; }
+.kn-c { font-style: normal; font-weight: 800; }
+.kn-c.kn-a { color: var(--kn-a); }
+.kn-c.kn-p { color: var(--kn-p); }
+.kn-c.kn-i { color: var(--kn-i); }
+.kn-wait .kn-h, .kn-wait .kn-one { background: var(--line-soft); border-radius: 6px; }
+.kn-wait .kn-h + .kn-h { margin-right: 30%; }
+@media print { .kn-strip, .kn-line { display: none !important; } }
+/* 뉴스 쪽(/news · /news/날짜) */
+.nw { max-width: 760px; margin: 0 auto; }
+.nw-h1 { display: flex; align-items: center; gap: 8px; margin: 12px 0 4px; font-size: 21px; font-weight: 800; }
+.nw-date { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 4px; font-size: 15px; }
+.nw-n { color: var(--muted); font-size: 13.5px; }
+.nw-prev { margin-left: auto; padding: 4px 0; background: none; border: 0; color: var(--good); font: inherit; font-size: 13.5px; font-weight: 800; cursor: pointer; }
+.nw-lead { margin: 8px 0 6px; padding: 10px 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; color: var(--text-2); font-size: 13.5px; line-height: 1.6; word-break: keep-all; }
+.nw-sec { --c: var(--kn-a); }
+.nw-sec.nw-p { --c: var(--kn-p); }
+.nw-sec.nw-i { --c: var(--kn-i); }
+.nw-h2 { margin: 18px 0 10px; padding-left: 10px; border-left: 4px solid var(--c); font-size: 17px; font-weight: 800; }
+.nw-it { margin: 0 0 10px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+.nw-t { margin: 0 0 6px; font-size: 16px; font-weight: 800; line-height: 1.45; word-break: keep-all; }
+.nw-s { margin: 0 0 8px; color: var(--text-2); font-size: 14.5px; line-height: 1.65; word-break: keep-all; }
+.nw-k { margin: 0 0 8px; padding: 8px 10px; background: var(--good-soft); color: var(--good); border-radius: 10px; font-size: 13.5px; font-weight: 600; line-height: 1.6; word-break: keep-all; }
+.nw-o { margin: 0; color: var(--muted); font-size: 12.5px; }
+.nw-o a { color: var(--accent); font-weight: 800; text-decoration: none; white-space: nowrap; }
+.nw-talk { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 14px 0; }
+.nw-talk > a { color: var(--good); font-weight: 800; text-decoration: none; }
+.nw-pn { display: flex; gap: 14px; margin-left: auto; }
+.nw-pn a { color: var(--accent); font-weight: 700; text-decoration: none; }
+.nw-dl { display: flex; flex-wrap: wrap; gap: 6px; }
+.nw-dd { padding: 5px 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; color: var(--text); font-size: 13px; text-decoration: none; }
+.nw-dd em { color: var(--muted); font-size: 12px; font-style: normal; }
+.nw-dd.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 800; }
+.nw-note { margin: 12px 0 4px; color: var(--muted); font-size: 12.5px; word-break: keep-all; }
+.nw-none p { margin: 0 0 10px; }
+@media print { .nw-prev, .nw-talk, .nw-days { display: none !important; } .nw-it { box-shadow: none; break-inside: avoid; } }

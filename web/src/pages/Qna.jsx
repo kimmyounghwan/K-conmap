@@ -267,6 +267,9 @@ function 구운글(번호) {
   } catch (e) { return null }
 }
 
+/** 📰 G696 뉴스 글 — 공지 글 중 제목이 📰 로 시작(운영자가 매일 아침 «📰 오늘의 건설 뉴스 3줄 — 11. 16.(월)» 로 올림) */
+const 뉴스글인가 = (r) => /^\s*📰/.test(String((r && r.t) || ''))
+
 export default function Qna() {
   const [rows, setRows] = useState(null)
   const [ans원, setAns] = useState({})        // { 질문id: [답변…] } — 화면은 아래 ans(몰래 차단 거른 것)를 씁니다
@@ -557,7 +560,13 @@ export default function Qna() {
 
   /* 📢 G316 공지 — 📌 고정 글(qna_top) + 말머리 «K-건설맵»(소식) 글. 맨 위 공지 줄엔 최근 것 · «📢 공지» 방엔 전부 쌓임
      (소장님 「맵톡 공지는 항상 제일 위에」 「공지글은 한 곳에 계속 쌓이게 하자...노출도 시키고, 한 곳에 쌓이게도 하고」) — 📌 도구 사용법 칸도 여기로 합침 */
-  const 공지목록 = useMemo(() => (모두 || []).filter((r) => 공지인가(r, 고정)).sort((a, b) => (b.at || 0) - (a.at || 0)), [모두, 고정])
+  /* 📰 G696 (11-16) 오늘의 건설 뉴스 — 운영자 공지 글 중 제목이 📰 로 시작하면 «뉴스»(하루 하나씩 올림) · 맨 위 공지 줄엔 가장 최근 뉴스 «하나만»(이틀 안)
+     · 지난 뉴스는 맨 위 줄에서 빼고 «📢 공지» 방에만(뉴스가 날마다 쌓여 진짜 공지를 밀어내지 않게 — 소장님 「공지글은 한 곳에 계속 쌓이게」) */
+  const 공지목록 = useMemo(() => {
+    const 다 = (모두 || []).filter((r) => 공지인가(r, 고정)).sort((a, b) => (b.at || 0) - (a.at || 0))
+    const 새뉴스 = 다.find((r) => 뉴스글인가(r) && Date.now() - (r.at || 0) < 2 * 86400000)
+    return [...(새뉴스 ? [새뉴스] : []), ...다.filter((r) => !뉴스글인가(r))]
+  }, [모두, 고정])
   const 기본보기 = 방고름 === 'all' && !onlyMine && !q.trim()
 
   const list = useMemo(() => {
@@ -1080,7 +1089,7 @@ export default function Qna() {
           )}
           {공지목록.slice(0, 공지다 ? 공지목록.length : 2).map((r) => (
             <button type="button" key={r.id} className="mt-nrow" onClick={() => { 열기(r.id); 세기('|맵톡|공지') }}>
-              <span className="mt-nt">공지</span>{Date.now() - (r.at || 0) < 3 * 86400000 && <span className="mt-nnew">새</span>}<b>{가림(r.t)}</b>
+              {뉴스글인가(r) ? <span className="mt-nt nw">뉴스</span> : <span className="mt-nt">공지</span>}{!뉴스글인가(r) && Date.now() - (r.at || 0) < 3 * 86400000 && <span className="mt-nnew">새</span>}<b>{가림(r.t)}</b>
               <span className="mt-nr">👁 {Number(조회[r.id] || 0).toLocaleString('ko-KR')} · 💬 {nAns(r.id)} · {r.at ? `${new Date(r.at).getMonth() + 1}.${String(new Date(r.at).getDate()).padStart(2, '0')}` : ''}</span>
             </button>
           ))}

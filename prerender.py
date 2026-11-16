@@ -1141,6 +1141,113 @@ def daily_index(shell, days, image=None):
                      '<script type="application/json" id="dlist">' + data + "</script>\n  </body>", 1)
 
 
+
+# ── 📰 G696 (2026-11-16) 오늘의 건설 뉴스 — 구운 쪽 /news(가장 최근 하루) · /news/{날}(그날) ─────────
+#  소장님 「뉴스레터 형식으로 건설맵에 띄우고 싶어 …」 → 갈래 셋(사건 · 사고 / 정책 변경 / 정보) · 「매일로 해야지」 · 자리 ④ «/news 하루 한 쪽»
+#  자료: web/public/newsd/latest.json · list.json · {날}.json — 화면(pages/News.jsx · lib/건설뉴스.js)과 같은 꼴 · 같은 걸름
+#  ⚠️ 꼭지 글은 K-건설맵이 다시 쓴 요약 · 원문은 고리(nofollow) · 사이트맵(sitemap.py «/news»)과 같은 날 목록(N_NEWS 날)
+NEWS_DIR = os.path.join(ROOT, "web", "public", "newsd")
+N_NEWS = 60
+NEWS_KIND = [("사고", "⚠️ 사건 · 사고", "a"), ("정책", "📜 정책 변경", "p"), ("정보", "💡 정보", "i")]
+_NEWS_D = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _news_date_ok(d):
+    import datetime as _dt
+    if not _NEWS_D.match(str(d or "")):
+        return False
+    try:
+        _dt.date(*(int(x) for x in d.split("-")))
+        return True
+    except ValueError:
+        return False
+
+
+def news_day(d, long=True):
+    """'2026-11-16' → '2026. 11. 16.(월)' (long=False → '11. 16.(월)')"""
+    import datetime as _dt
+    y, m, dd = (int(x) for x in d.split("-"))
+    w = "월화수목금토일"[_dt.date(y, m, dd).weekday()]
+    return (f"{y}. " if long else "") + f"{m}. {dd}.({w})"
+
+
+def news_clean(j):
+    """한 날 자료 걸름(lib/건설뉴스.js 뉴스풀기와 같게) — 꼴이 틀린 꼭지는 뺌 · 다 틀리면 None"""
+    if not isinstance(j, dict) or not _news_date_ok(j.get("d")) or not isinstance(j.get("items"), list):
+        return None
+    def t(x, n):
+        return re.sub(r"\s+", " ", x).strip()[:n] if isinstance(x, str) else ""
+    out = []
+    for x in j["items"]:
+        if not isinstance(x, dict) or x.get("c") not in ("사고", "정책", "정보") or not t(x.get("t"), 90):
+            continue
+        u = x.get("u") if isinstance(x.get("u"), str) and re.match(r"^https?://[^\s\"'<>]+$", x.get("u"), re.I) else ""
+        out.append({"c": x["c"], "t": t(x.get("t"), 90), "s": t(x.get("s"), 320), "k": t(x.get("k"), 220),
+                    "m": t(x.get("m"), 30), "md": x.get("md") if _news_date_ok(x.get("md")) else "", "u": u})
+    if not out:
+        return None
+    order = {"사고": 0, "정책": 1, "정보": 2}
+    out.sort(key=lambda x: order[x["c"]])
+    return {"d": j["d"], "items": out}
+
+
+def load_news():
+    """[(날, 자료), …] 새것부터 N_NEWS 날 — list.json 의 날 중 그날 파일이 있고 꼴이 맞는 것만(사이트맵도 같은 걸름)"""
+    def rd(fn):
+        try:
+            with open(os.path.join(NEWS_DIR, fn), encoding="utf-8") as f:
+                return json.load(f)
+        except (OSError, ValueError):
+            return None
+    lst = rd("list.json") or {}
+    days = sorted({str(x[0]) for x in (lst.get("days") or []) if isinstance(x, list) and x and _news_date_ok(x[0])}, reverse=True)
+    out = []
+    for d in days[:N_NEWS]:
+        nd = news_clean(rd(f"{d}.json"))
+        if nd and nd["d"] == d:
+            out.append((d, nd))
+    return out
+
+
+def news_page(shell, nd, days, latest=False):
+    d = nd["d"]
+    its = nd["items"]
+    dl = news_day(d)
+    path = "/news" if latest else f"/news/{d}"
+    title = f"{'오늘의 건설 뉴스' if latest else '건설 뉴스'} {dl} — 사건 · 사고 · 정책 변경 · 정보 {len(its)}건 | K-건설맵"
+    desc = (f"{dl} 건설 현장 사건 · 사고, 정책 변경, 정보 {len(its)}건을 K-건설맵이 짧게 다시 썼습니다. "
+            + " / ".join(x["t"] for x in its[:3]))[:300]
+    out = [f'<div class="nw"><h1 class="nw-h1"><span class="nw-ic">📰</span>{"오늘의 건설 뉴스" if latest else "건설 뉴스"}</h1>',
+           f'<div class="nw-date"><b>{esc(dl)}</b><span class="nw-n"> · {len(its)}건</span></div>',
+           '<p class="nw-lead">사건 · 사고 · 정책 변경 · 정보 — 매일 아침 7시쯤. 기사 글은 옮기지 않고 K-건설맵이 짧게 다시 쓰고, 원문은 고리로 둡니다.</p>']
+    for c, name, cls in NEWS_KIND:
+        a = [x for x in its if x["c"] == c]
+        if not a:
+            continue
+        out.append(f'<section class="nw-sec nw-{cls}"><h2 class="nw-h2">{esc(name)}</h2>')
+        for x in a:
+            src = esc(x["m"] or "—") + (f" · {esc(news_day(x['md'], False))}" if x["md"] else "")
+            link = (f' · <a href="{esc(x["u"])}" target="_blank" rel="noopener nofollow noreferrer">원문 보기 ▸</a>' if x["u"] else "")
+            out.append('<article class="nw-it">'
+                       f'<h3 class="nw-t">{esc(x["t"])}</h3>'
+                       + (f'<p class="nw-s">{esc(x["s"])}</p>' if x["s"] else "")
+                       + (f'<p class="nw-k">👷 현장에선? {esc(x["k"])}</p>' if x["k"] else "")
+                       + f'<p class="nw-o">출처 {src}{link}</p></article>')
+        out.append("</section>")
+    if days:
+        out.append('<section class="card nw-days"><div class="sec-title" style="margin:0 0 6px">🗓 지난 뉴스</div><div class="nw-dl">')
+        for i, (dd, nd2) in enumerate(days):
+            href = "/news" if i == 0 else f"/news/{dd}"
+            on = " on" if dd == d else ""
+            out.append(f'<a class="nw-dd{on}" href="{href}">{esc(news_day(dd, False))}<em> {len(nd2["items"])}건</em></a>')
+        out.append("</div></section>")
+    out.append('<p class="nw-note">요약은 K-건설맵이 원문을 읽고 다시 쓴 글입니다. 자세한 내용 · 바뀐 내용은 원문과 발표 기관 자료에서 확인하세요.</p></div>')
+    crumbs = [("K-건설맵", None), ("오늘의 건설 뉴스", "/news")]
+    if not latest:
+        crumbs.append((f"{dl} 건설 뉴스", f"/news/{d}"))
+    ld = ld_graph(ld_crumbs(*crumbs))
+    return page(shell, path, title, desc, "".join(out), None, ld)
+
 # ── 건설 서식 (2026-09-05) ─────────────────────────────────────────
 #  왜 굽나: 「착공계 양식」·「기성 청구서 양식」은 꾸준히 검색되는 말입니다.
 #  그리고 우리 자료와 달리 **변하지 않습니다** — 한 번 구워 두면 계속 일합니다.
@@ -4995,6 +5102,16 @@ def main():
         write(f"daily/{d}.html", daily_page(shell, dd, img, L))
         n_dy += 1
         made += 1
+    # ── 📰 G696 오늘의 건설 뉴스 — /news(가장 최근) · /news/{날} ──
+    n_nw = 0
+    nws = load_news()
+    if nws:
+        write("news.html", news_page(shell, nws[0][1], nws, latest=True))
+        for _d, _nd in nws:
+            write(f"news/{_d}.html", news_page(shell, _nd, nws))
+            n_nw += 1
+        made += n_nw + 1
+    print(f"  · 오늘의 건설 뉴스 {n_nw}일치 (/news/)")
     if days:
         write("daily.html", daily_index(shell, days,
                                         og.tab("daily", "날짜별 개찰 성적표",

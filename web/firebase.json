@@ -55,6 +55,8 @@
       { "//": "🛠 관리자 — 소장님만. sitemap·robots 에는 안 넣습니다 (2026-09-17)", "source": "/admin", "destination": "/app.html" },
     { "source": "/how", "destination": "/app.html" },
     { "//": "📣 G549 광고 · 제휴 안내(pages/AdInfo.jsx) — 2026-11-05", "source": "/ad", "destination": "/app.html" },
+    { "//": "📰 G696 오늘의 건설 뉴스(pages/News.jsx) — 2026-11-16 · 구운 news.html · news/{날}.html 이 먼저 나가고, 못 구웠을 때 여기", "source": "/news", "destination": "/app.html" },
+    { "source": "/news/**", "destination": "/app.html" },
     { "source": "/lic", "destination": "/app.html" },
     { "source": "/report", "destination": "/app.html" },
     { "//": "📊 성적표 만들기 — 소장님만. sitemap·robots 에는 안 넣습니다 (2026-09-18)", "source": "/report/make", "destination": "/app.html" },
@@ -198,6 +200,14 @@
             "key": "Cache-Control",
             "value": "public, max-age=1800, stale-while-revalidate=86400"
           }
+        ]
+      },
+      {
+        "//": "📰 G696 오늘의 건설 뉴스 자료(lib/건설뉴스.js) — 매일 아침 새로 올림 → 5분만 캐시(/data/** 는 하루라 따로 둠) · JSON 자체는 검색에 안 나오게",
+        "source": "/newsd/**",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=300, must-revalidate" },
+          { "key": "X-Robots-Tag", "value": "noindex" }
         ]
       },
       {

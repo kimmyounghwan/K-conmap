@@ -89,6 +89,7 @@ const Admin = lazyPage(() => import('./pages/Admin.jsx'))
 const How = lazyPage(() => import('./pages/How.jsx'))
 /* 📣 G549 광고 · 제휴 안내(소장님 「광고, 제휴 문의 한다는 걸 알려야 문의가 들어 오잖아」) */
 const AdInfo = lazyPage(() => import('./pages/AdInfo.jsx'))
+const News = lazyPage(() => import('./pages/News.jsx'))   /* 📰 G696 오늘의 건설 뉴스(/news · /news/:d) */
 const GuideTopic = lazyPage(() => import('./pages/Guide.jsx').then((m) => ({ default: m.GuideTopic })))
 /* 📚 G625 자격증 — /cert(토목 · 건축 지도) · /cert/grade(건설기술인 등급 셈) · /cert/{종목}(깊은 글) */
 const CertIndex = lazyPage(() => import('./pages/Cert.jsx'))
@@ -344,6 +345,9 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           {/* 📖 보는 방법 — 처음 온 사람이 «어디로 가면 되는지» 아는 한 장 (2026-09-15) */}
           <Route path="/how" element={<Suspense fallback={<Loading />}><How /></Suspense>} />
           <Route path="/ad" element={<Suspense fallback={<Loading />}><AdInfo /></Suspense>} />
+          {/* 📰 G696 (2026-11-16) 오늘의 건설 뉴스 — 하루 한 쪽(자료 public/newsd) · ⚠️ firebase.json rewrites «/news» · «/news/**» · 구운 쪽 prerender.py · 사이트맵 sitemap.py 같이 */}
+          <Route path="/news" element={<Suspense fallback={<Loading />}><News /></Suspense>} />
+          <Route path="/news/:d" element={<Suspense fallback={<Loading />}><News /></Suspense>} />
           <Route path="/naeyeok" element={<Suspense fallback={<Loading />}><Naeyeok /></Suspense>} />
           <Route path="/naeyeok/ratio" element={<Suspense fallback={<Loading />}><Ratio /></Suspense>} />
           <Route path="/naeyeok/hado" element={<Suspense fallback={<Loading />}><Hado /></Suspense>} />
