@@ -5005,8 +5005,11 @@ span.qna-like { cursor: default; }
 .gc-edit th { text-align: center; }
 .gc-edit th.gc-당 { color: #b91c1c; } .gc-edit th.gc-변 { color: var(--text); }
 .gc-edit th small { font-weight: 400; color: var(--muted); }
-.gc-edit td:nth-child(2) select { font-size: 12.5px; padding: 5px 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); }
-.gc-edit td:nth-child(3) input { min-width: 130px; }
+/* 🩹 11-16 소장님 「공종을 늘리면 이상해져」 — 폰에서 단계 고르기 칸이 24px 로 눌려 «1 공종» 글이 잘림 · 공종 이름이 오른쪽 정렬(막대형 셋째 칸 규칙이 넘어옴)
+   → 단계 칸 너비를 고정(«◈ 대공종 · 1.1 세부» 가 다 보이게) · 공종 이름은 왼쪽 정렬 · 빈 줄은 «–» (적으면 번호) — 시험 tools/시험_금액형편집.mjs */
+.gc-edit td:nth-child(2) select { width: 96px; min-width: 96px; font-size: 12.5px; padding: 5px 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); }
+.gc-edit td:nth-child(3) input { min-width: 130px; text-align: left; }
+.gc-edit .gc-empty { color: var(--muted); }
 .gc-edit td:nth-child(4) input, .gc-edit td:nth-child(5) input { width: 48px; }
 .gc-edit td:nth-child(6) input, .gc-edit td:nth-child(9) input { min-width: 96px; text-align: right; }
 .gc-edit tr.gc-d0 td { background: color-mix(in srgb, var(--good) 8%, transparent); }

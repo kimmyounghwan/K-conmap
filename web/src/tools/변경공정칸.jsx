@@ -148,7 +148,7 @@ export function ScheduleChange({ ex = {}, 앞 = '' }) {
               const 모음 = 아이있음(i)
               return (
                 <tr key={i} className={'gc-d' + r.깊이 + (z && z.바뀜 ? ' 바뀜' : '')}>
-                  <td className="n">{z ? z.번호 : ''}{i > 0 && <button type="button" className="gp-up" title="한 칸 위로" onClick={() => 올리기(i)}>▲</button>}</td>
+                  <td className="n">{z ? z.번호 : <span className="gc-empty" title="비어 있는 줄 — 공종 이름이나 금액을 적으면 번호가 붙습니다">–</span>}{i > 0 && <button type="button" className="gp-up" title="한 칸 위로" onClick={() => 올리기(i)}>▲</button>}</td>
                   <td><select value={r.깊이} onChange={(e) => 고침(i, '깊이', +e.target.value)} aria-label="단계">
                     <option value={0}>◈ 대공종</option><option value={1}>1 공종</option><option value={2}>1.1 세부</option></select></td>
                   <td><input value={r.이름} onChange={(e) => 고침(i, '이름', e.target.value)} placeholder={r.깊이 === 0 ? '예: 토목공사' : '예: 배수장공사'} /></td>
