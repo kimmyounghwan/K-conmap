@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """원문 읽기 셋째 — 만든 빈 서식 시트(인쇄 영역) 글 ↔ 법제처 보기 창 글층(띄어쓰기 뺌) difflib 대조 (G699 · 2026-11-16)
    python3 tools/forms2/원문대조.py <run.py 가 만든 _recalc/<슬러그>.xlsx> <원문.txt> <시트:글층머리> …   예) 신고서:앞 뒤쪽:뒤
-   원문.txt 는 «앞: …» · «뒤: …» 줄(보기 창 .textLayer innerText 에서 띄어쓰기 뺀 것). 다른 곳이 1행 «K-건설맵» 머리글뿐이면 맞음."""
+   원문.txt 는 «앞: …» · «뒤: …» · «1쪽: …» 줄(보기 창 .textLayer innerText 에서 띄어쓰기 뺀 것). 다른 곳이 1행 «K-건설맵» 머리글뿐이면 맞음."""
 import difflib
 import re
 import sys
@@ -13,7 +13,7 @@ pairs = [a.split(":") for a in sys.argv[3:]]
 raw = open(txt, encoding="utf-8").read()
 layer = {}
 for line in raw.splitlines():
-    m = re.match(r"^(앞|뒤): (.*)$", line)
+    m = re.match(r"^(앞|뒤|\d+쪽): (.*)$", line)
     if m:
         layer[m.group(1)] = m.group(2)
 wb = openpyxl.load_workbook(xl, data_only=True)
