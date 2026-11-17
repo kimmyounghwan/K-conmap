@@ -29,13 +29,15 @@ fast.py — 공고 · 1순위 «빠른 길» (2026-09-30)
       (collect.py 의 «공고→개찰 이어붙임» 과 같은 칸)
     · 공고: 면허 제한(조달청 면허제한 목록 — 최근 등록분만 한두 쪽), 예상 참가(enp), 공동도급(jnt), 내역서 표시(dsn), 시도
     · 목록 거르기용 색인 한 줄(_ix) — collect.py export_board 와 «같은 차례» (화면 match 가 그대로 씀)
+    · 📞 1순위 연락처(전화 · 주소): 저장소 낙찰자 상세(tsrc 1) → 업체 정보 장부(법인 · tsrc 2) →
+      🆕 G748 장부에 아직 없는 «새 법인» 은 그 자리에서 조달청 조달업체 기본정보에 물음(아래 «G748»)
 
 ■ 싣는 모양 — RTDB 는 빈 배열 · null 을 지우고 배열을 객체로 바꿉니다(공동도급 jnt 같은 칸이 깨짐).
     그래서 묶음을 «JSON 글자» 한 덩이로 넣습니다: fresh/rows/{first|live}/{i} = "[…]" (40건씩)
     목록표: fresh/meta/{first|live} = {at, built, n, p, h}   (h = 묶음 지문 — 화면이 바뀐 때만 다시 받게)
     ⚠️ 읽기 규칙: database.rules.json 의 "fresh" (.read true · .write false — 서비스 계정만 씀)
 
-■ 조달청 호출 — 한 번에 개찰 1쪽 + 공고 1~2쪽 + 면허제한 1~3쪽. 10분마다 · 한국시간 05~23시.
+■ 조달청 호출 — 한 번에 개찰 1쪽 + 공고 1~2쪽 + 면허제한 1~3쪽 (+ G748 새 1순위 법인 업체 정보 — 회차 40곳까지). 10분마다 · 한국시간 05~23시.
     하루 몫을 다 썼다는 답이 오면 그 회차는 그만 부릅니다(정기 수집 몫을 안 먹게).
 
 ■ 🚨 2026-09-30 사고 — G78 의 collect.py 가 import 때 web/src/data/공고유형.json 을 읽었습니다.
@@ -66,6 +68,11 @@ MAX_ROWS = 400             # 이보다 많으면 최신 것부터 (정기 배포
 PAGES = {"first": 2, "live": 3, "lic": 3}
 LIC_HOURS = 6              # 면허제한은 «등록 시각» 으로 옵니다 — 최근 몇 시간치만
 STOP_FILE = ".fast_stop"   # 있으면 워크플로가 다음 회차를 부르지 않습니다(fast.yml)
+# 📞 G748 새 1순위 법인 업체 정보 바로 묻기 — 회차 · 실행(55분) · 회차 시간 상한
+#   하루 최대: 실행 200곳 × 19회(05~23시) = 3,800 + 정기 수집 하루 상한 5,000(collect.CORP_INFO_DAY) = 8,800 < 개발계정 10,000
+FAST_CI_PER = int(os.environ.get("FAST_CI_PER", "40"))
+FAST_CI_JOB = int(os.environ.get("FAST_CI_JOB", "200"))
+FAST_CI_S = int(os.environ.get("FAST_CI_S", "60"))
 
 
 class Quota(Exception):
@@ -349,6 +356,76 @@ def enrich_contacts(rows, book, cinfo):
     return n
 
 
+# ══════════════════════════════════════════════════════════════════
+#  📞 G748 (2026-11-17) 새 1순위 법인 — 장부에 없으면 그 자리에서 묻기
+#  소장님 「1순위 회사 주소하고 전번이 하나도 없는데」 · 「공사 1순위에서」 · 「주소 및 전번이 없는게 많아」
+#  · 실측(11-17 13시): 공사 1순위 7주치 15,315건 중 법인 빈칸 0 — 그런데 «🆕 방금» 86건 중 연락처 있는 것 27(법인 56건이 빔).
+#  · 까닭: 빠른 수집은 정기 수집이 캐시에 남긴 장부(corp_info.json)만 읽었음 → 장부에 아직 없는 새 업체는
+#    다음 정기 수집(몇 시간 뒤)이 물어 채울 때까지 비어 보였음.
+#  · 고침: enrich_contacts 다음에, 아직 빈 «법인» 1순위만 collect.corp_info_get(정기 수집과 같은 함수 · 같은 읽기 ·
+#    응답 사업자번호가 같을 때만)으로 바로 묻고 채움(tsrc 2 — 화면 «조달청 업체 정보»).
+#    최신 개찰부터 · 같은 업체는 한 번 · 장부에 «없음» 으로 적힌 곳(30일 안에 물어 못 찾은 곳)은 안 물음 ·
+#    회차 FAST_CI_PER · 실행 FAST_CI_JOB · 회차 시간 FAST_CI_S 상한.
+#    «막힘»(활용신청 · 키) · «한도»(이 서비스 오늘 몫) 이면 이 실행에서는 더 안 물음 — 개찰 · 공고 빠른 수집은 그대로(Quota 아님).
+#    «실패»(통신 · 점검) 3번 잇달면 이 회차만 그만 — 다음 회차에 다시.
+#    찾은 값은 이 실행 동안 ctx["cinfo"] 에 기억(장부 파일은 정기 수집만 씀 — fast.yml 은 cinfo- 캐시를 읽기만).
+#  · 개인사업자는 묻지 않음(G343 소장님 고르심 «법인만»).
+#  · 키는 로그에 안 남김(묻기 결과 «꼴» 과 숫자만 적음).
+# ══════════════════════════════════════════════════════════════════
+def ask_contacts(rows, key, ctx, get=None, now=None, sleep_s=0.05):
+    """📞 G748 장부에 없는 새 1순위 법인을 조달청 업체 정보에 바로 묻고 채움. 돌려줌: (채움, 물음, 상태)"""
+    if not key:
+        return 0, 0, "키 없음"
+    if ctx.get("ci_stop"):
+        return 0, 0, ctx["ci_stop"]
+    ci = ctx.get("cinfo")
+    if not isinstance(ci, dict):
+        ci = ctx["cinfo"] = {}
+    asked = ctx.setdefault("ci_asked", set())
+    today = (now or now_kst()).strftime("%Y%m%d")
+    want = []
+    for r in sorted(rows, key=lambda r: C.dt_digits(r.get("dt")) or "", reverse=True):
+        if r.get("tel") or r.get("adr") or not r.get("win"):
+            continue
+        b = C._ci_num(r.get("bno"))
+        if not C.법인번호(b) or b in asked or b in ci or b in want:
+            continue
+        want.append(b)
+    물음 = 실패 = 0
+    상태 = "정상"
+    t0 = time.time()
+    for b in want:
+        if 물음 >= FAST_CI_PER or ctx.get("ci_n", 0) >= FAST_CI_JOB:
+            상태 = "상한"
+            break
+        if time.time() - t0 > FAST_CI_S:
+            상태 = "시간"
+            break
+        꼴, 값 = C.corp_info_get(key, b, get=get)
+        물음 += 1
+        ctx["ci_n"] = ctx.get("ci_n", 0) + 1
+        if 꼴 == "ok":
+            ci[b] = [값["t"], 값["a"], today, 1]
+            asked.add(b)
+            실패 = 0
+        elif 꼴 == "none":
+            ci[b] = ["", "", today, 0]
+            asked.add(b)
+            실패 = 0
+        elif 꼴 in ("막힘", "한도"):
+            ctx["ci_stop"] = 꼴
+            상태 = 꼴
+            break
+        else:
+            실패 += 1
+            if 실패 >= 3:
+                상태 = "실패"
+                break
+        if sleep_s:
+            time.sleep(sleep_s)
+    return enrich_contacts(rows, None, ci), 물음, 상태
+
+
 def lic_recent(key, now):
     """최근 몇 시간 사이 등록된 면허 제한 {공고번호: [제한명…]} — collect.lic_by_day 와 같은 읽기."""
     beg = (now - timedelta(hours=LIC_HOURS)).strftime("%Y%m%d%H%M")
@@ -473,8 +550,18 @@ def once(key, ctx, dry=False):
             except Exception as e:
                 nc = 0
                 log(f"  · 연락처 붙이기 실패 ({type(e).__name__}) — 연락처 없이 싣습니다")
+            nq, nst = 0, ""
+            try:
+                na, nq, nst = ask_contacts(fr, key, ctx)                       # 📞 G748 장부에 없는 새 법인은 바로 물음
+                nc += na
+                if nst in ("막힘", "한도") and not ctx.get("ci_said"):
+                    ctx["ci_said"] = 1
+                    log(f"  · 업체 정보 «{nst}» — 이 실행에서는 더 안 묻습니다(개찰 · 공고는 그대로)")
+            except Exception as e:
+                log(f"  · 업체 정보 묻기 실패 ({type(e).__name__}) — 연락처 없이 싣습니다")
             body.update(body_for("first", finish("first", fr, ctx["book"], None), (m or {}).get("built")))
-            said.append(f"개찰 오늘 {len(rows)}건 중 새 것 {len(fr)}건(이어붙임 {joined}칸 · 연락처 {nc})")
+            said.append(f"개찰 오늘 {len(rows)}건 중 새 것 {len(fr)}건(이어붙임 {joined}칸 · 연락처 {nc} · 업체 정보 물음 {nq}"
+                        + (f" {nst}" if nst not in ("", "정상") else "") + ")")
         except Quota as e:
             log(f"  ⛔ 조달청 하루 몫을 다 썼습니다 ({e}) — 이번 회차는 그만 부릅니다")
             ctx["quota"] = True

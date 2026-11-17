@@ -1971,23 +1971,18 @@ export default function BaroBid({ 분석실 = false, 알림 = null } = {}) {
                     <b>{res.adr}{res.tsrc ? <i className="tsrc">{res.tsrc === 2 ? '조달청 업체 정보' : '다른 공고에서 확인'}</i> : null}</b></div>
                 )}
               </div>
+              {/* 🩹 G748 전화가 없으면 단추만 안 보임(까닭 글 없음 — 소장님 11-17) */}
               {res.tel ? (
                 <a className="wtel" href={`tel:${res.tel.replace(/[^0-9+]/g, '')}`}>
                   <span className="ic">📞</span>
                   <span className="t">{res.tel}</span>
                   <span className="d">눌러서 바로 걸기</span>
                 </a>
-              ) : (
-                <div className="wno">이 공고에는 전화번호가 실려 오지 않았습니다.</div>
-              )}
+              ) : null}
             </div>
-          ) : (
-            <div className="wno solo">
-              {res.old
-                ? '7일이 지난 개찰이라 연락처·대표자는 들고 있지 않습니다. 채점은 그대로 됩니다.'
-                : '이 공고는 조달청이 낙찰업체 연락처를 함께 주지 않았습니다. (연락처가 실려 오는 공고는 대략 셋 중 하나입니다)'}
-            </div>
-          )}
+          ) : res.old ? (
+            <div className="wno solo">7일이 지난 개찰이라 연락처·대표자는 들고 있지 않습니다. 채점은 그대로 됩니다.</div>
+          ) : null}
 
           {scored && !scored.skip && (
             <div className="sv">

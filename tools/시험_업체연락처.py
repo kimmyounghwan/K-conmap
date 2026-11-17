@@ -8,7 +8,10 @@
   ② 채우기(fill_contacts_api): 법인만 · 이미 있는 줄은 안 건드림 · 최신 개찰부터 · 장부(있음 1년 · 없음 30일 · 3년 버림) ·
      회차 상한 · 하루 상한 · 막힘이면 첫 호출에서 멈춤 · 실패 3번이면 멈춤 · 조달청 안 부르는 회차도 장부로는 채움 · tsrc 2
   ③ 빠른 수집(fast.py): 저장소 낙찰자 상세(tsrc 1) → 장부(법인만 · tsrc 2)
-  ④ 화면 · 내보내기: bidresult tsrc 를 숫자 그대로 · 화면 글 «조달청 업체 정보» · 수집상태 «1순위 연락처» 줄
+  ③-2 🆕 G748 빠른 수집: 장부에 없는 새 1순위 법인은 그 자리에서 물음 — 법인 · 빈칸 · 1순위 있는 줄만 · 최신부터 · 같은 업체 한 번 ·
+     장부 «없음» 은 안 물음 · 회차 · 실행 · 시간 상한 · 막힘 · 한도면 이 실행 끝까지 안 물음 · 실패 3번이면 이 회차만 · 키 없음 · 로그에 키 없음
+  ④ 화면 · 내보내기: bidresult tsrc 를 숫자 그대로 · 화면 글 «조달청 업체 정보» · 수집상태 «1순위 연락처» 줄 ·
+     빈 연락처에 «조달청이 … 주지 않았» 같은 글 없음(G748 소장님 11-17)
   ⑤ 키가 로그 · 장부 · 수집상태 글에 안 남음
 가상 자료 · 가짜 응답만 씀(조달청 · 인터넷 안 부름).
 """
@@ -270,6 +273,107 @@ ok("장부 없어도(None) 죽지 않음", F.enrich_contacts([{"no": "Z", "bno":
 src_fast = open(os.path.join(ROOT, "fast.py"), encoding="utf-8").read()
 ok("fast.py once() 가 새 1순위에 연락처를 붙임(넘어져도 싣기는 그대로)", "nc = enrich_contacts(fr, ctx.get(\"tbook\"), ctx.get(\"cinfo\"))" in src_fast and "연락처 없이 싣습니다" in src_fast)
 
+print("③-2 빠른 수집 — 장부에 없는 새 법인은 바로 물음(G748)")
+NOW2 = datetime(2026, 11, 17, 13, 0, tzinfo=C.KST)
+
+
+def 새줄():
+    return [{"no": "F1", "dt": "2026-11-17 10:00:00", "win": "(주)가상일", "bno": B1},
+            {"no": "F2", "dt": "2026-11-17 11:00:00", "win": "가상이(주)", "bno": B2},
+            {"no": "F3", "dt": "2026-11-17 09:00:00", "win": "가상개인", "bno": P1},                      # 개인 — 안 물음
+            {"no": "F4", "dt": "2026-11-17 12:00:00", "win": "(주)가상일", "bno": B1},                    # 같은 업체 — 한 번만
+            {"no": "F5", "dt": "2026-11-17 08:00:00", "win": "(주)있음", "bno": "5558112345", "tel": "051-000-0000"},   # 이미 있음
+            {"no": "F6", "dt": "2026-11-17 13:00:00", "win": "", "bno": "6668112345"},                    # 1순위 없음(유찰 등)
+            {"no": "F7", "dt": "2026-11-17 07:00:00", "win": "(주)없던곳", "bno": B3}]                    # 장부에 «없음»(30일 안) — 안 물음
+
+
+정상응답 = lambda p: 제이슨([업체(p["bizno"])])
+기록 = []
+ctx = {"cinfo": {B3: ["", "", "20261110", 0]}}
+rows = 새줄()
+out = io.StringIO()
+with redirect_stdout(out):
+    na, nq, st = F.ask_contacts(rows, KEY, ctx, get=부름(정상응답, 기록=기록), now=NOW2, sleep_s=0)
+물은 = [p.get("bizno") for _, p in 기록]
+ok("법인 · 빈칸 · 1순위 있는 줄만 · 같은 업체 한 번 · 최신 개찰부터(B1 12:00 → B2 11:00)", 물은 == [B1, B2], 물은)
+ok("채움 3줄(F1 · F2 · F4) · tsrc 2 · 전화 · 주소", na == 3 and all(rows[i].get("tsrc") == 2 and rows[i].get("tel") == "02-123-4567"
+                                                         and rows[i].get("adr") == "서울특별시 가상구 가상로 1 2층" for i in (0, 1, 3)), rows)
+ok("개인 · 이미 있는 줄 · 1순위 없음 · 장부 «없음» 은 그대로", not rows[2].get("tel") and rows[4]["tel"] == "051-000-0000" and "tsrc" not in rows[4]
+   and not rows[5].get("tel") and not rows[6].get("tel"), rows)
+ok("물음 2 · 상태 정상 · 실행 몫 2", nq == 2 and st == "정상" and ctx.get("ci_n") == 2, (nq, st, ctx.get("ci_n")))
+ok("찾은 값은 이 실행 동안 기억(ctx cinfo · 오늘 날짜 · 있음 1)", ctx["cinfo"].get(B1) == ["02-123-4567", "서울특별시 가상구 가상로 1 2층", "20261117", 1], ctx["cinfo"].get(B1))
+ok("로그에 아무것도 안 남김(키도)", out.getvalue() == "" and KEY not in out.getvalue(), out.getvalue())
+기록 = []
+rows2 = 새줄()
+n2 = F.enrich_contacts(rows2, {}, ctx["cinfo"])
+na2, nq2, st2 = F.ask_contacts(rows2, KEY, ctx, get=부름(정상응답, 기록=기록), now=NOW2, sleep_s=0)
+ok("다음 회차: 기억으로 채움(3) · 다시 안 물음", n2 == 3 and not 기록 and nq2 == 0 and na2 == 0, (n2, 기록, nq2, na2))
+# 등록 정보 없음
+기록 = []
+ctx = {"cinfo": {}}
+rows = [{"no": "G1", "dt": "2026-11-17 10:00:00", "win": "(주)가", "bno": B1}]
+na, nq, st = F.ask_contacts(rows, KEY, ctx, get=부름(제이슨([]), 기록=기록), now=NOW2, sleep_s=0)
+ok("등록 정보 없음 → 빈칸 그대로 · «없음» 으로 기억", na == 0 and nq == 1 and ctx["cinfo"][B1] == ["", "", "20261117", 0] and not rows[0].get("tel"), (na, nq, ctx))
+na, nq, st = F.ask_contacts(rows, KEY, ctx, get=부름(제이슨([]), 기록=기록), now=NOW2, sleep_s=0)
+ok("«없음» 은 이 실행에서 다시 안 물음", nq == 0 and len(기록) == 1, (nq, 기록))
+# 장부(cinfo)가 없거나 깨져도 죽지 않음
+for 장부 in (None, [], "x"):
+    ctx = {"cinfo": 장부}
+    rows = [{"no": "G2", "dt": "2026-11-17 10:00:00", "win": "(주)가", "bno": B2}]
+    na, nq, st = F.ask_contacts(rows, KEY, ctx, get=부름(정상응답), now=NOW2, sleep_s=0)
+    ok("장부 %r 이어도 물어 채움" % (장부,), na == 1 and rows[0].get("tsrc") == 2, (na, rows))
+# 상한 — 회차 · 실행
+def 여럿줄():
+    return [{"no": "H%d" % i, "dt": "2026-11-17 1%d:00:00" % i, "win": "(주)가%d" % i, "bno": "11181%05d" % i} for i in range(1, 6)]
+
+
+여럿 = 여럿줄()
+ok("시험 사업자번호 다섯은 법인 꼴", all(C.법인번호(r["bno"]) for r in 여럿), [r["bno"] for r in 여럿])
+옛 = (F.FAST_CI_PER, F.FAST_CI_JOB, F.FAST_CI_S)
+F.FAST_CI_PER, F.FAST_CI_JOB = 2, 3
+ctx = {"cinfo": {}}
+기록 = []
+r1 = F.ask_contacts(여럿, KEY, ctx, get=부름(정상응답, 기록=기록), now=NOW2, sleep_s=0)
+ok("회차 상한 2 → 2곳 묻고 «상한»", r1 == (2, 2, "상한") and [p["bizno"] for _, p in 기록] == ["1118100005", "1118100004"], (r1, 기록))
+r2 = F.ask_contacts(여럿, KEY, ctx, get=부름(정상응답, 기록=기록), now=NOW2, sleep_s=0)
+ok("실행 상한 3 → 다음 회차 1곳만", r2 == (1, 1, "상한") and len(기록) == 3, (r2, len(기록)))
+r3 = F.ask_contacts(여럿, KEY, ctx, get=부름(정상응답, 기록=기록), now=NOW2, sleep_s=0)
+ok("실행 몫을 다 쓰면 더 안 물음", r3 == (0, 0, "상한") and len(기록) == 3, (r3, len(기록)))
+F.FAST_CI_PER, F.FAST_CI_JOB = 옛[0], 옛[1]
+F.FAST_CI_S = -1
+기록 = []
+r4 = F.ask_contacts(여럿줄(), KEY, {"cinfo": {}}, get=부름(정상응답, 기록=기록), now=NOW2, sleep_s=0)
+ok("회차 시간을 넘으면 «시간» 으로 멈춤", r4 == (0, 0, "시간") and not 기록, (r4, 기록))
+F.FAST_CI_S = 옛[2]
+ok("하루 몫: 실행 상한 × 19회 + 정기 수집 하루 상한 ≤ 9,000 (개발계정 10,000 아래)", F.FAST_CI_JOB * 19 + C.CORP_INFO_DAY <= 9000,
+   (F.FAST_CI_JOB, C.CORP_INFO_DAY))
+# 막힘 · 한도 — 이 실행 끝까지 안 물음
+for 이름, 몸 in (("막힘", 제이슨([], code="30", msg="SERVICE_KEY_IS_NOT_REGISTERED_ERROR")),
+                 ("한도", 제이슨([], code="22", msg="LIMITED_NUMBER_OF_SERVICE_REQUESTS_EXCEEDS_ERROR"))):
+    ctx = {"cinfo": {}}
+    기록 = []
+    r5 = F.ask_contacts(여럿줄(), KEY, ctx, get=부름(몸, 기록=기록), now=NOW2, sleep_s=0)
+    r6 = F.ask_contacts(여럿줄(), KEY, ctx, get=부름(몸, 기록=기록), now=NOW2, sleep_s=0)
+    ok("%s → 첫 물음에서 멈춤 · 다음 회차도 안 물음" % 이름, r5 == (0, 1, 이름) and r6 == (0, 0, 이름) and len(기록) == 1 and ctx.get("ci_stop") == 이름, (r5, r6, 기록))
+# 실패 3번 — 이 회차만
+ctx = {"cinfo": {}}
+기록 = []
+r7 = F.ask_contacts(여럿줄(), KEY, ctx, get=부름(ConnectionError("x"), 기록=기록), now=NOW2, sleep_s=0)
+ok("통신 실패 3번 → 이 회차 «실패»", r7 == (0, 3, "실패") and len(기록) == 3 and not ctx.get("ci_stop"), (r7, 기록))
+r8 = F.ask_contacts(여럿줄(), KEY, ctx, get=부름(정상응답, 기록=기록), now=NOW2, sleep_s=0)
+ok("다음 회차엔 다시 물어 채움(실패한 곳도)", r8[0] == 5 and r8[2] == "정상" and len(기록) == 8, (r8, len(기록)))
+# 키 없음
+기록 = []
+r9 = F.ask_contacts(여럿줄(), "", {"cinfo": {}}, get=부름(정상응답, 기록=기록), now=NOW2, sleep_s=0)
+ok("키가 없으면 안 물음", r9 == (0, 0, "키 없음") and not 기록, (r9, 기록))
+# once() 안 자리 — 저장소 장부(enrich_contacts) 다음 · 싣기 앞 · 넘어져도 싣기는 그대로
+i1 = src_fast.index("nc = enrich_contacts(fr, ctx.get(\"tbook\"), ctx.get(\"cinfo\"))")
+i2 = src_fast.index("na, nq, nst = ask_contacts(fr, key, ctx)")
+i3 = src_fast.index("body.update(body_for(\"first\", finish(\"first\", fr")
+ok("once(): 장부로 채운 다음 → 바로 묻기 → 싣기 차례", i1 < i2 < i3, (i1, i2, i3))
+ok("once(): 묻기가 넘어져도 싣기는 그대로(try · except)", "업체 정보 묻기 실패 ({type(e).__name__}) — 연락처 없이 싣습니다" in src_fast[i2:i3])
+ok("fast.py 로그에 묻기 응답 글(값)을 안 적음", "corp_info_get(key, b, get=get)" in src_fast and "log(" not in src_fast[src_fast.index("def ask_contacts"):src_fast.index("def lic_recent")])
+
 print("④ 내보내기 · 화면 · 수집상태 · 워크플로")
 src = open(os.path.join(ROOT, "collect.py"), encoding="utf-8").read()
 ok("bidresult tsrc 는 숫자 그대로(2 가 1 로 뭉개지지 않게)", 'int(r.get("tsrc") or 0),' in src and '1 if r.get("tsrc") else 0' not in src)
@@ -278,7 +382,12 @@ ok("수집상태.md 에 «1순위 연락처» 줄", '"| 1순위 연락처 | %s |
 nd = open(os.path.join(ROOT, "web", "src", "NoticeDetail.jsx"), encoding="utf-8").read()
 bb = open(os.path.join(ROOT, "web", "src", "pages", "BaroBid.jsx"), encoding="utf-8").read()
 ok("화면 글: tsrc 2 = «조달청 업체 정보» (1순위 카드 두 곳 · 바로투찰 채점)", nd.count("r.tsrc === 2 ? '조달청 업체 정보' : '다른 공고에서 확인'") == 2 and "res.tsrc === 2 ? '조달청 업체 정보'" in bb)
-ok("빈칸 글: 개인사업자 까닭", "개인사업자는 조달청이 낙찰자 정보로 줄 때만 보입니다." in nd)
+# 🩹 G748 (11-17) 소장님 「왜 조달청에서 주지않는 다는 말은 하지마」 — 빈 연락처에 까닭 글을 달지 않음
+ok("빈칸 글 없음: «조달청이 … 주지 않았» · «실려 오지 않았» · «낙찰자 정보로 줄 때만» · «셋 중 하나» (1순위 카드 · 바로투찰)",
+   all(w not in nd + bb for w in ("주지 않았", "실려 오지 않았", "낙찰자 정보로 줄 때만", "셋 중 하나", "아직 확인되지 않았습니다")),
+   [w for w in ("주지 않았", "실려 오지 않았", "낙찰자 정보로 줄 때만", "셋 중 하나", "아직 확인되지 않았습니다") if w in nd + bb])
+ok("바로투찰: 7일 지난 개찰 글은 그대로 · 전화 없으면 단추만 안 보임",
+   "7일이 지난 개찰이라 연락처·대표자는 들고 있지 않습니다. 채점은 그대로 됩니다." in bb and "              ) : null}" in bb)
 up = open(os.path.join(ROOT, ".github", "workflows", "update.yml"), encoding="utf-8").read()
 fa = open(os.path.join(ROOT, ".github", "workflows", "fast.yml"), encoding="utf-8").read()
 ok("update.yml: 장부를 cinfo- 로 따로 보관(lite- path 는 그대로)", "path: data/store/corp_info.json" in up and "key: cinfo-${{ github.run_id }}" in up)
