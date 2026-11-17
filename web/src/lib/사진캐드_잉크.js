@@ -61,16 +61,164 @@ export function 대비판(판) {
  * 잉크 가르기 — { mask(1=잉크), T(쓴 문턱), 대비 }
  * o.세기: 1 = 자동 · 작게(0.6) 하면 흐린 선도 · 크게(1.5) 하면 진한 선만
  */
+/**
+ * 🧮 G753 모눈 빼기 (2026-11-17 실제 모눈종이 손그림 — 모눈 선 토막이 벽에서 이어 자라 짧은 선 · 끊긴 줄로 섞임)
+ *   대비판에서 «종이 끝에서 끝까지 · 같은 간격으로 · 여러 줄» 인 연한 줄(모눈 · 줄 공책)을 찾아, 그 줄 자리의 «모눈 진하기» 만큼 덜어냄.
+ *   벽이 모눈 줄 위에 그려져도 연필 · 펜이 모눈보다 훨씬 진해 남음 · 모눈이 없으면(봉우리 8 줄 아래 · 간격이 고르지 않음) 아무것도 안 함.
+ * @returns { d(새 대비) , 가로: { 봉, s }, 세로 } | null
+ */
+export function 모눈빼기(d, w, h, T) {
+  const g0 = Math.max(6, 0.22 * T)
+  const 찾기 = (가로) => {
+    const N = 가로 ? h : w, M = 가로 ? w : h
+    const cov = new Float32Array(N)
+    for (let a = 0; a < N; a++) {
+      let n = 0
+      for (let b = 0; b < M; b++) {
+        let v = 0
+        for (let k = -1; k <= 1; k++) { const aa = a + k; if (aa < 0 || aa >= N) continue; const i = 가로 ? aa * w + b : b * w + aa; if (d[i] > v) v = d[i] }
+        if (v >= g0) n++
+      }
+      cov[a] = n / M
+    }
+    const 봉 = []
+    for (let a = 1; a < N - 1; a++) {
+      if (!(cov[a] >= 0.45 && cov[a] >= cov[a - 1] && cov[a] >= cov[a + 1])) continue
+      if (봉.length && a - 봉[봉.length - 1] <= 3) { if (cov[a] > cov[봉[봉.length - 1]]) 봉[봉.length - 1] = a } else 봉.push(a)
+    }
+    if (봉.length < 8) return null
+    const 사이 = []
+    for (let i = 1; i < 봉.length; i++) 사이.push(봉[i] - 봉[i - 1])
+    const 정 = [...사이].sort((p, q) => p - q), s = 정[정.length >> 1]
+    if (s < 6) return null
+    const 고름 = 사이.filter((x) => Math.abs(x - s) <= 0.2 * s || Math.abs(x - 2 * s) <= 0.25 * s).length
+    if (고름 < 0.75 * 사이.length) return null
+    return { 봉, s, cov }
+  }
+  const 가 = 찾기(true), 세 = 찾기(false)
+  if (!가 && !세) return null
+  const d2 = new Float32Array(d.length)
+  for (let i = 0; i < d.length; i++) d2[i] = d[i]
+  /* 모눈 줄 자리(봉우리 ± b 줄)에서 «모눈만큼 연한 점» 만 지움(0) — 그보다 진한 점(그 위에 그은 벽 · 글씨)은 그대로 둠.
+     빼기(d − 모눈)로 하면 모눈 줄 위에 연필로 흐리게 그은 벽까지 문턱 아래로 내려가 사라졌음(지어낸 시험 ① 3 %).
+     모눈 진하기: 그 줄 전체의 가운데값(G줄 — 벽이 몇 칸 덮어도 안 흔들림)과 칸(모눈 세 칸 길이)마다의 가운데값(스캔 밝기 고르지 않음) 가운데 큰 쪽 —
+     칸 값은 G줄의 1.15 배 + 3 까지만 씀(🩹 11-17 둘째 판: 처음엔 «75 % 값 · 1.3 배» 였는데, 모눈의 진한 토막이 든 칸에서 문턱이 연필 벽 진하기까지 올라가
+     모눈 줄 위에 흐리게 그은 벽 끝 80 px 를 지웠음 — 지어낸 시험 ⑥). */
+  /* 모눈 줄은 사진 · 스캔에서 조금 기울어 있음(1000 px 에 3 px 남짓) → 칸(모눈 세 칸 길이)마다 그 줄의 실제 자리(가운데)를 다시 찾아 띠를 맞춤 */
+  const 자리들 = (모, 가로) => {
+    const N = 가로 ? h : w, M = 가로 ? w : h
+    const 칸 = Math.max(16, Math.round(3 * 모.s)), rs = Math.max(2, Math.round(0.15 * 모.s))
+    const 칸수 = Math.ceil(M / 칸)
+    return 모.봉.map((r) => {
+      const o = new Int16Array(칸수)
+      for (let j = 0; j < 칸수; j++) {
+        const b0 = j * 칸, b1 = Math.min(M, b0 + 칸)
+        let 최 = -1, 최o = 0
+        for (let k = -rs; k <= rs; k++) {
+          const a = r + k
+          if (a < 0 || a >= N) continue
+          let 합 = 0
+          for (let q = b0; q < b1; q++) { const v = d[가로 ? a * w + q : q * w + a]; 합 += v < T ? v : T }   // 벽(진한 잉크)에 끌리지 않게 T 로 자름
+          if (합 > 최) { 최 = 합; 최o = k }
+        }
+        o[j] = 최o
+      }
+      // 이웃 칸과 가운데값으로 다듬음(벽이 덮은 칸에서 튀지 않게)
+      const 다 = new Int16Array(칸수)
+      for (let j = 0; j < 칸수; j++) { const v = [o[Math.max(0, j - 1)], o[j], o[Math.min(칸수 - 1, j + 1)]].sort((p, q) => p - q); 다[j] = v[1] }
+      return { r, o: 다, 칸 }
+    })
+  }
+  const 덜기 = (모, 가로, 자) => {
+    if (!모) return
+    const N = 가로 ? h : w, M = 가로 ? w : h
+    const b = 1 + Math.round(0.06 * 모.s)
+    const 여유 = 0.1 * T
+    for (const { r, o, 칸 } of 자) {
+      // 줄 전체의 모눈 진하기(가운데값) — 칸마다 실제 자리의 가운데 줄에서
+      const 줄값 = []
+      for (let q = 0; q < M; q++) { const a = r + o[Math.floor(q / 칸)]; if (a < 0 || a >= N) continue; const v = d[가로 ? a * w + q : q * w + a]; if (v < T) 줄값.push(v) }
+      if (줄값.length < 0.4 * M) continue
+      줄값.sort((p, q) => p - q)
+      const G줄 = 줄값[줄값.length >> 1]
+      if (G줄 <= 2) continue
+      for (let j = 0; j * 칸 < M; j++) {
+        const b0 = j * 칸, b1 = Math.min(M, b0 + 칸), c = r + o[j]
+        const 값들 = []
+        for (let q = b0; q < b1; q++) { const a = c; if (a < 0 || a >= N) continue; const v = d[가로 ? a * w + q : q * w + a]; if (v < T) 값들.push(v) }
+        let G = G줄
+        if (값들.length >= 0.4 * (b1 - b0)) {
+          값들.sort((p, q) => p - q)
+          const g50 = 값들[값들.length >> 1]
+          if (g50 <= 1.15 * G줄 + 3) G = Math.max(G줄, g50)   // 그 칸이 «모눈다우면» 칸 가운데값(스캔 밝기 고르지 않음) — 연필 선이 칸을 덮어 진하면 줄 전체 값
+        }
+        const 끝 = G + 여유
+        for (let a = Math.max(0, c - b); a <= Math.min(N - 1, c + b); a++) for (let q = b0; q < b1; q++) { const i = 가로 ? a * w + q : q * w + a; if (d2[i] <= 끝) d2[i] = 0 }
+      }
+    }
+  }
+  /* 진한 얼룩 토막: 모눈 줄이 군데군데 진하게 찍힌 곳(스캔 · 사진)은 위 덜기에서 안 지워짐.
+     띠(실제 자리 ± b 줄)를 한 줄로 접어(어느 줄이든 «약» 넘으면 있음) 이어진 덩이(틈 ¼ 칸까지 잇기)마다 봄 →
+       · 띠 바로 바깥(1 ~ 2 줄)에 닿는 잉크(가로지르는 벽 · 글씨)가 하나도 없는 덩이: 세 칸보다 짧고 진한 점이 절반 아래면 지움(빈 곳의 모눈 얼룩 줄 · 더 긴 흐린 선은 남김)
+       · 닿는 자리로 나눈 끝 토막(벽에서 모눈 줄을 따라 자란 꼬리): 두 칸보다 짧고 진한 점이 절반 아래면 지움
+       · 닿는 자리와 닿는 자리 사이(벽과 벽 사이 — 모눈 줄 위에 그은 흐린 벽일 수 있음)는 그대로 */
+  const 토막빼기 = (모, 가로, 자) => {
+    if (!모) return
+    const N = 가로 ? h : w, M = 가로 ? w : h
+    const b = 1 + Math.round(0.06 * 모.s)
+    const 약 = 0.55 * T, 짧음 = 2 * 모.s, 틈 = Math.max(3, Math.round(0.25 * 모.s))
+    const at = (a, q) => d2[가로 ? a * w + q : q * w + a]
+    for (const { r, o, 칸 } of 자) {
+      const 있 = new Uint8Array(M), 진 = new Uint8Array(M), 밖 = new Uint8Array(M)
+      for (let q = 0; q < M; q++) {
+        const c = r + o[Math.floor(q / 칸)]
+        let m = 0
+        for (let a = Math.max(0, c - b); a <= Math.min(N - 1, c + b); a++) { const v = at(a, q); if (v > m) m = v }
+        if (m >= 약) 있[q] = 1
+        if (m >= T) 진[q] = 1
+        for (const off of [-b - 1, -b - 2, b + 1, b + 2]) {
+          const a2 = c + off
+          if (a2 < 0 || a2 >= N) continue
+          for (let qq = Math.max(0, q - 1); qq <= Math.min(M - 1, q + 1); qq++) if (at(a2, qq) >= 약) { 밖[q] = 1; break }
+          if (밖[q]) break
+        }
+      }
+      const 지움 = (k0, k1) => { for (let k = k0; k <= k1; k++) { const c = r + o[Math.floor(k / 칸)]; for (let a = Math.max(0, c - b); a <= Math.min(N - 1, c + b); a++) { const i = 가로 ? a * w + k : k * w + a; d2[i] = 0 } } }
+      const 진몫 = (k0, k1) => { let n = 0; for (let k = k0; k <= k1; k++) n += 진[k]; return n / Math.max(1, k1 - k0 + 1) }
+      let q = 0
+      while (q < M) {
+        if (!있[q]) { q++; continue }
+        let e = q, 끝 = q
+        while (e < M) { if (있[e]) { 끝 = e; e++ } else if (e - 끝 <= 틈) e++; else break }
+        const 닿 = []
+        for (let k = q; k <= 끝; k++) if (밖[k] && (k === q || !밖[k - 1])) { let k2 = k; while (k2 + 1 <= 끝 && 밖[k2 + 1]) k2++; 닿.push([k, k2]) }
+        if (!닿.length) { if (끝 - q + 1 < 3 * 모.s && 진몫(q, 끝) < 0.5) 지움(q, 끝) } else {
+          const 앞 = [q, 닿[0][0] - 1], 뒤 = [닿[닿.length - 1][1] + 1, 끝]
+          for (const [k0, k1] of [앞, 뒤]) if (k1 >= k0 && k1 - k0 + 1 < 짧음 && 진몫(k0, k1) < 0.5) 지움(k0, k1)
+        }
+        q = 끝 + 1
+      }
+    }
+  }
+  const 자가 = 가 ? 자리들(가, true) : null, 자세 = 세 ? 자리들(세, false) : null
+  덜기(가, true, 자가); 덜기(세, false, 자세)
+  토막빼기(가, true, 자가); 토막빼기(세, false, 자세)   // 두 방향 다 지운 뒤(바깥 잉크를 볼 때 다른 방향 모눈은 이미 빠져 있게)
+  return { d: d2, 가로: 가 && { 줄: 가.봉.length, s: 가.s }, 세로: 세 && { 줄: 세.봉.length, s: 세.s } }
+}
+
 export function 잉크뽑기(판, o = {}) {
   const 대 = 대비판(판)
-  const { w, h, d } = 대
+  const { w, h } = 대
   const 값 = []
-  for (let i = 0; i < d.length; i += 3) if (d[i] > 14) 값.push(d[i])
+  for (let i = 0; i < 대.d.length; i += 3) if (대.d[i] > 14) 값.push(대.d[i])
   let T = 값.length > 50 ? 오츠(값) : 60
   T = Math.max(28, Math.min(150, T)) * (o.세기 || 1)
   const 약 = T * 0.55
   const mask = new Uint8Array(w * h)
   const 줄 = new Int32Array(w * h)
+  // 🧮 G753 손그림 모눈종이: 모눈 줄을 덜어낸 대비로 문턱(벽 · 글씨는 그대로 · 모눈 토막이 벽에서 이어 자라지 않게)
+  const 모눈 = o.손그림 && o.모눈 !== false ? 모눈빼기(대.d, w, h, T) : null
+  const d = 모눈 ? 모눈.d : 대.d
   let qt = 0
   for (let i = 0; i < d.length; i++) if (d[i] >= T) { mask[i] = 1; 줄[qt++] = i }
   let qh = 0
@@ -162,7 +310,7 @@ export function 잉크뽑기(판, o = {}) {
   const { lab, 덩이들 } = 덩이(mask, w, h)
   const 최소 = o.티끌 ?? Math.max(6, Math.round((w * h) / 2.5e5))
   for (let i = 0; i < mask.length; i++) if (mask[i] && 덩이들[lab[i]].n < 최소) mask[i] = 0
-  return { mask, w, h, T, 대비: 대, 흐린선: o.흐린선수 || 0 }
+  return { mask, w, h, T, 대비: 대, 흐린선: o.흐린선수 || 0, 모눈: 모눈 ? { 가로: 모눈.가로, 세로: 모눈.세로 } : null }
 }
 
 /**
