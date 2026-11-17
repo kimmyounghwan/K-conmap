@@ -106,7 +106,7 @@ mj = rd("web/src/main.jsx")
 ok("주 메뉴(GNB) 9줄 — 바로투찰 · 1순위 개찰 · 입찰 공고 · 건설 도구 · 건설 서식 · 내역서 · K-적산 · 맵톡 · 자격증(앱 탭 차례) · 모두 있는 화면 길",
    [u for u, _ in GNB] == 기대GNB and [nm for _, nm in GNB] == ["바로투찰", "1순위 개찰", "입찰 공고", "건설 도구", "건설 서식", "내역서", "K-적산", "맵톡", "자격증"]
    and all(u == "/" or f'path="{u}"' in mj for u, _ in GNB), GNB)
-_줄1 = "'<div id=\"root\">' + gnb_html(path) + body + nav_html(path) + \"</div>\""
+_줄1 = "'<div id=\"root\">' + gnb_html(path) + body + _도면줄_html(path) + nav_html(path) + \"</div>\""   # 📐 G693 도면 도구 쪽 끝 «도면 작성대행» 한 줄(본문 뒤 · 둘러보기 앞) — 🩹 G756 때 시험만 맞춤
 _줄2 = "'<div id=\"root\">' + gnb_html(\"\") + body + nav_html(\"\") + \"</div>\""
 ok("page() · not_found_page() — #root 맨 앞에 gnb_html · 그 뒤 본문 · 맨 아래 둘러보기(nav_html)", _줄1 in _src and _줄2 in _src, (_줄1 in _src, _줄2 in _src))
 try:

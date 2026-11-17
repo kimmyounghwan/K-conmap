@@ -40,6 +40,8 @@
       { "source": "/gongdong", "destination": "/app.html" },
       { "//": "🏢 G343 업체 찾기 — 구운 corp.html 이 먼저 나가고, 못 구웠을 때 여기(/corp/** 는 업체 한 곳)", "source": "/corp", "destination": "/app.html" },
       { "source": "/jobs", "destination": "/app.html" },
+      { "source": "/map", "destination": "/app.html" },
+      { "source": "/map/**", "destination": "/app.html" },
       { "source": "/daily", "destination": "/app.html" },
       { "source": "/forms", "destination": "/app.html" },
       { "source": "/change", "destination": "/app.html" },

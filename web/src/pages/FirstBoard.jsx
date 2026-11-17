@@ -30,6 +30,8 @@ import { 공고봄 } from '../lib/조회수.jsx'   /* 👁 G121 — 펼치면 �
 import { 검색어기억 } from '../lib/저절로알림.js'   /* 🔔 G222 찾은 말 → 하루 두 번 알림(다 친 뒤 2.5초) */
 import { 내금액모음 } from '../내금액.jsx'   /* 📝 G338 적어 둔 금액 모아 보기 */
 import 일순분석칸 from '../일순분석칸.jsx'   /* 📚 G625 1순위 ↔ 분석 두 칸 단추 */
+import { 지도가는길 } from '../lib/현황판.js'   /* 🗺 G756 «지도로 보기» 주소 — 맵톡 · 공고 · 구인구직과 한 곳 */
+import { 세기 } from '../lib/받은수.jsx'
 
 const PAGE = 20
 const KIND = 'con'   // 공사만 다룹니다 (용역 제외)
@@ -117,6 +119,8 @@ export default function FirstBoard() {
       <div className="sec-title fb-head" style={{ marginTop: 4 }}>
         🏆 1순위 현황판
         {ov && <span className="count">· 누적 {num(ov.rows)}건 · 발주기관 {num(ov.agencies)} · 업체 {num(ov.corps)}</span>}
+        {/* 🗺 G756 공사 현황판 — 1순위가 나온 공사(곧 착공)를 시 · 군 지도로(지역을 골랐으면 그 시도로 바로) */}
+        <Link className="sites-map" to={지도가는길(region, 2)} onClick={() => 세기('|현황판|1순위에서')}>🗺 지도로 보기</Link>
       </div>
 
       {/* ⚠️ 문구를 여기에 적지 않습니다 — 시각에 따라 달라지고, 숫자의 근거는

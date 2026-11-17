@@ -11,6 +11,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { 지도주소, 지도이름표, 지도점들 } from '../lib/이용자지도.js'
 import { 방표, 짧은이름, 곳찾기 } from '../lib/맵톡.js'
+import { Link } from 'react-router-dom'
+import { 지도가는길 } from '../lib/현황판.js'   /* 🗺 G756 공사 현황판 가는 길(제목 옆 단추) — 공고 · 1순위 · 구인구직과 한 곳 */
+import { loadRegion } from '../lib/lic.js'
+import { 세기 } from '../lib/받은수.jsx'
 
 const 퍼 = (v, 끝) => (v / 끝 * 100).toFixed(2) + '%'
 const 언제 = (ms) => {
@@ -116,7 +120,11 @@ export default function 맵톡지도({ 글들, 새글번호, 열기, 새방, 누
       <div className="mt-hwrap" ref={틀}>
         <div className="mt-brand">
           <small>K-건설맵 · 이야기 지도</small>
-          <h1>맵톡</h1>
+          {/* 🗺 G756 소장님 「공사현황판 어디서 볼 수 있지?」 「맵톡이야? 어디지?」 → 제목 옆 단추(같은 지도 바탕의 공사 현황판 · 지역을 골랐으면 그 시도로) */}
+          <div className="mt-titlerow">
+            <h1>맵톡</h1>
+            <Link className="mt-golink" to={지도가는길(loadRegion())} onClick={() => 세기('|현황판|맵톡에서')}>🗺 공사 현황판 ›</Link>
+          </div>
           <p>질문, 현장, 건의 — 어떤 것이든 쓰면 내 시·군에 핀이 꽂힙니다.</p>
           {누적 && 누적.글 > 0 && (
             <div className="mt-stats" aria-label="맵톡 지금까지">

@@ -73,7 +73,8 @@ console.log('③-3 G504 오늘(G499) 만든 것 · 화면마다 찾기에 — �
   const 뺌 = { '/calc': '바로투찰(/)과 같은 화면', '/svc': '/svc/live 와 같은 화면', '/goods': '/goods/live 와 같은 화면', '/report': '/ 로 넘김',
     '/report/make': '소장님만(성적표 만들기)', '/report/agency': '소장님만(기관 보고서)', '/admin': '관리자', '/jeoksan/lab': '소장님 실험실(열쇠말)', '/tools/tuipbi/v': '업체가 받은 링크로만 여는 입력 화면' }
   const main = fs.readFileSync(path.join(여기, '..', 'web', 'src', 'main.jsx'), 'utf8')
-  const 길 = [...main.matchAll(/<Route\s+path="([^"]+)"/g)].map((m) => m[1]).filter((p) => !p.includes(':') && p !== '*')
+  /* 🗺 G756 «/map/*» 처럼 뒤가 * 인 한 길(시도까지 한 화면)은 앞 주소(/map)로 봄 */
+  const 길 = [...main.matchAll(/<Route\s+path="([^"]+)"/g)].map((m) => m[1].replace(/\/\*$/, '')).filter((p) => p && !p.includes(':') && p !== '*')
   const 있 = new Set(목.map((x) => x.to.split('#')[0]))
   const 빠 = 길.filter((p) => !있.has(p) && !뺌[p])
   봐(길.length >= 80 && !빠.length, `화면 길 ${길.length}곳 — 모두 찾기에 있거나 «뺌»(까닭 적음)`, 빠.join(' · '))

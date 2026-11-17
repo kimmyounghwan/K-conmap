@@ -2449,6 +2449,13 @@ def main():
         build_pre()
     except Exception as e:
         log(f"⚠️ 곧 나올 공사 자료를 못 만들었습니다 — {e}")
+    # 🗺 G756 공사 현황판 (2026-11-17 소장님 「건설맵 공사 현황판 만들어 줘」) — 공고 · 1순위 → 시 · 군 지도 자료(now/)
+    #   실패해도 사이트 집계는 계속합니다(화면은 «자료를 받지 못했습니다»). 셈은 현황판.py 한 곳 · 시험 tools/시험_현황판.py
+    try:
+        import 현황판
+        현황판.build(out=os.path.join(OUT, "now"), log=log)
+    except Exception as e:
+        log(f"⚠️ 공사 현황판 자료를 못 만들었습니다 — {e}")
 
     total = sum(os.path.getsize(os.path.join(r, f))
                 for r, _, fs in os.walk(OUT) for f in fs)

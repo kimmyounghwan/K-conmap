@@ -32,6 +32,8 @@ import { loadLicCodes, saveLicCodes, loadLicNone, saveLicNone,
 import 내조건줄 from '../내조건.jsx'
 import { 공고지켜보기 } from '../lib/관심알림.js'
 import { use남김 } from '../lib/길기록.js'
+import { 지도가는길 } from '../lib/현황판.js'   /* 🗺 G756 «지도로 보기» 주소 — 맵톡 · 1순위 · 구인구직과 한 곳 */
+import { 세기 } from '../lib/받은수.jsx'
 /* 🤝 공동도급 (2026-09-27) — 판정은 lib/공동.js 한 곳, 그리기는 공동칸.jsx */
 import { 공동판정, load우리지역, save우리지역 } from '../lib/공동.js'
 import { 공동딱지, 공동칸, 공동거르개 } from '../공동칸.jsx'
@@ -365,6 +367,8 @@ export default function LiveBoard() {
     <>
       <div className="sec-title" style={{ marginTop: 14 }}>
         📋 공사 입찰공고 <span className="count">· 나라장터 · 카드를 누르면 기초금액</span>
+        {/* 🗺 G756 공사 현황판 — 같은 «입찰 중» 공고를 시 · 군 지도로(지역을 골랐으면 그 시도로 바로) */}
+        <Link className="sites-map" to={지도가는길(region, 0)} onClick={() => 세기('|현황판|공고에서')}>🗺 지도로 보기</Link>
       </div>
 
       <FreshBar kind="live" />

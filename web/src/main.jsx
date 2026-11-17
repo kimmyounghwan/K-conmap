@@ -58,6 +58,7 @@ const lazyPage = (load) => lazy(() => load()
 /* 구인구직만 Firebase 를 씁니다. 이 탭을 열기 전에는 firebase 덩어리(약 73KB)를
    아예 내려받지 않도록 따로 떼어둡니다 — 전송량이 곧 요금이라서. */
 const Jobs = lazyPage(() => import('./pages/Jobs.jsx'))
+const NowMap = lazyPage(() => import('./pages/NowMap.jsx'))   /* 🗺 G756 공사 현황판 */
 /* 📊 G340 입찰 분석실 — 바로투찰(첫 덩어리)은 그대로 · 분석 칸 · 목록만 따로 받습니다 */
 const Bunseok = lazyPage(() => import('./pages/Bunseok.jsx'))
 const Gongdong = lazyPage(() => import('./pages/Gongdong.jsx'))   /* 🤝 G341 공동도급 마당 */
@@ -240,6 +241,8 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/pre" element={<Suspense fallback={<Loading />}><Pre /></Suspense>} />
           <Route path="/analysis" element={<Analysis />} />
           <Route path="/jobs" element={<Suspense fallback={<Loading />}><Jobs /></Suspense>} />
+          {/* 🗺 G756 공사 현황판 — /map · /map/{시도} 한 길(/map/*) · firebase.json rewrites · prerender · sitemap 과 넷이 같이 */}
+          <Route path="/map/*" element={<Suspense fallback={<Loading />}><NowMap /></Suspense>} />
           <Route path="/agency/:name" element={<AgencyPage />} />
           {/* ★ 업체 성적표 — 분석 탭 안에 갇혀 있던 화면에 주소를 준 것 (2026-09-04) */}
           <Route path="/corp/:name" element={<CorpPage />} />

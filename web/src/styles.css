@@ -11398,3 +11398,107 @@ a.kn-strip:hover { border-left-color: var(--kn-a); }
 .nc-all { display: block; padding: 11px 12px; background: var(--accent); color: #fff; border-radius: 12px; text-align: center; font-weight: 800; text-decoration: none; }
 .nc-all:hover { filter: brightness(1.05); }
 .nc-talk { margin: 0; color: var(--muted); font-size: 13px; }
+
+/* ══ 🗺 G756 공사 현황판(/map) — 맵톡 첫 화면과 같은 바탕(mt-hero · mt-map · mt-land · mt-live) 위에 «공사 수 핀» ══ */
+.nm-hwrap { min-height: 640px; }
+.nm-brand p { word-break: keep-all; }   /* «누르 / 면» 처럼 낱말 가운데서 안 꺾이게 */
+.nm-st { display: flex; flex-wrap: wrap; gap: 6px 8px; margin-top: 16px; }
+.nm-stb { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 999px; border: 1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.08);
+  color: #c7d0de; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.nm-stb i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 2px rgba(255,255,255,.35); }
+.nm-stb b { font-size: 15px; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
+.nm-stb.on { background: color-mix(in srgb, var(--c) 34%, rgba(12,24,48,.6)); border-color: color-mix(in srgb, var(--c) 70%, #fff); color: #fff; }
+.nm-stb:not(.on) { opacity: .62; }
+.nm-stb:not(.on) b { color: #c7d0de; }
+.nm-at { margin-top: 10px; font-size: 12px; color: #9fb3d9; }
+.nm-land path { cursor: pointer; transition: fill .2s, opacity .2s; }
+.nm-land path:hover { fill: #fff; }
+.nm-land path.dim { opacity: .35; }
+.nm-land path.on { fill: #f3f6ff; }
+.nm-pin { position: absolute; z-index: 2; box-sizing: border-box; border-radius: 50%; border: 2px solid #fff; background: var(--c); color: #fff; font: inherit; font-size: 12px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; box-shadow: 0 3px 10px rgba(0,0,0,.35); font-variant-numeric: tabular-nums;
+  transition: transform .15s; opacity: .94; }
+.nm-pin:hover, .nm-pin:focus-visible { transform: scale(1.15); z-index: 3; opacity: 1; }
+.nm-pin.on { outline: 3px solid #fde047; outline-offset: 2px; z-index: 4; opacity: 1; }
+/* 전국 — 시 · 도 핀(이름 · 수). 크기는 지도 폭에 맞춰(cqw · 자리 셈과 같은 비율 — 안 겹침) · cqw 를 모르는 옛 브라우저는 46px */
+.nm-map { container-type: inline-size; }
+.nm-spin { flex-direction: column; gap: 0; line-height: 1.05; width: 46px; height: 46px; margin: -23px 0 0 -23px;
+  width: calc(var(--d) * 1cqw); height: calc(var(--d) * 1cqw); margin: calc(var(--d) * -.5cqw) 0 0 calc(var(--d) * -.5cqw); }
+.nm-spin b { font-size: 13px; font-weight: 800; }
+.nm-spin small { font-size: 10.5px; font-weight: 700; opacity: .92; }
+.nm-where { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 14px; }
+.nm-where b { color: #fff; font-size: 15px; font-weight: 800; }
+.nm-back, .nm-golist { border: 0; border-radius: 999px; font: inherit; font-size: 13px; font-weight: 800; padding: 7px 13px; cursor: pointer; }
+.nm-back { background: rgba(255,255,255,.95); color: #0c1830; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.nm-golist { background: rgba(255,255,255,.12); color: #fff; border: 1px solid rgba(255,255,255,.3); }
+/* 넓은 화면 — 글 칸(왼쪽 440) · 지도(오른쪽)가 겹치지 않게(맵톡은 글 칸이 지도 왼쪽 위를 덮어 그 자리 핀을 못 누름) · 위 알림은 글 칸 아래 */
+@media (min-width: 1021px) {
+  .nm-brand { max-width: 440px; }
+  .nm-map { width: min(603px, calc(100% - 520px)); height: auto; }
+  .nm-live { left: 36px; right: auto; top: auto; bottom: 24px; max-width: 440px; }
+}
+.nm-bar { margin: 14px 0 6px; display: flex; flex-direction: column; gap: 8px; scroll-margin-top: 70px; }
+.nm-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.nm-sel select { font: inherit; font-size: 14px; font-weight: 700; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--text); }
+.nm-chip { flex: 0 0 auto; padding: 7px 13px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font: inherit; font-size: 13px; font-weight: 700;
+  color: var(--text-2, var(--text)); cursor: pointer; white-space: nowrap; }
+.nm-chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.nm-q { flex: 1 1 200px; min-width: 0; font: inherit; font-size: 14px; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--text); }
+.nm-list { margin-top: 6px; }
+.nm-h { font-size: 17px; font-weight: 800; margin: 18px 0 10px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.nm-h small { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.nm-h b { color: var(--accent); }
+.nm-x { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 999px; padding: 4px 11px; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.nm-sido { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.nm-sido button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface);
+  color: var(--text); font: inherit; cursor: pointer; text-align: left; }
+.nm-sido button b { font-size: 15px; }
+.nm-sido button span { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.nm-sido button.mine { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.nm-sido button:hover { border-color: var(--accent); }
+.nm-cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.nm-card { border: 1px solid var(--line); border-left: 5px solid var(--c); border-radius: 14px; background: var(--surface); overflow: hidden; scroll-margin-top: 80px; }
+.nm-ch { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px; width: 100%; padding: 11px 14px; cursor: pointer; }
+.nm-ch strong { font-size: 15px; line-height: 1.45; color: var(--text); word-break: keep-all; overflow-wrap: anywhere; }
+.nm-badge { align-self: flex-start; font-size: 11.5px; font-weight: 800; color: #fff; background: var(--c); border-radius: 999px; padding: 2px 9px; }
+.nm-sub { font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+.nm-win { font-size: 13px; font-weight: 700; color: var(--text); }
+.nm-ch:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.nm-body { padding: 2px 14px 14px; border-top: 1px dashed var(--line); }
+.nm-body dl { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 6px 10px; margin: 10px 0; font-size: 13.5px; }
+.nm-body dt { color: var(--muted); font-weight: 700; }
+.nm-body dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+.nm-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.nm-acts .btn { width: auto; }
+.nm-acts .btn.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.nm-toast { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 50; background: #111827; color: #fff; border-radius: 999px; padding: 10px 18px; font-size: 13.5px;
+  font-weight: 700; box-shadow: 0 6px 18px rgba(0,0,0,.3); max-width: calc(100% - 32px); text-align: center; }
+.sites-map { margin-left: auto; font-size: 13px; font-weight: 800; color: var(--accent); text-decoration: none; white-space: nowrap; }
+/* 맵톡 제목 옆 «🗺 공사 현황판 ›» (G756 — 소장님 「맵톡이야? 어디지?」) · 제목 줄 높이 안에 들어가 글쓰기 칸(PC top 268)을 안 밈 */
+.mt-titlerow { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; }
+.mt-golink { display: inline-flex; align-items: center; padding: 7px 14px; border-radius: 999px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.32);
+  color: #fff; font-size: 13.5px; font-weight: 800; text-decoration: none; white-space: nowrap; }
+.mt-golink:hover, .mt-golink:focus-visible { background: rgba(255,255,255,.22); }
+@media (max-width: 1020px) {
+  .nm-hwrap { min-height: 0; }
+  .nm-live { order: 1; }
+}
+@media (max-width: 640px) {
+  .nm-st { margin-top: 10px; gap: 6px; }
+  .nm-stb { padding: 6px 10px; font-size: 12px; }
+  .nm-stb b { font-size: 13.5px; }
+  .nm-at { display: none; }
+  .nm-pin { font-size: 11px; }
+  .nm-spin b { font-size: 10.5px; }
+  .nm-spin small { display: none; }
+  .nm-where { margin-top: 10px; gap: 6px 8px; }
+  .nm-where b { font-size: 13.5px; }
+  .nm-back, .nm-golist { font-size: 12.5px; padding: 6px 11px; }
+  .mt-titlerow { gap: 6px 10px; }
+  .mt-golink { padding: 5px 11px; font-size: 12px; }
+  .nm-row { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+  .nm-row:has(.nm-q) { flex-wrap: wrap; }
+  .nm-q { flex-basis: 100%; }
+  .nm-body dl { grid-template-columns: 72px minmax(0, 1fr); font-size: 13px; }
+  .nm-sido { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

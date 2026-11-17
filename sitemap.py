@@ -60,6 +60,7 @@ STATIC = [("/", "1.0", "hourly"), ("/first", "0.9", "hourly"), ("/live", "0.9", 
           ("/news", "0.7", "daily"),   # 📰 G696 (2026-11-16) 오늘의 건설 뉴스 — 라우트 · prerender news_page · firebase.json 과 같이(그날 쪽은 아래 «오늘의 건설 뉴스»)
           ("/analysis", "0.8", "weekly"),
           ("/jobs", "0.7", "daily"), ("/about", "0.3", "monthly"),
+          ("/map", "0.8", "daily"),   # 🗺 G756 공사 현황판 — 라우트 «/map/*» · prerender TABS · firebase.json 과 같이(시도 17 장은 아래 MAP_SIDO)
           ("/privacy", "0.2", "yearly"), ("/terms", "0.2", "yearly"), ("/contact", "0.3", "yearly"),
           ("/daily", "0.8", "daily"), ("/forms", "0.8", "monthly"),
           ("/cad", "0.8", "monthly"),
@@ -171,6 +172,16 @@ def main():
     urls = [f"  <url><loc>{SITE}{p}</loc><lastmod>{today}</lastmod>"
             f"<changefreq>{cf}</changefreq><priority>{pr}</priority></url>"
             for p, pr, cf in STATIC]
+    # 🗺 G756 공사 현황판 시도 17 장 — prerender 가 now/sum.json 에 그 시도가 있을 때만 굽는 것과 같은 조건
+    try:
+        with io.open(os.path.join(DATA, "now", "sum.json"), encoding="utf-8") as f:
+            _now_sido = json.load(f).get("시도") or {}
+    except Exception:
+        _now_sido = {}
+    for _d in ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"]:
+        if _now_sido.get(_d):
+            urls.append(f"  <url><loc>{SITE}/map/{quote(_d, safe='')}</loc><lastmod>{today}</lastmod>"
+                        f"<changefreq>daily</changefreq><priority>0.6</priority></url>")
 
     top_path = os.path.join(DATA, "agency", "top.json")
     names_path = os.path.join(DATA, "agency", "names.json")   # 🔎 G640 이름 목록 전부(5,106곳 · 11-10) — 없으면 top.json(앞 300)

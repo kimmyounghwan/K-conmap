@@ -51,7 +51,8 @@ sm = 읽("sitemap.py")
 T = json.loads(읽("web/src/data/tools.json"))
 도구 = {"/tools/" + t["slug"] for t in (T.get("tools") or [])}
 
-길 = sorted({p for p in re.findall(r'<Route\s+path="([^"]+)"', main) if ":" not in p and p != "*"})
+# «/map/*» 처럼 뒤가 * 인 길은 앞부분(/map)이 그 화면의 고정 길 — 🗺 G756 공사 현황판(/map · /map/{시도} 한 길)
+길 = sorted({re.sub(r"/\*$", "", p) for p in re.findall(r'<Route\s+path="([^"]+)"', main) if ":" not in p and p != "*"})
 print(f"① main.jsx 고정 길 {len(길)}곳")
 ok("고정 길이 80곳 넘게 읽힘", len(길) >= 80, len(길))
 

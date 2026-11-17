@@ -4,6 +4,8 @@ import { useBoard } from './lib/useBoard.js'
 import { Skeleton, Empty } from './components.jsx'
 import { won, wonShort, num, dateFull, normCorp, REGIONS, inRegion } from './lib/fmt.js'
 import { loadRegion, saveRegion, licList, licHit, licShort } from './lib/lic.js'
+import { 지도가는길 } from './lib/현황판.js'   /* 🗺 G756 «지도로 보기» 주소 — 맵톡 · 공고 · 1순위와 한 곳 */
+import { 세기 } from './lib/받은수.jsx'
 
 /* ══════════════════════════════════════════════════════════════
    🏗 곧 착공하는 현장 — 구인구직 탭 (2026-09-06)
@@ -88,6 +90,8 @@ export default function Sites() {
       <div className="sec-title">
         🏗 곧 착공하는 현장
         <span className="count">· {done ? `${num(count)}건` : '세는 중…'} · 낙찰 최신순</span>
+        {/* 🗺 G756 공사 현황판 — 같은 «곧 착공» 을 지도로(지역을 골랐으면 그 시도로 바로) */}
+        <Link className="sites-map" to={지도가는길(region, 2)} onClick={() => 세기('|현황판|구인구직에서')}>🗺 지도로 보기</Link>
       </div>
 
       {loading ? <Skeleton n={5} /> : view.length === 0 && done ? (

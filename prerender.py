@@ -267,6 +267,68 @@ def link_card(title, items, note=None):
     return "".join(out)
 
 
+# ── 🗺 G756 (2026-11-17) 공사 현황판 /map · /map/{시도} — 검색엔진이 읽을 본문(화면은 앱이 다시 그림 · 없는 것은 지어내지 않음) ──
+MAP_SIDO = ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"]
+MAP_STAGE = ["입찰 중", "개찰 대기", "곧 착공"]
+
+
+def map_rows(rows, n=30):
+    """현황판 줄 → link_card 줄 [(주소, 공사명, 오른쪽)]"""
+    out = []
+    for x in (rows or [])[:n]:
+        try:
+            no, s, nm, inst, amt = str(x[0]), int(x[2]), str(x[3]), str(x[4]), x[5]
+        except Exception:
+            continue
+        if not no or not nm:
+            continue
+        right = " · ".join(t for t in (MAP_STAGE[s] if 0 <= s < 3 else "", inst, won_short(amt) if amt else "") if t)
+        out.append((f"/notice/{quote(no, safe='')}", nm, right))
+    return out
+
+
+def map_tab_body(now):
+    """/map 본문 — 단계 수 · 시도 링크 · 전국 큰 공사"""
+    if not now or not now.get("n"):
+        return lead_card("🗺 공사 현황판", ["지금 전국에서 나오는 공사를 시 · 군 지도로 봅니다.",
+                                       "시 · 군을 누르면 그 지역 공사 목록이, 공사를 누르면 공사명 · 발주처 · 금액 · 마감 · 1순위 요약이 나옵니다."])
+    n = now["n"]
+    body = lead_card("🗺 공사 현황판", [
+        f"{esc(now.get('at', ''))} 기준 — 입찰 중 <b>{n[0]:,}건</b> · 개찰 대기 <b>{n[1]:,}건</b> · 곧 착공 <b>{n[2]:,}건</b>.",
+        "시 · 군을 누르면 그 지역 공사 목록이, 공사를 누르면 공사명 · 발주처 · 금액 · 마감 · 1순위 요약이 나옵니다. "
+        "📍 내 지역을 정해 두면 버튼 한 번으로 그 지역 공사를 봅니다.",
+    ])
+    sido = now.get("시도") or {}
+    body += link_card("시 · 도별 공사 현황", [(f"/map/{d}", f"{d} 공사 현황", f"{sum((sido.get(d) or [0, 0, 0])[:3]):,}건")
+                                         for d in MAP_SIDO if sido.get(d)])
+    body += link_card("전국 큰 공사 — 입찰 중 · 개찰 대기", map_rows(now.get("큰"), 20))
+    return body
+
+
+def map_sido_page(shell, d, now, sd):
+    """/map/{시도} 한 장 — 그 시도 단계 수 · 시 · 군 공사 목록(입찰 중 먼저)"""
+    a = (now.get("시도") or {}).get(d) or [0, 0, 0, 0]
+    rows = (sd or {}).get("줄") or []
+    title = f"{d} 공사 현황 — 입찰 공고 · 개찰 결과 · 곧 착공 현장 지도 | K-건설맵"
+    desc = (f"{d} 지역 공사를 시 · 군 지도로 봅니다 — 입찰 중 {a[0]:,}건 · 개찰 대기 {a[1]:,}건 · 곧 착공 {a[2]:,}건"
+            f"({now.get('at', '')} 기준). 공사를 누르면 공사명 · 발주처 · 금액 · 마감 · 1순위 요약이 나옵니다.")
+    body = lead_card(f"🗺 {esc(d)} 공사 현황", [
+        f"{esc(now.get('at', ''))} 기준 — 입찰 중 <b>{a[0]:,}건</b> · 개찰 대기 <b>{a[1]:,}건</b> · 곧 착공 <b>{a[2]:,}건</b>.",
+        "지도에서 시 · 군을 누르면 그 지역 공사만 봅니다. 공고 화면에서 기초금액 · 일정 · 투찰 조건을 확인하십시오.",
+    ])
+    열린 = map_rows([x for x in rows if len(x) > 2 and x[2] == 0], 40)
+    대기 = map_rows([x for x in rows if len(x) > 2 and x[2] == 1], 20)
+    착공 = map_rows([x for x in rows if len(x) > 2 and x[2] == 2], 30)
+    body += link_card(f"{d} 입찰 중 공사 — 마감 가까운 차례", 열린)
+    body += link_card(f"{d} 개찰 대기 — 마감이 지나 결과를 기다리는 공고", 대기)
+    body += link_card(f"{d} 곧 착공하는 현장 — 최근 1순위", 착공)
+    body += link_card("다른 시 · 도", [(f"/map/{x}", f"{x} 공사 현황", "") for x in MAP_SIDO
+                                     if x != d and (now.get("시도") or {}).get(x)])   # 구운 장이 있는 시도만(없는 주소로 보내지 않음)
+    ld = ld_graph(ld_crumbs(("K-건설맵", None), ("공사 현황판", "/map"), (f"{d}", f"/map/{d}")),
+                  ld_list(f"{d} 공사 현황", 열린 + 대기 + 착공))   # 화면에 그린 목록만
+    return page(shell, f"/map/{d}", title, desc, body, None, ld)
+
+
 def lead_card(h1, paras):
     """제목 한 줄 + 문단 몇 개. 없는 것은 지어내지 않습니다."""
     out = [f'<div class="card"><h1 style="font-size:19px;font-weight:800;'
@@ -2086,7 +2148,7 @@ STATIC_NEW = ["/change", "/change/naeyeok", "/change/excel", "/change/twoline", 
               "/safety", "/shareone", "/pdf", "/naeyeok/ratio", "/tools/photo", "/tools/photo-live", "/tools/earthcheck", "/jeoksan/bim", "/jeoksan/model",
               # 🔎 G341 (2026-10-20) 구운 장이 없던 화면들 — TABS 머리말
               "/bunseok", "/gongdong", "/ext", "/pre", "/naeyeok/hado", "/change/gisung",
-              "/corp", "/tools/jebiyul", "/first/hado-gyeonjeok", "/ad", "/svc/calc", "/goods/calc"] + [   # 🏢 G343 업체 찾기 · 📋 G350 간접공사비 요율 찾기 · 🤝 G518 하도급 견적틀
+              "/corp", "/tools/jebiyul", "/first/hado-gyeonjeok", "/ad", "/svc/calc", "/goods/calc", "/map"] + [   # 🏢 G343 업체 찾기 · 📋 G350 간접공사비 요율 찾기 · 🤝 G518 하도급 견적틀
     "/cad/" + _c["slug"] for _c in (load_cad().get("cmds") or [])] + [
     "/change/naeyeok/" + quote(_k, safe="") for _k, _d in NY_KINDS]
 
@@ -4633,6 +4695,11 @@ TABS = [
      "최근 낙찰된 공사(=곧 착공하는 현장)를 지역·공종으로 골라 보고, 조달청이 공개하는 낙찰업체 연락처를 함께 봅니다. 구인·구직 글은 로그인 없이 올리고, 지역·직종으로 사람 구할 현장과 같이 걸러 봅니다.",
      ("건설 구인구직", "현장 인력·장비", "무료",
       "로그인 없이 올리고 봅니다")),
+    # 🗺 G756 (2026-11-17) 공사 현황판 — main.jsx «/map/*» · firebase.json rewrites · sitemap STATIC · STATIC_NEW 와 같이
+    ("/map", "공사 현황판 — 전국 시·군 공사 지도 · 입찰 중 · 개찰 대기 · 곧 착공 | K-건설맵",
+     "지금 전국에서 나오는 공사를 시·군 지도로 봅니다. 시·군을 누르면 그 지역 공사 목록, 공사를 누르면 공사명 · 발주처 · 금액 · 마감 · 1순위 요약이 나옵니다.",
+     ("공사 현황판", "전국 시·군 공사 지도", "입찰 · 개찰 · 착공",
+      "시·군을 누르면 목록 · 공사를 누르면 요약")),
     # 🔎 G341 (2026-10-20) 소장님 「지금 만드는거 다 페이지 넣었지? … 검색되게」
     #   라우트만 있고 구운 장이 없던 화면들 — /bunseok · /gongdong 는 firebase rewrites 에도 없어 «404 + noindex» 장으로 나갔습니다
     #   (화면은 404 장 안의 앱이 그려서 사람 눈엔 멀쩡 · 검색엔진엔 «없는 페이지»). /ext · /pre · /naeyeok/hado · /change/gisung 은
@@ -5286,7 +5353,9 @@ def main():
     write("404.html", not_found_page(shell))
     made += 1
 
+    _now = load("now/sum.json") or {}   # 🗺 G756 공사 현황판(현황판.py — build_json 이 굽음)
     tab_body = {
+        "/map": map_tab_body(_now),
         "/first": (lead_card("오늘의 1순위 개찰 결과",
                              ["조달청이 공개한 개찰 결과를 모아 공고마다 한 장으로 정리합니다. "
                               "낙찰업체·투찰률·기초금액·예정가격·참가업체수를 함께 봅니다."])
@@ -5633,7 +5702,7 @@ def main():
     # 💬 사랑방 — 구운 본문에 글 목록(📌 도구 사용법 → 최근 글)을 붙입니다. 글마다 /qna/{번호} 로 갑니다.
     if qna_ps:
         tab_body["/qna"] = tab_body.get("/qna", "") + qna_list_html(qna_ps)
-    _tabname = {"/first": "1순위 개찰", "/live": "입찰 공고",
+    _tabname = {"/first": "1순위 개찰", "/live": "입찰 공고", "/map": "공사 현황판",
                 "/svc": "용역 공고", "/svc/first": "용역 1순위",
                 "/goods": "물품 공고", "/goods/first": "물품 1순위",
                 "/svc/calc": "용역 바로투찰", "/goods/calc": "물품 바로투찰",   # 🔎 G640
@@ -5656,7 +5725,7 @@ def main():
                 "/naeyeok/hado": "하도급 내역서 만들기", "/change/gisung": "기성 내역서",
                 "/corp": "업체 찾기"}
     _tabrows = {"/first": done_rows[:12], "/live": open_rows[:12],
-                "/jobs": done_rows[:12]}
+                "/jobs": done_rows[:12], "/map": map_rows(_now.get("큰"), 20)}
     if qna_ps:
         _tabrows["/qna"] = [(f"/qna/{p['id']}", p["t"][:80], "") for p in qna_ps[:30]]
     for path, title, desc, _card in TABS:
@@ -5666,6 +5735,15 @@ def main():
               page(shell, path, title, desc, tab_body.get(path, ""),
                    tab_img.get(path), _ld))
         made += 1
+    # 🗺 G756 /map/{시도} 17 장(자료가 있는 시도만)
+    n_map = 0
+    for d in MAP_SIDO:
+        if (_now.get("시도") or {}).get(d):
+            write(f"map/{d}.html", map_sido_page(shell, d, _now, load(f"now/{d}.json")))
+            n_map += 1
+            made += 1
+    if n_map:
+        print(f"  · 공사 현황판 시도 페이지 {n_map}장 (/map/{{시도}})")
     _nl = home.count('<a class="t"')
     print(f"  · 홈 본문 링크 {_nl:,}개 (기관 {len(ag_rows[:20])} · 업체 {len(co_rows[:20])} "
           f"· 개찰 {len(done_rows[:12])} · 공고 {len(open_rows[:12])})")
