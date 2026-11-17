@@ -19,6 +19,10 @@ import datetime
 import sgw as g
 from fb import F, I
 from sgw import FR, H, L, PC, S
+from 기간셈 import 끝날, 끝날식
+
+KK_HEO = 끝날식("{허가일}", 'IF({공장}="예",36,24)')     # 허가: 허가를 받은 날부터 2년(공장 3년) — 민법 제157조 · 제160조 ② · ③ (🩹 11-17 G738)
+KK_SIN = 끝날식("{허가일}", "12")                          # 신고: 신고일부터 1년
 
 SLUG = "geonchuk-chakgong-singo"
 TITLE = "건축물 착공신고서"
@@ -44,6 +48,8 @@ MONEY = '#,##0" 원";;""'
 
 GUBUN = ["건축허가(건축법 제11조)", "건축신고(건축법 제14조)", "가설건축물 건축허가(건축법 제20조제1항)"]
 HEO, SIN, GAS = GUBUN
+# 착수 기한 칸 예시 값(11-17 G738 — 장면 시험이 바꿔 넣게 한곳에 모음 · 값은 그전과 같음)
+EX = {"구분": HEO, "공장": "아니오", "허가일": D(2026, 9, 15), "착공일": D(2026, 11, 20)}
 YONG = ["공동주택", "다중주택 · 다가구주택 · 공관 · 단독주택 꼴 가정어린이집 등(영 제36조①)",
         "학교 · 어린이집 · 유치원 · 학원 · 병원 · 숙박 · 업무시설 등(영 제36조②)", "그 밖(단독주택 · 근린생활시설 · 창고 등)"]
 YONG_ETC = YONG[3]
@@ -141,13 +147,13 @@ def panjeong(bk, ex):
     g.note(p, "※ 건축허가 · 신고를 받은 건축물의 공사를 시작하려면 건축주가 허가권자(시 · 군 · 구청)에 공사계획을 신고합니다(건축법 제21조제1항). "
               "발주기관에 내는 «착공계»와는 다른 서류입니다. 여기 적은 값은 신고서 · 뒤쪽 · 확인 장에 저절로 들어갑니다.")
     g.sec(p, "㉮  허가 · 신고와 착수 기한 (건축법 제11조제7항 · 제14조제5항)", need=26 * 4 + 10)
-    p.row([(4, "받은 것", L), (8, I("구분", ex=HEO if ex else None, dv=",".join(GUBUN), align="left", size=9))], h=26)
-    p.row([(4, "공장 신설 · 증설 승인을 받은 공장인가요", {"kind": "label", "size": 8}), (2, I("공장", ex="아니오" if ex else None, dv=YA, align="center")),
+    p.row([(4, "받은 것", L), (8, I("구분", ex=EX.get("구분") if ex else None, dv=",".join(GUBUN), align="left", size=9))], h=26)
+    p.row([(4, "공장 신설 · 증설 승인을 받은 공장인가요", {"kind": "label", "size": 8}), (2, I("공장", ex=EX.get("공장") if ex else None, dv=YA, align="center")),
            (6, "산업집적법 제13조 승인 공장은 착수 기한 3년", {"kind": "text", "size": 8})], h=26)
-    p.row([(4, "허가(신고)일 · 착공예정일", L), (3, I("허가일", ex=D(2026, 9, 15) if ex else None, fmt=DT, align="center", size=9)),
-           (2, "착공예정일", {"kind": "label", "size": 8.5}), (3, I("착공일", ex=D(2026, 11, 20) if ex else None, fmt=DT, align="center", size=9))], h=26)
+    p.row([(4, "허가(신고)일 · 착공예정일", L), (3, I("허가일", ex=EX.get("허가일") if ex else None, fmt=DT, align="center", size=9)),
+           (2, "착공예정일", {"kind": "label", "size": 8.5}), (3, I("착공일", ex=EX.get("착공일") if ex else None, fmt=DT, align="center", size=9))], h=26)
     p.row([(4, "착수 기한", L),
-           (3, F("착수기한", f'=IF(OR({{구분}}="",N({{허가일}})=0,{{구분}}="{GAS}"),"",IF({{구분}}="{HEO}",EDATE({{허가일}},IF({{공장}}="예",36,24)),EDATE({{허가일}},12)))',
+           (3, F("착수기한", f'=IF(OR({{구분}}="",N({{허가일}})=0,{{구분}}="{GAS}"),"",IF({{구분}}="{HEO}",{KK_HEO},{KK_SIN}))',
                  fmt=DT, align="center", bold=True)),
            (5, F("기한판정", f'=IF({{구분}}="{GAS}","가설건축물 허가 — 착수 기한은 허가 조건(존치기간 등)을 허가권자와 확인",IF(OR({{착수기한}}="",N({{착공일}})=0),"",IF({{착공일}}<={{착수기한}},'
                              f'"✓ 기한 안 착수","⚠ 착공예정일이 기한 뒤 — 그대로면 "&IF({{구분}}="{HEO}","허가 취소(법 제11조제7항)","신고 효력 없어짐(법 제14조제5항)")&" · 정당한 사유면 1년 범위 연장(착공연기신청서)")))',
@@ -394,14 +400,6 @@ def _ymd(d):
     return f"{d.year}. {d.month}. {d.day}."
 
 
-def _edate(d, months):
-    import calendar
-    y, m = divmod(d.month - 1 + months, 12)
-    y += d.year
-    m += 1
-    return D(y, m, min(d.day, calendar.monthrange(y, m)[1]))
-
-
 def expect(pages):
     pj, sg, dw, ds, hw = (pages[k] for k in ("판정", "신고서", "뒤쪽", "설계도서", "확인"))
     a = {}
@@ -409,9 +407,9 @@ def expect(pages):
     if not gb or not hd or gb == GAS:
         dl = ""
     elif gb == HEO:
-        dl = _edate(hd, 36 if gj == "예" else 24)
+        dl = 끝날(hd, 36 if gj == "예" else 24)      # 🩹 11-17 G738: EDATE(허가일, 24) → 기간셈(민법 제160조 ② · ③)
     else:
-        dl = _edate(hd, 12)
+        dl = 끝날(hd, 12)
     a["착수기한"] = dl
     if gb == GAS:
         a["기한판정"] = "가설건축물 허가 — 착수 기한은 허가 조건(존치기간 등)을 허가권자와 확인"

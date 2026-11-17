@@ -21,6 +21,7 @@ import datetime
 import sgw as g
 from fb import F, I, text_lines
 from sgw import L
+from 기간셈 import 끝날, 끝날식
 
 SLUG = "geonchuk-heoga-sincheong"
 TITLE = "건축ㆍ대수선ㆍ용도변경 (변경)허가 신청서"
@@ -286,7 +287,7 @@ def sem(bk, ex):
            (5, "「산업집적활성화 및 공장설립에 관한 법률」 제13조 승인을 받은 공장이면 «예»(3년)", s7)], h=24)
     HD = "{허가일}"
     YRS = '(IF({공장}="예",3,2))'
-    DUE = f"EDATE({HD},12*{YRS})"
+    DUE = "(" + 끝날식(HD, f"12*{YRS}") + ")"      # 🩹 11-17 G738: EDATE(허가일, 24) 는 평년 2월 28일 허가 · 끝 해 윤년이면 하루 이름 — 기간셈(민법 제160조 ② · ③)
     f = (f'=IF(N({HD})=0,"","{CJ_A}"&{_ymd(HD)}&"{CJ_B}"&{_ymd(DUE)}&"("&{_yo(DUE)}&"{CJ_C}"&{YRS}&"{CJ_D}")')
     p.row([(3, "착수 기한", L), (9, F("착수기한", f, align="left", size=8.5))], h=46)
     p.row([(3, "허가권자", L), (5, I("허가권자", ex=_ex(ex, "허가권자"), dv=",".join(HG), align="left", size=8)),
@@ -947,14 +948,6 @@ def _t0(x):
     return f"{int(decimal.Decimal(repr(x)).quantize(decimal.Decimal('1'), rounding=decimal.ROUND_HALF_UP)):,}"
 
 
-def _edate(d, m):
-    import calendar
-    y, mo = divmod(d.month - 1 + m, 12)
-    y += d.year
-    mo += 1
-    return D(y, mo, min(d.day, calendar.monthrange(y, mo)[1]))
-
-
 def _ymdp(d):
     return f"{d.year}. {d.month}. {d.day}."
 
@@ -979,7 +972,7 @@ def expect(pages):
         a["착수기한"] = ""
     else:
         yrs = 3 if sm.get("공장") == "예" else 2
-        due = _edate(hd, 12 * yrs)
+        due = 끝날(hd, 12 * yrs)
         a["착수기한"] = f"{CJ_A}{_ymdp(hd)}{CJ_B}{_ymdp(due)}({YO[(due.weekday() + 1) % 7]}{CJ_C}{yrs}{CJ_D}"
     hg = sm.get("허가권자")
     a["처리기간"] = "" if not hg else CG_A + (HG_T[0] if hg == HG[0] else HG_T[1] if hg == HG[1] else HG_T[2]) + CG_B
