@@ -44,6 +44,8 @@ web/public/sitemap-main.xml
 web/public/sitemap-bid.xml
 web/public/sitemap-corp.xml
 web/public/sitemap-qna.xml
+# 🔎 G755 사이트맵 조각(sitemap-corp-2.xml …) · 마이컨맵(sitemap-my.xml) — 모두 구운 결과
+web/public/sitemap-*.xml
 # 📰 G629 RSS(새 글 목록) — sitemap.py 가 굽는 것
 web/public/rss.xml
 

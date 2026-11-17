@@ -10,6 +10,7 @@ sitemap.py — 검색엔진에 넘길 주소 목록을 만든다.
 """
 import io
 import os
+import re
 import sys
 import json
 from datetime import datetime
@@ -41,12 +42,12 @@ if _ROBOTS and SITE != _ROBOTS:
           f"— robots.txt 쪽으로 맞춥니다")
     SITE = _ROBOTS
 LIMIT = int(os.environ.get("SITEMAP_AGENCIES", "20000"))   # 🔎 G640 (11-10 소장님 「최대한 늘려」) 800 → 20,000 — 이름 목록 전부(agency/names.json) · prerender AG_BAKE_MAX 와 같게
-CORP = int(os.environ.get("SITEMAP_CORPS", "20000"))     # 업체도 천천히 — 처음엔 300곳 → 2026-09-30 1,000곳 → 🏢 G343 20,000(낙찰 3건 이상 전부 · PRERENDER_CORP 와 같게)
+CORP = int(os.environ.get("SITEMAP_CORPS", "100000"))     # 업체도 천천히 — 처음엔 300곳 → 2026-09-30 1,000곳 → 🏢 G343 20,000 → 🔎 G755 (11-17 「전부 늘려」) 100,000(낙찰 1건 이상 전부 · PRERENDER_CORP 와 같게)
 #   (소장님 「업체 실적페이지 … 필요한 것 지금 작업해줘」 — 페이지마다 투찰률 칸 · 순위 기록 · 상대 · 성적표 신청을 더한 뒤 올림.
 #    서치콘솔에서 색인 비율을 보고 3,000(=PRERENDER_CORP)까지 한 단계씩. PRERENDER_CORP 보다 크면 안 됨)
-NOTICE = int(os.environ.get("SITEMAP_NOTICES", "1000"))  # 공고·개찰. 매일 570건씩 느니 천천히 — 🔎 G621 (11-09 소장님 «우선 검색이 되게») 500 → 1,000 (PRERENDER_NOTICE 8,000 보다 작게)
-MIN_ROWS = int(os.environ.get("AGENCY_INDEX_MIN", "3"))  # 🔎 G640 15 → 3 — 개찰 3건 미만 기관은 넣지 않음(prerender 가 그 장에 noindex · 같은 값)
-MIN_CORP = 3                                             # 낙찰 3건 미만 업체는 넣지 않음 (🏢 G343 8 → 3 · build_json CORP_TOP_MIN 과 같게)
+NOTICE = int(os.environ.get("SITEMAP_NOTICES", "100000"))  # 공고·개찰 — 🔎 G621 500 → 1,000 → 🔎 G755 (11-17 소장님 「전부 늘려」) 100,000 = 구운 것 전부(PRERENDER_NOTICE 와 같게 · 내역서 붙은 것 · 최신 먼저)
+MIN_ROWS = int(os.environ.get("AGENCY_INDEX_MIN", "1"))  # 🔎 G640 15 → 3 → 🔎 G755 (11-17 「전부 늘려」) 1 — 개찰 0건 기관만 뺌(prerender 가 그 장에 noindex · 같은 값)
+MIN_CORP = 1                                             # 🔎 G755 (11-17 «전부 늘려») 3 → 1 — 낙찰 1건 이상 업체 전부 (🏢 G343 8 → 3 · build_json CORP_TOP_MIN 과 같게)
 
 # (2026-09-06) /calc 를 뺐습니다. 라우터에서 «/» 와 같은 화면(BaroBid)이라
 #    서버가 돌려주는 문서가 홈과 **바이트까지 같습니다**(실측 2,853B · canonical 도 «/»).
@@ -506,12 +507,27 @@ def main():
             f.write(x)
         return q
 
+    # 🔎 G755 (11-17 «전부 늘려») 공고 · 업체가 수만 장 → 한 파일 한도(구글 5만 줄 · 50MB) 안으로 나눔:
+    #   sitemap-corp.xml(앞 4만 5천) · sitemap-corp-2.xml … — 첫 파일 이름은 그대로(목차가 가리키는 이름만 늘어남)
+    한파일 = max(1000, int(os.environ.get("SITEMAP_PER_FILE", "45000")))
     낸것 = []
     for 이름, 열쇠 in [("sitemap-main.xml", "main"), ("sitemap-bid.xml", "bid"),
                      ("sitemap-corp.xml", "corp"), ("sitemap-qna.xml", "qna"), ("sitemap-my.xml", "my")]:
-        if 통[열쇠]:                      # 빈 사이트맵은 내지 않습니다 (빈 urlset 은 오류로 잡힙니다)
-            _쓰기(이름, 통[열쇠])
-            낸것.append((이름, len(통[열쇠])))
+        줄들 = 통[열쇠]
+        if not 줄들:                      # 빈 사이트맵은 내지 않습니다 (빈 urlset 은 오류로 잡힙니다)
+            continue
+        for j in range(0, len(줄들), 한파일):
+            조각 = 줄들[j:j + 한파일]
+            nm = 이름 if j == 0 else 이름.replace(".xml", f"-{j // 한파일 + 1}.xml")
+            _쓰기(nm, 조각)
+            낸것.append((nm, len(조각)))
+    # 지난 회차에 나눠 썼던 조각이 이번엔 필요 없으면 지움(목차에 없는 옛 조각이 남아 배포되지 않게)
+    for f in os.listdir(OUT):
+        if re.fullmatch(r"sitemap-(main|bid|corp|qna|my)-\d+\.xml", f) and f not in {n for n, _ in 낸것}:
+            try:
+                os.remove(os.path.join(OUT, f))
+            except OSError:
+                pass
 
     목차 = ('<?xml version="1.0" encoding="UTF-8"?>\n'
             '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'

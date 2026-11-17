@@ -77,13 +77,14 @@ N_AGENCY = int(os.environ.get("PRERENDER_AGENCY", "300"))   # 홈 · 탭 «기�
 # 🔎 G640 (2026-11-10) 소장님 「최대한 늘려」 — 발주기관 장을 «낙찰 많은 300곳(agency/top.json)» → «이름 목록 전부(agency/names.json · 11-10 5,106곳)»
 #   · 개찰 AG_INDEX_MIN(3)건 이상만 검색에 냄(사이트맵 sitemap.py 같은 값 · IndexNow 회차마다 DRIP 장씩)
 #   · 그보다 적은 곳(1~2건)도 굽되 noindex — 카톡 · 문자로 주소를 보내면 미리보기가 뜨고 사람은 봄(얄팍한 장을 검색에 내지 않음)
+#   🔎 G755 (2026-11-17 소장님 「전부 늘려」) 기준 3 → 1 — 개찰 1건 이상 기관 전부 검색에 냄(0건만 noindex) · 업체(낙찰 1건 이상 전부) · 공고(수집 기록 전부)도 같이
 AG_BAKE_MAX = int(os.environ.get("PRERENDER_AGENCY_ALL", "20000"))
-AG_INDEX_MIN = int(os.environ.get("AGENCY_INDEX_MIN", "3"))
-N_CORP = int(os.environ.get("PRERENDER_CORP", "20000"))   # 🏢 G343 소장님 고르심 «낙찰 3건 이상 18,286곳» — 3,000 → 20,000(top.json 이 3건 이상만 냄)
+AG_INDEX_MIN = int(os.environ.get("AGENCY_INDEX_MIN", "1"))   # 🔎 G755 (11-17 소장님 「전부 늘려」) 3 → 1 — 개찰 1건 이상 기관 전부 검색에 냄(0건만 noindex) · sitemap.MIN_ROWS 와 같게
+N_CORP = int(os.environ.get("PRERENDER_CORP", "100000"))   # 🏢 G343 «낙찰 3건 이상 18,286곳» 20,000 → 🔎 G755 (11-17 «전부 늘려») 100,000 — top.json 이 낙찰 1건 이상 전부를 냄(build_json CORP_TOP_MIN 1)
 # 공고·개찰 한 건마다 한 장. 최신부터 굽습니다.
-# ⚠️ 배포 1벌이 그만큼 무거워집니다(장당 4~5KB). Firebase «출시 저장용량»(보관 10개)을
-#    확인하면서 올릴 것. 8,000장이면 약 +35MB 입니다.
-N_NOTICE = int(os.environ.get("PRERENDER_NOTICE", "8000"))
+# ⚠️ 배포 1벌이 그만큼 무거워집니다 — 🔎 G755 실측 장당 약 15KB(옛 말 «4~5KB» 는 틀렸음) · 공고 4만 장이면 약 +0.6GB.
+#    Firebase «출시 저장용량»(보관 4개)을 확인하면서 올릴 것(4벌 × 1.5GB ≈ 6GB · 무료 10GB).
+N_NOTICE = int(os.environ.get("PRERENDER_NOTICE", "100000"))   # 🔎 G755 (11-17 소장님 「모든 공고에 페이지 붙어? 검색돼?」 → 「전부 늘려」) 8,000 → 100,000 = 수집 기록(70일 · collect KEEP_DAYS) 전부
 N_DAILY = int(os.environ.get("PRERENDER_DAILY", "45"))    # 「어제의 개찰 성적표」 며칠치
 
 # ── 카톡·네이버 미리보기 그림 (og:image) ───────────────────────────

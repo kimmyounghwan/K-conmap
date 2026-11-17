@@ -95,7 +95,7 @@ ok("agency_rows — 건수 많은 차례 · 같은 이름 한 번 · 파일 이�
 ok("agency_rows — names.json 이 없으면 top.json(앞 300)", P.agency_rows([], [["탑기관", 300, 7]]) == [("탑기관", 300, 7)])
 h = P.noindex_html("<html><head><title>t</title></head><body>b</body></html>")
 ok("noindex_html — 머리에 robots noindex 한 줄 · 본문 그대로", h.count('name="robots" content="noindex"') == 1 and "<body>b</body>" in h)
-ok("검색에 내는 기준 3건(AGENCY_INDEX_MIN) · 굽는 최대 2만(PRERENDER_AGENCY_ALL)", P.AG_INDEX_MIN == 3 and P.AG_BAKE_MAX >= 6000, [P.AG_INDEX_MIN, P.AG_BAKE_MAX])
+ok("검색에 내는 기준 1건(AGENCY_INDEX_MIN · 🔎 G755 11-17 «전부 늘려» 3 → 1) · 굽는 최대 2만(PRERENDER_AGENCY_ALL)", P.AG_INDEX_MIN == 1 and P.AG_BAKE_MAX >= 6000, [P.AG_INDEX_MIN, P.AG_BAKE_MAX])
 pr_src = 읽("prerender.py")
 ok("굽기 — 3건 미만은 noindex_html · 이상은 ag_done(IndexNow «agency» 회차마다)",
    "if ag_cnt.get(nm, 0) < AG_INDEX_MIN:" in pr_src and 'indexnow.take_once("agency", ag_paths)' in pr_src and 'ag_list = agency_rows(load("agency/names.json") or [], top)' in pr_src)
@@ -118,8 +118,8 @@ try:
             xml += open(os.path.join(tmp, fn), encoding="utf-8").read()
     from urllib.parse import unquote
     ag = sorted(unquote(u) for u in re.findall(r"<loc>[^<]*/agency/([^<]+)</loc>", xml))
-    ok("사이트맵 — names.json 전부에서 3건 이상만(라 · 가 · 마) · 2건(다) · 못 쓰는 이름(나/) 빠짐 · 겹침 없음",
-       ag == sorted(["라 기관", "가 기관", "마 기관"]), ag)
+    ok("사이트맵 — names.json 전부에서 1건 이상(라 · 가 · 마 · 다 — 🔎 G755) · 못 쓰는 이름(나/) 빠짐 · 겹침 없음",
+       ag == sorted(["라 기관", "가 기관", "마 기관", "다 기관"]), ag)
     ok("사이트맵 — 용역 · 물품 바로투찰 · 광고 안내 주소", all(f"k-conmap.com{p}</loc>" in xml for p in ("/svc/calc", "/goods/calc", "/ad")))
 finally:
     shutil.rmtree(tmp, ignore_errors=True)

@@ -69,7 +69,7 @@ def main():
     ok("옛 꼴 없음", "낙찰 결과 —" not in src and "${nm} 입찰 공고" not in src)
 
     print("④ 사이트맵 공고 수")
-    ok("sitemap.NOTICE 1,000 (11-09 500 → 1,000)", S.NOTICE == 1000 or os.environ.get("SITEMAP_NOTICES"), S.NOTICE)
+    ok("sitemap.NOTICE 100,000 (11-09 500 → 1,000 → 🔎 G755 11-17 «전부 늘려» 100,000)", S.NOTICE == 100000 or os.environ.get("SITEMAP_NOTICES"), S.NOTICE)
     ok("사이트맵 공고 ≤ 미리 굽는 공고(안 구운 주소 안 냄)", S.NOTICE <= P.N_NOTICE, (S.NOTICE, P.N_NOTICE))
 
     print(f"\n{'✗' if bad else '✓'} 시험_공고제목 {n - bad}/{n}")
