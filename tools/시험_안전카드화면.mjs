@@ -34,7 +34,7 @@ for (const 기기 of 기기들) {
     await A.reload({ waitUntil: 'domcontentloaded' })
     await A.waitForSelector('.sc-wrap', { timeout: 20000 })
   }
-  const 말누름 = (이름) => A.locator('.sc-chips[aria-label="말 고르기"] .chip', { hasText: 이름 }).click()
+  const 말누름 = (이름) => A.locator('.sfc-chips[aria-label="말 고르기"] .chip', { hasText: 이름 }).click()
   const 종이글 = () => A.locator('.sc-preview').innerText()
   const 넘침 = () => A.evaluate(() => document.scrollingElement.scrollWidth - window.innerWidth)
 
@@ -83,20 +83,20 @@ for (const 기기 of 기기들) {
   await 새로()
   await A.locator('.gp-pick-b', { hasText: '안전수칙' }).click()
   await 말누름('중국어')   // 하나뿐이면 안 빠짐
-  봐((await A.locator('.sc-chips[aria-label="말 고르기"] .chip.on').count()) === 1, `${기기} B 마지막 말은 못 뺌`)
+  봐((await A.locator('.sfc-chips[aria-label="말 고르기"] .chip.on').count()) === 1, `${기기} B 마지막 말은 못 뺌`)
   for (const 이 of ['우즈벡어', '러시아어']) await 말누름(이)
   await 말누름('영어')
   봐((await A.locator('.fwarn', { hasText: '세 가지 말까지' }).count()) === 1, `${기기} B 넷째 말 → «세 가지까지» 알림`)
   await 말누름('중국어'); await 말누름('영어')
-  봐((await A.locator('.sc-chips[aria-label="말 고르기"] .chip.on').allInnerTexts()).map((x) => x.split(' ')[0]).join() === '우즈벡어,러시아어,영어', `${기기} B 우즈벡어 · 러시아어 · 영어`)
+  봐((await A.locator('.sfc-chips[aria-label="말 고르기"] .chip.on').allInnerTexts()).map((x) => x.split(' ')[0]).join() === '우즈벡어,러시아어,영어', `${기기} B 우즈벡어 · 러시아어 · 영어`)
   await A.locator('.sc-opt label', { hasText: '표지 —' }).click()
   await A.locator('.sc-find').fill('크레인')
-  const 찾은 = await A.locator('.sc-list li label').count()
+  const 찾은 = await A.locator('.sfc-list li label').count()
   봐(찾은 >= 3, `${기기} B 찾기 «크레인» ${찾은}줄`)
-  await A.locator('.sc-list li label').nth(0).click(); await A.locator('.sc-list li label').nth(1).click()
+  await A.locator('.sfc-list li label').nth(0).click(); await A.locator('.sfc-list li label').nth(1).click()
   await A.locator('.sc-find').fill('')
   await A.locator('.sc-cats .chip', { hasText: '밀폐공간' }).click()
-  await A.locator('.sc-list li label', { hasText: '갈탄' }).click()
+  await A.locator('.sfc-list li label', { hasText: '갈탄' }).click()
   await A.locator('button', { hasText: '직접 쓴 줄 더하기' }).click()
   await A.locator('[aria-label="직접 쓴 말 1"]').fill('3층 슬래브 끝에는 가지 마세요.')
   await A.locator('[aria-label="직접 쓴 말 1 러시아어"]').fill('Не подходите к краю плиты 3-го этажа.')
@@ -126,7 +126,7 @@ for (const 기기 of 기기들) {
   await A.locator('.sc-place input[type=checkbox]').check(); await A.locator('[aria-label="층"]').fill('2')
   for (const 작 of ['배관', '용접', '자재 운반']) await A.locator('.sc-works .chip', { hasText: 작 }).click()
   for (const 글 of ['작업 허가를 받은 뒤에', '혼자 일하지 말고', '용접 · 절단 전에']) {
-    await A.locator('.sc-find').fill(글.split(' ')[0]); await A.locator('.sc-list li label', { hasText: 글 }).click()
+    await A.locator('.sc-find').fill(글.split(' ')[0]); await A.locator('.sfc-list li label', { hasText: 글 }).click()
   }
   await A.locator('.sc-find').fill('')
   t = await 종이글()

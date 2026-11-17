@@ -75,7 +75,7 @@ for (const [기기, w, h, 폰] of [['PC 1280', 1280, 900, false], ['폰 390', 39
     await q.waitForSelector('.sc-wrap', { timeout: 20000 })
     await 쉬어(600)
   }
-  const 말누름 = async (q, 이) => { await q.locator('.sc-chips[aria-label="말 고르기"] .chip', { hasText: 이 }).first().click(); await 쉬어(150) }
+  const 말누름 = async (q, 이) => { await q.locator('.sfc-chips[aria-label="말 고르기"] .chip', { hasText: 이 }).first().click(); await 쉬어(150) }
   const 판엿보기 = (q) => q.evaluate(() => {
     window.__판 = null
     if (window.__ob) window.__ob.disconnect()
@@ -145,13 +145,13 @@ for (const [기기, w, h, 폰] of [['PC 1280', 1280, 900, false], ['폰 390', 39
     await 새로(p)
     await p.locator('.gp-pick-b', { hasText: '안전수칙' }).click(); await 쉬어(300)
     for (const 이 of ['우즈벡어', '러시아어', '중국어', '베트남어']) await 말누름(p, 이)
-    const 켠말 = await p.locator('.sc-chips[aria-label="말 고르기"] .chip.on').allInnerTexts()
+    const 켠말 = await p.locator('.sfc-chips[aria-label="말 고르기"] .chip.on').allInnerTexts()
     ok(`표지 말 셋 — ${켠말.map((x) => x.split(' ')[0]).join(' · ')}`, 켠말.length === 3 && /^베트남어/.test(켠말[0]) && /^우즈벡어/.test(켠말[1]) && /^러시아어/.test(켠말[2]), 켠말)
     await p.locator('.sc-opt label', { hasText: '표지 —' }).click(); await 쉬어(300)
     await p.locator('.sc-find').fill('크레인'); await 쉬어(300)
-    await p.locator('.sc-list li label').nth(0).click(); await p.locator('.sc-list li label').nth(1).click()
+    await p.locator('.sfc-list li label').nth(0).click(); await p.locator('.sfc-list li label').nth(1).click()
     await p.locator('.sc-find').fill(''); await 쉬어(300)
-    await p.locator('.sc-cats .chip', { hasText: '밀폐공간' }).click(); await p.locator('.sc-list li label', { hasText: '갈탄' }).click()
+    await p.locator('.sc-cats .chip', { hasText: '밀폐공간' }).click(); await p.locator('.sfc-list li label', { hasText: '갈탄' }).click()
     await p.locator('button', { hasText: '직접 쓴 줄 더하기' }).click()
     await p.locator('[aria-label="직접 쓴 말 1"]').fill('3층 슬래브 끝에는 가지 마세요.')
     await 쉬어(400)

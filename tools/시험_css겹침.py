@@ -21,12 +21,17 @@
   · 새로 생기거나, 이미 있던 이름이 한 번 더 적히면 ❌ → 올리지 않음
   · ⚠️겹침 = 다른 도구끼리 겹친 줄 알고 있는 것(하나씩 고칠 것 · 고치면 여기서 뺌)
 
-■ 새 도구 CSS 는 고유 접두어로(예: 내 위치 좌표 = gps-) — 쓰기 전에 그 이름이 비었는지 grep 으로 봄.
+■ ② (G737 더함) 도구 이름이 붙은 클래스(하이픈 있는 이름 · 예: sc-head)가 셀렉터에 나오는 자리를 300줄 넘게 벌어진
+  «덩이» 로 묶어 셈 — 새 덩이가 생기면 = 다른 도구가 그 이름을 또 씀(조상 · 자식 셀렉터까지 봄).
+  ①은 «.이름 { }» 다시 짓기만 봐서, 안전카드 .sc-head { } 가 용역 계산기 .sc-head .sc-sub 와 겹친 것은 못 잡았음(G737).
+  이미 있는 덩이 수는 «이미_멀리»(--목록 으로 다시 뽑음 · 일부러 먼 곳에 고쳐 덮은 거면 그때 다시 뽑아 넣음).
+■ 새 도구 CSS 는 고유 접두어로(예: 내 위치 좌표 = gps- · 안전카드 = sfc-) — 쓰기 전에 그 이름이 비었는지 grep 으로 봄.
   같은 도구를 일부러 고쳐 덮는 거면 «이미_있음» 에 까닭과 함께 넣음(몇 번 적혔는지도).
 
 ■ 쓰는 법
     python tools/시험_css겹침.py          새로 겹치면 1 로 끝납니다
     python tools/시험_css겹침.py --self   일부러 겹치게 해서 잡히는지
+    python tools/시험_css겹침.py --목록   ② «이미_멀리» 를 지금 styles.css 로 다시 뽑음(일부러 고친 뒤에만)
 ══════════════════════════════════════════════════════════════════
 """
 import io
@@ -64,10 +69,6 @@ CSS = os.path.join(ROOT, "web", "src", "styles.css")
     ("@media (max-width: 560px)", ".fm-card"): (2, "서식 작업대(폰) — 10-16 탭 꾸밈(같은 것)"),
     ("", ".pb-racts"): (2, "사진대지 — 같은 묶음 안 덧붙임"),
     ("", ".mt-card"): (2, "맵톡 카드 — G161 배치(같은 것)"),
-    ("", ".sc-chips"): (2, "⚠️겹침 용역 · 물품 바로투찰(G194d) ↔ 다국어 안전카드 — 고칠 것"),
-    ("", ".sc-list"): (2, "⚠️겹침 용역 · 물품 바로투찰(G207) ↔ 다국어 안전카드 — 고칠 것"),
-    ("", ".sc-row"): (2, "⚠️겹침 사진 · 손그림 → 캐드(G287) ↔ 다국어 안전카드 — 고칠 것"),
-    ("", ".sc-ok"): (2, "⚠️겹침 사진 · 손그림 → 캐드(G287) ↔ 다국어 안전카드 — 고칠 것"),
     ("", ".gx-sh"): (2, "종이에 바로 쓰기 — G554 폰 쪽 고르기(같은 것)"),
     ("", ".gmd-check-l"): (2, "골조 모델(Model.jsx) — G395 비스듬히(같은 것)"),
     ("", ".adc-h"): (2, "업체 광고 칸 — G549 같은 무게(같은 것)"),
@@ -138,6 +139,48 @@ def 겹침들(글):
     return {k: sorted(v) for k, v in by.items() if len(v) > 1 and max(v) - min(v) > 떨어짐}
 
 
+덩이_떨어짐 = 300   # ② 이보다 멀리 벌어지면 다른 덩이(도구 묶음은 보통 300줄 안 · 다른 도구는 수천 줄 떨어짐)
+# ② 이미 먼 곳에 나오던 도구 이름 · 덩이 수(2026-11-17 G737 · python tools/시험_css겹침.py --목록 으로 뽑음)
+이미_멀리_글 = """
+amt-read:2 ask-card:2 bim-big:2 bim-box:2 bim-box-list:2 bim-canvas:2 bim-chips:2 bim-out:2 bim-side:2 bim-sum:2 bim-tblwrap:2 bim-tool:2 bim-view:2
+bim-views:2 bsr-cta:2 bsr-dock:2 bsr-title:2 btn-grid:2 btn-row:4 c-sim:2 cam-dim:2 cam-tab:2 cfx-view:2 cpl-view:2 cw-tiles:2 detail-h:5 dx3-err:2
+dx3-file:2 dx3-tag:2 fill-go:2 fm-card:2 fm-grid:2 fw-in:2 gg-ask:2 gg-auto:2 gg-draw:2 gg-f:2 gg-t:2 gg-top:2 gj-check:2 gj-in:2 gj-num:3 gj-w:2
+gmd-askbox:2 gmd-check-l:2 gmd-h:3 gmd-in:2 gmd-row:2 gmd-tab:3 gmd-tabs:2 gmd-tl:2 gmd-ws-tabs:3 gmd-ws-top:2 gmd-x:2 gmd-xlchk:2 gmd-xlchk-toast:2
+gp-hint:2 gp-warn:2 gp-x:2 gx-ed:2 gz3-canvas:2 hm-paid-r:2 hm-row:2 il-paper:2 il-t:2 iy-bar:2 iy-cal:2 iy-cals:2 iy-d:2 iy-exd:2 iy-net:2 iy-out:2
+ja-in:2 ja-num:2 jvs-m:2 kcm-help-back:2 kcm-help-dlg:2 lead-card:2 mb-card:2 mb-h:2 mb-no:2 mb-ok:2 mb-sec:2 mb-t:2 mc-savebar:2 mt-ans:2 mt-ans-h:2
+mt-back:2 mt-fold:2 mt-lab:2 mt-meta:2 mt-sheet:2 mt-tag:2 mt-where:2 mt-who:2 naeyeok-strip:2 no-print:3 noti-pop:2 ns-go:2 ns-txt:2 ny-n:2 ny-sit:2
+ny-sit-h:2 pb-modal:2 pb-note:2 pre-xgot:2 qs-back:2 r-hot:2 r-warm:2 rk-bigttl:2 rk-c:2 rk-foot:3 rk-paper:2 rk-sec:2 rk-t:2 rk-쪽:2 sec-title:5
+sg-view:2 sn-date:2 sn-frame:2 sn-say:2 sn-sign:2 tl-h1:2 tl-out:2 tl-p:2 tl-row:2 tlx-body:2 tlx-card:3 tlx-d:3 tlx-dl:2 tlx-ex:2 tlx-grid:2 tlx-ic:3
+tlx-new:3 tlx-row:2 tlx-t:3 topbar-in:2 topbar-r:2 tp-scroll:3 tp-src:2 tp-tab:2 tp-tabs:2 tp-warn:2 tp-x:3 umap-foot:2 umap-mini:2 umap-mini-n:2
+umap-reg:2 xl-go:3 xl-i:2 xl-t:2 xv-고침판:2 xv-판:2
+"""
+이미_멀리 = {k: int(v) for k, v in (x.rsplit(":", 1) for x in 이미_멀리_글.split())}
+
+
+def 덩이들(글):
+    """② {클래스: 덩이 수} — 하이픈 있는 클래스가 셀렉터(조상 · 자식 · 묶음 다)에 나오는 줄을 덩이_떨어짐 넘게 벌어진 덩이로 묶은 수(2 이상만)"""
+    by = {}
+    for 자리, sel, ln in 규칙들(글):
+        for c in set(re.findall(r"\.([A-Za-z가-힣][\w가-힣-]*-[\w가-힣-]+)", sel)):
+            by.setdefault(c, set()).add(ln)
+    out = {}
+    for k, v in by.items():
+        v = sorted(v)
+        n = 1 + sum(1 for a, b in zip(v, v[1:]) if b - a > 덩이_떨어짐)
+        if n > 1:
+            out[k] = n
+    return out
+
+
+def 재기2(글):
+    """② (새로 먼 곳에 쓴 이름, 덩이가 늘어난 이름, 이제 한 덩이)"""
+    g = 덩이들(글)
+    새 = sorted(k for k in g if k not in 이미_멀리)
+    더 = sorted(k for k in g if k in 이미_멀리 and g[k] > 이미_멀리[k])
+    줄음 = sorted(k for k in 이미_멀리 if k not in g)
+    return 새, 더, 줄음, g
+
+
 def 재기(글):
     """(새로 겹침, 더 적힘, 이미 있음 수, 이제 안 겹침)"""
     g = 겹침들(글)
@@ -175,12 +218,26 @@ def 자가시험():
     ok = not 새
     print(f"  {'✓' if ok else '✗'} 자가시험 ④ @media 안과 밖은 다른 자리(폰에서만 고쳐 덮는 것은 겹침 아님)")
     나쁨 += 0 if ok else 1
+    t5 = ".zz-head { display: flex; }\n" + "\n" * 400 + ".zz-head .zz-name { font-size: 15px; }\n"
+    새2, _, _, _ = 재기2(t5)
+    ok = "zz-head" in 새2
+    print(f"  {'✓' if ok else '✗'} 자가시험 ⑤ ② 먼 곳에서 같은 이름을 조상으로 씀(.zz-head .zz-name) → 잡음")
+    나쁨 += 0 if ok else 1
+    t6 = ".yy-row { display: flex; }\n" + "\n" * 20 + "@media print { .yy-row { color: #000; } }\n"
+    새2, _, _, _ = 재기2(t6)
+    ok = not 새2
+    print(f"  {'✓' if ok else '✗'} 자가시험 ⑥ ② 같은 도구 묶음 안(가까이) 다시 씀은 겹침 아님")
+    나쁨 += 0 if ok else 1
     return 나쁨
 
 
 def main():
     if "--self" in sys.argv:
         sys.exit(1 if 자가시험() else 0)
+    if "--목록" in sys.argv:
+        g = 덩이들(io.open(CSS, encoding="utf-8").read())
+        print(" ".join(f"{k}:{v}" for k, v in sorted(g.items())))
+        sys.exit(0)
     print("=" * 64)
     print("  🧩 CSS 이름 겹침 막기 (시험_css겹침)")
     print("=" * 64)
@@ -192,6 +249,7 @@ def main():
         print(f"❌ styles.css 를 읽지 못했습니다: {type(e).__name__}: {e}")
         sys.exit(1)
     새, 더, 있음, 안겹침 = 재기(글)
+    새2, 더2, 줄음2, g2 = 재기2(글)
     알고있는겹침 = sorted(k[1] for k, v in 이미_있음.items() if v[1].startswith("⚠️겹침") and k not in 안겹침)
     print(f"  떨어져 다시 적힌 이름 {있음 + len(새)}개 — 이미 알고 있는 것 {있음}개 · 새로 {len(새)}개")
     if 알고있는겹침:
@@ -201,9 +259,17 @@ def main():
     if 나쁜자가시험:
         print("❌ 자가시험이 깨졌습니다 — 검사 자체를 먼저 고치십시오.")
         sys.exit(1)
-    if not 새 and not 더:
+    print(f"  ② 먼 곳에 다시 나오는 도구 이름 {len(g2)}개 — 이미 알고 있는 것 {len(g2) - len(새2)}개 · 새로 {len(새2)}개 · 덩이 늚 {len(더2)}개")
+    if 줄음2:
+        print(f"  ℹ️ ② 이제 한 덩이(이미_멀리 를 --목록 으로 다시 뽑아도 됨): {' '.join(줄음2[:12])}{' …' if len(줄음2) > 12 else ''}")
+    if not 새 and not 더 and not 새2 and not 더2:
         print(f"✓ 시험_css겹침 — 새로 겹친 이름 없음")
         sys.exit(0)
+    for k in 새2:
+        줄 = sorted({ln for _, sel, ln in 규칙들(글) if re.search(r"\." + re.escape(k) + r"(?![\w가-힣-])", sel)})
+        print(f"  ✗ ② 먼 곳에서 같은 이름을 새로 씀: .{k} — {', '.join(map(str, 줄[:8]))}째 줄")
+    for k in 더2:
+        print(f"  ✗ ② 이미 먼 곳에 나오던 이름을 또 다른 곳에 씀: .{k} (덩이 {이미_멀리[k]} → {g2[k]})")
     for (자리, 이름), lines in 새:
         print(f"  ✗ 새로 겹침: {이름}{' (' + 자리 + ')' if 자리 else ''} — {', '.join(map(str, lines))}째 줄")
     for (자리, 이름), lines in 더:
@@ -211,7 +277,7 @@ def main():
     print()
     print("  → 새 도구는 고유 접두어로 이름을 바꾸십시오(예: gp- → gps-).")
     print("    같은 도구를 일부러 고쳐 덮은 거면 이 파일 «이미_있음» 에 까닭과 함께 넣으십시오.")
-    print(f"❌ 시험_css겹침 — 새로 {len(새)} · 또 적음 {len(더)}")
+    print(f"❌ 시험_css겹침 — ① 새로 {len(새)} · 또 적음 {len(더)} · ② 새로 {len(새2)} · 덩이 늚 {len(더2)}")
     sys.exit(1)
 
 

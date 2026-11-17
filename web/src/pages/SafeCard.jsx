@@ -126,7 +126,7 @@ export default function SafeCard() {
       {/* ② 말 */}
       <div className="card">
         <div className="sec-title" style={{ margin: '0 0 8px' }}>② 어느 말로 (한국어 + 셋까지)</div>
-        <div className="sc-chips" role="group" aria-label="말 고르기">
+        <div className="sfc-chips" role="group" aria-label="말 고르기">
           {S.말들.map((k) => (
             <button key={k} type="button" className={'chip' + (판.말.includes(k) ? ' on' : '')} aria-pressed={판.말.includes(k)} onClick={() => 말켬(k)}>
               {S.말이름[k].한} <span lang={S.말이름[k].lang} className="sc-chipsub">{S.말이름[k].제}</span>
@@ -152,7 +152,7 @@ export default function SafeCard() {
         </div>
         {종 !== 'rule' && (
           <>
-            <div className="sc-sub">작업 장소 — 숫자 · 글자만 넣으면 말마다 바꿔 적습니다</div>
+            <div className="sfc-sub">작업 장소 — 숫자 · 글자만 넣으면 말마다 바꿔 적습니다</div>
             <div className="sc-place">
               <label>동 <input value={판.장소.동} maxLength={6} inputMode="text" aria-label="동" placeholder="101" onChange={(e) => 장소바꿈('동', e.target.value)} /></label>
               <label><input type="checkbox" checked={!!판.장소.지하} onChange={(e) => 장소바꿈('지하', e.target.checked)} /> 지하</label>
@@ -164,8 +164,8 @@ export default function SafeCard() {
         )}
         {종 !== 'rule' && (
           <>
-            <div className="sc-sub">오늘 할 작업 <span className="muted sm">({판.작업.length}개 고름 · 고른 작업의 위험 문장은 ④ «👍 추천 넣기» 가 같이 넣습니다)</span></div>
-            <div className="sc-chips sc-works" role="group" aria-label="오늘 할 작업">
+            <div className="sfc-sub">오늘 할 작업 <span className="muted sm">({판.작업.length}개 고름 · 고른 작업의 위험 문장은 ④ «👍 추천 넣기» 가 같이 넣습니다)</span></div>
+            <div className="sfc-chips sc-works" role="group" aria-label="오늘 할 작업">
               {S.작업들.map((a) => (
                 <button key={a.id} type="button" className={'chip' + (판.작업.includes(a.id) ? ' on' : '')} aria-pressed={판.작업.includes(a.id)} onClick={() => 작업켬(a.id)}>{a.g} {a.ko}</button>
               ))}
@@ -188,14 +188,14 @@ export default function SafeCard() {
 
       {/* ④ 문장 */}
       <div className="card">
-        <div className="sc-head">
+        <div className="sfc-head">
           <div className="sec-title" style={{ margin: 0 }}>④ 문장 고르기 <span className="muted sm">({고른.length}개 고름)</span></div>
           <div className="sc-headb">
             <button type="button" className="btn sm ghost" onClick={추천넣기}>👍 추천 넣기</button>
             <button type="button" className="btn sm ghost" disabled={!고른.length} onClick={() => 바꿈((p) => ({ 문장: { ...p.문장, [종]: [] } }))}>모두 빼기</button>
           </div>
         </div>
-        <div className="sc-chips sc-cats" role="tablist" aria-label="분류">
+        <div className="sfc-chips sc-cats" role="tablist" aria-label="분류">
           <button type="button" role="tab" aria-selected={분류 === 'all'} className={'chip' + (분류 === 'all' ? ' on' : '')} onClick={() => set분류('all')}>전체 {S.문장들.length}</button>
           <button type="button" role="tab" aria-selected={분류 === 'picked'} className={'chip' + (분류 === 'picked' ? ' on' : '')} onClick={() => set분류('picked')}>✔ 고른 것 {고른.length}</button>
           {S.분류들.map(([c, ic, t]) => (
@@ -205,7 +205,7 @@ export default function SafeCard() {
           ))}
         </div>
         <input className="sc-find" type="search" value={찾기} onChange={(e) => set찾기(e.target.value)} placeholder="찾기 — 예: 안전대, 크레인, 용접" aria-label="문장 찾기" />
-        <ul className="sc-list">
+        <ul className="sfc-list">
           {보이는문장.map((s) => {
             const on = 고른.includes(s.id)
             return (
@@ -225,7 +225,7 @@ export default function SafeCard() {
           {!보이는문장.length && <li className="muted" style={{ padding: 10 }}>찾는 문장이 없습니다 — 아래 «직접 쓰기» 로 적으십시오.</li>}
         </ul>
 
-        <div className="sc-sub" style={{ marginTop: 12 }}>✍ 직접 쓰기 <span className="muted sm">— 번역되지 않습니다. 통역하는 분이 외국어 칸에 적으면 그대로 나옵니다.</span></div>
+        <div className="sfc-sub" style={{ marginTop: 12 }}>✍ 직접 쓰기 <span className="muted sm">— 번역되지 않습니다. 통역하는 분이 외국어 칸에 적으면 그대로 나옵니다.</span></div>
         {직접.map((r, i) => (
           <div className="sc-self" key={i}>
             <div className="sc-self-r">
@@ -244,7 +244,7 @@ export default function SafeCard() {
 
       {/* ⑤ 종이 */}
       <div className="card">
-        <div className="sc-head">
+        <div className="sfc-head">
           <div className="sec-title" style={{ margin: 0 }}>⑤ 종이 (A4 세로)</div>
           <div className="sc-headb">
             <label className="sc-brand"><input type="checkbox" checked={판.건설맵} onChange={(e) => 바꿈(() => ({ 건설맵: e.target.checked }))} /> 아래에 건설맵 주소</label>
@@ -293,7 +293,7 @@ function 머리글({ k, 말, 큼 }) {
 
 function 줄({ s, 말, 네모 }) {
   return (
-    <div className={'sc-row k-' + (s.f || 'info')}>
+    <div className={'sfc-row k-' + (s.f || 'info')}>
       <span className="sc-row-g" aria-hidden="true">{s.g}</span>
       <div className="sc-row-t">
         <div className="sc-row-ko">{s.ko}</div>
@@ -308,7 +308,7 @@ function 직접줄({ r, 말 }) {
   if (!r.ko.trim()) return null
   const 빈 = 말.filter((k) => !String((r.번 || {})[k] || '').trim())
   return (
-    <div className="sc-row k-self">
+    <div className="sfc-row k-self">
       <span className="sc-row-g" aria-hidden="true">✍</span>
       <div className="sc-row-t">
         <div className="sc-row-ko">{r.ko}</div>
@@ -427,7 +427,7 @@ function 종이들({ 판, 인쇄 }) {
           </div>
         )}
         <div className="sc-sec sc-signs">
-          <div className="sc-ok">{여러말(S.머리.ok, 말).map((t, i) => <div key={i} lang={i ? S.말이름[말[i - 1]].lang : 'ko'}>{t}</div>)}</div>
+          <div className="sfc-ok">{여러말(S.머리.ok, 말).map((t, i) => <div key={i} lang={i ? S.말이름[말[i - 1]].lang : 'ko'}>{t}</div>)}</div>
           <table className="sc-sign-t">
             <thead><tr><th style={{ width: '50%' }}><머리글 k="issuer" 말={말} /></th><th><머리글 k="confirm" 말={말} /></th></tr></thead>
             <tbody><tr><td className="sc-sigcell">{판.칸.issuer}</td><td className="sc-sigcell" /></tr></tbody>
@@ -481,7 +481,7 @@ function 종이들({ 판, 인쇄 }) {
       {판.서명줄 > 0 && (
         <div className="sc-sec sc-signs">
           <div className="sc-sec-h"><머리글 k="sign" 말={말} /></div>
-          <div className="sc-ok">{여러말(S.머리.ok, 말).map((t, i) => <div key={i} lang={i ? S.말이름[말[i - 1]].lang : 'ko'}>{t}</div>)}</div>
+          <div className="sfc-ok">{여러말(S.머리.ok, 말).map((t, i) => <div key={i} lang={i ? S.말이름[말[i - 1]].lang : 'ko'}>{t}</div>)}</div>
           <table className="sc-sign-t">
             <thead><tr><th style={{ width: '9%' }}><머리글 k="no" 말={[]} /></th><th style={{ width: '31%' }}><머리글 k="name" 말={말} /></th><th style={{ width: '28%' }}><머리글 k="nat" 말={말} /></th><th><머리글 k="sig" 말={말} /></th></tr></thead>
             <tbody>{Array.from({ length: 판.서명줄 }, (_, i) => <tr key={i}><td>{i + 1}</td><td /><td /><td /></tr>)}</tbody>
