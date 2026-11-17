@@ -166,7 +166,7 @@ export default function GpsPoint() {
         {(상태 === '처음' || 상태 === '거부' || 상태 === '안됨' || 상태 === '오류' || 상태 === '멈춤') && (
           <button type="button" className="btn gp-go" onClick={재기}>📍 내 위치 재기</button>
         )}
-        {상태 === '처음' && <div className="gp-hint">누르면 브라우저가 <b>«위치 허용»</b> 을 한 번 묻습니다 — «허용» 을 눌러 주세요.</div>}
+        {상태 === '처음' && <div className="gps-hint">누르면 브라우저가 <b>«위치 허용»</b> 을 한 번 묻습니다 — «허용» 을 눌러 주세요.</div>}
         {상태 === '찾는중' && <div className="gp-wait" role="status">🛰 위치 찾는 중… 처음엔 10초 ~ 1분 걸릴 수 있습니다(하늘이 트인 곳이 빠름).</div>}
         {상태 === '거부' && <div className="gp-bad" role="alert">🚫 위치를 막아 두셨습니다. 주소창 왼쪽 자물쇠(사이트 설정)에서 <b>위치 → 허용</b> 으로 바꾼 뒤 다시 눌러 주세요.
           아이폰은 설정 → 개인정보 보호 및 보안 → 위치 서비스 → 사파리 웹 사이트도 «앱을 사용하는 동안» 이어야 합니다.</div>}
@@ -215,7 +215,7 @@ export default function GpsPoint() {
           {[30, 60, 120].map((s) => <button key={s} type="button" className="btn line sm" onClick={() => 평시작(s)}>{s < 60 ? `${s}초` : `${s / 60}분`}</button>)}
         </div>}
         {평 && !평.결과 && <div className="gp-avg" role="status">
-          <div className="gp-bar"><i style={{ width: `${Math.round(100 * (1 - 남은 / 평.길이))}%` }} /></div>
+          <div className="gps-bar"><i style={{ width: `${Math.round(100 * (1 - 남은 / 평.길이))}%` }} /></div>
           <span>남은 {남은}초 · 모은 값 {(평표본.current || []).length}개</span>
           <button type="button" className="tp-x" onClick={평취소}>그만</button>
         </div>}
@@ -241,7 +241,7 @@ export default function GpsPoint() {
           <input className="inp" value={메모} onChange={(e) => set메모(e.target.value)} placeholder="메모 (예: 우수맨홀 뚜껑 가운데)" aria-label="메모" maxLength={80} />
           <button type="button" className="btn sm" disabled={!지금} onClick={() => 저장(null)}>💾 지금 값 저장</button>
         </div>
-        {!지금 && <div className="gp-hint">먼저 «📍 내 위치 재기» 를 눌러 주세요.</div>}
+        {!지금 && <div className="gps-hint">먼저 «📍 내 위치 재기» 를 눌러 주세요.</div>}
         {알림 && <div className="note sm" role="status" style={{ marginTop: 8 }}>{알림}</div>}
         {점들.length > 0 && <>
           <ul className="gp-list">{점들.map((p, i) => {
@@ -272,7 +272,7 @@ export default function GpsPoint() {
             {점들.map((p, i) => <option key={i} value={i}>{p.이름}</option>)}
           </select>}
         </div>
-        {목있음 && !좌 && <div className="gp-hint">«📍 내 위치 재기» 를 누르면 거리 · 방향이 나옵니다.</div>}
+        {목있음 && !좌 && <div className="gps-hint">«📍 내 위치 재기» 를 누르면 거리 · 방향이 나옵니다.</div>}
         {길 && (목먼 ? <div className="gp-bad">{(길.거리 / 1000).toFixed(1)} km 떨어져 있습니다 — 원점이 다르거나(지금 {원점.이름}) X · Y 를 바꿔 적었는지 보세요.</div> : <div className="gp-way">
           <svg className="gp-arrow" viewBox="0 0 40 40" style={{ transform: `rotate(${길.방위}deg)` }} aria-hidden="true"><path d="M20 3 L33 35 L20 27 L7 35 Z" fill="currentColor" /></svg>
           <div>

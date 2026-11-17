@@ -35,9 +35,39 @@ const 빈줄 = () => ({ 이름: '', 금액: '', 시작: '', 기간: '', 선행: 
 /* 📥 내역서 넣기를 🧪 예시 중에 하면 저장 칸에 써 두고 예시를 끄며 판을 새로 깔아 — 알림 · 날 기다림을 새 판으로 넘김(변경공정칸.jsx 와 같음) */
 const 넘김 = { 알림: '', 기다림: false }
 
+/* 🩹 G736 (2026-11-17) 양식(📊 막대형 · 💰 금액형)은 «고른 것» 그대로 — 소장님 「하나하나 클릭해보고 점검해줘」 실사이트 점검:
+   금액형에서 🧪 예시를 누르면 막대형으로 넘어갔음(판을 새로 깔고(key) use칸 은 예시 중엔 저장 값을 안 읽어 기본 «막대» 로 돌아감).
+   칸 비우기(저장 칸을 통째로 지움)도 같은 까닭으로 막대형으로 돌아갔음.
+   → 양식은 칸(공종 · 금액)이 아니라 «보던 쪽» 이라 예시 중에도 저장 칸에 «양식» 한 칸만 적음(예시 값은 그대로 안 남김)
+     · 첫 값: 예시 중 = 이 화면에서 보던 양식 → 저장 → 막대 / 예시 아님 = 저장(코드로 열기 · 다른 기기 이어 쓰기 그대로) → 보던 양식(칸 비우기) → 막대
+     (시험: tools/시험_공정막대양식.mjs) */
+let 보던양식 = null
+const 양식들 = ['막대', '금액']
+const 양식읽기 = (열쇠) => { try { const m = JSON.parse(localStorage.getItem(열쇠) || '{}'); return m && 양식들.includes(m.양식) ? m.양식 : null } catch (e) { return null } }
+function use양식() {
+  const c = useContext(칸창고)
+  const 열쇠 = c && c.열쇠
+  const 예시중 = !!(c && c.ex && Object.keys(c.ex).length)
+  const [v, setV] = useState(() => {
+    const 저장 = 열쇠 ? 양식읽기(열쇠) : null
+    return (예시중 ? (보던양식 || 저장) : (저장 || 보던양식)) || '막대'
+  })
+  useEffect(() => {
+    보던양식 = v
+    if (!열쇠) return
+    try {
+      const m = JSON.parse(localStorage.getItem(열쇠) || '{}') || {}
+      if (m.양식 === v) return
+      m.양식 = v
+      localStorage.setItem(열쇠, JSON.stringify(m))
+      window.dispatchEvent(new CustomEvent('kcm-calc', { detail: 열쇠 }))   /* 🔗 이어 쓰기가 «바뀜» 을 알게(use칸 과 같음) */
+    } catch (e) { /* 사생활 보호 모드 · 가득 참 */ }
+  }, [v, 열쇠])
+  return [v, setV]
+}
 
 export function Schedule({ ex = {} }) {
-  const [양식, set양식] = use칸('양식', '막대')
+  const [양식, set양식] = use양식()
   return (
     <>
       <div className="kcm-인쇄안내">🖨 예정공정표는 화면의 <b>«📄 PDF 저장»</b> 또는 <b>«🖨 인쇄»</b> 단추로 인쇄해 주세요.</div>

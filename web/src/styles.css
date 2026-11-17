@@ -4948,7 +4948,8 @@ span.qna-like { cursor: default; }
 .gp-up { margin-left: 4px; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 10px; padding: 0 2px; }
 .gp-x { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 15px; padding: 2px 6px; }
 .gp-x:hover { color: var(--bad); }
-.gp-hint { font-size: 12.5px; line-height: 1.7; }
+/* 🩹 G736 color · margin-top 은 11-10(G644 내 위치 좌표)부터 뒤쪽 .gp-hint 줄이 덧입혀 화면에 보이던 그대로 이리 옮겨 적음 — 예정공정표 · 변경 · 토적 도움말 모양은 안 바뀜 · 내 위치 좌표는 gps-hint 로 따로 */
+.gp-hint { font-size: 12.5px; line-height: 1.7; color: var(--muted); margin-top: 8px; }
 .gp-warn { margin: 8px 0; padding-left: 18px; color: var(--warn); font-size: 13px; line-height: 1.6; }
 .gp-sheetwrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 8px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
 .gp-sheet { color: #111827; background: #fff; padding: 14px 14px 10px; min-width: 900px; font-size: 12px; }
@@ -10805,7 +10806,7 @@ a.cert-chip:not(.deep) { color: inherit; text-decoration: none; }
 /* 📍 G644 내 위치 좌표(/tools/gps) — 폰 GPS → X · Y */
 .gp .btn-row { flex-wrap: wrap; }
 .gp .gp-go { font-size: 17px; padding: 14px 16px; }
-.gp-hint { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+.gps-hint { font-size: 12.5px; line-height: 1.7; color: var(--muted); margin-top: 8px; }   /* 🩹 G736 전엔 .gp-hint(예정공정표 칸과 같은 이름) — line-height 1.7 은 그쪽에서 받던 것 그대로 */
 .gp-wait { margin-top: 10px; font-size: 13.5px; }
 .gp-bad { margin-top: 10px; padding: 9px 11px; border-radius: 9px; background: var(--bad-soft); border: 1px solid color-mix(in srgb, var(--bad) 30%, var(--line)); font-size: 13px; line-height: 1.6; }
 .gp-note { margin-top: 8px; font-size: 12.5px; }
@@ -10830,8 +10831,11 @@ a.cert-chip:not(.deep) { color: inherit; text-decoration: none; }
 .gp-btns { margin-top: 10px; }
 .gp-p { margin: 6px 0 10px; font-size: 13px; }
 .gp-avg { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; font-size: 13px; }
-.gp-bar { flex: 1 1 160px; height: 10px; border-radius: 5px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
-.gp-bar i { display: block; height: 100%; background: var(--accent); transition: width .25s linear; }
+/* 🩹 G736 (2026-11-17) 평균 내기 막대는 gps-bar — 처음(G644)엔 gp-bar 로 지어 예정공정표 막대(.gp-bar · 위 «📈 예정공정표»)와 이름이 겹쳤음:
+   뒤에 적힌 이 줄이 이겨 예정공정표 막대가 옅은 회색이 되어 거의 안 보였고(화면 · PDF · 인쇄), 이 막대는 거꾸로 공정표의 position:absolute 를 받아 폭 0 으로 숨었음.
+   → 이름을 따로(gps-) · 시험: tools/시험_css겹침.py(새로 겹치는 이름 막음) · tools/시험_공정막대양식.mjs */
+.gps-bar { flex: 1 1 160px; height: 10px; border-radius: 5px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+.gps-bar i { display: block; height: 100%; background: var(--accent); transition: width .25s linear; }
 .gp-avgres small { display: block; font-size: 12px; color: var(--muted); margin-top: 6px; }
 .gp .gp-warn { color: #b45309; }
 .gp-save { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin-top: 10px; align-items: center; }
