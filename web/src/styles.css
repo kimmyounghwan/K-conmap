@@ -2902,6 +2902,11 @@ a.flink:hover { opacity: .8; }
 .cm-row input { flex: 1 1 0; min-width: 0; }
 .cm-row .btn.sm { flex: 0 0 auto; width: auto; }
 @media (max-width: 480px) { .cm-row { flex-wrap: wrap; } .cm-row .btn.sm { flex: 1 1 100%; } }
+/* 💬 G735 (11-17) 댓글 칸 다듬기 — 건설뉴스 그날 호 댓글 캡처에서 찾음: 글 칸이 고정폭 글꼴(textarea 기본값)이라 한글이 띄엄띄엄 보였고,
+   «지울 때 4자리» 칸이 별명 줄에 밀려 «지울 [» 로 잘렸고, 안내 줄이 낱말 가운데서 꺾였음 */
+.cm-form textarea { font: inherit; font-size: 15px; }
+.cm-row input { flex: 0 0 132px; }
+.cm-box .hint { word-break: keep-all; }
 
 /* «금액 복사하고 나라장터 열기» 를 누른 뒤 — 초록을 한 단계 진하게 해서 «눌렸다» 를 보여줍니다.
    소장님(2026-09-06): 「금액복사하고 나라장터 열기로 가줘. 사용자가 로그인 후 바로 투찰 할 수 있게」
@@ -11336,6 +11341,14 @@ a.kn-strip:hover { border-left-color: var(--kn-a); }
 .nw-date { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 4px; font-size: 15px; }
 .nw-n { color: var(--muted); font-size: 13.5px; }
 .nw-prev { margin-left: auto; padding: 4px 0; background: none; border: 0; color: var(--good); font: inherit; font-size: 13.5px; font-weight: 800; cursor: pointer; }
+/* 👁💬 G735 (11-17) 건설뉴스 그날 호 조회 · 댓글 — 소장님 「클릭수 보이게 해줘. 댓글쓰게도 해주고」 */
+.nw-v { margin-left: 6px; color: var(--muted); font-size: 13px; font-weight: 700; white-space: nowrap; }
+.nw-cmn { margin-left: 4px; padding: 2px 9px; background: none; border: 1px solid var(--line); border-radius: 999px; color: var(--accent); font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.nw-cm { margin: 14px 0 0; scroll-margin-top: 70px; }
+.nw-cm-h { margin: 0 0 4px; font-size: 16px; }
+.nw-cm-h em { font-style: normal; color: var(--accent); }
+.nw-cm .cmts { margin-top: 6px; }
+@media print { .nw-cm, .nw-cmn { display: none !important; } }
 .nw-sec { --c: var(--kn-a); }
 .nw-sec.nw-p { --c: var(--kn-p); }
 .nw-sec.nw-i { --c: var(--kn-i); }

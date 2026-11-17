@@ -25,7 +25,8 @@ import { 지역주소, 방문수, 누적시작, 날글 } from './이용자지도
 
 const DB = 'https://k-conmap-default-rtdb.firebaseio.com'
 export const 첫마디들 = new Set(['agency', 'analysis', 'bunseok', 'gongdong', 'cad', 'calc', 'change', 'corp', 'daily', 'ext', 'first', 'forms', 'goods', 'guide', 'how', 'jeoksan', 'jobs',
-  'lic', 'live', 'my', 'naeyeok', 'pdf', 'qna', 'report', 'safety', 'shareone', 'svc', 'tools', 'about', 'privacy', 'terms', 'contact', 'cert'])   /* 📚 G627 자격증 쪽도 «👁 이 화면 조회»(누적) */
+  'lic', 'live', 'my', 'naeyeok', 'pdf', 'qna', 'report', 'safety', 'shareone', 'svc', 'tools', 'about', 'privacy', 'terms', 'contact', 'cert',
+  'news'])   /* 📚 G627 자격증 쪽도 «👁 이 화면 조회»(누적) · 📰 G735 (11-17) 건설뉴스 — 소장님 「클릭수 보이게 해줘」(그날 호 조회는 News.jsx 날짜 줄에) */
 /* 🔢 G205 (2026-10-08) 소장님 「마이컨맵은 다른 페이지처럼 누적으로 카운트되게」 — 'my' 를 더함(/my → |my). 공개 페이지 /@주소 는 일부러 안 넣음(숨은 누적 |명함|주소 만 — MyConmap.jsx).
  *   ⚠️ 파이썬 tools/이용자지도.py 첫마디들 과 «똑같이» */
 const 공고모양 = /^[A-Za-z0-9-]{6,30}$/
@@ -235,7 +236,8 @@ export function 방문자바닥() {
 }
 
 /* ── 그리기 ── */
-const 숨김 = (p) => p.startsWith('/admin') || p.startsWith('/tools/tuipbi/v')
+/* 📰 G735 — 건설뉴스(/news · /news/{날})는 «그날 호 조회» 를 날짜 줄에 따로 보임(News.jsx) → 맨 위 줄은 뺌(숫자 둘이 다르게 보이지 않게 · 세기는 그대로) */
+const 숨김 = (p) => p.startsWith('/admin') || p.startsWith('/tools/tuipbi/v') || p === '/news' || p.startsWith('/news/')
 /** 화면 위 «👁 이 화면 조회 N» — App.jsx 에 한 번(모든 화면) */
 /* 🩹 G197 (2026-10-08) 소장님(폰 /my 캡처): 「위에 갑자기 없던게 떠있어… 이거 고쳐줘 화면이 지져분해 보여」
  *   → 화면 위 줄에서 «👥 오늘 · 어제 · 누적» 을 뺌(바닥글 방문자바닥 한 곳에만). 위 줄은 G121 그대로 «👁 이 화면 조회 N» 만 —

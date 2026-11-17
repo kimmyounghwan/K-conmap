@@ -3,6 +3,7 @@ import { ref, get, set, push, query, orderByKey, limitToLast } from 'firebase/da
 import { db, ensureAnon } from './firebase.js'
 import { pinHash } from './lib/pin.js'
 import { nickOf } from './lib/nickname.js'
+import { isOp } from './lib/운영자.js'   /* 💬 G735 소장님 기기에서 쓴 댓글은 «K-건설맵» (맵톡과 같게) */
 import { Skeleton } from './components.jsx'
 
 /* ══════════════════════════════════════════════════════════════
@@ -31,7 +32,7 @@ const ago = (t) => {
 }
 const safeNo = (no) => String(no || '').replace(/[.#$\[\]\/]/g, '_').slice(0, 40)
 
-export default function CommentsPanel({ no, title }) {
+export default function CommentsPanel({ no, title, place, 바뀜 }) {
   const key = safeNo(no)
   const [list, setList] = useState(null)
   const [err, setErr] = useState('')
@@ -45,7 +46,7 @@ export default function CommentsPanel({ no, title }) {
   useEffect(() => {
     if (nick || !body.trim()) return
     let alive = true
-    ensureAnon().then((u) => { if (alive) setNick(nickOf(u && u.uid)) }).catch(() => {})
+    ensureAnon().then((u) => { if (alive) setNick(u && isOp(u.uid) ? 'K-건설맵' : nickOf(u && u.uid)) }).catch(() => {})
     return () => { alive = false }
   }, [body, nick])
   const [pin, setPin] = useState('')
@@ -78,11 +79,12 @@ export default function CommentsPanel({ no, title }) {
       const id = push(ref(db, `comments/${key}`)).key
       await set(ref(db, `comment_pins/${key}/${id}`), await pinHash(id, pin))
       /* by 는 사용자가 적은 값이 아니라 uid 에서 만든 별명입니다. 규칙상 20자 이하라 잘라 둡니다. */
-      const myNick = nickOf(u.uid).slice(0, 20)
+      const myNick = (isOp(u.uid) ? 'K-건설맵' : nickOf(u.uid)).slice(0, 20)
       await set(ref(db, `comments/${key}/${id}`), { body: b.slice(0, 500), by: myNick, uid: u.uid, at: Date.now() })
       setNick(myNick)
       addMine(id); setMine(loadMine()); setBody(''); setPin('')
       await load()
+      if (바뀜) 바뀜()   /* 💬 G735 바깥 «댓글 N» 다시 셈 */
     } catch { setErr('댓글을 올리지 못했습니다. 잠시 후 다시 시도해주세요.') }
     finally { setBusy(false) }
   }
@@ -93,6 +95,7 @@ export default function CommentsPanel({ no, title }) {
       await ensureAnon()
       await set(ref(db, `comment_del/${key}/${c.id}`), await pinHash(c.id, p))
       setList((l) => (l || []).filter((x) => x.id !== c.id))
+      if (바뀜) 바뀜()
     } catch { setErr('숫자가 다르거나 지울 수 없습니다.') }
   }
 
@@ -115,7 +118,7 @@ export default function CommentsPanel({ no, title }) {
       ))}
       <div className="cm-form">
         <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={2} maxLength={500}
-          placeholder="이 공고에 대해 한마디 — 현장 사정, 질문, 정보 나눔" />
+          placeholder={place || '이 공고에 대해 한마디 — 현장 사정, 질문, 정보 나눔'} />
         <div className="cm-row">
           <span className="cm-nick" title="이 브라우저에 붙은 별명입니다. 바꿀 수 없고, 이름·연락처는 남지 않습니다.">
             {nick ? `🪪 ${nick}` : '🪪 쓰기 시작하면 별명이 붙습니다'}
