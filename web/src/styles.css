@@ -135,6 +135,21 @@ button { font: inherit; color: inherit; }
         (top: calc(… + env(safe-area-inset-top, 0px)) 꼴 — 새 붙는 칸을 만들면 같이 넣을 것 · tools/시험_아이폰위칸.mjs 가 지킴) */
   padding-top: env(safe-area-inset-top, 0px);
 }
+/* 🩹 G765 (2026-11-18) 아이폰 «홈 화면 앱» 시계 줄 바탕 — 맨 위 «고정 칸»(App.jsx · 머리줄 바로 앞)
+   아이폰(iOS 26)은 맨 위에 position: fixed 칸이 있으면 그 바탕색으로 시계 줄 뒤를 칠하고, 없으면 쪽 바탕색으로 «그늘»을 깔아 아래로 번지게 함
+   → 머리줄(.topbar)은 sticky 라 안 쳐줌 → 그늘이 로고 줄(K-건설맵 · 🔎 · 🔄)까지 내려와 흐림(밝은 화면은 회색 띠 · 어두운 화면은 뿌옇게)
+   → 시계 줄 높이만큼 머리줄 색 고정 칸. 높이 = env(safe-area-inset-top) 라 PC · 안드로이드 · 가로 화면은 0(그대로).
+   ⚠️ pointer-events: none 을 넣지 말 것(아이폰이 맨 위 칸을 찾을 때 건너뛸 수 있음) · 바탕은 늘 불투명(var(--bar)) · tools/시험_아이폰위칸.mjs ⑧ 이 지킴 */
+.kcm-sibar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background: var(--bar);
+  z-index: 41;
+}
+@media print { .kcm-sibar { display: none; } }
 .topbar-in {
   max-width: var(--maxw);
   margin: 0 auto;
@@ -10955,7 +10970,7 @@ details.esc-edit > summary { cursor: pointer; font-weight: 700; font-size: 13.5p
 html.vv-fix .topbar { top: var(--vv-dy, 0px); }
 html.vv-fix :is(.tabbar, .cam-tab, .cam-dim, .bsr-dock, .gx-ed, .xv-고침판, .iy-bar, .insa, .ask-card,
   .installguide, .noticepop, .askwrap, .끌놓판, .pb-modal, .mt-back, .mt-sheet, .qs-back,
-  .kcm-help-back, .kcm-help-dlg, .gmd-askbox, .gmd-xlchk, .gmd-xlchk-toast, .nm-toast) { translate: 0 var(--vv-dy, 0px); }   /* .nm-toast — G758 에 더함(목록에 빠져 시험_아이폰자리 ⑨ 가 잡음) */
+  .kcm-help-back, .kcm-help-dlg, .gmd-askbox, .gmd-xlchk, .gmd-xlchk-toast, .nm-toast, .kcm-sibar) { translate: 0 var(--vv-dy, 0px); }   /* .nm-toast — G758 에 더함(목록에 빠져 시험_아이폰자리 ⑨ 가 잡음) · .kcm-sibar — G765 시계 줄 바탕(머리줄과 같이 내려감) */
 @media (max-width: 560px) { html.vv-fix .noti-pop { translate: 0 var(--vv-dy, 0px); } }   /* 폰에서만 떠 있음(넓으면 머리줄에 붙어 같이 내려감) */
 html.vv-fix .mc-savebar { bottom: calc(12px - var(--vv-dy, 0px)); }
 @media (max-width: 899px) { html.vv-fix .mc-savebar { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 8px - var(--vv-dy, 0px)); } }

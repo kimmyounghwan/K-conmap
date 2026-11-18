@@ -191,6 +191,10 @@ export default function App() {
       {/* 2026-09-02 — «기초금액 넣기»를 상단에서 뺐는데, 예전에 넣어둔 값이
           브라우저에 남아 1순위 목록마다 «6.3억» 같은 유령 금액을 띄웠습니다.
           입력칸이 없으니 지울 방법도 없었습니다. 한 번 비웁니다. */}
+      {/* 🩹 G765 (2026-11-18) 아이폰 «홈 화면 앱» 시계 줄 바탕 — 맨 위 «고정 칸»(시계 줄 높이 · 머리줄 색).
+          아이폰(iOS 26)은 맨 위에 고정 칸이 없으면 시계 줄 뒤를 쪽 바탕색 «그늘»로 덮고, 그 그늘이 로고 줄(K-건설맵 · 🔎 · 🔄)까지 번져 흐려 보임
+          — 소장님 11-18 18:10 폰 캡처 「지금도 위 쪽이 좀 그러지 않아??」. PC · 안드로이드는 높이 0. styles.css .kcm-sibar · tools/시험_아이폰위칸.mjs ⑧ */}
+      <div className="kcm-sibar" aria-hidden="true" />
       <header className="topbar">
         <div className="topbar-in" ref={윗줄} data-tight="0">
           <NavLink to="/" className="brand">

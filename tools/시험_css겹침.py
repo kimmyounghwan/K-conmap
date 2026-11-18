@@ -142,13 +142,14 @@ def 겹침들(글):
 덩이_떨어짐 = 300   # ② 이보다 멀리 벌어지면 다른 덩이(도구 묶음은 보통 300줄 안 · 다른 도구는 수천 줄 떨어짐)
 # ② 이미 먼 곳에 나오던 도구 이름 · 덩이 수(2026-11-17 G737 · python tools/시험_css겹침.py --목록 으로 뽑음)
 #   + nm-toast:2 — G758(11-18) 아이폰 바로잡기 목록(html.vv-fix :is(…))에 더함(다른 떠 있는 것들과 같은 까닭)
+#   + kcm-sibar:2 — G765(11-18) 시계 줄 바탕 칸을 아이폰 바로잡기 목록(html.vv-fix :is(…))에 더함(머리줄과 같이 내려가야 · 같은 까닭)
 이미_멀리_글 = """
 amt-read:2 ask-card:2 bim-big:2 bim-box:2 bim-box-list:2 bim-canvas:2 bim-chips:2 bim-out:2 bim-side:2 bim-sum:2 bim-tblwrap:2 bim-tool:2 bim-view:2
 bim-views:2 bsr-cta:2 bsr-dock:2 bsr-title:2 btn-grid:2 btn-row:4 c-sim:2 cam-dim:2 cam-tab:2 cfx-view:2 cpl-view:2 cw-tiles:2 detail-h:5 dx3-err:2
 dx3-file:2 dx3-tag:2 fill-go:2 fm-card:2 fm-grid:2 fw-in:2 gg-ask:2 gg-auto:2 gg-draw:2 gg-f:2 gg-t:2 gg-top:2 gj-check:2 gj-in:2 gj-num:3 gj-w:2
 gmd-askbox:2 gmd-check-l:2 gmd-h:3 gmd-in:2 gmd-row:2 gmd-tab:3 gmd-tabs:2 gmd-tl:2 gmd-ws-tabs:3 gmd-ws-top:2 gmd-x:2 gmd-xlchk:2 gmd-xlchk-toast:2
 gp-hint:2 gp-warn:2 gp-x:2 gx-ed:2 gz3-canvas:2 hm-paid-r:2 hm-row:2 il-paper:2 il-t:2 iy-bar:2 iy-cal:2 iy-cals:2 iy-d:2 iy-exd:2 iy-net:2 iy-out:2
-ja-in:2 ja-num:2 jvs-m:2 kcm-help-back:2 kcm-help-dlg:2 lead-card:2 mb-card:2 mb-h:2 mb-no:2 mb-ok:2 mb-sec:2 mb-t:2 mc-savebar:2 mt-ans:2 mt-ans-h:2
+ja-in:2 ja-num:2 jvs-m:2 kcm-help-back:2 kcm-help-dlg:2 kcm-sibar:2 lead-card:2 mb-card:2 mb-h:2 mb-no:2 mb-ok:2 mb-sec:2 mb-t:2 mc-savebar:2 mt-ans:2 mt-ans-h:2
 mt-back:2 mt-fold:2 mt-lab:2 mt-meta:2 mt-sheet:2 mt-tag:2 mt-where:2 mt-who:2 naeyeok-strip:2 nm-toast:2 no-print:3 noti-pop:2 ns-go:2 ns-txt:2 ny-n:2 ny-sit:2
 ny-sit-h:2 pb-modal:2 pb-note:2 pre-xgot:2 qs-back:2 r-hot:2 r-warm:2 rk-bigttl:2 rk-c:2 rk-foot:3 rk-paper:2 rk-sec:2 rk-t:2 rk-쪽:2 sec-title:5
 sg-view:2 sn-date:2 sn-frame:2 sn-say:2 sn-sign:2 tl-h1:2 tl-out:2 tl-p:2 tl-row:2 tlx-body:2 tlx-card:3 tlx-d:3 tlx-dl:2 tlx-ex:2 tlx-grid:2 tlx-ic:3

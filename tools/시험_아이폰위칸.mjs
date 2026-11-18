@@ -11,6 +11,8 @@
  *   ⑤ 숫자 칸 열쇠 꼴 — 어떤 오류 글이 와도 «|흰화면|…» 두 마디 · 80자 · . / # $ [ ] | 없음
  *   ⑥ 흰 화면 지킴 2 의 로봇 거르기 = lib/인사.js 로봇(한쪽만 고치지 않게)
  *   ⑦ 📱 G760 화면을 덮는 칸(position: fixed · inset 0 / top 0)은 모두 시계 줄 셈(덮개 · 아래 창 목록만 빼고) — 🔎 찾기 창을 빠뜨렸던 일 · 자가시험
+ *   ⑧ 🩹 G765 시계 줄 바탕(.kcm-sibar) — 소장님 11-18 18:10 폰 캡처 「지금도 위 쪽이 좀 그러지 않아??」(로고 줄이 아이폰 «그늘»에 덮여 흐림)
+ *      맨 위 고정 칸 · 높이 = 시계 줄 · 바탕 = 머리줄 색(불투명) · 머리줄보다 위(z) · pointer-events 없음 · 인쇄 숨김 · 키보드 바로잡기(vv-fix) 목록 · App.jsx 머리줄 바로 앞 하나
  */
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -103,6 +105,24 @@ const 셈안함 = 덮는칸.filter((s) => !덮개만.has(s) && !규칙들.some((
 /* 자가시험 — 셈 안 한 덮는 칸을 일부러 넣으면 잡아야 함 */
 { const 가짜 = (css + `\n.시험덮개 { position: fixed; inset: 0; padding: 0; }\n`).split('}').map((r) => r + '}')
   봄('자가시험 — 셈 안 한 덮는 칸을 넣으면 잡음', 가짜.filter((r) => /position:\s*fixed/.test(몸(r)) && /(^|[;{\s])inset:\s*0[;\s}]/.test(몸(r))).map(이름).filter((s) => !덮개만.has(s) && !가짜.some((r) => 이름(r) === s && 몸(r).includes(E))).includes('.시험덮개')) }
+
+/* 🩹 G765 (11-18 18시) 소장님 폰 캡처(어두운 화면) — 로고 줄(K-건설맵 · 🔎 · 🔄)이 뿌옇게 · 오후(밝은 화면)엔 시계 줄 뒤가 회색 띠
+   아이폰(iOS 26)은 맨 위 «고정(fixed)» 칸의 바탕색으로 시계 줄 뒤를 칠하고, 없으면 쪽 바탕색 «그늘»을 깔아 아래로 번지게 함(머리줄은 sticky 라 안 침) */
+console.log('⑧ 시계 줄 바탕(.kcm-sibar)')
+const 바탕 = 규칙('.kcm-sibar')
+봄('맨 위 고정 칸(fixed · top 0 · 왼 0 · 오른 0)', /position: fixed;/.test(바탕) && /\btop: 0;/.test(바탕) && /\bleft: 0;/.test(바탕) && /\bright: 0;/.test(바탕), 바탕.replace(/\s+/g, ' ').slice(0, 160))
+봄('높이 = 시계 줄(PC · 안드로이드는 0)', 바탕.includes(`height: ${E};`))
+봄('바탕 = 머리줄 색(var(--bar))', /background: var\(--bar\);/.test(바탕) && /background: var\(--bar\);/.test(머리 ? 머리[0] : ''))
+const 바탕색들 = [...css.matchAll(/--bar:\s*([^;]+);/g)].map((m) => m[1].trim())
+봄('머리줄 색은 밝은 · 어두운 화면 모두 불투명(#rrggbb)', 바탕색들.length >= 2 && 바탕색들.every((c) => /^#[0-9a-f]{6}$/i.test(c)), 바탕색들.join(' · '))
+const z바탕 = Number((바탕.match(/z-index: (\d+);/) || [])[1]), z머리 = Number(((머리 ? 머리[0] : '').match(/z-index: (\d+);/) || [])[1])
+봄('머리줄보다 위(z) — 시계 줄 자리만 덮음', z바탕 > z머리 && z바탕 < 60, `${z바탕} > ${z머리}`)
+봄('pointer-events: none 없음(아이폰이 맨 위 칸을 찾을 때 건너뛰지 않게)', !/pointer-events/.test(바탕))
+봄('인쇄에선 숨김', /@media print \{ \.kcm-sibar \{ display: none; \} \}/.test(css))
+봄('키보드 바로잡기(html.vv-fix) 때 머리줄과 같이 내려감', /html\.vv-fix :is\([^)]*\.kcm-sibar\) \{ translate: 0 var\(--vv-dy, 0px\); \}/.test(css))
+{ const 앱 = 읽('src/App.jsx')
+  const 칸 = 앱.match(/<div className="kcm-sibar" aria-hidden="true" \/>/g) || []
+  봄('App.jsx — 하나 · 머리줄(<header className="topbar">) 바로 앞', 칸.length === 1 && /<div className="kcm-sibar" aria-hidden="true" \/>\n\s*<header className="topbar">/.test(앱), String(칸.length)) }
 
 console.log(`\n시험_아이폰위칸: ${통과}개 통과 · ${실패}개 실패`)
 process.exit(실패 ? 1 : 0)
