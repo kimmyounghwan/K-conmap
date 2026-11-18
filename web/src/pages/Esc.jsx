@@ -21,6 +21,7 @@ import { use보기만 } from '../lib/보기만.js'   // 🧪 G679 예시는 보�
 import { 나운영자 } from '../lib/운영자.js'
 import { 끌어놓기 as 끌어놓기판 } from '../끌어놓기.jsx'
 import 금액입력 from '../금액입력.jsx'
+import 광고칸 from '../광고칸.jsx'   /* 📣 G759 업체 광고 — 맨 아래 한 장(자리 물가 · lib/광고자료.js) */
 
 const 숫 = (n, d = 0) => (n === null || n === undefined || n === '' || !Number.isFinite(Number(n)) ? '' : Number(n).toLocaleString('ko-KR', { maximumFractionDigits: d }))
 const 원 = (n) => 숫(Math.round(Number(n) || 0))
@@ -220,6 +221,7 @@ export default function Esc() {
           머리={보기 === '예시' ? null : { 파일이름: 내것.파일이름, 꼴: 내것.꼴, 읽기경고: 내것.경고, 견본결과: 내것.견본결과 }}
           고침={고침} set고침={set고침} 입력={입력} 엑셀받기={엑셀받기} />
       )}
+      <광고칸 자리="물가" />   {/* 📣 G759 업체 광고 — 넣기 칸 · 산출서 다음 맨 아래 한 장(쪽에 한 번 · 인쇄 안 나옴) */}
     </div>
   )
 }

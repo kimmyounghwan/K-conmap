@@ -37,6 +37,7 @@ import { 규모칸 as 환경규모, 종류들 as 환경종류, 고른값 as 환�
 import { 발주들 as 참가발주, 종류들 as 참가종류, 제한들 as 참가제한, 판정 as 참가판정, 안전선 as 참가안전선, 안전선글 as 참가안전선글, 공동셈 as 참가공동, 안내 as 참가안내, 근거 as 참가근거 } from '../lib/입찰참가.js'   /* 🎯 G562 */
 import { getBidIndex, indexRows } from '../lib/data.js'
 import 금액입력 from '../금액입력.jsx'   /* 💰 G544 금액 칸 — «3억 8,500만» · 붙여넣은 «385,000,000원» 도 읽음 · 칸 아래 읽은 줄(바로투찰 · 보험료와 같은 칸) */
+import 광고칸 from '../광고칸.jsx'   /* 📣 G759 업체 광고 — 공기연장 때 할 일 목록 다음 한 장(자리 공기 · lib/광고자료.js) */
 import { 금액수, 금액말 } from '../lib/금액읽기.js'
 
 const num = (v) => { const n = Number(String(v ?? '').replace(/[^0-9.]/g, '')); return isFinite(n) ? n : 0 }   /* 율 · 날 · % 만 — 금액은 금() */
@@ -814,6 +815,7 @@ export function TimeExtension({ ex = {} }) {
           </li>
         ))}
       </ol>
+      <광고칸 자리="공기" />   {/* 📣 G759 업체 광고 — 할 일 목록 다음 한 장(쪽에 한 번 · 인쇄 안 나옴) */}
       {r.판정 === 'yes' && (
         <details className="kt-all te-why">
           <summary>연장 사유가 되는 것 — 지체일수에 넣지 않는 사유</summary>

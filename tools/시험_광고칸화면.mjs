@@ -6,6 +6,7 @@
  *   ①b 공고(/live): 셋째 카드 다음 강천 · 대유(늘)
  *      · 카드를 눌러 펼쳐도 광고는 그 자리 한 장 · 다음 쪽에도 한 장
  *   ② 보험료 계산기 · 4대보험 판단기: 결과 바로 아래 한 장(근재보험 정순덕 FP · 여러 번 열어도 늘 — 소장님 「번갈아서 하지 말고」)
+ *   ②c 📈 G759 바른경제연구원: 물가변동 ESC 산출서(/tools/esc) 맨 아래 · 공기연장 때 할 일(/tools/time-extension) 목록 다음 — 폰 390 · PC 1280 · 320 · 예시를 열어도 한 장 · 옆 도구엔 없음
  *   ③ 숨은 셈: 보임(화면에 들어왔을 때 한 번) · 전화 · 문자 누름 → 데이터베이스로 |광고보임|id · |광고전화|id · |광고문자|id
  *   ④ 폰 390 · 320 넘침 0 · 어두운 화면 글이 읽힘(대비) · 인쇄에는 안 나옴 · 오류 0
  *   ⑤ 📐 G651 소장님 「광고 크기 줄여줘」 · 「현재 광고 다 크기 줄이고」 — 높이 막이(폰 390 강천 · 대유 ≤ 180 · 유안굴착 ≤ 230 · 정순덕 ≤ 180 · 박현희 ≤ 165 · 어느 광고든 ≤ 230 / PC 1280 ≤ 125 · 유안굴착 ≤ 150 — 전 243 · 323 · 301 · 255 / 161 · 194 · 181)
@@ -187,6 +188,70 @@ console.log('②b 노무비 계산기 · 산재 휴업급여 계산기 — 정�
     await ctx.close()
   }
   ok('노무 자리 — 여러 번 열면 정순덕 · 박현희 둘 다 나옴(번갈아)', 나온.has('kb-jsd') && 나온.has('kb-phh'), [...나온])
+}
+
+console.log('②c 📈 G759 바른경제연구원 — 물가변동 ESC 산출서 맨 아래 · 공기연장 때 할 일 목록 다음(소장님 11-18 「해줘.」)')
+{
+  const 바글 = (x) => x && /^광고 👍 K-건설맵 추천 광고 · 제휴 문의 → 📈 바른경제연구원 부장 홍지훈 공사비 조정이 필요할 때 — 전화 한 통으로 상담 · 물가변동으로 인한 계약금액조정 · 공사기간 연장에 따른 간접비 산정 📞 010-2257-5339 💬 문자 📇 메일 · 주소 메일 oriida@hanmail\.net 주소 전남광주특별시 광산구 장신로265번길 22 상가동 3층 302호$/.test(x.글)
+  const 기다림 = async (p, f, ms = 8000) => { const t = Date.now(); while (Date.now() - t < ms) { if (f()) return true; await p.waitForTimeout(200) } return f() }
+  for (const [폭, 높, 폰] of [[390, 844, true], [1280, 900, false]]) {
+    const 이름 = 폰 ? '폰 390' : 'PC 1280'
+    {
+      const { ctx, p, 오류 } = await 새쪽(폭, 높, 폰)
+      await p.goto(BASE + '/tools/esc', { waitUntil: 'domcontentloaded' })
+      await p.waitForSelector('aside.adc', { timeout: 15000 }); await p.waitForTimeout(500)
+      let a = await 광고(p)
+      ok(`${이름} 물가 ESC: 광고 한 장 · 바른경제연구원 · 맨 아래(뒤에 아무것도 없음)`, a.length === 1 && a[0].id === 'barun' && a[0].뒤 === '', a.map((x) => [x.id, x.앞, x.뒤]))
+      ok(`${이름} 물가 ESC: 글 = 명함(«광고 · 업체 소개» · 부장 홍지훈 · 두 일 · 📞 · 📇 메일 · 주소) · tel · sms · mailto · 연락처 접힘`, 바글(a[0]) && a[0].tel === 'tel:01022575339' && a[0].sms === 'sms:01022575339' && a[0].메일 === 'mailto:oriida@hanmail.net' && a[0].접힘 === true, a[0] && [a[0].글, a[0].tel, a[0].sms, a[0].메일, a[0].접힘])
+      ok(`${이름} 물가 ESC: 높이 ≤ ${폰 ? 200 : 125}(추천 한 줄 더 · G651 «어느 광고든 ≤ 230» 안) · 넘침 0 · 오류 0`, a[0] && a[0].높이 <= (폰 ? 200 : 125) && (await 넘침(p)) <= 0 && !오류.length, [a[0] && a[0].높이, await 넘침(p), 오류])
+      if (폰) {
+        await p.locator('aside.adc').scrollIntoViewIfNeeded()
+        await 기다림(p, () => 셈들.some((u) => /광고보임/.test(u) && /barun/.test(u))); await p.waitForTimeout(600)
+        ok('물가 ESC: 숨은 셈 — 화면에 들어오면 «|광고보임|barun» 한 번', 셈들.filter((u) => /광고보임/.test(u) && /barun/.test(u)).length === 1, 셈들.filter((u) => /barun/.test(u)))
+        if (OUT) { await 숨김(p); await p.evaluate(() => { const x = document.querySelector('aside.adc'); x.scrollIntoView(); window.scrollBy(0, -330) }); await p.waitForTimeout(400); await p.screenshot({ path: OUT + '/광고_물가ESC_폰390.png' }) }
+        const 예 = p.locator('button', { hasText: '예시 산출서 보기' })
+        if (await 예.count()) {
+          await 예.first().click(); await p.waitForTimeout(1500)
+          a = await 광고(p)
+          ok('물가 ESC: 🧪 예시 산출서를 열어도 광고 한 장 · 산출서 다음 맨 아래 · 넘침 0 · 오류 0', a.length === 1 && a[0].id === 'barun' && a[0].뒤 === '' && (await p.evaluate(() => { const ad = document.querySelector('aside.adc'); const 앞들 = [...ad.parentElement.children]; return 앞들.indexOf(ad) === 앞들.length - 1 && 앞들.length >= 4 })) && (await 넘침(p)) <= 0 && !오류.length, [a.map((x) => [x.id, x.앞]), await 넘침(p), 오류])
+        } else ok('물가 ESC: «🧪 예시 산출서 보기» 단추', false, '없음')
+      } else if (OUT) { await 숨김(p); await p.evaluate(() => { const x = document.querySelector('aside.adc'); x.scrollIntoView(); window.scrollBy(0, -420) }); await p.waitForTimeout(400); await p.screenshot({ path: OUT + '/광고_물가ESC_PC1280.png' }) }
+      await ctx.close()
+    }
+    {
+      const { ctx, p, 오류 } = await 새쪽(폭, 높, 폰)
+      await p.goto(BASE + '/tools/time-extension', { waitUntil: 'domcontentloaded' })
+      await p.waitForSelector('ol.te-steps', { timeout: 15000 }); await p.waitForSelector('aside.adc', { timeout: 15000 }); await p.waitForTimeout(500)
+      let a = await 광고(p)
+      ok(`${이름} 공기연장: 광고 한 장 · 바른경제연구원 · 할 일 목록 바로 다음`, a.length === 1 && a[0].id === 'barun' && /te-steps/.test(a[0].앞), a.map((x) => [x.id, x.앞, x.뒤]))
+      ok(`${이름} 공기연장: 글 = 명함 · 연락처 접힘 · 높이 ≤ ${폰 ? 200 : 125} · 넘침 0 · 오류 0`, 바글(a[0]) && a[0].접힘 === true && a[0].높이 <= (폰 ? 200 : 125) && (await 넘침(p)) <= 0 && !오류.length, [a[0] && a[0].글, a[0] && a[0].높이, await 넘침(p), 오류])
+      const 예 = p.locator('button', { hasText: '예시로 해 보기' })
+      if (await 예.count()) {
+        await 예.first().click(); await p.waitForTimeout(800)
+        a = await 광고(p)
+        ok(`${이름} 공기연장: 🧪 예시(연장 사유 · 서류 링크)로 바꿔도 광고 한 장 · 할 일 목록 다음 · 연장 사유 칸 앞 · 넘침 0 · 오류 0`, a.length === 1 && a[0].id === 'barun' && /te-steps/.test(a[0].앞) && /te-why/.test(a[0].뒤) && (await 넘침(p)) <= 0 && !오류.length, [a.map((x) => [x.id, x.앞, x.뒤]), await 넘침(p), 오류])
+      } else ok(`${이름} 공기연장: «🧪 예시로 해 보기» 단추`, false, '없음')
+      if (OUT) { await 숨김(p); await p.evaluate((폰) => { const x = document.querySelector('aside.adc'); x.scrollIntoView(); window.scrollBy(0, 폰 ? -300 : -380) }, 폰); await p.waitForTimeout(400); await p.screenshot({ path: OUT + `/광고_공기연장_${폰 ? '폰390' : 'PC1280'}.png` }) }
+      await p.emulateMedia({ media: 'print' })
+      ok(`${이름} 공기연장: 인쇄에는 안 나옴`, await p.evaluate(() => getComputedStyle(document.querySelector('aside.adc')).display === 'none'))
+      await ctx.close()
+    }
+  }
+  {
+    const { ctx, p, 오류 } = await 새쪽(320, 640)
+    await p.goto(BASE + '/tools/time-extension', { waitUntil: 'domcontentloaded' })
+    await p.waitForSelector('aside.adc', { timeout: 15000 }); await p.waitForTimeout(400)
+    const 한줄 = await p.evaluate(() => { const c = document.querySelector('.adc-call'), s = document.querySelector('.adc-sms'); const a = c.getBoundingClientRect(), d = s.getBoundingClientRect(); return { 같은줄: Math.abs(a.top - d.top) < 4, 안: d.right <= innerWidth - 8, 번호한줄: c.scrollWidth <= c.clientWidth + 1 } })
+    ok('폰 320 공기연장 — 전화 · 문자 단추 한 줄 · 번호 안 잘림 · 넘침 0 · 오류 0', 한줄.같은줄 && 한줄.안 && 한줄.번호한줄 && (await 넘침(p)) <= 0 && !오류.length, [한줄, await 넘침(p), 오류])
+    await ctx.close()
+  }
+  for (const 길 of ['/tools/delay-penalty', '/tools/joint-split']) {
+    const { ctx, p, 오류 } = await 새쪽(390, 844)
+    await p.goto(BASE + 길, { waitUntil: 'domcontentloaded' })
+    await p.waitForSelector('.tool', { timeout: 15000 }); await p.waitForTimeout(800)
+    ok(`옆 도구 ${길} — 업체 광고 없음(그대로) · 오류 0`, (await 광고(p)).length === 0 && !오류.length, [(await 광고(p)).map((x) => x.id), 오류])
+    await ctx.close()
+  }
 }
 
 console.log('③ 폰 320 · PC 1280 · 어두운 화면 · 인쇄')
