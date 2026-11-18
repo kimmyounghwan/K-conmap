@@ -27,6 +27,7 @@ import { Link } from 'react-router-dom'
 import { 받은수, 화면열쇠 } from '../lib/받은수.jsx'   /* ⬇ 2026-10-01 (G109) 소장님 「내역서 및 적산 탭 안에 … 받기 숫자가 하나도 없는데?」 — 도구 탭과 같은 숫자 */
 import { PriceStance } from '../components.jsx'
 import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import { 업표 } from '../고친띠.jsx'   /* 🆕 G769 (11-18) 소장님 「적산 컨맵에도 업데이트 내용 기제해줘」 — K-적산컨맵 카드에 «UP»(누르면 업데이트 내용 · public/fixes.json /jeoksan/model 줄) */
 import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
 
 const 단가표 = { 품목: '63,665', 공고: '4,555', 반영: '2026-09-27' }
@@ -150,7 +151,7 @@ function 컨맵카드() {
   return (
     <div className="card kcm-hero" aria-label="K-적산컨맵">
       <div>
-        <span className="kcm-hero-k">🏗 K-적산컨맵</span>
+        <span className="kcm-hero-k">🏗 K-적산컨맵</span><업표 to="/jeoksan/model" className="kcm-hero-up" />
         <h2>도면을 넣으면 건물이 서고, 물량까지</h2>
         <ul>
           <li>📐 구조도면을 모두 넣으면 <b>좌표대로</b> 기초 · 기둥 · 보 · 벽 · 슬라브가 섭니다</li>

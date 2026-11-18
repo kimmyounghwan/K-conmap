@@ -35,6 +35,7 @@ import PC연결판 from '../PC연결판.jsx'       /* 💻 G468 PC 연결 프로
 import { pc찾기, pc쓴적, pc기억, pc보낸, pc보낸파일, pc받음 } from '../lib/pc연결.js'
 import 받기검사판 from '../받기검사판.jsx'
 import 적산컨맵설명서 from '../적산컨맵설명서.jsx'
+import { 업표 } from '../고친띠.jsx'   /* 🆕 G769 (11-18) 작업 화면 막대 «🏗 K-적산컨맵» 옆 «UP»(누르면 업데이트 내용 — 작업 화면은 덮는 판이라 제목 옆 단추가 안 보임) */
 import { 층판 } from '../lib/둘러보기.js'
 import { 길잡이 } from '../lib/도우미.js'
 import { 부재보기 } from '../lib/bim3d.js'
@@ -654,7 +655,10 @@ export default function Model() {
   if (작업) {
     const 분야칸 = (
       <>
-        <b className="gmd-ws-name"><span className="gmd-ws-brand">🏗 K-적산컨맵</span> <span className="gmd-ws-model">{분야 === '토목' ? '토목' : M.이름 || '골조 모델'}</span></b>
+        <span className="gmd-ws-namebox">{/* 🆕 G769 이름 + «UP» 한 묶음(폰에서도 이름 바로 옆) */}
+          <b className="gmd-ws-name"><span className="gmd-ws-brand">🏗 K-적산컨맵</span> <span className="gmd-ws-model">{분야 === '토목' ? '토목' : M.이름 || '골조 모델'}</span></b>
+          <업표 to="/jeoksan/model" className="gmd-ws-up" />
+        </span>
         <span className="gmd-ws-field" role="tablist" aria-label="분야">
           {[['건축', '🏢 건축'], ['토목', '🛣 토목']].map(([k, t]) => <button key={k} type="button" role="tab" aria-selected={분야 === k} className={'gmd-field' + (분야 === k ? ' on' : '')} onClick={() => set분야(k)}>{t}</button>)}
         </span>

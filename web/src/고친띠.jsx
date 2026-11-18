@@ -5,6 +5,8 @@
  *   ■ 화면 안(고친 도구 · 서식): 옛 띠 대신 제목 옆 같은 «UP» 단추 — 제목 = 본문(#씀-앞 ~ #씀-뒤) 첫 h1 · 서식 .fp-title
  *     (화면을 하나하나 고치지 않음 — 새 화면도 제목만 있으면 붙음) · 제목이 없는 화면은 그 자리(길 줄 밑 · 씀-앞 «밖»)에 단추 한 줄
  *   ■ 창: 바깥을 누르거나 Esc · ✕ 로 닫힘 · 화면 폭 안 · 문서 기준 자리(absolute — 내려도 단추 밑) · 2주 안 고친 것 모두 · 로봇 · 인쇄엔 없음
+ *   ■ 🏗 G769 (11-18) 소장님 「적산 컨맵에도 업데이트 내용 기제해줘」 — K-적산컨맵(/jeoksan/model 줄): 적산 첫 화면 카드 · 작업 화면 막대에도 «UP»(pages/Jeoksan.jsx · Model.jsx 업표)
+ *     작업 화면은 덮는 판(fixed · z 1200)이라 창을 그 판 위로(판높이)
  *   ■ 숨은 셈: |업그레이드|보임(화면 안 단추가 보일 때 줄마다 한 번) · |업그레이드|단추(창을 열 때)
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -20,6 +22,18 @@ const 날짜 = (x) => { const m = String(x && x.d).match(/^\d{4}-(\d{2})-(\d{2})
 const 센것 = new Set()   // 이 탭에서 «보임» 은 줄마다 한 번만
 /* 창 안을 눌러도 카드(링크)로 안 넘어가게 — body 에 붙인 창이라도 React 이벤트는 부모(링크)로 올라감 */
 const 막기 = (e) => { e.stopPropagation(); e.preventDefault() }
+/* 🩹 G769 (11-18) 덮는 판(적산컨맵 작업 화면 .gmd-ws — fixed · z-index 1200) 안의 단추면 창을 그 판보다 위로 — 아니면 창(62)이 판 뒤에 숨음
+   단추에서 위로 올라가며 자리 잡힌 칸(position 이 static 아님)의 z-index 가운데 가장 큰 것 · 보통 쪽은 0 → CSS 62 그대로 */
+const 판높이 = (el) => {
+  let z = 0
+  try {
+    for (let n = el; n && n !== document.body; n = n.parentElement) {
+      const s = getComputedStyle(n)
+      if (s.position !== 'static') { const v = parseInt(s.zIndex, 10); if (v > z) z = v }
+    }
+  } catch (e) { /* 없음 */ }
+  return z
+}
 
 /** 업데이트 내용 창 — body 에 붙임(카드 · 링크 · 제목 밖) · 단추 바로 밑 · 화면 폭 안 */
 function 업창({ 줄들, 기준, 닫기 }) {
@@ -31,7 +45,7 @@ function 업창({ 줄들, 기준, 닫기 }) {
       if (!b || !w) return
       const r = b.getBoundingClientRect(), 폭 = w.offsetWidth, 쪽폭 = document.documentElement.clientWidth
       const 왼 = Math.max(8, Math.min(r.left, 쪽폭 - 폭 - 8))
-      set자리({ top: Math.round(r.bottom + window.scrollY + 6), left: Math.round(왼 + window.scrollX) })
+      set자리({ top: Math.round(r.bottom + window.scrollY + 6), left: Math.round(왼 + window.scrollX), z: 판높이(b) })
     }
     맞춤()
     window.addEventListener('resize', 맞춤)
@@ -46,7 +60,7 @@ function 업창({ 줄들, 기준, 닫기 }) {
   }, [기준, 닫기])
   return createPortal(
     <div className="up-pop" role="dialog" aria-label="업데이트 내용" ref={창} onClick={막기}
-         style={자리 ? { top: 자리.top, left: 자리.left } : { top: 0, left: 0, visibility: 'hidden' }}>
+         style={자리 ? { top: 자리.top, left: 자리.left, ...(자리.z >= 62 ? { zIndex: 자리.z + 1 } : {}) } : { top: 0, left: 0, visibility: 'hidden' }}>
       <div className="up-pop-h">
         <b>🆕 업데이트</b>
         <button type="button" className="up-pop-x" aria-label="업데이트 내용 닫기" onClick={(e) => { 막기(e); 닫기() }}>✕</button>

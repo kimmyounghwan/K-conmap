@@ -13,6 +13,7 @@
  *   ⑦ 마이컨맵 단축키 «UP» 단추 — 칸 안 · 누르면 창 · 안 넘어감   ⑧ 로봇에겐 단추 없음
  *   ⑨ 자료를 못 받음 — 단추 없음 · 오류 없음 · 지난번 받은 것(이 기기)으로 바로   ⑩ 진짜 public/fixes.json — 제목 옆 단추 · 창 글
  *   ⑪ 화면 오류(pageerror) 없음   ⑫ 내역서 쪽 목록에도 빨간 «새로» 없음
+ *   ⑬ 🏗 G769 적산컨맵(/jeoksan/model 줄) — 적산 첫 화면 카드 이름 옆 · 골조 모델 제목 옆 · 작업 화면(?ws=1) 막대 이름 옆(같은 줄) · 창이 작업 화면(z 1200) 위 · 도구 목록 카드
  */
 import { createRequire } from 'module'
 const require = createRequire('/tmp/g10/pw/package.json')
@@ -182,6 +183,42 @@ for (const [이름, 크기] of 크기들) {
   봄('⑦ 단축키 UP 누름 → 창 · 안 넘어감', (await 창글(p)).includes(새글) && new URL(p.url()).pathname === '/my', new URL(p.url()).pathname)
   await p.keyboard.press('Escape')
   if (캡처) { const 판 = p.locator('.mc-keys').first(); if (await 판.count()) await 판.screenshot({ path: `${캡처}/단축키_${이름}.png` }) }
+  /* ── ⑬ 🏗 적산컨맵(G769) ── */
+  상.자료 = { v: 1, r: [...기본줄(), { p: '/jeoksan/model', d: 한국글(지금 - 6 * 하루), m: '적산컨맵 시험 줄' }] }
+  await p.evaluate(() => { try { localStorage.removeItem('kcm.upg.표') } catch (e) { /* */ } })
+  await 열기(p, '/jeoksan', '.kcm-hero')
+  await 기다림(async () => (await p.locator('.kcm-hero .up-btn').count()) > 0)
+  const 히어로 = await p.evaluate(() => { const b = document.querySelector('.kcm-hero .up-btn'), k = document.querySelector('.kcm-hero-k'); if (!b || !k) return null; const r = b.getBoundingClientRect(), q = k.getBoundingClientRect(); return { 수: document.querySelectorAll('.kcm-hero .up-btn').length, 옆: Math.round(r.left - q.right), 줄: Math.abs((r.top + r.height / 2) - (q.top + q.height / 2)) <= 4, 안단추: document.querySelectorAll('.up-slot .up-btn, .up-line .up-btn').length } })
+  봄('⑬ 적산 첫 화면 — «🏗 K-적산컨맵» 바로 옆 UP 하나 · 같은 줄 · 화면 안 단추(/jeoksan 칸)는 없음', !!히어로 && 히어로.수 === 1 && 히어로.옆 >= 0 && 히어로.옆 <= 12 && 히어로.줄 && 히어로.안단추 === 0, JSON.stringify(히어로))
+  await p.locator('.kcm-hero .up-btn').scrollIntoViewIfNeeded()
+  await p.locator('.kcm-hero .up-btn').click(); await 기다림(async () => (await 창수(p)) > 0, 3000)
+  const 히창 = await p.evaluate(() => { const w = document.querySelector('.up-pop'); if (!w) return null; const r = w.getBoundingClientRect(); return { 왼: Math.round(r.left), 오른: Math.round(innerWidth - r.right), 글: w.innerText.replace(/\s+/g, ' ') } })
+  봄('⑬ 카드 UP 누름 → 적산컨맵 창 · 화면 안 · 안 넘어감', !!히창 && 히창.글.includes('적산컨맵 시험 줄') && !히창.글.includes(새글) && 히창.왼 >= 7 && 히창.오른 >= 7 && new URL(p.url()).pathname === '/jeoksan', JSON.stringify(히창))
+  if (캡처) await p.screenshot({ path: `${캡처}/적산첫화면_${이름}.png`, fullPage: false })
+  await p.keyboard.press('Escape'); await 쉼(150)
+  await 열기(p, '/jeoksan/model', 'h1')
+  await 기다림(async () => (await 안단추(p)) > 0)
+  봄('⑬ 골조 모델 — 제목(h1) 옆 단추 하나', (await p.locator('h1 .up-slot .up-btn').count()) === 1 && (await 안단추(p)) === 1)
+  await 열기(p, '/jeoksan/model?ws=1', '.gmd-ws')
+  await 기다림(async () => (await p.locator('.gmd-ws .up-btn').count()) > 0)
+  const 막대 = await p.evaluate(() => {
+    const b = document.querySelector('.gmd-ws .gmd-ws-namebox .up-btn'), n = document.querySelector('.gmd-ws .gmd-ws-name'); if (!b || !n) return null
+    const r = b.getBoundingClientRect(), q = n.getBoundingClientRect()
+    const 보임 = [...document.querySelectorAll('.up-btn')].filter((e) => { const x = e.getBoundingClientRect(); if (!x.width) return false; const t = document.elementFromPoint(x.left + x.width / 2, x.top + x.height / 2); return !!t && (t === e || e.contains(t)) }).length
+    return { 보임, 옆: Math.round(r.left - q.right), 줄: Math.abs((r.top + r.height / 2) - (q.top + q.height / 2)) <= 4, 넘침: document.documentElement.scrollWidth - innerWidth }
+  })
+  봄('⑬ 작업 화면 막대 — 이름 바로 옆(같은 줄) · 보이는 UP 하나 · 넘침 없음', !!막대 && 막대.보임 === 1 && 막대.옆 >= 0 && 막대.옆 <= 14 && 막대.줄 && 막대.넘침 <= 1, JSON.stringify(막대))
+  await p.locator('.gmd-ws .gmd-ws-namebox .up-btn').click(); await 기다림(async () => (await 창수(p)) > 0, 3000)
+  const 판창 = await p.evaluate(() => { const w = document.querySelector('.up-pop'); if (!w) return null; const r = w.getBoundingClientRect(); const 안 = (x, y) => { const e = document.elementFromPoint(x, y); return !!(e && e.closest('.up-pop')) }; const x = w.querySelector('.up-pop-x').getBoundingClientRect(); return { z: Number(getComputedStyle(w).zIndex), 가운데: 안(r.left + r.width / 2, r.top + r.height / 2), 닫기: 안(x.left + x.width / 2, x.top + x.height / 2), 왼: Math.round(r.left), 오른: Math.round(innerWidth - r.right), 글: w.innerText.replace(/\s+/g, ' ').slice(0, 60) } })
+  봄('⑬ 작업 화면 UP 누름 → 창이 작업 화면(z 1200) 위 · ✕ · 가운데 보임 · 화면 안', !!판창 && 판창.z > 1200 && 판창.가운데 && 판창.닫기 && 판창.왼 >= 7 && 판창.오른 >= 7 && 판창.글.includes('적산컨맵 시험 줄'), JSON.stringify(판창))
+  if (캡처) await p.screenshot({ path: `${캡처}/작업화면_${이름}.png`, fullPage: false })
+  await p.keyboard.press('Escape'); await 쉼(200)
+  봄('⑬ Esc → 창 닫힘 · 작업 화면 그대로', (await 창수(p)) === 0 && (await p.locator('.gmd-ws').count()) > 0)
+  await 열기(p, '/tools', '.tlx-card')
+  await 기다림(async () => (await p.locator('.tlx-card[href="/jeoksan/model"] .up-btn').count()) > 0)
+  봄('⑬ 도구 목록 «골조 모델» 카드 UP', (await p.locator('.tlx-card[href="/jeoksan/model"] .up-btn').count()) >= 1)
+  상.자료 = { v: 1, r: 기본줄() }
+  await p.evaluate(() => { try { localStorage.removeItem('kcm.upg.표') } catch (e) { /* */ } })
   /* ── ⑫ 내역서 쪽 목록 ── */
   await 열기(p, '/naeyeok')
   const 내새로 = await p.evaluate(() => [...document.querySelectorAll('.tlx-new')].filter((e) => e.textContent.trim() === '새로').length)

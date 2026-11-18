@@ -16,6 +16,46 @@
  *   ■ 한 장 맞춤: 마지막 쪽이 쪽의 1/4 이 안 되면(꼬리 한두 줄만 넘침) 1/z 넓게 펴서 찍고 z 배로 줄여 한 쪽 덜 씀(z ≥ 0.83) — 서식작성의 줄임과 같음.
  */
 const MM = 96 / 25.4
+
+/**
+ * 🩹 G770 (11-18) 밝은 종이 — 어두운 화면(다크 모드) 기기에서 찍어도 PDF · 인쇄 그림은 «흰 종이 + 검은 글»
+ *   소장님 아이폰 캡처(낙찰 뒤 할 일 PDF) 「이상하지 않아 PDF . 점점해 줘」 — 흰 종이에 검은 입력 칸 · 흐린 이름 글 · 검은 할 일 표로 찍혔음:
+ *   html2canvas 복제본(같은 창 안 iframe)도 기기 설정 «어두운 화면» 규칙(@media (prefers-color-scheme: dark) — styles.css 수십 곳)을 그대로 따름.
+ *   → 복제본에서만(보는 화면은 그대로): ① 어두운 규칙을 지움 · 밝은 판 표(data-theme="light" · color-scheme: light)
+ *     ② 숫자 꼴을 보통으로 — 그림 그리개(캔버스)는 tabular-nums(칸 폭 숫자 · styles.css 200곳 넘게)를 못 그려, 칸 자리(넓은 숫자)와 그린 글(보통 숫자)이 어긋나
+ *        날짜가 «2026- 10 - 15» · «2026-10 -15» 처럼 벌어졌음(같은 판에서 재고 그리게)
+ *     ③ 날짜 · 시각 칸(input type=date …)은 글 칸으로 — 아이폰 날짜 칸은 높이 · 최소 폭이 달라 칸이 들쭉날쭉 · 옆 칸을 덮었음(그림엔 값 글만 그리므로 글 칸 꼴이면 같음)
+ *   재발 막기: 그림 찍기 두 길(종이찍기 · 인쇄판찍기)이 모두 이것을 부름 — 새 찍기 길을 만들면 꼭 부를 것(tools/시험_밝은종이.mjs 가 봄).
+ */
+const 어두운규칙 = /prefers-color-scheme\s*:\s*dark/i
+export function 밝은종이(doc) {
+  if (!doc || !doc.documentElement) return 0
+  const 뿌리 = doc.documentElement
+  try { 뿌리.setAttribute('data-theme', 'light'); 뿌리.style.colorScheme = 'light' } catch (e) { /* 없음 */ }
+  let 지움 = 0
+  const 걷기 = (판, list) => {
+    for (let i = list.length - 1; i >= 0; i--) {
+      const r = list[i]
+      if (r.type === 4) {                                    // CSSRule.MEDIA_RULE
+        if (어두운규칙.test(r.media.mediaText)) {
+          try { 판.deleteRule(i); 지움++ } catch (e) { try { r.media.mediaText = 'not all'; 지움++ } catch (x) { /* 못 지움 */ } }
+        } else 걷기(r, r.cssRules)
+      } else if (r.type === 12 && r.cssRules) 걷기(r, r.cssRules)   // @supports
+    }
+  }
+  for (const ss of doc.styleSheets) { let rs = null; try { rs = ss.cssRules } catch (e) { /* 남의 글꼴 CSS — 못 읽음 */ } if (rs) 걷기(ss, rs) }
+  try {
+    const st = doc.createElement('style')
+    st.setAttribute('data-kcm-밝은종이', '')
+    st.textContent = ':root { color-scheme: light; }\n* { font-variant-numeric: normal !important; font-feature-settings: normal !important; }'
+    ;(doc.head || 뿌리).appendChild(st)
+  } catch (e) { /* 없음 */ }
+  for (const i of doc.querySelectorAll('input')) {
+    if (/^(date|time|month|week|datetime-local)$/.test(i.type)) { const v = i.value; try { i.type = 'text'; i.value = v } catch (e) { /* 그대로 */ } }
+  }
+  return 지움
+}
+
 export const 글칸mm = [186, 271]          // A4 210 × 297 − 여백(왼 · 오른 12 · 위 12 · 아래 14) — styles.css @page 와 같음
 export const 여백mm = [12, 12]            // [왼, 위]
 
@@ -107,7 +147,7 @@ export async function 종이찍기(el, { z = 1, 배율 = 2, 한도 = 12e6 } = {}
   const 쪽H = (글칸mm[1] * MM) / zz            // 원본(CSS px)에서 한 쪽에 들어가는 높이
   let k = 배율
   if (W * H * k * k > 한도) k = Math.max(1, Math.sqrt(한도 / (W * H)))   // 아이폰 캔버스 한도 — 긴 서식은 조금 덜 곱게
-  const 큰 = await html2canvas(el, { scale: k, backgroundColor: '#ffffff', logging: false, useCORS: true })
+  const 큰 = await html2canvas(el, { scale: k, backgroundColor: '#ffffff', logging: false, useCORS: true, onclone: (doc) => { 밝은종이(doc) } })   // 🩹 G770 다크 모드에서도 흰 종이
   const 위0 = 상자.top
   const 자리 = (n) => { const r = n.getBoundingClientRect(); return [r.top - 위0, r.bottom - 위0] }
   const 경계 = new Set([H])
@@ -411,6 +451,7 @@ export async function 인쇄판찍기(el, { 몸표 = [], 쪽 = { 폭: 186, 높: 
   const 버릴줄 = new Set()
   const 바깥 = 홀로 ? (n) => n !== document.body && document.body.contains(n) && !n.contains(el) && !el.contains(n) && !/^(STYLE|LINK)$/.test(n.tagName) : () => false
   const 펴기 = (doc) => {
+    밝은종이(doc)   // 🩹 G770 다크 모드에서도 흰 종이 · 숫자 꼴 보통 · 날짜 칸은 글 칸(복제본만)
     for (const c of [...몸표, 'kcm-찍는중']) { doc.documentElement.classList.add(c); if (doc.body) doc.body.classList.add(c) }   // kcm-찍는중 — «그림만인쇄» 숨김(Ctrl+P 막기)이 복제본엔 안 걸리게
     const st = doc.createElement('style')
     st.textContent = 규칙 + '\n' + 더CSS

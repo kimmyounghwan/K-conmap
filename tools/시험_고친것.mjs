@@ -176,5 +176,16 @@ console.log('⑨ 자료 주소 — 판을 붙여 받음(G767)')
   && /typeof window\.__KCM_BUILD__ === 'string' && window\.__KCM_BUILD__/.test(읽('src', 'lib', 'data.js')), '판은 lib/data.js 와 같은 곳(window.__KCM_BUILD__ — vite.config.js 가 HTML 에 적음)')
 봐(/window\.__KCM_BUILD__=\$\{JSON\.stringify\(BUILD\)\}/.test(fs.readFileSync(path.join(ROOT, 'web', 'vite.config.js'), 'utf8')), 'vite.config.js 가 HTML 에 판을 적음(없어지면 이 고침이 헛돎)')
 
+console.log('⑩ 🏗 적산컨맵(G769 — 소장님 「적산 컨맵에도 업데이트 내용 기제해줘」)')
+const 적산 = 읽('src', 'pages', 'Jeoksan.jsx').replace(/\r\n/g, '\n'), 모델 = 읽('src', 'pages', 'Model.jsx').replace(/\r\n/g, '\n')   /* PC git(autocrlf)은 CRLF — 여러 줄 꼴은 LF 로 맞춰 봄 */
+봐(/import \{ 업표 \} from '\.\.\/고친띠\.jsx'/.test(적산) && /<span className="kcm-hero-k">🏗 K-적산컨맵<\/span><업표 to="\/jeoksan\/model" className="kcm-hero-up" \/>/.test(적산), '적산 첫 화면 «🏗 K-적산컨맵» 카드 이름 옆 «UP»(/jeoksan/model 줄)')
+봐(/import \{ 업표 \} from '\.\.\/고친띠\.jsx'/.test(모델) && /<span className="gmd-ws-namebox">[^\n]*\n\s*<b className="gmd-ws-name">[^\n]*<\/b>\n\s*<업표 to="\/jeoksan\/model" className="gmd-ws-up" \/>\n\s*<\/span>/.test(모델),
+  '작업 화면 막대 — 이름과 «UP» 한 묶음(.gmd-ws-namebox · 폰에서도 이름 바로 옆)')
+봐(/const 판높이 = \(el\) =>/.test(띠) && /z: 판높이\(b\)/.test(띠) && /자리\.z >= 62 \? \{ zIndex: 자리\.z \+ 1 \}/.test(띠), '창 — 덮는 판(작업 화면 z 1200) 안의 단추면 그 판 위로(판높이 + 1)')
+봐(/\.gmd \.gmd-ws-namebox \{ display: inline-flex;/.test(스) && /\.gmd \.gmd-ws-namebox \{ flex: 1 1 100%; \}/.test(스) && /\.gmd \.gmd-ws-namebox \.gmd-ws-name \{ flex: 0 1 auto; min-width: 0; \}/.test(스),
+  '스타일 — 묶음(PC 이름 옆 · 폰 760 아래 한 줄 다 씀 · 이름은 글 폭)')
+const 판스 = 스.match(/\.gmd \.gmd-ws \{[^}]*z-index: (\d+)/)
+봐(!!판스 && Number(판스[1]) >= 62, `작업 화면 판 z-index ${판스 ? 판스[1] : '?'} — 창이 그 위로 가야 하는 까닭(판높이 시험은 시험_고친띠화면 ⑬)`)
+
 console.log(나쁨 ? `\n❌ 시험_고친것 ${좋음}/${좋음 + 나쁨}` : `\n✅ 시험_고친것 ${좋음}/${좋음}`)
 process.exit(나쁨 ? 1 : 0)
