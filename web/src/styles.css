@@ -2800,7 +2800,7 @@ a.flink:hover { opacity: .8; }
 @media print { .noticebar, .noticepop { display: none !important; } }
 
 /* 📢 G117 공지 창 — 들어오면 가운데에 사랑방 공지 글 전체(감사공지.jsx) */
-.noticepop { position: fixed; inset: 0; z-index: 1100; background: rgba(15, 23, 42, .55); display: grid; place-items: center; padding: 16px; }
+.noticepop { position: fixed; inset: 0; z-index: 1100; background: rgba(15, 23, 42, .55); display: grid; place-items: center; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 16px; }   /* 📱 G760 아이폰 «홈 화면 앱» 시계 줄 */
 .noticepop-c { position: relative; width: 100%; max-width: 540px; max-height: min(86vh, 760px); overflow: auto; box-sizing: border-box;
   background: var(--surface); color: var(--text); border: 1.5px solid var(--warn); border-radius: 16px; padding: 20px 22px 16px;
   box-shadow: 0 18px 48px rgba(0, 0, 0, .28); outline: none; }
@@ -3374,7 +3374,7 @@ ul.plainlist li { margin-bottom: 5px; }
 .askwrap {
   position: fixed; inset: 0; z-index: 9000;
   display: flex; align-items: center; justify-content: center;
-  padding: 16px;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 16px;   /* 📱 G760 시계 줄 */
   background: rgba(8, 12, 20, .55);
   animation: askfade .15s ease-out;
 }
@@ -5714,8 +5714,8 @@ html { scroll-padding-top: calc(var(--cn-h, 0px) + env(safe-area-inset-top, 0px)
 .pb-sum b { font-variant-numeric: tabular-nums; }
 .pb-sum i { font-style: normal; color: var(--muted); font-size: 12px; }
 .pb-tot { flex-basis: 100%; font-size: 14px; }
-.pb-modal { position: fixed; inset: 0; z-index: 1000; background: rgba(15, 23, 42, .55); display: grid; place-items: center; padding: 12px; }
-.pb-mbox { width: min(980px, 100%); max-height: calc(100vh - 24px); overflow: auto; background: var(--surface); border-radius: 14px; padding: 12px 14px; box-shadow: 0 10px 40px rgba(0, 0, 0, .35); }
+.pb-modal { position: fixed; inset: 0; z-index: 1000; background: rgba(15, 23, 42, .55); display: grid; place-items: center; padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 12px; }   /* 📱 G760 시계 줄 */
+.pb-mbox { width: min(980px, 100%); max-height: calc(100vh - 24px - env(safe-area-inset-top, 0px)); overflow: auto; background: var(--surface); border-radius: 14px; padding: 12px 14px; box-shadow: 0 10px 40px rgba(0, 0, 0, .35); }
 .pb-mh { display: flex; align-items: center; gap: 6px; font-size: 14.5px; }
 .pb-mwrap { display: flex; justify-content: center; background: #e9ebef; border-radius: 10px; padding: 8px; }
 .pb-canvas { position: relative; touch-action: none; user-select: none; cursor: crosshair; max-width: 100%; }
@@ -9812,8 +9812,8 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .gmd .tmk-nyhow summary { cursor: pointer; font-size: 12px; color: var(--text-2); }   /* 🔰 G441 맞대는 법은 접어 둠 */
 .gmd .tmk-nyhow small { display: block; margin-top: 2px; }
 /* 📋 G442 받기 전 검사 창(작업 화면 엑셀) */
-.gmd-xlchk { position: fixed; inset: 0; z-index: 2000; background: rgba(15, 23, 42, .45); display: grid; place-items: center; padding: 16px; }
-.gmd-xlchk-box { background: var(--surface, #fff); color: var(--text, #111827); border-radius: 12px; padding: 16px 18px; width: min(560px, 100%); max-height: calc(100vh - 32px); overflow: auto; display: grid; gap: 8px; box-shadow: 0 12px 40px rgba(0, 0, 0, .25); }
+.gmd-xlchk { position: fixed; inset: 0; z-index: 2000; background: rgba(15, 23, 42, .45); display: grid; place-items: center; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 16px; }   /* 📱 G760 시계 줄 */
+.gmd-xlchk-box { background: var(--surface, #fff); color: var(--text, #111827); border-radius: 12px; padding: 16px 18px; width: min(560px, 100%); max-height: calc(100vh - 32px - env(safe-area-inset-top, 0px)); overflow: auto; display: grid; gap: 8px; box-shadow: 0 12px 40px rgba(0, 0, 0, .25); }
 .gmd-xlchk-h { font-size: 16px; }
 .gmd-xlchk-h.ok { color: #047857; }
 .gmd-xlchk-h.bad { color: #b91c1c; }
@@ -9924,7 +9924,8 @@ textarea.fw-in { min-height: 0; }      /* 전역 textarea 88px 를 풉니다 —
 .qs-tip { padding: 12px 10px; color: var(--text-2); font-size: 13px; line-height: 1.7; }
 .qs-key { margin-top: 6px; color: var(--muted); font-size: 12px; }
 .qs-key kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; font-size: 11px; background: var(--surface-2); }
-@media (max-width: 560px) { .qs-back { padding: 0; } .qs-box { max-width: none; max-height: none; height: 100%; border-radius: 0; } .qs-key { display: none; } }
+/* 📱 G760 소장님 11-18 아이폰 «홈 화면 앱» 🔎 찾기 창 — 폰은 창이 화면을 꽉 채워 입력칸 · ✕ 가 시계 줄 뒤로 숨었음 → 위 안쪽을 시계 줄만큼 */
+@media (max-width: 560px) { .qs-back { padding: env(safe-area-inset-top, 0px) 0 0; } .qs-box { max-width: none; max-height: none; height: 100%; border-radius: 0; } .qs-key { display: none; } }
 /* 🔎 G404 아주 좁은 폰(≤ 360px) — 🔎 를 더해도 머리줄이 넘치지 않게 틈 · 알약 안쪽만 줄임(글자 · 단추는 그대로) */
 @media (max-width: 360px) {
   .topbar-in { gap: 5px; padding-left: 10px; padding-right: 10px; }

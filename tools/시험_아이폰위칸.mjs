@@ -10,6 +10,7 @@
  *   ③ main.jsx — window.__KCM_OK 를 그리기 전에 찍고 상자 · 표를 지움   ④ 화면지킴 · 지도지킴 — 무엇이 멈췄는지 숫자 칸에(진단세기)
  *   ⑤ 숫자 칸 열쇠 꼴 — 어떤 오류 글이 와도 «|흰화면|…» 두 마디 · 80자 · . / # $ [ ] | 없음
  *   ⑥ 흰 화면 지킴 2 의 로봇 거르기 = lib/인사.js 로봇(한쪽만 고치지 않게)
+ *   ⑦ 📱 G760 화면을 덮는 칸(position: fixed · inset 0 / top 0)은 모두 시계 줄 셈(덮개 · 아래 창 목록만 빼고) — 🔎 찾기 창을 빠뜨렸던 일 · 자가시험
  */
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -83,6 +84,25 @@ const 견본 = ["Uncaught SyntaxError: Unexpected token '<' @https://k-conmap.co
 const 꼴 = /^[|][^|]+[|][^|./#$[\]]+$/
 봄('index.html 꼴 — 어떤 글이 와도 두 마디 · 80자 · 금지 글자 없음', 견본.map((s) => 열쇠흰('상자-i앱-' + s)).every((k) => 꼴.test(k) && k.length <= 80))
 봄('화면지킴 · 지도지킴 꼴', 견본.map((s) => `|흰화면|지킴-i앱-${지움(s).slice(0, 50) || '오류'}`).concat(견본.map((s) => `|지도멈춤|i-${지움(s).slice(0, 50) || '오류'}`)).every((k) => 꼴.test(k)))
+
+/* 📱 G760 (11-18 15시) 소장님 아이폰 캡처 — 첫 화면은 고쳐졌는데 🔎 찾기 창(폰은 화면을 꽉 채움)의 입력칸 · ✕ 가 시계 줄 뒤로 숨음
+   — G758 때 «머리줄 높이로 붙는 칸» 만 보고 «화면을 덮는 칸(position: fixed · inset 0 / top 0)» 을 다 보지 않았음 → 재발 막기: 덮는 칸은 모두 셈 */
+console.log('⑦ 화면을 덮는 칸(position: fixed · inset 0 / top 0)은 모두 시계 줄 셈')
+const 이름 = (r) => (r.slice(0, r.lastIndexOf('{')).split(/[{};\n]/).pop() || '').trim()
+const 몸 = (r) => r.slice(r.lastIndexOf('{') + 1)
+/* 덮개만(창은 따로 셈: .mt-sheet · .kcm-help-dlg) · PC 끌어 놓기 그림판 · 아래에서 올라오는 창(위 끝이 시계 줄 밑 — .cam-sheet 92vh · 설치 안내) */
+const 덮개만 = new Set(['.mt-back', '.kcm-help-back', '.끌놓판', '.installguide', '.cam-dim'])
+const 덮는칸 = 규칙들.filter((r) => /position:\s*fixed/.test(몸(r)) && (/(^|[;{\s])inset:\s*0[;\s}]/.test(몸(r)) || /(^|[;{\s])top:\s*0(px)?\s*[;}]/.test(몸(r)))).map(이름)
+봄('덮는 칸을 찾음(시험이 헛돌지 않게)', 덮는칸.length >= 12 && 덮는칸.includes('.qs-back') && 덮는칸.includes('.noticepop'), String(덮는칸.length) + ' ' + 덮는칸.join(' · '))
+const 셈안함 = 덮는칸.filter((s) => !덮개만.has(s) && !규칙들.some((r) => 이름(r) === s && 몸(r).includes(E)))
+봄('덮개 · 아래 창 빼고 모두 시계 줄 셈(같은 이름 규칙 어딘가에 env(safe-area-inset-top))', 셈안함.length === 0, 셈안함.join(' · '))
+봄('🔎 찾기 창 — 폰(꽉 채움)은 위 안쪽 = 시계 줄 · PC 는 그대로(7vh)', css.includes(`@media (max-width: 560px) { .qs-back { padding: ${E} 0 0; }`) && /\.qs-back \{\n\s*position: fixed; inset: 0;[^}]*padding: 7vh 12px 12px;/.test(css))
+봄('가운데 창(공지 · 한 줄 남기기 · 표 · 엑셀 검사)은 위 안쪽 + 시계 줄', [`.noticepop { position: fixed; inset: 0; z-index: 1100; background: rgba(15, 23, 42, .55); display: grid; place-items: center; padding: calc(16px + ${E}) 16px 16px; }`,
+  `padding: calc(16px + ${E}) 16px 16px;   /* 📱 G760 시계 줄 */`, `place-items: center; padding: calc(12px + ${E}) 12px 12px; }`, `display: grid; place-items: center; padding: calc(16px + ${E}) 16px 16px; }   /* 📱 G760 시계 줄 */`].every((x) => css.includes(x)))
+봄('창 높이도 시계 줄만큼 줄임(.pb-mbox · .gmd-xlchk-box)', css.includes(`max-height: calc(100vh - 24px - ${E})`) && css.includes(`max-height: calc(100vh - 32px - ${E})`))
+/* 자가시험 — 셈 안 한 덮는 칸을 일부러 넣으면 잡아야 함 */
+{ const 가짜 = (css + `\n.시험덮개 { position: fixed; inset: 0; padding: 0; }\n`).split('}').map((r) => r + '}')
+  봄('자가시험 — 셈 안 한 덮는 칸을 넣으면 잡음', 가짜.filter((r) => /position:\s*fixed/.test(몸(r)) && /(^|[;{\s])inset:\s*0[;\s}]/.test(몸(r))).map(이름).filter((s) => !덮개만.has(s) && !가짜.some((r) => 이름(r) === s && 몸(r).includes(E))).includes('.시험덮개')) }
 
 console.log(`\n시험_아이폰위칸: ${통과}개 통과 · ${실패}개 실패`)
 process.exit(실패 ? 1 : 0)

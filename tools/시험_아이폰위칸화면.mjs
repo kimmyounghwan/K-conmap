@@ -7,6 +7,7 @@
  *   ② 아이폰 흉내(시계 줄 62px) — 머리줄 바탕은 맨 위(0)부터 · ← 뒤로 · 🔄 새로고침 · 로고는 62px 아래 · 종류띠는 머리줄 밑
  *      · 600px 내려도 머리줄(붙음)이 맨 위 · ← · 🔄 가 62px 아래에 보임 · 가로 넘침 없음
  *   ③ 화면 오류(pageerror) 없음
+ *   ④ 📱 G760 🔎 찾기 창 — 아이폰 흉내: 입력칸 · ✕ 가 62px 아래 · 크롬 폰 390: 맨 위부터 꽉 채움(전과 같음) · PC: 가운데 7vh(전과 같음) · 찾기 · ✕ 닫기
  */
 import { createRequire } from 'module'
 const require = createRequire(import.meta.url)
@@ -73,6 +74,26 @@ for (const 쪽 of 쪽들) {
   if (길었나) 봄(`${쪽} 600px 내려도 머리줄 맨 위 · 🔄 보임`, 아래.머리 && 아래.머리[0] === 0 && 아래.새로 && 아래.새로[0] >= 62, JSON.stringify({ 머리: 아래.머리, 새로: 아래.새로 }))
   봄(`${쪽} 화면 오류 없음`, 오류.length === 0, 오류.join(' | '))
   await c.close()
+}
+
+/* 📱 G760 소장님 11-18 아이폰 캡처 — 🔎 찾기 창(폰은 꽉 채움) 입력칸 · ✕ 가 시계 줄 뒤로 숨음 → 창도 시계 줄만큼 내림 */
+console.log('④ 🔎 찾기 창 — 아이폰 흉내: 입력칸 · ✕ 가 시계 줄(62px) 아래 · 크롬 폰 · PC: 전과 같은 자리')
+for (const [이름, 판, 크기, 폰, 아래] of [['아이폰 흉내', 흉내, { width: 402, height: 874 }, true, 62], ['크롬 폰 390', 후, { width: 390, height: 844 }, true, 0], ['PC 1280', 후, { width: 1280, height: 900 }, false, null]]) {
+  for (const 쪽 of ['/', '/tools', '/first']) {
+    const { c, p, 오류 } = await 열기(판, 크기, 폰)
+    await p.goto(판 + 쪽, { waitUntil: 'domcontentloaded' }); await 쉼(2000)
+    await p.evaluate(() => document.querySelectorAll('.noticepop, .noticepop-bg').forEach((e) => { e.style.display = 'none' }))
+    await p.locator('.qsbtn').first().click(); await p.waitForSelector('.qs-head', { timeout: 8000 }); await 쉼(400)
+    const r = await p.evaluate(() => { const b = (s) => { const e = document.querySelector(s); if (!e) return null; const x = e.getBoundingClientRect(); return [Math.round(x.top), Math.round(x.bottom)] }; return { 바탕: b('.qs-back'), 상자: b('.qs-box'), 머리: b('.qs-head'), 칸: b('.qs-in'), 닫기: b('.qs-x'), 높이: innerHeight } })
+    if (아래 === 62) 봄(`${이름} ${쪽} 입력칸 · ✕ 가 시계 줄 아래 · 창 아래 끝은 화면 안`, r.바탕 && r.바탕[0] === 0 && r.머리[0] >= 62 && r.칸[0] >= 62 && r.닫기[0] >= 62 && r.상자[1] <= r.높이, JSON.stringify(r))
+    else if (아래 === 0) 봄(`${이름} ${쪽} 찾기 창 맨 위부터 꽉 채움(전과 같음)`, r.머리 && r.머리[0] === 0 && r.상자[0] === 0 && r.상자[1] === r.높이, JSON.stringify(r))
+    else 봄(`${이름} ${쪽} 가운데 뜬 창(위 7vh — 전과 같음)`, r.상자 && Math.abs(r.상자[0] - Math.round(r.높이 * 0.07)) <= 1, JSON.stringify(r))
+    await p.locator('.qs-in').fill('노무비'); await 쉼(500)
+    봄(`${이름} ${쪽} 찾기 결과가 나옴`, (await p.locator('.qs-row').count()) > 0)
+    await p.locator('.qs-x').click(); await 쉼(300)
+    봄(`${이름} ${쪽} ✕ 로 닫힘 · 화면 오류 없음`, (await p.locator('.qs-back').count()) === 0 && 오류.length === 0, 오류.join(' | '))
+    await c.close()
+  }
 }
 
 await 브.close()
