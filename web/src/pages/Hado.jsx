@@ -3,7 +3,10 @@
  *
  * 소장님: 「하도급 내역서 만드는 것은 현재 건설맵에 하도급내역서 만들기 탭에 이런 방식으로 하도급 내역서 만들기 프로그램 만들어」
  *   본보기 = 송금지구_하도급완성본2(앞 채팅에서 Claude 가 만든 6장) — 셈은 lib/하도급내역.js
- *   원도급 내역서를 올리고 하도급율만 넣으면 6장 한 벌(율 칸 하나로 전부 다시 셈)
+ *   원도급 내역서를 올리고 하도급율만 넣으면 6장 한 벌
+ * ■ G777 (2026-11-19) 소장님 「예시로 해 보기」 · 「엑셀에서 수식은 빼고 — 건설맵」(G109 «엑셀은 값만» 원칙 다시)
+ *   → 🧪 예시 내역서로 해 보기(비율 맞추기와 같은 지어낸 파일 · 누르면 여섯 장까지 바로) · 받는 엑셀은 lib/엑셀쓰기.js 값만으로(화면 셈과 같은 셈판)
+ *     «노란 칸 하나로 다시 셈» 안내는 뺌 — 율을 바꾸려면 이 화면에서 다시 만듦. 화면에는 «수식 없음» 말을 적지 않음(G442 소장님 「이건 기재하지마」)
  * ■ 파일은 브라우저 안에서만 다룹니다.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -20,10 +23,13 @@ const 칸꼴 = (w) => ({ width: w, height: 'auto', padding: '5px 8px', fontSize:
 const 글칸 = (w) => ({ ...칸꼴(w), textAlign: 'left' })
 /* 🩹 G384 (2026-10-23 · 실제 설계내역서 484부) 단가가 빈 공내역서 — 80% 비율 도구 글(«비율을 맞출 금액이 없습니다») 대신 하도급 말로 */
 const 공내역말 = '단가 · 금액이 «비어 있는» 공내역서입니다 — 하도급 내역서는 단가가 채워진 내역서(설계 · 도급 · 산출 · 변경내역서)로 만듭니다.'
+/* 🧪 G777 예시 — /naeyeok/ratio 예시와 같은 지어낸 파일(tools/만들기_비율예시내역.py · 원가계산서 + 내역서 · 단가 채움) */
+const 예시주소 = '/jeoksan/비율예시_내역서.xlsx'
+const 예시이름 = '예시_내역서(가상 마을안길 정비공사).xlsx'
 const 오류말 = (e) => { const m = (e && e.message) || '읽지 못했습니다.'; if (!/공내역서/.test(m)) return m; const k = m.lastIndexOf('  ('); return 공내역말 + (k >= 0 ? m.slice(k) : '') }
 
 export default function Hado() {
-  const [libs, setLibs] = useState(null)        /* { m: 비율.js, h: 하도급내역.js, v: 변경내역.js, q: qtoxlsx.js } */
+  const [libs, setLibs] = useState(null)        /* { m: 비율.js, h: 하도급내역.js, v: 변경내역.js, q: qtoxlsx.js, w: 엑셀쓰기.js(값만으로) } */
   const [busy, setBusy] = useState('')
   const [err, setErr] = useState('')
   const [file, setFile] = useState(null)
@@ -42,19 +48,24 @@ export default function Hado() {
   const [관급끔, set관급끔] = useState(() => new Set())
   const [찾기, set찾기] = useState('')
   const [out, setOut] = useState(null)
+  const [예시중, set예시중] = useState(false)   /* 🧪 예시를 열면 셈이 나오는 대로 한 벌까지 바로 만듦 */
   const inputRef = useRef(null)
   useEffect(() => { 세기('|하도급|열기') }, [])
 
   const loadLibs = useCallback(async () => {
     if (libs) return libs
     try {
-      const [m, h, v, q] = await Promise.all([import('../lib/비율.js'), import('../lib/하도급내역.js'), import('../lib/변경내역.js'), import('../lib/qtoxlsx.js')])
-      const o = { m, h, v, q }; setLibs(o); return o
+      const [m, h, v, q, w] = await Promise.all([import('../lib/비율.js'), import('../lib/하도급내역.js'), import('../lib/변경내역.js'), import('../lib/qtoxlsx.js'), import('../lib/엑셀쓰기.js')])
+      const o = { m, h, v, q, w }; setLibs(o); return o
     } catch (e) { throw new Error('도구를 불러오지 못했습니다 — 화면을 한 번 새로고침해 주십시오.') }
   }, [libs])
 
-  const openFile = useCallback(async (f) => {
+  const openFile = useCallback(async (f, 예시로 = false) => {
     if (!f) return
+    if (예시로 !== true) {   /* 🧪 G777 예시 뒤에 진짜 파일을 올리면 «(예시)» 이름 칸은 비우고 새로 */
+      const 비움 = (v) => (/^\(예시\)/.test(v) ? '' : v)
+      set공사명(비움); set발주처(비움); set원사(비움); set하사(비움)
+    }
     setErr(''); setOut(null); set온것(null); set고른시트([]); setFile(null); set직접(new Set()); set관급끔(new Set()); set상태들(null); set책(null)
     if (!/\.(xlsx|xlsm|xls)$/i.test(f.name)) { setErr('엑셀 파일(.xlsx · .xlsm · .xls)만 됩니다.'); return }
     setBusy('내역서를 읽는 중입니다…')
@@ -72,6 +83,20 @@ export default function Hado() {
       세기('|하도급|파일')
     } catch (e) { const m = 오류말(e); setErr(m); if (m.startsWith(공내역말)) 세기('|하도급|공내역서') } finally { setBusy('') }
   }, [loadLibs])
+
+  /* 🧪 G777 예시 — 지어낸 원도급 내역서를 열고(이름 칸은 «(예시)» 로) 셈이 나오면 여섯 장까지 바로 만듦 */
+  const 예시 = useCallback(async () => {
+    setErr(''); setBusy('예시 내역서를 받는 중입니다…')
+    try {
+      const r = await fetch(예시주소)
+      if (!r.ok) throw new Error('예시 파일을 받지 못했습니다.')
+      const b = await r.arrayBuffer()
+      set공사명('(예시) 가상 마을안길 정비공사'); set발주처('(예시) 가상군'); set원사('(예시) 가상건설(주)'); set하사('(예시) 가상토건(주)'); set율글('80')
+      세기('|하도급|예시')
+      set예시중(true)
+      await openFile({ name: 예시이름, size: b.byteLength, arrayBuffer: async () => b }, true)
+    } catch (e) { setErr((e && e.message) || '예시를 열지 못했습니다.'); setBusy(''); set예시중(false) }
+  }, [openFile])
 
   /* 고른 상태로 펴서 다시 읽기 — 시트 · 직접시공 줄도 새로 */
   function 펴서읽기(L, 책0, 여럿, n, 이름) {
@@ -115,7 +140,7 @@ export default function Hado() {
   }, [읽은, 찾기, 직접])
   const 켜끄기 = (r, 켬) => set직접((v) => { const n = new Set(v); if (켬) n.add(열쇠(r)); else n.delete(열쇠(r)); return n })
 
-  const 만들기 = async () => {
+  const 만들기 = async (예시로 = false) => {
     if (!읽은 || !file || !libs) return
     if (!(율 > 0 && 율 <= 100)) { setErr('하도급율을 1 ~ 100 사이로 넣어 주십시오.'); return }
     setBusy('하도급 내역서 6장을 만드는 중입니다…'); setErr('')
@@ -126,22 +151,30 @@ export default function Hado() {
       const got = libs.h.하도급한벌(file.buf, 읽은, { ...옵션, 책, 공사명: 공사명.trim(), 발주처: 발주처.trim(), 원도급사: 원사.trim(), 하도급사: 하사.trim() })
       const 상태말 = 상태들 ? '_' + String(상태들.상태[상태번호] || '').replace(/[①-⑳\s]/g, '') : ''
       const name = file.name.replace(/\.(xlsx|xlsm|xls)$/i, '') + 상태말 + '_하도급내역서(' + (Math.round(율 * 100) / 100) + '%).xlsx'
-      const url = URL.createObjectURL(new Blob([got.bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+      const 값 = libs.w.값만으로(got.bytes)   /* 📗 G777 받는 엑셀은 값만(G109 원칙 · 11-19 소장님 다시) — 화면과 같은 셈판으로 수식 칸을 숫자로 */
+      const url = URL.createObjectURL(new Blob([값.바이트], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
       const 말 = [
         ['여섯 장(송금지구 본보기 차례 · 틀)', got.시트.join(' · ')],
         ['만드는 차례', '내역서 → 하도급 대상내역서 → 하도급내역서 → 직접시공내역서 → 원가계산서 대비표 → 직접시공 원가계산서 — 앞 장 숫자를 다음 장이 받아 셈'],
         ...(상태들 ? [['쓴 줄', '«' + 상태들.상태[상태번호] + '» 금액으로 (' + 상태들.꼴 + ' 내역서 · 원가계산서도 같은 줄)']] : []),
-        ['율 칸', '첫 장 «' + got.시트[0] + '» 의 노란 칸 C2 하나 — 고치면 여섯 장이 전부 다시 셈됩니다'],
+        ['율 바꾸기', '② 하도급율을 고치고 다시 만드십시오 — 여섯 장이 새 율로 다시 나옵니다'],
         ['도급(내역) → 하도급', fmt(got.도급) + '원 → ' + fmt(got.하도급) + '원 (직접시공 ' + fmt(got.직접) + '원' + (got.관급 ? ' · 관급 ' + fmt(got.관급) + '원' : '') + ')'],
         ['원가계산서', got.원가시트 ? '«' + got.원가시트 + '» ' + got.원가줄 + '줄을 원 · 하도급 대비로' + (got.원가도급 !== null ? ' — 도급액 ' + fmt(got.원가도급) + '원 → 하도급 도급액 ' + fmt(got.원가하도급) + '원' : '') : '원가계산서 시트를 못 찾아 직접공사비만'],
         ['맨 윗줄', '«' + got.순라벨 + '»' + (got.순확인 === true ? ' — 원가계산서 직접공사비(재료비 + 직접노무비 + 산출경비)와 맞습니다' : got.순확인 === false ? ' — 원가계산서 직접공사비와 맞지 않습니다(아래 알림)' : ' — 원가계산서가 없어 관급을 뺀 품목 합입니다')],
         ...got.경고.map((w) => ['⚠️ ' + w[0], w[1]]),
+        ...(값.오류 ? [['⚠️ 셈 오류', 값.오류 + '칸 — 원도급 내역서의 수식 · 숫자 칸을 확인해 주십시오']] : []),
       ]
       setOut({ url, name, 말 })
-      try { 세기('|하도급|한벌') } catch (e) { /* 지나갑니다 */ }
-      try { askAfter('biyul') } catch (e) { /* 사생활 보호 모드 */ }
+      try { 세기(예시로 === true ? '|하도급|예시한벌' : '|하도급|한벌') } catch (e) { /* 지나갑니다 */ }
+      if (예시로 !== true) { try { askAfter('biyul') } catch (e) { /* 사생활 보호 모드 */ } }   /* 🧪 예시로 저절로 만든 것은 묻지 않음 */
     } catch (e) { setErr((e && e.message) || '만들지 못했습니다.') } finally { setBusy('') }
   }
+  /* 🧪 G777 예시를 열었으면 셈이 나오는 대로 한 벌까지 바로(한 번만) */
+  useEffect(() => {
+    if (!예시중 || busy || !셈 || !file) return
+    set예시중(false)
+    만들기(true)
+  }, [예시중, busy, 셈, file])   // eslint-disable-line react-hooks/exhaustive-deps
 
   const 전 = 셈 && 셈.전체
   const 원가값 = useMemo(() => {
@@ -158,7 +191,7 @@ export default function Hado() {
           원가계산서 원·하도급 대비표 · 직접시공 원가계산서 · 하도급내역서 · 하도급 대상내역서 · 내역서(원·하도급 나란히) · 직접시공내역서.
         </p>
         <p className="muted" style={{ margin: 0 }}>
-          나온 엑셀은 <b>노란 칸(율) 하나만 고치면 여섯 장이 전부 다시 셈</b>됩니다. 단가에 율을 곱하고 금액은 수량 × 단가로 다시 셉니다.
+          단가에 율을 곱하고 금액은 수량 × 단가로 다시 셉니다. 율을 바꾸려면 이 화면에서 율만 고쳐 다시 만드시면 됩니다.
           파일은 <b>브라우저 안에서만</b> 다룹니다.
         </p>
       </div>
@@ -173,6 +206,10 @@ export default function Hado() {
           {file
             ? <><b>{file.name}</b><span>{kb(file.size)} KB · 다른 파일을 올리려면 누르십시오</span></>
             : <><b>＋ 원도급 내역서를 끌어 놓거나 누르십시오</b><span>단가가 «채워진» 도급 · 산출 · 변경내역서(.xlsx · .xls · 당초/변경 2줄도) — 원가계산서 시트가 같이 있으면 원 · 하도급 대비표까지 만듭니다</span></>}
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginTop: 8 }}>
+          <button type="button" className="btn ghost sm hado-ex" onClick={예시} disabled={!!busy}>🧪 예시 내역서로 해 보기</button>
+          <span className="muted" style={{ fontSize: 12.5 }}>지어낸 공사 · 지어낸 단가입니다. 누르면 여섯 장까지 바로 만듭니다.</span>
         </div>
         {busy && <div className="muted" style={{ marginTop: 8 }}>{busy}</div>}
         {err && <div className="cwarn" style={{ marginTop: 8 }}>⚠️ {err}</div>}
@@ -315,7 +352,7 @@ export default function Hado() {
         <div className="card">
           <div className="sec-title">④ 내려받기</div>
           <div className="btn-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
-            <button className="btn primary" disabled={!!busy} onClick={만들기}>📄 하도급 내역서 한 벌 (6장 · 율 칸 하나로 전부 다시 셈)</button>
+            <button className="btn primary" disabled={!!busy} onClick={만들기}>📄 하도급 내역서 한 벌 만들기 (6장)</button>
           </div>
           {out && (
             <div style={{ marginTop: 12 }}>
