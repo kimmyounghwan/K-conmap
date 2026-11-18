@@ -14,6 +14,8 @@ import 찍기단추 from './찍기단추.jsx'
 import { 알림종, 알림띠 } from './알림종.jsx'
 /* 🆕 G222 다시 오신 분께 — «지난번 오신 뒤 새 공고 N건» 한 줄(폰 알림 아님 · 사이트 안에서만) */
 import 다시오심띠 from './다시오심.jsx'
+/* 🆕 G757 고친 도구 · 서식 화면 맨 위 «업그레이드» 한 줄(14일 · ✕) — 자료 public/fixes.json · 셈 lib/고친것.js */
+import 고친띠 from './고친띠.jsx'
 /* 🔔 G222 알림 안내 쪽지 — 내 조건을 고른 순간 «하루 두 번 폰으로 알려 드릴까요?» (차가운 허용 창 대신 · 허용 비율 올리기) */
 import 알림안내 from './알림안내.jsx'
 import FirstBar from './FirstBar.jsx'
@@ -279,6 +281,8 @@ export default function App() {
             ⚠️ 화면을 하나하나 고치지 않습니다 — 새 화면을 만들 때마다 또 빠집니다.
                주소 이름은 Crumbs.jsx 의 NAME·LEAF 표 한 곳에만 적습니다. */}
         <Crumbs />
+        {/* 🆕 G757 (11-18) 소장님 「업그레이드했다라고 알려야 하잖아. 도구이용자가 알 수 있게」 — 고친 화면에서만 · 씀-앞 «밖» */}
+        <고친띠 />
         <화면조회줄 />
         <쓴수자리 />
         <span id="씀-앞" hidden />

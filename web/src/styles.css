@@ -3974,6 +3974,8 @@ ul.plainlist li { margin-bottom: 5px; }
 .tlx-d { font-size: 12.5px; color: var(--text-2); line-height: 1.55; word-break: keep-all; }
 .tlx-new { font-style: normal; margin-left: 6px; font-size: 10.5px; font-weight: 800; padding: 1px 6px;
   border-radius: 6px; background: #dc2626; color: #fff; vertical-align: 2px; }
+/* 🆕 G757 «UP» 표(고친띠.jsx 업표) — tlx-new 꼴 그대로 · 색만 초록(2주 안에 좋아진 칸) */
+.up-b { background: var(--good); color: var(--surface); letter-spacing: .02em; }
 .tlx-w { align-self: flex-start; margin-top: 2px; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 6px; white-space: nowrap; }
 .tlx-legend .tlx-w { display: inline-block; margin: 0 2px; }
 .tlx-w.site { background: rgba(5, 150, 105, .12); color: #047857; }
@@ -5529,6 +5531,15 @@ details.js-more[open] > summary { margin-bottom: 8px; }
 .noti-band.since { background: var(--accent-soft); border-color: var(--accent); }
 .noti-band.since .noti-dot { background: var(--accent); }
 .noti-band.since .noti-go b { color: var(--accent); }
+/* 🆕 G757 업그레이드 띠(고친띠.jsx) — 좋아진 소식이라 옅은 초록 · PC 한 줄 · 폰은 두 줄까지(넘치면 «…») */
+.noti-band.upg { background: var(--good-soft); border-color: var(--good); padding: 8px 8px 8px 12px; }
+.upg-tag { flex: none; font-size: 12.5px; font-weight: 800; color: var(--good); white-space: nowrap; }
+.upg-t { flex: 1 1 auto; min-width: 0; font-size: 13.5px; color: var(--text); line-height: 1.45; word-break: keep-all; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.upg-t b { color: var(--good); }
+.upg-more { font-style: normal; color: var(--muted); font-size: 12.5px; }
+/* 폰 · 태블릿 — 오른쪽에 붙은 «+» 찍기 단추(.cam-tab · 오른쪽 끝 52px)가 처음 화면에서 띠 ✕ 를 덮음(11-18 캡처) → ✕ 를 그 자리 밖으로 */
+@media (max-width: 899px) { .noti-band.upg { padding-right: 58px; } }
 .noti-see { margin-left: auto; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
 /* 🤝 G659 공사 연결 · 서류 작성 대행 띠(공사연결띠.jsx) — 한 줄 · 폰은 두세 줄까지
    소장님(시안 보시고) 「색을 다르게 해서 잘 보이게 해줘」 → 옅은 초록 → «꽉 찬 진초록 + 흰 글 + 흰 단추» (쿠팡 크림 · 아이콘 띠 옅은 파랑과 확 다르게 · 밝게 · 어둡게 같은 색) */
@@ -7482,6 +7493,7 @@ a.mc-key-in:hover { border-color: var(--accent-line); background: var(--accent-s
 /* 🩹 G197 이름이 길어도 칸 안에서 — 두 줄까지 · 넘치면 잘라 «…» (전에는 띄어쓰기 없는 긴 글이 칸을 넘어 옆 칸과 겹침) */
 .mc-key-n { max-width: 100%; overflow-wrap: anywhere; }
 .mc-key-k { position: absolute; top: 6px; left: 8px; font-style: normal; font-size: 10.5px; font-weight: 800; color: var(--muted); }
+.mc-key-up { position: absolute; top: 6px; right: 8px; margin: 0; font-size: 9.5px; padding: 0 5px; }   /* 🆕 G757 단축키 «UP» */
 .mc-key-add { border-style: dashed; background: var(--accent-soft); color: var(--accent); box-shadow: none; }
 .mc-keyg.edit .mc-key-in { box-shadow: none; border-style: dashed; }
 .mc-key-e { display: flex; gap: 4px; }

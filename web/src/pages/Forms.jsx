@@ -16,6 +16,7 @@ import 광고모집 from '../광고모집.jsx'   /* 📣 G549 광고가 없는 �
 import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G611 빈 서식 미리보기 PDF · 인쇄는 그림(글자 층 없음) */
 import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위는 lib/애드핏.js */
 import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 11-16 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고, 상품은 겹치지 않게 다양하게」 */
+import { 업표 } from '../고친띠.jsx'   /* 🆕 G757 2주 안에 좋아진 서식 카드에 «UP» (public/fixes.json) */
 
 /* 🎨 2026-10-16 탭 꾸밈 — 묶음마다 색(머리 띠 · 아이콘 바탕) */
 const 묶음색 = ['#2563eb', '#0d9488', '#d97706', '#7c3aed', '#e11d48', '#16a34a', '#0284c7', '#ea580c']
@@ -294,6 +295,7 @@ function 그림칸({ f, n, rank }) {
       </span>
       <span className="fm-gal-t">{끊을자리(f.title)}</span>
       <span className="fm-gal-m">
+        <업표 to={`/forms/${f.slug}`} />
         {f.prog && <em className="tlx-new fm-pg">🧰 바로 쓰기</em>}
         {예시 ? <em className="tlx-new fm-ex">✍ 작성 예시</em> : ORIGSET.has(f.slug) ? <em className="tlx-new fm-orig">원본 틀</em> : null}
         {n ? <span className="dlcount">⬇ {n.toLocaleString('ko-KR')}회</span> : null}
@@ -349,6 +351,7 @@ function 서식칸({ f }) {
         <span className="tlx-d">{f.short}</span>
         {/* 🎨 2026-10-16 표(작성 예시 · 바로 쓰기)와 받은 횟수를 한 줄에 — 표가 제목 밑에 한 줄 더 차지하던 빈 곳을 줄임 */}
         <span className="fm-meta">
+          <업표 to={`/forms/${f.slug}`} />
           {f.prog && <em className="tlx-new fm-pg">🧰 바로 쓰기</em>}
           {사이트작성(f) && <em className="tlx-new fm-w">✍️ 사이트 작성</em>}
           {예시 ? <em className="tlx-new fm-ex">✍ 작성 예시</em> : ORIGSET.has(f.slug) ? <em className="tlx-new fm-orig">원본 틀</em> : null}

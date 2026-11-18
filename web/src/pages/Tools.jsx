@@ -21,6 +21,7 @@ import { 공정CALCS, 공정EXAMPLES } from '../tools/공정칸.jsx'
 import { 제비율CALCS, 제비율EXAMPLES } from '../tools/제비율칸.jsx'   /* 📋 G350 간접공사비(제비율) 요율 찾기 */
 import { 토적CALCS, 토적EXAMPLES } from '../tools/토적칸.jsx'   /* 🏔 G571 토적컨맵 — 토적표 · 유토곡선 · 토공유동표 · 운반집계 · 차수 */
 import 도구이야기 from '../도구이야기.jsx'   /* 💬 G573 도구마다 «이 도구 이야기» — 묻고 답하기(맵톡에 함께) */
+import { 업표 } from '../고친띠.jsx'   /* 🆕 G757 2주 안에 좋아진 도구 카드에 «UP» (public/fixes.json) */
 import NotFound from './NotFound.jsx'
 import { use남김 } from '../lib/길기록.js'
 /* ⬇ 2026-10-01 (G96) 도구마다 «받은 횟수» — 그 화면에서 받은 파일(만든 PDF · 엑셀 포함). 아래 화면이 따로 카드면 빼고 셉니다 */
@@ -176,7 +177,7 @@ export default function ToolsIndex() {
                 <Link className="tlx-card" to={x.to} key={x.to} title={x.d}>
                   <span className="tlx-ic">{x.icon}</span>
                   <span className="tlx-body">
-                    <span className="tlx-t">{x.t}{x.new && <em className="tlx-new">새로</em>}</span>
+                    <span className="tlx-t">{x.t}{x.new && <em className="tlx-new">새로</em>}<업표 to={x.to} /></span>
                     <span className="tlx-d">{x.d}</span>
                     <span className="tlx-row">
                       <span className={'tlx-w ' + 곳[1]}>{곳[0]}</span>

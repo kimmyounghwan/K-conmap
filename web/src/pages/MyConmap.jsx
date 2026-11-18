@@ -23,6 +23,7 @@ import TOOLS from '../data/tools.json'
 import { GUIDE_NAV } from '../lib/guidenav.js'
 import FORMS from '../data/forms.json'
 import 내현장칸 from '../tools/내현장칸.jsx'   /* 🏗 G539 내 현장 · 내 일 — 맨 위 */
+import { 업표 } from '../고친띠.jsx'   /* 🆕 G757 2주 안에 좋아진 도구 · 서식 단축키에 «UP» (public/fixes.json) */
 
 /* ── 주소 → 이름 · 아이콘 (도구 목록 · 서식 목록 그대로) ── */
 const 곳표 = (() => {
@@ -909,6 +910,7 @@ function 단축키판() {
                 : (
                   <Link className="mc-key-in" to={p} onClick={() => 세기('|마이|단축키')} title={g.n} aria-label={g.n}>
                     {k < 9 && <em className="mc-key-k">{k + 1}</em>}
+                    <업표 to={p} className="mc-key-up" />
                     <span className="mc-key-i" aria-hidden="true">{g.i}</span><span className="mc-key-n">{칸이름(g.n)}</span>
                   </Link>
                 )}
