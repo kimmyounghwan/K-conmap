@@ -368,7 +368,8 @@ export default function LiveBoard() {
       <div className="sec-title" style={{ marginTop: 14 }}>
         📋 공사 입찰공고 <span className="count">· 나라장터 · 카드를 누르면 기초금액</span>
         {/* 🗺 G756 공사 현황판 — 같은 «입찰 중» 공고를 시 · 군 지도로(지역을 골랐으면 그 시도로 바로) */}
-        <Link className="sites-map" to={지도가는길(region, 0)} onClick={() => 세기('|현황판|공고에서')}>🗺 지도로 보기</Link>
+        {/* 🗺 G778 (11-19) 작은 글 → 작은 단추 + 설명글(소장님 「작고 안전하게 1로 가자」) — 구인구직의 .sites-map 은 그대로 */}
+        <Link className="sites-map sites-mapbtn" to={지도가는길(region, 0)} onClick={() => 세기('|현황판|공고에서')}><b>🗺 지도로 보기</b><small>입찰 중 공고를 시 · 도 지도로</small></Link>
       </div>
 
       <FreshBar kind="live" />

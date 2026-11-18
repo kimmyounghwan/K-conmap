@@ -230,7 +230,8 @@ for (const [이름, 크기] of 크기들) {
   }
 
   /* ── ⑩-2 맵톡 · 공고 · 1순위에서 가는 길(G756 소장님 「현황판 어디서 볼 수 있지?」) ── */
-  for (const [경로, 고리글, 기대, 켜짐] of [['/live', '.sites-map', '/map?s=0', '입찰 중'], ['/first', '.sites-map', '/map?s=2', '곧 착공'], ['/qna', '.mt-golink', '/map', '']]) {
+  /* 🗺 G778 (11-19) 1순위 · 분석 = 두 칸 단추 옆 빈자리(.fa-map) · 공고 = 제목 줄 작은 단추 + 설명글(.sites-mapbtn) — 소장님 「빈 공간이 있잖아」 · 「작고 안전하게 1로」 */
+  for (const [경로, 고리글, 기대, 켜짐] of [['/live', '.sites-mapbtn', '/map?s=0', '입찰 중'], ['/first', '.fa-map', '/map?s=2', '곧 착공'], ['/analysis', '.fa-map', '/map?s=2', '곧 착공'], ['/qna', '.mt-golink', '/map', '']]) {
     const { c, p, 오류 } = await 판(크기, 이름)
     await p.goto(주소 + 경로, { waitUntil: 'domcontentloaded' })
     await p.waitForSelector(고리글, { timeout: 20000 }).catch(() => {})
@@ -238,6 +239,19 @@ for (const [이름, 크기] of 크기들) {
     const 고리 = p.locator(고리글).first()
     const 있음 = (await 고리.count()) === 1
     봄(`⑩ ${경로} 가는 길 → ${기대}`, 있음 && (await 고리.getAttribute('href')) === 기대, 있음 ? await 고리.getAttribute('href') : '없음')
+    if (있음 && 고리글 !== '.mt-golink') {
+      /* 🗺 G778 설명글 · 자리 — PC 는 두 칸 단추와 한 줄(오른쪽) · 폰(640 아래)은 두 칸 아래 · 공고는 제목 줄 안 */
+      const 자 = await p.evaluate((sel) => { const a = document.querySelector(sel), s = document.querySelector('.fa-seg'), t = a.closest('.sec-title')
+        const r = a.getBoundingClientRect(), q = s ? s.getBoundingClientRect() : null
+        return { 글: a.innerText.replace(/\s+/g, ' '), 가운데: r.y + r.height / 2, 왼: r.x, 칸가운데: q ? q.y + q.height / 2 : null, 칸오른: q ? q.right : null, 칸아래: q ? q.bottom : null, 위: r.y, 제목안: !!t,
+          옛글: document.querySelectorAll('.fb-head .sites-map').length } }, 고리글)
+      봄(`⑩ ${경로} 단추 + 설명글`, /🗺 지도로 보기/.test(자.글) && /시 · 도 지도로/.test(자.글), 자.글)
+      if (고리글 === '.fa-map') {
+        if (크기.width > 640) 봄(`⑩ ${경로} 두 칸 단추와 한 줄 · 오른쪽 빈자리`, Math.abs(자.가운데 - 자.칸가운데) < 8 && 자.왼 >= 자.칸오른, JSON.stringify(자))
+        else 봄(`⑩ ${경로} 폰 — 두 칸 단추 아래`, 자.위 >= 자.칸아래 - 1, JSON.stringify(자))
+        봄(`⑩ ${경로} 1순위 제목 줄 옛 «지도로 보기» 글 없음(한 곳만)`, 자.옛글 === 0)
+      } else 봄(`⑩ ${경로} 제목 줄 안`, 자.제목안)
+    }
     if (있음) {
       const 상자 = await 고리.boundingBox()
       봄(`⑩ ${경로} 단추가 화면 안 · 안 잘림`, 상자 && 상자.x >= 0 && 상자.x + 상자.width <= 크기.width + 1 && 상자.width > 40, JSON.stringify(상자 && { x: Math.round(상자.x), w: Math.round(상자.width) }))

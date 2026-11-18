@@ -10862,6 +10862,21 @@ a.cert-chip:not(.deep) { color: inherit; text-decoration: none; }
 .fa-seg { margin: 12px 0 10px; }
 .fa-seg a { flex: 1; text-align: center; padding: 9px 4px; border-radius: 8px; font-size: 13px; font-weight: 700; color: var(--muted); text-decoration: none; white-space: nowrap; }
 .fa-seg a.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+/* 🗺 G778 (2026-11-19) 두 칸 단추 옆 빈자리 «🗺 지도로 보기» 작은 단추 + 설명글(소장님 「빈 공간이 있잖아」) · 공고 탭 제목 줄도 같은 꼴(.sites-mapbtn)
+   두 칸 단추 폭은 그대로(데스크톱 420) · 폰(640 아래)은 두 칸 아래 한 줄 */
+.fa-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin: 12px 0 10px; }
+.fa-row .fa-seg { margin: 0; flex: 0 1 420px; min-width: 0; }
+.fa-map, .sites-mapbtn { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text); }
+.fa-map b, .sites-mapbtn b { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border-radius: 999px; border: 1.5px solid #0f766e;
+  background: rgba(15,118,110,.08); color: #0f766e; font-size: 13px; font-weight: 800; white-space: nowrap; }
+.fa-map small, .sites-mapbtn small { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.fa-map:hover b, .fa-map:focus-visible b, .sites-mapbtn:hover b, .sites-mapbtn:focus-visible b { background: #0f766e; color: #fff; }
+:root[data-theme="dark"] .fa-map b, :root[data-theme="dark"] .sites-mapbtn b { border-color: #2dd4bf; background: rgba(45,212,191,.1); color: #5eead4; }
+:root[data-theme="dark"] .fa-map:hover b, :root[data-theme="dark"] .sites-mapbtn:hover b { background: #2dd4bf; color: #0b1220; }
+@media (max-width: 640px) {
+  .fa-row .fa-seg { flex: 1 1 100%; }
+  .fa-map small, .sites-mapbtn small { white-space: normal; }
+}
 /* 📍 G644 내 위치 좌표(/tools/gps) — 폰 GPS → X · Y */
 .gp .btn-row { flex-wrap: wrap; }
 .gp .gp-go { font-size: 17px; padding: 14px 16px; }
