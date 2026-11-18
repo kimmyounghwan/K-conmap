@@ -6,11 +6,12 @@
  *   ① lib: 실적인정기간(협회 확정 3년 + 다음 해 1.1 ~ 입찰공고일) · 작년 미확정이면 4년 넘음 · 없는 날짜 · 한국 날짜
  *   ② 자료: tools.json · CALCS · 예시 짝 · «무료» · «클로드» 없음 · 근거(예규 제393호) 적힘
  *   ③ 화면: 공고일 넣으면 기간 · 올해 분 «준공이 끝난 공사만» · 작년 미확정 줄 · 체크 남음(다시 열어도) · 예시 · 칸 비우기 · 이어지는 도구 · 넘침 0 · 오류 0
+ *   📌 G761 (11-18) «서류가 모자랄 때 — 조달청 시설공사 기준» 여섯 줄(7일 · 보완 3일 · 다음 순위 · 등록기준 감점 · 허위 · 포기서) — 글 · 근거는 lib 한 곳 · 화면에 그대로
  * 가상 자료만 씀 · 인터넷 안 부름(데이터베이스 · 애널리틱스는 막음).
  */
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { 날짜읽기, 적격기간, 낼서류, 오늘한국 } from '../web/src/lib/적격서류.js'
+import { 날짜읽기, 적격기간, 낼서류, 오늘한국, 모자랄때, 모자랄때제목, 모자랄때끝 } from '../web/src/lib/적격서류.js'
 const require = createRequire(import.meta.url)
 const 뿌리 = new URL('../', import.meta.url)
 const 읽기 = (p) => readFileSync(new URL(p, 뿌리), 'utf8')
@@ -29,6 +30,16 @@ console.log('① lib — 실적인정기간')
   ok('윤년 2028-02-29 는 있는 날짜', !!날짜읽기('2028-02-29') && 적격기간('2028-02-29').전체 === '2025.1.1 ~ 2028.2.29')
   ok('한국 날짜 — UTC 11/4 16:00 = 한국 11/5 01:00', 오늘한국(Date.UTC(2026, 10, 4, 16, 0)) === '2026-11-05' && 오늘한국(Date.UTC(2026, 10, 4, 14, 59)) === '2026-11-04')
   ok('낼 서류 아홉 · 열쇠 겹침 없음 · 이름 · 설명 다 있음', 낼서류.length === 9 && new Set(낼서류.map((x) => x[0])).size === 9 && 낼서류.every((x) => x[1] && x[2]))
+  /* 📌 G761 서류가 모자랄 때 — 원문(세부기준 제4조 · 제6조의2 · 적격심사기준 제10조 · 건산법 제83조 · 국가계약법 시행령 제76조②)과 같은 숫자 · 말 */
+  const 모 = Object.fromEntries(모자랄때.map(([k, 제목, 글, 근거]) => [k, { 제목, 글, 근거 }]))
+  ok('📌 모자랄 때 여섯 줄 · 열쇠 겹침 없음 · 제목 · 글 · 근거 다 있음 · 차례(기한 → 보완 → 제외 → 미달 → 허위 → 포기)', 모자랄때.length === 6 && 모자랄때.map((x) => x[0]).join() === '기한,보완,제외,미달,허위,포기' && 모자랄때.every((x) => x[1] && x[2] && x[3]))
+  ok('📌 기한 — 통보 받은 날부터 7일 · 경영상태 10일 · 결격 확인 서류도 7일 (세부기준 제4조②③)', /7일 안/.test(모.기한.글) && /경영상태 서류는 10일/.test(모.기한.글) && /기술자 · 자본금 · 사무실 · 장비를 확인하는 서류도 7일/.test(모.기한.글) && 모.기한.근거 === '세부기준 제4조②③')
+  ok('📌 보완 — 한 번 · 3일 · 95점 (제4조⑤ · ①)', /한 번, 3일 안에 보완/.test(모.보완.글) && /95점/.test(모.보완.글) && 모.보완.근거 === '세부기준 제4조⑤')
+  ok('📌 제외 — 미제출 · 보완 안 함 · 보완 뒤 미달 → 다음 순위 (제4조⑦)', /안 내거나/.test(모.제외.글) && /보완을 안 하거나/.test(모.제외.글) && /보완 뒤에도 95점/.test(모.제외.글) && /다음 순위/.test(모.제외.글) && 모.제외.근거 === '세부기준 제4조⑦')
+  ok('📌 미달 — 입찰공고일 기준 감점 · 50일 · 마감 전날 · 영업정지 · 등록말소 (제6조의2① · 건산법 제83조 3호)', /입찰공고일/.test(모.미달.글) && /감점/.test(모.미달.글) && /50일/.test(모.미달.글) && /입찰서 마감 전날/.test(모.미달.글) && /영업정지 · 등록말소/.test(모.미달.글) && 모.미달.근거 === '세부기준 제6조의2① · 건설산업기본법 제83조 3호')
+  ok('📌 허위 — 계약 전 제외 · 취소 / 계약 뒤 해제 · 해지 · 입찰참가자격 제한 (적격심사기준 제10조)', /계약 전이면/.test(모.허위.글) && /해제 · 해지/.test(모.허위.글) && /입찰참가자격 제한/.test(모.허위.글) && 모.허위.근거 === '적격심사기준 제10조')
+  ok('📌 포기 — 통보서 안내대로 · 제한 사유에 없음 · 신문뿐인 «입찰보증금» 말은 안 씀', /포기서 제출/.test(모.포기.글) && /제한 사유에는 없습니다/.test(모.포기.글) && !/보증금/.test(JSON.stringify(모자랄때)) && 모.포기.근거 === '국가계약법 제27조 · 시행령 제76조②')
+  ok('📌 제목 · 끝줄 — 조달청 시설공사 기준 · 지방 · 공기업은 그 기관 기준과 공고서', 모자랄때제목 === '서류가 모자랄 때 — 조달청 시설공사 기준' && 모자랄때끝 === '지방자치단체 · 공기업 공사는 그 기관 기준과 공고서가 우선입니다.')
 }
 
 console.log('② 자료 — 도구 목록 · 계산기 · 예시 · 말')
@@ -44,6 +55,8 @@ console.log('② 자료 — 도구 목록 · 계산기 · 예시 · 말')
   ok('calcs.jsx — CALCS · 예시 짝 · lib 씀', /'qualify-docs': QualifyDocs,/.test(c) && /'qualify-docs': \{ 글: /.test(c) && /from '\.\.\/lib\/적격서류\.js'/.test(c))
   const 화면글 = c.slice(c.indexOf('export function QualifyDocs'), c.indexOf('export function QualifyDocs') + 6000)
   ok('«무료» · «클로드» 없음(설명 · 화면 · lib)', !/무료|클로드/.test(글 + 화면글 + 읽기('web/src/lib/적격서류.js')))
+  ok('📌 화면 — QualifyDocs 가 lib 의 모자랄 때를 그대로 그림(낼 서류 다음 · 이어지는 도구 앞)', /import \{ 적격기간, 낼서류, 오늘한국, 모자랄때, 모자랄때제목, 모자랄때끝 \} from '\.\.\/lib\/적격서류\.js'/.test(c) && /<div className="qd-h">📌 \{모자랄때제목\}<\/div>/.test(화면글) && 화면글.indexOf('모자랄때제목') > 화면글.indexOf('qd-chk') && 화면글.indexOf('모자랄때제목') < 화면글.indexOf('qd-go'))
+  ok('📌 lib 근거 — 세부기준 [시행 2026. 7. 1.] · 적격심사기준 [시행 2026. 1. 2.] · 건산법 제83조 3호', /조달청 시설공사 적격심사세부기준 \[시행 2026\. 7\. 1\.\]/.test(읽기('web/src/lib/적격서류.js')) && /적격심사기준 \[시행 2026\. 1\. 2\.\] 제10조/.test(읽기('web/src/lib/적격서류.js')) && /제83조 3호/.test(읽기('web/src/lib/적격서류.js')))
   ok('lib 근거 — 예규 제393호 · 2026. 11. 2. 시행 · 조사 기록 md', /예규 제393호/.test(읽기('web/src/lib/적격서류.js')) && /2026\. 11\. 2\. 시행/.test(읽기('web/src/lib/적격서류.js')) && /적격심사_서류길잡이_조사_2026-11-05\.md/.test(읽기('web/src/lib/적격서류.js')))
 }
 
@@ -94,6 +107,9 @@ if (/^https?:\/\//.test(process.argv[2] || '')) {
     await p.reload({ waitUntil: 'domcontentloaded' }); await p.waitForSelector('.tool input[type=date]'); await p.waitForTimeout(500)
     r = await 결과(p)
     ok('다시 열어도 그대로 — 공고일 2026-02-10 · 2 / 9 (이 기기에 남음)', r.날 === '2026-02-10' && r.셈 === '2 / 9', r)
+    /* 📌 G761 서류가 모자랄 때 — 화면에 여섯 줄 · 근거 · 끝줄 */
+    const 모화면 = await p.evaluate(() => { const h = [...document.querySelectorAll('.tool .qd-h')].find((x) => /서류가 모자랄 때/.test(x.textContent)); const ul = h && h.nextElementSibling; const 끝 = ul && ul.nextElementSibling; return { 제목: h ? h.textContent : '', 줄: ul ? [...ul.querySelectorAll('li')].map((li) => li.innerText.replace(/\s+/g, ' ')) : [], 끝: 끝 ? 끝.textContent : '' } })
+    ok('📌 «서류가 모자랄 때 — 조달청 시설공사 기준» 여섯 줄 · 근거 · 끝줄(지방 · 공기업)', 모화면.제목 === '📌 서류가 모자랄 때 — 조달청 시설공사 기준' && 모화면.줄.length === 6 && /^7일 안에 냅니다 — /.test(모화면.줄[0]) && /\(세부기준 제4조⑦\)$/.test(모화면.줄[2]) && /\(국가계약법 제27조 · 시행령 제76조②\)$/.test(모화면.줄[5]) && 모화면.끝 === '지방자치단체 · 공기업 공사는 그 기관 기준과 공고서가 우선입니다.', 모화면)
     const 링크 = await p.evaluate(() => [...document.querySelectorAll('.qd-go a')].map((a) => a.getAttribute('href')).join())
     ok('이어지는 도구 — 점수 합산기 · 낙찰하한율', 링크 === '/tools/qualify-score,/tools/floor-rate', 링크)
     ok('«무료» · «클로드» 없음(사이트 알림 띠 · 창은 빼고 — 소장님 글)', !/무료|클로드/.test(await p.evaluate(() => { const c = document.body.cloneNode(true); c.querySelectorAll('.noticebar,.noticepop').forEach((e) => e.remove()); return c.textContent })))
@@ -105,6 +121,8 @@ if (/^https?:\/\//.test(process.argv[2] || '')) {
       await p.screenshot({ path: OUT + '/적격서류_위_폰390.png' })
       await p.evaluate(() => document.querySelector('.qd-chk').scrollIntoView({ block: 'center' })); await p.waitForTimeout(300)
       await p.screenshot({ path: OUT + '/적격서류_체크_폰390.png' })
+      await p.evaluate(() => { const h = [...document.querySelectorAll('.tool .qd-h')].find((x) => /서류가 모자랄 때/.test(x.textContent)); h.scrollIntoView({ block: 'start' }); window.scrollBy(0, -120) }); await p.waitForTimeout(300)
+      await p.screenshot({ path: OUT + '/적격서류_모자랄때_폰390.png' })
     }
     /* 예시 · 칸 비우기 */
     const 예 = p.locator('button', { hasText: '예시로 해 보기' })

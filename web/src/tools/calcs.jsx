@@ -58,7 +58,7 @@ export function use바뀐기본(새필드, 옛필드, 옛기본들, 새기본) {
 /* ⚠️ 낙찰하한율 규칙은 lib/engines.js 한 곳에만 있습니다. 여기서 다시 적지 않습니다. */
 import { lowerLimit } from '../lib/bidmath.js'
 import { 세기 } from '../lib/받은수.jsx'
-import { 적격기간, 낼서류, 오늘한국 } from '../lib/적격서류.js'   /* 🗂 G551 적격심사 서류 길잡이 */
+import { 적격기간, 낼서류, 오늘한국, 모자랄때, 모자랄때제목, 모자랄때끝 } from '../lib/적격서류.js'   /* 🗂 G551 적격심사 서류 길잡이 · 📌 G761 서류가 모자랄 때 */
 import { 숫자, 물가조정 } from '../lib/물가셈.js'
 import { 계좌들, 계좌풀이, 계좌근거, 상황들, 대상 as 지킴이대상, 대상근거 as 지킴이대상근거, 바뀜한줄, 바뀜, 바뀜근거, 법 as 지킴이법, 문의 as 지킴이문의, 메뉴때 as 지킴이메뉴때 } from '../lib/하도급지킴이.js'   /* 🔐 G556 하도급지킴이 길잡이 */
 
@@ -326,6 +326,14 @@ export function QualifyDocs({ ex = {} }) {
         ))}
       </div>
       <div className="hint">흔히 내는 서류입니다 — <b>공고서에 적힌 목록 · 기간이 우선</b>입니다. 체크한 것은 이 기기에 남아 다음에 이어서 봅니다.</div>
+      {/* 📌 G761 (11-18) 서류가 모자랄 때 — 카페 «적격심사 통보 · 결격 미달 예상 · 포기서?» · 글 · 근거는 lib/적격서류.js 한 곳 */}
+      <div className="qd-h">📌 {모자랄때제목}</div>
+      <ul className="qd-list qd-short">
+        {모자랄때.map(([key, 제목, 글, 근거]) => (
+          <li key={key}><b>{제목}</b> — {글} <span className="hj-src1">({근거})</span></li>
+        ))}
+      </ul>
+      <div className="hint">{모자랄때끝}</div>
       <div className="qd-go">
         <Link className="btn line sm" to="/tools/qualify-score" onClick={() => { try { 세기('|적격서류|합산기') } catch (e) { /* 없음 */ } }}>✅ 적격심사 점수 합산기</Link>
         <Link className="btn line sm" to="/tools/floor-rate" onClick={() => { try { 세기('|적격서류|하한율') } catch (e) { /* 없음 */ } }}>📊 낙찰하한율 찾기</Link>
