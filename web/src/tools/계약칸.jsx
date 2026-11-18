@@ -24,7 +24,7 @@ import {
   발주갈래, 하도급선, 하도급판정, 직접시공판정, 직접시공표,
   낙찰뒤할일, ics만들기, 날읽기, 날차, 요일글, 해더하기, 날더하기,
   지체율표, 지체한도, 지체일수, 지체상금,
-  하자표, 하자찾기, 보증금률표, 하자보증,
+  하자표, 하자찾기, 보증금률표, 하자보증, 하자시효, 하자시효제목, 하자시효끝,   /* ⏳ G762 청구할 수 있는 기간(소멸시효) */
 } from '../lib/계약셈.js'
 import { loadBasket } from '../lib/basket.js'
 import { 쉬는날, 퇴직공제일액표, 기한미루기 } from '../lib/해마다.js'   /* 🧭 G558 일액표 · 기한미루기 */
@@ -420,6 +420,14 @@ export function DefectPeriod({ ex = {} }) {
           </div>
         ))}
       </details>
+      {/* ⏳ G762 (11-18) 청구할 수 있는 기간(소멸시효) — 책임기간(하자가 생겨야 하는 기간)과 다른 것 · 글 · 근거는 lib/계약셈.js 한 곳 */}
+      <div className="kt-h" style={{ marginTop: 14 }}>⏳ {하자시효제목}</div>
+      <ul className="te-list hs-list">
+        {하자시효.map(([key, 제목, 글, 근거]) => (
+          <li key={key}><b>{제목}</b> — {글} <span className="hj-src1">({근거})</span></li>
+        ))}
+      </ul>
+      <div className="hint kt-hint">{하자시효끝}</div>
     </div>
   )
 }
