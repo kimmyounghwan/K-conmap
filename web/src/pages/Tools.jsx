@@ -177,7 +177,7 @@ export default function ToolsIndex() {
                 <Link className="tlx-card" to={x.to} key={x.to} title={x.d}>
                   <span className="tlx-ic">{x.icon}</span>
                   <span className="tlx-body">
-                    <span className="tlx-t">{x.t}{x.new && <em className="tlx-new">새로</em>}<업표 to={x.to} /></span>
+                    <span className="tlx-t">{x.t}<업표 to={x.to} /></span>{/* 🩹 G767 빨간 «새로» 표 뺌(소장님 11-18) — 좋아진 것은 «UP» 하나로 */}
                     <span className="tlx-d">{x.d}</span>
                     <span className="tlx-row">
                       <span className={'tlx-w ' + 곳[1]}>{곳[0]}</span>

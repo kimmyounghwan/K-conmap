@@ -688,7 +688,7 @@ function OrigFormPage({ f }) {
       </div>
 
       <div className="card">
-        <div style={{ fontSize: 18, fontWeight: 800 }}>
+        <div className="fp-title" style={{ fontSize: 18, fontWeight: 800 }}>{/* 🆕 G767 제목 — 고친 서식이면 옆에 «UP» 단추(고친띠.jsx) */}
           <span style={{ marginRight: 6 }}>{f.icon}</span>{f.title}
         </div>
         <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>{f.short}</div>
@@ -853,7 +853,7 @@ export function FormPage() {
       </div>
 
       <div className="card">
-        <div style={{ fontSize: 18, fontWeight: 800 }}>
+        <div className="fp-title" style={{ fontSize: 18, fontWeight: 800 }}>{/* 🆕 G767 제목 — 고친 서식이면 옆에 «UP» 단추(고친띠.jsx) */}
           <span style={{ marginRight: 6 }}>{f.icon}</span>{f.title}
         </div>
         <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>{f.short}</div>

@@ -7,6 +7,8 @@
  *   ⑥ public/fixes.json — 꼴 · 칸 주소 · 있는 화면 · 시각 · 새것부터 · 글 길이(알림 40자) · 금지 말
  *   ⑦ 화면 자리 — App.jsx(길 줄 바로 아래 · 씀-앞 밖) · 도구 · 서식 · 마이컨맵 «UP» · 쓴수판 · 스타일 · 알림 함수(G222) 그대로
  *   ⑧ 자가시험 — 일부러 틀린 줄을 넣어 ⑥ 검사가 잡는지
+ *   ⑨ 🩹 G767 자료 주소 — 판(빌드 도장)을 붙여 받음(올리면 바로 새 띠 · UP — 전엔 브라우저 1시간 기억으로 최대 1시간 늦음)
+ *   ⑦ 🔁 G767 띠 → «UP» 단추(누르면 업데이트 내용 창) · 화면 안은 제목 옆 · 빨간 «새로» 표 없음
  * 쓰는 법: node tools/시험_고친것.mjs
  */
 import fs from 'node:fs'
@@ -119,22 +121,35 @@ const 길줄 = 앱.indexOf('<Crumbs />'), 띠자리 = 앱.indexOf('<고친띠 />
 봐(길줄 > 0 && 띠자리 > 길줄 && 띠자리 < 씀앞 && !/<[A-Za-z가-힣]/.test(앱.slice(길줄 + 10, 띠자리).replace(/\{\/\*[\s\S]*?\*\/\}/g, '')), 'App.jsx — 길 줄(Crumbs) 바로 아래 · 씀-앞 밖', [길줄, 띠자리, 씀앞])
 봐(/import 고친띠 from '\.\/고친띠\.jsx'/.test(앱), 'App.jsx 가 고친띠를 부름')
 const 띠 = 읽('src', '고친띠.jsx')
-봐(/className="noti-band upg"/.test(띠) && /세기\('\|업그레이드\|보임'\)/.test(띠) && /세기\('\|업그레이드\|닫음'\)/.test(띠) && /로봇/.test(띠) && /aria-label="업그레이드 알림 닫기"/.test(띠), '띠 — noti-band upg · 셈 둘 · 로봇 빼기 · 닫기 이름')
-봐(/export function 업표/.test(띠) && /tlx-new up-b/.test(띠), '업표 — tlx-new 꼴 + up-b')
+봐(!/noti-band upg/.test(띠) && /세기\('\|업그레이드\|보임'\)/.test(띠) && /세기\('\|업그레이드\|단추'\)/.test(띠) && /로봇/.test(띠), 'G767 — 띠 없음 · 셈 둘(보임 · 단추) · 로봇 빼기')
+봐(/export function 업단추/.test(띠) && /role="button" tabIndex=\{0\} aria-haspopup="dialog" aria-expanded=\{열림\}/.test(띠) && /'tlx-new up-b up-btn'/.test(띠)
+  && /if \(e\.key === 'Enter' \|\| e\.key === ' '\) 누름\(e\)/.test(띠), 'UP 단추 — tlx-new · up-b 꼴 · 누르는 단추(키보드 Enter · 띄어쓰기) · 창 열림 알림')
+봐(/const 막기 = \(e\) => \{ e\.stopPropagation\(\); e\.preventDefault\(\) \}/.test(띠) && /onClick=\{누름\}/.test(띠) && /const 누름 = \(e\) => \{\s*막기\(e\)/.test(띠) && /ref=\{창\} onClick=\{막기\}/.test(띠),
+  'UP · 창을 눌러도 카드(링크)로 안 넘어감(막기 — 단추 · 창 둘 다)')
+봐(/role="dialog" aria-label="업데이트 내용"/.test(띠) && /document\.body\)/.test(띠) && /createPortal\(/.test(띠) && /aria-label="업데이트 내용 닫기"/.test(띠)
+  && /document\.addEventListener\('pointerdown', 밖, true\)/.test(띠) && /e\.key === 'Escape'/.test(띠), '창 — body 에 붙임 · 이름 · ✕ · 바깥 누름 · Esc 로 닫힘')
+봐(/Math\.max\(8, Math\.min\(r\.left, 쪽폭 - 폭 - 8\)\)/.test(띠) && /r\.bottom \+ window\.scrollY \+ 6/.test(띠), '창 자리 — 단추 바로 밑 · 화면 폭 안(양쪽 8px)')
+봐(/n\.matches\('h1, \.fp-title'\) \? n : n\.querySelector\('h1, \.fp-title'\)/.test(띠) && /document\.getElementById\('씀-앞'\)/.test(띠) && /n\.id !== '씀-뒤'/.test(띠)
+  && /new MutationObserver\(곧\)/.test(띠) && /내자리\.className = 'up-slot'/.test(띠), '화면 안 — 본문(씀-앞 ~ 씀-뒤) 첫 제목(h1 · .fp-title) 옆 · 늦게 뜨는 제목도 지켜봄')
+봐(/return <div className="up-line"><업단추 줄들=\{줄들\} \/><\/div>/.test(띠), '제목이 없는 화면 — 그 자리에 단추 한 줄')
+봐(/export function 업표/.test(띠) && /<업단추 줄들=\{요\.filter\(\(x\) => x\.p === to\)\} className=\{className\} \/>/.test(띠), '업표 — 그 칸 줄로 UP 단추')
 const 도구 = 읽('src', 'pages', 'Tools.jsx'), 서식 = 읽('src', 'pages', 'Forms.jsx'), 마이 = 읽('src', 'pages', 'MyConmap.jsx')
 봐(/<업표 to=\{x\.to\} \/>/.test(도구) && /import \{ 업표 \} from '\.\.\/고친띠\.jsx'/.test(도구), '도구 목록 카드 «UP»')
+봐(!/<em className="tlx-new">새로<\/em>/.test(도구) && !/x\.new &&/.test(도구) && !/딱지: '새로'/.test(읽('src', 'pages', 'Naeyeok.jsx')), 'G767 빨간 «새로» 표 없음(도구 목록 · 내역서 쪽 목록)')
+봐((서식.match(/<div className="fp-title" style=\{\{ fontSize: 18, fontWeight: 800 \}\}>/g) || []).length === 2, '서식 화면 제목 둘(원본 · 새 서식)에 fp-title — UP 단추 자리')
 봐((서식.match(/<업표 to=\{`\/forms\/\$\{f\.slug\}`\} \/>/g) || []).length === 2 && /import \{ 업표 \} from '\.\.\/고친띠\.jsx'/.test(서식), '서식 목록(그림 칸 · 카드) «UP» 두 곳')
 봐(/<업표 to=\{p\} className="mc-key-up" \/>/.test(마이) && /import \{ 업표 \} from '\.\.\/고친띠\.jsx'/.test(마이), '마이컨맵 단축키 «UP»')
 봐(/const 전체머리 = \[[^\]]*'\|업그레이드'/.test(읽('src', 'lib', '쓴수판.jsx')), "쓴수판 전체머리에 '|업그레이드'")
 const 스 = 읽('src', 'styles.css')
-봐(/\.noti-band\.upg \{/.test(스) && /\.upg-t \{/.test(스) && /\.up-b \{/.test(스) && /\.mc-key-up \{/.test(스) && /@media print \{ \.noti-bell, \.noti-band, \.noti-on \{ display: none !important; \} \}/.test(스), '스타일 — 띠 · UP · 단축키 · 인쇄에선 숨김(noti-band)')
+봐(!/\.noti-band\.upg|\.upg-t \{|\.upg-tag \{|\.upg-more \{/.test(스) && /\.up-b \{/.test(스) && /\.mc-key-up \{/.test(스) && /\.up-btn \{ cursor: pointer;/.test(스) && /\.up-pop \{ position: absolute; z-index: 62;/.test(스)
+  && /\.up-slot \{/.test(스) && /\.up-line \{/.test(스) && /@media print \{ \.up-btn, \.up-slot, \.up-line, \.up-pop \{ display: none !important; \} \}/.test(스), '스타일 — 옛 띠 없음 · UP · 단축키 · 단추 · 창(absolute) · 인쇄에선 숨김')
 봐(스.indexOf('.up-b {') > 스.indexOf('.tlx-new {') && 스.indexOf('.mc-key-up {') > 스.indexOf('.up-b {'), 'UP 색이 tlx-new 뒤 · 단축키 자리가 UP 뒤(같은 무게 — 뒤가 이김)')
 const 알림 = fs.readFileSync(path.join(ROOT, 'web', 'functions', 'alertpack.js'), 'utf8')
 봐(/String\(f\.d \|\| ''\) > 부터글/.test(알림) && /쓰시던 화면을 고쳤습니다/.test(알림), '알림 함수(G222) — 지난번 알림 뒤 줄만 · 글 그대로')
 const 셈 = 읽('src', 'lib', '고친것셈.js')
 봐(!/^\s*import /m.test(셈), '고친것셈.js 는 불러오는 것 없음(node 시험 · PC 그대로)')
 const 받 = 읽('src', 'lib', '고친것.js')
-봐(/getJSON\('\/fixes\.json'\)/.test(받) && /kcm\.upg\.표/.test(받), '고친것.js — /fixes.json 한 번 받기 · 지난번 받은 것 먼저')
+봐(/getJSON\(자료주소\(판\)\)/.test(받) && /kcm\.upg\.표/.test(받), '고친것.js — 자료(fixes.json) 한 번 받기 · 지난번 받은 것 먼저')
 
 console.log('⑧ 자가시험 — 일부러 틀린 줄')
 const 기준 = Date.UTC(2026, 10, 18, 1, 0)
@@ -151,6 +166,15 @@ const 틀 = [
 ]
 for (const [이름, r, 말] of 틀) { const t = 줄검사(r, 기준); 봐(t.some((s) => s.includes(말)), `${이름} → 잡음`, t) }
 봐(줄검사([{ p: '/tools/sajincad', d: '2026-11-18 09:00', m: '좋아짐' }, { p: '/forms/' + [...서식슬][0], d: '2026-11-17 09:00', m: '좋아짐' }, { p: '/change/twoline', d: '2026-11-16 09:00', m: '좋아짐' }], 기준).length === 0, '맞게 쓴 줄(도구 · 서식 · 설계변경) → 통과')
+
+console.log('⑨ 자료 주소 — 판을 붙여 받음(G767)')
+봐(L.자료주소('d7f8fda0abcd') === '/fixes.json?v=d7f8fda0abcd', '판이 있으면 /fixes.json?v=판', L.자료주소('d7f8fda0abcd'))
+봐(L.자료주소('') === '/fixes.json' && L.자료주소(undefined) === '/fixes.json' && L.자료주소(null) === '/fixes.json' && L.자료주소(3) === '/fixes.json', '판이 없거나 글이 아니면 그대로 /fixes.json')
+봐(L.자료주소('a b&c') === '/fixes.json?v=a%20b%26c', '판 글은 주소 꼴로(띄어쓰기 · & )', L.자료주소('a b&c'))
+봐(!/getJSON\('\/fixes\.json'\)/.test(받) && /import \{ 요즘, 자료주소 \} from '\.\/고친것셈\.js'/.test(받), '고친것.js — 판 없는 옛 주소로 받지 않음 · 자료주소를 고친것셈.js 에서 부름')
+봐(/const 판 = \(\(\) => \{ try \{ return typeof window !== 'undefined' && typeof window\.__KCM_BUILD__ === 'string' \? window\.__KCM_BUILD__ : '' \} catch \(e\) \{ return '' \} \}\)\(\)/.test(받)
+  && /typeof window\.__KCM_BUILD__ === 'string' && window\.__KCM_BUILD__/.test(읽('src', 'lib', 'data.js')), '판은 lib/data.js 와 같은 곳(window.__KCM_BUILD__ — vite.config.js 가 HTML 에 적음)')
+봐(/window\.__KCM_BUILD__=\$\{JSON\.stringify\(BUILD\)\}/.test(fs.readFileSync(path.join(ROOT, 'web', 'vite.config.js'), 'utf8')), 'vite.config.js 가 HTML 에 판을 적음(없어지면 이 고침이 헛돎)')
 
 console.log(나쁨 ? `\n❌ 시험_고친것 ${좋음}/${좋음 + 나쁨}` : `\n✅ 시험_고친것 ${좋음}/${좋음}`)
 process.exit(나쁨 ? 1 : 0)

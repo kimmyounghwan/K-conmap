@@ -16,6 +16,11 @@ export function 칸으로(path) {
   return m ? m[0] : ''
 }
 
+/* 🩹 G767 (2026-11-18) 자료 주소 — 판(빌드 도장 window.__KCM_BUILD__)을 붙여, 올릴 때마다 새로 받음
+   fixes.json 은 호스팅 기본 «1시간 기억»(Cache-Control max-age=3600)이라, 올리기 전 1시간 안에 들어왔던 브라우저는 새 띠 · UP 이 최대 1시간 늦게 떴음
+   (소장님 11-18 「업데이트 표시 했어?? 어디에 있지? 이용자가 볼 수 있어?」 — G762 띠가 그 전에 받아 둔 크롬에서 1시간 동안 안 뜸) · 판이 없으면(시험 · 옛 껍데기) 그대로 */
+export const 자료주소 = (판) => (typeof 판 === 'string' && 판 ? '/fixes.json?v=' + encodeURIComponent(판) : '/fixes.json')
+
 /** «YYYY-MM-DD HH:MM»(한국) → ms · 꼴이 틀리면 NaN */
 export function 때(d) {
   const m = String(d || '').match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/)

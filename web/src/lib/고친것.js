@@ -12,18 +12,20 @@
  */
 import { useEffect, useState } from 'react'
 import { getJSON } from './data.js'
-import { 요즘 } from './고친것셈.js'
+import { 요즘, 자료주소 } from './고친것셈.js'
 /* ⚠️ 셈(이곳 · 닫기 등)은 쓰는 곳이 lib/고친것셈.js 에서 바로 부름 — 여기서 다시 내보내기(중괄호 꼴)를 하면
    tools/checkimports.py 가 «닫기 · 때» 같은 흔한 이름을 이 파일 것으로 알고 다른 화면 50곳을 잘못 잡음(11-18 리허설) */
 
 const 남김열쇠 = 'kcm.upg.표'
+/* 🩹 G767 판(빌드 도장 — lib/data.js 와 같은 곳)을 붙여 받음 → 올리면 바로 새 띠 · UP(전엔 브라우저 1시간 기억 때문에 최대 1시간 늦음) */
+const 판 = (() => { try { return typeof window !== 'undefined' && typeof window.__KCM_BUILD__ === 'string' ? window.__KCM_BUILD__ : '' } catch (e) { return '' } })()
 let 자료 = (() => { try { const v = JSON.parse(localStorage.getItem(남김열쇠) || 'null'); return v && Array.isArray(v.r) ? { r: v.r } : null } catch (e) { return null } })()
 let 받음 = false
 const 듣는이 = new Set()
 function 받기() {
   if (받음) return
   받음 = true
-  getJSON('/fixes.json').then((j) => {
+  getJSON(자료주소(판)).then((j) => {
     if (!j || !Array.isArray(j.r)) return
     자료 = { r: j.r.slice(0, 60) }
     try { localStorage.setItem(남김열쇠, JSON.stringify(자료)) } catch (e) { /* 개인 창 · 가득 참 */ }
