@@ -397,6 +397,11 @@ try {
 } catch (e) { /* 없음 */ }
 /* 🩹 2026-10-05 흰 화면 지킴 — 여기까지 왔으면 큰 묶음(index-*.js)은 받은 것입니다.
    index.html 의 «못 받으면 한 번 새로 받기» 표를 지우고(다음 배포 때 또 한 번 구하게), 그때 붙인 ?__v= 꼬리를 주소에서 뗍니다. */
+/* 🩹 G758 (2026-11-18) index.html «흰 화면 지킴 2» 에 «떴다» 고 알림 — 안 찍히면 12초 뒤 묶음을 새로 받아 한 번 다시 엶 · 그래도 안 되면 «다시 열기» 상자
+   소장님 「폰에서 건설맵이 들어가면 흰색으로 나와 안돼」(아이폰 앱 아이콘 — 지우고 다시 추가하니 뜸 → 앱에 받아 둔 파일이 깨진 것으로 봄) */
+window.__KCM_OK = 1
+try { sessionStorage.removeItem('kcm_boot_fix') } catch (e) { /* 사생활 보호 모드 */ }
+try { const 상자 = document.getElementById('kcm-boot-box'); if (상자) 상자.remove() } catch (e) { /* 없음 */ }
 try {
   sessionStorage.removeItem('kcm_main_reload')
   if (/[?&]__v=/.test(location.search)) {

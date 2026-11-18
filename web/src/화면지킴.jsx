@@ -44,6 +44,13 @@ export default class 화면지킴 extends Component {
     const 글 = String((e && (e.message || e)) || '').slice(0, 200)
     try { window.gtag && window.gtag('event', 'exception', { description: (글 + ' @' + location.pathname).slice(0, 150), fatal: true }) } catch (x) { /* 없음 */ }
     try { console.error('[화면지킴]', e) } catch (x) { /* 없음 */ }
+    /* 🩹 G758 — 무엇이 멈췄는지 숫자 칸에 남김(소장님 폰도 셈 · 진단세기) — 「흰 화면」 · 「멈췄습니다」 하시면 dl/p «|흰화면|지킴-…» 부터 읽음 */
+    try {
+      const 기기 = (/iPhone|iPad|iPod/.test(navigator.userAgent) ? 'i' : /Android/.test(navigator.userAgent) ? 'a' : 'p') +
+        (((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true) ? '앱' : '웹')
+      const 짧게 = 글.replace(/[|\/\\.#$[\]\s]+/g, ' ').trim().slice(0, 50)
+      import('./lib/받은수.jsx').then((m) => m.진단세기(`|흰화면|지킴-${기기}-${짧게 || '오류'}`)).catch(() => {})
+    } catch (x) { /* 세는 것 때문에 멈추면 안 됨 */ }
     if (묶음오류.test(글)) {
       let 한번 = false
       try { 한번 = sessionStorage.getItem(다시표) === '1'; if (!한번) sessionStorage.setItem(다시표, '1') } catch (x) { 한번 = true }

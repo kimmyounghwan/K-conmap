@@ -46,7 +46,15 @@ import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가�
 class 지도지킴 extends Component {
   constructor(p) { super(p); this.state = { 오류: false } }
   static getDerivedStateFromError() { return { 오류: true } }
-  componentDidCatch() { try { 세기('|바로투찰|지도멈춤') } catch (e) { /* 없음 */ } }
+  componentDidCatch(er) {
+    try { 세기('|바로투찰|지도멈춤') } catch (e) { /* 없음 */ }
+    /* 🩹 G758 — 방문자 칸이 왜 멈췄는지 글도 남김(소장님 폰도 셈) — 소장님 11-18 「방문자 수도 안보여」 */
+    try {
+      const 짧게 = String((er && (er.message || er)) || '').replace(/[|\/\\.#$[\]\s]+/g, ' ').trim().slice(0, 50)
+      const 기기 = /iPhone|iPad|iPod/.test(navigator.userAgent) ? 'i' : /Android/.test(navigator.userAgent) ? 'a' : 'p'
+      import('../lib/받은수.jsx').then((m) => m.진단세기(`|지도멈춤|${기기}-${짧게 || '오류'}`)).catch(() => {})
+    } catch (e) { /* 없음 */ }
+  }
   render() { return this.state.오류 ? null : this.props.children }
 }
 /* 공고 화면(LiveBoard)이 예전부터 여기서 가져다 썼습니다 — 그대로 이어 줍니다 */

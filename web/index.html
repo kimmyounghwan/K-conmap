@@ -68,6 +68,108 @@
         }, true);
       })();
     </script>
+    <!-- 🩹 G758 (2026-11-18) 흰 화면 지킴 2 — 소장님 「폰에서 건설맵이 들어가면 흰색으로 나와 안돼. 빨리 고쳐줘」(아이폰 앱 아이콘)
+         위 스크립트는 «묶음을 못 받은» 때만 봅니다. 받기는 했는데 못 돈 때(받다 끊겨 깨진 파일이 1년 캐시에 남음 등)는 그대로 흰 화면이었습니다.
+         · 묶음을 다 받았는데도 화면이 안 떴으면(main.jsx 가 window.__KCM_OK 를 못 찍음) → 묶음을 «새로» 받아(cache: reload — 깨진 캐시를 덮어씀) 한 번만 다시 엶
+         · 그래도 안 뜨면 흰 화면 대신 «화면을 띄우지 못했습니다 · 🔄 다시 열기» 상자 + 오류 글 앞부분
+         · 숫자 칸 dl/p «|흰화면|…» 에 남김(소장님 폰도 셈) — 또 «흰 화면» 하시면 이것부터 읽음
+         · 느린 망: 묶음을 아직 받는 중이면 더 기다림(45초까지) — 받는 중에 새로 열지 않습니다 -->
+    <script>
+      (function () {
+        var 표 = 'kcm_boot_fix', 오류 = [];
+        function 담기(m) {
+          try {
+            m = String(m || '').replace(/https?:\/\/[^\s)]+/g, function (u) { return u.split('?')[0].split('/').pop(); }).slice(0, 90);
+            if (m && 오류.length < 5) 오류.push(m);
+          } catch (x) { /* 없음 */ }
+        }
+        window.addEventListener('error', function (e) {
+          var t = e && e.target;
+          if (t && t !== window && (t.src || t.href)) 담기('못 받음 ' + (t.src || t.href));
+          else 담기((e && e.message) + (e && e.filename ? ' @' + e.filename + ':' + e.lineno : ''));
+        }, true);
+        window.addEventListener('unhandledrejection', function (e) { 담기('R ' + (e && e.reason && (e.reason.message || e.reason))); });
+        function 묶음() {
+          var a = [], s = document.querySelectorAll('script[src*="/assets/"],link[href*="/assets/"]');
+          for (var i = 0; i < s.length; i++) a.push(s[i].src || s[i].href);
+          return a;
+        }
+        function 새로받기(끝) {
+          var u = 묶음(), n = u.length, 된 = 0, 다 = false;
+          function 마침() { if (!다) { 다 = true; 끝(); } }
+          function 하나() { if (++된 >= n) 마침(); }
+          if (!n || !window.fetch) return 마침();
+          for (var i = 0; i < n; i++) fetch(u[i], { cache: 'reload' }).then(하나, 하나);
+          setTimeout(마침, 10000);
+        }
+        function 기기() {
+          var ua = navigator.userAgent || '';
+          var 앱 = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+          return (/iPhone|iPad|iPod/.test(ua) ? 'i' : /Android/.test(ua) ? 'a' : 'p') + (앱 ? '앱' : '웹');
+        }
+        function 세기(글) {
+          try {
+            if (/bot|crawl|spider|slurp|headless|lighthouse|preview|facebookexternalhit|kakaotalk-scrap|yeti|daum/i.test(navigator.userAgent || '')) return;
+            var 열쇠 = ('|흰화면|' + String(글).replace(/[|\/\\.#$\[\]\s]+/g, ' ').trim()).slice(0, 80);
+            var u = 'https://k-conmap-default-rtdb.firebaseio.com/dl/p/' + encodeURIComponent(열쇠) + '.json';
+            fetch(u, { headers: { 'X-Firebase-ETag': 'true' }, cache: 'no-store' }).then(function (r) {
+              if (!r.ok) return;
+              var tag = r.headers.get('ETag');
+              return r.json().then(function (v) { return fetch(u, { method: 'PUT', headers: { 'if-match': tag }, body: String((Number(v) || 0) + 1) }); });
+            }).catch(function () { /* 세는 것 때문에 멈추면 안 됨 */ });
+          } catch (x) { /* 없음 */ }
+        }
+        function 상자() {
+          if (document.getElementById('kcm-boot-box')) return;
+          var b = document.createElement('div');
+          b.id = 'kcm-boot-box';
+          b.setAttribute('role', 'alert');
+          b.style.cssText = 'position:fixed;left:12px;right:12px;top:72px;z-index:2147483647;max-width:460px;margin:0 auto;background:#fff;color:#1f2937;border:2px solid #f59e0b;border-radius:14px;padding:16px;font:15px/1.5 -apple-system,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.18);text-align:center';
+          var h = document.createElement('div');
+          h.style.cssText = 'font-size:17px;font-weight:700;margin-bottom:6px';
+          h.textContent = '🏗️ K-건설맵 화면을 띄우지 못했습니다';
+          var p = document.createElement('div');
+          p.textContent = '«다시 열기» 를 누르면 화면 파일을 새로 받아 다시 엽니다.';
+          var 단추 = document.createElement('button');
+          단추.type = 'button';
+          단추.textContent = '🔄 다시 열기';
+          단추.style.cssText = 'margin-top:12px;padding:10px 22px;border:0;border-radius:10px;background:#2563eb;color:#fff;font-size:16px;font-weight:700';
+          단추.onclick = function () {
+            단추.disabled = true; 단추.textContent = '받는 중…';
+            세기('다시열기-' + 기기());
+            새로받기(function () { try { sessionStorage.removeItem(표); } catch (x) { /* 없음 */ } location.reload(); });
+          };
+          var 글 = document.createElement('div');
+          글.style.cssText = 'margin-top:10px;font-size:11px;color:#6b7280;word-break:break-all';
+          글.textContent = 오류.length ? 오류[0] : '';
+          b.appendChild(h); b.appendChild(p); b.appendChild(단추); b.appendChild(글);
+          (document.body || document.documentElement).appendChild(b);
+        }
+        function 받는중() {
+          try {
+            var es = performance.getEntriesByType('resource'), u = 묶음();
+            for (var i = 0; i < u.length; i++) {
+              if (!/\.js($|\?)/.test(u[i])) continue;
+              var 됨 = false;
+              for (var j = 0; j < es.length; j++) if (es[j].name === u[i] && es[j].responseEnd > 0) 됨 = true;
+              if (!됨) return true;
+            }
+          } catch (x) { /* 모르면 다 받은 것으로 */ }
+          return false;
+        }
+        function 봄(초) {
+          if (window.__KCM_OK) return;
+          if (document.visibilityState === 'hidden') { setTimeout(function () { 봄(초); }, 2000); return; }
+          if (받는중() && 초 < 45) { setTimeout(function () { 봄(초 + 3); }, 3000); return; }
+          var 한번 = false;
+          try { 한번 = sessionStorage.getItem(표) === '1'; if (!한번) sessionStorage.setItem(표, '1'); } catch (x) { 한번 = true; }
+          세기((한번 ? '상자-' : '새로받기-') + 기기() + '-' + (오류[0] || '오류없음'));
+          if (!한번) { 새로받기(function () { location.reload(); }); return; }
+          상자();
+        }
+        setTimeout(function () { 봄(12); }, 12000);
+      })();
+    </script>
     <!-- Google 애널리틱스 (GA4) — 속성 K-conmap / 스트림 «K-건설맵 웹» (15527098112)
          🐛 2026-09-15 — 측정 ID 가 «G-YFGFLYKBCQ» 로 박혀 있었습니다.
             애널리틱스의 실제 ID 는 «G-YFGFLVKBCQ» 입니다 — 일곱 번째 글자가 V 인데 Y 로
