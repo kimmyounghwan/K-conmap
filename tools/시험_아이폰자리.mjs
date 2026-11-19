@@ -67,7 +67,12 @@ const 새판 = async (ua, w = 402, h = 874, 폰 = true) => {
   p.on('pageerror', (e) => 오류.push(String(e).slice(0, 200)))
   return { ctx, p, 오류, 보냄 }
 }
-const 열기 = async (p, 길) => { await p.goto(BASE + 길, { waitUntil: 'domcontentloaded' }); await p.waitForSelector('main.shell', { timeout: 20000 }); await 쉬어(1200) }
+const 열기 = async (p, 길) => {
+  await p.goto(BASE + 길, { waitUntil: 'domcontentloaded' }); await p.waitForSelector('main.shell', { timeout: 20000 }); await 쉬어(1200)
+  /* 🔒 G791 — webdriver 를 가려서 사이트 공지창(G786 제휴 모집 · 늘 뜸)이 저절로 뜸 → 닫고 시험(창이 열린 채 굴리는 것은 시험_굴림잠금화면 이 봄) */
+  const 공지닫기 = p.locator('.noticepop-f .btn.line')
+  if (await 공지닫기.count()) { await 공지닫기.click(); await 쉬어(300) }
+}
 /* 가짜 값 바꾸기 + (쏠 때만) resize 이벤트 */
 const 값 = (p, o, 쏨 = 'resize') => p.evaluate(([o, 쏨]) => { Object.assign(window.__vv, o); if (쏨) window.__vv.dispatchEvent(new Event(쏨)) }, [o, 쏨])
 const 상태 = (p) => p.evaluate(() => {

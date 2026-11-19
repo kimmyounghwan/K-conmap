@@ -65,6 +65,7 @@ import { 작업틀풀기 } from '../lib/작업틀풀기.js'
 import * as 창고 from '../lib/기억자료.js'
 
 import { 단위보기, 단위풀이 } from '../lib/단위.js'
+import { 굴림잠금 } from '../lib/굴림잠금.js'
 const 예시도면들 = [['/jeoksan/토목_예시.dxf', '토목_예시.dxf (가상 도면)'], ['/jeoksan/마감_예시.dxf', '마감_예시.dxf (가상 평면도)']]
 const 예시내역 = '/jeoksan/내역_예시.xlsx'
 const 골조예시 = ['/jeoksan/골조자동_예시.dxf', '골조자동_예시.dxf (가상 2층 라멘조 구조도)']
@@ -226,9 +227,8 @@ export default function JeoksanAuto() {
   useEffect(() => {
     if (!작업) return
     쓴수세기('|적산자동|작업화면')
-    const 전 = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = 전 }
+    const 풀기 = 굴림잠금()   /* 🔒 G791 뒤 화면 막기는 html 에(body 에 걸면 아이폰에서 떠 있는 창이 쪽 맨 위에 그려짐) */
+    return () => { 풀기() }
   }, [작업])
   const 전체화면 = () => { const el = 작업Ref.current; try { if (document.fullscreenElement) document.exitFullscreen(); else if (el && el.requestFullscreen) el.requestFullscreen() } catch (e) { /* 막힘 */ } }
   const 내역칸 = useRef(null)

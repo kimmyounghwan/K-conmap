@@ -79,6 +79,12 @@ html, body {
   overflow-x: hidden;
   overflow-x: clip;
 }
+/* 🔒 G791 (2026-11-20) body 막이 — body 는 «스크롤 상자» 가 되면 안 됩니다.
+   창을 열 때 body 에 overflow: hidden 을 걸면(옛 방식 · 바깥 스크립트) 위의 html overflow-x: clip 때문에 화면으로 안 넘어가고 body 가 스크롤 상자가 됨
+   → 머리줄(sticky)이 화면을 내리면 같이 사라지고, 아이폰은 떠 있는 것(fixed — 공지창 · 아래 탭 · 맵톡 글 창)까지 쪽 맨 위에 그림
+   (소장님 11-20 「맵톡에서 클릭을 해도 글을 쓰는걸로 전환이 안돼」 · 「답글쓰는 박스가 위쪽에서 열려」).
+   뒤 화면 막기는 lib/굴림잠금.js(html 에 걺)만 씀 · 이 줄이 남은 body 잠금을 무력화 — tools/시험_굴림잠금.mjs 가 지킴 */
+body { overflow-x: clip !important; overflow-y: visible !important; }
 
 #root { min-height: 100vh; }
 
@@ -11120,10 +11126,11 @@ details.esc-edit > summary { cursor: pointer; font-weight: 700; font-size: 13.5p
    · 머리줄(sticky 위)은 top 으로 내림 — transform 금지(머리줄 안의 알림창 · 설치 안내 · 빠른 찾기 «떠 있는 창» 이 머리줄 안에 갇힘)
    · 떠 있는 것(fixed)은 translate 로 그만큼 내림 — 원래 transform(가운데 맞춤 · «+» 기울기)과 겹쳐도 됨
    · 붙는 것(sticky 아래)은 bottom 에서 그만큼 뺌 — 붙어 있을 때만 내려가고, 제자리(글 끝)에 있을 때는 그대로
-   · ⚠️ position: fixed(또는 sticky 아래)를 새로 쓰면 아래 목록에 더하거나, 시험_아이폰자리.mjs 의 «뺌» 목록에 까닭과 함께 적을 것(시험이 잡음) */
+   · ⚠️ position: fixed(또는 sticky 아래)를 새로 쓰면 아래 목록에 더하거나, 시험_아이폰자리.mjs 의 «뺌» 목록에 까닭과 함께 적을 것(시험이 잡음)
+   · 🩹 G791 .adsm-back(G781 광고 문자 창 바탕)을 더함 — 목록에 빠져 시험_아이폰자리 ⑨ 가 잡음 */
 html.vv-fix .topbar { top: var(--vv-dy, 0px); }
 html.vv-fix :is(.tabbar, .cam-tab, .cam-dim, .bsr-dock, .gx-ed, .xv-고침판, .iy-bar, .insa, .ask-card,
-  .installguide, .noticepop, .askwrap, .끌놓판, .pb-modal, .mt-back, .mt-sheet, .qs-back,
+  .installguide, .noticepop, .adsm-back, .askwrap, .끌놓판, .pb-modal, .mt-back, .mt-sheet, .qs-back,
   .kcm-help-back, .kcm-help-dlg, .gmd-askbox, .gmd-xlchk, .gmd-xlchk-toast, .nm-toast, .kcm-sibar) { translate: 0 var(--vv-dy, 0px); }   /* .nm-toast — G758 에 더함(목록에 빠져 시험_아이폰자리 ⑨ 가 잡음) · .kcm-sibar — G765 시계 줄 바탕(머리줄과 같이 내려감) */
 @media (max-width: 560px) { html.vv-fix .noti-pop { translate: 0 var(--vv-dy, 0px); } }   /* 폰에서만 떠 있음(넓으면 머리줄에 붙어 같이 내려감) */
 html.vv-fix .mc-savebar { bottom: calc(12px - var(--vv-dy, 0px)); }

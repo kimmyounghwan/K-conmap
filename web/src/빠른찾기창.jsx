@@ -8,6 +8,7 @@ import { searchAgency, searchCorp } from './lib/data.js'
 import { normCorp } from './lib/fmt.js'
 import { 손끝 } from './lib/손끝고르기.js'
 import { 세기 } from './lib/받은수.jsx'
+import { 굴림잠금 } from './lib/굴림잠금.js'
 
 let 목록약속 = null
 /** 찾기 목록 — 처음 한 번만 만들고 기억(탭은 App 이 넘김) */
@@ -36,9 +37,8 @@ export default function 빠른찾기창({ 탭, 닫기 }) {
   useEffect(() => { 칸.current && 칸.current.focus() }, [])
   /* 창이 열린 동안 뒤 화면이 굴러가지 않게 */
   useEffect(() => {
-    const 옛 = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = 옛 }
+    const 풀기 = 굴림잠금()   /* 🔒 G791 뒤 화면 막기는 html 에(body 에 걸면 아이폰에서 떠 있는 창이 쪽 맨 위에 그려짐) */
+    return () => { 풀기() }
   }, [])
 
   /* 기관 · 업체 — 두 글자부터 · 0.25초 쉼 · 초성만이면 안 찾음 */

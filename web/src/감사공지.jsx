@@ -82,6 +82,7 @@ import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
 import { 로봇 as 로봇글 } from './lib/인사.js'
 import { 세기 } from './lib/받은수.jsx'
+import { 굴림잠금 } from './lib/굴림잠금.js'
 
 const 판 = '2026-11-제휴'         /* G786 제휴업체 모집 · G552 '2026-11-광고' 운영은 광고로 · G491 '2026-11-점검' 점검 띠 · G345 '2026-10-업체' · G318 '2026-10-새것' · G284 '2026-10-필독' · G199 '2026-10-용역' · G186 '2026-10-고침2' · G176 '2026-10-고침' */
 const 까지 = '2026-12-31'          /* G786 「공지는 계속」 — 내릴 땐 오늘 전날로(🩹 G656 은 '2026-11-11' 로 «운영은 광고로» 를 내렸음) */
@@ -121,10 +122,9 @@ function 공지창({ 닫기, 오늘 }) {
   useEffect(() => {   /* 열릴 때 한 번 — Esc 로 닫기 · 뒤 화면 굴러가지 않게 · 창에 초점 */
     const 키 = (e) => { if (e.key === 'Escape') 닫기글.current() }
     window.addEventListener('keydown', 키)
-    const 전 = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const 풀기 = 굴림잠금()   /* 🔒 G791 뒤 화면 막기는 html 에(body 에 걸면 아이폰에서 떠 있는 창이 쪽 맨 위에 그려짐) */
     try { 상자.current && 상자.current.focus({ preventScroll: true }) } catch (e) { /* 옛 브라우저 */ }
-    return () => { window.removeEventListener('keydown', 키); document.body.style.overflow = 전 }
+    return () => { window.removeEventListener('keydown', 키); 풀기() }
   }, [])
   const 감 = () => { 누름(); 닫기() }
   const 신청 = () => { 누름(); try { 세기('|광고문의|공지창') } catch (e) { /* 없음 */ } }   /* 문의 쪽(contact.html)은 새로 열림 — 창은 그대로 두고 감 */

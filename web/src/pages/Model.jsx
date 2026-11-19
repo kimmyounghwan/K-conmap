@@ -40,6 +40,7 @@ import { 층판 } from '../lib/둘러보기.js'
 import { 길잡이 } from '../lib/도우미.js'
 import { 부재보기 } from '../lib/bim3d.js'
 import { 확인 as 이용권확인 } from '../lib/이용권.js'
+import { 굴림잠금 } from '../lib/굴림잠금.js'
 /* 🛣 G396 작업 화면 «토목» 탭 — 노선(STA) · TM 좌표 · EL · 측량점 파일 · 좌표계(따로 불러옴 — 건축만 쓰면 안 받음) */
 const 토목판 = lazy(() => import('../토목판.jsx'))
 /* 📏 G685 «캐드에서 고른 것»(KCMS) 탭 — 🔒 출시 전에는 소장님 브라우저 · 열쇠말만(따로 불러옴 — 다른 분은 안 받음) */
@@ -145,11 +146,10 @@ export default function Model() {
   useEffect(() => {
     if (!작업) return
     세기('|골조모델|작업화면')
-    const 전 = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const 풀기 = 굴림잠금()   /* 🔒 G791 뒤 화면 막기는 html 에(body 에 걸면 아이폰에서 떠 있는 창이 쪽 맨 위에 그려짐) */
     /* 🔰 G487 처음 열면 «세우기»(🧭 길잡이 ▶ 도면 올리기가 보이는 탭) — 전엔 빈 모델이면 통심(그리드) 입력 칸이 먼저 떠 처음 쓰는 분이 «도면은 어디서 넣나» 를 못 찾음(소장님 10-31 «여기서는 도면을 어떻게 불러오지?») */
     if (탭 === '통심') set탭('세우기')
-    return () => { document.body.style.overflow = 전 }
+    return () => { 풀기() }
   }, [작업])  // eslint-disable-line react-hooks/exhaustive-deps
   /* 📐 G483 (2026-10-31 소장님 «여기서는 도면을 어떻게 불러오지?» — 예전 화면엔 도면 넣기가 없었음) — 예전 화면 «📐 도면 넣기» → 작업 화면(건축)을 열고 파일 고르기를 바로 띄움 */
   const [도면예약, set도면예약] = useState(false)

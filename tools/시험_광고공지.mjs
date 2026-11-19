@@ -111,7 +111,7 @@ for (const [길, 함] of [['✕', (p) => p.click('.noticepop-x')], ['Esc', (p) =
   await p.goto(BASE + '/', { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(2200)
   const 있었음 = !!(await p.$('.noticepop'))
   await 함(p); await p.waitForTimeout(300)
-  ok(`${길} 로 닫힘 · 몸 굴림 되돌림`, 있었음 && !(await p.$('.noticepop')) && (await p.evaluate(() => document.body.style.overflow)) !== 'hidden')
+  ok(`${길} 로 닫힘 · 몸 굴림 되돌림`, 있었음 && !(await p.$('.noticepop')) && (await p.evaluate(() => document.body.style.overflow + '|' + document.documentElement.style.overflow)) === '|')   /* 🔒 G791 잠금은 html 에 — 닫히면 둘 다 빈칸 */
   await ctx.close()
 }
 console.log('③ 폭 320 · 1280 · 어두운 화면')

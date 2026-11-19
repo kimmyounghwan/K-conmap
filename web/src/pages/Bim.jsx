@@ -49,6 +49,7 @@ import { 멈춤감시, 멈춤글 } from '../lib/파일한도.js'
 import { 함목록, 함몸, 함넣기, 함고치기, 함빼기, 함비우기 } from '../lib/도면함.js'   // 📚 G438 도면함(이 브라우저에 남김)
 import { 도면종류 } from '../lib/도곽3d.js'
 import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 11-16 애드핏 «가운데» 칸 — 소장님 「페이지 마다」 · 광고단위 · 규칙은 lib/애드핏.js */
+import { 굴림잠금 } from '../lib/굴림잠금.js'
 
 const 예시 = [['/jeoksan/BIM_예시_3층.dxf', 'BIM_예시_3층.dxf']]
 /** 🧭 G405 «만든 값» 칸 글의 표시 — ❓ 도면에 없음 · 📐 잰 값 · 📄 도면의 다른 표 */
@@ -781,9 +782,8 @@ export default function Bim() {
   useEffect(() => {
     if (!작업) return
     세기('|BIM물량|작업화면')
-    const 전 = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = 전 }
+    const 풀기 = 굴림잠금()   /* 🔒 G791 뒤 화면 막기는 html 에(body 에 걸면 아이폰에서 떠 있는 창이 쪽 맨 위에 그려짐) */
+    return () => { 풀기() }
   }, [작업])
   /* 작업 화면에 들어가고 나올 때 3D 칸 크기가 바뀜 → 다시 맞춰 봄(물량은 그대로) */
   useEffect(() => { const t = setTimeout(() => { try { if (보기Ref.current) 보기Ref.current.fit('tilt') } catch (e) { /* 아직 없음 */ } }, 150); return () => clearTimeout(t) }, [작업])  // eslint-disable-line react-hooks/exhaustive-deps
