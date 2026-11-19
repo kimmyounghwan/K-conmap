@@ -4,8 +4,11 @@
  지방소득세 10% · 고용 0.9%(징수법 시행령 §12① 실업급여 1천분의 18 ÷ 2) · 65세 이후 새 고용분 없음(징수법 §13③)
  국민연금 2026 4.75% · 2027 5% · 기준소득월액 천원 미만 버림 · 2026.6까지 40만~637만 · 2026.7~ 41만~659만
  건강 3.595%(2026 · 2027 동결) · 장기요양 = 건강보험료 × 0.9448/7.19 · 모두 10원 미만 버림
+ 🩹 G787 (11-19) 노인장기요양보험법 제9조①(2026.5.26. 개정 · 시행 2026.11.27. · 부칙 제3조) — 2026년 11월분부터 비율을 소수 다섯째자리에서 반올림(0.1314)
+    2027년 장기요양보험료율 0.9994%(장기요양위원회 2026.10.30. 의결) → 0.9994/7.19 → 0.1390
  대상(연금 P · 건강 H)은 규칙을 사람이 따져 적은 값(아래 이유)."""
 import json, math, os
+from decimal import Decimal, ROUND_HALF_UP
 def 열(x): return math.floor((x + 1e-6) / 10) * 10
 def 셈(ym, 날돈, P, H, 실업돈=None, 연금돈=None):
     y = int(ym[:4]); 보수 = sum(날돈)
@@ -18,7 +21,9 @@ def 셈(ym, 날돈, P, H, 실업돈=None, 연금돈=None):
         b = 보수 if 연금돈 is None else 연금돈
         np_ = 열(min(hi, max(lo, b // 1000 * 1000)) * (0.05 if y >= 2027 else 0.0475))
     h = 열(보수 * 0.03595) if H else 0
-    lc = 열(h * 0.9448 / 7.19) if H else 0
+    요, 건 = ((0.9994, 7.19) if ym >= '2027-01' else (0.9448, 7.19))
+    비 = 요 / 건 if ym < '2026-11' else float(Decimal(str(요 / 건)).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP))
+    lc = 열(h * 비) if H else 0
     합 = it + lt + ei + np_ + h + lc
     return dict(일수=len(날돈), 보수=보수, it=it, lt=lt, ei=ei, np=np_, hi=h, lc=lc, 합=합, 차인=보수 - 합, P=P, H=H)
 def 날(d, w): return [round(g * w) for g in d.values()]
