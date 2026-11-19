@@ -834,7 +834,7 @@ export function TimeExtension({ ex = {} }) {
       <div className="hint kt-hint">
         {r.판정 === 'no'
           ? <>늦어진 날의 금액은 <Link to="/tools/delay-penalty" className="kr-link">지체상금 계산기 →</Link> · 우리 책임이 아닌 날을 빼 달라고 할 때는 <Link to="/forms/jiche-gammyeon" className="kr-link">지체상금 감면 신청서 →</Link></>
-          : <>서류: <Link to="/forms/gonggi-yeonjang" className="kr-link">공기연장 신청서 →</Link> · <Link to="/forms/chg-ganjeopbi" className="kr-link">공기연장 간접비 산출서 →</Link> · 환경 신고(변경 기한까지): <Link to="/forms/bisan-singo" className="kr-link">비산먼지 발생사업 신고서 →</Link> · <Link to="/forms/teukjeong-singo" className="kr-link">특정공사 사전신고서 →</Link></>}
+          : <>서류: <Link to="/forms/gonggi-yeonjang" className="kr-link">공기연장 신청서 →</Link> · <Link to="/tools/gonggi-ganjeopbi" className="kr-link">공기연장 간접비 산정(실비 셈 · PDF) →</Link> · <Link to="/forms/chg-ganjeopbi" className="kr-link">공기연장 간접비 산출서 →</Link> · 환경 신고(변경 기한까지): <Link to="/forms/bisan-singo" className="kr-link">비산먼지 발생사업 신고서 →</Link> · <Link to="/forms/teukjeong-singo" className="kr-link">특정공사 사전신고서 →</Link></>}
       </div>
       <div className="hint kt-hint">기록이 연장을 정합니다 — 작업일보 · 기상 자료 쓰는 법은 <Link to="/change/period" className="kr-link">길잡이 «공기연장과 간접비» →</Link>{공제 ? <> · <Link to="/tools/toejik-check" className="kr-link">퇴직공제 가입 대상 판단기 →</Link></> : null}</div>
       <근거줄>{r.판정 === 'no' ? 연장근거[곳 + '우리'] : 연장근거[곳 + '모두']}</근거줄>

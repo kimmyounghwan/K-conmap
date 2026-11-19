@@ -1,9 +1,9 @@
-/* 🔒 잠근 도구 11가지 «손님 화면» 사이트 점검 — G690 (2026-11-15) · G784b(11-19) 공무 올인원 더함
+/* 🔒 잠근 도구 12가지 «손님 화면» 사이트 점검 — G690 (2026-11-15) · G784b(11-19) 공무 올인원 · G785(11-19) 공기연장 간접비 더함
    소장님 11-15 「막아 놓은거 다시 점검해. 제발 확실히 해줘」 · 「내가 확인안하고 믿을 수 있게 해주면 안돼???」
    쓰는 곳: 아침 점검(예약) · 올린 뒤 사이트 확인 — 크롬 새 탭 https://k-conmap.com/version.json 에서 이 글을 javascript 로 그대로 넣음(«준비»)
      ① window.__잠금.찍기()          → «찍음 N»(소장님 저장값 사진 · KCMSNAP) — «STOP» 이면 멈추고 그대로 적음
      ② window.__잠금.모두([390])      → 뒤에서 돎(도구마다 20초쯤) · 바로 «시작»
-     ③ window.__잠금.글()            → «진행 n/11» 또는 «끝 — 정상 11/11» / «⚠️ …» (30초마다 다시 부름)
+     ③ window.__잠금.글()            → «진행 n/12» 또는 «끝 — 정상 12/12» / «⚠️ …» (30초마다 다시 부름)
      ④ await window.__잠금.되돌림()   → 저장값 되돌림(«ok») · kcmtest_ DB 지움 → 탭 닫기
    하는 일: 같은 출처 틀(iframe)에 앱을 띄워 «손님» 흉내(운영자 표식 · 열쇠말 · 로그인 가림) → 🧪 예시 → 본문 단추를 세 바퀴 모두 누름
      · 받기(a.download · blob) · 인쇄 · 새 창 · 파일 고르기 · 복사는 «막고 적기만» · 파이어베이스 쓰기 · 광고 · 쿠팡 막음 · 다른 쪽으로 가면 적고 돌아옴
@@ -11,7 +11,7 @@
    ⚠️ 틀 안 «kcm.» 저장은 틀 안 빈 저장 · IndexedDB 는 kcmtest_ 이름으로만 — 그래도 ①④ 는 꼭(다른 열쇠가 바뀔 수 있음). 받기 · 쓰기 · 광고 누름은 없음. */
 (() => {
   const 도구 = [['/tools/wonclick', ['예시 서류 3가지 화면에서 보기']], ['/tools/sigong', []], ['/tools/anjeon', []], ['/tools/yuhae', []], ['/tools/jungcheo', ['③ 서류 한 벌']],
-    ['/tools/colorplan', ['3층 학원', '피난 안내도']], ['/tools/cadfix', []], ['/tools/esc', []], ['/tools/hado-docs', []], ['/tools/gyeongri', ['거래처 원장']], ['/tools/gongmu', []]]
+    ['/tools/colorplan', ['3층 학원', '피난 안내도']], ['/tools/cadfix', []], ['/tools/esc', []], ['/tools/hado-docs', []], ['/tools/gyeongri', ['거래처 원장']], ['/tools/gongmu', []], ['/tools/gonggi-ganjeopbi', []]]
   const 막을 = (u, m) => { try { const h = new URL(String(u), location.href).hostname; if (/firebaseio\.com$|firebasedatabase\.app$/.test(h) && m !== 'GET') return true; if (/identitytoolkit\.googleapis\.com$|securetoken\.googleapis\.com$/.test(h)) return true; if (/google-analytics\.com$|googletagmanager\.com$|doubleclick\.net$|googlesyndication\.com$|adservice\.google|kakaocdn\.net$|ds\.kakao\.com$/.test(h)) return true; if (/(^|\.)coupang\.com$/.test(h)) return true; return false } catch (e) { return false } }
   const 쉬어 = (ms) => new Promise((r) => setTimeout(r, ms))
   const 받기모양 = /⬇|📥|📗|받기|엑셀로|^🔒\s*(PDF|한글|워드|엑셀|PNG|DXF|ZIP|ESC)|내 (평면도|도면) 넣기/

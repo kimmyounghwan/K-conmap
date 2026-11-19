@@ -3721,10 +3721,27 @@ def gongmu_page(shell, image=None):
         ["현장을 한 번 적어 두면 착공 전 계획서부터 공사 중 물량 · 설계변경 · 물가변동, 준공 서류까지 차례대로 이 한 곳에서 엽니다.",
          _잠금문의("공무 올인원") + "화면에서 🧪 예시(지어낸 현장 · 공무 차례 셋)를 보실 수 있습니다(보기만)."],
         [("① 착공 전", ["시공계획서 한 벌", "예정공정표 · S커브", "안전관리계획서 한 벌", "유해위험방지계획서 한 벌", "공사안전보건대장"]),
-         ("② 공사 중", ["도면 물량(적산컨맵)", "토적표 · 유토곡선", "토공 검산", "설계변경", "물가변동(ESC)", "공기연장 때 할 일"]),
+         ("② 공사 중", ["도면 물량(적산컨맵)", "토적표 · 유토곡선", "토공 검산", "설계변경", "물가변동(ESC)", "공기연장 때 할 일", "공기연장 간접비 산정"]),
          ("③ 준공", ["준공계", "공사서류 원클릭"])],
         '현장 적기는 <a href="/my">마이컨맵</a> «내 현장» 에서도 됩니다. 서식 전체는 <a href="/forms">서식</a>에 있습니다.',
         "공무 올인원", key="gongmu", locked=True)
+
+
+def gonggi_ganjeop_page(shell, image=None):
+    # ⏳ G785 (2026-11-19) — 화면 pages/GonggiGanjeop.jsx · 셈 lib/공기간접비.js · 설명 tools_guide.json «gonggi-ganjeop»
+    return _tool_page(shell, image, "/tools/gonggi-ganjeopbi",
+        "공기연장 간접비 산정 — 늘어난 기간의 실비 | K-건설맵",
+        "당초·변경 준공일과 현장 인원·월 임금·영수증 금액을 넣으면 간접노무비·경비·장비 유휴비·승률 비목·일반관리비·이윤·부가가치세를 셈해 "
+        "공기연장 간접비 산정서 한 벌. 지방자치단체 공사 요율 방식. 지금은 K-건설맵이 직접 작성해 드립니다(🧪 예시 보기).",
+        "⏳ 공기연장 간접비 산정 — 늘어난 기간의 실비를 산정서 한 벌로",
+        ["책임 없는 사유로 공사기간이 늘면 늘어난 기간의 간접노무비 · 경비 · 보증수수료 · 장비 유휴비와 그에 붙는 일반관리비 · 이윤을 실비 범위에서 청구합니다.",
+         _잠금문의("공기연장 간접비 산정") + "화면에서 🧪 예시 산정서(지어낸 현장)를 보실 수 있습니다(보기만)."],
+        [("셈하는 것", ["간접노무비 — 직종 × 인원 × 월 임금 × 투입 개월", "경비 — 지급임차료 · 보관비 · 가설비 · 보증수수료 등(계약서 · 요금고지서 · 영수증 금액)",
+                       "장비 유휴비 — 임대: 실제 부담한 임대료 · 보유: (장비가격 × 시간당 장비손료계수) × (연간표준가동 ÷ 365일) × 유휴일수 × 1/2",
+                       "승률 비목 · 일반관리비 · 이윤 — 산출내역서의 율 · 부가가치세 10%"]),
+         ("함께 쓰는 것", ['<a href="/tools/time-extension">공기연장 때 할 일</a>', '<a href="/forms/chg-ganjeopbi">공기연장 간접비 산출서(서식)</a>', '<a href="/tools/gongmu">공무 올인원</a>'])],
+        "근거: 국가계약법 시행령 제66조 · 공사계약일반조건 제23조 · 정부 입찰ㆍ계약 집행기준 제72조 · 제73조 · 지방자치단체 입찰 및 계약집행기준 제1장 제8절.",
+        "공기연장 간접비 산정", key="gonggi-ganjeop", locked=True)
 
 def jeongsan_page(shell, image=None):
     # 🩺 G146 (2026-10-05) — 화면 BoheomJeongsan.jsx · 셈 lib/보험정산.js · 설명 tools_guide.json «jeongsan»
@@ -5018,8 +5035,11 @@ def main():
     print("  · 도장 만들기 페이지 1개 (G780)")
     write("tools/gongmu.html", gongmu_page(shell,
           og.tab("tool-gongmu", "공무 올인원", "공무 도구", "착공부터 준공까지", "한 곳에서") if og.available else None))
+    write("tools/gonggi-ganjeopbi.html", gonggi_ganjeop_page(shell,
+          og.tab("tool-gonggi-ganjeop", "공기연장 간접비", "산정서", "늘어난 기간의", "실비") if og.available else None))
     made += 1
     print("  · 공무 올인원 페이지 1개 (G784)")
+    print("  · 공기연장 간접비 산정 페이지 1개 (G785)")
     write("tools/boheom-jeongsan.html", jeongsan_page(shell,
           og.tab("tool-jeongsan", "건강·연금보험료 정산 청구서", "건설 노무", "하수급인 → 원청 · 사업자 부담분", "상용 일할 자동") if og.available else None))
     made += 1

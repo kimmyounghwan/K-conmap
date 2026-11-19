@@ -1,5 +1,5 @@
 /**
- * 🔒 잠근 도구 11가지 «손님 화면» 시험 · G690 (2026-11-15) · G784b(11-19) 공무 올인원 더함
+ * 🔒 잠근 도구 12가지 «손님 화면» 시험 · G690 (2026-11-15) · G784b(11-19) 공무 올인원 · G785(11-19) 공기연장 간접비 더함
  *   소장님 11-15: 「공사서류 원클릭 엑셀 받기 되는데???」 · 「문의로 하라고 했잖아」 · 「막아 놓은거 다시 점검해. 제발 확실히 해줘」 ·
  *   「내가 확인안하고 믿을 수 있게 해주면 안돼???」 · 「예시도 2페이지에서 3페이지만 볼 수 있게 해줘」 · 「내 폰 화면」(운영자 폰 = 열린 화면)
  *   빌드한 화면을 띄운 뒤  B=http://127.0.0.1:4690 node tools/시험_잠금손님화면.mjs   (CAP=<폴더> 면 캡처)
@@ -35,6 +35,7 @@ const 도구들 = [
   { 길: '/tools/hado-docs', 이름: '하도급 서류', 예시끝: true, 기대: { 엑셀장: 3 } },
   { 길: '/tools/gyeongri', 이름: '경리컨맵', 예시끝: true, 뒤: ['거래처 원장'], 기대: { 원장곳: 2 } },
   { 길: '/tools/gongmu', 이름: '공무 올인원', 예시끝: true, 기대: { 공무단계: 3 } },   // 🧰 G784b — 예시 = 지어낸 현장 · 단계 셋(도구 고리 · ✓ 단추 없음)
+  { 길: '/tools/gonggi-ganjeopbi', 이름: '공기연장 간접비', 예시끝: true, 기대: { 간접비종이: 1 } },   // ⏳ G785 — 예시 산정서 한 장(입력 칸 · PDF · 인쇄 · 내역서 읽기 없음)
 ].filter((t) => !만.length || 만.some((x) => t.길.includes(x)))
 
 /* 손님 흉내 + 받기 · 인쇄 · 새 창 · 복사 · 파일 창을 «막고 적기만» */
@@ -147,7 +148,7 @@ try {
         const 수 = (q) => [...판.querySelectorAll(q)].filter((e) => e.offsetParent !== null).length
         const 고르기 = [...판.querySelectorAll('.sg-pager select')].map((s) => s.options.length)
         const 차례열림 = [...판.querySelectorAll('.sp-toc select option')].filter((o) => o.value !== '' && !o.disabled).length
-        return { 고르기, 차례열림, 엑셀장: 수('.xv-장들 button'), ESC탭: 수('.esc-tab'), 원장곳: 수('.gr-chips .chip'), 예시끝: 수('.kcm-예시끝'), 쪽그림: 판.querySelectorAll('svg.sg-page').length, 공무단계: 수('.gmu-steps.gmu-ro .gmu-step'), 공무고리: 판.querySelectorAll('.gmu-steps a, .gmu-steps button').length }
+        return { 고르기, 차례열림, 엑셀장: 수('.xv-장들 button'), ESC탭: 수('.esc-tab'), 원장곳: 수('.gr-chips .chip'), 간접비종이: 수('.ggj-paper'), 입력칸: 수('.ggj input:not([type=password]), .ggj select'), 예시끝: 수('.kcm-예시끝'), 쪽그림: 판.querySelectorAll('svg.sg-page').length, 공무단계: 수('.gmu-steps.gmu-ro .gmu-step'), 공무고리: 판.querySelectorAll('.gmu-steps a, .gmu-steps button').length }
       })
       봐(쪽.고르기.every((n) => n <= 3) && 쪽.차례열림 <= 3 && 쪽.엑셀장 <= 3 && 쪽.ESC탭 <= 3 && 쪽.원장곳 <= 2 && 쪽.쪽그림 <= 1,
         `${기기} ${t.이름} — 예시는 3까지(넘기기 ${JSON.stringify(쪽.고르기)} · 차례 ${쪽.차례열림} · 엑셀 장 ${쪽.엑셀장} · ESC 탭 ${쪽.ESC탭} · 원장 ${쪽.원장곳})`, 쪽)
@@ -157,7 +158,8 @@ try {
         const 맞 = (g.고르기 === undefined || (쪽.고르기.length >= 1 && 쪽.고르기.every((n) => n === g.고르기))) &&
           (g.고르기최소 === undefined || (쪽.고르기.length >= 1 && 쪽.고르기.every((n) => n >= g.고르기최소))) &&
           (g.엑셀장 === undefined || 쪽.엑셀장 === g.엑셀장) && (g.ESC탭 === undefined || 쪽.ESC탭 === g.ESC탭) && (g.원장곳 === undefined || 쪽.원장곳 === g.원장곳) &&
-          (g.공무단계 === undefined || (쪽.공무단계 === g.공무단계 && 쪽.공무고리 === 0))
+          (g.공무단계 === undefined || (쪽.공무단계 === g.공무단계 && 쪽.공무고리 === 0)) &&
+          (g.간접비종이 === undefined || (쪽.간접비종이 === g.간접비종이 && 쪽.입력칸 === 0))
         봐(맞, `${기기} ${t.이름} — 예시 쪽이 실제로 그려짐(빈 채 통과 아님 · 기대 ${JSON.stringify(g)})`, 쪽)
       }
       /* 받기 모양 단추 0 · 문의 단추 · 열림띠 없음 */
