@@ -27,7 +27,7 @@ const 가짜 = `(function(){document.querySelectorAll('ins.kakao_ad_area').forEa
    원클릭 · 캐드 고치기는 «열쇠말»(비밀번호 칸)이 보이는 동안 애드핏을 모두 접음(본인확인 · 5.3.1 — 끝 칸도) → 세지 않음 */
 const 쪽들 = [
   ['/', 1, 0], ['/tools', 1, 1], ['/tools/schedule', 1, 1], ['/tools/juhyu', 1, 1], ['/tools/sanjae-hyueop', 0, 1], ['/tools/nomubi', 0, 1],
-  ['/tools/ilyong-boheom', 0, 1], ['/tools/ilyong-guide', 1, 1], ['/tools/boheomryo', 1, 1], ['/tools/wonclick', null, 1], ['/tools/dxf3d', 1, 1],
+  ['/tools/ilyong-boheom', 1, 1], ['/tools/ilyong-guide', 1, 1], ['/tools/boheomryo', 1, 1], ['/tools/wonclick', null, 1], ['/tools/dxf3d', 1, 1],
   ['/tools/gps', 1, 1], ['/tools/cadfix', null, 1], ['/forms', 1, 1], ['/forms/chakgong', 1, 1], ['/forms/geonchuk-heoga-sincheong', 1, 1],
   ['/forms/o-chakgong-moeum', 1, 1], ['/guide', 1, 1], ['/guide/bid-price', 1, 1], ['/change', 1, 1], ['/change/case', 1, 1], ['/change/excel', 1, 1],
   ['/change/won', 1, 1], ['/cert', 1, 0], ['/cert/tomok-sigong-gisulsa', 1, 1], ['/cert/grade', 1, 1], ['/cad', 1, 1], ['/cad/kl', 1, 1],
@@ -59,6 +59,7 @@ for (const 기기 of ['PC', '폰']) {
       let 위 = 1e9, 아래 = 1e9
       for (const el of document.querySelectorAll('button, a, input, select, textarea, summary')) {
         if (중.contains(el)) continue
+        const 닫 = el.closest('details'); if (닫 && !닫.open && !el.closest('summary')) continue   /* 🩹 G783 닫힌 접기 속(보이지 않음 — 크롬은 닫힌 접기 속 칸에도 엉뚱한 자리를 줌 · 일용직 «다른 현장» 칸이 걸렸음) */
         const q = el.getBoundingClientRect(); if (!q.width || !q.height) continue
         if (getComputedStyle(el).visibility === 'hidden') continue
         if (q.right < r.left - 50 || q.left > r.right + 50) continue

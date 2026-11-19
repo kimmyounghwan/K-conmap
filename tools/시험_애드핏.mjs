@@ -95,7 +95,7 @@ ok('콜백 이름 — 자리마다 다름(한 쪽에 광고단위 둘 · 애드�
   ok('꾸밈 — 테두리 · 바탕 · 움직임 · 붙박이(fixed · sticky) 없음 · 인쇄 숨김(5.3.1 «색상 및 애니메이션 등으로 광고 영역을 부각» 금지)', g.length > 50 && !/border\s*:|background|animation|transition|position\s*:\s*(fixed|sticky)/.test(g.replace(/\/\*[\s\S]*?\*\//g, '')) && /@media print \{ \.afit \{ display: none !important; \} \}/.test(g))
   ok('화면 글 — «클로드» · «무료» 없음(애드핏칸.jsx 화면 글)', !/클로드|무료/.test(코))
   ok('광고 칸을 가린 채 두지 않음 — .afit · .afit-box 를 visibility · opacity 로 숨기는 규칙 없음(숨긴 광고 = 부정 노출 · 5.4) · 접을 땐 칸을 뺌', !/\.afit(-box|-h)?\s*\{[^}]*(visibility\s*:\s*hidden|opacity\s*:\s*0)/.test(그.replace(/\/\*[\s\S]*?\*\//g, '')) && !/afit[^'"\n]*\.style\.(visibility|opacity)/.test(코) && /if \(끔\) return null/.test(코))
-  ok('광고가 보이는 동안 떠 있는 «+» 찍기 단추 · 인사 쪽지만 숨김(html.afit-in — 광고 칸이 아니라 그 둘)', /html\.afit-in :is\(\.cam-tab, \.insa\) \{ opacity: 0 !important; pointer-events: none !important; \}/.test(그))
+  ok('광고가 보이는 동안 떠 있는 «+» 찍기 단추 · 인사 쪽지 · 일용직 «판단 결과로» 띠만 숨김(html.afit-in — 광고 칸이 아니라 그 셋 · G783)', /html\.afit-in :is\(\.cam-tab, \.insa, \.iy-bar\) \{ opacity: 0 !important; pointer-events: none !important; \}/.test(그))
 }
 
 if (BASE) {

@@ -11144,7 +11144,7 @@ html.vv-kick :is(.topbar, .tabbar, .cam-tab) { will-change: opacity; }
 @media print { .afit { display: none !important; } }
 /* 광고 칸이 화면에 보이는 동안 떠 있는 «+» 찍기 단추(폰 · 오른쪽 끝) · 방문 인사 쪽지(✕ 가 있음)를 숨김 — 광고를 덮거나 잘못 누르지 않게 ·
    «광고 닫기 버튼 등이 광고 영역 내에 위치» 로 보이지 않게(5.3.1) · html.afit-in 은 애드핏칸.jsx 가 붙임 */
-html.afit-in :is(.cam-tab, .insa) { opacity: 0 !important; pointer-events: none !important; }
+html.afit-in :is(.cam-tab, .insa, .iy-bar) { opacity: 0 !important; pointer-events: none !important; }   /* 💰 G783 일용직 4대보험 «판단 결과로» 띠도(광고 바로 아래 · 위에 떠서 잘못 누르지 않게) */
 
 /* ══ 🧪 G679 (2026-11-14) 잠근 도구 «예시는 보기만» — lib/보기만.js 가 예시를 보이는 동안 html.kcm-보기만 을 켬 ══
    소장님 「예시 PDF 인쇄 가능해 … 예시를 볼 수만 있게 해주고 나머지는 다 막아야지」 · 「PDF 다운도 가능하고」

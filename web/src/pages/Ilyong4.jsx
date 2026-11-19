@@ -761,6 +761,10 @@ export default function Ilyong4() {
         })()}
       </div>
 
+      {/* 💰 G783 (11-19) 애드핏 «가운데» — 판단 결과 바로 아래 · 소장님 「이 페이지에 애드핏 넣어줘」(전엔 업체 광고 칸이 가운데라 안 넣었음 — G666 · 11-16)
+          결과 칸 단추 · 업체 광고 칸과 넉넉히 띄움(5.3.1 — 칸이 위아래 여백을 가짐) · 광고가 보이는 동안 떠 있는 «판단 결과로» 띠(.iy-bar)는 숨김(styles.css html.afit-in) */}
+      <애드핏칸 key="mid-ilyong" 자리="중" />
+
       <광고칸 자리="보험" />
       <details className="card iy-in iy-know">
         <summary className="detail-h" style={{ margin: 0 }}>📌 알아 두실 것</summary>
@@ -773,7 +777,7 @@ export default function Ilyong4() {
           <li>판단은 공단이 최종으로 합니다. 기준과 사례는 <Link to="/tools/ilyong-guide">가입 기준 설명</Link>에 원문 그대로 정리했습니다.</li>
         </ul>
       </details>
-      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 알아 두실 것 다음(업체 광고 칸과 설명 덩이 사이 두고 · 이 쪽은 업체 광고가 가운데라 애드핏 가운데 칸은 안 넣음) */}
+      {/* 🛒 11-16 쿠팡 «가운데» 줄 — 알아 두실 것 다음(업체 광고 칸과 설명 덩이 사이 두고 · 애드핏 가운데 칸은 G783 부터 판단 결과 바로 아래 — 쿠팡 줄과 250px 넘게 떨어짐) */}
       <쿠팡카드줄 key="cmid-ilyong" 자리="중" />
 
       {요약 && <button type="button" className={'iy-bar no-print' + (!결과보임 && !입력중 ? ' on' : '')} style={{ bottom: 바닥 }} onClick={결과로} aria-label="판단 결과로 가기">
