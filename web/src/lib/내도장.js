@@ -28,11 +28,11 @@ function 쓰기(목록) {
 export function 내도장더하기(이름, 그림, 지금 = Date.now()) {
   if (typeof 그림 !== 'string' || !그림.startsWith(머리)) return { ok: false, 말: '저장할 도장 그림이 없습니다' }
   if (그림.length > 그림최대) return { ok: false, 말: '그림이 너무 큽니다 — 사진은 도장만 보이게 가까이 찍어 주세요' }
-  const 옛 = 내도장들().filter((x) => x.그림 !== 그림)
+  const 있던 = 내도장들(), 옛 = 있던.filter((x) => x.그림 !== 그림), 같은것 = 옛.length < 있던.length   /* 🩹 G782 같은 그림이면 «이미 저장한 도장» */
   const 새 = { id: 'd' + Math.floor(지금).toString(36) + Math.floor(Math.random() * 1296).toString(36), 이름: String(이름 || '내 도장').trim().slice(0, 20) || '내 도장', 그림, at: 지금 }
   const 목록 = [새, ...옛].slice(0, 내도장최대)
   if (!쓰기(목록)) return { ok: false, 말: '이 기기에 저장하지 못했습니다(저장 공간이 차 있거나 사생활 창)' }
-  return { ok: true, 말: 옛.length >= 내도장최대 ? `저장했습니다 — 여섯 개까지라 가장 옛 도장은 빠졌습니다` : '저장했습니다', 목록 }
+  return { ok: true, 말: 같은것 ? '이미 저장한 도장입니다 — 맨 앞으로 옮겼습니다' : 옛.length >= 내도장최대 ? `저장했습니다 — 여섯 개까지라 가장 옛 도장은 빠졌습니다` : '저장했습니다', 목록 }
 }
 /** 빼기 — 남은 목록 */
 export function 내도장빼기(id) {

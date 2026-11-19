@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { 도장그리기, 도장뽑기, 도장돌리기, 정사각자리, 이름꼴들, 회사꼴들, 글씨들, 색들, 이름최대, 둘레최대, 가운데최대, 글정리 } from '../lib/도장.js'
+import { 웹글꼴들, 웹글꼴, 글꼴받기 } from '../lib/도장글꼴.js'
 import { 내도장들, 내도장더하기, 내도장빼기, 바뀜사건, 내도장최대 } from '../lib/내도장.js'
 import { use남김 } from '../lib/길기록.js'
 import { 세기 } from '../lib/받은수.jsx'
@@ -44,9 +45,9 @@ function 예시사진() {
 }
 
 /* 종류 그림 단추 — 같은 글 · 글씨 · 색으로 꼴만 바꿔 작게(누르면 고름) */
-function 꼴단추({ o, 꼴, 이름, on, 고름 }) {
+function 꼴단추({ o, 꼴, 이름, on, 고름, 판수 = 0 }) {
   const 판 = useRef(null)
-  const 열쇠 = JSON.stringify([o, 꼴])
+  const 열쇠 = JSON.stringify([o, 꼴, 판수])   /* 🔤 G782 판수 — 고른 글꼴이 다 오면 한 번 더 그림 */
   useEffect(() => {
     const cv = 판.current
     if (!cv) return undefined
@@ -85,12 +86,29 @@ export default function Dojang() {
     return () => { window.removeEventListener(바뀜사건, f); window.removeEventListener('storage', f) }
   }, [])
 
+  /* 🔤 G782 글씨 — 기본 셋 + 이 사이트에 둔 공개 글꼴(고를 때만 받음) · 없어진 글꼴이 남아 있으면 고딕 */
+  const 글씨목록 = [...글씨들, ...웹글꼴들.map((g) => [g.k, g.이름])]
+  const 글씨 = 글씨목록.some(([k]) => k === v.글씨) ? v.글씨 : '고딕'
+  const [글꼴판, set글꼴판] = useState(0)
   const 이름글 = 글정리(v.이름, 이름최대).join('')
   const 둘레 = 글정리(v.둘레글, 둘레최대).join('')
   const 예시중 = (v.탭 === '이름' && !이름글) || (v.탭 === '직인' && !둘레)
   const 옵션 = v.탭 === '직인'
-    ? { 종류: '직인', 둘레글: 둘레 || 예시회사, 가운데글: v.가운데글, 꼴: v.직인꼴, 글씨: v.글씨, 색: v.색, 번짐: v.번짐 }
-    : { 종류: '이름', 글: 이름글 || 예시이름, 인붙임: v.인붙임, 꼴: v.꼴, 글씨: v.글씨, 색: v.색, 번짐: v.번짐 }
+    ? { 종류: '직인', 둘레글: 둘레 ? v.둘레글 : 예시회사, 가운데글: v.가운데글, 꼴: v.직인꼴, 글씨, 색: v.색, 번짐: v.번짐 }   /* 🩹 G782 띄어쓰기째(회사 원형은 낱말대로 줄) — 정리는 도장그리기가 */
+    : { 종류: '이름', 글: 이름글 || 예시이름, 인붙임: v.인붙임, 꼴: v.꼴, 글씨, 색: v.색, 번짐: v.번짐 }
+  const 쓸글자 = v.탭 === '직인' ? (옵션.둘레글 || '') + (옵션.가운데글 || '') : 옵션.글 + '인'
+  const 웹 = v.탭 !== '사진' ? 웹글꼴[글씨] : null
+  const 글꼴약속 = useRef(null)
+  useEffect(() => {
+    if (!웹) return undefined
+    let 끝 = false
+    const 약 = 글꼴받기(웹, 쓸글자)
+    글꼴약속.current = 약
+    약.then(() => { if (!끝) set글꼴판((n) => n + 1) })
+    return () => { 끝 = true }
+  }, [글씨, 쓸글자, v.탭])   // eslint-disable-line react-hooks/exhaustive-deps
+  /* 받기 · 저장 앞 — 고른 글꼴이 아직 오는 중이면 기다림(덜 온 글꼴로 그리지 않게) */
+  const 글꼴기다림 = async () => { if (웹 && 글꼴약속.current) { try { await 글꼴약속.current } catch (e) { /* 그냥 그림 */ } } }
   const 꼴고름 = (k) => { 고침(v.탭 === '직인' ? '직인꼴' : '꼴', k); 세기('|도장|꼴') }
 
   /* 미리 보기 — 글 · 모양이 바뀌면 바로(글꼴이 늦게 오면 한 번 더) */
@@ -134,14 +152,15 @@ export default function Dojang() {
       const bmp = await createImageBitmap(f)
       const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height))
       const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(bmp.width * k)); c.height = Math.max(1, Math.round(bmp.height * k))
-      c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height)
+      const cg = c.getContext('2d'); cg.fillStyle = '#fff'; cg.fillRect(0, 0, c.width, c.height)   /* 🩹 G782 투명 PNG 는 흰 종이 위로(투명 = 검은 바탕으로 읽혀 검은 도장을 못 찾았음) */
+      cg.drawImage(bmp, 0, 0, c.width, c.height)
       if (bmp.close) bmp.close()
       set기울기(0); 기울셈.current = false
       set사진({ 그림: c, 이름: f.name || '사진' }); 사진처리(c, v.사진색, v.진하기, 0)
       세기('|도장|사진')
     } catch (e) { set말('⚠️ 사진을 읽지 못했습니다 — JPG · PNG 사진으로 다시 골라 주세요') }
   }
-  const 예시사진보기 = () => { const c = 예시사진(); set기울기(0); 기울셈.current = false; set사진({ 그림: c, 이름: '예시 사진' }); 사진처리(c, v.사진색, v.진하기, 0); 세기('|도장|예시') }
+  const 예시사진보기 = () => { const c = 예시사진(); set말(''); set기울기(0); 기울셈.current = false; set사진({ 그림: c, 이름: '예시 사진' }); 사진처리(c, v.사진색, v.진하기, 0); 세기('|도장|예시') }
   const 기울기바꿈 = (x) => {
     const a = Math.max(-기울기최대, Math.min(기울기최대, Math.round((Number(x) || 0) * 2) / 2))
     set기울기(a)
@@ -151,8 +170,9 @@ export default function Dojang() {
 
   const 준비됨 = v.탭 === '사진' ? !!(사진결과 && 사진결과.칸) : !예시중
   const 이름표 = v.탭 === '직인' ? 둘레 : v.탭 === '사진' ? '도장 사진' : 이름글
-  const 받기 = () => {
+  const 받기 = async () => {
     if (!준비됨) return
+    await 글꼴기다림()
     const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 1024
     그리기(cv, 1024)
     cv.toBlob((b) => {
@@ -165,8 +185,9 @@ export default function Dojang() {
       세기('|도장|받기')
     }, 'image/png')
   }
-  const 저장 = () => {
+  const 저장 = async () => {
     if (!준비됨) return
+    await 글꼴기다림()
     const cv = document.createElement('canvas'); cv.width = S; cv.height = S
     그리기(cv, S)
     const r = 내도장더하기(이름표 || '내 도장', cv.toDataURL('image/png'))
@@ -227,11 +248,11 @@ export default function Dojang() {
             <>
               <div className="dj-f"><span>종류 <small>눌러서 고르세요</small></span>
                 <div className="dj-kinds">
-                  {(v.탭 === '직인' ? 회사꼴들 : 이름꼴들).map(([k, t]) => <꼴단추 key={k} o={옵션} 꼴={k} 이름={t} on={(v.탭 === '직인' ? v.직인꼴 : v.꼴) === k} 고름={꼴고름} />)}
+                  {(v.탭 === '직인' ? 회사꼴들 : 이름꼴들).map(([k, t]) => <꼴단추 key={k} o={옵션} 꼴={k} 이름={t} on={(v.탭 === '직인' ? v.직인꼴 : v.꼴) === k} 고름={꼴고름} 판수={글꼴판} />)}
                 </div>
               </div>
               <div className="dj-f"><span>글씨</span>
-                <div className="dj-pick">{글씨들.map(([k, t]) => <button key={k} type="button" className={v.글씨 === k ? 'on' : ''} aria-pressed={v.글씨 === k} onClick={() => 고침('글씨', k)}>{t}</button>)}</div>
+                <div className="dj-pick">{글씨목록.map(([k, t]) => <button key={k} type="button" className={글씨 === k ? 'on' : ''} aria-pressed={글씨 === k} onClick={() => { 고침('글씨', k); if (웹글꼴[k]) 세기('|도장|글꼴' + k) }}>{t}</button>)}</div>
               </div>
               <div className="dj-f"><span>색</span>
                 <div className="dj-pick">{색들.map(([k, t]) => <button key={k} type="button" className={v.색 === k ? 'on' : ''} aria-pressed={v.색 === k} onClick={() => 고침('색', k)}>{t}</button>)}</div>
@@ -246,7 +267,7 @@ export default function Dojang() {
                 <button type="button" className="btn sm" onClick={() => 파일칸.current && 파일칸.current.click()}>📷 사진 고르기 · 찍기</button>
                 <button type="button" className="btn line sm" onClick={예시사진보기}>🧪 예시 사진으로 해 보기</button>
               </div>
-              {사진 && <p className="dj-sub">고른 사진: {사진.이름}{사진결과 && 사진결과.잉크 ? ` · ${사진결과.잉크 === '빨강' ? '빨간' : '검은'} 도장으로 봤습니다` : ''}</p>}
+              {사진 && <p className="dj-sub">고른 사진: {사진.이름}{사진결과 && 사진결과.잉크 ? ` · ${사진결과.잉크 === '빨강' ? '빨간' : 사진결과.잉크 === '파랑' ? '파란' : '검은'} 도장으로 봤습니다` : ''}</p>}
               <label className="dj-f"><span>진하기 <small>{v.진하기 < 40 ? '진한 잉크만' : v.진하기 > 60 ? '옅은 잉크까지' : '보통'}</small></span>
                 <input type="range" min="10" max="90" step="5" value={v.진하기} onChange={(e) => { const x = Number(e.target.value); 고침('진하기', x); if (사진) 사진처리(사진.그림, v.사진색, x, 기울기) }} />
               </label>

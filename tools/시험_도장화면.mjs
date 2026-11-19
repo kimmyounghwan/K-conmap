@@ -10,6 +10,8 @@
  *   🩹 G780a ⑦ 🧪 예시 사진 결과가 똑바로 · 📐 기울기 바로잡기(막대 10° → 그림이 돎 · ⟲ 0.5° · 0° → 처음 그림)
  *   🔁 G780b ③ 종류 그림 단추(원형만 — 이름 셋 · 회사 셋 · 누르면 고름 · 큰 그림이 바뀜) · 글씨 셋 · 색 셋(파랑) · 가로 읽기(«오른쪽 세로줄» 안내 없음)
  *     · 똑바름은 «가로획 기울기 재기»(잉크 점을 -8° ~ 8° 돌려 가로 줄이 가장 또렷한 각 — 인장체는 가로획이 많아 바로 잡힘)
+ *   🩹 G782 「올리고 직접 시험 해봐. 극한적으로 시험 해봐」 — 글자가 테두리(두 줄 원 안쪽 · 원 · 음각 가장자리)에 안 닿음 · 기호만이면 예시 ·
+ *     같은 도장 다시 저장 · 법인 원형 짧은 이름도 위쪽 둘레에 · 회사 원형 띄어쓰기대로 두 줄 · 투명 PNG 검은 도장 · 파란 도장 · 경고 지움
  * 가상 이름만 씀(홍길동 · 가상건설).
  */
 import { createRequire } from 'module'
@@ -31,6 +33,9 @@ const 사진만들기 = (도장) => {
   return c.toBuffer('image/png')
 }
 const 검은도장 = 사진만들기(true), 빈종이 = 사진만들기(false)
+/* 🩹 G782 투명 바탕 검은 도장 · 흰 종이 파란 도장 */
+const 투명검은도장 = (() => { const c = createCanvas(600, 600), g = c.getContext('2d'); g.strokeStyle = '#26262a'; g.lineWidth = 16; g.strokeRect(150, 150, 300, 300); g.fillStyle = '#26262a'; g.fillRect(280, 200, 40, 200); return c.toBuffer('image/png') })()
+const 파란도장 = (() => { const c = createCanvas(800, 600), g = c.getContext('2d'); g.fillStyle = '#efede8'; g.fillRect(0, 0, 800, 600); g.strokeStyle = '#2346b8'; g.lineWidth = 16; g.beginPath(); g.arc(400, 300, 150, 0, Math.PI * 2); g.stroke(); g.fillStyle = '#2346b8'; g.fillRect(380, 200, 40, 200); return c.toBuffer('image/png') })()
 
 const 브 = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox'] })
 const 새판 = async (크기, 폰 = false) => {
@@ -74,6 +79,18 @@ const 그림읽기 = (p) => p.evaluate(() => {
   return { 모서리: a(2, 2) + a(W - 3, 2) + a(2, H - 3) + a(W - 3, H - 3), 빨강, 검정, 파랑, 잉크, 지문: h, 예시: c.classList.contains('ex'), 기욺 }
 })
 const 단추 = (p, 글) => p.locator('.dj button', { hasText: 글 }).first()
+/* 🩹 G782 반지름 띠 — 도장 가운데에서 [a, b](크기 비율) 사이 잉크 점(알파 > 96) · 위쪽(가운데보다 5% 위) 잉크 · 투명 점 · 가운데 원(0.43) 안 잉크 줄 덩이 수 */
+const 띠재기 = (p, 띠들) => p.evaluate((띠들) => {
+  const c = document.querySelector('.dj-cv'); const W = c.width; const d = c.getContext('2d').getImageData(0, 0, W, W).data, m = W / 2
+  const 수 = 띠들.map(() => 0), 위 = 띠들.map(() => 0), 빈 = 띠들.map(() => 0)
+  for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
+    const r = Math.hypot(x + 0.5 - m, y + 0.5 - m) / W, a = d[(y * W + x) * 4 + 3]
+    띠들.forEach(([a0, a1], k) => { if (r >= a0 && r <= a1) { if (a > 96) { 수[k]++; if (y < m - W * 0.05) 위[k]++ } else 빈[k]++ } })
+  }
+  let 덩이 = 0, 안 = false
+  for (let y = 0; y < W; y++) { let n = 0; for (let x = 0; x < W; x++) if (Math.hypot(x + 0.5 - m, y + 0.5 - m) / W < 0.43 && d[(y * W + x) * 4 + 3] > 96) n++; if (n > 2 && !안) { 덩이++; 안 = true } else if (n <= 2) 안 = false }
+  return { 수, 위, 빈, 덩이 }
+}, 띠들)
 /* 캡처 — 도구 칸이 맨 위에 오게(위의 광고 · 띠는 화면 밖으로) */
 const 도구로 = (p) => p.evaluate(() => { const el = innerWidth < 700 ? document.querySelector('.dj-body') : document.querySelector('.dj h1'); window.scrollTo(0, el.getBoundingClientRect().top + scrollY - (innerWidth < 700 ? 118 : 165)) })
 
@@ -120,6 +137,18 @@ for (const [이름판, 크기, 폰] of [['PC 1280', { width: 1280, height: 900 }
   봄('③ 글씨(인장체 · 명조) · 색(검정 · 파랑)이 그림에 들어감', 인장.지문 !== 지문.원 && 인장.잉크 < g.잉크 && 명조 !== 인장.지문 && 명조 !== 지문.원 && 검.검정 > 3000 && 검.빨강 === 0 && 파.파랑 > 3000 && 파.빨강 === 0, JSON.stringify([인장.잉크, g.잉크, 검.검정, 파.파랑]))
   await 단추(p, '빨강').click(); await 단추(p, '고딕').click(); await p.waitForTimeout(150)
   봄('③ 다시 고딕 · 빨강 → 처음 그림 그대로', (await 그림읽기(p)).지문 === 지문.원)
+  /* 🩹 G782 글자가 테두리에 안 닿음(실제 글꼴로 그려 보고 줄임) */
+  const 원띠 = await 띠재기(p, [[0.441, 0.452]])
+  await p.locator('.dj-kind').nth(2).click(); await p.waitForTimeout(150)
+  const 두줄띠 = await 띠재기(p, [[0.396, 0.409]])
+  await p.locator('.dj-kind').nth(1).click(); await p.waitForTimeout(150)
+  const 음각띠 = await 띠재기(p, [[0.432, 0.47]])
+  await p.locator('.dj-kind').nth(0).click(); await p.waitForTimeout(150)
+  봄('🩹 G782 글자가 테두리에 안 닿음 — 원(바깥 테두리 앞 띠) · 두 줄 원(안쪽 테두리 앞 띠) 잉크 0 · 음각(가장자리 띠) 흰 글씨 0', 원띠.수[0] === 0 && 두줄띠.수[0] === 0 && 음각띠.빈[0] === 0, JSON.stringify([원띠.수, 두줄띠.수, 음각띠.빈]))
+  await p.locator('.dj-form input.inp').first().fill('·'); await p.waitForTimeout(200)
+  const 기호 = await 그림읽기(p)
+  봄('🩹 G782 기호만(·) 적으면 예시 그대로 · 받기 잠김', 기호.예시 && await 단추(p, 'PNG 받기').isDisabled())
+  await p.locator('.dj-form input.inp').first().fill('홍길동'); await p.waitForTimeout(200)
   /* ④ 받기 */
   const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 10000 }), 단추(p, 'PNG 받기').click()])
   const 경로 = await dl.path(); const fs = await import('node:fs'); const b = fs.readFileSync(경로)
@@ -129,6 +158,8 @@ for (const [이름판, 크기, 폰] of [['PC 1280', { width: 1280, height: 900 }
   /* ⑤ 저장 · 남음 · 지우기 */
   await 단추(p, '내 도장으로 저장').click(); await p.waitForTimeout(300)
   봄('⑤ 💾 저장 → 내 도장 칸에 그림 · «이 기기에만»', (await p.locator('.dj-item img').count()) === 1 && /이 기기에만/.test(await p.locator('.dj-msg').innerText()))
+  await 단추(p, '내 도장으로 저장').click(); await p.waitForTimeout(300)
+  봄('🩹 G782 같은 도장 다시 저장 → «이미 저장한 도장입니다» · 한 개 그대로', (await p.locator('.dj-item img').count()) === 1 && /이미 저장한 도장/.test(await p.locator('.dj-msg').innerText()))
   await p.reload({ waitUntil: 'domcontentloaded' }); await p.waitForSelector('.dj-cv'); await p.waitForTimeout(500)
   봄('⑤ 새로고침해도 내 도장 · 적은 이름 그대로', (await p.locator('.dj-item img').count()) === 1 && (await p.locator('.dj-form input.inp').first().inputValue()) === '홍길동')
   await p.locator('.dj-x').first().click(); await p.locator('.dj-del button', { hasText: '지우기' }).click(); await p.waitForTimeout(200)
@@ -152,6 +183,16 @@ for (const [이름판, 크기, 폰] of [['PC 1280', { width: 1280, height: 900 }
   const 회지문 = new Set([사용.지문])
   for (let i = 1; i < 3; i++) { await p.locator('.dj-kind').nth(i).click(); await p.waitForTimeout(150); 회지문.add((await 그림읽기(p)).지문) }
   봄('⑥ 원형 · 음각 원형 — 그림 셋 다 다름', 회지문.size === 3)
+  /* 🩹 G782 회사 원형 띄어쓰기대로 두 줄 · 법인 원형 짧은 이름도 위쪽 둘레에 */
+  await p.locator('.dj-kind').nth(1).click(); await p.waitForTimeout(150)
+  const 두줄 = await 띠재기(p, [])
+  await p.locator('.dj-form input.inp').nth(0).fill('가상건설주식회사'); await p.waitForTimeout(200)
+  const 세줄 = await 띠재기(p, [])
+  봄('🩹 G782 회사 원형 «가상건설 주식회사» → 두 줄(가상건설 / 주식회사) · 띄어쓰기 없으면 세 줄', 두줄.덩이 === 2 && 세줄.덩이 === 3, JSON.stringify([두줄.덩이, 세줄.덩이]))
+  await p.locator('.dj-kind').nth(0).click(); await p.locator('.dj-form input.inp').nth(0).fill('가상건설'); await p.waitForTimeout(200)
+  const 짧은 = await 띠재기(p, [[0.33, 0.44]])
+  봄('🩹 G782 법인 원형 짧은 이름(가상건설) — 둘레 위쪽에도 글(아래에 몰리지 않음)', 짧은.위[0] > 150, JSON.stringify(짧은))
+  await p.locator('.dj-form input.inp').nth(0).fill('가상건설 주식회사'); await p.waitForTimeout(150)
   if (캡처 && !폰) { await 도구로(p); await p.locator('.dj-quick button', { hasText: '대표이사' }).first().click(); await p.locator('.dj-kind').nth(0).click(); await p.waitForTimeout(300); await p.screenshot({ path: `${캡처}/${캡처이름}_${이름판.replace(/\s/g, '')}_직인.png` }) }
   /* ⑦ 사진 */
   await p.locator('.dj-seg button', { hasText: '도장 사진' }).click(); await p.waitForTimeout(200)
@@ -181,6 +222,17 @@ for (const [이름판, 크기, 폰] of [['PC 1280', { width: 1280, height: 900 }
   봄('⑦ 새 사진을 고르면 기울기는 0°로', (await p.locator('.dj-tilt input[type="range"]').inputValue()) === '0' && /사진 그대로/.test(await p.locator('.dj-form').innerText()))
   await p.locator('.dj-form input[type="file"]').setInputFiles({ name: 'paper.png', mimeType: 'image/png', buffer: 빈종이 }); await p.waitForTimeout(900)
   봄('⑦ 도장 없는 사진 → «도장을 찾지 못했습니다» · 받기 잠김', /도장을 찾지 못했습니다/.test(await p.locator('.dj-view').innerText()) && await 단추(p, 'PNG 받기').isDisabled())
+  /* 🩹 G782 투명 PNG 검은 도장 · 파란 도장 · 잘못된 파일 경고는 예시를 누르면 지움 */
+  await p.locator('.dj-form input[type="file"]').setInputFiles({ name: 'clear.png', mimeType: 'image/png', buffer: 투명검은도장 }); await p.waitForTimeout(900)
+  g = await 그림읽기(p)
+  봄('🩹 G782 투명 PNG 의 검은 도장 → 찾음(전엔 «못 찾음»)', g.검정 > 3000 && /검은 도장으로 봤습니다/.test(await p.locator('.dj-form').innerText()), JSON.stringify([g.검정, g.잉크]))
+  await p.locator('.dj-form input[type="file"]').setInputFiles({ name: 'blue.png', mimeType: 'image/png', buffer: 파란도장 }); await p.waitForTimeout(900)
+  g = await 그림읽기(p)
+  봄('🩹 G782 파란 도장 → «파란 도장으로 봤습니다» · 파랑 그대로(전엔 검정)', g.파랑 > 3000 && g.검정 < 300 && /파란 도장으로 봤습니다/.test(await p.locator('.dj-form').innerText()), JSON.stringify([g.파랑, g.검정]))
+  await p.locator('.dj-form input[type="file"]').setInputFiles({ name: 'bad.png', mimeType: 'image/png', buffer: Buffer.from('not an image') }); await p.waitForTimeout(700)
+  const 경고 = /사진을 읽지 못했습니다/.test(await p.locator('.dj-view').innerText())
+  await 단추(p, '예시 사진').click(); await p.waitForTimeout(800)
+  봄('🩹 G782 잘못된 파일 → 경고 → 🧪 예시 사진을 누르면 경고 지움', 경고 && !/사진을 읽지 못했습니다/.test(await p.locator('.dj-view').innerText()))
   /* ⑧ */
   봄('⑧ 설명(쓰는 순서 · 자주 묻는 것)', (await p.locator('.tguide').innerText()).includes('쓰는 순서') && (await p.locator('.tguide').innerText()).includes('자주 묻는 것'))
   봄('⑧ 넘침 0', (await 넘침(p)) <= 0, String(await 넘침(p)))
