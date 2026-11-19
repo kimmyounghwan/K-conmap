@@ -10440,6 +10440,8 @@ div.bth { padding: 0; }
 .sl-tbl th, .sl-tbl td { text-align: center; white-space: nowrap; }
 .sl-ex { display: flex; flex-wrap: wrap; gap: 6px; }
 @media print { .sl-in, .sl-guide, .iy-exd { display: none !important; } .sl-res { border: 1px solid #999; } }
+/* 🚜 G788 특고 산재 · 고용보험료(/tools/teukgo-boheom) — 결과 위 «누가 · 언제» 한 줄(인쇄 · PDF 에서는 적는 칸이 숨으니 이 줄이 조건을 보여 줌) */
+.tg-sum { font-size: 13px; color: var(--text-2); margin: 0 0 8px; line-height: 1.5; }
 
 /* 🩹 G508 산재 휴업급여 계산기 (/tools/sanjae-hyueop · pages/Hyueop.jsx — 실업급여 판단기 sl-* 를 같이 씀) */
 .hy-segs { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }

@@ -3397,6 +3397,63 @@ def juhyu_page(shell, g, image=None):
 
 
 
+# 🚜 /tools/teukgo-boheom — 특고(노무제공자) 산재 · 고용보험료 계산기 (G788 · 2026-11-19 · 화면 Teukgo.jsx · 셈 lib/teukgo.js)
+#    글은 web/src/data/teukgo_guide.json 한 곳 — 화면 아래 «📘» 와 같은 글. 새 화면이라 «무료» 를 쓰지 않습니다.
+TEUKGO_JSON = os.path.join(ROOT, "web", "src", "data", "teukgo_guide.json")
+
+
+def load_teukgo_guide():
+    try:
+        with open(TEUKGO_JSON, encoding="utf-8") as f:
+            return json.load(f) or None
+    except Exception as e:
+        print(f"  · 특고 보험료 글을 못 읽었습니다 ({type(e).__name__}) — 건너뜁니다")
+        return None
+
+
+def teukgo_page(shell, g, image=None):
+    path = "/tools/teukgo-boheom"
+    title = "특고 산재 · 고용보험료 계산기 — 건설기계 조종사 · 살수차 · 카고크레인(노무제공자 기준보수) | K-건설맵"
+    desc = ("장비 기사(노무제공자 · 옛 특고)가 몇 월에 며칠 일했는지만 넣으면 기준보수(월 2,813,000원 · 하루 93,766원)로 "
+            "산재보험료 3.46% · 고용보험료 1.6%를 본인 몫 · 회사 몫으로 반씩 셈합니다. 건설기계 조종사 · 건설현장 화물차주 · 65세 · 한 달이 안 되는 계약까지.")[:160]
+    out = ['<div class="card"><h1 style="font-size:18px;font-weight:800;margin:0">🚜 특고 산재 · 고용보험료 계산기 — 건설기계 · 건설현장 화물차</h1>'
+           '<p class="cp" style="margin-top:8px">장비 기사(노무제공자 · 옛 특고)가 <b>몇 월에 며칠</b> 일했는지만 넣으면 산재 · 고용보험료를 <b>본인 몫 · 회사 몫</b>으로 바로 셈합니다. '
+           '실제 받은 돈이 아니라 고용노동부가 정한 기준보수(월 2,813,000원)로 셈하고, 셈식 · 조문까지 보여 드립니다.</p>'
+           '<p class="cp">적은 것은 이 브라우저에만 남습니다 · '
+           '<a href="/tools/boheomryo">건설업 고용 · 산재 보험료 계산기</a> · <a href="/tools/haemada">해마다 바뀌는 값</a></p></div>',
+           f'<div class="card"><h2 class="sec-title" style="margin:0 0 6px">📘 {esc(g.get("title") or "")}</h2>'
+           f'<p class="cp">{bold_md(esc(g.get("lead") or ""))}</p></div>']
+    for sec in (g.get("secs") or []):
+        sid = f' id="{esc(sec["id"])}"' if sec.get("id") else ""
+        out.append(f'<div class="card"{sid}><h2 class="sec-title" style="margin:0 0 6px">{esc(sec.get("h") or "")}</h2>')
+        for x in (sec.get("p") or []):
+            out.append(f'<p class="cp">{bold_md(esc(x))}</p>')
+        out.append("</div>")
+    out.append('<div class="card"><h2 class="sec-title" style="margin:0 0 6px">자주 묻는 것</h2>')
+    for q, a in [(list(x) + ["", ""])[:2] for x in (g.get("faq") or [])]:
+        out.append(f'<h3 style="font-size:15px;margin:12px 0 4px">{esc(q)}</h3><p class="cp">{esc(a)}</p>')
+    out.append("</div>")
+    out.append('<div class="card"><h2 class="sec-title" style="margin:0 0 6px">예시</h2><ul class="flist">')
+    for c in (g.get("cases") or []):
+        out.append(f'<li><b>{esc(c.get("t") or "")}</b> — {esc(c.get("q") or "")}</li>')
+    out.append("</ul></div>")
+    laws = g.get("laws") or []
+    if laws:
+        out.append('<div class="card"><p class="cp" style="font-size:12.5px">근거(국가법령정보센터 · 근로복지공단 · ' + esc(g.get("updated") or "") + ' 확인): '
+                   + " · ".join(f'<a href="{esc(u)}" rel="noopener">{esc(n)}</a>' for n, u in laws) + "</p></div>")
+    name = "특고 산재 · 고용보험료 계산기"
+    ld = {"@context": "https://schema.org", "@graph": [
+        {"@type": "WebApplication", "name": name, "description": desc, "url": f"{SITE}{path}", "inLanguage": "ko",
+         "applicationCategory": "BusinessApplication", "operatingSystem": "Web",
+         "publisher": {"@type": "Organization", "name": "K-건설맵", "url": SITE}},
+        {"@type": "FAQPage", "mainEntity": [
+            {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a.replace("**", "")}}
+            for q, a in [(list(x) + ["", ""])[:2] for x in (g.get("faq") or [])]]},
+    ]}
+    return page(shell, path, title, desc, "".join(out) + nav_html(path), image, ld)
+
+
+
 # 💼 /tools/ilyong-toejikgeum — 일용직 퇴직금 판단기 (G515 · 2026-11-02 · 화면 Toejikgeum.jsx · 셈 lib/toejikgeum.js)
 #    글은 web/src/data/toejikgeum_guide.json 한 곳 — 화면 아래 «📘» 와 같은 글. 새 화면이라 «무료» 를 쓰지 않습니다.
 TOEJIKGEUM_JSON = os.path.join(ROOT, "web", "src", "data", "toejikgeum_guide.json")
@@ -5076,6 +5133,12 @@ def main():
               og.tab("tool-toejikgeum", "일용직 퇴직금 판단기", "건설 노무", "1년 · 1주 15시간", "받을 수 있나 · 얼마") if og.available else None))
         made += 1
         print("  · 일용직 퇴직금 판단기 페이지 1개 (/tools/ilyong-toejikgeum · G515)")
+    _tg = load_teukgo_guide()
+    if _tg:
+        write("tools/teukgo-boheom.html", teukgo_page(shell, _tg,
+              og.tab("tool-teukgo", "특고 산재 · 고용보험료", "건설 노무", "건설기계 · 살수차 · 카고크레인", "본인 몫 · 회사 몫") if og.available else None))
+        made += 1
+        print("  · 특고 산재 · 고용보험료 계산기 페이지 1개 (/tools/teukgo-boheom · G788)")
     write("first/hado-gyeonjeok.html", hado_gyeonjeok_page(shell,
           og.tab("first-hado-gyeonjeok", "하도급 견적틀", "1순위 · 내역서", "공종별 견적서 틀", "공내역서도 됨 · 단가 빈칸") if og.available else None))
     made += 1

@@ -26,7 +26,7 @@ const 가짜 = `(function(){document.querySelectorAll('ins.kakao_ad_area').forEa
 /* [주소, 애드핏 가운데(1 · 0 · null = 세지 않음), 쿠팡 가운데(1 · 0 · null)]
    원클릭 · 캐드 고치기는 «열쇠말»(비밀번호 칸)이 보이는 동안 애드핏을 모두 접음(본인확인 · 5.3.1 — 끝 칸도) → 세지 않음 */
 const 쪽들 = [
-  ['/', 1, 0], ['/tools', 1, 1], ['/tools/schedule', 1, 1], ['/tools/juhyu', 1, 1], ['/tools/sanjae-hyueop', 0, 1], ['/tools/nomubi', 0, 1],
+  ['/', 1, 0], ['/tools', 1, 1], ['/tools/schedule', 1, 1], ['/tools/juhyu', 1, 1], ['/tools/teukgo-boheom', 1, 1], ['/tools/sanjae-hyueop', 0, 1], ['/tools/nomubi', 0, 1],
   ['/tools/ilyong-boheom', 1, 1], ['/tools/ilyong-guide', 1, 1], ['/tools/boheomryo', 1, 1], ['/tools/wonclick', null, 1], ['/tools/dxf3d', 1, 1],
   ['/tools/gps', 1, 1], ['/tools/cadfix', null, 1], ['/forms', 1, 1], ['/forms/chakgong', 1, 1], ['/forms/geonchuk-heoga-sincheong', 1, 1],
   ['/forms/o-chakgong-moeum', 1, 1], ['/guide', 1, 1], ['/guide/bid-price', 1, 1], ['/change', 1, 1], ['/change/case', 1, 1], ['/change/excel', 1, 1],

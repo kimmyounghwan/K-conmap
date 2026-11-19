@@ -148,6 +148,7 @@ const HadoDocs = lazyPage(() => import('./pages/HadoDocs.jsx'))   /* 🤝 2026-1
 const Dojang = lazyPage(() => import('./pages/Dojang.jsx'))   /* 🖋 G780 (11-19) 도장 만들기 — 이름 도장 · 회사 직인 · 도장 사진 → 투명 PNG */
 const Gongmu = lazyPage(() => import('./pages/Gongmu.jsx'))   /* 🧰 G784 (11-19) 공무 올인원 — 착공부터 준공까지 건설맵 도구를 한 곳에서 차례대로(내 현장 · ✓ 했음) */
 const GonggiGanjeop = lazyPage(() => import('./pages/GonggiGanjeop.jsx'))   /* ⏳ G785 (11-19) 공기연장 간접비 산정 — 늘어난 기간의 실비를 산정서 한 벌로 */
+const Teukgo = lazyPage(() => import('./pages/Teukgo.jsx'))   /* 🚜 G788 (11-19) 특고(노무제공자) 산재 · 고용보험료 계산기 — 건설기계 · 건설현장 화물차 */
 const Esc = lazyPage(() => import('./pages/Esc.jsx'))   /* 📈 2026-11-12 (G657) 물가변동 ESC 품목조정률 산출서(잠김 · 예시 보기만) */
 const CadPage = lazyPage(() => import('./pages/Cad.jsx').then((m) => ({ default: m.CadPage })))
 /* 🪪 면허별 경쟁도 — 2026-09-14. 주소를 주는 이유: 「토목공사업 입찰 경쟁률」 같은 건 실제 검색어입니다. */
@@ -340,6 +341,7 @@ const 그리기 = () => ReactDOM.createRoot(document.getElementById('root')).ren
           <Route path="/tools/dojang" element={<Suspense fallback={<Loading />}><Dojang /></Suspense>} />
           <Route path="/tools/gongmu" element={<Suspense fallback={<Loading />}><Gongmu /></Suspense>} />
           <Route path="/tools/gonggi-ganjeopbi" element={<Suspense fallback={<Loading />}><GonggiGanjeop /></Suspense>} />
+          <Route path="/tools/teukgo-boheom" element={<Suspense fallback={<Loading />}><Teukgo /></Suspense>} />
           <Route path="/tools/esc" element={<Suspense fallback={<Loading />}><Esc /></Suspense>} />
           <Route path="/tools/:slug" element={<Suspense fallback={<Loading />}><ToolPage /></Suspense>} />
           {/* 📋 2026-09-15 — 내역서 작성 대행. 하나뿐인 유료 화면입니다. */}

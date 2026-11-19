@@ -94,7 +94,10 @@ const pr = 읽('prerender.py'), sm = 읽('sitemap.py')
 봐(/t\(x\.get\("t"\), 90\)/.test(pr) && /t\(x\.get\("s"\), 320\)/.test(pr) && /t\(x\.get\("k"\), 220\)/.test(pr), '구운 쪽 걸름 길이 = 화면 걸름 길이(90 · 320 · 220)')
 봐(sm.includes('("/news", "0.7", "daily")') && sm.includes('def news_days(') && sm.includes('/news/{d}</loc>'), '사이트맵 — /news · 그날 쪽')
 const q = 읽('web/src/pages/Qna.jsx')
-봐(q.includes("const 뉴스글인가 = (r) => /^\\s*📰/.test(String((r && r.t) || ''))") && q.includes('<span className="mt-nt nw">뉴스</span>') && q.includes('...다.filter((r) => !뉴스글인가(r))'),
+/* 🩹 G788 — G786(11-19) 모집 공지 때 줄 차례가 lib/맵톡.js 공지줄차례 로 옮겨감(같은 뜻: 이틀 안 새 뉴스 하나만 맨 위 · 지난 뉴스는 빼고 · 모집 · 나머지) → 옮긴 자리를 봄 */
+const 맵톡셈 = 읽('web/src/lib/맵톡.js')
+봐(q.includes("const 뉴스글인가 = (r) => /^\\s*📰/.test(String((r && r.t) || ''))") && q.includes('<span className="mt-nt nw">뉴스</span>') && q.includes('공지줄차례((모두 || []).filter((r) => 공지인가(r, 고정)), 뉴스글인가)')
+  && 맵톡셈.includes('const 새뉴스 = 다.find((r) => 뉴스인가(r) && 지금 - (r.at || 0) < 2 * 86400000)') && 맵톡셈.includes('...다.filter((r) => !뉴스인가(r) && !모집공지인가(r))'),
   '맵톡 — 📰 공지 글은 «뉴스» 줄 · 맨 위엔 최근 하나(지난 뉴스가 공지를 밀어내지 않게)')
 
 console.log(bad ? `\n✗ 시험_건설뉴스 틀림 ${bad} / ${ok + bad}` : `\n✓ 시험_건설뉴스 ${ok}/${ok}`)
