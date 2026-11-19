@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { 점검표, 밀린점검, 한국오늘, 긴날, 공휴일표, 퇴직공제일액표, 요일, 짧은날 } from '../lib/해마다.js'
 import 도구설명 from '../tools/도구설명.jsx'
+import { 달력, 이번달볼것, 이번월, 다음볼달 } from '../lib/요율달력.js'   /* 🗓 G790 요율 달력 — 값마다 바뀌는 달 */
 
 /**
  * 🗓 /tools/haemada — 해마다 바뀌는 값 모아 보기 (G116 · 2026-10-02)
@@ -32,6 +33,34 @@ export default function Haemada() {
             : <>✅ 지금은 모두 확인한 값입니다 ({긴날(오늘)} 기준).</>}
         </div>
       </div>
+
+      {/* 🗓 G790 (11-19) 소장님 「자동 업데이트 했어??」 → «요율 달력» — 값마다 «바뀌는 달» · 이번 달 볼 것(밀린 것은 ⏰ 주황 · 누르면 원문) · 열두 달 */}
+      {(() => {
+        const 월 = 이번월(오늘), 볼 = 이번달볼것(오늘), 다음 = 다음볼달(오늘)
+        return (
+          <div className="card rc">
+            <div className="detail-h" style={{ margin: 0 }}>🗓 요율 달력 — 값이 바뀌는 달</div>
+            <div className="muted" style={{ fontSize: 12.5, margin: '4px 0 8px', lineHeight: 1.6 }}>
+              값마다 새 고시 · 결정이 나오는 달입니다. 그 달에 K-건설맵이 원문(법제처 고시 · 공단 공지)을 확인해 새 값을 넣고, 새 값은 시행일부터 모든 계산기에 저절로 쓰입니다.
+            </div>
+            <div className="rc-now"><b>{월}월에 볼 것</b>{' '}
+              {볼.length
+                ? 볼.map((x) => (x.주소
+                  ? <a key={x.k} href={x.주소} target="_blank" rel="noopener" className={'rc-chip' + (x.밀림 ? ' due' : '')} title={x.무엇 + ' — 원문 열기'}>{x.밀림 ? '⏰ ' : ''}{x.짧게}</a>
+                  : <span key={x.k} className={'rc-chip' + (x.밀림 ? ' due' : '')} title={x.무엇}>{x.밀림 ? '⏰ ' : ''}{x.짧게}</span>))
+                : <span className="muted">없음{다음 ? ` — 다음은 ${다음.월}월(${다음.항목.map((x) => x.짧게).join(' · ')})` : ''}</span>}
+            </div>
+            <div className="rc-grid">
+              {달력().map((m) => (
+                <div key={m.월} className={'rc-m' + (m.월 === 월 ? ' now' : '')}>
+                  <b>{m.월}월</b>
+                  <span className="rc-cs">{m.항목.length ? m.항목.map((x) => <span key={x.k} className="rc-chip" title={`${x.무엇} — 시행 ${x.시행}`}>{x.짧게}</span>) : <small className="muted">—</small>}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       <div className="card">
         <div className="tp-scroll">

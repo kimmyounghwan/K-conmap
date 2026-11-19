@@ -36,6 +36,7 @@ import { Skeleton, Empty } from '../components.jsx'
 import { nickOf } from '../lib/nickname.js'
 import { OPS, isOp } from '../lib/운영자.js'
 import { 밀린점검 } from '../lib/해마다.js'
+import { 이번달볼것, 이번월 } from '../lib/요율달력.js'   /* 🗓 G790 요율 달력 — 이번 달 볼 것 */
 import * as MP from '../lib/마이컨맵.js'   /* 🪪 G192 마이컨맵 만든 사람 */
 
 /* firebase 는 이 화면을 열 때만 받습니다 (사랑방과 같은 방식) */
@@ -181,6 +182,8 @@ export default function Admin() {
             🗓 <b>해마다 바뀌는 값</b> — {밀린.length
               ? <>다시 확인할 때가 된 것 <b>{밀린.length}가지</b>: {밀린.map((x) => x.무엇).join(' · ')}. «해마다 값 확인해 줘» 하시면 원문을 열어 고칩니다.</>
               : <>모두 확인한 값입니다.</>} <Link to="/tools/haemada">모아 보기</Link>
+            {/* 🗓 G790 — 이번 달이 «바뀌는 달» 인 값(밀린 것은 위에 이미 있음) */}
+            {(() => { const 볼 = 이번달볼것().filter((x) => !x.밀림); return 볼.length > 0 && <div style={{ marginTop: 4 }}>📅 {이번월()}월에 새 고시 · 결정이 나올 무렵: <b>{볼.map((x) => x.짧게).join(' · ')}</b></div> })()}
           </div>
         )
       })()}
