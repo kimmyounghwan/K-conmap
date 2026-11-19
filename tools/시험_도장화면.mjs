@@ -240,6 +240,24 @@ for (const [이름판, 크기, 폰] of [['PC 1280', { width: 1280, height: 900 }
   봄('⑧ 오류 0', 오류.length === 0, 오류.join(' | '))
   await 판.close()
 }
+{
+  /* 🩹 G782b 어두운 화면 — 종류 그림(작은 캔버스)은 흰 종이 위에(검은 도장이 어두운 단추에 묻혀 안 보였음) */
+  console.log('■ 어두운 화면(폰 390)')
+  const 판 = await 브.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, colorScheme: 'dark', locale: 'ko-KR' })
+  await 판.route(/googletagmanager|google-analytics|pagead2|adsbygoogle|googlesyndication|geojs|daumcdn|kakao|coupang/, (r) => r.fulfill({ status: 200, body: '' }))
+  const p = await 판.newPage()
+  await p.goto(주소 + '/tools/dojang', { waitUntil: 'domcontentloaded' }); await p.waitForSelector('.dj-cv', { timeout: 20000 }); await p.waitForTimeout(500)
+  await p.locator('.dj-form input.inp').first().fill('홍길동'); await 단추(p, '검정').click(); await p.waitForTimeout(200)
+  const 바탕 = await p.evaluate(() => [...document.querySelectorAll('.dj-kind canvas')].map((c) => getComputedStyle(c).backgroundColor))
+  봄('🩹 G782b 어두운 화면 — 종류 그림 셋 바탕 흰색(검은 도장이 보임)', 바탕.length === 3 && 바탕.every((x) => x === 'rgb(255, 255, 255)'), JSON.stringify(바탕))
+  await 판.close()
+  const 밝 = await 브.newContext({ viewport: { width: 390, height: 844 }, colorScheme: 'light', locale: 'ko-KR' })
+  const q = await 밝.newPage()
+  await q.goto(주소 + '/tools/dojang', { waitUntil: 'domcontentloaded' }); await q.waitForSelector('.dj-cv', { timeout: 20000 })
+  const 밝바탕 = await q.evaluate(() => getComputedStyle(document.querySelector('.dj-kind canvas')).backgroundColor)
+  봄('밝은 화면은 그대로(종류 그림 바탕 투명)', 밝바탕 === 'rgba(0, 0, 0, 0)', 밝바탕)
+  await 밝.close()
+}
 await 브.close()
 console.log(`\n${실패 ? '❌' : '✅'} 시험_도장화면 ${통과}/${통과 + 실패}`)
 process.exit(실패 ? 1 : 0)

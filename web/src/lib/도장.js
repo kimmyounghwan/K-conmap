@@ -196,7 +196,7 @@ export function 번지기(ctx, S, 씨앗글) {
 /* 음각 글자를 그릴 다른 판 — 브라우저(OffscreenCanvas · canvas) · 없으면 null(node 시험 — 바로 지우개로) */
 function 새판(S) {
   try {
-    if (typeof OffscreenCanvas === 'function') return new OffscreenCanvas(S, S)
+    if (typeof OffscreenCanvas === 'function') { const c = new OffscreenCanvas(S, S); if (c.getContext && c.getContext('2d')) return c }   /* 🩹 G782b 옛 사파리(16.0 ~ 16.3)는 OffscreenCanvas 에 2D 가 없음 → 아래 canvas 로 */
     if (typeof document !== 'undefined' && document.createElement) { const c = document.createElement('canvas'); c.width = S; c.height = S; return c }
   } catch (e) { /* 없음 */ }
   return null

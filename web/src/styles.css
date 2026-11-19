@@ -11682,6 +11682,8 @@ a.kn-strip:hover { border-left-color: var(--kn-a); }
 .dj-kind span { font-size: 12px; font-weight: 700; line-height: 1.2; text-align: center; word-break: keep-all; }
 .dj-kind.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
 @media (max-width: 400px) { .dj-kinds { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; } .dj-kind canvas { width: 64px; height: 64px; } }
+/* 🩹 G782b 어두운 화면 — 종류 그림 · 내 도장 그림은 흰 종이 위에(검은 · 파란 도장이 어두운 단추에 묻혀 안 보였음 · 밝은 화면은 그대로) */
+@media (prefers-color-scheme: dark) { .dj-kind canvas, .dj-item img { background: #fff; border-radius: 10px; } }
 /* 📐 G780a 기울기 바로잡기 — ⟲ 막대 ⟳ 0° (폰에서도 한 줄) */
 .dj-tilt { display: flex; align-items: center; gap: 6px; max-width: 440px; }
 .dj-tilt input[type="range"] { flex: 1 1 auto; width: auto; min-width: 0; max-width: none; }
