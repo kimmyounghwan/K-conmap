@@ -29,7 +29,7 @@ const 일곱 = [['감사공지.jsx', './lib/굴림잠금.js'], ['빠른찾기창
 for (const [f, 길] of 일곱) {
   const s = 읽(f)
   const 들임 = s.includes(`import { 굴림잠금 } from '${길}'`)
-  const 부름 = (s.match(/const 풀기 = 굴림잠금\(\)/g) || []).length === 1
+  const 부름 = (s.match(/const 풀기 = 굴림잠금\(\)/g) || []).length === (f === '감사공지.jsx' ? 2 : 1)   /* 감사공지 = 공지창 + 🛠 G792 점검창 */
   const 풂 = /return \(\) => \{ (window\.removeEventListener\('keydown', 키\); )?풀기\(\) \}/.test(s)
   봄(들임 && 부름 && 풂, `${f} — 들임 · 열 때 잠금 · 닫을 때 풂`)
 }
@@ -38,6 +38,9 @@ for (const [f, 길] of 일곱) {
   const i = s.indexOf('function 공지창(')
   const 몸 = s.slice(i, s.indexOf('return createPortal(', i))
   봄(/addEventListener\('keydown', 키\)/.test(몸) && /풀기 = 굴림잠금\(\)/.test(몸) && /removeEventListener\('keydown', 키\); 풀기\(\)/.test(몸), '공지창 — Esc 듣기 · 잠금 · 닫을 때 둘 다 풂(한 효과 안)')
+  const j = s.indexOf('function 점검창(')
+  const 몸2 = j > 0 ? s.slice(j, s.indexOf('return createPortal(', j)) : ''
+  봄(/addEventListener\('keydown', 키\)/.test(몸2) && /풀기 = 굴림잠금\(\)/.test(몸2) && /removeEventListener\('keydown', 키\); 풀기\(\)/.test(몸2), '🛠 G792 점검창 — Esc 듣기 · 잠금 · 닫을 때 둘 다 풂(한 효과 안)')
 }
 
 console.log('③ styles.css body 막이')

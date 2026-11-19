@@ -133,6 +133,7 @@ console.log('④ 날짜')
 for (const [때, 창있어야, 고침있어야] of [['2026-11-21T23:59:00+09:00', true, true], ['2026-11-22T00:01:00+09:00', true, false], ['2026-12-31T23:59:00+09:00', true, false], ['2027-01-01T00:01:00+09:00', false, false]]) {
   const { ctx, p } = await 새쪽(390, 844, { 때 })
   await p.goto(BASE + '/', { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(2000)
+  const 점검 = await p.$('.checkpop .noticepop-f button'); if (점검) { await 점검.click(); await p.waitForTimeout(400) }   /* 🛠 G792 점검 날(11-21 · 11-22)엔 점검창이 먼저 — 닫으면 이 공지창 */
   const 창 = !!(await p.$('.noticepop')), 고침 = !!(await p.$('.noticepop-fix'))
   ok(`${때.slice(0, 16)} 창 ${창있어야 ? '있음' : '없음'} · 고친 것 칸 ${고침있어야 ? '있음' : '없음'} · 띠 없음`, 창 === 창있어야 && 고침 === 고침있어야 && !(await p.$('.noticebar')), [창, 고침])
   await ctx.close()

@@ -76,6 +76,12 @@
  *   ■ 건설맵을 떠나(화면이 가려짐 · 다른 앱 · 다른 사이트 · 화면 잠금) 다시뜸간격(30초) 넘게 있다가 돌아오면 → 창을 다시 띄움(|공지|다시뜸)
  *   ■ 그대로(G284 「건설맵 사이트 이용시에는 또 띄우면 안돼지」): 건설맵 안에서 화면 옮김 · 쓰는 중 새로고침 · 다른 건설맵 탭을 쓰다가 넘어옴 → 안 뜸
  *     «쓰는 중» 표시(kcm_notice_alive)는 화면에 보이는 탭만 적음(가려진 탭은 안 적음) — 그래야 «떠났다» 를 가릴 수 있음
+ *
+ * 🛠 G792 (2026-11-20 08시) 소장님 「토요일 일요일 시스템 점검으로 이용을 할 수 없다는 공지를 띄워줘. 공지창을 따로 만들어서 띄워줘」
+ *   → 고르심 «K-건설맵 사이트 점검» · «토요일 0시부터 일요일 밤까지만»(제휴 모집 창은 그대로)
+ *   ■ 점검창(아래 «점검창») = 공지창과 따로 · 한국 날짜가 점검부터 ~ 점검까지(11-21 · 11-22)일 때만 · 사이트를 열 때 · 나갔다가 30초 넘게 있다 돌아올 때(G786b 와 같은 길)
+ *   ■ 두 창이 같이 뜰 날엔 점검창이 먼저 — 닫으면 제휴 모집 창(그대로) · 관리자 화면 · 검색 로봇 · 자동 브라우저 · 인쇄엔 안 뜸 · 숨은 셈 |공지|점검뜸
+ *   ■ 날이 지나면(11-23 부터) 저절로 안 뜸 — 다시 쓸 땐 점검부터 · 점검까지 · 글만 고침(tools/시험_점검창.mjs)
  */
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -191,6 +197,44 @@ function 공지창({ 닫기, 오늘 }) {
   )
 }
 
+/* 🛠 G792 점검창 — 날(한국)과 글. 다시 쓸 땐 이 셋만 고침 */
+const 점검부터 = '2026-11-21'
+const 점검까지 = '2026-11-22'
+const 점검날 = (오늘 = 한국오늘()) => 오늘 >= 점검부터 && 오늘 <= 점검까지
+
+function 점검창({ 닫기 }) {
+  const 상자 = useRef(null)
+  const 닫기글 = useRef(닫기)
+  닫기글.current = 닫기
+  useEffect(() => {   /* 공지창과 같음 — Esc 로 닫기 · 뒤 화면 막기(html) · 창에 초점 */
+    const 키 = (e) => { if (e.key === 'Escape') 닫기글.current() }
+    window.addEventListener('keydown', 키)
+    const 풀기 = 굴림잠금()
+    try { 상자.current && 상자.current.focus({ preventScroll: true }) } catch (e) { /* 옛 브라우저 */ }
+    return () => { window.removeEventListener('keydown', 키); 풀기() }
+  }, [])
+  return createPortal(
+    <div className="noticepop checkpop" onClick={(e) => { if (e.target === e.currentTarget) 닫기() }}>
+      <div className="noticepop-c" role="dialog" aria-modal="true" aria-labelledby="checkpop-h" tabIndex={-1} ref={상자}>
+        <button type="button" className="noticepop-x" aria-label="점검 안내 닫기" onClick={닫기}>✕</button>
+        <div className="noticepop-tag">🛠 점검 안내</div>
+        <h2 id="checkpop-h" className="noticepop-h"><span className="noticepop-must">🛠 시스템 점검 안내</span><span className="noticepop-sub">11월 21일(토) · 22일(일) 이틀</span></h2>
+        <div className="noticepop-b">
+          <p><b>11월 21일(토) 0시부터 11월 22일(일) 24시까지</b> <span style={{ whiteSpace: 'nowrap' }}>K-건설맵</span> 시스템 점검으로 <b>이용하실 수 없습니다.</b></p>
+          <p>이용에 불편을 드려 죄송합니다. 점검을 마치는 대로 더 나은 모습으로 찾아뵙겠습니다.</p>
+          {/* G318 · G345 소장님 「맵톡 사용은 예의있게 이건 항상 포함 시키는 거 잊지말고」 — 굵게(점검 안내가 먼저) */}
+          <p className="noticepop-strong"><b>🗺 맵톡은 여러 분이 함께 쓰는 곳입니다. 예의를 갖추고 이용해 주세요.</b></p>
+          <p className="noticepop-sign">— K-건설맵</p>
+        </div>
+        <div className="noticepop-f">
+          <button type="button" className="btn line sm" onClick={닫기}>닫기</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
 /* G786 — 그 공지 글을 보고 있는 화면(같은 글)에서는 창을 저절로 띄우지 않음 */
 const 같은글화면 = (길) => 길 === '/qna/' + 맵톡글 || 길 === '/qna/' + 고친글
 
@@ -201,6 +245,10 @@ export default function 감사공지() {
   const [창, set창] = useState(() => 창있음 && !닫았나() && !다른탭열림() && !자동() && !같은글화면(pathname))
   const 창참 = useRef(창)
   창참.current = 창
+  /* 🛠 G792 점검창 — 점검 날에만 · 사이트를 열 때(다른 건설맵 탭을 쓰는 중이면 안 뜸 — 공지창과 같음) */
+  const [점검, set점검] = useState(() => 점검날() && !다른탭열림() && !자동() && !로봇() && !pathname.startsWith('/admin'))
+  const 점검참 = useRef(점검)
+  점검참.current = 점검
   useEffect(() => { 살아적기(); const t = setInterval(살아적기, 살아간격); return () => clearInterval(t) }, [])
   /* 🩹 G786b 나갔다가 들어오면 — 가려진 동안 다른 건설맵 탭도 안 썼으면(쓰는 중 표시가 12초보다 오래됨) 다시 띄움 */
   useEffect(() => {
@@ -214,6 +262,8 @@ export default function 감사공지() {
       const 딴탭 = 다른탭열림()
       살아적기()
       const 길 = window.location.pathname
+      /* 🛠 G792 점검 날이면 점검창도 다시(공지창보다 먼저 보임 — 아래 그리기 차례) */
+      if (떠남 && !딴탭 && 점검날() && !로봇() && !길.startsWith('/admin')) { if (!점검참.current) { try { 세기('|공지|점검다시뜸') } catch (e) { /* 없음 */ } } set점검(true) }
       if (!떠남 || 딴탭 || 닫았나() || 같은글화면(길) || 한국오늘() > 까지 || 로봇() || 길.startsWith('/admin')) return
       if (!창참.current) { try { 세기('|공지|다시뜸') } catch (e) { /* 없음 */ } }
       set창(true)
@@ -227,8 +277,10 @@ export default function 감사공지() {
   }, [])   // eslint-disable-line react-hooks/exhaustive-deps   /* 이 탭이 열려 있는 동안 «쓰는 중» */
   const 오늘 = 한국오늘()
   const 보임 = !(닫힘 || 오늘 > 까지 || 로봇() || pathname.startsWith('/admin'))
+  const 점검보임 = 점검 && 점검날(오늘) && !로봇() && !pathname.startsWith('/admin')
+  useEffect(() => { if (점검참.current) { try { 세기('|공지|점검뜸') } catch (e) { /* 없음 */ } } }, [])   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (보임 && 창있음 && 창) { try { 세기('|공지|뜸') } catch (e) { /* 없음 */ } } }, [])   // eslint-disable-line react-hooks/exhaustive-deps
-  if (!보임) return null
+  if (!보임) return 점검보임 ? <점검창 닫기={() => set점검(false)} /> : null
   const 본표 = () => { try { sessionStorage.setItem(본열쇠, 판) } catch (e) { /* 사생활 창 */ } }
   const 창닫기 = () => { 본표(); set창(false) }
   return (
@@ -240,7 +292,9 @@ export default function 감사공지() {
           {창있음 && <button type="button" className="go" onClick={() => { 세기('|공지|보기'); set창(true) }}>공지 보기</button>}
         </div>
       )}
-      {창있음 && 창 && <공지창 닫기={창닫기} 오늘={오늘} />}
+      {/* 🛠 G792 점검창이 먼저 — 닫으면 공지창(제휴 모집)이 그대로 뜸 */}
+      {점검보임 && <점검창 닫기={() => set점검(false)} />}
+      {창있음 && 창 && !점검보임 && <공지창 닫기={창닫기} 오늘={오늘} />}
     </>
   )
 }

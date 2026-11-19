@@ -46,6 +46,8 @@ const 상태 = (p) => p.evaluate(() => {
   return { html: document.documentElement.style.overflow, 막대자리: document.documentElement.style.scrollbarGutter, body: document.body.style.overflow,
     bodyY: getComputedStyle(document.body).overflowY, 굴림: Math.round(scrollY), 높이: innerHeight, 머리: r('.topbar'), 공지: r('.noticepop-c'), 창: r('.mt-sheet'), 커서: document.activeElement ? document.activeElement.tagName + (document.activeElement.closest('.mt-sheet') ? '@창' : '') : '' }
 })
+/* 🛠 G792 점검 날(11-21 · 11-22)엔 점검창 · 공지창이 차례로 뜸 — 다 닫기(터치 · 마우스) */
+const 다닫기 = async (p, 터치 = true) => { for (let i = 0; i < 4; i++) { const e = await p.$('.noticepop-f .btn.line'); if (!e) break; if (터치) await e.tap(); else await e.click(); await p.waitForTimeout(400) } }
 const 화면안 = (x, 높이) => !!x && x.t >= -1 && x.b <= 높이 + 1 && x.h > 120
 /* 앱을 30초 넘게 떠났다가 돌아옴 흉내(G786b) — 시계를 31초 당기고 visibilitychange 두 번 */
 const 떠났다옴 = (p) => p.evaluate(() => {
@@ -69,7 +71,7 @@ console.log('■ 폰 393 (아이폰 흉내 · 터치 · 어두운 화면)')
   await p.evaluate(() => window.scrollTo(0, 2200)); await p.waitForTimeout(300)
   s = await 상태(p)
   봄(s.머리 && s.머리.t === 0 && 화면안(s.공지, s.높이), '② 창이 열린 채 굴려도 머리줄 제자리 · 공지창 화면 안', s)
-  await p.tap('.noticepop-f .btn.line'); await p.waitForTimeout(400)
+  await 다닫기(p)
   s = await 상태(p)
   봄(!s.공지 && s.html === '' && s.막대자리 === '' && s.body === '', '③ 닫으면 html 풂', s)
   /* 카드 하나를 눌러 글 창 */
@@ -88,7 +90,7 @@ console.log('■ 폰 393 (아이폰 흉내 · 터치 · 어두운 화면)')
   s = await 상태(p)
   봄(화면안(s.공지, s.높이) && s.html === 'hidden' && s.body === '' && s.머리 && s.머리.t === 0 && s.굴림 > 300, '④ 내린 채 앱으로 돌아옴 → 공지창이 화면 안(맨 위에 숨지 않음) · 머리줄 제자리', s)
   if (C) await p.screenshot({ path: `${C}/G791_폰_돌아옴_공지창.png` })
-  await p.tap('.noticepop-f .btn.line'); await p.waitForTimeout(400)
+  await 다닫기(p)
   s = await 상태(p)
   봄(!s.공지 && s.html === '', '④ 닫으면 풂', s)
   /* ⑤ 답 없는 질문 카드 «답하기» */
@@ -108,7 +110,7 @@ console.log('■ 폰 393 (아이폰 흉내 · 터치 · 어두운 화면)')
   await 떠났다옴(p); await p.waitForTimeout(700)
   s = await 상태(p)
   봄(화면안(s.공지, s.높이) && s.html === 'hidden', '⑥ 빠른 찾기 위에 공지창 — 화면 안', s)
-  await p.keyboard.press('Escape'); await p.waitForTimeout(400)
+  for (let i = 0; i < 3 && (await p.$('.noticepop')); i++) { await p.keyboard.press('Escape'); await p.waitForTimeout(400) }   /* 공지창(점검 날엔 점검창도)만 Esc */
   s = await 상태(p)
   const 찾기남음 = await p.evaluate(() => !!document.querySelector('.qs-back'))
   봄(!s.공지 && 찾기남음 && s.html === 'hidden', '⑥ 공지창 먼저 닫음 — 빠른 찾기가 열려 있어 아직 잠김', s)
@@ -132,7 +134,7 @@ console.log('■ PC 1280')
   await p.waitForSelector('article.mt-card', { timeout: 25000 }); await p.waitForSelector('.noticepop-c', { timeout: 8000 }).catch(() => {}); await p.waitForTimeout(800)
   let s = await 상태(p)
   봄(화면안(s.공지, s.높이) && s.html === 'hidden' && s.body === '', '① PC 공지창 — 화면 안 · html 잠김', s)
-  await p.click('.noticepop-f .btn.line'); await p.waitForTimeout(300)
+  await 다닫기(p, false)
   const 폭0 = await p.evaluate(() => [innerWidth - document.documentElement.clientWidth, document.querySelector('.topbar').getBoundingClientRect().width])
   await p.click('.qsbtn'); await p.waitForTimeout(500)
   const 폭1 = await p.evaluate(() => [innerWidth - document.documentElement.clientWidth, document.querySelector('.topbar').getBoundingClientRect().width, document.documentElement.style.overflow, document.documentElement.style.scrollbarGutter])
