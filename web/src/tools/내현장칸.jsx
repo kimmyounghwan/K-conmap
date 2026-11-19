@@ -5,7 +5,7 @@
    ■ 셈 · 저장은 lib/내현장.js 한 곳(시험 tools/시험_내현장.mjs) · 이 기기에만(서버로 안 감)
    ■ 숨은 누적: |마이|현장만듦 · 현장고침 · 현장바꿈 · 현장지움 · 할일열기 · 할일했음 · 할일전체 · 달력받기
    ══════════════════════════════════════════════════════════════ */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import * as H from '../lib/내현장.js'
 import { 세기 } from '../lib/받은수.jsx'
@@ -133,6 +133,8 @@ export default function 내현장칸() {
   const 늘일 = 일.filter((x) => !x.날)
   const 공 = H.공기(현장, 오늘)
   const 다시읽기 = () => setD(H.읽기())
+  /* 🧰 G784 다른 칸(공무 올인원 단계 ✓ 등)이 현장 값을 바꾸면 다시 읽음 */
+  useEffect(() => { window.addEventListener(H.바뀜사건, 다시읽기); return () => window.removeEventListener(H.바뀜사건, 다시읽기) }, [])   // eslint-disable-line react-hooks/exhaustive-deps
   /* 🧭 G541 저장 · 닫기 · 지움 뒤 «내 현장» 카드가 화면에 보이게(이용자 점검 11-05: 폰에서 저장하면 카드가 화면 위로 지나가 단축키만 보였음) */
   const 보이게 = () => setTimeout(() => { const el = document.querySelector('.mc-site'); if (!el) return; const t = el.getBoundingClientRect().top; if (t < 64 || t > window.innerHeight * 0.6) window.scrollTo({ top: Math.max(0, t + window.scrollY - 70), behavior: 'smooth' }) }, 30)
   const 끝 = (r) => { set편집중(null); 다시읽기(); if (r && r.현장) set말(`✓ «${r.현장.현장}» 저장 — 서식 ${r.칸}칸에 이 현장 값이 먼저 들어갑니다`); 보이게() }

@@ -3710,6 +3710,24 @@ def dojang_page(shell, image=None):
         "도장 만들기", key="dojang")
 
 
+def gongmu_page(shell, image=None):
+    # 🧰 G784 (2026-11-19) — 화면 pages/Gongmu.jsx · 차례 lib/공무차례.js · 현장 lib/내현장.js(마이컨맵 «내 현장» 그대로) · 설명 tools_guide.json «gongmu»
+    return _tool_page(shell, image, "/tools/gongmu",
+        "공무 올인원 — 착공부터 준공까지 한 곳에서 | K-건설맵",
+        "현장을 한 번 적어 두면 시공계획서·예정공정표·안전관리계획서·유해위험방지계획서·공사안전보건대장(착공 전), 도면 물량·토적표·설계변경·물가변동·공기연장(공사 중), "
+        "준공계·공사서류 원클릭(준공)을 차례대로 엽니다. 서식은 이 현장 값이 먼저 들어가고, 끝낸 일은 ✓ 해 두면 현장마다 남습니다.",
+        "🧰 공무 올인원 — 착공부터 준공까지 한 곳에서",
+        ["현장을 한 번 적어 두면 착공 전 계획서부터 공사 중 물량 · 설계변경 · 물가변동, 준공 서류까지 차례대로 이 한 곳에서 엽니다.",
+         "서식은 이 현장의 공사명 · 금액 · 날짜가 먼저 들어가고(예정공정표는 내역서를 넣을 때 착공 · 준공), 끝낸 일은 ✓ 해 두면 현장마다 남습니다(이 기기에만)."],
+        [("① 착공 전", ['<a href="/tools/sigong">시공계획서 한 벌</a>', '<a href="/tools/schedule">예정공정표 · S커브</a>', '<a href="/tools/anjeon">안전관리계획서 한 벌</a>',
+                        '<a href="/tools/yuhae">유해위험방지계획서 한 벌</a>', '<a href="/forms/gongsa-anjeon-daejang">공사안전보건대장</a>']),
+         ("② 공사 중", ['<a href="/jeoksan">도면 물량(적산컨맵)</a>', '<a href="/tools/tojeok">토적표 · 유토곡선</a>', '<a href="/tools/earthcheck">토공 검산</a>',
+                        '<a href="/change">설계변경</a>', '<a href="/tools/esc">물가변동(ESC)</a>', '<a href="/tools/time-extension">공기연장 때 할 일</a>']),
+         ("③ 준공", ['<a href="/forms/jungong">준공계</a>', '<a href="/tools/wonclick">공사서류 원클릭</a>'])],
+        '현장은 <a href="/my">마이컨맵</a> «내 현장» 과 같은 장부입니다. 서식 전체는 <a href="/forms">서식</a>에 있습니다.',
+        "공무 올인원", key="gongmu")
+
+
 def jeongsan_page(shell, image=None):
     # 🩺 G146 (2026-10-05) — 화면 BoheomJeongsan.jsx · 셈 lib/보험정산.js · 설명 tools_guide.json «jeongsan»
     return _tool_page(shell, image, "/tools/boheom-jeongsan",
@@ -5000,6 +5018,10 @@ def main():
           og.tab("tool-dojang", "도장 만들기", "서류 도구", "이름 도장 · 회사 직인", "투명 PNG") if og.available else None))
     made += 1
     print("  · 도장 만들기 페이지 1개 (G780)")
+    write("tools/gongmu.html", gongmu_page(shell,
+          og.tab("tool-gongmu", "공무 올인원", "공무 도구", "착공부터 준공까지", "한 곳에서") if og.available else None))
+    made += 1
+    print("  · 공무 올인원 페이지 1개 (G784)")
     write("tools/boheom-jeongsan.html", jeongsan_page(shell,
           og.tab("tool-jeongsan", "건강·연금보험료 정산 청구서", "건설 노무", "하수급인 → 원청 · 사업자 부담분", "상용 일할 자동") if og.available else None))
     made += 1

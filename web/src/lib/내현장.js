@@ -16,6 +16,7 @@ import { 금액수 } from './금액읽기.js'   // 💰 G541 «3억 8,500만» �
 export const 현장열쇠 = 'kcm.my.현장'
 export const 공통열쇠 = 'kcm.서식공통'
 export const 현장최대 = 10
+export const 바뀜사건 = 'kcm-내현장'   /* 🧰 G784 현장을 적거나 바꾸거나 ✓ 하면 같은 탭의 다른 칸(공무 올인원 · 내 현장 칸)도 다시 읽게 */
 export const 갈래들 = 발주갈래.map((x) => [x.k, x.n])
 export const 대장선 = 5000000000           // 총공사금액 50억 원 이상 — 산업안전보건법 시행령 제55조(G538 확인)
 export const 확인최대 = 12                  // 발주자 이행 확인 줄(3개월 × 12 = 3년)
@@ -70,6 +71,7 @@ export function 읽기(s = 저장소()) {
 }
 function 쓰기(d, s = 저장소()) {
   try { s && s.setItem(현장열쇠, JSON.stringify({ v: 1, 지금: d.지금, 목록: d.목록 })) } catch (e) { return false }
+  try { if (typeof window !== 'undefined' && window.dispatchEvent && typeof Event === 'function') window.dispatchEvent(new Event(바뀜사건)) } catch (e) { /* 옛 브라우저 */ }
   return true
 }
 export const 지금현장 = (d = 읽기()) => d.목록.find((x) => x.id === d.지금) || null
@@ -100,7 +102,7 @@ export function 저장(h, s = 저장소()) {
   const x = 현장정리(h)
   const d = 읽기(s)
   const i = d.목록.findIndex((y) => y.id === x.id)
-  if (i >= 0) d.목록[i] = { ...x, 했음: x.했음.length ? x.했음 : d.목록[i].했음 }
+  if (i >= 0) d.목록[i] = { ...x, 했음: d.목록[i].했음 }   /* 🧰 G784 있던 현장의 «했음» 은 늘 저장된 것(✓ 는 했음바꿈 이 바로 씀 — 고치기 창을 연 뒤 다른 칸에서 ✓ 하거나 지운 것을 옛 값으로 덮지 않게) */
   else { if (d.목록.length >= 현장최대) return { 틀림: `현장은 ${현장최대}곳까지 — 끝난 현장을 지우고 더하십시오` }; d.목록.unshift(x) }
   d.지금 = x.id
   쓰기(d, s)

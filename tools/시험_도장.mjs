@@ -293,7 +293,7 @@ const G = JSON.parse(읽('web/src/data/tools_guide.json'))
 참(G.dojang && G.dojang.how.length === 4 && G.dojang.faq.length >= 4 && G.dojang.at === '2026-11-19', '설명(tools_guide «dojang»)')
 const P = 읽('prerender.py')
 참(/def dojang_page\(shell, image=None\):/.test(P) && /write\("tools\/dojang\.html", dojang_page\(shell,/.test(P) && /key="dojang"\)/.test(P), '굽기(prerender dojang_page)')
-참(/"\/tools\/esc", "\/tools\/dojang"\]:/.test(읽('sitemap.py')), '사이트맵')
+참(/"\/tools\/dojang"[,\]]/.test(읽('sitemap.py')), '사이트맵')   /* 🧰 G784 뒤에 /tools/gongmu 가 붙어도 */
 참(/'\/tools\/dojang': '도장 /.test(읽('web/src/lib/빠른찾기.js')), '빠른찾기 낱말')
 참(/\['\/tools\/dojang', \['\|도장'\]\]/.test(읽('web/src/lib/쓴수판.jsx')), '쓴수판 자리표 |도장')
 for (const k of ['|도장|이름', '|도장|직인', '|도장|사진', '|도장|예시', '|도장|받기', '|도장|저장', '|도장|기울기', '|도장|꼴']) 참(쪽.includes(`'${k}'`), `숨은 셈 ${k}`)
