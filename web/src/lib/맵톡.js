@@ -201,12 +201,13 @@ export function 자리고르기(j, 바탕) {
   if (!j || !바탕 || String(j.country_code || '').toUpperCase() !== 'KR') return null
   const 표 = 지도이름표(바탕.곳, 바탕.별)
   const 이름 = 지도자리찾기(표, j.city)
-  if (이름) return { k: 이름.k, n: 이름.n, 어떻게: '이름' }
+  /* 🩹 G781 시·도(d)도 함께 — 없으면 글쓰기 칸이 «📍 용인시 (짐작) — 자유 방에 올라가요» 로 틀리게 보였음(실제론 경기 · 인천 방 + 핀) */
+  if (이름) { const p = 곳찾기(바탕, 이름.k); return { k: 이름.k, n: 이름.n, ...(p && p.d ? { d: p.d } : {}), 어떻게: '이름' } }
   const la = Number(j.latitude), lo = Number(j.longitude)
   if (나라기본.some(([a, b]) => Math.abs(a - la) < 0.002 && Math.abs(b - lo) < 0.002)) return null
   const xy = 경위도자리(la, lo)
   const p = xy && 가까운곳(바탕.곳, xy.x, xy.y)
-  return p ? { k: p.k, n: p.n, 어떻게: '경위도' } : null
+  return p ? { k: p.k, n: p.n, d: p.d, 어떻게: '경위도' } : null
 }
 
 /** 접속 주소로 시·군 짐작(브라우저) — 4초 안에 못 받으면 null. 글 올리기를 막지 않습니다 */

@@ -11,6 +11,7 @@
  *   ④ 폰 390 · 320 넘침 0 · 어두운 화면 글이 읽힘(대비) · 인쇄에는 안 나옴 · 오류 0
  *   ⑤ 📐 G651 소장님 「광고 크기 줄여줘」 · 「현재 광고 다 크기 줄이고」 — 높이 막이(폰 390 강천 · 대유 ≤ 180 · 유안굴착 ≤ 230 · 정순덕 ≤ 180 · 박현희 ≤ 165 · 어느 광고든 ≤ 230 / PC 1280 ≤ 125 · 유안굴착 ≤ 150 — 전 243 · 323 · 301 · 255 / 161 · 194 · 181)
  *      · 연락처(사무실 · 팩스 · 메일 · 주소 · 고객센터)는 «📇 …» 한 줄로 접힘 → 누르면 펼침 · 셈 |광고더보기|id 한 번 · 다시 누르면 접힘
+ *   ⑥ 💬 G781 문자 틀 — 폰: 누르면 틀 창(글이 미리 · 보내기 = sms:번호?body=글 · 자주 쓰는 말 · Esc) / PC: 보내기 = QR · 글 복사 · 바깥 누르면 닫힘 · 셈
  *   OUT=폴더 면 화면 사진(폰 · PC · 어두운 화면)
  * 가상 자료만 씀(공사 · 기관 · 업체 이름 지어냄 — 광고 자료만 실제) · 인터넷 안 부름.
  */
@@ -88,7 +89,20 @@ console.log('① 1순위(/first) — 폰 390 · 광고 셋(셋째 강천 · 대�
   await p.locator('aside.adc').first().locator('.adc-call').click()
   await p.locator('aside.adc').first().locator('.adc-sms').evaluate((el) => { el.addEventListener('click', (e) => e.preventDefault(), { once: true }) })
   await p.locator('aside.adc').first().locator('.adc-sms').click()
-  await 기다림(() => 셈들.some((u) => /광고전화/.test(u) && /kc-dy/.test(u)) && 셈들.some((u) => /광고문자/.test(u) && /kc-dy/.test(u)))
+  /* 💬 G781 문자 틀 창 — 글이 미리 · 폰(안드로이드)은 보내기 = 문자 앱 주소 · 자주 쓰는 말 · Esc */
+  await p.waitForSelector('.adsm', { timeout: 5000 })
+  const 틀 = await p.evaluate(() => ({ 글: document.querySelector('.adsm-ta').value, 보내기: document.querySelector('.adsm-go').getAttribute('href') || '', 제목: document.querySelector('.adsm-h').innerText, 받는: document.querySelector('.adsm-to').innerText, 큐알단추: !!document.querySelector('button.adsm-go') }))
+  ok('💬 G781 «문자» 누르면 틀 창 — «K-건설맵에서 ○○ 광고 보고 연락드립니다.» 가 미리 · 받는 번호 · 보내기 = sms:번호?body=글(안드로이드)',
+    /^안녕하세요\. K-건설맵에서 .+ 광고 보고 연락드립니다\.\n$/.test(틀.글) && /010-6460-1650/.test(틀.받는) && 틀.보내기.startsWith('sms:01064601650?body=') && decodeURIComponent(틀.보내기.split('body=')[1]) === 틀.글.trim() && !틀.큐알단추, 틀)
+  await p.locator('.adsm-chips button').first().click(); await p.waitForTimeout(150)
+  const 붙은 = await p.evaluate(() => ({ 글: document.querySelector('.adsm-ta').value, 보내기: document.querySelector('.adsm-go').getAttribute('href') }))
+  ok('💬 자주 쓰는 말 누르면 이어 붙음 · 보내기 주소도 따라 바뀜', /연락드립니다\.\n상담 받고 싶습니다\.$/.test(붙은.글) && decodeURIComponent(붙은.보내기.split('body=')[1]) === 붙은.글.trim(), 붙은)
+  await p.locator('.adsm-go').evaluate((el) => { el.addEventListener('click', (e) => e.preventDefault(), { once: true }) })
+  await p.locator('.adsm-go').click()
+  await p.keyboard.press('Escape'); await p.waitForTimeout(200)
+  ok('💬 Esc 로 닫힘', (await p.locator('.adsm').count()) === 0)
+  await 기다림(() => 셈들.some((u) => /광고전화/.test(u) && /kc-dy/.test(u)) && 셈들.some((u) => /광고문자/.test(u) && /kc-dy/.test(u)) && 셈들.some((u) => /광고문자보냄/.test(u) && /kc-dy/.test(u)))
+  ok('💬 숨은 셈 — 보내기 «|광고문자보냄|kc-dy»', 셈들.some((u) => /광고문자보냄/.test(u) && /kc-dy/.test(u)), 셈들)
   ok('숨은 셈 — 전화 · 문자 누름 «|광고전화|kc-dy» · «|광고문자|kc-dy»', 셈들.some((u) => /광고전화/.test(u) && /kc-dy/.test(u)) && 셈들.some((u) => /광고문자/.test(u) && /kc-dy/.test(u)), 셈들)
   {
     const 첫 = p.locator('aside.adc').first(), sm = 첫.locator('details.adc-more > summary')
@@ -289,6 +303,33 @@ console.log('③ 폰 320 · PC 1280 · 어두운 화면 · 인쇄')
   ok('어두운 화면 — 이름 · 한줄 · 단추 글 대비 4.5 넘음', 대비.이름 >= 4.5 && 대비.한줄 >= 4.5 && 대비.단추 >= 4.5, 대비)
   if (OUT) { await 숨김(p); await p.evaluate(() => document.querySelector('aside.adc').scrollIntoView({ block: 'center' })); await p.waitForTimeout(400); await p.screenshot({ path: OUT + '/광고_1순위_폰390_어두운화면.png' }) }
   ok('어두운 화면 오류 0', !오류.length, 오류)
+  await ctx.close()
+}
+
+console.log('⑥ 💬 G781 PC 문자 틀 — 보내기 = QR(폰 카메라로 찍으면 문자 창) · 📋 글 복사 · 바깥 누르면 닫힘')
+{
+  const { ctx, p, 오류 } = await 새쪽(1280, 900, false)
+  await ctx.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await p.goto(BASE + '/first', { waitUntil: 'domcontentloaded' })
+  await p.waitForSelector('aside.adc', { timeout: 15000 }); await p.waitForTimeout(400)
+  await p.locator('aside.adc').first().locator('.adc-sms').click()
+  await p.waitForSelector('.adsm', { timeout: 5000 })
+  ok('PC — 보내기는 단추(QR) · «PC 에서는 문자를 바로 보낼 수 없어 QR · 복사로» 안내', (await p.locator('button.adsm-go').count()) === 1 && /PC 에서는 문자를 바로 보낼 수 없어/.test(await p.locator('.adsm').innerText()))
+  await p.locator('.adsm-ta').fill('안녕하세요. K-건설맵에서 가상 광고 보고 연락드립니다.\n견적 문의드립니다.')
+  await p.locator('button.adsm-go').click()
+  await p.waitForSelector('.adsm-qrimg svg', { timeout: 8000 })
+  const qr = await p.evaluate(() => { const s = document.querySelector('.adsm-qrimg svg'); const r = s.getBoundingClientRect(); return { 폭: Math.round(r.width), 높이: Math.round(r.height), 칸: s.querySelectorAll('path, rect').length, 글: document.querySelector('.adsm-qr').innerText } })
+  ok('PC — QR 그림(130px 안팎) · «폰 카메라로 찍으면 이 글이 담긴 문자 창»', qr.폭 >= 120 && qr.높이 >= 120 && qr.칸 > 0 && /폰 카메라로 찍으면/.test(qr.글), qr)
+  await p.locator('.adsm-foot button', { hasText: '글 복사' }).click(); await p.waitForTimeout(300)
+  const 복사 = await p.evaluate(() => navigator.clipboard.readText().catch(() => ''))
+  ok('PC — 📋 글 복사 = 쓴 글 그대로', 복사 === '안녕하세요. K-건설맵에서 가상 광고 보고 연락드립니다.\n견적 문의드립니다.' && /복사했습니다/.test(await p.locator('.adsm-msg').innerText()), 복사)
+  await p.locator('.adsm-qr').click(); await p.waitForTimeout(150)
+  ok('PC — 창 안을 누르면 그대로', (await p.locator('.adsm').count()) === 1)
+  await p.mouse.click(20, 20); await p.waitForTimeout(250)
+  ok('PC — 바깥 누르면 닫힘 · 오류 0', (await p.locator('.adsm').count()) === 0 && !오류.length, 오류)
+  const 기다림 = async (f, ms = 8000) => { const t = Date.now(); while (Date.now() - t < ms) { if (f()) return true; await p.waitForTimeout(200) } return f() }
+  await 기다림(() => 셈들.some((u) => /광고문자QR/.test(u)) && 셈들.some((u) => /광고문자복사/.test(u)))
+  ok('PC — 숨은 셈 |광고문자QR| · |광고문자복사|', 셈들.some((u) => /광고문자QR/.test(u)) && 셈들.some((u) => /광고문자복사/.test(u)), 셈들.filter((u) => /광고문자/.test(u)))
   await ctx.close()
 }
 

@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { 자리광고, 전화숫자 } from './lib/광고자료.js'
 import { 세기 } from './lib/받은수.jsx'
+import 광고문자창 from './광고문자창.jsx'   /* 💬 G781 «문자» 를 누르면 «K-건설맵에서 … 보고 연락드립니다» 틀 */
 
 export default function 광고칸({ 자리, 오늘, 고르기 }) {
   const [a] = useState(() => 자리광고(자리, 오늘, 고르기))
@@ -35,10 +36,13 @@ export default function 광고칸({ 자리, 오늘, 고르기 }) {
 /** 광고 카드 한 장 — 광고칸 · /ad 견본이 같이 씀(견본: 눌리지 않음 · 셈 안 함 · «견본» 띠) */
 export function 광고카드({ a, 칸 = null, 견본 = false }) {
   const 번호 = 전화숫자(a.전화)
+  const [문자틀, set문자틀] = useState(false)   /* 💬 G781 문자 틀 창 */
   const 누름 = (무엇) => () => { if (견본) return; try { 세기(`|광고${무엇}|` + a.id) } catch (e) { /* 없음 */ } }
+  /* 💬 문자 — 누르면 틀 창(글이 미리 들어감 · 폰은 문자 앱 · PC 는 QR) · 주소(sms:)는 그대로 둠(스크립트가 안 돌 때) */
+  const 문자누름 = (e) => { e.preventDefault(); 누름('문자')(); set문자틀(true) }
   const 단추 = (cls, href, 글, 이름) => (견본
     ? <span className={cls} aria-label={이름}>{글}</span>
-    : <a className={cls} href={href} onClick={누름(cls === 'adc-call' ? '전화' : '문자')} aria-label={이름}>{글}</a>)
+    : <a className={cls} href={href} onClick={cls === 'adc-call' ? 누름('전화') : 문자누름} aria-label={이름}>{글}</a>)
   return (
     <aside className={'adc no-print' + (견본 ? ' adc-demo' : '')} ref={칸} aria-label={`${견본 ? '광고 견본' : '광고'} — ${a.이름}`} data-ad={견본 ? undefined : a.id}>
       <div className="adc-h">
@@ -72,6 +76,7 @@ export function 광고카드({ a, 칸 = null, 견본 = false }) {
           : a.작은줄 && <div className="adc-sub">{a.작은줄}</div>}
         {a.심의 && <div className="adc-sub adc-sim">{a.심의}</div>}
       </div>
+      {문자틀 && !견본 && <광고문자창 a={a} 닫기={() => set문자틀(false)} />}
     </aside>
   )
 }

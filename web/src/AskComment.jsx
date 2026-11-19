@@ -44,6 +44,7 @@ import { nickOf } from './lib/nickname.js'
 import { 갈래붙이기 } from './lib/말머리.js'
 import { 몰래표 } from './lib/차단.js'
 import { 낱자만 } from './lib/낱자글.js'   /* 🚫 G632 «ㄱㄱ» · «ㅇㅇ» 같은 낱자 글 막기 */
+import { use짐작곳, 자리값 } from './lib/글자리.js'   /* 📍 G781 이 창의 글에도 시·군 — 맵톡 지도에 핀(빼기 가능) */
 
 /* ⚠️ firebase 는 «정적으로» 끌어오지 않습니다 — 이 창을 실제로 올릴 때만 받습니다.
    (사랑방·구인구직과 같은 방식. 안 그러면 모든 화면이 firebase 를 지고 다닙니다) */
@@ -188,6 +189,8 @@ export default function AskStrip() {
   const [보냄, set보냄] = useState(false)     /* 올리는 중 */
   const [끝, set끝] = useState('')            /* 올라간 글의 id — 고맙다는 말로 바뀝니다 */
   const [탈, set탈] = useState('')            /* 잘못됐을 때 한 줄 */
+  const 곳 = use짐작곳(!!kind)                 /* 📍 G781 창이 열리면 자리 짐작(맵톡 글쓰기 칸과 같은 길) */
+  const [핀뺌, set핀뺌] = useState(false)       /* 📍 «빼기» — 핀 없이 */
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -196,7 +199,7 @@ export default function AskStrip() {
       if (!k || !무료.includes(k)) return
       try { sessionStorage.removeItem(FLAG) } catch { /* 무시 */ }
       if (!띄울까(k)) return
-      set글(''); set숫자(''); set끝(''); set탈('')
+      set글(''); set숫자(''); set끝(''); set탈(''); set핀뺌(false)
       setKind(k)
       try {
         if (window.gtag) window.gtag('event', 'ask_open', { kind: k })
@@ -240,7 +243,9 @@ export default function AskStrip() {
         uid: user.uid,
         at: Date.now(),
         ...(await 몰래표()),     /* 🙈 몰래 차단 기기면 sb — 규칙이 강제합니다(lib/차단.js) */
+        ...자리값(곳, 핀뺌),       /* 📍 G781 시·군 → 맵톡 지도 핀 */
       })
+      try { import('./lib/받은수.jsx').then((m) => m.세기(곳 && !핀뺌 ? '|맵톡|한줄핀' : '|맵톡|한줄핀없음')).catch(() => {}) } catch (e) { /* 세는 것 때문에 막히면 안 됨 */ }
       /* 사랑방 화면이 «내가 쓴 글» 로 알아보게 — 같은 열쇠를 씁니다 (Qna.jsx) */
       try {
         const k = 'kcm_qna_mine'
@@ -293,6 +298,13 @@ export default function AskStrip() {
               <button className="btn ghost" onClick={닫기}>나중에</button>
             </div>
             {탈 && <div className="askerr">{탈}</div>}
+            {/* 📍 G781 어디에 핀이 꽂히는지 · 빼기(맵톡 글쓰기 칸과 같은 짐작) */}
+            {곳 && (
+              <div className="askplace">
+                {핀뺌 ? <span>📍 지도에 핀 없이 올라갑니다</span> : <span>📍 <b>{곳.짧은}</b>{곳.짐작 ? ' (짐작)' : ''} — 맵톡 지도에 핀이 꽂힙니다</span>}
+                <button type="button" onClick={() => set핀뺌((v) => !v)}>{핀뺌 ? '핀 넣기' : '빼기'}</button>
+              </div>
+            )}
             {/* ⚠️ 2026-09-17 — 여기에 「전화번호·이메일은 적지 마세요」 가 있었습니다.
                 소장님: 「이것도 빼」. 한 줄 적어 달라고 열어 놓은 창에 금지어를 붙이면
                 그 한 줄이 «규칙을 지켜야 하는 일» 이 됩니다. 남길 말만 남깁니다. */}

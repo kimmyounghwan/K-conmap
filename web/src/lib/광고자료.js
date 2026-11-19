@@ -90,3 +90,21 @@ export function 자리광고(자리, 오늘 = 한국날(), 고르기 = Math.rand
 
 /** «010-3658-3104» → «01036583104» (tel: · sms: 주소) */
 export const 전화숫자 = (s) => String(s || '').replace(/[^\d]/g, '')
+
+/* ── 💬 G781 (2026-11-19) 광고 문자 틀 ─────────────────────────────────────────────
+   소장님 「문자보내기를 하면, 바로 건설맵에서 보낸다는 문구가 들어가 잇는 틀이 있고, 이용자가 쓰고 누르면 바로 가게 되잖아. 예전에 했는데」
+   「바로 클릭만 하면 가게 해줘」 「간단한 틀을 만들어 줘」 「이용자가 손쉽게 쓰고 보낼 수 있게」 「사이트에서는 안돼지?」
+   → «💬 문자» 를 누르면 작은 틀(광고문자창.jsx): «K-건설맵에서 … 광고 보고 연락드립니다» 가 미리 들어간 글칸 · 자주 쓰는 말 단추 ·
+     📤 보내기 = 폰은 문자 앱(받는 번호 · 글이 다 들어감 — «보내기» 한 번) / PC 는 QR(폰 카메라로 찍으면 같은 문자 창) · 📋 글 복사 */
+export const 광고문자글 = (a) => `안녕하세요. K-건설맵에서 ${String((a && a.이름) || '').trim()} 광고 보고 연락드립니다.\n`
+export const 문자말들 = ['상담 받고 싶습니다.', '견적 문의드립니다.', '통화 가능한 시간을 알려 주세요.']
+/** 폰(문자 앱이 있는 기기)인가 — 안드로이드 · 아이폰 · 아이패드(맥처럼 보이는 것 포함) */
+export function 폰인가(ua = typeof navigator !== 'undefined' ? navigator.userAgent : '', 터치 = typeof navigator !== 'undefined' ? navigator.maxTouchPoints : 0, 판 = typeof navigator !== 'undefined' ? navigator.platform : '') {
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(String(ua || '')) || (판 === 'MacIntel' && 터치 > 1)
+}
+export const 아이폰인가 = (ua = typeof navigator !== 'undefined' ? navigator.userAgent : '', 터치 = typeof navigator !== 'undefined' ? navigator.maxTouchPoints : 0, 판 = typeof navigator !== 'undefined' ? navigator.platform : '') =>
+  /iPhone|iPad|iPod/i.test(String(ua || '')) || (판 === 'MacIntel' && 터치 > 1)
+/** 문자 앱 주소 — 아이폰은 «&body=» · 그 밖(안드로이드)은 «?body=» */
+export const 문자앱주소 = (번호, 글, 아이폰 = 아이폰인가()) => 'sms:' + 전화숫자(번호) + (글 ? (아이폰 ? '&' : '?') + 'body=' + encodeURIComponent(글) : '')
+/** QR 글 — 폰 카메라가 문자 창으로 여는 꼴(SMSTO:번호:글) */
+export const 문자QR글 = (번호, 글) => 'SMSTO:' + 전화숫자(번호) + ':' + String(글 || '')

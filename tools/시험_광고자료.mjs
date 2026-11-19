@@ -6,7 +6,7 @@
  *   ② 자리 고르기(기간 · 심의필요 · 돌아가며 고르게) ③ 화면 자리(1순위 둘 · 보험료 계산기 · 4대보험 판단기 — 쪽마다 업체마다 한 번)
  */
 import fs from 'node:fs'
-import { 광고들, 자리후보, 자리광고, 전화숫자, 한국날 } from '../web/src/lib/광고자료.js'
+import { 광고들, 자리후보, 자리광고, 전화숫자, 한국날, 광고문자글, 문자말들, 폰인가, 아이폰인가, 문자앱주소, 문자QR글 } from '../web/src/lib/광고자료.js'
 let 통과 = 0, 실패 = 0
 const 봐 = (c, 무엇, 더) => { if (c) { 통과++; console.log('  ✓', 무엇) } else { 실패++; console.log('  ✗', 무엇, 더 === undefined ? '' : '— ' + JSON.stringify(더)) } }
 const 읽 = (p) => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
@@ -97,6 +97,31 @@ const 칸 = 읽('web/src/광고칸.jsx')
 const css = 읽('web/src/styles.css')
 봐(/\.adc \{[^}]*background: var\(--ad-bg\)/.test(css) && /prefers-color-scheme: dark\) \{ :root \{ --ad-bg:/.test(css), '광고 꼴 — 크림 바탕 · 어두운 화면 색 따로')
 봐(/\.adc-call, \.adc-sms \{[^}]*height: 34px/.test(css) && /\.adc-b \{ padding: 6px 10px 7px; \}/.test(css) && !/\.adc-rec \{[^}]*background/.test(css), '📐 G651 광고 크기 — 단추 34px · 여백 6/10/7 · 추천 상자 없음(소장님 「광고 크기 줄여줘」)')
+
+console.log('④ 💬 G781 광고 문자 틀(「문자보내기를 하면, 바로 건설맵에서 보낸다는 문구가 들어가 잇는 틀」 「간단한 틀을 만들어 줘」)')
+{
+  const a = { 이름: '가상 보험 FP', 전화: '010-1234-5678', id: 'x' }
+  봐(광고문자글(a) === '안녕하세요. K-건설맵에서 가상 보험 FP 광고 보고 연락드립니다.\n', '미리 들어가는 글 — «K-건설맵에서 ○○ 광고 보고 연락드립니다.» + 줄바꿈(이어 쓰기)', 광고문자글(a))
+  봐(문자말들.length === 3 && 문자말들.every((t) => t.length <= 20 && /[.]$/.test(t)), '자주 쓰는 말 셋(짧게 · 마침표)', 문자말들)
+  const 안드 = 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36'
+  const 아폰 = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
+  const 윈도 = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36'
+  const 맥 = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15'
+  봐([폰인가(안드, 5, 'Linux'), 폰인가(아폰, 5, 'iPhone'), 폰인가(윈도, 0, 'Win32'), 폰인가(맥, 0, 'MacIntel'), 폰인가(맥, 5, 'MacIntel')].join() === 'true,true,false,false,true', '폰인가 — 안드로이드 · 아이폰 · 아이패드(맥 꼴 + 터치) = 폰 / 윈도 · 맥 = PC')
+  봐([아이폰인가(안드, 5, 'Linux'), 아이폰인가(아폰, 5, 'iPhone'), 아이폰인가(맥, 5, 'MacIntel')].join() === 'false,true,true', '아이폰인가 — 아이폰 · 아이패드')
+  const 글 = 광고문자글(a) + '상담 받고 싶습니다.'
+  봐(문자앱주소(a.전화, 글, false) === 'sms:01012345678?body=' + encodeURIComponent(글), '문자 앱 주소(안드로이드) — sms:번호?body=글', 문자앱주소(a.전화, 글, false))
+  봐(문자앱주소(a.전화, 글, true) === 'sms:01012345678&body=' + encodeURIComponent(글), '문자 앱 주소(아이폰) — sms:번호&body=글', 문자앱주소(a.전화, 글, true))
+  봐(decodeURIComponent(문자앱주소(a.전화, 글, false).split('body=')[1]) === 글 && /%0A/.test(문자앱주소(a.전화, 글, false)), '글 · 줄바꿈이 그대로 담김')
+  봐(문자앱주소(a.전화, '', false) === 'sms:01012345678', '글이 없으면 번호만')
+  봐(문자QR글(a.전화, '안녕하세요') === 'SMSTO:01012345678:안녕하세요', 'QR 글 — SMSTO:번호:글(폰 카메라가 문자 창으로 엶)')
+  const 창 = 읽('web/src/광고문자창.jsx')
+  봐(/createPortal\(/.test(창) && /e\.key === 'Escape'/.test(창) && /className="adsm-back" onClick=\{닫기\}/.test(창) && /e\.stopPropagation\(\)/.test(창), '문자 창 — 바깥 · Esc · ✕ 로 닫힘(창 안을 눌러도 안 닫힘)')
+  봐(/href=\{문자앱주소\(a\.전화, 글\.trim\(\)\)\}/.test(창) && /onClick=\{QR보기\}/.test(창) && /import\('qrcode-generator'\)/.test(창) && /stringToBytesFuncs\['UTF-8'\]/.test(창), '보내기 — 폰은 문자 앱 주소 · PC 는 QR(QR 글꼴은 열 때만 받음 · 한글 UTF-8)')
+  for (const k of ['광고문자보냄', '광고문자QR', '광고문자복사']) 봐(창.includes(`'${k}'`), `숨은 셈 |${k}|id`)
+  봐(!/무료|클로드|유료|이용권/.test(창 + 광고문자글(a) + 문자말들.join('')), '새 글에 «무료 · 클로드 · 유료 · 이용권» 없음')
+  봐(/const 문자누름 = \(e\) => \{ e\.preventDefault\(\); 누름\('문자'\)\(\); set문자틀\(true\) \}/.test(칸) && /\{문자틀 && !견본 && <광고문자창 a=\{a\} 닫기=\{\(\) => set문자틀\(false\)\} \/>\}/.test(칸), '광고칸 — «💬 문자» 누르면 틀 창(견본은 안 엶) · 셈 |광고문자| 그대로')
+}
 
 console.log(`\n${실패 ? '✗' : '✓'} 시험_광고자료 ${통과}/${통과 + 실패}`)
 process.exit(실패 ? 1 : 0)
