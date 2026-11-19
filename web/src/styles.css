@@ -11656,6 +11656,19 @@ a.kn-strip:hover { border-left-color: var(--kn-a); }
 .dj-quick button { min-height: 30px; padding: 0 10px; font-size: 12px; }
 .dj-pick button.on, .dj-quick button.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 .dj-sub { margin: 4px 0 12px; font-size: 12.5px; color: var(--text-2); word-break: keep-all; }
+/* 🔁 G780b 종류 그림 단추 — 이름을 적으면 꼴마다 작은 그림(누르면 고름) · 폰은 세 칸씩 */
+.dj-kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; max-width: 720px; }
+.dj-kind { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; padding: 8px 4px 7px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text-2); cursor: pointer; }
+.dj-kind canvas { width: 72px; height: 72px; }
+.dj-kind span { font-size: 12px; font-weight: 700; line-height: 1.2; text-align: center; word-break: keep-all; }
+.dj-kind.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+@media (max-width: 400px) { .dj-kinds { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; } .dj-kind canvas { width: 64px; height: 64px; } }
+/* 📐 G780a 기울기 바로잡기 — ⟲ 막대 ⟳ 0° (폰에서도 한 줄) */
+.dj-tilt { display: flex; align-items: center; gap: 6px; max-width: 440px; }
+.dj-tilt input[type="range"] { flex: 1 1 auto; width: auto; min-width: 0; max-width: none; }
+.dj-tb, .dj-t0 { flex: none; min-width: 36px; height: 36px; padding: 0 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: 17px; line-height: 1; cursor: pointer; }
+.dj-t0 { font-size: 12.5px; font-weight: 800; }
+.dj-tb:disabled, .dj-t0:disabled { opacity: .45; cursor: default; }
 .dj-mine { margin-top: 14px; }
 .dj-list { display: flex; flex-wrap: wrap; gap: 10px; }
 .dj-item { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; width: 112px; padding: 8px 6px 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
