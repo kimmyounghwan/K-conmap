@@ -224,7 +224,8 @@ import { use화면상태, use남김 } from '../lib/길기록.js'
 import 맵톡지도 from '../tools/맵톡지도.jsx'
 import 뉴스카드 from '../뉴스카드.jsx'   /* 📰 (11-16) 운영자 뉴스 글은 그날 뉴스 자료로 카드 — 소장님 「뭔가 부실해 보이고」 */
 import { 주제짐작, 글나누기, 제목내용, 자리짐작, 짧은이름, 곳찾기, 카드크기, 물음인가, 한마디인가, 사진줄이기, 사진크기한도, 답나무, 첫줄, 누적셈, 시도차례, 시도별, 곳기억읽기, 곳기억하기,
-  지역방들, 지역방이름, 글지역, 방표, 방색, 모임, 모임날글, 이번주모임, 모임지남, 답기다리는질문, 방고름풀기, 방에드나, 공지인가, 시도지역방 } from '../lib/맵톡.js'   /* 🗺 G316 방 · 공지 · 모임 (✂️ G547 11-05 🙋 전문가 방 · 🪪 명패 · 🏅 분야 뺌) */
+  지역방들, 지역방이름, 글지역, 방표, 방색, 모임, 모임날글, 이번주모임, 모임지남, 답기다리는질문, 방고름풀기, 방에드나, 공지인가, 시도지역방,
+  카드시간, 카드줄나누기, 줄묶기, 줄날 } from '../lib/맵톡.js'   /* 🗺 G316 방 · 공지 · 모임 (✂️ G547 11-05 🙋 전문가 방 · 🪪 명패 · 🏅 분야 뺌) · 🗂 G779 지난 글 한 줄 */
 import { 세기 } from '../lib/받은수.jsx'
 import { 받는꼴, 파일검사, 압축검사, 확장자, 파일올리기, 크기글, 오늘올린수, 올린수더하기, 하루한도 } from '../lib/파일올리기.js'   /* 📎 G158 · 🗜 G196 압축검사 */
 import { 꺼내기 as 찍은사진꺼내기, 사건이름 as 찍은사진사건 } from '../lib/찍은사진.js'   /* 📷 G322 옆 «+» 찍기 단추 */
@@ -747,7 +748,9 @@ export default function Qna() {
      «전체» 보기에서만 · 셋 이상일 때만 · 내 글은 내 화면에선 카드 그대로(방금 쓴 글이 안 보이는 일 없게). 누르면 똑같이 열립니다. */
   const 한마디들 = useMemo(() => {
     if (!list || !기본보기) return []
-    const x = list.filter((r) => !내것.has(r.id) && 한마디인가(r))
+    const 지금 = Date.now()
+    /* 🗂 G779 24시간 지난 한마디는 띠에 안 모으고 «지난 글» 한 줄 목록으로(두 곳에 겹치지 않게) */
+    const x = list.filter((r) => !내것.has(r.id) && 한마디인가(r) && 지금 - (Number(r.at) || 0) < 카드시간)
     return x.length >= 3 ? x : []
   }, [list, 기본보기, 내것])
   const 카드바탕 = useMemo(() => {
@@ -761,6 +764,11 @@ export default function Qna() {
     const i = 카드바탕.findIndex((r) => r.id === 올림)
     return i <= 0 ? 카드바탕 : [카드바탕[i], ...카드바탕.slice(0, i), ...카드바탕.slice(i + 1)]
   }, [카드바탕, 올림])
+  /* 🗂 G779 (11-19) 소장님 「당일에는 이런식으로 하고 하루가 지나면 공간을 덜 차지하는 걸로 해서 가로 한 줄로」 → 「1,2,3,4 먼저 해줘」
+     24시간 안 글은 카드(지금 그대로) · 그 전 글은 한 줄(날짜 띠: 어제 · 이번 주 · 지난 주 · 그 전) · 카드가 6장 안 되면 최근 6장까지 카드
+     · 방금 쓴 글 · «내 글 맨 위로» 올린 글은 늘 카드(맨 앞) — 셈은 lib/맵톡.js 카드줄나누기 · 줄묶기 */
+  const 나눔 = useMemo(() => 카드줄나누기(보이는목록 || [], Date.now(), [올림, 새글번호]), [보이는목록, 올림, 새글번호])
+  const 줄띠 = useMemo(() => 줄묶기(나눔.줄), [나눔])
 
   /* 🧱 G161 ① 높이 자동(벽돌 쌓기) — 칸 높이 2px · 카드마다 제 높이만큼 칸을 차지(--rs). 짧은 글은 낮게 · 긴 글은 길게.
      폰(한 줄)은 그대로. 카드 높이가 바뀌면(사진이 늦게 뜸 · 창 너비) ResizeObserver 가 다시 잽니다. */
@@ -773,7 +781,7 @@ export default function Qna() {
     const ro = new ResizeObserver((es) => es.forEach((e) => 재기(e.target)))
     g.querySelectorAll('.mt-card').forEach((el) => { 재기(el); ro.observe(el) })
     return () => ro.disconnect()
-  }, [보이는목록])   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [나눔])   // eslint-disable-line react-hooks/exhaustive-deps   — 🗂 G779 카드 칸(나눔.카드)이 바뀔 때마다 다시 잼
   const 자리재기 = () => {
     const m = {}
     document.querySelectorAll('.mt-feed .mt-card[data-id]').forEach((el) => { m[el.dataset.id] = el.getBoundingClientRect() })
@@ -931,6 +939,40 @@ export default function Qna() {
           <span className="mt-nick">{배지(r.uid)}{글별명(r)}{내것.has(r.id) ? ' · 내 글' : ''}</span>
         </div>
       </article>
+    )
+  }
+  /* 🗂 G779 지난 글 한 줄 — ② 방 색 점 · 방 이름 · 곳(PC) · 제목 · ✅ K-건설맵 · 💬 ♥ 👁 · 날짜 · ④ 답 없는 질문은 «답하기» 그대로
+     줄 어디를 눌러도 글이 열림(♥ · 답하기 단추만 제 일 — ♥ 는 카드와 같이 그 자리에서 공감 G164) · 키보드는 제목 단추로 */
+  const 한줄 = (r) => {
+    const 공지 = 공지인가(r, 고정)
+    const t = 공지 ? { 이름: '📢 공지', 색: '#0c1830' } : 방표(r.방)
+    const n = nAns(r.id)
+    const 곳 = r.g ? 곳찾기(지도바탕, r.g) : null
+    const 답하기 = !n && 물음인가(r.t + ' ' + (r.b || ''))
+    const 제목 = 가림(r.t)
+    const 열자 = () => { 세기('|맵톡|한줄'); 누르기(r.id) }
+    return (
+      <li key={r.id} data-id={r.id} style={{ '--rc': t.색 }} className={'mt-line' + (답하기 ? ' ask' : '') + (고정[r.id] ? ' pinned' : '')}
+        onClick={(e) => { if (!(e.target && e.target.closest && e.target.closest('button'))) 열자() }}>
+        <button type="button" className="mt-lopen" onClick={열자} title={제목}>
+          <span className="mt-ltag"><i />{t.이름}</span>
+          {곳 && <span className="mt-lwhere">{짧은이름(곳.n)}</span>}
+          <span className="mt-lt">{r.p ? '📷 ' : ''}{파일있음(r) ? '📎 ' : ''}{모임(r) ? '📅 ' : ''}{제목}</span>
+        </button>
+        {op답(r.id) && r.c !== 'K-건설맵' && !isOp(r.uid) && <span className="mt-lok" title="K-건설맵이 답했습니다">✅<span className="mt-lok-t"> K-건설맵</span></span>}
+        <span className="mt-lnums">
+          <span className="mt-lc mt-lans" aria-label={`답글 ${n}`}>💬 {n}</span>
+          <button type="button" className={'mt-act mt-cnt mt-heart mt-lh' + (하트눌림(r.id) ? ' on' : '')} onClick={() => 카드하트(r)} aria-pressed={하트눌림(r.id)}
+            aria-label={`공감 ${하트수(r.id)}${내글인가(r) ? ' · 내 글' : 하트눌림(r.id) ? ' · 누르면 공감 빼기' : ' · 누르면 공감'}`}
+            title={내글인가(r) ? '내 글 — 공감은 다른 분이 누릅니다' : 하트눌림(r.id) ? '공감했습니다 — 한 번 더 누르면 뺍니다' : '누르면 공감'}>♥ {하트수(r.id)}
+            {하트말 === r.id && <span className="mt-heart-tip" role="status">내 글은 다른 분이 공감합니다</span>}
+            {하트말 === '못함:' + r.id && <span className="mt-heart-tip" role="status">공감을 누르지 못했습니다 — 잠시 뒤 다시</span>}
+          </button>
+          <span className="mt-lc mt-lview" title="조회 — 같은 기기는 하루 한 번만 셉니다(글쓴이 · 운영자는 안 셈)" aria-label={`조회 ${조회[r.id] || 0}`}>👁 {Number(조회[r.id] || 0).toLocaleString('ko-KR')}</span>
+        </span>
+        {답하기 && <button type="button" className="mt-ask mt-lask" onClick={() => { set답하러(r.id); 열기(r.id); 세기('|맵톡|답하기') }}>답하기</button>}
+        <span className="mt-ldate" title={날시(r.at, { 해: true, 요: true })}>{줄날(r.at)}</span>
+      </li>
     )
   }
 
@@ -1150,7 +1192,18 @@ export default function Qna() {
                 </div>
               </section>
             )}
-            {보이는목록 && 보이는목록.length > 0 && <div ref={판} className={'mt-feed' + (벽돌됨 ? ' mason' : '')}>{보이는목록.map((r) => 카드(r))}</div>}
+            {나눔.카드.length > 0 && <div ref={판} className={'mt-feed' + (벽돌됨 ? ' mason' : '')}>{나눔.카드.map((r) => 카드(r))}</div>}
+            {/* 🗂 G779 24시간 지난 글 — 날짜 띠마다 한 줄씩(폰 한 화면에 카드 4~5장 → 한 줄 15줄쯤) */}
+            {줄띠.length > 0 && (
+              <section className="mt-lines" aria-label="지난 글 — 한 줄로">
+                {줄띠.map(([띠, rs]) => (
+                  <div key={띠} className="mt-lgroup">
+                    <h3 className="mt-lband">{띠}<em>{rs.length}</em></h3>
+                    <ul className="mt-llist">{rs.map((r) => 한줄(r))}</ul>
+                  </div>
+                ))}
+              </section>
+            )}
           </div>
 
           <aside className="mt-side">

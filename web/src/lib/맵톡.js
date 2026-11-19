@@ -257,6 +257,54 @@ export function 한마디인가(r) {
   return 한마디낱말.test(글)
 }
 
+/* ── 🗂 G779 (2026-11-19) 지난 글은 한 줄로 — 소장님 「당일에는 이런식으로 하고 하루가 지나면 공간을 덜 차지하는 걸로 해서
+   가로 한 줄로 하면 어때?」 → 「1,2,3,4 먼저 해줘」
+   ① 24시간 안 글 = 카드(지금 그대로) · 그 전 = 한 줄 — 날짜(자정)가 아니라 24시간이라 밤 12시에 한꺼번에 줄지 않습니다
+     · 카드가 6장보다 적으면 최근 글부터 6장까지 카드(위가 비지 않게) · 늘 카드: 방금 쓴 글 · «내 글 맨 위로» 올린 글(G148)
+   ③ 한 줄은 날짜 띠로 묶음 — 어제 · 이번 주(월요일부터) · 지난 주 · 그 전 (한국 날짜 · 오늘은 시계가 틀린 글만)
+   ■ 화면(줄 모양 · ② · ④ 답하기)은 pages/Qna.jsx · 시험 tools/시험_맵톡한줄.mjs */
+export const 카드시간 = 24 * 3600e3
+export const 카드최소 = 6
+/** 목록(새 글이 앞) → { 카드, 줄 } — 차례는 그대로 */
+export function 카드줄나누기(목록, 지금 = Date.now(), 늘카드 = []) {
+  const 늘 = new Set((늘카드 || []).filter(Boolean))
+  const 카드 = [], 줄 = []
+  for (const r of 목록 || []) {
+    if (!r) continue
+    const 새 = 지금 - (Number(r.at) || 0) < 카드시간
+    if (새 || 늘.has(r.id) || 카드.length < 카드최소) 카드.push(r)
+    else 줄.push(r)
+  }
+  return { 카드, 줄 }
+}
+const 하루 = 86400e3
+const 한국날 = (ms) => Math.floor(((Number(ms) || 0) + 9 * 3600e3) / 하루)   /* 1970-01-01(목) = 0 */
+export const 날띠차례 = ['오늘', '어제', '이번 주', '지난 주', '그 전']
+/** 글 시각 → 날짜 띠 이름 */
+export function 날띠(at, 지금 = Date.now()) {
+  const d = 한국날(at), t = 한국날(지금)
+  if (d >= t) return '오늘'
+  if (d === t - 1) return '어제'
+  const 월요일 = t - ((t + 3) % 7)           /* (t + 4) % 7 = 요일(0 일요일) → 월요일부터 센 날 = (요일 + 6) % 7 */
+  if (d >= 월요일) return '이번 주'
+  if (d >= 월요일 - 7) return '지난 주'
+  return '그 전'
+}
+/** 한 줄 글들 → [[띠 이름, 글들], …] (띠 차례 · 띠 안은 받은 차례 그대로) */
+export function 줄묶기(줄, 지금 = Date.now()) {
+  const m = new Map()
+  for (const r of 줄 || []) { const k = 날띠(r.at, 지금); if (!m.has(k)) m.set(k, []); m.get(k).push(r) }
+  return 날띠차례.filter((k) => m.has(k)).map((k) => [k, m.get(k)])
+}
+/** 한 줄 날짜 — 한국 날짜 «11.17» · 올해가 아니면 «2025.12.30» */
+export function 줄날(at, 지금 = Date.now()) {
+  if (!Number(at)) return ''
+  const a = new Date(Number(at) + 9 * 3600e3), n = new Date(Number(지금) + 9 * 3600e3)
+  const p2 = (v) => String(v).padStart(2, '0')
+  const 앞 = a.getUTCFullYear() !== n.getUTCFullYear() ? `${a.getUTCFullYear()}.` : ''
+  return `${앞}${p2(a.getUTCMonth() + 1)}.${p2(a.getUTCDate())}`
+}
+
 /* ── 사진 — 긴 변 1600px · JPEG 0.82 로 줄여 올립니다(요금 · 폰 데이터) ── */
 export const 사진최대 = 1600
 export const 사진크기한도 = 3 * 1024 * 1024

@@ -7161,6 +7161,62 @@ span.mt-act { cursor: default; }
 @media (prefers-reduced-motion: reduce) {
   .mt-hero *, .mt-page .mt-ticker *, .mt-card, .mt-card *, .mt-hm, .mt-room, .mt-sheet, .mt-back, .mt-ans, .mt-af { animation: none !important; transition: none !important; }
 }
+/* ── 🗂 G779 맵톡 지난 글 한 줄(2026-11-19 소장님 「하루가 지나면 공간을 덜 차지하는 걸로 해서 가로 한 줄로」 → 「1,2,3,4 먼저 해줘」)
+   24시간 안 글은 카드 그대로 · 그 전 글은 날짜 띠(어제 · 이번 주 · 지난 주 · 그 전)마다 한 줄 — 방 색 점 · 방 이름 · 제목 · 💬 ♥ 👁 · 날짜 */
+.mt-lines { margin-top: 18px; }
+.mt-lgroup + .mt-lgroup { margin-top: 14px; }
+.mt-lband { display: flex; align-items: center; gap: 7px; margin: 0 4px 7px; font-size: 13px; font-weight: 800; color: var(--text-2); }
+.mt-lband em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mt-lband::after { content: ''; flex: 1 1 auto; height: 1px; background: var(--line); }
+.mt-llist { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
+.mt-line { --rcb: var(--rc, var(--accent)); position: relative; display: flex; align-items: center; gap: 6px; min-width: 0; padding-right: 12px; cursor: pointer; }
+.mt-line + .mt-line { border-top: 1px solid var(--line); }
+.mt-line:first-child { border-radius: 15px 15px 0 0; }
+.mt-line:last-child { border-radius: 0 0 15px 15px; }
+.mt-line:only-child { border-radius: 15px; }
+.mt-lopen { all: unset; box-sizing: border-box; flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 2px 0 14px; cursor: pointer; }
+.mt-lopen:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; border-radius: 12px; }
+.mt-ltag { flex: none; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 800; color: var(--rcb); white-space: nowrap; }
+.mt-ltag i { flex: none; width: 8px; height: 8px; border-radius: 4px 4px 4px 1px; background: var(--rcb); }
+.mt-lwhere { flex: none; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.mt-lwhere::before { content: '📍'; font-size: 10.5px; margin-right: 1px; }
+.mt-lt { flex: 1 1 auto; min-width: 0; font-size: 14.5px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mt-lok { flex: none; font-size: 11.5px; font-weight: 800; color: var(--accent); white-space: nowrap; }
+.mt-lnums { flex: none; display: inline-flex; align-items: center; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mt-lc { padding: 0 5px; white-space: nowrap; font-weight: 600; }
+.mt-act.mt-lh { min-height: 32px; padding: 0 5px; font-size: 12.5px; }
+.mt-act.mt-lh.on { padding: 0 8px; }
+.mt-ldate { flex: none; min-width: 40px; text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mt-ask.mt-lask { flex: none; min-height: 30px; padding: 0 10px; font-size: 12.5px; }
+@media (hover: hover) and (pointer: fine) { .mt-line:hover { background: var(--surface-2); } .mt-line:hover .mt-lt { color: var(--accent); } }
+@supports (color: color-mix(in srgb, red 50%, blue)) {
+  @media (prefers-color-scheme: dark) { .mt-line { --rcb: color-mix(in srgb, var(--rc, #6b9bff) 55%, #dfe6f2); } }
+}
+@media (max-width: 640px) {
+  .mt-lines { margin-top: 16px; }
+  .mt-llist { border-radius: 14px; }
+  .mt-line { gap: 4px; padding-right: 9px; }
+  .mt-line:first-child { border-radius: 13px 13px 0 0; }
+  .mt-line:last-child { border-radius: 0 0 13px 13px; }
+  .mt-line:only-child { border-radius: 13px; }
+  .mt-lopen { gap: 7px; padding-left: 12px; }
+  .mt-lwhere, .mt-lok-t { display: none; }
+  .mt-lt { font-size: 14px; }
+  .mt-lnums { font-size: 12px; }
+  .mt-lc { padding: 0 3px; }
+  .mt-act.mt-lh { padding: 0 3px; font-size: 12px; }
+  .mt-ldate { min-width: 36px; font-size: 11.5px; }
+  .mt-ask.mt-lask { padding: 0 8px; font-size: 12px; min-height: 28px; }
+}
+/* 좁은 폰 — «답하기» 줄은 답이 0 이라 «💬 0» 을 빼고 제목 자리를 냄(320px 에서 제목이 36px 로 줄던 것) */
+@media (max-width: 400px) { .mt-line.ask .mt-lans { display: none; } }
+@media (max-width: 360px) {
+  .mt-line { padding-right: 8px; }
+  .mt-lopen { gap: 6px; padding-left: 10px; }
+  .mt-ltag { font-size: 11.5px; }
+  .mt-ldate { min-width: 33px; font-size: 11px; }
+  .mt-ask.mt-lask { padding: 0 7px; font-size: 11.5px; }
+}
 
 /* 🏗 G178 (2026-10-07) 노무비 계산기 — 현장별로 나눠 쓰기 (pages/Nomubi.jsx 현장칸) */
 .nm-sites { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2, #f6f8fb); border: 1px solid var(--line, #e3e8ef); display: flex; flex-direction: column; gap: 8px; font-size: 13px; }

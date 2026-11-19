@@ -40,7 +40,9 @@ for (const [이름, 크기] of [['PC', { width: 1440, height: 900 }], ['폰', { 
   await A.goto(주소 + '/qna', { waitUntil: 'domcontentloaded' })
   await A.waitForFunction(() => document.body.innerText.includes('셋째 글'), null, { timeout: 15000 })
   // «지금까지 글 N» 은 올라가며 세는 숫자(움직임) — 멈출 때까지 기다렸다 읽음
-  const 글수 = async (p) => { let 앞 = -2; for (let i = 0; i < 30; i++) { const v = await p.evaluate(() => { const m = document.body.innerText.match(/지금까지\s*글\s*(\d+)/); return m ? +m[1] : -1 }); if (v === 앞 && v >= 0) return v; 앞 = v; await p.waitForTimeout(250) } return 앞 }
+  /* 🩹 G779 (11-19) 두 번 같으면 멈춘 것으로 보던 것 → «세 번(0.5초 넘게) 같아야» — 0 → 3 은 1.1초 동안 오르며 «2» 에 0.27초 머묾(ease-out)
+     · 읽는 때가 그 사이에 두 번 걸리면 «2» 로 읽어 ✗(11-19 새 판에서 네 번 중 두 번 · 다시 읽은 숫자는 3) */
+  const 글수 = async (p) => { let 앞 = -2, 같음 = 0; for (let i = 0; i < 40; i++) { const v = await p.evaluate(() => { const m = document.body.innerText.match(/지금까지\s*글\s*(\d+)/); return m ? +m[1] : -1 }); if (v === 앞 && v >= 0) { if (++같음 >= 2) return v } else 같음 = 0; 앞 = v; await p.waitForTimeout(250) } return 앞 }
   봄('① 처음 글 3개', (await 글수(A)) === 3, `(${await 글수(A)})`)
   /* 🩹 2026-10-21 — G320 명패(qna_pro)를 열어 둔 화면에도 바로 붙이려고 듣기가 하나 늘었는데 이 시험만 4 로 남아 있었음 → 5(명패 · 작은 칸)
      ✂️ G547(2026-11-05) 명패를 빼며 qna_pro 듣기도 뺌 → 다시 4(맨 끝 글 · 답글 · 지움 · 고정) */
