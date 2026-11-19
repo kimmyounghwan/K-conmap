@@ -3693,6 +3693,23 @@ def boheomryo_page(shell, image=None):
         "고용·산재 보험료 계산기", key="boheomryo")
 
 
+def dojang_page(shell, image=None):
+    # 🖋 G780 (2026-11-19) — 화면 pages/Dojang.jsx · 셈 lib/도장.js · 내 도장 lib/내도장.js · 설명 tools_guide.json «dojang»
+    return _tool_page(shell, image, "/tools/dojang",
+        "도장 만들기 — 이름 도장 · 회사 직인 · 도장 사진을 투명 PNG로 | K-건설맵",
+        "이름(한글·한자)이나 회사 이름을 적으면 원·타원·네모 도장 그림이 바로 나옵니다. 종이에 찍은 내 도장 사진은 흰 바탕을 지워 도장만 남깁니다. "
+        "바탕이 투명한 PNG 라 한글·워드·PDF 서류의 (인) 자리에 겹쳐 넣습니다. 이름·사진은 이 기기 안에서만 그림이 됩니다.",
+        "🖋 도장 만들기 — 이름 도장 · 회사 직인 · 도장 사진을 투명 PNG로",
+        ["이름이나 회사 이름을 적으면 바로 도장 그림이 됩니다. 종이에 찍은 내 도장을 사진으로 찍어 올리면 흰 바탕을 지우고 도장만 남깁니다.",
+         "받은 그림은 바탕이 투명해 한글 · 워드 · PDF 서류의 «(인)» 자리에 겹쳐 넣을 수 있습니다. 이름 · 사진은 이 기기 안에서만 그림이 되고 어디에도 보내지 않습니다."],
+        [("만들 수 있는 것", ["✍️ 이름 도장 — 한글 · 한자 4자까지 · 원 · 타원 · 네모 · 명조 · 고딕 · 인주 빨강 · 검정 · «인(印)» 붙이기",
+                             "🏢 회사 직인 — 둘레에 회사 이름 · 가운데 «대표이사인» · 원형 · 네모",
+                             "📷 도장 사진 → 투명 — 흰 종이에 찍은 도장 사진에서 바탕을 지우고 도장만",
+                             "⬇ 투명 PNG(1024 × 1024) 받기 · 💾 이 기기에 내 도장 여섯 개까지 저장"])],
+        '서류 양식은 <a href="/forms">서식</a>, 공사지명원은 <a href="/tools/jimyeong">공사지명원 만들기</a>입니다. 본인 · 자기 회사 도장만 만드세요 — 인감 증명이 필요한 서류에는 실제 인감을 씁니다.',
+        "도장 만들기", key="dojang")
+
+
 def jeongsan_page(shell, image=None):
     # 🩺 G146 (2026-10-05) — 화면 BoheomJeongsan.jsx · 셈 lib/보험정산.js · 설명 tools_guide.json «jeongsan»
     return _tool_page(shell, image, "/tools/boheom-jeongsan",
@@ -4979,6 +4996,10 @@ def main():
         write(f"tools/{_slug}.html", _fn(shell, og.tab(*_og) if og.available else None))
         made += 1
     print("  · 신고 정리 · 퇴직공제 · 보험료 · 해마다 바뀌는 값 페이지 4개 (G116)")
+    write("tools/dojang.html", dojang_page(shell,
+          og.tab("tool-dojang", "도장 만들기", "서류 도구", "이름 도장 · 회사 직인", "투명 PNG") if og.available else None))
+    made += 1
+    print("  · 도장 만들기 페이지 1개 (G780)")
     write("tools/boheom-jeongsan.html", jeongsan_page(shell,
           og.tab("tool-jeongsan", "건강·연금보험료 정산 청구서", "건설 노무", "하수급인 → 원청 · 사업자 부담분", "상용 일할 자동") if og.available else None))
     made += 1

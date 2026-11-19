@@ -11629,3 +11629,42 @@ a.kn-strip:hover { border-left-color: var(--kn-a); }
   .nm-sido { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
+
+/* ── 🖋 G780 도장 만들기(/tools/dojang · 2026-11-19 소장님 「도장만들기 도구 … 최대한 간단하면서 실용적이게」)
+   PC: 왼쪽 미리 보기 · 오른쪽 고르는 칸 / 폰: 미리 보기가 위(이름을 치는 동안 키보드에 안 가림) */
+.dj .dj-seg { margin: 12px 0 2px; }
+.dj-body { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 14px; align-items: start; }
+.dj-view { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.dj-paper { width: 100%; max-width: 300px; aspect-ratio: 1; border-radius: 14px; border: 1px solid var(--line);
+  background: conic-gradient(#eef0f3 25%, #ffffff 0 50%, #eef0f3 0 75%, #ffffff 0) 0 0 / 20px 20px; overflow: hidden; }
+.dj-cv { display: block; width: 100%; height: 100%; }
+.dj-cv.ex { opacity: .42; }
+.dj-exnote { margin: 0; font-size: 12.5px; color: var(--muted); text-align: center; }
+.dj-exnote.warn { color: var(--bad); }
+.dj-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.dj-form .dj-btns { justify-content: flex-start; }
+.dj-msg { margin: 0; font-size: 12.5px; color: var(--text-2); text-align: center; word-break: keep-all; }
+.dj-f { display: flex; flex-direction: column; gap: 6px; margin: 0 0 12px; }
+.dj-f > span { font-size: 13px; font-weight: 800; color: var(--text); }
+.dj-f > span small, .dj-chk small { font-weight: 500; color: var(--muted); margin-left: 4px; }
+.dj-f input[type="range"] { width: 100%; max-width: 360px; }
+.dj-chk { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: -4px 0 12px; font-size: 13px; color: var(--text-2); }
+.dj-pick, .dj-quick { display: flex; flex-wrap: wrap; gap: 6px; }
+.dj-pick button, .dj-quick button { min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface);
+  color: var(--text-2); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.dj-quick { margin: -6px 0 12px; }
+.dj-quick button { min-height: 30px; padding: 0 10px; font-size: 12px; }
+.dj-pick button.on, .dj-quick button.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.dj-sub { margin: 4px 0 12px; font-size: 12.5px; color: var(--text-2); word-break: keep-all; }
+.dj-mine { margin-top: 14px; }
+.dj-list { display: flex; flex-wrap: wrap; gap: 10px; }
+.dj-item { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; width: 112px; padding: 8px 6px 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
+.dj-item img { width: 84px; height: 84px; object-fit: contain; }
+.dj-item b { max-width: 100%; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dj-x { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; border-radius: 50%; border: 0; background: var(--surface); color: var(--muted); cursor: pointer; font-size: 12px; }
+.dj-del { display: flex; gap: 4px; }
+.dj-del .btn.sm { padding: 4px 8px; font-size: 11.5px; }
+@media (max-width: 760px) {
+  .dj-body { grid-template-columns: minmax(0, 1fr); }
+  .dj-paper { max-width: 240px; }
+}
