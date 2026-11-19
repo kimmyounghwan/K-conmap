@@ -86,5 +86,16 @@ const 새글 = [화면, JSON.stringify(설명), JSON.stringify(줄), 굽기.slic
 참(!/못 ?합니다|하지 않습니다|할 수 없|토목설계|구조 검토|수리수문|도로대장|기술사/.test(새글), '「못한다고는 하지 말고」 — 못 하는 일 · 하지 않는 일을 적지 않음')
 참(!/firebase|fetch\(/.test(화면), '현장 · ✓ 는 이 기기에만(서버로 보내는 코드 없음)')
 
+console.log('■ 🔒 잠금(G784b 「공무 올인원은 예시만 보여주고 막아 줘」)')
+const 원 = 읽기('web/src/pages/Gongmu.jsx')
+참(/import \{ isOpen, tryOpen \} from '\.\.\/lib\/gate\.js'/.test(원) && /import \{ 나운영자 \} from '\.\.\/lib\/운영자\.js'/.test(원) && /const 씀 = 씀원 && !손님보기/.test(원), '씀 = 열쇠말(isOpen) · 소장님 기기(나운영자) · 손님보기 아님')
+참(/<잠금문의 도구="공무 올인원" 셈="공무" \/>/.test(원) && /문의해 주세요/.test(화면) && /<열림띠 열림=\{씀원\} 손님보기=\{손님보기\} \/>/.test(원) && /<예시본수 열쇠="\|공무\|예시" \/>/.test(원), '잠금 상자(문의 단추 · 🔑 열림띠 · 예시 본 수)')
+참(/\{씀 && <div className="gmu-site"><내현장칸 \/><\/div>\}/.test(원) && /보기만=\{!씀\}/.test(원) && /kcm-예시끝/.test(원), '내 현장 칸은 씀일 때만 · 손님 예시는 보기만(고리 · ✓ 단추 없음) · 예시끝 알림')
+const 굽몸 = 굽기.slice(굽기.indexOf('def gongmu_page'), 굽기.indexOf('\ndef ', 굽기.indexOf('def gongmu_page') + 10))
+참(/_잠금문의\("공무 올인원"\)/.test(굽몸) && /locked=True\)/.test(굽몸) && !/준비 중|곧 엽니다|무료/.test(굽몸), '구운 쪽도 «🔒 문의해 주세요» + 단추 · locked')
+참(/K-건설맵이 직접/.test(줄.d) && /예시/.test(줄.d), '도구 목록 설명 — «K-건설맵이 직접» · 예시')
+const 쓴H = [...new Set((원.match(/\bH\.([가-힣A-Za-z]+)/g) || []).map((x) => x.slice(2)))]
+참(쓴H.length > 3 && 쓴H.every((k) => typeof H[k] !== 'undefined'), `화면이 쓰는 H.* 가 lib/내현장.js 에서 내보내짐(${쓴H.join(' · ')}) — G784b 첫 판 «H.날더하기» 없음(예시가 안 그려짐)을 잡음`, 쓴H.filter((k) => typeof H[k] === 'undefined').join())
+
 console.log(`\n${bad ? '❌' : '✅'} 시험_공무 ${ok}/${ok + bad}`)
 process.exit(bad ? 1 : 0)

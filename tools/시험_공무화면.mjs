@@ -10,7 +10,9 @@
  *   ⑥ «준공계» → 이 현장 값(공사명 · 계약금액 · 착공일 · 준공일) · «공사안전보건대장» → 공사명 · 발주자 · 착공일 · 준공일 · «예정공정표» 열림
  *   ⑦ 마이컨맵(/my)에 같은 현장 · 도구 목록 «문서·파일» 맨 앞
  *   ⑧ 설명 · 새 글에 «무료 · 클로드» 없음 · 못 하는 일 글 없음 · 폰 390 · 360 · PC 1280 넘침 0 · 오류 0 · 서버로 보내는 요청 없음
- * 인터넷 안 부름(파이어베이스 · 광고 · 애널리틱스 막음).
+ *   ⑨ 🔒 G784b 손님(소장님 기기 · 열쇠말 아님) — 문의 상자 · 내 현장 칸 · 차례 없음 → 🧪 예시: 단계 셋 · 도구 글만(고리 0) · ✓ 단추 0(표시만) · «지금» · 예시끝 · 저장 안 함 · 열쇠말 틀림
+ *   ⑩ 소장님 기기(kcm_op) — 🔑 열림띠 · 👀 손님 화면으로 보기 → 손님 화면 → ↩ 원래대로
+ * 인터넷 안 부름(파이어베이스 · 광고 · 애널리틱스 막음). ①~⑧ 은 소장님 기기(kcm_op) 흉내.
  */
 import { createRequire } from 'node:module'
 import * as H from '../web/src/lib/내현장.js'
@@ -23,10 +25,10 @@ const ok = (이름, c, got) => { n++; if (!c) bad++; console.log((c ? '  ✓ ' :
 const b = await chromium.launch({ env: { ...process.env, LANG: 'C.UTF-8' } })
 const UA폰 = 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36'
 const 막을 = /googletagmanager|google-analytics|pagead2|adsbygoogle|googlesyndication|geojs|firebaseio|firebasedatabase|daumcdn|kakao|coupang/
-async function 새쪽(w, h, 폰 = true) {
+async function 새쪽(w, h, 폰 = true, 운영자 = true) {
   const ctx = await b.newContext({ viewport: { width: w, height: h }, locale: 'ko-KR', timezoneId: 'Asia/Seoul', isMobile: 폰, hasTouch: 폰, ...(폰 ? { userAgent: UA폰 } : {}) })
   await ctx.route(막을, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: 'null' }))
-  await ctx.addInitScript(() => { try { localStorage.setItem('kcm_notice_seen', '2026-10-필독'); sessionStorage.setItem('kcm_notice_seen', '2026-10-업체'); sessionStorage.setItem('kcm_visit_s', '1') } catch (e) { /* 없음 */ } })
+  await ctx.addInitScript((op) => { try { localStorage.setItem('kcm_notice_seen', '2026-10-필독'); sessionStorage.setItem('kcm_notice_seen', '2026-10-업체'); sessionStorage.setItem('kcm_visit_s', '1'); if (op) localStorage.setItem('kcm_op', '1') } catch (e) { /* 없음 */ } }, 운영자)
   const p = await ctx.newPage()
   const 오류 = [], 보냄 = []
   p.on('pageerror', (e) => 오류.push(String(e).slice(0, 200)))
@@ -69,6 +71,7 @@ for (const [기기, w, h, 폰] of [['폰', 390, 844, true], ['PC', 1280, 900, fa
   ok(`${기기} 도구 13 — 주소 차례가 lib 와 같음`, 주소들.join() === G.모든도구.map((t) => t.주소).join(), 주소들)
   ok(`${기기} 현장 없으면 ✓ 단추 · 단계 수 · «지금» 없음 · 머리 «현장을 적으면 …»`, (await p.locator('.gmu-chk').count()) === 0 && (await 단계수(p)).length === 0 && (await 지금(p)).length === 0 && /현장을 적으면/.test(await 머리(p)))
   ok(`${기기} 맨 위 «내 현장» 칸 — «＋ 내 현장 적기»`, (await p.locator('.gmu-site .mc-site button', { hasText: '＋ 내 현장 적기' }).count()) === 1)
+  ok(`${기기} 소장님 기기 — 🔑 열림띠 · 잠금 상자 없음`, /이 기기는 열려 있습니다/.test(await p.locator('.kcm-열림띠').innerText().catch(() => '')) && (await p.locator('.sg-lock').count()) === 0)
 
   console.log(`② ${기기} 현장 적기 → 공무 차례`)
   await p.locator('.gmu-site button', { hasText: '＋ 내 현장 적기' }).click(); await p.waitForTimeout(200)
@@ -159,6 +162,43 @@ for (const [기기, w, h, 폰] of [['폰', 390, 844, true], ['PC', 1280, 900, fa
   ok(`${기기} 오류 0`, !오류.length, 오류)
   ok(`${기기} 서버로 보내는 요청 없음`, !보냄.length, 보냄)
   await ctx.close()
+
+  console.log(`⑨ ${기기} 🔒 손님(G784b — 예시만 · 막음)`)
+  const 손 = await 새쪽(w, h, 폰, false)
+  const q = 손.p
+  await q.goto(BASE + '/tools/gongmu', { waitUntil: 'domcontentloaded' }); await q.waitForSelector('.sg-lock', { timeout: 20000 }); await q.waitForTimeout(1300)
+  const 문 = await q.locator('.sg-lock a[href^="/contact?k=cn"]').first().getAttribute('href')
+  ok(`${기기} 손님 — 🔒 «문의해 주세요» · 문의 단추(t=공무 올인원) · 열림띠 없음`, /🔒 문의해 주세요/.test(await q.locator('.sg-lock').innerText()) && 문.includes('t=' + encodeURIComponent('공무 올인원')) && (await q.locator('.kcm-열림띠').count()) === 0, 문)
+  ok(`${기기} 손님 — 내 현장 칸 · 공무 차례 · ✓ 없음 · «이런 화면입니다»`, (await q.locator('.mc-site').count()) === 0 && (await q.locator('.gmu-steps').count()) === 0 && (await q.locator('.gmu-chk').count()) === 0 && (await q.locator('.gmu-start').count()) === 1)
+  await q.locator('.sg-lock button', { hasText: '🧪 예시 보기' }).click(); await q.waitForTimeout(400)
+  const 예 = await q.evaluate(() => ({
+    단계: document.querySelectorAll('.gmu-steps.gmu-ro .gmu-step').length, 줄: document.querySelectorAll('.gmu-steps.gmu-ro .gmu-item').length,
+    고리: document.querySelectorAll('.gmu-steps a').length, 단추: document.querySelectorAll('.gmu-steps button').length, 표: document.querySelectorAll('.gmu-steps span.gmu-chk.on').length,
+    지금: [...document.querySelectorAll('.gmu-step.now h3')].map((x) => x.textContent.trim()), 끝: !!document.querySelector('.gmu-ex .kcm-예시끝 a[href^="/contact?k=cn"]'),
+    머리: (document.querySelector('.gmu-ex-h') || {}).textContent || '', 현장: !!document.querySelector('.mc-site') }))
+  ok(`${기기} 🧪 예시 — 단계 셋 · 도구 ${G.모든도구.length}줄 · 고리 0 · 단추 0 · ✓ 표시 5 · «지금» ② 공사 중 · 예시끝(문의)`, 예.단계 === 3 && 예.줄 === G.모든도구.length && 예.고리 === 0 && 예.단추 === 0 && 예.표 === 5 && 예.지금.length === 1 && /^② 공사 중/.test(예.지금[0]) && 예.끝 && /○○지구 배수로 정비공사\(예시\)/.test(예.머리) && !예.현장, 예)
+  const 앞길 = await q.evaluate(() => location.pathname)
+  await q.locator('.gmu-steps .gmu-go').first().click(); await q.waitForTimeout(400)
+  ok(`${기기} 예시 도구 줄을 눌러도 다른 쪽으로 안 감 · 저장 안 함`, (await q.evaluate(() => location.pathname)) === 앞길 && (await q.evaluate(() => localStorage.getItem('kcm.my.현장'))) === null)
+  await q.locator('.sg-lock summary').click(); await q.locator('.sg-lock input[type=password]').fill('틀린 열쇠말'); await q.locator('.sg-lock button[type=submit]').click(); await q.waitForTimeout(600)
+  ok(`${기기} 열쇠말 틀림 → «열쇠말이 다릅니다» · 그대로 잠김`, /열쇠말이 다릅니다/.test(await q.locator('.sg-lock').innerText()) && (await q.locator('.mc-site').count()) === 0)
+  const 손글 = await q.evaluate(() => document.querySelector('.gmu').innerText)
+  ok(`${기기} 손님 글에 «무료 · 클로드» · 못 하는 일 글 없음`, !/무료|클로드|유료|이용권/.test(손글) && !/못 ?합니다|하지 않습니다|할 수 없|토목설계|구조 검토|기술사/.test(손글))
+  ok(`${기기} 손님 ${w} 넘침 0`, (await 넘침(q)) <= 1, await 넘침(q))
+  if (폰) { await q.setViewportSize({ width: 360, height: 760 }); await q.waitForTimeout(300); ok(`${기기} 손님 360 넘침 0`, (await 넘침(q)) <= 1, await 넘침(q)) }
+  ok(`${기기} 손님 오류 0 · 서버로 보냄 없음`, !손.오류.length && !손.보냄.length, [손.오류, 손.보냄])
+  await 손.ctx.close()
+
+  console.log(`⑩ ${기기} 소장님 기기 — 👀 손님 화면으로 보기`)
+  const 둘 = await 새쪽(w, h, 폰, true)
+  const r = 둘.p
+  await r.goto(BASE + '/tools/gongmu', { waitUntil: 'domcontentloaded' }); await r.waitForSelector('.kcm-열림띠', { timeout: 20000 }); await r.waitForTimeout(500)
+  await r.locator('.kcm-열림띠 button').click(); await r.waitForSelector('.sg-lock', { timeout: 20000 }); await r.waitForTimeout(800)
+  ok(`${기기} 👀 → 손님 화면(잠금 상자 · «손님 화면을 보는 중» · 내 현장 칸 없음) · 운영자 표식 그대로`, /손님 화면.*보는 중/.test(await r.locator('.kcm-열림띠').innerText()) && (await r.locator('.mc-site').count()) === 0 && (await r.evaluate(() => localStorage.getItem('kcm_op'))) === '1')
+  await r.locator('.kcm-열림띠 button').click(); await r.waitForSelector('.gmu-site', { timeout: 20000 }); await r.waitForTimeout(500)
+  ok(`${기기} ↩ 원래대로 → 다시 열림(내 현장 칸 · 잠금 상자 없음)`, (await r.locator('.sg-lock').count()) === 0 && (await r.locator('.gmu-site .mc-site').count()) === 1)
+  ok(`${기기} ⑩ 오류 0`, !둘.오류.length, 둘.오류)
+  await 둘.ctx.close()
 }
 await b.close()
 console.log(`\n${bad ? '✗' : '✓'} 시험_공무화면 ${n - bad}/${n}`)

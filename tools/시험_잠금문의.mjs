@@ -22,6 +22,7 @@ const 도구들 = [
   ['HazardPlan', '/tools/yuhae', '유해위험방지계획서'], ['Jungcheo', '/tools/jungcheo', '중대재해'], ['ColorPlan', '/tools/colorplan', '컬러 평면도'],
   ['CadFix', '/tools/cadfix', '캐드 도면 고치기'], ['Esc', '/tools/esc', '물가변동 ESC'], ['HadoDocs', '/tools/hado-docs', '하도급 서류'],
   ['Gyeongri', '/tools/gyeongri', '경리컨맵'],   // 🗃 G684(11-14) 경리컨맵 — 소장님 «만들고 막아놔, 예시만 보게 해줘»
+  ['Gongmu', '/tools/gongmu', '공무 올인원'],   // 🧰 G784b(11-19) 공무 올인원 — 소장님 「공무 올인원은 예시만 보여주고 막아 줘」
 ]
 /* ① 파일 */
 for (const [f, , 이름] of 도구들) {
@@ -53,7 +54,7 @@ const 줄길 = (/export const 도면줄길 = (\[[^\]]*\])/.exec(띠) || [])[1], 
  *      원클릭 «회원가입 없이 무료» · 구조화 자료 «무료 · 0원» 이 남아 있었음 → 구운 쪽도 «🔒 문의해 주세요 + 작성대행 · 견적 문의» 꼴 · 화면 jsx 에 «무료» 없음 */
 const 구 = 읽기('prerender.py')
 const 함수 = { WonClick: 'wonclick_page', SigongPlan: 'sigong_page', SafetyPlan: 'anjeon_page', HazardPlan: 'yuhae_page', Jungcheo: 'jungcheo_page',
-  ColorPlan: 'colorplan_page', CadFix: 'cadfix_page', Esc: 'esc_page', HadoDocs: 'hadodocs_page', Gyeongri: 'gyeongri_page' }
+  ColorPlan: 'colorplan_page', CadFix: 'cadfix_page', Esc: 'esc_page', HadoDocs: 'hadodocs_page', Gyeongri: 'gyeongri_page', Gongmu: 'gongmu_page' }
 for (const [f] of 도구들) {
   const 코드 = 읽기(`web/src/pages/${f}.jsx`).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
   봐(!/무료/.test(코드), `${f} 화면 글에 «무료» 없음(잠근 도구)`)
