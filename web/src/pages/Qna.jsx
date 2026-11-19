@@ -225,7 +225,7 @@ import 맵톡지도 from '../tools/맵톡지도.jsx'
 import 뉴스카드 from '../뉴스카드.jsx'   /* 📰 (11-16) 운영자 뉴스 글은 그날 뉴스 자료로 카드 — 소장님 「뭔가 부실해 보이고」 */
 import { 주제짐작, 글나누기, 제목내용, 자리짐작, 짧은이름, 곳찾기, 카드크기, 물음인가, 한마디인가, 사진줄이기, 사진크기한도, 답나무, 첫줄, 누적셈, 시도차례, 시도별, 곳기억읽기, 곳기억하기,
   지역방들, 지역방이름, 글지역, 방표, 방색, 모임, 모임날글, 이번주모임, 모임지남, 답기다리는질문, 방고름풀기, 방에드나, 공지인가, 시도지역방,
-  카드시간, 카드줄나누기, 줄묶기, 줄날 } from '../lib/맵톡.js'   /* 🗺 G316 방 · 공지 · 모임 (✂️ G547 11-05 🙋 전문가 방 · 🪪 명패 · 🏅 분야 뺌) · 🗂 G779 지난 글 한 줄 */
+  카드시간, 카드줄나누기, 줄묶기, 줄날, 모집공지인가, 공지줄차례 } from '../lib/맵톡.js'   /* 🗺 G316 방 · 공지 · 모임 (✂️ G547 11-05 🙋 전문가 방 · 🪪 명패 · 🏅 분야 뺌) · 🗂 G779 지난 글 한 줄 · 📣 G786 모집 공지 */
 import { 세기 } from '../lib/받은수.jsx'
 import { 받는꼴, 파일검사, 압축검사, 확장자, 파일올리기, 크기글, 오늘올린수, 올린수더하기, 하루한도 } from '../lib/파일올리기.js'   /* 📎 G158 · 🗜 G196 압축검사 */
 import { 꺼내기 as 찍은사진꺼내기, 사건이름 as 찍은사진사건 } from '../lib/찍은사진.js'   /* 📷 G322 옆 «+» 찍기 단추 */
@@ -564,11 +564,8 @@ export default function Qna() {
      (소장님 「맵톡 공지는 항상 제일 위에」 「공지글은 한 곳에 계속 쌓이게 하자...노출도 시키고, 한 곳에 쌓이게도 하고」) — 📌 도구 사용법 칸도 여기로 합침 */
   /* 📰 G696 (11-16) 오늘의 건설 뉴스 — 운영자 공지 글 중 제목이 📰 로 시작하면 «뉴스»(하루 하나씩 올림) · 맨 위 공지 줄엔 가장 최근 뉴스 «하나만»(이틀 안)
      · 지난 뉴스는 맨 위 줄에서 빼고 «📢 공지» 방에만(뉴스가 날마다 쌓여 진짜 공지를 밀어내지 않게 — 소장님 「공지글은 한 곳에 계속 쌓이게」) */
-  const 공지목록 = useMemo(() => {
-    const 다 = (모두 || []).filter((r) => 공지인가(r, 고정)).sort((a, b) => (b.at || 0) - (a.at || 0))
-    const 새뉴스 = 다.find((r) => 뉴스글인가(r) && Date.now() - (r.at || 0) < 2 * 86400000)
-    return [...(새뉴스 ? [새뉴스] : []), ...다.filter((r) => !뉴스글인가(r))]
-  }, [모두, 고정])
+  /* 📣 G786 (11-19) «제휴업체 모집» 공지는 뉴스 다음에 늘 — 접었을 때 줄 수 2 → 3(모집 공지가 있을 때만 · 다른 새 공지도 그대로 보이게) · lib/맵톡.js 공지줄차례 */
+  const { 목록: 공지목록, 기본수: 공지기본수 } = useMemo(() => 공지줄차례((모두 || []).filter((r) => 공지인가(r, 고정)), 뉴스글인가), [모두, 고정])
   const 기본보기 = 방고름 === 'all' && !onlyMine && !q.trim()
 
   const list = useMemo(() => {
@@ -1130,13 +1127,16 @@ export default function Qna() {
               <button className="qna-read" onClick={공지닫기}>다 읽었습니다 ▲</button>
             </div>
           )}
-          {공지목록.slice(0, 공지다 ? 공지목록.length : 2).map((r) => (
-            <button type="button" key={r.id} className="mt-nrow" onClick={() => { 열기(r.id); 세기('|맵톡|공지') }}>
-              {뉴스글인가(r) ? <span className="mt-nt nw">뉴스</span> : <span className="mt-nt">공지</span>}{!뉴스글인가(r) && Date.now() - (r.at || 0) < 3 * 86400000 && <span className="mt-nnew">새</span>}<b>{가림(r.t)}</b>
-              <span className="mt-nr">👁 {Number(조회[r.id] || 0).toLocaleString('ko-KR')} · 💬 {nAns(r.id)} · {r.at ? `${new Date(r.at).getMonth() + 1}.${String(new Date(r.at).getDate()).padStart(2, '0')}` : ''}</span>
-            </button>
-          ))}
-          {공지목록.length > 2 && (
+          {공지목록.slice(0, 공지다 ? 공지목록.length : 공지기본수).map((r) => {
+            const 모집 = !뉴스글인가(r) && 모집공지인가(r)   /* 📣 G786 주황 바탕 + «모집» 표 · 숨은 셈 |맵톡|공지모집 더함 */
+            return (
+              <button type="button" key={r.id} className={'mt-nrow' + (모집 ? ' hot' : '')} onClick={() => { 열기(r.id); 세기('|맵톡|공지'); if (모집) 세기('|맵톡|공지모집') }}>
+                {뉴스글인가(r) ? <span className="mt-nt nw">뉴스</span> : 모집 ? <span className="mt-nt hot">모집</span> : <span className="mt-nt">공지</span>}{!뉴스글인가(r) && Date.now() - (r.at || 0) < 3 * 86400000 && <span className="mt-nnew">새</span>}<b>{가림(r.t)}</b>
+                <span className="mt-nr">👁 {Number(조회[r.id] || 0).toLocaleString('ko-KR')} · 💬 {nAns(r.id)} · {r.at ? `${new Date(r.at).getMonth() + 1}.${String(new Date(r.at).getDate()).padStart(2, '0')}` : ''}</span>
+              </button>
+            )
+          })}
+          {공지목록.length > 공지기본수 && (
             <button type="button" className="mt-nmore" aria-expanded={공지다}
               onClick={() => { const 켬 = !공지다; set공지다(켬); if (켬) 세기('|맵톡|공지모두') }}>{공지다 ? '▴ 접기' : `▾ 공지 ${공지목록.length}개 모두 보기`}</button>
           )}

@@ -2838,6 +2838,16 @@ a.flink:hover { opacity: .8; }
 .noticepop-b li { margin: 2px 0; }
 .noticepop-b a { font-weight: 800; color: var(--accent); }
 .noticepop-sign { color: var(--text-2); font-weight: 700; }
+/* 📣 G786 (11-19) 제휴업체 모집 공지 창 — 업체 갈래 · 적어 보낼 것(업체마다 따로) · 오늘 고친 것 · 신청 단추(주황) */
+.noticepop-b ul.noticepop-kinds { list-style: none; padding-left: 0; }
+.noticepop-b ul.noticepop-kinds li { margin: 3px 0; }
+.noticepop-form { margin: 2px 0 8px; padding: 8px 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); }
+.noticepop-form div { margin: 3px 0; line-height: 1.6; }
+.noticepop-form b { display: inline-block; min-width: 4.6em; margin-right: 6px; color: var(--text); }
+.noticepop-note { font-size: 13px; color: var(--text-2); }
+.noticepop-fix { margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.noticepop-f .btn.noticepop-go { background: #ea580c; border-color: #ea580c; color: #fff; font-weight: 900; }
+.noticepop-f .btn.noticepop-go:hover, .noticepop-f .btn.noticepop-go:focus-visible { background: #c2410c; border-color: #c2410c; }
 .noticepop-f { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin: 6px -22px -16px; padding: 12px 22px 16px; border-top: 1px solid var(--line);
   position: sticky; bottom: -16px; background: var(--surface); }   /* 단추는 늘 보이게 — 글이 길어 창 안에서 굴러도 */
 .noticepop-f .btn { width: auto; }
@@ -8506,6 +8516,19 @@ details.sg-more-sm > summary::before { top: 5px; left: 10px; }
 .mt-nr { flex: none; margin-left: auto; color: var(--muted); font-size: 12.5px; }
 .mt-nt.g { background: #b45309; }
 .mt-nt.nw { background: #2563eb; }   /* 📰 G696 맵톡 맨 위 «뉴스» 줄(공지 빨강 · 안내 갈색과 다르게) */
+/* 📣 G786 (11-19) 제휴업체 모집 공지 줄 — 주황 바탕 · 왼쪽 주황 막대 · «모집» 표 · 굵은 주황 제목(소장님 「제목을 확 띠게 해줘」) */
+.mt-nrow.hot { background: #fff7ed; box-shadow: inset 4px 0 0 #ea580c; }
+.mt-nrow.hot:hover, .mt-nrow.hot:focus-visible { background: #ffedd5; }
+.mt-nrow.hot b { color: #c2410c; font-weight: 900; }
+.mt-nt.hot { background: #ea580c; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .mt-nrow.hot { background: rgba(234, 88, 12, .16); }
+  :root:not([data-theme="light"]) .mt-nrow.hot:hover, :root:not([data-theme="light"]) .mt-nrow.hot:focus-visible { background: rgba(234, 88, 12, .26); }
+  :root:not([data-theme="light"]) .mt-nrow.hot b { color: #fdba74; }
+}
+:root[data-theme="dark"] .mt-nrow.hot { background: rgba(234, 88, 12, .16); }
+:root[data-theme="dark"] .mt-nrow.hot:hover, :root[data-theme="dark"] .mt-nrow.hot:focus-visible { background: rgba(234, 88, 12, .26); }
+:root[data-theme="dark"] .mt-nrow.hot b { color: #fdba74; }
 .mt-nnew { flex: none; background: #16a34a; color: #fff; font-size: 11px; font-weight: 800; border-radius: 5px; padding: 0 5px; }
 .mt-nhow.on { background: var(--surface-2); }
 .mt-nbody { padding: 4px 16px 14px; border-top: 1px solid var(--line); }
