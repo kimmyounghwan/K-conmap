@@ -16,13 +16,16 @@ import 애드핏칸 from '../애드핏칸.jsx'   /* 💰 애드핏 «가운데»
 import 쿠팡카드줄 from '../쿠팡카드줄.jsx'   /* 🛒 쿠팡 «가운데» 줄 — 소장님 「페이지마다 다 넣어 쿠팡도 넣고」 */
 
 const 열쇠 = 'kcm_teukgo'
-const 빈것 = () => ({ 직종: 'gigye', 달: 이번달(), 꼴: 'days', 날: '', 늦게: false, 명: '1' })
+/* 🩹 G789 극한 시험(11-19 소장님 「극한 테스트 해줘」) — 폰 시계가 2026년 7월 앞이면(틀린 시계) 고를 달에 이번 달이 없어 «7월분부터» 알림만 뜨고
+   목록은 7월로 보여 다시 고를 수도 없었음 → 처음 달은 «이번 달과 2026년 7월 가운데 늦은 것» */
+const 첫달 = () => { const d = 이번달(); return d < 처음달 ? 처음달 : d }
+const 빈것 = () => ({ 직종: 'gigye', 달: 첫달(), 꼴: 'days', 날: '', 늦게: false, 명: '1' })
 function 읽기() {
   try {
     const o = JSON.parse(localStorage.getItem(열쇠) || 'null')
     if (o && typeof o === 'object') {
       const v = { ...빈것(), ...o }
-      if (!/^\d{4}-\d{2}$/.test(String(v.달)) || v.달 < 처음달) v.달 = 이번달()   /* 옛 달 · 망가진 값 → 이번 달 */
+      if (!/^\d{4}-\d{2}$/.test(String(v.달)) || v.달 < 처음달) v.달 = 첫달()   /* 옛 달 · 망가진 값 → 이번 달(2026년 7월 앞이면 7월) */
       return v
     }
   } catch (e) { /* 막힘 */ }

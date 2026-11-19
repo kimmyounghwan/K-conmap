@@ -117,5 +117,34 @@ const 점 = H.점검표.find((x) => x.k === 'teukgo')
 봐(!!점 && 점.쓰는곳.includes('/tools/teukgo-boheom') && 점.다음 === '2026-12-26' && /2,813,000/.test(점.값()), '해마다 점검표 teukgo — 다음 확인 12.26.(새해 고시)', 점 && 점.값())
 봐(H.밀린점검('2026-12-27').some((x) => x.k === 'teukgo') && !H.밀린점검('2026-11-19').some((x) => x.k === 'teukgo'), '12.27.부터 «확인할 때 지남» 에 뜸')
 
+console.log('⑧ 🩹 G789 극한 — 모든 경우 37,200가지 = 따로 셈(BigInt · 346/10,000 ÷ 2) · 이상한 입력 수만 가지에 예외 0')
+{
+  const 달들 = []
+  for (let y = 2026; y <= 2028; y++) for (let m = 1; m <= 12; m++) { const d = `${y}-${String(m).padStart(2, '0')}`; if (d >= '2026-07') 달들.push(d) }
+  let n = 0, 틀 = []
+  for (const 직종 of ['gigye', 'hwamul']) for (const 늦게 of [false, true]) for (const 달 of 달들) for (const 명 of [1, 2, 3, 7, 10, 99, 100, 500, 998, 999]) for (const 날 of [0, ...Array.from({ length: 30 }, (_, i) => i + 1)]) {
+    const 꼴 = 날 ? 'days' : 'month'
+    const r = 특고셈({ 직종, 달, 꼴, 날: 날 ? String(날) : '', 늦게, 명: String(명) }, 달)
+    const 보 = BigInt(날 ? 93766 * 날 : 2813000)
+    const 산 = Number((보 * 346n) / 200000n) * 10          /* 3.46% ÷ 2 → 10원 미만 버림 */
+    const 고대상 = 직종 === 'gigye' && !늦게
+    const 고 = 고대상 ? Number((보 * 16n) / 20000n) * 10 : 0   /* 1.6% ÷ 2 */
+    const 기대 = (산 + 고) * 명
+    n++
+    if (r.본인 !== 기대 || r.회사 !== 기대 || r.산재.잠정 !== (달 >= '2027-01') || !!(r.고용.잠정) !== (고대상 && 달 >= '2027-07') || /NaN|undefined/.test(JSON.stringify(r))) 틀.push([직종, 늦게, 달, 명, 날, r.본인, 기대])
+  }
+  봐(n === 37200 && 틀.length === 0, `모든 경우 ${n}가지 — 본인 · 회사 · 잠정 = 따로 셈`, 틀.slice(0, 3))
+  const 값들 = ['', ' ', '0', '-1', '31', '4일', '٤', '４', '1e3', 'NaN', '30.5', '9999999999999', '<script>', null, undefined, 3.7, -4, 1e21, NaN, {}, [], [4], true]
+  let m = 0, 예외 = 0, 이상 = 0
+  for (const 직종 of ['gigye', 'hwamul', '', null, 'zzz']) for (const 달 of ['2026-11', '2026-13', '', 'x', 2026, null, '2025-12', '2099-12']) for (const 꼴 of ['days', 'month', '', null]) for (const 날 of 값들) for (const 명 of ['1', '', '0', '-3', '1000', 'abc', 2.5, null]) {
+    m++
+    let r
+    try { r = 특고셈({ 직종, 달, 꼴, 날, 명 }, '2026-11') } catch (e) { 예외++; continue }
+    if (r.빈) { if (typeof r.까닭 !== 'string' || !r.까닭) 이상++; continue }
+    if (![r.본인, r.회사, r.합].every((x) => Number.isInteger(x) && x >= 0) || !(r.명 >= 1 && r.명 <= 999) || /NaN|Infinity/.test(JSON.stringify(r))) 이상++
+  }
+  봐(예외 === 0 && 이상 === 0, `이상한 입력 ${m.toLocaleString('ko-KR')}가지 — 예외 0 · 이상 0`, [예외, 이상])
+}
+
 console.log(`\n${실패 ? '✗' : '✓'} 시험_특고보험 ${통과}/${통과 + 실패}`)
 if (실패) process.exit(1)
