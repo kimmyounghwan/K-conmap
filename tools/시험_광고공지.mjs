@@ -10,6 +10,8 @@
  *   ④ 날짜 — 고친 것 칸은 11-21 까지 · 창은 12-31 까지
  *   ⑤ 자동 브라우저(webdriver) · 그 공지 글 화면 · 다른 탭이 열려 있으면(쓰는 중) 창을 저절로 안 띄움
  *   ⑥ 맵톡 맨 위 공지 줄 — 뉴스 다음 «모집» 줄(주황 · 늘 보임) · 접은 줄 3 · 누르면 그 글
+ *   ⑦ 🩹 G786b 소장님 「나갔다가 들어와도 공지창 뜨게 해」 — 닫은 뒤 30초 넘게 떠났다 오면 다시 뜸 · 10초는 안 뜸 · 다른 건설맵 탭을 쓰고 있었으면 안 뜸
+ *      · 건설맵 안 화면 옮김 · 쓰는 중 새로고침은 안 뜸 · 같은 창을 한참 뒤 다시 열면(새로고침) 뜸 · 그 공지 글 화면은 안 뜸
  * 가상 자료만 씀 · 인터넷 안 부름.
  */
 import { createRequire } from 'node:module'
@@ -40,9 +42,11 @@ async function 새쪽(w, h, { 때 = '2026-11-19T20:00:00+09:00', 자동끔 = tru
   const t = Date.parse(때)
   await ctx.addInitScript(([t, 자동끔, 씨앗, 더]) => {
     const 원 = Date; const 차 = t - 원.now()
-    const D = function (...a) { return a.length ? new 원(...a) : new 원(원.now() + 차) }
-    D.now = () => 원.now() + 차; D.UTC = 원.UTC; D.parse = 원.parse; D.prototype = 원.prototype
+    const D = function (...a) { return a.length ? new 원(...a) : new 원(원.now() + 차 + (window.__더 || 0)) }
+    D.now = () => 원.now() + 차 + (window.__더 || 0); D.UTC = 원.UTC; D.parse = 원.parse; D.prototype = 원.prototype
     window.Date = D
+    /* ⑦ 시험이 «화면 가려짐» 을 흉내(window.__숨김) · 시간을 앞으로 감기(window.__더 ms) */
+    try { Object.defineProperty(document, 'hidden', { configurable: true, get: () => window.__숨김 === true }); Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (window.__숨김 === true ? 'hidden' : 'visible') }) } catch (e) { /* 없음 */ }
     if (자동끔) { try { Object.defineProperty(navigator, 'webdriver', { get: () => false }) } catch (e) { /* 없음 */ } }
     if (씨앗 && !sessionStorage.getItem('씨앗됨')) { localStorage.setItem('mockdb', JSON.stringify(씨앗)); localStorage.setItem('mockuid', 'mockuser786'); sessionStorage.setItem('씨앗됨', '1') }
     if (더 === '다른탭') { try { localStorage.setItem('kcm_notice_alive', String(원.now() + 차 - 3000)) } catch (e) { /* */ } }
@@ -182,6 +186,37 @@ console.log('⑥ 맵톡 맨 위 공지 줄 — 모집 줄')
     }
     await ctx.close()
   }
+}
+console.log('⑦ 나갔다가 들어오기(🩹 G786b)')
+{
+  const 떠났다옴 = async (p, ms, 딴탭 = false) => {
+    await p.evaluate(() => { window.__숨김 = true; document.dispatchEvent(new Event('visibilitychange')) })
+    await p.evaluate(([ms, 딴탭]) => { window.__더 = (window.__더 || 0) + ms; if (딴탭) localStorage.setItem('kcm_notice_alive', String(Date.now() - 2000)) }, [ms, 딴탭])
+    await p.evaluate(() => { window.__숨김 = false; document.dispatchEvent(new Event('visibilitychange')) })
+    await p.waitForTimeout(500)
+    return !!(await p.$('.noticepop'))
+  }
+  const 닫기 = async (p) => { await p.click('.noticepop-f button'); await p.waitForTimeout(300) }
+  const { ctx, p, 오류 } = await 새쪽(390, 844)
+  await p.goto(BASE + '/', { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(2500)
+  ok('처음 들어옴 — 창 뜸', !!(await p.$('.noticepop')))
+  await 닫기(p)
+  ok('닫은 뒤 40초 떠났다 옴(다른 앱 · 다른 사이트) — 다시 뜸', await 떠났다옴(p, 40000))
+  await 닫기(p)
+  ok('10초만 떠났다 옴 — 안 뜸(잠깐 다른 앱)', !(await 떠났다옴(p, 10000)))
+  ok('40초 가려졌지만 다른 건설맵 탭을 쓰고 있었음 — 안 뜸(쓰는 중)', !(await 떠났다옴(p, 40000, true)))
+  await p.evaluate(() => { history.pushState(null, '', '/tools'); dispatchEvent(new PopStateEvent('popstate')) }); await p.waitForTimeout(1200)
+  ok('건설맵 안에서 화면 옮김 — 안 뜸', !(await p.$('.noticepop')))
+  await p.reload({ waitUntil: 'domcontentloaded' }); await p.waitForTimeout(2200)
+  ok('쓰는 중 새로고침 — 안 뜸(G284 그대로)', !(await p.$('.noticepop')))
+  await p.evaluate(() => { window.__숨김 = true; document.dispatchEvent(new Event('visibilitychange')); localStorage.setItem('kcm_notice_alive', String(Date.now() - 60000)) })
+  await p.reload({ waitUntil: 'domcontentloaded' }); await p.waitForTimeout(2500)
+  ok('같은 창을 한참 뒤 다시 엶(폰이 살려 둔 창 · 새로고침) — 다시 뜸(이 창에서 닫았어도)', !!(await p.$('.noticepop')))
+  await 닫기(p)
+  await p.goto(BASE + '/qna/' + 맵톡글, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(2000)
+  ok('그 공지 글 화면에서 떠났다 옴 — 안 뜸(같은 글)', !(await 떠났다옴(p, 40000)))
+  ok('⑦ 오류 0', !오류.length, 오류)
+  await ctx.close()
 }
 await b.close()
 console.log(`\n${bad ? '✗' : '✓'} 시험_광고공지 ${n - bad}/${n}`)

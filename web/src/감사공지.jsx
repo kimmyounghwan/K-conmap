@@ -70,6 +70,12 @@
  *   · 판 = '2026-11-제휴' · 까지 = '2026-12-31'(「공지는 계속」 — 내리라 하시면 «까지» 를 오늘 전날로) · 창은 G284 그대로(사이트를 열 때 한 번 · 쓰는 중엔 다시 안 뜸)
  *   · 그 공지 글 화면(/qna/맵톡글) · 오늘 고친 것 글 화면에서는 창을 저절로 띄우지 않음(같은 글 두 번)
  *   · 숨은 셈: |공지|뜸(창이 저절로 뜸) · |공지|누름(창 안 고리) · |광고문의|공지창(제휴 신청하기)
+ *
+ * 🩹 G786b (2026-11-19 19시) 소장님 「폰에서 공지창 떠? 나갔다가 들어와도 공지창 뜨게 해」
+ *   ■ 폰은 다른 앱에 갔다 와도 같은 창(탭)이 그대로 살아 있어 «이 창에서 한 번 봤음»(sessionStorage) 때문에 다시 안 떴음 → 그 막음을 뺌
+ *   ■ 건설맵을 떠나(화면이 가려짐 · 다른 앱 · 다른 사이트 · 화면 잠금) 다시뜸간격(30초) 넘게 있다가 돌아오면 → 창을 다시 띄움(|공지|다시뜸)
+ *   ■ 그대로(G284 「건설맵 사이트 이용시에는 또 띄우면 안돼지」): 건설맵 안에서 화면 옮김 · 쓰는 중 새로고침 · 다른 건설맵 탭을 쓰다가 넘어옴 → 안 뜸
+ *     «쓰는 중» 표시(kcm_notice_alive)는 화면에 보이는 탭만 적음(가려진 탭은 안 적음) — 그래야 «떠났다» 를 가릴 수 있음
  */
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -86,7 +92,7 @@ const 맵톡글 = '-P6mnLMidNXOA01HjA3-'   /* G786 맵톡 📌 공지 «📣 공
 const 고친글 = '-P6mqrXztoAugoRKozhq'   /* G786 맵톡 «🛠 11월 19일 새로 넣고 고친 것» */
 const 신청주소 = '/contact?k=ad&w=p'
 const 열쇠 = 'kcm_notice_hide'      /* 다시 보지 않기(띠 ✕ 도 같음) — localStorage */
-const 본열쇠 = 'kcm_notice_seen'    /* 이번에 한 번 봤음 — sessionStorage(창을 닫으면 그 창 동안은 다시 안 띄움) */
+const 본열쇠 = 'kcm_notice_seen'    /* 이 창에서 닫았음 — sessionStorage(적기만 · 🩹 G786b 부터 막지 않음: 나갔다 들어오면 다시 뜸) */
 const 한국오늘 = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)
 const 로봇 = () => { try { return 로봇글(navigator.userAgent || '') } catch (e) { return false } }
 const 자동 = () => { try { return !!navigator.webdriver } catch (e) { return false } }   /* G552 — 자동 브라우저(화면 시험)엔 창을 저절로 안 띄움 */
@@ -96,14 +102,14 @@ const 늘보임 = true
 const 닫았나 = () => { if (늘보임) return false; try { return localStorage.getItem(열쇠) === 판 } catch (e) { return false } }
 const 띠감춤열쇠 = 'kcm_notice_bar_off'
 const 띠감췄나 = () => { try { return sessionStorage.getItem(띠감춤열쇠) === 판 } catch (e) { return false } }
-const 봤나 = () => { try { return sessionStorage.getItem(본열쇠) === 판 } catch (e) { return false } }
 /* 🩹 G284 소장님 「사이트 접속시 한번 띄우고, 사이트 닫았다가 들어오면 또 띄우고, 단 건설맵 사이트 이용시에는 또 띄우면 안돼지」
    → 창은 «사이트를 열 때» 한 번. 열려 있는 K-건설맵 탭이 하나도 없다가 새로 열면 = 새 접속 → 띄움.
      이미 다른 K-건설맵 탭이 열려 있으면(쓰는 중) 새 탭 · 다른 화면 · 새로고침엔 안 띄움.
      열린 탭마다 5초마다 «살아 있음» 시각을 적고(localStorage), 새 탭은 12초 안의 시각이 있으면 «쓰는 중» 으로 봄 */
 const 살아열쇠 = 'kcm_notice_alive'
 const 살아간격 = 5000
-const 살아적기 = () => { try { localStorage.setItem(살아열쇠, String(Date.now())) } catch (e) { /* 사생활 창 */ } }
+const 살아적기 = () => { try { if (document.hidden) return; localStorage.setItem(살아열쇠, String(Date.now())) } catch (e) { /* 사생활 창 */ } }   /* 🩹 G786b 보이는 탭만 */
+const 다시뜸간격 = 30000            /* 🩹 G786b 건설맵을 떠나 30초 넘게 있다가 돌아오면 다시 뜸 */
 const 다른탭열림 = () => { try { return Date.now() - (Number(localStorage.getItem(살아열쇠)) || 0) < 12000 } catch (e) { return false } }
 let 누름셌다 = false
 const 누름 = () => { if (!누름셌다) { 누름셌다 = true; 세기('|공지|누름') } }
@@ -192,8 +198,33 @@ export default function 감사공지() {
   const { pathname } = useLocation()
   const [닫힘] = useState(() => 닫았나() || 띠감췄나())
   /* 창 — 이 창(탭)을 연 뒤 처음 한 번 저절로 */
-  const [창, set창] = useState(() => 창있음 && !닫았나() && !봤나() && !다른탭열림() && !자동() && !같은글화면(pathname))
-  useEffect(() => { 살아적기(); const t = setInterval(살아적기, 살아간격); return () => clearInterval(t) }, [])   /* 이 탭이 열려 있는 동안 «쓰는 중» */
+  const [창, set창] = useState(() => 창있음 && !닫았나() && !다른탭열림() && !자동() && !같은글화면(pathname))
+  const 창참 = useRef(창)
+  창참.current = 창
+  useEffect(() => { 살아적기(); const t = setInterval(살아적기, 살아간격); return () => clearInterval(t) }, [])
+  /* 🩹 G786b 나갔다가 들어오면 — 가려진 동안 다른 건설맵 탭도 안 썼으면(쓰는 중 표시가 12초보다 오래됨) 다시 띄움 */
+  useEffect(() => {
+    if (!창있음 || 자동()) return undefined
+    let 숨은때 = document.hidden ? Date.now() : 0
+    const 숨음 = () => { if (!숨은때) 숨은때 = Date.now() }
+    const 돌아옴 = () => {
+      if (document.hidden) return
+      const 떠남 = 숨은때 && Date.now() - 숨은때 > 다시뜸간격
+      숨은때 = 0
+      const 딴탭 = 다른탭열림()
+      살아적기()
+      const 길 = window.location.pathname
+      if (!떠남 || 딴탭 || 닫았나() || 같은글화면(길) || 한국오늘() > 까지 || 로봇() || 길.startsWith('/admin')) return
+      if (!창참.current) { try { 세기('|공지|다시뜸') } catch (e) { /* 없음 */ } }
+      set창(true)
+    }
+    const 보임바뀜 = () => { if (document.hidden) 숨음(); else 돌아옴() }
+    const 쪽보임 = (e) => { if (e && e.persisted) 돌아옴() }
+    document.addEventListener('visibilitychange', 보임바뀜)
+    window.addEventListener('pagehide', 숨음)
+    window.addEventListener('pageshow', 쪽보임)
+    return () => { document.removeEventListener('visibilitychange', 보임바뀜); window.removeEventListener('pagehide', 숨음); window.removeEventListener('pageshow', 쪽보임) }
+  }, [])   // eslint-disable-line react-hooks/exhaustive-deps   /* 이 탭이 열려 있는 동안 «쓰는 중» */
   const 오늘 = 한국오늘()
   const 보임 = !(닫힘 || 오늘 > 까지 || 로봇() || pathname.startsWith('/admin'))
   useEffect(() => { if (보임 && 창있음 && 창) { try { 세기('|공지|뜸') } catch (e) { /* 없음 */ } } }, [])   // eslint-disable-line react-hooks/exhaustive-deps
