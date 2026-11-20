@@ -2456,6 +2456,14 @@ def main():
         현황판.build(out=os.path.join(OUT, "now"), log=log)
     except Exception as e:
         log(f"⚠️ 공사 현황판 자료를 못 만들었습니다 — {e}")
+    # 🏛 G807 종심제 균형가격 예측 · 맞춰 보기 (2026-11-20 소장님 「보내고, 바로투질 작업해줘」 — 바로투찰 종심제 기획 ④)
+    #   data/seed/jongsim.json(공개 금액으로 다시 셈한 균형가격 줄) → jongsim.json(묶음별 균형÷기초 분포 · 마지막 3개월 맞춰 보기 · 보임)
+    #   실패해도 사이트 집계는 계속합니다. 셈은 종심예측.py 한 곳 · 시험 tools/시험_종심예측.py
+    try:
+        import 종심예측
+        종심예측.build(out=os.path.join(OUT, "jongsim.json"), log=log)
+    except Exception as e:
+        log(f"⚠️ 종심 균형가격 예측을 못 만들었습니다 — {e}")
 
     total = sum(os.path.getsize(os.path.join(r, f))
                 for r, _, fs in os.walk(OUT) for f in fs)
