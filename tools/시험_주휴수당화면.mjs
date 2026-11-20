@@ -1,9 +1,12 @@
 // 🧪 G509 — 주휴수당 판단기 화면 (B=http://127.0.0.1:4997 node tools/시험_주휴수당화면.mjs)
 //   PC 1280 · 폰 390 · 320 — 예시 여섯 · 손으로 넣기(시급 · 결근 · 4명 이하 · 여러 주 · 일당에 포함) · 결과 링크 오가기 · 넘침 · 오류 · 금지 말 · 어두운 화면 · 미리 구운 쪽
+//   🗓 G805 시급 칸 보기 글 = 그 해 최저임금(오늘 · 2027년 1월 2일 흉내) · 최저임금 알림도 표에서 읽은 값으로 봄
 //   캡처: C=폴더
 import { createRequire } from 'module'
 const require = createRequire(process.env.PW || '/tmp/g10/pw/package.json')
 const { chromium } = require('playwright')
+import { 최저임금표, 해값 } from '../web/src/lib/해마다.js'   /* 🗓 G805 그 해 최저임금(2027년 1월 1일부터 10,700원) — 손으로 적지 않음 */
+const 올최 = 해값(최저임금표, new Date().getFullYear()).시급.toLocaleString('ko-KR')
 const B = process.env.B || 'http://127.0.0.1:4997'
 const C = process.env.C || ''
 let 통과 = 0, 틀림 = 0
@@ -61,6 +64,7 @@ for (const [w, h, 이름] of [[1280, 900, 'PC'], [390, 844, '폰'], [320, 640, '
   await p.getByRole('button', { name: '처음부터' }).click()
   await p.getByRole('button', { name: '지우기' }).click()
   await 단추(p, '임금 꼴', '시급')
+  봄((await p.getAttribute('input[aria-label="시급"]', 'placeholder')) === `예: ${올최}`, `🗓 G805 시급 칸 보기 글 = 그 해 최저임금(예: ${올최})`, await p.getAttribute('input[aria-label="시급"]', 'placeholder'))
   await p.fill('input[aria-label="시급"]', '10320')
   await p.fill('input[aria-label="하루 일하는 시간"]', '3')
   await p.selectOption('select[aria-label="1주에 일하기로 정한 날"]', '5')
@@ -70,7 +74,7 @@ for (const [w, h, 이름] of [[1280, 900, 'PC'], [390, 844, '폰'], [320, 640, '
   await 단추(p, '개근', '정한 날 다 나옴')
   await p.fill('input[aria-label="시급"]', '10000')
   t = await 글(p)
-  봄(t.includes('최저임금(10,320원)보다 낮습니다'), '시급 10,000 → 최저임금 알림')
+  봄(t.includes(`최저임금(${올최}원`) && t.includes('보다 낮습니다(최저임금법 제6조)'), `시급 10,000 → 최저임금(${올최}원) 알림`)
   await p.fill('input[aria-label="시급"]', '150000')
   봄((await 글(p)).includes('10만 원이 넘습니다'), '🩺 G513 시급 15만 → «일당이면 일당을 고르세요» 알림')
   await p.fill('input[aria-label="시급"]', '10000')
@@ -136,6 +140,27 @@ console.log('■ 어두운 화면 · 다른 판단기에서 가는 길 · 미리
   봄(!/무료|클로드/.test(r.replace(/<script[\s\S]*?<\/script>/g, '')), '미리 구운 쪽 «무료» · «클로드» 없음')
   const sm = await fetch(`${B}/sitemap-main.xml`).then((x) => x.text()).catch(() => '')
   봄(sm.includes('/tools/juhyu'), '사이트맵에 주소')
+}
+console.log('■ 🗓 G805 2027년 1월 2일 흉내 — 시급 칸 보기 글 · «○○년 최저임금» 이 그 해 값(표에서)')
+{
+  const 최27 = 해값(최저임금표, 2027)
+  const 글27 = 최27.시급.toLocaleString('ko-KR')
+  const { p, 오류 } = await 새쪽(390, 844)
+  await p.addInitScript((t) => {
+    const 원 = Date; const 차 = t - 원.now()
+    const D = function (...a) { return a.length ? new 원(...a) : new 원(원.now() + 차) }
+    D.now = () => 원.now() + 차; D.UTC = 원.UTC; D.parse = 원.parse; D.prototype = 원.prototype
+    window.Date = D
+  }, Date.parse('2027-01-02T10:00:00+09:00'))
+  await p.goto(`${B}/tools/juhyu`, { waitUntil: 'domcontentloaded' })
+  await p.waitForSelector('h1.tl-h1')
+  await 단추(p, '임금 꼴', '시급')
+  await p.waitForTimeout(250)
+  const 보기 = await p.getAttribute('input[aria-label="시급"]', 'placeholder')
+  봄(최27.해 === 2027 && !최27.잠정 && 보기 === `예: ${글27}`, `2027 — 시급 칸 보기 글 «예: ${글27}»`, 보기)
+  봄((await 글(p)).includes(`2027년 최저임금 ${글27}원`), `2027 — «2027년 최저임금 ${글27}원»`)
+  봄(!오류.length, '2027 흉내 오류 없음', 오류.join(' | '))
+  await p.close()
 }
 await b.close()
 console.log(`\n주휴수당 화면 ${통과}/${통과 + 틀림}`)

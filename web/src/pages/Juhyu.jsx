@@ -135,7 +135,7 @@ export default function Juhyu() {
             <small>하루 받는 돈(주휴수당이 따로 없는 일당)</small>
             {일당살핌(st.일당) && <small className="nm-warn">⚠️ {일당살핌(st.일당)}</small>}
           </label> : <label>시급
-            <span className="sl-unit"><input className="inp" inputMode="numeric" value={st.시급 ? 원글(st.시급) : ''} onChange={(e) => 바꿈('시급', 숫자(e.target.value, 6))} placeholder="예: 10,320" aria-label="시급" /><i>원</i></span>
+            <span className="sl-unit"><input className="inp" inputMode="numeric" value={st.시급 ? 원글(st.시급) : ''} onChange={(e) => 바꿈('시급', 숫자(e.target.value, 6))} placeholder={`예: ${원글(해값(최저임금표, new Date().getFullYear()).시급)}`} aria-label="시급" /><i>원</i></span>
             <small>{(() => { const m = 해값(최저임금표, new Date().getFullYear()); return `${m.해}년 최저임금 ${원글(m.시급)}원` })()}</small>
             {시급살핌(st.시급) && <small className="nm-warn">⚠️ {시급살핌(st.시급)}</small>}
           </label>}

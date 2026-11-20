@@ -53,7 +53,7 @@ const 읽 = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8')
 const 금지 = [
   ['web/src/data/tools.json', [/내역서 모음 — 20\d\d년/, /노무비율\(20\d\d 일반/, /해마다 바뀌는 값 — 20\d\d/, /공휴일 표\(20\d\d · 20\d\d년\)/]],
   ['web/src/pages/Naeyeok.jsx', [/모음 — 20\d\d년/, /품셈 기준 \(20\d\d년\)/]],
-  ['web/src/pages/Juhyu.jsx', [/20\d\d년 최저임금 [\d,]+원/]],
+  ['web/src/pages/Juhyu.jsx', [/20\d\d년 최저임금 [\d,]+원/, /placeholder="예: 1\d,\d{3}"/]],   /* G805 시급 칸 보기 글도 그 해 최저임금 */
   ['web/src/pages/NomubiMyeongse.jsx', [/· 20\d\d년 요율 ·/]],
   ['web/src/pages/TuipbiSite.jsx', [/셉니다 \(20\d\d년/, /<b>4\.75%<\/b>/, /<b>13\.14%<\/b>/, /<b>3\.595%<\/b>/, /실지급액 3,186,890원/]],
   ['web/src/pages/TuipbiBook.jsx', [/확정 전이라 20\d\d년 값으로/]],
