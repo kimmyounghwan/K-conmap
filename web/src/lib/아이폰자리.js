@@ -80,6 +80,7 @@ export function 켜기() {
   let 숨음때 = 0          // 🩺 G691 진단 D — 머리줄이 보이는 곳 위로 나가 있는 때(이어지는 동안 그대로)
   const 진단함 = {}
   let B수 = 0
+  let 아래켬 = false, 아래지금 = 0, 아래때 = 0, 아래셌음 = false   /* 📱 G798 아래 잘림 바로잡기(html.vv-cut) */
   /* 아래 탭 바닥(그려진 자리) · 탭이 안 보이는 넓은 화면은 -1 */
   const 탭바닥 = () => {
     try { const t = document.querySelector('.tabbar'); if (!t || getComputedStyle(t).display === 'none') return -1; return Math.round(t.getBoundingClientRect().bottom) } catch (e) { return -1 }
@@ -123,6 +124,26 @@ export function 켜기() {
     r.classList.remove('vv-fix')
     r.style.removeProperty('--vv-dy')
   }
+  /* 📱 G798 (11-20) 소장님 12:57 홈 화면 앱 캡처 «아래도 잘려서 안보여» — 아래 탭이 안 보이고 쪽 끝(바닥글)이 화면 밑에서 잘려 더 못 내림
+     홈 화면 앱(세로)에서 바탕 높이(innerHeight)가 아이폰 화면 높이(screen.height)보다 40px 넘게 큼 → 바탕 아래쪽(아래 탭 · 쪽 끝)이 화면 밖
+     → html.vv-cut + --vv-cut(넘친 만큼): 아래 탭 · 아래에 붙은 것을 그만큼 위로 · 쪽 끝 안쪽을 그만큼 더(끝까지 내려 보이게) · 화면 덮는 창은 아래를 그만큼 올림(styles.css «G798»)
+     진단 E(바로잡을 때 한 번 — m 에 넘친 만큼) · 세기 |아이폰자리|아래바로잡음 · 확인 못 한 짐작이라 숫자(E)로 다시 봄 */
+  const 아래맞춤 = (d, 보임) => {
+    const r = document.documentElement
+    if (!아래켬) { 아래켬 = true; r.classList.add('vv-cut'); if (!아래셌음) { 아래셌음 = true; 세기('|아이폰자리|아래바로잡음') } }
+    if (d !== 아래지금 || !r.style.getPropertyValue('--vv-cut')) { 아래지금 = d; r.style.setProperty('--vv-cut', d + 'px') }
+    if (r.style.getPropertyValue('--vv-vis') !== 보임 + 'px') r.style.setProperty('--vv-vis', 보임 + 'px')   /* 보이는 높이(= 화면) — 공지창 높이 */
+  }
+  const 아래풀기 = () => {
+    아래때 = 0
+    if (!아래켬) return
+    아래켬 = false
+    아래지금 = 0
+    const r = document.documentElement
+    r.classList.remove('vv-cut')
+    r.style.removeProperty('--vv-cut')
+    r.style.removeProperty('--vv-vis')
+  }
   const 다시봄 = (ms) => { if (기다림) return; 기다림 = setTimeout(() => { 기다림 = 0; 맞추기() }, Math.max(20, ms)) }
   const 맞추기 = () => {
     줄 = 0
@@ -155,6 +176,25 @@ export function 켜기() {
       if (t0 - 숨음때 >= 900) 진단('D', { ...값(), y: 머리, k: Math.round((vv.scale || 1) * 100), z: 켬 ? 지금 : 0, p: 쪽글() })
       else 다시봄(920 - (t0 - 숨음때))
     } else 숨음때 = 0
+    /* 📱 G798 아래 잘림 — 홈 화면 앱에서 바탕 높이(innerHeight)가 아이폰 화면 높이(screen)보다 큼 = 바탕 아래쪽(아래 탭 · 쪽 끝)이 화면 밖
+       소장님 폰 숫자(진단 B «t-41 h1042 i1042 b1042 s874 앱» — 바탕 1042 · 화면 874 · 탭 바닥 1042 → 168 이 화면 밑)
+       ⚠️ 보이는 높이(visualViewport.height)로는 못 잼 — 이 꼴에선 그 값도 1042(거짓) · G667 끼임에선 거꾸로 거짓으로 줄어 있음(탭은 제자리)
+       화면 높이는 아이폰이 늘 옳게 줌 → 바탕이 화면보다 40px 넘게 0.8초 넘게 길 때만 그만큼 올림 · 평소(같음) · 웹(사파리) · 안드로이드 · PC 는 아무것도 안 함
+       글 쓰는 중 · 손가락 확대 · G661 바로잡는 중이면 손 안 댐(풂) · 8px 밑으로 돌아오면 풂 */
+    {
+      const sw = Math.round((window.screen && window.screen.width) || 0), sh = Math.round((window.screen && window.screen.height) || 0)
+      const 세로 = (window.innerHeight || 0) >= (window.innerWidth || 0)
+      const 화면 = 세로 ? Math.max(sw, sh) : Math.min(sw, sh)
+      const 넘침 = navigator.standalone === true && 화면 > 0 ? Math.round((window.innerHeight || 0) - 화면) : 0
+      const 막힘 = 막음 || 쓰는중 || 켬
+      if (아래켬) {
+        if (막힘 || 넘침 < 8 || 넘침 > 600) 아래풀기()
+        else if (Math.abs(넘침 - 아래지금) > 2) 아래맞춤(넘침, 화면)
+      } else if (!막힘 && 넘침 >= 40 && 넘침 <= 600) {
+        if (!아래때) 아래때 = t0
+        if (t0 - 아래때 >= 800) { 진단('E', { ...값(), m: 넘침 }); 아래맞춤(넘침, 화면) } else 다시봄(820 - (t0 - 아래때))
+      } else 아래때 = 0
+    }
     if (켬) {
       어긋때 = 0
       if (막음) { 풀기(); return }                                           // 글자판이 올라옴 · 손가락 확대 — 아이폰이 하는 대로
@@ -164,7 +204,7 @@ export function 켜기() {
       return
     }
     /* 🩺 진단 B — 안 바로잡았는데 아래 탭 바닥이 보이는 바닥과 40px 넘게 0.8초 넘게 어긋남(위로 튕김 · 글자판 · 확대는 뺌) */
-    if (!막음 && vt >= 0) {
+    if (!막음 && vt >= 0 && !아래켬) {                                         // G798 아래 바로잡는 중(탭을 올려 둠)엔 안 봄 — E 로 이미 셈
       const tb = 탭바닥()
       if (tb >= 0 && Math.abs(tb - Math.round(vv.height || 0)) >= 40) {
         if (!어긋때) 어긋때 = t0

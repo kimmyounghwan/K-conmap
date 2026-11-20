@@ -2865,6 +2865,8 @@ a.flink:hover { opacity: .8; }
 .noticepop-f { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin: 6px -22px -16px; padding: 12px 22px 16px; border-top: 1px solid var(--line);
   position: sticky; bottom: -16px; background: var(--surface); }   /* 단추는 늘 보이게 — 글이 길어 창 안에서 굴러도 */
 .noticepop-f .btn { width: auto; }
+/* 📱 G798 홈 화면 앱에서 바탕이 화면보다 길게 잡힘(html.vv-cut — lib/아이폰자리.js) — 창 높이를 «보이는 높이(--vv-vis = 화면)» 로(100dvh 가 거짓으로 커도 단추가 화면 안) */
+html.vv-cut .noticepop-c { max-height: min(760px, calc(var(--vv-vis, 100dvh) - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))); }
 @media (max-width: 480px) {
   /* 📱 G797 (11-20) 소장님 아이폰 캡처 «위쪽에 보면 …» — 폰 줄이 «padding: 12px» 로 G760 시계 줄 띄우기를 덮어써서 창 맨 위(📢 공지 · ✕)가 시계 줄 밑에서 흐리게 가려졌음
      → 위 · 아래 안쪽을 시계 줄 · 홈 막대만큼 더 띄우고, 창 높이에서도 둘 다 뺌 · 재발 막기 tools/시험_시계줄.mjs(떠 있는 창의 폰 줄도 시계 줄을 빼먹지 않게) */
@@ -11138,6 +11140,21 @@ details.esc-edit > summary { cursor: pointer; font-weight: 700; font-size: 13.5p
    · 붙는 것(sticky 아래)은 bottom 에서 그만큼 뺌 — 붙어 있을 때만 내려가고, 제자리(글 끝)에 있을 때는 그대로
    · ⚠️ position: fixed(또는 sticky 아래)를 새로 쓰면 아래 목록에 더하거나, 시험_아이폰자리.mjs 의 «뺌» 목록에 까닭과 함께 적을 것(시험이 잡음)
    · 🩹 G791 .adsm-back(G781 광고 문자 창 바탕)을 더함 — 목록에 빠져 시험_아이폰자리 ⑨ 가 잡음 · 🛠 G794 .checktoast(점검 중 알림 · G793 .checkblock 은 걷어냄)도 */
+/* 📱 G798 (11-20) 홈 화면 앱 «아래도 잘려서 안보여» — html.vv-cut 일 때만(lib/아이폰자리.js «G798» · 바탕 높이가 아이폰 화면보다 큼 → --vv-cut = 넘친 만큼 · --vv-vis = 화면 높이)
+   · 아래에 붙은 것(fixed · bottom)은 그만큼 위로(translate — 제 bottom 값 · transform 은 그대로) · 화면을 덮는 창 · 위아래 꽉 찬 판은 아래 가장자리를 그만큼 올림
+   · 붙는 것(sticky 아래)은 bottom 에 그만큼 더함 · 쪽 끝 안쪽(.shell)을 그만큼 더(바닥글까지 내려 보이게) · 공지창 높이는 보이는 높이로(.noticepop-c 곁 «G798» 줄 — 먼 곳 겹침 막기)
+   · 위에 붙은 것(.topbar · .kcm-sibar · .gmd-askbox · .noti-pop)은 그대로 · ⚠️ 아래에 붙는 fixed 를 새로 쓰면 여기에도 더할 것(시험_아이폰자리 ⑭ 가 잡음) */
+html.vv-cut :is(.tabbar, .cam-tab, .bsr-dock, .gx-ed, .xv-고침판, .iy-bar, .insa, .ask-card, .checktoast, .gmd-xlchk-toast, .nm-toast) { translate: 0 calc(-1 * var(--vv-cut, 0px)); }
+html.vv-cut :is(.cam-dim, .installguide, .noticepop, .adsm-back, .askwrap, .끌놓판, .pb-modal, .mt-back, .mt-sheet, .qs-back,
+  .kcm-help-back, .kcm-help-dlg, .gmd-xlchk) { bottom: var(--vv-cut, 0px); }
+html.vv-cut .mc-savebar { bottom: calc(12px + var(--vv-cut, 0px)); }
+@media (max-width: 899px) { html.vv-cut .mc-savebar { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 8px + var(--vv-cut, 0px)); } }
+@media (max-width: 560px) { html.vv-cut .mc-savebar { bottom: calc(var(--nav-h) * 2 + env(safe-area-inset-bottom) + 8px + var(--vv-cut, 0px)); } }
+html.vv-cut .fill-go { bottom: calc(10px + var(--vv-cut, 0px)); }
+@media (max-width: 720px) { html.vv-cut .fill-go { bottom: calc(104px + var(--vv-cut, 0px)); } }
+html.vv-cut .shell { padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 24px + var(--vv-cut, 0px)); }
+@media (max-width: 560px) { html.vv-cut .shell { padding-bottom: calc(var(--nav-h) * 2 + env(safe-area-inset-bottom) + 20px + var(--vv-cut, 0px)); } }
+@media (min-width: 900px) { html.vv-cut .shell { padding-bottom: calc(40px + var(--vv-cut, 0px)); } }
 html.vv-fix .topbar { top: var(--vv-dy, 0px); }
 html.vv-fix :is(.tabbar, .cam-tab, .cam-dim, .bsr-dock, .gx-ed, .xv-고침판, .iy-bar, .insa, .ask-card,
   .installguide, .noticepop, .adsm-back, .checktoast, .askwrap, .끌놓판, .pb-modal, .mt-back, .mt-sheet, .qs-back,

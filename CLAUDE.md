@@ -1339,6 +1339,23 @@ cd web && firebase deploy --only hosting        (또는 --only database)
   빠른 찾기 폰 줄 · 폰 공지창 높이 · index.html viewport-fit=cover 그대로. 옛 CSS 로 돌리면 4가지 ✗(잡는지 확인함). 새 떠 있는 창을 만들면 이 목록에 더할 것.
 - 확인: 크롬 CDP «시계 줄 59 · 홈 막대 34» 흉내로 폰 390 — 창 위가 시계 줄 아래에서 시작 · 아래가 홈 막대 위에서 끝 · 시험_광고공지 · 시험_점검창 · 시험_굴림잠금화면 · 시험_아이폰자리 · 시험_css겹침
 
+### 📱 홈 화면 앱 «아래도 잘려서 안보여» — 바탕이 화면보다 길게 잡힘 바로잡기 G798 (2026-11-20)
+- 소장님 12:57 아이폰 홈 화면 앱 캡처(바로투찰 첫 화면 맨 아래 — 아래 탭이 안 보이고 바닥글 «자매 사이트 …» 가 화면 끝에서 잘려 더 못 내림) 「아래도 잘려서 안보여」 ·
+  물음 답 «맨 아래 글이 잘림» · «홈 화면 앱» · 13:05 공지창이 화면보다 길게 잠깐 나옴(「순간 그렇게 나온 것 같아」 — 같은 꼴)
+- 까닭(소장님 폰 숫자 — dl/p «|아이폰자리|진단-B-t-41-h1042-i1042-b1042-s874-앱»): 아이폰이 바탕 높이(innerHeight)를 1042 로, 화면(screen.height)은 874 로 줌 →
+  아래 탭 바닥이 1042(화면 밑 168) · 쪽 끝도 168 만큼 화면 밖. 이때 보이는 높이(visualViewport.height)도 1042(거짓)라 G661 · G667(기준점 · 보이는 높이로 잼)은 못 잡음
+  · 평소엔 바탕 874 = 화면 874(진단 D «h874 · b874 · s874»). c(documentElement.clientHeight)는 늘 812(시계 줄 뺀 값)라 쓰지 않음
+- 고침(lib/아이폰자리.js «G798» · 홈 화면 앱(navigator.standalone)에서만): 넘침 = innerHeight − 화면 높이(세로 = screen 긴 쪽) 가 40 ~ 600px 로 0.8초 넘게 → html.vv-cut ·
+  --vv-cut(넘침) · --vv-vis(화면 높이) · 8px 밑으로 돌아오면 풂 · 글 쓰는 중 · 손가락 확대 · G661 바로잡는 중(vv-fix)이면 손 안 댐(풂 — 둘이 겹치지 않음) ·
+  진단 E 한 번(t · h · m = 넘침 · c · b · f · s · 앱) · 셈 |아이폰자리|아래바로잡음 · 올려 둔 동안은 진단 B 안 셈
+- styles.css «G798»(html.vv-cut 일 때만): 아래에 붙은 fixed(.tabbar · .cam-tab · .bsr-dock · .gx-ed · .xv-고침판 · .iy-bar · .insa · .ask-card · .checktoast · .gmd-xlchk-toast · .nm-toast)는
+  translate 로 넘침만큼 위로 · 화면 덮는 창 · 위아래 꽉 찬 판(.cam-dim · .installguide · .noticepop · .adsm-back · .askwrap · .끌놓판 · .pb-modal · .mt-back · .mt-sheet · .qs-back ·
+  .kcm-help-back · .kcm-help-dlg · .gmd-xlchk)은 bottom = 넘침 · 공지창 카드 높이 = 보이는 높이 기준 · sticky 아래(.mc-savebar · .fill-go)는 bottom 에 더함 · .shell 아래 안쪽 셋(기본 · 560 이하 · 900 이상)에 더함 ·
+  위에 붙은 것(.topbar · .kcm-sibar · .gmd-askbox · .noti-pop)은 그대로
+- ⭐ 재발 막기: 시험_아이폰자리 ⑭(바탕 1042 · 화면 874 · 홈 화면 앱 흉내 — Playwright screen · navigator.standalone) 동작 24 + 사파리(웹) · 안드로이드 4 +
+  styles.css 검사(G661 목록 가운데 아래에 붙는 것 — bottom · inset 0 · JSX style={{ bottom }} — 은 vv-cut 목록에도 · 위에 붙는 것은 안 옮김 · .shell 셋) — 아래에 붙는 fixed 를 새로 쓰면 두 목록에 다 더할 것
+- 확인 못 한 짐작(아이폰 없음) — 진단 E 숫자로 다시 봄. 확인: 시험_아이폰자리 104 × 3 · 시험_시계줄 × 3 · 시험_광고공지 · 시험_점검창 · 시험_굴림잠금화면 · 시험_css겹침 · 시험_굴림잠금
+
 ### 🏛 지방 적격심사 자기평가 계산기 /tools/qualify-self — G795 (2026-11-20)
 - 소장님 11:1x 카페 «적격심사 자기평가표 계산법 도움주세요»(지방계약 · 실적 · 부채비율 · 유동비율 · 투찰 · 기초 · 예정 · A값) 「답글주고, 도구로 가능해?」 → «점수까지 내 주는 계산기» → 「만들어 줘」
 - 근거: 지방자치단체 입찰시 낙찰자 결정기준 [행정안전부예규 제393호 · 2026. 10. 30. 일부개정 · 2026. 11. 2. 시행] 제2장의1 제2절 2 · 제6절(100억 미만 95점) · [별표 4] ~ [별표 7] · 제2장 제11절 3(소수점)

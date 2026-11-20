@@ -21,6 +21,11 @@
  *      커서만 남고 높이는 돌아온 채 1.5초 넘으면 바로잡음 · 진단 C 한 번
  *   ⑬ G691 진단 D — 머리줄(공사연결 작은 띠가 매달림)이 보이는 곳 위로 0.9초 넘게 나가 있으면 숫자 한 번(글자판이 정말 올라와 있을 땐 없음 · 아무것도 안 움직임) ·
  *      ⑪ ⑫ 의 바로잡기 흐름에선 D 없음
+ *   ⑭ G798 «아래 잘림» — 소장님 11-20 12:57 홈 화면 앱 캡처 「아래도 잘려서 안보여」(아래 탭 안 보임 · 바닥글 잘림) · 폰 숫자 진단 B «t-41 h1042 i1042 b1042 s874 앱»:
+ *      바탕(innerHeight 1042)이 화면(screen 874)보다 큼 → 0.8초 뒤 html.vv-cut · --vv-cut 168px · 아래 탭 바닥 = 874 · 쪽 끝 안쪽 +168 · 바닥글이 탭 위로 다 보임 ·
+ *      화면 덮는 창 아래 가장자리 874 · 공지창 높이 ≤ 보이는 높이 · 진단 E 한 번 · 셈 |아이폰자리|아래바로잡음 한 번 · 진단 B 없음 ·
+ *      글 쓰면 풂 → 커서 빼면 다시 · 손가락 확대면 풂 · G661 바로잡는 중이면 풂(둘이 겹치지 않음) · 바탕이 화면과 같아지면 바로 풂 · 0.8초 안 되는 잠깐은 그대로 ·
+ *      사파리(웹) · 안드로이드 · PC 는 아무것도 안 함 · styles.css 재발 막기(아래에 붙는 fixed · sticky 는 vv-cut 목록에)
  *   인터넷 안 부름(파이어베이스 · 광고 · 애널리틱스 막음 · 셈은 가로채서 봄).
  */
 import fs from 'node:fs'
@@ -41,8 +46,10 @@ const UA안드 = 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (
 const UAPC = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
 
 const b = await chromium.launch()
-const 새판 = async (ua, w = 402, h = 874, 폰 = true) => {
-  const ctx = await b.newContext({ viewport: { width: w, height: h }, locale: 'ko-KR', timezoneId: 'Asia/Seoul', isMobile: 폰, hasTouch: 폰, userAgent: ua })
+/* 덧.화면 = 아이폰 화면 크기(screen — 안 주면 바탕과 같음) · 덧.앱 = 홈 화면 앱(navigator.standalone) — 📱 G798 «바탕이 화면보다 큼» 흉내 */
+const 새판 = async (ua, w = 402, h = 874, 폰 = true, 덧 = {}) => {
+  const ctx = await b.newContext({ viewport: { width: w, height: h }, ...(덧.화면 ? { screen: 덧.화면 } : {}), locale: 'ko-KR', timezoneId: 'Asia/Seoul', isMobile: 폰, hasTouch: 폰, userAgent: ua })
+  if (덧.앱) await ctx.addInitScript(() => { try { Object.defineProperty(Navigator.prototype, 'standalone', { configurable: true, get: () => true }) } catch (e) { /* 없음 */ } })
   await ctx.route(/googletagmanager|google-analytics|pagead2|adsbygoogle|googlesyndication|geojs|coupang/, (r) => r.fulfill({ status: 200, body: '' }))
   const 보냄 = []
   await ctx.route(/firebaseio\.com|firebasedatabase\.app|identitytoolkit|securetoken/, (r) => {
@@ -306,6 +313,90 @@ const 커서뺌 = (p) => p.evaluate(() => { if (document.activeElement && docume
   await ctx.close()
 }
 
+/* ━━ ⑭ G798 «아래 잘림» — 홈 화면 앱에서 바탕(innerHeight 1042)이 화면(screen 874)보다 큼(소장님 폰 진단 B «t-41 h1042 i1042 b1042 s874 앱») ━━ */
+{
+  console.log('■ 아이폰 ⑭ G798 아래 잘림(바탕 1042 · 화면 874 · 홈 화면 앱)')
+  const { ctx, p, 오류, 보냄 } = await 새판(UA아이폰, 402, 1042, true, { 화면: { width: 402, height: 874 }, 앱: true })
+  const 잘림 = () => p.evaluate(() => {
+    const r = document.documentElement, 탭 = document.querySelector('.tabbar')
+    const 탭r = 탭 ? 탭.getBoundingClientRect() : null
+    return { 켬: r.classList.contains('vv-cut'), 고침: r.classList.contains('vv-fix'), cut: r.style.getPropertyValue('--vv-cut'), vis: r.style.getPropertyValue('--vv-vis'),
+      탭바닥: 탭r ? Math.round(탭r.bottom) : null, 탭위: 탭r ? Math.round(탭r.top) : null, 높이: window.innerHeight, 화면: screen.height, 앱: navigator.standalone === true }
+  })
+  await 열기(p, '/')
+  await 값(p, { offsetTop: 0, scale: 1, height: 1042 })
+  await 쉬어(1300)
+  let s = await 잘림()
+  ok('⑭ 흉내 됨 — 바탕 1042 · 화면 874 · 홈 화면 앱', s.높이 === 1042 && s.화면 === 874 && s.앱, s)
+  ok('⑭ 0.8초 뒤 바로잡음 — html.vv-cut · --vv-cut 168px · --vv-vis 874px · vv-fix 없음', s.켬 && s.cut === '168px' && s.vis === '874px' && !s.고침, s)
+  ok('⑭ 아래 탭 바닥 = 화면 바닥(874) — 1042 에서 168 올라옴', s.탭바닥 === 874, s)
+  const 더 = await p.evaluate(() => {
+    const r = document.documentElement, m = document.querySelector('main.shell')
+    const a = parseFloat(getComputedStyle(m).paddingBottom); r.classList.remove('vv-cut'); const b0 = parseFloat(getComputedStyle(m).paddingBottom); r.classList.add('vv-cut')
+    return Math.round(a - b0)
+  })
+  ok('⑭ 쪽 끝 안쪽(.shell padding-bottom)이 168 더 — 바닥글까지 내려 보이게', 더 === 168, 더)
+  await p.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight)); await 쉬어(500)
+  const 끝 = await p.evaluate(() => {
+    const f = document.querySelector('.footer'), 탭 = document.querySelector('.tabbar')
+    const fr = f.getBoundingClientRect(), tr = 탭.getBoundingClientRect()
+    return { 바닥글끝: Math.round(fr.bottom), 탭위: Math.round(tr.top), 탭바닥: Math.round(tr.bottom) }
+  })
+  ok('⑭ 맨 아래로 내리면 바닥글이 (올린) 아래 탭 위에 다 보임 — 화면 874 안', 끝.바닥글끝 <= 끝.탭위 && 끝.탭바닥 === 874, 끝)
+  const 창 = await p.evaluate(() => {
+    const w = document.createElement('div'); w.className = 'noticepop'; w.id = '시험창'
+    const c = document.createElement('div'); c.className = 'noticepop-c'; c.style.height = '3000px'; w.appendChild(c); document.body.appendChild(w)
+    const wr = w.getBoundingClientRect(), cr = c.getBoundingClientRect(), mh = getComputedStyle(c).maxHeight
+    w.remove()
+    return { 창바닥: Math.round(wr.bottom), 카드위: Math.round(cr.top), 카드바닥: Math.round(cr.bottom), mh }
+  })
+  ok('⑭ 화면 덮는 창(공지창) — 아래 가장자리 874 · 긴 공지도 카드가 화면 안(위 ≥ 0 · 아래 ≤ 874)', 창.창바닥 === 874 && 창.카드위 >= 0 && 창.카드바닥 <= 874, 창)
+  const 진E = 보냄.filter((x) => /진단-E-/.test(x.u))
+  ok('⑭ 진단 E — 한 번 · 숫자(t0 · h1042 · 넘침 m168 · 바로잡기 전 탭 바닥 b1042 · 커서 없음 · s874 · 앱)', 진E.length === 1 && /진단-E-t0-h1042-m168-c\d+-b1042-fN-s874-앱\.json$/.test(진E[0].u), 진E.map((x) => x.u.replace(/^.*\/dl\/p\//, '')))
+  ok('⑭ 숨은 셈 |아이폰자리|아래바로잡음 한 번', 보냄.filter((x) => /아이폰자리\|아래바로잡음/.test(x.u)).length === 1, 보냄.map((x) => x.u.replace(/^.*\/dl\/p\//, '')))
+  ok('⑭ 진단 B 없음(올려 둔 탭은 B 로 안 셈) · A · C · D 없음', !보냄.some((x) => /진단-[ABCD]-/.test(x.u)), 보냄.filter((x) => /진단-/.test(x.u)).map((x) => x.u.replace(/^.*\/dl\/p\//, '')))
+  await p.evaluate(() => window.scrollTo(0, 0)); await 쉬어(300)
+
+  ok('⑭ 글 쓰면 — 바로 풂(키보드는 아이폰이 하는 대로)', await 커서(p) && (await 쉬어(300), !(await 잘림()).켬), await 잘림())
+  await 쉬어(1700)
+  ok('⑭ 커서가 남아 있는 동안은 계속 안 건드림', !(await 잘림()).켬, await 잘림())
+  await 커서뺌(p); await 쉬어(1600)
+  s = await 잘림()
+  ok('⑭ 커서 빼면 — 0.8초 뒤 다시 바로잡음(168)', s.켬 && s.cut === '168px' && s.탭바닥 === 874, s)
+
+  await 값(p, { scale: 1.6 }); await 쉬어(300)
+  ok('⑭ 손가락 확대 — 풂', !(await 잘림()).켬, await 잘림())
+  await 값(p, { scale: 1 }); await 쉬어(1400)
+  ok('⑭ 확대 끝 — 다시 바로잡음', (await 잘림()).켬, await 잘림())
+
+  await 값(p, { offsetTop: 343 }); await 쉬어(2300)
+  s = await 잘림()
+  ok('⑭ G661 기준점 어긋남이 겹치면 — G661 바로잡기(vv-fix)만 · vv-cut 은 풂(둘이 겹치지 않음)', s.고침 && !s.켬, s)
+  await 값(p, { offsetTop: 0 }); await 쉬어(1500)
+  s = await 잘림()
+  ok('⑭ 기준점 돌아오면 — vv-fix 풂 · 바탕이 아직 크면 vv-cut 다시', !s.고침 && s.켬 && s.탭바닥 === 874, s)
+
+  await p.setViewportSize({ width: 402, height: 874 }); await 값(p, { height: 874 }); await 쉬어(400)
+  s = await 잘림()
+  ok('⑭ 바탕이 화면과 같아지면(874) — 바로 풂 · 값 지움 · 탭 바닥 874 그대로', !s.켬 && !s.cut && !s.vis && s.탭바닥 === 874, s)
+  await p.setViewportSize({ width: 402, height: 1042 }); await 값(p, { height: 1042 }); await 쉬어(450)
+  ok('⑭ 잠깐(0.8초 안) 커진 것은 — 그대로', !(await 잘림()).켬, await 잘림())
+  await p.setViewportSize({ width: 402, height: 874 }); await 값(p, { height: 874 }); await 쉬어(1400)
+  ok('⑭ 잠깐 커졌다 돌아오면 — 끝내 안 건드림', !(await 잘림()).켬, await 잘림())
+  ok('⑭ 진단 E 는 한 쪽에 한 번뿐 · 셈도 한 번', 보냄.filter((x) => /진단-E-/.test(x.u)).length === 1 && 보냄.filter((x) => /아래바로잡음/.test(x.u)).length === 1)
+  ok('⑭ 화면 오류 없음', 오류.length === 0, 오류)
+  await ctx.close()
+}
+for (const [이름, 앱, ua, 폰] of [['사파리(웹 — 홈 화면 앱 아님)', false, UA아이폰, true], ['안드로이드(앱 흉내)', true, UA안드, true]]) {
+  const { ctx, p, 오류, 보냄 } = await 새판(ua, 402, 1042, 폰, { 화면: { width: 402, height: 874 }, 앱 })
+  await 열기(p, '/')
+  await 값(p, { offsetTop: 0, scale: 1, height: 1042 }); await 쉬어(1500)
+  const s = await p.evaluate(() => ({ 켬: document.documentElement.classList.contains('vv-cut'), cut: document.documentElement.style.getPropertyValue('--vv-cut') }))
+  ok(`⑭ ${이름} — 바탕 1042 · 화면 874 여도 vv-cut 없음 · 진단 E 없음`, !s.켬 && !s.cut && !보냄.some((x) => /진단-E-|아래바로잡음/.test(x.u)), s)
+  ok(`⑭ ${이름} — 화면 오류 없음`, 오류.length === 0, 오류)
+  await ctx.close()
+}
+
 /* ━━ ⑧ PC · 안드로이드 — 아무것도 안 바뀜 ━━ */
 for (const [이름, ua, w, h, 폰] of [['PC(윈도 크롬 1280)', UAPC, 1280, 900, false], ['안드로이드(390)', UA안드, 390, 844, true]]) {
   console.log('■ ' + 이름)
@@ -314,6 +405,7 @@ for (const [이름, ua, w, h, 폰] of [['PC(윈도 크롬 1280)', UAPC, 1280, 90
   await 값(p, { offsetTop: 343, scale: 1, height: h }); await 쉬어(1400)
   const s = await 상태(p)
   ok(`⑧ ${이름} — 가짜 343 이어도 vv-fix 없음 · 그대로`, !s.고침 && (s.탭옮김 === 'none' || s.탭옮김 === null) && s.머리top === '0px', s)
+  ok(`⑧ ${이름} — vv-cut(G798)도 없음`, !(await p.evaluate(() => document.documentElement.classList.contains('vv-cut'))))
   ok(`⑧ ${이름} — 셈 안 감`, !보냄.some((x) => /아이폰자리/.test(x.u)))
   ok(`⑧ ${이름} — 화면 오류 없음`, 오류.length === 0, 오류)
   await ctx.close()
@@ -349,6 +441,32 @@ await b.close()
   ok('⑨ fixed · sticky(아래) 가 모두 G661 목록 또는 «뺌»(까닭) 에 있음', 없는것.length === 0, 없는것)
   ok('⑨ G661 목록에 머리줄 · 아래 탭 · «+» 가 있음', ['topbar', 'tabbar', 'cam-tab'].every((k) => 덮음.has(k)))
   ok('⑨ 머리줄은 transform 으로 옮기지 않음(안의 떠 있는 창이 갇힘)', !/vv-fix[^{}]*\.topbar[^{}]*\{[^}]*(translate|transform)/.test(g) && /html\.vv-fix \.topbar \{ top: var\(--vv-dy/.test(g))
+}
+
+/* ━━ ⑭ G798 재발 막기 — G661 목록(vv-fix) 가운데 «아래에 붙는 것»(bottom · inset · 글 속 style bottom · sticky 아래)은 vv-cut 목록에도 있어야 ━━ */
+{
+  console.log('■ 재발 막기 ⑭(styles.css · vv-cut)')
+  const css = fs.readFileSync(path.join(여기, '..', 'web', 'src', 'styles.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+  const 덩이 = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ 선택: m[1].trim(), 몸: m[2] }))
+  const 이름들 = (sel) => new Set([...sel.matchAll(/\.([\w가-힣-]+)/g)].map((x) => x[1]))
+  const 고침목록 = new Set(), 잘림목록 = new Set()
+  for (const d of 덩이) {
+    if (/html\.vv-fix/.test(d.선택)) for (const c of 이름들(d.선택)) 고침목록.add(c)
+    if (/html\.vv-cut/.test(d.선택)) for (const c of 이름들(d.선택)) 잘림목록.add(c)
+  }
+  for (const c of ['vv-fix', 'vv-cut']) { 고침목록.delete(c); 잘림목록.delete(c) }
+  /* 글 속(JSX) style={{ bottom: … }} 로 아래에 붙는 것 — 인사(.insa) · 알림 안내(.ask-card) · 일용 판단 띠(.iy-bar) 등 */
+  const 글속아래 = new Set()
+  const 걷기 = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const q = path.join(d, e.name); if (e.isDirectory()) 걷기(q); else if (/\.jsx$/.test(e.name)) for (const m of fs.readFileSync(q, 'utf8').matchAll(/className=\{?['"]([\w가-힣 -]+)['"][^>]*?style=\{\{\s*bottom/g)) for (const c of m[1].split(/\s+/)) if (c) 글속아래.add(c) } }
+  걷기(path.join(여기, '..', 'web', 'src'))
+  const 아래붙음 = (c) => 글속아래.has(c) || 덩이.some((d) => !/vv-(fix|cut|kick)/.test(d.선택) && d.선택.split(',').some((하나) => [...하나.matchAll(/\.([\w가-힣-]+)/g)].map((x) => x[1]).pop() === c) &&
+    (/(^|[;\s])bottom\s*:\s*(?!auto)/.test(d.몸) || /(^|[;\s])inset\s*:\s*0\b/.test(d.몸)))
+  const 뺌 = { 'noticepop-f': '공지 창 안 스크롤 상자에 붙음(화면 기준 아님)' }
+  const 빠짐 = [...고침목록].filter((c) => 아래붙음(c) && !잘림목록.has(c) && !뺌[c])
+  ok('⑭ 아래에 붙는 fixed · sticky(G661 목록) 가 모두 vv-cut 목록에 있음', 빠짐.length === 0, 빠짐)
+  ok('⑭ 글 속 style bottom 찾음(.insa · .ask-card · .iy-bar)', ['insa', 'ask-card', 'iy-bar'].every((c) => 글속아래.has(c)), [...글속아래])
+  ok('⑭ 위에 붙는 것(.topbar · .kcm-sibar · .gmd-askbox)은 vv-cut 으로 안 옮김', !['topbar', 'kcm-sibar', 'gmd-askbox'].some((c) => 잘림목록.has(c)), [...잘림목록])
+  ok('⑭ .shell 아래 안쪽 셋(기본 · 560 이하 · 900 이상) 모두 --vv-cut 더함', (css.match(/html\.vv-cut \.shell \{ padding-bottom: calc\([^}]*\+ var\(--vv-cut, 0px\)\); \}/g) || []).length === 3)
 }
 
 console.log(bad ? `\n✗ ${bad}개 틀림 (${n}개 중)` : `\n✅ 시험_아이폰자리 ${n}/${n}`)

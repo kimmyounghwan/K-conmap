@@ -145,6 +145,7 @@ def 겹침들(글):
 #   + kcm-sibar:2 — G765(11-18) 시계 줄 바탕 칸을 아이폰 바로잡기 목록(html.vv-fix :is(…))에 더함(머리줄과 같이 내려가야 · 같은 까닭)
 #   + adsm-back:2 — G791(11-20) G781 광고 문자 창 바탕(fixed)을 아이폰 바로잡기 목록(html.vv-fix :is(…))에 더함(시험_아이폰자리 ⑨ 가 잡음 · 같은 까닭)
 #   + checktoast:2 — G794(11-20) 점검 중 알림(fixed)을 아이폰 바로잡기 목록에 더함(같은 까닭 · G793 checkblock 은 걷어냄)
+#   + vv-cut:2 — G798(11-20) 홈 화면 앱 «아래 잘림» 바로잡기(html.vv-cut — html 에 붙는 상태 이름) · 공지창 높이 줄은 .noticepop-c 곁에 · 나머지는 파일 끝 아이폰 바로잡기 묶음에(vv-fix 와 같은 까닭)
 이미_멀리_글 = """
 adsm-back:2 amt-read:2 ask-card:2 bim-big:2 bim-box:2 bim-box-list:2 bim-canvas:2 bim-chips:2 bim-out:2 bim-side:2 bim-sum:2 bim-tblwrap:2 bim-tool:2 bim-view:2
 bim-views:2 bsr-cta:2 bsr-dock:2 bsr-title:2 btn-grid:2 btn-row:4 c-sim:2 checktoast:2 cam-dim:2 cam-tab:2 cfx-view:2 cpl-view:2 cw-tiles:2 detail-h:5 dx3-err:2
@@ -156,7 +157,7 @@ mt-back:2 mt-fold:2 mt-lab:2 mt-meta:2 mt-sheet:2 mt-tag:2 mt-where:2 mt-who:2 n
 ny-sit-h:2 pb-modal:2 pb-note:2 pre-xgot:2 qs-back:2 r-hot:2 r-warm:2 rk-bigttl:2 rk-c:2 rk-foot:3 rk-paper:2 rk-sec:2 rk-t:2 rk-쪽:2 sec-title:5
 sg-view:2 sn-date:2 sn-frame:2 sn-say:2 sn-sign:2 tl-h1:2 tl-out:2 tl-p:2 tl-row:2 tlx-body:2 tlx-card:3 tlx-d:3 tlx-dl:2 tlx-ex:2 tlx-grid:2 tlx-ic:3
 tlx-new:3 tlx-row:2 tlx-t:3 topbar-in:2 topbar-r:2 tp-scroll:3 tp-src:2 tp-tab:2 tp-tabs:2 tp-warn:2 tp-x:3 umap-foot:2 umap-mini:2 umap-mini-n:2
-umap-reg:2 xl-go:3 xl-i:2 xl-t:2 xv-고침판:2 xv-판:2
+umap-reg:2 vv-cut:2 xl-go:3 xl-i:2 xl-t:2 xv-고침판:2 xv-판:2
 """
 이미_멀리 = {k: int(v) for k, v in (x.rsplit(":", 1) for x in 이미_멀리_글.split())}
 
