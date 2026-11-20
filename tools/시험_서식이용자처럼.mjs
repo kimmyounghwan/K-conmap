@@ -35,15 +35,30 @@ const 봐 = (c, m, 더 = '') => { if (c) ok++; else { bad++; 틀림.push(`✗ ${
 const 날꼴 = (nf) => !!nf && /[yd]/.test(String(nf).replace(/"[^"]*"/g, ''))
 const 수꼴 = (nf) => !!nf && /[#0]/.test(String(nf)) && !날꼴(nf)
 /* 첫 «쓰는 칸» — 고르는 칸(dv) · 날 · 사진 · 인쇄 밖은 빼고, 첫 쪽에 있는 것 */
+/* 📷 G492 사진 칸(열 머리글에 «사진» · 높이 25pt 넘는 쓰는 칸)은 누르면 «📷 사진 고르기» 가 열림(글 쓰는 칸 아님) — 격자작성.jsx 사진칸표 와 같은 셈
+   🩹 G801 (11-20) 이력서(iryeokseo) «증명사진» 칸을 첫 칸으로 골라 «칸을 누르면 쓰는 칸이 열림» 이 늘 틀렸음(옛 판도 같음 — 사이트 잘못 아님) → 뺌 */
+const 사진머리 = /사진|배치 위치 및 (작업구간|이동 경로)/
+function 사진칸(s, 판, 덮, x) {
+  if (판.Y[x[0] + x[2] - 1] - 판.Y[x[0] - 1] < 25) return false
+  for (let r = x[0] - 1; r >= 1; r--) {
+    const y = 덮.get(r * 16384 + x[1]); if (!y || y === x) continue
+    if (y[5] === 1 || y[5] === 3) continue
+    const t = String(y[6] ?? '').trim(); if (t) return 사진머리.test(t)
+  }
+  return false
+}
 function 첫칸(doc) {
   for (let si = 0; si < doc.sheets.length; si++) {
     const s = doc.sheets[si]
     const 판 = 판짜기(s)
+    const 덮 = new Map()
+    for (const y of s.cells) for (let i = y[0]; i < y[0] + y[2]; i++) for (let j = y[1]; j < y[1] + y[3]; j++) 덮.set(i * 16384 + j, y)
     for (const x of s.cells) {
       const [r, c, , , , k, v] = x
       const nf = x[8], dv = x[9]
       if (k !== 1 || dv || 날꼴(nf) || (v && typeof v === 'object') || c > s.pc) continue
       if (typeof v === 'string' && v.startsWith('=')) continue
+      if (사진칸(s, 판, 덮, x)) continue
       const pi = 칸쪽(판, r)
       if (pi < 0) continue
       const 상자 = 칸상자(판, pi, x)

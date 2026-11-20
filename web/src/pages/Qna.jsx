@@ -1516,7 +1516,7 @@ function Detail({ row, ans, mine, onChange, 나운영자, 안내 = false, 참석
         {답고칠 === a.id
           ? (
             <div className="mt-aedit">
-              <textarea className="inp" rows={4} maxLength={2000} value={고칠글} onChange={(e) => set고칠글(e.target.value)} aria-label="답글 고치기" autoFocus />
+              <textarea className="inp ta-mid" rows={4} maxLength={2000} value={고칠글} onChange={(e) => set고칠글(e.target.value)} aria-label="답글 고치기" autoFocus />
               <div className="mt-aedit-b">
                 <button type="button" className="mt-adel-no" onClick={() => set답고칠(null)} disabled={고치는중}>그만</button>
                 <button type="button" className="mt-aedit-ok" onClick={() => 답고치기(a)} disabled={고치는중}>{고치는중 ? '고치는 중…' : '고친 대로 올리기'}</button>
@@ -1597,8 +1597,8 @@ function Detail({ row, ans, mine, onChange, 나운영자, 안내 = false, 참석
           </div>
           <input className="inp" value={고침.t} maxLength={70} onChange={(e) => set고침((v) => ({ ...v, t: e.target.value }))}
             style={{ width: '100%', boxSizing: 'border-box', marginBottom: 6 }} />
-          <textarea className="inp" value={고침.b} maxLength={2000} onChange={(e) => set고침((v) => ({ ...v, b: e.target.value }))}
-            style={{ width: '100%', boxSizing: 'border-box', minHeight: 110 }} />
+          <textarea className="inp ta-big" value={고침.b} maxLength={2000} onChange={(e) => set고침((v) => ({ ...v, b: e.target.value }))}
+            style={{ width: '100%', boxSizing: 'border-box' }} />
           {지도바탕 && (
             <label className="mt-gedit">📍 지도 핀 자리 <span className="muted">(핀 자리의 지역방에 들어갑니다)</span>
               <select className="inp" value={고침.g || ''} onChange={(e) => set고침((v) => ({ ...v, g: e.target.value }))}>

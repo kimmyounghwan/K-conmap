@@ -495,7 +495,7 @@ function WriteForm({ onClose, onDone, region0, trade0 }) {
 
       <div className="field">
         <label>내용 <span className="hint">— 선택</span></label>
-        <textarea value={f.body} onChange={set_('body')} maxLength={1000}
+        <textarea className="ta-big" value={f.body} onChange={set_('body')} maxLength={1000}
           placeholder="현장 위치, 근무 시간, 우대 사항 등" />
       </div>
 

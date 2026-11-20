@@ -216,7 +216,7 @@ export function QuoteForm({ 옵션 = null, 첫값 = '입찰 산출내역서', �
         </div>
         <div style={R}>
           <label style={L}>더 하실 말씀</label>
-          <textarea style={{ ...I, minHeight: 90 }} value={f.memo} onChange={set('memo')}
+          <textarea className="ta-big" style={I} value={f.memo} onChange={set('memo')}
             placeholder="물량내역서가 있는지, 발주처 서식이 따로 있는지 같은 것을 적어 주시면 값이 정확해집니다."
             maxLength={1000} />
         </div>

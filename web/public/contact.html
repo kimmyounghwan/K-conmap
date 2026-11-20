@@ -35,7 +35,7 @@
 .f input,.f textarea{width:100%;box-sizing:border-box;font-family:inherit;font-size:16px;
   line-height:1.6;padding:9px 10px;border:1px solid #d1d5db;border-radius:9px;
   background:#fff;color:#111827}
-.f textarea{min-height:120px;resize:vertical}
+.f textarea{min-height:150px;resize:vertical;line-height:1.7}
 .f .row{margin-bottom:12px}
 .f .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .f .req{color:#c0392b}
@@ -279,6 +279,12 @@
       말('보내지 못했습니다. 잠시 뒤 다시 하시거나 kimmyounghwan259@gmail.com 으로 보내 주십시오.', 'err')
     })
   }
+})()
+/* ✍ G801 (2026-11-20) 소장님 「건설맵 모든 글쓰기 칸 점검해서 고쳐줘」 — «자세히» 칸: 쓰면 글만큼 늘어남(화면 높이 60 % 까지 · 넘으면 칸 안에서 굴림) */
+;(function () {
+  var t = document.getElementById('memo'); if (!t) return
+  function 늘림() { try { var 최대 = Math.max(220, Math.round((window.innerHeight || 800) * 0.6)); t.style.height = 'auto'; var h = t.scrollHeight + 2; t.style.height = Math.min(최대, h) + 'px'; t.style.overflowY = h > 최대 ? 'auto' : '' } catch (e) {} }
+  t.addEventListener('input', 늘림); t.addEventListener('focus', 늘림); setTimeout(늘림, 0)
 })()
 </script>
 </body></html>

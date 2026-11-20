@@ -489,7 +489,7 @@ input:focus, select:focus, textarea:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
-textarea { resize: vertical; min-height: 88px; line-height: 1.6; }
+textarea { resize: vertical; min-height: 88px; line-height: 1.6; font-family: inherit; }   /* ✍ G801 사이트 글꼴 — 안 정하면 브라우저 고정폭 글꼴로 나왔음(문의함 · 도구 이야기 · 광고 문자 · 일보 칸 등) · input · select 는 그대로 */
 input[type=number] { font-variant-numeric: tabular-nums; }
 /* ☑ G642 (2026-11-10) 체크 · 라디오 상자는 위 전역 input(넓이 100% · 안쪽 여백 11px 12px)을 받지 않음 — 아이폰 사파리에서 상자가
    단추 넓이만큼 커져 옆 글을 가렸음(서식 «2027 달력» 시트 단추 · 소장님 폰 캡쳐 11-10). 2026-09-15 · .iy-opt · .tlchk 처럼 곳곳에서
@@ -2405,7 +2405,7 @@ a.flink:hover { opacity: .8; }
 .chg-quick { flex-wrap: wrap; gap: 6px; }
 .chg-quick .btn { width: auto; }
 .chg-quick .btn.on { border-color: var(--accent); color: var(--accent); }
-.chg-paste textarea.cin { min-height: 96px; font-size: 13px; white-space: pre; overflow-x: auto; }
+.chg-paste textarea.cin { min-height: 96px; font-size: 13px; white-space: pre; overflow-x: auto; font-family: ui-monospace, Consolas, monospace; }   /* ✍ G801 붙여넣기(표) 칸은 고정폭 그대로 — 전역 글꼴이 사이트 글꼴로 바뀐 뒤에도 */
 .ctotal .chg-seung { display: grid; gap: 6px; padding: 6px 0 4px; border-top: 1px dashed var(--line); border-bottom: 1px dashed var(--line); margin: 4px 0; }
 .ctotal .chg-seung label { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .ctotal .chg-seung label .cin { width: 190px; max-width: 55%; text-align: right; }
@@ -2957,7 +2957,7 @@ html.vv-cut .noticepop-c { max-height: min(760px, calc(var(--vv-vis, 100dvh) - 3
 @media (max-width: 480px) { .cm-row { flex-wrap: wrap; } .cm-row .btn.sm { flex: 1 1 100%; } }
 /* 💬 G735 (11-17) 댓글 칸 다듬기 — 건설뉴스 그날 호 댓글 캡처에서 찾음: 글 칸이 고정폭 글꼴(textarea 기본값)이라 한글이 띄엄띄엄 보였고,
    «지울 때 4자리» 칸이 별명 줄에 밀려 «지울 [» 로 잘렸고, 안내 줄이 낱말 가운데서 꺾였음 */
-.cm-form textarea { font: inherit; font-size: 15px; }
+.cm-form textarea { font: inherit; font-size: 15px; min-height: 96px; }   /* ✍ G801 두 줄 → 넉넉하게 · 쓰면 늘어남 */
 .cm-row input { flex: 0 0 132px; }
 .cm-box .hint { word-break: keep-all; }
 
@@ -3454,7 +3454,7 @@ ul.plainlist li { margin-bottom: 5px; }
    제목칸은 없습니다 — 칸이 둘이 되면 다시 숙제가 됩니다. 첫 줄이 제목이 됩니다. */
 .askbox .askta {
   width: 100%; box-sizing: border-box;
-  min-height: 92px; margin-top: 12px; resize: vertical;
+  min-height: 120px; margin-top: 12px; resize: vertical;   /* ✍ G801 92 → 120 */
   font-size: 14.5px; line-height: 1.65;   /* 📱 16px 미만이면 아이폰이 화면을 확대합니다 → 아래 참조 */
 }
 .askbox .askrow {
@@ -4513,6 +4513,7 @@ span.qna-like { cursor: default; }
 .gj-w { min-width: 150px; } .gj-u { min-width: 48px; }
 .gj-num { text-align: right; min-width: 84px; font-variant-numeric: tabular-nums; }
 .gj-paste { margin-top: 10px; } .gj-paste summary { cursor: pointer; font-weight: 700; font-size: 13px; color: var(--accent); }
+.gj-paste textarea { font-family: ui-monospace, Consolas, monospace; }   /* ✍ G801 엑셀 붙여넣기 칸은 고정폭 그대로(전역 글칸 글꼴을 사이트 글꼴로 바꿈) */
 .gj-rates { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; align-items: end; }
 /* 🎯 목표 금액 맞추기 (G140) */
 .gj-goal { margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--line, #cbd5e1); border-radius: 10px; background: var(--surface-2, #f8fafc); }
@@ -8966,7 +8967,7 @@ button.gd-gonggo:hover { background: var(--accent-soft); color: var(--accent); }
 .gd-form label { display: grid; gap: 4px; font-size: 12.5px; font-weight: 700; color: var(--text-2); min-width: 0; }
 .gd-form label.wide { grid-column: 1 / -1; }
 .gd-form input, .gd-form select, .gd-form textarea { padding: 9px 10px; font-size: 14px; }
-.gd-form textarea { min-height: 70px; font-family: inherit; }
+.gd-form textarea { min-height: 110px; font-family: inherit; }   /* ✍ G801 70 → 110 */
 @media (max-width: 520px) { .gd-form { grid-template-columns: minmax(0, 1fr); } .gd-form input, .gd-form select, .gd-form textarea, .gd-q, .gd-tbl .inp { font-size: 16px; } }
 .gd-agree { display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; line-height: 1.55; color: var(--text-2); }
 .gd-agree input { width: 18px; height: 18px; margin: 1px 0 0; flex: 0 0 auto; }
@@ -9039,7 +9040,7 @@ button.gd-gonggo:hover { background: var(--accent-soft); color: var(--accent); }
 .gd-re1 .b { font-size: 13.5px; line-height: 1.6; white-space: pre-wrap; word-break: keep-all; overflow-wrap: anywhere; }
 .gd-reform { display: grid; grid-template-columns: 140px minmax(0, 1fr) auto; gap: 6px; align-items: start; }
 .gd-reform input, .gd-reform textarea { padding: 8px 10px; font-size: 14px; font-family: inherit; }
-.gd-reform textarea { min-height: 40px; height: 40px; resize: vertical; }
+.gd-reform textarea { min-height: 64px; resize: vertical; }   /* ✍ G801 한 줄(40px 고정) → 두 줄부터 · 쓰면 늘어남 */
 @media (max-width: 560px) { .gd-reform { grid-template-columns: minmax(0, 1fr); } .gd-reform input, .gd-reform textarea { font-size: 16px; } .gd-reform textarea { height: 64px; } .gd-reform .btn { width: 100%; } }
 .gd-bell { display: grid; gap: 4px; background: #fff7e6; border: 1px solid #f5b94a; border-radius: var(--radius); padding: 9px 12px; font-size: 13.5px; color: #7a4b00; }
 .gd-bell1 { text-align: left; border: 0; background: rgba(255, 255, 255, .7); border-radius: 8px; padding: 6px 9px; font-size: 13px; cursor: pointer; color: #7a4b00; font-weight: 700; }
@@ -10846,7 +10847,7 @@ a.adinfo-pick:hover, a.adinfo-pick:focus-visible { border-color: var(--ad-btn); 
 }
 /* 💬 G573 이 도구 이야기 (도구이야기.jsx) — 도구 쪽 맨 아래 묻고 답하기(맵톡에 함께) */
 .dy .dy-sub { font-size: 12.5px; font-weight: 500; color: var(--muted); margin-left: 6px; }
-.dy-ta { width: 100%; min-height: 76px; font-size: 16px; line-height: 1.5; resize: vertical; }
+.dy-ta { width: 100%; min-height: 120px; font-size: 16px; line-height: 1.5; resize: vertical; }
 .dy-err { color: var(--bad); font-size: 13px; margin: 4px 0; }
 .dy-done { padding: 10px 12px; border-radius: 10px; background: var(--good-soft); color: var(--good); font-size: 13.5px; line-height: 1.7; }
 .dy-done a { font-weight: 700; margin: 0 6px; }
@@ -11871,3 +11872,8 @@ a.kn-strip:hover { border-left-color: var(--kn-a); }
    넉넉한 높이 · 사이트 글꼴(전역 textarea 는 글꼴을 안 정해 고정폭 글꼴이 나왔음) · 높이는 글 길이 따라 화면이 늘림(200 ~ 640px) */
 .adm-ta { display: block; width: 100%; box-sizing: border-box; margin-top: 10px; min-height: 200px; font: inherit; font-size: 15px; line-height: 1.75; padding: 12px 14px; resize: vertical; }
 @media (max-width: 560px) { .adm-ta { font-size: 16px; } }   /* 폰은 16px — 작으면 아이폰이 글 칠 때 화면을 확대함 */
+
+/* ✍ G801 (2026-11-20) 소장님 「건설맵 모든 글쓰기 칸 점검해서 고쳐줘」 — 글칸 크기 둘(쓰면 lib/글칸늘림.js 가 글만큼 늘림)
+   .ta-big = 게시판 · 문의 본문(150px — G289 맵톡 답글 칸과 같음) · .ta-mid = 답글 · 고치기(110px) */
+textarea.ta-big { min-height: 150px; line-height: 1.7; }
+textarea.ta-mid { min-height: 110px; line-height: 1.7; }
