@@ -34,13 +34,13 @@ const 글들 = [
 ]
 const 없을말 = /공사를 맡길|먼저 연결|양쪽에 먼저|클로드|무료/
 const OP = 'ZglL1g3X5UZFBA2590LirDnEnil1'
-async function 새쪽(w, h, { 때 = '2026-11-19T20:00:00+09:00', 자동끔 = true, 폰 = true, 어둠 = false, 씨앗 = null, 더 = null } = {}) {
+async function 새쪽(w, h, { 때 = '2026-11-19T20:00:00+09:00', 자동끔 = true, 폰 = true, 어둠 = false, 씨앗 = null, 더 = null, 소장님 = false } = {}) {
   const ctx = await b.newContext({ viewport: { width: w, height: h }, locale: 'ko-KR', timezoneId: 'Asia/Seoul', isMobile: 폰, hasTouch: 폰, deviceScaleFactor: 2, colorScheme: 어둠 ? 'dark' : 'light',
     userAgent: 폰 ? 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36' })
   await ctx.route(/googletagmanager|google-analytics|pagead2|adsbygoogle|googlesyndication|geojs|daumcdn|kakao|coupang/, (r) => r.fulfill({ status: 200, body: '' }))
   await ctx.route(/firebaseio\.com|firebasedatabase\.app/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: 'null' }))
   const t = Date.parse(때)
-  await ctx.addInitScript(([t, 자동끔, 씨앗, 더]) => {
+  await ctx.addInitScript(([t, 자동끔, 씨앗, 더, 소장님]) => {
     const 원 = Date; const 차 = t - 원.now()
     const D = function (...a) { return a.length ? new 원(...a) : new 원(원.now() + 차 + (window.__더 || 0)) }
     D.now = () => 원.now() + 차 + (window.__더 || 0); D.UTC = 원.UTC; D.parse = 원.parse; D.prototype = 원.prototype
@@ -50,7 +50,8 @@ async function 새쪽(w, h, { 때 = '2026-11-19T20:00:00+09:00', 자동끔 = tru
     if (자동끔) { try { Object.defineProperty(navigator, 'webdriver', { get: () => false }) } catch (e) { /* 없음 */ } }
     if (씨앗 && !sessionStorage.getItem('씨앗됨')) { localStorage.setItem('mockdb', JSON.stringify(씨앗)); localStorage.setItem('mockuid', 'mockuser786'); sessionStorage.setItem('씨앗됨', '1') }
     if (더 === '다른탭') { try { localStorage.setItem('kcm_notice_alive', String(원.now() + 차 - 3000)) } catch (e) { /* */ } }
-  }, [t, 자동끔, 씨앗, 더])
+    if (소장님) { try { localStorage.setItem('kcm_op', '1') } catch (e) { /* */ } }   /* 🛠 G793 점검 날엔 이용자 화면이 덮임 — 공지창은 소장님 기기로 봄 */
+  }, [t, 자동끔, 씨앗, 더, 소장님])
   const p = await ctx.newPage()
   const 오류 = []
   p.on('pageerror', (e) => 오류.push(String(e).slice(0, 200)))
@@ -131,7 +132,7 @@ for (const [w, h, 폰, 어둠] of [[320, 640, true, false], [1280, 860, false, f
 }
 console.log('④ 날짜')
 for (const [때, 창있어야, 고침있어야] of [['2026-11-21T23:59:00+09:00', true, true], ['2026-11-22T00:01:00+09:00', true, false], ['2026-12-31T23:59:00+09:00', true, false], ['2027-01-01T00:01:00+09:00', false, false]]) {
-  const { ctx, p } = await 새쪽(390, 844, { 때 })
+  const { ctx, p } = await 새쪽(390, 844, { 때, 소장님: 때 >= '2026-11-21' && 때 < '2026-11-23' })   /* 🛠 G793 토 · 일은 이용자 화면이 덮임(시험_점검창) — 공지창 날짜는 소장님 기기로 봄 */
   await p.goto(BASE + '/', { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(2000)
   const 점검 = await p.$('.checkpop .noticepop-f button'); if (점검) { await 점검.click(); await p.waitForTimeout(400) }   /* 🛠 G792 점검 날(11-21 · 11-22)엔 점검창이 먼저 — 닫으면 이 공지창 */
   const 창 = !!(await p.$('.noticepop')), 고침 = !!(await p.$('.noticepop-fix'))
