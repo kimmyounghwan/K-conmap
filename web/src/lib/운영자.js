@@ -17,6 +17,7 @@ export const OPS = [
   'Mk7VznW9UZaRpycYErDsuILmVfl1',      // 소장님 (LG 노트북 엣지, 2026-10-19 등록 · G324) — 「맵톡글을 쓸때 붙게 해줘」 · 10/19 19:48 답글부터 이 번호로 올라와 «K-건설맵» 이 안 붙었음(소장님 확인)
   'pIFo0QpU30X8WJbrVxAg2fLmG2J3',      // 소장님 (2026-11-03 등록 · G528) — 10/31 부터 맵톡 답글 16개가 이 번호로 올라와 «침착한 지게차548» 로 보였음 · 「왜 내가 써도 건설맵이 안뜨지?」
   'FzZ8d5AzWsQPaRhQkHsTET3ORgf1',      // 소장님 PC 크롬(Claude 가 쓰는 크롬 · 2026-11-15 등록 · G692) — 11-13 20:2x 엔 pIFo0… 로 /admin 에서 답글 · 11-15 20:5x /admin 번호가 이것으로 바뀜(크롬이 저장값 일부를 지운 것으로 보임) · 소장님 「넣어」
+  'NgmZv4ztZPNfFFAoPtm748q2ncp1',      // 소장님 노트북 브라우저(Claude 크롬 확장 쓰는 그 브라우저) — 11-18 19:29 새 번호 · 11-20 14:3x 소장님이 번호를 알려 주심(«운영자 노트북인데 문의함이 비어» — quotes 읽기 막힘)
 ]
 
 export const isOp = (uid) => !!uid && OPS.includes(uid)
