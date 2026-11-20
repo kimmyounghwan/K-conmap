@@ -101,6 +101,8 @@
  * 🛠 G794 (11-20 10:2x) 소장님 「점검때는 둘러볼 수 있지만 이용만 안되게 해줘」 → 고르심 «보기 · 읽기까지» — 위 «덮는 화면» 은 걷어냄.
  *   점검 날 이용자: 모든 쪽 맨 위 띠(닫기 없음) + 이용 막기(입력 · 계산 · 받기 · 인쇄 · 글쓰기 · 답글 · 공감 · 파일) · 읽기 · 화면 옮기기는 됨 · 막으면 알림 한 줄 ·
  *   공지창(제휴 모집)은 그대로 · 소장님 기기 · 로봇 · 자동 브라우저는 안 막음(아래 «점검둘러보기»).
+ * 🛠 G811 (11-21 08시) 소장님 「내 폰에서는 다 되는 데 … 사이트 막은거 맞지? … 모든 버튼 막아줘」 — G794 는 이름(계산 · 저장 …)으로 고른 단추만 막아
+ *   특고 계산기 단추 24개 모두 · 용역 공고 27개 중 26개가 눌렸음 → 쪽 안의 누르는 것은 모두 막음(아래 «점검둘러보기» 머리 글) · 다음 앱(DaumApps)도 막음(점검로봇).
  * 🛠 G793b (11-20 09:3x) 소장님 「화면에 공지 띄워야지 그래야 알지. 맵톡에만 올리면 어떻게 알라」 → 점검 앞날(점검알림부터 ~ 점검부터 전날 · 오늘 11-20)엔
  *   G792 «점검창»(닫을 수 있음 · 다시 들어오면 또 뜸 · 30초 넘게 떠났다 오면 다시)을 먼저 띄움 → 닫으면 제휴 모집 창. 점검 날엔 위의 덮는 화면. 시험 tools/시험_점검창.mjs
  */
@@ -126,6 +128,8 @@ const 본열쇠 = 'kcm_notice_seen'    /* 이 창에서 닫았음 — sessionSto
 const 한국오늘 = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)
 const 로봇 = () => { try { return 로봇글(navigator.userAgent || '') } catch (e) { return false } }
 const 자동 = () => { try { return !!navigator.webdriver } catch (e) { return false } }   /* G552 — 자동 브라우저(화면 시험)엔 창을 저절로 안 띄움 */
+/* 🛠 G811 점검 막기의 로봇 — 인사.js 로봇 글의 «daum» 은 다음 앱(«DaumApps» 든 폰 브라우저 · 사람)까지 걸려 점검이 안 걸렸음 → 다음 검색 로봇(«Daumoa» · «Daum/4.1»)만 */
+const 점검로봇 = () => { try { return /bot|crawl|spider|slurp|headless|lighthouse|preview|facebookexternalhit|kakaotalk-scrap|yeti|daumoa|daum\/\d/i.test(navigator.userAgent || '') } catch (e) { return false } }
 /* 🩹 G284 소장님 「20일까지 계속 띄워. 닫기 누른 이용자에게도 계속 보이게 해줘.」 — «다시 보지 않기» 없음 · 늘(옛 판에서 닫은 열쇠도 안 봄)
    창은 들어올 때마다(새 창 · 탭마다) 한 번 · 띠는 ✕ 없이 늘(「사이트 접속자 모두에게 계속 보이도록」) */
 const 늘보임 = true
@@ -250,7 +254,7 @@ const 소장님빠름 = () => {
 /** 🛠 G793 점검 동안 — '막음'(이용자) · '소장님'(소장님 기기 · 열림) · ''(점검 아님 · 로봇 · 자동 브라우저) */
 function use점검막기() {
   const 고름 = () => {
-    if (!점검날() || 로봇() || 자동()) return ''
+    if (!점검날() || 점검로봇() || 자동()) return ''
     return 소장님빠름() ? '소장님' : '막음'
   }
   const [막기, set막기] = useState(고름)
@@ -309,16 +313,21 @@ function 점검창({ 닫기 }) {
   )
 }
 
-/* 🛠 G794 (11-20 10:2x) 소장님 「점검때는 둘러볼 수 있지만 이용만 안되게 해줘」 → 고르심 «보기 · 읽기까지»
-   ■ 막는 것(이용): 칸에 입력(글칸 · 고르기 칸 · 체크 · 날짜) · 파일 올리기 · 받기(a[download] · blob · data) · 보내기(form) · 끌어다 놓기 · 붙여넣기 · 인쇄 ·
-     «이용» 단추(이름이 짧고(30자 안) 받기 · 저장 · 올리기 · 인쇄 · PDF · 엑셀 · 계산 · 셈 · 글쓰기 · 답글 · 공감 · ♥ · 지우기 · 고치기 · 만들기 · 신청 · 보내기 · 넣기 …가 든 것)
-   ■ 되는 것(둘러보기): 화면 옮기기(고리 · 머리줄 · 아래 탭) · 굴리기 · 맵톡 글 열어 읽기(.mt-open) · 펼치기 · 접기 · 예시 보기 · 빠른 찾기(어디 있는지 찾기) · 공지창
+/* 🛠 G794 (11-20 10:2x) 소장님 「점검때는 둘러볼 수 있지만 이용만 안되게 해줘」 → 고르심 «보기 · 읽기까지» — 이름(계산 · 저장 …)으로 고른 «이용 단추» 만 막았음
+   🛠 G811 (11-21 08시) 소장님 「내 폰에서는 다 되는 데 … 모든 버튼 막아줘」 — 이름으로 고르기를 버리고 쪽 안의 누르는 것은 모두 막음
+   ■ 막는 것: 단추(button · role=button · 탭 · 스위치 …) · 펼치기(summary) · 이름표(label) · 모든 칸(입력 · 고르기 · 체크 · 밀대 · 글 고치기) · 손가락 모양 칸 ·
+     그림판(canvas · svg 누르고 끌기) · 값을 실은 우리 고리(«?…» — 💰 바로투찰 등 · 문의 쪽은 뺌) · 받기 · blob · data · javascript · «#» 고리 · 맵톡 글 열기 ·
+     보내기(form) · 붙여넣기 · 끌어 놓기 · 인쇄 · Enter · 빈칸 글쇠
+   ■ 되는 것: 쪽 옮기기(맨 위 · 아래 탭 · 옆 차림 · 글자 고리) · 굴리기 · 빠른 찾기 · 공지창(제휴 모집) · 문의 쪽(제휴 · 서류대행) · 광고(쿠팡 · 애드핏 · 광고 모집) ·
+     점검 띠 · 창 닫기(✕ · 닫기 — 열린 창에 갇히지 않게)
    ■ 막으면 아래에 알림 한 줄(3초) · 모든 쪽 맨 위 띠(닫기 없음) · 날이 바뀌면 use점검막기 가 풂(월 0시) */
-const 이용단추 = /받기|내려받|다운|저장|올리기|업로드|인쇄|PDF|엑셀|보내기|신청|등록|만들기|쓰기|답글|답하기|공감|♥|지우기|삭제|고치기|수정|불러오기|파일|사진|계산|셈|투찰|채점|넣기|붙여|추가|복사|적용|고르기|선택|확정|제출|바꾸기/
 const 글칸꼴 = /^(text|search|email|number|tel|url|password|date|datetime-local|month|week|time)$/i
-const 막을누름 = 'input[type="file"], input[type="checkbox"], input[type="radio"], input[type="submit"], input[type="reset"], input[type="button"], input[type="image"], input[type="range"], input[type="color"], a[download], a[href^="blob:"], a[href^="data:"]'
-const 안막는곳 = '.topbar, .tabbar, .railnav, .railwrap, .kcm-sibar, .noticepop, .checkbar, .checkband, .checktoast, .qs-back'
+const 막을누름 = 'button, [role="button"], [role="tab"], [role="switch"], [role="checkbox"], [role="radio"], [role="slider"], [role="spinbutton"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"], [role="combobox"], [role="listbox"], [role="treeitem"], [role="gridcell"], summary, label, input, select, textarea, [contenteditable=""], [contenteditable="true"], [onclick]'
+const 그림판 = 'canvas, svg'
+const 손가락꼴 = /^(pointer|crosshair|grab|grabbing|move|cell|copy|all-scroll|zoom-in|zoom-out|col-resize|row-resize|ew-resize|ns-resize|nesw-resize|nwse-resize)$/
+const 안막는곳 = '.topbar, .tabbar, .railnav, .railwrap, .kcm-sibar, .noticepop, .checkbar, .checkband, .checktoast, .qs-back, .cpc, .afit, .adc, .opcount'
 const 안곳 = (el) => !!(el && el.closest && el.closest(안막는곳))
+const 칸꼴 = (el) => !!(el && el.tagName && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName))
 const 글칸 = (el) => {
   if (!el || !el.tagName) return false
   if (el.isContentEditable) return true
@@ -327,11 +336,34 @@ const 글칸 = (el) => {
   return false
 }
 const 단추이름 = (b) => (((b.getAttribute && b.getAttribute('aria-label')) || '') + ' ' + (b.value || '') + ' ' + (b.textContent || '')).replace(/\s+/g, ' ').trim()
-const 이용단추인가 = (el) => {
+/* 🛠 G811 창 닫기(✕ · 닫기)는 됨 — 열린 창에 갇히지 않게(점검 띠 · 공지창은 안막는곳이라 따로) */
+const 닫기단추 = (el) => {
   const b = el.closest && el.closest('button, [role="button"]')
-  if (!b || 안곳(b) || b.classList.contains('mt-open')) return false   /* 맵톡 카드 = 글 열어 읽기 */
-  const n = (b.textContent || '').replace(/\s+/g, ' ').trim()
-  return n.length <= 30 && 이용단추.test(단추이름(b))
+  if (!b) return false
+  const n = 단추이름(b)
+  return n.length <= 16 && /^[✕×✖xX]$|닫기|close/i.test(n)
+}
+/* 🛠 G811 고리 — 'go'(쪽 옮기기 · 바깥 · 쪽 안 #자리) · 'stop'(받기 · blob · data · javascript · «#» · 값을 실은 우리 고리) · ''(고리 아님) */
+const 고리 = (el) => {
+  const a = el.closest && el.closest('a')
+  if (!a) return ''
+  const h = (a.getAttribute('href') || '').trim()
+  if (!h || h === '#' || a.hasAttribute('download') || /^(javascript|blob|data):/i.test(h)) return 'stop'
+  if (h.startsWith('#')) return 'go'
+  let u = null
+  try { u = new URL(a.href, window.location.href) } catch (e) { return 'go' }
+  if (u.origin !== window.location.origin) return 'go'   /* 나라장터 등 바깥 */
+  if (u.search && !u.pathname.startsWith('/contact')) return 'stop'   /* 💰 바로투찰(?no=) 등 — 열면 셈이 돎 · 문의(제휴 · 서류대행)는 됨 */
+  return 'go'
+}
+/* 🛠 G811 막을 곳 — 안막는곳 밖의 누르는 것(단추 · 칸 · 펼치기 · 값 고리 · 그림판 · 손가락 모양) */
+const 막을곳 = (el) => {
+  if (!el || !el.closest || 안곳(el) || 닫기단추(el)) return false
+  if (el.closest(막을누름)) return true
+  const 링 = 고리(el)
+  if (링) return 링 === 'stop'
+  if (el.closest(그림판)) return true
+  try { return 손가락꼴.test(window.getComputedStyle(el).cursor) } catch (e) { return false }
 }
 
 function 점검둘러보기() {
@@ -340,34 +372,43 @@ function 점검둘러보기() {
     let 손때 = 0
     let 끔 = 0
     const 알려 = () => { set알림(Date.now()); clearTimeout(끔); 끔 = setTimeout(() => set알림(0), 3200); try { 세기('|공지|점검이용막음') } catch (e) { /* 없음 */ } }
-    const 손 = () => { 손때 = Date.now() }
-    const 누름 = (e) => {
+    const 멈춤 = (e) => { e.stopPropagation(); e.stopImmediatePropagation() }
+    /* 누르기 시작(손가락 · 마우스 · 펜) — 화면의 누름 일(onPointerDown · onMouseDown · onTouchStart)까지 못 가게 · 칸은 커서 · 글자판도 안 뜸 · 손가락 굴림은 그대로 */
+    const 내림 = (e) => {
+      손때 = Date.now()
       const el = e.target
-      if (!el || !el.closest || 안곳(el)) return
-      let 막 = !!el.closest(막을누름)
-      if (!막) { const lb = el.closest('label'); const c = lb && lb.control; if (c && !안곳(c) && (c.matches(막을누름) || 글칸(c))) 막 = true }
-      if (!막 && 이용단추인가(el)) 막 = true
-      if (막) { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); 알려() }
+      if (!막을곳(el)) return
+      const 칸 = 칸꼴(el) || 글칸(el)
+      if (칸 || e.type === 'mousedown') e.preventDefault()
+      멈춤(e)
+      if (칸 && e.type !== 'pointerdown') 알려()
+      else if (e.type === 'pointerdown' && el.closest(그림판) && !el.closest(막을누름)) 알려()   /* 그림판은 누름(click)이 안 올 수 있어 여기서 */
     }
-    const 칸누름 = (e) => { if (글칸(e.target) && !안곳(e.target)) { e.preventDefault(); 알려() } }   /* 누르기 전에 막음 — 커서 · 글자판 안 뜸 */
+    const 누름 = (e) => { if (막을곳(e.target)) { e.preventDefault(); 멈춤(e); 알려() } }   /* click · dblclick · auxclick */
+    const 글쇠 = (e) => {   /* Enter · 빈칸 글쇠로 누르기 */
+      손때 = Date.now()
+      if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return
+      if (막을곳(e.target)) { e.preventDefault(); 멈춤(e); 알려() }
+    }
     const 칸들어옴 = (e) => {
       const el = e.target
-      if (!글칸(el) || 안곳(el)) return
+      if (!(칸꼴(el) || 글칸(el)) || 안곳(el)) return
       try { el.blur() } catch (er) { /* 없음 */ }
       if (Date.now() - 손때 < 1200) 알려()   /* 저절로 커서(autofocus)는 조용히 뺌 */
     }
+    const 바뀜 = (e) => { const el = e.target; if ((칸꼴(el) || 글칸(el)) && !안곳(el)) 멈춤(e) }   /* input · change — 화면 셈까지 못 가게 */
     const 막기 = (e) => { if (!안곳(e.target) && (e.type !== 'beforeinput' || 글칸(e.target))) { e.preventDefault(); e.stopPropagation(); 알려() } }
     const 끌기 = (e) => { if (!안곳(e.target)) e.preventDefault() }
-    const 듣기 = [['pointerdown', 손], ['keydown', 손], ['click', 누름], ['mousedown', 칸누름], ['focusin', 칸들어옴], ['submit', 막기], ['beforeinput', 막기], ['paste', 막기], ['drop', 막기], ['dragover', 끌기]]
+    const 듣기 = [['pointerdown', 내림], ['mousedown', 내림], ['keydown', 글쇠], ['click', 누름], ['dblclick', 누름], ['auxclick', 누름], ['focusin', 칸들어옴], ['input', 바뀜], ['change', 바뀜],
+      ['submit', 막기], ['beforeinput', 막기], ['paste', 막기], ['drop', 막기], ['dragover', 끌기], ['dragstart', 끌기]]
     듣기.forEach(([n, f]) => document.addEventListener(n, f, true))
-    const 터치 = (e) => 칸누름(e)
-    document.addEventListener('touchstart', 터치, { capture: true, passive: false })
+    document.addEventListener('touchstart', 내림, { capture: true, passive: false })
     const 옛인쇄 = window.print
     window.print = () => 알려()
-    try { const a = document.activeElement; if (글칸(a) && !안곳(a)) a.blur() } catch (e) { /* 없음 */ }
+    try { const a = document.activeElement; if ((칸꼴(a) || 글칸(a)) && !안곳(a)) a.blur() } catch (e) { /* 없음 */ }
     return () => {
       듣기.forEach(([n, f]) => document.removeEventListener(n, f, true))
-      document.removeEventListener('touchstart', 터치, { capture: true, passive: false })
+      document.removeEventListener('touchstart', 내림, { capture: true, passive: false })
       window.print = 옛인쇄
       clearTimeout(끔)
     }
@@ -375,12 +416,12 @@ function 점검둘러보기() {
   return (
     <>
       <div className="checkbar" role="note">
-        🛠 <b>시스템 점검 중(11. 21. ~ 22.)</b> — 지금은 <b>둘러보기만</b> 됩니다. 입력 · 계산 · 받기 · 글쓰기는 <b>11월 23일(월)</b>부터 다시 쓰실 수 있습니다. 불편을 드려 죄송합니다.
+        🛠 <b>시스템 점검 중(11. 21. ~ 22.)</b> — 지금은 <b>둘러보기만</b> 됩니다. 단추 · 입력 · 계산 · 받기 · 글쓰기는 <b>11월 23일(월)</b>부터 다시 쓰실 수 있습니다. 불편을 드려 죄송합니다.
         {/* 소장님이 «👀 이용자 화면 보기» 를 켠 탭에서만 — 끄는 길 */}
         {손님보기() && <>{' '}<button type="button" className="checkband-go" onClick={() => { try { window.sessionStorage.removeItem('kcm.손님보기') } catch (e) { /* 막힘 */ } try { window.location.reload() } catch (e) { /* 지나감 */ } }}>👀 이용자 화면 보기 끄기(소장님 기기)</button></>}
       </div>
       {알림 > 0 && createPortal(
-        <div className="checktoast" role="status" key={알림}>🛠 점검 중이라 지금은 <b>둘러보기만</b> 됩니다 — 입력 · 계산 · 받기 · 글쓰기는 11월 23일(월)부터 됩니다.</div>,
+        <div className="checktoast" role="status" key={알림}>🛠 점검 중이라 지금은 <b>둘러보기만</b> 됩니다 — 단추 · 입력 · 계산 · 글쓰기는 11월 23일(월)부터 됩니다.</div>,
         document.body
       )}
     </>
@@ -391,7 +432,7 @@ function 점검둘러보기() {
 function 점검띠() {
   return (
     <div className="checkband" role="note">
-      🛠 <b>점검 중(11. 21. ~ 22.)</b> — 이용자는 <b>둘러보기만</b> 됩니다(입력 · 계산 · 받기 · 글쓰기 막힘). 이 기기는 소장님 기기라 그대로 쓰실 수 있습니다.{' '}
+      🛠 <b>점검 중(11. 21. ~ 22.)</b> — 이용자는 <b>둘러보기만</b> 됩니다(모든 단추 · 입력 막힘). 이 기기는 소장님 기기라 그대로 쓰실 수 있습니다.{' '}
       <button type="button" className="checkband-go" onClick={() => { try { window.sessionStorage.setItem('kcm.손님보기', '1') } catch (e) { /* 막힘 */ } try { window.location.reload() } catch (e) { /* 지나감 */ } }}>👀 이용자 화면 보기</button>
     </div>
   )

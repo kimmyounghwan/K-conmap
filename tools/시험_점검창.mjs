@@ -9,6 +9,8 @@
  *      칸 입력 · 체크 · 받기(a[download]) · 인쇄 · PDF · 공감 · 답글 칸 · 글쓰기 칸 · 보내기(form)는 막힘 + 알림 한 줄(화면 안) · 날 경계 넷
  *   ③ 소장님 기기(kcm_op · 열쇠말) — 띠 대신 한 줄 · 입력 그대로 · «👀 이용자 화면 보기» → 막힘 + 끄기 단추
  *   ④ 로봇 · 자동 브라우저 — 안 막음 ⑤ 날이 바뀌면 저절로 — 금 23:59 → 토 0시 막음 · 일 23:59 → 월 0시 풂(1분마다 봄)
+ *   🛠 G811 (11-21) 소장님 「모든 버튼 막아줘」 — 펼치기 · 예시 · 맵톡 글 열기 · 손가락 카드 · role=button(Enter 도) · 그림판 · 💰 값 고리(?no=)도 막힘 /
+ *      창 닫기(✕) · 광고 · 글자 고리(쪽 옮기기) · 빠른 찾기는 됨 · 쪽마다 쓸기(본문 누르는 것을 다 눌러 봄 → 안 막힌 것 0) · 다음 앱(DaumApps)도 막힘
  * 가상 자료만 씀 · 인터넷 안 부름.
  */
 import { createRequire } from 'node:module'
@@ -61,6 +63,7 @@ const 떠났다옴 = async (p, ms) => {
   await p.evaluate(() => { window.__숨김 = false; document.dispatchEvent(new Event('visibilitychange')) })
   await p.waitForTimeout(500)
 }
+const 가운데 = (p, 고름) => p.$eval(고름, (e) => e.scrollIntoView({ block: 'center' }))   /* 🛠 G811 좁은 폰에서 맨 아래(아래 탭 · 알림 줄) 밑에 깔려 누름이 그쪽으로 가지 않게 */
 const 다닫기 = async (p) => { for (let i = 0; i < 4; i++) { const e = await p.$('.noticepop-f button'); if (!e) break; await e.click(); await p.waitForTimeout(350) } }
 /* 시험용 칸 · 단추를 쪽 안(main)에 넣음 — 어느 화면이든 같은 막기가 걸리는지(가상 · 사이트 글 아님) */
 const 시험칸 = (p) => p.evaluate(() => {
@@ -69,8 +72,31 @@ const 시험칸 = (p) => p.evaluate(() => {
   d.innerHTML = '<input id="t글" type="text" style="width:140px;font-size:16px"> <input id="t수" type="number" style="width:80px;font-size:16px"> <select id="t고름"><option>가</option><option>나</option></select> <input id="t체크" type="checkbox"> '
     + '<a id="t받기" download="가상.txt" href="data:text/plain,가상">가상 받기</a> <button id="t인쇄" type="button" onclick="window.print()">🖨 인쇄</button> <button id="t펼침" type="button" aria-expanded="false" onclick="this.setAttribute(\'aria-expanded\',\'true\')">▾ 펼치기</button> '
     + '<form id="t폼" onsubmit="window.__보냄=1;return false"><button id="t보냄" type="submit">보내기</button></form>'
+    + '<details id="t접이"><summary id="t접이머리">가상 펼침 머리</summary>가상 속</details> <div id="t카드" style="cursor:pointer;padding:4px;border:1px solid #ccc">가상 카드</div> '
+    + '<span id="t역할" role="button" tabindex="0">가상 역할 단추</span> <canvas id="t그림" width="80" height="30" style="border:1px solid #ccc"></canvas> '
+    + '<a id="t값고리" href="/?no=R99BK00081001">💰 가상 바로투찰</a> <button id="t닫기" type="button" aria-label="가상 창 닫기">✕</button> '
+    + '<span class="cpc" id="t광고칸" style="display:inline"><button id="t광고" type="button">›</button></span>'
   m.insertBefore(d, m.firstChild.nextSibling)
   window.__보냄 = 0
+  window.__카드 = 0; window.__역할 = 0; window.__그림 = 0; window.__닫기 = 0; window.__광고 = 0
+  document.getElementById('t카드').addEventListener('click', () => { window.__카드++ })
+  const r = document.getElementById('t역할'); r.addEventListener('click', () => { window.__역할++ }); r.addEventListener('keydown', (e) => { if (e.key === 'Enter') window.__역할++ })
+  document.getElementById('t그림').addEventListener('pointerdown', () => { window.__그림++ })
+  document.getElementById('t닫기').addEventListener('click', () => { window.__닫기++ })
+  document.getElementById('t광고').addEventListener('click', () => { window.__광고++ })
+})
+
+/* 🛠 G811 쪽마다 쓸기 — 본문(안막는곳 밖)의 누르는 것을 하나씩 눌러 봄(가짜 누름 · 막히면 preventDefault) → 안 막힌 것(창 닫기 · 바깥 고리 · 문의 고리 빼고) */
+const 쓸기 = (p) => p.evaluate(() => {
+  const 안 = '.topbar, .tabbar, .railnav, .railwrap, .kcm-sibar, .noticepop, .checkbar, .checkband, .checktoast, .qs-back, .cpc, .afit, .adc, .opcount'
+  const 닫기 = (b) => { const n = ((b.getAttribute('aria-label') || '') + ' ' + (b.value || '') + ' ' + (b.textContent || '')).replace(/\s+/g, ' ').trim(); return n.length <= 16 && /^[✕×✖xX]$|닫기|close/i.test(n) }
+  const 바깥 = (a) => { try { const u = new URL(a.href, location.href); return u.origin !== location.origin || u.pathname.startsWith('/contact') } catch (e) { return true } }
+  const 앞 = location.pathname + location.search
+  const 것들 = [...document.querySelectorAll('button, [role="button"], summary, input, select, textarea, label, a[href*="?"]')]
+    .filter((e) => !e.closest(안) && e.offsetParent !== null && !(e.matches('button, [role="button"]') && 닫기(e)) && !(e.tagName === 'A' && 바깥(e)))
+  const 열림 = []
+  for (const e of 것들) { if (e.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }))) 열림.push((e.tagName + ' ' + (e.getAttribute('aria-label') || e.textContent || '')).replace(/\s+/g, ' ').trim().slice(0, 40)) }
+  return { n: 것들.length, 열림, 길같음: location.pathname + location.search === 앞 }
 })
 
 console.log('① 점검 앞날(11-20) — 닫을 수 있는 점검창이 먼저')
@@ -144,16 +170,28 @@ for (const [이름, w, h, 폰, 어둠] of [['폰 390', 390, 844, true, false], [
   const 결과 = await p.evaluate(() => [window.__인쇄, window.__보냄])
   ok(`${이름} 받기(a[download]) · 인쇄 · 보내기(form) — 막힘`, 받음.length === 0 && 결과[0] === 0 && 결과[1] === 0, { 받음, 결과 })
   await p.click('#t펼침', { force: true }); await p.waitForTimeout(150)
-  ok(`${이름} «펼치기» 같은 보기 단추 — 됨`, (await p.getAttribute('#t펼침', 'aria-expanded')) === 'true')
+  ok(`${이름} 🛠 G811 «펼치기» 같은 보기 단추도 막힘(모든 단추)`, (await p.getAttribute('#t펼침', 'aria-expanded')) === 'false')
+  const 앞길 = await p.evaluate(() => location.pathname + location.search)
+  await p.click('#t접이머리', { force: true }); await p.click('#t카드', { force: true }); await p.click('#t역할', { force: true })
+  await p.focus('#t역할').catch(() => {}); await p.keyboard.press('Enter')
+  const 그 = await p.$eval('#t그림', (e) => { const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2] })
+  await p.mouse.click(그[0], 그[1])
+  await p.click('#t값고리', { force: true }); await p.waitForTimeout(500)
+  const 막힘 = await p.evaluate(() => ({ 접이: document.getElementById('t접이').open, 카드: window.__카드, 역할: window.__역할, 그림: window.__그림, 길: location.pathname + location.search }))
+  ok(`${이름} 🛠 G811 펼치기(summary) · 손가락 카드 · role=button(누름 · Enter) · 그림판 · 💰 값 고리(?no=) — 모두 막힘`, !막힘.접이 && 막힘.카드 === 0 && 막힘.역할 === 0 && 막힘.그림 === 0 && 막힘.길 === 앞길, { 막힘, 앞길 })
+  await 가운데(p, '#t닫기'); await p.click('#t닫기', { force: true }); await 가운데(p, '#t광고'); await p.click('#t광고', { force: true }); await p.waitForTimeout(150)
+  const 됨 = await p.evaluate(() => [window.__닫기, window.__광고])
+  ok(`${이름} 🛠 G811 창 닫기(✕) · 광고(쿠팡 넘기기)는 됨`, 됨[0] === 1 && 됨[1] === 1, 됨)
+  await p.evaluate(() => { const a = document.getElementById('t광고칸'); if (a) a.remove() })
   /* 화면 옮기기 — 고리 */
   await p.evaluate(() => { const a = document.createElement('a'); a.id = 't고리'; a.href = '/tools'; a.textContent = '가상 도구 고리'; document.getElementById('시험칸').appendChild(a) })
-  await p.click('#t고리', { force: true }); await p.waitForTimeout(1500)
+  await 가운데(p, '#t고리'); await p.click('#t고리', { force: true }); await p.waitForTimeout(1500)
   s = await 상태(p)
   ok(`${이름} 고리로 화면 옮기기 — 됨(/tools) · 띠 그대로`, s.길 === '/tools' && s.띠, s)
   ok(`${이름} 넘침 0 · 오류 0`, (await 넘침(p)) <= 0 && !오류.length, 오류)
   await ctx.close()
 }
-console.log('② 화면마다 — 읽기 · 예시 · 빠른 찾기는 됨 · 공감 · 답글 · 글쓰기 · PDF 는 막힘')
+console.log('② 화면마다 — 빠른 찾기는 됨 · 🛠 G811 맵톡 글 열기 · 예시 · 글쓰기 · PDF · 쪽마다 본문 누르는 것 모두 막힘')
 {
   const { ctx, p, 오류 } = await 새쪽(390, 844)
   await 들어감(p, '/qna'); await 다닫기(p)
@@ -161,16 +199,9 @@ console.log('② 화면마다 — 읽기 · 예시 · 빠른 찾기는 됨 · �
   await p.locator('article.mt-card .mt-open').first().scrollIntoViewIfNeeded()
   await p.locator('article.mt-card .mt-open').first().tap()
   await p.waitForTimeout(1000)
-  ok('맵톡 — 카드를 누르면 글이 열림(읽기)', !!(await p.$('.mt-sheet')))
-  const 하트앞 = await p.evaluate(() => (document.querySelector('.mt-sheet .qna-like') || {}).textContent || '')
-  const 하트 = await p.$('.mt-sheet .qna-like'); if (하트) { await 하트.tap(); await p.waitForTimeout(500) }
-  const 하트뒤 = await p.evaluate(() => (document.querySelector('.mt-sheet .qna-like') || {}).textContent || '')
-  ok('맵톡 — 공감 막힘(수 그대로) · 알림', !!하트 && 하트앞 === 하트뒤 && (await 상태(p)).알림, [하트앞, 하트뒤])
-  const 답칸 = await p.$('.mt-sheet textarea')
-  if (답칸) { await 답칸.tap().catch(() => {}); await p.keyboard.type('가상 답글'); await p.waitForTimeout(300) }
-  ok('맵톡 — 답글 칸 막힘(글자 안 써짐)', !!답칸 && (await p.evaluate(() => (document.querySelector('.mt-sheet textarea') || {}).value || '')) === '')
-  await p.tap('.mt-sheet .mt-x'); await p.waitForTimeout(500)
-  ok('맵톡 — 글 창 닫기(✕) 됨', !(await p.$('.mt-sheet')))
+  ok('🛠 G811 맵톡 — 카드(글 열기)도 막힘 · 알림', !(await p.$('.mt-sheet')) && (await 상태(p)).알림, await 상태(p))
+  const 맵쓸 = await 쓸기(p)
+  ok('🛠 G811 맵톡 쓸기 — 본문 누르는 것 모두 막힘(안 막힌 것 0) · 쪽 그대로', 맵쓸.n > 5 && 맵쓸.열림.length === 0 && 맵쓸.길같음 && !(await p.$('.mt-sheet')), 맵쓸)
   await p.evaluate(() => document.getElementById('mt-title').scrollIntoView({ block: 'center' }))
   await p.tap('#mt-title').catch(() => {}); await p.keyboard.type('가상 제목'); await p.waitForTimeout(300)
   ok('맵톡 — 글쓰기 칸 막힘', (await p.evaluate(() => document.getElementById('mt-title').value)) === '')
@@ -186,19 +217,25 @@ console.log('② 화면마다 — 읽기 · 예시 · 빠른 찾기는 됨 · �
   await 들어감(p, '/tools/teukgo-boheom'); await 다닫기(p)
   await p.waitForSelector('h1.tl-h1', { timeout: 15000 })
   const 예시 = p.locator('details.iy-exd > summary').first()
-  let 예시됨 = false
-  if (await 예시.count()) {
-    await 예시.click(); await p.waitForTimeout(300)
-    const 첫 = p.locator('details.iy-exd button').first()
-    if (await 첫.count()) { await 첫.click(); await p.waitForTimeout(600); 예시됨 = /원/.test(await p.evaluate(() => (document.querySelector('.sl-res') || {}).textContent || '')) }
-  }
-  ok('특고 계산기 — 예시 보기는 됨(결과가 보임)', 예시됨)
+  let 예시열림 = null
+  if (await 예시.count()) { await 예시.click(); await p.waitForTimeout(300); 예시열림 = await p.evaluate(() => document.querySelector('details.iy-exd').open) }
+  ok('🛠 G811 특고 계산기 — 예시도 막힘(안 펼쳐짐)', 예시열림 === false, 예시열림)
+  const 특쓸 = await 쓸기(p)
+  ok('🛠 G811 특고 계산기 쓸기 — 고르기 · 예시 · 펼치기 단추 모두 막힘(안 막힌 것 0)', 특쓸.n >= 15 && 특쓸.열림.length === 0 && 특쓸.길같음, 특쓸)
   const 칸 = await p.$('main input[type="number"], main input[inputmode="numeric"], main input[type="text"]')
   if (칸) { await 칸.click({ force: true }).catch(() => {}); await p.keyboard.type('9'); await p.waitForTimeout(200) }
   ok('특고 계산기 — 칸 입력은 막힘', !!칸 && !(await p.evaluate((e) => String(e.value).includes('9') && document.activeElement === e, 칸)))
   const pdf = p.locator('main button', { hasText: /PDF|인쇄/ }).first()
   if (await pdf.count()) { await pdf.click({ force: true }); await p.waitForTimeout(1500) }
-  ok('특고 계산기 — PDF · 인쇄 막힘(받음 0 · 인쇄 0) · 오류 0', (await pdf.count()) > 0 && 받음.length === 0 && (await p.evaluate(() => window.__인쇄)) === 0 && !오류.length, { 받음, 오류 })
+  ok('특고 계산기 — PDF · 인쇄 막힘(받음 0 · 인쇄 0 — 🛠 G811 예시가 막혀 결과 · PDF 단추가 안 나올 수 있음) · 오류 0', 받음.length === 0 && (await p.evaluate(() => window.__인쇄)) === 0 && !오류.length, { 받음, 오류, pdf: await pdf.count() })
+  await ctx.close()
+}
+
+for (const 길 of ['/', '/svc', '/live', '/tools', '/tools/juhyu']) {
+  const { ctx, p, 오류 } = await 새쪽(390, 844)
+  await 들어감(p, 길); await 다닫기(p); await p.waitForTimeout(800)
+  const r = await 쓸기(p)
+  ok(`🛠 G811 ${길} 쓸기 — 본문 누르는 것 모두 막힘(안 막힌 것 0) · 쪽 그대로 · 오류 0`, r.열림.length === 0 && r.길같음 && !오류.length, { r, 오류 })
   await ctx.close()
 }
 
@@ -218,6 +255,8 @@ console.log('③ 소장님 기기 — 안 막음 · 한 줄')
   s = await 상태(p)
   const 끄기 = await p.$('.checkbar .checkband-go')
   ok('«👀 이용자 화면 보기» — 띠 + 막힘 + 끄기 단추', s.띠 && !!끄기, s)
+  await 시험칸(p); await p.click('#t펼침', { force: true }); await p.waitForTimeout(150)
+  ok('🛠 G811 «👀 이용자 화면 보기» — 소장님 기기에서도 모든 단추 막힘(펼치기)', (await p.getAttribute('#t펼침', 'aria-expanded')) === 'false')
   await 끄기.click(); await p.waitForLoadState('domcontentloaded'); await p.waitForTimeout(2300)
   s = await 상태(p)
   ok('끄기 — 다시 소장님 기기(한 줄) · 오류 0', !s.띠 && s.한줄 && !오류.length, { s, 오류 })
@@ -232,12 +271,20 @@ console.log('③ 소장님 기기 — 안 막음 · 한 줄')
 }
 
 console.log('④ 안 막는 곳 — 로봇 · 자동 브라우저')
-for (const [이름, 옵] of [['검색 로봇', { ua: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' }], ['자동 브라우저(webdriver)', { 자동끔: false }]]) {
+for (const [이름, 옵] of [['검색 로봇', { ua: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' }], ['다음 검색 로봇(Daum/4.1)', { ua: 'Mozilla/5.0 (compatible; Daum/4.1; +http://cs.daum.net/faq/15/4118.html)' }], ['자동 브라우저(webdriver)', { 자동끔: false }]]) {
   const { ctx, p } = await 새쪽(390, 844, 옵)
   await 들어감(p)
   await 시험칸(p)
   await p.click('#t글', { force: true }).catch(() => {}); await p.keyboard.type('가상'); await p.waitForTimeout(200)
   ok(`${이름} — 띠 없음 · 입력 됨`, !(await 상태(p)).띠 && (await p.evaluate(() => document.getElementById('t글').value)) === '가상')
+  await ctx.close()
+}
+
+{
+  const { ctx, p } = await 새쪽(390, 844, { ua: 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/130.0.0.0 Mobile Safari/537.36 DaumApps/8.10.0 DaumDevice/mobile' })
+  await 들어감(p); await 다닫기(p); await 시험칸(p)
+  await p.click('#t글', { force: true }).catch(() => {}); await p.keyboard.type('가상'); await p.click('#t펼침', { force: true }); await p.waitForTimeout(200)
+  ok('🛠 G811 다음 앱(DaumApps · 사람) — 띠 있음 · 입력 · 단추 막힘', (await 상태(p)).띠 && (await p.evaluate(() => document.getElementById('t글').value)) === '' && (await p.getAttribute('#t펼침', 'aria-expanded')) === 'false')
   await ctx.close()
 }
 

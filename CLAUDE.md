@@ -1518,6 +1518,21 @@ cd web && firebase deploy --only hosting        (또는 --only database)
 - 시험: tools/시험_지방적격.mjs(60 — 구간 · 표 경계 · 입찰가격 · 경영 · 시공 · 가점 한도 · 카페 사례 · 실제 공고 · 이상한 입력 361 · 화면 자리) ·
   tools/시험_지방적격화면.mjs(32 — 폭 넷 · 손으로 · 30억 · 8천만 · 실적 제한 · 남음 · 고리) · 시험_적격서류(고리 셋)
 
+### 🛠 점검 — 모든 단추 막기 — G811 (2026-11-21)
+- 소장님 08:0x 「내 폰에서는 다 되는 데, 몇 개가 안되긴 하지만 사이트 막은거 맞지? 관리자 탭도 없는데…다시 한 번 확인해줘. 모든 버튼 막아줘.」
+  · 확인(실제 사이트 · 소장님 크롬 «👀 이용자 화면 보기»): G794 는 이름(계산 · 저장 …)으로 고른 단추만 막아 특고 계산기 본문 단추 24/24 · 용역 공고 26/27 이 눌렸음(예시 · 고르기 · 지역 · 쪽 넘김).
+- 감사공지.jsx 점검둘러보기: 이름으로 고르기(이용단추) 버림 → 막을곳() = 안막는곳 밖의 누르는 것 모두
+  · 막힘: button · role(button · tab · switch · checkbox · radio · slider · menuitem · option · combobox …) · summary · label · input · select · textarea · contenteditable · [onclick] ·
+    그림판(canvas · svg — 고리 밖) · 손가락 모양(cursor pointer · grab · crosshair …) · 고리 'stop'(받기 · blob · data · javascript · «#» · 우리 사이트 «?…» 고리 — 💰 바로투찰 ?no= 등 · /contact 는 뺌)
+  · 잡는 일: click · dblclick · auxclick · pointerdown · mousedown · touchstart(손가락 굴림은 그대로 — 칸만 preventDefault) · keydown(Enter · 빈칸) · input · change · submit · beforeinput · paste · drop · dragover · dragstart · window.print
+  · 됨: 쪽 옮기기(맨 위 · 아래 탭 · 옆 차림 · 글자 고리 · 바깥 고리 · #자리) · 굴리기 · 빠른 찾기 · 공지창 · 문의(/contact — 제휴 · 서류대행) · 광고(.cpc · .afit · .adc) · .opcount · 창 닫기(✕ · 닫기 · close — 16자 안)
+  · 점검로봇(감사공지.jsx 점검 막기만): 인사.js «daum» 이 다음 앱(DaumApps · 사람)까지 걸어 점검이 안 걸렸음 → «daumoa · daum/숫자»(다음 검색 로봇)만 · 공지창 · 점검창의 로봇() 은 그대로.
+  · 글: 띠 «단추 · 입력 · 계산 · 받기 · 글쓰기는 11월 23일(월)부터» · 알림 «단추 · 입력 · 계산 · 글쓰기는 …» · 소장님 한 줄 «(모든 단추 · 입력 막힘)».
+- 새 단추 주의(G794 «이름 낱말» 주의는 없어짐): 점검 날엔 본문 단추는 이름과 상관없이 모두 막힘 — 점검 날에도 써야 하는 틀이면 안막는곳에 넣음.
+- UP 없음(점검 틀 — 도구 화면 고침 아님 · PKG_NOFIX=1).
+- 시험: `tools/시험_점검창.mjs`(펼치기 막힘으로 바꿈 · summary · 손가락 카드 · role=button(Enter) · 그림판 · 값 고리 막힘 · 창 닫기 · 광고 됨 · 맵톡 글 열기 막힘 · 특고 예시 막힘 ·
+  쪽 쓸기(/qna · 특고 · / · /svc · /live · /tools · /tools/juhyu — 안 막힌 것 0) · 이용자 화면 보기 막힘 · 다음 앱 막힘 · 다음 검색 로봇 안 막음)
+
 ### 👀 토 · 일 점검 — 둘러보기는 되고 이용만 막기 — G794 (2026-11-20)
 - 소장님 10:4x 「점검때는 둘러볼 수 있지만 이용만 안되게 해줘」 → 고르심 «보기 · 읽기까지» — G793 «점검막기화면»(화면 전체 덮음)을 «점검둘러보기» 로 바꿈(감사공지.jsx)
 - 이용자(점검부터 ~ 점검까지): 쪽 맨 위 띠 .checkbar «🛠 시스템 점검 중(11. 21. ~ 22.) — 지금은 둘러보기만 됩니다 … 11월 23일(월)부터 …»(닫기 없음)
