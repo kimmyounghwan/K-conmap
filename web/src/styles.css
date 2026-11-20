@@ -11830,3 +11830,16 @@ a.kn-strip:hover { border-left-color: var(--kn-a); }
 .ggj-date { text-align: center; font-size: 10.5pt; margin: 6px 0; color: #111; }
 .ggj-sign { text-align: right; font-size: 10.5pt; margin: 10px 0 6px; color: #111; }
 @media (max-width: 480px) { .ggj-form label.w2, .ggj-f label.w2 { grid-column: 1 / -1; } }
+/* 🏛 G795 (11-20) 지방 적격심사 자기평가 계산기(tools/적격자기.jsx) — 구간 띠 · 항목 까닭 줄 · 통과 최저 입찰가격 */
+.jq select { width: 100%; min-width: 0; max-width: 100%; text-overflow: ellipsis; }
+.jq-h { margin: 14px 0 6px; font-weight: 800; font-size: 14.5px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }   /* 칸 묶음 제목(서류 길잡이 .qd-h 와 같은 크기 · 이름은 따로) */
+.jq-max { font-size: 12.5px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.jq-sub { font-size: 12px; font-weight: 600; color: var(--muted); }
+.jq-band { padding: 9px 12px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 8%, var(--surface)); border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line)); font-size: 13.5px; line-height: 1.55; word-break: keep-all; overflow-wrap: anywhere; }
+.jq-band.out { background: var(--warn-soft); border-color: var(--line); }
+.jq-why { font-size: 12.5px; line-height: 1.5; color: var(--fg-dim); word-break: keep-all; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.jq-why b { color: var(--fg); }
+.jq-chk { display: grid; gap: 6px; }
+.jq-low { padding: 10px 12px; border-radius: 10px; background: var(--good-soft); border: 1px solid var(--line); font-size: 13.5px; line-height: 1.55; word-break: keep-all; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.jq-low.no { background: var(--bad-soft); }
+@media (min-width: 760px) { .jq-three { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

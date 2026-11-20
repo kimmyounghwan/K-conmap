@@ -282,6 +282,8 @@ export function QualifyScore({ ex = {} }) {
         { k: '통과선까지', v: sum > 0 ? (need <= 0 ? '통과 (+' + (-need).toFixed(2) + '점)' : need.toFixed(2) + '점 부족') : '—' },
       ]} />
       <div className="hint">배점은 <b>발주기관·연도·규모마다 다릅니다.</b> 공고서 배점표를 보고 넣으세요 — 이 도구는 더하기만 합니다.</div>
+      {/* 🏛 G795 지자체 공사 30억 미만은 점수까지 셈하는 계산기로 */}
+      <div className="hint">지자체 공사(추정가격 30억 원 미만)는 <Link to="/tools/qualify-self" onClick={() => { try { 세기('|합산기|자기평가') } catch (e) { /* 없음 */ } }}>🏛 지방 적격심사 자기평가 계산기</Link>가 실적 · 부채비율 · 입찰가격으로 점수까지 셉니다.</div>
     </div>
   )
 }
@@ -335,6 +337,7 @@ export function QualifyDocs({ ex = {} }) {
       </ul>
       <div className="hint">{모자랄때끝}</div>
       <div className="qd-go">
+        <Link className="btn line sm" to="/tools/qualify-self" onClick={() => { try { 세기('|적격서류|자기평가') } catch (e) { /* 없음 */ } }}>🏛 지방 적격심사 자기평가</Link>   {/* 🏛 G795 */}
         <Link className="btn line sm" to="/tools/qualify-score" onClick={() => { try { 세기('|적격서류|합산기') } catch (e) { /* 없음 */ } }}>✅ 적격심사 점수 합산기</Link>
         <Link className="btn line sm" to="/tools/floor-rate" onClick={() => { try { 세기('|적격서류|하한율') } catch (e) { /* 없음 */ } }}>📊 낙찰하한율 찾기</Link>
       </div>

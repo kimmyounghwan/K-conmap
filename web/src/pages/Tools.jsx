@@ -20,6 +20,7 @@ import { 미불CALCS, 미불EXAMPLES } from '../tools/미불칸.jsx'
 import { 공정CALCS, 공정EXAMPLES } from '../tools/공정칸.jsx'
 import { 제비율CALCS, 제비율EXAMPLES } from '../tools/제비율칸.jsx'   /* 📋 G350 간접공사비(제비율) 요율 찾기 */
 import { 토적CALCS, 토적EXAMPLES } from '../tools/토적칸.jsx'   /* 🏔 G571 토적컨맵 — 토적표 · 유토곡선 · 토공유동표 · 운반집계 · 차수 */
+import { 적격자기CALCS, 적격자기EXAMPLES } from '../tools/적격자기.jsx'   /* 🏛 G795 지방 적격심사 자기평가 계산기 */
 import 도구이야기 from '../도구이야기.jsx'   /* 💬 G573 도구마다 «이 도구 이야기» — 묻고 답하기(맵톡에 함께) */
 import { 업표 } from '../고친띠.jsx'   /* 🆕 G757 2주 안에 좋아진 도구 카드에 «UP» (public/fixes.json) */
 import NotFound from './NotFound.jsx'
@@ -39,8 +40,8 @@ const 묶음색 = ['#2563eb', '#0d9488', '#d97706', '#7c3aed', '#e11d48', '#16a3
 const TOOLS = DATA.tools || []
 /* 📑 2026-09-28 — 계약·공사 관리 도구 4가지(tools/계약칸.jsx)를 같은 판에 얹습니다. slug 는 tools.json 과 짝 */
 /* 💸 2026-09-28 — 미불금 받기 4가지(tools/미불칸.jsx). 넷이 칸을 같이 씁니다(tools.json "store") */
-const CALCS = { ...셈CALCS, ...계약CALCS, ...미불CALCS, ...공정CALCS, ...제비율CALCS, ...토적CALCS }     // 📈 2026-09-28 예정공정표·S커브(tools/공정칸.jsx)
-const EXAMPLES = { ...셈EXAMPLES, ...계약EXAMPLES, ...미불EXAMPLES, ...공정EXAMPLES, ...제비율EXAMPLES, ...토적EXAMPLES }
+const CALCS = { ...셈CALCS, ...계약CALCS, ...미불CALCS, ...공정CALCS, ...제비율CALCS, ...토적CALCS, ...적격자기CALCS }     // 📈 2026-09-28 예정공정표·S커브(tools/공정칸.jsx)
+const EXAMPLES = { ...셈EXAMPLES, ...계약EXAMPLES, ...미불EXAMPLES, ...공정EXAMPLES, ...제비율EXAMPLES, ...토적EXAMPLES, ...적격자기EXAMPLES }
 /* 설명 글의 **굵게** 를 진짜 굵은 글씨로 — 전에는 별표가 그대로 보였습니다(서식 화면 Forms.jsx 굵게 와 같음) */
 function 굵게(s) {
   return String(s).split(/\*\*(.+?)\*\*/g).map((x, i) => (i % 2 ? <b key={i}>{x}</b> : x))

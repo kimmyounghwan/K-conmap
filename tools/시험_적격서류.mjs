@@ -84,7 +84,8 @@ if (/^https?:\/\//.test(process.argv[2] || '')) {
   {
     const { ctx, p, 오류 } = await 새쪽(390, 844)
     await p.goto(BASE + '/tools/qualify-docs', { waitUntil: 'domcontentloaded' }); await p.waitForSelector('.tool input[type=date]', { timeout: 15000 }); await p.waitForTimeout(500)
-    const h1 = await p.evaluate(() => (document.querySelector('.tl-h1') || {}).textContent)
+    /* «UP» 단추(G767 · fixes.json 14일)는 제목 안에 붙으므로 빼고 봄 — G795 에서 이 화면에 UP 이 생김 */
+    const h1 = await p.evaluate(() => { const e = document.querySelector('.tl-h1'); if (!e) return null; const c = e.cloneNode(true); c.querySelectorAll('.up-btn').forEach((x) => x.remove()); return c.textContent.trim() })
     ok('제목 «🗂 적격심사 서류 길잡이»', h1 === '🗂 적격심사 서류 길잡이', h1)
     let r = await 결과(p)
     const 오늘 = 오늘한국(), 기대 = 적격기간(오늘, true)
@@ -111,7 +112,7 @@ if (/^https?:\/\//.test(process.argv[2] || '')) {
     const 모화면 = await p.evaluate(() => { const h = [...document.querySelectorAll('.tool .qd-h')].find((x) => /서류가 모자랄 때/.test(x.textContent)); const ul = h && h.nextElementSibling; const 끝 = ul && ul.nextElementSibling; return { 제목: h ? h.textContent : '', 줄: ul ? [...ul.querySelectorAll('li')].map((li) => li.innerText.replace(/\s+/g, ' ')) : [], 끝: 끝 ? 끝.textContent : '' } })
     ok('📌 «서류가 모자랄 때 — 조달청 시설공사 기준» 여섯 줄 · 근거 · 끝줄(지방 · 공기업)', 모화면.제목 === '📌 서류가 모자랄 때 — 조달청 시설공사 기준' && 모화면.줄.length === 6 && /^7일 안에 냅니다 — /.test(모화면.줄[0]) && /\(세부기준 제4조⑦\)$/.test(모화면.줄[2]) && /\(국가계약법 제27조 · 시행령 제76조②\)$/.test(모화면.줄[5]) && 모화면.끝 === '지방자치단체 · 공기업 공사는 그 기관 기준과 공고서가 우선입니다.', 모화면)
     const 링크 = await p.evaluate(() => [...document.querySelectorAll('.qd-go a')].map((a) => a.getAttribute('href')).join())
-    ok('이어지는 도구 — 점수 합산기 · 낙찰하한율', 링크 === '/tools/qualify-score,/tools/floor-rate', 링크)
+    ok('이어지는 도구 — 자기평가(G795) · 점수 합산기 · 낙찰하한율', 링크 === '/tools/qualify-self,/tools/qualify-score,/tools/floor-rate', 링크)
     ok('«무료» · «클로드» 없음(사이트 알림 띠 · 창은 빼고 — 소장님 글)', !/무료|클로드/.test(await p.evaluate(() => { const c = document.body.cloneNode(true); c.querySelectorAll('.noticebar,.noticepop').forEach((e) => e.remove()); return c.textContent })))
     ok('폰 390 넘침 0 · 오류 0', (await 넘침(p)) <= 0 && !오류.length, [await 넘침(p), 오류])
     if (OUT) {
