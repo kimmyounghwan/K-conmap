@@ -409,7 +409,7 @@ export default function HadoDocs() {
                     ) : x.k === '하도급률' ? <span><b>{율}%</b> <span className="muted">(위 ②에서)</span></span> : (
                       <input value={칸값(x.k) ?? ''} onChange={(e) => 칸바꿈(x.k, x.꼴 === '돈' ? e.target.value.replace(/[^\d]/g, '') : e.target.value)}
                         onBlur={(e) => { if (x.꼴 === '날' && libs) { const t = libs.k.날글(e.target.value); if (t !== e.target.value) 칸바꿈(x.k, t) } }}
-                        placeholder={x.꼴 === '날' ? '2026년 10월 16일' : x.꼴 === '돈' ? '원(숫자)' : ''} inputMode={x.꼴 === '돈' ? 'numeric' : undefined} />
+                        placeholder={x.꼴 === '날' ? `${new Date().getFullYear()}년 10월 16일` : x.꼴 === '돈' ? '원(숫자)' : ''} inputMode={x.꼴 === '돈' ? 'numeric' : undefined} />
                     )}
                     {x.꼴 === '돈' && !빈(칸값(x.k)) && <span className="muted" style={{ fontSize: 12 }}>{fmt(칸값(x.k))}원</span>}
                     {고를것[x.k] && <div className="hdx-고름">{고를것[x.k].map((t) => <button key={t} type="button" className={'chip' + (칸값(x.k) === t ? ' on' : '')} onClick={() => 칸바꿈(x.k, t)}>{t}</button>)}</div>}

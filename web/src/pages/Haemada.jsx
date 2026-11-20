@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { 점검표, 밀린점검, 한국오늘, 긴날, 공휴일표, 퇴직공제일액표, 요일, 짧은날 } from '../lib/해마다.js'
+import { 점검표, 밀린점검, 한국오늘, 긴날, 공휴일표, 퇴직공제일액표, 요일, 짧은날, 표해 } from '../lib/해마다.js'
 import 도구설명 from '../tools/도구설명.jsx'
 import { 달력, 이번달볼것, 이번월, 다음볼달 } from '../lib/요율달력.js'   /* 🗓 G790 요율 달력 — 값마다 바뀌는 달 */
 
@@ -22,7 +22,7 @@ export default function Haemada() {
   return (
     <div className="wrap hm hd">
       <div className="card">
-        <h1 className="tl-h1" style={{ marginTop: 0 }}>🗓 해마다 바뀌는 값 — 2026 건설 노무 · 보험 요율표</h1>
+        <h1 className="tl-h1" style={{ marginTop: 0 }}>🗓 해마다 바뀌는 값 — {표해()} 건설 노무 · 보험 요율표</h1>   {/* 🗓 G802 해는 표에서(12월 말 고시를 넣으면 저절로) */}
         <p className="cp" style={{ margin: '6px 0 0' }}>
           K-건설맵 프로그램이 쓰는 <b>노무비율 · 산재 · 고용 · 임금채권 · 석면 · 퇴직공제부금 · 4대보험 · 원천세 · 공휴일</b>을 한 장에 모았습니다.
           값마다 <b>근거 고시 · 원문 링크 · 원문을 열어 본 날 · 다음에 다시 볼 때</b>를 적어 두고, 새 고시가 나오면 이 표 하나를 고쳐 모든 화면이 같이 바뀝니다.

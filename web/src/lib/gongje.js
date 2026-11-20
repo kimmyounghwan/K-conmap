@@ -58,6 +58,12 @@ export function 요양비율(ym) {
   return 달글(ym) >= 요양반올림부터 ? Math.round(r * 1e4) / 1e4 : r
 }
 
+/** 🗓 G802 그 달 장기요양 «보험료율 ÷ 건강보험료율» 두 수(%) — 화면 글(투입비 공제 표)이 표에서 읽음 */
+export function 요양율(ym) {
+  const [요, 건] = 요양율표[쓸해(ym, Object.keys(요양율표).map(Number).sort((a, b) => a - b))]
+  return { 요, 건 }
+}
+
 /** 그 달에 쓸 요율 — 없는 해는 가장 가까운 해 */
 export function 요율(ym) {
   const y = Number(String(ym).slice(0, 4)) || 해들[해들.length - 1]

@@ -47,7 +47,10 @@ import daily as dailymod
 from kcm_rules import 하한율칸   # ⚖ G582 50억 이상 적격심사 난이도계수 반영 하한율(화면 · 수집과 같은 셈)
 import indexnow
 import qnapages
+import yearvals as YV   # 🗓 G802 해마다 값 — 쪽 글의 해 · 요율을 화면과 같은 표(lib/해마다.js · gongje.js)에서 읽음(손으로 «2026» 안 적음)
 import mypages   # 🪪 G188 마이컨맵 «내 건설 명함 페이지» — 검색 등록 칸을 다 채운 것만
+YG = YV.해마다글()                     # 🗓 G802 오늘(한국) 쓰는 값 — 사이트는 자동 갱신마다 다시 구우므로 1월 1일 · 새 고시를 넣으면 저절로
+YH = YV.해마다글(f"{YV.표해()}-12-31")   # 🗓 G802 «해마다 바뀌는 값» 쪽 = 표에 든 가장 늦은 해(12월 말 고시를 넣으면 그 해)
 
 
 def bold_md(s):
@@ -875,6 +878,41 @@ def load_naeyeok_meta():
         for row in d.get("r") or []:
             by.setdefault(row[gi["kind"]], []).append({k: row[i] for k, i in gi.items()})
     return meta, by
+
+
+_NY범위 = None
+
+
+def ny범위():
+    """🗓 G802 내역서 모음에 든 공고의 해 — '2026' · '2026~2027'(자료가 없으면 한국 올해). 손으로 «2026» 을 적지 않음."""
+    global _NY범위
+    if _NY범위 is None:
+        ys = set()
+        try:
+            _m, _by = load_naeyeok_meta()
+            for _rows in _by.values():
+                for _r in _rows:
+                    _y = re.search(r"20\d\d", str(_r.get("dt") or ""))
+                    if _y:
+                        ys.add(int(_y.group(0)))
+        except Exception:
+            ys = set()
+        ys = sorted(ys)
+        _NY범위 = (YV.한국오늘()[:4] if not ys else str(ys[0]) if ys[0] == ys[-1] else f"{ys[0]}~{ys[-1]}")
+    return _NY범위
+
+
+def 단가기준해():
+    """🗓 G802 설계변경 «단가·품셈 기준» 이 다루는 해 — change.json unit 의 sub(«2026년 적용») 한 곳에서. 1월에 새 품셈을 넣을 때 그 글만 고치면 모든 곳이 같이."""
+    try:
+        for t in (load_change()[0] or []):
+            if t.get("slug") == "unit":
+                m = re.search(r"20\d\d", t.get("sub") or "")
+                if m:
+                    return m.group(0)
+    except Exception:
+        pass
+    return YV.한국오늘()[:4]
 
 
 def docs_html(items):
@@ -2083,8 +2121,8 @@ def change_naeyeok_page(shell, image=None):
     목록 자체는 화면이 JSON 으로 받아 그립니다(4,290개를 HTML 에 박으면 무겁습니다).
     여기서는 «이 페이지가 무엇인지» 를 크롤러가 읽을 글자로 남깁니다.
     """
-    title = "공사 내역서 모음 2026 — 설계내역서·공내역서 무료 보기 | K-건설맵"
-    desc = ("조달청이 공고에 붙여 공개한 2026년 공사 내역서를 갈래별로 모았습니다. "
+    title = f"공사 내역서 모음 {ny범위()} — 설계내역서·공내역서 무료 보기 | K-건설맵"
+    desc = (f"조달청이 공고에 붙여 공개한 {ny범위()}년 공사 내역서를 갈래별로 모았습니다. "
             "설계내역서에는 발주처 설계 단가가 들어 있습니다. "
             "미리 받아 둔 것은 나라장터 로그인 없이 바로 내려받습니다.")
     kinds = [("설계내역서", "발주처가 잡은 **설계 단가**가 들어 있습니다. 설계변경 단가를 세울 때 견줍니다."),
@@ -2094,7 +2132,7 @@ def change_naeyeok_page(shell, image=None):
              ("수량산출서", "수량을 어떻게 뽑았는지 산출식이 있습니다."),
              ("그 밖의 내역서", "위 갈래에 안 들어가는 내역 파일입니다.")]
     out = ['<div class="card"><h1 style="font-size:19px;font-weight:800;margin:0">'
-           '공사 내역서 모음 — 2026년</h1>'
+           f'공사 내역서 모음 — {ny범위()}년</h1>'
            '<p class="cp" style="margin-top:8px">조달청이 공고에 붙여 공개한 <b>내역서</b>를 '
            '갈래별로 모았습니다. <b>설계내역서</b>에는 발주처가 잡은 <b>설계 단가</b>가 들어 있어 '
            '설계변경 단가를 세울 때 견줄 수 있습니다.</p>'
@@ -2111,7 +2149,7 @@ def change_naeyeok_page(shell, image=None):
     out.append("</div>")
     out.append('<div class="card"><div class="sec-title" style="margin:0 0 6px">함께 보기</div>'
                '<a class="row rowlink" href="/change/unit"><span class="fic">📐</span>'
-               '<div class="grow"><div class="t">단가·품셈 기준 (2026년 적용)</div>'
+               f'<div class="grow"><div class="t">단가·품셈 기준 ({단가기준해()}년 적용)</div>'
                '<div class="d">신규 비목 단가를 어디서 가져오나</div></div>'
                '<span class="go">→</span></a>'
                '<a class="row rowlink" href="/change/excel"><span class="fic">📊</span>'
@@ -2122,10 +2160,10 @@ def change_naeyeok_page(shell, image=None):
                '모두 <b>발주기관이 나라장터 공고에 붙여 공개한 문서</b>이고, 줄마다 발주기관과 '
                '공고번호를 함께 적었습니다. 단가는 그 공고 시점의 값이니 '
                '<a href="/change/unit" style="color:var(--accent);font-weight:700">'
-               '2026년 품셈·시장단가</a>로 한 번 더 확인하시는 편이 안전합니다. '
+               f'{단가기준해()}년 품셈·시장단가</a>로 한 번 더 확인하시는 편이 안전합니다. '
                '발주기관에서 <b>내려 달라</b>고 알려 주시면 바로 지웁니다.</div></div>')
     ld = {"@context": "https://schema.org", "@type": "CollectionPage",
-          "name": "공사 내역서 모음 2026", "url": f"{SITE}/change/naeyeok",
+          "name": f"공사 내역서 모음 {ny범위()}", "url": f"{SITE}/change/naeyeok",
           "description": desc, "inLanguage": "ko",
           "isPartOf": {"@type": "WebSite", "name": "K-건설맵", "url": SITE}}
     return page(shell, "/change/naeyeok", title, desc,
@@ -2202,11 +2240,11 @@ def change_naeyeok_kind_page(shell, kind, rows, meta, image=None):
     """
     d = dict(NY_KINDS).get(kind, "")
     tot = (meta.get("all") or {}).get(kind, 0)
-    title = f"{kind} 모음 — 2026년 공공공사 실제 자료 {num(tot)}건 | K-건설맵"
+    title = f"{kind} 모음 — {ny범위()}년 공공공사 실제 자료 {num(tot)}건 | K-건설맵"
     desc = (f"조달청 나라장터 공고에 붙어 공개된 {kind} {num(tot)}건을 모았습니다. "
             f"{d.replace('**', '')} 무료로 바로 내려받습니다.")
     out = [f'<div class="card"><h1 style="font-size:19px;font-weight:800;margin:0">'
-           f'{esc(kind)} 모음 — 2026년</h1>'
+           f'{esc(kind)} 모음 — {ny범위()}년</h1>'
            f'<p class="cp" style="margin-top:8px">{_bold(d)} '
            f'조달청 나라장터 공고에 붙어 공개된 것으로, 지금 <b>{num(tot)}건</b> 있습니다'
            f'(최근 {meta.get("days") or 365}일치를 보관합니다).</p>'
@@ -2246,7 +2284,7 @@ def change_naeyeok_kind_page(shell, kind, rows, meta, image=None):
                       esc(nm), num(n), _bold(dd)))
     out.append('</div>')
     ld = {"@context": "https://schema.org", "@type": "CollectionPage",
-          "name": f"{kind} 모음 2026", "url": f"{SITE}/change/naeyeok/{quote(kind, safe='')}",
+          "name": f"{kind} 모음 {ny범위()}", "url": f"{SITE}/change/naeyeok/{quote(kind, safe='')}",
           "description": desc, "inLanguage": "ko",
           "isPartOf": {"@type": "WebSite", "name": "K-건설맵", "url": SITE}}
     # ⚠️ page() 가 안에서 enc_path() 로 «한 번» 인코딩합니다.
@@ -2383,7 +2421,7 @@ def change_index(shell, topics, fsets, book, image=None):
     # ⚠️ 여기에 링크가 없으면 /change/naeyeok 은 사이트맵으로만 닿는 «외딴 페이지» 가 됩니다.
     #    크롤러는 /change 를 먼저 읽습니다 — 거기서 가는 길이 있어야 합니다.
     out.append('<a class="card fbook" href="/change/naeyeok"><span class="fic">📑</span>'
-               '<div class="grow"><div class="t">공사 내역서 모음 <em>· 2026년 · 조달청 공개</em></div>'
+               '<div class="grow"><div class="t">공사 내역서 모음 <em>· 조달청 공개</em></div>'   # 🗓 G802 화면(Change.jsx 카드)과 같게 해 없이
                '<div class="d">발주처가 공고에 붙인 <b>설계내역서·공내역서</b>를 갈래별로 모았습니다. '
                '설계내역서에는 <b>설계 단가</b>가 들어 있고, 미리 받아 둔 것은 '
                '<b>나라장터 로그인 없이 바로</b> 받습니다.</div></div>'
@@ -3064,9 +3102,9 @@ def tuipbi_page(shell, image=None):
            '<li>청구서마다 사람별 <b>4대보험 대상</b>(국민연금·건강·고용 ✓/✕와 까닭 — 한 달 8일·220만원) · 공제 항목별 금액 · <b>실지급액(차인지급액)</b></li>'
            '<li>입력·수정은 모두 이 화면에서 — 결과는 화면의 표로 보고 PDF · 인쇄하고, 보관용 <b>엑셀</b>(현장 전체 · 이 달 청구서 · 달별 누계)도 받습니다</li>'
            '</ul></div>',
-           '<div class="card"><div class="sec-title" style="margin:0 0 6px">공제는 이렇게 셉니다 (2026년 · 일용근로자)</div><ul class="flist">'
-           '<li>소득세 (일급 − 15만원) × 2.7% · 지방소득세 10% · 고용보험 0.9%</li>'
-           '<li>국민연금 4.75%(달 단위 8일 이상 또는 220만원 이상, 기준소득월액 41만~659만) · 건강보험 3.595%(첫 근로일부터 1개월 8일 이상) · 장기요양 건강보험료 × 13.14% — 보험료는 취득한 달의 다음 달부터 '
+           f'<div class="card"><div class="sec-title" style="margin:0 0 6px">공제는 이렇게 셉니다 ({YG["공해"]}년 · 일용근로자)</div><ul class="flist">'
+           f'<li>소득세 (일급 − 15만원) × 2.7% · 지방소득세 10% · 고용보험 {YG["고용근로자"]}</li>'
+           f'<li>국민연금 {YG["연금"]}(달 단위 8일 이상 또는 220만원 이상, 기준소득월액 {YG["연금하한"]}~{YG["연금상한"]}) · 건강보험 {YG["건강"]}(첫 근로일부터 1개월 8일 이상) · 장기요양 건강보험료 × {YG["요양"]} — 보험료는 취득한 달의 다음 달부터 '
            '(<a href="/tools/ilyong-boheom">4대보험 가입 판단기</a>)</li>'
            '<li>보험 대상은 청구서의 단추로 그 달만 넣고 뺄 수 있습니다(다른 현장 합산·나이 등)</li>'
            '</ul></div>']
@@ -3088,10 +3126,10 @@ def nomubi_page(shell, image=None):
            '건강보험 · 장기요양 공제와 <b>실지급액</b>이 저절로 나옵니다. 지급명세서를 <b>A4 가로 PDF 로 바로 받거나 인쇄</b>하고, '
            '근로내용 확인신고에 옮겨 적을 집계도 함께 나옵니다.</p>'
            '<p class="cp">회원가입 없음 · 무료. 적은 것은 <b>이 브라우저에</b> 남고, «🔗 코드 만들기» 를 하면 명단 · 출역 전부를 비밀번호로 잠가 서버에 두어 폰 · PC 어디서든 이어 씁니다(서버 · 운영자는 못 읽음). 생년월일(앞 6자리)만 받고 주민등록번호 뒷자리 · 계좌는 받지 않습니다. 생년월일을 넣으면 만 60세(국민연금) · 만 65세(고용보험 실업급여)를 나이로 가려 공제합니다.</p></div>',
-           '<div class="card"><div class="sec-title" style="margin:0 0 6px">공제는 이렇게 셉니다 (2026년 · 일용근로자)</div><ul class="flist">'
+           f'<div class="card"><div class="sec-title" style="margin:0 0 6px">공제는 이렇게 셉니다 ({YG["공해"]}년 · 일용근로자)</div><ul class="flist">'
            '<li>소득세 — 날마다 (일급 − 15만원) × 2.7% · 한 달 합 1천원 미만은 떼지 않음(소액부징수) · 지방소득세 10%</li>'
-           '<li>고용보험 0.9% · 국민연금 4.75%(달 단위 8일 이상 또는 220만원 이상, 기준소득월액 41만~659만) · '
-           '건강보험 3.595%(첫 근로일부터 1개월 8일 이상) · 장기요양 건강보험료 × 13.14% — 보험료는 취득한 달의 다음 달부터 '
+           f'<li>고용보험 {YG["고용근로자"]} · 국민연금 {YG["연금"]}(달 단위 8일 이상 또는 220만원 이상, 기준소득월액 {YG["연금하한"]}~{YG["연금상한"]}) · '
+           f'건강보험 {YG["건강"]}(첫 근로일부터 1개월 8일 이상) · 장기요양 건강보험료 × {YG["요양"]} — 보험료는 취득한 달의 다음 달부터 '
            '(<a href="/tools/ilyong-boheom">4대보험 가입 판단기</a>)</li>'
            '<li>보험 대상은 사람마다 단추로 그 달만 넣고 뺄 수 있고, 공제 칸은 눌러서 고쳐 씁니다</li></ul></div>',
            '<div class="card"><div class="sec-title" style="margin:0 0 6px">신고 기한</div><ul class="flist">'
@@ -3117,9 +3155,9 @@ def nomubi_myeongse_page(shell, image=None):
            '건강보험 · 요양보험) · 은행 · 계좌번호 · 합계.</p>'
            '<p class="cp">사람마다 적고 <b>일한 날만 누르면</b> 공제와 차감 지급액이 저절로 나오고, <b>A4 가로 PDF · 인쇄</b>로 받습니다. '
            '적은 것은 이 기기에만 남고, 주민번호 · 계좌는 이 기기 안에서 잠가 둡니다(서버로 보내지 않음).</p></div>',
-           '<div class="card"><div class="sec-title" style="margin:0 0 6px">공제는 이렇게 셉니다 (2026년 · 일용근로자)</div><ul class="flist">'
+           f'<div class="card"><div class="sec-title" style="margin:0 0 6px">공제는 이렇게 셉니다 ({YG["공해"]}년 · 일용근로자)</div><ul class="flist">'
            '<li>소득세 — 날마다 (일당 − 15만원) × 2.7% · 한 달 합 1천원 미만은 떼지 않음 · 주민세(지방소득세) 10%</li>'
-           '<li>고용보험 0.9% · 국민연금 4.75% · 건강보험 3.595% · 요양보험 = 건강보험료 × 13.14% — 가입 기준(한 달 8일 · 첫 근로일부터 1개월 등)과 '
+           f'<li>고용보험 {YG["고용근로자"]} · 국민연금 {YG["연금"]} · 건강보험 {YG["건강"]} · 요양보험 = 건강보험료 × {YG["요양"]} — 가입 기준(한 달 8일 · 첫 근로일부터 1개월 등)과 '
            '나이(만 60세 국민연금 · 만 65세 고용보험)는 주민번호 앞자리로 저절로 가립니다 (<a href="/tools/ilyong-boheom">4대보험 가입 판단기</a>와 같은 기준)</li>'
            '<li>사람마다 «연금 · 건강 · 고용» 단추로 그 달만 넣고 뺄 수 있습니다</li></ul></div>',
            '<div class="card"><p class="cp" style="margin:0">신고에 옮겨 적을 집계 · 퇴직공제 · 보험료는 <a href="/tools/nomubi">일용 노무비 계산기</a>와 '
@@ -3144,9 +3182,9 @@ def gyeonjeok_page(shell, image=None):
            '<li>간단 견적 — 직접공사비 + 현장 경비 + 일반관리비 + 이윤 + 부가세 (민간 · 하도급 견적)</li>'
            '<li>공공식 원가계산 — 재료비 · 노무비(간접노무비) · 경비(산재 · 고용 · 건강 · 연금 · 장기요양 · 퇴직공제 · 산업안전보건관리비 · 환경보전비 · 기타경비) '
            '→ 일반관리비 · 이윤 → 부가세. 비목마다 넣고 빼기 · 요율 고쳐 쓰기</li></ul></div>',
-           '<div class="card"><div class="sec-title" style="margin:0 0 6px">요율 근거 (2026년)</div><ul class="flist">'
-           '<li>산재보험 3.56% (건설업 35/1,000 + 출퇴근 재해 0.6/1,000) · 고용보험 사업주 1.15% (상시 150명 미만)</li>'
-           '<li>국민건강 3.595% · 국민연금 4.75% · 노인장기요양 = 건강보험료 × 13.14%</li>'
+           f'<div class="card"><div class="sec-title" style="margin:0 0 6px">요율 근거 ({YG["공해"]}년)</div><ul class="flist">'
+           f'<li>산재보험 {YG["산재합"]} (건설업 {YG["산재건설천"]} + 출퇴근 재해 {YG["산재출퇴근천"]}) · 고용보험 사업주 {YG["고용사업주s"]} (상시 150명 미만)</li>'
+           f'<li>국민건강 {YG["건강"]} · 국민연금 {YG["연금"]} · 노인장기요양 = 건강보험료 × {YG["요양"]}</li>'
            '<li>산업안전보건관리비 — 건설업 산업안전보건관리비 계상 및 사용기준 별표 1 (공사 종류 · 금액 구간)</li>'
            '<li>일반관리비 8% · 이윤 15% 이하 — 국가를 당사자로 하는 계약에 관한 법률 시행규칙 제8조 (공사)</li></ul></div>',
            '<div class="card"><p class="cp" style="margin:0">엑셀 서식이 필요하면 <a href="/forms/wonga">공사원가계산서</a> · '
@@ -3739,13 +3777,13 @@ def toejik_page(shell, image=None):
 def boheomryo_page(shell, image=None):
     return _tool_page(shell, image, "/tools/boheomryo",
         "건설업 고용·산재 보험료 계산기 — 노무비율 27%·개산·확정·분할 납부·임금채권·석면 | K-건설맵",
-        "총공사금액×노무비율(2026 일반 27%·하도급 29%) 또는 노무비 계산기의 실제 보수로 고용보험료·산재보험료(3.56%)·임금채권부담금(0.09%)·석면분담금(0.006%). "
+        f"총공사금액×노무비율({YG['해']} 일반 {YG['노일반']}·하도급 {YG['노하도급']}) 또는 노무비 계산기의 실제 보수로 고용보험료·산재보험료({YG['산재합']})·임금채권부담금({YG['임금']})·석면분담금({YG['석면']}). "
         "성립신고·개산(70일)·확정(30일) 기한, 분할 납부 4기·전액 납부 3% 경감, 확정 정산. 무료.",
         "🧾 건설업 고용 · 산재 보험료 계산기 — 개산 · 확정 · 분할 납부",
         ["총공사금액(부가세 뺌) × <b>노무비율</b>(고시) 또는 <b>실제 보수총액</b>으로 고용보험료 · 산재보험료 · 임금채권부담금 · 석면분담금을 셉니다.",
          "노무비 계산기에 적은 출역에서 그 해 보수를 가져올 수 있고, 신고 기한 · 분할 납부 · 전액 납부 경감 · 확정 정산까지 나옵니다. 율은 해마다 고시 값(원문 링크)입니다. 무료."],
-        [("2026년 값 (원문 확인)", ["노무비율 — 일반 건설공사 27% · 하도급 공사 29% (고용노동부고시 제2025-119호)", "산재 — 건설업 3.5% + 출퇴근 0.06% (제2025-91호)",
-                                  "고용 — 실업급여 1.8%(근로자 · 사업주 반씩) + 고용안정 · 직업능력개발 0.25~0.85%", "임금채권부담금 0.09% (제2025-100호) · 석면분담금 0.006% (제2025-25호)"])],
+        [(f"{YG['해']}년 값 (원문 확인)", [f"노무비율 — 일반 건설공사 {YG['노일반']} · 하도급 공사 {YG['노하도급']}" + (f" (고용노동부고시 {YG['노고시']})" if YG['노고시'] else ""), f"산재 — 건설업 {YG['산재건설']} + 출퇴근 {YG['산재출퇴근']}" + (f" ({YG['산재고시']})" if YG['산재고시'] else ""),
+                                  f"고용 — 실업급여 {YG['실업']}(근로자 · 사업주 반씩) + 고용안정 · 직업능력개발 {YG['고용안정']}", f"임금채권부담금 {YG['임금']}" + (f" ({YG['임금고시']})" if YG['임금고시'] else "") + f" · 석면분담금 {YG['석면']}" + (f" ({YG['석면고시']})" if YG['석면고시'] else "")])],
         '근로자 몫 공제는 <a href="/tools/nomubi">노무비 계산기</a>, 사람별 사업주 몫은 <a href="/tools/ilyong-boheom">4대보험 가입 판단기</a>, 모든 요율은 <a href="/tools/haemada">해마다 바뀌는 값</a>입니다.',
         "고용·산재 보험료 계산기", key="boheomryo")
 
@@ -3818,12 +3856,12 @@ def jeongsan_page(shell, image=None):
 
 def haemada_page(shell, image=None):
     return _tool_page(shell, image, "/tools/haemada",
-        "해마다 바뀌는 값 — 2026 건설 노무·보험 요율표(노무비율·산재·고용·퇴직공제부금·공휴일) | K-건설맵",
+        f"해마다 바뀌는 값 — {YH['표해']} 건설 노무·보험 요율표(노무비율·산재·고용·퇴직공제부금·공휴일) | K-건설맵",
         "건설 현장 계산에 쓰는 노무비율·산재보험료율·고용보험료율·임금채권부담금·석면분담금·퇴직공제부금 일액·4대보험·원천세·공휴일을 근거 고시·원문 링크·확인한 날과 함께 한 장에.",
-        "🗓 해마다 바뀌는 값 — 2026 건설 노무 · 보험 요율표",
+        f"🗓 해마다 바뀌는 값 — {YH['표해']} 건설 노무 · 보험 요율표",
         ["K-건설맵 프로그램이 쓰는 <b>노무비율 · 산재 · 고용 · 임금채권 · 석면 · 퇴직공제부금 · 4대보험 · 원천세 · 공휴일</b>을 한 장에 모았습니다.",
          "값마다 근거 고시 · 원문 링크 · 원문을 열어 본 날 · 다음에 다시 볼 때를 적어 두고, 새 고시가 나오면 이 표 하나를 고쳐 모든 화면이 같이 바뀝니다."],
-        [("2026년 주요 값", ["건설공사 노무비율 — 일반 27% · 하도급 29%", "산재보험료율 — 건설업 35/1,000 + 출퇴근 0.6/1,000", "임금채권부담금 0.9/1,000 · 석면분담금 10만분의 6",
+        [(f"{YH['해']}년 주요 값", [f"건설공사 노무비율 — 일반 {YH['노일반']} · 하도급 {YH['노하도급']}", f"산재보험료율 — 건설업 {YH['산재건설천']} + 출퇴근 {YH['산재출퇴근천']}", f"임금채권부담금 {YH['임금천']} · 석면분담금 10만분의 {YH['석면십만']}",
                            "퇴직공제부금 — 2026.4.1. 이후 입찰공고 8,700원 · 그 전 6,500원", "공휴일 — 노동절 · 제헌절 2026년부터 공휴일"])],
         '이 값을 쓰는 프로그램: <a href="/tools/singo">매달 신고 정리</a> · <a href="/tools/toejik">퇴직공제 집계</a> · <a href="/tools/boheomryo">고용·산재 보험료</a> · <a href="/tools/nomubi">노무비 계산기</a> · <a href="/tools/gyeonjeok">견적서 · 원가계산서</a>.',
         "해마다 바뀌는 값", key="haemada")
@@ -4347,6 +4385,17 @@ def load_cert():
 CERTQ_DIR = os.path.join(ROOT, "web", "src", "data", "certq")
 
 
+def cert해():
+    """🗓 G802 자격증 쪽 «○○ 일정» 의 해 — cert.json 깊은 글의 «20xx년 정기 …» 가운데 가장 늦은 해(새 해 일정을 넣으면 저절로)"""
+    try:
+        ys = [int(y) for y in re.findall(r"(20\d\d)년 정기", json.dumps((load_cert() or {}).get("deep") or {}, ensure_ascii=False))]
+        if ys:
+            return str(max(ys))
+    except Exception:
+        pass
+    return YV.한국오늘()[:4]
+
+
 def load_certq(slug):
     """📅📊🏅 G643 큐넷 덧(시험 일정 · 합격률 · 법령 우대) — 화면(Cert.jsx 큐넷덧파일)과 같은 파일"""
     try:
@@ -4374,7 +4423,7 @@ def cert_index(shell, d, image=None):
             "건설기술인 등급(초급 · 중급 · 고급 · 특급) 역량지수 셈 · 경력수첩(경력증) 받는 길까지.")[:160]
     out = ['<div class="card"><h1 class="cert-h1">📚 토목 · 건축 자격증</h1>'
            '<p class="cp" style="margin-top:6px">기능사부터 기술사까지 <b>한 장에</b> — 무슨 시험이 있고, 어떻게 올라가고, '
-           '따면 현장에서 몇 급이 되는지. 종목을 누르면 시험 · 응시자격 · 2026 일정 · 최근 5년 합격률 · 법령 우대까지 자세히.</p>'
+           f'따면 현장에서 몇 급이 되는지. 종목을 누르면 시험 · 응시자격 · {cert해()} 일정 · 최근 5년 합격률 · 법령 우대까지 자세히.</p>'
            '<div class="cert-top"><a class="cert-big" href="/cert/grade"><b>🎓 내 등급 셈</b><span>초급 · 중급 · 고급 · 특급 — 자격 · 경력 · 학력으로</span></a>'
            '<a class="cert-big" href="/cert/grade#suchup"><b>📘 경력수첩(경력증)</b><span>받는 곳 · 신고 · 등급 올리기</span></a></div></div>']
     for g in d.get("groups") or []:
@@ -4927,7 +4976,7 @@ def main():
         if bp:
             write("change/excel.html", bp)
         write("change/naeyeok.html", change_naeyeok_page(shell,
-              og.tab("change-naeyeok", "공사 내역서 모음", "설계내역서 · 공내역서 · 2026년",
+              og.tab("change-naeyeok", "공사 내역서 모음", f"설계내역서 · 공내역서 · {ny범위()}년",
                      "무료", "조달청 공개 자료 · 나라장터 원문으로 연결")
               if og.available else None))
         # 갈래마다 한 장 — 「공내역서 양식」 같은 낱말로 들어올 자리 (2026-09-06)
@@ -4938,7 +4987,7 @@ def main():
             write("change/naeyeok/%s.html" % _k,
                   change_naeyeok_kind_page(shell, _k, _nyr.get(_k) or [], _nym,
                                            og.tab("ny-" + _k, _k + " 모음",
-                                                  "2026년 · 조달청 공개", "무료",
+                                                  f"{ny범위()}년 · 조달청 공개", "무료",
                                                   "공공공사 실제 자료")
                                            if og.available else None))
             made += 1
@@ -5082,7 +5131,7 @@ def main():
             ("singo", singo_page, ("tool-singo", "매달 신고 정리", "건설 노무", "원천세 · 근로내용 · 퇴직공제", "기한 D-day")),
             ("toejik", toejik_page, ("tool-toejik", "퇴직공제 집계", "건설 노무", "근로일수 · 공제부금", "일액 8,700원")),
             ("boheomryo", boheomryo_page, ("tool-boheomryo", "고용·산재 보험료", "건설 노무", "노무비율 · 개산 · 확정", "분할 납부")),
-            ("haemada", haemada_page, ("tool-haemada", "해마다 바뀌는 값", "건설 노무", "2026 요율표", "원문 링크"))]:
+            ("haemada", haemada_page, ("tool-haemada", "해마다 바뀌는 값", "건설 노무", f"{YH['표해']} 요율표", "원문 링크"))]:
         write(f"tools/{_slug}.html", _fn(shell, og.tab(*_og) if og.available else None))
         made += 1
     print("  · 신고 정리 · 퇴직공제 · 보험료 · 해마다 바뀌는 값 페이지 4개 (G116)")
@@ -5567,7 +5616,7 @@ def main():
             "② 하도급·실행내역 — 하도급 80%·실행률 맞추기 · 하도급 적정성(82%·64%) 판정. "
             "③ 설계변경·물가변동 — 증감 계산 · 2줄 자동변환 · 자동계산 엑셀 · 물가변동 조정금액. "
             "④ 물량 확인·공정표 — 도면 물량 자동과 내역서 대조 · 골조 · 마감 · 예정공정표·S커브. "
-            "조달청이 공개한 공사 내역서 모음(설계 단가)과 2026년 단가·품셈 기준도 함께 봅니다.",
+            f"조달청이 공개한 공사 내역서 모음(설계 단가)과 {단가기준해()}년 단가·품셈 기준도 함께 봅니다.",
             "산출내역서는 낙찰되면 «누군가는 반드시» 내야 하는 서류입니다. "
             "추정가격 100억원 미만이면 낙찰자가 착공신고서를 낼 때, "
             "100억원 이상이면 입찰 참가자가 입찰서와 함께 냅니다"

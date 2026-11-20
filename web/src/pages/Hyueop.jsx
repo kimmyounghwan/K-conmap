@@ -165,7 +165,7 @@ export default function Hyueop() {
             <div><span>📅 쉰 기간</span><b>{긴날(st.처음)} ~ {긴날(st.끝)} · {R.일수}일</b><small>{R.셋날 ? '3일 이내는 산재 휴업급여 없음(제52조 단서)' : '4일 이상이라 첫날부터 · 주말 · 휴일도 요양 중이면 셈'}{R.나이글 ? ` · ${R.나이글}` : ''}</small></div>
             {R.구간.length > 1 && <div><span>🧮 날마다</span><b className="hy-segs">{R.구간.map((x) => <span key={x.부터}>{날글(x.부터)}~{날글(x.까지)} {x.일}일 × {원글(x.액)}원</span>)}</b></div>}
           </div>
-          {R.잠정 && <div className="note sm" style={{ marginTop: 8 }}>⚠️ 아직 고시가 안 나온 해가 들어 있어 2026년 값(최고 · 최저 보상기준 · 최저임금)으로 셈했습니다(잠정).</div>}
+          {R.잠정 && <div className="note sm" style={{ marginTop: 8 }}>⚠️ 아직 고시가 안 나온 해가 들어 있어 {R.잠정해 || ''}년 값(최고 · 최저 보상기준 · 최저임금)으로 셈했습니다(잠정).</div>}
           {낮은꼴 && <div className="note sm" style={{ marginTop: 8 }}>⚠️ 평균임금이 낮아 «저소득 보정»(제54조)으로 셈했습니다 — 법 조문대로 셈한 숫자이니 근로복지공단 결정 통지로 꼭 확인하세요.</div>}
           {R.증감 && <div className="note sm hy-long" style={{ marginTop: 8 }}>⚠️ 다친 날부터 1년이 지난 뒤({긴날(R.증감)} 무렵부터)는 평균임금을 해마다 증감합니다 — 전체 근로자 임금 평균액 증감률, 60세 이후는 소비자물가변동률(제36조③). 이 계산기는 증감 전 평균임금으로 셈하니 그 뒤 금액은 공단 결정으로 확인하세요.</div>}
           {R.상병 && <div className="note sm hy-long" style={{ marginTop: 8 }}>⚠️ 요양을 시작한 지 2년이 지난 뒤({긴날(R.상병)} 무렵부터)에도 낫지 않고 중증요양상태등급에 해당하며 일을 못 하면 휴업급여 대신 상병보상연금을 받습니다(제66조).</div>}

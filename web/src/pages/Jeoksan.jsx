@@ -264,7 +264,7 @@ export default function Jeoksan() {
         </ul>
         <div className="navrow" style={{ marginTop: 10 }}>
           <Link className="navi" to="/change/naeyeok">📑 공사 내역서 모음 — 발주처 설계 단가 보기</Link>
-          <Link className="navi" to="/change/unit">📐 단가 · 품셈 기준 (2026년)</Link>
+          <Link className="navi" to="/change/unit">📐 단가 · 품셈 기준</Link>
         </div>
       </div>
 

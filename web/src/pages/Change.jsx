@@ -3,6 +3,8 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { askAfter } from '../AskComment'
 import { useParams, Link } from 'react-router-dom'
 import DATA from '../data/change.json'
+/* 🗓 G802 «단가·품셈 기준» 이 다루는 해 — change.json unit 의 sub(«2026년 적용») 한 곳에서(1월에 새 품셈을 넣을 때 그 글만 고치면 모든 곳이 같이 · prerender.py 단가기준해() 와 같음) */
+export const 단가기준해 = (() => { const t = (DATA.topics || []).find((x) => x.slug === 'unit'); const m = String((t && t.sub) || '').match(/20\d\d/); return m ? m[0] : String(new Date().getFullYear()) })()
 // forms.json(217KB)이 아니라 formsgen.py 가 구운 «작은 목록»(6KB)을 씁니다.
 import FMIN from '../data/forms-min.json'
 import { ShareBtn } from './CorpPage.jsx'
@@ -446,6 +448,12 @@ export function ChangeNaeyeok() {
   }, [meta])
 
   const src = PRICED.includes(kind) ? priced : all
+  /* 🗓 G802 (11-20) 소장님 「년도가 자동으로 바뀌게 해줘」 — 제목의 해는 모은 내역서 공고의 해에서(«2026년» · «2026~2027년» · 자료 전엔 해 없이) — prerender.py ny범위() 와 같은 셈 */
+  const 해범위 = useMemo(() => {
+    if (!priced) return ''
+    const ys = [...new Set(naeyeokRows(priced).map((r) => (String(r.dt || '').match(/20\d\d/) || [])[0]).filter(Boolean).map(Number))].sort()
+    return !ys.length ? '' : ys[0] === ys[ys.length - 1] ? `${ys[0]}년` : `${ys[0]}~${ys[ys.length - 1]}년`
+  }, [priced])
   const rows = useMemo(() => {
     if (!src) return null
     const s = q.trim()
@@ -487,7 +495,7 @@ export function ChangeNaeyeok() {
       </div>
 
       <div className="card">
-        <h1 style={{ fontSize: 19, fontWeight: 800, margin: 0 }}>공사 내역서 모음 — 2026년</h1>
+        <h1 style={{ fontSize: 19, fontWeight: 800, margin: 0 }}>공사 내역서 모음{해범위 ? ` — ${해범위}` : ''}</h1>
         <p className="cp" style={{ marginTop: 8 }}>
           조달청이 공고에 붙여 공개한 <b>내역서</b>를 갈래별로 모았습니다.
           {meta ? <> 모두 <b>{num(meta.total || meta.n)}개</b>(최근 {num(meta.days || 365)}일치) — 목록에는 갈래마다 최근 것부터 싣습니다.</> : null}{' '}
@@ -564,7 +572,7 @@ export function ChangeNaeyeok() {
         <div>
           모두 <b>발주기관이 나라장터 공고에 붙여 공개한 문서</b>이고, 줄마다 발주기관과 공고번호를 함께 적었습니다.
           단가는 <b>그 공고 시점의 값</b>이니, 지금 쓰실 때는{' '}
-          <Link to="/change/unit" style={{ color: 'var(--accent)', fontWeight: 700 }}>2026년 품셈·시장단가</Link>로
+          <Link to="/change/unit" style={{ color: 'var(--accent)', fontWeight: 700 }}>{단가기준해}년 품셈·시장단가</Link>로
           한 번 더 확인하시는 편이 안전합니다.
           발주기관에서 <b>내려 달라</b>고 <a href="/contact" style={{ color: 'var(--accent)', fontWeight: 700 }}>문의</a>로 알려 주시면 바로 지웁니다.
         </div>
@@ -659,7 +667,7 @@ export default function Change() {
       <Link className="card fbook" to="/change/naeyeok">
         <span className="fic">📑</span>
         <div className="grow">
-          <div className="t">공사 내역서 모음 <em>· 2026년 · 조달청 공개</em></div>
+          <div className="t">공사 내역서 모음 <em>· 조달청 공개</em></div>
           <div className="d">
             발주처가 공고에 붙인 <b>설계내역서·공내역서</b>를 갈래별로 모았습니다.
             설계내역서에는 <b>설계 단가</b>가 들어 있고, 미리 받아 둔 것은{' '}

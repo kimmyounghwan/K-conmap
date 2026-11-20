@@ -51,6 +51,8 @@ export const 큐넷종목 = (x) => (x && x.q ? `https://www.q-net.or.kr/crf005.d
    · 구운 쪽(prerender.py cert_item)도 같은 글 · 같은 링크 · 셈 |자격증기출|slug · |자격증기출짝|slug */
 export const 큐넷찾기 = (code, 이름) => `https://www.q-net.or.kr/cst006.do?id=cst00601&code=${code}&gSite=Q&schType=A&schText=${encodeURIComponent(이름)}`
 export const 기출길 = (x) => (!x || !x.gq ? null : 큐넷찾기(x.gq === '기출' ? '1203' : '1204', x.n))
+/* 🗓 G802 (11-20) 소장님 「년도가 자동으로 바뀌게 해줘」 — «○○ 일정» 의 해는 깊은 글의 «20xx년 정기 …» 가운데 가장 늦은 해(새 해 일정을 넣으면 저절로 · prerender.py cert해() 와 같은 셈) */
+export const 일정해 = (() => { const ys = (JSON.stringify(DATA.deep || {}).match(/20\d\d(?=년 정기)/g) || []).map(Number); return ys.length ? Math.max(...ys) : new Date().getFullYear() })()
 export const 기출글 = { 기출: ['📄 기출문제 — 큐넷 문제지', '회차별 필기 문제지(한국산업인력공단) · 제140회(2026. 8.)부터 공공누리 제1유형'],
   공개: ['📄 실기 공개문제 — 큐넷', '한국산업인력공단이 공개한 실기 문제(큐넷 공개문제 자료실)'],
   예시: ['📄 실기 예시문제 — 큐넷', '한국산업인력공단이 공개한 실기 예시문제(큐넷 공개문제 자료실)'] }
@@ -98,7 +100,7 @@ export default function CertIndex() {
         <h1 className="cert-h1">📚 토목 · 건축 자격증</h1>
         <p className="cp" style={{ marginTop: 6 }}>
           기능사부터 기술사까지 <b>한 장에</b> — 무슨 시험이 있고, 어떻게 올라가고, 따면 현장에서 몇 급이 되는지.
-          종목을 누르면 시험 · 응시자격 · 2026 일정 · 최근 5년 합격률 · 법령 우대까지 자세히.
+          종목을 누르면 시험 · 응시자격 · {일정해} 일정 · 최근 5년 합격률 · 법령 우대까지 자세히.
         </p>
         <input className="cert-q" value={q} onChange={(e) => setQ(e.target.value)} inputMode="search" enterKeyHint="search"
           placeholder="찾기 — 토목기사 · 거푸집 · 측량 · 특급 …" aria-label="자격증 찾기" />

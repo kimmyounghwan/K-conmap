@@ -193,7 +193,7 @@ function UploadForm({ defaultCat, onClose, onDone }) {
     <div className="card" style={{ marginBottom: 10 }}>
       <div className="sec-title" style={{ margin: '0 0 8px' }}>📤 내 서식 올리기</div>
       <div className="field"><label>제목</label>
-        <input value={f.title} onChange={up('title')} placeholder="예: 공사일보 양식(2026)" maxLength={60} /></div>
+        <input value={f.title} onChange={up('title')} placeholder={`예: 공사일보 양식(${new Date().getFullYear()})`} maxLength={60} /></div>
       <div className="field"><label>갈래</label>
         <div className="chips wrap">{UF_CATS.map((c) => (
           <button key={c} className={'chip' + (f.cat === c ? ' on' : '')} onClick={() => setF({ ...f, cat: c })}>{c}</button>))}</div></div>

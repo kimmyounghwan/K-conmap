@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  읽기, 쓰기, 빈견적, 새번호, 셈, 산안표, 법정, 기본요율, 켜기본, 원, 한글금액, 날더하기, 예시, 예시나, 오늘, 목표맞추기,
+  읽기, 쓰기, 빈견적, 새번호, 셈, 산안표, 법정, 법정해, 법정글, 기본요율, 켜기본, 원, 한글금액, 날더하기, 예시, 예시나, 오늘, 목표맞추기,
 } from '../lib/gyeonjeok.js'
 import { 세기 } from '../lib/받은수.jsx'
 import { use그림인쇄 } from '../tools/그림인쇄훅.js'   /* 🖼 G593 견적서 PDF · 인쇄는 그림(글자 층 없음) — 📗 엑셀은 그대로 */
@@ -40,7 +40,7 @@ const 끌칸 = new Set(['간노', '산재', '고용', '건강', '연금', '요�
 const 태그 = (k, 견) => {
   const 기 = 견 && 견.공공 && 견.공공.기준
   if (기 && 기.값 && 기.값[k] != null && String(기.값[k]) === String((견.공공.요율 || {})[k])) return <span className="gj-tag law" title={기.요약 || ''}>📋 조달청 {기.판 || '기준'}</span>
-  return 법정칸.has(k) ? <span className="gj-tag law">2026 법정</span> : k === '부가' ? <span className="gj-tag law">법정 10%</span> : <span className="gj-tag ex">예시값 — 고쳐 씀</span>
+  return 법정칸.has(k) ? <span className="gj-tag law">{법정해[k]} 법정</span> : k === '부가' ? <span className="gj-tag law">법정 10%</span> : <span className="gj-tag ex">예시값 — 고쳐 씀</span>
 }
 const 날글 = (s) => { const [y, m, d] = String(s || '').split('-'); return y ? `${y}년 ${Number(m)}월 ${Number(d)}일` : '' }
 
@@ -293,7 +293,7 @@ export default function Gyeonjeok() {
             <button type="button" className="btn line sm" style={{ width: 'auto' }} onClick={() => 바꿈((c) => ({ ...c, 공공: { ...c.공공, 요율: { ...기본요율 }, 켜: { ...켜기본 } } }))}>요율을 처음 값으로</button>
             {S.경고 && S.경고.length > 0 && <div className="note sm nm-warn gj-wide" role="status">{S.경고.join(' ')}</div>}
             <div className="note sm gj-wide">
-              <b>2026 법정</b> — 산재 3.56%(건설업 35/1,000 + 출퇴근 0.6/1,000) · 고용 1.15%(실업급여 사업주 0.9% + 고용안정·직업능력개발 0.25%, 상시 150명 미만 — 150명 이상이면 고쳐 씀) ·
+              <b>{법정글.해} 법정</b> — 산재 {법정.산재}%(건설업 {법정글.건설}/1,000 + 출퇴근 {법정글.출퇴근}/1,000) · 고용 {법정.고용}%(실업급여 사업주 {법정글.실업반}% + 고용안정·직업능력개발 {법정글.고용안정}%, 상시 150명 미만 — 150명 이상이면 고쳐 씀) ·
               건강 {법정.건강}% · 연금 {법정.연금}% · 장기요양 = 건강보험료 × {법정.요양}%(그 달 값 — 🩹 G787 2027년 1월부터 연금 5% · 장기요양 13.90% 로 저절로). <b>예시값</b>(간접노무비 · 퇴직공제 · 환경보전비 · 기타경비 · 일반관리비)은 발주기관 설계서 · 조달청 기준(공사 종류 · 규모 · 기간)으로 고쳐 쓰십시오.
               {' '}근거 고시 · 다음 해 값은 <Link to="/tools/haemada">해마다 바뀌는 값</Link>(G116).
             </div>
@@ -428,7 +428,7 @@ export default function Gyeonjeok() {
         <summary className="sec-title">쓰는 방법 · 알아 두실 것</summary>
         <ul className="flist" style={{ marginBottom: 0 }}>
           <li><b>간단 견적</b> — 민간 공사 · 하도급 견적. 직접공사비(내역 합)에 덧붙일 항목(운반 · 폐기물 · 현장경비 등)을 더하고, 일반관리비 = 공사비 × %, 이윤 = (공사비 + 일반관리비) × %, 그다음 부가세 10%.</li>
-          <li><b>공공식 원가계산</b> — 관급 설계 원가계산서와 같은 비목입니다(조달청식). 산재 · 고용 · 건강 · 연금 · 장기요양은 2026년 법정 요율, 산업안전보건관리비는 고용노동부고시 제2025-11호 별표 1(공사 종류 · 대상액 구간)로 셉니다.
+          <li><b>공공식 원가계산</b> — 관급 설계 원가계산서와 같은 비목입니다(조달청식). 산재 · 고용 · 건강 · 연금 · 장기요양은 {법정글.해}년 법정 요율, 산업안전보건관리비는 고용노동부고시 제2025-11호 별표 1(공사 종류 · 대상액 구간)로 셉니다.
             간접노무비 · 퇴직공제부금 · 환경보전비 · 기타경비 · 일반관리비는 공사 종류 · 규모 · 기간에 따라 다르니 <b>설계서 값으로 고쳐 쓰십시오</b>(체크를 끄면 넣지 않습니다).</li>
           <li>공공 원가계산의 일반관리비는 <b>8% 이하</b>, 이윤은 <b>15% 이하</b>입니다(국가계약법 시행규칙 제8조 — 공사). 넘으면 화면이 알려 드립니다. 민간 견적은 정해진 한도가 없습니다.</li>
           <li>엑셀에서 내역을 복사해 «📋 엑셀 표 붙여 넣기» 로 한 번에 넣을 수 있습니다.</li>

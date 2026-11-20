@@ -9,6 +9,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { 주휴판단, 원글, 시간글 } from '../lib/juhyu.js'
+import { 최저임금표, 해값 } from '../lib/해마다.js'   /* 🗓 G802 «○○년 최저임금» 글 — 해가 바뀌면 저절로(표에 그 해 줄) */
 import { 링크만들기, 링크읽기 } from '../lib/juhyuLink.js'
 import G from '../data/juhyu_guide.json'
 import { 일당살핌, 시급살핌 } from '../lib/살핌.js'
@@ -135,7 +136,7 @@ export default function Juhyu() {
             {일당살핌(st.일당) && <small className="nm-warn">⚠️ {일당살핌(st.일당)}</small>}
           </label> : <label>시급
             <span className="sl-unit"><input className="inp" inputMode="numeric" value={st.시급 ? 원글(st.시급) : ''} onChange={(e) => 바꿈('시급', 숫자(e.target.value, 6))} placeholder="예: 10,320" aria-label="시급" /><i>원</i></span>
-            <small>2026년 최저임금 10,320원</small>
+            <small>{(() => { const m = 해값(최저임금표, new Date().getFullYear()); return `${m.해}년 최저임금 ${원글(m.시급)}원` })()}</small>
             {시급살핌(st.시급) && <small className="nm-warn">⚠️ {시급살핌(st.시급)}</small>}
           </label>}
           <label>하루 일하는 시간

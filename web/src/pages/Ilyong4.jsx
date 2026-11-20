@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import 광고칸 from '../광고칸.jsx'   /* 📣 업체 광고 — 판단 결과 카드 바로 아래 한 장(자리 보험) */
 import { 판단, 건강상실값, 신고할일, 달규칙, 달더하기, 짧은날, 달글, 한달되는날, 달, 전날, 회사규모, 사업주몫, 생일풀기, 만나이, 긴날, 취득날, 현장들셈, 다른합치기, 다른현장최대, 금액읽기 } from '../lib/ilyong4.js'
 import { 공제셈, 연금상하한, 요율, 열원 } from '../lib/gongje.js'
+import { 산재율 as 산재율해, 고용율 as 고용율해, 한국오늘 } from '../lib/해마다.js'   /* 🗓 G802 화면 글의 해 · 율도 표에서 */
 import { 링크만들기, 링크읽기, 기간날들 } from '../lib/ilyong4link.js'
 import G from '../data/ilyong_guide.json'
 import { 링크복사 } from '../lib/링크복사.js'
@@ -202,6 +203,12 @@ export default function Ilyong4() {
   const 현장 = useMemo(() => 현장들셈(st, 옵션), [st.현장들, st.일당, 옵션.생일, 옵션.연금제외])   // eslint-disable-line react-hooks/exhaustive-deps
   const 입력 = useMemo(() => 입력만들기(st, 현장), [st, 현장])
   const R = useMemo(() => 판단({ 날: 입력.날, 달돈: 입력.달돈, 다른: 입력.다른 }, 옵션), [입력, 옵션])
+  /* 🗓 G802 (11-20) 소장님 「곧 27년 이잖아. 년도가 자동으로 바뀌게 해줘」 — 화면 글의 «2026 요율 · 3.56% · 0.9%» 를 손으로 적지 않고 표에서(일한 달의 해 — 없으면 오늘) */
+  const 일한달 = (R.달들 || []).filter((ym) => R.일 && R.일[ym])
+  const 셈해들 = [...new Set((일한달.length ? 일한달 : [한국오늘().slice(0, 7)]).map((ym) => 요율(ym).해))]
+  const 끝해 = (일한달.length ? 일한달[일한달.length - 1] : 한국오늘()).slice(0, 4)
+  const 산재글 = (() => { const v = 산재율해(끝해); return { 해: v.해, 합: Math.round(v.합 * 1e6) / 1e4, 출퇴근: Math.round(v.출퇴근 * 1e7) / 1e4 } })()
+  const 실업반 = Math.round(고용율해(끝해).실업 / 2 * 1e6) / 1e4
   const 신고 = useMemo(() => 신고할일(R, 옵션), [R, 옵션])
   const 달들 = useMemo(() => { const out = []; for (let i = 0; i < st.달수; i++) out.push(달더하기(st.시작, i)); return out }, [st.시작, st.달수])
   const 일한달들 = Object.keys(입력.일).sort()
@@ -581,7 +588,7 @@ export default function Ilyong4() {
                 <div className="muted" style={{ fontSize: 12.5 }}>국민연금(회사 전체): {p.글}</div>
               </>}
 
-              <div className="iy-h2">이번에 떼는 돈 <span className="muted">(2026 요율)</span></div>
+              <div className="iy-h2">이번에 떼는 돈 <span className="muted">({셈해들.join(' · ')} 요율)</span></div>
               {/* 🐞 G127 — 일당(받은 돈)이 없으면 돈 줄 대신 여기서 바로 일당을 받습니다(위로 안 올라가도 됨) */}
               {요약 && 요약.돈없음 ? (
                 <div className="note sm iy-nowage">
@@ -732,7 +739,7 @@ export default function Ilyong4() {
                         {회사규모.map((x) => <option key={x.k} value={x.k}>{x.이름} — 고용안정 {(x.율 * 100).toFixed(2)}%</option>)}
                       </select>
                     </label>
-                    <label className="iy-opt"><input type="checkbox" checked={옵션.산재 !== false} onChange={(e) => 옵션바꿈('산재', e.target.checked)} /> 산재보험료(참고 — 2026 건설업 3.56%)도 넣기</label>
+                    <label className="iy-opt"><input type="checkbox" checked={옵션.산재 !== false} onChange={(e) => 옵션바꿈('산재', e.target.checked)} /> 산재보험료(참고 — {산재글.해} 건설업 {산재글.합}%)도 넣기</label>
                   </div>
                   <div className="tp-scroll">
                     <table className="tbl iy-ded">
@@ -750,8 +757,8 @@ export default function Ilyong4() {
                     </table>
                   </div>
                   <div className="muted" style={{ fontSize: 12 }}>
-                    국민연금 · 건강 · 장기요양은 근로자와 같은 금액입니다. 고용은 실업급여 0.9%{옵션.고용65 || 실업없음 ? '(65세 이후 새로 고용 — 없음)' : 실업일부 ? '(만 65세 뒤 일한 날 몫은 없음)' : ''} + 고용안정 · 직업능력개발 {((회사규모.find((x) => x.k === 옵션.규모) || 회사규모[0]).율 * 100).toFixed(2)}%(고용보험료징수법 시행령 제12조 · 하수급인은 원수급인 요율).
-                    {옵션.산재 !== false ? ' 산재는 2026 건설업 3.56%(출퇴근 0.6‰ 포함)로 보수에 곱한 참고 금액입니다 — 건설현장은 원수급인이 공사 금액(노무비율)으로 내는 경우가 많습니다.' : ''}
+                    국민연금 · 건강 · 장기요양은 근로자와 같은 금액입니다. 고용은 실업급여 {실업반}%{옵션.고용65 || 실업없음 ? '(65세 이후 새로 고용 — 없음)' : 실업일부 ? '(만 65세 뒤 일한 날 몫은 없음)' : ''} + 고용안정 · 직업능력개발 {((회사규모.find((x) => x.k === 옵션.규모) || 회사규모[0]).율 * 100).toFixed(2)}%(고용보험료징수법 시행령 제12조 · 하수급인은 원수급인 요율).
+                    {옵션.산재 !== false ? ` 산재는 ${산재글.해} 건설업 ${산재글.합}%(출퇴근 ${산재글.출퇴근}‰ 포함)로 보수에 곱한 참고 금액입니다 — 건설현장은 원수급인이 공사 금액(노무비율)으로 내는 경우가 많습니다.` : ''}
                     {' '}공사 전체 고용 · 산재 보험료(노무비율 · 개산 · 확정 · 분할 납부)는 <Link to="/tools/boheomryo">🧾 고용·산재 보험료 계산기</Link>, 요율 근거는 <Link to="/tools/haemada">해마다 바뀌는 값</Link>.
                   </div>
                 </details>

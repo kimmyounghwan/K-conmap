@@ -398,7 +398,7 @@ export default function NomubiMyeongse() {
             총공수 · 노무비 · 소득세 · 주민세 · 고용보험 · 국민연금 · 건강보험 · 요양보험 · 차감 지급액이 저절로 나오고, <b>A4 가로 PDF · 인쇄</b>로 받습니다.
           </p>
           <div className="ms-띠">
-            <span>🧮 공제는 <Link to="/tools/nomubi">노무비 계산기</Link>와 같은 셈 · 2026년 요율 · 4대보험 가입 기준 · 나이(주민번호로 저절로)</span>
+            <span>🧮 공제는 <Link to="/tools/nomubi">노무비 계산기</Link>와 같은 셈 · 그 달 요율 · 4대보험 가입 기준 · 나이(주민번호로 저절로)</span>
             <span>💾 이 기기에만 저장 — 주민번호 · 계좌는 잠가 둡니다(서버로 안 보냄){저장됨 ? '' : <b className="ms-경고"> — 지금 저장이 막혀 있습니다(사생활 보호 창 등)</b>}</span>
           </div>
           {열쇠 === false && <div className="ms-알림">🔒 이 창에서는 기기 열쇠를 쓸 수 없어 주민번호 · 계좌를 저장하지 않습니다(사생활 보호 창 등) — 화면을 닫으면 그 두 칸은 다시 적어야 합니다.</div>}
