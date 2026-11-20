@@ -70,6 +70,11 @@
  *   · 판 = '2026-11-제휴' · 까지 = '2026-12-31'(「공지는 계속」 — 내리라 하시면 «까지» 를 오늘 전날로) · 창은 G284 그대로(사이트를 열 때 한 번 · 쓰는 중엔 다시 안 뜸)
  *   · 그 공지 글 화면(/qna/맵톡글) · 오늘 고친 것 글 화면에서는 창을 저절로 띄우지 않음(같은 글 두 번)
  *   · 숨은 셈: |공지|뜸(창이 저절로 뜸) · |공지|누름(창 안 고리) · |광고문의|공지창(제휴 신청하기)
+ *   🎓 G803 (2026-11-20) 소장님 「제휴 공지에 입찰관련 교육가능하신분 모심 추가하자. 입찰교육 가능하면 건설맵이 무료로 판을 깔아드립니다. 구체적인 사항은 협의」
+ *     · 「자격증 강사 모집도 추가」 → «🤝 함께하면» 다음에 «🎓 입찰 교육 · 자격증 강사 모십니다» 두 줄 · 신청 칸에 «강사» 한 줄 — 맵톡 📌 공지 글도 같은 말(+ 끝에 맵톡 예의 줄)
+ *     · 「강사모집에서 무료라는 말은 빼줘」 → «건설맵이 판을 깔아 드립니다»(«무료» 없음 — 새 글에 «무료» 안 쓰는 규칙 그대로 · 시험_광고공지가 잡음)
+ *     · 🩹 소장님 「클로드가 준 캡쳐 봐줘. 위쪽이 짤려. 고치고 올려줘」 — 창 안에서 굴리면 머리(📢 공지 · 제목 · ✕)가 밀려 올라가고 글이 창 둥근 끝에서 잘려 보였음
+ *       → 머리를 .noticepop-top 으로 묶어 창 맨 위에 붙임(sticky — 아래 단추 줄 .noticepop-f 와 같은 꼴) · 굴린 글은 머리 밑줄 아래로 들어감 · 시험_광고공지 ⑨
  *
  * 🩹 G786b (2026-11-19 19시) 소장님 「폰에서 공지창 떠? 나갔다가 들어와도 공지창 뜨게 해」
  *   ■ 폰은 다른 앱에 갔다 와도 같은 창(탭)이 그대로 살아 있어 «이 창에서 한 번 봤음»(sessionStorage) 때문에 다시 안 떴음 → 그 막음을 뺌
@@ -157,9 +162,12 @@ function 공지창({ 닫기, 오늘 }) {
   return createPortal(
     <div className="noticepop" onClick={(e) => { if (e.target === e.currentTarget) 닫기() }}>
       <div className="noticepop-c" role="dialog" aria-modal="true" aria-labelledby="noticepop-h" tabIndex={-1} ref={상자}>
-        <button type="button" className="noticepop-x" aria-label="공지 닫기" onClick={닫기}>✕</button>
-        <div className="noticepop-tag">📢 공지</div>
-        <h2 id="noticepop-h" className="noticepop-h"><span className="noticepop-must">📣 공사를 원하는 업체를 찾습니다</span><span className="noticepop-sub">K-건설맵 제휴업체 모집</span></h2>
+        {/* 🩹 G803 소장님 「위쪽이 짤려」 — 머리(✕ · 📢 공지 · 제목)는 창 안에서 굴려도 맨 위에 붙어 있음(아래 단추 줄과 같은 꼴 · CSS .noticepop-top) */}
+        <div className="noticepop-top">
+          <button type="button" className="noticepop-x" aria-label="공지 닫기" onClick={닫기}>✕</button>
+          <div className="noticepop-tag">📢 공지</div>
+          <h2 id="noticepop-h" className="noticepop-h"><span className="noticepop-must">📣 공사를 원하는 업체를 찾습니다</span><span className="noticepop-sub">K-건설맵 제휴업체 모집</span></h2>
+        </div>
         <div className="noticepop-b">
           {/* G318 · G345 소장님 「맵톡 사용은 예의있게 이건 항상 포함 시키는 거 잊지말고」 — 굵게 · 늘 맨 위 */}
           <p className="noticepop-strong"><b>🗺 맵톡은 여러 분이 함께 쓰는 곳입니다. 예의를 갖추고 이용해 주세요.</b></p>
@@ -178,6 +186,13 @@ function 공지창({ 닫기, 오늘 }) {
             <li>건설맵에 제휴업체로 올려 드립니다</li>
             <li>함께하는 방식 · 조건은 상담으로 정합니다</li>
           </ul>
+          {/* 🎓 G803 (2026-11-20) 소장님 「제휴 공지에 입찰관련 교육가능하신분 모심 추가하자. 입찰교육 가능하면 건설맵이 무료로 판을 깔아드립니다. 구체적인 사항은 협의」
+               · 「자격증 강사 모집도 추가」 · 「강사모집에서 무료라는 말은 빼줘」 — 맵톡 📌 공지 글에도 같은 말 · «무료» 없음(시험_광고공지가 잡음) */}
+          <div className="noticepop-group">🎓 입찰 교육 · 자격증 강사 모십니다</div>
+          <ul className="noticepop-edu">
+            <li>입찰 관련 교육 · 자격증 강의가 가능하시면 <b>건설맵이 판을 깔아 드립니다</b></li>
+            <li>구체적인 사항은 협의합니다</li>
+          </ul>
           <div className="noticepop-group">📝 신청 — 아래를 적어 보내 주세요</div>
           <div className="noticepop-form">
             <div><b>모든 업체</b>회사 이름(상호) · 대표자 이름 · 사업자등록번호 · 회사 주소 · 일하는 지역 · 담당자 이름 · 전화 · 이메일 · 하시는 일 · 함께하고 싶은 일</div>
@@ -185,6 +200,7 @@ function 공지창({ 닫기, 오늘 }) {
             <div><b>장비 업체</b>장비 종류 · 규격(톤수) · 대수</div>
             <div><b>자재 업체</b>다루는 자재 · 품목</div>
             <div><b>인력 업체</b>직종 · 인원</div>
+            <div><b>강사</b>이름 · 전화 · 이메일 · 강의 분야(입찰 교육 · 자격증) · 경력</div>
           </div>
           <p className="noticepop-note">남기신 내용은 운영자만 봅니다. 궁금한 점은 <Link to={'/qna/' + 맵톡글} onClick={감}>맵톡 공지</Link>에 답글로 남겨 주세요.</p>
           {고침보임 && (

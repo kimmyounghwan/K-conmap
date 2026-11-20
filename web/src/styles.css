@@ -2834,6 +2834,9 @@ a.flink:hover { opacity: .8; }
   background: var(--surface); color: var(--text); border: 1.5px solid var(--warn); border-radius: 16px; padding: 20px 22px 16px;
   box-shadow: 0 18px 48px rgba(0, 0, 0, .28); outline: none; }
 .noticepop-x { position: absolute; top: 10px; right: 10px; border: 0; background: none; color: var(--text-2); font-size: 17px; cursor: pointer; padding: 6px 8px; line-height: 1; }
+/* 🩹 G803 (11-20) 소장님 「위쪽이 짤려」 — 창 안에서 굴리면 머리(📢 공지 · 제목 · ✕)가 밀려 올라가고 글이 창 둥근 끝에서 잘려 보였음
+   → 머리 묶음(.noticepop-top)을 창 맨 위에 붙임 — 아래 단추 줄(.noticepop-f · bottom: -16px)과 같은 꼴(창 안쪽 여백만큼 음수) · 굴린 글은 밑줄 아래로 들어감 */
+.noticepop-top { position: sticky; top: -20px; z-index: 2; margin: -20px -22px 0; padding: 20px 22px 2px; background: var(--surface); border-bottom: 1px solid var(--line); border-radius: 14px 14px 0 0; }
 .noticepop-tag { display: inline-block; font-size: 12.5px; font-weight: 800; color: var(--text); background: var(--warn-soft); border: 1px solid var(--warn); border-radius: 999px; padding: 3px 10px; }
 .noticepop-h { margin: 10px 0 8px; font-size: 20px; line-height: 1.35; text-wrap: balance; }
 /* 📢 G284 «이용자 필독» 제목 강조 — 소장님 「제목을 강조해줘」 */
@@ -2873,6 +2876,7 @@ html.vv-cut .noticepop-c { max-height: min(760px, calc(var(--vv-vis, 100dvh) - 3
   .noticepop { padding: calc(12px + env(safe-area-inset-top, 0px)) 12px calc(12px + env(safe-area-inset-bottom, 0px)); }
   .noticepop-c { padding: 18px 16px 14px; max-height: calc(100vh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); border-radius: 16px; }
   .noticepop-f { margin: 6px -16px -14px; padding: 10px 16px 14px; bottom: -14px; }
+  .noticepop-top { top: -18px; margin: -18px -16px 0; padding: 18px 16px 2px; }   /* 🩹 G803 폰 — 창 안쪽 여백(18px 16px)만큼 */
   .noticepop-h { font-size: 18px; }
   .noticepop-b { font-size: 14px; }
   .noticepop-f { justify-content: stretch; }

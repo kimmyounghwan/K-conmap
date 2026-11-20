@@ -12,6 +12,9 @@
  *   ⑥ 맵톡 맨 위 공지 줄 — 뉴스 다음 «모집» 줄(주황 · 늘 보임) · 접은 줄 3 · 누르면 그 글
  *   ⑦ 🩹 G786b 소장님 「나갔다가 들어와도 공지창 뜨게 해」 — 닫은 뒤 30초 넘게 떠났다 오면 다시 뜸 · 10초는 안 뜸 · 다른 건설맵 탭을 쓰고 있었으면 안 뜸
  *      · 건설맵 안 화면 옮김 · 쓰는 중 새로고침은 안 뜸 · 같은 창을 한참 뒤 다시 열면(새로고침) 뜸 · 그 공지 글 화면은 안 뜸
+ *   ⑧ 🎓 G803 (11-20) 소장님 「제휴 공지에 입찰관련 교육가능하신분 모심 추가하자 …」 「자격증 강사 모집도 추가」 — «🤝 함께하면» 다음 «🎓 입찰 교육 · 자격증 강사 모십니다» 두 줄 · 신청 칸 «강사»
+ *      · 「강사모집에서 무료라는 말은 빼줘」 → «건설맵이 판을 깔아 드립니다» · «무료» 는 창 어디에도 없음
+ *   ⑨ 🩹 G803 「위쪽이 짤려」 — 창 안에서 끝까지 굴려도 머리(📢 공지 · 제목 · ✕)가 창 맨 위 · 글이 머리 위로 안 보임 · 390 · 320×568 · 1280 · 어두운
  * 가상 자료만 씀 · 인터넷 안 부름.
  */
 import { createRequire } from 'node:module'
@@ -31,8 +34,9 @@ const 글들 = [
   '건설맵에 제휴업체로 올려 드립니다', '함께하는 방식 · 조건은 상담으로 정합니다', '📝 신청 — 아래를 적어 보내 주세요',
   '회사 이름(상호) · 대표자 이름 · 사업자등록번호 · 회사 주소 · 일하는 지역 · 담당자 이름 · 전화 · 이메일 · 하시는 일 · 함께하고 싶은 일',
   '업종(면허) · 시평 · 주력 공종', '장비 종류 · 규격(톤수) · 대수', '다루는 자재 · 품목', '직종 · 인원', '남기신 내용은 운영자만 봅니다.',
+  /* 🎓 G803 */ '🎓 입찰 교육 · 자격증 강사 모십니다', '입찰 관련 교육 · 자격증 강의가 가능하시면 건설맵이 판을 깔아 드립니다', '구체적인 사항은 협의합니다', '이름 · 전화 · 이메일 · 강의 분야(입찰 교육 · 자격증) · 경력',
 ]
-const 없을말 = /공사를 맡길|먼저 연결|양쪽에 먼저|클로드|무료/
+const 없을말 = /공사를 맡길|먼저 연결|양쪽에 먼저|클로드|무료/   /* 🎓 G803 소장님 「강사모집에서 무료라는 말은 빼줘」 — «무료» 는 어디에도 없음 */
 const OP = 'ZglL1g3X5UZFBA2590LirDnEnil1'
 async function 새쪽(w, h, { 때 = '2026-11-19T20:00:00+09:00', 자동끔 = true, 폰 = true, 어둠 = false, 씨앗 = null, 더 = null, 소장님 = false } = {}) {
   const ctx = await b.newContext({ viewport: { width: w, height: h }, locale: 'ko-KR', timezoneId: 'Asia/Seoul', isMobile: 폰, hasTouch: 폰, deviceScaleFactor: 2, colorScheme: 어둠 ? 'dark' : 'light',
@@ -82,9 +86,14 @@ console.log('① 들어오면 창 — 폰 390 · 11-19 20시')
   ok('창 제목 «📣 공사를 원하는 업체를 찾습니다» · «K-건설맵 제휴업체 모집»', !!창 && 창.큰 === '📣 공사를 원하는 업체를 찾습니다' && 창.작은 === 'K-건설맵 제휴업체 모집', 창 && [창.큰, 창.작은])
   ok('맵톡 예의 줄 굵게 · 몸 맨 위(G345 «항상 포함»)', !!창 && 창.굵게 === '🗺 맵톡은 여러 분이 함께 쓰는 곳입니다. 예의를 갖추고 이용해 주세요.' && 창.첫 === 'noticepop-strong', 창 && [창.굵게, 창.첫])
   const 빠짐 = 창 ? 글들.filter((x) => !창.글.includes(x)) : 글들
-  ok('창 글 = 맵톡 📌 공지와 같은 말(15줄)', !빠짐.length, 빠짐)
+  ok('창 글 = 맵톡 📌 공지와 같은 말(19줄 · 🎓 입찰 교육 · 자격증 강사 넷 포함)', !빠짐.length, 빠짐)
   ok('업체 갈래 다섯 — 건설사 · 장비 · 자재(철물점) · 인력 · 그 밖 «따로»', !!창 && 창.갈래.length === 5 && ['🏢 건설사', '🚜 장비 업체', '🧱 자재 업체', '👷 인력 업체', '➕ 그 밖에'].every((x, i) => 창.갈래[i].startsWith(x)) && /철물점/.test(창.갈래[2]), 창 && 창.갈래)
-  ok('적어 보낼 것 — 모든 업체 · 건설사 · 장비 · 자재 · 인력 «따로»', !!창 && JSON.stringify(창.적을) === JSON.stringify(['모든 업체', '건설사', '장비 업체', '자재 업체', '인력 업체']), 창 && 창.적을)
+  ok('적어 보낼 것 — 모든 업체 · 건설사 · 장비 · 자재 · 인력 · 강사 «따로»', !!창 && JSON.stringify(창.적을) === JSON.stringify(['모든 업체', '건설사', '장비 업체', '자재 업체', '인력 업체', '강사']), 창 && 창.적을)
+  {
+    const 글 = 창 ? 창.글 : '', 가 = 글.indexOf('🤝 함께하면'), 나 = 글.indexOf('🎓 입찰 교육 · 자격증 강사 모십니다'), 다 = 글.indexOf('📝 신청')
+    ok('🎓 입찰 교육 · 자격증 강사 칸 — «🤝 함께하면» 다음 · «📝 신청» 앞(G803)', 가 > 0 && 나 > 가 && 다 > 나, [가, 나, 다])
+    ok('강사 칸 «건설맵이 판을 깔아 드립니다» · «무료» 없음(G803 소장님 「강사모집에서 무료라는 말은 빼줘」)', 글.includes('건설맵이 판을 깔아 드립니다') && !/무료/.test(글), (글.match(/무료/g) || []).length)
+  }
   ok('«공사를 맡길 · 먼저 연결 · 양쪽에 먼저 · 클로드 · 무료» 없음(소장님 「공사를 맡길 업체는 없다」)', !!창 && !없을말.test(창.글), 창 && (창.글.match(없을말) || [])[0])
   ok('오늘 고친 것 칸 일곱 줄(11-21 까지)', !!창 && 창.고침 === 7, 창 && 창.고침)
   ok('고리 — 신청(/contact?k=ad&w=p) · 맵톡 공지 · 고친 것 글 · 도장 · 공무 올인원 · 하도급', !!창 && 창.신청 === '/contact?k=ad&w=p' && ['/qna/' + 맵톡글, '/qna/' + 고친글, '/tools/dojang', '/tools/gongmu', '/naeyeok/hado'].every((x) => 창.링크.includes(x)), 창 && 창.링크)
@@ -218,6 +227,36 @@ console.log('⑦ 나갔다가 들어오기(🩹 G786b)')
   await p.goto(BASE + '/qna/' + 맵톡글, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(2000)
   ok('그 공지 글 화면에서 떠났다 옴 — 안 뜸(같은 글)', !(await 떠났다옴(p, 40000)))
   ok('⑦ 오류 0', !오류.length, 오류)
+  await ctx.close()
+}
+
+/* ⑨ 🩹 G803 소장님 「클로드가 준 캡쳐 봐줘. 위쪽이 짤려」 — 창 안에서 끝까지 굴려도 머리(📢 공지 · 제목 · ✕)가 창 맨 위에 붙어 있음 · 글이 머리 위로 안 보임 */
+console.log('⑨ 창 안에서 굴려도 머리(📢 공지 · 제목 · ✕)가 맨 위(G803 «위쪽이 짤려»)')
+for (const [w, h, 폰, 어둠] of [[390, 844, true, false], [320, 568, true, false], [1280, 760, false, false], [390, 844, true, true]]) {
+  const { ctx, p, 오류 } = await 새쪽(w, h, { 폰, 어둠 })
+  await p.goto(BASE + '/', { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(2500)
+  const 재기 = () => p.evaluate(() => {
+    const c = document.querySelector('.noticepop-c'), t = document.querySelector('.noticepop-top'); if (!c || !t) return null
+    const cr = c.getBoundingClientRect(), tr = t.getBoundingClientRect()
+    const 제목 = document.querySelector('.noticepop-must').getBoundingClientRect(), 꼬리 = document.querySelector('.noticepop-tag').getBoundingClientRect()
+    const x = document.querySelector('.noticepop-x'), xr = x.getBoundingClientRect()
+    const 위점 = document.elementFromPoint(cr.left + cr.width / 2, cr.top + 6), 엑스점 = document.elementFromPoint(xr.left + xr.width / 2, xr.top + xr.height / 2)
+    return { 굴림: Math.round(c.scrollTop), 끝: Math.round(c.scrollHeight - c.clientHeight), 머리위: Math.round(tr.top - cr.top), 머리아래: Math.round(tr.bottom),
+      제목보임: 제목.top >= tr.top - 1 && 제목.bottom <= tr.bottom + 1, 꼬리보임: 꼬리.top >= cr.top, 엑스: !!엑스점 && (엑스점 === x || x.contains(엑스점)),
+      위는머리: !!위점 && t.contains(위점), 몸위: Math.round(document.querySelector('.noticepop-b').getBoundingClientRect().top) }
+  })
+  const 앞 = await 재기()
+  await p.evaluate(() => { const c = document.querySelector('.noticepop-c'); c.scrollTop = c.scrollHeight })
+  await p.waitForTimeout(300)
+  const 뒤 = await 재기()
+  const 이름 = `${w}×${h}${어둠 ? ' 어두운' : ''}`
+  ok(`${이름} 처음 — 머리가 창 맨 위(📢 공지 · 제목 · ✕ 보임)`, !!앞 && 앞.머리위 <= 2 && 앞.제목보임 && 앞.꼬리보임 && 앞.엑스 && 앞.위는머리, 앞)
+  ok(`${이름} 끝까지 굴림 — 머리 그대로 맨 위 · 글은 머리 밑으로(위쪽 안 잘림) · ✕ 눌림`, !!뒤 && 뒤.끝 > 0 && 뒤.굴림 >= 뒤.끝 - 2 && 뒤.머리위 <= 2 && 뒤.제목보임 && 뒤.엑스 && 뒤.위는머리 && 뒤.몸위 < 뒤.머리아래, 뒤)
+  const 단 = await 단추보임(p)
+  ok(`${이름} 신청 · 닫기 단추 보임 · 넘침 0 · 오류 0`, !!단 && 단.보임 && (await 넘침(p)) <= 0 && !오류.length, [단, 오류])
+  if (OUT && w === 390 && !어둠) await p.screenshot({ path: OUT + '/공지_창_굴림_폰390.png' })
+  await p.click('.noticepop-x'); await p.waitForTimeout(300)
+  ok(`${이름} 굴린 뒤 ✕ → 닫힘`, !(await p.$('.noticepop')))
   await ctx.close()
 }
 await b.close()
