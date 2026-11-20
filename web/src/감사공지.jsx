@@ -93,6 +93,9 @@
  *     (번호를 읽는 1초 동안은 덮였다가 풀림 · 이 탭에선 다시 안 덮음) · «👀 손님 화면으로 보기»(sessionStorage kcm.손님보기)를 켜면 덮인 화면을 그대로 봄.
  *   ■ 검색 로봇 · 자동 브라우저(webdriver — 아침 점검 · 시험)는 안 덮음 — 검색 순위 · 자동 점검이 그대로. 공고 수집 · 뉴스 · 알림은 서버(깃허브) 쪽이라 화면과 상관없이 돎.
  *   ■ 덮인 동안엔 공지창(제휴 모집)도 안 뜸.
+ * 🛠 G794 (11-20 10:2x) 소장님 「점검때는 둘러볼 수 있지만 이용만 안되게 해줘」 → 고르심 «보기 · 읽기까지» — 위 «덮는 화면» 은 걷어냄.
+ *   점검 날 이용자: 모든 쪽 맨 위 띠(닫기 없음) + 이용 막기(입력 · 계산 · 받기 · 인쇄 · 글쓰기 · 답글 · 공감 · 파일) · 읽기 · 화면 옮기기는 됨 · 막으면 알림 한 줄 ·
+ *   공지창(제휴 모집)은 그대로 · 소장님 기기 · 로봇 · 자동 브라우저는 안 막음(아래 «점검둘러보기»).
  * 🛠 G793b (11-20 09:3x) 소장님 「화면에 공지 띄워야지 그래야 알지. 맵톡에만 올리면 어떻게 알라」 → 점검 앞날(점검알림부터 ~ 점검부터 전날 · 오늘 11-20)엔
  *   G792 «점검창»(닫을 수 있음 · 다시 들어오면 또 뜸 · 30초 넘게 떠났다 오면 다시)을 먼저 띄움 → 닫으면 제휴 모집 창. 점검 날엔 위의 덮는 화면. 시험 tools/시험_점검창.mjs
  */
@@ -275,7 +278,7 @@ function 점검창({ 닫기 }) {
         <div className="noticepop-tag">🛠 점검 안내</div>
         <h2 id="checkpop-h" className="noticepop-h"><span className="noticepop-must">🛠 시스템 점검 안내</span><span className="noticepop-sub">11월 21일(토) · 22일(일) 이틀</span></h2>
         <div className="noticepop-b">
-          <p><b>11월 21일(토) 0시부터 11월 22일(일) 24시까지</b> <span style={{ whiteSpace: 'nowrap' }}>K-건설맵</span> 시스템 점검으로 <b>이용하실 수 없습니다.</b></p>
+          <p><b>11월 21일(토) 0시부터 11월 22일(일) 24시까지</b> <span style={{ whiteSpace: 'nowrap' }}>K-건설맵</span> 시스템 점검을 합니다. 그동안 <b>둘러보기는 되지만</b>, 입력 · 계산 · 받기 · 글쓰기 같은 <b>이용은 하실 수 없습니다.</b></p>
           <p>이용에 불편을 드려 죄송합니다. 점검을 마치는 대로 더 나은 모습으로 찾아뵙겠습니다.</p>
           {/* G318 · G345 소장님 「맵톡 사용은 예의있게 이건 항상 포함 시키는 거 잊지말고」 — 굵게(점검 안내가 먼저) */}
           <p className="noticepop-strong"><b>🗺 맵톡은 여러 분이 함께 쓰는 곳입니다. 예의를 갖추고 이용해 주세요.</b></p>
@@ -290,31 +293,81 @@ function 점검창({ 닫기 }) {
   )
 }
 
-/** 🛠 G793 점검 중 화면 — 이용자 화면 전체를 덮음(닫기 없음) */
-function 점검막기화면() {
+/* 🛠 G794 (11-20 10:2x) 소장님 「점검때는 둘러볼 수 있지만 이용만 안되게 해줘」 → 고르심 «보기 · 읽기까지»
+   ■ 막는 것(이용): 칸에 입력(글칸 · 고르기 칸 · 체크 · 날짜) · 파일 올리기 · 받기(a[download] · blob · data) · 보내기(form) · 끌어다 놓기 · 붙여넣기 · 인쇄 ·
+     «이용» 단추(이름이 짧고(30자 안) 받기 · 저장 · 올리기 · 인쇄 · PDF · 엑셀 · 계산 · 셈 · 글쓰기 · 답글 · 공감 · ♥ · 지우기 · 고치기 · 만들기 · 신청 · 보내기 · 넣기 …가 든 것)
+   ■ 되는 것(둘러보기): 화면 옮기기(고리 · 머리줄 · 아래 탭) · 굴리기 · 맵톡 글 열어 읽기(.mt-open) · 펼치기 · 접기 · 예시 보기 · 빠른 찾기(어디 있는지 찾기) · 공지창
+   ■ 막으면 아래에 알림 한 줄(3초) · 모든 쪽 맨 위 띠(닫기 없음) · 날이 바뀌면 use점검막기 가 풂(월 0시) */
+const 이용단추 = /받기|내려받|다운|저장|올리기|업로드|인쇄|PDF|엑셀|보내기|신청|등록|만들기|쓰기|답글|답하기|공감|♥|지우기|삭제|고치기|수정|불러오기|파일|사진|계산|셈|투찰|채점|넣기|붙여|추가|복사|적용|고르기|선택|확정|제출|바꾸기/
+const 글칸꼴 = /^(text|search|email|number|tel|url|password|date|datetime-local|month|week|time)$/i
+const 막을누름 = 'input[type="file"], input[type="checkbox"], input[type="radio"], input[type="submit"], input[type="reset"], input[type="button"], input[type="image"], input[type="range"], input[type="color"], a[download], a[href^="blob:"], a[href^="data:"]'
+const 안막는곳 = '.topbar, .tabbar, .railnav, .railwrap, .kcm-sibar, .noticepop, .checkbar, .checkband, .checktoast, .qs-back'
+const 안곳 = (el) => !!(el && el.closest && el.closest(안막는곳))
+const 글칸 = (el) => {
+  if (!el || !el.tagName) return false
+  if (el.isContentEditable) return true
+  if (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') return true
+  if (el.tagName === 'INPUT') return 글칸꼴.test(el.getAttribute('type') || 'text')
+  return false
+}
+const 단추이름 = (b) => (((b.getAttribute && b.getAttribute('aria-label')) || '') + ' ' + (b.value || '') + ' ' + (b.textContent || '')).replace(/\s+/g, ' ').trim()
+const 이용단추인가 = (el) => {
+  const b = el.closest && el.closest('button, [role="button"]')
+  if (!b || 안곳(b) || b.classList.contains('mt-open')) return false   /* 맵톡 카드 = 글 열어 읽기 */
+  const n = (b.textContent || '').replace(/\s+/g, ' ').trim()
+  return n.length <= 30 && 이용단추.test(단추이름(b))
+}
+
+function 점검둘러보기() {
+  const [알림, set알림] = useState(0)
   useEffect(() => {
-    const 풀기 = 굴림잠금()
-    const 뿌리 = document.getElementById('root')
-    if (뿌리) { 뿌리.setAttribute('inert', ''); 뿌리.setAttribute('aria-hidden', 'true') }
-    try { 세기('|공지|점검막음') } catch (e) { /* 없음 */ }
-    return () => { 풀기(); if (뿌리) { 뿌리.removeAttribute('inert'); 뿌리.removeAttribute('aria-hidden') } }
+    let 손때 = 0
+    let 끔 = 0
+    const 알려 = () => { set알림(Date.now()); clearTimeout(끔); 끔 = setTimeout(() => set알림(0), 3200); try { 세기('|공지|점검이용막음') } catch (e) { /* 없음 */ } }
+    const 손 = () => { 손때 = Date.now() }
+    const 누름 = (e) => {
+      const el = e.target
+      if (!el || !el.closest || 안곳(el)) return
+      let 막 = !!el.closest(막을누름)
+      if (!막) { const lb = el.closest('label'); const c = lb && lb.control; if (c && !안곳(c) && (c.matches(막을누름) || 글칸(c))) 막 = true }
+      if (!막 && 이용단추인가(el)) 막 = true
+      if (막) { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); 알려() }
+    }
+    const 칸누름 = (e) => { if (글칸(e.target) && !안곳(e.target)) { e.preventDefault(); 알려() } }   /* 누르기 전에 막음 — 커서 · 글자판 안 뜸 */
+    const 칸들어옴 = (e) => {
+      const el = e.target
+      if (!글칸(el) || 안곳(el)) return
+      try { el.blur() } catch (er) { /* 없음 */ }
+      if (Date.now() - 손때 < 1200) 알려()   /* 저절로 커서(autofocus)는 조용히 뺌 */
+    }
+    const 막기 = (e) => { if (!안곳(e.target) && (e.type !== 'beforeinput' || 글칸(e.target))) { e.preventDefault(); e.stopPropagation(); 알려() } }
+    const 끌기 = (e) => { if (!안곳(e.target)) e.preventDefault() }
+    const 듣기 = [['pointerdown', 손], ['keydown', 손], ['click', 누름], ['mousedown', 칸누름], ['focusin', 칸들어옴], ['submit', 막기], ['beforeinput', 막기], ['paste', 막기], ['drop', 막기], ['dragover', 끌기]]
+    듣기.forEach(([n, f]) => document.addEventListener(n, f, true))
+    const 터치 = (e) => 칸누름(e)
+    document.addEventListener('touchstart', 터치, { capture: true, passive: false })
+    const 옛인쇄 = window.print
+    window.print = () => 알려()
+    try { const a = document.activeElement; if (글칸(a) && !안곳(a)) a.blur() } catch (e) { /* 없음 */ }
+    return () => {
+      듣기.forEach(([n, f]) => document.removeEventListener(n, f, true))
+      document.removeEventListener('touchstart', 터치, { capture: true, passive: false })
+      window.print = 옛인쇄
+      clearTimeout(끔)
+    }
   }, [])
-  return createPortal(
-    <div className="checkblock" role="alertdialog" aria-modal="true" aria-labelledby="checkblock-h">
-      <div className="checkblock-c">
-        <div className="checkblock-logo">🏗 K-건설맵</div>
-        <div className="noticepop-tag">🛠 점검 안내</div>
-        <h1 id="checkblock-h" className="checkblock-h">🛠 시스템 점검 중입니다</h1>
-        <p><b>11월 21일(토) 0시부터 11월 22일(일) 24시까지</b> <span style={{ whiteSpace: 'nowrap' }}>K-건설맵</span> 시스템 점검으로 <b>이용하실 수 없습니다.</b></p>
-        <p>이용에 불편을 드려 죄송합니다. 점검을 마치는 대로 더 나은 모습으로 찾아뵙겠습니다.</p>
-        {/* G318 · G345 소장님 「맵톡 사용은 예의있게 이건 항상 포함 시키는 거 잊지말고」 — 굵게 */}
-        <p className="noticepop-strong"><b>🗺 맵톡은 여러 분이 함께 쓰는 곳입니다. 예의를 갖추고 이용해 주세요.</b></p>
-        <p className="noticepop-sign">— K-건설맵</p>
-        {/* 소장님이 «👀 이용자 화면 보기» 를 켠 탭에서만 — 끄는 길(뒤 화면은 덮여 있어 예시한도 띠를 못 누름) */}
-        {손님보기() && <button type="button" className="checkband-go" onClick={() => { try { window.sessionStorage.removeItem('kcm.손님보기') } catch (e) { /* 막힘 */ } try { window.location.reload() } catch (e) { /* 지나감 */ } }}>👀 이용자 화면 보기 끄기(소장님 기기)</button>}
+  return (
+    <>
+      <div className="checkbar" role="note">
+        🛠 <b>시스템 점검 중(11. 21. ~ 22.)</b> — 지금은 <b>둘러보기만</b> 됩니다. 입력 · 계산 · 받기 · 글쓰기는 <b>11월 23일(월)</b>부터 다시 쓰실 수 있습니다. 불편을 드려 죄송합니다.
+        {/* 소장님이 «👀 이용자 화면 보기» 를 켠 탭에서만 — 끄는 길 */}
+        {손님보기() && <>{' '}<button type="button" className="checkband-go" onClick={() => { try { window.sessionStorage.removeItem('kcm.손님보기') } catch (e) { /* 막힘 */ } try { window.location.reload() } catch (e) { /* 지나감 */ } }}>👀 이용자 화면 보기 끄기(소장님 기기)</button></>}
       </div>
-    </div>,
-    document.body
+      {알림 > 0 && createPortal(
+        <div className="checktoast" role="status" key={알림}>🛠 점검 중이라 지금은 <b>둘러보기만</b> 됩니다 — 입력 · 계산 · 받기 · 글쓰기는 11월 23일(월)부터 됩니다.</div>,
+        document.body
+      )}
+    </>
   )
 }
 
@@ -322,7 +375,7 @@ function 점검막기화면() {
 function 점검띠() {
   return (
     <div className="checkband" role="note">
-      🛠 <b>점검 중(11. 21. ~ 22.)</b> — 이용자에게는 «점검 중» 화면만 보입니다. 이 기기는 소장님 기기라 그대로 쓰실 수 있습니다.{' '}
+      🛠 <b>점검 중(11. 21. ~ 22.)</b> — 이용자는 <b>둘러보기만</b> 됩니다(입력 · 계산 · 받기 · 글쓰기 막힘). 이 기기는 소장님 기기라 그대로 쓰실 수 있습니다.{' '}
       <button type="button" className="checkband-go" onClick={() => { try { window.sessionStorage.setItem('kcm.손님보기', '1') } catch (e) { /* 막힘 */ } try { window.location.reload() } catch (e) { /* 지나감 */ } }}>👀 이용자 화면 보기</button>
     </div>
   )
@@ -374,9 +427,10 @@ export default function 감사공지() {
   const 보임 = !(닫힘 || 오늘 > 까지 || 로봇() || pathname.startsWith('/admin'))
   const 점검보임 = 점검 && 점검알림날(오늘) && !로봇() && !pathname.startsWith('/admin')
   useEffect(() => { if (점검참.current) { try { 세기('|공지|점검뜸') } catch (e) { /* 없음 */ } } }, [])   // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (보임 && 창있음 && 창 && 막기 !== '막음') { try { 세기('|공지|뜸') } catch (e) { /* 없음 */ } } }, [])   // eslint-disable-line react-hooks/exhaustive-deps
-  if (막기 === '막음') return <점검막기화면 />   /* 🛠 G793 이용자 — 덮인 화면만(공지창도 안 띄움) */
-  if (!보임) return 막기 === '소장님' ? <점검띠 /> : 점검보임 ? <점검창 닫기={() => set점검(false)} /> : null
+  useEffect(() => { if (보임 && 창있음 && 창) { try { 세기('|공지|뜸') } catch (e) { /* 없음 */ } } }, [])   // eslint-disable-line react-hooks/exhaustive-deps
+  /* 🛠 G794 점검 날 — 이용자는 맨 위 띠 + 이용 막기(둘러보기는 됨) · 소장님 기기는 한 줄 */
+  const 점검머리 = 막기 === '막음' ? <점검둘러보기 /> : 막기 === '소장님' ? <점검띠 /> : null
+  if (!보임) return <>{점검머리}{점검보임 && <점검창 닫기={() => set점검(false)} />}</>
   const 본표 = () => { try { sessionStorage.setItem(본열쇠, 판) } catch (e) { /* 사생활 창 */ } }
   const 창닫기 = () => { 본표(); set창(false) }
   return (
@@ -388,8 +442,8 @@ export default function 감사공지() {
           {창있음 && <button type="button" className="go" onClick={() => { 세기('|공지|보기'); set창(true) }}>공지 보기</button>}
         </div>
       )}
-      {/* 🛠 G793 소장님 기기 — 점검 중 한 줄 */}
-      {막기 === '소장님' && <점검띠 />}
+      {/* 🛠 G793 · G794 점검 날 — 이용자 띠(둘러보기만) · 소장님 기기 한 줄 */}
+      {점검머리}
       {/* 🛠 G793b 점검 앞날 — 점검창이 먼저 · 닫으면 공지창(제휴 모집)이 그대로 뜸 */}
       {점검보임 && <점검창 닫기={() => set점검(false)} />}
       {창있음 && 창 && !점검보임 && <공지창 닫기={창닫기} 오늘={오늘} />}

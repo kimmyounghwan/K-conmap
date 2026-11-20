@@ -29,7 +29,7 @@ const 일곱 = [['감사공지.jsx', './lib/굴림잠금.js'], ['빠른찾기창
 for (const [f, 길] of 일곱) {
   const s = 읽(f)
   const 들임 = s.includes(`import { 굴림잠금 } from '${길}'`)
-  const 부름 = (s.match(/const 풀기 = 굴림잠금\(\)/g) || []).length === (f === '감사공지.jsx' ? 3 : 1)   /* 감사공지 = 공지창 + 🛠 G792 점검창 + G793 점검막기화면 */
+  const 부름 = (s.match(/const 풀기 = 굴림잠금\(\)/g) || []).length === (f === '감사공지.jsx' ? 2 : 1)   /* 감사공지 = 공지창 + 🛠 G792 점검창(G793 점검막기화면은 G794 에서 걷어냄) */
   const 풂 = /return \(\) => \{ (window\.removeEventListener\('keydown', 키\); )?풀기\(\) \}/.test(s)
   봄(들임 && 부름 && 풂, `${f} — 들임 · 열 때 잠금 · 닫을 때 풂`)
 }
@@ -41,9 +41,7 @@ for (const [f, 길] of 일곱) {
   const j = s.indexOf('function 점검창(')
   const 몸2 = j > 0 ? s.slice(j, s.indexOf('return createPortal(', j)) : ''
   봄(/addEventListener\('keydown', 키\)/.test(몸2) && /풀기 = 굴림잠금\(\)/.test(몸2) && /removeEventListener\('keydown', 키\); 풀기\(\)/.test(몸2), '🛠 G792 점검창 — Esc 듣기 · 잠금 · 닫을 때 둘 다 풂(한 효과 안)')
-  const k = s.indexOf('function 점검막기화면(')
-  const 몸3 = k > 0 ? s.slice(k, s.indexOf('return createPortal(', k)) : ''
-  봄(/const 풀기 = 굴림잠금\(\)/.test(몸3) && /return \(\) => \{ 풀기\(\); if \(뿌리\)/.test(몸3) && /setAttribute\('inert', ''\)/.test(몸3) && /removeAttribute\('inert'\)/.test(몸3), '🛠 G793 점검막기화면 — 잠금 · 뒤 inert · 풀 때 둘 다 되돌림')
+  봄(!s.includes('function 점검막기화면(') && s.includes('function 점검둘러보기('), '🛠 G794 덮는 화면 걷어냄 · 둘러보기(이용 막기)로')
 }
 
 console.log('③ styles.css body 막이')

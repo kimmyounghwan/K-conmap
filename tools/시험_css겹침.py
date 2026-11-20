@@ -144,10 +144,10 @@ def 겹침들(글):
 #   + nm-toast:2 — G758(11-18) 아이폰 바로잡기 목록(html.vv-fix :is(…))에 더함(다른 떠 있는 것들과 같은 까닭)
 #   + kcm-sibar:2 — G765(11-18) 시계 줄 바탕 칸을 아이폰 바로잡기 목록(html.vv-fix :is(…))에 더함(머리줄과 같이 내려가야 · 같은 까닭)
 #   + adsm-back:2 — G791(11-20) G781 광고 문자 창 바탕(fixed)을 아이폰 바로잡기 목록(html.vv-fix :is(…))에 더함(시험_아이폰자리 ⑨ 가 잡음 · 같은 까닭)
-#   + checkblock:2 — G793(11-20) 점검 중 화면(fixed · 화면 전체)을 아이폰 바로잡기 목록에 더함(같은 까닭)
+#   + checktoast:2 — G794(11-20) 점검 중 알림(fixed)을 아이폰 바로잡기 목록에 더함(같은 까닭 · G793 checkblock 은 걷어냄)
 이미_멀리_글 = """
 adsm-back:2 amt-read:2 ask-card:2 bim-big:2 bim-box:2 bim-box-list:2 bim-canvas:2 bim-chips:2 bim-out:2 bim-side:2 bim-sum:2 bim-tblwrap:2 bim-tool:2 bim-view:2
-bim-views:2 bsr-cta:2 bsr-dock:2 bsr-title:2 btn-grid:2 btn-row:4 c-sim:2 checkblock:2 cam-dim:2 cam-tab:2 cfx-view:2 cpl-view:2 cw-tiles:2 detail-h:5 dx3-err:2
+bim-views:2 bsr-cta:2 bsr-dock:2 bsr-title:2 btn-grid:2 btn-row:4 c-sim:2 checktoast:2 cam-dim:2 cam-tab:2 cfx-view:2 cpl-view:2 cw-tiles:2 detail-h:5 dx3-err:2
 dx3-file:2 dx3-tag:2 fill-go:2 fm-card:2 fm-grid:2 fw-in:2 gg-ask:2 gg-auto:2 gg-draw:2 gg-f:2 gg-t:2 gg-top:2 gj-check:2 gj-in:2 gj-num:3 gj-w:2
 gmd-askbox:2 gmd-check-l:2 gmd-h:3 gmd-in:2 gmd-row:2 gmd-tab:3 gmd-tabs:2 gmd-tl:2 gmd-ws-tabs:3 gmd-ws-top:2 gmd-x:2 gmd-xlchk:2 gmd-xlchk-toast:2
 gp-hint:2 gp-warn:2 gp-x:2 gx-ed:2 gz3-canvas:2 hm-paid-r:2 hm-row:2 il-paper:2 il-t:2 iy-bar:2 iy-cal:2 iy-cals:2 iy-d:2 iy-exd:2 iy-net:2 iy-out:2
