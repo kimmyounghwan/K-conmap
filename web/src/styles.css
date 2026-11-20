@@ -11862,3 +11862,8 @@ a.kn-strip:hover { border-left-color: var(--kn-a); }
 .jq-low { padding: 10px 12px; border-radius: 10px; background: var(--good-soft); border: 1px solid var(--line); font-size: 13.5px; line-height: 1.55; word-break: keep-all; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .jq-low.no { background: var(--bad-soft); }
 @media (min-width: 760px) { .jq-three { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* 📝 G800 (2026-11-20) 관리 화면 글칸(문의함 «답» · 맵톡 답글 — pages/Admin.jsx 큰글칸) — 소장님 「글쓰는 칸이 너무 적어. 다른 게시판 처럼 넓게 해줘」
+   넉넉한 높이 · 사이트 글꼴(전역 textarea 는 글꼴을 안 정해 고정폭 글꼴이 나왔음) · 높이는 글 길이 따라 화면이 늘림(200 ~ 640px) */
+.adm-ta { display: block; width: 100%; box-sizing: border-box; margin-top: 10px; min-height: 200px; font: inherit; font-size: 15px; line-height: 1.75; padding: 12px 14px; resize: vertical; }
+@media (max-width: 560px) { .adm-ta { font-size: 16px; } }   /* 폰은 16px — 작으면 아이폰이 글 칠 때 화면을 확대함 */

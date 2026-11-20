@@ -30,7 +30,7 @@
  * ⚠️ 검색엔진에 올리지 않습니다 — noindex, sitemap 에도 안 넣습니다.
  * ⚠️ 새 주소를 만들었으니 web/firebase.json 의 rewrites 에도 넣었습니다 (8절 16).
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Skeleton, Empty } from '../components.jsx'
 import { nickOf } from '../lib/nickname.js'
@@ -377,9 +377,7 @@ function 글({ r, ans, onDone, 급함 }) {
         </div>
       ))}
 
-      <textarea className="inp" value={b} onChange={(e) => setB(e.target.value)}
-        placeholder="답글 — 「K-건설맵」 으로 올라갑니다"
-        style={{ width: '100%', boxSizing: 'border-box', minHeight: 80, marginTop: 10 }} maxLength={2000} />
+      <큰글칸 value={b} onChange={(e) => setB(e.target.value)} placeholder="답글 — 「K-건설맵」 으로 올라갑니다" />
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
         <button className="btn primary sm" onClick={올리기} disabled={busy || !b.trim()}>
           {busy ? '올리는 중…' : '답글 올리기'}
@@ -397,6 +395,21 @@ function 글({ r, ans, onDone, 급함 }) {
  * ⚠️ 문의 자체는 «한 번 쓰면 못 고치는» 칸입니다(규칙). 그래서 답은 딴 칸(quote_a)에 적습니다.
  *    그 답은 «나에게 남기는 기록» 입니다 — 문의하신 분께 저절로 가지 않습니다.
  */
+/* 📝 G800 (2026-11-20) 소장님 문의함 캡처 「글쓰는 칸이 너무 적어. 다른 게시판 처럼 넓게 해줘」 — 관리 화면 글칸 둘(문의함 «답» · 맵톡 답글)
+   ■ 넉넉한 높이 200px(예전 70 · 80px — 두 줄만 보였음) · 글이 길면 그만큼 저절로 늘어남(640px 까지 · 넘으면 칸 안에서 굴림) · 손으로 늘려도 됨
+   ■ 글꼴은 사이트 글꼴(styles.css .adm-ta — 전역 textarea 는 글꼴을 안 정해 브라우저 고정폭 글꼴이 나왔음) · 폰은 16px(아이폰 확대 막기)
+   ⚠️ 새 글칸도 이것으로(시험 tools/시험_관리글칸.mjs) */
+function 큰글칸({ value, onChange, placeholder, maxLength = 2000 }) {
+  const 칸 = useRef(null)
+  useLayoutEffect(() => {
+    const el = 칸.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = Math.min(Math.max(el.scrollHeight + 2, 200), 640) + 'px'
+  }, [value])
+  return <textarea ref={칸} className="inp adm-ta" value={value} onChange={onChange} placeholder={placeholder} maxLength={maxLength} />
+}
+
 function 문의칸({ q, 답, onDone, 급함 }) {
   const [b, setB] = useState(답 ? 답.b : '')
   const [busy, setBusy] = useState(false)
@@ -488,9 +501,8 @@ function 문의칸({ q, 답, onDone, 급함 }) {
         }}>{q.memo}</div>
       )}
 
-      <textarea className="inp" value={b} onChange={(e) => setB(e.target.value)}
-        placeholder={답 ? '' : '어떻게 답했는지 적어 두십시오 — 나중에 「무슨 얘기였더라」 를 막아 줍니다'}
-        style={{ width: '100%', boxSizing: 'border-box', minHeight: 70, marginTop: 10 }} maxLength={2000} />
+      <큰글칸 value={b} onChange={(e) => setB(e.target.value)}
+        placeholder={답 ? '' : '어떻게 답했는지 적어 두십시오 — 나중에 「무슨 얘기였더라」 를 막아 줍니다'} />
       <div className="btn-row" style={{ justifyContent: 'flex-start', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
         <button className="btn line sm" onClick={적기} disabled={busy || !b.trim()}>
           {busy ? '적는 중…' : 답 ? '고쳐 적기' : '적어 두기'}
