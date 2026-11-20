@@ -1469,8 +1469,11 @@ def bsis_one(key, no, kind):
 RANK_KEEP = 30
 
 
-def openg_ranks(key, no, ord_="000"):
+def openg_ranks(key, no, ord_="000", 전체=None):
     """공고 하나의 투찰업체를 순위대로 전부 가져온다.
+
+    🏛 G804 (2026-11-20) 전체(list)를 주면 받은 업체 «모두» 의 (투찰금액, 투찰률)을 거기에 채웁니다 —
+      종심제 균형가격은 전체 금액으로 셈해야 해서(파일에는 30곳만 싣고 전체 금액은 싣지 않음 · 종심넣기 가 셈만 함).
 
     돌려주는 모양은 parse_corps 와 **똑같이** 맞춥니다:
         [[업체명, 투찰금액, 투찰률, 사업자번호, 대표자, 추첨번호1, 추첨번호2], ...]
@@ -1509,6 +1512,8 @@ def openg_ranks(key, no, ord_="000"):
                                 d2 if 1 <= d2 <= 15 else 0]))
     # 순위가 비어 오는 경우가 있어 «금액이 낮은 순»을 보조 기준으로 둡니다
     out.sort(key=lambda x: (x[0], x[1]))
+    if 전체 is not None:
+        전체.extend((amt, c[2]) for _, amt, c in out)
 
     # ── 순위 사다리 ────────────────────────────────────────────
     #  화면에 «우리 금액이면 몇 위» 를 말하려면 낮은 30곳만으론 부족합니다.
@@ -2585,6 +2590,82 @@ def refresh_seed(name, data):
     except Exception as e:
         print(f"  ! 씨앗 {name} 갱신 실패 ({type(e).__name__}: {e}) — 수집은 계속합니다")
         return False
+
+
+# ════════════════════════════════════════════════════════
+#  🏛 G804 (2026-11-20) 종심제 · 종합평가 개찰 — 균형가격 «다시 셈» 줄 (바로투찰 종심제 카드 · 맞춰 보기 재료)
+#   소장님 11-20 「바로투찰이 계산하지 않는다고 하는데, 100억 이상도 해야 하지 않아?」 → 기획 → 「다섯가지 다 하자」 → 「바로투찰 작업해줘」
+#   · 개찰 순위를 받을 때(openg_ranks 전체=) 종심제 · 종합평가 공고면 업체 «모두» 의 금액으로 kcm_rules.균형가격 을 셈해
+#     data/seed/jongsim.json 에 공고 한 줄을 남깁니다(작아서 저장소에 커밋 — 워크플로가 data/seed 를 통째로 올림 · 캐시가 날아가도 남음).
+#   · 한 줄: 공고번호 · 차수 · 개찰일시 · 공고일 · 발주기관 · 갈래 · 배점 · 추정가격 · 기초금액 · 예정가격(투찰률로 거꾸로 — 근사) ·
+#     받은 수 · 뺀 뒤 수 · 같은 금액 묶음 · 균형가격 · 균형÷기초(%) · 균형÷예정(%) · 주공종 · 현장 시군 — ⚠️ 업체 이름 · 사업자번호 · 공사명은 안 실음.
+#   · 공개 금액으로는 예정가격 초과 · 70% 미만 · 3인 이상 같은 금액만 뺄 수 있어 «근사값» 입니다(화면에도 그렇게 적음).
+#   · 이 셈 때문에 수집이 멈추면 안 됩니다 — 부르는 곳은 모두 try 로 감쌈.
+JONGSIM = os.path.join(SEED, "jongsim.json")
+JONGSIM_REDO = 10         # 순위는 받았지만 균형가격 줄이 없는 종심 개찰(이 기능 전 · 저장소 안) — 회차마다 다시 받는 수
+
+
+def load_jongsim():
+    try:
+        with io.open(JONGSIM, encoding="utf-8") as f:
+            d = json.load(f)
+        if isinstance(d, dict) and isinstance(d.get("con"), dict):
+            return d
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        print(f"  ! 종심 균형가격 줄 읽기 실패 ({type(e).__name__}: {e}) — 빈 것으로 시작(파일은 안 덮음)")
+        return None                     # 깨진 파일을 빈 것으로 덮지 않게 — save_jongsim 이 None 이면 안 씀
+    return {"_설명": "🏛 G804 종심제 · 종합평가 개찰 — 업체별 공개 금액으로 다시 셈한 균형가격(근사) · collect.py 종심넣기", "con": {}}
+
+
+def save_jongsim(js):
+    if not isinstance(js, dict) or not isinstance(js.get("con"), dict):
+        return False
+    os.makedirs(SEED, exist_ok=True)
+    tmp = JONGSIM + ".tmp"
+    with io.open(tmp, "w", encoding="utf-8") as f:
+        json.dump(js, f, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    os.replace(tmp, JONGSIM)
+    return True
+
+
+def 종심넣기(js, r, live, 전체, now=None):
+    """개찰 줄 r 이 종심제 · 종합평가면 전체 [(금액, 투찰률)] 로 균형가격을 셈해 js["con"][공고번호] 에 한 줄 · 넣었으면 True"""
+    if not isinstance(js, dict) or not 전체:
+        return False
+    no = str(r.get("no") or "")
+    src = ((live or {}).get("con") or {}).get(no) or {}
+    swin = r.get("swin") or src.get("swin")
+    est = r.get("est") or src.get("est")
+    g = R.종심갈래(swin, est)
+    if not no or not g:
+        return False
+    금액 = [int(a) for a, _ in 전체 if a and int(a) > 0]
+    if not 금액:
+        return False
+    # 예정가격 — 투찰률(= 금액 ÷ 예정가격 × 100 · 소수 셋째자리)에서 거꾸로 셈한 값의 가운데(±수만 원 · 70% · 초과 빼기에만 씀)
+    추 = sorted(a * 100.0 / float(t) for a, t in 전체 if a and t and 50.0 <= float(t) <= 150.0)
+    예정 = int(round(추[len(추) // 2])) if 추 else 0
+    공고일 = str(src.get("dt") or "")[:10]
+    inst = str(r.get("inst") or src.get("inst") or "")
+    # 3인 이상 같은 금액 1개만 — 조달청 공고는 세부기준 제4497호(시행 2026.9.8.) · 그 밖은 예규(2026.8.25.) 이후 공고부터 · 공고일을 모르면 안 묶음
+    같은 = bool(공고일) and 공고일 >= ("2026-09-08" if inst.startswith("조달청") else "2026-08-25")
+    b = R.균형가격(금액, 예정, 같은)
+    if not b:
+        return False
+    base = to_int(r.get("base") or src.get("base"))
+    est_i = to_int(est)
+    js.setdefault("con", {})[no] = {
+        "no": no, "ord": str(r.get("ord") or "000"), "dt": str(r.get("dt") or "")[:16], "nt": 공고일, "inst": inst[:40],
+        "kind": g[0], "pt": g[1], "est": est_i or None, "base": base or None, "yp": 예정 or None,
+        "n0": b["n0"], "n1": b["n1"], "n": b["n"], "same": b["같은"], "sm": 1 if 같은 else 0, "bal": b["bal"],
+        "br": round(b["bal"] * 100.0 / base, 4) if base else None,
+        "bp": round(b["bal"] * 100.0 / 예정, 4) if 예정 else None,
+        "main": str(src.get("main") or "")[:30], "site": str(src.get("site") or "")[:20],
+        "t": (now or datetime.now(KST)).strftime("%Y-%m-%d %H:%M"),
+    }
+    return True
 
 
 def save_store(name, data):
@@ -4294,15 +4375,24 @@ def main():
         todo_rank = redo[:args.reranks] + todo_rank[:args.ranks]
         got = ranked = 0
         kept3y = 0
+        jongsim = load_jongsim()      # 🏛 G804 종심제 균형가격 줄(data/seed/jongsim.json) — 못 읽으면 None(안 씀)
+        js_n = 0
         for r in todo_rank:
             if NET_DOWN or QUOTA_OUT:
                 break
-            cs, total, ladder, drw = openg_ranks(key, r["no"], r.get("ord"))
+            전체 = []
+            cs, total, ladder, drw = openg_ranks(key, r["no"], r.get("ord"), 전체=전체)
             r["rask"] = datetime.now(KST).strftime("%Y%m%d%H%M%S")
             time.sleep(args.sleep)
             if not cs:
                 continue
             got += 1
+            # 🏛 G804 종심제 · 종합평가면 전체 금액으로 균형가격 다시 셈(업체 이름은 안 실음) — 실패해도 수집은 그대로
+            try:
+                if jongsim is not None and 종심넣기(jongsim, r, live, 전체):
+                    js_n += 1
+            except Exception as e:
+                print(f"  ! 종심 균형가격 셈 실패 {r.get('no')} ({type(e).__name__}: {e}) — 넘어갑니다")
             r["corps"] = cs          # 낮은 금액 순 30곳까지
             r["nrank"] = total       # 실제로 받은 전체 투찰 건수
             r["rq"] = ladder         # [[등수, 금액], ...] — 전 구간 사다리
@@ -4333,6 +4423,34 @@ def main():
         if todo_rank:
             print(f"  → 개찰 순위 조회 {len(todo_rank):,}건 시도 · "
                   f"응답 {got:,}건 · 2곳 이상 {ranked:,}건")
+        # 🏛 G804 순위는 이미 받았지만 균형가격 줄이 없는 종심 개찰(이 기능 전 · 저장소 70일 안) — 회차마다 JONGSIM_REDO 건만 다시 받아 셈
+        #   (순위 · 사다리 등 개찰 줄은 건드리지 않음 — 셈만)
+        try:
+            if jongsim is not None and not NET_DOWN and not QUOTA_OUT:
+                lv = live.get("con") or {}
+                남은 = []
+                for no, r in (first.get("con") or {}).items():
+                    if no in jongsim.get("con", {}) or len(r.get("corps") or []) < 2:
+                        continue
+                    src = lv.get(no) or {}
+                    if R.종심갈래(r.get("swin") or src.get("swin"), r.get("est") or src.get("est")):
+                        남은.append(r)
+                남은.sort(key=lambda r: dt_digits(r.get("dt")), reverse=True)
+                for r in 남은[:JONGSIM_REDO]:
+                    if NET_DOWN or QUOTA_OUT:
+                        break
+                    전체 = []
+                    openg_ranks(key, r["no"], r.get("ord"), 전체=전체)
+                    time.sleep(args.sleep)
+                    if 종심넣기(jongsim, r, live, 전체):
+                        js_n += 1
+                if 남은:
+                    print(f"  · 🏛 종심 균형가격 지난 개찰 다시 셈: 남은 {len(남은):,}건 중 {min(len(남은), JONGSIM_REDO)}건")
+            if jongsim is not None and js_n:
+                save_jongsim(jongsim)
+                print(f"  → 🏛 종심 균형가격 줄 {js_n:,}건 더함 · 모두 {len(jongsim.get('con') or {}):,}건(data/seed/jongsim.json)")
+        except Exception as e:
+            print(f"  ! 종심 균형가격 줄 처리 실패 ({type(e).__name__}: {e}) — 수집은 계속합니다")
     # 사람이 넣어 둔 전체 투찰내역이 있으면 여기서도 붙입니다 (파일로 받은 경우)
     merge_ranks(first)
 
