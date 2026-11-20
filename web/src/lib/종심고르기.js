@@ -22,21 +22,23 @@ export function 기관첫(inst) {
   return s ? s.split(/\s+/)[0].slice(0, 20) : ''
 }
 
-/** 좁은 묶음 → 넓은 묶음 열쇠(종심예측.py 열쇠들 · 열쇠글) */
+/** 좁은 묶음 → 넓은 묶음 열쇠(종심예측.py 열쇠들 · 열쇠글) — 🩹 G809 가장 넓은 것은 갈래(«전체» 로는 안 넓힘 — 갈래마다 균형÷기초가 다름) */
 export function 묶음열쇠들(kind, inst, est, main) {
   const k = kind || '종심', i = 기관첫(inst), b = 금액대(est), m = String(main || '').slice(0, 30)
-  return [`${k}|${i}|${b}|${m}`, `${k}|${i}|${b}`, `${k}|${i}`, `${k}`, '전체']
+  return [`${k}|${i}|${b}|${m}`, `${k}|${i}|${b}`, `${k}|${i}`, `${k}`]
 }
 
-/** 판(jongsim.json)에서 이 공고에 쓸 묶음 — 표본이 넉넉한 가장 좁은 묶음 · 없으면 전체(표본 적음일 수 있음) · 자료가 없으면 null */
+/** 판(jongsim.json)에서 이 공고에 쓸 묶음 — 표본이 넉넉한 가장 좁은 묶음 · 모자라면 그 갈래(표본적음 그대로 — 예상은 안 냄) · 갈래 자료도 없으면 null */
 export function 묶음고르기(판, kind, inst, est, main) {
   const 묶음 = (판 && 판.묶음) || {}
-  for (const 열쇠 of 묶음열쇠들(kind, inst, est, main)) {
+  const 열쇠들 = 묶음열쇠들(kind, inst, est, main)
+  const 맞꼴 = (s) => s && Array.isArray(s.d) && s.d.length === 점들.length
+  for (const 열쇠 of 열쇠들) {
     const s = 묶음[열쇠]
-    if (s && !s.표본적음 && Array.isArray(s.d) && s.d.length === 점들.length) return { ...s, 열쇠 }
+    if (맞꼴(s) && !s.표본적음) return { ...s, 열쇠 }
   }
-  const s = 묶음['전체']
-  return s && Array.isArray(s.d) && s.d.length === 점들.length ? { ...s, 열쇠: '전체' } : null
+  const 갈 = 열쇠들[열쇠들.length - 1]
+  return 맞꼴(묶음[갈]) ? { ...묶음[갈], 열쇠: 갈, 표본적음: true } : null
 }
 
 /** 예정가격 어림 = 기초금액 × 예정÷기초 가운데(y50 · 없으면 100%) — 원 아래 버림 */

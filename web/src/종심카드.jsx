@@ -111,6 +111,7 @@ export default function 종심카드({ base, est, 공고, 답자리 = null }) {
           <div className="jsc-box">
             <b>① 지난 개찰 분포(참고 · 예상 아님)</b>
             <div className="jsc-big">기초금액의 {퍼(통.q10)} ~ {퍼(통.q90)} <small>(가운데 {퍼(통.q50)} · {통.n}건)</small></div>
+            {통.표본적음 && <div className="note sm jsc-thin">⚠️ 이 갈래({갈래글[갈[0]] || 갈[0]})는 지난 개찰이 {통.n}건뿐(20건 미만)이라 참고만 하세요 — 자료가 더 모이면 저절로 바뀝니다.</div>}
             <띠그림 통={통} 내율={null} />
             <div className="note sm">
               {판?.보임 && !판?.확인 ? <>마지막 3개월 맞춰 보기 {맞.적중}/{맞.n}건({맞.율}%) — 성적을 점검하는 중이라 아직 «예상» 으로 쓰지 않습니다.</>

@@ -81,7 +81,8 @@ const 쉬어 = (ms) => new Promise((r) => setTimeout(r, ms))
 const 바로 = async (p, g) => {
   await p.goto(BASE + '/?no=' + g.no, { waitUntil: 'domcontentloaded' })
   await p.waitForFunction((nm) => document.body.innerText.includes(nm), g.name, { timeout: 20000 })
-  await 쉬어(1200)
+  await p.waitForFunction(() => { const c = document.querySelector('.jsc'); return !c || !/불러오는 중/.test(c.innerText) }, null, { timeout: 15000 })   /* 자료(jongsim.json) 받기 끝까지 */
+  await 쉬어(800)
   return p.evaluate(() => ({
     카드: (document.querySelector('.jsc') || {}).innerText || '', 띠: [...document.querySelectorAll('.alertbar')].map((e) => e.innerText).join(' | '),
     멈춤: (document.querySelector('.c-stop') || {}).innerText || '', 금액: (document.querySelector('.hero .amt') || {}).innerText || '',
@@ -136,8 +137,8 @@ for (const [이름, w, h, 폰, 어둠] of [['폰 390', 390, 844, true, false], [
   const 을바 = await 바로(p, 을)
   ok('일반 — «일반 · 가격 50점» · 묶음 일반(31건)', /일반 · 가격 50점/.test(을바.카드) && 을바.카드.includes(`기초금액의 ${퍼(판보임.묶음['일반'].q10)}`) && /31건/.test(을바.카드), 을바.카드.slice(0, 300))
   const 병바 = await 바로(p, 병)
-  ok('지방 종합평가 709억 — «지방 종합평가 · 가격 40점» · 띠 «종합평가낙찰제입니다» · 묶음 표본 적음 → 전체(312건)', /지방 종합평가 · 가격 40점/.test(병바.카드) && /종합평가낙찰제입니다/.test(병바.띠)
-    && 병바.카드.includes(`기초금액의 ${퍼(판보임.묶음['전체'].q10)}`) && /312건/.test(병바.카드), [병바.카드.slice(0, 300), 병바.띠])
+  ok('지방 종합평가 709억 — «지방 종합평가 · 가격 40점» · 띠 «종합평가낙찰제입니다» · 🩹 G809 갈래 표본 적음(6건) → 분포(참고)만 · 전체로 안 넓힘 · 세 줄 없음', /지방 종합평가 · 가격 40점/.test(병바.카드) && /종합평가낙찰제입니다/.test(병바.띠)
+    && /지난 개찰 분포\(참고 · 예상 아님\)/.test(병바.카드) && /6건뿐\(20건 미만\)/.test(병바.카드) && 병바.카드.includes(`기초금액의 ${퍼(판보임.묶음['지방종평'].q10)}`) && !/312건/.test(병바.카드) && 병바.줄.length === 0, [병바.카드.slice(0, 300), 병바.띠])
   const 정바 = await 바로(p, 정)
   ok('적격 공고 — 예전 그대로(금액 나옴 · 종심 카드 없음 · 종심 띠 없음)', !!정바.금액 && !정바.카드 && !/종심제/.test(정바.띠), [정바.금액, 정바.띠])
   if (!어둠 && w !== 320) {

@@ -92,9 +92,12 @@ def 분위(xs, p):
 
 
 def 열쇠들(r):
-    """좁은 묶음 → 넓은 묶음(기획서 차례: 갈래 → 발주기관 → 금액대 → 주공종 — 넓힐 때는 뒤에서부터 뺌)"""
+    """좁은 묶음 → 넓은 묶음(기획서 차례: 갈래 → 발주기관 → 금액대 → 주공종 — 넓힐 때는 뒤에서부터 뺌)
+       🩹 G809 (11-21) 가장 넓은 묶음은 «갈래» — 전체(갈래를 섞음)로는 넓히지 않음.
+       11-21 실측: 학습 30건뿐이라 모두 «전체» 로 예측 → 간이형(균형÷기초 83%대) 27건 중 17건이 범위 아래로 빠져 적중 64%(갈래마다 분포가 다름:
+       간이형 가운데 83.8 · 실적제한 85.8 · 일반 91.6 · 지방종평 93.6). 갈래 표본이 20건이 안 되면 «표본 적음» — 예상은 안 냄."""
     k, i, b, m = r.get("kind") or "종심", r.get("inst") or "", r.get("band", -1), r.get("main") or ""
-    return [(k, i, b, m), (k, i, b), (k, i), (k,), ()]
+    return [(k, i, b, m), (k, i, b), (k, i), (k,)]
 
 
 def 열쇠글(t):
@@ -115,16 +118,21 @@ def 통계(rs):
 
 
 def 예측(학습, 대상, 최소=최소표본):
-    """대상(공고 — kind · inst · band · main)에 맞는 가장 좁은 묶음(표본 최소 이상)의 통계 + 묶음 이름 · 전체도 모자라면 표본적음 True"""
-    for t in 열쇠들(대상):
+    """대상(공고 — kind · inst · band · main)에 맞는 가장 좁은 묶음(표본 최소 이상)의 통계 + 묶음 이름
+       · 갈래까지 넓혀도 모자라면 그 갈래 통계에 표본적음 True(갈래 자료가 아예 없으면 None) — 전체로는 안 넓힘(G809)"""
+    ts = 열쇠들(대상)
+    for t in ts:
         rs = [r for r in 학습 if 맞는가(r, t)]
-        if len(rs) >= 최소 or not t:
-            if not rs:
-                return None
+        if len(rs) >= 최소:
             s = 통계(rs)
-            s.update({"묶음": 열쇠글(t), "표본적음": len(rs) < 최소})
+            s.update({"묶음": 열쇠글(t), "표본적음": False})
             return s
-    return None
+    rs = [r for r in 학습 if 맞는가(r, ts[-1])]
+    if not rs:
+        return None
+    s = 통계(rs)
+    s.update({"묶음": 열쇠글(ts[-1]), "표본적음": True})
+    return s
 
 
 def _달빼기(dt, 달):
@@ -183,6 +191,8 @@ def 만들기(js, now=None):
     for r in rows:
         for t in 열쇠들(r):
             열쇠모음.add(t)
+    if rows:
+        열쇠모음.add(())                 # «전체» — 참고로만 싣고(운영자) 화면 예상에는 안 씀(G809)
     for t in sorted(열쇠모음, key=lambda t: (len(t), [str(x) for x in t])):
         rs = [r for r in rows if 맞는가(r, t)]
         if len(rs) >= 최소표본 or len(t) <= 1:
