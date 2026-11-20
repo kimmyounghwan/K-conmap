@@ -2866,9 +2866,11 @@ a.flink:hover { opacity: .8; }
   position: sticky; bottom: -16px; background: var(--surface); }   /* 단추는 늘 보이게 — 글이 길어 창 안에서 굴러도 */
 .noticepop-f .btn { width: auto; }
 @media (max-width: 480px) {
-  .noticepop { padding: 12px; }
-  .noticepop-c { padding: 18px 16px 14px; max-height: calc(100vh - 24px - env(safe-area-inset-bottom, 0px)); max-height: calc(100dvh - 24px - env(safe-area-inset-bottom, 0px)); border-radius: 16px; }
-  .noticepop-f { margin: 6px -16px -14px; padding: 10px 16px calc(14px + env(safe-area-inset-bottom, 0px)); bottom: -14px; }
+  /* 📱 G797 (11-20) 소장님 아이폰 캡처 «위쪽에 보면 …» — 폰 줄이 «padding: 12px» 로 G760 시계 줄 띄우기를 덮어써서 창 맨 위(📢 공지 · ✕)가 시계 줄 밑에서 흐리게 가려졌음
+     → 위 · 아래 안쪽을 시계 줄 · 홈 막대만큼 더 띄우고, 창 높이에서도 둘 다 뺌 · 재발 막기 tools/시험_시계줄.mjs(떠 있는 창의 폰 줄도 시계 줄을 빼먹지 않게) */
+  .noticepop { padding: calc(12px + env(safe-area-inset-top, 0px)) 12px calc(12px + env(safe-area-inset-bottom, 0px)); }
+  .noticepop-c { padding: 18px 16px 14px; max-height: calc(100vh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); border-radius: 16px; }
+  .noticepop-f { margin: 6px -16px -14px; padding: 10px 16px 14px; bottom: -14px; }
   .noticepop-h { font-size: 18px; }
   .noticepop-b { font-size: 14px; }
   .noticepop-f { justify-content: stretch; }
